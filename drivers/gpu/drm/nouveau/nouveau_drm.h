@@ -10,7 +10,7 @@
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		2
-#define DRIVER_PATCHLEVEL	1
+#define DRIVER_PATCHLEVEL	2
 
 /*
  * 1.1.1:
@@ -28,6 +28,8 @@
  * 	- fermi,kepler,maxwell zbc
  * 1.2.1:
  *      - allow concurrent access to bo's mapped read/write.
+ * 1.2.2:
+ *      - add NOUVEAU_GEM_DOMAIN_COHERENT flag
  */
 
 #include <nvif/client.h>

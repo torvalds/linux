@@ -130,7 +130,7 @@ static int msg_thread_exits(struct fsg_common *common)
 	return 0;
 }
 
-static int __init msg_do_config(struct usb_configuration *c)
+static int msg_do_config(struct usb_configuration *c)
 {
 	struct fsg_opts *opts;
 	int ret;
@@ -170,7 +170,7 @@ static struct usb_configuration msg_config_driver = {
 
 /****************************** Gadget Bind ******************************/
 
-static int __init msg_bind(struct usb_composite_dev *cdev)
+static int msg_bind(struct usb_composite_dev *cdev)
 {
 	static const struct fsg_operations ops = {
 		.thread_exits = msg_thread_exits,
@@ -248,7 +248,7 @@ static int msg_unbind(struct usb_composite_dev *cdev)
 
 /****************************** Some noise ******************************/
 
-static __refdata struct usb_composite_driver msg_driver = {
+static struct usb_composite_driver msg_driver = {
 	.name		= "g_mass_storage",
 	.dev		= &msg_device_desc,
 	.max_speed	= USB_SPEED_SUPER,

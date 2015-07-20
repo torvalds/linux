@@ -187,6 +187,16 @@ continue streaming.
 	</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>EPIPE</errorcode></term>
+	<listitem>
+	  <para><constant>VIDIOC_DQBUF</constant> returns this on an empty
+capture queue for mem2mem codecs if a buffer with the
+<constant>V4L2_BUF_FLAG_LAST</constant> was already dequeued and no new buffers
+are expected to become available.
+	  </para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

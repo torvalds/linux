@@ -12,6 +12,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -43,10 +44,13 @@ rcar_du_vga_connector_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_funcs connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.detect = rcar_du_vga_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = rcar_du_vga_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
@@ -76,7 +80,7 @@ int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
 	if (ret < 0)
 		return ret;
 
-	drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+	connector->dpms = DRM_MODE_DPMS_OFF;
 	drm_object_property_set_value(&connector->base,
 		rcdu->ddev->mode_config.dpms_property, DRM_MODE_DPMS_OFF);
 
@@ -84,7 +88,6 @@ int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
 	if (ret < 0)
 		return ret;
 
-	connector->encoder = encoder;
 	rcon->encoder = renc;
 
 	return 0;

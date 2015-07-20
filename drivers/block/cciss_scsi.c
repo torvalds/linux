@@ -84,7 +84,6 @@ static struct scsi_host_template cciss_driver_template = {
 	.show_info		= cciss_scsi_show_info,
 	.queuecommand		= cciss_scsi_queue_command,
 	.this_id		= 7,
-	.cmd_per_lun		= 1,
 	.use_clustering		= DISABLE_CLUSTERING,
 	/* Can't have eh_bus_reset_handler or eh_host_reset_handler for cciss */
 	.eh_device_reset_handler= cciss_eh_device_reset_handler,

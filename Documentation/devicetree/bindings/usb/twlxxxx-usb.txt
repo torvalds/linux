@@ -30,6 +30,9 @@ TWL4030 USB PHY AND COMPARATOR
  - usb_mode : The mode used by the phy to connect to the controller. "1"
    specifies "ULPI" mode and "2" specifies "CEA2011_3PIN" mode.
 
+If a sibling node is compatible "ti,twl4030-bci", then it will find
+this device and query it for USB power status.
+
 twl4030-usb {
 	compatible = "ti,twl4030-usb";
 	interrupts = < 10 4 >;

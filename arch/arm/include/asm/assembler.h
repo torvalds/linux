@@ -178,6 +178,21 @@
 	.endm
 
 /*
+ * Assembly version of "adr rd, BSYM(sym)".  This should only be used to
+ * reference local symbols in the same assembly file which are to be
+ * resolved by the assembler.  Other usage is undefined.
+ */
+	.irp	c,,eq,ne,cs,cc,mi,pl,vs,vc,hi,ls,ge,lt,gt,le,hs,lo
+	.macro	badr\c, rd, sym
+#ifdef CONFIG_THUMB2_KERNEL
+	adr\c	\rd, \sym + 1
+#else
+	adr\c	\rd, \sym
+#endif
+	.endm
+	.endr
+
+/*
  * Get current thread_info.
  */
 	.macro	get_thread_info, rd
@@ -237,6 +252,9 @@
 	.pushsection ".alt.smp.init", "a"			;\
 	.long	9998b						;\
 9997:	instr							;\
+	.if . - 9997b == 2					;\
+		nop						;\
+	.endif							;\
 	.if . - 9997b != 4					;\
 		.error "ALT_UP() content must assemble to exactly 4 bytes";\
 	.endif							;\
@@ -323,7 +341,7 @@
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	bne	1f
 	orr	\reg, \reg, #PSR_A_BIT
-	adr	lr, BSYM(2f)
+	badr	lr, 2f
 	msr	spsr_cxsf, \reg
 	__MSR_ELR_HYP(14)
 	__ERET

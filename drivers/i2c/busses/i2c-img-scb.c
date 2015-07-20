@@ -988,15 +988,16 @@ out:
 static int img_i2c_reset_bus(struct img_i2c *i2c)
 {
 	unsigned long flags;
-	int ret;
+	unsigned long time_left;
 
 	spin_lock_irqsave(&i2c->lock, flags);
 	reinit_completion(&i2c->msg_complete);
 	img_i2c_reset_start(i2c);
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
-	ret = wait_for_completion_timeout(&i2c->msg_complete, IMG_I2C_TIMEOUT);
-	if (ret == 0)
+	time_left = wait_for_completion_timeout(&i2c->msg_complete,
+					      IMG_I2C_TIMEOUT);
+	if (time_left == 0)
 		return -ETIMEDOUT;
 	return 0;
 }
@@ -1007,6 +1008,7 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	struct img_i2c *i2c = i2c_get_adapdata(adap);
 	bool atomic = false;
 	int i, ret;
+	unsigned long time_left;
 
 	if (i2c->mode == MODE_SUSPEND) {
 		WARN(1, "refusing to service transaction in suspended state\n");
@@ -1068,11 +1070,11 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			img_i2c_write(i2c);
 		spin_unlock_irqrestore(&i2c->lock, flags);
 
-		ret = wait_for_completion_timeout(&i2c->msg_complete,
-						  IMG_I2C_TIMEOUT);
+		time_left = wait_for_completion_timeout(&i2c->msg_complete,
+						      IMG_I2C_TIMEOUT);
 		del_timer_sync(&i2c->check_timer);
 
-		if (ret == 0) {
+		if (time_left == 0) {
 			dev_err(adap->dev.parent, "i2c transfer timed out\n");
 			i2c->msg_status = -ETIMEDOUT;
 			break;

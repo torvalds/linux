@@ -15,7 +15,7 @@ user_get(struct dentry *dentry, const char *name, void *buffer, size_t size,
 		return -EINVAL;
 	if (!reiserfs_xattrs_user(dentry->d_sb))
 		return -EOPNOTSUPP;
-	return reiserfs_xattr_get(dentry->d_inode, name, buffer, size);
+	return reiserfs_xattr_get(d_inode(dentry), name, buffer, size);
 }
 
 static int
@@ -27,7 +27,7 @@ user_set(struct dentry *dentry, const char *name, const void *buffer,
 
 	if (!reiserfs_xattrs_user(dentry->d_sb))
 		return -EOPNOTSUPP;
-	return reiserfs_xattr_set(dentry->d_inode, name, buffer, size, flags);
+	return reiserfs_xattr_set(d_inode(dentry), name, buffer, size, flags);
 }
 
 static size_t user_list(struct dentry *dentry, char *list, size_t list_size,

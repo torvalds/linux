@@ -1347,7 +1347,7 @@ static int ipx_create(struct net *net, struct socket *sock, int protocol,
 		goto out;
 
 	rc = -ENOMEM;
-	sk = sk_alloc(net, PF_IPX, GFP_KERNEL, &ipx_proto);
+	sk = sk_alloc(net, PF_IPX, GFP_KERNEL, &ipx_proto, kern);
 	if (!sk)
 		goto out;
 
@@ -1688,8 +1688,7 @@ out:
 	return rc;
 }
 
-static int ipx_sendmsg(struct kiocb *iocb, struct socket *sock,
-	struct msghdr *msg, size_t len)
+static int ipx_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct ipx_sock *ipxs = ipx_sk(sk);
@@ -1754,8 +1753,8 @@ out:
 }
 
 
-static int ipx_recvmsg(struct kiocb *iocb, struct socket *sock,
-		struct msghdr *msg, size_t size, int flags)
+static int ipx_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		       int flags)
 {
 	struct sock *sk = sock->sk;
 	struct ipx_sock *ipxs = ipx_sk(sk);

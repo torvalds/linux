@@ -32,9 +32,6 @@
  * and that's assures that any user process won't get access to the
  * kernel doorbells page
  */
-static DEFINE_MUTEX(doorbell_mutex);
-static unsigned long doorbell_available_index[
-	DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS, BITS_PER_LONG)] = { 0 };
 
 #define KERNEL_DOORBELL_PASID 1
 #define KFD_SIZE_OF_DOORBELL_IN_BYTES 4
@@ -145,14 +142,13 @@ int kfd_doorbell_mmap(struct kfd_process *process, struct vm_area_struct *vma)
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	pr_debug("kfd: mapping doorbell page in kfd_doorbell_mmap\n"
-		 "     target user address == 0x%08llX\n"
-		 "     physical address    == 0x%08llX\n"
-		 "     vm_flags            == 0x%04lX\n"
-		 "     size                == 0x%04lX\n",
-		 (unsigned long long) vma->vm_start, address, vma->vm_flags,
-		 doorbell_process_allocation());
-
+	pr_debug("mapping doorbell page:\n");
+	pr_debug("     target user address == 0x%08llX\n",
+			(unsigned long long) vma->vm_start);
+	pr_debug("     physical address    == 0x%08llX\n", address);
+	pr_debug("     vm_flags            == 0x%04lX\n", vma->vm_flags);
+	pr_debug("     size                == 0x%04lX\n",
+			 doorbell_process_allocation());
 
 	return io_remap_pfn_range(vma,
 				vma->vm_start,
@@ -170,12 +166,12 @@ u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 
 	BUG_ON(!kfd || !doorbell_off);
 
-	mutex_lock(&doorbell_mutex);
-	inx = find_first_zero_bit(doorbell_available_index,
+	mutex_lock(&kfd->doorbell_mutex);
+	inx = find_first_zero_bit(kfd->doorbell_available_index,
 					KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
-	__set_bit(inx, doorbell_available_index);
-	mutex_unlock(&doorbell_mutex);
+	__set_bit(inx, kfd->doorbell_available_index);
+	mutex_unlock(&kfd->doorbell_mutex);
 
 	if (inx >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
 		return NULL;
@@ -203,9 +199,9 @@ void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr)
 
 	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr);
 
-	mutex_lock(&doorbell_mutex);
-	__clear_bit(inx, doorbell_available_index);
-	mutex_unlock(&doorbell_mutex);
+	mutex_lock(&kfd->doorbell_mutex);
+	__clear_bit(inx, kfd->doorbell_available_index);
+	mutex_unlock(&kfd->doorbell_mutex);
 }
 
 inline void write_kernel_doorbell(u32 __iomem *db, u32 value)

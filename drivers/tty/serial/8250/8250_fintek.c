@@ -234,18 +234,7 @@ static struct pnp_driver fintek_8250_driver = {
 	.id_table	= fintek_dev_table,
 };
 
-static int fintek_8250_init(void)
-{
-	return pnp_register_driver(&fintek_8250_driver);
-}
-module_init(fintek_8250_init);
-
-static void fintek_8250_exit(void)
-{
-	pnp_unregister_driver(&fintek_8250_driver);
-}
-module_exit(fintek_8250_exit);
-
+module_pnp_driver(fintek_8250_driver);
 MODULE_DESCRIPTION("Fintek F812164 module");
 MODULE_AUTHOR("Ricardo Ribalda <ricardo.ribalda@gmail.com>");
 MODULE_LICENSE("GPL");

@@ -131,6 +131,9 @@ struct ath_ops {
 	void (*enable_write_buffer)(void *);
 	void (*write_flush) (void *);
 	u32 (*rmw)(void *, u32 reg_offset, u32 set, u32 clr);
+	void (*enable_rmw_buffer)(void *);
+	void (*rmw_flush) (void *);
+
 };
 
 struct ath_common;
@@ -248,6 +251,7 @@ void ath_printk(const char *level, const struct ath_common *common,
  * @ATH_DBG_DFS: radar datection
  * @ATH_DBG_WOW: Wake on Wireless
  * @ATH_DBG_DYNACK: dynack handling
+ * @ATH_DBG_SPECTRAL_SCAN: FFT spectral scan
  * @ATH_DBG_ANY: enable all debugging
  *
  * The debug level is used to control the amount and type of debugging output
@@ -277,6 +281,7 @@ enum ATH_DEBUG {
 	ATH_DBG_WOW		= 0x00020000,
 	ATH_DBG_CHAN_CTX	= 0x00040000,
 	ATH_DBG_DYNACK		= 0x00080000,
+	ATH_DBG_SPECTRAL_SCAN	= 0x00100000,
 	ATH_DBG_ANY		= 0xffffffff
 };
 

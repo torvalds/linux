@@ -147,20 +147,20 @@ static void dc_write_tmpl(struct ipu_dc *dc, int word, u32 opcode, u32 operand,
 	writel(reg2, priv->dc_tmpl_reg + word * 8 + 4);
 }
 
-static int ipu_pixfmt_to_map(u32 fmt)
+static int ipu_bus_format_to_map(u32 fmt)
 {
 	switch (fmt) {
-	case V4L2_PIX_FMT_RGB24:
+	case MEDIA_BUS_FMT_RGB888_1X24:
 		return IPU_DC_MAP_RGB24;
-	case V4L2_PIX_FMT_RGB565:
+	case MEDIA_BUS_FMT_RGB565_1X16:
 		return IPU_DC_MAP_RGB565;
-	case IPU_PIX_FMT_GBR24:
+	case MEDIA_BUS_FMT_GBR888_1X24:
 		return IPU_DC_MAP_GBR24;
-	case V4L2_PIX_FMT_BGR666:
+	case MEDIA_BUS_FMT_RGB666_1X18:
 		return IPU_DC_MAP_BGR666;
-	case v4l2_fourcc('L', 'V', 'D', '6'):
+	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
 		return IPU_DC_MAP_LVDS666;
-	case V4L2_PIX_FMT_BGR24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
 		return IPU_DC_MAP_BGR24;
 	default:
 		return -EINVAL;
@@ -168,7 +168,7 @@ static int ipu_pixfmt_to_map(u32 fmt)
 }
 
 int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
-		u32 pixel_fmt, u32 width)
+		u32 bus_format, u32 width)
 {
 	struct ipu_dc_priv *priv = dc->priv;
 	u32 reg = 0;
@@ -176,7 +176,7 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 
 	dc->di = ipu_di_get_num(di);
 
-	map = ipu_pixfmt_to_map(pixel_fmt);
+	map = ipu_bus_format_to_map(bus_format);
 	if (map < 0) {
 		dev_dbg(priv->dev, "IPU_DISP: No MAP\n");
 		return map;

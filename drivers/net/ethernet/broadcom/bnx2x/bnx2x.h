@@ -357,6 +357,7 @@ struct sw_tx_bd {
 struct sw_rx_page {
 	struct page	*page;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
+	unsigned int	offset;
 };
 
 union db_prod {
@@ -381,9 +382,10 @@ union db_prod {
 
 #define PAGES_PER_SGE_SHIFT	0
 #define PAGES_PER_SGE		(1 << PAGES_PER_SGE_SHIFT)
-#define SGE_PAGE_SIZE		PAGE_SIZE
-#define SGE_PAGE_SHIFT		PAGE_SHIFT
-#define SGE_PAGE_ALIGN(addr)	PAGE_ALIGN((typeof(PAGE_SIZE))(addr))
+#define SGE_PAGE_SHIFT		12
+#define SGE_PAGE_SIZE		(1 << SGE_PAGE_SHIFT)
+#define SGE_PAGE_MASK		(~(SGE_PAGE_SIZE - 1))
+#define SGE_PAGE_ALIGN(addr)	(((addr) + SGE_PAGE_SIZE - 1) & SGE_PAGE_MASK)
 #define SGE_PAGES		(SGE_PAGE_SIZE * PAGES_PER_SGE)
 #define TPA_AGG_SIZE		min_t(u32, (min_t(u32, 8, MAX_SKB_FRAGS) * \
 					    SGE_PAGES), 0xffff)
@@ -521,8 +523,14 @@ struct bnx2x_fp_txdata {
 };
 
 enum bnx2x_tpa_mode_t {
+	TPA_MODE_DISABLED,
 	TPA_MODE_LRO,
 	TPA_MODE_GRO
+};
+
+struct bnx2x_alloc_pool {
+	struct page	*page;
+	unsigned int	offset;
 };
 
 struct bnx2x_fastpath {
@@ -531,20 +539,8 @@ struct bnx2x_fastpath {
 	struct napi_struct	napi;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
-	unsigned int state;
-#define BNX2X_FP_STATE_IDLE		      0
-#define BNX2X_FP_STATE_NAPI		(1 << 0)    /* NAPI owns this FP */
-#define BNX2X_FP_STATE_POLL		(1 << 1)    /* poll owns this FP */
-#define BNX2X_FP_STATE_DISABLED		(1 << 2)
-#define BNX2X_FP_STATE_NAPI_YIELD	(1 << 3)    /* NAPI yielded this FP */
-#define BNX2X_FP_STATE_POLL_YIELD	(1 << 4)    /* poll yielded this FP */
-#define BNX2X_FP_OWNED	(BNX2X_FP_STATE_NAPI | BNX2X_FP_STATE_POLL)
-#define BNX2X_FP_YIELD	(BNX2X_FP_STATE_NAPI_YIELD | BNX2X_FP_STATE_POLL_YIELD)
-#define BNX2X_FP_LOCKED	(BNX2X_FP_OWNED | BNX2X_FP_STATE_DISABLED)
-#define BNX2X_FP_USER_PEND (BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_POLL_YIELD)
-	/* protect state */
-	spinlock_t lock;
-#endif /* CONFIG_NET_RX_BUSY_POLL */
+	unsigned long		busy_poll_state;
+#endif
 
 	union host_hc_status_block	status_blk;
 	/* chip independent shortcuts into sb structure */
@@ -601,7 +597,6 @@ struct bnx2x_fastpath {
 
 	/* TPA related */
 	struct bnx2x_agg_info	*tpa_info;
-	u8			disable_tpa;
 #ifdef BNX2X_STOP_ON_ERROR
 	u64			tpa_queue_used;
 #endif
@@ -611,6 +606,8 @@ struct bnx2x_fastpath {
 	     4 (for the digits and to make it DWORD aligned) */
 #define FP_NAME_SIZE		(sizeof(((struct net_device *)0)->name) + 8)
 	char			name[FP_NAME_SIZE];
+
+	struct bnx2x_alloc_pool	page_pool;
 };
 
 #define bnx2x_fp(bp, nr, var)	((bp)->fp[(nr)].var)
@@ -619,104 +616,83 @@ struct bnx2x_fastpath {
 #define bnx2x_fp_qstats(bp, fp)	(&((bp)->fp_stats[(fp)->index].eth_q_stats))
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
-static inline void bnx2x_fp_init_lock(struct bnx2x_fastpath *fp)
+
+enum bnx2x_fp_state {
+	BNX2X_STATE_FP_NAPI	= BIT(0), /* NAPI handler owns the queue */
+
+	BNX2X_STATE_FP_NAPI_REQ_BIT = 1, /* NAPI would like to own the queue */
+	BNX2X_STATE_FP_NAPI_REQ = BIT(1),
+
+	BNX2X_STATE_FP_POLL_BIT = 2,
+	BNX2X_STATE_FP_POLL     = BIT(2), /* busy_poll owns the queue */
+
+	BNX2X_STATE_FP_DISABLE_BIT = 3, /* queue is dismantled */
+};
+
+static inline void bnx2x_fp_busy_poll_init(struct bnx2x_fastpath *fp)
 {
-	spin_lock_init(&fp->lock);
-	fp->state = BNX2X_FP_STATE_IDLE;
+	WRITE_ONCE(fp->busy_poll_state, 0);
 }
 
 /* called from the device poll routine to get ownership of a FP */
 static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
 {
-	bool rc = true;
+	unsigned long prev, old = READ_ONCE(fp->busy_poll_state);
 
-	spin_lock_bh(&fp->lock);
-	if (fp->state & BNX2X_FP_LOCKED) {
-		WARN_ON(fp->state & BNX2X_FP_STATE_NAPI);
-		fp->state |= BNX2X_FP_STATE_NAPI_YIELD;
-		rc = false;
-	} else {
-		/* we don't care if someone yielded */
-		fp->state = BNX2X_FP_STATE_NAPI;
+	while (1) {
+		switch (old) {
+		case BNX2X_STATE_FP_POLL:
+			/* make sure bnx2x_fp_lock_poll() wont starve us */
+			set_bit(BNX2X_STATE_FP_NAPI_REQ_BIT,
+				&fp->busy_poll_state);
+			/* fallthrough */
+		case BNX2X_STATE_FP_POLL | BNX2X_STATE_FP_NAPI_REQ:
+			return false;
+		default:
+			break;
+		}
+		prev = cmpxchg(&fp->busy_poll_state, old, BNX2X_STATE_FP_NAPI);
+		if (unlikely(prev != old)) {
+			old = prev;
+			continue;
+		}
+		return true;
 	}
-	spin_unlock_bh(&fp->lock);
-	return rc;
 }
 
-/* returns true is someone tried to get the FP while napi had it */
-static inline bool bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
+static inline void bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
 {
-	bool rc = false;
-
-	spin_lock_bh(&fp->lock);
-	WARN_ON(fp->state &
-		(BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_NAPI_YIELD));
-
-	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
-		rc = true;
-
-	/* state ==> idle, unless currently disabled */
-	fp->state &= BNX2X_FP_STATE_DISABLED;
-	spin_unlock_bh(&fp->lock);
-	return rc;
+	smp_wmb();
+	fp->busy_poll_state = 0;
 }
 
 /* called from bnx2x_low_latency_poll() */
 static inline bool bnx2x_fp_lock_poll(struct bnx2x_fastpath *fp)
 {
-	bool rc = true;
-
-	spin_lock_bh(&fp->lock);
-	if ((fp->state & BNX2X_FP_LOCKED)) {
-		fp->state |= BNX2X_FP_STATE_POLL_YIELD;
-		rc = false;
-	} else {
-		/* preserve yield marks */
-		fp->state |= BNX2X_FP_STATE_POLL;
-	}
-	spin_unlock_bh(&fp->lock);
-	return rc;
+	return cmpxchg(&fp->busy_poll_state, 0, BNX2X_STATE_FP_POLL) == 0;
 }
 
-/* returns true if someone tried to get the FP while it was locked */
-static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
+static inline void bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 {
-	bool rc = false;
-
-	spin_lock_bh(&fp->lock);
-	WARN_ON(fp->state & BNX2X_FP_STATE_NAPI);
-
-	if (fp->state & BNX2X_FP_STATE_POLL_YIELD)
-		rc = true;
-
-	/* state ==> idle, unless currently disabled */
-	fp->state &= BNX2X_FP_STATE_DISABLED;
-	spin_unlock_bh(&fp->lock);
-	return rc;
+	smp_mb__before_atomic();
+	clear_bit(BNX2X_STATE_FP_POLL_BIT, &fp->busy_poll_state);
 }
 
-/* true if a socket is polling, even if it did not get the lock */
+/* true if a socket is polling */
 static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 {
-	WARN_ON(!(fp->state & BNX2X_FP_OWNED));
-	return fp->state & BNX2X_FP_USER_PEND;
+	return READ_ONCE(fp->busy_poll_state) & BNX2X_STATE_FP_POLL;
 }
 
 /* false if fp is currently owned */
 static inline bool bnx2x_fp_ll_disable(struct bnx2x_fastpath *fp)
 {
-	int rc = true;
+	set_bit(BNX2X_STATE_FP_DISABLE_BIT, &fp->busy_poll_state);
+	return !bnx2x_fp_ll_polling(fp);
 
-	spin_lock_bh(&fp->lock);
-	if (fp->state & BNX2X_FP_OWNED)
-		rc = false;
-	fp->state |= BNX2X_FP_STATE_DISABLED;
-	spin_unlock_bh(&fp->lock);
-
-	return rc;
 }
 #else
-static inline void bnx2x_fp_init_lock(struct bnx2x_fastpath *fp)
+static inline void bnx2x_fp_busy_poll_init(struct bnx2x_fastpath *fp)
 {
 }
 
@@ -725,9 +701,8 @@ static inline bool bnx2x_fp_lock_napi(struct bnx2x_fastpath *fp)
 	return true;
 }
 
-static inline bool bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
+static inline void bnx2x_fp_unlock_napi(struct bnx2x_fastpath *fp)
 {
-	return false;
 }
 
 static inline bool bnx2x_fp_lock_poll(struct bnx2x_fastpath *fp)
@@ -735,9 +710,8 @@ static inline bool bnx2x_fp_lock_poll(struct bnx2x_fastpath *fp)
 	return false;
 }
 
-static inline bool bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
+static inline void bnx2x_fp_unlock_poll(struct bnx2x_fastpath *fp)
 {
-	return false;
 }
 
 static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
@@ -1580,9 +1554,7 @@ struct bnx2x {
 #define USING_MSIX_FLAG			(1 << 5)
 #define USING_MSI_FLAG			(1 << 6)
 #define DISABLE_MSI_FLAG		(1 << 7)
-#define TPA_ENABLE_FLAG			(1 << 8)
 #define NO_MCP_FLAG			(1 << 9)
-#define GRO_ENABLE_FLAG			(1 << 10)
 #define MF_FUNC_DIS			(1 << 11)
 #define OWN_CNIC_IRQ			(1 << 12)
 #define NO_ISCSI_OOO_FLAG		(1 << 13)
@@ -1811,7 +1783,7 @@ struct bnx2x {
 	int			stats_state;
 
 	/* used for synchronization of concurrent threads statistics handling */
-	struct mutex		stats_lock;
+	struct semaphore	stats_lock;
 
 	/* used by dmae command loader */
 	struct dmae_command	stats_dmae;
@@ -2445,10 +2417,13 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 				 AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR)
 
-#define HW_PRTY_ASSERT_SET_3 (AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY | \
-		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY | \
-		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY | \
-		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY)
+#define HW_PRTY_ASSERT_SET_3_WITHOUT_SCPAD \
+		(AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY | \
+		 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY | \
+		 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY)
+
+#define HW_PRTY_ASSERT_SET_3 (HW_PRTY_ASSERT_SET_3_WITHOUT_SCPAD | \
+			      AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY)
 
 #define HW_PRTY_ASSERT_SET_4 (AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR | \
 			      AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR)

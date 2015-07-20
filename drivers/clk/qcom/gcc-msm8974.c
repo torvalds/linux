@@ -32,14 +32,16 @@
 #include "clk-branch.h"
 #include "reset.h"
 
-#define P_XO	0
-#define P_GPLL0	1
-#define P_GPLL1	1
-#define P_GPLL4	2
+enum {
+	P_XO,
+	P_GPLL0,
+	P_GPLL1,
+	P_GPLL4,
+};
 
-static const u8 gcc_xo_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_GPLL0]	= 1,
+static const struct parent_map gcc_xo_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 }
 };
 
 static const char *gcc_xo_gpll0[] = {
@@ -47,10 +49,10 @@ static const char *gcc_xo_gpll0[] = {
 	"gpll0_vote",
 };
 
-static const u8 gcc_xo_gpll0_gpll4_map[] = {
-	[P_XO]		= 0,
-	[P_GPLL0]	= 1,
-	[P_GPLL4]	= 5,
+static const struct parent_map gcc_xo_gpll0_gpll4_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL4, 5 }
 };
 
 static const char *gcc_xo_gpll0_gpll4[] = {
@@ -984,9 +986,9 @@ static const struct freq_tbl ftbl_gcc_usb_hsic_clk[] = {
 	{ }
 };
 
-static u8 usb_hsic_clk_src_map[] = {
-	[P_XO]		= 0,
-	[P_GPLL1]	= 4,
+static const struct parent_map usb_hsic_clk_src_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL1, 4 }
 };
 
 static struct clk_rcg2 usb_hsic_clk_src = {

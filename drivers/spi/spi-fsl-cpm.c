@@ -24,6 +24,7 @@
 #include <linux/of_address.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
+#include <linux/platform_device.h>
 
 #include "spi-fsl-cpm.h"
 #include "spi-fsl-lib.h"
@@ -269,17 +270,6 @@ static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 	if (mspi->flags & SPI_CPM2) {
 		pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
 		out_be16(spi_base, pram_ofs);
-	} else {
-		struct spi_pram __iomem *pram = spi_base;
-		u16 rpbase = in_be16(&pram->rpbase);
-
-		/* Microcode relocation patch applied? */
-		if (rpbase) {
-			pram_ofs = rpbase;
-		} else {
-			pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-			out_be16(spi_base, pram_ofs);
-		}
 	}
 
 	iounmap(spi_base);
@@ -292,7 +282,6 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 	struct device_node *np = dev->of_node;
 	const u32 *iprop;
 	int size;
-	unsigned long pram_ofs;
 	unsigned long bds_ofs;
 
 	if (!(mspi->flags & SPI_CPM_MODE))
@@ -319,8 +308,26 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 		}
 	}
 
-	pram_ofs = fsl_spi_cpm_get_pram(mspi);
-	if (IS_ERR_VALUE(pram_ofs)) {
+	if (mspi->flags & SPI_CPM1) {
+		struct resource *res;
+		void *pram;
+
+		res = platform_get_resource(to_platform_device(dev),
+					    IORESOURCE_MEM, 1);
+		pram = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pram))
+			mspi->pram = NULL;
+		else
+			mspi->pram = pram;
+	} else {
+		unsigned long pram_ofs = fsl_spi_cpm_get_pram(mspi);
+
+		if (IS_ERR_VALUE(pram_ofs))
+			mspi->pram = NULL;
+		else
+			mspi->pram = cpm_muram_addr(pram_ofs);
+	}
+	if (mspi->pram == NULL) {
 		dev_err(dev, "can't allocate spi parameter ram\n");
 		goto err_pram;
 	}
@@ -345,8 +352,6 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 		dev_err(dev, "unable to map dummy rx buffer\n");
 		goto err_dummy_rx;
 	}
-
-	mspi->pram = cpm_muram_addr(pram_ofs);
 
 	mspi->tx_bd = cpm_muram_addr(bds_ofs);
 	mspi->rx_bd = cpm_muram_addr(bds_ofs + sizeof(*mspi->tx_bd));
@@ -375,7 +380,8 @@ err_dummy_rx:
 err_dummy_tx:
 	cpm_muram_free(bds_ofs);
 err_bds:
-	cpm_muram_free(pram_ofs);
+	if (!(mspi->flags & SPI_CPM1))
+		cpm_muram_free(cpm_muram_offset(mspi->pram));
 err_pram:
 	fsl_spi_free_dummy_rx();
 	return -ENOMEM;

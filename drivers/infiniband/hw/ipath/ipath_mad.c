@@ -1257,7 +1257,7 @@ static int recv_pma_set_portcounters_ext(struct ib_pma_mad *pmp,
 }
 
 static int process_subn(struct ib_device *ibdev, int mad_flags,
-			u8 port_num, struct ib_mad *in_mad,
+			u8 port_num, const struct ib_mad *in_mad,
 			struct ib_mad *out_mad)
 {
 	struct ib_smp *smp = (struct ib_smp *)out_mad;
@@ -1389,7 +1389,7 @@ bail:
 }
 
 static int process_perf(struct ib_device *ibdev, u8 port_num,
-			struct ib_mad *in_mad,
+			const struct ib_mad *in_mad,
 			struct ib_mad *out_mad)
 {
 	struct ib_pma_mad *pmp = (struct ib_pma_mad *)out_mad;
@@ -1490,10 +1490,18 @@ bail:
  * This is called by the ib_mad module.
  */
 int ipath_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
-		      struct ib_wc *in_wc, struct ib_grh *in_grh,
-		      struct ib_mad *in_mad, struct ib_mad *out_mad)
+		      const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		      const struct ib_mad_hdr *in, size_t in_mad_size,
+		      struct ib_mad_hdr *out, size_t *out_mad_size,
+		      u16 *out_mad_pkey_index)
 {
 	int ret;
+	const struct ib_mad *in_mad = (const struct ib_mad *)in;
+	struct ib_mad *out_mad = (struct ib_mad *)out;
+
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:

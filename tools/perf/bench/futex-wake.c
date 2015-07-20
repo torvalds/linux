@@ -60,7 +60,12 @@ static void *workerfn(void *arg __maybe_unused)
 	pthread_cond_wait(&thread_worker, &thread_lock);
 	pthread_mutex_unlock(&thread_lock);
 
-	futex_wait(&futex1, 0, NULL, futex_flag);
+	while (1) {
+		if (futex_wait(&futex1, 0, NULL, futex_flag) != EINTR)
+			break;
+	}
+
+	pthread_exit(NULL);
 	return NULL;
 }
 

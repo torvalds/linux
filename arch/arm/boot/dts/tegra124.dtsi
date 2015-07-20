@@ -10,7 +10,7 @@
 
 / {
 	compatible = "nvidia,tegra124";
-	interrupt-parent = <&gic>;
+	interrupt-parent = <&lic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 
@@ -173,6 +173,7 @@
 		      <0x0 0x50046000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupt-parent = <&gic>;
 	};
 
 	gpu@0,57000000 {
@@ -188,6 +189,18 @@
 		resets = <&tegra_car 184>;
 		reset-names = "gpu";
 		status = "disabled";
+	};
+
+	lic: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra124-ictlr", "nvidia,tegra30-ictlr";
+		reg = <0x0 0x60004000 0x0 0x100>,
+		      <0x0 0x60004100 0x0 0x100>,
+		      <0x0 0x60004200 0x0 0x100>,
+		      <0x0 0x60004300 0x0 0x100>,
+		      <0x0 0x60004400 0x0 0x100>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&gic>;
 	};
 
 	timer@0,60005000 {
@@ -207,11 +220,23 @@
 		reg = <0x0 0x60006000 0x0 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		nvidia,external-memory-controller = <&emc>;
 	};
 
 	flow-controller@0,60007000 {
 		compatible = "nvidia,tegra124-flowctrl";
 		reg = <0x0 0x60007000 0x0 0x1000>;
+	};
+
+	actmon@0,6000c800 {
+		compatible = "nvidia,tegra124-actmon";
+		reg = <0x0 0x6000c800 0x0 0x400>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_ACTMON>,
+			 <&tegra_car TEGRA124_CLK_EMC>;
+		clock-names = "actmon", "emc";
+		resets = <&tegra_car 119>;
+		reset-names = "actmon";
 	};
 
 	gpio: gpio@0,6000d000 {
@@ -275,7 +300,7 @@
 	apbmisc@0,70000800 {
 		compatible = "nvidia,tegra124-apbmisc", "nvidia,tegra20-apbmisc";
 		reg = <0x0 0x70000800 0x0 0x64>,   /* Chip revision */
-		      <0x0 0x7000E864 0x0 0x04>;   /* Strapping options */
+		      <0x0 0x7000e864 0x0 0x04>;   /* Strapping options */
 	};
 
 	pinmux: pinmux@0,70000868 {
@@ -569,6 +594,13 @@
 		#iommu-cells = <1>;
 	};
 
+	emc: emc@0,7001b000 {
+		compatible = "nvidia,tegra124-emc";
+		reg = <0x0 0x7001b000 0x0 0x1000>;
+
+		nvidia,memory-controller = <&mc>;
+	};
+
 	sata@0,70020000 {
 		compatible = "nvidia,tegra124-ahci";
 
@@ -601,11 +633,11 @@
 		clocks = <&tegra_car TEGRA124_CLK_HDA>,
 		         <&tegra_car TEGRA124_CLK_HDA2HDMI>,
 			 <&tegra_car TEGRA124_CLK_HDA2CODEC_2X>;
-		clock-names = "hda", "hda2hdmi", "hdacodec_2x";
+		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
 		resets = <&tegra_car 125>, /* hda */
 			 <&tegra_car 128>, /* hda2hdmi */
 			 <&tegra_car 111>; /* hda2codec_2x */
-		reset-names = "hda", "hda2hdmi", "hdacodec_2x";
+		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
 		status = "disabled";
 	};
 
@@ -794,7 +826,7 @@
 			 <&tegra_car TEGRA124_CLK_PLL_U>,
 			 <&tegra_car TEGRA124_CLK_USBD>;
 		clock-names = "reg", "pll_u", "utmi-pads";
-		resets = <&tegra_car 59>, <&tegra_car 22>;
+		resets = <&tegra_car 22>, <&tegra_car 22>;
 		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,idle-wait-delay = <17>;
@@ -806,6 +838,7 @@
 		nvidia,hssquelch-level = <2>;
 		nvidia,hsdiscon-level = <5>;
 		nvidia,xcvr-hsslew = <12>;
+		nvidia,has-utmi-pad-registers;
 		status = "disabled";
 	};
 
@@ -830,7 +863,7 @@
 			 <&tegra_car TEGRA124_CLK_PLL_U>,
 			 <&tegra_car TEGRA124_CLK_USBD>;
 		clock-names = "reg", "pll_u", "utmi-pads";
-		resets = <&tegra_car 22>, <&tegra_car 22>;
+		resets = <&tegra_car 58>, <&tegra_car 22>;
 		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,idle-wait-delay = <17>;
@@ -842,7 +875,6 @@
 		nvidia,hssquelch-level = <2>;
 		nvidia,hsdiscon-level = <5>;
 		nvidia,xcvr-hsslew = <12>;
-		nvidia,has-utmi-pad-registers;
 		status = "disabled";
 	};
 
@@ -867,7 +899,7 @@
 			 <&tegra_car TEGRA124_CLK_PLL_U>,
 			 <&tegra_car TEGRA124_CLK_USBD>;
 		clock-names = "reg", "pll_u", "utmi-pads";
-		resets = <&tegra_car 58>, <&tegra_car 22>;
+		resets = <&tegra_car 59>, <&tegra_car 22>;
 		reset-names = "usb", "utmi-pads";
 		nvidia,hssync-start-delay = <0>;
 		nvidia,idle-wait-delay = <17>;
@@ -955,5 +987,6 @@
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
 	};
 };

@@ -22,46 +22,6 @@
 
 #define _HAL_INIT_C_
 
-void dump_chip_info23a(struct hal_version ChipVersion)
-{
-	int cnt = 0;
-	u8 buf[128];
-
-	cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8723A_");
-
-	cnt += sprintf((buf + cnt), "%s_", IS_NORMAL_CHIP(ChipVersion) ?
-		       "Normal_Chip" : "Test_Chip");
-	cnt += sprintf((buf + cnt), "%s_",
-		       IS_CHIP_VENDOR_TSMC(ChipVersion) ? "TSMC" : "UMC");
-	if (IS_A_CUT(ChipVersion))
-		cnt += sprintf((buf + cnt), "A_CUT_");
-	else if (IS_B_CUT(ChipVersion))
-		cnt += sprintf((buf + cnt), "B_CUT_");
-	else if (IS_C_CUT(ChipVersion))
-		cnt += sprintf((buf + cnt), "C_CUT_");
-	else if (IS_D_CUT(ChipVersion))
-		cnt += sprintf((buf + cnt), "D_CUT_");
-	else if (IS_E_CUT(ChipVersion))
-		cnt += sprintf((buf + cnt), "E_CUT_");
-	else
-		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_",
-			       ChipVersion.CUTVersion);
-
-	if (IS_1T1R(ChipVersion))
-		cnt += sprintf((buf + cnt), "1T1R_");
-	else if (IS_1T2R(ChipVersion))
-		cnt += sprintf((buf + cnt), "1T2R_");
-	else if (IS_2T2R(ChipVersion))
-		cnt += sprintf((buf + cnt), "2T2R_");
-	else
-		cnt += sprintf((buf + cnt), "UNKNOWN_RFTYPE(%d)_",
-			       ChipVersion.RFType);
-
-	cnt += sprintf((buf + cnt), "RomVer(%d)\n", ChipVersion.ROMVer);
-
-	DBG_8723A("%s", buf);
-}
-
 #define	EEPROM_CHANNEL_PLAN_BY_HW_MASK	0x80
 
 /* return the final channel plan decision */
@@ -231,13 +191,11 @@ void HalSetBrateCfg23a(struct rtw_adapter *padapter, u8 *mBratesOS)
 	rate_index = 0;
 	/*  Set RTS initial rate */
 	while (brate_cfg > 0x1) {
-		brate_cfg = (brate_cfg >> 1);
+		brate_cfg >>= 1;
 		rate_index++;
 	}
 		/*  Ziv - Check */
 	rtl8723au_write8(padapter, REG_INIRTS_RATE_SEL, rate_index);
-
-	return;
 }
 
 static void _OneOutPipeMapping(struct rtw_adapter *pAdapter)
@@ -437,9 +395,6 @@ rtl8723a_set_ampdu_min_space(struct rtw_adapter *padapter, u8 MinSpacingToSet)
 		if (MinSpacingToSet < SecMinSpace)
 			MinSpacingToSet = SecMinSpace;
 
-		/* RT_TRACE(COMP_MLME, DBG_LOUD,
-		   ("Set HW_VAR_AMPDU_MIN_SPACE: %#x\n",
-		   padapter->MgntInfo.MinSpaceCfg)); */
 		MinSpacingToSet |=
 			rtl8723au_read8(padapter, REG_AMPDU_MIN_SPACE) & 0xf8;
 		rtl8723au_write8(padapter, REG_AMPDU_MIN_SPACE,
@@ -479,9 +434,6 @@ void rtl8723a_set_ampdu_factor(struct rtw_adapter *padapter, u8 FactorToSet)
 			rtl8723au_write8(padapter, REG_AGGLEN_LMT + index,
 					 pRegToSet[index]);
 		}
-
-		/* RT_TRACE(COMP_MLME, DBG_LOUD,
-		   ("Set HW_VAR_AMPDU_FACTOR: %#x\n", FactorToSet)); */
 	}
 }
 
@@ -666,14 +618,8 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 		/*  write content 0 is equall to mark invalid */
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, WCAMI, ulContent);
-		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx\n",
-		   ulContent));*/
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, REG_CAMCMD, ulCommand);
-		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx\n",
-		   ulCommand));*/
 	}
 }
 

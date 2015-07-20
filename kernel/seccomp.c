@@ -346,16 +346,13 @@ static inline void seccomp_sync_threads(void)
  */
 static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 {
-	struct seccomp_filter *filter;
-	unsigned long fp_size;
-	struct sock_filter *fp;
-	int new_len;
-	long ret;
+	struct seccomp_filter *sfilter;
+	int ret;
 
 	if (fprog->len == 0 || fprog->len > BPF_MAXINSNS)
 		return ERR_PTR(-EINVAL);
+
 	BUG_ON(INT_MAX / fprog->len < sizeof(struct sock_filter));
-	fp_size = fprog->len * sizeof(struct sock_filter);
 
 	/*
 	 * Installing a seccomp filter requires that the task has
@@ -368,60 +365,21 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 				     CAP_SYS_ADMIN) != 0)
 		return ERR_PTR(-EACCES);
 
-	fp = kzalloc(fp_size, GFP_KERNEL|__GFP_NOWARN);
-	if (!fp)
+	/* Allocate a new seccomp_filter */
+	sfilter = kzalloc(sizeof(*sfilter), GFP_KERNEL | __GFP_NOWARN);
+	if (!sfilter)
 		return ERR_PTR(-ENOMEM);
 
-	/* Copy the instructions from fprog. */
-	ret = -EFAULT;
-	if (copy_from_user(fp, fprog->filter, fp_size))
-		goto free_prog;
+	ret = bpf_prog_create_from_user(&sfilter->prog, fprog,
+					seccomp_check_filter);
+	if (ret < 0) {
+		kfree(sfilter);
+		return ERR_PTR(ret);
+	}
 
-	/* Check and rewrite the fprog via the skb checker */
-	ret = bpf_check_classic(fp, fprog->len);
-	if (ret)
-		goto free_prog;
+	atomic_set(&sfilter->usage, 1);
 
-	/* Check and rewrite the fprog for seccomp use */
-	ret = seccomp_check_filter(fp, fprog->len);
-	if (ret)
-		goto free_prog;
-
-	/* Convert 'sock_filter' insns to 'bpf_insn' insns */
-	ret = bpf_convert_filter(fp, fprog->len, NULL, &new_len);
-	if (ret)
-		goto free_prog;
-
-	/* Allocate a new seccomp_filter */
-	ret = -ENOMEM;
-	filter = kzalloc(sizeof(struct seccomp_filter),
-			 GFP_KERNEL|__GFP_NOWARN);
-	if (!filter)
-		goto free_prog;
-
-	filter->prog = bpf_prog_alloc(bpf_prog_size(new_len), __GFP_NOWARN);
-	if (!filter->prog)
-		goto free_filter;
-
-	ret = bpf_convert_filter(fp, fprog->len, filter->prog->insnsi, &new_len);
-	if (ret)
-		goto free_filter_prog;
-
-	kfree(fp);
-	atomic_set(&filter->usage, 1);
-	filter->prog->len = new_len;
-
-	bpf_prog_select_runtime(filter->prog);
-
-	return filter;
-
-free_filter_prog:
-	__bpf_prog_free(filter->prog);
-free_filter:
-	kfree(filter);
-free_prog:
-	kfree(fp);
-	return ERR_PTR(ret);
+	return sfilter;
 }
 
 /**

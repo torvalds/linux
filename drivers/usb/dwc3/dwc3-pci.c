@@ -21,17 +21,26 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/gpio/consumer.h>
+#include <linux/acpi.h>
 
 #include "platform_data.h"
 
-/* FIXME define these in <linux/pci_ids.h> */
-#define PCI_VENDOR_ID_SYNOPSYS		0x16c3
 #define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3	0xabcd
 #define PCI_DEVICE_ID_INTEL_BYT		0x0f37
 #define PCI_DEVICE_ID_INTEL_MRFLD	0x119e
 #define PCI_DEVICE_ID_INTEL_BSW		0x22B7
 #define PCI_DEVICE_ID_INTEL_SPTLP	0x9d30
 #define PCI_DEVICE_ID_INTEL_SPTH	0xa130
+
+static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
+static const struct acpi_gpio_params cs_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_dwc3_byt_gpios[] = {
+	{ "reset-gpios", &reset_gpios, 1 },
+	{ "cs-gpios", &cs_gpios, 1 },
+	{ },
+};
 
 static int dwc3_pci_quirks(struct pci_dev *pdev)
 {
@@ -65,6 +74,30 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 
 		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
 						sizeof(pdata));
+	}
+
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
+	    pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
+		struct gpio_desc *gpio;
+
+		acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
+					  acpi_dwc3_byt_gpios);
+
+		/* These GPIOs will turn on the USB2 PHY */
+		gpio = gpiod_get(&pdev->dev, "cs");
+		if (!IS_ERR(gpio)) {
+			gpiod_direction_output(gpio, 0);
+			gpiod_set_value_cansleep(gpio, 1);
+			gpiod_put(gpio);
+		}
+
+		gpio = gpiod_get(&pdev->dev, "reset");
+		if (!IS_ERR(gpio)) {
+			gpiod_direction_output(gpio, 0);
+			gpiod_set_value_cansleep(gpio, 1);
+			gpiod_put(gpio);
+			usleep_range(10000, 11000);
+		}
 	}
 
 	return 0;
@@ -130,6 +163,7 @@ err:
 
 static void dwc3_pci_remove(struct pci_dev *pci)
 {
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pci->dev));
 	platform_device_unregister(pci_get_drvdata(pci));
 }
 

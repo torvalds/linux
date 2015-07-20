@@ -829,7 +829,7 @@ static int vpif_set_output(struct vpif_display_config *vpif_cfg,
 	ch->sd = sd;
 	if (chan_cfg->outputs != NULL)
 		/* update tvnorms from the sub device output info */
-		ch->video_dev->tvnorms = chan_cfg->outputs[index].output.std;
+		ch->video_dev.tvnorms = chan_cfg->outputs[index].output.std;
 	return 0;
 }
 
@@ -1204,16 +1204,16 @@ static int vpif_probe_complete(void)
 			 ch, &ch->video_dev);
 
 		/* Initialize the video_device structure */
-		vdev = ch->video_dev;
+		vdev = &ch->video_dev;
 		strlcpy(vdev->name, VPIF_DRIVER_NAME, sizeof(vdev->name));
-		vdev->release = video_device_release;
+		vdev->release = video_device_release_empty;
 		vdev->fops = &vpif_fops;
 		vdev->ioctl_ops = &vpif_ioctl_ops;
 		vdev->v4l2_dev = &vpif_obj.v4l2_dev;
 		vdev->vfl_dir = VFL_DIR_TX;
 		vdev->queue = q;
 		vdev->lock = &common->lock;
-		video_set_drvdata(ch->video_dev, ch);
+		video_set_drvdata(&ch->video_dev, ch);
 		err = video_register_device(vdev, VFL_TYPE_GRABBER,
 					    (j ? 3 : 2));
 		if (err < 0)
@@ -1227,9 +1227,7 @@ probe_out:
 		ch = vpif_obj.dev[k];
 		common = &ch->common[k];
 		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
-		video_unregister_device(ch->video_dev);
-		video_device_release(ch->video_dev);
-		ch->video_dev = NULL;
+		video_unregister_device(&ch->video_dev);
 	}
 	return err;
 }
@@ -1246,13 +1244,11 @@ static int vpif_async_complete(struct v4l2_async_notifier *notifier)
 static __init int vpif_probe(struct platform_device *pdev)
 {
 	struct vpif_subdev_info *subdevdata;
-	int i, j = 0, err = 0;
-	int res_idx = 0;
 	struct i2c_adapter *i2c_adap;
-	struct channel_obj *ch;
-	struct video_device *vfd;
 	struct resource *res;
 	int subdev_count;
+	int res_idx = 0;
+	int i, err;
 
 	vpif_dev = &pdev->dev;
 	err = initialize_vpif();
@@ -1281,25 +1277,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 		res_idx++;
 	}
 
-	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
-		/* Get the pointer to the channel object */
-		ch = vpif_obj.dev[i];
-
-		/* Allocate memory for video device */
-		vfd = video_device_alloc();
-		if (vfd == NULL) {
-			for (j = 0; j < i; j++) {
-				ch = vpif_obj.dev[j];
-				video_device_release(ch->video_dev);
-			}
-			err = -ENOMEM;
-			goto vpif_unregister;
-		}
-
-		/* Set video_dev to the video device */
-		ch->video_dev = vfd;
-	}
-
 	vpif_obj.config = pdev->dev.platform_data;
 	subdev_count = vpif_obj.config->subdev_count;
 	subdevdata = vpif_obj.config->subdevinfo;
@@ -1308,7 +1285,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
 		err = -ENOMEM;
-		goto vpif_sd_error;
+		goto vpif_unregister;
 	}
 
 	if (!vpif_obj.config->asd_sizes) {
@@ -1348,12 +1325,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 probe_subdev_out:
 	kfree(vpif_obj.sd);
-vpif_sd_error:
-	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
-		ch = vpif_obj.dev[i];
-		/* Note: does nothing if ch->video_dev == NULL */
-		video_device_release(ch->video_dev);
-	}
 vpif_unregister:
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 
@@ -1379,9 +1350,7 @@ static int vpif_remove(struct platform_device *device)
 		common = &ch->common[VPIF_VIDEO_INDEX];
 		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
 		/* Unregister video device */
-		video_unregister_device(ch->video_dev);
-
-		ch->video_dev = NULL;
+		video_unregister_device(&ch->video_dev);
 		kfree(vpif_obj.dev[i]);
 	}
 

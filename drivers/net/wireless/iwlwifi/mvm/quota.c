@@ -172,6 +172,7 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 }
 
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
+			  bool force_update,
 			  struct ieee80211_vif *disabled_vif)
 {
 	struct iwl_time_quota_cmd cmd = {};
@@ -309,7 +310,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			  "zero quota on binding %d\n", i);
 	}
 
-	if (!send) {
+	if (!send && !force_update) {
 		/* don't send a practically unchanged command, the firmware has
 		 * to re-initialize a lot of state and that can have an adverse
 		 * impact on it

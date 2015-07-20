@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -975,8 +975,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 	struct mlx5_ib_mr *mr;
 	int inlen;
 	int err;
-	bool pg_cap = !!(dev->mdev->caps.gen.flags &
-			 MLX5_DEV_CAP_FLAG_ON_DMND_PG);
+	bool pg_cap = !!(MLX5_CAP_GEN(dev->mdev, pg));
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)

@@ -370,7 +370,7 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe_dev)
  * For a given standard, this functions sets up the default
  * pix format & crop values in the vpfe device and ccdc.  It first
  * starts with defaults based values from the standard table.
- * It then checks if sub device support g_mbus_fmt and then override the
+ * It then checks if sub device supports get_fmt and then override the
  * values based on that.Sets crop values to match with scan resolution
  * starting at 0,0. It calls vpfe_config_ccdc_image_format() set the
  * values in ccdc
@@ -379,7 +379,10 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 				    v4l2_std_id std_id)
 {
 	struct vpfe_subdev_info *sdinfo = vpfe_dev->current_subdev;
-	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mbus_fmt = &fmt.format;
 	struct v4l2_pix_format *pix = &vpfe_dev->fmt.fmt.pix;
 	int i, ret = 0;
 
@@ -413,26 +416,26 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 		pix->field = V4L2_FIELD_INTERLACED;
 		/* assume V4L2_PIX_FMT_UYVY as default */
 		pix->pixelformat = V4L2_PIX_FMT_UYVY;
-		v4l2_fill_mbus_format(&mbus_fmt, pix,
+		v4l2_fill_mbus_format(mbus_fmt, pix,
 				MEDIA_BUS_FMT_YUYV10_2X10);
 	} else {
 		pix->field = V4L2_FIELD_NONE;
 		/* assume V4L2_PIX_FMT_SBGGR8 */
 		pix->pixelformat = V4L2_PIX_FMT_SBGGR8;
-		v4l2_fill_mbus_format(&mbus_fmt, pix,
+		v4l2_fill_mbus_format(mbus_fmt, pix,
 				MEDIA_BUS_FMT_SBGGR8_1X8);
 	}
 
-	/* if sub device supports g_mbus_fmt, override the defaults */
+	/* if sub device supports get_fmt, override the defaults */
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev,
-			sdinfo->grp_id, video, g_mbus_fmt, &mbus_fmt);
+			sdinfo->grp_id, pad, get_fmt, NULL, &fmt);
 
 	if (ret && ret != -ENOIOCTLCMD) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
-			"error in getting g_mbus_fmt from sub device\n");
+			"error in getting get_fmt from sub device\n");
 		return ret;
 	}
-	v4l2_fill_pix_format(pix, &mbus_fmt);
+	v4l2_fill_pix_format(pix, mbus_fmt);
 	pix->bytesperline = pix->width * 2;
 	pix->sizeimage = pix->bytesperline * pix->height;
 
@@ -1871,16 +1874,9 @@ static int vpfe_probe(struct platform_device *pdev)
 		goto probe_free_ccdc_cfg_mem;
 	}
 
-	/* Allocate memory for video device */
-	vfd = video_device_alloc();
-	if (NULL == vfd) {
-		ret = -ENOMEM;
-		v4l2_err(pdev->dev.driver, "Unable to alloc video device\n");
-		goto probe_out_release_irq;
-	}
-
+	vfd = &vpfe_dev->video_dev;
 	/* Initialize field of video device */
-	vfd->release		= video_device_release;
+	vfd->release		= video_device_release_empty;
 	vfd->fops		= &vpfe_fops;
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
 	vfd->tvnorms		= 0;
@@ -1891,14 +1887,12 @@ static int vpfe_probe(struct platform_device *pdev)
 		 (VPFE_CAPTURE_VERSION_CODE >> 16) & 0xff,
 		 (VPFE_CAPTURE_VERSION_CODE >> 8) & 0xff,
 		 (VPFE_CAPTURE_VERSION_CODE) & 0xff);
-	/* Set video_dev to the video device */
-	vpfe_dev->video_dev	= vfd;
 
 	ret = v4l2_device_register(&pdev->dev, &vpfe_dev->v4l2_dev);
 	if (ret) {
 		v4l2_err(pdev->dev.driver,
 			"Unable to register v4l2 device.\n");
-		goto probe_out_video_release;
+		goto probe_out_release_irq;
 	}
 	v4l2_info(&vpfe_dev->v4l2_dev, "v4l2 device registered\n");
 	spin_lock_init(&vpfe_dev->irqlock);
@@ -1914,7 +1908,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
 		"video_dev=%p\n", &vpfe_dev->video_dev);
 	vpfe_dev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	ret = video_register_device(vpfe_dev->video_dev,
+	ret = video_register_device(&vpfe_dev->video_dev,
 				    VFL_TYPE_GRABBER, -1);
 
 	if (ret) {
@@ -1927,7 +1921,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	/* set the driver data in platform device */
 	platform_set_drvdata(pdev, vpfe_dev);
 	/* set driver private data */
-	video_set_drvdata(vpfe_dev->video_dev, vpfe_dev);
+	video_set_drvdata(&vpfe_dev->video_dev, vpfe_dev);
 	i2c_adap = i2c_get_adapter(vpfe_cfg->i2c_adapter_id);
 	num_subdevs = vpfe_cfg->num_subdevs;
 	vpfe_dev->sd = kmalloc(sizeof(struct v4l2_subdev *) * num_subdevs,
@@ -1979,12 +1973,9 @@ static int vpfe_probe(struct platform_device *pdev)
 probe_sd_out:
 	kfree(vpfe_dev->sd);
 probe_out_video_unregister:
-	video_unregister_device(vpfe_dev->video_dev);
+	video_unregister_device(&vpfe_dev->video_dev);
 probe_out_v4l2_unregister:
 	v4l2_device_unregister(&vpfe_dev->v4l2_dev);
-probe_out_video_release:
-	if (!video_is_registered(vpfe_dev->video_dev))
-		video_device_release(vpfe_dev->video_dev);
 probe_out_release_irq:
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
 probe_free_ccdc_cfg_mem:
@@ -2007,7 +1998,7 @@ static int vpfe_remove(struct platform_device *pdev)
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
 	kfree(vpfe_dev->sd);
 	v4l2_device_unregister(&vpfe_dev->v4l2_dev);
-	video_unregister_device(vpfe_dev->video_dev);
+	video_unregister_device(&vpfe_dev->video_dev);
 	kfree(vpfe_dev);
 	kfree(ccdc_cfg);
 	return 0;

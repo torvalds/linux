@@ -456,7 +456,7 @@ int gxio_mpipe_equeue_init(gxio_mpipe_equeue_t *equeue,
 EXPORT_SYMBOL_GPL(gxio_mpipe_equeue_init);
 
 int gxio_mpipe_set_timestamp(gxio_mpipe_context_t *context,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	cycles_t cycles = get_cycles();
 	return gxio_mpipe_set_timestamp_aux(context, (uint64_t)ts->tv_sec,
@@ -466,7 +466,7 @@ int gxio_mpipe_set_timestamp(gxio_mpipe_context_t *context,
 EXPORT_SYMBOL_GPL(gxio_mpipe_set_timestamp);
 
 int gxio_mpipe_get_timestamp(gxio_mpipe_context_t *context,
-			     struct timespec *ts)
+			     struct timespec64 *ts)
 {
 	int ret;
 	cycles_t cycles_prev, cycles_now, clock_rate;

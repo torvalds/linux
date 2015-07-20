@@ -13,7 +13,7 @@ static const struct file_operations ns_file_operations = {
 
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
 
 	return dynamic_dname(dentry, buffer, buflen, "%s:[%lu]",
@@ -22,7 +22,7 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 
 static void ns_prune_dentry(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	if (inode) {
 		struct ns_common *ns = inode->i_private;
 		atomic_long_set(&ns->stashed, 0);

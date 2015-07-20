@@ -37,8 +37,6 @@
 #include "core.h"
 #include "bearer.h"
 
-#define ETH_ADDR_OFFSET  4  /* MAC addr position inside address field */
-
 /* Convert Ethernet address (media address format) to string */
 static int tipc_eth_addr2str(struct tipc_media_addr *addr,
 			     char *strbuf, int bufsz)
@@ -53,9 +51,9 @@ static int tipc_eth_addr2str(struct tipc_media_addr *addr,
 /* Convert from media address format to discovery message addr format */
 static int tipc_eth_addr2msg(char *msg, struct tipc_media_addr *addr)
 {
-	memset(msg, 0, TIPC_MEDIA_ADDR_SIZE);
+	memset(msg, 0, TIPC_MEDIA_INFO_SIZE);
 	msg[TIPC_MEDIA_TYPE_OFFSET] = TIPC_MEDIA_TYPE_ETH;
-	memcpy(msg + ETH_ADDR_OFFSET, addr->value, ETH_ALEN);
+	memcpy(msg + TIPC_MEDIA_ADDR_OFFSET, addr->value, ETH_ALEN);
 	return 0;
 }
 
@@ -79,7 +77,7 @@ static int tipc_eth_msg2addr(struct tipc_bearer *b,
 			     char *msg)
 {
 	/* Skip past preamble: */
-	msg += ETH_ADDR_OFFSET;
+	msg += TIPC_MEDIA_ADDR_OFFSET;
 	return tipc_eth_raw2addr(b, addr, msg);
 }
 

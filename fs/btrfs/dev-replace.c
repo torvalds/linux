@@ -376,6 +376,10 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	WARN_ON(!tgt_device);
 	dev_replace->tgtdev = tgt_device;
 
+	ret = btrfs_kobj_add_device(tgt_device->fs_devices, tgt_device);
+	if (ret)
+		btrfs_error(root->fs_info, ret, "kobj add dev failed");
+
 	printk_in_rcu(KERN_INFO
 		      "BTRFS: dev_replace from %s (devid %llu) to %s started\n",
 		      src_device->missing ? "<missing disk>" :
@@ -583,8 +587,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&uuid_mutex);
 
 	/* replace the sysfs entry */
-	btrfs_kobj_rm_device(fs_info, src_device);
-	btrfs_kobj_add_device(fs_info, tgt_device);
+	btrfs_kobj_rm_device(fs_info->fs_devices, src_device);
 	btrfs_rm_dev_replace_free_srcdev(fs_info, src_device);
 
 	/* write back the superblocks */
@@ -670,8 +673,8 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
 		srcdev = dev_replace->srcdev;
-		args->status.progress_1000 = div64_u64(dev_replace->cursor_left,
-			div64_u64(btrfs_device_get_total_bytes(srcdev), 1000));
+		args->status.progress_1000 = div_u64(dev_replace->cursor_left,
+			div_u64(btrfs_device_get_total_bytes(srcdev), 1000));
 		break;
 	}
 	btrfs_dev_replace_unlock(dev_replace);
@@ -806,7 +809,7 @@ static int btrfs_dev_replace_kthread(void *data)
 		btrfs_dev_replace_status(fs_info, status_args);
 		progress = status_args->status.progress_1000;
 		kfree(status_args);
-		do_div(progress, 10);
+		progress = div_u64(progress, 10);
 		printk_in_rcu(KERN_INFO
 			"BTRFS: continuing dev_replace from %s (devid %llu) to %s @%u%%\n",
 			dev_replace->srcdev->missing ? "<missing disk>" :

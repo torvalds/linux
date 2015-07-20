@@ -9,22 +9,8 @@
 #ifndef _IIO_EVENTS_H_
 #define _IIO_EVENTS_H_
 
-#include <linux/ioctl.h>
-#include <linux/types.h>
 #include <linux/iio/types.h>
-
-/**
- * struct iio_event_data - The actual event being pushed to userspace
- * @id:		event identifier
- * @timestamp:	best estimate of time of event occurrence (often from
- *		the interrupt handler)
- */
-struct iio_event_data {
-	__u64	id;
-	__s64	timestamp;
-};
-
-#define IIO_GET_EVENT_FD_IOCTL _IOR('i', 0x90, int)
+#include <uapi/linux/iio/events.h>
 
 /**
  * IIO_EVENT_CODE() - create event identifier
@@ -69,19 +55,5 @@ struct iio_event_data {
 
 #define IIO_UNMOD_EVENT_CODE(chan_type, number, type, direction)	\
 	IIO_EVENT_CODE(chan_type, 0, 0, direction, type, number, 0, 0)
-
-#define IIO_EVENT_CODE_EXTRACT_TYPE(mask) ((mask >> 56) & 0xFF)
-
-#define IIO_EVENT_CODE_EXTRACT_DIR(mask) ((mask >> 48) & 0x7F)
-
-#define IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(mask) ((mask >> 32) & 0xFF)
-
-/* Event code number extraction depends on which type of event we have.
- * Perhaps review this function in the future*/
-#define IIO_EVENT_CODE_EXTRACT_CHAN(mask) ((__s16)(mask & 0xFFFF))
-#define IIO_EVENT_CODE_EXTRACT_CHAN2(mask) ((__s16)(((mask) >> 16) & 0xFFFF))
-
-#define IIO_EVENT_CODE_EXTRACT_MODIFIER(mask) ((mask >> 40) & 0xFF)
-#define IIO_EVENT_CODE_EXTRACT_DIFF(mask) (((mask) >> 55) & 0x1)
 
 #endif

@@ -216,7 +216,7 @@ static int cx18_alsa_load(struct cx18 *cx)
 	}
 
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
-	if (s->video_dev == NULL) {
+	if (s->video_dev.v4l2_dev == NULL) {
 		CX18_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - "
 				     "skipping\n", __func__);
 		return 0;

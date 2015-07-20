@@ -101,7 +101,7 @@
 #define MXR_CFG_GRP0_ENABLE		(1 << 4)
 #define MXR_CFG_VP_ENABLE		(1 << 3)
 #define MXR_CFG_SCAN_INTERLACE		(0 << 2)
-#define MXR_CFG_SCAN_PROGRASSIVE	(1 << 2)
+#define MXR_CFG_SCAN_PROGRESSIVE	(1 << 2)
 #define MXR_CFG_SCAN_NTSC		(0 << 1)
 #define MXR_CFG_SCAN_PAL		(1 << 1)
 #define MXR_CFG_SCAN_SD			(0 << 0)

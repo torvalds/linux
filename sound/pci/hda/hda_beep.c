@@ -1,7 +1,7 @@
 /*
  * Digital Beep Input Interface for HD-audio codec
  *
- * Author: Matthew Ranostay <mranostay@embeddedalley.com>
+ * Author: Matt Ranostay <mranostay@gmail.com>
  * Copyright (c) 2008 Embedded Alley Solutions Inc
  *
  *  This driver is free software; you can redistribute it and/or modify
@@ -33,28 +33,34 @@ enum {
 	DIGBEEP_HZ_MAX = 12000000,	/* 12 KHz */
 };
 
-static void snd_hda_generate_beep(struct work_struct *work)
+/* generate or stop tone */
+static void generate_tone(struct hda_beep *beep, int tone)
 {
-	struct hda_beep *beep =
-		container_of(work, struct hda_beep, beep_work);
 	struct hda_codec *codec = beep->codec;
-	int tone;
 
-	if (!beep->enabled)
-		return;
-
-	tone = beep->tone;
 	if (tone && !beep->playing) {
 		snd_hda_power_up(codec);
+		if (beep->power_hook)
+			beep->power_hook(beep, true);
 		beep->playing = 1;
 	}
-	/* generate tone */
 	snd_hda_codec_write(codec, beep->nid, 0,
 			    AC_VERB_SET_BEEP_CONTROL, tone);
 	if (!tone && beep->playing) {
 		beep->playing = 0;
+		if (beep->power_hook)
+			beep->power_hook(beep, false);
 		snd_hda_power_down(codec);
 	}
+}
+
+static void snd_hda_generate_beep(struct work_struct *work)
+{
+	struct hda_beep *beep =
+		container_of(work, struct hda_beep, beep_work);
+
+	if (beep->enabled)
+		generate_tone(beep, beep->tone);
 }
 
 /* (non-standard) Linear beep tone calculation for IDT/STAC codecs 
@@ -130,10 +136,7 @@ static void turn_off_beep(struct hda_beep *beep)
 	cancel_work_sync(&beep->beep_work);
 	if (beep->playing) {
 		/* turn off beep */
-		snd_hda_codec_write(beep->codec, beep->nid, 0,
-				    AC_VERB_SET_BEEP_CONTROL, 0);
-		beep->playing = 0;
-		snd_hda_power_down(beep->codec);
+		generate_tone(beep, 0);
 	}
 }
 
@@ -160,15 +163,15 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	input_dev->name = "HDA Digital PCBeep";
 	input_dev->phys = beep->phys;
 	input_dev->id.bustype = BUS_PCI;
+	input_dev->dev.parent = &codec->card->card_dev;
 
-	input_dev->id.vendor = codec->vendor_id >> 16;
-	input_dev->id.product = codec->vendor_id & 0xffff;
+	input_dev->id.vendor = codec->core.vendor_id >> 16;
+	input_dev->id.product = codec->core.vendor_id & 0xffff;
 	input_dev->id.version = 0x01;
 
 	input_dev->evbit[0] = BIT_MASK(EV_SND);
 	input_dev->sndbit[0] = BIT_MASK(SND_BELL) | BIT_MASK(SND_TONE);
 	input_dev->event = snd_hda_beep_event;
-	input_dev->dev.parent = &codec->dev;
 	input_set_drvdata(input_dev, beep);
 
 	beep->dev = input_dev;
@@ -224,7 +227,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	if (beep == NULL)
 		return -ENOMEM;
 	snprintf(beep->phys, sizeof(beep->phys),
-		"card%d/codec#%d/beep0", codec->bus->card->number, codec->addr);
+		"card%d/codec#%d/beep0", codec->card->number, codec->addr);
 	/* enable linear scale */
 	snd_hda_codec_write_cache(codec, nid, 0,
 		AC_VERB_SET_DIGI_CONVERT_2, 0x01);

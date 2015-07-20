@@ -691,4 +691,13 @@ config SHARPSL_PM_MAX1111
 config PXA310_ULPI
 	bool
 
+config PXA_SYSTEMS_CPLDS
+	tristate "Motherboard cplds"
+	default ARCH_LUBBOCK || MACH_MAINSTONE
+	help
+	  This driver supports the Lubbock and Mainstone multifunction chip
+	  found on the pxa25x development platform system (Lubbock) and pxa27x
+	  development platform system (Mainstone). This IO board supports the
+	  interrupts handling, ethernet controller, flash chips, etc ...
+
 endif

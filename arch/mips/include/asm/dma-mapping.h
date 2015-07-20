@@ -1,7 +1,7 @@
 #ifndef _ASM_DMA_MAPPING_H
 #define _ASM_DMA_MAPPING_H
 
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/dma-coherence.h>
 #include <asm/cache.h>
 #include <asm-generic/dma-coherent.h>
@@ -23,7 +23,7 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
 	if (!dev->dma_mask)
-		return 0;
+		return false;
 
 	return addr + size <= *dev->dma_mask;
 }

@@ -332,7 +332,7 @@ static int edp_regulator_enable(struct edp_ctrl *ctrl)
 		goto vdda_set_fail;
 	}
 
-	ret = regulator_set_optimum_mode(ctrl->vdda_vreg, VDDA_UA_ON_LOAD);
+	ret = regulator_set_load(ctrl->vdda_vreg, VDDA_UA_ON_LOAD);
 	if (ret < 0) {
 		pr_err("%s: vdda_vreg set regulator mode failed.\n", __func__);
 		goto vdda_set_fail;
@@ -356,7 +356,7 @@ static int edp_regulator_enable(struct edp_ctrl *ctrl)
 lvl_enable_fail:
 	regulator_disable(ctrl->vdda_vreg);
 vdda_enable_fail:
-	regulator_set_optimum_mode(ctrl->vdda_vreg, VDDA_UA_OFF_LOAD);
+	regulator_set_load(ctrl->vdda_vreg, VDDA_UA_OFF_LOAD);
 vdda_set_fail:
 	return ret;
 }
@@ -365,7 +365,7 @@ static void edp_regulator_disable(struct edp_ctrl *ctrl)
 {
 	regulator_disable(ctrl->lvl_vreg);
 	regulator_disable(ctrl->vdda_vreg);
-	regulator_set_optimum_mode(ctrl->vdda_vreg, VDDA_UA_OFF_LOAD);
+	regulator_set_load(ctrl->vdda_vreg, VDDA_UA_OFF_LOAD);
 }
 
 static int edp_gpio_config(struct edp_ctrl *ctrl)
@@ -1018,7 +1018,7 @@ static void edp_ctrl_off_worker(struct work_struct *work)
 {
 	struct edp_ctrl *ctrl = container_of(
 				work, struct edp_ctrl, off_work);
-	int ret;
+	unsigned long time_left;
 
 	mutex_lock(&ctrl->dev_mutex);
 
@@ -1030,11 +1030,10 @@ static void edp_ctrl_off_worker(struct work_struct *work)
 	reinit_completion(&ctrl->idle_comp);
 	edp_state_ctrl(ctrl, EDP_STATE_CTRL_PUSH_IDLE);
 
-	ret = wait_for_completion_timeout(&ctrl->idle_comp,
+	time_left = wait_for_completion_timeout(&ctrl->idle_comp,
 						msecs_to_jiffies(500));
-	if (ret <= 0)
-		DBG("%s: idle pattern timedout, %d\n",
-				__func__, ret);
+	if (!time_left)
+		DBG("%s: idle pattern timedout\n", __func__);
 
 	edp_state_ctrl(ctrl, 0);
 
@@ -1149,12 +1148,13 @@ int msm_edp_ctrl_init(struct msm_edp *edp)
 	ctrl->aux = msm_edp_aux_init(dev, ctrl->base, &ctrl->drm_aux);
 	if (!ctrl->aux || !ctrl->drm_aux) {
 		pr_err("%s:failed to init aux\n", __func__);
-		return ret;
+		return -ENOMEM;
 	}
 
 	ctrl->phy = msm_edp_phy_init(dev, ctrl->base);
 	if (!ctrl->phy) {
 		pr_err("%s:failed to init phy\n", __func__);
+		ret = -ENOMEM;
 		goto err_destory_aux;
 	}
 

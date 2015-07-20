@@ -54,7 +54,7 @@ static const struct snd_pcm_hardware atmel_pcm_dma_hardware = {
 	.period_bytes_max	= 2 * 0xffff,	/* if 2 bytes format */
 	.periods_min		= 8,
 	.periods_max		= 1024,		/* no limit */
-	.buffer_bytes_max	= ATMEL_SSC_DMABUF_SIZE,
+	.buffer_bytes_max	= 512 * 1024,
 };
 
 /**
@@ -119,13 +119,12 @@ static int atmel_pcm_configure_dma(struct snd_pcm_substream *substream,
 static const struct snd_dmaengine_pcm_config atmel_dmaengine_pcm_config = {
 	.prepare_slave_config = atmel_pcm_configure_dma,
 	.pcm_hardware = &atmel_pcm_dma_hardware,
-	.prealloc_buffer_size = ATMEL_SSC_DMABUF_SIZE,
+	.prealloc_buffer_size = 64 * 1024,
 };
 
 int atmel_pcm_dma_platform_register(struct device *dev)
 {
-	return snd_dmaengine_pcm_register(dev, &atmel_dmaengine_pcm_config,
-			SND_DMAENGINE_PCM_FLAG_NO_RESIDUE);
+	return snd_dmaengine_pcm_register(dev, &atmel_dmaengine_pcm_config, 0);
 }
 EXPORT_SYMBOL(atmel_pcm_dma_platform_register);
 

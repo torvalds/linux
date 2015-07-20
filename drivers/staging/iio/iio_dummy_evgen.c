@@ -72,7 +72,7 @@ static int iio_dummy_evgen_create(void)
 	int ret, i;
 
 	iio_evgen = kzalloc(sizeof(*iio_evgen), GFP_KERNEL);
-	if (iio_evgen == NULL)
+	if (!iio_evgen)
 		return -ENOMEM;
 
 	iio_evgen->base = irq_alloc_descs(-1, 0, IIO_EVENTGEN_NO, 0);
@@ -105,7 +105,7 @@ int iio_dummy_evgen_get_irq(void)
 {
 	int i, ret = 0;
 
-	if (iio_evgen == NULL)
+	if (!iio_evgen)
 		return -ENODEV;
 
 	mutex_lock(&iio_evgen->lock);
@@ -128,13 +128,11 @@ EXPORT_SYMBOL_GPL(iio_dummy_evgen_get_irq);
  *
  * Used by client driver instances to give the irqs back when they disconnect
  */
-int iio_dummy_evgen_release_irq(int irq)
+void iio_dummy_evgen_release_irq(int irq)
 {
 	mutex_lock(&iio_evgen->lock);
 	iio_evgen->inuse[irq - iio_evgen->base] = false;
 	mutex_unlock(&iio_evgen->lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(iio_dummy_evgen_release_irq);
 

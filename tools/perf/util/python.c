@@ -384,7 +384,7 @@ static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
 
 static void pyrf_cpu_map__delete(struct pyrf_cpu_map *pcpus)
 {
-	cpu_map__delete(pcpus->cpus);
+	cpu_map__put(pcpus->cpus);
 	pcpus->ob_type->tp_free((PyObject*)pcpus);
 }
 
@@ -453,7 +453,7 @@ static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
 
 static void pyrf_thread_map__delete(struct pyrf_thread_map *pthreads)
 {
-	thread_map__delete(pthreads->threads);
+	thread_map__put(pthreads->threads);
 	pthreads->ob_type->tp_free((PyObject*)pthreads);
 }
 

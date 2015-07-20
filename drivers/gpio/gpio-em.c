@@ -266,7 +266,7 @@ static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops em_gio_irq_domain_ops = {
+static const struct irq_domain_ops em_gio_irq_domain_ops = {
 	.map	= em_gio_irq_domain_map,
 	.xlate	= irq_domain_xlate_twocell,
 };

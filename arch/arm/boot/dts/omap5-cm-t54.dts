@@ -412,7 +412,6 @@
 	palmas: palmas@48 {
 		compatible = "ti,palmas";
 		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* IRQ_SYS_1N */
-		interrupt-parent = <&gic>;
 		reg = <0x48>;
 		interrupt-controller;
 		#interrupt-cells = <2>;

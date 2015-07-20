@@ -308,7 +308,7 @@ static bool jsa1212_is_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config jsa1212_regmap_config = {
+static const struct regmap_config jsa1212_regmap_config = {
 	.name =  JSA1212_REGMAP_NAME,
 	.reg_bits = 8,
 	.val_bits = 8,

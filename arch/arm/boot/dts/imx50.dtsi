@@ -197,6 +197,7 @@
 				reg = <0x53f80200 0x0200>;
 				interrupts = <14>;
 				clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -205,6 +206,7 @@
 				reg = <0x53f80400 0x0200>;
 				interrupts = <16>;
 				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -213,6 +215,7 @@
 				reg = <0x53f80600 0x0200>;
 				interrupts = <17>;
 				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 

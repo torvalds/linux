@@ -224,7 +224,7 @@ static int ivtv_alsa_load(struct ivtv *itv)
 	}
 
 	s = &itv->streams[IVTV_ENC_STREAM_TYPE_PCM];
-	if (s->vdev == NULL) {
+	if (s->vdev.v4l2_dev == NULL) {
 		IVTV_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - "
 				     "skipping\n", __func__);
 		return 0;

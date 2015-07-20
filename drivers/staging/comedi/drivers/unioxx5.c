@@ -38,7 +38,6 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 
 */
 
-
 #include <linux/module.h>
 #include <linux/delay.h>
 #include "../comedidev.h"
@@ -81,7 +80,6 @@ struct unioxx5_subd_priv {
 
 static int __unioxx5_define_chan_offset(int chan_num)
 {
-
 	if (chan_num < 0 || chan_num > 23)
 		return -1;
 
@@ -266,7 +264,7 @@ static int __unioxx5_analog_write(struct comedi_subdevice *s,
 	/* sending for bytes to module(one byte per cycle iteration) */
 	for (i = 0; i < 4; i++) {
 		while (!((inb(usp->usp_iobase + 0)) & TxBE))
-			;	/* waits while writting will be allowed */
+			;	/* waits while writing will be allowed */
 		outb(usp->usp_extra_data[module][i], usp->usp_iobase + 6);
 	}
 
@@ -399,7 +397,7 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 		outb(i + 1, iobase + 5);
 		outb('H', iobase + 6);	/* requests EEPROM world */
 		while (!(inb(iobase + 0) & TxBE))
-			;	/* waits while writting will be allowed */
+			;	/* waits while writing will be allowed */
 		outb(0, iobase + 6);
 
 		/* waits while reading of two bytes will be allowed */
@@ -413,8 +411,9 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 		if (ndef_flag) {
 			usp->usp_module_type[i] = 0;
 			ndef_flag = 0;
-		} else
+		} else {
 			usp->usp_module_type[i] = inb(iobase + 6);
+		}
 
 		udelay(1);
 	}

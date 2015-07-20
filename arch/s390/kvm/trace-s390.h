@@ -10,6 +10,13 @@
 #define TRACE_INCLUDE_FILE trace-s390
 
 /*
+ * The TRACE_SYSTEM_VAR defaults to TRACE_SYSTEM, but must be a
+ * legitimate C variable. It is not exported to user space.
+ */
+#undef TRACE_SYSTEM_VAR
+#define TRACE_SYSTEM_VAR kvm_s390
+
+/*
  * Trace point for the creation of the kvm instance.
  */
 TRACE_EVENT(kvm_s390_create_vm,

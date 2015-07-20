@@ -30,7 +30,8 @@
  * @pmucaps: PMU capabilities.
  * @pmurev: PMU revision.
  * @rambase: RAM base address (only applicable for ARM CR4 chips).
- * @ramsize: amount of RAM on chip.
+ * @ramsize: amount of RAM on chip including retention.
+ * @srsize: amount of retention RAM on chip.
  * @name: string representation of the chip identifier.
  */
 struct brcmf_chip {
@@ -41,6 +42,7 @@ struct brcmf_chip {
 	u32 pmurev;
 	u32 rambase;
 	u32 ramsize;
+	u32 srsize;
 	char name[8];
 };
 
@@ -64,7 +66,7 @@ struct brcmf_core {
  * @write32: write 32-bit value over bus.
  * @prepare: prepare bus for core configuration.
  * @setup: bus-specific core setup.
- * @exit_dl: exit download state.
+ * @active: chip becomes active.
  *	The callback should use the provided @rstvec when non-zero.
  */
 struct brcmf_buscore_ops {
@@ -72,7 +74,7 @@ struct brcmf_buscore_ops {
 	void (*write32)(void *ctx, u32 addr, u32 value);
 	int (*prepare)(void *ctx);
 	int (*setup)(void *ctx, struct brcmf_chip *chip);
-	void (*exit_dl)(void *ctx, struct brcmf_chip *chip, u32 rstvec);
+	void (*activate)(void *ctx, struct brcmf_chip *chip, u32 rstvec);
 };
 
 struct brcmf_chip *brcmf_chip_attach(void *ctx,
@@ -84,8 +86,8 @@ bool brcmf_chip_iscoreup(struct brcmf_core *core);
 void brcmf_chip_coredisable(struct brcmf_core *core, u32 prereset, u32 reset);
 void brcmf_chip_resetcore(struct brcmf_core *core, u32 prereset, u32 reset,
 			  u32 postreset);
-void brcmf_chip_enter_download(struct brcmf_chip *ci);
-bool brcmf_chip_exit_download(struct brcmf_chip *ci, u32 rstvec);
+void brcmf_chip_set_passive(struct brcmf_chip *ci);
+bool brcmf_chip_set_active(struct brcmf_chip *ci, u32 rstvec);
 bool brcmf_chip_sr_capable(struct brcmf_chip *pub);
 
 #endif /* BRCMF_AXIDMP_H */

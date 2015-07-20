@@ -556,10 +556,8 @@ static int stk_free_sio_buffers(struct stk_camera *dev)
 	nbufs = dev->n_sbufs;
 	dev->n_sbufs = 0;
 	spin_unlock_irqrestore(&dev->spinlock, flags);
-	for (i = 0; i < nbufs; i++) {
-		if (dev->sio_bufs[i].buffer != NULL)
-			vfree(dev->sio_bufs[i].buffer);
-	}
+	for (i = 0; i < nbufs; i++)
+		vfree(dev->sio_bufs[i].buffer);
 	kfree(dev->sio_bufs);
 	dev->sio_bufs = NULL;
 	return 0;

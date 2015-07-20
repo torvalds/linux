@@ -98,8 +98,7 @@ static u8 *ieee80211_wep_add_iv(struct ieee80211_local *local,
 
 	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
-	if (WARN_ON(skb_tailroom(skb) < IEEE80211_WEP_ICV_LEN ||
-		    skb_headroom(skb) < IEEE80211_WEP_IV_LEN))
+	if (WARN_ON(skb_headroom(skb) < IEEE80211_WEP_IV_LEN))
 		return NULL;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -166,6 +165,9 @@ int ieee80211_wep_encrypt(struct ieee80211_local *local,
 	u8 *iv;
 	size_t len;
 	u8 rc4key[3 + WLAN_KEY_LEN_WEP104];
+
+	if (WARN_ON(skb_tailroom(skb) < IEEE80211_WEP_ICV_LEN))
+		return -1;
 
 	iv = ieee80211_wep_add_iv(local, skb, keylen, keyidx);
 	if (!iv)

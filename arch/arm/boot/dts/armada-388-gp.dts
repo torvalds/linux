@@ -48,8 +48,7 @@
 	compatible = "marvell,a385-gp", "marvell,armada388", "marvell,armada380";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &uart0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -70,7 +69,7 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "st,m25p128";
+					compatible = "st,m25p128", "jedec,spi-nor";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <50000000>;
 					m25p,fast-read;
@@ -135,7 +134,7 @@
 			};
 
 			/* CON4 */
-			usb@50000 {
+			usb@58000 {
 				vcc-supply = <&reg_usb2_0_vbus>;
 				status = "okay";
 			};

@@ -56,7 +56,13 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	vlan_tag = attr->vlan_id;
 	if (!vlan_tag || (vlan_tag > 0xFFF))
 		vlan_tag = dev->pvid;
-	if (vlan_tag && (vlan_tag < 0x1000)) {
+	if (vlan_tag || dev->pfc_state) {
+		if (!vlan_tag) {
+			pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
+				dev->id);
+			pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
+				dev->id);
+		}
 		eth.eth_type = cpu_to_be16(0x8100);
 		eth.roce_eth_type = cpu_to_be16(OCRDMA_ROCE_ETH_TYPE);
 		vlan_tag |= (dev->sl & 0x07) << OCRDMA_VID_PCP_SHIFT;
@@ -121,7 +127,9 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 		goto av_conf_err;
 	}
 
-	if (pd->uctx) {
+	if ((pd->uctx) &&
+	    (!rdma_is_multicast_addr((struct in6_addr *)attr->grh.dgid.raw)) &&
+	    (!rdma_link_local_addr((struct in6_addr *)attr->grh.dgid.raw))) {
 		status = rdma_addr_find_dmac_by_grh(&sgid, &attr->grh.dgid,
                                         attr->dmac, &attr->vlan_id);
 		if (status) {
@@ -196,12 +204,20 @@ int ocrdma_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 int ocrdma_process_mad(struct ib_device *ibdev,
 		       int process_mad_flags,
 		       u8 port_num,
-		       struct ib_wc *in_wc,
-		       struct ib_grh *in_grh,
-		       struct ib_mad *in_mad, struct ib_mad *out_mad)
+		       const struct ib_wc *in_wc,
+		       const struct ib_grh *in_grh,
+		       const struct ib_mad_hdr *in, size_t in_mad_size,
+		       struct ib_mad_hdr *out, size_t *out_mad_size,
+		       u16 *out_mad_pkey_index)
 {
 	int status;
 	struct ocrdma_dev *dev;
+	const struct ib_mad *in_mad = (const struct ib_mad *)in;
+	struct ib_mad *out_mad = (struct ib_mad *)out;
+
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_PERF_MGMT:

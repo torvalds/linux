@@ -191,6 +191,7 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count);
 void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
+int gnttab_unmap_refs_sync(struct gntab_unmap_queue_data *item);
 
 
 /* Perform a batch of grant map/copy operations. Retry every batch slot

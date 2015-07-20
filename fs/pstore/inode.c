@@ -190,7 +190,7 @@ static const struct file_operations pstore_file_operations = {
  */
 static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct pstore_private *p = dentry->d_inode->i_private;
+	struct pstore_private *p = d_inode(dentry)->i_private;
 	int err;
 
 	err = pstore_check_syslog_permissions(p);
@@ -199,7 +199,7 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 
 	if (p->psi->erase)
 		p->psi->erase(p->type, p->id, p->count,
-			      dentry->d_inode->i_ctime, p->psi);
+			      d_inode(dentry)->i_ctime, p->psi);
 	else
 		return -EPERM;
 
@@ -364,6 +364,9 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 	case PSTORE_TYPE_PMSG:
 		scnprintf(name, sizeof(name), "pmsg-%s-%lld", psname, id);
 		break;
+	case PSTORE_TYPE_PPC_OPAL:
+		sprintf(name, "powerpc-opal-%s-%lld", psname, id);
+		break;
 	case PSTORE_TYPE_UNKNOWN:
 		scnprintf(name, sizeof(name), "unknown-%s-%lld", psname, id);
 		break;
@@ -373,7 +376,7 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 		break;
 	}
 
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 
 	dentry = d_alloc_name(root, name);
 	if (!dentry)
@@ -393,12 +396,12 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 	list_add(&private->list, &allpstore);
 	spin_unlock_irqrestore(&allpstore_lock, flags);
 
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 
 	return 0;
 
 fail_lockedalloc:
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 	kfree(private);
 fail_alloc:
 	iput(inode);
@@ -458,22 +461,18 @@ static struct file_system_type pstore_fs_type = {
 	.kill_sb	= pstore_kill_sb,
 };
 
-static struct kobject *pstore_kobj;
-
 static int __init init_pstore_fs(void)
 {
-	int err = 0;
+	int err;
 
 	/* Create a convenient mount point for people to access pstore */
-	pstore_kobj = kobject_create_and_add("pstore", fs_kobj);
-	if (!pstore_kobj) {
-		err = -ENOMEM;
+	err = sysfs_create_mount_point(fs_kobj, "pstore");
+	if (err)
 		goto out;
-	}
 
 	err = register_filesystem(&pstore_fs_type);
 	if (err < 0)
-		kobject_put(pstore_kobj);
+		sysfs_remove_mount_point(fs_kobj, "pstore");
 
 out:
 	return err;

@@ -42,7 +42,7 @@ struct smp_ops_t {
 #ifdef CONFIG_PPC_SMP_MUXED_IPI
 	void  (*cause_ipi)(int cpu, unsigned long data);
 #endif
-	int   (*probe)(void);
+	void  (*probe)(void);
 	int   (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);
 	void  (*bringup_done)(void);
@@ -125,7 +125,6 @@ extern irqreturn_t smp_ipi_demux(void);
 
 void smp_init_pSeries(void);
 void smp_init_cell(void);
-void smp_init_celleb(void);
 void smp_setup_cpu_maps(void);
 
 extern int __cpu_disable(void);
@@ -175,7 +174,7 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 
 extern int smt_enabled_at_boot;
 
-extern int smp_mpic_probe(void);
+extern void smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
 extern int smp_generic_kick_cpu(int nr);
 extern int smp_generic_cpu_bootable(unsigned int nr);

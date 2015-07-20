@@ -39,7 +39,7 @@
 #define pcm_omap1510()	0
 #endif
 
-static const struct snd_pcm_hardware omap_pcm_hardware = {
+static struct snd_pcm_hardware omap_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
@@ -52,6 +52,24 @@ static const struct snd_pcm_hardware omap_pcm_hardware = {
 	.periods_max		= 255,
 	.buffer_bytes_max	= 128 * 1024,
 };
+
+/* sDMA supports only 1, 2, and 4 byte transfer elements. */
+static void omap_pcm_limit_supported_formats(void)
+{
+	int i;
+
+	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
+		switch (snd_pcm_format_physical_width(i)) {
+		case 8:
+		case 16:
+		case 32:
+			omap_pcm_hardware.formats |= (1LL << i);
+			break;
+		default:
+			break;
+		}
+	}
+}
 
 /* this may get called several times by oss emulation */
 static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -235,6 +253,7 @@ static struct snd_soc_platform_driver omap_soc_platform = {
 
 int omap_pcm_platform_register(struct device *dev)
 {
+	omap_pcm_limit_supported_formats();
 	return devm_snd_soc_register_platform(dev, &omap_soc_platform);
 }
 EXPORT_SYMBOL_GPL(omap_pcm_platform_register);

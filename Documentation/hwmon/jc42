@@ -11,12 +11,10 @@ Supported chips:
 	http://www.atmel.com/Images/doc8711.pdf
 	http://www.atmel.com/Images/Atmel-8852-SEEPROM-AT30TSE002A-Datasheet.pdf
 	http://www.atmel.com/Images/Atmel-8868-DTS-AT30TSE004A-Datasheet.pdf
-  * IDT TSE2002B3, TSE2002GB2, TS3000B3, TS3000GB2
+  * IDT TSE2002B3, TSE2002GB2, TSE2004GB2, TS3000B3, TS3000GB0, TS3000GB2,
+	TS3001GB2
     Datasheets:
-	http://www.idt.com/sites/default/files/documents/IDT_TSE2002B3C_DST_20100512_120303152056.pdf
-	http://www.idt.com/sites/default/files/documents/IDT_TSE2002GB2A1_DST_20111107_120303145914.pdf
-	http://www.idt.com/sites/default/files/documents/IDT_TS3000B3A_DST_20101129_120303152013.pdf
-	http://www.idt.com/sites/default/files/documents/IDT_TS3000GB2A1_DST_20111104_120303151012.pdf
+	Available from IDT web site
   * Maxim MAX6604
     Datasheets:
 	http://datasheets.maxim-ic.com/en/ds/MAX6604.pdf

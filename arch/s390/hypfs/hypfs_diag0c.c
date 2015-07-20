@@ -19,13 +19,9 @@
 static void diag0c(struct hypfs_diag0c_entry *entry)
 {
 	asm volatile (
-#ifdef CONFIG_64BIT
 		"	sam31\n"
 		"	diag	%0,%0,0x0c\n"
 		"	sam64\n"
-#else
-		"	diag %0,%0,0x0c\n"
-#endif
 		: /* no output register */
 		: "a" (entry)
 		: "memory");

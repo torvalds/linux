@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2007-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2007-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -710,7 +710,7 @@ lpfc_debugfs_slow_ring_trc(struct lpfc_hba *phba, char *fmt,
  * returns a pointer to that log in the private_data field in @file.
  *
  * Returns:
- * This function returns zero if successful. On error it will return an negative
+ * This function returns zero if successful. On error it will return a negative
  * error value.
  **/
 static int
@@ -760,7 +760,7 @@ out:
  * returns a pointer to that log in the private_data field in @file.
  *
  * Returns:
- * This function returns zero if successful. On error it will return an negative
+ * This function returns zero if successful. On error it will return a negative
  * error value.
  **/
 static int
@@ -810,7 +810,7 @@ out:
  * returns a pointer to that log in the private_data field in @file.
  *
  * Returns:
- * This function returns zero if successful. On error it will return an negative
+ * This function returns zero if successful. On error it will return a negative
  * error value.
  **/
 static int
@@ -852,7 +852,7 @@ out:
  * returns a pointer to that log in the private_data field in @file.
  *
  * Returns:
- * This function returns zero if successful. On error it will return an negative
+ * This function returns zero if successful. On error it will return a negative
  * error value.
  **/
 static int
@@ -894,7 +894,7 @@ out:
  * returns a pointer to that log in the private_data field in @file.
  *
  * Returns:
- * This function returns zero if successful. On error it will return an negative
+ * This function returns zero if successful. On error it will return a negative
  * error value.
  **/
 static int
@@ -1115,7 +1115,7 @@ lpfc_debugfs_dif_err_release(struct inode *inode, struct file *file)
  * returns a pointer to that log in the private_data field in @file.
  *
  * Returns:
- * This function returns zero if successful. On error it will return an negative
+ * This function returns zero if successful. On error it will return a negative
  * error value.
  **/
 static int

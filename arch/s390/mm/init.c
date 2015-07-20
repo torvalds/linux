@@ -105,7 +105,6 @@ void __init paging_init(void)
 	unsigned long pgd_type, asce_bits;
 
 	init_mm.pgd = swapper_pg_dir;
-#ifdef CONFIG_64BIT
 	if (VMALLOC_END > (1UL << 42)) {
 		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION2_ENTRY_EMPTY;
@@ -113,10 +112,6 @@ void __init paging_init(void)
 		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION3_ENTRY_EMPTY;
 	}
-#else
-	asce_bits = _ASCE_TABLE_LENGTH;
-	pgd_type = _SEGMENT_ENTRY_EMPTY;
-#endif
 	S390_lowcore.kernel_asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	clear_table((unsigned long *) init_mm.pgd, pgd_type,
 		    sizeof(unsigned long)*2048);
@@ -218,7 +213,7 @@ unsigned long memory_block_size_bytes(void)
 	 * Make sure the memory block size is always greater
 	 * or equal than the memory increment size.
 	 */
-	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp_get_rzm());
+	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE

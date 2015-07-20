@@ -211,7 +211,7 @@ err:
 	return ret;
 }
 
-static int hd29l2_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int hd29l2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ret;
 	struct hd29l2_priv *priv = fe->demodulator_priv;

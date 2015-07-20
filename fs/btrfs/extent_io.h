@@ -97,7 +97,7 @@ struct extent_io_tree {
 	u64 dirty_bytes;
 	int track_uptodate;
 	spinlock_t lock;
-	struct extent_io_ops *ops;
+	const struct extent_io_ops *ops;
 };
 
 struct extent_state {

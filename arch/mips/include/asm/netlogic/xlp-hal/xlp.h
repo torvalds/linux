@@ -52,6 +52,7 @@
 #define PIC_2XX_XHCI_2_IRQ		25
 #define PIC_9XX_XHCI_0_IRQ		23
 #define PIC_9XX_XHCI_1_IRQ		24
+#define PIC_9XX_XHCI_2_IRQ		25
 
 #define PIC_MMC_IRQ			29
 #define PIC_I2C_0_IRQ			30
@@ -89,7 +90,7 @@ void xlp_wakeup_secondary_cpus(void);
 
 void xlp_mmu_init(void);
 void nlm_hal_init(void);
-int xlp_get_dram_map(int n, uint64_t *dram_map);
+int nlm_get_dram_map(int node, uint64_t *dram_map, int nentries);
 
 struct pci_dev;
 int xlp_socdev_to_node(const struct pci_dev *dev);

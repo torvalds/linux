@@ -869,6 +869,20 @@ static int write_branch_stack(int fd __maybe_unused,
 	return 0;
 }
 
+static int write_auxtrace(int fd, struct perf_header *h,
+			  struct perf_evlist *evlist __maybe_unused)
+{
+	struct perf_session *session;
+	int err;
+
+	session = container_of(h, struct perf_session, header);
+
+	err = auxtrace_index__write(fd, &session->auxtrace_index);
+	if (err < 0)
+		pr_err("Failed to write auxtrace index\n");
+	return err;
+}
+
 static void print_hostname(struct perf_header *ph, int fd __maybe_unused,
 			   FILE *fp)
 {
@@ -1049,10 +1063,15 @@ out:
 	free(buf);
 	return events;
 error:
-	if (events)
-		free_event_desc(events);
+	free_event_desc(events);
 	events = NULL;
 	goto out;
+}
+
+static int __desc_attr__fprintf(FILE *fp, const char *name, const char *val,
+				void *priv __attribute__((unused)))
+{
+	return fprintf(fp, ", %s = %s", name, val);
 }
 
 static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
@@ -1069,26 +1088,6 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	for (evsel = events; evsel->attr.size; evsel++) {
 		fprintf(fp, "# event : name = %s, ", evsel->name);
 
-		fprintf(fp, "type = %d, config = 0x%"PRIx64
-			    ", config1 = 0x%"PRIx64", config2 = 0x%"PRIx64,
-				evsel->attr.type,
-				(u64)evsel->attr.config,
-				(u64)evsel->attr.config1,
-				(u64)evsel->attr.config2);
-
-		fprintf(fp, ", excl_usr = %d, excl_kern = %d",
-				evsel->attr.exclude_user,
-				evsel->attr.exclude_kernel);
-
-		fprintf(fp, ", excl_host = %d, excl_guest = %d",
-				evsel->attr.exclude_host,
-				evsel->attr.exclude_guest);
-
-		fprintf(fp, ", precise_ip = %d", evsel->attr.precise_ip);
-
-		fprintf(fp, ", attr_mmap2 = %d", evsel->attr.mmap2);
-		fprintf(fp, ", attr_mmap  = %d", evsel->attr.mmap);
-		fprintf(fp, ", attr_mmap_data = %d", evsel->attr.mmap_data);
 		if (evsel->ids) {
 			fprintf(fp, ", id = {");
 			for (j = 0, id = evsel->id; j < evsel->ids; j++, id++) {
@@ -1098,6 +1097,8 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 			}
 			fprintf(fp, " }");
 		}
+
+		perf_event_attr__fprintf(fp, &evsel->attr, __desc_attr__fprintf, NULL);
 
 		fputc('\n', fp);
 	}
@@ -1161,6 +1162,12 @@ static void print_branch_stack(struct perf_header *ph __maybe_unused,
 			       int fd __maybe_unused, FILE *fp)
 {
 	fprintf(fp, "# contains samples with branch stack\n");
+}
+
+static void print_auxtrace(struct perf_header *ph __maybe_unused,
+			   int fd __maybe_unused, FILE *fp)
+{
+	fprintf(fp, "# contains AUX area data (e.g. instruction trace)\n");
 }
 
 static void print_pmu_mappings(struct perf_header *ph, int fd __maybe_unused,
@@ -1230,9 +1237,8 @@ static int __event_process_build_id(struct build_id_event *bev,
 				    struct perf_session *session)
 {
 	int err = -1;
-	struct dsos *dsos;
 	struct machine *machine;
-	u16 misc;
+	u16 cpumode;
 	struct dso *dso;
 	enum dso_kernel_type dso_type;
 
@@ -1240,39 +1246,37 @@ static int __event_process_build_id(struct build_id_event *bev,
 	if (!machine)
 		goto out;
 
-	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	cpumode = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	switch (misc) {
+	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
 		dso_type = DSO_TYPE_KERNEL;
-		dsos = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
 		dso_type = DSO_TYPE_GUEST_KERNEL;
-		dsos = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_USER:
 	case PERF_RECORD_MISC_GUEST_USER:
 		dso_type = DSO_TYPE_USER;
-		dsos = &machine->user_dsos;
 		break;
 	default:
 		goto out;
 	}
 
-	dso = __dsos__findnew(dsos, filename);
+	dso = machine__findnew_dso(machine, filename);
 	if (dso != NULL) {
 		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
 		dso__set_build_id(dso, &bev->build_id);
 
-		if (!is_kernel_module(filename, NULL))
+		if (!is_kernel_module(filename, cpumode))
 			dso->kernel = dso_type;
 
 		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
 				  sbuild_id);
 		pr_debug("build id event received for %s: %s\n",
 			 dso->long_name, sbuild_id);
+		dso__put(dso);
 	}
 
 	err = 0;
@@ -1833,6 +1837,22 @@ out_free:
 	return ret;
 }
 
+static int process_auxtrace(struct perf_file_section *section,
+			    struct perf_header *ph, int fd,
+			    void *data __maybe_unused)
+{
+	struct perf_session *session;
+	int err;
+
+	session = container_of(ph, struct perf_session, header);
+
+	err = auxtrace_index__process(fd, section->size, session,
+				      ph->needs_swap);
+	if (err < 0)
+		pr_err("Failed to process auxtrace index\n");
+	return err;
+}
+
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
@@ -1873,6 +1893,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
 	FEAT_OPP(HEADER_PMU_MAPPINGS,	pmu_mappings),
 	FEAT_OPP(HEADER_GROUP_DESC,	group_desc),
+	FEAT_OPP(HEADER_AUXTRACE,	auxtrace),
 };
 
 struct header_print_data {
@@ -2516,8 +2537,11 @@ int perf_session__read_header(struct perf_session *session)
 		if (read_attr(fd, header, &f_attr) < 0)
 			goto out_errno;
 
-		if (header->needs_swap)
+		if (header->needs_swap) {
+			f_attr.ids.size   = bswap_64(f_attr.ids.size);
+			f_attr.ids.offset = bswap_64(f_attr.ids.offset);
 			perf_event__attr_swap(&f_attr.attr);
+		}
 
 		tmp = lseek(fd, 0, SEEK_CUR);
 		evsel = perf_evsel__new(&f_attr.attr);

@@ -812,7 +812,7 @@ static int ncp_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (!d) {
 		goto dflt;
 	}
-	i = d->d_inode;
+	i = d_inode(d);
 	if (!i) {
 		goto dflt;
 	}
@@ -865,7 +865,7 @@ dflt:;
 
 int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int result = 0;
 	__le32 info_mask;
 	struct nw_modify_dos_info info;
@@ -878,7 +878,7 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 		goto out;
 
 	result = -EPERM;
-	if (IS_DEADDIR(dentry->d_inode))
+	if (IS_DEADDIR(d_inode(dentry)))
 		goto out;
 
 	/* ageing the dentry to force validation */

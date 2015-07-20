@@ -17,11 +17,12 @@
 #include <linux/types.h>
 
 #define ATH79_MEM_SIZE_MIN	(2 * 1024 * 1024)
-#define ATH79_MEM_SIZE_MAX	(128 * 1024 * 1024)
+#define ATH79_MEM_SIZE_MAX	(256 * 1024 * 1024)
 
 void ath79_clocks_init(void);
 unsigned long ath79_get_sys_clk_rate(const char *id);
 
+void ath79_ddr_ctrl_init(void);
 void ath79_ddr_wb_flush(unsigned int reg);
 
 void ath79_gpio_function_enable(u32 mask);

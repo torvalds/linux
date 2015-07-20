@@ -49,7 +49,7 @@ struct ix2505v_config {
 
 };
 
-#if IS_ENABLED(CONFIG_DVB_IX2505V)
+#if IS_REACHABLE(CONFIG_DVB_IX2505V)
 extern struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 	const struct ix2505v_config *config, struct i2c_adapter *i2c);
 #else

@@ -22,6 +22,12 @@
 #include "ieee754sp.h"
 #include "ieee754dp.h"
 
+static inline union ieee754dp ieee754dp_nan_fsp(int xs, u64 xm)
+{
+	return builddp(xs, DP_EMAX + 1 + DP_EBIAS,
+		       xm << (DP_FBITS - SP_FBITS));
+}
+
 union ieee754dp ieee754dp_fsp(union ieee754sp x)
 {
 	COMPXSP;
@@ -34,15 +40,11 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 
 	switch (xc) {
 	case IEEE754_CLASS_SNAN:
-		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754dp_nanxcpt(ieee754dp_indef());
+		return ieee754dp_nanxcpt(ieee754dp_nan_fsp(xs, xm));
 
 	case IEEE754_CLASS_QNAN:
-		return ieee754dp_nanxcpt(builddp(xs,
-						 DP_EMAX + 1 + DP_EBIAS,
-						 ((u64) xm
-						  << (DP_FBITS -
-						      SP_FBITS))));
+		return ieee754dp_nan_fsp(xs, xm);
+
 	case IEEE754_CLASS_INF:
 		return ieee754dp_inf(xs);
 

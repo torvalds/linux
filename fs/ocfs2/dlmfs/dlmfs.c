@@ -208,7 +208,7 @@ static int dlmfs_file_release(struct inode *inode,
 static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int error;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	attr->ia_valid &= ~ATTR_SIZE;
 	error = inode_change_ok(inode, attr);
@@ -549,7 +549,7 @@ static int dlmfs_unlink(struct inode *dir,
 			struct dentry *dentry)
 {
 	int status;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	mlog(0, "unlink inode %lu\n", inode->i_ino);
 

@@ -6,7 +6,7 @@
 IN=$1
 OUT=$2
 
-function dump_array()
+dump_array()
 {
 	ARRAY=$1
 	SIZE=$2

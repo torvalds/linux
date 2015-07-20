@@ -55,27 +55,6 @@
 LIST_HEAD(lowpan_devices);
 static int lowpan_open_count;
 
-static __le16 lowpan_get_pan_id(const struct net_device *dev)
-{
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
-
-	return ieee802154_mlme_ops(real_dev)->get_pan_id(real_dev);
-}
-
-static __le16 lowpan_get_short_addr(const struct net_device *dev)
-{
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
-
-	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
-}
-
-static u8 lowpan_get_dsn(const struct net_device *dev)
-{
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
-
-	return ieee802154_mlme_ops(real_dev)->get_dsn(real_dev);
-}
-
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -103,17 +82,11 @@ static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_start_xmit		= lowpan_xmit,
 };
 
-static struct ieee802154_mlme_ops lowpan_mlme = {
-	.get_pan_id = lowpan_get_pan_id,
-	.get_short_addr = lowpan_get_short_addr,
-	.get_dsn = lowpan_get_dsn,
-};
-
 static void lowpan_setup(struct net_device *dev)
 {
 	dev->addr_len		= IEEE802154_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
-	dev->type		= ARPHRD_IEEE802154;
+	dev->type		= ARPHRD_6LOWPAN;
 	/* Frame Control + Sequence Number + Address fields + Security Header */
 	dev->hard_header_len	= 2 + 1 + 20 + 14;
 	dev->needed_tailroom	= 2; /* FCS */
@@ -124,8 +97,8 @@ static void lowpan_setup(struct net_device *dev)
 
 	dev->netdev_ops		= &lowpan_netdev_ops;
 	dev->header_ops		= &lowpan_header_ops;
-	dev->ml_priv		= &lowpan_mlme;
 	dev->destructor		= free_netdev;
+	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
 static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -148,10 +121,11 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 
 	pr_debug("adding new link\n");
 
-	if (!tb[IFLA_LINK])
+	if (!tb[IFLA_LINK] ||
+	    !net_eq(dev_net(dev), &init_net))
 		return -EINVAL;
 	/* find and hold real wpan device */
-	real_dev = dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
+	real_dev = dev_get_by_index(dev_net(dev), nla_get_u32(tb[IFLA_LINK]));
 	if (!real_dev)
 		return -ENODEV;
 	if (real_dev->type != ARPHRD_IEEE802154) {

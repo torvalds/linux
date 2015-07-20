@@ -72,20 +72,60 @@ int mkdir_p(char *path, mode_t mode)
 	return (stat(path, &st) && mkdir(path, mode)) ? -1 : 0;
 }
 
-static int slow_copyfile(const char *from, const char *to, mode_t mode)
+int rm_rf(char *path)
+{
+	DIR *dir;
+	int ret = 0;
+	struct dirent *d;
+	char namebuf[PATH_MAX];
+
+	dir = opendir(path);
+	if (dir == NULL)
+		return 0;
+
+	while ((d = readdir(dir)) != NULL && !ret) {
+		struct stat statbuf;
+
+		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
+			continue;
+
+		scnprintf(namebuf, sizeof(namebuf), "%s/%s",
+			  path, d->d_name);
+
+		ret = stat(namebuf, &statbuf);
+		if (ret < 0) {
+			pr_debug("stat failed: %s\n", namebuf);
+			break;
+		}
+
+		if (S_ISREG(statbuf.st_mode))
+			ret = unlink(namebuf);
+		else if (S_ISDIR(statbuf.st_mode))
+			ret = rm_rf(namebuf);
+		else {
+			pr_debug("unknown file: %s\n", namebuf);
+			ret = -1;
+		}
+	}
+	closedir(dir);
+
+	if (ret < 0)
+		return ret;
+
+	return rmdir(path);
+}
+
+static int slow_copyfile(const char *from, const char *to)
 {
 	int err = -1;
 	char *line = NULL;
 	size_t n;
 	FILE *from_fp = fopen(from, "r"), *to_fp;
-	mode_t old_umask;
 
 	if (from_fp == NULL)
 		goto out;
 
-	old_umask = umask(mode ^ 0777);
 	to_fp = fopen(to, "w");
-	umask(old_umask);
 	if (to_fp == NULL)
 		goto out_fclose_from;
 
@@ -102,42 +142,81 @@ out:
 	return err;
 }
 
+int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size)
+{
+	void *ptr;
+	loff_t pgoff;
+
+	pgoff = off_in & ~(page_size - 1);
+	off_in -= pgoff;
+
+	ptr = mmap(NULL, off_in + size, PROT_READ, MAP_PRIVATE, ifd, pgoff);
+	if (ptr == MAP_FAILED)
+		return -1;
+
+	while (size) {
+		ssize_t ret = pwrite(ofd, ptr + off_in, size, off_out);
+		if (ret < 0 && errno == EINTR)
+			continue;
+		if (ret <= 0)
+			break;
+
+		size -= ret;
+		off_in += ret;
+		off_out -= ret;
+	}
+	munmap(ptr, off_in + size);
+
+	return size ? -1 : 0;
+}
+
 int copyfile_mode(const char *from, const char *to, mode_t mode)
 {
 	int fromfd, tofd;
 	struct stat st;
-	void *addr;
 	int err = -1;
+	char *tmp = NULL, *ptr = NULL;
 
 	if (stat(from, &st))
 		goto out;
 
-	if (st.st_size == 0) /* /proc? do it slowly... */
-		return slow_copyfile(from, to, mode);
+	/* extra 'x' at the end is to reserve space for '.' */
+	if (asprintf(&tmp, "%s.XXXXXXx", to) < 0) {
+		tmp = NULL;
+		goto out;
+	}
+	ptr = strrchr(tmp, '/');
+	if (!ptr)
+		goto out;
+	ptr = memmove(ptr + 1, ptr, strlen(ptr) - 1);
+	*ptr = '.';
+
+	tofd = mkstemp(tmp);
+	if (tofd < 0)
+		goto out;
+
+	if (fchmod(tofd, mode))
+		goto out_close_to;
+
+	if (st.st_size == 0) { /* /proc? do it slowly... */
+		err = slow_copyfile(from, tmp);
+		goto out_close_to;
+	}
 
 	fromfd = open(from, O_RDONLY);
 	if (fromfd < 0)
-		goto out;
-
-	tofd = creat(to, mode);
-	if (tofd < 0)
-		goto out_close_from;
-
-	addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fromfd, 0);
-	if (addr == MAP_FAILED)
 		goto out_close_to;
 
-	if (write(tofd, addr, st.st_size) == st.st_size)
-		err = 0;
+	err = copyfile_offset(fromfd, 0, tofd, 0, st.st_size);
 
-	munmap(addr, st.st_size);
+	close(fromfd);
 out_close_to:
 	close(tofd);
-	if (err)
-		unlink(to);
-out_close_from:
-	close(fromfd);
+	if (!err)
+		err = link(tmp, to);
+	unlink(tmp);
 out:
+	free(tmp);
 	return err;
 }
 
@@ -269,6 +348,13 @@ void dump_stack(void)
 void dump_stack(void) {}
 #endif
 
+void sighandler_dump_stack(int sig)
+{
+	psignal(sig, "perf");
+	dump_stack();
+	exit(sig);
+}
+
 void get_term_dimensions(struct winsize *ws)
 {
 	char *s = getenv("LINES");
@@ -303,13 +389,26 @@ void set_term_quiet_input(struct termios *old)
 	tcsetattr(0, TCSANOW, &tc);
 }
 
-static void set_tracing_events_path(const char *mountpoint)
+static void set_tracing_events_path(const char *tracing, const char *mountpoint)
 {
-	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s",
-		 mountpoint, "tracing/events");
+	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s%s",
+		 mountpoint, tracing, "events");
 }
 
-const char *perf_debugfs_mount(const char *mountpoint)
+static const char *__perf_tracefs_mount(const char *mountpoint)
+{
+	const char *mnt;
+
+	mnt = tracefs_mount(mountpoint);
+	if (!mnt)
+		return NULL;
+
+	set_tracing_events_path("", mnt);
+
+	return mnt;
+}
+
+static const char *__perf_debugfs_mount(const char *mountpoint)
 {
 	const char *mnt;
 
@@ -317,7 +416,20 @@ const char *perf_debugfs_mount(const char *mountpoint)
 	if (!mnt)
 		return NULL;
 
-	set_tracing_events_path(mnt);
+	set_tracing_events_path("tracing/", mnt);
+
+	return mnt;
+}
+
+const char *perf_debugfs_mount(const char *mountpoint)
+{
+	const char *mnt;
+
+	mnt = __perf_tracefs_mount(mountpoint);
+	if (mnt)
+		return mnt;
+
+	mnt = __perf_debugfs_mount(mountpoint);
 
 	return mnt;
 }
@@ -325,12 +437,19 @@ const char *perf_debugfs_mount(const char *mountpoint)
 void perf_debugfs_set_path(const char *mntpt)
 {
 	snprintf(debugfs_mountpoint, strlen(debugfs_mountpoint), "%s", mntpt);
-	set_tracing_events_path(mntpt);
+	set_tracing_events_path("tracing/", mntpt);
+}
+
+static const char *find_tracefs(void)
+{
+	const char *path = __perf_tracefs_mount(NULL);
+
+	return path;
 }
 
 static const char *find_debugfs(void)
 {
-	const char *path = perf_debugfs_mount(NULL);
+	const char *path = __perf_debugfs_mount(NULL);
 
 	if (!path)
 		fprintf(stderr, "Your kernel does not support the debugfs filesystem");
@@ -344,6 +463,7 @@ static const char *find_debugfs(void)
  */
 const char *find_tracing_dir(void)
 {
+	const char *tracing_dir = "";
 	static char *tracing;
 	static int tracing_found;
 	const char *debugfs;
@@ -351,11 +471,15 @@ const char *find_tracing_dir(void)
 	if (tracing_found)
 		return tracing;
 
-	debugfs = find_debugfs();
-	if (!debugfs)
-		return NULL;
+	debugfs = find_tracefs();
+	if (!debugfs) {
+		tracing_dir = "/tracing";
+		debugfs = find_debugfs();
+		if (!debugfs)
+			return NULL;
+	}
 
-	if (asprintf(&tracing, "%s/tracing", debugfs) < 0)
+	if (asprintf(&tracing, "%s%s", debugfs, tracing_dir) < 0)
 		return NULL;
 
 	tracing_found = 1;

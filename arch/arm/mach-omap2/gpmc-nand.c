@@ -96,14 +96,6 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 	gpmc_nand_res[1].start = gpmc_get_client_irq(GPMC_IRQ_FIFOEVENTENABLE);
 	gpmc_nand_res[2].start = gpmc_get_client_irq(GPMC_IRQ_COUNT_EVENT);
 
-	if (gpmc_t) {
-		err = gpmc_cs_set_timings(gpmc_nand_data->cs, gpmc_t);
-		if (err < 0) {
-			pr_err("omap2-gpmc: Unable to set gpmc timings: %d\n", err);
-			return err;
-		}
-	}
-
 	memset(&s, 0, sizeof(struct gpmc_settings));
 	if (gpmc_nand_data->of_node)
 		gpmc_read_settings_dt(gpmc_nand_data->of_node, &s);
@@ -111,6 +103,16 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 		gpmc_set_legacy(gpmc_nand_data, &s);
 
 	s.device_nand = true;
+
+	if (gpmc_t) {
+		err = gpmc_cs_set_timings(gpmc_nand_data->cs, gpmc_t, &s);
+		if (err < 0) {
+			pr_err("omap2-gpmc: Unable to set gpmc timings: %d\n",
+			       err);
+			return err;
+		}
+	}
+
 	err = gpmc_cs_program_settings(gpmc_nand_data->cs, &s);
 	if (err < 0)
 		goto out_free_cs;

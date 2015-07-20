@@ -41,6 +41,8 @@ struct tegra_sor {
 	struct mutex lock;
 	bool enabled;
 
+	struct drm_info_list *debugfs_files;
+	struct drm_minor *minor;
 	struct dentry *debugfs;
 };
 
@@ -68,13 +70,12 @@ static inline struct tegra_sor *to_sor(struct tegra_output *output)
 	return container_of(output, struct tegra_sor, output);
 }
 
-static inline unsigned long tegra_sor_readl(struct tegra_sor *sor,
-					    unsigned long offset)
+static inline u32 tegra_sor_readl(struct tegra_sor *sor, unsigned long offset)
 {
 	return readl(sor->regs + (offset << 2));
 }
 
-static inline void tegra_sor_writel(struct tegra_sor *sor, unsigned long value,
+static inline void tegra_sor_writel(struct tegra_sor *sor, u32 value,
 				    unsigned long offset)
 {
 	writel(value, sor->regs + (offset << 2));
@@ -83,9 +84,9 @@ static inline void tegra_sor_writel(struct tegra_sor *sor, unsigned long value,
 static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 				   struct drm_dp_link *link)
 {
-	unsigned long value;
 	unsigned int i;
 	u8 pattern;
+	u32 value;
 	int err;
 
 	/* setup lane parameters */
@@ -202,7 +203,7 @@ static void tegra_sor_update(struct tegra_sor *sor)
 
 static int tegra_sor_setup_pwm(struct tegra_sor *sor, unsigned long timeout)
 {
-	unsigned long value;
+	u32 value;
 
 	value = tegra_sor_readl(sor, SOR_PWM_DIV);
 	value &= ~SOR_PWM_DIV_MASK;
@@ -281,7 +282,7 @@ static int tegra_sor_wakeup(struct tegra_sor *sor)
 
 static int tegra_sor_power_up(struct tegra_sor *sor, unsigned long timeout)
 {
-	unsigned long value;
+	u32 value;
 
 	value = tegra_sor_readl(sor, SOR_PWR);
 	value |= SOR_PWR_TRIGGER | SOR_PWR_NORMAL_STATE_PU;
@@ -674,38 +675,195 @@ static const struct file_operations tegra_sor_crc_fops = {
 	.release = tegra_sor_crc_release,
 };
 
+static int tegra_sor_show_regs(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_sor *sor = node->info_ent->data;
+
+#define DUMP_REG(name)						\
+	seq_printf(s, "%-38s %#05x %08x\n", #name, name,	\
+		   tegra_sor_readl(sor, name))
+
+	DUMP_REG(SOR_CTXSW);
+	DUMP_REG(SOR_SUPER_STATE_0);
+	DUMP_REG(SOR_SUPER_STATE_1);
+	DUMP_REG(SOR_STATE_0);
+	DUMP_REG(SOR_STATE_1);
+	DUMP_REG(SOR_HEAD_STATE_0(0));
+	DUMP_REG(SOR_HEAD_STATE_0(1));
+	DUMP_REG(SOR_HEAD_STATE_1(0));
+	DUMP_REG(SOR_HEAD_STATE_1(1));
+	DUMP_REG(SOR_HEAD_STATE_2(0));
+	DUMP_REG(SOR_HEAD_STATE_2(1));
+	DUMP_REG(SOR_HEAD_STATE_3(0));
+	DUMP_REG(SOR_HEAD_STATE_3(1));
+	DUMP_REG(SOR_HEAD_STATE_4(0));
+	DUMP_REG(SOR_HEAD_STATE_4(1));
+	DUMP_REG(SOR_HEAD_STATE_5(0));
+	DUMP_REG(SOR_HEAD_STATE_5(1));
+	DUMP_REG(SOR_CRC_CNTRL);
+	DUMP_REG(SOR_DP_DEBUG_MVID);
+	DUMP_REG(SOR_CLK_CNTRL);
+	DUMP_REG(SOR_CAP);
+	DUMP_REG(SOR_PWR);
+	DUMP_REG(SOR_TEST);
+	DUMP_REG(SOR_PLL_0);
+	DUMP_REG(SOR_PLL_1);
+	DUMP_REG(SOR_PLL_2);
+	DUMP_REG(SOR_PLL_3);
+	DUMP_REG(SOR_CSTM);
+	DUMP_REG(SOR_LVDS);
+	DUMP_REG(SOR_CRC_A);
+	DUMP_REG(SOR_CRC_B);
+	DUMP_REG(SOR_BLANK);
+	DUMP_REG(SOR_SEQ_CTL);
+	DUMP_REG(SOR_LANE_SEQ_CTL);
+	DUMP_REG(SOR_SEQ_INST(0));
+	DUMP_REG(SOR_SEQ_INST(1));
+	DUMP_REG(SOR_SEQ_INST(2));
+	DUMP_REG(SOR_SEQ_INST(3));
+	DUMP_REG(SOR_SEQ_INST(4));
+	DUMP_REG(SOR_SEQ_INST(5));
+	DUMP_REG(SOR_SEQ_INST(6));
+	DUMP_REG(SOR_SEQ_INST(7));
+	DUMP_REG(SOR_SEQ_INST(8));
+	DUMP_REG(SOR_SEQ_INST(9));
+	DUMP_REG(SOR_SEQ_INST(10));
+	DUMP_REG(SOR_SEQ_INST(11));
+	DUMP_REG(SOR_SEQ_INST(12));
+	DUMP_REG(SOR_SEQ_INST(13));
+	DUMP_REG(SOR_SEQ_INST(14));
+	DUMP_REG(SOR_SEQ_INST(15));
+	DUMP_REG(SOR_PWM_DIV);
+	DUMP_REG(SOR_PWM_CTL);
+	DUMP_REG(SOR_VCRC_A_0);
+	DUMP_REG(SOR_VCRC_A_1);
+	DUMP_REG(SOR_VCRC_B_0);
+	DUMP_REG(SOR_VCRC_B_1);
+	DUMP_REG(SOR_CCRC_A_0);
+	DUMP_REG(SOR_CCRC_A_1);
+	DUMP_REG(SOR_CCRC_B_0);
+	DUMP_REG(SOR_CCRC_B_1);
+	DUMP_REG(SOR_EDATA_A_0);
+	DUMP_REG(SOR_EDATA_A_1);
+	DUMP_REG(SOR_EDATA_B_0);
+	DUMP_REG(SOR_EDATA_B_1);
+	DUMP_REG(SOR_COUNT_A_0);
+	DUMP_REG(SOR_COUNT_A_1);
+	DUMP_REG(SOR_COUNT_B_0);
+	DUMP_REG(SOR_COUNT_B_1);
+	DUMP_REG(SOR_DEBUG_A_0);
+	DUMP_REG(SOR_DEBUG_A_1);
+	DUMP_REG(SOR_DEBUG_B_0);
+	DUMP_REG(SOR_DEBUG_B_1);
+	DUMP_REG(SOR_TRIG);
+	DUMP_REG(SOR_MSCHECK);
+	DUMP_REG(SOR_XBAR_CTRL);
+	DUMP_REG(SOR_XBAR_POL);
+	DUMP_REG(SOR_DP_LINKCTL_0);
+	DUMP_REG(SOR_DP_LINKCTL_1);
+	DUMP_REG(SOR_LANE_DRIVE_CURRENT_0);
+	DUMP_REG(SOR_LANE_DRIVE_CURRENT_1);
+	DUMP_REG(SOR_LANE4_DRIVE_CURRENT_0);
+	DUMP_REG(SOR_LANE4_DRIVE_CURRENT_1);
+	DUMP_REG(SOR_LANE_PREEMPHASIS_0);
+	DUMP_REG(SOR_LANE_PREEMPHASIS_1);
+	DUMP_REG(SOR_LANE4_PREEMPHASIS_0);
+	DUMP_REG(SOR_LANE4_PREEMPHASIS_1);
+	DUMP_REG(SOR_LANE_POST_CURSOR_0);
+	DUMP_REG(SOR_LANE_POST_CURSOR_1);
+	DUMP_REG(SOR_DP_CONFIG_0);
+	DUMP_REG(SOR_DP_CONFIG_1);
+	DUMP_REG(SOR_DP_MN_0);
+	DUMP_REG(SOR_DP_MN_1);
+	DUMP_REG(SOR_DP_PADCTL_0);
+	DUMP_REG(SOR_DP_PADCTL_1);
+	DUMP_REG(SOR_DP_DEBUG_0);
+	DUMP_REG(SOR_DP_DEBUG_1);
+	DUMP_REG(SOR_DP_SPARE_0);
+	DUMP_REG(SOR_DP_SPARE_1);
+	DUMP_REG(SOR_DP_AUDIO_CTRL);
+	DUMP_REG(SOR_DP_AUDIO_HBLANK_SYMBOLS);
+	DUMP_REG(SOR_DP_AUDIO_VBLANK_SYMBOLS);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_HEADER);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_SUBPACK_0);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_SUBPACK_1);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_SUBPACK_2);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_SUBPACK_3);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_SUBPACK_4);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_SUBPACK_5);
+	DUMP_REG(SOR_DP_GENERIC_INFOFRAME_SUBPACK_6);
+	DUMP_REG(SOR_DP_TPG);
+	DUMP_REG(SOR_DP_TPG_CONFIG);
+	DUMP_REG(SOR_DP_LQ_CSTM_0);
+	DUMP_REG(SOR_DP_LQ_CSTM_1);
+	DUMP_REG(SOR_DP_LQ_CSTM_2);
+
+#undef DUMP_REG
+
+	return 0;
+}
+
+static const struct drm_info_list debugfs_files[] = {
+	{ "regs", tegra_sor_show_regs, 0, NULL },
+};
+
 static int tegra_sor_debugfs_init(struct tegra_sor *sor,
 				  struct drm_minor *minor)
 {
 	struct dentry *entry;
+	unsigned int i;
 	int err = 0;
 
 	sor->debugfs = debugfs_create_dir("sor", minor->debugfs_root);
 	if (!sor->debugfs)
 		return -ENOMEM;
 
-	entry = debugfs_create_file("crc", 0644, sor->debugfs, sor,
-				    &tegra_sor_crc_fops);
-	if (!entry) {
-		dev_err(sor->dev,
-			"cannot create /sys/kernel/debug/dri/%s/sor/crc\n",
-			minor->debugfs_root->d_name.name);
+	sor->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
+				     GFP_KERNEL);
+	if (!sor->debugfs_files) {
 		err = -ENOMEM;
 		goto remove;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
+		sor->debugfs_files[i].data = sor;
+
+	err = drm_debugfs_create_files(sor->debugfs_files,
+				       ARRAY_SIZE(debugfs_files),
+				       sor->debugfs, minor);
+	if (err < 0)
+		goto free;
+
+	entry = debugfs_create_file("crc", 0644, sor->debugfs, sor,
+				    &tegra_sor_crc_fops);
+	if (!entry) {
+		err = -ENOMEM;
+		goto free;
+	}
+
 	return err;
 
+free:
+	kfree(sor->debugfs_files);
+	sor->debugfs_files = NULL;
 remove:
-	debugfs_remove(sor->debugfs);
+	debugfs_remove_recursive(sor->debugfs);
 	sor->debugfs = NULL;
 	return err;
 }
 
 static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 {
-	debugfs_remove_recursive(sor->debugfs);
+	drm_debugfs_remove_files(sor->debugfs_files, ARRAY_SIZE(debugfs_files),
+				 sor->minor);
+	sor->minor = NULL;
+
+	kfree(sor->debugfs_files);
 	sor->debugfs = NULL;
+
+	debugfs_remove_recursive(sor->debugfs);
+	sor->debugfs_files = NULL;
 }
 
 static void tegra_sor_connector_dpms(struct drm_connector *connector, int mode)
@@ -791,8 +949,8 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 	struct tegra_sor_config config;
 	struct drm_dp_link link;
 	struct drm_dp_aux *aux;
-	unsigned long value;
 	int err = 0;
+	u32 value;
 
 	mutex_lock(&sor->lock);
 
@@ -1354,9 +1512,27 @@ static int tegra_sor_init(struct host1x_client *client)
 		}
 	}
 
+	/*
+	 * XXX: Remove this reset once proper hand-over from firmware to
+	 * kernel is possible.
+	 */
+	err = reset_control_assert(sor->rst);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to assert SOR reset: %d\n", err);
+		return err;
+	}
+
 	err = clk_prepare_enable(sor->clk);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to enable clock: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 3000);
+
+	err = reset_control_deassert(sor->rst);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to deassert SOR reset: %d\n", err);
 		return err;
 	}
 

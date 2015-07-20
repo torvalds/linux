@@ -82,6 +82,9 @@ struct msm_drm_private {
 	 */
 	struct msm_edp *edp;
 
+	/* DSI is shared by mdp4 and mdp5 */
+	struct msm_dsi *dsi[2];
+
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
 	struct msm_file_private *lastctx;
@@ -162,7 +165,7 @@ int msm_atomic_commit(struct drm_device *dev,
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
 int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
-		struct timespec *timeout);
+		ktime_t *timeout);
 int msm_queue_fence_cb(struct drm_device *dev,
 		struct msm_fence_cb *cb, uint32_t fence);
 void msm_update_fence(struct drm_device *dev, uint32_t fence);
@@ -202,7 +205,7 @@ void msm_gem_move_to_active(struct drm_gem_object *obj,
 		struct msm_gpu *gpu, bool write, uint32_t fence);
 void msm_gem_move_to_inactive(struct drm_gem_object *obj);
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
-		struct timespec *timeout);
+		ktime_t *timeout);
 int msm_gem_cpu_fini(struct drm_gem_object *obj);
 void msm_gem_free_object(struct drm_gem_object *obj);
 int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
@@ -235,6 +238,32 @@ void __init msm_edp_register(void);
 void __exit msm_edp_unregister(void);
 int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 		struct drm_encoder *encoder);
+
+struct msm_dsi;
+enum msm_dsi_encoder_id {
+	MSM_DSI_VIDEO_ENCODER_ID = 0,
+	MSM_DSI_CMD_ENCODER_ID = 1,
+	MSM_DSI_ENCODER_NUM = 2
+};
+#ifdef CONFIG_DRM_MSM_DSI
+void __init msm_dsi_register(void);
+void __exit msm_dsi_unregister(void);
+int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
+		struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM]);
+#else
+static inline void __init msm_dsi_register(void)
+{
+}
+static inline void __exit msm_dsi_unregister(void)
+{
+}
+static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
+		struct drm_device *dev,
+		struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM])
+{
+	return -EINVAL;
+}
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);

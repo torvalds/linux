@@ -24,7 +24,7 @@
 
 #define NV_PGRAPH_GPCX_UNK__SIZE                                     0x00000002
 
-#define CHIPSET GK208
+#define CHIPSET GM107
 #include "macros.fuc"
 
 .section #gm107_grgpc_data

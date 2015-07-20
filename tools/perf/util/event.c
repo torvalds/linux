@@ -23,12 +23,18 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_FORK]			= "FORK",
 	[PERF_RECORD_READ]			= "READ",
 	[PERF_RECORD_SAMPLE]			= "SAMPLE",
+	[PERF_RECORD_AUX]			= "AUX",
+	[PERF_RECORD_ITRACE_START]		= "ITRACE_START",
+	[PERF_RECORD_LOST_SAMPLES]		= "LOST_SAMPLES",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
 	[PERF_RECORD_HEADER_BUILD_ID]		= "BUILD_ID",
 	[PERF_RECORD_FINISHED_ROUND]		= "FINISHED_ROUND",
 	[PERF_RECORD_ID_INDEX]			= "ID_INDEX",
+	[PERF_RECORD_AUXTRACE_INFO]		= "AUXTRACE_INFO",
+	[PERF_RECORD_AUXTRACE]			= "AUXTRACE",
+	[PERF_RECORD_AUXTRACE_ERROR]		= "AUXTRACE_ERROR",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -49,72 +55,103 @@ static struct perf_sample synth_sample = {
 	.period	   = 1,
 };
 
-static pid_t perf_event__get_comm_tgid(pid_t pid, char *comm, size_t len)
+/*
+ * Assumes that the first 4095 bytes of /proc/pid/stat contains
+ * the comm, tgid and ppid.
+ */
+static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
+				    pid_t *tgid, pid_t *ppid)
 {
 	char filename[PATH_MAX];
-	char bf[BUFSIZ];
-	FILE *fp;
-	size_t size = 0;
-	pid_t tgid = -1;
+	char bf[4096];
+	int fd;
+	size_t size = 0, n;
+	char *nl, *name, *tgids, *ppids;
+
+	*tgid = -1;
+	*ppid = -1;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/status", pid);
 
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
+	fd = open(filename, O_RDONLY);
+	if (fd < 0) {
 		pr_debug("couldn't open %s\n", filename);
-		return 0;
+		return -1;
 	}
 
-	while (!comm[0] || (tgid < 0)) {
-		if (fgets(bf, sizeof(bf), fp) == NULL) {
-			pr_warning("couldn't get COMM and pgid, malformed %s\n",
-				   filename);
-			break;
-		}
+	n = read(fd, bf, sizeof(bf) - 1);
+	close(fd);
+	if (n <= 0) {
+		pr_warning("Couldn't get COMM, tigd and ppid for pid %d\n",
+			   pid);
+		return -1;
+	}
+	bf[n] = '\0';
 
-		if (memcmp(bf, "Name:", 5) == 0) {
-			char *name = bf + 5;
-			while (*name && isspace(*name))
-				++name;
-			size = strlen(name) - 1;
-			if (size >= len)
-				size = len - 1;
-			memcpy(comm, name, size);
-			comm[size] = '\0';
+	name = strstr(bf, "Name:");
+	tgids = strstr(bf, "Tgid:");
+	ppids = strstr(bf, "PPid:");
 
-		} else if (memcmp(bf, "Tgid:", 5) == 0) {
-			char *tgids = bf + 5;
-			while (*tgids && isspace(*tgids))
-				++tgids;
-			tgid = atoi(tgids);
-		}
+	if (name) {
+		name += 5;  /* strlen("Name:") */
+
+		while (*name && isspace(*name))
+			++name;
+
+		nl = strchr(name, '\n');
+		if (nl)
+			*nl = '\0';
+
+		size = strlen(name);
+		if (size >= len)
+			size = len - 1;
+		memcpy(comm, name, size);
+		comm[size] = '\0';
+	} else {
+		pr_debug("Name: string not found for pid %d\n", pid);
 	}
 
-	fclose(fp);
+	if (tgids) {
+		tgids += 5;  /* strlen("Tgid:") */
+		*tgid = atoi(tgids);
+	} else {
+		pr_debug("Tgid: string not found for pid %d\n", pid);
+	}
 
-	return tgid;
+	if (ppids) {
+		ppids += 5;  /* strlen("PPid:") */
+		*ppid = atoi(ppids);
+	} else {
+		pr_debug("PPid: string not found for pid %d\n", pid);
+	}
+
+	return 0;
 }
 
-static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
-					 union perf_event *event, pid_t pid,
-					 perf_event__handler_t process,
-					 struct machine *machine)
+static int perf_event__prepare_comm(union perf_event *event, pid_t pid,
+				    struct machine *machine,
+				    pid_t *tgid, pid_t *ppid)
 {
 	size_t size;
-	pid_t tgid;
+
+	*ppid = -1;
 
 	memset(&event->comm, 0, sizeof(event->comm));
 
-	if (machine__is_host(machine))
-		tgid = perf_event__get_comm_tgid(pid, event->comm.comm,
-						 sizeof(event->comm.comm));
-	else
-		tgid = machine->pid;
+	if (machine__is_host(machine)) {
+		if (perf_event__get_comm_ids(pid, event->comm.comm,
+					     sizeof(event->comm.comm),
+					     tgid, ppid) != 0) {
+			return -1;
+		}
+	} else {
+		*tgid = machine->pid;
+	}
 
-	if (tgid < 0)
-		goto out;
+	if (*tgid < 0)
+		return -1;
 
-	event->comm.pid = tgid;
+	event->comm.pid = *tgid;
 	event->comm.header.type = PERF_RECORD_COMM;
 
 	size = strlen(event->comm.comm) + 1;
@@ -125,23 +162,45 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 				machine->id_hdr_size);
 	event->comm.tid = pid;
 
+	return 0;
+}
+
+static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
+					 union perf_event *event, pid_t pid,
+					 perf_event__handler_t process,
+					 struct machine *machine)
+{
+	pid_t tgid, ppid;
+
+	if (perf_event__prepare_comm(event, pid, machine, &tgid, &ppid) != 0)
+		return -1;
+
 	if (process(tool, event, &synth_sample, machine) != 0)
 		return -1;
 
-out:
 	return tgid;
 }
 
 static int perf_event__synthesize_fork(struct perf_tool *tool,
-				       union perf_event *event, pid_t pid,
-				       pid_t tgid, perf_event__handler_t process,
+				       union perf_event *event,
+				       pid_t pid, pid_t tgid, pid_t ppid,
+				       perf_event__handler_t process,
 				       struct machine *machine)
 {
 	memset(&event->fork, 0, sizeof(event->fork) + machine->id_hdr_size);
 
-	/* this is really a clone event but we use fork to synthesize it */
-	event->fork.ppid = tgid;
-	event->fork.ptid = tgid;
+	/*
+	 * for main thread set parent to ppid from status file. For other
+	 * threads set parent pid to main thread. ie., assume main thread
+	 * spawns all threads in a process
+	*/
+	if (tgid == pid) {
+		event->fork.ppid = ppid;
+		event->fork.ptid = ppid;
+	} else {
+		event->fork.ppid = tgid;
+		event->fork.ptid = tgid;
+	}
 	event->fork.pid  = tgid;
 	event->fork.tid  = pid;
 	event->fork.header.type = PERF_RECORD_FORK;
@@ -159,10 +218,14 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       pid_t pid, pid_t tgid,
 				       perf_event__handler_t process,
 				       struct machine *machine,
-				       bool mmap_data)
+				       bool mmap_data,
+				       unsigned int proc_map_timeout)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
+	unsigned long long t;
+	bool truncation = false;
+	unsigned long long timeout = proc_map_timeout * 1000000ULL;
 	int rc = 0;
 
 	if (machine__is_default_guest(machine))
@@ -181,6 +244,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	}
 
 	event->header.type = PERF_RECORD_MMAP2;
+	t = rdclock();
 
 	while (1) {
 		char bf[BUFSIZ];
@@ -193,6 +257,15 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 
 		if (fgets(bf, sizeof(bf), fp) == NULL)
 			break;
+
+		if ((rdclock() - t) > timeout) {
+			pr_warning("Reading %s time out. "
+				   "You may want to increase "
+				   "the time limit by --proc-map-timeout\n",
+				   filename);
+			truncation = true;
+			goto out;
+		}
 
 		/* ensure null termination since stack will be reused. */
 		strcpy(execname, "");
@@ -242,6 +315,10 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			event->header.misc |= PERF_RECORD_MISC_MMAP_DATA;
 		}
 
+out:
+		if (truncation)
+			event->header.misc |= PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT;
+
 		if (!strcmp(execname, ""))
 			strcpy(execname, anonstr);
 
@@ -260,6 +337,9 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			rc = -1;
 			break;
 		}
+
+		if (truncation)
+			break;
 	}
 
 	fclose(fp);
@@ -271,8 +351,9 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 				   struct machine *machine)
 {
 	int rc = 0;
-	struct rb_node *nd;
+	struct map *pos;
 	struct map_groups *kmaps = &machine->kmaps;
+	struct maps *maps = &kmaps->maps[MAP__FUNCTION];
 	union perf_event *event = zalloc((sizeof(event->mmap) +
 					  machine->id_hdr_size));
 	if (event == NULL) {
@@ -292,10 +373,8 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 	else
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
 
-	for (nd = rb_first(&kmaps->maps[MAP__FUNCTION]);
-	     nd; nd = rb_next(nd)) {
+	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
 		size_t size;
-		struct map *pos = rb_entry(nd, struct map, rb_node);
 
 		if (pos->dso->kernel)
 			continue;
@@ -328,12 +407,15 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 				      pid_t pid, int full,
 					  perf_event__handler_t process,
 				      struct perf_tool *tool,
-				      struct machine *machine, bool mmap_data)
+				      struct machine *machine,
+				      bool mmap_data,
+				      unsigned int proc_map_timeout)
 {
 	char filename[PATH_MAX];
 	DIR *tasks;
 	struct dirent dirent, *next;
-	pid_t tgid;
+	pid_t tgid, ppid;
+	int rc = 0;
 
 	/* special case: only send one comm event using passed in pid */
 	if (!full) {
@@ -344,7 +426,8 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 			return -1;
 
 		return perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-							  process, machine, mmap_data);
+							  process, machine, mmap_data,
+							  proc_map_timeout);
 	}
 
 	if (machine__is_default_guest(machine))
@@ -361,41 +444,46 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 
 	while (!readdir_r(tasks, &dirent, &next) && next) {
 		char *end;
-		int rc = 0;
 		pid_t _pid;
 
 		_pid = strtol(dirent.d_name, &end, 10);
 		if (*end)
 			continue;
 
-		tgid = perf_event__synthesize_comm(tool, comm_event, _pid,
-						   process, machine);
-		if (tgid == -1)
-			return -1;
+		rc = -1;
+		if (perf_event__prepare_comm(comm_event, _pid, machine,
+					     &tgid, &ppid) != 0)
+			break;
 
+		if (perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
+						ppid, process, machine) < 0)
+			break;
+		/*
+		 * Send the prepared comm event
+		 */
+		if (process(tool, comm_event, &synth_sample, machine) != 0)
+			break;
+
+		rc = 0;
 		if (_pid == pid) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-						process, machine, mmap_data);
-		} else {
-			/* only fork the tid's map, to save time */
-			rc = perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
-						 process, machine);
+						process, machine, mmap_data, proc_map_timeout);
+			if (rc)
+				break;
 		}
-
-		if (rc)
-			return rc;
 	}
 
 	closedir(tasks);
-	return 0;
+	return rc;
 }
 
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine,
-				      bool mmap_data)
+				      bool mmap_data,
+				      unsigned int proc_map_timeout)
 {
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1, thread, j;
@@ -416,9 +504,9 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 	for (thread = 0; thread < threads->nr; ++thread) {
 		if (__event__synthesize_thread(comm_event, mmap_event,
 					       fork_event,
-					       threads->map[thread], 0,
+					       thread_map__pid(threads, thread), 0,
 					       process, tool, machine,
-					       mmap_data)) {
+					       mmap_data, proc_map_timeout)) {
 			err = -1;
 			break;
 		}
@@ -427,12 +515,12 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 		 * comm.pid is set to thread group id by
 		 * perf_event__synthesize_comm
 		 */
-		if ((int) comm_event->comm.pid != threads->map[thread]) {
+		if ((int) comm_event->comm.pid != thread_map__pid(threads, thread)) {
 			bool need_leader = true;
 
 			/* is thread group leader in thread_map? */
 			for (j = 0; j < threads->nr; ++j) {
-				if ((int) comm_event->comm.pid == threads->map[j]) {
+				if ((int) comm_event->comm.pid == thread_map__pid(threads, j)) {
 					need_leader = false;
 					break;
 				}
@@ -444,7 +532,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 						       fork_event,
 						       comm_event->comm.pid, 0,
 						       process, tool, machine,
-						       mmap_data)) {
+						       mmap_data, proc_map_timeout)) {
 				err = -1;
 				break;
 			}
@@ -461,7 +549,9 @@ out:
 
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
-				   struct machine *machine, bool mmap_data)
+				   struct machine *machine,
+				   bool mmap_data,
+				   unsigned int proc_map_timeout)
 {
 	DIR *proc;
 	char proc_path[PATH_MAX];
@@ -501,7 +591,8 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
  		 * one thread couldn't be synthesized.
  		 */
 		__event__synthesize_thread(comm_event, mmap_event, fork_event, pid,
-					   1, process, tool, machine, mmap_data);
+					   1, process, tool, machine, mmap_data,
+					   proc_map_timeout);
 	}
 
 	err = 0;
@@ -615,7 +706,7 @@ size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
 	else
 		s = "";
 
-	return fprintf(fp, "%s: %s:%d\n", s, event->comm.comm, event->comm.tid);
+	return fprintf(fp, "%s: %s:%d/%d\n", s, event->comm.comm, event->comm.pid, event->comm.tid);
 }
 
 int perf_event__process_comm(struct perf_tool *tool __maybe_unused,
@@ -632,6 +723,30 @@ int perf_event__process_lost(struct perf_tool *tool __maybe_unused,
 			     struct machine *machine)
 {
 	return machine__process_lost_event(machine, event, sample);
+}
+
+int perf_event__process_aux(struct perf_tool *tool __maybe_unused,
+			    union perf_event *event,
+			    struct perf_sample *sample __maybe_unused,
+			    struct machine *machine)
+{
+	return machine__process_aux_event(machine, event);
+}
+
+int perf_event__process_itrace_start(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_sample *sample __maybe_unused,
+				     struct machine *machine)
+{
+	return machine__process_itrace_start_event(machine, event);
+}
+
+int perf_event__process_lost_samples(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_sample *sample,
+				     struct machine *machine)
+{
+	return machine__process_lost_samples_event(machine, event, sample);
 }
 
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
@@ -697,6 +812,21 @@ int perf_event__process_exit(struct perf_tool *tool __maybe_unused,
 	return machine__process_exit_event(machine, event, sample);
 }
 
+size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " offset: %#"PRIx64" size: %#"PRIx64" flags: %#"PRIx64" [%s%s]\n",
+		       event->aux.aux_offset, event->aux.aux_size,
+		       event->aux.flags,
+		       event->aux.flags & PERF_AUX_FLAG_TRUNCATED ? "T" : "",
+		       event->aux.flags & PERF_AUX_FLAG_OVERWRITE ? "O" : "");
+}
+
+size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " pid: %u tid: %u\n",
+		       event->itrace_start.pid, event->itrace_start.tid);
+}
+
 size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
@@ -715,6 +845,12 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_MMAP2:
 		ret += perf_event__fprintf_mmap2(event, fp);
+		break;
+	case PERF_RECORD_AUX:
+		ret += perf_event__fprintf_aux(event, fp);
+		break;
+	case PERF_RECORD_ITRACE_START:
+		ret += perf_event__fprintf_itrace_start(event, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");
@@ -819,6 +955,10 @@ void thread__find_addr_location(struct thread *thread,
 		al->sym = NULL;
 }
 
+/*
+ * Callers need to drop the reference to al->thread, obtained in
+ * machine__findnew_thread()
+ */
 int perf_event__preprocess_sample(const union perf_event *event,
 				  struct machine *machine,
 				  struct addr_location *al,
@@ -877,6 +1017,17 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	}
 
 	return 0;
+}
+
+/*
+ * The preprocess_sample method will return with reference counts for the
+ * in it, when done using (and perhaps getting ref counts if needing to
+ * keep a pointer to one of those entries) it must be paired with
+ * addr_location__put(), so that the refcounts can be decremented.
+ */
+void addr_location__put(struct addr_location *al)
+{
+	thread__zput(al->thread);
 }
 
 bool is_bts_event(struct perf_event_attr *attr)

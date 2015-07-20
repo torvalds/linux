@@ -32,7 +32,6 @@ extern struct nvkm_oclass gt215_ram_oclass;
 extern struct nvkm_oclass mcp77_ram_oclass;
 extern struct nvkm_oclass gf100_ram_oclass;
 extern struct nvkm_oclass gk104_ram_oclass;
-extern struct nvkm_oclass gk20a_ram_oclass;
 extern struct nvkm_oclass gm107_ram_oclass;
 
 int nvkm_sddr2_calc(struct nvkm_ram *ram);

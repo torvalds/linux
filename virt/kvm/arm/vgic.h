@@ -20,6 +20,8 @@
 #ifndef __KVM_VGIC_H__
 #define __KVM_VGIC_H__
 
+#include <kvm/iodev.h>
+
 #define VGIC_ADDR_UNDEF		(-1)
 #define IS_VGIC_ADDR_UNDEF(_x)  ((_x) == VGIC_ADDR_UNDEF)
 
@@ -57,6 +59,14 @@ void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq);
 void vgic_unqueue_irqs(struct kvm_vcpu *vcpu);
 
+struct kvm_exit_mmio {
+	phys_addr_t	phys_addr;
+	void		*data;
+	u32		len;
+	bool		is_write;
+	void		*private;
+};
+
 void vgic_reg_access(struct kvm_exit_mmio *mmio, u32 *reg,
 		     phys_addr_t offset, int mode);
 bool handle_mmio_raz_wi(struct kvm_vcpu *vcpu, struct kvm_exit_mmio *mmio,
@@ -74,13 +84,18 @@ void mmio_data_write(struct kvm_exit_mmio *mmio, u32 mask, u32 value)
 	*((u32 *)mmio->data) = cpu_to_le32(value) & mask;
 }
 
-struct kvm_mmio_range {
+struct vgic_io_range {
 	phys_addr_t base;
 	unsigned long len;
 	int bits_per_irq;
 	bool (*handle_mmio)(struct kvm_vcpu *vcpu, struct kvm_exit_mmio *mmio,
 			    phys_addr_t offset);
 };
+
+int vgic_register_kvm_io_dev(struct kvm *kvm, gpa_t base, int len,
+			     const struct vgic_io_range *ranges,
+			     int redist_id,
+			     struct vgic_io_device *iodev);
 
 static inline bool is_in_range(phys_addr_t addr, unsigned long len,
 			       phys_addr_t baseaddr, unsigned long size)
@@ -89,14 +104,8 @@ static inline bool is_in_range(phys_addr_t addr, unsigned long len,
 }
 
 const
-struct kvm_mmio_range *vgic_find_range(const struct kvm_mmio_range *ranges,
-				       struct kvm_exit_mmio *mmio,
-				       phys_addr_t offset);
-
-bool vgic_handle_mmio_range(struct kvm_vcpu *vcpu, struct kvm_run *run,
-			    struct kvm_exit_mmio *mmio,
-			    const struct kvm_mmio_range *ranges,
-			    unsigned long mmio_base);
+struct vgic_io_range *vgic_find_range(const struct vgic_io_range *ranges,
+				      int len, gpa_t offset);
 
 bool vgic_handle_enable_reg(struct kvm *kvm, struct kvm_exit_mmio *mmio,
 			    phys_addr_t offset, int vcpu_id, int access);
@@ -107,12 +116,20 @@ bool vgic_handle_set_pending_reg(struct kvm *kvm, struct kvm_exit_mmio *mmio,
 bool vgic_handle_clear_pending_reg(struct kvm *kvm, struct kvm_exit_mmio *mmio,
 				   phys_addr_t offset, int vcpu_id);
 
+bool vgic_handle_set_active_reg(struct kvm *kvm,
+				struct kvm_exit_mmio *mmio,
+				phys_addr_t offset, int vcpu_id);
+
+bool vgic_handle_clear_active_reg(struct kvm *kvm,
+				  struct kvm_exit_mmio *mmio,
+				  phys_addr_t offset, int vcpu_id);
+
 bool vgic_handle_cfg_reg(u32 *reg, struct kvm_exit_mmio *mmio,
 			 phys_addr_t offset);
 
 void vgic_kick_vcpus(struct kvm *kvm);
 
-int vgic_has_attr_regs(const struct kvm_mmio_range *ranges, phys_addr_t offset);
+int vgic_has_attr_regs(const struct vgic_io_range *ranges, phys_addr_t offset);
 int vgic_set_common_attr(struct kvm_device *dev, struct kvm_device_attr *attr);
 int vgic_get_common_attr(struct kvm_device *dev, struct kvm_device_attr *attr);
 

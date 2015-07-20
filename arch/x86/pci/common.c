@@ -490,7 +490,9 @@ void pcibios_scan_root(int busnum)
 	if (!bus) {
 		pci_free_resource_list(&resources);
 		kfree(sd);
+		return;
 	}
+	pci_bus_add_devices(bus);
 }
 
 void __init pcibios_set_cache_line_size(void)

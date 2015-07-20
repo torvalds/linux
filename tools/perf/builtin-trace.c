@@ -16,7 +16,6 @@
 
 #include <libaudit.h>
 #include <stdlib.h>
-#include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
 
@@ -41,6 +40,51 @@
 # define EFD_SEMAPHORE		1
 #endif
 
+#ifndef EFD_NONBLOCK
+# define EFD_NONBLOCK		00004000
+#endif
+
+#ifndef EFD_CLOEXEC
+# define EFD_CLOEXEC		02000000
+#endif
+
+#ifndef O_CLOEXEC
+# define O_CLOEXEC		02000000
+#endif
+
+#ifndef SOCK_DCCP
+# define SOCK_DCCP		6
+#endif
+
+#ifndef SOCK_CLOEXEC
+# define SOCK_CLOEXEC		02000000
+#endif
+
+#ifndef SOCK_NONBLOCK
+# define SOCK_NONBLOCK		00004000
+#endif
+
+#ifndef MSG_CMSG_CLOEXEC
+# define MSG_CMSG_CLOEXEC	0x40000000
+#endif
+
+#ifndef PERF_FLAG_FD_NO_GROUP
+# define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
+#endif
+
+#ifndef PERF_FLAG_FD_OUTPUT
+# define PERF_FLAG_FD_OUTPUT		(1UL << 1)
+#endif
+
+#ifndef PERF_FLAG_PID_CGROUP
+# define PERF_FLAG_PID_CGROUP		(1UL << 2) /* pid=cgroup id, per-cpu mode only */
+#endif
+
+#ifndef PERF_FLAG_FD_CLOEXEC
+# define PERF_FLAG_FD_CLOEXEC		(1UL << 3) /* O_CLOEXEC */
+#endif
+
+
 struct tp_field {
 	int offset;
 	union {
@@ -52,7 +96,9 @@ struct tp_field {
 #define TP_UINT_FIELD(bits) \
 static u64 tp_field__u##bits(struct tp_field *field, struct perf_sample *sample) \
 { \
-	return *(u##bits *)(sample->raw_data + field->offset); \
+	u##bits value; \
+	memcpy(&value, sample->raw_data + field->offset, sizeof(value)); \
+	return value;  \
 }
 
 TP_UINT_FIELD(8);
@@ -63,7 +109,8 @@ TP_UINT_FIELD(64);
 #define TP_UINT_FIELD__SWAPPED(bits) \
 static u64 tp_field__swapped_u##bits(struct tp_field *field, struct perf_sample *sample) \
 { \
-	u##bits value = *(u##bits *)(sample->raw_data + field->offset); \
+	u##bits value; \
+	memcpy(&value, sample->raw_data + field->offset, sizeof(value)); \
 	return bswap_##bits(value);\
 }
 
@@ -327,6 +374,14 @@ static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
 }
 
 #define SCA_HEX syscall_arg__scnprintf_hex
+
+static size_t syscall_arg__scnprintf_int(char *bf, size_t size,
+					 struct syscall_arg *arg)
+{
+	return scnprintf(bf, size, "%d", arg->val);
+}
+
+#define SCA_INT syscall_arg__scnprintf_int
 
 static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 					       struct syscall_arg *arg)
@@ -780,6 +835,34 @@ static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 
 #define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
 
+static size_t syscall_arg__scnprintf_perf_flags(char *bf, size_t size,
+						struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+	if (flags == 0)
+		return 0;
+
+#define	P_FLAG(n) \
+	if (flags & PERF_FLAG_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~PERF_FLAG_##n; \
+	}
+
+	P_FLAG(FD_NO_GROUP);
+	P_FLAG(FD_OUTPUT);
+	P_FLAG(PID_CGROUP);
+	P_FLAG(FD_CLOEXEC);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_PERF_FLAGS syscall_arg__scnprintf_perf_flags
+
 static size_t syscall_arg__scnprintf_eventfd_flags(char *bf, size_t size,
 						   struct syscall_arg *arg)
 {
@@ -1047,6 +1130,11 @@ static struct syscall_fmt {
 	{ .name	    = "openat",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
 			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
+	{ .name	    = "perf_event_open", .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_INT, /* pid */
+			     [2] = SCA_INT, /* cpu */
+			     [3] = SCA_FD,  /* group_fd */
+			     [4] = SCA_PERF_FLAGS,  /* flags */ }, },
 	{ .name	    = "pipe2",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_PIPE_FLAGS, /* flags */ }, },
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
@@ -1132,6 +1220,8 @@ static struct syscall_fmt *syscall_fmt__find(const char *name)
 
 struct syscall {
 	struct event_format *tp_format;
+	int		    nr_args;
+	struct format_field *args;
 	const char	    *name;
 	bool		    filtered;
 	bool		    is_exit;
@@ -1219,7 +1309,9 @@ struct trace {
 		struct syscall  *table;
 	} syscalls;
 	struct record_opts	opts;
+	struct perf_evlist	*evlist;
 	struct machine		*host;
+	struct thread		*current;
 	u64			base_time;
 	FILE			*output;
 	unsigned long		nr_events;
@@ -1227,6 +1319,10 @@ struct trace {
 	const char 		*last_vfs_getname;
 	struct intlist		*tid_list;
 	struct intlist		*pid_list;
+	struct {
+		size_t		nr;
+		pid_t		*entries;
+	}			filter_pids;
 	double			duration_filter;
 	double			runtime_ms;
 	struct {
@@ -1243,6 +1339,7 @@ struct trace {
 	bool			show_comm;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
+	bool			force;
 	int			trace_pgfaults;
 };
 
@@ -1421,7 +1518,8 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 		return -ENOMEM;
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
-					    evlist->threads, trace__tool_process, false);
+					    evlist->threads, trace__tool_process, false,
+					    trace->opts.proc_map_timeout);
 	if (err)
 		symbol__exit();
 
@@ -1433,14 +1531,14 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 	struct format_field *field;
 	int idx = 0;
 
-	sc->arg_scnprintf = calloc(sc->tp_format->format.nr_fields - 1, sizeof(void *));
+	sc->arg_scnprintf = calloc(sc->nr_args, sizeof(void *));
 	if (sc->arg_scnprintf == NULL)
 		return -1;
 
 	if (sc->fmt)
 		sc->arg_parm = sc->fmt->arg_parm;
 
-	for (field = sc->tp_format->format.fields->next; field; field = field->next) {
+	for (field = sc->args; field; field = field->next) {
 		if (sc->fmt && sc->fmt->arg_scnprintf[idx])
 			sc->arg_scnprintf[idx] = sc->fmt->arg_scnprintf[idx];
 		else if (field->flags & FIELD_IS_POINTER)
@@ -1506,18 +1604,65 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	if (sc->tp_format == NULL)
 		return -1;
 
+	sc->args = sc->tp_format->format.fields;
+	sc->nr_args = sc->tp_format->format.nr_fields;
+	/* drop nr field - not relevant here; does not exist on older kernels */
+	if (sc->args && strcmp(sc->args->name, "nr") == 0) {
+		sc->args = sc->args->next;
+		--sc->nr_args;
+	}
+
 	sc->is_exit = !strcmp(name, "exit_group") || !strcmp(name, "exit");
 
 	return syscall__set_arg_fmts(sc);
 }
 
+static int trace__validate_ev_qualifier(struct trace *trace)
+{
+	int err = 0;
+	struct str_node *pos;
+
+	strlist__for_each(pos, trace->ev_qualifier) {
+		const char *sc = pos->s;
+
+		if (audit_name_to_syscall(sc, trace->audit.machine) < 0) {
+			if (err == 0) {
+				fputs("Error:\tInvalid syscall ", trace->output);
+				err = -EINVAL;
+			} else {
+				fputs(", ", trace->output);
+			}
+
+			fputs(sc, trace->output);
+		}
+	}
+
+	if (err < 0) {
+		fputs("\nHint:\ttry 'perf list syscalls:sys_enter_*'"
+		      "\nHint:\tand: 'man syscalls'\n", trace->output);
+	}
+
+	return err;
+}
+
+/*
+ * args is to be interpreted as a series of longs but we need to handle
+ * 8-byte unaligned accesses. args points to raw_data within the event
+ * and raw_data is guaranteed to be 8-byte unaligned because it is
+ * preceded by raw_size which is a u32. So we need to copy args to a temp
+ * variable to read it. Most notably this avoids extended load instructions
+ * on unaligned addresses
+ */
+
 static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
-				      unsigned long *args, struct trace *trace,
+				      unsigned char *args, struct trace *trace,
 				      struct thread *thread)
 {
 	size_t printed = 0;
+	unsigned char *p;
+	unsigned long val;
 
-	if (sc->tp_format != NULL) {
+	if (sc->args != NULL) {
 		struct format_field *field;
 		u8 bit = 1;
 		struct syscall_arg arg = {
@@ -1527,16 +1672,21 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			.thread = thread,
 		};
 
-		for (field = sc->tp_format->format.fields->next; field;
+		for (field = sc->args; field;
 		     field = field->next, ++arg.idx, bit <<= 1) {
 			if (arg.mask & bit)
 				continue;
+
+			/* special care for unaligned accesses */
+			p = args + sizeof(unsigned long) * arg.idx;
+			memcpy(&val, p, sizeof(val));
+
 			/*
  			 * Suppress this argument if its value is zero and
  			 * and we don't have a string associated in an
  			 * strarray for it.
  			 */
-			if (args[arg.idx] == 0 &&
+			if (val == 0 &&
 			    !(sc->arg_scnprintf &&
 			      sc->arg_scnprintf[arg.idx] == SCA_STRARRAY &&
 			      sc->arg_parm[arg.idx]))
@@ -1545,23 +1695,26 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			printed += scnprintf(bf + printed, size - printed,
 					     "%s%s: ", printed ? ", " : "", field->name);
 			if (sc->arg_scnprintf && sc->arg_scnprintf[arg.idx]) {
-				arg.val = args[arg.idx];
+				arg.val = val;
 				if (sc->arg_parm)
 					arg.parm = sc->arg_parm[arg.idx];
 				printed += sc->arg_scnprintf[arg.idx](bf + printed,
 								      size - printed, &arg);
 			} else {
 				printed += scnprintf(bf + printed, size - printed,
-						     "%ld", args[arg.idx]);
+						     "%ld", val);
 			}
 		}
 	} else {
 		int i = 0;
 
 		while (i < 6) {
+			/* special care for unaligned accesses */
+			p = args + sizeof(unsigned long) * i;
+			memcpy(&val, p, sizeof(val));
 			printed += scnprintf(bf + printed, size - printed,
 					     "%sarg%d: %ld",
-					     printed ? ", " : "", i, args[i]);
+					     printed ? ", " : "", i, val);
 			++i;
 		}
 	}
@@ -1642,6 +1795,29 @@ static void thread__update_stats(struct thread_trace *ttrace,
 	update_stats(stats, duration);
 }
 
+static int trace__printf_interrupted_entry(struct trace *trace, struct perf_sample *sample)
+{
+	struct thread_trace *ttrace;
+	u64 duration;
+	size_t printed;
+
+	if (trace->current == NULL)
+		return 0;
+
+	ttrace = thread__priv(trace->current);
+
+	if (!ttrace->entry_pending)
+		return 0;
+
+	duration = sample->time - ttrace->entry_time;
+
+	printed  = trace__fprintf_entry_head(trace, trace->current, duration, sample->time, trace->output);
+	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
+	ttrace->entry_pending = false;
+
+	return printed;
+}
+
 static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample)
@@ -1650,7 +1826,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	void *args;
 	size_t printed = 0;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample);
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
@@ -1663,15 +1839,18 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
-		return -1;
+		goto out_put;
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
 
 	if (ttrace->entry_str == NULL) {
 		ttrace->entry_str = malloc(1024);
 		if (!ttrace->entry_str)
-			return -1;
+			goto out_put;
 	}
+
+	if (!trace->summary_only)
+		trace__printf_interrupted_entry(trace, sample);
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
@@ -1688,7 +1867,14 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	} else
 		ttrace->entry_pending = true;
 
-	return 0;
+	if (trace->current != thread) {
+		thread__put(trace->current);
+		trace->current = thread__get(thread);
+	}
+	err = 0;
+out_put:
+	thread__put(thread);
+	return err;
 }
 
 static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
@@ -1698,7 +1884,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	long ret;
 	u64 duration = 0;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample);
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
@@ -1711,7 +1897,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
-		return -1;
+		goto out_put;
 
 	if (trace->summary)
 		thread__update_stats(ttrace, id, sample);
@@ -1765,8 +1951,10 @@ signed_print:
 	fputc('\n', trace->output);
 out:
 	ttrace->entry_pending = false;
-
-	return 0;
+	err = 0;
+out_put:
+	thread__put(thread);
+	return err;
 }
 
 static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
@@ -1793,6 +1981,7 @@ static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evs
 
 	ttrace->runtime_ms += runtime_ms;
 	trace->runtime_ms += runtime_ms;
+	thread__put(thread);
 	return 0;
 
 out_dump:
@@ -1802,6 +1991,29 @@ out_dump:
 	       (pid_t)perf_evsel__intval(evsel, sample, "pid"),
 	       runtime,
 	       perf_evsel__intval(evsel, sample, "vruntime"));
+	thread__put(thread);
+	return 0;
+}
+
+static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
+				union perf_event *event __maybe_unused,
+				struct perf_sample *sample)
+{
+	trace__printf_interrupted_entry(trace, sample);
+	trace__fprintf_tstamp(trace, sample->time, trace->output);
+
+	if (trace->trace_syscalls)
+		fprintf(trace->output, "(         ): ");
+
+	fprintf(trace->output, "%s:", evsel->name);
+
+	if (evsel->tp_format) {
+		event_format__fprintf(evsel->tp_format, sample->cpu,
+				      sample->raw_data, sample->raw_size,
+				      trace->output);
+	}
+
+	fprintf(trace->output, ")\n");
 	return 0;
 }
 
@@ -1832,11 +2044,12 @@ static int trace__pgfault(struct trace *trace,
 	struct addr_location al;
 	char map_type = 'd';
 	struct thread_trace *ttrace;
+	int err = -1;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
-		return -1;
+		goto out_put;
 
 	if (evsel->attr.config == PERF_COUNT_SW_PAGE_FAULTS_MAJ)
 		ttrace->pfmaj++;
@@ -1844,7 +2057,7 @@ static int trace__pgfault(struct trace *trace,
 		ttrace->pfmin++;
 
 	if (trace->summary_only)
-		return 0;
+		goto out;
 
 	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
 			      sample->ip, &al);
@@ -1875,8 +2088,11 @@ static int trace__pgfault(struct trace *trace,
 	print_location(trace->output, sample, &al, true, false);
 
 	fprintf(trace->output, " (%c%c)\n", map_type, al.level);
-
-	return 0;
+out:
+	err = 0;
+out_put:
+	thread__put(thread);
+	return err;
 }
 
 static bool skip_sample(struct trace *trace, struct perf_sample *sample)
@@ -2037,21 +2253,45 @@ static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
 	return 0;
 }
 
+static void trace__handle_event(struct trace *trace, union perf_event *event, struct perf_sample *sample)
+{
+	const u32 type = event->header.type;
+	struct perf_evsel *evsel;
+
+	if (!trace->full_time && trace->base_time == 0)
+		trace->base_time = sample->time;
+
+	if (type != PERF_RECORD_SAMPLE) {
+		trace__process_event(trace, trace->host, event, sample);
+		return;
+	}
+
+	evsel = perf_evlist__id2evsel(trace->evlist, sample->id);
+	if (evsel == NULL) {
+		fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample->id);
+		return;
+	}
+
+	if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
+	    sample->raw_data == NULL) {
+		fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
+		       perf_evsel__name(evsel), sample->tid,
+		       sample->cpu, sample->raw_size);
+	} else {
+		tracepoint_handler handler = evsel->handler;
+		handler(trace, evsel, event, sample);
+	}
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
-	struct perf_evlist *evlist = perf_evlist__new();
-	struct perf_evsel *evsel;
+	struct perf_evlist *evlist = trace->evlist;
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
 	bool draining = false;
 
 	trace->live = true;
-
-	if (evlist == NULL) {
-		fprintf(trace->output, "Not enough memory to run!\n");
-		goto out;
-	}
 
 	if (trace->trace_syscalls &&
 	    perf_evlist__add_syscall_newtp(evlist, trace__sys_enter,
@@ -2105,16 +2345,35 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_open;
 
+	/*
+	 * Better not use !target__has_task() here because we need to cover the
+	 * case where no threads were specified in the command line, but a
+	 * workload was, and in that case we will fill in the thread_map when
+	 * we fork the workload in perf_evlist__prepare_workload.
+	 */
+	if (trace->filter_pids.nr > 0)
+		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
+	else if (thread_map__pid(evlist->threads, 0) == -1)
+		err = perf_evlist__set_filter_pid(evlist, getpid());
+
+	if (err < 0) {
+		printf("err=%d,%s\n", -err, strerror(-err));
+		exit(1);
+	}
+
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0)
 		goto out_error_mmap;
 
-	perf_evlist__enable(evlist);
+	if (!target__none(&trace->opts.target))
+		perf_evlist__enable(evlist);
 
 	if (forks)
 		perf_evlist__start_workload(evlist);
 
-	trace->multiple_threads = evlist->threads->map[0] == -1 || evlist->threads->nr > 1;
+	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
+				  evlist->threads->nr > 1 ||
+				  perf_evlist__first(evlist)->attr.inherit;
 again:
 	before = trace->nr_events;
 
@@ -2122,8 +2381,6 @@ again:
 		union perf_event *event;
 
 		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
-			const u32 type = event->header.type;
-			tracepoint_handler handler;
 			struct perf_sample sample;
 
 			++trace->nr_events;
@@ -2134,35 +2391,17 @@ again:
 				goto next_event;
 			}
 
-			if (!trace->full_time && trace->base_time == 0)
-				trace->base_time = sample.time;
-
-			if (type != PERF_RECORD_SAMPLE) {
-				trace__process_event(trace, trace->host, event, &sample);
-				continue;
-			}
-
-			evsel = perf_evlist__id2evsel(evlist, sample.id);
-			if (evsel == NULL) {
-				fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample.id);
-				goto next_event;
-			}
-
-			if (evsel->attr.type == PERF_TYPE_TRACEPOINT &&
-			    sample.raw_data == NULL) {
-				fprintf(trace->output, "%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
-				       perf_evsel__name(evsel), sample.tid,
-				       sample.cpu, sample.raw_size);
-				goto next_event;
-			}
-
-			handler = evsel->handler;
-			handler(trace, evsel, event, &sample);
+			trace__handle_event(trace, event, &sample);
 next_event:
 			perf_evlist__mmap_consume(evlist, i);
 
 			if (interrupted)
 				goto out_disable;
+
+			if (done && !draining) {
+				perf_evlist__disable(evlist);
+				draining = true;
+			}
 		}
 	}
 
@@ -2180,6 +2419,8 @@ next_event:
 	}
 
 out_disable:
+	thread__zput(trace->current);
+
 	perf_evlist__disable(evlist);
 
 	if (!err) {
@@ -2197,7 +2438,7 @@ out_disable:
 
 out_delete_evlist:
 	perf_evlist__delete(evlist);
-out:
+	trace->evlist = NULL;
 	trace->live = false;
 	return err;
 {
@@ -2235,6 +2476,7 @@ static int trace__replay(struct trace *trace)
 	struct perf_data_file file = {
 		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
+		.force = trace->force,
 	};
 	struct perf_session *session;
 	struct perf_evsel *evsel;
@@ -2309,7 +2551,7 @@ static int trace__replay(struct trace *trace)
 
 	setup_pager();
 
-	err = perf_session__process_events(session, &trace->tool);
+	err = perf_session__process_events(session);
 	if (err)
 		pr_err("Failed to process events, error %d", err);
 
@@ -2434,6 +2676,38 @@ static int trace__set_duration(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int trace__set_filter_pids(const struct option *opt, const char *str,
+				  int unset __maybe_unused)
+{
+	int ret = -1;
+	size_t i;
+	struct trace *trace = opt->value;
+	/*
+	 * FIXME: introduce a intarray class, plain parse csv and create a
+	 * { int nr, int entries[] } struct...
+	 */
+	struct intlist *list = intlist__new(str);
+
+	if (list == NULL)
+		return -1;
+
+	i = trace->filter_pids.nr = intlist__nr_entries(list) + 1;
+	trace->filter_pids.entries = calloc(i, sizeof(pid_t));
+
+	if (trace->filter_pids.entries == NULL)
+		goto out;
+
+	trace->filter_pids.entries[0] = getpid();
+
+	for (i = 1; i < trace->filter_pids.nr; ++i)
+		trace->filter_pids.entries[i] = intlist__entry(list, i - 1)->i;
+
+	intlist__delete(list);
+	ret = 0;
+out:
+	return ret;
+}
+
 static int trace__open_output(struct trace *trace, const char *filename)
 {
 	struct stat st;
@@ -2468,9 +2742,17 @@ static int parse_pagefaults(const struct option *opt, const char *str,
 	return 0;
 }
 
+static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		evsel->handler = handler;
+}
+
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const char * const trace_usage[] = {
+	const char *trace_usage[] = {
 		"perf trace [<options>] [<command>]",
 		"perf trace [<options>] -- <command> [<options>]",
 		"perf trace record [<options>] [<command>]",
@@ -2494,6 +2776,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			.user_interval = ULLONG_MAX,
 			.no_buffering  = true,
 			.mmap_pages    = UINT_MAX,
+			.proc_map_timeout  = 500,
 		},
 		.output = stdout,
 		.show_comm = true,
@@ -2502,17 +2785,21 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
 	const struct option trace_options[] = {
+	OPT_CALLBACK(0, "event", &trace.evlist, "event",
+		     "event selector. use 'perf list' to list available events",
+		     parse_events_option),
 	OPT_BOOLEAN(0, "comm", &trace.show_comm,
 		    "show the thread COMM next to its id"),
 	OPT_BOOLEAN(0, "tool_stats", &trace.show_tool_stats, "show tool stats"),
-	OPT_STRING('e', "expr", &ev_qualifier_str, "expr",
-		    "list of events to trace"),
+	OPT_STRING('e', "expr", &ev_qualifier_str, "expr", "list of syscalls to trace"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_STRING('i', "input", &input_name, "file", "Analyze events in file"),
 	OPT_STRING('p', "pid", &trace.opts.target.pid, "pid",
 		    "trace events on existing process id"),
 	OPT_STRING('t', "tid", &trace.opts.target.tid, "tid",
 		    "trace events on existing thread id"),
+	OPT_CALLBACK(0, "filter-pids", &trace, "CSV list of pids",
+		     "pids to filter (by the kernel)", trace__set_filter_pids),
 	OPT_BOOLEAN('a', "all-cpus", &trace.opts.target.system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &trace.opts.target.cpu_list, "cpu",
@@ -2538,18 +2825,36 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_DEFAULT('F', "pf", &trace.trace_pgfaults, "all|maj|min",
 		     "Trace pagefaults", parse_pagefaults, "maj"),
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
+	OPT_BOOLEAN('f', "force", &trace.force, "don't complain, do it"),
+	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
+			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
 	};
+	const char * const trace_subcommands[] = { "record", NULL };
 	int err;
 	char bf[BUFSIZ];
 
-	argc = parse_options(argc, argv, trace_options, trace_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+	signal(SIGSEGV, sighandler_dump_stack);
+	signal(SIGFPE, sighandler_dump_stack);
+
+	trace.evlist = perf_evlist__new();
+
+	if (trace.evlist == NULL) {
+		pr_err("Not enough memory to run!\n");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
+				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (trace.trace_pgfaults) {
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
 	}
+
+	if (trace.evlist->nr_entries > 0)
+		evlist__set_evsel_handler(trace.evlist, trace__event_handler);
 
 	if ((argc >= 1) && (strcmp(argv[0], "record") == 0))
 		return trace__record(&trace, argc-1, &argv[1]);
@@ -2558,7 +2863,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (trace.summary_only)
 		trace.summary = trace.summary_only;
 
-	if (!trace.trace_syscalls && !trace.trace_pgfaults) {
+	if (!trace.trace_syscalls && !trace.trace_pgfaults &&
+	    trace.evlist->nr_entries == 0 /* Was --events used? */) {
 		pr_err("Please specify something to trace.\n");
 		return -1;
 	}
@@ -2584,6 +2890,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			err = -ENOMEM;
 			goto out_close;
 		}
+
+		err = trace__validate_ev_qualifier(&trace);
+		if (err)
+			goto out_close;
 	}
 
 	err = target__validate(&trace.opts.target);

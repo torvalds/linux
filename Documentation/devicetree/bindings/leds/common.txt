@@ -14,8 +14,10 @@ Optional properties for child nodes:
 - led-sources : List of device current outputs the LED is connected to. The
 		outputs are identified by the numbers that must be defined
 		in the LED device binding documentation.
-- label : The label for this LED.  If omitted, the label is
-  taken from the node name (excluding the unit address).
+- label : The label for this LED. If omitted, the label is taken from the node
+	  name (excluding the unit address). It has to uniquely identify
+	  a device, i.e. no other LED class device can be assigned the same
+	  label.
 
 - linux,default-trigger :  This parameter, if present, is a
     string defining the trigger assigned to the LED.  Current triggers are:

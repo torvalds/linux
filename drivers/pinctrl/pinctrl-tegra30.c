@@ -2108,70 +2108,69 @@ static struct tegra_function tegra30_functions[] = {
 #define DRV_PINGROUP_REG_A		0x868	/* bank 0 */
 #define PINGROUP_REG_A			0x3000	/* bank 1 */
 
+#define DRV_PINGROUP_REG(r)		((r) - DRV_PINGROUP_REG_A)
 #define PINGROUP_REG(r)			((r) - PINGROUP_REG_A)
 
 #define PINGROUP_BIT_Y(b)		(b)
 #define PINGROUP_BIT_N(b)		(-1)
 
-#define PINGROUP(pg_name, f0, f1, f2, f3, r, od, ior)		\
-	{							\
-		.name = #pg_name,				\
-		.pins = pg_name##_pins,				\
-		.npins = ARRAY_SIZE(pg_name##_pins),		\
-		.funcs = {					\
-			TEGRA_MUX_##f0,				\
-			TEGRA_MUX_##f1,				\
-			TEGRA_MUX_##f2,				\
-			TEGRA_MUX_##f3,				\
-		},						\
-		.mux_reg = PINGROUP_REG(r),			\
-		.mux_bank = 1,					\
-		.mux_bit = 0,					\
-		.pupd_reg = PINGROUP_REG(r),			\
-		.pupd_bank = 1,					\
-		.pupd_bit = 2,					\
-		.tri_reg = PINGROUP_REG(r),			\
-		.tri_bank = 1,					\
-		.tri_bit = 4,					\
-		.einput_bit = PINGROUP_BIT_Y(5),		\
-		.odrain_bit = PINGROUP_BIT_##od(6),		\
-		.lock_bit = PINGROUP_BIT_Y(7),			\
-		.ioreset_bit = PINGROUP_BIT_##ior(8),		\
-		.rcv_sel_bit = -1,				\
-		.drv_reg = -1,					\
+#define PINGROUP(pg_name, f0, f1, f2, f3, r, od, ior)			\
+	{								\
+		.name = #pg_name,					\
+		.pins = pg_name##_pins,					\
+		.npins = ARRAY_SIZE(pg_name##_pins),			\
+		.funcs = {						\
+			TEGRA_MUX_##f0,					\
+			TEGRA_MUX_##f1,					\
+			TEGRA_MUX_##f2,					\
+			TEGRA_MUX_##f3,					\
+		},							\
+		.mux_reg = PINGROUP_REG(r),				\
+		.mux_bank = 1,						\
+		.mux_bit = 0,						\
+		.pupd_reg = PINGROUP_REG(r),				\
+		.pupd_bank = 1,						\
+		.pupd_bit = 2,						\
+		.tri_reg = PINGROUP_REG(r),				\
+		.tri_bank = 1,						\
+		.tri_bit = 4,						\
+		.einput_bit = 5,					\
+		.odrain_bit = PINGROUP_BIT_##od(6),			\
+		.lock_bit = 7,						\
+		.ioreset_bit = PINGROUP_BIT_##ior(8),			\
+		.rcv_sel_bit = -1,					\
+		.drv_reg = -1,						\
 	}
 
-#define DRV_PINGROUP_REG(r)		((r) - DRV_PINGROUP_REG_A)
-
-#define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b,	\
-		     drvdn_b, drvdn_w, drvup_b, drvup_w,	\
-		     slwr_b, slwr_w, slwf_b, slwf_w)		\
-	{							\
-		.name = "drive_" #pg_name,			\
-		.pins = drive_##pg_name##_pins,			\
-		.npins = ARRAY_SIZE(drive_##pg_name##_pins),	\
-		.mux_reg = -1,					\
-		.pupd_reg = -1,					\
-		.tri_reg = -1,					\
-		.einput_bit = -1,				\
-		.odrain_bit = -1,				\
-		.lock_bit = -1,					\
-		.ioreset_bit = -1,				\
-		.rcv_sel_bit = -1,				\
-		.drv_reg = DRV_PINGROUP_REG(r),			\
-		.drv_bank = 0,					\
-		.hsm_bit = hsm_b,				\
-		.schmitt_bit = schmitt_b,			\
-		.lpmd_bit = lpmd_b,				\
-		.drvdn_bit = drvdn_b,				\
-		.drvdn_width = drvdn_w,				\
-		.drvup_bit = drvup_b,				\
-		.drvup_width = drvup_w,				\
-		.slwr_bit = slwr_b,				\
-		.slwr_width = slwr_w,				\
-		.slwf_bit = slwf_b,				\
-		.slwf_width = slwf_w,				\
-		.drvtype_bit = -1,				\
+#define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b, drvdn_b,	\
+		     drvdn_w, drvup_b, drvup_w, slwr_b, slwr_w,		\
+		     slwf_b, slwf_w)					\
+	{								\
+		.name = "drive_" #pg_name,				\
+		.pins = drive_##pg_name##_pins,				\
+		.npins = ARRAY_SIZE(drive_##pg_name##_pins),		\
+		.mux_reg = -1,						\
+		.pupd_reg = -1,						\
+		.tri_reg = -1,						\
+		.einput_bit = -1,					\
+		.odrain_bit = -1,					\
+		.lock_bit = -1,						\
+		.ioreset_bit = -1,					\
+		.rcv_sel_bit = -1,					\
+		.drv_reg = DRV_PINGROUP_REG(r),				\
+		.drv_bank = 0,						\
+		.hsm_bit = hsm_b,					\
+		.schmitt_bit = schmitt_b,				\
+		.lpmd_bit = lpmd_b,					\
+		.drvdn_bit = drvdn_b,					\
+		.drvdn_width = drvdn_w,					\
+		.drvup_bit = drvup_b,					\
+		.drvup_width = drvup_w,					\
+		.slwr_bit = slwr_b,					\
+		.slwr_width = slwr_w,					\
+		.slwf_bit = slwf_b,					\
+		.slwf_width = slwf_w,					\
+		.drvtype_bit = -1,					\
 	}
 
 static const struct tegra_pingroup tegra30_groups[] = {
@@ -2477,6 +2476,9 @@ static const struct tegra_pinctrl_soc_data tegra30_pinctrl = {
 	.nfunctions = ARRAY_SIZE(tegra30_functions),
 	.groups = tegra30_groups,
 	.ngroups = ARRAY_SIZE(tegra30_groups),
+	.hsm_in_mux = false,
+	.schmitt_in_mux = false,
+	.drvtype_in_mux = false,
 };
 
 static int tegra30_pinctrl_probe(struct platform_device *pdev)

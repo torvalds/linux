@@ -8,7 +8,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	ide_drive_t *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq;
-	struct request_pm_state rqpm;
+	struct ide_pm_state rqpm;
 	int ret;
 
 	if (ide_port_acpi(hwif)) {
@@ -19,7 +19,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_PM_SUSPEND;
+	rq->cmd_type = REQ_TYPE_ATA_PM_SUSPEND;
 	rq->special = &rqpm;
 	rqpm.pm_step = IDE_PM_START_SUSPEND;
 	if (mesg.event == PM_EVENT_PRETHAW)
@@ -38,13 +38,43 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	return ret;
 }
 
+static void ide_end_sync_rq(struct request *rq, int error)
+{
+	complete(rq->end_io_data);
+}
+
+static int ide_pm_execute_rq(struct request *rq)
+{
+	struct request_queue *q = rq->q;
+	DECLARE_COMPLETION_ONSTACK(wait);
+
+	rq->end_io_data = &wait;
+	rq->end_io = ide_end_sync_rq;
+
+	spin_lock_irq(q->queue_lock);
+	if (unlikely(blk_queue_dying(q))) {
+		rq->cmd_flags |= REQ_QUIET;
+		rq->errors = -ENXIO;
+		__blk_end_request_all(rq, rq->errors);
+		spin_unlock_irq(q->queue_lock);
+		return -ENXIO;
+	}
+	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT);
+	__blk_run_queue_uncond(q);
+	spin_unlock_irq(q->queue_lock);
+
+	wait_for_completion_io(&wait);
+
+	return rq->errors ? -EIO : 0;
+}
+
 int generic_ide_resume(struct device *dev)
 {
 	ide_drive_t *drive = to_ide_device(dev);
 	ide_drive_t *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq;
-	struct request_pm_state rqpm;
+	struct ide_pm_state rqpm;
 	int err;
 
 	if (ide_port_acpi(hwif)) {
@@ -59,13 +89,13 @@ int generic_ide_resume(struct device *dev)
 
 	memset(&rqpm, 0, sizeof(rqpm));
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_PM_RESUME;
+	rq->cmd_type = REQ_TYPE_ATA_PM_RESUME;
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->special = &rqpm;
 	rqpm.pm_step = IDE_PM_START_RESUME;
 	rqpm.pm_state = PM_EVENT_ON;
 
-	err = blk_execute_rq(drive->queue, NULL, rq, 1);
+	err = ide_pm_execute_rq(rq);
 	blk_put_request(rq);
 
 	if (err == 0 && dev->driver) {
@@ -80,7 +110,7 @@ int generic_ide_resume(struct device *dev)
 
 void ide_complete_power_step(ide_drive_t *drive, struct request *rq)
 {
-	struct request_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = rq->special;
 
 #ifdef DEBUG_PM
 	printk(KERN_INFO "%s: complete_power_step(step: %d)\n",
@@ -110,7 +140,7 @@ void ide_complete_power_step(ide_drive_t *drive, struct request *rq)
 
 ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 {
-	struct request_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = rq->special;
 	struct ide_cmd cmd = { };
 
 	switch (pm->pm_step) {
@@ -182,7 +212,7 @@ out_do_tf:
 void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 {
 	struct request_queue *q = drive->queue;
-	struct request_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = rq->special;
 	unsigned long flags;
 
 	ide_complete_power_step(drive, rq);
@@ -191,10 +221,10 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 
 #ifdef DEBUG_PM
 	printk("%s: completing PM request, %s\n", drive->name,
-	       (rq->cmd_type == REQ_TYPE_PM_SUSPEND) ? "suspend" : "resume");
+	       (rq->cmd_type == REQ_TYPE_ATA_PM_SUSPEND) ? "suspend" : "resume");
 #endif
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (rq->cmd_type == REQ_TYPE_PM_SUSPEND)
+	if (rq->cmd_type == REQ_TYPE_ATA_PM_SUSPEND)
 		blk_stop_queue(q);
 	else
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
@@ -208,13 +238,13 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 
 void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 {
-	struct request_pm_state *pm = rq->special;
+	struct ide_pm_state *pm = rq->special;
 
-	if (rq->cmd_type == REQ_TYPE_PM_SUSPEND &&
+	if (rq->cmd_type == REQ_TYPE_ATA_PM_SUSPEND &&
 	    pm->pm_step == IDE_PM_START_SUSPEND)
 		/* Mark drive blocked when starting the suspend sequence. */
 		drive->dev_flags |= IDE_DFLAG_BLOCKED;
-	else if (rq->cmd_type == REQ_TYPE_PM_RESUME &&
+	else if (rq->cmd_type == REQ_TYPE_ATA_PM_RESUME &&
 		 pm->pm_step == IDE_PM_START_RESUME) {
 		/*
 		 * The first thing we do on wakeup is to wait for BSY bit to

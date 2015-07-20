@@ -24,8 +24,8 @@ _GLOBAL(do_load_up_transact_altivec)
 	stw	r4,THREAD_USED_VR(r3)
 
 	li	r10,THREAD_TRANSACT_VRSTATE+VRSTATE_VSCR
-	lvx	vr0,r10,r3
-	mtvscr	vr0
+	lvx	v0,r10,r3
+	mtvscr	v0
 	addi	r10,r3,THREAD_TRANSACT_VRSTATE
 	REST_32VRS(0,r4,r10)
 
@@ -52,8 +52,8 @@ _GLOBAL(vec_enable)
  */
 _GLOBAL(load_vr_state)
 	li	r4,VRSTATE_VSCR
-	lvx	vr0,r4,r3
-	mtvscr	vr0
+	lvx	v0,r4,r3
+	mtvscr	v0
 	REST_32VRS(0,r4,r3)
 	blr
 
@@ -63,9 +63,9 @@ _GLOBAL(load_vr_state)
  */
 _GLOBAL(store_vr_state)
 	SAVE_32VRS(0, r4, r3)
-	mfvscr	vr0
+	mfvscr	v0
 	li	r4, VRSTATE_VSCR
-	stvx	vr0, r4, r3
+	stvx	v0, r4, r3
 	blr
 
 /*
@@ -104,9 +104,9 @@ _GLOBAL(load_up_altivec)
 	addi	r4,r4,THREAD
 	addi	r6,r4,THREAD_VRSTATE
 	SAVE_32VRS(0,r5,r6)
-	mfvscr	vr0
+	mfvscr	v0
 	li	r10,VRSTATE_VSCR
-	stvx	vr0,r10,r6
+	stvx	v0,r10,r6
 	/* Disable VMX for last_task_used_altivec */
 	PPC_LL	r5,PT_REGS(r4)
 	toreal(r5)
@@ -142,8 +142,8 @@ _GLOBAL(load_up_altivec)
 	li	r4,1
 	li	r10,VRSTATE_VSCR
 	stw	r4,THREAD_USED_VR(r5)
-	lvx	vr0,r10,r6
-	mtvscr	vr0
+	lvx	v0,r10,r6
+	mtvscr	v0
 	REST_32VRS(0,r4,r6)
 #ifndef CONFIG_SMP
 	/* Update last_task_used_altivec to 'current' */
@@ -186,9 +186,9 @@ _GLOBAL(giveup_altivec)
 	addi	r7,r3,THREAD_VRSTATE
 2:	PPC_LCMPI	0,r5,0
 	SAVE_32VRS(0,r4,r7)
-	mfvscr	vr0
+	mfvscr	v0
 	li	r4,VRSTATE_VSCR
-	stvx	vr0,r4,r7
+	stvx	v0,r4,r7
 	beq	1f
 	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 #ifdef CONFIG_VSX

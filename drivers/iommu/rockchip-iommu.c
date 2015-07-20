@@ -80,6 +80,8 @@ struct rk_iommu_domain {
 	u32 *dt; /* page directory table */
 	spinlock_t iommus_lock; /* lock for iommus list */
 	spinlock_t dt_lock; /* lock for modifying page directory table */
+
+	struct iommu_domain domain;
 };
 
 struct rk_iommu {
@@ -98,6 +100,11 @@ static inline void rk_table_flush(u32 *va, unsigned int count)
 
 	__cpuc_flush_dcache_area(va, size);
 	outer_flush_range(pa_start, pa_end);
+}
+
+static struct rk_iommu_domain *to_rk_domain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct rk_iommu_domain, domain);
 }
 
 /**
@@ -503,7 +510,7 @@ static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
 static phys_addr_t rk_iommu_iova_to_phys(struct iommu_domain *domain,
 					 dma_addr_t iova)
 {
-	struct rk_iommu_domain *rk_domain = domain->priv;
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
 	phys_addr_t pt_phys, phys = 0;
 	u32 dte, pte;
@@ -544,6 +551,15 @@ static void rk_iommu_zap_iova(struct rk_iommu_domain *rk_domain,
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 }
 
+static void rk_iommu_zap_iova_first_last(struct rk_iommu_domain *rk_domain,
+					 dma_addr_t iova, size_t size)
+{
+	rk_iommu_zap_iova(rk_domain, iova, SPAGE_SIZE);
+	if (size > SPAGE_SIZE)
+		rk_iommu_zap_iova(rk_domain, iova + size - SPAGE_SIZE,
+					SPAGE_SIZE);
+}
+
 static u32 *rk_dte_get_page_table(struct rk_iommu_domain *rk_domain,
 				  dma_addr_t iova)
 {
@@ -567,12 +583,6 @@ static u32 *rk_dte_get_page_table(struct rk_iommu_domain *rk_domain,
 
 	rk_table_flush(page_table, NUM_PT_ENTRIES);
 	rk_table_flush(dte_addr, 1);
-
-	/*
-	 * Zap the first iova of newly allocated page table so iommu evicts
-	 * old cached value of new dte from the iotlb.
-	 */
-	rk_iommu_zap_iova(rk_domain, iova, SPAGE_SIZE);
 
 done:
 	pt_phys = rk_dte_pt_address(dte);
@@ -623,6 +633,14 @@ static int rk_iommu_map_iova(struct rk_iommu_domain *rk_domain, u32 *pte_addr,
 
 	rk_table_flush(pte_addr, pte_count);
 
+	/*
+	 * Zap the first and last iova to evict from iotlb any previously
+	 * mapped cachelines holding stale values for its dte and pte.
+	 * We only zap the first and last iova, since only they could have
+	 * dte or pte shared with an existing mapping.
+	 */
+	rk_iommu_zap_iova_first_last(rk_domain, iova, size);
+
 	return 0;
 unwind:
 	/* Unmap the range of iovas that we just mapped */
@@ -639,7 +657,7 @@ unwind:
 static int rk_iommu_map(struct iommu_domain *domain, unsigned long _iova,
 			phys_addr_t paddr, size_t size, int prot)
 {
-	struct rk_iommu_domain *rk_domain = domain->priv;
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
 	dma_addr_t iova = (dma_addr_t)_iova;
 	u32 *page_table, *pte_addr;
@@ -670,7 +688,7 @@ static int rk_iommu_map(struct iommu_domain *domain, unsigned long _iova,
 static size_t rk_iommu_unmap(struct iommu_domain *domain, unsigned long _iova,
 			     size_t size)
 {
-	struct rk_iommu_domain *rk_domain = domain->priv;
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
 	dma_addr_t iova = (dma_addr_t)_iova;
 	phys_addr_t pt_phys;
@@ -726,7 +744,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 				  struct device *dev)
 {
 	struct rk_iommu *iommu;
-	struct rk_iommu_domain *rk_domain = domain->priv;
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
 	int ret;
 	phys_addr_t dte_addr;
@@ -767,7 +785,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 	list_add_tail(&iommu->node, &rk_domain->iommus);
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 
-	dev_info(dev, "Attached to iommu domain\n");
+	dev_dbg(dev, "Attached to iommu domain\n");
 
 	rk_iommu_disable_stall(iommu);
 
@@ -778,7 +796,7 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
 	struct rk_iommu *iommu;
-	struct rk_iommu_domain *rk_domain = domain->priv;
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
 
 	/* Allow 'virtual devices' (eg drm) to detach from domain */
@@ -801,16 +819,19 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 
 	iommu->domain = NULL;
 
-	dev_info(dev, "Detached from iommu domain\n");
+	dev_dbg(dev, "Detached from iommu domain\n");
 }
 
-static int rk_iommu_domain_init(struct iommu_domain *domain)
+static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
 {
 	struct rk_iommu_domain *rk_domain;
 
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
+
 	rk_domain = kzalloc(sizeof(*rk_domain), GFP_KERNEL);
 	if (!rk_domain)
-		return -ENOMEM;
+		return NULL;
 
 	/*
 	 * rk32xx iommus use a 2 level pagetable.
@@ -827,17 +848,16 @@ static int rk_iommu_domain_init(struct iommu_domain *domain)
 	spin_lock_init(&rk_domain->dt_lock);
 	INIT_LIST_HEAD(&rk_domain->iommus);
 
-	domain->priv = rk_domain;
+	return &rk_domain->domain;
 
-	return 0;
 err_dt:
 	kfree(rk_domain);
-	return -ENOMEM;
+	return NULL;
 }
 
-static void rk_iommu_domain_destroy(struct iommu_domain *domain)
+static void rk_iommu_domain_free(struct iommu_domain *domain)
 {
-	struct rk_iommu_domain *rk_domain = domain->priv;
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	int i;
 
 	WARN_ON(!list_empty(&rk_domain->iommus));
@@ -852,8 +872,7 @@ static void rk_iommu_domain_destroy(struct iommu_domain *domain)
 	}
 
 	free_page((unsigned long)rk_domain->dt);
-	kfree(domain->priv);
-	domain->priv = NULL;
+	kfree(rk_domain);
 }
 
 static bool rk_iommu_is_dev_iommu_master(struct device *dev)
@@ -952,8 +971,8 @@ static void rk_iommu_remove_device(struct device *dev)
 }
 
 static const struct iommu_ops rk_iommu_ops = {
-	.domain_init = rk_iommu_domain_init,
-	.domain_destroy = rk_iommu_domain_destroy,
+	.domain_alloc = rk_iommu_domain_alloc,
+	.domain_free = rk_iommu_domain_free,
 	.attach_dev = rk_iommu_attach_device,
 	.detach_dev = rk_iommu_detach_device,
 	.map = rk_iommu_map,
@@ -996,20 +1015,18 @@ static int rk_iommu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id rk_iommu_dt_ids[] = {
 	{ .compatible = "rockchip,iommu" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rk_iommu_dt_ids);
-#endif
 
 static struct platform_driver rk_iommu_driver = {
 	.probe = rk_iommu_probe,
 	.remove = rk_iommu_remove,
 	.driver = {
 		   .name = "rk_iommu",
-		   .of_match_table = of_match_ptr(rk_iommu_dt_ids),
+		   .of_match_table = rk_iommu_dt_ids,
 	},
 };
 

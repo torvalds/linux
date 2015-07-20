@@ -21,15 +21,20 @@
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 #include <linux/timex.h>
+#include <linux/types.h>
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
 extern unsigned int mtu_max;
 extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
+extern u32 vring_idle_trsh;
+extern bool rx_align_2;
+extern bool debug_fw;
 
 #define WIL_NAME "wil6210"
-#define WIL_FW_NAME "wil6210.fw"
+#define WIL_FW_NAME "wil6210.fw" /* code */
+#define WIL_FW2_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
@@ -47,6 +52,8 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL_TX_Q_LEN_DEFAULT		(4000)
 #define WIL_RX_RING_SIZE_ORDER_DEFAULT	(10)
 #define WIL_TX_RING_SIZE_ORDER_DEFAULT	(10)
+#define WIL_BCAST_RING_SIZE_ORDER_DEFAULT	(7)
+#define WIL_BCAST_MCS0_LIMIT		(1024) /* limit for MCS0 frame size */
 /* limit ring size in range [32..32k] */
 #define WIL_RING_SIZE_ORDER_MIN	(5)
 #define WIL_RING_SIZE_ORDER_MAX	(15)
@@ -120,6 +127,16 @@ struct RGF_ICR {
 	u32 IMC; /* Mask Clear, write 1 to clear */
 } __packed;
 
+struct RGF_BL {
+	u32 ready;		/* 0x880A3C bit [0] */
+#define BIT_BL_READY	BIT(0)
+	u32 version;		/* 0x880A40 version of the BL struct */
+	u32 rf_type;		/* 0x880A44 ID of the connected RF */
+	u32 baseband_type;	/* 0x880A48 ID of the baseband */
+	u8  mac_address[ETH_ALEN]; /* 0x880A4C permanent MAC */
+	u8 pad[2];
+} __packed;
+
 /* registers - FW addresses */
 #define RGF_USER_USAGE_1		(0x880004)
 #define RGF_USER_USAGE_6		(0x880018)
@@ -130,6 +147,7 @@ struct RGF_ICR {
 #define RGF_USER_MAC_CPU_0		(0x8801fc)
 	#define BIT_USER_MAC_CPU_MAN_RST	BIT(1) /* mac_cpu_man_rst */
 #define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
+#define RGF_USER_BL			(0x880A3C) /* Boot Loader */
 #define RGF_USER_FW_REV_ID		(0x880a8c) /* chip revision */
 #define RGF_USER_CLKS_CTL_0		(0x880abc)
 	#define BIT_USER_CLKS_CAR_AHB_SW_SEL	BIT(1) /* ref clk/PLL */
@@ -168,6 +186,13 @@ struct RGF_ICR {
 	#define BIT_DMA_ITR_CNT_CRL_FOREVER	BIT(2)
 	#define BIT_DMA_ITR_CNT_CRL_CLR		BIT(3)
 	#define BIT_DMA_ITR_CNT_CRL_REACH_TRSH	BIT(4)
+
+/* Offload control (Sparrow B0+) */
+#define RGF_DMA_OFUL_NID_0		(0x881cd4)
+	#define BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN		BIT(0)
+	#define BIT_DMA_OFUL_NID_0_TX_EXT_TR_EN		BIT(1)
+	#define BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC	BIT(2)
+	#define BIT_DMA_OFUL_NID_0_TX_EXT_A3_SRC	BIT(3)
 
 /* New (sparrow v2+) interrupt moderation control */
 #define RGF_DMA_ITR_TX_DESQ_NO_MOD		(0x881d40)
@@ -229,16 +254,10 @@ struct RGF_ICR {
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
-	#define JTAG_DEV_ID_MARLON_B0	(0x0612072f)
-	#define JTAG_DEV_ID_SPARROW_A0	(0x0632072f)
-	#define JTAG_DEV_ID_SPARROW_A1	(0x1632072f)
 	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
 
 enum {
 	HW_VER_UNKNOWN,
-	HW_VER_MARLON_B0,  /* JTAG_DEV_ID_MARLON_B0  */
-	HW_VER_SPARROW_A0, /* JTAG_DEV_ID_SPARROW_A0 */
-	HW_VER_SPARROW_A1, /* JTAG_DEV_ID_SPARROW_A1 */
 	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
 };
 
@@ -262,7 +281,7 @@ struct fw_map {
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[7];
+extern const struct fw_map fw_mapping[8];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -379,6 +398,7 @@ struct vring {
  * Additional data for Tx Vring
  */
 struct vring_tx_data {
+	bool dot1x_open;
 	int enabled;
 	cycles_t idle, last_idle, begin;
 	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
@@ -444,6 +464,7 @@ enum wil_sta_status {
 };
 
 #define WIL_STA_TID_NUM (16)
+#define WIL_MCS_MAX (12) /* Maximum MCS supported */
 
 struct wil_net_stats {
 	unsigned long	rx_packets;
@@ -453,6 +474,7 @@ struct wil_net_stats {
 	unsigned long	tx_errors;
 	unsigned long	rx_dropped;
 	u16 last_mcs_rx;
+	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
 
 /**
@@ -467,7 +489,6 @@ struct wil_sta_info {
 	u8 addr[ETH_ALEN];
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
-	bool data_port_open; /* can send any data, not only EAPOL */
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
@@ -482,8 +503,6 @@ enum {
 };
 
 enum {
-	hw_capability_reset_v2 = 0,
-	hw_capability_advanced_itr_moderation = 1,
 	hw_capability_last
 };
 
@@ -511,6 +530,17 @@ struct wil_probe_client_req {
 	u8 cid;
 };
 
+struct pmc_ctx {
+	/* alloc, free, and read operations must own the lock */
+	struct mutex		lock;
+	struct vring_tx_desc	*pring_va;
+	dma_addr_t		pring_pa;
+	struct desc_alloc_info  *descriptors;
+	int			last_cmd_status;
+	int			num_descriptors;
+	int			descriptor_size;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -528,8 +558,9 @@ struct wil6210_priv {
 	wait_queue_head_t wq; /* for all wait_event() use */
 	/* profile */
 	u32 monitor_flags;
-	u32 secure_pcp; /* create secure PCP? */
+	u32 privacy; /* secure connection? */
 	int sinfo_gen;
+	u32 ap_isolate; /* no intra-BSS communication */
 	/* interrupt moderation */
 	u32 tx_max_burst_duration;
 	u32 tx_interframe_timeout;
@@ -581,6 +612,7 @@ struct wil6210_priv {
 	struct vring_tx_data vring_tx_data[WIL6210_MAX_TX_RINGS];
 	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
 	struct wil_sta_info sta[WIL6210_MAX_CID];
+	int bcast_vring;
 	/* scan */
 	struct cfg80211_scan_request *scan_request;
 
@@ -593,6 +625,8 @@ struct wil6210_priv {
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
+
+	struct pmc_ctx pmc;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -652,13 +686,13 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
 
-void *wil_if_alloc(struct device *dev, void __iomem *csr);
+void *wil_if_alloc(struct device *dev);
 void wil_if_free(struct wil6210_priv *wil);
 int wil_if_add(struct wil6210_priv *wil);
 void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
-int wil_reset(struct wil6210_priv *wil);
+int wil_reset(struct wil6210_priv *wil, bool no_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
 int wil_up(struct wil6210_priv *wil);
@@ -684,9 +718,10 @@ int wmi_get_ssid(struct wil6210_priv *wil, u8 *ssid_len, void *ssid);
 int wmi_set_channel(struct wil6210_priv *wil, int channel);
 int wmi_get_channel(struct wil6210_priv *wil, int *channel);
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr);
+		       const void *mac_addr, int key_usage);
 int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
-		       const void *mac_addr, int key_len, const void *key);
+		       const void *mac_addr, int key_len, const void *key,
+		       int key_usage);
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
@@ -729,7 +764,8 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
-int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
+int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
+		  u8 chan, u8 hidden_ssid);
 int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);
@@ -743,6 +779,9 @@ void wil_rx_fini(struct wil6210_priv *wil);
 int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		      int cid, int tid);
 void wil_vring_fini_tx(struct wil6210_priv *wil, int id);
+int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size);
+int wil_bcast_init(struct wil6210_priv *wil);
+void wil_bcast_fini(struct wil6210_priv *wil);
 
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_priv *wil, int ringid);

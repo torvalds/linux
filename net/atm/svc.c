@@ -660,7 +660,7 @@ static int svc_create(struct net *net, struct socket *sock, int protocol,
 		return -EAFNOSUPPORT;
 
 	sock->ops = &svc_proto_ops;
-	error = vcc_create(net, sock, protocol, AF_ATMSVC);
+	error = vcc_create(net, sock, protocol, AF_ATMSVC, kern);
 	if (error)
 		return error;
 	ATM_SD(sock)->local.sas_family = AF_ATMSVC;

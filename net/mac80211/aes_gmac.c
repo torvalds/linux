@@ -9,8 +9,8 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/crypto.h>
 #include <linux/err.h>
+#include <crypto/aead.h>
 #include <crypto/aes.h>
 
 #include <net/mac80211.h>
@@ -24,7 +24,7 @@
 int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 		       const u8 *data, size_t data_len, u8 *mic)
 {
-	struct scatterlist sg[3], ct[1];
+	struct scatterlist sg[4];
 	char aead_req_data[sizeof(struct aead_request) +
 			   crypto_aead_reqsize(tfm)]
 		__aligned(__alignof__(struct aead_request));
@@ -37,21 +37,19 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 	memset(aead_req, 0, sizeof(aead_req_data));
 
 	memset(zero, 0, GMAC_MIC_LEN);
-	sg_init_table(sg, 3);
+	sg_init_table(sg, 4);
 	sg_set_buf(&sg[0], aad, AAD_LEN);
 	sg_set_buf(&sg[1], data, data_len - GMAC_MIC_LEN);
 	sg_set_buf(&sg[2], zero, GMAC_MIC_LEN);
+	sg_set_buf(&sg[3], mic, GMAC_MIC_LEN);
 
 	memcpy(iv, nonce, GMAC_NONCE_LEN);
 	memset(iv + GMAC_NONCE_LEN, 0, sizeof(iv) - GMAC_NONCE_LEN);
 	iv[AES_BLOCK_SIZE - 1] = 0x01;
 
-	sg_init_table(ct, 1);
-	sg_set_buf(&ct[0], mic, GMAC_MIC_LEN);
-
 	aead_request_set_tfm(aead_req, tfm);
-	aead_request_set_assoc(aead_req, sg, AAD_LEN + data_len);
-	aead_request_set_crypt(aead_req, NULL, ct, 0, iv);
+	aead_request_set_crypt(aead_req, sg, sg, 0, iv);
+	aead_request_set_ad(aead_req, AAD_LEN + data_len);
 
 	crypto_aead_encrypt(aead_req);
 
@@ -70,9 +68,9 @@ struct crypto_aead *ieee80211_aes_gmac_key_setup(const u8 key[],
 
 	err = crypto_aead_setkey(tfm, key, key_len);
 	if (!err)
-		return tfm;
-	if (!err)
 		err = crypto_aead_setauthsize(tfm, GMAC_MIC_LEN);
+	if (!err)
+		return tfm;
 
 	crypto_free_aead(tfm);
 	return ERR_PTR(err);

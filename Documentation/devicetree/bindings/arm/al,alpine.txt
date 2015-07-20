@@ -1,0 +1,88 @@
+Annapurna Labs Alpine Platform Device Tree Bindings
+---------------------------------------------------------------
+
+Boards in the Alpine family shall have the following properties:
+
+* Required root node properties:
+compatible: must contain "al,alpine"
+
+* Example:
+
+/ {
+	model = "Annapurna Labs Alpine Dev Board";
+	compatible = "al,alpine";
+
+	...
+}
+
+* CPU node:
+
+The Alpine platform includes cortex-a15 cores.
+enable-method: must be "al,alpine-smp" to allow smp  [1]
+
+Example:
+
+cpus {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	enable-method = "al,alpine-smp";
+
+	cpu@0 {
+		compatible = "arm,cortex-a15";
+		device_type = "cpu";
+		reg = <0>;
+	};
+
+	cpu@1 {
+		compatible = "arm,cortex-a15";
+		device_type = "cpu";
+		reg = <1>;
+	};
+
+	cpu@2 {
+		compatible = "arm,cortex-a15";
+		device_type = "cpu";
+		reg = <2>;
+	};
+
+	cpu@3 {
+		compatible = "arm,cortex-a15";
+		device_type = "cpu";
+		reg = <3>;
+	};
+};
+
+
+* Alpine CPU resume registers
+
+The CPU resume register are used to define required resume address after
+reset.
+
+Properties:
+- compatible : Should contain "al,alpine-cpu-resume".
+- reg : Offset and length of the register set for the device
+
+Example:
+
+cpu_resume {
+	compatible = "al,alpine-cpu-resume";
+	reg = <0xfbff5ed0 0x30>;
+};
+
+* Alpine System-Fabric Service Registers
+
+The System-Fabric Service Registers allow various operation on CPU and
+system fabric, like powering CPUs off.
+
+Properties:
+- compatible : Should contain "al,alpine-sysfabric-service" and "syscon".
+- reg : Offset and length of the register set for the device
+
+Example:
+
+nb_service {
+        compatible = "al,alpine-sysfabric-service", "syscon";
+        reg = <0xfb070000 0x10000>;
+};
+
+[1] arm/cpu-enable-method/al,alpine-smp

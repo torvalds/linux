@@ -14,11 +14,13 @@ or
 or
 'perf probe' [options] --del='[GROUP:]EVENT' [...]
 or
-'perf probe' --list
+'perf probe' --list[=[GROUP:]EVENT]
 or
 'perf probe' [options] --line='LINE'
 or
 'perf probe' [options] --vars='PROBEPOINT'
+or
+'perf probe' [options] --funcs
 
 DESCRIPTION
 -----------
@@ -47,6 +49,12 @@ OPTIONS
 -v::
 --verbose::
         Be more verbose (show parsed arguments, etc).
+	Can not use with -q.
+
+-q::
+--quiet::
+	Be quiet (do not show any messages including errors).
+	Can not use with -v.
 
 -a::
 --add=::
@@ -58,8 +66,8 @@ OPTIONS
 	classes(e.g. [a-z], [!A-Z]).
 
 -l::
---list::
-	List up current probe events.
+--list[=[GROUP:]EVENT]::
+	List up current probe events. This can also accept filtering patterns of event names.
 
 -L::
 --line=::
@@ -75,10 +83,15 @@ OPTIONS
 	(Only for --vars) Show external defined variables in addition to local
 	variables.
 
+--no-inlines::
+	(Only for --add) Search only for non-inlined functions. The functions
+	which do not have instances are ignored.
+
 -F::
---funcs::
+--funcs[=FILTER]::
 	Show available functions in given module or kernel. With -x/--exec,
 	can also list functions in a user space executable / shared library.
+	This also can accept a FILTER rule argument.
 
 --filter=FILTER::
 	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
@@ -96,7 +109,7 @@ OPTIONS
 	Dry run. With this option, --add and --del doesn't execute actual
 	adding and removal operations.
 
---max-probes::
+--max-probes=NUM::
 	Set the maximum number of probe points for an event. Default is 128.
 
 -x::
@@ -104,8 +117,13 @@ OPTIONS
 	Specify path to the executable or shared library file for user
 	space tracing. Can also be used with --funcs option.
 
+--demangle::
+	Demangle application symbols. --no-demangle is also available
+	for disabling demangling.
+
 --demangle-kernel::
-	Demangle kernel symbols.
+	Demangle kernel symbols. --no-demangle-kernel is also available
+	for disabling kernel demangling.
 
 In absence of -m/-x options, perf probe checks if the first argument after
 the options is an absolute path name. If its an absolute path, perf probe
@@ -137,6 +155,7 @@ Each probe argument follows below syntax.
  [NAME=]LOCALVAR|$retval|%REG|@SYMBOL[:TYPE]
 
 'NAME' specifies the name of this argument (optional). You can use the name of local variable, local data structure member (e.g. var->field, var.field2), local array with fixed index (e.g. array[1], var->array[0], var->pointer[2]), or kprobe-tracer argument format (e.g. $retval, %ax, etc). Note that the name of this argument will be set as the last member name if you specify a local data structure member (e.g. field2 for 'var->field1.field2'.)
+'$vars' and '$params' special arguments are also available for NAME, '$vars' is expanded to the local variables (including function parameters) which can access at given probe point. '$params' is expanded to only the function parameters.
 'TYPE' casts the type of this argument (optional). If omitted, perf probe automatically set the type based on debuginfo. You can specify 'string' type only for the local variable or structure member which is an array of or a pointer to 'char' or 'unsigned char' type.
 
 On x86 systems %REG is always the short form of the register: for example %AX. %RAX or %EAX is not valid.

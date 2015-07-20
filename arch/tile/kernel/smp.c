@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irq_work.h>
 #include <linux/module.h>
 #include <asm/cacheflush.h>
 #include <asm/homecache.h>
@@ -33,6 +34,8 @@ EXPORT_SYMBOL(smp_topology);
 static unsigned long __iomem *ipi_mappings[NR_CPUS];
 #endif
 
+/* Does messaging work correctly to the local cpu? */
+bool self_interrupt_ok;
 
 /*
  * Top-level send_IPI*() functions to send messages to other cpus.
@@ -147,6 +150,10 @@ void evaluate_message(int tag)
 		generic_smp_call_function_single_interrupt();
 		break;
 
+	case MSG_TAG_IRQ_WORK: /* Invoke IRQ work */
+		irq_work_run();
+		break;
+
 	default:
 		panic("Unknown IPI message tag %d", tag);
 		break;
@@ -186,6 +193,15 @@ void flush_icache_range(unsigned long start, unsigned long end)
 EXPORT_SYMBOL(flush_icache_range);
 
 
+#ifdef CONFIG_IRQ_WORK
+void arch_irq_work_raise(void)
+{
+	if (arch_irq_work_has_interrupt())
+		send_IPI_single(smp_processor_id(), MSG_TAG_IRQ_WORK);
+}
+#endif
+
+
 /* Called when smp_send_reschedule() triggers IRQ_RESCHEDULE. */
 static irqreturn_t handle_reschedule_ipi(int irq, void *token)
 {
@@ -203,8 +219,22 @@ static struct irqaction resched_action = {
 
 void __init ipi_init(void)
 {
+	int cpu = smp_processor_id();
+	HV_Recipient recip = { .y = cpu_y(cpu), .x = cpu_x(cpu),
+			       .state = HV_TO_BE_SENT };
+	int tag = MSG_TAG_CALL_FUNCTION_SINGLE;
+
+	/*
+	 * Test if we can message ourselves for arch_irq_work_raise.
+	 * This functionality is only available in the Tilera hypervisor
+	 * in versions 4.3.4 and following.
+	 */
+	if (hv_send_message(&recip, 1, (HV_VirtAddr)&tag, sizeof(tag)) == 1)
+		self_interrupt_ok = true;
+	else
+		pr_warn("Older hypervisor: disabling fast irq_work_raise\n");
+
 #if CHIP_HAS_IPI()
-	int cpu;
 	/* Map IPI trigger MMIO addresses. */
 	for_each_possible_cpu(cpu) {
 		HV_Coord tile;

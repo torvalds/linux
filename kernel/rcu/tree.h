@@ -35,11 +35,33 @@
  * In practice, this did work well going from three levels to four.
  * Of course, your mileage may vary.
  */
+
 #define MAX_RCU_LVLS 4
-#define RCU_FANOUT_1	      (CONFIG_RCU_FANOUT_LEAF)
-#define RCU_FANOUT_2	      (RCU_FANOUT_1 * CONFIG_RCU_FANOUT)
-#define RCU_FANOUT_3	      (RCU_FANOUT_2 * CONFIG_RCU_FANOUT)
-#define RCU_FANOUT_4	      (RCU_FANOUT_3 * CONFIG_RCU_FANOUT)
+
+#ifdef CONFIG_RCU_FANOUT
+#define RCU_FANOUT CONFIG_RCU_FANOUT
+#else /* #ifdef CONFIG_RCU_FANOUT */
+# ifdef CONFIG_64BIT
+# define RCU_FANOUT 64
+# else
+# define RCU_FANOUT 32
+# endif
+#endif /* #else #ifdef CONFIG_RCU_FANOUT */
+
+#ifdef CONFIG_RCU_FANOUT_LEAF
+#define RCU_FANOUT_LEAF CONFIG_RCU_FANOUT_LEAF
+#else /* #ifdef CONFIG_RCU_FANOUT_LEAF */
+# ifdef CONFIG_64BIT
+# define RCU_FANOUT_LEAF 64
+# else
+# define RCU_FANOUT_LEAF 32
+# endif
+#endif /* #else #ifdef CONFIG_RCU_FANOUT_LEAF */
+
+#define RCU_FANOUT_1	      (RCU_FANOUT_LEAF)
+#define RCU_FANOUT_2	      (RCU_FANOUT_1 * RCU_FANOUT)
+#define RCU_FANOUT_3	      (RCU_FANOUT_2 * RCU_FANOUT)
+#define RCU_FANOUT_4	      (RCU_FANOUT_3 * RCU_FANOUT)
 
 #if NR_CPUS <= RCU_FANOUT_1
 #  define RCU_NUM_LVLS	      1
@@ -141,12 +163,20 @@ struct rcu_node {
 				/*  complete (only for PREEMPT_RCU). */
 	unsigned long qsmaskinit;
 				/* Per-GP initial value for qsmask & expmask. */
+				/*  Initialized from ->qsmaskinitnext at the */
+				/*  beginning of each grace period. */
+	unsigned long qsmaskinitnext;
+				/* Online CPUs for next grace period. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
 	int	grphi;		/* highest-numbered CPU or group here. */
 	u8	grpnum;		/* CPU/group number for next level up. */
 	u8	level;		/* root is at level 0. */
+	bool	wait_blkd_tasks;/* Necessary to wait for blocked tasks to */
+				/*  exit RCU read-side critical sections */
+				/*  before propagating offline up the */
+				/*  rcu_node tree? */
 	struct rcu_node *parent;
 	struct list_head blkd_tasks;
 				/* Tasks blocked in RCU read-side critical */
@@ -162,7 +192,6 @@ struct rcu_node {
 				/*  if there is no such task.  If there */
 				/*  is no current expedited grace period, */
 				/*  then there can cannot be any such task. */
-#ifdef CONFIG_RCU_BOOST
 	struct list_head *boost_tasks;
 				/* Pointer to first task that needs to be */
 				/*  priority boosted, or NULL if no priority */
@@ -200,7 +229,6 @@ struct rcu_node {
 	unsigned long n_balk_nos;
 				/* Refused to boost: not sure why, though. */
 				/*  This can happen due to race conditions. */
-#endif /* #ifdef CONFIG_RCU_BOOST */
 #ifdef CONFIG_RCU_NOCB_CPU
 	wait_queue_head_t nocb_gp_wq[2];
 				/* Place for rcu_nocb_kthread() to wait GP. */
@@ -448,8 +476,6 @@ struct rcu_state {
 	long qlen;				/* Total number of callbacks. */
 	/* End of fields guarded by orphan_lock. */
 
-	struct mutex onoff_mutex;		/* Coordinate hotplug & GPs. */
-
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	struct completion barrier_completion;	/* Wake at barrier end. */
@@ -513,14 +539,11 @@ extern struct list_head rcu_struct_flavors;
  * RCU implementation internal declarations:
  */
 extern struct rcu_state rcu_sched_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_sched_data);
 
 extern struct rcu_state rcu_bh_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 #ifdef CONFIG_PREEMPT_RCU
 extern struct rcu_state rcu_preempt_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_preempt_data);
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #ifdef CONFIG_RCU_BOOST
@@ -559,6 +582,7 @@ static void rcu_prepare_kthreads(int cpu);
 static void rcu_cleanup_after_idle(void);
 static void rcu_prepare_for_idle(void);
 static void rcu_idle_count_callbacks_posted(void);
+static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 static void print_cpu_stall_info_begin(void);
 static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
 static void print_cpu_stall_info_end(void);

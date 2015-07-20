@@ -501,20 +501,20 @@ bool gma_crtc_mode_fixup(struct drm_crtc *crtc,
 
 void gma_crtc_prepare(struct drm_crtc *crtc)
 {
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
 void gma_crtc_commit(struct drm_crtc *crtc)
 {
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
 void gma_crtc_disable(struct drm_crtc *crtc)
 {
 	struct gtt_range *gt;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
@@ -656,7 +656,7 @@ void gma_crtc_restore(struct drm_crtc *crtc)
 
 void gma_encoder_prepare(struct drm_encoder *encoder)
 {
-	struct drm_encoder_helper_funcs *encoder_funcs =
+	const struct drm_encoder_helper_funcs *encoder_funcs =
 	    encoder->helper_private;
 	/* lvds has its own version of prepare see psb_intel_lvds_prepare */
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
@@ -664,7 +664,7 @@ void gma_encoder_prepare(struct drm_encoder *encoder)
 
 void gma_encoder_commit(struct drm_encoder *encoder)
 {
-	struct drm_encoder_helper_funcs *encoder_funcs =
+	const struct drm_encoder_helper_funcs *encoder_funcs =
 	    encoder->helper_private;
 	/* lvds has its own version of commit see psb_intel_lvds_commit */
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);

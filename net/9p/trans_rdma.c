@@ -139,6 +139,7 @@ struct p9_rdma_opts {
 	int sq_depth;
 	int rq_depth;
 	long timeout;
+	int privport;
 };
 
 /*
@@ -146,7 +147,10 @@ struct p9_rdma_opts {
  */
 enum {
 	/* Options that take integer arguments */
-	Opt_port, Opt_rq_depth, Opt_sq_depth, Opt_timeout, Opt_err,
+	Opt_port, Opt_rq_depth, Opt_sq_depth, Opt_timeout,
+	/* Options that take no argument */
+	Opt_privport,
+	Opt_err,
 };
 
 static match_table_t tokens = {
@@ -154,6 +158,7 @@ static match_table_t tokens = {
 	{Opt_sq_depth, "sq=%u"},
 	{Opt_rq_depth, "rq=%u"},
 	{Opt_timeout, "timeout=%u"},
+	{Opt_privport, "privport"},
 	{Opt_err, NULL},
 };
 
@@ -175,6 +180,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	opts->sq_depth = P9_RDMA_SQ_DEPTH;
 	opts->rq_depth = P9_RDMA_RQ_DEPTH;
 	opts->timeout = P9_RDMA_TIMEOUT;
+	opts->privport = 0;
 
 	if (!params)
 		return 0;
@@ -193,13 +199,13 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
-		if (token == Opt_err)
-			continue;
-		r = match_int(&args[0], &option);
-		if (r < 0) {
-			p9_debug(P9_DEBUG_ERROR,
-				 "integer field, but no integer?\n");
-			continue;
+		if ((token != Opt_err) && (token != Opt_privport)) {
+			r = match_int(&args[0], &option);
+			if (r < 0) {
+				p9_debug(P9_DEBUG_ERROR,
+					 "integer field, but no integer?\n");
+				continue;
+			}
 		}
 		switch (token) {
 		case Opt_port:
@@ -213,6 +219,9 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 			break;
 		case Opt_timeout:
 			opts->timeout = option;
+			break;
+		case Opt_privport:
+			opts->privport = 1;
 			break;
 		default:
 			continue;
@@ -607,6 +616,23 @@ static int rdma_cancelled(struct p9_client *client, struct p9_req_t *req)
 	return 0;
 }
 
+static int p9_rdma_bind_privport(struct p9_trans_rdma *rdma)
+{
+	struct sockaddr_in cl = {
+		.sin_family = AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_ANY),
+	};
+	int port, err = -EINVAL;
+
+	for (port = P9_DEF_MAX_RESVPORT; port >= P9_DEF_MIN_RESVPORT; port--) {
+		cl.sin_port = htons((ushort)port);
+		err = rdma_bind_addr(rdma->cm_id, (struct sockaddr *)&cl);
+		if (err != -EADDRINUSE)
+			break;
+	}
+	return err;
+}
+
 /**
  * trans_create_rdma - Transport method for creating atransport instance
  * @client: client instance
@@ -622,6 +648,7 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
+	struct ib_cq_init_attr cq_attr = {};
 
 	/* Parse the transport specific mount options */
 	err = parse_opts(args, &opts);
@@ -641,6 +668,16 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 
 	/* Associate the client with the transport */
 	client->trans = rdma;
+
+	/* Bind to a privileged port if we need to */
+	if (opts.privport) {
+		err = p9_rdma_bind_privport(rdma);
+		if (err < 0) {
+			pr_err("%s (%d): problem binding to privport: %d\n",
+			       __func__, task_pid_nr(current), -err);
+			goto error;
+		}
+	}
 
 	/* Resolve the server's address */
 	rdma->addr.sin_family = AF_INET;
@@ -669,9 +706,10 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 		goto error;
 
 	/* Create the Completion Queue */
+	cq_attr.cqe = opts.sq_depth + opts.rq_depth + 1;
 	rdma->cq = ib_create_cq(rdma->cm_id->device, cq_comp_handler,
 				cq_event_handler, client,
-				opts.sq_depth + opts.rq_depth + 1, 0);
+				&cq_attr);
 	if (IS_ERR(rdma->cq))
 		goto error;
 	ib_req_notify_cq(rdma->cq, IB_CQ_NEXT_COMP);

@@ -178,8 +178,8 @@ struct saa7146_use_ops  {
 };
 
 /* from saa7146_fops.c */
-int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev, char *name, int type);
-int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev);
+int saa7146_register_device(struct video_device *vid, struct saa7146_dev *dev, char *name, int type);
+int saa7146_unregister_device(struct video_device *vid, struct saa7146_dev *dev);
 void saa7146_buffer_finish(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, int state);
 void saa7146_buffer_next(struct saa7146_dev *dev, struct saa7146_dmaqueue *q,int vbi);
 int saa7146_buffer_queue(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, struct saa7146_buf *buf);

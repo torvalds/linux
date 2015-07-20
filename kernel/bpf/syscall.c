@@ -16,6 +16,7 @@
 #include <linux/file.h>
 #include <linux/license.h>
 #include <linux/filter.h>
+#include <linux/version.h>
 
 static LIST_HEAD(bpf_map_types);
 
@@ -66,6 +67,12 @@ void bpf_map_put(struct bpf_map *map)
 static int bpf_map_release(struct inode *inode, struct file *filp)
 {
 	struct bpf_map *map = filp->private_data;
+
+	if (map->map_type == BPF_MAP_TYPE_PROG_ARRAY)
+		/* prog_array stores refcnt-ed bpf_prog pointers
+		 * release them all when user space closes prog_array_fd
+		 */
+		bpf_prog_array_map_clear(map);
 
 	bpf_map_put(map);
 	return 0;
@@ -354,10 +361,11 @@ static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
 	list_for_each_entry(tl, &bpf_prog_types, list_node) {
 		if (tl->type == type) {
 			prog->aux->ops = tl->ops;
-			prog->aux->prog_type = type;
+			prog->type = type;
 			return 0;
 		}
 	}
+
 	return -EINVAL;
 }
 
@@ -390,6 +398,19 @@ static void fixup_bpf_calls(struct bpf_prog *prog)
 			 */
 			BUG_ON(!prog->aux->ops->get_func_proto);
 
+			if (insn->imm == BPF_FUNC_tail_call) {
+				/* mark bpf_tail_call as different opcode
+				 * to avoid conditional branch in
+				 * interpeter for every normal call
+				 * and to prevent accidental JITing by
+				 * JIT compiler that doesn't support
+				 * bpf_tail_call yet
+				 */
+				insn->imm = 0;
+				insn->code |= BPF_X;
+				continue;
+			}
+
 			fn = prog->aux->ops->get_func_proto(insn->imm);
 			/* all functions that have prototype and verifier allowed
 			 * programs to call them, must be real in-kernel functions
@@ -411,6 +432,23 @@ static void free_used_maps(struct bpf_prog_aux *aux)
 	kfree(aux->used_maps);
 }
 
+static void __prog_put_rcu(struct rcu_head *rcu)
+{
+	struct bpf_prog_aux *aux = container_of(rcu, struct bpf_prog_aux, rcu);
+
+	free_used_maps(aux);
+	bpf_prog_free(aux->prog);
+}
+
+/* version of bpf_prog_put() that is called after a grace period */
+void bpf_prog_put_rcu(struct bpf_prog *prog)
+{
+	if (atomic_dec_and_test(&prog->aux->refcnt)) {
+		prog->aux->prog = prog;
+		call_rcu(&prog->aux->rcu, __prog_put_rcu);
+	}
+}
+
 void bpf_prog_put(struct bpf_prog *prog)
 {
 	if (atomic_dec_and_test(&prog->aux->refcnt)) {
@@ -418,12 +456,13 @@ void bpf_prog_put(struct bpf_prog *prog)
 		bpf_prog_free(prog);
 	}
 }
+EXPORT_SYMBOL_GPL(bpf_prog_put);
 
 static int bpf_prog_release(struct inode *inode, struct file *filp)
 {
 	struct bpf_prog *prog = filp->private_data;
 
-	bpf_prog_put(prog);
+	bpf_prog_put_rcu(prog);
 	return 0;
 }
 
@@ -465,9 +504,10 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 	fdput(f);
 	return prog;
 }
+EXPORT_SYMBOL_GPL(bpf_prog_get);
 
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD log_buf
+#define	BPF_PROG_LOAD_LAST_FIELD kern_version
 
 static int bpf_prog_load(union bpf_attr *attr)
 {
@@ -492,6 +532,10 @@ static int bpf_prog_load(union bpf_attr *attr)
 	if (attr->insn_cnt >= BPF_MAXINSNS)
 		return -EINVAL;
 
+	if (type == BPF_PROG_TYPE_KPROBE &&
+	    attr->kern_version != LINUX_VERSION_CODE)
+		return -EINVAL;
+
 	/* plain bpf_prog allocation */
 	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
 	if (!prog)
@@ -508,7 +552,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 	prog->jited = false;
 
 	atomic_set(&prog->aux->refcnt, 1);
-	prog->aux->is_gpl_compatible = is_gpl;
+	prog->gpl_compatible = is_gpl;
 
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
@@ -516,8 +560,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 		goto free_prog;
 
 	/* run eBPF verifier */
-	err = bpf_check(prog, attr);
-
+	err = bpf_check(&prog, attr);
 	if (err < 0)
 		goto free_used_maps;
 
@@ -525,10 +568,11 @@ static int bpf_prog_load(union bpf_attr *attr)
 	fixup_bpf_calls(prog);
 
 	/* eBPF program is ready to be JITed */
-	bpf_prog_select_runtime(prog);
+	err = bpf_prog_select_runtime(prog);
+	if (err < 0)
+		goto free_used_maps;
 
 	err = anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog, O_RDWR | O_CLOEXEC);
-
 	if (err < 0)
 		/* failed to allocate fd */
 		goto free_used_maps;

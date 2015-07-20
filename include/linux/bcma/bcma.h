@@ -305,6 +305,15 @@ int __bcma_driver_register(struct bcma_driver *drv, struct module *owner);
 
 extern void bcma_driver_unregister(struct bcma_driver *drv);
 
+/* module_bcma_driver() - Helper macro for drivers that don't do
+ * anything special in module init/exit.  This eliminates a lot of
+ * boilerplate.  Each module may only use this macro once, and
+ * calling it replaces module_init() and module_exit()
+ */
+#define module_bcma_driver(__bcma_driver) \
+	module_driver(__bcma_driver, bcma_driver_register, \
+			bcma_driver_unregister)
+
 /* Set a fallback SPROM.
  * See kdoc at the function definition for complete documentation. */
 extern int bcma_arch_register_fallback_sprom(
@@ -433,6 +442,27 @@ static inline struct bcma_device *bcma_find_core(struct bcma_bus *bus,
 {
 	return bcma_find_core_unit(bus, coreid, 0);
 }
+
+#ifdef CONFIG_BCMA_HOST_PCI
+extern void bcma_host_pci_up(struct bcma_bus *bus);
+extern void bcma_host_pci_down(struct bcma_bus *bus);
+extern int bcma_host_pci_irq_ctl(struct bcma_bus *bus,
+				 struct bcma_device *core, bool enable);
+#else
+static inline void bcma_host_pci_up(struct bcma_bus *bus)
+{
+}
+static inline void bcma_host_pci_down(struct bcma_bus *bus)
+{
+}
+static inline int bcma_host_pci_irq_ctl(struct bcma_bus *bus,
+					struct bcma_device *core, bool enable)
+{
+	if (bus->hosttype == BCMA_HOSTTYPE_PCI)
+		return -ENOTSUPP;
+	return 0;
+}
+#endif
 
 extern bool bcma_core_is_enabled(struct bcma_device *core);
 extern void bcma_core_disable(struct bcma_device *core, u32 flags);

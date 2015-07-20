@@ -207,6 +207,14 @@ static void intel_disable_crt(struct intel_encoder *encoder)
 	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
+static void pch_disable_crt(struct intel_encoder *encoder)
+{
+}
+
+static void pch_post_disable_crt(struct intel_encoder *encoder)
+{
+	intel_disable_crt(encoder);
+}
 
 static void hsw_crt_post_disable(struct intel_encoder *encoder)
 {
@@ -690,7 +698,7 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	 * broken monitor (without edid) to work behind a broken kvm (that fails
 	 * to have the right resistors for HP detection) needs to fix this up.
 	 * For now just bail out. */
-	if (I915_HAS_HOTPLUG(dev)) {
+	if (I915_HAS_HOTPLUG(dev) && !i915.load_detect_test) {
 		status = connector_status_disconnected;
 		goto out;
 	}
@@ -706,9 +714,11 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	if (intel_get_load_detect_pipe(connector, NULL, &tmp, &ctx)) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
-		else
+		else if (INTEL_INFO(dev)->gen < 4)
 			status = intel_crt_load_detect(crt);
-		intel_release_load_detect_pipe(connector, &tmp);
+		else
+			status = connector_status_unknown;
+		intel_release_load_detect_pipe(connector, &tmp, &ctx);
 	} else
 		status = connector_status_unknown;
 
@@ -745,7 +755,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
-	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPB);
+	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPB);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 
 out:
@@ -794,6 +804,7 @@ static const struct drm_connector_funcs intel_crt_connector_funcs = {
 	.destroy = intel_crt_destroy,
 	.set_property = intel_crt_set_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_get_property = intel_connector_atomic_get_property,
 };
 
@@ -848,7 +859,7 @@ void intel_crt_init(struct drm_device *dev)
 	if (!crt)
 		return;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(crt);
 		return;
@@ -885,7 +896,12 @@ void intel_crt_init(struct drm_device *dev)
 		crt->adpa_reg = ADPA;
 
 	crt->base.compute_config = intel_crt_compute_config;
-	crt->base.disable = intel_disable_crt;
+	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev)) {
+		crt->base.disable = pch_disable_crt;
+		crt->base.post_disable = pch_post_disable_crt;
+	} else {
+		crt->base.disable = intel_disable_crt;
+	}
 	crt->base.enable = intel_enable_crt;
 	if (I915_HAS_HOTPLUG(dev))
 		crt->base.hpd_pin = HPD_CRT;

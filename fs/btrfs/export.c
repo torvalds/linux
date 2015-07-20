@@ -152,7 +152,7 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 
 static struct dentry *btrfs_get_parent(struct dentry *child)
 {
-	struct inode *dir = child->d_inode;
+	struct inode *dir = d_inode(child);
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -220,8 +220,8 @@ fail:
 static int btrfs_get_name(struct dentry *parent, char *name,
 			  struct dentry *child)
 {
-	struct inode *inode = child->d_inode;
-	struct inode *dir = parent->d_inode;
+	struct inode *inode = d_inode(child);
+	struct inode *dir = d_inode(parent);
 	struct btrfs_path *path;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_inode_ref *iref;

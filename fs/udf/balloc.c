@@ -21,7 +21,6 @@
 
 #include "udfdecl.h"
 
-#include <linux/buffer_head.h>
 #include <linux/bitops.h>
 
 #include "udf_i.h"
@@ -63,15 +62,14 @@ static int __load_block_bitmap(struct super_block *sb,
 			  block_group, nr_groups);
 	}
 
-	if (bitmap->s_block_bitmap[block_group]) {
+	if (bitmap->s_block_bitmap[block_group])
 		return block_group;
-	} else {
-		retval = read_block_bitmap(sb, bitmap, block_group,
-					   block_group);
-		if (retval < 0)
-			return retval;
-		return block_group;
-	}
+
+	retval = read_block_bitmap(sb, bitmap, block_group, block_group);
+	if (retval < 0)
+		return retval;
+
+	return block_group;
 }
 
 static inline int load_block_bitmap(struct super_block *sb,
@@ -358,7 +356,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 	struct kernel_lb_addr eloc;
 	struct extent_position oepos, epos;
 	int8_t etype;
-	int i;
 	struct udf_inode_info *iinfo;
 
 	mutex_lock(&sbi->s_alloc_mutex);
@@ -425,7 +422,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 		}
 
 		if (epos.bh != oepos.bh) {
-			i = -1;
 			oepos.block = epos.block;
 			brelse(oepos.bh);
 			get_bh(epos.bh);
@@ -762,7 +758,7 @@ inline int udf_prealloc_blocks(struct super_block *sb,
 			       uint32_t block_count)
 {
 	struct udf_part_map *map = &UDF_SB(sb)->s_partmaps[partition];
-	sector_t allocated;
+	int allocated;
 
 	if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_BITMAP)
 		allocated = udf_bitmap_prealloc_blocks(sb,

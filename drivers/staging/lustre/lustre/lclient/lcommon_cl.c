@@ -202,7 +202,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	struct cl_site    *site;
 	int rc;
 
-	OBD_ALLOC_PTR(vdv);
+	vdv = kzalloc(sizeof(*vdv), GFP_NOFS);
 	if (vdv == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -211,7 +211,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	ccc2lu_dev(vdv)->ld_ops = luops;
 	vdv->cdv_cl.cd_ops = clops;
 
-	OBD_ALLOC_PTR(site);
+	site = kzalloc(sizeof(*site), GFP_NOFS);
 	if (site != NULL) {
 		rc = cl_site_init(site, &vdv->cdv_cl);
 		if (rc == 0)
@@ -219,7 +219,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 		else {
 			LASSERT(lud->ld_site == NULL);
 			CERROR("Cannot init lu_site, rc %d.\n", rc);
-			OBD_FREE_PTR(site);
+			kfree(site);
 		}
 	} else
 		rc = -ENOMEM;
@@ -239,10 +239,10 @@ struct lu_device *ccc_device_free(const struct lu_env *env,
 
 	if (d->ld_site != NULL) {
 		cl_site_fini(site);
-		OBD_FREE_PTR(site);
+		kfree(site);
 	}
 	cl_device_fini(lu2cl_dev(d));
-	OBD_FREE_PTR(vdv);
+	kfree(vdv);
 	return next;
 }
 
@@ -828,32 +828,32 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 				 * --bug 17336 */
 				loff_t size = cl_isize_read(inode);
 				loff_t cur_index = start >> PAGE_CACHE_SHIFT;
-				loff_t size_index = ((size - 1) >> PAGE_CACHE_SHIFT);
+				loff_t size_index = (size - 1) >>
+						    PAGE_CACHE_SHIFT;
 
 				if ((size == 0 && cur_index != 0) ||
 				    size_index < cur_index)
 					*exceed = 1;
 			}
 			return result;
-		} else {
-			/*
-			 * region is within kms and, hence, within real file
-			 * size (A). We need to increase i_size to cover the
-			 * read region so that generic_file_read() will do its
-			 * job, but that doesn't mean the kms size is
-			 * _correct_, it is only the _minimum_ size. If
-			 * someone does a stat they will get the correct size
-			 * which will always be >= the kms value here.
-			 * b=11081
-			 */
-			if (cl_isize_read(inode) < kms) {
-				cl_isize_write_nolock(inode, kms);
-				CDEBUG(D_VFSTRACE,
-				       DFID" updating i_size %llu\n",
-				       PFID(lu_object_fid(&obj->co_lu)),
-				       (__u64)cl_isize_read(inode));
+		}
+		/*
+		 * region is within kms and, hence, within real file
+		 * size (A). We need to increase i_size to cover the
+		 * read region so that generic_file_read() will do its
+		 * job, but that doesn't mean the kms size is
+		 * _correct_, it is only the _minimum_ size. If
+		 * someone does a stat they will get the correct size
+		 * which will always be >= the kms value here.
+		 * b=11081
+		 */
+		if (cl_isize_read(inode) < kms) {
+			cl_isize_write_nolock(inode, kms);
+			CDEBUG(D_VFSTRACE,
+					DFID" updating i_size %llu\n",
+					PFID(lu_object_fid(&obj->co_lu)),
+					(__u64)cl_isize_read(inode));
 
-			}
 		}
 	}
 	ccc_object_size_unlock(obj);
@@ -1263,7 +1263,7 @@ __u32 cl_fid_build_gen(const struct lu_fid *fid)
 		return gen;
 	}
 
-	gen = (fid_flatten(fid) >> 32);
+	gen = fid_flatten(fid) >> 32;
 	return gen;
 }
 

@@ -76,7 +76,7 @@ static __init void __socfpga_periph_init(struct device_node *node,
 		periph_clk->shift = div_reg[1];
 		periph_clk->width = div_reg[2];
 	} else {
-		periph_clk->div_reg = 0;
+		periph_clk->div_reg = NULL;
 	}
 
 	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);

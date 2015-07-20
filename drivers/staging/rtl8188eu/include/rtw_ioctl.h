@@ -117,6 +117,4 @@ int drv_set_info(struct  net_device *MiniportAdapterContext,
 		 u32 informationbufferlength, u32 *bytesread,
 		 u32 *bytesneeded);
 
-extern int ui_pid[3];
-
 #endif /*  #ifndef __INC_CEINFO_ */

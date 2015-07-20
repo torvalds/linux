@@ -72,7 +72,7 @@ enum {
 #define REG_INT_ALL       0x7f
 
 /* Constants */
-#define WAIT_TIMEOUT      200 /* ms */
+#define WAIT_TIMEOUT      1000 /* ms */
 #define DEFAULT_SCL_RATE  (100 * 1000) /* Hz */
 
 enum rk3x_i2c_state {
@@ -833,7 +833,7 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 	clk_disable(i2c->clk);
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
-	return ret;
+	return ret < 0 ? ret : num;
 }
 
 static u32 rk3x_i2c_func(struct i2c_adapter *adap)

@@ -36,7 +36,8 @@ struct drm_tegra_gem_create {
 
 struct drm_tegra_gem_mmap {
 	__u32 handle;
-	__u32 offset;
+	__u32 pad;
+	__u64 offset;
 };
 
 struct drm_tegra_syncpt_read {

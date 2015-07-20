@@ -568,8 +568,6 @@ xfs_qm_dqread(
 	struct xfs_buf		*bp;
 	struct xfs_trans	*tp = NULL;
 	int			error;
-	int			cancelflags = 0;
-
 
 	dqp = kmem_zone_zalloc(xfs_qm_dqzone, KM_SLEEP);
 
@@ -617,7 +615,6 @@ xfs_qm_dqread(
 					  XFS_QM_DQALLOC_SPACE_RES(mp), 0);
 		if (error)
 			goto error1;
-		cancelflags = XFS_TRANS_RELEASE_LOG_RES;
 	}
 
 	/*
@@ -632,7 +629,6 @@ xfs_qm_dqread(
 		 * allocate (ENOENT).
 		 */
 		trace_xfs_dqread_fail(dqp);
-		cancelflags |= XFS_TRANS_ABORT;
 		goto error1;
 	}
 
@@ -670,7 +666,7 @@ xfs_qm_dqread(
 	xfs_trans_brelse(tp, bp);
 
 	if (tp) {
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		error = xfs_trans_commit(tp);
 		if (error)
 			goto error0;
 	}
@@ -680,7 +676,7 @@ xfs_qm_dqread(
 
 error1:
 	if (tp)
-		xfs_trans_cancel(tp, cancelflags);
+		xfs_trans_cancel(tp);
 error0:
 	xfs_qm_dqdestroy(dqp);
 	*O_dqpp = NULL;

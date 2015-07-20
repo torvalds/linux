@@ -1455,7 +1455,7 @@ static int nbpf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id nbpf_ids[] = {
+static const struct platform_device_id nbpf_ids[] = {
 	{"nbpfaxi64dmac1b4",	(kernel_ulong_t)&nbpf_cfg[NBPF1B4]},
 	{"nbpfaxi64dmac1b8",	(kernel_ulong_t)&nbpf_cfg[NBPF1B8]},
 	{"nbpfaxi64dmac1b16",	(kernel_ulong_t)&nbpf_cfg[NBPF1B16]},

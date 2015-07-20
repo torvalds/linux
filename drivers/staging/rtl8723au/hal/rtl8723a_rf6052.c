@@ -138,7 +138,7 @@ void rtl823a_phy_rf6052setccktxpower(struct rtw_adapter *Adapter,
 /*  Currently, we cannot fully disable driver dynamic tx power
  *  mechanism because it is referenced by BT coexist mechanism. */
 /*  In the future, two mechanism shall be separated from each other
- *  and maintained independantly. Thanks for Lanhsin's reminder. */
+ *  and maintained independently. Thanks for Lanhsin's reminder. */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
 			TxAGC[RF_PATH_A] = 0x10101010;
 			TxAGC[RF_PATH_B] = 0x10101010;
@@ -267,8 +267,8 @@ getTxPowerWriteValByRegulatory(struct rtw_adapter *Adapter, u8 Channel,
 			break;
 		case 2:	/*  Better regulatory */
 			/*  don't increase any power diff */
-			writeVal = ((index < 2) ? powerBase0[rf] :
-				    powerBase1[rf]);
+			writeVal = (index < 2) ? powerBase0[rf] :
+				    powerBase1[rf];
 			break;
 		case 3:	/*  Customer defined power diff. */
 			chnlGroup = 0;
@@ -300,7 +300,7 @@ getTxPowerWriteValByRegulatory(struct rtw_adapter *Adapter, u8 Channel,
 /*  Currently, we cannot fully disable driver dynamic tx power mechanism
     because it is referenced by BT coexist mechanism. */
 /*  In the future, two mechanism shall be separated from each other and
-    maintained independantly. Thanks for Lanhsin's reminder. */
+    maintained independently. Thanks for Lanhsin's reminder. */
 
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
 			writeVal = 0x14141414;
@@ -353,7 +353,7 @@ static void writeOFDMPowerReg(struct rtw_adapter *Adapter, u8 index,
 		else
 			RegOffset = RegOffset_B[index];
 
-		PHY_SetBBReg(Adapter, RegOffset, bMaskDWord, writeVal);
+		rtl8723au_write32(Adapter, RegOffset, writeVal);
 
 		/*  201005115 Joseph: Set Tx Power diff for Tx power
 		    training mechanism. */
@@ -500,7 +500,6 @@ phy_RF6052_Config_ParaFile_Fail:
 int PHY_RF6052_Config8723A(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	int rtStatus = _SUCCESS;
 
 	/*  Initialize general global value */
 	/*  TODO: Extend RF_PATH_C and RF_PATH_D in the future */
@@ -510,8 +509,7 @@ int PHY_RF6052_Config8723A(struct rtw_adapter *Adapter)
 		pHalData->NumTotalRFPath = 2;
 
 	/*  Config BB and RF */
-	rtStatus = phy_RF6052_Config_ParaFile(Adapter);
-	return rtStatus;
+	return phy_RF6052_Config_ParaFile(Adapter);
 }
 
 /* End of HalRf6052.c */

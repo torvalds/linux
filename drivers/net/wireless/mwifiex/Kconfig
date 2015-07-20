@@ -12,6 +12,7 @@ config MWIFIEX_SDIO
 	tristate "Marvell WiFi-Ex Driver for SD8786/SD8787/SD8797/SD8887/SD8897"
 	depends on MWIFIEX && MMC
 	select FW_LOADER
+	select WANT_DEV_COREDUMP
 	---help---
 	  This adds support for wireless adapters based on Marvell
 	  8786/8787/8797/8887/8897 chipsets with SDIO interface.
@@ -23,6 +24,7 @@ config MWIFIEX_PCIE
 	tristate "Marvell WiFi-Ex Driver for PCIE 8766/8897"
 	depends on MWIFIEX && PCI
 	select FW_LOADER
+	select WANT_DEV_COREDUMP
 	---help---
 	  This adds support for wireless adapters based on Marvell
 	  8766/8897 chipsets with PCIe interface.

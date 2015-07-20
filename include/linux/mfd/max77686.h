@@ -125,9 +125,4 @@ enum max77686_opmode {
 	MAX77686_OPMODE_STANDBY,
 };
 
-struct max77686_opmode_data {
-	int id;
-	int mode;
-};
-
 #endif /* __LINUX_MFD_MAX77686_H */

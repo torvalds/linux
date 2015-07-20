@@ -257,34 +257,34 @@ void update_vsyscall_tz(void)
 
 void update_vsyscall(struct timekeeper *tk)
 {
-	if (tk->tkr.clock != &cycle_counter_cs)
+	if (tk->tkr_mono.clock != &cycle_counter_cs)
 		return;
 
 	write_seqcount_begin(&vdso_data->tb_seq);
 
-	vdso_data->cycle_last		= tk->tkr.cycle_last;
-	vdso_data->mask			= tk->tkr.mask;
-	vdso_data->mult			= tk->tkr.mult;
-	vdso_data->shift		= tk->tkr.shift;
+	vdso_data->cycle_last		= tk->tkr_mono.cycle_last;
+	vdso_data->mask			= tk->tkr_mono.mask;
+	vdso_data->mult			= tk->tkr_mono.mult;
+	vdso_data->shift		= tk->tkr_mono.shift;
 
 	vdso_data->wall_time_sec	= tk->xtime_sec;
-	vdso_data->wall_time_snsec	= tk->tkr.xtime_nsec;
+	vdso_data->wall_time_snsec	= tk->tkr_mono.xtime_nsec;
 
 	vdso_data->monotonic_time_sec	= tk->xtime_sec
 					+ tk->wall_to_monotonic.tv_sec;
-	vdso_data->monotonic_time_snsec	= tk->tkr.xtime_nsec
+	vdso_data->monotonic_time_snsec	= tk->tkr_mono.xtime_nsec
 					+ ((u64)tk->wall_to_monotonic.tv_nsec
-						<< tk->tkr.shift);
+						<< tk->tkr_mono.shift);
 	while (vdso_data->monotonic_time_snsec >=
-					(((u64)NSEC_PER_SEC) << tk->tkr.shift)) {
+					(((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
 		vdso_data->monotonic_time_snsec -=
-					((u64)NSEC_PER_SEC) << tk->tkr.shift;
+					((u64)NSEC_PER_SEC) << tk->tkr_mono.shift;
 		vdso_data->monotonic_time_sec++;
 	}
 
 	vdso_data->wall_time_coarse_sec	= tk->xtime_sec;
-	vdso_data->wall_time_coarse_nsec = (long)(tk->tkr.xtime_nsec >>
-						 tk->tkr.shift);
+	vdso_data->wall_time_coarse_nsec = (long)(tk->tkr_mono.xtime_nsec >>
+						 tk->tkr_mono.shift);
 
 	vdso_data->monotonic_time_coarse_sec =
 		vdso_data->wall_time_coarse_sec + tk->wall_to_monotonic.tv_sec;

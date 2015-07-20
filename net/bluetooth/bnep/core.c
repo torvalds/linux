@@ -231,7 +231,14 @@ static int bnep_rx_control(struct bnep_session *s, void *data, int len)
 		break;
 
 	case BNEP_SETUP_CONN_REQ:
-		err = bnep_send_rsp(s, BNEP_SETUP_CONN_RSP, BNEP_CONN_NOT_ALLOWED);
+		/* Successful response should be sent only once */
+		if (test_bit(BNEP_SETUP_RESPONSE, &s->flags) &&
+		    !test_and_set_bit(BNEP_SETUP_RSP_SENT, &s->flags))
+			err = bnep_send_rsp(s, BNEP_SETUP_CONN_RSP,
+					    BNEP_SUCCESS);
+		else
+			err = bnep_send_rsp(s, BNEP_SETUP_CONN_RSP,
+					    BNEP_CONN_NOT_ALLOWED);
 		break;
 
 	default: {
@@ -239,7 +246,7 @@ static int bnep_rx_control(struct bnep_session *s, void *data, int len)
 			pkt[0] = BNEP_CONTROL;
 			pkt[1] = BNEP_CMD_NOT_UNDERSTOOD;
 			pkt[2] = cmd;
-			bnep_send(s, pkt, sizeof(pkt));
+			err = bnep_send(s, pkt, sizeof(pkt));
 		}
 		break;
 	}
@@ -292,29 +299,55 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 {
 	struct net_device *dev = s->dev;
 	struct sk_buff *nskb;
-	u8 type;
+	u8 type, ctrl_type;
 
 	dev->stats.rx_bytes += skb->len;
 
 	type = *(u8 *) skb->data;
 	skb_pull(skb, 1);
+	ctrl_type = *(u8 *)skb->data;
 
 	if ((type & BNEP_TYPE_MASK) >= sizeof(__bnep_rx_hlen))
 		goto badframe;
 
 	if ((type & BNEP_TYPE_MASK) == BNEP_CONTROL) {
-		bnep_rx_control(s, skb->data, skb->len);
-		kfree_skb(skb);
-		return 0;
+		if (bnep_rx_control(s, skb->data, skb->len) < 0) {
+			dev->stats.tx_errors++;
+			kfree_skb(skb);
+			return 0;
+		}
+
+		if (!(type & BNEP_EXT_HEADER)) {
+			kfree_skb(skb);
+			return 0;
+		}
+
+		/* Verify and pull ctrl message since it's already processed */
+		switch (ctrl_type) {
+		case BNEP_SETUP_CONN_REQ:
+			/* Pull: ctrl type (1 b), len (1 b), data (len bytes) */
+			if (!skb_pull(skb, 2 + *(u8 *)(skb->data + 1) * 2))
+				goto badframe;
+			break;
+		case BNEP_FILTER_MULTI_ADDR_SET:
+		case BNEP_FILTER_NET_TYPE_SET:
+			/* Pull: ctrl type (1 b), len (2 b), data (len bytes) */
+			if (!skb_pull(skb, 3 + *(u16 *)(skb->data + 1) * 2))
+				goto badframe;
+			break;
+		default:
+			kfree_skb(skb);
+			return 0;
+		}
+	} else {
+		skb_reset_mac_header(skb);
+
+		/* Verify and pull out header */
+		if (!skb_pull(skb, __bnep_rx_hlen[type & BNEP_TYPE_MASK]))
+			goto badframe;
+
+		s->eh.h_proto = get_unaligned((__be16 *) (skb->data - 2));
 	}
-
-	skb_reset_mac_header(skb);
-
-	/* Verify and pull out header */
-	if (!skb_pull(skb, __bnep_rx_hlen[type & BNEP_TYPE_MASK]))
-		goto badframe;
-
-	s->eh.h_proto = get_unaligned((__be16 *) (skb->data - 2));
 
 	if (type & BNEP_EXT_HEADER) {
 		if (bnep_rx_extension(s, skb) < 0)
@@ -525,6 +558,7 @@ static struct device_type bnep_type = {
 
 int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 {
+	u32 valid_flags = BIT(BNEP_SETUP_RESPONSE);
 	struct net_device *dev;
 	struct bnep_session *s, *ss;
 	u8 dst[ETH_ALEN], src[ETH_ALEN];
@@ -534,6 +568,9 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 
 	if (!l2cap_is_socket(sock))
 		return -EBADFD;
+
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
 
 	baswap((void *) dst, &l2cap_pi(sock->sk)->chan->dst);
 	baswap((void *) src, &l2cap_pi(sock->sk)->chan->src);
@@ -566,6 +603,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	s->sock  = sock;
 	s->role  = req->role;
 	s->state = BT_CONNECTED;
+	s->flags = req->flags;
 
 	s->msg.msg_flags = MSG_NOSIGNAL;
 
@@ -611,10 +649,14 @@ failed:
 
 int bnep_del_connection(struct bnep_conndel_req *req)
 {
+	u32 valid_flags = 0;
 	struct bnep_session *s;
 	int  err = 0;
 
 	BT_DBG("");
+
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
 
 	down_read(&bnep_session_sem);
 
@@ -631,10 +673,12 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 
 static void __bnep_copy_ci(struct bnep_conninfo *ci, struct bnep_session *s)
 {
+	u32 valid_flags = BIT(BNEP_SETUP_RESPONSE);
+
 	memset(ci, 0, sizeof(*ci));
 	memcpy(ci->dst, s->eh.h_source, ETH_ALEN);
 	strcpy(ci->device, s->dev->name);
-	ci->flags = s->flags;
+	ci->flags = s->flags & valid_flags;
 	ci->state = s->state;
 	ci->role  = s->role;
 }

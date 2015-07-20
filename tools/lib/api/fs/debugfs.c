@@ -3,75 +3,50 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <sys/vfs.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/mount.h>
 #include <linux/kernel.h>
 
 #include "debugfs.h"
 
-char debugfs_mountpoint[PATH_MAX + 1] = "/sys/kernel/debug";
+#ifndef DEBUGFS_DEFAULT_PATH
+#define DEBUGFS_DEFAULT_PATH		"/sys/kernel/debug"
+#endif
+
+char debugfs_mountpoint[PATH_MAX + 1] = DEBUGFS_DEFAULT_PATH;
 
 static const char * const debugfs_known_mountpoints[] = {
-	"/sys/kernel/debug",
+	DEBUGFS_DEFAULT_PATH,
 	"/debug",
 	0,
 };
 
 static bool debugfs_found;
 
+bool debugfs_configured(void)
+{
+	return debugfs_find_mountpoint() != NULL;
+}
+
 /* find the path to the mounted debugfs */
 const char *debugfs_find_mountpoint(void)
 {
-	const char * const *ptr;
-	char type[100];
-	FILE *fp;
+	const char *ret;
 
 	if (debugfs_found)
 		return (const char *)debugfs_mountpoint;
 
-	ptr = debugfs_known_mountpoints;
-	while (*ptr) {
-		if (debugfs_valid_mountpoint(*ptr) == 0) {
-			debugfs_found = true;
-			strcpy(debugfs_mountpoint, *ptr);
-			return debugfs_mountpoint;
-		}
-		ptr++;
-	}
+	ret = find_mountpoint("debugfs", (long) DEBUGFS_MAGIC,
+			      debugfs_mountpoint, PATH_MAX + 1,
+			      debugfs_known_mountpoints);
+	if (ret)
+		debugfs_found = true;
 
-	/* give up and parse /proc/mounts */
-	fp = fopen("/proc/mounts", "r");
-	if (fp == NULL)
-		return NULL;
-
-	while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
-		      debugfs_mountpoint, type) == 2) {
-		if (strcmp(type, "debugfs") == 0)
-			break;
-	}
-	fclose(fp);
-
-	if (strcmp(type, "debugfs") != 0)
-		return NULL;
-
-	debugfs_found = true;
-
-	return debugfs_mountpoint;
-}
-
-/* verify that a mountpoint is actually a debugfs instance */
-
-int debugfs_valid_mountpoint(const char *debugfs)
-{
-	struct statfs st_fs;
-
-	if (statfs(debugfs, &st_fs) < 0)
-		return -ENOENT;
-	else if ((long)st_fs.f_type != (long)DEBUGFS_MAGIC)
-		return -ENOENT;
-
-	return 0;
+	return ret;
 }
 
 /* mount the debugfs somewhere if it's not mounted */
@@ -87,7 +62,7 @@ char *debugfs_mount(const char *mountpoint)
 		mountpoint = getenv(PERF_DEBUGFS_ENVIRONMENT);
 		/* if no environment variable, use default */
 		if (mountpoint == NULL)
-			mountpoint = "/sys/kernel/debug";
+			mountpoint = DEBUGFS_DEFAULT_PATH;
 	}
 
 	if (mount(NULL, mountpoint, "debugfs", 0, NULL) < 0)

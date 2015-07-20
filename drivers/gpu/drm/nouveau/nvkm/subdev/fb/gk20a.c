@@ -65,5 +65,4 @@ gk20a_fb_oclass = &(struct nvkm_fb_impl) {
 		.fini = _nvkm_fb_fini,
 	},
 	.memtype = gf100_fb_memtype_valid,
-	.ram = &gk20a_ram_oclass,
 }.base;

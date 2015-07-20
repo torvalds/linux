@@ -666,7 +666,7 @@ static int probe_sysfs_permissions(struct pci_dev *dev)
 		if (r)
 			return r;
 
-		inode = path.dentry->d_inode;
+		inode = d_backing_inode(path.dentry);
 
 		r = inode_permission(inode, MAY_READ | MAY_WRITE | MAY_ACCESS);
 		path_put(&path);

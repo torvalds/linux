@@ -646,7 +646,13 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 			 AML_CLASS_INTERNAL, AML_TYPE_BOGUS, AML_HAS_ARGS),
 /* 80 */ ACPI_OP("-ExtAccessField-", ARGP_CONNECTFIELD_OP,
 			 ARGI_CONNECTFIELD_OP, ACPI_TYPE_ANY,
-			 AML_CLASS_INTERNAL, AML_TYPE_BOGUS, 0)
+			 AML_CLASS_INTERNAL, AML_TYPE_BOGUS, 0),
+
+/* ACPI 6.0 opcodes */
+
+	/* 81 */ ACPI_OP("External", ARGP_EXTERNAL_OP, ARGI_EXTERNAL_OP,
+			 ACPI_TYPE_ANY, AML_CLASS_EXECUTE, /* ? */
+			 AML_TYPE_EXEC_3A_0T_0R, AML_FLAGS_EXEC_3A_0T_0R)
 
 /*! [End] no source code translation !*/
 };

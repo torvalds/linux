@@ -163,7 +163,7 @@ static unsigned int iic_get_irq(void)
 
 void iic_setup_cpu(void)
 {
-	out_be64(this_cpu_ptr(&cpu_iic.regs->prio), 0xff);
+	out_be64(&this_cpu_ptr(&cpu_iic)->regs->prio, 0xff);
 }
 
 u8 iic_get_target_id(int cpu)

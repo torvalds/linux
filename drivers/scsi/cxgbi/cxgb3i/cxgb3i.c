@@ -1,7 +1,7 @@
 /*
  * cxgb3i_offload.c: Chelsio S3xx iscsi offloaded tcp connection management
  *
- * Copyright (C) 2003-2008 Chelsio Communications.  All rights reserved.
+ * Copyright (C) 2003-2015 Chelsio Communications.  All rights reserved.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -32,8 +32,8 @@ static unsigned int dbg_level;
 
 #define DRV_MODULE_NAME         "cxgb3i"
 #define DRV_MODULE_DESC         "Chelsio T3 iSCSI Driver"
-#define DRV_MODULE_VERSION	"2.0.0"
-#define DRV_MODULE_RELDATE	"Jun. 2010"
+#define DRV_MODULE_VERSION	"2.0.1-ko"
+#define DRV_MODULE_RELDATE	"Apr. 2015"
 
 static char version[] =
 	DRV_MODULE_DESC " " DRV_MODULE_NAME
@@ -156,7 +156,7 @@ static int push_tx_frames(struct cxgbi_sock *csk, int req_completion);
 static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 			      const struct l2t_entry *e)
 {
-	unsigned int wscale = cxgbi_sock_compute_wscale(cxgb3i_rcv_win);
+	unsigned int wscale = cxgbi_sock_compute_wscale(csk->rcv_win);
 	struct cpl_act_open_req *req = (struct cpl_act_open_req *)skb->head;
 
 	skb->priority = CPL_PRIORITY_SETUP;
@@ -172,7 +172,7 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 			V_WND_SCALE(wscale) | V_MSS_IDX(csk->mss_idx) |
 			V_L2T_IDX(e->idx) | V_TX_CHANNEL(e->smt_idx));
 	req->opt0l = htonl(V_ULP_MODE(ULP2_MODE_ISCSI) |
-			V_RCV_BUFSIZ(cxgb3i_rcv_win>>10));
+			V_RCV_BUFSIZ(csk->rcv_win >> 10));
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx,%u, %pI4:%u-%pI4:%u, %u,%u,%u.\n",
@@ -369,7 +369,7 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 		req->flags |= htonl(V_TX_ACK_PAGES(2) | F_TX_INIT |
 				    V_TX_CPU_IDX(csk->rss_qid));
 		/* sendbuffer is in units of 32KB. */
-		req->param |= htonl(V_TX_SNDBUF(cxgb3i_snd_win >> 15));
+		req->param |= htonl(V_TX_SNDBUF(csk->snd_win >> 15));
 		cxgbi_sock_set_flag(csk, CTPF_TX_DATA_SENT);
 	}
 }
@@ -503,8 +503,8 @@ static int do_act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 			csk, csk->state, csk->flags, csk->tid);
 
 	csk->copied_seq = csk->rcv_wup = csk->rcv_nxt = rcv_isn;
-	if (cxgb3i_rcv_win > (M_RCV_BUFSIZ << 10))
-		csk->rcv_wup -= cxgb3i_rcv_win - (M_RCV_BUFSIZ << 10);
+	if (csk->rcv_win > (M_RCV_BUFSIZ << 10))
+		csk->rcv_wup -= csk->rcv_win - (M_RCV_BUFSIZ << 10);
 
 	cxgbi_sock_established(csk, ntohl(req->snd_isn), ntohs(req->tcp_opt));
 
@@ -988,6 +988,8 @@ static int init_act_open(struct cxgbi_sock *csk)
 		goto rel_resource;
 	skb->sk = (struct sock *)csk;
 	set_arp_failure_handler(skb, act_open_arp_failure);
+	csk->snd_win = cxgb3i_snd_win;
+	csk->rcv_win = cxgb3i_rcv_win;
 
 	csk->wr_max_cred = csk->wr_cred = T3C_DATA(t3dev)->max_wrs - 1;
 	csk->wr_una_cred = 0;
@@ -1320,8 +1322,6 @@ static void cxgb3i_dev_open(struct t3cdev *t3dev)
 	cdev->nports = adapter->params.nports;
 	cdev->mtus = adapter->params.mtus;
 	cdev->nmtus = NMTUS;
-	cdev->snd_win = cxgb3i_snd_win;
-	cdev->rcv_win = cxgb3i_rcv_win;
 	cdev->rx_credit_thres = cxgb3i_rx_credit_thres;
 	cdev->skb_tx_rsvd = CXGB3I_TX_HEADER_LEN;
 	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr_norss);

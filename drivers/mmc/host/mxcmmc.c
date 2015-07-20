@@ -281,7 +281,7 @@ static inline void buffer_swap32(u32 *buf, int len)
 	int i;
 
 	for (i = 0; i < ((len + 3) / 4); i++) {
-		st_le32(buf, *buf);
+		*buf = swab32(*buf);
 		buf++;
 	}
 }
@@ -605,11 +605,7 @@ static int mxcmci_push(struct mxcmci_host *host, void *_buf, int bytes)
 		mxcmci_writel(host, cpu_to_le32(tmp), MMC_REG_BUFFER_ACCESS);
 	}
 
-	stat = mxcmci_poll_status(host, STATUS_BUF_WRITE_RDY);
-	if (stat)
-		return stat;
-
-	return 0;
+	return mxcmci_poll_status(host, STATUS_BUF_WRITE_RDY);
 }
 
 static int mxcmci_transfer_data(struct mxcmci_host *host)

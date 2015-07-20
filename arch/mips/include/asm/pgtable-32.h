@@ -18,7 +18,7 @@
 
 #include <asm-generic/pgtable-nopmd.h>
 
-extern int temp_tlb_entry __cpuinitdata;
+extern int temp_tlb_entry;
 
 /*
  * - add_temporary_entry() add a temporary TLB entry. We use TLB entries
@@ -105,13 +105,16 @@ static inline void pmd_clear(pmd_t *pmdp)
 
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
-#define pte_pfn(x)		((unsigned long)((x).pte_high >> 6))
+#define pte_pfn(x)		(((unsigned long)((x).pte_high >> _PFN_SHIFT)) | (unsigned long)((x).pte_low << _PAGE_PRESENT_SHIFT))
 static inline pte_t
 pfn_pte(unsigned long pfn, pgprot_t prot)
 {
 	pte_t pte;
-	pte.pte_high = (pfn << 6) | (pgprot_val(prot) & 0x3f);
-	pte.pte_low = pgprot_val(prot);
+
+	pte.pte_low = (pfn >> _PAGE_PRESENT_SHIFT) |
+				(pgprot_val(prot) & ~_PFNX_MASK);
+	pte.pte_high = (pfn << _PFN_SHIFT) |
+				(pgprot_val(prot) & ~_PFN_MASK);
 	return pte;
 }
 
@@ -166,9 +169,9 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
 /* Swap entries must have VALID and GLOBAL bits cleared. */
-#define __swp_type(x)			(((x).val >> 2) & 0x1f)
-#define __swp_offset(x)			 ((x).val >> 7)
-#define __swp_entry(type,offset)	((swp_entry_t)	{ ((type) << 2) | ((offset) << 7) })
+#define __swp_type(x)			(((x).val >> 4) & 0x1f)
+#define __swp_offset(x)			 ((x).val >> 9)
+#define __swp_entry(type,offset)	((swp_entry_t)  { ((type) << 4) | ((offset) << 9) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_high })
 #define __swp_entry_to_pte(x)		((pte_t) { 0, (x).val })
 

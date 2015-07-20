@@ -89,9 +89,11 @@
  *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
  *            CS to GPU on >= r600
  *   2.41.0 - evergreen/cayman: Add SET_BASE/DRAW_INDIRECT command parsing support
+ *   2.42.0 - Add VCE/VUI (Video Usability Information) support
+ *   2.43.0 - RADEON_INFO_GPU_RESET_COUNTER
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	41
+#define KMS_DRIVER_MINOR	43
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -190,6 +192,8 @@ int radeon_deep_color = 0;
 int radeon_use_pflipirq = 2;
 int radeon_bapm = -1;
 int radeon_backlight = -1;
+int radeon_auxch = -1;
+int radeon_mst = 0;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -239,7 +243,7 @@ module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, radeon_msi, int, 0444);
 
-MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (defaul 10000 = 10 seconds, 0 = disable)");
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default 10000 = 10 seconds, 0 = disable)");
 module_param_named(lockup_timeout, radeon_lockup_timeout, int, 0444);
 
 MODULE_PARM_DESC(fastfb, "Direct FB access for IGP chips (0 = disable, 1 = enable)");
@@ -274,6 +278,12 @@ module_param_named(bapm, radeon_bapm, int, 0444);
 
 MODULE_PARM_DESC(backlight, "backlight support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(backlight, radeon_backlight, int, 0444);
+
+MODULE_PARM_DESC(auxch, "Use native auxch experimental support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(auxch, radeon_auxch, int, 0444);
+
+MODULE_PARM_DESC(mst, "DisplayPort MST experimental support (1 = enable, 0 = disable)");
+module_param_named(mst, radeon_mst, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS

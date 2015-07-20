@@ -11,6 +11,13 @@ config USB_DWC3
 
 if USB_DWC3
 
+config USB_DWC3_ULPI
+	bool "Register ULPI PHY Interface"
+	depends on USB_ULPI_BUS=y || USB_ULPI_BUS=USB_DWC3
+	help
+	  Select this if you have ULPI type PHY attached to your DWC3
+	  controller.
+
 choice
 	bool "DWC3 Mode Selection"
 	default USB_DWC3_DUAL_ROLE if (USB && USB_GADGET)
@@ -103,12 +110,5 @@ config USB_DWC3_DEBUG
 	bool "Enable Debugging Messages"
 	help
 	  Say Y here to enable debugging messages on DWC3 Driver.
-
-config DWC3_HOST_USB3_LPM_ENABLE
-	bool "Enable USB3 LPM Capability"
-	depends on USB_DWC3_HOST=y || USB_DWC3_DUAL_ROLE=y
-	default n
-	help
-	  Select this when you want to enable USB3 LPM with dwc3 xhci host.
 
 endif

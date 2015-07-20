@@ -710,7 +710,7 @@ void fm10k_tlv_msg_test_create(u32 *msg, u32 attr_flags)
 /**
  *  fm10k_tlv_msg_test - Validate all results on test message receive
  *  @hw: Pointer to hardware structure
- *  @results: Pointer array to attributes in the mesage
+ *  @results: Pointer array to attributes in the message
  *  @mbx: Pointer to mailbox information structure
  *
  *  This function does a check to verify all attributes match what the test

@@ -73,16 +73,7 @@ enum RTL_DEBUG {
 #define RT_TRACE(component, x, args...)		\
 do {			\
 	if (rt_global_debug_component & component) \
-		printk(KERN_DEBUG DRV_NAME ":" x "\n" , \
-		       ##args);\
+		printk(KERN_DEBUG DRV_NAME ":" x "\n", ##args);\
 } while (0)
-
-#define assert(expr) \
-do {	\
-	if (!(expr)) {				  \
-		printk(KERN_INFO "Assertion failed! %s,%s,%s,line=%d\n", \
-		#expr, __FILE__, __func__, __LINE__);	  \
-	}	\
-} while (0);
 
 #endif

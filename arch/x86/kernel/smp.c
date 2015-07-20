@@ -170,8 +170,7 @@ static int smp_stop_nmi_callback(unsigned int val, struct pt_regs *regs)
 
 asmlinkage __visible void smp_reboot_interrupt(void)
 {
-	ack_APIC_irq();
-	irq_enter();
+	ipi_entering_ack_irq();
 	stop_this_cpu(NULL);
 	irq_exit();
 }
@@ -265,12 +264,6 @@ __visible void smp_reschedule_interrupt(struct pt_regs *regs)
 	 */
 }
 
-static inline void smp_entering_irq(void)
-{
-	ack_APIC_irq();
-	irq_enter();
-}
-
 __visible void smp_trace_reschedule_interrupt(struct pt_regs *regs)
 {
 	/*
@@ -279,7 +272,7 @@ __visible void smp_trace_reschedule_interrupt(struct pt_regs *regs)
 	 * scheduler_ipi(). This is OK, since those functions are allowed
 	 * to nest.
 	 */
-	smp_entering_irq();
+	ipi_entering_ack_irq();
 	trace_reschedule_entry(RESCHEDULE_VECTOR);
 	__smp_reschedule_interrupt();
 	trace_reschedule_exit(RESCHEDULE_VECTOR);
@@ -297,14 +290,14 @@ static inline void __smp_call_function_interrupt(void)
 
 __visible void smp_call_function_interrupt(struct pt_regs *regs)
 {
-	smp_entering_irq();
+	ipi_entering_ack_irq();
 	__smp_call_function_interrupt();
 	exiting_irq();
 }
 
 __visible void smp_trace_call_function_interrupt(struct pt_regs *regs)
 {
-	smp_entering_irq();
+	ipi_entering_ack_irq();
 	trace_call_function_entry(CALL_FUNCTION_VECTOR);
 	__smp_call_function_interrupt();
 	trace_call_function_exit(CALL_FUNCTION_VECTOR);
@@ -319,14 +312,14 @@ static inline void __smp_call_function_single_interrupt(void)
 
 __visible void smp_call_function_single_interrupt(struct pt_regs *regs)
 {
-	smp_entering_irq();
+	ipi_entering_ack_irq();
 	__smp_call_function_single_interrupt();
 	exiting_irq();
 }
 
 __visible void smp_trace_call_function_single_interrupt(struct pt_regs *regs)
 {
-	smp_entering_irq();
+	ipi_entering_ack_irq();
 	trace_call_function_single_entry(CALL_FUNCTION_SINGLE_VECTOR);
 	__smp_call_function_single_interrupt();
 	trace_call_function_single_exit(CALL_FUNCTION_SINGLE_VECTOR);

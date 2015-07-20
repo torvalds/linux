@@ -173,6 +173,21 @@ static int nilfs_direct_delete(struct nilfs_bmap *bmap, __u64 key)
 	return ret;
 }
 
+static int nilfs_direct_seek_key(const struct nilfs_bmap *direct, __u64 start,
+				 __u64 *keyp)
+{
+	__u64 key;
+
+	for (key = start; key <= NILFS_DIRECT_KEY_MAX; key++) {
+		if (nilfs_direct_get_ptr(direct, key) !=
+		    NILFS_BMAP_INVALID_PTR) {
+			*keyp = key;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
 static int nilfs_direct_last_key(const struct nilfs_bmap *direct, __u64 *keyp)
 {
 	__u64 key, lastkey;
@@ -355,7 +370,9 @@ static const struct nilfs_bmap_operations nilfs_direct_ops = {
 	.bop_assign		=	nilfs_direct_assign,
 	.bop_mark		=	NULL,
 
+	.bop_seek_key		=	nilfs_direct_seek_key,
 	.bop_last_key		=	nilfs_direct_last_key,
+
 	.bop_check_insert	=	nilfs_direct_check_insert,
 	.bop_check_delete	=	NULL,
 	.bop_gather_data	=	nilfs_direct_gather_data,

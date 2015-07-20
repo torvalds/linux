@@ -825,6 +825,7 @@ retreived||retrieved
 retreive||retrieve
 retrive||retrieve
 retuned||returned
+reudce||reduce
 reuest||request
 reuqest||request
 reutnred||returned

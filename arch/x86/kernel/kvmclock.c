@@ -24,6 +24,7 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/memblock.h>
+#include <linux/sched.h>
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
@@ -217,8 +218,10 @@ static void kvm_shutdown(void)
 
 void __init kvmclock_init(void)
 {
+	struct pvclock_vcpu_time_info *vcpu_time;
 	unsigned long mem;
-	int size;
+	int size, cpu;
+	u8 flags;
 
 	size = PAGE_ALIGN(sizeof(struct pvclock_vsyscall_time_info)*NR_CPUS);
 
@@ -264,7 +267,14 @@ void __init kvmclock_init(void)
 	pv_info.name = "KVM";
 
 	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
-		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
+		pvclock_set_flags(~0);
+
+	cpu = get_cpu();
+	vcpu_time = &hv_clock[cpu].pvti;
+	flags = pvclock_read_flags(vcpu_time);
+	if (flags & PVCLOCK_COUNTS_FROM_ZERO)
+		set_sched_clock_stable();
+	put_cpu();
 }
 
 int __init kvm_setup_vsyscall_timeinfo(void)

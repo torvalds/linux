@@ -383,7 +383,7 @@ static int si4713_powerup(struct si4713_device *sdev)
 		}
 	}
 
-	if (!IS_ERR(sdev->gpio_reset)) {
+	if (sdev->gpio_reset) {
 		udelay(50);
 		gpiod_set_value(sdev->gpio_reset, 1);
 	}
@@ -407,8 +407,7 @@ static int si4713_powerup(struct si4713_device *sdev)
 						SI4713_STC_INT | SI4713_CTS);
 		return err;
 	}
-	if (!IS_ERR(sdev->gpio_reset))
-		gpiod_set_value(sdev->gpio_reset, 0);
+	gpiod_set_value(sdev->gpio_reset, 0);
 
 
 	if (sdev->vdd) {
@@ -447,7 +446,7 @@ static int si4713_powerdown(struct si4713_device *sdev)
 		v4l2_dbg(1, debug, &sdev->sd, "Power down response: 0x%02x\n",
 				resp[0]);
 		v4l2_dbg(1, debug, &sdev->sd, "Device in reset mode\n");
-		if (!IS_ERR(sdev->gpio_reset))
+		if (sdev->gpio_reset)
 			gpiod_set_value(sdev->gpio_reset, 0);
 
 		if (sdev->vdd) {
@@ -1460,14 +1459,9 @@ static int si4713_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	sdev->gpio_reset = devm_gpiod_get(&client->dev, "reset");
-	if (!IS_ERR(sdev->gpio_reset)) {
-		gpiod_direction_output(sdev->gpio_reset, 0);
-	} else if (PTR_ERR(sdev->gpio_reset) == -ENOENT) {
-		dev_dbg(&client->dev, "No reset GPIO assigned\n");
-	} else if (PTR_ERR(sdev->gpio_reset) == -ENOSYS) {
-		dev_dbg(&client->dev, "No reset GPIO support\n");
-	} else {
+	sdev->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset",
+						   GPIOD_OUT_LOW);
+	if (IS_ERR(sdev->gpio_reset)) {
 		rval = PTR_ERR(sdev->gpio_reset);
 		dev_err(&client->dev, "Failed to request gpio: %d\n", rval);
 		goto exit;
@@ -1615,8 +1609,10 @@ static int si4713_probe(struct i2c_client *client,
 		return 0;
 
 	si4713_pdev = platform_device_alloc("radio-si4713", -1);
-	if (!si4713_pdev)
+	if (!si4713_pdev) {
+		rval = -ENOMEM;
 		goto put_main_pdev;
+	}
 
 	si4713_pdev_pdata.subdev = client;
 	rval = platform_device_add_data(si4713_pdev, &si4713_pdev_pdata,

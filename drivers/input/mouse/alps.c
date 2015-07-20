@@ -251,6 +251,14 @@ static void alps_process_packet_v1_v2(struct psmouse *psmouse)
 		return;
 	}
 
+	/* Non interleaved V2 dualpoint has separate stick button bits */
+	if (priv->proto_version == ALPS_PROTO_V2 &&
+	    priv->flags == (ALPS_PASS | ALPS_DUALPOINT)) {
+		left |= packet[0] & 1;
+		right |= packet[0] & 2;
+		middle |= packet[0] & 4;
+	}
+
 	alps_report_buttons(dev, dev2, left, right, middle);
 
 	/* Convert hardware tap to a reasonable Z value */
@@ -941,6 +949,11 @@ static void alps_get_finger_coordinate_v7(struct input_mt_pos *mt,
 	case V7_PACKET_ID_TWO:
 		mt[1].x &= ~0x000F;
 		mt[1].y |= 0x000F;
+		/* Detect false-postive touches where x & y report max value */
+		if (mt[1].y == 0x7ff && mt[1].x == 0xff0) {
+			mt[1].x = 0;
+			/* y gets set to 0 at the end of this function */
+		}
 		break;
 
 	case V7_PACKET_ID_MULTI:
@@ -1058,9 +1071,8 @@ static void alps_process_trackstick_packet_v7(struct psmouse *psmouse)
 	right = (packet[1] & 0x02) >> 1;
 	middle = (packet[1] & 0x04) >> 2;
 
-	/* Divide 2 since trackpoint's speed is too fast */
-	input_report_rel(dev2, REL_X, (char)x / 2);
-	input_report_rel(dev2, REL_Y, -((char)y / 2));
+	input_report_rel(dev2, REL_X, (char)x);
+	input_report_rel(dev2, REL_Y, -((char)y));
 
 	input_report_key(dev2, BTN_LEFT, left);
 	input_report_key(dev2, BTN_RIGHT, right);
@@ -1345,13 +1357,14 @@ static void alps_report_bare_ps2_packet(struct psmouse *psmouse,
 					bool report_buttons)
 {
 	struct alps_data *priv = psmouse->private;
-	struct input_dev *dev;
+	struct input_dev *dev, *dev2 = NULL;
 
 	/* Figure out which device to use to report the bare packet */
 	if (priv->proto_version == ALPS_PROTO_V2 &&
 	    (priv->flags & ALPS_DUALPOINT)) {
 		/* On V2 devices the DualPoint Stick reports bare packets */
 		dev = priv->dev2;
+		dev2 = psmouse->dev;
 	} else if (unlikely(IS_ERR_OR_NULL(priv->dev3))) {
 		/* Register dev3 mouse if we received PS/2 packet first time */
 		if (!IS_ERR(priv->dev3))
@@ -1363,7 +1376,7 @@ static void alps_report_bare_ps2_packet(struct psmouse *psmouse,
 	}
 
 	if (report_buttons)
-		alps_report_buttons(dev, NULL,
+		alps_report_buttons(dev, dev2,
 				packet[0] & 1, packet[0] & 2, packet[0] & 4);
 
 	input_report_rel(dev, REL_X,

@@ -177,8 +177,8 @@ size_t vme_get_size(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_get_size);
 
-static int vme_check_window(u32 aspace, unsigned long long vme_base,
-	unsigned long long size)
+int vme_check_window(u32 aspace, unsigned long long vme_base,
+		     unsigned long long size)
 {
 	int retval = 0;
 
@@ -199,10 +199,8 @@ static int vme_check_window(u32 aspace, unsigned long long vme_base,
 			retval = -EFAULT;
 		break;
 	case VME_A64:
-		/*
-		 * Any value held in an unsigned long long can be used as the
-		 * base
-		 */
+		if ((size != 0) && (vme_base > U64_MAX + 1 - size))
+			retval = -EFAULT;
 		break;
 	case VME_CRCSR:
 		if (((vme_base + size) > VME_CRCSR_MAX) ||
@@ -223,6 +221,7 @@ static int vme_check_window(u32 aspace, unsigned long long vme_base,
 
 	return retval;
 }
+EXPORT_SYMBOL(vme_check_window);
 
 /*
  * Request a slave image with specific attributes, return some unique
@@ -608,6 +607,32 @@ unsigned int vme_master_rmw(struct vme_resource *resource, unsigned int mask,
 	return bridge->master_rmw(image, mask, compare, swap, offset);
 }
 EXPORT_SYMBOL(vme_master_rmw);
+
+int vme_master_mmap(struct vme_resource *resource, struct vm_area_struct *vma)
+{
+	struct vme_master_resource *image;
+	phys_addr_t phys_addr;
+	unsigned long vma_size;
+
+	if (resource->type != VME_MASTER) {
+		pr_err("Not a master resource\n");
+		return -EINVAL;
+	}
+
+	image = list_entry(resource->entry, struct vme_master_resource, list);
+	phys_addr = image->bus_resource.start + (vma->vm_pgoff << PAGE_SHIFT);
+	vma_size = vma->vm_end - vma->vm_start;
+
+	if (phys_addr + vma_size > image->bus_resource.end + 1) {
+		pr_err("Map size cannot exceed the window size\n");
+		return -EFAULT;
+	}
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	return vm_iomap_memory(vma, phys_addr, vma->vm_end - vma->vm_start);
+}
+EXPORT_SYMBOL(vme_master_mmap);
 
 void vme_master_free(struct vme_resource *resource)
 {

@@ -1044,8 +1044,8 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
 	 * It is possible that the vty-server was removed between the time that
 	 * the conn was registered and now.
 	 */
-	if (!(rc = request_irq(irq, &hvcs_handle_interrupt,
-				0, "ibmhvcs", hvcsd))) {
+	rc = request_irq(irq, &hvcs_handle_interrupt, 0, "ibmhvcs", hvcsd);
+	if (!rc) {
 		/*
 		 * It is possible the vty-server was removed after the irq was
 		 * requested but before we have time to enable interrupts.

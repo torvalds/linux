@@ -56,7 +56,7 @@ enum sis900_configuration_register_bits {
 	EDB_MASTER_EN = 0x00002000
 };
 
-enum sis900_eeprom_access_reigster_bits {
+enum sis900_eeprom_access_register_bits {
 	MDC  = 0x00000040, MDDIR = 0x00000020, MDIO = 0x00000010, /* 7016 specific */
 	EECS = 0x00000008, EECLK = 0x00000004, EEDO = 0x00000002,
 	EEDI = 0x00000001
@@ -73,7 +73,7 @@ enum sis900_interrupt_register_bits {
 	RxERR  = 0x00000004, RxDESC = 0x00000002, RxOK  = 0x00000001
 };
 
-enum sis900_interrupt_enable_reigster_bits {
+enum sis900_interrupt_enable_register_bits {
 	IE = 0x00000001
 };
 

@@ -30,9 +30,9 @@ static const struct proc_ns_operations *ns_entries[] = {
 	&mntns_operations,
 };
 
-static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *proc_ns_follow_link(struct dentry *dentry, void **cookie)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
 	struct task_struct *task;
 	struct path ns_path;
@@ -45,7 +45,7 @@ static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (ptrace_may_access(task, PTRACE_MODE_READ)) {
 		error = ns_get_path(&ns_path, task, ns_ops);
 		if (!error)
-			nd_jump_link(nd, &ns_path);
+			nd_jump_link(&ns_path);
 	}
 	put_task_struct(task);
 	return error;
@@ -53,7 +53,7 @@ static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
 	struct task_struct *task;
 	char name[50];

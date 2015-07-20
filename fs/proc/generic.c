@@ -101,7 +101,7 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	int error;
 
@@ -120,7 +120,7 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	if (de && de->nlink)
 		set_nlink(inode, de->nlink);
@@ -373,6 +373,10 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 		WARN(1, "create '/proc/%s' by hand\n", qstr.name);
 		return NULL;
 	}
+	if (is_empty_pde(*parent)) {
+		WARN(1, "attempt to add to permanently empty directory");
+		return NULL;
+	}
 
 	ent = kzalloc(sizeof(struct proc_dir_entry) + qstr.len + 1, GFP_KERNEL);
 	if (!ent)
@@ -454,6 +458,25 @@ struct proc_dir_entry *proc_mkdir(const char *name,
 	return proc_mkdir_data(name, 0, parent, NULL);
 }
 EXPORT_SYMBOL(proc_mkdir);
+
+struct proc_dir_entry *proc_create_mount_point(const char *name)
+{
+	umode_t mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	struct proc_dir_entry *ent, *parent = NULL;
+
+	ent = __proc_create(&parent, name, mode, 2);
+	if (ent) {
+		ent->data = NULL;
+		ent->proc_fops = NULL;
+		ent->proc_iops = NULL;
+		if (proc_register(parent, ent) < 0) {
+			kfree(ent);
+			parent->nlink--;
+			ent = NULL;
+		}
+	}
+	return ent;
+}
 
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 					struct proc_dir_entry *parent,

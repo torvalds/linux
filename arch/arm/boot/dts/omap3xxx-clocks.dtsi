@@ -79,13 +79,14 @@
 		clock-div = <1>;
 	};
 };
-&scrm_clocks {
+
+&scm_clocks {
 	mcbsp5_mux_fck: mcbsp5_mux_fck {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
 		clocks = <&core_96m_fck>, <&mcbsp_clks>;
 		ti,bit-shift = <4>;
-		reg = <0x02d8>;
+		reg = <0x68>;
 	};
 
 	mcbsp5_fck: mcbsp5_fck {
@@ -99,7 +100,7 @@
 		compatible = "ti,composite-mux-clock";
 		clocks = <&core_96m_fck>, <&mcbsp_clks>;
 		ti,bit-shift = <2>;
-		reg = <0x0274>;
+		reg = <0x04>;
 	};
 
 	mcbsp1_fck: mcbsp1_fck {
@@ -113,7 +114,7 @@
 		compatible = "ti,composite-mux-clock";
 		clocks = <&per_96m_fck>, <&mcbsp_clks>;
 		ti,bit-shift = <6>;
-		reg = <0x0274>;
+		reg = <0x04>;
 	};
 
 	mcbsp2_fck: mcbsp2_fck {
@@ -126,7 +127,7 @@
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
 		clocks = <&per_96m_fck>, <&mcbsp_clks>;
-		reg = <0x02d8>;
+		reg = <0x68>;
 	};
 
 	mcbsp3_fck: mcbsp3_fck {
@@ -140,7 +141,7 @@
 		compatible = "ti,composite-mux-clock";
 		clocks = <&per_96m_fck>, <&mcbsp_clks>;
 		ti,bit-shift = <2>;
-		reg = <0x02d8>;
+		reg = <0x68>;
 	};
 
 	mcbsp4_fck: mcbsp4_fck {

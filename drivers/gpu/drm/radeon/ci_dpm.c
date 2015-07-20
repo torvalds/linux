@@ -5818,7 +5818,7 @@ int ci_dpm_init(struct radeon_device *rdev)
 			tmp |= DPM_ENABLED;
 			break;
 		default:
-			DRM_ERROR("Invalid PCC GPIO: %u!\n", gpio.shift);
+			DRM_DEBUG("Invalid PCC GPIO: %u!\n", gpio.shift);
 			break;
 		}
 		WREG32_SMC(CNB_PWRMGT_CNTL, tmp);
@@ -5920,6 +5920,20 @@ void ci_dpm_print_power_state(struct radeon_device *rdev,
 		       i, pl->sclk, pl->mclk, pl->pcie_gen + 1, pl->pcie_lane);
 	}
 	r600_dpm_print_ps_status(rdev, rps);
+}
+
+u32 ci_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	u32 sclk = ci_get_average_sclk_freq(rdev);
+
+	return sclk;
+}
+
+u32 ci_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	u32 mclk = ci_get_average_mclk_freq(rdev);
+
+	return mclk;
 }
 
 u32 ci_dpm_get_sclk(struct radeon_device *rdev, bool low)

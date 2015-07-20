@@ -159,7 +159,7 @@ resched:
 	nvkm_timer_alarm(priv, 100000000, alarm);
 }
 
-int
+static int
 gk20a_pmu_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_pmu *pmu = (void *)object;
@@ -170,7 +170,7 @@ gk20a_pmu_fini(struct nvkm_object *object, bool suspend)
 	return nvkm_subdev_fini(&pmu->base, suspend);
 }
 
-int
+static int
 gk20a_pmu_init(struct nvkm_object *object)
 {
 	struct nvkm_pmu *pmu = (void *)object;
@@ -192,7 +192,8 @@ gk20a_pmu_init(struct nvkm_object *object)
 	return ret;
 }
 
-struct gk20a_pmu_dvfs_data gk20a_dvfs_data= {
+static struct gk20a_pmu_dvfs_data
+gk20a_dvfs_data= {
 	.p_load_target = 70,
 	.p_load_max = 90,
 	.p_smooth = 1,

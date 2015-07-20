@@ -25,7 +25,10 @@
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
+#include <linux/acpi.h>
 #include <linux/basic_mmio_gpio.h>
+
+#include "gpiolib.h"
 
 #define XGENE_MAX_GPIO_DS		22
 #define XGENE_MAX_GPIO_DS_IRQ		6
@@ -93,7 +96,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
-	if (!regs)
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
 	ret = bgpio_init(&priv->bgc, &pdev->dev, 4,
@@ -112,7 +115,6 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 				   GFP_KERNEL);
 	if (!priv->irq)
 		return -ENOMEM;
-	memset(priv->irq, 0, sizeof(u32) * XGENE_MAX_GPIO_DS);
 
 	for (i = 0; i < priv->nirq; i++) {
 		priv->irq[default_lines[i]] = platform_get_irq(pdev, i);
@@ -129,12 +131,21 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 	else
 		dev_info(&pdev->dev, "X-Gene GPIO Standby driver registered\n");
 
+	if (priv->nirq > 0) {
+		/* Register interrupt handlers for gpio signaled acpi events */
+		acpi_gpiochip_request_interrupts(&priv->bgc.gc);
+	}
+
 	return ret;
 }
 
 static int xgene_gpio_sb_remove(struct platform_device *pdev)
 {
 	struct xgene_gpio_sb *priv = platform_get_drvdata(pdev);
+
+	if (priv->nirq > 0) {
+		acpi_gpiochip_free_interrupts(&priv->bgc.gc);
+	}
 
 	return bgpio_remove(&priv->bgc);
 }
@@ -145,10 +156,19 @@ static const struct of_device_id xgene_gpio_sb_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, xgene_gpio_sb_of_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_gpio_sb_acpi_match[] = {
+	{"APMC0D15", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, xgene_gpio_sb_acpi_match);
+#endif
+
 static struct platform_driver xgene_gpio_sb_driver = {
 	.driver = {
 		   .name = "xgene-gpio-sb",
 		   .of_match_table = xgene_gpio_sb_of_match,
+		   .acpi_match_table = ACPI_PTR(xgene_gpio_sb_acpi_match),
 		   },
 	.probe = xgene_gpio_sb_probe,
 	.remove = xgene_gpio_sb_remove,

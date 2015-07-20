@@ -235,7 +235,8 @@ void comedi_isadma_free(struct comedi_isadma *dma)
 			desc = &dma->desc[i];
 			if (desc->virt_addr)
 				dma_free_coherent(NULL, desc->maxsize,
-						desc->virt_addr, desc->hw_addr);
+						  desc->virt_addr,
+						  desc->hw_addr);
 		}
 		kfree(dma->desc);
 	}

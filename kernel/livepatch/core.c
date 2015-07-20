@@ -128,7 +128,7 @@ static bool klp_is_patch_registered(struct klp_patch *patch)
 
 static bool klp_initialized(void)
 {
-	return klp_root_kobj;
+	return !!klp_root_kobj;
 }
 
 struct klp_find_arg {
@@ -179,7 +179,9 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 		.count = 0
 	};
 
+	mutex_lock(&module_mutex);
 	kallsyms_on_each_symbol(klp_find_callback, &args);
+	mutex_unlock(&module_mutex);
 
 	if (args.count == 0)
 		pr_err("symbol '%s' not found in symbol table\n", name);
@@ -219,13 +221,19 @@ static int klp_verify_vmlinux_symbol(const char *name, unsigned long addr)
 		.name = name,
 		.addr = addr,
 	};
+	int ret;
 
-	if (kallsyms_on_each_symbol(klp_verify_callback, &args))
-		return 0;
+	mutex_lock(&module_mutex);
+	ret = kallsyms_on_each_symbol(klp_verify_callback, &args);
+	mutex_unlock(&module_mutex);
 
-	pr_err("symbol '%s' not found at specified address 0x%016lx, kernel mismatch?\n",
-		name, addr);
-	return -EINVAL;
+	if (!ret) {
+		pr_err("symbol '%s' not found at specified address 0x%016lx, kernel mismatch?\n",
+			name, addr);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int klp_find_verify_func_addr(struct klp_object *obj,
@@ -234,8 +242,9 @@ static int klp_find_verify_func_addr(struct klp_object *obj,
 	int ret;
 
 #if defined(CONFIG_RANDOMIZE_BASE)
-	/* KASLR is enabled, disregard old_addr from user */
-	func->old_addr = 0;
+	/* If KASLR has been enabled, adjust old_addr accordingly */
+	if (kaslr_enabled() && func->old_addr)
+		func->old_addr += kaslr_offset();
 #endif
 
 	if (!func->old_addr || klp_is_module(obj))
@@ -335,32 +344,20 @@ unlock:
 	rcu_read_unlock();
 }
 
-static int klp_disable_func(struct klp_func *func)
+static void klp_disable_func(struct klp_func *func)
 {
 	struct klp_ops *ops;
-	int ret;
 
-	if (WARN_ON(func->state != KLP_ENABLED))
-		return -EINVAL;
-
-	if (WARN_ON(!func->old_addr))
-		return -EINVAL;
+	WARN_ON(func->state != KLP_ENABLED);
+	WARN_ON(!func->old_addr);
 
 	ops = klp_find_ops(func->old_addr);
 	if (WARN_ON(!ops))
-		return -EINVAL;
+		return;
 
 	if (list_is_singular(&ops->func_stack)) {
-		ret = unregister_ftrace_function(&ops->fops);
-		if (ret) {
-			pr_err("failed to unregister ftrace handler for function '%s' (%d)\n",
-			       func->old_name, ret);
-			return ret;
-		}
-
-		ret = ftrace_set_filter_ip(&ops->fops, func->old_addr, 1, 0);
-		if (ret)
-			pr_warn("function unregister succeeded but failed to clear the filter\n");
+		WARN_ON(unregister_ftrace_function(&ops->fops));
+		WARN_ON(ftrace_set_filter_ip(&ops->fops, func->old_addr, 1, 0));
 
 		list_del_rcu(&func->stack_node);
 		list_del(&ops->node);
@@ -370,8 +367,6 @@ static int klp_disable_func(struct klp_func *func)
 	}
 
 	func->state = KLP_DISABLED;
-
-	return 0;
 }
 
 static int klp_enable_func(struct klp_func *func)
@@ -432,23 +427,15 @@ err:
 	return ret;
 }
 
-static int klp_disable_object(struct klp_object *obj)
+static void klp_disable_object(struct klp_object *obj)
 {
 	struct klp_func *func;
-	int ret;
 
-	for (func = obj->funcs; func->old_name; func++) {
-		if (func->state != KLP_ENABLED)
-			continue;
-
-		ret = klp_disable_func(func);
-		if (ret)
-			return ret;
-	}
+	klp_for_each_func(obj, func)
+		if (func->state == KLP_ENABLED)
+			klp_disable_func(func);
 
 	obj->state = KLP_DISABLED;
-
-	return 0;
 }
 
 static int klp_enable_object(struct klp_object *obj)
@@ -462,24 +449,21 @@ static int klp_enable_object(struct klp_object *obj)
 	if (WARN_ON(!klp_is_object_loaded(obj)))
 		return -EINVAL;
 
-	for (func = obj->funcs; func->old_name; func++) {
+	klp_for_each_func(obj, func) {
 		ret = klp_enable_func(func);
-		if (ret)
-			goto unregister;
+		if (ret) {
+			klp_disable_object(obj);
+			return ret;
+		}
 	}
 	obj->state = KLP_ENABLED;
 
 	return 0;
-
-unregister:
-	WARN_ON(klp_disable_object(obj));
-	return ret;
 }
 
 static int __klp_disable_patch(struct klp_patch *patch)
 {
 	struct klp_object *obj;
-	int ret;
 
 	/* enforce stacking: only the last enabled patch can be disabled */
 	if (!list_is_last(&patch->list, &klp_patches) &&
@@ -488,13 +472,9 @@ static int __klp_disable_patch(struct klp_patch *patch)
 
 	pr_notice("disabling patch '%s'\n", patch->mod->name);
 
-	for (obj = patch->objs; obj->funcs; obj++) {
-		if (obj->state != KLP_ENABLED)
-			continue;
-
-		ret = klp_disable_object(obj);
-		if (ret)
-			return ret;
+	klp_for_each_object(patch, obj) {
+		if (obj->state == KLP_ENABLED)
+			klp_disable_object(obj);
 	}
 
 	patch->state = KLP_DISABLED;
@@ -552,9 +532,7 @@ static int __klp_enable_patch(struct klp_patch *patch)
 
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
-	for (obj = patch->objs; obj->funcs; obj++) {
-		klp_find_object_module(obj);
-
+	klp_for_each_object(patch, obj) {
 		if (!klp_is_object_loaded(obj))
 			continue;
 
@@ -682,6 +660,15 @@ static struct kobj_type klp_ktype_patch = {
 	.default_attrs = klp_patch_attrs,
 };
 
+static void klp_kobj_release_object(struct kobject *kobj)
+{
+}
+
+static struct kobj_type klp_ktype_object = {
+	.release = klp_kobj_release_object,
+	.sysfs_ops = &kobj_sysfs_ops,
+};
+
 static void klp_kobj_release_func(struct kobject *kobj)
 {
 }
@@ -711,7 +698,7 @@ static void klp_free_object_loaded(struct klp_object *obj)
 
 	obj->mod = NULL;
 
-	for (func = obj->funcs; func->old_name; func++)
+	klp_for_each_func(obj, func)
 		func->old_addr = 0;
 }
 
@@ -726,7 +713,7 @@ static void klp_free_objects_limited(struct klp_patch *patch,
 
 	for (obj = patch->objs; obj->funcs && obj != limit; obj++) {
 		klp_free_funcs_limited(obj, NULL);
-		kobject_put(obj->kobj);
+		kobject_put(&obj->kobj);
 	}
 }
 
@@ -744,7 +731,7 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 	func->state = KLP_DISABLED;
 
 	return kobject_init_and_add(&func->kobj, &klp_ktype_func,
-				    obj->kobj, "%s", func->old_name);
+				    &obj->kobj, "%s", func->old_name);
 }
 
 /* parts of the initialization that is done only when the object is loaded */
@@ -760,7 +747,7 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 			return ret;
 	}
 
-	for (func = obj->funcs; func->old_name; func++) {
+	klp_for_each_func(obj, func) {
 		ret = klp_find_verify_func_addr(obj, func);
 		if (ret)
 			return ret;
@@ -784,11 +771,12 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 	klp_find_object_module(obj);
 
 	name = klp_is_module(obj) ? obj->name : "vmlinux";
-	obj->kobj = kobject_create_and_add(name, &patch->kobj);
-	if (!obj->kobj)
-		return -ENOMEM;
+	ret = kobject_init_and_add(&obj->kobj, &klp_ktype_object,
+				   &patch->kobj, "%s", name);
+	if (ret)
+		return ret;
 
-	for (func = obj->funcs; func->old_name; func++) {
+	klp_for_each_func(obj, func) {
 		ret = klp_init_func(obj, func);
 		if (ret)
 			goto free;
@@ -804,7 +792,7 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 
 free:
 	klp_free_funcs_limited(obj, func);
-	kobject_put(obj->kobj);
+	kobject_put(&obj->kobj);
 	return ret;
 }
 
@@ -825,7 +813,7 @@ static int klp_init_patch(struct klp_patch *patch)
 	if (ret)
 		goto unlock;
 
-	for (obj = patch->objs; obj->funcs; obj++) {
+	klp_for_each_object(patch, obj) {
 		ret = klp_init_object(patch, obj);
 		if (ret)
 			goto free;
@@ -914,7 +902,7 @@ int klp_register_patch(struct klp_patch *patch)
 }
 EXPORT_SYMBOL_GPL(klp_register_patch);
 
-static void klp_module_notify_coming(struct klp_patch *patch,
+static int klp_module_notify_coming(struct klp_patch *patch,
 				     struct klp_object *obj)
 {
 	struct module *pmod = patch->mod;
@@ -922,22 +910,23 @@ static void klp_module_notify_coming(struct klp_patch *patch,
 	int ret;
 
 	ret = klp_init_object_loaded(patch, obj);
-	if (ret)
-		goto err;
+	if (ret) {
+		pr_warn("failed to initialize patch '%s' for module '%s' (%d)\n",
+			pmod->name, mod->name, ret);
+		return ret;
+	}
 
 	if (patch->state == KLP_DISABLED)
-		return;
+		return 0;
 
 	pr_notice("applying patch '%s' to loading module '%s'\n",
 		  pmod->name, mod->name);
 
 	ret = klp_enable_object(obj);
-	if (!ret)
-		return;
-
-err:
-	pr_warn("failed to apply patch '%s' to module '%s' (%d)\n",
-		pmod->name, mod->name, ret);
+	if (ret)
+		pr_warn("failed to apply patch '%s' to module '%s' (%d)\n",
+			pmod->name, mod->name, ret);
+	return ret;
 }
 
 static void klp_module_notify_going(struct klp_patch *patch,
@@ -945,7 +934,6 @@ static void klp_module_notify_going(struct klp_patch *patch,
 {
 	struct module *pmod = patch->mod;
 	struct module *mod = obj->mod;
-	int ret;
 
 	if (patch->state == KLP_DISABLED)
 		goto disabled;
@@ -953,10 +941,7 @@ static void klp_module_notify_going(struct klp_patch *patch,
 	pr_notice("reverting patch '%s' on unloading module '%s'\n",
 		  pmod->name, mod->name);
 
-	ret = klp_disable_object(obj);
-	if (ret)
-		pr_warn("failed to revert patch '%s' on module '%s' (%d)\n",
-			pmod->name, mod->name, ret);
+	klp_disable_object(obj);
 
 disabled:
 	klp_free_object_loaded(obj);
@@ -965,6 +950,7 @@ disabled:
 static int klp_module_notify(struct notifier_block *nb, unsigned long action,
 			     void *data)
 {
+	int ret;
 	struct module *mod = data;
 	struct klp_patch *patch;
 	struct klp_object *obj;
@@ -984,13 +970,18 @@ static int klp_module_notify(struct notifier_block *nb, unsigned long action,
 		mod->klp_alive = false;
 
 	list_for_each_entry(patch, &klp_patches, list) {
-		for (obj = patch->objs; obj->funcs; obj++) {
+		klp_for_each_object(patch, obj) {
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
 
 			if (action == MODULE_STATE_COMING) {
 				obj->mod = mod;
-				klp_module_notify_coming(patch, obj);
+				ret = klp_module_notify_coming(patch, obj);
+				if (ret) {
+					obj->mod = NULL;
+					pr_warn("patch '%s' is in an inconsistent state!\n",
+						patch->mod->name);
+				}
 			} else /* MODULE_STATE_GOING */
 				klp_module_notify_going(patch, obj);
 
@@ -1008,7 +999,7 @@ static struct notifier_block klp_module_nb = {
 	.priority = INT_MIN+1, /* called late but before ftrace notifier */
 };
 
-static int klp_init(void)
+static int __init klp_init(void)
 {
 	int ret;
 

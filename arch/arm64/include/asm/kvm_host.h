@@ -28,6 +28,8 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 
+#define __KVM_HAVE_ARCH_INTC_INITIALIZED
+
 #if defined(CONFIG_KVM_ARM_MAX_VCPUS)
 #define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
 #else
@@ -177,19 +179,10 @@ int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_unmap_hva_range(struct kvm *kvm,
 			unsigned long start, unsigned long end);
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 
 /* We do not have shadow page tables, hence the empty hooks */
-static inline int kvm_age_hva(struct kvm *kvm, unsigned long start,
-			      unsigned long end)
-{
-	return 0;
-}
-
-static inline int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
-{
-	return 0;
-}
-
 static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 							 unsigned long address)
 {
@@ -227,29 +220,6 @@ struct vgic_sr_vectors {
 	void	*save_vgic;
 	void	*restore_vgic;
 };
-
-static inline void vgic_arch_setup(const struct vgic_params *vgic)
-{
-	extern struct vgic_sr_vectors __vgic_sr_vectors;
-
-	switch(vgic->type)
-	{
-	case VGIC_V2:
-		__vgic_sr_vectors.save_vgic	= __save_vgic_v2_state;
-		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v2_state;
-		break;
-
-#ifdef CONFIG_ARM_GIC_V3
-	case VGIC_V3:
-		__vgic_sr_vectors.save_vgic	= __save_vgic_v3_state;
-		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v3_state;
-		break;
-#endif
-
-	default:
-		BUG();
-	}
-}
 
 static inline void kvm_arch_hardware_disable(void) {}
 static inline void kvm_arch_hardware_unsetup(void) {}

@@ -104,7 +104,7 @@ static int param_set_local64(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_local64 = {
+static const struct kernel_param_ops param_ops_local64 = {
 	.get = param_get_local64,
 	.set = param_set_local64,
 };

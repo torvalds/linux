@@ -101,16 +101,12 @@ static const struct snd_kcontrol_new tegra_alc5632_controls[] = {
 
 static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(rtd->card);
 
-	snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
-			 &tegra_alc5632_hs_jack);
-	snd_soc_jack_add_pins(&tegra_alc5632_hs_jack,
-			ARRAY_SIZE(tegra_alc5632_hs_jack_pins),
-			tegra_alc5632_hs_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
+			      &tegra_alc5632_hs_jack,
+			      tegra_alc5632_hs_jack_pins,
+			      ARRAY_SIZE(tegra_alc5632_hs_jack_pins));
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		tegra_alc5632_hp_jack_gpio.gpio = machine->gpio_hp_det;
@@ -119,7 +115,7 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 						&tegra_alc5632_hp_jack_gpio);
 	}
 
-	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
+	snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "MICBIAS1");
 
 	return 0;
 }

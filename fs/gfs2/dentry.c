@@ -48,9 +48,9 @@ static int gfs2_drevalidate(struct dentry *dentry, unsigned int flags)
 		return -ECHILD;
 
 	parent = dget_parent(dentry);
-	sdp = GFS2_SB(parent->d_inode);
-	dip = GFS2_I(parent->d_inode);
-	inode = dentry->d_inode;
+	sdp = GFS2_SB(d_inode(parent));
+	dip = GFS2_I(d_inode(parent));
+	inode = d_inode(dentry);
 
 	if (inode) {
 		if (is_bad_inode(inode))
@@ -68,7 +68,7 @@ static int gfs2_drevalidate(struct dentry *dentry, unsigned int flags)
 			goto fail;
 	} 
 
-	error = gfs2_dir_check(parent->d_inode, &dentry->d_name, ip);
+	error = gfs2_dir_check(d_inode(parent), &dentry->d_name, ip);
 	switch (error) {
 	case 0:
 		if (!inode)
@@ -113,10 +113,10 @@ static int gfs2_dentry_delete(const struct dentry *dentry)
 {
 	struct gfs2_inode *ginode;
 
-	if (!dentry->d_inode)
+	if (d_really_is_negative(dentry))
 		return 0;
 
-	ginode = GFS2_I(dentry->d_inode);
+	ginode = GFS2_I(d_inode(dentry));
 	if (!ginode->i_iopen_gh.gh_gl)
 		return 0;
 

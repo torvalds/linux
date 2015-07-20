@@ -63,35 +63,37 @@ int show_cpuinfo(struct seq_file *m, void *v)
 	else
 		info = &cpu_info[revision];
 
-	return seq_printf(m,
-		       "processor\t: 0\n" 
-		       "cpu\t\t: CRIS\n"
-		       "cpu revision\t: %lu\n"
-		       "cpu model\t: %s\n"
-		       "cache size\t: %d kB\n"
-		       "fpu\t\t: %s\n"
-		       "mmu\t\t: %s\n"
-		       "mmu DMA bug\t: %s\n"
-		       "ethernet\t: %s Mbps\n"
-		       "token ring\t: %s\n"
-		       "scsi\t\t: %s\n"
-		       "ata\t\t: %s\n"
-		       "usb\t\t: %s\n"
-		       "bogomips\t: %lu.%02lu\n",
+	seq_printf(m,
+		   "processor\t: 0\n"
+		   "cpu\t\t: CRIS\n"
+		   "cpu revision\t: %lu\n"
+		   "cpu model\t: %s\n"
+		   "cache size\t: %d kB\n"
+		   "fpu\t\t: %s\n"
+		   "mmu\t\t: %s\n"
+		   "mmu DMA bug\t: %s\n"
+		   "ethernet\t: %s Mbps\n"
+		   "token ring\t: %s\n"
+		   "scsi\t\t: %s\n"
+		   "ata\t\t: %s\n"
+		   "usb\t\t: %s\n"
+		   "bogomips\t: %lu.%02lu\n",
 
-		       revision,
-		       info->model,
-		       info->cache,
-		       info->flags & HAS_FPU ? "yes" : "no",
-		       info->flags & HAS_MMU ? "yes" : "no",
-		       info->flags & HAS_MMU_BUG ? "yes" : "no",
-		       info->flags & HAS_ETHERNET100 ? "10/100" : "10",
-		       info->flags & HAS_TOKENRING ? "4/16 Mbps" : "no",
-		       info->flags & HAS_SCSI ? "yes" : "no",
-		       info->flags & HAS_ATA ? "yes" : "no",
-		       info->flags & HAS_USB ? "yes" : "no",
-		       (loops_per_jiffy * HZ + 500) / 500000,
-		       ((loops_per_jiffy * HZ + 500) / 5000) % 100);
+		   revision,
+		   info->model,
+		   info->cache,
+		   info->flags & HAS_FPU ? "yes" : "no",
+		   info->flags & HAS_MMU ? "yes" : "no",
+		   info->flags & HAS_MMU_BUG ? "yes" : "no",
+		   info->flags & HAS_ETHERNET100 ? "10/100" : "10",
+		   info->flags & HAS_TOKENRING ? "4/16 Mbps" : "no",
+		   info->flags & HAS_SCSI ? "yes" : "no",
+		   info->flags & HAS_ATA ? "yes" : "no",
+		   info->flags & HAS_USB ? "yes" : "no",
+		   (loops_per_jiffy * HZ + 500) / 500000,
+		   ((loops_per_jiffy * HZ + 500) / 5000) % 100);
+
+	return 0;
 }
 
 #endif /* CONFIG_PROC_FS */

@@ -21,6 +21,7 @@ struct mm_struct;
 #include <asm/desc_defs.h>
 #include <asm/nops.h>
 #include <asm/special_insns.h>
+#include <asm/fpu/types.h>
 
 #include <linux/personality.h>
 #include <linux/cpumask.h>
@@ -52,11 +53,16 @@ static inline void *current_text_addr(void)
 	return pc;
 }
 
+/*
+ * These alignment constraints are for performance in the vSMP case,
+ * but in the task_struct case we must also meet hardware imposed
+ * alignment requirements of the FPU state:
+ */
 #ifdef CONFIG_X86_VSMP
 # define ARCH_MIN_TASKALIGN		(1 << INTERNODE_CACHE_SHIFT)
 # define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
 #else
-# define ARCH_MIN_TASKALIGN		16
+# define ARCH_MIN_TASKALIGN		__alignof__(union fpregs_state)
 # define ARCH_MIN_MMSTRUCT_ALIGN	0
 #endif
 
@@ -109,6 +115,9 @@ struct cpuinfo_x86 {
 	/* in KB - valid for CPUS which support this call: */
 	int			x86_cache_size;
 	int			x86_cache_alignment;	/* In bytes */
+	/* Cache QoS architectural values: */
+	int			x86_cache_max_rmid;	/* max index */
+	int			x86_cache_occ_scale;	/* scale to bytes */
 	int			x86_power;
 	unsigned long		loops_per_jiffy;
 	/* cpuid returned max cores value: */
@@ -163,7 +172,6 @@ extern const struct seq_operations cpuinfo_op;
 #define cache_line_size()	(boot_cpu_data.x86_cache_alignment)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
-extern void fpu_detect(struct cpuinfo_x86 *c);
 
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
@@ -210,8 +218,23 @@ struct x86_hw_tss {
 	unsigned long		sp0;
 	unsigned short		ss0, __ss0h;
 	unsigned long		sp1;
-	/* ss1 caches MSR_IA32_SYSENTER_CS: */
-	unsigned short		ss1, __ss1h;
+
+	/*
+	 * We don't use ring 1, so ss1 is a convenient scratch space in
+	 * the same cacheline as sp0.  We use ss1 to cache the value in
+	 * MSR_IA32_SYSENTER_CS.  When we context switch
+	 * MSR_IA32_SYSENTER_CS, we first check if the new value being
+	 * written matches ss1, and, if it's not, then we wrmsr the new
+	 * value and update ss1.
+	 *
+	 * The only reason we context switch MSR_IA32_SYSENTER_CS is
+	 * that we set it to zero in vm86 tasks to avoid corrupting the
+	 * stack if we were to go through the sysenter path from vm86
+	 * mode.
+	 */
+	unsigned short		ss1;	/* MSR_IA32_SYSENTER_CS */
+
+	unsigned short		__ss1h;
 	unsigned long		sp2;
 	unsigned short		ss2, __ss2h;
 	unsigned long		__cr3;
@@ -276,141 +299,23 @@ struct tss_struct {
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
 
 	/*
-	 * .. and then another 0x100 bytes for the emergency kernel stack:
+	 * Space for the temporary SYSENTER stack:
 	 */
-	unsigned long		stack[64];
+	unsigned long		SYSENTER_stack[64];
 
 } ____cacheline_aligned;
 
-DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
+
+#ifdef CONFIG_X86_32
+DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
+#endif
 
 /*
  * Save the original ist values for checking stack pointers during debugging
  */
 struct orig_ist {
 	unsigned long		ist[7];
-};
-
-#define	MXCSR_DEFAULT		0x1f80
-
-struct i387_fsave_struct {
-	u32			cwd;	/* FPU Control Word		*/
-	u32			swd;	/* FPU Status Word		*/
-	u32			twd;	/* FPU Tag Word			*/
-	u32			fip;	/* FPU IP Offset		*/
-	u32			fcs;	/* FPU IP Selector		*/
-	u32			foo;	/* FPU Operand Pointer Offset	*/
-	u32			fos;	/* FPU Operand Pointer Selector	*/
-
-	/* 8*10 bytes for each FP-reg = 80 bytes:			*/
-	u32			st_space[20];
-
-	/* Software status information [not touched by FSAVE ]:		*/
-	u32			status;
-};
-
-struct i387_fxsave_struct {
-	u16			cwd; /* Control Word			*/
-	u16			swd; /* Status Word			*/
-	u16			twd; /* Tag Word			*/
-	u16			fop; /* Last Instruction Opcode		*/
-	union {
-		struct {
-			u64	rip; /* Instruction Pointer		*/
-			u64	rdp; /* Data Pointer			*/
-		};
-		struct {
-			u32	fip; /* FPU IP Offset			*/
-			u32	fcs; /* FPU IP Selector			*/
-			u32	foo; /* FPU Operand Offset		*/
-			u32	fos; /* FPU Operand Selector		*/
-		};
-	};
-	u32			mxcsr;		/* MXCSR Register State */
-	u32			mxcsr_mask;	/* MXCSR Mask		*/
-
-	/* 8*16 bytes for each FP-reg = 128 bytes:			*/
-	u32			st_space[32];
-
-	/* 16*16 bytes for each XMM-reg = 256 bytes:			*/
-	u32			xmm_space[64];
-
-	u32			padding[12];
-
-	union {
-		u32		padding1[12];
-		u32		sw_reserved[12];
-	};
-
-} __attribute__((aligned(16)));
-
-struct i387_soft_struct {
-	u32			cwd;
-	u32			swd;
-	u32			twd;
-	u32			fip;
-	u32			fcs;
-	u32			foo;
-	u32			fos;
-	/* 8*10 bytes for each FP-reg = 80 bytes: */
-	u32			st_space[20];
-	u8			ftop;
-	u8			changed;
-	u8			lookahead;
-	u8			no_update;
-	u8			rm;
-	u8			alimit;
-	struct math_emu_info	*info;
-	u32			entry_eip;
-};
-
-struct ymmh_struct {
-	/* 16 * 16 bytes for each YMMH-reg = 256 bytes */
-	u32 ymmh_space[64];
-};
-
-/* We don't support LWP yet: */
-struct lwp_struct {
-	u8 reserved[128];
-};
-
-struct bndreg {
-	u64 lower_bound;
-	u64 upper_bound;
-} __packed;
-
-struct bndcsr {
-	u64 bndcfgu;
-	u64 bndstatus;
-} __packed;
-
-struct xsave_hdr_struct {
-	u64 xstate_bv;
-	u64 xcomp_bv;
-	u64 reserved[6];
-} __attribute__((packed));
-
-struct xsave_struct {
-	struct i387_fxsave_struct i387;
-	struct xsave_hdr_struct xsave_hdr;
-	struct ymmh_struct ymmh;
-	struct lwp_struct lwp;
-	struct bndreg bndreg[4];
-	struct bndcsr bndcsr;
-	/* new processor state extensions will go here */
-} __attribute__ ((packed, aligned (64)));
-
-union thread_xstate {
-	struct i387_fsave_struct	fsave;
-	struct i387_fxsave_struct	fxsave;
-	struct i387_soft_struct		soft;
-	struct xsave_struct		xsave;
-};
-
-struct fpu {
-	unsigned int last_cpu;
-	unsigned int has_fpu;
-	union thread_xstate *state;
 };
 
 #ifdef CONFIG_X86_64
@@ -461,8 +366,6 @@ DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
 #endif	/* X86_64 */
 
 extern unsigned int xstate_size;
-extern void free_thread_xstate(struct task_struct *);
-extern struct kmem_cache *task_xstate_cachep;
 
 struct perf_event;
 
@@ -474,7 +377,6 @@ struct thread_struct {
 #ifdef CONFIG_X86_32
 	unsigned long		sysenter_cs;
 #else
-	unsigned long		usersp;	/* Copy from PDA */
 	unsigned short		es;
 	unsigned short		ds;
 	unsigned short		fsindex;
@@ -487,6 +389,7 @@ struct thread_struct {
 	unsigned long		fs;
 #endif
 	unsigned long		gs;
+
 	/* Save middle states of ptrace breakpoints */
 	struct perf_event	*ptrace_bps[HBP_NUM];
 	/* Debug status used for traps, single steps, etc... */
@@ -497,8 +400,6 @@ struct thread_struct {
 	unsigned long		cr2;
 	unsigned long		trap_nr;
 	unsigned long		error_code;
-	/* floating point and extended processor state */
-	struct fpu		fpu;
 #ifdef CONFIG_X86_32
 	/* Virtual 86 mode info */
 	struct vm86_struct __user *vm86_info;
@@ -514,15 +415,13 @@ struct thread_struct {
 	unsigned long		iopl;
 	/* Max allowed port in the bitmap, in bytes: */
 	unsigned		io_bitmap_max;
+
+	/* Floating point and extended processor state */
+	struct fpu		fpu;
 	/*
-	 * fpu_counter contains the number of consecutive context switches
-	 * that the FPU is used. If this is over a threshold, the lazy fpu
-	 * saving becomes unlazy to save the trap. This is an unsigned char
-	 * so that after 256 times the counter wraps and the behavior turns
-	 * lazy again; this to deal with bursty apps that only use FPU for
-	 * a short time
+	 * WARNING: 'fpu' is dynamically-sized.  It *MUST* be at
+	 * the end.
 	 */
-	unsigned char fpu_counter;
 };
 
 /*
@@ -561,6 +460,16 @@ static inline void native_swapgs(void)
 {
 #ifdef CONFIG_X86_64
 	asm volatile("swapgs" ::: "memory");
+#endif
+}
+
+static inline unsigned long current_top_of_stack(void)
+{
+#ifdef CONFIG_X86_64
+	return this_cpu_read_stable(cpu_tss.x86_tss.sp0);
+#else
+	/* sp0 on x86_32 is special in and around vm86 mode. */
+	return this_cpu_read_stable(cpu_current_top_of_stack);
 #endif
 }
 
@@ -761,10 +670,10 @@ extern char			ignore_fpu_irq;
 #define ARCH_HAS_SPINLOCK_PREFETCH
 
 #ifdef CONFIG_X86_32
-# define BASE_PREFETCH		ASM_NOP4
+# define BASE_PREFETCH		""
 # define ARCH_HAS_PREFETCH
 #else
-# define BASE_PREFETCH		"prefetcht0 (%1)"
+# define BASE_PREFETCH		"prefetcht0 %P1"
 #endif
 
 /*
@@ -775,10 +684,9 @@ extern char			ignore_fpu_irq;
  */
 static inline void prefetch(const void *x)
 {
-	alternative_input(BASE_PREFETCH,
-			  "prefetchnta (%1)",
+	alternative_input(BASE_PREFETCH, "prefetchnta %P1",
 			  X86_FEATURE_XMM,
-			  "r" (x));
+			  "m" (*(const char *)x));
 }
 
 /*
@@ -788,16 +696,18 @@ static inline void prefetch(const void *x)
  */
 static inline void prefetchw(const void *x)
 {
-	alternative_input(BASE_PREFETCH,
-			  "prefetchw (%1)",
-			  X86_FEATURE_3DNOW,
-			  "r" (x));
+	alternative_input(BASE_PREFETCH, "prefetchw %P1",
+			  X86_FEATURE_3DNOWPREFETCH,
+			  "m" (*(const char *)x));
 }
 
 static inline void spin_lock_prefetch(const void *x)
 {
 	prefetchw(x);
 }
+
+#define TOP_OF_INIT_STACK ((unsigned long)&init_stack + sizeof(init_stack) - \
+			   TOP_OF_KERNEL_STACK_PADDING)
 
 #ifdef CONFIG_X86_32
 /*
@@ -809,39 +719,16 @@ static inline void spin_lock_prefetch(const void *x)
 #define STACK_TOP_MAX		STACK_TOP
 
 #define INIT_THREAD  {							  \
-	.sp0			= sizeof(init_stack) + (long)&init_stack, \
+	.sp0			= TOP_OF_INIT_STACK,			  \
 	.vm86_info		= NULL,					  \
 	.sysenter_cs		= __KERNEL_CS,				  \
 	.io_bitmap_ptr		= NULL,					  \
 }
 
-/*
- * Note that the .io_bitmap member must be extra-big. This is because
- * the CPU will access an additional byte beyond the end of the IO
- * permission bitmap. The extra byte must be all 1 bits, and must
- * be within the limit.
- */
-#define INIT_TSS  {							  \
-	.x86_tss = {							  \
-		.sp0		= sizeof(init_stack) + (long)&init_stack, \
-		.ss0		= __KERNEL_DS,				  \
-		.ss1		= __KERNEL_CS,				  \
-		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,		  \
-	 },								  \
-	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },	  \
-}
-
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
-#define THREAD_SIZE_LONGS      (THREAD_SIZE/sizeof(unsigned long))
-#define KSTK_TOP(info)                                                 \
-({                                                                     \
-       unsigned long *__ptr = (unsigned long *)(info);                 \
-       (unsigned long)(&__ptr[THREAD_SIZE_LONGS]);                     \
-})
-
 /*
- * The below -8 is to reserve 8 bytes on top of the ring0 stack.
+ * TOP_OF_KERNEL_STACK_PADDING reserves 8 bytes on top of the ring0 stack.
  * This is necessary to guarantee that the entire "struct pt_regs"
  * is accessible even if the CPU haven't stored the SS/ESP registers
  * on the stack (interrupt gate does not save these registers
@@ -850,11 +737,11 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
  * "struct pt_regs" is possible, but they may contain the
  * completely wrong values.
  */
-#define task_pt_regs(task)                                             \
-({                                                                     \
-       struct pt_regs *__regs__;                                       \
-       __regs__ = (struct pt_regs *)(KSTK_TOP(task_stack_page(task))-8); \
-       __regs__ - 1;                                                   \
+#define task_pt_regs(task) \
+({									\
+	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
+	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
+	((struct pt_regs *)__ptr) - 1;					\
 })
 
 #define KSTK_ESP(task)		(task_pt_regs(task)->sp)
@@ -886,11 +773,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 #define STACK_TOP_MAX		TASK_SIZE_MAX
 
 #define INIT_THREAD  { \
-	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
-}
-
-#define INIT_TSS  { \
-	.x86_tss.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+	.sp0 = TOP_OF_INIT_STACK \
 }
 
 /*
@@ -901,11 +784,6 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.sp0 - 1)
 extern unsigned long KSTK_ESP(struct task_struct *task);
-
-/*
- * User space RSP while inside the SYSCALL fast path
- */
-DECLARE_PER_CPU(unsigned long, old_rsp);
 
 #endif /* CONFIG_X86_64 */
 
@@ -928,24 +806,25 @@ extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
 /* Register/unregister a process' MPX related resource */
-#define MPX_ENABLE_MANAGEMENT(tsk)	mpx_enable_management((tsk))
-#define MPX_DISABLE_MANAGEMENT(tsk)	mpx_disable_management((tsk))
+#define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()
+#define MPX_DISABLE_MANAGEMENT()	mpx_disable_management()
 
 #ifdef CONFIG_X86_INTEL_MPX
-extern int mpx_enable_management(struct task_struct *tsk);
-extern int mpx_disable_management(struct task_struct *tsk);
+extern int mpx_enable_management(void);
+extern int mpx_disable_management(void);
 #else
-static inline int mpx_enable_management(struct task_struct *tsk)
+static inline int mpx_enable_management(void)
 {
 	return -EINVAL;
 }
-static inline int mpx_disable_management(struct task_struct *tsk)
+static inline int mpx_disable_management(void)
 {
 	return -EINVAL;
 }
 #endif /* CONFIG_X86_INTEL_MPX */
 
 extern u16 amd_get_nb_id(int cpu);
+extern u32 amd_get_nodes_per_socket(void);
 
 static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 {

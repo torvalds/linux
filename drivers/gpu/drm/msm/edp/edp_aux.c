@@ -115,10 +115,12 @@ static int edp_msg_fifo_rx(struct edp_aux *aux, struct drm_dp_aux_msg *msg)
  * msm_edp_aux_ctrl() running concurrently in other threads, i.e.
  * start transaction only when AUX channel is fully enabled.
  */
-ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
+static ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux,
+		struct drm_dp_aux_msg *msg)
 {
 	struct edp_aux *aux = to_edp_aux(drm_aux);
 	ssize_t ret;
+	unsigned long time_left;
 	bool native = msg->request & (DP_AUX_NATIVE_WRITE & DP_AUX_NATIVE_READ);
 	bool read = msg->request & (DP_AUX_I2C_READ & DP_AUX_NATIVE_READ);
 
@@ -132,7 +134,7 @@ ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
 	/* msg sanity check */
 	if ((native && (msg->size > AUX_CMD_NATIVE_MAX)) ||
 		(msg->size > AUX_CMD_I2C_MAX)) {
-		pr_err("%s: invalid msg: size(%d), request(%x)\n",
+		pr_err("%s: invalid msg: size(%zu), request(%x)\n",
 			__func__, msg->size, msg->request);
 		return -EINVAL;
 	}
@@ -147,15 +149,17 @@ ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
 		goto unlock_exit;
 
 	DBG("wait_for_completion");
-	ret = wait_for_completion_timeout(&aux->msg_comp, 300);
-	if (ret <= 0) {
+	time_left = wait_for_completion_timeout(&aux->msg_comp,
+						msecs_to_jiffies(300));
+	if (!time_left) {
 		/*
 		 * Clear GO and reset AUX channel
 		 * to cancel the current transaction.
 		 */
 		edp_write(aux->base + REG_EDP_AUX_TRANS_CTRL, 0);
 		msm_edp_aux_ctrl(aux, 1);
-		pr_err("%s: aux timeout, %d\n", __func__, ret);
+		pr_err("%s: aux timeout,\n", __func__);
+		ret = -ETIMEDOUT;
 		goto unlock_exit;
 	}
 	DBG("completion");

@@ -73,7 +73,7 @@ static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 	if (pci_enable_msix_exact(pci_dev_info->pci_dev,
 				  pci_dev_info->msix_entries.entries,
 				  msix_num_entries)) {
-		pr_err("QAT: Failed to enable MSIX IRQ\n");
+		dev_err(&GET_DEV(accel_dev), "Failed to enable MSIX IRQ\n");
 		return -EFAULT;
 	}
 	return 0;
@@ -97,7 +97,8 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 {
 	struct adf_accel_dev *accel_dev = dev_ptr;
 
-	pr_info("QAT: qat_dev%d spurious AE interrupt\n", accel_dev->accel_id);
+	dev_info(&GET_DEV(accel_dev), "qat_dev%d spurious AE interrupt\n",
+		 accel_dev->accel_id);
 	return IRQ_HANDLED;
 }
 
@@ -121,8 +122,9 @@ static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 		ret = request_irq(msixe[i].vector,
 				  adf_msix_isr_bundle, 0, name, bank);
 		if (ret) {
-			pr_err("QAT: failed to enable irq %d for %s\n",
-			       msixe[i].vector, name);
+			dev_err(&GET_DEV(accel_dev),
+				"failed to enable irq %d for %s\n",
+				msixe[i].vector, name);
 			return ret;
 		}
 
@@ -136,8 +138,9 @@ static int adf_request_irqs(struct adf_accel_dev *accel_dev)
 		 "qat%d-ae-cluster", accel_dev->accel_id);
 	ret = request_irq(msixe[i].vector, adf_msix_isr_ae, 0, name, accel_dev);
 	if (ret) {
-		pr_err("QAT: failed to enable irq %d, for %s\n",
-		       msixe[i].vector, name);
+		dev_err(&GET_DEV(accel_dev),
+			"failed to enable irq %d, for %s\n",
+			msixe[i].vector, name);
 		return ret;
 	}
 	return ret;

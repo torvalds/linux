@@ -42,10 +42,12 @@ static inline void rate_control_tx_status(struct ieee80211_local *local,
 	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		return;
 
+	spin_lock_bh(&sta->rate_ctrl_lock);
 	if (ref->ops->tx_status)
 		ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
 	else
 		ref->ops->tx_status_noskb(ref->priv, sband, ista, priv_sta, info);
+	spin_unlock_bh(&sta->rate_ctrl_lock);
 }
 
 static inline void
@@ -64,7 +66,9 @@ rate_control_tx_status_noskb(struct ieee80211_local *local,
 	if (WARN_ON_ONCE(!ref->ops->tx_status_noskb))
 		return;
 
+	spin_lock_bh(&sta->rate_ctrl_lock);
 	ref->ops->tx_status_noskb(ref->priv, sband, ista, priv_sta, info);
+	spin_unlock_bh(&sta->rate_ctrl_lock);
 }
 
 static inline void rate_control_rate_init(struct sta_info *sta)
@@ -91,8 +95,10 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 
 	sband = local->hw.wiphy->bands[chanctx_conf->def.chan->band];
 
+	spin_lock_bh(&sta->rate_ctrl_lock);
 	ref->ops->rate_init(ref->priv, sband, &chanctx_conf->def, ista,
 			    priv_sta);
+	spin_unlock_bh(&sta->rate_ctrl_lock);
 	rcu_read_unlock();
 	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);
 }
@@ -115,18 +121,20 @@ static inline void rate_control_rate_update(struct ieee80211_local *local,
 			return;
 		}
 
+		spin_lock_bh(&sta->rate_ctrl_lock);
 		ref->ops->rate_update(ref->priv, sband, &chanctx_conf->def,
 				      ista, priv_sta, changed);
+		spin_unlock_bh(&sta->rate_ctrl_lock);
 		rcu_read_unlock();
 	}
 	drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
 }
 
 static inline void *rate_control_alloc_sta(struct rate_control_ref *ref,
-					   struct ieee80211_sta *sta,
-					   gfp_t gfp)
+					   struct sta_info *sta, gfp_t gfp)
 {
-	return ref->ops->alloc_sta(ref->priv, sta, gfp);
+	spin_lock_init(&sta->rate_ctrl_lock);
+	return ref->ops->alloc_sta(ref->priv, &sta->sta, gfp);
 }
 
 static inline void rate_control_free_sta(struct sta_info *sta)

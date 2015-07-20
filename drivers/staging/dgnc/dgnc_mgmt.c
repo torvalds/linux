@@ -11,22 +11,6 @@
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
- *
- *	This is shared code between Digi's CVS archive and the
- *	Linux Kernel sources.
- *	Changing the source just for reformatting needlessly breaks
- *	our CVS diff history.
- *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
- *	Thank you.
- *
  */
 
 /************************************************************************
@@ -46,9 +30,7 @@
 
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
-#include "dgnc_kcompat.h"	/* Kernel 2.4/2.6 compat includes */
 #include "dgnc_mgmt.h"
-#include "dpacompat.h"
 
 
 /* Our "in use" variables, to enforce 1 open only */
@@ -153,8 +135,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&brd, uarg, sizeof(int)))
 			return -EFAULT;
 
-		if ((brd < 0) || (brd > dgnc_NumBoards) ||
-		    (dgnc_NumBoards == 0))
+		if (brd < 0 || brd >= dgnc_NumBoards)
 			return -ENODEV;
 
 		memset(&di, 0, sizeof(di));
@@ -196,11 +177,11 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		channel = ni.channel;
 
 		/* Verify boundaries on board */
-		if ((board > dgnc_NumBoards) || (dgnc_NumBoards == 0))
+		if (board >= dgnc_NumBoards)
 			return -ENODEV;
 
 		/* Verify boundaries on channel */
-		if ((channel < 0) || (channel > dgnc_Board[board]->nasync))
+		if (channel >= dgnc_Board[board]->nasync)
 			return -ENODEV;
 
 		ch = dgnc_Board[board]->channels[channel];

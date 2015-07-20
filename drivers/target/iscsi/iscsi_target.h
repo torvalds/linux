@@ -35,7 +35,7 @@ extern void iscsit_stop_session(struct iscsi_session *, int, int);
 extern int iscsit_release_sessions_for_tpg(struct iscsi_portal_group *, int);
 
 extern struct iscsit_global *iscsit_global;
-extern struct target_fabric_configfs *lio_target_fabric_configfs;
+extern const struct target_core_fabric_ops iscsi_ops;
 
 extern struct kmem_cache *lio_dr_cache;
 extern struct kmem_cache *lio_ooo_cache;

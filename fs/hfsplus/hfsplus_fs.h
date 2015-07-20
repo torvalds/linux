@@ -263,7 +263,7 @@ struct hfsplus_inode_info {
 
 static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 {
-	return list_entry(inode, struct hfsplus_inode_info, vfs_inode);
+	return container_of(inode, struct hfsplus_inode_info, vfs_inode);
 }
 
 /*

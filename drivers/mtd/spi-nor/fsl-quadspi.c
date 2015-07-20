@@ -460,8 +460,7 @@ fsl_qspi_runcmd(struct fsl_qspi *q, u8 cmd, unsigned int addr, int len)
 	writel((seqid << QUADSPI_IPCR_SEQID_SHIFT) | len, base + QUADSPI_IPCR);
 
 	/* Wait for the interrupt. */
-	err = wait_for_completion_timeout(&q->c, msecs_to_jiffies(1000));
-	if (!err) {
+	if (!wait_for_completion_timeout(&q->c, msecs_to_jiffies(1000))) {
 		dev_err(q->dev,
 			"cmd 0x%.2x timeout, addr@%.8x, FR:0x%.8x, SR:0x%.8x\n",
 			cmd, addr, readl(base + QUADSPI_FR),
@@ -663,7 +662,7 @@ static int fsl_qspi_nor_setup_last(struct fsl_qspi *q)
 	return 0;
 }
 
-static struct of_device_id fsl_qspi_dt_ids[] = {
+static const struct of_device_id fsl_qspi_dt_ids[] = {
 	{ .compatible = "fsl,vf610-qspi", .data = (void *)&vybrid_data, },
 	{ .compatible = "fsl,imx6sx-qspi", .data = (void *)&imx6sx_data, },
 	{ /* sentinel */ }
@@ -830,27 +829,27 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(q->clk_en);
 	if (ret) {
-		dev_err(dev, "can not enable the qspi_en clock\n");
+		dev_err(dev, "cannot enable the qspi_en clock: %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(q->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the qspi clock\n");
+		dev_err(dev, "cannot enable the qspi clock: %d\n", ret);
 		goto clk_failed;
 	}
 
 	/* find the irq */
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(dev, "failed to get the irq\n");
+		dev_err(dev, "failed to get the irq: %d\n", ret);
 		goto irq_failed;
 	}
 
 	ret = devm_request_irq(dev, ret,
 			fsl_qspi_irq_handler, 0, pdev->name, q);
 	if (ret) {
-		dev_err(dev, "failed to request irq.\n");
+		dev_err(dev, "failed to request irq: %d\n", ret);
 		goto irq_failed;
 	}
 

@@ -155,15 +155,4 @@ static struct pcmcia_driver ft1000_cs_driver = {
 	.resume		= ft1000_resume,
 };
 
-static int __init init_ft1000_cs(void)
-{
-	return pcmcia_register_driver(&ft1000_cs_driver);
-}
-
-static void __exit exit_ft1000_cs(void)
-{
-	pcmcia_unregister_driver(&ft1000_cs_driver);
-}
-
-module_init(init_ft1000_cs);
-module_exit(exit_ft1000_cs);
+module_pcmcia_driver(ft1000_cs_driver);

@@ -561,7 +561,7 @@ static bool load_v3_ds_connect(void)
 	return(get_v3_ds_connect != NULL);
 }
 
-void __exit nfs4_pnfs_v3_ds_connect_unload(void)
+void nfs4_pnfs_v3_ds_connect_unload(void)
 {
 	if (get_v3_ds_connect) {
 		symbol_put(nfs3_set_ds_client);
@@ -868,3 +868,13 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 	nfs_request_add_commit_list(req, list, cinfo);
 }
 EXPORT_SYMBOL_GPL(pnfs_layout_mark_request_commit);
+
+int
+pnfs_nfs_generic_sync(struct inode *inode, bool datasync)
+{
+	if (datasync)
+		return 0;
+	return pnfs_layoutcommit_inode(inode, true);
+}
+EXPORT_SYMBOL_GPL(pnfs_nfs_generic_sync);
+

@@ -229,7 +229,7 @@ nv50_disp_dmac_create_(struct nvkm_object *parent,
 
 		switch (dmac->pushdma->target) {
 		case NV_MEM_TARGET_VRAM:
-			dmac->push = 0x00000000 | dmac->pushdma->start >> 8;
+			dmac->push = 0x00000001 | dmac->pushdma->start >> 8;
 			break;
 		case NV_MEM_TARGET_PCI_NOSNOOP:
 			dmac->push = 0x00000003 | dmac->pushdma->start >> 8;

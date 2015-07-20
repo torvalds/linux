@@ -21,6 +21,7 @@
 #include "../transaction.h"
 #include "../disk-io.h"
 #include "../qgroup.h"
+#include "../backref.h"
 
 static void init_dummy_trans(struct btrfs_trans_handle *trans)
 {
@@ -227,21 +228,28 @@ static int test_no_shared_qgroup(struct btrfs_root *root)
 {
 	struct btrfs_trans_handle trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct ulist *old_roots = NULL;
+	struct ulist *new_roots = NULL;
 	int ret;
 
 	init_dummy_trans(&trans);
 
 	test_msg("Qgroup basic add\n");
-	ret = btrfs_create_qgroup(NULL, fs_info, 5, NULL);
+	ret = btrfs_create_qgroup(NULL, fs_info, 5);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_qgroup_record_ref(&trans, fs_info, 5, 4096, 4096,
-				      BTRFS_QGROUP_OPER_ADD_EXCL, 0);
+	/*
+	 * Since the test trans doesn't havee the complicated delayed refs,
+	 * we can only call btrfs_qgroup_account_extent() directly to test
+	 * quota.
+	 */
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &old_roots);
 	if (ret) {
-		test_msg("Couldn't add space to a qgroup %d\n", ret);
+		ulist_free(old_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
 		return ret;
 	}
 
@@ -249,9 +257,18 @@ static int test_no_shared_qgroup(struct btrfs_root *root)
 	if (ret)
 		return ret;
 
-	ret = btrfs_delayed_qgroup_accounting(&trans, fs_info);
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &new_roots);
 	if (ret) {
-		test_msg("Delayed qgroup accounting failed %d\n", ret);
+		ulist_free(old_roots);
+		ulist_free(new_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
+		return ret;
+	}
+
+	ret = btrfs_qgroup_account_extent(&trans, fs_info, 4096, 4096,
+					  old_roots, new_roots);
+	if (ret) {
+		test_msg("Couldn't account space for a qgroup %d\n", ret);
 		return ret;
 	}
 
@@ -259,21 +276,32 @@ static int test_no_shared_qgroup(struct btrfs_root *root)
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
 	}
+	old_roots = NULL;
+	new_roots = NULL;
+
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &old_roots);
+	if (ret) {
+		ulist_free(old_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
+		return ret;
+	}
 
 	ret = remove_extent_item(root, 4096, 4096);
 	if (ret)
 		return -EINVAL;
 
-	ret = btrfs_qgroup_record_ref(&trans, fs_info, 5, 4096, 4096,
-				      BTRFS_QGROUP_OPER_SUB_EXCL, 0);
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &new_roots);
 	if (ret) {
-		test_msg("Couldn't remove space from the qgroup %d\n", ret);
-		return -EINVAL;
+		ulist_free(old_roots);
+		ulist_free(new_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
+		return ret;
 	}
 
-	ret = btrfs_delayed_qgroup_accounting(&trans, fs_info);
+	ret = btrfs_qgroup_account_extent(&trans, fs_info, 4096, 4096,
+					  old_roots, new_roots);
 	if (ret) {
-		test_msg("Qgroup accounting failed %d\n", ret);
+		test_msg("Couldn't account space for a qgroup %d\n", ret);
 		return -EINVAL;
 	}
 
@@ -294,6 +322,8 @@ static int test_multiple_refs(struct btrfs_root *root)
 {
 	struct btrfs_trans_handle trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct ulist *old_roots = NULL;
+	struct ulist *new_roots = NULL;
 	int ret;
 
 	init_dummy_trans(&trans);
@@ -301,9 +331,16 @@ static int test_multiple_refs(struct btrfs_root *root)
 	test_msg("Qgroup multiple refs test\n");
 
 	/* We have 5 created already from the previous test */
-	ret = btrfs_create_qgroup(NULL, fs_info, 256, NULL);
+	ret = btrfs_create_qgroup(NULL, fs_info, 256);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
+		return ret;
+	}
+
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &old_roots);
+	if (ret) {
+		ulist_free(old_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
 		return ret;
 	}
 
@@ -311,16 +348,18 @@ static int test_multiple_refs(struct btrfs_root *root)
 	if (ret)
 		return ret;
 
-	ret = btrfs_qgroup_record_ref(&trans, fs_info, 5, 4096, 4096,
-				      BTRFS_QGROUP_OPER_ADD_EXCL, 0);
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &new_roots);
 	if (ret) {
-		test_msg("Couldn't add space to a qgroup %d\n", ret);
+		ulist_free(old_roots);
+		ulist_free(new_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_delayed_qgroup_accounting(&trans, fs_info);
+	ret = btrfs_qgroup_account_extent(&trans, fs_info, 4096, 4096,
+					  old_roots, new_roots);
 	if (ret) {
-		test_msg("Delayed qgroup accounting failed %d\n", ret);
+		test_msg("Couldn't account space for a qgroup %d\n", ret);
 		return ret;
 	}
 
@@ -329,20 +368,29 @@ static int test_multiple_refs(struct btrfs_root *root)
 		return -EINVAL;
 	}
 
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &old_roots);
+	if (ret) {
+		ulist_free(old_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
+		return ret;
+	}
+
 	ret = add_tree_ref(root, 4096, 4096, 0, 256);
 	if (ret)
 		return ret;
 
-	ret = btrfs_qgroup_record_ref(&trans, fs_info, 256, 4096, 4096,
-				      BTRFS_QGROUP_OPER_ADD_SHARED, 0);
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &new_roots);
 	if (ret) {
-		test_msg("Qgroup record ref failed %d\n", ret);
+		ulist_free(old_roots);
+		ulist_free(new_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_delayed_qgroup_accounting(&trans, fs_info);
+	ret = btrfs_qgroup_account_extent(&trans, fs_info, 4096, 4096,
+					  old_roots, new_roots);
 	if (ret) {
-		test_msg("Qgroup accounting failed %d\n", ret);
+		test_msg("Couldn't account space for a qgroup %d\n", ret);
 		return ret;
 	}
 
@@ -356,20 +404,29 @@ static int test_multiple_refs(struct btrfs_root *root)
 		return -EINVAL;
 	}
 
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &old_roots);
+	if (ret) {
+		ulist_free(old_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
+		return ret;
+	}
+
 	ret = remove_extent_ref(root, 4096, 4096, 0, 256);
 	if (ret)
 		return ret;
 
-	ret = btrfs_qgroup_record_ref(&trans, fs_info, 256, 4096, 4096,
-				      BTRFS_QGROUP_OPER_SUB_SHARED, 0);
+	ret = btrfs_find_all_roots(&trans, fs_info, 4096, 0, &new_roots);
 	if (ret) {
-		test_msg("Qgroup record ref failed %d\n", ret);
+		ulist_free(old_roots);
+		ulist_free(new_roots);
+		test_msg("Couldn't find old roots: %d\n", ret);
 		return ret;
 	}
 
-	ret = btrfs_delayed_qgroup_accounting(&trans, fs_info);
+	ret = btrfs_qgroup_account_extent(&trans, fs_info, 4096, 4096,
+					  old_roots, new_roots);
 	if (ret) {
-		test_msg("Qgroup accounting failed %d\n", ret);
+		test_msg("Couldn't account space for a qgroup %d\n", ret);
 		return ret;
 	}
 

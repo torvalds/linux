@@ -22,11 +22,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
-#include "comedi_fc.h"
+#include "../comedi_pci.h"
 #include "amcc_s5933.h"
 
 /*
@@ -612,21 +610,21 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -635,21 +633,24 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER)	/* Test Delay timing */
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 100000);
+	if (cmd->scan_begin_src == TRIG_TIMER) {	/* Test Delay timing */
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    100000);
+	}
 
 	/* minimum conversion time per sample is 10us */
-	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
+	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 10000);
 
-	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/*  TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -659,7 +660,7 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* scan begin must be larger than the scan time */
 		arg = cmd->convert_arg * cmd->scan_end_arg;
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
@@ -976,18 +977,18 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct apci3120_board *this_board = NULL;
+	const struct apci3120_board *board = NULL;
 	struct apci3120_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int status;
 	int ret;
 
 	if (context < ARRAY_SIZE(apci3120_boardtypes))
-		this_board = &apci3120_boardtypes[context];
-	if (!this_board)
+		board = &apci3120_boardtypes[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1030,7 +1031,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= 16;
-	s->maxdata	= this_board->ai_is_16bit ? 0xffff : 0x0fff;
+	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= &apci3120_ai_range;
 	s->insn_read	= apci3120_ai_insn_read;
 	if (dev->irq) {
@@ -1044,7 +1045,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	if (this_board->has_ao) {
+	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 8;

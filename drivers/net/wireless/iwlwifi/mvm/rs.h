@@ -170,6 +170,7 @@ struct rs_rate {
 	bool sgi;
 	bool ldpc;
 	bool stbc;
+	bool bfer;
 };
 
 
@@ -321,8 +322,6 @@ struct iwl_lq_sta {
 	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
 	u8 tx_agg_tid_en;
 
-	/* used to be in sta_info */
-	int last_txrate_idx;
 	/* last tx rate_n_flags */
 	u32 last_rate_n_flags;
 	/* packets destined for this STA are aggregated */
@@ -331,14 +330,14 @@ struct iwl_lq_sta {
 	/* tx power reduce for this sta */
 	int tpc_reduce;
 
-	/* force STBC/BFER/SISO for testing */
-	enum rs_ss_force_opt ss_force;
-
 	/* persistent fields - initialized only once - keep last! */
 	struct lq_sta_pers {
 #ifdef CONFIG_MAC80211_DEBUGFS
 		u32 dbg_fixed_rate;
 		u8 dbg_fixed_txp_reduction;
+
+		/* force STBC/BFER/SISO for testing */
+		enum rs_ss_force_opt ss_force;
 #endif
 		u8 chains;
 		s8 chain_signal[IEEE80211_MAX_CHAINS];

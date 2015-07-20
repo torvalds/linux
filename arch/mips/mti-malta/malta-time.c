@@ -87,8 +87,10 @@ static void __init estimate_frequencies(void)
 
 	/* Initialize counters. */
 	start = read_c0_count();
-	if (gic_present)
+	if (gic_present) {
+		gic_start_count();
 		gicstart = gic_read_count();
+	}
 
 	/* Read counter exactly on falling edge of update flag. */
 	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
@@ -113,6 +115,28 @@ void read_persistent_clock(struct timespec *ts)
 {
 	ts->tv_sec = mc146818_get_cmos_time();
 	ts->tv_nsec = 0;
+}
+
+int get_c0_fdc_int(void)
+{
+	/*
+	 * Some cores claim the FDC is routable through the GIC, but it doesn't
+	 * actually seem to be connected for those Malta bitstreams.
+	 */
+	switch (current_cpu_type()) {
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
+		return -1;
+	};
+
+	if (cpu_has_veic)
+		return -1;
+	else if (gic_present)
+		return gic_get_c0_fdc_int();
+	else if (cp0_fdc_irq >= 0)
+		return MIPS_CPU_IRQ_BASE + cp0_fdc_irq;
+	else
+		return -1;
 }
 
 int get_c0_perfcount_int(void)

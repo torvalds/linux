@@ -17,6 +17,56 @@
 #include "xen-ops.h"
 #include "debugfs.h"
 
+static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
+static DEFINE_PER_CPU(char *, irq_name);
+static bool xen_pvspin = true;
+
+#ifdef CONFIG_QUEUED_SPINLOCKS
+
+#include <asm/qspinlock.h>
+
+static void xen_qlock_kick(int cpu)
+{
+	xen_send_IPI_one(cpu, XEN_SPIN_UNLOCK_VECTOR);
+}
+
+/*
+ * Halt the current CPU & release it back to the host
+ */
+static void xen_qlock_wait(u8 *byte, u8 val)
+{
+	int irq = __this_cpu_read(lock_kicker_irq);
+
+	/* If kicker interrupts not initialized yet, just spin */
+	if (irq == -1)
+		return;
+
+	/* clear pending */
+	xen_clear_irq_pending(irq);
+	barrier();
+
+	/*
+	 * We check the byte value after clearing pending IRQ to make sure
+	 * that we won't miss a wakeup event because of the clearing.
+	 *
+	 * The sync_clear_bit() call in xen_clear_irq_pending() is atomic.
+	 * So it is effectively a memory barrier for x86.
+	 */
+	if (READ_ONCE(*byte) != val)
+		return;
+
+	/*
+	 * If an interrupt happens here, it will leave the wakeup irq
+	 * pending, which will cause xen_poll_irq() to return
+	 * immediately.
+	 */
+
+	/* Block until irq becomes pending (or perhaps a spurious wakeup) */
+	xen_poll_irq(irq);
+}
+
+#else /* CONFIG_QUEUED_SPINLOCKS */
+
 enum xen_contention_stat {
 	TAKEN_SLOW,
 	TAKEN_SLOW_PICKUP,
@@ -100,12 +150,9 @@ struct xen_lock_waiting {
 	__ticket_t want;
 };
 
-static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
-static DEFINE_PER_CPU(char *, irq_name);
 static DEFINE_PER_CPU(struct xen_lock_waiting, lock_waiting);
 static cpumask_t waiting_cpus;
 
-static bool xen_pvspin = true;
 __visible void xen_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 {
 	int irq = __this_cpu_read(lock_kicker_irq);
@@ -217,6 +264,7 @@ static void xen_unlock_kick(struct arch_spinlock *lock, __ticket_t next)
 		}
 	}
 }
+#endif /* CONFIG_QUEUED_SPINLOCKS */
 
 static irqreturn_t dummy_handler(int irq, void *dev_id)
 {
@@ -280,8 +328,16 @@ void __init xen_init_spinlocks(void)
 		return;
 	}
 	printk(KERN_DEBUG "xen: PV spinlocks enabled\n");
+#ifdef CONFIG_QUEUED_SPINLOCKS
+	__pv_init_lock_hash();
+	pv_lock_ops.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
+	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
+	pv_lock_ops.wait = xen_qlock_wait;
+	pv_lock_ops.kick = xen_qlock_kick;
+#else
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(xen_lock_spinning);
 	pv_lock_ops.unlock_kick = xen_unlock_kick;
+#endif
 }
 
 /*
@@ -310,7 +366,7 @@ static __init int xen_parse_nopvspin(char *arg)
 }
 early_param("xen_nopvspin", xen_parse_nopvspin);
 
-#ifdef CONFIG_XEN_DEBUG_FS
+#if defined(CONFIG_XEN_DEBUG_FS) && !defined(CONFIG_QUEUED_SPINLOCKS)
 
 static struct dentry *d_spin_debug;
 

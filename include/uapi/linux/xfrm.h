@@ -1,6 +1,7 @@
 #ifndef _LINUX_XFRM_H
 #define _LINUX_XFRM_H
 
+#include <linux/in6.h>
 #include <linux/types.h>
 
 /* All of the structures in this file may not change size as they are
@@ -13,6 +14,7 @@
 typedef union {
 	__be32		a4;
 	__be32		a6[4];
+	struct in6_addr	in6;
 } xfrm_address_t;
 
 /* Ident of a specific xfrm_state. It is used on input to lookup

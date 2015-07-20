@@ -1113,24 +1113,40 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 
 bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 {
-	/* MS Lifecam HD-5000 doesn't support reading the sample rate. */
-	return chip->usb_id == USB_ID(0x045E, 0x076D);
+	/* devices which do not support reading the sample rate. */
+	switch (chip->usb_id) {
+	case USB_ID(0x045E, 0x075D): /* MS Lifecam Cinema  */
+	case USB_ID(0x045E, 0x076D): /* MS Lifecam HD-5000 */
+	case USB_ID(0x045E, 0x0772): /* MS Lifecam Studio */
+	case USB_ID(0x045E, 0x0779): /* MS Lifecam HD-3000 */
+	case USB_ID(0x04D8, 0xFEEA): /* Benchmark DAC1 Pre */
+	case USB_ID(0x074D, 0x3553): /* Outlaw RR2150 (Micronas UAC3553B) */
+		return true;
+	}
+	return false;
 }
 
 /* Marantz/Denon USB DACs need a vendor cmd to switch
  * between PCM and native DSD mode
  */
+static bool is_marantz_denon_dac(unsigned int id)
+{
+	switch (id) {
+	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
+	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
+	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
+		return true;
+	}
+	return false;
+}
+
 int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt)
 {
 	struct usb_device *dev = subs->dev;
 	int err;
 
-	switch (subs->stream->chip->usb_id) {
-	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
-	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
-	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
-
+	if (is_marantz_denon_dac(subs->stream->chip->usb_id)) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
 		 * will not be accepted by the DAC
 		 */
@@ -1203,17 +1219,10 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	/* Marantz/Denon devices with USB DAC functionality need a delay
 	 * after each class compliant request
 	 */
-	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x154e) &&
-	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS) {
-
-		switch (le16_to_cpu(dev->descriptor.idProduct)) {
-		case 0x1003: /* Denon DA300-USB */
-		case 0x3005: /* Marantz HD-DAC1 */
-		case 0x3006: /* Marantz SA-14S1 */
-			mdelay(20);
-			break;
-		}
-	}
+	if (is_marantz_denon_dac(USB_ID(le16_to_cpu(dev->descriptor.idVendor),
+					le16_to_cpu(dev->descriptor.idProduct)))
+	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+		mdelay(20);
 
 	/* Zoom R16/24 needs a tiny delay here, otherwise requests like
 	 * get/set frequency return as failed despite actually succeeding.
@@ -1258,8 +1267,9 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 		if (fp->altsetting == 2)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
-	/* DIYINHK DSD DXD 384kHz USB to I2S/DSD */
-	case USB_ID(0x20b1, 0x2009):
+
+	case USB_ID(0x20b1, 0x2009): /* DIYINHK DSD DXD 384kHz USB to I2S/DSD */
+	case USB_ID(0x20b1, 0x2023): /* JLsounds I2SoverUSB */
 		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
@@ -1268,15 +1278,9 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	}
 
 	/* Denon/Marantz devices with USB DAC functionality */
-	switch (chip->usb_id) {
-	case USB_ID(0x154e, 0x1003): /* Denon DA300-USB */
-	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
-	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
+	if (is_marantz_denon_dac(chip->usb_id)) {
 		if (fp->altsetting == 2)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
-		break;
-	default:
-		break;
 	}
 
 	return 0;

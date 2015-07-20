@@ -59,6 +59,10 @@
 #define		ISI_CFG1_FRATE_DIV_MASK		(7 << 8)
 #define ISI_CFG1_DISCR				(1 << 11)
 #define ISI_CFG1_FULL_MODE			(1 << 12)
+/* Definition for THMASK(ISI_V2) */
+#define		ISI_CFG1_THMASK_BEATS_4		(0 << 13)
+#define		ISI_CFG1_THMASK_BEATS_8		(1 << 13)
+#define		ISI_CFG1_THMASK_BEATS_16	(2 << 13)
 
 /* Bitfields in CFG2 */
 #define ISI_CFG2_GRAYSCALE			(1 << 13)

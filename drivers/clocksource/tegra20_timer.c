@@ -51,15 +51,15 @@
 static void __iomem *timer_reg_base;
 static void __iomem *rtc_base;
 
-static struct timespec persistent_ts;
+static struct timespec64 persistent_ts;
 static u64 persistent_ms, last_persistent_ms;
 
 static struct delay_timer tegra_delay_timer;
 
 #define timer_writel(value, reg) \
-	__raw_writel(value, timer_reg_base + (reg))
+	writel_relaxed(value, timer_reg_base + (reg))
 #define timer_readl(reg) \
-	__raw_readl(timer_reg_base + (reg))
+	readl_relaxed(timer_reg_base + (reg))
 
 static int tegra_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
@@ -120,26 +120,25 @@ static u64 tegra_rtc_read_ms(void)
 }
 
 /*
- * tegra_read_persistent_clock -  Return time from a persistent clock.
+ * tegra_read_persistent_clock64 -  Return time from a persistent clock.
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
- * nsecs and adds to a monotonically increasing timespec.
+ * nsecs and adds to a monotonically increasing timespec64.
  * Care must be taken that this funciton is not called while the
  * tegra_rtc driver could be executing to avoid race conditions
  * on the RTC shadow register
  */
-static void tegra_read_persistent_clock(struct timespec *ts)
+static void tegra_read_persistent_clock64(struct timespec64 *ts)
 {
 	u64 delta;
-	struct timespec *tsp = &persistent_ts;
 
 	last_persistent_ms = persistent_ms;
 	persistent_ms = tegra_rtc_read_ms();
 	delta = persistent_ms - last_persistent_ms;
 
-	timespec_add_ns(tsp, delta * NSEC_PER_MSEC);
-	*ts = *tsp;
+	timespec64_add_ns(&persistent_ts, delta * NSEC_PER_MSEC);
+	*ts = persistent_ts;
 }
 
 static unsigned long tegra_delay_timer_read_counter_long(void)
@@ -252,7 +251,7 @@ static void __init tegra20_init_rtc(struct device_node *np)
 	else
 		clk_prepare_enable(clk);
 
-	register_persistent_clock(NULL, tegra_read_persistent_clock);
+	register_persistent_clock(NULL, tegra_read_persistent_clock64);
 }
 CLOCKSOURCE_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);
 

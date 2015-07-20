@@ -284,7 +284,7 @@ fail_1:
 	return -ENODEV;
 }
 
-static int __init dbgp_bind(struct usb_gadget *gadget,
+static int dbgp_bind(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
 	int err, stp;
@@ -406,7 +406,7 @@ fail:
 	return err;
 }
 
-static __refdata struct usb_gadget_driver dbgp_driver = {
+static struct usb_gadget_driver dbgp_driver = {
 	.function = "dbgp",
 	.max_speed = USB_SPEED_HIGH,
 	.bind = dbgp_bind,

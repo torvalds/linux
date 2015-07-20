@@ -32,14 +32,17 @@ static bool set_cache_memory_policy_vi(struct device_queue_manager *dqm,
 static int register_process_vi(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 static int initialize_cpsch_vi(struct device_queue_manager *dqm);
+static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
+				struct qcm_process_device *qpd);
 
-void device_queue_manager_init_vi(struct device_queue_manager_ops *ops)
+void device_queue_manager_init_vi(struct device_queue_manager_asic_ops *ops)
 {
 	pr_warn("amdkfd: VI DQM is not currently supported\n");
 
 	ops->set_cache_memory_policy = set_cache_memory_policy_vi;
 	ops->register_process = register_process_vi;
 	ops->initialize = initialize_cpsch_vi;
+	ops->init_sdma_vm = init_sdma_vm;
 }
 
 static bool set_cache_memory_policy_vi(struct device_queue_manager *dqm,
@@ -56,6 +59,11 @@ static int register_process_vi(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	return -1;
+}
+
+static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
+				struct qcm_process_device *qpd)
+{
 }
 
 static int initialize_cpsch_vi(struct device_queue_manager *dqm)

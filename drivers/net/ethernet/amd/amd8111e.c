@@ -723,13 +723,13 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			 * the last correctly noting the error.
 			 */
 			if(status & ERR_BIT) {
-				/* reseting flags */
+				/* resetting flags */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
 				goto err_next_pkt;
 			}
 			/* check for STP and ENP */
 			if(!((status & STP_BIT) && (status & ENP_BIT))){
-				/* reseting flags */
+				/* resetting flags */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
 				goto err_next_pkt;
 			}

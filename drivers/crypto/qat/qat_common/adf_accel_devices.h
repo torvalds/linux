@@ -48,11 +48,9 @@
 #define ADF_ACCEL_DEVICES_H_
 #include <linux/module.h>
 #include <linux/list.h>
-#include <linux/proc_fs.h>
 #include <linux/io.h>
 #include "adf_cfg_common.h"
 
-#define PCI_VENDOR_ID_INTEL 0x8086
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
 #define ADF_PCI_MAX_BARS 3

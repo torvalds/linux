@@ -36,6 +36,8 @@
 #include "util/data.h"
 #include "arch/common.h"
 
+#include "util/auxtrace.h"
+
 #include <dlfcn.h>
 #include <linux/bitmap.h>
 
@@ -137,10 +139,12 @@ static int process_sample_event(struct perf_tool *tool,
 	struct report *rep = container_of(tool, struct report, tool);
 	struct addr_location al;
 	struct hist_entry_iter iter = {
-		.hide_unresolved = rep->hide_unresolved,
-		.add_entry_cb = hist_iter__report_callback,
+		.evsel 			= evsel,
+		.sample 		= sample,
+		.hide_unresolved 	= rep->hide_unresolved,
+		.add_entry_cb 		= hist_iter__report_callback,
 	};
-	int ret;
+	int ret = 0;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -149,10 +153,10 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (rep->hide_unresolved && al.sym == NULL)
-		return 0;
+		goto out_put;
 
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
-		return 0;
+		goto out_put;
 
 	if (sort__mode == SORT_MODE__BRANCH)
 		iter.ops = &hist_iter_branch;
@@ -166,11 +170,11 @@ static int process_sample_event(struct perf_tool *tool,
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
-	ret = hist_entry_iter__add(&iter, &al, evsel, sample, rep->max_stack,
-				   rep);
+	ret = hist_entry_iter__add(&iter, &al, rep->max_stack, rep);
 	if (ret < 0)
 		pr_debug("problem adding hist entry, skipping event\n");
-
+out_put:
+	addr_location__put(&al);
 	return ret;
 }
 
@@ -249,6 +253,8 @@ static int report__setup_sample_type(struct report *rep)
 		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
 		    (sample_type & PERF_SAMPLE_STACK_USER))
 			callchain_param.record_mode = CALLCHAIN_DWARF;
+		else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+			callchain_param.record_mode = CALLCHAIN_LBR;
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
 	}
@@ -302,7 +308,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 
 	if (rep->mem_mode) {
 		ret += fprintf(fp, "\n# Total weight : %" PRIu64, nr_events);
-		ret += fprintf(fp, "\n# Sort order   : %s", sort_order);
+		ret += fprintf(fp, "\n# Sort order   : %s", sort_order ? : default_mem_sort_order);
 	} else
 		ret += fprintf(fp, "\n# Event count (approx.): %" PRIu64, nr_events);
 	return ret + fprintf(fp, "\n#\n");
@@ -314,6 +320,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 {
 	struct perf_evsel *pos;
 
+	fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n", evlist->stats.total_lost_samples);
 	evlist__for_each(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
@@ -327,16 +334,15 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 		fprintf(stdout, "\n\n");
 	}
 
-	if (sort_order == default_sort_order &&
-	    parent_pattern == default_parent_pattern) {
+	if (sort_order == NULL &&
+	    parent_pattern == default_parent_pattern)
 		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
-		if (rep->show_threads) {
-			bool style = !strcmp(rep->pretty_printing_style, "raw");
-			perf_read_values_display(stdout, &rep->show_threads_values,
-						 style);
-			perf_read_values_destroy(&rep->show_threads_values);
-		}
+	if (rep->show_threads) {
+		bool style = !strcmp(rep->pretty_printing_style, "raw");
+		perf_read_values_display(stdout, &rep->show_threads_values,
+					 style);
+		perf_read_values_destroy(&rep->show_threads_values);
 	}
 
 	return 0;
@@ -345,7 +351,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 static void report__warn_kptr_restrict(const struct report *rep)
 {
 	struct map *kernel_map = rep->session->machines.host.vmlinux_maps[MAP__FUNCTION];
-	struct kmap *kernel_kmap = map__kmap(kernel_map);
+	struct kmap *kernel_kmap = kernel_map ? map__kmap(kernel_map) : NULL;
 
 	if (kernel_map == NULL ||
 	    (kernel_map->dso->hit &&
@@ -480,7 +486,7 @@ static int __cmd_report(struct report *rep)
 	if (ret)
 		return ret;
 
-	ret = perf_session__process_events(session, &rep->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
 		return ret;
 
@@ -583,6 +589,7 @@ parse_percent_limit(const struct option *opt, const char *str,
 int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_session *session;
+	struct itrace_synth_opts itrace_synth_opts = { .set = 0, };
 	struct stat st;
 	bool has_br_stack = false;
 	int branch_mode = -1;
@@ -605,6 +612,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.attr		 = perf_event__process_attr,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
+			.id_index	 = perf_event__process_id_index,
+			.auxtrace_info	 = perf_event__process_auxtrace_info,
+			.auxtrace	 = perf_event__process_auxtrace,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -667,6 +677,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these dsos"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only consider symbols in these comms"),
+	OPT_STRING(0, "pid", &symbol_conf.pid_list_str, "pid[,pid...]",
+		   "only consider symbols in these pids"),
+	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
+		   "only consider symbols in these tids"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
 	OPT_STRING(0, "symbol-filter", &report.symbol_filter_str, "filter",
@@ -674,7 +688,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
-	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
+	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
 	OPT_BOOLEAN('U', "hide-unresolved", &report.hide_unresolved,
@@ -711,6 +725,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
 		     "how to display percentage of filtered entries", parse_filter_percentage),
+	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
+			    "Instruction Tracing options",
+			    itrace_parse_synth_opts),
 	OPT_END()
 	};
 	struct perf_data_file file = {
@@ -724,6 +741,17 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	perf_config(report__config, &report);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
+
+	if (symbol_conf.vmlinux_name &&
+	    access(symbol_conf.vmlinux_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.vmlinux_name);
+		return -EINVAL;
+	}
+	if (symbol_conf.kallsyms_name &&
+	    access(symbol_conf.kallsyms_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.kallsyms_name);
+		return -EINVAL;
+	}
 
 	if (report.use_stdio)
 		use_browser = 0;
@@ -755,6 +783,8 @@ repeat:
 					       report.queue_size);
 	}
 
+	session->itrace_synth_opts = &itrace_synth_opts;
+
 	report.session = session;
 
 	has_br_stack = perf_header__has_feat(&session->header,
@@ -766,7 +796,7 @@ repeat:
 	 * 0/1 means the user chose a mode.
 	 */
 	if (((branch_mode == -1 && has_br_stack) || branch_mode == 1) &&
-	    branch_call_mode == -1) {
+	    !branch_call_mode) {
 		sort__mode = SORT_MODE__BRANCH;
 		symbol_conf.cumulate_callchain = false;
 	}
@@ -797,8 +827,8 @@ repeat:
 		goto error;
 	}
 
-	/* Force tty output for header output. */
-	if (report.header || report.header_only)
+	/* Force tty output for header output and per-thread stat. */
+	if (report.header || report.header_only || report.show_threads)
 		use_browser = 0;
 
 	if (strcmp(input_name, "-") != 0)
@@ -809,8 +839,10 @@ repeat:
 	if (report.header || report.header_only) {
 		perf_session__fprintf_info(session, stdout,
 					   report.show_full_info);
-		if (report.header_only)
-			return 0;
+		if (report.header_only) {
+			ret = 0;
+			goto error;
+		}
 	} else if (use_browser == 0) {
 		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
 		      stdout);

@@ -96,7 +96,8 @@ err_put_adapter:
 	put_device(&adapter->dev);
 	return rc;
 }
-static int afu_open(struct inode *inode, struct file *file)
+
+int afu_open(struct inode *inode, struct file *file)
 {
 	return __afu_open(inode, file, false);
 }
@@ -106,7 +107,7 @@ static int afu_master_open(struct inode *inode, struct file *file)
 	return __afu_open(inode, file, true);
 }
 
-static int afu_release(struct inode *inode, struct file *file)
+int afu_release(struct inode *inode, struct file *file)
 {
 	struct cxl_context *ctx = file->private_data;
 
@@ -128,7 +129,6 @@ static int afu_release(struct inode *inode, struct file *file)
 	 */
 	cxl_context_free(ctx);
 
-	cxl_ctx_put();
 	return 0;
 }
 
@@ -191,7 +191,7 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 
 	if ((rc = cxl_attach_process(ctx, false, work.work_element_descriptor,
 				     amr))) {
-		afu_release_irqs(ctx);
+		afu_release_irqs(ctx, ctx);
 		goto out;
 	}
 
@@ -212,7 +212,26 @@ static long afu_ioctl_process_element(struct cxl_context *ctx,
 	return 0;
 }
 
-static long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long afu_ioctl_get_afu_id(struct cxl_context *ctx,
+				 struct cxl_afu_id __user *upafuid)
+{
+	struct cxl_afu_id afuid = { 0 };
+
+	afuid.card_id = ctx->afu->adapter->adapter_num;
+	afuid.afu_offset = ctx->afu->slice;
+	afuid.afu_mode = ctx->afu->current_mode;
+
+	/* set the flag bit in case the afu is a slave */
+	if (ctx->afu->current_mode == CXL_MODE_DIRECTED && !ctx->master)
+		afuid.flags |= CXL_AFUID_FLAG_SLAVE;
+
+	if (copy_to_user(upafuid, &afuid, sizeof(afuid)))
+		return -EFAULT;
+
+	return 0;
+}
+
+long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct cxl_context *ctx = file->private_data;
 
@@ -225,17 +244,20 @@ static long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return afu_ioctl_start_work(ctx, (struct cxl_ioctl_start_work __user *)arg);
 	case CXL_IOCTL_GET_PROCESS_ELEMENT:
 		return afu_ioctl_process_element(ctx, (__u32 __user *)arg);
+	case CXL_IOCTL_GET_AFU_ID:
+		return afu_ioctl_get_afu_id(ctx, (struct cxl_afu_id __user *)
+					    arg);
 	}
 	return -EINVAL;
 }
 
-static long afu_compat_ioctl(struct file *file, unsigned int cmd,
+long afu_compat_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	return afu_ioctl(file, cmd, arg);
 }
 
-static int afu_mmap(struct file *file, struct vm_area_struct *vm)
+int afu_mmap(struct file *file, struct vm_area_struct *vm)
 {
 	struct cxl_context *ctx = file->private_data;
 
@@ -246,7 +268,7 @@ static int afu_mmap(struct file *file, struct vm_area_struct *vm)
 	return cxl_context_iomap(ctx, vm);
 }
 
-static unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
+unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
 {
 	struct cxl_context *ctx = file->private_data;
 	int mask = 0;
@@ -278,7 +300,7 @@ static inline int ctx_event_pending(struct cxl_context *ctx)
 	    ctx->pending_afu_err || (ctx->status == CLOSED));
 }
 
-static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
+ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 			loff_t *off)
 {
 	struct cxl_context *ctx = file->private_data;
@@ -359,7 +381,11 @@ out:
 	return rc;
 }
 
-static const struct file_operations afu_fops = {
+/* 
+ * Note: if this is updated, we need to update api.c to patch the new ones in
+ * too
+ */
+const struct file_operations afu_fops = {
 	.owner		= THIS_MODULE,
 	.open           = afu_open,
 	.poll		= afu_poll,
@@ -370,7 +396,7 @@ static const struct file_operations afu_fops = {
 	.mmap           = afu_mmap,
 };
 
-static const struct file_operations afu_master_fops = {
+const struct file_operations afu_master_fops = {
 	.owner		= THIS_MODULE,
 	.open           = afu_master_open,
 	.poll		= afu_poll,

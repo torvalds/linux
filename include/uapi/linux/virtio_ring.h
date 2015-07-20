@@ -155,7 +155,7 @@ static inline unsigned vring_size(unsigned int num, unsigned long align)
 }
 
 /* The following is used with USED_EVENT_IDX and AVAIL_EVENT_IDX */
-/* Assuming a given event_idx value from the other size, if
+/* Assuming a given event_idx value from the other side, if
  * we have just incremented index from old to new_idx,
  * should we trigger an event? */
 static inline int vring_need_event(__u16 event_idx, __u16 new_idx, __u16 old)

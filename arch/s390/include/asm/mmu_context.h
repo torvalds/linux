@@ -19,11 +19,12 @@ static inline int init_new_context(struct task_struct *tsk,
 	atomic_set(&mm->context.attach_count, 0);
 	mm->context.flush_mm = 0;
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
-#ifdef CONFIG_64BIT
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
-#endif
+#ifdef CONFIG_PGSTE
+	mm->context.alloc_pgste = page_table_allocate_pgste;
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
+#endif
 	mm->context.asce_limit = STACK_TOP_MAX;
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;
@@ -110,10 +111,8 @@ static inline void activate_mm(struct mm_struct *prev,
 static inline void arch_dup_mmap(struct mm_struct *oldmm,
 				 struct mm_struct *mm)
 {
-#ifdef CONFIG_64BIT
 	if (oldmm->context.asce_limit < mm->context.asce_limit)
 		crst_table_downgrade(mm, oldmm->context.asce_limit);
-#endif
 }
 
 static inline void arch_exit_mmap(struct mm_struct *mm)

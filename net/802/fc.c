@@ -75,29 +75,8 @@ static int fc_header(struct sk_buff *skb, struct net_device *dev,
 	return -hdr_len;
 }
 
-/*
- *	A neighbour discovery of some species (eg arp) has completed. We
- *	can now send the packet.
- */
-
-static int fc_rebuild_header(struct sk_buff *skb)
-{
-#ifdef CONFIG_INET
-	struct fch_hdr *fch=(struct fch_hdr *)skb->data;
-	struct fcllc *fcllc=(struct fcllc *)(skb->data+sizeof(struct fch_hdr));
-	if(fcllc->ethertype != htons(ETH_P_IP)) {
-		printk("fc_rebuild_header: Don't know how to resolve type %04X addresses ?\n", ntohs(fcllc->ethertype));
-		return 0;
-	}
-	return arp_find(fch->daddr, skb);
-#else
-	return 0;
-#endif
-}
-
 static const struct header_ops fc_header_ops = {
 	.create	 = fc_header,
-	.rebuild = fc_rebuild_header,
 };
 
 static void fc_setup(struct net_device *dev)

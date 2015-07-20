@@ -42,15 +42,21 @@ enum nf_tproxy_lookup_t {
 
 static bool tproxy_sk_is_transparent(struct sock *sk)
 {
-	if (sk->sk_state != TCP_TIME_WAIT) {
-		if (inet_sk(sk)->transparent)
-			return true;
-		sock_put(sk);
-	} else {
+	switch (sk->sk_state) {
+	case TCP_TIME_WAIT:
 		if (inet_twsk(sk)->tw_transparent)
 			return true;
-		inet_twsk_put(inet_twsk(sk));
+		break;
+	case TCP_NEW_SYN_RECV:
+		if (inet_rsk(inet_reqsk(sk))->no_srccheck)
+			return true;
+		break;
+	default:
+		if (inet_sk(sk)->transparent)
+			return true;
 	}
+
+	sock_gen_put(sk);
 	return false;
 }
 
@@ -266,7 +272,7 @@ tproxy_handle_time_wait4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 					    hp->source, lport ? lport : hp->dest,
 					    skb->dev, NFT_LOOKUP_LISTENER);
 		if (sk2) {
-			inet_twsk_deschedule(inet_twsk(sk), &tcp_death_row);
+			inet_twsk_deschedule(inet_twsk(sk));
 			inet_twsk_put(inet_twsk(sk));
 			sk = sk2;
 		}
@@ -431,7 +437,7 @@ tproxy_handle_time_wait6(struct sk_buff *skb, int tproto, int thoff,
 					    tgi->lport ? tgi->lport : hp->dest,
 					    skb->dev, NFT_LOOKUP_LISTENER);
 		if (sk2) {
-			inet_twsk_deschedule(inet_twsk(sk), &tcp_death_row);
+			inet_twsk_deschedule(inet_twsk(sk));
 			inet_twsk_put(inet_twsk(sk));
 			sk = sk2;
 		}

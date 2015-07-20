@@ -1,7 +1,7 @@
-/* cnic_if.h: QLogic CNIC core network driver.
+/* cnic_if.h: QLogic cnic core network driver.
  *
  * Copyright (c) 2006-2014 Broadcom Corporation
- * Copyright (c) 2014 QLogic Corporation
+ * Copyright (c) 2014-2015 QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
 
 #include "bnx2x/bnx2x_mfw_req.h"
 
-#define CNIC_MODULE_VERSION	"2.5.20"
-#define CNIC_MODULE_RELDATE	"March 14, 2014"
+#define CNIC_MODULE_VERSION	"2.5.21"
+#define CNIC_MODULE_RELDATE	"January 29, 2015"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1

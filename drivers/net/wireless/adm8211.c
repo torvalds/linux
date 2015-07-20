@@ -1098,14 +1098,18 @@ static void adm8211_hw_init(struct ieee80211_hw *dev)
 		pci_read_config_byte(priv->pdev, PCI_CACHE_LINE_SIZE, &cline);
 
 		switch (cline) {
-		case  0x8: reg |= (0x1 << 14);
-			   break;
-		case 0x16: reg |= (0x2 << 14);
-			   break;
-		case 0x32: reg |= (0x3 << 14);
-			   break;
-		  default: reg |= (0x0 << 14);
-			   break;
+		case  0x8:
+			reg |= (0x1 << 14);
+			break;
+		case 0x10:
+			reg |= (0x2 << 14);
+			break;
+		case 0x20:
+			reg |= (0x3 << 14);
+			break;
+		default:
+			reg |= (0x0 << 14);
+			break;
 		}
 	}
 
@@ -1353,12 +1357,7 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 
 	new_flags = 0;
 
-	if (*total_flags & FIF_PROMISC_IN_BSS) {
-		new_flags |= FIF_PROMISC_IN_BSS;
-		priv->nar |= ADM8211_NAR_PR;
-		priv->nar &= ~ADM8211_NAR_MM;
-		mc_filter[1] = mc_filter[0] = ~0;
-	} else if (*total_flags & FIF_ALLMULTI || multicast == ~(0ULL)) {
+	if (*total_flags & FIF_ALLMULTI || multicast == ~(0ULL)) {
 		new_flags |= FIF_ALLMULTI;
 		priv->nar &= ~ADM8211_NAR_PR;
 		priv->nar |= ADM8211_NAR_MM;
@@ -1374,9 +1373,9 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 	ADM8211_CSR_READ(NAR);
 
 	if (priv->nar & ADM8211_NAR_PR)
-		dev->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+		ieee80211_hw_set(dev, RX_INCLUDES_FCS);
 	else
-		dev->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, dev->flags);
 
 	if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
 		adm8211_set_bssid(dev, bcast);
@@ -1862,8 +1861,8 @@ static int adm8211_probe(struct pci_dev *pdev,
 	SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 
 	dev->extra_tx_headroom = sizeof(struct adm8211_tx_hdr);
-	/* dev->flags = IEEE80211_HW_RX_INCLUDES_FCS in promisc mode */
-	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
+	/* dev->flags = RX_INCLUDES_FCS in promisc mode */
+	ieee80211_hw_set(dev, SIGNAL_UNSPEC);
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	dev->max_signal = 100;    /* FIXME: find better value */

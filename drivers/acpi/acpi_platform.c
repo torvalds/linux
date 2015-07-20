@@ -102,8 +102,8 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	pdevinfo.id = -1;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
-	pdevinfo.acpi_node.companion = adev;
-	pdevinfo.dma_mask = DMA_BIT_MASK(32);
+	pdevinfo.fwnode = acpi_fwnode_handle(adev);
+	pdevinfo.dma_mask = acpi_check_dma(adev, NULL) ? DMA_BIT_MASK(32) : 0;
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev))
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",

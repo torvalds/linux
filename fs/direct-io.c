@@ -37,7 +37,6 @@
 #include <linux/uio.h>
 #include <linux/atomic.h>
 #include <linux/prefetch.h>
-#include <linux/aio.h>
 
 /*
  * How many user pages to map in one call to get_user_pages().  This determines
@@ -254,7 +253,9 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 	if (dio->end_io && dio->result)
 		dio->end_io(dio->iocb, offset, transferred, dio->private);
 
-	inode_dio_done(dio->inode);
+	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
+		inode_dio_end(dio->inode);
+
 	if (is_async) {
 		if (dio->rw & WRITE) {
 			int err;
@@ -265,7 +266,7 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 				ret = err;
 		}
 
-		aio_complete(dio->iocb, ret, 0);
+		dio->iocb->ki_complete(dio->iocb, ret, 0);
 	}
 
 	kmem_cache_free(dio_cache, dio);
@@ -1056,7 +1057,7 @@ static inline int drop_refcount(struct dio *dio)
 	 * operation.  AIO can if it was a broken operation described above or
 	 * in fact if all the bios race to complete before we get here.  In
 	 * that case dio_complete() translates the EIOCBQUEUED into the proper
-	 * return code that the caller will hand to aio_complete().
+	 * return code that the caller will hand to ->complete().
 	 *
 	 * This is managed by the bio_lock instead of being an atomic_t so that
 	 * completion paths can drop their ref and use the remaining count to
@@ -1094,10 +1095,10 @@ static inline int drop_refcount(struct dio *dio)
  * for the whole file.
  */
 static inline ssize_t
-do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, struct iov_iter *iter, loff_t offset, 
-	get_block_t get_block, dio_iodone_t end_io,
-	dio_submit_t submit_io,	int flags)
+do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
+		      struct block_device *bdev, struct iov_iter *iter,
+		      loff_t offset, get_block_t get_block, dio_iodone_t end_io,
+		      dio_submit_t submit_io, int flags)
 {
 	unsigned i_blkbits = ACCESS_ONCE(inode->i_blkbits);
 	unsigned blkbits = i_blkbits;
@@ -1110,9 +1111,6 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct buffer_head map_bh = { 0, };
 	struct blk_plug plug;
 	unsigned long align = offset | iov_iter_alignment(iter);
-
-	if (rw & WRITE)
-		rw = WRITE_ODIRECT;
 
 	/*
 	 * Avoid references to bdev if not absolutely needed to give
@@ -1128,7 +1126,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	}
 
 	/* watch out for a 0 len io from a tricksy fs */
-	if (rw == READ && !iov_iter_count(iter))
+	if (iov_iter_rw(iter) == READ && !iov_iter_count(iter))
 		return 0;
 
 	dio = kmem_cache_alloc(dio_cache, GFP_KERNEL);
@@ -1144,7 +1142,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 
 	dio->flags = flags;
 	if (dio->flags & DIO_LOCKING) {
-		if (rw == READ) {
+		if (iov_iter_rw(iter) == READ) {
 			struct address_space *mapping =
 					iocb->ki_filp->f_mapping;
 
@@ -1170,19 +1168,19 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	if (is_sync_kiocb(iocb))
 		dio->is_async = false;
 	else if (!(dio->flags & DIO_ASYNC_EXTEND) &&
-            (rw & WRITE) && end > i_size_read(inode))
+		 iov_iter_rw(iter) == WRITE && end > i_size_read(inode))
 		dio->is_async = false;
 	else
 		dio->is_async = true;
 
 	dio->inode = inode;
-	dio->rw = rw;
+	dio->rw = iov_iter_rw(iter) == WRITE ? WRITE_ODIRECT : READ;
 
 	/*
 	 * For AIO O_(D)SYNC writes we need to defer completions to a workqueue
 	 * so that we can call ->fsync.
 	 */
-	if (dio->is_async && (rw & WRITE) &&
+	if (dio->is_async && iov_iter_rw(iter) == WRITE &&
 	    ((iocb->ki_filp->f_flags & O_DSYNC) ||
 	     IS_SYNC(iocb->ki_filp->f_mapping->host))) {
 		retval = dio_set_defer_completion(dio);
@@ -1199,7 +1197,8 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	/*
 	 * Will be decremented at I/O completion time.
 	 */
-	atomic_inc(&inode->i_dio_count);
+	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
+		inode_dio_begin(inode);
 
 	retval = 0;
 	sdio.blkbits = blkbits;
@@ -1275,7 +1274,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 * we can let i_mutex go now that its achieved its purpose
 	 * of protecting us from looking up uninitialized blocks.
 	 */
-	if (rw == READ && (dio->flags & DIO_LOCKING))
+	if (iov_iter_rw(iter) == READ && (dio->flags & DIO_LOCKING))
 		mutex_unlock(&dio->inode->i_mutex);
 
 	/*
@@ -1287,7 +1286,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 */
 	BUG_ON(retval == -EIOCBQUEUED);
 	if (dio->is_async && retval == 0 && dio->result &&
-	    (rw == READ || dio->result == count))
+	    (iov_iter_rw(iter) == READ || dio->result == count))
 		retval = -EIOCBQUEUED;
 	else
 		dio_await_completion(dio);
@@ -1301,11 +1300,11 @@ out:
 	return retval;
 }
 
-ssize_t
-__blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
-	struct block_device *bdev, struct iov_iter *iter, loff_t offset,
-	get_block_t get_block, dio_iodone_t end_io,
-	dio_submit_t submit_io,	int flags)
+ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
+			     struct block_device *bdev, struct iov_iter *iter,
+			     loff_t offset, get_block_t get_block,
+			     dio_iodone_t end_io, dio_submit_t submit_io,
+			     int flags)
 {
 	/*
 	 * The block device state is needed in the end to finally
@@ -1319,8 +1318,8 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	prefetch(bdev->bd_queue);
 	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
 
-	return do_blockdev_direct_IO(rw, iocb, inode, bdev, iter, offset,
-				     get_block, end_io, submit_io, flags);
+	return do_blockdev_direct_IO(iocb, inode, bdev, iter, offset, get_block,
+				     end_io, submit_io, flags);
 }
 
 EXPORT_SYMBOL(__blockdev_direct_IO);

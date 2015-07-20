@@ -75,7 +75,7 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 
 	IVTV_DEBUG_HI_DMA("ivtv_pio_work_handler\n");
 	if (itv->cur_pio_stream < 0 || itv->cur_pio_stream >= IVTV_MAX_STREAMS ||
-			s->vdev == NULL || !ivtv_use_pio(s)) {
+			s->vdev.v4l2_dev == NULL || !ivtv_use_pio(s)) {
 		itv->cur_pio_stream = -1;
 		/* trigger PIO complete user interrupt */
 		write_reg(IVTV_IRQ_ENC_PIO_COMPLETE, 0x44);
@@ -132,7 +132,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 	int rc;
 
 	/* sanity checks */
-	if (s->vdev == NULL) {
+	if (s->vdev.v4l2_dev == NULL) {
 		IVTV_DEBUG_WARN("Stream %s not started\n", s->name);
 		return -1;
 	}
@@ -890,8 +890,8 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 			if (s)
 				wake_up(&s->waitq);
 		}
-		if (s && s->vdev)
-			v4l2_event_queue(s->vdev, frame ? &evtop : &evbottom);
+		if (s && s->vdev.v4l2_dev)
+			v4l2_event_queue(&s->vdev, frame ? &evtop : &evbottom);
 		wake_up(&itv->vsync_waitq);
 
 		/* Send VBI to saa7127 */

@@ -427,7 +427,7 @@ static bool b43legacy_dma_mapping_error(struct b43legacy_dmaring *ring,
 					 bool dma_to_device)
 {
 	if (unlikely(dma_mapping_error(ring->dev->dev->dma_dev, addr)))
-		return 1;
+		return true;
 
 	switch (ring->type) {
 	case B43legacy_DMA_30BIT:
@@ -441,13 +441,13 @@ static bool b43legacy_dma_mapping_error(struct b43legacy_dmaring *ring,
 	}
 
 	/* The address is OK. */
-	return 0;
+	return false;
 
 address_error:
 	/* We can't support this address. Unmap it again. */
 	unmap_descbuffer(ring, addr, buffersize, dma_to_device);
 
-	return 1;
+	return true;
 }
 
 static int setup_rx_descbuffer(struct b43legacy_dmaring *ring,

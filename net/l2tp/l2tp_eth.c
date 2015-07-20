@@ -74,7 +74,7 @@ static int l2tp_eth_dev_init(struct net_device *dev)
 
 	priv->dev = dev;
 	eth_hw_addr_random(dev);
-	memset(&dev->broadcast[0], 0xff, 6);
+	eth_broadcast_addr(dev->broadcast);
 	dev->qdisc_tx_busylock = &l2tp_eth_tx_busylock;
 	return 0;
 }

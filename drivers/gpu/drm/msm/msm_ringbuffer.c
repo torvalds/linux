@@ -56,6 +56,6 @@ fail:
 void msm_ringbuffer_destroy(struct msm_ringbuffer *ring)
 {
 	if (ring->bo)
-		drm_gem_object_unreference(ring->bo);
+		drm_gem_object_unreference_unlocked(ring->bo);
 	kfree(ring);
 }

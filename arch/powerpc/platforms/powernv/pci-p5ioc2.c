@@ -83,17 +83,41 @@ static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb)
 static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb) { }
 #endif /* CONFIG_PCI_MSI */
 
+static struct iommu_table_ops pnv_p5ioc2_iommu_ops = {
+	.set = pnv_tce_build,
+#ifdef CONFIG_IOMMU_API
+	.exchange = pnv_tce_xchg,
+#endif
+	.clear = pnv_tce_free,
+	.get = pnv_tce_get,
+};
+
 static void pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
 					 struct pci_dev *pdev)
 {
-	if (phb->p5ioc2.iommu_table.it_map == NULL) {
-		iommu_init_table(&phb->p5ioc2.iommu_table, phb->hose->node);
-		iommu_register_group(&phb->p5ioc2.iommu_table,
+	struct iommu_table *tbl = phb->p5ioc2.table_group.tables[0];
+
+	if (!tbl->it_map) {
+		tbl->it_ops = &pnv_p5ioc2_iommu_ops;
+		iommu_init_table(tbl, phb->hose->node);
+		iommu_register_group(&phb->p5ioc2.table_group,
 				pci_domain_nr(phb->hose->bus), phb->opal_id);
+		INIT_LIST_HEAD_RCU(&tbl->it_group_list);
+		pnv_pci_link_table_and_group(phb->hose->node, 0,
+				tbl, &phb->p5ioc2.table_group);
 	}
 
-	set_iommu_table_base_and_group(&pdev->dev, &phb->p5ioc2.iommu_table);
+	set_iommu_table_base(&pdev->dev, tbl);
+	iommu_add_device(&pdev->dev);
 }
+
+static const struct pci_controller_ops pnv_pci_p5ioc2_controller_ops = {
+	.dma_dev_setup = pnv_pci_dma_dev_setup,
+#ifdef CONFIG_PCI_MSI
+       .setup_msi_irqs = pnv_setup_msi_irqs,
+       .teardown_msi_irqs = pnv_teardown_msi_irqs,
+#endif
+};
 
 static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 					   void *tce_mem, u64 tce_size)
@@ -103,6 +127,8 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 	u64 phb_id;
 	int64_t rc;
 	static int primary = 1;
+	struct iommu_table_group *table_group;
+	struct iommu_table *tbl;
 
 	pr_info(" Initializing p5ioc2 PHB %s\n", np->full_name);
 
@@ -133,6 +159,7 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 	phb->hose->first_busno = 0;
 	phb->hose->last_busno = 0xff;
 	phb->hose->private_data = phb;
+	phb->hose->controller_ops = pnv_pci_p5ioc2_controller_ops;
 	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
 	phb->type = PNV_PHB_P5IOC2;
@@ -171,6 +198,15 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 	pnv_pci_setup_iommu_table(&phb->p5ioc2.iommu_table,
 				  tce_mem, tce_size, 0,
 				  IOMMU_PAGE_SHIFT_4K);
+	/*
+	 * We do not allocate iommu_table as we do not support
+	 * hotplug or SRIOV on P5IOC2 and therefore iommu_free_table()
+	 * should not be called for phb->p5ioc2.table_group.tables[0] ever.
+	 */
+	tbl = phb->p5ioc2.table_group.tables[0] = &phb->p5ioc2.iommu_table;
+	table_group = &phb->p5ioc2.table_group;
+	table_group->tce32_start = tbl->it_offset << tbl->it_page_shift;
+	table_group->tce32_size = tbl->it_size << tbl->it_page_shift;
 }
 
 void __init pnv_pci_init_p5ioc2_hub(struct device_node *np)

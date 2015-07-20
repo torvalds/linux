@@ -36,8 +36,10 @@ int __isa_exception_epc(struct pt_regs *regs)
 		return epc;
 	}
 	if (cpu_has_mips16) {
-		if (((union mips16e_instruction)inst).ri.opcode
-				== MIPS16e_jal_op)
+		union mips16e_instruction inst_mips16e;
+
+		inst_mips16e.full = inst;
+		if (inst_mips16e.ri.opcode == MIPS16e_jal_op)
 			epc += 4;
 		else
 			epc += 2;
@@ -598,7 +600,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		break;
 
 	case blezl_op: /* not really i_format */
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r6;
 	case blez_op:
 		/*
@@ -633,7 +635,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		break;
 
 	case bgtzl_op:
-		if (NO_R6EMU)
+		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r6;
 	case bgtz_op:
 		/*

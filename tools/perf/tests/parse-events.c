@@ -3,6 +3,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include <api/fs/fs.h>
+#include <api/fs/tracefs.h>
 #include <api/fs/debugfs.h>
 #include "tests.h"
 #include "debug.h"
@@ -294,6 +295,36 @@ static int test__checkevent_genhw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_genhw(evlist);
 }
 
+static int test__checkevent_exclude_idle_modifier(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude idle", evsel->attr.exclude_idle);
+	TEST_ASSERT_VAL("wrong exclude guest", !evsel->attr.exclude_guest);
+	TEST_ASSERT_VAL("wrong exclude host", !evsel->attr.exclude_host);
+	TEST_ASSERT_VAL("wrong exclude_user", !evsel->attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", !evsel->attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", !evsel->attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", !evsel->attr.precise_ip);
+
+	return test__checkevent_symbolic_name(evlist);
+}
+
+static int test__checkevent_exclude_idle_modifier_1(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong exclude idle", evsel->attr.exclude_idle);
+	TEST_ASSERT_VAL("wrong exclude guest", !evsel->attr.exclude_guest);
+	TEST_ASSERT_VAL("wrong exclude host", evsel->attr.exclude_host);
+	TEST_ASSERT_VAL("wrong exclude_user", evsel->attr.exclude_user);
+	TEST_ASSERT_VAL("wrong exclude_kernel", !evsel->attr.exclude_kernel);
+	TEST_ASSERT_VAL("wrong exclude_hv", evsel->attr.exclude_hv);
+	TEST_ASSERT_VAL("wrong precise_ip", !evsel->attr.precise_ip);
+
+	return test__checkevent_symbolic_name(evlist);
+}
+
 static int test__checkevent_breakpoint_modifier(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evlist__first(evlist);
@@ -396,7 +427,7 @@ static int test__checkevent_list(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", !evsel->attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", !evsel->attr.precise_ip);
 
-	/* syscalls:sys_enter_open:k */
+	/* syscalls:sys_enter_openat:k */
 	evsel = perf_evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_TRACEPOINT == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong sample_type",
@@ -634,7 +665,7 @@ static int test__group3(struct perf_evlist *evlist __maybe_unused)
 	TEST_ASSERT_VAL("wrong number of entries", 5 == evlist->nr_entries);
 	TEST_ASSERT_VAL("wrong number of groups", 2 == evlist->nr_groups);
 
-	/* group1 syscalls:sys_enter_open:H */
+	/* group1 syscalls:sys_enter_openat:H */
 	evsel = leader = perf_evlist__first(evlist);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_TRACEPOINT == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong sample_type",
@@ -1192,11 +1223,19 @@ static int count_tracepoints(void)
 {
 	char events_path[PATH_MAX];
 	struct dirent *events_ent;
+	const char *mountpoint;
 	DIR *events_dir;
 	int cnt = 0;
 
-	scnprintf(events_path, PATH_MAX, "%s/tracing/events",
-		  debugfs_find_mountpoint());
+	mountpoint = tracefs_find_mountpoint();
+	if (mountpoint) {
+		scnprintf(events_path, PATH_MAX, "%s/events",
+			  mountpoint);
+	} else {
+		mountpoint = debugfs_find_mountpoint();
+		scnprintf(events_path, PATH_MAX, "%s/tracing/events",
+			  mountpoint);
+	}
 
 	events_dir = opendir(events_path);
 
@@ -1254,7 +1293,7 @@ struct evlist_test {
 
 static struct evlist_test test__events[] = {
 	{
-		.name  = "syscalls:sys_enter_open",
+		.name  = "syscalls:sys_enter_openat",
 		.check = test__checkevent_tracepoint,
 		.id    = 0,
 	},
@@ -1314,7 +1353,7 @@ static struct evlist_test test__events[] = {
 		.id    = 11,
 	},
 	{
-		.name  = "syscalls:sys_enter_open:k",
+		.name  = "syscalls:sys_enter_openat:k",
 		.check = test__checkevent_tracepoint_modifier,
 		.id    = 12,
 	},
@@ -1369,7 +1408,7 @@ static struct evlist_test test__events[] = {
 		.id    = 22,
 	},
 	{
-		.name  = "r1,syscalls:sys_enter_open:k,1:1:hp",
+		.name  = "r1,syscalls:sys_enter_openat:k,1:1:hp",
 		.check = test__checkevent_list,
 		.id    = 23,
 	},
@@ -1404,7 +1443,7 @@ static struct evlist_test test__events[] = {
 		.id    = 29,
 	},
 	{
-		.name  = "group1{syscalls:sys_enter_open:H,cycles:kppp},group2{cycles,1:3}:G,instructions:u",
+		.name  = "group1{syscalls:sys_enter_openat:H,cycles:kppp},group2{cycles,1:3}:G,instructions:u",
 		.check = test__group3,
 		.id    = 30,
 	},
@@ -1485,6 +1524,16 @@ static struct evlist_test test__events[] = {
 		.id    = 100,
 	},
 #endif
+	{
+		.name  = "instructions:I",
+		.check = test__checkevent_exclude_idle_modifier,
+		.id    = 45,
+	},
+	{
+		.name  = "instructions:kIG",
+		.check = test__checkevent_exclude_idle_modifier_1,
+		.id    = 46,
+	},
 };
 
 static struct evlist_test test__events_pmu[] = {
@@ -1522,7 +1571,7 @@ static int test_event(struct evlist_test *e)
 	if (evlist == NULL)
 		return -ENOMEM;
 
-	ret = parse_events(evlist, e->name);
+	ret = parse_events(evlist, e->name, NULL);
 	if (ret) {
 		pr_debug("failed to parse event '%s', err %d\n",
 			 e->name, ret);

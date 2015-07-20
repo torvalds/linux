@@ -201,6 +201,13 @@
 			samsung,pin-drv = <3>;
 		};
 
+		sd0_rclk: sd0-rclk {
+			samsung,pins = "gpc0-7";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <1>;
+			samsung,pin-drv = <3>;
+		};
+
 		sd1_cmd: sd1-cmd {
 			samsung,pins = "gpc1-1";
 			samsung,pin-function = <2>;

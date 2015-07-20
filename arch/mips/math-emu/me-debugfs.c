@@ -61,6 +61,7 @@ do {									\
 	FPU_STAT_CREATE(ieee754_overflow);
 	FPU_STAT_CREATE(ieee754_zerodiv);
 	FPU_STAT_CREATE(ieee754_invalidop);
+	FPU_STAT_CREATE(ds_emul);
 
 	return 0;
 }

@@ -22,6 +22,7 @@
 #define PPC_SYS(func)		.llong	DOTSYM(ppc_##func),DOTSYM(ppc_##func)
 #define OLDSYS(func)		.llong	DOTSYM(sys_ni_syscall),DOTSYM(sys_ni_syscall)
 #define SYS32ONLY(func)		.llong	DOTSYM(sys_ni_syscall),DOTSYM(compat_sys_##func)
+#define PPC64ONLY(func)		.llong	DOTSYM(ppc_##func),DOTSYM(sys_ni_syscall)
 #define SYSX(f, f3264, f32)	.llong	DOTSYM(f),DOTSYM(f3264)
 #else
 #define SYSCALL(func)		.long	sys_##func
@@ -29,6 +30,7 @@
 #define PPC_SYS(func)		.long	ppc_##func
 #define OLDSYS(func)		.long	sys_##func
 #define SYS32ONLY(func)		.long	sys_##func
+#define PPC64ONLY(func)		.long	sys_ni_syscall
 #define SYSX(f, f3264, f32)	.long	f32
 #endif
 #define SYSCALL_SPU(func)	SYSCALL(func)

@@ -63,12 +63,12 @@ static struct lu_kmem_descr vvp_caches[] = {
 	{
 		.ckd_cache = &vvp_thread_kmem,
 		.ckd_name  = "vvp_thread_kmem",
-		.ckd_size  = sizeof (struct vvp_thread_info),
+		.ckd_size  = sizeof(struct vvp_thread_info),
 	},
 	{
 		.ckd_cache = &vvp_session_kmem,
 		.ckd_name  = "vvp_session_kmem",
-		.ckd_size  = sizeof (struct vvp_session)
+		.ckd_size  = sizeof(struct vvp_session)
 	},
 	{
 		.ckd_cache = NULL
@@ -90,6 +90,7 @@ static void vvp_key_fini(const struct lu_context *ctx,
 			 struct lu_context_key *key, void *data)
 {
 	struct vvp_thread_info *info = data;
+
 	OBD_SLAB_FREE_PTR(info, vvp_thread_kmem);
 }
 
@@ -108,6 +109,7 @@ static void vvp_session_key_fini(const struct lu_context *ctx,
 				 struct lu_context_key *key, void *data)
 {
 	struct vvp_session *session = data;
+
 	OBD_SLAB_FREE_PTR(session, vvp_session_kmem);
 }
 
@@ -251,7 +253,7 @@ int cl_sb_fini(struct super_block *sb)
 
 /****************************************************************************
  *
- * /proc/fs/lustre/llite/$MNT/dump_page_cache
+ * debugfs/lustre/llite/$MNT/dump_page_cache
  *
  ****************************************************************************/
 
@@ -286,7 +288,7 @@ static void vvp_pgcache_id_unpack(loff_t pos, struct vvp_pgcache_id *id)
 
 	id->vpi_index  = pos & 0xffffffff;
 	id->vpi_depth  = (pos >> PGC_DEPTH_SHIFT) & 0xf;
-	id->vpi_bucket = ((unsigned long long)pos >> PGC_OBJ_SHIFT);
+	id->vpi_bucket = (unsigned long long)pos >> PGC_OBJ_SHIFT;
 }
 
 static loff_t vvp_pgcache_id_pack(struct vvp_pgcache_id *id)
@@ -515,7 +517,7 @@ static void vvp_pgcache_stop(struct seq_file *f, void *v)
 	/* Nothing to do */
 }
 
-static struct seq_operations vvp_pgcache_ops = {
+static const struct seq_operations vvp_pgcache_ops = {
 	.start = vvp_pgcache_start,
 	.next  = vvp_pgcache_next,
 	.stop  = vvp_pgcache_stop,
@@ -524,16 +526,17 @@ static struct seq_operations vvp_pgcache_ops = {
 
 static int vvp_dump_pgcache_seq_open(struct inode *inode, struct file *filp)
 {
-	struct ll_sb_info     *sbi = PDE_DATA(inode);
-	struct seq_file       *seq;
-	int		    result;
+	struct seq_file *seq;
+	int rc;
 
-	result = seq_open(filp, &vvp_pgcache_ops);
-	if (result == 0) {
-		seq = filp->private_data;
-		seq->private = sbi;
-	}
-	return result;
+	rc = seq_open(filp, &vvp_pgcache_ops);
+	if (rc)
+		return rc;
+
+	seq = filp->private_data;
+	seq->private = inode->i_private;
+
+	return 0;
 }
 
 const struct file_operations vvp_dump_pgcache_file_ops = {

@@ -104,7 +104,6 @@ EXPORT_SYMBOL(arcnet_timeout);
 static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 			 unsigned short type, const void *daddr,
 			 const void *saddr, unsigned len);
-static int arcnet_rebuild_header(struct sk_buff *skb);
 static int go_tx(struct net_device *dev);
 
 static int debug = ARCNET_DEBUG;
@@ -312,7 +311,6 @@ static int choose_mtu(void)
 
 static const struct header_ops arcnet_header_ops = {
 	.create = arcnet_header,
-	.rebuild = arcnet_rebuild_header,
 };
 
 static const struct net_device_ops arcnet_netdev_ops = {
@@ -537,59 +535,6 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 	}
 	return proto->build_header(skb, dev, type, _daddr);
 }
-
-
-/* 
- * Rebuild the ARCnet hard header. This is called after an ARP (or in the
- * future other address resolution) has completed on this sk_buff. We now
- * let ARP fill in the destination field.
- */
-static int arcnet_rebuild_header(struct sk_buff *skb)
-{
-	struct net_device *dev = skb->dev;
-	struct arcnet_local *lp = netdev_priv(dev);
-	int status = 0;		/* default is failure */
-	unsigned short type;
-	uint8_t daddr=0;
-	struct ArcProto *proto;
-	/*
-	 * XXX: Why not use skb->mac_len?
-	 */
-	if (skb->network_header - skb->mac_header != 2) {
-		BUGMSG(D_NORMAL,
-		       "rebuild_header: shouldn't be here! (hdrsize=%d)\n",
-		       (int)(skb->network_header - skb->mac_header));
-		return 0;
-	}
-	type = *(uint16_t *) skb_pull(skb, 2);
-	BUGMSG(D_DURING, "rebuild header for protocol %Xh\n", type);
-
-	if (type == ETH_P_IP) {
-#ifdef CONFIG_INET
-		BUGMSG(D_DURING, "rebuild header for ethernet protocol %Xh\n", type);
-		status = arp_find(&daddr, skb) ? 1 : 0;
-		BUGMSG(D_DURING, " rebuilt: dest is %d; protocol %Xh\n",
-		       daddr, type);
-#endif
-	} else {
-		BUGMSG(D_NORMAL,
-		       "I don't understand ethernet protocol %Xh addresses!\n", type);
-		dev->stats.tx_errors++;
-		dev->stats.tx_aborted_errors++;
-	}
-
-	/* if we couldn't resolve the address... give up. */
-	if (!status)
-		return 0;
-
-	/* add the _real_ header this time! */
-	proto = arc_proto_map[lp->default_proto[daddr]];
-	proto->build_header(skb, dev, type, daddr);
-
-	return 1;		/* success */
-}
-
-
 
 /* Called by the kernel in order to transmit a packet. */
 netdev_tx_t arcnet_send_packet(struct sk_buff *skb,

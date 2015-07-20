@@ -269,6 +269,12 @@ static void nfnl_err_deliver(struct list_head *err_list, struct sk_buff *skb)
 	}
 }
 
+enum {
+	NFNL_BATCH_FAILURE	= (1 << 0),
+	NFNL_BATCH_DONE		= (1 << 1),
+	NFNL_BATCH_REPLAY	= (1 << 2),
+};
+
 static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
 				u_int16_t subsys_id)
 {
@@ -276,13 +282,15 @@ static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	const struct nfnetlink_subsystem *ss;
 	const struct nfnl_callback *nc;
-	bool success = true, done = false;
 	static LIST_HEAD(err_list);
+	u32 status;
 	int err;
 
 	if (subsys_id >= NFNL_SUBSYS_COUNT)
 		return netlink_ack(skb, nlh, -EINVAL);
 replay:
+	status = 0;
+
 	skb = netlink_skb_clone(oskb, GFP_KERNEL);
 	if (!skb)
 		return netlink_ack(oskb, nlh, -ENOMEM);
@@ -336,10 +344,10 @@ replay:
 		if (type == NFNL_MSG_BATCH_BEGIN) {
 			/* Malformed: Batch begin twice */
 			nfnl_err_reset(&err_list);
-			success = false;
+			status |= NFNL_BATCH_FAILURE;
 			goto done;
 		} else if (type == NFNL_MSG_BATCH_END) {
-			done = true;
+			status |= NFNL_BATCH_DONE;
 			goto done;
 		} else if (type < NLMSG_MIN_TYPE) {
 			err = -EINVAL;
@@ -382,11 +390,8 @@ replay:
 			 * original skb.
 			 */
 			if (err == -EAGAIN) {
-				nfnl_err_reset(&err_list);
-				ss->abort(oskb);
-				nfnl_unlock(subsys_id);
-				kfree_skb(skb);
-				goto replay;
+				status |= NFNL_BATCH_REPLAY;
+				goto next;
 			}
 		}
 ack:
@@ -402,7 +407,7 @@ ack:
 				 */
 				nfnl_err_reset(&err_list);
 				netlink_ack(skb, nlmsg_hdr(oskb), -ENOMEM);
-				success = false;
+				status |= NFNL_BATCH_FAILURE;
 				goto done;
 			}
 			/* We don't stop processing the batch on errors, thus,
@@ -410,19 +415,26 @@ ack:
 			 * triggers.
 			 */
 			if (err)
-				success = false;
+				status |= NFNL_BATCH_FAILURE;
 		}
-
+next:
 		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
 		if (msglen > skb->len)
 			msglen = skb->len;
 		skb_pull(skb, msglen);
 	}
 done:
-	if (success && done)
-		ss->commit(oskb);
-	else
+	if (status & NFNL_BATCH_REPLAY) {
 		ss->abort(oskb);
+		nfnl_err_reset(&err_list);
+		nfnl_unlock(subsys_id);
+		kfree_skb(skb);
+		goto replay;
+	} else if (status == NFNL_BATCH_DONE) {
+		ss->commit(oskb);
+	} else {
+		ss->abort(oskb);
+	}
 
 	nfnl_err_deliver(&err_list, oskb);
 	nfnl_unlock(subsys_id);

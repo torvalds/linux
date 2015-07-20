@@ -27,6 +27,7 @@
 #include "usbhid/usbhid.h"
 #include "hid-ids.h"
 #include "hid-lg.h"
+#include "hid-lg4ff.h"
 
 #define LG_RDESC		0x001
 #define LG_BAD_RELATIVE_KEYS	0x002
@@ -699,7 +700,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			/* insert a little delay of 10 jiffies ~ 40ms */
 			wait_queue_head_t wait;
 			init_waitqueue_head (&wait);
-			wait_event_interruptible_timeout(wait, 0, 10);
+			wait_event_interruptible_timeout(wait, 0,
+							 msecs_to_jiffies(40));
 
 			/* Select random Address */
 			buf[1] = 0xB2;
@@ -711,13 +713,16 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (drv_data->quirks & LG_FF)
-		lgff_init(hdev);
-	if (drv_data->quirks & LG_FF2)
-		lg2ff_init(hdev);
-	if (drv_data->quirks & LG_FF3)
-		lg3ff_init(hdev);
-	if (drv_data->quirks & LG_FF4)
-		lg4ff_init(hdev);
+		ret = lgff_init(hdev);
+	else if (drv_data->quirks & LG_FF2)
+		ret = lg2ff_init(hdev);
+	else if (drv_data->quirks & LG_FF3)
+		ret = lg3ff_init(hdev);
+	else if (drv_data->quirks & LG_FF4)
+		ret = lg4ff_init(hdev);
+
+	if (ret)
+		goto err_free;
 
 	return 0;
 err_free:
@@ -730,8 +735,8 @@ static void lg_remove(struct hid_device *hdev)
 	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	if (drv_data->quirks & LG_FF4)
 		lg4ff_deinit(hdev);
-
-	hid_hw_stop(hdev);
+	else
+		hid_hw_stop(hdev);
 	kfree(drv_data);
 }
 
@@ -817,5 +822,11 @@ static struct hid_driver lg_driver = {
 	.remove = lg_remove,
 };
 module_hid_driver(lg_driver);
+
+#ifdef CONFIG_LOGIWHEELS_FF
+int lg4ff_no_autoswitch = 0;
+module_param_named(lg4ff_no_autoswitch, lg4ff_no_autoswitch, int, S_IRUGO);
+MODULE_PARM_DESC(lg4ff_no_autoswitch, "Do not switch multimode wheels to their native mode automatically");
+#endif
 
 MODULE_LICENSE("GPL");

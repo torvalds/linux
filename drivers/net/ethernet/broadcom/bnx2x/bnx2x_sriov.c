@@ -592,7 +592,7 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		mc = kzalloc(mc_num * sizeof(struct bnx2x_mcast_list_elem),
 			     GFP_KERNEL);
 		if (!mc) {
-			BNX2X_ERR("Cannot Configure mulicasts due to lack of memory\n");
+			BNX2X_ERR("Cannot Configure multicasts due to lack of memory\n");
 			return -ENOMEM;
 		}
 	}
@@ -2695,7 +2695,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			memcpy(&ivi->mac, bulletin->mac, ETH_ALEN);
 		else
 			/* function has not been loaded yet. Show mac as 0s */
-			memset(&ivi->mac, 0, ETH_ALEN);
+			eth_zero_addr(ivi->mac);
 
 		/* vlan */
 		if (bulletin->valid_bitmap & (1 << VLAN_VALID))

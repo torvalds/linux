@@ -532,7 +532,7 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 {
 	u32 packet_header;
 	u32 int_mask;
-	int ret;
+	unsigned long time_left;
 
 	tegra_i2c_flush_fifos(i2c_dev);
 
@@ -585,18 +585,20 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	dev_dbg(i2c_dev->dev, "unmasked irq: %02x\n",
 		i2c_readl(i2c_dev, I2C_INT_MASK));
 
-	ret = wait_for_completion_timeout(&i2c_dev->msg_complete, TEGRA_I2C_TIMEOUT);
+	time_left = wait_for_completion_timeout(&i2c_dev->msg_complete,
+						TEGRA_I2C_TIMEOUT);
 	tegra_i2c_mask_irq(i2c_dev, int_mask);
 
-	if (ret == 0) {
+	if (time_left == 0) {
 		dev_err(i2c_dev->dev, "i2c transfer timed out\n");
 
 		tegra_i2c_init(i2c_dev);
 		return -ETIMEDOUT;
 	}
 
-	dev_dbg(i2c_dev->dev, "transfer complete: %d %d %d\n",
-		ret, completion_done(&i2c_dev->msg_complete), i2c_dev->msg_err);
+	dev_dbg(i2c_dev->dev, "transfer complete: %lu %d %d\n",
+		time_left, completion_done(&i2c_dev->msg_complete),
+		i2c_dev->msg_err);
 
 	if (likely(i2c_dev->msg_err == I2C_ERR_NONE))
 		return 0;
@@ -654,8 +656,8 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 static u32 tegra_i2c_func(struct i2c_adapter *adap)
 {
 	struct tegra_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	u32 ret = I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
-				I2C_FUNC_PROTOCOL_MANGLING;
+	u32 ret = I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
+		  I2C_FUNC_10BIT_ADDR |	I2C_FUNC_PROTOCOL_MANGLING;
 
 	if (i2c_dev->hw->has_continue_xfer_support)
 		ret |= I2C_FUNC_NOSTART;
@@ -665,6 +667,12 @@ static u32 tegra_i2c_func(struct i2c_adapter *adap)
 static const struct i2c_algorithm tegra_i2c_algo = {
 	.master_xfer	= tegra_i2c_xfer,
 	.functionality	= tegra_i2c_func,
+};
+
+/* payload size is only 12 bit */
+static struct i2c_adapter_quirks tegra_i2c_quirks = {
+	.max_read_len = 4096,
+	.max_write_len = 4096,
 };
 
 static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
@@ -737,6 +745,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->base = base;
 	i2c_dev->div_clk = div_clk;
 	i2c_dev->adapter.algo = &tegra_i2c_algo;
+	i2c_dev->adapter.quirks = &tegra_i2c_quirks;
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;

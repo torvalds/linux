@@ -380,6 +380,38 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ex_pci_cls_to_string
+ *
+ * PARAMETERS:  out_string      - Where to put the converted string (7 bytes)
+ * PARAMETERS:  class_code      - PCI class code to be converted (3 bytes)
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Convert 3-bytes PCI class code to string representation.
+ *              Return buffer must be large enough to hold the string. The
+ *              string returned is always exactly of length
+ *              ACPI_PCICLS_STRING_SIZE (includes null terminator).
+ *
+ ******************************************************************************/
+
+void acpi_ex_pci_cls_to_string(char *out_string, u8 class_code[3])
+{
+
+	ACPI_FUNCTION_ENTRY();
+
+	/* All 3 bytes are hexadecimal */
+
+	out_string[0] = acpi_ut_hex_to_ascii_char((u64)class_code[0], 4);
+	out_string[1] = acpi_ut_hex_to_ascii_char((u64)class_code[0], 0);
+	out_string[2] = acpi_ut_hex_to_ascii_char((u64)class_code[1], 4);
+	out_string[3] = acpi_ut_hex_to_ascii_char((u64)class_code[1], 0);
+	out_string[4] = acpi_ut_hex_to_ascii_char((u64)class_code[2], 4);
+	out_string[5] = acpi_ut_hex_to_ascii_char((u64)class_code[2], 0);
+	out_string[6] = 0;
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_is_valid_space_id
  *
  * PARAMETERS:  space_id            - ID to be validated

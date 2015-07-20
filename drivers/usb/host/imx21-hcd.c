@@ -1474,7 +1474,7 @@ static int get_hub_descriptor(struct usb_hcd *hcd,
 			      struct usb_hub_descriptor *desc)
 {
 	struct imx21 *imx21 = hcd_to_imx21(hcd);
-	desc->bDescriptorType = 0x29;	/* HUB descriptor */
+	desc->bDescriptorType = USB_DT_HUB; /* HUB descriptor */
 	desc->bHubContrCurrent = 0;
 
 	desc->bNbrPorts = readl(imx21->regs + USBH_ROOTHUBA)

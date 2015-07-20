@@ -216,7 +216,7 @@ void r8712_wep_encrypt(struct _adapter *padapter, u8  *pxmitframe);
 u32 r8712_aes_decrypt(struct _adapter *padapter, u8  *precvframe);
 u32 r8712_tkip_decrypt(struct _adapter *padapter, u8  *precvframe);
 void r8712_wep_decrypt(struct _adapter *padapter, u8  *precvframe);
-void r8712_use_tkipkey_handler(void *FunctionContext);
+void r8712_use_tkipkey_handler(unsigned long data);
 
 #endif	/*__RTL871X_SECURITY_H_ */
 

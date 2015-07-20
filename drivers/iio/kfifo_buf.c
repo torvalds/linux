@@ -38,7 +38,8 @@ static int iio_request_update_kfifo(struct iio_buffer *r)
 		kfifo_free(&buf->kf);
 		ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
 				   buf->buffer.length);
-		buf->update_needed = false;
+		if (ret >= 0)
+			buf->update_needed = false;
 	} else {
 		kfifo_reset_out(&buf->kf);
 	}
@@ -83,9 +84,6 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 	ret = kfifo_in(&kf->kf, data, 1);
 	if (ret != 1)
 		return -EBUSY;
-
-	wake_up_interruptible_poll(&r->pollq, POLLIN | POLLRDNORM);
-
 	return 0;
 }
 
@@ -109,16 +107,16 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 	return copied;
 }
 
-static bool iio_kfifo_buf_data_available(struct iio_buffer *r)
+static size_t iio_kfifo_buf_data_available(struct iio_buffer *r)
 {
 	struct iio_kfifo *kf = iio_to_kfifo(r);
-	bool empty;
+	size_t samples;
 
 	mutex_lock(&kf->user_lock);
-	empty = kfifo_is_empty(&kf->kf);
+	samples = kfifo_len(&kf->kf);
 	mutex_unlock(&kf->user_lock);
 
-	return !empty;
+	return samples;
 }
 
 static void iio_kfifo_buffer_release(struct iio_buffer *buffer)
@@ -138,6 +136,8 @@ static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
 	.set_length = &iio_set_length_kfifo,
 	.release = &iio_kfifo_buffer_release,
+
+	.modes = INDIO_BUFFER_SOFTWARE | INDIO_BUFFER_TRIGGERED,
 };
 
 struct iio_buffer *iio_kfifo_allocate(void)

@@ -12,7 +12,6 @@
 #include <xen/interface/grant_table.h>
 
 #define phys_to_machine_mapping_valid(pfn) (1)
-#define mfn_to_virt(m)			(__va(mfn_to_pfn(m) << PAGE_SHIFT))
 
 #define pte_mfn	    pte_pfn
 #define mfn_pte	    pfn_pte
@@ -110,5 +109,6 @@ static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 bool xen_arch_need_swiotlb(struct device *dev,
 			   unsigned long pfn,
 			   unsigned long mfn);
+unsigned long xen_get_swiotlb_free_pages(unsigned int order);
 
 #endif /* _ASM_ARM_XEN_PAGE_H */

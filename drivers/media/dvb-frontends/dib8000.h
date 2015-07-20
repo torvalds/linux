@@ -63,10 +63,10 @@ struct dib8000_ops {
 	struct dvb_frontend *(*init)(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg);
 };
 
-#if IS_ENABLED(CONFIG_DVB_DIB8000)
+#if IS_REACHABLE(CONFIG_DVB_DIB8000)
 void *dib8000_attach(struct dib8000_ops *ops);
 #else
-static inline int dib8000_attach(struct dib8000_ops *ops)
+static inline void *dib8000_attach(struct dib8000_ops *ops)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

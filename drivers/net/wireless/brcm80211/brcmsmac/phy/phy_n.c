@@ -23041,10 +23041,7 @@ static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
 	else if (rssi_ctrl_state[0] == RADIO_2055_WBRSSI_G1_SEL)
 		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
 				     NPHY_RSSI_SEL_W1);
-	else if (rssi_ctrl_state[0] == RADIO_2055_WBRSSI_G2_SEL)
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
-				     NPHY_RSSI_SEL_W2);
-	else
+	else /* RADIO_2055_WBRSSI_G2_SEL */
 		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE1,
 				     NPHY_RSSI_SEL_W2);
 	if (rssi_ctrl_state[1] == RADIO_2055_NBRSSI_SEL)
@@ -23053,13 +23050,9 @@ static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
 	else if (rssi_ctrl_state[1] == RADIO_2055_WBRSSI_G1_SEL)
 		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
 				     NPHY_RSSI_SEL_W1);
-	else if (rssi_ctrl_state[1] == RADIO_2055_WBRSSI_G2_SEL)
+	else /* RADIO_2055_WBRSSI_G1_SEL */
 		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
 				     NPHY_RSSI_SEL_W2);
-	else
-		wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_CORE2,
-				     NPHY_RSSI_SEL_W2);
-
 	wlc_phy_rssisel_nphy(pi, RADIO_MIMO_CORESEL_OFF, rssi_type);
 
 	write_phy_reg(pi, 0x91, rfctrlintc_state[0]);

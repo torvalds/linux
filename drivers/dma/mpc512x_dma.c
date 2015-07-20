@@ -21,10 +21,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  * The full GNU General Public License is included in this distribution in the
  * file called COPYING.
  */
@@ -1072,7 +1068,7 @@ static int mpc_dma_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc_dma_match[] = {
+static const struct of_device_id mpc_dma_match[] = {
 	{ .compatible = "fsl,mpc5121-dma", },
 	{ .compatible = "fsl,mpc8308-dma", },
 	{},

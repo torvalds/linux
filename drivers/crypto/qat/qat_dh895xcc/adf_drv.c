@@ -236,7 +236,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	accel_dev = kzalloc_node(sizeof(*accel_dev), GFP_KERNEL,
-			         dev_to_node(&pdev->dev));
+				 dev_to_node(&pdev->dev));
 	if (!accel_dev)
 		return -ENOMEM;
 
@@ -299,6 +299,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ret = adf_cfg_dev_add(accel_dev);
 	if (ret)
 		goto out_err;
+
+	pcie_set_readrq(pdev, 1024);
 
 	/* enable PCI device */
 	if (pci_enable_device(pdev)) {
@@ -379,7 +381,7 @@ out_err:
 	return ret;
 }
 
-static void __exit adf_remove(struct pci_dev *pdev)
+static void adf_remove(struct pci_dev *pdev)
 {
 	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
 
@@ -417,5 +419,6 @@ module_exit(adfdrv_release);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel");
-MODULE_FIRMWARE("qat_895xcc.bin");
+MODULE_FIRMWARE(ADF_DH895XCC_FW);
 MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
+MODULE_VERSION(ADF_DRV_VERSION);

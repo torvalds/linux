@@ -6,7 +6,8 @@ configuration settings.  The mode setting will govern the input/output mode of
 the 4 GSBI IOs.
 
 Required properties:
-- compatible: must contain "qcom,gsbi-v1.0.0" for APQ8064/IPQ8064
+- compatible:	Should contain "qcom,gsbi-v1.0.0"
+- cell-index:	Should contain the GSBI index
 - reg: Address range for GSBI registers
 - clocks: required clock
 - clock-names: must contain "iface" entry
@@ -16,6 +17,8 @@ Required properties:
 Optional properties:
 - qcom,crci : indicates CRCI MUX value for QUP CRCI ports.  Please reference
   dt-bindings/soc/qcom,gsbi.h for valid CRCI mux values.
+- syscon-tcsr: indicates phandle of TCSR syscon node.  Required if child uses
+  dma.
 
 Required properties if child node exists:
 - #address-cells: Must be 1
@@ -39,6 +42,7 @@ Example for APQ8064:
 
 	gsbi4@16300000 {
 		compatible = "qcom,gsbi-v1.0.0";
+		cell-index = <4>;
 		reg = <0x16300000 0x100>;
 		clocks = <&gcc GSBI4_H_CLK>;
 		clock-names = "iface";
@@ -48,22 +52,24 @@ Example for APQ8064:
 		qcom,mode = <GSBI_PROT_I2C_UART>;
 		qcom,crci = <GSBI_CRCI_QUP>;
 
+		syscon-tcsr = <&tcsr>;
+
 		/* child nodes go under here */
 
 		i2c_qup4: i2c@16380000 {
-		        compatible = "qcom,i2c-qup-v1.1.1";
-		        reg = <0x16380000 0x1000>;
-		        interrupts = <0 153 0>;
+			compatible = "qcom,i2c-qup-v1.1.1";
+			reg = <0x16380000 0x1000>;
+			interrupts = <0 153 0>;
 
-		        clocks = <&gcc GSBI4_QUP_CLK>, <&gcc GSBI4_H_CLK>;
-		        clock-names = "core", "iface";
+			clocks = <&gcc GSBI4_QUP_CLK>, <&gcc GSBI4_H_CLK>;
+			clock-names = "core", "iface";
 
-		        clock-frequency = <200000>;
+			clock-frequency = <200000>;
 
-		        #address-cells = <1>;
-		        #size-cells = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-		 };
+		};
 
 		uart4:	serial@16340000 {
 			compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -76,3 +82,7 @@ Example for APQ8064:
 		};
 	};
 
+	tcsr: syscon@1a400000 {
+		compatible = "qcom,apq8064-tcsr", "syscon";
+		reg = <0x1a400000 0x100>;
+	};

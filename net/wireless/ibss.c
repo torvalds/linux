@@ -30,7 +30,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 		return;
 
 	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid, NULL, 0,
-			       WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+			       IEEE80211_BSS_TYPE_IBSS, IEEE80211_PRIVACY_ANY);
 
 	if (WARN_ON(!bss))
 		return;
@@ -533,7 +533,7 @@ int cfg80211_ibss_wext_giwap(struct net_device *dev,
 	else if (wdev->wext.ibss.bssid)
 		memcpy(ap_addr->sa_data, wdev->wext.ibss.bssid, ETH_ALEN);
 	else
-		memset(ap_addr->sa_data, 0, ETH_ALEN);
+		eth_zero_addr(ap_addr->sa_data);
 
 	wdev_unlock(wdev);
 

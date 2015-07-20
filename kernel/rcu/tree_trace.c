@@ -277,14 +277,14 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
 		   rsp->n_force_qs - rsp->n_force_qs_ngp,
-		   ACCESS_ONCE(rsp->n_force_qs_lh), rsp->qlen_lazy, rsp->qlen);
+		   READ_ONCE(rsp->n_force_qs_lh), rsp->qlen_lazy, rsp->qlen);
 	for (rnp = &rsp->node[0]; rnp - &rsp->node[0] < rcu_num_nodes; rnp++) {
 		if (rnp->level != level) {
 			seq_puts(m, "\n");
 			level = rnp->level;
 		}
-		seq_printf(m, "%lx/%lx %c%c>%c %d:%d ^%d    ",
-			   rnp->qsmask, rnp->qsmaskinit,
+		seq_printf(m, "%lx/%lx->%lx %c%c>%c %d:%d ^%d    ",
+			   rnp->qsmask, rnp->qsmaskinit, rnp->qsmaskinitnext,
 			   ".G"[rnp->gp_tasks != NULL],
 			   ".E"[rnp->exp_tasks != NULL],
 			   ".T"[!list_empty(&rnp->blkd_tasks)],
@@ -323,8 +323,8 @@ static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_node *rnp = &rsp->node[0];
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
-	completed = ACCESS_ONCE(rsp->completed);
-	gpnum = ACCESS_ONCE(rsp->gpnum);
+	completed = READ_ONCE(rsp->completed);
+	gpnum = READ_ONCE(rsp->gpnum);
 	if (completed == gpnum)
 		gpage = 0;
 	else

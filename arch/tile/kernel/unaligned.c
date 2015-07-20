@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <linux/prctl.h>
+#include <linux/context_tracking.h>
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
@@ -1448,6 +1449,7 @@ void jit_bundle_gen(struct pt_regs *regs, tilegx_bundle_bits bundle,
 
 void do_unaligned(struct pt_regs *regs, int vecnum)
 {
+	enum ctx_state prev_state = exception_enter();
 	tilegx_bundle_bits __user  *pc;
 	tilegx_bundle_bits bundle;
 	struct thread_info *info = current_thread_info();
@@ -1487,12 +1489,11 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 						(int)unaligned_fixup,
 						(unsigned long long)regs->ex1,
 						(unsigned long long)regs->pc);
-				return;
+			} else {
+				/* Not fixable. Go panic. */
+				panic("Unalign exception in Kernel. pc=%lx",
+				      regs->pc);
 			}
-			/* Not fixable. Go panic. */
-			panic("Unalign exception in Kernel. pc=%lx",
-			      regs->pc);
-			return;
 		} else {
 			/*
 			 * Try to fix the exception. If we can't, panic the
@@ -1501,8 +1502,8 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 			bundle = GX_INSN_BSWAP(
 				*((tilegx_bundle_bits *)(regs->pc)));
 			jit_bundle_gen(regs, bundle, align_ctl);
-			return;
 		}
+		goto done;
 	}
 
 	/*
@@ -1526,7 +1527,7 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 
 		trace_unhandled_signal("unaligned fixup trap", regs, 0, SIGBUS);
 		force_sig_info(info.si_signo, &info, current);
-		return;
+		goto done;
 	}
 
 
@@ -1543,7 +1544,7 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 		trace_unhandled_signal("segfault in unalign fixup", regs,
 				       (unsigned long)info.si_addr, SIGSEGV);
 		force_sig_info(info.si_signo, &info, current);
-		return;
+		goto done;
 	}
 
 	if (!info->unalign_jit_base) {
@@ -1578,7 +1579,7 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 
 		if (IS_ERR((void __force *)user_page)) {
 			pr_err("Out of kernel pages trying do_mmap\n");
-			return;
+			goto done;
 		}
 
 		/* Save the address in the thread_info struct */
@@ -1591,6 +1592,9 @@ void do_unaligned(struct pt_regs *regs, int vecnum)
 
 	/* Generate unalign JIT */
 	jit_bundle_gen(regs, GX_INSN_BSWAP(bundle), align_ctl);
+
+done:
+	exception_exit(prev_state);
 }
 
 #endif /* __tilegx__ */

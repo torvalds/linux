@@ -1030,6 +1030,8 @@ int __init pcibios_init(void)
 alloc_mem_map_failed:
 			break;
 		}
+
+		pci_bus_add_devices(root_bus);
 	}
 
 	return 0;

@@ -461,10 +461,7 @@ struct emac_ethtool_regs_subhdr {
 };
 
 #define EMAC_ETHTOOL_REGS_VER		0
-#define EMAC_ETHTOOL_REGS_SIZE(dev) 	((dev)->rsrc_regs.end - \
-					 (dev)->rsrc_regs.start + 1)
-#define EMAC4_ETHTOOL_REGS_VER      	1
-#define EMAC4_ETHTOOL_REGS_SIZE(dev)	((dev)->rsrc_regs.end -	\
-					 (dev)->rsrc_regs.start + 1)
+#define EMAC4_ETHTOOL_REGS_VER		1
+#define EMAC4SYNC_ETHTOOL_REGS_VER	2
 
 #endif /* __IBM_NEWEMAC_CORE_H */

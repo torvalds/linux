@@ -890,6 +890,7 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.free_deviceid_node		= bl_free_deviceid_node,
 	.pg_read_ops			= &bl_pg_read_ops,
 	.pg_write_ops			= &bl_pg_write_ops,
+	.sync				= pnfs_generic_sync,
 };
 
 static int __init nfs4blocklayout_init(void)

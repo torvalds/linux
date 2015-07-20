@@ -159,6 +159,22 @@ static inline void rcu_cpu_stall_reset(void)
 {
 }
 
+static inline void rcu_idle_enter(void)
+{
+}
+
+static inline void rcu_idle_exit(void)
+{
+}
+
+static inline void rcu_irq_enter(void)
+{
+}
+
+static inline void rcu_irq_exit(void)
+{
+}
+
 static inline void exit_rcu(void)
 {
 }

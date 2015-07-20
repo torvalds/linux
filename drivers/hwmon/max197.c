@@ -324,7 +324,7 @@ static int max197_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id max197_device_ids[] = {
+static const struct platform_device_id max197_device_ids[] = {
 	{ "max197", max197 },
 	{ "max199", max199 },
 	{ }

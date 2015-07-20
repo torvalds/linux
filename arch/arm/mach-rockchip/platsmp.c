@@ -55,7 +55,7 @@ static int pmu_power_domain_is_on(int pd)
 	return !(val & BIT(pd));
 }
 
-struct reset_control *rockchip_get_core_reset(int cpu)
+static struct reset_control *rockchip_get_core_reset(int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 	struct device_node *np;
@@ -119,8 +119,7 @@ static int pmu_set_power_domain(int pd, bool on)
  * Handling of CPU cores
  */
 
-static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
-					     struct task_struct *idle)
+static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
@@ -149,8 +148,7 @@ static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
 		 * sram_base_addr + 8: start address for pc
 		 * */
 		udelay(10);
-		writel(virt_to_phys(rockchip_secondary_startup),
-			sram_base_addr + 8);
+		writel(virt_to_phys(secondary_startup), sram_base_addr + 8);
 		writel(0xDEADBEAF, sram_base_addr + 4);
 		dsb_sev();
 	}
@@ -189,7 +187,7 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 	}
 
 	/* set the boot function for the sram code */
-	rockchip_boot_fn = virt_to_phys(rockchip_secondary_startup);
+	rockchip_boot_fn = virt_to_phys(secondary_startup);
 
 	/* copy the trampoline to sram, that runs during startup of the core */
 	memcpy(sram_base_addr, &rockchip_secondary_trampoline, trampoline_sz);
@@ -201,7 +199,7 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 	return 0;
 }
 
-static struct regmap_config rockchip_pmu_regmap_config = {
+static const struct regmap_config rockchip_pmu_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,

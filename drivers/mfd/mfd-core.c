@@ -128,7 +128,7 @@ static int mfd_add_device(struct device *parent, int id,
 	int platform_id;
 	int r;
 
-	if (id < 0)
+	if (id == PLATFORM_DEVID_AUTO)
 		platform_id = id;
 	else
 		platform_id = id + cell->id;
@@ -207,9 +207,11 @@ static int mfd_add_device(struct device *parent, int id,
 		}
 
 		if (!cell->ignore_resource_conflicts) {
-			ret = acpi_check_resource_conflict(&res[r]);
-			if (ret)
-				goto fail_alias;
+			if (has_acpi_companion(&pdev->dev)) {
+				ret = acpi_check_resource_conflict(&res[r]);
+				if (ret)
+					goto fail_alias;
+			}
 		}
 	}
 

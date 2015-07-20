@@ -35,6 +35,7 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/context_tracking.h>
 
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
@@ -353,9 +354,9 @@ static int handle_page_fault(struct pt_regs *regs,
 
 	/*
 	 * If we're in an interrupt, have no user context or are running in an
-	 * atomic region then we must not take the fault.
+	 * region with pagefaults disabled then we must not take the fault.
 	 */
-	if (in_atomic() || !mm) {
+	if (pagefault_disabled() || !mm) {
 		vma = NULL;  /* happy compiler */
 		goto bad_area_nosemaphore;
 	}
@@ -698,8 +699,8 @@ struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
  * interrupt away appropriately and return immediately.  We can't do
  * page faults for user code while in kernel mode.
  */
-void do_page_fault(struct pt_regs *regs, int fault_num,
-		   unsigned long address, unsigned long write)
+static inline void __do_page_fault(struct pt_regs *regs, int fault_num,
+				   unsigned long address, unsigned long write)
 {
 	int is_page_fault;
 
@@ -750,7 +751,6 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 				 current->comm, current->pid, pc, address);
 			show_regs(regs);
 			do_group_exit(SIGKILL);
-			return;
 		}
 	}
 #else
@@ -842,6 +842,13 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 	handle_page_fault(regs, fault_num, is_page_fault, address, write);
 }
 
+void do_page_fault(struct pt_regs *regs, int fault_num,
+		   unsigned long address, unsigned long write)
+{
+	enum ctx_state prev_state = exception_enter();
+	__do_page_fault(regs, fault_num, address, write);
+	exception_exit(prev_state);
+}
 
 #if CHIP_HAS_TILE_DMA()
 /*

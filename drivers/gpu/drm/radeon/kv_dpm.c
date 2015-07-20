@@ -2820,6 +2820,29 @@ void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 	}
 }
 
+u32 kv_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct kv_power_info *pi = kv_get_pi(rdev);
+	u32 current_index =
+		(RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX) & CURR_SCLK_INDEX_MASK) >>
+		CURR_SCLK_INDEX_SHIFT;
+	u32 sclk;
+
+	if (current_index >= SMU__NUM_SCLK_DPM_STATE) {
+		return 0;
+	} else {
+		sclk = be32_to_cpu(pi->graphics_level[current_index].SclkFrequency);
+		return sclk;
+	}
+}
+
+u32 kv_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct kv_power_info *pi = kv_get_pi(rdev);
+
+	return pi->sys_info.bootup_uma_clk;
+}
+
 void kv_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *rps)
 {

@@ -106,7 +106,7 @@ static union axis_conversion lis3lv02d_axis_map =
 	{ .as_array = { LIS3_DEV_X, LIS3_DEV_Y, LIS3_DEV_Z } };
 
 #ifdef CONFIG_OF
-static struct of_device_id lis3lv02d_i2c_dt_ids[] = {
+static const struct of_device_id lis3lv02d_i2c_dt_ids[] = {
 	{ .compatible = "st,lis3lv02d" },
 	{}
 };

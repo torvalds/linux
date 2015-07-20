@@ -1,15 +1,35 @@
 * USB2 ChipIdea USB controller for ci13xxx
 
 Required properties:
-- compatible: should be "chipidea,usb2"
+- compatible: should be one of:
+	"fsl,imx27-usb"
+	"lsi,zevio-usb"
+	"qcom,ci-hdrc"
+	"chipidea,usb2"
 - reg: base address and length of the registers
 - interrupts: interrupt for the USB controller
+
+Recommended properies:
+- phy_type: the type of the phy connected to the core. Should be one
+  of "utmi", "utmi_wide", "ulpi", "serial" or "hsic". Without this
+  property the PORTSC register won't be touched.
+- dr_mode: One of "host", "peripheral" or "otg". Defaults to "otg"
+
+Deprecated properties:
+- usb-phy:      phandle for the PHY device. Use "phys" instead.
+- fsl,usbphy: phandle of usb phy that connects to the port. Use "phys" instead.
 
 Optional properties:
 - clocks: reference to the USB clock
 - phys: reference to the USB PHY
 - phy-names: should be "usb-phy"
 - vbus-supply: reference to the VBUS regulator
+- maximum-speed: limit the maximum connection speed to "full-speed".
+- tpl-support: TPL (Targeted Peripheral List) feature for targeted hosts
+- fsl,usbmisc: (FSL only) phandler of non-core register device, with one
+  argument that indicate usb controller index
+- disable-over-current: (FSL only) disable over current detect
+- external-vbus-divider: (FSL only) enables off-chip resistor divider for Vbus
 
 Example:
 

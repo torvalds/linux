@@ -23,15 +23,32 @@
 		{I_REFERENCED,		"I_REFERENCED"}		\
 	)
 
+/* enums need to be exported to user space */
+#undef EM
+#undef EMe
+#define EM(a,b) 	TRACE_DEFINE_ENUM(a);
+#define EMe(a,b)	TRACE_DEFINE_ENUM(a);
+
 #define WB_WORK_REASON							\
-		{WB_REASON_BACKGROUND,		"background"},		\
-		{WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages"},	\
-		{WB_REASON_SYNC,		"sync"},		\
-		{WB_REASON_PERIODIC,		"periodic"},		\
-		{WB_REASON_LAPTOP_TIMER,	"laptop_timer"},	\
-		{WB_REASON_FREE_MORE_MEM,	"free_more_memory"},	\
-		{WB_REASON_FS_FREE_SPACE,	"fs_free_space"},	\
-		{WB_REASON_FORKER_THREAD,	"forker_thread"}
+	EM( WB_REASON_BACKGROUND,		"background")		\
+	EM( WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages")	\
+	EM( WB_REASON_SYNC,			"sync")			\
+	EM( WB_REASON_PERIODIC,			"periodic")		\
+	EM( WB_REASON_LAPTOP_TIMER,		"laptop_timer")		\
+	EM( WB_REASON_FREE_MORE_MEM,		"free_more_memory")	\
+	EM( WB_REASON_FS_FREE_SPACE,		"fs_free_space")	\
+	EMe(WB_REASON_FORKER_THREAD,		"forker_thread")
+
+WB_WORK_REASON
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a,b)		{ a, b },
+#define EMe(a,b)	{ a, b }
 
 struct wb_writeback_work;
 
@@ -233,7 +250,6 @@ DEFINE_EVENT(writeback_class, name, \
 DEFINE_WRITEBACK_EVENT(writeback_nowork);
 DEFINE_WRITEBACK_EVENT(writeback_wake_background);
 DEFINE_WRITEBACK_EVENT(writeback_bdi_register);
-DEFINE_WRITEBACK_EVENT(writeback_bdi_unregister);
 
 DECLARE_EVENT_CLASS(wbc_class,
 	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi),
@@ -344,7 +360,7 @@ TRACE_EVENT(global_dirty_state,
 		__entry->nr_written	= global_page_state(NR_WRITTEN);
 		__entry->background_thresh = background_thresh;
 		__entry->dirty_thresh	= dirty_thresh;
-		__entry->dirty_limit = global_dirty_limit;
+		__entry->dirty_limit	= global_wb_domain.dirty_limit;
 	),
 
 	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
@@ -383,13 +399,13 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 
 	TP_fast_assign(
 		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
-		__entry->write_bw	= KBps(bdi->write_bandwidth);
-		__entry->avg_write_bw	= KBps(bdi->avg_write_bandwidth);
+		__entry->write_bw	= KBps(bdi->wb.write_bandwidth);
+		__entry->avg_write_bw	= KBps(bdi->wb.avg_write_bandwidth);
 		__entry->dirty_rate	= KBps(dirty_rate);
-		__entry->dirty_ratelimit = KBps(bdi->dirty_ratelimit);
+		__entry->dirty_ratelimit = KBps(bdi->wb.dirty_ratelimit);
 		__entry->task_ratelimit	= KBps(task_ratelimit);
 		__entry->balanced_dirty_ratelimit =
-					  KBps(bdi->balanced_dirty_ratelimit);
+					KBps(bdi->wb.balanced_dirty_ratelimit);
 	),
 
 	TP_printk("bdi %s: "
@@ -446,8 +462,9 @@ TRACE_EVENT(balance_dirty_pages,
 		unsigned long freerun = (thresh + bg_thresh) / 2;
 		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
 
-		__entry->limit		= global_dirty_limit;
-		__entry->setpoint	= (global_dirty_limit + freerun) / 2;
+		__entry->limit		= global_wb_domain.dirty_limit;
+		__entry->setpoint	= (global_wb_domain.dirty_limit +
+						freerun) / 2;
 		__entry->dirty		= dirty;
 		__entry->bdi_setpoint	= __entry->setpoint *
 						bdi_thresh / (thresh + 1);

@@ -202,7 +202,7 @@ static const struct snd_soc_dapm_route adau1977_dapm_routes[] = {
 		ADAU1977_REG_DC_HPF_CAL, (x) - 1, 1, 0)
 
 #define ADAU1977_DC_SUB_SWITCH(x) \
-	SOC_SINGLE("ADC" #x " DC Substraction Capture Switch", \
+	SOC_SINGLE("ADC" #x " DC Subtraction Capture Switch", \
 		ADAU1977_REG_DC_HPF_CAL, (x) + 3, 1, 0)
 
 static const struct snd_kcontrol_new adau1977_snd_controls[] = {
@@ -485,7 +485,7 @@ static int adau1977_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			ret = adau1977_power_enable(adau1977);
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -493,12 +493,7 @@ static int adau1977_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	codec->dapm.bias_level = level;
-
-	return 0;
+	return ret;
 }
 
 static int adau1977_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
@@ -853,12 +848,13 @@ static int adau1977_set_sysclk(struct snd_soc_codec *codec,
 
 static int adau1977_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct adau1977 *adau1977 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	switch (adau1977->type) {
 	case ADAU1977:
-		ret = snd_soc_dapm_new_controls(&codec->dapm,
+		ret = snd_soc_dapm_new_controls(dapm,
 			adau1977_micbias_dapm_widgets,
 			ARRAY_SIZE(adau1977_micbias_dapm_widgets));
 		if (ret < 0)
@@ -938,22 +934,15 @@ int adau1977_probe(struct device *dev, struct regmap *regmap,
 		adau1977->dvdd_reg = NULL;
 	}
 
-	adau1977->reset_gpio = devm_gpiod_get(dev, "reset");
-	if (IS_ERR(adau1977->reset_gpio)) {
-		ret = PTR_ERR(adau1977->reset_gpio);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return PTR_ERR(adau1977->reset_gpio);
-		adau1977->reset_gpio = NULL;
-	}
+	adau1977->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(adau1977->reset_gpio))
+		return PTR_ERR(adau1977->reset_gpio);
 
 	dev_set_drvdata(dev, adau1977);
 
-	if (adau1977->reset_gpio) {
-		ret = gpiod_direction_output(adau1977->reset_gpio, 0);
-		if (ret)
-			return ret;
+	if (adau1977->reset_gpio)
 		ndelay(100);
-	}
 
 	ret = adau1977_power_enable(adau1977);
 	if (ret)

@@ -366,7 +366,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 		}
 
 #endif
-		if (is_cppi_enabled()) {
+		if (is_cppi_enabled(musb)) {
 			/* program endpoint CSR first, then setup DMA */
 			csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
 			csr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_DMAMODE |
@@ -402,7 +402,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 				musb_writew(epio, MUSB_TXCSR, csr);
 				/* invariant: prequest->buf is non-null */
 			}
-		} else if (tusb_dma_omap())
+		} else if (tusb_dma_omap(musb))
 			use_dma = use_dma && c->channel_program(
 					musb_ep->dma, musb_ep->packet_sz,
 					request->zero,
@@ -489,6 +489,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 
 	if (request) {
 		u8	is_dma = 0;
+		bool	short_packet = false;
 
 		if (dma && (csr & MUSB_TXCSR_DMAENAB)) {
 			is_dma = 1;
@@ -507,15 +508,18 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 		 * First, maybe a terminating short packet. Some DMA
 		 * engines might handle this by themselves.
 		 */
-		if ((request->zero && request->length
+		if ((request->zero && request->length)
 			&& (request->length % musb_ep->packet_sz == 0)
 			&& (request->actual == request->length))
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
-			|| (is_dma && (!dma->desired_mode ||
+				short_packet = true;
+
+		if ((musb_dma_inventra(musb) || musb_dma_ux500(musb)) &&
+			(is_dma && (!dma->desired_mode ||
 				(request->actual &
-					(musb_ep->packet_sz - 1))))
-#endif
-		) {
+					(musb_ep->packet_sz - 1)))))
+				short_packet = true;
+
+		if (short_packet) {
 			/*
 			 * On DMA completion, FIFO may not be
 			 * available yet...
@@ -595,7 +599,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		return;
 	}
 
-	if (is_cppi_enabled() && is_buffer_mapped(req)) {
+	if (is_cppi_enabled(musb) && is_buffer_mapped(req)) {
 		struct dma_controller	*c = musb->dma_controller;
 		struct dma_channel	*channel = musb_ep->dma;
 
@@ -772,7 +776,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 			fifo_count = min_t(unsigned, len, fifo_count);
 
 #ifdef	CONFIG_USB_TUSB_OMAP_DMA
-			if (tusb_dma_omap() && is_buffer_mapped(req)) {
+			if (tusb_dma_omap(musb) && is_buffer_mapped(req)) {
 				struct dma_controller *c = musb->dma_controller;
 				struct dma_channel *channel = musb_ep->dma;
 				u32 dma_addr = request->dma + request->actual;
@@ -1876,44 +1880,6 @@ err:
 	return retval;
 }
 
-static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
-{
-	int			i;
-	struct musb_hw_ep	*hw_ep;
-
-	/* don't disconnect if it's not connected */
-	if (musb->g.speed == USB_SPEED_UNKNOWN)
-		driver = NULL;
-	else
-		musb->g.speed = USB_SPEED_UNKNOWN;
-
-	/* deactivate the hardware */
-	if (musb->softconnect) {
-		musb->softconnect = 0;
-		musb_pullup(musb, 0);
-	}
-	musb_stop(musb);
-
-	/* killing any outstanding requests will quiesce the driver;
-	 * then report disconnect
-	 */
-	if (driver) {
-		for (i = 0, hw_ep = musb->endpoints;
-				i < musb->nr_endpoints;
-				i++, hw_ep++) {
-			musb_ep_select(musb->mregs, i);
-			if (hw_ep->is_shared_fifo /* || !epnum */) {
-				nuke(&hw_ep->ep_in, -ESHUTDOWN);
-			} else {
-				if (hw_ep->max_packet_sz_tx)
-					nuke(&hw_ep->ep_in, -ESHUTDOWN);
-				if (hw_ep->max_packet_sz_rx)
-					nuke(&hw_ep->ep_out, -ESHUTDOWN);
-			}
-		}
-	}
-}
-
 /*
  * Unregister the gadget driver. Used by gadget drivers when
  * unregistering themselves from the controller.
@@ -1940,7 +1906,7 @@ static int musb_gadget_stop(struct usb_gadget *g)
 	(void) musb_gadget_vbus_draw(&musb->g, 0);
 
 	musb->xceiv->otg->state = OTG_STATE_UNDEFINED;
-	stop_activity(musb, NULL);
+	musb_stop(musb);
 	otg_set_peripheral(musb->xceiv->otg, NULL);
 
 	musb->is_active = 0;

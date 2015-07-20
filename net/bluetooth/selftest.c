@@ -21,6 +21,8 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+#include <linux/debugfs.h>
+
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
@@ -154,6 +156,21 @@ static int __init test_ecdh_sample(const u8 priv_a[32], const u8 priv_b[32],
 	return 0;
 }
 
+static char test_ecdh_buffer[32];
+
+static ssize_t test_ecdh_read(struct file *file, char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	return simple_read_from_buffer(user_buf, count, ppos, test_ecdh_buffer,
+				       strlen(test_ecdh_buffer));
+}
+
+static const struct file_operations test_ecdh_fops = {
+	.open		= simple_open,
+	.read		= test_ecdh_read,
+	.llseek		= default_llseek,
+};
+
 static int __init test_ecdh(void)
 {
 	ktime_t calltime, delta, rettime;
@@ -165,19 +182,19 @@ static int __init test_ecdh(void)
 	err = test_ecdh_sample(priv_a_1, priv_b_1, pub_a_1, pub_b_1, dhkey_1);
 	if (err) {
 		BT_ERR("ECDH sample 1 failed");
-		return err;
+		goto done;
 	}
 
 	err = test_ecdh_sample(priv_a_2, priv_b_2, pub_a_2, pub_b_2, dhkey_2);
 	if (err) {
 		BT_ERR("ECDH sample 2 failed");
-		return err;
+		goto done;
 	}
 
 	err = test_ecdh_sample(priv_a_3, priv_a_3, pub_a_3, pub_a_3, dhkey_3);
 	if (err) {
 		BT_ERR("ECDH sample 3 failed");
-		return err;
+		goto done;
 	}
 
 	rettime = ktime_get();
@@ -186,7 +203,17 @@ static int __init test_ecdh(void)
 
 	BT_INFO("ECDH test passed in %llu usecs", duration);
 
-	return 0;
+done:
+	if (!err)
+		snprintf(test_ecdh_buffer, sizeof(test_ecdh_buffer),
+			 "PASS (%llu usecs)\n", duration);
+	else
+		snprintf(test_ecdh_buffer, sizeof(test_ecdh_buffer), "FAIL\n");
+
+	debugfs_create_file("selftest_ecdh", 0444, bt_debugfs, NULL,
+			    &test_ecdh_fops);
+
+	return err;
 }
 
 #else

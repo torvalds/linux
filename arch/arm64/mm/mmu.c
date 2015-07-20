@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/libfdt.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/memblock.h>
@@ -39,6 +40,8 @@
 #include <asm/mmu_context.h>
 
 #include "mm.h"
+
+u64 idmap_t0sz = TCR_T0SZ(VA_BITS);
 
 /*
  * Empty_zero_page is a special page that is used for zero-initialized data
@@ -114,7 +117,7 @@ void split_pud(pud_t *old_pud, pmd_t *pmd)
 	int i = 0;
 
 	do {
-		set_pmd(pmd, __pmd(addr | prot));
+		set_pmd(pmd, __pmd(addr | pgprot_val(prot)));
 		addr += PMD_SIZE;
 	} while (pmd++, i++, i < PTRS_PER_PMD);
 }
@@ -454,6 +457,7 @@ void __init paging_init(void)
 	 */
 	cpu_set_reserved_ttbr0();
 	flush_tlb_all();
+	cpu_set_default_tcr_t0sz();
 }
 
 /*
@@ -461,8 +465,10 @@ void __init paging_init(void)
  */
 void setup_mm_for_reboot(void)
 {
-	cpu_switch_mm(idmap_pg_dir, &init_mm);
+	cpu_set_reserved_ttbr0();
 	flush_tlb_all();
+	cpu_set_idmap_tcr_t0sz();
+	cpu_switch_mm(idmap_pg_dir, &init_mm);
 }
 
 /*
@@ -550,10 +556,10 @@ void vmemmap_free(unsigned long start, unsigned long end)
 #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
 
 static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
+#if CONFIG_PGTABLE_LEVELS > 2
 static pmd_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss;
 #endif
-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
+#if CONFIG_PGTABLE_LEVELS > 3
 static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss;
 #endif
 
@@ -627,10 +633,7 @@ void __set_fixmap(enum fixed_addresses idx,
 	unsigned long addr = __fix_to_virt(idx);
 	pte_t *pte;
 
-	if (idx >= __end_of_fixed_addresses) {
-		BUG();
-		return;
-	}
+	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
 	pte = fixmap_pte(addr);
 
@@ -640,4 +643,69 @@ void __set_fixmap(enum fixed_addresses idx,
 		pte_clear(&init_mm, addr, pte);
 		flush_tlb_kernel_range(addr, addr+PAGE_SIZE);
 	}
+}
+
+void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
+{
+	const u64 dt_virt_base = __fix_to_virt(FIX_FDT);
+	pgprot_t prot = PAGE_KERNEL | PTE_RDONLY;
+	int granularity, size, offset;
+	void *dt_virt;
+
+	/*
+	 * Check whether the physical FDT address is set and meets the minimum
+	 * alignment requirement. Since we are relying on MIN_FDT_ALIGN to be
+	 * at least 8 bytes so that we can always access the size field of the
+	 * FDT header after mapping the first chunk, double check here if that
+	 * is indeed the case.
+	 */
+	BUILD_BUG_ON(MIN_FDT_ALIGN < 8);
+	if (!dt_phys || dt_phys % MIN_FDT_ALIGN)
+		return NULL;
+
+	/*
+	 * Make sure that the FDT region can be mapped without the need to
+	 * allocate additional translation table pages, so that it is safe
+	 * to call create_mapping() this early.
+	 *
+	 * On 64k pages, the FDT will be mapped using PTEs, so we need to
+	 * be in the same PMD as the rest of the fixmap.
+	 * On 4k pages, we'll use section mappings for the FDT so we only
+	 * have to be in the same PUD.
+	 */
+	BUILD_BUG_ON(dt_virt_base % SZ_2M);
+
+	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES)) {
+		BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> PMD_SHIFT !=
+			     __fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT);
+
+		granularity = PAGE_SIZE;
+	} else {
+		BUILD_BUG_ON(__fix_to_virt(FIX_FDT_END) >> PUD_SHIFT !=
+			     __fix_to_virt(FIX_BTMAP_BEGIN) >> PUD_SHIFT);
+
+		granularity = PMD_SIZE;
+	}
+
+	offset = dt_phys % granularity;
+	dt_virt = (void *)dt_virt_base + offset;
+
+	/* map the first chunk so we can read the size from the header */
+	create_mapping(round_down(dt_phys, granularity), dt_virt_base,
+		       granularity, prot);
+
+	if (fdt_check_header(dt_virt) != 0)
+		return NULL;
+
+	size = fdt_totalsize(dt_virt);
+	if (size > MAX_FDT_SIZE)
+		return NULL;
+
+	if (offset + size > granularity)
+		create_mapping(round_down(dt_phys, granularity), dt_virt_base,
+			       round_up(offset + size, granularity), prot);
+
+	memblock_reserve(dt_phys, size);
+
+	return dt_virt;
 }

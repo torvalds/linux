@@ -1,0 +1,43 @@
+ARM MHU Mailbox Driver
+======================
+
+The ARM's Message-Handling-Unit (MHU) is a mailbox controller that has
+3 independent channels/links to communicate with remote processor(s).
+ MHU links are hardwired on a platform. A link raises interrupt for any
+received data. However, there is no specified way of knowing if the sent
+data has been read by the remote. This driver assumes the sender polls
+STAT register and the remote clears it after having read the data.
+The last channel is specified to be a 'Secure' resource, hence can't be
+used by Linux running NS.
+
+Mailbox Device Node:
+====================
+
+Required properties:
+--------------------
+- compatible:		Shall be "arm,mhu" & "arm,primecell"
+- reg:			Contains the mailbox register address range (base
+			address and length)
+- #mbox-cells		Shall be 1 - the index of the channel needed.
+- interrupts:		Contains the interrupt information corresponding to
+			each of the 3 links of MHU.
+
+Example:
+--------
+
+	mhu: mailbox@2b1f0000 {
+		#mbox-cells = <1>;
+		compatible = "arm,mhu", "arm,primecell";
+		reg = <0 0x2b1f0000 0x1000>;
+		interrupts = <0 36 4>, /* LP-NonSecure */
+			     <0 35 4>, /* HP-NonSecure */
+			     <0 37 4>; /* Secure */
+		clocks = <&clock 0 2 1>;
+		clock-names = "apb_pclk";
+	};
+
+	mhu_client: scb@2e000000 {
+		compatible = "fujitsu,mb86s70-scb-1.0";
+		reg = <0 0x2e000000 0x4000>;
+		mboxes = <&mhu 1>; /* HP-NonSecure */
+	};

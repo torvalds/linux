@@ -1053,8 +1053,6 @@ static int loopback_mixer_new(struct loopback *loopback, int notify)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-
 static void print_dpcm_info(struct snd_info_buffer *buffer,
 			    struct loopback_pcm *dpcm,
 			    const char *id)
@@ -1127,12 +1125,6 @@ static int loopback_proc_new(struct loopback *loopback, int cidx)
 	snd_info_set_text_ops(entry, loopback, print_cable_info);
 	return 0;
 }
-
-#else /* !CONFIG_PROC_FS */
-
-#define loopback_proc_new(loopback, cidx) do { } while (0)
-
-#endif
 
 static int loopback_probe(struct platform_device *devptr)
 {

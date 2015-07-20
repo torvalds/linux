@@ -216,12 +216,12 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 	int nc;
 	u32 offset = 0;
 	int err;
-	u8 cbuf[IPC_WWBUF_SIZE] = { };
+	u8 cbuf[IPC_WWBUF_SIZE];
 	u32 *wbuf = (u32 *)&cbuf;
 
-	mutex_lock(&ipclock);
-
 	memset(cbuf, 0, sizeof(cbuf));
+
+	mutex_lock(&ipclock);
 
 	if (ipcdev.pdev == NULL) {
 		mutex_unlock(&ipclock);

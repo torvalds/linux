@@ -1,0 +1,12 @@
+#
+# MediaTek SoC drivers
+#
+config MTK_PMIC_WRAP
+	tristate "MediaTek PMIC Wrapper Support"
+	depends on ARCH_MEDIATEK
+	depends on RESET_CONTROLLER
+	select REGMAP
+	help
+	  Say yes here to add support for MediaTek PMIC Wrapper found
+	  on different MediaTek SoCs. The PMIC wrapper is a proprietary
+	  hardware to connect the PMIC.

@@ -205,6 +205,7 @@ static inline kernel_cap_t cap_raise_nfsd_set(const kernel_cap_t a,
 			   cap_intersect(permitted, __cap_nfsd_set));
 }
 
+#ifdef CONFIG_MULTIUSER
 extern bool has_capability(struct task_struct *t, int cap);
 extern bool has_ns_capability(struct task_struct *t,
 			      struct user_namespace *ns, int cap);
@@ -213,6 +214,34 @@ extern bool has_ns_capability_noaudit(struct task_struct *t,
 				      struct user_namespace *ns, int cap);
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
+#else
+static inline bool has_capability(struct task_struct *t, int cap)
+{
+	return true;
+}
+static inline bool has_ns_capability(struct task_struct *t,
+			      struct user_namespace *ns, int cap)
+{
+	return true;
+}
+static inline bool has_capability_noaudit(struct task_struct *t, int cap)
+{
+	return true;
+}
+static inline bool has_ns_capability_noaudit(struct task_struct *t,
+				      struct user_namespace *ns, int cap)
+{
+	return true;
+}
+static inline bool capable(int cap)
+{
+	return true;
+}
+static inline bool ns_capable(struct user_namespace *ns, int cap)
+{
+	return true;
+}
+#endif /* CONFIG_MULTIUSER */
 extern bool capable_wrt_inode_uidgid(const struct inode *inode, int cap);
 extern bool file_ns_capable(const struct file *file, struct user_namespace *ns, int cap);
 

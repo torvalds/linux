@@ -98,7 +98,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
-	struct drm_connector_helper_funcs *connector_funcs =
+	const struct drm_connector_helper_funcs *connector_funcs =
 		connector->helper_private;
 	int count = 0;
 	int mode_flags = 0;
@@ -323,14 +323,14 @@ static void output_poll_execute(struct work_struct *work)
 		if (!connector->polled || connector->polled == DRM_CONNECTOR_POLL_HPD)
 			continue;
 
-		repoll = true;
-
 		old_status = connector->status;
 		/* if we are connected and don't want to poll for disconnect
 		   skip it */
 		if (old_status == connector_status_connected &&
 		    !(connector->polled & DRM_CONNECTOR_POLL_DISCONNECT))
 			continue;
+
+		repoll = true;
 
 		connector->status = connector->funcs->detect(connector, false);
 		if (old_status != connector->status) {

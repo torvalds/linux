@@ -126,84 +126,21 @@ enum {
 #define IEEE754_CGT	0x04
 #define IEEE754_CUN	0x08
 
-/* "normal" comparisons
-*/
-static inline int ieee754sp_eq(union ieee754sp x, union ieee754sp y)
-{
-	return ieee754sp_cmp(x, y, IEEE754_CEQ, 0);
-}
-
-static inline int ieee754sp_ne(union ieee754sp x, union ieee754sp y)
-{
-	return ieee754sp_cmp(x, y,
-			     IEEE754_CLT | IEEE754_CGT | IEEE754_CUN, 0);
-}
-
-static inline int ieee754sp_lt(union ieee754sp x, union ieee754sp y)
-{
-	return ieee754sp_cmp(x, y, IEEE754_CLT, 0);
-}
-
-static inline int ieee754sp_le(union ieee754sp x, union ieee754sp y)
-{
-	return ieee754sp_cmp(x, y, IEEE754_CLT | IEEE754_CEQ, 0);
-}
-
-static inline int ieee754sp_gt(union ieee754sp x, union ieee754sp y)
-{
-	return ieee754sp_cmp(x, y, IEEE754_CGT, 0);
-}
-
-
-static inline int ieee754sp_ge(union ieee754sp x, union ieee754sp y)
-{
-	return ieee754sp_cmp(x, y, IEEE754_CGT | IEEE754_CEQ, 0);
-}
-
-static inline int ieee754dp_eq(union ieee754dp x, union ieee754dp y)
-{
-	return ieee754dp_cmp(x, y, IEEE754_CEQ, 0);
-}
-
-static inline int ieee754dp_ne(union ieee754dp x, union ieee754dp y)
-{
-	return ieee754dp_cmp(x, y,
-			     IEEE754_CLT | IEEE754_CGT | IEEE754_CUN, 0);
-}
-
-static inline int ieee754dp_lt(union ieee754dp x, union ieee754dp y)
-{
-	return ieee754dp_cmp(x, y, IEEE754_CLT, 0);
-}
-
-static inline int ieee754dp_le(union ieee754dp x, union ieee754dp y)
-{
-	return ieee754dp_cmp(x, y, IEEE754_CLT | IEEE754_CEQ, 0);
-}
-
-static inline int ieee754dp_gt(union ieee754dp x, union ieee754dp y)
-{
-	return ieee754dp_cmp(x, y, IEEE754_CGT, 0);
-}
-
-static inline int ieee754dp_ge(union ieee754dp x, union ieee754dp y)
-{
-	return ieee754dp_cmp(x, y, IEEE754_CGT | IEEE754_CEQ, 0);
-}
-
 /*
  * The control status register
  */
 struct _ieee754_csr {
-	__BITFIELD_FIELD(unsigned pad0:7,
-	__BITFIELD_FIELD(unsigned nod:1,	/* set 1 for no denormalised numbers */
-	__BITFIELD_FIELD(unsigned c:1,		/* condition */
-	__BITFIELD_FIELD(unsigned pad1:5,
+	__BITFIELD_FIELD(unsigned fcc:7,	/* condition[7:1] */
+	__BITFIELD_FIELD(unsigned nod:1,	/* set 1 for no denormals */
+	__BITFIELD_FIELD(unsigned c:1,		/* condition[0] */
+	__BITFIELD_FIELD(unsigned pad0:3,
+	__BITFIELD_FIELD(unsigned abs2008:1,	/* IEEE 754-2008 ABS/NEG.fmt */
+	__BITFIELD_FIELD(unsigned nan2008:1,	/* IEEE 754-2008 NaN mode */
 	__BITFIELD_FIELD(unsigned cx:6,		/* exceptions this operation */
 	__BITFIELD_FIELD(unsigned mx:5,		/* exception enable  mask */
 	__BITFIELD_FIELD(unsigned sx:5,		/* exceptions total */
 	__BITFIELD_FIELD(unsigned rm:2,		/* current rounding mode */
-	;))))))))
+	;))))))))))
 };
 #define ieee754_csr (*(struct _ieee754_csr *)(&current->thread.fpu.fcr31))
 
@@ -257,23 +194,23 @@ static inline int ieee754_sxtest(unsigned n)
 union ieee754sp ieee754sp_dump(char *s, union ieee754sp x);
 union ieee754dp ieee754dp_dump(char *s, union ieee754dp x);
 
-#define IEEE754_SPCVAL_PZERO	0
-#define IEEE754_SPCVAL_NZERO	1
-#define IEEE754_SPCVAL_PONE	2
-#define IEEE754_SPCVAL_NONE	3
-#define IEEE754_SPCVAL_PTEN	4
-#define IEEE754_SPCVAL_NTEN	5
-#define IEEE754_SPCVAL_PINFINITY	6
-#define IEEE754_SPCVAL_NINFINITY	7
-#define IEEE754_SPCVAL_INDEF	8
-#define IEEE754_SPCVAL_PMAX	9	/* +max norm */
-#define IEEE754_SPCVAL_NMAX	10	/* -max norm */
-#define IEEE754_SPCVAL_PMIN	11	/* +min norm */
-#define IEEE754_SPCVAL_NMIN	12	/* +min norm */
-#define IEEE754_SPCVAL_PMIND	13	/* +min denorm */
-#define IEEE754_SPCVAL_NMIND	14	/* +min denorm */
-#define IEEE754_SPCVAL_P1E31	15	/* + 1.0e31 */
-#define IEEE754_SPCVAL_P1E63	16	/* + 1.0e63 */
+#define IEEE754_SPCVAL_PZERO		0	/* +0.0 */
+#define IEEE754_SPCVAL_NZERO		1	/* -0.0 */
+#define IEEE754_SPCVAL_PONE		2	/* +1.0 */
+#define IEEE754_SPCVAL_NONE		3	/* -1.0 */
+#define IEEE754_SPCVAL_PTEN		4	/* +10.0 */
+#define IEEE754_SPCVAL_NTEN		5	/* -10.0 */
+#define IEEE754_SPCVAL_PINFINITY	6	/* +inf */
+#define IEEE754_SPCVAL_NINFINITY	7	/* -inf */
+#define IEEE754_SPCVAL_INDEF		8	/* quiet NaN */
+#define IEEE754_SPCVAL_PMAX		9	/* +max norm */
+#define IEEE754_SPCVAL_NMAX		10	/* -max norm */
+#define IEEE754_SPCVAL_PMIN		11	/* +min norm */
+#define IEEE754_SPCVAL_NMIN		12	/* -min norm */
+#define IEEE754_SPCVAL_PMIND		13	/* +min denorm */
+#define IEEE754_SPCVAL_NMIND		14	/* -min denorm */
+#define IEEE754_SPCVAL_P1E31		15	/* + 1.0e31 */
+#define IEEE754_SPCVAL_P1E63		16	/* + 1.0e63 */
 
 extern const union ieee754dp __ieee754dp_spcvals[];
 extern const union ieee754sp __ieee754sp_spcvals[];

@@ -66,7 +66,7 @@ int ade7758_probe_trigger(struct iio_dev *indio_dev)
 	st->trig = iio_trigger_alloc("%s-dev%d",
 					spi_get_device_id(st->us)->name,
 					indio_dev->id);
-	if (st->trig == NULL) {
+	if (!st->trig) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}

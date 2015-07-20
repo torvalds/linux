@@ -36,37 +36,30 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 				    u8 pan_coord, u8 blx,
 				    u8 coord_realign)
 {
-	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
-	int rc = 0;
+	struct ieee802154_llsec_params params;
+	int changed = 0;
 
 	ASSERT_RTNL();
 
 	BUG_ON(addr->mode != IEEE802154_ADDR_SHORT);
 
-	mac802154_dev_set_pan_id(dev, addr->pan_id);
-	mac802154_dev_set_short_addr(dev, addr->short_addr);
+	dev->ieee802154_ptr->pan_id = addr->pan_id;
+	dev->ieee802154_ptr->short_addr = addr->short_addr;
 	mac802154_dev_set_page_channel(dev, page, channel);
 
-	if (ops->llsec) {
-		struct ieee802154_llsec_params params;
-		int changed = 0;
+	params.pan_id = addr->pan_id;
+	changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
 
-		params.coord_shortaddr = addr->short_addr;
-		changed |= IEEE802154_LLSEC_PARAM_COORD_SHORTADDR;
+	params.hwaddr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	changed |= IEEE802154_LLSEC_PARAM_HWADDR;
 
-		params.pan_id = addr->pan_id;
-		changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
+	params.coord_hwaddr = params.hwaddr;
+	changed |= IEEE802154_LLSEC_PARAM_COORD_HWADDR;
 
-		params.hwaddr = ieee802154_devaddr_from_raw(dev->dev_addr);
-		changed |= IEEE802154_LLSEC_PARAM_HWADDR;
+	params.coord_shortaddr = addr->short_addr;
+	changed |= IEEE802154_LLSEC_PARAM_COORD_SHORTADDR;
 
-		params.coord_hwaddr = params.hwaddr;
-		changed |= IEEE802154_LLSEC_PARAM_COORD_HWADDR;
-
-		rc = ops->llsec->set_params(dev, &params, changed);
-	}
-
-	return rc;
+	return mac802154_set_params(dev, &params, changed);
 }
 
 static int mac802154_set_mac_params(struct net_device *dev,
@@ -91,19 +84,19 @@ static int mac802154_set_mac_params(struct net_device *dev,
 	wpan_dev->frame_retries = params->frame_retries;
 	wpan_dev->lbt = params->lbt;
 
-	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
+	if (local->hw.phy->flags & WPAN_PHY_FLAG_TXPOWER) {
 		ret = drv_set_tx_power(local, params->transmit_power);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
+	if (local->hw.phy->flags & WPAN_PHY_FLAG_CCA_MODE) {
 		ret = drv_set_cca_mode(local, &params->cca);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL) {
+	if (local->hw.phy->flags & WPAN_PHY_FLAG_CCA_ED_LEVEL) {
 		ret = drv_set_cca_ed_level(local, params->cca_ed_level);
 		if (ret < 0)
 			return ret;
@@ -151,9 +144,6 @@ static struct ieee802154_llsec_ops mac802154_llsec_ops = {
 
 struct ieee802154_mlme_ops mac802154_mlme_wpan = {
 	.start_req = mac802154_mlme_start_req,
-	.get_pan_id = mac802154_dev_get_pan_id,
-	.get_short_addr = mac802154_dev_get_short_addr,
-	.get_dsn = mac802154_dev_get_dsn,
 
 	.llsec = &mac802154_llsec_ops,
 

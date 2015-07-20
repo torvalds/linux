@@ -43,17 +43,16 @@
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
 
-extern struct list_head obd_types;
 spinlock_t obd_types_lock;
 
 struct kmem_cache *obd_device_cachep;
 struct kmem_cache *obdo_cachep;
 EXPORT_SYMBOL(obdo_cachep);
-struct kmem_cache *import_cachep;
+static struct kmem_cache *import_cachep;
 
-struct list_head      obd_zombie_imports;
-struct list_head      obd_zombie_exports;
-spinlock_t  obd_zombie_impexp_lock;
+static struct list_head      obd_zombie_imports;
+static struct list_head      obd_zombie_exports;
+static spinlock_t  obd_zombie_impexp_lock;
 static void obd_zombie_impexp_notify(void);
 static void obd_zombie_export_add(struct obd_export *exp);
 static void obd_zombie_import_add(struct obd_import *imp);
@@ -157,7 +156,7 @@ EXPORT_SYMBOL(class_put_type);
 #define CLASS_MAX_NAME 1024
 
 int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
-			struct lprocfs_vars *vars, const char *name,
+			const char *name,
 			struct lu_device_type *ldt)
 {
 	struct obd_type *type;
@@ -172,13 +171,13 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	}
 
 	rc = -ENOMEM;
-	OBD_ALLOC(type, sizeof(*type));
+	type = kzalloc(sizeof(*type), GFP_NOFS);
 	if (type == NULL)
 		return rc;
 
-	OBD_ALLOC_PTR(type->typ_dt_ops);
-	OBD_ALLOC_PTR(type->typ_md_ops);
-	OBD_ALLOC(type->typ_name, strlen(name) + 1);
+	type->typ_dt_ops = kzalloc(sizeof(*type->typ_dt_ops), GFP_NOFS);
+	type->typ_md_ops = kzalloc(sizeof(*type->typ_md_ops), GFP_NOFS);
+	type->typ_name = kzalloc(strlen(name) + 1, GFP_NOFS);
 
 	if (type->typ_dt_ops == NULL ||
 	    type->typ_md_ops == NULL ||
@@ -192,11 +191,19 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	strcpy(type->typ_name, name);
 	spin_lock_init(&type->obd_type_lock);
 
-	type->typ_procroot = lprocfs_register(type->typ_name, proc_lustre_root,
-					      vars, type);
-	if (IS_ERR(type->typ_procroot)) {
-		rc = PTR_ERR(type->typ_procroot);
-		type->typ_procroot = NULL;
+	type->typ_debugfs_entry = ldebugfs_register(type->typ_name,
+						    debugfs_lustre_root,
+						    NULL, type);
+	if (IS_ERR_OR_NULL(type->typ_debugfs_entry)) {
+		rc = type->typ_debugfs_entry ? PTR_ERR(type->typ_debugfs_entry)
+					     : -ENOMEM;
+		type->typ_debugfs_entry = NULL;
+		goto failed;
+	}
+
+	type->typ_kobj = kobject_create_and_add(type->typ_name, lustre_kobj);
+	if (!type->typ_kobj) {
+		rc = -ENOMEM;
 		goto failed;
 	}
 
@@ -214,13 +221,12 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	return 0;
 
  failed:
-	if (type->typ_name != NULL)
-		OBD_FREE(type->typ_name, strlen(name) + 1);
-	if (type->typ_md_ops != NULL)
-		OBD_FREE_PTR(type->typ_md_ops);
-	if (type->typ_dt_ops != NULL)
-		OBD_FREE_PTR(type->typ_dt_ops);
-	OBD_FREE(type, sizeof(*type));
+	if (type->typ_kobj)
+		kobject_put(type->typ_kobj);
+	kfree(type->typ_name);
+	kfree(type->typ_md_ops);
+	kfree(type->typ_dt_ops);
+	kfree(type);
 	return rc;
 }
 EXPORT_SYMBOL(class_register_type);
@@ -238,14 +244,16 @@ int class_unregister_type(const char *name)
 		CERROR("type %s has refcount (%d)\n", name, type->typ_refcnt);
 		/* This is a bad situation, let's make the best of it */
 		/* Remove ops, but leave the name for debugging */
-		OBD_FREE_PTR(type->typ_dt_ops);
-		OBD_FREE_PTR(type->typ_md_ops);
+		kfree(type->typ_dt_ops);
+		kfree(type->typ_md_ops);
 		return -EBUSY;
 	}
 
-	if (type->typ_procroot) {
-		lprocfs_remove(&type->typ_procroot);
-	}
+	if (type->typ_kobj)
+		kobject_put(type->typ_kobj);
+
+	if (!IS_ERR_OR_NULL(type->typ_debugfs_entry))
+		ldebugfs_remove(&type->typ_debugfs_entry);
 
 	if (type->typ_lu)
 		lu_device_type_fini(type->typ_lu);
@@ -253,12 +261,10 @@ int class_unregister_type(const char *name)
 	spin_lock(&obd_types_lock);
 	list_del(&type->typ_chain);
 	spin_unlock(&obd_types_lock);
-	OBD_FREE(type->typ_name, strlen(name) + 1);
-	if (type->typ_dt_ops != NULL)
-		OBD_FREE_PTR(type->typ_dt_ops);
-	if (type->typ_md_ops != NULL)
-		OBD_FREE_PTR(type->typ_md_ops);
-	OBD_FREE(type, sizeof(*type));
+	kfree(type->typ_name);
+	kfree(type->typ_dt_ops);
+	kfree(type->typ_md_ops);
+	kfree(type);
 	return 0;
 } /* class_unregister_type */
 EXPORT_SYMBOL(class_unregister_type);
@@ -820,7 +826,7 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	struct cfs_hash *hash = NULL;
 	int rc = 0;
 
-	OBD_ALLOC_PTR(export);
+	export = kzalloc(sizeof(*export), GFP_NOFS);
 	if (!export)
 		return ERR_PTR(-ENOMEM);
 
@@ -905,7 +911,7 @@ exit_err:
 	class_handle_unhash(&export->exp_handle);
 	LASSERT(hlist_unhashed(&export->exp_uuid_hash));
 	obd_destroy_export(export);
-	OBD_FREE_PTR(export);
+	kfree(export);
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL(class_new_export);
@@ -930,7 +936,7 @@ void class_unlink_export(struct obd_export *exp)
 EXPORT_SYMBOL(class_unlink_export);
 
 /* Import management functions */
-void class_import_destroy(struct obd_import *imp)
+static void class_import_destroy(struct obd_import *imp)
 {
 	CDEBUG(D_IOCTL, "destroying import %p for %s\n", imp,
 		imp->imp_obd->obd_name);
@@ -946,7 +952,7 @@ void class_import_destroy(struct obd_import *imp)
 					  struct obd_import_conn, oic_item);
 		list_del_init(&imp_conn->oic_item);
 		ptlrpc_put_connection_superhack(imp_conn->oic_conn);
-		OBD_FREE(imp_conn, sizeof(*imp_conn));
+		kfree(imp_conn);
 	}
 
 	LASSERT(imp->imp_sec == NULL);
@@ -1009,7 +1015,7 @@ struct obd_import *class_new_import(struct obd_device *obd)
 {
 	struct obd_import *imp;
 
-	OBD_ALLOC(imp, sizeof(*imp));
+	imp = kzalloc(sizeof(*imp), GFP_NOFS);
 	if (imp == NULL)
 		return NULL;
 
@@ -1127,7 +1133,7 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 EXPORT_SYMBOL(class_connect);
 
 /* if export is involved in recovery then clean up related things */
-void class_export_recovery_cleanup(struct obd_export *exp)
+static void class_export_recovery_cleanup(struct obd_export *exp)
 {
 	struct obd_device *obd = exp->exp_obd;
 
@@ -1221,7 +1227,7 @@ int class_connected_export(struct obd_export *exp)
 	if (exp) {
 		int connected;
 		spin_lock(&exp->exp_lock);
-		connected = (exp->exp_conn_cnt > 0);
+		connected = exp->exp_conn_cnt > 0;
 		spin_unlock(&exp->exp_lock);
 		return connected;
 	}
@@ -1559,7 +1565,7 @@ void obd_exports_barrier(struct obd_device *obd)
 EXPORT_SYMBOL(obd_exports_barrier);
 
 /* Total amount of zombies to be destroyed */
-static int zombies_count = 0;
+static int zombies_count;
 
 /**
  * kill zombie imports and exports
@@ -1812,7 +1818,7 @@ void *kuc_alloc(int payload_len, int transport, int type)
 	struct kuc_hdr *lh;
 	int len = kuc_len(payload_len);
 
-	OBD_ALLOC(lh, len);
+	lh = kzalloc(len, GFP_NOFS);
 	if (lh == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -1829,6 +1835,6 @@ EXPORT_SYMBOL(kuc_alloc);
 inline void kuc_free(void *p, int payload_len)
 {
 	struct kuc_hdr *lh = kuc_ptr(p);
-	OBD_FREE(lh, kuc_len(payload_len));
+	kfree(lh);
 }
 EXPORT_SYMBOL(kuc_free);

@@ -37,6 +37,7 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/memory.h>
+#include <linux/nmi.h>
 
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -522,7 +523,8 @@ void __init setup_system(void)
 	smp_release_cpus();
 #endif
 
-	pr_info("Starting Linux PPC64 %s\n", init_utsname()->version);
+	pr_info("Starting Linux %s %s\n", init_utsname()->machine,
+		 init_utsname()->version);
 
 	pr_info("-----------------------------------------------------\n");
 	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
@@ -685,6 +687,9 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_PPC_64K_PAGES
 	init_mm.context.pte_frag = NULL;
 #endif
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	mm_iommu_init(&init_mm.context);
+#endif
 	irqstack_early_init();
 	exc_lvl_early_init();
 	emergency_stack_init();
@@ -778,4 +783,23 @@ unsigned long memory_block_size_bytes(void)
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
+#endif
+
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
+u64 hw_nmi_get_sample_period(int watchdog_thresh)
+{
+	return ppc_proc_freq * watchdog_thresh;
+}
+
+/*
+ * The hardlockup detector breaks PMU event based branches and is likely
+ * to get false positives in KVM guests, so disable it by default.
+ */
+static int __init disable_hardlockup_detector(void)
+{
+	hardlockup_detector_disable();
+
+	return 0;
+}
+early_initcall(disable_hardlockup_detector);
 #endif

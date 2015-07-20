@@ -912,6 +912,7 @@ static void xen_load_sp0(struct tss_struct *tss,
 	mcs = xen_mc_entry(0);
 	MULTI_stack_switch(mcs.mc, __KERNEL_DS, thread->sp0);
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	tss->x86_tss.sp0 = thread->sp0;
 }
 
 static void xen_set_iopl_mask(unsigned mask)
@@ -926,92 +927,6 @@ static void xen_set_iopl_mask(unsigned mask)
 static void xen_io_delay(void)
 {
 }
-
-#ifdef CONFIG_X86_LOCAL_APIC
-static unsigned long xen_set_apic_id(unsigned int x)
-{
-	WARN_ON(1);
-	return x;
-}
-static unsigned int xen_get_apic_id(unsigned long x)
-{
-	return ((x)>>24) & 0xFFu;
-}
-static u32 xen_apic_read(u32 reg)
-{
-	struct xen_platform_op op = {
-		.cmd = XENPF_get_cpuinfo,
-		.interface_version = XENPF_INTERFACE_VERSION,
-		.u.pcpu_info.xen_cpuid = 0,
-	};
-	int ret = 0;
-
-	/* Shouldn't need this as APIC is turned off for PV, and we only
-	 * get called on the bootup processor. But just in case. */
-	if (!xen_initial_domain() || smp_processor_id())
-		return 0;
-
-	if (reg == APIC_LVR)
-		return 0x10;
-
-	if (reg != APIC_ID)
-		return 0;
-
-	ret = HYPERVISOR_dom0_op(&op);
-	if (ret)
-		return 0;
-
-	return op.u.pcpu_info.apic_id << 24;
-}
-
-static void xen_apic_write(u32 reg, u32 val)
-{
-	/* Warn to see if there's any stray references */
-	WARN_ON(1);
-}
-
-static u64 xen_apic_icr_read(void)
-{
-	return 0;
-}
-
-static void xen_apic_icr_write(u32 low, u32 id)
-{
-	/* Warn to see if there's any stray references */
-	WARN_ON(1);
-}
-
-static void xen_apic_wait_icr_idle(void)
-{
-        return;
-}
-
-static u32 xen_safe_apic_wait_icr_idle(void)
-{
-        return 0;
-}
-
-static void set_xen_basic_apic_ops(void)
-{
-	apic->read = xen_apic_read;
-	apic->write = xen_apic_write;
-	apic->icr_read = xen_apic_icr_read;
-	apic->icr_write = xen_apic_icr_write;
-	apic->wait_icr_idle = xen_apic_wait_icr_idle;
-	apic->safe_wait_icr_idle = xen_safe_apic_wait_icr_idle;
-	apic->set_apic_id = xen_set_apic_id;
-	apic->get_apic_id = xen_get_apic_id;
-
-#ifdef CONFIG_SMP
-	apic->send_IPI_allbutself = xen_send_IPI_allbutself;
-	apic->send_IPI_mask_allbutself = xen_send_IPI_mask_allbutself;
-	apic->send_IPI_mask = xen_send_IPI_mask;
-	apic->send_IPI_all = xen_send_IPI_all;
-	apic->send_IPI_self = xen_send_IPI_self;
-#endif
-}
-
-#endif
 
 static void xen_clts(void)
 {
@@ -1266,10 +1181,11 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.read_tscp = native_read_tscp,
 
 	.iret = xen_iret,
-	.irq_enable_sysexit = xen_sysexit,
 #ifdef CONFIG_X86_64
 	.usergs_sysret32 = xen_sysret32,
 	.usergs_sysret64 = xen_sysret64,
+#else
+	.irq_enable_sysexit = xen_sysexit,
 #endif
 
 	.load_tr_desc = paravirt_nop,
@@ -1508,7 +1424,7 @@ static void xen_pvh_set_cr_flags(int cpu)
 		return;
 	/*
 	 * For BSP, PSE PGE are set in probe_page_size_mask(), for APs
-	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu_init.
+	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu__init_cpu().
 	*/
 	if (cpu_has_pse)
 		cr4_set_bits_and_update_boot(X86_CR4_PSE);
@@ -1552,6 +1468,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	unsigned long initrd_start = 0;
+	u64 pat;
 	int rc;
 
 	if (!xen_start_info)
@@ -1618,7 +1535,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/*
 	 * set up the basic apic ops.
 	 */
-	set_xen_basic_apic_ops();
+	xen_init_apic();
 #endif
 
 	if (xen_feature(XENFEAT_mmu_pt_update_preserve_ad)) {
@@ -1659,8 +1576,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * Modify the cache mode translation tables to match Xen's PAT
 	 * configuration.
 	 */
-
-	pat_init_cache_modes();
+	rdmsrl(MSR_IA32_CR_PAT, pat);
+	pat_init_cache_modes(pat);
 
 	/* keep using Xen gdt for now; no urgent need to change it */
 
@@ -1730,8 +1647,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 		if (HYPERVISOR_dom0_op(&op) == 0)
 			boot_params.kbd_status = op.u.firmware_info.u.kbd_shift_flags;
-
-		xen_init_apic();
 
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
@@ -1847,6 +1762,9 @@ static struct notifier_block xen_hvm_cpu_notifier = {
 
 static void __init xen_hvm_guest_init(void)
 {
+	if (xen_pv_domain())
+		return;
+
 	init_hvm_pv_info();
 
 	xen_hvm_init_shared_info();
@@ -1862,6 +1780,7 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
 }
+#endif
 
 static bool xen_nopv = false;
 static __init int xen_parse_nopv(char *arg)
@@ -1871,12 +1790,9 @@ static __init int xen_parse_nopv(char *arg)
 }
 early_param("xen_nopv", xen_parse_nopv);
 
-static uint32_t __init xen_hvm_platform(void)
+static uint32_t __init xen_platform(void)
 {
 	if (xen_nopv)
-		return 0;
-
-	if (xen_pv_domain())
 		return 0;
 
 	return xen_cpuid_base();
@@ -1896,11 +1812,19 @@ bool xen_hvm_need_lapic(void)
 }
 EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
 
-const struct hypervisor_x86 x86_hyper_xen_hvm __refconst = {
-	.name			= "Xen HVM",
-	.detect			= xen_hvm_platform,
+static void xen_set_cpu_features(struct cpuinfo_x86 *c)
+{
+	if (xen_pv_domain())
+		clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+}
+
+const struct hypervisor_x86 x86_hyper_xen = {
+	.name			= "Xen",
+	.detect			= xen_platform,
+#ifdef CONFIG_XEN_PVHVM
 	.init_platform		= xen_hvm_guest_init,
-	.x2apic_available	= xen_x2apic_para_available,
-};
-EXPORT_SYMBOL(x86_hyper_xen_hvm);
 #endif
+	.x2apic_available	= xen_x2apic_para_available,
+	.set_cpu_features       = xen_set_cpu_features,
+};
+EXPORT_SYMBOL(x86_hyper_xen);

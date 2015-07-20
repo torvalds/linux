@@ -38,7 +38,6 @@
 #include <linux/sysctl.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/ctype.h>
@@ -55,30 +54,7 @@
 static struct ctl_table_header *obd_table_header;
 #endif
 
-
-#define OBD_SYSCTL 300
-
-enum {
-	OBD_TIMEOUT = 3,	/* RPC timeout before recovery/intr */
-	OBD_DUMP_ON_TIMEOUT,    /* dump kernel debug log upon eviction */
-	OBD_MEMUSED,	    /* bytes currently OBD_ALLOCated */
-	OBD_PAGESUSED,	  /* pages currently OBD_PAGE_ALLOCated */
-	OBD_MAXMEMUSED,	 /* maximum bytes OBD_ALLOCated concurrently */
-	OBD_MAXPAGESUSED,       /* maximum pages OBD_PAGE_ALLOCated concurrently */
-	OBD_SYNCFILTER,	 /* XXX temporary, as we play with sync osts.. */
-	OBD_LDLM_TIMEOUT,       /* LDLM timeout for ASTs before client eviction */
-	OBD_DUMP_ON_EVICTION,   /* dump kernel debug log upon eviction */
-	OBD_DEBUG_PEER_ON_TIMEOUT, /* dump peer debug when RPC times out */
-	OBD_ALLOC_FAIL_RATE,    /* memory allocation random failure rate */
-	OBD_MAX_DIRTY_PAGES,    /* maximum dirty pages */
-	OBD_AT_MIN,	     /* Adaptive timeouts params */
-	OBD_AT_MAX,
-	OBD_AT_EXTRA,
-	OBD_AT_EARLY_MARGIN,
-	OBD_AT_HISTORY,
-};
-
-
+#ifdef CONFIG_SYSCTL
 static int proc_set_timeout(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -205,7 +181,7 @@ static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
 			CERROR("Refusing to set max dirty pages to %u, which is more than 90%% of available RAM; setting to %lu\n",
 			       obd_max_dirty_pages,
 			       ((totalram_pages / 10) * 9));
-			obd_max_dirty_pages = ((totalram_pages / 10) * 9);
+			obd_max_dirty_pages = (totalram_pages / 10) * 9;
 		} else if (obd_max_dirty_pages < 4 << (20 - PAGE_CACHE_SHIFT)) {
 			obd_max_dirty_pages = 4 << (20 - PAGE_CACHE_SHIFT);
 		}
@@ -258,7 +234,6 @@ static int proc_alloc_fail_rate(struct ctl_table *table, int write,
 	return rc;
 }
 
-#ifdef CONFIG_SYSCTL
 static struct ctl_table obd_table[] = {
 	{
 		.procname = "timeout",

@@ -10,6 +10,7 @@
 #include <asm/pgtable.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
+#include <asm/switch_to.h>
 
 union asce {
 	unsigned long val;
@@ -207,6 +208,54 @@ union raddress {
 	unsigned long pfra : 52; /* Page-Frame Real Address */
 };
 
+union alet {
+	u32 val;
+	struct {
+		u32 reserved : 7;
+		u32 p        : 1;
+		u32 alesn    : 8;
+		u32 alen     : 16;
+	};
+};
+
+union ald {
+	u32 val;
+	struct {
+		u32     : 1;
+		u32 alo : 24;
+		u32 all : 7;
+	};
+};
+
+struct ale {
+	unsigned long i      : 1; /* ALEN-Invalid Bit */
+	unsigned long        : 5;
+	unsigned long fo     : 1; /* Fetch-Only Bit */
+	unsigned long p      : 1; /* Private Bit */
+	unsigned long alesn  : 8; /* Access-List-Entry Sequence Number */
+	unsigned long aleax  : 16; /* Access-List-Entry Authorization Index */
+	unsigned long        : 32;
+	unsigned long        : 1;
+	unsigned long asteo  : 25; /* ASN-Second-Table-Entry Origin */
+	unsigned long        : 6;
+	unsigned long astesn : 32; /* ASTE Sequence Number */
+} __packed;
+
+struct aste {
+	unsigned long i      : 1; /* ASX-Invalid Bit */
+	unsigned long ato    : 29; /* Authority-Table Origin */
+	unsigned long        : 1;
+	unsigned long b      : 1; /* Base-Space Bit */
+	unsigned long ax     : 16; /* Authorization Index */
+	unsigned long atl    : 12; /* Authority-Table Length */
+	unsigned long        : 2;
+	unsigned long ca     : 1; /* Controlled-ASN Bit */
+	unsigned long ra     : 1; /* Reusable-ASN Bit */
+	unsigned long asce   : 64; /* Address-Space-Control Element */
+	unsigned long ald    : 32;
+	unsigned long astesn : 32;
+	/* .. more fields there */
+} __packed;
 
 int ipte_lock_held(struct kvm_vcpu *vcpu)
 {
@@ -307,15 +356,157 @@ void ipte_unlock(struct kvm_vcpu *vcpu)
 		ipte_unlock_simple(vcpu);
 }
 
-static unsigned long get_vcpu_asce(struct kvm_vcpu *vcpu)
+static int ar_translation(struct kvm_vcpu *vcpu, union asce *asce, ar_t ar,
+			  int write)
 {
+	union alet alet;
+	struct ale ale;
+	struct aste aste;
+	unsigned long ald_addr, authority_table_addr;
+	union ald ald;
+	int eax, rc;
+	u8 authority_table;
+
+	if (ar >= NUM_ACRS)
+		return -EINVAL;
+
+	save_access_regs(vcpu->run->s.regs.acrs);
+	alet.val = vcpu->run->s.regs.acrs[ar];
+
+	if (ar == 0 || alet.val == 0) {
+		asce->val = vcpu->arch.sie_block->gcr[1];
+		return 0;
+	} else if (alet.val == 1) {
+		asce->val = vcpu->arch.sie_block->gcr[7];
+		return 0;
+	}
+
+	if (alet.reserved)
+		return PGM_ALET_SPECIFICATION;
+
+	if (alet.p)
+		ald_addr = vcpu->arch.sie_block->gcr[5];
+	else
+		ald_addr = vcpu->arch.sie_block->gcr[2];
+	ald_addr &= 0x7fffffc0;
+
+	rc = read_guest_real(vcpu, ald_addr + 16, &ald.val, sizeof(union ald));
+	if (rc)
+		return rc;
+
+	if (alet.alen / 8 > ald.all)
+		return PGM_ALEN_TRANSLATION;
+
+	if (0x7fffffff - ald.alo * 128 < alet.alen * 16)
+		return PGM_ADDRESSING;
+
+	rc = read_guest_real(vcpu, ald.alo * 128 + alet.alen * 16, &ale,
+			     sizeof(struct ale));
+	if (rc)
+		return rc;
+
+	if (ale.i == 1)
+		return PGM_ALEN_TRANSLATION;
+	if (ale.alesn != alet.alesn)
+		return PGM_ALE_SEQUENCE;
+
+	rc = read_guest_real(vcpu, ale.asteo * 64, &aste, sizeof(struct aste));
+	if (rc)
+		return rc;
+
+	if (aste.i)
+		return PGM_ASTE_VALIDITY;
+	if (aste.astesn != ale.astesn)
+		return PGM_ASTE_SEQUENCE;
+
+	if (ale.p == 1) {
+		eax = (vcpu->arch.sie_block->gcr[8] >> 16) & 0xffff;
+		if (ale.aleax != eax) {
+			if (eax / 16 > aste.atl)
+				return PGM_EXTENDED_AUTHORITY;
+
+			authority_table_addr = aste.ato * 4 + eax / 4;
+
+			rc = read_guest_real(vcpu, authority_table_addr,
+					     &authority_table,
+					     sizeof(u8));
+			if (rc)
+				return rc;
+
+			if ((authority_table & (0x40 >> ((eax & 3) * 2))) == 0)
+				return PGM_EXTENDED_AUTHORITY;
+		}
+	}
+
+	if (ale.fo == 1 && write)
+		return PGM_PROTECTION;
+
+	asce->val = aste.asce;
+	return 0;
+}
+
+struct trans_exc_code_bits {
+	unsigned long addr : 52; /* Translation-exception Address */
+	unsigned long fsi  : 2;  /* Access Exception Fetch/Store Indication */
+	unsigned long	   : 6;
+	unsigned long b60  : 1;
+	unsigned long b61  : 1;
+	unsigned long as   : 2;  /* ASCE Identifier */
+};
+
+enum {
+	FSI_UNKNOWN = 0, /* Unknown wether fetch or store */
+	FSI_STORE   = 1, /* Exception was due to store operation */
+	FSI_FETCH   = 2  /* Exception was due to fetch operation */
+};
+
+static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
+			 ar_t ar, int write)
+{
+	int rc;
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
+	struct trans_exc_code_bits *tec_bits;
+
+	memset(pgm, 0, sizeof(*pgm));
+	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
+	tec_bits->fsi = write ? FSI_STORE : FSI_FETCH;
+	tec_bits->as = psw_bits(*psw).as;
+
+	if (!psw_bits(*psw).t) {
+		asce->val = 0;
+		asce->r = 1;
+		return 0;
+	}
+
 	switch (psw_bits(vcpu->arch.sie_block->gpsw).as) {
 	case PSW_AS_PRIMARY:
-		return vcpu->arch.sie_block->gcr[1];
+		asce->val = vcpu->arch.sie_block->gcr[1];
+		return 0;
 	case PSW_AS_SECONDARY:
-		return vcpu->arch.sie_block->gcr[7];
+		asce->val = vcpu->arch.sie_block->gcr[7];
+		return 0;
 	case PSW_AS_HOME:
-		return vcpu->arch.sie_block->gcr[13];
+		asce->val = vcpu->arch.sie_block->gcr[13];
+		return 0;
+	case PSW_AS_ACCREG:
+		rc = ar_translation(vcpu, asce, ar, write);
+		switch (rc) {
+		case PGM_ALEN_TRANSLATION:
+		case PGM_ALE_SEQUENCE:
+		case PGM_ASTE_VALIDITY:
+		case PGM_ASTE_SEQUENCE:
+		case PGM_EXTENDED_AUTHORITY:
+			vcpu->arch.pgm.exc_access_id = ar;
+			break;
+		case PGM_PROTECTION:
+			tec_bits->b60 = 1;
+			tec_bits->b61 = 1;
+			break;
+		}
+		if (rc > 0)
+			pgm->code = rc;
+		return rc;
 	}
 	return 0;
 }
@@ -330,10 +521,11 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  * @vcpu: virtual cpu
  * @gva: guest virtual address
  * @gpa: points to where guest physical (absolute) address should be stored
+ * @asce: effective asce
  * @write: indicates if access is a write access
  *
  * Translate a guest virtual address into a guest absolute address by means
- * of dynamic address translation as specified by the architecuture.
+ * of dynamic address translation as specified by the architecture.
  * If the resulting absolute address is not available in the configuration
  * an addressing exception is indicated and @gpa will not be changed.
  *
@@ -345,7 +537,8 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  *	      by the architecture
  */
 static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
-				     unsigned long *gpa, int write)
+				     unsigned long *gpa, const union asce asce,
+				     int write)
 {
 	union vaddress vaddr = {.addr = gva};
 	union raddress raddr = {.addr = gva};
@@ -354,12 +547,10 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 	union ctlreg0 ctlreg0;
 	unsigned long ptr;
 	int edat1, edat2;
-	union asce asce;
 
 	ctlreg0.val = vcpu->arch.sie_block->gcr[0];
 	edat1 = ctlreg0.edat && test_kvm_facility(vcpu->kvm, 8);
 	edat2 = edat1 && test_kvm_facility(vcpu->kvm, 78);
-	asce.val = get_vcpu_asce(vcpu);
 	if (asce.r)
 		goto real_address;
 	ptr = asce.origin * 4096;
@@ -506,48 +697,30 @@ static inline int is_low_address(unsigned long ga)
 	return (ga & ~0x11fful) == 0;
 }
 
-static int low_address_protection_enabled(struct kvm_vcpu *vcpu)
+static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
+					  const union asce asce)
 {
 	union ctlreg0 ctlreg0 = {.val = vcpu->arch.sie_block->gcr[0]};
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	union asce asce;
 
 	if (!ctlreg0.lap)
 		return 0;
-	asce.val = get_vcpu_asce(vcpu);
 	if (psw_bits(*psw).t && asce.p)
 		return 0;
 	return 1;
 }
 
-struct trans_exc_code_bits {
-	unsigned long addr : 52; /* Translation-exception Address */
-	unsigned long fsi  : 2;  /* Access Exception Fetch/Store Indication */
-	unsigned long	   : 7;
-	unsigned long b61  : 1;
-	unsigned long as   : 2;  /* ASCE Identifier */
-};
-
-enum {
-	FSI_UNKNOWN = 0, /* Unknown wether fetch or store */
-	FSI_STORE   = 1, /* Exception was due to store operation */
-	FSI_FETCH   = 2  /* Exception was due to fetch operation */
-};
-
 static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga,
 			    unsigned long *pages, unsigned long nr_pages,
-			    int write)
+			    const union asce asce, int write)
 {
 	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 	struct trans_exc_code_bits *tec_bits;
 	int lap_enabled, rc;
 
-	memset(pgm, 0, sizeof(*pgm));
 	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
-	tec_bits->fsi = write ? FSI_STORE : FSI_FETCH;
-	tec_bits->as = psw_bits(*psw).as;
-	lap_enabled = low_address_protection_enabled(vcpu);
+	lap_enabled = low_address_protection_enabled(vcpu, asce);
 	while (nr_pages) {
 		ga = kvm_s390_logical_to_effective(vcpu, ga);
 		tec_bits->addr = ga >> PAGE_SHIFT;
@@ -557,7 +730,7 @@ static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga,
 		}
 		ga &= PAGE_MASK;
 		if (psw_bits(*psw).t) {
-			rc = guest_translate(vcpu, ga, pages, write);
+			rc = guest_translate(vcpu, ga, pages, asce, write);
 			if (rc < 0)
 				return rc;
 			if (rc == PGM_PROTECTION)
@@ -578,7 +751,7 @@ static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga,
 	return 0;
 }
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 		 unsigned long len, int write)
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
@@ -591,20 +764,19 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
 
 	if (!len)
 		return 0;
-	/* Access register mode is not supported yet. */
-	if (psw_bits(*psw).t && psw_bits(*psw).as == PSW_AS_ACCREG)
-		return -EOPNOTSUPP;
+	rc = get_vcpu_asce(vcpu, &asce, ar, write);
+	if (rc)
+		return rc;
 	nr_pages = (((ga & ~PAGE_MASK) + len - 1) >> PAGE_SHIFT) + 1;
 	pages = pages_array;
 	if (nr_pages > ARRAY_SIZE(pages_array))
 		pages = vmalloc(nr_pages * sizeof(unsigned long));
 	if (!pages)
 		return -ENOMEM;
-	asce.val = get_vcpu_asce(vcpu);
 	need_ipte_lock = psw_bits(*psw).t && !asce.r;
 	if (need_ipte_lock)
 		ipte_lock(vcpu);
-	rc = guest_page_range(vcpu, ga, pages, nr_pages, write);
+	rc = guest_page_range(vcpu, ga, pages, nr_pages, asce, write);
 	for (idx = 0; idx < nr_pages && !rc; idx++) {
 		gpa = *(pages + idx) + (ga & ~PAGE_MASK);
 		_len = min(PAGE_SIZE - (gpa & ~PAGE_MASK), len);
@@ -652,7 +824,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * Note: The IPTE lock is not taken during this function, so the caller
  * has to take care of this.
  */
-int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
+int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
 			    unsigned long *gpa, int write)
 {
 	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
@@ -661,26 +833,21 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
 	union asce asce;
 	int rc;
 
-	/* Access register mode is not supported yet. */
-	if (psw_bits(*psw).t && psw_bits(*psw).as == PSW_AS_ACCREG)
-		return -EOPNOTSUPP;
-
 	gva = kvm_s390_logical_to_effective(vcpu, gva);
-	memset(pgm, 0, sizeof(*pgm));
 	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
-	tec->as = psw_bits(*psw).as;
-	tec->fsi = write ? FSI_STORE : FSI_FETCH;
+	rc = get_vcpu_asce(vcpu, &asce, ar, write);
 	tec->addr = gva >> PAGE_SHIFT;
-	if (is_low_address(gva) && low_address_protection_enabled(vcpu)) {
+	if (rc)
+		return rc;
+	if (is_low_address(gva) && low_address_protection_enabled(vcpu, asce)) {
 		if (write) {
 			rc = pgm->code = PGM_PROTECTION;
 			return rc;
 		}
 	}
 
-	asce.val = get_vcpu_asce(vcpu);
 	if (psw_bits(*psw).t && !asce.r) {	/* Use DAT? */
-		rc = guest_translate(vcpu, gva, gpa, write);
+		rc = guest_translate(vcpu, gva, gpa, asce, write);
 		if (rc > 0) {
 			if (rc == PGM_PROTECTION)
 				tec->b61 = 1;
@@ -697,28 +864,51 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
 }
 
 /**
- * kvm_s390_check_low_addr_protection - check for low-address protection
- * @ga: Guest address
+ * check_gva_range - test a range of guest virtual addresses for accessibility
+ */
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
+		    unsigned long length, int is_write)
+{
+	unsigned long gpa;
+	unsigned long currlen;
+	int rc = 0;
+
+	ipte_lock(vcpu);
+	while (length > 0 && !rc) {
+		currlen = min(length, PAGE_SIZE - (gva % PAGE_SIZE));
+		rc = guest_translate_address(vcpu, gva, ar, &gpa, is_write);
+		gva += currlen;
+		length -= currlen;
+	}
+	ipte_unlock(vcpu);
+
+	return rc;
+}
+
+/**
+ * kvm_s390_check_low_addr_prot_real - check for low-address protection
+ * @gra: Guest real address
  *
  * Checks whether an address is subject to low-address protection and set
  * up vcpu->arch.pgm accordingly if necessary.
  *
  * Return: 0 if no protection exception, or PGM_PROTECTION if protected.
  */
-int kvm_s390_check_low_addr_protection(struct kvm_vcpu *vcpu, unsigned long ga)
+int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
 {
 	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 	struct trans_exc_code_bits *tec_bits;
+	union ctlreg0 ctlreg0 = {.val = vcpu->arch.sie_block->gcr[0]};
 
-	if (!is_low_address(ga) || !low_address_protection_enabled(vcpu))
+	if (!ctlreg0.lap || !is_low_address(gra))
 		return 0;
 
 	memset(pgm, 0, sizeof(*pgm));
 	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
 	tec_bits->fsi = FSI_STORE;
 	tec_bits->as = psw_bits(*psw).as;
-	tec_bits->addr = ga >> PAGE_SHIFT;
+	tec_bits->addr = gra >> PAGE_SHIFT;
 	pgm->code = PGM_PROTECTION;
 
 	return pgm->code;

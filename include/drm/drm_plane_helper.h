@@ -59,9 +59,11 @@ extern int drm_crtc_init(struct drm_device *dev,
  */
 struct drm_plane_helper_funcs {
 	int (*prepare_fb)(struct drm_plane *plane,
-			  struct drm_framebuffer *fb);
+			  struct drm_framebuffer *fb,
+			  const struct drm_plane_state *new_state);
 	void (*cleanup_fb)(struct drm_plane *plane,
-			   struct drm_framebuffer *fb);
+			   struct drm_framebuffer *fb,
+			   const struct drm_plane_state *old_state);
 
 	int (*atomic_check)(struct drm_plane *plane,
 			    struct drm_plane_state *state);
@@ -74,7 +76,7 @@ struct drm_plane_helper_funcs {
 static inline void drm_plane_helper_add(struct drm_plane *plane,
 					const struct drm_plane_helper_funcs *funcs)
 {
-	plane->helper_private = (void *)funcs;
+	plane->helper_private = funcs;
 }
 
 extern int drm_plane_helper_check_update(struct drm_plane *plane,
@@ -98,10 +100,6 @@ extern int drm_primary_helper_update(struct drm_plane *plane,
 extern int drm_primary_helper_disable(struct drm_plane *plane);
 extern void drm_primary_helper_destroy(struct drm_plane *plane);
 extern const struct drm_plane_funcs drm_primary_helper_funcs;
-extern struct drm_plane *drm_primary_helper_create_plane(struct drm_device *dev,
-							 const uint32_t *formats,
-							 int num_formats);
-
 
 int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			    struct drm_framebuffer *fb,

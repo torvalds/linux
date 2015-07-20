@@ -20,6 +20,7 @@
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
+#include <linux/context_tracking.h>
 #include <asm/stack.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
@@ -253,6 +254,7 @@ static int do_bpt(struct pt_regs *regs)
 void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		       unsigned long reason)
 {
+	enum ctx_state prev_state = exception_enter();
 	siginfo_t info = { 0 };
 	int signo, code;
 	unsigned long address = 0;
@@ -261,7 +263,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 
 	/* Handle breakpoints, etc. */
 	if (is_kernel && fault_num == INT_ILL && do_bpt(regs))
-		return;
+		goto done;
 
 	/* Re-enable interrupts, if they were previously enabled. */
 	if (!(regs->flags & PT_FLAGS_DISABLE_IRQ))
@@ -275,7 +277,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		const char *name;
 		char buf[100];
 		if (fixup_exception(regs))  /* ILL_TRANS or UNALIGN_DATA */
-			return;
+			goto done;
 		if (fault_num >= 0 &&
 		    fault_num < ARRAY_SIZE(int_name) &&
 		    int_name[fault_num] != NULL)
@@ -294,7 +296,6 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 			 fault_num, name, regs->pc, buf);
 		show_regs(regs);
 		do_exit(SIGKILL);  /* FIXME: implement i386 die() */
-		return;
 	}
 
 	switch (fault_num) {
@@ -308,7 +309,6 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 			pr_err("Unreadable instruction for INT_ILL: %#lx\n",
 			       regs->pc);
 			do_exit(SIGKILL);
-			return;
 		}
 		if (!special_ill(instr, &signo, &code)) {
 			signo = SIGILL;
@@ -319,7 +319,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	case INT_GPV:
 #if CHIP_HAS_TILE_DMA()
 		if (retry_gpv(reason))
-			return;
+			goto done;
 #endif
 		/*FALLTHROUGH*/
 	case INT_UDN_ACCESS:
@@ -346,7 +346,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 			if (!state ||
 			    (void __user *)(regs->pc) != state->buffer) {
 				single_step_once(regs);
-				return;
+				goto done;
 			}
 		}
 #endif
@@ -380,7 +380,6 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 #endif
 	default:
 		panic("Unexpected do_trap interrupt number %d", fault_num);
-		return;
 	}
 
 	info.si_signo = signo;
@@ -391,7 +390,25 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	if (signo != SIGTRAP)
 		trace_unhandled_signal("trap", regs, address, signo);
 	force_sig_info(signo, &info, current);
+
+done:
+	exception_exit(prev_state);
 }
+
+void do_nmi(struct pt_regs *regs, int fault_num, unsigned long reason)
+{
+	switch (reason) {
+	case TILE_NMI_DUMP_STACK:
+		do_nmi_dump_stack(regs);
+		break;
+	default:
+		panic("Unexpected do_nmi type %ld", reason);
+		return;
+	}
+}
+
+/* Deprecated function currently only used here. */
+extern void _dump_stack(int dummy, ulong pc, ulong lr, ulong sp, ulong r52);
 
 void kernel_double_fault(int dummy, ulong pc, ulong lr, ulong sp, ulong r52)
 {

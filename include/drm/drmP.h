@@ -104,6 +104,9 @@ struct dma_buf_attachment;
  * PRIME: used in the prime code.
  *	  This is the category used by the DRM_DEBUG_PRIME() macro.
  *
+ * ATOMIC: used in the atomic code.
+ *	  This is the category used by the DRM_DEBUG_ATOMIC() macro.
+ *
  * Enabling verbose debug messages is done through the drm.debug parameter,
  * each category being enabled by a bit.
  *
@@ -121,6 +124,7 @@ struct dma_buf_attachment;
 #define DRM_UT_DRIVER		0x02
 #define DRM_UT_KMS		0x04
 #define DRM_UT_PRIME		0x08
+#define DRM_UT_ATOMIC		0x10
 
 extern __printf(2, 3)
 void drm_ut_debug_printk(const char *function_name,
@@ -207,6 +211,11 @@ void drm_err(const char *format, ...);
 		if (unlikely(drm_debug & DRM_UT_PRIME))			\
 			drm_ut_debug_printk(__func__, fmt, ##args);	\
 	} while (0)
+#define DRM_DEBUG_ATOMIC(fmt, args...)					\
+	do {								\
+		if (unlikely(drm_debug & DRM_UT_ATOMIC))		\
+			drm_ut_debug_printk(__func__, fmt, ##args);	\
+	} while (0)
 
 /*@}*/
 
@@ -244,7 +253,6 @@ struct drm_ioctl_desc {
 	unsigned int cmd;
 	int flags;
 	drm_ioctl_t *func;
-	unsigned int cmd_drv;
 	const char *name;
 };
 
@@ -253,8 +261,13 @@ struct drm_ioctl_desc {
  * ioctl, for use by drm_ioctl().
  */
 
-#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)			\
-	[DRM_IOCTL_NR(DRM_##ioctl)] = {.cmd = DRM_##ioctl, .func = _func, .flags = _flags, .cmd_drv = DRM_IOCTL_##ioctl, .name = #ioctl}
+#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)				\
+	[DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {	\
+		.cmd = DRM_IOCTL_##ioctl,				\
+		.func = _func,						\
+		.flags = _flags,					\
+		.name = #ioctl						\
+	 }
 
 /* Event queued up for userspace to read */
 struct drm_pending_event {
@@ -313,6 +326,10 @@ struct drm_file {
 	struct list_head fbs;
 	struct mutex fbs_lock;
 
+	/** User-created blob properties; this retains a reference on the
+	 *  property. */
+	struct list_head blobs;
+
 	wait_queue_head_t event_wait;
 	struct list_head event_list;
 	int event_space;
@@ -342,8 +359,7 @@ struct drm_lock_data {
  * @minor: Link back to minor char device we are master for. Immutable.
  * @unique: Unique identifier: e.g. busid. Protected by drm_global_mutex.
  * @unique_len: Length of unique field. Protected by drm_global_mutex.
- * @magiclist: Hash of used authentication tokens. Protected by struct_mutex.
- * @magicfree: List of used authentication tokens. Protected by struct_mutex.
+ * @magic_map: Map of used authentication tokens. Protected by struct_mutex.
  * @lock: DRI lock information.
  * @driver_priv: Pointer to driver-private information.
  */
@@ -352,8 +368,7 @@ struct drm_master {
 	struct drm_minor *minor;
 	char *unique;
 	int unique_len;
-	struct drm_open_hash magiclist;
-	struct list_head magicfree;
+	struct idr magic_map;
 	struct drm_lock_data lock;
 	void *driver_priv;
 };
@@ -673,9 +688,13 @@ struct drm_pending_vblank_event {
 struct drm_vblank_crtc {
 	struct drm_device *dev;		/* pointer to the drm_device */
 	wait_queue_head_t queue;	/**< VBLANK wait queue */
-	struct timeval time[DRM_VBLANKTIME_RBSIZE];	/**< timestamp of current count */
 	struct timer_list disable_timer;		/* delayed disable timer */
-	atomic_t count;			/**< number of VBLANK interrupts */
+
+	/* vblank counter, protected by dev->vblank_time_lock for writes */
+	unsigned long count;
+	/* vblank timestamps, protected by dev->vblank_time_lock for writes */
+	struct timeval time[DRM_VBLANKTIME_RBSIZE];
+
 	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
 	u32 last;			/* protected by dev->vbl_lock, used */
 					/* for wraparound handling */
@@ -799,6 +818,7 @@ struct drm_device {
 #endif
 
 	struct platform_device *platformdev; /**< Platform device struture */
+	struct virtio_device *virtdev;
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
@@ -922,6 +942,7 @@ extern void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
 extern void drm_vblank_off(struct drm_device *dev, int crtc);
 extern void drm_vblank_on(struct drm_device *dev, int crtc);
 extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
 extern void drm_vblank_cleanup(struct drm_device *dev);
 

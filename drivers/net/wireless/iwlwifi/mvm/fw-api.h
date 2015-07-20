@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,7 @@ enum {
 	ANTENNA_COUPLING_NOTIFICATION = 0xa,
 
 	/* UMAC scan commands */
+	SCAN_ITERATION_COMPLETE_UMAC = 0xb5,
 	SCAN_CFG_CMD = 0xc,
 	SCAN_REQ_UMAC = 0xd,
 	SCAN_ABORT_UMAC = 0xe,
@@ -147,13 +148,6 @@ enum {
 
 	LQ_CMD = 0x4e,
 
-	/* Calibration */
-	TEMPERATURE_NOTIFICATION = 0x62,
-	CALIBRATION_CFG_CMD = 0x65,
-	CALIBRATION_RES_NOTIFICATION = 0x66,
-	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
-	RADIO_VERSION_NOTIFICATION = 0x68,
-
 	/* Scan offload */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
 	SCAN_OFFLOAD_ABORT_CMD = 0x52,
@@ -177,12 +171,8 @@ enum {
 	/* Thermal Throttling*/
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
-	/* Scanning */
-	SCAN_REQUEST_CMD = 0x80,
-	SCAN_ABORT_CMD = 0x81,
-	SCAN_START_NOTIFICATION = 0x82,
-	SCAN_RESULTS_NOTIFICATION = 0x83,
-	SCAN_COMPLETE_NOTIFICATION = 0x84,
+	/* Set/Get DC2DC frequency tune */
+	DC2DC_CONFIG_CMD = 0x83,
 
 	/* NVM */
 	NVM_ACCESS_CMD = 0x88,
@@ -192,6 +182,7 @@ enum {
 	BEACON_NOTIFICATION = 0x90,
 	BEACON_TEMPLATE_CMD = 0x91,
 	TX_ANT_CONFIGURATION_CMD = 0x98,
+	STATISTICS_CMD = 0x9c,
 	STATISTICS_NOTIFICATION = 0x9d,
 	EOSP_NOTIFICATION = 0x9e,
 	REDUCE_TX_POWER_CMD = 0x9f,
@@ -210,6 +201,10 @@ enum {
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
+
+	/* Location Aware Regulatory */
+	MCC_UPDATE_CMD = 0xc8,
+	MCC_CHUB_UPDATE_CMD = 0xc9,
 
 	MARKER_CMD = 0xcb,
 
@@ -275,19 +270,6 @@ struct iwl_cmd_response {
 struct iwl_tx_ant_cfg_cmd {
 	__le32 valid;
 } __packed;
-
-/**
- * struct iwl_reduce_tx_power_cmd - TX power reduction command
- * REDUCE_TX_POWER_CMD = 0x9f
- * @flags: (reserved for future implementation)
- * @mac_context_id: id of the mac ctx for which we are reducing TX power.
- * @pwr_restriction: TX power restriction in dBms.
- */
-struct iwl_reduce_tx_power_cmd {
-	u8 flags;
-	u8 mac_context_id;
-	__le16 pwr_restriction;
-} __packed; /* TX_REDUCED_POWER_API_S_VER_1 */
 
 /*
  * Calibration control struct.
@@ -361,7 +343,8 @@ enum {
 	NVM_SECTION_TYPE_CALIBRATION = 4,
 	NVM_SECTION_TYPE_PRODUCTION = 5,
 	NVM_SECTION_TYPE_MAC_OVERRIDE = 11,
-	NVM_MAX_NUM_SECTIONS = 12,
+	NVM_SECTION_TYPE_PHY_SKU = 12,
+	NVM_MAX_NUM_SECTIONS = 13,
 };
 
 /**
@@ -431,7 +414,7 @@ enum {
 
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
-struct mvm_alive_resp {
+struct mvm_alive_resp_ver1 {
 	__le16 status;
 	__le16 flags;
 	u8 ucode_minor;
@@ -481,6 +464,30 @@ struct mvm_alive_resp_ver2 {
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
 } __packed; /* ALIVE_RES_API_S_VER_2 */
+
+struct mvm_alive_resp {
+	__le16 status;
+	__le16 flags;
+	__le32 ucode_minor;
+	__le32 ucode_major;
+	u8 ver_subtype;
+	u8 ver_type;
+	u8 mac;
+	u8 opt;
+	__le32 timestamp;
+	__le32 error_event_table_ptr;	/* SRAM address for error log */
+	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
+	__le32 cpu_register_ptr;
+	__le32 dbgm_config_ptr;
+	__le32 alive_counter_ptr;
+	__le32 scd_base_ptr;		/* SRAM address for SCD */
+	__le32 st_fwrd_addr;		/* pointer to Store and forward */
+	__le32 st_fwrd_size;
+	__le32 umac_minor;		/* UMAC version: minor */
+	__le32 umac_major;		/* UMAC version: major */
+	__le32 error_info_addr;		/* SRAM address for UMAC error log */
+	__le32 dbg_print_buff_addr;
+} __packed; /* ALIVE_RES_API_S_VER_3 */
 
 /* Error response/notification */
 enum {
@@ -1385,6 +1392,49 @@ struct iwl_mvm_marker {
 	__le32 metadata[0];
 } __packed; /* MARKER_API_S_VER_1 */
 
+/*
+ * enum iwl_dc2dc_config_id - flag ids
+ *
+ * Ids of dc2dc configuration flags
+ */
+enum iwl_dc2dc_config_id {
+	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* not used */
+	DCDC_FREQ_TUNE_SET = 0x2,
+}; /* MARKER_ID_API_E_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_cmd - configure dc2dc values
+ *
+ * (DC2DC_CONFIG_CMD = 0x83)
+ *
+ * Set/Get & configure dc2dc values.
+ * The command always returns the current dc2dc values.
+ *
+ * @flags: set/get dc2dc
+ * @enable_low_power_mode: not used.
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_cmd {
+	__le32 flags;
+	__le32 enable_low_power_mode; /* not used */
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_resp - response for iwl_dc2dc_config_cmd
+ *
+ * Current dc2dc values returned by the FW.
+ *
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_resp {
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_RESP_API_S_VER_1 */
+
 /***********************************
  * Smart Fifo API
  ***********************************/
@@ -1417,7 +1467,19 @@ enum iwl_sf_scenario {
 #define SF_W_MARK_LEGACY 4096
 #define SF_W_MARK_SCAN 4096
 
-/* SF Scenarios timers for FULL_ON state (aligned to 32 uSec) */
+/* SF Scenarios timers for default configuration (aligned to 32 uSec) */
+#define SF_SINGLE_UNICAST_IDLE_TIMER_DEF 160	/* 150 uSec  */
+#define SF_SINGLE_UNICAST_AGING_TIMER_DEF 400	/* 0.4 mSec */
+#define SF_AGG_UNICAST_IDLE_TIMER_DEF 160		/* 150 uSec */
+#define SF_AGG_UNICAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_MCAST_IDLE_TIMER_DEF 160		/* 150 mSec */
+#define SF_MCAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_BA_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_BA_AGING_TIMER_DEF 400			/* 0.4 mSec */
+#define SF_TX_RE_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_TX_RE_AGING_TIMER_DEF 400		/* 0.4 mSec */
+
+/* SF Scenarios timers for BSS MAC configuration (aligned to 32 uSec) */
 #define SF_SINGLE_UNICAST_IDLE_TIMER 320	/* 300 uSec  */
 #define SF_SINGLE_UNICAST_AGING_TIMER 2016	/* 2 mSec */
 #define SF_AGG_UNICAST_IDLE_TIMER 320		/* 300 uSec */
@@ -1447,6 +1509,92 @@ struct iwl_sf_cfg_cmd {
 	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 } __packed; /* SF_CFG_API_S_VER_2 */
+
+/***********************************
+ * Location Aware Regulatory (LAR) API - MCC updates
+ ***********************************/
+
+/**
+ * struct iwl_mcc_update_cmd - Request the device to update geographic
+ * regulatory profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @source_id: the source from where we got the MCC, see iwl_mcc_source
+ * @reserved: reserved for alignment
+ */
+struct iwl_mcc_update_cmd {
+	__le16 mcc;
+	u8 source_id;
+	u8 reserved;
+} __packed; /* LAR_UPDATE_MCC_CMD_API_S */
+
+/**
+ * iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * Contains the new channel control profile map, if changed, and the new MCC
+ * (mobile country code).
+ * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
+ * @status: see &enum iwl_mcc_update_status
+ * @mcc: the new applied MCC
+ * @cap: capabilities for all channels which matches the MCC
+ * @source_id: the MCC source, see iwl_mcc_source
+ * @n_channels: number of channels in @channels_data (may be 14, 39, 50 or 51
+ *		channels, depending on platform)
+ * @channels: channel control data map, DWORD for each channel. Only the first
+ *	16bits are used.
+ */
+struct iwl_mcc_update_resp {
+	__le32 status;
+	__le16 mcc;
+	u8 cap;
+	u8 source_id;
+	__le32 n_channels;
+	__le32 channels[0];
+} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S */
+
+/**
+ * struct iwl_mcc_chub_notif - chub notifies of mcc change
+ * (MCC_CHUB_UPDATE_CMD = 0xc9)
+ * The Chub (Communication Hub, CommsHUB) is a HW component that connects to
+ * the cellular and connectivity cores that gets updates of the mcc, and
+ * notifies the ucode directly of any mcc change.
+ * The ucode requests the driver to request the device to update geographic
+ * regulatory  profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @source_id: identity of the change originator, see iwl_mcc_source
+ * @reserved1: reserved for alignment
+ */
+struct iwl_mcc_chub_notif {
+	u16 mcc;
+	u8 source_id;
+	u8 reserved1;
+} __packed; /* LAR_MCC_NOTIFY_S */
+
+enum iwl_mcc_update_status {
+	MCC_RESP_NEW_CHAN_PROFILE,
+	MCC_RESP_SAME_CHAN_PROFILE,
+	MCC_RESP_INVALID,
+	MCC_RESP_NVM_DISABLED,
+	MCC_RESP_ILLEGAL,
+	MCC_RESP_LOW_PRIORITY,
+};
+
+enum iwl_mcc_source {
+	MCC_SOURCE_OLD_FW = 0,
+	MCC_SOURCE_ME = 1,
+	MCC_SOURCE_BIOS = 2,
+	MCC_SOURCE_3G_LTE_HOST = 3,
+	MCC_SOURCE_3G_LTE_DEVICE = 4,
+	MCC_SOURCE_WIFI = 5,
+	MCC_SOURCE_RESERVED = 6,
+	MCC_SOURCE_DEFAULT = 7,
+	MCC_SOURCE_UNINITIALIZED = 8,
+	MCC_SOURCE_GET_CURRENT = 0x10
+};
 
 /* DTS measurements */
 

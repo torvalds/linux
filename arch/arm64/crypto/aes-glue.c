@@ -284,7 +284,8 @@ static struct crypto_alg aes_algs[] = { {
 	.cra_name		= "__ecb-aes-" MODE,
 	.cra_driver_name	= "__driver-ecb-aes-" MODE,
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
 	.cra_alignmask		= 7,
@@ -302,7 +303,8 @@ static struct crypto_alg aes_algs[] = { {
 	.cra_name		= "__cbc-aes-" MODE,
 	.cra_driver_name	= "__driver-cbc-aes-" MODE,
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
 	.cra_alignmask		= 7,
@@ -320,7 +322,8 @@ static struct crypto_alg aes_algs[] = { {
 	.cra_name		= "__ctr-aes-" MODE,
 	.cra_driver_name	= "__driver-ctr-aes-" MODE,
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
 	.cra_alignmask		= 7,
@@ -338,7 +341,8 @@ static struct crypto_alg aes_algs[] = { {
 	.cra_name		= "__xts-aes-" MODE,
 	.cra_driver_name	= "__driver-xts-aes-" MODE,
 	.cra_priority		= 0,
-	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+				  CRYPTO_ALG_INTERNAL,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct crypto_aes_xts_ctx),
 	.cra_alignmask		= 7,

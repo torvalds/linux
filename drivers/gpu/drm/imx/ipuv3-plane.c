@@ -99,7 +99,7 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		       unsigned int crtc_w, unsigned int crtc_h,
 		       uint32_t src_x, uint32_t src_y,
-		       uint32_t src_w, uint32_t src_h)
+		       uint32_t src_w, uint32_t src_h, bool interlaced)
 {
 	struct device *dev = ipu_plane->base.dev->dev;
 	int ret;
@@ -213,6 +213,8 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 	ret = ipu_plane_set_base(ipu_plane, fb, src_x, src_y);
 	if (ret < 0)
 		return ret;
+	if (interlaced)
+		ipu_cpmem_interlaced_scan(ipu_plane->ipu_ch, fb->pitches[0]);
 
 	ipu_plane->w = src_w;
 	ipu_plane->h = src_h;
@@ -312,7 +314,8 @@ static int ipu_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	ret = ipu_plane_mode_set(ipu_plane, crtc, &crtc->hwmode, fb,
 			crtc_x, crtc_y, crtc_w, crtc_h,
-			src_x >> 16, src_y >> 16, src_w >> 16, src_h >> 16);
+			src_x >> 16, src_y >> 16, src_w >> 16, src_h >> 16,
+			false);
 	if (ret < 0) {
 		ipu_plane_put_resources(ipu_plane);
 		return ret;

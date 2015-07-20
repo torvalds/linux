@@ -290,8 +290,7 @@ static struct toklist dgap_tlist[] = {
 
 /*
  * dgap_sindex: much like index(), but it looks for a match of any character in
- * the group, and returns that position.  If the first character is a ^, then
- * this will match the first occurrence not in that group.
+ * the group, and returns that position.
  */
 static char *dgap_sindex(char *string, char *group)
 {
@@ -300,22 +299,10 @@ static char *dgap_sindex(char *string, char *group)
 	if (!string || !group)
 		return NULL;
 
-	if (*group == '^') {
-		group++;
-		for (; *string; string++) {
-			for (ptr = group; *ptr; ptr++) {
-				if (*ptr == *string)
-					break;
-			}
-			if (*ptr == '\0')
+	for (; *string; string++) {
+		for (ptr = group; *ptr; ptr++) {
+			if (*ptr == *string)
 				return string;
-		}
-	} else {
-		for (; *string; string++) {
-			for (ptr = group; *ptr; ptr++) {
-				if (*ptr == *string)
-					return string;
-			}
 		}
 	}
 
@@ -1361,7 +1348,6 @@ static uint dgap_get_custom_baud(struct channel_t *ch)
 {
 	u8 __iomem *vaddr;
 	ulong offset;
-	uint value;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return 0;
@@ -1384,8 +1370,7 @@ static uint dgap_get_custom_baud(struct channel_t *ch)
 	offset = (ioread16(vaddr + ECS_SEG) << 4) + (ch->ch_portnum * 0x28)
 	       + LINE_SPEED;
 
-	value = readw(vaddr + offset);
-	return value;
+	return readw(vaddr + offset);
 }
 
 /*
@@ -2196,7 +2181,7 @@ static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 	 * will be mapped into the low 2MB of the 4MB memory space
 	 */
 	brd->port = brd->membase + PCI_IO_OFFSET;
-	brd->port_end = brd->port + PCI_IO_SIZE;
+	brd->port_end = brd->port + PCI_IO_SIZE_DGAP;
 
 	/*
 	 * Special initialization for non-PLX boards
@@ -2660,7 +2645,7 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
  *      dgap_wmove - Write data to FEP buffer.
  *
  *              ch      - Pointer to channel structure.
- *              buf     - Poiter to characters to be moved.
+ *              buf     - Pointer to characters to be moved.
  *              cnt     - Number of characters to move.
  *
  *=======================================================================*/
@@ -3979,7 +3964,6 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	int result;
 	u8 mstat;
 	ulong lock_flags;
-	int rc;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
@@ -4004,9 +3988,7 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	if (mstat & D_CD(ch))
 		result |= TIOCM_CD;
 
-	rc = put_user(result, value);
-
-	return rc;
+	return put_user(result, value);
 }
 
 /*
@@ -6992,9 +6974,62 @@ cleanup_brd:
 	return rc;
 }
 
+/*
+ * dgap_cleanup_board()
+ *
+ * Free all the memory associated with a board
+ */
+static void dgap_cleanup_board(struct board_t *brd)
+{
+	unsigned int i;
+
+	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
+		return;
+
+	dgap_free_irq(brd);
+
+	tasklet_kill(&brd->helper_tasklet);
+
+	dgap_unmap(brd);
+
+	/* Free all allocated channels structs */
+	for (i = 0; i < MAXPORTS ; i++)
+		kfree(brd->channels[i]);
+
+	kfree(brd->flipbuf);
+	kfree(brd->flipflagbuf);
+
+	dgap_board[brd->boardnum] = NULL;
+
+	kfree(brd);
+}
+
 static void dgap_remove_one(struct pci_dev *dev)
 {
-	/* Do Nothing */
+	unsigned int i;
+	ulong lock_flags;
+	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
+
+	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
+	dgap_poll_stop = 1;
+	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
+
+	/* Turn off poller right away. */
+	del_timer_sync(&dgap_poll_timer);
+
+	dgap_remove_driver_sysfiles(drv);
+
+	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
+	class_destroy(dgap_class);
+	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
+
+	for (i = 0; i < dgap_numboards; ++i) {
+		dgap_remove_ports_sysfiles(dgap_board[i]);
+		dgap_cleanup_tty(dgap_board[i]);
+		dgap_cleanup_board(dgap_board[i]);
+	}
+
+	dgap_cleanup_nodes();
 }
 
 static struct pci_driver dgap_driver = {
@@ -7044,8 +7079,7 @@ static int dgap_start(void)
 
 	/* Start the poller */
 	spin_lock_irqsave(&dgap_poll_lock, flags);
-	init_timer(&dgap_poll_timer);
-	dgap_poll_timer.function = dgap_poll_handler;
+	setup_timer(&dgap_poll_timer, dgap_poll_handler, 0);
 	dgap_poll_timer.data = 0;
 	dgap_poll_time = jiffies + dgap_jiffies_from_ms(dgap_poll_tick);
 	dgap_poll_timer.expires = dgap_poll_time;
@@ -7076,37 +7110,6 @@ static void dgap_stop(void)
 	class_destroy(dgap_class);
 	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 }
-
-/*
- * dgap_cleanup_board()
- *
- * Free all the memory associated with a board
- */
-static void dgap_cleanup_board(struct board_t *brd)
-{
-	unsigned int i;
-
-	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
-		return;
-
-	dgap_free_irq(brd);
-
-	tasklet_kill(&brd->helper_tasklet);
-
-	dgap_unmap(brd);
-
-	/* Free all allocated channels structs */
-	for (i = 0; i < MAXPORTS ; i++)
-		kfree(brd->channels[i]);
-
-	kfree(brd->flipbuf);
-	kfree(brd->flipflagbuf);
-
-	dgap_board[brd->boardnum] = NULL;
-
-	kfree(brd);
-}
-
 
 /************************************************************************
  *
@@ -7156,30 +7159,6 @@ err_stop:
  */
 static void dgap_cleanup_module(void)
 {
-	unsigned int i;
-	ulong lock_flags;
-
-	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
-	dgap_poll_stop = 1;
-	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
-
-	/* Turn off poller right away. */
-	del_timer_sync(&dgap_poll_timer);
-
-	dgap_remove_driver_sysfiles(&dgap_driver);
-
-	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
-	class_destroy(dgap_class);
-	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
-
-	for (i = 0; i < dgap_numboards; ++i) {
-		dgap_remove_ports_sysfiles(dgap_board[i]);
-		dgap_cleanup_tty(dgap_board[i]);
-		dgap_cleanup_board(dgap_board[i]);
-	}
-
-	dgap_cleanup_nodes();
-
 	if (dgap_numboards)
 		pci_unregister_driver(&dgap_driver);
 }

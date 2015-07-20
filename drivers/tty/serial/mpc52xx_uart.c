@@ -405,7 +405,7 @@ static struct psc_ops mpc5200b_psc_ops = {
 	.get_mr1 = mpc52xx_psc_get_mr1,
 };
 
-#endif /* CONFIG_MPC52xx */
+#endif /* CONFIG_PPC_MPC52xx */
 
 #ifdef CONFIG_PPC_MPC512x
 #define FIFO_512x(port) ((struct mpc512x_psc_fifo __iomem *)(PSC(port)+1))
@@ -1717,7 +1717,7 @@ static struct uart_driver mpc52xx_uart_driver = {
 /* OF Platform Driver                                                       */
 /* ======================================================================== */
 
-static struct of_device_id mpc52xx_uart_of_match[] = {
+static const struct of_device_id mpc52xx_uart_of_match[] = {
 #ifdef CONFIG_PPC_MPC52xx
 	{ .compatible = "fsl,mpc5200b-psc-uart", .data = &mpc5200b_psc_ops, },
 	{ .compatible = "fsl,mpc5200-psc-uart", .data = &mpc52xx_psc_ops, },

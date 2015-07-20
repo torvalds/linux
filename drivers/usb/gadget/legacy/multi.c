@@ -149,7 +149,7 @@ static struct usb_function *f_acm_rndis;
 static struct usb_function *f_rndis;
 static struct usb_function *f_msg_rndis;
 
-static __init int rndis_do_config(struct usb_configuration *c)
+static int rndis_do_config(struct usb_configuration *c)
 {
 	struct fsg_opts *fsg_opts;
 	int ret;
@@ -237,7 +237,7 @@ static struct usb_function *f_acm_multi;
 static struct usb_function *f_ecm;
 static struct usb_function *f_msg_multi;
 
-static __init int cdc_do_config(struct usb_configuration *c)
+static int cdc_do_config(struct usb_configuration *c)
 {
 	struct fsg_opts *fsg_opts;
 	int ret;
@@ -466,7 +466,7 @@ fail:
 	return status;
 }
 
-static int __exit multi_unbind(struct usb_composite_dev *cdev)
+static int multi_unbind(struct usb_composite_dev *cdev)
 {
 #ifdef CONFIG_USB_G_MULTI_CDC
 	usb_put_function(f_msg_multi);
@@ -497,13 +497,13 @@ static int __exit multi_unbind(struct usb_composite_dev *cdev)
 /****************************** Some noise ******************************/
 
 
-static __refdata struct usb_composite_driver multi_driver = {
+static struct usb_composite_driver multi_driver = {
 	.name		= "g_multi",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
 	.bind		= multi_bind,
-	.unbind		= __exit_p(multi_unbind),
+	.unbind		= multi_unbind,
 	.needs_serial	= 1,
 };
 

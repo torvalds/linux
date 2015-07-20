@@ -45,14 +45,3 @@ int __init shmobile_clk_init(void)
 
 	return 0;
 }
-
-int __clk_get(struct clk *clk)
-{
-	return 1;
-}
-EXPORT_SYMBOL(__clk_get);
-
-void __clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(__clk_put);

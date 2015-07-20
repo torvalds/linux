@@ -56,16 +56,10 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_jack_new(codec, "Headset",
-			       SND_JACK_LINEOUT | SND_JACK_HEADSET |
-			       SND_JACK_BTN_0,
-			       &lowland_headset);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_pins(&lowland_headset,
-				    ARRAY_SIZE(lowland_headset_pins),
-				    lowland_headset_pins);
+	ret = snd_soc_card_jack_new(rtd->card, "Headset", SND_JACK_LINEOUT |
+				    SND_JACK_HEADSET | SND_JACK_BTN_0,
+				    &lowland_headset, lowland_headset_pins,
+				    ARRAY_SIZE(lowland_headset_pins));
 	if (ret)
 		return ret;
 
@@ -78,7 +72,7 @@ static int lowland_wm9081_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 
-	snd_soc_dapm_nc_pin(&codec->dapm, "LINEOUT");
+	snd_soc_dapm_nc_pin(&rtd->card->dapm, "LINEOUT");
 
 	/* At any time the WM9081 is active it will have this clock */
 	return snd_soc_codec_set_sysclk(codec, WM9081_SYSCLK_MCLK, 0,

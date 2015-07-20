@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/rcupdate.h>
 #include <asm/errno.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 #include "cxl.h"
 
 /* protected by rcu */

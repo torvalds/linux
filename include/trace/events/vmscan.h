@@ -336,18 +336,18 @@ TRACE_EVENT(mm_vmscan_writepage,
 	TP_ARGS(page, reclaim_flags),
 
 	TP_STRUCT__entry(
-		__field(struct page *, page)
+		__field(unsigned long, pfn)
 		__field(int, reclaim_flags)
 	),
 
 	TP_fast_assign(
-		__entry->page = page;
+		__entry->pfn = page_to_pfn(page);
 		__entry->reclaim_flags = reclaim_flags;
 	),
 
 	TP_printk("page=%p pfn=%lu flags=%s",
-		__entry->page,
-		page_to_pfn(__entry->page),
+		pfn_to_page(__entry->pfn),
+		__entry->pfn,
 		show_reclaim_flags(__entry->reclaim_flags))
 );
 

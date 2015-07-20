@@ -529,6 +529,9 @@ sys_call_table:
 	.quad sys_sched_setattr
 	.quad sys_sched_getattr
 	.quad sys_renameat2			/* 510 */
+	.quad sys_getrandom
+	.quad sys_memfd_create
+	.quad sys_execveat
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

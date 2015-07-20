@@ -277,7 +277,7 @@ static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
 			dev_err(ab->dev, "Failed to set the Vintcore to 1.3V, ret=%d\n",
 					ret);
 
-		ret = regulator_set_optimum_mode(ab->v_ulpi, 28000);
+		ret = regulator_set_load(ab->v_ulpi, 28000);
 		if (ret < 0)
 			dev_err(ab->dev, "Failed to set optimum mode (ret=%d)\n",
 					ret);
@@ -317,7 +317,7 @@ static void ab8500_usb_regulator_disable(struct ab8500_usb *ab)
 						ab->saved_v_ulpi, ret);
 		}
 
-		ret = regulator_set_optimum_mode(ab->v_ulpi, 0);
+		ret = regulator_set_load(ab->v_ulpi, 0);
 		if (ret < 0)
 			dev_err(ab->dev, "Failed to set optimum mode (ret=%d)\n",
 					ret);
@@ -893,7 +893,7 @@ static int abx500_usb_link_status_update(struct ab8500_usb *ab)
 
 /*
  * Disconnection Sequence:
- *   1. Disconect Interrupt
+ *   1. Disconnect Interrupt
  *   2. Disable regulators
  *   3. Disable AB clock
  *   4. Disable the Phy
@@ -1179,7 +1179,7 @@ static int ab8500_usb_irq_setup(struct platform_device *pdev,
 		}
 		err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				ab8500_usb_link_status_irq,
-				IRQF_NO_SUSPEND | IRQF_SHARED,
+				IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
 				"usb-link-status", ab);
 		if (err < 0) {
 			dev_err(ab->dev, "request_irq failed for link status irq\n");
@@ -1195,7 +1195,7 @@ static int ab8500_usb_irq_setup(struct platform_device *pdev,
 		}
 		err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				ab8500_usb_disconnect_irq,
-				IRQF_NO_SUSPEND | IRQF_SHARED,
+				IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
 				"usb-id-fall", ab);
 		if (err < 0) {
 			dev_err(ab->dev, "request_irq failed for ID fall irq\n");
@@ -1211,7 +1211,7 @@ static int ab8500_usb_irq_setup(struct platform_device *pdev,
 		}
 		err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				ab8500_usb_disconnect_irq,
-				IRQF_NO_SUSPEND | IRQF_SHARED,
+				IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
 				"usb-vbus-fall", ab);
 		if (err < 0) {
 			dev_err(ab->dev, "request_irq failed for Vbus fall irq\n");
@@ -1504,7 +1504,7 @@ static int ab8500_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id ab8500_usb_devtype[] = {
+static const struct platform_device_id ab8500_usb_devtype[] = {
 	{ .name = "ab8500-usb", },
 	{ .name = "ab8540-usb", },
 	{ .name = "ab9540-usb", },

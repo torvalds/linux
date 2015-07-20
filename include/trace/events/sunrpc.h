@@ -179,27 +179,53 @@ DEFINE_EVENT(rpc_task_queued, rpc_task_wakeup,
 
 );
 
+/*
+ * First define the enums in the below macros to be exported to userspace
+ * via TRACE_DEFINE_ENUM().
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+#define RPC_SHOW_SOCKET				\
+	EM( SS_FREE, "FREE" )			\
+	EM( SS_UNCONNECTED, "UNCONNECTED" )	\
+	EM( SS_CONNECTING, "CONNECTING," )	\
+	EM( SS_CONNECTED, "CONNECTED," )	\
+	EMe(SS_DISCONNECTING, "DISCONNECTING" )
+
 #define rpc_show_socket_state(state) \
-	__print_symbolic(state, \
-		{ SS_FREE, "FREE" }, \
-		{ SS_UNCONNECTED, "UNCONNECTED" }, \
-		{ SS_CONNECTING, "CONNECTING," }, \
-		{ SS_CONNECTED, "CONNECTED," }, \
-		{ SS_DISCONNECTING, "DISCONNECTING" })
+	__print_symbolic(state, RPC_SHOW_SOCKET)
+
+RPC_SHOW_SOCKET
+
+#define RPC_SHOW_SOCK				\
+	EM( TCP_ESTABLISHED, "ESTABLISHED" )	\
+	EM( TCP_SYN_SENT, "SYN_SENT" )		\
+	EM( TCP_SYN_RECV, "SYN_RECV" )		\
+	EM( TCP_FIN_WAIT1, "FIN_WAIT1" )	\
+	EM( TCP_FIN_WAIT2, "FIN_WAIT2" )	\
+	EM( TCP_TIME_WAIT, "TIME_WAIT" )	\
+	EM( TCP_CLOSE, "CLOSE" )		\
+	EM( TCP_CLOSE_WAIT, "CLOSE_WAIT" )	\
+	EM( TCP_LAST_ACK, "LAST_ACK" )		\
+	EM( TCP_LISTEN, "LISTEN" )		\
+	EMe( TCP_CLOSING, "CLOSING" )
 
 #define rpc_show_sock_state(state) \
-	__print_symbolic(state, \
-		{ TCP_ESTABLISHED, "ESTABLISHED" }, \
-		{ TCP_SYN_SENT, "SYN_SENT" }, \
-		{ TCP_SYN_RECV, "SYN_RECV" }, \
-		{ TCP_FIN_WAIT1, "FIN_WAIT1" }, \
-		{ TCP_FIN_WAIT2, "FIN_WAIT2" }, \
-		{ TCP_TIME_WAIT, "TIME_WAIT" }, \
-		{ TCP_CLOSE, "CLOSE" }, \
-		{ TCP_CLOSE_WAIT, "CLOSE_WAIT" }, \
-		{ TCP_LAST_ACK, "LAST_ACK" }, \
-		{ TCP_LISTEN, "LISTEN" }, \
-		{ TCP_CLOSING, "CLOSING" })
+	__print_symbolic(state, RPC_SHOW_SOCK)
+
+RPC_SHOW_SOCK
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	{a, b},
+#define EMe(a, b)	{a, b}
 
 DECLARE_EVENT_CLASS(xs_socket_event,
 

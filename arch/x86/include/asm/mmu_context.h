@@ -23,7 +23,7 @@ extern struct static_key rdpmc_always_available;
 
 static inline void load_mm_cr4(struct mm_struct *mm)
 {
-	if (static_key_true(&rdpmc_always_available) ||
+	if (static_key_false(&rdpmc_always_available) ||
 	    atomic_read(&mm->context.perf_rdpmc_allowed))
 		cr4_set_bits(X86_CR4_PCE);
 	else
@@ -141,6 +141,19 @@ static inline void arch_exit_mmap(struct mm_struct *mm)
 {
 	paravirt_arch_exit_mmap(mm);
 }
+
+#ifdef CONFIG_X86_64
+static inline bool is_64bit_mm(struct mm_struct *mm)
+{
+	return	!config_enabled(CONFIG_IA32_EMULATION) ||
+		!(mm->context.ia32_compat == TIF_IA32);
+}
+#else
+static inline bool is_64bit_mm(struct mm_struct *mm)
+{
+	return false;
+}
+#endif
 
 static inline void arch_bprm_mm_init(struct mm_struct *mm,
 		struct vm_area_struct *vma)

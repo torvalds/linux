@@ -49,6 +49,7 @@ Required properties:
 - compatible:	Should be "ti,netcp-1.0"
 - clocks:	phandle to the reference clocks for the subsystem.
 - dma-id:	Navigator packet dma instance id.
+- ranges:	address range of NetCP (includes, Ethernet SS, PA and SA)
 
 Optional properties:
 - reg:		register location and the size for the following register
@@ -64,10 +65,30 @@ NetCP device properties: Device specification for NetCP sub-modules.
 1Gb/10Gb (gbe/xgbe) ethernet switch sub-module specifications.
 Required properties:
 - label:	Must be "netcp-gbe" for 1Gb & "netcp-xgbe" for 10Gb.
+- compatible:	Must be one of below:-
+		"ti,netcp-gbe" for 1GbE on NetCP 1.4
+		"ti,netcp-gbe-5" for 1GbE N NetCP 1.5 (N=5)
+		"ti,netcp-gbe-9" for 1GbE N NetCP 1.5 (N=9)
+		"ti,netcp-gbe-2" for 1GbE N NetCP 1.5 (N=2)
+		"ti,netcp-xgbe" for 10 GbE
+
 - reg:		register location and the size for the following register
 		regions in the specified order.
-		- subsystem registers
-		- serdes registers
+		- switch subsystem registers
+		- sgmii port3/4 module registers (only for NetCP 1.4)
+		- switch module registers
+		- serdes registers (only for 10G)
+
+		NetCP 1.4 ethss, here is the order
+			index #0 - switch subsystem registers
+			index #1 - sgmii port3/4 module registers
+			index #2 - switch module registers
+
+		NetCP 1.5 ethss 9 port, 5 port and 2 port
+			index #0 - switch subsystem registers
+			index #1 - switch module registers
+			index #2 - serdes registers
+
 - tx-channel:	the navigator packet dma channel name for tx.
 - tx-queue:	the navigator queue number associated with the tx dma channel.
 - interfaces:	specification for each of the switch port to be registered as a
@@ -120,14 +141,13 @@ Optional properties:
 
 Example binding:
 
-netcp: netcp@2090000 {
+netcp: netcp@2000000 {
 	reg = <0x2620110 0x8>;
 	reg-names = "efuse";
 	compatible = "ti,netcp-1.0";
 	#address-cells = <1>;
 	#size-cells = <1>;
-	ranges;
-
+	ranges  = <0 0x2000000 0xfffff>;
 	clocks = <&papllclk>, <&clkcpgmac>, <&chipclk12>;
 	dma-coherent;
 	/* big-endian; */
@@ -137,9 +157,9 @@ netcp: netcp@2090000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		gbe@0x2090000 {
+		gbe@90000 {
 			label = "netcp-gbe";
-			reg = <0x2090000 0xf00>;
+			reg = <0x90000 0x300>, <0x90400 0x400>, <0x90800 0x700>;
 			/* enable-ale; */
 			tx-queue = <648>;
 			tx-channel = <8>;

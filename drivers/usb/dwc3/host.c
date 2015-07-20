@@ -49,9 +49,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 
 	memset(&pdata, 0, sizeof(pdata));
 
-#ifdef CONFIG_DWC3_HOST_USB3_LPM_ENABLE
-	pdata.usb3_lpm_capable = 1;
-#endif
+	pdata.usb3_lpm_capable = dwc->usb3_lpm_capable;
 
 	ret = platform_device_add_data(xhci, &pdata, sizeof(pdata));
 	if (ret) {

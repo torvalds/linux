@@ -177,6 +177,9 @@
 #define SYS_9XX_CLK_DEV_DIV			0x18d
 #define SYS_9XX_CLK_DEV_CHG			0x18f
 
+#define SYS_9XX_CLK_DEV_SEL_REG			0x1a4
+#define SYS_9XX_CLK_DEV_DIV_REG			0x1a6
+
 /* Registers changed on 9XX */
 #define SYS_9XX_POWER_ON_RESET_CFG		0x00
 #define SYS_9XX_CHIP_RESET			0x01

@@ -561,10 +561,10 @@ static int cs4271_codec_probe(struct snd_soc_codec *codec)
 	if (gpio_is_valid(cs4271->gpio_nreset)) {
 		/* Reset codec */
 		gpio_direction_output(cs4271->gpio_nreset, 0);
-		udelay(1);
+		mdelay(1);
 		gpio_set_value(cs4271->gpio_nreset, 1);
 		/* Give the codec time to wake up */
-		udelay(1);
+		mdelay(1);
 	}
 
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,

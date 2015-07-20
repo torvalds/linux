@@ -63,7 +63,7 @@ MODULE_LICENSE("GPL");
 #define   IDR_W5300		  0x5300  /* =0x5300 for WIZnet W5300 */
 #define W5300_S0_MR		0x0200	/* S0 Mode Register */
 #define   S0_MR_CLOSED		  0x0000  /* Close mode */
-#define   S0_MR_MACRAW		  0x0004  /* MAC RAW mode (promiscous) */
+#define   S0_MR_MACRAW		  0x0004  /* MAC RAW mode (promiscuous) */
 #define   S0_MR_MACRAW_MF	  0x0044  /* MAC RAW mode (filtered) */
 #define W5300_S0_CR		0x0202	/* S0 Command Register */
 #define   S0_CR_OPEN		  0x0001  /* OPEN command */

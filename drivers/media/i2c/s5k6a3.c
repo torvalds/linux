@@ -99,7 +99,7 @@ static const struct v4l2_mbus_framefmt *find_sensor_format(
 }
 
 static int s5k6a3_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(s5k6a3_formats))
@@ -123,17 +123,17 @@ static void s5k6a3_try_format(struct v4l2_mbus_framefmt *mf)
 }
 
 static struct v4l2_mbus_framefmt *__s5k6a3_get_format(
-		struct s5k6a3 *sensor, struct v4l2_subdev_fh *fh,
+		struct s5k6a3 *sensor, struct v4l2_subdev_pad_config *cfg,
 		u32 pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return fh ? v4l2_subdev_get_try_format(fh, pad) : NULL;
+		return cfg ? v4l2_subdev_get_try_format(&sensor->subdev, cfg, pad) : NULL;
 
 	return &sensor->format;
 }
 
 static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_format *fmt)
 {
 	struct s5k6a3 *sensor = sd_to_s5k6a3(sd);
@@ -141,7 +141,7 @@ static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
 
 	s5k6a3_try_format(&fmt->format);
 
-	mf = __s5k6a3_get_format(sensor, fh, fmt->pad, fmt->which);
+	mf = __s5k6a3_get_format(sensor, cfg, fmt->pad, fmt->which);
 	if (mf) {
 		mutex_lock(&sensor->lock);
 		if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -152,13 +152,13 @@ static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int s5k6a3_get_fmt(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
-				  struct v4l2_subdev_format *fmt)
+			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_format *fmt)
 {
 	struct s5k6a3 *sensor = sd_to_s5k6a3(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = __s5k6a3_get_format(sensor, fh, fmt->pad, fmt->which);
+	mf = __s5k6a3_get_format(sensor, cfg, fmt->pad, fmt->which);
 
 	mutex_lock(&sensor->lock);
 	fmt->format = *mf;
@@ -174,7 +174,7 @@ static struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
 
 static int s5k6a3_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(fh, 0);
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
 	*format		= s5k6a3_formats[0];
 	format->width	= S5K6A3_DEFAULT_WIDTH;

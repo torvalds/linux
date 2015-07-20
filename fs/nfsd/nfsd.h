@@ -24,7 +24,7 @@
 #include "export.h"
 
 #undef ifdebug
-#ifdef NFSD_DEBUG
+#ifdef CONFIG_SUNRPC_DEBUG
 # define ifdebug(flag)		if (nfsd_debug & NFSDDBG_##flag)
 #else
 # define ifdebug(flag)		if (0)

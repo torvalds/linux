@@ -276,7 +276,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		gspca_dev->usb_err = ret;
 		goto out;
 	}
-	 reg_r(gspca_dev, 0x0630);
+	reg_r(gspca_dev, 0x0630);
 	rcv_val(gspca_dev, 0x000020);	/* << (value ff ff ff ff) */
 	reg_r(gspca_dev, 0x0650);
 	snd_val(gspca_dev, 0x000020, 0xffffffff);

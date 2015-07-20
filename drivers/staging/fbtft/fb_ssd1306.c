@@ -193,8 +193,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	ret = par->fbtftops.write(par, par->txbuf.buf,
 				par->info->var.xres*par->info->var.yres/8);
 	if (ret < 0)
-		dev_err(par->info->device,
-			"%s: write failed and returned: %d\n", __func__, ret);
+		dev_err(par->info->device, "write failed and returned: %d\n",
+			ret);
 
 	return ret;
 }

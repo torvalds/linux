@@ -62,15 +62,21 @@ static int cache_setup_of_node(unsigned int cpu)
 		return -ENOENT;
 	}
 
-	while (np && index < cache_leaves(cpu)) {
+	while (index < cache_leaves(cpu)) {
 		this_leaf = this_cpu_ci->info_list + index;
 		if (this_leaf->level != 1)
 			np = of_find_next_cache_node(np);
 		else
 			np = of_node_get(np);/* cpu node itself */
+		if (!np)
+			break;
 		this_leaf->of_node = np;
 		index++;
 	}
+
+	if (index != cache_leaves(cpu)) /* not all OF nodes populated */
+		return -ENOENT;
+
 	return 0;
 }
 
@@ -173,7 +179,7 @@ static int detect_cache_attributes(unsigned int cpu)
 {
 	int ret;
 
-	if (init_cache_level(cpu))
+	if (init_cache_level(cpu) || !cache_leaves(cpu))
 		return -ENOENT;
 
 	per_cpu_cacheinfo(cpu) = kcalloc(cache_leaves(cpu),
@@ -185,12 +191,15 @@ static int detect_cache_attributes(unsigned int cpu)
 	if (ret)
 		goto free_ci;
 	/*
-	 * For systems using DT for cache hierarcy, of_node and shared_cpu_map
+	 * For systems using DT for cache hierarchy, of_node and shared_cpu_map
 	 * will be set up here only if they are not populated already
 	 */
 	ret = cache_shared_cpu_map_setup(cpu);
-	if (ret)
+	if (ret) {
+		pr_warn("Unable to detect cache hierarchy from DT for CPU %d\n",
+			cpu);
 		goto free_ci;
+	}
 	return 0;
 
 free_ci:

@@ -417,9 +417,8 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 	asic3_write_register(asic, ASIC3_OFFSET(INTR, INT_MASK),
 			     ASIC3_INTMASK_GINTMASK);
 
-	irq_set_chained_handler(asic->irq_nr, asic3_irq_demux);
+	irq_set_chained_handler_and_data(asic->irq_nr, asic3_irq_demux, asic);
 	irq_set_irq_type(asic->irq_nr, IRQ_TYPE_EDGE_RISING);
-	irq_set_handler_data(asic->irq_nr, asic);
 
 	return 0;
 }

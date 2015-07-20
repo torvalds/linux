@@ -75,6 +75,7 @@
 #include <linux/types.h>
 #include <sys/ttydefaults.h>
 #include <api/fs/debugfs.h>
+#include <api/fs/tracefs.h>
 #include <termios.h>
 #include <linux/bitops.h>
 #include <termios.h>
@@ -248,14 +249,20 @@ static inline int sane_case(int x, int high)
 }
 
 int mkdir_p(char *path, mode_t mode);
+int rm_rf(char *path);
 int copyfile(const char *from, const char *to);
 int copyfile_mode(const char *from, const char *to, mode_t mode);
+int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 size);
 
 s64 perf_atoll(const char *str);
 char **argv_split(const char *str, int *argcp);
 void argv_free(char **argv);
 bool strglobmatch(const char *str, const char *pat);
 bool strlazymatch(const char *str, const char *pat);
+static inline bool strisglob(const char *str)
+{
+	return strpbrk(str, "*?[") != NULL;
+}
 int strtailcmp(const char *s1, const char *s2);
 char *strxfrchar(char *s, char from, char to);
 unsigned long convert_unit(unsigned long value, char *unit);
@@ -276,6 +283,7 @@ char *ltrim(char *s);
 char *rtrim(char *s);
 
 void dump_stack(void);
+void sighandler_dump_stack(int sig);
 
 extern unsigned int page_size;
 extern int cacheline_size;
@@ -325,6 +333,10 @@ bool find_process(const char *name);
 
 #ifdef HAVE_ZLIB_SUPPORT
 int gzip_decompress_to_file(const char *input, int output_fd);
+#endif
+
+#ifdef HAVE_LZMA_SUPPORT
+int lzma_decompress_to_file(const char *input, int output_fd);
 #endif
 
 #endif /* GIT_COMPAT_UTIL_H */

@@ -71,7 +71,7 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 	asm(
 	"1:	ldr	%0, [%2]\n"
 	"2:\n"
-	"	.pushsection .fixup,\"ax\"\n"
+	"	.pushsection .text.fixup,\"ax\"\n"
 	"	.align 2\n"
 	"3:	and	%1, %2, #0x3\n"
 	"	bic	%2, %2, #0x3\n"

@@ -27,6 +27,11 @@
 		device_type = "memory";
 		reg = <0x00000000 0x10000000>;
 	};
+
+	fan {
+		compatible = "gpio-fan";
+		alarm-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &regulators {

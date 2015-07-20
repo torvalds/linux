@@ -26,7 +26,6 @@
 
 #include <target/iscsi/iscsi_target_core.h>
 #include <target/iscsi/iscsi_target_stat.h>
-#include "iscsi_target_tq.h"
 #include "iscsi_target_device.h"
 #include "iscsi_target_nego.h"
 #include "iscsi_target_erl0.h"
@@ -347,6 +346,7 @@ static int iscsi_login_zero_tsih_s1(
 	if (IS_ERR(sess->se_sess)) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+		kfree(sess->sess_ops);
 		kfree(sess);
 		return -ENOMEM;
 	}
@@ -410,8 +410,6 @@ static int iscsi_login_zero_tsih_s2(
 	if (iscsi_change_param_sprintf(conn, "ErrorRecoveryLevel=%d", na->default_erl))
 		return -1;
 
-	if (iscsi_login_disable_FIM_keys(conn->param_list, conn) < 0)
-		return -1;
 	/*
 	 * Set RDMAExtensions=Yes by default for iSER enabled network portals
 	 */
@@ -473,59 +471,6 @@ check_prot:
 				 " T10-PI enabled ISER session\n");
 		}
 	}
-
-	return 0;
-}
-
-/*
- * Remove PSTATE_NEGOTIATE for the four FIM related keys.
- * The Initiator node will be able to enable FIM by proposing them itself.
- */
-int iscsi_login_disable_FIM_keys(
-	struct iscsi_param_list *param_list,
-	struct iscsi_conn *conn)
-{
-	struct iscsi_param *param;
-
-	param = iscsi_find_param_from_key("OFMarker", param_list);
-	if (!param) {
-		pr_err("iscsi_find_param_from_key() for"
-				" OFMarker failed\n");
-		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		return -1;
-	}
-	param->state &= ~PSTATE_NEGOTIATE;
-
-	param = iscsi_find_param_from_key("OFMarkInt", param_list);
-	if (!param) {
-		pr_err("iscsi_find_param_from_key() for"
-				" IFMarker failed\n");
-		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		return -1;
-	}
-	param->state &= ~PSTATE_NEGOTIATE;
-
-	param = iscsi_find_param_from_key("IFMarker", param_list);
-	if (!param) {
-		pr_err("iscsi_find_param_from_key() for"
-				" IFMarker failed\n");
-		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		return -1;
-	}
-	param->state &= ~PSTATE_NEGOTIATE;
-
-	param = iscsi_find_param_from_key("IFMarkInt", param_list);
-	if (!param) {
-		pr_err("iscsi_find_param_from_key() for"
-				" IFMarker failed\n");
-		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
-				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		return -1;
-	}
-	param->state &= ~PSTATE_NEGOTIATE;
 
 	return 0;
 }
@@ -616,7 +561,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	if (iscsi_change_param_sprintf(conn, "TargetPortalGroupTag=%hu", sess->tpg->tpgt))
 		return -1;
 
-	return iscsi_login_disable_FIM_keys(conn->param_list, conn);
+	return 0;
 }
 
 int iscsi_login_post_auth_non_zero_tsih(
@@ -699,6 +644,51 @@ static void iscsi_post_login_start_timers(struct iscsi_conn *conn)
 		iscsit_start_nopin_timer(conn);
 }
 
+static int iscsit_start_kthreads(struct iscsi_conn *conn)
+{
+	int ret = 0;
+
+	spin_lock(&iscsit_global->ts_bitmap_lock);
+	conn->bitmap_id = bitmap_find_free_region(iscsit_global->ts_bitmap,
+					ISCSIT_BITMAP_BITS, get_order(1));
+	spin_unlock(&iscsit_global->ts_bitmap_lock);
+
+	if (conn->bitmap_id < 0) {
+		pr_err("bitmap_find_free_region() failed for"
+		       " iscsit_start_kthreads()\n");
+		return -ENOMEM;
+	}
+
+	conn->tx_thread = kthread_run(iscsi_target_tx_thread, conn,
+				      "%s", ISCSI_TX_THREAD_NAME);
+	if (IS_ERR(conn->tx_thread)) {
+		pr_err("Unable to start iscsi_target_tx_thread\n");
+		ret = PTR_ERR(conn->tx_thread);
+		goto out_bitmap;
+	}
+	conn->tx_thread_active = true;
+
+	conn->rx_thread = kthread_run(iscsi_target_rx_thread, conn,
+				      "%s", ISCSI_RX_THREAD_NAME);
+	if (IS_ERR(conn->rx_thread)) {
+		pr_err("Unable to start iscsi_target_rx_thread\n");
+		ret = PTR_ERR(conn->rx_thread);
+		goto out_tx;
+	}
+	conn->rx_thread_active = true;
+
+	return 0;
+out_tx:
+	kthread_stop(conn->tx_thread);
+	conn->tx_thread_active = false;
+out_bitmap:
+	spin_lock(&iscsit_global->ts_bitmap_lock);
+	bitmap_release_region(iscsit_global->ts_bitmap, conn->bitmap_id,
+			      get_order(1));
+	spin_unlock(&iscsit_global->ts_bitmap_lock);
+	return ret;
+}
+
 int iscsi_post_login_handler(
 	struct iscsi_np *np,
 	struct iscsi_conn *conn,
@@ -709,7 +699,7 @@ int iscsi_post_login_handler(
 	struct se_session *se_sess = sess->se_sess;
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
-	struct iscsi_thread_set *ts;
+	int rc;
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -720,11 +710,9 @@ int iscsi_post_login_handler(
 	conn->conn_state = TARG_CONN_STATE_LOGGED_IN;
 
 	iscsi_set_connection_parameters(conn->conn_ops, conn->param_list);
-	iscsit_set_sync_and_steering_values(conn);
 	/*
 	 * SCSI Initiator -> SCSI Target Port Mapping
 	 */
-	ts = iscsi_get_thread_set();
 	if (!zero_tsih) {
 		iscsi_set_session_parameters(sess->sess_ops,
 				conn->param_list, 0);
@@ -751,9 +739,11 @@ int iscsi_post_login_handler(
 			sess->sess_ops->InitiatorName);
 		spin_unlock_bh(&sess->conn_lock);
 
-		iscsi_post_login_start_timers(conn);
+		rc = iscsit_start_kthreads(conn);
+		if (rc)
+			return rc;
 
-		iscsi_activate_thread_set(conn, ts);
+		iscsi_post_login_start_timers(conn);
 		/*
 		 * Determine CPU mask to ensure connection's RX and TX kthreads
 		 * are scheduled on the same CPU.
@@ -810,8 +800,11 @@ int iscsi_post_login_handler(
 		" iSCSI Target Portal Group: %hu\n", tpg->nsessions, tpg->tpgt);
 	spin_unlock_bh(&se_tpg->session_lock);
 
+	rc = iscsit_start_kthreads(conn);
+	if (rc)
+		return rc;
+
 	iscsi_post_login_start_timers(conn);
-	iscsi_activate_thread_set(conn, ts);
 	/*
 	 * Determine CPU mask to ensure connection's RX and TX kthreads
 	 * are scheduled on the same CPU.

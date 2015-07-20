@@ -77,7 +77,7 @@ struct mxl5007t_config {
 	unsigned int clk_out_enable:1;
 };
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_MXL5007T)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_MXL5007T)
 extern struct dvb_frontend *mxl5007t_attach(struct dvb_frontend *fe,
 					    struct i2c_adapter *i2c, u8 addr,
 					    struct mxl5007t_config *cfg);

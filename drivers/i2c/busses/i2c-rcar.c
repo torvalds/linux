@@ -382,11 +382,11 @@ static bool rcar_i2c_slave_irq(struct rcar_i2c_priv *priv)
 	if (ssr_filtered & SAR) {
 		/* read or write request */
 		if (ssr_raw & STM) {
-			i2c_slave_event(priv->slave, I2C_SLAVE_REQ_READ_START, &value);
+			i2c_slave_event(priv->slave, I2C_SLAVE_READ_REQUESTED, &value);
 			rcar_i2c_write(priv, ICRXTX, value);
 			rcar_i2c_write(priv, ICSIER, SDE | SSR | SAR);
 		} else {
-			i2c_slave_event(priv->slave, I2C_SLAVE_REQ_WRITE_START, &value);
+			i2c_slave_event(priv->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 			rcar_i2c_read(priv, ICRXTX);	/* dummy read */
 			rcar_i2c_write(priv, ICSIER, SDR | SSR | SAR);
 		}
@@ -406,17 +406,15 @@ static bool rcar_i2c_slave_irq(struct rcar_i2c_priv *priv)
 		int ret;
 
 		value = rcar_i2c_read(priv, ICRXTX);
-		ret = i2c_slave_event(priv->slave, I2C_SLAVE_REQ_WRITE_END, &value);
+		ret = i2c_slave_event(priv->slave, I2C_SLAVE_WRITE_RECEIVED, &value);
 		/* Send NACK in case of error */
 		rcar_i2c_write(priv, ICSCR, SIE | SDBS | (ret < 0 ? FNA : 0));
-		i2c_slave_event(priv->slave, I2C_SLAVE_REQ_WRITE_START, &value);
 		rcar_i2c_write(priv, ICSSR, ~SDR & 0xff);
 	}
 
 	/* master wants to read from us */
 	if (ssr_filtered & SDE) {
-		i2c_slave_event(priv->slave, I2C_SLAVE_REQ_READ_END, &value);
-		i2c_slave_event(priv->slave, I2C_SLAVE_REQ_READ_START, &value);
+		i2c_slave_event(priv->slave, I2C_SLAVE_READ_PROCESSED, &value);
 		rcar_i2c_write(priv, ICRXTX, value);
 		rcar_i2c_write(priv, ICSSR, ~SDE & 0xff);
 	}
@@ -492,7 +490,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	struct rcar_i2c_priv *priv = i2c_get_adapdata(adap);
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
 	unsigned long flags;
-	int i, ret, timeout;
+	int i, ret;
+	long timeout;
 
 	pm_runtime_get_sync(dev);
 
@@ -534,7 +533,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 		timeout = wait_event_timeout(priv->wait,
 					     rcar_i2c_flags_has(priv, ID_DONE),
-					     5 * HZ);
+					     adap->timeout);
 		if (!timeout) {
 			ret = -ETIMEDOUT;
 			break;
@@ -606,7 +605,8 @@ static int rcar_unreg_slave(struct i2c_client *slave)
 static u32 rcar_i2c_func(struct i2c_adapter *adap)
 {
 	/* This HW can't do SMBUS_QUICK and NOSTART */
-	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
+	return I2C_FUNC_I2C | I2C_FUNC_SLAVE |
+		(I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
 }
 
 static const struct i2c_algorithm rcar_i2c_algo = {
@@ -715,7 +715,7 @@ static int rcar_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id rcar_i2c_id_table[] = {
+static const struct platform_device_id rcar_i2c_id_table[] = {
 	{ "i2c-rcar",		I2C_RCAR_GEN1 },
 	{ "i2c-rcar_gen1",	I2C_RCAR_GEN1 },
 	{ "i2c-rcar_gen2",	I2C_RCAR_GEN2 },

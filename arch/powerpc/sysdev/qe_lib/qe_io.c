@@ -190,28 +190,3 @@ int par_io_of_config(struct device_node *np)
 	return 0;
 }
 EXPORT_SYMBOL(par_io_of_config);
-
-#ifdef DEBUG
-static void dump_par_io(void)
-{
-	unsigned int i;
-
-	printk(KERN_INFO "%s: par_io=%p\n", __func__, par_io);
-	for (i = 0; i < num_par_io_ports; i++) {
-		printk(KERN_INFO "	cpodr[%u]=%08x\n", i,
-			in_be32(&par_io[i].cpodr));
-		printk(KERN_INFO "	cpdata[%u]=%08x\n", i,
-			in_be32(&par_io[i].cpdata));
-		printk(KERN_INFO "	cpdir1[%u]=%08x\n", i,
-			in_be32(&par_io[i].cpdir1));
-		printk(KERN_INFO "	cpdir2[%u]=%08x\n", i,
-			in_be32(&par_io[i].cpdir2));
-		printk(KERN_INFO "	cppar1[%u]=%08x\n", i,
-			in_be32(&par_io[i].cppar1));
-		printk(KERN_INFO "	cppar2[%u]=%08x\n", i,
-			in_be32(&par_io[i].cppar2));
-	}
-
-}
-EXPORT_SYMBOL(dump_par_io);
-#endif /* DEBUG */

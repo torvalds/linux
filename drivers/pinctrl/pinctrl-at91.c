@@ -451,18 +451,18 @@ static enum at91_mux at91_mux_get_periph(void __iomem *pio, unsigned mask)
 
 static bool at91_mux_get_deglitch(void __iomem *pio, unsigned pin)
 {
-	return (__raw_readl(pio + PIO_IFSR) >> pin) & 0x1;
+	return (readl_relaxed(pio + PIO_IFSR) >> pin) & 0x1;
 }
 
 static void at91_mux_set_deglitch(void __iomem *pio, unsigned mask, bool is_on)
 {
-	__raw_writel(mask, pio + (is_on ? PIO_IFER : PIO_IFDR));
+	writel_relaxed(mask, pio + (is_on ? PIO_IFER : PIO_IFDR));
 }
 
 static bool at91_mux_pio3_get_deglitch(void __iomem *pio, unsigned pin)
 {
-	if ((__raw_readl(pio + PIO_IFSR) >> pin) & 0x1)
-		return !((__raw_readl(pio + PIO_IFSCSR) >> pin) & 0x1);
+	if ((readl_relaxed(pio + PIO_IFSR) >> pin) & 0x1)
+		return !((readl_relaxed(pio + PIO_IFSCSR) >> pin) & 0x1);
 
 	return false;
 }
@@ -470,55 +470,55 @@ static bool at91_mux_pio3_get_deglitch(void __iomem *pio, unsigned pin)
 static void at91_mux_pio3_set_deglitch(void __iomem *pio, unsigned mask, bool is_on)
 {
 	if (is_on)
-		__raw_writel(mask, pio + PIO_IFSCDR);
+		writel_relaxed(mask, pio + PIO_IFSCDR);
 	at91_mux_set_deglitch(pio, mask, is_on);
 }
 
 static bool at91_mux_pio3_get_debounce(void __iomem *pio, unsigned pin, u32 *div)
 {
-	*div = __raw_readl(pio + PIO_SCDR);
+	*div = readl_relaxed(pio + PIO_SCDR);
 
-	return ((__raw_readl(pio + PIO_IFSR) >> pin) & 0x1) &&
-	       ((__raw_readl(pio + PIO_IFSCSR) >> pin) & 0x1);
+	return ((readl_relaxed(pio + PIO_IFSR) >> pin) & 0x1) &&
+	       ((readl_relaxed(pio + PIO_IFSCSR) >> pin) & 0x1);
 }
 
 static void at91_mux_pio3_set_debounce(void __iomem *pio, unsigned mask,
 				bool is_on, u32 div)
 {
 	if (is_on) {
-		__raw_writel(mask, pio + PIO_IFSCER);
-		__raw_writel(div & PIO_SCDR_DIV, pio + PIO_SCDR);
-		__raw_writel(mask, pio + PIO_IFER);
+		writel_relaxed(mask, pio + PIO_IFSCER);
+		writel_relaxed(div & PIO_SCDR_DIV, pio + PIO_SCDR);
+		writel_relaxed(mask, pio + PIO_IFER);
 	} else
-		__raw_writel(mask, pio + PIO_IFSCDR);
+		writel_relaxed(mask, pio + PIO_IFSCDR);
 }
 
 static bool at91_mux_pio3_get_pulldown(void __iomem *pio, unsigned pin)
 {
-	return !((__raw_readl(pio + PIO_PPDSR) >> pin) & 0x1);
+	return !((readl_relaxed(pio + PIO_PPDSR) >> pin) & 0x1);
 }
 
 static void at91_mux_pio3_set_pulldown(void __iomem *pio, unsigned mask, bool is_on)
 {
 	if (is_on)
-		__raw_writel(mask, pio + PIO_PUDR);
+		writel_relaxed(mask, pio + PIO_PUDR);
 
-	__raw_writel(mask, pio + (is_on ? PIO_PPDER : PIO_PPDDR));
+	writel_relaxed(mask, pio + (is_on ? PIO_PPDER : PIO_PPDDR));
 }
 
 static void at91_mux_pio3_disable_schmitt_trig(void __iomem *pio, unsigned mask)
 {
-	__raw_writel(__raw_readl(pio + PIO_SCHMITT) | mask, pio + PIO_SCHMITT);
+	writel_relaxed(readl_relaxed(pio + PIO_SCHMITT) | mask, pio + PIO_SCHMITT);
 }
 
 static bool at91_mux_pio3_get_schmitt_trig(void __iomem *pio, unsigned pin)
 {
-	return (__raw_readl(pio + PIO_SCHMITT) >> pin) & 0x1;
+	return (readl_relaxed(pio + PIO_SCHMITT) >> pin) & 0x1;
 }
 
 static inline u32 read_drive_strength(void __iomem *reg, unsigned pin)
 {
-	unsigned tmp = __raw_readl(reg);
+	unsigned tmp = readl_relaxed(reg);
 
 	tmp = tmp >> two_bit_pin_value_shift_amount(pin);
 
@@ -554,13 +554,13 @@ static unsigned at91_mux_sam9x5_get_drivestrength(void __iomem *pio,
 
 static void set_drive_strength(void __iomem *reg, unsigned pin, u32 strength)
 {
-	unsigned tmp = __raw_readl(reg);
+	unsigned tmp = readl_relaxed(reg);
 	unsigned shift = two_bit_pin_value_shift_amount(pin);
 
 	tmp &= ~(DRIVE_STRENGTH_MASK  <<  shift);
 	tmp |= strength << shift;
 
-	__raw_writel(tmp, reg);
+	writel_relaxed(tmp, reg);
 }
 
 static void at91_mux_sama5d3_set_drivestrength(void __iomem *pio, unsigned pin,
@@ -1114,7 +1114,7 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
 	return 0;
 }
 
-static struct of_device_id at91_pinctrl_of_match[] = {
+static const struct of_device_id at91_pinctrl_of_match[] = {
 	{ .compatible = "atmel,sama5d3-pinctrl", .data = &sama5d3_ops },
 	{ .compatible = "atmel,at91sam9x5-pinctrl", .data = &at91sam9x5_ops },
 	{ .compatible = "atmel,at91rm9200-pinctrl", .data = &at91rm9200_ops },
@@ -1238,10 +1238,9 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	info->pctl = pinctrl_register(&at91_pinctrl_desc, &pdev->dev, info);
 
-	if (!info->pctl) {
+	if (IS_ERR(info->pctl)) {
 		dev_err(&pdev->dev, "could not register AT91 pinctrl driver\n");
-		ret = -EINVAL;
-		goto err;
+		return PTR_ERR(info->pctl);
 	}
 
 	/* We will handle a range of GPIO pins */
@@ -1252,9 +1251,6 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "initialized AT91 pinctrl driver\n");
 
 	return 0;
-
-err:
-	return ret;
 }
 
 static int at91_pinctrl_remove(struct platform_device *pdev)
@@ -1328,6 +1324,21 @@ static void at91_gpio_set(struct gpio_chip *chip, unsigned offset,
 	unsigned mask = 1 << offset;
 
 	writel_relaxed(mask, pio + (val ? PIO_SODR : PIO_CODR));
+}
+
+static void at91_gpio_set_multiple(struct gpio_chip *chip,
+				      unsigned long *mask, unsigned long *bits)
+{
+	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	void __iomem *pio = at91_gpio->regbase;
+
+#define BITS_MASK(bits) (((bits) == 32) ? ~0U : (BIT(bits) - 1))
+	/* Mask additionally to ngpio as not all GPIO controllers have 32 pins */
+	uint32_t set_mask = (*mask & *bits) & BITS_MASK(chip->ngpio);
+	uint32_t clear_mask = (*mask & ~(*bits)) & BITS_MASK(chip->ngpio);
+
+	writel_relaxed(set_mask, pio + PIO_SODR);
+	writel_relaxed(clear_mask, pio + PIO_CODR);
 }
 
 static int at91_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
@@ -1535,9 +1546,9 @@ void at91_pinctrl_gpio_suspend(void)
 
 		pio = gpio_chips[i]->regbase;
 
-		backups[i] = __raw_readl(pio + PIO_IMR);
-		__raw_writel(backups[i], pio + PIO_IDR);
-		__raw_writel(wakeups[i], pio + PIO_IER);
+		backups[i] = readl_relaxed(pio + PIO_IMR);
+		writel_relaxed(backups[i], pio + PIO_IDR);
+		writel_relaxed(wakeups[i], pio + PIO_IER);
 
 		if (!wakeups[i])
 			clk_disable_unprepare(gpio_chips[i]->clock);
@@ -1562,8 +1573,8 @@ void at91_pinctrl_gpio_resume(void)
 		if (!wakeups[i])
 			clk_prepare_enable(gpio_chips[i]->clock);
 
-		__raw_writel(wakeups[i], pio + PIO_IDR);
-		__raw_writel(backups[i], pio + PIO_IER);
+		writel_relaxed(wakeups[i], pio + PIO_IDR);
+		writel_relaxed(backups[i], pio + PIO_IER);
 	}
 }
 
@@ -1689,12 +1700,13 @@ static struct gpio_chip at91_gpio_template = {
 	.get			= at91_gpio_get,
 	.direction_output	= at91_gpio_direction_output,
 	.set			= at91_gpio_set,
+	.set_multiple		= at91_gpio_set_multiple,
 	.dbg_show		= at91_gpio_dbg_show,
 	.can_sleep		= false,
 	.ngpio			= MAX_NB_GPIO_PER_BANK,
 };
 
-static struct of_device_id at91_gpio_of_match[] = {
+static const struct of_device_id at91_gpio_of_match[] = {
 	{ .compatible = "atmel,at91sam9x5-gpio", .data = &at91sam9x5_ops, },
 	{ .compatible = "atmel,at91rm9200-gpio", .data = &at91rm9200_ops },
 	{ /* sentinel */ }

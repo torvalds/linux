@@ -139,9 +139,13 @@ nvkm_devobj_info(struct nvkm_object *object, void *data, u32 size)
 
 	args->v0.chipset  = device->chipset;
 	args->v0.revision = device->chiprev;
-	if (pfb)  args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
-	else      args->v0.ram_size = args->v0.ram_user = 0;
-	if (imem) args->v0.ram_user = args->v0.ram_user - imem->reserved;
+	if (pfb && pfb->ram)
+		args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
+	else
+		args->v0.ram_size = args->v0.ram_user = 0;
+	if (imem && args->v0.ram_size > 0)
+		args->v0.ram_user = args->v0.ram_user - imem->reserved;
+
 	return 0;
 }
 

@@ -55,7 +55,7 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 			nfs4_pnfs_ds_put(ds);
 	}
 	kfree(dsaddr->stripe_indices);
-	kfree(dsaddr);
+	kfree_rcu(dsaddr, id_node.rcu);
 }
 
 /* Decode opaque device data and return the result */

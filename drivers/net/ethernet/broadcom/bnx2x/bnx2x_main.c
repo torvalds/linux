@@ -2287,13 +2287,11 @@ static int bnx2x_set_spio(struct bnx2x *bp, int spio, u32 mode)
 void bnx2x_calc_fc_adv(struct bnx2x *bp)
 {
 	u8 cfg_idx = bnx2x_get_link_cfg_idx(bp);
+
+	bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
+					   ADVERTISED_Pause);
 	switch (bp->link_vars.ieee_fc &
 		MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK) {
-	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE:
-		bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
-						   ADVERTISED_Pause);
-		break;
-
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH:
 		bp->port.advertising[cfg_idx] |= (ADVERTISED_Asym_Pause |
 						  ADVERTISED_Pause);
@@ -2304,8 +2302,6 @@ void bnx2x_calc_fc_adv(struct bnx2x *bp)
 		break;
 
 	default:
-		bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
-						   ADVERTISED_Pause);
 		break;
 	}
 }
@@ -2351,12 +2347,16 @@ int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		if (load_mode == LOAD_DIAG) {
 			struct link_params *lp = &bp->link_params;
 			lp->loopback_mode = LOOPBACK_XGXS;
-			/* do PHY loopback at 10G speed, if possible */
-			if (lp->req_line_speed[cfx_idx] < SPEED_10000) {
+			/* Prefer doing PHY loopback at highest speed */
+			if (lp->req_line_speed[cfx_idx] < SPEED_20000) {
 				if (lp->speed_cap_mask[cfx_idx] &
-				    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+				    PORT_HW_CFG_SPEED_CAPABILITY_D0_20G)
 					lp->req_line_speed[cfx_idx] =
-					SPEED_10000;
+					SPEED_20000;
+				else if (lp->speed_cap_mask[cfx_idx] &
+					    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+						lp->req_line_speed[cfx_idx] =
+						SPEED_10000;
 				else
 					lp->req_line_speed[cfx_idx] =
 					SPEED_1000;
@@ -3128,7 +3128,7 @@ static unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 		__set_bit(BNX2X_Q_FLG_FORCE_DEFAULT_PRI, &flags);
 	}
 
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		__set_bit(BNX2X_Q_FLG_TPA, &flags);
 		__set_bit(BNX2X_Q_FLG_TPA_IPV6, &flags);
 		if (fp->mode == TPA_MODE_GRO)
@@ -3176,7 +3176,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	u16 sge_sz = 0;
 	u16 tpa_agg_size = 0;
 
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		pause->sge_th_lo = SGE_TH_LO(bp);
 		pause->sge_th_hi = SGE_TH_HI(bp);
 
@@ -3304,7 +3304,7 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 	/* This flag is relevant for E1x only.
 	 * E2 doesn't have a TPA configuration in a function level.
 	 */
-	flags |= (bp->flags & TPA_ENABLE_FLAG) ? FUNC_FLG_TPA : 0;
+	flags |= (bp->dev->features & NETIF_F_LRO) ? FUNC_FLG_TPA : 0;
 
 	func_init.func_flgs = flags;
 	func_init.pf_id = BP_FUNC(bp);
@@ -4867,9 +4867,7 @@ static bool bnx2x_check_blocks_with_parity3(struct bnx2x *bp, u32 sig,
 				res = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY:
-				if (print)
-					_print_next_block((*par_num)++,
-							  "MCP SCPAD");
+				(*par_num)++;
 				/* clear latched SCPAD PATIRY from MCP */
 				REG_WR(bp, MISC_REG_AEU_CLR_LATCH_SIGNAL,
 				       1UL << 10);
@@ -4931,6 +4929,7 @@ static bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
 	    (sig[3] & HW_PRTY_ASSERT_SET_3) ||
 	    (sig[4] & HW_PRTY_ASSERT_SET_4)) {
 		int par_num = 0;
+
 		DP(NETIF_MSG_HW, "Was parity error: HW block parity attention:\n"
 				 "[0]:0x%08x [1]:0x%08x [2]:0x%08x [3]:0x%08x [4]:0x%08x\n",
 			  sig[0] & HW_PRTY_ASSERT_SET_0,
@@ -4938,9 +4937,18 @@ static bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
 			  sig[2] & HW_PRTY_ASSERT_SET_2,
 			  sig[3] & HW_PRTY_ASSERT_SET_3,
 			  sig[4] & HW_PRTY_ASSERT_SET_4);
-		if (print)
-			netdev_err(bp->dev,
-				   "Parity errors detected in blocks: ");
+		if (print) {
+			if (((sig[0] & HW_PRTY_ASSERT_SET_0) ||
+			     (sig[1] & HW_PRTY_ASSERT_SET_1) ||
+			     (sig[2] & HW_PRTY_ASSERT_SET_2) ||
+			     (sig[4] & HW_PRTY_ASSERT_SET_4)) ||
+			     (sig[3] & HW_PRTY_ASSERT_SET_3_WITHOUT_SCPAD)) {
+				netdev_err(bp->dev,
+					   "Parity errors detected in blocks: ");
+			} else {
+				print = false;
+			}
+		}
 		res |= bnx2x_check_blocks_with_parity0(bp,
 			sig[0] & HW_PRTY_ASSERT_SET_0, &par_num, print);
 		res |= bnx2x_check_blocks_with_parity1(bp,
@@ -8431,7 +8439,7 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 					 BNX2X_ETH_MAC, &ramrod_flags);
 	} else { /* vf */
 		return bnx2x_vfpf_config_mac(bp, bp->dev->dev_addr,
-					     bp->fp->index, true);
+					     bp->fp->index, set);
 	}
 }
 
@@ -9323,7 +9331,8 @@ unload_error:
 	 * function stop ramrod is sent, since as part of this ramrod FW access
 	 * PTP registers.
 	 */
-	bnx2x_stop_ptp(bp);
+	if (bp->flags & PTP_SUPPORTED)
+		bnx2x_stop_ptp(bp);
 
 	/* Disable HW interrupts, NAPI */
 	bnx2x_netif_stop(bp, 1);
@@ -11147,6 +11156,12 @@ static void bnx2x_link_settings_requested(struct bnx2x *bp)
 				bp->port.advertising[idx] |=
 					(ADVERTISED_1000baseT_Full |
 					 ADVERTISED_TP);
+			} else if (bp->port.supported[idx] &
+				   SUPPORTED_1000baseKX_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_1000;
+				bp->port.advertising[idx] |=
+					ADVERTISED_1000baseKX_Full;
 			} else {
 				BNX2X_ERR("NVRAM config error. Invalid link_config 0x%x  speed_cap_mask 0x%x\n",
 				    link_config,
@@ -11178,6 +11193,13 @@ static void bnx2x_link_settings_requested(struct bnx2x *bp)
 					SPEED_10000;
 				bp->port.advertising[idx] |=
 					(ADVERTISED_10000baseT_Full |
+						ADVERTISED_FIBRE);
+			} else if (bp->port.supported[idx] &
+				   SUPPORTED_10000baseKR_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_10000;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_10000baseKR_Full |
 						ADVERTISED_FIBRE);
 			} else {
 				BNX2X_ERR("NVRAM config error. Invalid link_config 0x%x  speed_cap_mask 0x%x\n",
@@ -11556,13 +11578,13 @@ static void bnx2x_get_cnic_mac_hwinfo(struct bnx2x *bp)
 	/* Disable iSCSI OOO if MAC configuration is invalid. */
 	if (!is_valid_ether_addr(iscsi_mac)) {
 		bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
-		memset(iscsi_mac, 0, ETH_ALEN);
+		eth_zero_addr(iscsi_mac);
 	}
 
 	/* Disable FCoE if MAC configuration is invalid. */
 	if (!is_valid_ether_addr(fip_mac)) {
 		bp->flags |= NO_FCOE_FLAG;
-		memset(bp->fip_mac, 0, ETH_ALEN);
+		eth_zero_addr(bp->fip_mac);
 	}
 }
 
@@ -11573,7 +11595,7 @@ static void bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 
 	/* Zero primary MAC configuration */
-	memset(bp->dev->dev_addr, 0, ETH_ALEN);
+	eth_zero_addr(bp->dev->dev_addr);
 
 	if (BP_NOMCP(bp)) {
 		BNX2X_ERROR("warning: random MAC workaround active\n");
@@ -11620,7 +11642,7 @@ static bool bnx2x_get_dropless_info(struct bnx2x *bp)
 	u32 cfg;
 
 	if (IS_VF(bp))
-		return 0;
+		return false;
 
 	if (IS_MF(bp) && !CHIP_IS_E1x(bp)) {
 		/* Take function: tmp = func */
@@ -11659,6 +11681,13 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 	int vn;
 	u32 val = 0, val2 = 0;
 	int rc = 0;
+
+	/* Validate that chip access is feasible */
+	if (REG_RD(bp, MISC_REG_CHIP_NUM) == 0xffffffff) {
+		dev_err(&bp->pdev->dev,
+			"Chip read returns all Fs. Preventing probe from continuing\n");
+		return -EINVAL;
+	}
 
 	bnx2x_get_common_hwinfo(bp);
 
@@ -12047,7 +12076,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	mutex_init(&bp->drv_info_mutex);
-	mutex_init(&bp->stats_lock);
+	sema_init(&bp->stats_lock, 1);
 	bp->drv_info_mng_owner = false;
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
@@ -12100,11 +12129,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
-		bp->flags &= ~(TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
+		bp->dev->hw_features &= ~NETIF_F_LRO;
 		bp->dev->features &= ~NETIF_F_LRO;
-	} else {
-		bp->flags |= (TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
-		bp->dev->features |= NETIF_F_LRO;
 	}
 
 	if (CHIP_IS_E1(bp))
@@ -12566,6 +12592,7 @@ static netdev_features_t bnx2x_features_check(struct sk_buff *skb,
 					      struct net_device *dev,
 					      netdev_features_t features)
 {
+	features = vlan_features_check(skb, features);
 	return vxlan_features_check(skb, features);
 }
 
@@ -13287,30 +13314,27 @@ static int bnx2x_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int bnx2x_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int bnx2x_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
 	u64 ns;
-	u32 remainder;
 
 	ns = timecounter_read(&bp->timecounter);
 
 	DP(BNX2X_MSG_PTP, "PTP gettime called, ns = %llu\n", ns);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000ULL, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
 
 static int bnx2x_ptp_settime(struct ptp_clock_info *ptp,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
 	u64 ns;
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	DP(BNX2X_MSG_PTP, "PTP settime called, ns = %llu\n", ns);
 
@@ -13342,8 +13366,8 @@ static void bnx2x_register_phc(struct bnx2x *bp)
 	bp->ptp_clock_info.pps = 0;
 	bp->ptp_clock_info.adjfreq = bnx2x_ptp_adjfreq;
 	bp->ptp_clock_info.adjtime = bnx2x_ptp_adjtime;
-	bp->ptp_clock_info.gettime = bnx2x_ptp_gettime;
-	bp->ptp_clock_info.settime = bnx2x_ptp_settime;
+	bp->ptp_clock_info.gettime64 = bnx2x_ptp_gettime;
+	bp->ptp_clock_info.settime64 = bnx2x_ptp_settime;
 	bp->ptp_clock_info.enable = bnx2x_ptp_enable;
 
 	bp->ptp_clock = ptp_clock_register(&bp->ptp_clock_info, &bp->pdev->dev);
@@ -13365,6 +13389,17 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	int max_cos_est;
 	bool is_vf;
 	int cnic_cnt;
+
+	/* Management FW 'remembers' living interfaces. Allow it some time
+	 * to forget previously living interfaces, allowing a proper re-load.
+	 */
+	if (is_kdump_kernel()) {
+		ktime_t now = ktime_get_boottime();
+		ktime_t fw_ready_time = ktime_set(5, 0);
+
+		if (ktime_before(now, fw_ready_time))
+			msleep(ktime_ms_delta(fw_ready_time, now));
+	}
 
 	/* An estimated maximum supported CoS number according to the chip
 	 * version.
@@ -13677,9 +13712,10 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	cancel_delayed_work_sync(&bp->sp_task);
 	cancel_delayed_work_sync(&bp->period_task);
 
-	mutex_lock(&bp->stats_lock);
-	bp->stats_state = STATS_STATE_DISABLED;
-	mutex_unlock(&bp->stats_lock);
+	if (!down_timeout(&bp->stats_lock, HZ / 10)) {
+		bp->stats_state = STATS_STATE_DISABLED;
+		up(&bp->stats_lock);
+	}
 
 	bnx2x_save_statistics(bp);
 

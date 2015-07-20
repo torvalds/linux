@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 
 #include "bfa_ioc.h"
@@ -22,8 +23,7 @@
 #include "bfi_reg.h"
 #include "bfa_defs.h"
 
-#define bfa_ioc_ct_sync_pos(__ioc)	\
-		((u32) (1 << bfa_ioc_pcifn(__ioc)))
+#define bfa_ioc_ct_sync_pos(__ioc)	BIT(bfa_ioc_pcifn(__ioc))
 #define BFA_IOC_SYNC_REQD_SH		16
 #define bfa_ioc_ct_get_sync_ackd(__val) (__val & 0x0000ffff)
 #define bfa_ioc_ct_clear_sync_ackd(__val) (__val & 0xffff0000)
@@ -535,7 +535,7 @@ bfa_ioc_ct_sync_ack(struct bfa_ioc *ioc)
 {
 	u32 r32 = readl(ioc->ioc_regs.ioc_fail_sync);
 
-	writel((r32 | bfa_ioc_ct_sync_pos(ioc)), ioc->ioc_regs.ioc_fail_sync);
+	writel(r32 | bfa_ioc_ct_sync_pos(ioc), ioc->ioc_regs.ioc_fail_sync);
 }
 
 static bool
@@ -666,7 +666,7 @@ bfa_ioc_ct_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 		writel(__PMM_1T_RESET_P, (rb + PMM_1T_RESET_REG_P0));
 		writel(__PMM_1T_RESET_P, (rb + PMM_1T_RESET_REG_P1));
 	}
-	r32 = readl((rb + PSS_CTL_REG));
+	r32 = readl(rb + PSS_CTL_REG);
 	r32 &= ~__PSS_LMEM_RESET;
 	writel(r32, (rb + PSS_CTL_REG));
 	udelay(1000);
@@ -677,7 +677,7 @@ bfa_ioc_ct_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 
 	writel(__EDRAM_BISTR_START, (rb + MBIST_CTL_REG));
 	udelay(1000);
-	r32 = readl((rb + MBIST_STAT_REG));
+	r32 = readl(rb + MBIST_STAT_REG);
 	writel(0, (rb + MBIST_CTL_REG));
 	return BFA_STATUS_OK;
 }
@@ -690,7 +690,7 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb)
 	/*
 	 * put s_clk PLL and PLL FSM in reset
 	 */
-	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_SCLK_CTL_REG);
 	r32 &= ~(__APP_PLL_SCLK_ENABLE | __APP_PLL_SCLK_LRESETN);
 	r32 |= (__APP_PLL_SCLK_ENARST | __APP_PLL_SCLK_BYPASS |
 		__APP_PLL_SCLK_LOGIC_SOFT_RESET);
@@ -698,30 +698,30 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb)
 
 	/*
 	 * Ignore mode and program for the max clock (which is FC16)
-	 * Firmware/NFC will do the PLL init appropiately
+	 * Firmware/NFC will do the PLL init appropriately
 	 */
-	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_SCLK_CTL_REG);
 	r32 &= ~(__APP_PLL_SCLK_REFCLK_SEL | __APP_PLL_SCLK_CLK_DIV2);
 	writel(r32, (rb + CT2_APP_PLL_SCLK_CTL_REG));
 
 	/*
 	 * while doing PLL init dont clock gate ethernet subsystem
 	 */
-	r32 = readl((rb + CT2_CHIP_MISC_PRG));
-	writel((r32 | __ETH_CLK_ENABLE_PORT0),
-				(rb + CT2_CHIP_MISC_PRG));
+	r32 = readl(rb + CT2_CHIP_MISC_PRG);
+	writel(r32 | __ETH_CLK_ENABLE_PORT0,
+	       rb + CT2_CHIP_MISC_PRG);
 
-	r32 = readl((rb + CT2_PCIE_MISC_REG));
-	writel((r32 | __ETH_CLK_ENABLE_PORT1),
-				(rb + CT2_PCIE_MISC_REG));
+	r32 = readl(rb + CT2_PCIE_MISC_REG);
+	writel(r32 | __ETH_CLK_ENABLE_PORT1,
+	       rb + CT2_PCIE_MISC_REG);
 
 	/*
 	 * set sclk value
 	 */
-	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_SCLK_CTL_REG);
 	r32 &= (__P_SCLK_PLL_LOCK | __APP_PLL_SCLK_REFCLK_SEL |
 		__APP_PLL_SCLK_CLK_DIV2);
-	writel(r32 | 0x1061731b, (rb + CT2_APP_PLL_SCLK_CTL_REG));
+	writel(r32 | 0x1061731b, rb + CT2_APP_PLL_SCLK_CTL_REG);
 
 	/*
 	 * poll for s_clk lock or delay 1ms
@@ -742,28 +742,28 @@ bfa_ioc_ct2_lclk_init(void __iomem *rb)
 	/*
 	 * put l_clk PLL and PLL FSM in reset
 	 */
-	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_LCLK_CTL_REG);
 	r32 &= ~(__APP_PLL_LCLK_ENABLE | __APP_PLL_LCLK_LRESETN);
 	r32 |= (__APP_PLL_LCLK_ENARST | __APP_PLL_LCLK_BYPASS |
 		__APP_PLL_LCLK_LOGIC_SOFT_RESET);
-	writel(r32, (rb + CT2_APP_PLL_LCLK_CTL_REG));
+	writel(r32, rb + CT2_APP_PLL_LCLK_CTL_REG);
 
 	/*
 	 * set LPU speed (set for FC16 which will work for other modes)
 	 */
-	r32 = readl((rb + CT2_CHIP_MISC_PRG));
+	r32 = readl(rb + CT2_CHIP_MISC_PRG);
 	writel(r32, (rb + CT2_CHIP_MISC_PRG));
 
 	/*
 	 * set LPU half speed (set for FC16 which will work for other modes)
 	 */
-	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
-	writel(r32, (rb + CT2_APP_PLL_LCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_LCLK_CTL_REG);
+	writel(r32, rb + CT2_APP_PLL_LCLK_CTL_REG);
 
 	/*
 	 * set lclk for mode (set for FC16)
 	 */
-	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_LCLK_CTL_REG);
 	r32 &= (__P_LCLK_PLL_LOCK | __APP_LPUCLK_HALFSPEED);
 	r32 |= 0x20c1731b;
 	writel(r32, (rb + CT2_APP_PLL_LCLK_CTL_REG));
@@ -779,14 +779,14 @@ bfa_ioc_ct2_mem_init(void __iomem *rb)
 {
 	u32 r32;
 
-	r32 = readl((rb + PSS_CTL_REG));
+	r32 = readl(rb + PSS_CTL_REG);
 	r32 &= ~__PSS_LMEM_RESET;
-	writel(r32, (rb + PSS_CTL_REG));
+	writel(r32, rb + PSS_CTL_REG);
 	udelay(1000);
 
-	writel(__EDRAM_BISTR_START, (rb + CT2_MBIST_CTL_REG));
+	writel(__EDRAM_BISTR_START, rb + CT2_MBIST_CTL_REG);
 	udelay(1000);
-	writel(0, (rb + CT2_MBIST_CTL_REG));
+	writel(0, rb + CT2_MBIST_CTL_REG);
 }
 
 static void
@@ -800,22 +800,22 @@ bfa_ioc_ct2_mac_reset(void __iomem *rb)
 	/*
 	 * release soft reset on s_clk & l_clk
 	 */
-	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
-	writel((r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET),
-			(rb + CT2_APP_PLL_SCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_SCLK_CTL_REG);
+	writel(r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET,
+	       rb + CT2_APP_PLL_SCLK_CTL_REG);
 
 	/*
 	 * release soft reset on s_clk & l_clk
 	 */
-	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
-	writel((r32 & ~__APP_PLL_LCLK_LOGIC_SOFT_RESET),
-			(rb + CT2_APP_PLL_LCLK_CTL_REG));
+	r32 = readl(rb + CT2_APP_PLL_LCLK_CTL_REG);
+	writel(r32 & ~__APP_PLL_LCLK_LOGIC_SOFT_RESET,
+	       rb + CT2_APP_PLL_LCLK_CTL_REG);
 
 	/* put port0, port1 MAC & AHB in reset */
-	writel((__CSI_MAC_RESET | __CSI_MAC_AHB_RESET),
-			(rb + CT2_CSI_MAC_CONTROL_REG(0)));
-	writel((__CSI_MAC_RESET | __CSI_MAC_AHB_RESET),
-			(rb + CT2_CSI_MAC_CONTROL_REG(1)));
+	writel(__CSI_MAC_RESET | __CSI_MAC_AHB_RESET,
+	       rb + CT2_CSI_MAC_CONTROL_REG(0));
+	writel(__CSI_MAC_RESET | __CSI_MAC_AHB_RESET,
+	       rb + CT2_CSI_MAC_CONTROL_REG(1));
 }
 
 #define CT2_NFC_MAX_DELAY       1000
@@ -860,8 +860,8 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 
 	nfc_ver = readl(rb + CT2_RSC_GPR15_REG);
 
-	if ((wgn == (__A2T_AHB_LOAD | __WGN_READY)) &&
-		(nfc_ver >= CT2_NFC_VER_VALID)) {
+	if (wgn == (__A2T_AHB_LOAD | __WGN_READY) &&
+	    nfc_ver >= CT2_NFC_VER_VALID) {
 		if (bfa_ioc_ct2_nfc_halted(rb))
 			bfa_ioc_ct2_nfc_resume(rb);
 		writel(__RESET_AND_START_SCLK_LCLK_PLLS,
@@ -898,19 +898,19 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 		bfa_ioc_ct2_lclk_init(rb);
 
 		/* release soft reset on s_clk & l_clk */
-		r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
+		r32 = readl(rb + CT2_APP_PLL_SCLK_CTL_REG);
 		writel(r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET,
 				rb + CT2_APP_PLL_SCLK_CTL_REG);
-		r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
+		r32 = readl(rb + CT2_APP_PLL_LCLK_CTL_REG);
 		writel(r32 & ~__APP_PLL_LCLK_LOGIC_SOFT_RESET,
 				rb + CT2_APP_PLL_LCLK_CTL_REG);
 	}
 
 	/* Announce flash device presence, if flash was corrupted. */
 	if (wgn == (__WGN_READY | __GLBL_PF_VF_CFG_RDY)) {
-		r32 = readl((rb + PSS_GPIO_OUT_REG));
+		r32 = readl(rb + PSS_GPIO_OUT_REG);
 		writel(r32 & ~1, rb + PSS_GPIO_OUT_REG);
-		r32 = readl((rb + PSS_GPIO_OE_REG));
+		r32 = readl(rb + PSS_GPIO_OE_REG);
 		writel(r32 | 1, rb + PSS_GPIO_OE_REG);
 	}
 
@@ -918,27 +918,27 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 	 * Mask the interrupts and clear any
 	 * pending interrupts left by BIOS/EFI
 	 */
-	writel(1, (rb + CT2_LPU0_HOSTFN_MBOX0_MSK));
-	writel(1, (rb + CT2_LPU1_HOSTFN_MBOX0_MSK));
+	writel(1, rb + CT2_LPU0_HOSTFN_MBOX0_MSK);
+	writel(1, rb + CT2_LPU1_HOSTFN_MBOX0_MSK);
 
 	/* For first time initialization, no need to clear interrupts */
 	r32 = readl(rb + HOST_SEM5_REG);
 	if (r32 & 0x1) {
-		r32 = readl((rb + CT2_LPU0_HOSTFN_CMD_STAT));
+		r32 = readl(rb + CT2_LPU0_HOSTFN_CMD_STAT);
 		if (r32 == 1) {
-			writel(1, (rb + CT2_LPU0_HOSTFN_CMD_STAT));
-			readl((rb + CT2_LPU0_HOSTFN_CMD_STAT));
+			writel(1, rb + CT2_LPU0_HOSTFN_CMD_STAT);
+			readl(rb + CT2_LPU0_HOSTFN_CMD_STAT);
 		}
-		r32 = readl((rb + CT2_LPU1_HOSTFN_CMD_STAT));
+		r32 = readl(rb + CT2_LPU1_HOSTFN_CMD_STAT);
 		if (r32 == 1) {
-			writel(1, (rb + CT2_LPU1_HOSTFN_CMD_STAT));
-			readl((rb + CT2_LPU1_HOSTFN_CMD_STAT));
+			writel(1, rb + CT2_LPU1_HOSTFN_CMD_STAT);
+			readl(rb + CT2_LPU1_HOSTFN_CMD_STAT);
 		}
 	}
 
 	bfa_ioc_ct2_mem_init(rb);
 
-	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC0_STATE_REG));
-	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC1_STATE_REG));
+	writel(BFI_IOC_UNINIT, rb + CT2_BFA_IOC0_STATE_REG);
+	writel(BFI_IOC_UNINIT, rb + CT2_BFA_IOC1_STATE_REG);
 	return BFA_STATUS_OK;
 }

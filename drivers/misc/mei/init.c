@@ -333,8 +333,6 @@ void mei_stop(struct mei_device *dev)
 
 	mei_nfc_host_exit(dev);
 
-	mei_cl_bus_remove_devices(dev);
-
 	mutex_lock(&dev->device_lock);
 
 	mei_wd_stop(dev);
@@ -361,13 +359,15 @@ bool mei_write_is_idle(struct mei_device *dev)
 {
 	bool idle = (dev->dev_state == MEI_DEV_ENABLED &&
 		list_empty(&dev->ctrl_wr_list.list) &&
-		list_empty(&dev->write_list.list));
+		list_empty(&dev->write_list.list)   &&
+		list_empty(&dev->write_waiting_list.list));
 
-	dev_dbg(dev->dev, "write pg: is idle[%d] state=%s ctrl=%d write=%d\n",
+	dev_dbg(dev->dev, "write pg: is idle[%d] state=%s ctrl=%01d write=%01d wwait=%01d\n",
 		idle,
 		mei_dev_state_str(dev->dev_state),
 		list_empty(&dev->ctrl_wr_list.list),
-		list_empty(&dev->write_list.list));
+		list_empty(&dev->write_list.list),
+		list_empty(&dev->write_waiting_list.list));
 
 	return idle;
 }
@@ -389,6 +389,7 @@ void mei_device_init(struct mei_device *dev,
 	INIT_LIST_HEAD(&dev->device_list);
 	INIT_LIST_HEAD(&dev->me_clients);
 	mutex_init(&dev->device_lock);
+	init_rwsem(&dev->me_clients_rwsem);
 	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_pg);
 	init_waitqueue_head(&dev->wait_hbm_start);
@@ -396,7 +397,6 @@ void mei_device_init(struct mei_device *dev,
 	dev->dev_state = MEI_DEV_INITIALIZING;
 	dev->reset_count = 0;
 
-	mei_io_list_init(&dev->read_list);
 	mei_io_list_init(&dev->write_list);
 	mei_io_list_init(&dev->write_waiting_list);
 	mei_io_list_init(&dev->ctrl_wr_list);

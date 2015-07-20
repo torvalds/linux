@@ -39,6 +39,25 @@ Description:
 		Format is a string, e.g: 00:11:22:33:44:55 for an Ethernet MAC
 		address.
 
+What:		/sys/class/net/<bridge iface>/bridge/group_fwd_mask
+Date:		January 2012
+KernelVersion:	3.2
+Contact:	netdev@vger.kernel.org
+Description:
+		Bitmask to allow forwarding of link local frames with address
+		01-80-C2-00-00-0X on a bridge device. Only values that set bits
+		not matching BR_GROUPFWD_RESTRICTED in net/bridge/br_private.h
+		allowed.
+		Default value 0 does not forward any link local frames.
+
+		Restricted bits:
+		0: 01-80-C2-00-00-00 Bridge Group Address used for STP
+		1: 01-80-C2-00-00-01 (MAC Control) 802.3 used for MAC PAUSE
+		2: 01-80-C2-00-00-02 (Link Aggregation) 802.3ad
+
+		Any values not setting these bits can be used. Take special
+		care when forwarding control frames e.g. 802.1X-PAE or LLDP.
+
 What:		/sys/class/net/<iface>/broadcast
 Date:		April 2005
 KernelVersion:	2.6.12
@@ -187,6 +206,14 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the interface unique physical port identifier within
 		the NIC, as a string.
+
+What:		/sys/class/net/<iface>/phys_port_name
+Date:		March 2015
+KernelVersion:	4.0
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the interface physical port name within the NIC,
+		as a string.
 
 What:		/sys/class/net/<iface>/speed
 Date:		October 2009

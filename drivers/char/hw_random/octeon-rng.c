@@ -105,7 +105,7 @@ static int octeon_rng_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit octeon_rng_remove(struct platform_device *pdev)
+static int octeon_rng_remove(struct platform_device *pdev)
 {
 	struct hwrng *rng = platform_get_drvdata(pdev);
 
@@ -119,7 +119,7 @@ static struct platform_driver octeon_rng_driver = {
 		.name		= "octeon_rng",
 	},
 	.probe		= octeon_rng_probe,
-	.remove		= __exit_p(octeon_rng_remove),
+	.remove		= octeon_rng_remove,
 };
 
 module_platform_driver(octeon_rng_driver);

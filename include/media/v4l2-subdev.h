@@ -40,6 +40,8 @@
 #define V4L2_SUBDEV_IR_TX_NOTIFY		_IOW('v', 1, u32)
 #define V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ	0x00000001
 
+#define	V4L2_DEVICE_NOTIFY_EVENT		_IOW('v', 2, struct v4l2_event)
+
 struct v4l2_device;
 struct v4l2_ctrl_handler;
 struct v4l2_event_subscription;
@@ -293,14 +295,6 @@ struct v4l2_mbus_frame_desc {
 
    g_dv_timings(): Get custom dv timings in the sub device.
 
-   enum_mbus_fmt: enumerate pixel formats, provided by a video data source
-
-   g_mbus_fmt: get the current pixel format, provided by a video data source
-
-   try_mbus_fmt: try to set a pixel format on a video data source
-
-   s_mbus_fmt: set a pixel format on a video data source
-
    g_mbus_config: get supported mediabus configurations
 
    s_mbus_config: set a certain mediabus configuration. This operation is added
@@ -332,22 +326,12 @@ struct v4l2_subdev_video_ops {
 				struct v4l2_subdev_frame_interval *interval);
 	int (*s_frame_interval)(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *interval);
-	int (*enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
-	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
 	int (*s_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*g_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
-	int (*enum_mbus_fmt)(struct v4l2_subdev *sd, unsigned int index,
-			     u32 *code);
-	int (*g_mbus_fmt)(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *fmt);
-	int (*try_mbus_fmt)(struct v4l2_subdev *sd,
-			    struct v4l2_mbus_framefmt *fmt);
-	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *fmt);
 	int (*g_mbus_config)(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg);
 	int (*s_mbus_config)(struct v4l2_subdev *sd,
@@ -482,6 +466,18 @@ struct v4l2_subdev_ir_ops {
 				struct v4l2_subdev_ir_parameters *params);
 };
 
+/*
+ * Used for storing subdev pad information. This structure only needs
+ * to be passed to the pad op if the 'which' field of the main argument
+ * is set to V4L2_SUBDEV_FORMAT_TRY. For V4L2_SUBDEV_FORMAT_ACTIVE it is
+ * safe to pass NULL.
+ */
+struct v4l2_subdev_pad_config {
+	struct v4l2_mbus_framefmt try_fmt;
+	struct v4l2_rect try_crop;
+	struct v4l2_rect try_compose;
+};
+
 /**
  * struct v4l2_subdev_pad_ops - v4l2-subdev pad level operations
  * @get_frame_desc: get the current low level media bus frame parameters.
@@ -489,21 +485,26 @@ struct v4l2_subdev_ir_ops {
  *                  may be adjusted by the subdev driver to device capabilities.
  */
 struct v4l2_subdev_pad_ops {
-	int (*enum_mbus_code)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*enum_mbus_code)(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_mbus_code_enum *code);
 	int (*enum_frame_size)(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse);
 	int (*enum_frame_interval)(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_interval_enum *fie);
-	int (*get_fmt)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*get_fmt)(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_pad_config *cfg,
 		       struct v4l2_subdev_format *format);
-	int (*set_fmt)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*set_fmt)(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_pad_config *cfg,
 		       struct v4l2_subdev_format *format);
-	int (*get_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*get_selection)(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_selection *sel);
-	int (*set_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*set_selection)(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_selection *sel);
 	int (*get_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
 	int (*set_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
@@ -604,6 +605,8 @@ struct v4l2_subdev {
 	struct video_device *devnode;
 	/* pointer to the physical device, if any */
 	struct device *dev;
+	/* The device_node of the subdev, usually the same as dev->of_node. */
+	struct device_node *of_node;
 	/* Links this subdev to a global subdev_list or @notifier->done list. */
 	struct list_head async_list;
 	/* Pointer to respective struct v4l2_async_subdev. */
@@ -625,11 +628,7 @@ struct v4l2_subdev {
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	struct {
-		struct v4l2_mbus_framefmt try_fmt;
-		struct v4l2_rect try_crop;
-		struct v4l2_rect try_compose;
-	} *pad;
+	struct v4l2_subdev_pad_config *pad;
 #endif
 };
 
@@ -639,17 +638,17 @@ struct v4l2_subdev_fh {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 #define __V4L2_SUBDEV_MK_GET_TRY(rtype, fun_name, field_name)		\
 	static inline struct rtype *					\
-	v4l2_subdev_get_try_##fun_name(struct v4l2_subdev_fh *fh,	\
-				       unsigned int pad)		\
+	fun_name(struct v4l2_subdev *sd,				\
+		 struct v4l2_subdev_pad_config *cfg,			\
+		 unsigned int pad)					\
 	{								\
-		BUG_ON(pad >= vdev_to_v4l2_subdev(			\
-					fh->vfh.vdev)->entity.num_pads); \
-		return &fh->pad[pad].field_name;			\
+		BUG_ON(pad >= sd->entity.num_pads);			\
+		return &cfg[pad].field_name;				\
 	}
 
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_mbus_framefmt, format, try_fmt)
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, crop, try_crop)
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, compose, try_compose)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_mbus_framefmt, v4l2_subdev_get_try_format, try_fmt)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, v4l2_subdev_get_try_crop, try_crop)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, v4l2_subdev_get_try_compose, try_compose)
 #endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;

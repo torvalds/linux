@@ -202,6 +202,7 @@ static struct irq_chip hip04_irq_chip = {
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= hip04_irq_set_affinity,
 #endif
+	.flags			= IRQCHIP_SET_TYPE_MASKED,
 };
 
 static u16 hip04_get_cpumask(struct hip04_irq_data *intc)

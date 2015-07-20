@@ -84,11 +84,16 @@ extern void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 
 #ifndef CONFIG_MIPSR2_TO_R6_EMULATOR
 static int mipsr2_emulation;
-static __maybe_unused int mipsr2_decoder(struct pt_regs *regs, u32 inst) { return 0; };
+static inline int mipsr2_decoder(struct pt_regs *regs, u32 inst,
+				 unsigned long *fcr31)
+{
+	return 0;
+};
 #else
 /* MIPS R2 Emulator ON/OFF */
 extern int mipsr2_emulation;
-extern int mipsr2_decoder(struct pt_regs *regs, u32 inst);
+extern int mipsr2_decoder(struct pt_regs *regs, u32 inst,
+			  unsigned long *fcr31);
 #endif /* CONFIG_MIPSR2_TO_R6_EMULATOR */
 
 #define NO_R6EMU	(cpu_has_mips_r6 && !mipsr2_emulation)

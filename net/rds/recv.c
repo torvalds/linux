@@ -395,8 +395,8 @@ static int rds_cmsg_recv(struct rds_incoming *inc, struct msghdr *msg)
 	return 0;
 }
 
-int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-		size_t size, int msg_flags)
+int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		int msg_flags)
 {
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);

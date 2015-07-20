@@ -35,7 +35,7 @@
 #include <linux/time.h>
 #include <linux/cpu.h>
 #include <linux/prefetch.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 
 #include "rcu.h"
 
@@ -48,39 +48,6 @@ static void __call_rcu(struct rcu_head *head,
 		       struct rcu_ctrlblk *rcp);
 
 #include "tiny_plugin.h"
-
-/*
- * Enter idle, which is an extended quiescent state if we have fully
- * entered that mode.
- */
-void rcu_idle_enter(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_idle_enter);
-
-/*
- * Exit an interrupt handler towards idle.
- */
-void rcu_irq_exit(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_irq_exit);
-
-/*
- * Exit idle, so that we are no longer in an extended quiescent state.
- */
-void rcu_idle_exit(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_idle_exit);
-
-/*
- * Enter an interrupt handler, moving away from idle.
- */
-void rcu_irq_enter(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_irq_enter);
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
 
@@ -103,8 +70,7 @@ EXPORT_SYMBOL(__rcu_is_watching);
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
 	RCU_TRACE(reset_cpu_stall_ticks(rcp));
-	if (rcp->rcucblist != NULL &&
-	    rcp->donetail != rcp->curtail) {
+	if (rcp->donetail != rcp->curtail) {
 		rcp->donetail = rcp->curtail;
 		return 1;
 	}
@@ -169,19 +135,13 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	unsigned long flags;
 	RCU_TRACE(int cb_count = 0);
 
-	/* If no RCU callbacks ready to invoke, just return. */
-	if (&rcp->rcucblist == rcp->donetail) {
-		RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, 0, -1));
-		RCU_TRACE(trace_rcu_batch_end(rcp->name, 0,
-					      !!ACCESS_ONCE(rcp->rcucblist),
-					      need_resched(),
-					      is_idle_task(current),
-					      false));
-		return;
-	}
-
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
+	if (rcp->donetail == &rcp->rcucblist) {
+		/* No callbacks ready, so just leave. */
+		local_irq_restore(flags);
+		return;
+	}
 	RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, rcp->qlen, -1));
 	list = rcp->rcucblist;
 	rcp->rcucblist = *rcp->donetail;

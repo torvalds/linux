@@ -324,25 +324,25 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 	___pte;								\
 })
 
-#define pmdp_clear_flush_notify(__vma, __haddr, __pmd)			\
+#define pmdp_huge_clear_flush_notify(__vma, __haddr, __pmd)		\
 ({									\
 	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
 	struct mm_struct *___mm = (__vma)->vm_mm;			\
 	pmd_t ___pmd;							\
 									\
-	___pmd = pmdp_clear_flush(__vma, __haddr, __pmd);		\
+	___pmd = pmdp_huge_clear_flush(__vma, __haddr, __pmd);		\
 	mmu_notifier_invalidate_range(___mm, ___haddr,			\
 				      ___haddr + HPAGE_PMD_SIZE);	\
 									\
 	___pmd;								\
 })
 
-#define pmdp_get_and_clear_notify(__mm, __haddr, __pmd)			\
+#define pmdp_huge_get_and_clear_notify(__mm, __haddr, __pmd)		\
 ({									\
 	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
 	pmd_t ___pmd;							\
 									\
-	___pmd = pmdp_get_and_clear(__mm, __haddr, __pmd);		\
+	___pmd = pmdp_huge_get_and_clear(__mm, __haddr, __pmd);		\
 	mmu_notifier_invalidate_range(__mm, ___haddr,			\
 				      ___haddr + HPAGE_PMD_SIZE);	\
 									\
@@ -428,8 +428,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 #define ptep_clear_flush_young_notify ptep_clear_flush_young
 #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
 #define	ptep_clear_flush_notify ptep_clear_flush
-#define pmdp_clear_flush_notify pmdp_clear_flush
-#define pmdp_get_and_clear_notify pmdp_get_and_clear
+#define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
+#define pmdp_huge_get_and_clear_notify pmdp_huge_get_and_clear
 #define set_pte_at_notify set_pte_at
 
 #endif /* CONFIG_MMU_NOTIFIER */

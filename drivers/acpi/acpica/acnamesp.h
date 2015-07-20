@@ -66,6 +66,7 @@
 #define ACPI_NS_PREFIX_IS_SCOPE     0x10
 #define ACPI_NS_EXTERNAL            0x20
 #define ACPI_NS_TEMPORARY           0x40
+#define ACPI_NS_OVERRIDE_IF_FOUND   0x80
 
 /* Flags for acpi_ns_walk_namespace */
 

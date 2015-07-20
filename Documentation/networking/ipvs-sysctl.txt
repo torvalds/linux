@@ -22,6 +22,27 @@ backup_only - BOOLEAN
 	If set, disable the director function while the server is
 	in backup mode to avoid packet loops for DR/TUN methods.
 
+conn_reuse_mode - INTEGER
+	1 - default
+
+	Controls how ipvs will deal with connections that are detected
+	port reuse. It is a bitmap, with the values being:
+
+	0: disable any special handling on port reuse. The new
+	connection will be delivered to the same real server that was
+	servicing the previous connection. This will effectively
+	disable expire_nodest_conn.
+
+	bit 1: enable rescheduling of new connections when it is safe.
+	That is, whenever expire_nodest_conn and for TCP sockets, when
+	the connection is in TIME_WAIT state (which is only possible if
+	you use NAT mode).
+
+	bit 2: it is bit 1 plus, for TCP connections, when connections
+	are in FIN_WAIT state, as this is the last state seen by load
+	balancer in Direct Routing mode. This bit helps on adding new
+	real servers to a very busy cluster.
+
 conntrack - BOOLEAN
 	0 - disabled (default)
 	not 0 - enabled

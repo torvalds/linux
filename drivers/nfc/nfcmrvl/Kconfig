@@ -21,3 +21,14 @@ config NFC_MRVL_USB
 
 	  Say Y here to compile support for Marvell NFC-over-USB driver
 	  into the kernel or say M to compile it as module.
+
+config NFC_MRVL_UART
+	tristate "Marvell NFC-over-UART driver"
+	depends on NFC_MRVL && NFC_NCI_UART
+	help
+	  Marvell NFC-over-UART driver.
+
+	  This driver provides support for Marvell NFC-over-UART devices
+
+	  Say Y here to compile support for Marvell NFC-over-UART driver
+	  into the kernel or say M to compile it as module.

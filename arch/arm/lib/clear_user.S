@@ -47,7 +47,7 @@ USER(		strnebt	r2, [r0])
 ENDPROC(__clear_user)
 ENDPROC(__clear_user_std)
 
-		.pushsection .fixup,"ax"
+		.pushsection .text.fixup,"ax"
 		.align	0
 9001:		ldmfd	sp!, {r0, pc}
 		.popsection

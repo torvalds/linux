@@ -29,7 +29,7 @@ ext3_xattr_security_get(struct dentry *dentry, const char *name,
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return ext3_xattr_get(dentry->d_inode, EXT3_XATTR_INDEX_SECURITY,
+	return ext3_xattr_get(d_inode(dentry), EXT3_XATTR_INDEX_SECURITY,
 			      name, buffer, size);
 }
 
@@ -39,7 +39,7 @@ ext3_xattr_security_set(struct dentry *dentry, const char *name,
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	return ext3_xattr_set(dentry->d_inode, EXT3_XATTR_INDEX_SECURITY,
+	return ext3_xattr_set(d_inode(dentry), EXT3_XATTR_INDEX_SECURITY,
 			      name, value, size, flags);
 }
 

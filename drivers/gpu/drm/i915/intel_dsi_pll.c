@@ -162,59 +162,41 @@ static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 
 #endif
 
-static int dsi_calc_mnp(u32 dsi_clk, struct dsi_mnp *dsi_mnp)
+static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
 {
-	u32 m, n, p;
-	u32 ref_clk;
-	u32 error;
-	u32 tmp_error;
-	int target_dsi_clk;
-	int calc_dsi_clk;
-	u32 calc_m;
-	u32 calc_p;
+	unsigned int calc_m = 0, calc_p = 0;
+	unsigned int m, n = 1, p;
+	int ref_clk = 25000;
+	int delta = target_dsi_clk;
 	u32 m_seed;
 
-	/* dsi_clk is expected in KHZ */
-	if (dsi_clk < 300000 || dsi_clk > 1150000) {
+	/* target_dsi_clk is expected in kHz */
+	if (target_dsi_clk < 300000 || target_dsi_clk > 1150000) {
 		DRM_ERROR("DSI CLK Out of Range\n");
 		return -ECHRNG;
 	}
 
-	ref_clk = 25000;
-	target_dsi_clk = dsi_clk;
-	error = 0xFFFFFFFF;
-	tmp_error = 0xFFFFFFFF;
-	calc_m = 0;
-	calc_p = 0;
-
-	for (m = 62; m <= 92; m++) {
-		for (p = 2; p <= 6; p++) {
-			/* Find the optimal m and p divisors
-			   with minimal error +/- the required clock */
-			calc_dsi_clk = (m * ref_clk) / p;
-			if (calc_dsi_clk == target_dsi_clk) {
-				calc_m = m;
-				calc_p = p;
-				error = 0;
-				break;
-			} else
-				tmp_error = abs(target_dsi_clk - calc_dsi_clk);
-
-			if (tmp_error < error) {
-				error = tmp_error;
+	for (m = 62; m <= 92 && delta; m++) {
+		for (p = 2; p <= 6 && delta; p++) {
+			/*
+			 * Find the optimal m and p divisors with minimal delta
+			 * +/- the required clock
+			 */
+			int calc_dsi_clk = (m * ref_clk) / (p * n);
+			int d = abs(target_dsi_clk - calc_dsi_clk);
+			if (d < delta) {
+				delta = d;
 				calc_m = m;
 				calc_p = p;
 			}
 		}
-
-		if (error == 0)
-			break;
 	}
 
+	/* register has log2(N1), this works fine for powers of two */
+	n = ffs(n) - 1;
 	m_seed = lfsr_converts[calc_m - 62];
-	n = 1;
 	dsi_mnp->dsi_pll_ctrl = 1 << (DSI_PLL_P1_POST_DIV_SHIFT + calc_p - 2);
-	dsi_mnp->dsi_pll_div = (n - 1) << DSI_PLL_N1_DIV_SHIFT |
+	dsi_mnp->dsi_pll_div = n << DSI_PLL_N1_DIV_SHIFT |
 		m_seed << DSI_PLL_M1_DIV_SHIFT;
 
 	return 0;
@@ -262,7 +244,7 @@ void vlv_enable_dsi_pll(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	vlv_configure_dsi_pll(encoder);
 
@@ -276,11 +258,11 @@ void vlv_enable_dsi_pll(struct intel_encoder *encoder)
 	if (wait_for(vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL) &
 						DSI_PLL_LOCK, 20)) {
 
-		mutex_unlock(&dev_priv->dpio_lock);
+		mutex_unlock(&dev_priv->sb_lock);
 		DRM_ERROR("DSI PLL lock failed\n");
 		return;
 	}
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
@@ -292,14 +274,14 @@ void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 
 	tmp = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
 	tmp &= ~DSI_PLL_VCO_EN;
 	tmp |= DSI_PLL_LDO_GATE;
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, tmp);
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
@@ -331,20 +313,24 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 dsi_clock, pclk;
 	u32 pll_ctl, pll_div;
-	u32 m = 0, p = 0;
+	u32 m = 0, p = 0, n;
 	int refclk = 25000;
 	int i;
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->dpio_lock);
+	mutex_lock(&dev_priv->sb_lock);
 	pll_ctl = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
 	pll_div = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_DIVIDER);
-	mutex_unlock(&dev_priv->dpio_lock);
+	mutex_unlock(&dev_priv->sb_lock);
 
 	/* mask out other bits and extract the P1 divisor */
 	pll_ctl &= DSI_PLL_P1_POST_DIV_MASK;
 	pll_ctl = pll_ctl >> (DSI_PLL_P1_POST_DIV_SHIFT - 2);
+
+	/* N1 divisor */
+	n = (pll_div & DSI_PLL_N1_DIV_MASK) >> DSI_PLL_N1_DIV_SHIFT;
+	n = 1 << n; /* register has log2(N1) */
 
 	/* mask out the other bits and extract the M1 divisor */
 	pll_div &= DSI_PLL_M1_DIV_MASK;
@@ -373,7 +359,7 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 
 	m = i + 62;
 
-	dsi_clock = (m * refclk) / p;
+	dsi_clock = (m * refclk) / (p * n);
 
 	/* pixel_format and pipe_bpp should agree */
 	assert_bpp_mismatch(intel_dsi->pixel_format, pipe_bpp);

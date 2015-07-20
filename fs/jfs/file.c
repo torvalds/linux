@@ -76,7 +76,7 @@ static int jfs_open(struct inode *inode, struct file *file)
 		if (ji->active_ag == -1) {
 			struct jfs_sb_info *jfs_sb = JFS_SBI(inode->i_sb);
 			ji->active_ag = BLKTOAG(addressPXD(&ji->ixpxd), jfs_sb);
-			atomic_inc( &jfs_sb->bmap->db_active[ji->active_ag]);
+			atomic_inc(&jfs_sb->bmap->db_active[ji->active_ag]);
 		}
 		spin_unlock_irq(&ji->ag_lock);
 	}
@@ -100,7 +100,7 @@ static int jfs_release(struct inode *inode, struct file *file)
 
 int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int rc;
 
 	rc = inode_change_ok(inode, iattr);
@@ -151,8 +151,6 @@ const struct inode_operations jfs_file_inode_operations = {
 const struct file_operations jfs_file_operations = {
 	.open		= jfs_open,
 	.llseek		= generic_file_llseek,
-	.write		= new_sync_write,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.mmap		= generic_file_mmap,

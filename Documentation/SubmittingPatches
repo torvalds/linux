@@ -299,7 +299,9 @@ toward the stable maintainers by putting a line like this:
 
   Cc: stable@vger.kernel.org
 
-into your patch.
+into the sign-off area of your patch (note, NOT an email recipient).  You
+should also read Documentation/stable_kernel_rules.txt in addition to this
+file.
 
 Note, however, that some subsystem maintainers want to come to their own
 conclusions on which patches should go to the stable trees.  The networking
@@ -614,8 +616,8 @@ The canonical patch message body contains the following:
 
   - An empty line.
 
-  - The body of the explanation, which will be copied to the
-    permanent changelog to describe this patch.
+  - The body of the explanation, line wrapped at 75 columns, which will
+    be copied to the permanent changelog to describe this patch.
 
   - The "Signed-off-by:" lines, described above, which will
     also go in the changelog.

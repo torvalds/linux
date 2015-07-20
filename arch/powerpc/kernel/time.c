@@ -608,6 +608,12 @@ void arch_suspend_enable_irqs(void)
 }
 #endif
 
+unsigned long long tb_to_ns(unsigned long long ticks)
+{
+	return mulhdu(ticks, tb_to_ns_scale) << tb_to_ns_shift;
+}
+EXPORT_SYMBOL_GPL(tb_to_ns);
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  *
@@ -1118,4 +1124,4 @@ static int __init rtc_init(void)
 	return PTR_ERR_OR_ZERO(pdev);
 }
 
-module_init(rtc_init);
+device_initcall(rtc_init);

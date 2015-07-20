@@ -725,13 +725,25 @@ struct xfs_attr3_icleaf_hdr {
 	__uint16_t	magic;
 	__uint16_t	count;
 	__uint16_t	usedbytes;
-	__uint16_t	firstused;
+	/*
+	 * firstused is 32-bit here instead of 16-bit like the on-disk variant
+	 * to support maximum fsb size of 64k without overflow issues throughout
+	 * the attr code. Instead, the overflow condition is handled on
+	 * conversion to/from disk.
+	 */
+	__uint32_t	firstused;
 	__u8		holes;
 	struct {
 		__uint16_t	base;
 		__uint16_t	size;
 	} freemap[XFS_ATTR_LEAF_MAPSIZE];
 };
+
+/*
+ * Special value to represent fs block size in the leaf header firstused field.
+ * Only used when block size overflows the 2-bytes available on disk.
+ */
+#define XFS_ATTR3_LEAF_NULLOFF	0
 
 /*
  * Flags used in the leaf_entry[i].flags field.

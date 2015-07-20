@@ -25,7 +25,7 @@ struct s921_config {
 	u8 demod_address;
 };
 
-#if IS_ENABLED(CONFIG_DVB_S921)
+#if IS_REACHABLE(CONFIG_DVB_S921)
 extern struct dvb_frontend *s921_attach(const struct s921_config *config,
 					   struct i2c_adapter *i2c);
 extern struct i2c_adapter *s921_get_tuner_i2c_adapter(struct dvb_frontend *);
@@ -36,7 +36,7 @@ static inline struct dvb_frontend *s921_attach(
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-static struct i2c_adapter *
+static inline struct i2c_adapter *
 	s921_get_tuner_i2c_adapter(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

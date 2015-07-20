@@ -123,7 +123,7 @@ static int ppc4xx_rng_remove(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_device_id ppc4xx_rng_match[] = {
+static const struct of_device_id ppc4xx_rng_match[] = {
 	{ .compatible = "ppc4xx-rng", },
 	{ .compatible = "amcc,ppc460ex-rng", },
 	{ .compatible = "amcc,ppc440epx-rng", },

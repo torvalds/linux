@@ -41,7 +41,7 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 
 	if (grp->attrs) {
 		for (i = 0, attr = grp->attrs; *attr && !error; i++, attr++) {
-			umode_t mode = 0;
+			umode_t mode = (*attr)->mode;
 
 			/*
 			 * In update mode, we're changing the permissions or
@@ -55,9 +55,14 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 				if (!mode)
 					continue;
 			}
+
+			WARN(mode & ~(SYSFS_PREALLOC | 0664),
+			     "Attribute %s: Invalid permissions 0%o\n",
+			     (*attr)->name, mode);
+
+			mode &= SYSFS_PREALLOC | 0664;
 			error = sysfs_add_file_mode_ns(parent, *attr, false,
-						       (*attr)->mode | mode,
-						       NULL);
+						       mode, NULL);
 			if (unlikely(error))
 				break;
 		}
@@ -130,7 +135,7 @@ static int internal_create_group(struct kobject *kobj, int update,
  * This function creates a group for the first time.  It will explicitly
  * warn and error if any of the attribute files being created already exist.
  *
- * Returns 0 on success or error.
+ * Returns 0 on success or error code on failure.
  */
 int sysfs_create_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
@@ -150,7 +155,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_group);
  * It will explicitly warn and error if any of the attribute files being
  * created already exist.
  *
- * Returns 0 on success or error code from sysfs_create_group on error.
+ * Returns 0 on success or error code from sysfs_create_group on failure.
  */
 int sysfs_create_groups(struct kobject *kobj,
 			const struct attribute_group **groups)
@@ -188,7 +193,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_groups);
  * The primary use for this function is to call it after making a change
  * that affects group visibility.
  *
- * Returns 0 on success or error.
+ * Returns 0 on success or error code on failure.
  */
 int sysfs_update_group(struct kobject *kobj,
 		       const struct attribute_group *grp)

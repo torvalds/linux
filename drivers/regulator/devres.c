@@ -413,3 +413,88 @@ void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
 		devm_regulator_unregister_supply_alias(dev, id[i]);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_bulk_unregister_supply_alias);
+
+struct regulator_notifier_match {
+	struct regulator *regulator;
+	struct notifier_block *nb;
+};
+
+static int devm_regulator_match_notifier(struct device *dev, void *res,
+					 void *data)
+{
+	struct regulator_notifier_match *match = res;
+	struct regulator_notifier_match *target = data;
+
+	return match->regulator == target->regulator && match->nb == target->nb;
+}
+
+static void devm_regulator_destroy_notifier(struct device *dev, void *res)
+{
+	struct regulator_notifier_match *match = res;
+
+	regulator_unregister_notifier(match->regulator, match->nb);
+}
+
+/**
+ * devm_regulator_register_notifier - Resource managed
+ * regulator_register_notifier
+ *
+ * @regulator: regulator source
+ * @nb: notifier block
+ *
+ * The notifier will be registers under the consumer device and be
+ * automatically be unregistered when the source device is unbound.
+ */
+int devm_regulator_register_notifier(struct regulator *regulator,
+				     struct notifier_block *nb)
+{
+	struct regulator_notifier_match *match;
+	int ret;
+
+	match = devres_alloc(devm_regulator_destroy_notifier,
+			     sizeof(struct regulator_notifier_match),
+			     GFP_KERNEL);
+	if (!match)
+		return -ENOMEM;
+
+	match->regulator = regulator;
+	match->nb = nb;
+
+	ret = regulator_register_notifier(regulator, nb);
+	if (ret < 0) {
+		devres_free(match);
+		return ret;
+	}
+
+	devres_add(regulator->dev, match);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_register_notifier);
+
+/**
+ * devm_regulator_unregister_notifier - Resource managed
+ * regulator_unregister_notifier()
+ *
+ * @regulator: regulator source
+ * @nb: notifier block
+ *
+ * Unregister a notifier registered with devm_regulator_register_notifier().
+ * Normally this function will not need to be called and the resource
+ * management code will ensure that the resource is freed.
+ */
+void devm_regulator_unregister_notifier(struct regulator *regulator,
+					struct notifier_block *nb)
+{
+	struct regulator_notifier_match match;
+	int rc;
+
+	match.regulator = regulator;
+	match.nb = nb;
+
+	rc = devres_release(regulator->dev, devm_regulator_destroy_notifier,
+			    devm_regulator_match_notifier, &match);
+	if (rc != 0)
+		WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_regulator_unregister_notifier);

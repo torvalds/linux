@@ -89,14 +89,14 @@ static int64_t
 sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	/* Compare the addr that should be unique among comm */
-	return comm__str(right->comm) - comm__str(left->comm);
+	return strcmp(comm__str(right->comm), comm__str(left->comm));
 }
 
 static int64_t
 sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 {
 	/* Compare the addr that should be unique among comm */
-	return comm__str(right->comm) - comm__str(left->comm);
+	return strcmp(comm__str(right->comm), comm__str(left->comm));
 }
 
 static int64_t
@@ -182,18 +182,16 @@ static int64_t _sort__addr_cmp(u64 left_ip, u64 right_ip)
 
 static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
 {
-	u64 ip_l, ip_r;
-
 	if (!sym_l || !sym_r)
 		return cmp_null(sym_l, sym_r);
 
 	if (sym_l == sym_r)
 		return 0;
 
-	ip_l = sym_l->start;
-	ip_r = sym_r->start;
+	if (sym_l->start != sym_r->start)
+		return (int64_t)(sym_r->start - sym_l->start);
 
-	return (int64_t)(ip_r - ip_l);
+	return (int64_t)(sym_r->end - sym_l->end);
 }
 
 static int64_t
@@ -1463,6 +1461,15 @@ int sort_dimension__add(const char *tok)
 			sort__has_parent = 1;
 		} else if (sd->entry == &sort_sym) {
 			sort__has_sym = 1;
+			/*
+			 * perf diff displays the performance difference amongst
+			 * two or more perf.data files. Those files could come
+			 * from different binaries. So we should not compare
+			 * their ips, but the name of symbol.
+			 */
+			if (sort__mode == SORT_MODE__DIFF)
+				sd->entry->se_collapse = sort__sym_sort;
+
 		} else if (sd->entry == &sort_dso) {
 			sort__has_dso = 1;
 		}

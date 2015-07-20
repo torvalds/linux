@@ -54,7 +54,7 @@
 		"marvell,armada385", "marvell,armada380";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -73,7 +73,7 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "w25q32";
+					compatible = "w25q32", "jedec,spi-nor";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <108000000>;
 				};
@@ -99,7 +99,7 @@
 				phy-mode = "rgmii-id";
 			};
 
-			usb@50000 {
+			usb@58000 {
 				status = "ok";
 			};
 

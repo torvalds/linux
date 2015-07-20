@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -128,7 +128,7 @@ static int fm10k_dcbnl_ieee_setpfc(struct net_device *dev, struct ieee_pfc *pfc)
  *
  * Returns that we support only IEEE DCB for this interface
  **/
-static u8 fm10k_dcbnl_getdcbx(struct net_device *dev)
+static u8 fm10k_dcbnl_getdcbx(struct net_device __always_unused *dev)
 {
 	return DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
 }
@@ -140,7 +140,7 @@ static u8 fm10k_dcbnl_getdcbx(struct net_device *dev)
  *
  * Returns error on attempt to enable anything but IEEE DCB for this interface
  **/
-static u8 fm10k_dcbnl_setdcbx(struct net_device *dev, u8 mode)
+static u8 fm10k_dcbnl_setdcbx(struct net_device __always_unused *dev, u8 mode)
 {
 	return (mode != (DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE)) ? 1 : 0;
 }

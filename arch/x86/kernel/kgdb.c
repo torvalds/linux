@@ -126,11 +126,11 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 #ifdef CONFIG_X86_32
 	switch (regno) {
 	case GDB_SS:
-		if (!user_mode_vm(regs))
+		if (!user_mode(regs))
 			*(unsigned long *)mem = __KERNEL_DS;
 		break;
 	case GDB_SP:
-		if (!user_mode_vm(regs))
+		if (!user_mode(regs))
 			*(unsigned long *)mem = kernel_stack_pointer(regs);
 		break;
 	case GDB_GS:

@@ -1,15 +1,13 @@
 
 
-                  HOWTO for the linux packet generator 
+                  HOWTO for the linux packet generator
                   ------------------------------------
 
-Date: 041221
-
-Enable CONFIG_NET_PKTGEN to compile and build pktgen.o either in kernel
-or as module. Module is preferred. insmod pktgen if needed. Once running
-pktgen creates a thread on each CPU where each thread has affinity to its CPU.
-Monitoring and controlling is done via /proc. Easiest to select a suitable 
-a sample script and configure.
+Enable CONFIG_NET_PKTGEN to compile and build pktgen either in-kernel
+or as a module.  A module is preferred; modprobe pktgen if needed.  Once
+running, pktgen creates a thread for each CPU with affinity to that CPU.
+Monitoring and controlling is done via /proc.  It is easiest to select a
+suitable sample script and configure that.
 
 On a dual CPU:
 
@@ -27,7 +25,7 @@ For monitoring and control pktgen creates:
 Tuning NIC for max performance
 ==============================
 
-The default NIC setting are (likely) not tuned for pktgen's artificial
+The default NIC settings are (likely) not tuned for pktgen's artificial
 overload type of benchmarking, as this could hurt the normal use-case.
 
 Specifically increasing the TX ring buffer in the NIC:
@@ -35,65 +33,86 @@ Specifically increasing the TX ring buffer in the NIC:
 
 A larger TX ring can improve pktgen's performance, while it can hurt
 in the general case, 1) because the TX ring buffer might get larger
-than the CPUs L1/L2 cache, 2) because it allow more queueing in the
+than the CPU's L1/L2 cache, 2) because it allows more queueing in the
 NIC HW layer (which is bad for bufferbloat).
 
-One should be careful to conclude, that packets/descriptors in the HW
+One should hesitate to conclude that packets/descriptors in the HW
 TX ring cause delay.  Drivers usually delay cleaning up the
-ring-buffers (for various performance reasons), thus packets stalling
-the TX ring, might just be waiting for cleanup.
+ring-buffers for various performance reasons, and packets stalling
+the TX ring might just be waiting for cleanup.
 
-This cleanup issues is specifically the case, for the driver ixgbe
-(Intel 82599 chip).  This driver (ixgbe) combine TX+RX ring cleanups,
+This cleanup issue is specifically the case for the driver ixgbe
+(Intel 82599 chip).  This driver (ixgbe) combines TX+RX ring cleanups,
 and the cleanup interval is affected by the ethtool --coalesce setting
 of parameter "rx-usecs".
 
-For ixgbe use e.g "30" resulting in approx 33K interrupts/sec (1/30*10^6):
+For ixgbe use e.g. "30" resulting in approx 33K interrupts/sec (1/30*10^6):
  # ethtool -C ethX rx-usecs 30
 
 
-Viewing threads
-===============
-/proc/net/pktgen/kpktgend_0 
-Name: kpktgend_0  max_before_softirq: 10000
-Running: 
-Stopped: eth1 
-Result: OK: max_before_softirq=10000
+Kernel threads
+==============
+Pktgen creates a thread for each CPU with affinity to that CPU.
+Which is controlled through procfile /proc/net/pktgen/kpktgend_X.
 
-Most important the devices assigned to thread. Note! A device can only belong 
-to one thread.
+Example: /proc/net/pktgen/kpktgend_0
 
+ Running:
+ Stopped: eth4@0
+ Result: OK: add_device=eth4@0
+
+Most important are the devices assigned to the thread.
+
+The two basic thread commands are:
+ * add_device DEVICE@NAME -- adds a single device
+ * rem_device_all         -- remove all associated devices
+
+When adding a device to a thread, a corrosponding procfile is created
+which is used for configuring this device. Thus, device names need to
+be unique.
+
+To support adding the same device to multiple threads, which is useful
+with multi queue NICs, a the device naming scheme is extended with "@":
+ device@something
+
+The part after "@" can be anything, but it is custom to use the thread
+number.
 
 Viewing devices
 ===============
 
-Parm section holds configured info. Current hold running stats. 
-Result is printed after run or after interruption. Example:
+The Params section holds configured information.  The Current section
+holds running statistics.  The Result is printed after a run or after
+interruption.  Example:
 
-/proc/net/pktgen/eth1       
+/proc/net/pktgen/eth4@0
 
-Params: count 10000000  min_pkt_size: 60  max_pkt_size: 60
-     frags: 0  delay: 0  clone_skb: 1000000  ifname: eth1
+ Params: count 100000  min_pkt_size: 60  max_pkt_size: 60
+     frags: 0  delay: 0  clone_skb: 64  ifname: eth4@0
      flows: 0 flowlen: 0
-     dst_min: 10.10.11.2  dst_max: 
-     src_min:   src_max: 
-     src_mac: 00:00:00:00:00:00  dst_mac: 00:04:23:AC:FD:82
-     udp_src_min: 9  udp_src_max: 9  udp_dst_min: 9  udp_dst_max: 9
-     src_mac_count: 0  dst_mac_count: 0 
-     Flags: 
-Current:
-     pkts-sofar: 10000000  errors: 39664
-     started: 1103053986245187us  stopped: 1103053999346329us idle: 880401us
-     seq_num: 10000011  cur_dst_mac_offset: 0  cur_src_mac_offset: 0
-     cur_saddr: 0x10a0a0a  cur_daddr: 0x20b0a0a
-     cur_udp_dst: 9  cur_udp_src: 9
+     queue_map_min: 0  queue_map_max: 0
+     dst_min: 192.168.81.2  dst_max:
+     src_min:   src_max:
+     src_mac: 90:e2:ba:0a:56:b4 dst_mac: 00:1b:21:3c:9d:f8
+     udp_src_min: 9  udp_src_max: 109  udp_dst_min: 9  udp_dst_max: 9
+     src_mac_count: 0  dst_mac_count: 0
+     Flags: UDPSRC_RND  NO_TIMESTAMP  QUEUE_MAP_CPU
+ Current:
+     pkts-sofar: 100000  errors: 0
+     started: 623913381008us  stopped: 623913396439us idle: 25us
+     seq_num: 100001  cur_dst_mac_offset: 0  cur_src_mac_offset: 0
+     cur_saddr: 192.168.8.3  cur_daddr: 192.168.81.2
+     cur_udp_dst: 9  cur_udp_src: 42
+     cur_queue_map: 0
      flows: 0
-Result: OK: 13101142(c12220741+d880401) usec, 10000000 (60byte,0frags)
-  763292pps 390Mb/sec (390805504bps) errors: 39664
+ Result: OK: 15430(c15405+d25) usec, 100000 (60byte,0frags)
+  6480562pps 3110Mb/sec (3110669760bps) errors: 0
 
-Configuring threads and devices
-================================
-This is done via the /proc interface easiest done via pgset in the scripts
+
+Configuring devices
+===================
+This is done via the /proc interface, and most easily done via pgset
+as defined in the sample scripts.
 
 Examples:
 
@@ -126,7 +145,7 @@ Examples:
                          To select queue 1 of a given device,
                          use queue_map_min=1 and queue_map_max=1
 
- pgset "src_mac_count 1" Sets the number of MACs we'll range through.  
+ pgset "src_mac_count 1" Sets the number of MACs we'll range through.
                          The 'minimum' MAC is what you set with srcmac.
 
  pgset "dst_mac_count 1" Sets the number of MACs we'll range through.
@@ -145,6 +164,7 @@ Examples:
                               UDPCSUM,
                               IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
                               NODE_ALLOC # node specific memory allocation
+                              NO_TIMESTAMP # disable timestamping
 
  pgset spi SPI_VALUE     Set specific SA used to transform packet.
 
@@ -192,39 +212,63 @@ Examples:
  pgset "rate 300M"        set rate to 300 Mb/s
  pgset "ratep 1000000"    set rate to 1Mpps
 
-Example scripts
-===============
+ pgset "xmit_mode netif_receive"  RX inject into stack netif_receive_skb()
+				  Works with "burst" but not with "clone_skb".
+				  Default xmit_mode is "start_xmit".
 
-A collection of small tutorial scripts for pktgen is in examples dir.
+Sample scripts
+==============
 
-pktgen.conf-1-1                  # 1 CPU 1 dev 
+A collection of tutorial scripts and helpers for pktgen is in the
+samples/pktgen directory. The helper parameters.sh file support easy
+and consistant parameter parsing across the sample scripts.
+
+Usage example and help:
+ ./pktgen_sample01_simple.sh -i eth4 -m 00:1B:21:3C:9D:F8 -d 192.168.8.2
+
+Usage: ./pktgen_sample01_simple.sh [-vx] -i ethX
+  -i : ($DEV)       output interface/device (required)
+  -s : ($PKT_SIZE)  packet size
+  -d : ($DEST_IP)   destination IP
+  -m : ($DST_MAC)   destination MAC-addr
+  -t : ($THREADS)   threads to start
+  -c : ($SKB_CLONE) SKB clones send before alloc new SKB
+  -b : ($BURST)     HW level bursting of SKBs
+  -v : ($VERBOSE)   verbose
+  -x : ($DEBUG)     debug
+
+The global variables being set are also listed.  E.g. the required
+interface/device parameter "-i" sets variable $DEV.  Copy the
+pktgen_sampleXX scripts and modify them to fit your own needs.
+
+The old scripts:
+
 pktgen.conf-1-2                  # 1 CPU 2 dev
-pktgen.conf-2-1                  # 2 CPU's 1 dev 
-pktgen.conf-2-2                  # 2 CPU's 2 dev
 pktgen.conf-1-1-rdos             # 1 CPU 1 dev w. route DoS 
 pktgen.conf-1-1-ip6              # 1 CPU 1 dev ipv6
 pktgen.conf-1-1-ip6-rdos         # 1 CPU 1 dev ipv6  w. route DoS
 pktgen.conf-1-1-flows            # 1 CPU 1 dev multiple flows.
 
-Run in shell: ./pktgen.conf-X-Y It does all the setup including sending. 
-
 
 Interrupt affinity
 ===================
-Note when adding devices to a specific CPU there good idea to also assign 
-/proc/irq/XX/smp_affinity so the TX-interrupts gets bound to the same CPU.
-as this reduces cache bouncing when freeing skb's.
+Note that when adding devices to a specific CPU it is a good idea to
+also assign /proc/irq/XX/smp_affinity so that the TX interrupts are bound
+to the same CPU.  This reduces cache bouncing when freeing skbs.
+
+Plus using the device flag QUEUE_MAP_CPU, which maps the SKBs TX queue
+to the running threads CPU (directly from smp_processor_id()).
 
 Enable IPsec
 ============
-Default IPsec transformation with ESP encapsulation plus Transport mode
-could be enabled by simply setting:
+Default IPsec transformation with ESP encapsulation plus transport mode
+can be enabled by simply setting:
 
 pgset "flag IPSEC"
 pgset "flows 1"
 
 To avoid breaking existing testbed scripts for using AH type and tunnel mode,
-user could use "pgset spi SPI_VALUE" to specify which formal of transformation
+you can use "pgset spi SPI_VALUE" to specify which transformation mode
 to employ.
 
 
@@ -235,18 +279,19 @@ Current commands and configuration options
 
 start
 stop
+reset
 
 ** Thread commands:
 
 add_device
 rem_device_all
-max_before_softirq
 
 
 ** Device commands:
 
 count
 clone_skb
+burst
 debug
 
 frags
@@ -255,9 +300,16 @@ delay
 src_mac_count
 dst_mac_count
 
-pkt_size 
+pkt_size
 min_pkt_size
 max_pkt_size
+
+queue_map_min
+queue_map_max
+skb_priority
+
+tos           (ipv4)
+traffic_class (ipv6)
 
 mpls
 
@@ -266,6 +318,8 @@ udp_src_max
 
 udp_dst_min
 udp_dst_max
+
+node
 
 flag
   IPSRC_RND
@@ -285,6 +339,9 @@ flag
   UDPCSUM
   IPSEC
   NODE_ALLOC
+  NO_TIMESTAMP
+
+spi (ipsec)
 
 dst_min
 dst_max
@@ -297,14 +354,27 @@ src_mac
 
 clear_counters
 
-dst6
 src6
+dst6
+dst6_max
+dst6_min
 
 flows
 flowlen
 
 rate
 ratep
+
+xmit_mode <start_xmit|netif_receive>
+
+vlan_cfi
+vlan_id
+vlan_p
+
+svlan_cfi
+svlan_id
+svlan_p
+
 
 References:
 ftp://robur.slu.se/pub/Linux/net-development/pktgen-testing/

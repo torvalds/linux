@@ -41,22 +41,6 @@ static __u16 const msstab[] = {
 	9000 - 60,
 };
 
-static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
-					   struct request_sock *req,
-					   struct dst_entry *dst)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct sock *child;
-
-	child = icsk->icsk_af_ops->syn_recv_sock(sk, skb, req, dst);
-	if (child)
-		inet_csk_reqsk_queue_add(sk, req, child);
-	else
-		reqsk_free(req);
-
-	return child;
-}
-
 static DEFINE_PER_CPU(__u32 [16 + 5 + SHA_WORKSPACE_WORDS],
 		      ipv6_cookie_scratch);
 
@@ -189,13 +173,13 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	ret = NULL;
-	req = inet_reqsk_alloc(&tcp6_request_sock_ops);
+	req = inet_reqsk_alloc(&tcp6_request_sock_ops, sk);
 	if (!req)
 		goto out;
 
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
-	treq->listener = NULL;
+	treq->tfo_listener = false;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto out_free;
@@ -220,7 +204,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 
 	ireq->ir_mark = inet_request_mark(sk, skb);
 
-	req->expires = 0UL;
 	req->num_retrans = 0;
 	ireq->snd_wscale	= tcp_opt.snd_wscale;
 	ireq->sack_ok		= tcp_opt.sack_ok;
@@ -264,7 +247,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	ireq->rcv_wscale = rcv_wscale;
 	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, sock_net(sk), dst);
 
-	ret = get_cookie_sock(sk, skb, req, dst);
+	ret = tcp_get_cookie_sock(sk, skb, req, dst);
 out:
 	return ret;
 out_free:

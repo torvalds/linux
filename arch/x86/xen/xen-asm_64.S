@@ -15,6 +15,8 @@
 #include <asm/percpu.h>
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
+#include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
 
 #include <xen/interface/xen.h>
 
@@ -47,32 +49,16 @@ ENTRY(xen_iret)
 ENDPATCH(xen_iret)
 RELOC(xen_iret, 1b+1)
 
-/*
- * sysexit is not used for 64-bit processes, so it's only ever used to
- * return to 32-bit compat userspace.
- */
-ENTRY(xen_sysexit)
-	pushq $__USER32_DS
-	pushq %rcx
-	pushq $X86_EFLAGS_IF
-	pushq $__USER32_CS
-	pushq %rdx
-
-	pushq $0
-1:	jmp hypercall_iret
-ENDPATCH(xen_sysexit)
-RELOC(xen_sysexit, 1b+1)
-
 ENTRY(xen_sysret64)
 	/*
 	 * We're already on the usermode stack at this point, but
 	 * still with the kernel gs, so we can easily switch back
 	 */
-	movq %rsp, PER_CPU_VAR(old_rsp)
-	movq PER_CPU_VAR(kernel_stack), %rsp
+	movq %rsp, PER_CPU_VAR(rsp_scratch)
+	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER_DS
-	pushq PER_CPU_VAR(old_rsp)
+	pushq PER_CPU_VAR(rsp_scratch)
 	pushq %r11
 	pushq $__USER_CS
 	pushq %rcx
@@ -87,11 +73,11 @@ ENTRY(xen_sysret32)
 	 * We're already on the usermode stack at this point, but
 	 * still with the kernel gs, so we can easily switch back
 	 */
-	movq %rsp, PER_CPU_VAR(old_rsp)
-	movq PER_CPU_VAR(kernel_stack), %rsp
+	movq %rsp, PER_CPU_VAR(rsp_scratch)
+	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER32_DS
-	pushq PER_CPU_VAR(old_rsp)
+	pushq PER_CPU_VAR(rsp_scratch)
 	pushq %r11
 	pushq $__USER32_CS
 	pushq %rcx
@@ -128,7 +114,7 @@ RELOC(xen_sysret32, 1b+1)
 /* Normal 64-bit system call target */
 ENTRY(xen_syscall_target)
 	undo_xen_syscall
-	jmp system_call_after_swapgs
+	jmp entry_SYSCALL_64_after_swapgs
 ENDPROC(xen_syscall_target)
 
 #ifdef CONFIG_IA32_EMULATION
@@ -136,13 +122,13 @@ ENDPROC(xen_syscall_target)
 /* 32-bit compat syscall target */
 ENTRY(xen_syscall32_target)
 	undo_xen_syscall
-	jmp ia32_cstar_target
+	jmp entry_SYSCALL_compat
 ENDPROC(xen_syscall32_target)
 
 /* 32-bit compat sysenter target */
 ENTRY(xen_sysenter_target)
 	undo_xen_syscall
-	jmp ia32_sysenter_target
+	jmp entry_SYSENTER_compat
 ENDPROC(xen_sysenter_target)
 
 #else /* !CONFIG_IA32_EMULATION */

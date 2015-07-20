@@ -52,11 +52,11 @@
 
 /* length of descriptors */
 #define DESC_JOB_O_LEN			(CAAM_CMD_SZ * 2 + CAAM_PTR_SZ * 2)
-#define DESC_RNG_LEN			(10 * CAAM_CMD_SZ)
+#define DESC_RNG_LEN			(4 * CAAM_CMD_SZ)
 
 /* Buffer, its dma address and lock */
 struct buf_data {
-	u8 buf[RN_BUF_SIZE];
+	u8 buf[RN_BUF_SIZE] ____cacheline_aligned;
 	dma_addr_t addr;
 	struct completion filled;
 	u32 hw_desc[DESC_JOB_O_LEN];
@@ -90,8 +90,8 @@ static inline void rng_unmap_ctx(struct caam_rng_ctx *ctx)
 	struct device *jrdev = ctx->jrdev;
 
 	if (ctx->sh_desc_dma)
-		dma_unmap_single(jrdev, ctx->sh_desc_dma, DESC_RNG_LEN,
-				 DMA_TO_DEVICE);
+		dma_unmap_single(jrdev, ctx->sh_desc_dma,
+				 desc_bytes(ctx->sh_desc), DMA_TO_DEVICE);
 	rng_unmap_buf(jrdev, &ctx->bufs[0]);
 	rng_unmap_buf(jrdev, &ctx->bufs[1]);
 }

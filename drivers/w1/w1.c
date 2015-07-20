@@ -46,11 +46,15 @@ MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol.");
 
 static int w1_timeout = 10;
+static int w1_timeout_us = 0;
 int w1_max_slave_count = 64;
 int w1_max_slave_ttl = 10;
 
 module_param_named(timeout, w1_timeout, int, 0);
 MODULE_PARM_DESC(timeout, "time in seconds between automatic slave searches");
+module_param_named(timeout_us, w1_timeout_us, int, 0);
+MODULE_PARM_DESC(timeout, "time in microseconds between automatic slave"
+		          " searches");
 /* A search stops when w1_max_slave_count devices have been found in that
  * search.  The next search will start over and detect the same set of devices
  * on a static 1-wire bus.  Memory is not allocated based on this number, just
@@ -317,6 +321,14 @@ static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct devic
 	return count;
 }
 
+static ssize_t w1_master_attribute_show_timeout_us(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	ssize_t count;
+	count = sprintf(buf, "%d\n", w1_timeout_us);
+	return count;
+}
+
 static ssize_t w1_master_attribute_store_max_slave_count(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -543,6 +555,7 @@ static W1_MASTER_ATTR_RO(slave_count, S_IRUGO);
 static W1_MASTER_ATTR_RW(max_slave_count, S_IRUGO | S_IWUSR | S_IWGRP);
 static W1_MASTER_ATTR_RO(attempts, S_IRUGO);
 static W1_MASTER_ATTR_RO(timeout, S_IRUGO);
+static W1_MASTER_ATTR_RO(timeout_us, S_IRUGO);
 static W1_MASTER_ATTR_RO(pointer, S_IRUGO);
 static W1_MASTER_ATTR_RW(search, S_IRUGO | S_IWUSR | S_IWGRP);
 static W1_MASTER_ATTR_RW(pullup, S_IRUGO | S_IWUSR | S_IWGRP);
@@ -556,6 +569,7 @@ static struct attribute *w1_master_default_attrs[] = {
 	&w1_master_attribute_max_slave_count.attr,
 	&w1_master_attribute_attempts.attr,
 	&w1_master_attribute_timeout.attr,
+	&w1_master_attribute_timeout_us.attr,
 	&w1_master_attribute_pointer.attr,
 	&w1_master_attribute_search.attr,
 	&w1_master_attribute_pullup.attr,
@@ -1108,7 +1122,8 @@ int w1_process(void *data)
 	/* As long as w1_timeout is only set by a module parameter the sleep
 	 * time can be calculated in jiffies once.
 	 */
-	const unsigned long jtime = msecs_to_jiffies(w1_timeout * 1000);
+	const unsigned long jtime =
+	  usecs_to_jiffies(w1_timeout * 1000000 + w1_timeout_us);
 	/* remainder if it woke up early */
 	unsigned long jremain = 0;
 

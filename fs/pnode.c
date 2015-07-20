@@ -362,6 +362,46 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 }
 
 /*
+ * Clear MNT_LOCKED when it can be shown to be safe.
+ *
+ * mount_lock lock must be held for write
+ */
+void propagate_mount_unlock(struct mount *mnt)
+{
+	struct mount *parent = mnt->mnt_parent;
+	struct mount *m, *child;
+
+	BUG_ON(parent == mnt);
+
+	for (m = propagation_next(parent, parent); m;
+			m = propagation_next(m, parent)) {
+		child = __lookup_mnt_last(&m->mnt, mnt->mnt_mountpoint);
+		if (child)
+			child->mnt.mnt_flags &= ~MNT_LOCKED;
+	}
+}
+
+/*
+ * Mark all mounts that the MNT_LOCKED logic will allow to be unmounted.
+ */
+static void mark_umount_candidates(struct mount *mnt)
+{
+	struct mount *parent = mnt->mnt_parent;
+	struct mount *m;
+
+	BUG_ON(parent == mnt);
+
+	for (m = propagation_next(parent, parent); m;
+			m = propagation_next(m, parent)) {
+		struct mount *child = __lookup_mnt_last(&m->mnt,
+						mnt->mnt_mountpoint);
+		if (child && (!IS_MNT_LOCKED(child) || IS_MNT_MARKED(m))) {
+			SET_MNT_MARK(child);
+		}
+	}
+}
+
+/*
  * NOTE: unmounting 'mnt' naturally propagates to all other mounts its
  * parent propagates to.
  */
@@ -378,13 +418,16 @@ static void __propagate_umount(struct mount *mnt)
 		struct mount *child = __lookup_mnt_last(&m->mnt,
 						mnt->mnt_mountpoint);
 		/*
-		 * umount the child only if the child has no
-		 * other children
+		 * umount the child only if the child has no children
+		 * and the child is marked safe to unmount.
 		 */
-		if (child && list_empty(&child->mnt_mounts)) {
+		if (!child || !IS_MNT_MARKED(child))
+			continue;
+		CLEAR_MNT_MARK(child);
+		if (list_empty(&child->mnt_mounts)) {
 			list_del_init(&child->mnt_child);
-			hlist_del_init_rcu(&child->mnt_hash);
-			hlist_add_before_rcu(&child->mnt_hash, &mnt->mnt_hash);
+			child->mnt.mnt_flags |= MNT_UMOUNT;
+			list_move_tail(&child->mnt_list, &mnt->mnt_list);
 		}
 	}
 }
@@ -396,11 +439,14 @@ static void __propagate_umount(struct mount *mnt)
  *
  * vfsmount lock must be held for write
  */
-int propagate_umount(struct hlist_head *list)
+int propagate_umount(struct list_head *list)
 {
 	struct mount *mnt;
 
-	hlist_for_each_entry(mnt, list, mnt_hash)
+	list_for_each_entry_reverse(mnt, list, mnt_list)
+		mark_umount_candidates(mnt);
+
+	list_for_each_entry(mnt, list, mnt_list)
 		__propagate_umount(mnt);
 	return 0;
 }

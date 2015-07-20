@@ -104,7 +104,7 @@ static const struct st_thermal_sensor_ops st_syscfg_sensor_ops = {
 };
 
 /* Compatible device data for stih415 sas thermal sensor */
-const struct st_thermal_compat_data st_415sas_cdata = {
+static const struct st_thermal_compat_data st_415sas_cdata = {
 	.sys_compat		= "st,stih415-front-syscfg",
 	.reg_fields		= st_415sas_regfields,
 	.ops			= &st_syscfg_sensor_ops,
@@ -114,7 +114,7 @@ const struct st_thermal_compat_data st_415sas_cdata = {
 };
 
 /* Compatible device data for stih415 mpe thermal sensor */
-const struct st_thermal_compat_data st_415mpe_cdata = {
+static const struct st_thermal_compat_data st_415mpe_cdata = {
 	.sys_compat		= "st,stih415-system-syscfg",
 	.reg_fields		= st_415mpe_regfields,
 	.ops			= &st_syscfg_sensor_ops,
@@ -124,7 +124,7 @@ const struct st_thermal_compat_data st_415mpe_cdata = {
 };
 
 /* Compatible device data for stih416 sas thermal sensor */
-const struct st_thermal_compat_data st_416sas_cdata = {
+static const struct st_thermal_compat_data st_416sas_cdata = {
 	.sys_compat		= "st,stih416-front-syscfg",
 	.reg_fields		= st_416sas_regfields,
 	.ops			= &st_syscfg_sensor_ops,
@@ -134,7 +134,7 @@ const struct st_thermal_compat_data st_416sas_cdata = {
 };
 
 /* Compatible device data for stid127 thermal sensor */
-const struct st_thermal_compat_data st_127_cdata = {
+static const struct st_thermal_compat_data st_127_cdata = {
 	.sys_compat		= "st,stid127-cpu-syscfg",
 	.reg_fields		= st_127_regfields,
 	.ops			= &st_syscfg_sensor_ops,
@@ -143,7 +143,7 @@ const struct st_thermal_compat_data st_127_cdata = {
 	.crit_temp		= 120,
 };
 
-static struct of_device_id st_syscfg_thermal_of_match[] = {
+static const struct of_device_id st_syscfg_thermal_of_match[] = {
 	{ .compatible = "st,stih415-sas-thermal", .data = &st_415sas_cdata },
 	{ .compatible = "st,stih415-mpe-thermal", .data = &st_415mpe_cdata },
 	{ .compatible = "st,stih416-sas-thermal", .data = &st_416sas_cdata },
@@ -152,12 +152,12 @@ static struct of_device_id st_syscfg_thermal_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, st_syscfg_thermal_of_match);
 
-int st_syscfg_probe(struct platform_device *pdev)
+static int st_syscfg_probe(struct platform_device *pdev)
 {
 	return st_thermal_register(pdev, st_syscfg_thermal_of_match);
 }
 
-int st_syscfg_remove(struct platform_device *pdev)
+static int st_syscfg_remove(struct platform_device *pdev)
 {
 	return st_thermal_unregister(pdev);
 }

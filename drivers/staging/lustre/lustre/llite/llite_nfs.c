@@ -116,7 +116,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 
 	/* mds_fid2dentry ignores f_type */
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
-	OBD_FREE_PTR(op_data);
+	kfree(op_data);
 	if (rc) {
 		CERROR("can't get object attrs, fid "DFID", rc %d\n",
 		       PFID(fid), rc);
@@ -230,11 +230,11 @@ static int ll_nfs_get_name_filldir(struct dir_context *ctx, const char *name,
 static int ll_get_name(struct dentry *dentry, char *name,
 		       struct dentry *child)
 {
-	struct inode *dir = dentry->d_inode;
+	struct inode *dir = d_inode(dentry);
 	int rc;
 	struct ll_getname_data lgd = {
 		.lgd_name = name,
-		.lgd_fid = ll_i2info(child->d_inode)->lli_fid,
+		.lgd_fid = ll_i2info(d_inode(child))->lli_fid,
 		.ctx.actor = ll_nfs_get_name_filldir,
 	};
 
@@ -282,7 +282,7 @@ static struct dentry *ll_fh_to_parent(struct super_block *sb, struct fid *fid,
 static struct dentry *ll_get_parent(struct dentry *dchild)
 {
 	struct ptlrpc_request *req = NULL;
-	struct inode	  *dir = dchild->d_inode;
+	struct inode	  *dir = d_inode(dchild);
 	struct ll_sb_info     *sbi;
 	struct dentry	 *result = NULL;
 	struct mdt_body       *body;

@@ -4,7 +4,7 @@
  * This display uses 9-bit SPI: Data/Command bit + 8 data bits
  * For platforms that doesn't support 9-bit, the driver is capable
  * of emulating this using 8-bit transfer.
- * This is done by transfering eight 9-bit words in 9 bytes.
+ * This is done by transferring eight 9-bit words in 9 bytes.
  *
  * Copyright (C) 2013 Christian Vogelgsang
  * Based on adafruit22fb.c by Noralf Tronnes
@@ -89,7 +89,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	write_reg(par, 0x2A,
 		(xs >> 8) & 0xFF, xs & 0xFF, (xe >> 8) & 0xFF, xe & 0xFF);
 
-	/* Row adress set */
+	/* Row address set */
 	write_reg(par, 0x2B,
 		(ys >> 8) & 0xFF, ys & 0xFF, (ye >> 8) & 0xFF, ye & 0xFF);
 

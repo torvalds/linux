@@ -599,7 +599,7 @@ MODULE_DEVICE_TABLE(pci, nv_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
 static bool adma_enabled;
-static bool swncq_enabled = 1;
+static bool swncq_enabled = true;
 static bool msi_enabled;
 
 static void nv_adma_register_mode(struct ata_port *ap)
@@ -756,10 +756,10 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 			blk_queue_bounce_limit(sdev1->request_queue,
 					       ATA_DMA_MASK);
 
-		pci_set_dma_mask(pdev, ATA_DMA_MASK);
+		dma_set_mask(&pdev->dev, ATA_DMA_MASK);
 	} else {
 		/** This shouldn't fail as it was set to this value before */
-		pci_set_dma_mask(pdev, pp->adma_dma_mask);
+		dma_set_mask(&pdev->dev, pp->adma_dma_mask);
 		if (sdev0)
 			blk_queue_bounce_limit(sdev0->request_queue,
 					       pp->adma_dma_mask);
@@ -1133,10 +1133,10 @@ static int nv_adma_port_start(struct ata_port *ap)
 
 	/* Ensure DMA mask is set to 32-bit before allocating legacy PRD and
 	   pad buffers */
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
 		return rc;
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
 		return rc;
 
@@ -1161,8 +1161,8 @@ static int nv_adma_port_start(struct ata_port *ap)
 	   These are allowed to fail since we store the value that ends up
 	   being used to set as the bounce limit in slave_config later if
 	   needed. */
-	pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 	pp->adma_dma_mask = *dev->dma_mask;
 
 	mem = dmam_alloc_coherent(dev, NV_ADMA_PORT_PRIV_DMA_SZ,

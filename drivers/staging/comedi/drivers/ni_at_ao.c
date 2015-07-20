@@ -37,7 +37,7 @@
 
 #include "../comedidev.h"
 
-#include "8253.h"
+#include "comedi_8254.h"
 
 /*
  * Register map
@@ -274,7 +274,6 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 static void atao_reset(struct comedi_device *dev)
 {
 	struct atao_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + ATAO_82C53_BASE;
 
 	/* This is the reset sequence described in the manual */
 
@@ -282,9 +281,9 @@ static void atao_reset(struct comedi_device *dev)
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1_REG);
 
 	/* Put outputs of counter 1 and counter 2 in a high state */
-	i8254_set_mode(timer_base, 0, 0, I8254_MODE4 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE4 | I8254_BINARY);
-	i8254_write(timer_base, 0, 0, 0x0003);
+	comedi_8254_set_mode(dev->pacer, 0, I8254_MODE4 | I8254_BINARY);
+	comedi_8254_set_mode(dev->pacer, 1, I8254_MODE4 | I8254_BINARY);
+	comedi_8254_write(dev->pacer, 0, 0x0003);
 
 	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
 
@@ -313,6 +312,11 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
+		return -ENOMEM;
+
+	dev->pacer = comedi_8254_init(dev->iobase + ATAO_82C53_BASE,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
 		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);

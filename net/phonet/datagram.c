@@ -83,8 +83,7 @@ static int pn_init(struct sock *sk)
 	return 0;
 }
 
-static int pn_sendmsg(struct kiocb *iocb, struct sock *sk,
-			struct msghdr *msg, size_t len)
+static int pn_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	DECLARE_SOCKADDR(struct sockaddr_pn *, target, msg->msg_name);
 	struct sk_buff *skb;
@@ -125,9 +124,8 @@ static int pn_sendmsg(struct kiocb *iocb, struct sock *sk,
 	return (err >= 0) ? len : err;
 }
 
-static int pn_recvmsg(struct kiocb *iocb, struct sock *sk,
-			struct msghdr *msg, size_t len, int noblock,
-			int flags, int *addr_len)
+static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+		      int noblock, int flags, int *addr_len)
 {
 	struct sk_buff *skb = NULL;
 	struct sockaddr_pn sa;

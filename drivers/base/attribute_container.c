@@ -94,6 +94,7 @@ int
 attribute_container_unregister(struct attribute_container *cont)
 {
 	int retval = -EBUSY;
+
 	mutex_lock(&attribute_container_mutex);
 	spin_lock(&cont->containers.k_lock);
 	if (!list_empty(&cont->containers.k_list))
@@ -349,6 +350,7 @@ int
 attribute_container_add_class_device(struct device *classdev)
 {
 	int error = device_add(classdev);
+
 	if (error)
 		return error;
 	return attribute_container_add_attrs(classdev);

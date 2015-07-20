@@ -8,7 +8,7 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *  Meant to be mostly used for localy generated traffic :
+ *  Meant to be mostly used for locally generated traffic :
  *  Fast classification depends on skb->sk being set before reaching us.
  *  If not, (router workload), we use rxhash as fallback, with 32 bits wide hash.
  *  All packets belonging to a socket are considered as a 'flow'.
@@ -63,7 +63,7 @@ struct fq_flow {
 		struct sk_buff *tail;	/* last skb in the list */
 		unsigned long  age;	/* jiffies when flow was emptied, for gc */
 	};
-	struct rb_node	fq_node; 	/* anchor in fq_root[] trees */
+	struct rb_node	fq_node;	/* anchor in fq_root[] trees */
 	struct sock	*sk;
 	int		qlen;		/* number of packets in flow queue */
 	int		credit;

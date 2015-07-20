@@ -199,7 +199,7 @@ static inline void rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
 					   const unsigned int offset,
 					   u32 *value)
 {
-	__le32 reg;
+	__le32 reg = 0;
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
 				      &reg, sizeof(reg));
@@ -219,7 +219,7 @@ static inline void rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
 						const unsigned int offset,
 						u32 *value)
 {
-	__le32 reg;
+	__le32 reg = 0;
 	rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_READ,
 				       USB_VENDOR_REQUEST_IN, offset,
 				       &reg, sizeof(reg), REGISTER_TIMEOUT);

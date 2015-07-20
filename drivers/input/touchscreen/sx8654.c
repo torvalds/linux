@@ -187,7 +187,7 @@ static int sx8654_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	input = devm_input_allocate_device(&client->dev);
-	if (!sx8654)
+	if (!input)
 		return -ENOMEM;
 
 	input->name = "SX8654 I2C Touchscreen";

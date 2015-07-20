@@ -416,9 +416,6 @@ static int bt878_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	int result = 0;
 	unsigned char lat;
 	struct bt878 *bt;
-#if defined(__powerpc__)
-	unsigned int cmd;
-#endif
 	unsigned int cardid;
 
 	printk(KERN_INFO "bt878: Bt878 AUDIO function found (%d).\n",
@@ -460,15 +457,6 @@ static int bt878_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	       PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 	printk("irq: %d, latency: %d, memory: 0x%lx\n",
 	       bt->irq, lat, bt->bt878_adr);
-
-
-#if defined(__powerpc__)
-	/* on OpenFirmware machines (PowerMac at least), PCI memory cycle */
-	/* response on cards with no firmware is not enabled by OF */
-	pci_read_config_dword(dev, PCI_COMMAND, &cmd);
-	cmd = (cmd | PCI_COMMAND_MEMORY);
-	pci_write_config_dword(dev, PCI_COMMAND, cmd);
-#endif
 
 #ifdef __sparc__
 	bt->bt878_mem = (unsigned char *) bt->bt878_adr;

@@ -15,8 +15,7 @@ Contents:
   a) Discovering and configuring TCMU uio devices
   b) Waiting for events on the device(s)
   c) Managing the command ring
-3) Command filtering and pass_level
-4) A final note
+3) A final note
 
 
 TCM Userspace Design
@@ -138,26 +137,39 @@ signals the kernel via a 4-byte write(). When cmd_head equals
 cmd_tail, the ring is empty -- no commands are currently waiting to be
 processed by userspace.
 
-TCMU commands start with a common header containing "len_op", a 32-bit
-value that stores the length, as well as the opcode in the lowest
-unused bits. Currently only two opcodes are defined, TCMU_OP_PAD and
-TCMU_OP_CMD. When userspace encounters a command with PAD opcode, it
-should skip ahead by the bytes in "length". (The kernel inserts PAD
-entries to ensure each CMD entry fits contigously into the circular
-buffer.)
+TCMU commands are 8-byte aligned. They start with a common header
+containing "len_op", a 32-bit value that stores the length, as well as
+the opcode in the lowest unused bits. It also contains cmd_id and
+flags fields for setting by the kernel (kflags) and userspace
+(uflags).
 
-When userspace handles a CMD, it finds the SCSI CDB (Command Data
-Block) via tcmu_cmd_entry.req.cdb_off. This is an offset from the
-start of the overall shared memory region, not the entry. The data
-in/out buffers are accessible via tht req.iov[] array. Note that
-each iov.iov_base is also an offset from the start of the region.
+Currently only two opcodes are defined, TCMU_OP_CMD and TCMU_OP_PAD.
 
-TCMU currently does not support BIDI operations.
+When the opcode is CMD, the entry in the command ring is a struct
+tcmu_cmd_entry. Userspace finds the SCSI CDB (Command Data Block) via
+tcmu_cmd_entry.req.cdb_off. This is an offset from the start of the
+overall shared memory region, not the entry. The data in/out buffers
+are accessible via tht req.iov[] array. iov_cnt contains the number of
+entries in iov[] needed to describe either the Data-In or Data-Out
+buffers. For bidirectional commands, iov_cnt specifies how many iovec
+entries cover the Data-Out area, and iov_bidi_cnt specifies how many
+iovec entries immediately after that in iov[] cover the Data-In
+area. Just like other fields, iov.iov_base is an offset from the start
+of the region.
 
 When completing a command, userspace sets rsp.scsi_status, and
 rsp.sense_buffer if necessary. Userspace then increments
 mailbox.cmd_tail by entry.hdr.length (mod cmdr_size) and signals the
 kernel via the UIO method, a 4-byte write to the file descriptor.
+
+When the opcode is PAD, userspace only updates cmd_tail as above --
+it's a no-op. (The kernel inserts PAD entries to ensure each CMD entry
+is contiguous within the command ring.)
+
+More opcodes may be added in the future. If userspace encounters an
+opcode it does not handle, it must set UNKNOWN_OP bit (bit 0) in
+hdr.uflags, update cmd_tail, and proceed with processing additional
+commands, if any.
 
 The Data Area:
 
@@ -311,7 +323,7 @@ int handle_device_events(int fd, void *map)
   /* Process events from cmd ring until we catch up with cmd_head */
   while (ent != (void *)mb + mb->cmdr_off + mb->cmd_head) {
 
-    if (tcmu_hdr_get_op(&ent->hdr) == TCMU_OP_CMD) {
+    if (tcmu_hdr_get_op(ent->hdr.len_op) == TCMU_OP_CMD) {
       uint8_t *cdb = (void *)mb + ent->req.cdb_off;
       bool success = true;
 
@@ -326,8 +338,12 @@ int handle_device_events(int fd, void *map)
         ent->rsp.scsi_status = SCSI_CHECK_CONDITION;
       }
     }
+    else if (tcmu_hdr_get_op(ent->hdr.len_op) != TCMU_OP_PAD) {
+      /* Tell the kernel we didn't handle unknown opcodes */
+      ent->hdr.uflags |= TCMU_UFLAG_UNKNOWN_OP;
+    }
     else {
-      /* Do nothing for PAD entries */
+      /* Do nothing for PAD entries except update cmd_tail */
     }
 
     /* update cmd_tail */
@@ -345,28 +361,6 @@ int handle_device_events(int fd, void *map)
 
   return 0;
 }
-
-
-Command filtering and pass_level
---------------------------------
-
-TCMU supports a "pass_level" option with valid values of 0 or 1.  When
-the value is 0 (the default), nearly all SCSI commands received for
-the device are passed through to the handler. This allows maximum
-flexibility but increases the amount of code required by the handler,
-to support all mandatory SCSI commands. If pass_level is set to 1,
-then only IO-related commands are presented, and the rest are handled
-by LIO's in-kernel command emulation. The commands presented at level
-1 include all versions of:
-
-READ
-WRITE
-WRITE_VERIFY
-XDWRITEREAD
-WRITE_SAME
-COMPARE_AND_WRITE
-SYNCHRONIZE_CACHE
-UNMAP
 
 
 A final note

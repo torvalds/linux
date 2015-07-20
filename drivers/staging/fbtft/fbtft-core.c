@@ -41,20 +41,17 @@
 #include <linux/of_gpio.h>
 
 #include "fbtft.h"
-
-extern void fbtft_sysfs_init(struct fbtft_par *par);
-extern void fbtft_sysfs_exit(struct fbtft_par *par);
-extern void fbtft_expand_debug_value(unsigned long *debug);
-extern int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
-						const char *str, int size);
+#include "internal.h"
 
 static unsigned long debug;
-module_param(debug, ulong , 0);
+module_param(debug, ulong, 0);
 MODULE_PARM_DESC(debug, "override device debug level");
 
+#ifdef CONFIG_HAS_DMA
 static bool dma = true;
 module_param(dma, bool, 0);
 MODULE_PARM_DESC(dma, "Use DMA buffer");
+#endif
 
 
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
@@ -302,12 +299,8 @@ void fbtft_register_backlight(struct fbtft_par *par)
 
 	bl_ops = devm_kzalloc(par->info->device, sizeof(struct backlight_ops),
 				GFP_KERNEL);
-	if (!bl_ops) {
-		dev_err(par->info->device,
-			"%s: could not allocate memeory for backlight operations.\n",
-			__func__);
+	if (!bl_ops)
 		return;
-	}
 
 	bl_ops->get_brightness = fbtft_backlight_get_brightness;
 	bl_ops->update_status = fbtft_backlight_update_status;
@@ -347,7 +340,7 @@ static void fbtft_set_addr_win(struct fbtft_par *par, int xs, int ys, int xe,
 	write_reg(par, 0x2A,
 		(xs >> 8) & 0xFF, xs & 0xFF, (xe >> 8) & 0xFF, xe & 0xFF);
 
-	/* Row adress set */
+	/* Row address set */
 	write_reg(par, 0x2B,
 		(ys >> 8) & 0xFF, ys & 0xFF, (ye >> 8) & 0xFF, ye & 0xFF);
 
@@ -379,7 +372,7 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned start_line,
 	int ret = 0;
 
 	if (unlikely(par->debug & (DEBUG_TIME_FIRST_UPDATE | DEBUG_TIME_EACH_UPDATE))) {
-		if ((par->debug & DEBUG_TIME_EACH_UPDATE) || \
+		if ((par->debug & DEBUG_TIME_EACH_UPDATE) ||
 				((par->debug & DEBUG_TIME_FIRST_UPDATE) && !par->first_update_done)) {
 			getnstimeofday(&ts_start);
 			timeit = true;
@@ -493,7 +486,7 @@ static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagelist)
 		index = page->index << PAGE_SHIFT;
 		y_low = index / info->fix.line_length;
 		y_high = (index + PAGE_SIZE - 1) / info->fix.line_length;
-		fbtft_dev_dbg(DEBUG_DEFERRED_IO, par, info->device,
+		dev_dbg(info->device,
 			"page->index=%lu y_low=%d y_high=%d\n",
 			page->index, y_low, y_high);
 		if (y_high > info->var.yres - 1)
@@ -514,7 +507,7 @@ static void fbtft_fb_fillrect(struct fb_info *info,
 {
 	struct fbtft_par *par = info->par;
 
-	fbtft_dev_dbg(DEBUG_FB_FILLRECT, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
 		__func__, rect->dx, rect->dy, rect->width, rect->height);
 	sys_fillrect(info, rect);
@@ -527,7 +520,7 @@ static void fbtft_fb_copyarea(struct fb_info *info,
 {
 	struct fbtft_par *par = info->par;
 
-	fbtft_dev_dbg(DEBUG_FB_COPYAREA, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
 		__func__,  area->dx, area->dy, area->width, area->height);
 	sys_copyarea(info, area);
@@ -540,7 +533,7 @@ static void fbtft_fb_imageblit(struct fb_info *info,
 {
 	struct fbtft_par *par = info->par;
 
-	fbtft_dev_dbg(DEBUG_FB_IMAGEBLIT, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: dx=%d, dy=%d, width=%d, height=%d\n",
 		__func__,  image->dx, image->dy, image->width, image->height);
 	sys_imageblit(info, image);
@@ -554,7 +547,7 @@ static ssize_t fbtft_fb_write(struct fb_info *info, const char __user *buf,
 	struct fbtft_par *par = info->par;
 	ssize_t res;
 
-	fbtft_dev_dbg(DEBUG_FB_WRITE, par, info->dev,
+	dev_dbg(info->dev,
 		"%s: count=%zd, ppos=%llu\n", __func__,  count, *ppos);
 	res = fb_sys_write(info, buf, count, ppos);
 
@@ -577,11 +570,10 @@ static int fbtft_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp,
 			      struct fb_info *info)
 {
-	struct fbtft_par *par = info->par;
 	unsigned val;
 	int ret = 1;
 
-	fbtft_dev_dbg(DEBUG_FB_SETCOLREG, par, info->dev,
+	dev_dbg(info->dev,
 		"%s(regno=%u, red=0x%X, green=0x%X, blue=0x%X, trans=0x%X)\n",
 		__func__, regno, red, green, blue, transp);
 
@@ -608,7 +600,7 @@ static int fbtft_fb_blank(int blank, struct fb_info *info)
 	struct fbtft_par *par = info->par;
 	int ret = -EINVAL;
 
-	fbtft_dev_dbg(DEBUG_FB_BLANK, par, info->dev, "%s(blank=%d)\n",
+	dev_dbg(info->dev, "%s(blank=%d)\n",
 		__func__, blank);
 
 	if (!par->fbtftops.blank)
@@ -707,9 +699,8 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 
 	/* sanity check */
 	if (display->gamma_num * display->gamma_len > FBTFT_GAMMA_MAX_VALUES_TOTAL) {
-		dev_err(dev,
-			"%s: FBTFT_GAMMA_MAX_VALUES_TOTAL=%d is exceeded\n",
-			__func__, FBTFT_GAMMA_MAX_VALUES_TOTAL);
+		dev_err(dev, "FBTFT_GAMMA_MAX_VALUES_TOTAL=%d is exceeded\n",
+			FBTFT_GAMMA_MAX_VALUES_TOTAL);
 		return NULL;
 	}
 
@@ -866,10 +857,13 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 #endif
 
 	if (txbuflen > 0) {
+#ifdef CONFIG_HAS_DMA
 		if (dma) {
 			dev->coherent_dma_mask = ~0;
 			txbuf = dmam_alloc_coherent(dev, txbuflen, &par->txbuf.dma, GFP_DMA);
-		} else {
+		} else
+#endif
+		{
 			txbuf = devm_kzalloc(par->info->device, txbuflen, GFP_KERNEL);
 		}
 		if (!txbuf)
@@ -1000,7 +994,7 @@ int fbtft_register_framebuffer(struct fb_info *fb_info)
 	fbtft_sysfs_init(par);
 
 	if (par->txbuf.buf)
-		sprintf(text1, ", %d KiB %sbuffer memory",
+		sprintf(text1, ", %zu KiB %sbuffer memory",
 			par->txbuf.len >> 10, par->txbuf.dma ? "DMA " : "");
 	if (spi)
 		sprintf(text2, ", spi%d.%d at %d MHz", spi->master->bus_num,
@@ -1046,7 +1040,6 @@ int fbtft_unregister_framebuffer(struct fb_info *fb_info)
 {
 	struct fbtft_par *par = fb_info->par;
 	struct spi_device *spi = par->spi;
-	int ret;
 
 	if (spi)
 		spi_set_drvdata(spi, NULL);
@@ -1055,8 +1048,7 @@ int fbtft_unregister_framebuffer(struct fb_info *fb_info)
 	if (par->fbtftops.unregister_backlight)
 		par->fbtftops.unregister_backlight(par);
 	fbtft_sysfs_exit(par);
-	ret = unregister_framebuffer(fb_info);
-	return ret;
+	return unregister_framebuffer(fb_info);
 }
 EXPORT_SYMBOL(fbtft_unregister_framebuffer);
 
@@ -1074,8 +1066,6 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 	const __be32 *p;
 	u32 val;
 	int buf[64], i, j;
-	char msg[128];
-	char str[16];
 
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
@@ -1101,13 +1091,11 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 				p = of_prop_next_u32(prop, p, &val);
 			}
 			/* make debug message */
-			msg[0] = '\0';
-			for (j = 0; j < i; j++) {
-				snprintf(str, 128, " %02X", buf[j]);
-				strcat(msg, str);
-			}
 			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-				"init: write_register:%s\n", msg);
+				"init: write_register:\n");
+			for (j = 0; j < i; j++)
+				fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+					      "buf[%d] = %02X\n", j, buf[j]);
 
 			par->fbtftops.write_register(par, i,
 				buf[0], buf[1], buf[2], buf[3],
@@ -1278,7 +1266,7 @@ static int fbtft_verify_gpios(struct fbtft_par *par)
 	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
 
 	pdata = par->info->device->platform_data;
-	if (pdata->display.buswidth != 9 && par->startbyte == 0 && \
+	if (pdata->display.buswidth != 9 && par->startbyte == 0 &&
 							par->gpio.dc < 0) {
 		dev_err(par->info->device,
 			"Missing info about 'dc' gpio. Aborting.\n");

@@ -484,3 +484,98 @@ struct anode *hpfs_alloc_anode(struct super_block *s, secno near, anode_secno *a
 	a->btree.first_free = cpu_to_le16(8);
 	return a;
 }
+
+static unsigned find_run(__le32 *bmp, unsigned *idx)
+{
+	unsigned len;
+	while (tstbits(bmp, *idx, 1)) {
+		(*idx)++;
+		if (unlikely(*idx >= 0x4000))
+			return 0;
+	}
+	len = 1;
+	while (!tstbits(bmp, *idx + len, 1))
+		len++;
+	return len;
+}
+
+static int do_trim(struct super_block *s, secno start, unsigned len, secno limit_start, secno limit_end, unsigned minlen, unsigned *result)
+{
+	int err;
+	secno end;
+	if (fatal_signal_pending(current))
+		return -EINTR;
+	end = start + len;
+	if (start < limit_start)
+		start = limit_start;
+	if (end > limit_end)
+		end = limit_end;
+	if (start >= end)
+		return 0;
+	if (end - start < minlen)
+		return 0;
+	err = sb_issue_discard(s, start, end - start, GFP_NOFS, 0);
+	if (err)
+		return err;
+	*result += end - start;
+	return 0;
+}
+
+int hpfs_trim_fs(struct super_block *s, u64 start, u64 end, u64 minlen, unsigned *result)
+{
+	int err = 0;
+	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	unsigned idx, len, start_bmp, end_bmp;
+	__le32 *bmp;
+	struct quad_buffer_head qbh;
+
+	*result = 0;
+	if (!end || end > sbi->sb_fs_size)
+		end = sbi->sb_fs_size;
+	if (start >= sbi->sb_fs_size)
+		return 0;
+	if (minlen > 0x4000)
+		return 0;
+	if (start < sbi->sb_dirband_start + sbi->sb_dirband_size && end > sbi->sb_dirband_start) {
+		hpfs_lock(s);
+		if (s->s_flags & MS_RDONLY) {
+			err = -EROFS;
+			goto unlock_1;
+		}
+		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
+			err = -EIO;
+			goto unlock_1;
+		}
+		idx = 0;
+		while ((len = find_run(bmp, &idx)) && !err) {
+			err = do_trim(s, sbi->sb_dirband_start + idx * 4, len * 4, start, end, minlen, result);
+			idx += len;
+		}
+		hpfs_brelse4(&qbh);
+unlock_1:
+		hpfs_unlock(s);
+	}
+	start_bmp = start >> 14;
+	end_bmp = (end + 0x3fff) >> 14;
+	while (start_bmp < end_bmp && !err) {
+		hpfs_lock(s);
+		if (s->s_flags & MS_RDONLY) {
+			err = -EROFS;
+			goto unlock_2;
+		}
+		if (!(bmp = hpfs_map_bitmap(s, start_bmp, &qbh, "trim"))) {
+			err = -EIO;
+			goto unlock_2;
+		}
+		idx = 0;
+		while ((len = find_run(bmp, &idx)) && !err) {
+			err = do_trim(s, (start_bmp << 14) + idx, len, start, end, minlen, result);
+			idx += len;
+		}
+		hpfs_brelse4(&qbh);
+unlock_2:
+		hpfs_unlock(s);
+		start_bmp++;
+	}
+	return err;
+}

@@ -34,6 +34,7 @@ static struct timer_list charger_timer;
 static struct timer_list supply_timer;
 static struct timer_list polling_timer;
 static int polling;
+static struct power_supply *pda_psy_ac, *pda_psy_usb;
 
 #if IS_ENABLED(CONFIG_USB_PHY)
 static struct usb_phy *transceiver;
@@ -58,7 +59,7 @@ static int pda_power_get_property(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		if (psy->type == POWER_SUPPLY_TYPE_MAINS)
+		if (psy->desc->type == POWER_SUPPLY_TYPE_MAINS)
 			val->intval = pdata->is_ac_online ?
 				      pdata->is_ac_online() : 0;
 		else
@@ -80,21 +81,17 @@ static char *pda_power_supplied_to[] = {
 	"backup-battery",
 };
 
-static struct power_supply pda_psy_ac = {
+static const struct power_supply_desc pda_psy_ac_desc = {
 	.name = "ac",
 	.type = POWER_SUPPLY_TYPE_MAINS,
-	.supplied_to = pda_power_supplied_to,
-	.num_supplicants = ARRAY_SIZE(pda_power_supplied_to),
 	.properties = pda_power_props,
 	.num_properties = ARRAY_SIZE(pda_power_props),
 	.get_property = pda_power_get_property,
 };
 
-static struct power_supply pda_psy_usb = {
+static const struct power_supply_desc pda_psy_usb_desc = {
 	.name = "usb",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.supplied_to = pda_power_supplied_to,
-	.num_supplicants = ARRAY_SIZE(pda_power_supplied_to),
 	.properties = pda_power_props,
 	.num_properties = ARRAY_SIZE(pda_power_props),
 	.get_property = pda_power_get_property,
@@ -147,12 +144,12 @@ static void supply_timer_func(unsigned long unused)
 {
 	if (ac_status == PDA_PSY_TO_CHANGE) {
 		ac_status = new_ac_status;
-		power_supply_changed(&pda_psy_ac);
+		power_supply_changed(pda_psy_ac);
 	}
 
 	if (usb_status == PDA_PSY_TO_CHANGE) {
 		usb_status = new_usb_status;
-		power_supply_changed(&pda_psy_usb);
+		power_supply_changed(pda_psy_usb);
 	}
 }
 
@@ -176,9 +173,9 @@ static void charger_timer_func(unsigned long unused)
 
 static irqreturn_t power_changed_isr(int irq, void *power_supply)
 {
-	if (power_supply == &pda_psy_ac)
+	if (power_supply == pda_psy_ac)
 		ac_status = PDA_PSY_TO_CHANGE;
-	else if (power_supply == &pda_psy_usb)
+	else if (power_supply == pda_psy_usb)
 		usb_status = PDA_PSY_TO_CHANGE;
 	else
 		return IRQ_NONE;
@@ -262,6 +259,7 @@ static int otg_handle_notification(struct notifier_block *nb,
 
 static int pda_power_probe(struct platform_device *pdev)
 {
+	struct power_supply_config psy_cfg = {};
 	int ret = 0;
 
 	dev = &pdev->dev;
@@ -309,10 +307,11 @@ static int pda_power_probe(struct platform_device *pdev)
 	usb_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "usb");
 
 	if (pdata->supplied_to) {
-		pda_psy_ac.supplied_to = pdata->supplied_to;
-		pda_psy_ac.num_supplicants = pdata->num_supplicants;
-		pda_psy_usb.supplied_to = pdata->supplied_to;
-		pda_psy_usb.num_supplicants = pdata->num_supplicants;
+		psy_cfg.supplied_to = pdata->supplied_to;
+		psy_cfg.num_supplicants = pdata->num_supplicants;
+	} else {
+		psy_cfg.supplied_to = pda_power_supplied_to;
+		psy_cfg.num_supplicants = ARRAY_SIZE(pda_power_supplied_to);
 	}
 
 #if IS_ENABLED(CONFIG_USB_PHY)
@@ -326,17 +325,19 @@ static int pda_power_probe(struct platform_device *pdev)
 #endif
 
 	if (pdata->is_ac_online) {
-		ret = power_supply_register(&pdev->dev, &pda_psy_ac);
-		if (ret) {
+		pda_psy_ac = power_supply_register(&pdev->dev,
+						   &pda_psy_ac_desc, &psy_cfg);
+		if (IS_ERR(pda_psy_ac)) {
 			dev_err(dev, "failed to register %s power supply\n",
-				pda_psy_ac.name);
+				pda_psy_ac_desc.name);
+			ret = PTR_ERR(pda_psy_ac);
 			goto ac_supply_failed;
 		}
 
 		if (ac_irq) {
 			ret = request_irq(ac_irq->start, power_changed_isr,
 					  get_irq_flags(ac_irq), ac_irq->name,
-					  &pda_psy_ac);
+					  pda_psy_ac);
 			if (ret) {
 				dev_err(dev, "request ac irq failed\n");
 				goto ac_irq_failed;
@@ -347,17 +348,20 @@ static int pda_power_probe(struct platform_device *pdev)
 	}
 
 	if (pdata->is_usb_online) {
-		ret = power_supply_register(&pdev->dev, &pda_psy_usb);
-		if (ret) {
+		pda_psy_usb = power_supply_register(&pdev->dev,
+						    &pda_psy_usb_desc,
+						    &psy_cfg);
+		if (IS_ERR(pda_psy_usb)) {
 			dev_err(dev, "failed to register %s power supply\n",
-				pda_psy_usb.name);
+				pda_psy_usb_desc.name);
+			ret = PTR_ERR(pda_psy_usb);
 			goto usb_supply_failed;
 		}
 
 		if (usb_irq) {
 			ret = request_irq(usb_irq->start, power_changed_isr,
 					  get_irq_flags(usb_irq),
-					  usb_irq->name, &pda_psy_usb);
+					  usb_irq->name, pda_psy_usb);
 			if (ret) {
 				dev_err(dev, "request usb irq failed\n");
 				goto usb_irq_failed;
@@ -394,21 +398,21 @@ static int pda_power_probe(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_USB_PHY)
 otg_reg_notifier_failed:
 	if (pdata->is_usb_online && usb_irq)
-		free_irq(usb_irq->start, &pda_psy_usb);
+		free_irq(usb_irq->start, pda_psy_usb);
 #endif
 usb_irq_failed:
 	if (pdata->is_usb_online)
-		power_supply_unregister(&pda_psy_usb);
+		power_supply_unregister(pda_psy_usb);
 usb_supply_failed:
 	if (pdata->is_ac_online && ac_irq)
-		free_irq(ac_irq->start, &pda_psy_ac);
+		free_irq(ac_irq->start, pda_psy_ac);
 #if IS_ENABLED(CONFIG_USB_PHY)
 	if (!IS_ERR_OR_NULL(transceiver))
 		usb_put_phy(transceiver);
 #endif
 ac_irq_failed:
 	if (pdata->is_ac_online)
-		power_supply_unregister(&pda_psy_ac);
+		power_supply_unregister(pda_psy_ac);
 ac_supply_failed:
 	if (ac_draw) {
 		regulator_put(ac_draw);
@@ -424,9 +428,9 @@ wrongid:
 static int pda_power_remove(struct platform_device *pdev)
 {
 	if (pdata->is_usb_online && usb_irq)
-		free_irq(usb_irq->start, &pda_psy_usb);
+		free_irq(usb_irq->start, pda_psy_usb);
 	if (pdata->is_ac_online && ac_irq)
-		free_irq(ac_irq->start, &pda_psy_ac);
+		free_irq(ac_irq->start, pda_psy_ac);
 
 	if (polling)
 		del_timer_sync(&polling_timer);
@@ -434,9 +438,9 @@ static int pda_power_remove(struct platform_device *pdev)
 	del_timer_sync(&supply_timer);
 
 	if (pdata->is_usb_online)
-		power_supply_unregister(&pda_psy_usb);
+		power_supply_unregister(pda_psy_usb);
 	if (pdata->is_ac_online)
-		power_supply_unregister(&pda_psy_ac);
+		power_supply_unregister(pda_psy_ac);
 #if IS_ENABLED(CONFIG_USB_PHY)
 	if (!IS_ERR_OR_NULL(transceiver))
 		usb_put_phy(transceiver);

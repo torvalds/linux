@@ -280,17 +280,20 @@ static void oz_free_urb_link(struct oz_urb_link *urbl)
  */
 static struct oz_endpoint *oz_ep_alloc(int buffer_size, gfp_t mem_flags)
 {
-	struct oz_endpoint *ep =
-		kzalloc(sizeof(struct oz_endpoint)+buffer_size, mem_flags);
-	if (ep) {
-		INIT_LIST_HEAD(&ep->urb_list);
-		INIT_LIST_HEAD(&ep->link);
-		ep->credit = -1;
-		if (buffer_size) {
-			ep->buffer_size = buffer_size;
-			ep->buffer = (u8 *)(ep+1);
-		}
+	struct oz_endpoint *ep;
+
+	ep = kzalloc(sizeof(struct oz_endpoint)+buffer_size, mem_flags);
+	if (!ep)
+		return NULL;
+
+	INIT_LIST_HEAD(&ep->urb_list);
+	INIT_LIST_HEAD(&ep->link);
+	ep->credit = -1;
+	if (buffer_size) {
+		ep->buffer_size = buffer_size;
+		ep->buffer = (u8 *)(ep+1);
 	}
+
 	return ep;
 }
 
@@ -743,8 +746,8 @@ void oz_hcd_pd_reset(void *hpd, void *hport)
 /*
  * Context: softirq
  */
-void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
-			int length, int offset, int total_size)
+void oz_hcd_get_desc_cnf(void *hport, u8 req_id, u8 status, const u8 *desc,
+			u8 length, u16 offset, u16 total_size)
 {
 	struct oz_port *port = hport;
 	struct urb *urb;
@@ -756,8 +759,8 @@ void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
 	if (!urb)
 		return;
 	if (status == 0) {
-		int copy_len;
-		int required_size = urb->transfer_buffer_length;
+		unsigned int copy_len;
+		unsigned int required_size = urb->transfer_buffer_length;
 
 		if (required_size > total_size)
 			required_size = total_size;

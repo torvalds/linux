@@ -21,6 +21,7 @@ config SECURITY_DMESG_RESTRICT
 config SECURITY
 	bool "Enable different security models"
 	depends on SYSFS
+	depends on MULTIUSER
 	help
 	  This allows you to choose different security modules to be
 	  configured into your kernel.

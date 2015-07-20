@@ -200,7 +200,7 @@ up_fail:
 void update_vsyscall(struct timekeeper *tk)
 {
 	struct timespec xtime_coarse;
-	u32 use_syscall = strcmp(tk->tkr.clock->name, "arch_sys_counter");
+	u32 use_syscall = strcmp(tk->tkr_mono.clock->name, "arch_sys_counter");
 
 	++vdso_data->tb_seq_count;
 	smp_wmb();
@@ -213,11 +213,11 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_data->wtm_clock_nsec		= tk->wall_to_monotonic.tv_nsec;
 
 	if (!use_syscall) {
-		vdso_data->cs_cycle_last	= tk->tkr.cycle_last;
+		vdso_data->cs_cycle_last	= tk->tkr_mono.cycle_last;
 		vdso_data->xtime_clock_sec	= tk->xtime_sec;
-		vdso_data->xtime_clock_nsec	= tk->tkr.xtime_nsec;
-		vdso_data->cs_mult		= tk->tkr.mult;
-		vdso_data->cs_shift		= tk->tkr.shift;
+		vdso_data->xtime_clock_nsec	= tk->tkr_mono.xtime_nsec;
+		vdso_data->cs_mult		= tk->tkr_mono.mult;
+		vdso_data->cs_shift		= tk->tkr_mono.shift;
 	}
 
 	smp_wmb();

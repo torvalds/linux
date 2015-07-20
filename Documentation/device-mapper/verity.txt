@@ -11,6 +11,7 @@ Construction Parameters
     <data_block_size> <hash_block_size>
     <num_data_blocks> <hash_start_block>
     <algorithm> <digest> <salt>
+    [<#opt_params> <opt_params>]
 
 <version>
     This is the type of the on-disk hash format.
@@ -61,6 +62,22 @@ Construction Parameters
 
 <salt>
     The hexadecimal encoding of the salt value.
+
+<#opt_params>
+    Number of optional parameters. If there are no optional parameters,
+    the optional paramaters section can be skipped or #opt_params can be zero.
+    Otherwise #opt_params is the number of following arguments.
+
+    Example of optional parameters section:
+        1 ignore_corruption
+
+ignore_corruption
+    Log corrupted blocks, but allow read operations to proceed normally.
+
+restart_on_corruption
+    Restart the system when a corrupted block is discovered. This option is
+    not compatible with ignore_corruption and requires user space support to
+    avoid restart loops.
 
 Theory of operation
 ===================
@@ -125,7 +142,7 @@ block boundary) are the hash blocks which are stored a depth at a time
 
 The full specification of kernel parameters and on-disk metadata format
 is available at the cryptsetup project's wiki page
-  http://code.google.com/p/cryptsetup/wiki/DMVerity
+  https://gitlab.com/cryptsetup/cryptsetup/wikis/DMVerity
 
 Status
 ======
@@ -142,7 +159,7 @@ Set up a device:
 
 A command line tool veritysetup is available to compute or verify
 the hash tree or activate the kernel device. This is available from
-the cryptsetup upstream repository http://code.google.com/p/cryptsetup/
+the cryptsetup upstream repository https://gitlab.com/cryptsetup/cryptsetup/
 (as a libcryptsetup extension).
 
 Create hash on the device:

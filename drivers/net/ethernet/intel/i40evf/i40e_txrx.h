@@ -96,6 +96,14 @@ enum i40e_dyn_idx_t {
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define I40E_RX_BUFFER_WRITE	16	/* Must be power of 2 */
+#define I40E_RX_INCREMENT(r, i) \
+	do {					\
+		(i)++;				\
+		if ((i) == (r)->count)		\
+			i = 0;			\
+		r->next_to_clean = i;		\
+	} while (0)
+
 #define I40E_RX_NEXT_DESC(r, i, n)		\
 	do {					\
 		(i)++;				\
@@ -130,6 +138,7 @@ enum i40e_dyn_idx_t {
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
 #define I40E_TX_FLAGS_FD_SB		(u32)(1 << 9)
+#define I40E_TX_FLAGS_VXLAN_TUNNEL	(u32)(1 << 10)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
@@ -137,7 +146,6 @@ enum i40e_dyn_idx_t {
 
 struct i40e_tx_buffer {
 	struct i40e_tx_desc *next_to_watch;
-	unsigned long time_stamp;
 	union {
 		struct sk_buff *skb;
 		void *raw_buf;
@@ -151,6 +159,7 @@ struct i40e_tx_buffer {
 
 struct i40e_rx_buffer {
 	struct sk_buff *skb;
+	void *hdr_buf;
 	dma_addr_t dma;
 	struct page *page;
 	dma_addr_t page_dma;
@@ -223,8 +232,8 @@ struct i40e_ring {
 	u16 rx_buf_len;
 	u8  dtype;
 #define I40E_RX_DTYPE_NO_SPLIT      0
-#define I40E_RX_DTYPE_SPLIT_ALWAYS  1
-#define I40E_RX_DTYPE_HEADER_SPLIT  2
+#define I40E_RX_DTYPE_HEADER_SPLIT  1
+#define I40E_RX_DTYPE_SPLIT_ALWAYS  2
 	u8  hsplit;
 #define I40E_RX_SPLIT_L2      0x1
 #define I40E_RX_SPLIT_IP      0x2
@@ -278,7 +287,9 @@ struct i40e_ring_container {
 #define i40e_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos != NULL; pos = pos->next)
 
-void i40evf_alloc_rx_buffers(struct i40e_ring *rxr, u16 cleaned_count);
+void i40evf_alloc_rx_buffers_ps(struct i40e_ring *rxr, u16 cleaned_count);
+void i40evf_alloc_rx_buffers_1buf(struct i40e_ring *rxr, u16 cleaned_count);
+void i40evf_alloc_rx_headers(struct i40e_ring *rxr);
 netdev_tx_t i40evf_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 void i40evf_clean_tx_ring(struct i40e_ring *tx_ring);
 void i40evf_clean_rx_ring(struct i40e_ring *rx_ring);

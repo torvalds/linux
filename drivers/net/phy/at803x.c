@@ -192,16 +192,17 @@ static int at803x_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->dev;
 	struct at803x_priv *priv;
+	struct gpio_desc *gpiod_reset;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->gpiod_reset = devm_gpiod_get(dev, "reset");
-	if (IS_ERR(priv->gpiod_reset))
-		priv->gpiod_reset = NULL;
-	else
-		gpiod_direction_output(priv->gpiod_reset, 1);
+	gpiod_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod_reset))
+		return PTR_ERR(gpiod_reset);
+
+	priv->gpiod_reset = gpiod_reset;
 
 	phydev->priv = priv;
 

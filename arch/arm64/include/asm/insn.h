@@ -281,10 +281,12 @@ __AARCH64_INSN_FUNCS(ret,	0xFFFFFC1F, 0xD65F0000)
 #undef	__AARCH64_INSN_FUNCS
 
 bool aarch64_insn_is_nop(u32 insn);
+bool aarch64_insn_is_branch_imm(u32 insn);
 
 int aarch64_insn_read(void *addr, u32 *insnp);
 int aarch64_insn_write(void *addr, u32 insn);
 enum aarch64_insn_encoding_class aarch64_get_insn_class(u32 insn);
+u64 aarch64_insn_decode_immediate(enum aarch64_insn_imm_type type, u32 insn);
 u32 aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 				  u32 insn, u64 imm);
 u32 aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
@@ -350,6 +352,8 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 					 int shift,
 					 enum aarch64_insn_variant variant,
 					 enum aarch64_insn_logic_type type);
+s32 aarch64_get_branch_offset(u32 insn);
+u32 aarch64_set_branch_offset(u32 insn, s32 offset);
 
 bool aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn);
 

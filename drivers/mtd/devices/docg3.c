@@ -1805,7 +1805,7 @@ static int __init doc_dbg_register(struct docg3 *docg3)
 	}
 }
 
-static void __exit doc_dbg_unregister(struct docg3 *docg3)
+static void doc_dbg_unregister(struct docg3 *docg3)
 {
 	debugfs_remove_recursive(docg3->debugfs_root);
 }
@@ -1815,7 +1815,7 @@ static void __exit doc_dbg_unregister(struct docg3 *docg3)
  * @chip_id: The chip ID of the supported chip
  * @mtd: The structure to fill
  */
-static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
+static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 {
 	struct docg3 *docg3 = mtd->priv;
 	int cfg;
@@ -1828,6 +1828,8 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	case DOC_CHIPID_G3:
 		mtd->name = kasprintf(GFP_KERNEL, "docg3.%d",
 				      docg3->device_id);
+		if (!mtd->name)
+			return -ENOMEM;
 		docg3->max_block = 2047;
 		break;
 	}
@@ -1850,6 +1852,8 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->_block_isbad = doc_block_isbad;
 	mtd->ecclayout = &docg3_oobinfo;
 	mtd->ecc_strength = DOC_ECC_BCH_T;
+
+	return 0;
 }
 
 /**
@@ -1900,7 +1904,7 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 
 	ret = 0;
 	if (chip_id != (u16)(~chip_id_inv)) {
-		goto nomem3;
+		goto nomem4;
 	}
 
 	switch (chip_id) {
@@ -1910,15 +1914,19 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 		break;
 	default:
 		doc_err("Chip id %04x is not a DiskOnChip G3 chip\n", chip_id);
-		goto nomem3;
+		goto nomem4;
 	}
 
-	doc_set_driver_info(chip_id, mtd);
+	ret = doc_set_driver_info(chip_id, mtd);
+	if (ret)
+		goto nomem4;
 
 	doc_hamming_ecc_init(docg3, DOC_LAYOUT_OOB_PAGEINFO_SZ);
 	doc_reload_bbt(docg3);
 	return mtd;
 
+nomem4:
+	kfree(docg3->bbt);
 nomem3:
 	kfree(mtd);
 nomem2:
@@ -2033,7 +2041,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	struct resource *ress;
 	void __iomem *base;
-	int ret, floor, found = 0;
+	int ret, floor;
 	struct docg3_cascade *cascade;
 
 	ret = -ENXIO;
@@ -2073,14 +2081,11 @@ static int __init docg3_probe(struct platform_device *pdev)
 						0);
 		if (ret)
 			goto err_probe;
-		found++;
 	}
 
 	ret = doc_register_sysfs(pdev, cascade);
 	if (ret)
 		goto err_probe;
-	if (!found)
-		goto notfound;
 
 	platform_set_drvdata(pdev, cascade);
 	doc_dbg_register(cascade->floors[0]->priv);
@@ -2103,7 +2108,7 @@ err_probe:
  *
  * Returns 0
  */
-static int __exit docg3_release(struct platform_device *pdev)
+static int docg3_release(struct platform_device *pdev)
 {
 	struct docg3_cascade *cascade = platform_get_drvdata(pdev);
 	struct docg3 *docg3 = cascade->floors[0]->priv;
@@ -2120,7 +2125,7 @@ static int __exit docg3_release(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id docg3_dt_ids[] = {
+static const struct of_device_id docg3_dt_ids[] = {
 	{ .compatible = "m-systems,diskonchip-g3" },
 	{}
 };
@@ -2134,7 +2139,7 @@ static struct platform_driver g3_driver = {
 	},
 	.suspend	= docg3_suspend,
 	.resume		= docg3_resume,
-	.remove		= __exit_p(docg3_release),
+	.remove		= docg3_release,
 };
 
 module_platform_driver_probe(g3_driver, docg3_probe);

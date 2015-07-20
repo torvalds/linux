@@ -17,108 +17,36 @@
  * battery charging and regulator control, firmware update.
  */
 
+#include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
-#include <linux/delay.h>
 
-#define EC_COMMAND_RETRIES	50
+#define CROS_EC_DEV_EC_INDEX 0
+#define CROS_EC_DEV_PD_INDEX 1
 
-int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
-		       struct cros_ec_command *msg)
-{
-	uint8_t *out;
-	int csum, i;
+static struct cros_ec_platform ec_p = {
+	.ec_name = CROS_EC_DEV_NAME,
+	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_EC_INDEX),
+};
 
-	BUG_ON(msg->outsize > EC_PROTO2_MAX_PARAM_SIZE);
-	out = ec_dev->dout;
-	out[0] = EC_CMD_VERSION0 + msg->version;
-	out[1] = msg->command;
-	out[2] = msg->outsize;
-	csum = out[0] + out[1] + out[2];
-	for (i = 0; i < msg->outsize; i++)
-		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->outdata[i];
-	out[EC_MSG_TX_HEADER_BYTES + msg->outsize] = (uint8_t)(csum & 0xff);
+static struct cros_ec_platform pd_p = {
+	.ec_name = CROS_EC_DEV_PD_NAME,
+	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
+};
 
-	return EC_MSG_TX_PROTO_BYTES + msg->outsize;
-}
-EXPORT_SYMBOL(cros_ec_prepare_tx);
+static const struct mfd_cell ec_cell = {
+	.name = "cros-ec-ctl",
+	.platform_data = &ec_p,
+	.pdata_size = sizeof(ec_p),
+};
 
-int cros_ec_check_result(struct cros_ec_device *ec_dev,
-			 struct cros_ec_command *msg)
-{
-	switch (msg->result) {
-	case EC_RES_SUCCESS:
-		return 0;
-	case EC_RES_IN_PROGRESS:
-		dev_dbg(ec_dev->dev, "command 0x%02x in progress\n",
-			msg->command);
-		return -EAGAIN;
-	default:
-		dev_dbg(ec_dev->dev, "command 0x%02x returned %d\n",
-			msg->command, msg->result);
-		return 0;
-	}
-}
-EXPORT_SYMBOL(cros_ec_check_result);
-
-int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
-		     struct cros_ec_command *msg)
-{
-	int ret;
-
-	mutex_lock(&ec_dev->lock);
-	ret = ec_dev->cmd_xfer(ec_dev, msg);
-	if (msg->result == EC_RES_IN_PROGRESS) {
-		int i;
-		struct cros_ec_command status_msg;
-		struct ec_response_get_comms_status status;
-
-		status_msg.version = 0;
-		status_msg.command = EC_CMD_GET_COMMS_STATUS;
-		status_msg.outdata = NULL;
-		status_msg.outsize = 0;
-		status_msg.indata = (uint8_t *)&status;
-		status_msg.insize = sizeof(status);
-
-		/*
-		 * Query the EC's status until it's no longer busy or
-		 * we encounter an error.
-		 */
-		for (i = 0; i < EC_COMMAND_RETRIES; i++) {
-			usleep_range(10000, 11000);
-
-			ret = ec_dev->cmd_xfer(ec_dev, &status_msg);
-			if (ret < 0)
-				break;
-
-			msg->result = status_msg.result;
-			if (status_msg.result != EC_RES_SUCCESS)
-				break;
-			if (!(status.flags & EC_COMMS_STATUS_PROCESSING))
-				break;
-		}
-	}
-	mutex_unlock(&ec_dev->lock);
-
-	return ret;
-}
-EXPORT_SYMBOL(cros_ec_cmd_xfer);
-
-static const struct mfd_cell cros_devs[] = {
-	{
-		.name = "cros-ec-keyb",
-		.id = 1,
-		.of_compatible = "google,cros-ec-keyb",
-	},
-	{
-		.name = "cros-ec-i2c-tunnel",
-		.id = 2,
-		.of_compatible = "google,cros-ec-i2c-tunnel",
-	},
+static const struct mfd_cell ec_pd_cell = {
+	.name = "cros-ec-ctl",
+	.platform_data = &pd_p,
+	.pdata_size = sizeof(pd_p),
 };
 
 int cros_ec_register(struct cros_ec_device *ec_dev)
@@ -126,25 +54,57 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	struct device *dev = ec_dev->dev;
 	int err = 0;
 
-	if (ec_dev->din_size) {
-		ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
-		if (!ec_dev->din)
-			return -ENOMEM;
-	}
-	if (ec_dev->dout_size) {
-		ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
-		if (!ec_dev->dout)
-			return -ENOMEM;
-	}
+	ec_dev->max_request = sizeof(struct ec_params_hello);
+	ec_dev->max_response = sizeof(struct ec_response_get_protocol_info);
+	ec_dev->max_passthru = 0;
+
+	ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
+	if (!ec_dev->din)
+		return -ENOMEM;
+
+	ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
+	if (!ec_dev->dout)
+		return -ENOMEM;
 
 	mutex_init(&ec_dev->lock);
 
-	err = mfd_add_devices(dev, 0, cros_devs,
-			      ARRAY_SIZE(cros_devs),
+	cros_ec_query_all(ec_dev);
+
+	err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO, &ec_cell, 1,
 			      NULL, ec_dev->irq, NULL);
 	if (err) {
-		dev_err(dev, "failed to add mfd devices\n");
+		dev_err(dev,
+			"Failed to register Embedded Controller subdevice %d\n",
+			err);
 		return err;
+	}
+
+	if (ec_dev->max_passthru) {
+		/*
+		 * Register a PD device as well on top of this device.
+		 * We make the following assumptions:
+		 * - behind an EC, we have a pd
+		 * - only one device added.
+		 * - the EC is responsive at init time (it is not true for a
+		 *   sensor hub.
+		 */
+		err = mfd_add_devices(ec_dev->dev, PLATFORM_DEVID_AUTO,
+				      &ec_pd_cell, 1, NULL, ec_dev->irq, NULL);
+		if (err) {
+			dev_err(dev,
+				"Failed to register Power Delivery subdevice %d\n",
+				err);
+			return err;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		err = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		if (err) {
+			mfd_remove_devices(dev);
+			dev_err(dev, "Failed to register sub-devices\n");
+			return err;
+		}
 	}
 
 	dev_info(dev, "Chrome EC device registered\n");

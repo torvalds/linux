@@ -68,7 +68,7 @@ struct entry {
 	 * Number of timeout events:
 	 */
 	unsigned long		count;
-	unsigned int		timer_flag;
+	u32			flags;
 
 	/*
 	 * We save the command-line string to preserve
@@ -227,13 +227,13 @@ static struct entry *tstat_lookup(struct entry *entry, char *comm)
  * @startf:	pointer to the function which did the timer setup
  * @timerf:	pointer to the timer callback function of the timer
  * @comm:	name of the process which set up the timer
+ * @tflags:	The flags field of the timer
  *
  * When the timer is already registered, then the event counter is
  * incremented. Otherwise the timer is registered in a free slot.
  */
 void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
-			      void *timerf, char *comm,
-			      unsigned int timer_flag)
+			      void *timerf, char *comm, u32 tflags)
 {
 	/*
 	 * It doesn't matter which lock we take:
@@ -251,7 +251,7 @@ void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 	input.start_func = startf;
 	input.expire_func = timerf;
 	input.pid = pid;
-	input.timer_flag = timer_flag;
+	input.flags = tflags;
 
 	raw_spin_lock_irqsave(lock, flags);
 	if (!timer_stats_active)
@@ -306,7 +306,7 @@ static int tstats_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < nr_entries; i++) {
 		entry = entries + i;
-		if (entry->timer_flag & TIMER_STATS_FLAG_DEFERRABLE) {
+		if (entry->flags & TIMER_DEFERRABLE) {
 			seq_printf(m, "%4luD, %5d %-16s ",
 				entry->count, entry->pid, entry->comm);
 		} else {

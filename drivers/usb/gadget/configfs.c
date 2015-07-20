@@ -571,7 +571,7 @@ static struct config_group *function_make(
 	if (IS_ERR(fi))
 		return ERR_CAST(fi);
 
-	ret = config_item_set_name(&fi->group.cg_item, name);
+	ret = config_item_set_name(&fi->group.cg_item, "%s", name);
 	if (ret) {
 		usb_put_function_instance(fi);
 		return ERR_PTR(ret);
@@ -1295,6 +1295,7 @@ static void purge_configs_funcs(struct gadget_info *gi)
 			}
 		}
 		c->next_interface_id = 0;
+		memset(c->interface, 0, sizeof(c->interface));
 		c->superspeed = 0;
 		c->highspeed = 0;
 		c->fullspeed = 0;

@@ -363,7 +363,7 @@ static int bcma_register_devices(struct bcma_bus *bus)
 	return 0;
 }
 
-static void bcma_unregister_cores(struct bcma_bus *bus)
+void bcma_unregister_cores(struct bcma_bus *bus)
 {
 	struct bcma_device *core, *tmp;
 

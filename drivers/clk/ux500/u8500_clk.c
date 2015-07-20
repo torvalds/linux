@@ -116,11 +116,12 @@ void u8500_clk_init(u32 clkrst1_base, u32 clkrst2_base, u32 clkrst3_base,
 	clk_register_clkdev(clk, NULL, "hdmi");
 	clk_register_clkdev(clk, "hdmi", "mcde");
 
-	clk = clk_reg_prcmu_gate("apeatclk", NULL, PRCMU_APEATCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_scalable("apeatclk", NULL, PRCMU_APEATCLK, 0,
+				     CLK_IS_ROOT|CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "apeat");
 
-	clk = clk_reg_prcmu_gate("apetraceclk", NULL, PRCMU_APETRACECLK,
-				CLK_IS_ROOT);
+	clk = clk_reg_prcmu_scalable("apetraceclk", NULL, PRCMU_APETRACECLK, 0,
+				CLK_IS_ROOT|CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "apetrace");
 
 	clk = clk_reg_prcmu_gate("mcdeclk", NULL, PRCMU_MCDECLK, CLK_IS_ROOT);

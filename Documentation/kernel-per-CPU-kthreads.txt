@@ -190,20 +190,24 @@ To reduce its OS jitter, do any of the following:
 		on each CPU, including cs_dbs_timer() and od_dbs_timer().
 		WARNING:  Please check your CPU specifications to
 		make sure that this is safe on your particular system.
-	d.	It is not possible to entirely get rid of OS jitter
-		from vmstat_update() on CONFIG_SMP=y systems, but you
-		can decrease its frequency by writing a large value
-		to /proc/sys/vm/stat_interval.	The default value is
-		HZ, for an interval of one second.  Of course, larger
-		values will make your virtual-memory statistics update
-		more slowly.  Of course, you can also run your workload
-		at a real-time priority, thus preempting vmstat_update(),
+	d.	As of v3.18, Christoph Lameter's on-demand vmstat workers
+		commit prevents OS jitter due to vmstat_update() on
+		CONFIG_SMP=y systems.  Before v3.18, is not possible
+		to entirely get rid of the OS jitter, but you can
+		decrease its frequency by writing a large value to
+		/proc/sys/vm/stat_interval.  The default value is HZ,
+		for an interval of one second.	Of course, larger values
+		will make your virtual-memory statistics update more
+		slowly.  Of course, you can also run your workload at
+		a real-time priority, thus preempting vmstat_update(),
 		but if your workload is CPU-bound, this is a bad idea.
 		However, there is an RFC patch from Christoph Lameter
 		(based on an earlier one from Gilad Ben-Yossef) that
 		reduces or even eliminates vmstat overhead for some
 		workloads at https://lkml.org/lkml/2013/9/4/379.
-	e.	If running on high-end powerpc servers, build with
+	e.	Boot with "elevator=noop" to avoid workqueue use by
+		the block layer.
+	f.	If running on high-end powerpc servers, build with
 		CONFIG_PPC_RTAS_DAEMON=n.  This prevents the RTAS
 		daemon from running on each CPU every second or so.
 		(This will require editing Kconfig files and will defeat
@@ -211,12 +215,12 @@ To reduce its OS jitter, do any of the following:
 		due to the rtas_event_scan() function.
 		WARNING:  Please check your CPU specifications to
 		make sure that this is safe on your particular system.
-	f.	If running on Cell Processor, build your kernel with
+	g.	If running on Cell Processor, build your kernel with
 		CBE_CPUFREQ_SPU_GOVERNOR=n to avoid OS jitter from
 		spu_gov_work().
 		WARNING:  Please check your CPU specifications to
 		make sure that this is safe on your particular system.
-	g.	If running on PowerMAC, build your kernel with
+	h.	If running on PowerMAC, build your kernel with
 		CONFIG_PMAC_RACKMETER=n to disable the CPU-meter,
 		avoiding OS jitter from rackmeter_do_timer().
 
@@ -258,8 +262,12 @@ Purpose: Detect software lockups on each CPU.
 To reduce its OS jitter, do at least one of the following:
 1.	Build with CONFIG_LOCKUP_DETECTOR=n, which will prevent these
 	kthreads from being created in the first place.
-2.	Echo a zero to /proc/sys/kernel/watchdog to disable the
+2.	Boot with "nosoftlockup=0", which will also prevent these kthreads
+	from being created.  Other related watchdog and softlockup boot
+	parameters may be found in Documentation/kernel-parameters.txt
+	and Documentation/watchdog/watchdog-parameters.txt.
+3.	Echo a zero to /proc/sys/kernel/watchdog to disable the
 	watchdog timer.
-3.	Echo a large number of /proc/sys/kernel/watchdog_thresh in
+4.	Echo a large number of /proc/sys/kernel/watchdog_thresh in
 	order to reduce the frequency of OS jitter due to the watchdog
 	timer down to a level that is acceptable for your workload.

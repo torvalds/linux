@@ -10,6 +10,7 @@
 /dts-v1/;
 
 #include "bcm47081.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
 	compatible = "buffalo,wzr-900dhp", "brcm,bcm47081", "brcm,bcm4708";

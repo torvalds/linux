@@ -342,6 +342,7 @@ static int __init pcibios_init(void)
 {
 	resource_size_t io_offset, mem_offset;
 	LIST_HEAD(resources);
+	struct pci_bus *bus;
 
 	ioport_resource.start	= 0xA0000000;
 	ioport_resource.end	= 0xDFFFFFFF;
@@ -371,11 +372,14 @@ static int __init pcibios_init(void)
 
 	pci_add_resource_offset(&resources, &pci_ioport_resource, io_offset);
 	pci_add_resource_offset(&resources, &pci_iomem_resource, mem_offset);
-	pci_scan_root_bus(NULL, 0, &pci_direct_ampci, NULL, &resources);
+	bus = pci_scan_root_bus(NULL, 0, &pci_direct_ampci, NULL, &resources);
+	if (!bus)
+		return 0;
 
 	pcibios_irq_init();
 	pcibios_fixup_irqs();
 	pcibios_resource_survey();
+	pci_bus_add_devices(bus);
 	return 0;
 }
 

@@ -23,12 +23,6 @@ struct v4l2_ioctl_ops {
 	/* VIDIOC_QUERYCAP handler */
 	int (*vidioc_querycap)(struct file *file, void *fh, struct v4l2_capability *cap);
 
-	/* Priority handling */
-	int (*vidioc_g_priority)   (struct file *file, void *fh,
-				    enum v4l2_priority *p);
-	int (*vidioc_s_priority)   (struct file *file, void *fh,
-				    enum v4l2_priority p);
-
 	/* VIDIOC_ENUM_FMT handlers */
 	int (*vidioc_enum_fmt_vid_cap)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);

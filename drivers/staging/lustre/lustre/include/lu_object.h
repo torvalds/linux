@@ -43,7 +43,6 @@
 #include "lu_ref.h"
 
 struct seq_file;
-struct proc_dir_entry;
 struct lustre_cfg;
 struct lprocfs_stats;
 
@@ -192,7 +191,7 @@ struct lu_object_conf {
  */
 typedef int (*lu_printer_t)(const struct lu_env *env,
 			    void *cookie, const char *format, ...)
-	__attribute__ ((format (printf, 3, 4)));
+	__printf(3, 4);
 
 /**
  * Operations specific for particular lu_object.
@@ -277,7 +276,6 @@ struct lu_device {
 	 * Stack this device belongs to.
 	 */
 	struct lu_site		    *ld_site;
-	struct proc_dir_entry	     *ld_proc_entry;
 
 	/** \todo XXX: temporary back pointer into obd. */
 	struct obd_device		 *ld_obd;

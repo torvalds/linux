@@ -110,6 +110,7 @@ struct rds_connection {
 	void			*c_transport_data;
 
 	atomic_t		c_state;
+	unsigned long		c_send_gen;
 	unsigned long		c_flags;
 	unsigned long		c_reconnect_jiffies;
 	struct delayed_work	c_send_w;
@@ -362,6 +363,8 @@ struct rds_message {
 			unsigned int		op_active:1;
 			unsigned int		op_nents;
 			unsigned int		op_count;
+			unsigned int		op_dmasg;
+			unsigned int		op_dmaoff;
 			struct scatterlist	*op_sg;
 		} data;
 	};
@@ -406,11 +409,6 @@ struct rds_notifier {
  *                 rds_recv_incoming().  This is called in process context but
  *                 should try hard not to block.
  */
-
-#define RDS_TRANS_IB	0
-#define RDS_TRANS_IWARP	1
-#define RDS_TRANS_TCP	2
-#define RDS_TRANS_COUNT	3
 
 struct rds_transport {
 	char			t_name[TRANSNAMSIZ];
@@ -574,7 +572,6 @@ struct rds_statistics {
 };
 
 /* af_rds.c */
-char *rds_str_array(char **array, size_t elements, size_t index);
 void rds_sock_addref(struct rds_sock *rs);
 void rds_sock_put(struct rds_sock *rs);
 void rds_wake_sk_sleep(struct rds_sock *rs);
@@ -702,8 +699,8 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 void rds_inc_put(struct rds_incoming *inc);
 void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 		       struct rds_incoming *inc, gfp_t gfp);
-int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-		size_t size, int msg_flags);
+int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		int msg_flags);
 void rds_clear_recv_queue(struct rds_sock *rs);
 int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msg);
 void rds_inc_info_copy(struct rds_incoming *inc,
@@ -711,8 +708,7 @@ void rds_inc_info_copy(struct rds_incoming *inc,
 		       __be32 saddr, __be32 daddr, int flip);
 
 /* send.c */
-int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
-		size_t payload_len);
+int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len);
 void rds_send_reset(struct rds_connection *conn);
 int rds_send_xmit(struct rds_connection *conn);
 struct sockaddr_in;
@@ -803,6 +799,7 @@ struct rds_transport *rds_trans_get_preferred(__be32 addr);
 void rds_trans_put(struct rds_transport *trans);
 unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 				       unsigned int avail);
+struct rds_transport *rds_trans_get(int t_type);
 int rds_trans_init(void);
 void rds_trans_exit(void);
 

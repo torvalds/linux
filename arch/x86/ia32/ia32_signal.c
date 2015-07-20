@@ -21,8 +21,8 @@
 #include <linux/binfmts.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
-#include <asm/i387.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
+#include <asm/fpu/signal.h>
 #include <asm/ptrace.h>
 #include <asm/ia32_unistd.h>
 #include <asm/user32.h>
@@ -161,8 +161,7 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 }
 
 static int ia32_restore_sigcontext(struct pt_regs *regs,
-				   struct sigcontext_ia32 __user *sc,
-				   unsigned int *pax)
+				   struct sigcontext_ia32 __user *sc)
 {
 	unsigned int tmpflags, err = 0;
 	void __user *buf;
@@ -184,7 +183,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 		RELOAD_SEG(es);
 
 		COPY(di); COPY(si); COPY(bp); COPY(sp); COPY(bx);
-		COPY(dx); COPY(cx); COPY(ip);
+		COPY(dx); COPY(cx); COPY(ip); COPY(ax);
 		/* Don't touch extended registers */
 
 		COPY_SEG_CPL3(cs);
@@ -197,11 +196,11 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 		get_user_ex(tmp, &sc->fpstate);
 		buf = compat_ptr(tmp);
-
-		get_user_ex(*pax, &sc->ax);
 	} get_user_catch(err);
 
-	err |= restore_xstate_sig(buf, 1);
+	err |= fpu__restore_sig(buf, 1);
+
+	force_iret();
 
 	return err;
 }
@@ -211,7 +210,6 @@ asmlinkage long sys32_sigreturn(void)
 	struct pt_regs *regs = current_pt_regs();
 	struct sigframe_ia32 __user *frame = (struct sigframe_ia32 __user *)(regs->sp-8);
 	sigset_t set;
-	unsigned int ax;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -224,9 +222,9 @@ asmlinkage long sys32_sigreturn(void)
 
 	set_current_blocked(&set);
 
-	if (ia32_restore_sigcontext(regs, &frame->sc, &ax))
+	if (ia32_restore_sigcontext(regs, &frame->sc))
 		goto badframe;
-	return ax;
+	return regs->ax;
 
 badframe:
 	signal_fault(regs, frame, "32bit sigreturn");
@@ -238,7 +236,6 @@ asmlinkage long sys32_rt_sigreturn(void)
 	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe_ia32 __user *frame;
 	sigset_t set;
-	unsigned int ax;
 
 	frame = (struct rt_sigframe_ia32 __user *)(regs->sp - 4);
 
@@ -249,13 +246,13 @@ asmlinkage long sys32_rt_sigreturn(void)
 
 	set_current_blocked(&set);
 
-	if (ia32_restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
+	if (ia32_restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
 	if (compat_restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
-	return ax;
+	return regs->ax;
 
 badframe:
 	signal_fault(regs, frame, "32bit rt sigreturn");
@@ -311,6 +308,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 				 size_t frame_size,
 				 void __user **fpstate)
 {
+	struct fpu *fpu = &current->thread.fpu;
 	unsigned long sp;
 
 	/* Default to using normal stack */
@@ -325,12 +323,12 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
 
-	if (used_math()) {
+	if (fpu->fpstate_active) {
 		unsigned long fx_aligned, math_size;
 
-		sp = alloc_mathframe(sp, 1, &fx_aligned, &math_size);
+		sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
 		*fpstate = (struct _fpstate_ia32 __user *) sp;
-		if (save_xstate_sig(*fpstate, (void __user *)fx_aligned,
+		if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
 				    math_size) < 0)
 			return (void __user *) -1L;
 	}

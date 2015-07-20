@@ -323,6 +323,7 @@ enum {
 	CEPH_MDS_OP_MKSNAP     = 0x01400,
 	CEPH_MDS_OP_RMSNAP     = 0x01401,
 	CEPH_MDS_OP_LSSNAP     = 0x00402,
+	CEPH_MDS_OP_RENAMESNAP = 0x01403,
 };
 
 extern const char *ceph_mds_op_name(int op);

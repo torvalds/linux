@@ -780,8 +780,8 @@ static struct adi_spi3_chip spidev_chip_info = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_SND_BF5XX_I2S)
-static struct platform_device bfin_i2s_pcm = {
+#if IS_ENABLED(CONFIG_SND_BF6XX_PCM)
+static struct platform_device bfin_pcm = {
 	.name = "bfin-i2s-pcm-audio",
 	.id = -1,
 };
@@ -1034,7 +1034,6 @@ static struct adv7842_platform_data adv7842_data = {
 	.i2c_infoframe = 0x48,
 	.i2c_cec = 0x49,
 	.i2c_avlink = 0x4a,
-	.i2c_ex = 0x26,
 };
 
 static struct bfin_capture_config bfin_capture_data = {
@@ -1104,7 +1103,6 @@ static struct disp_route adv7511_routes[] = {
 
 static struct adv7511_platform_data adv7511_data = {
 	.edid_addr = 0x7e,
-	.i2c_ex = 0x25,
 };
 
 static struct bfin_display_config bfin_display_data = {
@@ -1205,6 +1203,35 @@ static struct platform_device bfin_display_device = {
 	.name = "bfin_display",
 	.dev = {
 		.platform_data = &bfin_display_data,
+	},
+};
+#endif
+
+#if defined(CONFIG_FB_BF609_NL8048) \
+	|| defined(CONFIG_FB_BF609_NL8048_MODULE)
+static struct resource nl8048_resources[] = {
+	{
+		.start = EPPI2_STAT,
+		.end = EPPI2_STAT,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = CH_EPPI2_CH0,
+		.end = CH_EPPI2_CH0,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = IRQ_EPPI2_STAT,
+		.end = IRQ_EPPI2_STAT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+static struct platform_device bfin_fb_device = {
+	.name = "bf609_nl8048",
+	.num_resources = ARRAY_SIZE(nl8048_resources),
+	.resource = nl8048_resources,
+	.dev = {
+		.platform_data = (void *)GPIO_PC15,
 	},
 };
 #endif
@@ -1862,6 +1889,29 @@ static struct platform_device i2c_bfin_twi1_device = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+#include <linux/spi/mcp23s08.h>
+static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch0 = {
+	.base = 120,
+};
+static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch1 = {
+	.base = 130,
+};
+static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch2 = {
+	.base = 140,
+};
+# if IS_ENABLED(CONFIG_VIDEO_ADV7842)
+static const struct mcp23s08_platform_data bfin_adv7842_soft_switch = {
+	.base = 150,
+};
+# endif
+# if IS_ENABLED(CONFIG_VIDEO_ADV7511) || IS_ENABLED(CONFIG_VIDEO_ADV7343)
+static const struct mcp23s08_platform_data bfin_adv7511_soft_switch = {
+	.base = 160,
+};
+# endif
+#endif
+
 static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 #if IS_ENABLED(CONFIG_INPUT_ADXL34X_I2C)
 	{
@@ -1880,6 +1930,32 @@ static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 	{
 		I2C_BOARD_INFO("ssm2602", 0x1b),
 	},
+#endif
+#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+	{
+		I2C_BOARD_INFO("mcp23017", 0x21),
+		.platform_data = (void *)&bfin_mcp23s08_soft_switch0
+	},
+	{
+		I2C_BOARD_INFO("mcp23017", 0x22),
+		.platform_data = (void *)&bfin_mcp23s08_soft_switch1
+	},
+	{
+		I2C_BOARD_INFO("mcp23017", 0x23),
+		.platform_data = (void *)&bfin_mcp23s08_soft_switch2
+	},
+# if IS_ENABLED(CONFIG_VIDEO_ADV7842)
+	{
+		I2C_BOARD_INFO("mcp23017", 0x26),
+		.platform_data = (void *)&bfin_adv7842_soft_switch
+	},
+# endif
+# if IS_ENABLED(CONFIG_VIDEO_ADV7511) || IS_ENABLED(CONFIG_VIDEO_ADV7343)
+	{
+		I2C_BOARD_INFO("mcp23017", 0x25),
+		.platform_data = (void *)&bfin_adv7511_soft_switch
+	},
+# endif
 #endif
 };
 
@@ -2023,8 +2099,8 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if IS_ENABLED(CONFIG_MTD_PHYSMAP)
 	&ezkit_flash_device,
 #endif
-#if IS_ENABLED(CONFIG_SND_BF5XX_I2S)
-	&bfin_i2s_pcm,
+#if IS_ENABLED(CONFIG_SND_BF6XX_PCM)
+	&bfin_pcm,
 #endif
 #if IS_ENABLED(CONFIG_SND_BF6XX_SOC_I2S)
 	&bfin_i2s,
@@ -2060,7 +2136,7 @@ static struct pinctrl_map __initdata bfin_pinmux_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-rotary",  "pinctrl-adi2.0", NULL, "rotary"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_can.0",  "pinctrl-adi2.0", NULL, "can0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("physmap-flash.0",  "pinctrl-adi2.0", NULL, "smc0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.2",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.0",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
 	PIN_MAP_MUX_GROUP("bfin_display.0", "8bit",  "pinctrl-adi2.0", "ppi2_8bgrp", "ppi2"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_display.0",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
 	PIN_MAP_MUX_GROUP("bfin_display.0", "16bit",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),

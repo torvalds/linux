@@ -10,6 +10,10 @@
 #define PM8841_MPP_VPH			0
 #define PM8841_MPP_S3			2
 
+#define PM8916_MPP_VPH			0
+#define PM8916_MPP_L2			2
+#define PM8916_MPP_L5			3
+
 #define PM8941_MPP_VPH			0
 #define PM8941_MPP_L1			1
 #define PM8941_MPP_S3			2

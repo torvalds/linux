@@ -16,12 +16,11 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <asm/processor.h>
+#include <asm/perf_event.h>
 
 #include "../../../drivers/oprofile/oprof.h"
 
 extern void s390_backtrace(struct pt_regs * const regs, unsigned int depth);
-
-#ifdef CONFIG_64BIT
 
 #include "hwsampler.h"
 #include "op_counter.h"
@@ -495,13 +494,9 @@ static void oprofile_hwsampler_exit(void)
 	hwsampler_shutdown();
 }
 
-#endif /* CONFIG_64BIT */
-
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	ops->backtrace = s390_backtrace;
-
-#ifdef CONFIG_64BIT
 
 	/*
 	 * -ENODEV is not reported to the caller.  The module itself
@@ -511,14 +506,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	hwsampler_available = oprofile_hwsampler_init(ops) == 0;
 
 	return 0;
-#else
-	return -ENODEV;
-#endif
 }
 
 void oprofile_arch_exit(void)
 {
-#ifdef CONFIG_64BIT
 	oprofile_hwsampler_exit();
-#endif
 }

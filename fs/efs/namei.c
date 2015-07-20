@@ -111,9 +111,9 @@ struct dentry *efs_get_parent(struct dentry *child)
 	struct dentry *parent = ERR_PTR(-ENOENT);
 	efs_ino_t ino;
 
-	ino = efs_find_entry(child->d_inode, "..", 2);
+	ino = efs_find_entry(d_inode(child), "..", 2);
 	if (ino)
-		parent = d_obtain_alias(efs_iget(child->d_inode->i_sb, ino));
+		parent = d_obtain_alias(efs_iget(d_inode(child)->i_sb, ino));
 
 	return parent;
 }

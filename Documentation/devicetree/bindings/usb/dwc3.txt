@@ -14,6 +14,7 @@ Optional properties:
  - phys: from the *Generic PHY* bindings
  - phy-names: from the *Generic PHY* bindings
  - tx-fifo-resize: determines if the FIFO *has* to be reallocated.
+ - snps,usb3_lpm_capable: determines if platform is USB3 LPM capable
  - snps,disable_scramble_quirk: true when SW should disable data scrambling.
 	Only really useful for FPGA builds.
  - snps,has-lpm-erratum: true when DWC3 was configured with LPM Erratum enabled
@@ -37,6 +38,8 @@ Optional properties:
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold
+ - snps,hsphy_interface: High-Speed PHY interface selection between "utmi" for
+   UTMI+ and "ulpi" for ULPI when the DWC_USB3_HSPHY_INTERFACE has value 3.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 

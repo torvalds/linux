@@ -24,6 +24,11 @@ static int wil_open(struct net_device *ndev)
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
+	if (debug_fw) {
+		wil_err(wil, "%s() while in debug_fw mode\n", __func__);
+		return -EINVAL;
+	}
+
 	return wil_up(wil);
 }
 
@@ -82,7 +87,7 @@ static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
 	wil_rx_handle(wil, &quota);
 	done = budget - quota;
 
-	if (done <= 1) { /* burst ends - only one packet processed */
+	if (done < budget) {
 		napi_complete(napi);
 		wil6210_unmask_irq_rx(wil);
 		wil_dbg_txrx(wil, "NAPI RX complete\n");
@@ -110,7 +115,7 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 		tx_done += wil_tx_complete(wil, i);
 	}
 
-	if (tx_done <= 1) { /* burst ends - only one packet processed */
+	if (tx_done < budget) {
 		napi_complete(napi);
 		wil6210_unmask_irq_tx(wil);
 		wil_dbg_txrx(wil, "NAPI TX complete\n");
@@ -127,7 +132,7 @@ static void wil_dev_setup(struct net_device *dev)
 	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
-void *wil_if_alloc(struct device *dev, void __iomem *csr)
+void *wil_if_alloc(struct device *dev)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
@@ -142,7 +147,6 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	}
 
 	wil = wdev_to_wil(wdev);
-	wil->csr = csr;
 	wil->wdev = wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);

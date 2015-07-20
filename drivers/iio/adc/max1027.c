@@ -436,7 +436,7 @@ static int max1027_probe(struct spi_device *spi)
 				  indio_dev->num_channels * 2,
 				  GFP_KERNEL);
 	if (st->buffer == NULL) {
-		dev_err(&indio_dev->dev, "Can't allocate bufffer\n");
+		dev_err(&indio_dev->dev, "Can't allocate buffer\n");
 		return -ENOMEM;
 	}
 

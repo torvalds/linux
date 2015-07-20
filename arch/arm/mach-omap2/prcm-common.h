@@ -518,6 +518,26 @@ struct omap_prcm_irq_setup {
 	.priority = _priority				\
 	}
 
+/**
+ * struct omap_prcm_init_data - PRCM driver init data
+ * @index: clock memory mapping index to be used
+ * @mem: IO mem pointer for this module
+ * @offset: module base address offset from the IO base
+ * @flags: PRCM module init flags
+ * @device_inst_offset: device instance offset within the module address space
+ * @init: low level PRCM init function for this module
+ * @np: device node for this PRCM module
+ */
+struct omap_prcm_init_data {
+	int index;
+	void __iomem *mem;
+	s16 offset;
+	u16 flags;
+	s32 device_inst_offset;
+	int (*init)(const struct omap_prcm_init_data *data);
+	struct device_node *np;
+};
+
 extern void omap_prcm_irq_cleanup(void);
 extern int omap_prcm_register_chain_handler(
 	struct omap_prcm_irq_setup *irq_setup);

@@ -27,10 +27,6 @@ MODULE_PARM_DESC(use_msi,
 		 " Use MSI interrupt: "
 		 "0 - don't, 1 - (default) - single, or 3");
 
-static bool debug_fw; /* = false; */
-module_param(debug_fw, bool, S_IRUGO);
-MODULE_PARM_DESC(debug_fw, " load driver if FW not ready. For FW debug");
-
 static
 void wil_set_capabilities(struct wil6210_priv *wil)
 {
@@ -39,18 +35,6 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
 
 	switch (rev_id) {
-	case JTAG_DEV_ID_MARLON_B0:
-		wil->hw_name = "Marlon B0";
-		wil->hw_version = HW_VER_MARLON_B0;
-		break;
-	case JTAG_DEV_ID_SPARROW_A0:
-		wil->hw_name = "Sparrow A0";
-		wil->hw_version = HW_VER_SPARROW_A0;
-		break;
-	case JTAG_DEV_ID_SPARROW_A1:
-		wil->hw_name = "Sparrow A1";
-		wil->hw_version = HW_VER_SPARROW_A1;
-		break;
 	case JTAG_DEV_ID_SPARROW_B0:
 		wil->hw_name = "Sparrow B0";
 		wil->hw_version = HW_VER_SPARROW_B0;
@@ -62,13 +46,6 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	}
 
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
-
-	if (wil->hw_version >= HW_VER_SPARROW_A0)
-		set_bit(hw_capability_reset_v2, wil->hw_capabilities);
-
-	if (wil->hw_version >= HW_VER_SPARROW_B0)
-		set_bit(hw_capability_advanced_itr_moderation,
-			wil->hw_capabilities);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)
@@ -150,10 +127,8 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
 	/* need reset here to obtain MAC */
 	mutex_lock(&wil->mutex);
-	rc = wil_reset(wil);
+	rc = wil_reset(wil, false);
 	mutex_unlock(&wil->mutex);
-	if (debug_fw)
-		rc = 0;
 	if (rc)
 		goto release_irq;
 
@@ -188,7 +163,6 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct wil6210_priv *wil;
 	struct device *dev = &pdev->dev;
-	void __iomem *csr;
 	int rc;
 
 	/* check HW */
@@ -203,9 +177,28 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
+	wil = wil_if_alloc(dev);
+	if (IS_ERR(wil)) {
+		rc = (int)PTR_ERR(wil);
+		dev_err(dev, "wil_if_alloc failed: %d\n", rc);
+		return rc;
+	}
+	wil->pdev = pdev;
+	pci_set_drvdata(pdev, wil);
+	/* rollback to if_free */
+
+	wil->platform_handle =
+			wil_platform_init(&pdev->dev, &wil->platform_ops);
+	if (!wil->platform_handle) {
+		rc = -ENODEV;
+		wil_err(wil, "wil_platform_init failed\n");
+		goto if_free;
+	}
+	/* rollback to err_plat */
+
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		dev_err(&pdev->dev,
+		wil_err(wil,
 			"pci_enable_device failed, retry with MSI only\n");
 		/* Work around for platforms that can't allocate IRQ:
 		 * retry with MSI only
@@ -213,47 +206,37 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pdev->msi_enabled = 1;
 		rc = pci_enable_device(pdev);
 	}
-	if (rc)
-		return -ENODEV;
+	if (rc) {
+		wil_err(wil,
+			"pci_enable_device failed, even with MSI only\n");
+		goto err_plat;
+	}
 	/* rollback to err_disable_pdev */
 
 	rc = pci_request_region(pdev, 0, WIL_NAME);
 	if (rc) {
-		dev_err(&pdev->dev, "pci_request_region failed\n");
+		wil_err(wil, "pci_request_region failed\n");
 		goto err_disable_pdev;
 	}
 	/* rollback to err_release_reg */
 
-	csr = pci_ioremap_bar(pdev, 0);
-	if (!csr) {
-		dev_err(&pdev->dev, "pci_ioremap_bar failed\n");
+	wil->csr = pci_ioremap_bar(pdev, 0);
+	if (!wil->csr) {
+		wil_err(wil, "pci_ioremap_bar failed\n");
 		rc = -ENODEV;
 		goto err_release_reg;
 	}
 	/* rollback to err_iounmap */
-	dev_info(&pdev->dev, "CSR at %pR -> 0x%p\n", &pdev->resource[0], csr);
+	wil_info(wil, "CSR at %pR -> 0x%p\n", &pdev->resource[0], wil->csr);
 
-	wil = wil_if_alloc(dev, csr);
-	if (IS_ERR(wil)) {
-		rc = (int)PTR_ERR(wil);
-		dev_err(dev, "wil_if_alloc failed: %d\n", rc);
-		goto err_iounmap;
-	}
-	/* rollback to if_free */
-
-	pci_set_drvdata(pdev, wil);
-	wil->pdev = pdev;
 	wil_set_capabilities(wil);
 	wil6210_clear_irq(wil);
-
-	wil->platform_handle =
-			wil_platform_init(&pdev->dev, &wil->platform_ops);
 
 	/* FW should raise IRQ when ready */
 	rc = wil_if_pcie_enable(wil);
 	if (rc) {
 		wil_err(wil, "Enable device failed\n");
-		goto if_free;
+		goto err_iounmap;
 	}
 	/* rollback to bus_disable */
 
@@ -265,23 +248,22 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	wil6210_debugfs_init(wil);
 
-	/* check FW is alive */
-	wmi_echo(wil);
 
 	return 0;
 
- bus_disable:
+bus_disable:
 	wil_if_pcie_disable(wil);
- if_free:
+err_iounmap:
+	pci_iounmap(pdev, wil->csr);
+err_release_reg:
+	pci_release_region(pdev, 0);
+err_disable_pdev:
+	pci_disable_device(pdev);
+err_plat:
 	if (wil->platform_ops.uninit)
 		wil->platform_ops.uninit(wil->platform_handle);
+if_free:
 	wil_if_free(wil);
- err_iounmap:
-	pci_iounmap(pdev, csr);
- err_release_reg:
-	pci_release_region(pdev, 0);
- err_disable_pdev:
-	pci_disable_device(pdev);
 
 	return rc;
 }
@@ -296,16 +278,15 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	wil6210_debugfs_remove(wil);
 	wil_if_remove(wil);
 	wil_if_pcie_disable(wil);
-	if (wil->platform_ops.uninit)
-		wil->platform_ops.uninit(wil->platform_handle);
-	wil_if_free(wil);
 	pci_iounmap(pdev, csr);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
+	if (wil->platform_ops.uninit)
+		wil->platform_ops.uninit(wil->platform_handle);
+	wil_if_free(wil);
 }
 
 static const struct pci_device_id wil6210_pcie_ids[] = {
-	{ PCI_DEVICE(0x1ae9, 0x0301) },
 	{ PCI_DEVICE(0x1ae9, 0x0310) },
 	{ PCI_DEVICE(0x1ae9, 0x0302) }, /* same as above, firmware broken */
 	{ /* end: all zeroes */	},
@@ -319,7 +300,27 @@ static struct pci_driver wil6210_driver = {
 	.name		= WIL_NAME,
 };
 
-module_pci_driver(wil6210_driver);
+static int __init wil6210_driver_init(void)
+{
+	int rc;
+
+	rc = wil_platform_modinit();
+	if (rc)
+		return rc;
+
+	rc = pci_register_driver(&wil6210_driver);
+	if (rc)
+		wil_platform_modexit();
+	return rc;
+}
+module_init(wil6210_driver_init);
+
+static void __exit wil6210_driver_exit(void)
+{
+	pci_unregister_driver(&wil6210_driver);
+	wil_platform_modexit();
+}
+module_exit(wil6210_driver_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Qualcomm Atheros <wil6210@qca.qualcomm.com>");

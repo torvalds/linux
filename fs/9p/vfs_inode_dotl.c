@@ -149,8 +149,7 @@ static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 	unlock_new_inode(inode);
 	return inode;
 error:
-	unlock_new_inode(inode);
-	iput(inode);
+	iget_failed(inode);
 	return ERR_PTR(retval);
 
 }
@@ -265,7 +264,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* Only creates */
-	if (!(flags & O_CREAT) || dentry->d_inode)
+	if (!(flags & O_CREAT) || d_really_is_positive(dentry))
 		return	finish_no_open(file, res);
 
 	v9ses = v9fs_inode2v9ses(dir);
@@ -481,7 +480,7 @@ v9fs_vfs_getattr_dotl(struct vfsmount *mnt, struct dentry *dentry,
 	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
-		generic_fillattr(dentry->d_inode, stat);
+		generic_fillattr(d_inode(dentry), stat);
 		return 0;
 	}
 	fid = v9fs_fid_lookup(dentry);
@@ -496,8 +495,8 @@ v9fs_vfs_getattr_dotl(struct vfsmount *mnt, struct dentry *dentry,
 	if (IS_ERR(st))
 		return PTR_ERR(st);
 
-	v9fs_stat2inode_dotl(st, dentry->d_inode);
-	generic_fillattr(dentry->d_inode, stat);
+	v9fs_stat2inode_dotl(st, d_inode(dentry));
+	generic_fillattr(d_inode(dentry), stat);
 	/* Change block size to what the server returned */
 	stat->blksize = st->st_blksize;
 
@@ -557,7 +556,7 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	int retval;
 	struct p9_fid *fid;
 	struct p9_iattr_dotl p9attr;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 
@@ -795,10 +794,10 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		if (IS_ERR(fid))
 			return PTR_ERR(fid);
 
-		v9fs_refresh_inode_dotl(fid, old_dentry->d_inode);
+		v9fs_refresh_inode_dotl(fid, d_inode(old_dentry));
 	}
-	ihold(old_dentry->d_inode);
-	d_instantiate(dentry, old_dentry->d_inode);
+	ihold(d_inode(old_dentry));
+	d_instantiate(dentry, d_inode(old_dentry));
 
 	return err;
 }
@@ -905,41 +904,24 @@ error:
 /**
  * v9fs_vfs_follow_link_dotl - follow a symlink path
  * @dentry: dentry for symlink
- * @nd: nameidata
- *
+ * @cookie: place to pass the data to put_link()
  */
 
-static void *
-v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
+static const char *
+v9fs_vfs_follow_link_dotl(struct dentry *dentry, void **cookie)
 {
-	int retval;
-	struct p9_fid *fid;
-	char *link = __getname();
+	struct p9_fid *fid = v9fs_fid_lookup(dentry);
 	char *target;
+	int retval;
 
 	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
 
-	if (!link) {
-		link = ERR_PTR(-ENOMEM);
-		goto ndset;
-	}
-	fid = v9fs_fid_lookup(dentry);
-	if (IS_ERR(fid)) {
-		__putname(link);
-		link = ERR_CAST(fid);
-		goto ndset;
-	}
+	if (IS_ERR(fid))
+		return ERR_CAST(fid);
 	retval = p9_client_readlink(fid, &target);
-	if (!retval) {
-		strcpy(link, target);
-		kfree(target);
-		goto ndset;
-	}
-	__putname(link);
-	link = ERR_PTR(retval);
-ndset:
-	nd_set_link(nd, link);
-	return NULL;
+	if (retval)
+		return ERR_PTR(retval);
+	return *cookie = target;
 }
 
 int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
@@ -1006,7 +988,7 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {
 	.readlink = generic_readlink,
 	.follow_link = v9fs_vfs_follow_link_dotl,
-	.put_link = v9fs_vfs_put_link,
+	.put_link = kfree_put_link,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.setxattr = generic_setxattr,

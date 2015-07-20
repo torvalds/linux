@@ -149,14 +149,16 @@ drm_gem_object_unreference(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 {
-	if (obj && !atomic_add_unless(&obj->refcount.refcount, -1, 1)) {
-		struct drm_device *dev = obj->dev;
+	struct drm_device *dev;
 
-		mutex_lock(&dev->struct_mutex);
-		if (likely(atomic_dec_and_test(&obj->refcount.refcount)))
-			drm_gem_object_free(&obj->refcount);
+	if (!obj)
+		return;
+
+	dev = obj->dev;
+	if (kref_put_mutex(&obj->refcount, drm_gem_object_free, &dev->struct_mutex))
 		mutex_unlock(&dev->struct_mutex);
-	}
+	else
+		might_lock(&dev->struct_mutex);
 }
 
 int drm_gem_handle_create(struct drm_file *file_priv,

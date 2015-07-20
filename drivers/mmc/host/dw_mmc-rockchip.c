@@ -76,12 +76,20 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	return 0;
 }
 
+/* Common capabilities of RK3288 SoC */
+static unsigned long dw_mci_rk3288_dwmmc_caps[4] = {
+	MMC_CAP_RUNTIME_RESUME, /* emmc */
+	MMC_CAP_RUNTIME_RESUME, /* sdmmc */
+	MMC_CAP_RUNTIME_RESUME, /* sdio0 */
+	MMC_CAP_RUNTIME_RESUME, /* sdio1 */
+};
 static const struct dw_mci_drv_data rk2928_drv_data = {
 	.prepare_command        = dw_mci_rockchip_prepare_command,
 	.init			= dw_mci_rockchip_init,
 };
 
 static const struct dw_mci_drv_data rk3288_drv_data = {
+	.caps			= dw_mci_rk3288_dwmmc_caps,
 	.prepare_command        = dw_mci_rockchip_prepare_command,
 	.set_ios		= dw_mci_rk3288_set_ios,
 	.setup_clock    = dw_mci_rk3288_setup_clock,
@@ -145,5 +153,5 @@ module_platform_driver(dw_mci_rockchip_pltfm_driver);
 
 MODULE_AUTHOR("Addy Ke <addy.ke@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip Specific DW-MSHC Driver Extension");
-MODULE_ALIAS("platform:dwmmc-rockchip");
+MODULE_ALIAS("platform:dwmmc_rockchip");
 MODULE_LICENSE("GPL v2");

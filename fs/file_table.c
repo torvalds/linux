@@ -20,7 +20,6 @@
 #include <linux/cdev.h>
 #include <linux/fsnotify.h>
 #include <linux/sysctl.h>
-#include <linux/lglock.h>
 #include <linux/percpu_counter.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
@@ -168,10 +167,10 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 	file->f_inode = path->dentry->d_inode;
 	file->f_mapping = path->dentry->d_inode->i_mapping;
 	if ((mode & FMODE_READ) &&
-	     likely(fop->read || fop->aio_read || fop->read_iter))
+	     likely(fop->read || fop->read_iter))
 		mode |= FMODE_CAN_READ;
 	if ((mode & FMODE_WRITE) &&
-	     likely(fop->write || fop->aio_write || fop->write_iter))
+	     likely(fop->write || fop->write_iter))
 		mode |= FMODE_CAN_WRITE;
 	file->f_mode = mode;
 	file->f_op = fop;
