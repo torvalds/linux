@@ -242,8 +242,8 @@ static int irqc_probe(struct platform_device *pdev)
 	irq_chip->irq_set_wake = irqc_irq_set_wake;
 	irq_chip->flags	= IRQCHIP_MASK_ON_SUSPEND;
 
-	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
-					      p->number_of_irqs, 0,
+	p->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
+					      p->number_of_irqs,
 					      &irqc_irq_domain_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
