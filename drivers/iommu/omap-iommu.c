@@ -1093,16 +1093,12 @@ static struct iommu_domain *omap_iommu_domain_alloc(unsigned type)
 		return NULL;
 
 	omap_domain = kzalloc(sizeof(*omap_domain), GFP_KERNEL);
-	if (!omap_domain) {
-		pr_err("kzalloc failed\n");
+	if (!omap_domain)
 		goto out;
-	}
 
 	omap_domain->pgtable = kzalloc(IOPGD_TABLE_SIZE, GFP_KERNEL);
-	if (!omap_domain->pgtable) {
-		pr_err("kzalloc failed\n");
+	if (!omap_domain->pgtable)
 		goto fail_nomem;
-	}
 
 	/*
 	 * should never fail, but please keep this around to ensure
