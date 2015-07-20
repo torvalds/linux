@@ -43,7 +43,7 @@ int pci_enable_ats(struct pci_dev *dev, int ps)
 	if (!dev->ats_cap)
 		return -EINVAL;
 
-	if (WARN_ON(pci_ats_enabled(dev)))
+	if (WARN_ON(dev->ats_enabled))
 		return -EBUSY;
 
 	if (ps < PCI_ATS_MIN_STU)
@@ -80,7 +80,7 @@ void pci_disable_ats(struct pci_dev *dev)
 	struct pci_dev *pdev;
 	u16 ctrl;
 
-	if (WARN_ON(!pci_ats_enabled(dev)))
+	if (WARN_ON(!dev->ats_enabled))
 		return;
 
 	if (atomic_read(&dev->ats_ref_cnt))
@@ -103,7 +103,7 @@ void pci_restore_ats_state(struct pci_dev *dev)
 {
 	u16 ctrl;
 
-	if (!pci_ats_enabled(dev))
+	if (!dev->ats_enabled)
 		return;
 
 	ctrl = PCI_ATS_CTRL_ENABLE;
