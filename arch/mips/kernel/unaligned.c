@@ -2312,5 +2312,5 @@ static int __init debugfs_unaligned(void)
 		return -ENOMEM;
 	return 0;
 }
-__initcall(debugfs_unaligned);
+arch_initcall(debugfs_unaligned);
 #endif
