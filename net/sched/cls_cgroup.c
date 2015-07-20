@@ -30,35 +30,16 @@ static int cls_cgroup_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			       struct tcf_result *res)
 {
 	struct cls_cgroup_head *head = rcu_dereference_bh(tp->root);
-	u32 classid;
-
-	classid = task_cls_state(current)->classid;
-
-	/*
-	 * Due to the nature of the classifier it is required to ignore all
-	 * packets originating from softirq context as accessing `current'
-	 * would lead to false results.
-	 *
-	 * This test assumes that all callers of dev_queue_xmit() explicitely
-	 * disable bh. Knowing this, it is possible to detect softirq based
-	 * calls by looking at the number of nested bh disable calls because
-	 * softirqs always disables bh.
-	 */
-	if (in_serving_softirq()) {
-		/* If there is an sk_classid we'll use that. */
-		if (!skb->sk)
-			return -1;
-		classid = skb->sk->sk_classid;
-	}
+	u32 classid = task_get_classid(skb);
 
 	if (!classid)
 		return -1;
-
 	if (!tcf_em_tree_match(skb, &head->ematches, NULL))
 		return -1;
 
 	res->classid = classid;
 	res->class = 0;
+
 	return tcf_exts_exec(skb, &head->exts, res);
 }
 

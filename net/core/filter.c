@@ -47,6 +47,7 @@
 #include <linux/if_vlan.h>
 #include <linux/bpf.h>
 #include <net/sch_generic.h>
+#include <net/cls_cgroup.h>
 
 /**
  *	sk_filter - run a packet through a socket filter
@@ -1424,6 +1425,18 @@ const struct bpf_func_proto bpf_clone_redirect_proto = {
 	.arg3_type      = ARG_ANYTHING,
 };
 
+static u64 bpf_get_cgroup_classid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	return task_get_classid((struct sk_buff *) (unsigned long) r1);
+}
+
+static const struct bpf_func_proto bpf_get_cgroup_classid_proto = {
+	.func           = bpf_get_cgroup_classid,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_PTR_TO_CTX,
+};
+
 static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
 {
@@ -1461,6 +1474,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_l4_csum_replace_proto;
 	case BPF_FUNC_clone_redirect:
 		return &bpf_clone_redirect_proto;
+	case BPF_FUNC_get_cgroup_classid:
+		return &bpf_get_cgroup_classid_proto;
 	default:
 		return sk_filter_func_proto(func_id);
 	}
