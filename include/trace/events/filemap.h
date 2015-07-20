@@ -52,6 +52,52 @@ DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_add_to_page_cache,
 	TP_ARGS(page)
 	);
 
+DECLARE_EVENT_CLASS(mm_filemap_find_page_cache_miss,
+
+	TP_PROTO(struct file *file, loff_t pos, size_t count, int read),
+
+	TP_ARGS(file, pos, count, read),
+
+	TP_STRUCT__entry(
+		__array(char, path, MAX_FILTER_STR_VAL)
+		__field(char *, path_name)
+		__field(loff_t, pos)
+		__field(size_t, count)
+		__field(int, miss)
+	),
+
+	TP_fast_assign(
+		__entry->path_name = d_path(&file->f_path, __entry->path, MAX_FILTER_STR_VAL);
+		__entry->pos	= pos;
+		__entry->count	= count;
+		__entry->miss = 0;
+		if ((pos & ~PAGE_CACHE_MASK) || (count % PAGE_SIZE) || read) {
+			unsigned long ret;
+			rcu_read_lock();
+			ret = (count ? page_cache_next_hole(file->f_mapping,
+					(pos >> PAGE_CACHE_SHIFT), ((count - 1) >> PAGE_CACHE_SHIFT) + 1) : 0);
+			rcu_read_unlock();
+			__entry->miss = (ret >= (pos >> PAGE_CACHE_SHIFT) &&
+					ret <= ((pos + count - 1) >> PAGE_CACHE_SHIFT));
+		}
+	),
+
+	TP_printk("path_name %s pos %lld count %lu miss %s",
+		  __entry->path_name,
+		  __entry->pos, __entry->count,
+		  (__entry->miss ? "yes" : "no"))
+);
+
+DEFINE_EVENT(mm_filemap_find_page_cache_miss, mm_filemap_do_generic_file_read,
+	TP_PROTO(struct file *file, loff_t pos, size_t count, int read),
+	TP_ARGS(file, pos, count, read)
+	);
+
+DEFINE_EVENT(mm_filemap_find_page_cache_miss, mm_filemap_generic_perform_write,
+	TP_PROTO(struct file *file, loff_t pos, size_t count, int read),
+	TP_ARGS(file, pos, count, read)
+	);
+
 #endif /* _TRACE_FILEMAP_H */
 
 /* This part must be outside protection */
