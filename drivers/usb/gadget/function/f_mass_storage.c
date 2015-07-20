@@ -2761,12 +2761,12 @@ static void _fsg_common_remove_luns(struct fsg_common *common, int n)
 			common->luns[i] = NULL;
 		}
 }
-EXPORT_SYMBOL_GPL(fsg_common_remove_luns);
 
 void fsg_common_remove_luns(struct fsg_common *common)
 {
 	_fsg_common_remove_luns(common, common->nluns);
 }
+EXPORT_SYMBOL_GPL(fsg_common_remove_luns);
 
 void fsg_common_free_luns(struct fsg_common *common)
 {
