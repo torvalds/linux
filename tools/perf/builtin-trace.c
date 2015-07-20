@@ -2931,7 +2931,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		trace.not_ev_qualifier = *s == '!';
 		if (trace.not_ev_qualifier)
 			++s;
-		trace.ev_qualifier = strlist__new(true, s);
+		trace.ev_qualifier = strlist__new(s, NULL);
 		if (trace.ev_qualifier == NULL) {
 			fputs("Not enough memory to parse event qualifier",
 			      trace.output);

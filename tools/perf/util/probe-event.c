@@ -2066,7 +2066,7 @@ static struct strlist *get_probe_trace_command_rawlist(int fd)
 	char *p;
 	struct strlist *sl;
 
-	sl = strlist__new(true, NULL);
+	sl = strlist__new(NULL, NULL);
 
 	fp = fdopen(dup(fd), "r");
 	while (!feof(fp)) {
@@ -2362,7 +2362,7 @@ static struct strlist *get_probe_trace_event_names(int fd, bool include_group)
 	rawlist = get_probe_trace_command_rawlist(fd);
 	if (!rawlist)
 		return NULL;
-	sl = strlist__new(true, NULL);
+	sl = strlist__new(NULL, NULL);
 	strlist__for_each(ent, rawlist) {
 		ret = parse_probe_trace_command(ent->s, &tev);
 		if (ret < 0)

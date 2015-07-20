@@ -363,7 +363,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	setup_pager();
 
 	if (add_name_list_str) {
-		list = strlist__new(true, add_name_list_str);
+		list = strlist__new(add_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__add_file(pos->s)) {
@@ -381,7 +381,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	}
 
 	if (remove_name_list_str) {
-		list = strlist__new(true, remove_name_list_str);
+		list = strlist__new(remove_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__remove_file(pos->s)) {
@@ -399,7 +399,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	}
 
 	if (purge_name_list_str) {
-		list = strlist__new(true, purge_name_list_str);
+		list = strlist__new(purge_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__purge_path(pos->s)) {
@@ -420,7 +420,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		ret = build_id_cache__fprintf_missing(session, stdout);
 
 	if (update_name_list_str) {
-		list = strlist__new(true, update_name_list_str);
+		list = strlist__new(update_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__update_file(pos->s)) {

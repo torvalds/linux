@@ -1355,7 +1355,7 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 		 vl->point.offset);
 
 	/* Find local variables */
-	vl->vars = strlist__new(true, NULL);
+	vl->vars = strlist__new(NULL, NULL);
 	if (vl->vars == NULL)
 		return -ENOMEM;
 	af->child = true;

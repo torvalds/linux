@@ -1906,7 +1906,7 @@ int setup_list(struct strlist **list, const char *list_str,
 	if (list_str == NULL)
 		return 0;
 
-	*list = strlist__new(true, list_str);
+	*list = strlist__new(list_str, NULL);
 	if (!*list) {
 		pr_err("problems parsing %s list\n", list_name);
 		return -1;

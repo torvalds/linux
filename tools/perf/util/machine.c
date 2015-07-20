@@ -250,7 +250,7 @@ struct machine *machines__findnew(struct machines *machines, pid_t pid)
 			static struct strlist *seen;
 
 			if (!seen)
-				seen = strlist__new(true, NULL);
+				seen = strlist__new(NULL, NULL);
 
 			if (!strlist__has_entry(seen, path)) {
 				pr_err("Can't access file %s\n", path);

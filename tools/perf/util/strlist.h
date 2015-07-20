@@ -16,7 +16,11 @@ struct strlist {
 	bool	       dupstr;
 };
 
-struct strlist *strlist__new(bool dupstr, const char *slist);
+struct strlist_config {
+	bool dont_dupstr;
+};
+
+struct strlist *strlist__new(const char *slist, const struct strlist_config *config);
 void strlist__delete(struct strlist *slist);
 
 void strlist__remove(struct strlist *slist, struct str_node *sn);

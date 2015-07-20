@@ -133,7 +133,7 @@ int strlist__parse_list(struct strlist *slist, const char *s)
 	return *s ? strlist__parse_list_entry(slist, s) : 0;
 }
 
-struct strlist *strlist__new(bool dupstr, const char *list)
+struct strlist *strlist__new(const char *list, const struct strlist_config *config)
 {
 	struct strlist *slist = malloc(sizeof(*slist));
 
@@ -143,7 +143,7 @@ struct strlist *strlist__new(bool dupstr, const char *list)
 		slist->rblist.node_new    = strlist__node_new;
 		slist->rblist.node_delete = strlist__node_delete;
 
-		slist->dupstr	 = dupstr;
+		slist->dupstr	 = config ? !config->dont_dupstr : true;
 		if (list && strlist__parse_list(slist, list) != 0)
 			goto out_error;
 	}

@@ -291,7 +291,7 @@ int build_id_cache__list_build_ids(const char *pathname,
 	struct dirent *d;
 	int ret = 0;
 
-	list = strlist__new(true, NULL);
+	list = strlist__new(NULL, NULL);
 	dir_name = build_id_cache__dirname_from_path(pathname, false, false);
 	if (!list || !dir_name) {
 		ret = -ENOMEM;
