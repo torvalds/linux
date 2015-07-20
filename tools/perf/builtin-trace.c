@@ -3,6 +3,7 @@
 #include "util/color.h"
 #include "util/debug.h"
 #include "util/evlist.h"
+#include "util/exec_cmd.h"
 #include "util/machine.h"
 #include "util/session.h"
 #include "util/thread.h"
@@ -2927,11 +2928,14 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (ev_qualifier_str != NULL) {
 		const char *s = ev_qualifier_str;
+		struct strlist_config slist_config = {
+			.dirname = system_path(STRACE_GROUPS_DIR),
+		};
 
 		trace.not_ev_qualifier = *s == '!';
 		if (trace.not_ev_qualifier)
 			++s;
-		trace.ev_qualifier = strlist__new(s, NULL);
+		trace.ev_qualifier = strlist__new(s, &slist_config);
 		if (trace.ev_qualifier == NULL) {
 			fputs("Not enough memory to parse event qualifier",
 			      trace.output);
