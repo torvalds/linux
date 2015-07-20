@@ -915,8 +915,9 @@ static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 		res2 = *res;
 		res->start += size * offset;
 
-		dev_info(&dev->dev, "VF BAR%d: %pR shifted to %pR (enabling %d VFs shifted by %d)\n",
-			 i, &res2, res, num_vfs, offset);
+		dev_info(&dev->dev, "VF BAR%d: %pR shifted to %pR (%sabling %d VFs shifted by %d)\n",
+			 i, &res2, res, (offset > 0) ? "En" : "Dis",
+			 num_vfs, offset);
 		pci_update_resource(dev, i + PCI_IOV_RESOURCES);
 	}
 	return 0;
