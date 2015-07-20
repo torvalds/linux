@@ -19,6 +19,7 @@
 #define CYAPA_GEN_UNKNOWN   0x00   /* unknown protocol. */
 #define CYAPA_GEN3   0x03   /* support MT-protocol B with tracking ID. */
 #define CYAPA_GEN5   0x05   /* support TrueTouch GEN5 trackpad device. */
+#define CYAPA_GEN6   0x06   /* support TrueTouch GEN6 trackpad device. */
 
 #define CYAPA_NAME   "Cypress APA Trackpad (cyapa)"
 
@@ -198,6 +199,9 @@
 #define PIP_BL_APP_INFO_RESP_LENGTH	30
 #define PIP_BL_GET_INFO_RESP_LENGTH	19
 
+#define PIP_BL_PLATFORM_VER_SHIFT	4
+#define PIP_BL_PLATFORM_VER_MASK	0x0f
+
 #define PIP_PRODUCT_FAMILY_MASK		0xf000
 #define PIP_PRODUCT_FAMILY_TRACKPAD	0x1000
 
@@ -299,6 +303,14 @@ enum cyapa_state {
 	CYAPA_STATE_OP,
 	CYAPA_STATE_GEN5_BL,
 	CYAPA_STATE_GEN5_APP,
+	CYAPA_STATE_GEN6_BL,
+	CYAPA_STATE_GEN6_APP,
+};
+
+struct gen6_interval_setting {
+	u16 active_interval;
+	u16 lp1_interval;
+	u16 lp2_interval;
 };
 
 /* The main device structure */
@@ -320,9 +332,11 @@ struct cyapa {
 	u16 runtime_suspend_sleep_time;
 	u8 dev_pwr_mode;
 	u16 dev_sleep_time;
+	struct gen6_interval_setting gen6_interval_setting;
 
 	/* Read from query data region. */
 	char product_id[16];
+	u8 platform_ver;  /* Platform version. */
 	u8 fw_maj_ver;  /* Firmware major version. */
 	u8 fw_min_ver;  /* Firmware minor version. */
 	u8 btn_capability;
@@ -411,5 +425,6 @@ extern u8 pip_bl_read_app_info[];
 extern const char product_id[];
 extern const struct cyapa_dev_ops cyapa_gen3_ops;
 extern const struct cyapa_dev_ops cyapa_gen5_ops;
+extern const struct cyapa_dev_ops cyapa_gen6_ops;
 
 #endif

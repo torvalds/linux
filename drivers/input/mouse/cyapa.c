@@ -41,6 +41,9 @@ static int cyapa_reinitialize(struct cyapa *cyapa);
 
 bool cyapa_is_pip_bl_mode(struct cyapa *cyapa)
 {
+	if (cyapa->gen == CYAPA_GEN6 && cyapa->state == CYAPA_STATE_GEN6_BL)
+		return true;
+
 	if (cyapa->gen == CYAPA_GEN5 && cyapa->state == CYAPA_STATE_GEN5_BL)
 		return true;
 
@@ -49,6 +52,9 @@ bool cyapa_is_pip_bl_mode(struct cyapa *cyapa)
 
 bool cyapa_is_pip_app_mode(struct cyapa *cyapa)
 {
+	if (cyapa->gen == CYAPA_GEN6 && cyapa->state == CYAPA_STATE_GEN6_APP)
+		return true;
+
 	if (cyapa->gen == CYAPA_GEN5 && cyapa->state == CYAPA_STATE_GEN5_APP)
 		return true;
 
@@ -204,6 +210,15 @@ static int cyapa_get_state(struct cyapa *cyapa)
 			if (!error)
 				goto out_detected;
 		}
+		if (cyapa->gen == CYAPA_GEN_UNKNOWN ||
+				cyapa->gen == CYAPA_GEN6 ||
+				cyapa->gen == CYAPA_GEN5) {
+			error = cyapa_pip_state_parse(cyapa,
+					status, BL_STATUS_SIZE);
+			if (!error)
+				goto out_detected;
+		}
+		/* For old Gen5 trackpads detecting. */
 		if ((cyapa->gen == CYAPA_GEN_UNKNOWN ||
 				cyapa->gen == CYAPA_GEN5) &&
 			!smbus && even_addr) {
@@ -300,6 +315,9 @@ static int cyapa_check_is_operational(struct cyapa *cyapa)
 		return error;
 
 	switch (cyapa->gen) {
+	case CYAPA_GEN6:
+		cyapa->ops = &cyapa_gen6_ops;
+		break;
 	case CYAPA_GEN5:
 		cyapa->ops = &cyapa_gen5_ops;
 		break;
@@ -579,6 +597,8 @@ static int cyapa_initialize(struct cyapa *cyapa)
 	error = cyapa_gen3_ops.initialize(cyapa);
 	if (!error)
 		error = cyapa_gen5_ops.initialize(cyapa);
+	if (!error)
+		error = cyapa_gen6_ops.initialize(cyapa);
 	if (error)
 		return error;
 
@@ -1136,9 +1156,11 @@ static char *cyapa_state_to_string(struct cyapa *cyapa)
 	case CYAPA_STATE_BL_ACTIVE:
 		return "bootloader active";
 	case CYAPA_STATE_GEN5_BL:
+	case CYAPA_STATE_GEN6_BL:
 		return "bootloader";
 	case CYAPA_STATE_OP:
 	case CYAPA_STATE_GEN5_APP:
+	case CYAPA_STATE_GEN6_APP:
 		return "operational";  /* Normal valid state. */
 	default:
 		return "invalid mode";

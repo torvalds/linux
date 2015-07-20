@@ -133,7 +133,9 @@ struct cyapa_pip_touch_record {
 	 * Bit 7 - 3: reserved
 	 * Bit 2 - 0: touch type;
 	 *            0 : standard finger;
-	 *            1 - 15 : reserved.
+	 *            1 : proximity (Start supported in Gen5 TP).
+	 *            2 : finger hover (defined, but not used yet.)
+	 *            3 - 15 : reserved.
 	 */
 	u8 touch_type;
 
@@ -167,6 +169,9 @@ struct cyapa_pip_touch_record {
 	 * The meaning of this value is different when touch_type is different.
 	 * For standard finger type:
 	 *	Touch intensity in counts, pressure value.
+	 * For proximity type (Start supported in Gen5 TP):
+	 *	The distance, in surface units, between the contact and
+	 *	the surface.
 	 **/
 	u8 z;
 
@@ -218,6 +223,12 @@ struct cyapa_tsg_bin_image_head {
 	u8 fw_major_version;
 	u8 fw_minor_version;
 	u8 fw_revision_control_number[8];
+	u8 silicon_id_hi;
+	u8 silicon_id_lo;
+	u8 chip_revision;
+	u8 family_id;
+	u8 bl_ver_maj;
+	u8 bl_ver_min;
 } __packed;
 
 struct cyapa_tsg_bin_image_data_record {
@@ -1134,6 +1145,39 @@ int cyapa_pip_bl_enter(struct cyapa *cyapa)
 	cyapa->operational = false;
 	if (cyapa->gen == CYAPA_GEN5)
 		cyapa->state = CYAPA_STATE_GEN5_BL;
+	else if (cyapa->gen == CYAPA_GEN6)
+		cyapa->state = CYAPA_STATE_GEN6_BL;
+	return 0;
+}
+
+static int cyapa_pip_fw_head_check(struct cyapa *cyapa,
+		struct cyapa_tsg_bin_image_head *image_head)
+{
+	if (image_head->head_size != 0x0C && image_head->head_size != 0x12)
+		return -EINVAL;
+
+	switch (cyapa->gen) {
+	case CYAPA_GEN6:
+		if (image_head->family_id != 0x9B ||
+		    image_head->silicon_id_hi != 0x0B)
+			return -EINVAL;
+		break;
+	case CYAPA_GEN5:
+		/* Gen5 without proximity support. */
+		if (cyapa->platform_ver < 2) {
+			if (image_head->head_size == 0x0C)
+				break;
+			return -EINVAL;
+		}
+
+		if (image_head->family_id != 0x91 ||
+		    image_head->silicon_id_hi != 0x02)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -1149,6 +1193,14 @@ int cyapa_pip_check_fw(struct cyapa *cyapa, const struct firmware *fw)
 	u16 app_crc;
 	u16 app_integrity_crc;
 	int i;
+
+	/* Verify the firmware image not miss-used for Gen5 and Gen6. */
+	if (cyapa_pip_fw_head_check(cyapa,
+		(struct cyapa_tsg_bin_image_head *)fw->data)) {
+		dev_err(dev, "%s: firmware image not match TP device.\n",
+			     __func__);
+		return -EINVAL;
+	}
 
 	image_records =
 		cyapa_get_image_record_data_num(fw, &flash_records_count);
@@ -2339,6 +2391,9 @@ static int cyapa_gen5_bl_query_data(struct cyapa *cyapa)
 	cyapa->fw_maj_ver = resp_data[22];
 	cyapa->fw_min_ver = resp_data[23];
 
+	cyapa->platform_ver = (resp_data[26] >> PIP_BL_PLATFORM_VER_SHIFT) &
+			      PIP_BL_PLATFORM_VER_MASK;
+
 	return 0;
 }
 
@@ -2362,8 +2417,16 @@ static int cyapa_gen5_get_query_data(struct cyapa *cyapa)
 		PIP_PRODUCT_FAMILY_TRACKPAD)
 		return -EINVAL;
 
-	cyapa->fw_maj_ver = resp_data[15];
-	cyapa->fw_min_ver = resp_data[16];
+	cyapa->platform_ver = (resp_data[49] >> PIP_BL_PLATFORM_VER_SHIFT) &
+			      PIP_BL_PLATFORM_VER_MASK;
+	if (cyapa->gen == CYAPA_GEN5 && cyapa->platform_ver < 2) {
+		/* Gen5 firmware that does not support proximity. */
+		cyapa->fw_maj_ver = resp_data[15];
+		cyapa->fw_min_ver = resp_data[16];
+	} else {
+		cyapa->fw_maj_ver = resp_data[9];
+		cyapa->fw_min_ver = resp_data[10];
+	}
 
 	cyapa->electrodes_x = resp_data[52];
 	cyapa->electrodes_y = resp_data[53];
