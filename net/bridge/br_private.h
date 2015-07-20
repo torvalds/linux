@@ -566,6 +566,10 @@ static inline void br_multicast_stop(struct net_bridge *br)
 {
 }
 
+static inline void br_multicast_dev_del(struct net_bridge *br)
+{
+}
+
 static inline void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
 					struct sk_buff *skb)
 {
