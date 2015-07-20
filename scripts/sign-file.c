@@ -22,6 +22,7 @@
 #include <openssl/pem.h>
 #include <openssl/pkcs7.h>
 #include <openssl/err.h>
+#include <openssl/engine.h>
 
 struct module_signature {
 	uint8_t		algo;		/* Public-key crypto algorithm [0] */
@@ -154,11 +155,29 @@ int main(int argc, char **argv)
 	/* Read the private key and the X.509 cert the PKCS#7 message
 	 * will point to.
 	 */
-	b = BIO_new_file(private_key_name, "rb");
-	ERR(!b, "%s", private_key_name);
-	private_key = PEM_read_bio_PrivateKey(b, NULL, pem_pw_cb, NULL);
-	ERR(!private_key, "%s", private_key_name);
-	BIO_free(b);
+	if (!strncmp(private_key_name, "pkcs11:", 7)) {
+		ENGINE *e;
+
+		ENGINE_load_builtin_engines();
+		drain_openssl_errors();
+		e = ENGINE_by_id("pkcs11");
+		ERR(!e, "Load PKCS#11 ENGINE");
+		if (ENGINE_init(e))
+			drain_openssl_errors();
+		else
+			ERR(1, "ENGINE_init");
+		if (key_pass)
+			ERR(!ENGINE_ctrl_cmd_string(e, "PIN", key_pass, 0), "Set PKCS#11 PIN");
+		private_key = ENGINE_load_private_key(e, private_key_name, NULL,
+						      NULL);
+		ERR(!private_key, "%s", private_key_name);
+	} else {
+		b = BIO_new_file(private_key_name, "rb");
+		ERR(!b, "%s", private_key_name);
+		private_key = PEM_read_bio_PrivateKey(b, NULL, pem_pw_cb, NULL);
+		ERR(!private_key, "%s", private_key_name);
+		BIO_free(b);
+	}
 
 	b = BIO_new_file(x509_name, "rb");
 	ERR(!b, "%s", x509_name);
