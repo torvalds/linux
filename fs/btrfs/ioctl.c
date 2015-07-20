@@ -3090,7 +3090,7 @@ out_unlock:
 static long btrfs_ioctl_file_extent_same(struct file *file,
 			struct btrfs_ioctl_same_args __user *argp)
 {
-	struct btrfs_ioctl_same_args *same;
+	struct btrfs_ioctl_same_args *same = NULL;
 	struct btrfs_ioctl_same_extent_info *info;
 	struct inode *src = file_inode(file);
 	u64 off;
@@ -3120,6 +3120,7 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 
 	if (IS_ERR(same)) {
 		ret = PTR_ERR(same);
+		same = NULL;
 		goto out;
 	}
 
@@ -3190,6 +3191,7 @@ static long btrfs_ioctl_file_extent_same(struct file *file,
 
 out:
 	mnt_drop_write_file(file);
+	kfree(same);
 	return ret;
 }
 
@@ -3585,6 +3587,20 @@ process_slot:
 				u64 skip = 0;
 				u64 trim = 0;
 				u64 aligned_end = 0;
+
+				/*
+				 * Don't copy an inline extent into an offset
+				 * greater than zero. Having an inline extent
+				 * at such an offset results in chaos as btrfs
+				 * isn't prepared for such cases. Just skip
+				 * this case for the same reasons as commented
+				 * at btrfs_ioctl_clone().
+				 */
+				if (last_dest_end > 0) {
+					ret = -EOPNOTSUPP;
+					btrfs_end_transaction(trans, root);
+					goto out;
+				}
 
 				if (off > key.offset) {
 					skip = off - key.offset;

@@ -81,7 +81,7 @@ EXPORT_SYMBOL_GPL(idle_notifier_unregister);
  */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	*dst = *src;
+	memcpy(dst, src, arch_task_struct_size);
 
 	return fpu__copy(&dst->thread.fpu, &src->thread.fpu);
 }

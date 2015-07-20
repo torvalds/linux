@@ -105,7 +105,8 @@ struct symbol_conf {
 			demangle_kernel,
 			filter_relative,
 			show_hist_headers,
-			branch_callstack;
+			branch_callstack,
+			has_filter;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

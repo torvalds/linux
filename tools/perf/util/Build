@@ -143,6 +143,6 @@ $(OUTPUT)util/rbtree.o: ../lib/rbtree.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
-$(OUTPUT)util/hweight.o: ../../lib/hweight.c FORCE
+$(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
