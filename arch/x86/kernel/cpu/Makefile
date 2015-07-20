@@ -46,6 +46,8 @@ obj-$(CONFIG_PERF_EVENTS_INTEL_UNCORE)	+= perf_event_intel_uncore.o \
 					   perf_event_intel_uncore_snb.o \
 					   perf_event_intel_uncore_snbep.o \
 					   perf_event_intel_uncore_nhmex.o
+obj-$(CONFIG_CPU_SUP_INTEL)		+= perf_event_msr.o
+obj-$(CONFIG_CPU_SUP_AMD)		+= perf_event_msr.o
 endif
 
 
