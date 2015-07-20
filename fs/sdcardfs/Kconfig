@@ -1,0 +1,18 @@
+config SDCARD_FS
+	tristate "sdcard file system"
+	depends on EXPERIMENTAL
+	default n
+	help
+	  Sdcardfs is based on Wrapfs file system.
+
+config SDCARD_FS_FADV_NOACTIVE
+	bool "sdcardfs fadvise noactive support"
+	depends on FADV_NOACTIVE
+	default y
+	help
+	  Sdcardfs supports fadvise noactive mode.
+
+config SDCARD_FS_CI_SEARCH
+	tristate "sdcardfs case-insensitive search support"
+	depends on SDCARD_FS
+	default y

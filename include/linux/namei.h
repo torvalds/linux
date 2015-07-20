@@ -43,6 +43,9 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_JUMPED		0x1000
 #define LOOKUP_ROOT		0x2000
 #define LOOKUP_EMPTY		0x4000
+#ifdef CONFIG_SDCARD_FS_CI_SEARCH
+#define LOOKUP_CASE_INSENSITIVE 0x8000
+#endif
 
 extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
 
