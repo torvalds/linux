@@ -1049,8 +1049,9 @@ static int zr36057_init (struct zoran *zr)
 	/*
 	 *   Now add the template and register the device unit.
 	 */
-	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
+	*zr->video_dev = zoran_template;
 	zr->video_dev->v4l2_dev = &zr->v4l2_dev;
+	zr->video_dev->lock = &zr->lock;
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
 	/* It's not a mem2mem device, but you can both capture and output from
 	   one and the same device. This should really be split up into two
@@ -1220,8 +1221,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	zr->id = nr;
 	snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%u]", zr->id);
 	spin_lock_init(&zr->spinlock);
-	mutex_init(&zr->resource_lock);
-	mutex_init(&zr->other_lock);
+	mutex_init(&zr->lock);
 	if (pci_enable_device(pdev))
 		goto zr_unreg;
 	zr->revision = zr->pci_dev->revision;
