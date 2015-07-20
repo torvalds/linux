@@ -61,6 +61,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 #include "videocodec.h"
 
 #include <asm/byteorder.h>
@@ -937,6 +938,8 @@ static int zoran_open(struct file *file)
 		res = -ENOMEM;
 		goto fail_unlock;
 	}
+	v4l2_fh_init(&fh->fh, video_devdata(file));
+
 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
 	 * on norm-change! */
 	fh->overlay_mask =
@@ -966,6 +969,7 @@ static int zoran_open(struct file *file)
 	file->private_data = fh;
 	fh->zr = zr;
 	zoran_open_init_session(fh);
+	v4l2_fh_add(&fh->fh);
 	mutex_unlock(&zr->lock);
 
 	return 0;
@@ -1028,6 +1032,8 @@ zoran_close(struct file  *file)
 	}
 	mutex_unlock(&zr->lock);
 
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh->overlay_mask);
 	kfree(fh);
 
@@ -2263,53 +2269,6 @@ static int zoran_streamoff(struct file *file, void *__fh, enum v4l2_buf_type typ
 	}
 	return res;
 }
-
-static int zoran_queryctrl(struct file *file, void *__fh,
-					struct v4l2_queryctrl *ctrl)
-{
-	struct zoran_fh *fh = __fh;
-	struct zoran *zr = fh->zr;
-
-	/* we only support hue/saturation/contrast/brightness */
-	if (ctrl->id < V4L2_CID_BRIGHTNESS ||
-	    ctrl->id > V4L2_CID_HUE)
-		return -EINVAL;
-
-	decoder_call(zr, core, queryctrl, ctrl);
-
-	return 0;
-}
-
-static int zoran_g_ctrl(struct file *file, void *__fh, struct v4l2_control *ctrl)
-{
-	struct zoran_fh *fh = __fh;
-	struct zoran *zr = fh->zr;
-
-	/* we only support hue/saturation/contrast/brightness */
-	if (ctrl->id < V4L2_CID_BRIGHTNESS ||
-	    ctrl->id > V4L2_CID_HUE)
-		return -EINVAL;
-
-	decoder_call(zr, core, g_ctrl, ctrl);
-
-	return 0;
-}
-
-static int zoran_s_ctrl(struct file *file, void *__fh, struct v4l2_control *ctrl)
-{
-	struct zoran_fh *fh = __fh;
-	struct zoran *zr = fh->zr;
-
-	/* we only support hue/saturation/contrast/brightness */
-	if (ctrl->id < V4L2_CID_BRIGHTNESS ||
-	    ctrl->id > V4L2_CID_HUE)
-		return -EINVAL;
-
-	decoder_call(zr, core, s_ctrl, ctrl);
-
-	return 0;
-}
-
 static int zoran_g_std(struct file *file, void *__fh, v4l2_std_id *std)
 {
 	struct zoran_fh *fh = __fh;
@@ -2563,7 +2522,8 @@ zoran_poll (struct file *file,
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
-	int res = 0, frame;
+	int res = v4l2_ctrl_poll(file, wait);
+	int frame;
 	unsigned long flags;
 
 	/* we should check whether buffers are ready to be synced on
@@ -2591,7 +2551,7 @@ zoran_poll (struct file *file,
 		if (fh->buffers.active != ZORAN_FREE &&
 		    /* Buffer ready to DQBUF? */
 		    zr->v4l_buffers.buffer[frame].state == BUZ_STATE_DONE)
-			res = POLLIN | POLLRDNORM;
+			res |= POLLIN | POLLRDNORM;
 		spin_unlock_irqrestore(&zr->spinlock, flags);
 
 		break;
@@ -2612,9 +2572,9 @@ zoran_poll (struct file *file,
 		if (fh->buffers.active != ZORAN_FREE &&
 		    zr->jpg_buffers.buffer[frame].state == BUZ_STATE_DONE) {
 			if (fh->map_mode == ZORAN_MAP_MODE_JPG_REC)
-				res = POLLIN | POLLRDNORM;
+				res |= POLLIN | POLLRDNORM;
 			else
-				res = POLLOUT | POLLWRNORM;
+				res |= POLLOUT | POLLWRNORM;
 		}
 		spin_unlock_irqrestore(&zr->spinlock, flags);
 
@@ -2625,7 +2585,7 @@ zoran_poll (struct file *file,
 			KERN_ERR
 			"%s: %s - internal error, unknown map_mode=%d\n",
 			ZR_DEVNAME(zr), __func__, fh->map_mode);
-		res = POLLNVAL;
+		res |= POLLERR;
 	}
 
 	return res;
@@ -2882,9 +2842,8 @@ static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap  	    = zoran_try_fmt_vid_cap,
 	.vidioc_try_fmt_vid_out 	    = zoran_try_fmt_vid_out,
 	.vidioc_try_fmt_vid_overlay 	    = zoran_try_fmt_vid_overlay,
-	.vidioc_queryctrl 		    = zoran_queryctrl,
-	.vidioc_s_ctrl       		    = zoran_s_ctrl,
-	.vidioc_g_ctrl       		    = zoran_g_ctrl,
+	.vidioc_subscribe_event             = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event           = v4l2_event_unsubscribe,
 };
 
 static const struct v4l2_file_operations zoran_fops = {
