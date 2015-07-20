@@ -13,6 +13,7 @@
 #include <linux/kgdb.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/stackprotector.h>
 #include <asm/perf_event.h>
@@ -1488,3 +1489,20 @@ inline bool __static_cpu_has_safe(u16 bit)
 	return boot_cpu_has(bit);
 }
 EXPORT_SYMBOL_GPL(__static_cpu_has_safe);
+
+static void bsp_resume(void)
+{
+	if (this_cpu->c_bsp_resume)
+		this_cpu->c_bsp_resume(&boot_cpu_data);
+}
+
+static struct syscore_ops cpu_syscore_ops = {
+	.resume		= bsp_resume,
+};
+
+static int __init init_cpu_syscore(void)
+{
+	register_syscore_ops(&cpu_syscore_ops);
+	return 0;
+}
+core_initcall(init_cpu_syscore);
