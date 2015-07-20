@@ -472,7 +472,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 }
 
 /*
- * We avoid multiple worker processes conflicting via the balloon mutex.
+ * As this is a work item it is guaranteed to run as a single instance only.
  * We may of course race updates of the target counts (which are protected
  * by the balloon lock), or with changes to the Xen hard limit, but we will
  * recover from these in time.
@@ -482,9 +482,10 @@ static void balloon_process(struct work_struct *work)
 	enum bp_state state = BP_DONE;
 	long credit;
 
-	mutex_lock(&balloon_mutex);
 
 	do {
+		mutex_lock(&balloon_mutex);
+
 		credit = current_credit();
 
 		if (credit > 0) {
@@ -499,17 +500,15 @@ static void balloon_process(struct work_struct *work)
 
 		state = update_schedule(state);
 
-#ifndef CONFIG_PREEMPT
-		if (need_resched())
-			schedule();
-#endif
+		mutex_unlock(&balloon_mutex);
+
+		cond_resched();
+
 	} while (credit && state == BP_DONE);
 
 	/* Schedule more work if there is some still to be done. */
 	if (state == BP_EAGAIN)
 		schedule_delayed_work(&balloon_worker, balloon_stats.schedule_delay * HZ);
-
-	mutex_unlock(&balloon_mutex);
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
