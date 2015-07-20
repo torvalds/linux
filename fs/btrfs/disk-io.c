@@ -2950,8 +2950,9 @@ retry_root_backup:
 	if (fs_info->fs_devices->missing_devices >
 	     fs_info->num_tolerated_disk_barrier_failures &&
 	    !(sb->s_flags & MS_RDONLY)) {
-		printk(KERN_WARNING "BTRFS: "
-			"too many missing devices, writeable mount is not allowed\n");
+		pr_warn("BTRFS: missing devices(%llu) exceeds the limit(%d), writeable mount is not allowed\n",
+			fs_info->fs_devices->missing_devices,
+			fs_info->num_tolerated_disk_barrier_failures);
 		goto fail_sysfs;
 	}
 
