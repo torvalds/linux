@@ -620,8 +620,6 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 
 	lacl->mapped_lun = mapped_lun;
 	lacl->se_lun_nacl = nacl;
-	snprintf(lacl->initiatorname, TRANSPORT_IQN_LEN, "%s",
-		 nacl->initiatorname);
 
 	return lacl;
 }
@@ -656,7 +654,7 @@ int core_dev_add_initiator_node_lun_acl(
 		" InitiatorNode: %s\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun, lacl->mapped_lun,
 		(lun_access & TRANSPORT_LUNFLAGS_READ_WRITE) ? "RW" : "RO",
-		lacl->initiatorname);
+		nacl->initiatorname);
 	/*
 	 * Check to see if there are any existing persistent reservation APTPL
 	 * pre-registrations that need to be enabled for this LUN ACL..
@@ -688,7 +686,7 @@ int core_dev_del_initiator_node_lun_acl(
 		" InitiatorNode: %s Mapped LUN: %llu\n",
 		tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
-		lacl->initiatorname, lacl->mapped_lun);
+		nacl->initiatorname, lacl->mapped_lun);
 
 	return 0;
 }
@@ -701,7 +699,7 @@ void core_dev_free_initiator_node_lun_acl(
 		" Mapped LUN: %llu\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg),
 		tpg->se_tpg_tfo->get_fabric_name(),
-		lacl->initiatorname, lacl->mapped_lun);
+		lacl->se_lun_nacl->initiatorname, lacl->mapped_lun);
 
 	kfree(lacl);
 }

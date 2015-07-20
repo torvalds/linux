@@ -593,7 +593,6 @@ struct se_ml_stat_grps {
 };
 
 struct se_lun_acl {
-	char			initiatorname[TRANSPORT_IQN_LEN];
 	u64			mapped_lun;
 	struct se_node_acl	*se_lun_nacl;
 	struct se_lun		*se_lun;
