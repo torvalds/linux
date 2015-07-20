@@ -265,7 +265,7 @@ static int debug_read_pagetable(struct seq_file *s, void *data)
 		.open = simple_open,					\
 		.read = debug_read_##name,				\
 		.llseek = generic_file_llseek,				\
-	};
+	}
 
 DEBUG_FOPS_RO(regs);
 DEBUG_FOPS_RO(tlb);
