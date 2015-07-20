@@ -787,14 +787,14 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 
 	if (!iopgd_is_table(*iopgd)) {
 		dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:px%08x\n",
-				obj->name, errs, da, iopgd, *iopgd);
+			obj->name, errs, da, iopgd, *iopgd);
 		return IRQ_NONE;
 	}
 
 	iopte = iopte_offset(iopgd, da);
 
 	dev_err(obj->dev, "%s: errs:0x%08x da:0x%08x pgd:0x%p *pgd:0x%08x pte:0x%p *pte:0x%08x\n",
-			obj->name, errs, da, iopgd, *iopgd, iopte, *iopte);
+		obj->name, errs, da, iopgd, *iopgd, iopte, *iopte);
 
 	return IRQ_NONE;
 }
@@ -820,9 +820,8 @@ static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
 	struct device *dev;
 	struct omap_iommu *obj;
 
-	dev = driver_find_device(&omap_iommu_driver.driver, NULL,
-				(void *)name,
-				device_match_by_alias);
+	dev = driver_find_device(&omap_iommu_driver.driver, NULL, (void *)name,
+				 device_match_by_alias);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -977,7 +976,7 @@ static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa, int pgsz)
 }
 
 static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
-			 phys_addr_t pa, size_t bytes, int prot)
+			  phys_addr_t pa, size_t bytes, int prot)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 	struct omap_iommu *oiommu = omap_domain->iommu_dev;
@@ -1004,7 +1003,7 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 }
 
 static size_t omap_iommu_unmap(struct iommu_domain *domain, unsigned long da,
-			    size_t size)
+			       size_t size)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 	struct omap_iommu *oiommu = omap_domain->iommu_dev;
@@ -1055,7 +1054,7 @@ out:
 }
 
 static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
-			struct device *dev)
+				   struct device *dev)
 {
 	struct omap_iommu *oiommu = dev_to_omap_iommu(dev);
 	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
@@ -1076,7 +1075,7 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 }
 
 static void omap_iommu_detach_dev(struct iommu_domain *domain,
-				 struct device *dev)
+				  struct device *dev)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 
@@ -1137,7 +1136,7 @@ static void omap_iommu_domain_free(struct iommu_domain *domain)
 }
 
 static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
-					  dma_addr_t da)
+					   dma_addr_t da)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 	struct omap_iommu *oiommu = omap_domain->iommu_dev;
@@ -1154,7 +1153,7 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 			ret = omap_iommu_translate(*pte, da, IOLARGE_MASK);
 		else
 			dev_err(dev, "bogus pte 0x%x, da 0x%llx", *pte,
-							(unsigned long long)da);
+				(unsigned long long)da);
 	} else {
 		if (iopgd_is_section(*pgd))
 			ret = omap_iommu_translate(*pgd, da, IOSECTION_MASK);
@@ -1162,7 +1161,7 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 			ret = omap_iommu_translate(*pgd, da, IOSUPER_MASK);
 		else
 			dev_err(dev, "bogus pgd 0x%x, da 0x%llx", *pgd,
-							(unsigned long long)da);
+				(unsigned long long)da);
 	}
 
 	return ret;
