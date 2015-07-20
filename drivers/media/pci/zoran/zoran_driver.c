@@ -1032,29 +1032,6 @@ zoran_close(struct file  *file)
 	return 0;
 }
 
-
-static ssize_t
-zoran_read (struct file *file,
-	    char        __user *data,
-	    size_t       count,
-	    loff_t      *ppos)
-{
-	/* we simply don't support read() (yet)... */
-
-	return -EINVAL;
-}
-
-static ssize_t
-zoran_write (struct file *file,
-	     const char  __user *data,
-	     size_t       count,
-	     loff_t      *ppos)
-{
-	/* ...and the same goes for write() */
-
-	return -EINVAL;
-}
-
 static int setup_fbuffer(struct zoran_fh *fh,
 	       void                      *base,
 	       const struct zoran_format *fmt,
@@ -3052,8 +3029,6 @@ static const struct v4l2_file_operations zoran_fops = {
 	.open = zoran_open,
 	.release = zoran_close,
 	.unlocked_ioctl = zoran_ioctl,
-	.read = zoran_read,
-	.write = zoran_write,
 	.mmap = zoran_mmap,
 	.poll = zoran_poll,
 };
