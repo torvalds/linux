@@ -22,12 +22,7 @@ struct iotlb_entry {
 	u32 da;
 	u32 pa;
 	u32 pgsz, prsvd, valid;
-	union {
-		u16 ap;
-		struct {
-			u32 endian, elsz, mixed;
-		};
-	};
+	u32 endian, elsz, mixed;
 };
 
 struct omap_iommu {
@@ -54,20 +49,8 @@ struct omap_iommu {
 };
 
 struct cr_regs {
-	union {
-		struct {
-			u16 cam_l;
-			u16 cam_h;
-		};
-		u32 cam;
-	};
-	union {
-		struct {
-			u16 ram_l;
-			u16 ram_h;
-		};
-		u32 ram;
-	};
+	u32 cam;
+	u32 ram;
 };
 
 struct iotlb_lock {
