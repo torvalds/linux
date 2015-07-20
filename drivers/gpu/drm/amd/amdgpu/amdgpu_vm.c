@@ -127,16 +127,16 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 /**
  * amdgpu_vm_grab_id - allocate the next free VMID
  *
- * @ring: ring we want to submit job to
  * @vm: vm to allocate id for
+ * @ring: ring we want to submit job to
+ * @sync: sync object where we add dependencies
  *
- * Allocate an id for the vm (cayman+).
- * Returns the fence we need to sync to (if any).
+ * Allocate an id for the vm, adding fences to the sync obj as necessary.
  *
- * Global and local mutex must be locked!
+ * Global mutex must be locked!
  */
-struct amdgpu_fence *amdgpu_vm_grab_id(struct amdgpu_ring *ring,
-				       struct amdgpu_vm *vm)
+int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
+		      struct amdgpu_sync *sync)
 {
 	struct amdgpu_fence *best[AMDGPU_MAX_RINGS] = {};
 	struct amdgpu_vm_id *vm_id = &vm->ids[ring->idx];
@@ -148,7 +148,7 @@ struct amdgpu_fence *amdgpu_vm_grab_id(struct amdgpu_ring *ring,
 	/* check if the id is still valid */
 	if (vm_id->id && vm_id->last_id_use &&
 	    vm_id->last_id_use == adev->vm_manager.active[vm_id->id])
-		return NULL;
+		return 0;
 
 	/* we definately need to flush */
 	vm_id->pd_gpu_addr = ~0ll;
@@ -161,7 +161,7 @@ struct amdgpu_fence *amdgpu_vm_grab_id(struct amdgpu_ring *ring,
 			/* found a free one */
 			vm_id->id = i;
 			trace_amdgpu_vm_grab_id(i, ring->idx);
-			return NULL;
+			return 0;
 		}
 
 		if (amdgpu_fence_is_earlier(fence, best[fence->ring->idx])) {
@@ -172,15 +172,19 @@ struct amdgpu_fence *amdgpu_vm_grab_id(struct amdgpu_ring *ring,
 
 	for (i = 0; i < 2; ++i) {
 		if (choices[i]) {
+			struct amdgpu_fence *fence;
+
+			fence  = adev->vm_manager.active[choices[i]];
 			vm_id->id = choices[i];
+
 			trace_amdgpu_vm_grab_id(choices[i], ring->idx);
-			return adev->vm_manager.active[choices[i]];
+			return amdgpu_sync_fence(ring->adev, sync, &fence->base);
 		}
 	}
 
 	/* should never happen */
 	BUG();
-	return NULL;
+	return -EINVAL;
 }
 
 /**

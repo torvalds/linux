@@ -165,9 +165,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 
 	if (vm) {
 		/* grab a vm id if necessary */
-		struct amdgpu_fence *vm_id_fence = NULL;
-		vm_id_fence = amdgpu_vm_grab_id(ibs->ring, ibs->vm);
-		r = amdgpu_sync_fence(adev, &ibs->sync, &vm_id_fence->base);
+		r = amdgpu_vm_grab_id(ibs->vm, ibs->ring, &ibs->sync);
 		if (r) {
 			amdgpu_ring_unlock_undo(ring);
 			return r;
