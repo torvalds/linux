@@ -608,14 +608,13 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	if (!usbvision->have_tuner || vt->index)	/* Only tuner 0 */
+	if (vt->index)	/* Only tuner 0 */
 		return -EINVAL;
-	if (usbvision->radio) {
+	if (vt->type == V4L2_TUNER_RADIO)
 		strcpy(vt->name, "Radio");
-		vt->type = V4L2_TUNER_RADIO;
-	} else {
+	else
 		strcpy(vt->name, "Television");
-	}
+
 	/* Let clients fill in the remainder of this struct */
 	call_all(usbvision, tuner, g_tuner, vt);
 
@@ -627,8 +626,8 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	/* Only no or one tuner for now */
-	if (!usbvision->have_tuner || vt->index)
+	/* Only one tuner for now */
+	if (vt->index)
 		return -EINVAL;
 	/* let clients handle this */
 	call_all(usbvision, tuner, s_tuner, vt);
@@ -641,12 +640,13 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	freq->tuner = 0; /* Only one tuner */
-	if (usbvision->radio)
-		freq->type = V4L2_TUNER_RADIO;
+	/* Only one tuner */
+	if (freq->tuner)
+		return -EINVAL;
+	if (freq->type == V4L2_TUNER_RADIO)
+		freq->frequency = usbvision->radio_freq;
 	else
-		freq->type = V4L2_TUNER_ANALOG_TV;
-	freq->frequency = usbvision->freq;
+		freq->frequency = usbvision->tv_freq;
 
 	return 0;
 }
@@ -655,13 +655,18 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 				const struct v4l2_frequency *freq)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
+	struct v4l2_frequency new_freq = *freq;
 
-	/* Only no or one tuner for now */
-	if (!usbvision->have_tuner || freq->tuner)
+	/* Only one tuner for now */
+	if (freq->tuner)
 		return -EINVAL;
 
-	usbvision->freq = freq->frequency;
 	call_all(usbvision, tuner, s_frequency, freq);
+	call_all(usbvision, tuner, g_frequency, &new_freq);
+	if (freq->type == V4L2_TUNER_RADIO)
+		usbvision->radio_freq = new_freq.frequency;
+	else
+		usbvision->tv_freq = new_freq.frequency;
 
 	return 0;
 }
@@ -1287,6 +1292,12 @@ static int usbvision_register_video(struct usb_usbvision *usbvision)
 	/* Video Device: */
 	usbvision_vdev_init(usbvision, &usbvision->vdev,
 			      &usbvision_video_template, "USBVision Video");
+	if (!usbvision->have_tuner) {
+		v4l2_disable_ioctl(&usbvision->vdev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(&usbvision->vdev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(&usbvision->vdev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(&usbvision->vdev, VIDIOC_S_TUNER);
+	}
 	if (video_register_device(&usbvision->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
 		goto err_exit;
 	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device %s [v4l2]\n",
@@ -1403,9 +1414,10 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 	}
 
 	usbvision->tvnorm_id = usbvision_device_data[model].video_norm;
-
 	usbvision->video_inputs = usbvision_device_data[model].video_channels;
 	usbvision->ctl_input = 0;
+	usbvision->radio_freq = 87.5 * 16000;
+	usbvision->tv_freq = 400 * 16;
 
 	/* This should be here to make i2c clients to be able to register */
 	/* first switch off audio */

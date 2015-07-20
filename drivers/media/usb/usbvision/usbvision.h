@@ -378,7 +378,8 @@ struct usb_usbvision {
 	int bridge_type;						/* NT1003, NT1004, NT1005 */
 	int radio;
 	int video_inputs;						/* # of inputs */
-	unsigned long freq;
+	unsigned long radio_freq;
+	unsigned long tv_freq;
 	int audio_mute;
 	int audio_channel;
 	int isoc_mode;							/* format of video data for the usb isoc-transfer */
