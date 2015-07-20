@@ -1580,6 +1580,8 @@ static bool wm8998_volatile_register(struct device *dev, unsigned int reg)
 const struct regmap_config wm8998_i2c_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = WM8998_MAX_REGISTER,
 	.readable_reg = wm8998_readable_register,

@@ -2997,6 +2997,8 @@ const struct regmap_config wm5110_spi_regmap = {
 	.reg_bits = 32,
 	.pad_bits = 16,
 	.val_bits = 16,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,
@@ -3011,6 +3013,8 @@ EXPORT_SYMBOL_GPL(wm5110_spi_regmap);
 const struct regmap_config wm5110_i2c_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = WM5110_MAX_REGISTER,
 	.readable_reg = wm5110_readable_register,

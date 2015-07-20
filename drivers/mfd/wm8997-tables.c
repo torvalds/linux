@@ -1519,6 +1519,8 @@ static bool wm8997_volatile_register(struct device *dev, unsigned int reg)
 const struct regmap_config wm8997_i2c_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
+	.reg_format_endian = REGMAP_ENDIAN_BIG,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
 
 	.max_register = WM8997_MAX_REGISTER,
 	.readable_reg = wm8997_readable_register,
