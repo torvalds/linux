@@ -166,23 +166,22 @@ endef
 #
 ###############################################################################
 
-
 ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
 
 $(eval $(call config_filename,SYSTEM_TRUSTED_KEYS))
 
-SIGNING_X509-$(CONFIG_MODULE_SIG) += signing_key.x509
+# GCC doesn't include .incbin files in -MD generated dependencies (PR#66871)
+$(obj)/system_certificates.o: $(obj)/x509_certificate_list
 
-kernel/system_certificates.o: $(obj)/x509_certificate_list
+# Cope with signing_key.x509 existing in $(srctree) not $(objtree)
+AFLAGS_system_certificates.o := -I$(srctree)
 
-quiet_cmd_x509certs  = CERTS   $(SIGNING_X509-y) $(patsubst "%",%,$(2))
-      cmd_x509certs  = ( cat $(SIGNING_X509-y) /dev/null; \
-			 awk '/-----BEGIN CERTIFICATE-----/{flag=1;next}/-----END CERTIFICATE-----/{flag=0}flag' $(2) /dev/null | base64 -d ) > $@ || ( rm $@; exit 1)
+quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
+      cmd_extract_certs  = scripts/extract-cert $(2) $@ || ( rm $@; exit 1)
 
-targets += $(obj)/x509_certificate_list
-$(obj)/x509_certificate_list: $(SIGNING_X509-y) include/config/system/trusted/keys.h $(wildcard include/config/module/sig.h) $(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(SYSTEM_TRUSTED_KEYS_FILENAME)
-	$(call if_changed,x509certs,$(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(CONFIG_SYSTEM_TRUSTED_KEYS))
-
+targets += x509_certificate_list
+$(obj)/x509_certificate_list: scripts/extract-cert $(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(SYSTEM_TRUSTED_KEYS_FILENAME) FORCE
+	$(call if_changed,extract_certs,$(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(CONFIG_SYSTEM_TRUSTED_KEYS))
 endif
 
 clean-files := x509_certificate_list .x509.list
@@ -248,9 +247,9 @@ ifeq ($(patsubst pkcs11:%,%,$(firstword $(MODULE_SIG_KEY_FILENAME))),$(firstword
 X509_DEP := $(MODULE_SIG_KEY_SRCPREFIX)$(MODULE_SIG_KEY_FILENAME)
 endif
 
-quiet_cmd_extract_der = SIGNING_CERT $(patsubst "%",%,$(2))
-      cmd_extract_der = scripts/extract-cert $(2) signing_key.x509
+# GCC PR#66871 again.
+$(obj)/system_certificates.o: signing_key.x509
 
 signing_key.x509: scripts/extract-cert include/config/module/sig/key.h $(X509_DEP)
-	$(call cmd,extract_der,$(MODULE_SIG_KEY_SRCPREFIX)$(CONFIG_MODULE_SIG_KEY))
+	$(call cmd,extract_certs,$(MODULE_SIG_KEY_SRCPREFIX)$(CONFIG_MODULE_SIG_KEY))
 endif
