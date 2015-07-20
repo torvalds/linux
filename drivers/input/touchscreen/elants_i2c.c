@@ -605,6 +605,7 @@ static int elants_i2c_do_update_firmware(struct i2c_client *client,
 	const u8 enter_iap[] = { 0x45, 0x49, 0x41, 0x50 };
 	const u8 enter_iap2[] = { 0x54, 0x00, 0x12, 0x34 };
 	const u8 iap_ack[] = { 0x55, 0xaa, 0x33, 0xcc };
+	const u8 close_idle[] = {0x54, 0x2c, 0x01, 0x01};
 	u8 buf[HEADER_SIZE];
 	u16 send_id;
 	int page, n_fw_pages;
@@ -617,8 +618,13 @@ static int elants_i2c_do_update_firmware(struct i2c_client *client,
 	} else {
 		/* Start IAP Procedure */
 		dev_dbg(&client->dev, "Normal IAP procedure\n");
+		/* Close idle mode */
+		error = elants_i2c_send(client, close_idle, sizeof(close_idle));
+		if (error)
+			dev_err(&client->dev, "Failed close idle: %d\n", error);
+		msleep(60);
 		elants_i2c_sw_reset(client);
-
+		msleep(20);
 		error = elants_i2c_send(client, enter_iap, sizeof(enter_iap));
 	}
 
