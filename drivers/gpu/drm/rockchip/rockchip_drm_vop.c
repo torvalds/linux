@@ -657,11 +657,9 @@ static int vop_update_plane_event(struct drm_plane *plane,
 
 	actual_w = (src.x2 - src.x1) >> 16;
 	actual_h = (src.y2 - src.y1) >> 16;
-	crtc_x = max(0, crtc_x);
-	crtc_y = max(0, crtc_y);
 
-	dsp_stx = crtc_x + crtc->mode.htotal - crtc->mode.hsync_start;
-	dsp_sty = crtc_y + crtc->mode.vtotal - crtc->mode.vsync_start;
+	dsp_stx = dest.x1 + crtc->mode.htotal - crtc->mode.hsync_start;
+	dsp_sty = dest.y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
 
 	offset = (src.x1 >> 16) * (fb->bits_per_pixel >> 3);
 	offset += (src.y1 >> 16) * fb->pitches[0];
