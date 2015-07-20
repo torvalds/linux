@@ -1280,11 +1280,190 @@ static int rk32_edp_enable_scramble(struct rk32_edp *edp, bool enable)
 	return 0;
 }
 #endif*/
+static int rk32_edp_psr_enable(struct rk32_edp *edp)
+{
+	u8 buf;
+	int retval;
+	char date, psr_version;
+
+	/*if support PSR*/
+	retval = rk32_edp_read_byte_from_dpcd
+			(edp,
+			 PANEL_SELF_REFRESH_CAPABILITY_SUPPORTED_AND_VERSION,
+			 &psr_version);
+	if (retval < 0) {
+		dev_err(edp->dev, "PSR DPCD Read failed!\n");
+		return retval;
+	} else {
+		pr_info("PSR supporter and version:%x\n", psr_version);
+	}
+
+	 /*PSR capabilities*/
+	retval = rk32_edp_read_byte_from_dpcd
+			(edp,
+			 PANEL_SELF_REFRESH_CAPABILITIES, &date);
+	if (retval < 0) {
+		dev_err(edp->dev, "PSR DPCD Read failed!\n");
+		return retval;
+	} else {
+		pr_info("PSR capabilities:%x\n", date);
+	}
+
+	if (psr_version & PSR_SUPPORT) {
+		pr_info("PSR config psr\n");
+
+		/*config sink PSR*/
+		buf = 0x02;
+		retval = rk32_edp_write_bytes_to_dpcd(edp, PSR_ENABLE,
+						      1, &buf);
+		if (retval < 0) {
+			dev_err(edp->dev, "PSR failed to config sink PSR!\n");
+			return retval;
+		} else {
+			/*enable the PSR*/
+			buf = 0x03;
+			retval = rk32_edp_write_bytes_to_dpcd(edp,
+							      PSR_ENABLE,
+							      1, &buf);
+			if (retval < 0) {
+				dev_err(edp->dev, "PSR failed to enable the PSR!\n");
+				return retval;
+			}
+			/*read sink config state*/
+			retval = rk32_edp_read_byte_from_dpcd
+						(edp,
+						 PSR_ENABLE, &date);
+			if (retval < 0) {
+				dev_err(edp->dev, "PSR DPCD Read failed!\n");
+				return retval;
+			} else {
+				pr_info("PSR sink config state:%x\n", date);
+			}
+		}
+
+		/*enable sink crc*/
+		retval = rk32_edp_read_byte_from_dpcd(edp, 0x270, &buf);
+		buf |= 0x01;
+		retval = rk32_edp_write_bytes_to_dpcd(edp, 0x270, 1, &buf);
+	}
+
+		return 0;
+}
+static int psr_header_HB_PB(struct rk32_edp *edp)
+{
+	u32 val;
+
+	val = 0x0;
+	writel(val, edp->regs + HB0);/*HB0*/
+	val = 0x07;
+	writel(val, edp->regs + HB1);/*HB1*/
+	val = 0x02;
+	writel(val, edp->regs + HB2);/*HB2*/
+	val = 0x08;
+	writel(val, edp->regs + HB3);/*HB3*/
+	val = 0x00;
+	writel(val, edp->regs + PB0);/*PB0*/
+	val = 0x16;
+	writel(val, edp->regs + PB1);/*PB1*/
+	val = 0xce;
+	writel(val, edp->regs + PB2);/*PB2*/
+	val = 0x5d;
+	writel(val, edp->regs + PB3);/*PB3*/
+
+	return 0;
+}
+
+static int psr_enable_sdp(struct rk32_edp *edp)
+{
+	u32 val;
+
+	val = readl(edp->regs + SPDIF_AUDIO_CTL_0);
+	val |= 0x08;
+	writel(val, edp->regs + SPDIF_AUDIO_CTL_0);/*enable SDP*/
+	val = readl(edp->regs + SPDIF_AUDIO_CTL_0);
+	pr_info("PSR reuse_spd_en:%x\n", val);
+
+	val = 0x83;
+	writel(val, edp->regs + IF_TYPE);/*enable IF_TYPE*/
+	val = readl(edp->regs + IF_TYPE);
+	pr_info("PSR IF_TYPE :%x\n", val);
+
+	val = readl(edp->regs + PKT_SEND_CTL);
+	val |= 0x10;
+	writel(val, edp->regs + PKT_SEND_CTL);/*enable IF_UP*/
+	val = readl(edp->regs + PKT_SEND_CTL);
+	pr_info("PSR if_up :%x\n", val);
+
+	val = readl(edp->regs + PKT_SEND_CTL);
+	val |= 0x01;
+	writel(val, edp->regs + PKT_SEND_CTL);/*enable IF_EN*/
+	val = readl(edp->regs + PKT_SEND_CTL);
+	pr_info("PSR if_en:%x\n", val);
+	return 0;
+}
+static int edp_disable_psr(struct rk32_edp *edp)
+{
+	u8 buf;
+	int retval;
+	char date;
+
+	/*disable sink PSR*/
+	retval = rk32_edp_read_byte_from_dpcd(edp,
+					      PSR_ENABLE, &date);
+	if (retval < 0) {
+		dev_err(edp->dev, "PSR sink original config Read failed!\n");
+		return retval;
+	}
+	buf = date&0xfe;
+	retval = rk32_edp_write_bytes_to_dpcd
+					(edp,
+					 PSR_ENABLE,
+					 1, &buf);
+	if (retval < 0) {
+		dev_err(edp->dev, "PSR failed to disable sink PSR!\n");
+		return retval;
+	}
+
+	pr_info("PSR disable success!!\n");
+	return 0;
+}
+
+static int edp_psr_state(struct rk32_edp *edp, int state)
+{
+		u32 val;
+		/*wait for VD blank*/
+		if  (rk_fb_poll_wait_frame_complete()) {
+			psr_header_HB_PB(edp);
+
+			val = state;
+			writel(val, edp->regs + DB1);
+			/*val = readl(edp->regs + DB1);
+			pr_info("PSR set DB1 state 0x0:%x\n", val);
+
+			for (i = 0; i < 22; i++)
+				 writel(0, edp->regs + DB2 + 4 * i);*/
+
+			psr_enable_sdp(edp);
+		}
+	return 0;
+}
+
+
+static int phy_power_channel(struct rk32_edp *edp, int state)
+{
+	u32 val;
+
+	val = state;
+	writel(val, edp->regs + DP_PD);
+
+	return 0;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 static int edp_dpcd_debugfs_show(struct seq_file *s, void *v)
 {
-	int i = 0;
+	int retval;
 	unsigned char buf[12];
 	struct rk32_edp *edp = s->private;
 
@@ -1293,11 +1472,91 @@ static int edp_dpcd_debugfs_show(struct seq_file *s, void *v)
 		return -ENODEV;
 	}
 
+	retval = rk32_edp_read_byte_from_dpcd
+			(edp,
+			 PANEL_SELF_REFRESH_CAPABILITY_SUPPORTED_AND_VERSION,
+			 &buf[0]);
+	seq_printf(s, "0x70 %x\n", buf[0]);
 
-	rk32_edp_read_bytes_from_dpcd(edp,
-				      DPCD_SYMBOL_ERR_CONUT_LANE0, 12, buf);
+	/*PSR capabilities*/
+	retval = rk32_edp_read_byte_from_dpcd
+			(edp,
+			 PANEL_SELF_REFRESH_CAPABILITIES, &buf[0]);
+	seq_printf(s, "0x71 %x\n", buf[0]);
+
+	retval = rk32_edp_read_byte_from_dpcd
+			(edp,
+			 PSR_ENABLE, &buf[0]);
+	seq_printf(s, "0x170 %x\n", buf[0]);
+
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x2006, &buf[0]);
+	seq_printf(s, "0x2006 %x\n", buf[0]);
+
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x2007, &buf[0]);
+	seq_printf(s, "0x2007 %x\n", buf[0]);
+
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x2008, &buf[0]);
+	seq_printf(s, "0x2008 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x2009, &buf[0]);
+	seq_printf(s, "0x2009 %x\n", buf[0]);
+
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x200a, &buf[0]);
+	seq_printf(s, "0x200a %x\n", buf[0]);
+
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x240, &buf[0]);
+	seq_printf(s, "0x240 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x241, &buf[0]);
+	seq_printf(s, "0x241 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x242, &buf[0]);
+	seq_printf(s, "0x242 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x243, &buf[0]);
+	seq_printf(s, "0x243 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x244, &buf[0]);
+	seq_printf(s, "0x244 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x245, &buf[0]);
+	seq_printf(s, "0x245 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x270, &buf[0]);
+	seq_printf(s, "0x270 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x246, &buf[0]);
+	seq_printf(s, "0x246 %x\n", buf[0]);
+
+	/*retval = rk32_edp_read_byte_from_dpcd(edp, 0x222, &buf[0]);
+	seq_printf(s, "0x222 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x223, &buf[0]);
+	seq_printf(s, "0x223 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x224, &buf[0]);
+	seq_printf(s, "0x224 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x225, &buf[0]);
+	seq_printf(s, "0x225 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x226, &buf[0]);
+	seq_printf(s, "0x226 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x227, &buf[0]);
+	seq_printf(s, "0x227 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x228, &buf[0]);
+	seq_printf(s, "0x228 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x229, &buf[0]);
+	seq_printf(s, "0x229 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x22a, &buf[0]);
+	seq_printf(s, "0x22a %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x22b, &buf[0]);
+	seq_printf(s, "0x22b %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x22c, &buf[0]);
+	seq_printf(s, "0x22c %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x22d, &buf[0]);
+	seq_printf(s, "0x22d %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x22e, &buf[0]);
+	seq_printf(s, "0x22e %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x22f, &buf[0]);
+	seq_printf(s, "0x22f %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x230, &buf[0]);
+	seq_printf(s, "0x230 %x\n", buf[0]);
+	retval = rk32_edp_read_byte_from_dpcd(edp, 0x231, &buf[0]);
+	seq_printf(s, "0x231 %x\n", buf[0]);*/
+
+	/*rk32_edp_read_bytes_from_dpcd(edp,
+			DPCD_SYMBOL_ERR_CONUT_LANE0, 12, buf);
 	for (i = 0; i < 12; i++)
-		seq_printf(s, "0x%02x>>0x%02x\n", 0x210 + i, buf[i]);
+		seq_printf(s, "0x%02x>>0x%02x\n", 0x210 + i, buf[i]);*/
 	return 0;
 }
 
@@ -1364,6 +1623,68 @@ static ssize_t edp_reg_write(struct file *file,
 	return count;
 }
 
+static int edp_psr_debugfs_show(struct seq_file *s, void *v)
+{
+	return 0;
+}
+static ssize_t edp_psr_write(struct file *file,
+			     const char __user *buf,
+			     size_t count, loff_t *ppos)
+{
+	int a;
+	char kbuf[25];
+	int retval;
+	struct rk32_edp *edp =
+		((struct seq_file *)file->private_data)->private;
+
+	if (!edp) {
+		dev_err(edp->dev, "no edp device!\n");
+		return -ENODEV;
+	}
+	memset(kbuf, 0, 25);
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	retval = kstrtoint(kbuf, 0, &a);
+	if (retval)
+		return retval;
+	/*retval = sscanf(kbuf, "%d", &a);
+	if (retval < 0) {
+		dev_err(edp->dev, "PSR failed sscanf!\n");
+		return retval;
+	}*/
+	/*disable psr*/
+	if (0 == a)
+		edp_disable_psr(edp);
+	/*enable psr*/
+	if (1 == a)
+		rk32_edp_psr_enable(edp);
+	/*inactive psr*/
+	if (2 == a)
+		edp_psr_state(edp, 0x0);
+	/*sink state 2*/
+	if  (3 == a)
+		edp_psr_state(edp, 0x01);
+	/*sink state 3*/
+	if  (4 == a)
+		edp_psr_state(edp, 0x03);
+	/*open 4 lanes*/
+	if  (5 == a) {
+		phy_power_channel(edp, 0xff);
+		usleep_range(9, 10);
+		phy_power_channel(edp, 0x7f);
+		usleep_range(9, 10);
+		phy_power_channel(edp, 0x0);
+	}
+	/*close 4 lanes*/
+	if (6 == a) {
+		phy_power_channel(edp, 0x7f);
+		usleep_range(9, 10);
+		phy_power_channel(edp, 0x0f);
+	}
+
+	return count;
+}
+
 #define EDP_DEBUG_ENTRY(name) \
 static int edp_##name##_debugfs_open(struct inode *inode, struct file *file) \
 { \
@@ -1379,6 +1700,7 @@ static const struct file_operations edp_##name##_debugfs_fops = { \
 	.release = single_release, \
 }
 
+EDP_DEBUG_ENTRY(psr);
 EDP_DEBUG_ENTRY(dpcd);
 EDP_DEBUG_ENTRY(edid);
 EDP_DEBUG_ENTRY(reg);
@@ -1499,6 +1821,8 @@ static int rk32_edp_probe(struct platform_device *pdev)
 				    edp, &edp_edid_debugfs_fops);
 		debugfs_create_file("reg", S_IRUSR, edp->debugfs_dir,
 				    edp, &edp_reg_debugfs_fops);
+		debugfs_create_file("psr", S_IRUSR, edp->debugfs_dir,
+				    edp, &edp_psr_debugfs_fops);
 	}
 
 #endif
