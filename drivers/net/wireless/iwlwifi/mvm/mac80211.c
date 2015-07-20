@@ -1192,6 +1192,13 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (sram2_len)
 		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
 
+	/* Make room for fw's virtual image pages, if it exists */
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size)
+		file_len += mvm->num_of_paging_blk *
+			(sizeof(*dump_data) +
+			 sizeof(struct iwl_fw_error_dump_paging) +
+			 PAGING_BLOCK_SIZE);
+
 	/* If we only want a monitor dump, reset the file length */
 	if (monitor_dump_only) {
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) +
@@ -1300,6 +1307,26 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		dump_mem->offset = cpu_to_le32(IWL8260_ICCM_OFFSET);
 		iwl_trans_read_mem_bytes(mvm->trans, IWL8260_ICCM_OFFSET,
 					 dump_mem->data, IWL8260_ICCM_LEN);
+	}
+
+	/* Dump fw's virtual image */
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size) {
+		u32 i;
+
+		for (i = 1; i < mvm->num_of_paging_blk + 1; i++) {
+			struct iwl_fw_error_dump_paging *paging;
+			struct page *pages =
+				mvm->fw_paging_db[i].fw_paging_block;
+
+			dump_data = iwl_fw_error_next_data(dump_data);
+			dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PAGING);
+			dump_data->len = cpu_to_le32(sizeof(*paging) +
+						     PAGING_BLOCK_SIZE);
+			paging = (void *)dump_data->data;
+			paging->index = cpu_to_le32(i);
+			memcpy(paging->data, page_address(pages),
+			       PAGING_BLOCK_SIZE);
+		}
 	}
 
 dump_trans_data:
