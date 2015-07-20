@@ -540,7 +540,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 			strcpy(vi->name, "Green Video Input");
 		else
 			strcpy(vi->name, "Composite Video Input");
-		vi->std = V4L2_STD_PAL;
+		vi->std = USBVISION_NORMS;
 		break;
 	case 2:
 		vi->type = V4L2_INPUT_TYPE_CAMERA;
@@ -548,12 +548,12 @@ static int vidioc_enum_input(struct file *file, void *priv,
 			strcpy(vi->name, "Yellow Video Input");
 		else
 			strcpy(vi->name, "S-Video Input");
-		vi->std = V4L2_STD_PAL;
+		vi->std = USBVISION_NORMS;
 		break;
 	case 3:
 		vi->type = V4L2_INPUT_TYPE_CAMERA;
 		strcpy(vi->name, "Red Video Input");
-		vi->std = V4L2_STD_PAL;
+		vi->std = USBVISION_NORMS;
 		break;
 	}
 	return 0;
