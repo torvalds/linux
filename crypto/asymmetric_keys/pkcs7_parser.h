@@ -33,7 +33,9 @@ struct pkcs7_signed_info {
 	unsigned	authattrs_len;
 	const void	*authattrs;
 
-	/* Issuing cert serial number and issuer's name */
+	/* Issuing cert serial number and issuer's name [PKCS#7 or CMS ver 1]
+	 * or issuing cert's SKID [CMS ver 3].
+	 */
 	struct asymmetric_key_id *signing_cert_id;
 
 	/* Message signature.
@@ -50,6 +52,7 @@ struct pkcs7_message {
 	struct x509_certificate *certs;	/* Certificate list */
 	struct x509_certificate *crl;	/* Revocation list */
 	struct pkcs7_signed_info *signed_infos;
+	u8		version;	/* Version of cert (1 -> PKCS#7 or CMS; 3 -> CMS) */
 
 	/* Content Data (or NULL) */
 	enum OID	data_type;	/* Type of Data */

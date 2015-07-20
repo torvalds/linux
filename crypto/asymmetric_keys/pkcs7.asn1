@@ -69,7 +69,7 @@ SignerInfos ::= CHOICE {
 
 SignerInfo ::= SEQUENCE {
 	version			INTEGER ({ pkcs7_note_signerinfo_version }),
-	issuerAndSerialNumber	IssuerAndSerialNumber,
+	sid			SignerIdentifier, -- CMS variant, not PKCS#7
 	digestAlgorithm		DigestAlgorithmIdentifier ({ pkcs7_sig_note_digest_algo }),
 	authenticatedAttributes	CHOICE {
 		aaSet		[0] IMPLICIT SetOfAuthenticatedAttribute
@@ -88,12 +88,20 @@ SignerInfo ::= SEQUENCE {
 	} OPTIONAL
 } ({ pkcs7_note_signed_info })
 
+SignerIdentifier ::= CHOICE {
+	-- RFC5652 sec 5.3
+	issuerAndSerialNumber IssuerAndSerialNumber,
+        subjectKeyIdentifier [0] IMPLICIT SubjectKeyIdentifier
+}
+
 IssuerAndSerialNumber ::= SEQUENCE {
 	issuer			Name ({ pkcs7_sig_note_issuer }),
 	serialNumber		CertificateSerialNumber ({ pkcs7_sig_note_serial })
 }
 
 CertificateSerialNumber ::= INTEGER
+
+SubjectKeyIdentifier ::= OCTET STRING ({ pkcs7_sig_note_skid })
 
 SetOfAuthenticatedAttribute ::= SET OF AuthenticatedAttribute
 

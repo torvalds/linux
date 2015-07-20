@@ -33,6 +33,9 @@ struct pkcs7_parse_context {
 	unsigned	raw_serial_size;
 	unsigned	raw_issuer_size;
 	const void	*raw_issuer;
+	const void	*raw_skid;
+	unsigned	raw_skid_size;
+	bool		expect_skid;
 };
 
 /*
@@ -249,15 +252,21 @@ int pkcs7_note_signeddata_version(void *context, size_t hdrlen,
 				  unsigned char tag,
 				  const void *value, size_t vlen)
 {
+	struct pkcs7_parse_context *ctx = context;
 	unsigned version;
 
 	if (vlen != 1)
 		goto unsupported;
 
-	version = *(const u8 *)value;
+	ctx->msg->version = version = *(const u8 *)value;
 	switch (version) {
 	case 1:
-		/* PKCS#7 SignedData [RFC2315 sec 9.1] */
+		/* PKCS#7 SignedData [RFC2315 sec 9.1]
+		 * CMS ver 1 SignedData [RFC5652 sec 5.1]
+		 */
+		break;
+	case 3:
+		/* CMS ver 3 SignedData [RFC2315 sec 5.1] */
 		break;
 	default:
 		goto unsupported;
@@ -277,6 +286,7 @@ int pkcs7_note_signerinfo_version(void *context, size_t hdrlen,
 				  unsigned char tag,
 				  const void *value, size_t vlen)
 {
+	struct pkcs7_parse_context *ctx = context;
 	unsigned version;
 
 	if (vlen != 1)
@@ -285,7 +295,18 @@ int pkcs7_note_signerinfo_version(void *context, size_t hdrlen,
 	version = *(const u8 *)value;
 	switch (version) {
 	case 1:
-		/* PKCS#7 SignerInfo [RFC2315 sec 9.2] */
+		/* PKCS#7 SignerInfo [RFC2315 sec 9.2]
+		 * CMS ver 1 SignerInfo [RFC5652 sec 5.3]
+		 */
+		if (ctx->msg->version != 1)
+			goto version_mismatch;
+		ctx->expect_skid = false;
+		break;
+	case 3:
+		/* CMS ver 3 SignerInfo [RFC2315 sec 5.3] */
+		if (ctx->msg->version == 1)
+			goto version_mismatch;
+		ctx->expect_skid = true;
 		break;
 	default:
 		goto unsupported;
@@ -296,6 +317,9 @@ int pkcs7_note_signerinfo_version(void *context, size_t hdrlen,
 unsupported:
 	pr_warn("Unsupported SignerInfo version\n");
 	return -EINVAL;
+version_mismatch:
+	pr_warn("SignedData-SignerInfo version mismatch\n");
+	return -EBADMSG;
 }
 
 /*
@@ -440,6 +464,22 @@ int pkcs7_sig_note_issuer(void *context, size_t hdrlen,
 }
 
 /*
+ * Note the issuing cert's subjectKeyIdentifier
+ */
+int pkcs7_sig_note_skid(void *context, size_t hdrlen,
+			unsigned char tag,
+			const void *value, size_t vlen)
+{
+	struct pkcs7_parse_context *ctx = context;
+
+	pr_devel("SKID: %02x %zu [%*ph]\n", tag, vlen, (unsigned)vlen, value);
+
+	ctx->raw_skid = value;
+	ctx->raw_skid_size = vlen;
+	return 0;
+}
+
+/*
  * Note the signature data
  */
 int pkcs7_sig_note_signature(void *context, size_t hdrlen,
@@ -472,12 +512,20 @@ int pkcs7_note_signed_info(void *context, size_t hdrlen,
 	struct asymmetric_key_id *kid;
 
 	/* Generate cert issuer + serial number key ID */
-	kid = asymmetric_key_generate_id(ctx->raw_serial,
-					 ctx->raw_serial_size,
-					 ctx->raw_issuer,
-					 ctx->raw_issuer_size);
+	if (!ctx->expect_skid) {
+		kid = asymmetric_key_generate_id(ctx->raw_serial,
+						 ctx->raw_serial_size,
+						 ctx->raw_issuer,
+						 ctx->raw_issuer_size);
+	} else {
+		kid = asymmetric_key_generate_id(ctx->raw_skid,
+						 ctx->raw_skid_size,
+						 "", 0);
+	}
 	if (IS_ERR(kid))
 		return PTR_ERR(kid);
+
+	pr_devel("SINFO KID: %u [%*phN]\n", kid->len, kid->len, kid->data);
 
 	sinfo->signing_cert_id = kid;
 	sinfo->index = ++ctx->sinfo_index;
