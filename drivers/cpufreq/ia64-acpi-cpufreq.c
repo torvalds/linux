@@ -333,6 +333,7 @@ acpi_cpufreq_cpu_exit (
 	if (data) {
 		acpi_io_data[policy->cpu] = NULL;
 		acpi_processor_unregister_performance(policy->cpu);
+		kfree(policy->freq_table);
 		kfree(data);
 	}
 
