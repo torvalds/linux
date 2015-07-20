@@ -87,7 +87,7 @@ One interrupt per TC channel in a TC block:
 
 RSTC Reset Controller required properties:
 - compatible: Should be "atmel,<chip>-rstc".
-  <chip> can be "at91sam9260" or "at91sam9g45"
+  <chip> can be "at91sam9260" or "at91sam9g45" or "sama5d3"
 - reg: Should contain registers location and length
 
 Example:
