@@ -597,6 +597,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline =
 			(f->fmt.pix.width * fh->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage	= fh->sizeimage;
+	f->fmt.pix.colorspace	= V4L2_COLORSPACE_SMPTE170M;
 	return 0;
 }
 
@@ -604,7 +605,6 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct viu_fmt *fmt;
-	enum v4l2_field field;
 	unsigned int maxw, maxh;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
@@ -614,19 +614,10 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	field = f->fmt.pix.field;
-
-	if (field == V4L2_FIELD_ANY) {
-		field = V4L2_FIELD_INTERLACED;
-	} else if (field != V4L2_FIELD_INTERLACED) {
-		dprintk(1, "Field type invalid.\n");
-		return -EINVAL;
-	}
-
 	maxw  = norm_maxw();
 	maxh  = norm_maxh();
 
-	f->fmt.pix.field = field;
+	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	if (f->fmt.pix.height < 32)
 		f->fmt.pix.height = 32;
 	if (f->fmt.pix.height > maxh)
@@ -638,6 +629,7 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 	f->fmt.pix.width &= ~0x03;
 	f->fmt.pix.bytesperline =
 		(f->fmt.pix.width * fmt->depth) >> 3;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
 }
