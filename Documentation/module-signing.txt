@@ -88,6 +88,7 @@ This has a number of options available:
      than being a module) so that modules signed with that algorithm can have
      their signatures checked without causing a dependency loop.
 
+
  (4) "File name or PKCS#11 URI of module signing key" (CONFIG_MODULE_SIG_KEY)
 
      Setting this option to something other than its default of
@@ -102,6 +103,13 @@ This has a number of options available:
      If the PEM file containing the private key is encrypted, or if the
      PKCS#11 token requries a PIN, this can be provided at build time by
      means of the KBUILD_SIGN_PIN variable.
+
+
+ (5) "Additional X.509 keys for default system keyring" (CONFIG_SYSTEM_TRUSTED_KEYS)
+
+     This option can be set to the filename of a PEM-encoded file containing
+     additional certificates which will be included in the system keyring by
+     default.
 
 
 =======================
@@ -171,10 +179,9 @@ in a keyring called ".system_keyring" that can be seen by:
 	302d2d52 I------     1 perm 1f010000     0     0 asymmetri Fedora kernel signing key: d69a84e6bce3d216b979e9505b3e3ef9a7118079: X509.RSA a7118079 []
 	...
 
-Beyond the public key generated specifically for module signing, any file
-placed in the kernel source root directory or the kernel build root directory
-whose name is suffixed with ".x509" will be assumed to be an X.509 public key
-and will be added to the keyring.
+Beyond the public key generated specifically for module signing, additional
+trusted certificates can be provided in a PEM-encoded file referenced by the
+CONFIG_SYSTEM_TRUSTED_KEYS configuration option.
 
 Further, the architecture code may take public keys from a hardware store and
 add those in also (e.g. from the UEFI key database).
