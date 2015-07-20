@@ -239,7 +239,7 @@ struct ipoib_cm_tx {
 	struct net_device   *dev;
 	struct ipoib_neigh  *neigh;
 	struct ipoib_path   *path;
-	struct ipoib_cm_tx_buf *tx_ring;
+	struct ipoib_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	unsigned long	     flags;
@@ -503,6 +503,33 @@ int ipoib_mcast_stop_thread(struct net_device *dev);
 
 void ipoib_mcast_dev_down(struct net_device *dev);
 void ipoib_mcast_dev_flush(struct net_device *dev);
+
+int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
+void ipoib_dma_unmap_tx(struct ipoib_dev_priv *priv,
+			struct ipoib_tx_buf *tx_req);
+
+static inline void ipoib_build_sge(struct ipoib_dev_priv *priv,
+				   struct ipoib_tx_buf *tx_req)
+{
+	int i, off;
+	struct sk_buff *skb = tx_req->skb;
+	skb_frag_t *frags = skb_shinfo(skb)->frags;
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+	u64 *mapping = tx_req->mapping;
+
+	if (skb_headlen(skb)) {
+		priv->tx_sge[0].addr         = mapping[0];
+		priv->tx_sge[0].length       = skb_headlen(skb);
+		off = 1;
+	} else
+		off = 0;
+
+	for (i = 0; i < nr_frags; ++i) {
+		priv->tx_sge[i + off].addr = mapping[i + off];
+		priv->tx_sge[i + off].length = skb_frag_size(&frags[i]);
+	}
+	priv->tx_wr.num_sge	     = nr_frags + off;
+}
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev);

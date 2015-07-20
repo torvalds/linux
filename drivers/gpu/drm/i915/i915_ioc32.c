@@ -204,7 +204,7 @@ long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	drm_ioctl_compat_t *fn = NULL;
 	int ret;
 
-	if (nr < DRM_COMMAND_BASE)
+	if (nr < DRM_COMMAND_BASE || nr >= DRM_COMMAND_END)
 		return drm_compat_ioctl(filp, cmd, arg);
 
 	if (nr < DRM_COMMAND_BASE + ARRAY_SIZE(i915_compat_ioctls))

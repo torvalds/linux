@@ -81,10 +81,7 @@ void check_bus_watcher(void)
 {
 	u32 status, l2_err, memio_err;
 
-#ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
-	/* Destructive read, clears register and interrupt */
-	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS));
-#elif defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
+#if defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
 	/* Use non-destructive register */
 	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS_DEBUG));
 #elif defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)

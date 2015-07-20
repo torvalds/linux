@@ -1012,6 +1012,8 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
+	if (client->dev.of_node)
+		of_node_clear_flag(client->dev.of_node, OF_POPULATED);
 	device_unregister(&client->dev);
 }
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
@@ -1320,8 +1322,11 @@ static void of_i2c_register_devices(struct i2c_adapter *adap)
 
 	dev_dbg(&adap->dev, "of_i2c: walking child nodes\n");
 
-	for_each_available_child_of_node(adap->dev.of_node, node)
+	for_each_available_child_of_node(adap->dev.of_node, node) {
+		if (of_node_test_and_set_flag(node, OF_POPULATED))
+			continue;
 		of_i2c_register_device(adap, node);
+	}
 }
 
 static int of_dev_node_match(struct device *dev, void *data)
@@ -1853,6 +1858,11 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 		if (adap == NULL)
 			return NOTIFY_OK;	/* not for us */
 
+		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED)) {
+			put_device(&adap->dev);
+			return NOTIFY_OK;
+		}
+
 		client = of_i2c_register_device(adap, rd->dn);
 		put_device(&adap->dev);
 
@@ -1863,6 +1873,10 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 		}
 		break;
 	case OF_RECONFIG_CHANGE_REMOVE:
+		/* already depopulated? */
+		if (!of_node_check_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_OK;
+
 		/* find our device by node */
 		client = of_find_i2c_device_by_node(rd->dn);
 		if (client == NULL)

@@ -369,10 +369,7 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 	struct inet6_dev *idev;
 
 	dst_destroy_metrics_generic(dst);
-
-	if (rt->rt6i_pcpu)
-		free_percpu(rt->rt6i_pcpu);
-
+	free_percpu(rt->rt6i_pcpu);
 	rt6_uncached_list_del(rt);
 
 	idev = rt->rt6i_idev;

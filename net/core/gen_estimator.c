@@ -66,7 +66,7 @@
 
    NOTES.
 
-   * avbps is scaled by 2^5, avpps is scaled by 2^10.
+   * avbps and avpps are scaled by 2^5.
    * both values are reported as 32 bit unsigned values. bps can
      overflow for fast links : max speed being 34360Mbit/sec
    * Minimal interval is HZ/4=250msec (it is the greatest common divisor
@@ -85,10 +85,10 @@ struct gen_estimator
 	struct gnet_stats_rate_est64	*rate_est;
 	spinlock_t		*stats_lock;
 	int			ewma_log;
+	u32			last_packets;
+	unsigned long		avpps;
 	u64			last_bytes;
 	u64			avbps;
-	u32			last_packets;
-	u32			avpps;
 	struct rcu_head		e_rcu;
 	struct rb_node		node;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
@@ -118,8 +118,8 @@ static void est_timer(unsigned long arg)
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &elist[idx].list, list) {
 		struct gnet_stats_basic_packed b = {0};
+		unsigned long rate;
 		u64 brate;
-		u32 rate;
 
 		spin_lock(e->stats_lock);
 		read_lock(&est_lock);
@@ -133,10 +133,11 @@ static void est_timer(unsigned long arg)
 		e->avbps += (brate >> e->ewma_log) - (e->avbps >> e->ewma_log);
 		e->rate_est->bps = (e->avbps+0xF)>>5;
 
-		rate = (b.packets - e->last_packets)<<(12 - idx);
+		rate = b.packets - e->last_packets;
+		rate <<= (7 - idx);
 		e->last_packets = b.packets;
 		e->avpps += (rate >> e->ewma_log) - (e->avpps >> e->ewma_log);
-		e->rate_est->pps = (e->avpps+0x1FF)>>10;
+		e->rate_est->pps = (e->avpps + 0xF) >> 5;
 skip:
 		read_unlock(&est_lock);
 		spin_unlock(e->stats_lock);

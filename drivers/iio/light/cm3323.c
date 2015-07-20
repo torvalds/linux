@@ -123,7 +123,7 @@ static int cm3323_set_it_bits(struct cm3323_data *data, int val, int val2)
 	for (i = 0; i < ARRAY_SIZE(cm3323_int_time); i++) {
 		if (val == cm3323_int_time[i].val &&
 		    val2 == cm3323_int_time[i].val2) {
-			reg_conf = data->reg_conf;
+			reg_conf = data->reg_conf & ~CM3323_CONF_IT_MASK;
 			reg_conf |= i << CM3323_CONF_IT_SHIFT;
 
 			ret = i2c_smbus_write_word_data(data->client,

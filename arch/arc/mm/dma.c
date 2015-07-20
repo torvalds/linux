@@ -60,8 +60,8 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 
 	/* This is kernel Virtual address (0x7000_0000 based) */
 	kvaddr = ioremap_nocache((unsigned long)paddr, size);
-	if (kvaddr != NULL)
-		memset(kvaddr, 0, size);
+	if (kvaddr == NULL)
+		return NULL;
 
 	/* This is bus address, platform dependent */
 	*dma_handle = (dma_addr_t)paddr;

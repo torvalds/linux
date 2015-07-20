@@ -81,11 +81,6 @@ choice
 	prompt "SiByte SOC Stepping"
 	depends on SIBYTE_SB1xxx_SOC
 
-config CPU_SB1_PASS_1
-	bool "1250 Pass1"
-	depends on SIBYTE_SB1250
-	select CPU_HAS_PREFETCH
-
 config CPU_SB1_PASS_2_1250
 	bool "1250 An"
 	depends on SIBYTE_SB1250

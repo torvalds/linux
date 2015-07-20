@@ -165,12 +165,16 @@ at91_clk_register_master(struct at91_pmc *pmc, unsigned int irq,
 	irq_set_status_flags(master->irq, IRQ_NOAUTOEN);
 	ret = request_irq(master->irq, clk_master_irq_handler,
 			  IRQF_TRIGGER_HIGH, "clk-master", master);
-	if (ret)
+	if (ret) {
+		kfree(master);
 		return ERR_PTR(ret);
+	}
 
 	clk = clk_register(NULL, &master->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		free_irq(master->irq, master);
 		kfree(master);
+	}
 
 	return clk;
 }
