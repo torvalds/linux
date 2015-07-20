@@ -90,46 +90,13 @@
 #define SAFE_MASK	(0xDD5)
 #define RETURN_MASK	(0xDFF)
 
-/* convert kernel_vm86_regs to vm86_regs */
-static int copy_vm86_regs_to_user(struct vm86_regs __user *user,
-				  const struct kernel_vm86_regs *regs)
-{
-	int ret = 0;
-
-	/*
-	 * kernel_vm86_regs is missing gs, so copy everything up to
-	 * (but not including) orig_eax, and then rest including orig_eax.
-	 */
-	ret += copy_to_user(user, regs, offsetof(struct kernel_vm86_regs, pt.orig_ax));
-	ret += copy_to_user(&user->orig_eax, &regs->pt.orig_ax,
-			    sizeof(struct kernel_vm86_regs) -
-			    offsetof(struct kernel_vm86_regs, pt.orig_ax));
-
-	return ret;
-}
-
-/* convert vm86_regs to kernel_vm86_regs */
-static int copy_vm86_regs_from_user(struct kernel_vm86_regs *regs,
-				    const struct vm86_regs __user *user,
-				    unsigned extra)
-{
-	int ret = 0;
-
-	/* copy ax-fs inclusive */
-	ret += copy_from_user(regs, user, offsetof(struct kernel_vm86_regs, pt.orig_ax));
-	/* copy orig_ax-__gsh+extra */
-	ret += copy_from_user(&regs->pt.orig_ax, &user->orig_eax,
-			      sizeof(struct kernel_vm86_regs) -
-			      offsetof(struct kernel_vm86_regs, pt.orig_ax) +
-			      extra);
-	return ret;
-}
-
 struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 {
 	struct tss_struct *tss;
 	struct pt_regs *ret;
-	unsigned long tmp;
+	struct task_struct *tsk = current;
+	struct vm86plus_struct __user *user;
+	long err = 0;
 
 	/*
 	 * This gets called from entry.S with interrupts disabled, but
@@ -138,23 +105,50 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	 */
 	local_irq_enable();
 
-	if (!current->thread.vm86_info) {
+	if (!tsk->thread.vm86_info) {
 		pr_alert("no vm86_info: BAD\n");
 		do_exit(SIGSEGV);
 	}
-	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | current->thread.v86mask);
-	tmp = copy_vm86_regs_to_user(&current->thread.vm86_info->regs, regs);
-	tmp += put_user(current->thread.screen_bitmap, &current->thread.vm86_info->screen_bitmap);
-	if (tmp) {
+	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | tsk->thread.v86mask);
+	user = tsk->thread.vm86_info;
+
+	if (!access_ok(VERIFY_WRITE, user, VMPI.is_vm86pus ?
+		       sizeof(struct vm86plus_struct) :
+		       sizeof(struct vm86_struct))) {
+		pr_alert("could not access userspace vm86_info\n");
+		do_exit(SIGSEGV);
+	}
+
+	put_user_try {
+		put_user_ex(regs->pt.bx, &user->regs.ebx);
+		put_user_ex(regs->pt.cx, &user->regs.ecx);
+		put_user_ex(regs->pt.dx, &user->regs.edx);
+		put_user_ex(regs->pt.si, &user->regs.esi);
+		put_user_ex(regs->pt.di, &user->regs.edi);
+		put_user_ex(regs->pt.bp, &user->regs.ebp);
+		put_user_ex(regs->pt.ax, &user->regs.eax);
+		put_user_ex(regs->pt.ip, &user->regs.eip);
+		put_user_ex(regs->pt.cs, &user->regs.cs);
+		put_user_ex(regs->pt.flags, &user->regs.eflags);
+		put_user_ex(regs->pt.sp, &user->regs.esp);
+		put_user_ex(regs->pt.ss, &user->regs.ss);
+		put_user_ex(regs->es, &user->regs.es);
+		put_user_ex(regs->ds, &user->regs.ds);
+		put_user_ex(regs->fs, &user->regs.fs);
+		put_user_ex(regs->gs, &user->regs.gs);
+
+		put_user_ex(tsk->thread.screen_bitmap, &user->screen_bitmap);
+	} put_user_catch(err);
+	if (err) {
 		pr_alert("could not access userspace vm86_info\n");
 		do_exit(SIGSEGV);
 	}
 
 	tss = &per_cpu(cpu_tss, get_cpu());
-	current->thread.sp0 = current->thread.saved_sp0;
-	current->thread.sysenter_cs = __KERNEL_CS;
-	load_sp0(tss, &current->thread);
-	current->thread.saved_sp0 = 0;
+	tsk->thread.sp0 = tsk->thread.saved_sp0;
+	tsk->thread.sysenter_cs = __KERNEL_CS;
+	load_sp0(tss, &tsk->thread);
+	tsk->thread.saved_sp0 = 0;
 	put_cpu();
 
 	ret = KVM86->regs32;
@@ -199,7 +193,8 @@ out:
 
 
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
-static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk);
+static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
+			struct kernel_vm86_struct *info);
 
 SYSCALL_DEFINE1(vm86old, struct vm86_struct __user *, v86)
 {
@@ -208,21 +203,8 @@ SYSCALL_DEFINE1(vm86old, struct vm86_struct __user *, v86)
 					 * This remains on the stack until we
 					 * return to 32 bit user space.
 					 */
-	struct task_struct *tsk = current;
-	int tmp;
 
-	if (tsk->thread.saved_sp0)
-		return -EPERM;
-	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
-				       offsetof(struct kernel_vm86_struct, vm86plus) -
-				       sizeof(info.regs));
-	if (tmp)
-		return -EFAULT;
-	memset(&info.vm86plus, 0, (int)&info.regs32 - (int)&info.vm86plus);
-	info.regs32 = current_pt_regs();
-	tsk->thread.vm86_info = v86;
-	do_sys_vm86(&info, tsk);
-	return 0;	/* we never return here */
+	return do_sys_vm86((struct vm86plus_struct __user *) v86, false, &info);
 }
 
 
@@ -233,11 +215,7 @@ SYSCALL_DEFINE2(vm86, unsigned long, cmd, unsigned long, arg)
 					 * This remains on the stack until we
 					 * return to 32 bit user space.
 					 */
-	struct task_struct *tsk;
-	int tmp;
-	struct vm86plus_struct __user *v86;
 
-	tsk = current;
 	switch (cmd) {
 	case VM86_REQUEST_IRQ:
 	case VM86_FREE_IRQ:
@@ -255,34 +233,69 @@ SYSCALL_DEFINE2(vm86, unsigned long, cmd, unsigned long, arg)
 	}
 
 	/* we come here only for functions VM86_ENTER, VM86_ENTER_NO_BYPASS */
-	if (tsk->thread.saved_sp0)
-		return -EPERM;
-	v86 = (struct vm86plus_struct __user *)arg;
-	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
-				       offsetof(struct kernel_vm86_struct, regs32) -
-				       sizeof(info.regs));
-	if (tmp)
-		return -EFAULT;
-	info.regs32 = current_pt_regs();
-	info.vm86plus.is_vm86pus = 1;
-	tsk->thread.vm86_info = (struct vm86_struct __user *)v86;
-	do_sys_vm86(&info, tsk);
-	return 0;	/* we never return here */
+	return do_sys_vm86((struct vm86plus_struct __user *) arg, true, &info);
 }
 
 
-static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk)
+static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
+			struct kernel_vm86_struct *info)
 {
 	struct tss_struct *tss;
-/*
- * make sure the vm86() system call doesn't try to do anything silly
- */
-	info->regs.pt.ds = 0;
-	info->regs.pt.es = 0;
-	info->regs.pt.fs = 0;
-#ifndef CONFIG_X86_32_LAZY_GS
-	info->regs.pt.gs = 0;
-#endif
+	struct task_struct *tsk = current;
+	unsigned long err = 0;
+
+	if (tsk->thread.saved_sp0)
+		return -EPERM;
+
+	if (!access_ok(VERIFY_READ, v86, plus ?
+		       sizeof(struct vm86_struct) :
+		       sizeof(struct vm86plus_struct)))
+		return -EFAULT;
+
+	memset(info, 0, sizeof(*info));
+	get_user_try {
+		unsigned short seg;
+		get_user_ex(info->regs.pt.bx, &v86->regs.ebx);
+		get_user_ex(info->regs.pt.cx, &v86->regs.ecx);
+		get_user_ex(info->regs.pt.dx, &v86->regs.edx);
+		get_user_ex(info->regs.pt.si, &v86->regs.esi);
+		get_user_ex(info->regs.pt.di, &v86->regs.edi);
+		get_user_ex(info->regs.pt.bp, &v86->regs.ebp);
+		get_user_ex(info->regs.pt.ax, &v86->regs.eax);
+		get_user_ex(info->regs.pt.ip, &v86->regs.eip);
+		get_user_ex(seg, &v86->regs.cs);
+		info->regs.pt.cs = seg;
+		get_user_ex(info->regs.pt.flags, &v86->regs.eflags);
+		get_user_ex(info->regs.pt.sp, &v86->regs.esp);
+		get_user_ex(seg, &v86->regs.ss);
+		info->regs.pt.ss = seg;
+		get_user_ex(info->regs.es, &v86->regs.es);
+		get_user_ex(info->regs.ds, &v86->regs.ds);
+		get_user_ex(info->regs.fs, &v86->regs.fs);
+		get_user_ex(info->regs.gs, &v86->regs.gs);
+
+		get_user_ex(info->flags, &v86->flags);
+		get_user_ex(info->screen_bitmap, &v86->screen_bitmap);
+		get_user_ex(info->cpu_type, &v86->cpu_type);
+	} get_user_catch(err);
+	if (err)
+		return err;
+
+	if (copy_from_user(&info->int_revectored, &v86->int_revectored,
+			   sizeof(struct revectored_struct)))
+		return -EFAULT;
+	if (copy_from_user(&info->int21_revectored, &v86->int21_revectored,
+			   sizeof(struct revectored_struct)))
+		return -EFAULT;
+	if (plus) {
+		if (copy_from_user(&info->vm86plus, &v86->vm86plus,
+				   sizeof(struct vm86plus_info_struct)))
+			return -EFAULT;
+		info->vm86plus.is_vm86pus = 1;
+	}
+
+	info->regs32 = current_pt_regs();
+	tsk->thread.vm86_info = v86;
 
 /*
  * The flags register is also special: we cannot trust that the user
@@ -344,7 +357,7 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 		"jmp resume_userspace"
 		: /* no outputs */
 		:"r" (&info->regs), "r" (task_thread_info(tsk)), "r" (0));
-	/* we never return here */
+	unreachable();	/* we never return here */
 }
 
 static inline void return_to_32bit(struct kernel_vm86_regs *regs16, int retval)
