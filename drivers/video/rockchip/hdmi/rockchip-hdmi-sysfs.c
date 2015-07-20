@@ -51,7 +51,6 @@ static int hdmi_set_mode(struct rk_display_device *device,
 			container_of(mode, struct display_modelist, mode);
 	int vic = 0;
 
-	mutex_lock(&hdmi->lock);
 	if (mode == NULL) {
 		hdmi->autoset = 1;
 		vic = hdmi_find_best_mode(hdmi, 0);
@@ -65,7 +64,6 @@ static int hdmi_set_mode(struct rk_display_device *device,
 		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
 			hdmi_submit_work(hdmi, HDMI_SET_VIDEO, 0, NULL);
 	}
-	mutex_unlock(&hdmi->lock);
 	return 0;
 }
 
@@ -100,7 +98,7 @@ static int hdmi_set_3dmode(struct rk_display_device *device, int mode)
 
 	if (!hdmi)
 		return -1;
-	mutex_lock(&hdmi->lock);
+
 	modelist = &hdmi->edid.modelist;
 	list_for_each(pos, modelist) {
 		display_modelist =
@@ -110,7 +108,6 @@ static int hdmi_set_3dmode(struct rk_display_device *device, int mode)
 		else
 			display_modelist = NULL;
 	}
-	mutex_unlock(&hdmi->lock);
 	if (!display_modelist)
 		return -1;
 
@@ -168,7 +165,6 @@ static int hdmi_get_edidaudioinfo(struct rk_display_device *device,
 		return -1;
 
 	memset(audioinfo, 0x00, len);
-	mutex_lock(&hdmi->lock);
 	/*printk("hdmi:edid: audio_num: %d\n", hdmi->edid.audio_num);*/
 	for (i = 0; i < hdmi->edid.audio_num; i++) {
 		audio = &(hdmi->edid.audio[i]);
@@ -181,7 +177,6 @@ static int hdmi_get_edidaudioinfo(struct rk_display_device *device,
 		audioinfo[size] = ',';
 		audioinfo += (size+1);
 	}
-	mutex_unlock(&hdmi->lock);
 	return 0;
 }
 
@@ -190,7 +185,6 @@ static int hdmi_get_color(struct rk_display_device *device, char *buf)
 	struct hdmi *hdmi = device->priv_data;
 	int i, mode;
 
-	mutex_lock(&hdmi->lock);
 	mode = (1 << HDMI_COLOR_RGB_0_255);
 	if (hdmi->edid.sink_hdmi) {
 		mode |= (1 << HDMI_COLOR_RGB_16_235);
@@ -222,7 +216,6 @@ static int hdmi_get_color(struct rk_display_device *device, char *buf)
 		      "Supported Colorimetry: %d\n", hdmi->edid.colorimetry);
 	i += snprintf(buf + i, PAGE_SIZE - i,
 		      "Current Colorimetry: %d\n", hdmi->colorimetry);
-	mutex_unlock(&hdmi->lock);
 	return i;
 }
 
@@ -306,10 +299,8 @@ static int hdmi_get_monspecs(struct rk_display_device *device,
 	if (!hdmi)
 		return -1;
 
-	mutex_lock(&hdmi->lock);
 	if (hdmi->edid.specs)
 		*monspecs = *(hdmi->edid.specs);
-	mutex_unlock(&hdmi->lock);
 	return 0;
 }
 
@@ -532,7 +523,6 @@ static int hdmi_get_debug(struct rk_display_device *device, char *buf)
 	len += snprintf(buf+len, PAGE_SIZE - len, "EDID status:%s\n",
 			hdmi->edid.status ? "False" : "Okay");
 	len += snprintf(buf+len, PAGE_SIZE - len, "Raw Data:");
-	mutex_lock(&hdmi->lock);
 	for (i = 0; i < HDMI_MAX_EDID_BLOCK; i++) {
 		if (!hdmi->edid.raw[i])
 			break;
@@ -548,7 +538,6 @@ static int hdmi_get_debug(struct rk_display_device *device, char *buf)
 	len += snprintf(buf+len, PAGE_SIZE, "\n");
 	if (!hdmi->edid.status)
 		len += hdmi_show_sink_info(hdmi, buf, len);
-	mutex_unlock(&hdmi->lock);
 	return len;
 }
 

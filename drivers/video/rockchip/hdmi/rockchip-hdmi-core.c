@@ -79,7 +79,6 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 
 	DBG("%s\n", __func__);
 
-	video.vic = hdmi->vic & HDMI_VIC_MASK;
 	video.sink_hdmi = hdmi->edid.sink_hdmi;
 	video.format_3d = hdmi->mode_3d;
 	video.colorimetry = hdmi->colorimetry;
@@ -124,6 +123,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	}
 	hdmi->colormode_input = video.color_input;
 	hdmi_set_lcdc(hdmi);
+	video.vic = hdmi->vic & HDMI_VIC_MASK;
 	if (hdmi->ops->setvideo)
 		hdmi->ops->setvideo(hdmi, &video);
 }
@@ -260,12 +260,10 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	#ifdef CONFIG_SWITCH
 	switch_set_state(&(hdmi->switchdev), 0);
 	#endif
-	mutex_lock(&hdmi->ddev->lock);
 	list_for_each_safe(pos, n, &hdmi->edid.modelist) {
 		list_del(pos);
 		kfree(pos);
 	}
-	mutex_unlock(&hdmi->ddev->lock);
 	for (i = 0; i < HDMI_MAX_EDID_BLOCK; i++)
 		kfree(hdmi->edid.raw[i]);
 	kfree(hdmi->edid.audio);
@@ -290,7 +288,7 @@ static void hdmi_work_queue(struct work_struct *work)
 	int event = hdmi_w->event;
 	int hpd = HDMI_HPD_REMOVED;
 
-	mutex_lock(&hdmi->lock);
+	mutex_lock(&hdmi->ddev->lock);
 
 	DBG("\nhdmi_work_queue() - evt= %x %d\n",
 	    (event & 0xFF00) >> 8,
@@ -431,7 +429,7 @@ static void hdmi_work_queue(struct work_struct *work)
 	DBG("\nhdmi_work_queue() - exit evt= %x %d\n",
 	    (event & 0xFF00) >> 8,
 	    event & 0xFF);
-	mutex_unlock(&hdmi->lock);
+	mutex_unlock(&hdmi->ddev->lock);
 }
 
 struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
