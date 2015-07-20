@@ -133,9 +133,19 @@ static ssize_t pwm_polarity_show(struct device *child,
 				 char *buf)
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
+	const char *polarity = "unknown";
 
-	return sprintf(buf, "%s\n",
-		       pwm_get_polarity(pwm) ? "inversed" : "normal");
+	switch (pwm_get_polarity(pwm)) {
+	case PWM_POLARITY_NORMAL:
+		polarity = "normal";
+		break;
+
+	case PWM_POLARITY_INVERSED:
+		polarity = "inversed";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", polarity);
 }
 
 static ssize_t pwm_polarity_store(struct device *child,
