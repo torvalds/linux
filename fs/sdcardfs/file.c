@@ -50,8 +50,8 @@ static ssize_t sdcardfs_read(struct file *file, char __user *buf,
 	err = vfs_read(lower_file, buf, count, ppos);
 	/* update our inode atime upon a successful lower read */
 	if (err >= 0)
-		fsstack_copy_attr_atime(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+		fsstack_copy_attr_atime(d_inode(dentry),
+					file_inode(lower_file));
 
 	return err;
 }
@@ -59,7 +59,7 @@ static ssize_t sdcardfs_read(struct file *file, char __user *buf,
 static ssize_t sdcardfs_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	int err = 0;
+	int err;
 	struct file *lower_file;
 	struct dentry *dentry = file->f_path.dentry;
 
@@ -73,29 +73,29 @@ static ssize_t sdcardfs_write(struct file *file, const char __user *buf,
 	err = vfs_write(lower_file, buf, count, ppos);
 	/* update our inode times+sizes upon a successful lower write */
 	if (err >= 0) {
-		fsstack_copy_inode_size(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
-		fsstack_copy_attr_times(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+		fsstack_copy_inode_size(d_inode(dentry),
+					file_inode(lower_file));
+		fsstack_copy_attr_times(d_inode(dentry),
+					file_inode(lower_file));
 	}
 
 	return err;
 }
 
-static int sdcardfs_readdir(struct file *file, void *dirent, filldir_t filldir)
+static int sdcardfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	int err = 0;
+	int err;
 	struct file *lower_file = NULL;
 	struct dentry *dentry = file->f_path.dentry;
 
 	lower_file = sdcardfs_lower_file(file);
 
 	lower_file->f_pos = file->f_pos;
-	err = vfs_readdir(lower_file, filldir, dirent);
+	err = iterate_dir(lower_file, ctx);
 	file->f_pos = lower_file->f_pos;
 	if (err >= 0)		/* copy the atime */
-		fsstack_copy_attr_atime(dentry->d_inode,
-					lower_file->f_path.dentry->d_inode);
+		fsstack_copy_attr_atime(d_inode(dentry),
+					file_inode(lower_file));
 	return err;
 }
 
@@ -191,7 +191,6 @@ static int sdcardfs_mmap(struct file *file, struct vm_area_struct *vma)
 	 */
 	file_accessed(file);
 	vma->vm_ops = &sdcardfs_vm_ops;
-	vma->vm_flags |= VM_CAN_NONLINEAR;
 
 	file->f_mapping->a_ops = &sdcardfs_aops; /* set our aops */
 	if (!SDCARDFS_F(file)->lower_vm_ops) /* save for our ->fault */
@@ -242,8 +241,8 @@ static int sdcardfs_open(struct inode *inode, struct file *file)
 
 	/* open lower object and link sdcardfs's file struct to lower's */
 	sdcardfs_get_lower_path(file->f_path.dentry, &lower_path);
-	lower_file = dentry_open(lower_path.dentry, lower_path.mnt,
-				 file->f_flags, current_cred());
+	lower_file = dentry_open(&lower_path, file->f_flags, current_cred());
+	path_put(&lower_path);
 	if (IS_ERR(lower_file)) {
 		err = PTR_ERR(lower_file);
 		lower_file = sdcardfs_lower_file(file);
@@ -275,8 +274,10 @@ static int sdcardfs_flush(struct file *file, fl_owner_t id)
 	struct file *lower_file = NULL;
 
 	lower_file = sdcardfs_lower_file(file);
-	if (lower_file && lower_file->f_op && lower_file->f_op->flush)
+	if (lower_file && lower_file->f_op && lower_file->f_op->flush) {
+		filemap_write_and_wait(file->f_mapping);
 		err = lower_file->f_op->flush(lower_file, id);
+	}
 
 	return err;
 }
@@ -296,19 +297,23 @@ static int sdcardfs_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int
-sdcardfs_fsync(struct file *file, int datasync)
+static int sdcardfs_fsync(struct file *file, loff_t start, loff_t end,
+			int datasync)
 {
 	int err;
 	struct file *lower_file;
 	struct path lower_path;
 	struct dentry *dentry = file->f_path.dentry;
 
+	err = __generic_file_fsync(file, start, end, datasync);
+	if (err)
+		goto out;
+
 	lower_file = sdcardfs_lower_file(file);
 	sdcardfs_get_lower_path(dentry, &lower_path);
-	err = vfs_fsync(lower_file, datasync);
+	err = vfs_fsync_range(lower_file, start, end, datasync);
 	sdcardfs_put_lower_path(dentry, &lower_path);
-
+out:
 	return err;
 }
 
@@ -344,7 +349,7 @@ const struct file_operations sdcardfs_main_fops = {
 const struct file_operations sdcardfs_dir_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= sdcardfs_readdir,
+	.iterate	= sdcardfs_readdir,
 	.unlocked_ioctl	= sdcardfs_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= sdcardfs_compat_ioctl,
