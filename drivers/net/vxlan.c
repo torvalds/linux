@@ -106,9 +106,9 @@ struct vxlan_fdb {
 	unsigned long	  updated;	/* jiffies */
 	unsigned long	  used;
 	struct list_head  remotes;
+	u8		  eth_addr[ETH_ALEN];
 	u16		  state;	/* see ndm_state */
 	u8		  flags;	/* see ndm_flags */
-	u8		  eth_addr[ETH_ALEN];
 };
 
 /* Pseudo network device */
