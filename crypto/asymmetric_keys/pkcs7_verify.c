@@ -170,6 +170,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 				  struct pkcs7_signed_info *sinfo)
 {
 	struct x509_certificate *x509 = sinfo->signer, *p;
+	struct asymmetric_key_id *auth;
 	int ret;
 
 	kenter("");
@@ -187,11 +188,14 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			goto maybe_missing_crypto_in_x509;
 
 		pr_debug("- issuer %s\n", x509->issuer);
+		if (x509->akid_id)
+			pr_debug("- authkeyid.id %*phN\n",
+				 x509->akid_id->len, x509->akid_id->data);
 		if (x509->akid_skid)
-			pr_debug("- authkeyid %*phN\n",
+			pr_debug("- authkeyid.skid %*phN\n",
 				 x509->akid_skid->len, x509->akid_skid->data);
 
-		if (!x509->akid_skid ||
+		if ((!x509->akid_id && !x509->akid_skid) ||
 		    strcmp(x509->subject, x509->issuer) == 0) {
 			/* If there's no authority certificate specified, then
 			 * the certificate must be self-signed and is the root
@@ -215,21 +219,42 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		/* Look through the X.509 certificates in the PKCS#7 message's
 		 * list to see if the next one is there.
 		 */
-		pr_debug("- want %*phN\n",
-			 x509->akid_skid->len, x509->akid_skid->data);
-		for (p = pkcs7->certs; p; p = p->next) {
-			if (!p->skid)
-				continue;
-			pr_debug("- cmp [%u] %*phN\n",
-				 p->index, p->skid->len, p->skid->data);
-			if (asymmetric_key_id_same(p->skid, x509->akid_skid))
-				goto found_issuer;
+		auth = x509->akid_id;
+		if (auth) {
+			pr_debug("- want %*phN\n", auth->len, auth->data);
+			for (p = pkcs7->certs; p; p = p->next) {
+				pr_debug("- cmp [%u] %*phN\n",
+					 p->index, p->id->len, p->id->data);
+				if (asymmetric_key_id_same(p->id, auth))
+					goto found_issuer_check_skid;
+			}
+		} else {
+			auth = x509->akid_skid;
+			pr_debug("- want %*phN\n", auth->len, auth->data);
+			for (p = pkcs7->certs; p; p = p->next) {
+				if (!p->skid)
+					continue;
+				pr_debug("- cmp [%u] %*phN\n",
+					 p->index, p->skid->len, p->skid->data);
+				if (asymmetric_key_id_same(p->skid, auth))
+					goto found_issuer;
+			}
 		}
 
 		/* We didn't find the root of this chain */
 		pr_debug("- top\n");
 		return 0;
 
+	found_issuer_check_skid:
+		/* We matched issuer + serialNumber, but if there's an
+		 * authKeyId.keyId, that must match the CA subjKeyId also.
+		 */
+		if (x509->akid_skid &&
+		    !asymmetric_key_id_same(p->skid, x509->akid_skid)) {
+			pr_warn("Sig %u: X.509 chain contains auth-skid nonmatch (%u->%u)\n",
+				sinfo->index, x509->index, p->index);
+			return -EKEYREJECTED;
+		}
 	found_issuer:
 		pr_debug("- subject %s\n", p->subject);
 		if (p->seen) {
