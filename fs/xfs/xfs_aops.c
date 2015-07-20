@@ -351,12 +351,11 @@ xfs_imap_valid(
  */
 STATIC void
 xfs_end_bio(
-	struct bio		*bio,
-	int			error)
+	struct bio		*bio)
 {
 	xfs_ioend_t		*ioend = bio->bi_private;
 
-	ioend->io_error = test_bit(BIO_UPTODATE, &bio->bi_flags) ? 0 : error;
+	ioend->io_error = bio->bi_error;
 
 	/* Toss bio and pass work off to an xfsdatad thread */
 	bio->bi_private = NULL;

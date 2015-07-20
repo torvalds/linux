@@ -944,7 +944,8 @@ static void dec_pending(struct dm_io *io, int error)
 		} else {
 			/* done with normal IO or empty flush */
 			trace_block_bio_complete(md->queue, bio, io_error);
-			bio_endio(bio, io_error);
+			bio->bi_error = io_error;
+			bio_endio(bio);
 		}
 	}
 }
@@ -957,16 +958,14 @@ static void disable_write_same(struct mapped_device *md)
 	limits->max_write_same_sectors = 0;
 }
 
-static void clone_endio(struct bio *bio, int error)
+static void clone_endio(struct bio *bio)
 {
+	int error = bio->bi_error;
 	int r = error;
 	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = tio->io->md;
 	dm_endio_fn endio = tio->ti->type->end_io;
-
-	if (!bio_flagged(bio, BIO_UPTODATE) && !error)
-		error = -EIO;
 
 	if (endio) {
 		r = endio(tio->ti, bio, error);
@@ -996,7 +995,7 @@ static void clone_endio(struct bio *bio, int error)
 /*
  * Partial completion handling for request-based dm
  */
-static void end_clone_bio(struct bio *clone, int error)
+static void end_clone_bio(struct bio *clone)
 {
 	struct dm_rq_clone_bio_info *info =
 		container_of(clone, struct dm_rq_clone_bio_info, clone);
@@ -1013,13 +1012,13 @@ static void end_clone_bio(struct bio *clone, int error)
 		 * the remainder.
 		 */
 		return;
-	else if (error) {
+	else if (bio->bi_error) {
 		/*
 		 * Don't notice the error to the upper layer yet.
 		 * The error handling decision is made by the target driver,
 		 * when the request is completed.
 		 */
-		tio->error = error;
+		tio->error = bio->bi_error;
 		return;
 	}
 

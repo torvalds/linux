@@ -103,7 +103,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		 * normal IO completion path
 		 */
 		bio_get(bio);
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		__blk_rq_unmap_user(bio);
 		return -EINVAL;
 	}

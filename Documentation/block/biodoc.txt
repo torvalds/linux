@@ -1109,7 +1109,7 @@ it will loop and handle as many sectors (on a bio-segment granularity)
 as specified.
 
 Now bh->b_end_io is replaced by bio->bi_end_io, but most of the time the
-right thing to use is bio_endio(bio, uptodate) instead.
+right thing to use is bio_endio(bio) instead.
 
 If the driver is dropping the io_request_lock from its request_fn strategy,
 then it just needs to replace that with q->queue_lock instead.

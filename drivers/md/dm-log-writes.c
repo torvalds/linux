@@ -146,16 +146,16 @@ static void put_io_block(struct log_writes_c *lc)
 	}
 }
 
-static void log_end_io(struct bio *bio, int err)
+static void log_end_io(struct bio *bio)
 {
 	struct log_writes_c *lc = bio->bi_private;
 	struct bio_vec *bvec;
 	int i;
 
-	if (err) {
+	if (bio->bi_error) {
 		unsigned long flags;
 
-		DMERR("Error writing log block, error=%d", err);
+		DMERR("Error writing log block, error=%d", bio->bi_error);
 		spin_lock_irqsave(&lc->blocks_lock, flags);
 		lc->logging_enabled = false;
 		spin_unlock_irqrestore(&lc->blocks_lock, flags);
@@ -205,7 +205,6 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
 	bio->bi_bdev = lc->logdev->bdev;
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
@@ -270,7 +269,6 @@ static int log_one_block(struct log_writes_c *lc,
 	bio->bi_bdev = lc->logdev->bdev;
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
 
 	for (i = 0; i < block->vec_cnt; i++) {
 		/*
@@ -292,7 +290,6 @@ static int log_one_block(struct log_writes_c *lc,
 			bio->bi_bdev = lc->logdev->bdev;
 			bio->bi_end_io = log_end_io;
 			bio->bi_private = lc;
-			set_bit(BIO_UPTODATE, &bio->bi_flags);
 
 			ret = bio_add_page(bio, block->vecs[i].bv_page,
 					   block->vecs[i].bv_len, 0);
@@ -606,7 +603,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		WARN_ON(flush_bio || fua_bio);
 		if (lc->device_supports_discard)
 			goto map_bio;
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		return DM_MAPIO_SUBMITTED;
 	}
 

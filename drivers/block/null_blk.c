@@ -222,7 +222,7 @@ static void end_cmd(struct nullb_cmd *cmd)
 		blk_end_request_all(cmd->rq, 0);
 		break;
 	case NULL_Q_BIO:
-		bio_endio(cmd->bio, 0);
+		bio_endio(cmd->bio);
 		break;
 	}
 

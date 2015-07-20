@@ -977,7 +977,7 @@ static void pkt_make_local_copy(struct packet_data *pkt, struct bio_vec *bvec)
 	}
 }
 
-static void pkt_end_io_read(struct bio *bio, int err)
+static void pkt_end_io_read(struct bio *bio)
 {
 	struct packet_data *pkt = bio->bi_private;
 	struct pktcdvd_device *pd = pkt->pd;
@@ -985,9 +985,9 @@ static void pkt_end_io_read(struct bio *bio, int err)
 
 	pkt_dbg(2, pd, "bio=%p sec0=%llx sec=%llx err=%d\n",
 		bio, (unsigned long long)pkt->sector,
-		(unsigned long long)bio->bi_iter.bi_sector, err);
+		(unsigned long long)bio->bi_iter.bi_sector, bio->bi_error);
 
-	if (err)
+	if (bio->bi_error)
 		atomic_inc(&pkt->io_errors);
 	if (atomic_dec_and_test(&pkt->io_wait)) {
 		atomic_inc(&pkt->run_sm);
@@ -996,13 +996,13 @@ static void pkt_end_io_read(struct bio *bio, int err)
 	pkt_bio_finished(pd);
 }
 
-static void pkt_end_io_packet_write(struct bio *bio, int err)
+static void pkt_end_io_packet_write(struct bio *bio)
 {
 	struct packet_data *pkt = bio->bi_private;
 	struct pktcdvd_device *pd = pkt->pd;
 	BUG_ON(!pd);
 
-	pkt_dbg(2, pd, "id=%d, err=%d\n", pkt->id, err);
+	pkt_dbg(2, pd, "id=%d, err=%d\n", pkt->id, bio->bi_error);
 
 	pd->stats.pkt_ended++;
 
@@ -1340,22 +1340,22 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	pkt_queue_bio(pd, pkt->w_bio);
 }
 
-static void pkt_finish_packet(struct packet_data *pkt, int uptodate)
+static void pkt_finish_packet(struct packet_data *pkt, int error)
 {
 	struct bio *bio;
 
-	if (!uptodate)
+	if (error)
 		pkt->cache_valid = 0;
 
 	/* Finish all bios corresponding to this packet */
-	while ((bio = bio_list_pop(&pkt->orig_bios)))
-		bio_endio(bio, uptodate ? 0 : -EIO);
+	while ((bio = bio_list_pop(&pkt->orig_bios))) {
+		bio->bi_error = error;
+		bio_endio(bio);
+	}
 }
 
 static void pkt_run_state_machine(struct pktcdvd_device *pd, struct packet_data *pkt)
 {
-	int uptodate;
-
 	pkt_dbg(2, pd, "pkt %d\n", pkt->id);
 
 	for (;;) {
@@ -1384,7 +1384,7 @@ static void pkt_run_state_machine(struct pktcdvd_device *pd, struct packet_data 
 			if (atomic_read(&pkt->io_wait) > 0)
 				return;
 
-			if (test_bit(BIO_UPTODATE, &pkt->w_bio->bi_flags)) {
+			if (!pkt->w_bio->bi_error) {
 				pkt_set_state(pkt, PACKET_FINISHED_STATE);
 			} else {
 				pkt_set_state(pkt, PACKET_RECOVERY_STATE);
@@ -1401,8 +1401,7 @@ static void pkt_run_state_machine(struct pktcdvd_device *pd, struct packet_data 
 			break;
 
 		case PACKET_FINISHED_STATE:
-			uptodate = test_bit(BIO_UPTODATE, &pkt->w_bio->bi_flags);
-			pkt_finish_packet(pkt, uptodate);
+			pkt_finish_packet(pkt, pkt->w_bio->bi_error);
 			return;
 
 		default:
@@ -2332,13 +2331,14 @@ static void pkt_close(struct gendisk *disk, fmode_t mode)
 }
 
 
-static void pkt_end_io_read_cloned(struct bio *bio, int err)
+static void pkt_end_io_read_cloned(struct bio *bio)
 {
 	struct packet_stacked_data *psd = bio->bi_private;
 	struct pktcdvd_device *pd = psd->pd;
 
+	psd->bio->bi_error = bio->bi_error;
 	bio_put(bio);
-	bio_endio(psd->bio, err);
+	bio_endio(psd->bio);
 	mempool_free(psd, psd_pool);
 	pkt_bio_finished(pd);
 }

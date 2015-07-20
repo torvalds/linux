@@ -1845,8 +1845,10 @@ static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 	int ret;
 
 	ret = btrfs_map_bio(root, rw, bio, mirror_num, 1);
-	if (ret)
-		bio_endio(bio, ret);
+	if (ret) {
+		bio->bi_error = ret;
+		bio_endio(bio);
+	}
 	return ret;
 }
 
@@ -1906,8 +1908,10 @@ mapit:
 	ret = btrfs_map_bio(root, rw, bio, mirror_num, 0);
 
 out:
-	if (ret < 0)
-		bio_endio(bio, ret);
+	if (ret < 0) {
+		bio->bi_error = ret;
+		bio_endio(bio);
+	}
 	return ret;
 }
 
@@ -7689,13 +7693,13 @@ struct btrfs_retry_complete {
 	int uptodate;
 };
 
-static void btrfs_retry_endio_nocsum(struct bio *bio, int err)
+static void btrfs_retry_endio_nocsum(struct bio *bio)
 {
 	struct btrfs_retry_complete *done = bio->bi_private;
 	struct bio_vec *bvec;
 	int i;
 
-	if (err)
+	if (bio->bi_error)
 		goto end;
 
 	done->uptodate = 1;
@@ -7744,7 +7748,7 @@ try_again:
 	return 0;
 }
 
-static void btrfs_retry_endio(struct bio *bio, int err)
+static void btrfs_retry_endio(struct bio *bio)
 {
 	struct btrfs_retry_complete *done = bio->bi_private;
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
@@ -7753,7 +7757,7 @@ static void btrfs_retry_endio(struct bio *bio, int err)
 	int ret;
 	int i;
 
-	if (err)
+	if (bio->bi_error)
 		goto end;
 
 	uptodate = 1;
@@ -7836,12 +7840,13 @@ static int btrfs_subio_endio_read(struct inode *inode,
 	}
 }
 
-static void btrfs_endio_direct_read(struct bio *bio, int err)
+static void btrfs_endio_direct_read(struct bio *bio)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
 	struct inode *inode = dip->inode;
 	struct bio *dio_bio;
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
+	int err = bio->bi_error;
 
 	if (dip->flags & BTRFS_DIO_ORIG_BIO_SUBMITTED)
 		err = btrfs_subio_endio_read(inode, io_bio, err);
@@ -7852,17 +7857,14 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 
 	kfree(dip);
 
-	/* If we had a csum failure make sure to clear the uptodate flag */
-	if (err)
-		clear_bit(BIO_UPTODATE, &dio_bio->bi_flags);
-	dio_end_io(dio_bio, err);
+	dio_end_io(dio_bio, bio->bi_error);
 
 	if (io_bio->end_io)
 		io_bio->end_io(io_bio, err);
 	bio_put(bio);
 }
 
-static void btrfs_endio_direct_write(struct bio *bio, int err)
+static void btrfs_endio_direct_write(struct bio *bio)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
 	struct inode *inode = dip->inode;
@@ -7876,7 +7878,8 @@ static void btrfs_endio_direct_write(struct bio *bio, int err)
 again:
 	ret = btrfs_dec_test_first_ordered_pending(inode, &ordered,
 						   &ordered_offset,
-						   ordered_bytes, !err);
+						   ordered_bytes,
+						   !bio->bi_error);
 	if (!ret)
 		goto out_test;
 
@@ -7899,10 +7902,7 @@ out_test:
 
 	kfree(dip);
 
-	/* If we had an error make sure to clear the uptodate flag */
-	if (err)
-		clear_bit(BIO_UPTODATE, &dio_bio->bi_flags);
-	dio_end_io(dio_bio, err);
+	dio_end_io(dio_bio, bio->bi_error);
 	bio_put(bio);
 }
 
@@ -7917,9 +7917,10 @@ static int __btrfs_submit_bio_start_direct_io(struct inode *inode, int rw,
 	return 0;
 }
 
-static void btrfs_end_dio_bio(struct bio *bio, int err)
+static void btrfs_end_dio_bio(struct bio *bio)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
+	int err = bio->bi_error;
 
 	if (err)
 		btrfs_warn(BTRFS_I(dip->inode)->root->fs_info,
@@ -7948,8 +7949,8 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 	if (dip->errors) {
 		bio_io_error(dip->orig_bio);
 	} else {
-		set_bit(BIO_UPTODATE, &dip->dio_bio->bi_flags);
-		bio_endio(dip->orig_bio, 0);
+		dip->dio_bio->bi_error = 0;
+		bio_endio(dip->orig_bio);
 	}
 out:
 	bio_put(bio);
@@ -8220,7 +8221,8 @@ free_ordered:
 	 * callbacks - they require an allocated dip and a clone of dio_bio.
 	 */
 	if (io_bio && dip) {
-		bio_endio(io_bio, ret);
+		io_bio->bi_error = -EIO;
+		bio_endio(io_bio);
 		/*
 		 * The end io callbacks free our dip, do the final put on io_bio
 		 * and all the cleanup and final put for dio_bio (through
@@ -8247,7 +8249,7 @@ free_ordered:
 			unlock_extent(&BTRFS_I(inode)->io_tree, file_offset,
 			      file_offset + dio_bio->bi_iter.bi_size - 1);
 		}
-		clear_bit(BIO_UPTODATE, &dio_bio->bi_flags);
+		dio_bio->bi_error = -EIO;
 		/*
 		 * Releases and cleans up our dio_bio, no need to bio_put()
 		 * nor bio_endio()/bio_io_error() against dio_bio.

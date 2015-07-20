@@ -2011,7 +2011,7 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 	/*check if journaling to disk has been disabled*/
 	if (log->no_integrity) {
 		bio->bi_iter.bi_size = 0;
-		lbmIODone(bio, 0);
+		lbmIODone(bio);
 	} else {
 		submit_bio(READ_SYNC, bio);
 	}
@@ -2158,7 +2158,7 @@ static void lbmStartIO(struct lbuf * bp)
 	/* check if journaling to disk has been disabled */
 	if (log->no_integrity) {
 		bio->bi_iter.bi_size = 0;
-		lbmIODone(bio, 0);
+		lbmIODone(bio);
 	} else {
 		submit_bio(WRITE_SYNC, bio);
 		INCREMENT(lmStat.submitted);
@@ -2196,7 +2196,7 @@ static int lbmIOWait(struct lbuf * bp, int flag)
  *
  * executed at INTIODONE level
  */
-static void lbmIODone(struct bio *bio, int error)
+static void lbmIODone(struct bio *bio)
 {
 	struct lbuf *bp = bio->bi_private;
 	struct lbuf *nextbp, *tail;
@@ -2212,7 +2212,7 @@ static void lbmIODone(struct bio *bio, int error)
 
 	bp->l_flag |= lbmDONE;
 
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+	if (bio->bi_error) {
 		bp->l_flag |= lbmERROR;
 
 		jfs_err("lbmIODone: I/O error in JFS log");

@@ -852,7 +852,7 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_device *dev, char *b)
 	return bl;
 }
 
-static void pscsi_bi_endio(struct bio *bio, int error)
+static void pscsi_bi_endio(struct bio *bio)
 {
 	bio_put(bio);
 }
@@ -973,7 +973,7 @@ fail:
 	while (*hbio) {
 		bio = *hbio;
 		*hbio = (*hbio)->bi_next;
-		bio_endio(bio, 0);	/* XXX: should be error */
+		bio_endio(bio);
 	}
 	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 }
@@ -1061,7 +1061,7 @@ fail_free_bio:
 	while (hbio) {
 		struct bio *bio = hbio;
 		hbio = hbio->bi_next;
-		bio_endio(bio, 0);	/* XXX: should be error */
+		bio_endio(bio);
 	}
 	ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 fail:

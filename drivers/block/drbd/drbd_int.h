@@ -1481,9 +1481,9 @@ extern int drbd_khelper(struct drbd_device *device, char *cmd);
 
 /* drbd_worker.c */
 /* bi_end_io handlers */
-extern void drbd_md_endio(struct bio *bio, int error);
-extern void drbd_peer_request_endio(struct bio *bio, int error);
-extern void drbd_request_endio(struct bio *bio, int error);
+extern void drbd_md_endio(struct bio *bio);
+extern void drbd_peer_request_endio(struct bio *bio);
+extern void drbd_request_endio(struct bio *bio);
 extern int drbd_worker(struct drbd_thread *thi);
 enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *device, int o_minor);
 void drbd_resync_after_changed(struct drbd_device *device);
@@ -1604,12 +1604,13 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
 	__release(local);
 	if (!bio->bi_bdev) {
 		drbd_err(device, "drbd_generic_make_request: bio->bi_bdev == NULL\n");
-		bio_endio(bio, -ENODEV);
+		bio->bi_error = -ENODEV;
+		bio_endio(bio);
 		return;
 	}
 
 	if (drbd_insert_fault(device, fault_type))
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 	else
 		generic_make_request(bio);
 }

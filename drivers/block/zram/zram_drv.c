@@ -850,7 +850,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
 		zram_bio_discard(zram, index, offset, bio);
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		return;
 	}
 
@@ -883,8 +883,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 		update_position(&index, &offset, &bvec);
 	}
 
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio_endio(bio, 0);
+	bio_endio(bio);
 	return;
 
 out:

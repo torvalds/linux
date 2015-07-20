@@ -273,7 +273,7 @@ static int stripe_map_range(struct stripe_c *sc, struct bio *bio,
 		return DM_MAPIO_REMAPPED;
 	} else {
 		/* The range doesn't map to the target stripe */
-		bio_endio(bio, 0);
+		bio_endio(bio);
 		return DM_MAPIO_SUBMITTED;
 	}
 }

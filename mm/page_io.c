@@ -43,12 +43,11 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 	return bio;
 }
 
-void end_swap_bio_write(struct bio *bio, int err)
+void end_swap_bio_write(struct bio *bio)
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;
 
-	if (!uptodate) {
+	if (bio->bi_error) {
 		SetPageError(page);
 		/*
 		 * We failed to write the page out to swap-space.
@@ -69,12 +68,11 @@ void end_swap_bio_write(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-static void end_swap_bio_read(struct bio *bio, int err)
+static void end_swap_bio_read(struct bio *bio)
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;
 
-	if (!uptodate) {
+	if (bio->bi_error) {
 		SetPageError(page);
 		ClearPageUptodate(page);
 		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
@@ -254,7 +252,7 @@ static sector_t swap_page_sector(struct page *page)
 }
 
 int __swap_writepage(struct page *page, struct writeback_control *wbc,
-	void (*end_write_func)(struct bio *, int))
+		bio_end_io_t end_write_func)
 {
 	struct bio *bio;
 	int ret, rw = WRITE;

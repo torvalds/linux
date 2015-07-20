@@ -143,9 +143,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 			  unsigned int nbytes, int error)
 {
 	if (error)
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		error = -EIO;
+		bio->bi_error = error;
 
 	if (unlikely(rq->cmd_flags & REQ_QUIET))
 		set_bit(BIO_QUIET, &bio->bi_flags);
@@ -154,7 +152,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 
 	/* don't actually finish bio if it's part of flush sequence */
 	if (bio->bi_iter.bi_size == 0 && !(rq->cmd_flags & REQ_FLUSH_SEQ))
-		bio_endio(bio, error);
+		bio_endio(bio);
 }
 
 void blk_dump_rq_flags(struct request *rq, char *msg)
@@ -1620,7 +1618,8 @@ static void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	blk_queue_bounce(q, &bio);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio_endio(bio, -EIO);
+		bio->bi_error = -EIO;
+		bio_endio(bio);
 		return;
 	}
 
@@ -1673,7 +1672,8 @@ get_rq:
 	 */
 	req = get_request(q, rw_flags, bio, GFP_NOIO);
 	if (IS_ERR(req)) {
-		bio_endio(bio, PTR_ERR(req));	/* @q is dead */
+		bio->bi_error = PTR_ERR(req);
+		bio_endio(bio);
 		goto out_unlock;
 	}
 
@@ -1896,7 +1896,8 @@ generic_make_request_checks(struct bio *bio)
 	return true;
 
 end_io:
-	bio_endio(bio, err);
+	bio->bi_error = err;
+	bio_endio(bio);
 	return false;
 }
 

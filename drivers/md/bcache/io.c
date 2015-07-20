@@ -55,19 +55,19 @@ static void bch_bio_submit_split_done(struct closure *cl)
 
 	s->bio->bi_end_io = s->bi_end_io;
 	s->bio->bi_private = s->bi_private;
-	bio_endio(s->bio, 0);
+	bio_endio(s->bio);
 
 	closure_debug_destroy(&s->cl);
 	mempool_free(s, s->p->bio_split_hook);
 }
 
-static void bch_bio_submit_split_endio(struct bio *bio, int error)
+static void bch_bio_submit_split_endio(struct bio *bio)
 {
 	struct closure *cl = bio->bi_private;
 	struct bio_split_hook *s = container_of(cl, struct bio_split_hook, cl);
 
-	if (error)
-		clear_bit(BIO_UPTODATE, &s->bio->bi_flags);
+	if (bio->bi_error)
+		s->bio->bi_error = bio->bi_error;
 
 	bio_put(bio);
 	closure_put(cl);

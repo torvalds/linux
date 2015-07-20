@@ -220,8 +220,7 @@ static void xpram_make_request(struct request_queue *q, struct bio *bio)
 			index++;
 		}
 	}
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio_endio(bio, 0);
+	bio_endio(bio);
 	return;
 fail:
 	bio_io_error(bio);

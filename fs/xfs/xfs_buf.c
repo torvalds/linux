@@ -1096,8 +1096,7 @@ xfs_bwrite(
 
 STATIC void
 xfs_buf_bio_end_io(
-	struct bio		*bio,
-	int			error)
+	struct bio		*bio)
 {
 	xfs_buf_t		*bp = (xfs_buf_t *)bio->bi_private;
 
@@ -1105,10 +1104,10 @@ xfs_buf_bio_end_io(
 	 * don't overwrite existing errors - otherwise we can lose errors on
 	 * buffers that require multiple bios to complete.
 	 */
-	if (error) {
+	if (bio->bi_error) {
 		spin_lock(&bp->b_lock);
 		if (!bp->b_io_error)
-			bp->b_io_error = error;
+			bp->b_io_error = bio->bi_error;
 		spin_unlock(&bp->b_lock);
 	}
 

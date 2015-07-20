@@ -269,7 +269,6 @@ static void bio_free(struct bio *bio)
 void bio_init(struct bio *bio)
 {
 	memset(bio, 0, sizeof(*bio));
-	bio->bi_flags = 1 << BIO_UPTODATE;
 	atomic_set(&bio->__bi_remaining, 1);
 	atomic_set(&bio->__bi_cnt, 1);
 }
@@ -292,14 +291,17 @@ void bio_reset(struct bio *bio)
 	__bio_free(bio);
 
 	memset(bio, 0, BIO_RESET_BYTES);
-	bio->bi_flags = flags | (1 << BIO_UPTODATE);
+	bio->bi_flags = flags;
 	atomic_set(&bio->__bi_remaining, 1);
 }
 EXPORT_SYMBOL(bio_reset);
 
-static void bio_chain_endio(struct bio *bio, int error)
+static void bio_chain_endio(struct bio *bio)
 {
-	bio_endio(bio->bi_private, error);
+	struct bio *parent = bio->bi_private;
+
+	parent->bi_error = bio->bi_error;
+	bio_endio(parent);
 	bio_put(bio);
 }
 
@@ -896,11 +898,11 @@ struct submit_bio_ret {
 	int error;
 };
 
-static void submit_bio_wait_endio(struct bio *bio, int error)
+static void submit_bio_wait_endio(struct bio *bio)
 {
 	struct submit_bio_ret *ret = bio->bi_private;
 
-	ret->error = error;
+	ret->error = bio->bi_error;
 	complete(&ret->event);
 }
 
@@ -1445,7 +1447,7 @@ void bio_unmap_user(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_unmap_user);
 
-static void bio_map_kern_endio(struct bio *bio, int err)
+static void bio_map_kern_endio(struct bio *bio)
 {
 	bio_put(bio);
 }
@@ -1501,13 +1503,13 @@ struct bio *bio_map_kern(struct request_queue *q, void *data, unsigned int len,
 }
 EXPORT_SYMBOL(bio_map_kern);
 
-static void bio_copy_kern_endio(struct bio *bio, int err)
+static void bio_copy_kern_endio(struct bio *bio)
 {
 	bio_free_pages(bio);
 	bio_put(bio);
 }
 
-static void bio_copy_kern_endio_read(struct bio *bio, int err)
+static void bio_copy_kern_endio_read(struct bio *bio)
 {
 	char *p = bio->bi_private;
 	struct bio_vec *bvec;
@@ -1518,7 +1520,7 @@ static void bio_copy_kern_endio_read(struct bio *bio, int err)
 		p += bvec->bv_len;
 	}
 
-	bio_copy_kern_endio(bio, err);
+	bio_copy_kern_endio(bio);
 }
 
 /**
@@ -1778,25 +1780,15 @@ static inline bool bio_remaining_done(struct bio *bio)
 /**
  * bio_endio - end I/O on a bio
  * @bio:	bio
- * @error:	error, if any
  *
  * Description:
- *   bio_endio() will end I/O on the whole bio. bio_endio() is the
- *   preferred way to end I/O on a bio, it takes care of clearing
- *   BIO_UPTODATE on error. @error is 0 on success, and and one of the
- *   established -Exxxx (-EIO, for instance) error values in case
- *   something went wrong. No one should call bi_end_io() directly on a
- *   bio unless they own it and thus know that it has an end_io
- *   function.
+ *   bio_endio() will end I/O on the whole bio. bio_endio() is the preferred
+ *   way to end I/O on a bio. No one should call bi_end_io() directly on a
+ *   bio unless they own it and thus know that it has an end_io function.
  **/
-void bio_endio(struct bio *bio, int error)
+void bio_endio(struct bio *bio)
 {
 	while (bio) {
-		if (error)
-			clear_bit(BIO_UPTODATE, &bio->bi_flags);
-		else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-			error = -EIO;
-
 		if (unlikely(!bio_remaining_done(bio)))
 			break;
 
@@ -1810,11 +1802,12 @@ void bio_endio(struct bio *bio, int error)
 		 */
 		if (bio->bi_end_io == bio_chain_endio) {
 			struct bio *parent = bio->bi_private;
+			parent->bi_error = bio->bi_error;
 			bio_put(bio);
 			bio = parent;
 		} else {
 			if (bio->bi_end_io)
-				bio->bi_end_io(bio, error);
+				bio->bi_end_io(bio);
 			bio = NULL;
 		}
 	}

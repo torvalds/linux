@@ -1199,7 +1199,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	struct blk_mq_alloc_data alloc_data;
 
 	if (unlikely(blk_mq_queue_enter(q, GFP_KERNEL))) {
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 		return NULL;
 	}
 
@@ -1283,7 +1283,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	blk_queue_bounce(q, &bio);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 		return;
 	}
 
@@ -1368,7 +1368,7 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	blk_queue_bounce(q, &bio);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 		return;
 	}
 

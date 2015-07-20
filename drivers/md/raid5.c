@@ -233,7 +233,7 @@ static void return_io(struct bio *return_bi)
 		bi->bi_iter.bi_size = 0;
 		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
 					 bi, 0);
-		bio_endio(bi, 0);
+		bio_endio(bi);
 		bi = return_bi;
 	}
 }
@@ -887,9 +887,9 @@ static int use_new_offset(struct r5conf *conf, struct stripe_head *sh)
 }
 
 static void
-raid5_end_read_request(struct bio *bi, int error);
+raid5_end_read_request(struct bio *bi);
 static void
-raid5_end_write_request(struct bio *bi, int error);
+raid5_end_write_request(struct bio *bi);
 
 static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 {
@@ -2277,12 +2277,11 @@ static void shrink_stripes(struct r5conf *conf)
 	conf->slab_cache = NULL;
 }
 
-static void raid5_end_read_request(struct bio * bi, int error)
+static void raid5_end_read_request(struct bio * bi)
 {
 	struct stripe_head *sh = bi->bi_private;
 	struct r5conf *conf = sh->raid_conf;
 	int disks = sh->disks, i;
-	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
 	char b[BDEVNAME_SIZE];
 	struct md_rdev *rdev = NULL;
 	sector_t s;
@@ -2291,9 +2290,9 @@ static void raid5_end_read_request(struct bio * bi, int error)
 		if (bi == &sh->dev[i].req)
 			break;
 
-	pr_debug("end_read_request %llu/%d, count: %d, uptodate %d.\n",
+	pr_debug("end_read_request %llu/%d, count: %d, error %d.\n",
 		(unsigned long long)sh->sector, i, atomic_read(&sh->count),
-		uptodate);
+		bi->bi_error);
 	if (i == disks) {
 		BUG();
 		return;
@@ -2312,7 +2311,7 @@ static void raid5_end_read_request(struct bio * bi, int error)
 		s = sh->sector + rdev->new_data_offset;
 	else
 		s = sh->sector + rdev->data_offset;
-	if (uptodate) {
+	if (!bi->bi_error) {
 		set_bit(R5_UPTODATE, &sh->dev[i].flags);
 		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
 			/* Note that this cannot happen on a
@@ -2400,13 +2399,12 @@ static void raid5_end_read_request(struct bio * bi, int error)
 	release_stripe(sh);
 }
 
-static void raid5_end_write_request(struct bio *bi, int error)
+static void raid5_end_write_request(struct bio *bi)
 {
 	struct stripe_head *sh = bi->bi_private;
 	struct r5conf *conf = sh->raid_conf;
 	int disks = sh->disks, i;
 	struct md_rdev *uninitialized_var(rdev);
-	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
 	sector_t first_bad;
 	int bad_sectors;
 	int replacement = 0;
@@ -2429,23 +2427,23 @@ static void raid5_end_write_request(struct bio *bi, int error)
 			break;
 		}
 	}
-	pr_debug("end_write_request %llu/%d, count %d, uptodate: %d.\n",
+	pr_debug("end_write_request %llu/%d, count %d, error: %d.\n",
 		(unsigned long long)sh->sector, i, atomic_read(&sh->count),
-		uptodate);
+		bi->bi_error);
 	if (i == disks) {
 		BUG();
 		return;
 	}
 
 	if (replacement) {
-		if (!uptodate)
+		if (bi->bi_error)
 			md_error(conf->mddev, rdev);
 		else if (is_badblock(rdev, sh->sector,
 				     STRIPE_SECTORS,
 				     &first_bad, &bad_sectors))
 			set_bit(R5_MadeGoodRepl, &sh->dev[i].flags);
 	} else {
-		if (!uptodate) {
+		if (bi->bi_error) {
 			set_bit(STRIPE_DEGRADED, &sh->state);
 			set_bit(WriteErrorSeen, &rdev->flags);
 			set_bit(R5_WriteError, &sh->dev[i].flags);
@@ -2466,7 +2464,7 @@ static void raid5_end_write_request(struct bio *bi, int error)
 	}
 	rdev_dec_pending(rdev, conf->mddev);
 
-	if (sh->batch_head && !uptodate && !replacement)
+	if (sh->batch_head && bi->bi_error && !replacement)
 		set_bit(STRIPE_BATCH_ERR, &sh->batch_head->state);
 
 	if (!test_and_clear_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags))
@@ -3107,7 +3105,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 		while (bi && bi->bi_iter.bi_sector <
 			sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *nextbi = r5_next_bio(bi, sh->dev[i].sector);
-			clear_bit(BIO_UPTODATE, &bi->bi_flags);
+
+			bi->bi_error = -EIO;
 			if (!raid5_dec_bi_active_stripes(bi)) {
 				md_write_end(conf->mddev);
 				bi->bi_next = *return_bi;
@@ -3131,7 +3130,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 		while (bi && bi->bi_iter.bi_sector <
 		       sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *bi2 = r5_next_bio(bi, sh->dev[i].sector);
-			clear_bit(BIO_UPTODATE, &bi->bi_flags);
+
+			bi->bi_error = -EIO;
 			if (!raid5_dec_bi_active_stripes(bi)) {
 				md_write_end(conf->mddev);
 				bi->bi_next = *return_bi;
@@ -3156,7 +3156,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 			       sh->dev[i].sector + STRIPE_SECTORS) {
 				struct bio *nextbi =
 					r5_next_bio(bi, sh->dev[i].sector);
-				clear_bit(BIO_UPTODATE, &bi->bi_flags);
+
+				bi->bi_error = -EIO;
 				if (!raid5_dec_bi_active_stripes(bi)) {
 					bi->bi_next = *return_bi;
 					*return_bi = bi;
@@ -4749,12 +4750,11 @@ static struct bio *remove_bio_from_retry(struct r5conf *conf)
  *  first).
  *  If the read failed..
  */
-static void raid5_align_endio(struct bio *bi, int error)
+static void raid5_align_endio(struct bio *bi)
 {
 	struct bio* raid_bi  = bi->bi_private;
 	struct mddev *mddev;
 	struct r5conf *conf;
-	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
 	struct md_rdev *rdev;
 
 	bio_put(bi);
@@ -4766,10 +4766,10 @@ static void raid5_align_endio(struct bio *bi, int error)
 
 	rdev_dec_pending(rdev, conf->mddev);
 
-	if (!error && uptodate) {
+	if (!bi->bi_error) {
 		trace_block_bio_complete(bdev_get_queue(raid_bi->bi_bdev),
 					 raid_bi, 0);
-		bio_endio(raid_bi, 0);
+		bio_endio(raid_bi);
 		if (atomic_dec_and_test(&conf->active_aligned_reads))
 			wake_up(&conf->wait_for_quiescent);
 		return;
@@ -5133,7 +5133,7 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 	remaining = raid5_dec_bi_active_stripes(bi);
 	if (remaining == 0) {
 		md_write_end(mddev);
-		bio_endio(bi, 0);
+		bio_endio(bi);
 	}
 }
 
@@ -5297,7 +5297,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 			release_stripe_plug(mddev, sh);
 		} else {
 			/* cannot get stripe for read-ahead, just give-up */
-			clear_bit(BIO_UPTODATE, &bi->bi_flags);
+			bi->bi_error = -EIO;
 			break;
 		}
 	}
@@ -5311,7 +5311,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 
 		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
 					 bi, 0);
-		bio_endio(bi, 0);
+		bio_endio(bi);
 	}
 }
 
@@ -5707,7 +5707,7 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 	if (remaining == 0) {
 		trace_block_bio_complete(bdev_get_queue(raid_bio->bi_bdev),
 					 raid_bio, 0);
-		bio_endio(raid_bio, 0);
+		bio_endio(raid_bio);
 	}
 	if (atomic_dec_and_test(&conf->active_aligned_reads))
 		wake_up(&conf->wait_for_quiescent);

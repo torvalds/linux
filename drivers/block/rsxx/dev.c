@@ -137,7 +137,10 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 		if (!card->eeh_state && card->gendisk)
 			disk_stats_complete(card, meta->bio, meta->start_time);
 
-		bio_endio(meta->bio, atomic_read(&meta->error) ? -EIO : 0);
+		if (atomic_read(&meta->error))
+			bio_io_error(meta->bio);
+		else
+			bio_endio(meta->bio);
 		kmem_cache_free(bio_meta_pool, meta);
 	}
 }
@@ -199,7 +202,9 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 queue_err:
 	kmem_cache_free(bio_meta_pool, bio_meta);
 req_err:
-	bio_endio(bio, st);
+	if (st)
+		bio->bi_error = st;
+	bio_endio(bio);
 }
 
 /*----------------- Device Setup -------------------*/

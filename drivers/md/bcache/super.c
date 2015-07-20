@@ -221,7 +221,7 @@ err:
 	return err;
 }
 
-static void write_bdev_super_endio(struct bio *bio, int error)
+static void write_bdev_super_endio(struct bio *bio)
 {
 	struct cached_dev *dc = bio->bi_private;
 	/* XXX: error checking */
@@ -290,11 +290,11 @@ void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
 	closure_return_with_destructor(cl, bch_write_bdev_super_unlock);
 }
 
-static void write_super_endio(struct bio *bio, int error)
+static void write_super_endio(struct bio *bio)
 {
 	struct cache *ca = bio->bi_private;
 
-	bch_count_io_errors(ca, error, "writing superblock");
+	bch_count_io_errors(ca, bio->bi_error, "writing superblock");
 	closure_put(&ca->set->sb_write);
 }
 
@@ -339,12 +339,12 @@ void bcache_write_super(struct cache_set *c)
 
 /* UUID io */
 
-static void uuid_endio(struct bio *bio, int error)
+static void uuid_endio(struct bio *bio)
 {
 	struct closure *cl = bio->bi_private;
 	struct cache_set *c = container_of(cl, struct cache_set, uuid_write);
 
-	cache_set_err_on(error, c, "accessing uuids");
+	cache_set_err_on(bio->bi_error, c, "accessing uuids");
 	bch_bbio_free(bio, c);
 	closure_put(cl);
 }
@@ -512,11 +512,11 @@ static struct uuid_entry *uuid_find_empty(struct cache_set *c)
  * disk.
  */
 
-static void prio_endio(struct bio *bio, int error)
+static void prio_endio(struct bio *bio)
 {
 	struct cache *ca = bio->bi_private;
 
-	cache_set_err_on(error, ca->set, "accessing priorities");
+	cache_set_err_on(bio->bi_error, ca->set, "accessing priorities");
 	bch_bbio_free(bio, ca->set);
 	closure_put(&ca->prio);
 }

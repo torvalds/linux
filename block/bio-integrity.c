@@ -355,13 +355,12 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-	int error;
 
-	error = bio_integrity_process(bio, bi->verify_fn);
+	bio->bi_error = bio_integrity_process(bio, bi->verify_fn);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
-	bio_endio(bio, error);
+	bio_endio(bio);
 }
 
 /**
@@ -376,7 +375,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
  * in process context.	This function postpones completion
  * accordingly.
  */
-void bio_integrity_endio(struct bio *bio, int error)
+void bio_integrity_endio(struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 
@@ -386,9 +385,9 @@ void bio_integrity_endio(struct bio *bio, int error)
 	 * integrity metadata.  Restore original bio end_io handler
 	 * and run it.
 	 */
-	if (error) {
+	if (bio->bi_error) {
 		bio->bi_end_io = bip->bip_end_io;
-		bio_endio(bio, error);
+		bio_endio(bio);
 
 		return;
 	}

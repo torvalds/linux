@@ -77,18 +77,18 @@ static void multipath_end_bh_io (struct multipath_bh *mp_bh, int err)
 	struct bio *bio = mp_bh->master_bio;
 	struct mpconf *conf = mp_bh->mddev->private;
 
-	bio_endio(bio, err);
+	bio->bi_error = err;
+	bio_endio(bio);
 	mempool_free(mp_bh, conf->pool);
 }
 
-static void multipath_end_request(struct bio *bio, int error)
+static void multipath_end_request(struct bio *bio)
 {
-	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct multipath_bh *mp_bh = bio->bi_private;
 	struct mpconf *conf = mp_bh->mddev->private;
 	struct md_rdev *rdev = conf->multipaths[mp_bh->path].rdev;
 
-	if (uptodate)
+	if (!bio->bi_error)
 		multipath_end_bh_io(mp_bh, 0);
 	else if (!(bio->bi_rw & REQ_RAHEAD)) {
 		/*
@@ -101,7 +101,7 @@ static void multipath_end_request(struct bio *bio, int error)
 		       (unsigned long long)bio->bi_iter.bi_sector);
 		multipath_reschedule_retry(mp_bh);
 	} else
-		multipath_end_bh_io(mp_bh, error);
+		multipath_end_bh_io(mp_bh, bio->bi_error);
 	rdev_dec_pending(rdev, conf->mddev);
 }
 
@@ -123,7 +123,7 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 
 	mp_bh->path = multipath_map(conf);
 	if (mp_bh->path < 0) {
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 		mempool_free(mp_bh, conf->pool);
 		return;
 	}

@@ -201,7 +201,8 @@ void start_new_tl_epoch(struct drbd_connection *connection)
 void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m)
 {
-	bio_endio(m->bio, m->error);
+	m->bio->bi_error = m->error;
+	bio_endio(m->bio);
 	dec_ap_bio(device);
 }
 
@@ -1153,12 +1154,12 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 				      rw == WRITE ? DRBD_FAULT_DT_WR
 				    : rw == READ  ? DRBD_FAULT_DT_RD
 				    :               DRBD_FAULT_DT_RA))
-			bio_endio(bio, -EIO);
+			bio_io_error(bio);
 		else
 			generic_make_request(bio);
 		put_ldev(device);
 	} else
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 }
 
 static void drbd_queue_write(struct drbd_device *device, struct drbd_request *req)
@@ -1191,7 +1192,8 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 		/* only pass the error to the upper layers.
 		 * if user cannot handle io errors, that's not our business. */
 		drbd_err(device, "could not kmalloc() req\n");
-		bio_endio(bio, -ENOMEM);
+		bio->bi_error = -ENOMEM;
+		bio_endio(bio);
 		return ERR_PTR(-ENOMEM);
 	}
 	req->start_jif = start_jif;

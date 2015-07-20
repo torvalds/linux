@@ -42,14 +42,14 @@
  * status of that page is hard.  See end_buffer_async_read() for the details.
  * There is no point in duplicating all that complexity.
  */
-static void mpage_end_io(struct bio *bio, int err)
+static void mpage_end_io(struct bio *bio)
 {
 	struct bio_vec *bv;
 	int i;
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
-		page_endio(page, bio_data_dir(bio), err);
+		page_endio(page, bio_data_dir(bio), bio->bi_error);
 	}
 
 	bio_put(bio);

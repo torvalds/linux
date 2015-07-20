@@ -132,7 +132,7 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 		phys_mem += vec.bv_len;
 		transfered += vec.bv_len;
 	}
-	bio_endio(bio, 0);
+	bio_endio(bio);
 }
 
 /**

@@ -11,16 +11,16 @@
 
 struct bio_batch {
 	atomic_t		done;
-	unsigned long		flags;
+	int			error;
 	struct completion	*wait;
 };
 
-static void bio_batch_end_io(struct bio *bio, int err)
+static void bio_batch_end_io(struct bio *bio)
 {
 	struct bio_batch *bb = bio->bi_private;
 
-	if (err && (err != -EOPNOTSUPP))
-		clear_bit(BIO_UPTODATE, &bb->flags);
+	if (bio->bi_error && bio->bi_error != -EOPNOTSUPP)
+		bb->error = bio->bi_error;
 	if (atomic_dec_and_test(&bb->done))
 		complete(bb->wait);
 	bio_put(bio);
@@ -78,7 +78,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	}
 
 	atomic_set(&bb.done, 1);
-	bb.flags = 1 << BIO_UPTODATE;
+	bb.error = 0;
 	bb.wait = &wait;
 
 	blk_start_plug(&plug);
@@ -134,9 +134,8 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion_io(&wait);
 
-	if (!test_bit(BIO_UPTODATE, &bb.flags))
-		ret = -EIO;
-
+	if (bb.error)
+		return bb.error;
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_discard);
@@ -172,7 +171,7 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 		return -EOPNOTSUPP;
 
 	atomic_set(&bb.done, 1);
-	bb.flags = 1 << BIO_UPTODATE;
+	bb.error = 0;
 	bb.wait = &wait;
 
 	while (nr_sects) {
@@ -208,9 +207,8 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion_io(&wait);
 
-	if (!test_bit(BIO_UPTODATE, &bb.flags))
-		ret = -ENOTSUPP;
-
+	if (bb.error)
+		return bb.error;
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_write_same);
@@ -236,7 +234,7 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	DECLARE_COMPLETION_ONSTACK(wait);
 
 	atomic_set(&bb.done, 1);
-	bb.flags = 1 << BIO_UPTODATE;
+	bb.error = 0;
 	bb.wait = &wait;
 
 	ret = 0;
@@ -270,10 +268,8 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	if (!atomic_dec_and_test(&bb.done))
 		wait_for_completion_io(&wait);
 
-	if (!test_bit(BIO_UPTODATE, &bb.flags))
-		/* One of bios in the batch was completed with error.*/
-		ret = -EIO;
-
+	if (bb.error)
+		return bb.error;
 	return ret;
 }
 

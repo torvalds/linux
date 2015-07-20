@@ -296,7 +296,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		 * Drop writes?
 		 */
 		if (test_bit(DROP_WRITES, &fc->flags)) {
-			bio_endio(bio, 0);
+			bio_endio(bio);
 			return DM_MAPIO_SUBMITTED;
 		}
 

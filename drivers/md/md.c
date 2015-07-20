@@ -263,7 +263,9 @@ static void md_make_request(struct request_queue *q, struct bio *bio)
 		return;
 	}
 	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
-		bio_endio(bio, bio_sectors(bio) == 0 ? 0 : -EROFS);
+		if (bio_sectors(bio) != 0)
+			bio->bi_error = -EROFS;
+		bio_endio(bio);
 		return;
 	}
 	smp_rmb(); /* Ensure implications of  'active' are visible */
@@ -377,7 +379,7 @@ static int md_mergeable_bvec(struct request_queue *q,
  * Generic flush handling for md
  */
 
-static void md_end_flush(struct bio *bio, int err)
+static void md_end_flush(struct bio *bio)
 {
 	struct md_rdev *rdev = bio->bi_private;
 	struct mddev *mddev = rdev->mddev;
@@ -433,7 +435,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 
 	if (bio->bi_iter.bi_size == 0)
 		/* an empty barrier - all done */
-		bio_endio(bio, 0);
+		bio_endio(bio);
 	else {
 		bio->bi_rw &= ~REQ_FLUSH;
 		mddev->pers->make_request(mddev, bio);
@@ -728,15 +730,13 @@ void md_rdev_clear(struct md_rdev *rdev)
 }
 EXPORT_SYMBOL_GPL(md_rdev_clear);
 
-static void super_written(struct bio *bio, int error)
+static void super_written(struct bio *bio)
 {
 	struct md_rdev *rdev = bio->bi_private;
 	struct mddev *mddev = rdev->mddev;
 
-	if (error || !test_bit(BIO_UPTODATE, &bio->bi_flags)) {
-		printk("md: super_written gets error=%d, uptodate=%d\n",
-		       error, test_bit(BIO_UPTODATE, &bio->bi_flags));
-		WARN_ON(test_bit(BIO_UPTODATE, &bio->bi_flags));
+	if (bio->bi_error) {
+		printk("md: super_written gets error=%d\n", bio->bi_error);
 		md_error(mddev, rdev);
 	}
 
@@ -791,7 +791,7 @@ int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 	bio_add_page(bio, page, size, 0);
 	submit_bio_wait(rw, bio);
 
-	ret = test_bit(BIO_UPTODATE, &bio->bi_flags);
+	ret = !bio->bi_error;
 	bio_put(bio);
 	return ret;
 }

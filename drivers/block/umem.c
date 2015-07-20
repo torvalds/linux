@@ -456,7 +456,7 @@ static void process_page(unsigned long data)
 				PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
 		if (control & DMASCR_HARD_ERROR) {
 			/* error */
-			clear_bit(BIO_UPTODATE, &bio->bi_flags);
+			bio->bi_error = -EIO;
 			dev_printk(KERN_WARNING, &card->dev->dev,
 				"I/O error on sector %d/%d\n",
 				le32_to_cpu(desc->local_addr)>>9,
@@ -505,7 +505,7 @@ static void process_page(unsigned long data)
 
 		return_bio = bio->bi_next;
 		bio->bi_next = NULL;
-		bio_endio(bio, 0);
+		bio_endio(bio);
 	}
 }
 
