@@ -279,7 +279,7 @@ static int __init setup_fail_futex(char *str)
 }
 __setup("fail_futex=", setup_fail_futex);
 
-bool should_fail_futex(bool fshared)
+static bool should_fail_futex(bool fshared)
 {
 	if (fail_futex.ignore_private && !fshared)
 		return false;
