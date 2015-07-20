@@ -999,6 +999,11 @@ static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
 	return ret;
 }
 
+static int cyapa_gen3_set_proximity(struct cyapa *cyapa, bool enable)
+{
+	return -EOPNOTSUPP;
+}
+
 static int cyapa_gen3_get_query_data(struct cyapa *cyapa)
 {
 	u8 query_data[QUERY_DATA_SIZE];
@@ -1243,4 +1248,6 @@ const struct cyapa_dev_ops cyapa_gen3_ops = {
 	.irq_cmd_handler = cyapa_gen3_irq_cmd_handler,
 	.sort_empty_output_data = cyapa_gen3_empty_output_data,
 	.set_power_mode = cyapa_gen3_set_power_mode,
+
+	.set_proximity = cyapa_gen3_set_proximity,
 };

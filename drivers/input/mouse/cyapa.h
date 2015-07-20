@@ -274,6 +274,8 @@ struct cyapa_dev_ops {
 			u8 *, int *, cb_sort);
 
 	int (*set_power_mode)(struct cyapa *, u8, u16);
+
+	int (*set_proximity)(struct cyapa *, bool);
 };
 
 struct cyapa_pip_cmd_states {
@@ -415,6 +417,7 @@ int cyapa_pip_bl_deactivate(struct cyapa *cyapa);
 ssize_t cyapa_pip_do_calibrate(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count);
+int cyapa_pip_set_proximity(struct cyapa *cyapa, bool enable);
 
 bool cyapa_pip_irq_cmd_handler(struct cyapa *cyapa);
 int cyapa_pip_irq_handler(struct cyapa *cyapa);

@@ -310,6 +310,17 @@ static int cyapa_gen6_config_dev_irq(struct cyapa *cyapa, u8 cmd_code)
 	return 0;
 }
 
+static int cyapa_gen6_set_proximity(struct cyapa *cyapa, bool enable)
+{
+	int error;
+
+	cyapa_gen6_config_dev_irq(cyapa, GEN6_DISABLE_CMD_IRQ);
+	error = cyapa_pip_set_proximity(cyapa, enable);
+	cyapa_gen6_config_dev_irq(cyapa, GEN6_ENABLE_CMD_IRQ);
+
+	return error;
+}
+
 static int cyapa_gen6_change_power_state(struct cyapa *cyapa, u8 power_mode)
 {
 	u8 cmd[] = { 0x04, 0x00, 0x06, 0x00, 0x2f, 0x00, 0x46, power_mode };
@@ -687,6 +698,12 @@ static int cyapa_gen6_operational_check(struct cyapa *cyapa)
 			dev_warn(dev, "%s: failed to set power active mode.\n",
 				__func__);
 
+		/* By default, the trackpad proximity function is enabled. */
+		error = cyapa_pip_set_proximity(cyapa, true);
+		if (error)
+			dev_warn(dev, "%s: failed to enable proximity.\n",
+				__func__);
+
 		/* Get trackpad product information. */
 		error = cyapa_gen6_read_sys_info(cyapa);
 		if (error)
@@ -727,4 +744,6 @@ const struct cyapa_dev_ops cyapa_gen6_ops = {
 	.irq_cmd_handler = cyapa_pip_irq_cmd_handler,
 	.sort_empty_output_data = cyapa_empty_pip_output_data,
 	.set_power_mode = cyapa_gen6_set_power_mode,
+
+	.set_proximity = cyapa_gen6_set_proximity,
 };

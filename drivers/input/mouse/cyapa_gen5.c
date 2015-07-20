@@ -52,6 +52,11 @@
 #define PIP_WAKEUP_EVENT_REPORT_ID  0x04
 #define PIP_PUSH_BTN_REPORT_ID      0x06
 #define GEN5_OLD_PUSH_BTN_REPORT_ID 0x05  /* Special for old Gen5 TP. */
+#define PIP_PROXIMITY_REPORT_ID     0x07
+
+#define PIP_PROXIMITY_REPORT_SIZE	6
+#define PIP_PROXIMITY_DISTANCE_OFFSET	0x05
+#define PIP_PROXIMITY_DISTANCE_MASK	0x01
 
 #define PIP_TOUCH_REPORT_HEAD_SIZE     7
 #define PIP_TOUCH_REPORT_MAX_SIZE      127
@@ -77,6 +82,8 @@
 
 #define PIP_SENSING_MODE_MUTUAL_CAP_FINE   0x00
 #define PIP_SENSING_MODE_SELF_CAP          0x02
+
+#define PIP_SET_PROXIMITY	0x49
 
 /* Macro of Gen5 */
 #define GEN5_BL_MAX_OUTPUT_LENGTH     0x0100
@@ -1517,6 +1524,28 @@ static int cyapa_gen5_disable_pip_report(struct cyapa *cyapa)
 	return 0;
 }
 
+int cyapa_pip_set_proximity(struct cyapa *cyapa, bool enable)
+{
+	u8 cmd[] = { 0x04, 0x00, 0x06, 0x00, 0x2f, 0x00, PIP_SET_PROXIMITY,
+		     (u8)!!enable
+	};
+	u8 resp_data[6];
+	int resp_len;
+	int error;
+
+	resp_len = sizeof(resp_data);
+	error = cyapa_i2c_pip_cmd_irq_sync(cyapa, cmd, sizeof(cmd),
+			resp_data, &resp_len,
+			500, cyapa_sort_tsg_pip_app_resp_data, false);
+	if (error || !VALID_CMD_RESP_HEADER(resp_data, PIP_SET_PROXIMITY) ||
+			!PIP_CMD_COMPLETE_SUCCESS(resp_data)) {
+		error = (error == -ETIMEDOUT) ? -EOPNOTSUPP : error;
+		return error < 0 ? error : -EINVAL;
+	}
+
+	return 0;
+}
+
 int cyapa_pip_deep_sleep(struct cyapa *cyapa, u8 state)
 {
 	u8 cmd[] = { 0x05, 0x00, 0x00, 0x08};
@@ -2491,6 +2520,12 @@ static int cyapa_gen5_do_operational_check(struct cyapa *cyapa)
 			dev_warn(dev, "%s: failed to set power active mode.\n",
 				__func__);
 
+		/* By default, the trackpad proximity function is enabled. */
+		error = cyapa_pip_set_proximity(cyapa, true);
+		if (error)
+			dev_warn(dev, "%s: failed to enable proximity.\n",
+				__func__);
+
 		/* Get trackpad product information. */
 		error = cyapa_gen5_get_query_data(cyapa);
 		if (error)
@@ -2607,6 +2642,17 @@ static void cyapa_pip_report_buttons(struct cyapa *cyapa,
 	input_sync(input);
 }
 
+static void cyapa_pip_report_proximity(struct cyapa *cyapa,
+		const struct cyapa_pip_report_data *report_data)
+{
+	struct input_dev *input = cyapa->input;
+	u8 distance = report_data->report_head[PIP_PROXIMITY_DISTANCE_OFFSET] &
+			PIP_PROXIMITY_DISTANCE_MASK;
+
+	input_report_abs(input, ABS_DISTANCE, distance);
+	input_sync(input);
+}
+
 static void cyapa_pip_report_slot_data(struct cyapa *cyapa,
 		const struct cyapa_pip_touch_record *touch)
 {
@@ -2628,6 +2674,7 @@ static void cyapa_pip_report_slot_data(struct cyapa *cyapa,
 		y = cyapa->max_abs_y - y;
 	input_report_abs(input, ABS_MT_POSITION_X, x);
 	input_report_abs(input, ABS_MT_POSITION_Y, y);
+	input_report_abs(input, ABS_DISTANCE, 0);
 	input_report_abs(input, ABS_MT_PRESSURE,
 		touch->z);
 	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
@@ -2715,7 +2762,8 @@ int cyapa_pip_irq_handler(struct cyapa *cyapa)
 	} else if (report_id != PIP_TOUCH_REPORT_ID &&
 			report_id != PIP_BTN_REPORT_ID &&
 			report_id != GEN5_OLD_PUSH_BTN_REPORT_ID &&
-			report_id != PIP_PUSH_BTN_REPORT_ID) {
+			report_id != PIP_PUSH_BTN_REPORT_ID &&
+			report_id != PIP_PROXIMITY_REPORT_ID) {
 		/* Running in BL mode or unknown response data read. */
 		dev_err(dev, "invalid report_id=0x%02x\n", report_id);
 		return -EINVAL;
@@ -2739,8 +2787,17 @@ int cyapa_pip_irq_handler(struct cyapa *cyapa)
 		return 0;
 	}
 
+	if (report_id == PIP_PROXIMITY_REPORT_ID &&
+			report_len != PIP_PROXIMITY_REPORT_SIZE) {
+		/* Invalid report data length of proximity packet. */
+		dev_err(dev, "invalid proximity data, length=%d\n", report_len);
+		return 0;
+	}
+
 	if (report_id == PIP_TOUCH_REPORT_ID)
 		cyapa_pip_report_touches(cyapa, &report_data);
+	else if (report_id == PIP_PROXIMITY_REPORT_ID)
+		cyapa_pip_report_proximity(cyapa, &report_data);
 	else
 		cyapa_pip_report_buttons(cyapa, &report_data);
 
@@ -2771,4 +2828,6 @@ const struct cyapa_dev_ops cyapa_gen5_ops = {
 	.irq_cmd_handler = cyapa_pip_irq_cmd_handler,
 	.sort_empty_output_data = cyapa_empty_pip_output_data,
 	.set_power_mode = cyapa_gen5_set_power_mode,
+
+	.set_proximity = cyapa_pip_set_proximity,
 };

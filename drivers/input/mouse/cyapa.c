@@ -477,6 +477,7 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 	if (cyapa->gen >= CYAPA_GEN5) {
 		input_set_abs_params(input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 		input_set_abs_params(input, ABS_MT_WIDTH_MINOR, 0, 255, 0, 0);
+		input_set_abs_params(input, ABS_DISTANCE, 0, 1, 0, 0);
 	}
 
 	input_abs_set_res(input, ABS_MT_POSITION_X,
@@ -1340,6 +1341,13 @@ static int __maybe_unused cyapa_suspend(struct device *dev)
 					error);
 	}
 
+	/*
+	 * Disable proximity interrupt when system idle, want true touch to
+	 * wake the system.
+	 */
+	if (cyapa->dev_pwr_mode != PWR_MODE_OFF)
+		cyapa->ops->set_proximity(cyapa, false);
+
 	if (device_may_wakeup(dev))
 		cyapa->irq_wake = (enable_irq_wake(client->irq) == 0);
 
@@ -1360,7 +1368,10 @@ static int __maybe_unused cyapa_resume(struct device *dev)
 		cyapa->irq_wake = false;
 	}
 
-	/* Update device states and runtime PM states. */
+	/*
+	 * Update device states and runtime PM states.
+	 * Re-Enable proximity interrupt after enter operational mode.
+	 */
 	error = cyapa_reinitialize(cyapa);
 	if (error)
 		dev_warn(dev, "failed to reinitialize TP device: %d\n", error);
