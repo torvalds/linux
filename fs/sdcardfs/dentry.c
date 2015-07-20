@@ -26,7 +26,7 @@
  *          0: tell VFS to invalidate dentry
  *          1: dentry is valid
  */
-static int sdcardfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int err = 1;
 	struct path parent_lower_path, lower_path;
@@ -35,7 +35,7 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct dentry *lower_cur_parent_dentry = NULL;
 	struct dentry *lower_dentry = NULL;
 
-	if (nd && nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	spin_lock(&dentry->d_lock);
@@ -119,7 +119,7 @@ static void sdcardfs_d_release(struct dentry *dentry)
 }
 
 static int sdcardfs_hash_ci(const struct dentry *dentry,
-				const struct inode *inode, struct qstr *qstr)
+				struct qstr *qstr)
 {
 	/*
 	 * This function is copy of vfat_hashi.
@@ -148,8 +148,7 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
  * Case insensitive compare of two vfat names.
  */
 static int sdcardfs_cmp_ci(const struct dentry *parent,
-		const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+		const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	/* This function is copy of vfat_cmpi */
