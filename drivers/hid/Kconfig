@@ -480,6 +480,7 @@ config HID_MULTITOUCH
 	  - Atmel panels
 	  - Cando dual touch panels
 	  - Chunghwa panels
+	  - CJTouch panels
 	  - CVTouch panels
 	  - Cypress TrueTouch panels
 	  - Elan Microelectronics touch panels
