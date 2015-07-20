@@ -44,6 +44,20 @@
 	soc-supply = <&reg_soc>;
 };
 
+&qspi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi>;
+	status = "okay";
+
+	flash0: n25q256a@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q256a";
+		spi-max-frequency = <29000000>;
+		reg = <0>;
+	};
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
@@ -203,6 +217,17 @@
 			MX6UL_PAD_LCD_VSYNC__LCDIF_VSYNC    0x79
 			/* used for lcd reset */
 			MX6UL_PAD_SNVS_TAMPER9__GPIO5_IO09  0x79
+		>;
+	};
+
+	pinctrl_qspi: qspigrp {
+		fsl,pins = <
+			MX6UL_PAD_NAND_WP_B__QSPI_A_SCLK	0x70a1
+			MX6UL_PAD_NAND_READY_B__QSPI_A_DATA00	0x70a1
+			MX6UL_PAD_NAND_CE0_B__QSPI_A_DATA01	0x70a1
+			MX6UL_PAD_NAND_CE1_B__QSPI_A_DATA02	0x70a1
+			MX6UL_PAD_NAND_CLE__QSPI_A_DATA03	0x70a1
+			MX6UL_PAD_NAND_DQS__QSPI_A_SS0_B	0x70a1
 		>;
 	};
 
