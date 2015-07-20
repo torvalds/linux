@@ -1304,6 +1304,8 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 /* register video4linux devices */
 static int usbvision_register_video(struct usb_usbvision *usbvision)
 {
+	int res = -ENOMEM;
+
 	/* Video Device: */
 	usbvision_vdev_init(usbvision, &usbvision->vdev,
 			      &usbvision_video_template, "USBVision Video");
@@ -1330,7 +1332,7 @@ static int usbvision_register_video(struct usb_usbvision *usbvision)
 		"USBVision[%d]: video_register_device() failed\n",
 			usbvision->nr);
 	usbvision_unregister_video(usbvision);
-	return -1;
+	return res;
 }
 
 /*
