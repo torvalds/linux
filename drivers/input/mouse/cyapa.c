@@ -6,7 +6,7 @@
  *   Daniel Kurtz <djkurtz@chromium.org>
  *   Benson Leung <bleung@chromium.org>
  *
- * Copyright (C) 2011-2014 Cypress Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Cypress Semiconductor, Inc.
  * Copyright (C) 2011-2012 Google, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -39,9 +39,25 @@ const char product_id[] = "CYTRA";
 
 static int cyapa_reinitialize(struct cyapa *cyapa);
 
-static inline bool cyapa_is_bootloader_mode(struct cyapa *cyapa)
+bool cyapa_is_pip_bl_mode(struct cyapa *cyapa)
 {
 	if (cyapa->gen == CYAPA_GEN5 && cyapa->state == CYAPA_STATE_GEN5_BL)
+		return true;
+
+	return false;
+}
+
+bool cyapa_is_pip_app_mode(struct cyapa *cyapa)
+{
+	if (cyapa->gen == CYAPA_GEN5 && cyapa->state == CYAPA_STATE_GEN5_APP)
+		return true;
+
+	return false;
+}
+
+static bool cyapa_is_bootloader_mode(struct cyapa *cyapa)
+{
+	if (cyapa_is_pip_bl_mode(cyapa))
 		return true;
 
 	if (cyapa->gen == CYAPA_GEN3 &&
@@ -54,7 +70,7 @@ static inline bool cyapa_is_bootloader_mode(struct cyapa *cyapa)
 
 static inline bool cyapa_is_operational_mode(struct cyapa *cyapa)
 {
-	if (cyapa->gen == CYAPA_GEN5 && cyapa->state == CYAPA_STATE_GEN5_APP)
+	if (cyapa_is_pip_app_mode(cyapa))
 		return true;
 
 	if (cyapa->gen == CYAPA_GEN3 && cyapa->state == CYAPA_STATE_OP)
@@ -306,7 +322,7 @@ static int cyapa_check_is_operational(struct cyapa *cyapa)
 
 /*
  * Returns 0 on device detected, negative errno on no device detected.
- * And when the device is detected and opertaional, it will be reset to
+ * And when the device is detected and operational, it will be reset to
  * full power active mode automatically.
  */
 static int cyapa_detect(struct cyapa *cyapa)
@@ -629,15 +645,15 @@ static irqreturn_t cyapa_irq(int irq, void *dev_id)
 	if (device_may_wakeup(dev))
 		pm_wakeup_event(dev, 0);
 
-	/* Interrupt event maybe cuased by host command to trackpad device. */
+	/* Interrupt event can be caused by host command to trackpad device. */
 	if (cyapa->ops->irq_cmd_handler(cyapa)) {
 		/*
 		 * Interrupt event maybe from trackpad device input reporting.
 		 */
 		if (!cyapa->input) {
 			/*
-			 * Still in probling or in firware image
-			 * udpating or reading.
+			 * Still in probing or in firmware image
+			 * updating or reading.
 			 */
 			cyapa->ops->sort_empty_output_data(cyapa,
 					NULL, NULL, NULL);
@@ -1051,12 +1067,12 @@ static ssize_t cyapa_update_fw_store(struct device *dev,
 		dev_dbg(dev, "firmware update successfully done.\n");
 
 	/*
-	 * Redetect trackpad device states because firmware update process
+	 * Re-detect trackpad device states because firmware update process
 	 * will reset trackpad device into bootloader mode.
 	 */
 	ret = cyapa_reinitialize(cyapa);
 	if (ret) {
-		dev_err(dev, "failed to redetect after updated: %d\n", ret);
+		dev_err(dev, "failed to re-detect after updated: %d\n", ret);
 		error = error ? error : ret;
 	}
 

@@ -6,7 +6,7 @@
  *   Daniel Kurtz <djkurtz@chromium.org>
  *   Benson Leung <bleung@chromium.org>
  *
- * Copyright (C) 2011-2014 Cypress Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Cypress Semiconductor, Inc.
  * Copyright (C) 2011-2012 Google, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -1156,7 +1156,7 @@ static bool cyapa_gen3_irq_cmd_handler(struct cyapa *cyapa)
 	 * so, stop cyapa_gen3_irq_handler to continue process to
 	 * avoid unwanted to error detecting and processing.
 	 *
-	 * And also, avoid the periodicly accerted interrupts to be processed
+	 * And also, avoid the periodically asserted interrupts to be processed
 	 * as touch inputs when gen3 failed to launch into application mode,
 	 * which will cause gen3 stays in bootloader mode.
 	 */
