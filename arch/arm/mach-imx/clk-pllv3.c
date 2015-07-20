@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2012-2015 Freescale Semiconductor, Inc.
  * Copyright 2012 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -18,18 +18,23 @@
 #include <linux/jiffies.h>
 #include <linux/err.h>
 #include "clk.h"
+#include "hardware.h"
 
 #define PLL_NUM_OFFSET		0x10
 #define PLL_DENOM_OFFSET	0x20
 
 #define BM_PLL_POWER		(0x1 << 12)
 #define BM_PLL_LOCK		(0x1 << 31)
+#define BM_PLL_ENABLE		(0x1 << 13)
+#define BM_PLL_BYPASS		(0x1 << 16)
+#define ENET_PLL_POWER		(0x1 << 5)
 
 /**
  * struct clk_pllv3 - IMX PLL clock version 3
  * @clk_hw:	 clock source
  * @base:	 base address of PLL registers
  * @powerup_set: set POWER bit to power up the PLL
+ * @powerdown:   pll powerdown offset bit
  * @div_mask:	 mask of divider bits
  * @div_shift:	 shift of divider bits
  *
@@ -40,6 +45,7 @@ struct clk_pllv3 {
 	struct clk_hw	hw;
 	void __iomem	*base;
 	bool		powerup_set;
+	u32		powerdown;
 	u32		div_mask;
 	u32		div_shift;
 };
@@ -49,7 +55,7 @@ struct clk_pllv3 {
 static int clk_pllv3_wait_lock(struct clk_pllv3 *pll)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(10);
-	u32 val = readl_relaxed(pll->base) & BM_PLL_POWER;
+	u32 val = readl_relaxed(pll->base) & pll->powerdown;
 
 	/* No need to wait for lock when pll is not powered up */
 	if ((pll->powerup_set && !val) || (!pll->powerup_set && val))
@@ -61,7 +67,6 @@ static int clk_pllv3_wait_lock(struct clk_pllv3 *pll)
 			break;
 		if (time_after(jiffies, timeout))
 			break;
-		usleep_range(50, 500);
 	} while (1);
 
 	return readl_relaxed(pll->base) & BM_PLL_LOCK ? 0 : -ETIMEDOUT;
@@ -74,9 +79,9 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 
 	val = readl_relaxed(pll->base);
 	if (pll->powerup_set)
-		val |= BM_PLL_POWER;
+		val |= pll->powerdown;
 	else
-		val &= ~BM_PLL_POWER;
+		val &= ~pll->powerdown;
 	writel_relaxed(val, pll->base);
 
 	return clk_pllv3_wait_lock(pll);
@@ -89,9 +94,9 @@ static void clk_pllv3_unprepare(struct clk_hw *hw)
 
 	val = readl_relaxed(pll->base);
 	if (pll->powerup_set)
-		val &= ~BM_PLL_POWER;
+		val &= ~pll->powerdown;
 	else
-		val |= BM_PLL_POWER;
+		val |= pll->powerdown;
 	writel_relaxed(val, pll->base);
 }
 
@@ -271,7 +276,10 @@ static const struct clk_ops clk_pllv3_av_ops = {
 static unsigned long clk_pllv3_enet_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
-	return 500000000;
+	if (cpu_is_imx7d())
+		return 1000000000;
+	else
+		return 500000000;
 }
 
 static const struct clk_ops clk_pllv3_enet_ops = {
@@ -297,6 +305,9 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_SYS:
 		ops = &clk_pllv3_sys_ops;
 		break;
+	case IMX_PLLV3_SYSV2:
+		ops = &clk_pllv3_ops;
+		break;
 	case IMX_PLLV3_USB_VF610:
 		pll->div_shift = 1;
 	case IMX_PLLV3_USB:
@@ -314,6 +325,11 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	}
 	pll->base = base;
 	pll->div_mask = div_mask;
+
+	if (cpu_is_imx7d() && strcmp(name, "pll_enet_main") == 0)
+		pll->powerdown = ENET_PLL_POWER;
+	else
+		pll->powerdown = BM_PLL_POWER;
 
 	init.name = name;
 	init.ops = ops;
