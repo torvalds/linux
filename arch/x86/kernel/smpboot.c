@@ -1358,7 +1358,7 @@ static void remove_siblinginfo(int cpu)
 	cpumask_clear_cpu(cpu, cpu_sibling_setup_mask);
 }
 
-static void __ref remove_cpu_from_maps(int cpu)
+static void remove_cpu_from_maps(int cpu)
 {
 	set_cpu_online(cpu, false);
 	cpumask_clear_cpu(cpu, cpu_callout_mask);

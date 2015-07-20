@@ -182,7 +182,7 @@ update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block __refdata x2apic_cpu_notifier = {
+static struct notifier_block x2apic_cpu_notifier = {
 	.notifier_call = update_clusterinfo,
 };
 

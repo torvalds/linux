@@ -460,7 +460,7 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __refdata mc_cpu_notifier = {
+static struct notifier_block mc_cpu_notifier = {
 	.notifier_call	= mc_cpu_callback,
 };
 

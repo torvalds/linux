@@ -390,7 +390,7 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 }
 
 #ifdef DEBUG
-static void __ref show_saved_mc(void)
+static void show_saved_mc(void)
 {
 	int i, j;
 	unsigned int sig, pf, rev, total_size, data_size, date;
