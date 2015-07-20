@@ -80,6 +80,27 @@ static void drain_openssl_errors(void)
 		}					\
 	} while(0)
 
+static const char *key_pass;
+
+static int pem_pw_cb(char *buf, int len, int w, void *v)
+{
+	int pwlen;
+
+	if (!key_pass)
+		return -1;
+
+	pwlen = strlen(key_pass);
+	if (pwlen >= len)
+		return -1;
+
+	strcpy(buf, key_pass);
+
+	/* If it's wrong, don't keep trying it. */
+	key_pass = NULL;
+
+	return pwlen;
+}
+
 int main(int argc, char **argv)
 {
 	struct module_signature sig_info = { .id_type = PKEY_ID_PKCS7 };
@@ -96,8 +117,11 @@ int main(int argc, char **argv)
 	BIO *b, *bd = NULL, *bm;
 	int opt, n;
 
+	OpenSSL_add_all_algorithms();
 	ERR_load_crypto_strings();
 	ERR_clear_error();
+
+	key_pass = getenv("KBUILD_SIGN_PIN");
 
 	do {
 		opt = getopt(argc, argv, "dp");
@@ -132,7 +156,8 @@ int main(int argc, char **argv)
 	 */
 	b = BIO_new_file(private_key_name, "rb");
 	ERR(!b, "%s", private_key_name);
-        private_key = PEM_read_bio_PrivateKey(b, NULL, NULL, NULL);
+	private_key = PEM_read_bio_PrivateKey(b, NULL, pem_pw_cb, NULL);
+	ERR(!private_key, "%s", private_key_name);
 	BIO_free(b);
 
 	b = BIO_new_file(x509_name, "rb");

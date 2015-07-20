@@ -194,6 +194,9 @@ The hash algorithm used does not have to match the one configured, but if it
 doesn't, you should make sure that hash algorithm is either built into the
 kernel or can be loaded without requiring itself.
 
+If the private key requires a passphrase or PIN, it can be provided in the
+$KBUILD_SIGN_PIN environment variable.
+
 
 ============================
 SIGNED MODULES AND STRIPPING
