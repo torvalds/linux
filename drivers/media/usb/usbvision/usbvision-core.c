@@ -1791,10 +1791,6 @@ int usbvision_frames_alloc(struct usb_usbvision *usbvision, int number_of_frames
 		usbvision->num_frames--;
 	}
 
-	spin_lock_init(&usbvision->queue_lock);
-	init_waitqueue_head(&usbvision->wait_frame);
-	init_waitqueue_head(&usbvision->wait_stream);
-
 	/* Allocate all buffers */
 	for (i = 0; i < usbvision->num_frames; i++) {
 		usbvision->frame[i].index = i;

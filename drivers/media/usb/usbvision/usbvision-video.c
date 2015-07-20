@@ -1520,6 +1520,10 @@ static int usbvision_probe(struct usb_interface *intf,
 
 	usbvision->nr = usbvision_nr++;
 
+	spin_lock_init(&usbvision->queue_lock);
+	init_waitqueue_head(&usbvision->wait_frame);
+	init_waitqueue_head(&usbvision->wait_stream);
+
 	usbvision->have_tuner = usbvision_device_data[model].tuner;
 	if (usbvision->have_tuner)
 		usbvision->tuner_type = usbvision_device_data[model].tuner_type;
