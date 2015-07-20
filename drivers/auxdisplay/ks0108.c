@@ -92,17 +92,19 @@ void ks0108_displaystate(unsigned char state)
 
 void ks0108_startline(unsigned char startline)
 {
-	ks0108_writedata(min(startline,(unsigned char)63) | bit(6) | bit(7));
+	ks0108_writedata(min_t(unsigned char, startline, 63) | bit(6) |
+			 bit(7));
 }
 
 void ks0108_address(unsigned char address)
 {
-	ks0108_writedata(min(address,(unsigned char)63) | bit(6));
+	ks0108_writedata(min_t(unsigned char, address, 63) | bit(6));
 }
 
 void ks0108_page(unsigned char page)
 {
-	ks0108_writedata(min(page,(unsigned char)7) | bit(3) | bit(4) | bit(5) | bit(7));
+	ks0108_writedata(min_t(unsigned char, page, 7) | bit(3) | bit(4) |
+			 bit(5) | bit(7));
 }
 
 EXPORT_SYMBOL_GPL(ks0108_writedata);
