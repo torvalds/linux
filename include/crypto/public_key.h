@@ -33,6 +33,7 @@ extern const struct public_key_algorithm *pkey_algo[PKEY_ALGO__LAST];
 enum pkey_id_type {
 	PKEY_ID_PGP,		/* OpenPGP generated key ID */
 	PKEY_ID_X509,		/* X.509 arbitrary subjectKeyIdentifier */
+	PKEY_ID_PKCS7,		/* Signature in PKCS#7 message */
 	PKEY_ID_TYPE__LAST
 };
 
