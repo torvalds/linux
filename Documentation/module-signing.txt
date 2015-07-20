@@ -93,16 +93,15 @@ This has a number of options available:
      Setting this option to something other than its default of
      "signing_key.priv" will disable the autogeneration of signing keys and
      allow the kernel modules to be signed with a key of your choosing.
-     The string provided should identify a file containing a private key
-     in PEM form, or — on systems where the OpenSSL ENGINE_pkcs11 is
-     appropriately installed — a PKCS#11 URI as defined by RFC7512.
+     The string provided should identify a file containing both a private
+     key and its corresponding X.509 certificate in PEM form, or — on
+     systems where the OpenSSL ENGINE_pkcs11 is functional — a PKCS#11 URI
+     as defined by RFC7512. In the latter case, the PKCS#11 URI should
+     reference both a certificate and a private key.
 
      If the PEM file containing the private key is encrypted, or if the
      PKCS#11 token requries a PIN, this can be provided at build time by
      means of the KBUILD_SIGN_PIN variable.
-
-     The corresponding X.509 certificate in DER form should still be placed
-     in a file named signing_key.x509 in the top-level build directory.
 
 
 =======================

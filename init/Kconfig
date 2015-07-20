@@ -1953,10 +1953,10 @@ config MODULE_SIG_KEY
 	default "signing_key.priv"
 	depends on MODULE_SIG
 	help
-         Provide the file name of a private key in PKCS#8 PEM format, or
-         a PKCS#11 URI according to RFC7512. The corresponding X.509
-         certificate in DER form should be present in signing_key.x509
-         in the top-level build directory.
+         Provide the file name of a private key/certificate in PEM format,
+         or a PKCS#11 URI according to RFC7512. The file should contain, or
+         the URI should identify, both the certificate and its corresponding
+         private key.
 
          If this option is unchanged from its default "signing_key.priv",
          then the kernel will automatically generate the private key and

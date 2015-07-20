@@ -210,5 +210,43 @@ x509.genkey:
 	@echo >>x509.genkey "keyUsage=digitalSignature"
 	@echo >>x509.genkey "subjectKeyIdentifier=hash"
 	@echo >>x509.genkey "authorityKeyIdentifier=keyid"
+else
+# For external (PKCS#11 or PEM) key, we need to obtain the certificate from
+# CONFIG_MODULE_SIG_KEY automatically.
+quiet_cmd_extract_der = CERT_DER $(2)
+      cmd_extract_der = scripts/extract-cert "$(2)" signing_key.x509
+
+# CONFIG_MODULE_SIG_KEY is either a PKCS#11 URI or a filename. It is
+# surrounded by quotes, and may contain spaces. To strip the quotes
+# with $(patsubst) we need to turn the spaces into something else.
+# And if it's a filename, those spaces need to be escaped as '\ ' in
+# order to use it in dependencies or $(wildcard).
+space :=
+space +=
+space_escape := %%%SPACE%%%
+X509_SOURCE_temp := $(subst $(space),$(space_escape),$(CONFIG_MODULE_SIG_KEY))
+# We need this to check for absolute paths or PKCS#11 URIs.
+X509_SOURCE_ONEWORD := $(patsubst "%",%,$(X509_SOURCE_temp))
+# This is the actual source filename/URI without the quotes
+X509_SOURCE := $(subst $(space_escape),$(space),$(X509_SOURCE_ONEWORD))
+# This\ version\ with\ spaces\ escaped\ for\ $(wildcard)\ and\ dependencies
+X509_SOURCE_ESCAPED := $(subst $(space_escape),\$(space),$(X509_SOURCE_ONEWORD))
+
+ifeq ($(patsubst pkcs11:%,%,$(X509_SOURCE_ONEWORD)),$(X509_SOURCE_ONEWORD))
+# If it's a filename, depend on it.
+X509_DEP := $(X509_SOURCE_ESCAPED)
+ifeq ($(patsubst /%,%,$(X509_SOURCE_ONEWORD)),$(X509_SOURCE_ONEWORD))
+ifeq ($(wildcard $(X509_SOURCE_ESCAPED)),)
+ifneq ($(wildcard $(srctree)/$(X509_SOURCE_ESCAPED)),)
+# Non-absolute filename, found in source tree and not build tree
+X509_SOURCE := $(srctree)/$(X509_SOURCE)
+X509_DEP := $(srctree)/$(X509_SOURCE_ESCAPED)
+endif
+endif
+endif
+endif
+
+signing_key.x509: scripts/extract-cert include/config/module/sig/key.h $(X509_DEP)
+	$(call cmd,extract_der,$(X509_SOURCE))
 endif
 endif
