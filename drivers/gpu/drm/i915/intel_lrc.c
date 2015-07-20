@@ -1740,6 +1740,12 @@ static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
 	if (ret)
 		goto out;
 
+	ret = req->ring->emit_bb_start(req,
+				       (so.ggtt_offset + so.aux_batch_offset),
+				       I915_DISPATCH_SECURE);
+	if (ret)
+		goto out;
+
 	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
 
 out:
