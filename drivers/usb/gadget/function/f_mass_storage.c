@@ -3524,6 +3524,9 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 	config.removable = true;
 	rc = fsg_common_create_lun(opts->common, &config, 0, "lun.0",
 			(const char **)&opts->func_inst.group.cg_item.ci_name);
+	if (rc)
+		goto release_buffers;
+
 	opts->lun0.lun = opts->common->luns[0];
 	opts->lun0.lun_id = 0;
 	config_group_init_type_name(&opts->lun0.group, "lun.0", &fsg_lun_type);
@@ -3534,6 +3537,8 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 
 	return &opts->func_inst;
 
+release_buffers:
+	fsg_common_free_buffers(opts->common);
 release_luns:
 	kfree(opts->common->luns);
 release_opts:
