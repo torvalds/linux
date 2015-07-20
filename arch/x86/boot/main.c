@@ -161,9 +161,6 @@ void main(void)
 	/* Set keyboard repeat rate (why?) and query the lock flags */
 	keyboard_init();
 
-	/* Query MCA information */
-	query_mca();
-
 	/* Query Intel SpeedStep (IST) information */
 	query_ist();
 
