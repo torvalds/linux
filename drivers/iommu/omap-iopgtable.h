@@ -13,25 +13,27 @@
 #ifndef _OMAP_IOPGTABLE_H
 #define _OMAP_IOPGTABLE_H
 
+#include <linux/bitops.h>
+
 /*
  * "L2 table" address mask and size definitions.
  */
 #define IOPGD_SHIFT		20
-#define IOPGD_SIZE		(1UL << IOPGD_SHIFT)
+#define IOPGD_SIZE		BIT(IOPGD_SHIFT)
 #define IOPGD_MASK		(~(IOPGD_SIZE - 1))
 
 /*
  * "section" address mask and size definitions.
  */
 #define IOSECTION_SHIFT		20
-#define IOSECTION_SIZE		(1UL << IOSECTION_SHIFT)
+#define IOSECTION_SIZE		BIT(IOSECTION_SHIFT)
 #define IOSECTION_MASK		(~(IOSECTION_SIZE - 1))
 
 /*
  * "supersection" address mask and size definitions.
  */
 #define IOSUPER_SHIFT		24
-#define IOSUPER_SIZE		(1UL << IOSUPER_SHIFT)
+#define IOSUPER_SIZE		BIT(IOSUPER_SHIFT)
 #define IOSUPER_MASK		(~(IOSUPER_SIZE - 1))
 
 #define PTRS_PER_IOPGD		(1UL << (32 - IOPGD_SHIFT))
@@ -41,14 +43,14 @@
  * "small page" address mask and size definitions.
  */
 #define IOPTE_SHIFT		12
-#define IOPTE_SIZE		(1UL << IOPTE_SHIFT)
+#define IOPTE_SIZE		BIT(IOPTE_SHIFT)
 #define IOPTE_MASK		(~(IOPTE_SIZE - 1))
 
 /*
  * "large page" address mask and size definitions.
  */
 #define IOLARGE_SHIFT		16
-#define IOLARGE_SIZE		(1UL << IOLARGE_SHIFT)
+#define IOLARGE_SIZE		BIT(IOLARGE_SHIFT)
 #define IOLARGE_MASK		(~(IOLARGE_SIZE - 1))
 
 #define PTRS_PER_IOPTE		(1UL << (IOPGD_SHIFT - IOPTE_SHIFT))
@@ -72,16 +74,16 @@ static inline phys_addr_t omap_iommu_translate(u32 d, u32 va, u32 mask)
 /*
  * some descriptor attributes.
  */
-#define IOPGD_TABLE		(1 << 0)
-#define IOPGD_SECTION		(2 << 0)
-#define IOPGD_SUPER		(1 << 18 | 2 << 0)
+#define IOPGD_TABLE		(1)
+#define IOPGD_SECTION		(2)
+#define IOPGD_SUPER		(BIT(18) | IOPGD_SECTION)
 
 #define iopgd_is_table(x)	(((x) & 3) == IOPGD_TABLE)
 #define iopgd_is_section(x)	(((x) & (1 << 18 | 3)) == IOPGD_SECTION)
 #define iopgd_is_super(x)	(((x) & (1 << 18 | 3)) == IOPGD_SUPER)
 
-#define IOPTE_SMALL		(2 << 0)
-#define IOPTE_LARGE		(1 << 0)
+#define IOPTE_SMALL		(2)
+#define IOPTE_LARGE		(1)
 
 #define iopte_is_small(x)	(((x) & 2) == IOPTE_SMALL)
 #define iopte_is_large(x)	(((x) & 3) == IOPTE_LARGE)
