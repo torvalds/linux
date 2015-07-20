@@ -1523,7 +1523,6 @@ static int zoran_querycap(struct file *file, void *__fh, struct v4l2_capability 
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
 
-	memset(cap, 0, sizeof(*cap));
 	strncpy(cap->card, ZR_DEVNAME(zr), sizeof(cap->card)-1);
 	strncpy(cap->driver, "zoran", sizeof(cap->driver)-1);
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
