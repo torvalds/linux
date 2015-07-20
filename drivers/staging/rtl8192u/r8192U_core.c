@@ -2043,16 +2043,9 @@ static bool GetNmodeSupportBySecCfg8192(struct net_device *dev)
 
 static bool GetHalfNmodeSupportByAPs819xUsb(struct net_device *dev)
 {
-	bool			Reval;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device *ieee = priv->ieee80211;
 
-	if (ieee->bHalfWirelessN24GMode)
-		Reval = true;
-	else
-		Reval =  false;
-
-	return Reval;
+	return priv->ieee80211->bHalfWirelessN24GMode;
 }
 
 static void rtl8192_refresh_supportrate(struct r8192_priv *priv)
