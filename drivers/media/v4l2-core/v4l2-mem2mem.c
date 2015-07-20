@@ -881,18 +881,8 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_streamoff);
 int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct v4l2_fh *fh = file->private_data;
-	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
-	int ret;
 
-	if (m2m_ctx->q_lock && mutex_lock_interruptible(m2m_ctx->q_lock))
-		return -ERESTARTSYS;
-
-	ret = v4l2_m2m_mmap(file, m2m_ctx, vma);
-
-	if (m2m_ctx->q_lock)
-		mutex_unlock(m2m_ctx->q_lock);
-
-	return ret;
+	return v4l2_m2m_mmap(file, fh->m2m_ctx, vma);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
 
