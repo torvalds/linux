@@ -150,7 +150,6 @@
 #define XGENE_DMA_PQ_CHANNEL		1
 #define XGENE_DMA_MAX_BYTE_CNT		0x4000	/* 16 KB */
 #define XGENE_DMA_MAX_64B_DESC_BYTE_CNT	0x14000	/* 80 KB */
-#define XGENE_DMA_XOR_ALIGNMENT		6	/* 64 Bytes */
 #define XGENE_DMA_MAX_XOR_SRC		5
 #define XGENE_DMA_16K_BUFFER_LEN_CODE	0x0
 #define XGENE_DMA_INVALID_LEN_CODE	0x7800000000000000ULL
@@ -1740,13 +1739,13 @@ static void xgene_dma_set_caps(struct xgene_dma_chan *chan,
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		dma_dev->device_prep_dma_xor = xgene_dma_prep_xor;
 		dma_dev->max_xor = XGENE_DMA_MAX_XOR_SRC;
-		dma_dev->xor_align = XGENE_DMA_XOR_ALIGNMENT;
+		dma_dev->xor_align = DMAENGINE_ALIGN_64_BYTES;
 	}
 
 	if (dma_has_cap(DMA_PQ, dma_dev->cap_mask)) {
 		dma_dev->device_prep_dma_pq = xgene_dma_prep_pq;
 		dma_dev->max_pq = XGENE_DMA_MAX_XOR_SRC;
-		dma_dev->pq_align = XGENE_DMA_XOR_ALIGNMENT;
+		dma_dev->pq_align = DMAENGINE_ALIGN_64_BYTES;
 	}
 }
 

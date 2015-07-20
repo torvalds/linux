@@ -1187,7 +1187,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, imxdma);
 
-	imxdma->dma_device.copy_align = 2; /* 2^2 = 4 bytes alignment */
+	imxdma->dma_device.copy_align = DMAENGINE_ALIGN_4_BYTES;
 	imxdma->dma_device.dev->dma_parms = &imxdma->dma_parms;
 	dma_set_max_seg_size(imxdma->dma_device.dev, 0xffffff);
 

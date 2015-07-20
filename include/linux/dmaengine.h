@@ -585,6 +585,20 @@ struct dma_tx_state {
 };
 
 /**
+ * enum dmaengine_alignment - defines alignment of the DMA async tx
+ * buffers
+ */
+enum dmaengine_alignment {
+	DMAENGINE_ALIGN_1_BYTE = 0,
+	DMAENGINE_ALIGN_2_BYTES = 1,
+	DMAENGINE_ALIGN_4_BYTES = 2,
+	DMAENGINE_ALIGN_8_BYTES = 3,
+	DMAENGINE_ALIGN_16_BYTES = 4,
+	DMAENGINE_ALIGN_32_BYTES = 5,
+	DMAENGINE_ALIGN_64_BYTES = 6,
+};
+
+/**
  * struct dma_device - info on the entity supplying DMA services
  * @chancnt: how many DMA channels are supported
  * @privatecnt: how many DMA channels are requested by dma_request_channel
@@ -645,10 +659,10 @@ struct dma_device {
 	dma_cap_mask_t  cap_mask;
 	unsigned short max_xor;
 	unsigned short max_pq;
-	u8 copy_align;
-	u8 xor_align;
-	u8 pq_align;
-	u8 fill_align;
+	enum dmaengine_alignment copy_align;
+	enum dmaengine_alignment xor_align;
+	enum dmaengine_alignment pq_align;
+	enum dmaengine_alignment fill_align;
 	#define DMA_HAS_PQ_CONTINUE (1 << 15)
 
 	int dev_id;
@@ -833,7 +847,8 @@ static inline dma_cookie_t dmaengine_submit(struct dma_async_tx_descriptor *desc
 	return desc->tx_submit(desc);
 }
 
-static inline bool dmaengine_check_align(u8 align, size_t off1, size_t off2, size_t len)
+static inline bool dmaengine_check_align(enum dmaengine_alignment align,
+					 size_t off1, size_t off2, size_t len)
 {
 	size_t mask;
 

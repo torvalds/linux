@@ -775,7 +775,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, dd->cap_mask);
 
 	dd->dev = dev;
-	dd->copy_align = 2; /* 2^2 = 4 byte alignment */
+	dd->copy_align = DMAENGINE_ALIGN_4_BYTES;
 	dd->device_alloc_chan_resources = jz4780_dma_alloc_chan_resources;
 	dd->device_free_chan_resources = jz4780_dma_free_chan_resources;
 	dd->device_prep_slave_sg = jz4780_dma_prep_slave_sg;
