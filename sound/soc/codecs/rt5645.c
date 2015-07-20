@@ -2928,7 +2928,7 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 	int val, btn_type, gpio_state = 0, report = 0;
 
 	if (!rt5645->codec)
-		return -EINVAL;
+		return;
 
 	switch (rt5645->pdata.jd_mode) {
 	case 0: /* Not using rt5645 JD */
