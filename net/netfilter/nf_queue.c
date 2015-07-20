@@ -105,21 +105,15 @@ bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 }
 EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);
 
-void nf_queue_nf_hook_drop(struct nf_hook_ops *ops)
+void nf_queue_nf_hook_drop(struct net *net, struct nf_hook_ops *ops)
 {
 	const struct nf_queue_handler *qh;
-	struct net *net;
 
-	rtnl_lock();
 	rcu_read_lock();
 	qh = rcu_dereference(queue_handler);
-	if (qh) {
-		for_each_net(net) {
-			qh->nf_hook_drop(net, ops);
-		}
-	}
+	if (qh)
+		qh->nf_hook_drop(net, ops);
 	rcu_read_unlock();
-	rtnl_unlock();
 }
 
 /*

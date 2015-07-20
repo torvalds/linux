@@ -154,7 +154,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	static_key_slow_dec(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
 	synchronize_net();
-	nf_queue_nf_hook_drop(elem);
+	nf_queue_nf_hook_drop(net, elem);
 	kfree(elem);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
