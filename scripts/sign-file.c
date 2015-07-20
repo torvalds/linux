@@ -86,13 +86,14 @@ int main(int argc, char **argv)
 	char *hash_algo = NULL;
 	char *private_key_name, *x509_name, *module_name, *dest_name;
 	bool save_pkcs7 = false, replace_orig;
+	bool sign_only = false;
 	unsigned char buf[4096];
 	unsigned long module_size, pkcs7_size;
 	const EVP_MD *digest_algo;
 	EVP_PKEY *private_key;
 	PKCS7 *pkcs7;
 	X509 *x509;
-	BIO *b, *bd, *bm;
+	BIO *b, *bd = NULL, *bm;
 	int opt, n;
 
 	ERR_load_crypto_strings();
@@ -102,6 +103,7 @@ int main(int argc, char **argv)
 		opt = getopt(argc, argv, "dp");
 		switch (opt) {
 		case 'p': save_pkcs7 = true; break;
+		case 'd': sign_only = true; save_pkcs7 = true; break;
 		case -1: break;
 		default: format();
 		}
@@ -148,8 +150,10 @@ int main(int argc, char **argv)
 	/* Open the destination file now so that we can shovel the module data
 	 * across as we read it.
 	 */
-	bd = BIO_new_file(dest_name, "wb");
-	ERR(!bd, "%s", dest_name);
+	if (!sign_only) {
+		bd = BIO_new_file(dest_name, "wb");
+		ERR(!bd, "%s", dest_name);
+	}
 
 	/* Digest the module data. */
 	OpenSSL_add_all_digests();
@@ -179,6 +183,9 @@ int main(int argc, char **argv)
 		ERR(i2d_PKCS7_bio_stream(b, pkcs7, NULL, 0) < 0, "%s", pkcs7_name);
 		BIO_free(b);
 	}
+
+	if (sign_only)
+		return 0;
 
 	/* Append the marker and the PKCS#7 message to the destination file */
 	ERR(BIO_reset(bm) < 0, "%s", module_name);
