@@ -870,7 +870,7 @@ INITRD_COMPRESS-$(CONFIG_RD_LZ4)   := lz4
 # export INITRD_COMPRESS := $(INITRD_COMPRESS-y)
 
 ifdef CONFIG_MODULE_SIG_ALL
-MODSECKEY = ./signing_key.priv
+MODSECKEY = $(CONFIG_MODULE_SIG_KEY)
 MODPUBKEY = ./signing_key.x509
 export MODPUBKEY
 mod_sign_cmd = scripts/sign-file $(CONFIG_MODULE_SIG_HASH) $(MODSECKEY) $(MODPUBKEY)

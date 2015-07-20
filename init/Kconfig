@@ -1948,6 +1948,20 @@ config MODULE_SIG_HASH
 	default "sha384" if MODULE_SIG_SHA384
 	default "sha512" if MODULE_SIG_SHA512
 
+config MODULE_SIG_KEY
+	string "File name or PKCS#11 URI of module signing key"
+	default "signing_key.priv"
+	depends on MODULE_SIG
+	help
+         Provide the file name of a private key in PKCS#8 PEM format, or
+         a PKCS#11 URI according to RFC7512. The corresponding X.509
+         certificate in DER form should be present in signing_key.x509
+         in the top-level build directory.
+
+         If this option is unchanged from its default "signing_key.priv",
+         then the kernel will automatically generate the private key and
+         certificate as described in Documentation/module-signing.txt
+
 config MODULE_COMPRESS
 	bool "Compress modules on installation"
 	depends on MODULES

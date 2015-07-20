@@ -170,6 +170,10 @@ ifndef CONFIG_MODULE_SIG_HASH
 $(error Could not determine digest type to use from kernel config)
 endif
 
+# We do it this way rather than having a boolean option for enabling an
+# external private key, because 'make randconfig' might enable such a
+# boolean option and we unfortunately can't make it depend on !RANDCONFIG.
+ifeq ($(CONFIG_MODULE_SIG_KEY),"signing_key.priv")
 signing_key.priv signing_key.x509: x509.genkey
 	@echo "###"
 	@echo "### Now generating an X.509 key pair to be used for signing modules."
@@ -206,4 +210,5 @@ x509.genkey:
 	@echo >>x509.genkey "keyUsage=digitalSignature"
 	@echo >>x509.genkey "subjectKeyIdentifier=hash"
 	@echo >>x509.genkey "authorityKeyIdentifier=keyid"
+endif
 endif
