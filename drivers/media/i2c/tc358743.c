@@ -1347,7 +1347,6 @@ static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
 				 struct v4l2_dv_timings *timings)
 {
 	struct tc358743_state *state = to_state(sd);
-	struct v4l2_bt_timings *bt;
 
 	if (!timings)
 		return -EINVAL;
@@ -1360,8 +1359,6 @@ static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}
-
-	bt = &timings->bt;
 
 	if (!v4l2_valid_dv_timings(timings,
 				&tc358743_timings_cap, NULL, NULL)) {
