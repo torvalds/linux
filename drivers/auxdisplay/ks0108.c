@@ -125,51 +125,69 @@ unsigned char ks0108_isinited(void)
 }
 EXPORT_SYMBOL_GPL(ks0108_isinited);
 
+static void ks0108_parport_attach(struct parport *port)
+{
+	struct pardev_cb ks0108_cb;
+
+	if (port->base != ks0108_port)
+		return;
+
+	memset(&ks0108_cb, 0, sizeof(ks0108_cb));
+	ks0108_cb.flags = PARPORT_DEV_EXCL;
+	ks0108_pardevice = parport_register_dev_model(port, KS0108_NAME,
+						      &ks0108_cb, 0);
+	if (!ks0108_pardevice) {
+		pr_err("ERROR: parport didn't register new device\n");
+		return;
+	}
+	if (parport_claim(ks0108_pardevice)) {
+		pr_err("could not claim access to parport %i. Aborting.\n",
+		       ks0108_port);
+		goto err_unreg_device;
+	}
+
+	ks0108_inited = 1;
+	return;
+
+err_unreg_device:
+	parport_unregister_device(ks0108_pardevice);
+	ks0108_pardevice = NULL;
+}
+
+static void ks0108_parport_detach(struct parport *port)
+{
+	if (port->base != ks0108_port)
+		return;
+
+	if (!ks0108_pardevice) {
+		pr_err("%s: already unregistered.\n", KS0108_NAME);
+		return;
+	}
+
+	parport_release(ks0108_pardevice);
+	parport_unregister_device(ks0108_pardevice);
+	ks0108_pardevice = NULL;
+}
+
 /*
  * Module Init & Exit
  */
 
+static struct parport_driver ks0108_parport_driver = {
+	.name = "ks0108",
+	.match_port = ks0108_parport_attach,
+	.detach = ks0108_parport_detach,
+	.devmodel = true,
+};
+
 static int __init ks0108_init(void)
 {
-	int result;
-	int ret = -EINVAL;
-
-	ks0108_parport = parport_find_base(ks0108_port);
-	if (ks0108_parport == NULL) {
-		pr_err("ERROR: parport didn't find %i port\n", ks0108_port);
-		goto none;
-	}
-
-	ks0108_pardevice = parport_register_device(ks0108_parport, KS0108_NAME,
-		NULL, NULL, NULL, PARPORT_DEV_EXCL, NULL);
-	parport_put_port(ks0108_parport);
-	if (ks0108_pardevice == NULL) {
-		pr_err("ERROR: parport didn't register new device\n");
-		goto none;
-	}
-
-	result = parport_claim(ks0108_pardevice);
-	if (result != 0) {
-		pr_err("ERROR: can't claim %i parport, maybe in use\n",
-		       ks0108_port);
-		ret = result;
-		goto registered;
-	}
-
-	ks0108_inited = 1;
-	return 0;
-
-registered:
-	parport_unregister_device(ks0108_pardevice);
-
-none:
-	return ret;
+	return parport_register_driver(&ks0108_parport_driver);
 }
 
 static void __exit ks0108_exit(void)
 {
-	parport_release(ks0108_pardevice);
-	parport_unregister_device(ks0108_pardevice);
+	parport_unregister_driver(&ks0108_parport_driver);
 }
 
 module_init(ks0108_init);
