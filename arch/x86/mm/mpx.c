@@ -18,26 +18,9 @@
 #include <asm/processor.h>
 #include <asm/fpu-internal.h>
 
-static const char *mpx_mapping_name(struct vm_area_struct *vma)
-{
-	return "[mpx]";
-}
-
-static struct vm_operations_struct mpx_vma_ops = {
-	.name = mpx_mapping_name,
-};
-
-static int is_mpx_vma(struct vm_area_struct *vma)
-{
-	return (vma->vm_ops == &mpx_vma_ops);
-}
-
 /*
  * This is really a simplified "vm_mmap". it only handles MPX
  * bounds tables (the bounds directory is user-allocated).
- *
- * Later on, we use the vma->vm_ops to uniquely identify these
- * VMAs.
  */
 static unsigned long mpx_mmap(unsigned long len)
 {
@@ -83,7 +66,6 @@ static unsigned long mpx_mmap(unsigned long len)
 		ret = -ENOMEM;
 		goto out;
 	}
-	vma->vm_ops = &mpx_vma_ops;
 
 	if (vm_flags & VM_LOCKED) {
 		up_write(&mm->mmap_sem);
@@ -661,7 +643,7 @@ static int zap_bt_entries(struct mm_struct *mm,
 		 * so stop immediately and return an error.  This
 		 * probably results in a SIGSEGV.
 		 */
-		if (!is_mpx_vma(vma))
+		if (!(vma->vm_flags & VM_MPX))
 			return -EINVAL;
 
 		len = min(vma->vm_end, end) - addr;
