@@ -457,10 +457,16 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000)
 			iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
 					  APMG_PCIDEV_STT_VAL_WAKE_ME);
-		else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+				    CSR_RESET_LINK_PWR_MGMT_DISABLED);
 			iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_PREPARE |
 				    CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+			mdelay(1);
+			iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+				      CSR_RESET_LINK_PWR_MGMT_DISABLED);
+		}
 		mdelay(5);
 	}
 
@@ -555,6 +561,10 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 	if (ret >= 0)
 		return 0;
 
+	iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+		    CSR_RESET_LINK_PWR_MGMT_DISABLED);
+	msleep(1);
+
 	for (iter = 0; iter < 10; iter++) {
 		/* If HW is not ready, prepare the conditions to check again */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
@@ -562,8 +572,10 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0)
-				return 0;
+			if (ret >= 0) {
+				ret = 0;
+				goto out;
+			}
 
 			usleep_range(200, 1000);
 			t += 200;
@@ -572,6 +584,10 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 	}
 
 	IWL_ERR(trans, "Couldn't prepare the card\n");
+
+out:
+	iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+		      CSR_RESET_LINK_PWR_MGMT_DISABLED);
 
 	return ret;
 }
