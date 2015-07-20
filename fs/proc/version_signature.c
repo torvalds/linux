@@ -1,6 +1,7 @@
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/utsname.h>
