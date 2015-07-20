@@ -581,7 +581,7 @@ static int vidioc_enum_fmt(struct file *file, void  *priv,
 {
 	int index = f->index;
 
-	if (f->index > NUM_FORMATS)
+	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
 
 	strlcpy(f->description, formats[index].name, sizeof(f->description));
@@ -633,6 +633,7 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 	f->fmt.pix.width &= ~0x03;
 	f->fmt.pix.bytesperline =
 		(f->fmt.pix.width * fmt->depth) >> 3;
+	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
@@ -958,7 +959,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct viu_fh *fh = priv;
 
-	if (i > 1)
+	if (i)
 		return -EINVAL;
 
 	decoder_call(fh->dev, video, s_routing, i, 0, 0);
