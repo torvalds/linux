@@ -187,11 +187,11 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			goto maybe_missing_crypto_in_x509;
 
 		pr_debug("- issuer %s\n", x509->issuer);
-		if (x509->authority)
+		if (x509->akid_skid)
 			pr_debug("- authkeyid %*phN\n",
-				 x509->authority->len, x509->authority->data);
+				 x509->akid_skid->len, x509->akid_skid->data);
 
-		if (!x509->authority ||
+		if (!x509->akid_skid ||
 		    strcmp(x509->subject, x509->issuer) == 0) {
 			/* If there's no authority certificate specified, then
 			 * the certificate must be self-signed and is the root
@@ -216,13 +216,13 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		 * list to see if the next one is there.
 		 */
 		pr_debug("- want %*phN\n",
-			 x509->authority->len, x509->authority->data);
+			 x509->akid_skid->len, x509->akid_skid->data);
 		for (p = pkcs7->certs; p; p = p->next) {
 			if (!p->skid)
 				continue;
 			pr_debug("- cmp [%u] %*phN\n",
 				 p->index, p->skid->len, p->skid->data);
-			if (asymmetric_key_id_same(p->skid, x509->authority))
+			if (asymmetric_key_id_same(p->skid, x509->akid_skid))
 				goto found_issuer;
 		}
 
@@ -338,8 +338,6 @@ int pkcs7_verify(struct pkcs7_message *pkcs7)
 		ret = x509_get_sig_params(x509);
 		if (ret < 0)
 			return ret;
-		pr_debug("X.509[%u] %*phN\n",
-			 n, x509->authority->len, x509->authority->data);
 	}
 
 	for (sinfo = pkcs7->signed_infos; sinfo; sinfo = sinfo->next) {

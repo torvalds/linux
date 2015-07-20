@@ -18,6 +18,7 @@
 #include "public_key.h"
 #include "x509_parser.h"
 #include "x509-asn1.h"
+#include "x509_akid-asn1.h"
 #include "x509_rsakey-asn1.h"
 
 struct x509_parse_context {
@@ -35,6 +36,10 @@ struct x509_parse_context {
 	u16		o_offset;		/* Offset of organizationName (O) */
 	u16		cn_offset;		/* Offset of commonName (CN) */
 	u16		email_offset;		/* Offset of emailAddress */
+	unsigned	raw_akid_size;
+	const void	*raw_akid;		/* Raw authorityKeyId in ASN.1 */
+	const void	*akid_raw_issuer;	/* Raw directoryName in authorityKeyId */
+	unsigned	akid_raw_issuer_size;
 };
 
 /*
@@ -48,7 +53,8 @@ void x509_free_certificate(struct x509_certificate *cert)
 		kfree(cert->subject);
 		kfree(cert->id);
 		kfree(cert->skid);
-		kfree(cert->authority);
+		kfree(cert->akid_id);
+		kfree(cert->akid_skid);
 		kfree(cert->sig.digest);
 		mpi_free(cert->sig.rsa.s);
 		kfree(cert);
@@ -84,6 +90,18 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 	ret = asn1_ber_decoder(&x509_decoder, ctx, data, datalen);
 	if (ret < 0)
 		goto error_decode;
+
+	/* Decode the AuthorityKeyIdentifier */
+	if (ctx->raw_akid) {
+		pr_devel("AKID: %u %*phN\n",
+			 ctx->raw_akid_size, ctx->raw_akid_size, ctx->raw_akid);
+		ret = asn1_ber_decoder(&x509_akid_decoder, ctx,
+				       ctx->raw_akid, ctx->raw_akid_size);
+		if (ret < 0) {
+			pr_warn("Couldn't decode AuthKeyIdentifier\n");
+			goto error_decode;
+		}
+	}
 
 	/* Decode the public key */
 	ret = asn1_ber_decoder(&x509_rsakey_decoder, ctx,
@@ -422,7 +440,6 @@ int x509_process_extension(void *context, size_t hdrlen,
 	struct x509_parse_context *ctx = context;
 	struct asymmetric_key_id *kid;
 	const unsigned char *v = value;
-	int i;
 
 	pr_debug("Extension: %u\n", ctx->last_oid);
 
@@ -449,57 +466,8 @@ int x509_process_extension(void *context, size_t hdrlen,
 
 	if (ctx->last_oid == OID_authorityKeyIdentifier) {
 		/* Get hold of the CA key fingerprint */
-		if (ctx->cert->authority || vlen < 5)
-			return -EBADMSG;
-
-		/* Authority Key Identifier must be a Constructed SEQUENCE */
-		if (v[0] != (ASN1_SEQ | (ASN1_CONS << 5)))
-			return -EBADMSG;
-
-		/* Authority Key Identifier is not indefinite length */
-		if (unlikely(vlen == ASN1_INDEFINITE_LENGTH))
-			return -EBADMSG;
-
-		if (vlen < ASN1_INDEFINITE_LENGTH) {
-			/* Short Form length */
-			if (v[1] != vlen - 2 ||
-			    v[2] != SEQ_TAG_KEYID ||
-			    v[3] > vlen - 4)
-				return -EBADMSG;
-
-			vlen = v[3];
-			v += 4;
-		} else {
-			/* Long Form length */
-			size_t seq_len = 0;
-			size_t sub = v[1] - ASN1_INDEFINITE_LENGTH;
-
-			if (sub > 2)
-				return -EBADMSG;
-
-			/* calculate the length from subsequent octets */
-			v += 2;
-			for (i = 0; i < sub; i++) {
-				seq_len <<= 8;
-				seq_len |= v[i];
-			}
-
-			if (seq_len != vlen - 2 - sub ||
-			    v[sub] != SEQ_TAG_KEYID ||
-			    v[sub + 1] > vlen - 4 - sub)
-				return -EBADMSG;
-
-			vlen = v[sub + 1];
-			v += (sub + 2);
-		}
-
-		kid = asymmetric_key_generate_id(ctx->cert->raw_issuer,
-						 ctx->cert->raw_issuer_size,
-						 v, vlen);
-		if (IS_ERR(kid))
-			return PTR_ERR(kid);
-		pr_debug("authkeyid %*phN\n", kid->len, kid->data);
-		ctx->cert->authority = kid;
+		ctx->raw_akid = v;
+		ctx->raw_akid_size = vlen;
 		return 0;
 	}
 
@@ -568,4 +536,72 @@ int x509_note_not_after(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 	return x509_note_time(&ctx->cert->valid_to, hdrlen, tag, value, vlen);
+}
+
+/*
+ * Note a key identifier-based AuthorityKeyIdentifier
+ */
+int x509_akid_note_kid(void *context, size_t hdrlen,
+		       unsigned char tag,
+		       const void *value, size_t vlen)
+{
+	struct x509_parse_context *ctx = context;
+	struct asymmetric_key_id *kid;
+
+	pr_debug("AKID: keyid: %*phN\n", (int)vlen, value);
+
+	if (ctx->cert->akid_skid)
+		return 0;
+
+	kid = asymmetric_key_generate_id(ctx->cert->raw_issuer,
+					 ctx->cert->raw_issuer_size,
+					 value, vlen);
+	if (IS_ERR(kid))
+		return PTR_ERR(kid);
+	pr_debug("authkeyid %*phN\n", kid->len, kid->data);
+	ctx->cert->akid_skid = kid;
+	return 0;
+}
+
+/*
+ * Note a directoryName in an AuthorityKeyIdentifier
+ */
+int x509_akid_note_name(void *context, size_t hdrlen,
+			unsigned char tag,
+			const void *value, size_t vlen)
+{
+	struct x509_parse_context *ctx = context;
+
+	pr_debug("AKID: name: %*phN\n", (int)vlen, value);
+
+	ctx->akid_raw_issuer = value;
+	ctx->akid_raw_issuer_size = vlen;
+	return 0;
+}
+
+/*
+ * Note a serial number in an AuthorityKeyIdentifier
+ */
+int x509_akid_note_serial(void *context, size_t hdrlen,
+			  unsigned char tag,
+			  const void *value, size_t vlen)
+{
+	struct x509_parse_context *ctx = context;
+	struct asymmetric_key_id *kid;
+
+	pr_debug("AKID: serial: %*phN\n", (int)vlen, value);
+
+	if (!ctx->akid_raw_issuer || ctx->cert->akid_id)
+		return 0;
+
+	kid = asymmetric_key_generate_id(value,
+					 vlen,
+					 ctx->akid_raw_issuer,
+					 ctx->akid_raw_issuer_size);
+	if (IS_ERR(kid))
+		return PTR_ERR(kid);
+
+	pr_debug("authkeyid %*phN\n", kid->len, kid->data);
+	ctx->cert->akid_id = kid;
+	return 0;
 }

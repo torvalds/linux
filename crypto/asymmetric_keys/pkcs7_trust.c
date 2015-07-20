@@ -85,8 +85,8 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 	/* No match - see if the root certificate has a signer amongst the
 	 * trusted keys.
 	 */
-	if (last && last->authority) {
-		key = x509_request_asymmetric_key(trust_keyring, last->authority,
+	if (last && last->akid_skid) {
+		key = x509_request_asymmetric_key(trust_keyring, last->akid_skid,
 						  false);
 		if (!IS_ERR(key)) {
 			x509 = last;

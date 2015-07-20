@@ -1,0 +1,35 @@
+-- X.509 AuthorityKeyIdentifier
+-- rfc5280 section 4.2.1.1
+
+AuthorityKeyIdentifier ::= SEQUENCE {
+	keyIdentifier			[0] IMPLICIT KeyIdentifier		OPTIONAL,
+	authorityCertIssuer		[1] IMPLICIT GeneralNames		OPTIONAL,
+	authorityCertSerialNumber	[2] IMPLICIT CertificateSerialNumber	OPTIONAL
+	}
+
+KeyIdentifier ::= OCTET STRING ({ x509_akid_note_kid })
+
+CertificateSerialNumber ::= INTEGER ({ x509_akid_note_serial })
+
+GeneralNames ::= SEQUENCE OF GeneralName
+
+GeneralName ::= CHOICE {
+	otherName			[0] ANY,
+	rfc822Name			[1] IA5String,
+	dNSName				[2] IA5String,
+	x400Address			[3] ANY,
+	directoryName			[4] Name ({ x509_akid_note_name }),
+	ediPartyName			[5] ANY,
+	uniformResourceIdentifier	[6] IA5String,
+	iPAddress			[7] OCTET STRING,
+	registeredID			[8] OBJECT IDENTIFIER
+	}
+
+Name ::= SEQUENCE OF RelativeDistinguishedName
+
+RelativeDistinguishedName ::= SET OF AttributeValueAssertion
+
+AttributeValueAssertion ::= SEQUENCE {
+	attributeType		OBJECT IDENTIFIER ({ x509_note_OID }),
+	attributeValue		ANY ({ x509_extract_name_segment })
+	}
