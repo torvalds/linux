@@ -584,7 +584,7 @@ void RemoveAllTS(struct ieee80211_device *ieee)
 
 void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTS)
 {
-	if(pTxTS->bAddBaReqInProgress == false)
+	if(!pTxTS->bAddBaReqInProgress)
 	{
 		pTxTS->bAddBaReqInProgress = true;
 		if(pTxTS->bAddBaReqDelayed)

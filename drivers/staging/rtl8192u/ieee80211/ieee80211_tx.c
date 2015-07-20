@@ -336,12 +336,12 @@ static void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee,
 			printk("===>can't get TS\n");
 			return;
 		}
-		if (pTxTs->TxAdmittedBARecord.bValid == false)
+		if (!pTxTs->TxAdmittedBARecord.bValid)
 		{
 			TsStartAddBaProcess(ieee, pTxTs);
 			goto FORCED_AGG_SETTING;
 		}
-		else if (pTxTs->bUsingBa == false)
+		else if (!pTxTs->bUsingBa)
 		{
 			if (SN_LESS(pTxTs->TxAdmittedBARecord.BaStartSeqCtrl.field.SeqNum, (pTxTs->TxCurSeq+1)%4096))
 				pTxTs->bUsingBa = true;

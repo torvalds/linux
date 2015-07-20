@@ -1964,7 +1964,7 @@ static void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 			}
 
 			if (ieee->current_network.mode == IEEE_N_24G &&
-					bHalfSupportNmode == true) {
+					bHalfSupportNmode) {
 				netdev_dbg(ieee->dev, "enter half N mode\n");
 				ieee->bHalfWirelessN24GMode = true;
 			} else

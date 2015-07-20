@@ -438,7 +438,7 @@ static void dm_bandwidth_autoswitch(struct net_device *dev)
 
 	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 || !priv->ieee80211->bandwidth_auto_switch.bautoswitch_enable)
 		return;
-	if (priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz == false) { /* If send packets in 40 Mhz in 20/40 */
+	if (!priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz) { /* If send packets in 40 Mhz in 20/40 */
 		if (priv->undecorated_smoothed_pwdb <= priv->ieee80211->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
 			priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = true;
 	} else { /* in force send packets in 20 Mhz in 20/40 */
@@ -1731,7 +1731,7 @@ static void dm_dig_init(struct net_device *dev)
  *---------------------------------------------------------------------------*/
 static void dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
-	if (dm_digtable.dig_enable_flag == false)
+	if (!dm_digtable.dig_enable_flag)
 		return;
 
 	if (dm_digtable.dig_algorithm == DIG_ALGO_BY_FALSE_ALARM)
@@ -1750,7 +1750,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	u8 i;
 	static u8	fw_dig;
 
-	if (dm_digtable.dig_enable_flag == false)
+	if (!dm_digtable.dig_enable_flag)
 		return;
 
 	/*DbgPrint("Dig by Sw Rssi\n");*/
@@ -1792,7 +1792,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	static u32 reset_cnt;
 	u8 i;
 
-	if (dm_digtable.dig_enable_flag == false)
+	if (!dm_digtable.dig_enable_flag)
 		return;
 
 	if (dm_digtable.dig_algorithm_switch) {
