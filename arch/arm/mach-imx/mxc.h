@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2007, 2010 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2007, 2010-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2008 Juergen Beisert (kernel@pengutronix.de)
  *
  * This program is free software; you can redistribute it and/or
@@ -38,6 +38,8 @@
 #define MXC_CPU_IMX6DL		0x61
 #define MXC_CPU_IMX6SX		0x62
 #define MXC_CPU_IMX6Q		0x63
+#define MXC_CPU_IMX7D		0x72
+#define MXC_ARCH_CA7		0xc07
 
 #define IMX_CHIP_REVISION_1_0		0x10
 #define IMX_CHIP_REVISION_1_1		0x11
@@ -55,10 +57,15 @@
 #define IMX_CHIP_REVISION_3_3		0x33
 #define IMX_CHIP_REVISION_UNKNOWN	0xff
 
+#define IMX_DDR_TYPE_DDR3		0
 #define IMX_DDR_TYPE_LPDDR2		1
+#define IMX_DDR_TYPE_LPDDR3		2
+
+
 
 #ifndef __ASSEMBLY__
 extern unsigned int __mxc_cpu_type;
+extern unsigned int __mxc_arch_type;
 #endif
 
 #ifdef CONFIG_SOC_IMX1
@@ -183,6 +190,16 @@ static inline bool cpu_is_imx6sx(void)
 static inline bool cpu_is_imx6q(void)
 {
 	return __mxc_cpu_type == MXC_CPU_IMX6Q;
+}
+
+static inline bool cpu_is_imx7d(void)
+{
+	return __mxc_cpu_type == MXC_CPU_IMX7D;
+}
+
+static inline bool arm_is_ca7(void)
+{
+	return __mxc_arch_type == MXC_ARCH_CA7;
 }
 
 struct cpu_op {

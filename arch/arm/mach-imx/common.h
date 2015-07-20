@@ -54,6 +54,7 @@ int mx31_clocks_init_dt(void);
 struct platform_device *mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 void mxc_set_cpu_type(unsigned int type);
+void mxc_set_arch_type(unsigned int type);
 void mxc_restart(enum reboot_mode, const char *);
 void mxc_arch_reset_init(void __iomem *);
 int mx51_revision(void);
@@ -101,9 +102,15 @@ void imx_smp_prepare(void);
 static inline void imx_scu_map_io(void) {}
 static inline void imx_smp_prepare(void) {}
 #endif
+void imx7_pm_map_io(void);
 void imx_src_init(void);
 void imx_gpc_pre_suspend(bool arm_power_off);
 void imx_gpc_post_resume(void);
+void imx_gpcv2_pre_suspend(bool arm_power_off);
+void imx_gpcv2_post_resume(void);
+void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
+unsigned int imx_gpcv2_is_mf_mix_off(void);
+void __init imx_gpcv2_check_dt(void);
 void imx_gpc_mask_all(void);
 void imx_gpc_restore_all(void);
 void imx_gpc_hwirq_mask(unsigned int hwirq);
@@ -115,18 +122,24 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6q_set_int_mem_clk_lpm(bool enable);
 void imx6sl_set_wait_clk(bool enter);
 int imx_mmdc_get_ddr_type(void);
-
+int imx_ddrc_get_ddr_type(void);
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 
 #ifdef CONFIG_SUSPEND
 void v7_cpu_resume(void);
+void ca7_cpu_resume(void);
 void imx6_suspend(void __iomem *ocram_vbase);
+void imx7_suspend(void __iomem *ocram_vbase);
 #else
 static inline void v7_cpu_resume(void) {}
+static inline void ca7_cpu_resume(void) {}
 static inline void imx6_suspend(void __iomem *ocram_vbase) {}
+static inline void imx7_suspend(void __iomem *ocram_vbase) {}
 #endif
 
+void imx7_pm_init(void);
+void imx7d_pm_init(void);
 void imx6q_pm_init(void);
 void imx6dl_pm_init(void);
 void imx6sl_pm_init(void);
