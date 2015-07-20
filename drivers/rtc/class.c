@@ -266,19 +266,18 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
-	if (get_device(&rtc->dev) != NULL) {
-		mutex_lock(&rtc->ops_lock);
-		/* remove innards of this RTC, then disable it, before
-		 * letting any rtc_class_open() users access it again
-		 */
-		rtc_sysfs_del_device(rtc);
-		rtc_dev_del_device(rtc);
-		rtc_proc_del_device(rtc);
-		device_unregister(&rtc->dev);
-		rtc->ops = NULL;
-		mutex_unlock(&rtc->ops_lock);
-		put_device(&rtc->dev);
-	}
+	mutex_lock(&rtc->ops_lock);
+	/*
+	 * Remove innards of this RTC, then disable it, before
+	 * letting any rtc_class_open() users access it again
+	 */
+	rtc_sysfs_del_device(rtc);
+	rtc_dev_del_device(rtc);
+	rtc_proc_del_device(rtc);
+	device_del(&rtc->dev);
+	rtc->ops = NULL;
+	mutex_unlock(&rtc->ops_lock);
+	put_device(&rtc->dev);
 }
 EXPORT_SYMBOL_GPL(rtc_device_unregister);
 
