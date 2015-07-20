@@ -15,6 +15,9 @@
 #include "lpc18xx.dtsi"
 #include "lpc4350.dtsi"
 
+#include "dt-bindings/input/input.h"
+#include "dt-bindings/gpio/gpio.h"
+
 / {
 	model = "Hitex LPC4350 Evaluation Board";
 	compatible = "hitex,lpc4350-eval-board", "nxp,lpc4350";
@@ -33,6 +36,88 @@
 	memory {
 		device_type = "memory";
 		reg = <0x28000000 0x800000>; /* 8 MB */
+	};
+
+	pca_buttons {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+		autorepeat;
+
+		button@0 {
+			label = "joy:right";
+			linux,code = <KEY_RIGHT>;
+			gpios = <&pca_gpio 8 GPIO_ACTIVE_LOW>;
+		};
+
+		button@1 {
+			label = "joy:up";
+			linux,code = <KEY_UP>;
+			gpios = <&pca_gpio 9 GPIO_ACTIVE_LOW>;
+		};
+
+
+		button@2 {
+			label = "joy:enter";
+			linux,code = <KEY_ENTER>;
+			gpios = <&pca_gpio 10 GPIO_ACTIVE_LOW>;
+		};
+
+		button@3 {
+			label = "joy:left";
+			linux,code = <KEY_LEFT>;
+			gpios = <&pca_gpio 11 GPIO_ACTIVE_LOW>;
+		};
+
+		button@4 {
+			label = "joy:down";
+			linux,code = <KEY_DOWN>;
+			gpios = <&pca_gpio 12 GPIO_ACTIVE_LOW>;
+		};
+
+		button@5 {
+			label = "user:sw3";
+			linux,code = <KEY_F1>;
+			gpios = <&pca_gpio 13 GPIO_ACTIVE_LOW>;
+		};
+
+		button@6 {
+			label = "user:sw4";
+			linux,code = <KEY_F2>;
+			gpios = <&pca_gpio 14 GPIO_ACTIVE_LOW>;
+		};
+
+		button@7 {
+			label = "user:sw5";
+			linux,code = <KEY_F3>;
+			gpios = <&pca_gpio 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	pca_leds {
+		compatible = "gpio-leds";
+
+		led0 {
+			label = "ext:led0";
+			gpios = <&pca_gpio 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led1 {
+			label = "ext:led1";
+			gpios = <&pca_gpio 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led2 {
+			label = "ext:led2";
+			gpios = <&pca_gpio 2 GPIO_ACTIVE_LOW>;
+		};
+
+		led3 {
+			label = "ext:led3";
+			gpios = <&pca_gpio 3 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
