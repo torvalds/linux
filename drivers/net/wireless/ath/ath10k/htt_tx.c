@@ -496,6 +496,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	u16 msdu_id, flags1 = 0;
 	dma_addr_t paddr = 0;
 	u32 frags_paddr = 0;
+	struct htt_msdu_ext_desc *ext_desc = NULL;
 
 	res = ath10k_htt_tx_inc_pending(htt);
 	if (res)
@@ -542,6 +543,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		if (ar->hw_params.continuous_frag_desc) {
 			frags = (struct htt_data_tx_desc_frag *)
 				&htt->frag_desc.vaddr[msdu_id].frags;
+			ext_desc = &htt->frag_desc.vaddr[msdu_id];
 			frags[0].tword_addr.paddr_lo =
 				__cpu_to_le32(skb_cb->paddr);
 			frags[0].tword_addr.paddr_hi = 0;
@@ -603,6 +605,8 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if (msdu->ip_summed == CHECKSUM_PARTIAL) {
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
+		if (ar->hw_params.continuous_frag_desc)
+			ext_desc->flags |= HTT_MSDU_CHECKSUM_ENABLE;
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's
