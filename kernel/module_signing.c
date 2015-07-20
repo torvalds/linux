@@ -10,10 +10,8 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/err.h>
 #include <keys/system_keyring.h>
 #include <crypto/public_key.h>
-#include <crypto/pkcs7.h>
 #include "module-internal.h"
 
 /*
@@ -35,46 +33,6 @@ struct module_signature {
 	u8	__pad[3];
 	__be32	sig_len;	/* Length of signature data */
 };
-
-/*
- * Verify a PKCS#7-based signature on a module.
- */
-static int mod_verify_pkcs7(const void *mod, unsigned long modlen,
-			    const void *raw_pkcs7, size_t pkcs7_len)
-{
-	struct pkcs7_message *pkcs7;
-	bool trusted;
-	int ret;
-
-	pkcs7 = pkcs7_parse_message(raw_pkcs7, pkcs7_len);
-	if (IS_ERR(pkcs7))
-		return PTR_ERR(pkcs7);
-
-	/* The data should be detached - so we need to supply it. */
-	if (pkcs7_supply_detached_data(pkcs7, mod, modlen) < 0) {
-		pr_err("PKCS#7 signature with non-detached data\n");
-		ret = -EBADMSG;
-		goto error;
-	}
-
-	ret = pkcs7_verify(pkcs7);
-	if (ret < 0)
-		goto error;
-
-	ret = pkcs7_validate_trust(pkcs7, system_trusted_keyring, &trusted);
-	if (ret < 0)
-		goto error;
-
-	if (!trusted) {
-		pr_err("PKCS#7 signature not signed with a trusted key\n");
-		ret = -ENOKEY;
-	}
-
-error:
-	pkcs7_free_message(pkcs7);
-	pr_devel("<==%s() = %d\n", __func__, ret);
-	return ret;
-}
 
 /*
  * Verify the signature on a module.
@@ -114,5 +72,5 @@ int mod_verify_sig(const void *mod, unsigned long *_modlen)
 		return -EBADMSG;
 	}
 
-	return mod_verify_pkcs7(mod, modlen, mod + modlen, sig_len);
+	return system_verify_data(mod, modlen, mod + modlen, sig_len);
 }

@@ -28,4 +28,9 @@ static inline struct key *get_system_trusted_keyring(void)
 }
 #endif
 
+#ifdef CONFIG_SYSTEM_DATA_VERIFICATION
+extern int system_verify_data(const void *data, unsigned long len,
+			      const void *raw_pkcs7, size_t pkcs7_len);
+#endif
+
 #endif /* _KEYS_SYSTEM_KEYRING_H */
