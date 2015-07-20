@@ -881,6 +881,14 @@ static void iwl_pcie_apply_destination(struct iwl_trans *trans)
 		case PRPH_CLEARBIT:
 			iwl_clear_bits_prph(trans, addr, BIT(val));
 			break;
+		case PRPH_BLOCKBIT:
+			if (iwl_read_prph(trans, addr) & BIT(val)) {
+				IWL_ERR(trans,
+					"BIT(%u) in address 0x%x is 1, stopping FW configuration\n",
+					val, addr);
+				goto monitor;
+			}
+			break;
 		default:
 			IWL_ERR(trans, "FW debug - unknown OP %d\n",
 				dest->reg_ops[i].op);
@@ -888,6 +896,7 @@ static void iwl_pcie_apply_destination(struct iwl_trans *trans)
 		}
 	}
 
+monitor:
 	if (dest->monitor_mode == EXTERNAL_MODE && trans_pcie->fw_mon_size) {
 		iwl_write_prph(trans, le32_to_cpu(dest->base_reg),
 			       trans_pcie->fw_mon_phys >> dest->base_shift);
