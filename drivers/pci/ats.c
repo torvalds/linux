@@ -20,16 +20,12 @@
 void pci_ats_init(struct pci_dev *dev)
 {
 	int pos;
-	u16 cap;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ATS);
 	if (!pos)
 		return;
 
 	dev->ats_cap = pos;
-	pci_read_config_word(dev, dev->ats_cap + PCI_ATS_CAP, &cap);
-	dev->ats_qdep = PCI_ATS_CAP_QDEP(cap) ? PCI_ATS_CAP_QDEP(cap) :
-					    PCI_ATS_MAX_QDEP;
 }
 
 /**
@@ -131,13 +127,16 @@ EXPORT_SYMBOL_GPL(pci_restore_ats_state);
  */
 int pci_ats_queue_depth(struct pci_dev *dev)
 {
+	u16 cap;
+
 	if (!dev->ats_cap)
 		return -EINVAL;
 
 	if (dev->is_virtfn)
 		return 0;
 
-	return dev->ats_qdep;
+	pci_read_config_word(dev, dev->ats_cap + PCI_ATS_CAP, &cap);
+	return PCI_ATS_CAP_QDEP(cap) ? PCI_ATS_CAP_QDEP(cap) : PCI_ATS_MAX_QDEP;
 }
 EXPORT_SYMBOL_GPL(pci_ats_queue_depth);
 
