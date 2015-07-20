@@ -685,6 +685,7 @@ static void sunxi_pinctrl_irq_ack_unmask(struct irq_data *d)
 }
 
 static struct irq_chip sunxi_pinctrl_edge_irq_chip = {
+	.name		= "sunxi_pio_edge",
 	.irq_ack	= sunxi_pinctrl_irq_ack,
 	.irq_mask	= sunxi_pinctrl_irq_mask,
 	.irq_unmask	= sunxi_pinctrl_irq_unmask,
@@ -695,6 +696,7 @@ static struct irq_chip sunxi_pinctrl_edge_irq_chip = {
 };
 
 static struct irq_chip sunxi_pinctrl_level_irq_chip = {
+	.name		= "sunxi_pio_level",
 	.irq_eoi	= sunxi_pinctrl_irq_ack,
 	.irq_mask	= sunxi_pinctrl_irq_mask,
 	.irq_unmask	= sunxi_pinctrl_irq_unmask,
