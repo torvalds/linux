@@ -13,6 +13,8 @@
 #ifndef _OMAP_IOMMU_H
 #define _OMAP_IOMMU_H
 
+#include <linux/bitops.h>
+
 #define for_each_iotlb_cr(obj, n, __i, cr)				\
 	for (__i = 0;							\
 	     (__i < (n)) && (cr = __iotlb_read_cr((obj), __i), true);	\
@@ -96,11 +98,11 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
  * MMU Register bit definitions
  */
 /* IRQSTATUS & IRQENABLE */
-#define MMU_IRQ_MULTIHITFAULT	(1 << 4)
-#define MMU_IRQ_TABLEWALKFAULT	(1 << 3)
-#define MMU_IRQ_EMUMISS		(1 << 2)
-#define MMU_IRQ_TRANSLATIONFAULT	(1 << 1)
-#define MMU_IRQ_TLBMISS		(1 << 0)
+#define MMU_IRQ_MULTIHITFAULT	BIT(4)
+#define MMU_IRQ_TABLEWALKFAULT	BIT(3)
+#define MMU_IRQ_EMUMISS		BIT(2)
+#define MMU_IRQ_TRANSLATIONFAULT	BIT(1)
+#define MMU_IRQ_TLBMISS		BIT(0)
 
 #define __MMU_IRQ_FAULT		\
 	(MMU_IRQ_MULTIHITFAULT | MMU_IRQ_EMUMISS | MMU_IRQ_TRANSLATIONFAULT)
@@ -112,16 +114,16 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 /* MMU_CNTL */
 #define MMU_CNTL_SHIFT		1
 #define MMU_CNTL_MASK		(7 << MMU_CNTL_SHIFT)
-#define MMU_CNTL_EML_TLB	(1 << 3)
-#define MMU_CNTL_TWL_EN		(1 << 2)
-#define MMU_CNTL_MMU_EN		(1 << 1)
+#define MMU_CNTL_EML_TLB	BIT(3)
+#define MMU_CNTL_TWL_EN		BIT(2)
+#define MMU_CNTL_MMU_EN		BIT(1)
 
 /* CAM */
 #define MMU_CAM_VATAG_SHIFT	12
 #define MMU_CAM_VATAG_MASK \
 	((~0UL >> MMU_CAM_VATAG_SHIFT) << MMU_CAM_VATAG_SHIFT)
-#define MMU_CAM_P		(1 << 3)
-#define MMU_CAM_V		(1 << 2)
+#define MMU_CAM_P		BIT(3)
+#define MMU_CAM_V		BIT(2)
 #define MMU_CAM_PGSZ_MASK	3
 #define MMU_CAM_PGSZ_1M		(0 << 0)
 #define MMU_CAM_PGSZ_64K	(1 << 0)
@@ -134,9 +136,9 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 	((~0UL >> MMU_RAM_PADDR_SHIFT) << MMU_RAM_PADDR_SHIFT)
 
 #define MMU_RAM_ENDIAN_SHIFT	9
-#define MMU_RAM_ENDIAN_MASK	(1 << MMU_RAM_ENDIAN_SHIFT)
+#define MMU_RAM_ENDIAN_MASK	BIT(MMU_RAM_ENDIAN_SHIFT)
 #define MMU_RAM_ENDIAN_LITTLE	(0 << MMU_RAM_ENDIAN_SHIFT)
-#define MMU_RAM_ENDIAN_BIG	(1 << MMU_RAM_ENDIAN_SHIFT)
+#define MMU_RAM_ENDIAN_BIG	BIT(MMU_RAM_ENDIAN_SHIFT)
 
 #define MMU_RAM_ELSZ_SHIFT	7
 #define MMU_RAM_ELSZ_MASK	(3 << MMU_RAM_ELSZ_SHIFT)
@@ -145,7 +147,7 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 #define MMU_RAM_ELSZ_32		(2 << MMU_RAM_ELSZ_SHIFT)
 #define MMU_RAM_ELSZ_NONE	(3 << MMU_RAM_ELSZ_SHIFT)
 #define MMU_RAM_MIXED_SHIFT	6
-#define MMU_RAM_MIXED_MASK	(1 << MMU_RAM_MIXED_SHIFT)
+#define MMU_RAM_MIXED_MASK	BIT(MMU_RAM_MIXED_SHIFT)
 #define MMU_RAM_MIXED		MMU_RAM_MIXED_MASK
 
 #define MMU_GP_REG_BUS_ERR_BACK_EN	0x1
