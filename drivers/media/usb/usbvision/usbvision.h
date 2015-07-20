@@ -36,6 +36,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <linux/videodev2.h>
 
@@ -357,6 +358,7 @@ extern struct usb_device_id usbvision_table[];
 
 struct usb_usbvision {
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler hdl;
 	struct video_device vdev;					/* Video Device */
 	struct video_device rdev;					/* Radio Device */
 
