@@ -294,6 +294,8 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 	info->regs.pt.flags |= info->regs32->flags & ~SAFE_MASK;
 	info->regs.pt.flags |= X86_VM_MASK;
 
+	info->regs.pt.orig_ax = info->regs32->orig_ax;
+
 	switch (info->cpu_type) {
 	case CPU_286:
 		tsk->thread.v86mask = 0;
