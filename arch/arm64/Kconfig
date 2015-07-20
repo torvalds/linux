@@ -160,7 +160,7 @@ source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-source "Kconfig.platforms"
+source "arch/arm64/Kconfig.platforms"
 
 menu "Bus support"
 
