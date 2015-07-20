@@ -226,6 +226,79 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 }
 
 /*
+ * We only support signed data [RFC2315 sec 9].
+ */
+int pkcs7_check_content_type(void *context, size_t hdrlen,
+			     unsigned char tag,
+			     const void *value, size_t vlen)
+{
+	struct pkcs7_parse_context *ctx = context;
+
+	if (ctx->last_oid != OID_signed_data) {
+		pr_warn("Only support pkcs7_signedData type\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * Note the SignedData version
+ */
+int pkcs7_note_signeddata_version(void *context, size_t hdrlen,
+				  unsigned char tag,
+				  const void *value, size_t vlen)
+{
+	unsigned version;
+
+	if (vlen != 1)
+		goto unsupported;
+
+	version = *(const u8 *)value;
+	switch (version) {
+	case 1:
+		/* PKCS#7 SignedData [RFC2315 sec 9.1] */
+		break;
+	default:
+		goto unsupported;
+	}
+
+	return 0;
+
+unsupported:
+	pr_warn("Unsupported SignedData version\n");
+	return -EINVAL;
+}
+
+/*
+ * Note the SignerInfo version
+ */
+int pkcs7_note_signerinfo_version(void *context, size_t hdrlen,
+				  unsigned char tag,
+				  const void *value, size_t vlen)
+{
+	unsigned version;
+
+	if (vlen != 1)
+		goto unsupported;
+
+	version = *(const u8 *)value;
+	switch (version) {
+	case 1:
+		/* PKCS#7 SignerInfo [RFC2315 sec 9.2] */
+		break;
+	default:
+		goto unsupported;
+	}
+
+	return 0;
+
+unsupported:
+	pr_warn("Unsupported SignerInfo version\n");
+	return -EINVAL;
+}
+
+/*
  * Extract a certificate and store it in the context.
  */
 int pkcs7_extract_cert(void *context, size_t hdrlen,
@@ -326,7 +399,7 @@ int pkcs7_sig_note_authenticated_attr(void *context, size_t hdrlen,
 }
 
 /*
- * Note the set of auth attributes for digestion purposes [RFC2315 9.3]
+ * Note the set of auth attributes for digestion purposes [RFC2315 sec 9.3]
  */
 int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
 				    unsigned char tag,

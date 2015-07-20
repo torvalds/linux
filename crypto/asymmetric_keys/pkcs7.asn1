@@ -1,12 +1,12 @@
 PKCS7ContentInfo ::= SEQUENCE {
-	contentType	ContentType,
+	contentType	ContentType ({ pkcs7_check_content_type }),
 	content		[0] EXPLICIT SignedData OPTIONAL
 }
 
 ContentType ::= OBJECT IDENTIFIER ({ pkcs7_note_OID })
 
 SignedData ::= SEQUENCE {
-	version			INTEGER,
+	version			INTEGER ({ pkcs7_note_signeddata_version }),
 	digestAlgorithms	DigestAlgorithmIdentifiers,
 	contentInfo		ContentInfo,
 	certificates		CHOICE {
@@ -68,7 +68,7 @@ SignerInfos ::= CHOICE {
 }
 
 SignerInfo ::= SEQUENCE {
-	version			INTEGER,
+	version			INTEGER ({ pkcs7_note_signerinfo_version }),
 	issuerAndSerialNumber	IssuerAndSerialNumber,
 	digestAlgorithm		DigestAlgorithmIdentifier ({ pkcs7_sig_note_digest_algo }),
 	authenticatedAttributes	CHOICE {
