@@ -122,8 +122,6 @@ static void usbvision_release(struct usb_usbvision *usbvision);
 static int isoc_mode = ISOC_MODE_COMPRESS;
 /* Set the default Debug Mode of the device driver */
 static int video_debug;
-/* Set the default device to power on at startup */
-static int power_on_at_open = 1;
 /* Sequential Number of Video Device */
 static int video_nr = -1;
 /* Sequential Number of Radio Device */
@@ -134,13 +132,11 @@ static int radio_nr = -1;
 /* Showing parameters under SYSFS */
 module_param(isoc_mode, int, 0444);
 module_param(video_debug, int, 0444);
-module_param(power_on_at_open, int, 0444);
 module_param(video_nr, int, 0444);
 module_param(radio_nr, int, 0444);
 
 MODULE_PARM_DESC(isoc_mode, " Set the default format for ISOC endpoint.  Default: 0x60 (Compression On)");
 MODULE_PARM_DESC(video_debug, " Set the default Debug Mode of the device driver.  Default: 0 (Off)");
-MODULE_PARM_DESC(power_on_at_open, " Set the default device to power on when device is opened.  Default: 1 (On)");
 MODULE_PARM_DESC(video_nr, "Set video device number (/dev/videoX).  Default: -1 (autodetect)");
 MODULE_PARM_DESC(radio_nr, "Set radio device number (/dev/radioX).  Default: -1 (autodetect)");
 
@@ -351,11 +347,10 @@ static int usbvision_v4l2_open(struct file *file)
 
 	if (mutex_lock_interruptible(&usbvision->v4l2_lock))
 		return -ERESTARTSYS;
-	usbvision_reset_power_off_timer(usbvision);
 
-	if (usbvision->user)
+	if (usbvision->user) {
 		err_code = -EBUSY;
-	else {
+	} else {
 		/* Allocate memory for the scratch ring buffer */
 		err_code = usbvision_scratch_alloc(usbvision);
 		if (isoc_mode == ISOC_MODE_COMPRESS) {
@@ -372,11 +367,6 @@ static int usbvision_v4l2_open(struct file *file)
 
 	/* If so far no errors then we shall start the camera */
 	if (!err_code) {
-		if (usbvision->power == 0) {
-			usbvision_power_on(usbvision);
-			usbvision_i2c_register(usbvision);
-		}
-
 		/* Send init sequence only once, it's large! */
 		if (!usbvision->initialized) {
 			int setup_ok = 0;
@@ -392,18 +382,13 @@ static int usbvision_v4l2_open(struct file *file)
 			err_code = usbvision_init_isoc(usbvision);
 			/* device must be initialized before isoc transfer */
 			usbvision_muxsel(usbvision, 0);
+
+			/* prepare queues */
+			usbvision_empty_framequeues(usbvision);
 			usbvision->user++;
-		} else {
-			if (power_on_at_open) {
-				usbvision_i2c_unregister(usbvision);
-				usbvision_power_off(usbvision);
-				usbvision->initialized = 0;
-			}
 		}
 	}
 
-	/* prepare queues */
-	usbvision_empty_framequeues(usbvision);
 	mutex_unlock(&usbvision->v4l2_lock);
 
 	PDEBUG(DBG_IO, "success");
@@ -435,13 +420,6 @@ static int usbvision_v4l2_close(struct file *file)
 	usbvision_scratch_free(usbvision);
 
 	usbvision->user--;
-
-	if (power_on_at_open) {
-		/* power off in a little while
-		   to avoid off/on every close/open short sequences */
-		usbvision_set_power_off_timer(usbvision);
-		usbvision->initialized = 0;
-	}
 
 	if (usbvision->remove_pending) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
@@ -1173,14 +1151,6 @@ static int usbvision_radio_open(struct file *file)
 				__func__);
 		err_code = -EBUSY;
 	} else {
-		if (power_on_at_open) {
-			usbvision_reset_power_off_timer(usbvision);
-			if (usbvision->power == 0) {
-				usbvision_power_on(usbvision);
-				usbvision_i2c_register(usbvision);
-			}
-		}
-
 		/* Alternate interface 1 is is the biggest frame size */
 		err_code = usbvision_set_alternate(usbvision);
 		if (err_code < 0) {
@@ -1194,14 +1164,6 @@ static int usbvision_radio_open(struct file *file)
 		call_all(usbvision, tuner, s_radio);
 		usbvision_set_audio(usbvision, USBVISION_AUDIO_RADIO);
 		usbvision->user++;
-	}
-
-	if (err_code) {
-		if (power_on_at_open) {
-			usbvision_i2c_unregister(usbvision);
-			usbvision_power_off(usbvision);
-			usbvision->initialized = 0;
-		}
 	}
 out:
 	mutex_unlock(&usbvision->v4l2_lock);
@@ -1225,11 +1187,6 @@ static int usbvision_radio_close(struct file *file)
 	usbvision_audio_off(usbvision);
 	usbvision->radio = 0;
 	usbvision->user--;
-
-	if (power_on_at_open) {
-		usbvision_set_power_off_timer(usbvision);
-		usbvision->initialized = 0;
-	}
 
 	if (usbvision->remove_pending) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
@@ -1428,8 +1385,6 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev,
 		goto err_unreg;
 	init_waitqueue_head(&usbvision->ctrl_urb_wq);
 
-	usbvision_init_power_off_timer(usbvision);
-
 	return usbvision;
 
 err_unreg:
@@ -1449,8 +1404,6 @@ err_free:
 static void usbvision_release(struct usb_usbvision *usbvision)
 {
 	PDEBUG(DBG_PROBE, "");
-
-	usbvision_reset_power_off_timer(usbvision);
 
 	usbvision->initialized = 0;
 
@@ -1495,11 +1448,9 @@ static void usbvision_configure_video(struct usb_usbvision *usbvision)
 	/* first switch off audio */
 	if (usbvision_device_data[model].audio_channels > 0)
 		usbvision_audio_off(usbvision);
-	if (!power_on_at_open) {
-		/* and then power up the noisy tuner */
-		usbvision_power_on(usbvision);
-		usbvision_i2c_register(usbvision);
-	}
+	/* and then power up the tuner */
+	usbvision_power_on(usbvision);
+	usbvision_i2c_register(usbvision);
 }
 
 /*
@@ -1646,11 +1597,7 @@ static void usbvision_disconnect(struct usb_interface *intf)
 	usbvision_stop_isoc(usbvision);
 
 	v4l2_device_disconnect(&usbvision->v4l2_dev);
-
-	if (usbvision->power) {
-		usbvision_i2c_unregister(usbvision);
-		usbvision_power_off(usbvision);
-	}
+	usbvision_i2c_unregister(usbvision);
 	usbvision->remove_pending = 1;	/* Now all ISO data will be ignored */
 
 	usb_put_dev(usbvision->dev);

@@ -2161,55 +2161,6 @@ int usbvision_power_on(struct usb_usbvision *usbvision)
 
 
 /*
- * usbvision timer stuff
- */
-
-/* to call usbvision_power_off from task queue */
-static void call_usbvision_power_off(struct work_struct *work)
-{
-	struct usb_usbvision *usbvision = container_of(work, struct usb_usbvision, power_off_work);
-
-	PDEBUG(DBG_FUNC, "");
-	if (mutex_lock_interruptible(&usbvision->v4l2_lock))
-		return;
-
-	if (usbvision->user == 0) {
-		usbvision_i2c_unregister(usbvision);
-
-		usbvision_power_off(usbvision);
-		usbvision->initialized = 0;
-	}
-	mutex_unlock(&usbvision->v4l2_lock);
-}
-
-static void usbvision_power_off_timer(unsigned long data)
-{
-	struct usb_usbvision *usbvision = (void *)data;
-
-	PDEBUG(DBG_FUNC, "");
-	del_timer(&usbvision->power_off_timer);
-	INIT_WORK(&usbvision->power_off_work, call_usbvision_power_off);
-	(void) schedule_work(&usbvision->power_off_work);
-}
-
-void usbvision_init_power_off_timer(struct usb_usbvision *usbvision)
-{
-	setup_timer(&usbvision->power_off_timer, usbvision_power_off_timer,
-		    (unsigned long)usbvision);
-}
-
-void usbvision_set_power_off_timer(struct usb_usbvision *usbvision)
-{
-	mod_timer(&usbvision->power_off_timer, jiffies + USBVISION_POWEROFF_TIME);
-}
-
-void usbvision_reset_power_off_timer(struct usb_usbvision *usbvision)
-{
-	if (timer_pending(&usbvision->power_off_timer))
-		del_timer(&usbvision->power_off_timer);
-}
-
-/*
  * usbvision_begin_streaming()
  * Sure you have to put bit 7 to 0, if not incoming frames are droped, but no
  * idea about the rest

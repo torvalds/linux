@@ -391,8 +391,6 @@ struct usb_usbvision {
 	unsigned char iface_alt;					/* Alt settings */
 	unsigned char vin_reg2_preset;
 	struct mutex v4l2_lock;
-	struct timer_list power_off_timer;
-	struct work_struct power_off_work;
 	int power;							/* is the device powered on? */
 	int user;							/* user count for exclusive use */
 	int initialized;						/* Had we already sent init sequence? */
@@ -510,9 +508,6 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel);
 int usbvision_set_input(struct usb_usbvision *usbvision);
 int usbvision_set_output(struct usb_usbvision *usbvision, int width, int height);
 
-void usbvision_init_power_off_timer(struct usb_usbvision *usbvision);
-void usbvision_set_power_off_timer(struct usb_usbvision *usbvision);
-void usbvision_reset_power_off_timer(struct usb_usbvision *usbvision);
 int usbvision_power_off(struct usb_usbvision *usbvision);
 int usbvision_power_on(struct usb_usbvision *usbvision);
 
