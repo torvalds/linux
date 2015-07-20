@@ -312,9 +312,9 @@ static struct attribute *pwm_chip_attrs[] = {
 ATTRIBUTE_GROUPS(pwm_chip);
 
 static struct class pwm_class = {
-	.name		= "pwm",
-	.owner		= THIS_MODULE,
-	.dev_groups	= pwm_chip_groups,
+	.name = "pwm",
+	.owner = THIS_MODULE,
+	.dev_groups = pwm_chip_groups,
 };
 
 static int pwmchip_sysfs_match(struct device *parent, const void *data)
