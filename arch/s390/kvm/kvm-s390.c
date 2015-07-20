@@ -1057,7 +1057,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	sprintf(debug_name, "kvm-%u", current->pid);
 
-	kvm->arch.dbf = debug_register(debug_name, 8, 2, 8 * sizeof(long));
+	kvm->arch.dbf = debug_register(debug_name, 32, 1, 7 * sizeof(long));
 	if (!kvm->arch.dbf)
 		goto out_err;
 
