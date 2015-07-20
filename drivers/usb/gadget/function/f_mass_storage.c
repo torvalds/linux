@@ -54,7 +54,7 @@
  * following fields:
  *
  *	nluns		Number of LUNs function have (anywhere from 1
- *				to FSG_MAX_LUNS which is 8).
+ *				to FSG_MAX_LUNS).
  *	luns		An array of LUN configuration values.  This
  *				should be filled for each LUN that
  *				function will include (ie. for "nluns"
