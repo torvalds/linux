@@ -410,8 +410,6 @@ struct thread_struct {
 	unsigned long		v86flags;
 	unsigned long		v86mask;
 	unsigned long		saved_sp0;
-	unsigned int		saved_fs;
-	unsigned int		saved_gs;
 #endif
 	/* IO permissions: */
 	unsigned long		*io_bitmap_ptr;
