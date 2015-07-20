@@ -880,6 +880,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	vf->fmt.pix.bytesperline = vf->fmt.pix.width*
 		usbvision->palette.bytes_per_pixel;
 	vf->fmt.pix.sizeimage = vf->fmt.pix.bytesperline*vf->fmt.pix.height;
+	vf->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	vf->fmt.pix.field = V4L2_FIELD_NONE; /* Always progressive image */
 
 	return 0;
 }
