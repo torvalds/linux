@@ -6226,6 +6226,17 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	else
 		auto_conn = HCI_AUTO_CONN_REPORT;
 
+	/* Kernel internally uses conn_params with resolvable private
+	 * address, but Add Device allows only identity addresses.
+	 * Make sure it is enforced before calling
+	 * hci_conn_params_lookup.
+	 */
+	if (!hci_is_identity_address(&cp->addr.bdaddr, addr_type)) {
+		err = cmd->cmd_complete(cmd, MGMT_STATUS_INVALID_PARAMS);
+		mgmt_pending_remove(cmd);
+		goto unlock;
+	}
+
 	/* If the connection parameters don't exist for this device,
 	 * they will be created and configured with defaults.
 	 */
@@ -6339,6 +6350,18 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			addr_type = ADDR_LE_DEV_PUBLIC;
 		else
 			addr_type = ADDR_LE_DEV_RANDOM;
+
+		/* Kernel internally uses conn_params with resolvable private
+		 * address, but Remove Device allows only identity addresses.
+		 * Make sure it is enforced before calling
+		 * hci_conn_params_lookup.
+		 */
+		if (!hci_is_identity_address(&cp->addr.bdaddr, addr_type)) {
+			err = cmd->cmd_complete(cmd,
+						MGMT_STATUS_INVALID_PARAMS);
+			mgmt_pending_remove(cmd);
+			goto unlock;
+		}
 
 		params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr,
 						addr_type);
