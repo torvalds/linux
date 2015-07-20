@@ -5985,6 +5985,11 @@ enum skl_disp_power_wells {
 
 /* digital port hotplug */
 #define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */
+#define BXT_PORTA_HOTPLUG_ENABLE	(1 << 28)
+#define BXT_PORTA_HOTPLUG_STATUS_MASK	(0x3 << 24)
+#define  BXT_PORTA_HOTPLUG_NO_DETECT	(0 << 24)
+#define  BXT_PORTA_HOTPLUG_SHORT_DETECT	(1 << 24)
+#define  BXT_PORTA_HOTPLUG_LONG_DETECT	(2 << 24)
 #define PORTD_HOTPLUG_ENABLE            (1 << 20)
 #define PORTD_PULSE_DURATION_2ms        (0)
 #define PORTD_PULSE_DURATION_4_5ms      (1 << 18)

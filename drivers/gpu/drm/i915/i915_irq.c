@@ -1227,6 +1227,22 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
+static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
+{
+	switch (port) {
+	case PORT_A:
+		return val & BXT_PORTA_HOTPLUG_LONG_DETECT;
+	case PORT_B:
+		return val & PORTB_HOTPLUG_LONG_DETECT;
+	case PORT_C:
+		return val & PORTC_HOTPLUG_LONG_DETECT;
+	case PORT_D:
+		return val & PORTD_HOTPLUG_LONG_DETECT;
+	default:
+		return false;
+	}
+}
+
 static bool pch_port_hotplug_long_detect(enum port port, u32 val)
 {
 	switch (port) {
@@ -1964,7 +1980,7 @@ static void bxt_hpd_handler(struct drm_device *dev, uint32_t iir_status)
 	I915_WRITE(BXT_HOTPLUG_CTL, hp_control);
 
 	intel_get_hpd_pins(&pin_mask, &long_mask, hp_trigger, hp_control,
-			   hpd_bxt, pch_port_hotplug_long_detect);
+			   hpd_bxt, bxt_port_hotplug_long_detect);
 	intel_hpd_irq_handler(dev, pin_mask, long_mask);
 }
 
