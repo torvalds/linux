@@ -588,7 +588,6 @@ static void sunxi_pinctrl_irq_release_resources(struct irq_data *d)
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
-	struct irq_desc *desc = container_of(d, struct irq_desc, irq_data);
 	u32 reg = sunxi_irq_cfg_reg(d->hwirq);
 	u8 index = sunxi_irq_cfg_offset(d->hwirq);
 	unsigned long flags;
@@ -615,15 +614,16 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	if (type & IRQ_TYPE_LEVEL_MASK) {
-		d->chip = &sunxi_pinctrl_level_irq_chip;
-		desc->handle_irq = handle_fasteoi_irq;
-	} else {
-		d->chip = &sunxi_pinctrl_edge_irq_chip;
-		desc->handle_irq = handle_edge_irq;
-	}
-
 	spin_lock_irqsave(&pctl->lock, flags);
+
+	if (type & IRQ_TYPE_LEVEL_MASK)
+		__irq_set_chip_handler_name_locked(d->irq,
+						   &sunxi_pinctrl_level_irq_chip,
+						   handle_fasteoi_irq, NULL);
+	else
+		__irq_set_chip_handler_name_locked(d->irq,
+						   &sunxi_pinctrl_edge_irq_chip,
+						   handle_edge_irq, NULL);
 
 	regval = readl(pctl->membase + reg);
 	regval &= ~(IRQ_CFG_IRQ_MASK << index);
