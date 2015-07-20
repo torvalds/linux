@@ -62,20 +62,20 @@ EXPORT_SYMBOL(nf_hooks_needed);
 
 static DEFINE_MUTEX(nf_hook_mutex);
 
-static struct list_head *find_nf_hook_list(struct net *net,
+static struct list_head *nf_find_hook_list(struct net *net,
 					   const struct nf_hook_ops *reg)
 {
-	struct list_head *nf_hook_list = NULL;
+	struct list_head *hook_list = NULL;
 
 	if (reg->pf != NFPROTO_NETDEV)
-		nf_hook_list = &net->nf.hooks[reg->pf][reg->hooknum];
+		hook_list = &net->nf.hooks[reg->pf][reg->hooknum];
 	else if (reg->hooknum == NF_NETDEV_INGRESS) {
 #ifdef CONFIG_NETFILTER_INGRESS
 		if (reg->dev && dev_net(reg->dev) == net)
-			nf_hook_list = &reg->dev->nf_hooks_ingress;
+			hook_list = &reg->dev->nf_hooks_ingress;
 #endif
 	}
-	return nf_hook_list;
+	return hook_list;
 }
 
 struct nf_hook_entry {
@@ -85,7 +85,7 @@ struct nf_hook_entry {
 
 int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
-	struct list_head *nf_hook_list;
+	struct list_head *hook_list;
 	struct nf_hook_entry *entry;
 	struct nf_hook_ops *elem;
 
@@ -96,14 +96,14 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	entry->orig_ops	= reg;
 	entry->ops	= *reg;
 
-	nf_hook_list = find_nf_hook_list(net, reg);
-	if (!nf_hook_list) {
+	hook_list = nf_find_hook_list(net, reg);
+	if (!hook_list) {
 		kfree(entry);
 		return -ENOENT;
 	}
 
 	mutex_lock(&nf_hook_mutex);
-	list_for_each_entry(elem, nf_hook_list, list) {
+	list_for_each_entry(elem, hook_list, list) {
 		if (reg->priority < elem->priority)
 			break;
 	}
@@ -122,16 +122,16 @@ EXPORT_SYMBOL(nf_register_net_hook);
 
 void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
-	struct list_head *nf_hook_list;
+	struct list_head *hook_list;
 	struct nf_hook_entry *entry;
 	struct nf_hook_ops *elem;
 
-	nf_hook_list = find_nf_hook_list(net, reg);
-	if (!nf_hook_list)
+	hook_list = nf_find_hook_list(net, reg);
+	if (!hook_list)
 		return;
 
 	mutex_lock(&nf_hook_mutex);
-	list_for_each_entry(elem, nf_hook_list, list) {
+	list_for_each_entry(elem, hook_list, list) {
 		entry = container_of(elem, struct nf_hook_entry, ops);
 		if (entry->orig_ops == reg) {
 			list_del_rcu(&entry->ops.list);
@@ -139,7 +139,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 		}
 	}
 	mutex_unlock(&nf_hook_mutex);
-	if (&elem->list == nf_hook_list) {
+	if (&elem->list == hook_list) {
 		WARN(1, "nf_unregister_net_hook: hook not found!\n");
 		return;
 	}
