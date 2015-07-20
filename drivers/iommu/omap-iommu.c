@@ -12,7 +12,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -1089,7 +1088,6 @@ static const struct of_device_id omap_iommu_of_match[] = {
 	{ .compatible = "ti,dra7-iommu"	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, omap_iommu_of_match);
 
 static struct platform_driver omap_iommu_driver = {
 	.probe	= omap_iommu_probe,
@@ -1405,20 +1403,5 @@ static int __init omap_iommu_init(void)
 
 	return platform_driver_register(&omap_iommu_driver);
 }
-/* must be ready before omap3isp is probed */
 subsys_initcall(omap_iommu_init);
-
-static void __exit omap_iommu_exit(void)
-{
-	kmem_cache_destroy(iopte_cachep);
-
-	platform_driver_unregister(&omap_iommu_driver);
-
-	omap_iommu_debugfs_exit();
-}
-module_exit(omap_iommu_exit);
-
-MODULE_DESCRIPTION("omap iommu: tlb and pagetable primitives");
-MODULE_ALIAS("platform:omap-iommu");
-MODULE_AUTHOR("Hiroshi DOYU, Paul Mundt and Toshihiro Kobayashi");
-MODULE_LICENSE("GPL v2");
+/* must be ready before omap3isp is probed */
