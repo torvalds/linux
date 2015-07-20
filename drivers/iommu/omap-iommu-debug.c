@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/pm_runtime.h>
 #include <linux/debugfs.h>
 #include <linux/platform_data/iommu-omap.h>
 
@@ -27,6 +28,59 @@ static struct dentry *iommu_debug_root;
 static inline bool is_omap_iommu_detached(struct omap_iommu *obj)
 {
 	return !obj->domain;
+}
+
+#define pr_reg(name)							\
+	do {								\
+		ssize_t bytes;						\
+		const char *str = "%20s: %08x\n";			\
+		const int maxcol = 32;					\
+		bytes = snprintf(p, maxcol, str, __stringify(name),	\
+				 iommu_read_reg(obj, MMU_##name));	\
+		p += bytes;						\
+		len -= bytes;						\
+		if (len < maxcol)					\
+			goto out;					\
+	} while (0)
+
+static ssize_t
+omap2_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len)
+{
+	char *p = buf;
+
+	pr_reg(REVISION);
+	pr_reg(IRQSTATUS);
+	pr_reg(IRQENABLE);
+	pr_reg(WALKING_ST);
+	pr_reg(CNTL);
+	pr_reg(FAULT_AD);
+	pr_reg(TTB);
+	pr_reg(LOCK);
+	pr_reg(LD_TLB);
+	pr_reg(CAM);
+	pr_reg(RAM);
+	pr_reg(GFLUSH);
+	pr_reg(FLUSH_ENTRY);
+	pr_reg(READ_CAM);
+	pr_reg(READ_RAM);
+	pr_reg(EMU_FAULT_AD);
+out:
+	return p - buf;
+}
+
+static ssize_t omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf,
+				   ssize_t bytes)
+{
+	if (!obj || !buf)
+		return -EINVAL;
+
+	pm_runtime_get_sync(obj->dev);
+
+	bytes = omap2_iommu_dump_ctx(obj, buf, bytes);
+
+	pm_runtime_put_sync(obj->dev);
+
+	return bytes;
 }
 
 static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
@@ -53,6 +107,63 @@ static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 	kfree(buf);
 
 	return bytes;
+}
+
+static int
+__dump_tlb_entries(struct omap_iommu *obj, struct cr_regs *crs, int num)
+{
+	int i;
+	struct iotlb_lock saved;
+	struct cr_regs tmp;
+	struct cr_regs *p = crs;
+
+	pm_runtime_get_sync(obj->dev);
+	iotlb_lock_get(obj, &saved);
+
+	for_each_iotlb_cr(obj, num, i, tmp) {
+		if (!iotlb_cr_valid(&tmp))
+			continue;
+		*p++ = tmp;
+	}
+
+	iotlb_lock_set(obj, &saved);
+	pm_runtime_put_sync(obj->dev);
+
+	return  p - crs;
+}
+
+static ssize_t iotlb_dump_cr(struct omap_iommu *obj, struct cr_regs *cr,
+			     char *buf)
+{
+	char *p = buf;
+
+	/* FIXME: Need more detail analysis of cam/ram */
+	p += sprintf(p, "%08x %08x %01x\n", cr->cam, cr->ram,
+					(cr->cam & MMU_CAM_P) ? 1 : 0);
+
+	return p - buf;
+}
+
+static size_t omap_dump_tlb_entries(struct omap_iommu *obj, char *buf,
+				    ssize_t bytes)
+{
+	int i, num;
+	struct cr_regs *cr;
+	char *p = buf;
+
+	num = bytes / sizeof(*cr);
+	num = min(obj->nr_tlb_entries, num);
+
+	cr = kcalloc(num, sizeof(*cr), GFP_KERNEL);
+	if (!cr)
+		return 0;
+
+	num = __dump_tlb_entries(obj, cr, num);
+	for (i = 0; i < num; i++)
+		p += iotlb_dump_cr(obj, cr + i, p);
+	kfree(cr);
+
+	return p - buf;
 }
 
 static ssize_t debug_read_tlb(struct file *file, char __user *userbuf,

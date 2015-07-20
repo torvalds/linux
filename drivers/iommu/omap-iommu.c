@@ -37,11 +37,6 @@
 #define to_iommu(dev)							\
 	((struct omap_iommu *)platform_get_drvdata(to_platform_device(dev)))
 
-#define for_each_iotlb_cr(obj, n, __i, cr)				\
-	for (__i = 0;							\
-	     (__i < (n)) && (cr = __iotlb_read_cr((obj), __i), true);	\
-	     __i++)
-
 /* bitmap of the page sizes currently supported */
 #define OMAP_IOMMU_PGSIZES	(SZ_4K | SZ_64K | SZ_1M | SZ_16M)
 
@@ -70,11 +65,6 @@ struct omap_iommu_domain {
 #define MMU_LOCK_VICT_MASK	(0x1f << MMU_LOCK_VICT_SHIFT)
 #define MMU_LOCK_VICT(x)	\
 	((x & MMU_LOCK_VICT_MASK) >> MMU_LOCK_VICT_SHIFT)
-
-struct iotlb_lock {
-	short base;
-	short vict;
-};
 
 static struct platform_driver omap_iommu_driver;
 static struct kmem_cache *iopte_cachep;
@@ -212,14 +202,6 @@ static void iommu_disable(struct omap_iommu *obj)
 /*
  *	TLB operations
  */
-static inline int iotlb_cr_valid(struct cr_regs *cr)
-{
-	if (!cr)
-		return -EINVAL;
-
-	return cr->cam & MMU_CAM_V;
-}
-
 static u32 iotlb_cr_to_virt(struct cr_regs *cr)
 {
 	u32 page_size = cr->cam & MMU_CAM_PGSZ_MASK;
@@ -259,7 +241,7 @@ static u32 iommu_report_fault(struct omap_iommu *obj, u32 *da)
 	return status;
 }
 
-static void iotlb_lock_get(struct omap_iommu *obj, struct iotlb_lock *l)
+void iotlb_lock_get(struct omap_iommu *obj, struct iotlb_lock *l)
 {
 	u32 val;
 
@@ -267,10 +249,9 @@ static void iotlb_lock_get(struct omap_iommu *obj, struct iotlb_lock *l)
 
 	l->base = MMU_LOCK_BASE(val);
 	l->vict = MMU_LOCK_VICT(val);
-
 }
 
-static void iotlb_lock_set(struct omap_iommu *obj, struct iotlb_lock *l)
+void iotlb_lock_set(struct omap_iommu *obj, struct iotlb_lock *l)
 {
 	u32 val;
 
@@ -296,7 +277,7 @@ static void iotlb_load_cr(struct omap_iommu *obj, struct cr_regs *cr)
 }
 
 /* only used in iotlb iteration for-loop */
-static struct cr_regs __iotlb_read_cr(struct omap_iommu *obj, int n)
+struct cr_regs __iotlb_read_cr(struct omap_iommu *obj, int n)
 {
 	struct cr_regs cr;
 	struct iotlb_lock l;
@@ -466,129 +447,6 @@ static void flush_iotlb_all(struct omap_iommu *obj)
 
 	pm_runtime_put_sync(obj->dev);
 }
-
-#ifdef CONFIG_OMAP_IOMMU_DEBUG
-
-#define pr_reg(name)							\
-	do {								\
-		ssize_t bytes;						\
-		const char *str = "%20s: %08x\n";			\
-		const int maxcol = 32;					\
-		bytes = snprintf(p, maxcol, str, __stringify(name),	\
-				 iommu_read_reg(obj, MMU_##name));	\
-		p += bytes;						\
-		len -= bytes;						\
-		if (len < maxcol)					\
-			goto out;					\
-	} while (0)
-
-static ssize_t
-omap2_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len)
-{
-	char *p = buf;
-
-	pr_reg(REVISION);
-	pr_reg(IRQSTATUS);
-	pr_reg(IRQENABLE);
-	pr_reg(WALKING_ST);
-	pr_reg(CNTL);
-	pr_reg(FAULT_AD);
-	pr_reg(TTB);
-	pr_reg(LOCK);
-	pr_reg(LD_TLB);
-	pr_reg(CAM);
-	pr_reg(RAM);
-	pr_reg(GFLUSH);
-	pr_reg(FLUSH_ENTRY);
-	pr_reg(READ_CAM);
-	pr_reg(READ_RAM);
-	pr_reg(EMU_FAULT_AD);
-out:
-	return p - buf;
-}
-
-ssize_t omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t bytes)
-{
-	if (!obj || !buf)
-		return -EINVAL;
-
-	pm_runtime_get_sync(obj->dev);
-
-	bytes = omap2_iommu_dump_ctx(obj, buf, bytes);
-
-	pm_runtime_put_sync(obj->dev);
-
-	return bytes;
-}
-
-static int
-__dump_tlb_entries(struct omap_iommu *obj, struct cr_regs *crs, int num)
-{
-	int i;
-	struct iotlb_lock saved;
-	struct cr_regs tmp;
-	struct cr_regs *p = crs;
-
-	pm_runtime_get_sync(obj->dev);
-	iotlb_lock_get(obj, &saved);
-
-	for_each_iotlb_cr(obj, num, i, tmp) {
-		if (!iotlb_cr_valid(&tmp))
-			continue;
-		*p++ = tmp;
-	}
-
-	iotlb_lock_set(obj, &saved);
-	pm_runtime_put_sync(obj->dev);
-
-	return  p - crs;
-}
-
-/**
- * iotlb_dump_cr - Dump an iommu tlb entry into buf
- * @obj:	target iommu
- * @cr:		contents of cam and ram register
- * @buf:	output buffer
- **/
-static ssize_t iotlb_dump_cr(struct omap_iommu *obj, struct cr_regs *cr,
-			     char *buf)
-{
-	char *p = buf;
-
-	/* FIXME: Need more detail analysis of cam/ram */
-	p += sprintf(p, "%08x %08x %01x\n", cr->cam, cr->ram,
-					(cr->cam & MMU_CAM_P) ? 1 : 0);
-
-	return p - buf;
-}
-
-/**
- * omap_dump_tlb_entries - dump cr arrays to given buffer
- * @obj:	target iommu
- * @buf:	output buffer
- **/
-size_t omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t bytes)
-{
-	int i, num;
-	struct cr_regs *cr;
-	char *p = buf;
-
-	num = bytes / sizeof(*cr);
-	num = min(obj->nr_tlb_entries, num);
-
-	cr = kcalloc(num, sizeof(*cr), GFP_KERNEL);
-	if (!cr)
-		return 0;
-
-	num = __dump_tlb_entries(obj, cr, num);
-	for (i = 0; i < num; i++)
-		p += iotlb_dump_cr(obj, cr + i, p);
-	kfree(cr);
-
-	return p - buf;
-}
-
-#endif /* CONFIG_OMAP_IOMMU_DEBUG */
 
 /*
  *	H/W pagetable operations

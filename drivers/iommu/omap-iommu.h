@@ -13,6 +13,11 @@
 #ifndef _OMAP_IOMMU_H
 #define _OMAP_IOMMU_H
 
+#define for_each_iotlb_cr(obj, n, __i, cr)				\
+	for (__i = 0;							\
+	     (__i < (n)) && (cr = __iotlb_read_cr((obj), __i), true);	\
+	     __i++)
+
 struct iotlb_entry {
 	u32 da;
 	u32 pa;
@@ -63,6 +68,11 @@ struct cr_regs {
 		};
 		u32 ram;
 	};
+};
+
+struct iotlb_lock {
+	short base;
+	short vict;
 };
 
 /**
@@ -190,12 +200,12 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 /*
  * global functions
  */
-#ifdef CONFIG_OMAP_IOMMU_DEBUG
-extern ssize_t
-omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len);
-extern size_t
-omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t len);
 
+struct cr_regs __iotlb_read_cr(struct omap_iommu *obj, int n);
+void iotlb_lock_get(struct omap_iommu *obj, struct iotlb_lock *l);
+void iotlb_lock_set(struct omap_iommu *obj, struct iotlb_lock *l);
+
+#ifdef CONFIG_OMAP_IOMMU_DEBUG
 void omap_iommu_debugfs_init(void);
 void omap_iommu_debugfs_exit(void);
 
@@ -220,6 +230,14 @@ static inline u32 iommu_read_reg(struct omap_iommu *obj, size_t offs)
 static inline void iommu_write_reg(struct omap_iommu *obj, u32 val, size_t offs)
 {
 	__raw_writel(val, obj->regbase + offs);
+}
+
+static inline int iotlb_cr_valid(struct cr_regs *cr)
+{
+	if (!cr)
+		return -EINVAL;
+
+	return cr->cam & MMU_CAM_V;
 }
 
 #endif /* _OMAP_IOMMU_H */
