@@ -137,16 +137,14 @@ TRACE_EVENT(kvm_s390_inject_vm,
 	);
 
 TRACE_EVENT(kvm_s390_inject_vcpu,
-	    TP_PROTO(unsigned int id, __u64 type, __u32 parm, __u64 parm64, \
-		     int who),
-	    TP_ARGS(id, type, parm, parm64, who),
+	    TP_PROTO(unsigned int id, __u64 type, __u32 parm, __u64 parm64),
+	    TP_ARGS(id, type, parm, parm64),
 
 	    TP_STRUCT__entry(
 		    __field(int, id)
 		    __field(__u32, inttype)
 		    __field(__u32, parm)
 		    __field(__u64, parm64)
-		    __field(int, who)
 		    ),
 
 	    TP_fast_assign(
@@ -154,12 +152,9 @@ TRACE_EVENT(kvm_s390_inject_vcpu,
 		    __entry->inttype = type & 0x00000000ffffffff;
 		    __entry->parm = parm;
 		    __entry->parm64 = parm64;
-		    __entry->who = who;
 		    ),
 
-	    TP_printk("inject%s (vcpu %d): type:%x (%s) parm:%x parm64:%llx",
-		      (__entry->who == 1) ? " (from kernel)" :
-		      (__entry->who == 2) ? " (from user)" : "",
+	    TP_printk("inject (vcpu %d): type:%x (%s) parm:%x parm64:%llx",
 		      __entry->id, __entry->inttype,
 		      __print_symbolic(__entry->inttype, kvm_s390_int_type),
 		      __entry->parm, __entry->parm64)
