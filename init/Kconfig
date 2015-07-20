@@ -1869,6 +1869,7 @@ config MODULE_SIG
 	select ASN1
 	select OID_REGISTRY
 	select X509_CERTIFICATE_PARSER
+	select PKCS7_MESSAGE_PARSER
 	help
 	  Check modules for valid signatures upon load: the signature
 	  is simply appended to the module. For more information see
