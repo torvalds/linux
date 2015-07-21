@@ -3689,6 +3689,11 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 	return 0;
 }
 
+static unsigned int t4_use_ldst(struct adapter *adap)
+{
+	return (adap->flags & FW_OK) || !adap->use_bd;
+}
+
 /**
  *	t4_fw_tp_pio_rw - Access TP PIO through LDST
  *	@adap: the adapter
@@ -3732,7 +3737,7 @@ static void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
  */
 void t4_read_rss_key(struct adapter *adap, u32 *key)
 {
-	if (adap->flags & FW_OK)
+	if (t4_use_ldst(adap))
 		t4_fw_tp_pio_rw(adap, key, 10, TP_RSS_SECRET_KEY0_A, 1);
 	else
 		t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
@@ -3762,7 +3767,7 @@ void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
 	    (vrt & KEYEXTEND_F) && (KEYMODE_G(vrt) == 3))
 		rss_key_addr_cnt = 32;
 
-	if (adap->flags & FW_OK)
+	if (t4_use_ldst(adap))
 		t4_fw_tp_pio_rw(adap, (void *)key, 10, TP_RSS_SECRET_KEY0_A, 0);
 	else
 		t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
@@ -3791,7 +3796,7 @@ void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
 void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
 			   u32 *valp)
 {
-	if (adapter->flags & FW_OK)
+	if (t4_use_ldst(adapter))
 		t4_fw_tp_pio_rw(adapter, valp, 1,
 				TP_RSS_PF0_CONFIG_A + index, 1);
 	else
@@ -3831,7 +3836,7 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 
 	/* Grab the VFL/VFH values ...
 	 */
-	if (adapter->flags & FW_OK) {
+	if (t4_use_ldst(adapter)) {
 		t4_fw_tp_pio_rw(adapter, vfl, 1, TP_RSS_VFL_CONFIG_A, 1);
 		t4_fw_tp_pio_rw(adapter, vfh, 1, TP_RSS_VFH_CONFIG_A, 1);
 	} else {
@@ -3852,7 +3857,7 @@ u32 t4_read_rss_pf_map(struct adapter *adapter)
 {
 	u32 pfmap;
 
-	if (adapter->flags & FW_OK)
+	if (t4_use_ldst(adapter))
 		t4_fw_tp_pio_rw(adapter, &pfmap, 1, TP_RSS_PF_MAP_A, 1);
 	else
 		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
@@ -3870,7 +3875,7 @@ u32 t4_read_rss_pf_mask(struct adapter *adapter)
 {
 	u32 pfmask;
 
-	if (adapter->flags & FW_OK)
+	if (t4_use_ldst(adapter))
 		t4_fw_tp_pio_rw(adapter, &pfmask, 1, TP_RSS_PF_MSK_A, 1);
 	else
 		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
@@ -6275,7 +6280,7 @@ int t4_init_tp_params(struct adapter *adap)
 	/* Cache the adapter's Compressed Filter Mode and global Incress
 	 * Configuration.
 	 */
-	if (adap->flags & FW_OK) {
+	if (t4_use_ldst(adap)) {
 		t4_fw_tp_pio_rw(adap, &adap->params.tp.vlan_pri_map, 1,
 				TP_VLAN_PRI_MAP_A, 1);
 		t4_fw_tp_pio_rw(adap, &adap->params.tp.ingress_config, 1,

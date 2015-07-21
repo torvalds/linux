@@ -767,6 +767,7 @@ struct adapter {
 	bool tid_release_task_busy;
 
 	struct dentry *debugfs_root;
+	u32 use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
 
 	spinlock_t stats_lock;
 	spinlock_t win0_lock ____cacheline_aligned_in_smp;
