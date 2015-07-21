@@ -113,7 +113,6 @@ static bool			group				= false;
 static const char		*pre_cmd			= NULL;
 static const char		*post_cmd			= NULL;
 static bool			sync_run			= false;
-static unsigned int		interval			= 0;
 static unsigned int		initial_delay			= 0;
 static unsigned int		unit_width			= 4; /* strlen("unit") */
 static bool			forever				= false;
@@ -404,6 +403,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 
 static int __run_perf_stat(int argc, const char **argv)
 {
+	int interval = stat_config.interval;
 	char msg[512];
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
@@ -646,7 +646,7 @@ static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
 
-	if (csv_output || interval)
+	if (csv_output || stat_config.interval)
 		return;
 
 	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
@@ -689,7 +689,7 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
 
-	if (csv_output || interval)
+	if (csv_output || stat_config.interval)
 		return;
 
 	perf_stat__print_shadow_stats(output, evsel, avg, cpu,
@@ -990,6 +990,7 @@ static void print_footer(void)
 
 static void print_counters(struct timespec *ts, int argc, const char **argv)
 {
+	int interval = stat_config.interval;
 	struct perf_evsel *counter;
 	char buf[64], *prefix = NULL;
 
@@ -1029,7 +1030,7 @@ static volatile int signr = -1;
 
 static void skip_signal(int signo)
 {
-	if ((child_pid == -1) || interval)
+	if ((child_pid == -1) || stat_config.interval)
 		done = 1;
 
 	signr = signo;
@@ -1313,7 +1314,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 			"command to run prior to the measured command"),
 	OPT_STRING(0, "post", &post_cmd, "command",
 			"command to run after to the measured command"),
-	OPT_UINTEGER('I', "interval-print", &interval,
+	OPT_UINTEGER('I', "interval-print", &stat_config.interval,
 		    "print counts at regular interval in ms (>= 100)"),
 	OPT_SET_UINT(0, "per-socket", &stat_config.aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
@@ -1332,6 +1333,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	int status = -EINVAL, run_idx;
 	const char *mode;
 	FILE *output = stderr;
+	unsigned int interval;
 
 	setlocale(LC_ALL, "");
 
@@ -1341,6 +1343,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	argc = parse_options(argc, argv, options, stat_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
+
+	interval = stat_config.interval;
 
 	if (output_name && strcmp(output_name, "-"))
 		output = NULL;
