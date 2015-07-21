@@ -175,7 +175,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 				     UNIPERIF_FIFO_DATA_OFFSET(uni);
 
 	uni->irq = platform_get_irq(priv->pdev, 0);
-	if (!uni->irq < 0) {
+	if (uni->irq < 0) {
 		dev_err(dev, "Failed to get IRQ resource");
 		return -ENXIO;
 	}
