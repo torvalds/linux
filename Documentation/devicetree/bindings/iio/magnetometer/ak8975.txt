@@ -16,3 +16,14 @@ ak8975@0c {
         reg = <0x0c>;
         gpios = <&gpj0 7 0>;
 };
+
+Valid compatible strings:
+
+- asahi-kasei,ak8975
+- ak8975
+- asahi-kasei,ak8963
+- ak8963
+- asahi-kasei,ak09911
+- ak09911
+- asahi-kasei,ak09912
+- ak09912
