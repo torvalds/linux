@@ -1780,6 +1780,7 @@ int ip6_route_add(struct fib6_config *cfg)
 			goto out;
 		lwtunnel_state_get(lwtstate);
 		rt->rt6i_lwtstate = lwtstate;
+		rt->dst.output = lwtunnel_output6;
 	}
 
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
