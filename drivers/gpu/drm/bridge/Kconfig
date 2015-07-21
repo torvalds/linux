@@ -1,11 +1,18 @@
+config DRM_BRIDGE
+	def_bool y
+	depends on DRM
+	help
+	  Bridge registration and lookup framework.
+
+menu "Display Interface Bridges"
+	depends on DRM && DRM_BRIDGE
+
 config DRM_DW_HDMI
 	tristate
-	depends on DRM
 	select DRM_KMS_HELPER
 
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
-	depends on DRM
 	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL
@@ -14,7 +21,6 @@ config DRM_NXP_PTN3460
 
 config DRM_PARADE_PS8622
 	tristate "Parade eDP/LVDS bridge"
-	depends on DRM
 	depends on OF
 	select DRM_PANEL
 	select DRM_KMS_HELPER
@@ -22,3 +28,5 @@ config DRM_PARADE_PS8622
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
+
+endmenu
