@@ -828,8 +828,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	int ret = 0;
     rga2_session *session;
 
-    return ret;
-
     memset(&req, 0x0, sizeof(req));
 
     mutex_lock(&rga2_service.mutex);
