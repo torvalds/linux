@@ -443,7 +443,7 @@ int qat_rsa_get_n(void *context, size_t hdrlen, unsigned char tag,
 	ctx->key_sz = vlen;
 	ret = -EINVAL;
 	/* In FIPS mode only allow key size 2K & 3K */
-	if (fips_enabled && (ctx->key_sz != 256 || ctx->key_sz != 384)) {
+	if (fips_enabled && (ctx->key_sz != 256 && ctx->key_sz != 384)) {
 		pr_err("QAT: RSA: key size not allowed in FIPS mode\n");
 		goto err;
 	}
@@ -510,7 +510,7 @@ int qat_rsa_get_d(void *context, size_t hdrlen, unsigned char tag,
 		goto err;
 
 	/* In FIPS mode only allow key size 2K & 3K */
-	if (fips_enabled && (vlen != 256 || vlen != 384)) {
+	if (fips_enabled && (vlen != 256 && vlen != 384)) {
 		pr_err("QAT: RSA: key size not allowed in FIPS mode\n");
 		goto err;
 	}
