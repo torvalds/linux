@@ -124,7 +124,7 @@ void gb_connection_bind_protocol(struct gb_connection *connection)
 	/*
 	 * If we have a valid device_id for the interface block, then we have an
 	 * active device, so bring up the connection at the same time.
-	 * */
+	 */
 	intf = connection->bundle->intf;
 	if (intf->device_id != GB_DEVICE_ID_BAD)
 		gb_connection_init(connection);
