@@ -118,6 +118,11 @@ static struct resource da9062_wdt_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_WDG_WARN, 1, "WD_WARN", IORESOURCE_IRQ),
 };
 
+static struct resource da9062_rtc_resources[] = {
+	DEFINE_RES_NAMED(DA9062_IRQ_ALARM, 1, "ALARM", IORESOURCE_IRQ),
+	DEFINE_RES_NAMED(DA9062_IRQ_TICK, 1, "TICK", IORESOURCE_IRQ),
+};
+
 static const struct mfd_cell da9062_devs[] = {
 	{
 		.name		= "da9062-core",
@@ -140,6 +145,12 @@ static const struct mfd_cell da9062_devs[] = {
 		.num_resources	= ARRAY_SIZE(da9062_thermal_resources),
 		.resources	= da9062_thermal_resources,
 		.of_compatible  = "dlg,da9062-thermal",
+	},
+	{
+		.name		= "da9062-rtc",
+		.num_resources	= ARRAY_SIZE(da9062_rtc_resources),
+		.resources	= da9062_rtc_resources,
+		.of_compatible  = "dlg,da9062-rtc",
 	},
 };
 
