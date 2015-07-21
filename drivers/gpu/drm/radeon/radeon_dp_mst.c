@@ -246,9 +246,10 @@ radeon_dp_mst_connector_destroy(struct drm_connector *connector)
 	kfree(radeon_connector);
 }
 
-static void radeon_connector_dpms(struct drm_connector *connector, int mode)
+static int radeon_connector_dpms(struct drm_connector *connector, int mode)
 {
 	DRM_DEBUG_KMS("\n");
+	return 0;
 }
 
 static const struct drm_connector_funcs radeon_dp_mst_connector_funcs = {

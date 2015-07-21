@@ -527,7 +527,7 @@ struct drm_connector_state {
  * etc.
  */
 struct drm_connector_funcs {
-	void (*dpms)(struct drm_connector *connector, int mode);
+	int (*dpms)(struct drm_connector *connector, int mode);
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
 	void (*reset)(struct drm_connector *connector);

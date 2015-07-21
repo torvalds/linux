@@ -919,7 +919,7 @@ nouveau_connector_funcs_lvds = {
 	.force = nouveau_connector_force
 };
 
-static void
+static int
 nouveau_connector_dp_dpms(struct drm_connector *connector, int mode)
 {
 	struct nouveau_encoder *nv_encoder = NULL;
@@ -938,7 +938,7 @@ nouveau_connector_dp_dpms(struct drm_connector *connector, int mode)
 		}
 	}
 
-	drm_helper_connector_dpms(connector, mode);
+	return drm_helper_connector_dpms(connector, mode);
 }
 
 static const struct drm_connector_funcs

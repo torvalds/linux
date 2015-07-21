@@ -6429,14 +6429,14 @@ struct intel_connector *intel_connector_alloc(void)
 
 /* Even simpler default implementation, if there's really no special case to
  * consider. */
-void intel_connector_dpms(struct drm_connector *connector, int mode)
+int intel_connector_dpms(struct drm_connector *connector, int mode)
 {
 	/* All the simple cases only support two dpms states. */
 	if (mode != DRM_MODE_DPMS_ON)
 		mode = DRM_MODE_DPMS_OFF;
 
 	if (mode == connector->dpms)
-		return;
+		return 0;
 
 	connector->dpms = mode;
 
@@ -6445,6 +6445,8 @@ void intel_connector_dpms(struct drm_connector *connector, int mode)
 		intel_encoder_dpms(to_intel_encoder(connector->encoder), mode);
 
 	intel_modeset_check_state(connector->dev);
+
+	return 0;
 }
 
 /* Simple connector->get_hw_state implementation for encoders that support only

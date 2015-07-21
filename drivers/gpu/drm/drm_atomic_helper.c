@@ -1974,9 +1974,12 @@ EXPORT_SYMBOL(drm_atomic_helper_page_flip);
  * implementing the legacy DPMS connector interface. It computes the new desired
  * ->active state for the corresponding CRTC (if the connector is enabled) and
  *  updates it.
+ *
+ * Returns:
+ * Returns 0 on success, negative errno numbers on failure.
  */
-void drm_atomic_helper_connector_dpms(struct drm_connector *connector,
-				      int mode)
+int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
+				     int mode)
 {
 	struct drm_mode_config *config = &connector->dev->mode_config;
 	struct drm_atomic_state *state;
@@ -1985,6 +1988,7 @@ void drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 	struct drm_connector *tmp_connector;
 	int ret;
 	bool active = false;
+	int old_mode = connector->dpms;
 
 	if (mode != DRM_MODE_DPMS_ON)
 		mode = DRM_MODE_DPMS_OFF;
@@ -1993,18 +1997,19 @@ void drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 	crtc = connector->state->crtc;
 
 	if (!crtc)
-		return;
+		return 0;
 
-	/* FIXME: ->dpms has no return value so can't forward the -ENOMEM. */
 	state = drm_atomic_state_alloc(connector->dev);
 	if (!state)
-		return;
+		return -ENOMEM;
 
 	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
 retry:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state))
-		return;
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto fail;
+	}
 
 	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
@@ -2023,17 +2028,16 @@ retry:
 	if (ret != 0)
 		goto fail;
 
-	/* Driver takes ownership of state on successful async commit. */
-	return;
+	/* Driver takes ownership of state on successful commit. */
+	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
+	connector->dpms = old_mode;
 	drm_atomic_state_free(state);
 
-	WARN(1, "Driver bug: Changing ->active failed with ret=%i\n", ret);
-
-	return;
+	return ret;
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
