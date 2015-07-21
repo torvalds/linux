@@ -332,7 +332,7 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 	struct snd_ac97 *ac97;
 	int ret = 0;
 
-	ac97 = snd_soc_new_ac97_codec(codec);
+	ac97 = snd_soc_new_ac97_codec(codec, 0, 0);
 	if (IS_ERR(ac97))
 		return PTR_ERR(ac97);
 

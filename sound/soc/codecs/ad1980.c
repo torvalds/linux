@@ -240,7 +240,7 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 	u16 vendor_id2;
 	u16 ext_status;
 
-	ac97 = snd_soc_new_ac97_codec(codec);
+	ac97 = snd_soc_new_ac97_codec(codec, 0, 0);
 	if (IS_ERR(ac97)) {
 		ret = PTR_ERR(ac97);
 		dev_err(codec->dev, "Failed to register AC97 codec: %d\n", ret);
