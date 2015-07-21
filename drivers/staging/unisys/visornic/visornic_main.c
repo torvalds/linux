@@ -61,7 +61,6 @@ static const struct file_operations debugfs_enable_ints_fops = {
 	.write = enable_ints_write,
 };
 
-static struct workqueue_struct *visornic_serverdown_workqueue;
 static struct workqueue_struct *visornic_timeout_reset_workqueue;
 
 /* GUIDS for director channel type supported by this driver.  */
@@ -148,7 +147,6 @@ struct visornic_devdata {
 					  * xmit buffer list that have been
 					  * sent to the IOPART end
 					  */
-	struct work_struct serverdown_completion;
 	visorbus_state_complete_func server_down_complete_func;
 	struct work_struct timeout_reset;
 	struct uiscmdrsp *cmdrsp_rcv;	 /* cmdrsp_rcv is used for
@@ -367,13 +365,10 @@ static ssize_t enable_ints_write(struct file *file,
  *	Returns void.
  */
 static void
-visornic_serverdown_complete(struct work_struct *work)
+visornic_serverdown_complete(struct visornic_devdata *devdata)
 {
-	struct visornic_devdata *devdata;
 	struct net_device *netdev;
 
-	devdata = container_of(work, struct visornic_devdata,
-			       serverdown_completion);
 	netdev = devdata->netdev;
 
 	/* Stop using datachan */
@@ -418,8 +413,7 @@ visornic_serverdown(struct visornic_devdata *devdata,
 		}
 		devdata->server_change_state = true;
 		devdata->server_down_complete_func = complete_func;
-		queue_work(visornic_serverdown_workqueue,
-			   &devdata->serverdown_completion);
+		visornic_serverdown_complete(devdata);
 	} else if (devdata->server_change_state) {
 		dev_dbg(&devdata->dev->device, "%s changing state\n",
 			__func__);
@@ -1892,8 +1886,6 @@ static int visornic_probe(struct visor_device *dev)
 		err = -ENOMEM;
 		goto cleanup_xmit_cmdrsp;
 	}
-	INIT_WORK(&devdata->serverdown_completion,
-		  visornic_serverdown_complete);
 	INIT_WORK(&devdata->timeout_reset, visornic_timeout_reset);
 	devdata->server_down = false;
 	devdata->server_change_state = false;
@@ -2019,7 +2011,6 @@ static void visornic_remove(struct visor_device *dev)
 	}
 
 	/* going_away prevents new items being added to the workqueues */
-	flush_workqueue(visornic_serverdown_workqueue);
 	flush_workqueue(visornic_timeout_reset_workqueue);
 
 	debugfs_remove_recursive(devdata->eth_debugfs_dir);
@@ -2155,12 +2146,6 @@ static int visornic_init(void)
 	if (!ret)
 		goto cleanup_debugfs;
 
-	/* create workqueue for serverdown completion */
-	visornic_serverdown_workqueue =
-		create_singlethread_workqueue("visornic_serverdown");
-	if (!visornic_serverdown_workqueue)
-		goto cleanup_debugfs;
-
 	/* create workqueue for tx timeout reset */
 	visornic_timeout_reset_workqueue =
 		create_singlethread_workqueue("visornic_timeout_reset");
@@ -2176,8 +2161,6 @@ static int visornic_init(void)
 	return 0;
 
 cleanup_workqueue:
-	flush_workqueue(visornic_serverdown_workqueue);
-	destroy_workqueue(visornic_serverdown_workqueue);
 	if (visornic_timeout_reset_workqueue) {
 		flush_workqueue(visornic_timeout_reset_workqueue);
 		destroy_workqueue(visornic_timeout_reset_workqueue);
@@ -2197,10 +2180,6 @@ static void visornic_cleanup(void)
 {
 	visorbus_unregister_visor_driver(&visornic_driver);
 
-	if (visornic_serverdown_workqueue) {
-		flush_workqueue(visornic_serverdown_workqueue);
-		destroy_workqueue(visornic_serverdown_workqueue);
-	}
 	if (visornic_timeout_reset_workqueue) {
 		flush_workqueue(visornic_timeout_reset_workqueue);
 		destroy_workqueue(visornic_timeout_reset_workqueue);
