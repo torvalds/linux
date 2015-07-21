@@ -1693,7 +1693,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	   by fib_lookup.
 	 */
 
-	tun_info = skb_tunnel_info(skb);
+	tun_info = skb_tunnel_info(skb, AF_INET);
 	if (tun_info && tun_info->mode == IP_TUNNEL_INFO_RX)
 		fl4.flowi4_tun_key.tun_id = tun_info->key.tun_id;
 	else

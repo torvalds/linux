@@ -6,6 +6,7 @@
 enum lwtunnel_encap_types {
 	LWTUNNEL_ENCAP_NONE,
 	LWTUNNEL_ENCAP_MPLS,
+	LWTUNNEL_ENCAP_IP,
 	__LWTUNNEL_ENCAP_MAX,
 };
 

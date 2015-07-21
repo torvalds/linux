@@ -23,12 +23,22 @@ static inline struct metadata_dst *skb_metadata_dst(struct sk_buff *skb)
 	return NULL;
 }
 
-static inline struct ip_tunnel_info *skb_tunnel_info(struct sk_buff *skb)
+static inline struct ip_tunnel_info *skb_tunnel_info(struct sk_buff *skb,
+						     int family)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
+	struct rtable *rt;
 
 	if (md_dst)
 		return &md_dst->u.tun_info;
+
+	switch (family) {
+	case AF_INET:
+		rt = (struct rtable *)skb_dst(skb);
+		if (rt && rt->rt_lwtstate)
+			return lwt_tun_info(rt->rt_lwtstate);
+		break;
+	}
 
 	return NULL;
 }

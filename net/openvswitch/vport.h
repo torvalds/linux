@@ -27,6 +27,7 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/u64_stats_sync.h>
+#include <net/route.h>
 
 #include "datapath.h"
 

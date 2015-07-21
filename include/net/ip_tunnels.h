@@ -9,9 +9,9 @@
 #include <net/dsfield.h>
 #include <net/gro_cells.h>
 #include <net/inet_ecn.h>
-#include <net/ip.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
+#include <net/lwtunnel.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -296,6 +296,11 @@ static inline void iptunnel_xmit_stats(int err,
 static inline void *ip_tunnel_info_opts(struct ip_tunnel_info *info, size_t n)
 {
 	return info + 1;
+}
+
+static inline struct ip_tunnel_info *lwt_tun_info(struct lwtunnel_state *lwtstate)
+{
+	return (struct ip_tunnel_info *)lwtstate->data;
 }
 
 #endif /* CONFIG_INET */

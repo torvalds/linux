@@ -1935,7 +1935,7 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			   struct vxlan_rdst *rdst, bool did_rsc)
 {
-	struct ip_tunnel_info *info = skb_tunnel_info(skb);
+	struct ip_tunnel_info *info;
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct sock *sk = vxlan->vn_sock->sock->sk;
 	struct rtable *rt = NULL;
@@ -1951,6 +1951,9 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	__u8 tos, ttl;
 	int err;
 	u32 flags = vxlan->flags;
+
+	/* FIXME: Support IPv6 */
+	info = skb_tunnel_info(skb, AF_INET);
 
 	if (rdst) {
 		dst_port = rdst->remote_port ? rdst->remote_port : vxlan->dst_port;
@@ -2141,11 +2144,14 @@ tx_free:
 static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	const struct ip_tunnel_info *info = skb_tunnel_info(skb);
+	const struct ip_tunnel_info *info;
 	struct ethhdr *eth;
 	bool did_rsc = false;
 	struct vxlan_rdst *rdst, *fdst = NULL;
 	struct vxlan_fdb *f;
+
+	/* FIXME: Support IPv6 */
+	info = skb_tunnel_info(skb, AF_INET);
 
 	skb_reset_mac_header(skb);
 	eth = eth_hdr(skb);

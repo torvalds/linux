@@ -286,6 +286,21 @@ enum rt_class_t {
 
 /* Routing message attributes */
 
+enum ip_tunnel_t {
+	IP_TUN_UNSPEC,
+	IP_TUN_ID,
+	IP_TUN_DST,
+	IP_TUN_SRC,
+	IP_TUN_TTL,
+	IP_TUN_TOS,
+	IP_TUN_SPORT,
+	IP_TUN_DPORT,
+	IP_TUN_FLAGS,
+	__IP_TUN_MAX,
+};
+
+#define IP_TUN_MAX (__IP_TUN_MAX - 1)
+
 enum rtattr_type_t {
 	RTA_UNSPEC,
 	RTA_DST,
