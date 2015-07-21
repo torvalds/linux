@@ -53,6 +53,7 @@ struct perf_counts {
 struct perf_stat_config {
 	enum aggr_mode	aggr_mode;
 	bool		scale;
+	FILE		*output;
 };
 
 static inline struct perf_counts_values*
