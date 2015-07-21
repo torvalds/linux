@@ -2118,8 +2118,13 @@ static int visornic_resume(struct visor_device *dev,
 		 * we can start using the device again.
 		 * TODO: State transitions
 		 */
-		visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
-				   devdata, "vnic_incoming");
+		if (!devdata->threadinfo.id)
+			visor_thread_start(&devdata->threadinfo,
+					   process_incoming_rsps,
+					   devdata, "vnic_incoming");
+		else
+			pr_warn("vnic_incoming already running!\n");
+
 		init_rcv_bufs(netdev, devdata);
 		spin_lock_irqsave(&devdata->priv_lock, flags);
 		devdata->enabled = 1;
