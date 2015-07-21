@@ -378,6 +378,11 @@ struct dmar_domain {
 	DECLARE_BITMAP(iommu_bmp, DMAR_UNITS_SUPPORTED);
 					/* bitmap of iommus this domain uses*/
 
+	u16		iommu_did[DMAR_UNITS_SUPPORTED];
+					/* Domain ids per IOMMU. Use u16 since
+					 * domain ids are 16 bit wide according
+					 * to VT-d spec, section 9.3 */
+
 	struct list_head devices;	/* all devices' list */
 	struct iova_domain iovad;	/* iova's that belong to this domain */
 
@@ -1543,11 +1548,13 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	}
 
 	/*
-	 * if Caching mode is set, then invalid translations are tagged
-	 * with domainid 0. Hence we need to pre-allocate it.
+	 * If Caching mode is set, then invalid translations are tagged
+	 * with domain-id 0, hence we need to pre-allocate it. We also
+	 * use domain-id 0 as a marker for non-allocated domain-id, so
+	 * make sure it is not used for a real domain.
 	 */
-	if (cap_caching_mode(iommu->cap))
-		set_bit(0, iommu->domain_ids);
+	set_bit(0, iommu->domain_ids);
+
 	return 0;
 }
 
@@ -1560,9 +1567,10 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 		for_each_set_bit(i, iommu->domain_ids, cap_ndoms(iommu->cap)) {
 			/*
 			 * Domain id 0 is reserved for invalid translation
-			 * if hardware supports caching mode.
+			 * if hardware supports caching mode and used as
+			 * a non-allocated marker.
 			 */
-			if (cap_caching_mode(iommu->cap) && i == 0)
+			if (i == 0)
 				continue;
 
 			domain = iommu->domains[i];
@@ -1624,6 +1632,7 @@ static int __iommu_attach_domain(struct dmar_domain *domain,
 	if (num < ndomains) {
 		set_bit(num, iommu->domain_ids);
 		iommu->domains[num] = domain;
+		domain->iommu_did[iommu->seq_id] = num;
 	} else {
 		num = -ENOSPC;
 	}
@@ -1650,12 +1659,10 @@ static int iommu_attach_vm_domain(struct dmar_domain *domain,
 				  struct intel_iommu *iommu)
 {
 	int num;
-	unsigned long ndomains;
 
-	ndomains = cap_ndoms(iommu->cap);
-	for_each_set_bit(num, iommu->domain_ids, ndomains)
-		if (iommu->domains[num] == domain)
-			return num;
+	num = domain->iommu_did[iommu->seq_id];
+	if (num)
+		return num;
 
 	return __iommu_attach_domain(domain, iommu);
 }
@@ -1664,22 +1671,18 @@ static void iommu_detach_domain(struct dmar_domain *domain,
 				struct intel_iommu *iommu)
 {
 	unsigned long flags;
-	int num, ndomains;
+	int num;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	if (domain_type_is_vm_or_si(domain)) {
-		ndomains = cap_ndoms(iommu->cap);
-		for_each_set_bit(num, iommu->domain_ids, ndomains) {
-			if (iommu->domains[num] == domain) {
-				clear_bit(num, iommu->domain_ids);
-				iommu->domains[num] = NULL;
-				break;
-			}
-		}
-	} else {
-		clear_bit(domain->id, iommu->domain_ids);
-		iommu->domains[domain->id] = NULL;
-	}
+
+	num = domain->iommu_did[iommu->seq_id];
+
+	if (num == 0)
+		return;
+
+	clear_bit(num, iommu->domain_ids);
+	iommu->domains[num]		 = NULL;
+
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -1708,6 +1711,7 @@ static int domain_detach_iommu(struct dmar_domain *domain,
 	if (test_and_clear_bit(iommu->seq_id, domain->iommu_bmp)) {
 		count = --domain->iommu_count;
 		domain_update_iommu_cap(domain);
+		domain->iommu_did[iommu->seq_id] = 0;
 	}
 	spin_unlock_irqrestore(&domain->iommu_lock, flags);
 
