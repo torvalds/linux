@@ -23,12 +23,20 @@
 #include <asm/cpufeature.h>
 
 static bool
+feature_matches(u64 reg, const struct arm64_cpu_capabilities *entry)
+{
+	int val = cpuid_feature_extract_field(reg, entry->field_pos);
+
+	return val >= entry->min_field_value;
+}
+
+static bool
 has_id_aa64pfr0_feature(const struct arm64_cpu_capabilities *entry)
 {
 	u64 val;
 
 	val = read_cpuid(id_aa64pfr0_el1);
-	return (val & entry->register_mask) == entry->register_value;
+	return feature_matches(val, entry);
 }
 
 static const struct arm64_cpu_capabilities arm64_features[] = {
@@ -36,8 +44,8 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "GIC system register CPU interface",
 		.capability = ARM64_HAS_SYSREG_GIC_CPUIF,
 		.matches = has_id_aa64pfr0_feature,
-		.register_mask = (0xf << 24),
-		.register_value = (1 << 24),
+		.field_pos = 24,
+		.min_field_value = 1,
 	},
 	{},
 };
