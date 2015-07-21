@@ -889,9 +889,11 @@ b_epilogue:
 			off = offsetof(struct sk_buff, vlan_tci);
 			emit(ARM_LDRH_I(r_A, r_skb, off), ctx);
 			if (code == (BPF_ANC | SKF_AD_VLAN_TAG))
-				OP_IMM3(ARM_AND, r_A, r_A, VLAN_VID_MASK, ctx);
-			else
-				OP_IMM3(ARM_AND, r_A, r_A, VLAN_TAG_PRESENT, ctx);
+				OP_IMM3(ARM_AND, r_A, r_A, ~VLAN_TAG_PRESENT, ctx);
+			else {
+				OP_IMM3(ARM_LSR, r_A, r_A, 12, ctx);
+				OP_IMM3(ARM_AND, r_A, r_A, 0x1, ctx);
+			}
 			break;
 		case BPF_ANC | SKF_AD_QUEUE:
 			ctx->seen |= SEEN_SKB;
