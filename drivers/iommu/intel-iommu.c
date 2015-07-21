@@ -4834,7 +4834,7 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 	struct intel_iommu *iommu;
 	unsigned long start_pfn, last_pfn;
 	unsigned int npages;
-	int iommu_id, num, ndomains, level = 0;
+	int iommu_id, level = 0;
 
 	/* Cope with horrid API which requires us to unmap more than the
 	   size argument if it happens to be a large-page mapping. */
@@ -4854,17 +4854,8 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 	for_each_domain_iommu(iommu_id, dmar_domain) {
 		iommu = g_iommus[iommu_id];
 
-		/*
-		 * find bit position of dmar_domain
-		 */
-		ndomains = cap_ndoms(iommu->cap);
-		for_each_set_bit(num, iommu->domain_ids, ndomains) {
-			if (get_iommu_domain(iommu, num) == dmar_domain)
-				iommu_flush_iotlb_psi(iommu, dmar_domain,
-						      start_pfn, npages,
-						      !freelist, 0);
-		}
-
+		iommu_flush_iotlb_psi(g_iommus[iommu_id], dmar_domain,
+				      start_pfn, npages, !freelist, 0);
 	}
 
 	dma_free_pagelist(freelist);
