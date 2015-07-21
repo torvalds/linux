@@ -650,7 +650,7 @@ static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 	if (err < 0)
 		return err;
 
-	for (i = 0, value = 0; i < link->num_lanes; i++) {
+	for (i = 0, value = 0; i < link->lanes; i++) {
 		unsigned long lane = SOR_DP_TPG_CHANNEL_CODING |
 				     SOR_DP_TPG_SCRAMBLER_NONE |
 				     SOR_DP_TPG_PATTERN_TRAIN1;
@@ -671,7 +671,7 @@ static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 	value |= SOR_DP_SPARE_MACRO_SOR_CLK;
 	tegra_sor_writel(sor, value, SOR_DP_SPARE0);
 
-	for (i = 0, value = 0; i < link->num_lanes; i++) {
+	for (i = 0, value = 0; i < link->lanes; i++) {
 		unsigned long lane = SOR_DP_TPG_CHANNEL_CODING |
 				     SOR_DP_TPG_SCRAMBLER_NONE |
 				     SOR_DP_TPG_PATTERN_TRAIN2;
@@ -686,7 +686,7 @@ static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 	if (err < 0)
 		return err;
 
-	for (i = 0, value = 0; i < link->num_lanes; i++) {
+	for (i = 0, value = 0; i < link->lanes; i++) {
 		unsigned long lane = SOR_DP_TPG_CHANNEL_CODING |
 				     SOR_DP_TPG_SCRAMBLER_GALIOS |
 				     SOR_DP_TPG_PATTERN_NONE;
@@ -913,11 +913,11 @@ static int tegra_sor_compute_config(struct tegra_sor *sor,
 	u32 num_syms_per_line;
 	unsigned int i;
 
-	if (!link_rate || !link->num_lanes || !pclk || !config->bits_per_pixel)
+	if (!link_rate || !link->lanes || !pclk || !config->bits_per_pixel)
 		return -EINVAL;
 
-	output = link_rate * 8 * link->num_lanes;
 	input = pclk * config->bits_per_pixel;
+	output = link_rate * 8 * link->lanes;
 
 	if (input >= output)
 		return -ERANGE;
@@ -960,7 +960,7 @@ static int tegra_sor_compute_config(struct tegra_sor *sor,
 	watermark = div_u64(watermark + params.error, f);
 	config->watermark = watermark + (config->bits_per_pixel / 8) + 2;
 	num_syms_per_line = (mode->hdisplay * config->bits_per_pixel) *
-			    (link->num_lanes * 8);
+			    (link->lanes * 8);
 
 	if (config->watermark > 30) {
 		config->watermark = 30;
@@ -980,12 +980,12 @@ static int tegra_sor_compute_config(struct tegra_sor *sor,
 	if (link->capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
 		config->hblank_symbols -= 3;
 
-	config->hblank_symbols -= 12 / link->num_lanes;
+	config->hblank_symbols -= 12 / link->lanes;
 
 	/* compute the number of symbols per vertical blanking interval */
 	num = (mode->hdisplay - 25) * link_rate;
 	config->vblank_symbols = div_u64(num, pclk);
-	config->vblank_symbols -= 36 / link->num_lanes + 4;
+	config->vblank_symbols -= 36 / link->lanes + 4;
 
 	dev_dbg(sor->dev, "blank symbols: H:%u V:%u\n", config->hblank_symbols,
 		config->vblank_symbols);
@@ -1831,17 +1831,17 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	/* power DP lanes */
 	value = tegra_sor_readl(sor, sor->soc->regs->dp_padctl0);
 
-	if (link.num_lanes <= 2)
+	if (link.lanes <= 2)
 		value &= ~(SOR_DP_PADCTL_PD_TXD_3 | SOR_DP_PADCTL_PD_TXD_2);
 	else
 		value |= SOR_DP_PADCTL_PD_TXD_3 | SOR_DP_PADCTL_PD_TXD_2;
 
-	if (link.num_lanes <= 1)
+	if (link.lanes <= 1)
 		value &= ~SOR_DP_PADCTL_PD_TXD_1;
 	else
 		value |= SOR_DP_PADCTL_PD_TXD_1;
 
-	if (link.num_lanes == 0)
+	if (link.lanes == 0)
 		value &= ~SOR_DP_PADCTL_PD_TXD_0;
 	else
 		value |= SOR_DP_PADCTL_PD_TXD_0;
@@ -1850,7 +1850,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	value = tegra_sor_readl(sor, SOR_DP_LINKCTL0);
 	value &= ~SOR_DP_LINKCTL_LANE_COUNT_MASK;
-	value |= SOR_DP_LINKCTL_LANE_COUNT(link.num_lanes);
+	value |= SOR_DP_LINKCTL_LANE_COUNT(link.lanes);
 	tegra_sor_writel(sor, value, SOR_DP_LINKCTL0);
 
 	/* start lane sequencer */
@@ -1907,7 +1907,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 		dev_err(sor->dev, "failed to configure eDP link: %d\n", err);
 
 	rate = drm_dp_link_rate_to_bw_code(link.rate);
-	lanes = link.num_lanes;
+	lanes = link.lanes;
 
 	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
 	value &= ~SOR_CLK_CNTRL_DP_LINK_SPEED_MASK;
@@ -1925,7 +1925,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	/* disable training pattern generator */
 
-	for (i = 0; i < link.num_lanes; i++) {
+	for (i = 0; i < link.lanes; i++) {
 		unsigned long lane = SOR_DP_TPG_CHANNEL_CODING |
 				     SOR_DP_TPG_SCRAMBLER_GALIOS |
 				     SOR_DP_TPG_PATTERN_NONE;
