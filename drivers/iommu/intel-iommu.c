@@ -4610,52 +4610,34 @@ static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
 static void domain_remove_one_dev_info(struct dmar_domain *domain,
 				       struct device *dev)
 {
-	struct device_domain_info *info, *tmp;
+	struct device_domain_info *info;
 	struct intel_iommu *iommu;
 	unsigned long flags;
-	bool found = false;
 	u8 bus, devfn;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return;
 
+	info = dev->archdata.iommu;
+
+	if (WARN_ON(!info))
+		return;
+
 	spin_lock_irqsave(&device_domain_lock, flags);
-	list_for_each_entry_safe(info, tmp, &domain->devices, link) {
-		if (info->iommu == iommu && info->bus == bus &&
-		    info->devfn == devfn) {
-			unlink_domain_info(info);
-			spin_unlock_irqrestore(&device_domain_lock, flags);
-
-			iommu_disable_dev_iotlb(info);
-			iommu_detach_dev(iommu, info->bus, info->devfn);
-			iommu_detach_dependent_devices(iommu, dev);
-			free_devinfo_mem(info);
-
-			spin_lock_irqsave(&device_domain_lock, flags);
-
-			if (found)
-				break;
-			else
-				continue;
-		}
-
-		/*
-		 * If there is no other devices under the same iommu owned by
-		 * this domain, clear this iommu in iommu_refcnt update iommu
-		 * count and coherency.
-		 */
-		if (info->iommu == iommu)
-			found = true;
-	}
-
+	unlink_domain_info(info);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
-	if (found == 0) {
-		domain_detach_iommu(domain, iommu);
-		if (!domain_type_is_vm_or_si(domain))
-			iommu_detach_domain(domain, iommu);
-	}
+	iommu_disable_dev_iotlb(info);
+	iommu_detach_dev(iommu, info->bus, info->devfn);
+	iommu_detach_dependent_devices(iommu, dev);
+	free_devinfo_mem(info);
+	domain_detach_iommu(domain, iommu);
+
+	spin_lock_irqsave(&domain->iommu_lock, flags);
+	if (!domain->iommu_refcnt[iommu->seq_id])
+		iommu_detach_domain(domain, iommu);
+	spin_unlock_irqrestore(&domain->iommu_lock, flags);
 }
 
 static int md_domain_init(struct dmar_domain *domain, int guest_width)
