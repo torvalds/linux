@@ -3792,26 +3792,42 @@ static void efx_ef10_filter_uc_addr_list(struct efx_nic *efx, bool *promisc)
 static void efx_ef10_filter_mc_addr_list(struct efx_nic *efx, bool *promisc)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct net_device *net_dev = efx->net_dev;
 	struct netdev_hw_addr *mc;
-	unsigned int i;
+	unsigned int i, addr_count;
 
-	if (netdev_mc_count(net_dev) + 2 /* room for broadcast and promisc */
-	    >= EFX_EF10_FILTER_DEV_MC_MAX) {
-		table->dev_mc_count = 1;
-		eth_broadcast_addr(table->dev_mc_list[0].addr);
+	if (net_dev->flags & (IFF_PROMISC | IFF_ALLMULTI))
 		*promisc = true;
-	} else {
-		table->dev_mc_count = 1 + netdev_mc_count(net_dev);
-		eth_broadcast_addr(table->dev_mc_list[0].addr);
-		i = 1;
-		netdev_for_each_mc_addr(mc, net_dev) {
-			ether_addr_copy(table->dev_mc_list[i].addr, mc->addr);
-			i++;
-		}
 
-		if (net_dev->flags & (IFF_PROMISC | IFF_ALLMULTI))
-			*promisc = true;
+	if (nic_data->workaround_26807) {
+		if (*promisc) {
+			table->dev_mc_count = 0;
+			return;
+		}
+		addr_count = netdev_mc_count(net_dev);
+	} else {
+		/* Allow room for broadcast and promiscuous */
+		addr_count = netdev_mc_count(net_dev) + 2;
+	}
+
+	if (addr_count >= EFX_EF10_FILTER_DEV_MC_MAX) {
+		if (nic_data->workaround_26807) {
+			table->dev_mc_count = 0;
+		} else {
+			table->dev_mc_count = 1;
+			eth_broadcast_addr(table->dev_mc_list[0].addr);
+		}
+		*promisc = true;
+		return;
+	}
+
+	table->dev_mc_count = 1 + netdev_mc_count(net_dev);
+	eth_broadcast_addr(table->dev_mc_list[0].addr);
+	i = 1;
+	netdev_for_each_mc_addr(mc, net_dev) {
+		ether_addr_copy(table->dev_mc_list[i].addr, mc->addr);
+		i++;
 	}
 }
 
@@ -3846,7 +3862,11 @@ static void efx_ef10_filter_insert_addr_list(struct efx_nic *efx,
 			 * filter for multicast
 			 */
 			while (i--) {
-				if (multicast && i == 1)
+				struct efx_ef10_nic_data *nic_data =
+					efx->nic_data;
+
+				if (multicast && i == 1 &&
+				    !nic_data->workaround_26807)
 					break;
 
 				efx_ef10_filter_remove_safe(
@@ -3974,6 +3994,7 @@ reset_nic:
 static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct net_device *net_dev = efx->net_dev;
 	bool uc_promisc = false, mc_promisc = false;
 
@@ -3995,9 +4016,16 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 
 	/* Insert/renew filters */
 	efx_ef10_filter_insert_addr_list(efx, false, &uc_promisc);
+
+	/* If changing promiscuous state with cascaded multicast filters, remove
+	 * old filters first, so that packets are dropped rather than duplicated
+	 */
+	if (nic_data->workaround_26807 && efx->mc_promisc != mc_promisc)
+		efx_ef10_filter_remove_old(efx);
 	efx_ef10_filter_insert_addr_list(efx, true, &mc_promisc);
 
 	efx_ef10_filter_remove_old(efx);
+	efx->mc_promisc = mc_promisc;
 }
 
 static int efx_ef10_set_mac_address(struct efx_nic *efx)
