@@ -374,7 +374,6 @@ static int hw_pass_through = 1;
 #define DOMAIN_FLAG_STATIC_IDENTITY	(1 << 1)
 
 struct dmar_domain {
-	int	id;			/* domain id */
 	int	nid;			/* node id */
 	DECLARE_BITMAP(iommu_bmp, DMAR_UNITS_SUPPORTED);
 					/* bitmap of iommus this domain uses*/
@@ -1655,8 +1654,6 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 
 static struct dmar_domain *alloc_domain(int flags)
 {
-	/* domain id for virtual machine, it won't be set in context */
-	static atomic_t vm_domid = ATOMIC_INIT(0);
 	struct dmar_domain *domain;
 
 	domain = alloc_domain_mem();
@@ -1668,8 +1665,6 @@ static struct dmar_domain *alloc_domain(int flags)
 	domain->flags = flags;
 	spin_lock_init(&domain->iommu_lock);
 	INIT_LIST_HEAD(&domain->devices);
-	if (flags & DOMAIN_FLAG_VIRTUAL_MACHINE)
-		domain->id = atomic_inc_return(&vm_domid);
 
 	return domain;
 }
@@ -2392,8 +2387,7 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	domain = alloc_domain(0);
 	if (!domain)
 		return NULL;
-	domain->id = iommu_attach_domain(domain, iommu);
-	if (domain->id < 0) {
+	if (iommu_attach_domain(domain, iommu) < 0) {
 		free_domain_mem(domain);
 		return NULL;
 	}
@@ -2446,8 +2440,7 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 		return -ENOMEM;
 	}
 
-	pr_debug("Mapping reserved region %llx-%llx for domain %d\n",
-		 start, end, domain->id);
+	pr_debug("Mapping reserved region %llx-%llx\n", start, end);
 	/*
 	 * RMRR range might have overlap with physical memory range,
 	 * clear it first
