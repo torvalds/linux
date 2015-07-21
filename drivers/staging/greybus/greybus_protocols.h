@@ -52,7 +52,12 @@
 #ifndef __GREYBUS_PROTOCOLS_H
 #define __GREYBUS_PROTOCOLS_H
 
-/* Control Protocol */
+/* Fixed IDs for control/svc protocols */
+
+/* Device ID of SVC and AP */
+#define GB_DEVICE_ID_SVC			0
+#define GB_DEVICE_ID_AP				1
+#define GB_DEVICE_ID_MODULES_START		2
 
 /* Bundle-id and cport-id for control cport */
 #define GB_CONTROL_BUNDLE_ID			0
