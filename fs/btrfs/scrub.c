@@ -2702,7 +2702,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 			   sparity->nsectors))
 		goto out;
 
-	length = sparity->logic_end - sparity->logic_start + 1;
+	length = sparity->logic_end - sparity->logic_start;
 	ret = btrfs_map_sblock(sctx->dev_root->fs_info, WRITE,
 			       sparity->logic_start,
 			       &length, &bbio, 0, 1);
@@ -2868,7 +2868,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 			    key.type != BTRFS_METADATA_ITEM_KEY)
 				goto next;
 
-			if (key.objectid > logic_end) {
+			if (key.objectid >= logic_end) {
 				stop_loop = 1;
 				break;
 			}
@@ -2958,7 +2958,7 @@ next:
 out:
 	if (ret < 0)
 		scrub_parity_mark_sectors_error(sparity, logic_start,
-						logic_end - logic_start + 1);
+						logic_end - logic_start);
 	scrub_parity_put(sparity);
 	scrub_submit(sctx);
 	mutex_lock(&sctx->wr_ctx.wr_lock);
@@ -3139,7 +3139,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			logical += base;
 			if (ret) {
 				stripe_logical += base;
-				stripe_end = stripe_logical + increment - 1;
+				stripe_end = stripe_logical + increment;
 				ret = scrub_raid56_parity(sctx, map, scrub_dev,
 							  ppath, stripe_logical,
 							  stripe_end);
@@ -3287,7 +3287,7 @@ loop:
 					if (ret && physical < physical_end) {
 						stripe_logical += base;
 						stripe_end = stripe_logical +
-								increment - 1;
+								increment;
 						ret = scrub_raid56_parity(sctx,
 							map, scrub_dev, ppath,
 							stripe_logical,
