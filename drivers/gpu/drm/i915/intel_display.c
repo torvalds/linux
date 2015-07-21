@@ -413,7 +413,7 @@ static const intel_limit_t intel_limits_bxt = {
 static bool
 needs_modeset(struct drm_crtc_state *state)
 {
-	return state->mode_changed || state->active_changed;
+	return drm_atomic_crtc_needs_modeset(state);
 }
 
 /**
