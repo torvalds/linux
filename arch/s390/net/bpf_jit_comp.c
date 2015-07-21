@@ -973,6 +973,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		 */
 		const u64 func = (u64)__bpf_call_base + imm;
 
+		if (bpf_helper_changes_skb_data((void *)func))
+			/* TODO reload skb->data, hlen */
+			return -1;
+
 		REG_SET_SEEN(BPF_REG_5);
 		jit->seen |= SEEN_FUNC;
 		/* lg %w1,<d(imm)>(%l) */
