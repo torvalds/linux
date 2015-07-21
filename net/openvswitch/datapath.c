@@ -188,7 +188,7 @@ static int get_dpifindex(const struct datapath *dp)
 
 	local = ovs_vport_rcu(dp, OVSP_LOCAL);
 	if (local)
-		ifindex = netdev_vport_priv(local)->dev->ifindex;
+		ifindex = local->dev->ifindex;
 	else
 		ifindex = 0;
 
@@ -2219,13 +2219,10 @@ static void __net_exit list_vports_from_net(struct net *net, struct net *dnet,
 			struct vport *vport;
 
 			hlist_for_each_entry(vport, &dp->ports[i], dp_hash_node) {
-				struct netdev_vport *netdev_vport;
-
 				if (vport->ops->type != OVS_VPORT_TYPE_INTERNAL)
 					continue;
 
-				netdev_vport = netdev_vport_priv(vport);
-				if (dev_net(netdev_vport->dev) == dnet)
+				if (dev_net(vport->dev) == dnet)
 					list_add(&vport->detach_list, head);
 			}
 		}

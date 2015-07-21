@@ -83,104 +83,97 @@ static struct net_device *get_dpdev(const struct datapath *dp)
 
 	local = ovs_vport_ovsl(dp, OVSP_LOCAL);
 	BUG_ON(!local);
-	return netdev_vport_priv(local)->dev;
+	return local->dev;
 }
 
-static struct vport *netdev_create(const struct vport_parms *parms)
+static struct vport *netdev_link(struct vport *vport, const char *name)
 {
-	struct vport *vport;
-	struct netdev_vport *netdev_vport;
 	int err;
 
-	vport = ovs_vport_alloc(sizeof(struct netdev_vport),
-				&ovs_netdev_vport_ops, parms);
-	if (IS_ERR(vport)) {
-		err = PTR_ERR(vport);
-		goto error;
-	}
-
-	netdev_vport = netdev_vport_priv(vport);
-
-	netdev_vport->dev = dev_get_by_name(ovs_dp_get_net(vport->dp), parms->name);
-	if (!netdev_vport->dev) {
+	vport->dev = dev_get_by_name(ovs_dp_get_net(vport->dp), name);
+	if (!vport->dev) {
 		err = -ENODEV;
 		goto error_free_vport;
 	}
 
-	if (netdev_vport->dev->flags & IFF_LOOPBACK ||
-	    netdev_vport->dev->type != ARPHRD_ETHER ||
-	    ovs_is_internal_dev(netdev_vport->dev)) {
+	if (vport->dev->flags & IFF_LOOPBACK ||
+	    vport->dev->type != ARPHRD_ETHER ||
+	    ovs_is_internal_dev(vport->dev)) {
 		err = -EINVAL;
 		goto error_put;
 	}
 
 	rtnl_lock();
-	err = netdev_master_upper_dev_link(netdev_vport->dev,
+	err = netdev_master_upper_dev_link(vport->dev,
 					   get_dpdev(vport->dp));
 	if (err)
 		goto error_unlock;
 
-	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook,
+	err = netdev_rx_handler_register(vport->dev, netdev_frame_hook,
 					 vport);
 	if (err)
 		goto error_master_upper_dev_unlink;
 
-	dev_disable_lro(netdev_vport->dev);
-	dev_set_promiscuity(netdev_vport->dev, 1);
-	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
+	dev_disable_lro(vport->dev);
+	dev_set_promiscuity(vport->dev, 1);
+	vport->dev->priv_flags |= IFF_OVS_DATAPATH;
 	rtnl_unlock();
 
 	return vport;
 
 error_master_upper_dev_unlink:
-	netdev_upper_dev_unlink(netdev_vport->dev, get_dpdev(vport->dp));
+	netdev_upper_dev_unlink(vport->dev, get_dpdev(vport->dp));
 error_unlock:
 	rtnl_unlock();
 error_put:
-	dev_put(netdev_vport->dev);
+	dev_put(vport->dev);
 error_free_vport:
 	ovs_vport_free(vport);
-error:
 	return ERR_PTR(err);
+}
+
+static struct vport *netdev_create(const struct vport_parms *parms)
+{
+	struct vport *vport;
+
+	vport = ovs_vport_alloc(0, &ovs_netdev_vport_ops, parms);
+	if (IS_ERR(vport))
+		return vport;
+
+	return netdev_link(vport, parms->name);
 }
 
 static void free_port_rcu(struct rcu_head *rcu)
 {
-	struct netdev_vport *netdev_vport = container_of(rcu,
-					struct netdev_vport, rcu);
+	struct vport *vport = container_of(rcu, struct vport, rcu);
 
-	dev_put(netdev_vport->dev);
-	ovs_vport_free(vport_from_priv(netdev_vport));
+	dev_put(vport->dev);
+	ovs_vport_free(vport);
 }
 
 void ovs_netdev_detach_dev(struct vport *vport)
 {
-	struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
-
 	ASSERT_RTNL();
-	netdev_vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
-	netdev_rx_handler_unregister(netdev_vport->dev);
-	netdev_upper_dev_unlink(netdev_vport->dev,
-				netdev_master_upper_dev_get(netdev_vport->dev));
-	dev_set_promiscuity(netdev_vport->dev, -1);
+	vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
+	netdev_rx_handler_unregister(vport->dev);
+	netdev_upper_dev_unlink(vport->dev,
+				netdev_master_upper_dev_get(vport->dev));
+	dev_set_promiscuity(vport->dev, -1);
 }
 
 static void netdev_destroy(struct vport *vport)
 {
-	struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
-
 	rtnl_lock();
-	if (netdev_vport->dev->priv_flags & IFF_OVS_DATAPATH)
+	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
 		ovs_netdev_detach_dev(vport);
 	rtnl_unlock();
 
-	call_rcu(&netdev_vport->rcu, free_port_rcu);
+	call_rcu(&vport->rcu, free_port_rcu);
 }
 
 const char *ovs_netdev_get_name(const struct vport *vport)
 {
-	const struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
-	return netdev_vport->dev->name;
+	return vport->dev->name;
 }
 
 static unsigned int packet_length(const struct sk_buff *skb)
@@ -195,18 +188,17 @@ static unsigned int packet_length(const struct sk_buff *skb)
 
 static int netdev_send(struct vport *vport, struct sk_buff *skb)
 {
-	struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
-	int mtu = netdev_vport->dev->mtu;
+	int mtu = vport->dev->mtu;
 	int len;
 
 	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
-				     netdev_vport->dev->name,
+				     vport->dev->name,
 				     packet_length(skb), mtu);
 		goto drop;
 	}
 
-	skb->dev = netdev_vport->dev;
+	skb->dev = vport->dev;
 	len = skb->len;
 	dev_queue_xmit(skb);
 
