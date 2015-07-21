@@ -896,6 +896,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 
 	id->irq = platform_get_irq(pdev, 0);
 
+	id->adap.owner = THIS_MODULE;
 	id->adap.dev.of_node = pdev->dev.of_node;
 	id->adap.algo = &cdns_i2c_algo;
 	id->adap.timeout = CDNS_I2C_TIMEOUT;
