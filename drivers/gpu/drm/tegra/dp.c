@@ -4,6 +4,7 @@
  * Copyright (C) 2015 Rob Clark
  */
 
+#include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_print.h>
 
@@ -233,4 +234,58 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	}
 
 	return 0;
+}
+
+/**
+ * drm_dp_link_choose() - choose the lowest possible configuration for a mode
+ * @link: DRM DP link object
+ * @mode: DRM display mode
+ * @info: DRM display information
+ *
+ * According to the eDP specification, a source should select a configuration
+ * with the lowest number of lanes and the lowest possible link rate that can
+ * match the bitrate requirements of a video mode. However it must ensure not
+ * to exceed the capabilities of the sink.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int drm_dp_link_choose(struct drm_dp_link *link,
+		       const struct drm_display_mode *mode,
+		       const struct drm_display_info *info)
+{
+	/* available link symbol clock rates */
+	static const unsigned int rates[3] = { 162000, 270000, 540000 };
+	/* available number of lanes */
+	static const unsigned int lanes[3] = { 1, 2, 4 };
+	unsigned long requirement, capacity;
+	unsigned int rate = link->max_rate;
+	unsigned int i, j;
+
+	/* bandwidth requirement */
+	requirement = mode->clock * info->bpc * 3;
+
+	for (i = 0; i < ARRAY_SIZE(lanes) && lanes[i] <= link->max_lanes; i++) {
+		for (j = 0; j < ARRAY_SIZE(rates) && rates[j] <= rate; j++) {
+			/*
+			 * Capacity for this combination of lanes and rate,
+			 * factoring in the ANSI 8B/10B encoding.
+			 *
+			 * Link rates in the DRM DP helpers are really link
+			 * symbol frequencies, so a tenth of the actual rate
+			 * of the link.
+			 */
+			capacity = lanes[i] * (rates[j] * 10) * 8 / 10;
+
+			if (capacity >= requirement) {
+				DRM_DEBUG_KMS("using %u lanes at %u kHz (%lu/%lu kbps)\n",
+					      lanes[i], rates[j], requirement,
+					      capacity);
+				link->lanes = lanes[i];
+				link->rate = rates[j];
+				return 0;
+			}
+		}
+	}
+
+	return -ERANGE;
 }
