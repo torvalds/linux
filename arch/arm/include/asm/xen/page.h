@@ -13,9 +13,6 @@
 
 #define phys_to_machine_mapping_valid(pfn) (1)
 
-#define pte_mfn	    pte_pfn
-#define mfn_pte	    pfn_pte
-
 /* Xen machine address */
 typedef struct xmaddr {
 	phys_addr_t maddr;
