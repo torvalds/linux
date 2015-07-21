@@ -490,9 +490,9 @@ static struct samsung_div_clock top_div_clks[] __initdata = {
 	DIV(CLK_DIV_SCLK_ISP_SENSOR1_A, "div_sclk_isp_sensor1_a",
 			"mout_sclk_isp_sensor1", DIV_TOP_CAM11, 8, 4),
 	DIV(CLK_DIV_SCLK_ISP_SENSOR0_B, "div_sclk_isp_sensor0_b",
-			"div_sclk_isp_sensor0_a", DIV_TOP_CAM11, 12, 4),
+			"div_sclk_isp_sensor0_a", DIV_TOP_CAM11, 4, 4),
 	DIV(CLK_DIV_SCLK_ISP_SENSOR0_A, "div_sclk_isp_sensor0_a",
-			"mout_sclk_isp_sensor0", DIV_TOP_CAM11, 8, 4),
+			"mout_sclk_isp_sensor0", DIV_TOP_CAM11, 0, 4),
 
 	/* DIV_TOP_FSYS0 */
 	DIV(CLK_DIV_SCLK_MMC1_B, "div_sclk_mmc1_b", "div_sclk_mmc1_a",
