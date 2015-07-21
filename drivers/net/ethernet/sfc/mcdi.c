@@ -1816,7 +1816,11 @@ int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
 	return 0;
 
 fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	/* Older firmware lacks GET_WORKAROUNDS and this isn't especially
+	 * terrifying.  The call site will have to deal with it though.
+	 */
+	netif_printk(efx, hw, rc == -ENOSYS ? KERN_DEBUG : KERN_ERR,
+		     efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 

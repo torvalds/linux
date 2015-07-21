@@ -2277,20 +2277,27 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 
 	/* Successfully created event queue on channel 0 */
 	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
-	if (rc)
+	if (rc == -ENOSYS) {
+		/* GET_WORKAROUNDS was implemented before the bug26807
+		 * workaround, thus the latter must be unavailable in this fw
+		 */
+		nic_data->workaround_26807 = false;
+		rc = 0;
+	} else if (rc) {
 		goto fail;
+	} else {
+		nic_data->workaround_26807 =
+			!!(enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807);
 
-	nic_data->workaround_26807 =
-		!!(enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807);
-
-	if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 &&
-	    !nic_data->workaround_26807) {
-		rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG26807,
-					     true);
-		if (!rc)
-			nic_data->workaround_26807 = true;
-		else if (rc == -EPERM)
-			rc = 0;
+		if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 &&
+		    !nic_data->workaround_26807) {
+			rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG26807,
+						     true);
+			if (!rc)
+				nic_data->workaround_26807 = true;
+			else if (rc == -EPERM)
+				rc = 0;
+		}
 	}
 
 	if (!rc)
