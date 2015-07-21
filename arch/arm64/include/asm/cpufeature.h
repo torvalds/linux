@@ -70,6 +70,13 @@ static inline void cpus_set_cap(unsigned int num)
 		__set_bit(num, cpu_hwcaps);
 }
 
+static inline int __attribute_const__ cpuid_feature_extract_field(u64 features,
+								  int field)
+{
+	return (s64)(features << (64 - 4 - field)) >> (64 - 4);
+}
+
+
 void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info);
 void check_local_cpu_errata(void);
