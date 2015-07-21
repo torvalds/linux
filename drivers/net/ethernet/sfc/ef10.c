@@ -387,7 +387,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	 * First try to enable it, then if we get EPERM, just
 	 * ask if it's already enabled
 	 */
-	rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG35388, true);
+	rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG35388, true, NULL);
 	if (rc == 0) {
 		nic_data->workaround_35388 = true;
 	} else if (rc == -EPERM) {
@@ -2291,8 +2291,9 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 
 		if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 &&
 		    !nic_data->workaround_26807) {
-			rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG26807,
-						     true);
+			rc = efx_mcdi_set_workaround(efx,
+						     MC_CMD_WORKAROUND_BUG26807,
+						     true, NULL);
 			if (!rc)
 				nic_data->workaround_26807 = true;
 			else if (rc == -EPERM)
