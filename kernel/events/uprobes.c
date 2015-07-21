@@ -1766,11 +1766,22 @@ handle_uretprobe_chain(struct return_instance *ri, struct pt_regs *regs)
 	up_read(&uprobe->register_rwsem);
 }
 
+static struct return_instance *find_next_ret_chain(struct return_instance *ri)
+{
+	bool chained;
+
+	do {
+		chained = ri->chained;
+		ri = ri->next;	/* can't be NULL if chained */
+	} while (chained);
+
+	return ri;
+}
+
 static void handle_trampoline(struct pt_regs *regs)
 {
 	struct uprobe_task *utask;
-	struct return_instance *ri;
-	bool chained;
+	struct return_instance *ri, *next;
 
 	utask = current->utask;
 	if (!utask)
@@ -1780,24 +1791,18 @@ static void handle_trampoline(struct pt_regs *regs)
 	if (!ri)
 		goto sigill;
 
+	next = find_next_ret_chain(ri);
 	/*
 	 * TODO: we should throw out return_instance's invalidated by
 	 * longjmp(), currently we assume that the probed function always
 	 * returns.
 	 */
 	instruction_pointer_set(regs, ri->orig_ret_vaddr);
-
-	for (;;) {
+	do {
 		handle_uretprobe_chain(ri, regs);
-
-		chained = ri->chained;
 		ri = free_ret_instance(ri);
 		utask->depth--;
-
-		if (!chained)
-			break;
-		BUG_ON(!ri);
-	}
+	} while (ri != next);
 
 	utask->return_instances = ri;
 	return;
