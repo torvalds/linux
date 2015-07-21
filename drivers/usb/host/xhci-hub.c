@@ -591,7 +591,14 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		status |= USB_PORT_STAT_C_RESET << 16;
 	/* USB3.0 only */
 	if (hcd->speed == HCD_USB3) {
-		if ((raw_port_status & PORT_PLC))
+		/* Port link change with port in resume state should not be
+		 * reported to usbcore, as this is an internal state to be
+		 * handled by xhci driver. Reporting PLC to usbcore may
+		 * cause usbcore clearing PLC first and port change event
+		 * irq won't be generated.
+		 */
+		if ((raw_port_status & PORT_PLC) &&
+			(raw_port_status & PORT_PLS_MASK) != XDEV_RESUME)
 			status |= USB_PORT_STAT_C_LINK_STATE << 16;
 		if ((raw_port_status & PORT_WRC))
 			status |= USB_PORT_STAT_C_BH_RESET << 16;
