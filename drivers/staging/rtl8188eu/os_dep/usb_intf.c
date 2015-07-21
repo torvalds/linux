@@ -17,7 +17,6 @@
  *
  *
  ******************************************************************************/
-#define _HCI_INTF_C_
 
 #define pr_fmt(fmt) "R8188EU: " fmt
 #include <osdep_service.h>
