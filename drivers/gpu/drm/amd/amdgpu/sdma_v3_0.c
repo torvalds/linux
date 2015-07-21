@@ -1540,5 +1540,6 @@ static void sdma_v3_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 	if (adev->vm_manager.vm_pte_funcs == NULL) {
 		adev->vm_manager.vm_pte_funcs = &sdma_v3_0_vm_pte_funcs;
 		adev->vm_manager.vm_pte_funcs_ring = &adev->sdma[0].ring;
+		adev->vm_manager.vm_pte_funcs_ring->is_pte_ring = true;
 	}
 }

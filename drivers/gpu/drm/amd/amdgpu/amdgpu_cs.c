@@ -909,7 +909,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			amdgpu_cs_parser_get_ring(adev, parser);
 		parser->uf.sequence = atomic64_inc_return(
 			&parser->ctx->rings[ring->idx].c_entity.last_queued_v_seq);
-		if ((parser->bo_list && parser->bo_list->has_userptr)) {
+		if (ring->is_pte_ring || (parser->bo_list && parser->bo_list->has_userptr)) {
 			r = amdgpu_cs_parser_prepare_job(parser);
 			if (r)
 				goto out;
