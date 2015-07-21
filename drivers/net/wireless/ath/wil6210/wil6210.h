@@ -559,6 +559,8 @@ struct wil6210_priv {
 	/* profile */
 	u32 monitor_flags;
 	u32 privacy; /* secure connection? */
+	u8 hidden_ssid; /* relevant in AP mode */
+	u16 channel; /* relevant in AP mode */
 	int sinfo_gen;
 	u32 ap_isolate; /* no intra-BSS communication */
 	/* interrupt moderation */

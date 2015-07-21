@@ -147,9 +147,9 @@ struct ath10k_peer *ath10k_peer_find_by_id(struct ath10k *ar, int peer_id)
 static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 				       const u8 *addr, bool expect_mapped)
 {
-	int ret;
+	long time_left;
 
-	ret = wait_event_timeout(ar->peer_mapping_wq, ({
+	time_left = wait_event_timeout(ar->peer_mapping_wq, ({
 			bool mapped;
 
 			spin_lock_bh(&ar->data_lock);
@@ -160,7 +160,7 @@ static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 			 test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags));
 		}), 3*HZ);
 
-	if (ret <= 0)
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
 	return 0;

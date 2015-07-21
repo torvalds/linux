@@ -87,6 +87,11 @@ struct htt_data_tx_desc_frag {
 	__le32 len;
 } __packed;
 
+struct htt_msdu_ext_desc {
+	__le32 tso_flag[4];
+	struct htt_data_tx_desc_frag frags[6];
+};
+
 enum htt_data_tx_desc_flags0 {
 	HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT = 1 << 0,
 	HTT_DATA_TX_DESC_FLAGS0_NO_AGGR         = 1 << 1,
@@ -349,6 +354,38 @@ enum htt_tlv_t2h_msg_type {
 	HTT_TLV_T2H_NUM_MSGS
 };
 
+enum htt_10_4_t2h_msg_type {
+	HTT_10_4_T2H_MSG_TYPE_VERSION_CONF           = 0x0,
+	HTT_10_4_T2H_MSG_TYPE_RX_IND                 = 0x1,
+	HTT_10_4_T2H_MSG_TYPE_RX_FLUSH               = 0x2,
+	HTT_10_4_T2H_MSG_TYPE_PEER_MAP               = 0x3,
+	HTT_10_4_T2H_MSG_TYPE_PEER_UNMAP             = 0x4,
+	HTT_10_4_T2H_MSG_TYPE_RX_ADDBA               = 0x5,
+	HTT_10_4_T2H_MSG_TYPE_RX_DELBA               = 0x6,
+	HTT_10_4_T2H_MSG_TYPE_TX_COMPL_IND           = 0x7,
+	HTT_10_4_T2H_MSG_TYPE_PKTLOG                 = 0x8,
+	HTT_10_4_T2H_MSG_TYPE_STATS_CONF             = 0x9,
+	HTT_10_4_T2H_MSG_TYPE_RX_FRAG_IND            = 0xa,
+	HTT_10_4_T2H_MSG_TYPE_SEC_IND                = 0xb,
+	HTT_10_4_T2H_MSG_TYPE_RC_UPDATE_IND          = 0xc,
+	HTT_10_4_T2H_MSG_TYPE_TX_INSPECT_IND         = 0xd,
+	HTT_10_4_T2H_MSG_TYPE_MGMT_TX_COMPL_IND      = 0xe,
+	HTT_10_4_T2H_MSG_TYPE_CHAN_CHANGE            = 0xf,
+	HTT_10_4_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND   = 0x10,
+	HTT_10_4_T2H_MSG_TYPE_RX_PN_IND              = 0x11,
+	HTT_10_4_T2H_MSG_TYPE_RX_OFFLOAD_DELIVER_IND = 0x12,
+	HTT_10_4_T2H_MSG_TYPE_TEST                   = 0x13,
+	HTT_10_4_T2H_MSG_TYPE_EN_STATS               = 0x14,
+	HTT_10_4_T2H_MSG_TYPE_AGGR_CONF              = 0x15,
+	HTT_10_4_T2H_MSG_TYPE_TX_FETCH_IND           = 0x16,
+	HTT_10_4_T2H_MSG_TYPE_TX_FETCH_CONF          = 0x17,
+	HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD         = 0x18,
+	/* 0x19 to 0x2f are reserved */
+	HTT_10_4_T2H_MSG_TYPE_TX_LOW_LATENCY_IND     = 0x30,
+	/* keep this last */
+	HTT_10_4_T2H_NUM_MSGS
+};
+
 enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_VERSION_CONF,
 	HTT_T2H_MSG_TYPE_RX_IND,
@@ -375,6 +412,10 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_AGGR_CONF,
 	HTT_T2H_MSG_TYPE_STATS_NOUPLOAD,
 	HTT_T2H_MSG_TYPE_TEST,
+	HTT_T2H_MSG_TYPE_EN_STATS,
+	HTT_T2H_MSG_TYPE_TX_FETCH_IND,
+	HTT_T2H_MSG_TYPE_TX_FETCH_CONF,
+	HTT_T2H_MSG_TYPE_TX_LOW_LATENCY_IND,
 	/* keep this last */
 	HTT_T2H_NUM_MSGS
 };
@@ -1430,6 +1471,11 @@ struct ath10k_htt {
 
 	/* rx_status template */
 	struct ieee80211_rx_status rx_status;
+
+	struct {
+		dma_addr_t paddr;
+		struct htt_msdu_ext_desc *vaddr;
+	} frag_desc;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1497,6 +1543,7 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
 int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
+int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt);
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
 int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,

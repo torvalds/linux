@@ -162,6 +162,7 @@ struct ath10k_pci {
 	struct device *dev;
 	struct ath10k *ar;
 	void __iomem *mem;
+	size_t mem_len;
 
 	/*
 	 * Number of MSI interrupts granted, 0 --> using legacy PCI line
@@ -235,18 +236,6 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 
 #define CDC_WAR_MAGIC_STR   0xceef0000
 #define CDC_WAR_DATA_CE     4
-
-/*
- * TODO: Should be a function call specific to each Target-type.
- * This convoluted macro converts from Target CPU Virtual Address Space to CE
- * Address Space. As part of this process, we conservatively fetch the current
- * PCIE_BAR. MOST of the time, this should match the upper bits of PCI space
- * for this device; but that's not guaranteed.
- */
-#define TARG_CPU_SPACE_TO_CE_SPACE(ar, pci_addr, addr)			\
-	(((ath10k_pci_read32(ar, (SOC_CORE_BASE_ADDRESS |		\
-	  CORE_CTRL_ADDRESS)) & 0x7ff) << 21) |				\
-	 0x100000 | ((addr) & 0xfffff))
 
 /* Wait up to this many Ms for a Diagnostic Access CE operation to complete */
 #define DIAG_ACCESS_CE_TIMEOUT_MS 10
