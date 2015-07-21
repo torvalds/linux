@@ -83,16 +83,16 @@ enum rockchip_pll_type {
 	.nr = _nr,				\
 	.nf = _nf,				\
 	.no = _no,				\
-	.bwadj = ((_nf) >> 1),			\
+	.nb = ((_nf) < 2) ? 1 : (_nf) >> 1,	\
 }
 
-#define RK3066_PLL_RATE_BWADJ(_rate, _nr, _nf, _no, _bw)	\
+#define RK3066_PLL_RATE_NB(_rate, _nr, _nf, _no, _nb)		\
 {								\
 	.rate	= _rate##U,					\
 	.nr = _nr,						\
 	.nf = _nf,						\
 	.no = _no,						\
-	.bwadj = _bw,						\
+	.nb = _nb,						\
 }
 
 struct rockchip_pll_rate_table {
@@ -100,7 +100,7 @@ struct rockchip_pll_rate_table {
 	unsigned int nr;
 	unsigned int nf;
 	unsigned int no;
-	unsigned int bwadj;
+	unsigned int nb;
 };
 
 /**

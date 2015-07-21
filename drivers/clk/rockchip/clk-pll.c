@@ -120,8 +120,8 @@ static int rockchip_pll_wait_lock(struct rockchip_clk_pll *pll)
 #define RK3066_PLLCON0_NR_SHIFT		8
 #define RK3066_PLLCON1_NF_MASK		0x1fff
 #define RK3066_PLLCON1_NF_SHIFT		0
-#define RK3066_PLLCON2_BWADJ_MASK	0xfff
-#define RK3066_PLLCON2_BWADJ_SHIFT	0
+#define RK3066_PLLCON2_NB_MASK		0xfff
+#define RK3066_PLLCON2_NB_SHIFT		0
 #define RK3066_PLLCON3_RESET		(1 << 5)
 #define RK3066_PLLCON3_PWRDOWN		(1 << 1)
 #define RK3066_PLLCON3_BYPASS		(1 << 0)
@@ -207,8 +207,8 @@ static int rockchip_rk3066_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	writel_relaxed(HIWORD_UPDATE(rate->nf - 1, RK3066_PLLCON1_NF_MASK,
 						   RK3066_PLLCON1_NF_SHIFT),
 		       pll->reg_base + RK3066_PLLCON(1));
-	writel_relaxed(HIWORD_UPDATE(rate->bwadj, RK3066_PLLCON2_BWADJ_MASK,
-						  RK3066_PLLCON2_BWADJ_SHIFT),
+	writel_relaxed(HIWORD_UPDATE(rate->nb - 1, RK3066_PLLCON2_NB_MASK,
+						   RK3066_PLLCON2_NB_SHIFT),
 		       pll->reg_base + RK3066_PLLCON(2));
 
 	/* leave reset and wait the reset_delay */
@@ -261,7 +261,7 @@ static void rockchip_rk3066_pll_init(struct clk_hw *hw)
 {
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
 	const struct rockchip_pll_rate_table *rate;
-	unsigned int nf, nr, no, bwadj;
+	unsigned int nf, nr, no, nb;
 	unsigned long drate;
 	u32 pllcon;
 
@@ -283,13 +283,13 @@ static void rockchip_rk3066_pll_init(struct clk_hw *hw)
 	nf = ((pllcon >> RK3066_PLLCON1_NF_SHIFT) & RK3066_PLLCON1_NF_MASK) + 1;
 
 	pllcon = readl_relaxed(pll->reg_base + RK3066_PLLCON(2));
-	bwadj = (pllcon >> RK3066_PLLCON2_BWADJ_SHIFT) & RK3066_PLLCON2_BWADJ_MASK;
+	nb = ((pllcon >> RK3066_PLLCON2_NB_SHIFT) & RK3066_PLLCON2_NB_MASK) + 1;
 
-	pr_debug("%s: pll %s@%lu: nr (%d:%d); no (%d:%d); nf(%d:%d), bwadj(%d:%d)\n",
+	pr_debug("%s: pll %s@%lu: nr (%d:%d); no (%d:%d); nf(%d:%d), nb(%d:%d)\n",
 		 __func__, __clk_get_name(hw->clk), drate, rate->nr, nr,
-		rate->no, no, rate->nf, nf, rate->bwadj, bwadj);
+		rate->no, no, rate->nf, nf, rate->nb, nb);
 	if (rate->nr != nr || rate->no != no || rate->nf != nf
-					     || rate->bwadj != bwadj) {
+					     || rate->nb != nb) {
 		struct clk *parent = __clk_get_parent(hw->clk);
 		unsigned long prate;
 
