@@ -5,6 +5,7 @@ DA9062 consists of a large and varied group of sub-devices:
 Device                   Supply Names    Description
 ------                   ------------    -----------
 da9062-regulator        :               : LDOs & BUCKs
+da9062-rtc              :               : Real-Time Clock
 da9062-watchdog         :               : Watchdog Timer
 
 ======
@@ -41,6 +42,10 @@ Sub-nodes:
   Documentation/devicetree/bindings/regulator/regulator.txt
 
 
+- rtc : This node defines settings required for the Real-Time Clock associated
+  with the DA9062. There are currently no entries in this binding, however
+  compatible = "dlg,da9062-rtc" should be added if a node is created.
+
 - watchdog: This node defines the settings for the watchdog driver associated
   with the DA9062 PMIC. The compatible = "dlg,da9062-watchdog" should be added
   if a node is created.
@@ -54,6 +59,10 @@ Example:
 		interrupt-parent = <&gpio6>;
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
+
+		rtc {
+			compatible = "dlg,da9062-rtc";
+		};
 
 		watchdog {
 			compatible = "dlg,da9062-watchdog";
