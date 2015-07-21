@@ -1639,7 +1639,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			rcvgap = peers_snd_nxt - l->rcv_nxt;
 		if (rcvgap || (msg_probe(hdr)))
 			tipc_link_build_proto_msg(l, STATE_MSG, 0, rcvgap,
-						  0, l->mtu, xmitq);
+						  0, 0, xmitq);
 		tipc_link_release_pkts(l, msg_ack(hdr));
 
 		/* If NACK, retransmit will now start at right position */
