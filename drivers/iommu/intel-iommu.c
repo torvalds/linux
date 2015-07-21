@@ -569,6 +569,17 @@ __setup("intel_iommu=", intel_iommu_setup);
 static struct kmem_cache *iommu_domain_cache;
 static struct kmem_cache *iommu_devinfo_cache;
 
+static struct dmar_domain* get_iommu_domain(struct intel_iommu *iommu, u16 did)
+{
+	return iommu->domains[did];
+}
+
+static void set_iommu_domain(struct intel_iommu *iommu, u16 did,
+			     struct dmar_domain *domain)
+{
+	iommu->domains[did] = domain;
+}
+
 static inline void *alloc_pgtable_page(int node)
 {
 	struct page *page;
@@ -1463,7 +1474,8 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	 * flush. However, device IOTLB doesn't need to be flushed in this case.
 	 */
 	if (!cap_caching_mode(iommu->cap) || !map)
-		iommu_flush_dev_iotlb(iommu->domains[did], addr, mask);
+		iommu_flush_dev_iotlb(get_iommu_domain(iommu, did),
+				      addr, mask);
 }
 
 static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
@@ -1573,7 +1585,7 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 			if (i == 0)
 				continue;
 
-			domain = iommu->domains[i];
+			domain = get_iommu_domain(iommu, i);
 			clear_bit(i, iommu->domain_ids);
 			if (domain_detach_iommu(domain, iommu) == 0 &&
 			    !domain_type_is_vm(domain))
@@ -1631,7 +1643,7 @@ static int __iommu_attach_domain(struct dmar_domain *domain,
 	num = find_first_zero_bit(iommu->domain_ids, ndomains);
 	if (num < ndomains) {
 		set_bit(num, iommu->domain_ids);
-		iommu->domains[num] = domain;
+		set_iommu_domain(iommu, num, domain);
 		domain->iommu_did[iommu->seq_id] = num;
 	} else {
 		num = -ENOSPC;
@@ -1681,7 +1693,7 @@ static void iommu_detach_domain(struct dmar_domain *domain,
 		return;
 
 	clear_bit(num, iommu->domain_ids);
-	iommu->domains[num]		 = NULL;
+	set_iommu_domain(iommu, num, NULL);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
@@ -4852,7 +4864,7 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
                 */
                ndomains = cap_ndoms(iommu->cap);
                for_each_set_bit(num, iommu->domain_ids, ndomains) {
-                       if (iommu->domains[num] == dmar_domain)
+                       if (get_iommu_domain(iommu, num) == dmar_domain)
                                iommu_flush_iotlb_psi(iommu, num, start_pfn,
 						     npages, !freelist, 0);
 	       }
