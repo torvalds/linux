@@ -809,9 +809,11 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	/*
-	 * We'll treat the cursor as an overlay plane with index 6 here so
-	 * that the update and activation request bits in DC_CMD_STATE_CONTROL
-	 * match up.
+	 * This index is kind of fake. The cursor isn't a regular plane, but
+	 * its update and activation request bits in DC_CMD_STATE_CONTROL do
+	 * use the same programming. Setting this fake index here allows the
+	 * code in tegra_add_plane_state() to do the right thing without the
+	 * need to special-casing the cursor plane.
 	 */
 	plane->index = 6;
 
