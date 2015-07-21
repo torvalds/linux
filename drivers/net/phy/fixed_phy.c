@@ -52,6 +52,10 @@ static int fixed_phy_update_regs(struct fixed_phy *fp)
 	u16 lpagb = 0;
 	u16 lpa = 0;
 
+	if (!fp->status.link)
+		goto done;
+	bmsr |= BMSR_LSTATUS | BMSR_ANEGCOMPLETE;
+
 	if (fp->status.duplex) {
 		bmcr |= BMCR_FULLDPLX;
 
@@ -96,15 +100,13 @@ static int fixed_phy_update_regs(struct fixed_phy *fp)
 		}
 	}
 
-	if (fp->status.link)
-		bmsr |= BMSR_LSTATUS | BMSR_ANEGCOMPLETE;
-
 	if (fp->status.pause)
 		lpa |= LPA_PAUSE_CAP;
 
 	if (fp->status.asym_pause)
 		lpa |= LPA_PAUSE_ASYM;
 
+done:
 	fp->regs[MII_PHYSID1] = 0;
 	fp->regs[MII_PHYSID2] = 0;
 
