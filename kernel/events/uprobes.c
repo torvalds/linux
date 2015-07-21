@@ -1541,9 +1541,9 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 		return;
 	}
 
-	ri = kzalloc(sizeof(struct return_instance), GFP_KERNEL);
+	ri = kmalloc(sizeof(struct return_instance), GFP_KERNEL);
 	if (!ri)
-		goto fail;
+		return;
 
 	trampoline_vaddr = get_trampoline_vaddr();
 	orig_ret_vaddr = arch_uretprobe_hijack_return_addr(trampoline_vaddr, regs);
@@ -1561,8 +1561,7 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 			 * This situation is not possible. Likely we have an
 			 * attack from user-space.
 			 */
-			pr_warn("uprobe: unable to set uretprobe pid/tgid=%d/%d\n",
-						current->pid, current->tgid);
+			uprobe_warn(current, "handle tail call");
 			goto fail;
 		}
 
@@ -1576,13 +1575,10 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 	ri->chained = chained;
 
 	utask->depth++;
-
-	/* add instance to the stack */
 	ri->next = utask->return_instances;
 	utask->return_instances = ri;
 
 	return;
-
  fail:
 	kfree(ri);
 }
