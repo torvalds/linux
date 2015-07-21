@@ -1337,6 +1337,7 @@ static void xol_free_insn_slot(struct task_struct *tsk)
 
 		clear_bit(slot_nr, area->bitmap);
 		atomic_dec(&area->slot_count);
+		smp_mb__after_atomic(); /* pairs with prepare_to_wait() */
 		if (waitqueue_active(&area->wq))
 			wake_up(&area->wq);
 
