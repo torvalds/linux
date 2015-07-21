@@ -912,7 +912,7 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		visor_copy_fragsinfo_from_skb(skb, firstfraglen,
 					      MAX_PHYS_INFO,
 					      cmdrsp->net.xmt.frags);
-	if (cmdrsp->net.xmt.num_frags == -1) {
+	if (cmdrsp->net.xmt.num_frags < 0) {
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		devdata->busy_cnt++;
 		dev_err(&netdev->dev,
