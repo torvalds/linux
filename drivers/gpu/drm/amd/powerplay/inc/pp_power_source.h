@@ -20,15 +20,17 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
 
-#include "smumgr.h"
-#include "hwmgr.h"
+#ifndef PP_POWERSOURCE_H
+#define PP_POWERSOURCE_H
 
-struct pp_instance {
-	struct pp_smumgr *smu_mgr;
-	struct pp_hwmgr *hwmgr;
+enum pp_power_source {
+	PP_PowerSource_AC = 0,
+	PP_PowerSource_DC,
+	PP_PowerSource_LimitedPower,
+	PP_PowerSource_LimitedPower_2,
+	PP_PowerSource_Max
 };
+
 
 #endif

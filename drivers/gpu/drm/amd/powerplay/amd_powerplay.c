@@ -35,12 +35,46 @@ static int pp_early_init(void *handle)
 
 static int pp_sw_init(void *handle)
 {
-	return 0;
+	struct pp_instance *pp_handle;
+	struct pp_hwmgr  *hwmgr;
+	int ret = 0;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	pp_handle = (struct pp_instance *)handle;
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->pptable_func == NULL ||
+	    hwmgr->hwmgr_func == NULL ||
+	    hwmgr->pptable_func->pptable_init == NULL ||
+	    hwmgr->hwmgr_func->backend_init == NULL)
+		return -EINVAL;
+
+	ret = hwmgr->pptable_func->pptable_init(hwmgr);
+	if (ret == 0)
+		ret = hwmgr->hwmgr_func->backend_init(hwmgr);
+
+	return ret;
 }
 
 static int pp_sw_fini(void *handle)
 {
-	return 0;
+	struct pp_instance *pp_handle;
+	struct pp_hwmgr  *hwmgr;
+	int ret = 0;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	pp_handle = (struct pp_instance *)handle;
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr != NULL || hwmgr->hwmgr_func != NULL ||
+	    hwmgr->hwmgr_func->backend_fini != NULL)
+		ret = hwmgr->hwmgr_func->backend_fini(hwmgr);
+
+	return ret;
 }
 
 static int pp_hw_init(void *handle)
@@ -72,6 +106,8 @@ static int pp_hw_init(void *handle)
 		smumgr->smumgr_funcs->smu_fini(smumgr);
 		return ret;
 	}
+	hw_init_power_state_table(pp_handle->hwmgr);
+
 	return 0;
 }
 
@@ -203,6 +239,7 @@ pp_debugfs_print_current_performance_level(void *handle,
 {
 	return;
 }
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = NULL,
 	.load_firmware = pp_dpm_load_fw,
@@ -230,10 +267,20 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 
 	ret = smum_init(pp_init, handle);
 	if (ret)
-		return ret;
+		goto fail_smum;
+
+	ret = hwmgr_init(pp_init, handle);
+	if (ret)
+		goto fail_hwmgr;
 
 	amd_pp->pp_handle = handle;
 	return 0;
+
+fail_hwmgr:
+	smum_fini(handle->smu_mgr);
+fail_smum:
+	kfree(handle);
+	return ret;
 }
 
 static int amd_pp_instance_fini(void *handle)
@@ -241,6 +288,8 @@ static int amd_pp_instance_fini(void *handle)
 	struct pp_instance *instance = (struct pp_instance *)handle;
 	if (instance == NULL)
 		return -EINVAL;
+
+	hwmgr_fini(instance->hwmgr);
 
 	smum_fini(instance->smu_mgr);
 

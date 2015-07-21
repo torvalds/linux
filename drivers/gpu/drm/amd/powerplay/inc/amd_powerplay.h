@@ -28,7 +28,6 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
-
 enum amd_pp_event {
 	AMD_PP_EVENT_INITIALIZE = 0,
 	AMD_PP_EVENT_UNINITIALIZE,

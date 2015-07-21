@@ -18,17 +18,30 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ * Interface Functions related to the BIOS PowerPlay Tables.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
 
-#include "smumgr.h"
-#include "hwmgr.h"
+#ifndef PROCESSPPTABLES_H
+#define PROCESSPPTABLES_H
 
-struct pp_instance {
-	struct pp_smumgr *smu_mgr;
-	struct pp_hwmgr *hwmgr;
-};
+struct pp_hwmgr;
+struct pp_power_state;
+struct pp_hw_power_state;
+
+extern const struct pp_table_func pptable_funcs;
+
+typedef int (*pp_tables_hw_clock_info_callback)(struct pp_hwmgr *hwmgr,
+					struct pp_hw_power_state *hw_ps,
+							unsigned int index,
+						 const void *clock_info);
+
+int pp_tables_get_num_of_entries(struct pp_hwmgr *hwmgr,
+				     unsigned long *num_of_entries);
+
+int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
+						unsigned long entry_index,
+						struct pp_power_state *ps,
+				pp_tables_hw_clock_info_callback func);
 
 #endif

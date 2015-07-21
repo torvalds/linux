@@ -1,0 +1,10 @@
+#
+# Makefile for the 'hw manager' sub-component of powerplay.
+# It provides the hardware management services for the driver.
+
+HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
+	       hardwaremanager.o pp_acpi.o
+
+AMD_PP_HWMGR = $(addprefix $(AMD_PP_PATH)/hwmgr/,$(HARDWARE_MGR))
+
+AMD_POWERPLAY_FILES += $(AMD_PP_HWMGR)

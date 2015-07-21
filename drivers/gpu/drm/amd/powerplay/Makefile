@@ -6,7 +6,7 @@ subdir-ccflags-y += -Iinclude/drm  \
 
 AMD_PP_PATH = ../powerplay
 
-PP_LIBS = smumgr
+PP_LIBS = smumgr hwmgr
 
 AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix drivers/gpu/drm/amd/powerplay/,$(PP_LIBS)))
 

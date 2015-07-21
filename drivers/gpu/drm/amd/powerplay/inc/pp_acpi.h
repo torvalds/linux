@@ -20,15 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
 
-#include "smumgr.h"
-#include "hwmgr.h"
-
-struct pp_instance {
-	struct pp_smumgr *smu_mgr;
-	struct pp_hwmgr *hwmgr;
-};
-
-#endif
+extern bool acpi_atcs_functions_supported(void *device,
+							uint32_t index);
+extern int acpi_pcie_perf_request(void *device,
+						uint8_t perf_req,
+						bool advertise);
