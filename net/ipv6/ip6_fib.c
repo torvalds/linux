@@ -32,6 +32,7 @@
 #include <net/ipv6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
+#include <net/lwtunnel.h>
 
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
@@ -177,6 +178,7 @@ static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 static void rt6_release(struct rt6_info *rt)
 {
 	if (atomic_dec_and_test(&rt->rt6i_ref)) {
+		lwtunnel_state_put(rt->rt6i_lwtstate);
 		rt6_free_pcpu(rt);
 		dst_free(&rt->dst);
 	}
