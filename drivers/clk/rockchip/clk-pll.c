@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include "clk.h"

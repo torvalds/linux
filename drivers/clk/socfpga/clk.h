@@ -18,7 +18,6 @@
 #define __SOCFPGA_CLK_H
 
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 
 /* Clock Manager offsets */
 #define CLKMGR_CTRL		0x0

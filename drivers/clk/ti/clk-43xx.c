@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 

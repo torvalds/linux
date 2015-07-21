@@ -9,8 +9,8 @@
  * Clock driver for Exynos clock output
  */
 
+#include <linux/slab.h>
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>

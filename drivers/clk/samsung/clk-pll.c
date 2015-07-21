@@ -12,6 +12,8 @@
 #include <linux/errno.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
+#include <linux/clkdev.h>
 #include "clk.h"
 #include "clk-pll.h"
 
