@@ -183,7 +183,7 @@ put_module:
 /*
  * Tear down a previously set up module.
  */
-static void gb_interface_destroy(struct gb_interface *intf)
+void gb_interface_destroy(struct gb_interface *intf)
 {
 	struct gb_module *module;
 	struct gb_bundle *bundle;

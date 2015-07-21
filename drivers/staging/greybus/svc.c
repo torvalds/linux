@@ -12,6 +12,66 @@
 /* Define get_version() routine */
 define_get_version(gb_svc, SVC);
 
+/*
+ * AP's SVC cport is required early to get messages from the SVC. This happens
+ * even before the Endo is created and hence any modules or interfaces.
+ *
+ * This is a temporary connection, used only at initial bootup.
+ */
+struct gb_connection *
+gb_ap_svc_connection_create(struct greybus_host_device *hd)
+{
+	struct gb_connection *connection;
+
+	connection = gb_connection_create_range(hd, NULL, hd->parent,
+						GB_SVC_CPORT_ID,
+						GREYBUS_PROTOCOL_SVC,
+						GB_SVC_CPORT_ID,
+						GB_SVC_CPORT_ID + 1);
+
+	return connection;
+}
+EXPORT_SYMBOL_GPL(gb_ap_svc_connection_create);
+
+/*
+ * We know endo-type and AP's interface id now, lets create a proper svc
+ * connection (and its interface/bundle) now and get rid of the initial
+ * 'partially' initialized one svc connection.
+ */
+static struct gb_interface *
+gb_ap_interface_create(struct greybus_host_device *hd,
+		       struct gb_connection *connection, u8 interface_id)
+{
+	struct gb_interface *intf;
+	struct device *dev = &hd->endo->dev;
+	int ret;
+
+	intf = gb_interface_create(hd, interface_id);
+	if (!intf) {
+		dev_err(dev, "%s: Failed to create interface with id %hhu\n",
+			__func__, interface_id);
+		return NULL;
+	}
+
+	intf->device_id = GB_DEVICE_ID_AP;
+
+	/*
+	 * XXX: Disable the initial svc connection here, but don't destroy it
+	 * yet. We do need to send a response of 'svc-hello message' on that.
+	 */
+
+	/* Establish new control CPort connection */
+	ret = gb_create_bundle_connection(intf, GREYBUS_CLASS_SVC);
+	if (ret) {
+		dev_err(&intf->dev, "%s: Failed to create svc connection (%d %d)\n",
+			__func__, interface_id, ret);
+		gb_interface_destroy(intf);
+		intf = NULL;
+	}
+
+	return intf;
+}
+
 static int intf_device_id_operation(struct gb_svc *svc,
 				u8 intf_id, u8 device_id)
 {
@@ -207,6 +267,22 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 
 	svc->connection = connection;
 	connection->private = svc;
+
+	/*
+	 * SVC connection is created twice:
+	 * - before the interface-id of the AP and the endo type is known.
+	 * - after receiving endo type and interface-id of the AP from the SVC.
+	 *
+	 * We should do light-weight initialization for the first case.
+	 */
+	if (!connection->bundle) {
+		WARN_ON(connection->hd->initial_svc_connection);
+		connection->hd->initial_svc_connection = connection;
+		return 0;
+	}
+
+	ida_init(&greybus_svc_device_id_map);
+
 	ret = gb_svc_device_setup(svc);
 	if (ret)
 		kfree(svc);
@@ -221,11 +297,15 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
 
-	if (WARN_ON(connection->bundle->intf->svc != svc))
-		return;
+	if (connection->hd->initial_svc_connection == connection) {
+		connection->hd->initial_svc_connection = NULL;
+	} else {
+		if (WARN_ON(connection->bundle->intf->svc != svc))
+			return;
+		connection->bundle->intf->svc = NULL;
+	}
 
-	connection->bundle->intf->svc = NULL;
-
+	connection->private = NULL;
 	kfree(svc);
 }
 

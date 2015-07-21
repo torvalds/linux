@@ -26,4 +26,7 @@ int gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 
 int gb_svc_protocol_init(void);
 void gb_svc_protocol_exit(void);
+
+struct gb_connection *
+gb_ap_svc_connection_create(struct greybus_host_device *hd);
 #endif /* __SVC_H */
