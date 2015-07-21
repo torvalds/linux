@@ -515,7 +515,8 @@ static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 			 * a delay in suspending the port. Poll until the
 			 * port is suspended.
 			 */
-			if (ehci_handshake(ehci, reg, PORT_SUSPEND,
+			if (test_bit(port, &ehci->bus_suspended) &&
+					ehci_handshake(ehci, reg, PORT_SUSPEND,
 							PORT_SUSPEND, 5000))
 				ehci_err(ehci, "timeout waiting for SUSPEND\n");
 
