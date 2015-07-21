@@ -547,7 +547,7 @@ load_common:
 				emit(ARM_SUB_I(r_scratch, r_skb_hl,
 					       1 << load_order), ctx);
 				emit(ARM_CMP_R(r_scratch, r_off), ctx);
-				condt = ARM_COND_HS;
+				condt = ARM_COND_GE;
 			} else {
 				emit(ARM_CMP_R(r_skb_hl, r_off), ctx);
 				condt = ARM_COND_HI;
