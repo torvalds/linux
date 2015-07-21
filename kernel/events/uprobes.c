@@ -86,15 +86,6 @@ struct uprobe {
 	struct arch_uprobe	arch;
 };
 
-struct return_instance {
-	struct uprobe		*uprobe;
-	unsigned long		func;
-	unsigned long		orig_ret_vaddr; /* original return address */
-	bool			chained;	/* true, if instance is nested */
-
-	struct return_instance	*next;		/* keep as stack */
-};
-
 /*
  * Execute out of line area: anonymous executable mapping installed
  * by the probed task to execute the copy of the original instruction
@@ -1816,6 +1807,11 @@ static void handle_trampoline(struct pt_regs *regs)
 bool __weak arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs)
 {
 	return false;
+}
+
+bool __weak arch_uretprobe_is_alive(struct return_instance *ret, struct pt_regs *regs)
+{
+	return true;
 }
 
 /*
