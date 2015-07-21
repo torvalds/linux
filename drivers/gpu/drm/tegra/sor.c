@@ -586,10 +586,10 @@ static int tegra_sor_compute_params(struct tegra_sor *sor,
 	return false;
 }
 
-static int tegra_sor_calc_config(struct tegra_sor *sor,
-				 const struct drm_display_mode *mode,
-				 struct tegra_sor_config *config,
-				 struct drm_dp_link *link)
+static int tegra_sor_compute_config(struct tegra_sor *sor,
+				    const struct drm_display_mode *mode,
+				    struct tegra_sor_config *config,
+				    struct drm_dp_link *link)
 {
 	const u64 f = 100000, link_rate = link->rate * 1000;
 	const u64 pclk = mode->clock * 1000;
@@ -1245,10 +1245,9 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	memset(&config, 0, sizeof(config));
 	config.bits_per_pixel = output->connector.display_info.bpc * 3;
 
-	err = tegra_sor_calc_config(sor, mode, &config, &link);
+	err = tegra_sor_compute_config(sor, mode, &config, &link);
 	if (err < 0)
-		dev_err(sor->dev, "failed to compute link configuration: %d\n",
-			err);
+		dev_err(sor->dev, "failed to compute configuration: %d\n", err);
 
 	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
 	value &= ~SOR_CLK_CNTRL_DP_CLK_SEL_MASK;
