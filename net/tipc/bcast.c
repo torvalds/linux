@@ -316,6 +316,29 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr,
 	}
 }
 
+void tipc_bclink_sync_state(struct tipc_node *n, struct tipc_msg *hdr)
+{
+	u16 last = msg_last_bcast(hdr);
+	int mtyp = msg_type(hdr);
+
+	if (unlikely(msg_user(hdr) != LINK_PROTOCOL))
+		return;
+	if (mtyp == STATE_MSG) {
+		tipc_bclink_update_link_state(n, last);
+		return;
+	}
+	/* Compatibility: older nodes don't know BCAST_PROTOCOL synchronization,
+	 * and transfer synch info in LINK_PROTOCOL messages.
+	 */
+	if (tipc_node_is_up(n))
+		return;
+	if ((mtyp != RESET_MSG) && (mtyp != ACTIVATE_MSG))
+		return;
+	n->bclink.last_sent = last;
+	n->bclink.last_in = last;
+	n->bclink.oos_state = 0;
+}
+
 /**
  * bclink_peek_nack - monitor retransmission requests sent by other nodes
  *
@@ -358,10 +381,9 @@ int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list)
 
 	/* Prepare clone of message for local node */
 	skb = tipc_msg_reassemble(list);
-	if (unlikely(!skb)) {
-		__skb_queue_purge(list);
+	if (unlikely(!skb))
 		return -EHOSTUNREACH;
-	}
+
 	/* Broadcast to all nodes */
 	if (likely(bclink)) {
 		tipc_bclink_lock(net);
@@ -413,7 +435,7 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 	 * all nodes in the cluster don't ACK at the same time
 	 */
 	if (((seqno - tn->own_addr) % TIPC_MIN_LINK_WIN) == 0) {
-		tipc_link_proto_xmit(node->active_links[node->addr & 1],
+		tipc_link_proto_xmit(node_active_link(node, node->addr),
 				     STATE_MSG, 0, 0, 0, 0);
 		tn->bcl->stats.sent_acks++;
 	}
@@ -925,7 +947,6 @@ int tipc_bclink_init(struct net *net)
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
 	bcl->bearer_id = MAX_BEARERS;
 	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcbearer->bearer);
-	bcl->state = WORKING_WORKING;
 	bcl->pmsg = (struct tipc_msg *)&bcl->proto_msg;
 	msg_set_prevnode(bcl->pmsg, tn->own_addr);
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);

@@ -38,6 +38,7 @@
 #define _TIPC_MSG_H
 
 #include <linux/tipc.h>
+#include "core.h"
 
 /*
  * Constants and routines used to read and write TIPC payload message headers
@@ -658,12 +659,12 @@ static inline void msg_set_link_selector(struct tipc_msg *m, u32 n)
 /*
  * Word 5
  */
-static inline u32 msg_session(struct tipc_msg *m)
+static inline u16 msg_session(struct tipc_msg *m)
 {
 	return msg_bits(m, 5, 16, 0xffff);
 }
 
-static inline void msg_set_session(struct tipc_msg *m, u32 n)
+static inline void msg_set_session(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 5, 16, 0xffff, n);
 }
@@ -764,6 +765,22 @@ static inline u32 msg_link_tolerance(struct tipc_msg *m)
 static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 0, 0xffff, n);
+}
+
+static inline bool msg_is_traffic(struct tipc_msg *m)
+{
+	if (likely(msg_user(m) != LINK_PROTOCOL))
+		return true;
+	if ((msg_type(m) == RESET_MSG) || (msg_type(m) == ACTIVATE_MSG))
+		return false;
+	return true;
+}
+
+static inline bool msg_peer_is_up(struct tipc_msg *m)
+{
+	if (likely(msg_is_traffic(m)))
+		return false;
+	return msg_redundant_link(m);
 }
 
 struct sk_buff *tipc_buf_acquire(u32 size);
@@ -877,6 +894,38 @@ static inline bool tipc_skb_queue_tail(struct sk_buff_head *list,
 	__skb_queue_tail(list, skb);
 	spin_unlock_bh(&list->lock);
 	return rv;
+}
+
+/* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
+ * @list: list to be appended to
+ * @skb: buffer to add
+ * Returns true if queue should treated further, otherwise false
+ */
+static inline bool __tipc_skb_queue_sorted(struct sk_buff_head *list,
+					   struct sk_buff *skb)
+{
+	struct sk_buff *_skb, *tmp;
+	struct tipc_msg *hdr = buf_msg(skb);
+	u16 seqno = msg_seqno(hdr);
+
+	if (skb_queue_empty(list) || (msg_user(hdr) == LINK_PROTOCOL)) {
+		__skb_queue_head(list, skb);
+		return true;
+	}
+	if (likely(less(seqno, buf_seqno(skb_peek(list))))) {
+		__skb_queue_head(list, skb);
+		return true;
+	}
+	if (!more(seqno, buf_seqno(skb_peek_tail(list)))) {
+		skb_queue_walk_safe(list, _skb, tmp) {
+			if (likely(less(seqno, buf_seqno(_skb)))) {
+				__skb_queue_before(list, _skb, skb);
+				return true;
+			}
+		}
+	}
+	__skb_queue_tail(list, skb);
+	return false;
 }
 
 #endif
