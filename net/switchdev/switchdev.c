@@ -910,13 +910,9 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 		if (switchdev_port_attr_get(dev, &attr))
 			return NULL;
 
-		if (nhsel > 0) {
-			if (prev_attr.u.ppid.id_len != attr.u.ppid.id_len)
+		if (nhsel > 0 &&
+		    !netdev_phys_item_id_same(&prev_attr.u.ppid, &attr.u.ppid))
 				return NULL;
-			if (memcmp(prev_attr.u.ppid.id, attr.u.ppid.id,
-				   attr.u.ppid.id_len))
-				return NULL;
-		}
 
 		prev_attr = attr;
 	}
@@ -1043,3 +1039,106 @@ void switchdev_fib_ipv4_abort(struct fib_info *fi)
 	fi->fib_net->ipv4.fib_offload_disabled = true;
 }
 EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_abort);
+
+static bool switchdev_port_same_parent_id(struct net_device *a,
+					  struct net_device *b)
+{
+	struct switchdev_attr a_attr = {
+		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+		.flags = SWITCHDEV_F_NO_RECURSE,
+	};
+	struct switchdev_attr b_attr = {
+		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+		.flags = SWITCHDEV_F_NO_RECURSE,
+	};
+
+	if (switchdev_port_attr_get(a, &a_attr) ||
+	    switchdev_port_attr_get(b, &b_attr))
+		return false;
+
+	return netdev_phys_item_id_same(&a_attr.u.ppid, &b_attr.u.ppid);
+}
+
+static u32 switchdev_port_fwd_mark_get(struct net_device *dev,
+				       struct net_device *group_dev)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(group_dev, lower_dev, iter) {
+		if (lower_dev == dev)
+			continue;
+		if (switchdev_port_same_parent_id(dev, lower_dev))
+			return lower_dev->offload_fwd_mark;
+		return switchdev_port_fwd_mark_get(dev, lower_dev);
+	}
+
+	return dev->ifindex;
+}
+
+static void switchdev_port_fwd_mark_reset(struct net_device *group_dev,
+					  u32 old_mark, u32 *reset_mark)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(group_dev, lower_dev, iter) {
+		if (lower_dev->offload_fwd_mark == old_mark) {
+			if (!*reset_mark)
+				*reset_mark = lower_dev->ifindex;
+			lower_dev->offload_fwd_mark = *reset_mark;
+		}
+		switchdev_port_fwd_mark_reset(lower_dev, old_mark, reset_mark);
+	}
+}
+
+/**
+ *	switchdev_port_fwd_mark_set - Set port offload forwarding mark
+ *
+ *	@dev: port device
+ *	@group_dev: containing device
+ *	@joining: true if dev is joining group; false if leaving group
+ *
+ *	An ungrouped port's offload mark is just its ifindex.  A grouped
+ *	port's (member of a bridge, for example) offload mark is the ifindex
+ *	of one of the ports in the group with the same parent (switch) ID.
+ *	Ports on the same device in the same group will have the same mark.
+ *
+ *	Example:
+ *
+ *		br0		ifindex=9
+ *		  sw1p1		ifindex=2	mark=2
+ *		  sw1p2		ifindex=3	mark=2
+ *		  sw2p1		ifindex=4	mark=5
+ *		  sw2p2		ifindex=5	mark=5
+ *
+ *	If sw2p2 leaves the bridge, we'll have:
+ *
+ *		br0		ifindex=9
+ *		  sw1p1		ifindex=2	mark=2
+ *		  sw1p2		ifindex=3	mark=2
+ *		  sw2p1		ifindex=4	mark=4
+ *		sw2p2		ifindex=5	mark=5
+ */
+void switchdev_port_fwd_mark_set(struct net_device *dev,
+				 struct net_device *group_dev,
+				 bool joining)
+{
+	u32 mark = dev->ifindex;
+	u32 reset_mark = 0;
+
+	if (group_dev && joining) {
+		mark = switchdev_port_fwd_mark_get(dev, group_dev);
+	} else if (group_dev && !joining) {
+		if (dev->offload_fwd_mark == mark)
+			/* Ohoh, this port was the mark reference port,
+			 * but it's leaving the group, so reset the
+			 * mark for the remaining ports in the group.
+			 */
+			switchdev_port_fwd_mark_reset(group_dev, mark,
+						      &reset_mark);
+	}
+
+	dev->offload_fwd_mark = mark;
+}
+EXPORT_SYMBOL_GPL(switchdev_port_fwd_mark_set);

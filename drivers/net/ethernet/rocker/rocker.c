@@ -4822,6 +4822,7 @@ static int rocker_port_rx_proc(const struct rocker *rocker,
 	const struct rocker_tlv *attrs[ROCKER_TLV_RX_MAX + 1];
 	struct sk_buff *skb = rocker_desc_cookie_ptr_get(desc_info);
 	size_t rx_len;
+	u16 rx_flags = 0;
 
 	if (!skb)
 		return -ENOENT;
@@ -4829,12 +4830,17 @@ static int rocker_port_rx_proc(const struct rocker *rocker,
 	rocker_tlv_parse_desc(attrs, ROCKER_TLV_RX_MAX, desc_info);
 	if (!attrs[ROCKER_TLV_RX_FRAG_LEN])
 		return -EINVAL;
+	if (attrs[ROCKER_TLV_RX_FLAGS])
+		rx_flags = rocker_tlv_get_u16(attrs[ROCKER_TLV_RX_FLAGS]);
 
 	rocker_dma_rx_ring_skb_unmap(rocker, attrs);
 
 	rx_len = rocker_tlv_get_u16(attrs[ROCKER_TLV_RX_FRAG_LEN]);
 	skb_put(skb, rx_len);
 	skb->protocol = eth_type_trans(skb, rocker_port->dev);
+
+	if (rx_flags & ROCKER_RX_FLAGS_FWD_OFFLOAD)
+		skb->offload_fwd_mark = rocker_port->dev->offload_fwd_mark;
 
 	rocker_port->dev->stats.rx_packets++;
 	rocker_port->dev->stats.rx_bytes += skb->len;
@@ -4972,6 +4978,8 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 		goto err_register_netdev;
 	}
 	rocker->ports[port_number] = rocker_port;
+
+	switchdev_port_fwd_mark_set(rocker_port->dev, NULL, false);
 
 	rocker_port_set_learning(rocker_port, SWITCHDEV_TRANS_NONE);
 
@@ -5252,6 +5260,7 @@ static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 		rocker_port_internal_vlan_id_get(rocker_port, bridge->ifindex);
 
 	rocker_port->bridge_dev = bridge;
+	switchdev_port_fwd_mark_set(rocker_port->dev, bridge, true);
 
 	return rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
 				    untagged_vid, 0);
@@ -5272,6 +5281,8 @@ static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 		rocker_port_internal_vlan_id_get(rocker_port,
 						 rocker_port->dev->ifindex);
 
+	switchdev_port_fwd_mark_set(rocker_port->dev, rocker_port->bridge_dev,
+				    false);
 	rocker_port->bridge_dev = NULL;
 
 	err = rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
