@@ -192,6 +192,7 @@ static const struct iio_chan_spec st_magn_2_16bit_channels[] = {
 static const struct st_sensor_settings st_magn_sensors_settings[] = {
 	{
 		.wai = 0, /* This sensor has no valid WhoAmI report 0 */
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LSM303DLH_MAGN_DEV_NAME,
 		},
@@ -268,6 +269,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 	},
 	{
 		.wai = ST_MAGN_1_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LSM303DLHC_MAGN_DEV_NAME,
 			[1] = LSM303DLM_MAGN_DEV_NAME,
@@ -346,6 +348,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 	},
 	{
 		.wai = ST_MAGN_2_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS3MDL_MAGN_DEV_NAME,
 		},
