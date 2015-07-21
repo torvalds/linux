@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/acpi.h>
 
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -190,6 +191,19 @@ static void xhci_pme_quirk(struct xhci_hcd *xhci)
 	readl(reg);
 }
 
+#ifdef CONFIG_ACPI
+static void xhci_pme_acpi_rtd3_enable(struct pci_dev *dev)
+{
+	static const u8 intel_dsm_uuid[] = {
+		0xb7, 0x0c, 0x34, 0xac,	0x01, 0xe9, 0xbf, 0x45,
+		0xb7, 0xe6, 0x2b, 0x34, 0xec, 0x93, 0x1e, 0x23,
+	};
+	acpi_evaluate_dsm(ACPI_HANDLE(&dev->dev), intel_dsm_uuid, 3, 1, NULL);
+}
+#else
+	static void xhci_pme_acpi_rtd3_enable(struct pci_dev *dev) { }
+#endif /* CONFIG_ACPI */
+
 /* called during probe() after chip reset completes */
 static int xhci_pci_setup(struct usb_hcd *hcd)
 {
@@ -262,6 +276,9 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(xhci->quirks & XHCI_BROKEN_STREAMS) &&
 			HCC_MAX_PSA(xhci->hcc_params) >= 4)
 		xhci->shared_hcd->can_do_streams = 1;
+
+	if (xhci->quirks & XHCI_PME_STUCK_QUIRK)
+		xhci_pme_acpi_rtd3_enable(dev);
 
 	/* USB-2 and USB-3 roothubs initialized, allow runtime pm suspend */
 	pm_runtime_put_noidle(&dev->dev);
