@@ -50,6 +50,10 @@ struct perf_counts {
 	struct xyarray		  *values;
 };
 
+struct perf_stat_config {
+	enum aggr_mode	aggr_mode;
+};
+
 static inline struct perf_counts_values*
 perf_counts(struct perf_counts *counts, int cpu, int thread)
 {

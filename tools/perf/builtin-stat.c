@@ -102,7 +102,6 @@ static struct target target = {
 static int			run_count			=  1;
 static bool			no_inherit			= false;
 static bool			scale				=  true;
-static enum aggr_mode		aggr_mode			= AGGR_GLOBAL;
 static volatile pid_t		child_pid			= -1;
 static bool			null_run			=  false;
 static int			detailed_run			=  0;
@@ -125,6 +124,10 @@ static struct cpu_map		*aggr_map;
 static int			(*aggr_get_id)(struct cpu_map *m, int cpu);
 
 static volatile int done = 0;
+
+static struct perf_stat_config stat_config = {
+	.aggr_mode	= AGGR_GLOBAL,
+};
 
 static inline void diff_timespec(struct timespec *r, struct timespec *a,
 				 struct timespec *b)
@@ -230,7 +233,7 @@ process_counter_values(struct perf_evsel *evsel, int cpu, int thread,
 	if (skip)
 		count = &zero;
 
-	switch (aggr_mode) {
+	switch (stat_config.aggr_mode) {
 	case AGGR_THREAD:
 	case AGGR_CORE:
 	case AGGR_SOCKET:
@@ -238,7 +241,7 @@ process_counter_values(struct perf_evsel *evsel, int cpu, int thread,
 		if (!evsel->snapshot)
 			perf_evsel__compute_deltas(evsel, cpu, thread, count);
 		perf_counts_values__scale(count, scale, NULL);
-		if (aggr_mode == AGGR_NONE)
+		if (stat_config.aggr_mode == AGGR_NONE)
 			perf_stat__update_shadow_stats(evsel, count->values, cpu);
 		break;
 	case AGGR_GLOBAL:
@@ -291,7 +294,7 @@ static int process_counter(struct perf_evsel *counter)
 	if (ret)
 		return ret;
 
-	if (aggr_mode != AGGR_GLOBAL)
+	if (stat_config.aggr_mode != AGGR_GLOBAL)
 		return 0;
 
 	if (!counter->snapshot)
@@ -578,7 +581,7 @@ static void print_noise(struct perf_evsel *evsel, double avg)
 
 static void aggr_printout(struct perf_evsel *evsel, int id, int nr)
 {
-	switch (aggr_mode) {
+	switch (stat_config.aggr_mode) {
 	case AGGR_CORE:
 		fprintf(output, "S%d-C%*d%s%*d%s",
 			cpu_map__id_to_socket(id),
@@ -670,7 +673,7 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 
 	aggr_printout(evsel, id, nr);
 
-	if (aggr_mode == AGGR_GLOBAL)
+	if (stat_config.aggr_mode == AGGR_GLOBAL)
 		cpu = 0;
 
 	fprintf(output, fmt, avg, csv_sep);
@@ -688,7 +691,8 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	if (csv_output || interval)
 		return;
 
-	perf_stat__print_shadow_stats(output, evsel, avg, cpu, aggr_mode);
+	perf_stat__print_shadow_stats(output, evsel, avg, cpu,
+				      stat_config.aggr_mode);
 }
 
 static void print_aggr(char *prefix)
@@ -909,7 +913,7 @@ static void print_interval(char *prefix, struct timespec *ts)
 	sprintf(prefix, "%6lu.%09lu%s", ts->tv_sec, ts->tv_nsec, csv_sep);
 
 	if (num_print_interval == 0 && !csv_output) {
-		switch (aggr_mode) {
+		switch (stat_config.aggr_mode) {
 		case AGGR_SOCKET:
 			fprintf(output, "#           time socket cpus             counts %*s events\n", unit_width, "unit");
 			break;
@@ -985,7 +989,7 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	else
 		print_header(argc, argv);
 
-	switch (aggr_mode) {
+	switch (stat_config.aggr_mode) {
 	case AGGR_CORE:
 	case AGGR_SOCKET:
 		print_aggr(prefix);
@@ -1064,7 +1068,7 @@ static int stat__set_big_num(const struct option *opt __maybe_unused,
 
 static int perf_stat_init_aggr_mode(void)
 {
-	switch (aggr_mode) {
+	switch (stat_config.aggr_mode) {
 	case AGGR_SOCKET:
 		if (cpu_map__build_socket_map(evsel_list->cpus, &aggr_map)) {
 			perror("cannot build socket map");
@@ -1286,7 +1290,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 			   stat__set_big_num),
 	OPT_STRING('C', "cpu", &target.cpu_list, "cpu",
 		    "list of cpus to monitor in system-wide"),
-	OPT_SET_UINT('A', "no-aggr", &aggr_mode,
+	OPT_SET_UINT('A', "no-aggr", &stat_config.aggr_mode,
 		    "disable CPU count aggregation", AGGR_NONE),
 	OPT_STRING('x', "field-separator", &csv_sep, "separator",
 		   "print counts with custom separator"),
@@ -1302,11 +1306,11 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 			"command to run after to the measured command"),
 	OPT_UINTEGER('I', "interval-print", &interval,
 		    "print counts at regular interval in ms (>= 100)"),
-	OPT_SET_UINT(0, "per-socket", &aggr_mode,
+	OPT_SET_UINT(0, "per-socket", &stat_config.aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
-	OPT_SET_UINT(0, "per-core", &aggr_mode,
+	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
-	OPT_SET_UINT(0, "per-thread", &aggr_mode,
+	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
 		     "aggregate counts per thread", AGGR_THREAD),
 	OPT_UINTEGER('D', "delay", &initial_delay,
 		     "ms to wait before starting measurement after program start"),
@@ -1399,7 +1403,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		run_count = 1;
 	}
 
-	if ((aggr_mode == AGGR_THREAD) && !target__has_task(&target)) {
+	if ((stat_config.aggr_mode == AGGR_THREAD) && !target__has_task(&target)) {
 		fprintf(stderr, "The --per-thread option is only available "
 			"when monitoring via -p -t options.\n");
 		parse_options_usage(NULL, options, "p", 1);
@@ -1411,7 +1415,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	 * no_aggr, cgroup are for system-wide only
 	 * --per-thread is aggregated per thread, we dont mix it with cpu mode
 	 */
-	if (((aggr_mode != AGGR_GLOBAL && aggr_mode != AGGR_THREAD) || nr_cgroups) &&
+	if (((stat_config.aggr_mode != AGGR_GLOBAL &&
+	      stat_config.aggr_mode != AGGR_THREAD) || nr_cgroups) &&
 	    !target__has_cpu(&target)) {
 		fprintf(stderr, "both cgroup and no-aggregation "
 			"modes only available in system-wide mode\n");
@@ -1444,7 +1449,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	 * Initialize thread_map with comm names,
 	 * so we could print it out on output.
 	 */
-	if (aggr_mode == AGGR_THREAD)
+	if (stat_config.aggr_mode == AGGR_THREAD)
 		thread_map__read_comms(evsel_list->threads);
 
 	if (interval && interval < 100) {
