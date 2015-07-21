@@ -1497,6 +1497,13 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 			wacom_map_usage(input, usage, field, EV_ABS,
 					ABS_MT_POSITION_Y, 4);
 		break;
+	case HID_DG_WIDTH:
+	case HID_DG_HEIGHT:
+		features->last_slot_field = usage->hid;
+		wacom_map_usage(input, usage, field, EV_ABS, ABS_MT_TOUCH_MAJOR, 0);
+		wacom_map_usage(input, usage, field, EV_ABS, ABS_MT_TOUCH_MINOR, 0);
+		input_set_abs_params(input, ABS_MT_ORIENTATION, 0, 1, 0, 0);
+		break;
 	case HID_DG_CONTACTID:
 		features->last_slot_field = usage->hid;
 		break;
@@ -1545,6 +1552,13 @@ static void wacom_wac_finger_slot(struct wacom_wac *wacom_wac,
 				 hid_data->x);
 		input_report_abs(input, mt ? ABS_MT_POSITION_Y : ABS_Y,
 				 hid_data->y);
+
+		if (test_bit(ABS_MT_TOUCH_MAJOR, input->absbit)) {
+			input_report_abs(input, ABS_MT_TOUCH_MAJOR, max(hid_data->width, hid_data->height));
+			input_report_abs(input, ABS_MT_TOUCH_MINOR, min(hid_data->width, hid_data->height));
+			if (hid_data->width != hid_data->height)
+				input_report_abs(input, ABS_MT_ORIENTATION, hid_data->width <= hid_data->height ? 0 : 1);
+		}
 	}
 }
 
@@ -1560,6 +1574,12 @@ static int wacom_wac_finger_event(struct hid_device *hdev,
 		break;
 	case HID_GD_Y:
 		wacom_wac->hid_data.y = value;
+		break;
+	case HID_DG_WIDTH:
+		wacom_wac->hid_data.width = value;
+		break;
+	case HID_DG_HEIGHT:
+		wacom_wac->hid_data.height = value;
 		break;
 	case HID_DG_CONTACTID:
 		wacom_wac->hid_data.id = value;
