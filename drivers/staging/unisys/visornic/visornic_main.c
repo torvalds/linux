@@ -28,7 +28,7 @@
 #include "visorbus.h"
 #include "iochannel.h"
 
-#define VISORNIC_INFINITE_RESPONSE_WAIT 0
+#define VISORNIC_INFINITE_RSP_WAIT 0
 #define VISORNICSOPENMAX 32
 #define MAXDEVICES     16384
 
@@ -549,7 +549,7 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 	 * when it gets a disable.
 	 */
 	spin_lock_irqsave(&devdata->priv_lock, flags);
-	while ((timeout == VISORNIC_INFINITE_RESPONSE_WAIT) ||
+	while ((timeout == VISORNIC_INFINITE_RSP_WAIT) ||
 	       (wait < timeout)) {
 		if (devdata->enab_dis_acked)
 			break;
@@ -686,7 +686,7 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 	send_enbdis(netdev, 1, devdata);
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
-	while ((timeout == VISORNIC_INFINITE_RESPONSE_WAIT) ||
+	while ((timeout == VISORNIC_INFINITE_RSP_WAIT) ||
 	       (wait < timeout)) {
 		if (devdata->enab_dis_acked)
 			break;
@@ -731,11 +731,13 @@ visornic_timeout_reset(struct work_struct *work)
 	netdev = devdata->netdev;
 
 	netif_stop_queue(netdev);
-	response = visornic_disable_with_timeout(netdev, 100);
+	response = visornic_disable_with_timeout(netdev,
+						 VISORNIC_INFINITE_RSP_WAIT);
 	if (response)
 		goto call_serverdown;
 
-	response = visornic_enable_with_timeout(netdev, 100);
+	response = visornic_enable_with_timeout(netdev,
+						VISORNIC_INFINITE_RSP_WAIT);
 	if (response)
 		goto call_serverdown;
 	netif_wake_queue(netdev);
@@ -756,7 +758,7 @@ call_serverdown:
 static int
 visornic_open(struct net_device *netdev)
 {
-	visornic_enable_with_timeout(netdev, VISORNIC_INFINITE_RESPONSE_WAIT);
+	visornic_enable_with_timeout(netdev, VISORNIC_INFINITE_RSP_WAIT);
 
 	/* start the interface's transmit queue, allowing it to accept
 	 * packets for transmission
@@ -777,7 +779,7 @@ static int
 visornic_close(struct net_device *netdev)
 {
 	netif_stop_queue(netdev);
-	visornic_disable_with_timeout(netdev, VISORNIC_INFINITE_RESPONSE_WAIT);
+	visornic_disable_with_timeout(netdev, VISORNIC_INFINITE_RSP_WAIT);
 
 	return 0;
 }
