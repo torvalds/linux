@@ -7,6 +7,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/udp.h>
+#include <net/dst_metadata.h>
 
 #define VNI_HASH_BITS	10
 #define VNI_HASH_SIZE	(1<<VNI_HASH_BITS)
@@ -97,6 +98,9 @@ struct vxlanhdr {
 struct vxlan_metadata {
 	__be32		vni;
 	u32		gbp;
+
+	/* Temporary until vxlan_rcv() API is gone */
+	struct metadata_dst *tun_dst;
 };
 
 struct vxlan_sock;
@@ -130,6 +134,8 @@ struct vxlan_sock {
 #define VXLAN_F_REMCSUM_RX		0x400
 #define VXLAN_F_GBP			0x800
 #define VXLAN_F_REMCSUM_NOPARTIAL	0x1000
+#define VXLAN_F_COLLECT_METADATA	0x2000
+#define VXLAN_F_FLOW_BASED		0x4000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
@@ -137,7 +143,9 @@ struct vxlan_sock {
 #define VXLAN_F_RCV_FLAGS		(VXLAN_F_GBP |			\
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
 					 VXLAN_F_REMCSUM_RX |		\
-					 VXLAN_F_REMCSUM_NOPARTIAL)
+					 VXLAN_F_REMCSUM_NOPARTIAL |	\
+					 VXLAN_F_COLLECT_METADATA |	\
+					 VXLAN_F_FLOW_BASED)
 
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 				  vxlan_rcv_t *rcv, void *data,

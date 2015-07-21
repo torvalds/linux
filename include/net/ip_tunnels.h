@@ -38,10 +38,19 @@ struct ip_tunnel_key {
 	__be16			tp_dst;
 } __packed __aligned(4); /* Minimize padding. */
 
+/* Indicates whether the tunnel info structure represents receive
+ * or transmit tunnel parameters.
+ */
+enum {
+	IP_TUNNEL_INFO_RX,
+	IP_TUNNEL_INFO_TX,
+};
+
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;
 	const void		*options;
 	u8			options_len;
+	u8			mode;
 };
 
 /* 6rd prefix/relay information */
@@ -282,6 +291,11 @@ static inline void iptunnel_xmit_stats(int err,
 	} else {
 		err_stats->tx_dropped++;
 	}
+}
+
+static inline void *ip_tunnel_info_opts(struct ip_tunnel_info *info, size_t n)
+{
+	return info + 1;
 }
 
 #endif /* CONFIG_INET */
