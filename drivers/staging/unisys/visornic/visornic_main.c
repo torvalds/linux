@@ -932,12 +932,6 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* Track the skbs that have been sent to the IOVM for XMIT */
 	skb_queue_head(&devdata->xmitbufhead, skb);
 
-	/* set the last transmission start time
-	 * linux doc says: Do not forget to update netdev->trans_start to
-	 * jiffies after each new tx packet is given to the hardware.
-	 */
-	netdev->trans_start = jiffies;
-
 	/* update xmt stats */
 	devdata->net_stats.tx_packets++;
 	devdata->net_stats.tx_bytes += skb->len;
