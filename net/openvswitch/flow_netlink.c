@@ -47,9 +47,9 @@
 #include <net/ipv6.h>
 #include <net/ndisc.h>
 #include <net/mpls.h>
+#include <net/vxlan.h>
 
 #include "flow_netlink.h"
-#include "vport-vxlan.h"
 
 struct ovs_len_tbl {
 	int len;
@@ -475,7 +475,7 @@ static int vxlan_tun_opt_from_nlattr(const struct nlattr *a,
 {
 	struct nlattr *tb[OVS_VXLAN_EXT_MAX+1];
 	unsigned long opt_key_offset;
-	struct ovs_vxlan_opts opts;
+	struct vxlan_metadata opts;
 	int err;
 
 	BUILD_BUG_ON(sizeof(opts) > sizeof(match->key->tun_opts));
@@ -626,7 +626,7 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 static int vxlan_opt_to_nlattr(struct sk_buff *skb,
 			       const void *tun_opts, int swkey_tun_opts_len)
 {
-	const struct ovs_vxlan_opts *opts = tun_opts;
+	const struct vxlan_metadata *opts = tun_opts;
 	struct nlattr *nla;
 
 	nla = nla_nest_start(skb, OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS);

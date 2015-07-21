@@ -1960,16 +1960,30 @@ static int rtnl_group_dellink(const struct net *net, int group)
 	return 0;
 }
 
+int rtnl_delete_link(struct net_device *dev)
+{
+	const struct rtnl_link_ops *ops;
+	LIST_HEAD(list_kill);
+
+	ops = dev->rtnl_link_ops;
+	if (!ops || !ops->dellink)
+		return -EOPNOTSUPP;
+
+	ops->dellink(dev, &list_kill);
+	unregister_netdevice_many(&list_kill);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rtnl_delete_link);
+
 static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
-	const struct rtnl_link_ops *ops;
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
 	char ifname[IFNAMSIZ];
 	struct nlattr *tb[IFLA_MAX+1];
 	int err;
-	LIST_HEAD(list_kill);
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
@@ -1991,13 +2005,7 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!dev)
 		return -ENODEV;
 
-	ops = dev->rtnl_link_ops;
-	if (!ops || !ops->dellink)
-		return -EOPNOTSUPP;
-
-	ops->dellink(dev, &list_kill);
-	unregister_netdevice_many(&list_kill);
-	return 0;
+	return rtnl_delete_link(dev);
 }
 
 int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)

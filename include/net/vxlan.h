@@ -101,22 +101,12 @@ struct vxlanhdr {
 #define FDB_HASH_SIZE	(1<<FDB_HASH_BITS)
 
 struct vxlan_metadata {
-	__be32		vni;
 	u32		gbp;
-
-	/* Temporary until vxlan_rcv() API is gone */
-	struct metadata_dst *tun_dst;
 };
-
-struct vxlan_sock;
-typedef void (vxlan_rcv_t)(struct vxlan_sock *vh, struct sk_buff *skb,
-			   struct vxlan_metadata *md);
 
 /* per UDP socket information */
 struct vxlan_sock {
 	struct hlist_node hlist;
-	vxlan_rcv_t	 *rcv;
-	void		 *data;
 	struct work_struct del_work;
 	struct socket	 *sock;
 	struct rcu_head	  rcu;
@@ -203,19 +193,13 @@ struct vxlan_dev {
 					 VXLAN_F_COLLECT_METADATA |	\
 					 VXLAN_F_FLOW_BASED)
 
-struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
-				  vxlan_rcv_t *rcv, void *data,
-				  bool no_share, u32 flags);
-
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
 				    u8 name_assign_type, struct vxlan_config *conf);
 
-void vxlan_sock_release(struct vxlan_sock *vs);
-
-int vxlan_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
-		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
-		   __be16 src_port, __be16 dst_port, struct vxlan_metadata *md,
-		   bool xnet, u32 vxflags);
+static inline __be16 vxlan_dev_dst_port(struct vxlan_dev *vxlan)
+{
+	return inet_sk(vxlan->vn_sock->sock->sk)->inet_sport;
+}
 
 static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 						     netdev_features_t features)
