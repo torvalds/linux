@@ -84,6 +84,7 @@ struct perf_session_env {
 	int			nr_pmu_mappings;
 	int			nr_groups;
 	char			*cmdline;
+	const char		**cmdline_argv;
 	char			*sibling_cores;
 	char			*sibling_threads;
 	char			*numa_nodes;

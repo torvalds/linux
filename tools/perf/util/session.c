@@ -180,6 +180,7 @@ static void perf_session_env__delete(struct perf_session_env *env)
 	zfree(&env->cpuid);
 
 	zfree(&env->cmdline);
+	zfree(&env->cmdline_argv);
 	zfree(&env->sibling_cores);
 	zfree(&env->sibling_threads);
 	zfree(&env->numa_nodes);
