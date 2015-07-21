@@ -185,14 +185,14 @@ static void __init combiner_init(void __iomem *combiner_base,
 
 	combiner_data = kcalloc(max_nr, sizeof (*combiner_data), GFP_KERNEL);
 	if (!combiner_data) {
-		pr_warning("%s: could not allocate combiner data\n", __func__);
+		pr_warn("%s: could not allocate combiner data\n", __func__);
 		return;
 	}
 
 	combiner_irq_domain = irq_domain_add_linear(np, nr_irq,
 				&combiner_irq_domain_ops, combiner_data);
 	if (WARN_ON(!combiner_irq_domain)) {
-		pr_warning("%s: irq domain init failed\n", __func__);
+		pr_warn("%s: irq domain init failed\n", __func__);
 		return;
 	}
 
