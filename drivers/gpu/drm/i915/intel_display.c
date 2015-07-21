@@ -102,8 +102,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
-static void intel_begin_crtc_commit(struct drm_crtc *crtc);
-static void intel_finish_crtc_commit(struct drm_crtc *crtc);
+static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
+static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state);
 static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
@@ -13628,7 +13628,8 @@ intel_disable_primary_plane(struct drm_plane *plane,
 	dev_priv->display.update_primary_plane(crtc, NULL, 0, 0);
 }
 
-static void intel_begin_crtc_commit(struct drm_crtc *crtc)
+static void intel_begin_crtc_commit(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -13644,7 +13645,8 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 		skl_detach_scalers(intel_crtc);
 }
 
-static void intel_finish_crtc_commit(struct drm_crtc *crtc)
+static void intel_finish_crtc_commit(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 

@@ -164,7 +164,8 @@ sti_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	sti_drm_crtc_mode_set(crtc, &crtc->state->adjusted_mode);
 }
 
-static void sti_drm_atomic_begin(struct drm_crtc *crtc)
+static void sti_drm_atomic_begin(struct drm_crtc *crtc,
+				 struct drm_crtc_state *old_crtc_state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -178,7 +179,8 @@ static void sti_drm_atomic_begin(struct drm_crtc *crtc)
 	}
 }
 
-static void sti_drm_atomic_flush(struct drm_crtc *crtc)
+static void sti_drm_atomic_flush(struct drm_crtc *crtc,
+				 struct drm_crtc_state *old_crtc_state)
 {
 }
 

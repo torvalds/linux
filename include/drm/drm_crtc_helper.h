@@ -108,8 +108,10 @@ struct drm_crtc_helper_funcs {
 	/* atomic helpers */
 	int (*atomic_check)(struct drm_crtc *crtc,
 			    struct drm_crtc_state *state);
-	void (*atomic_begin)(struct drm_crtc *crtc);
-	void (*atomic_flush)(struct drm_crtc *crtc);
+	void (*atomic_begin)(struct drm_crtc *crtc,
+			     struct drm_crtc_state *old_crtc_state);
+	void (*atomic_flush)(struct drm_crtc *crtc,
+			     struct drm_crtc_state *old_crtc_state);
 };
 
 /**
