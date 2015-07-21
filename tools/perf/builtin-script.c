@@ -623,6 +623,7 @@ struct perf_script {
 	struct perf_session	*session;
 	bool			show_task_events;
 	bool			show_mmap_events;
+	bool			show_switch_events;
 };
 
 static int process_attr(struct perf_tool *tool, union perf_event *event,
@@ -813,6 +814,32 @@ static int process_mmap2_event(struct perf_tool *tool,
 	return 0;
 }
 
+static int process_switch_event(struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct machine *machine)
+{
+	struct thread *thread;
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+	struct perf_session *session = script->session;
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+
+	if (perf_event__process_switch(tool, event, sample, machine) < 0)
+		return -1;
+
+	thread = machine__findnew_thread(machine, sample->pid,
+					 sample->tid);
+	if (thread == NULL) {
+		pr_debug("problem processing SWITCH event, skipping it.\n");
+		return -1;
+	}
+
+	print_sample_start(sample, thread, evsel);
+	perf_event__fprintf(event, stdout);
+	thread__put(thread);
+	return 0;
+}
+
 static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
@@ -834,6 +861,8 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.mmap = process_mmap_event;
 		script->tool.mmap2 = process_mmap2_event;
 	}
+	if (script->show_switch_events)
+		script->tool.context_switch = process_switch_event;
 
 	ret = perf_session__process_events(script->session);
 
@@ -1618,6 +1647,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show the fork/comm/exit events"),
 	OPT_BOOLEAN('\0', "show-mmap-events", &script.show_mmap_events,
 		    "Show the mmap events"),
+	OPT_BOOLEAN('\0', "show-switch-events", &script.show_switch_events,
+		    "Show context switch events (if recorded)"),
 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options",
