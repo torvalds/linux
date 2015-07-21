@@ -1633,6 +1633,8 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.output = ip_output;
 
 	rt_set_nexthop(rth, daddr, res, fnhe, res->fi, res->type, itag);
+	if (lwtunnel_output_redirect(rth->rt_lwtstate))
+		rth->dst.output = lwtunnel_output;
 	skb_dst_set(skb, &rth->dst);
 out:
 	err = 0;
