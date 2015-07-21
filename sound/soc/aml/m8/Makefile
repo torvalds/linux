@@ -18,15 +18,17 @@ obj-$(CONFIG_SND_AML_M8_SOC) += aml_notify.o
 #obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-platform-pcm2bt.o
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-hw-pcm2bt.o
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-spdif-dai.o
-obj-$(CONFIG_SND_AML_M8_SOC) += aml_audio_codec_probe.o
+#obj-$(CONFIG_SND_AML_M8_SOC) += aml_audio_codec_probe.o
 
 #AML spdif codec support
 snd-soc-aml-spdif-codec-objs := aml_spdif_codec.o
 #obj-$(CONFIG_SND_SOC_AML_SPDIF_CODEC) += snd-soc-aml-spdif-codec.o
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-spdif-codec.o
 #AML M8 Machine support
-snd-soc-aml-m8-objs := aml_m8.o
-obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-m8.o
+snd-soc-odroid-hdmi-objs := odroid_hdmi.o
+snd-soc-odroid-dac-objs := odroid_dac.o
+obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-odroid-hdmi.o
+obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-odroid-dac.o
 
 #AML M series with dummy codec support
 snd-soc-aml-m-dummy-objs := aml_m_dummy.o
