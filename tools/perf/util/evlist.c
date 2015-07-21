@@ -1119,7 +1119,8 @@ static int perf_evlist__propagate_maps(struct perf_evlist *evlist,
 
 		evsel->threads = thread_map__get(evlist->threads);
 
-		if (!evsel->cpus || !evsel->threads)
+		if ((evlist->cpus && !evsel->cpus) ||
+		    (evlist->threads && !evsel->threads))
 			return -ENOMEM;
 	}
 
