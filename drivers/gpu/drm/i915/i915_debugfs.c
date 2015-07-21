@@ -4059,9 +4059,7 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 		    DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
 
-		if (connector->connector_type ==
-		    DRM_MODE_CONNECTOR_DisplayPort &&
-		    connector->status == connector_status_connected &&
+		if (connector->status == connector_status_connected &&
 		    connector->encoder != NULL) {
 			intel_dp = enc_to_intel_dp(connector->encoder);
 			status = kstrtoint(input_buffer, 10, &val);
