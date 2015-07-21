@@ -994,10 +994,12 @@ struct amdgpu_vm_manager {
 struct amdgpu_ctx_ring {
 	uint64_t	sequence;
 	struct fence	*fences[AMDGPU_CTX_MAX_CS_PENDING];
+	struct amd_context_entity c_entity;
 };
 
 struct amdgpu_ctx {
 	struct kref		refcount;
+	struct amdgpu_device    *adev;
 	unsigned		reset_counter;
 	spinlock_t		ring_lock;
 	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];

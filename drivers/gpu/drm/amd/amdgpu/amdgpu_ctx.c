@@ -28,13 +28,23 @@
 static void amdgpu_ctx_do_release(struct kref *ref)
 {
 	struct amdgpu_ctx *ctx;
+	struct amdgpu_device *adev;
 	unsigned i, j;
 
 	ctx = container_of(ref, struct amdgpu_ctx, refcount);
+	adev = ctx->adev;
+
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		for (j = 0; j < AMDGPU_CTX_MAX_CS_PENDING; ++j)
 			fence_put(ctx->rings[i].fences[j]);
+
+	if (amdgpu_enable_scheduler) {
+		for (i = 0; i < adev->num_rings; i++)
+			amd_context_entity_fini(adev->rings[i]->scheduler,
+						&ctx->rings[i].c_entity);
+	}
+
 	kfree(ctx);
 }
 
@@ -43,7 +53,7 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 {
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
-	int i, r;
+	int i, j, r;
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -59,11 +69,35 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 	*id = (uint32_t)r;
 
 	memset(ctx, 0, sizeof(*ctx));
+	ctx->adev = adev;
 	kref_init(&ctx->refcount);
 	spin_lock_init(&ctx->ring_lock);
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		ctx->rings[i].sequence = 1;
 	mutex_unlock(&mgr->lock);
+	if (amdgpu_enable_scheduler) {
+		/* create context entity for each ring */
+		for (i = 0; i < adev->num_rings; i++) {
+			struct amd_run_queue *rq;
+			if (fpriv)
+				rq = &adev->rings[i]->scheduler->sched_rq;
+			else
+				rq = &adev->rings[i]->scheduler->kernel_rq;
+			r = amd_context_entity_init(adev->rings[i]->scheduler,
+						    &ctx->rings[i].c_entity,
+						    NULL, rq, *id);
+			if (r)
+				break;
+		}
+
+		if (i < adev->num_rings) {
+			for (j = 0; j < i; j++)
+				amd_context_entity_fini(adev->rings[j]->scheduler,
+							&ctx->rings[j].c_entity);
+			kfree(ctx);
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
