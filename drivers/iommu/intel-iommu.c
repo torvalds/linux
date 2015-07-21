@@ -2558,37 +2558,18 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width);
 
 static int __init si_domain_init(int hw)
 {
-	struct dmar_drhd_unit *drhd;
-	struct intel_iommu *iommu;
 	int nid, ret = 0;
-	bool first = true;
 
 	si_domain = alloc_domain(DOMAIN_FLAG_STATIC_IDENTITY);
 	if (!si_domain)
 		return -EFAULT;
-
-	for_each_active_iommu(iommu, drhd) {
-		ret = iommu_attach_domain(si_domain, iommu);
-		if (ret < 0) {
-			domain_exit(si_domain);
-			return -EFAULT;
-		} else if (first) {
-			si_domain->id = ret;
-			first = false;
-		} else if (si_domain->id != ret) {
-			domain_exit(si_domain);
-			return -EFAULT;
-		}
-		domain_attach_iommu(si_domain, iommu);
-	}
 
 	if (md_domain_init(si_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 		domain_exit(si_domain);
 		return -EFAULT;
 	}
 
-	pr_debug("Identity mapping domain is domain %d\n",
-		 si_domain->id);
+	pr_debug("Identity mapping domain allocated\n");
 
 	if (hw)
 		return 0;
@@ -4196,13 +4177,6 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 	iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
 	iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
 	iommu_enable_translation(iommu);
-
-	if (si_domain) {
-		ret = iommu_attach_domain(si_domain, iommu);
-		if (ret < 0 || si_domain->id != ret)
-			goto disable_iommu;
-		domain_attach_iommu(si_domain, iommu);
-	}
 
 	iommu_disable_protect_mem_regions(iommu);
 	return 0;
