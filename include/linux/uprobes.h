@@ -104,6 +104,7 @@ struct return_instance {
 
 enum rp_check {
 	RP_CHECK_CALL,
+	RP_CHECK_CHAIN_CALL,
 	RP_CHECK_RET,
 };
 

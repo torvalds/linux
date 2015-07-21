@@ -1511,10 +1511,11 @@ static unsigned long get_trampoline_vaddr(void)
 	return trampoline_vaddr;
 }
 
-static void cleanup_return_instances(struct uprobe_task *utask, struct pt_regs *regs)
+static void cleanup_return_instances(struct uprobe_task *utask, bool chained,
+					struct pt_regs *regs)
 {
 	struct return_instance *ri = utask->return_instances;
-	enum rp_check ctx = RP_CHECK_CALL;
+	enum rp_check ctx = chained ? RP_CHECK_CHAIN_CALL : RP_CHECK_CALL;
 
 	while (ri && !arch_uretprobe_is_alive(ri, ctx, regs)) {
 		ri = free_ret_instance(ri);
@@ -1528,7 +1529,7 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 	struct return_instance *ri;
 	struct uprobe_task *utask;
 	unsigned long orig_ret_vaddr, trampoline_vaddr;
-	bool chained = false;
+	bool chained;
 
 	if (!get_xol_area())
 		return;
@@ -1554,14 +1555,15 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 		goto fail;
 
 	/* drop the entries invalidated by longjmp() */
-	cleanup_return_instances(utask, regs);
+	chained = (orig_ret_vaddr == trampoline_vaddr);
+	cleanup_return_instances(utask, chained, regs);
 
 	/*
 	 * We don't want to keep trampoline address in stack, rather keep the
 	 * original return address of first caller thru all the consequent
 	 * instances. This also makes breakpoint unwrapping easier.
 	 */
-	if (orig_ret_vaddr == trampoline_vaddr) {
+	if (chained) {
 		if (!utask->return_instances) {
 			/*
 			 * This situation is not possible. Likely we have an
@@ -1570,8 +1572,6 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 			uprobe_warn(current, "handle tail call");
 			goto fail;
 		}
-
-		chained = true;
 		orig_ret_vaddr = utask->return_instances->orig_ret_vaddr;
 	}
 
