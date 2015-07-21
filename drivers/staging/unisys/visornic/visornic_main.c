@@ -1164,18 +1164,6 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	skb = cmdrsp->net.buf;
 	netdev = skb->dev;
 
-	if (!netdev) {
-		/* We must have previously downed this network device and
-		 * this skb and device is no longer valid. This also means
-		 * the skb reference was removed from devdata->rcvbuf so no
-		 * need to search for it.
-		 * All we can do is free the skb and return.
-		 * Note: We crash if we try to log this here.
-		 */
-		kfree_skb(skb);
-		return;
-	}
-
 	devdata = netdev_priv(netdev);
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
