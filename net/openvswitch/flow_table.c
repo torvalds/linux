@@ -18,6 +18,7 @@
 
 #include "flow.h"
 #include "datapath.h"
+#include "flow_netlink.h"
 #include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -143,7 +144,8 @@ static void flow_free(struct sw_flow *flow)
 
 	if (ovs_identifier_is_key(&flow->id))
 		kfree(flow->id.unmasked_key);
-	kfree((struct sw_flow_actions __force *)flow->sf_acts);
+	if (flow->sf_acts)
+		ovs_nla_free_flow_actions((struct sw_flow_actions __force *)flow->sf_acts);
 	for_each_node(node)
 		if (flow->stats[node])
 			kmem_cache_free(flow_stats_cache,

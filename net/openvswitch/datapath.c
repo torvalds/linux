@@ -176,7 +176,7 @@ static inline struct datapath *get_dp(struct net *net, int dp_ifindex)
 const char *ovs_dp_name(const struct datapath *dp)
 {
 	struct vport *vport = ovs_vport_ovsl_rcu(dp, OVSP_LOCAL);
-	return vport->ops->get_name(vport);
+	return ovs_vport_name(vport);
 }
 
 static int get_dpifindex(const struct datapath *dp)
@@ -188,7 +188,7 @@ static int get_dpifindex(const struct datapath *dp)
 
 	local = ovs_vport_rcu(dp, OVSP_LOCAL);
 	if (local)
-		ifindex = netdev_vport_priv(local)->dev->ifindex;
+		ifindex = local->dev->ifindex;
 	else
 		ifindex = 0;
 
@@ -1018,7 +1018,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		}
 		ovs_unlock();
 
-		ovs_nla_free_flow_actions(old_acts);
+		ovs_nla_free_flow_actions_rcu(old_acts);
 		ovs_flow_free(new_flow, false);
 	}
 
@@ -1030,7 +1030,7 @@ err_unlock_ovs:
 	ovs_unlock();
 	kfree_skb(reply);
 err_kfree_acts:
-	kfree(acts);
+	ovs_nla_free_flow_actions(acts);
 err_kfree_flow:
 	ovs_flow_free(new_flow, false);
 error:
@@ -1157,7 +1157,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	if (reply)
 		ovs_notify(&dp_flow_genl_family, reply, info);
 	if (old_acts)
-		ovs_nla_free_flow_actions(old_acts);
+		ovs_nla_free_flow_actions_rcu(old_acts);
 
 	return 0;
 
@@ -1165,7 +1165,7 @@ err_unlock_ovs:
 	ovs_unlock();
 	kfree_skb(reply);
 err_kfree_acts:
-	kfree(acts);
+	ovs_nla_free_flow_actions(acts);
 error:
 	return error;
 }
@@ -1800,7 +1800,7 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 	if (nla_put_u32(skb, OVS_VPORT_ATTR_PORT_NO, vport->port_no) ||
 	    nla_put_u32(skb, OVS_VPORT_ATTR_TYPE, vport->ops->type) ||
 	    nla_put_string(skb, OVS_VPORT_ATTR_NAME,
-			   vport->ops->get_name(vport)))
+			   ovs_vport_name(vport)))
 		goto nla_put_failure;
 
 	ovs_vport_get_stats(vport, &vport_stats);
@@ -2219,13 +2219,10 @@ static void __net_exit list_vports_from_net(struct net *net, struct net *dnet,
 			struct vport *vport;
 
 			hlist_for_each_entry(vport, &dp->ports[i], dp_hash_node) {
-				struct netdev_vport *netdev_vport;
-
 				if (vport->ops->type != OVS_VPORT_TYPE_INTERNAL)
 					continue;
 
-				netdev_vport = netdev_vport_priv(vport);
-				if (dev_net(netdev_vport->dev) == dnet)
+				if (dev_net(vport->dev) == dnet)
 					list_add(&vport->detach_list, head);
 			}
 		}

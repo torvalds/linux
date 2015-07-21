@@ -42,6 +42,7 @@
 #include <net/ip_fib.h>
 #include <net/netlink.h>
 #include <net/nexthop.h>
+#include <net/lwtunnel.h>
 
 #include "fib_lookup.h"
 
@@ -208,6 +209,7 @@ static void free_fib_info_rcu(struct rcu_head *head)
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
 			dev_put(nexthop_nh->nh_dev);
+		lwtunnel_state_put(nexthop_nh->nh_lwtstate);
 		free_nh_exceptions(nexthop_nh);
 		rt_fibinfo_free_cpus(nexthop_nh->nh_pcpu_rth_output);
 		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
@@ -266,6 +268,7 @@ static inline int nh_comp(const struct fib_info *fi, const struct fib_info *ofi)
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		    nh->nh_tclassid != onh->nh_tclassid ||
 #endif
+		    lwtunnel_cmp_encap(nh->nh_lwtstate, onh->nh_lwtstate) ||
 		    ((nh->nh_flags ^ onh->nh_flags) & ~RTNH_COMPARE_MASK))
 			return -1;
 		onh++;
@@ -366,6 +369,7 @@ static inline size_t fib_nlmsg_size(struct fib_info *fi)
 	payload += nla_total_size((RTAX_MAX * nla_total_size(4)));
 
 	if (fi->fib_nhs) {
+		size_t nh_encapsize = 0;
 		/* Also handles the special case fib_nhs == 1 */
 
 		/* each nexthop is packed in an attribute */
@@ -374,8 +378,21 @@ static inline size_t fib_nlmsg_size(struct fib_info *fi)
 		/* may contain flow and gateway attribute */
 		nhsize += 2 * nla_total_size(4);
 
+		/* grab encap info */
+		for_nexthops(fi) {
+			if (nh->nh_lwtstate) {
+				/* RTA_ENCAP_TYPE */
+				nh_encapsize += lwtunnel_get_encap_size(
+						nh->nh_lwtstate);
+				/* RTA_ENCAP */
+				nh_encapsize +=  nla_total_size(2);
+			}
+		} endfor_nexthops(fi);
+
 		/* all nexthops are packed in a nested attribute */
-		payload += nla_total_size(fi->fib_nhs * nhsize);
+		payload += nla_total_size((fi->fib_nhs * nhsize) +
+					  nh_encapsize);
+
 	}
 
 	return payload;
@@ -452,6 +469,9 @@ static int fib_count_nexthops(struct rtnexthop *rtnh, int remaining)
 static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 		       int remaining, struct fib_config *cfg)
 {
+	struct net *net = cfg->fc_nlinfo.nl_net;
+	int ret;
+
 	change_nexthops(fi) {
 		int attrlen;
 
@@ -475,18 +495,66 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 			if (nexthop_nh->nh_tclassid)
 				fi->fib_net->ipv4.fib_num_tclassid_users++;
 #endif
+			nla = nla_find(attrs, attrlen, RTA_ENCAP);
+			if (nla) {
+				struct lwtunnel_state *lwtstate;
+				struct net_device *dev = NULL;
+				struct nlattr *nla_entype;
+
+				nla_entype = nla_find(attrs, attrlen,
+						      RTA_ENCAP_TYPE);
+				if (!nla_entype)
+					goto err_inval;
+				if (cfg->fc_oif)
+					dev = __dev_get_by_index(net, cfg->fc_oif);
+				ret = lwtunnel_build_state(dev, nla_get_u16(
+							   nla_entype),
+							   nla, &lwtstate);
+				if (ret)
+					goto errout;
+				lwtunnel_state_get(lwtstate);
+				nexthop_nh->nh_lwtstate = lwtstate;
+			}
 		}
 
 		rtnh = rtnh_next(rtnh, &remaining);
 	} endfor_nexthops(fi);
 
 	return 0;
+
+err_inval:
+	ret = -EINVAL;
+
+errout:
+	return ret;
 }
 
 #endif
 
+int fib_encap_match(struct net *net, u16 encap_type,
+		    struct nlattr *encap,
+		    int oif, const struct fib_nh *nh)
+{
+	struct lwtunnel_state *lwtstate;
+	struct net_device *dev = NULL;
+	int ret;
+
+	if (encap_type == LWTUNNEL_ENCAP_NONE)
+		return 0;
+
+	if (oif)
+		dev = __dev_get_by_index(net, oif);
+	ret = lwtunnel_build_state(dev, encap_type,
+				   encap, &lwtstate);
+	if (!ret)
+		return lwtunnel_cmp_encap(lwtstate, nh->nh_lwtstate);
+
+	return 0;
+}
+
 int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 {
+	struct net *net = cfg->fc_nlinfo.nl_net;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	struct rtnexthop *rtnh;
 	int remaining;
@@ -496,6 +564,12 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 		return 1;
 
 	if (cfg->fc_oif || cfg->fc_gw) {
+		if (cfg->fc_encap) {
+			if (fib_encap_match(net, cfg->fc_encap_type,
+					    cfg->fc_encap, cfg->fc_oif,
+					    fi->fib_nh))
+			    return 1;
+		}
 		if ((!cfg->fc_oif || cfg->fc_oif == fi->fib_nh->nh_oif) &&
 		    (!cfg->fc_gw  || cfg->fc_gw == fi->fib_nh->nh_gw))
 			return 0;
@@ -882,6 +956,22 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	} else {
 		struct fib_nh *nh = fi->fib_nh;
 
+		if (cfg->fc_encap) {
+			struct lwtunnel_state *lwtstate;
+			struct net_device *dev = NULL;
+
+			if (cfg->fc_encap_type == LWTUNNEL_ENCAP_NONE)
+				goto err_inval;
+			if (cfg->fc_oif)
+				dev = __dev_get_by_index(net, cfg->fc_oif);
+			err = lwtunnel_build_state(dev, cfg->fc_encap_type,
+						   cfg->fc_encap, &lwtstate);
+			if (err)
+				goto failure;
+
+			lwtunnel_state_get(lwtstate);
+			nh->nh_lwtstate = lwtstate;
+		}
 		nh->nh_oif = cfg->fc_oif;
 		nh->nh_gw = cfg->fc_gw;
 		nh->nh_flags = cfg->fc_flags;
@@ -1055,6 +1145,8 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		    nla_put_u32(skb, RTA_FLOW, fi->fib_nh[0].nh_tclassid))
 			goto nla_put_failure;
 #endif
+		if (fi->fib_nh->nh_lwtstate)
+			lwtunnel_fill_encap(skb, fi->fib_nh->nh_lwtstate);
 	}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (fi->fib_nhs > 1) {
@@ -1090,6 +1182,8 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			    nla_put_u32(skb, RTA_FLOW, nh->nh_tclassid))
 				goto nla_put_failure;
 #endif
+			if (nh->nh_lwtstate)
+				lwtunnel_fill_encap(skb, nh->nh_lwtstate);
 			/* length of rtnetlink header + attributes */
 			rtnh->rtnh_len = nlmsg_get_pos(skb) - (void *) rtnh;
 		} endfor_nexthops(fi);

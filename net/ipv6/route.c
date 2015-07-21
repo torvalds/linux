@@ -58,6 +58,7 @@
 #include <net/netevent.h>
 #include <net/netlink.h>
 #include <net/nexthop.h>
+#include <net/lwtunnel.h>
 
 #include <asm/uaccess.h>
 
@@ -1770,6 +1771,18 @@ int ip6_route_add(struct fib6_config *cfg)
 
 	rt->dst.output = ip6_output;
 
+	if (cfg->fc_encap) {
+		struct lwtunnel_state *lwtstate;
+
+		err = lwtunnel_build_state(dev, cfg->fc_encap_type,
+					   cfg->fc_encap, &lwtstate);
+		if (err)
+			goto out;
+		lwtunnel_state_get(lwtstate);
+		rt->rt6i_lwtstate = lwtstate;
+		rt->dst.output = lwtunnel_output6;
+	}
+
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
 	rt->rt6i_dst.plen = cfg->fc_dst_len;
 	if (rt->rt6i_dst.plen == 128)
@@ -2595,6 +2608,8 @@ static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
 	[RTA_METRICS]           = { .type = NLA_NESTED },
 	[RTA_MULTIPATH]		= { .len = sizeof(struct rtnexthop) },
 	[RTA_PREF]              = { .type = NLA_U8 },
+	[RTA_ENCAP_TYPE]	= { .type = NLA_U16 },
+	[RTA_ENCAP]		= { .type = NLA_NESTED },
 };
 
 static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -2689,6 +2704,12 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 		cfg->fc_flags |= RTF_PREF(pref);
 	}
 
+	if (tb[RTA_ENCAP])
+		cfg->fc_encap = tb[RTA_ENCAP];
+
+	if (tb[RTA_ENCAP_TYPE])
+		cfg->fc_encap_type = nla_get_u16(tb[RTA_ENCAP_TYPE]);
+
 	err = 0;
 errout:
 	return err;
@@ -2721,6 +2742,10 @@ beginning:
 				r_cfg.fc_gateway = nla_get_in6_addr(nla);
 				r_cfg.fc_flags |= RTF_GATEWAY;
 			}
+			r_cfg.fc_encap = nla_find(attrs, attrlen, RTA_ENCAP);
+			nla = nla_find(attrs, attrlen, RTA_ENCAP_TYPE);
+			if (nla)
+				r_cfg.fc_encap_type = nla_get_u16(nla);
 		}
 		err = add ? ip6_route_add(&r_cfg) : ip6_route_del(&r_cfg);
 		if (err) {
@@ -2783,7 +2808,7 @@ static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return ip6_route_add(&cfg);
 }
 
-static inline size_t rt6_nlmsg_size(void)
+static inline size_t rt6_nlmsg_size(struct rt6_info *rt)
 {
 	return NLMSG_ALIGN(sizeof(struct rtmsg))
 	       + nla_total_size(16) /* RTA_SRC */
@@ -2797,7 +2822,8 @@ static inline size_t rt6_nlmsg_size(void)
 	       + RTAX_MAX * nla_total_size(4) /* RTA_METRICS */
 	       + nla_total_size(sizeof(struct rta_cacheinfo))
 	       + nla_total_size(TCP_CA_NAME_MAX) /* RTAX_CC_ALGO */
-	       + nla_total_size(1); /* RTA_PREF */
+	       + nla_total_size(1) /* RTA_PREF */
+	       + lwtunnel_get_encap_size(rt->rt6i_lwtstate);
 }
 
 static int rt6_fill_node(struct net *net,
@@ -2945,6 +2971,8 @@ static int rt6_fill_node(struct net *net,
 	if (nla_put_u8(skb, RTA_PREF, IPV6_EXTRACT_PREF(rt->rt6i_flags)))
 		goto nla_put_failure;
 
+	lwtunnel_fill_encap(skb, rt->rt6i_lwtstate);
+
 	nlmsg_end(skb, nlh);
 	return 0;
 
@@ -3071,7 +3099,7 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 	err = -ENOBUFS;
 	seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 
-	skb = nlmsg_new(rt6_nlmsg_size(), gfp_any());
+	skb = nlmsg_new(rt6_nlmsg_size(rt), gfp_any());
 	if (!skb)
 		goto errout;
 

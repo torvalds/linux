@@ -7669,7 +7669,7 @@ static int __init net_dev_init(void)
 	open_softirq(NET_RX_SOFTIRQ, net_rx_action);
 
 	hotcpu_notifier(dev_cpu_callback, 0);
-	dst_init();
+	dst_subsys_init();
 	rc = 0;
 out:
 	return rc;

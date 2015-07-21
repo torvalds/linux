@@ -67,9 +67,9 @@ static struct sk_buff *__build_header(struct sk_buff *skb,
 				      int tunnel_hlen)
 {
 	struct tnl_ptk_info tpi;
-	const struct ovs_key_ipv4_tunnel *tun_key;
+	const struct ip_tunnel_key *tun_key;
 
-	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
+	tun_key = &OVS_CB(skb)->egress_tun_info->key;
 
 	skb = gre_handle_offloads(skb, !!(tun_key->tun_flags & TUNNEL_CSUM));
 	if (IS_ERR(skb))
@@ -97,7 +97,7 @@ static __be64 key_to_tunnel_id(__be32 key, __be32 seq)
 static int gre_rcv(struct sk_buff *skb,
 		   const struct tnl_ptk_info *tpi)
 {
-	struct ovs_tunnel_info tun_info;
+	struct ip_tunnel_info tun_info;
 	struct ovs_net *ovs_net;
 	struct vport *vport;
 	__be64 key;
@@ -108,8 +108,8 @@ static int gre_rcv(struct sk_buff *skb,
 		return PACKET_REJECT;
 
 	key = key_to_tunnel_id(tpi->key, tpi->seq);
-	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb), 0, 0, key,
-			       filter_tnl_flags(tpi->flags), NULL, 0);
+	ip_tunnel_info_init(&tun_info, ip_hdr(skb), 0, 0, key,
+			    filter_tnl_flags(tpi->flags), NULL, 0);
 
 	ovs_vport_receive(vport, skb, &tun_info);
 	return PACKET_RCVD;
@@ -134,7 +134,7 @@ static int gre_err(struct sk_buff *skb, u32 info,
 static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 {
 	struct net *net = ovs_dp_get_net(vport->dp);
-	const struct ovs_key_ipv4_tunnel *tun_key;
+	const struct ip_tunnel_key *tun_key;
 	struct flowi4 fl;
 	struct rtable *rt;
 	int min_headroom;
@@ -147,7 +147,7 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 		goto err_free_skb;
 	}
 
-	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
+	tun_key = &OVS_CB(skb)->egress_tun_info->key;
 	rt = ovs_tunnel_route_lookup(net, tun_key, skb->mark, &fl, IPPROTO_GRE);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
@@ -277,7 +277,7 @@ static void gre_tnl_destroy(struct vport *vport)
 }
 
 static int gre_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				   struct ovs_tunnel_info *egress_tun_info)
+				   struct ip_tunnel_info *egress_tun_info)
 {
 	return ovs_tunnel_get_egress_info(egress_tun_info,
 					  ovs_dp_get_net(vport->dp),

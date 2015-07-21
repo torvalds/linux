@@ -25,6 +25,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/u64_stats_sync.h>
+#include <net/ip_tunnels.h>
 
 #include "flow.h"
 #include "flow_table.h"
@@ -98,7 +99,7 @@ struct datapath {
  * when a packet is received by OVS.
  */
 struct ovs_skb_cb {
-	struct ovs_tunnel_info  *egress_tun_info;
+	struct ip_tunnel_info  *egress_tun_info;
 	struct vport		*input_vport;
 };
 #define OVS_CB(skb) ((struct ovs_skb_cb *)(skb)->cb)
@@ -114,7 +115,7 @@ struct ovs_skb_cb {
  * @egress_tun_info: If nonnull, becomes %OVS_PACKET_ATTR_EGRESS_TUN_KEY.
  */
 struct dp_upcall_info {
-	const struct ovs_tunnel_info *egress_tun_info;
+	const struct ip_tunnel_info *egress_tun_info;
 	const struct nlattr *userdata;
 	const struct nlattr *actions;
 	int actions_len;

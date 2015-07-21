@@ -26,19 +26,6 @@
 
 struct vport *ovs_netdev_get_vport(struct net_device *dev);
 
-struct netdev_vport {
-	struct rcu_head rcu;
-
-	struct net_device *dev;
-};
-
-static inline struct netdev_vport *
-netdev_vport_priv(const struct vport *vport)
-{
-	return vport_priv(vport);
-}
-
-const char *ovs_netdev_get_name(const struct vport *);
 void ovs_netdev_detach_dev(struct vport *);
 
 int __init ovs_netdev_init(void);
