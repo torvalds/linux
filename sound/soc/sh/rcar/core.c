@@ -332,11 +332,14 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 static int rsnd_dai_connect(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_priv *priv;
+	struct device *dev;
 
 	if (!mod)
 		return -EIO;
+
+	priv = rsnd_mod_to_priv(mod);
+	dev = rsnd_priv_to_dev(priv);
 
 	io->mod[mod->type] = mod;
 
