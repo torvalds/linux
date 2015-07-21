@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 #include <linux/crc-itu-t.h>
+#include <linux/pm_runtime.h>
 #include "cyapa.h"
 
 
@@ -1565,7 +1566,7 @@ int cyapa_pip_deep_sleep(struct cyapa *cyapa, u8 state)
 }
 
 static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
-		u8 power_mode, u16 sleep_time)
+		u8 power_mode, u16 sleep_time, bool is_suspend)
 {
 	struct device *dev = &cyapa->client->dev;
 	u8 power_state;
@@ -1573,9 +1574,6 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 
 	if (cyapa->state != CYAPA_STATE_GEN5_APP)
 		return 0;
-
-	/* Dump all the report data before do power mode commmands. */
-	cyapa_empty_pip_output_data(cyapa, NULL, NULL, NULL);
 
 	if (PIP_DEV_GET_PWR_STATE(cyapa) == UNINIT_PWR_MODE) {
 		/*
@@ -1679,8 +1677,8 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 		 * is suspending which may cause interrupt line unable to be
 		 * asserted again.
 		 */
-		cyapa_empty_pip_output_data(cyapa, NULL, NULL, NULL);
-		cyapa_gen5_disable_pip_report(cyapa);
+		if (is_suspend)
+			cyapa_gen5_disable_pip_report(cyapa);
 
 		PIP_DEV_SET_PWR_STATE(cyapa,
 			cyapa_sleep_time_to_pwr_cmd(sleep_time));
@@ -2515,7 +2513,7 @@ static int cyapa_gen5_do_operational_check(struct cyapa *cyapa)
 		 * the device state is required.
 		 */
 		error = cyapa_gen5_set_power_mode(cyapa,
-				PWR_MODE_FULL_ACTIVE, 0);
+				PWR_MODE_FULL_ACTIVE, 0, false);
 		if (error)
 			dev_warn(dev, "%s: failed to set power active mode.\n",
 				__func__);
@@ -2757,7 +2755,16 @@ int cyapa_pip_irq_handler(struct cyapa *cyapa)
 		/*
 		 * Device wake event from deep sleep mode for touch.
 		 * This interrupt event is used to wake system up.
+		 *
+		 * Note:
+		 * It will introduce about 20~40 ms additional delay
+		 * time in receiving for first valid touch report data.
+		 * The time is used to execute device runtime resume
+		 * process.
 		 */
+		pm_runtime_get_sync(dev);
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_sync_autosuspend(dev);
 		return 0;
 	} else if (report_id != PIP_TOUCH_REPORT_ID &&
 			report_id != PIP_BTN_REPORT_ID &&

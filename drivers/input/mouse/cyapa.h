@@ -273,7 +273,7 @@ struct cyapa_dev_ops {
 	int (*sort_empty_output_data)(struct cyapa *,
 			u8 *, int *, cb_sort);
 
-	int (*set_power_mode)(struct cyapa *, u8, u16);
+	int (*set_power_mode)(struct cyapa *, u8, u16, bool);
 
 	int (*set_proximity)(struct cyapa *, bool);
 };

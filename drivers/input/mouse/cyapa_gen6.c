@@ -429,7 +429,7 @@ static int cyapa_gen6_deep_sleep(struct cyapa *cyapa, u8 state)
 }
 
 static int cyapa_gen6_set_power_mode(struct cyapa *cyapa,
-		u8 power_mode, u16 sleep_time)
+		u8 power_mode, u16 sleep_time, bool is_suspend)
 {
 	struct device *dev = &cyapa->client->dev;
 	struct gen6_interval_setting *interval_setting =
@@ -693,7 +693,7 @@ static int cyapa_gen6_operational_check(struct cyapa *cyapa)
 		 * the device state is required.
 		 */
 		error = cyapa_gen6_set_power_mode(cyapa,
-				PWR_MODE_FULL_ACTIVE, 0);
+				PWR_MODE_FULL_ACTIVE, 0, false);
 		if (error)
 			dev_warn(dev, "%s: failed to set power active mode.\n",
 				__func__);
