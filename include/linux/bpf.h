@@ -192,5 +192,7 @@ extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
 extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;
 extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
 extern const struct bpf_func_proto bpf_get_current_comm_proto;
+extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
+extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
 
 #endif /* _LINUX_BPF_H */
