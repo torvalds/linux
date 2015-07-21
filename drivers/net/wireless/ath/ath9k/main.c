@@ -2246,7 +2246,7 @@ static void ath9k_cancel_pending_offchannel(struct ath_softc *sc)
 
 		del_timer_sync(&sc->offchannel.timer);
 		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
-			ath_roc_complete(sc, true);
+			ath_roc_complete(sc, ATH_ROC_COMPLETE_ABORT);
 	}
 
 	if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
@@ -2355,7 +2355,7 @@ static int ath9k_cancel_remain_on_channel(struct ieee80211_hw *hw)
 
 	if (sc->offchannel.roc_vif) {
 		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
-			ath_roc_complete(sc, true);
+			ath_roc_complete(sc, ATH_ROC_COMPLETE_CANCEL);
 	}
 
 	mutex_unlock(&sc->mutex);
