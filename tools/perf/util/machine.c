@@ -550,6 +550,14 @@ int machine__process_itrace_start_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+int machine__process_switch_event(struct machine *machine __maybe_unused,
+				  union perf_event *event)
+{
+	if (dump_trace)
+		perf_event__fprintf_switch(event, stdout);
+	return 0;
+}
+
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename)
 {
@@ -1451,6 +1459,9 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_itrace_start_event(machine, event); break;
 	case PERF_RECORD_LOST_SAMPLES:
 		ret = machine__process_lost_samples_event(machine, event, sample); break;
+	case PERF_RECORD_SWITCH:
+	case PERF_RECORD_SWITCH_CPU_WIDE:
+		ret = machine__process_switch_event(machine, event); break;
 	default:
 		ret = -1;
 		break;

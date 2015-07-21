@@ -333,6 +333,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->aux = perf_event__process_aux;
 	if (tool->itrace_start == NULL)
 		tool->itrace_start = perf_event__process_itrace_start;
+	if (tool->context_switch == NULL)
+		tool->context_switch = perf_event__process_switch;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -469,6 +471,19 @@ static void perf_event__itrace_start_swap(union perf_event *event,
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->itrace_start + 1);
+}
+
+static void perf_event__switch_swap(union perf_event *event, bool sample_id_all)
+{
+	if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE) {
+		event->context_switch.next_prev_pid =
+				bswap_32(event->context_switch.next_prev_pid);
+		event->context_switch.next_prev_tid =
+				bswap_32(event->context_switch.next_prev_tid);
+	}
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->context_switch + 1);
 }
 
 static void perf_event__throttle_swap(union perf_event *event,
@@ -633,6 +648,8 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_AUX]		  = perf_event__aux_swap,
 	[PERF_RECORD_ITRACE_START]	  = perf_event__itrace_start_swap,
 	[PERF_RECORD_LOST_SAMPLES]	  = perf_event__all64_swap,
+	[PERF_RECORD_SWITCH]		  = perf_event__switch_swap,
+	[PERF_RECORD_SWITCH_CPU_WIDE]	  = perf_event__switch_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -1094,6 +1111,9 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
+	case PERF_RECORD_SWITCH:
+	case PERF_RECORD_SWITCH_CPU_WIDE:
+		return tool->context_switch(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
