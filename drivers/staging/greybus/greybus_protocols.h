@@ -58,6 +58,15 @@
 #define GB_CONTROL_BUNDLE_ID			0
 #define GB_CONTROL_CPORT_ID			2
 
+
+/* version request has no payload */
+struct gb_protocol_version_response {
+	__u8	major;
+	__u8	minor;
+};
+
+/* Control Protocol */
+
 /* Version of the Greybus control protocol we support */
 #define GB_CONTROL_VERSION_MAJOR		0x00
 #define GB_CONTROL_VERSION_MINOR		0x01

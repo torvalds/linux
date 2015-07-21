@@ -13,12 +13,6 @@
 struct gb_connection;
 struct gb_operation;
 
-/* version request has no payload */
-struct gb_protocol_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 typedef int (*gb_connection_init_t)(struct gb_connection *);
 typedef void (*gb_connection_exit_t)(struct gb_connection *);
 typedef int (*gb_request_recv_t)(u8, struct gb_operation *);
