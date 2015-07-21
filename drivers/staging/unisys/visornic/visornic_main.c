@@ -787,7 +787,7 @@ visornic_close(struct net_device *netdev)
  *	function is protected from concurrent calls by a spinlock xmit_lock
  *	in the net_device struct, but as soon as the function returns it
  *	can be called again.
- *	Returns NETDEV_TX_OK for success, NETDEV_TX_BUSY for error.
+ *	Returns NETDEV_TX_OK.
  */
 static int
 visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
@@ -806,7 +806,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		devdata->busy_cnt++;
 		dev_dbg(&netdev->dev,
 			"%s busy - queue stopped\n", __func__);
-		return NETDEV_TX_BUSY;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	/* sk_buff struct is used to host network data throughout all the
@@ -827,7 +828,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_err(&netdev->dev,
 			"%s busy - first frag too small (%d)\n",
 			__func__, firstfraglen);
-		return NETDEV_TX_BUSY;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	if ((len < ETH_MIN_PACKET_SIZE) &&
@@ -869,7 +871,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_dbg(&netdev->dev,
 			"%s busy - waiting for iovm to catch up\n",
 			__func__);
-		return NETDEV_TX_BUSY;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 	if (devdata->queuefullmsg_logged)
 		devdata->queuefullmsg_logged = 0;
@@ -911,7 +914,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		devdata->busy_cnt++;
 		dev_err(&netdev->dev,
 			"%s busy - copy frags failed\n", __func__);
-		return NETDEV_TX_BUSY;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
@@ -921,7 +925,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		devdata->busy_cnt++;
 		dev_dbg(&netdev->dev,
 			"%s busy - signalinsert failed\n", __func__);
-		return NETDEV_TX_BUSY;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	/* Track the skbs that have been sent to the IOVM for XMIT */
