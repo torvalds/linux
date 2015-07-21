@@ -216,7 +216,8 @@ static int check_per_pkg(struct perf_evsel *counter, int cpu, bool *skip)
 }
 
 static int
-process_counter_values(struct perf_evsel *evsel, int cpu, int thread,
+process_counter_values(struct perf_stat_config *config, struct perf_evsel *evsel,
+		       int cpu, int thread,
 		       struct perf_counts_values *count)
 {
 	struct perf_counts_values *aggr = &evsel->counts->aggr;
@@ -231,20 +232,20 @@ process_counter_values(struct perf_evsel *evsel, int cpu, int thread,
 	if (skip)
 		count = &zero;
 
-	switch (stat_config.aggr_mode) {
+	switch (config->aggr_mode) {
 	case AGGR_THREAD:
 	case AGGR_CORE:
 	case AGGR_SOCKET:
 	case AGGR_NONE:
 		if (!evsel->snapshot)
 			perf_evsel__compute_deltas(evsel, cpu, thread, count);
-		perf_counts_values__scale(count, stat_config.scale, NULL);
-		if (stat_config.aggr_mode == AGGR_NONE)
+		perf_counts_values__scale(count, config->scale, NULL);
+		if (config->aggr_mode == AGGR_NONE)
 			perf_stat__update_shadow_stats(evsel, count->values, cpu);
 		break;
 	case AGGR_GLOBAL:
 		aggr->val += count->val;
-		if (stat_config.scale) {
+		if (config->scale) {
 			aggr->ena += count->ena;
 			aggr->run += count->run;
 		}
@@ -255,7 +256,8 @@ process_counter_values(struct perf_evsel *evsel, int cpu, int thread,
 	return 0;
 }
 
-static int process_counter_maps(struct perf_evsel *counter)
+static int process_counter_maps(struct perf_stat_config *config,
+				struct perf_evsel *counter)
 {
 	int nthreads = thread_map__nr(counter->threads);
 	int ncpus = perf_evsel__nr_cpus(counter);
@@ -266,7 +268,7 @@ static int process_counter_maps(struct perf_evsel *counter)
 
 	for (thread = 0; thread < nthreads; thread++) {
 		for (cpu = 0; cpu < ncpus; cpu++) {
-			if (process_counter_values(counter, cpu, thread,
+			if (process_counter_values(config, counter, cpu, thread,
 						   perf_counts(counter->counts, cpu, thread)))
 				return -1;
 		}
@@ -275,7 +277,8 @@ static int process_counter_maps(struct perf_evsel *counter)
 	return 0;
 }
 
-static int process_counter(struct perf_evsel *counter)
+static int process_counter(struct perf_stat_config *config,
+			   struct perf_evsel *counter)
 {
 	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat *ps = counter->priv;
@@ -288,22 +291,22 @@ static int process_counter(struct perf_evsel *counter)
 	if (counter->per_pkg)
 		zero_per_pkg(counter);
 
-	ret = process_counter_maps(counter);
+	ret = process_counter_maps(&stat_config, counter);
 	if (ret)
 		return ret;
 
-	if (stat_config.aggr_mode != AGGR_GLOBAL)
+	if (config->aggr_mode != AGGR_GLOBAL)
 		return 0;
 
 	if (!counter->snapshot)
 		perf_evsel__compute_deltas(counter, -1, -1, aggr);
-	perf_counts_values__scale(aggr, stat_config.scale, &counter->counts->scaled);
+	perf_counts_values__scale(aggr, config->scale, &counter->counts->scaled);
 
 	for (i = 0; i < 3; i++)
 		update_stats(&ps->res_stats[i], count[i]);
 
 	if (verbose) {
-		fprintf(stat_config.output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
+		fprintf(config->output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
 			perf_evsel__name(counter), count[0], count[1], count[2]);
 	}
 
@@ -352,7 +355,7 @@ static void read_counters(bool close_counters)
 		if (read_counter(counter))
 			pr_warning("failed to read counter %s\n", counter->name);
 
-		if (process_counter(counter))
+		if (process_counter(&stat_config, counter))
 			pr_warning("failed to process counter %s\n", counter->name);
 
 		if (close_counters) {
