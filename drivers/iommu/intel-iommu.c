@@ -2253,25 +2253,9 @@ static inline void unlink_domain_info(struct device_domain_info *info)
 static void domain_remove_dev_info(struct dmar_domain *domain)
 {
 	struct device_domain_info *info, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&device_domain_lock, flags);
-	list_for_each_entry_safe(info, tmp, &domain->devices, link) {
-		unlink_domain_info(info);
-		spin_unlock_irqrestore(&device_domain_lock, flags);
-
-		iommu_disable_dev_iotlb(info);
-		iommu_detach_dev(info->iommu, info->bus, info->devfn);
-
-		if (domain_type_is_vm(domain)) {
-			iommu_detach_dependent_devices(info->iommu, info->dev);
-			domain_detach_iommu(domain, info->iommu);
-		}
-
-		free_devinfo_mem(info);
-		spin_lock_irqsave(&device_domain_lock, flags);
-	}
-	spin_unlock_irqrestore(&device_domain_lock, flags);
+	list_for_each_entry_safe(info, tmp, &domain->devices, link)
+		domain_remove_one_dev_info(domain, info->dev);
 }
 
 /*
