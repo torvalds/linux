@@ -416,6 +416,7 @@ struct amdgpu_user_fence {
 	struct amdgpu_bo 	*bo;
 	/* write-back address offset to bo start */
 	uint32_t                offset;
+	uint64_t                sequence;
 };
 
 int amdgpu_fence_driver_init(struct amdgpu_device *adev);
@@ -859,6 +860,8 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_VCE
 };
 
+extern struct amd_sched_backend_ops amdgpu_sched_ops;
+
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
@@ -1232,6 +1235,11 @@ struct amdgpu_cs_parser {
 
 	/* user fence */
 	struct amdgpu_user_fence uf;
+
+	struct mutex job_lock;
+	struct work_struct job_work;
+	int (*prepare_job)(struct amdgpu_cs_parser *sched_job);
+	int (*run_job)(struct amdgpu_cs_parser *sched_job);
 };
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)
