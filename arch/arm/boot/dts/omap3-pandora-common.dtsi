@@ -199,6 +199,38 @@
 			gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;   /* GPIO_108 */
 		};
 	};
+
+	/* HS USB Host PHY on PORT 2 */
+	hsusb2_phy: hsusb2_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>; /* GPIO_16 */
+		vcc-supply = <&vaux2>;
+	};
+
+	/* HS USB Host VBUS supply
+	 * disabling this regulator causes current leakage, and LCD flicker
+	 * on earlier (CC) board revisions, so keep it always on */
+	usb_host_5v: fixed-regulator-usb_host_5v {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_host_5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio6 4 0>;	/* GPIO_164 */
+	};
+
+	/* wg7210 (wifi+bt module) 32k clock buffer */
+	wg7210_32k: fixed-regulator-wg7210_32k {
+		compatible = "regulator-fixed";
+		regulator-name = "wg7210_32k";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&twl_gpio 13 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &omap3_pmx_core {
@@ -499,6 +531,10 @@
 
 &usbhshost {
 	port2-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <0 &hsusb2_phy>;
 };
 
 &gpmc {
