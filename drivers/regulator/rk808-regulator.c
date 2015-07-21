@@ -95,7 +95,7 @@ static int rk808_buck1_2_get_voltage_sel_regmap(struct regulator_dev *rdev)
 	unsigned int val;
 	int ret;
 
-	if (IS_ERR(gpio) || gpiod_get_value(gpio) == 0)
+	if (!gpio || gpiod_get_value(gpio) == 0)
 		return regulator_get_voltage_sel_regmap(rdev);
 
 	ret = regmap_read(rdev->regmap,
@@ -169,7 +169,7 @@ static int rk808_buck1_2_set_voltage_sel(struct regulator_dev *rdev,
 	unsigned old_sel;
 	int ret, gpio_level;
 
-	if (IS_ERR(gpio))
+	if (!gpio)
 		return rk808_buck1_2_i2c_set_voltage_sel(rdev, sel);
 
 	gpio_level = gpiod_get_value(gpio);
@@ -206,7 +206,7 @@ static int rk808_buck1_2_set_voltage_time_sel(struct regulator_dev *rdev,
 	struct gpio_desc *gpio = pdata->dvs_gpio[id];
 
 	/* if there is no dvs1/2 pin, we don't need wait extra time here. */
-	if (IS_ERR(gpio))
+	if (!gpio)
 		return 0;
 
 	return regulator_set_voltage_time_sel(rdev, old_selector, new_selector);
@@ -541,13 +541,19 @@ static int rk808_regulator_dt_parse_pdata(struct device *dev,
 		goto dt_parse_end;
 
 	for (i = 0; i < ARRAY_SIZE(pdata->dvs_gpio); i++) {
-		pdata->dvs_gpio[i] = gpiod_get_index(client_dev, "dvs", i);
+		pdata->dvs_gpio[i] =
+			devm_gpiod_get_index_optional(client_dev, "dvs", i,
+						      GPIOD_OUT_LOW);
 		if (IS_ERR(pdata->dvs_gpio[i])) {
+			ret = PTR_ERR(pdata->dvs_gpio[i]);
+			dev_err(dev, "failed to get dvs%d gpio (%d)\n", i, ret);
+			goto dt_parse_end;
+		}
+
+		if (!pdata->dvs_gpio[i]) {
 			dev_warn(dev, "there is no dvs%d gpio\n", i);
 			continue;
 		}
-
-		gpiod_direction_output(pdata->dvs_gpio[i], 0);
 
 		tmp = i ? RK808_DVS2_POL : RK808_DVS1_POL;
 		ret = regmap_update_bits(map, RK808_IO_POL_REG, tmp,
@@ -558,19 +564,6 @@ static int rk808_regulator_dt_parse_pdata(struct device *dev,
 dt_parse_end:
 	of_node_put(np);
 	return ret;
-}
-
-static int rk808_regulator_remove(struct platform_device *pdev)
-{
-	struct rk808_regulator_data *pdata = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pdata->dvs_gpio); i++) {
-		if (!IS_ERR(pdata->dvs_gpio[i]))
-			gpiod_put(pdata->dvs_gpio[i]);
-	}
-
-	return 0;
 }
 
 static int rk808_regulator_probe(struct platform_device *pdev)
@@ -619,7 +612,6 @@ static int rk808_regulator_probe(struct platform_device *pdev)
 
 static struct platform_driver rk808_regulator_driver = {
 	.probe = rk808_regulator_probe,
-	.remove = rk808_regulator_remove,
 	.driver = {
 		.name = "rk808-regulator",
 		.owner = THIS_MODULE,
