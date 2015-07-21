@@ -221,8 +221,24 @@ visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 			      struct phys_info frags[])
 {
 	unsigned int count = 0, ii, size, offset = 0, numfrags;
+	unsigned int total_count;
 
 	numfrags = skb_shinfo(skb)->nr_frags;
+
+	/*
+	 * Compute the number of fragments this skb has, and if its more than
+	 * frag array can hold, linearize the skb
+	 */
+	total_count = numfrags + (firstfraglen / PI_PAGE_SIZE);
+	if (firstfraglen % PI_PAGE_SIZE)
+		total_count++;
+
+	if (total_count > frags_max) {
+		if (skb_linearize(skb))
+			return -EINVAL;
+		numfrags = skb_shinfo(skb)->nr_frags;
+		firstfraglen = 0;
+	}
 
 	while (firstfraglen) {
 		if (count == frags_max)
