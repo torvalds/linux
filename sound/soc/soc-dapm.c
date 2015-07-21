@@ -2312,30 +2312,36 @@ static void dapm_free_path(struct snd_soc_dapm_path *path)
 	kfree(path);
 }
 
+void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_path *p, *next_p;
+
+	list_del(&w->list);
+	/*
+	 * remove source and sink paths associated to this widget.
+	 * While removing the path, remove reference to it from both
+	 * source and sink widgets so that path is removed only once.
+	 */
+	list_for_each_entry_safe(p, next_p, &w->sources, list_sink)
+		dapm_free_path(p);
+
+	list_for_each_entry_safe(p, next_p, &w->sinks, list_source)
+		dapm_free_path(p);
+
+	kfree(w->kcontrols);
+	kfree(w->name);
+	kfree(w);
+}
+
 /* free all dapm widgets and resources */
 static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_dapm_widget *w, *next_w;
-	struct snd_soc_dapm_path *p, *next_p;
 
 	list_for_each_entry_safe(w, next_w, &dapm->card->widgets, list) {
 		if (w->dapm != dapm)
 			continue;
-		list_del(&w->list);
-		/*
-		 * remove source and sink paths associated to this widget.
-		 * While removing the path, remove reference to it from both
-		 * source and sink widgets so that path is removed only once.
-		 */
-		list_for_each_entry_safe(p, next_p, &w->sources, list_sink)
-			dapm_free_path(p);
-
-		list_for_each_entry_safe(p, next_p, &w->sinks, list_source)
-			dapm_free_path(p);
-
-		kfree(w->kcontrols);
-		kfree(w->name);
-		kfree(w);
+		snd_soc_dapm_free_widget(w);
 	}
 }
 
