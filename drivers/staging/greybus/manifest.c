@@ -201,18 +201,16 @@ static char *gb_string_get(struct gb_interface *intf, u8 string_id)
 static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 {
 	struct gb_interface *intf = bundle->intf;
-	struct gb_connection *connection;
-	struct gb_connection *connection_next;
 	struct manifest_desc *desc;
 	struct manifest_desc *next;
 	u8 bundle_id = bundle->id;
+	u8 protocol_id;
+	u16 cport_id;
 	u32 count = 0;
 
 	/* Set up all cport descriptors associated with this bundle */
 	list_for_each_entry_safe(desc, next, &intf->manifest_descs, links) {
 		struct greybus_descriptor_cport *desc_cport;
-		u8 protocol_id;
-		u16 cport_id;
 
 		if (desc->type != GREYBUS_TYPE_CPORT)
 			continue;
@@ -223,25 +221,26 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 
 		cport_id = le16_to_cpu(desc_cport->id);
 		if (cport_id > CPORT_ID_MAX)
-			goto cleanup;
+			goto exit;
 
 		/* Found one.  Set up its function structure */
 		protocol_id = desc_cport->protocol_id;
 
-		/* Don't recreate connection for control cport */
+		/* Validate declarations of the control protocol CPort */
 		if (cport_id == GB_CONTROL_CPORT_ID) {
 			/* This should have protocol set to control protocol*/
-			WARN_ON(protocol_id != GREYBUS_PROTOCOL_CONTROL);
-
+			if (protocol_id != GREYBUS_PROTOCOL_CONTROL)
+				goto print_error_exit;
+			/* Don't recreate connection for control cport */
 			goto release_descriptor;
 		}
-
 		/* Nothing else should have its protocol as control protocol */
-		if (WARN_ON(protocol_id == GREYBUS_PROTOCOL_CONTROL))
-			goto release_descriptor;
+		if (protocol_id == GREYBUS_PROTOCOL_CONTROL) {
+			goto print_error_exit;
+		}
 
 		if (!gb_connection_create(bundle, cport_id, protocol_id))
-			goto cleanup;
+			goto exit;
 
 release_descriptor:
 		count++;
@@ -251,14 +250,14 @@ release_descriptor:
 	}
 
 	return count;
-cleanup:
-	/* An error occurred; undo any changes we've made */
-	list_for_each_entry_safe(connection, connection_next,
-			&bundle->connections, bundle_links) {
-		gb_connection_exit(connection);
-		gb_connection_destroy(connection);
-		count--;
-	}
+print_error_exit:
+	/* A control protocol parse error was encountered */
+	dev_err(&bundle->dev,
+		"cport_id, protocol_id 0x%04hx,0x%04hx want 0x%04hx,0x%04hx\n",
+		cport_id, protocol_id, GB_CONTROL_CPORT_ID,
+		GREYBUS_PROTOCOL_CONTROL);
+exit:
+
 	return 0;	/* Error; count should also be 0 */
 }
 
@@ -287,15 +286,24 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		/* Don't recreate bundle for control cport */
 		if (desc_bundle->id == GB_CONTROL_BUNDLE_ID) {
 			/* This should have class set to control class */
-			WARN_ON(desc_bundle->class != GREYBUS_CLASS_CONTROL);
+			if (desc_bundle->class != GREYBUS_CLASS_CONTROL) {
+				dev_err(&intf->dev,
+					"bad class 0x%02x for control bundle\n",
+					desc_bundle->class);
+				goto cleanup;
+			}
 
 			bundle = intf->control->connection->bundle;
 			goto parse_cports;
 		}
 
 		/* Nothing else should have its class set to control class */
-		if (WARN_ON(desc_bundle->class == GREYBUS_CLASS_CONTROL))
-			goto release_descriptor;
+		if (desc_bundle->class == GREYBUS_CLASS_CONTROL) {
+			dev_err(&intf->dev,
+				"bundle 0x%02x cannot use control class\n",
+				desc_bundle->id);
+			goto cleanup;
+		}
 
 		bundle = gb_bundle_create(intf, desc_bundle->id,
 					  desc_bundle->class);
@@ -307,11 +315,9 @@ parse_cports:
 		if (!gb_manifest_parse_cports(bundle))
 			goto cleanup;
 
-release_descriptor:
-		count++;
-
 		/* Done with this bundle descriptor */
 		release_manifest_descriptor(desc);
+		count++;
 	}
 
 	return count;
