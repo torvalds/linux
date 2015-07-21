@@ -107,7 +107,6 @@ struct device_type greybus_connection_type = {
 
 void gb_connection_bind_protocol(struct gb_connection *connection)
 {
-	struct gb_interface *intf;
 	struct gb_protocol *protocol;
 
 	/* If we already have a protocol bound here, just return */
@@ -125,8 +124,9 @@ void gb_connection_bind_protocol(struct gb_connection *connection)
 	 * If we have a valid device_id for the interface block, then we have an
 	 * active device, so bring up the connection at the same time.
 	 */
-	intf = connection->bundle->intf;
-	if (intf->device_id != GB_DEVICE_ID_BAD)
+	if ((!connection->bundle &&
+	     connection->hd_cport_id == GB_SVC_CPORT_ID) ||
+	    connection->bundle->intf->device_id != GB_DEVICE_ID_BAD)
 		gb_connection_init(connection);
 }
 
@@ -142,11 +142,12 @@ void gb_connection_bind_protocol(struct gb_connection *connection)
  * pointer otherwise.
  */
 struct gb_connection *
-gb_connection_create_range(struct gb_bundle *bundle, u16 cport_id,
-			   u8 protocol_id, u32 ida_start, u32 ida_end)
+gb_connection_create_range(struct greybus_host_device *hd,
+			   struct gb_bundle *bundle, struct device *parent,
+			   u16 cport_id, u8 protocol_id, u32 ida_start,
+			   u32 ida_end)
 {
 	struct gb_connection *connection;
-	struct greybus_host_device *hd = bundle->intf->hd;
 	struct ida *id_map = &hd->cport_id_map;
 	int retval;
 	u8 major = 0;
@@ -157,7 +158,7 @@ gb_connection_create_range(struct gb_bundle *bundle, u16 cport_id,
 	 * initialize connections serially so we don't need to worry
 	 * about holding the connection lock.
 	 */
-	if (gb_connection_intf_find(bundle->intf, cport_id)) {
+	if (bundle && gb_connection_intf_find(bundle->intf, cport_id)) {
 		pr_err("duplicate interface cport id 0x%04hx\n", cport_id);
 		return NULL;
 	}
@@ -182,13 +183,13 @@ gb_connection_create_range(struct gb_bundle *bundle, u16 cport_id,
 	connection->bundle = bundle;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
-	connection->dev.parent = &bundle->dev;
+	connection->dev.parent = parent;
 	connection->dev.bus = &greybus_bus_type;
 	connection->dev.type = &greybus_connection_type;
 	connection->dev.groups = connection_groups;
 	device_initialize(&connection->dev);
 	dev_set_name(&connection->dev, "%s:%d",
-		     dev_name(&bundle->dev), cport_id);
+		     dev_name(parent), cport_id);
 
 	retval = device_add(&connection->dev);
 	if (retval) {
@@ -206,7 +207,12 @@ gb_connection_create_range(struct gb_bundle *bundle, u16 cport_id,
 
 	spin_lock_irq(&gb_connections_lock);
 	list_add(&connection->hd_links, &hd->connections);
-	list_add(&connection->bundle_links, &bundle->connections);
+
+	if (bundle)
+		list_add(&connection->bundle_links, &bundle->connections);
+	else
+		INIT_LIST_HEAD(&connection->bundle_links);
+
 	spin_unlock_irq(&gb_connections_lock);
 
 	atomic_set(&connection->op_cycle, 0);
@@ -225,8 +231,9 @@ gb_connection_create_range(struct gb_bundle *bundle, u16 cport_id,
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, u8 protocol_id)
 {
-	return gb_connection_create_range(bundle, cport_id, protocol_id, 0,
-					  CPORT_ID_MAX);
+	return gb_connection_create_range(bundle->intf->hd, bundle,
+					  &bundle->dev, cport_id, protocol_id,
+					  0, CPORT_ID_MAX);
 }
 
 /*
