@@ -19,10 +19,11 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/skbuff.h>
+#include <linux/netdevice.h>
 #include <linux/kthread.h>
+#include <linux/skbuff.h>
+#include <linux/rtnetlink.h>
 
 #include "visorbus.h"
 #include "iochannel.h"
@@ -370,8 +371,6 @@ visornic_serverdown_complete(struct work_struct *work)
 {
 	struct visornic_devdata *devdata;
 	struct net_device *netdev;
-	unsigned long flags;
-	int i = 0, count = 0;
 
 	devdata = container_of(work, struct visornic_devdata,
 			       serverdown_completion);
@@ -380,27 +379,11 @@ visornic_serverdown_complete(struct work_struct *work)
 	/* Stop using datachan */
 	visor_thread_stop(&devdata->threadinfo);
 
-	/* Inform Linux that the link is down */
-	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	rtnl_lock();
+	dev_close(netdev);
+	rtnl_unlock();
 
-	/* Free the skb for XMITs that haven't been serviced by the server
-	 * We shouldn't have to inform Linux about these IOs because they
-	 * are "lost in the ethernet"
-	 */
-	skb_queue_purge(&devdata->xmitbufhead);
-
-	spin_lock_irqsave(&devdata->priv_lock, flags);
-	/* free rcv buffers */
-	for (i = 0; i < devdata->num_rcv_bufs; i++) {
-		if (devdata->rcvbuf[i]) {
-			kfree_skb(devdata->rcvbuf[i]);
-			devdata->rcvbuf[i] = NULL;
-			count++;
-		}
-	}
 	atomic_set(&devdata->num_rcvbuf_in_iovm, 0);
-	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 
 	if (devdata->server_down_complete_func)
 		(*devdata->server_down_complete_func)(devdata->dev, 0);
@@ -604,6 +587,8 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 
 	/* we've set enabled to 0, so we can give up the lock. */
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+
+	skb_queue_purge(&devdata->xmitbufhead);
 
 	/* Free rcv buffers - other end has automatically unposed them on
 	 * disable
@@ -1174,7 +1159,6 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 			devdata->bad_rcv_buf++;
 		}
 	}
-	atomic_dec(&devdata->usage);
 	return status;
 }
 
@@ -1227,10 +1211,6 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	/* update rcv stats - call it with priv_lock held */
 	devdata->net_stats.rx_packets++;
 	devdata->net_stats.rx_bytes = skb->len;
-
-	atomic_inc(&devdata->usage);	/* don't want a close to happen before
-					 *  we're done here
-					 */
 
 	/* set length to how much was ACTUALLY received -
 	 * NOTE: rcv_done_len includes actual length of data rcvd
