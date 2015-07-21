@@ -3,6 +3,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/stringify.h>
@@ -40,7 +41,8 @@ void free_alternatives_memory(void);
  * be fixed in a binutils release posterior to 2.25.51.0.2 (anything
  * containing commit 4e4d08cf7399b606 or c1baaddf8861).
  */
-#define ALTERNATIVE(oldinstr, newinstr, feature)			\
+#define __ALTERNATIVE_CFG(oldinstr, newinstr, feature, cfg_enabled)	\
+	".if "__stringify(cfg_enabled)" == 1\n"				\
 	"661:\n\t"							\
 	oldinstr "\n"							\
 	"662:\n"							\
@@ -53,7 +55,11 @@ void free_alternatives_memory(void);
 	"664:\n\t"							\
 	".popsection\n\t"						\
 	".org	. - (664b-663b) + (662b-661b)\n\t"			\
-	".org	. - (662b-661b) + (664b-663b)\n"
+	".org	. - (662b-661b) + (664b-663b)\n"			\
+	".endif\n"
+
+#define _ALTERNATIVE_CFG(oldinstr, newinstr, feature, cfg, ...)	\
+	__ALTERNATIVE_CFG(oldinstr, newinstr, feature, IS_ENABLED(cfg))
 
 #else
 
@@ -65,7 +71,8 @@ void free_alternatives_memory(void);
 	.byte \alt_len
 .endm
 
-.macro alternative_insn insn1 insn2 cap
+.macro alternative_insn insn1, insn2, cap, enable = 1
+	.if \enable
 661:	\insn1
 662:	.pushsection .altinstructions, "a"
 	altinstruction_entry 661b, 663f, \cap, 662b-661b, 664f-663f
@@ -75,6 +82,7 @@ void free_alternatives_memory(void);
 664:	.popsection
 	.org	. - (664b-663b) + (662b-661b)
 	.org	. - (662b-661b) + (664b-663b)
+	.endif
 .endm
 
 /*
@@ -118,6 +126,20 @@ void free_alternatives_memory(void);
 	.org	. - (662b-661b) + (664b-663b)
 .endm
 
+#define _ALTERNATIVE_CFG(insn1, insn2, cap, cfg, ...)	\
+	alternative_insn insn1, insn2, cap, IS_ENABLED(cfg)
+
+
 #endif  /*  __ASSEMBLY__  */
+
+/*
+ * Usage: asm(ALTERNATIVE(oldinstr, newinstr, feature));
+ *
+ * Usage: asm(ALTERNATIVE(oldinstr, newinstr, feature, CONFIG_FOO));
+ * N.B. If CONFIG_FOO is specified, but not selected, the whole block
+ *      will be omitted, including oldinstr.
+ */
+#define ALTERNATIVE(oldinstr, newinstr, ...)   \
+	_ALTERNATIVE_CFG(oldinstr, newinstr, __VA_ARGS__, 1)
 
 #endif /* __ASM_ALTERNATIVE_H */
