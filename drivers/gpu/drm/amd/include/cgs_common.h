@@ -545,7 +545,7 @@ struct cgs_device
 	CGS_CALL(gpu_mem_info,dev,type,mc_start,mc_size,mem_size)
 #define cgs_gmap_kmem(dev,kmem,size,min_off,max_off,kmem_handle,mcaddr)	\
 	CGS_CALL(gmap_kmem,dev,kmem,size,min_off,max_off,kmem_handle,mcaddr)
-#define cgs_gummap_kmem(dev,kmem_handle)	\
+#define cgs_gunmap_kmem(dev,kmem_handle)	\
 	CGS_CALL(gunmap_kmem,dev,keme_handle)
 #define cgs_alloc_gpu_mem(dev,type,size,align,min_off,max_off,handle)	\
 	CGS_CALL(alloc_gpu_mem,dev,type,size,align,min_off,max_off,handle)
@@ -553,7 +553,7 @@ struct cgs_device
 	CGS_CALL(free_gpu_mem,dev,handle)
 #define cgs_gmap_gpu_mem(dev,handle,mcaddr)	\
 	CGS_CALL(gmap_gpu_mem,dev,handle,mcaddr)
-#define cgs_gummap_gpu_mem(dev,handle)		\
+#define cgs_gunmap_gpu_mem(dev,handle)		\
 	CGS_CALL(gunmap_gpu_mem,dev,handle)
 #define cgs_kmap_gpu_mem(dev,handle,map)	\
 	CGS_CALL(kmap_gpu_mem,dev,handle,map)
