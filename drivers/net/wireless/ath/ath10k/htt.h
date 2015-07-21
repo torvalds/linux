@@ -284,6 +284,9 @@ struct htt_aggr_conf {
 } __packed;
 
 #define HTT_MGMT_FRM_HDR_DOWNLOAD_LEN 32
+struct htt_mgmt_tx_desc_qca99x0 {
+	__le32 rate;
+} __packed;
 
 struct htt_mgmt_tx_desc {
 	u8 pad[sizeof(u32) - sizeof(struct htt_cmd_hdr)];
@@ -292,6 +295,9 @@ struct htt_mgmt_tx_desc {
 	__le32 len;
 	__le32 vdev_id;
 	u8 hdr[HTT_MGMT_FRM_HDR_DOWNLOAD_LEN];
+	union {
+		struct htt_mgmt_tx_desc_qca99x0 qca99x0;
+	} __packed;
 } __packed;
 
 enum htt_mgmt_tx_status {

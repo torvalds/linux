@@ -450,6 +450,8 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	skb_put(txdesc, len);
 	cmd = (struct htt_cmd *)txdesc->data;
+	memset(cmd, 0, len);
+
 	cmd->hdr.msg_type         = HTT_H2T_MSG_TYPE_MGMT_TX;
 	cmd->mgmt_tx.msdu_paddr = __cpu_to_le32(ATH10K_SKB_CB(msdu)->paddr);
 	cmd->mgmt_tx.len        = __cpu_to_le32(msdu->len);
