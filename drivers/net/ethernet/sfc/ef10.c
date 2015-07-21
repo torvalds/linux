@@ -2291,13 +2291,24 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 
 		if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 &&
 		    !nic_data->workaround_26807) {
+			unsigned int flags;
+
 			rc = efx_mcdi_set_workaround(efx,
 						     MC_CMD_WORKAROUND_BUG26807,
-						     true, NULL);
-			if (!rc)
+						     true, &flags);
+
+			if (!rc) {
+				if (flags &
+				    1 << MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_LBN) {
+					netif_info(efx, drv, efx->net_dev,
+						   "other functions on NIC have been reset\n");
+					/* MC's boot count has incremented */
+					++nic_data->warm_boot_count;
+				}
 				nic_data->workaround_26807 = true;
-			else if (rc == -EPERM)
+			} else if (rc == -EPERM) {
 				rc = 0;
+			}
 		}
 	}
 
