@@ -16,7 +16,7 @@
 
 /*
  * Keep this struct definition in sync with the sigcontext fragment
- * in arch/mips/tools/offset.c
+ * in arch/mips/kernel/asm-offsets.c
  */
 struct sigcontext {
 	unsigned int		sc_regmask;	/* Unused */
@@ -46,7 +46,7 @@ struct sigcontext {
 #include <linux/posix_types.h>
 /*
  * Keep this struct definition in sync with the sigcontext fragment
- * in arch/mips/tools/offset.c
+ * in arch/mips/kernel/asm-offsets.c
  *
  * Warning: this structure illdefined with sc_badvaddr being just an unsigned
  * int so it was changed to unsigned long in 2.6.0-test1.  This may break

@@ -41,6 +41,7 @@ config X86
 	select ARCH_USE_CMPXCHG_LOCKREF		if X86_64
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION	if X86_32
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -253,6 +254,11 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
+
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN
+	default 0xdffffc0000000000
 
 config HAVE_INTEL_TXT
 	def_bool y
@@ -2015,7 +2021,7 @@ config CMDLINE_BOOL
 
 	  To compile command line arguments into the kernel,
 	  set this option to 'Y', then fill in the
-	  the boot arguments in CONFIG_CMDLINE.
+	  boot arguments in CONFIG_CMDLINE.
 
 	  Systems with fully functional boot loaders (i.e. non-embedded)
 	  should leave this option set to 'N'.

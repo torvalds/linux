@@ -73,7 +73,7 @@ static inline void cxl_slbia_core(struct mm_struct *mm)
 		spin_lock(&adapter->afu_list_lock);
 		for (slice = 0; slice < adapter->slices; slice++) {
 			afu = adapter->afu[slice];
-			if (!afu->enabled)
+			if (!afu || !afu->enabled)
 				continue;
 			rcu_read_lock();
 			idr_for_each_entry(&afu->contexts_idr, ctx, id)

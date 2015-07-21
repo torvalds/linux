@@ -31,8 +31,6 @@
 #define ALLOC_ORDER	2
 #define FRAG_MASK	0x03
 
-int HPAGE_SHIFT;
-
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
 	struct page *page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);

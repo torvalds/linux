@@ -320,7 +320,6 @@ static inline void closure_wake_up(struct closure_waitlist *list)
 do {									\
 	set_closure_fn(_cl, _fn, _wq);					\
 	closure_sub(_cl, CLOSURE_RUNNING + 1);				\
-	return;								\
 } while (0)
 
 /**
@@ -349,7 +348,6 @@ do {									\
 do {									\
 	set_closure_fn(_cl, _fn, _wq);					\
 	closure_queue(_cl);						\
-	return;								\
 } while (0)
 
 /**
@@ -365,7 +363,6 @@ do {									\
 do {									\
 	set_closure_fn(_cl, _destructor, NULL);				\
 	closure_sub(_cl, CLOSURE_RUNNING - CLOSURE_DESTRUCTOR + 1);	\
-	return;								\
 } while (0)
 
 /**

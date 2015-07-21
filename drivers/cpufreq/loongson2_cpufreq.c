@@ -3,7 +3,7 @@
  *
  * The 2E revision of loongson processor not support this feature.
  *
- * Copyright (C) 2006 - 2008 Lemote Inc. & Insititute of Computing Technology
+ * Copyright (C) 2006 - 2008 Lemote Inc. & Institute of Computing Technology
  * Author: Yanhua, yanh@lemote.com
  *
  * This file is subject to the terms and conditions of the GNU General Public
