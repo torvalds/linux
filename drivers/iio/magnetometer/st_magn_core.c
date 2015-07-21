@@ -43,6 +43,7 @@
 #define ST_MAGN_FS_AVL_8000MG			8000
 #define ST_MAGN_FS_AVL_8100MG			8100
 #define ST_MAGN_FS_AVL_12000MG			12000
+#define ST_MAGN_FS_AVL_15000MG			15000
 #define ST_MAGN_FS_AVL_16000MG			16000
 
 /* CUSTOM VALUES FOR SENSOR 0 */
@@ -157,6 +158,29 @@
 #define ST_MAGN_2_OUT_Y_L_ADDR			0x2a
 #define ST_MAGN_2_OUT_Z_L_ADDR			0x2c
 
+/* CUSTOM VALUES FOR SENSOR 3 */
+#define ST_MAGN_3_WAI_ADDR			0x4f
+#define ST_MAGN_3_WAI_EXP			0x40
+#define ST_MAGN_3_ODR_ADDR			0x60
+#define ST_MAGN_3_ODR_MASK			0x0c
+#define ST_MAGN_3_ODR_AVL_10HZ_VAL		0x00
+#define ST_MAGN_3_ODR_AVL_20HZ_VAL		0x01
+#define ST_MAGN_3_ODR_AVL_50HZ_VAL		0x02
+#define ST_MAGN_3_ODR_AVL_100HZ_VAL		0x03
+#define ST_MAGN_3_PW_ADDR			0x60
+#define ST_MAGN_3_PW_MASK			0x03
+#define ST_MAGN_3_PW_ON				0x00
+#define ST_MAGN_3_PW_OFF			0x03
+#define ST_MAGN_3_BDU_ADDR			0x62
+#define ST_MAGN_3_BDU_MASK			0x10
+#define ST_MAGN_3_DRDY_IRQ_ADDR			0x62
+#define ST_MAGN_3_DRDY_INT_MASK			0x01
+#define ST_MAGN_3_FS_AVL_15000_GAIN		1500
+#define ST_MAGN_3_MULTIREAD_BIT			false
+#define ST_MAGN_3_OUT_X_L_ADDR			0x68
+#define ST_MAGN_3_OUT_Y_L_ADDR			0x6a
+#define ST_MAGN_3_OUT_Z_L_ADDR			0x6c
+
 static const struct iio_chan_spec st_magn_16bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
@@ -186,6 +210,22 @@ static const struct iio_chan_spec st_magn_2_16bit_channels[] = {
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
 			ST_MAGN_2_OUT_Z_L_ADDR),
+	IIO_CHAN_SOFT_TIMESTAMP(3)
+};
+
+static const struct iio_chan_spec st_magn_3_16bit_channels[] = {
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 16, 16,
+			ST_MAGN_3_OUT_X_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 16, 16,
+			ST_MAGN_3_OUT_Y_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_MAGN,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
+			ST_MAGN_3_OUT_Z_L_ADDR),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -400,6 +440,48 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 			},
 		},
 		.multi_read_bit = ST_MAGN_2_MULTIREAD_BIT,
+		.bootime = 2,
+	},
+	{
+		.wai = ST_MAGN_3_WAI_EXP,
+		.wai_addr = ST_MAGN_3_WAI_ADDR,
+		.sensors_supported = {
+			[0] = LSM303AGR_MAGN_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_magn_3_16bit_channels,
+		.odr = {
+			.addr = ST_MAGN_3_ODR_ADDR,
+			.mask = ST_MAGN_3_ODR_MASK,
+			.odr_avl = {
+				{ 10, ST_MAGN_3_ODR_AVL_10HZ_VAL, },
+				{ 20, ST_MAGN_3_ODR_AVL_20HZ_VAL, },
+				{ 50, ST_MAGN_3_ODR_AVL_50HZ_VAL, },
+				{ 100, ST_MAGN_3_ODR_AVL_100HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_MAGN_3_PW_ADDR,
+			.mask = ST_MAGN_3_PW_MASK,
+			.value_on = ST_MAGN_3_PW_ON,
+			.value_off = ST_MAGN_3_PW_OFF,
+		},
+		.fs = {
+			.fs_avl = {
+				[0] = {
+					.num = ST_MAGN_FS_AVL_15000MG,
+					.gain = ST_MAGN_3_FS_AVL_15000_GAIN,
+				},
+			},
+		},
+		.bdu = {
+			.addr = ST_MAGN_3_BDU_ADDR,
+			.mask = ST_MAGN_3_BDU_MASK,
+		},
+		.drdy_irq = {
+			.addr = ST_MAGN_3_DRDY_IRQ_ADDR,
+			.mask_int1 = ST_MAGN_3_DRDY_INT_MASK,
+		},
+		.multi_read_bit = ST_MAGN_3_MULTIREAD_BIT,
 		.bootime = 2,
 	},
 };
