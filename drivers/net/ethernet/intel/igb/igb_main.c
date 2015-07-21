@@ -6621,22 +6621,25 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 			    struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
+	unsigned char *va = page_address(page) + rx_buffer->page_offset;
 	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = IGB_RX_BUFSZ;
 #else
-	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+	unsigned int truesize = SKB_DATA_ALIGN(size);
 #endif
+	unsigned int pull_len;
 
-	if ((size <= IGB_RX_HDR_LEN) && !skb_is_nonlinear(skb)) {
-		unsigned char *va = page_address(page) + rx_buffer->page_offset;
+	if (unlikely(skb_is_nonlinear(skb)))
+		goto add_tail_frag;
 
-		if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
-			igb_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
-			va += IGB_TS_HDR_LEN;
-			size -= IGB_TS_HDR_LEN;
-		}
+	if (unlikely(igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))) {
+		igb_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
+		va += IGB_TS_HDR_LEN;
+		size -= IGB_TS_HDR_LEN;
+	}
 
+	if (likely(size <= IGB_RX_HDR_LEN)) {
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
 		/* page is not reserved, we can reuse buffer as-is */
@@ -6648,8 +6651,21 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 		return false;
 	}
 
+	/* we need the header to contain the greater of either ETH_HLEN or
+	 * 60 bytes if the skb->len is less than 60 for skb_pad.
+	 */
+	pull_len = eth_get_headlen(va, IGB_RX_HDR_LEN);
+
+	/* align pull length to size of long to optimize memcpy performance */
+	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
+
+	/* update all of the pointers */
+	va += pull_len;
+	size -= pull_len;
+
+add_tail_frag:
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buffer->page_offset, size, truesize);
+			(unsigned long)va & ~PAGE_MASK, size, truesize);
 
 	return igb_can_reuse_rx_page(rx_buffer, page, truesize);
 }
@@ -6791,62 +6807,6 @@ static bool igb_is_non_eop(struct igb_ring *rx_ring,
 }
 
 /**
- *  igb_pull_tail - igb specific version of skb_pull_tail
- *  @rx_ring: rx descriptor ring packet is being transacted on
- *  @rx_desc: pointer to the EOP Rx descriptor
- *  @skb: pointer to current skb being adjusted
- *
- *  This function is an igb specific version of __pskb_pull_tail.  The
- *  main difference between this version and the original function is that
- *  this function can make several assumptions about the state of things
- *  that allow for significant optimizations versus the standard function.
- *  As a result we can do things like drop a frag and maintain an accurate
- *  truesize for the skb.
- */
-static void igb_pull_tail(struct igb_ring *rx_ring,
-			  union e1000_adv_rx_desc *rx_desc,
-			  struct sk_buff *skb)
-{
-	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
-	unsigned char *va;
-	unsigned int pull_len;
-
-	/* it is valid to use page_address instead of kmap since we are
-	 * working with pages allocated out of the lomem pool per
-	 * alloc_page(GFP_ATOMIC)
-	 */
-	va = skb_frag_address(frag);
-
-	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
-		/* retrieve timestamp from buffer */
-		igb_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
-
-		/* update pointers to remove timestamp header */
-		skb_frag_size_sub(frag, IGB_TS_HDR_LEN);
-		frag->page_offset += IGB_TS_HDR_LEN;
-		skb->data_len -= IGB_TS_HDR_LEN;
-		skb->len -= IGB_TS_HDR_LEN;
-
-		/* move va to start of packet data */
-		va += IGB_TS_HDR_LEN;
-	}
-
-	/* we need the header to contain the greater of either ETH_HLEN or
-	 * 60 bytes if the skb->len is less than 60 for skb_pad.
-	 */
-	pull_len = eth_get_headlen(va, IGB_RX_HDR_LEN);
-
-	/* align pull length to size of long to optimize memcpy performance */
-	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
-
-	/* update all of the pointers */
-	skb_frag_size_sub(frag, pull_len);
-	frag->page_offset += pull_len;
-	skb->data_len -= pull_len;
-	skb->tail += pull_len;
-}
-
-/**
  *  igb_cleanup_headers - Correct corrupted or empty headers
  *  @rx_ring: rx descriptor ring packet is being transacted on
  *  @rx_desc: pointer to the EOP Rx descriptor
@@ -6872,10 +6832,6 @@ static bool igb_cleanup_headers(struct igb_ring *rx_ring,
 			return true;
 		}
 	}
-
-	/* place header in linear portion of buffer */
-	if (skb_is_nonlinear(skb))
-		igb_pull_tail(rx_ring, rx_desc, skb);
 
 	/* if eth_skb_pad returns an error the skb was freed */
 	if (eth_skb_pad(skb))
