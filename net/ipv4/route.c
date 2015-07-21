@@ -91,6 +91,7 @@
 #include <linux/slab.h>
 #include <linux/jhash.h>
 #include <net/dst.h>
+#include <net/dst_metadata.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/ip.h>
@@ -110,6 +111,7 @@
 #include <linux/kmemleak.h>
 #endif
 #include <net/secure_seq.h>
+#include <net/ip_tunnels.h>
 
 #define RT_FL_TOS(oldflp4) \
 	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
@@ -1673,6 +1675,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	struct fib_result res;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	struct ip_tunnel_info *tun_info;
 	struct flowi4	fl4;
 	unsigned int	flags = 0;
 	u32		itag = 0;
@@ -1690,6 +1693,11 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	   by fib_lookup.
 	 */
 
+	tun_info = skb_tunnel_info(skb);
+	if (tun_info && tun_info->mode == IP_TUNNEL_INFO_RX)
+		fl4.flowi4_tun_key.tun_id = tun_info->key.tun_id;
+	else
+		fl4.flowi4_tun_key.tun_id = 0;
 	skb_dst_drop(skb);
 
 	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr))

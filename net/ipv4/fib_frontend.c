@@ -280,6 +280,7 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 		fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
 		fl4.flowi4_scope = scope;
 		fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
+		fl4.flowi4_tun_key.tun_id = 0;
 		if (!fib_lookup(net, &fl4, &res, 0))
 			return FIB_RES_PREFSRC(net, res);
 	} else {
@@ -313,6 +314,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	fl4.saddr = dst;
 	fl4.flowi4_tos = tos;
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
+	fl4.flowi4_tun_key.tun_id = 0;
 
 	no_addr = idev->ifa_list == NULL;
 
