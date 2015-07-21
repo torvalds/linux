@@ -514,6 +514,11 @@
 	/*wp-gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;*/	/* GPIO_127 */
 };
 
+/* mmc3 is probed using pdata-quirks to pass wl1251 card data */
+&mmc3 {
+	status = "disabled";
+};
+
 /* bluetooth*/
 &uart1 {
 };
