@@ -368,7 +368,8 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 	return rc;
 }
 
-static int handle_sigp_order_in_user_space(struct kvm_vcpu *vcpu, u8 order_code)
+static int handle_sigp_order_in_user_space(struct kvm_vcpu *vcpu, u8 order_code,
+					   u16 cpu_addr)
 {
 	if (!vcpu->kvm->arch.user_sigp)
 		return 0;
@@ -411,9 +412,8 @@ static int handle_sigp_order_in_user_space(struct kvm_vcpu *vcpu, u8 order_code)
 	default:
 		vcpu->stat.instruction_sigp_unknown++;
 	}
-
-	VCPU_EVENT(vcpu, 4, "sigp order %u: completely handled in user space",
-		   order_code);
+	VCPU_EVENT(vcpu, 3, "SIGP: order %u for CPU %d handled in userspace",
+		   order_code, cpu_addr);
 
 	return 1;
 }
@@ -432,7 +432,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	order_code = kvm_s390_get_base_disp_rs(vcpu, NULL);
-	if (handle_sigp_order_in_user_space(vcpu, order_code))
+	if (handle_sigp_order_in_user_space(vcpu, order_code, cpu_addr))
 		return -EOPNOTSUPP;
 
 	if (r1 % 2)
