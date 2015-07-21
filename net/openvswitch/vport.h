@@ -58,15 +58,15 @@ u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
 
 int ovs_vport_send(struct vport *, struct sk_buff *);
 
-int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
+int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
 			       struct net *net,
-			       const struct ovs_tunnel_info *tun_info,
+			       const struct ip_tunnel_info *tun_info,
 			       u8 ipproto,
 			       u32 skb_mark,
 			       __be16 tp_src,
 			       __be16 tp_dst);
 int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				  struct ovs_tunnel_info *info);
+				  struct ip_tunnel_info *info);
 
 /* The following definitions are for implementers of vport devices: */
 
@@ -176,7 +176,7 @@ struct vport_ops {
 
 	int (*send)(struct vport *, struct sk_buff *);
 	int (*get_egress_tun_info)(struct vport *, struct sk_buff *,
-				   struct ovs_tunnel_info *);
+				   struct ip_tunnel_info *);
 
 	struct module *owner;
 	struct list_head list;
@@ -226,7 +226,7 @@ static inline struct vport *vport_from_priv(void *priv)
 }
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,
-		       const struct ovs_tunnel_info *);
+		       const struct ip_tunnel_info *);
 
 static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)
@@ -239,7 +239,7 @@ int ovs_vport_ops_register(struct vport_ops *ops);
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 
 static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
-						     const struct ovs_key_ipv4_tunnel *key,
+						     const struct ip_tunnel_key *key,
 						     u32 mark,
 						     struct flowi4 *fl,
 						     u8 protocol)

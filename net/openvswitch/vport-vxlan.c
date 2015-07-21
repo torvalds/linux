@@ -64,7 +64,7 @@ static inline struct vxlan_port *vxlan_vport(const struct vport *vport)
 static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 		      struct vxlan_metadata *md)
 {
-	struct ovs_tunnel_info tun_info;
+	struct ip_tunnel_info tun_info;
 	struct vxlan_port *vxlan_port;
 	struct vport *vport = vs->data;
 	struct iphdr *iph;
@@ -82,9 +82,9 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 	/* Save outer tunnel values */
 	iph = ip_hdr(skb);
 	key = cpu_to_be64(ntohl(md->vni) >> 8);
-	ovs_flow_tun_info_init(&tun_info, iph,
-			       udp_hdr(skb)->source, udp_hdr(skb)->dest,
-			       key, flags, &opts, sizeof(opts));
+	ip_tunnel_info_init(&tun_info, iph,
+			    udp_hdr(skb)->source, udp_hdr(skb)->dest,
+			    key, flags, &opts, sizeof(opts));
 
 	ovs_vport_receive(vport, skb, &tun_info);
 }
@@ -205,13 +205,13 @@ error:
 
 static int vxlan_ext_gbp(struct sk_buff *skb)
 {
-	const struct ovs_tunnel_info *tun_info;
+	const struct ip_tunnel_info *tun_info;
 	const struct ovs_vxlan_opts *opts;
 
 	tun_info = OVS_CB(skb)->egress_tun_info;
 	opts = tun_info->options;
 
-	if (tun_info->tunnel.tun_flags & TUNNEL_VXLAN_OPT &&
+	if (tun_info->key.tun_flags & TUNNEL_VXLAN_OPT &&
 	    tun_info->options_len >= sizeof(*opts))
 		return opts->gbp;
 	else
@@ -224,7 +224,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	struct vxlan_port *vxlan_port = vxlan_vport(vport);
 	struct sock *sk = vxlan_port->vs->sock->sk;
 	__be16 dst_port = inet_sk(sk)->inet_sport;
-	const struct ovs_key_ipv4_tunnel *tun_key;
+	const struct ip_tunnel_key *tun_key;
 	struct vxlan_metadata md = {0};
 	struct rtable *rt;
 	struct flowi4 fl;
@@ -238,7 +238,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 		goto error;
 	}
 
-	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
+	tun_key = &OVS_CB(skb)->egress_tun_info->key;
 	rt = ovs_tunnel_route_lookup(net, tun_key, skb->mark, &fl, IPPROTO_UDP);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
@@ -269,7 +269,7 @@ error:
 }
 
 static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				     struct ovs_tunnel_info *egress_tun_info)
+				     struct ip_tunnel_info *egress_tun_info)
 {
 	struct net *net = ovs_dp_get_net(vport->dp);
 	struct vxlan_port *vxlan_port = vxlan_vport(vport);

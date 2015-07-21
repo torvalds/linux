@@ -641,7 +641,7 @@ static int vxlan_opt_to_nlattr(struct sk_buff *skb,
 }
 
 static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
-				const struct ovs_key_ipv4_tunnel *output,
+				const struct ip_tunnel_key *output,
 				const void *tun_opts, int swkey_tun_opts_len)
 {
 	if (output->tun_flags & TUNNEL_KEY &&
@@ -689,7 +689,7 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 }
 
 static int ipv4_tun_to_nlattr(struct sk_buff *skb,
-			      const struct ovs_key_ipv4_tunnel *output,
+			      const struct ip_tunnel_key *output,
 			      const void *tun_opts, int swkey_tun_opts_len)
 {
 	struct nlattr *nla;
@@ -708,9 +708,9 @@ static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 }
 
 int ovs_nla_put_egress_tunnel_key(struct sk_buff *skb,
-				  const struct ovs_tunnel_info *egress_tun_info)
+				  const struct ip_tunnel_info *egress_tun_info)
 {
-	return __ipv4_tun_to_nlattr(skb, &egress_tun_info->tunnel,
+	return __ipv4_tun_to_nlattr(skb, &egress_tun_info->key,
 				    egress_tun_info->options,
 				    egress_tun_info->options_len);
 }
@@ -1746,7 +1746,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 {
 	struct sw_flow_match match;
 	struct sw_flow_key key;
-	struct ovs_tunnel_info *tun_info;
+	struct ip_tunnel_info *tun_info;
 	struct nlattr *a;
 	int err = 0, start, opts_type;
 
@@ -1777,7 +1777,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 		return PTR_ERR(a);
 
 	tun_info = nla_data(a);
-	tun_info->tunnel = key.tun_key;
+	tun_info->key = key.tun_key;
 	tun_info->options_len = key.tun_opts_len;
 
 	if (tun_info->options_len) {
@@ -2227,13 +2227,13 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 
 	switch (key_type) {
 	case OVS_KEY_ATTR_TUNNEL_INFO: {
-		struct ovs_tunnel_info *tun_info = nla_data(ovs_key);
+		struct ip_tunnel_info *tun_info = nla_data(ovs_key);
 
 		start = nla_nest_start(skb, OVS_ACTION_ATTR_SET);
 		if (!start)
 			return -EMSGSIZE;
 
-		err = ipv4_tun_to_nlattr(skb, &tun_info->tunnel,
+		err = ipv4_tun_to_nlattr(skb, &tun_info->key,
 					 tun_info->options_len ?
 						tun_info->options : NULL,
 					 tun_info->options_len);

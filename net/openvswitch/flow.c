@@ -682,12 +682,12 @@ int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 	return key_extract(skb, key);
 }
 
-int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
+int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
 	/* Extract metadata from packet. */
 	if (tun_info) {
-		memcpy(&key->tun_key, &tun_info->tunnel, sizeof(key->tun_key));
+		memcpy(&key->tun_key, &tun_info->key, sizeof(key->tun_key));
 
 		if (tun_info->options) {
 			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *

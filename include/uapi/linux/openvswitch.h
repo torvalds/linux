@@ -321,7 +321,7 @@ enum ovs_key_attr {
 				 * the accepted length of the array. */
 
 #ifdef __KERNEL__
-	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ovs_tunnel_info */
+	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ip_tunnel_info */
 #endif
 	__OVS_KEY_ATTR_MAX
 };

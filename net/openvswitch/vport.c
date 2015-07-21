@@ -469,7 +469,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *vport, struct sk_buff *skb)
  * skb->data should point to the Ethernet header.
  */
 void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
-		       const struct ovs_tunnel_info *tun_info)
+		       const struct ip_tunnel_info *tun_info)
 {
 	struct pcpu_sw_netstats *stats;
 	struct sw_flow_key key;
@@ -572,22 +572,22 @@ void ovs_vport_deferred_free(struct vport *vport)
 }
 EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
 
-int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
+int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
 			       struct net *net,
-			       const struct ovs_tunnel_info *tun_info,
+			       const struct ip_tunnel_info *tun_info,
 			       u8 ipproto,
 			       u32 skb_mark,
 			       __be16 tp_src,
 			       __be16 tp_dst)
 {
-	const struct ovs_key_ipv4_tunnel *tun_key;
+	const struct ip_tunnel_key *tun_key;
 	struct rtable *rt;
 	struct flowi4 fl;
 
 	if (unlikely(!tun_info))
 		return -EINVAL;
 
-	tun_key = &tun_info->tunnel;
+	tun_key = &tun_info->key;
 
 	/* Route lookup to get srouce IP address.
 	 * The process may need to be changed if the corresponding process
@@ -602,22 +602,22 @@ int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
 	/* Generate egress_tun_info based on tun_info,
 	 * saddr, tp_src and tp_dst
 	 */
-	__ovs_flow_tun_info_init(egress_tun_info,
-				 fl.saddr, tun_key->ipv4_dst,
-				 tun_key->ipv4_tos,
-				 tun_key->ipv4_ttl,
-				 tp_src, tp_dst,
-				 tun_key->tun_id,
-				 tun_key->tun_flags,
-				 tun_info->options,
-				 tun_info->options_len);
+	__ip_tunnel_info_init(egress_tun_info,
+			      fl.saddr, tun_key->ipv4_dst,
+			      tun_key->ipv4_tos,
+			      tun_key->ipv4_ttl,
+			      tp_src, tp_dst,
+			      tun_key->tun_id,
+			      tun_key->tun_flags,
+			      tun_info->options,
+			      tun_info->options_len);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ovs_tunnel_get_egress_info);
 
 int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				  struct ovs_tunnel_info *info)
+				  struct ip_tunnel_info *info)
 {
 	/* get_egress_tun_info() is only implemented on tunnel ports. */
 	if (unlikely(!vport->ops->get_egress_tun_info))

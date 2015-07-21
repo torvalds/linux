@@ -22,6 +22,28 @@
 /* Keep error state on tunnel for 30 sec */
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
 
+/* Used to memset ip_tunnel padding. */
+#define IP_TUNNEL_KEY_SIZE					\
+	(offsetof(struct ip_tunnel_key, tp_dst) +		\
+	 FIELD_SIZEOF(struct ip_tunnel_key, tp_dst))
+
+struct ip_tunnel_key {
+	__be64			tun_id;
+	__be32			ipv4_src;
+	__be32			ipv4_dst;
+	__be16			tun_flags;
+	__u8			ipv4_tos;
+	__u8			ipv4_ttl;
+	__be16			tp_src;
+	__be16			tp_dst;
+} __packed __aligned(4); /* Minimize padding. */
+
+struct ip_tunnel_info {
+	struct ip_tunnel_key	key;
+	const void		*options;
+	u8			options_len;
+};
+
 /* 6rd prefix/relay information */
 #ifdef CONFIG_IPV6_SIT_6RD
 struct ip_tunnel_6rd_parm {
@@ -135,6 +157,47 @@ int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
 			    unsigned int num);
 int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
 			    unsigned int num);
+
+static inline void __ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
+					 __be32 saddr, __be32 daddr,
+					 u8 tos, u8 ttl,
+					 __be16 tp_src, __be16 tp_dst,
+					 __be64 tun_id, __be16 tun_flags,
+					 const void *opts, u8 opts_len)
+{
+	tun_info->key.tun_id = tun_id;
+	tun_info->key.ipv4_src = saddr;
+	tun_info->key.ipv4_dst = daddr;
+	tun_info->key.ipv4_tos = tos;
+	tun_info->key.ipv4_ttl = ttl;
+	tun_info->key.tun_flags = tun_flags;
+
+	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of
+	 * the upper tunnel are used.
+	 * E.g: GRE over IPSEC, the tp_src and tp_port are zero.
+	 */
+	tun_info->key.tp_src = tp_src;
+	tun_info->key.tp_dst = tp_dst;
+
+	/* Clear struct padding. */
+	if (sizeof(tun_info->key) != IP_TUNNEL_KEY_SIZE)
+		memset((unsigned char *)&tun_info->key + IP_TUNNEL_KEY_SIZE,
+		       0, sizeof(tun_info->key) - IP_TUNNEL_KEY_SIZE);
+
+	tun_info->options = opts;
+	tun_info->options_len = opts_len;
+}
+
+static inline void ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
+				       const struct iphdr *iph,
+				       __be16 tp_src, __be16 tp_dst,
+				       __be64 tun_id, __be16 tun_flags,
+				       const void *opts, u8 opts_len)
+{
+	__ip_tunnel_info_init(tun_info, iph->saddr, iph->daddr,
+			      iph->tos, iph->ttl, tp_src, tp_dst,
+			      tun_id, tun_flags, opts, opts_len);
+}
 
 #ifdef CONFIG_INET
 
