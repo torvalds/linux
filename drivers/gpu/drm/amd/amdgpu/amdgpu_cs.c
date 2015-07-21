@@ -915,7 +915,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 				goto out;
 		} else
 			parser->prepare_job = amdgpu_cs_parser_prepare_job;
-
+		parser->ring = ring;
 		parser->run_job = amdgpu_cs_parser_run_job;
 		parser->free_job = amdgpu_cs_parser_free_job;
 		amd_sched_push_job(ring->scheduler,
@@ -965,24 +965,16 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	ctx = amdgpu_ctx_get(filp->driver_priv, wait->in.ctx_id);
 	if (ctx == NULL)
 		return -EINVAL;
-	if (amdgpu_enable_scheduler) {
-		r = amd_sched_wait_ts(&ctx->rings[ring->idx].c_entity,
-				      wait->in.handle, true, timeout);
-		if (r)
-			return r;
+
+	fence = amdgpu_ctx_get_fence(ctx, ring, wait->in.handle);
+	if (IS_ERR(fence))
+		r = PTR_ERR(fence);
+	else if (fence) {
+		r = fence_wait_timeout(fence, true, timeout);
+		fence_put(fence);
+	} else
 		r = 1;
-	} else {
-		fence = amdgpu_ctx_get_fence(ctx, ring, wait->in.handle);
-		if (IS_ERR(fence))
-			r = PTR_ERR(fence);
 
-		else if (fence) {
-			r = fence_wait_timeout(fence, true, timeout);
-			fence_put(fence);
-
-		} else
-			r = 1;
-	}
 	amdgpu_ctx_put(ctx);
 	if (r < 0)
 		return r;

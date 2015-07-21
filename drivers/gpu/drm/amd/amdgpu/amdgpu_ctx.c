@@ -261,6 +261,16 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
 	struct fence *fence;
 	uint64_t queued_seq;
+	int r;
+
+	if (amdgpu_enable_scheduler) {
+		r = amd_sched_wait_emit(&cring->c_entity,
+					seq,
+					true,
+					AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS);
+		if (r)
+			return NULL;
+	}
 
 	spin_lock(&ctx->ring_lock);
 	if (amdgpu_enable_scheduler)

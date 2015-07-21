@@ -81,6 +81,7 @@ extern int amdgpu_vm_size;
 extern int amdgpu_vm_block_size;
 extern int amdgpu_enable_scheduler;
 
+#define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
 #define AMDGPU_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
 /* AMDGPU_IB_POOL_SIZE must be a power of 2 */
@@ -1239,6 +1240,7 @@ struct amdgpu_cs_parser {
 	/* user fence */
 	struct amdgpu_user_fence uf;
 
+	struct amdgpu_ring *ring;
 	struct mutex job_lock;
 	struct work_struct job_work;
 	int (*prepare_job)(struct amdgpu_cs_parser *sched_job);
