@@ -70,19 +70,39 @@ struct device_type greybus_interface_type = {
 
 /*
  * Create kernel structures corresponding to a bundle and connection for
- * managing control CPort.
+ * managing control/svc CPort.
  */
-static int gb_create_control_connection(struct gb_interface *intf)
+int gb_create_bundle_connection(struct gb_interface *intf, u8 class)
 {
 	struct gb_bundle *bundle;
+	u32 ida_start, ida_end;
+	u8 bundle_id, protocol_id;
+	u16 cport_id;
 
-	bundle = gb_bundle_create(intf, GB_CONTROL_BUNDLE_ID,
-				  GREYBUS_CLASS_CONTROL);
+	if (class == GREYBUS_CLASS_CONTROL) {
+		protocol_id = GREYBUS_PROTOCOL_CONTROL;
+		bundle_id = GB_CONTROL_BUNDLE_ID;
+		cport_id = GB_CONTROL_CPORT_ID;
+		ida_start = 0;
+		ida_end = CPORT_ID_MAX;
+	} else if (class == GREYBUS_CLASS_SVC) {
+		protocol_id = GREYBUS_PROTOCOL_SVC;
+		bundle_id = GB_SVC_BUNDLE_ID;
+		cport_id = GB_SVC_CPORT_ID;
+		ida_start = GB_SVC_CPORT_ID;
+		ida_end = GB_SVC_CPORT_ID + 1;
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	bundle = gb_bundle_create(intf, bundle_id, class);
 	if (!bundle)
 		return -EINVAL;
 
-	if (!gb_connection_create(bundle, GB_CONTROL_CPORT_ID,
-				  GREYBUS_PROTOCOL_CONTROL))
+	if (!gb_connection_create_range(bundle->intf->hd, bundle, &bundle->dev,
+					cport_id, protocol_id, ida_start,
+					ida_end))
 		return -EINVAL;
 
 	return 0;
@@ -202,7 +222,7 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 	intf->device_id = device_id;
 
 	/* Establish control CPort connection */
-	ret = gb_create_control_connection(intf);
+	ret = gb_create_bundle_connection(intf, GREYBUS_CLASS_CONTROL);
 	if (ret) {
 		dev_err(&intf->dev, "Failed to create control CPort connection (%d)\n", ret);
 		return ret;
