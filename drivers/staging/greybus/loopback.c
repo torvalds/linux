@@ -137,8 +137,11 @@ gb_loopback_stats_attrs(latency);
 gb_loopback_stats_attrs(frequency);
 /* Quantity of data sent and received on this cport */
 gb_loopback_stats_attrs(throughput);
+/* Number of errors encountered during loop */
 gb_loopback_ro_attr(error, d);
+/* The current index of the for (i = 0; i < iteration_max; i++) loop */
 gb_loopback_ro_attr(iteration_count, u);
+/* TODO iteration_count might be better with the KOBJ_CHANGE event */
 
 /*
  * Type of loopback message to send based on protocol type definitions
