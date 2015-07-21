@@ -33,6 +33,7 @@
 #include <linux/flex_array.h>
 #include <net/inet_ecn.h>
 #include <net/ip_tunnels.h>
+#include <net/dst_metadata.h>
 
 struct sk_buff;
 
@@ -44,6 +45,10 @@ struct sk_buff;
 	(FIELD_SIZEOF(struct sw_flow_key, tun_opts) - opt_len)
 #define TUN_METADATA_OPTS(flow_key, opt_len) \
 	((void *)((flow_key)->tun_opts + TUN_METADATA_OFFSET(opt_len)))
+
+struct ovs_tunnel_info {
+	struct metadata_dst	*tun_dst;
+};
 
 #define OVS_SW_FLOW_KEY_METADATA_SIZE			\
 	(offsetof(struct sw_flow_key, recirc_id) +	\

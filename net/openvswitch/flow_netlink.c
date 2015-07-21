@@ -1548,11 +1548,48 @@ static struct sw_flow_actions *nla_alloc_flow_actions(int size, bool log)
 	return sfa;
 }
 
-/* Schedules 'sf_acts' to be freed after the next RCU grace period.
- * The caller must hold rcu_read_lock for this to be sensible. */
+static void ovs_nla_free_set_action(const struct nlattr *a)
+{
+	const struct nlattr *ovs_key = nla_data(a);
+	struct ovs_tunnel_info *ovs_tun;
+
+	switch (nla_type(ovs_key)) {
+	case OVS_KEY_ATTR_TUNNEL_INFO:
+		ovs_tun = nla_data(ovs_key);
+		dst_release((struct dst_entry *)ovs_tun->tun_dst);
+		break;
+	}
+}
+
 void ovs_nla_free_flow_actions(struct sw_flow_actions *sf_acts)
 {
-	kfree_rcu(sf_acts, rcu);
+	const struct nlattr *a;
+	int rem;
+
+	if (!sf_acts)
+		return;
+
+	nla_for_each_attr(a, sf_acts->actions, sf_acts->actions_len, rem) {
+		switch (nla_type(a)) {
+		case OVS_ACTION_ATTR_SET:
+			ovs_nla_free_set_action(a);
+			break;
+		}
+	}
+
+	kfree(sf_acts);
+}
+
+static void __ovs_nla_free_flow_actions(struct rcu_head *head)
+{
+	ovs_nla_free_flow_actions(container_of(head, struct sw_flow_actions, rcu));
+}
+
+/* Schedules 'sf_acts' to be freed after the next RCU grace period.
+ * The caller must hold rcu_read_lock for this to be sensible. */
+void ovs_nla_free_flow_actions_rcu(struct sw_flow_actions *sf_acts)
+{
+	call_rcu(&sf_acts->rcu, __ovs_nla_free_flow_actions);
 }
 
 static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
@@ -1746,7 +1783,9 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 {
 	struct sw_flow_match match;
 	struct sw_flow_key key;
+	struct metadata_dst *tun_dst;
 	struct ip_tunnel_info *tun_info;
+	struct ovs_tunnel_info *ovs_tun;
 	struct nlattr *a;
 	int err = 0, start, opts_type;
 
@@ -1771,12 +1810,22 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	if (start < 0)
 		return start;
 
-	a = __add_action(sfa, OVS_KEY_ATTR_TUNNEL_INFO, NULL,
-			 sizeof(*tun_info) + key.tun_opts_len, log);
-	if (IS_ERR(a))
-		return PTR_ERR(a);
+	tun_dst = metadata_dst_alloc(key.tun_opts_len, GFP_KERNEL);
+	if (!tun_dst)
+		return -ENOMEM;
 
-	tun_info = nla_data(a);
+	a = __add_action(sfa, OVS_KEY_ATTR_TUNNEL_INFO, NULL,
+			 sizeof(*ovs_tun), log);
+	if (IS_ERR(a)) {
+		dst_release((struct dst_entry *)tun_dst);
+		return PTR_ERR(a);
+	}
+
+	ovs_tun = nla_data(a);
+	ovs_tun->tun_dst = tun_dst;
+
+	tun_info = &tun_dst->u.tun_info;
+	tun_info->mode = IP_TUNNEL_INFO_TX;
 	tun_info->key = key.tun_key;
 	tun_info->options_len = key.tun_opts_len;
 
@@ -2177,7 +2226,7 @@ int ovs_nla_copy_actions(const struct nlattr *attr,
 	err = __ovs_nla_copy_actions(attr, key, 0, sfa, key->eth.type,
 				     key->eth.tci, log);
 	if (err)
-		kfree(*sfa);
+		ovs_nla_free_flow_actions(*sfa);
 
 	return err;
 }
@@ -2227,7 +2276,8 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 
 	switch (key_type) {
 	case OVS_KEY_ATTR_TUNNEL_INFO: {
-		struct ip_tunnel_info *tun_info = nla_data(ovs_key);
+		struct ovs_tunnel_info *ovs_tun = nla_data(ovs_key);
+		struct ip_tunnel_info *tun_info = &ovs_tun->tun_dst->u.tun_info;
 
 		start = nla_nest_start(skb, OVS_ACTION_ATTR_SET);
 		if (!start)

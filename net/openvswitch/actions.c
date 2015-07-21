@@ -733,7 +733,15 @@ static int execute_set_action(struct sk_buff *skb,
 {
 	/* Only tunnel set execution is supported without a mask. */
 	if (nla_type(a) == OVS_KEY_ATTR_TUNNEL_INFO) {
-		OVS_CB(skb)->egress_tun_info = nla_data(a);
+		struct ovs_tunnel_info *tun = nla_data(a);
+
+		skb_dst_drop(skb);
+		dst_hold((struct dst_entry *)tun->tun_dst);
+		skb_dst_set(skb, (struct dst_entry *)tun->tun_dst);
+
+		/* FIXME: Remove when all vports have been converted */
+		OVS_CB(skb)->egress_tun_info = &tun->tun_dst->u.tun_info;
+
 		return 0;
 	}
 
