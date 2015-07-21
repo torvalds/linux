@@ -6,6 +6,10 @@ subdir-ccflags-y += -Iinclude/drm  \
 
 AMD_PP_PATH = ../powerplay
 
+PP_LIBS = smumgr
+
+AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix drivers/gpu/drm/amd/powerplay/,$(PP_LIBS)))
+
 include $(AMD_POWERPLAY)
 
 POWER_MGR = amd_powerplay.o

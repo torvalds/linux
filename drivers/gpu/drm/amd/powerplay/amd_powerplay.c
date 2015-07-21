@@ -23,8 +23,10 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
+#include <linux/slab.h>
 #include "amd_shared.h"
 #include "amd_powerplay.h"
+#include "pp_instance.h"
 
 static int pp_early_init(void *handle)
 {
@@ -43,11 +45,51 @@ static int pp_sw_fini(void *handle)
 
 static int pp_hw_init(void *handle)
 {
+	struct pp_instance *pp_handle;
+	struct pp_smumgr *smumgr;
+	int ret = 0;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	pp_handle = (struct pp_instance *)handle;
+	smumgr = pp_handle->smu_mgr;
+
+	if (smumgr == NULL || smumgr->smumgr_funcs == NULL ||
+		smumgr->smumgr_funcs->smu_init == NULL ||
+		smumgr->smumgr_funcs->start_smu == NULL)
+		return -EINVAL;
+
+	ret = smumgr->smumgr_funcs->smu_init(smumgr);
+	if (ret) {
+		printk(KERN_ERR "[ powerplay ] smc initialization failed\n");
+		return ret;
+	}
+
+	ret = smumgr->smumgr_funcs->start_smu(smumgr);
+	if (ret) {
+		printk(KERN_ERR "[ powerplay ] smc start failed\n");
+		smumgr->smumgr_funcs->smu_fini(smumgr);
+		return ret;
+	}
 	return 0;
 }
 
 static int pp_hw_fini(void *handle)
 {
+	struct pp_instance *pp_handle;
+	struct pp_smumgr *smumgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	pp_handle = (struct pp_instance *)handle;
+	smumgr = pp_handle->smu_mgr;
+
+	if (smumgr != NULL || smumgr->smumgr_funcs != NULL ||
+		smumgr->smumgr_funcs->smu_fini != NULL)
+		smumgr->smumgr_funcs->smu_fini(smumgr);
+
 	return 0;
 }
 
@@ -176,11 +218,48 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.print_current_performance_level = pp_debugfs_print_current_performance_level,
 };
 
+static int amd_pp_instance_init(struct amd_pp_init *pp_init,
+				struct amd_powerplay *amd_pp)
+{
+	int ret;
+	struct pp_instance *handle;
+
+	handle = kzalloc(sizeof(struct pp_instance), GFP_KERNEL);
+	if (handle == NULL)
+		return -ENOMEM;
+
+	ret = smum_init(pp_init, handle);
+	if (ret)
+		return ret;
+
+	amd_pp->pp_handle = handle;
+	return 0;
+}
+
+static int amd_pp_instance_fini(void *handle)
+{
+	struct pp_instance *instance = (struct pp_instance *)handle;
+	if (instance == NULL)
+		return -EINVAL;
+
+	smum_fini(instance->smu_mgr);
+
+	kfree(handle);
+	return 0;
+}
+
 int amd_powerplay_init(struct amd_pp_init *pp_init,
 		       struct amd_powerplay *amd_pp)
 {
+	int ret;
+
 	if (pp_init == NULL || amd_pp == NULL)
 		return -EINVAL;
+
+	ret = amd_pp_instance_init(pp_init, amd_pp);
+
+	if (ret)
+		return ret;
 
 	amd_pp->ip_funcs = &pp_ip_funcs;
 	amd_pp->pp_funcs = &pp_dpm_funcs;
@@ -190,5 +269,7 @@ int amd_powerplay_init(struct amd_pp_init *pp_init,
 
 int amd_powerplay_fini(void *handle)
 {
+	amd_pp_instance_fini(handle);
+
 	return 0;
 }
