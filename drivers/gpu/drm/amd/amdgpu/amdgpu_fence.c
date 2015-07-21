@@ -346,8 +346,24 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 		}
 	} while (atomic64_xchg(&ring->fence_drv.last_seq, seq) > seq);
 
-	if (wake)
+	if (wake) {
+		if (amdgpu_enable_scheduler) {
+			uint64_t handled_seq =
+				amd_sched_get_handled_seq(ring->scheduler);
+			uint64_t latest_seq =
+				atomic64_read(&ring->fence_drv.last_seq);
+			if (handled_seq == latest_seq) {
+				DRM_ERROR("ring %d, EOP without seq update (lastest_seq=%llu)\n",
+					  ring->idx, latest_seq);
+				return;
+			}
+			do {
+				amd_sched_isr(ring->scheduler);
+			} while (amd_sched_get_handled_seq(ring->scheduler) < latest_seq);
+		}
+
 		wake_up_all(&ring->adev->fence_queue);
+	}
 }
 
 /**
