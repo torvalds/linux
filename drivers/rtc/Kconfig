@@ -945,11 +945,11 @@ config RTC_DRV_DA9055
 	  will be called rtc-da9055
 
 config RTC_DRV_DA9063
-	tristate "Dialog Semiconductor DA9063 RTC"
-	depends on MFD_DA9063
+	tristate "Dialog Semiconductor DA9063/DA9062 RTC"
+	depends on MFD_DA9063 || MFD_DA9062
 	help
 	  If you say yes here you will get support for the RTC subsystem
-	  of the Dialog Semiconductor DA9063.
+	  for the Dialog Semiconductor PMIC chips DA9063 and DA9062.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-da9063".
