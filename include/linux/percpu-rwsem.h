@@ -16,6 +16,7 @@ struct percpu_rw_semaphore {
 };
 
 extern void percpu_down_read(struct percpu_rw_semaphore *);
+extern int  percpu_down_read_trylock(struct percpu_rw_semaphore *);
 extern void percpu_up_read(struct percpu_rw_semaphore *);
 
 extern void percpu_down_write(struct percpu_rw_semaphore *);
