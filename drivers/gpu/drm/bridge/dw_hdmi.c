@@ -123,6 +123,7 @@ struct dw_hdmi {
 	struct i2c_adapter *ddc;
 	void __iomem *regs;
 	bool sink_is_hdmi;
+	bool sink_has_audio;
 
 	spinlock_t audio_lock;
 	struct mutex audio_mutex;
@@ -1257,13 +1258,17 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	/* HDMI Initialization Step B.3 */
 	dw_hdmi_enable_video_path(hdmi);
 
-	/* not for DVI mode */
-	if (hdmi->sink_is_hdmi) {
-		dev_dbg(hdmi->dev, "%s HDMI mode\n", __func__);
+	if (hdmi->sink_has_audio) {
+		dev_dbg(hdmi->dev, "sink has audio support\n");
 
 		/* HDMI Initialization Step E - Configure audio */
 		hdmi_clk_regenerator_update_pixel_clock(hdmi);
 		hdmi_enable_audio_clk(hdmi);
+	}
+
+	/* not for DVI mode */
+	if (hdmi->sink_is_hdmi) {
+		dev_dbg(hdmi->dev, "%s HDMI mode\n", __func__);
 
 		/* HDMI Initialization Step F - Configure AVI InfoFrame */
 		hdmi_config_AVI(hdmi, mode);
@@ -1428,6 +1433,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			edid->width_cm, edid->height_cm);
 
 		hdmi->sink_is_hdmi = drm_detect_hdmi_monitor(edid);
+		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
 		drm_mode_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
