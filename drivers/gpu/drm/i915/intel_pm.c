@@ -3689,6 +3689,26 @@ static void skl_update_other_pipe_wm(struct drm_device *dev,
 	}
 }
 
+static void skl_clear_wm(struct skl_wm_values *watermarks, enum pipe pipe)
+{
+	watermarks->wm_linetime[pipe] = 0;
+	memset(watermarks->plane[pipe], 0,
+	       sizeof(uint32_t) * 8 * I915_MAX_PLANES);
+	memset(watermarks->cursor[pipe], 0, sizeof(uint32_t) * 8);
+	memset(watermarks->plane_trans[pipe],
+	       0, sizeof(uint32_t) * I915_MAX_PLANES);
+	watermarks->cursor_trans[pipe] = 0;
+
+	/* Clear ddb entries for pipe */
+	memset(&watermarks->ddb.pipe[pipe], 0, sizeof(struct skl_ddb_entry));
+	memset(&watermarks->ddb.plane[pipe], 0,
+	       sizeof(struct skl_ddb_entry) * I915_MAX_PLANES);
+	memset(&watermarks->ddb.y_plane[pipe], 0,
+	       sizeof(struct skl_ddb_entry) * I915_MAX_PLANES);
+	memset(&watermarks->ddb.cursor[pipe], 0, sizeof(struct skl_ddb_entry));
+
+}
+
 static void skl_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -3699,7 +3719,11 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	struct skl_pipe_wm pipe_wm = {};
 	struct intel_wm_config config = {};
 
-	memset(results, 0, sizeof(*results));
+
+	/* Clear all dirty flags */
+	memset(results->dirty, 0, sizeof(bool) * I915_MAX_PIPES);
+
+	skl_clear_wm(results, intel_crtc->pipe);
 
 	skl_compute_wm_global_parameters(dev, &config);
 
