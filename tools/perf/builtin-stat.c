@@ -101,7 +101,6 @@ static struct target target = {
 
 static int			run_count			=  1;
 static bool			no_inherit			= false;
-static bool			scale				=  true;
 static volatile pid_t		child_pid			= -1;
 static bool			null_run			=  false;
 static int			detailed_run			=  0;
@@ -127,6 +126,7 @@ static volatile int done = 0;
 
 static struct perf_stat_config stat_config = {
 	.aggr_mode	= AGGR_GLOBAL,
+	.scale		= true,
 };
 
 static inline void diff_timespec(struct timespec *r, struct timespec *a,
@@ -151,7 +151,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 
-	if (scale)
+	if (stat_config.scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
@@ -240,13 +240,13 @@ process_counter_values(struct perf_evsel *evsel, int cpu, int thread,
 	case AGGR_NONE:
 		if (!evsel->snapshot)
 			perf_evsel__compute_deltas(evsel, cpu, thread, count);
-		perf_counts_values__scale(count, scale, NULL);
+		perf_counts_values__scale(count, stat_config.scale, NULL);
 		if (stat_config.aggr_mode == AGGR_NONE)
 			perf_stat__update_shadow_stats(evsel, count->values, cpu);
 		break;
 	case AGGR_GLOBAL:
 		aggr->val += count->val;
-		if (scale) {
+		if (stat_config.scale) {
 			aggr->ena += count->ena;
 			aggr->run += count->run;
 		}
@@ -299,7 +299,7 @@ static int process_counter(struct perf_evsel *counter)
 
 	if (!counter->snapshot)
 		perf_evsel__compute_deltas(counter, -1, -1, aggr);
-	perf_counts_values__scale(aggr, scale, &counter->counts->scaled);
+	perf_counts_values__scale(aggr, stat_config.scale, &counter->counts->scaled);
 
 	for (i = 0; i < 3; i++)
 		update_stats(&ps->res_stats[i], count[i]);
@@ -1274,7 +1274,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('g', "group", &group,
 		    "put the counters into a counter group"),
-	OPT_BOOLEAN('c', "scale", &scale, "scale/normalize counters"),
+	OPT_BOOLEAN('c', "scale", &stat_config.scale, "scale/normalize counters"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &run_count,
