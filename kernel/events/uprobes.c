@@ -1770,7 +1770,7 @@ handle_uretprobe_chain(struct return_instance *ri, struct pt_regs *regs)
 	up_read(&uprobe->register_rwsem);
 }
 
-static bool handle_trampoline(struct pt_regs *regs)
+static void handle_trampoline(struct pt_regs *regs)
 {
 	struct uprobe_task *utask;
 	struct return_instance *ri;
@@ -1778,11 +1778,11 @@ static bool handle_trampoline(struct pt_regs *regs)
 
 	utask = current->utask;
 	if (!utask)
-		return false;
+		goto sigill;
 
 	ri = utask->return_instances;
 	if (!ri)
-		return false;
+		goto sigill;
 
 	/*
 	 * TODO: we should throw out return_instance's invalidated by
@@ -1804,8 +1804,12 @@ static bool handle_trampoline(struct pt_regs *regs)
 	}
 
 	utask->return_instances = ri;
+	return;
 
-	return true;
+ sigill:
+	uprobe_warn(current, "handle uretprobe, sending SIGILL.");
+	force_sig_info(SIGILL, SEND_SIG_FORCED, current);
+
 }
 
 bool __weak arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs)
@@ -1824,13 +1828,8 @@ static void handle_swbp(struct pt_regs *regs)
 	int uninitialized_var(is_swbp);
 
 	bp_vaddr = uprobe_get_swbp_addr(regs);
-	if (bp_vaddr == get_trampoline_vaddr()) {
-		if (handle_trampoline(regs))
-			return;
-
-		pr_warn("uprobe: unable to handle uretprobe pid/tgid=%d/%d\n",
-						current->pid, current->tgid);
-	}
+	if (bp_vaddr == get_trampoline_vaddr())
+		return handle_trampoline(regs);
 
 	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
 	if (!uprobe) {
