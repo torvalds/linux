@@ -2197,6 +2197,29 @@ static int efx_ef10_ev_probe(struct efx_channel *channel)
 				    GFP_KERNEL);
 }
 
+static void efx_ef10_ev_fini(struct efx_channel *channel)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_EVQ_IN_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
+	struct efx_nic *efx = channel->efx;
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, FINI_EVQ_IN_INSTANCE, channel->channel);
+
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_EVQ, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+
+	if (rc && rc != -EALREADY)
+		goto fail;
+
+	return;
+
+fail:
+	efx_mcdi_display_error(efx, MC_CMD_FINI_EVQ, MC_CMD_FINI_EVQ_IN_LEN,
+			       outbuf, outlen, rc);
+}
+
 static int efx_ef10_ev_init(struct efx_channel *channel)
 {
 	MCDI_DECLARE_BUF(inbuf,
@@ -2208,6 +2231,7 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	struct efx_ef10_nic_data *nic_data;
 	bool supports_rx_merge;
 	size_t inlen, outlen;
+	unsigned int enabled, implemented;
 	dma_addr_t dma_addr;
 	int rc;
 	int i;
@@ -2248,30 +2272,33 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_EVQ, inbuf, inlen,
 			  outbuf, sizeof(outbuf), &outlen);
 	/* IRQ return is ignored */
-	return rc;
-}
+	if (channel->channel || rc)
+		return rc;
 
-static void efx_ef10_ev_fini(struct efx_channel *channel)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_EVQ_IN_LEN);
-	MCDI_DECLARE_BUF_ERR(outbuf);
-	struct efx_nic *efx = channel->efx;
-	size_t outlen;
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, FINI_EVQ_IN_INSTANCE, channel->channel);
-
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_EVQ, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
-
-	if (rc && rc != -EALREADY)
+	/* Successfully created event queue on channel 0 */
+	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
+	if (rc)
 		goto fail;
 
-	return;
+	nic_data->workaround_26807 =
+		!!(enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807);
+
+	if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 &&
+	    !nic_data->workaround_26807) {
+		rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG26807,
+					     true);
+		if (!rc)
+			nic_data->workaround_26807 = true;
+		else if (rc == -EPERM)
+			rc = 0;
+	}
+
+	if (!rc)
+		return 0;
 
 fail:
-	efx_mcdi_display_error(efx, MC_CMD_FINI_EVQ, MC_CMD_FINI_EVQ_IN_LEN,
-			       outbuf, outlen, rc);
+	efx_ef10_ev_fini(channel);
+	return rc;
 }
 
 static void efx_ef10_ev_remove(struct efx_channel *channel)
