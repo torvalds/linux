@@ -794,7 +794,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		goto out;
 	}
 
-	cs->out.handle = parser.uf.sequence;
+	cs->out.handle = parser.ibs[parser.num_ibs - 1].sequence;
 out:
 	amdgpu_cs_parser_fini(&parser, r, true);
 	up_read(&adev->exclusive_lock);
