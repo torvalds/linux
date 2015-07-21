@@ -709,6 +709,7 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 		return -EIO;
 	}
 
+	netif_start_queue(netdev);
 	return 0;
 }
 
@@ -730,7 +731,6 @@ visornic_timeout_reset(struct work_struct *work)
 	devdata = container_of(work, struct visornic_devdata, timeout_reset);
 	netdev = devdata->netdev;
 
-	netif_stop_queue(netdev);
 	response = visornic_disable_with_timeout(netdev,
 						 VISORNIC_INFINITE_RSP_WAIT);
 	if (response)
@@ -740,7 +740,6 @@ visornic_timeout_reset(struct work_struct *work)
 						VISORNIC_INFINITE_RSP_WAIT);
 	if (response)
 		goto call_serverdown;
-	netif_wake_queue(netdev);
 
 	return;
 
@@ -760,11 +759,6 @@ visornic_open(struct net_device *netdev)
 {
 	visornic_enable_with_timeout(netdev, VISORNIC_INFINITE_RSP_WAIT);
 
-	/* start the interface's transmit queue, allowing it to accept
-	 * packets for transmission
-	 */
-	netif_start_queue(netdev);
-
 	return 0;
 }
 
@@ -778,7 +772,6 @@ visornic_open(struct net_device *netdev)
 static int
 visornic_close(struct net_device *netdev)
 {
-	netif_stop_queue(netdev);
 	visornic_disable_with_timeout(netdev, VISORNIC_INFINITE_RSP_WAIT);
 
 	return 0;
