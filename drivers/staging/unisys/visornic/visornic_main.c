@@ -978,21 +978,6 @@ visornic_get_stats(struct net_device *netdev)
 }
 
 /**
- *	visornic_ioctl - ioctl function for netdevice.
- *	@netdev: netdevice
- *	@ifr: ignored
- *	@cmd: ignored
- *
- *	Currently not supported.
- *	Returns EOPNOTSUPP
- */
-static int
-visornic_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	return -EOPNOTSUPP;
-}
-
-/**
  *	visornic_change_mtu - changes mtu of device.
  *	@netdev: netdevice
  *	@new_mtu: value of new mtu
@@ -1442,7 +1427,6 @@ static const struct net_device_ops visornic_dev_ops = {
 	.ndo_stop = visornic_close,
 	.ndo_start_xmit = visornic_xmit,
 	.ndo_get_stats = visornic_get_stats,
-	.ndo_do_ioctl = visornic_ioctl,
 	.ndo_change_mtu = visornic_change_mtu,
 	.ndo_tx_timeout = visornic_xmit_timeout,
 	.ndo_set_rx_mode = visornic_set_multi,
