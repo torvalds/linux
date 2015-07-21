@@ -1510,6 +1510,10 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 		features->last_slot_field = usage->hid;
 		wacom_map_usage(input, usage, field, EV_KEY, BTN_TOUCH, 0);
 		break;
+	case HID_DG_CONTACTCOUNT:
+		wacom_wac->hid_data.cc_index = field->index;
+		wacom_wac->hid_data.cc_value_index = usage->usage_index;
+		break;
 	}
 }
 
@@ -1520,6 +1524,10 @@ static void wacom_wac_finger_slot(struct wacom_wac *wacom_wac,
 	bool mt = wacom_wac->features.touch_max > 1;
 	bool prox = hid_data->tipswitch &&
 		    !wacom_wac->shared->stylus_in_proximity;
+
+	wacom_wac->hid_data.num_received++;
+	if (wacom_wac->hid_data.num_received > wacom_wac->hid_data.num_expected)
+		return;
 
 	if (mt) {
 		int slot;
@@ -1573,7 +1581,19 @@ static int wacom_wac_finger_event(struct hid_device *hdev,
 static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 		struct hid_report *report)
 {
-	return;
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct hid_data* hid_data = &wacom_wac->hid_data;
+
+	if (hid_data->cc_index >= 0) {
+		struct hid_field *field = report->field[hid_data->cc_index];
+		int value = field->value[hid_data->cc_value_index];
+		if (value)
+			hid_data->num_expected = value;
+	}
+	else {
+		hid_data->num_expected = wacom_wac->features.touch_max;
+	}
 }
 
 static void wacom_wac_finger_report(struct hid_device *hdev,
@@ -1584,10 +1604,18 @@ static void wacom_wac_finger_report(struct hid_device *hdev,
 	struct input_dev *input = wacom_wac->touch_input;
 	unsigned touch_max = wacom_wac->features.touch_max;
 
+	/* If more packets of data are expected, give us a chance to
+	 * process them rather than immediately syncing a partial
+	 * update.
+	 */
+	if (wacom_wac->hid_data.num_received < wacom_wac->hid_data.num_expected)
+		return;
+
 	if (touch_max > 1)
 		input_mt_sync_frame(input);
 
 	input_sync(input);
+	wacom_wac->hid_data.num_received = 0;
 
 	/* keep touch state for pen event */
 	wacom_wac->shared->touch_down = wacom_wac_finger_count_touches(wacom_wac);

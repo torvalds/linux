@@ -193,6 +193,10 @@ struct hid_data {
 	int width;
 	int height;
 	int id;
+	int cc_index;
+	int cc_value_index;
+	int num_expected;
+	int num_received;
 };
 
 struct wacom_wac {
