@@ -41,7 +41,7 @@ struct gb_loopback {
 
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats throughput;
-	struct gb_loopback_stats frequency;
+	struct gb_loopback_stats requests_per_second;
 	struct timeval ts;
 	struct timeval te;
 	u64 elapsed_nsecs;
@@ -133,8 +133,8 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 
 /* Time to send and receive one message */
 gb_loopback_stats_attrs(latency);
-/* Number of packet sent per second on this cport */
-gb_loopback_stats_attrs(frequency);
+/* Number of requests sent per second on this cport */
+gb_loopback_stats_attrs(requests_per_second);
 /* Quantity of data sent and received on this cport */
 gb_loopback_stats_attrs(throughput);
 /* Number of errors encountered during loop */
@@ -166,7 +166,7 @@ gb_loopback_attr(iteration_max, u);
 
 static struct attribute *loopback_attrs[] = {
 	dev_stats_attrs(latency),
-	dev_stats_attrs(frequency),
+	dev_stats_attrs(requests_per_second),
 	dev_stats_attrs(throughput),
 	&dev_attr_type.attr,
 	&dev_attr_size.attr,
@@ -320,7 +320,8 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	};
 	memcpy(&gb->latency, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb->throughput, &reset, sizeof(struct gb_loopback_stats));
-	memcpy(&gb->frequency, &reset, sizeof(struct gb_loopback_stats));
+	memcpy(&gb->requests_per_second, &reset,
+	       sizeof(struct gb_loopback_stats));
 	memset(&gb->ts, 0, sizeof(struct timeval));
 }
 
@@ -336,12 +337,12 @@ static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u64 val)
 	do_div(stats->avg, stats->count);
 }
 
-static void gb_loopback_frequency_update(struct gb_loopback *gb, u32 latency)
+static void gb_loopback_requests_update(struct gb_loopback *gb, u32 latency)
 {
-	u32 freq = USEC_PER_SEC;
+	u32 req = USEC_PER_SEC;
 
-	do_div(freq, latency);
-	gb_loopback_update_stats(&gb->frequency, freq);
+	do_div(req, latency);
+	gb_loopback_update_stats(&gb->requests_per_second, req);
 }
 
 static void gb_loopback_throughput_update(struct gb_loopback *gb, u32 latency)
@@ -386,9 +387,9 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb,
 	/* Log latency stastic */
 	gb_loopback_update_stats(&gb->latency, lat);
 
-	/* Log throughput and frequency using latency as benchmark */
+	/* Log throughput and requests using latency as benchmark */
 	gb_loopback_throughput_update(gb, lat);
-	gb_loopback_frequency_update(gb, lat);
+	gb_loopback_requests_update(gb, lat);
 }
 
 static int gb_loopback_fn(void *data)
