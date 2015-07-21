@@ -113,7 +113,7 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
 	struct vport *vport;
 
 	hlist_for_each_entry_rcu(vport, bucket, hash_node)
-		if (!strcmp(name, vport->ops->get_name(vport)) &&
+		if (!strcmp(name, ovs_vport_name(vport)) &&
 		    net_eq(ovs_dp_get_net(vport->dp), net))
 			return vport;
 
@@ -226,7 +226,7 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 		}
 
 		bucket = hash_bucket(ovs_dp_get_net(vport->dp),
-				     vport->ops->get_name(vport));
+				     ovs_vport_name(vport));
 		hlist_add_head_rcu(&vport->hash_node, bucket);
 		return vport;
 	}

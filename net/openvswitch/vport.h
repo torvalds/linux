@@ -237,6 +237,11 @@ static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
 }
 
+static inline const char *ovs_vport_name(struct vport *vport)
+{
+	return vport->dev ? vport->dev->name : vport->ops->get_name(vport);
+}
+
 int ovs_vport_ops_register(struct vport_ops *ops);
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 

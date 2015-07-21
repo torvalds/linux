@@ -242,7 +242,6 @@ static struct vport_ops ovs_internal_vport_ops = {
 	.type		= OVS_VPORT_TYPE_INTERNAL,
 	.create		= internal_dev_create,
 	.destroy	= internal_dev_destroy,
-	.get_name	= ovs_netdev_get_name,
 	.send		= internal_dev_recv,
 };
 

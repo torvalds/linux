@@ -171,11 +171,6 @@ static void netdev_destroy(struct vport *vport)
 	call_rcu(&vport->rcu, free_port_rcu);
 }
 
-const char *ovs_netdev_get_name(const struct vport *vport)
-{
-	return vport->dev->name;
-}
-
 static unsigned int packet_length(const struct sk_buff *skb)
 {
 	unsigned int length = skb->len - ETH_HLEN;
@@ -223,7 +218,6 @@ static struct vport_ops ovs_netdev_vport_ops = {
 	.type		= OVS_VPORT_TYPE_NETDEV,
 	.create		= netdev_create,
 	.destroy	= netdev_destroy,
-	.get_name	= ovs_netdev_get_name,
 	.send		= netdev_send,
 };
 

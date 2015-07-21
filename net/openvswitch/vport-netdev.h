@@ -26,7 +26,6 @@
 
 struct vport *ovs_netdev_get_vport(struct net_device *dev);
 
-const char *ovs_netdev_get_name(const struct vport *);
 void ovs_netdev_detach_dev(struct vport *);
 
 int __init ovs_netdev_init(void);
