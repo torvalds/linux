@@ -9,6 +9,8 @@
 
 #include "greybus.h"
 
+static struct ida greybus_svc_device_id_map;
+
 /* Define get_version() routine */
 define_get_version(gb_svc, SVC);
 
@@ -154,22 +156,99 @@ int gb_svc_connection_destroy(struct gb_svc *svc,
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
+static int gb_svc_version_request(struct gb_operation *op)
+{
+	struct gb_connection *connection = op->connection;
+	struct gb_protocol_version_response *version;
+	struct device *dev = &connection->dev;
+
+	version = op->request->payload;
+
+	if (version->major > GB_SVC_VERSION_MAJOR) {
+		dev_err(&connection->dev,
+			"unsupported major version (%hhu > %hhu)\n",
+			version->major, GB_SVC_VERSION_MAJOR);
+		return -ENOTSUPP;
+	}
+
+	if (!gb_operation_response_alloc(op, sizeof(*version), GFP_KERNEL)) {
+		dev_err(dev, "%s: error allocating response\n",
+				__func__);
+		return -ENOMEM;
+	}
+
+	version = op->response->payload;
+	version->major = GB_SVC_VERSION_MAJOR;
+	version->minor = GB_SVC_VERSION_MINOR;
+	return 0;
+}
+
+static int gb_svc_hello(struct gb_operation *op)
+{
+	struct gb_connection *connection = op->connection;
+	struct greybus_host_device *hd = connection->hd;
+	struct gb_svc_hello_request *hello_request;
+	struct device *dev = &connection->dev;
+	struct gb_interface *intf;
+	u16 endo_id;
+	u8 interface_id;
+	int ret;
+
+	/* Hello message should be received only during early bootup */
+	WARN_ON(hd->initial_svc_connection != connection);
+
+	/*
+	 * SVC sends information about the endo and interface-id on the hello
+	 * request, use that to create an endo.
+	 */
+	if (op->request->payload_size != sizeof(*hello_request)) {
+		dev_err(dev, "%s: Illegal size of hello request (%d %d)\n",
+			__func__, op->request->payload_size,
+			sizeof(*hello_request));
+		return -EINVAL;
+	}
+
+	hello_request = op->request->payload;
+	endo_id = le16_to_cpu(hello_request->endo_id);
+	interface_id = hello_request->interface_id;
+
+	/* Setup Endo */
+	ret = greybus_endo_setup(hd, endo_id, interface_id);
+	if (ret)
+		return ret;
+
+	/*
+	 * Endo and its modules are ready now, fix AP's partially initialized
+	 * svc protocol and its connection.
+	 */
+	intf = gb_ap_interface_create(hd, connection, interface_id);
+	if (!intf) {
+		gb_endo_remove(hd->endo);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 {
 	struct gb_message *request = op->request;
-	struct gb_svc_intf_hotplug_request *hotplug;
-	u8 intf_id;
+	struct gb_svc_intf_hotplug_request *hotplug = request->payload;
+	struct gb_svc *svc = op->connection->private;
+	struct greybus_host_device *hd = op->connection->bundle->intf->hd;
+	struct device *dev = &op->connection->dev;
+	struct gb_interface *intf;
+	u8 intf_id, device_id;
 	u32 unipro_mfg_id;
 	u32 unipro_prod_id;
 	u32 ara_vend_id;
 	u32 ara_prod_id;
+	int ret;
 
 	if (request->payload_size < sizeof(*hotplug)) {
-		dev_err(&op->connection->dev,
-			"short hotplug request received\n");
+		dev_err(dev, "%s: short hotplug request received\n", __func__);
 		return -EINVAL;
 	}
-	hotplug = request->payload;
 
 	/*
 	 * Grab the information we need.
@@ -185,15 +264,68 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
 	ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
-	/* FIXME Set up the interface here; may required firmware download */
+	// FIXME May require firmware download
+	intf = gb_interface_create(hd, intf_id);
+	if (!intf) {
+		dev_err(dev, "%s: Failed to create interface with id %hhu\n",
+			__func__, intf_id);
+		return -EINVAL;
+	}
+
+	/*
+	 * Create a device id for the interface:
+	 * - device id 0 (GB_DEVICE_ID_SVC) belongs to the SVC
+	 * - device id 1 (GB_DEVICE_ID_AP) belongs to the AP
+	 *
+	 * XXX Do we need to allocate device ID for SVC or the AP here? And what
+	 * XXX about an AP with multiple interface blocks?
+	 */
+	device_id = ida_simple_get(&greybus_svc_device_id_map,
+				   GB_DEVICE_ID_MODULES_START, 0, GFP_ATOMIC);
+	if (device_id < 0) {
+		ret = device_id;
+		dev_err(dev, "%s: Failed to allocate device id for interface with id %hhu (%d)\n",
+			__func__, intf_id, ret);
+		goto destroy_interface;
+	}
+
+	ret = intf_device_id_operation(svc, intf_id, device_id);
+	if (ret) {
+		dev_err(dev, "%s: Device id operation failed, interface %hhu device_id %hhu (%d)\n",
+			__func__, intf_id, device_id, ret);
+		goto ida_put;
+	}
+
+	ret = gb_interface_init(intf, device_id);
+	if (ret) {
+		dev_err(dev, "%s: Failed to initialize interface, interface %hhu device_id %hhu (%d)\n",
+			__func__, intf_id, device_id, ret);
+		goto svc_id_free;
+	}
 
 	return 0;
+
+svc_id_free:
+	/*
+	 * XXX Should we tell SVC that this id doesn't belong to interface
+	 * XXX anymore.
+	 */
+ida_put:
+	ida_simple_remove(&greybus_svc_device_id_map, device_id);
+destroy_interface:
+	gb_interface_remove(hd, intf_id);
+
+	return ret;
 }
 
 static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 {
 	struct gb_message *request = op->request;
-	struct gb_svc_intf_hot_unplug_request *hot_unplug;
+	struct gb_svc_intf_hot_unplug_request *hot_unplug = request->payload;
+	struct greybus_host_device *hd = op->connection->bundle->intf->hd;
+	struct device *dev = &op->connection->dev;
+	u8 device_id;
+	struct gb_interface *intf;
 	u8 intf_id;
 
 	if (request->payload_size < sizeof(*hot_unplug)) {
@@ -201,14 +333,21 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 			"short hot unplug request received\n");
 		return -EINVAL;
 	}
-	hot_unplug = request->payload;
 
 	intf_id = hot_unplug->intf_id;
 
-	/* FIXME Tear down the interface here */
+	intf = gb_interface_find(hd, intf_id);
+	if (!intf) {
+		dev_err(dev, "%s: Couldn't find interface for id %hhu\n",
+			__func__, intf_id);
+		return -EINVAL;
+	}
+
+	device_id = intf->device_id;
+	gb_interface_remove(hd, intf_id);
+	ida_simple_remove(&greybus_svc_device_id_map, device_id);
 
 	return 0;
-
 }
 
 static int gb_svc_intf_reset_recv(struct gb_operation *op)
@@ -234,6 +373,10 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 {
 	switch (type) {
+	case GB_SVC_TYPE_PROTOCOL_VERSION:
+		return gb_svc_version_request(op);
+	case GB_SVC_TYPE_SVC_HELLO:
+		return gb_svc_hello(op);
 	case GB_SVC_TYPE_INTF_HOTPLUG:
 		return gb_svc_intf_hotplug_recv(op);
 	case GB_SVC_TYPE_INTF_HOT_UNPLUG:
