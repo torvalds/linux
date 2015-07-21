@@ -59,9 +59,17 @@
 #define GB_DEVICE_ID_AP				1
 #define GB_DEVICE_ID_MODULES_START		2
 
-/* Bundle-id and cport-id for control cport */
+/*
+ * Bundle/cport for control/svc cport: The same bundle/cport is shared by both
+ * CONTROL and SVC protocols for communication between AP and SVC.
+ */
+#define GB_SVC_BUNDLE_ID			0
+#define GB_SVC_CPORT_ID				2
 #define GB_CONTROL_BUNDLE_ID			0
 #define GB_CONTROL_CPORT_ID			2
+
+
+/* Control Protocol */
 
 
 /* version request has no payload */
