@@ -26,22 +26,23 @@
 #define ATOMIC_OP(op, c_op, asm_op)					\
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\
-	unsigned int temp;						\
+	unsigned int val;						\
 									\
 	__asm__ __volatile__(						\
-	"1:	llock   %0, [%1]	\n"				\
-	"	" #asm_op " %0, %0, %2	\n"				\
-	"	scond   %0, [%1]	\n"				\
-	"	bnz     1b		\n"				\
-	: "=&r"(temp)	/* Early clobber, to prevent reg reuse */	\
-	: "r"(&v->counter), "ir"(i)					\
+	"1:	llock   %[val], [%[ctr]]		\n"		\
+	"	" #asm_op " %[val], %[val], %[i]	\n"		\
+	"	scond   %[val], [%[ctr]]		\n"		\
+	"	bnz     1b				\n"		\
+	: [val]	"=&r"	(val) /* Early clobber to prevent reg reuse */	\
+	: [ctr]	"r"	(&v->counter), /* Not "m": llock only supports reg direct addr mode */	\
+	  [i]	"ir"	(i)						\
 	: "cc");							\
 }									\
 
 #define ATOMIC_OP_RETURN(op, c_op, asm_op)				\
 static inline int atomic_##op##_return(int i, atomic_t *v)		\
 {									\
-	unsigned int temp;						\
+	unsigned int val;						\
 									\
 	/*								\
 	 * Explicit full memory barrier needed before/after as		\
@@ -50,17 +51,18 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	smp_mb();							\
 									\
 	__asm__ __volatile__(						\
-	"1:	llock   %0, [%1]	\n"				\
-	"	" #asm_op " %0, %0, %2	\n"				\
-	"	scond   %0, [%1]	\n"				\
-	"	bnz     1b		\n"				\
-	: "=&r"(temp)							\
-	: "r"(&v->counter), "ir"(i)					\
+	"1:	llock   %[val], [%[ctr]]		\n"		\
+	"	" #asm_op " %[val], %[val], %[i]	\n"		\
+	"	scond   %[val], [%[ctr]]		\n"		\
+	"	bnz     1b				\n"		\
+	: [val]	"=&r"	(val)						\
+	: [ctr]	"r"	(&v->counter),					\
+	  [i]	"ir"	(i)						\
 	: "cc");							\
 									\
 	smp_mb();							\
 									\
-	return temp;							\
+	return val;							\
 }
 
 #else	/* !CONFIG_ARC_HAS_LLSC */
