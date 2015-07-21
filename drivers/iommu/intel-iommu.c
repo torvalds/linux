@@ -1671,8 +1671,13 @@ static int __iommu_attach_domain(struct dmar_domain *domain,
 	int num;
 	unsigned long ndomains;
 
+	num = domain->iommu_did[iommu->seq_id];
+	if (num)
+		return num;
+
 	ndomains = cap_ndoms(iommu->cap);
-	num = find_first_zero_bit(iommu->domain_ids, ndomains);
+	num	 = find_first_zero_bit(iommu->domain_ids, ndomains);
+
 	if (num < ndomains) {
 		set_bit(num, iommu->domain_ids);
 		set_iommu_domain(iommu, num, domain);
@@ -1680,6 +1685,9 @@ static int __iommu_attach_domain(struct dmar_domain *domain,
 	} else {
 		num = -ENOSPC;
 	}
+
+	if (num < 0)
+		pr_err("%s: No free domain ids\n", iommu->name);
 
 	return num;
 }
@@ -1693,22 +1701,8 @@ static int iommu_attach_domain(struct dmar_domain *domain,
 	spin_lock_irqsave(&iommu->lock, flags);
 	num = __iommu_attach_domain(domain, iommu);
 	spin_unlock_irqrestore(&iommu->lock, flags);
-	if (num < 0)
-		pr_err("%s: No free domain ids\n", iommu->name);
 
 	return num;
-}
-
-static int iommu_attach_vm_domain(struct dmar_domain *domain,
-				  struct intel_iommu *iommu)
-{
-	int num;
-
-	num = domain->iommu_did[iommu->seq_id];
-	if (num)
-		return num;
-
-	return __iommu_attach_domain(domain, iommu);
 }
 
 static void iommu_detach_domain(struct dmar_domain *domain,
@@ -1947,7 +1941,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 
 	if (domain_type_is_vm_or_si(domain)) {
 		if (domain_type_is_vm(domain)) {
-			id = iommu_attach_vm_domain(domain, iommu);
+			id = __iommu_attach_domain(domain, iommu);
 			if (id < 0) {
 				spin_unlock_irqrestore(&iommu->lock, flags);
 				pr_err("%s: No free domain ids\n", iommu->name);
