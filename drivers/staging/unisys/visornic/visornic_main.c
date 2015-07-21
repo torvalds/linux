@@ -196,8 +196,6 @@ struct visornic_devdata {
 	struct chanstat chstat;
 };
 
-/* array of open devices maintained by open() and close() */
-static struct net_device *num_visornic_open[VISORNICSOPENMAX];
 
 /* List of all visornic_devdata structs,
  * linked via the list_all member
@@ -325,178 +323,15 @@ static void visor_thread_stop(struct visor_thread_info *thrinfo)
 		thrinfo->id = 0;
 }
 
-/* DebugFS code */
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset)
-{
-	int i;
-	ssize_t bytes_read = 0;
-	int str_pos = 0;
-	struct visornic_devdata *devdata;
-	char *vbuf;
-
-	if (len > MAX_BUF)
-		len = MAX_BUF;
-	vbuf = kzalloc(len, GFP_KERNEL);
-	if (!vbuf)
-		return -ENOMEM;
-
-	/* for each vnic channel
-	 * dump out channel specific data
-	 */
-	for (i = 0; i < VISORNICSOPENMAX; i++) {
-		if (!num_visornic_open[i])
-			continue;
-
-		devdata = netdev_priv(num_visornic_open[i]);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     "Vnic i = %d\n", i);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     "netdev = %s (0x%p), MAC Addr %pM\n",
-				     num_visornic_open[i]->name,
-				     num_visornic_open[i],
-				     num_visornic_open[i]->dev_addr);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     "VisorNic Dev Info = 0x%p\n", devdata);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " num_rcv_bufs = %d\n",
-				     devdata->num_rcv_bufs);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " max_oustanding_next_xmits = %d\n",
-				    devdata->max_outstanding_net_xmits);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " upper_threshold_net_xmits = %d\n",
-				     devdata->upper_threshold_net_xmits);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " lower_threshold_net_xmits = %d\n",
-				     devdata->lower_threshold_net_xmits);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " queuefullmsg_logged = %d\n",
-				     devdata->queuefullmsg_logged);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.got_rcv = %lu\n",
-				     devdata->chstat.got_rcv);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.got_enbdisack = %lu\n",
-				     devdata->chstat.got_enbdisack);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.got_xmit_done = %lu\n",
-				     devdata->chstat.got_xmit_done);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.xmit_fail = %lu\n",
-				     devdata->chstat.xmit_fail);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.sent_enbdis = %lu\n",
-				     devdata->chstat.sent_enbdis);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.sent_promisc = %lu\n",
-				     devdata->chstat.sent_promisc);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.sent_post = %lu\n",
-				     devdata->chstat.sent_post);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.sent_xmit = %lu\n",
-				     devdata->chstat.sent_xmit);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.reject_count = %lu\n",
-				     devdata->chstat.reject_count);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " chstat.extra_rcvbufs_sent = %lu\n",
-				     devdata->chstat.extra_rcvbufs_sent);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " n_rcv0 = %lu\n", devdata->n_rcv0);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " n_rcv1 = %lu\n", devdata->n_rcv1);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " n_rcv2 = %lu\n", devdata->n_rcv2);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " n_rcvx = %lu\n", devdata->n_rcvx);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " num_rcvbuf_in_iovm = %d\n",
-				     atomic_read(&devdata->num_rcvbuf_in_iovm));
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " alloc_failed_in_if_needed_cnt = %lu\n",
-				     devdata->alloc_failed_in_if_needed_cnt);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " alloc_failed_in_repost_rtn_cnt = %lu\n",
-				     devdata->alloc_failed_in_repost_rtn_cnt);
-		/* str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-		 *		     " inner_loop_limit_reached_cnt = %lu\n",
-		 *		     devdata->inner_loop_limit_reached_cnt);
-		 */
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " found_repost_rcvbuf_cnt = %lu\n",
-				     devdata->found_repost_rcvbuf_cnt);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " repost_found_skb_cnt = %lu\n",
-				     devdata->repost_found_skb_cnt);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " n_repost_deficit = %lu\n",
-				     devdata->n_repost_deficit);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " bad_rcv_buf = %lu\n",
-				     devdata->bad_rcv_buf);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " n_rcv_packets_not_accepted = %lu\n",
-				     devdata->n_rcv_packets_not_accepted);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " interrupts_rcvd = %llu\n",
-				     devdata->interrupts_rcvd);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " interrupts_notme = %llu\n",
-				     devdata->interrupts_notme);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " interrupts_disabled = %llu\n",
-				     devdata->interrupts_disabled);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " busy_cnt = %llu\n",
-				     devdata->busy_cnt);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " flow_control_upper_hits = %llu\n",
-				     devdata->flow_control_upper_hits);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " flow_control_lower_hits = %llu\n",
-				     devdata->flow_control_lower_hits);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " thread_wait_ms = %d\n",
-				     devdata->thread_wait_ms);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " netif_queue = %s\n",
-				     netif_queue_stopped(devdata->netdev) ?
-				     "stopped" : "running");
-	}
-	bytes_read = simple_read_from_buffer(buf, len, offset, vbuf, str_pos);
-	kfree(vbuf);
-	return bytes_read;
-}
-
 static ssize_t enable_ints_write(struct file *file,
 				 const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
-	char buf[4];
-	int i, new_value;
-	struct visornic_devdata *devdata;
-
-	if (count >= ARRAY_SIZE(buf))
-		return -EINVAL;
-
-	buf[count] = '\0';
-	if (copy_from_user(buf, buffer, count))
-		return -EFAULT;
-
-	i = kstrtoint(buf, 10, &new_value);
-	if (i != 0)
-		return -EFAULT;
-
-	/* set all counts to new_value usually 0 */
-	for (i = 0; i < VISORNICSOPENMAX; i++) {
-		if (num_visornic_open[i]) {
-			devdata = netdev_priv(num_visornic_open[i]);
-			/* TODO update features bit in channel */
-		}
-	}
-
+	/*
+	 * Don't want to break ABI here by having a debugfs
+	 * file that no longer exists or is writable, so
+	 * lets just make this a vestigual function
+	 */
 	return count;
 }
 
@@ -760,13 +595,6 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 		}
 	}
 
-	/* remove references from array */
-	for (i = 0; i < VISORNICSOPENMAX; i++)
-		if (num_visornic_open[i] == netdev) {
-			num_visornic_open[i] = NULL;
-			break;
-		}
-
 	return 0;
 }
 
@@ -880,16 +708,6 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 	if (!devdata->enab_dis_acked) {
 		dev_err(&netdev->dev, "%s missing ACK\n", __func__);
 		return -EIO;
-	}
-
-	/* find an open slot in the array to save off VisorNic references
-	 * for debug
-	 */
-	for (i = 0; i < VISORNICSOPENMAX; i++) {
-		if (!num_visornic_open[i]) {
-			num_visornic_open[i] = netdev;
-			break;
-		}
 	}
 
 	return 0;
@@ -1641,6 +1459,155 @@ static const struct net_device_ops visornic_dev_ops = {
 	.ndo_tx_timeout = visornic_xmit_timeout,
 	.ndo_set_rx_mode = visornic_set_multi,
 };
+
+/* DebugFS code */
+static ssize_t info_debugfs_read(struct file *file, char __user *buf,
+				 size_t len, loff_t *offset)
+{
+	ssize_t bytes_read = 0;
+	int str_pos = 0;
+	struct visornic_devdata *devdata;
+	struct net_device *dev;
+	char *vbuf;
+
+	if (len > MAX_BUF)
+		len = MAX_BUF;
+	vbuf = kzalloc(len, GFP_KERNEL);
+	if (!vbuf)
+		return -ENOMEM;
+
+	/* for each vnic channel
+	 * dump out channel specific data
+	 */
+	rcu_read_lock();
+	for_each_netdev_rcu(current->nsproxy->net_ns, dev) {
+		/*
+		 * Only consider netdevs that are visornic, and are open
+		 */
+		if ((dev->netdev_ops != &visornic_dev_ops) ||
+		    (!netif_queue_stopped(dev)))
+			continue;
+
+		devdata = netdev_priv(dev);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     "netdev = %s (0x%p), MAC Addr %pM\n",
+				     dev->name,
+				     dev,
+				     dev->dev_addr);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     "VisorNic Dev Info = 0x%p\n", devdata);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " num_rcv_bufs = %d\n",
+				     devdata->num_rcv_bufs);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " max_oustanding_next_xmits = %d\n",
+				    devdata->max_outstanding_net_xmits);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " upper_threshold_net_xmits = %d\n",
+				     devdata->upper_threshold_net_xmits);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " lower_threshold_net_xmits = %d\n",
+				     devdata->lower_threshold_net_xmits);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " queuefullmsg_logged = %d\n",
+				     devdata->queuefullmsg_logged);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.got_rcv = %lu\n",
+				     devdata->chstat.got_rcv);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.got_enbdisack = %lu\n",
+				     devdata->chstat.got_enbdisack);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.got_xmit_done = %lu\n",
+				     devdata->chstat.got_xmit_done);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.xmit_fail = %lu\n",
+				     devdata->chstat.xmit_fail);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.sent_enbdis = %lu\n",
+				     devdata->chstat.sent_enbdis);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.sent_promisc = %lu\n",
+				     devdata->chstat.sent_promisc);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.sent_post = %lu\n",
+				     devdata->chstat.sent_post);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.sent_xmit = %lu\n",
+				     devdata->chstat.sent_xmit);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.reject_count = %lu\n",
+				     devdata->chstat.reject_count);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.extra_rcvbufs_sent = %lu\n",
+				     devdata->chstat.extra_rcvbufs_sent);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " n_rcv0 = %lu\n", devdata->n_rcv0);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " n_rcv1 = %lu\n", devdata->n_rcv1);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " n_rcv2 = %lu\n", devdata->n_rcv2);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " n_rcvx = %lu\n", devdata->n_rcvx);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " num_rcvbuf_in_iovm = %d\n",
+				     atomic_read(&devdata->num_rcvbuf_in_iovm));
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " alloc_failed_in_if_needed_cnt = %lu\n",
+				     devdata->alloc_failed_in_if_needed_cnt);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " alloc_failed_in_repost_rtn_cnt = %lu\n",
+				     devdata->alloc_failed_in_repost_rtn_cnt);
+		/* str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+		 *		     " inner_loop_limit_reached_cnt = %lu\n",
+		 *		     devdata->inner_loop_limit_reached_cnt);
+		 */
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " found_repost_rcvbuf_cnt = %lu\n",
+				     devdata->found_repost_rcvbuf_cnt);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " repost_found_skb_cnt = %lu\n",
+				     devdata->repost_found_skb_cnt);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " n_repost_deficit = %lu\n",
+				     devdata->n_repost_deficit);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " bad_rcv_buf = %lu\n",
+				     devdata->bad_rcv_buf);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " n_rcv_packets_not_accepted = %lu\n",
+				     devdata->n_rcv_packets_not_accepted);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " interrupts_rcvd = %llu\n",
+				     devdata->interrupts_rcvd);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " interrupts_notme = %llu\n",
+				     devdata->interrupts_notme);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " interrupts_disabled = %llu\n",
+				     devdata->interrupts_disabled);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " busy_cnt = %llu\n",
+				     devdata->busy_cnt);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " flow_control_upper_hits = %llu\n",
+				     devdata->flow_control_upper_hits);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " flow_control_lower_hits = %llu\n",
+				     devdata->flow_control_lower_hits);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " thread_wait_ms = %d\n",
+				     devdata->thread_wait_ms);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " netif_queue = %s\n",
+				     netif_queue_stopped(devdata->netdev) ?
+				     "stopped" : "running");
+	}
+	rcu_read_unlock();
+	bytes_read = simple_read_from_buffer(buf, len, offset, vbuf, str_pos);
+	kfree(vbuf);
+	return bytes_read;
+}
 
 /**
  *	send_rcv_posts_if_needed
