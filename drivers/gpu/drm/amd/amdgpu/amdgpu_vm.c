@@ -306,6 +306,24 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
 	}
 }
 
+static int amdgpu_vm_free_job(
+	struct amdgpu_cs_parser *sched_job)
+{
+	int i;
+	for (i = 0; i < sched_job->num_ibs; i++)
+		amdgpu_ib_free(sched_job->adev, &sched_job->ibs[i]);
+	kfree(sched_job->ibs);
+	return 0;
+}
+
+static int amdgpu_vm_run_job(
+	struct amdgpu_cs_parser *sched_job)
+{
+	amdgpu_bo_fence(sched_job->job_param.vm.bo,
+			sched_job->ibs[sched_job->num_ibs -1].fence, true);
+	return 0;
+}
+
 /**
  * amdgpu_vm_clear_bo - initially clear the page dir/table
  *
@@ -316,7 +334,8 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			      struct amdgpu_bo *bo)
 {
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
-	struct amdgpu_ib ib;
+	struct amdgpu_cs_parser *sched_job = NULL;
+	struct amdgpu_ib *ib;
 	unsigned entries;
 	uint64_t addr;
 	int r;
@@ -336,24 +355,54 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	addr = amdgpu_bo_gpu_offset(bo);
 	entries = amdgpu_bo_size(bo) / 8;
 
-	r = amdgpu_ib_get(ring, NULL, entries * 2 + 64, &ib);
-	if (r)
+	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!ib)
 		goto error_unreserve;
 
-	ib.length_dw = 0;
-
-	amdgpu_vm_update_pages(adev, &ib, addr, 0, entries, 0, 0, 0);
-	amdgpu_vm_pad_ib(adev, &ib);
-	WARN_ON(ib.length_dw > 64);
-
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_VM);
+	r = amdgpu_ib_get(ring, NULL, entries * 2 + 64, ib);
 	if (r)
 		goto error_free;
 
-	amdgpu_bo_fence(bo, ib.fence, true);
+	ib->length_dw = 0;
+
+	amdgpu_vm_update_pages(adev, ib, addr, 0, entries, 0, 0, 0);
+	amdgpu_vm_pad_ib(adev, ib);
+	WARN_ON(ib->length_dw > 64);
+
+	if (amdgpu_enable_scheduler) {
+		int r;
+		uint64_t v_seq;
+		sched_job = amdgpu_cs_parser_create(adev, AMDGPU_FENCE_OWNER_VM,
+						    adev->kernel_ctx, ib, 1);
+		if(!sched_job)
+			goto error_free;
+		sched_job->job_param.vm.bo = bo;
+		sched_job->run_job = amdgpu_vm_run_job;
+		sched_job->free_job = amdgpu_vm_free_job;
+		v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
+		sched_job->uf.sequence = v_seq;
+		amd_sched_push_job(ring->scheduler,
+				   &adev->kernel_ctx->rings[ring->idx].c_entity,
+				   sched_job);
+		r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
+					v_seq,
+					true,
+					-1);
+		if (r)
+			DRM_ERROR("emit timeout\n");
+
+		amdgpu_bo_unreserve(bo);
+		return 0;
+	} else {
+		r = amdgpu_ib_schedule(adev, 1, ib, AMDGPU_FENCE_OWNER_VM);
+		if (r)
+			goto error_free;
+		amdgpu_bo_fence(bo, ib->fence, true);
+	}
 
 error_free:
-	amdgpu_ib_free(adev, &ib);
+	amdgpu_ib_free(adev, ib);
+	kfree(ib);
 
 error_unreserve:
 	amdgpu_bo_unreserve(bo);
@@ -406,7 +455,9 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	uint32_t incr = AMDGPU_VM_PTE_COUNT * 8;
 	uint64_t last_pde = ~0, last_pt = ~0;
 	unsigned count = 0, pt_idx, ndw;
-	struct amdgpu_ib ib;
+	struct amdgpu_ib *ib;
+	struct amdgpu_cs_parser *sched_job = NULL;
+
 	int r;
 
 	/* padding, etc. */
@@ -419,10 +470,14 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	if (ndw > 0xfffff)
 		return -ENOMEM;
 
-	r = amdgpu_ib_get(ring, NULL, ndw * 4, &ib);
+	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!ib)
+		return -ENOMEM;
+
+	r = amdgpu_ib_get(ring, NULL, ndw * 4, ib);
 	if (r)
 		return r;
-	ib.length_dw = 0;
+	ib->length_dw = 0;
 
 	/* walk over the address space and update the page directory */
 	for (pt_idx = 0; pt_idx <= vm->max_pde_used; ++pt_idx) {
@@ -442,7 +497,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		    ((last_pt + incr * count) != pt)) {
 
 			if (count) {
-				amdgpu_vm_update_pages(adev, &ib, last_pde,
+				amdgpu_vm_update_pages(adev, ib, last_pde,
 						       last_pt, count, incr,
 						       AMDGPU_PTE_VALID, 0);
 			}
@@ -456,23 +511,59 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	}
 
 	if (count)
-		amdgpu_vm_update_pages(adev, &ib, last_pde, last_pt, count,
+		amdgpu_vm_update_pages(adev, ib, last_pde, last_pt, count,
 				       incr, AMDGPU_PTE_VALID, 0);
 
-	if (ib.length_dw != 0) {
-		amdgpu_vm_pad_ib(adev, &ib);
-		amdgpu_sync_resv(adev, &ib.sync, pd->tbo.resv, AMDGPU_FENCE_OWNER_VM);
-		WARN_ON(ib.length_dw > ndw);
-		r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_VM);
-		if (r) {
-			amdgpu_ib_free(adev, &ib);
-			return r;
+	if (ib->length_dw != 0) {
+		amdgpu_vm_pad_ib(adev, ib);
+		amdgpu_sync_resv(adev, &ib->sync, pd->tbo.resv, AMDGPU_FENCE_OWNER_VM);
+		WARN_ON(ib->length_dw > ndw);
+
+		if (amdgpu_enable_scheduler) {
+			int r;
+			uint64_t v_seq;
+			sched_job = amdgpu_cs_parser_create(adev, AMDGPU_FENCE_OWNER_VM,
+							    adev->kernel_ctx,
+							    ib, 1);
+			if(!sched_job)
+				goto error_free;
+			sched_job->job_param.vm.bo = pd;
+			sched_job->run_job = amdgpu_vm_run_job;
+			sched_job->free_job = amdgpu_vm_free_job;
+			v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
+			sched_job->uf.sequence = v_seq;
+			amd_sched_push_job(ring->scheduler,
+					   &adev->kernel_ctx->rings[ring->idx].c_entity,
+					   sched_job);
+			r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
+						v_seq,
+						true,
+						-1);
+			if (r)
+				DRM_ERROR("emit timeout\n");
+		} else {
+			r = amdgpu_ib_schedule(adev, 1, ib, AMDGPU_FENCE_OWNER_VM);
+			if (r) {
+				amdgpu_ib_free(adev, ib);
+				return r;
+			}
+			amdgpu_bo_fence(pd, ib->fence, true);
 		}
-		amdgpu_bo_fence(pd, ib.fence, true);
 	}
-	amdgpu_ib_free(adev, &ib);
+
+	if (!amdgpu_enable_scheduler || ib->length_dw == 0) {
+		amdgpu_ib_free(adev, ib);
+		kfree(ib);
+	}
 
 	return 0;
+
+error_free:
+	if (sched_job)
+		kfree(sched_job);
+	amdgpu_ib_free(adev, ib);
+	kfree(ib);
+	return -ENOMEM;
 }
 
 /**
@@ -657,6 +748,20 @@ static void amdgpu_vm_fence_pts(struct amdgpu_vm *vm,
 		amdgpu_bo_fence(vm->page_tables[i].bo, fence, true);
 }
 
+static int amdgpu_vm_bo_update_mapping_run_job(
+	struct amdgpu_cs_parser *sched_job)
+{
+	struct amdgpu_fence **fence = sched_job->job_param.vm_mapping.fence;
+	amdgpu_vm_fence_pts(sched_job->job_param.vm_mapping.vm,
+			    sched_job->job_param.vm_mapping.start,
+			    sched_job->job_param.vm_mapping.last + 1,
+			    sched_job->ibs[sched_job->num_ibs -1].fence);
+	if (fence) {
+		amdgpu_fence_unref(fence);
+		*fence = amdgpu_fence_ref(sched_job->ibs[sched_job->num_ibs -1].fence);
+	}
+	return 0;
+}
 /**
  * amdgpu_vm_bo_update_mapping - update a mapping in the vm page table
  *
@@ -681,7 +786,8 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	unsigned nptes, ncmds, ndw;
 	uint32_t flags = gtt_flags;
-	struct amdgpu_ib ib;
+	struct amdgpu_ib *ib;
+	struct amdgpu_cs_parser *sched_job = NULL;
 	int r;
 
 	/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
@@ -728,48 +834,91 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (ndw > 0xfffff)
 		return -ENOMEM;
 
-	r = amdgpu_ib_get(ring, NULL, ndw * 4, &ib);
-	if (r)
+	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
+	if (!ib)
+		return -ENOMEM;
+
+	r = amdgpu_ib_get(ring, NULL, ndw * 4, ib);
+	if (r) {
+		kfree(ib);
 		return r;
-	ib.length_dw = 0;
+	}
+
+	ib->length_dw = 0;
 
 	if (!(flags & AMDGPU_PTE_VALID)) {
 		unsigned i;
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_fence *f = vm->ids[i].last_id_use;
-			r = amdgpu_sync_fence(adev, &ib.sync, &f->base);
+			r = amdgpu_sync_fence(adev, &ib->sync, &f->base);
 			if (r)
 				return r;
 		}
 	}
 
-	r = amdgpu_vm_update_ptes(adev, vm, &ib, mapping->it.start,
+	r = amdgpu_vm_update_ptes(adev, vm, ib, mapping->it.start,
 				  mapping->it.last + 1, addr + mapping->offset,
 				  flags, gtt_flags);
 
 	if (r) {
-		amdgpu_ib_free(adev, &ib);
+		amdgpu_ib_free(adev, ib);
+		kfree(ib);
 		return r;
 	}
 
-	amdgpu_vm_pad_ib(adev, &ib);
-	WARN_ON(ib.length_dw > ndw);
+	amdgpu_vm_pad_ib(adev, ib);
+	WARN_ON(ib->length_dw > ndw);
 
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_VM);
-	if (r) {
-		amdgpu_ib_free(adev, &ib);
-		return r;
-	}
-	amdgpu_vm_fence_pts(vm, mapping->it.start,
-			    mapping->it.last + 1, ib.fence);
-	if (fence) {
-		amdgpu_fence_unref(fence);
-		*fence = amdgpu_fence_ref(ib.fence);
-	}
-	amdgpu_ib_free(adev, &ib);
+	if (amdgpu_enable_scheduler) {
+		int r;
+		uint64_t v_seq;
+		sched_job = amdgpu_cs_parser_create(adev, AMDGPU_FENCE_OWNER_VM,
+						    adev->kernel_ctx, ib, 1);
+		if(!sched_job)
+			goto error_free;
+		sched_job->job_param.vm_mapping.vm = vm;
+		sched_job->job_param.vm_mapping.start = mapping->it.start;
+		sched_job->job_param.vm_mapping.last = mapping->it.last;
+		sched_job->job_param.vm_mapping.fence = fence;
+		sched_job->run_job = amdgpu_vm_bo_update_mapping_run_job;
+		sched_job->free_job = amdgpu_vm_free_job;
+		v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
+		sched_job->uf.sequence = v_seq;
+		amd_sched_push_job(ring->scheduler,
+				   &adev->kernel_ctx->rings[ring->idx].c_entity,
+				   sched_job);
+		r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
+					v_seq,
+					true,
+					-1);
+		if (r)
+			DRM_ERROR("emit timeout\n");
+	} else {
+		r = amdgpu_ib_schedule(adev, 1, ib, AMDGPU_FENCE_OWNER_VM);
+		if (r) {
+			amdgpu_ib_free(adev, ib);
+			return r;
+		}
 
+		amdgpu_vm_fence_pts(vm, mapping->it.start,
+				    mapping->it.last + 1, ib->fence);
+		if (fence) {
+			amdgpu_fence_unref(fence);
+			*fence = amdgpu_fence_ref(ib->fence);
+		}
+
+		amdgpu_ib_free(adev, ib);
+		kfree(ib);
+	}
 	return 0;
+
+error_free:
+	if (sched_job)
+		kfree(sched_job);
+	amdgpu_ib_free(adev, ib);
+	kfree(ib);
+	return -ENOMEM;
 }
 
 /**

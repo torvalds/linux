@@ -1221,6 +1221,19 @@ struct amdgpu_cs_chunk {
 	void __user		*user_ptr;
 };
 
+union amdgpu_sched_job_param {
+	struct {
+		struct amdgpu_vm *vm;
+		uint64_t start;
+		uint64_t last;
+		struct amdgpu_fence **fence;
+
+	} vm_mapping;
+	struct {
+		struct amdgpu_bo *bo;
+	} vm;
+};
+
 struct amdgpu_cs_parser {
 	struct amdgpu_device	*adev;
 	struct drm_file		*filp;
@@ -1245,6 +1258,7 @@ struct amdgpu_cs_parser {
 	struct mutex job_lock;
 	struct work_struct job_work;
 	int (*prepare_job)(struct amdgpu_cs_parser *sched_job);
+	union amdgpu_sched_job_param job_param;
 	int (*run_job)(struct amdgpu_cs_parser *sched_job);
 	int (*free_job)(struct amdgpu_cs_parser *sched_job);
 };
@@ -2255,6 +2269,12 @@ void amdgpu_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_card_posted(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
 bool amdgpu_boot_test_post_card(struct amdgpu_device *adev);
+struct amdgpu_cs_parser *amdgpu_cs_parser_create(struct amdgpu_device *adev,
+						 struct drm_file *filp,
+						 struct amdgpu_ctx *ctx,
+						 struct amdgpu_ib *ibs,
+						 uint32_t num_ibs);
+
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		       u32 ip_instance, u32 ring,
