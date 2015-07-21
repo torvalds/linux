@@ -25,6 +25,7 @@
 #include <linux/mfd/rk808.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/gpio/consumer.h>
 
 /* Field Definitions */
 #define RK808_BUCK_VSEL_MASK	0x3f
