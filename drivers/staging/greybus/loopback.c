@@ -137,10 +137,12 @@ gb_loopback_stats_attrs(throughput);
 gb_loopback_ro_attr(error, d);
 
 /*
- * Type of loopback message to send
+ * Type of loopback message to send based on protocol type definitions
  * 0 => Don't send message
- * 1 => Send ping message continuously (message without payload)
- * 2 => Send transer message continuously (message with payload)
+ * 2 => Send ping message continuously (message without payload)
+ * 3 => Send transer message continuously (message with payload,
+ *					   payload returned in response)
+ * 4 => Send a sink message (message with payload, no payload in response)
  */
 gb_loopback_attr(type, d);
 /* Size of transfer message payload: 0-4096 bytes */
