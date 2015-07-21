@@ -254,8 +254,16 @@ visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 					      page_offset,
 					      skb_shinfo(skb)->frags[ii].
 					      size, count, frags_max, frags);
-			if (!count)
-				return -EIO;
+			/*
+			 * add_physinfo_entries only returns
+			 * zero if the frags array is out of room
+			 * That should never happen because we
+			 * fail above, if count+numfrags > frags_max.
+			 * Given that theres no recovery mechanism from putting
+			 * half a packet in the I/O channel, panic here as this
+			 * should never happen
+			 */
+			BUG_ON(!count);
 		}
 	}
 	if (skb_shinfo(skb)->frag_list) {
