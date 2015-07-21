@@ -23,6 +23,7 @@
 
 #include <sound/hda_register.h>
 #include <sound/hdaudio_ext.h>
+#include "skl-nhlt.h"
 
 #define SKL_SUSPEND_DELAY 2000
 
@@ -53,6 +54,8 @@ struct skl {
 
 	unsigned int init_failed:1; /* delayed init failed */
 	struct platform_device *dmic_dev;
+
+	void __iomem *nhlt; /* nhlt ptr */
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
@@ -68,4 +71,8 @@ struct skl_dma_params {
 int skl_platform_unregister(struct device *dev);
 int skl_platform_register(struct device *dev);
 
+void __iomem *skl_nhlt_init(struct device *dev);
+void skl_nhlt_free(void __iomem *addr);
+struct nhlt_specific_cfg *skl_get_ep_blob(struct skl *skl, u32 instance,
+			u8 link_type, u8 s_fmt, u8 no_ch, u32 s_rate, u8 dirn);
 #endif /* __SOUND_SOC_SKL_H */
