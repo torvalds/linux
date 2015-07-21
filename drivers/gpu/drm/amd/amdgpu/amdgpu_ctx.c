@@ -225,10 +225,16 @@ uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 			      struct fence *fence)
 {
 	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
-	uint64_t seq = cring->sequence;
-	unsigned idx = seq % AMDGPU_CTX_MAX_CS_PENDING;
-	struct fence *other = cring->fences[idx];
+	uint64_t seq = 0;
+	unsigned idx = 0;
+	struct fence *other = NULL;
 
+	if (amdgpu_enable_scheduler)
+		seq = atomic64_read(&cring->c_entity.last_queued_v_seq);
+	else
+		seq = cring->sequence;
+	idx = seq % AMDGPU_CTX_MAX_CS_PENDING;
+	other = cring->fences[idx];
 	if (other) {
 		signed long r;
 		r = fence_wait_timeout(other, false, MAX_SCHEDULE_TIMEOUT);
@@ -240,7 +246,8 @@ uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 
 	spin_lock(&ctx->ring_lock);
 	cring->fences[idx] = fence;
-	cring->sequence++;
+	if (!amdgpu_enable_scheduler)
+		cring->sequence++;
 	spin_unlock(&ctx->ring_lock);
 
 	fence_put(other);
@@ -253,14 +260,21 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 {
 	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
 	struct fence *fence;
+	uint64_t queued_seq;
 
 	spin_lock(&ctx->ring_lock);
-	if (seq >= cring->sequence) {
+	if (amdgpu_enable_scheduler)
+		queued_seq = atomic64_read(&cring->c_entity.last_queued_v_seq) + 1;
+	else
+		queued_seq = cring->sequence;
+
+	if (seq >= queued_seq) {
 		spin_unlock(&ctx->ring_lock);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (seq + AMDGPU_CTX_MAX_CS_PENDING < cring->sequence) {
+
+	if (seq + AMDGPU_CTX_MAX_CS_PENDING < queued_seq) {
 		spin_unlock(&ctx->ring_lock);
 		return NULL;
 	}
