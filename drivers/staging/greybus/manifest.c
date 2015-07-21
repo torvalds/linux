@@ -355,7 +355,7 @@ static bool gb_manifest_parse_interface(struct gb_interface *intf,
 
 	/* An interface must have at least one bundle descriptor */
 	if (!gb_manifest_parse_bundles(intf)) {
-		pr_err("manifest bundle descriptors not valid\n");
+		dev_err(&intf->dev, "manifest bundle descriptors not valid\n");
 		goto out_err;
 	}
 
