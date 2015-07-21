@@ -985,3 +985,8 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs
 
 	return -1;
 }
+
+bool arch_uretprobe_is_alive(struct return_instance *ret, struct pt_regs *regs)
+{
+	return regs->sp <= ret->stack;
+}

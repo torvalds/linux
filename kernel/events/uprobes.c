@@ -1562,6 +1562,7 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 
 	ri->uprobe = get_uprobe(uprobe);
 	ri->func = instruction_pointer(regs);
+	ri->stack = user_stack_pointer(regs);
 	ri->orig_ret_vaddr = orig_ret_vaddr;
 	ri->chained = chained;
 

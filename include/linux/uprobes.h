@@ -95,6 +95,7 @@ struct uprobe_task {
 struct return_instance {
 	struct uprobe		*uprobe;
 	unsigned long		func;
+	unsigned long		stack;		/* stack pointer */
 	unsigned long		orig_ret_vaddr; /* original return address */
 	bool			chained;	/* true, if instance is nested */
 
