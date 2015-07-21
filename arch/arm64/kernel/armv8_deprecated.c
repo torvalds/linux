@@ -16,6 +16,7 @@
 
 #include <asm/insn.h>
 #include <asm/opcodes.h>
+#include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
@@ -502,16 +503,6 @@ ret:
 
 	regs->pc += 4;
 	return 0;
-}
-
-static inline void config_sctlr_el1(u32 clear, u32 set)
-{
-	u32 val;
-
-	asm volatile("mrs %0, sctlr_el1" : "=r" (val));
-	val &= ~clear;
-	val |= set;
-	asm volatile("msr sctlr_el1, %0" : : "r" (val));
 }
 
 static int cp15_barrier_set_hw_mode(bool enable)

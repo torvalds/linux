@@ -20,6 +20,9 @@
 #ifndef __ASM_SYSREG_H
 #define __ASM_SYSREG_H
 
+#define SCTLR_EL1_CP15BEN	(0x1 << 5)
+#define SCTLR_EL1_SED		(0x1 << 8)
+
 #define sys_reg(op0, op1, crn, crm, op2) \
 	((((op0)-2)<<19)|((op1)<<16)|((crn)<<12)|((crm)<<8)|((op2)<<5))
 
@@ -55,6 +58,15 @@ asm(
 "	.endm\n"
 );
 
+static inline void config_sctlr_el1(u32 clear, u32 set)
+{
+	u32 val;
+
+	asm volatile("mrs %0, sctlr_el1" : "=r" (val));
+	val &= ~clear;
+	val |= set;
+	asm volatile("msr sctlr_el1, %0" : : "r" (val));
+}
 #endif
 
 #endif	/* __ASM_SYSREG_H */
