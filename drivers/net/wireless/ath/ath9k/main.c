@@ -1468,6 +1468,9 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 	spin_lock_bh(&sc->chan_lock);
 	ath_for_each_chanctx(sc, ctx)
 		ctx->rxfilter = *total_flags;
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+	sc->offchannel.chan.rxfilter = *total_flags;
+#endif
 	spin_unlock_bh(&sc->chan_lock);
 
 	ath9k_ps_wakeup(sc);
