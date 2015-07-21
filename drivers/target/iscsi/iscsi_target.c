@@ -1209,7 +1209,6 @@ static u32 iscsit_do_crypto_hash_sg(
 	u8 *pad_bytes)
 {
 	u32 data_crc;
-	u32 i;
 	struct scatterlist *sg;
 	unsigned int page_off;
 
@@ -1218,15 +1217,15 @@ static u32 iscsit_do_crypto_hash_sg(
 	sg = cmd->first_data_sg;
 	page_off = cmd->first_data_sg_off;
 
-	i = 0;
 	while (data_length) {
-		u32 cur_len = min_t(u32, data_length, (sg[i].length - page_off));
+		u32 cur_len = min_t(u32, data_length, (sg->length - page_off));
 
-		crypto_hash_update(hash, &sg[i], cur_len);
+		crypto_hash_update(hash, sg, cur_len);
 
 		data_length -= cur_len;
 		page_off = 0;
-		i++;
+		/* iscsit_map_iovec has already checked for invalid sg pointers */
+		sg = sg_next(sg);
 	}
 
 	if (padding) {
