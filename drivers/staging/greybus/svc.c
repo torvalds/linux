@@ -11,9 +11,6 @@
 
 static struct ida greybus_svc_device_id_map;
 
-/* Define get_version() routine */
-define_get_version(gb_svc, SVC);
-
 /*
  * AP's SVC cport is required early to get messages from the SVC. This happens
  * even before the Endo is created and hence any modules or interfaces.
@@ -390,19 +387,9 @@ static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 	}
 }
 
-/*
- * Do initial setup of the SVC.
- */
-static int gb_svc_device_setup(struct gb_svc *gb_svc)
-{
-	/* First thing we need to do is check the version */
-	return get_version(gb_svc);
-}
-
 static int gb_svc_connection_init(struct gb_connection *connection)
 {
 	struct gb_svc *svc;
-	int ret;
 
 	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
 	if (!svc)
@@ -426,14 +413,10 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 
 	ida_init(&greybus_svc_device_id_map);
 
-	ret = gb_svc_device_setup(svc);
-	if (ret)
-		kfree(svc);
-
 	/* Set interface's svc connection */
 	connection->bundle->intf->svc = svc;
 
-	return ret;
+	return 0;
 }
 
 static void gb_svc_connection_exit(struct gb_connection *connection)
