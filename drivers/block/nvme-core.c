@@ -1454,8 +1454,9 @@ static int nvme_cmb_qdepth(struct nvme_dev *dev, int nr_io_queues,
 	unsigned q_size_aligned = roundup(q_depth * entry_size, dev->page_size);
 
 	if (q_size_aligned * nr_io_queues > dev->cmb_size) {
-		q_depth = rounddown(dev->cmb_size / nr_io_queues,
-					dev->page_size) / entry_size;
+		u64 mem_per_q = div_u64(dev->cmb_size, nr_io_queues);
+		mem_per_q = round_down(mem_per_q, dev->page_size);
+		q_depth = div_u64(mem_per_q, entry_size);
 
 		/*
 		 * Ensure the reduced q_depth is above some threshold where it
