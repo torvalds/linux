@@ -1511,6 +1511,16 @@ static unsigned long get_trampoline_vaddr(void)
 	return trampoline_vaddr;
 }
 
+static void cleanup_return_instances(struct uprobe_task *utask, struct pt_regs *regs)
+{
+	struct return_instance *ri = utask->return_instances;
+	while (ri && !arch_uretprobe_is_alive(ri, regs)) {
+		ri = free_ret_instance(ri);
+		utask->depth--;
+	}
+	utask->return_instances = ri;
+}
+
 static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 {
 	struct return_instance *ri;
@@ -1540,6 +1550,9 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 	orig_ret_vaddr = arch_uretprobe_hijack_return_addr(trampoline_vaddr, regs);
 	if (orig_ret_vaddr == -1)
 		goto fail;
+
+	/* drop the entries invalidated by longjmp() */
+	cleanup_return_instances(utask, regs);
 
 	/*
 	 * We don't want to keep trampoline address in stack, rather keep the
