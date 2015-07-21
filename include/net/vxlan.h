@@ -95,6 +95,11 @@ struct vxlanhdr {
 #define VXLAN_VNI_MASK  (VXLAN_VID_MASK << 8)
 #define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
 
+#define VNI_HASH_BITS	10
+#define VNI_HASH_SIZE	(1<<VNI_HASH_BITS)
+#define FDB_HASH_BITS	8
+#define FDB_HASH_SIZE	(1<<FDB_HASH_BITS)
+
 struct vxlan_metadata {
 	__be32		vni;
 	u32		gbp;
@@ -119,6 +124,57 @@ struct vxlan_sock {
 	atomic_t	  refcnt;
 	struct udp_offload udp_offloads;
 	u32		  flags;
+};
+
+union vxlan_addr {
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	struct sockaddr sa;
+};
+
+struct vxlan_rdst {
+	union vxlan_addr	 remote_ip;
+	__be16			 remote_port;
+	u32			 remote_vni;
+	u32			 remote_ifindex;
+	struct list_head	 list;
+	struct rcu_head		 rcu;
+};
+
+struct vxlan_config {
+	union vxlan_addr	remote_ip;
+	union vxlan_addr	saddr;
+	u32			vni;
+	int			remote_ifindex;
+	int			mtu;
+	__be16			dst_port;
+	__u16			port_min;
+	__u16			port_max;
+	__u8			tos;
+	__u8			ttl;
+	u32			flags;
+	unsigned long		age_interval;
+	unsigned int		addrmax;
+	bool			no_share;
+};
+
+/* Pseudo network device */
+struct vxlan_dev {
+	struct hlist_node hlist;	/* vni hash table */
+	struct list_head  next;		/* vxlan's per namespace list */
+	struct vxlan_sock *vn_sock;	/* listening socket */
+	struct net_device *dev;
+	struct net	  *net;		/* netns for packet i/o */
+	struct vxlan_rdst default_dst;	/* default destination */
+	u32		  flags;	/* VXLAN_F_* in vxlan.h */
+
+	struct timer_list age_timer;
+	spinlock_t	  hash_lock;
+	unsigned int	  addrcnt;
+
+	struct vxlan_config	cfg;
+
+	struct hlist_head fdb_head[FDB_HASH_SIZE];
 };
 
 #define VXLAN_F_LEARN			0x01
@@ -150,6 +206,9 @@ struct vxlan_sock {
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 				  vxlan_rcv_t *rcv, void *data,
 				  bool no_share, u32 flags);
+
+struct net_device *vxlan_dev_create(struct net *net, const char *name,
+				    u8 name_assign_type, struct vxlan_config *conf);
 
 void vxlan_sock_release(struct vxlan_sock *vs);
 
