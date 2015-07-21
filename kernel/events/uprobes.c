@@ -99,7 +99,7 @@ struct xol_area {
 	wait_queue_head_t 	wq;		/* if all slots are busy */
 	atomic_t 		slot_count;	/* number of in-use slots */
 	unsigned long 		*bitmap;	/* 0 = free slot */
-	struct page 		*page;
+	struct page 		*pages[2];
 
 	/*
 	 * We keep the vma's vm_start rather than a pointer to the vma
@@ -1142,7 +1142,7 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 	}
 
 	ret = install_special_mapping(mm, area->vaddr, PAGE_SIZE,
-				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO, &area->page);
+				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO, area->pages);
 	if (ret)
 		goto fail;
 
@@ -1168,21 +1168,22 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 	if (!area->bitmap)
 		goto free_area;
 
-	area->page = alloc_page(GFP_HIGHUSER);
-	if (!area->page)
+	area->pages[0] = alloc_page(GFP_HIGHUSER);
+	if (!area->pages[0])
 		goto free_bitmap;
+	area->pages[1] = NULL;
 
 	area->vaddr = vaddr;
 	init_waitqueue_head(&area->wq);
 	/* Reserve the 1st slot for get_trampoline_vaddr() */
 	set_bit(0, area->bitmap);
 	atomic_set(&area->slot_count, 1);
-	copy_to_page(area->page, 0, &insn, UPROBE_SWBP_INSN_SIZE);
+	copy_to_page(area->pages[0], 0, &insn, UPROBE_SWBP_INSN_SIZE);
 
 	if (!xol_add_vma(mm, area))
 		return area;
 
-	__free_page(area->page);
+	__free_page(area->pages[0]);
  free_bitmap:
 	kfree(area->bitmap);
  free_area:
@@ -1220,7 +1221,7 @@ void uprobe_clear_state(struct mm_struct *mm)
 	if (!area)
 		return;
 
-	put_page(area->page);
+	put_page(area->pages[0]);
 	kfree(area->bitmap);
 	kfree(area);
 }
@@ -1289,7 +1290,7 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 	if (unlikely(!xol_vaddr))
 		return 0;
 
-	arch_uprobe_copy_ixol(area->page, xol_vaddr,
+	arch_uprobe_copy_ixol(area->pages[0], xol_vaddr,
 			      &uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
 
 	return xol_vaddr;
