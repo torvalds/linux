@@ -2924,10 +2924,12 @@ again:
 						      extent_dev, flags,
 						      generation,
 						      extent_mirror_num);
+
+			scrub_free_csums(sctx);
+
 			if (ret)
 				goto out;
 
-			scrub_free_csums(sctx);
 			if (extent_logical + extent_len <
 			    key.objectid + bytes) {
 				logic_start += map->stripe_len;
@@ -3262,10 +3264,12 @@ again:
 					   extent_physical, extent_dev, flags,
 					   generation, extent_mirror_num,
 					   extent_logical - logical + physical);
+
+			scrub_free_csums(sctx);
+
 			if (ret)
 				goto out;
 
-			scrub_free_csums(sctx);
 			if (extent_logical + extent_len <
 			    key.objectid + bytes) {
 				if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
