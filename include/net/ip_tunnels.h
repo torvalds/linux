@@ -303,6 +303,17 @@ static inline struct ip_tunnel_info *lwt_tun_info(struct lwtunnel_state *lwtstat
 	return (struct ip_tunnel_info *)lwtstate->data;
 }
 
+extern struct static_key ip_tunnel_metadata_cnt;
+
+/* Returns > 0 if metadata should be collected */
+static inline int ip_tunnel_collect_metadata(void)
+{
+	return static_key_false(&ip_tunnel_metadata_cnt);
+}
+
+void ip_tunnel_need_metadata(void);
+void ip_tunnel_unneed_metadata(void);
+
 #endif /* CONFIG_INET */
 
 #endif /* __NET_IP_TUNNELS_H */

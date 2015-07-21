@@ -143,7 +143,8 @@ static struct workqueue_struct *vxlan_wq;
 
 static inline bool vxlan_collect_metadata(struct vxlan_sock *vs)
 {
-	return vs->flags & VXLAN_F_COLLECT_METADATA;
+	return vs->flags & VXLAN_F_COLLECT_METADATA ||
+	       ip_tunnel_collect_metadata();
 }
 
 #if IS_ENABLED(CONFIG_IPV6)

@@ -32,6 +32,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/static_key.h>
 
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -304,3 +305,18 @@ static void __exit ip_tunnel_core_exit(void)
 	lwtunnel_encap_del_ops(&ip_tun_lwt_ops, LWTUNNEL_ENCAP_IP);
 }
 module_exit(ip_tunnel_core_exit);
+
+struct static_key ip_tunnel_metadata_cnt = STATIC_KEY_INIT_FALSE;
+EXPORT_SYMBOL(ip_tunnel_metadata_cnt);
+
+void ip_tunnel_need_metadata(void)
+{
+	static_key_slow_inc(&ip_tunnel_metadata_cnt);
+}
+EXPORT_SYMBOL_GPL(ip_tunnel_need_metadata);
+
+void ip_tunnel_unneed_metadata(void)
+{
+	static_key_slow_dec(&ip_tunnel_metadata_cnt);
+}
+EXPORT_SYMBOL_GPL(ip_tunnel_unneed_metadata);
