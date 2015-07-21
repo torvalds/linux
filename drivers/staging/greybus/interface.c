@@ -70,8 +70,7 @@ struct device_type greybus_interface_type = {
 
 /*
  * Create kernel structures corresponding to a bundle and connection for
- * managing control CPort. Also initialize the bundle, which will request SVC to
- * set route and will initialize the control protocol for this connection.
+ * managing control CPort.
  */
 static int gb_create_control_connection(struct gb_interface *intf)
 {
