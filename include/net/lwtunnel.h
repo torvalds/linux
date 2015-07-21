@@ -69,6 +69,8 @@ int lwtunnel_fill_encap(struct sk_buff *skb,
 int lwtunnel_get_encap_size(struct lwtunnel_state *lwtstate);
 struct lwtunnel_state *lwtunnel_state_alloc(int hdr_len);
 int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b);
+int lwtunnel_output(struct sock *sk, struct sk_buff *skb);
+int lwtunnel_output6(struct sock *sk, struct sk_buff *skb);
 
 #else
 
@@ -125,6 +127,16 @@ static inline int lwtunnel_cmp_encap(struct lwtunnel_state *a,
 				     struct lwtunnel_state *b)
 {
 	return 0;
+}
+
+static inline int lwtunnel_output(struct sock *sk, struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int lwtunnel_output6(struct sock *sk, struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif
