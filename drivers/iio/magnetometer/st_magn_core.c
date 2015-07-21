@@ -480,6 +480,16 @@ static const struct iio_info magn_info = {
 	.write_raw = &st_magn_write_raw,
 };
 
+#ifdef CONFIG_IIO_TRIGGER
+static const struct iio_trigger_ops st_magn_trigger_ops = {
+	.owner = THIS_MODULE,
+	.set_trigger_state = ST_MAGN_TRIGGER_SET_STATE,
+};
+#define ST_MAGN_TRIGGER_OPS (&st_magn_trigger_ops)
+#else
+#define ST_MAGN_TRIGGER_OPS NULL
+#endif
+
 int st_magn_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
@@ -516,7 +526,8 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 		return err;
 
 	if (irq > 0) {
-		err = st_sensors_allocate_trigger(indio_dev, NULL);
+		err = st_sensors_allocate_trigger(indio_dev,
+						ST_MAGN_TRIGGER_OPS);
 		if (err < 0)
 			goto st_magn_probe_trigger_error;
 	}
