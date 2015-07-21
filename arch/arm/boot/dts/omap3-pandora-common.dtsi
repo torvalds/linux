@@ -459,13 +459,18 @@
 	power = <50>;
 };
 
+/*
+ * Many pandora boards have been produced with defective write-protect switches
+ * on either slot, so it was decided not to use this feature. If you know
+ * your board has good switches, feel free to uncomment wp-gpios below.
+ */
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
 	cd-gpios = <&twl_gpio 0 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;	/* GPIO_126 */
+	/*wp-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;*/	/* GPIO_126 */
 };
 
 &mmc2 {
@@ -473,8 +478,8 @@
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&vmmc2>;
 	bus-width = <4>;
-	cd-gpios = <&twl_gpio 1 GPIO_ACTIVE_HIGH>;
-	wp-gpios = <&gpio4 31 GPIO_ACTIVE_LOW>;	/* GPIO_127 */
+	cd-gpios = <&twl_gpio 1 GPIO_ACTIVE_LOW>;
+	/*wp-gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;*/	/* GPIO_127 */
 };
 
 /* bluetooth*/
@@ -545,7 +550,7 @@
 			reg = <0x280000 0xa00000>;
 		};
 
-		filesystem@680000 {
+		filesystem@c80000 {
 			label = "rootfs";
 			reg = <0xc80000 0>;	/* 0 = MTDPART_SIZ_FULL */
 		};
