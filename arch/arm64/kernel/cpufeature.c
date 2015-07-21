@@ -55,6 +55,12 @@ void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			pr_info("%s %s\n", info, caps[i].desc);
 		cpus_set_cap(caps[i].capability);
 	}
+
+	/* second pass allows enable() to consider interacting capabilities */
+	for (i = 0; caps[i].desc; i++) {
+		if (cpus_have_cap(caps[i].capability) && caps[i].enable)
+			caps[i].enable();
+	}
 }
 
 void check_local_cpu_features(void)
