@@ -86,6 +86,7 @@ struct perf_evsel {
 	unsigned long		*per_pkg_mask;
 	struct perf_evsel	*leader;
 	char			*group_name;
+	bool			cmdline_group_boundary;
 };
 
 union u64_swap {

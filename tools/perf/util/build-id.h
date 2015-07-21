@@ -1,7 +1,8 @@
 #ifndef PERF_BUILD_ID_H_
 #define PERF_BUILD_ID_H_ 1
 
-#define BUILD_ID_SIZE 20
+#define BUILD_ID_SIZE	20
+#define SBUILD_ID_SIZE	(BUILD_ID_SIZE * 2 + 1)
 
 #include "tool.h"
 #include "strlist.h"

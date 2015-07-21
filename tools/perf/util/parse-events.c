@@ -1065,8 +1065,13 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 	perf_pmu__parse_cleanup();
 	if (!ret) {
 		int entries = data.idx - evlist->nr_entries;
+		struct perf_evsel *last;
+
 		perf_evlist__splice_list_tail(evlist, &data.list, entries);
 		evlist->nr_groups += data.nr_groups;
+		last = perf_evlist__last(evlist);
+		last->cmdline_group_boundary = true;
+
 		return 0;
 	}
 
@@ -1162,27 +1167,91 @@ int parse_events_option(const struct option *opt, const char *str,
 	return ret;
 }
 
-int parse_filter(const struct option *opt, const char *str,
-		 int unset __maybe_unused)
+static int
+foreach_evsel_in_last_glob(struct perf_evlist *evlist,
+			   int (*func)(struct perf_evsel *evsel,
+				       const void *arg),
+			   const void *arg)
 {
-	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
 	struct perf_evsel *last = NULL;
+	int err;
 
 	if (evlist->nr_entries > 0)
 		last = perf_evlist__last(evlist);
 
-	if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
+	do {
+		err = (*func)(last, arg);
+		if (err)
+			return -1;
+		if (!last)
+			return 0;
+
+		if (last->node.prev == &evlist->entries)
+			return 0;
+		last = list_entry(last->node.prev, struct perf_evsel, node);
+	} while (!last->cmdline_group_boundary);
+
+	return 0;
+}
+
+static int set_filter(struct perf_evsel *evsel, const void *arg)
+{
+	const char *str = arg;
+
+	if (evsel == NULL || evsel->attr.type != PERF_TYPE_TRACEPOINT) {
 		fprintf(stderr,
 			"--filter option should follow a -e tracepoint option\n");
 		return -1;
 	}
 
-	if (perf_evsel__set_filter(last, str) < 0) {
-		fprintf(stderr, "not enough memory to hold filter string\n");
+	if (perf_evsel__append_filter(evsel, "&&", str) < 0) {
+		fprintf(stderr,
+			"not enough memory to hold filter string\n");
 		return -1;
 	}
 
 	return 0;
+}
+
+int parse_filter(const struct option *opt, const char *str,
+		 int unset __maybe_unused)
+{
+	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+
+	return foreach_evsel_in_last_glob(evlist, set_filter,
+					  (const void *)str);
+}
+
+static int add_exclude_perf_filter(struct perf_evsel *evsel,
+				   const void *arg __maybe_unused)
+{
+	char new_filter[64];
+
+	if (evsel == NULL || evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+		fprintf(stderr,
+			"--exclude-perf option should follow a -e tracepoint option\n");
+		return -1;
+	}
+
+	snprintf(new_filter, sizeof(new_filter), "common_pid != %d", getpid());
+
+	if (perf_evsel__append_filter(evsel, "&&", new_filter) < 0) {
+		fprintf(stderr,
+			"not enough memory to hold filter string\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int exclude_perf(const struct option *opt,
+		 const char *arg __maybe_unused,
+		 int unset __maybe_unused)
+{
+	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+
+	return foreach_evsel_in_last_glob(evlist, add_exclude_perf_filter,
+					  NULL);
 }
 
 static const char * const event_type_descriptors[] = {

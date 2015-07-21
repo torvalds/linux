@@ -11,7 +11,7 @@ ifneq ($(obj-perf),)
 obj-perf := $(abspath $(obj-perf))/
 endif
 
-$(shell echo -n > $(OUTPUT).config-detected)
+$(shell printf "" > $(OUTPUT).config-detected)
 detected     = $(shell echo "$(1)=y"       >> $(OUTPUT).config-detected)
 detected_var = $(shell echo "$(1)=$($(1))" >> $(OUTPUT).config-detected)
 
@@ -644,6 +644,7 @@ infodir = share/info
 perfexecdir = libexec/perf-core
 sharedir = $(prefix)/share
 template_dir = share/perf-core/templates
+STRACE_GROUPS_DIR = share/perf-core/strace/groups
 htmldir = share/doc/perf-doc
 ifeq ($(prefix),/usr)
 sysconfdir = /etc
@@ -663,6 +664,7 @@ libdir = $(prefix)/$(lib)
 
 # Shell quote (do not use $(call) to accommodate ancient setups);
 ETC_PERFCONFIG_SQ = $(subst ','\'',$(ETC_PERFCONFIG))
+STRACE_GROUPS_DIR_SQ = $(subst ','\'',$(STRACE_GROUPS_DIR))
 DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
 bindir_SQ = $(subst ','\'',$(bindir))
 mandir_SQ = $(subst ','\'',$(mandir))
@@ -676,10 +678,13 @@ libdir_SQ = $(subst ','\'',$(libdir))
 
 ifneq ($(filter /%,$(firstword $(perfexecdir))),)
 perfexec_instdir = $(perfexecdir)
+STRACE_GROUPS_INSTDIR = $(STRACE_GROUPS_DIR)
 else
 perfexec_instdir = $(prefix)/$(perfexecdir)
+STRACE_GROUPS_INSTDIR = $(prefix)/$(STRACE_GROUPS_DIR)
 endif
 perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
+STRACE_GROUPS_INSTDIR_SQ = $(subst ','\'',$(STRACE_GROUPS_INSTDIR))
 
 # If we install to $(HOME) we keep the traceevent default:
 # $(HOME)/.traceevent/plugins
@@ -713,6 +718,7 @@ $(call detected_var,htmldir_SQ)
 $(call detected_var,infodir_SQ)
 $(call detected_var,mandir_SQ)
 $(call detected_var,ETC_PERFCONFIG_SQ)
+$(call detected_var,STRACE_GROUPS_DIR_SQ)
 $(call detected_var,prefix_SQ)
 $(call detected_var,perfexecdir_SQ)
 $(call detected_var,LIBDIR)

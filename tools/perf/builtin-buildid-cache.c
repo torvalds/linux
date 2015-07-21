@@ -127,7 +127,7 @@ static int build_id_cache__kcore_existing(const char *from_dir, char *to_dir,
 
 static int build_id_cache__add_kcore(const char *filename, bool force)
 {
-	char dir[32], sbuildid[BUILD_ID_SIZE * 2 + 1];
+	char dir[32], sbuildid[SBUILD_ID_SIZE];
 	char from_dir[PATH_MAX], to_dir[PATH_MAX];
 	char *p;
 
@@ -184,7 +184,7 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 
 static int build_id_cache__add_file(const char *filename)
 {
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 	u8 build_id[BUILD_ID_SIZE];
 	int err;
 
@@ -204,7 +204,7 @@ static int build_id_cache__add_file(const char *filename)
 static int build_id_cache__remove_file(const char *filename)
 {
 	u8 build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	int err;
 
@@ -276,7 +276,7 @@ static int build_id_cache__fprintf_missing(struct perf_session *session, FILE *f
 static int build_id_cache__update_file(const char *filename)
 {
 	u8 build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	int err = 0;
 
@@ -363,7 +363,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	setup_pager();
 
 	if (add_name_list_str) {
-		list = strlist__new(true, add_name_list_str);
+		list = strlist__new(add_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__add_file(pos->s)) {
@@ -381,7 +381,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	}
 
 	if (remove_name_list_str) {
-		list = strlist__new(true, remove_name_list_str);
+		list = strlist__new(remove_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__remove_file(pos->s)) {
@@ -399,7 +399,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	}
 
 	if (purge_name_list_str) {
-		list = strlist__new(true, purge_name_list_str);
+		list = strlist__new(purge_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__purge_path(pos->s)) {
@@ -420,7 +420,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		ret = build_id_cache__fprintf_missing(session, stdout);
 
 	if (update_name_list_str) {
-		list = strlist__new(true, update_name_list_str);
+		list = strlist__new(update_name_list_str, NULL);
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__update_file(pos->s)) {

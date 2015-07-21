@@ -34,6 +34,7 @@ extern int parse_events(struct perf_evlist *evlist, const char *str,
 			struct parse_events_error *error);
 extern int parse_events_terms(struct list_head *terms, const char *str);
 extern int parse_filter(const struct option *opt, const char *str, int unset);
+extern int exclude_perf(const struct option *opt, const char *arg, int unset);
 
 #define EVENTS_HELP_MAX (128*1024)
 

@@ -16,7 +16,12 @@ struct strlist {
 	bool	       dupstr;
 };
 
-struct strlist *strlist__new(bool dupstr, const char *slist);
+struct strlist_config {
+	bool dont_dupstr;
+	const char *dirname;
+};
+
+struct strlist *strlist__new(const char *slist, const struct strlist_config *config);
 void strlist__delete(struct strlist *slist);
 
 void strlist__remove(struct strlist *slist, struct str_node *sn);
@@ -74,6 +79,4 @@ static inline struct str_node *strlist__next(struct str_node *sn)
 #define strlist__for_each_safe(pos, n, slist)	\
 	for (pos = strlist__first(slist), n = strlist__next(pos); pos;\
 	     pos = n, n = strlist__next(n))
-
-int strlist__parse_list(struct strlist *slist, const char *s);
 #endif /* __PERF_STRLIST_H */

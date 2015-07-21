@@ -79,6 +79,7 @@ libperf-$(CONFIG_AUXTRACE) += auxtrace.o
 libperf-y += parse-branch-options.o
 
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
+libperf-$(CONFIG_LIBELF) += probe-file.o
 libperf-$(CONFIG_LIBELF) += probe-event.o
 
 ifndef CONFIG_LIBELF
