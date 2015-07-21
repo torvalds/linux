@@ -409,7 +409,7 @@ const struct clk_ops clkops_rate_core_peri = {
 	.set_rate	= NULL,
 };
 
-#if 0
+
 static unsigned long clk_ddr_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
@@ -513,7 +513,7 @@ const struct clk_ops clkops_rate_ddr_div4 = {
 	.set_rate	= clk_ddr_set_rate,
 	.determine_rate = clk_ddr_determine_rate,
 };
-#endif
+
 
 static unsigned long clk_3288_i2s_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
@@ -869,48 +869,6 @@ static unsigned long clk_rk3368_ddr_recalc_rate(struct clk_hw *hw,
 		return ddr_recalc_rate();
 }
 
-static long clk_ddr_determine_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *best_parent_rate,
-			struct clk **best_parent_p)
-{
-	long best = 0;
-
-	if (!ddr_round_rate) {
-		/* Do nothing before ddr init */
-		best = rate;
-	} else {
-		/* Func provided by ddr driver */
-		best = ddr_round_rate(rate/MHZ) * MHZ;
-	}
-	clk_debug("%s: from %lu to %lu\n", __func__, rate, best);
-	return best;
-}
-static long clk_ddr_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *prate)
-{
-	return clk_ddr_determine_rate(hw, rate, prate, NULL);
-}
-static int clk_ddr_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	struct clk *parent = __clk_get_parent(hw->clk);
-	struct clk *grand_p = __clk_get_parent(parent);
-
-	/* Do nothing before ddr init */
-	if (!ddr_change_freq)
-		return 0;
-	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(grand_p)) {
-		clk_err("fail to get parent or grand_parent!\n");
-		return -EINVAL;
-	}
-	clk_debug("%s: will set rate = %lu\n", __func__, rate);
-	/* Func provided by ddr driver */
-	ddr_change_freq(rate/MHZ);
-	parent->rate = parent->ops->recalc_rate(parent->hw,
-	__clk_get_rate(grand_p));
-	return 0;
-}
-
 const struct clk_ops clkops_rate_rk3368_ddr = {
 	.recalc_rate	= clk_rk3368_ddr_recalc_rate,
 	.round_rate	= clk_ddr_round_rate,
@@ -928,13 +886,13 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_FRAC,		.clk_ops = &clkops_rate_frac},
 	{.index = CLKOPS_RATE_CORE,		.clk_ops = &clkops_rate_core},
 	{.index = CLKOPS_RATE_CORE_CHILD,	.clk_ops = &clkops_rate_core_peri},
-	{.index = CLKOPS_RATE_DDR,		.clk_ops = NULL},
+	{.index = CLKOPS_RATE_DDR,		.clk_ops = &clkops_rate_ddr},
 	{.index = CLKOPS_RATE_RK3288_I2S,	.clk_ops = &clkops_rate_3288_i2s},
 	{.index = CLKOPS_RATE_RK3288_USB480M,	.clk_ops = &clkops_rate_3288_usb480m},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC0,.clk_ops = &clkops_rate_3288_dclk_lcdc0},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC1,.clk_ops = &clkops_rate_3288_dclk_lcdc1},
-	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = NULL},
-	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = NULL},
+	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = &clkops_rate_ddr_div2},
+	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = &clkops_rate_ddr_div4},
 	{.index = CLKOPS_RATE_RK3368_MUX_DIV_NPLL,   .clk_ops = &clkops_rate_3368_auto_parent},
 	{.index = CLKOPS_RATE_RK3368_DCLK_LCDC, .clk_ops = &clkops_rate_3368_dclk_lcdc},
 	{.index = CLKOPS_RATE_RK3368_DDR,   .clk_ops = &clkops_rate_rk3368_ddr},
