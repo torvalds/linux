@@ -1075,6 +1075,8 @@ struct option __record_options[] = {
 			  "opts", "AUX area tracing Snapshot Mode", ""),
 	OPT_UINTEGER(0, "proc-map-timeout", &record.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
+		    "Record context switch events"),
 	OPT_END()
 };
 
@@ -1100,6 +1102,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (nr_cgroups && !rec->opts.target.system_wide) {
 		ui__error("cgroup monitoring only available in"
 			  " system-wide mode\n");
+		usage_with_options(record_usage, record_options);
+	}
+	if (rec->opts.record_switch_events &&
+	    !perf_can_record_switch_events()) {
+		ui__error("kernel does not support recording context switch events (--switch-events option)\n");
 		usage_with_options(record_usage, record_options);
 	}
 

@@ -85,6 +85,11 @@ static void perf_probe_comm_exec(struct perf_evsel *evsel)
 	evsel->attr.comm_exec = 1;
 }
 
+static void perf_probe_context_switch(struct perf_evsel *evsel)
+{
+	evsel->attr.context_switch = 1;
+}
+
 bool perf_can_sample_identifier(void)
 {
 	return perf_probe_api(perf_probe_sample_identifier);
@@ -93,6 +98,11 @@ bool perf_can_sample_identifier(void)
 static bool perf_can_comm_exec(void)
 {
 	return perf_probe_api(perf_probe_comm_exec);
+}
+
+bool perf_can_record_switch_events(void)
+{
+	return perf_probe_api(perf_probe_context_switch);
 }
 
 void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)

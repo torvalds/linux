@@ -293,6 +293,10 @@ When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
 because the file may be huge. A time out is needed in such cases.
 This option sets the time out limit. The default value is 500 ms.
 
+--switch-events::
+Record context switch events i.e. events of type PERF_RECORD_SWITCH or
+PERF_RECORD_SWITCH_CPU_WIDE.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

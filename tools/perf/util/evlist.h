@@ -114,6 +114,7 @@ void perf_evlist__close(struct perf_evlist *evlist);
 
 void perf_evlist__set_id_pos(struct perf_evlist *evlist);
 bool perf_can_sample_identifier(void);
+bool perf_can_record_switch_events(void);
 void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts);
 int record_opts__config(struct record_opts *opts);
 
