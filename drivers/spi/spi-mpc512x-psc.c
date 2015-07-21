@@ -40,8 +40,8 @@ enum {
  * MPC5121 (which uses a struct mpc52xx_psc) and MPC5125 (using mpc5125_psc).
  */
 #define psc_addr(mps, regname) ({					\
-	void *__ret;							\
-	switch(mps->type) {						\
+	void *__ret = NULL;						\
+	switch (mps->type) {						\
 	case TYPE_MPC5121: {						\
 			struct mpc52xx_psc __iomem *psc = mps->psc;	\
 			__ret = &psc->regname;				\
