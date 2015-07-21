@@ -56,6 +56,7 @@ struct skl {
 	struct platform_device *dmic_dev;
 
 	void __iomem *nhlt; /* nhlt ptr */
+	struct skl_sst *skl_sst; /* sst skl ctx */
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
@@ -75,4 +76,9 @@ void __iomem *skl_nhlt_init(struct device *dev);
 void skl_nhlt_free(void __iomem *addr);
 struct nhlt_specific_cfg *skl_get_ep_blob(struct skl *skl, u32 instance,
 			u8 link_type, u8 s_fmt, u8 no_ch, u32 s_rate, u8 dirn);
+
+int skl_init_dsp(struct skl *skl);
+void skl_free_dsp(struct skl *skl);
+int skl_suspend_dsp(struct skl *skl);
+int skl_resume_dsp(struct skl *skl);
 #endif /* __SOUND_SOC_SKL_H */
