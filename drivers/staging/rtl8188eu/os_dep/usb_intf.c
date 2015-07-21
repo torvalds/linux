@@ -63,7 +63,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	struct usb_endpoint_descriptor	*pendp_desc;
 	struct usb_device	*pusbd;
 
-
 	pdvobjpriv = kzalloc(sizeof(*pdvobjpriv), GFP_KERNEL);
 	if (pdvobjpriv == NULL)
 		return NULL;
@@ -127,7 +126,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(usb_intf);
-
 
 	usb_set_intfdata(usb_intf, NULL);
 	if (dvobj) {
@@ -326,7 +324,6 @@ exit:
 	pr_debug("<===  %s return %d.............. in %dms\n", __func__,
 		ret, rtw_get_passing_time_ms(start_time));
 
-
 	return ret;
 }
 
@@ -510,7 +507,6 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
 	struct adapter *padapter = dvobj->if1;
-
 
 	pr_debug("+rtw_dev_remove\n");
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+dev_remove()\n"));
