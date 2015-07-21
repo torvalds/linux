@@ -18,11 +18,11 @@
 #include "greybus.h"
 
 struct gb_loopback_stats {
-	u32 min;
-	u32 max;
-	u32 avg;
-	u32 sum;
-	u32 count;
+	u64 min;
+	u64 max;
+	u64 avg;
+	u64 sum;
+	u64 count;
 };
 
 struct gb_loopback {
@@ -34,6 +34,8 @@ struct gb_loopback {
 
 	int type;
 	u32 size;
+	u32 iteration_max;
+	u32 iteration_count;
 	size_t size_max;
 	int ms_wait;
 
@@ -77,9 +79,9 @@ static ssize_t name##_##field##_show(struct device *dev,		\
 static DEVICE_ATTR_RO(name##_##field)
 
 #define gb_loopback_stats_attrs(field)					\
-	gb_loopback_ro_stats_attr(field, min, d);			\
-	gb_loopback_ro_stats_attr(field, max, d);			\
-	gb_loopback_ro_stats_attr(field, avg, d);
+	gb_loopback_ro_stats_attr(field, min, llu);			\
+	gb_loopback_ro_stats_attr(field, max, llu);			\
+	gb_loopback_ro_stats_attr(field, avg, llu);
 
 #define gb_loopback_attr(field, type)					\
 static ssize_t field##_show(struct device *dev,				\
@@ -125,6 +127,7 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 	if (gb->size > gb->size_max)
 		gb->size = gb->size_max;
 	gb->error = 0;
+	gb->iteration_count = 0;
 	gb_loopback_reset_stats(gb);
 }
 
@@ -135,6 +138,7 @@ gb_loopback_stats_attrs(frequency);
 /* Quantity of data sent and received on this cport */
 gb_loopback_stats_attrs(throughput);
 gb_loopback_ro_attr(error, d);
+gb_loopback_ro_attr(iteration_count, u);
 
 /*
  * Type of loopback message to send based on protocol type definitions
@@ -149,6 +153,8 @@ gb_loopback_attr(type, d);
 gb_loopback_attr(size, u);
 /* Time to wait between two messages: 0-1000 ms */
 gb_loopback_attr(ms_wait, d);
+/* Maximum iterations for a given operation: 1-(2^32-1), 0 implies infinite */
+gb_loopback_attr(iteration_max, u);
 
 #define dev_stats_attrs(name)						\
 	&dev_attr_##name##_min.attr,					\
@@ -162,6 +168,8 @@ static struct attribute *loopback_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_size.attr,
 	&dev_attr_ms_wait.attr,
+	&dev_attr_iteration_count.attr,
+	&dev_attr_iteration_max.attr,
 	&dev_attr_error.attr,
 	NULL,
 };
@@ -313,38 +321,29 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	memset(&gb->ts, 0, sizeof(struct timeval));
 }
 
-static void gb_loopback_update_stats(struct gb_loopback_stats *stats,
-					u64 elapsed_nsecs)
+static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u64 val)
 {
-	u32 avg;
-	u64 tmp;
-
-	if (elapsed_nsecs >= NSEC_PER_SEC) {
-		if (!stats->count) {
-			tmp = elapsed_nsecs;
-			do_div(tmp, NSEC_PER_SEC);
-			avg = stats->sum * tmp;
-		} else {
-			avg = stats->sum / stats->count;
-		}
-		if (stats->min > avg)
-			stats->min = avg;
-		if (stats->max < avg)
-			stats->max = avg;
-		stats->avg = avg;
-		stats->count = 0;
-		stats->sum = 0;
-	}
+	if (stats->min > val)
+		stats->min = val;
+	if (stats->max < val)
+		stats->max = val;
+	stats->sum += val;
+	stats->count++;
+	stats->avg = stats->sum;
+	do_div(stats->avg, stats->count);
 }
 
-static void gb_loopback_freq_update(struct gb_loopback *gb)
+static void gb_loopback_frequency_update(struct gb_loopback *gb, u32 latency)
 {
-	gb->frequency.sum++;
-	gb_loopback_update_stats(&gb->frequency, gb->elapsed_nsecs);
+	u32 freq = USEC_PER_SEC;
+
+	do_div(freq, latency);
+	gb_loopback_update_stats(&gb->frequency, freq);
 }
 
-static void gb_loopback_throughput_update(struct gb_loopback *gb)
+static void gb_loopback_throughput_update(struct gb_loopback *gb, u32 latency)
 {
+	u32 throughput;
 	u32 aggregate_size = sizeof(struct gb_operation_msg_hdr) * 2;
 
 	switch (gb->type) {
@@ -362,27 +361,31 @@ static void gb_loopback_throughput_update(struct gb_loopback *gb)
 	default:
 		return;
 	}
-	gb->throughput.sum += aggregate_size;
-	gb_loopback_update_stats(&gb->throughput, gb->elapsed_nsecs);
+
+	/* Calculate bytes per second */
+	throughput = USEC_PER_SEC;
+	do_div(throughput, latency);
+	throughput *= aggregate_size;
+	gb_loopback_update_stats(&gb->throughput, throughput);
 }
 
-static void gb_loopback_latency_update(struct gb_loopback *gb,
+static void gb_loopback_calculate_stats(struct gb_loopback *gb,
 					struct timeval *tlat)
 {
 	u32 lat;
 	u64 tmp;
 
-	tmp = timeval_to_ns(tlat);
-	do_div(tmp, NSEC_PER_MSEC);
+	/* Express latency in terms of microseconds */
+	tmp = gb->elapsed_nsecs;
+	do_div(tmp, NSEC_PER_USEC);
 	lat = tmp;
 
-	if (gb->latency.min > lat)
-		gb->latency.min = lat;
-	if (gb->latency.max < lat)
-		gb->latency.max = lat;
-	gb->latency.sum += lat;
-	gb->latency.count++;
-	gb_loopback_update_stats(&gb->latency, gb->elapsed_nsecs);
+	/* Log latency stastic */
+	gb_loopback_update_stats(&gb->latency, lat);
+
+	/* Log throughput and frequency using latency as benchmark */
+	gb_loopback_throughput_update(gb, lat);
+	gb_loopback_frequency_update(gb, lat);
 }
 
 static int gb_loopback_fn(void *data)
@@ -395,6 +398,14 @@ static int gb_loopback_fn(void *data)
 		if (!gb->type) {
 			msleep(1000);
 			continue;
+		}
+		if (gb->iteration_max) {
+			if (gb->iteration_count < gb->iteration_max) {
+				gb->iteration_count++;
+			} else {
+				gb->type = 0;
+				continue;
+			}
 		}
 		if (gb->ts.tv_usec == 0 && gb->ts.tv_sec == 0)
 			do_gettimeofday(&gb->ts);
@@ -409,11 +420,8 @@ static int gb_loopback_fn(void *data)
 		do_gettimeofday(&gb->te);
 		gb->elapsed_nsecs = timeval_to_ns(&gb->te) -
 					timeval_to_ns(&gb->ts);
-		gb_loopback_freq_update(gb);
-		gb_loopback_throughput_update(gb);
-		gb_loopback_latency_update(gb, &tlat);
-		if (gb->elapsed_nsecs >= NSEC_PER_SEC)
-			gb->ts = gb->te;
+		gb_loopback_calculate_stats(gb, &tlat);
+		gb->ts = gb->te;
 		if (gb->ms_wait)
 			msleep(gb->ms_wait);
 
