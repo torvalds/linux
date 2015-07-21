@@ -141,8 +141,9 @@ void gb_connection_bind_protocol(struct gb_connection *connection)
  * Returns a pointer to the new connection if successful, or a null
  * pointer otherwise.
  */
-struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
-				u16 cport_id, u8 protocol_id)
+struct gb_connection *
+gb_connection_create_range(struct gb_bundle *bundle, u16 cport_id,
+			   u8 protocol_id, u32 ida_start, u32 ida_end)
 {
 	struct gb_connection *connection;
 	struct greybus_host_device *hd = bundle->intf->hd;
@@ -165,7 +166,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	if (!connection)
 		return NULL;
 
-	retval = ida_simple_get(id_map, 0, CPORT_ID_MAX, GFP_KERNEL);
+	retval = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
 	if (retval < 0) {
 		kfree(connection);
 		return NULL;
@@ -219,6 +220,13 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 			 "protocol 0x%02hhx handler not found\n", protocol_id);
 
 	return connection;
+}
+
+struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
+				u16 cport_id, u8 protocol_id)
+{
+	return gb_connection_create_range(bundle, cport_id, protocol_id, 0,
+					  CPORT_ID_MAX);
 }
 
 /*
