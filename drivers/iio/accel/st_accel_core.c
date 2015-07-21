@@ -233,6 +233,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			[2] = LSM330D_ACCEL_DEV_NAME,
 			[3] = LSM330DL_ACCEL_DEV_NAME,
 			[4] = LSM330DLC_ACCEL_DEV_NAME,
+			[5] = LSM303AGR_ACCEL_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
 		.odr = {

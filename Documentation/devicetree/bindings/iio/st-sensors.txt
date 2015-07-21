@@ -35,6 +35,7 @@ Accelerometers:
 - st,lsm303dl-accel
 - st,lsm303dlm-accel
 - st,lsm330-accel
+- st,lsm303agr-accel
 
 Gyroscopes:
 - st,l3g4200d-gyro
