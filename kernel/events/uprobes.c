@@ -1514,7 +1514,9 @@ static unsigned long get_trampoline_vaddr(void)
 static void cleanup_return_instances(struct uprobe_task *utask, struct pt_regs *regs)
 {
 	struct return_instance *ri = utask->return_instances;
-	while (ri && !arch_uretprobe_is_alive(ri, regs)) {
+	enum rp_check ctx = RP_CHECK_CALL;
+
+	while (ri && !arch_uretprobe_is_alive(ri, ctx, regs)) {
 		ri = free_ret_instance(ri);
 		utask->depth--;
 	}
@@ -1805,7 +1807,7 @@ static void handle_trampoline(struct pt_regs *regs)
 		 * could hit this trampoline on return. TODO: sigaltstack().
 		 */
 		next = find_next_ret_chain(ri);
-		valid = !next || arch_uretprobe_is_alive(next, regs);
+		valid = !next || arch_uretprobe_is_alive(next, RP_CHECK_RET, regs);
 
 		instruction_pointer_set(regs, ri->orig_ret_vaddr);
 		do {
@@ -1830,7 +1832,8 @@ bool __weak arch_uprobe_ignore(struct arch_uprobe *aup, struct pt_regs *regs)
 	return false;
 }
 
-bool __weak arch_uretprobe_is_alive(struct return_instance *ret, struct pt_regs *regs)
+bool __weak arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
+					struct pt_regs *regs)
 {
 	return true;
 }
