@@ -96,17 +96,18 @@ struct uprobe {
  * allocated.
  */
 struct xol_area {
-	wait_queue_head_t 	wq;		/* if all slots are busy */
-	atomic_t 		slot_count;	/* number of in-use slots */
-	unsigned long 		*bitmap;	/* 0 = free slot */
-	struct page 		*pages[2];
+	wait_queue_head_t 		wq;		/* if all slots are busy */
+	atomic_t 			slot_count;	/* number of in-use slots */
+	unsigned long 			*bitmap;	/* 0 = free slot */
 
+	struct vm_special_mapping	xol_mapping;
+	struct page 			*pages[2];
 	/*
 	 * We keep the vma's vm_start rather than a pointer to the vma
 	 * itself.  The probed process or a naughty kernel module could make
 	 * the vma go away, and we must handle that reasonably gracefully.
 	 */
-	unsigned long 		vaddr;		/* Page(s) of instruction slots */
+	unsigned long 			vaddr;		/* Page(s) of instruction slots */
 };
 
 /*
@@ -1125,11 +1126,14 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 /* Slot allocation for XOL */
 static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 {
-	int ret = -EALREADY;
+	struct vm_area_struct *vma;
+	int ret;
 
 	down_write(&mm->mmap_sem);
-	if (mm->uprobes_state.xol_area)
+	if (mm->uprobes_state.xol_area) {
+		ret = -EALREADY;
 		goto fail;
+	}
 
 	if (!area->vaddr) {
 		/* Try to map as high as possible, this is only a hint. */
@@ -1141,11 +1145,15 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 		}
 	}
 
-	ret = install_special_mapping(mm, area->vaddr, PAGE_SIZE,
-				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO, area->pages);
-	if (ret)
+	vma = _install_special_mapping(mm, area->vaddr, PAGE_SIZE,
+				VM_EXEC|VM_MAYEXEC|VM_DONTCOPY|VM_IO,
+				&area->xol_mapping);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto fail;
+	}
 
+	ret = 0;
 	smp_wmb();	/* pairs with get_xol_area() */
 	mm->uprobes_state.xol_area = area;
  fail:
@@ -1168,6 +1176,8 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 	if (!area->bitmap)
 		goto free_area;
 
+	area->xol_mapping.name = "[uprobes]";
+	area->xol_mapping.pages = area->pages;
 	area->pages[0] = alloc_page(GFP_HIGHUSER);
 	if (!area->pages[0])
 		goto free_bitmap;
