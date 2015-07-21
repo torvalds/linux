@@ -1942,52 +1942,44 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		return 0;
 	}
 
-	context_clear_entry(context);
-
-	id = domain->id;
 	pgd = domain->pgd;
 
-	if (domain_type_is_vm_or_si(domain)) {
-		if (domain_type_is_vm(domain)) {
-			id = __iommu_attach_domain(domain, iommu);
-			if (id < 0) {
-				spin_unlock_irqrestore(&iommu->lock, flags);
-				pr_err("%s: No free domain ids\n", iommu->name);
-				return -EFAULT;
-			}
-		}
-
-		/* Skip top levels of page tables for
-		 * iommu which has less agaw than default.
-		 * Unnecessary for PT mode.
-		 */
-		if (translation != CONTEXT_TT_PASS_THROUGH) {
-			for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
-				pgd = phys_to_virt(dma_pte_addr(pgd));
-				if (!dma_pte_present(pgd)) {
-					spin_unlock_irqrestore(&iommu->lock, flags);
-					return -ENOMEM;
-				}
-			}
-		}
+	id = __iommu_attach_domain(domain, iommu);
+	if (id < 0) {
+		spin_unlock_irqrestore(&iommu->lock, flags);
+		pr_err("%s: No free domain ids\n", iommu->name);
+		return -EFAULT;
 	}
 
+	context_clear_entry(context);
 	context_set_domain_id(context, id);
 
+	/*
+	 * Skip top levels of page tables for iommu which has less agaw
+	 * than default.  Unnecessary for PT mode.
+	 */
 	if (translation != CONTEXT_TT_PASS_THROUGH) {
+		for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
+			pgd = phys_to_virt(dma_pte_addr(pgd));
+			if (!dma_pte_present(pgd)) {
+				spin_unlock_irqrestore(&iommu->lock, flags);
+				return -ENOMEM;
+			}
+		}
+
 		info = iommu_support_dev_iotlb(domain, iommu, bus, devfn);
 		translation = info ? CONTEXT_TT_DEV_IOTLB :
 				     CONTEXT_TT_MULTI_LEVEL;
-	}
-	/*
-	 * In pass through mode, AW must be programmed to indicate the largest
-	 * AGAW value supported by hardware. And ASR is ignored by hardware.
-	 */
-	if (unlikely(translation == CONTEXT_TT_PASS_THROUGH))
-		context_set_address_width(context, iommu->msagaw);
-	else {
+
 		context_set_address_root(context, virt_to_phys(pgd));
 		context_set_address_width(context, iommu->agaw);
+	} else {
+		/*
+		 * In pass through mode, AW must be programmed to
+		 * indicate the largest AGAW value supported by
+		 * hardware. And ASR is ignored by hardware.
+		 */
+		context_set_address_width(context, iommu->msagaw);
 	}
 
 	context_set_translation_type(context, translation);
