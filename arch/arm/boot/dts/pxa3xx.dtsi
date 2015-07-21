@@ -6,6 +6,15 @@
 	compatible = "marvell,pxa3xx";
 
 	pxabus {
+		pdma: dma-controller@40000000 {
+			compatible = "marvell,pdma-1.0";
+			reg = <0x40000000 0x10000>;
+			interrupts = <25>;
+			#dma-channels = <32>;
+			#dma-cells = <2>;
+			status = "okay";
+		};
+
 		pwri2c: i2c@40f500c0 {
 			compatible = "mrvl,pwri2c";
 			reg = <0x40f500c0 0x30>;
@@ -21,6 +30,8 @@
 			reg = <0x43100000 90>;
 			interrupts = <45>;
 			clocks = <&clks CLK_NAND>;
+			dmas = <&pdma 97>;
+			dma-names = "data";
 			#address-cells = <1>;
 			#size-cells = <1>;	
 			status = "disabled";
@@ -41,6 +52,47 @@
 			#gpio-cells = <0x2>;
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
+		};
+
+		mmc0: mmc@41100000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x41100000 0x1000>;
+			interrupts = <23>;
+			clocks = <&clks CLK_MMC>;
+			dmas = <&pdma 21 3
+				&pdma 22 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		mmc1: mmc@42000000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x42000000 0x1000>;
+			interrupts = <41>;
+			clocks = <&clks CLK_MMC1>;
+			dmas = <&pdma 93 3
+				&pdma 94 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		mmc2: mmc@42500000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x42500000 0x1000>;
+			interrupts = <55>;
+			clocks = <&clks CLK_MMC2>;
+			dmas = <&pdma 46 3
+				&pdma 47 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		pxa3xx_ohci: usb@4c000000 {
+			compatible = "marvell,pxa-ohci";
+			reg = <0x4c000000 0x10000>;
+			interrupts = <3>;
+			clocks = <&clks CLK_USBHOST>;
+			status = "disabled";
 		};
 	};
 
