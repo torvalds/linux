@@ -571,13 +571,32 @@ static struct kmem_cache *iommu_devinfo_cache;
 
 static struct dmar_domain* get_iommu_domain(struct intel_iommu *iommu, u16 did)
 {
-	return iommu->domains[did];
+	struct dmar_domain **domains;
+	int idx = did >> 8;
+
+	domains = iommu->domains[idx];
+	if (!domains)
+		return NULL;
+
+	return domains[did & 0xff];
 }
 
 static void set_iommu_domain(struct intel_iommu *iommu, u16 did,
 			     struct dmar_domain *domain)
 {
-	iommu->domains[did] = domain;
+	struct dmar_domain **domains;
+	int idx = did >> 8;
+
+	if (!iommu->domains[idx]) {
+		size_t size = 256 * sizeof(struct dmar_domain *);
+		iommu->domains[idx] = kzalloc(size, GFP_ATOMIC);
+	}
+
+	domains = iommu->domains[idx];
+	if (WARN_ON(!domains))
+		return;
+	else
+		domains[did & 0xff] = domain;
 }
 
 static inline void *alloc_pgtable_page(int node)
@@ -1530,34 +1549,42 @@ static void iommu_disable_translation(struct intel_iommu *iommu)
 
 static int iommu_init_domains(struct intel_iommu *iommu)
 {
-	unsigned long ndomains;
-	unsigned long nlongs;
+	u32 ndomains, nlongs;
+	size_t size;
 
 	ndomains = cap_ndoms(iommu->cap);
-	pr_debug("%s: Number of Domains supported <%ld>\n",
+	pr_debug("%s: Number of Domains supported <%d>\n",
 		 iommu->name, ndomains);
 	nlongs = BITS_TO_LONGS(ndomains);
 
 	spin_lock_init(&iommu->lock);
 
-	/* TBD: there might be 64K domains,
-	 * consider other allocation for future chip
-	 */
 	iommu->domain_ids = kcalloc(nlongs, sizeof(unsigned long), GFP_KERNEL);
 	if (!iommu->domain_ids) {
 		pr_err("%s: Allocating domain id array failed\n",
 		       iommu->name);
 		return -ENOMEM;
 	}
-	iommu->domains = kcalloc(ndomains, sizeof(struct dmar_domain *),
-			GFP_KERNEL);
-	if (!iommu->domains) {
+
+	size = ((ndomains >> 8) + 1) * sizeof(struct dmar_domain **);
+	iommu->domains = kzalloc(size, GFP_KERNEL);
+
+	if (iommu->domains) {
+		size = 256 * sizeof(struct dmar_domain *);
+		iommu->domains[0] = kzalloc(size, GFP_KERNEL);
+	}
+
+	if (!iommu->domains || !iommu->domains[0]) {
 		pr_err("%s: Allocating domain array failed\n",
 		       iommu->name);
 		kfree(iommu->domain_ids);
+		kfree(iommu->domains);
 		iommu->domain_ids = NULL;
+		iommu->domains    = NULL;
 		return -ENOMEM;
 	}
+
+
 
 	/*
 	 * If Caching mode is set, then invalid translations are tagged
@@ -1600,6 +1627,11 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 static void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	if ((iommu->domains) && (iommu->domain_ids)) {
+		int elems = (cap_ndoms(iommu->cap) >> 8) + 1;
+		int i;
+
+		for (i = 0; i < elems; i++)
+			kfree(iommu->domains[i]);
 		kfree(iommu->domains);
 		kfree(iommu->domain_ids);
 		iommu->domains = NULL;
