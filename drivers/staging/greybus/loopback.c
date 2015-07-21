@@ -394,6 +394,8 @@ static int gb_loopback_fn(void *data)
 			msleep(1000);
 			continue;
 		}
+		if (gb->ts.tv_usec == 0 && gb->ts.tv_sec == 0)
+			do_gettimeofday(&gb->ts);
 		if (gb->type == GB_LOOPBACK_TYPE_PING)
 			error = gb_loopback_ping(gb, &tlat);
 		else if (gb->type == GB_LOOPBACK_TYPE_TRANSFER)
@@ -402,10 +404,6 @@ static int gb_loopback_fn(void *data)
 			error = gb_loopback_sink(gb, &tlat, gb->size);
 		if (error)
 			gb->error++;
-		if (gb->ts.tv_usec == 0 && gb->ts.tv_sec == 0) {
-			do_gettimeofday(&gb->ts);
-			continue;
-		}
 		do_gettimeofday(&gb->te);
 		gb->elapsed_nsecs = timeval_to_ns(&gb->te) -
 					timeval_to_ns(&gb->ts);
