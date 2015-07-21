@@ -166,6 +166,56 @@ void amdgpu_bo_list_put(struct amdgpu_bo_list *list)
 	mutex_unlock(&list->lock);
 }
 
+void amdgpu_bo_list_copy(struct amdgpu_device *adev,
+			 struct amdgpu_bo_list *dst,
+			 struct amdgpu_bo_list *src)
+{
+	struct amdgpu_bo_list_entry *array;
+	struct amdgpu_bo *gds_obj = adev->gds.gds_gfx_bo;
+	struct amdgpu_bo *gws_obj = adev->gds.gws_gfx_bo;
+	struct amdgpu_bo *oa_obj = adev->gds.oa_gfx_bo;
+
+	bool has_userptr = false;
+	unsigned i;
+
+	array = drm_calloc_large(src->num_entries, sizeof(struct amdgpu_bo_list_entry));
+	if (!array)
+		return;
+	memset(array, 0, src->num_entries * sizeof(struct amdgpu_bo_list_entry));
+
+	for (i = 0; i < src->num_entries; ++i) {
+		memcpy(array, src->array,
+		       src->num_entries * sizeof(struct amdgpu_bo_list_entry));
+		array[i].robj = amdgpu_bo_ref(src->array[i].robj);
+		if (amdgpu_ttm_tt_has_userptr(array[i].robj->tbo.ttm)) {
+			has_userptr = true;
+			array[i].prefered_domains = AMDGPU_GEM_DOMAIN_GTT;
+			array[i].allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
+		}
+		array[i].tv.bo = &array[i].robj->tbo;
+		array[i].tv.shared = true;
+
+		if (array[i].prefered_domains == AMDGPU_GEM_DOMAIN_GDS)
+			gds_obj = array[i].robj;
+		if (array[i].prefered_domains == AMDGPU_GEM_DOMAIN_GWS)
+			gws_obj = array[i].robj;
+		if (array[i].prefered_domains == AMDGPU_GEM_DOMAIN_OA)
+			oa_obj = array[i].robj;
+	}
+
+	for (i = 0; i < dst->num_entries; ++i)
+		amdgpu_bo_unref(&dst->array[i].robj);
+
+	drm_free_large(dst->array);
+
+	dst->gds_obj = gds_obj;
+	dst->gws_obj = gws_obj;
+	dst->oa_obj = oa_obj;
+	dst->has_userptr = has_userptr;
+	dst->array = array;
+	dst->num_entries = src->num_entries;
+}
+
 void amdgpu_bo_list_free(struct amdgpu_bo_list *list)
 {
 	unsigned i;
