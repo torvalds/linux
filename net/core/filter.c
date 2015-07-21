@@ -1457,6 +1457,7 @@ const struct bpf_func_proto bpf_skb_vlan_push_proto = {
 	.arg2_type      = ARG_ANYTHING,
 	.arg3_type      = ARG_ANYTHING,
 };
+EXPORT_SYMBOL_GPL(bpf_skb_vlan_push_proto);
 
 static u64 bpf_skb_vlan_pop(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
@@ -1471,6 +1472,7 @@ const struct bpf_func_proto bpf_skb_vlan_pop_proto = {
 	.ret_type       = RET_INTEGER,
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
+EXPORT_SYMBOL_GPL(bpf_skb_vlan_pop_proto);
 
 bool bpf_helper_changes_skb_data(void *func)
 {

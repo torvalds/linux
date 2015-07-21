@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/filter.h>
+#include <linux/bpf.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
@@ -353,6 +354,81 @@ static int bpf_fill_ja(struct bpf_test *self)
 {
 	/* Hits exactly 11 passes on x86_64 JIT. */
 	return __bpf_fill_ja(self, 12, 9);
+}
+
+static int bpf_fill_ld_abs_get_processor_id(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS;
+	struct sock_filter *insn;
+	int i;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	for (i = 0; i < len - 1; i += 2) {
+		insn[i] = __BPF_STMT(BPF_LD | BPF_B | BPF_ABS, 0);
+		insn[i + 1] = __BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+					 SKF_AD_OFF + SKF_AD_CPU);
+	}
+
+	insn[len - 1] = __BPF_STMT(BPF_RET | BPF_K, 0xbee);
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
+}
+
+#define PUSH_CNT 68
+/* test: {skb->data[0], vlan_push} x 68 + {skb->data[0], vlan_pop} x 68 */
+static int bpf_fill_ld_abs_vlan_push_pop(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS;
+	struct bpf_insn *insn;
+	int i = 0, j, k = 0;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	insn[i++] = BPF_MOV64_REG(R6, R1);
+loop:
+	for (j = 0; j < PUSH_CNT; j++) {
+		insn[i++] = BPF_LD_ABS(BPF_B, 0);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0x34, len - i - 2);
+		i++;
+		insn[i++] = BPF_MOV64_REG(R1, R6);
+		insn[i++] = BPF_MOV64_IMM(R2, 1);
+		insn[i++] = BPF_MOV64_IMM(R3, 2);
+		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+					 bpf_skb_vlan_push_proto.func - __bpf_call_base);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0, len - i - 2);
+		i++;
+	}
+
+	for (j = 0; j < PUSH_CNT; j++) {
+		insn[i++] = BPF_LD_ABS(BPF_B, 0);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0x34, len - i - 2);
+		i++;
+		insn[i++] = BPF_MOV64_REG(R1, R6);
+		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+					 bpf_skb_vlan_pop_proto.func - __bpf_call_base);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0, len - i - 2);
+		i++;
+	}
+	if (++k < 5)
+		goto loop;
+
+	for (; i < len - 1; i++)
+		insn[i] = BPF_ALU32_IMM(BPF_MOV, R0, 0xbef);
+
+	insn[len - 1] = BPF_EXIT_INSN();
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
 }
 
 static struct bpf_test tests[] = {
@@ -4398,6 +4474,22 @@ static struct bpf_test tests[] = {
 		{ { 0, 0xababcbac } },
 		.fill_helper = bpf_fill_maxinsns11,
 	},
+	{
+		"BPF_MAXINSNS: ld_abs+get_processor_id",
+		{ },
+		CLASSIC,
+		{ },
+		{ { 1, 0xbee } },
+		.fill_helper = bpf_fill_ld_abs_get_processor_id,
+	},
+	{
+		"BPF_MAXINSNS: ld_abs+vlan_push/pop",
+		{ },
+		INTERNAL,
+		{ 0x34 },
+		{ { 1, 0xbef } },
+		.fill_helper = bpf_fill_ld_abs_vlan_push_pop,
+	},
 };
 
 static struct net_device dev;
@@ -4551,14 +4643,14 @@ static int __run_one(const struct bpf_prog *fp, const void *data,
 	u64 start, finish;
 	int ret = 0, i;
 
-	start = ktime_to_us(ktime_get());
+	start = ktime_get_ns();
 
 	for (i = 0; i < runs; i++)
 		ret = BPF_PROG_RUN(fp, data);
 
-	finish = ktime_to_us(ktime_get());
+	finish = ktime_get_ns();
 
-	*duration = (finish - start) * 1000ULL;
+	*duration = finish - start;
 	do_div(*duration, runs);
 
 	return ret;
