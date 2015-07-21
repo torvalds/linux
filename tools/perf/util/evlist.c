@@ -1150,6 +1150,23 @@ out_delete_threads:
 	return -1;
 }
 
+int perf_evlist__set_maps(struct perf_evlist *evlist,
+			  struct cpu_map *cpus,
+			  struct thread_map *threads)
+{
+	if (evlist->cpus)
+		cpu_map__put(evlist->cpus);
+
+	evlist->cpus = cpus;
+
+	if (evlist->threads)
+		thread_map__put(evlist->threads);
+
+	evlist->threads = threads;
+
+	return perf_evlist__propagate_maps(evlist, false);
+}
+
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)
 {
 	struct perf_evsel *evsel;
