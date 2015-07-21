@@ -1236,18 +1236,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	else
 		hdmi->hdmi_data.colorimetry = HDMI_COLORIMETRY_ITU_709;
 
-	if ((hdmi->vic == 10) || (hdmi->vic == 11) ||
-	    (hdmi->vic == 12) || (hdmi->vic == 13) ||
-	    (hdmi->vic == 14) || (hdmi->vic == 15) ||
-	    (hdmi->vic == 25) || (hdmi->vic == 26) ||
-	    (hdmi->vic == 27) || (hdmi->vic == 28) ||
-	    (hdmi->vic == 29) || (hdmi->vic == 30) ||
-	    (hdmi->vic == 35) || (hdmi->vic == 36) ||
-	    (hdmi->vic == 37) || (hdmi->vic == 38))
-		hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 1;
-	else
-		hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 0;
-
+	hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 0;
 	hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 0;
 
 	/* TODO: Get input format from IPU (via FB driver interface) */
