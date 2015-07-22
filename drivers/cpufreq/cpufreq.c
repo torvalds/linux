@@ -112,12 +112,6 @@ static inline bool has_target(void)
 	return cpufreq_driver->target_index || cpufreq_driver->target;
 }
 
-/*
- * rwsem to guarantee that cpufreq driver module doesn't unload during critical
- * sections
- */
-static DECLARE_RWSEM(cpufreq_rwsem);
-
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy,
 		unsigned int event);
@@ -277,10 +271,6 @@ EXPORT_SYMBOL_GPL(cpufreq_generic_get);
  * If corresponding call cpufreq_cpu_put() isn't made, the policy wouldn't be
  * freed as that depends on the kobj count.
  *
- * It also takes a read-lock of 'cpufreq_rwsem' and doesn't put it back if a
- * valid policy is found. This is done to make sure the driver doesn't get
- * unregistered while the policy is being used.
- *
  * Return: A valid policy on success, otherwise NULL on failure.
  */
 struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
@@ -289,9 +279,6 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 	unsigned long flags;
 
 	if (WARN_ON(cpu >= nr_cpu_ids))
-		return NULL;
-
-	if (!down_read_trylock(&cpufreq_rwsem))
 		return NULL;
 
 	/* get the cpufreq driver */
@@ -306,9 +293,6 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	if (!policy)
-		up_read(&cpufreq_rwsem);
-
 	return policy;
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
@@ -320,13 +304,10 @@ EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
  *
  * This decrements the kobject reference count incremented earlier by calling
  * cpufreq_cpu_get().
- *
- * It also drops the read-lock of 'cpufreq_rwsem' taken at cpufreq_cpu_get().
  */
 void cpufreq_cpu_put(struct cpufreq_policy *policy)
 {
 	kobject_put(&policy->kobj);
-	up_read(&cpufreq_rwsem);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
 
@@ -851,9 +832,6 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret;
 
-	if (!down_read_trylock(&cpufreq_rwsem))
-		return -EINVAL;
-
 	down_read(&policy->rwsem);
 
 	if (fattr->show)
@@ -862,7 +840,6 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 		ret = -EIO;
 
 	up_read(&policy->rwsem);
-	up_read(&cpufreq_rwsem);
 
 	return ret;
 }
@@ -877,9 +854,6 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	get_online_cpus();
 
 	if (!cpu_online(policy->cpu))
-		goto unlock;
-
-	if (!down_read_trylock(&cpufreq_rwsem))
 		goto unlock;
 
 	down_write(&policy->rwsem);
@@ -897,8 +871,6 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 
 unlock_policy_rwsem:
 	up_write(&policy->rwsem);
-
-	up_read(&cpufreq_rwsem);
 unlock:
 	put_online_cpus();
 
@@ -1261,15 +1233,11 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	if (cpu_is_offline(cpu))
 		return add_cpu_dev_symlink(per_cpu(cpufreq_cpu_data, cpu), cpu);
 
-	if (!down_read_trylock(&cpufreq_rwsem))
-		return 0;
-
 	/* Check if this CPU already has a policy to manage it */
 	policy = per_cpu(cpufreq_cpu_data, cpu);
 	if (policy && !policy_is_inactive(policy)) {
 		WARN_ON(!cpumask_test_cpu(cpu, policy->related_cpus));
 		ret = cpufreq_add_policy_cpu(policy, cpu, dev);
-		up_read(&cpufreq_rwsem);
 		return ret;
 	}
 
@@ -1395,8 +1363,6 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 
-	up_read(&cpufreq_rwsem);
-
 	/* Callback for handling stuff after policy is ready */
 	if (cpufreq_driver->ready)
 		cpufreq_driver->ready(policy);
@@ -1416,8 +1382,6 @@ out_exit_policy:
 out_free_policy:
 	cpufreq_policy_free(policy, recover_policy);
 out_release_rwsem:
-	up_read(&cpufreq_rwsem);
-
 	return ret;
 }
 
@@ -2604,19 +2568,20 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 
 	pr_debug("unregistering driver %s\n", driver->name);
 
+	/* Protect against concurrent cpu hotplug */
+	get_online_cpus();
 	subsys_interface_unregister(&cpufreq_interface);
 	if (cpufreq_boost_supported())
 		cpufreq_sysfs_remove_file(&boost.attr);
 
 	unregister_hotcpu_notifier(&cpufreq_cpu_notifier);
 
-	down_write(&cpufreq_rwsem);
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 
 	cpufreq_driver = NULL;
 
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
-	up_write(&cpufreq_rwsem);
+	put_online_cpus();
 
 	return 0;
 }
