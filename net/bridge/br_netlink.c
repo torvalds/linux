@@ -164,8 +164,6 @@ static int br_fill_ifvlaninfo_range(struct sk_buff *skb, u16 vid_start,
 			    sizeof(vinfo), &vinfo))
 			goto nla_put_failure;
 
-		vinfo.flags &= ~BRIDGE_VLAN_INFO_RANGE_BEGIN;
-
 		vinfo.vid = vid_end;
 		vinfo.flags = flags | BRIDGE_VLAN_INFO_RANGE_END;
 		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
