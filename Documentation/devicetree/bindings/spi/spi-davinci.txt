@@ -12,6 +12,8 @@ Required properties:
 - compatible:
 	- "ti,dm6441-spi" for SPI used similar to that on DM644x SoC family
 	- "ti,da830-spi" for SPI used similar to that on DA8xx SoC family
+	- "ti,keystone-spi" for SPI used similar to that on Keystone2 SoC
+		family
 - reg: Offset and length of SPI controller register space
 - num-cs: Number of chip selects. This includes internal as well as
 	GPIO chip selects.
