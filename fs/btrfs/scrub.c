@@ -3254,9 +3254,11 @@ again:
 						   &extent_dev,
 						   &extent_mirror_num);
 
-			ret = btrfs_lookup_csums_range(csum_root, logical,
-						logical + map->stripe_len - 1,
-						&sctx->csum_list, 1);
+			ret = btrfs_lookup_csums_range(csum_root,
+						       extent_logical,
+						       extent_logical +
+						       extent_len - 1,
+						       &sctx->csum_list, 1);
 			if (ret)
 				goto out;
 
