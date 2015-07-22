@@ -113,12 +113,9 @@ static void ath_tx_queue_tid(struct ath_softc *sc, struct ath_txq *txq,
 	if (!ctx)
 		return;
 
-	if (tid->sched)
-		return;
-
-	tid->sched = true;
 	list = &ctx->acq[TID_TO_WME_AC(tid->tidno)];
-	list_add_tail(&tid->list, list);
+	if (list_empty(&tid->list))
+		list_add_tail(&tid->list, list);
 }
 
 static struct ath_frame_info *get_frame_info(struct sk_buff *skb)
@@ -1541,15 +1538,14 @@ void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
 
 		ath_txq_lock(sc, txq);
 
-		if (!tid->sched) {
+		if (list_empty(&tid->list)) {
 			ath_txq_unlock(sc, txq);
 			continue;
 		}
 
 		buffered = ath_tid_has_buffered(tid);
 
-		tid->sched = false;
-		list_del(&tid->list);
+		list_del_init(&tid->list);
 
 		ath_txq_unlock(sc, txq);
 
@@ -1929,8 +1925,7 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 			break;
 
 		tid = list_first_entry(tid_list, struct ath_atx_tid, list);
-		list_del(&tid->list);
-		tid->sched = false;
+		list_del_init(&tid->list);
 
 		if (ath_tx_sched_aggr(sc, txq, tid, &stop))
 			sent = true;
@@ -2848,11 +2843,11 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 		tid->seq_start = tid->seq_next = 0;
 		tid->baw_size  = WME_MAX_BA;
 		tid->baw_head  = tid->baw_tail = 0;
-		tid->sched     = false;
 		tid->active	   = false;
 		tid->clear_ps_filter = true;
 		__skb_queue_head_init(&tid->buf_q);
 		__skb_queue_head_init(&tid->retry_q);
+		INIT_LIST_HEAD(&tid->list);
 		acno = TID_TO_WME_AC(tidno);
 		tid->txq = sc->tx.txq_map[acno];
 	}
@@ -2871,10 +2866,8 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 
 		ath_txq_lock(sc, txq);
 
-		if (tid->sched) {
-			list_del(&tid->list);
-			tid->sched = false;
-		}
+		if (!list_empty(&tid->list))
+			list_del_init(&tid->list);
 
 		ath_tid_drain(sc, txq, tid);
 		tid->active = false;

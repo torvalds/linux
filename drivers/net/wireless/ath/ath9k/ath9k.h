@@ -244,7 +244,6 @@ struct ath_atx_tid {
 	int baw_tail;   /* next unused tx buffer slot */
 
 	s8 bar_index;
-	bool sched;
 	bool active;
 	bool clear_ps_filter;
 };
