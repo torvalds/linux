@@ -868,6 +868,7 @@ struct shared_feat_cfg {		 /* NVRAM Offset */
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_SPIO4          0x00000200
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT  0x00000300
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_AFEX_MODE      0x00000400
+		#define SHARED_FEAT_CFG_FORCE_SF_MODE_BD_MODE        0x00000500
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_UFP_MODE       0x00000600
 		#define SHARED_FEAT_CFG_FORCE_SF_MODE_EXTENDED_MODE  0x00000700
 
@@ -2068,6 +2069,12 @@ struct ncsi_oem_fcoe_features {
 	#define FCOE_FEATURES4_FEATURE_SETTINGS_OFFSET          0
 };
 
+enum curr_cfg_method_e {
+	CURR_CFG_MET_NONE = 0,  /* default config */
+	CURR_CFG_MET_OS = 1,
+	CURR_CFG_MET_VENDOR_SPEC = 2,/* e.g. Option ROM, NPAR, O/S Cfg Utils */
+};
+
 struct ncsi_oem_data {
 	u32 driver_version[4];
 	struct ncsi_oem_fcoe_features ncsi_oem_fcoe_features;
@@ -2191,6 +2198,8 @@ struct shmem2_region {
 #define DRV_FLAGS_CAPABILITIES_LOADED_L2        0x00000002
 #define DRV_FLAGS_CAPABILITIES_LOADED_FCOE      0x00000004
 #define DRV_FLAGS_CAPABILITIES_LOADED_ISCSI     0x00000008
+#define DRV_FLAGS_MTU_MASK			0xffff0000
+#define DRV_FLAGS_MTU_SHIFT			16
 
 	u32 extended_dev_info_shared_cfg_size;
 
@@ -2273,6 +2282,71 @@ struct shmem2_region {
 
 	/* We use indication for each PF (0..3) */
 #define MFW_DRV_IND_READ_DONE_OFFSET(_pf_) (1 << (_pf_))
+	union { /* For various OEMs */			/* Offset 0x1a0 */
+		u8 storage_boot_prog[E2_FUNC_MAX];
+	#define STORAGE_BOOT_PROG_MASK				0x000000FF
+	#define STORAGE_BOOT_PROG_NONE				0x00000000
+	#define STORAGE_BOOT_PROG_ISCSI_IP_ACQUIRED		0x00000002
+	#define STORAGE_BOOT_PROG_FCOE_FABRIC_LOGIN_SUCCESS	0x00000002
+	#define STORAGE_BOOT_PROG_TARGET_FOUND			0x00000004
+	#define STORAGE_BOOT_PROG_ISCSI_CHAP_SUCCESS		0x00000008
+	#define STORAGE_BOOT_PROG_FCOE_LUN_FOUND		0x00000008
+	#define STORAGE_BOOT_PROG_LOGGED_INTO_TGT		0x00000010
+	#define STORAGE_BOOT_PROG_IMG_DOWNLOADED		0x00000020
+	#define STORAGE_BOOT_PROG_OS_HANDOFF			0x00000040
+	#define STORAGE_BOOT_PROG_COMPLETED			0x00000080
+
+		u32 oem_i2c_data_addr;
+	};
+
+	/* 9 entires for the C2S PCP map for each inner VLAN PCP + 1 default */
+	/* For PCP values 0-3 use the map lower */
+	/* 0xFF000000 - PCP 0, 0x00FF0000 - PCP 1,
+	 * 0x0000FF00 - PCP 2, 0x000000FF PCP 3
+	 */
+	u32 c2s_pcp_map_lower[E2_FUNC_MAX];			/* 0x1a4 */
+
+	/* For PCP values 4-7 use the map upper */
+	/* 0xFF000000 - PCP 4, 0x00FF0000 - PCP 5,
+	 * 0x0000FF00 - PCP 6, 0x000000FF PCP 7
+	 */
+	u32 c2s_pcp_map_upper[E2_FUNC_MAX];			/* 0x1b4 */
+
+	/* For PCP default value get the MSB byte of the map default */
+	u32 c2s_pcp_map_default[E2_FUNC_MAX];			/* 0x1c4 */
+
+	/* FC_NPIV table offset in NVRAM */
+	u32 fc_npiv_nvram_tbl_addr[PORT_MAX];			/* 0x1d4 */
+
+	/* Shows last method that changed configuration of this device */
+	enum curr_cfg_method_e curr_cfg;			/* 0x1dc */
+
+	/* Storm FW version, shold be kept in the format 0xMMmmbbdd:
+	 * MM - Major, mm - Minor, bb - Build ,dd - Drop
+	 */
+	u32 netproc_fw_ver;					/* 0x1e0 */
+
+	/* Option ROM SMASH CLP version */
+	u32 clp_ver;						/* 0x1e4 */
+
+	u32 pcie_bus_num;					/* 0x1e8 */
+
+	u32 sriov_switch_mode;					/* 0x1ec */
+	#define SRIOV_SWITCH_MODE_NONE		0x0
+	#define SRIOV_SWITCH_MODE_VEB		0x1
+	#define SRIOV_SWITCH_MODE_VEPA		0x2
+
+	u8  rsrv2[E2_FUNC_MAX];					/* 0x1f0 */
+
+	u32 img_inv_table_addr;	/* Address to INV_TABLE_P */	/* 0x1f4 */
+
+	u32 mtu_size[E2_FUNC_MAX];				/* 0x1f8 */
+
+	u32 os_driver_state[E2_FUNC_MAX];			/* 0x208 */
+	#define OS_DRIVER_STATE_NOT_LOADED	0 /* not installed */
+	#define OS_DRIVER_STATE_LOADING		1 /* transition state */
+	#define OS_DRIVER_STATE_DISABLED	2 /* installed but disabled */
+	#define OS_DRIVER_STATE_ACTIVE		3 /* installed and active */
 };
 
 

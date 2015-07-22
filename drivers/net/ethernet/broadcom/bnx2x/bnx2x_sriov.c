@@ -1340,6 +1340,9 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 
 	mutex_init(&bp->vfdb->bulletin_mutex);
 
+	if (SHMEM2_HAS(bp, sriov_switch_mode))
+		SHMEM2_WR(bp, sriov_switch_mode, SRIOV_SWITCH_MODE_VEB);
+
 	return 0;
 failed:
 	DP(BNX2X_MSG_IOV, "Failed err=%d\n", err);

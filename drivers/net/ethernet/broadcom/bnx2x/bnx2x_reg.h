@@ -2139,6 +2139,10 @@
 /* [RW 1] When this bit is set; the LLH will expect all packets to be with
    e1hov */
 #define NIG_REG_LLH_E1HOV_MODE					 0x160d8
+/* [RW 16] Outer VLAN type identifier for multi-function mode. In non
+ * multi-function mode; it will hold the inner VLAN type. Typically 0x8100.
+ */
+#define NIG_REG_LLH_E1HOV_TYPE_1				 0x16028
 /* [RW 1] When this bit is set; the LLH will classify the packet before
    sending it to the BRB or calculating WoL on it. */
 #define NIG_REG_LLH_MF_MODE					 0x16024
@@ -2955,7 +2959,12 @@
 #define PBF_REG_TQ_OCCUPANCY_Q0					 0x1403ac
 /* [R 13] Number of 8 bytes lines occupied in the task queue of queue 1. */
 #define PBF_REG_TQ_OCCUPANCY_Q1					 0x1403b0
-#define PB_REG_CONTROL						 0
+/* [RW 16] One of 8 values that should be compared to type in Ethernet
+ * parsing. If there is a match; the field after Ethernet is the first VLAN.
+ * Reset value is 0x8100 which is the standard VLAN type. Note that when
+ * checking second VLAN; type is compared only to 0x8100.
+ */
+#define PBF_REG_VLAN_TYPE_0					 0x15c06c
 /* [RW 2] Interrupt mask register #0 read/write */
 #define PB_REG_PB_INT_MASK					 0x28
 /* [R 2] Interrupt register #0 read */
@@ -3374,6 +3383,12 @@
 #define PRS_REG_TCM_CURRENT_CREDIT				 0x40160
 /* [R 8] debug only: TSDM current credit. Transaction based. */
 #define PRS_REG_TSDM_CURRENT_CREDIT				 0x4015c
+/* [RW 16] One of 8 values that should be compared to type in Ethernet
+ * parsing. If there is a match; the field after Ethernet is the first VLAN.
+ * Reset value is 0x8100 which is the standard VLAN type. Note that when
+ * checking second VLAN; type is compared only to 0x8100.
+ */
+#define PRS_REG_VLAN_TYPE_0					 0x401a8
 #define PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_AFT			 (0x1<<19)
 #define PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_OF			 (0x1<<20)
 #define PXP2_PXP2_INT_MASK_0_REG_PGL_PCIE_ATTN			 (0x1<<22)
