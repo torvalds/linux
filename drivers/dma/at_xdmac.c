@@ -795,10 +795,7 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		list_add_tail(&desc->desc_node, &first->descs_list);
 	}
 
-	prev->lld.mbr_nda = first->tx_dma_desc.phys;
-	dev_dbg(chan2dev(chan),
-		"%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
-		__func__, prev, &prev->lld.mbr_nda);
+	at_xdmac_queue_desc(chan, prev, first);
 	first->tx_dma_desc.flags = flags;
 	first->xfer_size = buf_len;
 	first->direction = direction;
