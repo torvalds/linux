@@ -221,6 +221,12 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 				   unsigned int ratio)
 {
 	unsigned int n = (128 * freq) / 1000;
+	unsigned int mult = 1;
+
+	while (freq > 48000) {
+		mult *= 2;
+		freq /= 2;
+	}
 
 	switch (freq) {
 	case 32000:
@@ -232,6 +238,7 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 			n = 11648;
 		else
 			n = 4096;
+		n *= mult;
 		break;
 
 	case 44100:
@@ -243,6 +250,7 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 			n = (ratio == 150) ? 17836 : 8918;
 		else
 			n = 6272;
+		n *= mult;
 		break;
 
 	case 48000:
@@ -256,22 +264,7 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 			n = (ratio == 150) ? 11648 : 5824;
 		else
 			n = 6144;
-		break;
-
-	case 88200:
-		n = hdmi_compute_n(44100, pixel_clk, ratio) * 2;
-		break;
-
-	case 96000:
-		n = hdmi_compute_n(48000, pixel_clk, ratio) * 2;
-		break;
-
-	case 176400:
-		n = hdmi_compute_n(44100, pixel_clk, ratio) * 4;
-		break;
-
-	case 192000:
-		n = hdmi_compute_n(48000, pixel_clk, ratio) * 4;
+		n *= mult;
 		break;
 
 	default:
