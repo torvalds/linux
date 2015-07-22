@@ -209,7 +209,7 @@ typedef struct tagSRxDesc {
 	volatile SRDES0 m_rd0RD0;
 	volatile SRDES1 m_rd1RD1;
 	volatile __le32 buff_addr;
-	volatile u32    next_desc;
+	volatile __le32 next_desc;
 	struct tagSRxDesc *next __aligned(8);
 	volatile PDEVICE_RD_INFO pRDInfo __aligned(8);
 } __attribute__ ((__packed__))
