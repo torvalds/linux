@@ -255,8 +255,7 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 		if (ret)
 			continue;
 
-		of_platform_populate(child_np, of_default_bus_match_table,
-				     NULL, dev);
+		of_platform_populate(child_np, NULL, NULL, dev);
 	}
 
 	return 0;
