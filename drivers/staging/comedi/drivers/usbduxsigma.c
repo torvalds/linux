@@ -1,6 +1,6 @@
 /*
  * usbduxsigma.c
- * Copyright (C) 2011-2014 Bernd Porr, mail@berndporr.me.uk
+ * Copyright (C) 2011-2015 Bernd Porr, mail@berndporr.me.uk
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
  * Description: University of Stirling USB DAQ & INCITE Technology Limited
  * Devices: [ITL] USB-DUX-SIGMA (usbduxsigma)
  * Author: Bernd Porr <mail@berndporr.me.uk>
- * Updated: 10 Oct 2014
+ * Updated: 20 July 2015
  * Status: stable
  */
 
@@ -39,6 +39,7 @@
  *   0.4: fixed D/A voltage range
  *   0.5: various bug fixes, health check at startup
  *   0.6: corrected wrong input range
+ *   0.7: rewrite code that urb->interval is always 1
  */
 
 #include <linux/kernel.h>
@@ -122,7 +123,7 @@
 #define RETRIES 10
 
 /* bulk transfer commands to usbduxsigma */
-#define USBBUXSIGMA_AD_CMD		0
+#define USBBUXSIGMA_AD_CMD		9
 #define USBDUXSIGMA_DA_CMD		1
 #define USBDUXSIGMA_DIO_CFG_CMD		2
 #define USBDUXSIGMA_DIO_BITS_CMD	3
@@ -217,24 +218,28 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	devpriv->ai_counter--;
-	if (devpriv->ai_counter == 0) {
-		devpriv->ai_counter = devpriv->ai_timer;
+	if ((urb->actual_length > 0) && (urb->status != -EXDEV)) {
+		devpriv->ai_counter--;
+		if (devpriv->ai_counter == 0) {
+			devpriv->ai_counter = devpriv->ai_timer;
 
-		/* get the data from the USB bus and hand it over to comedi */
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			/* transfer data, note first byte is the DIO state */
-			val = be32_to_cpu(devpriv->in_buf[i+1]);
-			val &= 0x00ffffff;	/* strip status byte */
-			val ^= 0x00800000;	/* convert to unsigned */
+			/* get the data from the USB bus
+			   and hand it over to comedi */
+			for (i = 0; i < cmd->chanlist_len; i++) {
+				/* transfer data,
+				   note first byte is the DIO state */
+				val = be32_to_cpu(devpriv->in_buf[i+1]);
+				val &= 0x00ffffff; /* strip status byte */
+				val ^= 0x00800000; /* convert to unsigned */
 
-			if (!comedi_buf_write_samples(s, &val, 1))
-				return;
+				if (!comedi_buf_write_samples(s, &val, 1))
+					return;
+			}
+
+			if (cmd->stop_src == TRIG_COUNT &&
+			    async->scans_done >= cmd->stop_arg)
+				async->events |= COMEDI_CB_EOA;
 		}
-
-		if (cmd->stop_src == TRIG_COUNT &&
-		    async->scans_done >= cmd->stop_arg)
-			async->events |= COMEDI_CB_EOA;
 	}
 
 	/* if command is still running, resubmit urb */
@@ -374,10 +379,7 @@ static void usbduxsigma_ao_handle_urb(struct comedi_device *dev,
 		urb->transfer_buffer_length = SIZEOUTBUF;
 		urb->dev = comedi_to_usb_dev(dev);
 		urb->status = 0;
-		if (devpriv->high_speed)
-			urb->interval = 8;	/* uframes */
-		else
-			urb->interval = 1;	/* frames */
+		urb->interval = 1;	/* (u)frames */
 		urb->number_of_packets = 1;
 		urb->iso_frame_desc[0].offset = 0;
 		urb->iso_frame_desc[0].length = SIZEOUTBUF;
@@ -441,7 +443,6 @@ static int usbduxsigma_submit_urbs(struct comedi_device *dev,
 				   int input_urb)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
-	struct usbduxsigma_private *devpriv = dev->private;
 	struct urb *urb;
 	int ret;
 	int i;
@@ -452,7 +453,7 @@ static int usbduxsigma_submit_urbs(struct comedi_device *dev,
 
 		/* in case of a resubmission after an unlink... */
 		if (input_urb)
-			urb->interval = devpriv->ai_interval;
+			urb->interval = 1;
 		urb->context = dev;
 		urb->dev = usb;
 		urb->status = 0;
@@ -674,13 +675,14 @@ static int usbduxsigma_ai_cmd(struct comedi_device *dev,
 		create_adc_command(chan, &muxsg0, &muxsg1);
 	}
 
-	devpriv->dux_commands[1] = len;  /* num channels per time step */
-	devpriv->dux_commands[2] = 0x12; /* CONFIG0 */
-	devpriv->dux_commands[3] = 0x03; /* CONFIG1: 23kHz sample, delay 0us */
-	devpriv->dux_commands[4] = 0x00; /* CONFIG3: diff. channels off */
-	devpriv->dux_commands[5] = muxsg0;
-	devpriv->dux_commands[6] = muxsg1;
-	devpriv->dux_commands[7] = sysred;
+	devpriv->dux_commands[1] = devpriv->ai_interval;
+	devpriv->dux_commands[2] = len;  /* num channels per time step */
+	devpriv->dux_commands[3] = 0x12; /* CONFIG0 */
+	devpriv->dux_commands[4] = 0x03; /* CONFIG1: 23kHz sample, delay 0us */
+	devpriv->dux_commands[5] = 0x00; /* CONFIG3: diff. channels off */
+	devpriv->dux_commands[6] = muxsg0;
+	devpriv->dux_commands[7] = muxsg1;
+	devpriv->dux_commands[8] = sysred;
 
 	ret = usbbuxsigma_send_cmd(dev, USBBUXSIGMA_AD_CMD);
 	if (ret < 0) {
@@ -1427,10 +1429,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		urb->transfer_buffer_length = SIZEOUTBUF;
 		urb->iso_frame_desc[0].offset = 0;
 		urb->iso_frame_desc[0].length = SIZEOUTBUF;
-		if (devpriv->high_speed)
-			urb->interval = 8;	/* uframes */
-		else
-			urb->interval = 1;	/* frames */
+		urb->interval = 1;	/* (u)frames */
 	}
 
 	if (devpriv->pwm_buf_sz) {
