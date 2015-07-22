@@ -27,6 +27,7 @@
 #include "smumgr.h"
 #include "cgs_common.h"
 #include "linux/delay.h"
+#include "cz_smumgr.h"
 
 int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -49,7 +50,7 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 
 	switch (smumgr->chip_family) {
 	case AMD_FAMILY_CZ:
-		/* TODO */
+		cz_smum_init(smumgr);
 		break;
 	case AMD_FAMILY_VI:
 		/* TODO */
