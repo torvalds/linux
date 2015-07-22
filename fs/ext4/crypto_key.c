@@ -220,6 +220,8 @@ retry:
 	BUG_ON(master_key->size != EXT4_AES_256_XTS_KEY_SIZE);
 	res = ext4_derive_key_aes(ctx.nonce, master_key->raw,
 				  raw_key);
+	if (res)
+		goto out;
 got_key:
 	ctfm = crypto_alloc_ablkcipher(cipher_str, 0, 0);
 	if (!ctfm || IS_ERR(ctfm)) {
