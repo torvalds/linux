@@ -326,7 +326,7 @@ static int cs4349_runtime_suspend(struct device *dev)
 	struct cs4349_private *cs4349 = dev_get_drvdata(dev);
 	int ret;
 
-	ret = regmap_update_bits(cs4349->regmap, CS4349_MISC, PWR_DWN, 1);
+	ret = regmap_update_bits(cs4349->regmap, CS4349_MISC, PWR_DWN, PWR_DWN);
 	if (ret < 0)
 		return ret;
 
