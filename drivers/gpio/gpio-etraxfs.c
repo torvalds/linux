@@ -140,7 +140,7 @@ static int etraxfs_gpio_probe(struct platform_device *pdev)
 				 NULL,			/* clr */
 				 regs + port->oe,	/* dirout */
 				 NULL,			/* dirin */
-				 BGPIOF_UNREADABLE_REG_SET);
+				 BGPIOF_READ_OUTPUT_REG_SET);
 		if (ret)
 			return ret;
 
