@@ -248,6 +248,22 @@ static void tsk_advance_rx_queue(struct sock *sk)
 	kfree_skb(__skb_dequeue(&sk->sk_receive_queue));
 }
 
+/* tipc_sk_respond() : send response message back to sender
+ */
+static void tipc_sk_respond(struct sock *sk, struct sk_buff *skb, int err)
+{
+	u32 selector;
+	u32 dnode;
+	u32 onode = tipc_own_addr(sock_net(sk));
+
+	if (!tipc_msg_reverse(onode, &skb, err))
+		return;
+
+	dnode = msg_destnode(buf_msg(skb));
+	selector = msg_origport(buf_msg(skb));
+	tipc_node_xmit_skb(sock_net(sk), skb, dnode, selector);
+}
+
 /**
  * tsk_rej_rx_queue - reject all buffers in socket receive queue
  *
@@ -256,13 +272,9 @@ static void tsk_advance_rx_queue(struct sock *sk)
 static void tsk_rej_rx_queue(struct sock *sk)
 {
 	struct sk_buff *skb;
-	u32 dnode;
-	u32 own_node = tsk_own_node(tipc_sk(sk));
 
-	while ((skb = __skb_dequeue(&sk->sk_receive_queue))) {
-		if (tipc_msg_reverse(own_node, &skb, &dnode, TIPC_ERR_NO_PORT))
-			tipc_node_xmit_skb(sock_net(sk), skb, dnode, 0);
-	}
+	while ((skb = __skb_dequeue(&sk->sk_receive_queue)))
+		tipc_sk_respond(sk, skb, TIPC_ERR_NO_PORT);
 }
 
 /* tsk_peer_msg - verify if message was sent by connected port's peer
@@ -441,9 +453,7 @@ static int tipc_release(struct socket *sock)
 				tsk->connected = 0;
 				tipc_node_remove_conn(net, dnode, tsk->portid);
 			}
-			if (tipc_msg_reverse(tsk_own_node(tsk), &skb, &dnode,
-					     TIPC_ERR_NO_PORT))
-				tipc_node_xmit_skb(net, skb, dnode, 0);
+			tipc_sk_respond(sk, skb, TIPC_ERR_NO_PORT);
 		}
 	}
 
@@ -764,35 +774,35 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 /**
  * tipc_sk_proto_rcv - receive a connection mng protocol message
  * @tsk: receiving socket
- * @skb: pointer to message buffer. Set to NULL if buffer is consumed.
+ * @skb: pointer to message buffer.
  */
-static void tipc_sk_proto_rcv(struct tipc_sock *tsk, struct sk_buff **skb)
+static void tipc_sk_proto_rcv(struct tipc_sock *tsk, struct sk_buff *skb)
 {
-	struct tipc_msg *msg = buf_msg(*skb);
+	struct sock *sk = &tsk->sk;
+	struct tipc_msg *hdr = buf_msg(skb);
+	int mtyp = msg_type(hdr);
 	int conn_cong;
-	u32 dnode;
-	u32 own_node = tsk_own_node(tsk);
+
 	/* Ignore if connection cannot be validated: */
-	if (!tsk_peer_msg(tsk, msg))
+	if (!tsk_peer_msg(tsk, hdr))
 		goto exit;
 
 	tsk->probing_state = TIPC_CONN_OK;
 
-	if (msg_type(msg) == CONN_ACK) {
+	if (mtyp == CONN_PROBE) {
+		msg_set_type(hdr, CONN_PROBE_REPLY);
+		tipc_sk_respond(sk, skb, TIPC_OK);
+		return;
+	} else if (mtyp == CONN_ACK) {
 		conn_cong = tsk_conn_cong(tsk);
-		tsk->sent_unacked -= msg_msgcnt(msg);
+		tsk->sent_unacked -= msg_msgcnt(hdr);
 		if (conn_cong)
-			tsk->sk.sk_write_space(&tsk->sk);
-	} else if (msg_type(msg) == CONN_PROBE) {
-		if (tipc_msg_reverse(own_node, skb, &dnode, TIPC_OK)) {
-			msg_set_type(msg, CONN_PROBE_REPLY);
-			return;
-		}
+			sk->sk_write_space(sk);
+	} else if (mtyp != CONN_PROBE_REPLY) {
+		pr_warn("Received unknown CONN_PROTO msg\n");
 	}
-	/* Do nothing if msg_type() == CONN_PROBE_REPLY */
 exit:
-	kfree_skb(*skb);
-	*skb = NULL;
+	kfree_skb(skb);
 }
 
 static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
@@ -1638,7 +1648,7 @@ static int filter_rcv(struct sock *sk, struct sk_buff **skb)
 	int rc = TIPC_OK;
 
 	if (unlikely(msg_user(msg) == CONN_MANAGER)) {
-		tipc_sk_proto_rcv(tsk, skb);
+		tipc_sk_proto_rcv(tsk, *skb);
 		return TIPC_OK;
 	}
 
@@ -1690,7 +1700,7 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 	atomic_t *dcnt;
-	u32 dnode;
+	u32 dnode = msg_prevnode(buf_msg(skb));
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct net *net = sock_net(sk);
 	uint truesize = skb->truesize;
@@ -1702,7 +1712,7 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 			atomic_add(truesize, dcnt);
 		return 0;
 	}
-	if (!err || tipc_msg_reverse(tsk_own_node(tsk), &skb, &dnode, -err))
+	if (!err || tipc_msg_reverse(tsk_own_node(tsk), &skb, -err))
 		tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
 	return 0;
 }
@@ -1794,9 +1804,11 @@ int tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq)
 		if (!err) {
 			dnode = msg_destnode(buf_msg(skb));
 			goto xmit;
+		} else {
+			dnode = msg_prevnode(buf_msg(skb));
 		}
 		tn = net_generic(net, tipc_net_id);
-		if (!tipc_msg_reverse(tn->own_addr, &skb, &dnode, -err))
+		if (!tipc_msg_reverse(tn->own_addr, &skb, -err))
 			continue;
 xmit:
 		tipc_node_xmit_skb(net, skb, dnode, dport);
@@ -2083,6 +2095,8 @@ static int tipc_shutdown(struct socket *sock, int how)
 	case SS_CONNECTED:
 
 restart:
+		dnode = tsk_peer_node(tsk);
+
 		/* Disconnect and send a 'FIN+' or 'FIN-' message to peer */
 		skb = __skb_dequeue(&sk->sk_receive_queue);
 		if (skb) {
@@ -2090,13 +2104,8 @@ restart:
 				kfree_skb(skb);
 				goto restart;
 			}
-			if (tipc_msg_reverse(tsk_own_node(tsk), &skb, &dnode,
-					     TIPC_CONN_SHUTDOWN))
-				tipc_node_xmit_skb(net, skb, dnode,
-						   tsk->portid);
+			tipc_sk_respond(sk, skb, TIPC_CONN_SHUTDOWN);
 		} else {
-			dnode = tsk_peer_node(tsk);
-
 			skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
 					      TIPC_CONN_MSG, SHORT_H_SIZE,
 					      0, dnode, tsk_own_node(tsk),

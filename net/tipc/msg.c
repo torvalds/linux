@@ -469,7 +469,7 @@ bool tipc_msg_make_bundle(struct sk_buff **skb,  struct tipc_msg *msg,
  * Consumes buffer at failure
  * Returns true if success, otherwise false
  */
-bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, u32 *dnode, int err)
+bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 {
 	struct sk_buff *_skb = *skb;
 	struct tipc_msg *hdr = buf_msg(_skb);
@@ -508,7 +508,6 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, u32 *dnode, int err)
 	msg_set_prevnode(hdr, own_node);
 	msg_set_orignode(hdr, own_node);
 	msg_set_size(hdr, msg_hdr_sz(hdr) + dlen);
-	*dnode = msg_destnode(hdr);
 	skb_trim(_skb, msg_size(hdr));
 	skb_orphan(_skb);
 	return true;

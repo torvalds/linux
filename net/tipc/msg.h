@@ -785,7 +785,7 @@ static inline bool msg_peer_is_up(struct tipc_msg *m)
 
 struct sk_buff *tipc_buf_acquire(u32 size);
 bool tipc_msg_validate(struct sk_buff *skb);
-bool tipc_msg_reverse(u32 own_addr, struct sk_buff **skb, u32 *dnode, int err);
+bool tipc_msg_reverse(u32 own_addr, struct sk_buff **skb, int err);
 void tipc_msg_init(u32 own_addr, struct tipc_msg *m, u32 user, u32 type,
 		   u32 hsize, u32 destnode);
 struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
