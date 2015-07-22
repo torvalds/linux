@@ -147,8 +147,8 @@
 &esdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc3>;
-	cd-gpios = <&gpio3 11 0>;
-	wp-gpios = <&gpio3 12 0>;
+	cd-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio3 12 GPIO_ACTIVE_HIGH>;
 	bus-width = <8>;
 	status = "okay";
 };
