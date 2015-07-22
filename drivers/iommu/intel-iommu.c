@@ -2327,6 +2327,12 @@ static struct dmar_domain *dmar_insert_dev_info(struct intel_iommu *iommu,
 		dev->archdata.iommu = info;
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
+	if (dev && domain_context_mapping(domain, dev)) {
+		pr_err("Domain context map for %s failed\n", dev_name(dev));
+		domain_remove_one_dev_info(domain, dev);
+		return NULL;
+	}
+
 	return domain;
 }
 
@@ -2339,11 +2345,11 @@ static int get_last_alias(struct pci_dev *pdev, u16 alias, void *opaque)
 /* domain is initialized */
 static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 {
+	struct device_domain_info *info = NULL;
 	struct dmar_domain *domain, *tmp;
 	struct intel_iommu *iommu;
-	struct device_domain_info *info;
-	u16 dma_alias;
 	unsigned long flags;
+	u16 dma_alias;
 	u8 bus, devfn;
 
 	domain = find_domain(dev);
@@ -2492,11 +2498,6 @@ static int iommu_prepare_identity_map(struct device *dev,
 	if (ret)
 		goto error;
 
-	/* context entry init */
-	ret = domain_context_mapping(domain, dev);
-	if (ret)
-		goto error;
-
 	return 0;
 
  error:
@@ -2592,7 +2593,6 @@ static int domain_add_dev_info(struct dmar_domain *domain, struct device *dev)
 	struct dmar_domain *ndomain;
 	struct intel_iommu *iommu;
 	u8 bus, devfn;
-	int ret;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
@@ -2601,12 +2601,6 @@ static int domain_add_dev_info(struct dmar_domain *domain, struct device *dev)
 	ndomain = dmar_insert_dev_info(iommu, bus, devfn, dev, domain);
 	if (ndomain != domain)
 		return -EBUSY;
-
-	ret = domain_context_mapping(domain, dev);
-	if (ret) {
-		domain_remove_one_dev_info(domain, dev);
-		return ret;
-	}
 
 	return 0;
 }
@@ -3263,23 +3257,12 @@ static struct iova *intel_alloc_iova(struct device *dev,
 static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 {
 	struct dmar_domain *domain;
-	int ret;
 
 	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
 	if (!domain) {
 		pr_err("Allocating domain for %s failed\n",
 		       dev_name(dev));
 		return NULL;
-	}
-
-	/* make sure context mapping is ok */
-	if (unlikely(!domain_context_mapped(dev))) {
-		ret = domain_context_mapping(domain, dev);
-		if (ret) {
-			pr_err("Domain context map for %s failed\n",
-			       dev_name(dev));
-			return NULL;
-		}
 	}
 
 	return domain;
