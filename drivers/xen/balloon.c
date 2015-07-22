@@ -602,6 +602,11 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 		page = balloon_retrieve(true);
 		if (page) {
 			pages[pgno++] = page;
+#ifdef CONFIG_XEN_HAVE_PVMMU
+			ret = xen_alloc_p2m_entry(page_to_pfn(page));
+			if (ret < 0)
+				goto out_undo;
+#endif
 		} else {
 			ret = add_ballooned_pages(nr_pages - pgno);
 			if (ret < 0)
