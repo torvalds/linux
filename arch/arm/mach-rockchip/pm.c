@@ -145,6 +145,19 @@ static void rk3288_slp_mode_set(int level)
 
 		mode_set1 |= BIT(PMU_CLR_ALIVE) | BIT(PMU_CLR_BUS) |
 			     BIT(PMU_CLR_PERI) | BIT(PMU_CLR_DMA);
+
+		/*
+		 * In deep suspend we use PMU_PMU_USE_LF to let the rk3288
+		 * switch its main clock supply to the alternative 32kHz
+		 * source. Therefore set 30ms on a 32kHz clock for pmic
+		 * stabilization. Similar 30ms on 24MHz for the other
+		 * mode below.
+		 */
+		regmap_write(pmu_regmap, RK3288_PMU_STABL_CNT, 32 * 30);
+
+		/* only wait for stabilization, if we turned the osc off */
+		regmap_write(pmu_regmap, RK3288_PMU_OSC_CNT,
+					 osc_disable ? 32 * 30 : 0);
 	} else {
 		/*
 		 * arm off, logic normal
@@ -152,6 +165,12 @@ static void rk3288_slp_mode_set(int level)
 		 * wakeup will be error
 		 */
 		mode_set |= BIT(PMU_CLK_CORE_SRC_GATE_EN);
+
+		/* 30ms on a 24MHz clock for pmic stabilization */
+		regmap_write(pmu_regmap, RK3288_PMU_STABL_CNT, 24000 * 30);
+
+		/* oscillator is still running, so no need to wait */
+		regmap_write(pmu_regmap, RK3288_PMU_OSC_CNT, 0);
 	}
 
 	regmap_write(pmu_regmap, RK3288_PMU_PWRMODE_CON, mode_set);
@@ -261,9 +280,6 @@ static int rk3288_suspend_init(struct device_node *np)
 	/* copy resume code and data to bootsram */
 	memcpy(rk3288_bootram_base, rockchip_slp_cpu_resume,
 	       rk3288_bootram_sz);
-
-	regmap_write(pmu_regmap, RK3288_PMU_OSC_CNT, OSC_STABL_CNT_THRESH);
-	regmap_write(pmu_regmap, RK3288_PMU_STABL_CNT, PMU_STABL_CNT_THRESH);
 
 	return 0;
 }
