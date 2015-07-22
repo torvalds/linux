@@ -260,7 +260,7 @@ static void tsk_rej_rx_queue(struct sock *sk)
 	u32 own_node = tsk_own_node(tipc_sk(sk));
 
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue))) {
-		if (tipc_msg_reverse(own_node, skb, &dnode, TIPC_ERR_NO_PORT))
+		if (tipc_msg_reverse(own_node, &skb, &dnode, TIPC_ERR_NO_PORT))
 			tipc_node_xmit_skb(sock_net(sk), skb, dnode, 0);
 	}
 }
@@ -441,7 +441,7 @@ static int tipc_release(struct socket *sock)
 				tsk->connected = 0;
 				tipc_node_remove_conn(net, dnode, tsk->portid);
 			}
-			if (tipc_msg_reverse(tsk_own_node(tsk), skb, &dnode,
+			if (tipc_msg_reverse(tsk_own_node(tsk), &skb, &dnode,
 					     TIPC_ERR_NO_PORT))
 				tipc_node_xmit_skb(net, skb, dnode, 0);
 		}
@@ -784,7 +784,7 @@ static void tipc_sk_proto_rcv(struct tipc_sock *tsk, struct sk_buff **skb)
 		if (conn_cong)
 			tsk->sk.sk_write_space(&tsk->sk);
 	} else if (msg_type(msg) == CONN_PROBE) {
-		if (tipc_msg_reverse(own_node, *skb, &dnode, TIPC_OK)) {
+		if (tipc_msg_reverse(own_node, skb, &dnode, TIPC_OK)) {
 			msg_set_type(msg, CONN_PROBE_REPLY);
 			return;
 		}
@@ -1702,7 +1702,7 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 			atomic_add(truesize, dcnt);
 		return 0;
 	}
-	if (!err || tipc_msg_reverse(tsk_own_node(tsk), skb, &dnode, -err))
+	if (!err || tipc_msg_reverse(tsk_own_node(tsk), &skb, &dnode, -err))
 		tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
 	return 0;
 }
@@ -1796,7 +1796,7 @@ int tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq)
 			goto xmit;
 		}
 		tn = net_generic(net, tipc_net_id);
-		if (!tipc_msg_reverse(tn->own_addr, skb, &dnode, -err))
+		if (!tipc_msg_reverse(tn->own_addr, &skb, &dnode, -err))
 			continue;
 xmit:
 		tipc_node_xmit_skb(net, skb, dnode, dport);
@@ -2090,7 +2090,7 @@ restart:
 				kfree_skb(skb);
 				goto restart;
 			}
-			if (tipc_msg_reverse(tsk_own_node(tsk), skb, &dnode,
+			if (tipc_msg_reverse(tsk_own_node(tsk), &skb, &dnode,
 					     TIPC_CONN_SHUTDOWN))
 				tipc_node_xmit_skb(net, skb, dnode,
 						   tsk->portid);
