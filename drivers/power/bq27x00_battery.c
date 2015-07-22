@@ -210,7 +210,7 @@ MODULE_PARM_DESC(poll_interval, "battery poll interval in seconds - " \
  */
 
 static inline int bq27x00_read(struct bq27x00_device_info *di, u8 reg,
-		bool single)
+			       bool single)
 {
 	if (di->chip == BQ27425)
 		return di->bus.read(di, reg - BQ27425_REG_OFFSET, single);
@@ -565,7 +565,7 @@ static void bq27x00_battery_poll(struct work_struct *work)
  * Or 0 if something fails.
  */
 static int bq27x00_battery_current(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+				   union power_supply_propval *val)
 {
 	int curr;
 	int flags;
@@ -593,7 +593,7 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di,
 }
 
 static int bq27x00_battery_status(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+				  union power_supply_propval *val)
 {
 	int status;
 
@@ -621,7 +621,7 @@ static int bq27x00_battery_status(struct bq27x00_device_info *di,
 }
 
 static int bq27x00_battery_capacity_level(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+					  union power_supply_propval *val)
 {
 	int level;
 
@@ -655,7 +655,7 @@ static int bq27x00_battery_capacity_level(struct bq27x00_device_info *di,
  * Or < 0 if something fails.
  */
 static int bq27x00_battery_voltage(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+				   union power_supply_propval *val)
 {
 	int volt;
 
@@ -671,7 +671,7 @@ static int bq27x00_battery_voltage(struct bq27x00_device_info *di,
 }
 
 static int bq27x00_simple_value(int value,
-	union power_supply_propval *val)
+				union power_supply_propval *val)
 {
 	if (value < 0)
 		return value;
@@ -987,7 +987,7 @@ static inline void bq27x00_battery_i2c_exit(void) {};
 #ifdef CONFIG_BATTERY_BQ27X00_PLATFORM
 
 static int bq27000_read_platform(struct bq27x00_device_info *di, u8 reg,
-			bool single)
+				 bool single)
 {
 	struct device *dev = di->dev;
 	struct bq27000_platform_data *pdata = dev->platform_data;
