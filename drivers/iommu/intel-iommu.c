@@ -472,8 +472,8 @@ static long list_size;
 
 static void domain_exit(struct dmar_domain *domain);
 static void domain_remove_dev_info(struct dmar_domain *domain);
-static void domain_remove_one_dev_info(struct dmar_domain *domain,
-				       struct device *dev);
+static void dmar_remove_one_dev_info(struct dmar_domain *domain,
+				     struct device *dev);
 static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
 					   struct device *dev);
 static int domain_detach_iommu(struct dmar_domain *domain,
@@ -1631,7 +1631,7 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 
 		domain = info->domain;
 
-		domain_remove_one_dev_info(domain, info->dev);
+		dmar_remove_one_dev_info(domain, info->dev);
 
 		if (!domain_type_is_vm_or_si(domain))
 			domain_exit(domain);
@@ -2255,7 +2255,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 	struct device_domain_info *info, *tmp;
 
 	list_for_each_entry_safe(info, tmp, &domain->devices, link)
-		domain_remove_one_dev_info(domain, info->dev);
+		dmar_remove_one_dev_info(domain, info->dev);
 }
 
 /*
@@ -2329,7 +2329,7 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 
 	if (dev && domain_context_mapping(domain, dev)) {
 		pr_err("Domain context map for %s failed\n", dev_name(dev));
-		domain_remove_one_dev_info(domain, dev);
+		dmar_remove_one_dev_info(domain, dev);
 		return NULL;
 	}
 
@@ -3300,7 +3300,7 @@ static int iommu_no_mapping(struct device *dev)
 			 * 32 bit DMA is removed from si_domain and fall back
 			 * to non-identity mapping.
 			 */
-			domain_remove_one_dev_info(si_domain, dev);
+			dmar_remove_one_dev_info(si_domain, dev);
 			pr_info("32bit %s uses non-identity mapping\n",
 				dev_name(dev));
 			return 0;
@@ -4307,7 +4307,7 @@ static int device_notifier(struct notifier_block *nb,
 		return 0;
 
 	down_read(&dmar_global_lock);
-	domain_remove_one_dev_info(domain, dev);
+	dmar_remove_one_dev_info(domain, dev);
 	if (!domain_type_is_vm_or_si(domain) && list_empty(&domain->devices))
 		domain_exit(domain);
 	up_read(&dmar_global_lock);
@@ -4574,8 +4574,8 @@ static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
 	pci_for_each_dma_alias(to_pci_dev(dev), &iommu_detach_dev_cb, iommu);
 }
 
-static void domain_remove_one_dev_info(struct dmar_domain *domain,
-				       struct device *dev)
+static void dmar_remove_one_dev_info(struct dmar_domain *domain,
+				     struct device *dev)
 {
 	struct device_domain_info *info;
 	struct intel_iommu *iommu;
@@ -4686,7 +4686,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		old_domain = find_domain(dev);
 		if (old_domain) {
 			if (domain_type_is_vm_or_si(dmar_domain))
-				domain_remove_one_dev_info(old_domain, dev);
+				dmar_remove_one_dev_info(old_domain, dev);
 			else
 				domain_remove_dev_info(old_domain);
 
@@ -4734,7 +4734,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 static void intel_iommu_detach_device(struct iommu_domain *domain,
 				      struct device *dev)
 {
-	domain_remove_one_dev_info(to_dmar_domain(domain), dev);
+	dmar_remove_one_dev_info(to_dmar_domain(domain), dev);
 }
 
 static int intel_iommu_map(struct iommu_domain *domain,
