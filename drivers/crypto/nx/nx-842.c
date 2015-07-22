@@ -57,12 +57,8 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/crypto.h>
 #include <linux/vmalloc.h>
 #include <linux/sw842.h>
-#include <linux/ratelimit.h>
 #include <linux/spinlock.h>
 
 #include "nx-842.h"
@@ -74,7 +70,6 @@
  * buffer, and passed directly to the hardware to decompress.
  */
 #define NX842_CRYPTO_MAGIC	(0xf842)
-#define NX842_CRYPTO_GROUP_MAX	(0x20)
 #define NX842_CRYPTO_HEADER_SIZE(g)				\
 	(sizeof(struct nx842_crypto_header) +			\
 	 sizeof(struct nx842_crypto_header_group) * (g))
@@ -89,19 +84,6 @@
 /* try longer on comp because we can fallback to sw decomp if hw is busy */
 #define COMP_BUSY_TIMEOUT	(250) /* ms */
 #define DECOMP_BUSY_TIMEOUT	(50) /* ms */
-
-struct nx842_crypto_header_group {
-	__be16 padding;			/* unused bytes at start of group */
-	__be32 compressed_length;	/* compressed bytes in group */
-	__be32 uncompressed_length;	/* bytes after decompression */
-} __packed;
-
-struct nx842_crypto_header {
-	__be16 magic;		/* NX842_CRYPTO_MAGIC */
-	__be16 ignore;		/* decompressed end bytes to ignore */
-	u8 groups;		/* total groups in this header */
-	struct nx842_crypto_header_group group[];
-} __packed;
 
 struct nx842_crypto_param {
 	u8 *in;
@@ -128,22 +110,13 @@ static int update_param(struct nx842_crypto_param *p,
 	return 0;
 }
 
-struct nx842_crypto_ctx {
-	spinlock_t lock;
-
-	u8 *wmem;
-	u8 *sbounce, *dbounce;
-
-	struct nx842_crypto_header header;
-	struct nx842_crypto_header_group group[NX842_CRYPTO_GROUP_MAX];
-};
-
-static int nx842_crypto_init(struct crypto_tfm *tfm)
+int nx842_crypto_init(struct crypto_tfm *tfm, struct nx842_driver *driver)
 {
 	struct nx842_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	spin_lock_init(&ctx->lock);
-	ctx->wmem = kmalloc(nx842_workmem_size(), GFP_KERNEL);
+	ctx->driver = driver;
+	ctx->wmem = kmalloc(driver->workmem_size, GFP_KERNEL);
 	ctx->sbounce = (u8 *)__get_free_pages(GFP_KERNEL, BOUNCE_BUFFER_ORDER);
 	ctx->dbounce = (u8 *)__get_free_pages(GFP_KERNEL, BOUNCE_BUFFER_ORDER);
 	if (!ctx->wmem || !ctx->sbounce || !ctx->dbounce) {
@@ -155,8 +128,9 @@ static int nx842_crypto_init(struct crypto_tfm *tfm)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nx842_crypto_init);
 
-static void nx842_crypto_exit(struct crypto_tfm *tfm)
+void nx842_crypto_exit(struct crypto_tfm *tfm)
 {
 	struct nx842_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 
@@ -164,6 +138,7 @@ static void nx842_crypto_exit(struct crypto_tfm *tfm)
 	free_page((unsigned long)ctx->sbounce);
 	free_page((unsigned long)ctx->dbounce);
 }
+EXPORT_SYMBOL_GPL(nx842_crypto_exit);
 
 static void check_constraints(struct nx842_constraints *c)
 {
@@ -250,9 +225,7 @@ nospc:
 	timeout = ktime_add_ms(ktime_get(), COMP_BUSY_TIMEOUT);
 	do {
 		dlen = tmplen; /* reset dlen, if we're retrying */
-		ret = nx842_platform_driver()->compress(src, slen,
-							dst, &dlen,
-							ctx->wmem);
+		ret = ctx->driver->compress(src, slen, dst, &dlen, ctx->wmem);
 		/* possibly we should reduce the slen here, instead of
 		 * retrying with the dbounce buffer?
 		 */
@@ -282,14 +255,14 @@ nospc:
 	return update_param(p, slen, dskip + dlen);
 }
 
-static int nx842_crypto_compress(struct crypto_tfm *tfm,
-				 const u8 *src, unsigned int slen,
-				 u8 *dst, unsigned int *dlen)
+int nx842_crypto_compress(struct crypto_tfm *tfm,
+			  const u8 *src, unsigned int slen,
+			  u8 *dst, unsigned int *dlen)
 {
 	struct nx842_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct nx842_crypto_header *hdr = &ctx->header;
 	struct nx842_crypto_param p;
-	struct nx842_constraints c = *nx842_platform_driver()->constraints;
+	struct nx842_constraints c = *ctx->driver->constraints;
 	unsigned int groups, hdrsize, h;
 	int ret, n;
 	bool add_header;
@@ -366,6 +339,7 @@ unlock:
 	spin_unlock_bh(&ctx->lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nx842_crypto_compress);
 
 static int decompress(struct nx842_crypto_ctx *ctx,
 		      struct nx842_crypto_param *p,
@@ -429,9 +403,7 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 	timeout = ktime_add_ms(ktime_get(), DECOMP_BUSY_TIMEOUT);
 	do {
 		dlen = tmplen; /* reset dlen, if we're retrying */
-		ret = nx842_platform_driver()->decompress(src, slen,
-							  dst, &dlen,
-							  ctx->wmem);
+		ret = ctx->driver->decompress(src, slen, dst, &dlen, ctx->wmem);
 	} while (ret == -EBUSY && ktime_before(ktime_get(), timeout));
 	if (ret) {
 usesw:
@@ -467,14 +439,14 @@ usesw:
 	return update_param(p, slen + padding, dlen);
 }
 
-static int nx842_crypto_decompress(struct crypto_tfm *tfm,
-				   const u8 *src, unsigned int slen,
-				   u8 *dst, unsigned int *dlen)
+int nx842_crypto_decompress(struct crypto_tfm *tfm,
+			    const u8 *src, unsigned int slen,
+			    u8 *dst, unsigned int *dlen)
 {
 	struct nx842_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct nx842_crypto_header *hdr;
 	struct nx842_crypto_param p;
-	struct nx842_constraints c = *nx842_platform_driver()->constraints;
+	struct nx842_constraints c = *ctx->driver->constraints;
 	int n, ret, hdr_len;
 	u16 ignore = 0;
 
@@ -552,49 +524,8 @@ unlock:
 
 	return ret;
 }
-
-static struct crypto_alg alg = {
-	.cra_name		= "842",
-	.cra_driver_name	= "842-nx",
-	.cra_priority		= 300,
-	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
-	.cra_ctxsize		= sizeof(struct nx842_crypto_ctx),
-	.cra_module		= THIS_MODULE,
-	.cra_init		= nx842_crypto_init,
-	.cra_exit		= nx842_crypto_exit,
-	.cra_u			= { .compress = {
-	.coa_compress		= nx842_crypto_compress,
-	.coa_decompress		= nx842_crypto_decompress } }
-};
-
-static int __init nx842_crypto_mod_init(void)
-{
-	request_module("nx-compress-powernv");
-	request_module("nx-compress-pseries");
-
-	/* we prevent loading/registering if there's no platform driver,
-	 * and we get the platform module that set it so it won't unload,
-	 * so we don't need to check if it's set in any of our functions
-	 */
-	if (!nx842_platform_driver_get()) {
-		pr_err("no nx842 platform driver found.\n");
-		return -ENODEV;
-	}
-
-	return crypto_register_alg(&alg);
-}
-module_init(nx842_crypto_mod_init);
-
-static void __exit nx842_crypto_mod_exit(void)
-{
-	crypto_unregister_alg(&alg);
-
-	nx842_platform_driver_put();
-}
-module_exit(nx842_crypto_mod_exit);
+EXPORT_SYMBOL_GPL(nx842_crypto_decompress);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IBM PowerPC Nest (NX) 842 Hardware Compression Driver");
-MODULE_ALIAS_CRYPTO("842");
-MODULE_ALIAS_CRYPTO("842-nx");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");

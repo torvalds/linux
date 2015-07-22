@@ -29,6 +29,8 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jennings <rcj@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("842 H/W Compression driver for IBM Power processors");
+MODULE_ALIAS_CRYPTO("842");
+MODULE_ALIAS_CRYPTO("842-nx");
 
 static struct nx842_constraints nx842_pseries_constraints = {
 	.alignment =	DDE_BUFFER_ALIGN,
@@ -957,6 +959,25 @@ static struct nx842_driver nx842_pseries_driver = {
 	.decompress =	nx842_pseries_decompress,
 };
 
+static int nx842_pseries_crypto_init(struct crypto_tfm *tfm)
+{
+	return nx842_crypto_init(tfm, &nx842_pseries_driver);
+}
+
+static struct crypto_alg nx842_pseries_alg = {
+	.cra_name		= "842",
+	.cra_driver_name	= "842-nx",
+	.cra_priority		= 300,
+	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
+	.cra_ctxsize		= sizeof(struct nx842_crypto_ctx),
+	.cra_module		= THIS_MODULE,
+	.cra_init		= nx842_pseries_crypto_init,
+	.cra_exit		= nx842_crypto_exit,
+	.cra_u			= { .compress = {
+	.coa_compress		= nx842_crypto_compress,
+	.coa_decompress		= nx842_crypto_decompress } }
+};
+
 static int nx842_probe(struct vio_dev *viodev,
 		       const struct vio_device_id *id)
 {
@@ -1002,6 +1023,12 @@ static int nx842_probe(struct vio_dev *viodev,
 	if (ret)
 		goto error;
 
+	ret = crypto_register_alg(&nx842_pseries_alg);
+	if (ret) {
+		dev_err(&viodev->dev, "could not register comp alg: %d\n", ret);
+		goto error;
+	}
+
 	rcu_read_lock();
 	dev_set_drvdata(&viodev->dev, rcu_dereference(devdata));
 	rcu_read_unlock();
@@ -1030,6 +1057,8 @@ static int nx842_remove(struct vio_dev *viodev)
 
 	pr_info("Removing IBM Power 842 compression device\n");
 	sysfs_remove_group(&viodev->dev.kobj, &nx842_attribute_group);
+
+	crypto_unregister_alg(&nx842_pseries_alg);
 
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
@@ -1083,12 +1112,6 @@ static int __init nx842_pseries_init(void)
 		return ret;
 	}
 
-	if (!nx842_platform_driver_set(&nx842_pseries_driver)) {
-		vio_unregister_driver(&nx842_vio_driver);
-		kfree(new_devdata);
-		return -EEXIST;
-	}
-
 	return 0;
 }
 
@@ -1099,7 +1122,8 @@ static void __exit nx842_pseries_exit(void)
 	struct nx842_devdata *old_devdata;
 	unsigned long flags;
 
-	nx842_platform_driver_unset(&nx842_pseries_driver);
+	crypto_unregister_alg(&nx842_pseries_alg);
+
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));

@@ -26,6 +26,8 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
 MODULE_DESCRIPTION("842 H/W Compression driver for IBM PowerNV processors");
+MODULE_ALIAS_CRYPTO("842");
+MODULE_ALIAS_CRYPTO("842-nx");
 
 #define WORKMEM_ALIGN	(CRB_ALIGN)
 #define CSB_WAIT_MAX	(5000) /* ms */
@@ -581,9 +583,29 @@ static struct nx842_driver nx842_powernv_driver = {
 	.decompress =	nx842_powernv_decompress,
 };
 
+static int nx842_powernv_crypto_init(struct crypto_tfm *tfm)
+{
+	return nx842_crypto_init(tfm, &nx842_powernv_driver);
+}
+
+static struct crypto_alg nx842_powernv_alg = {
+	.cra_name		= "842",
+	.cra_driver_name	= "842-nx",
+	.cra_priority		= 300,
+	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
+	.cra_ctxsize		= sizeof(struct nx842_crypto_ctx),
+	.cra_module		= THIS_MODULE,
+	.cra_init		= nx842_powernv_crypto_init,
+	.cra_exit		= nx842_crypto_exit,
+	.cra_u			= { .compress = {
+	.coa_compress		= nx842_crypto_compress,
+	.coa_decompress		= nx842_crypto_decompress } }
+};
+
 static __init int nx842_powernv_init(void)
 {
 	struct device_node *dn;
+	int ret;
 
 	/* verify workmem size/align restrictions */
 	BUILD_BUG_ON(WORKMEM_ALIGN % CRB_ALIGN);
@@ -600,7 +622,8 @@ static __init int nx842_powernv_init(void)
 	if (!nx842_ct)
 		return -ENODEV;
 
-	if (!nx842_platform_driver_set(&nx842_powernv_driver)) {
+	ret = crypto_register_alg(&nx842_powernv_alg);
+	if (ret) {
 		struct nx842_coproc *coproc, *n;
 
 		list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
@@ -608,7 +631,7 @@ static __init int nx842_powernv_init(void)
 			kfree(coproc);
 		}
 
-		return -EEXIST;
+		return ret;
 	}
 
 	return 0;
@@ -619,7 +642,7 @@ static void __exit nx842_powernv_exit(void)
 {
 	struct nx842_coproc *coproc, *n;
 
-	nx842_platform_driver_unset(&nx842_powernv_driver);
+	crypto_unregister_alg(&nx842_powernv_alg);
 
 	list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
 		list_del(&coproc->list);

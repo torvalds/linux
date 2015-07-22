@@ -3,8 +3,9 @@
 #define __NX_842_H__
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/sw842.h>
+#include <linux/crypto.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -145,10 +146,40 @@ struct nx842_driver {
 			  void *wrkmem);
 };
 
-struct nx842_driver *nx842_platform_driver(void);
-bool nx842_platform_driver_set(struct nx842_driver *driver);
-void nx842_platform_driver_unset(struct nx842_driver *driver);
-bool nx842_platform_driver_get(void);
-void nx842_platform_driver_put(void);
+struct nx842_crypto_header_group {
+	__be16 padding;			/* unused bytes at start of group */
+	__be32 compressed_length;	/* compressed bytes in group */
+	__be32 uncompressed_length;	/* bytes after decompression */
+} __packed;
+
+struct nx842_crypto_header {
+	__be16 magic;		/* NX842_CRYPTO_MAGIC */
+	__be16 ignore;		/* decompressed end bytes to ignore */
+	u8 groups;		/* total groups in this header */
+	struct nx842_crypto_header_group group[];
+} __packed;
+
+#define NX842_CRYPTO_GROUP_MAX	(0x20)
+
+struct nx842_crypto_ctx {
+	spinlock_t lock;
+
+	u8 *wmem;
+	u8 *sbounce, *dbounce;
+
+	struct nx842_crypto_header header;
+	struct nx842_crypto_header_group group[NX842_CRYPTO_GROUP_MAX];
+
+	struct nx842_driver *driver;
+};
+
+int nx842_crypto_init(struct crypto_tfm *tfm, struct nx842_driver *driver);
+void nx842_crypto_exit(struct crypto_tfm *tfm);
+int nx842_crypto_compress(struct crypto_tfm *tfm,
+			  const u8 *src, unsigned int slen,
+			  u8 *dst, unsigned int *dlen);
+int nx842_crypto_decompress(struct crypto_tfm *tfm,
+			    const u8 *src, unsigned int slen,
+			    u8 *dst, unsigned int *dlen);
 
 #endif /* __NX_842_H__ */
