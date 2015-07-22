@@ -418,7 +418,7 @@ static int func_map_init(struct pevent *pevent)
 }
 
 static struct func_map *
-find_func(struct pevent *pevent, unsigned long long addr)
+__find_func(struct pevent *pevent, unsigned long long addr)
 {
 	struct func_map *func;
 	struct func_map key;
@@ -432,6 +432,71 @@ find_func(struct pevent *pevent, unsigned long long addr)
 		       sizeof(*pevent->func_map), func_bcmp);
 
 	return func;
+}
+
+struct func_resolver {
+	pevent_func_resolver_t *func;
+	void		       *priv;
+	struct func_map	       map;
+};
+
+/**
+ * pevent_set_function_resolver - set an alternative function resolver
+ * @pevent: handle for the pevent
+ * @resolver: function to be used
+ * @priv: resolver function private state.
+ *
+ * Some tools may have already a way to resolve kernel functions, allow them to
+ * keep using it instead of duplicating all the entries inside
+ * pevent->funclist.
+ */
+int pevent_set_function_resolver(struct pevent *pevent,
+				 pevent_func_resolver_t *func, void *priv)
+{
+	struct func_resolver *resolver = malloc(sizeof(*resolver));
+
+	if (resolver == NULL)
+		return -1;
+
+	resolver->func = func;
+	resolver->priv = priv;
+
+	free(pevent->func_resolver);
+	pevent->func_resolver = resolver;
+
+	return 0;
+}
+
+/**
+ * pevent_reset_function_resolver - reset alternative function resolver
+ * @pevent: handle for the pevent
+ *
+ * Stop using whatever alternative resolver was set, use the default
+ * one instead.
+ */
+void pevent_reset_function_resolver(struct pevent *pevent)
+{
+	free(pevent->func_resolver);
+	pevent->func_resolver = NULL;
+}
+
+static struct func_map *
+find_func(struct pevent *pevent, unsigned long long addr)
+{
+	struct func_map *map;
+
+	if (!pevent->func_resolver)
+		return __find_func(pevent, addr);
+
+	map = &pevent->func_resolver->map;
+	map->mod  = NULL;
+	map->addr = addr;
+	map->func = pevent->func_resolver->func(pevent->func_resolver->priv,
+						&map->addr, &map->mod);
+	if (map->func == NULL)
+		return NULL;
+
+	return map;
 }
 
 /**
@@ -6564,6 +6629,7 @@ void pevent_free(struct pevent *pevent)
 	free(pevent->trace_clock);
 	free(pevent->events);
 	free(pevent->sort_events);
+	free(pevent->func_resolver);
 
 	free(pevent);
 }
