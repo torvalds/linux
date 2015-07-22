@@ -41,6 +41,8 @@
 
 #define DRIVER_VERSION			"1.2.0"
 
+#define BQ27XXX_MANUFACTURER	"Texas Instruments"
+
 #define BQ27x00_REG_TEMP		0x06
 #define BQ27x00_REG_VOLT		0x08
 #define BQ27x00_REG_AI			0x14
@@ -142,6 +144,7 @@ static enum power_supply_property bq27x00_battery_props[] = {
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static enum power_supply_property bq27425_battery_props[] = {
@@ -156,6 +159,7 @@ static enum power_supply_property bq27425_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static enum power_supply_property bq27742_battery_props[] = {
@@ -174,6 +178,7 @@ static enum power_supply_property bq27742_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static enum power_supply_property bq27510_battery_props[] = {
@@ -192,6 +197,7 @@ static enum power_supply_property bq27510_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static unsigned int poll_interval = 360;
@@ -748,6 +754,9 @@ static int bq27x00_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = bq27x00_simple_value(di->cache.health, val);
+		break;
+	case POWER_SUPPLY_PROP_MANUFACTURER:
+		val->strval = BQ27XXX_MANUFACTURER;
 		break;
 	default:
 		return -EINVAL;
