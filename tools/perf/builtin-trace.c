@@ -1489,6 +1489,9 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (trace->host == NULL)
 		return -ENOMEM;
 
+	if (trace_event__register_resolver(trace->host) < 0)
+		return -errno;
+
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
 					    evlist->threads, trace__tool_process, false,
 					    trace->opts.proc_map_timeout);
