@@ -2852,10 +2852,11 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_cntl_attribs *req;
 	struct be_cmd_resp_cntl_attribs *resp;
-	int status;
+	int status, i;
 	int payload_len = max(sizeof(*req), sizeof(*resp));
 	struct mgmt_controller_attrib *attribs;
 	struct be_dma_mem attribs_cmd;
+	u32 *serial_num;
 
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
@@ -2886,6 +2887,10 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 	if (!status) {
 		attribs = attribs_cmd.va + sizeof(struct be_cmd_resp_hdr);
 		adapter->hba_port_num = attribs->hba_attribs.phy_port;
+		serial_num = attribs->hba_attribs.controller_serial_number;
+		for (i = 0; i < CNTL_SERIAL_NUM_WORDS; i++)
+			adapter->serial_num[i] = le32_to_cpu(serial_num[i]) &
+				(BIT_MASK(16) - 1);
 	}
 
 err:

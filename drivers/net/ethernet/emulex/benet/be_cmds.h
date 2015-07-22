@@ -1637,10 +1637,12 @@ struct be_cmd_req_set_qos {
 struct mgmt_hba_attribs {
 	u32 rsvd0[24];
 	u8 controller_model_number[32];
-	u32 rsvd1[79];
-	u8 rsvd2[3];
+	u32 rsvd1[16];
+	u32 controller_serial_number[8];
+	u32 rsvd2[55];
+	u8 rsvd3[3];
 	u8 phy_port;
-	u32 rsvd3[13];
+	u32 rsvd4[13];
 } __packed;
 
 struct mgmt_controller_attrib {
