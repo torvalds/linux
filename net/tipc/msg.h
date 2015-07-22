@@ -798,8 +798,7 @@ bool tipc_msg_make_bundle(struct sk_buff **skb, struct tipc_msg *msg,
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
-bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, u32 *dnode,
-			  int *err);
+bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err);
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
 
 static inline u16 buf_seqno(struct sk_buff *skb)

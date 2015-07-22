@@ -520,17 +520,15 @@ exit:
 /**
  * tipc_msg_lookup_dest(): try to find new destination for named message
  * @skb: the buffer containing the message.
- * @dnode: return value: next-hop node, if destination found
- * @err: return value: error code to use, if message to be rejected
+ * @err: error code to be used by caller if lookup fails
  * Does not consume buffer
  * Returns true if a destination is found, false otherwise
  */
-bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb,
-			  u32 *dnode, int *err)
+bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 {
 	struct tipc_msg *msg = buf_msg(skb);
-	u32 dport;
-	u32 own_addr = tipc_own_addr(net);
+	u32 dport, dnode;
+	u32 onode = tipc_own_addr(net);
 
 	if (!msg_isdata(msg))
 		return false;
@@ -543,15 +541,15 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb,
 		return false;
 	if (msg_reroute_cnt(msg))
 		return false;
-	*dnode = addr_domain(net, msg_lookup_scope(msg));
+	dnode = addr_domain(net, msg_lookup_scope(msg));
 	dport = tipc_nametbl_translate(net, msg_nametype(msg),
-				       msg_nameinst(msg), dnode);
+				       msg_nameinst(msg), &dnode);
 	if (!dport)
 		return false;
 	msg_incr_reroute_cnt(msg);
-	if (*dnode != own_addr)
-		msg_set_prevnode(msg, own_addr);
-	msg_set_destnode(msg, *dnode);
+	if (dnode != onode)
+		msg_set_prevnode(msg, onode);
+	msg_set_destnode(msg, dnode);
 	msg_set_destport(msg, dport);
 	*err = TIPC_OK;
 	return true;
