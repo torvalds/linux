@@ -108,7 +108,7 @@ struct bq27x00_reg_cache {
 };
 
 struct bq27x00_device_info {
-	struct device 		*dev;
+	struct device		*dev;
 	int			id;
 	enum bq27x00_chip	chip;
 
@@ -202,8 +202,8 @@ static enum power_supply_property bq27510_battery_props[] = {
 
 static unsigned int poll_interval = 360;
 module_param(poll_interval, uint, 0644);
-MODULE_PARM_DESC(poll_interval, "battery poll interval in seconds - " \
-				"0 disables polling");
+MODULE_PARM_DESC(poll_interval,
+		 "battery poll interval in seconds - 0 disables polling");
 
 /*
  * Common code for BQ27x00 devices
@@ -319,8 +319,9 @@ static int bq27x00_battery_read_ilmd(struct bq27x00_device_info *di)
 			ilmd = bq27x00_read(di, BQ27510_REG_DCAP, false);
 		else
 			ilmd = bq27x00_read(di, BQ27500_REG_DCAP, false);
-	} else
+	} else {
 		ilmd = bq27x00_read(di, BQ27000_REG_ILMD, true);
+	}
 
 	if (ilmd < 0) {
 		dev_dbg(di->dev, "error reading initial last measured discharge\n");
@@ -451,7 +452,7 @@ static int bq27x00_battery_read_health(struct bq27x00_device_info *di)
 		return tval;
 	}
 
-	if ((di->chip == BQ27500)) {
+	if (di->chip == BQ27500) {
 		if (tval & BQ27500_FLAG_SOCF)
 			tval = POWER_SUPPLY_HEALTH_DEAD;
 		else if (tval & BQ27500_FLAG_OTC)
@@ -836,7 +837,6 @@ static void bq27x00_powersupply_unregister(struct bq27x00_device_info *di)
 	mutex_destroy(&di->lock);
 }
 
-
 /* i2c specific code */
 #ifdef CONFIG_BATTERY_BQ27X00_I2C
 
@@ -897,14 +897,12 @@ static int bq27x00_battery_probe(struct i2c_client *client,
 
 	name = devm_kasprintf(&client->dev, GFP_KERNEL, "%s-%d", id->name, num);
 	if (!name) {
-		dev_err(&client->dev, "failed to allocate device name\n");
 		retval = -ENOMEM;
 		goto batt_failed;
 	}
 
 	di = devm_kzalloc(&client->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
-		dev_err(&client->dev, "failed to allocate device info data\n");
 		retval = -ENOMEM;
 		goto batt_failed;
 	}
@@ -965,8 +963,9 @@ static struct i2c_driver bq27x00_battery_driver = {
 static inline int bq27x00_battery_i2c_init(void)
 {
 	int ret = i2c_add_driver(&bq27x00_battery_driver);
+
 	if (ret)
-		printk(KERN_ERR "Unable to register BQ27x00 i2c driver\n");
+		pr_err("Unable to register BQ27x00 i2c driver\n");
 
 	return ret;
 }
@@ -1037,10 +1036,8 @@ static int bq27000_battery_probe(struct platform_device *pdev)
 	}
 
 	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
-	if (!di) {
-		dev_err(&pdev->dev, "failed to allocate device info data\n");
+	if (!di)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, di);
 
@@ -1073,8 +1070,9 @@ static struct platform_driver bq27000_battery_driver = {
 static inline int bq27x00_battery_platform_init(void)
 {
 	int ret = platform_driver_register(&bq27000_battery_driver);
+
 	if (ret)
-		printk(KERN_ERR "Unable to register BQ27000 platform driver\n");
+		pr_err("Unable to register BQ27000 platform driver\n");
 
 	return ret;
 }
