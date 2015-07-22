@@ -141,7 +141,6 @@ gb_loopback_stats_attrs(throughput);
 gb_loopback_ro_attr(error, d);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
 gb_loopback_ro_attr(iteration_count, u);
-/* TODO iteration_count might be better with the KOBJ_CHANGE event */
 
 /*
  * Type of loopback message to send based on protocol type definitions
@@ -406,6 +405,8 @@ static int gb_loopback_fn(void *data)
 		if (gb->iteration_max) {
 			if (gb->iteration_count < gb->iteration_max) {
 				gb->iteration_count++;
+				sysfs_notify(&gb->connection->dev.kobj, NULL,
+					     "iteration_count");
 			} else {
 				gb->type = 0;
 				continue;
