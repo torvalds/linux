@@ -1,0 +1,174 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx7d.dtsi"
+
+/ {
+	model = "Freescale i.MX7 LPDDR3 12x12 ARM2 Board";
+	compatible = "fsl,imx7d-12x12-lpddr3-arm2", "fsl,imx7d";
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_sd1_vmmc: sd1_vmmc{
+			compatible = "regulator-fixed";
+			regulator-name = "VCC_SD1";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			gpio = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_sd2_vmmc: sd2_vmmc{
+			compatible = "regulator-fixed";
+			regulator-name = "VCC_SD2";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			gpio = <&gpio5 11 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+	};
+
+	memory {
+		reg = <0x80000000 0x80000000>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog_1>;
+
+	imx7d-12x12-lpddr3-arm2 {
+		pinctrl_hog_1: hoggrp-1 {
+			fsl,pins = <
+				MX7D_PAD_I2C4_SCL__GPIO4_IO14	0x80000000
+				MX7D_PAD_EPDC_PWR_STAT__GPIO2_IO31 0x80000000
+				MX7D_PAD_ECSPI2_SCLK__GPIO4_IO20  0x80000000
+				MX7D_PAD_ECSPI2_MOSI__GPIO4_IO21  0x80000000
+				MX7D_PAD_ECSPI2_MISO__GPIO4_IO22  0x80000000
+				MX7D_PAD_ECSPI2_SS0__GPIO4_IO23	  0x80000000
+				MX7D_PAD_ECSPI1_MOSI__GPIO4_IO17  0x80000000
+				MX7D_PAD_SD1_RESET_B__GPIO5_IO2   0x17059
+				MX7D_PAD_SD1_CD_B__GPIO5_IO0      0x17059
+				MX7D_PAD_SD1_WP__GPIO5_IO1        0x17059
+				MX7D_PAD_SD2_CD_B__GPIO5_IO9      0x17059
+				MX7D_PAD_SD2_WP__GPIO5_IO10       0x17059
+				MX7D_PAD_SD2_RESET_B__GPIO5_IO11  0x17059
+				MX7D_PAD_GPIO1_IO12__SD2_VSELECT  0x17059
+			>;
+		};
+
+		pinctrl_uart1_1: uart1grp-1 {
+			fsl,pins = <
+				MX7D_PAD_UART1_TX_DATA__UART1_DCE_TX 0x79
+				MX7D_PAD_UART1_RX_DATA__UART1_DCE_RX 0x79
+			>;
+		};
+
+		pinctrl_usdhc1_1: usdhc1grp-1 {
+			fsl,pins = <
+				MX7D_PAD_SD1_CMD__SD1_CMD     0x17059
+				MX7D_PAD_SD1_CLK__SD1_CLK     0x10059
+				MX7D_PAD_SD1_DATA0__SD1_DATA0	0x17059
+				MX7D_PAD_SD1_DATA1__SD1_DATA1	0x17059
+				MX7D_PAD_SD1_DATA2__SD1_DATA2	0x17059
+				MX7D_PAD_SD1_DATA3__SD1_DATA3	0x17059
+			>;
+		};
+
+		pinctrl_usdhc2_1: usdhc2grp-1 {
+			fsl,pins = <
+				MX7D_PAD_SD2_CMD__SD2_CMD     0x17059
+				MX7D_PAD_SD2_CLK__SD2_CLK     0x10059
+				MX7D_PAD_SD2_DATA0__SD2_DATA0 0x17059
+				MX7D_PAD_SD2_DATA1__SD2_DATA1 0x17059
+				MX7D_PAD_SD2_DATA2__SD2_DATA2 0x17059
+				MX7D_PAD_SD2_DATA3__SD2_DATA3 0x17059
+			>;
+		};
+
+		pinctrl_usdhc2_1_100mhz: usdhc2grp-1_100mhz {
+			fsl,pins = <
+				MX7D_PAD_SD2_CMD__SD2_CMD     0x170b9
+				MX7D_PAD_SD2_CLK__SD2_CLK     0x100b9
+				MX7D_PAD_SD2_DATA0__SD2_DATA0 0x170b9
+				MX7D_PAD_SD2_DATA1__SD2_DATA1 0x170b9
+				MX7D_PAD_SD2_DATA2__SD2_DATA2 0x170b9
+				MX7D_PAD_SD2_DATA3__SD2_DATA3 0x170b9
+			>;
+		};
+
+		pinctrl_usdhc2_1_200mhz: usdhc2grp-1_200mhz {
+			fsl,pins = <
+				MX7D_PAD_SD2_CMD__SD2_CMD     0x170f9
+				MX7D_PAD_SD2_CLK__SD2_CLK     0x100f9
+				MX7D_PAD_SD2_DATA0__SD2_DATA0 0x170f9
+				MX7D_PAD_SD2_DATA1__SD2_DATA1 0x170f9
+				MX7D_PAD_SD2_DATA2__SD2_DATA2 0x170f9
+				MX7D_PAD_SD2_DATA3__SD2_DATA3 0x170f9
+			>;
+		};
+
+		pinctrl_usdhc3_1: usdhc3grp-1 {
+			fsl,pins = <
+				MX7D_PAD_SD3_CMD__SD3_CMD	  0x17059
+				MX7D_PAD_SD3_CLK__SD3_CLK	  0x10059
+				MX7D_PAD_SD3_DATA0__SD3_DATA0 0x17059
+				MX7D_PAD_SD3_DATA1__SD3_DATA1 0x17059
+				MX7D_PAD_SD3_DATA2__SD3_DATA2 0x17059
+				MX7D_PAD_SD3_DATA3__SD3_DATA3 0x17059
+				MX7D_PAD_SD3_DATA4__SD3_DATA4 0x17059
+				MX7D_PAD_SD3_DATA5__SD3_DATA5 0x17059
+				MX7D_PAD_SD3_DATA6__SD3_DATA6 0x17059
+				MX7D_PAD_SD3_DATA7__SD3_DATA7 0x17059
+			>;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1_1>;
+	cd-gpios = <&gpio5 0 0>;
+	wp-gpios = <&gpio5 1 0>;
+	no-1-8-v;
+	keep-power-in-suspend;
+	enable-sdio-wakeup;
+	vmmc-supply = <&reg_sd1_vmmc>;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc2_1>;
+	pinctrl-1 = <&pinctrl_usdhc2_1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc2_1_200mhz>;
+	cd-gpios = <&gpio5 9 0>;
+	wp-gpios = <&gpio5 10 0>;
+	keep-power-in-suspend;
+	enable-sdio-wakeup;
+	vmmc-supply = <&reg_sd2_vmmc>;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_1>;
+	bus-width = <8>;
+	non-removable;
+	keep-power-in-suspend;
+	status = "okay";
+};

@@ -1,0 +1,62 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include "imx7d.dtsi"
+
+/ {
+	model = "Freescale i.MX7D SabreSD Board";
+	compatible = "fsl,imx7d-sdb", "fsl,imx7d";
+
+	memory {
+		reg = <0x80000000 0x80000000>;
+	};
+};
+
+&iomuxc {
+	imx7d-sdb {
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX7D_PAD_UART1_TX_DATA__UART1_DCE_TX 0x79
+				MX7D_PAD_UART1_RX_DATA__UART1_DCE_RX 0x79
+			>;
+		};
+
+		pinctrl_usdhc1: usdhc1grp {
+			fsl,pins = <
+				MX7D_PAD_SD1_CMD__SD1_CMD       0x17059
+				MX7D_PAD_SD1_CLK__SD1_CLK       0x17059
+				MX7D_PAD_SD1_DATA0__SD1_DATA0   0x17059
+				MX7D_PAD_SD1_DATA1__SD1_DATA1   0x17059
+				MX7D_PAD_SD1_DATA2__SD1_DATA2   0x17059
+				MX7D_PAD_SD1_DATA3__SD1_DATA3   0x17059
+				MX7D_PAD_SD1_CD_B__GPIO5_IO0	0x17059 /* CD */
+				MX7D_PAD_SD1_WP__GPIO5_IO1	0x17059 /* WP */
+				MX7D_PAD_SD1_RESET_B__GPIO5_IO2	0x17059 /* vmmc */
+			>;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1>;
+	cd-gpios = <&gpio5 0 0>;
+	wp-gpios = <&gpio5 1 0>;
+	enable-sdio-wakeup;
+	keep-power-in-suspend;
+	status = "okay";
+};
