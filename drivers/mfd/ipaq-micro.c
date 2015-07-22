@@ -53,8 +53,8 @@ static void ipaq_micro_trigger_tx(struct ipaq_micro *micro)
 	tx->buf[bp++] = checksum;
 	tx->len = bp;
 	tx->index = 0;
-	print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_OFFSET, 16, 1,
-		       tx->buf, tx->len, true);
+	print_hex_dump_debug("data: ", DUMP_PREFIX_OFFSET, 16, 1,
+			     tx->buf, tx->len, true);
 
 	/* Enable interrupt */
 	val = readl(micro->base + UTCR3);
@@ -281,8 +281,8 @@ static void ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
 	dev_info(micro->dev, "RAM size: %u KiB\n", ipaq_micro_to_u16(dump+92));
 	dev_info(micro->dev, "screen: %u x %u\n",
 		 ipaq_micro_to_u16(dump+94), ipaq_micro_to_u16(dump+96));
-	print_hex_dump(KERN_DEBUG, "eeprom: ", DUMP_PREFIX_OFFSET, 16, 1,
-		       dump, 256, true);
+	print_hex_dump_debug("eeprom: ", DUMP_PREFIX_OFFSET, 16, 1,
+			     dump, 256, true);
 
 }
 
