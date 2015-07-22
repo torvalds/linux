@@ -179,6 +179,7 @@ static DEFINE_SPINLOCK(minor_lock);
 	((_segs + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
 
 static int blkfront_setup_indirect(struct blkfront_info *info);
+static int blkfront_gather_backend_features(struct blkfront_info *info);
 
 static int get_id_from_freelist(struct blkfront_info *info)
 {
@@ -1525,7 +1526,7 @@ static int blkif_recover(struct blkfront_info *info)
 	info->shadow_free = info->ring.req_prod_pvt;
 	info->shadow[BLK_RING_SIZE(info)-1].req.u.rw.id = 0x0fffffff;
 
-	rc = blkfront_setup_indirect(info);
+	rc = blkfront_gather_backend_features(info);
 	if (rc) {
 		kfree(copy);
 		return rc;
@@ -1726,20 +1727,13 @@ static void blkfront_setup_discard(struct blkfront_info *info)
 
 static int blkfront_setup_indirect(struct blkfront_info *info)
 {
-	unsigned int indirect_segments, segs;
+	unsigned int segs;
 	int err, i;
 
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-max-indirect-segments", "%u", &indirect_segments,
-			    NULL);
-	if (err) {
-		info->max_indirect_segments = 0;
+	if (info->max_indirect_segments == 0)
 		segs = BLKIF_MAX_SEGMENTS_PER_REQUEST;
-	} else {
-		info->max_indirect_segments = min(indirect_segments,
-						  xen_blkif_max_segments);
+	else
 		segs = info->max_indirect_segments;
-	}
 
 	err = fill_grant_buffer(info, (segs + INDIRECT_GREFS(segs)) * BLK_RING_SIZE(info));
 	if (err)
@@ -1803,6 +1797,68 @@ out_of_memory:
 }
 
 /*
+ * Gather all backend feature-*
+ */
+static int blkfront_gather_backend_features(struct blkfront_info *info)
+{
+	int err;
+	int barrier, flush, discard, persistent;
+	unsigned int indirect_segments;
+
+	info->feature_flush = 0;
+
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			"feature-barrier", "%d", &barrier,
+			NULL);
+
+	/*
+	 * If there's no "feature-barrier" defined, then it means
+	 * we're dealing with a very old backend which writes
+	 * synchronously; nothing to do.
+	 *
+	 * If there are barriers, then we use flush.
+	 */
+	if (!err && barrier)
+		info->feature_flush = REQ_FLUSH | REQ_FUA;
+	/*
+	 * And if there is "feature-flush-cache" use that above
+	 * barriers.
+	 */
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			"feature-flush-cache", "%d", &flush,
+			NULL);
+
+	if (!err && flush)
+		info->feature_flush = REQ_FLUSH;
+
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			"feature-discard", "%d", &discard,
+			NULL);
+
+	if (!err && discard)
+		blkfront_setup_discard(info);
+
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			"feature-persistent", "%u", &persistent,
+			NULL);
+	if (err)
+		info->feature_persistent = 0;
+	else
+		info->feature_persistent = persistent;
+
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			    "feature-max-indirect-segments", "%u", &indirect_segments,
+			    NULL);
+	if (err)
+		info->max_indirect_segments = 0;
+	else
+		info->max_indirect_segments = min(indirect_segments,
+						  xen_blkif_max_segments);
+
+	return blkfront_setup_indirect(info);
+}
+
+/*
  * Invoked when the backend is finally 'ready' (and has told produced
  * the details about the physical device - #sectors, size, etc).
  */
@@ -1813,7 +1869,6 @@ static void blkfront_connect(struct blkfront_info *info)
 	unsigned int physical_sector_size;
 	unsigned int binfo;
 	int err;
-	int barrier, flush, discard, persistent;
 
 	switch (info->connected) {
 	case BLKIF_STATE_CONNECTED:
@@ -1870,48 +1925,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	if (err != 1)
 		physical_sector_size = sector_size;
 
-	info->feature_flush = 0;
-
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-barrier", "%d", &barrier,
-			    NULL);
-
-	/*
-	 * If there's no "feature-barrier" defined, then it means
-	 * we're dealing with a very old backend which writes
-	 * synchronously; nothing to do.
-	 *
-	 * If there are barriers, then we use flush.
-	 */
-	if (!err && barrier)
-		info->feature_flush = REQ_FLUSH | REQ_FUA;
-	/*
-	 * And if there is "feature-flush-cache" use that above
-	 * barriers.
-	 */
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-flush-cache", "%d", &flush,
-			    NULL);
-
-	if (!err && flush)
-		info->feature_flush = REQ_FLUSH;
-
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-discard", "%d", &discard,
-			    NULL);
-
-	if (!err && discard)
-		blkfront_setup_discard(info);
-
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-persistent", "%u", &persistent,
-			    NULL);
-	if (err)
-		info->feature_persistent = 0;
-	else
-		info->feature_persistent = persistent;
-
-	err = blkfront_setup_indirect(info);
+	err = blkfront_gather_backend_features(info);
 	if (err) {
 		xenbus_dev_fatal(info->xbdev, err, "setup_indirect at %s",
 				 info->xbdev->otherend);
