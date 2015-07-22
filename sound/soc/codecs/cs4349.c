@@ -300,8 +300,7 @@ static int cs4349_i2c_probe(struct i2c_client *client,
 	if (IS_ERR(cs4349->reset_gpio))
 		return PTR_ERR(cs4349->reset_gpio);
 
-	if (cs4349->reset_gpio)
-		gpiod_set_value_cansleep(cs4349->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs4349->reset_gpio, 1);
 
 	i2c_set_clientdata(client, cs4349);
 
@@ -316,8 +315,7 @@ static int cs4349_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_codec(&client->dev);
 
 	/* Hold down reset */
-	if (cs4349->reset_gpio)
-		gpiod_set_value_cansleep(cs4349->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs4349->reset_gpio, 0);
 
 	return 0;
 }
@@ -335,8 +333,7 @@ static int cs4349_runtime_suspend(struct device *dev)
 	regcache_cache_only(cs4349->regmap, true);
 
 	/* Hold down reset */
-	if (cs4349->reset_gpio)
-		gpiod_set_value_cansleep(cs4349->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs4349->reset_gpio, 0);
 
 	return 0;
 }
@@ -350,8 +347,7 @@ static int cs4349_runtime_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (cs4349->reset_gpio)
-		gpiod_set_value_cansleep(cs4349->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs4349->reset_gpio, 1);
 
 	regcache_cache_only(cs4349->regmap, false);
 	regcache_sync(cs4349->regmap);
