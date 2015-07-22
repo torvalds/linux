@@ -175,7 +175,7 @@ typedef struct tagDEVICE_RD_INFO {
 #ifdef __BIG_ENDIAN
 
 typedef struct tagRDES0 {
-	volatile unsigned short wResCount;
+	volatile __le16 wResCount;
 	union {
 		volatile u16    f15Reserved;
 		struct {
@@ -190,7 +190,7 @@ SRDES0, *PSRDES0;
 #else
 
 typedef struct tagRDES0 {
-	unsigned short wResCount;
+	__le16         wResCount;
 	unsigned short f15Reserved:15;
 	unsigned short f1Owner:1;
 } __attribute__ ((__packed__))
@@ -199,7 +199,7 @@ SRDES0;
 #endif
 
 typedef struct tagRDES1 {
-	unsigned short wReqCount;
+	__le16	       wReqCount;
 	unsigned short wReserved;
 } __attribute__ ((__packed__))
 SRDES1;
