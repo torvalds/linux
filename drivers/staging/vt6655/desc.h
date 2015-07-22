@@ -245,7 +245,7 @@ STDES0;
 #endif
 
 typedef struct tagTDES1 {
-	volatile    unsigned short wReqCount;
+	volatile    __le16        wReqCount;
 	volatile    unsigned char byTCR;
 	volatile    unsigned char byReserved;
 } __attribute__ ((__packed__))
