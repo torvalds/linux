@@ -51,9 +51,9 @@
 #define SMK_RECEIVING	1
 #define SMK_SENDING	2
 
-#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#ifdef SMACK_IPV6_PORT_LABELING
 LIST_HEAD(smk_ipv6_port_list);
-#endif /* CONFIG_IPV6 && !CONFIG_SECURITY_SMACK_NETFILTER */
+#endif
 static struct kmem_cache *smack_inode_cache;
 int smack_enabled;
 
@@ -2272,7 +2272,7 @@ static void smack_sk_free_security(struct sock *sk)
 }
 
 /**
-* smack_host_label - check host based restrictions
+* smack_ipv4host_label - check host based restrictions
 * @sip: the object end
 *
 * looks for host based access restrictions
@@ -2283,30 +2283,96 @@ static void smack_sk_free_security(struct sock *sk)
 *
 * Returns the label of the far end or NULL if it's not special.
 */
-static struct smack_known *smack_host_label(struct sockaddr_in *sip)
+static struct smack_known *smack_ipv4host_label(struct sockaddr_in *sip)
 {
-	struct smk_netlbladdr *snp;
+	struct smk_net4addr *snp;
 	struct in_addr *siap = &sip->sin_addr;
 
 	if (siap->s_addr == 0)
 		return NULL;
 
-	list_for_each_entry_rcu(snp, &smk_netlbladdr_list, list)
+	list_for_each_entry_rcu(snp, &smk_net4addr_list, list)
+		/*
+		 * we break after finding the first match because
+		 * the list is sorted from longest to shortest mask
+		 * so we have found the most specific match
+		 */
+		if (snp->smk_host.s_addr ==
+		    (siap->s_addr & snp->smk_mask.s_addr))
+			return snp->smk_label;
+
+	return NULL;
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+/*
+ * smk_ipv6_localhost - Check for local ipv6 host address
+ * @sip: the address
+ *
+ * Returns boolean true if this is the localhost address
+ */
+static bool smk_ipv6_localhost(struct sockaddr_in6 *sip)
+{
+	__be16 *be16p = (__be16 *)&sip->sin6_addr;
+	__be32 *be32p = (__be32 *)&sip->sin6_addr;
+
+	if (be32p[0] == 0 && be32p[1] == 0 && be32p[2] == 0 && be16p[6] == 0 &&
+	    ntohs(be16p[7]) == 1)
+		return true;
+	return false;
+}
+
+/**
+* smack_ipv6host_label - check host based restrictions
+* @sip: the object end
+*
+* looks for host based access restrictions
+*
+* This version will only be appropriate for really small sets of single label
+* hosts.  The caller is responsible for ensuring that the RCU read lock is
+* taken before calling this function.
+*
+* Returns the label of the far end or NULL if it's not special.
+*/
+static struct smack_known *smack_ipv6host_label(struct sockaddr_in6 *sip)
+{
+	struct smk_net6addr *snp;
+	struct in6_addr *sap = &sip->sin6_addr;
+	int i;
+	int found = 0;
+
+	/*
+	 * It's local. Don't look for a host label.
+	 */
+	if (smk_ipv6_localhost(sip))
+		return NULL;
+
+	list_for_each_entry_rcu(snp, &smk_net6addr_list, list) {
 		/*
 		* we break after finding the first match because
 		* the list is sorted from longest to shortest mask
 		* so we have found the most specific match
 		*/
-		if ((&snp->smk_host.sin_addr)->s_addr ==
-		    (siap->s_addr & (&snp->smk_mask)->s_addr)) {
-			/* we have found the special CIPSO option */
-			if (snp->smk_label == &smack_cipso_option)
-				return NULL;
-			return snp->smk_label;
+		for (found = 1, i = 0; i < 8; i++) {
+			/*
+			 * If the label is NULL the entry has
+			 * been renounced. Ignore it.
+			 */
+			if (snp->smk_label == NULL)
+				continue;
+			if ((sap->s6_addr16[i] & snp->smk_mask.s6_addr16[i]) !=
+			    snp->smk_host.s6_addr16[i]) {
+				found = 0;
+				break;
+			}
 		}
+		if (found)
+			return snp->smk_label;
+	}
 
 	return NULL;
 }
+#endif /* CONFIG_IPV6 */
 
 /**
  * smack_netlabel - Set the secattr on a socket
@@ -2370,7 +2436,7 @@ static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
 	struct smk_audit_info ad;
 
 	rcu_read_lock();
-	hkp = smack_host_label(sap);
+	hkp = smack_ipv4host_label(sap);
 	if (hkp != NULL) {
 #ifdef CONFIG_AUDIT
 		struct lsm_network_audit net;
@@ -2395,7 +2461,42 @@ static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
 	return smack_netlabel(sk, sk_lbl);
 }
 
-#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#if IS_ENABLED(CONFIG_IPV6)
+/**
+ * smk_ipv6_check - check Smack access
+ * @subject: subject Smack label
+ * @object: object Smack label
+ * @address: address
+ * @act: the action being taken
+ *
+ * Check an IPv6 access
+ */
+static int smk_ipv6_check(struct smack_known *subject,
+				struct smack_known *object,
+				struct sockaddr_in6 *address, int act)
+{
+#ifdef CONFIG_AUDIT
+	struct lsm_network_audit net;
+#endif
+	struct smk_audit_info ad;
+	int rc;
+
+#ifdef CONFIG_AUDIT
+	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
+	ad.a.u.net->family = PF_INET6;
+	ad.a.u.net->dport = ntohs(address->sin6_port);
+	if (act == SMK_RECEIVING)
+		ad.a.u.net->v6info.saddr = address->sin6_addr;
+	else
+		ad.a.u.net->v6info.daddr = address->sin6_addr;
+#endif
+	rc = smk_access(subject, object, MAY_WRITE, &ad);
+	rc = smk_bu_note("IPv6 check", subject, object, MAY_WRITE, rc);
+	return rc;
+}
+#endif /* CONFIG_IPV6 */
+
+#ifdef SMACK_IPV6_PORT_LABELING
 /**
  * smk_ipv6_port_label - Smack port access table management
  * @sock: socket
@@ -2479,48 +2580,43 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 				int act)
 {
-	__be16 *bep;
-	__be32 *be32p;
 	struct smk_port_label *spp;
 	struct socket_smack *ssp = sk->sk_security;
-	struct smack_known *skp;
-	unsigned short port = 0;
+	struct smack_known *skp = NULL;
+	unsigned short port;
 	struct smack_known *object;
-	struct smk_audit_info ad;
-	int rc;
-#ifdef CONFIG_AUDIT
-	struct lsm_network_audit net;
-#endif
 
 	if (act == SMK_RECEIVING) {
-		skp = smack_net_ambient;
+		skp = smack_ipv6host_label(address);
 		object = ssp->smk_in;
 	} else {
 		skp = ssp->smk_out;
-		object = smack_net_ambient;
+		object = smack_ipv6host_label(address);
 	}
 
 	/*
-	 * Get the IP address and port from the address.
+	 * The other end is a single label host.
 	 */
-	port = ntohs(address->sin6_port);
-	bep = (__be16 *)(&address->sin6_addr);
-	be32p = (__be32 *)(&address->sin6_addr);
+	if (skp != NULL && object != NULL)
+		return smk_ipv6_check(skp, object, address, act);
+	if (skp == NULL)
+		skp = smack_net_ambient;
+	if (object == NULL)
+		object = smack_net_ambient;
 
 	/*
 	 * It's remote, so port lookup does no good.
 	 */
-	if (be32p[0] || be32p[1] || be32p[2] || bep[6] || ntohs(bep[7]) != 1)
-		goto auditout;
+	if (!smk_ipv6_localhost(address))
+		return smk_ipv6_check(skp, object, address, act);
 
 	/*
 	 * It's local so the send check has to have passed.
 	 */
-	if (act == SMK_RECEIVING) {
-		skp = &smack_known_web;
-		goto auditout;
-	}
+	if (act == SMK_RECEIVING)
+		return 0;
 
+	port = ntohs(address->sin6_port);
 	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
 		if (spp->smk_port != port)
 			continue;
@@ -2530,22 +2626,9 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 		break;
 	}
 
-auditout:
-
-#ifdef CONFIG_AUDIT
-	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
-	ad.a.u.net->family = sk->sk_family;
-	ad.a.u.net->dport = port;
-	if (act == SMK_RECEIVING)
-		ad.a.u.net->v6info.saddr = address->sin6_addr;
-	else
-		ad.a.u.net->v6info.daddr = address->sin6_addr;
-#endif
-	rc = smk_access(skp, object, MAY_WRITE, &ad);
-	rc = smk_bu_note("IPv6 port check", skp, object, MAY_WRITE, rc);
-	return rc;
+	return smk_ipv6_check(skp, object, address, act);
 }
-#endif /* CONFIG_IPV6 && !CONFIG_SECURITY_SMACK_NETFILTER */
+#endif /* SMACK_IPV6_PORT_LABELING */
 
 /**
  * smack_inode_setsecurity - set smack xattrs
@@ -2606,10 +2689,10 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 	} else
 		return -EOPNOTSUPP;
 
-#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#ifdef SMACK_IPV6_PORT_LABELING
 	if (sock->sk->sk_family == PF_INET6)
 		smk_ipv6_port_label(sock, NULL);
-#endif /* CONFIG_IPV6 && !CONFIG_SECURITY_SMACK_NETFILTER */
+#endif
 
 	return 0;
 }
@@ -2651,7 +2734,7 @@ static int smack_socket_post_create(struct socket *sock, int family,
 	return smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
 }
 
-#ifndef CONFIG_SECURITY_SMACK_NETFILTER
+#ifdef SMACK_IPV6_PORT_LABELING
 /**
  * smack_socket_bind - record port binding information.
  * @sock: the socket
@@ -2665,14 +2748,11 @@ static int smack_socket_post_create(struct socket *sock, int family,
 static int smack_socket_bind(struct socket *sock, struct sockaddr *address,
 				int addrlen)
 {
-#if IS_ENABLED(CONFIG_IPV6)
 	if (sock->sk != NULL && sock->sk->sk_family == PF_INET6)
 		smk_ipv6_port_label(sock, address);
-#endif
-
 	return 0;
 }
-#endif /* !CONFIG_SECURITY_SMACK_NETFILTER */
+#endif /* SMACK_IPV6_PORT_LABELING */
 
 /**
  * smack_socket_connect - connect access check
@@ -2688,6 +2768,13 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 				int addrlen)
 {
 	int rc = 0;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct sockaddr_in6 *sip = (struct sockaddr_in6 *)sap;
+#endif
+#ifdef SMACK_IPV6_SECMARK_LABELING
+	struct smack_known *rsp;
+	struct socket_smack *ssp = sock->sk->sk_security;
+#endif
 
 	if (sock->sk == NULL)
 		return 0;
@@ -2701,10 +2788,15 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 	case PF_INET6:
 		if (addrlen < sizeof(struct sockaddr_in6))
 			return -EINVAL;
-#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
-		rc = smk_ipv6_port_check(sock->sk, (struct sockaddr_in6 *)sap,
+#ifdef SMACK_IPV6_SECMARK_LABELING
+		rsp = smack_ipv6host_label(sip);
+		if (rsp != NULL)
+			rc = smk_ipv6_check(ssp->smk_out, rsp, sip,
 						SMK_CONNECTING);
-#endif /* CONFIG_IPV6 && !CONFIG_SECURITY_SMACK_NETFILTER */
+#endif
+#ifdef SMACK_IPV6_PORT_LABELING
+		rc = smk_ipv6_port_check(sock->sk, sip, SMK_CONNECTING);
+#endif
 		break;
 	}
 	return rc;
@@ -3590,9 +3682,13 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 				int size)
 {
 	struct sockaddr_in *sip = (struct sockaddr_in *) msg->msg_name;
-#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct sockaddr_in6 *sap = (struct sockaddr_in6 *) msg->msg_name;
-#endif /* CONFIG_IPV6 && !CONFIG_SECURITY_SMACK_NETFILTER */
+#endif
+#ifdef SMACK_IPV6_SECMARK_LABELING
+	struct socket_smack *ssp = sock->sk->sk_security;
+	struct smack_known *rsp;
+#endif
 	int rc = 0;
 
 	/*
@@ -3606,9 +3702,15 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 		rc = smack_netlabel_send(sock->sk, sip);
 		break;
 	case AF_INET6:
-#if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
+#ifdef SMACK_IPV6_SECMARK_LABELING
+		rsp = smack_ipv6host_label(sap);
+		if (rsp != NULL)
+			rc = smk_ipv6_check(ssp->smk_out, rsp, sap,
+						SMK_CONNECTING);
+#endif
+#ifdef SMACK_IPV6_PORT_LABELING
 		rc = smk_ipv6_port_check(sock->sk, sap, SMK_SENDING);
-#endif /* CONFIG_IPV6 && !CONFIG_SECURITY_SMACK_NETFILTER */
+#endif
 		break;
 	}
 	return rc;
@@ -3822,10 +3924,12 @@ access_check:
 		proto = smk_skb_to_addr_ipv6(skb, &sadd);
 		if (proto != IPPROTO_UDP && proto != IPPROTO_TCP)
 			break;
-#ifdef CONFIG_SECURITY_SMACK_NETFILTER
+#ifdef SMACK_IPV6_SECMARK_LABELING
 		if (skb && skb->secmark != 0)
 			skp = smack_from_secid(skb->secmark);
 		else
+			skp = smack_ipv6host_label(&sadd);
+		if (skp == NULL)
 			skp = smack_net_ambient;
 #ifdef CONFIG_AUDIT
 		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
@@ -3836,9 +3940,10 @@ access_check:
 		rc = smk_access(skp, ssp->smk_in, MAY_WRITE, &ad);
 		rc = smk_bu_note("IPv6 delivery", skp, ssp->smk_in,
 					MAY_WRITE, rc);
-#else /* CONFIG_SECURITY_SMACK_NETFILTER */
+#endif /* SMACK_IPV6_SECMARK_LABELING */
+#ifdef SMACK_IPV6_PORT_LABELING
 		rc = smk_ipv6_port_check(sk, &sadd, SMK_RECEIVING);
-#endif /* CONFIG_SECURITY_SMACK_NETFILTER */
+#endif /* SMACK_IPV6_PORT_LABELING */
 		break;
 #endif /* CONFIG_IPV6 */
 	}
@@ -3936,13 +4041,11 @@ static int smack_socket_getpeersec_dgram(struct socket *sock,
 		}
 		netlbl_secattr_destroy(&secattr);
 		break;
-#if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6:
-#ifdef CONFIG_SECURITY_SMACK_NETFILTER
+#ifdef SMACK_IPV6_SECMARK_LABELING
 		s = skb->secmark;
-#endif /* CONFIG_SECURITY_SMACK_NETFILTER */
+#endif
 		break;
-#endif /* CONFIG_IPV6 */
 	}
 	*secid = s;
 	if (s == 0)
@@ -4065,7 +4168,7 @@ access_check:
 	hdr = ip_hdr(skb);
 	addr.sin_addr.s_addr = hdr->saddr;
 	rcu_read_lock();
-	hskp = smack_host_label(&addr);
+	hskp = smack_ipv4host_label(&addr);
 	rcu_read_unlock();
 
 	if (hskp == NULL)
@@ -4517,9 +4620,9 @@ struct security_hook_list smack_hooks[] = {
 	LSM_HOOK_INIT(unix_may_send, smack_unix_may_send),
 
 	LSM_HOOK_INIT(socket_post_create, smack_socket_post_create),
-#ifndef CONFIG_SECURITY_SMACK_NETFILTER
+#ifdef SMACK_IPV6_PORT_LABELING
 	LSM_HOOK_INIT(socket_bind, smack_socket_bind),
-#endif /* CONFIG_SECURITY_SMACK_NETFILTER */
+#endif
 	LSM_HOOK_INIT(socket_connect, smack_socket_connect),
 	LSM_HOOK_INIT(socket_sendmsg, smack_socket_sendmsg),
 	LSM_HOOK_INIT(socket_sock_rcv_skb, smack_socket_sock_rcv_skb),
@@ -4614,7 +4717,16 @@ static __init int smack_init(void)
 		return -ENOMEM;
 	}
 
-	printk(KERN_INFO "Smack:  Initializing.\n");
+	pr_info("Smack:  Initializing.\n");
+#ifdef CONFIG_SECURITY_SMACK_NETFILTER
+	pr_info("Smack:  Netfilter enabled.\n");
+#endif
+#ifdef SMACK_IPV6_PORT_LABELING
+	pr_info("Smack:  IPv6 port labeling enabled.\n");
+#endif
+#ifdef SMACK_IPV6_SECMARK_LABELING
+	pr_info("Smack:  IPv6 Netfilter enabled.\n");
+#endif
 
 	/*
 	 * Set the security state for the initial task.
