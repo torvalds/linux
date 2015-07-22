@@ -1653,7 +1653,7 @@ static struct usb_driver usbduxsigma_usb_driver = {
 };
 module_comedi_usb_driver(usbduxsigma_driver, usbduxsigma_usb_driver);
 
-MODULE_AUTHOR("Bernd Porr, BerndPorr@f2s.com");
-MODULE_DESCRIPTION("Stirling/ITL USB-DUX SIGMA -- Bernd.Porr@f2s.com");
+MODULE_AUTHOR("Bernd Porr, mail@berndporr.me.uk");
+MODULE_DESCRIPTION("Stirling/ITL USB-DUX SIGMA -- mail@berndporr.me.uk");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE);
