@@ -70,7 +70,7 @@ int mpls_output(struct sock *sk, struct sk_buff *skb)
 	skb_orphan(skb);
 
 	/* Find the output device */
-	out_dev = rcu_dereference(dst->dev);
+	out_dev = dst->dev;
 	if (!mpls_output_possible(out_dev) ||
 	    !lwtstate || skb_warn_if_lro(skb))
 		goto drop;
