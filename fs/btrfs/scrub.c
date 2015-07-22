@@ -2856,16 +2856,16 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 			}
 			btrfs_item_key_to_cpu(l, &key, slot);
 
+			if (key.type != BTRFS_EXTENT_ITEM_KEY &&
+			    key.type != BTRFS_METADATA_ITEM_KEY)
+				goto next;
+
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
 				bytes = root->nodesize;
 			else
 				bytes = key.offset;
 
 			if (key.objectid + bytes <= logic_start)
-				goto next;
-
-			if (key.type != BTRFS_EXTENT_ITEM_KEY &&
-			    key.type != BTRFS_METADATA_ITEM_KEY)
 				goto next;
 
 			if (key.objectid >= logic_end) {
@@ -3193,16 +3193,16 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			}
 			btrfs_item_key_to_cpu(l, &key, slot);
 
+			if (key.type != BTRFS_EXTENT_ITEM_KEY &&
+			    key.type != BTRFS_METADATA_ITEM_KEY)
+				goto next;
+
 			if (key.type == BTRFS_METADATA_ITEM_KEY)
 				bytes = root->nodesize;
 			else
 				bytes = key.offset;
 
 			if (key.objectid + bytes <= logical)
-				goto next;
-
-			if (key.type != BTRFS_EXTENT_ITEM_KEY &&
-			    key.type != BTRFS_METADATA_ITEM_KEY)
 				goto next;
 
 			if (key.objectid >= logical + map->stripe_len) {
