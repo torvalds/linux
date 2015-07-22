@@ -23,8 +23,18 @@
 #define SCTLR_EL1_CP15BEN	(0x1 << 5)
 #define SCTLR_EL1_SED		(0x1 << 8)
 
+/*
+ * ARMv8 ARM reserves the following encoding for system registers:
+ * (Ref: ARMv8 ARM, Section: "System instruction class encoding overview",
+ *  C5.2, version:ARM DDI 0487A.f)
+ *	[20-19] : Op0
+ *	[18-16] : Op1
+ *	[15-12] : CRn
+ *	[11-8]  : CRm
+ *	[7-5]   : Op2
+ */
 #define sys_reg(op0, op1, crn, crm, op2) \
-	((((op0)-2)<<19)|((op1)<<16)|((crn)<<12)|((crm)<<8)|((op2)<<5))
+	((((op0)&3)<<19)|((op1)<<16)|((crn)<<12)|((crm)<<8)|((op2)<<5))
 
 #ifdef __ASSEMBLY__
 
@@ -34,11 +44,11 @@
 	.equ	__reg_num_xzr, 31
 
 	.macro	mrs_s, rt, sreg
-	.inst	0xd5300000|(\sreg)|(__reg_num_\rt)
+	.inst	0xd5200000|(\sreg)|(__reg_num_\rt)
 	.endm
 
 	.macro	msr_s, sreg, rt
-	.inst	0xd5100000|(\sreg)|(__reg_num_\rt)
+	.inst	0xd5000000|(\sreg)|(__reg_num_\rt)
 	.endm
 
 #else
@@ -50,11 +60,11 @@ asm(
 "	.equ	__reg_num_xzr, 31\n"
 "\n"
 "	.macro	mrs_s, rt, sreg\n"
-"	.inst	0xd5300000|(\\sreg)|(__reg_num_\\rt)\n"
+"	.inst	0xd5200000|(\\sreg)|(__reg_num_\\rt)\n"
 "	.endm\n"
 "\n"
 "	.macro	msr_s, sreg, rt\n"
-"	.inst	0xd5100000|(\\sreg)|(__reg_num_\\rt)\n"
+"	.inst	0xd5000000|(\\sreg)|(__reg_num_\\rt)\n"
 "	.endm\n"
 );
 
