@@ -1207,12 +1207,17 @@ void fib_select_default(struct fib_result *res)
 	struct fib_info *fi = NULL, *last_resort = NULL;
 	struct hlist_head *fa_head = res->fa_head;
 	struct fib_table *tb = res->table;
+	u8 slen = 32 - res->prefixlen;
 	int order = -1, last_idx = -1;
 	struct fib_alias *fa;
 
 	hlist_for_each_entry_rcu(fa, fa_head, fa_list) {
 		struct fib_info *next_fi = fa->fa_info;
 
+		if (fa->fa_slen != slen)
+			continue;
+		if (fa->tb_id != tb->tb_id)
+			continue;
 		if (next_fi->fib_scope != res->scope ||
 		    fa->fa_type != RTN_UNICAST)
 			continue;
