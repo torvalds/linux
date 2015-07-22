@@ -127,6 +127,7 @@ unsigned long kvm_s390_fac_list_mask_size(void)
 }
 
 static struct gmap_notifier gmap_notifier;
+debug_info_t *kvm_s390_dbf;
 
 /* Section: not file related */
 int kvm_arch_hardware_enable(void)
@@ -151,8 +152,22 @@ void kvm_arch_hardware_unsetup(void)
 
 int kvm_arch_init(void *opaque)
 {
+	kvm_s390_dbf = debug_register("kvm-trace", 32, 1, 7 * sizeof(long));
+	if (!kvm_s390_dbf)
+		return -ENOMEM;
+
+	if (debug_register_view(kvm_s390_dbf, &debug_sprintf_view)) {
+		debug_unregister(kvm_s390_dbf);
+		return -ENOMEM;
+	}
+
 	/* Register floating interrupt controller interface. */
 	return kvm_register_device_ops(&kvm_flic_ops, KVM_DEV_TYPE_FLIC);
+}
+
+void kvm_arch_exit(void)
+{
+	debug_unregister(kvm_s390_dbf);
 }
 
 /* Section: device related */
@@ -1100,7 +1115,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	mutex_init(&kvm->arch.ipte_mutex);
 
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
-	VM_EVENT(kvm, 3, "%s", "vm created");
+	VM_EVENT(kvm, 3, "vm created with type %lu", type);
 
 	if (type & KVM_VM_S390_UCONTROL) {
 		kvm->arch.gmap = NULL;
@@ -1117,6 +1132,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
+	KVM_EVENT(3, "vm 0x%p created by pid %u", kvm, current->pid);
 
 	return 0;
 out_err:
@@ -1124,6 +1140,7 @@ out_err:
 	free_page((unsigned long)kvm->arch.model.fac);
 	debug_unregister(kvm->arch.dbf);
 	free_page((unsigned long)(kvm->arch.sca));
+	KVM_EVENT(3, "creation of vm failed: %d", rc);
 	return rc;
 }
 
@@ -1180,6 +1197,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		gmap_free(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
+	KVM_EVENT(3, "vm 0x%p destroyed", kvm);
 }
 
 /* Section: vcpu related */

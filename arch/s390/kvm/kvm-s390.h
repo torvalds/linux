@@ -27,6 +27,13 @@ typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 #define TDB_FORMAT1		1
 #define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
 
+extern debug_info_t *kvm_s390_dbf;
+#define KVM_EVENT(d_loglevel, d_string, d_args...)\
+do { \
+	debug_sprintf_event(kvm_s390_dbf, d_loglevel, d_string "\n", \
+	  d_args); \
+} while (0)
+
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
 do { \
 	debug_sprintf_event(d_kvm->arch.dbf, d_loglevel, d_string "\n", \
