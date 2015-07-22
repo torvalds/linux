@@ -724,6 +724,10 @@ static int nx842_OF_upd(struct property *new_prop)
 	int ret = 0;
 	unsigned long flags;
 
+	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
+	if (!new_devdata)
+		return -ENOMEM;
+
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
@@ -733,14 +737,8 @@ static int nx842_OF_upd(struct property *new_prop)
 	if (!old_devdata || !of_node) {
 		pr_err("%s: device is not available\n", __func__);
 		spin_unlock_irqrestore(&devdata_mutex, flags);
+		kfree(new_devdata);
 		return -ENODEV;
-	}
-
-	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
-	if (!new_devdata) {
-		dev_err(old_devdata->dev, "%s: Could not allocate memory for device data\n", __func__);
-		ret = -ENOMEM;
-		goto error_out;
 	}
 
 	memcpy(new_devdata, old_devdata, sizeof(*old_devdata));
@@ -966,6 +964,17 @@ static int nx842_probe(struct vio_dev *viodev,
 	unsigned long flags;
 	int ret = 0;
 
+	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
+	if (!new_devdata)
+		return -ENOMEM;
+
+	new_devdata->counters = kzalloc(sizeof(*new_devdata->counters),
+			GFP_NOFS);
+	if (!new_devdata->counters) {
+		kfree(new_devdata);
+		return -ENOMEM;
+	}
+
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
@@ -977,21 +986,6 @@ static int nx842_probe(struct vio_dev *viodev,
 	}
 
 	dev_set_drvdata(&viodev->dev, NULL);
-
-	new_devdata = kzalloc(sizeof(*new_devdata), GFP_NOFS);
-	if (!new_devdata) {
-		dev_err(&viodev->dev, "%s: Could not allocate memory for device data\n", __func__);
-		ret = -ENOMEM;
-		goto error_unlock;
-	}
-
-	new_devdata->counters = kzalloc(sizeof(*new_devdata->counters),
-			GFP_NOFS);
-	if (!new_devdata->counters) {
-		dev_err(&viodev->dev, "%s: Could not allocate memory for performance counters\n", __func__);
-		ret = -ENOMEM;
-		goto error_unlock;
-	}
 
 	new_devdata->vdev = viodev;
 	new_devdata->dev = &viodev->dev;
