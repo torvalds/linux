@@ -654,6 +654,86 @@ out_free:
 }
 EXPORT_SYMBOL(drm_fb_helper_init);
 
+/**
+ * drm_fb_helper_alloc_fbi - allocate fb_info and some of its members
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A helper to alloc fb_info and the members cmap and apertures. Called
+ * by the driver within the fb_probe fb_helper callback function.
+ *
+ * RETURNS:
+ * fb_info pointer if things went okay, pointer containing error code
+ * otherwise
+ */
+struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper)
+{
+	struct device *dev = fb_helper->dev->dev;
+	struct fb_info *info;
+	int ret;
+
+	info = framebuffer_alloc(0, dev);
+	if (!info)
+		return ERR_PTR(-ENOMEM);
+
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret)
+		goto err_release;
+
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures) {
+		ret = -ENOMEM;
+		goto err_free_cmap;
+	}
+
+	fb_helper->fbdev = info;
+
+	return info;
+
+err_free_cmap:
+	fb_dealloc_cmap(&info->cmap);
+err_release:
+	framebuffer_release(info);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(drm_fb_helper_alloc_fbi);
+
+/**
+ * drm_fb_helper_unregister_fbi - unregister fb_info framebuffer device
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A wrapper around unregister_framebuffer, to release the fb_info
+ * framebuffer device
+ */
+void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
+{
+	if (fb_helper && fb_helper->fbdev)
+		unregister_framebuffer(fb_helper->fbdev);
+}
+EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
+
+/**
+ * drm_fb_helper_release_fbi - dealloc fb_info and its members
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A helper to free memory taken by fb_info and the members cmap and
+ * apertures
+ */
+void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
+{
+	if (fb_helper) {
+		struct fb_info *info = fb_helper->fbdev;
+
+		if (info) {
+			if (info->cmap.len)
+				fb_dealloc_cmap(&info->cmap);
+			framebuffer_release(info);
+		}
+
+		fb_helper->fbdev = NULL;
+	}
+}
+EXPORT_SYMBOL(drm_fb_helper_release_fbi);
+
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
