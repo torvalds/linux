@@ -2075,6 +2075,20 @@ enum curr_cfg_method_e {
 	CURR_CFG_MET_VENDOR_SPEC = 2,/* e.g. Option ROM, NPAR, O/S Cfg Utils */
 };
 
+struct mdump_driver_info {
+	u32 epoc;
+	u32 drv_ver;
+	u32 fw_ver;
+
+	u32 valid_dump;
+	#define FIRST_DUMP_VALID        (1 << 0)
+	#define SECOND_DUMP_VALID       (1 << 1)
+
+	u32 flags;
+	#define ENABLE_ALL_TRIGGERS     (0x7fffffff)
+	#define TRIGGER_MDUMP_ONCE      (1 << 31)
+};
+
 struct ncsi_oem_data {
 	u32 driver_version[4];
 	struct ncsi_oem_fcoe_features ncsi_oem_fcoe_features;
@@ -2347,6 +2361,9 @@ struct shmem2_region {
 	#define OS_DRIVER_STATE_LOADING		1 /* transition state */
 	#define OS_DRIVER_STATE_DISABLED	2 /* installed but disabled */
 	#define OS_DRIVER_STATE_ACTIVE		3 /* installed and active */
+
+	/* mini dump driver info */
+	struct mdump_driver_info drv_info;			/* 0x218 */
 };
 
 

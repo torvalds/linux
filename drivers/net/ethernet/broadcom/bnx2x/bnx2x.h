@@ -2582,6 +2582,8 @@ void bnx2x_set_local_cmng(struct bnx2x *bp);
 
 void bnx2x_update_mng_version(struct bnx2x *bp);
 
+void bnx2x_update_mfw_dump(struct bnx2x *bp);
+
 #define MCPR_SCRATCH_BASE(bp) \
 	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
 
