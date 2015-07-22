@@ -7439,7 +7439,7 @@ int md_setup_cluster(struct mddev *mddev, int nodes)
 	err = request_module("md-cluster");
 	if (err) {
 		pr_err("md-cluster module not found.\n");
-		return err;
+		return -ENOENT;
 	}
 
 	spin_lock(&pers_lock);
