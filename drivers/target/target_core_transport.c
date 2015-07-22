@@ -1178,14 +1178,7 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 			" emulation is not supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
-	/*
-	 * Used to determine when ORDERED commands should go from
-	 * Dormant to Active status.
-	 */
-	cmd->se_ordered_id = atomic_inc_return(&dev->dev_ordered_id);
-	pr_debug("Allocated se_ordered_id: %u for Task Attr: 0x%02x on %s\n",
-			cmd->se_ordered_id, cmd->sam_task_attr,
-			dev->transport->name);
+
 	return 0;
 }
 
@@ -1773,16 +1766,14 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	 */
 	switch (cmd->sam_task_attr) {
 	case TCM_HEAD_TAG:
-		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x, "
-			 "se_ordered_id: %u\n",
-			 cmd->t_task_cdb[0], cmd->se_ordered_id);
+		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x\n",
+			 cmd->t_task_cdb[0]);
 		return false;
 	case TCM_ORDERED_TAG:
 		atomic_inc_mb(&dev->dev_ordered_sync);
 
-		pr_debug("Added ORDERED for CDB: 0x%02x to ordered list, "
-			 " se_ordered_id: %u\n",
-			 cmd->t_task_cdb[0], cmd->se_ordered_id);
+		pr_debug("Added ORDERED for CDB: 0x%02x to ordered list\n",
+			 cmd->t_task_cdb[0]);
 
 		/*
 		 * Execute an ORDERED command if no other older commands
@@ -1806,10 +1797,8 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	list_add_tail(&cmd->se_delayed_node, &dev->delayed_cmd_list);
 	spin_unlock(&dev->delayed_cmd_lock);
 
-	pr_debug("Added CDB: 0x%02x Task Attr: 0x%02x to"
-		" delayed CMD list, se_ordered_id: %u\n",
-		cmd->t_task_cdb[0], cmd->sam_task_attr,
-		cmd->se_ordered_id);
+	pr_debug("Added CDB: 0x%02x Task Attr: 0x%02x to delayed CMD listn",
+		cmd->t_task_cdb[0], cmd->sam_task_attr);
 	return true;
 }
 
@@ -1894,20 +1883,18 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 	if (cmd->sam_task_attr == TCM_SIMPLE_TAG) {
 		atomic_dec_mb(&dev->simple_cmds);
 		dev->dev_cur_ordered_id++;
-		pr_debug("Incremented dev->dev_cur_ordered_id: %u for"
-			" SIMPLE: %u\n", dev->dev_cur_ordered_id,
-			cmd->se_ordered_id);
+		pr_debug("Incremented dev->dev_cur_ordered_id: %u for SIMPLE\n",
+			 dev->dev_cur_ordered_id);
 	} else if (cmd->sam_task_attr == TCM_HEAD_TAG) {
 		dev->dev_cur_ordered_id++;
-		pr_debug("Incremented dev_cur_ordered_id: %u for"
-			" HEAD_OF_QUEUE: %u\n", dev->dev_cur_ordered_id,
-			cmd->se_ordered_id);
+		pr_debug("Incremented dev_cur_ordered_id: %u for HEAD_OF_QUEUE\n",
+			 dev->dev_cur_ordered_id);
 	} else if (cmd->sam_task_attr == TCM_ORDERED_TAG) {
 		atomic_dec_mb(&dev->dev_ordered_sync);
 
 		dev->dev_cur_ordered_id++;
-		pr_debug("Incremented dev_cur_ordered_id: %u for ORDERED:"
-			" %u\n", dev->dev_cur_ordered_id, cmd->se_ordered_id);
+		pr_debug("Incremented dev_cur_ordered_id: %u for ORDERED\n",
+			 dev->dev_cur_ordered_id);
 	}
 
 	target_restart_delayed_cmds(dev);
