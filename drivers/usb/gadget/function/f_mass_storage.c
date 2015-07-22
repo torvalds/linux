@@ -3081,7 +3081,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	/* New interface */
 	i = usb_interface_id(c, f);
 	if (i < 0)
-		return i;
+		goto fail;
 	fsg_intf_desc.bInterfaceNumber = i;
 	fsg->interface_number = i;
 
@@ -3124,7 +3124,14 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 
 autoconf_fail:
 	ERROR(fsg, "unable to autoconfigure all endpoints\n");
-	return -ENOTSUPP;
+	i = -ENOTSUPP;
+fail:
+	/* terminate the thread */
+	if (fsg->common->state != FSG_STATE_TERMINATED) {
+		raise_exception(fsg->common, FSG_STATE_EXIT);
+		wait_for_completion(&fsg->common->thread_notifier);
+	}
+	return i;
 }
 
 /****************************** ALLOCATE FUNCTION *************************/
