@@ -240,8 +240,8 @@ static struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt, __be32 xid)
 		req = xprt_alloc_bc_req(xprt, GFP_ATOMIC);
 		if (!req)
 			goto not_found;
-		/* Note: this 'free' request adds it to xprt->bc_pa_list */
-		xprt_free_bc_request(req);
+		list_add_tail(&req->rq_bc_pa_list, &xprt->bc_pa_list);
+		xprt->bc_alloc_count++;
 	}
 	req = list_first_entry(&xprt->bc_pa_list, struct rpc_rqst,
 				rq_bc_pa_list);
