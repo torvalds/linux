@@ -313,7 +313,7 @@ acpi_cpufreq_cpu_init (
  err_freqfree:
 	kfree(data->freq_table);
  err_unreg:
-	acpi_processor_unregister_performance(&data->acpi_data, cpu);
+	acpi_processor_unregister_performance(cpu);
  err_free:
 	kfree(data);
 	acpi_io_data[cpu] = NULL;
@@ -332,8 +332,7 @@ acpi_cpufreq_cpu_exit (
 
 	if (data) {
 		acpi_io_data[policy->cpu] = NULL;
-		acpi_processor_unregister_performance(&data->acpi_data,
-		                                      policy->cpu);
+		acpi_processor_unregister_performance(policy->cpu);
 		kfree(data);
 	}
 

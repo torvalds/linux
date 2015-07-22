@@ -844,7 +844,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 err_freqfree:
 	kfree(data->freq_table);
 err_unreg:
-	acpi_processor_unregister_performance(perf, cpu);
+	acpi_processor_unregister_performance(cpu);
 err_free_mask:
 	free_cpumask_var(data->freqdomain_cpus);
 err_free:
@@ -862,8 +862,7 @@ static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 
 	if (data) {
 		policy->driver_data = NULL;
-		acpi_processor_unregister_performance(data->acpi_data,
-						      data->acpi_perf_cpu);
+		acpi_processor_unregister_performance(data->acpi_perf_cpu);
 		free_cpumask_var(data->freqdomain_cpus);
 		kfree(data->freq_table);
 		kfree(data);
