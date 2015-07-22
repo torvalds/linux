@@ -478,8 +478,9 @@ unsigned int rtas_busy_delay_time(int status)
 
 	if (status == RTAS_BUSY) {
 		ms = 1;
-	} else if (status >= 9900 && status <= 9905) {
-		order = status - 9900;
+	} else if (status >= RTAS_EXTENDED_DELAY_MIN &&
+		   status <= RTAS_EXTENDED_DELAY_MAX) {
+		order = status - RTAS_EXTENDED_DELAY_MIN;
 		for (ms = 1; order > 0; order--)
 			ms *= 10;
 	}
@@ -641,7 +642,8 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
 
 	rc = rtas_call(token, 3, 1, NULL, indicator, index, new_value);
 
-	WARN_ON(rc == -2 || (rc >= 9900 && rc <= 9905));
+	WARN_ON(rc == RTAS_BUSY || (rc >= RTAS_EXTENDED_DELAY_MIN &&
+				    rc <= RTAS_EXTENDED_DELAY_MAX));
 
 	if (rc < 0)
 		return rtas_error_rc(rc);
