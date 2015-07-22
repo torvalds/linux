@@ -754,10 +754,6 @@ static void device_free_td0_ring(struct vnt_private *pDevice)
 		PSTxDesc        pDesc = &(pDevice->apTD0Rings[i]);
 		PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
 
-		if (pTDInfo->skb_dma && (pTDInfo->skb_dma != pTDInfo->buf_dma))
-			dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
-					 pTDInfo->skb->len, DMA_TO_DEVICE);
-
 		dev_kfree_skb(pTDInfo->skb);
 		kfree(pDesc->pTDInfo);
 	}
@@ -770,10 +766,6 @@ static void device_free_td1_ring(struct vnt_private *pDevice)
 	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++) {
 		PSTxDesc        pDesc = &(pDevice->apTD1Rings[i]);
 		PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
-
-		if (pTDInfo->skb_dma && (pTDInfo->skb_dma != pTDInfo->buf_dma))
-			dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
-					 pTDInfo->skb->len, DMA_TO_DEVICE);
 
 		dev_kfree_skb(pTDInfo->skb);
 		kfree(pDesc->pTDInfo);
@@ -974,12 +966,6 @@ static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc)
 {
 	PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
 	struct sk_buff *skb = pTDInfo->skb;
-
-	/* pre-allocated buf_dma can't be unmapped. */
-	if (pTDInfo->skb_dma && (pTDInfo->skb_dma != pTDInfo->buf_dma)) {
-		dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
-				 skb->len, DMA_TO_DEVICE);
-	}
 
 	if (skb)
 		ieee80211_tx_status_irqsafe(pDevice->hw, skb);
