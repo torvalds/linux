@@ -1747,6 +1747,12 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+	if (dma_set_mask(&pcid->dev, DMA_BIT_MASK(32))) {
+		dev_err(&pcid->dev, ": Failed to set dma 32 bit mask\n");
+		device_free_info(priv);
+		return -ENODEV;
+	}
+
 	INIT_WORK(&priv->interrupt_work, vnt_interrupt_work);
 
 	/* do reset */
