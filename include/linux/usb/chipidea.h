@@ -46,6 +46,8 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_CONTROLLER_CHARGER_POST_EVENT	4
 #define CI_HDRC_IMX_HSIC_ACTIVE_EVENT		5
 #define CI_HDRC_IMX_HSIC_SUSPEND_EVENT		6
+#define CI_HDRC_IMX_TERM_SELECT_OVERRIDE_FS	7
+#define CI_HDRC_IMX_TERM_SELECT_OVERRIDE_OFF	8
 	int	(*notify_event)(struct ci_hdrc *ci, unsigned event);
 	struct regulator	*reg_vbus;
 	struct usb_otg_caps	ci_otg_caps;

@@ -560,6 +560,9 @@ static void ci_otg_drv_vbus(struct otg_fsm *fsm, int on)
 	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
 
 	if (on) {
+		ci->platdata->notify_event(ci,
+			CI_HDRC_IMX_TERM_SELECT_OVERRIDE_OFF);
+
 		/* Enable power power */
 		hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS | PORTSC_PP,
 							PORTSC_PP);
@@ -718,6 +721,9 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 								PORTSC_PP, 0);
 				hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
 				hw_write_otgsc(ci, OTGSC_DPIE, OTGSC_DPIE);
+				/* FS termination override if needed */
+				ci->platdata->notify_event(ci,
+					CI_HDRC_IMX_TERM_SELECT_OVERRIDE_FS);
 			}
 			if (ci->id_event)
 				ci->id_event = false;
@@ -854,6 +860,8 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 	if (otg_int_src) {
 		if (otg_int_src & OTGSC_DPIS) {
 			hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
+			ci->platdata->notify_event(ci,
+				CI_HDRC_IMX_TERM_SELECT_OVERRIDE_OFF);
 			ci_otg_add_timer(ci, A_DP_END);
 		} else if (otg_int_src & OTGSC_IDIS) {
 			hw_write_otgsc(ci, OTGSC_IDIS, OTGSC_IDIS);
