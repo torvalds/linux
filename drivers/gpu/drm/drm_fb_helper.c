@@ -748,6 +748,19 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
+/**
+ * drm_fb_helper_unlink_fbi - wrapper around unlink_framebuffer
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * A wrapper around unlink_framebuffer implemented by fbdev core
+ */
+void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
+{
+	if (fb_helper && fb_helper->fbdev)
+		unlink_framebuffer(fb_helper->fbdev);
+}
+EXPORT_SYMBOL(drm_fb_helper_unlink_fbi);
+
 static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
 {
