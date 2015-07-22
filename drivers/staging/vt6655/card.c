@@ -847,7 +847,6 @@ void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode
 	case CARD_LB_PHY:
 		break;
 	default:
-		ASSERT(false);
 		break;
 	}
 	/* set MAC loopback */

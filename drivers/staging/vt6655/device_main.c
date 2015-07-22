@@ -623,7 +623,7 @@ static void device_init_rd0_ring(struct vnt_private *pDevice)
 	for (i = 0; i < pDevice->sOpts.nRxDescs0; i ++, curr += sizeof(SRxDesc)) {
 		pDesc = &(pDevice->aRD0Ring[i]);
 		pDesc->pRDInfo = alloc_rd_info();
-		ASSERT(pDesc->pRDInfo);
+
 		if (!device_alloc_rx_buf(pDevice, pDesc))
 			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
 
@@ -647,7 +647,7 @@ static void device_init_rd1_ring(struct vnt_private *pDevice)
 	for (i = 0; i < pDevice->sOpts.nRxDescs1; i ++, curr += sizeof(SRxDesc)) {
 		pDesc = &(pDevice->aRD1Ring[i]);
 		pDesc->pRDInfo = alloc_rd_info();
-		ASSERT(pDesc->pRDInfo);
+
 		if (!device_alloc_rx_buf(pDevice, pDesc))
 			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
 
@@ -705,7 +705,7 @@ static void device_init_td0_ring(struct vnt_private *pDevice)
 	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++, curr += sizeof(STxDesc)) {
 		pDesc = &(pDevice->apTD0Rings[i]);
 		pDesc->pTDInfo = alloc_td_info();
-		ASSERT(pDesc->pTDInfo);
+
 		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
 			pDesc->pTDInfo->buf = pDevice->tx0_bufs + (i)*PKT_BUF_SZ;
 			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
@@ -731,7 +731,7 @@ static void device_init_td1_ring(struct vnt_private *pDevice)
 	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++, curr += sizeof(STxDesc)) {
 		pDesc = &(pDevice->apTD1Rings[i]);
 		pDesc->pTDInfo = alloc_td_info();
-		ASSERT(pDesc->pTDInfo);
+
 		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
 			pDesc->pTDInfo->buf = pDevice->tx1_bufs + (i) * PKT_BUF_SZ;
 			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
@@ -818,7 +818,6 @@ static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pRD)
 	pRDInfo->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
 	if (pRDInfo->skb == NULL)
 		return false;
-	ASSERT(pRDInfo->skb);
 
 	pRDInfo->skb_dma =
 		dma_map_single(&pDevice->pcid->dev,

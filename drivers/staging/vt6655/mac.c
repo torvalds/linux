@@ -186,7 +186,6 @@ void MACvSetLoopbackMode(void __iomem *dwIoBase, unsigned char byLoopbackMode)
 {
 	unsigned char byOrgValue;
 
-	ASSERT(byLoopbackMode < 3);
 	byLoopbackMode <<= 6;
 	/* set TCR */
 	VNSvInPortB(dwIoBase + MAC_REG_TEST, &byOrgValue);

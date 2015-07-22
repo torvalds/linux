@@ -1728,10 +1728,8 @@ BBuGetFrameTime(
 	unsigned int uRateIdx = (unsigned int) wRate;
 	unsigned int uRate = 0;
 
-	if (uRateIdx > RATE_54M) {
-		ASSERT(0);
+	if (uRateIdx > RATE_54M)
 		return 0;
-	}
 
 	uRate = (unsigned int)awcFrameTime[uRateIdx];
 
