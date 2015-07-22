@@ -1043,7 +1043,8 @@ int __init gb_operation_init(void)
 	if (!gb_operation_cache)
 		goto err_destroy_message_cache;
 
-	gb_operation_workqueue = alloc_workqueue("greybus_operation", 0, 1);
+	gb_operation_workqueue = alloc_workqueue("greybus_operation",
+				WQ_UNBOUND, 1);
 	if (!gb_operation_workqueue)
 		goto err_operation;
 
