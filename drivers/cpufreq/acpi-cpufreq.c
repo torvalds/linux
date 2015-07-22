@@ -888,7 +888,9 @@ static int acpi_cpufreq_resume(struct cpufreq_policy *policy)
 static struct freq_attr *acpi_cpufreq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	&freqdomain_cpus,
-	NULL,	/* this is a placeholder for cpb, do not remove */
+#ifdef CONFIG_X86_ACPI_CPUFREQ_CPB
+	&cpb,
+#endif
 	NULL,
 };
 
@@ -961,17 +963,16 @@ static int __init acpi_cpufreq_init(void)
 	 * only if configured. This is considered legacy code, which
 	 * will probably be removed at some point in the future.
 	 */
-	if (check_amd_hwpstate_cpu(0)) {
-		struct freq_attr **iter;
+	if (!check_amd_hwpstate_cpu(0)) {
+		struct freq_attr **attr;
 
-		pr_debug("adding sysfs entry for cpb\n");
+		pr_debug("CPB unsupported, do not expose it\n");
 
-		for (iter = acpi_cpufreq_attr; *iter != NULL; iter++)
-			;
-
-		/* make sure there is a terminator behind it */
-		if (iter[1] == NULL)
-			*iter = &cpb;
+		for (attr = acpi_cpufreq_attr; *attr; attr++)
+			if (*attr == &cpb) {
+				*attr = NULL;
+				break;
+			}
 	}
 #endif
 	acpi_cpufreq_boost_init();
