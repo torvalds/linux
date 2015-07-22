@@ -314,6 +314,21 @@ static inline int ip_tunnel_collect_metadata(void)
 void ip_tunnel_need_metadata(void);
 void ip_tunnel_unneed_metadata(void);
 
+#else /* CONFIG_INET */
+
+static inline struct ip_tunnel_info *lwt_tun_info(struct lwtunnel_state *lwtstate)
+{
+	return NULL;
+}
+
+static inline void ip_tunnel_need_metadata(void)
+{
+}
+
+static inline void ip_tunnel_unneed_metadata(void)
+{
+}
+
 #endif /* CONFIG_INET */
 
 #endif /* __NET_IP_TUNNELS_H */
