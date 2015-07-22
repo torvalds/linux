@@ -1088,9 +1088,9 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 			" 0x%02x\n", cmd->se_tfo->get_fabric_name(),
 				cmd->data_length, size, cmd->t_task_cdb[0]);
 
-		if (cmd->data_direction == DMA_TO_DEVICE) {
-			pr_err("Rejecting underflow/overflow"
-					" WRITE data\n");
+		if (cmd->data_direction == DMA_TO_DEVICE &&
+		    cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {
+			pr_err("Rejecting underflow/overflow WRITE data\n");
 			return TCM_INVALID_CDB_FIELD;
 		}
 		/*
