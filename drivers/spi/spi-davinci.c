@@ -255,7 +255,7 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
  * This function calculates the prescale value that generates a clock rate
  * less than or equal to the specified maximum.
  *
- * Returns: calculated prescale - 1 for easy programming into SPI registers
+ * Returns: calculated prescale value for easy programming into SPI registers
  * or negative error number if valid prescalar cannot be updated.
  */
 static inline int davinci_spi_get_prescale(struct davinci_spi *dspi,
@@ -263,12 +263,13 @@ static inline int davinci_spi_get_prescale(struct davinci_spi *dspi,
 {
 	int ret;
 
-	ret = DIV_ROUND_UP(clk_get_rate(dspi->clk), max_speed_hz);
+	/* Subtract 1 to match what will be programmed into SPI register. */
+	ret = DIV_ROUND_UP(clk_get_rate(dspi->clk), max_speed_hz) - 1;
 
-	if (ret < 1 || ret > 256)
+	if (ret < 0 || ret > 255)
 		return -EINVAL;
 
-	return ret - 1;
+	return ret;
 }
 
 /**
