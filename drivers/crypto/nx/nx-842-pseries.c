@@ -999,11 +999,8 @@ static int nx842_probe(struct vio_dev *viodev,
 	of_reconfig_notifier_register(&nx842_of_nb);
 
 	ret = nx842_OF_upd(NULL);
-	if (ret && ret != -ENODEV) {
-		dev_err(&viodev->dev, "could not parse device tree. %d\n", ret);
-		ret = -1;
+	if (ret)
 		goto error;
-	}
 
 	rcu_read_lock();
 	dev_set_drvdata(&viodev->dev, rcu_dereference(devdata));
