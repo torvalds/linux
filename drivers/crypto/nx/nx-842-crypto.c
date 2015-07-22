@@ -520,10 +520,7 @@ static int nx842_crypto_decompress(struct crypto_tfm *tfm,
 		if (ret)
 			goto unlock;
 
-		*dlen = p.ototal;
-
-		ret = 0;
-		goto unlock;
+		goto success;
 	}
 
 	if (!hdr->groups) {
@@ -557,6 +554,7 @@ static int nx842_crypto_decompress(struct crypto_tfm *tfm,
 			goto unlock;
 	}
 
+success:
 	*dlen = p.ototal;
 
 	pr_debug("decompress total slen %x dlen %x\n", slen, *dlen);
