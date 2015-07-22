@@ -4273,11 +4273,9 @@ static int device_notifier(struct notifier_block *nb,
 	if (!domain)
 		return 0;
 
-	down_read(&dmar_global_lock);
 	dmar_remove_one_dev_info(domain, dev);
 	if (!domain_type_is_vm_or_si(domain) && list_empty(&domain->devices))
 		domain_exit(domain);
-	up_read(&dmar_global_lock);
 
 	return 0;
 }
