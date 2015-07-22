@@ -65,9 +65,9 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 static struct fb_ops exynos_drm_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_mmap        = exynos_drm_fb_mmap,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
+	.fb_copyarea	= drm_fb_helper_cfb_copyarea,
+	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
 	.fb_check_var	= drm_fb_helper_check_var,
 	.fb_set_par	= drm_fb_helper_set_par,
 	.fb_blank	= drm_fb_helper_blank,
@@ -142,10 +142,10 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	mutex_lock(&dev->struct_mutex);
 
-	fbi = framebuffer_alloc(0, &pdev->dev);
-	if (!fbi) {
+	fbi = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(fbi)) {
 		DRM_ERROR("failed to allocate fb info.\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(fbi);
 		goto out;
 	}
 
@@ -165,7 +165,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	if (IS_ERR(exynos_gem_obj)) {
 		ret = PTR_ERR(exynos_gem_obj);
-		goto err_release_framebuffer;
+		goto err_release_fbi;
 	}
 
 	exynos_fbdev->exynos_gem_obj = exynos_gem_obj;
@@ -178,33 +178,23 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 		goto err_destroy_gem;
 	}
 
-	helper->fbdev = fbi;
-
 	fbi->par = helper;
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &exynos_drm_fb_ops;
 
-	ret = fb_alloc_cmap(&fbi->cmap, 256, 0);
-	if (ret) {
-		DRM_ERROR("failed to allocate cmap.\n");
-		goto err_destroy_framebuffer;
-	}
-
 	ret = exynos_drm_fbdev_update(helper, sizes, helper->fb);
 	if (ret < 0)
-		goto err_dealloc_cmap;
+		goto err_destroy_framebuffer;
 
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 
-err_dealloc_cmap:
-	fb_dealloc_cmap(&fbi->cmap);
 err_destroy_framebuffer:
 	drm_framebuffer_cleanup(helper->fb);
 err_destroy_gem:
 	exynos_drm_gem_destroy(exynos_gem_obj);
-err_release_framebuffer:
-	framebuffer_release(fbi);
+err_release_fbi:
+	drm_fb_helper_release_fbi(helper);
 
 /*
  * if failed, all resources allocated above would be released by
@@ -312,21 +302,8 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 		}
 	}
 
-	/* release linux framebuffer */
-	if (fb_helper->fbdev) {
-		struct fb_info *info;
-		int ret;
-
-		info = fb_helper->fbdev;
-		ret = unregister_framebuffer(info);
-		if (ret < 0)
-			DRM_DEBUG_KMS("failed unregister_framebuffer()\n");
-
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-
-		framebuffer_release(info);
-	}
+	drm_fb_helper_unregister_fbi(fb_helper);
+	drm_fb_helper_release_fbi(fb_helper);
 
 	drm_fb_helper_fini(fb_helper);
 }
