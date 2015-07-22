@@ -385,7 +385,7 @@ static int obd_device_list_seq_show(struct seq_file *p, void *v)
 	return 0;
 }
 
-struct seq_operations obd_device_list_sops = {
+static const struct seq_operations obd_device_list_sops = {
 	.start = obd_device_list_seq_start,
 	.stop = obd_device_list_seq_stop,
 	.next = obd_device_list_seq_next,
@@ -406,7 +406,7 @@ static int obd_device_list_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations obd_device_list_fops = {
+static const struct file_operations obd_device_list_fops = {
 	.owner   = THIS_MODULE,
 	.open    = obd_device_list_open,
 	.read    = seq_read,
