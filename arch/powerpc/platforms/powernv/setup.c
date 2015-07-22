@@ -243,6 +243,13 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 	} else {
 		/* Primary waits for the secondaries to have reached OPAL */
 		pnv_kexec_wait_secondaries_down();
+
+		/*
+		 * We might be running as little-endian - now that interrupts
+		 * are disabled, reset the HILE bit to big-endian so we don't
+		 * take interrupts in the wrong endian later
+		 */
+		opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_BE);
 	}
 }
 #endif /* CONFIG_KEXEC */
