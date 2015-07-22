@@ -250,7 +250,7 @@ static void ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
 	ipaq_micro_eeprom_read(micro, 0, 128, dump);
 	str = ipaq_micro_str(dump, 10);
 	if (str) {
-		dev_info(micro->dev, "HM version %s\n", str);
+		dev_info(micro->dev, "HW version %s\n", str);
 		kfree(str);
 	}
 	str = ipaq_micro_str(dump+10, 40);
@@ -474,7 +474,6 @@ static struct platform_driver micro_device_driver = {
 	},
 	.probe    = micro_probe,
 	.remove   = micro_remove,
-	/* .shutdown = micro_suspend, // FIXME */
 };
 module_platform_driver(micro_device_driver);
 
