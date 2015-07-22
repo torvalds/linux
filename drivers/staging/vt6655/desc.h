@@ -267,7 +267,7 @@ typedef struct tagSTxDesc {
 	volatile    STDES0  m_td0TD0;
 	volatile    STDES1  m_td1TD1;
 	volatile    __le32  buff_addr;
-	volatile    u32    next_desc;
+	volatile    __le32  next_desc;
 	struct tagSTxDesc *next __aligned(8);
 	volatile    PDEVICE_TD_INFO pTDInfo __aligned(8);
 } __attribute__ ((__packed__))
