@@ -21,7 +21,6 @@
 
 	aliases {
 		display0 = &lcd0;
-		serial3 = &uart3;
 	};
 
 	evm_v3_3d: fixedregulator-v3_3d {
