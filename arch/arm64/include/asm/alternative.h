@@ -77,6 +77,47 @@ void free_alternatives_memory(void);
 	.org	. - (662b-661b) + (664b-663b)
 .endm
 
+/*
+ * Begin an alternative code sequence.
+ *
+ * The code that follows this macro will be assembled and linked as
+ * normal. There are no restrictions on this code.
+ */
+.macro alternative_if_not cap
+	.pushsection .altinstructions, "a"
+	altinstruction_entry 661f, 663f, \cap, 662f-661f, 664f-663f
+	.popsection
+661:
+.endm
+
+/*
+ * Provide the alternative code sequence.
+ *
+ * The code that follows this macro is assembled into a special
+ * section to be used for dynamic patching. Code that follows this
+ * macro must:
+ *
+ * 1. Be exactly the same length (in bytes) as the default code
+ *    sequence.
+ *
+ * 2. Not contain a branch target that is used outside of the
+ *    alternative sequence it is defined in (branches into an
+ *    alternative sequence are not fixed up).
+ */
+.macro alternative_else
+662:	.pushsection .altinstr_replacement, "ax"
+663:
+.endm
+
+/*
+ * Complete an alternative code sequence.
+ */
+.macro alternative_endif
+664:	.popsection
+	.org	. - (664b-663b) + (662b-661b)
+	.org	. - (662b-661b) + (664b-663b)
+.endm
+
 #endif  /*  __ASSEMBLY__  */
 
 #endif /* __ASM_ALTERNATIVE_H */
