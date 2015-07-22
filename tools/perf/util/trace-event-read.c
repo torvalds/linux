@@ -162,25 +162,23 @@ out:
 static int read_proc_kallsyms(struct pevent *pevent)
 {
 	unsigned int size;
-	char *buf;
 
 	size = read4(pevent);
 	if (!size)
 		return 0;
-
-	buf = malloc(size + 1);
-	if (buf == NULL)
-		return -1;
-
-	if (do_read(buf, size) < 0) {
-		free(buf);
-		return -1;
-	}
-	buf[size] = '\0';
-
-	parse_proc_kallsyms(pevent, buf, size);
-
-	free(buf);
+	/*
+	 * Just skip it, now that we configure libtraceevent to use the
+	 * tools/perf/ symbol resolver.
+	 *
+	 * We need to skip it so that we can continue parsing old perf.data
+	 * files, that contains this /proc/kallsyms payload.
+	 *
+	 * Newer perf.data files will have just the 4-bytes zeros "kallsyms
+	 * payload", so that older tools can continue reading it and interpret
+	 * it as "no kallsyms payload is present".
+	 */
+	lseek(input_fd, size, SEEK_CUR);
+	trace_data_size += size;
 	return 0;
 }
 
