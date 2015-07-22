@@ -439,6 +439,9 @@ struct se_cmd {
 	u8			scsi_asc;
 	u8			scsi_ascq;
 	u16			scsi_sense_length;
+	unsigned		cmd_wait_set:1;
+	unsigned		unknown_data_length:1;
+	bool			state_active:1;
 	u64			tag; /* SAM command identifier aka task tag */
 	/* Delay for ALUA Active/NonOptimized state access in milliseconds */
 	int			alua_nonop_delay;
@@ -450,8 +453,6 @@ struct se_cmd {
 	unsigned int		map_tag;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
-	unsigned		cmd_wait_set:1;
-	unsigned		unknown_data_length:1;
 	/* See se_cmd_flags_table */
 	u32			se_cmd_flags;
 	/* Total size in bytes associated with command */
@@ -471,7 +472,6 @@ struct se_cmd {
 	struct se_tmr_req	*se_tmr_req;
 	struct list_head	se_cmd_list;
 	struct completion	cmd_wait_comp;
-	struct kref		cmd_kref;
 	const struct target_core_fabric_ops *se_tfo;
 	sense_reason_t		(*execute_cmd)(struct se_cmd *);
 	sense_reason_t (*transport_complete_callback)(struct se_cmd *, bool);
@@ -491,6 +491,7 @@ struct se_cmd {
 #define CMD_T_REQUEST_STOP	(1 << 8)
 #define CMD_T_BUSY		(1 << 9)
 	spinlock_t		t_state_lock;
+	struct kref		cmd_kref;
 	struct completion	t_transport_stop_comp;
 
 	struct work_struct	work;
@@ -503,8 +504,10 @@ struct se_cmd {
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
 
+	/* Used for lun->lun_ref counting */
+	int			lun_ref_active;
+
 	struct list_head	state_list;
-	bool			state_active;
 
 	/* old task stop completion, consider merging with some of the above */
 	struct completion	task_stop_comp;
@@ -512,20 +515,17 @@ struct se_cmd {
 	/* backend private data */
 	void			*priv;
 
-	/* Used for lun->lun_ref counting */
-	int			lun_ref_active;
-
 	/* DIF related members */
 	enum target_prot_op	prot_op;
 	enum target_prot_type	prot_type;
 	u8			prot_checks;
+	bool			prot_pto;
 	u32			prot_length;
 	u32			reftag_seed;
 	struct scatterlist	*t_prot_sg;
 	unsigned int		t_prot_nents;
 	sense_reason_t		pi_err;
 	sector_t		bad_sector;
-	bool			prot_pto;
 };
 
 struct se_ua {
