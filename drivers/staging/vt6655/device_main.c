@@ -711,7 +711,6 @@ static void device_init_td0_ring(struct vnt_private *pDevice)
 			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD0Rings[(i+1) % pDevice->sOpts.nTxDescs[0]]);
-		pDesc->pTDInfo->curr_desc = cpu_to_le32(curr);
 		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
 	}
 
@@ -737,7 +736,6 @@ static void device_init_td1_ring(struct vnt_private *pDevice)
 			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD1Rings[(i + 1) % pDevice->sOpts.nTxDescs[1]]);
-		pDesc->pTDInfo->curr_desc = cpu_to_le32(curr);
 		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
 	}
 
