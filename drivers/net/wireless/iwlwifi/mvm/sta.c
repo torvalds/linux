@@ -235,7 +235,8 @@ static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		iwl_mvm_enable_ac_txq(mvm, mvmsta->hw_queue[ac],
 				      mvmsta->hw_queue[ac],
-				      iwl_mvm_ac_to_tx_fifo[ac], wdg_timeout);
+				      iwl_mvm_ac_to_tx_fifo[ac], 0,
+				      wdg_timeout);
 		mvmsta->tfd_queue_msk |= BIT(mvmsta->hw_queue[ac]);
 	}
 
@@ -653,7 +654,7 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
 	iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue, mvm->aux_queue,
-			      IWL_MVM_TX_FIFO_MCAST, wdg_timeout);
+			      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
 
 	/* Allocate aux station and assign to it the aux queue */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
