@@ -73,7 +73,8 @@
 				       ICP_QAT_HW_CIPHER_KEY_CONVERT, \
 				       ICP_QAT_HW_CIPHER_DECRYPT)
 
-static atomic_t active_dev;
+static DEFINE_MUTEX(algs_lock);
+static unsigned int active_devs;
 
 struct qat_alg_buf {
 	uint32_t len;
@@ -1271,7 +1272,10 @@ static struct crypto_alg qat_algs[] = { {
 
 int qat_algs_register(void)
 {
-	if (atomic_add_return(1, &active_dev) == 1) {
+	int ret = 0;
+
+	mutex_lock(&algs_lock);
+	if (++active_devs == 1) {
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(qat_algs); i++)
@@ -1280,21 +1284,25 @@ int qat_algs_register(void)
 				CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC :
 				CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC;
 
-		return crypto_register_algs(qat_algs, ARRAY_SIZE(qat_algs));
+		ret = crypto_register_algs(qat_algs, ARRAY_SIZE(qat_algs));
 	}
-	return 0;
+	mutex_unlock(&algs_lock);
+	return ret;
 }
 
 int qat_algs_unregister(void)
 {
-	if (atomic_sub_return(1, &active_dev) == 0)
-		return crypto_unregister_algs(qat_algs, ARRAY_SIZE(qat_algs));
-	return 0;
+	int ret = 0;
+
+	mutex_lock(&algs_lock);
+	if (--active_devs == 0)
+		ret = crypto_unregister_algs(qat_algs, ARRAY_SIZE(qat_algs));
+	mutex_unlock(&algs_lock);
+	return ret;
 }
 
 int qat_algs_init(void)
 {
-	atomic_set(&active_dev, 0);
 	crypto_get_default_rng();
 	return 0;
 }
