@@ -970,7 +970,6 @@ static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc)
 	if (skb)
 		ieee80211_tx_status_irqsafe(pDevice->hw, skb);
 
-	pTDInfo->skb_dma = 0;
 	pTDInfo->skb = NULL;
 	pTDInfo->byFlags = 0;
 }
@@ -1201,7 +1200,7 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	head_td->m_td1TD1.wReqCount =
 			cpu_to_le16((u16)head_td->pTDInfo->dwReqCount);
 
-	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->skb_dma);
+	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->buf_dma);
 
 	/* Poll Transmit the adapter */
 	wmb();
