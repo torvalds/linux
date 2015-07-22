@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -625,4 +626,52 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 void iwl_mvm_rx_statistics(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	iwl_mvm_handle_rx_statistics(mvm, rxb_addr(rxb));
+}
+
+void iwl_mvm_window_status_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_ba_window_status_notif *notif = (void *)pkt->data;
+	int i;
+	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
+
+	if (WARN_ONCE(pkt_len != sizeof(*notif),
+		      "Received window status notification of wrong size (%u)\n",
+		      pkt_len))
+		return;
+
+	rcu_read_lock();
+	for (i = 0; i < BA_WINDOW_STREAMS_MAX; i++) {
+		struct ieee80211_sta *sta;
+		u8 sta_id, tid;
+		u64 bitmap;
+		u32 ssn;
+		u16 ratid;
+		u16 received_mpdu;
+
+		ratid = le16_to_cpu(notif->ra_tid[i]);
+		/* check that this TID is valid */
+		if (!(ratid & BA_WINDOW_STATUS_VALID_MSK))
+			continue;
+
+		received_mpdu = le16_to_cpu(notif->mpdu_rx_count[i]);
+		if (received_mpdu == 0)
+			continue;
+
+		tid = ratid & BA_WINDOW_STATUS_TID_MSK;
+		/* get the station */
+		sta_id = (ratid & BA_WINDOW_STATUS_STA_ID_MSK)
+			 >> BA_WINDOW_STATUS_STA_ID_POS;
+		sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+		if (IS_ERR_OR_NULL(sta))
+			continue;
+		bitmap = le64_to_cpu(notif->bitmap[i]);
+		ssn = le32_to_cpu(notif->start_seq_num[i]);
+
+		/* update mac80211 with the bitmap for the reordering buffer */
+		ieee80211_mark_rx_ba_filtered_frames(sta, tid, ssn, bitmap,
+						     received_mpdu);
+	}
+	rcu_read_unlock();
 }

@@ -119,6 +119,8 @@ enum {
 	SCAN_ABORT_UMAC = 0xe,
 	SCAN_COMPLETE_UMAC = 0xf,
 
+	BA_WINDOW_STATUS_NOTIFICATION_ID = 0x13,
+
 	/* station table */
 	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,
@@ -1285,6 +1287,26 @@ struct iwl_fw_bcast_filter {
 	u8 reserved1;
 	struct iwl_fw_bcast_filter_attr attrs[MAX_BCAST_FILTER_ATTRS];
 } __packed; /* BCAST_FILTER_S_VER_1 */
+
+#define BA_WINDOW_STREAMS_MAX		16
+#define BA_WINDOW_STATUS_TID_MSK	0x000F
+#define BA_WINDOW_STATUS_STA_ID_POS	4
+#define BA_WINDOW_STATUS_STA_ID_MSK	0x01F0
+#define BA_WINDOW_STATUS_VALID_MSK	BIT(9)
+
+/**
+ * struct iwl_ba_window_status_notif - reordering window's status notification
+ * @bitmap: bitmap of received frames [start_seq_num + 0]..[start_seq_num + 63]
+ * @ra_tid: bit 3:0 - TID, bit 8:4 - STA_ID, bit 9 - valid
+ * @start_seq_num: the start sequence number of the bitmap
+ * @mpdu_rx_count: the number of received MPDUs since entering D0i3
+ */
+struct iwl_ba_window_status_notif {
+	__le64 bitmap[BA_WINDOW_STREAMS_MAX];
+	__le16 ra_tid[BA_WINDOW_STREAMS_MAX];
+	__le32 start_seq_num[BA_WINDOW_STREAMS_MAX];
+	__le16 mpdu_rx_count[BA_WINDOW_STREAMS_MAX];
+} __packed; /* BA_WINDOW_STATUS_NTFY_API_S_VER_1 */
 
 /**
  * struct iwl_fw_bcast_mac - per-mac broadcast filtering configuration.
