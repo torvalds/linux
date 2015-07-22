@@ -778,7 +778,8 @@ err_put:
 void greybus_message_sent(struct greybus_host_device *hd,
 					struct gb_message *message, int status)
 {
-	struct gb_operation *operation;
+	struct gb_operation *operation = message->operation;
+	struct gb_connection *connection = operation->connection;
 
 	/*
 	 * If the message was a response, we just need to drop our
@@ -790,10 +791,9 @@ void greybus_message_sent(struct greybus_host_device *hd,
 	 * attempting to send it, record that as the result of
 	 * the operation and schedule its completion.
 	 */
-	operation = message->operation;
 	if (message == operation->response) {
 		if (status) {
-			dev_err(&operation->connection->dev,
+			dev_err(&connection->dev,
 				"error sending response: %d\n", status);
 		}
 		gb_operation_put_active(operation);
