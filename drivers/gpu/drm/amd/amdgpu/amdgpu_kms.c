@@ -96,8 +96,8 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 
 	if ((amdgpu_runtime_pm != 0) &&
 	    amdgpu_has_atpx() &&
-	    ((flags & AMDGPU_IS_APU) == 0))
-		flags |= AMDGPU_IS_PX;
+	    ((flags & AMD_IS_APU) == 0))
+		flags |= AMD_IS_PX;
 
 	/* amdgpu_device_init should report only fatal error
 	 * like memory allocation failure or iomapping failure,
@@ -451,7 +451,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.num_hw_gfx_contexts = adev->gfx.config.max_hw_contexts;
 		dev_info._pad = 0;
 		dev_info.ids_flags = 0;
-		if (adev->flags & AMDGPU_IS_APU)
+		if (adev->flags & AMD_IS_APU)
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_max = (uint64_t)adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;

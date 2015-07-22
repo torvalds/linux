@@ -21,7 +21,7 @@
  */
 
 #include "amdgpu_amdkfd.h"
-#include "amdgpu_family.h"
+#include "amd_shared.h"
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include <linux/module.h>

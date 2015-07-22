@@ -47,7 +47,6 @@
 #include <drm/amdgpu_drm.h>
 
 #include "amd_shared.h"
-#include "amdgpu_family.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_irq.h"
@@ -1900,7 +1899,7 @@ struct amdgpu_device {
 	struct rw_semaphore		exclusive_lock;
 
 	/* ASIC */
-	enum amdgpu_asic_type           asic_type;
+	enum amd_asic_type		asic_type;
 	uint32_t			family;
 	uint32_t			rev_id;
 	uint32_t			external_rev_id;

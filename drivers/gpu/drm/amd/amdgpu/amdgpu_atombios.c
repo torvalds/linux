@@ -897,7 +897,7 @@ bool amdgpu_atombios_get_asic_ss_info(struct amdgpu_device *adev,
 					if ((id == ASIC_INTERNAL_ENGINE_SS) ||
 					    (id == ASIC_INTERNAL_MEMORY_SS))
 						ss->rate /= 100;
-					if (adev->flags & AMDGPU_IS_APU)
+					if (adev->flags & AMD_IS_APU)
 						amdgpu_atombios_get_igp_ss_overrides(adev, ss, id);
 					return true;
 				}
@@ -1058,7 +1058,7 @@ void amdgpu_atombios_set_memory_clock(struct amdgpu_device *adev,
 	SET_MEMORY_CLOCK_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetMemoryClock);
 
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return;
 
 	args.ulTargetMemoryClock = cpu_to_le32(mem_clock);	/* 10 khz */

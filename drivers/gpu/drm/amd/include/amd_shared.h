@@ -34,6 +34,33 @@
 #define AMD_FAMILY_VI                   130 /* Iceland, Tonga */
 #define AMD_FAMILY_CZ                   135 /* Carrizo */
 
+/*
+ * Supported ASIC types
+ */
+enum amd_asic_type {
+	CHIP_BONAIRE = 0,
+	CHIP_KAVERI,
+	CHIP_KABINI,
+	CHIP_HAWAII,
+	CHIP_MULLINS,
+	CHIP_TOPAZ,
+	CHIP_TONGA,
+	CHIP_CARRIZO,
+	CHIP_LAST,
+};
+
+/*
+ * Chip flags
+ */
+enum amd_chip_flags {
+	AMD_ASIC_MASK = 0x0000ffffUL,
+	AMD_FLAGS_MASK  = 0xffff0000UL,
+	AMD_IS_MOBILITY = 0x00010000UL,
+	AMD_IS_APU      = 0x00020000UL,
+	AMD_IS_PX       = 0x00040000UL,
+	AMD_EXP_HW_SUPPORT = 0x00080000UL,
+};
+
 enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_COMMON,
 	AMD_IP_BLOCK_TYPE_GMC,

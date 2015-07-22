@@ -261,7 +261,7 @@ static u32 vi_get_xclk(struct amdgpu_device *adev)
 	u32 reference_clock = adev->clock.spll.reference_freq;
 	u32 tmp;
 
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return reference_clock;
 
 	tmp = RREG32_SMC(ixCG_CLKPIN_CNTL_2);
@@ -771,7 +771,7 @@ static void vi_gpu_soft_reset(struct amdgpu_device *adev, u32 reset_mask)
 		srbm_soft_reset =
 			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
 
-	if (!(adev->flags & AMDGPU_IS_APU)) {
+	if (!(adev->flags & AMD_IS_APU)) {
 		if (reset_mask & AMDGPU_RESET_MC)
 		srbm_soft_reset =
 			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
@@ -991,7 +991,7 @@ static void vi_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (amdgpu_pcie_gen2 == 0)
 		return;
 
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return;
 
 	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
@@ -1019,7 +1019,7 @@ static void vi_enable_doorbell_aperture(struct amdgpu_device *adev,
 	u32 tmp;
 
 	/* not necessary on CZ */
-	if (adev->flags & AMDGPU_IS_APU)
+	if (adev->flags & AMD_IS_APU)
 		return;
 
 	tmp = RREG32(mmBIF_DOORBELL_APER_EN);
@@ -1268,7 +1268,7 @@ static int vi_common_early_init(void *handle)
 	bool smc_enabled = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		adev->smc_rreg = &cz_smc_rreg;
 		adev->smc_wreg = &cz_smc_wreg;
 	} else {

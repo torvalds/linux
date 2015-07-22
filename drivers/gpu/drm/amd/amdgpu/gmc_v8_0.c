@@ -737,7 +737,7 @@ static int gmc_v8_0_vm_init(struct amdgpu_device *adev)
 	adev->vm_manager.nvm = AMDGPU_NUM_OF_VMIDS;
 
 	/* base offset of vram pages */
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
 		tmp <<= 22;
 		adev->vm_manager.vram_base_offset = tmp;
@@ -816,7 +816,7 @@ static int gmc_v8_0_early_init(void *handle)
 	gmc_v8_0_set_gart_funcs(adev);
 	gmc_v8_0_set_irq_funcs(adev);
 
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 	} else {
 		u32 tmp = RREG32(mmMC_SEQ_MISC0);
@@ -934,7 +934,7 @@ static int gmc_v8_0_hw_init(void *handle)
 
 	gmc_v8_0_mc_program(adev);
 
-	if (!(adev->flags & AMDGPU_IS_APU)) {
+	if (!(adev->flags & AMD_IS_APU)) {
 		r = gmc_v8_0_mc_load_microcode(adev);
 		if (r) {
 			DRM_ERROR("Failed to load MC firmware!\n");
@@ -1147,7 +1147,7 @@ static int gmc_v8_0_soft_reset(void *handle)
 
 	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
 		   SRBM_STATUS__MCC_BUSY_MASK | SRBM_STATUS__MCD_BUSY_MASK)) {
-		if (!(adev->flags & AMDGPU_IS_APU))
+		if (!(adev->flags & AMD_IS_APU))
 			srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
 	}

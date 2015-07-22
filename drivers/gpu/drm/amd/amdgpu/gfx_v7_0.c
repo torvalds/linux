@@ -2173,7 +2173,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
 	adev->gfx.config.mem_max_burst_length_bytes = 256;
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		/* Get memory bank mapping mode. */
 		tmp = RREG32(mmMC_FUS_DRAM0_BANK_ADDR_MAPPING);
 		dimm00_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
@@ -3758,7 +3758,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 	int r;
 
 	/* allocate rlc buffers */
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		if (adev->asic_type == CHIP_KAVERI) {
 			adev->gfx.rlc.reg_list = spectre_rlc_save_restore_register_list;
 			adev->gfx.rlc.reg_list_size =

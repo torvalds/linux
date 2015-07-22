@@ -63,7 +63,7 @@ bool amdgpu_device_is_px(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 
-	if (adev->flags & AMDGPU_IS_PX)
+	if (adev->flags & AMD_IS_PX)
 		return true;
 	return false;
 }
@@ -1377,7 +1377,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->ddev = ddev;
 	adev->pdev = pdev;
 	adev->flags = flags;
-	adev->asic_type = flags & AMDGPU_ASIC_MASK;
+	adev->asic_type = flags & AMD_ASIC_MASK;
 	adev->is_atom_bios = false;
 	adev->usec_timeout = AMDGPU_MAX_USEC_TIMEOUT;
 	adev->mc.gtt_size = 512 * 1024 * 1024;
