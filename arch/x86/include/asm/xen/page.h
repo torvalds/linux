@@ -43,6 +43,8 @@ extern unsigned long *xen_p2m_addr;
 extern unsigned long  xen_p2m_size;
 extern unsigned long  xen_max_p2m_pfn;
 
+extern int xen_alloc_p2m_entry(unsigned long pfn);
+
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
