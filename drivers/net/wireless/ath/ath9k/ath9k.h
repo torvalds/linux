@@ -172,14 +172,6 @@ struct ath_txq {
 	struct sk_buff_head complete_q;
 };
 
-struct ath_atx_ac {
-	struct ath_txq *txq;
-	struct list_head list;
-	struct list_head tid_q;
-	bool clear_ps_filter;
-	bool sched;
-};
-
 struct ath_frame_info {
 	struct ath_buf *bf;
 	u16 framelen;
@@ -242,7 +234,7 @@ struct ath_atx_tid {
 	struct sk_buff_head buf_q;
 	struct sk_buff_head retry_q;
 	struct ath_node *an;
-	struct ath_atx_ac *ac;
+	struct ath_txq *txq;
 	unsigned long tx_buf[BITS_TO_LONGS(ATH_TID_MAX_BUFS)];
 	u16 seq_start;
 	u16 seq_next;
@@ -254,6 +246,7 @@ struct ath_atx_tid {
 	s8 bar_index;
 	bool sched;
 	bool active;
+	bool clear_ps_filter;
 };
 
 struct ath_node {
@@ -261,7 +254,6 @@ struct ath_node {
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
 	struct ath_atx_tid tid[IEEE80211_NUM_TIDS];
-	struct ath_atx_ac ac[IEEE80211_NUM_ACS];
 
 	u16 maxampdu;
 	u8 mpdudensity;
