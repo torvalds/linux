@@ -881,6 +881,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 			 struct esdhc_platform_data *boarddata)
 {
 	struct device_node *np = pdev->dev.of_node;
+	int ret;
 
 	if (!np)
 		return -ENODEV;
@@ -917,7 +918,14 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 	mmc_of_parse_voltage(np, &host->ocr_mask);
 
 	/* call to generic mmc_of_parse to support additional capabilities */
-	return mmc_of_parse(host->mmc);
+	ret = mmc_of_parse(host->mmc);
+	if (ret)
+		return ret;
+
+	if (!IS_ERR_VALUE(mmc_gpio_get_cd(host->mmc)))
+		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+
+	return 0;
 }
 #else
 static inline int
