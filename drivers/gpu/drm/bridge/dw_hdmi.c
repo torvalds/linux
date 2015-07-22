@@ -230,11 +230,11 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 
 	switch (freq) {
 	case 32000:
-		if (pixel_clk == 25170000)
+		if (pixel_clk == 25175000)
 			n = (ratio == 150) ? 9152 : 4576;
-		else if (pixel_clk == 27020000)
+		else if (pixel_clk == 27027000)
 			n = (ratio == 150) ? 8192 : 4096;
-		else if (pixel_clk == 74170000 || pixel_clk == 148350000)
+		else if (pixel_clk == 74176000 || pixel_clk == 148352000)
 			n = 11648;
 		else
 			n = 4096;
@@ -242,11 +242,11 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 		break;
 
 	case 44100:
-		if (pixel_clk == 25170000)
+		if (pixel_clk == 25175000)
 			n = 7007;
-		else if (pixel_clk == 74170000)
+		else if (pixel_clk == 74176000)
 			n = 17836;
-		else if (pixel_clk == 148350000)
+		else if (pixel_clk == 148352000)
 			n = (ratio == 150) ? 17836 : 8918;
 		else
 			n = 6272;
@@ -254,13 +254,13 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk,
 		break;
 
 	case 48000:
-		if (pixel_clk == 25170000)
+		if (pixel_clk == 25175000)
 			n = (ratio == 150) ? 9152 : 6864;
-		else if (pixel_clk == 27020000)
+		else if (pixel_clk == 27027000)
 			n = (ratio == 150) ? 8192 : 6144;
-		else if (pixel_clk == 74170000)
+		else if (pixel_clk == 74176000)
 			n = 11648;
-		else if (pixel_clk == 148350000)
+		else if (pixel_clk == 148352000)
 			n = (ratio == 150) ? 11648 : 5824;
 		else
 			n = 6144;
