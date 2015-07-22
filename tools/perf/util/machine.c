@@ -1993,3 +1993,17 @@ struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
 {
 	return dsos__findnew(&machine->dsos, filename);
 }
+
+char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp)
+{
+	struct machine *machine = vmachine;
+	struct map *map;
+	struct symbol *sym = map_groups__find_symbol(&machine->kmaps, MAP__FUNCTION, *addrp, &map,  NULL);
+
+	if (sym == NULL)
+		return NULL;
+
+	*modp = __map__is_kmodule(map) ? (char *)map->dso->short_name : NULL;
+	*addrp = map->unmap_ip(map, sym->start);
+	return sym->name;
+}

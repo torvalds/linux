@@ -237,5 +237,9 @@ int machine__synthesize_threads(struct machine *machine, struct target *target,
 pid_t machine__get_current_tid(struct machine *machine, int cpu);
 int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 			     pid_t tid);
+/*
+ * For use with libtraceevent's pevent_set_function_resolver()
+ */
+char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp);
 
 #endif /* __PERF_MACHINE_H */
