@@ -43,7 +43,6 @@ struct esdhc_platform_data {
 	enum wp_types wp_type;
 	enum cd_types cd_type;
 	int max_bus_width;
-	unsigned int f_max;
 	bool support_vsel;
 	unsigned int delay_line;
 };
