@@ -467,8 +467,8 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
-	cd-gpios = <&gpio6 15 0>;
-	wp-gpios = <&gpio1 13 0>;
+	cd-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
