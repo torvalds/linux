@@ -362,8 +362,8 @@ static void purge_persistent_gnt(struct xen_blkif *blkif)
 		return;
 	}
 
-	if (work_pending(&blkif->persistent_purge_work)) {
-		pr_alert_ratelimited("Scheduled work from previous purge is still pending, cannot purge list\n");
+	if (work_busy(&blkif->persistent_purge_work)) {
+		pr_alert_ratelimited("Scheduled work from previous purge is still busy, cannot purge list\n");
 		return;
 	}
 
