@@ -413,6 +413,22 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 };
 #endif
 
+/* LEDs */
+static struct s3c24xx_led_platdata mini2451_led1_pdata = {
+	.name		= "led1",
+	.gpio		= S3C2410_GPB(5),
+	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
+	.def_trigger	= "heartbeat",
+};
+
+static struct platform_device mini2451_led1 = {
+	.name		= "s3c24xx_led",
+	.id			= 1,
+	.dev		= {
+		.platform_data  = &mini2451_led1_pdata,
+	},
+};
+
 static struct ts_onewire_platform_data mini2451_1wire_pdata = {
 	.timer_irq	= IRQ_TIMER2,
 	.pwm_id		= 2,
@@ -441,6 +457,7 @@ static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c64xx_device_spi0,
 #endif
 	&samsung_device_pwm,
+	&mini2451_led1,
 	&mini2451_1wire,
 };
 
