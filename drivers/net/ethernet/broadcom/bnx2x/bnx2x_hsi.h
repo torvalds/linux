@@ -2898,8 +2898,8 @@ struct afex_stats {
 };
 
 #define BCM_5710_FW_MAJOR_VERSION			7
-#define BCM_5710_FW_MINOR_VERSION			10
-#define BCM_5710_FW_REVISION_VERSION		51
+#define BCM_5710_FW_MINOR_VERSION			12
+#define BCM_5710_FW_REVISION_VERSION		30
 #define BCM_5710_FW_ENGINEERING_VERSION		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -3901,7 +3901,11 @@ struct eth_fast_path_rx_cqe {
 	__le16 len_on_bd;
 	struct parsing_flags pars_flags;
 	union eth_sgl_or_raw_data sgl_or_raw_data;
-	__le32 reserved1[7];
+	u8 tunn_type;
+	u8 tunn_inner_hdrs_offset;
+	__le16 reserved1;
+	__le32 tunn_tenant_id;
+	__le32 padding[5];
 	u32 marker;
 };
 
@@ -4012,8 +4016,8 @@ struct eth_tunnel_data {
 	__le16 pseudo_csum;
 	u8 ip_hdr_start_inner_w;
 	u8 flags;
-#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER (0x1<<0)
-#define ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER_SHIFT 0
+#define ETH_TUNNEL_DATA_IPV6_OUTER (0x1<<0)
+#define ETH_TUNNEL_DATA_IPV6_OUTER_SHIFT 0
 #define ETH_TUNNEL_DATA_RESERVED (0x7F<<1)
 #define ETH_TUNNEL_DATA_RESERVED_SHIFT 1
 };
@@ -4120,16 +4124,12 @@ struct eth_rss_update_ramrod_data {
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY_SHIFT 6
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY (0x1<<7)
 #define ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY_SHIFT 7
-#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY (0x1<<8)
-#define ETH_RSS_UPDATE_RAMROD_DATA_EN_5_TUPLE_CAPABILITY_SHIFT 8
-#define ETH_RSS_UPDATE_RAMROD_DATA_NVGRE_KEY_ENTROPY_CAPABILITY (0x1<<9)
-#define ETH_RSS_UPDATE_RAMROD_DATA_NVGRE_KEY_ENTROPY_CAPABILITY_SHIFT 9
-#define ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY (0x1<<10)
-#define ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY_SHIFT 10
-#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY (0x1<<11)
-#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY_SHIFT 11
-#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED (0xF<<12)
-#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED_SHIFT 12
+#define ETH_RSS_UPDATE_RAMROD_DATA_TUNN_INNER_HDRS_CAPABILITY (0x1<<8)
+#define ETH_RSS_UPDATE_RAMROD_DATA_TUNN_INNER_HDRS_CAPABILITY_SHIFT 8
+#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY (0x1<<9)
+#define ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY_SHIFT 9
+#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED (0x3F<<10)
+#define ETH_RSS_UPDATE_RAMROD_DATA_RESERVED_SHIFT 10
 	u8 rss_result_mask;
 	u8 reserved3;
 	__le16 reserved4;
@@ -4312,6 +4312,18 @@ enum eth_tunnel_non_lso_csum_location {
 	CSUM_ON_PKT,
 	CSUM_ON_BD,
 	MAX_ETH_TUNNEL_NON_LSO_CSUM_LOCATION
+};
+
+enum eth_tunn_type {
+	TUNN_TYPE_NONE,
+	TUNN_TYPE_VXLAN,
+	TUNN_TYPE_L2_GRE,
+	TUNN_TYPE_IPV4_GRE,
+	TUNN_TYPE_IPV6_GRE,
+	TUNN_TYPE_L2_GENEVE,
+	TUNN_TYPE_IPV4_GENEVE,
+	TUNN_TYPE_IPV6_GENEVE,
+	MAX_ETH_TUNN_TYPE
 };
 
 /*
@@ -4758,6 +4770,9 @@ struct afex_vif_list_ramrod_data {
 	__le16 reserved1;
 };
 
+struct c2s_pri_trans_table_entry {
+	u8 val[MAX_VLAN_PRIORITIES];
+};
 
 /*
  * cfc delete event data
@@ -5246,6 +5261,7 @@ struct flow_control_configuration {
 	u8 dont_add_pri_0_en;
 	u8 reserved1;
 	__le32 reserved2;
+	u8 dcb_outer_pri[MAX_TRAFFIC_TYPES];
 };
 
 
@@ -5260,18 +5276,25 @@ struct function_start_data {
 	u8 path_id;
 	u8 network_cos_mode;
 	u8 dmae_cmd_id;
-	u8 tunnel_mode;
-	u8 gre_tunnel_type;
-	u8 tunn_clss_en;
-	u8 inner_gre_rss_en;
-	u8 sd_accept_mf_clss_fail;
+	u8 no_added_tags;
+	__le16 reserved0;
+	__le32 reserved1;
+	u8 inner_clss_vxlan;
+	u8 inner_clss_l2gre;
+	u8 inner_clss_l2geneve;
+	u8 inner_rss;
 	__le16 vxlan_dst_port;
+	__le16 geneve_dst_port;
+	u8 sd_accept_mf_clss_fail;
+	u8 sd_accept_mf_clss_fail_match_ethtype;
 	__le16 sd_accept_mf_clss_fail_ethtype;
 	__le16 sd_vlan_eth_type;
 	u8 sd_vlan_force_pri_flg;
 	u8 sd_vlan_force_pri_val;
-	u8 sd_accept_mf_clss_fail_match_ethtype;
-	u8 no_added_tags;
+	u8 c2s_pri_tt_valid;
+	u8 c2s_pri_default;
+	u8 reserved2[6];
+	struct c2s_pri_trans_table_entry c2s_pri_trans_table;
 };
 
 struct function_update_data {
@@ -5289,11 +5312,12 @@ struct function_update_data {
 	u8 tx_switch_suspend;
 	u8 echo;
 	u8 update_tunn_cfg_flg;
-	u8 tunnel_mode;
-	u8 gre_tunnel_type;
-	u8 tunn_clss_en;
-	u8 inner_gre_rss_en;
+	u8 inner_clss_vxlan;
+	u8 inner_clss_l2gre;
+	u8 inner_clss_l2geneve;
+	u8 inner_rss;
 	__le16 vxlan_dst_port;
+	__le16 geneve_dst_port;
 	u8 sd_vlan_force_pri_change_flg;
 	u8 sd_vlan_force_pri_flg;
 	u8 sd_vlan_force_pri_val;
@@ -5302,6 +5326,8 @@ struct function_update_data {
 	u8 reserved1;
 	__le16 sd_vlan_tag;
 	__le16 sd_vlan_eth_type;
+	__le16 reserved0;
+	__le32 reserved2;
 };
 
 /*
@@ -5328,15 +5354,6 @@ struct fw_version {
 #define FW_VERSION_CHIP_VERSION_SHIFT 2
 #define __FW_VERSION_RESERVED (0xFFFFFFF<<4)
 #define __FW_VERSION_RESERVED_SHIFT 4
-};
-
-
-/* GRE Tunnel Mode */
-enum gre_tunnel_type {
-	NVGRE_TUNNEL,
-	L2GRE_TUNNEL,
-	IPGRE_TUNNEL,
-	MAX_GRE_TUNNEL_TYPE
 };
 
 /*

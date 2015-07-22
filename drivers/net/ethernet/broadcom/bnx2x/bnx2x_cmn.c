@@ -2103,9 +2103,14 @@ int bnx2x_rss(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 		if (rss_obj->udp_rss_v6)
 			__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
 
-		if (!CHIP_IS_E1x(bp))
+		if (!CHIP_IS_E1x(bp)) {
+			/* valid only for TUNN_MODE_VXLAN tunnel mode */
+			__set_bit(BNX2X_RSS_IPV4_VXLAN, &params.rss_flags);
+			__set_bit(BNX2X_RSS_IPV6_VXLAN, &params.rss_flags);
+
 			/* valid only for TUNN_MODE_GRE tunnel mode */
-			__set_bit(BNX2X_RSS_GRE_INNER_HDRS, &params.rss_flags);
+			__set_bit(BNX2X_RSS_TUNN_INNER_HDRS, &params.rss_flags);
+		}
 	} else {
 		__set_bit(BNX2X_RSS_MODE_DISABLED, &params.rss_flags);
 	}
@@ -3677,7 +3682,7 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 		pbd2->fw_ip_hdr_to_payload_w =
 			hlen_w - ((sizeof(struct ipv6hdr)) >> 1);
 		pbd_e2->data.tunnel_data.flags |=
-			ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER;
+			ETH_TUNNEL_DATA_IPV6_OUTER;
 	}
 
 	pbd2->tcp_send_seq = bswab32(inner_tcp_hdr(skb)->seq);

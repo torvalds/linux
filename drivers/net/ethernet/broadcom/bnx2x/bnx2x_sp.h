@@ -711,7 +711,10 @@ enum {
 	BNX2X_RSS_IPV6,
 	BNX2X_RSS_IPV6_TCP,
 	BNX2X_RSS_IPV6_UDP,
-	BNX2X_RSS_GRE_INNER_HDRS,
+
+	BNX2X_RSS_IPV4_VXLAN,
+	BNX2X_RSS_IPV6_VXLAN,
+	BNX2X_RSS_TUNN_INNER_HDRS,
 };
 
 struct bnx2x_config_rss_params {
@@ -1105,8 +1108,10 @@ enum {
 	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_CHNG,
 	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_FLAG,
 	BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
-	BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
-	BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
+	BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_L2GRE,
+	BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_VXLAN,
+	BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_L2GENEVE,
+	BNX2X_F_UPDATE_TUNNEL_INNER_RSS,
 };
 
 /* Allowed Function states */
@@ -1171,19 +1176,23 @@ struct bnx2x_func_start_params {
 	/* Function cos mode */
 	u8 network_cos_mode;
 
-	/* TUNN_MODE_NONE/TUNN_MODE_VXLAN/TUNN_MODE_GRE */
-	u8 tunnel_mode;
+	/* UDP dest port for VXLAN */
+	u16 vxlan_dst_port;
 
-	/* tunneling classification enablement */
-	u8 tunn_clss_en;
+	/* UDP dest port for Geneve */
+	u16 geneve_dst_port;
 
-	/* NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
-	u8 gre_tunnel_type;
+	/* Enable inner Rx classifications for L2GRE packets */
+	u8 inner_clss_l2gre;
 
-	/* Enables Inner GRE RSS on the function, depends on the client RSS
-	 * capailities
-	 */
-	u8 inner_gre_rss_en;
+	/* Enable inner Rx classifications for L2-Geneve packets */
+	u8 inner_clss_l2geneve;
+
+	/* Enable inner Rx classification for vxlan packets */
+	u8 inner_clss_vxlan;
+
+	/* Enable RSS according to inner header */
+	u8 inner_rss;
 
 	/* Allows accepting of packets failing MF classification, possibly
 	 * only matching a given ethertype
@@ -1200,6 +1209,11 @@ struct bnx2x_func_start_params {
 
 	/* Prevent inner vlans from being added by FW */
 	u8 no_added_tags;
+
+	/* Inner-to-Outer vlan priority mapping */
+	u8 c2s_pri[MAX_VLAN_PRIORITIES];
+	u8 c2s_pri_default;
+	u8 c2s_pri_valid;
 };
 
 struct bnx2x_func_switch_update_params {
@@ -1207,8 +1221,8 @@ struct bnx2x_func_switch_update_params {
 	u16 vlan;
 	u16 vlan_eth_type;
 	u8 vlan_force_prio;
-	u8 tunnel_mode;
-	u8 gre_tunnel_type;
+	u16 vxlan_dst_port;
+	u16 geneve_dst_port;
 };
 
 struct bnx2x_func_afex_update_params {
@@ -1229,6 +1243,7 @@ struct bnx2x_func_tx_start_params {
 	u8 dcb_enabled;
 	u8 dcb_version;
 	u8 dont_add_pri_0_en;
+	u8 dcb_outer_pri[MAX_TRAFFIC_TYPES];
 };
 
 struct bnx2x_func_set_timesync_params {

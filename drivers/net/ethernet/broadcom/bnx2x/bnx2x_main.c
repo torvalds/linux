@@ -5568,6 +5568,8 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_OPEN):
 		case (EVENT_RING_OPCODE_RSS_UPDATE_RULES |
 		      BNX2X_STATE_OPENING_WAIT4_PORT):
+		case (EVENT_RING_OPCODE_RSS_UPDATE_RULES |
+		      BNX2X_STATE_CLOSING_WAIT4_HALT):
 			cid = elem->message.data.eth_event.echo &
 				BNX2X_SWCID_MASK;
 			DP(BNX2X_MSG_SP, "got RSS_UPDATE ramrod. CID %d\n",
