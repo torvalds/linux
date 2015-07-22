@@ -1,6 +1,8 @@
-/* bnx2x.h: Broadcom Everest network driver.
+/* bnx2x.h: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +32,7 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.710.51-0"
+#define DRV_MODULE_VERSION      "1.712.30-0"
 #define DRV_MODULE_RELDATE      "2014/02/10"
 #define BNX2X_BC_VER            0x040200
 
@@ -1422,6 +1424,7 @@ enum {
 	SUB_MF_MODE_UNKNOWN = 0,
 	SUB_MF_MODE_UFP,
 	SUB_MF_MODE_NPAR1_DOT_5,
+	SUB_MF_MODE_BD,
 };
 
 struct bnx2x {
@@ -1636,6 +1639,8 @@ struct bnx2x {
 	u8			mf_sub_mode;
 #define IS_MF_UFP(bp)		(IS_MF_SD(bp) && \
 				 bp->mf_sub_mode == SUB_MF_MODE_UFP)
+#define IS_MF_BD(bp)		(IS_MF_SD(bp) && \
+				 bp->mf_sub_mode == SUB_MF_MODE_BD)
 
 	u8			wol;
 
@@ -2576,6 +2581,8 @@ enum {
 void bnx2x_set_local_cmng(struct bnx2x *bp);
 
 void bnx2x_update_mng_version(struct bnx2x *bp);
+
+void bnx2x_update_mfw_dump(struct bnx2x *bp);
 
 #define MCPR_SCRATCH_BASE(bp) \
 	(CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)

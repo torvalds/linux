@@ -1,6 +1,8 @@
-/* bnx2x_ethtool.c: Broadcom Everest network driver.
+/* bnx2x_ethtool.c: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1128,6 +1130,9 @@ static int bnx2x_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		bp->wol = 1;
 	} else
 		bp->wol = 0;
+
+	if (SHMEM2_HAS(bp, curr_cfg))
+		SHMEM2_WR(bp, curr_cfg, CURR_CFG_MET_OS);
 
 	return 0;
 }

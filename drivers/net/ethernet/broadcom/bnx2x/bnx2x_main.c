@@ -1,6 +1,8 @@
-/* bnx2x_main.c: Broadcom Everest network driver.
+/* bnx2x_main.c: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,11 +83,11 @@
 #define TX_TIMEOUT		(5*HZ)
 
 static char version[] =
-	"Broadcom NetXtreme II 5771x/578xx 10/20-Gigabit Ethernet Driver "
+	"QLogic 5771x/578xx 10/20-Gigabit Ethernet Driver "
 	DRV_MODULE_NAME " " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("Eliezer Tamir");
-MODULE_DESCRIPTION("Broadcom NetXtreme II "
+MODULE_DESCRIPTION("QLogic "
 		   "BCM57710/57711/57711E/"
 		   "57712/57712_MF/57800/57800_MF/57810/57810_MF/"
 		   "57840/57840_MF Driver");
@@ -163,27 +165,27 @@ enum bnx2x_board_type {
 static struct {
 	char *name;
 } board_info[] = {
-	[BCM57710]	= { "Broadcom NetXtreme II BCM57710 10 Gigabit PCIe [Everest]" },
-	[BCM57711]	= { "Broadcom NetXtreme II BCM57711 10 Gigabit PCIe" },
-	[BCM57711E]	= { "Broadcom NetXtreme II BCM57711E 10 Gigabit PCIe" },
-	[BCM57712]	= { "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet" },
-	[BCM57712_MF]	= { "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet Multi Function" },
-	[BCM57712_VF]	= { "Broadcom NetXtreme II BCM57712 10 Gigabit Ethernet Virtual Function" },
-	[BCM57800]	= { "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet" },
-	[BCM57800_MF]	= { "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet Multi Function" },
-	[BCM57800_VF]	= { "Broadcom NetXtreme II BCM57800 10 Gigabit Ethernet Virtual Function" },
-	[BCM57810]	= { "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet" },
-	[BCM57810_MF]	= { "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet Multi Function" },
-	[BCM57810_VF]	= { "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet Virtual Function" },
-	[BCM57840_4_10]	= { "Broadcom NetXtreme II BCM57840 10 Gigabit Ethernet" },
-	[BCM57840_2_20]	= { "Broadcom NetXtreme II BCM57840 20 Gigabit Ethernet" },
-	[BCM57840_MF]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Multi Function" },
-	[BCM57840_VF]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Virtual Function" },
-	[BCM57811]	= { "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet" },
-	[BCM57811_MF]	= { "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet Multi Function" },
-	[BCM57840_O]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet" },
-	[BCM57840_MFO]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Multi Function" },
-	[BCM57811_VF]	= { "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Virtual Function" }
+	[BCM57710]	= { "QLogic BCM57710 10 Gigabit PCIe [Everest]" },
+	[BCM57711]	= { "QLogic BCM57711 10 Gigabit PCIe" },
+	[BCM57711E]	= { "QLogic BCM57711E 10 Gigabit PCIe" },
+	[BCM57712]	= { "QLogic BCM57712 10 Gigabit Ethernet" },
+	[BCM57712_MF]	= { "QLogic BCM57712 10 Gigabit Ethernet Multi Function" },
+	[BCM57712_VF]	= { "QLogic BCM57712 10 Gigabit Ethernet Virtual Function" },
+	[BCM57800]	= { "QLogic BCM57800 10 Gigabit Ethernet" },
+	[BCM57800_MF]	= { "QLogic BCM57800 10 Gigabit Ethernet Multi Function" },
+	[BCM57800_VF]	= { "QLogic BCM57800 10 Gigabit Ethernet Virtual Function" },
+	[BCM57810]	= { "QLogic BCM57810 10 Gigabit Ethernet" },
+	[BCM57810_MF]	= { "QLogic BCM57810 10 Gigabit Ethernet Multi Function" },
+	[BCM57810_VF]	= { "QLogic BCM57810 10 Gigabit Ethernet Virtual Function" },
+	[BCM57840_4_10]	= { "QLogic BCM57840 10 Gigabit Ethernet" },
+	[BCM57840_2_20]	= { "QLogic BCM57840 20 Gigabit Ethernet" },
+	[BCM57840_MF]	= { "QLogic BCM57840 10/20 Gigabit Ethernet Multi Function" },
+	[BCM57840_VF]	= { "QLogic BCM57840 10/20 Gigabit Ethernet Virtual Function" },
+	[BCM57811]	= { "QLogic BCM57811 10 Gigabit Ethernet" },
+	[BCM57811_MF]	= { "QLogic BCM57811 10 Gigabit Ethernet Multi Function" },
+	[BCM57840_O]	= { "QLogic BCM57840 10/20 Gigabit Ethernet" },
+	[BCM57840_MFO]	= { "QLogic BCM57840 10/20 Gigabit Ethernet Multi Function" },
+	[BCM57811_VF]	= { "QLogic BCM57840 10/20 Gigabit Ethernet Virtual Function" }
 };
 
 #ifndef PCI_DEVICE_ID_NX2_57710
@@ -2916,7 +2918,7 @@ static void bnx2x_handle_update_svid_cmd(struct bnx2x *bp)
 	func_params.f_obj = &bp->func_obj;
 	func_params.cmd = BNX2X_F_CMD_SWITCH_UPDATE;
 
-	if (IS_MF_UFP(bp)) {
+	if (IS_MF_UFP(bp) || IS_MF_BD(bp)) {
 		int func = BP_ABS_FUNC(bp);
 		u32 val;
 
@@ -2943,16 +2945,16 @@ static void bnx2x_handle_update_svid_cmd(struct bnx2x *bp)
 			BNX2X_ERR("Failed to configure FW of S-tag Change to %02x\n",
 				  bp->mf_ov);
 			goto fail;
+		} else {
+			DP(BNX2X_MSG_MCP, "Configured S-tag %02x\n",
+			   bp->mf_ov);
 		}
-
-		DP(BNX2X_MSG_MCP, "Configured S-tag %02x\n", bp->mf_ov);
-
-		bnx2x_fw_command(bp, DRV_MSG_CODE_OEM_UPDATE_SVID_OK, 0);
-
-		return;
+	} else {
+		goto fail;
 	}
 
-	/* not supported by SW yet */
+	bnx2x_fw_command(bp, DRV_MSG_CODE_OEM_UPDATE_SVID_OK, 0);
+	return;
 fail:
 	bnx2x_fw_command(bp, DRV_MSG_CODE_OEM_UPDATE_SVID_FAILURE, 0);
 }
@@ -3705,6 +3707,34 @@ out:
 
 	DP(BNX2X_MSG_MCP, "Setting driver version: ETH [%08x] iSCSI [%08x] FCoE [%08x]\n",
 	   ethver, iscsiver, fcoever);
+}
+
+void bnx2x_update_mfw_dump(struct bnx2x *bp)
+{
+	struct timeval epoc;
+	u32 drv_ver;
+	u32 valid_dump;
+
+	if (!SHMEM2_HAS(bp, drv_info))
+		return;
+
+	/* Update Driver load time */
+	do_gettimeofday(&epoc);
+	SHMEM2_WR(bp, drv_info.epoc, epoc.tv_sec);
+
+	drv_ver = bnx2x_update_mng_version_utility(DRV_MODULE_VERSION, true);
+	SHMEM2_WR(bp, drv_info.drv_ver, drv_ver);
+
+	SHMEM2_WR(bp, drv_info.fw_ver, REG_RD(bp, XSEM_REG_PRAM));
+
+	/* Check & notify On-Chip dump. */
+	valid_dump = SHMEM2_RD(bp, drv_info.valid_dump);
+
+	if (valid_dump & FIRST_DUMP_VALID)
+		DP(NETIF_MSG_IFUP, "A valid On-Chip MFW dump found on 1st partition\n");
+
+	if (valid_dump & SECOND_DUMP_VALID)
+		DP(NETIF_MSG_IFUP, "A valid On-Chip MFW dump found on 2nd partition\n");
 }
 
 static void bnx2x_oem_event(struct bnx2x *bp, u32 event)
@@ -5568,6 +5598,8 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_OPEN):
 		case (EVENT_RING_OPCODE_RSS_UPDATE_RULES |
 		      BNX2X_STATE_OPENING_WAIT4_PORT):
+		case (EVENT_RING_OPCODE_RSS_UPDATE_RULES |
+		      BNX2X_STATE_CLOSING_WAIT4_HALT):
 			cid = elem->message.data.eth_event.echo &
 				BNX2X_SWCID_MASK;
 			DP(BNX2X_MSG_SP, "got RSS_UPDATE ramrod. CID %d\n",
@@ -7428,6 +7460,9 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 			bnx2x__common_init_phy(bp);
 	} else
 		BNX2X_ERR("Bootcode is missing - can not initialize link\n");
+
+	if (SHMEM2_HAS(bp, netproc_fw_ver))
+		SHMEM2_WR(bp, netproc_fw_ver, REG_RD(bp, XSEM_REG_PRAM));
 
 	return 0;
 }
@@ -11678,7 +11713,7 @@ static void validate_set_si_mode(struct bnx2x *bp)
 static int bnx2x_get_hwinfo(struct bnx2x *bp)
 {
 	int /*abs*/func = BP_ABS_FUNC(bp);
-	int vn;
+	int vn, mfw_vn;
 	u32 val = 0, val2 = 0;
 	int rc = 0;
 
@@ -11768,6 +11803,7 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 	bp->mf_mode = 0;
 	bp->mf_sub_mode = 0;
 	vn = BP_VN(bp);
+	mfw_vn = BP_FW_MB_IDX(bp);
 
 	if (!CHIP_IS_E1(bp) && !BP_NOMCP(bp)) {
 		BNX2X_DEV_INFO("shmem2base 0x%x, size %d, mfcfg offset %d\n",
@@ -11824,6 +11860,31 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 				} else
 					BNX2X_DEV_INFO("illegal OV for SD\n");
 				break;
+			case SHARED_FEAT_CFG_FORCE_SF_MODE_BD_MODE:
+				bp->mf_mode = MULTI_FUNCTION_SD;
+				bp->mf_sub_mode = SUB_MF_MODE_BD;
+				bp->mf_config[vn] =
+					MF_CFG_RD(bp,
+						  func_mf_config[func].config);
+
+				if (SHMEM2_HAS(bp, mtu_size)) {
+					int mtu_idx = BP_FW_MB_IDX(bp);
+					u16 mtu_size;
+					u32 mtu;
+
+					mtu = SHMEM2_RD(bp, mtu_size[mtu_idx]);
+					mtu_size = (u16)mtu;
+					DP(NETIF_MSG_IFUP, "Read MTU size %04x [%08x]\n",
+					   mtu_size, mtu);
+
+					/* if valid: update device mtu */
+					if (((mtu_size + ETH_HLEN) >=
+					     ETH_MIN_PACKET_SIZE) &&
+					    (mtu_size <=
+					     ETH_MAX_JUMBO_PACKET_SIZE))
+						bp->dev->mtu = mtu_size;
+				}
+				break;
 			case SHARED_FEAT_CFG_FORCE_SF_MODE_UFP_MODE:
 				bp->mf_mode = MULTI_FUNCTION_SD;
 				bp->mf_sub_mode = SUB_MF_MODE_UFP;
@@ -11871,9 +11932,10 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 
 				BNX2X_DEV_INFO("MF OV for func %d is %d (0x%04x)\n",
 					       func, bp->mf_ov, bp->mf_ov);
-			} else if (bp->mf_sub_mode == SUB_MF_MODE_UFP) {
+			} else if ((bp->mf_sub_mode == SUB_MF_MODE_UFP) ||
+				   (bp->mf_sub_mode == SUB_MF_MODE_BD)) {
 				dev_err(&bp->pdev->dev,
-					"Unexpected - no valid MF OV for func %d in UFP mode\n",
+					"Unexpected - no valid MF OV for func %d in UFP/BD mode\n",
 					func);
 				bp->path_has_ovlan = true;
 			} else {
@@ -13561,6 +13623,9 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 
 	bnx2x_register_phc(bp);
 
+	if (!IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp))
+		bnx2x_set_os_driver_state(bp, OS_DRIVER_STATE_DISABLED);
+
 	return 0;
 
 init_one_exit:
@@ -13623,6 +13688,7 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 	/* Power on: we can't let PCI layer write to us while we are in D3 */
 	if (IS_PF(bp)) {
 		bnx2x_set_power_state(bp, PCI_D0);
+		bnx2x_set_os_driver_state(bp, OS_DRIVER_STATE_NOT_LOADED);
 
 		/* Set endianity registers to reset values in case next driver
 		 * boots in different endianty environment.

@@ -1,15 +1,17 @@
-/* bnx2x_sp.c: Broadcom Everest network driver.
+/* bnx2x_sp.c: Qlogic Everest network driver.
  *
- * Copyright (c) 2011-2013 Broadcom Corporation
+ * Copyright 2011-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
- * Unless you and Broadcom execute a separate written software license
+ * Unless you and Qlogic execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2, available
- * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
+ * at http://www.gnu.org/licenses/gpl-2.0.html (the "GPL").
  *
  * Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a
- * license other than the GPL, without Broadcom's express prior written
+ * software in any way with any other Qlogic software provided under a
+ * license other than the GPL, without Qlogic's express prior written
  * consent.
  *
  * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
@@ -4060,8 +4062,14 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 	if (test_bit(BNX2X_RSS_IPV6_UDP, &p->rss_flags))
 		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
 
-	if (test_bit(BNX2X_RSS_GRE_INNER_HDRS, &p->rss_flags))
-		caps |= ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY;
+	if (test_bit(BNX2X_RSS_IPV4_VXLAN, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_VXLAN_CAPABILITY;
+
+	if (test_bit(BNX2X_RSS_IPV6_VXLAN, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY;
+
+	if (test_bit(BNX2X_RSS_TUNN_INNER_HDRS, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_TUNN_INNER_HDRS_CAPABILITY;
 
 	/* RSS keys */
 	if (test_bit(BNX2X_RSS_SET_SRCH, &p->rss_flags)) {
@@ -5669,10 +5677,14 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	rdata->sd_vlan_tag	= cpu_to_le16(start_params->sd_vlan_tag);
 	rdata->path_id		= BP_PATH(bp);
 	rdata->network_cos_mode	= start_params->network_cos_mode;
-	rdata->tunnel_mode	= start_params->tunnel_mode;
-	rdata->gre_tunnel_type	= start_params->gre_tunnel_type;
-	rdata->inner_gre_rss_en = start_params->inner_gre_rss_en;
-	rdata->vxlan_dst_port	= cpu_to_le16(4789);
+
+	rdata->vxlan_dst_port	= cpu_to_le16(start_params->vxlan_dst_port);
+	rdata->geneve_dst_port	= cpu_to_le16(start_params->geneve_dst_port);
+	rdata->inner_clss_l2gre	= start_params->inner_clss_l2gre;
+	rdata->inner_clss_l2geneve = start_params->inner_clss_l2geneve;
+	rdata->inner_clss_vxlan	= start_params->inner_clss_vxlan;
+	rdata->inner_rss	= start_params->inner_rss;
+
 	rdata->sd_accept_mf_clss_fail = start_params->class_fail;
 	if (start_params->class_fail_ethtype) {
 		rdata->sd_accept_mf_clss_fail_match_ethtype = 1;
@@ -5690,6 +5702,14 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 			cpu_to_le16(0x8100);
 
 	rdata->no_added_tags = start_params->no_added_tags;
+
+	rdata->c2s_pri_tt_valid = start_params->c2s_pri_valid;
+	if (rdata->c2s_pri_tt_valid) {
+		memcpy(rdata->c2s_pri_trans_table.val,
+		       start_params->c2s_pri,
+		       MAX_VLAN_PRIORITIES);
+		rdata->c2s_pri_default = start_params->c2s_pri_default;
+	}
 	/* No need for an explicit memory barrier here as long we would
 	 * need to ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
@@ -5750,15 +5770,22 @@ static inline int bnx2x_func_send_switch_update(struct bnx2x *bp,
 	if (test_bit(BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
 		     &switch_update_params->changes)) {
 		rdata->update_tunn_cfg_flg = 1;
-		if (test_bit(BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_L2GRE,
 			     &switch_update_params->changes))
-			rdata->tunn_clss_en = 1;
-		if (test_bit(BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
+			rdata->inner_clss_l2gre = 1;
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_VXLAN,
 			     &switch_update_params->changes))
-			rdata->inner_gre_rss_en = 1;
-		rdata->tunnel_mode = switch_update_params->tunnel_mode;
-		rdata->gre_tunnel_type = switch_update_params->gre_tunnel_type;
-		rdata->vxlan_dst_port = cpu_to_le16(4789);
+			rdata->inner_clss_vxlan = 1;
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_INNER_CLSS_L2GENEVE,
+			     &switch_update_params->changes))
+			rdata->inner_clss_l2geneve = 1;
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_INNER_RSS,
+			     &switch_update_params->changes))
+			rdata->inner_rss = 1;
+		rdata->vxlan_dst_port =
+			cpu_to_le16(switch_update_params->vxlan_dst_port);
+		rdata->geneve_dst_port =
+			cpu_to_le16(switch_update_params->geneve_dst_port);
 	}
 
 	rdata->echo = SWITCH_UPDATE;
@@ -5885,6 +5912,8 @@ static inline int bnx2x_func_send_tx_start(struct bnx2x *bp,
 		rdata->traffic_type_to_priority_cos[i] =
 			tx_start_params->traffic_type_to_priority_cos[i];
 
+	for (i = 0; i < MAX_TRAFFIC_TYPES; i++)
+		rdata->dcb_outer_pri[i] = tx_start_params->dcb_outer_pri[i];
 	/* No need for an explicit memory barrier here as long as we
 	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
