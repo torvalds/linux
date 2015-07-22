@@ -30,6 +30,7 @@
 #include <linux/lockdep.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/blk_types.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
@@ -1375,7 +1376,7 @@ struct super_block {
 	struct list_lru		s_dentry_lru ____cacheline_aligned_in_smp;
 	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
 	struct rcu_head		rcu;
-
+	struct work_struct	destroy_work;
 	/*
 	 * Indicates how deep in a filesystem stack this SB is
 	 */

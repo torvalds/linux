@@ -135,6 +135,24 @@ static unsigned long super_cache_count(struct shrinker *shrink,
 	return total_objects;
 }
 
+static void destroy_super_work(struct work_struct *work)
+{
+	struct super_block *s = container_of(work, struct super_block,
+							destroy_work);
+	int i;
+
+	for (i = 0; i < SB_FREEZE_LEVELS; i++)
+		percpu_counter_destroy(&s->s_writers.counter[i]);
+	kfree(s);
+}
+
+static void destroy_super_rcu(struct rcu_head *head)
+{
+	struct super_block *s = container_of(head, struct super_block, rcu);
+	INIT_WORK(&s->destroy_work, destroy_super_work);
+	schedule_work(&s->destroy_work);
+}
+
 /**
  *	destroy_super	-	frees a superblock
  *	@s: superblock to free
@@ -143,16 +161,13 @@ static unsigned long super_cache_count(struct shrinker *shrink,
  */
 static void destroy_super(struct super_block *s)
 {
-	int i;
 	list_lru_destroy(&s->s_dentry_lru);
 	list_lru_destroy(&s->s_inode_lru);
-	for (i = 0; i < SB_FREEZE_LEVELS; i++)
-		percpu_counter_destroy(&s->s_writers.counter[i]);
 	security_sb_free(s);
 	WARN_ON(!list_empty(&s->s_mounts));
 	kfree(s->s_subtype);
 	kfree(s->s_options);
-	kfree_rcu(s, rcu);
+	call_rcu(&s->rcu, destroy_super_rcu);
 }
 
 /**
