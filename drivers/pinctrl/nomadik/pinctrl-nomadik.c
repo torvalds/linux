@@ -2102,15 +2102,15 @@ static struct platform_driver nmk_pinctrl_driver = {
 
 static int __init nmk_gpio_init(void)
 {
-	int ret;
+	return platform_driver_register(&nmk_gpio_driver);
+}
+subsys_initcall(nmk_gpio_init);
 
-	ret = platform_driver_register(&nmk_gpio_driver);
-	if (ret)
-		return ret;
+static int __init nmk_pinctrl_init(void)
+{
 	return platform_driver_register(&nmk_pinctrl_driver);
 }
-
-core_initcall(nmk_gpio_init);
+core_initcall(nmk_pinctrl_init);
 
 MODULE_AUTHOR("Prafulla WADASKAR and Alessandro Rubini");
 MODULE_DESCRIPTION("Nomadik GPIO Driver");
