@@ -164,7 +164,7 @@ static void mwifiex_tdls_add_aid(struct mwifiex_private *priv,
 	pos = (void *)skb_put(skb, 4);
 	*pos++ = WLAN_EID_AID;
 	*pos++ = 2;
-	*pos++ = le16_to_cpu(assoc_rsp->a_id);
+	memcpy(pos, &assoc_rsp->a_id, sizeof(assoc_rsp->a_id));
 
 	return;
 }
