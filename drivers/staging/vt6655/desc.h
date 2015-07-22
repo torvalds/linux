@@ -170,7 +170,6 @@
 typedef struct tagDEVICE_RD_INFO {
 	struct sk_buff *skb;
 	dma_addr_t  skb_dma;
-	dma_addr_t  curr_desc;
 } DEVICE_RD_INFO,   *PDEVICE_RD_INFO;
 
 #ifdef __BIG_ENDIAN
