@@ -27,8 +27,7 @@
 #include "cgs_common.h"
 #include "power_state.h"
 #include "hwmgr.h"
-
-
+#include "cz_hwmgr.h"
 
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -51,6 +50,9 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->power_source = PP_PowerSource_AC;
 
 	switch (hwmgr->chip_family) {
+	case AMD_FAMILY_CZ:
+		cz_hwmgr_init(hwmgr);
+		break;
 	default:
 		return -EINVAL;
 	}

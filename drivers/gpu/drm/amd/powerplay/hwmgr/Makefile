@@ -3,7 +3,7 @@
 # It provides the hardware management services for the driver.
 
 HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
-	       hardwaremanager.o pp_acpi.o
+	       hardwaremanager.o pp_acpi.o cz_hwmgr.o
 
 AMD_PP_HWMGR = $(addprefix $(AMD_PP_PATH)/hwmgr/,$(HARDWARE_MGR))
 
