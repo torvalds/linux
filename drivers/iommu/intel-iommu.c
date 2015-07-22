@@ -4648,10 +4648,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		old_domain = find_domain(dev);
 		if (old_domain) {
 			rcu_read_lock();
-			if (domain_type_is_vm_or_si(dmar_domain))
-				dmar_remove_one_dev_info(old_domain, dev);
-			else
-				domain_remove_dev_info(old_domain);
+			dmar_remove_one_dev_info(old_domain, dev);
 			rcu_read_unlock();
 
 			if (!domain_type_is_vm_or_si(old_domain) &&
