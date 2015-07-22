@@ -1686,7 +1686,7 @@ static int vxlan6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 			   struct sk_buff *skb,
 			   struct net_device *dev, struct in6_addr *saddr,
 			   struct in6_addr *daddr, __u8 prio, __u8 ttl,
-			   __be16 src_port, __be16 dst_port, __u32 vni,
+			   __be16 src_port, __be16 dst_port, __be32 vni,
 			   struct vxlan_metadata *md, bool xnet, u32 vxflags)
 {
 	struct vxlanhdr *vxh;
@@ -1771,7 +1771,7 @@ err:
 
 static int vxlan_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			  __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
-			  __be16 src_port, __be16 dst_port, __u32 vni,
+			  __be16 src_port, __be16 dst_port, __be32 vni,
 			  struct vxlan_metadata *md, bool xnet, u32 vxflags)
 {
 	struct vxlanhdr *vxh;
