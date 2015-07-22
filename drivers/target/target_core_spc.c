@@ -1390,9 +1390,6 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		}
 		break;
 	default:
-		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
-			" 0x%02x, sending CHECK_CONDITION.\n",
-			cmd->se_tfo->get_fabric_name(), cdb[0]);
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 

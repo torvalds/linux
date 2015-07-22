@@ -1247,6 +1247,11 @@ target_setup_cmd_from_cdb(struct se_cmd *cmd, unsigned char *cdb)
 	}
 
 	ret = dev->transport->parse_cdb(cmd);
+	if (ret == TCM_UNSUPPORTED_SCSI_OPCODE)
+		pr_warn_ratelimited("%s/%s: Unsupported SCSI Opcode 0x%02x, sending CHECK_CONDITION.\n",
+				    cmd->se_tfo->get_fabric_name(),
+				    cmd->se_sess->se_node_acl->initiatorname,
+				    cmd->t_task_cdb[0]);
 	if (ret)
 		return ret;
 
