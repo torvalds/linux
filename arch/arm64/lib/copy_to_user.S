@@ -15,7 +15,11 @@
  */
 
 #include <linux/linkage.h>
+
+#include <asm/alternative.h>
 #include <asm/assembler.h>
+#include <asm/cpufeature.h>
+#include <asm/sysreg.h>
 
 /*
  * Copy to user space from a kernel buffer (alignment handled by the hardware)
@@ -28,6 +32,8 @@
  *	x0 - bytes not copied
  */
 ENTRY(__copy_to_user)
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_HAS_PAN, \
+	    CONFIG_ARM64_PAN)
 	add	x5, x0, x2			// upper user buffer boundary
 	subs	x2, x2, #16
 	b.mi	1f
@@ -56,6 +62,8 @@ USER(9f, strh	w3, [x0], #2	)
 	ldrb	w3, [x1]
 USER(9f, strb	w3, [x0]	)
 5:	mov	x0, #0
+ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_HAS_PAN, \
+	    CONFIG_ARM64_PAN)
 	ret
 ENDPROC(__copy_to_user)
 

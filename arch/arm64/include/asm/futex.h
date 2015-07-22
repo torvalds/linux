@@ -20,10 +20,16 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
+
+#include <asm/alternative.h>
+#include <asm/cpufeature.h>
 #include <asm/errno.h>
+#include <asm/sysreg.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, tmp, oparg)		\
 	asm volatile(							\
+	ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,		\
+		    CONFIG_ARM64_PAN)					\
 "1:	ldxr	%w1, %2\n"						\
 	insn "\n"							\
 "2:	stlxr	%w3, %w0, %2\n"						\
@@ -39,6 +45,8 @@
 "	.align	3\n"							\
 "	.quad	1b, 4b, 2b, 4b\n"					\
 "	.popsection\n"							\
+	ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,		\
+		    CONFIG_ARM64_PAN)					\
 	: "=&r" (ret), "=&r" (oldval), "+Q" (*uaddr), "=&r" (tmp)	\
 	: "r" (oparg), "Ir" (-EFAULT)					\
 	: "memory")

@@ -20,6 +20,8 @@
 #ifndef __ASM_SYSREG_H
 #define __ASM_SYSREG_H
 
+#include <asm/opcodes.h>
+
 #define SCTLR_EL1_CP15BEN	(0x1 << 5)
 #define SCTLR_EL1_SED		(0x1 << 8)
 
@@ -35,6 +37,12 @@
  */
 #define sys_reg(op0, op1, crn, crm, op2) \
 	((((op0)&3)<<19)|((op1)<<16)|((crn)<<12)|((crm)<<8)|((op2)<<5))
+
+#define REG_PSTATE_PAN_IMM                     sys_reg(0, 0, 4, 0, 4)
+#define SCTLR_EL1_SPAN                         (1 << 23)
+
+#define SET_PSTATE_PAN(x) __inst_arm(0xd5000000 | REG_PSTATE_PAN_IMM |\
+				     (!!x)<<8 | 0x1f)
 
 #ifdef __ASSEMBLY__
 
