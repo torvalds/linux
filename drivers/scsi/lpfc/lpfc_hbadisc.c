@@ -701,7 +701,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 								HA_RXMASK));
 			}
 		}
-		if ((phba->sli_rev == LPFC_SLI_REV4) &
+		if ((phba->sli_rev == LPFC_SLI_REV4) &&
 				 (!list_empty(&pring->txq)))
 			lpfc_drain_txq(phba);
 		/*
