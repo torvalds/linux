@@ -30,7 +30,7 @@ static void derive_crypt_complete(struct crypto_async_request *req, int rc)
 
 /**
  * ext4_derive_key_aes() - Derive a key using AES-128-ECB
- * @deriving_key: Encryption key used for derivatio.
+ * @deriving_key: Encryption key used for derivation.
  * @source_key:   Source key to which to apply derivation.
  * @derived_key:  Derived key.
  *
