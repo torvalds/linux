@@ -183,6 +183,10 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	connection->bundle = bundle;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
+	atomic_set(&connection->op_cycle, 0);
+	spin_lock_init(&connection->lock);
+	INIT_LIST_HEAD(&connection->operations);
+
 	connection->dev.parent = parent;
 	connection->dev.bus = &greybus_bus_type;
 	connection->dev.type = &greybus_connection_type;
@@ -214,10 +218,6 @@ gb_connection_create_range(struct greybus_host_device *hd,
 		INIT_LIST_HEAD(&connection->bundle_links);
 
 	spin_unlock_irq(&gb_connections_lock);
-
-	atomic_set(&connection->op_cycle, 0);
-	spin_lock_init(&connection->lock);
-	INIT_LIST_HEAD(&connection->operations);
 
 	/* XXX Will have to establish connections to get version */
 	gb_connection_bind_protocol(connection);
