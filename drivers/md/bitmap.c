@@ -680,7 +680,7 @@ out:
 	kunmap_atomic(sb);
 	/* Assiging chunksize is required for "re_read" */
 	bitmap->mddev->bitmap_info.chunksize = chunksize;
-	if (nodes && (bitmap->cluster_slot < 0)) {
+	if (err == 0 && nodes && (bitmap->cluster_slot < 0)) {
 		err = md_setup_cluster(bitmap->mddev, nodes);
 		if (err) {
 			pr_err("%s: Could not setup cluster service (%d)\n",
