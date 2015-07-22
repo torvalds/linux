@@ -80,11 +80,10 @@ static void bcm7120_l2_intc_irq_handle(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void bcm7120_l2_intc_suspend(struct irq_data *d)
+static void bcm7120_l2_intc_suspend(struct irq_chip_generic *gc)
 {
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	struct bcm7120_l2_intc_data *b = gc->private;
+	struct irq_chip_type *ct = gc->chip_types;
 
 	irq_gc_lock(gc);
 	if (b->can_wake)
@@ -93,10 +92,9 @@ static void bcm7120_l2_intc_suspend(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-static void bcm7120_l2_intc_resume(struct irq_data *d)
+static void bcm7120_l2_intc_resume(struct irq_chip_generic *gc)
 {
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	struct irq_chip_type *ct = irq_data_get_chip_type(d);
+	struct irq_chip_type *ct = gc->chip_types;
 
 	/* Restore the saved mask */
 	irq_gc_lock(gc);
@@ -279,8 +277,15 @@ int __init bcm7120_l2_intc_probe(struct device_node *dn,
 		ct->chip.irq_mask = irq_gc_mask_clr_bit;
 		ct->chip.irq_unmask = irq_gc_mask_set_bit;
 		ct->chip.irq_ack = irq_gc_noop;
-		ct->chip.irq_suspend = bcm7120_l2_intc_suspend;
-		ct->chip.irq_resume = bcm7120_l2_intc_resume;
+		gc->suspend = bcm7120_l2_intc_suspend;
+		gc->resume = bcm7120_l2_intc_resume;
+
+		/*
+		 * Initialize mask-cache, in case we need it for
+		 * saving/restoring fwd mask even w/o any child interrupts
+		 * installed
+		 */
+		gc->mask_cache = irq_reg_readl(gc, ct->regs.mask);
 
 		if (data->can_wake) {
 			/* This IRQ chip can wake the system, set all
