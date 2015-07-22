@@ -1171,6 +1171,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			new_fa->fa_state = state & ~FA_S_ACCESSED;
 			new_fa->fa_slen = fa->fa_slen;
 			new_fa->tb_id = tb->tb_id;
+			new_fa->fa_default = -1;
 
 			err = switchdev_fib_ipv4_add(key, plen, fi,
 						     new_fa->fa_tos,
@@ -1222,6 +1223,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	new_fa->fa_state = 0;
 	new_fa->fa_slen = slen;
 	new_fa->tb_id = tb->tb_id;
+	new_fa->fa_default = -1;
 
 	/* (Optionally) offload fib entry to switch hardware. */
 	err = switchdev_fib_ipv4_add(key, plen, fi, tos, cfg->fc_type,
@@ -1990,7 +1992,6 @@ struct fib_table *fib_trie_table(u32 id, struct fib_table *alias)
 		return NULL;
 
 	tb->tb_id = id;
-	tb->tb_default = -1;
 	tb->tb_num_default = 0;
 	tb->tb_data = (alias ? alias->__data : tb->__data);
 
