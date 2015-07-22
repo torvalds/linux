@@ -104,6 +104,25 @@ static inline unsigned long nx842_get_pa(void *addr)
 #define GET_FIELD(v, m)		(((v) & (m)) >> MASK_LSH(m))
 #define SET_FIELD(v, m, val)	(((v) & ~(m)) | (((val) << MASK_LSH(m)) & (m)))
 
+/**
+ * This provides the driver's constraints.  Different nx842 implementations
+ * may have varying requirements.  The constraints are:
+ *   @alignment:	All buffers should be aligned to this
+ *   @multiple:		All buffer lengths should be a multiple of this
+ *   @minimum:		Buffer lengths must not be less than this amount
+ *   @maximum:		Buffer lengths must not be more than this amount
+ *
+ * The constraints apply to all buffers and lengths, both input and output,
+ * for both compression and decompression, except for the minimum which
+ * only applies to compression input and decompression output; the
+ * compressed data can be less than the minimum constraint.  It can be
+ * assumed that compressed data will always adhere to the multiple
+ * constraint.
+ *
+ * The driver may succeed even if these constraints are violated;
+ * however the driver can return failure or suffer reduced performance
+ * if any constraint is not met.
+ */
 struct nx842_constraints {
 	int alignment;
 	int multiple;
@@ -131,14 +150,5 @@ bool nx842_platform_driver_set(struct nx842_driver *driver);
 void nx842_platform_driver_unset(struct nx842_driver *driver);
 bool nx842_platform_driver_get(void);
 void nx842_platform_driver_put(void);
-
-size_t nx842_workmem_size(void);
-
-int nx842_constraints(struct nx842_constraints *constraints);
-
-int nx842_compress(const unsigned char *in, unsigned int in_len,
-		   unsigned char *out, unsigned int *out_len, void *wrkmem);
-int nx842_decompress(const unsigned char *in, unsigned int in_len,
-		     unsigned char *out, unsigned int *out_len, void *wrkmem);
 
 #endif /* __NX_842_H__ */
