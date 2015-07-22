@@ -123,9 +123,6 @@ static void rk3288_slp_mode_set(int level)
 	regmap_write(sgrf_regmap, RK3288_SGRF_FAST_BOOT_ADDR,
 		     rk3288_bootram_phy);
 
-	regmap_write(pmu_regmap, RK3288_PMU_WAKEUP_CFG1,
-		     PMU_ARMINT_WAKEUP_EN);
-
 	mode_set = BIT(PMU_GLOBAL_INT_DISABLE) | BIT(PMU_L2FLUSH_EN) |
 		   BIT(PMU_SREF0_ENTER_EN) | BIT(PMU_SREF1_ENTER_EN) |
 		   BIT(PMU_DDR0_GATING_EN) | BIT(PMU_DDR1_GATING_EN) |
@@ -146,6 +143,9 @@ static void rk3288_slp_mode_set(int level)
 		mode_set1 |= BIT(PMU_CLR_ALIVE) | BIT(PMU_CLR_BUS) |
 			     BIT(PMU_CLR_PERI) | BIT(PMU_CLR_DMA);
 
+		regmap_write(pmu_regmap, RK3288_PMU_WAKEUP_CFG1,
+			     PMU_ARMINT_WAKEUP_EN);
+
 		/*
 		 * In deep suspend we use PMU_PMU_USE_LF to let the rk3288
 		 * switch its main clock supply to the alternative 32kHz
@@ -165,6 +165,9 @@ static void rk3288_slp_mode_set(int level)
 		 * wakeup will be error
 		 */
 		mode_set |= BIT(PMU_CLK_CORE_SRC_GATE_EN);
+
+		regmap_write(pmu_regmap, RK3288_PMU_WAKEUP_CFG1,
+			     PMU_ARMINT_WAKEUP_EN | PMU_GPIOINT_WAKEUP_EN);
 
 		/* 30ms on a 24MHz clock for pmic stabilization */
 		regmap_write(pmu_regmap, RK3288_PMU_STABL_CNT, 24000 * 30);
