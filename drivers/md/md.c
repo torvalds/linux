@@ -5365,6 +5365,8 @@ static void __md_stop(struct mddev *mddev)
 {
 	struct md_personality *pers = mddev->pers;
 	mddev_detach(mddev);
+	/* Ensure ->event_work is done */
+	flush_workqueue(md_misc_wq);
 	spin_lock(&mddev->lock);
 	mddev->ready = 0;
 	mddev->pers = NULL;
