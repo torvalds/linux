@@ -324,8 +324,10 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @irq_bus_sync_unlock:function to sync and unlock slow bus (i2c) chips
  * @irq_cpu_online:	configure an interrupt source for a secondary CPU
  * @irq_cpu_offline:	un-configure an interrupt source for a secondary CPU
- * @irq_suspend:	function called from core code on suspend once per chip
- * @irq_resume:		function called from core code on resume once per chip
+ * @irq_suspend:	function called from core code on suspend once per
+ *			chip, when one or more interrupts are installed
+ * @irq_resume:		function called from core code on resume once per chip,
+ *			when one ore more interrupts are installed
  * @irq_pm_shutdown:	function called from core code on shutdown once per chip
  * @irq_calc_mask:	Optional function to set irq_data.mask for special cases
  * @irq_print_chip:	optional to print special chip info in show_interrupts
@@ -760,6 +762,12 @@ struct irq_chip_type {
  * @reg_base:		Register base address (virtual)
  * @reg_readl:		Alternate I/O accessor (defaults to readl if NULL)
  * @reg_writel:		Alternate I/O accessor (defaults to writel if NULL)
+ * @suspend:		Function called from core code on suspend once per
+ *			chip; can be useful instead of irq_chip::suspend to
+ *			handle chip details even when no interrupts are in use
+ * @resume:		Function called from core code on resume once per chip;
+ *			can be useful instead of irq_chip::suspend to handle
+ *			chip details even when no interrupts are in use
  * @irq_base:		Interrupt base nr for this chip
  * @irq_cnt:		Number of interrupts handled by this chip
  * @mask_cache:		Cached mask register shared between all chip types
@@ -786,6 +794,8 @@ struct irq_chip_generic {
 	void __iomem		*reg_base;
 	u32			(*reg_readl)(void __iomem *addr);
 	void			(*reg_writel)(u32 val, void __iomem *addr);
+	void			(*suspend)(struct irq_chip_generic *gc);
+	void			(*resume)(struct irq_chip_generic *gc);
 	unsigned int		irq_base;
 	unsigned int		irq_cnt;
 	u32			mask_cache;
