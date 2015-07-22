@@ -979,8 +979,10 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 			mwifiex_cancel_pending_ioctl(adapter);
 		}
 	}
-	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING) {
 		mwifiex_init_fw_complete(adapter);
+		return;
+	}
 
 	if (adapter->if_ops.device_dump)
 		adapter->if_ops.device_dump(adapter);
