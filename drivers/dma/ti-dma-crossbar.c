@@ -20,6 +20,9 @@
 #define TI_XBAR_OUTPUTS	127
 #define TI_XBAR_INPUTS	256
 
+#define TI_XBAR_EDMA_OFFSET	0
+#define TI_XBAR_SDMA_OFFSET	1
+
 struct ti_dma_xbar_data {
 	void __iomem *iomem;
 
@@ -29,6 +32,7 @@ struct ti_dma_xbar_data {
 	u16 safe_val; /* Value to rest the crossbar lines */
 	u32 xbar_requests; /* number of DMA requests connected to XBAR */
 	u32 dma_requests; /* number of DMA requests forwarded to DMA */
+	u32 dma_offset;
 };
 
 struct ti_dma_xbar_map {
@@ -84,8 +88,7 @@ static void *ti_dma_xbar_route_allocate(struct of_phandle_args *dma_spec,
 				  GFP_KERNEL);
 	map->xbar_in = (u16)dma_spec->args[0];
 
-	/* The DMA request is 1 based in sDMA */
-	dma_spec->args[0] = map->xbar_out + 1;
+	dma_spec->args[0] = map->xbar_out + xbar->dma_offset;
 
 	dev_dbg(&pdev->dev, "Mapping XBAR%u to DMA%d\n",
 		map->xbar_in, map->xbar_out);
@@ -95,9 +98,22 @@ static void *ti_dma_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	return map;
 }
 
+static const struct of_device_id ti_dma_master_match[] = {
+	{
+		.compatible = "ti,omap4430-sdma",
+		.data = (void *)TI_XBAR_SDMA_OFFSET,
+	},
+	{
+		.compatible = "ti,edma3",
+		.data = (void *)TI_XBAR_EDMA_OFFSET,
+	},
+	{},
+};
+
 static int ti_dma_xbar_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	const struct of_device_id *match;
 	struct device_node *dma_node;
 	struct ti_dma_xbar_data *xbar;
 	struct resource *res;
@@ -118,6 +134,12 @@ static int ti_dma_xbar_probe(struct platform_device *pdev)
 	if (!dma_node) {
 		dev_err(&pdev->dev, "Can't get DMA master node\n");
 		return -ENODEV;
+	}
+
+	match = of_match_node(ti_dma_master_match, dma_node);
+	if (!match) {
+		dev_err(&pdev->dev, "DMA master is not supported\n");
+		return -EINVAL;
 	}
 
 	if (of_property_read_u32(dma_node, "dma-requests",
@@ -151,6 +173,7 @@ static int ti_dma_xbar_probe(struct platform_device *pdev)
 
 	xbar->dmarouter.dev = &pdev->dev;
 	xbar->dmarouter.route_free = ti_dma_xbar_free;
+	xbar->dma_offset = (u32)match->data;
 
 	platform_set_drvdata(pdev, xbar);
 
