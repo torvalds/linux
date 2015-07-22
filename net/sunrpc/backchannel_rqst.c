@@ -336,7 +336,7 @@ void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied)
 
 	spin_lock(&xprt->bc_pa_lock);
 	list_del(&req->rq_bc_pa_list);
-	xprt->bc_alloc_count--;
+	xprt_dec_alloc_count(xprt, 1);
 	spin_unlock(&xprt->bc_pa_lock);
 
 	req->rq_private_buf.len = copied;
