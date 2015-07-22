@@ -1448,6 +1448,10 @@ dw_hdmi_connector_mode_valid(struct drm_connector *connector,
 					   struct dw_hdmi, connector);
 	enum drm_mode_status mode_status = MODE_OK;
 
+	/* We don't support double-clocked modes */
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		return MODE_BAD;
+
 	if (hdmi->plat_data->mode_valid)
 		mode_status = hdmi->plat_data->mode_valid(connector, mode);
 
