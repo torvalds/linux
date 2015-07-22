@@ -41,6 +41,7 @@
  */
 #include "imx6qdl-microsom.dtsi"
 #include "imx6qdl-microsom-ar8035.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	chosen {
@@ -288,6 +289,6 @@
 		&pinctrl_hummingboard_usdhc2
 	>;
 	vmmc-supply = <&reg_3p3v>;
-	cd-gpios = <&gpio1 4 0>;
+	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
