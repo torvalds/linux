@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
+use IPC::Open3;
 
 ## Copyright (c) 1998 Michael Zucchi, All Rights Reserved        ##
 ## Copyright (C) 2000, 1  Tim Waugh <twaugh@redhat.com>          ##
@@ -282,6 +283,7 @@ if ($#ARGV == -1) {
 
 my $kernelversion;
 my $dohighlight = "";
+my $use_markdown = 0;
 
 my $verbose = 0;
 my $output_mode = "man";
@@ -424,6 +426,8 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$function_only = 2;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
+    } elsif ($cmd eq "-use-markdown") {
+	$use_markdown = 1;
     } elsif ($cmd eq "-v") {
 	$verbose = 1;
     } elsif (($cmd eq "-h") || ($cmd eq "--help")) {
@@ -442,6 +446,7 @@ sub usage {
     print "         [ -no-doc-sections ]\n";
     print "         [ -function funcname [ -function funcname ...] ]\n";
     print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
+    print "         [ -use-markdown ]\n";
     print "         [ -v ]\n";
     print "         c source file(s) > outputfile\n";
     print "         -v : verbose output, more warnings & other info listed\n";
@@ -515,6 +520,49 @@ sub dump_doc_section {
     }
 }
 
+sub markdown_to_docbook {
+	my $orig_content = $_[0];
+
+	my $pid = open3( \*CHLD_IN, \*CHLD_OUT, \*CHLD_ERR, "pandoc  --columns=80 -f markdown -t docbook" );
+
+	print CHLD_IN "$orig_content";
+	close(CHLD_IN);
+
+	waitpid($pid, 0);
+
+	my $content = "";
+	chomp(my @lines = <CHLD_OUT>);
+	foreach my $line (@lines) {
+		$content .= $line . "\n";
+	}
+	close(CHLD_OUT);
+	close(CHLD_ERR);
+
+	# pandoc insists in adding Main <para></para>, we should remove them.
+	$content =~ s:\A\s*<para>\s*\n(.*)\n</para>\Z$:$1:egsm;
+
+	return $content;
+}
+
+# Markdown->Docbook conversion by pandoc requires unescaped text
+# Kernel-doc converts every & to "&amp;", we need to convert it back.
+sub markdown_unescape
+{
+	my $text = shift;
+	my @lines = split /\n/, $text;
+
+	my @result;
+	foreach my $line (@lines) {
+		if ( $line =~ m /^    /s ) {
+			$line =~ s:\&amp;:\&:gs
+		}
+		push @result, $line;
+	}
+
+	return join "\n",@result;
+
+}
+
 ##
 # output function
 #
@@ -541,11 +589,19 @@ sub output_highlight {
 	$contents = local_unescape($contents);
 	# convert data read & converted thru xml_escape() into &xyz; format:
 	$contents =~ s/\\\\\\/\&/g;
+
+	if ($use_markdown) {
+		$contents = markdown_unescape($contents);
+	}
     }
+
 #   print STDERR "contents b4:$contents\n";
     eval $dohighlight;
     die $@ if $@;
 #   print STDERR "contents af:$contents\n";
+    if ($use_markdown) {
+        $contents = markdown_to_docbook($contents);
+    }
 
 #   strip whitespaces when generating html5
     if ($output_mode eq "html5") {
@@ -553,7 +609,8 @@ sub output_highlight {
 	$contents =~ s/\s+$//;
     }
     foreach $line (split "\n", $contents) {
-	if (! $output_preformatted) {
+	if (! $output_preformatted &&
+	    !($use_markdown && $line =~ m /^    /s)) {
 	    $line =~ s/^\s*//;
 	}
 	if ($line eq ""){
@@ -974,7 +1031,9 @@ sub output_section_xml(%) {
 	print "<refsect1>\n";
 	print "<title>$section</title>\n";
 	if ($section =~ m/EXAMPLE/i) {
-	    print "<informalexample><programlisting>\n";
+	    print "<informalexample>\n";
+	    # programlisting is already included by pandoc
+	    print "<programlisting>\n" unless $use_markdown;
 	    $output_preformatted = 1;
 	} else {
 	    print "<para>\n";
@@ -982,7 +1041,8 @@ sub output_section_xml(%) {
 	output_highlight($args{'sections'}{$section});
 	$output_preformatted = 0;
 	if ($section =~ m/EXAMPLE/i) {
-	    print "</programlisting></informalexample>\n";
+	    print "</programlisting>\n" unless $use_markdown;
+	    print "</informalexample>\n";
 	} else {
 	    print "</para>\n";
 	}

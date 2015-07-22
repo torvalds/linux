@@ -17,6 +17,8 @@ DOCBOOKS := z8530book.xml device-drivers.xml \
 	    tracepoint.xml gpu.xml media_api.xml w1.xml \
 	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
 
+MARKDOWNREADY := 
+
 include Documentation/DocBook/media/Makefile
 
 ###
@@ -87,18 +89,23 @@ XMLTOFLAGS += --skip-validation
 # The following rules are used to generate the .xml documentation
 # required to generate the final targets. (ps, pdf, html).
 quiet_cmd_docproc = DOCPROC $@
-      cmd_docproc = SRCTREE=$(srctree)/ $(DOCPROC) doc $< >$@
+      cmd_docproc = SRCTREE=$(srctree)/ $(DOCPROC) doc $<
 define rule_docproc
-	set -e;								\
-        $(if $($(quiet)cmd_$(1)),echo '  $($(quiet)cmd_$(1))';) 	\
-        $(cmd_$(1)); 							\
-        ( 								\
-          echo 'cmd_$@ := $(cmd_$(1))'; 				\
-          echo $@: `SRCTREE=$(srctree) $(DOCPROC) depend $<`; 		\
+	set -e;									\
+	USEMARKDOWN="";								\
+	FILE=`basename $@`;							\
+	[[ "$(MARKDOWNREADY)" =~ "$${FILE}" ]] && USEMARKDOWN="-use-markdown";	\
+        $(if $($(quiet)cmd_$(1)),echo '  $($(quiet)cmd_$(1))';) 		\
+        $(cmd_$(1)) $$USEMARKDOWN >$@;						\
+        ( 									\
+          echo 'cmd_$@ := $(cmd_$(1))';				 		\
+          echo $@: `SRCTREE=$(srctree) $(DOCPROC) depend $<`;			\
         ) > $(dir $@).$(notdir $@).cmd
 endef
 
 %.xml: %.tmpl $(KERNELDOC) $(DOCPROC) $(KERNELDOCXMLREF) FORCE
+	@(which pandoc > /dev/null 2>&1) || \
+	(echo "*** To get propper documentation you need to install pandoc ***";)
 	$(call if_changed_rule,docproc)
 
 # Tell kbuild to always build the programs
@@ -108,6 +115,10 @@ notfoundtemplate = echo "*** You have to install docbook-utils or xmlto ***"; \
 		   exit 1
 db2xtemplate = db2TYPE -o $(dir $@) $<
 xmltotemplate = xmlto TYPE $(XMLTOFLAGS) -o $(dir $@) $<
+
+ifneq ($(shell which pandoc >/dev/null 2>&1 && echo found),found)
+	MARKDOWNREADY := "";
+endif
 
 # determine which methods are available
 ifeq ($(shell which db2ps >/dev/null 2>&1 && echo found),found)
