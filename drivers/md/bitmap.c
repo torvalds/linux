@@ -494,7 +494,7 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	bitmap_super_t *sb;
 	unsigned long chunksize, daemon_sleep, write_behind;
 
-	bitmap->storage.sb_page = alloc_page(GFP_KERNEL);
+	bitmap->storage.sb_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (bitmap->storage.sb_page == NULL)
 		return -ENOMEM;
 	bitmap->storage.sb_page->index = 0;
@@ -541,6 +541,7 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	sb->state = cpu_to_le32(bitmap->flags);
 	bitmap->events_cleared = bitmap->mddev->events;
 	sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
+	bitmap->mddev->bitmap_info.nodes = 0;
 
 	kunmap_atomic(sb);
 
@@ -611,8 +612,16 @@ re_read:
 	daemon_sleep = le32_to_cpu(sb->daemon_sleep) * HZ;
 	write_behind = le32_to_cpu(sb->write_behind);
 	sectors_reserved = le32_to_cpu(sb->sectors_reserved);
-	nodes = le32_to_cpu(sb->nodes);
-	strlcpy(bitmap->mddev->bitmap_info.cluster_name, sb->cluster_name, 64);
+	/* XXX: This is a hack to ensure that we don't use clustering
+	 *  in case:
+	 *	- dm-raid is in use and
+	 *	- the nodes written in bitmap_sb is erroneous.
+	 */
+	if (!bitmap->mddev->sync_super) {
+		nodes = le32_to_cpu(sb->nodes);
+		strlcpy(bitmap->mddev->bitmap_info.cluster_name,
+				sb->cluster_name, 64);
+	}
 
 	/* verify that the bitmap-specific fields are valid */
 	if (sb->magic != cpu_to_le32(BITMAP_MAGIC))
