@@ -828,6 +828,23 @@ struct rc_filter_attribute {
 		.mask = (_mask),					\
 	}
 
+static bool lirc_is_present(void)
+{
+#if defined(CONFIG_LIRC_MODULE)
+	struct module *lirc;
+
+	mutex_lock(&module_mutex);
+	lirc = find_module("lirc_dev");
+	mutex_unlock(&module_mutex);
+
+	return lirc ? true : false;
+#elif defined(CONFIG_LIRC)
+	return true;
+#else
+	return false;
+#endif
+}
+
 /**
  * show_protocols() - shows the current/wakeup IR protocol(s)
  * @device:	the device descriptor
@@ -884,7 +901,7 @@ static ssize_t show_protocols(struct device *device,
 			allowed &= ~proto_names[i].type;
 	}
 
-	if (dev->driver_type == RC_DRIVER_IR_RAW)
+	if (dev->driver_type == RC_DRIVER_IR_RAW && lirc_is_present())
 		tmp += sprintf(tmp, "[lirc] ");
 
 	if (tmp != buf)
