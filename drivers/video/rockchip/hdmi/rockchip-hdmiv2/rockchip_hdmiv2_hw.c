@@ -318,9 +318,10 @@ static const struct phy_mpll_config_tab *get_phy_mpll_tab(
 static void rockchip_hdmiv2_powerdown(struct hdmi_dev *hdmi_dev)
 {
 	hdmi_msk_reg(hdmi_dev, PHY_CONF0,
-		     m_PDDQ_SIG | m_TXPWRON_SIG | m_ENHPD_RXSENSE_SIG,
+		     m_PDDQ_SIG | m_TXPWRON_SIG |
+		     m_ENHPD_RXSENSE_SIG | m_SVSRET_SIG,
 		     v_PDDQ_SIG(1) | v_TXPWRON_SIG(0) |
-		     v_ENHPD_RXSENSE_SIG(1));
+		     v_ENHPD_RXSENSE_SIG(1)) | v_SVSRET_SIG(0);
 	hdmi_writel(hdmi_dev, MC_CLKDIS, 0x7f);
 }
 
