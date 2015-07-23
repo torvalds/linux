@@ -446,30 +446,49 @@ static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+/**
+ * mei_cl_device_probe - bus probe function
+ *
+ * @dev: device
+ *
+ * Return:  0 on success; < 0 otherwise
+ */
 static int mei_cl_device_probe(struct device *dev)
 {
-	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	struct mei_cl_device *cldev;
 	struct mei_cl_driver *cldrv;
-	struct mei_cl_device_id id;
+	const struct mei_cl_device_id *id;
+
+	cldev = to_mei_cl_device(dev);
+	cldrv = to_mei_cl_driver(dev->driver);
 
 	if (!cldev)
 		return 0;
 
-	cldrv = to_mei_cl_driver(dev->driver);
 	if (!cldrv || !cldrv->probe)
 		return -ENODEV;
 
-	dev_dbg(dev, "Device probe\n");
+	id = mei_cl_device_find(cldev, cldrv);
+	if (!id)
+		return -ENODEV;
 
-	strlcpy(id.name, cldev->name, sizeof(id.name));
+	__module_get(THIS_MODULE);
 
-	return cldrv->probe(cldev, &id);
+	return cldrv->probe(cldev, id);
 }
 
+/**
+ * mei_cl_device_remove - remove device from the bus
+ *
+ * @dev: device
+ *
+ * Return:  0 on success; < 0 otherwise
+ */
 static int mei_cl_device_remove(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	struct mei_cl_driver *cldrv;
+	int ret = 0;
 
 	if (!cldev || !dev->driver)
 		return 0;
@@ -480,13 +499,13 @@ static int mei_cl_device_remove(struct device *dev)
 	}
 
 	cldrv = to_mei_cl_driver(dev->driver);
-	if (!cldrv->remove) {
-		dev->driver = NULL;
+	if (cldrv->remove)
+		ret = cldrv->remove(cldev);
 
-		return 0;
-	}
+	module_put(THIS_MODULE);
+	dev->driver = NULL;
+	return ret;
 
-	return cldrv->remove(cldev);
 }
 
 static ssize_t name_show(struct device *dev, struct device_attribute *a,
