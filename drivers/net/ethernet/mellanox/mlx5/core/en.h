@@ -196,6 +196,7 @@ struct mlx5e_params {
 	bool lro_en;
 	u32 lro_wqe_sz;
 	u8  rss_hfunc;
+	u16 tx_max_inline;
 };
 
 enum {
@@ -520,3 +521,4 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;
+u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);

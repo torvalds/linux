@@ -41,6 +41,7 @@ struct mlx5e_rq_param {
 struct mlx5e_sq_param {
 	u32                        sqc[MLX5_ST_SZ_DW(sqc)];
 	struct mlx5_wq_param       wq;
+	u16                        max_inline;
 };
 
 struct mlx5e_cq_param {
@@ -514,6 +515,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->wq.db       = &sq->wq.db[MLX5_SND_DBR];
 	sq->uar_map     = sq->uar.map;
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+	sq->max_inline  = param->max_inline;
 
 	err = mlx5e_alloc_sq_db(sq, cpu_to_node(c->cpu));
 	if (err)
@@ -1020,6 +1022,7 @@ static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, pd,            priv->pdn);
 
 	param->wq.buf_numa_node = dev_to_node(&priv->mdev->pdev->dev);
+	param->max_inline = priv->params.tx_max_inline;
 }
 
 static void mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
@@ -1703,6 +1706,15 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	return 0;
 }
 
+u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
+{
+	int bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+
+	return bf_buf_size -
+	       sizeof(struct mlx5e_tx_wqe) +
+	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
+}
+
 static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 				    struct net_device *netdev,
 				    int num_comp_vectors)
@@ -1721,6 +1733,7 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
 	priv->params.tx_cq_moderation_pkts =
 		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
+	priv->params.tx_max_inline         = mlx5e_get_max_inline_cap(mdev);
 	priv->params.min_rx_wqes           =
 		MLX5E_PARAMS_DEFAULT_MIN_RX_WQES;
 	priv->params.rx_hash_log_tbl_sz    =

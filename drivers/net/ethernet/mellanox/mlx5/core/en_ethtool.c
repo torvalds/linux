@@ -699,6 +699,57 @@ static int mlx5e_set_rxfh(struct net_device *netdev, const u32 *indir,
 	return err;
 }
 
+static int mlx5e_get_tunable(struct net_device *dev,
+			     const struct ethtool_tunable *tuna,
+			     void *data)
+{
+	const struct mlx5e_priv *priv = netdev_priv(dev);
+	int err = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_TX_COPYBREAK:
+		*(u32 *)data = priv->params.tx_max_inline;
+		break;
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	return err;
+}
+
+static int mlx5e_set_tunable(struct net_device *dev,
+			     const struct ethtool_tunable *tuna,
+			     const void *data)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_params new_params;
+	u32 val;
+	int err = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_TX_COPYBREAK:
+		val = *(u32 *)data;
+		if (val > mlx5e_get_max_inline_cap(mdev)) {
+			err = -EINVAL;
+			break;
+		}
+
+		mutex_lock(&priv->state_lock);
+		new_params = priv->params;
+		new_params.tx_max_inline = val;
+		err = mlx5e_update_priv_params(priv, &new_params);
+		mutex_unlock(&priv->state_lock);
+		break;
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	return err;
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -715,4 +766,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.set_settings      = mlx5e_set_settings,
 	.get_rxfh          = mlx5e_get_rxfh,
 	.set_rxfh          = mlx5e_set_rxfh,
+	.get_tunable       = mlx5e_get_tunable,
+	.set_tunable       = mlx5e_set_tunable,
 };

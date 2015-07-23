@@ -112,7 +112,15 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 					    struct sk_buff *skb)
 {
-#define MLX5E_MIN_INLINE 16 /* eth header with vlan (w/o next ethertype) */
+	/* Some NIC TX decisions, e.g loopback, are based on the packet
+	 * headers and occur before the data gather.
+	 * Therefore these headers must be copied into the WQE
+	 */
+#define MLX5E_MIN_INLINE (ETH_HLEN + 2/*vlan tag*/)
+
+	if (skb_headlen(skb) <= sq->max_inline)
+		return skb_headlen(skb);
+
 	return MLX5E_MIN_INLINE;
 }
 
