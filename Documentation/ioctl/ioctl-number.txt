@@ -263,7 +263,7 @@ Code  Seq#(hex)	Include File		Comments
 's'	all	linux/cdk.h
 't'	00-7F	linux/ppp-ioctl.h
 't'	80-8F	linux/isdn_ppp.h
-'t'	90	linux/toshiba.h
+'t'	90-91	linux/toshiba.h		toshiba and toshiba_acpi SMM
 'u'	00-1F	linux/smb_fs.h		gone
 'u'	20-3F	linux/uvcvideo.h	USB video class host driver
 'v'	00-1F	linux/ext2_fs.h		conflict!

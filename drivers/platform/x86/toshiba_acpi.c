@@ -50,6 +50,8 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/uaccess.h>
+#include <linux/miscdevice.h>
+#include <linux/toshiba.h>
 #include <acpi/video.h>
 
 MODULE_AUTHOR("John Belmonte");
@@ -170,6 +172,7 @@ struct toshiba_acpi_dev {
 	struct led_classdev led_dev;
 	struct led_classdev kbd_led;
 	struct led_classdev eco_led;
+	struct miscdevice miscdev;
 
 	int force_fan;
 	int last_key_event;
@@ -2240,6 +2243,81 @@ static struct attribute_group toshiba_attr_group = {
 };
 
 /*
+ * Misc device
+ */
+static int toshiba_acpi_smm_bridge(SMMRegisters *regs)
+{
+	u32 in[TCI_WORDS] = { regs->eax, regs->ebx, regs->ecx,
+			      regs->edx, regs->esi, regs->edi };
+	u32 out[TCI_WORDS];
+	acpi_status status;
+
+	status = tci_raw(toshiba_acpi, in, out);
+	if (ACPI_FAILURE(status)) {
+		pr_err("ACPI call to query SMM registers failed\n");
+		return -EIO;
+	}
+
+	/* Fillout the SMM struct with the TCI call results */
+	regs->eax = out[0];
+	regs->ebx = out[1];
+	regs->ecx = out[2];
+	regs->edx = out[3];
+	regs->esi = out[4];
+	regs->edi = out[5];
+
+	return 0;
+}
+
+static long toshiba_acpi_ioctl(struct file *fp, unsigned int cmd,
+			       unsigned long arg)
+{
+	SMMRegisters __user *argp = (SMMRegisters __user *)arg;
+	SMMRegisters regs;
+	int ret;
+
+	if (!argp)
+		return -EINVAL;
+
+	switch (cmd) {
+	case TOSH_SMM:
+		if (copy_from_user(&regs, argp, sizeof(SMMRegisters)))
+			return -EFAULT;
+		ret = toshiba_acpi_smm_bridge(&regs);
+		if (ret)
+			return ret;
+		if (copy_to_user(argp, &regs, sizeof(SMMRegisters)))
+			return -EFAULT;
+		break;
+	case TOSHIBA_ACPI_SCI:
+		if (copy_from_user(&regs, argp, sizeof(SMMRegisters)))
+			return -EFAULT;
+		/* Ensure we are being called with a SCI_{GET, SET} register */
+		if (regs.eax != SCI_GET && regs.eax != SCI_SET)
+			return -EINVAL;
+		if (!sci_open(toshiba_acpi))
+			return -EIO;
+		ret = toshiba_acpi_smm_bridge(&regs);
+		sci_close(toshiba_acpi);
+		if (ret)
+			return ret;
+		if (copy_to_user(argp, &regs, sizeof(SMMRegisters)))
+			return -EFAULT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct file_operations toshiba_acpi_fops = {
+	.owner		= THIS_MODULE,
+	.unlocked_ioctl = toshiba_acpi_ioctl,
+	.llseek		= noop_llseek,
+};
+
+/*
  * Hotkeys
  */
 static int toshiba_acpi_enable_hotkeys(struct toshiba_acpi_dev *dev)
@@ -2540,6 +2618,8 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
+	misc_deregister(&dev->miscdev);
+
 	remove_toshiba_proc_entries(dev);
 
 	if (dev->sysfs_created)
@@ -2611,6 +2691,17 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 		return -ENOMEM;
 	dev->acpi_dev = acpi_dev;
 	dev->method_hci = hci_method;
+	dev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	dev->miscdev.name = "toshiba_acpi";
+	dev->miscdev.fops = &toshiba_acpi_fops;
+
+	ret = misc_register(&dev->miscdev);
+	if (ret) {
+		pr_err("Failed to register miscdevice\n");
+		kfree(dev);
+		return ret;
+	}
+
 	acpi_dev->driver_data = dev;
 	dev_set_drvdata(&acpi_dev->dev, dev);
 
