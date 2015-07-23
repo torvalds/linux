@@ -224,6 +224,11 @@
 
 #define ACPI_IS_ASCII(c)                ((c) < 0x80)
 
+/* Signed integers */
+
+#define ACPI_SIGN_POSITIVE              0
+#define ACPI_SIGN_NEGATIVE              1
+
 /*
  * Rounding macros (Power of two boundaries only)
  */
