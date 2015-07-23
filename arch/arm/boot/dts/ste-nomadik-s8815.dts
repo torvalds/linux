@@ -16,6 +16,7 @@
 	};
 
 	aliases {
+		serial0 = &uart0;
 		serial1 = &uart1;
 	};
 
@@ -40,6 +41,15 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cd_default_mode>;
 
+		uart0 {
+			/* Only use RX/TX pins */
+			uart0_s8815_mode: uart0_mux {
+				u0_default_mux {
+					function = "u0";
+					groups = "u0txrx_a_1";
+				};
+			};
+		};
 		mmcsd-cd {
 			cd_default_mode: cd_default {
 				cd_default_cfg1 {
@@ -112,8 +122,14 @@
 	};
 
 
-	/* Configure card detect for the uSD slot */
 	amba {
+		/* Activate RXTX on UART 0 */
+		uart0: uart@101fd000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_s8815_mode>;
+			status = "okay";
+		};
+		/* Configure card detect for the uSD slot */
 		mmcsd: sdi@101f6000 {
 			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 		};

@@ -17,12 +17,22 @@
 	};
 
 	aliases {
+		serial0 = &uart0;
 		serial1 = &uart1;
 		stmpe-i2c0 = &stmpe0;
 		stmpe-i2c1 = &stmpe1;
 	};
 
 	pinctrl {
+		uart0 {
+			uart0_nhk_mode: uart0_mux {
+				u0_default_mux {
+					function = "u0";
+					groups = "u0txrx_a_1", "u0ctsrts_a_1";
+				};
+			};
+		};
+
 		stmpe2401_1 {
 			stmpe2401_1_nhk_mode: stmpe2401_1_nhk {
 				nhk_cfg1 {
@@ -146,6 +156,12 @@
 	};
 
 	amba {
+		/* Activate RX/TX and CTS/RTS on UART 0 */
+		uart0: uart@101fd000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_nhk_mode>;
+			status = "okay";
+		};
 		mmcsd: sdi@101f6000 {
 			cd-gpios = <&stmpe_gpio44 7 GPIO_ACTIVE_LOW>;
 			wp-gpios = <&stmpe_gpio44 18 GPIO_ACTIVE_HIGH>;
