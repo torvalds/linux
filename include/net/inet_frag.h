@@ -141,14 +141,14 @@ static inline int frag_mem_limit(struct netns_frags *nf)
 	return percpu_counter_read(&nf->mem);
 }
 
-static inline void sub_frag_mem_limit(struct inet_frag_queue *q, int i)
+static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&q->net->mem, -i, frag_percpu_counter_batch);
+	__percpu_counter_add(&nf->mem, -i, frag_percpu_counter_batch);
 }
 
-static inline void add_frag_mem_limit(struct inet_frag_queue *q, int i)
+static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&q->net->mem, i, frag_percpu_counter_batch);
+	__percpu_counter_add(&nf->mem, i, frag_percpu_counter_batch);
 }
 
 static inline void init_frag_mem_limit(struct netns_frags *nf)

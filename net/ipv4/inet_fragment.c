@@ -328,7 +328,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 		fp = xp;
 	}
 	sum = sum_truesize + f->qsize;
-	sub_frag_mem_limit(q, sum);
+	sub_frag_mem_limit(q->net, sum);
 
 	if (f->destructor)
 		f->destructor(q);
@@ -388,7 +388,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 
 	q->net = nf;
 	f->constructor(q, arg);
-	add_frag_mem_limit(q, f->qsize);
+	add_frag_mem_limit(nf, f->qsize);
 
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
