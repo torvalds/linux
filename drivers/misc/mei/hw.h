@@ -52,6 +52,12 @@
 #define HBM_MINOR_VERSION_DC               0
 #define HBM_MAJOR_VERSION_DC               2
 
+/*
+ * MEI version with disconnect on connection timeout support
+ */
+#define HBM_MINOR_VERSION_DOT              0
+#define HBM_MAJOR_VERSION_DOT              2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */

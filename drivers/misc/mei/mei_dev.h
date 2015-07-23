@@ -89,6 +89,7 @@ enum file_state {
 	MEI_FILE_CONNECTED,
 	MEI_FILE_DISCONNECTING,
 	MEI_FILE_DISCONNECT_REPLY,
+	MEI_FILE_DISCONNECT_REQUIRED,
 	MEI_FILE_DISCONNECTED,
 };
 
@@ -407,8 +408,9 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @wr_msg      : the buffer for hbm control messages
  *
  * @version     : HBM protocol version in use
- * @hbm_f_pg_supported : hbm feature pgi protocol
- * @hbm_f_dc_supported : hbm feature dynamic clients
+ * @hbm_f_pg_supported  : hbm feature pgi protocol
+ * @hbm_f_dc_supported  : hbm feature dynamic clients
+ * @hbm_f_dot_supported : hbm feature disconnect on timeout
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -503,6 +505,7 @@ struct mei_device {
 	struct hbm_version version;
 	unsigned int hbm_f_pg_supported:1;
 	unsigned int hbm_f_dc_supported:1;
+	unsigned int hbm_f_dot_supported:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;

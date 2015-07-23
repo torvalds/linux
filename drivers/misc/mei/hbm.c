@@ -774,6 +774,10 @@ static void mei_hbm_config_features(struct mei_device *dev)
 
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_DC)
 		dev->hbm_f_dc_supported = 1;
+
+	/* disconnect on connect timeout instead of link reset */
+	if (dev->version.major_version >= HBM_MAJOR_VERSION_DOT)
+		dev->hbm_f_dot_supported = 1;
 }
 
 /**

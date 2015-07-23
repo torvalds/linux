@@ -836,44 +836,24 @@ int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 	return ret;
 }
 
-
-
 /**
- * mei_cl_disconnect - disconnect host client from the me one
+ * __mei_cl_disconnect - disconnect host client from the me one
+ *     internal function runtime pm has to be already acquired
  *
  * @cl: host client
  *
- * Locking: called under "dev->device_lock" lock
- *
  * Return: 0 on success, <0 on failure.
  */
-int mei_cl_disconnect(struct mei_cl *cl)
+static int __mei_cl_disconnect(struct mei_cl *cl)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
 	int rets;
 
-	if (WARN_ON(!cl || !cl->dev))
-		return -ENODEV;
-
 	dev = cl->dev;
 
-	cl_dbg(dev, cl, "disconnecting");
-
-	if (!mei_cl_is_connected(cl))
-		return 0;
-
-	if (mei_cl_is_fixed_address(cl)) {
-		mei_cl_set_disconnected(cl);
-		return 0;
-	}
-
-	rets = pm_runtime_get(dev->dev);
-	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(dev->dev);
-		cl_err(dev, cl, "rpm: get failed %d\n", rets);
-		return rets;
-	}
+	if (WARN_ON(!pm_runtime_active(dev->dev)))
+		return -EFAULT;
 
 	cl->state = MEI_FILE_DISCONNECTING;
 
@@ -910,11 +890,52 @@ out:
 	if (!rets)
 		cl_dbg(dev, cl, "successfully disconnected from FW client.\n");
 
+	mei_io_cb_free(cb);
+	return rets;
+}
+
+/**
+ * mei_cl_disconnect - disconnect host client from the me one
+ *
+ * @cl: host client
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return: 0 on success, <0 on failure.
+ */
+int mei_cl_disconnect(struct mei_cl *cl)
+{
+	struct mei_device *dev;
+	int rets;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	cl_dbg(dev, cl, "disconnecting");
+
+	if (!mei_cl_is_connected(cl))
+		return 0;
+
+	if (mei_cl_is_fixed_address(cl)) {
+		mei_cl_set_disconnected(cl);
+		return 0;
+	}
+
+	rets = pm_runtime_get(dev->dev);
+	if (rets < 0 && rets != -EINPROGRESS) {
+		pm_runtime_put_noidle(dev->dev);
+		cl_err(dev, cl, "rpm: get failed %d\n", rets);
+		return rets;
+	}
+
+	rets = __mei_cl_disconnect(cl);
+
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
-	mei_io_cb_free(cb);
 	return rets;
 }
 
@@ -1059,11 +1080,23 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(cl->wait,
 			(cl->state == MEI_FILE_CONNECTED ||
+			 cl->state == MEI_FILE_DISCONNECT_REQUIRED ||
 			 cl->state == MEI_FILE_DISCONNECT_REPLY),
 			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
 	if (!mei_cl_is_connected(cl)) {
+		if (cl->state == MEI_FILE_DISCONNECT_REQUIRED) {
+			mei_io_list_flush(&dev->ctrl_rd_list, cl);
+			mei_io_list_flush(&dev->ctrl_wr_list, cl);
+			 /* ignore disconnect return valuue;
+			  * in case of failure reset will be invoked
+			  */
+			__mei_cl_disconnect(cl);
+			rets = -EFAULT;
+			goto out;
+		}
+
 		/* timeout or something went really wrong */
 		if (!cl->status)
 			cl->status = -EFAULT;
