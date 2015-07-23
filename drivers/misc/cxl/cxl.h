@@ -34,7 +34,7 @@ extern uint cxl_verbose;
  * Bump version each time a user API change is made, whether it is
  * backwards compatible ot not.
  */
-#define CXL_API_VERSION 1
+#define CXL_API_VERSION 2
 #define CXL_API_VERSION_COMPATIBLE 1
 
 /*
@@ -418,6 +418,8 @@ struct cxl_context {
 	/* Used to unmap any mmaps when force detaching */
 	struct address_space *mapping;
 	struct mutex mapping_lock;
+	struct page *ff_page;
+	bool mmio_err_ff;
 
 	spinlock_t sste_lock; /* Protects segment table entries */
 	struct cxl_sste *sstp;
