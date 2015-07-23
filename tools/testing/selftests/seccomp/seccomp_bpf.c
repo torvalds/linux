@@ -82,7 +82,13 @@ struct seccomp_data {
 };
 #endif
 
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 #define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]))
+#elif __BYTE_ORDER == __BIG_ENDIAN
+#define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]) + sizeof(__u32))
+#else
+#error "wut? Unknown __BYTE_ORDER?!"
+#endif
 
 #define SIBLING_EXIT_UNKILLED	0xbadbeef
 #define SIBLING_EXIT_FAILURE	0xbadface
