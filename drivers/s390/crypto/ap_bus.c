@@ -52,15 +52,12 @@
 /* Some prototypes. */
 static void ap_scan_bus(struct work_struct *);
 static void ap_poll_all(unsigned long);
-static enum hrtimer_restart ap_poll_timeout(struct hrtimer *);
 static void ap_request_timeout(unsigned long);
-static inline void ap_schedule_poll_timer(void);
 static int __ap_poll_device(struct ap_device *ap_dev, unsigned long *flags);
 static int ap_device_remove(struct device *dev);
 static int ap_device_probe(struct device *dev);
 static void ap_interrupt_handler(struct airq_struct *airq);
 static void ap_reset(struct ap_device *ap_dev, unsigned long *flags);
-static void ap_config_timeout(unsigned long ptr);
 static int ap_select_domain(void);
 
 /*
@@ -926,7 +923,6 @@ static void ap_bus_suspend(void)
 	 * Disable scanning for devices, thus we do not want to scan
 	 * for them after removing.
 	 */
-	del_timer_sync(&ap_config_timer);
 	flush_workqueue(ap_work_queue);
 	tasklet_disable(&ap_tasklet);
 }
@@ -1090,9 +1086,8 @@ void ap_bus_force_rescan(void)
 {
 	if (ap_suspend_flag)
 		return;
-	/* reconfigure the AP bus rescan timer. */
-	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 	/* processing a asynchronous bus rescan */
+	del_timer(&ap_config_timer);
 	queue_work(ap_work_queue, &ap_config_work);
 	flush_work(&ap_config_work);
 }
@@ -1150,11 +1145,7 @@ static ssize_t ap_config_time_store(struct bus_type *bus,
 	if (sscanf(buf, "%d\n", &time) != 1 || time < 5 || time > 120)
 		return -EINVAL;
 	ap_config_time = time;
-	if (!timer_pending(&ap_config_timer) ||
-	    !mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ)) {
-		ap_config_timer.expires = jiffies + ap_config_time * HZ;
-		add_timer(&ap_config_timer);
-	}
+	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 	return count;
 }
 
@@ -1415,7 +1406,7 @@ static void ap_scan_bus(struct work_struct *unused)
 
 	ap_query_configuration();
 	if (ap_select_domain() != 0)
-		return;
+		goto out;
 
 	for (i = 0; i < AP_DEVICES; i++) {
 		qid = AP_MKQID(i, ap_domain_index);
@@ -1492,6 +1483,8 @@ static void ap_scan_bus(struct work_struct *unused)
 		else
 			device_unregister(&ap_dev->device);
 	}
+out:
+	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
 
 static void ap_config_timeout(unsigned long ptr)
@@ -1499,8 +1492,6 @@ static void ap_config_timeout(unsigned long ptr)
 	if (ap_suspend_flag)
 		return;
 	queue_work(ap_work_queue, &ap_config_work);
-	ap_config_timer.expires = jiffies + ap_config_time * HZ;
-	add_timer(&ap_config_timer);
 }
 
 /**
@@ -1966,10 +1957,7 @@ int __init ap_module_init(void)
 		ap_scan_bus(NULL);
 
 	/* Setup the AP bus rescan timer. */
-	init_timer(&ap_config_timer);
-	ap_config_timer.function = ap_config_timeout;
-	ap_config_timer.data = 0;
-	ap_config_timer.expires = jiffies + ap_config_time * HZ;
+	setup_timer(&ap_config_timer, ap_config_timeout, 0);
 	add_timer(&ap_config_timer);
 
 	/* Setup the high resultion poll timer.
