@@ -131,24 +131,14 @@ inet_evict_bucket(struct inet_frags *f, struct inet_frag_bucket *hb)
 	unsigned int evicted = 0;
 	HLIST_HEAD(expired);
 
-evict_again:
 	spin_lock(&hb->chain_lock);
 
 	hlist_for_each_entry_safe(fq, n, &hb->chain, list) {
 		if (!inet_fragq_should_evict(fq))
 			continue;
 
-		if (!del_timer(&fq->timer)) {
-			/* q expiring right now thus increment its refcount so
-			 * it won't be freed under us and wait until the timer
-			 * has finished executing then destroy it
-			 */
-			atomic_inc(&fq->refcnt);
-			spin_unlock(&hb->chain_lock);
-			del_timer_sync(&fq->timer);
-			inet_frag_put(fq, f);
-			goto evict_again;
-		}
+		if (!del_timer(&fq->timer))
+			continue;
 
 		fq->flags |= INET_FRAG_EVICTED;
 		hlist_add_head(&fq->list_evictor, &expired);
@@ -239,18 +229,20 @@ void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
 	int i;
 
 	nf->low_thresh = 0;
-	local_bh_disable();
 
 evict_again:
+	local_bh_disable();
 	seq = read_seqbegin(&f->rnd_seqlock);
 
 	for (i = 0; i < INETFRAGS_HASHSZ ; i++)
 		inet_evict_bucket(f, &f->hash[i]);
 
-	if (read_seqretry(&f->rnd_seqlock, seq))
-		goto evict_again;
-
 	local_bh_enable();
+	cond_resched();
+
+	if (read_seqretry(&f->rnd_seqlock, seq) ||
+	    percpu_counter_sum(&nf->mem))
+		goto evict_again;
 
 	percpu_counter_destroy(&nf->mem);
 }
@@ -284,6 +276,7 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 
 	hb = get_frag_bucket_locked(fq, f);
 	hlist_del(&fq->list);
+	fq->flags |= INET_FRAG_COMPLETE;
 	spin_unlock(&hb->chain_lock);
 }
 
@@ -295,7 +288,6 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 	if (!(fq->flags & INET_FRAG_COMPLETE)) {
 		fq_unlink(fq, f);
 		atomic_dec(&fq->refcnt);
-		fq->flags |= INET_FRAG_COMPLETE;
 	}
 }
 EXPORT_SYMBOL(inet_frag_kill);
@@ -328,11 +320,12 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f)
 		fp = xp;
 	}
 	sum = sum_truesize + f->qsize;
-	sub_frag_mem_limit(q->net, sum);
 
 	if (f->destructor)
 		f->destructor(q);
 	kmem_cache_free(f->frags_cachep, q);
+
+	sub_frag_mem_limit(nf, sum);
 }
 EXPORT_SYMBOL(inet_frag_destroy);
 
