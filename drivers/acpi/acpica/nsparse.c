@@ -70,7 +70,7 @@ acpi_ns_one_complete_parse(u32 pass_number,
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
-       u32 aml_length;
+	u32 aml_length;
 	u8 *aml_start;
 	struct acpi_walk_state *walk_state;
 	struct acpi_table_header *table;
@@ -110,11 +110,11 @@ acpi_ns_one_complete_parse(u32 pass_number,
 	if (table->length < sizeof(struct acpi_table_header)) {
 		status = AE_BAD_HEADER;
 	} else {
-		aml_start = (u8 *) table + sizeof(struct acpi_table_header);
+		aml_start = (u8 *)table + sizeof(struct acpi_table_header);
 		aml_length = table->length - sizeof(struct acpi_table_header);
 		status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
 					       aml_start, aml_length, NULL,
-					       (u8) pass_number);
+					       (u8)pass_number);
 	}
 
 	/* Found OSDT table, enable the namespace override feature */
