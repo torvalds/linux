@@ -91,11 +91,13 @@ void free_alternatives_memory(void);
  * The code that follows this macro will be assembled and linked as
  * normal. There are no restrictions on this code.
  */
-.macro alternative_if_not cap
+.macro alternative_if_not cap, enable = 1
+	.if \enable
 	.pushsection .altinstructions, "a"
 	altinstruction_entry 661f, 663f, \cap, 662f-661f, 664f-663f
 	.popsection
 661:
+	.endif
 .endm
 
 /*
@@ -112,18 +114,22 @@ void free_alternatives_memory(void);
  *    alternative sequence it is defined in (branches into an
  *    alternative sequence are not fixed up).
  */
-.macro alternative_else
+.macro alternative_else, enable = 1
+	.if \enable
 662:	.pushsection .altinstr_replacement, "ax"
 663:
+	.endif
 .endm
 
 /*
  * Complete an alternative code sequence.
  */
-.macro alternative_endif
+.macro alternative_endif, enable = 1
+	.if \enable
 664:	.popsection
 	.org	. - (664b-663b) + (662b-661b)
 	.org	. - (662b-661b) + (664b-663b)
+	.endif
 .endm
 
 #define _ALTERNATIVE_CFG(insn1, insn2, cap, cfg, ...)	\
