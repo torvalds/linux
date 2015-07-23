@@ -510,7 +510,15 @@ static struct attribute *mei_cl_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mei_cl_dev);
 
-static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
+/**
+ * mei_cl_device_uevent - me client bus uevent handler
+ *
+ * @dev: device
+ * @env: uevent kobject
+ *
+ * Return: 0 on success -ENOMEM on when add_uevent_var fails
+ */
+static int mei_cl_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
@@ -534,7 +542,7 @@ static struct bus_type mei_cl_bus_type = {
 	.match		= mei_cl_device_match,
 	.probe		= mei_cl_device_probe,
 	.remove		= mei_cl_device_remove,
-	.uevent		= mei_cl_uevent,
+	.uevent		= mei_cl_device_uevent,
 };
 
 static void mei_cl_dev_release(struct device *dev)
