@@ -1044,6 +1044,9 @@ static int bmc150_magn_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+/*
+ * Should be called with data->mutex held.
+ */
 static int bmc150_magn_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
