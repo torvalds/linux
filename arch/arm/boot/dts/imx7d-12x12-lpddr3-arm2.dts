@@ -19,7 +19,7 @@
 		pwms = <&pwm1 0 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	gpio-keys {
@@ -43,7 +43,7 @@
 
 	pxp_v4l2_out {
 		compatible = "fsl,imx7d-pxp-v4l2", "fsl,imx6sx-pxp-v4l2", "fsl,imx6sl-pxp-v4l2";
-		status = "okay";
+		status = "disabled";
 	};
 
 	regulators {
@@ -181,7 +181,7 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy1>;
 	fsl,magic-packet;
-	status = "okay";
+	status = "disabled";
 
 	mdio {
 		#address-cells = <1>;
@@ -232,7 +232,7 @@
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1_1>;
-	status = "okay";
+	status = "disabled";
 
 	pmic: pfuze3000@08 {
 		compatible = "fsl,pfuze3000";
@@ -328,7 +328,7 @@
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3_1>;
-	status = "okay";
+	status = "disabled";
 
 	max7322: gpio@68 {
 		compatible = "maxim,max7322";
@@ -840,7 +840,7 @@
 	pinctrl-0 = <&pinctrl_lcdif_dat
 		     &pinctrl_lcdif_ctrl>;
 	display = <&display0>;
-	status = "okay";
+	status = "disabled";
 
 	display0: display {
 		bits-per-pixel = <16>;
@@ -867,6 +867,10 @@
 	};
 };
 
+&ocrams {
+	fsl,enable-lpsr;
+};
+
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
@@ -878,7 +882,7 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &uart1 {
@@ -899,7 +903,7 @@
 	fsl,uart-has-rtscts;
 	assigned-clocks = <&clks IMX7D_UART3_ROOT_SRC>;
 	assigned-clock-parents = <&clks IMX7D_PLL_SYS_MAIN_240M_CLK>;
-	status = "disabled";
+	status = "okay";
 	/* for DTE mode, add below change */
 	/* fsl,dte-mode;*/
 	/* pinctrl-0 = <&pinctrl_uart3dte_1>; */
@@ -910,7 +914,7 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
-	status = "okay";
+	status = "disabled";
 };
 
 &usbotg2 {
@@ -918,7 +922,7 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
-	status = "okay";
+	status = "disabled";
 };
 
 &usdhc1 {
@@ -931,7 +935,7 @@
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
 	vmmc-supply = <&reg_sd1_vmmc>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usdhc2 {
@@ -946,7 +950,7 @@
 	enable-sdio-wakeup;
 	fsl,tuning-step = <2>;
 	vmmc-supply = <&reg_sd2_vmmc>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usdhc3 {
@@ -961,7 +965,7 @@
 	fsl,tuning-step = <2>;
 	non-removable;
 	keep-power-in-suspend;
-	status = "okay";
+	status = "disabled";
 };
 
 &sim1 {
