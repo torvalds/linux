@@ -914,25 +914,6 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* Step 4: fix up any arguments */
-
-	/* we count in timer steps */
-	if (high_speed) {
-		/* timing of the conversion itself: every 125 us */
-		devpriv->ao_timer = cmd->convert_arg / 125000;
-	} else {
-		/*
-		 * timing of the scan: every 1ms
-		 * we get all channels at once
-		 */
-		devpriv->ao_timer = cmd->scan_begin_arg / 1000000;
-	}
-	if (devpriv->ao_timer < 1)
-		err |= -EINVAL;
-
-	if (err)
-		return 4;
-
 	return 0;
 }
 
@@ -944,6 +925,20 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 	int ret;
 
 	down(&devpriv->sem);
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		/*
+		 * timing of the conversion itself: every 125 us
+		 * at high speed (not used yet)
+		 */
+		devpriv->ao_timer = cmd->convert_arg / 125000;
+	} else {
+		/*
+		 * timing of the scan: every 1ms
+		 * we get all channels at once
+		 */
+		devpriv->ao_timer = cmd->scan_begin_arg / 1000000;
+	}
 
 	devpriv->ao_counter = devpriv->ao_timer;
 
