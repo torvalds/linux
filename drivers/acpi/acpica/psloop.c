@@ -491,14 +491,6 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				continue;
 			}
 
-			if (walk_state->op_info) {
-				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Opcode %4.4X [%s] Op %p Aml %p\n",
-						  (u32)op->common.aml_opcode,
-						  walk_state->op_info->name, op,
-						  op->common.aml));
-			}
-
 			acpi_ex_start_trace_opcode(op, walk_state);
 		}
 
