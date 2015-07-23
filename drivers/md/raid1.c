@@ -336,7 +336,7 @@ static void raid1_end_read_request(struct bio *bio, int error)
 		spin_lock_irqsave(&conf->device_lock, flags);
 		if (r1_bio->mddev->degraded == conf->raid_disks ||
 		    (r1_bio->mddev->degraded == conf->raid_disks-1 &&
-		     !test_bit(Faulty, &conf->mirrors[mirror].rdev->flags)))
+		     test_bit(In_sync, &conf->mirrors[mirror].rdev->flags)))
 			uptodate = 1;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
