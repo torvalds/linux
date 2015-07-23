@@ -224,6 +224,20 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 	return map;
 }
 
+/*
+ * Use this and __map__is_kmodule() for map instances that are in
+ * machine->kmaps, and thus have map->groups->machine all properly set, to
+ * disambiguate between the kernel and modules.
+ *
+ * When the need arises, introduce map__is_{kernel,kmodule)() that
+ * checks (map->groups != NULL && map->groups->machine != NULL &&
+ * map->dso->kernel) before calling __map__is_{kernel,kmodule}())
+ */
+bool __map__is_kernel(const struct map *map)
+{
+	return map->groups->machine->vmlinux_maps[map->type] == map;
+}
+
 static void map__exit(struct map *map)
 {
 	BUG_ON(!RB_EMPTY_NODE(&map->rb_node));
