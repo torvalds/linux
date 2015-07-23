@@ -3995,22 +3995,30 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 	return intel_dp->is_mst;
 }
 
-static void intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
+static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
 	u8 buf;
+	int ret = 0;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
 		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
-		return;
+		ret = -EIO;
+		goto out;
 	}
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-			       buf & ~DP_TEST_SINK_START) < 0)
+			       buf & ~DP_TEST_SINK_START) < 0) {
 		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
+		ret = -EIO;
+		goto out;
+	}
 
+	intel_dp->sink_crc_started = false;
+ out:
 	hsw_enable_ips(intel_crtc);
+	return ret;
 }
 
 static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
@@ -4018,6 +4026,13 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
 	u8 buf;
+	int ret;
+
+	if (intel_dp->sink_crc_started) {
+		ret = intel_dp_sink_crc_stop(intel_dp);
+		if (ret)
+			return ret;
+	}
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
 		return -EIO;
@@ -4036,6 +4051,7 @@ static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
 		return -EIO;
 	}
 
+	intel_dp->sink_crc_started = true;
 	return 0;
 }
 
