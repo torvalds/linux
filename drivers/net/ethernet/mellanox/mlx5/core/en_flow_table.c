@@ -105,6 +105,22 @@ static void mlx5e_del_eth_addr_from_flow_table(struct mlx5e_priv *priv,
 {
 	void *ft = priv->ft.main;
 
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_ESP))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV6_IPSEC_ESP]);
+
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_ESP))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV4_IPSEC_ESP]);
+
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_AH))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV6_IPSEC_AH]);
+
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_AH))
+		mlx5_del_flow_table_entry(ft,
+					  ai->ft_ix[MLX5E_TT_IPV4_IPSEC_AH]);
+
 	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_TCP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV6_TCP]);
 
@@ -160,6 +176,10 @@ static u32 mlx5e_get_tt_vec(struct mlx5e_eth_addr_info *ai, int type)
 				BIT(MLX5E_TT_IPV6_TCP)       |
 				BIT(MLX5E_TT_IPV4_UDP)       |
 				BIT(MLX5E_TT_IPV6_UDP)       |
+				BIT(MLX5E_TT_IPV4_IPSEC_AH)  |
+				BIT(MLX5E_TT_IPV6_IPSEC_AH)  |
+				BIT(MLX5E_TT_IPV4_IPSEC_ESP) |
+				BIT(MLX5E_TT_IPV6_IPSEC_ESP) |
 				BIT(MLX5E_TT_IPV4)           |
 				BIT(MLX5E_TT_IPV6)           |
 				BIT(MLX5E_TT_ANY)            |
@@ -205,6 +225,10 @@ static u32 mlx5e_get_tt_vec(struct mlx5e_eth_addr_info *ai, int type)
 			BIT(MLX5E_TT_IPV6_TCP)       |
 			BIT(MLX5E_TT_IPV4_UDP)       |
 			BIT(MLX5E_TT_IPV6_UDP)       |
+			BIT(MLX5E_TT_IPV4_IPSEC_AH)  |
+			BIT(MLX5E_TT_IPV6_IPSEC_AH)  |
+			BIT(MLX5E_TT_IPV4_IPSEC_ESP) |
+			BIT(MLX5E_TT_IPV6_IPSEC_ESP) |
 			BIT(MLX5E_TT_IPV4)           |
 			BIT(MLX5E_TT_IPV6)           |
 			BIT(MLX5E_TT_ANY)            |
@@ -375,6 +399,72 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 			goto err_del_ai;
 
 		ai->tt_vec |= BIT(MLX5E_TT_IPV6_TCP);
+	}
+
+	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
+		 IPPROTO_AH);
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_IPSEC_AH];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_AH)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IP);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV4_IPSEC_AH]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_IPSEC_AH);
+	}
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_IPSEC_AH];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_AH)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IPV6);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV6_IPSEC_AH]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_IPSEC_AH);
+	}
+
+	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
+		 IPPROTO_ESP);
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_IPSEC_ESP];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_IPSEC_ESP)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IP);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV4_IPSEC_ESP]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_IPSEC_ESP);
+	}
+
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_IPSEC_ESP];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_IPSEC_ESP)) {
+		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
+			 ETH_P_IPV6);
+		MLX5_SET(dest_format_struct, dest, destination_id,
+			 tirn[MLX5E_TT_IPV6_IPSEC_ESP]);
+		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
+						match_criteria, flow_context,
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_IPSEC_ESP);
 	}
 
 	return 0;
@@ -731,7 +821,7 @@ static int mlx5e_create_main_flow_table(struct mlx5e_priv *priv)
 	if (!g)
 		return -ENOMEM;
 
-	g[0].log_sz = 2;
+	g[0].log_sz = 3;
 	g[0].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, g[0].match_criteria,
 			 outer_headers.ethertype);
