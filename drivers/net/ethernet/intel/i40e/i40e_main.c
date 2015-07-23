@@ -8175,9 +8175,6 @@ static void i40e_del_vxlan_port(struct net_device *netdev,
 		pf->vxlan_ports[idx] = 0;
 		pf->pending_vxlan_bitmap |= BIT_ULL(idx);
 		pf->flags |= I40E_FLAG_VXLAN_FILTER_SYNC;
-
-		dev_info(&pf->pdev->dev, "deleting vxlan port %d\n",
-			 ntohs(port));
 	} else {
 		netdev_warn(netdev, "vxlan port %d was not found, not deleting\n",
 			    ntohs(port));
