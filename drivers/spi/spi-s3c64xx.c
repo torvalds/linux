@@ -1309,6 +1309,9 @@ static struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
 	.high_speed	= true,
+#ifndef CONFIG_S3C24XX_DMAC
+	.quirks		= S3C64XX_SPI_QUIRK_POLL,
+#endif
 };
 
 static struct s3c64xx_spi_port_config s3c6410_spi_port_config = {

@@ -210,6 +210,14 @@ struct samsung_clock_alias s3c2443_common_aliases[] __initdata = {
 	ALIAS(SCLK_USBH, NULL, "usb-bus-host"),
 	ALIAS(PCLK_SPI0, "s3c2443-spi.0", "spi"),
 	ALIAS(PCLK_SPI0, "s3c2443-spi.0", "spi_busclk0"),
+#ifdef CONFIG_S3C24XX_DMAC
+	ALIAS(HCLK_DMA0, "s3c2443-dma.0", "dma.0"),
+	ALIAS(HCLK_DMA1, "s3c2443-dma.0", "dma.1"),
+	ALIAS(HCLK_DMA2, "s3c2443-dma.0", "dma.2"),
+	ALIAS(HCLK_DMA3, "s3c2443-dma.0", "dma.3"),
+	ALIAS(HCLK_DMA4, "s3c2443-dma.0", "dma.4"),
+	ALIAS(HCLK_DMA5, "s3c2443-dma.0", "dma.5"),
+#endif
 	ALIAS(HCLK_HSMMC1, "s3c-sdhci.1", "hsmmc"),
 	ALIAS(HCLK_HSMMC1, "s3c-sdhci.1", "mmc_busclk.0"),
 	ALIAS(PCLK_I2S0, "samsung-i2s.0", "iis"),
