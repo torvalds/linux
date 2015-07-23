@@ -106,7 +106,7 @@ u16 e1000_igp_cable_length_table[IGP01E1000_AGC_LENGTH_TABLE_SIZE] = {
 	    120, 120
 };
 
-static DEFINE_SPINLOCK(e1000_eeprom_lock);
+static DEFINE_MUTEX(e1000_eeprom_lock);
 static DEFINE_SPINLOCK(e1000_phy_lock);
 
 /**
@@ -3882,9 +3882,9 @@ static s32 e1000_spi_eeprom_ready(struct e1000_hw *hw)
 s32 e1000_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
 	s32 ret;
-	spin_lock(&e1000_eeprom_lock);
+	mutex_lock(&e1000_eeprom_lock);
 	ret = e1000_do_read_eeprom(hw, offset, words, data);
-	spin_unlock(&e1000_eeprom_lock);
+	mutex_unlock(&e1000_eeprom_lock);
 	return ret;
 }
 
@@ -3968,6 +3968,7 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 			 */
 			data[i] = e1000_shift_in_ee_bits(hw, 16);
 			e1000_standby_eeprom(hw);
+			cond_resched();
 		}
 	}
 
@@ -4052,9 +4053,9 @@ s32 e1000_update_eeprom_checksum(struct e1000_hw *hw)
 s32 e1000_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
 	s32 ret;
-	spin_lock(&e1000_eeprom_lock);
+	mutex_lock(&e1000_eeprom_lock);
 	ret = e1000_do_write_eeprom(hw, offset, words, data);
-	spin_unlock(&e1000_eeprom_lock);
+	mutex_unlock(&e1000_eeprom_lock);
 	return ret;
 }
 
@@ -4116,6 +4117,7 @@ static s32 e1000_write_eeprom_spi(struct e1000_hw *hw, u16 offset, u16 words,
 			return -E1000_ERR_EEPROM;
 
 		e1000_standby_eeprom(hw);
+		cond_resched();
 
 		/*  Send the WRITE ENABLE command (8 bit opcode )  */
 		e1000_shift_out_ee_bits(hw, EEPROM_WREN_OPCODE_SPI,
@@ -4224,6 +4226,7 @@ static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
 
 		/* Recover from write */
 		e1000_standby_eeprom(hw);
+		cond_resched();
 
 		words_written++;
 	}
