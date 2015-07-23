@@ -3115,8 +3115,8 @@ static int fec_enet_init(struct net_device *ndev)
 			fep->bufdesc_size;
 
 	/* Allocate memory for buffer descriptors. */
-	cbd_base = dma_alloc_coherent(NULL, bd_size, &bd_dma,
-				      GFP_KERNEL);
+	cbd_base = dmam_alloc_coherent(&fep->pdev->dev, bd_size, &bd_dma,
+				       GFP_KERNEL);
 	if (!cbd_base) {
 		return -ENOMEM;
 	}
