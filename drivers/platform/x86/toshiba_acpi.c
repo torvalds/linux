@@ -1651,7 +1651,6 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 {
 	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
 	int mode;
-	int time;
 	int ret;
 
 
@@ -1682,7 +1681,7 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 	/* Only make a change if the actual mode has changed */
 	if (toshiba->kbd_mode != mode) {
 		/* Shift the time to "base time" (0x3c0000 == 60 seconds) */
-		time = toshiba->kbd_time << HCI_MISC_SHIFT;
+		int time = toshiba->kbd_time << HCI_MISC_SHIFT;
 
 		/* OR the "base time" to the actual method format */
 		if (toshiba->kbd_type == 1) {
@@ -2856,10 +2855,14 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 static int toshiba_acpi_suspend(struct device *device)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(to_acpi_device(device));
-	u32 result;
 
-	if (dev->hotkey_dev)
+	if (dev->hotkey_dev) {
+		u32 result;
+
 		result = hci_write(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_DISABLE);
+		if (result != TOS_SUCCESS)
+			pr_info("Unable to disable hotkeys\n");
+	}
 
 	return 0;
 }
@@ -2867,10 +2870,10 @@ static int toshiba_acpi_suspend(struct device *device)
 static int toshiba_acpi_resume(struct device *device)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(to_acpi_device(device));
-	int error;
 
 	if (dev->hotkey_dev) {
-		error = toshiba_acpi_enable_hotkeys(dev);
+		int error = toshiba_acpi_enable_hotkeys(dev);
+
 		if (error)
 			pr_info("Unable to re-enable hotkeys\n");
 	}
