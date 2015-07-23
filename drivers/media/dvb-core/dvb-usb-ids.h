@@ -73,6 +73,7 @@
 #define USB_VID_GIGABYTE			0x1044
 #define USB_VID_YUAN				0x1164
 #define USB_VID_XTENSIONS			0x1ae7
+#define USB_VID_ZYDAS				0x0ace
 #define USB_VID_HUMAX_COEX			0x10b9
 #define USB_VID_774				0x7a69
 #define USB_VID_EVOLUTEPC			0x1e59
