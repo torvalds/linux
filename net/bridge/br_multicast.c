@@ -766,6 +766,7 @@ static void br_multicast_router_expired(unsigned long data)
 		goto out;
 
 	hlist_del_init_rcu(&port->rlist);
+	br_rtr_notify(br->dev, port, RTM_DELMDB);
 
 out:
 	spin_unlock(&br->multicast_lock);
@@ -977,8 +978,10 @@ void br_multicast_disable_port(struct net_bridge_port *port)
 		if (pg->state == MDB_TEMPORARY)
 			br_multicast_del_pg(br, pg);
 
-	if (!hlist_unhashed(&port->rlist))
+	if (!hlist_unhashed(&port->rlist)) {
 		hlist_del_init_rcu(&port->rlist);
+		br_rtr_notify(br->dev, port, RTM_DELMDB);
+	}
 	del_timer(&port->multicast_router_timer);
 	del_timer(&port->ip4_own_query.timer);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1216,6 +1219,7 @@ static void br_multicast_add_router(struct net_bridge *br,
 		hlist_add_behind_rcu(&port->rlist, slot);
 	else
 		hlist_add_head_rcu(&port->rlist, &br->router_list);
+	br_rtr_notify(br->dev, port, RTM_NEWMDB);
 }
 
 static void br_multicast_mark_router(struct net_bridge *br,
@@ -1848,8 +1852,10 @@ int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val)
 		p->multicast_router = val;
 		err = 0;
 
-		if (val < 2 && !hlist_unhashed(&p->rlist))
+		if (val < 2 && !hlist_unhashed(&p->rlist)) {
 			hlist_del_init_rcu(&p->rlist);
+			br_rtr_notify(br->dev, p, RTM_DELMDB);
+		}
 
 		if (val == 1)
 			break;

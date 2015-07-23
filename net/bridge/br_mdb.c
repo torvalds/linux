@@ -247,6 +247,73 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 	__br_mdb_notify(dev, &entry, type);
 }
 
+static int nlmsg_populate_rtr_fill(struct sk_buff *skb,
+				   struct net_device *dev,
+				   int ifindex, u32 pid,
+				   u32 seq, int type, unsigned int flags)
+{
+	struct br_port_msg *bpm;
+	struct nlmsghdr *nlh;
+	struct nlattr *nest;
+
+	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*bpm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	bpm = nlmsg_data(nlh);
+	memset(bpm, 0, sizeof(*bpm));
+	bpm->family = AF_BRIDGE;
+	bpm->ifindex = dev->ifindex;
+	nest = nla_nest_start(skb, MDBA_ROUTER);
+	if (!nest)
+		goto cancel;
+
+	if (nla_put_u32(skb, MDBA_ROUTER_PORT, ifindex))
+		goto end;
+
+	nla_nest_end(skb, nest);
+	nlmsg_end(skb, nlh);
+	return 0;
+
+end:
+	nla_nest_end(skb, nest);
+cancel:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static inline size_t rtnl_rtr_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct br_port_msg))
+		+ nla_total_size(sizeof(__u32));
+}
+
+void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
+		   int type)
+{
+	struct net *net = dev_net(dev);
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+	int ifindex;
+
+	ifindex = port ? port->dev->ifindex : 0;
+	skb = nlmsg_new(rtnl_rtr_nlmsg_size(), GFP_ATOMIC);
+	if (!skb)
+		goto errout;
+
+	err = nlmsg_populate_rtr_fill(skb, dev, ifindex, 0, 0, type, NTF_SELF);
+	if (err < 0) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_ATOMIC);
+	return;
+
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_MDB, err);
+}
+
 static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
 {
 	if (entry->ifindex == 0)
