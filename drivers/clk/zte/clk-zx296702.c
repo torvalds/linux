@@ -36,10 +36,21 @@ static struct clk_onecell_data lsp1clk_data;
 #define CLK_MUX1		(topcrm_base + 0x8c)
 
 #define CLK_SDMMC1		(lsp0crpm_base + 0x0c)
+#define CLK_GPIO		(lsp0crpm_base + 0x2c)
+#define CLK_SPDIF0		(lsp0crpm_base + 0x10)
+#define SPDIF0_DIV		(lsp0crpm_base + 0x14)
+#define CLK_I2S0		(lsp0crpm_base + 0x18)
+#define I2S0_DIV		(lsp0crpm_base + 0x1c)
+#define CLK_I2S1		(lsp0crpm_base + 0x20)
+#define I2S1_DIV		(lsp0crpm_base + 0x24)
+#define CLK_I2S2		(lsp0crpm_base + 0x34)
+#define I2S2_DIV		(lsp0crpm_base + 0x38)
 
 #define CLK_UART0		(lsp1crpm_base + 0x20)
 #define CLK_UART1		(lsp1crpm_base + 0x24)
 #define CLK_SDMMC0		(lsp1crpm_base + 0x2c)
+#define CLK_SPDIF1		(lsp1crpm_base + 0x30)
+#define SPDIF1_DIV		(lsp1crpm_base + 0x34)
 
 static const struct zx_pll_config pll_a9_config[] = {
 	{ .rate = 700000000, .cfg0 = 0x800405d1, .cfg1 = 0x04555555 },
@@ -170,6 +181,21 @@ static const char * uart_wclk_sel[] = {
 	"lsp1_26M_wclk",
 };
 
+static const char * spdif0_wclk_sel[] = {
+	"lsp0_104M_wclk",
+	"lsp0_26M_wclk",
+};
+
+static const char * spdif1_wclk_sel[] = {
+	"lsp1_104M_wclk",
+	"lsp1_26M_wclk",
+};
+
+static const char * i2s_wclk_sel[] = {
+	"lsp0_104M_wclk",
+	"lsp0_26M_wclk",
+};
+
 static inline struct clk *zx_divtbl(const char *name, const char *parent,
 				    void __iomem *reg, u8 shift, u8 width,
 				    const struct clk_div_table *table)
@@ -196,7 +222,7 @@ static inline struct clk *zx_gate(const char *name, const char *parent,
 				  void __iomem *reg, u8 shift)
 {
 	return clk_register_gate(NULL, name, parent, CLK_IGNORE_UNUSED,
-				 reg, shift, 0, &reg_lock);
+				 reg, shift, CLK_SET_RATE_PARENT, &reg_lock);
 }
 
 static void __init zx296702_top_clocks_init(struct device_node *np)
@@ -585,7 +611,57 @@ static void __init zx296702_lsp0_clocks_init(struct device_node *np)
 	clk[ZX296702_SDMMC1_WCLK] =
 		zx_gate("sdmmc1_wclk", "sdmmc1_wclk_div", CLK_SDMMC1, 1);
 	clk[ZX296702_SDMMC1_PCLK] =
-		zx_gate("sdmmc1_pclk", "lsp1_apb_pclk", CLK_SDMMC1, 0);
+		zx_gate("sdmmc1_pclk", "lsp0_apb_pclk", CLK_SDMMC1, 0);
+
+	clk[ZX296702_GPIO_CLK] =
+		zx_gate("gpio_clk", "lsp0_apb_pclk", CLK_GPIO, 0);
+
+	/* SPDIF */
+	clk[ZX296702_SPDIF0_WCLK_MUX] =
+		zx_mux("spdif0_wclk_mux", spdif0_wclk_sel,
+				ARRAY_SIZE(spdif0_wclk_sel), CLK_SPDIF0, 4, 1);
+	clk[ZX296702_SPDIF0_WCLK] =
+		zx_gate("spdif0_wclk", "spdif0_wclk_mux", CLK_SPDIF0, 1);
+	clk[ZX296702_SPDIF0_PCLK] =
+		zx_gate("spdif0_pclk", "lsp0_apb_pclk", CLK_SPDIF0, 0);
+
+	clk[ZX296702_SPDIF0_DIV] =
+		clk_register_zx_audio("spdif0_div", "spdif0_wclk", 0,
+				SPDIF0_DIV);
+
+	/* I2S */
+	clk[ZX296702_I2S0_WCLK_MUX] =
+		zx_mux("i2s0_wclk_mux", i2s_wclk_sel,
+				ARRAY_SIZE(i2s_wclk_sel), CLK_I2S0, 4, 1);
+	clk[ZX296702_I2S0_WCLK] =
+		zx_gate("i2s0_wclk", "i2s0_wclk_mux", CLK_I2S0, 1);
+	clk[ZX296702_I2S0_PCLK] =
+		zx_gate("i2s0_pclk", "lsp0_apb_pclk", CLK_I2S0, 0);
+
+	clk[ZX296702_I2S0_DIV] =
+		clk_register_zx_audio("i2s0_div", "i2s0_wclk", 0, I2S0_DIV);
+
+	clk[ZX296702_I2S1_WCLK_MUX] =
+		zx_mux("i2s1_wclk_mux", i2s_wclk_sel,
+				ARRAY_SIZE(i2s_wclk_sel), CLK_I2S1, 4, 1);
+	clk[ZX296702_I2S1_WCLK] =
+		zx_gate("i2s1_wclk", "i2s1_wclk_mux", CLK_I2S1, 1);
+	clk[ZX296702_I2S1_PCLK] =
+		zx_gate("i2s1_pclk", "lsp0_apb_pclk", CLK_I2S1, 0);
+
+	clk[ZX296702_I2S1_DIV] =
+		clk_register_zx_audio("i2s1_div", "i2s1_wclk", 0, I2S1_DIV);
+
+	clk[ZX296702_I2S2_WCLK_MUX] =
+		zx_mux("i2s2_wclk_mux", i2s_wclk_sel,
+				ARRAY_SIZE(i2s_wclk_sel), CLK_I2S2, 4, 1);
+	clk[ZX296702_I2S2_WCLK] =
+		zx_gate("i2s2_wclk", "i2s2_wclk_mux", CLK_I2S2, 1);
+	clk[ZX296702_I2S2_PCLK] =
+		zx_gate("i2s2_pclk", "lsp0_apb_pclk", CLK_I2S2, 0);
+
+	clk[ZX296702_I2S2_DIV] =
+		clk_register_zx_audio("i2s2_div", "i2s2_wclk", 0, I2S2_DIV);
 
 	for (i = 0; i < ARRAY_SIZE(lsp0clk); i++) {
 		if (IS_ERR(clk[i])) {
@@ -640,6 +716,18 @@ static void __init zx296702_lsp1_clocks_init(struct device_node *np)
 		zx_gate("sdmmc0_wclk", "sdmmc0_wclk_div", CLK_SDMMC0, 1);
 	clk[ZX296702_SDMMC0_PCLK] =
 		zx_gate("sdmmc0_pclk", "lsp1_apb_pclk", CLK_SDMMC0, 0);
+
+	clk[ZX296702_SPDIF1_WCLK_MUX] =
+		zx_mux("spdif1_wclk_mux", spdif1_wclk_sel,
+				ARRAY_SIZE(spdif1_wclk_sel), CLK_SPDIF1, 4, 1);
+	clk[ZX296702_SPDIF1_WCLK] =
+		zx_gate("spdif1_wclk", "spdif1_wclk_mux", CLK_SPDIF1, 1);
+	clk[ZX296702_SPDIF1_PCLK] =
+		zx_gate("spdif1_pclk", "lsp1_apb_pclk", CLK_SPDIF1, 0);
+
+	clk[ZX296702_SPDIF1_DIV] =
+		clk_register_zx_audio("spdif1_div", "spdif1_wclk", 0,
+				SPDIF1_DIV);
 
 	for (i = 0; i < ARRAY_SIZE(lsp1clk); i++) {
 		if (IS_ERR(clk[i])) {
