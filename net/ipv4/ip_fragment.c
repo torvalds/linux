@@ -202,7 +202,7 @@ static void ip_expire(unsigned long arg)
 	ipq_kill(qp);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 
-	if (!(qp->q.flags & INET_FRAG_EVICTED)) {
+	if (!inet_frag_evicting(&qp->q)) {
 		struct sk_buff *head = qp->q.fragments;
 		const struct iphdr *iph;
 		int err;

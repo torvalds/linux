@@ -140,7 +140,6 @@ inet_evict_bucket(struct inet_frags *f, struct inet_frag_bucket *hb)
 		if (!del_timer(&fq->timer))
 			continue;
 
-		fq->flags |= INET_FRAG_EVICTED;
 		hlist_add_head(&fq->list_evictor, &expired);
 		++evicted;
 	}

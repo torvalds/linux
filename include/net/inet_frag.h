@@ -21,13 +21,11 @@ struct netns_frags {
  * @INET_FRAG_FIRST_IN: first fragment has arrived
  * @INET_FRAG_LAST_IN: final fragment has arrived
  * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
- * @INET_FRAG_EVICTED: frag queue is being evicted
  */
 enum {
 	INET_FRAG_FIRST_IN	= BIT(0),
 	INET_FRAG_LAST_IN	= BIT(1),
 	INET_FRAG_COMPLETE	= BIT(2),
-	INET_FRAG_EVICTED	= BIT(3)
 };
 
 /**
@@ -125,6 +123,11 @@ static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f
 {
 	if (atomic_dec_and_test(&q->refcnt))
 		inet_frag_destroy(q, f);
+}
+
+static inline bool inet_frag_evicting(struct inet_frag_queue *q)
+{
+	return !hlist_unhashed(&q->list_evictor);
 }
 
 /* Memory Tracking Functions. */
