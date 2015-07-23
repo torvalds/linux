@@ -877,6 +877,16 @@ static unsigned int adv7611_read_cable_det(struct v4l2_subdev *sd)
 	return value & 1;
 }
 
+static unsigned int adv7612_read_cable_det(struct v4l2_subdev *sd)
+{
+	/*  Reads CABLE_DET_A_RAW. For input B support, need to
+	 *  account for bit 7 [MSB] of 0x6a (ie. CABLE_DET_B_RAW)
+	 */
+	u8 value = io_read(sd, 0x6f);
+
+	return value & 1;
+}
+
 static int adv76xx_s_detect_tx_5v_ctrl(struct v4l2_subdev *sd)
 {
 	struct adv76xx_state *state = to_state(sd);
@@ -2728,20 +2738,21 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 	[ADV7612] = {
 		.type = ADV7612,
 		.has_afe = false,
-		.max_port = ADV7604_PAD_HDMI_PORT_B,
-		.num_dv_ports = 2,
+		.max_port = ADV76XX_PAD_HDMI_PORT_A,	/* B not supported */
+		.num_dv_ports = 1,			/* normally 2 */
 		.edid_enable_reg = 0x74,
 		.edid_status_reg = 0x76,
 		.lcf_reg = 0xa3,
 		.tdms_lock_mask = 0x43,
 		.cable_det_mask = 0x01,
 		.fmt_change_digital_mask = 0x03,
+		.cp_csc = 0xf4,
 		.formats = adv7612_formats,
 		.nformats = ARRAY_SIZE(adv7612_formats),
 		.set_termination = adv7611_set_termination,
 		.setup_irqs = adv7612_setup_irqs,
 		.read_hdmi_pixelclock = adv7611_read_hdmi_pixelclock,
-		.read_cable_det = adv7611_read_cable_det,
+		.read_cable_det = adv7612_read_cable_det,
 		.recommended_settings = {
 		    [1] = adv7612_recommended_settings_hdmi,
 		},
