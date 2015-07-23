@@ -246,16 +246,16 @@ static const struct key_entry toshiba_acpi_keymap[] = {
 };
 
 static const struct key_entry toshiba_acpi_alt_keymap[] = {
-	{ KE_KEY, 0x157, { KEY_MUTE } },
 	{ KE_KEY, 0x102, { KEY_ZOOMOUT } },
 	{ KE_KEY, 0x103, { KEY_ZOOMIN } },
 	{ KE_KEY, 0x12c, { KEY_KBDILLUMTOGGLE } },
 	{ KE_KEY, 0x139, { KEY_ZOOMRESET } },
-	{ KE_KEY, 0x13e, { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 0x13c, { KEY_BRIGHTNESSDOWN } },
 	{ KE_KEY, 0x13d, { KEY_BRIGHTNESSUP } },
-	{ KE_KEY, 0x158, { KEY_WLAN } },
+	{ KE_KEY, 0x13e, { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 0x13f, { KEY_TOUCHPAD_TOGGLE } },
+	{ KE_KEY, 0x157, { KEY_MUTE } },
+	{ KE_KEY, 0x158, { KEY_WLAN } },
 	{ KE_END, 0 },
 };
 
