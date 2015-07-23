@@ -4021,12 +4021,12 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 
 stop:
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
-		ret = -EIO;
+		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
 		goto out;
 	}
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
 			       buf & ~DP_TEST_SINK_START) < 0) {
-		ret = -EIO;
+		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
 		goto out;
 	}
 out:
