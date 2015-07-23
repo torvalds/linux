@@ -64,7 +64,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	unsigned long mask = -1UL;
+	unsigned long val, mask = -1UL;
 
 	BUG_ON(i + n > 6);
 
@@ -72,8 +72,14 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	if (test_tsk_thread_flag(task, TIF_32BIT))
 		mask = 0xffffffff;
 #endif
-	while (n--)
-		args[n] = regs->gpr[3 + i + n] & mask;
+	while (n--) {
+		if (n == 0 && i == 0)
+			val = regs->orig_gpr3;
+		else
+			val = regs->gpr[3 + i + n];
+
+		args[n] = val & mask;
+	}
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
@@ -83,6 +89,10 @@ static inline void syscall_set_arguments(struct task_struct *task,
 {
 	BUG_ON(i + n > 6);
 	memcpy(&regs->gpr[3 + i], args, n * sizeof(args[0]));
+
+	/* Also copy the first argument into orig_gpr3 */
+	if (i == 0 && n > 0)
+		regs->orig_gpr3 = args[0];
 }
 
 static inline int syscall_get_arch(void)
