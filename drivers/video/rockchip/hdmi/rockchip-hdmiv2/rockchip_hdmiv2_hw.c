@@ -578,12 +578,6 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 	hdmi_dev->pixelrepeat = timing->pixelrepeat;
 	hdmi_dev->colordepth = vpara->color_output_depth;
 
-	/* Video Register has already been set in uboot,
-	   so we no need to set again */
-
-	if (hdmi_drv->uboot)
-		return -1;
-
 	/* Start/stop HDCP keepout window generation */
 	hdmi_msk_reg(hdmi_dev, FC_INVIDCONF,
 		     m_FC_HDCP_KEEPOUT, v_FC_HDCP_KEEPOUT(1));
@@ -1301,7 +1295,8 @@ static int hdmi_dev_config_video(struct hdmi *hdmi, struct hdmi_video *vpara)
 		dev_info(hdmi->dev, "[%s] sucess output DVI.\n", __func__);
 	}
 
-	rockchip_hdmiv2_config_phy(hdmi_dev);
+	if (!hdmi->uboot)
+		rockchip_hdmiv2_config_phy(hdmi_dev);
 	return 0;
 }
 
