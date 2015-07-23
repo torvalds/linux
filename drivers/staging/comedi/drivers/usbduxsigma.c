@@ -519,17 +519,12 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 		 */
 		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
 						    (125000 * interval));
-
-		tmp = (cmd->scan_begin_arg / 125000) * 125000;
 	} else {
 		/* full speed */
 		/* 1kHz scans every USB frame */
 		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
 						    1000000);
-
-		tmp = (cmd->scan_begin_arg / 1000000) * 1000000;
 	}
-	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
@@ -541,6 +536,14 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 
 	if (err)
 		return 3;
+
+	/* Step 4: fix up any arguments */
+
+	tmp = rounddown(cmd->scan_begin_arg, high_speed ? 125000 : 1000000);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
+
+	if (err)
+		return 4;
 
 	return 0;
 }
