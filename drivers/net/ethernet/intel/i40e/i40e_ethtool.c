@@ -437,6 +437,7 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
 		break;
 	case I40E_DEV_ID_20G_KR2:
+	case I40E_DEV_ID_20G_KR2_A:
 		/* backplane 20G */
 		ecmd->supported = SUPPORTED_20000baseKR2_Full;
 		ecmd->advertising = ADVERTISED_20000baseKR2_Full;
