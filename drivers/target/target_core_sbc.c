@@ -992,6 +992,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			       " than 1\n", sectors);
 			return TCM_INVALID_CDB_FIELD;
 		}
+		if (sbc_check_dpofua(dev, cmd, cdb))
+			return TCM_INVALID_CDB_FIELD;
+
 		/*
 		 * Double size because we have two buffers, note that
 		 * zero is not an error..
