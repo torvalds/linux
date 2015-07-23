@@ -1187,22 +1187,17 @@ static int toshiba_hotkey_event_type_get(struct toshiba_acpi_dev *dev,
 }
 
 /* Transflective Backlight */
-static int get_tr_backlight_status(struct toshiba_acpi_dev *dev, bool *enabled)
+static int get_tr_backlight_status(struct toshiba_acpi_dev *dev, u32 *status)
 {
-	u32 hci_result;
-	u32 status;
+	u32 hci_result = hci_read(dev, HCI_TR_BACKLIGHT, status);
 
-	hci_result = hci_read(dev, HCI_TR_BACKLIGHT, &status);
-	*enabled = !status;
 	return hci_result == TOS_SUCCESS ? 0 : -EIO;
 }
 
-static int set_tr_backlight_status(struct toshiba_acpi_dev *dev, bool enable)
+static int set_tr_backlight_status(struct toshiba_acpi_dev *dev, u32 status)
 {
-	u32 hci_result;
-	u32 value = !enable;
+	u32 hci_result = hci_write(dev, HCI_TR_BACKLIGHT, !status);
 
-	hci_result = hci_write(dev, HCI_TR_BACKLIGHT, value);
 	return hci_result == TOS_SUCCESS ? 0 : -EIO;
 }
 
@@ -1216,12 +1211,11 @@ static int __get_lcd_brightness(struct toshiba_acpi_dev *dev)
 	int brightness = 0;
 
 	if (dev->tr_backlight_supported) {
-		bool enabled;
-		int ret = get_tr_backlight_status(dev, &enabled);
+		int ret = get_tr_backlight_status(dev, &value);
 
 		if (ret)
 			return ret;
-		if (enabled)
+		if (value)
 			return 0;
 		brightness++;
 	}
@@ -1271,8 +1265,7 @@ static int set_lcd_brightness(struct toshiba_acpi_dev *dev, int value)
 	u32 hci_result;
 
 	if (dev->tr_backlight_supported) {
-		bool enable = !value;
-		int ret = set_tr_backlight_status(dev, enable);
+		int ret = set_tr_backlight_status(dev, !value);
 
 		if (ret)
 			return ret;
@@ -2563,7 +2556,6 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	struct backlight_properties props;
 	int brightness;
 	int ret;
-	bool enabled;
 
 	/*
 	 * Some machines don't support the backlight methods at all, and
@@ -2579,10 +2571,6 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 		pr_debug("Backlight method is read-only, disabling backlight support\n");
 		return 0;
 	}
-
-	/* Determine whether or not BIOS supports transflective backlight */
-	ret = get_tr_backlight_status(dev, &enabled);
-	dev->tr_backlight_supported = !ret;
 
 	/*
 	 * Tell acpi-video-detect code to prefer vendor backlight on all
@@ -2722,6 +2710,10 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	if (toshiba_acpi_setup_keyboard(dev))
 		pr_info("Unable to activate hotkeys\n");
+
+	/* Determine whether or not BIOS supports transflective backlight */
+	ret = get_tr_backlight_status(dev, &dummy);
+	dev->tr_backlight_supported = !ret;
 
 	ret = toshiba_acpi_setup_backlight(dev);
 	if (ret)
