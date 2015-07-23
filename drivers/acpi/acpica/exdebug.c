@@ -598,7 +598,8 @@ acpi_ex_start_trace_opcode(union acpi_parse_object *op,
 
 	ACPI_FUNCTION_NAME(ex_start_trace_opcode);
 
-	if (acpi_ex_interpreter_trace_enabled(NULL)) {
+	if (acpi_ex_interpreter_trace_enabled(NULL) &&
+	    (acpi_gbl_trace_flags & ACPI_TRACE_OPCODE)) {
 		ACPI_TRACE_POINT(ACPI_TRACE_AML_OPCODE, TRUE,
 				 op->common.aml, op->common.aml_op_name);
 	}
@@ -625,7 +626,8 @@ acpi_ex_stop_trace_opcode(union acpi_parse_object *op,
 
 	ACPI_FUNCTION_NAME(ex_stop_trace_opcode);
 
-	if (acpi_ex_interpreter_trace_enabled(NULL)) {
+	if (acpi_ex_interpreter_trace_enabled(NULL) &&
+	    (acpi_gbl_trace_flags & ACPI_TRACE_OPCODE)) {
 		ACPI_TRACE_POINT(ACPI_TRACE_AML_OPCODE, FALSE,
 				 op->common.aml, op->common.aml_op_name);
 	}
