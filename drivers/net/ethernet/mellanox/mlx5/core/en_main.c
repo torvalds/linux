@@ -514,6 +514,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 
 	sq->wq.db       = &sq->wq.db[MLX5_SND_DBR];
 	sq->uar_map     = sq->uar.map;
+	sq->uar_bf_map  = sq->uar.bf_map;
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
 	sq->max_inline  = param->max_inline;
 
@@ -524,11 +525,12 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	txq_ix = c->ix + tc * priv->params.num_channels;
 	sq->txq = netdev_get_tx_queue(priv->netdev, txq_ix);
 
-	sq->pdev    = c->pdev;
-	sq->mkey_be = c->mkey_be;
-	sq->channel = c;
-	sq->tc      = tc;
-	sq->edge    = (sq->wq.sz_m1 + 1) - MLX5_SEND_WQE_MAX_WQEBBS;
+	sq->pdev      = c->pdev;
+	sq->mkey_be   = c->mkey_be;
+	sq->channel   = c;
+	sq->tc        = tc;
+	sq->edge      = (sq->wq.sz_m1 + 1) - MLX5_SEND_WQE_MAX_WQEBBS;
+	sq->bf_budget = MLX5E_SQ_BF_BUDGET;
 	priv->txq_to_sq_map[txq_ix] = sq;
 
 	return 0;

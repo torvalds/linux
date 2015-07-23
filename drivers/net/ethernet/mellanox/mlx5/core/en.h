@@ -60,6 +60,7 @@
 
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_UPDATE_STATS_INTERVAL    200 /* msecs */
+#define MLX5E_SQ_BF_BUDGET             16
 
 static const char vport_strings[][ETH_GSTRING_LEN] = {
 	/* vport statistics */
@@ -268,7 +269,9 @@ struct mlx5e_sq {
 	/* dirtied @xmit */
 	u16                        pc ____cacheline_aligned_in_smp;
 	u32                        dma_fifo_pc;
-	u32                        bf_offset;
+	u16                        bf_offset;
+	u16                        prev_cc;
+	u8                         bf_budget;
 	struct mlx5e_sq_stats      stats;
 
 	struct mlx5e_cq            cq;
@@ -281,9 +284,10 @@ struct mlx5e_sq {
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
 	void __iomem              *uar_map;
+	void __iomem              *uar_bf_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
-	u32                        bf_buf_size;
+	u16                        bf_buf_size;
 	u16                        max_inline;
 	u16                        edge;
 	struct device             *pdev;
@@ -493,8 +497,10 @@ int mlx5e_update_priv_params(struct mlx5e_priv *priv,
 			     struct mlx5e_params *new_params);
 
 static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
-				      struct mlx5e_tx_wqe *wqe)
+				      struct mlx5e_tx_wqe *wqe, int bf_sz)
 {
+	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
+
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
 
@@ -505,9 +511,15 @@ static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	 */
 	wmb();
 
-	mlx5_write64((__be32 *)&wqe->ctrl,
-		     sq->uar_map + MLX5_BF_OFFSET + sq->bf_offset,
-		     NULL);
+	if (bf_sz) {
+		__iowrite64_copy(sq->uar_bf_map + ofst, &wqe->ctrl, bf_sz);
+
+		/* flush the write-combining mapped buffer */
+		wmb();
+
+	} else {
+		mlx5_write64((__be32 *)&wqe->ctrl, sq->uar_map + ofst, NULL);
+	}
 
 	sq->bf_offset ^= sq->bf_buf_size;
 }
