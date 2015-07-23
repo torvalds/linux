@@ -2319,8 +2319,8 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	struct device_domain_info *info = NULL;
 	struct dmar_domain *domain, *tmp;
 	struct intel_iommu *iommu;
+	u16 req_id, dma_alias;
 	unsigned long flags;
-	u16 dma_alias;
 	u8 bus, devfn;
 
 	domain = find_domain(dev);
@@ -2330,6 +2330,8 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return NULL;
+
+	req_id = ((u16)bus << 8) | devfn;
 
 	if (dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(dev);
@@ -2361,7 +2363,7 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	}
 
 	/* register PCI DMA alias device */
-	if (dev_is_pci(dev)) {
+	if (req_id != dma_alias && dev_is_pci(dev)) {
 		tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
 					       dma_alias & 0xff, NULL, domain);
 
