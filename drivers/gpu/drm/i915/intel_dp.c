@@ -3994,7 +3994,7 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0) {
 		ret = -EIO;
-		goto out;
+		goto stop;
 	}
 
 	test_crc_count = buf & DP_TEST_COUNT_MASK;
@@ -4003,7 +4003,7 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 		if (drm_dp_dpcd_readb(&intel_dp->aux,
 				      DP_TEST_SINK_MISC, &buf) < 0) {
 			ret = -EIO;
-			goto out;
+			goto stop;
 		}
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	} while (--attempts && (buf & DP_TEST_COUNT_MASK) == test_crc_count);
@@ -4011,14 +4011,15 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	if (attempts == 0) {
 		DRM_DEBUG_KMS("Panel is unable to calculate CRC after 6 vblanks\n");
 		ret = -ETIMEDOUT;
-		goto out;
+		goto stop;
 	}
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0) {
 		ret = -EIO;
-		goto out;
+		goto stop;
 	}
 
+stop:
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
 		ret = -EIO;
 		goto out;
