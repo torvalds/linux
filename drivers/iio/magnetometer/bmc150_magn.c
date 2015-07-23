@@ -784,29 +784,23 @@ static int bmc150_magn_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	if (state == data->dready_trigger_on)
 		goto err_unlock;
 
-	ret = bmc150_magn_set_power_state(data, state);
-	if (ret < 0)
-		goto err_unlock;
-
 	ret = regmap_update_bits(data->regmap, BMC150_MAGN_REG_INT_DRDY,
 				 BMC150_MAGN_MASK_DRDY_EN,
 				 state << BMC150_MAGN_SHIFT_DRDY_EN);
 	if (ret < 0)
-		goto err_poweroff;
+		goto err_unlock;
 
 	data->dready_trigger_on = state;
 
 	if (state) {
 		ret = bmc150_magn_reset_intr(data);
 		if (ret < 0)
-			goto err_poweroff;
+			goto err_unlock;
 	}
 	mutex_unlock(&data->mutex);
 
 	return 0;
 
-err_poweroff:
-	bmc150_magn_set_power_state(data, false);
 err_unlock:
 	mutex_unlock(&data->mutex);
 	return ret;
