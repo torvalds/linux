@@ -482,6 +482,7 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 	struct usbduxsigma_private *devpriv = dev->private;
 	int high_speed = devpriv->high_speed;
 	int interval = usbduxsigma_chans_to_interval(cmd->chanlist_len);
+	unsigned int tmp;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -509,36 +510,26 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	if (high_speed) {
+		/*
+		 * In high speed mode microframes are possible.
+		 * However, during one microframe we can roughly
+		 * sample two channels. Thus, the more channels
+		 * are in the channel list the more time we need.
+		 */
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    (125000 * interval));
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		unsigned int tmp;
+		tmp = (cmd->scan_begin_arg / 125000) * 125000;
+	} else {
+		/* full speed */
+		/* 1kHz scans every USB frame */
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    1000000);
 
-		if (high_speed) {
-			/*
-			 * In high speed mode microframes are possible.
-			 * However, during one microframe we can roughly
-			 * sample two channels. Thus, the more channels
-			 * are in the channel list the more time we need.
-			 */
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    (1000000 / 8 *
-							     interval));
-
-			tmp = (cmd->scan_begin_arg / 125000) * 125000;
-		} else {
-			/* full speed */
-			/* 1kHz scans every USB frame */
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    1000000);
-
-			tmp = (cmd->scan_begin_arg / 1000000) * 1000000;
-		}
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
+		tmp = (cmd->scan_begin_arg / 1000000) * 1000000;
 	}
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
