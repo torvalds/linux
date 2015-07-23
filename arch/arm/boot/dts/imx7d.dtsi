@@ -478,6 +478,11 @@
 				#interrupt-cells = <2>;
 			};
 
+			iomuxc_lpsr_gpr: lpsr-gpr@30270000 {
+				compatible = "fsl,imx7d-lpsr-gpr";
+				reg = <0x30270000 0x10000>;
+			};
+
 			wdog1: wdog@30280000 {
 				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
 				reg = <0x30280000 0x10000>;
