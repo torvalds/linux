@@ -134,8 +134,7 @@ static struct attribute *rtc_attrs[] = {
 ATTRIBUTE_GROUPS(rtc);
 
 static ssize_t
-rtc_sysfs_show_wakealarm(struct device *dev, struct device_attribute *attr,
-		char *buf)
+wakealarm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t retval;
 	unsigned long alarm;
@@ -159,7 +158,7 @@ rtc_sysfs_show_wakealarm(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-rtc_sysfs_set_wakealarm(struct device *dev, struct device_attribute *attr,
+wakealarm_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	ssize_t retval;
@@ -221,8 +220,7 @@ rtc_sysfs_set_wakealarm(struct device *dev, struct device_attribute *attr,
 	retval = rtc_set_alarm(rtc, &alm);
 	return (retval < 0) ? retval : n;
 }
-static DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,
-		rtc_sysfs_show_wakealarm, rtc_sysfs_set_wakealarm);
+static DEVICE_ATTR_RW(wakealarm);
 
 
 /* The reason to trigger an alarm with no process watching it (via sysfs)
