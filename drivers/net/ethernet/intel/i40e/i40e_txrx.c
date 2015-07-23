@@ -1783,8 +1783,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		if (!test_bit(__I40E_DOWN, &vsi->state))
 			wr32(hw, I40E_PFINT_DYN_CTLN(vector - 1), val);
 	} else {
-		i40e_irq_dynamic_enable(vsi,
-					q_vector->v_idx + vsi->base_vector);
+		i40e_irq_dynamic_enable(vsi, q_vector->v_idx);
 	}
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting)) {
 		old_itr = q_vector->tx.itr;
@@ -1806,8 +1805,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 			wr32(hw, I40E_PFINT_DYN_CTLN(q_vector->v_idx +
 			      vsi->base_vector - 1), val);
 	} else {
-		i40e_irq_dynamic_enable(vsi,
-					q_vector->v_idx + vsi->base_vector);
+		i40e_irq_dynamic_enable(vsi, q_vector->v_idx);
 	}
 }
 
