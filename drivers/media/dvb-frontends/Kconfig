@@ -513,6 +513,13 @@ config DVB_AS102_FE
 	depends on DVB_CORE
 	default DVB_AS102
 
+config DVB_ZD1301_DEMOD
+	tristate "ZyDAS ZD1301"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 config DVB_GP8PSK_FE
 	tristate
 	depends on DVB_CORE
