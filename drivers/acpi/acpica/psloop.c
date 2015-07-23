@@ -137,10 +137,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			}
 
 			if (arg) {
-				arg->common.aml_offset =
-				    (u32)ACPI_PTR_DIFF(walk_state->aml,
-						       walk_state->parser_state.
-						       aml_start);
+				arg->common.aml = walk_state->aml;
 				acpi_ps_append_arg(op, arg);
 			}
 
@@ -494,18 +491,14 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				continue;
 			}
 
-			op->common.aml_offset =
-			    (u32)ACPI_PTR_DIFF(walk_state->aml,
-					       walk_state->parser_state.
-					       aml_start);
+			op->common.aml = walk_state->aml;
 
 			if (walk_state->op_info) {
 				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Opcode %4.4X [%s] Op %p Aml %p AmlOffset %5.5X\n",
+						  "Opcode %4.4X [%s] Op %p Aml %p\n",
 						  (u32)op->common.aml_opcode,
 						  walk_state->op_info->name, op,
-						  parser_state->aml,
-						  op->common.aml_offset));
+						  op->common.aml));
 			}
 		}
 

@@ -484,7 +484,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 						       *parser_state)
 {
-	u32 aml_offset;
+	u8 *aml;
 	union acpi_parse_object *field;
 	union acpi_parse_object *arg = NULL;
 	u16 opcode;
@@ -498,8 +498,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 	ACPI_FUNCTION_TRACE(ps_get_next_field);
 
-	aml_offset =
-	    (u32)ACPI_PTR_DIFF(parser_state->aml, parser_state->aml_start);
+	aml = parser_state->aml;
 
 	/* Determine field type */
 
@@ -541,7 +540,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		return_PTR(NULL);
 	}
 
-	field->common.aml_offset = aml_offset;
+	field->common.aml = aml;
 
 	/* Decode the field type */
 
