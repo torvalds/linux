@@ -331,7 +331,7 @@ void mei_stop(struct mei_device *dev)
 
 	mei_cancel_work(dev);
 
-	mei_nfc_host_exit(dev);
+	mei_cl_bus_remove_devices(dev);
 
 	mutex_lock(&dev->device_lock);
 

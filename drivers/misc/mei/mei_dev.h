@@ -241,7 +241,6 @@ struct mei_cl_cb {
  * @rd_completed: completed read
  *
  * @cldev: device on the mei client bus
- * @device_link:  link to bus clients
  */
 struct mei_cl {
 	struct list_head link;
@@ -260,9 +259,7 @@ struct mei_cl {
 	struct list_head rd_pending;
 	struct list_head rd_completed;
 
-	/* MEI CL bus data */
 	struct mei_cl_device *cldev;
-	struct list_head device_link;
 };
 
 /** struct mei_hw_ops
@@ -329,12 +326,7 @@ struct mei_hw_ops {
 };
 
 /* MEI bus API*/
-
-struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
-					struct mei_me_client *me_cl,
-					struct mei_cl *cl,
-					const char *name);
-void mei_cl_remove_device(struct mei_cl_device *cldev);
+void mei_cl_bus_rescan(struct mei_device *bus);
 void mei_cl_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking);
@@ -343,7 +335,6 @@ void mei_cl_bus_rx_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *bus);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
-struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *bus, uuid_le uuid);
 
 /**
  * enum mei_pg_event - power gating transition events

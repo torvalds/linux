@@ -30,6 +30,11 @@
 #define MEI_UUID_NFC_INFO UUID_LE(0xd2de1625, 0x382d, 0x417d, \
 			0x48, 0xa4, 0xef, 0xab, 0xba, 0x8a, 0x12, 0x06)
 
+static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
+
+#define MEI_UUID_NFC_HCI UUID_LE(0x0bb17a78, 0x2a8e, 0x4c50, \
+			0x94, 0xd4, 0x50, 0x26, 0x67, 0x23, 0x77, 0x5c)
+
 #define MEI_UUID_ANY NULL_UUID_LE
 
 /**
@@ -93,67 +98,9 @@ struct mei_nfc_if_version {
 	u8 radio_type;
 } __packed;
 
-struct mei_nfc_connect {
-	u8 fw_ivn;
-	u8 vendor_id;
-} __packed;
-
-struct mei_nfc_connect_resp {
-	u8 fw_ivn;
-	u8 vendor_id;
-	u16 me_major;
-	u16 me_minor;
-	u16 me_hotfix;
-	u16 me_build;
-} __packed;
-
-struct mei_nfc_hci_hdr {
-	u8 cmd;
-	u8 status;
-	u16 req_id;
-	u32 reserved;
-	u16 data_size;
-} __packed;
 
 #define MEI_NFC_CMD_MAINTENANCE 0x00
-#define MEI_NFC_CMD_HCI_SEND 0x01
-#define MEI_NFC_CMD_HCI_RECV 0x02
-
-#define MEI_NFC_SUBCMD_CONNECT    0x00
 #define MEI_NFC_SUBCMD_IF_VERSION 0x01
-
-#define MEI_NFC_HEADER_SIZE 10
-
-/**
- * struct mei_nfc_dev - NFC mei device
- *
- * @me_cl: NFC me client
- * @cl: NFC host client
- * @cl_info: NFC info host client
- * @init_work: perform connection to the info client
- * @fw_ivn: NFC Interface Version Number
- * @vendor_id: NFC manufacturer ID
- * @radio_type: NFC radio type
- * @bus_name: bus name
- *
- */
-struct mei_nfc_dev {
-	struct mei_me_client *me_cl;
-	struct mei_cl *cl;
-	struct mei_cl *cl_info;
-	struct work_struct init_work;
-	u8 fw_ivn;
-	u8 vendor_id;
-	u8 radio_type;
-	const char *bus_name;
-};
-
-/* UUIDs for NFC F/W clients */
-const uuid_le mei_nfc_guid = UUID_LE(0x0bb17a78, 0x2a8e, 0x4c50,
-				     0x94, 0xd4, 0x50, 0x26,
-				     0x67, 0x23, 0x77, 0x5c);
-
-static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
 
 /* Vendors */
 #define MEI_NFC_VENDOR_INSIDE 0x00
@@ -162,27 +109,6 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
 /* Radio types */
 #define MEI_NFC_VENDOR_INSIDE_UREAD 0x00
 #define MEI_NFC_VENDOR_NXP_PN544    0x01
-
-static void mei_nfc_free(struct mei_nfc_dev *ndev)
-{
-	if (!ndev)
-		return;
-
-	if (ndev->cl) {
-		list_del(&ndev->cl->device_link);
-		mei_cl_unlink(ndev->cl);
-		kfree(ndev->cl);
-	}
-
-	if (ndev->cl_info) {
-		list_del(&ndev->cl_info->device_link);
-		mei_cl_unlink(ndev->cl_info);
-		kfree(ndev->cl_info);
-	}
-
-	mei_me_cl_put(ndev->me_cl);
-	kfree(ndev);
-}
 
 /**
  * mei_nfc_if_version - get NFC interface version
@@ -264,177 +190,86 @@ static const char *mei_nfc_radio_name(struct mei_nfc_if_version *ver)
 	return NULL;
 }
 
-static void mei_nfc_init(struct work_struct *work)
+/**
+ * mei_nfc - The nfc fixup function. The function retrieves nfc radio
+ *    name and set is as device attribute so we can load
+ *    the proper device driver for it
+ *
+ * @cldev: me client device (nfc)
+ */
+static void mei_nfc(struct mei_cl_device *cldev)
 {
 	struct mei_device *bus;
-	struct mei_cl_device *cldev;
-	struct mei_nfc_dev *ndev;
-	struct mei_cl *cl_info;
-	struct mei_me_client *me_cl_info;
-	struct mei_nfc_if_version version;
-
-	ndev = container_of(work, struct mei_nfc_dev, init_work);
-
-	cl_info = ndev->cl_info;
-	bus = cl_info->dev;
-
-	mutex_lock(&bus->device_lock);
-
-	/* check for valid client id */
-	me_cl_info = mei_me_cl_by_uuid(bus, &mei_nfc_info_guid);
-	if (!me_cl_info) {
-		mutex_unlock(&bus->device_lock);
-		dev_info(bus->dev, "nfc: failed to find the info client\n");
-		goto err;
-	}
-
-	if (mei_cl_connect(cl_info, me_cl_info, NULL) < 0) {
-		mei_me_cl_put(me_cl_info);
-		mutex_unlock(&bus->device_lock);
-		dev_err(bus->dev, "Could not connect to the NFC INFO ME client");
-
-		goto err;
-	}
-	mei_me_cl_put(me_cl_info);
-	mutex_unlock(&bus->device_lock);
-
-	if (mei_nfc_if_version(cl_info, &version) < 0) {
-		dev_err(bus->dev, "Could not get the NFC interface version");
-
-		goto err;
-	}
-
-	ndev->fw_ivn = version.fw_ivn;
-	ndev->vendor_id = version.vendor_id;
-	ndev->radio_type = version.radio_type;
-
-	dev_info(bus->dev, "NFC MEI VERSION: IVN 0x%x Vendor ID 0x%x Type 0x%x\n",
-		ndev->fw_ivn, ndev->vendor_id, ndev->radio_type);
-
-	mutex_lock(&bus->device_lock);
-
-	if (mei_cl_disconnect(cl_info) < 0) {
-		mutex_unlock(&bus->device_lock);
-		dev_err(bus->dev, "Could not disconnect the NFC INFO ME client");
-
-		goto err;
-	}
-
-	mutex_unlock(&bus->device_lock);
-
-	ndev->bus_name = mei_nfc_radio_name(&version);
-
-	if (!ndev->bus_name) {
-		dev_err(bus->dev, "Could not build the bus ID name\n");
-		return;
-	}
-
-	cldev = mei_cl_add_device(bus, ndev->me_cl, ndev->cl,
-				  ndev->bus_name);
-	if (!cldev) {
-		dev_err(bus->dev, "Could not add the NFC device to the MEI bus\n");
-
-		goto err;
-	}
-
-	cldev->priv_data = ndev;
-
-
-	return;
-
-err:
-	mutex_lock(&bus->device_lock);
-	mei_nfc_free(ndev);
-	mutex_unlock(&bus->device_lock);
-
-}
-
-
-int mei_nfc_host_init(struct mei_device *bus, struct mei_me_client *me_cl)
-{
-	struct mei_nfc_dev *ndev;
-	struct mei_cl *cl_info, *cl;
+	struct mei_cl *cl;
+	struct mei_me_client *me_cl = NULL;
+	struct mei_nfc_if_version ver;
+	const char *radio_name = NULL;
 	int ret;
 
+	bus = cldev->bus;
 
-	/* in case of internal reset bail out
-	 * as the device is already setup
-	 */
-	cl = mei_cl_bus_find_cl_by_uuid(bus, mei_nfc_guid);
-	if (cl)
-		return 0;
+	dev_dbg(bus->dev, "running hook %s: %pUl match=%d\n",
+		__func__, mei_me_cl_uuid(cldev->me_cl), cldev->do_match);
 
-	ndev = kzalloc(sizeof(struct mei_nfc_dev), GFP_KERNEL);
-	if (!ndev) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	ndev->me_cl = mei_me_cl_get(me_cl);
-	if (!ndev->me_cl) {
-		ret = -ENODEV;
-		goto err;
-	}
-
-	cl_info = mei_cl_alloc_linked(bus, MEI_HOST_CLIENT_ID_ANY);
-	if (IS_ERR(cl_info)) {
-		ret = PTR_ERR(cl_info);
-		goto err;
-	}
-
-	list_add_tail(&cl_info->device_link, &bus->device_list);
-
-	ndev->cl_info = cl_info;
-
+	mutex_lock(&bus->device_lock);
+	/* we need to connect to INFO GUID */
 	cl = mei_cl_alloc_linked(bus, MEI_HOST_CLIENT_ID_ANY);
 	if (IS_ERR(cl)) {
 		ret = PTR_ERR(cl);
-		goto err;
+		cl = NULL;
+		dev_err(bus->dev, "nfc hook alloc failed %d\n", ret);
+		goto out;
 	}
 
-	list_add_tail(&cl->device_link, &bus->device_list);
+	me_cl = mei_me_cl_by_uuid(bus, &mei_nfc_info_guid);
+	if (!me_cl) {
+		ret = -ENOTTY;
+		dev_err(bus->dev, "Cannot find nfc info %d\n", ret);
+		goto out;
+	}
 
-	ndev->cl = cl;
+	ret = mei_cl_connect(cl, me_cl, NULL);
+	if (ret < 0) {
+		dev_err(&cldev->dev, "Can't connect to the NFC INFO ME ret = %d\n",
+			ret);
+		goto out;
+	}
 
-	INIT_WORK(&ndev->init_work, mei_nfc_init);
-	schedule_work(&ndev->init_work);
-
-	return 0;
-
-err:
-	mei_nfc_free(ndev);
-
-	return ret;
-}
-
-void mei_nfc_host_exit(struct mei_device *bus)
-{
-	struct mei_nfc_dev *ndev;
-	struct mei_cl *cl;
-	struct mei_cl_device *cldev;
-
-	cl = mei_cl_bus_find_cl_by_uuid(bus, mei_nfc_guid);
-	if (!cl)
-		return;
-
-	cldev = cl->cldev;
-	if (!cldev)
-		return;
-
-	ndev = (struct mei_nfc_dev *)cldev->priv_data;
-	if (ndev)
-		cancel_work_sync(&ndev->init_work);
-
-	cldev->priv_data = NULL;
-
-	/* Need to remove the device here
-	 * since mei_nfc_free will unlink the clients
-	 */
-	mei_cl_remove_device(cldev);
-
-	mutex_lock(&bus->device_lock);
-	mei_nfc_free(ndev);
 	mutex_unlock(&bus->device_lock);
+
+	ret = mei_nfc_if_version(cl, &ver);
+	if (ret)
+		goto disconnect;
+
+	radio_name = mei_nfc_radio_name(&ver);
+
+	if (!radio_name) {
+		ret = -ENOENT;
+		dev_err(&cldev->dev, "Can't get the NFC interface version ret = %d\n",
+			ret);
+		goto disconnect;
+	}
+
+	dev_dbg(bus->dev, "nfc radio %s\n", radio_name);
+	strlcpy(cldev->name, radio_name, sizeof(cldev->name));
+
+disconnect:
+	mutex_lock(&bus->device_lock);
+	if (mei_cl_disconnect(cl) < 0)
+		dev_err(bus->dev, "Can't disconnect the NFC INFO ME\n");
+
+	mei_cl_flush_queues(cl, NULL);
+
+out:
+	mei_cl_unlink(cl);
+	mutex_unlock(&bus->device_lock);
+	mei_me_cl_put(me_cl);
+	kfree(cl);
+
+	if (ret)
+		cldev->do_match = 0;
+
+	dev_dbg(bus->dev, "end of fixup match = %d\n", cldev->do_match);
 }
 
 #define MEI_FIXUP(_uuid, _hook) { _uuid, _hook }
@@ -446,6 +281,7 @@ static struct mei_fixup {
 } mei_fixups[] = {
 	MEI_FIXUP(MEI_UUID_ANY, number_of_connections),
 	MEI_FIXUP(MEI_UUID_NFC_INFO, blacklist),
+	MEI_FIXUP(MEI_UUID_NFC_HCI, mei_nfc),
 };
 
 /**

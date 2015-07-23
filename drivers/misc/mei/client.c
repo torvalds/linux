@@ -558,7 +558,6 @@ void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	INIT_LIST_HEAD(&cl->rd_completed);
 	INIT_LIST_HEAD(&cl->rd_pending);
 	INIT_LIST_HEAD(&cl->link);
-	INIT_LIST_HEAD(&cl->device_link);
 	cl->writing_state = MEI_IDLE;
 	cl->state = MEI_FILE_INITIALIZING;
 	cl->dev = dev;
@@ -690,15 +689,11 @@ void mei_host_client_init(struct work_struct *work)
 		mei_wd_host_init(dev, me_cl);
 	mei_me_cl_put(me_cl);
 
-	me_cl = mei_me_cl_by_uuid(dev, &mei_nfc_guid);
-	if (me_cl)
-		mei_nfc_host_init(dev, me_cl);
-	mei_me_cl_put(me_cl);
-
-
 	dev->dev_state = MEI_DEV_ENABLED;
 	dev->reset_count = 0;
 	mutex_unlock(&dev->device_lock);
+
+	mei_cl_bus_rescan(dev);
 
 	pm_runtime_mark_last_busy(dev->dev);
 	dev_dbg(dev->dev, "rpm: autosuspend\n");
