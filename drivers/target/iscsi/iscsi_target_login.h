@@ -12,6 +12,7 @@ extern int iscsit_accept_np(struct iscsi_np *, struct iscsi_conn *);
 extern int iscsit_get_login_rx(struct iscsi_conn *, struct iscsi_login *);
 extern int iscsit_put_login_tx(struct iscsi_conn *, struct iscsi_login *, u32);
 extern void iscsit_free_conn(struct iscsi_np *, struct iscsi_conn *);
+extern int iscsit_start_kthreads(struct iscsi_conn *);
 extern int iscsi_target_login_thread(void *);
 extern int iscsi_login_disable_FIM_keys(struct iscsi_param_list *, struct iscsi_conn *);
 
