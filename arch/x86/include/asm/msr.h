@@ -188,8 +188,10 @@ static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
 #define rdmsrl(msr, val)			\
 	((val) = native_read_msr((msr)))
 
-#define wrmsrl(msr, val)						\
-	native_write_msr((msr), (u32)((u64)(val)), (u32)((u64)(val) >> 32))
+static inline void wrmsrl(unsigned msr, u64 val)
+{
+	native_write_msr(msr, (u32)val, (u32)(val >> 32));
+}
 
 /* wrmsr with exception handling */
 static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
