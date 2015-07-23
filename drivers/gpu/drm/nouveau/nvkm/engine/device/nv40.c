@@ -265,7 +265,7 @@ nv40_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv40_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv40_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv1a_devinit_oclass;
-		device->oclass[NVDEV_SUBDEV_MC     ] =  nv44_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] =  nv4c_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nv31_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nv46_fb_oclass;
