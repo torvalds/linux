@@ -87,15 +87,15 @@ static const struct snd_pcm_hardware aml_i2s_hardware = {
 
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE|SNDRV_PCM_FMTBIT_S24_LE|SNDRV_PCM_FMTBIT_S32_LE,
 
-	.period_bytes_min	= 64,
-	.period_bytes_max	= 32 * 1024*2,
+	.period_bytes_min	= 32,
+	.period_bytes_max	= 32 * 1024,
 	.periods_min		= 2,
 	.periods_max		= 1024,
-	.buffer_bytes_max	= 128 * 1024*2*2,
+	.buffer_bytes_max	= 32 * 1024 * 2,
 
 	.rate_min = 8000,
-	.rate_max = 48000,
-	.channels_min = 2,
+	.rate_max = 192000,
+	.channels_min = 1,
 	.channels_max = 8,
 	.fifo_size = 0,
 };
@@ -627,40 +627,30 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
     if (res) return -EFAULT;
     if(access_ok(VERIFY_READ, buf, frames_to_bytes(runtime, count)))
     {
-      if(runtime->format == SNDRV_PCM_FORMAT_S16_LE)
-      {
-	int16_t * tfrom, *to, *left, *right;
-	tfrom = (int16_t *) ubuf;
+      if(runtime->format == SNDRV_PCM_FORMAT_S16_LE){
+        int16_t * tfrom, *to, *left, *right;
+        tfrom = (int16_t *) ubuf;
 
-	for (j = 0; j < count; j++) {
-		to = (int16_t *) get_hw_buf_ptr(runtime, pos + j, align);
-		left = to;
-		right = to + align;
+        for (j = 0; j < count; j++) {
+            to = (int16_t *) get_hw_buf_ptr(runtime, pos + j, align);
+            left = to;
+            right = to + align;
 
-		*left = (*tfrom++);
-		*right = (*tfrom++);
-	}
-
-      }else if(runtime->format == SNDRV_PCM_FORMAT_S24_LE && I2S_MODE == AIU_I2S_MODE_PCM24){
-        int32_t *tfrom, *to, *left, *right;
-        tfrom = (int32_t*)ubuf;
-        to = (int32_t*) hwbuf;
-
-        left = to;
-        right = to + 8;
-
-        if(pos % align){
-          printk("audio data unaligned: pos=%d, n=%d, align=%d\n", (int)pos, n, align);
+            *left = (*tfrom++);
+            *right = (*tfrom++);
         }
-        for(j=0; j< n; j+= 64){
-          for(i=0; i<8; i++){
-            *left++  =  (*tfrom ++);
-            *right++  = (*tfrom ++);
-          }
-          left += 8;
-          right += 8;
-        }
+    }else if(runtime->format == SNDRV_PCM_FORMAT_S24_LE && I2S_MODE == AIU_I2S_MODE_PCM24){
+        int32_t * tfrom, *to, *left, *right;
+        tfrom = (int32_t *) ubuf;
 
+        for (j = 0; j < count; j++) {
+            to = (int32_t *) get_hw_buf_ptr(runtime, pos + j, align);
+            left = to;
+            right = to + align;
+
+            *left = (*tfrom++);
+            *right = (*tfrom++);
+        }
       }else if(runtime->format == SNDRV_PCM_FORMAT_S32_LE /*&& I2S_MODE == AIU_I2S_MODE_PCM32*/){
         int32_t *tfrom, *to, *left, *right;
         tfrom = (int32_t*)ubuf;
