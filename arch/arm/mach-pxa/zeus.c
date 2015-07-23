@@ -868,6 +868,8 @@ static void __init zeus_init(void)
 	i2c_register_board_info(0, ARRAY_AND_SIZE(zeus_i2c_devices));
 	pxa2xx_set_spi_info(3, &pxa2xx_spi_ssp3_master_info);
 	spi_register_board_info(zeus_spi_board_info, ARRAY_SIZE(zeus_spi_board_info));
+
+	regulator_has_full_constraints();
 }
 
 static struct map_desc zeus_io_desc[] __initdata = {

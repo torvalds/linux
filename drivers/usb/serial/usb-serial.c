@@ -1306,6 +1306,7 @@ static void __exit usb_serial_exit(void)
 	tty_unregister_driver(usb_serial_tty_driver);
 	put_tty_driver(usb_serial_tty_driver);
 	bus_unregister(&usb_serial_bus_type);
+	idr_destroy(&serial_minors);
 }
 
 

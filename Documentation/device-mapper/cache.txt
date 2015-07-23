@@ -258,6 +258,12 @@ cache metadata mode      : ro if read-only, rw if read-write
 	no further I/O will be permitted and the status will just
 	contain the string 'Fail'.  The userspace recovery tools
 	should then be used.
+needs_check		 : 'needs_check' if set, '-' if not set
+	A metadata operation has failed, resulting in the needs_check
+	flag being set in the metadata's superblock.  The metadata
+	device must be deactivated and checked/repaired before the
+	cache can be made fully operational again.  '-' indicates
+	needs_check is not set.
 
 Messages
 --------

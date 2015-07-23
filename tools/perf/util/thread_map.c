@@ -136,8 +136,7 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 		if (grow) {
 			struct thread_map *tmp;
 
-			tmp = realloc(threads, (sizeof(*threads) +
-						max_threads * sizeof(pid_t)));
+			tmp = thread_map__realloc(threads, max_threads);
 			if (tmp == NULL)
 				goto out_free_namelist;
 

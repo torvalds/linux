@@ -625,6 +625,23 @@ static void bond_set_dev_addr(struct net_device *bond_dev,
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
 }
 
+static struct slave *bond_get_old_active(struct bonding *bond,
+					 struct slave *new_active)
+{
+	struct slave *slave;
+	struct list_head *iter;
+
+	bond_for_each_slave(bond, slave, iter) {
+		if (slave == new_active)
+			continue;
+
+		if (ether_addr_equal(bond->dev->dev_addr, slave->dev->dev_addr))
+			return slave;
+	}
+
+	return NULL;
+}
+
 /* bond_do_fail_over_mac
  *
  * Perform special MAC address swapping for fail_over_mac settings
@@ -651,6 +668,9 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		 */
 		if (!new_active)
 			return;
+
+		if (!old_active)
+			old_active = bond_get_old_active(bond, new_active);
 
 		if (old_active) {
 			ether_addr_copy(tmp_mac, new_active->dev->dev_addr);
@@ -1725,9 +1745,16 @@ err_free:
 
 err_undo_flags:
 	/* Enslave of first slave has failed and we need to fix master's mac */
-	if (!bond_has_slaves(bond) &&
-	    ether_addr_equal_64bits(bond_dev->dev_addr, slave_dev->dev_addr))
-		eth_hw_addr_random(bond_dev);
+	if (!bond_has_slaves(bond)) {
+		if (ether_addr_equal_64bits(bond_dev->dev_addr,
+					    slave_dev->dev_addr))
+			eth_hw_addr_random(bond_dev);
+		if (bond_dev->type != ARPHRD_ETHER) {
+			ether_setup(bond_dev);
+			bond_dev->flags |= IFF_MASTER;
+			bond_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		}
+	}
 
 	return res;
 }
@@ -1916,6 +1943,7 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
 		netdev_info(bond_dev, "Destroying bond %s\n",
 			    bond_dev->name);
+		bond_remove_proc_entry(bond);
 		unregister_netdevice(bond_dev);
 	}
 	return ret;

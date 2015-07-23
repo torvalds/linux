@@ -390,9 +390,6 @@ struct thread_struct {
 #endif
 	unsigned long		gs;
 
-	/* Floating point and extended processor state */
-	struct fpu		fpu;
-
 	/* Save middle states of ptrace breakpoints */
 	struct perf_event	*ptrace_bps[HBP_NUM];
 	/* Debug status used for traps, single steps, etc... */
@@ -418,6 +415,13 @@ struct thread_struct {
 	unsigned long		iopl;
 	/* Max allowed port in the bitmap, in bytes: */
 	unsigned		io_bitmap_max;
+
+	/* Floating point and extended processor state */
+	struct fpu		fpu;
+	/*
+	 * WARNING: 'fpu' is dynamically-sized.  It *MUST* be at
+	 * the end.
+	 */
 };
 
 /*

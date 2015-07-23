@@ -1193,6 +1193,7 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static DECLARE_BITMAP(overflow_map, IB_UCM_MAX_DEVICES);
 static void ib_ucm_release_dev(struct device *dev)
 {
 	struct ib_ucm_device *ucm_dev;
@@ -1202,7 +1203,7 @@ static void ib_ucm_release_dev(struct device *dev)
 	if (ucm_dev->devnum < IB_UCM_MAX_DEVICES)
 		clear_bit(ucm_dev->devnum, dev_map);
 	else
-		clear_bit(ucm_dev->devnum - IB_UCM_MAX_DEVICES, dev_map);
+		clear_bit(ucm_dev->devnum - IB_UCM_MAX_DEVICES, overflow_map);
 	kfree(ucm_dev);
 }
 
@@ -1226,7 +1227,6 @@ static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
 static dev_t overflow_maj;
-static DECLARE_BITMAP(overflow_map, IB_UCM_MAX_DEVICES);
 static int find_overflow_devnum(void)
 {
 	int ret;

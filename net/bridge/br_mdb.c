@@ -356,7 +356,6 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	if (state == MDB_TEMPORARY)
 		mod_timer(&p->timer, now + br->multicast_membership_interval);
 
-	br_mdb_notify(br->dev, port, group, RTM_NEWMDB, state);
 	return 0;
 }
 

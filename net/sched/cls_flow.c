@@ -425,6 +425,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (!fnew)
 		goto err2;
 
+	tcf_exts_init(&fnew->exts, TCA_FLOW_ACT, TCA_FLOW_POLICE);
+
 	fold = (struct flow_filter *)*arg;
 	if (fold) {
 		err = -EINVAL;
@@ -486,7 +488,6 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 		fnew->mask  = ~0U;
 		fnew->tp = tp;
 		get_random_bytes(&fnew->hashrnd, 4);
-		tcf_exts_init(&fnew->exts, TCA_FLOW_ACT, TCA_FLOW_POLICE);
 	}
 
 	fnew->perturb_timer.function = flow_perturbation;
@@ -526,7 +527,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (*arg == 0)
 		list_add_tail_rcu(&fnew->list, &head->filters);
 	else
-		list_replace_rcu(&fnew->list, &fold->list);
+		list_replace_rcu(&fold->list, &fnew->list);
 
 	*arg = (unsigned long)fnew;
 

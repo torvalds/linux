@@ -287,6 +287,11 @@ static void set_max_threads(unsigned int max_threads_suggested)
 	max_threads = clamp_t(u64, threads, MIN_THREADS, MAX_THREADS);
 }
 
+#ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
+/* Initialized by the architecture: */
+int arch_task_struct_size __read_mostly;
+#endif
+
 void __init fork_init(void)
 {
 #ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
@@ -295,7 +300,7 @@ void __init fork_init(void)
 #endif
 	/* create a slab on which task_structs can be allocated */
 	task_struct_cachep =
-		kmem_cache_create("task_struct", sizeof(struct task_struct),
+		kmem_cache_create("task_struct", arch_task_struct_size,
 			ARCH_MIN_TASKALIGN, SLAB_PANIC | SLAB_NOTRACK, NULL);
 #endif
 

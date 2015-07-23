@@ -761,7 +761,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	if (!list_empty(&trans->ordered)) {
 		spin_lock(&info->trans_lock);
-		list_splice(&trans->ordered, &cur_trans->pending_ordered);
+		list_splice_init(&trans->ordered, &cur_trans->pending_ordered);
 		spin_unlock(&info->trans_lock);
 	}
 
@@ -1866,7 +1866,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&root->fs_info->trans_lock);
-	list_splice(&trans->ordered, &cur_trans->pending_ordered);
+	list_splice_init(&trans->ordered, &cur_trans->pending_ordered);
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START) {
 		spin_unlock(&root->fs_info->trans_lock);
 		atomic_inc(&cur_trans->use_count);
