@@ -68,6 +68,8 @@ static void __iomem *ccm_base;
 static void __iomem *console_base;
 static void __iomem *suspend_ocram_base;
 static void (*imx7_suspend_in_ocram_fn)(void __iomem *ocram_vbase);
+struct imx7_cpu_pm_info *pm_info;
+static bool lpsr_enabled;
 /*
  * suspend ocram space layout:
  * ======================== high address ======================
@@ -238,8 +240,9 @@ struct imx7_cpu_pm_info {
 	struct imx7_pm_base iomuxc_gpr_base;
 	struct imx7_pm_base ccm_base;
 	struct imx7_pm_base gpc_base;
-	struct imx7_pm_base l2_base;
+	struct imx7_pm_base snvs_base;
 	struct imx7_pm_base anatop_base;
+	struct imx7_pm_base lpsr_base;
 	u32 ttbr1; /* Store TTBR1 */
 	u32 ddrc_num; /* Number of DDRC which need saved/restored. */
 	u32 ddrc_val[MX7_MAX_DDRC_NUM][2]; /* To save offset and value */
@@ -308,6 +311,11 @@ static int imx7_suspend_finish(unsigned long val)
 	return 0;
 }
 
+static void imx7_pm_set_lpsr_resume_addr(unsigned long addr)
+{
+	writel_relaxed(addr, pm_info->lpsr_base.vbase);
+}
+
 static int imx7_pm_enter(suspend_state_t state)
 {
 	unsigned int console_saved_reg[10] = {0};
@@ -336,6 +344,8 @@ static int imx7_pm_enter(suspend_state_t state)
 		if (imx_gpcv2_is_mf_mix_off()) {
 			imx7_console_save(console_saved_reg);
 			memcpy(ocram_saved_in_ddr, ocram_base, ocram_size);
+			if (lpsr_enabled)
+				imx7_pm_set_lpsr_resume_addr(pm_info->resume_addr);
 		}
 
 		/* Zzz ... */
@@ -345,6 +355,8 @@ static int imx7_pm_enter(suspend_state_t state)
 			memcpy(ocram_base, ocram_saved_in_ddr, ocram_size);
 			imx7_console_restore(console_saved_reg);
 		}
+		/* clear LPSR resume address */
+		imx7_pm_set_lpsr_resume_addr(0);
 		imx_anatop_post_resume();
 		imx_gpcv2_post_resume();
 		break;
@@ -468,7 +480,6 @@ void __init imx7_pm_map_io(void)
 static int __init imx7_suspend_init(const struct imx7_pm_socdata *socdata)
 {
 	struct device_node *node;
-	struct imx7_cpu_pm_info *pm_info;
 	int i, ret = 0;
 	const u32 (*ddrc_offset_array)[2];
 	const u32 (*ddrc_phy_offset_array)[2];
@@ -509,31 +520,39 @@ static int __init imx7_suspend_init(const struct imx7_pm_socdata *socdata)
 	 */
 	pm_info->ccm_base.pbase = MX7D_CCM_BASE_ADDR;
 	pm_info->ccm_base.vbase = (void __iomem *)
-				   IMX_IO_P2V(MX7D_CCM_BASE_ADDR);
+				IMX_IO_P2V(MX7D_CCM_BASE_ADDR);
 
 	pm_info->ddrc_base.pbase = MX7D_DDRC_BASE_ADDR;
 	pm_info->ddrc_base.vbase = (void __iomem *)
-				    IMX_IO_P2V(MX7D_DDRC_BASE_ADDR);
+				IMX_IO_P2V(MX7D_DDRC_BASE_ADDR);
 
 	pm_info->ddrc_phy_base.pbase = MX7D_DDRC_PHY_BASE_ADDR;
 	pm_info->ddrc_phy_base.vbase = (void __iomem *)
-				    IMX_IO_P2V(MX7D_DDRC_PHY_BASE_ADDR);
+				IMX_IO_P2V(MX7D_DDRC_PHY_BASE_ADDR);
 
 	pm_info->src_base.pbase = MX7D_SRC_BASE_ADDR;
 	pm_info->src_base.vbase = (void __iomem *)
-				   IMX_IO_P2V(MX7D_SRC_BASE_ADDR);
+				IMX_IO_P2V(MX7D_SRC_BASE_ADDR);
 
 	pm_info->iomuxc_gpr_base.pbase = MX7D_IOMUXC_GPR_BASE_ADDR;
 	pm_info->iomuxc_gpr_base.vbase = (void __iomem *)
-				      IMX_IO_P2V(MX7D_IOMUXC_GPR_BASE_ADDR);
+				IMX_IO_P2V(MX7D_IOMUXC_GPR_BASE_ADDR);
 
 	pm_info->gpc_base.pbase = MX7D_GPC_BASE_ADDR;
 	pm_info->gpc_base.vbase = (void __iomem *)
-				   IMX_IO_P2V(MX7D_GPC_BASE_ADDR);
+				IMX_IO_P2V(MX7D_GPC_BASE_ADDR);
 
 	pm_info->anatop_base.pbase = MX7D_ANATOP_BASE_ADDR;
 	pm_info->anatop_base.vbase = (void __iomem *)
-				  IMX_IO_P2V(MX7D_ANATOP_BASE_ADDR);
+				IMX_IO_P2V(MX7D_ANATOP_BASE_ADDR);
+
+	pm_info->snvs_base.pbase = MX7D_SNVS_BASE_ADDR;
+	pm_info->snvs_base.vbase = (void __iomem *)
+				IMX_IO_P2V(MX7D_SNVS_BASE_ADDR);
+
+	pm_info->lpsr_base.pbase = MX7D_LPSR_BASE_ADDR;
+	pm_info->lpsr_base.vbase = (void __iomem *)
+				IMX_IO_P2V(MX7D_LPSR_BASE_ADDR);
 
 	pm_info->ddrc_num = socdata->ddrc_num;
 	ddrc_offset_array = socdata->ddrc_offset;
@@ -606,6 +625,13 @@ void __init imx7d_pm_init(void)
 	struct device_node *np;
 	struct resource res;
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,lpm-sram");
+	if (of_get_property(np, "fsl,enable-lpsr", NULL))
+		lpsr_enabled = true;
+
+	if (lpsr_enabled)
+		pr_info("LPSR mode enabled, DSM will go into LPSR mode!\n");
+
 	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
 		|| imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
 		imx7_pm_common_init(&imx7d_pm_data_lpddr3);
@@ -624,4 +650,7 @@ void __init imx7d_pm_init(void)
 		"/soc/aips-bus@30800000/spba-bus@30800000/serial@30860000");
 	if (np)
 		console_base = of_iomap(np, 0);
+
+	/* clear LPSR resume address first */
+	imx7_pm_set_lpsr_resume_addr(0);
 }

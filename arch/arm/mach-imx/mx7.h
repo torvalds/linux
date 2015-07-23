@@ -14,6 +14,8 @@
 #define MX7D_IO_P2V(x)                  IMX_IO_P2V(x)
 #define MX7D_IO_ADDRESS(x)              IOMEM(MX7D_IO_P2V(x))
 
+#define MX7D_LPSR_BASE_ADDR             0x30270000
+#define MX7D_LPSR_SIZE                  0x10000
 #define MX7D_CCM_BASE_ADDR              0x30380000
 #define MX7D_CCM_SIZE                   0x10000
 #define MX7D_IOMUXC_BASE_ADDR           0x30330000
@@ -22,6 +24,8 @@
 #define MX7D_IOMUXC_GPR_SIZE            0x10000
 #define MX7D_ANATOP_BASE_ADDR           0x30360000
 #define MX7D_ANATOP_SIZE                0x10000
+#define MX7D_SNVS_BASE_ADDR		0x30370000
+#define MX7D_SNVS_SIZE			0x10000
 #define MX7D_GPC_BASE_ADDR              0x303a0000
 #define MX7D_GPC_SIZE                   0x10000
 #define MX7D_SRC_BASE_ADDR              0x30390000
