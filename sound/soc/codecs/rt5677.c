@@ -4763,10 +4763,8 @@ static int rt5677_remove(struct snd_soc_codec *codec)
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
 	regmap_write(rt5677->regmap, RT5677_RESET, 0x10ec);
-	if (rt5677->pow_ldo2)
-		gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
-	if (rt5677->reset_pin)
-		gpiod_set_value_cansleep(rt5677->reset_pin, 0);
+	gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
+	gpiod_set_value_cansleep(rt5677->reset_pin, 0);
 
 	return 0;
 }
@@ -4780,10 +4778,8 @@ static int rt5677_suspend(struct snd_soc_codec *codec)
 		regcache_cache_only(rt5677->regmap, true);
 		regcache_mark_dirty(rt5677->regmap);
 
-		if (rt5677->pow_ldo2)
-			gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
-		if (rt5677->reset_pin)
-			gpiod_set_value_cansleep(rt5677->reset_pin, 0);
+		gpiod_set_value_cansleep(rt5677->pow_ldo2, 0);
+		gpiod_set_value_cansleep(rt5677->reset_pin, 0);
 	}
 
 	return 0;
@@ -4794,10 +4790,8 @@ static int rt5677_resume(struct snd_soc_codec *codec)
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
 	if (!rt5677->dsp_vad_en) {
-		if (rt5677->pow_ldo2)
-			gpiod_set_value_cansleep(rt5677->pow_ldo2, 1);
-		if (rt5677->reset_pin)
-			gpiod_set_value_cansleep(rt5677->reset_pin, 1);
+		gpiod_set_value_cansleep(rt5677->pow_ldo2, 1);
+		gpiod_set_value_cansleep(rt5677->reset_pin, 1);
 		if (rt5677->pow_ldo2 || rt5677->reset_pin)
 			msleep(10);
 
