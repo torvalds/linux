@@ -455,7 +455,7 @@ static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 	struct mlx5_priv *priv  = &mdev->priv;
 	struct msix_entry *msix = priv->msix_arr;
 	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
-	int numa_node           = dev_to_node(&mdev->pdev->dev);
+	int numa_node           = priv->numa_node;
 	int err;
 
 	if (!zalloc_cpumask_var(&priv->irq_info[i].mask, GFP_KERNEL)) {
@@ -667,6 +667,10 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	mutex_init(&priv->pgdir_mutex);
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	spin_lock_init(&priv->mkey_lock);
+
+	mutex_init(&priv->alloc_mutex);
+
+	priv->numa_node = dev_to_node(&dev->pdev->dev);
 
 	priv->dbg_root = debugfs_create_dir(dev_name(&pdev->dev), mlx5_debugfs_root);
 	if (!priv->dbg_root)

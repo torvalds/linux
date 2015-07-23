@@ -272,6 +272,8 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	int err;
 	int i;
 
+	param->wq.db_numa_node = cpu_to_node(c->cpu);
+
 	err = mlx5_wq_ll_create(mdev, &param->wq, rqc_wq, &rq->wq,
 				&rq->wq_ctrl);
 	if (err)
@@ -502,6 +504,8 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	if (err)
 		return err;
 
+	param->wq.db_numa_node = cpu_to_node(c->cpu);
+
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq,
 				 &sq->wq_ctrl);
 	if (err)
@@ -702,7 +706,8 @@ static int mlx5e_create_cq(struct mlx5e_channel *c,
 	int err;
 	u32 i;
 
-	param->wq.numa = cpu_to_node(c->cpu);
+	param->wq.buf_numa_node = cpu_to_node(c->cpu);
+	param->wq.db_numa_node  = cpu_to_node(c->cpu);
 	param->eq_ix   = c->ix;
 
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
@@ -1000,7 +1005,7 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, log_wq_sz,        priv->params.log_rq_size);
 	MLX5_SET(wq, wq, pd,               priv->pdn);
 
-	param->wq.numa   = dev_to_node(&priv->mdev->pdev->dev);
+	param->wq.buf_numa_node = dev_to_node(&priv->mdev->pdev->dev);
 	param->wq.linear = 1;
 }
 
@@ -1014,7 +1019,7 @@ static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, log_wq_stride, ilog2(MLX5_SEND_WQE_BB));
 	MLX5_SET(wq, wq, pd,            priv->pdn);
 
-	param->wq.numa = dev_to_node(&priv->mdev->pdev->dev);
+	param->wq.buf_numa_node = dev_to_node(&priv->mdev->pdev->dev);
 }
 
 static void mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
