@@ -45,6 +45,7 @@ enum {
  * @flags: fragment queue flags
  * @max_size: maximum received fragment size
  * @net: namespace that this frag belongs to
+ * @list_evictor: list of queues to forcefully evict (e.g. due to low memory)
  */
 struct inet_frag_queue {
 	spinlock_t		lock;
@@ -59,6 +60,7 @@ struct inet_frag_queue {
 	__u8			flags;
 	u16			max_size;
 	struct netns_frags	*net;
+	struct hlist_node	list_evictor;
 };
 
 #define INETFRAGS_HASHSZ	1024

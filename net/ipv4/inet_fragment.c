@@ -151,14 +151,13 @@ evict_again:
 		}
 
 		fq->flags |= INET_FRAG_EVICTED;
-		hlist_del(&fq->list);
-		hlist_add_head(&fq->list, &expired);
+		hlist_add_head(&fq->list_evictor, &expired);
 		++evicted;
 	}
 
 	spin_unlock(&hb->chain_lock);
 
-	hlist_for_each_entry_safe(fq, n, &expired, list)
+	hlist_for_each_entry_safe(fq, n, &expired, list_evictor)
 		f->frag_expire((unsigned long) fq);
 
 	return evicted;
@@ -284,8 +283,7 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 	struct inet_frag_bucket *hb;
 
 	hb = get_frag_bucket_locked(fq, f);
-	if (!(fq->flags & INET_FRAG_EVICTED))
-		hlist_del(&fq->list);
+	hlist_del(&fq->list);
 	spin_unlock(&hb->chain_lock);
 }
 
