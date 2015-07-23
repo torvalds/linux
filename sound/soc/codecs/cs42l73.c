@@ -1236,8 +1236,8 @@ static int cs42l73_set_tristate(struct snd_soc_dai *dai, int tristate)
 	struct snd_soc_codec *codec = dai->codec;
 	int id = dai->id;
 
-	return snd_soc_update_bits(codec, CS42L73_SPC(id),
-					0x7F, tristate << 7);
+	return snd_soc_update_bits(codec, CS42L73_SPC(id), CS42L73_SP_3ST,
+				   tristate << 7);
 }
 
 static const struct snd_pcm_hw_constraint_list constraints_12_24 = {
