@@ -251,14 +251,15 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
 
 	acpi_ds_clear_implicit_return(walk_state);
 
-#ifdef ACPI_DISASSEMBLER
 	if (ACPI_FAILURE(status)) {
+		acpi_ds_dump_method_stack(status, walk_state, walk_state->op);
 
 		/* Display method locals/args if disassembler is present */
 
-		acpi_dm_dump_method_info(status, walk_state, walk_state->op);
-	}
+#ifdef ACPI_DISASSEMBLER
+		acpi_dm_dump_method_info(status, walk_state);
 #endif
+	}
 
 	return (status);
 }

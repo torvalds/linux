@@ -354,4 +354,12 @@ acpi_status
 acpi_ds_result_push(union acpi_operand_object *object,
 		    struct acpi_walk_state *walk_state);
 
+/*
+ * dsdebug - parser debugging routines
+ */
+void
+acpi_ds_dump_method_stack(acpi_status status,
+			  struct acpi_walk_state *walk_state,
+			  union acpi_parse_object *op);
+
 #endif				/* _ACDISPAT_H_ */
