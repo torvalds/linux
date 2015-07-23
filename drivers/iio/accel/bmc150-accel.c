@@ -345,63 +345,6 @@ static int bmc150_accel_any_motion_setup(struct bmc150_accel_trigger *t,
 	return 0;
 }
 
-static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
-{
-	int ret;
-
-	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_CHIP_ID);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error: Reading chip id\n");
-		return ret;
-	}
-
-	dev_dbg(&data->client->dev, "Chip Id %x\n", ret);
-	if (ret != data->chip_info->chip_id) {
-		dev_err(&data->client->dev, "Invalid chip %x\n", ret);
-		return -ENODEV;
-	}
-
-	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
-	if (ret < 0)
-		return ret;
-
-	/* Set Bandwidth */
-	ret = bmc150_accel_set_bw(data, BMC150_ACCEL_DEF_BW, 0);
-	if (ret < 0)
-		return ret;
-
-	/* Set Default Range */
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_PMU_RANGE,
-					BMC150_ACCEL_DEF_RANGE_4G);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_pmu_range\n");
-		return ret;
-	}
-
-	data->range = BMC150_ACCEL_DEF_RANGE_4G;
-
-	/* Set default slope duration and thresholds */
-	data->slope_thres = BMC150_ACCEL_DEF_SLOPE_THRESHOLD;
-	data->slope_dur = BMC150_ACCEL_DEF_SLOPE_DURATION;
-	ret = bmc150_accel_update_slope(data);
-	if (ret < 0)
-		return ret;
-
-	/* Set default as latched interrupts */
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_RST_LATCH,
-					BMC150_ACCEL_INT_MODE_LATCH_INT |
-					BMC150_ACCEL_INT_MODE_LATCH_RESET);
-	if (ret < 0) {
-		dev_err(&data->client->dev,
-			"Error writing reg_int_rst_latch\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int bmc150_accel_get_bw(struct bmc150_accel_data *data, int *val,
 			       int *val2)
 {
@@ -1617,6 +1560,63 @@ static const struct iio_buffer_setup_ops bmc150_accel_buffer_ops = {
 	.predisable = bmc150_accel_buffer_predisable,
 	.postdisable = bmc150_accel_buffer_postdisable,
 };
+
+static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
+{
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_CHIP_ID);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error: Reading chip id\n");
+		return ret;
+	}
+
+	dev_dbg(&data->client->dev, "Chip Id %x\n", ret);
+	if (ret != data->chip_info->chip_id) {
+		dev_err(&data->client->dev, "Invalid chip %x\n", ret);
+		return -ENODEV;
+	}
+
+	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Set Bandwidth */
+	ret = bmc150_accel_set_bw(data, BMC150_ACCEL_DEF_BW, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Set Default Range */
+	ret = i2c_smbus_write_byte_data(data->client,
+					BMC150_ACCEL_REG_PMU_RANGE,
+					BMC150_ACCEL_DEF_RANGE_4G);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_pmu_range\n");
+		return ret;
+	}
+
+	data->range = BMC150_ACCEL_DEF_RANGE_4G;
+
+	/* Set default slope duration and thresholds */
+	data->slope_thres = BMC150_ACCEL_DEF_SLOPE_THRESHOLD;
+	data->slope_dur = BMC150_ACCEL_DEF_SLOPE_DURATION;
+	ret = bmc150_accel_update_slope(data);
+	if (ret < 0)
+		return ret;
+
+	/* Set default as latched interrupts */
+	ret = i2c_smbus_write_byte_data(data->client,
+					BMC150_ACCEL_REG_INT_RST_LATCH,
+					BMC150_ACCEL_INT_MODE_LATCH_INT |
+					BMC150_ACCEL_INT_MODE_LATCH_RESET);
+	if (ret < 0) {
+		dev_err(&data->client->dev,
+			"Error writing reg_int_rst_latch\n");
+		return ret;
+	}
+
+	return 0;
+}
 
 static int bmc150_accel_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
