@@ -839,6 +839,7 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 				  struct comedi_cmd *cmd)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
+	unsigned int tmp;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -889,6 +890,14 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 
 	if (err)
 		return 3;
+
+	/* Step 4: fix up any arguments */
+
+	tmp = rounddown(cmd->scan_begin_arg, 1000000);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
+
+	if (err)
+		return 4;
 
 	return 0;
 }
