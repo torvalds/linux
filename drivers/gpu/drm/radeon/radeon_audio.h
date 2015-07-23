@@ -68,7 +68,8 @@ struct radeon_audio_funcs
 
 int radeon_audio_init(struct radeon_device *rdev);
 void radeon_audio_detect(struct drm_connector *connector,
-	enum drm_connector_status status);
+			 struct drm_encoder *encoder,
+			 enum drm_connector_status status);
 u32 radeon_audio_endpoint_rreg(struct radeon_device *rdev,
 	u32 offset, u32 reg);
 void radeon_audio_endpoint_wreg(struct radeon_device *rdev,
