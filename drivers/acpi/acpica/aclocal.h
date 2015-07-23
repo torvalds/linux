@@ -1107,6 +1107,9 @@ struct acpi_db_method_info {
 	 *   Index of current thread inside all them created.
 	 */
 	char init_args;
+#ifdef ACPI_DEBUGGER
+	acpi_object_type arg_types[4];
+#endif
 	char *arguments[4];
 	char num_threads_str[11];
 	char id_of_thread_str[11];
