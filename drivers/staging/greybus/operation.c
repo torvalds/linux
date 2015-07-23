@@ -19,6 +19,9 @@
 static struct kmem_cache *gb_operation_cache;
 static struct kmem_cache *gb_message_cache;
 
+/* Workqueue to handle Greybus operation completions. */
+static struct workqueue_struct *gb_operation_completion_wq;
+
 /* Wait queue for synchronous cancellations. */
 static DECLARE_WAIT_QUEUE_HEAD(gb_operation_cancellation_queue);
 
@@ -796,8 +799,10 @@ void greybus_message_sent(struct greybus_host_device *hd,
 		gb_operation_put_active(operation);
 		gb_operation_put(operation);
 	} else if (status) {
-		if (gb_operation_result_set(operation, status))
-			queue_work(connection->wq, &operation->work);
+		if (gb_operation_result_set(operation, status)) {
+			queue_work(gb_operation_completion_wq,
+					&operation->work);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(greybus_message_sent);
@@ -874,7 +879,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	/* The rest will be handled in work queue context */
 	if (gb_operation_result_set(operation, errno)) {
 		memcpy(message->header, data, size);
-		queue_work(connection->wq, &operation->work);
+		queue_work(gb_operation_completion_wq, &operation->work);
 	}
 
 	gb_operation_put(operation);
@@ -928,14 +933,12 @@ void gb_connection_recv(struct gb_connection *connection,
  */
 void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
-	struct gb_connection *connection = operation->connection;
-
 	if (WARN_ON(gb_operation_is_incoming(operation)))
 		return;
 
 	if (gb_operation_result_set(operation, errno)) {
 		gb_message_cancel(operation->request);
-		queue_work(connection->wq, &operation->work);
+		queue_work(gb_operation_completion_wq, &operation->work);
 	}
 
 	atomic_inc(&operation->waiters);
@@ -1042,8 +1045,16 @@ int __init gb_operation_init(void)
 	if (!gb_operation_cache)
 		goto err_destroy_message_cache;
 
+	gb_operation_completion_wq = alloc_workqueue("greybus_completion",
+				0, 0);
+	if (!gb_operation_completion_wq)
+		goto err_destroy_operation_cache;
+
 	return 0;
 
+err_destroy_operation_cache:
+	kmem_cache_destroy(gb_operation_cache);
+	gb_operation_cache = NULL;
 err_destroy_message_cache:
 	kmem_cache_destroy(gb_message_cache);
 	gb_message_cache = NULL;
@@ -1053,6 +1064,8 @@ err_destroy_message_cache:
 
 void gb_operation_exit(void)
 {
+	destroy_workqueue(gb_operation_completion_wq);
+	gb_operation_completion_wq = NULL;
 	kmem_cache_destroy(gb_operation_cache);
 	gb_operation_cache = NULL;
 	kmem_cache_destroy(gb_message_cache);
