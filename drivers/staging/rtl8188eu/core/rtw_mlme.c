@@ -704,7 +704,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 					if (--pmlmepriv->to_roaming == 0 ||
 					    _SUCCESS != rtw_sitesurvey_cmd(adapter, &pmlmepriv->assoc_ssid, 1, NULL, 0)) {
 						pmlmepriv->to_roaming = 0;
-						rtw_free_assoc_resources(adapter, 1);
+						rtw_free_assoc_resources(adapter);
 						rtw_indicate_disconnect(adapter);
 					} else {
 						pmlmepriv->to_join = true;
@@ -758,7 +758,19 @@ static void free_scanqueue(struct	mlme_priv *pmlmepriv)
 /*
 *rtw_free_assoc_resources: the caller has to lock pmlmepriv->lock
 */
-void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
+void rtw_free_assoc_resources(struct adapter *adapter)
+{
+	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
+
+	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
+	rtw_free_assoc_resources_locked(adapter);
+	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+}
+
+/*
+*rtw_free_assoc_resources_locked: the caller has to lock pmlmepriv->lock
+*/
+void rtw_free_assoc_resources_locked(struct adapter *adapter)
 {
 	struct wlan_network *pwlan = NULL;
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
@@ -793,8 +805,6 @@ void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
 		rtw_init_bcmc_stainfo(adapter);
 	}
 
-	if (lock_scanned_queue)
-		spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 
 	pwlan = rtw_find_network(&pmlmepriv->scanned_queue, tgt_network->network.MacAddress);
 	if (pwlan)
@@ -805,8 +815,6 @@ void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
 	if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) && (adapter->stapriv.asoc_sta_count == 1)))
 		rtw_free_network_nolock(pmlmepriv, pwlan);
 
-	if (lock_scanned_queue)
-		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 	pmlmepriv->key_mask = 0;
 }
 
@@ -1302,7 +1310,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 
 		rtw_free_uc_swdec_pending_queue(adapter);
 
-		rtw_free_assoc_resources(adapter, 1);
+		rtw_free_assoc_resources(adapter);
 		rtw_indicate_disconnect(adapter);
 		spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 		/*  remove the network entry in scanned_queue */
@@ -1557,7 +1565,7 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 
 		rtw_disassoc_cmd(adapter, 0, true);
 		rtw_indicate_disconnect(adapter);
-		rtw_free_assoc_resources(adapter, 0);
+		rtw_free_assoc_resources_locked(adapter);
 	}
 
 	rtw_hal_get_def_var(adapter, HAL_DEF_IS_SUPPORT_ANT_DIV, &(supp_ant_div));

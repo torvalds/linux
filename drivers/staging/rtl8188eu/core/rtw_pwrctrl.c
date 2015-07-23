@@ -70,7 +70,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 		}
 	}
 	/* s2-3. */
-	rtw_free_assoc_resources(padapter, 1);
+	rtw_free_assoc_resources(padapter);
 
 	/* s2-4. */
 	rtw_free_network_queue(padapter, true);

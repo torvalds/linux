@@ -1871,7 +1871,7 @@ static int rtw_wx_set_auth(struct net_device *dev,
 			rtw_disassoc_cmd(padapter, 500, false);
 			DBG_88E("%s...call rtw_indicate_disconnect\n ", __func__);
 			rtw_indicate_disconnect(padapter);
-			rtw_free_assoc_resources(padapter, 1);
+			rtw_free_assoc_resources(padapter);
 		}
 		ret = wpa_set_auth_algs(dev, (u32)param->value);
 		break;
