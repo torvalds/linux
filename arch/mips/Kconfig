@@ -1968,6 +1968,7 @@ config 32BIT
 	select TRAD_SIGNALS
 	help
 	  Select this option if you want to build a 32-bit kernel.
+
 config 64BIT
 	bool "64-bit kernel"
 	depends on CPU_SUPPORTS_64BIT_KERNEL && SYS_SUPPORTS_64BIT_KERNEL
