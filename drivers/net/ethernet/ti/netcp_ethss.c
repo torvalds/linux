@@ -1550,70 +1550,79 @@ static int keystone_get_sset_count(struct net_device *ndev, int stringset)
 	}
 }
 
-static void gbe_update_stats(struct gbe_priv *gbe_dev, uint64_t *data)
+static inline void gbe_update_hw_stats_entry(struct gbe_priv *gbe_dev,
+					     int et_stats_entry)
 {
 	void __iomem *base = NULL;
 	u32  __iomem *p;
 	u32 tmp = 0;
+
+	/* The hw_stats_regs pointers are already
+	 * properly set to point to the right base:
+	 */
+	base = gbe_dev->hw_stats_regs[gbe_dev->et_stats[et_stats_entry].type];
+	p = base + gbe_dev->et_stats[et_stats_entry].offset;
+	tmp = readl(p);
+	gbe_dev->hw_stats[et_stats_entry] += tmp;
+
+	/* write-to-decrement:
+	 * new register value = old register value - write value
+	 */
+	writel(tmp, p);
+}
+
+static void gbe_update_stats(struct gbe_priv *gbe_dev, uint64_t *data)
+{
 	int i;
 
 	for (i = 0; i < gbe_dev->num_et_stats; i++) {
-		base = gbe_dev->hw_stats_regs[gbe_dev->et_stats[i].type];
-		p = base + gbe_dev->et_stats[i].offset;
-		tmp = readl(p);
-		gbe_dev->hw_stats[i] = gbe_dev->hw_stats[i] + tmp;
+		gbe_update_hw_stats_entry(gbe_dev, i);
+
 		if (data)
 			data[i] = gbe_dev->hw_stats[i];
-		/* write-to-decrement:
-		 * new register value = old register value - write value
-		 */
-		writel(tmp, p);
 	}
+}
+
+static inline void gbe_stats_mod_visible_ver14(struct gbe_priv *gbe_dev,
+					       int stats_mod)
+{
+	u32 val;
+
+	val = readl(GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
+
+	switch (stats_mod) {
+	case GBE_STATSA_MODULE:
+	case GBE_STATSB_MODULE:
+		val &= ~GBE_STATS_CD_SEL;
+		break;
+	case GBE_STATSC_MODULE:
+	case GBE_STATSD_MODULE:
+		val |= GBE_STATS_CD_SEL;
+		break;
+	default:
+		return;
+	}
+
+	/* make the stat module visible */
+	writel(val, GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
 }
 
 static void gbe_update_stats_ver14(struct gbe_priv *gbe_dev, uint64_t *data)
 {
-	void __iomem *gbe_statsa = gbe_dev->hw_stats_regs[0];
-	void __iomem *gbe_statsb = gbe_dev->hw_stats_regs[1];
-	u64 *hw_stats = &gbe_dev->hw_stats[0];
-	void __iomem *base = NULL;
-	u32  __iomem *p;
-	u32 tmp = 0, val, pair_size = (gbe_dev->num_et_stats / 2);
-	int i, j, pair;
+	u32 half_num_et_stats = (gbe_dev->num_et_stats / 2);
+	int et_entry, j, pair;
 
 	for (pair = 0; pair < 2; pair++) {
-		val = readl(GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
+		gbe_stats_mod_visible_ver14(gbe_dev, (pair ?
+						      GBE_STATSC_MODULE :
+						      GBE_STATSA_MODULE));
 
-		if (pair == 0)
-			val &= ~GBE_STATS_CD_SEL;
-		else
-			val |= GBE_STATS_CD_SEL;
+		for (j = 0; j < half_num_et_stats; j++) {
+			et_entry = pair * half_num_et_stats + j;
+			gbe_update_hw_stats_entry(gbe_dev, et_entry);
 
-		/* make the stat modules visible */
-		writel(val, GBE_REG_ADDR(gbe_dev, switch_regs, stat_port_en));
-
-		for (i = 0; i < pair_size; i++) {
-			j = pair * pair_size + i;
-			switch (gbe_dev->et_stats[j].type) {
-			case GBE_STATSA_MODULE:
-			case GBE_STATSC_MODULE:
-				base = gbe_statsa;
-			break;
-			case GBE_STATSB_MODULE:
-			case GBE_STATSD_MODULE:
-				base  = gbe_statsb;
-			break;
-			}
-
-			p = base + gbe_dev->et_stats[j].offset;
-			tmp = readl(p);
-			hw_stats[j] += tmp;
 			if (data)
-				data[j] = hw_stats[j];
-			/* write-to-decrement:
-			 * new register value = old register value - write value
-			 */
-			writel(tmp, p);
+				data[et_entry] = gbe_dev->hw_stats[et_entry];
 		}
 	}
 }
