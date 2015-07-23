@@ -256,6 +256,8 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
 int mei_cl_register_event_cb(struct mei_cl_device *cldev,
 			  mei_cl_event_cb_t event_cb, void *context)
 {
+	int ret;
+
 	if (cldev->event_cb)
 		return -EALREADY;
 
@@ -264,7 +266,9 @@ int mei_cl_register_event_cb(struct mei_cl_device *cldev,
 	cldev->event_context = context;
 	INIT_WORK(&cldev->event_work, mei_bus_event_work);
 
-	mei_cl_read_start(cldev->cl, 0, NULL);
+	ret = mei_cl_read_start(cldev->cl, 0, NULL);
+	if (ret && ret != -EBUSY)
+		return ret;
 
 	return 0;
 }
