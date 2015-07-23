@@ -474,11 +474,6 @@ static int xtfpga_pcm_new(struct snd_soc_pcm_runtime *rtd)
 						     card->dev, size, size);
 }
 
-static void xtfpga_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static const struct snd_pcm_ops xtfpga_pcm_ops = {
 	.open		= xtfpga_pcm_open,
 	.close		= xtfpga_pcm_close,
@@ -490,7 +485,6 @@ static const struct snd_pcm_ops xtfpga_pcm_ops = {
 
 static const struct snd_soc_platform_driver xtfpga_soc_platform = {
 	.pcm_new	= xtfpga_pcm_new,
-	.pcm_free	= xtfpga_pcm_free,
 	.ops		= &xtfpga_pcm_ops,
 };
 
