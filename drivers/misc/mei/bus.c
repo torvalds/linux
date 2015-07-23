@@ -332,9 +332,6 @@ int mei_cl_enable_device(struct mei_cl_device *cldev)
 
 	mutex_unlock(&bus->device_lock);
 
-	if (cldev->event_cb)
-		mei_cl_read_start(cldev->cl, 0, NULL);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mei_cl_enable_device);
