@@ -2009,6 +2009,7 @@ int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css)
 	bio->bi_css = blkcg_css;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(bio_associate_blkcg);
 
 /**
  * bio_associate_current - associate a bio with %current
@@ -2039,6 +2040,7 @@ int bio_associate_current(struct bio *bio)
 	bio->bi_css = task_get_css(current, blkio_cgrp_id);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(bio_associate_current);
 
 /**
  * bio_disassociate_task - undo bio_associate_current()
