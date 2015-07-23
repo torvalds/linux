@@ -840,28 +840,20 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 	int err = 0;
-	int high_speed;
-	unsigned int flags;
-
-	/* high speed conversions are not used yet */
-	high_speed = 0;		/* (devpriv->high_speed) */
 
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
-	if (high_speed) {
-		/*
-		 * start immediately a new scan
-		 * the sampling rate is set by the coversion rate
-		 */
-		flags = TRIG_FOLLOW;
-	} else {
-		/* start a new scan (output at once) with a timer */
-		flags = TRIG_TIMER;
-	}
-	err |= comedi_check_trigger_src(&cmd->scan_begin_src, flags);
-
+	/*
+	 * For now, always use "scan" timing with all channels updated at once
+	 * (cmd->scan_begin_src == TRIG_TIMER, cmd->convert_src == TRIG_NOW).
+	 *
+	 * In a future version, "convert" timing with channels updated
+	 * indivually may be supported in high speed mode
+	 * (cmd->scan_begin_src == TRIG_FOLLOW, cmd->convert_src == TRIG_TIMER).
+	 */
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
@@ -885,17 +877,7 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
-						    1000000);
-	}
-
-	/* not used now, is for later use */
-	if (cmd->convert_src == TRIG_TIMER)
-		err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 125000);
+	err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg, 1000000);
 
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
@@ -920,19 +902,13 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		/*
-		 * timing of the conversion itself: every 125 us
-		 * at high speed (not used yet)
-		 */
-		devpriv->ao_timer = cmd->convert_arg / 125000;
-	} else {
-		/*
-		 * timing of the scan: every 1ms
-		 * we get all channels at once
-		 */
-		devpriv->ao_timer = cmd->scan_begin_arg / 1000000;
-	}
+	/*
+	 * For now, only "scan" timing is supported.  A future version may
+	 * support "convert" timing in high speed mode.
+	 *
+	 * Timing of the scan: every 1ms all channels updated at once.
+	 */
+	devpriv->ao_timer = cmd->scan_begin_arg / 1000000;
 
 	devpriv->ao_counter = devpriv->ao_timer;
 
