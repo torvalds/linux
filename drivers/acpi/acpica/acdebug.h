@@ -264,6 +264,23 @@ char *acpi_db_get_next_token(char *string,
 			     char **next, acpi_object_type * return_type);
 
 /*
+ * dbobject
+ */
+void acpi_db_decode_internal_object(union acpi_operand_object *obj_desc);
+
+void
+acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
+				struct acpi_walk_state *walk_state);
+
+void acpi_db_decode_arguments(struct acpi_walk_state *walk_state);
+
+void acpi_db_decode_locals(struct acpi_walk_state *walk_state);
+
+void
+acpi_db_dump_method_info(acpi_status status,
+			 struct acpi_walk_state *walk_state);
+
+/*
  * dbstats - Generation and display of ACPI table statistics
  */
 void acpi_db_generate_statistics(union acpi_parse_object *root, u8 is_method);

@@ -46,11 +46,9 @@
 #include "acdispat.h"
 #include "acinterp.h"
 #include "acnamesp.h"
-#ifdef	ACPI_DISASSEMBLER
-#include "acdisasm.h"
-#endif
 #include "acparser.h"
 #include "amlcode.h"
+#include "acdebug.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsmethod")
@@ -205,7 +203,7 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
  * RETURN:      Status
  *
  * DESCRIPTION: Called on method error. Invoke the global exception handler if
- *              present, dump the method data if the disassembler is configured
+ *              present, dump the method data if the debugger is configured
  *
  *              Note: Allows the exception handler to change the status code
  *
@@ -254,10 +252,10 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_dump_method_stack(status, walk_state, walk_state->op);
 
-		/* Display method locals/args if disassembler is present */
+		/* Display method locals/args if debugger is present */
 
-#ifdef ACPI_DISASSEMBLER
-		acpi_dm_dump_method_info(status, walk_state);
+#ifdef ACPI_DEBUGGER
+		acpi_db_dump_method_info(status, walk_state);
 #endif
 	}
 
