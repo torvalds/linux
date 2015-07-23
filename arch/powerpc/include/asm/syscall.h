@@ -22,10 +22,15 @@
 extern const unsigned long sys_call_table[];
 #endif /* CONFIG_FTRACE_SYSCALLS */
 
-static inline long syscall_get_nr(struct task_struct *task,
-				  struct pt_regs *regs)
+static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
-	return TRAP(regs) == 0xc00 ? regs->gpr[0] : -1L;
+	/*
+	 * Note that we are returning an int here. That means 0xffffffff, ie.
+	 * 32-bit negative 1, will be interpreted as -1 on a 64-bit kernel.
+	 * This is important for seccomp so that compat tasks can set r0 = -1
+	 * to reject the syscall.
+	 */
+	return TRAP(regs) == 0xc00 ? regs->gpr[0] : -1;
 }
 
 static inline void syscall_rollback(struct task_struct *task,
