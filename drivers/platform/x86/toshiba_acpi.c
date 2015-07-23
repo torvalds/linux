@@ -2466,6 +2466,11 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	u32 hci_result;
 	int error;
 
+	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID)) {
+		pr_info("WMI event detected, hotkeys will not be monitored\n");
+		return 0;
+	}
+
 	error = toshiba_acpi_enable_hotkeys(dev);
 	if (error)
 		return error;
@@ -2813,6 +2818,14 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 
 	switch (event) {
 	case 0x80: /* Hotkeys and some system events */
+		/*
+		 * Machines with this WMI GUID aren't supported due to bugs in
+		 * their AML.
+		 *
+		 * Return silently to avoid triggering a netlink event.
+		 */
+		if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID))
+			return;
 		toshiba_acpi_process_hotkeys(dev);
 		break;
 	case 0x81: /* Dock events */
@@ -2898,14 +2911,6 @@ static struct acpi_driver toshiba_acpi_driver = {
 static int __init toshiba_acpi_init(void)
 {
 	int ret;
-
-	/*
-	 * Machines with this WMI guid aren't supported due to bugs in
-	 * their AML. This check relies on wmi initializing before
-	 * toshiba_acpi to guarantee guids have been identified.
-	 */
-	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID))
-		return -ENODEV;
 
 	toshiba_proc_dir = proc_mkdir(PROC_TOSHIBA, acpi_root_dir);
 	if (!toshiba_proc_dir) {
