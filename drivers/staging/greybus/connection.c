@@ -80,7 +80,10 @@ protocol_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gb_connection *connection = to_gb_connection(dev);
 
-	return sprintf(buf, "%d\n", connection->protocol->id);
+	if (connection->protocol)
+		return sprintf(buf, "%d\n", connection->protocol->id);
+	else
+		return -EINVAL;
 }
 static DEVICE_ATTR_RO(protocol_id);
 
