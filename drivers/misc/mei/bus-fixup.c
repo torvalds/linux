@@ -27,7 +27,22 @@
 #include "mei_dev.h"
 #include "client.h"
 
+#define MEI_UUID_NFC_INFO UUID_LE(0xd2de1625, 0x382d, 0x417d, \
+			0x48, 0xa4, 0xef, 0xab, 0xba, 0x8a, 0x12, 0x06)
+
 #define MEI_UUID_ANY NULL_UUID_LE
+
+/**
+ * blacklist - blacklist a client from the bus
+ *
+ * @cldev: me clients device
+ */
+static void blacklist(struct mei_cl_device *cldev)
+{
+	dev_dbg(&cldev->dev, "running hook %s on %pUl\n",
+			__func__, mei_me_cl_uuid(cldev->me_cl));
+	cldev->do_match = 0;
+}
 
 struct mei_nfc_cmd {
 	u8 command;
@@ -120,9 +135,7 @@ const uuid_le mei_nfc_guid = UUID_LE(0x0bb17a78, 0x2a8e, 0x4c50,
 				     0x94, 0xd4, 0x50, 0x26,
 				     0x67, 0x23, 0x77, 0x5c);
 
-static const uuid_le mei_nfc_info_guid = UUID_LE(0xd2de1625, 0x382d, 0x417d,
-					0x48, 0xa4, 0xef, 0xab,
-					0xba, 0x8a, 0x12, 0x06);
+static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
 
 /* Vendors */
 #define MEI_NFC_VENDOR_INSIDE 0x00
@@ -421,7 +434,9 @@ static struct mei_fixup {
 
 	const uuid_le uuid;
 	void (*hook)(struct mei_cl_device *cldev);
-} mei_fixups[] = {};
+} mei_fixups[] = {
+	MEI_FIXUP(MEI_UUID_NFC_INFO, blacklist),
+};
 
 /**
  * mei_cl_dev_fixup - run fixup handlers
