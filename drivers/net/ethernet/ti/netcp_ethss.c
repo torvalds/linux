@@ -2675,10 +2675,14 @@ static int set_gbe_ethss14_priv(struct gbe_priv *gbe_dev,
 	gbe_dev->sgmii_port_regs = gbe_dev->ss_regs + GBE13_SGMII_MODULE_OFFSET;
 	gbe_dev->host_port_regs = gbe_dev->switch_regs + GBE13_HOST_PORT_OFFSET;
 
+	/* K2HK has only 2 hw stats modules visible at a time, so
+	 * module 0 & 2 points to one base and
+	 * module 1 & 3 points to the other base
+	 */
 	for (i = 0; i < gbe_dev->max_num_slaves; i++) {
 		gbe_dev->hw_stats_regs[i] =
 			gbe_dev->switch_regs + GBE13_HW_STATS_OFFSET +
-			(GBE_HW_STATS_REG_MAP_SZ * i);
+			(GBE_HW_STATS_REG_MAP_SZ * (i & 0x1));
 	}
 
 	gbe_dev->ale_reg = gbe_dev->switch_regs + GBE13_ALE_OFFSET;
