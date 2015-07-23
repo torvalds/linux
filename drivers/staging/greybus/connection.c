@@ -7,6 +7,8 @@
  * Released under the GPLv2 only.
  */
 
+#include <linux/workqueue.h>
+
 #include "greybus.h"
 
 static DEFINE_SPINLOCK(gb_connections_lock);
@@ -99,6 +101,7 @@ static void gb_connection_release(struct device *dev)
 {
 	struct gb_connection *connection = to_gb_connection(dev);
 
+	destroy_workqueue(connection->wq);
 	kfree(connection);
 }
 
@@ -190,6 +193,11 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	spin_lock_init(&connection->lock);
 	INIT_LIST_HEAD(&connection->operations);
 
+	connection->wq = alloc_workqueue("%s:%d", WQ_UNBOUND, 1,
+					 dev_name(parent), cport_id);
+	if (!connection->wq)
+		goto err_free_connection;
+
 	connection->dev.parent = parent;
 	connection->dev.bus = &greybus_bus_type;
 	connection->dev.type = &greybus_connection_type;
@@ -227,6 +235,8 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	return connection;
 
+err_free_connection:
+	kfree(connection);
 err_remove_ida:
 	ida_simple_remove(id_map, hd_cport_id);
 
