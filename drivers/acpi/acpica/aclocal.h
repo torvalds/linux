@@ -174,8 +174,12 @@ struct acpi_namespace_node {
 	 */
 #ifdef ACPI_LARGE_NAMESPACE_NODE
 	union acpi_parse_object *op;
+	void *method_locals;
+	void *method_args;
 	u32 value;
 	u32 length;
+	u8 arg_count;
+
 #endif
 };
 
