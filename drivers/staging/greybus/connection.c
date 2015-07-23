@@ -152,6 +152,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 {
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
+	int hd_cport_id;
 	int retval;
 	u8 major = 0;
 	u8 minor = 1;
@@ -170,12 +171,12 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	if (!connection)
 		return NULL;
 
-	retval = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
-	if (retval < 0) {
+	hd_cport_id = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
+	if (hd_cport_id < 0) {
 		kfree(connection);
 		return NULL;
 	}
-	connection->hd_cport_id = (u16)retval;
+	connection->hd_cport_id = hd_cport_id;
 	connection->intf_cport_id = cport_id;
 	connection->hd = hd;
 
@@ -200,8 +201,6 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	retval = device_add(&connection->dev);
 	if (retval) {
-		struct ida *id_map = &connection->hd->cport_id_map;
-
 		ida_simple_remove(id_map, connection->hd_cport_id);
 		connection->hd_cport_id = CPORT_ID_BAD;
 		put_device(&connection->dev);
