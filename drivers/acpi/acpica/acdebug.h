@@ -102,6 +102,8 @@ void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg);
 
 acpi_status acpi_db_sleep(char *object_arg);
 
+void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg);
+
 void acpi_db_display_locks(void);
 
 void acpi_db_display_resources(char *object_arg);

@@ -147,9 +147,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 		return_ACPI_STATUS(AE_OK);	/* OK for now */
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-			  "End opcode: %s[0x%p].\n",
-			  op->common.aml_op_name, op->common.aml));
+	acpi_ex_stop_trace_opcode(op, walk_state);
 
 	/* Delete this op and the subtree below it if asked to */
 

@@ -290,8 +290,6 @@ ACPI_GLOBAL(u32, acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS]);
 
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_level);
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_layer);
-ACPI_GLOBAL(u32, acpi_gbl_trace_dbg_level);
-ACPI_GLOBAL(u32, acpi_gbl_trace_dbg_layer);
 
 /*****************************************************************************
  *

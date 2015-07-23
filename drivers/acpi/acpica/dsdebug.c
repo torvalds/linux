@@ -48,6 +48,7 @@
 #ifdef ACPI_DISASSEMBLER
 #include "acdisasm.h"
 #endif
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsdebug")
@@ -128,7 +129,6 @@ acpi_ds_dump_method_stack(acpi_status status,
 	struct acpi_walk_state *next_walk_state;
 	struct acpi_namespace_node *previous_method = NULL;
 	union acpi_operand_object *method_desc;
-	char *pathname = NULL;
 
 	ACPI_FUNCTION_TRACE(ds_dump_method_stack);
 
@@ -173,25 +173,10 @@ acpi_ds_dump_method_stack(acpi_status status,
 
 	while (next_walk_state) {
 		method_desc = next_walk_state->method_desc;
-		if (method_desc && method_desc->method.node) {
-			pathname = acpi_ns_get_normalized_pathname((struct
-								    acpi_namespace_node
-								    *)
-								   method_desc->
-								   method.node,
-								   TRUE);
-		}
-		if (pathname) {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "End method [0x%p:%s] execution.\n",
-					  method_desc->method.aml_start,
-					  pathname));
-			ACPI_FREE(pathname);
-			pathname = NULL;
-		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "End method [0x%p] execution.\n",
-					  method_desc->method.aml_start));
+		if (method_desc) {
+			acpi_ex_stop_trace_method((struct acpi_namespace_node *)
+						  method_desc->method.node,
+						  method_desc, walk_state);
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,

@@ -327,7 +327,6 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 			       struct acpi_walk_state *walk_state)
 {
 	acpi_status status = AE_OK;
-	char *pathname = NULL;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_begin_method_execution, method_node);
 
@@ -335,17 +334,7 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 		return_ACPI_STATUS(AE_NULL_ENTRY);
 	}
 
-	pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
-	if (pathname) {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "Begin method [0x%p:%s] execution.\n",
-				  obj_desc->method.aml_start, pathname));
-		ACPI_FREE(pathname);
-	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "Begin method [0x%p] execution.\n",
-				  obj_desc->method.aml_start));
-	}
+	acpi_ex_start_trace_method(method_node, obj_desc, walk_state);
 
 	/* Prevent wraparound of thread count */
 
@@ -708,7 +697,6 @@ void
 acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 				 struct acpi_walk_state *walk_state)
 {
-	char *pathname = NULL;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_terminate_control_method, walk_state);
 
@@ -846,22 +834,8 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		}
 	}
 
-	if (method_desc->method.node) {
-		pathname = acpi_ns_get_normalized_pathname((struct
-							    acpi_namespace_node
-							    *)method_desc->
-							   method.node, TRUE);
-	}
-	if (pathname) {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "End method [0x%p:%s] execution.\n",
-				  method_desc->method.aml_start, pathname));
-		ACPI_FREE(pathname);
-	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "End method [0x%p] execution.\n",
-				  method_desc->method.aml_start));
-	}
+	acpi_ex_stop_trace_method((struct acpi_namespace_node *)method_desc->
+				  method.node, method_desc, walk_state);
 
 	return_VOID;
 }

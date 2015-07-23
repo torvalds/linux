@@ -131,6 +131,24 @@ void
 acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index);
 
+void
+acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
+			   union acpi_operand_object *obj_desc,
+			   struct acpi_walk_state *walk_state);
+
+void
+acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
+			  union acpi_operand_object *obj_desc,
+			  struct acpi_walk_state *walk_state);
+
+void
+acpi_ex_start_trace_opcode(union acpi_parse_object *op,
+			   struct acpi_walk_state *walk_state);
+
+void
+acpi_ex_stop_trace_opcode(union acpi_parse_object *op,
+			  struct acpi_walk_state *walk_state);
+
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */

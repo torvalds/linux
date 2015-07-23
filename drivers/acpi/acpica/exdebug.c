@@ -43,10 +43,14 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
+#include "acnamesp.h"
 #include "acinterp.h"
+#include "acparser.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exdebug")
+
+static union acpi_operand_object *acpi_gbl_trace_method_object = NULL;
 
 #ifndef ACPI_NO_ERROR_MESSAGES
 /*******************************************************************************
@@ -70,6 +74,7 @@ ACPI_MODULE_NAME("exdebug")
  * enabled if necessary.
  *
  ******************************************************************************/
+
 void
 acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index)
@@ -308,3 +313,269 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	return_VOID;
 }
 #endif
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_interpreter_trace_enabled
+ *
+ * PARAMETERS:  name                - Whether method name should be matched,
+ *                                    this should be checked before starting
+ *                                    the tracer
+ *
+ * RETURN:      TRUE if interpreter trace is enabled.
+ *
+ * DESCRIPTION: Check whether interpreter trace is enabled
+ *
+ ******************************************************************************/
+
+static u8 acpi_ex_interpreter_trace_enabled(char *name)
+{
+
+	/* Check if tracing is enabled */
+
+	if (!(acpi_gbl_trace_flags & ACPI_TRACE_ENABLED)) {
+		return (FALSE);
+	}
+
+	/*
+	 * Check if tracing is filtered:
+	 *
+	 * 1. If the tracer is started, acpi_gbl_trace_method_object should have
+	 *    been filled by the trace starter
+	 * 2. If the tracer is not started, acpi_gbl_trace_method_name should be
+	 *    matched if it is specified
+	 * 3. If the tracer is oneshot style, acpi_gbl_trace_method_name should
+	 *    not be cleared by the trace stopper during the first match
+	 */
+	if (acpi_gbl_trace_method_object) {
+		return (TRUE);
+	}
+	if (name &&
+	    (acpi_gbl_trace_method_name &&
+	     strcmp(acpi_gbl_trace_method_name, name))) {
+		return (FALSE);
+	}
+	if ((acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT) &&
+	    !acpi_gbl_trace_method_name) {
+		return (FALSE);
+	}
+
+	return (TRUE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_start_trace_method
+ *
+ * PARAMETERS:  method_node         - Node of the method
+ *              obj_desc            - The method object
+ *              walk_state          - current state, NULL if not yet executing
+ *                                    a method.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Start control method execution trace
+ *
+ ******************************************************************************/
+
+void
+acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
+			   union acpi_operand_object *obj_desc,
+			   struct acpi_walk_state *walk_state)
+{
+	acpi_status status;
+	char *pathname = NULL;
+	u8 enabled = FALSE;
+
+	ACPI_FUNCTION_NAME(ex_start_trace_method);
+
+	if (method_node) {
+		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	enabled = acpi_ex_interpreter_trace_enabled(pathname);
+	if (enabled && !acpi_gbl_trace_method_object) {
+		acpi_gbl_trace_method_object = obj_desc;
+		acpi_gbl_original_dbg_level = acpi_dbg_level;
+		acpi_gbl_original_dbg_layer = acpi_dbg_layer;
+		acpi_dbg_level = ACPI_TRACE_LEVEL_ALL;
+		acpi_dbg_layer = ACPI_TRACE_LAYER_ALL;
+
+		if (acpi_gbl_trace_dbg_level) {
+			acpi_dbg_level = acpi_gbl_trace_dbg_level;
+		}
+		if (acpi_gbl_trace_dbg_layer) {
+			acpi_dbg_layer = acpi_gbl_trace_dbg_layer;
+		}
+	}
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+
+exit:
+	if (enabled) {
+		if (pathname) {
+			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+					  "Begin method [0x%p:%s] execution.\n",
+					  obj_desc->method.aml_start,
+					  pathname));
+		} else {
+			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+					  "Begin method [0x%p] execution.\n",
+					  obj_desc->method.aml_start));
+		}
+	}
+	if (pathname) {
+		ACPI_FREE(pathname);
+	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_stop_trace_method
+ *
+ * PARAMETERS:  method_node         - Node of the method
+ *              obj_desc            - The method object
+ *              walk_state          - current state, NULL if not yet executing
+ *                                    a method.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Stop control method execution trace
+ *
+ ******************************************************************************/
+
+void
+acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
+			  union acpi_operand_object *obj_desc,
+			  struct acpi_walk_state *walk_state)
+{
+	acpi_status status;
+	char *pathname = NULL;
+	u8 enabled;
+
+	ACPI_FUNCTION_NAME(ex_stop_trace_method);
+
+	if (method_node) {
+		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		goto exit_path;
+	}
+
+	enabled = acpi_ex_interpreter_trace_enabled(NULL);
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+
+	if (enabled) {
+		if (pathname) {
+			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+					  "End method [0x%p:%s] execution.\n",
+					  obj_desc->method.aml_start,
+					  pathname));
+		} else {
+			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+					  "End method [0x%p] execution.\n",
+					  obj_desc->method.aml_start));
+		}
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		goto exit_path;
+	}
+
+	/* Check whether the tracer should be stopped */
+
+	if (acpi_gbl_trace_method_object == obj_desc) {
+
+		/* Disable further tracing if type is one-shot */
+
+		if (acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT) {
+			acpi_gbl_trace_method_name = NULL;
+		}
+
+		acpi_dbg_level = acpi_gbl_original_dbg_level;
+		acpi_dbg_layer = acpi_gbl_original_dbg_layer;
+		acpi_gbl_trace_method_object = NULL;
+	}
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+
+exit_path:
+	if (pathname) {
+		ACPI_FREE(pathname);
+	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_start_trace_opcode
+ *
+ * PARAMETERS:  op                  - The parser opcode object
+ *              walk_state          - current state, NULL if not yet executing
+ *                                    a method.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Start opcode execution trace
+ *
+ ******************************************************************************/
+
+void
+acpi_ex_start_trace_opcode(union acpi_parse_object *op,
+			   struct acpi_walk_state *walk_state)
+{
+
+	ACPI_FUNCTION_NAME(ex_start_trace_opcode);
+
+	if (acpi_ex_interpreter_trace_enabled(NULL)) {
+		if (walk_state->op_info) {
+			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+					  "Begin opcode: %s[0x%p] Class=0x%02x, Type=0x%02x, Flags=0x%04x.\n",
+					  op->common.aml_op_name,
+					  op->common.aml,
+					  walk_state->op_info->class,
+					  walk_state->op_info->type,
+					  walk_state->op_info->flags));
+		} else {
+			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+					  "Begin opcode: %s[0x%p].\n",
+					  op->common.aml_op_name,
+					  op->common.aml));
+		}
+	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_stop_trace_opcode
+ *
+ * PARAMETERS:  op                  - The parser opcode object
+ *              walk_state          - current state, NULL if not yet executing
+ *                                    a method.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Stop opcode execution trace
+ *
+ ******************************************************************************/
+
+void
+acpi_ex_stop_trace_opcode(union acpi_parse_object *op,
+			  struct acpi_walk_state *walk_state)
+{
+
+	ACPI_FUNCTION_NAME(ex_stop_trace_opcode);
+
+	if (acpi_ex_interpreter_trace_enabled(NULL)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+				  "End opcode: %s[0x%p].\n",
+				  op->common.aml_op_name, op->common.aml));
+	}
+}

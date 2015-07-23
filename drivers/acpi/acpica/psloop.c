@@ -51,6 +51,7 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
+#include "acinterp.h"
 #include "acparser.h"
 #include "acdispat.h"
 #include "amlcode.h"
@@ -498,20 +499,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 						  op->common.aml));
 			}
 
-			if (walk_state->op_info) {
-				ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-						  "Begin opcode: %s[0x%p] Class=0x%02x, Type=0x%02x, Flags=0x%04x.\n",
-						  op->common.aml_op_name,
-						  op->common.aml,
-						  walk_state->op_info->class,
-						  walk_state->op_info->type,
-						  walk_state->op_info->flags));
-			} else {
-				ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-						  "Begin opcode: %s[0x%p].\n",
-						  op->common.aml_op_name,
-						  op->common.aml));
-			}
+			acpi_ex_start_trace_opcode(op, walk_state);
 		}
 
 		/*
