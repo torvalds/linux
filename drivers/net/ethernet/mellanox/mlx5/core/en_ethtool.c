@@ -662,6 +662,43 @@ out:
 	return err;
 }
 
+static int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
+			  u8 *hfunc)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (hfunc)
+		*hfunc = priv->params.rss_hfunc;
+
+	return 0;
+}
+
+static int mlx5e_set_rxfh(struct net_device *netdev, const u32 *indir,
+			  const u8 *key, const u8 hfunc)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err = 0;
+
+	if (hfunc == ETH_RSS_HASH_NO_CHANGE)
+		return 0;
+
+	if ((hfunc != ETH_RSS_HASH_XOR) &&
+	    (hfunc != ETH_RSS_HASH_TOP))
+		return -EINVAL;
+
+	mutex_lock(&priv->state_lock);
+
+	priv->params.rss_hfunc = hfunc;
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		mlx5e_close_locked(priv->netdev);
+		err = mlx5e_open_locked(priv->netdev);
+	}
+
+	mutex_unlock(&priv->state_lock);
+
+	return err;
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -676,4 +713,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.set_coalesce      = mlx5e_set_coalesce,
 	.get_settings      = mlx5e_get_settings,
 	.set_settings      = mlx5e_set_settings,
+	.get_rxfh          = mlx5e_get_rxfh,
+	.set_rxfh          = mlx5e_set_rxfh,
 };

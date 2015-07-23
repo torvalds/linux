@@ -195,6 +195,7 @@ struct mlx5e_params {
 	u16 rx_hash_log_tbl_sz;
 	bool lro_en;
 	u32 lro_wqe_sz;
+	u8  rss_hfunc;
 };
 
 enum {
