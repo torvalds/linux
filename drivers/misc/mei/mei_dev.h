@@ -335,7 +335,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
 					struct mei_cl *cl,
 					char *name);
 void mei_cl_remove_device(struct mei_cl_device *cldev);
-
+void mei_cl_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking);
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);

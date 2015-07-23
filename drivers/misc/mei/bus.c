@@ -436,6 +436,9 @@ static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 	if (!cldev)
 		return 0;
 
+	if (!cldev->do_match)
+		return 0;
+
 	if (!cldrv || !cldrv->id_table)
 		return 0;
 
@@ -634,6 +637,76 @@ struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *bus,
 	return NULL;
 }
 
+/**
+ * mei_cl_dev_alloc - initialize and allocate mei client device
+ *
+ * @bus: mei device
+ * @me_cl: me client
+ *
+ * Return: allocated device structur or NULL on allocation failure
+ */
+static struct mei_cl_device *mei_cl_dev_alloc(struct mei_device *bus,
+					      struct mei_me_client *me_cl)
+{
+	struct mei_cl_device *cldev;
+
+	cldev = kzalloc(sizeof(struct mei_cl_device), GFP_KERNEL);
+	if (!cldev)
+		return NULL;
+
+	device_initialize(&cldev->dev);
+	cldev->dev.parent = bus->dev;
+	cldev->dev.bus    = &mei_cl_bus_type;
+	cldev->dev.type   = &mei_cl_device_type;
+	cldev->bus        = mei_dev_bus_get(bus);
+	cldev->me_cl      = mei_me_cl_get(me_cl);
+	cldev->is_added   = 0;
+	INIT_LIST_HEAD(&cldev->bus_list);
+
+	return cldev;
+}
+
+/**
+ * mei_cl_dev_setup - setup me client device
+ *    run fix up routines and set the device name
+ *
+ * @bus: mei device
+ * @cldev: me client device
+ *
+ * Return: true if the device is eligible for enumeration
+ */
+static bool mei_cl_dev_setup(struct mei_device *bus,
+			     struct mei_cl_device *cldev)
+{
+	cldev->do_match = 1;
+	mei_cl_dev_fixup(cldev);
+
+	if (cldev->do_match)
+		dev_set_name(&cldev->dev, "mei:%s:%pUl",
+			     cldev->name, mei_me_cl_uuid(cldev->me_cl));
+
+	return cldev->do_match == 1;
+}
+
+/**
+ * mei_cl_bus_dev_add - add me client devices
+ *
+ * @cldev: me client device
+ *
+ * Return: 0 on success; < 0 on failre
+ */
+static int mei_cl_bus_dev_add(struct mei_cl_device *cldev)
+{
+	int ret;
+
+	dev_dbg(cldev->bus->dev, "adding %pUL\n", mei_me_cl_uuid(cldev->me_cl));
+	ret = device_add(&cldev->dev);
+	if (!ret)
+		cldev->is_added = 1;
+
+	return ret;
+}
+
 struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
 					struct mei_me_client *me_cl,
 					struct mei_cl *cl,
@@ -642,28 +715,16 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
 	struct mei_cl_device *cldev;
 	int status;
 
-	cldev = kzalloc(sizeof(struct mei_cl_device), GFP_KERNEL);
+	cldev = mei_cl_dev_alloc(bus, me_cl);
 	if (!cldev)
 		return NULL;
 
-	cldev->me_cl = mei_me_cl_get(me_cl);
-	if (!cldev->me_cl) {
-		kfree(cldev);
-		return NULL;
-	}
-
 	cldev->cl = cl;
-	cldev->dev.parent = bus->dev;
-	cldev->dev.bus = &mei_cl_bus_type;
-	cldev->dev.type = &mei_cl_device_type;
-	cldev->bus      = mei_dev_bus_get(bus);
-	INIT_LIST_HEAD(&cldev->bus_list);
-
 	strlcpy(cldev->name, name, sizeof(cldev->name));
 
-	dev_set_name(&cldev->dev, "mei:%s:%pUl", name, mei_me_cl_uuid(me_cl));
+	mei_cl_dev_setup(bus, cldev);
 
-	status = device_register(&cldev->dev);
+	status = mei_cl_bus_dev_add(cldev);
 	if (status) {
 		dev_err(bus->dev, "Failed to register MEI device\n");
 		mei_me_cl_put(cldev->me_cl);

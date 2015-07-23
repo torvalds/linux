@@ -29,6 +29,8 @@ typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
  *	events (e.g. Rx buffer pending) notifications.
  * @event_context: event callback run context
  * @events: Events bitmask sent to the driver.
+ *
+ * @do_match: wheather device can be matched with a driver
  * @is_added: device is already scanned
  * @priv_data: client private data
  */
@@ -45,6 +47,8 @@ struct mei_cl_device {
 	mei_cl_event_cb_t event_cb;
 	void *event_context;
 	unsigned long events;
+
+	unsigned int do_match:1;
 	unsigned int is_added:1;
 
 	void *priv_data;

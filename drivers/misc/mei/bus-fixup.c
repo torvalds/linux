@@ -20,11 +20,14 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/uuid.h>
 
 #include <linux/mei_cl_bus.h>
 
 #include "mei_dev.h"
 #include "client.h"
+
+#define MEI_UUID_ANY NULL_UUID_LE
 
 struct mei_nfc_cmd {
 	u8 command;
@@ -412,4 +415,31 @@ void mei_nfc_host_exit(struct mei_device *bus)
 	mutex_unlock(&bus->device_lock);
 }
 
+#define MEI_FIXUP(_uuid, _hook) { _uuid, _hook }
+
+static struct mei_fixup {
+
+	const uuid_le uuid;
+	void (*hook)(struct mei_cl_device *cldev);
+} mei_fixups[] = {};
+
+/**
+ * mei_cl_dev_fixup - run fixup handlers
+ *
+ * @cldev: me client device
+ */
+void mei_cl_dev_fixup(struct mei_cl_device *cldev)
+{
+	struct mei_fixup *f;
+	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mei_fixups); i++) {
+
+		f = &mei_fixups[i];
+		if (uuid_le_cmp(f->uuid, MEI_UUID_ANY) == 0 ||
+		    uuid_le_cmp(f->uuid, *uuid) == 0)
+			f->hook(cldev);
+	}
+}
 
