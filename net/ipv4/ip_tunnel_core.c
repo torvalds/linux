@@ -292,19 +292,10 @@ static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
 	.get_encap_size = ip_tun_encap_nlsize,
 };
 
-static int __init ip_tunnel_core_init(void)
+void __init ip_tunnel_core_init(void)
 {
 	lwtunnel_encap_add_ops(&ip_tun_lwt_ops, LWTUNNEL_ENCAP_IP);
-
-	return 0;
 }
-module_init(ip_tunnel_core_init);
-
-static void __exit ip_tunnel_core_exit(void)
-{
-	lwtunnel_encap_del_ops(&ip_tun_lwt_ops, LWTUNNEL_ENCAP_IP);
-}
-module_exit(ip_tunnel_core_exit);
 
 struct static_key ip_tunnel_metadata_cnt = STATIC_KEY_INIT_FALSE;
 EXPORT_SYMBOL(ip_tunnel_metadata_cnt);

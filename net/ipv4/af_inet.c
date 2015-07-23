@@ -112,6 +112,7 @@
 #include <net/raw.h>
 #include <net/icmp.h>
 #include <net/inet_common.h>
+#include <net/ip_tunnels.h>
 #include <net/xfrm.h>
 #include <net/net_namespace.h>
 #include <net/secure_seq.h>
@@ -1779,6 +1780,8 @@ static int __init inet_init(void)
 	ipfrag_init();
 
 	dev_add_pack(&ip_packet_type);
+
+	ip_tunnel_core_init();
 
 	rc = 0;
 out:

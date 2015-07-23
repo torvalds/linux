@@ -311,6 +311,8 @@ static inline int ip_tunnel_collect_metadata(void)
 	return static_key_false(&ip_tunnel_metadata_cnt);
 }
 
+void __init ip_tunnel_core_init(void);
+
 void ip_tunnel_need_metadata(void);
 void ip_tunnel_unneed_metadata(void);
 
