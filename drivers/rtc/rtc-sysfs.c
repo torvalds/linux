@@ -230,10 +230,11 @@ static DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,
  * suspend-to-disk.  So: no attribute unless that side effect is possible.
  * (Userspace may disable that mechanism later.)
  */
-static inline int rtc_does_wakealarm(struct rtc_device *rtc)
+static bool rtc_does_wakealarm(struct rtc_device *rtc)
 {
 	if (!device_can_wakeup(rtc->dev.parent))
-		return 0;
+		return false;
+
 	return rtc->ops->set_alarm != NULL;
 }
 
