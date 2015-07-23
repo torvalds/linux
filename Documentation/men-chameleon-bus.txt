@@ -13,7 +13,7 @@ Table of Contents
 3 Resource handling
     3.1 Memory Resources
     3.2 IRQs
-4 Writing a MCB driver
+4 Writing an MCB driver
     4.1 The driver structure
     4.2 Probing and attaching
     4.3 Initializing the driver
@@ -27,7 +27,7 @@ Table of Contents
 1.1 Scope of this Document
 ---------------------------
   This document is intended to be a short overview of the current
-  implementation and does by no means describe to complete possibilities of MCB
+  implementation and does by no means describe the complete possibilities of MCB
   based devices.
 
 1.2 Limitations of the current implementation
@@ -43,40 +43,41 @@ Table of Contents
 
 2 Architecture
 ===============
-  MCB is divided in 3 functional blocks:
+  MCB is divided into 3 functional blocks:
   - The MEN Chameleon Bus itself,
   - drivers for MCB Carrier Devices and
   - the parser for the Chameleon table.
 
 2.1 MEN Chameleon Bus
 ----------------------
-   The MEN Chameleon Bus is an artificial bus system that attaches to an MEN
-   Chameleon FPGA device. These devices are multi-function devices implemented
-   in a single FPGA and usually attached via some sort of PCI or PCIe link. Each
-   FPGA contains a header section describing the content of the FPGA. The header
-   lists the device id, PCI BAR, offset from the beginning of the PCI BAR, size
-   in the FPGA, interrupt number and some other properties currently not handled
-   by the MCB implementation.
+   The MEN Chameleon Bus is an artificial bus system that attaches to a so
+   called Chameleon FPGA device found on some hardware produced my MEN Mikro
+   Elektronik GmbH. These devices are multi-function devices implemented in a
+   single FPGA and usually attached via some sort of PCI or PCIe link. Each
+   FPGA contains a header section describing the content of the FPGA. The
+   header lists the device id, PCI BAR, offset from the beginning of the PCI
+   BAR, size in the FPGA, interrupt number and some other properties currently
+   not handled by the MCB implementation.
 
 2.2 Carrier Devices
 --------------------
    A carrier device is just an abstraction for the real world physical bus the
-   chameleon FPGA is attached to. Some IP Core drivers may need to interact with
+   Chameleon FPGA is attached to. Some IP Core drivers may need to interact with
    properties of the carrier device (like querying the IRQ number of a PCI
    device). To provide abstraction from the real hardware bus, an MCB carrier
    device provides callback methods to translate the driver's MCB function calls
    to hardware related function calls. For example a carrier device may
-   implement the get_irq() method which can be translate into a hardware bus
+   implement the get_irq() method which can be translated into a hardware bus
    query for the IRQ number the device should use.
 
 2.3 Parser
 -----------
-   The parser reads the 1st 512 bytes of a chameleon device and parses the
-   chameleon table. Currently the parser only supports the Chameleon v2 variant
-   of the chameleon table but can easily be adopted to support an older or
+   The parser reads the first 512 bytes of a Chameleon device and parses the
+   Chameleon table. Currently the parser only supports the Chameleon v2 variant
+   of the Chameleon table but can easily be adopted to support an older or
    possible future variant. While parsing the table's entries new MCB devices
    are allocated and their resources are assigned according to the resource
-   assignment in the chameleon table. After resource assignment is finished, the
+   assignment in the Chameleon table. After resource assignment is finished, the
    MCB devices are registered at the MCB and thus at the driver core of the
    Linux kernel.
 
@@ -97,17 +98,17 @@ Table of Contents
    Each MCB device has exactly one IRQ resource, which can be requested from the
    MCB bus. If a carrier device driver implements the ->get_irq() callback
    method, the IRQ number assigned by the carrier device will be returned,
-   otherwise the IRQ number inside the chameleon table will be returned. This
+   otherwise the IRQ number inside the Chameleon table will be returned. This
    number is suitable to be passed to request_irq().
 
-4 Writing a MCB driver
+4 Writing an MCB driver
 =======================
 
 4.1 The driver structure
 -------------------------
     Each MCB driver has a structure to identify the device driver as well as
     device ids which identify the IP Core inside the FPGA. The driver structure
-    also contaings callback methods which get executed on driver probe and
+    also contains callback methods which get executed on driver probe and
     removal from the system.
 
 
