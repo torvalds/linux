@@ -656,6 +656,7 @@ static ssize_t lio_target_nacl_show_info(
 	struct iscsi_conn *conn;
 	struct se_session *se_sess;
 	ssize_t rb = 0;
+	u32 max_cmd_sn;
 
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
@@ -703,11 +704,12 @@ static ssize_t lio_target_nacl_show_info(
 				" Values]-----------------------\n");
 		rb += sprintf(page+rb, "  CmdSN/WR  :  CmdSN/WC  :  ExpCmdSN"
 				"  :  MaxCmdSN  :     ITT    :     TTT\n");
+		max_cmd_sn = (u32) atomic_read(&sess->max_cmd_sn);
 		rb += sprintf(page+rb, " 0x%08x   0x%08x   0x%08x   0x%08x"
 				"   0x%08x   0x%08x\n",
 			sess->cmdsn_window,
-			(sess->max_cmd_sn - sess->exp_cmd_sn) + 1,
-			sess->exp_cmd_sn, sess->max_cmd_sn,
+			(max_cmd_sn - sess->exp_cmd_sn) + 1,
+			sess->exp_cmd_sn, max_cmd_sn,
 			sess->init_task_tag, sess->targ_xfer_tag);
 		rb += sprintf(page+rb, "----------------------[iSCSI"
 				" Connections]-------------------------\n");

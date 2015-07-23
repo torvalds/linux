@@ -330,7 +330,7 @@ static int iscsi_login_zero_tsih_s1(
 	 * The FFP CmdSN window values will be allocated from the TPG's
 	 * Initiator Node's ACL once the login has been successfully completed.
 	 */
-	sess->max_cmd_sn	= be32_to_cpu(pdu->cmdsn);
+	atomic_set(&sess->max_cmd_sn, be32_to_cpu(pdu->cmdsn));
 
 	sess->sess_ops = kzalloc(sizeof(struct iscsi_sess_ops), GFP_KERNEL);
 	if (!sess->sess_ops) {

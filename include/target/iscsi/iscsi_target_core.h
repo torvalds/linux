@@ -637,7 +637,7 @@ struct iscsi_session {
 	/* session wide counter: expected command sequence number */
 	u32			exp_cmd_sn;
 	/* session wide counter: maximum allowed command sequence number */
-	u32			max_cmd_sn;
+	atomic_t		max_cmd_sn;
 	struct list_head	sess_ooo_cmdsn_list;
 
 	/* LIO specific session ID */

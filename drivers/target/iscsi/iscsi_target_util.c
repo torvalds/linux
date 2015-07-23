@@ -233,6 +233,7 @@ struct iscsi_r2t *iscsit_get_holder_for_r2tsn(
 
 static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cmdsn)
 {
+	u32 max_cmdsn;
 	int ret;
 
 	/*
@@ -241,10 +242,10 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
 	 * or order CmdSNs due to multiple connection sessions and/or
 	 * CRC failures.
 	 */
-	if (iscsi_sna_gt(cmdsn, sess->max_cmd_sn)) {
+	max_cmdsn = atomic_read(&sess->max_cmd_sn);
+	if (iscsi_sna_gt(cmdsn, max_cmdsn)) {
 		pr_err("Received CmdSN: 0x%08x is greater than"
-		       " MaxCmdSN: 0x%08x, ignoring.\n", cmdsn,
-		       sess->max_cmd_sn);
+		       " MaxCmdSN: 0x%08x, ignoring.\n", cmdsn, max_cmdsn);
 		ret = CMDSN_MAXCMDSN_OVERRUN;
 
 	} else if (cmdsn == sess->exp_cmd_sn) {
