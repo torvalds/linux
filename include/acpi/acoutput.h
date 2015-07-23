@@ -88,7 +88,8 @@
 #define ACPI_LV_DEBUG_OBJECT        0x00000002
 #define ACPI_LV_INFO                0x00000004
 #define ACPI_LV_REPAIR              0x00000008
-#define ACPI_LV_ALL_EXCEPTIONS      0x0000000F
+#define ACPI_LV_TRACE_POINT         0x00000010
+#define ACPI_LV_ALL_EXCEPTIONS      0x0000001F
 
 /* Trace verbosity level 1 [Standard Trace Level] */
 
@@ -147,6 +148,7 @@
 #define ACPI_DB_DEBUG_OBJECT        ACPI_DEBUG_LEVEL (ACPI_LV_DEBUG_OBJECT)
 #define ACPI_DB_INFO                ACPI_DEBUG_LEVEL (ACPI_LV_INFO)
 #define ACPI_DB_REPAIR              ACPI_DEBUG_LEVEL (ACPI_LV_REPAIR)
+#define ACPI_DB_TRACE_POINT         ACPI_DEBUG_LEVEL (ACPI_LV_TRACE_POINT)
 #define ACPI_DB_ALL_EXCEPTIONS      ACPI_DEBUG_LEVEL (ACPI_LV_ALL_EXCEPTIONS)
 
 /* Trace level -- also used in the global "DebugLevel" */
