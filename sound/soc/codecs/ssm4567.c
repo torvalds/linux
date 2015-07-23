@@ -10,6 +10,7 @@
  * Licensed under the GPL-2.
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
@@ -450,10 +451,21 @@ static const struct i2c_device_id ssm4567_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ssm4567_i2c_ids);
 
+#ifdef CONFIG_ACPI
+
+static const struct acpi_device_id ssm4567_acpi_match[] = {
+	{ "INT343B", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, ssm4567_acpi_match);
+
+#endif
+
 static struct i2c_driver ssm4567_driver = {
 	.driver = {
 		.name = "ssm4567",
 		.owner = THIS_MODULE,
+		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
 	.probe = ssm4567_i2c_probe,
 	.remove = ssm4567_i2c_remove,
