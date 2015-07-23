@@ -167,15 +167,14 @@ gb_connection_create_range(struct greybus_host_device *hd,
 		return NULL;
 	}
 
-	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
-	if (!connection)
+	hd_cport_id = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
+	if (hd_cport_id < 0)
 		return NULL;
 
-	hd_cport_id = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
-	if (hd_cport_id < 0) {
-		kfree(connection);
-		return NULL;
-	}
+	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
+	if (!connection)
+		goto err_remove_ida;
+
 	connection->hd_cport_id = hd_cport_id;
 	connection->intf_cport_id = cport_id;
 	connection->hd = hd;
@@ -201,14 +200,13 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	retval = device_add(&connection->dev);
 	if (retval) {
-		ida_simple_remove(id_map, connection->hd_cport_id);
 		connection->hd_cport_id = CPORT_ID_BAD;
 		put_device(&connection->dev);
 
 		pr_err("failed to add connection device for cport 0x%04hx\n",
 			cport_id);
 
-		return NULL;
+		goto err_remove_ida;
 	}
 
 	spin_lock_irq(&gb_connections_lock);
@@ -228,6 +226,11 @@ gb_connection_create_range(struct greybus_host_device *hd,
 			 "protocol 0x%02hhx handler not found\n", protocol_id);
 
 	return connection;
+
+err_remove_ida:
+	ida_simple_remove(id_map, hd_cport_id);
+
+	return NULL;
 }
 
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
