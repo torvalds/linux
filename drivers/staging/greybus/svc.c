@@ -199,7 +199,7 @@ static int gb_svc_hello(struct gb_operation *op)
 	 * request, use that to create an endo.
 	 */
 	if (op->request->payload_size != sizeof(*hello_request)) {
-		dev_err(dev, "%s: Illegal size of hello request (%d %d)\n",
+		dev_err(dev, "%s: Illegal size of hello request (%zu %zu)\n",
 			__func__, op->request->payload_size,
 			sizeof(*hello_request));
 		return -EINVAL;
