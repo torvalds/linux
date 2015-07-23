@@ -220,6 +220,10 @@
 #define ACPI_MUL_32(a)                  _ACPI_MUL(a, 5)
 #define ACPI_MOD_32(a)                  _ACPI_MOD(a, 32)
 
+/* Test for ASCII character */
+
+#define ACPI_IS_ASCII(c)                ((c) < 0x80)
+
 /*
  * Rounding macros (Power of two boundaries only)
  */

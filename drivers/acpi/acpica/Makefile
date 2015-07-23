@@ -165,6 +165,7 @@ acpi-y +=		\
 	utmath.o	\
 	utmisc.o	\
 	utmutex.o	\
+	utnonansi.o	\
 	utobject.o	\
 	utosi.o		\
 	utownerid.o	\

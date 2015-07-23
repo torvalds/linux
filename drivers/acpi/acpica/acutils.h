@@ -167,6 +167,17 @@ struct acpi_pkg_info {
 #define DB_QWORD_DISPLAY    8
 
 /*
+ * utnonansi - Non-ANSI C library functions
+ */
+void acpi_ut_strupr(char *src_string);
+
+void acpi_ut_strlwr(char *src_string);
+
+int acpi_ut_stricmp(char *string1, char *string2);
+
+acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
+
+/*
  * utglobal - Global data structures and procedures
  */
 acpi_status acpi_ut_init_globals(void);
@@ -204,8 +215,6 @@ u8 acpi_ut_valid_object_type(acpi_object_type type);
 acpi_status acpi_ut_hardware_initialize(void);
 
 void acpi_ut_subsystem_shutdown(void);
-
-#define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 /*
  * utcopy - Object construction and conversion interfaces
@@ -567,16 +576,6 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc, u8 **end_tag);
 /*
  * utstring - String and character utilities
  */
-void acpi_ut_strupr(char *src_string);
-
-#ifdef ACPI_ASL_COMPILER
-void acpi_ut_strlwr(char *src_string);
-
-int acpi_ut_stricmp(char *string1, char *string2);
-#endif
-
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
-
 void acpi_ut_print_string(char *string, u16 max_length);
 
 #if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
