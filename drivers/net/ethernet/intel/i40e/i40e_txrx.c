@@ -1842,6 +1842,7 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	i40e_for_each_ring(ring, q_vector->tx) {
 		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
 		arm_wb |= ring->arm_wb;
+		ring->arm_wb = false;
 	}
 
 	/* We attempt to distribute budget to each Rx queue fairly, but don't
