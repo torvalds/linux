@@ -163,6 +163,15 @@ void bcmgenet_mii_setup(struct net_device *dev)
 	phy_print_status(phydev);
 }
 
+static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
+					  struct fixed_phy_status *status)
+{
+	if (dev && dev->phydev && status)
+		status->link = dev->phydev->link;
+
+	return 0;
+}
+
 void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
@@ -215,6 +224,10 @@ static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 	reg = bcmgenet_sys_readl(priv, SYS_PORT_CTRL);
 	reg |= LED_ACT_SOURCE_MAC;
 	bcmgenet_sys_writel(priv, reg, SYS_PORT_CTRL);
+
+	if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET)
+		fixed_phy_set_link_update(priv->phydev,
+					  bcmgenet_fixed_phy_link_update);
 }
 
 int bcmgenet_mii_config(struct net_device *dev)
@@ -460,6 +473,7 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct device *kdev = &priv->pdev->dev;
 	const char *phy_mode_str = NULL;
+	struct phy_device *phydev = NULL;
 	char *compat;
 	int phy_mode;
 	int ret;
@@ -515,14 +529,12 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 			priv->internal_phy = true;
 	}
 
-	return 0;
-}
-
-static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
-					  struct fixed_phy_status *status)
-{
-	if (dev && dev->phydev && status)
-		status->link = dev->phydev->link;
+	/* Make sure we initialize MoCA PHYs with a link down */
+	if (phy_mode == PHY_INTERFACE_MODE_MOCA) {
+		phydev = of_phy_find_device(dn);
+		if (phydev)
+			phydev->link = 0;
+	}
 
 	return 0;
 }
@@ -579,12 +591,9 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 			return -ENODEV;
 		}
 
-		if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET) {
-			ret = fixed_phy_set_link_update(
-				phydev, bcmgenet_fixed_phy_link_update);
-			if (!ret)
-				phydev->link = 0;
-		}
+		/* Make sure we initialize MoCA PHYs with a link down */
+		phydev->link = 0;
+
 	}
 
 	priv->phydev = phydev;
