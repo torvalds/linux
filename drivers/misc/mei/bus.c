@@ -710,7 +710,7 @@ static int mei_cl_bus_dev_add(struct mei_cl_device *cldev)
 struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
 					struct mei_me_client *me_cl,
 					struct mei_cl *cl,
-					char *name)
+					const char *name)
 {
 	struct mei_cl_device *cldev;
 	int status;

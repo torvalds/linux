@@ -145,7 +145,7 @@ struct mei_nfc_dev {
 	u8 fw_ivn;
 	u8 vendor_id;
 	u8 radio_type;
-	char *bus_name;
+	const char *bus_name;
 };
 
 /* UUIDs for NFC F/W clients */
@@ -184,69 +184,30 @@ static void mei_nfc_free(struct mei_nfc_dev *ndev)
 	kfree(ndev);
 }
 
-static int mei_nfc_build_bus_name(struct mei_nfc_dev *ndev)
+/**
+ * mei_nfc_if_version - get NFC interface version
+ *
+ * @cl: host client (nfc info)
+ * @ver: NFC interface version to be filled in
+ *
+ * Return: 0 on success; < 0 otherwise
+ */
+static int mei_nfc_if_version(struct mei_cl *cl,
+			      struct mei_nfc_if_version *ver)
 {
 	struct mei_device *bus;
-
-	if (!ndev->cl)
-		return -ENODEV;
-
-	bus = ndev->cl->dev;
-
-	switch (ndev->vendor_id) {
-	case MEI_NFC_VENDOR_INSIDE:
-		switch (ndev->radio_type) {
-		case MEI_NFC_VENDOR_INSIDE_UREAD:
-			ndev->bus_name = "microread";
-			return 0;
-
-		default:
-			dev_err(bus->dev, "Unknown radio type 0x%x\n",
-				ndev->radio_type);
-
-			return -EINVAL;
-		}
-
-	case MEI_NFC_VENDOR_NXP:
-		switch (ndev->radio_type) {
-		case MEI_NFC_VENDOR_NXP_PN544:
-			ndev->bus_name = "pn544";
-			return 0;
-		default:
-			dev_err(bus->dev, "Unknown radio type 0x%x\n",
-				ndev->radio_type);
-
-			return -EINVAL;
-		}
-
-	default:
-		dev_err(bus->dev, "Unknown vendor ID 0x%x\n",
-			ndev->vendor_id);
-
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int mei_nfc_if_version(struct mei_nfc_dev *ndev)
-{
-	struct mei_device *bus;
-	struct mei_cl *cl;
-
-	struct mei_nfc_cmd cmd;
+	struct mei_nfc_cmd cmd = {
+		.command = MEI_NFC_CMD_MAINTENANCE,
+		.data_size = 1,
+		.sub_command = MEI_NFC_SUBCMD_IF_VERSION,
+	};
 	struct mei_nfc_reply *reply = NULL;
-	struct mei_nfc_if_version *version;
 	size_t if_version_length;
 	int bytes_recv, ret;
 
-	cl = ndev->cl_info;
 	bus = cl->dev;
 
-	memset(&cmd, 0, sizeof(struct mei_nfc_cmd));
-	cmd.command = MEI_NFC_CMD_MAINTENANCE;
-	cmd.data_size = 1;
-	cmd.sub_command = MEI_NFC_SUBCMD_IF_VERSION;
+	WARN_ON(mutex_is_locked(&bus->device_lock));
 
 	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(struct mei_nfc_cmd), 1);
 	if (ret < 0) {
@@ -262,6 +223,7 @@ static int mei_nfc_if_version(struct mei_nfc_dev *ndev)
 	if (!reply)
 		return -ENOMEM;
 
+	ret = 0;
 	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length);
 	if (bytes_recv < 0 || bytes_recv < sizeof(struct mei_nfc_reply)) {
 		dev_err(bus->dev, "Could not read IF version\n");
@@ -269,15 +231,37 @@ static int mei_nfc_if_version(struct mei_nfc_dev *ndev)
 		goto err;
 	}
 
-	version = (struct mei_nfc_if_version *)reply->data;
+	memcpy(ver, reply->data, sizeof(struct mei_nfc_if_version));
 
-	ndev->fw_ivn = version->fw_ivn;
-	ndev->vendor_id = version->vendor_id;
-	ndev->radio_type = version->radio_type;
+	dev_info(bus->dev, "NFC MEI VERSION: IVN 0x%x Vendor ID 0x%x Type 0x%x\n",
+		ver->fw_ivn, ver->vendor_id, ver->radio_type);
 
 err:
 	kfree(reply);
 	return ret;
+}
+
+/**
+ * mei_nfc_radio_name - derive nfc radio name from the interface version
+ *
+ * @ver: NFC radio version
+ *
+ * Return: radio name string
+ */
+static const char *mei_nfc_radio_name(struct mei_nfc_if_version *ver)
+{
+
+	if (ver->vendor_id == MEI_NFC_VENDOR_INSIDE) {
+		if (ver->radio_type == MEI_NFC_VENDOR_INSIDE_UREAD)
+			return "microread";
+	}
+
+	if (ver->vendor_id == MEI_NFC_VENDOR_NXP) {
+		if (ver->radio_type == MEI_NFC_VENDOR_NXP_PN544)
+			return "pn544";
+	}
+
+	return NULL;
 }
 
 static void mei_nfc_init(struct work_struct *work)
@@ -287,6 +271,7 @@ static void mei_nfc_init(struct work_struct *work)
 	struct mei_nfc_dev *ndev;
 	struct mei_cl *cl_info;
 	struct mei_me_client *me_cl_info;
+	struct mei_nfc_if_version version;
 
 	ndev = container_of(work, struct mei_nfc_dev, init_work);
 
@@ -313,11 +298,15 @@ static void mei_nfc_init(struct work_struct *work)
 	mei_me_cl_put(me_cl_info);
 	mutex_unlock(&bus->device_lock);
 
-	if (mei_nfc_if_version(ndev) < 0) {
+	if (mei_nfc_if_version(cl_info, &version) < 0) {
 		dev_err(bus->dev, "Could not get the NFC interface version");
 
 		goto err;
 	}
+
+	ndev->fw_ivn = version.fw_ivn;
+	ndev->vendor_id = version.vendor_id;
+	ndev->radio_type = version.radio_type;
 
 	dev_info(bus->dev, "NFC MEI VERSION: IVN 0x%x Vendor ID 0x%x Type 0x%x\n",
 		ndev->fw_ivn, ndev->vendor_id, ndev->radio_type);
@@ -333,7 +322,9 @@ static void mei_nfc_init(struct work_struct *work)
 
 	mutex_unlock(&bus->device_lock);
 
-	if (mei_nfc_build_bus_name(ndev) < 0) {
+	ndev->bus_name = mei_nfc_radio_name(&version);
+
+	if (!ndev->bus_name) {
 		dev_err(bus->dev, "Could not build the bus ID name\n");
 		return;
 	}
