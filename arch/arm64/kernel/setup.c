@@ -423,8 +423,13 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init arm64_device_init(void)
 {
-	of_iommu_init();
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	if (of_have_populated_dt()) {
+		of_iommu_init();
+		of_platform_populate(NULL, of_default_bus_match_table,
+				     NULL, NULL);
+	} else if (acpi_disabled) {
+		pr_crit("Device tree not populated\n");
+	}
 	return 0;
 }
 arch_initcall_sync(arm64_device_init);
