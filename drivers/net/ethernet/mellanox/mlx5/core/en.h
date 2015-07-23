@@ -330,14 +330,14 @@ struct mlx5e_channel {
 };
 
 enum mlx5e_traffic_types {
-	MLX5E_TT_IPV4_TCP = 0,
-	MLX5E_TT_IPV6_TCP = 1,
-	MLX5E_TT_IPV4_UDP = 2,
-	MLX5E_TT_IPV6_UDP = 3,
-	MLX5E_TT_IPV4     = 4,
-	MLX5E_TT_IPV6     = 5,
-	MLX5E_TT_ANY      = 6,
-	MLX5E_NUM_TT      = 7,
+	MLX5E_TT_IPV4_TCP,
+	MLX5E_TT_IPV6_TCP,
+	MLX5E_TT_IPV4_UDP,
+	MLX5E_TT_IPV6_UDP,
+	MLX5E_TT_IPV4,
+	MLX5E_TT_IPV6,
+	MLX5E_TT_ANY,
+	MLX5E_NUM_TT,
 };
 
 enum {

@@ -1252,13 +1252,13 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 
 #define ROUGH_MAX_L2_L3_HDR_SZ 256
 
-#define MLX5_HASH_IP     (MLX5_HASH_FIELD_SEL_SRC_IP   |\
-			  MLX5_HASH_FIELD_SEL_DST_IP)
+#define MLX5_HASH_IP            (MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP)
 
-#define MLX5_HASH_ALL    (MLX5_HASH_FIELD_SEL_SRC_IP   |\
-			  MLX5_HASH_FIELD_SEL_DST_IP   |\
-			  MLX5_HASH_FIELD_SEL_L4_SPORT |\
-			  MLX5_HASH_FIELD_SEL_L4_DPORT)
+#define MLX5_HASH_IP_L4PORTS    (MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP   |\
+				 MLX5_HASH_FIELD_SEL_L4_SPORT |\
+				 MLX5_HASH_FIELD_SEL_L4_DPORT)
 
 	if (priv->params.lro_en) {
 		MLX5_SET(tirc, tirc, lro_enable_mask,
@@ -1305,7 +1305,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_TCP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
 		break;
 
 	case MLX5E_TT_IPV6_TCP:
@@ -1314,7 +1314,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_TCP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
 		break;
 
 	case MLX5E_TT_IPV4_UDP:
@@ -1323,7 +1323,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_UDP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
 		break;
 
 	case MLX5E_TT_IPV6_UDP:
@@ -1332,7 +1332,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_UDP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
 		break;
 
 	case MLX5E_TT_IPV4:

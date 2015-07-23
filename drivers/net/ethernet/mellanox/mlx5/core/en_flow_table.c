@@ -105,25 +105,25 @@ static void mlx5e_del_eth_addr_from_flow_table(struct mlx5e_priv *priv,
 {
 	void *ft = priv->ft.main;
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV6_TCP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_TCP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV6_TCP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV4_TCP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_TCP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV4_TCP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV6_UDP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6_UDP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV6_UDP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV4_UDP))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4_UDP))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV4_UDP]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV6))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV6))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV6]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_IPV4))
+	if (ai->tt_vec & BIT(MLX5E_TT_IPV4))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_IPV4]);
 
-	if (ai->tt_vec & (1 << MLX5E_TT_ANY))
+	if (ai->tt_vec & BIT(MLX5E_TT_ANY))
 		mlx5_del_flow_table_entry(ft, ai->ft_ix[MLX5E_TT_ANY]);
 }
 
@@ -156,33 +156,33 @@ static u32 mlx5e_get_tt_vec(struct mlx5e_eth_addr_info *ai, int type)
 		switch (eth_addr_type) {
 		case MLX5E_UC:
 			ret =
-				(1 << MLX5E_TT_IPV4_TCP) |
-				(1 << MLX5E_TT_IPV6_TCP) |
-				(1 << MLX5E_TT_IPV4_UDP) |
-				(1 << MLX5E_TT_IPV6_UDP) |
-				(1 << MLX5E_TT_IPV4)     |
-				(1 << MLX5E_TT_IPV6)     |
-				(1 << MLX5E_TT_ANY)      |
+				BIT(MLX5E_TT_IPV4_TCP)       |
+				BIT(MLX5E_TT_IPV6_TCP)       |
+				BIT(MLX5E_TT_IPV4_UDP)       |
+				BIT(MLX5E_TT_IPV6_UDP)       |
+				BIT(MLX5E_TT_IPV4)           |
+				BIT(MLX5E_TT_IPV6)           |
+				BIT(MLX5E_TT_ANY)            |
 				0;
 			break;
 
 		case MLX5E_MC_IPV4:
 			ret =
-				(1 << MLX5E_TT_IPV4_UDP) |
-				(1 << MLX5E_TT_IPV4)     |
+				BIT(MLX5E_TT_IPV4_UDP)       |
+				BIT(MLX5E_TT_IPV4)           |
 				0;
 			break;
 
 		case MLX5E_MC_IPV6:
 			ret =
-				(1 << MLX5E_TT_IPV6_UDP) |
-				(1 << MLX5E_TT_IPV6)     |
+				BIT(MLX5E_TT_IPV6_UDP)       |
+				BIT(MLX5E_TT_IPV6)           |
 				0;
 			break;
 
 		case MLX5E_MC_OTHER:
 			ret =
-				(1 << MLX5E_TT_ANY)      |
+				BIT(MLX5E_TT_ANY)            |
 				0;
 			break;
 		}
@@ -191,23 +191,23 @@ static u32 mlx5e_get_tt_vec(struct mlx5e_eth_addr_info *ai, int type)
 
 	case MLX5E_ALLMULTI:
 		ret =
-			(1 << MLX5E_TT_IPV4_UDP) |
-			(1 << MLX5E_TT_IPV6_UDP) |
-			(1 << MLX5E_TT_IPV4)     |
-			(1 << MLX5E_TT_IPV6)     |
-			(1 << MLX5E_TT_ANY)      |
+			BIT(MLX5E_TT_IPV4_UDP) |
+			BIT(MLX5E_TT_IPV6_UDP) |
+			BIT(MLX5E_TT_IPV4)     |
+			BIT(MLX5E_TT_IPV6)     |
+			BIT(MLX5E_TT_ANY)      |
 			0;
 		break;
 
 	default: /* MLX5E_PROMISC */
 		ret =
-			(1 << MLX5E_TT_IPV4_TCP) |
-			(1 << MLX5E_TT_IPV6_TCP) |
-			(1 << MLX5E_TT_IPV4_UDP) |
-			(1 << MLX5E_TT_IPV6_UDP) |
-			(1 << MLX5E_TT_IPV4)     |
-			(1 << MLX5E_TT_IPV6)     |
-			(1 << MLX5E_TT_ANY)      |
+			BIT(MLX5E_TT_IPV4_TCP)       |
+			BIT(MLX5E_TT_IPV6_TCP)       |
+			BIT(MLX5E_TT_IPV4_UDP)       |
+			BIT(MLX5E_TT_IPV6_UDP)       |
+			BIT(MLX5E_TT_IPV4)           |
+			BIT(MLX5E_TT_IPV6)           |
+			BIT(MLX5E_TT_ANY)            |
 			0;
 		break;
 	}
@@ -226,6 +226,7 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 	u8   *match_criteria_dmac;
 	void *ft   = priv->ft.main;
 	u32  *tirn = priv->tirn;
+	u32  *ft_ix;
 	u32  tt_vec;
 	int  err;
 
@@ -261,51 +262,51 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 
 	tt_vec = mlx5e_get_tt_vec(ai, type);
 
-	if (tt_vec & (1 << MLX5E_TT_ANY)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_ANY];
+	if (tt_vec & BIT(MLX5E_TT_ANY)) {
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_ANY]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_ANY]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_ANY);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_ANY);
 	}
 
 	match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria,
 			 outer_headers.ethertype);
 
-	if (tt_vec & (1 << MLX5E_TT_IPV4)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4];
+	if (tt_vec & BIT(MLX5E_TT_IPV4)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IP);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV4]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV4]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV4);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4);
 	}
 
-	if (tt_vec & (1 << MLX5E_TT_IPV6)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6];
+	if (tt_vec & BIT(MLX5E_TT_IPV6)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IPV6);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV6]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV6]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV6);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6);
 	}
 
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria,
@@ -313,70 +314,75 @@ static int __mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
 		 IPPROTO_UDP);
 
-	if (tt_vec & (1 << MLX5E_TT_IPV4_UDP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_UDP];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_UDP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IP);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV4_UDP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV4_UDP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV4_UDP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_UDP);
 	}
 
-	if (tt_vec & (1 << MLX5E_TT_IPV6_UDP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_UDP];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_UDP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IPV6);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV6_UDP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV6_UDP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV6_UDP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_UDP);
 	}
 
 	MLX5_SET(fte_match_param, match_value, outer_headers.ip_protocol,
 		 IPPROTO_TCP);
 
-	if (tt_vec & (1 << MLX5E_TT_IPV4_TCP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV4_TCP];
+	if (tt_vec & BIT(MLX5E_TT_IPV4_TCP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IP);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV4_TCP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV4_TCP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV4_TCP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV4_TCP);
 	}
 
-	if (tt_vec & (1 << MLX5E_TT_IPV6_TCP)) {
+	ft_ix = &ai->ft_ix[MLX5E_TT_IPV6_TCP];
+	if (tt_vec & BIT(MLX5E_TT_IPV6_TCP)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 			 ETH_P_IPV6);
 		MLX5_SET(dest_format_struct, dest, destination_id,
 			 tirn[MLX5E_TT_IPV6_TCP]);
 		err = mlx5_add_flow_table_entry(ft, match_criteria_enable,
 						match_criteria, flow_context,
-						&ai->ft_ix[MLX5E_TT_IPV6_TCP]);
-		if (err) {
-			mlx5e_del_eth_addr_from_flow_table(priv, ai);
-			return err;
-		}
-		ai->tt_vec |= (1 << MLX5E_TT_IPV6_TCP);
+						ft_ix);
+		if (err)
+			goto err_del_ai;
+
+		ai->tt_vec |= BIT(MLX5E_TT_IPV6_TCP);
 	}
 
 	return 0;
+
+err_del_ai:
+	mlx5e_del_eth_addr_from_flow_table(priv, ai);
+
+	return err;
 }
 
 static int mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
