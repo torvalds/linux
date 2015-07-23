@@ -541,6 +541,9 @@ static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
 		unsigned int bytes_per_line;
 		int ret;
 
+		if (fmt->fmt.pix.sizeimage < icd->sizeimage)
+			return -EINVAL;
+
 		xlate = soc_camera_xlate_by_fourcc(icd,
 						   fmt->fmt.pix.pixelformat);
 		if (!xlate)
