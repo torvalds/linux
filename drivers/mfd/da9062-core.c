@@ -123,6 +123,10 @@ static struct resource da9062_rtc_resources[] = {
 	DEFINE_RES_NAMED(DA9062_IRQ_TICK, 1, "TICK", IORESOURCE_IRQ),
 };
 
+static struct resource da9062_onkey_resources[] = {
+	DEFINE_RES_NAMED(DA9062_IRQ_ONKEY, 1, "ONKEY", IORESOURCE_IRQ),
+};
+
 static const struct mfd_cell da9062_devs[] = {
 	{
 		.name		= "da9062-core",
@@ -151,6 +155,12 @@ static const struct mfd_cell da9062_devs[] = {
 		.num_resources	= ARRAY_SIZE(da9062_rtc_resources),
 		.resources	= da9062_rtc_resources,
 		.of_compatible  = "dlg,da9062-rtc",
+	},
+	{
+		.name		= "da9062-onkey",
+		.num_resources	= ARRAY_SIZE(da9062_onkey_resources),
+		.resources	= da9062_onkey_resources,
+		.of_compatible = "dlg,da9062-onkey",
 	},
 };
 
