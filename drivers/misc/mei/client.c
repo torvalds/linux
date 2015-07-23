@@ -1356,6 +1356,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
+	int size;
 	int rets;
 
 
@@ -1367,10 +1368,10 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 
 	dev = cl->dev;
 
-
 	buf = &cb->buf;
+	size = buf->size;
 
-	cl_dbg(dev, cl, "size=%d\n", buf->size);
+	cl_dbg(dev, cl, "size=%d\n", size);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
@@ -1394,21 +1395,21 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 
 	if (rets == 0) {
 		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
-		rets = buf->size;
+		rets = size;
 		goto out;
 	}
 	if (!mei_hbuf_acquire(dev)) {
 		cl_dbg(dev, cl, "Cannot acquire the host buffer: not sending.\n");
-		rets = buf->size;
+		rets = size;
 		goto out;
 	}
 
 	/* Check for a maximum length */
-	if (buf->size > mei_hbuf_max_len(dev)) {
+	if (size > mei_hbuf_max_len(dev)) {
 		mei_hdr.length = mei_hbuf_max_len(dev);
 		mei_hdr.msg_complete = 0;
 	} else {
-		mei_hdr.length = buf->size;
+		mei_hdr.length = size;
 		mei_hdr.msg_complete = 1;
 	}
 
@@ -1430,6 +1431,7 @@ out:
 	else
 		list_add_tail(&cb->list, &dev->write_list.list);
 
+	cb = NULL;
 	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
 
 		mutex_unlock(&dev->device_lock);
@@ -1444,7 +1446,7 @@ out:
 		}
 	}
 
-	rets = buf->size;
+	rets = size;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);
