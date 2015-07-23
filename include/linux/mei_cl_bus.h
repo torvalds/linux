@@ -18,6 +18,7 @@ typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
  * Drivers for MEI devices will get an mei_cl_device pointer
  * when being probed and shall use it for doing ME bus I/O.
  *
+ * @bus_list: device on the bus list
  * @bus: parent mei device
  * @dev: linux driver model device pointer
  * @me_cl: me client
@@ -28,9 +29,11 @@ typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
  *	events (e.g. Rx buffer pending) notifications.
  * @event_context: event callback run context
  * @events: Events bitmask sent to the driver.
+ * @is_added: device is already scanned
  * @priv_data: client private data
  */
 struct mei_cl_device {
+	struct list_head bus_list;
 	struct mei_device *bus;
 	struct device dev;
 
@@ -42,6 +45,7 @@ struct mei_cl_device {
 	mei_cl_event_cb_t event_cb;
 	void *event_context;
 	unsigned long events;
+	unsigned int is_added:1;
 
 	void *priv_data;
 };

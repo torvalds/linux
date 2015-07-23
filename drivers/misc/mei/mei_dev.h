@@ -178,7 +178,7 @@ struct mei_fw_status {
  * @client_id: me client id
  * @mei_flow_ctrl_creds: flow control credits
  * @connect_count: number connections to this client
- * @reserved: reserved
+ * @bus_added: added to bus
  */
 struct mei_me_client {
 	struct list_head list;
@@ -187,7 +187,7 @@ struct mei_me_client {
 	u8 client_id;
 	u8 mei_flow_ctrl_creds;
 	u8 connect_count;
-	u8 reserved;
+	u8 bus_added;
 };
 
 
@@ -447,6 +447,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @reset_work  : work item for the device reset
  *
  * @device_list : mei client bus list
+ * @cl_bus_lock : client bus list lock
  *
  * @dbgfs_dir   : debugfs mei root directory
  *
@@ -543,6 +544,7 @@ struct mei_device {
 
 	/* List of bus devices */
 	struct list_head device_list;
+	struct mutex cl_bus_lock;
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;

@@ -657,6 +657,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
 	cldev->dev.bus = &mei_cl_bus_type;
 	cldev->dev.type = &mei_cl_device_type;
 	cldev->bus      = mei_dev_bus_get(bus);
+	INIT_LIST_HEAD(&cldev->bus_list);
 
 	strlcpy(cldev->name, name, sizeof(cldev->name));
 
