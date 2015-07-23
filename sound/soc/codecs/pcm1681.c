@@ -95,17 +95,22 @@ static int pcm1681_set_deemph(struct snd_soc_codec *codec)
 	struct pcm1681_private *priv = snd_soc_codec_get_drvdata(codec);
 	int i = 0, val = -1, enable = 0;
 
-	if (priv->deemph)
-		for (i = 0; i < ARRAY_SIZE(pcm1681_deemph); i++)
-			if (pcm1681_deemph[i] == priv->rate)
+	if (priv->deemph) {
+		for (i = 0; i < ARRAY_SIZE(pcm1681_deemph); i++) {
+			if (pcm1681_deemph[i] == priv->rate) {
 				val = i;
+				break;
+			}
+		}
+	}
 
 	if (val != -1) {
 		regmap_update_bits(priv->regmap, PCM1681_DEEMPH_CONTROL,
 				   PCM1681_DEEMPH_RATE_MASK, val << 3);
 		enable = 1;
-	} else
+	} else {
 		enable = 0;
+	}
 
 	/* enable/disable deemphasis functionality */
 	return regmap_update_bits(priv->regmap, PCM1681_DEEMPH_CONTROL,
