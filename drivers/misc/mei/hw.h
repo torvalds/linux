@@ -46,6 +46,12 @@
 #define HBM_MINOR_VERSION_PGI               1
 #define HBM_MAJOR_VERSION_PGI               1
 
+/*
+ * MEI version with Dynamic clients support
+ */
+#define HBM_MINOR_VERSION_DC               0
+#define HBM_MAJOR_VERSION_DC               2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */
@@ -81,6 +87,8 @@
 #define MEI_PG_ISOLATION_EXIT_REQ_CMD       0x0b
 #define MEI_PG_ISOLATION_EXIT_RES_CMD       0x8b
 
+#define MEI_HBM_ADD_CLIENT_REQ_CMD          0x0f
+#define MEI_HBM_ADD_CLIENT_RES_CMD          0x8f
 /*
  * MEI Stop Reason
  * used by hbm_host_stop_request.reason
@@ -213,9 +221,17 @@ struct hbm_me_stop_request {
 	u8 reserved[2];
 } __packed;
 
+/**
+ * struct hbm_host_enum_request -  enumeration request from host to fw
+ *
+ * @hbm_cmd: bus message command header
+ * @allow_add: allow dynamic clients add HBM version >= 2.0
+ * @reserved: reserved
+ */
 struct hbm_host_enum_request {
 	u8 hbm_cmd;
-	u8 reserved[3];
+	u8 allow_add;
+	u8 reserved[2];
 } __packed;
 
 struct hbm_host_enum_response {
@@ -245,6 +261,38 @@ struct hbm_props_response {
 	u8 status;
 	u8 reserved[1];
 	struct mei_client_properties client_properties;
+} __packed;
+
+/**
+ * struct hbm_add_client_request - request to add a client
+ *     might be sent by fw after enumeration has already completed
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @reserved: reserved
+ * @client_properties: client properties
+ */
+struct hbm_add_client_request {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 reserved[2];
+	struct mei_client_properties client_properties;
+} __packed;
+
+/**
+ * struct hbm_add_client_response - response to add a client
+ *     sent by the host to report client addition status to fw
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @status: if HBMS_SUCCESS then the client can now accept connections.
+ * @reserved: reserved
+ */
+struct hbm_add_client_response {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 status;
+	u8 reserved[1];
 } __packed;
 
 /**

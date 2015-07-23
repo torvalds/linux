@@ -299,6 +299,7 @@ static int mei_hbm_enum_clients_req(struct mei_device *dev)
 	enum_req = (struct hbm_host_enum_request *)dev->wr_msg.data;
 	memset(enum_req, 0, len);
 	enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
+	enum_req->allow_add = dev->hbm_f_dc_supported;
 
 	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 	if (ret) {
@@ -341,6 +342,64 @@ static int mei_hbm_me_cl_add(struct mei_device *dev,
 	mei_me_cl_add(dev, me_cl);
 
 	return 0;
+}
+
+/**
+ * mei_hbm_add_cl_resp - send response to fw on client add request
+ *
+ * @dev: the device structure
+ * @addr: me address
+ * @status: response status
+ *
+ * Return: 0 on success and < 0 on failure
+ */
+static int mei_hbm_add_cl_resp(struct mei_device *dev, u8 addr, u8 status)
+{
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
+	struct hbm_add_client_response *resp;
+	const size_t len = sizeof(struct hbm_add_client_response);
+	int ret;
+
+	dev_dbg(dev->dev, "adding client response\n");
+
+	resp = (struct hbm_add_client_response *)dev->wr_msg.data;
+
+	mei_hbm_hdr(mei_hdr, len);
+	memset(resp, 0, sizeof(struct hbm_add_client_response));
+
+	resp->hbm_cmd = MEI_HBM_ADD_CLIENT_RES_CMD;
+	resp->me_addr = addr;
+	resp->status  = status;
+
+	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
+	if (ret)
+		dev_err(dev->dev, "add client response write failed: ret = %d\n",
+			ret);
+	return ret;
+}
+
+/**
+ * mei_hbm_fw_add_cl_req - request from the fw to add a client
+ *
+ * @dev: the device structure
+ * @req: add client request
+ *
+ * Return: 0 on success and < 0 on failure
+ */
+static int mei_hbm_fw_add_cl_req(struct mei_device *dev,
+			      struct hbm_add_client_request *req)
+{
+	int ret;
+	u8 status = MEI_HBMS_SUCCESS;
+
+	BUILD_BUG_ON(sizeof(struct hbm_add_client_request) !=
+			sizeof(struct hbm_props_response));
+
+	ret = mei_hbm_me_cl_add(dev, (struct hbm_props_response *)req);
+	if (ret)
+		status = !MEI_HBMS_SUCCESS;
+
+	return mei_hbm_add_cl_resp(dev, req->me_addr, status);
 }
 
 /**
@@ -610,8 +669,11 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev, struct mei_cl *cl,
 
 	if (rs->status == MEI_CL_CONN_SUCCESS)
 		cl->state = MEI_FILE_CONNECTED;
-	else
+	else {
 		cl->state = MEI_FILE_DISCONNECT_REPLY;
+		if (rs->status == MEI_CL_CONN_NOT_FOUND)
+			mei_me_cl_del(dev, cl->me_cl);
+	}
 	cl->status = mei_cl_conn_status_to_errno(rs->status);
 }
 
@@ -709,6 +771,9 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	if (dev->version.major_version == HBM_MAJOR_VERSION_PGI &&
 	    dev->version.minor_version >= HBM_MINOR_VERSION_PGI)
 		dev->hbm_f_pg_supported = 1;
+
+	if (dev->version.major_version >= HBM_MAJOR_VERSION_DC)
+		dev->hbm_f_dc_supported = 1;
 }
 
 /**
@@ -740,6 +805,8 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	struct hbm_host_version_response *version_res;
 	struct hbm_props_response *props_res;
 	struct hbm_host_enum_response *enum_res;
+	struct hbm_add_client_request *add_cl_req;
+	int ret;
 
 	struct mei_hbm_cl_cmd *cl_cmd;
 	struct hbm_client_connect_request *disconnect_req;
@@ -937,6 +1004,29 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return -EIO;
 		}
 		break;
+
+	case MEI_HBM_ADD_CLIENT_REQ_CMD:
+		dev_dbg(dev->dev, "hbm: add client request received\n");
+		/*
+		 * after the host receives the enum_resp
+		 * message clients may be added or removed
+		 */
+		if (dev->hbm_state <= MEI_HBM_ENUM_CLIENTS &&
+		    dev->hbm_state >= MEI_HBM_STOPPED) {
+			dev_err(dev->dev, "hbm: add client: state mismatch, [%d, %d]\n",
+				dev->dev_state, dev->hbm_state);
+			return -EPROTO;
+		}
+		add_cl_req = (struct hbm_add_client_request *)mei_msg;
+		ret = mei_hbm_fw_add_cl_req(dev, add_cl_req);
+		if (ret) {
+			dev_err(dev->dev, "hbm: add client: failed to send response %d\n",
+				ret);
+			return -EIO;
+		}
+		dev_dbg(dev->dev, "hbm: add client request processed\n");
+		break;
+
 	default:
 		BUG();
 		break;

@@ -408,6 +408,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  *
  * @version     : HBM protocol version in use
  * @hbm_f_pg_supported : hbm feature pgi protocol
+ * @hbm_f_dc_supported : hbm feature dynamic clients
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -501,6 +502,7 @@ struct mei_device {
 
 	struct hbm_version version;
 	unsigned int hbm_f_pg_supported:1;
+	unsigned int hbm_f_dc_supported:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
