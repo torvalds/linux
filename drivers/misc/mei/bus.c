@@ -590,6 +590,20 @@ static struct bus_type mei_cl_bus_type = {
 	.uevent		= mei_cl_device_uevent,
 };
 
+static struct mei_device *mei_dev_bus_get(struct mei_device *bus)
+{
+	if (bus)
+		get_device(bus->dev);
+
+	return bus;
+}
+
+static void mei_dev_bus_put(struct mei_device *bus)
+{
+	if (bus)
+		put_device(bus->dev);
+}
+
 static void mei_cl_dev_release(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
@@ -598,6 +612,7 @@ static void mei_cl_dev_release(struct device *dev)
 		return;
 
 	mei_me_cl_put(cldev->me_cl);
+	mei_dev_bus_put(cldev->bus);
 	kfree(cldev);
 }
 
@@ -641,6 +656,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
 	cldev->dev.parent = bus->dev;
 	cldev->dev.bus = &mei_cl_bus_type;
 	cldev->dev.type = &mei_cl_device_type;
+	cldev->bus      = mei_dev_bus_get(bus);
 
 	strlcpy(cldev->name, name, sizeof(cldev->name));
 
@@ -650,6 +666,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *bus,
 	if (status) {
 		dev_err(bus->dev, "Failed to register MEI device\n");
 		mei_me_cl_put(cldev->me_cl);
+		mei_dev_bus_put(bus);
 		kfree(cldev);
 		return NULL;
 	}

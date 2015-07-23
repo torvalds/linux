@@ -6,6 +6,7 @@
 #include <linux/mod_devicetable.h>
 
 struct mei_cl_device;
+struct mei_device;
 
 typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
 			       u32 events, void *context);
@@ -17,6 +18,7 @@ typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
  * Drivers for MEI devices will get an mei_cl_device pointer
  * when being probed and shall use it for doing ME bus I/O.
  *
+ * @bus: parent mei device
  * @dev: linux driver model device pointer
  * @me_cl: me client
  * @cl: mei client
@@ -29,6 +31,7 @@ typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
  * @priv_data: client private data
  */
 struct mei_cl_device {
+	struct mei_device *bus;
 	struct device dev;
 
 	struct mei_me_client *me_cl;
