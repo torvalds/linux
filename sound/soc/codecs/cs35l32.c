@@ -441,8 +441,7 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 	if (IS_ERR(cs35l32->reset_gpio))
 		return PTR_ERR(cs35l32->reset_gpio);
 
-	if (cs35l32->reset_gpio)
-		gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
 
 	/* initialize codec */
 	ret = regmap_read(cs35l32->regmap, CS35L32_DEVID_AB, &reg);
@@ -536,8 +535,7 @@ static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
 	snd_soc_unregister_codec(&i2c_client->dev);
 
 	/* Hold down reset */
-	if (cs35l32->reset_gpio)
-		gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
 
 	return 0;
 }
@@ -551,8 +549,7 @@ static int cs35l32_runtime_suspend(struct device *dev)
 	regcache_mark_dirty(cs35l32->regmap);
 
 	/* Hold down reset */
-	if (cs35l32->reset_gpio)
-		gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);
 
 	/* remove power */
 	regulator_bulk_disable(ARRAY_SIZE(cs35l32->supplies),
@@ -575,8 +572,7 @@ static int cs35l32_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	if (cs35l32->reset_gpio)
-		gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
 
 	regcache_cache_only(cs35l32->regmap, false);
 	regcache_sync(cs35l32->regmap);
