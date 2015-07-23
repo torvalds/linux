@@ -33,6 +33,24 @@
 #define MEI_UUID_ANY NULL_UUID_LE
 
 /**
+ * number_of_connections - determine whether an client be on the bus
+ *    according number of connections
+ *    We support only clients:
+ *       1. with single connection
+ *       2. and fixed clients (max_number_of_connections == 0)
+ *
+ * @cldev: me clients device
+ */
+static void number_of_connections(struct mei_cl_device *cldev)
+{
+	dev_dbg(&cldev->dev, "running hook %s on %pUl\n",
+			__func__, mei_me_cl_uuid(cldev->me_cl));
+
+	if (cldev->me_cl->props.max_number_of_connections > 1)
+		cldev->do_match = 0;
+}
+
+/**
  * blacklist - blacklist a client from the bus
  *
  * @cldev: me clients device
@@ -435,6 +453,7 @@ static struct mei_fixup {
 	const uuid_le uuid;
 	void (*hook)(struct mei_cl_device *cldev);
 } mei_fixups[] = {
+	MEI_FIXUP(MEI_UUID_ANY, number_of_connections),
 	MEI_FIXUP(MEI_UUID_NFC_INFO, blacklist),
 };
 
