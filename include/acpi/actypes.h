@@ -1247,6 +1247,14 @@ struct acpi_memory_list {
 #endif
 };
 
+/* Definitions of trace event types */
+
+typedef enum {
+	ACPI_TRACE_AML_METHOD,
+	ACPI_TRACE_AML_OPCODE,
+	ACPI_TRACE_AML_REGION
+} acpi_trace_event_type;
+
 /* Definitions of _OSI support */
 
 #define ACPI_VENDOR_STRINGS                 0x01

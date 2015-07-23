@@ -52,6 +52,12 @@ ACPI_MODULE_NAME("exdebug")
 
 static union acpi_operand_object *acpi_gbl_trace_method_object = NULL;
 
+/* Local prototypes */
+
+#ifdef ACPI_DEBUG_OUTPUT
+static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type);
+#endif
+
 #ifndef ACPI_NO_ERROR_MESSAGES
 /*******************************************************************************
  *
@@ -365,6 +371,78 @@ static u8 acpi_ex_interpreter_trace_enabled(char *name)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ex_get_trace_event_name
+ *
+ * PARAMETERS:  type            - Trace event type
+ *
+ * RETURN:      Trace event name.
+ *
+ * DESCRIPTION: Used to obtain the full trace event name.
+ *
+ ******************************************************************************/
+
+#ifdef ACPI_DEBUG_OUTPUT
+
+static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type)
+{
+	switch (type) {
+	case ACPI_TRACE_AML_METHOD:
+
+		return "Method";
+
+	case ACPI_TRACE_AML_OPCODE:
+
+		return "Opcode";
+
+	case ACPI_TRACE_AML_REGION:
+
+		return "Region";
+
+	default:
+
+		return "";
+	}
+}
+
+#endif
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_trace_point
+ *
+ * PARAMETERS:  type                - Trace event type
+ *              begin               - TRUE if before execution
+ *              aml                 - Executed AML address
+ *              pathname            - Object path
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Internal interpreter execution trace.
+ *
+ ******************************************************************************/
+
+void
+acpi_ex_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname)
+{
+
+	ACPI_FUNCTION_NAME(ex_trace_point);
+
+	if (pathname) {
+		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+				  "%s %s [0x%p:%s] execution.\n",
+				  acpi_ex_get_trace_event_name(type),
+				  begin ? "Begin" : "End", aml, pathname));
+	} else {
+		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+				  "%s %s [0x%p] execution.\n",
+				  acpi_ex_get_trace_event_name(type),
+				  begin ? "Begin" : "End", aml));
+	}
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ex_start_trace_method
  *
  * PARAMETERS:  method_node         - Node of the method
@@ -417,16 +495,9 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
 
 exit:
 	if (enabled) {
-		if (pathname) {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "Begin method [0x%p:%s] execution.\n",
-					  obj_desc->method.aml_start,
-					  pathname));
-		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "Begin method [0x%p] execution.\n",
-					  obj_desc->method.aml_start));
-		}
+		ACPI_TRACE_POINT(ACPI_TRACE_AML_METHOD, TRUE,
+				 obj_desc ? obj_desc->method.aml_start : NULL,
+				 pathname);
 	}
 	if (pathname) {
 		ACPI_FREE(pathname);
@@ -473,16 +544,9 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	if (enabled) {
-		if (pathname) {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "End method [0x%p:%s] execution.\n",
-					  obj_desc->method.aml_start,
-					  pathname));
-		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "End method [0x%p] execution.\n",
-					  obj_desc->method.aml_start));
-		}
+		ACPI_TRACE_POINT(ACPI_TRACE_AML_METHOD, FALSE,
+				 obj_desc ? obj_desc->method.aml_start : NULL,
+				 pathname);
 	}
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
@@ -535,20 +599,8 @@ acpi_ex_start_trace_opcode(union acpi_parse_object *op,
 	ACPI_FUNCTION_NAME(ex_start_trace_opcode);
 
 	if (acpi_ex_interpreter_trace_enabled(NULL)) {
-		if (walk_state->op_info) {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "Begin opcode: %s[0x%p] Class=0x%02x, Type=0x%02x, Flags=0x%04x.\n",
-					  op->common.aml_op_name,
-					  op->common.aml,
-					  walk_state->op_info->class,
-					  walk_state->op_info->type,
-					  walk_state->op_info->flags));
-		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-					  "Begin opcode: %s[0x%p].\n",
-					  op->common.aml_op_name,
-					  op->common.aml));
-		}
+		ACPI_TRACE_POINT(ACPI_TRACE_AML_OPCODE, TRUE,
+				 op->common.aml, op->common.aml_op_name);
 	}
 }
 
@@ -574,8 +626,7 @@ acpi_ex_stop_trace_opcode(union acpi_parse_object *op,
 	ACPI_FUNCTION_NAME(ex_stop_trace_opcode);
 
 	if (acpi_ex_interpreter_trace_enabled(NULL)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "End opcode: %s[0x%p].\n",
-				  op->common.aml_op_name, op->common.aml));
+		ACPI_TRACE_POINT(ACPI_TRACE_AML_OPCODE, FALSE,
+				 op->common.aml, op->common.aml_op_name);
 	}
 }

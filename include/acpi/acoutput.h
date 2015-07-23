@@ -447,6 +447,8 @@
 #define ACPI_DUMP_PATHNAME(a, b, c, d)  acpi_ns_dump_pathname(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)          acpi_ut_debug_dump_buffer((u8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
 
+#define ACPI_TRACE_POINT(a, b, c, d)    acpi_trace_point (a, b, c, d)
+
 #else				/* ACPI_DEBUG_OUTPUT */
 /*
  * This is the non-debug case -- make everything go away,
@@ -468,6 +470,7 @@
 #define ACPI_DUMP_PATHNAME(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)
 #define ACPI_IS_DEBUG_ENABLED(level, component) 0
+#define ACPI_TRACE_POINT(a, b, c, d)
 
 /* Return macros must have a return statement at the minimum */
 

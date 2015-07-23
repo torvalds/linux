@@ -149,6 +149,10 @@ void
 acpi_ex_stop_trace_opcode(union acpi_parse_object *op,
 			  struct acpi_walk_state *walk_state);
 
+void
+acpi_ex_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname);
+
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
