@@ -473,10 +473,9 @@ static void domain_exit(struct dmar_domain *domain);
 static void domain_remove_dev_info(struct dmar_domain *domain);
 static void dmar_remove_one_dev_info(struct dmar_domain *domain,
 				     struct device *dev);
+static void __dmar_remove_one_dev_info(struct device_domain_info *info);
 static void domain_context_clear(struct intel_iommu *iommu,
 				 struct device *dev);
-static void __dmar_remove_one_dev_info(struct dmar_domain *domain,
-				       struct device *dev);
 static int domain_detach_iommu(struct dmar_domain *domain,
 			       struct intel_iommu *iommu);
 
@@ -2216,7 +2215,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry_safe(info, tmp, &domain->devices, link)
-		__dmar_remove_one_dev_info(domain, info->dev);
+		__dmar_remove_one_dev_info(info);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
 
@@ -4538,43 +4537,41 @@ static void domain_context_clear(struct intel_iommu *iommu, struct device *dev)
 	pci_for_each_dma_alias(to_pci_dev(dev), &domain_context_clear_one_cb, iommu);
 }
 
-static void __dmar_remove_one_dev_info(struct dmar_domain *domain,
-				       struct device *dev)
+static void __dmar_remove_one_dev_info(struct device_domain_info *info)
 {
-	struct device_domain_info *info;
 	struct intel_iommu *iommu;
 	unsigned long flags;
-	u8 bus, devfn;
 
 	assert_spin_locked(&device_domain_lock);
-
-	iommu = device_to_iommu(dev, &bus, &devfn);
-	if (!iommu)
-		return;
-
-	info = dev->archdata.iommu;
 
 	if (WARN_ON(!info))
 		return;
 
+	iommu = info->iommu;
+
+	if (info->dev) {
+		iommu_disable_dev_iotlb(info);
+		domain_context_clear(iommu, info->dev);
+	}
+
 	unlink_domain_info(info);
 
-	iommu_disable_dev_iotlb(info);
-	domain_context_clear(iommu, dev);
-	free_devinfo_mem(info);
-
 	spin_lock_irqsave(&iommu->lock, flags);
-	domain_detach_iommu(domain, iommu);
+	domain_detach_iommu(info->domain, iommu);
 	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	free_devinfo_mem(info);
 }
 
 static void dmar_remove_one_dev_info(struct dmar_domain *domain,
 				     struct device *dev)
 {
+	struct device_domain_info *info;
 	unsigned long flags;
 
 	spin_lock_irqsave(&device_domain_lock, flags);
-	__dmar_remove_one_dev_info(domain, dev);
+	info = dev->archdata.iommu;
+	__dmar_remove_one_dev_info(info);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 }
 
