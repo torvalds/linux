@@ -256,7 +256,7 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 
 	/* Create and init a Root Node */
 
-	op = acpi_ps_create_scope_op();
+	op = acpi_ps_create_scope_op(info->obj_desc->method.aml_start);
 	if (!op) {
 		status = AE_NO_MEMORY;
 		goto cleanup;

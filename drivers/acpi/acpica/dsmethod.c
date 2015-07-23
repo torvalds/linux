@@ -103,7 +103,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 
 	/* Create/Init a root op for the method parse tree */
 
-	op = acpi_ps_alloc_op(AML_METHOD_OP);
+	op = acpi_ps_alloc_op(AML_METHOD_OP, obj_desc->method.aml_start);
 	if (!op) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}

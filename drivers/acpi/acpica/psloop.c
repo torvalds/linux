@@ -137,7 +137,6 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			}
 
 			if (arg) {
-				arg->common.aml = walk_state->aml;
 				acpi_ps_append_arg(op, arg);
 			}
 
@@ -490,8 +489,6 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 				continue;
 			}
-
-			op->common.aml = walk_state->aml;
 
 			if (walk_state->op_info) {
 				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,

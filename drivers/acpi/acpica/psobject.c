@@ -297,7 +297,7 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	/* Create Op structure and append to parent's argument list */
 
 	walk_state->op_info = acpi_ps_get_opcode_info(walk_state->opcode);
-	op = acpi_ps_alloc_op(walk_state->opcode);
+	op = acpi_ps_alloc_op(walk_state->opcode, aml_op_start);
 	if (!op) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
