@@ -125,10 +125,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		 */
 		while (GET_CURRENT_ARG_TYPE(walk_state->arg_types)
 		       && !walk_state->arg_count) {
-			walk_state->aml_offset =
-			    (u32)ACPI_PTR_DIFF(walk_state->parser_state.aml,
-					       walk_state->parser_state.
-					       aml_start);
+			walk_state->aml = walk_state->parser_state.aml;
 
 			status =
 			    acpi_ps_get_next_arg(walk_state,
@@ -140,7 +137,10 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			}
 
 			if (arg) {
-				arg->common.aml_offset = walk_state->aml_offset;
+				arg->common.aml_offset =
+				    (u32)ACPI_PTR_DIFF(walk_state->aml,
+						       walk_state->parser_state.
+						       aml_start);
 				acpi_ps_append_arg(op, arg);
 			}
 
@@ -494,7 +494,10 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				continue;
 			}
 
-			op->common.aml_offset = walk_state->aml_offset;
+			op->common.aml_offset =
+			    (u32)ACPI_PTR_DIFF(walk_state->aml,
+					       walk_state->parser_state.
+					       aml_start);
 
 			if (walk_state->op_info) {
 				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,

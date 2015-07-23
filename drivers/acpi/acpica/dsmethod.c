@@ -214,6 +214,8 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
 acpi_status
 acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
 {
+	u32 aml_offset;
+
 	ACPI_FUNCTION_ENTRY();
 
 	/* Ignore AE_OK and control exception codes */
@@ -234,13 +236,16 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
 		 * Handler can map the exception code to anything it wants, including
 		 * AE_OK, in which case the executing method will not be aborted.
 		 */
+		aml_offset = (u32)ACPI_PTR_DIFF(walk_state->aml,
+						walk_state->parser_state.
+						aml_start);
+
 		status = acpi_gbl_exception_handler(status,
 						    walk_state->method_node ?
 						    walk_state->method_node->
 						    name.integer : 0,
 						    walk_state->opcode,
-						    walk_state->aml_offset,
-						    NULL);
+						    aml_offset, NULL);
 		acpi_ex_enter_interpreter();
 	}
 
