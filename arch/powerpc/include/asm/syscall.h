@@ -64,19 +64,16 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
+	unsigned long mask = -1UL;
+
 	BUG_ON(i + n > 6);
-#ifdef CONFIG_PPC64
-	if (test_tsk_thread_flag(task, TIF_32BIT)) {
-		/*
-		 * Zero-extend 32-bit argument values.  The high bits are
-		 * garbage ignored by the actual syscall dispatch.
-		 */
-		while (n-- > 0)
-			args[n] = (u32) regs->gpr[3 + i + n];
-		return;
-	}
+
+#ifdef CONFIG_COMPAT
+	if (test_tsk_thread_flag(task, TIF_32BIT))
+		mask = 0xffffffff;
 #endif
-	memcpy(args, &regs->gpr[3 + i], n * sizeof(args[0]));
+	while (n--)
+		args[n] = regs->gpr[3 + i + n] & mask;
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
