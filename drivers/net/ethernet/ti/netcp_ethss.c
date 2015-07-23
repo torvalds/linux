@@ -2189,14 +2189,15 @@ static void netcp_ethss_timer(unsigned long arg)
 		netcp_ethss_update_link_state(gbe_dev, slave, NULL);
 	}
 
-	spin_lock_bh(&gbe_dev->hw_stats_lock);
+	/* A timer runs as a BH, no need to block them */
+	spin_lock(&gbe_dev->hw_stats_lock);
 
 	if (gbe_dev->ss_version == GBE_SS_VERSION_14)
 		gbe_update_stats_ver14(gbe_dev, NULL);
 	else
 		gbe_update_stats(gbe_dev, NULL);
 
-	spin_unlock_bh(&gbe_dev->hw_stats_lock);
+	spin_unlock(&gbe_dev->hw_stats_lock);
 
 	gbe_dev->timer.expires	= jiffies + GBE_TIMER_INTERVAL;
 	add_timer(&gbe_dev->timer);
