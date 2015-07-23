@@ -154,6 +154,38 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	return 0;
 }
 
+static sense_reason_t
+sbc_emulate_startstop(struct se_cmd *cmd)
+{
+	unsigned char *cdb = cmd->t_task_cdb;
+
+	/*
+	 * See sbc3r36 section 5.25
+	 * Immediate bit should be set since there is nothing to complete
+	 * POWER CONDITION MODIFIER 0h
+	 */
+	if (!(cdb[1] & 1) || cdb[2] || cdb[3])
+		return TCM_INVALID_CDB_FIELD;
+
+	/*
+	 * See sbc3r36 section 5.25
+	 * POWER CONDITION 0h START_VALID - process START and LOEJ
+	 */
+	if (cdb[4] >> 4 & 0xf)
+		return TCM_INVALID_CDB_FIELD;
+
+	/*
+	 * See sbc3r36 section 5.25
+	 * LOEJ 0h - nothing to load or unload
+	 * START 1h - we are ready
+	 */
+	if (!(cdb[4] & 1) || (cdb[4] & 2) || (cdb[4] & 4))
+		return TCM_INVALID_CDB_FIELD;
+
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
+	return 0;
+}
+
 sector_t sbc_get_write_same_sectors(struct se_cmd *cmd)
 {
 	u32 num_blocks;
@@ -1068,6 +1100,10 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		 */
 		size = 0;
 		cmd->execute_cmd = sbc_emulate_noop;
+		break;
+	case START_STOP:
+		size = 0;
+		cmd->execute_cmd = sbc_emulate_startstop;
 		break;
 	default:
 		ret = spc_parse_cdb(cmd, &size);
