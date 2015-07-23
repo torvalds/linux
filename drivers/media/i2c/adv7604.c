@@ -3108,7 +3108,7 @@ static int adv76xx_probe(struct i2c_client *client,
 			v4l2_err(sd, "Error %d reading IO Regmap\n", err);
 			return -ENODEV;
 		}
-		val2 |= val;
+		val |= val2;
 		if ((state->info->type == ADV7611 && val != 0x2051) ||
 			(state->info->type == ADV7612 && val != 0x2041)) {
 			v4l2_err(sd, "not an adv761x on address 0x%x\n",
