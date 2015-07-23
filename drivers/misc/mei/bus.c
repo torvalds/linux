@@ -385,38 +385,63 @@ out:
 }
 EXPORT_SYMBOL_GPL(mei_cl_disable_device);
 
-static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
+/**
+ * mei_cl_device_find - find matching entry in the driver id table
+ *
+ * @cldev: me client device
+ * @cldrv: me client driver
+ *
+ * Return: id on success; NULL if no id is matching
+ */
+static const
+struct mei_cl_device_id *mei_cl_device_find(struct mei_cl_device *cldev,
+					    struct mei_cl_driver *cldrv)
 {
-	struct mei_cl_device *cldev = to_mei_cl_device(dev);
-	struct mei_cl_driver *cldrv = to_mei_cl_driver(drv);
 	const struct mei_cl_device_id *id;
 	const uuid_le *uuid;
-	const char *name;
-
-	if (!cldev)
-		return 0;
 
 	uuid = mei_me_cl_uuid(cldev->me_cl);
-	name = cldev->name;
-
-	if (!cldrv || !cldrv->id_table)
-		return 0;
 
 	id = cldrv->id_table;
-
 	while (uuid_le_cmp(NULL_UUID_LE, id->uuid)) {
-
 		if (!uuid_le_cmp(*uuid, id->uuid)) {
-			if (id->name[0]) {
-				if (!strncmp(name, id->name, sizeof(id->name)))
-					return 1;
-			} else {
-				return 1;
-			}
+
+			if (!cldev->name[0])
+				return id;
+
+			if (!strncmp(cldev->name, id->name, sizeof(id->name)))
+				return id;
 		}
 
 		id++;
 	}
+
+	return NULL;
+}
+
+/**
+ * mei_cl_device_match  - device match function
+ *
+ * @dev: device
+ * @drv: driver
+ *
+ * Return:  1 if matching device was found 0 otherwise
+ */
+static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
+{
+	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	struct mei_cl_driver *cldrv = to_mei_cl_driver(drv);
+	const struct mei_cl_device_id *found_id;
+
+	if (!cldev)
+		return 0;
+
+	if (!cldrv || !cldrv->id_table)
+		return 0;
+
+	found_id = mei_cl_device_find(cldev, cldrv);
+	if (found_id)
+		return 1;
 
 	return 0;
 }
