@@ -2058,19 +2058,6 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 		}
 	}
 
-	/*
-	 * We need all the GPIO drivers to probe FIRST, or we will not be able
-	 * to obtain references to the struct gpio_chip * for them, and we
-	 * need this to proceed.
-	 */
-	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
-		if (!nmk_gpio_chips[npct->soc->gpio_ranges[i].id]) {
-			dev_warn(&pdev->dev, "GPIO chip %d not registered yet\n", i);
-			return -EPROBE_DEFER;
-		}
-		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[npct->soc->gpio_ranges[i].id]->chip;
-	}
-
 	nmk_pinctrl_desc.pins = npct->soc->pins;
 	nmk_pinctrl_desc.npins = npct->soc->npins;
 	npct->dev = &pdev->dev;
@@ -2080,10 +2067,6 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not register Nomadik pinctrl driver\n");
 		return PTR_ERR(npct->pctl);
 	}
-
-	/* We will handle a range of GPIO pins */
-	for (i = 0; i < npct->soc->gpio_num_ranges; i++)
-		pinctrl_add_gpio_range(npct->pctl, &npct->soc->gpio_ranges[i]);
 
 	platform_set_drvdata(pdev, npct);
 	dev_info(&pdev->dev, "initialized Nomadik pin control driver\n");

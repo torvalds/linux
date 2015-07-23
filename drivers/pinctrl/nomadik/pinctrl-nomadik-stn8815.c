@@ -264,20 +264,6 @@ static const struct pinctrl_pin_desc nmk_stn8815_pins[] = {
 	PINCTRL_PIN(STN8815_PIN_J22, "GPIO123_J22"),
 };
 
-#define STN8815_GPIO_RANGE(a, b, c) { .name = "STN8815", .id = a, .base = b, \
-			.pin_base = b, .npins = c }
-
-/*
- * This matches the 32-pin gpio chips registered by the GPIO portion. This
- * cannot be const since we assign the struct gpio_chip * pointer at runtime.
- */
-static struct pinctrl_gpio_range nmk_stn8815_ranges[] = {
-	STN8815_GPIO_RANGE(0, 0, 32),
-	STN8815_GPIO_RANGE(1, 32, 32),
-	STN8815_GPIO_RANGE(2, 64, 32),
-	STN8815_GPIO_RANGE(3, 96, 28),
-};
-
 /*
  * Read the pin group names like this:
  * u0_a_1    = first groups of pins for uart0 on alt function a
@@ -342,8 +328,6 @@ static const struct nmk_function nmk_stn8815_functions[] = {
 };
 
 static const struct nmk_pinctrl_soc_data nmk_stn8815_soc = {
-	.gpio_ranges = nmk_stn8815_ranges,
-	.gpio_num_ranges = ARRAY_SIZE(nmk_stn8815_ranges),
 	.pins = nmk_stn8815_pins,
 	.npins = ARRAY_SIZE(nmk_stn8815_pins),
 	.functions = nmk_stn8815_functions,
