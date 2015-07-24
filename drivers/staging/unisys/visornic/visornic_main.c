@@ -102,6 +102,7 @@ struct chanstat {
 	unsigned long sent_enbdis;
 	unsigned long sent_promisc;
 	unsigned long sent_post;
+	unsigned long sent_post_failed;
 	unsigned long sent_xmit;
 	unsigned long reject_count;
 	unsigned long extra_rcvbufs_sent;
@@ -479,11 +480,14 @@ post_skb(struct uiscmdrsp *cmdrsp,
 	if ((cmdrsp->net.rcvpost.frag.pi_off + skb->len) <= PI_PAGE_SIZE) {
 		cmdrsp->net.type = NET_RCV_POST;
 		cmdrsp->cmdtype = CMD_NET_TYPE;
-		visorchannel_signalinsert(devdata->dev->visorchannel,
+		if (visorchannel_signalinsert(devdata->dev->visorchannel,
 					  IOCHAN_TO_IOPART,
-					  cmdrsp);
-		atomic_inc(&devdata->num_rcvbuf_in_iovm);
-		devdata->chstat.sent_post++;
+					  cmdrsp)) {
+			atomic_inc(&devdata->num_rcvbuf_in_iovm);
+			devdata->chstat.sent_post++;
+		} else {
+			devdata->chstat.sent_post_failed++;
+		}
 	}
 }
 
@@ -505,10 +509,10 @@ send_enbdis(struct net_device *netdev, int state,
 	devdata->cmdrsp_rcv->net.enbdis.context = netdev;
 	devdata->cmdrsp_rcv->net.type = NET_RCV_ENBDIS;
 	devdata->cmdrsp_rcv->cmdtype = CMD_NET_TYPE;
-	visorchannel_signalinsert(devdata->dev->visorchannel,
+	if (visorchannel_signalinsert(devdata->dev->visorchannel,
 				  IOCHAN_TO_IOPART,
-				  devdata->cmdrsp_rcv);
-	devdata->chstat.sent_enbdis++;
+				  devdata->cmdrsp_rcv))
+		devdata->chstat.sent_enbdis++;
 }
 
 /**
@@ -1501,6 +1505,9 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				     " chstat.sent_post = %lu\n",
 				     devdata->chstat.sent_post);
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " chstat.sent_post_failed = %lu\n",
+				     devdata->chstat.sent_post_failed);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				     " chstat.sent_xmit = %lu\n",
 				     devdata->chstat.sent_xmit);
