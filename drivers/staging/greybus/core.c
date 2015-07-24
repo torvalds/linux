@@ -236,6 +236,12 @@ void greybus_remove_hd(struct greybus_host_device *hd)
 	gb_interfaces_remove(hd);
 	gb_endo_remove(hd->endo);
 
+	/* Is the SVC still using the partially uninitialized connection ? */
+	if (hd->initial_svc_connection) {
+		gb_connection_exit(hd->initial_svc_connection);
+		gb_connection_destroy(hd->initial_svc_connection);
+	}
+
 	/*
 	 * Make sure there are no leftovers that can potentially corrupt sysfs.
 	 */

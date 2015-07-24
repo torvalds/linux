@@ -54,6 +54,9 @@ gb_ap_interface_create(struct greybus_host_device *hd,
 	intf->device_id = GB_DEVICE_ID_AP;
 	svc_update_connection(intf, connection);
 
+	/* Its no longer a partially initialized connection */
+	hd->initial_svc_connection = NULL;
+
 	return intf;
 }
 
@@ -384,23 +387,10 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	svc->connection = connection;
 	connection->private = svc;
 
-	/*
-	 * SVC connection is created twice:
-	 * - before the interface-id of the AP and the endo type is known.
-	 * - after receiving endo type and interface-id of the AP from the SVC.
-	 *
-	 * We should do light-weight initialization for the first case.
-	 */
-	if (!connection->bundle) {
-		WARN_ON(connection->hd->initial_svc_connection);
-		connection->hd->initial_svc_connection = connection;
-		return 0;
-	}
+	WARN_ON(connection->hd->initial_svc_connection);
+	connection->hd->initial_svc_connection = connection;
 
 	ida_init(&greybus_svc_device_id_map);
-
-	/* Set interface's svc connection */
-	connection->bundle->intf->svc = svc;
 
 	return 0;
 }
@@ -408,14 +398,6 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
-
-	if (connection->hd->initial_svc_connection == connection) {
-		connection->hd->initial_svc_connection = NULL;
-	} else {
-		if (WARN_ON(connection->bundle->intf->svc != svc))
-			return;
-		connection->bundle->intf->svc = NULL;
-	}
 
 	connection->private = NULL;
 	kfree(svc);
