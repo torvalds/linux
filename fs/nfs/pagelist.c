@@ -1100,8 +1100,6 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 		mirror->pg_base = 0;
 		mirror->pg_recoalesce = 0;
 
-		desc->pg_moreio = 0;
-
 		while (!list_empty(&head)) {
 			struct nfs_page *req;
 
