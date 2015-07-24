@@ -44,13 +44,6 @@
 #define BREAK_INSTR_SIZE		AARCH64_INSN_SIZE
 
 /*
- * ESR values expected for dynamic and compile time BRK instruction
- */
-#define ESR_ELx_VAL_BRK64(imm)					\
-	((ESR_ELx_EC_BRK64 << ESR_ELx_EC_SHIFT) | ESR_ELx_IL |	\
-	 ((imm) & 0xffff))
-
-/*
  * #imm16 values used for BRK instruction generation
  * Allowed values for kgbd are 0x400 - 0x7ff
  * 0x100: for triggering a fault on purpose (reserved)
