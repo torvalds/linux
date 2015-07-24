@@ -51,7 +51,7 @@ void arch_jump_label_transform(struct jump_entry *e,
 	/* Target must have the right alignment and ISA must be preserved. */
 	BUG_ON((e->target & J_ALIGN_MASK) != J_ISA_BIT);
 
-	if (type == JUMP_LABEL_ENABLE) {
+	if (type == JUMP_LABEL_JMP) {
 		insn.j_format.opcode = J_ISA_BIT ? mm_j32_op : j_op;
 		insn.j_format.target = e->target >> J_RANGE_SHIFT;
 	} else {

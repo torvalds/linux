@@ -65,9 +65,9 @@ void static_key_slow_inc(struct static_key *key)
 	jump_label_lock();
 	if (atomic_read(&key->enabled) == 0) {
 		if (!jump_label_get_branch_default(key))
-			jump_label_update(key, JUMP_LABEL_ENABLE);
+			jump_label_update(key, JUMP_LABEL_JMP);
 		else
-			jump_label_update(key, JUMP_LABEL_DISABLE);
+			jump_label_update(key, JUMP_LABEL_NOP);
 	}
 	atomic_inc(&key->enabled);
 	jump_label_unlock();
@@ -88,9 +88,9 @@ static void __static_key_slow_dec(struct static_key *key,
 		schedule_delayed_work(work, rate_limit);
 	} else {
 		if (!jump_label_get_branch_default(key))
-			jump_label_update(key, JUMP_LABEL_DISABLE);
+			jump_label_update(key, JUMP_LABEL_NOP);
 		else
-			jump_label_update(key, JUMP_LABEL_ENABLE);
+			jump_label_update(key, JUMP_LABEL_JMP);
 	}
 	jump_label_unlock();
 }
@@ -184,9 +184,9 @@ static enum jump_label_type jump_label_type(struct static_key *key)
 	bool state = static_key_enabled(key);
 
 	if ((!true_branch && state) || (true_branch && !state))
-		return JUMP_LABEL_ENABLE;
+		return JUMP_LABEL_JMP;
 
-	return JUMP_LABEL_DISABLE;
+	return JUMP_LABEL_NOP;
 }
 
 void __init jump_label_init(void)
@@ -276,7 +276,7 @@ void jump_label_apply_nops(struct module *mod)
 		return;
 
 	for (iter = iter_start; iter < iter_stop; iter++) {
-		arch_jump_label_transform_static(iter, JUMP_LABEL_DISABLE);
+		arch_jump_label_transform_static(iter, JUMP_LABEL_NOP);
 	}
 }
 
@@ -318,8 +318,8 @@ static int jump_label_add_module(struct module *mod)
 		jlm->next = key->next;
 		key->next = jlm;
 
-		if (jump_label_type(key) == JUMP_LABEL_ENABLE)
-			__jump_label_update(key, iter, iter_stop, JUMP_LABEL_ENABLE);
+		if (jump_label_type(key) == JUMP_LABEL_JMP)
+			__jump_label_update(key, iter, iter_stop, JUMP_LABEL_JMP);
 	}
 
 	return 0;

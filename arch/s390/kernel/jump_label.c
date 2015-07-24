@@ -64,7 +64,7 @@ static void __jump_label_transform(struct jump_entry *entry,
 {
 	struct insn old, new;
 
-	if (type == JUMP_LABEL_ENABLE) {
+	if (type == JUMP_LABEL_JMP) {
 		jump_label_make_nop(entry, &old);
 		jump_label_make_branch(entry, &new);
 	} else {
