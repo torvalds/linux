@@ -1018,29 +1018,6 @@ struct drm_mode_config_funcs {
 };
 
 /**
- * struct drm_mode_group - group of mode setting resources for potential sub-grouping
- * @num_crtcs: CRTC count
- * @num_encoders: encoder count
- * @num_connectors: connector count
- * @num_bridges: bridge count
- * @id_list: list of KMS object IDs in this group
- *
- * Currently this simply tracks the global mode setting state.  But in the
- * future it could allow groups of objects to be set aside into independent
- * control groups for use by different user level processes (e.g. two X servers
- * running simultaneously on different heads, each with their own mode
- * configuration and freedom of mode setting).
- */
-struct drm_mode_group {
-	uint32_t num_crtcs;
-	uint32_t num_encoders;
-	uint32_t num_connectors;
-
-	/* list of object IDs for this group */
-	uint32_t *id_list;
-};
-
-/**
  * struct drm_mode_config - Mode configuration control structure
  * @mutex: mutex protecting KMS related lists and structures
  * @connection_mutex: ww mutex protecting connector state and routing
@@ -1324,9 +1301,6 @@ extern const char *drm_get_tv_select_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern void drm_property_destroy_user_blobs(struct drm_device *dev,
                                             struct drm_file *file_priv);
-extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
-extern void drm_mode_group_destroy(struct drm_mode_group *group);
-extern void drm_reinit_primary_mode_group(struct drm_device *dev);
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
@@ -1579,8 +1553,45 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 }
 
 /* Plane list iterator for legacy (overlay only) planes. */
-#define drm_for_each_legacy_plane(plane, planelist) \
-	list_for_each_entry(plane, planelist, head) \
+#define drm_for_each_legacy_plane(plane, dev) \
+	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
+
+#define drm_for_each_plane(plane, dev) \
+	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head)
+
+#define drm_for_each_crtc(crtc, dev) \
+	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
+
+static inline void
+assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
+{
+	/*
+	 * The connector hotadd/remove code currently grabs both locks when
+	 * updating lists. Hence readers need only hold either of them to be
+	 * safe and the check amounts to
+	 *
+	 * WARN_ON(not_holding(A) && not_holding(B)).
+	 */
+	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
+		!drm_modeset_is_locked(&mode_config->connection_mutex));
+}
+
+#define drm_for_each_connector(connector, dev) \
+	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
+	     connector = list_first_entry(&(dev)->mode_config.connector_list,	\
+					  struct drm_connector, head);		\
+	     &connector->head != (&(dev)->mode_config.connector_list);		\
+	     connector = list_next_entry(connector, head))
+
+#define drm_for_each_encoder(encoder, dev) \
+	list_for_each_entry(encoder, &(dev)->mode_config.encoder_list, head)
+
+#define drm_for_each_fb(fb, dev) \
+	for (WARN_ON(!mutex_is_locked(&(dev)->mode_config.fb_lock)),		\
+	     fb = list_first_entry(&(dev)->mode_config.fb_list,	\
+					  struct drm_framebuffer, head);	\
+	     &fb->head != (&(dev)->mode_config.fb_list);			\
+	     fb = list_next_entry(fb, head))
 
 #endif /* __DRM_CRTC_H__ */

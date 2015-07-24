@@ -1063,7 +1063,7 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	 * Changed connectors are already in @state, so only need to look at the
 	 * current configuration.
 	 */
-	list_for_each_entry(connector, &config->connector_list, head) {
+	drm_for_each_connector(connector, state->dev) {
 		if (connector->state->crtc != crtc)
 			continue;
 

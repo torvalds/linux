@@ -91,13 +91,14 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	 */
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	drm_for_each_connector(connector, dev) {
 		if (connector->encoder && connector->encoder->crtc == crtc) {
 			if (connector_list != NULL && count < num_connectors)
 				*(connector_list++) = connector;
 
 			count++;
 		}
+	}
 
 	return count;
 }

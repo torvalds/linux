@@ -676,7 +676,6 @@ struct drm_minor {
 
 	/* currently active master for this node. Protected by master_mutex */
 	struct drm_master *master;
-	struct drm_mode_group mode_group;
 };
 
 

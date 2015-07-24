@@ -285,7 +285,6 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
 	if (!minor)
 		return;
 
-	drm_mode_group_destroy(&minor->mode_group);
 	put_device(minor->kdev);
 
 	spin_lock_irqsave(&drm_minor_lock, flags);
@@ -700,20 +699,9 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_minors;
 	}
 
-	/* setup grouping for legacy outputs */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_mode_group_init_legacy_group(dev,
-				&dev->primary->mode_group);
-		if (ret)
-			goto err_unload;
-	}
-
 	ret = 0;
 	goto out_unlock;
 
-err_unload:
-	if (dev->driver->unload)
-		dev->driver->unload(dev);
 err_minors:
 	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);

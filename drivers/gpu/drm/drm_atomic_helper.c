@@ -89,7 +89,7 @@ get_current_crtc_for_encoder(struct drm_device *dev,
 
 	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
-	list_for_each_entry(connector, &config->connector_list, head) {
+	drm_for_each_connector(connector, dev) {
 		if (connector->state->best_encoder != encoder)
 			continue;
 
@@ -1988,7 +1988,7 @@ retry:
 
 	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
-	list_for_each_entry(tmp_connector, &config->connector_list, head) {
+	drm_for_each_connector(tmp_connector, connector->dev) {
 		if (tmp_connector->state->crtc != crtc)
 			continue;
 
