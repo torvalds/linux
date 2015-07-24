@@ -38,6 +38,27 @@
 #define DSI_HFP_PACKET_EXTRA_SIZE	6
 #define DSI_EOTP_PACKET_SIZE		4
 
+static int dsi_pixel_format_bpp(int pixel_format)
+{
+	int bpp;
+
+	switch (pixel_format) {
+	default:
+	case VID_MODE_FORMAT_RGB888:
+	case VID_MODE_FORMAT_RGB666_LOOSE:
+		bpp = 24;
+		break;
+	case VID_MODE_FORMAT_RGB666:
+		bpp = 18;
+		break;
+	case VID_MODE_FORMAT_RGB565:
+		bpp = 16;
+		break;
+	}
+
+	return bpp;
+}
+
 struct dsi_mnp {
 	u32 dsi_pll_ctrl;
 	u32 dsi_pll_div;
@@ -46,8 +67,8 @@ struct dsi_mnp {
 static const u32 lfsr_converts[] = {
 	426, 469, 234, 373, 442, 221, 110, 311, 411,		/* 62 - 70 */
 	461, 486, 243, 377, 188, 350, 175, 343, 427, 213,	/* 71 - 80 */
-	106, 53, 282, 397, 354, 227, 113, 56, 284, 142,		/* 81 - 90 */
-	71, 35							/* 91 - 92 */
+	106, 53, 282, 397, 454, 227, 113, 56, 284, 142,		/* 81 - 90 */
+	71, 35, 273, 136, 324, 418, 465, 488, 500, 506		/* 91 - 100 */
 };
 
 #ifdef DSI_CLK_FROM_RR
@@ -65,19 +86,7 @@ static u32 dsi_rr_formula(const struct drm_display_mode *mode,
 	u32 dsi_bit_clock_hz;
 	u32 dsi_clk;
 
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
+	bpp = dsi_pixel_format_bpp(pixel_format);
 
 	hactive = mode->hdisplay;
 	vactive = mode->vdisplay;
@@ -137,21 +146,7 @@ static u32 dsi_rr_formula(const struct drm_display_mode *mode,
 static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 {
 	u32 dsi_clk_khz;
-	u32 bpp;
-
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
+	u32 bpp = dsi_pixel_format_bpp(pixel_format);
 
 	/* DSI data rate = pixel clock * bits per pixel / lane count
 	   pixel clock is converted from KHz to Hz */
@@ -162,11 +157,13 @@ static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 
 #endif
 
-static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
+static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
+			struct dsi_mnp *dsi_mnp, int target_dsi_clk)
 {
 	unsigned int calc_m = 0, calc_p = 0;
-	unsigned int m, n = 1, p;
-	int ref_clk = 25000;
+	unsigned int m_min, m_max, p_min = 2, p_max = 6;
+	unsigned int m, n, p;
+	int ref_clk;
 	int delta = target_dsi_clk;
 	u32 m_seed;
 
@@ -176,8 +173,20 @@ static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
 		return -ECHRNG;
 	}
 
-	for (m = 62; m <= 92 && delta; m++) {
-		for (p = 2; p <= 6 && delta; p++) {
+	if (IS_CHERRYVIEW(dev_priv)) {
+		ref_clk = 100000;
+		n = 4;
+		m_min = 70;
+		m_max = 96;
+	} else {
+		ref_clk = 25000;
+		n = 1;
+		m_min = 62;
+		m_max = 92;
+	}
+
+	for (m = m_min; m <= m_max && delta; m++) {
+		for (p = p_min; p <= p_max && delta; p++) {
 			/*
 			 * Find the optimal m and p divisors with minimal delta
 			 * +/- the required clock
@@ -217,7 +226,7 @@ static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 				    intel_dsi->lane_count);
 
-	ret = dsi_calc_mnp(dsi_clk, &dsi_mnp);
+	ret = dsi_calc_mnp(dev_priv, &dsi_mnp, dsi_clk);
 	if (ret) {
 		DRM_DEBUG_KMS("dsi_calc_mnp failed\n");
 		return;
@@ -286,21 +295,7 @@ void vlv_disable_dsi_pll(struct intel_encoder *encoder)
 
 static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
 {
-	int bpp;
-
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
+	int bpp = dsi_pixel_format_bpp(pixel_format);
 
 	WARN(bpp != pipe_bpp,
 	     "bpp match assertion failure (expected %d, current %d)\n",

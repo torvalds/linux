@@ -356,7 +356,6 @@ static const struct intel_device_info intel_cherryview_info = {
 };
 
 static const struct intel_device_info intel_skylake_info = {
-	.is_preliminary = 1,
 	.is_skylake = 1,
 	.gen = 9, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
@@ -369,7 +368,6 @@ static const struct intel_device_info intel_skylake_info = {
 };
 
 static const struct intel_device_info intel_skylake_gt3_info = {
-	.is_preliminary = 1,
 	.is_skylake = 1,
 	.gen = 9, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
@@ -440,9 +438,7 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	{0, 0, 0}
 };
 
-#if defined(CONFIG_DRM_I915_KMS)
 MODULE_DEVICE_TABLE(pci, pciidlist);
-#endif
 
 void intel_detect_pch(struct drm_device *dev)
 {
@@ -541,21 +537,6 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 	return true;
 }
 
-void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
-{
-	spin_lock_irq(&dev_priv->irq_lock);
-
-	dev_priv->long_hpd_port_mask = 0;
-	dev_priv->short_hpd_port_mask = 0;
-	dev_priv->hpd_event_bits = 0;
-
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	cancel_work_sync(&dev_priv->dig_port_work);
-	cancel_work_sync(&dev_priv->hotplug_work);
-	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
-}
-
 void i915_firmware_load_error_print(const char *fw_path, int err)
 {
 	DRM_ERROR("failed to load firmware %s (%d)\n", fw_path, err);
@@ -601,7 +582,6 @@ static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
 static int i915_drm_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
 	pci_power_t opregion_target_state;
 	int error;
 
@@ -632,8 +612,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	 * for _thaw. Also, power gate the CRTC power wells.
 	 */
 	drm_modeset_lock_all(dev);
-	for_each_crtc(dev, crtc)
-		intel_crtc_control(crtc, false);
+	intel_display_suspend(dev);
 	drm_modeset_unlock_all(dev);
 
 	intel_dp_mst_suspend(dev);
@@ -760,7 +739,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	drm_modeset_lock_all(dev);
-	intel_modeset_setup_hw_state(dev, true);
+	intel_display_resume(dev);
 	drm_modeset_unlock_all(dev);
 
 	intel_dp_mst_resume(dev);
@@ -864,9 +843,6 @@ int i915_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool simulated;
 	int ret;
-
-	if (!i915.reset)
-		return 0;
 
 	intel_reset_gt_powersave(dev);
 
@@ -1727,20 +1703,14 @@ static int __init i915_init(void)
 	driver.num_ioctls = i915_max_ioctl;
 
 	/*
-	 * If CONFIG_DRM_I915_KMS is set, default to KMS unless
-	 * explicitly disabled with the module pararmeter.
-	 *
-	 * Otherwise, just follow the parameter (defaulting to off).
-	 *
-	 * Allow optional vga_text_mode_force boot option to override
-	 * the default behavior.
+	 * Enable KMS by default, unless explicitly overriden by
+	 * either the i915.modeset prarameter or by the
+	 * vga_text_mode_force boot option.
 	 */
-#if defined(CONFIG_DRM_I915_KMS)
-	if (i915.modeset != 0)
-		driver.driver_features |= DRIVER_MODESET;
-#endif
-	if (i915.modeset == 1)
-		driver.driver_features |= DRIVER_MODESET;
+	driver.driver_features |= DRIVER_MODESET;
+
+	if (i915.modeset == 0)
+		driver.driver_features &= ~DRIVER_MODESET;
 
 #ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && i915.modeset == -1)
@@ -1759,7 +1729,7 @@ static int __init i915_init(void)
 	 * to the atomic ioctl and the atomic properties.  Only plane operations on
 	 * a single CRTC will actually work.
 	 */
-	if (i915.nuclear_pageflip)
+	if (driver.driver_features & DRIVER_MODESET)
 		driver.driver_features |= DRIVER_ATOMIC;
 
 	return drm_pci_init(&driver, &i915_pci_driver);

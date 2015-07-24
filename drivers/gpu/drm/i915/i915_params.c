@@ -28,7 +28,6 @@ struct i915_params i915 __read_mostly = {
 	.modeset = -1,
 	.panel_ignore_lid = 1,
 	.semaphores = -1,
-	.lvds_downclock = 0,
 	.lvds_channel_mode = 0,
 	.panel_use_ssc = -1,
 	.vbt_sdvo_panel_type = -1,
@@ -52,13 +51,12 @@ struct i915_params i915 __read_mostly = {
 	.use_mmio_flip = 0,
 	.mmio_debug = 0,
 	.verbose_state_checks = 1,
-	.nuclear_pageflip = 0,
 	.edp_vswing = 0,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
 MODULE_PARM_DESC(modeset,
-	"Use kernel modesetting [KMS] (0=DRM_I915_KMS from .config, "
+	"Use kernel modesetting [KMS] (0=disable, "
 	"1=on, -1=force vga console preference [default])");
 
 module_param_named(panel_ignore_lid, i915.panel_ignore_lid, int, 0600);
@@ -84,11 +82,6 @@ MODULE_PARM_DESC(enable_fbc,
 	"Enable frame buffer compression for power savings "
 	"(default: -1 (use per-chip default))");
 
-module_param_named(lvds_downclock, i915.lvds_downclock, int, 0400);
-MODULE_PARM_DESC(lvds_downclock,
-	"Use panel (LVDS/eDP) downclocking for power savings "
-	"(default: false)");
-
 module_param_named(lvds_channel_mode, i915.lvds_channel_mode, int, 0600);
 MODULE_PARM_DESC(lvds_channel_mode,
 	 "Specify LVDS channel mode "
@@ -104,7 +97,7 @@ MODULE_PARM_DESC(vbt_sdvo_panel_type,
 	"Override/Ignore selection of SDVO panel mode in the VBT "
 	"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
 
-module_param_named(reset, i915.reset, bool, 0600);
+module_param_named_unsafe(reset, i915.reset, bool, 0600);
 MODULE_PARM_DESC(reset, "Attempt GPU resets (default: true)");
 
 module_param_named(enable_hangcheck, i915.enable_hangcheck, bool, 0644);
@@ -181,10 +174,6 @@ MODULE_PARM_DESC(mmio_debug,
 module_param_named(verbose_state_checks, i915.verbose_state_checks, bool, 0600);
 MODULE_PARM_DESC(verbose_state_checks,
 	"Enable verbose logs (ie. WARN_ON()) in case of unexpected hw state conditions.");
-
-module_param_named_unsafe(nuclear_pageflip, i915.nuclear_pageflip, bool, 0600);
-MODULE_PARM_DESC(nuclear_pageflip,
-		 "Force atomic modeset functionality; only planes work for now (default: false).");
 
 /* WA to get away with the default setting in VBT for early platforms.Will be removed */
 module_param_named_unsafe(edp_vswing, i915.edp_vswing, int, 0400);

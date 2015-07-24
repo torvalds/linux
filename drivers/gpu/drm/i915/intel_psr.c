@@ -254,10 +254,13 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 	uint32_t max_sleep_time = 0x1f;
 	/* Lately it was identified that depending on panel idle frame count
 	 * calculated at HW can be off by 1. So let's use what came
-	 * from VBT + 1 and at minimum 2 to be on the safe side.
+	 * from VBT + 1.
+	 * There are also other cases where panel demands at least 4
+	 * but VBT is not being set. To cover these 2 cases lets use
+	 * at least 5 when VBT isn't set to be on the safest side.
 	 */
 	uint32_t idle_frames = dev_priv->vbt.psr.idle_frames ?
-			       dev_priv->vbt.psr.idle_frames + 1 : 2;
+			       dev_priv->vbt.psr.idle_frames + 1 : 5;
 	uint32_t val = 0x0;
 	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
@@ -400,7 +403,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 
 		/* Avoid continuous PSR exit by masking memup and hpd */
 		I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
-			   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
+			   EDP_PSR_DEBUG_MASK_HPD);
 
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
@@ -596,13 +599,15 @@ static void intel_psr_exit(struct drm_device *dev)
 /**
  * intel_psr_single_frame_update - Single Frame Update
  * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * Some platforms support a single frame update feature that is used to
  * send and update only one frame on Remote Frame Buffer.
  * So far it is only implemented for Valleyview and Cherryview because
  * hardware requires this to be done before a page flip.
  */
-void intel_psr_single_frame_update(struct drm_device *dev)
+void intel_psr_single_frame_update(struct drm_device *dev,
+				   unsigned frontbuffer_bits)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -624,14 +629,16 @@ void intel_psr_single_frame_update(struct drm_device *dev)
 
 	crtc = dp_to_dig_port(dev_priv->psr.enabled)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
-	val = I915_READ(VLV_PSRCTL(pipe));
 
-	/*
-	 * We need to set this bit before writing registers for a flip.
-	 * This bit will be self-clear when it gets to the PSR active state.
-	 */
-	I915_WRITE(VLV_PSRCTL(pipe), val | VLV_EDP_PSR_SINGLE_FRAME_UPDATE);
+	if (frontbuffer_bits & INTEL_FRONTBUFFER_ALL_MASK(pipe)) {
+		val = I915_READ(VLV_PSRCTL(pipe));
 
+		/*
+		 * We need to set this bit before writing registers for a flip.
+		 * This bit will be self-clear when it gets to the PSR active state.
+		 */
+		I915_WRITE(VLV_PSRCTL(pipe), val | VLV_EDP_PSR_SINGLE_FRAME_UPDATE);
+	}
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
@@ -648,7 +655,7 @@ void intel_psr_single_frame_update(struct drm_device *dev)
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits."
  */
 void intel_psr_invalidate(struct drm_device *dev,
-			      unsigned frontbuffer_bits)
+			  unsigned frontbuffer_bits)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -663,11 +670,12 @@ void intel_psr_invalidate(struct drm_device *dev,
 	crtc = dp_to_dig_port(dev_priv->psr.enabled)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 
-	intel_psr_exit(dev);
-
 	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
-
 	dev_priv->psr.busy_frontbuffer_bits |= frontbuffer_bits;
+
+	if (frontbuffer_bits)
+		intel_psr_exit(dev);
+
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
@@ -675,6 +683,7 @@ void intel_psr_invalidate(struct drm_device *dev,
  * intel_psr_flush - Flush PSR
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
+ * @origin: which operation caused the flush
  *
  * Since the hardware frontbuffer tracking has gaps we need to integrate
  * with the software frontbuffer tracking. This function gets called every
@@ -684,7 +693,7 @@ void intel_psr_invalidate(struct drm_device *dev,
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits.
  */
 void intel_psr_flush(struct drm_device *dev,
-			 unsigned frontbuffer_bits)
+		     unsigned frontbuffer_bits, enum fb_op_origin origin)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
@@ -698,26 +707,29 @@ void intel_psr_flush(struct drm_device *dev,
 
 	crtc = dp_to_dig_port(dev_priv->psr.enabled)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
+
+	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
-	/*
-	 * On Haswell sprite plane updates don't result in a psr invalidating
-	 * signal in the hardware. Which means we need to manually fake this in
-	 * software for all flushes, not just when we've seen a preceding
-	 * invalidation through frontbuffer rendering.
-	 */
-	if (IS_HASWELL(dev) &&
-	    (frontbuffer_bits & INTEL_FRONTBUFFER_SPRITE(pipe)))
-		intel_psr_exit(dev);
-
-	/*
-	 * On Valleyview and Cherryview we don't use hardware tracking so
-	 * any plane updates or cursor moves don't result in a PSR
-	 * invalidating. Which means we need to manually fake this in
-	 * software for all flushes, not just when we've seen a preceding
-	 * invalidation through frontbuffer rendering. */
-	if (!HAS_DDI(dev))
-		intel_psr_exit(dev);
+	if (HAS_DDI(dev)) {
+		/*
+		 * By definition every flush should mean invalidate + flush,
+		 * however on core platforms let's minimize the
+		 * disable/re-enable so we can avoid the invalidate when flip
+		 * originated the flush.
+		 */
+		if (frontbuffer_bits && origin != ORIGIN_FLIP)
+			intel_psr_exit(dev);
+	} else {
+		/*
+		 * On Valleyview and Cherryview we don't use hardware tracking
+		 * so any plane updates or cursor moves don't result in a PSR
+		 * invalidating. Which means we need to manually fake this in
+		 * software for all flushes.
+		 */
+		if (frontbuffer_bits)
+			intel_psr_exit(dev);
+	}
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		schedule_delayed_work(&dev_priv->psr.work,

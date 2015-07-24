@@ -4471,9 +4471,7 @@ static int drm_property_replace_global_blob(struct drm_device *dev,
 			goto err_created;
 	}
 
-	if (old_blob)
-		drm_property_unreference_blob(old_blob);
-
+	drm_property_unreference_blob(old_blob);
 	*replace = new_blob;
 
 	return 0;

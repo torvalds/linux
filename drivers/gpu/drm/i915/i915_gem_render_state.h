@@ -39,7 +39,7 @@ struct render_state {
 	int gen;
 };
 
-int i915_gem_render_state_init(struct intel_engine_cs *ring);
+int i915_gem_render_state_init(struct drm_i915_gem_request *req);
 void i915_gem_render_state_fini(struct render_state *so);
 int i915_gem_render_state_prepare(struct intel_engine_cs *ring,
 				  struct render_state *so);

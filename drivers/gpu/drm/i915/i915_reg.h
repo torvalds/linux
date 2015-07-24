@@ -50,12 +50,17 @@
 
 /* PCI config space */
 
-#define HPLLCC	0xc0 /* 855 only */
-#define   GC_CLOCK_CONTROL_MASK		(0xf << 0)
+#define HPLLCC	0xc0 /* 85x only */
+#define   GC_CLOCK_CONTROL_MASK		(0x7 << 0)
 #define   GC_CLOCK_133_200		(0 << 0)
 #define   GC_CLOCK_100_200		(1 << 0)
 #define   GC_CLOCK_100_133		(2 << 0)
-#define   GC_CLOCK_166_250		(3 << 0)
+#define   GC_CLOCK_133_266		(3 << 0)
+#define   GC_CLOCK_133_200_2		(4 << 0)
+#define   GC_CLOCK_133_266_2		(5 << 0)
+#define   GC_CLOCK_166_266		(6 << 0)
+#define   GC_CLOCK_166_250		(7 << 0)
+
 #define GCFGC2	0xda
 #define GCFGC	0xf0 /* 915+ only */
 #define   GC_LOW_FREQUENCY_ENABLE	(1 << 7)
@@ -155,6 +160,7 @@
 #define GAM_ECOCHK			0x4090
 #define   BDW_DISABLE_HDC_INVALIDATION	(1<<25)
 #define   ECOCHK_SNB_BIT		(1<<10)
+#define   ECOCHK_DIS_TLB		(1<<8)
 #define   HSW_ECOCHK_ARB_PRIO_SOL	(1<<6)
 #define   ECOCHK_PPGTT_CACHE64B		(0x3<<3)
 #define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
@@ -316,6 +322,8 @@
 #define   MI_RESTORE_EXT_STATE_EN	(1<<2)
 #define   MI_FORCE_RESTORE		(1<<1)
 #define   MI_RESTORE_INHIBIT		(1<<0)
+#define   HSW_MI_RS_SAVE_STATE_EN       (1<<3)
+#define   HSW_MI_RS_RESTORE_STATE_EN    (1<<2)
 #define MI_SEMAPHORE_SIGNAL	MI_INSTR(0x1b, 0) /* GEN8+ */
 #define   MI_SEMAPHORE_TARGET(engine)	((engine)<<15)
 #define MI_SEMAPHORE_WAIT	MI_INSTR(0x1c, 2) /* GEN8+ */
@@ -347,6 +355,8 @@
 #define   MI_INVALIDATE_BSD		(1<<7)
 #define   MI_FLUSH_DW_USE_GTT		(1<<2)
 #define   MI_FLUSH_DW_USE_PPGTT		(0<<2)
+#define MI_LOAD_REGISTER_MEM(x) MI_INSTR(0x29, 2*(x)-1)
+#define MI_LOAD_REGISTER_MEM_GEN8(x) MI_INSTR(0x29, 3*(x)-1)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
@@ -356,6 +366,7 @@
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
+#define   MI_BATCH_RESOURCE_STREAMER (1<<10)
 
 #define MI_PREDICATE_SRC0	(0x2400)
 #define MI_PREDICATE_SRC1	(0x2408)
@@ -410,6 +421,7 @@
 #define   DISPLAY_PLANE_A           (0<<20)
 #define   DISPLAY_PLANE_B           (1<<20)
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|(len-2))
+#define   PIPE_CONTROL_FLUSH_L3				(1<<27)
 #define   PIPE_CONTROL_GLOBAL_GTT_IVB			(1<<24) /* gen7+ */
 #define   PIPE_CONTROL_MMIO_WRITE			(1<<23)
 #define   PIPE_CONTROL_STORE_DATA_INDEX			(1<<21)
@@ -426,6 +438,7 @@
 #define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
 #define   PIPE_CONTROL_NOTIFY				(1<<8)
 #define   PIPE_CONTROL_FLUSH_ENABLE			(1<<7) /* gen7+ */
+#define   PIPE_CONTROL_DC_FLUSH_ENABLE			(1<<5)
 #define   PIPE_CONTROL_VF_CACHE_INVALIDATE		(1<<4)
 #define   PIPE_CONTROL_CONST_CACHE_INVALIDATE		(1<<3)
 #define   PIPE_CONTROL_STATE_CACHE_INVALIDATE		(1<<2)
@@ -449,7 +462,6 @@
 #define MI_CLFLUSH              MI_INSTR(0x27, 0)
 #define MI_REPORT_PERF_COUNT    MI_INSTR(0x28, 0)
 #define   MI_REPORT_PERF_COUNT_GGTT (1<<0)
-#define MI_LOAD_REGISTER_MEM    MI_INSTR(0x29, 0)
 #define MI_LOAD_REGISTER_REG    MI_INSTR(0x2A, 0)
 #define MI_RS_STORE_DATA_IMM    MI_INSTR(0x2B, 0)
 #define MI_LOAD_URB_MEM         MI_INSTR(0x2C, 0)
@@ -1163,10 +1175,12 @@ enum skl_disp_power_wells {
 #define _PORT_PLL_EBB_0_A		0x162034
 #define _PORT_PLL_EBB_0_B		0x6C034
 #define _PORT_PLL_EBB_0_C		0x6C340
-#define   PORT_PLL_P1_MASK		(0x07 << 13)
-#define   PORT_PLL_P1(x)		((x)  << 13)
-#define   PORT_PLL_P2_MASK		(0x1f << 8)
-#define   PORT_PLL_P2(x)		((x)  << 8)
+#define   PORT_PLL_P1_SHIFT		13
+#define   PORT_PLL_P1_MASK		(0x07 << PORT_PLL_P1_SHIFT)
+#define   PORT_PLL_P1(x)		((x)  << PORT_PLL_P1_SHIFT)
+#define   PORT_PLL_P2_SHIFT		8
+#define   PORT_PLL_P2_MASK		(0x1f << PORT_PLL_P2_SHIFT)
+#define   PORT_PLL_P2(x)		((x)  << PORT_PLL_P2_SHIFT)
 #define BXT_PORT_PLL_EBB_0(port)	_PORT3(port, _PORT_PLL_EBB_0_A, \
 						_PORT_PLL_EBB_0_B,	\
 						_PORT_PLL_EBB_0_C)
@@ -1186,8 +1200,9 @@ enum skl_disp_power_wells {
 /* PORT_PLL_0_A */
 #define   PORT_PLL_M2_MASK		0xFF
 /* PORT_PLL_1_A */
-#define   PORT_PLL_N_MASK		(0x0F << 8)
-#define   PORT_PLL_N(x)			((x) << 8)
+#define   PORT_PLL_N_SHIFT		8
+#define   PORT_PLL_N_MASK		(0x0F << PORT_PLL_N_SHIFT)
+#define   PORT_PLL_N(x)			((x) << PORT_PLL_N_SHIFT)
 /* PORT_PLL_2_A */
 #define   PORT_PLL_M2_FRAC_MASK		0x3FFFFF
 /* PORT_PLL_3_A */
@@ -1201,9 +1216,11 @@ enum skl_disp_power_wells {
 /* PORT_PLL_8_A */
 #define   PORT_PLL_TARGET_CNT_MASK	0x3FF
 /* PORT_PLL_9_A */
-#define  PORT_PLL_LOCK_THRESHOLD_MASK	0xe
+#define  PORT_PLL_LOCK_THRESHOLD_SHIFT	1
+#define  PORT_PLL_LOCK_THRESHOLD_MASK	(0x7 << PORT_PLL_LOCK_THRESHOLD_SHIFT)
 /* PORT_PLL_10_A */
 #define  PORT_PLL_DCO_AMP_OVR_EN_H	(1<<27)
+#define  PORT_PLL_DCO_AMP_DEFAULT	15
 #define  PORT_PLL_DCO_AMP_MASK		0x3c00
 #define  PORT_PLL_DCO_AMP(x)		(x<<10)
 #define _PORT_PLL_BASE(port)		_PORT3(port, _PORT_PLL_0_A,	\
@@ -1377,6 +1394,18 @@ enum skl_disp_power_wells {
 							_PORT_TX_DW14_LN0_C) + \
 					 _BXT_LANE_OFFSET(lane))
 
+/* UAIMI scratch pad register 1 */
+#define UAIMI_SPR1			0x4F074
+/* SKL VccIO mask */
+#define SKL_VCCIO_MASK			0x1
+/* SKL balance leg register */
+#define DISPIO_CR_TX_BMU_CR0		0x6C00C
+/* I_boost values */
+#define BALANCE_LEG_SHIFT(port)		(8+3*(port))
+#define BALANCE_LEG_MASK(port)		(7<<(8+3*(port)))
+/* Balance leg disable bits */
+#define BALANCE_LEG_DISABLE_SHIFT	23
+
 /*
  * Fence registers
  */
@@ -1456,6 +1485,9 @@ enum skl_disp_power_wells {
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
+#define RING_RESET_CTL(base)	((base)+0xd0)
+#define   RESET_CTL_REQUEST_RESET  (1 << 0)
+#define   RESET_CTL_READY_TO_RESET (1 << 1)
 
 #define HSW_GTT_CACHE_EN	0x4024
 #define   GTT_CACHE_EN_ALL	0xF0007FFF
@@ -1946,6 +1978,9 @@ enum skl_disp_power_wells {
 #define FBC_FENCE_OFF		0x03218 /* BSpec typo has 321Bh */
 #define FBC_TAG			0x03300
 
+#define FBC_STATUS2		0x43214
+#define  FBC_COMPRESSION_MASK	0x7ff
+
 #define FBC_LL_SIZE		(1536)
 
 /* Framebuffer compression for GM45+ */
@@ -2116,7 +2151,7 @@ enum skl_disp_power_wells {
 #define   DPLL_DVO_2X_MODE		(1 << 30)
 #define   DPLL_EXT_BUFFER_ENABLE_VLV	(1 << 30)
 #define   DPLL_SYNCLOCK_ENABLE		(1 << 29)
-#define   DPLL_REFA_CLK_ENABLE_VLV	(1 << 29)
+#define   DPLL_REF_CLK_ENABLE_VLV	(1 << 29)
 #define   DPLL_VGA_MODE_DIS		(1 << 28)
 #define   DPLLB_MODE_DAC_SERIAL		(1 << 26) /* i915 */
 #define   DPLLB_MODE_LVDS		(2 << 26) /* i915 */
@@ -2130,8 +2165,8 @@ enum skl_disp_power_wells {
 #define   DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW	0x00ff8000 /* Pineview */
 #define   DPLL_LOCK_VLV			(1<<15)
 #define   DPLL_INTEGRATED_CRI_CLK_VLV	(1<<14)
-#define   DPLL_INTEGRATED_CLOCK_VLV	(1<<13)
-#define   DPLL_SSC_REF_CLOCK_CHV	(1<<13)
+#define   DPLL_INTEGRATED_REF_CLK_VLV	(1<<13)
+#define   DPLL_SSC_REF_CLK_CHV		(1<<13)
 #define   DPLL_PORTC_READY_MASK		(0xf << 4)
 #define   DPLL_PORTB_READY_MASK		(0xf)
 
@@ -2488,6 +2523,9 @@ enum skl_disp_power_wells {
 #define CLKCFG_MEM_800					(3 << 4)
 #define CLKCFG_MEM_MASK					(7 << 4)
 
+#define HPLLVCO                 (MCHBAR_MIRROR_BASE + 0xc38)
+#define HPLLVCO_MOBILE          (MCHBAR_MIRROR_BASE + 0xc0f)
+
 #define TSC1			0x11001
 #define   TSE			(1<<0)
 #define TR1			0x11006
@@ -2718,8 +2756,10 @@ enum skl_disp_power_wells {
 #define GEN6_GT_THREAD_STATUS_CORE_MASK 0x7
 
 #define GEN6_GT_PERF_STATUS	(MCHBAR_MIRROR_BASE_SNB + 0x5948)
+#define BXT_GT_PERF_STATUS      (MCHBAR_MIRROR_BASE_SNB + 0x7070)
 #define GEN6_RP_STATE_LIMITS	(MCHBAR_MIRROR_BASE_SNB + 0x5994)
 #define GEN6_RP_STATE_CAP	(MCHBAR_MIRROR_BASE_SNB + 0x5998)
+#define BXT_RP_STATE_CAP        0x138170
 
 #define INTERVAL_1_28_US(us)	(((us) * 100) >> 7)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
@@ -2767,7 +2807,8 @@ enum skl_disp_power_wells {
  * valid. Now, docs explain in dwords what is in the context object. The full
  * size is 70720 bytes, however, the power context and execlist context will
  * never be saved (power context is stored elsewhere, and execlists don't work
- * on HSW) - so the final size is 66944 bytes, which rounds to 17 pages.
+ * on HSW) - so the final size, including the extra state required for the
+ * Resource Streamer, is 66944 bytes, which rounds to 17 pages.
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 /* Same as Haswell, but 72064 bytes now. */
@@ -4398,9 +4439,32 @@ enum skl_disp_power_wells {
 #define   DSPARB_BSTART_SHIFT	0
 #define   DSPARB_BEND_SHIFT	9 /* on 855 */
 #define   DSPARB_AEND_SHIFT	0
-
+#define   DSPARB_SPRITEA_SHIFT_VLV	0
+#define   DSPARB_SPRITEA_MASK_VLV	(0xff << 0)
+#define   DSPARB_SPRITEB_SHIFT_VLV	8
+#define   DSPARB_SPRITEB_MASK_VLV	(0xff << 8)
+#define   DSPARB_SPRITEC_SHIFT_VLV	16
+#define   DSPARB_SPRITEC_MASK_VLV	(0xff << 16)
+#define   DSPARB_SPRITED_SHIFT_VLV	24
+#define   DSPARB_SPRITED_MASK_VLV	(0xff << 24)
 #define DSPARB2			(VLV_DISPLAY_BASE + 0x70060) /* vlv/chv */
+#define   DSPARB_SPRITEA_HI_SHIFT_VLV	0
+#define   DSPARB_SPRITEA_HI_MASK_VLV	(0x1 << 0)
+#define   DSPARB_SPRITEB_HI_SHIFT_VLV	4
+#define   DSPARB_SPRITEB_HI_MASK_VLV	(0x1 << 4)
+#define   DSPARB_SPRITEC_HI_SHIFT_VLV	8
+#define   DSPARB_SPRITEC_HI_MASK_VLV	(0x1 << 8)
+#define   DSPARB_SPRITED_HI_SHIFT_VLV	12
+#define   DSPARB_SPRITED_HI_MASK_VLV	(0x1 << 12)
+#define   DSPARB_SPRITEE_HI_SHIFT_VLV	16
+#define   DSPARB_SPRITEE_HI_MASK_VLV	(0x1 << 16)
+#define   DSPARB_SPRITEF_HI_SHIFT_VLV	20
+#define   DSPARB_SPRITEF_HI_MASK_VLV	(0x1 << 20)
 #define DSPARB3			(VLV_DISPLAY_BASE + 0x7006c) /* chv */
+#define   DSPARB_SPRITEE_SHIFT_VLV	0
+#define   DSPARB_SPRITEE_MASK_VLV	(0xff << 0)
+#define   DSPARB_SPRITEF_SHIFT_VLV	8
+#define   DSPARB_SPRITEF_MASK_VLV	(0xff << 8)
 
 /* pnv/gen4/g4x/vlv/chv */
 #define DSPFW1			(dev_priv->info.display_mmio_offset + 0x70034)
@@ -5754,6 +5818,13 @@ enum skl_disp_power_wells {
 #define HSW_NDE_RSTWRN_OPT	0x46408
 #define  RESET_PCH_HANDSHAKE_ENABLE	(1<<4)
 
+#define SKL_DFSM			0x51000
+#define SKL_DFSM_CDCLK_LIMIT_MASK	(3 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_675	(0 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_540	(1 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_450	(2 << 23)
+#define SKL_DFSM_CDCLK_LIMIT_337_5	(3 << 23)
+
 #define FF_SLICE_CS_CHICKEN2			0x20e4
 #define  GEN9_TSG_BARRIER_ACK_DISABLE		(1<<8)
 
@@ -5791,6 +5862,7 @@ enum skl_disp_power_wells {
 
 #define GEN8_L3SQCREG4				0xb118
 #define  GEN8_LQSC_RO_PERF_DIS			(1<<27)
+#define  GEN8_LQSC_FLUSH_COHERENT_LINES		(1<<21)
 
 /* GEN8 chicken */
 #define HDC_CHICKEN0				0x7300
@@ -6047,6 +6119,9 @@ enum skl_disp_power_wells {
 #define _VIDEO_DIP_CTL_A         0xe0200
 #define _VIDEO_DIP_DATA_A        0xe0208
 #define _VIDEO_DIP_GCP_A         0xe0210
+#define  GCP_COLOR_INDICATION		(1 << 2)
+#define  GCP_DEFAULT_PHASE_ENABLE	(1 << 1)
+#define  GCP_AV_MUTE			(1 << 0)
 
 #define _VIDEO_DIP_CTL_B         0xe1200
 #define _VIDEO_DIP_DATA_B        0xe1208
@@ -6186,6 +6261,7 @@ enum skl_disp_power_wells {
 #define _TRANSA_CHICKEN1	 0xf0060
 #define _TRANSB_CHICKEN1	 0xf1060
 #define TRANS_CHICKEN1(pipe) _PIPE(pipe, _TRANSA_CHICKEN1, _TRANSB_CHICKEN1)
+#define  TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE	(1<<10)
 #define  TRANS_CHICKEN1_DP0UNIT_GC_DISABLE	(1<<4)
 #define _TRANSA_CHICKEN2	 0xf0064
 #define _TRANSB_CHICKEN2	 0xf1064
@@ -6370,6 +6446,8 @@ enum skl_disp_power_wells {
 #define PCH_PP_CONTROL		0xc7204
 #define  PANEL_UNLOCK_REGS	(0xabcd << 16)
 #define  PANEL_UNLOCK_MASK	(0xffff << 16)
+#define  BXT_POWER_CYCLE_DELAY_MASK	(0x1f0)
+#define  BXT_POWER_CYCLE_DELAY_SHIFT	4
 #define  EDP_FORCE_VDD		(1 << 3)
 #define  EDP_BLC_ENABLE		(1 << 2)
 #define  PANEL_POWER_RESET	(1 << 1)
@@ -6397,6 +6475,17 @@ enum skl_disp_power_wells {
 #define  PP_REFERENCE_DIVIDER_SHIFT	8
 #define  PANEL_POWER_CYCLE_DELAY_MASK	(0x1f)
 #define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
+
+/* BXT PPS changes - 2nd set of PPS registers */
+#define _BXT_PP_STATUS2 	0xc7300
+#define _BXT_PP_CONTROL2 	0xc7304
+#define _BXT_PP_ON_DELAYS2	0xc7308
+#define _BXT_PP_OFF_DELAYS2	0xc730c
+
+#define BXT_PP_STATUS(n)	((!n) ? PCH_PP_STATUS : _BXT_PP_STATUS2)
+#define BXT_PP_CONTROL(n)	((!n) ? PCH_PP_CONTROL : _BXT_PP_CONTROL2)
+#define BXT_PP_ON_DELAYS(n)	((!n) ? PCH_PP_ON_DELAYS : _BXT_PP_ON_DELAYS2)
+#define BXT_PP_OFF_DELAYS(n)	((!n) ? PCH_PP_OFF_DELAYS : _BXT_PP_OFF_DELAYS2)
 
 #define PCH_DP_B		0xe4100
 #define PCH_DPB_AUX_CH_CTL	0xe4110
@@ -6698,6 +6787,7 @@ enum skl_disp_power_wells {
 #define	  GEN6_PCODE_READ_RC6VIDS		0x5
 #define     GEN6_ENCODE_RC6_VID(mv)		(((mv) - 245) / 5)
 #define     GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
+#define   BDW_PCODE_DISPLAY_FREQ_CHANGE_REQ	0x18
 #define   GEN9_PCODE_READ_MEM_LATENCY		0x6
 #define     GEN9_MEM_LATENCY_LEVEL_MASK		0xFF
 #define     GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT	8
@@ -7163,6 +7253,7 @@ enum skl_disp_power_wells {
 #define  LCPLL_CLK_FREQ_337_5_BDW	(2<<26)
 #define  LCPLL_CLK_FREQ_675_BDW		(3<<26)
 #define  LCPLL_CD_CLOCK_DISABLE		(1<<25)
+#define  LCPLL_ROOT_CD_CLOCK_DISABLE	(1<<24)
 #define  LCPLL_CD2X_CLOCK_DISABLE	(1<<23)
 #define  LCPLL_POWER_DOWN_ALLOW		(1<<22)
 #define  LCPLL_CD_SOURCE_FCLK		(1<<21)
@@ -7265,12 +7356,6 @@ enum skl_disp_power_wells {
 #define DC_STATE_EN			0x45504
 #define  DC_STATE_EN_UPTO_DC5		(1<<0)
 #define  DC_STATE_EN_DC9		(1<<3)
-
-/*
-* SKL DC
-*/
-#define  DC_STATE_EN			0x45504
-#define  DC_STATE_EN_UPTO_DC5		(1<<0)
 #define  DC_STATE_EN_UPTO_DC6		(2<<0)
 #define  DC_STATE_EN_UPTO_DC5_DC6_MASK   0x3
 
@@ -7821,5 +7906,14 @@ enum skl_disp_power_wells {
 /* For UMS only (deprecated): */
 #define _PALETTE_A (dev_priv->info.display_mmio_offset + 0xa000)
 #define _PALETTE_B (dev_priv->info.display_mmio_offset + 0xa800)
+
+/* MOCS (Memory Object Control State) registers */
+#define GEN9_LNCFCMOCS0		0xb020	/* L3 Cache Control base */
+
+#define GEN9_GFX_MOCS_0		0xc800	/* Graphics MOCS base register*/
+#define GEN9_MFX0_MOCS_0	0xc900	/* Media 0 MOCS base register*/
+#define GEN9_MFX1_MOCS_0	0xca00	/* Media 1 MOCS base register*/
+#define GEN9_VEBOX_MOCS_0	0xcb00	/* Video MOCS base register*/
+#define GEN9_BLT_MOCS_0		0xcc00	/* Blitter MOCS base register*/
 
 #endif /* _I915_REG_H_ */

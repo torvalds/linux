@@ -152,29 +152,26 @@ int i915_gem_render_state_prepare(struct intel_engine_cs *ring,
 	return 0;
 }
 
-int i915_gem_render_state_init(struct intel_engine_cs *ring)
+int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 {
 	struct render_state so;
 	int ret;
 
-	ret = i915_gem_render_state_prepare(ring, &so);
+	ret = i915_gem_render_state_prepare(req->ring, &so);
 	if (ret)
 		return ret;
 
 	if (so.rodata == NULL)
 		return 0;
 
-	ret = ring->dispatch_execbuffer(ring,
-					so.ggtt_offset,
-					so.rodata->batch_items * 4,
-					I915_DISPATCH_SECURE);
+	ret = req->ring->dispatch_execbuffer(req, so.ggtt_offset,
+					     so.rodata->batch_items * 4,
+					     I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;
 
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
 
-	ret = __i915_add_request(ring, NULL, so.obj);
-	/* __i915_add_request moves object to inactive if it fails */
 out:
 	i915_gem_render_state_fini(&so);
 	return ret;
