@@ -66,25 +66,10 @@
  */
 #define AARCH64_BREAK_FAULT	(AARCH64_BREAK_MON | (FAULT_BRK_IMM << 5))
 
-/*
- * Extract byte from BRK instruction
- */
-#define KGDB_DYN_DBG_BRK_INS_BYTE(x) \
-	((((AARCH64_BREAK_MON) & 0xffe0001f) >> (x * 8)) & 0xff)
-
-/*
- * Extract byte from BRK #imm16
- */
-#define KGBD_DYN_DBG_BRK_IMM_BYTE(x) \
-	(((((KGDB_DYN_DBG_BRK_IMM) & 0xffff) << 5) >> (x * 8)) & 0xff)
-
-#define KGDB_DYN_DBG_BRK_BYTE(x) \
-	(KGDB_DYN_DBG_BRK_INS_BYTE(x) | KGBD_DYN_DBG_BRK_IMM_BYTE(x))
-
-#define  KGDB_DYN_BRK_INS_BYTE0  KGDB_DYN_DBG_BRK_BYTE(0)
-#define  KGDB_DYN_BRK_INS_BYTE1  KGDB_DYN_DBG_BRK_BYTE(1)
-#define  KGDB_DYN_BRK_INS_BYTE2  KGDB_DYN_DBG_BRK_BYTE(2)
-#define  KGDB_DYN_BRK_INS_BYTE3  KGDB_DYN_DBG_BRK_BYTE(3)
+#define AARCH64_BREAK_KGDB_DYN_DBG	\
+	(AARCH64_BREAK_MON | (KGDB_DYN_DBG_BRK_IMM << 5))
+#define KGDB_DYN_BRK_INS_BYTE(x)	\
+	((AARCH64_BREAK_KGDB_DYN_DBG >> (8 * (x))) & 0xff)
 
 #define CACHE_FLUSH_IS_SAFE		1
 
