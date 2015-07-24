@@ -488,7 +488,7 @@ static struct omap_hwmod dm81xx_gpmc_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if dm81xx_alwon_l3_slow__gpmc = {
+static struct omap_hwmod_ocp_if dm81xx_alwon_l3_slow__gpmc = {
 	.master		= &dm816x_alwon_l3_slow_hwmod,
 	.slave		= &dm81xx_gpmc_hwmod,
 	.user		= OCP_USER_MPU,
@@ -729,7 +729,7 @@ static struct omap_hwmod_class dm816x_mdio_hwmod_class = {
 	.sysc		= &dm816x_emac_sysc,
 };
 
-struct omap_hwmod dm816x_emac0_mdio_hwmod = {
+static struct omap_hwmod dm816x_emac0_mdio_hwmod = {
 	.name		= "davinci_mdio",
 	.class		= &dm816x_mdio_hwmod_class,
 	.clkdm_name	= "alwon_ethernet_clkdm",
@@ -747,7 +747,7 @@ struct omap_hwmod dm816x_emac0_mdio_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if dm816x_emac0__mdio = {
+static struct omap_hwmod_ocp_if dm816x_emac0__mdio = {
 	.master		= &dm816x_l4_hs_hwmod,
 	.slave		= &dm816x_emac0_mdio_hwmod,
 	.user		= OCP_USER_MPU,
@@ -902,7 +902,7 @@ static struct omap_hwmod_class dm816x_tpcc_hwmod_class = {
 	.name		= "tpcc",
 };
 
-struct omap_hwmod dm816x_tpcc_hwmod = {
+static struct omap_hwmod dm816x_tpcc_hwmod = {
 	.name		= "tpcc",
 	.class		= &dm816x_tpcc_hwmod_class,
 	.clkdm_name	= "alwon_l3s_clkdm",
@@ -915,7 +915,7 @@ struct omap_hwmod dm816x_tpcc_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tpcc = {
+static struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tpcc = {
 	.master		= &dm816x_alwon_l3_fast_hwmod,
 	.slave		= &dm816x_tpcc_hwmod,
 	.clk		= "sysclk4_ck",
@@ -935,7 +935,7 @@ static struct omap_hwmod_class dm816x_tptc0_hwmod_class = {
 	.name		= "tptc0",
 };
 
-struct omap_hwmod dm816x_tptc0_hwmod = {
+static struct omap_hwmod dm816x_tptc0_hwmod = {
 	.name		= "tptc0",
 	.class		= &dm816x_tptc0_hwmod_class,
 	.clkdm_name	= "alwon_l3s_clkdm",
@@ -948,7 +948,7 @@ struct omap_hwmod dm816x_tptc0_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc0 = {
+static struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc0 = {
 	.master		= &dm816x_alwon_l3_fast_hwmod,
 	.slave		= &dm816x_tptc0_hwmod,
 	.clk		= "sysclk4_ck",
@@ -956,7 +956,7 @@ struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc0 = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if dm816x_tptc0__alwon_l3_fast = {
+static struct omap_hwmod_ocp_if dm816x_tptc0__alwon_l3_fast = {
 	.master		= &dm816x_tptc0_hwmod,
 	.slave		= &dm816x_alwon_l3_fast_hwmod,
 	.clk		= "sysclk4_ck",
@@ -977,7 +977,7 @@ static struct omap_hwmod_class dm816x_tptc1_hwmod_class = {
 	.name		= "tptc1",
 };
 
-struct omap_hwmod dm816x_tptc1_hwmod = {
+static struct omap_hwmod dm816x_tptc1_hwmod = {
 	.name		= "tptc1",
 	.class		= &dm816x_tptc1_hwmod_class,
 	.clkdm_name	= "alwon_l3s_clkdm",
@@ -990,7 +990,7 @@ struct omap_hwmod dm816x_tptc1_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc1 = {
+static struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc1 = {
 	.master		= &dm816x_alwon_l3_fast_hwmod,
 	.slave		= &dm816x_tptc1_hwmod,
 	.clk		= "sysclk4_ck",
@@ -998,7 +998,7 @@ struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc1 = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if dm816x_tptc1__alwon_l3_fast = {
+static struct omap_hwmod_ocp_if dm816x_tptc1__alwon_l3_fast = {
 	.master		= &dm816x_tptc1_hwmod,
 	.slave		= &dm816x_alwon_l3_fast_hwmod,
 	.clk		= "sysclk4_ck",
@@ -1019,7 +1019,7 @@ static struct omap_hwmod_class dm816x_tptc2_hwmod_class = {
 	.name		= "tptc2",
 };
 
-struct omap_hwmod dm816x_tptc2_hwmod = {
+static struct omap_hwmod dm816x_tptc2_hwmod = {
 	.name		= "tptc2",
 	.class		= &dm816x_tptc2_hwmod_class,
 	.clkdm_name	= "alwon_l3s_clkdm",
@@ -1032,7 +1032,7 @@ struct omap_hwmod dm816x_tptc2_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc2 = {
+static struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc2 = {
 	.master		= &dm816x_alwon_l3_fast_hwmod,
 	.slave		= &dm816x_tptc2_hwmod,
 	.clk		= "sysclk4_ck",
@@ -1040,7 +1040,7 @@ struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc2 = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if dm816x_tptc2__alwon_l3_fast = {
+static struct omap_hwmod_ocp_if dm816x_tptc2__alwon_l3_fast = {
 	.master		= &dm816x_tptc2_hwmod,
 	.slave		= &dm816x_alwon_l3_fast_hwmod,
 	.clk		= "sysclk4_ck",
@@ -1061,7 +1061,7 @@ static struct omap_hwmod_class dm816x_tptc3_hwmod_class = {
 	.name		= "tptc3",
 };
 
-struct omap_hwmod dm816x_tptc3_hwmod = {
+static struct omap_hwmod dm816x_tptc3_hwmod = {
 	.name		= "tptc3",
 	.class		= &dm816x_tptc3_hwmod_class,
 	.clkdm_name	= "alwon_l3s_clkdm",
@@ -1074,7 +1074,7 @@ struct omap_hwmod dm816x_tptc3_hwmod = {
 	},
 };
 
-struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc3 = {
+static struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc3 = {
 	.master		= &dm816x_alwon_l3_fast_hwmod,
 	.slave		= &dm816x_tptc3_hwmod,
 	.clk		= "sysclk4_ck",
@@ -1082,7 +1082,7 @@ struct omap_hwmod_ocp_if dm816x_alwon_l3_fast__tptc3 = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if dm816x_tptc3__alwon_l3_fast = {
+static struct omap_hwmod_ocp_if dm816x_tptc3__alwon_l3_fast = {
 	.master		= &dm816x_tptc3_hwmod,
 	.slave		= &dm816x_alwon_l3_fast_hwmod,
 	.clk		= "sysclk4_ck",
