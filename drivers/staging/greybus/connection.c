@@ -319,7 +319,8 @@ void gb_connection_destroy(struct gb_connection *connection)
 	list_del(&connection->hd_links);
 	spin_unlock_irq(&gb_connections_lock);
 
-	gb_protocol_put(connection->protocol);
+	if (connection->protocol)
+		gb_protocol_put(connection->protocol);
 	connection->protocol = NULL;
 
 	id_map = &connection->hd->cport_id_map;
