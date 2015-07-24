@@ -364,8 +364,11 @@ int main(int argc, char **argv)
 
 	/* Enable the buffer */
 	ret = write_sysfs_int("enable", buf_dir_name, 1);
-	if (ret < 0)
+	if (ret < 0) {
+		fprintf(stderr,
+			"Failed to enable buffer: %s\n", strerror(-ret));
 		goto error_free_buf_dir_name;
+	}
 
 	scan_size = size_from_channelarray(channels, num_channels);
 	data = malloc(scan_size * buf_len);
