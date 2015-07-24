@@ -1,6 +1,5 @@
 greybus-y :=	core.o		\
 		debugfs.o	\
-		ap.o		\
 		manifest.o	\
 		endo.o		\
 		module.o	\
