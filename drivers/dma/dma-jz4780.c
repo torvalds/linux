@@ -250,7 +250,7 @@ static uint32_t jz4780_dma_transfer_size(unsigned long val, uint32_t *shift)
 	}
 }
 
-static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
+static int jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	struct jz4780_dma_hwdesc *desc, dma_addr_t addr, size_t len,
 	enum dma_transfer_direction direction)
 {
@@ -301,6 +301,7 @@ static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	desc->dcm |= width << JZ_DMA_DCM_DP_SHIFT;
 
 	desc->dtc = len >> jzchan->transfer_shift;
+	return 0;
 }
 
 static struct dma_async_tx_descriptor *jz4780_dma_prep_slave_sg(
@@ -319,12 +320,11 @@ static struct dma_async_tx_descriptor *jz4780_dma_prep_slave_sg(
 
 	for (i = 0; i < sg_len; i++) {
 		err = jz4780_dma_setup_hwdesc(jzchan, &desc->desc[i],
-					sg_dma_address(&sgl[i]),
-					sg_dma_len(&sgl[i]),
-					direction);
+					      sg_dma_address(&sgl[i]),
+					      sg_dma_len(&sgl[i]),
+					      direction);
 		if (err < 0)
-			return ERR_PTR(err);
-
+			return NULL;
 
 		desc->desc[i].dcm |= JZ_DMA_DCM_TIE;
 
@@ -366,9 +366,9 @@ static struct dma_async_tx_descriptor *jz4780_dma_prep_dma_cyclic(
 
 	for (i = 0; i < periods; i++) {
 		err = jz4780_dma_setup_hwdesc(jzchan, &desc->desc[i], buf_addr,
-					period_len, direction);
+					      period_len, direction);
 		if (err < 0)
-			return ERR_PTR(err);
+			return NULL;
 
 		buf_addr += period_len;
 
@@ -417,7 +417,7 @@ struct dma_async_tx_descriptor *jz4780_dma_prep_dma_memcpy(
 			    tsz << JZ_DMA_DCM_TSZ_SHIFT |
 			    JZ_DMA_WIDTH_32_BIT << JZ_DMA_DCM_SP_SHIFT |
 			    JZ_DMA_WIDTH_32_BIT << JZ_DMA_DCM_DP_SHIFT;
-	desc->desc[0].dtc = len >> ord;
+	desc->desc[0].dtc = len >> jzchan->transfer_shift;
 
 	return vchan_tx_prep(&jzchan->vchan, &desc->vdesc, flags);
 }
@@ -580,8 +580,8 @@ static enum dma_status jz4780_dma_tx_status(struct dma_chan *chan,
 		txstate->residue = 0;
 
 	if (vdesc && jzchan->desc && vdesc == &jzchan->desc->vdesc
-		&& jzchan->desc->status & (JZ_DMA_DCS_AR | JZ_DMA_DCS_HLT))
-			status = DMA_ERROR;
+	    && jzchan->desc->status & (JZ_DMA_DCS_AR | JZ_DMA_DCS_HLT))
+		status = DMA_ERROR;
 
 	spin_unlock_irqrestore(&jzchan->vchan.lock, flags);
 	return status;
@@ -756,17 +756,19 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(jzdma->base))
 		return PTR_ERR(jzdma->base);
 
-	jzdma->irq = platform_get_irq(pdev, 0);
-	if (jzdma->irq < 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
 		dev_err(dev, "failed to get IRQ: %d\n", ret);
-		return jzdma->irq;
+		return ret;
 	}
+
+	jzdma->irq = ret;
 
 	ret = devm_request_irq(dev, jzdma->irq, jz4780_dma_irq_handler, 0,
 			       dev_name(dev), jzdma);
 	if (ret) {
 		dev_err(dev, "failed to request IRQ %u!\n", jzdma->irq);
-		return -EINVAL;
+		return ret;
 	}
 
 	jzdma->clk = devm_clk_get(dev, NULL);
@@ -802,7 +804,6 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dd->dst_addr_widths = JZ_DMA_BUSWIDTHS;
 	dd->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
-
 
 	/*
 	 * Enable DMA controller, mark all channels as not programmable.
