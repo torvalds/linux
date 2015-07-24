@@ -23,6 +23,8 @@
 				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vhba_channel_protocol_uuid =
 	SPAR_VHBA_CHANNEL_PROTOCOL_UUID;
+#define SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR \
+	"414815ed-c58c-11da-95a9-00e08161165f"
 
 /* {8cd5994d-c58e-11da-95a9-00e08161165f} */
 #define SPAR_VNIC_CHANNEL_PROTOCOL_UUID \
@@ -30,6 +32,8 @@ static const uuid_le spar_vhba_channel_protocol_uuid =
 				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vnic_channel_protocol_uuid =
 	SPAR_VNIC_CHANNEL_PROTOCOL_UUID;
+#define SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR \
+	"8cd5994d-c58e-11da-95a9-00e08161165f"
 
 /* {72120008-4AAB-11DC-8530-444553544200} */
 #define SPAR_SIOVM_UUID \
