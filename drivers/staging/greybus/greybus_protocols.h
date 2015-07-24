@@ -606,6 +606,8 @@ struct gb_svc_conn_create_request {
 	__u16	cport1_id;
 	__u8	intf2_id;
 	__u16	cport2_id;
+	__u8	tc;
+	__u8	flags;
 };
 /* connection create response has no payload */
 
