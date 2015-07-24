@@ -64,9 +64,9 @@
  * CONTROL and SVC protocols for communication between AP and SVC.
  */
 #define GB_SVC_BUNDLE_ID			0
-#define GB_SVC_CPORT_ID				2
+#define GB_SVC_CPORT_ID				0
 #define GB_CONTROL_BUNDLE_ID			0
-#define GB_CONTROL_CPORT_ID			2
+#define GB_CONTROL_CPORT_ID			0
 
 
 /* Control Protocol */
