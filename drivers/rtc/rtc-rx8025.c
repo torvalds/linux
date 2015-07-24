@@ -71,9 +71,7 @@ MODULE_DEVICE_TABLE(i2c, rx8025_id);
 struct rx8025_data {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
-	struct work_struct work;
 	u8 ctrl1;
-	unsigned exiting:1;
 };
 
 static int rx8025_read_reg(struct i2c_client *client, int number, u8 *value)
@@ -128,25 +126,11 @@ static int rx8025_write_regs(struct i2c_client *client,
 	return ret;
 }
 
-static irqreturn_t rx8025_irq(int irq, void *dev_id)
+static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
-
-	disable_irq_nosync(irq);
-	schedule_work(&rx8025->work);
-	return IRQ_HANDLED;
-}
-
-static void rx8025_work(struct work_struct *work)
-{
-	struct rx8025_data *rx8025 = container_of(work, struct rx8025_data,
-						  work);
-	struct i2c_client *client = rx8025->client;
-	struct mutex *lock = &rx8025->rtc->ops_lock;
 	u8 status;
-
-	mutex_lock(lock);
 
 	if (rx8025_read_reg(client, RX8025_REG_CTRL2, &status))
 		goto out;
@@ -175,10 +159,7 @@ static void rx8025_work(struct work_struct *work)
 			 status | RX8025_BIT_CTRL2_XST);
 
 out:
-	if (!rx8025->exiting)
-		enable_irq(client->irq);
-
-	mutex_unlock(lock);
+	return IRQ_HANDLED;
 }
 
 static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
@@ -550,7 +531,6 @@ static int rx8025_probe(struct i2c_client *client,
 
 	rx8025->client = client;
 	i2c_set_clientdata(client, rx8025);
-	INIT_WORK(&rx8025->work, rx8025_work);
 
 	err = rx8025_init_client(client, &need_reset);
 	if (err)
@@ -574,7 +554,7 @@ static int rx8025_probe(struct i2c_client *client,
 
 	if (client->irq > 0) {
 		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
-		err = request_irq(client->irq, rx8025_irq,
+		err = request_threaded_irq(client->irq, NULL, rx8025_handle_irq,
 				  0, "rx8025", client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ\n");
@@ -602,17 +582,8 @@ errout:
 
 static int rx8025_remove(struct i2c_client *client)
 {
-	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
-	struct mutex *lock = &rx8025->rtc->ops_lock;
-
-	if (client->irq > 0) {
-		mutex_lock(lock);
-		rx8025->exiting = 1;
-		mutex_unlock(lock);
-
+	if (client->irq > 0)
 		free_irq(client->irq, client);
-		cancel_work_sync(&rx8025->work);
-	}
 
 	rx8025_sysfs_unregister(&client->dev);
 	return 0;
