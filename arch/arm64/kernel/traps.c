@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/bug.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
@@ -32,8 +33,10 @@
 #include <linux/syscalls.h>
 
 #include <asm/atomic.h>
+#include <asm/bug.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/insn.h>
 #include <asm/traps.h>
 #include <asm/stacktrace.h>
 #include <asm/exception.h>
@@ -466,7 +469,61 @@ void __pgd_error(const char *file, int line, unsigned long val)
 	pr_crit("%s:%d: bad pgd %016lx.\n", file, line, val);
 }
 
+/* GENERIC_BUG traps */
+
+int is_valid_bugaddr(unsigned long addr)
+{
+	/*
+	 * bug_handler() only called for BRK #BUG_BRK_IMM.
+	 * So the answer is trivial -- any spurious instances with no
+	 * bug table entry will be rejected by report_bug() and passed
+	 * back to the debug-monitors code and handled as a fatal
+	 * unexpected debug exception.
+	 */
+	return 1;
+}
+
+static int bug_handler(struct pt_regs *regs, unsigned int esr)
+{
+	if (user_mode(regs))
+		return DBG_HOOK_ERROR;
+
+	switch (report_bug(regs->pc, regs)) {
+	case BUG_TRAP_TYPE_BUG:
+		die("Oops - BUG", regs, 0);
+		break;
+
+	case BUG_TRAP_TYPE_WARN:
+		break;
+
+	default:
+		/* unknown/unrecognised bug trap type */
+		return DBG_HOOK_ERROR;
+	}
+
+	/* If thread survives, skip over the BUG instruction and continue: */
+	regs->pc += AARCH64_INSN_SIZE;	/* skip BRK and resume */
+	return DBG_HOOK_HANDLED;
+}
+
+static struct break_hook bug_break_hook = {
+	.esr_val = 0xf2000000 | BUG_BRK_IMM,
+	.esr_mask = 0xffffffff,
+	.fn = bug_handler,
+};
+
+/*
+ * Initial handler for AArch64 BRK exceptions
+ * This handler only used until debug_traps_init().
+ */
+int __init early_brk64(unsigned long addr, unsigned int esr,
+		struct pt_regs *regs)
+{
+	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
+}
+
+/* This registration must happen early, before debug_traps_init(). */
 void __init trap_init(void)
 {
-	return;
+	register_break_hook(&bug_break_hook);
 }

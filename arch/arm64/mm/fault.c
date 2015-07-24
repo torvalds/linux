@@ -501,14 +501,22 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 	arm64_notify_die("Oops - SP/PC alignment exception", regs, &info, esr);
 }
 
-static struct fault_info debug_fault_info[] = {
+int __init early_brk64(unsigned long addr, unsigned int esr,
+		       struct pt_regs *regs);
+
+/*
+ * __refdata because early_brk64 is __init, but the reference to it is
+ * clobbered at arch_initcall time.
+ * See traps.c and debug-monitors.c:debug_traps_init().
+ */
+static struct fault_info __refdata debug_fault_info[] = {
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware breakpoint"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware single-step"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware watchpoint"	},
 	{ do_bad,	SIGBUS,		0,		"unknown 3"		},
 	{ do_bad,	SIGTRAP,	TRAP_BRKPT,	"aarch32 BKPT"		},
 	{ do_bad,	SIGTRAP,	0,		"aarch32 vector catch"	},
-	{ do_bad,	SIGTRAP,	TRAP_BRKPT,	"aarch64 BRK"		},
+	{ early_brk64,	SIGTRAP,	TRAP_BRKPT,	"aarch64 BRK"		},
 	{ do_bad,	SIGBUS,		0,		"unknown 7"		},
 };
 
