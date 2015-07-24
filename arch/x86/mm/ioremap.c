@@ -118,8 +118,8 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	last_pfn = last_addr >> PAGE_SHIFT;
 	if (walk_system_ram_range(pfn, last_pfn - pfn + 1, NULL,
 					  __ioremap_check_ram) == 1) {
-		WARN_ONCE(1, "ioremap on RAM at 0x%llx - 0x%llx\n",
-					phys_addr, last_addr);
+		WARN_ONCE(1, "ioremap on RAM at %pa - %pa\n",
+			  &phys_addr, &last_addr);
 		return NULL;
 	}
 
