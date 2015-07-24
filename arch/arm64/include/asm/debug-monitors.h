@@ -18,6 +18,8 @@
 
 #ifdef __KERNEL__
 
+#include <asm/insn.h>
+
 /* Low-level stepping controls. */
 #define DBG_MDSCR_SS		(1 << 0)
 #define DBG_SPSR_SS		(1 << 21)
@@ -38,7 +40,7 @@
 /*
  * Break point instruction encoding
  */
-#define BREAK_INSTR_SIZE		4
+#define BREAK_INSTR_SIZE		AARCH64_INSN_SIZE
 
 /*
  * ESR values expected for dynamic and compile time BRK instruction
