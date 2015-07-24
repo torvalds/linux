@@ -778,6 +778,13 @@ int intel_parse_bios(struct drm_device *dev);
 #define MIPI_DSI_UNDEFINED_PANEL_ID	0
 #define MIPI_DSI_GENERIC_PANEL_ID	1
 
+/*
+ * PMIC vs SoC Backlight support specified in pwm_blc
+ * field in mipi_config block below.
+*/
+#define PPS_BLC_PMIC   0
+#define PPS_BLC_SOC    1
+
 struct mipi_config {
 	u16 panel_id;
 

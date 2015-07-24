@@ -57,5 +57,6 @@ struct gpiod_lookup_table {
 }
 
 void gpiod_add_lookup_table(struct gpiod_lookup_table *table);
+void gpiod_remove_lookup_table(struct gpiod_lookup_table *table);
 
 #endif /* __LINUX_GPIO_MACHINE_H */
