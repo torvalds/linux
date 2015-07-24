@@ -1381,9 +1381,13 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	}
 
 	if (!r) {
-		dev_err(dev, "Failed to resolve %s-supply for %s\n",
-			rdev->supply_name, rdev->desc->name);
-		return -EPROBE_DEFER;
+		if (have_full_constraints()) {
+			r = dummy_regulator_rdev;
+		} else {
+			dev_err(dev, "Failed to resolve %s-supply for %s\n",
+				rdev->supply_name, rdev->desc->name);
+			return -EPROBE_DEFER;
+		}
 	}
 
 	/* Recursively resolve the supply of the supply */
