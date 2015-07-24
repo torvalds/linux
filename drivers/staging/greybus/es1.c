@@ -18,7 +18,6 @@
 #include "kernel_ver.h"
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
-#define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
 #define ES1_GBUF_MSG_SIZE_MAX	2048
 
 static const struct usb_device_id id_table[] = {
@@ -58,11 +57,8 @@ static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
  * @usb_intf: pointer to the USB interface we are bound to.
  * @hd: pointer to our greybus_host_device structure
  * @control_endpoint: endpoint to send data to SVC
- * @svc_endpoint: endpoint for SVC data in
  * @cport_in_endpoint: bulk in endpoint for CPort data
  * @cport-out_endpoint: bulk out endpoint for CPort data
- * @svc_buffer: buffer for SVC messages coming in on @svc_endpoint
- * @svc_urb: urb for SVC messages coming in on @svc_endpoint
  * @cport_in_urb: array of urbs for the CPort in messages
  * @cport_in_buffer: array of buffers for the @cport_in_urb urbs
  * @cport_out_urb: array of urbs for the CPort out messages
@@ -78,12 +74,8 @@ struct es1_ap_dev {
 	struct greybus_host_device *hd;
 
 	__u8 control_endpoint;
-	__u8 svc_endpoint;
 	__u8 cport_in_endpoint;
 	__u8 cport_out_endpoint;
-
-	u8 *svc_buffer;
-	struct urb *svc_urb;
 
 	struct urb *cport_in_urb[NUM_CPORT_IN_URB];
 	u8 *cport_in_buffer[NUM_CPORT_IN_URB];
@@ -367,44 +359,11 @@ static void ap_disconnect(struct usb_interface *interface)
 		es1->cport_in_buffer[i] = NULL;
 	}
 
-	usb_kill_urb(es1->svc_urb);
-	usb_free_urb(es1->svc_urb);
-	es1->svc_urb = NULL;
-	kfree(es1->svc_buffer);
-	es1->svc_buffer = NULL;
-
 	usb_set_intfdata(interface, NULL);
 	udev = es1->usb_dev;
 	greybus_remove_hd(es1->hd);
 
 	usb_put_dev(udev);
-}
-
-/* Callback for when we get a SVC message */
-static void svc_in_callback(struct urb *urb)
-{
-	struct greybus_host_device *hd = urb->context;
-	struct device *dev = &urb->dev->dev;
-	int status = check_urb_status(urb);
-	int retval;
-
-	if (status) {
-		if ((status == -EAGAIN) || (status == -EPROTO))
-			goto exit;
-		dev_err(dev, "urb svc in error %d (dropped)\n", status);
-		return;
-	}
-
-	/* We have a message, create a new message structure, add it to the
-	 * list, and wake up our thread that will process the messages.
-	 */
-	greybus_svc_in(hd, urb->transfer_buffer, urb->actual_length);
-
-exit:
-	/* resubmit the urb to get more messages */
-	retval = usb_submit_urb(urb, GFP_ATOMIC);
-	if (retval)
-		dev_err(dev, "Can not submit urb for AP data: %d\n", retval);
 }
 
 static void cport_in_callback(struct urb *urb)
@@ -610,12 +569,10 @@ static int ap_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	bool int_in_found = false;
 	bool bulk_in_found = false;
 	bool bulk_out_found = false;
 	int retval = -ENOMEM;
 	int i;
-	u8 svc_interval = 0;
 
 	/* We need to fit a CPort ID in one byte of a message header */
 	BUILD_BUG_ON(CPORT_ID_MAX > U8_MAX);
@@ -644,11 +601,7 @@ static int ap_probe(struct usb_interface *interface,
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (usb_endpoint_is_int_in(endpoint)) {
-			es1->svc_endpoint = endpoint->bEndpointAddress;
-			svc_interval = endpoint->bInterval;
-			int_in_found = true;
-		} else if (usb_endpoint_is_bulk_in(endpoint)) {
+		if (usb_endpoint_is_bulk_in(endpoint)) {
 			es1->cport_in_endpoint = endpoint->bEndpointAddress;
 			bulk_in_found = true;
 		} else if (usb_endpoint_is_bulk_out(endpoint)) {
@@ -660,26 +613,11 @@ static int ap_probe(struct usb_interface *interface,
 				endpoint->bEndpointAddress);
 		}
 	}
-	if ((int_in_found == false) ||
-	    (bulk_in_found == false) ||
+	if ((bulk_in_found == false) ||
 	    (bulk_out_found == false)) {
 		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
 		goto error;
 	}
-
-	/* Create our buffer and URB to get SVC messages, and start it up */
-	es1->svc_buffer = kmalloc(ES1_SVC_MSG_SIZE, GFP_KERNEL);
-	if (!es1->svc_buffer)
-		goto error;
-
-	es1->svc_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!es1->svc_urb)
-		goto error;
-
-	usb_fill_int_urb(es1->svc_urb, udev,
-			 usb_rcvintpipe(udev, es1->svc_endpoint),
-			 es1->svc_buffer, ES1_SVC_MSG_SIZE, svc_in_callback,
-			 hd, svc_interval);
 
 	/* Allocate buffers for our cport in messages and start them up */
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
@@ -721,11 +659,6 @@ static int ap_probe(struct usb_interface *interface,
 		retval = -EINVAL;
 		goto error;
 	}
-
-	/* Start up our svc urb, which allows events to start flowing */
-	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
-	if (retval)
-		goto error;
 
 	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
 							(S_IWUSR | S_IRUGO),
