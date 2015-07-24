@@ -513,20 +513,18 @@ static int rx8025_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rx8025_data *rx8025;
-	int err, need_reset = 0;
+	int err = 0, need_reset = 0;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 				     | I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		dev_err(&adapter->dev,
 			"doesn't support required functionality\n");
-		err = -EIO;
-		goto errout;
+		return -EIO;
 	}
 
 	rx8025 = devm_kzalloc(&client->dev, sizeof(*rx8025), GFP_KERNEL);
 	if (!rx8025) {
-		err = -ENOMEM;
-		goto errout;
+		return -ENOMEM;
 	}
 
 	rx8025->client = client;
@@ -534,7 +532,7 @@ static int rx8025_probe(struct i2c_client *client,
 
 	err = rx8025_init_client(client, &need_reset);
 	if (err)
-		goto errout;
+		return err;
 
 	if (need_reset) {
 		struct rtc_time tm;
@@ -547,9 +545,8 @@ static int rx8025_probe(struct i2c_client *client,
 	rx8025->rtc = devm_rtc_device_register(&client->dev, client->name,
 					  &rx8025_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rx8025->rtc)) {
-		err = PTR_ERR(rx8025->rtc);
 		dev_err(&client->dev, "unable to register the class device\n");
-		goto errout;
+		return PTR_ERR(rx8025->rtc);
 	}
 
 	if (client->irq > 0) {
@@ -559,7 +556,7 @@ static int rx8025_probe(struct i2c_client *client,
 						client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ\n");
-			goto errout;
+			return err;
 		}
 	}
 
@@ -567,13 +564,6 @@ static int rx8025_probe(struct i2c_client *client,
 	rx8025->rtc->max_user_freq = 1;
 
 	err = rx8025_sysfs_register(&client->dev);
-	if (err)
-		goto errout;
-
-	return 0;
-
-errout:
-	dev_err(&adapter->dev, "probing for rx8025 failed\n");
 	return err;
 }
 
