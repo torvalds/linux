@@ -356,6 +356,8 @@ static int cp2112_read(struct cp2112_device *dev, u8 *data, size_t size)
 	struct cp2112_force_read_report report;
 	int ret;
 
+	if (size > sizeof(dev->read_data))
+		size = sizeof(dev->read_data);
 	report.report = CP2112_DATA_READ_FORCE_SEND;
 	report.length = cpu_to_be16(size);
 
