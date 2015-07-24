@@ -615,8 +615,6 @@ static int ap_probe(struct usb_interface *interface,
 	bool bulk_out_found = false;
 	int retval = -ENOMEM;
 	int i;
-	u16 endo_id = 0x4755;	// FIXME - get endo "ID" from the SVC
-	u8 ap_intf_id = 0x01;	// FIXME - get endo "ID" from the SVC
 	u8 svc_interval = 0;
 
 	/* We need to fit a CPort ID in one byte of a message header */
@@ -718,16 +716,11 @@ static int ap_probe(struct usb_interface *interface,
 		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
-	/*
-	 * XXX Soon this will be initiated later, with a combination
-	 * XXX of a Control protocol probe operation and a
-	 * XXX subsequent Control protocol connected operation for
-	 * XXX the SVC connection.  At that point we know we're
-	 * XXX properly connected to an Endo.
-	 */
-	retval = greybus_endo_setup(hd, endo_id, ap_intf_id);
-	if (retval)
+	/* Initialize AP's greybus interface */
+	if (!gb_ap_svc_connection_create(hd)) {
+		retval = -EINVAL;
 		goto error;
+	}
 
 	/* Start up our svc urb, which allows events to start flowing */
 	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
