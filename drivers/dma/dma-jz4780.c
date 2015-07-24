@@ -774,8 +774,8 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 
 	jzdma->irq = ret;
 
-	ret = devm_request_irq(dev, jzdma->irq, jz4780_dma_irq_handler, 0,
-			       dev_name(dev), jzdma);
+	ret = request_irq(jzdma->irq, jz4780_dma_irq_handler, 0, dev_name(dev),
+			  jzdma);
 	if (ret) {
 		dev_err(dev, "failed to request IRQ %u!\n", jzdma->irq);
 		return ret;
@@ -784,7 +784,8 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	jzdma->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(jzdma->clk)) {
 		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(jzdma->clk);
+		ret = PTR_ERR(jzdma->clk);
+		goto err_free_irq;
 	}
 
 	clk_prepare_enable(jzdma->clk);
@@ -856,6 +857,9 @@ err_unregister_dev:
 
 err_disable_clk:
 	clk_disable_unprepare(jzdma->clk);
+
+err_free_irq:
+	free_irq(jzdma->irq, jzdma);
 	return ret;
 }
 
@@ -864,7 +868,7 @@ static int jz4780_dma_remove(struct platform_device *pdev)
 	struct jz4780_dma_dev *jzdma = platform_get_drvdata(pdev);
 
 	of_dma_controller_free(pdev->dev.of_node);
-	devm_free_irq(&pdev->dev, jzdma->irq, jzdma);
+	free_irq(jzdma->irq, jzdma);
 	dma_async_device_unregister(&jzdma->dma_device);
 	return 0;
 }
