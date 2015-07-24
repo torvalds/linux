@@ -1629,93 +1629,95 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 
 	/* TODO: CLIENT ACQUIRE -- Don't really need this at the
 	 * moment */
-	if (!visorchannel_signalremove(devdata->dev->visorchannel,
-				       IOCHAN_FROM_IOPART,
-				       cmdrsp))
-		return; /* queue empty */
+	for (;;) {
+		if (!visorchannel_signalremove(devdata->dev->visorchannel,
+					       IOCHAN_FROM_IOPART,
+					       cmdrsp))
+			break; /* queue empty */
 
-	switch (cmdrsp->net.type) {
-	case NET_RCV:
-		devdata->chstat.got_rcv++;
-		/* process incoming packet */
-		visornic_rx(cmdrsp);
-		break;
-	case NET_XMIT_DONE:
-		spin_lock_irqsave(&devdata->priv_lock, flags);
-		devdata->chstat.got_xmit_done++;
-		if (cmdrsp->net.xmtdone.xmt_done_result)
-			devdata->chstat.xmit_fail++;
-		/* only call queue wake if we stopped it */
-		netdev = ((struct sk_buff *)cmdrsp->net.buf)->dev;
-		/* ASSERT netdev == vnicinfo->netdev; */
-		if ((netdev == devdata->netdev) &&
-		    netif_queue_stopped(netdev)) {
-			/* check to see if we have crossed
-			 * the lower watermark for
-			 * netif_wake_queue()
-			 */
-			if (((devdata->chstat.sent_xmit >=
-			    devdata->chstat.got_xmit_done) &&
-			    (devdata->chstat.sent_xmit -
-			    devdata->chstat.got_xmit_done <=
-			    devdata->lower_threshold_net_xmits)) ||
-			    ((devdata->chstat.sent_xmit <
-			    devdata->chstat.got_xmit_done) &&
-			    (ULONG_MAX - devdata->chstat.got_xmit_done
-			    + devdata->chstat.sent_xmit <=
-			    devdata->lower_threshold_net_xmits))) {
-				/* enough NET_XMITs completed
-				 * so can restart netif queue
-				 */
-				netif_wake_queue(netdev);
-				devdata->flow_control_lower_hits++;
-			}
-		}
-		skb_unlink(cmdrsp->net.buf, &devdata->xmitbufhead);
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
-		kfree_skb(cmdrsp->net.buf);
-		break;
-	case NET_RCV_ENBDIS_ACK:
-		devdata->chstat.got_enbdisack++;
-		netdev = (struct net_device *)
-		cmdrsp->net.enbdis.context;
-		spin_lock_irqsave(&devdata->priv_lock, flags);
-		devdata->enab_dis_acked = 1;
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
-
-		if (kthread_should_stop())
+		switch (cmdrsp->net.type) {
+		case NET_RCV:
+			devdata->chstat.got_rcv++;
+			/* process incoming packet */
+			visornic_rx(cmdrsp);
 			break;
-		if (devdata->server_down &&
-		    devdata->server_change_state) {
-			/* Inform Linux that the link is up */
-			devdata->server_down = false;
-			devdata->server_change_state = false;
-			netif_wake_queue(netdev);
-			netif_carrier_on(netdev);
-		}
-		break;
-	case NET_CONNECT_STATUS:
-		netdev = devdata->netdev;
-		if (cmdrsp->net.enbdis.enable == 1) {
+		case NET_XMIT_DONE:
 			spin_lock_irqsave(&devdata->priv_lock, flags);
-			devdata->enabled = cmdrsp->net.enbdis.enable;
-			spin_unlock_irqrestore(&devdata->priv_lock,
-					       flags);
-			netif_wake_queue(netdev);
-			netif_carrier_on(netdev);
-		} else {
-			netif_stop_queue(netdev);
-			netif_carrier_off(netdev);
+			devdata->chstat.got_xmit_done++;
+			if (cmdrsp->net.xmtdone.xmt_done_result)
+				devdata->chstat.xmit_fail++;
+			/* only call queue wake if we stopped it */
+			netdev = ((struct sk_buff *)cmdrsp->net.buf)->dev;
+			/* ASSERT netdev == vnicinfo->netdev; */
+			if ((netdev == devdata->netdev) &&
+			    netif_queue_stopped(netdev)) {
+				/* check to see if we have crossed
+				 * the lower watermark for
+				 * netif_wake_queue()
+				 */
+				if (((devdata->chstat.sent_xmit >=
+				    devdata->chstat.got_xmit_done) &&
+				    (devdata->chstat.sent_xmit -
+				    devdata->chstat.got_xmit_done <=
+				    devdata->lower_threshold_net_xmits)) ||
+				    ((devdata->chstat.sent_xmit <
+				    devdata->chstat.got_xmit_done) &&
+				    (ULONG_MAX - devdata->chstat.got_xmit_done
+				    + devdata->chstat.sent_xmit <=
+				    devdata->lower_threshold_net_xmits))) {
+					/* enough NET_XMITs completed
+					 * so can restart netif queue
+					 */
+					netif_wake_queue(netdev);
+					devdata->flow_control_lower_hits++;
+				}
+			}
+			skb_unlink(cmdrsp->net.buf, &devdata->xmitbufhead);
+			spin_unlock_irqrestore(&devdata->priv_lock, flags);
+			kfree_skb(cmdrsp->net.buf);
+			break;
+		case NET_RCV_ENBDIS_ACK:
+			devdata->chstat.got_enbdisack++;
+			netdev = (struct net_device *)
+			cmdrsp->net.enbdis.context;
 			spin_lock_irqsave(&devdata->priv_lock, flags);
-			devdata->enabled = cmdrsp->net.enbdis.enable;
-			spin_unlock_irqrestore(&devdata->priv_lock,
-					       flags);
+			devdata->enab_dis_acked = 1;
+			spin_unlock_irqrestore(&devdata->priv_lock, flags);
+
+			if (kthread_should_stop())
+				break;
+			if (devdata->server_down &&
+			    devdata->server_change_state) {
+				/* Inform Linux that the link is up */
+				devdata->server_down = false;
+				devdata->server_change_state = false;
+				netif_wake_queue(netdev);
+				netif_carrier_on(netdev);
+			}
+			break;
+		case NET_CONNECT_STATUS:
+			netdev = devdata->netdev;
+			if (cmdrsp->net.enbdis.enable == 1) {
+				spin_lock_irqsave(&devdata->priv_lock, flags);
+				devdata->enabled = cmdrsp->net.enbdis.enable;
+				spin_unlock_irqrestore(&devdata->priv_lock,
+						       flags);
+				netif_wake_queue(netdev);
+				netif_carrier_on(netdev);
+			} else {
+				netif_stop_queue(netdev);
+				netif_carrier_off(netdev);
+				spin_lock_irqsave(&devdata->priv_lock, flags);
+				devdata->enabled = cmdrsp->net.enbdis.enable;
+				spin_unlock_irqrestore(&devdata->priv_lock,
+						       flags);
+			}
+			break;
+		default:
+			break;
 		}
-		break;
-	default:
-		break;
+		/* cmdrsp is now available for reuse  */
 	}
-	/* cmdrsp is now available for reuse  */
 }
 
 /**
