@@ -119,8 +119,8 @@
 &esdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc2>;
-	cd-gpios = <&gpio3 25 0>;
-	wp-gpios = <&gpio2 19 0>;
+	cd-gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };
