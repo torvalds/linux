@@ -339,9 +339,6 @@ static int sta529_i2c_probe(struct i2c_client *i2c,
 	struct sta529 *sta529;
 	int ret;
 
-	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -EINVAL;
-
 	sta529 = devm_kzalloc(&i2c->dev, sizeof(struct sta529), GFP_KERNEL);
 	if (!sta529)
 		return -ENOMEM;
