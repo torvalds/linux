@@ -816,9 +816,9 @@ struct macb {
 
 	struct mii_bus		*mii_bus;
 	struct phy_device	*phy_dev;
-	unsigned int 		link;
-	unsigned int 		speed;
-	unsigned int 		duplex;
+	int 			link;
+	int 			speed;
+	int 			duplex;
 
 	u32			caps;
 	unsigned int		dma_burst_length;

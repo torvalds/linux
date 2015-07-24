@@ -303,7 +303,6 @@ static void macb_handle_link_change(struct net_device *dev)
 	struct macb *bp = netdev_priv(dev);
 	struct phy_device *phydev = bp->phy_dev;
 	unsigned long flags;
-
 	int status_change = 0;
 
 	spin_lock_irqsave(&bp->lock, flags);
@@ -1936,7 +1935,7 @@ static int macb_change_mtu(struct net_device *dev, int new_mtu)
 
 static void gem_update_stats(struct macb *bp)
 {
-	int i;
+	unsigned int i;
 	u32 *p = &bp->hw_stats.gem.tx_octets_31_0;
 
 	for (i = 0; i < GEM_STATS_LEN; ++i, ++p) {
@@ -2015,7 +2014,7 @@ static int gem_get_sset_count(struct net_device *dev, int sset)
 
 static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
 {
-	int i;
+	unsigned int i;
 
 	switch (sset) {
 	case ETH_SS_STATS:
