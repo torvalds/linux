@@ -526,6 +526,8 @@ error_cleanup_array:
 		free((*ci_array)[i].generic_name);
 	}
 	free(*ci_array);
+	*ci_array = NULL;
+	*counter = 0;
 error_close_dir:
 	if (dp)
 		if (closedir(dp) == -1)
