@@ -169,7 +169,7 @@ static const char *const ti814x_boards_compat[] __initconst = {
 	NULL,
 };
 
-DT_MACHINE_START(TI81XX_DT, "Generic ti814x (Flattened Device Tree)")
+DT_MACHINE_START(TI814X_DT, "Generic ti814x (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= ti81xx_map_io,
 	.init_early	= ti814x_init_early,
