@@ -101,9 +101,8 @@ static void __kprobes *patch_map(void *addr, int fixmap)
 		return addr;
 
 	BUG_ON(!page);
-	set_fixmap(fixmap, page_to_phys(page));
-
-	return (void *) (__fix_to_virt(fixmap) + (uintaddr & ~PAGE_MASK));
+	return (void *)set_fixmap_offset(fixmap, page_to_phys(page) +
+			(uintaddr & ~PAGE_MASK));
 }
 
 static void __kprobes patch_unmap(int fixmap)
