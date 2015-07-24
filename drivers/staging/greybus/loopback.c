@@ -31,6 +31,7 @@ struct gb_loopback {
 	u8 version_minor;
 
 	struct task_struct *task;
+	wait_queue_head_t wq;
 
 	int type;
 	u32 size;
@@ -113,15 +114,6 @@ static DEVICE_ATTR_RW(field)
 static void gb_loopback_reset_stats(struct gb_loopback *gb);
 static void gb_loopback_check_attr(struct gb_loopback *gb)
 {
-	switch (gb->type) {
-	case GB_LOOPBACK_TYPE_PING:
-	case GB_LOOPBACK_TYPE_TRANSFER:
-	case GB_LOOPBACK_TYPE_SINK:
-		break;
-	default:
-		gb->type = 0;
-		break;
-	}
 	if (gb->ms_wait > GB_LOOPBACK_MS_WAIT_MAX)
 		gb->ms_wait = GB_LOOPBACK_MS_WAIT_MAX;
 	if (gb->size > gb->size_max)
@@ -129,6 +121,17 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 	gb->error = 0;
 	gb->iteration_count = 0;
 	gb_loopback_reset_stats(gb);
+
+	switch (gb->type) {
+	case GB_LOOPBACK_TYPE_PING:
+	case GB_LOOPBACK_TYPE_TRANSFER:
+	case GB_LOOPBACK_TYPE_SINK:
+		wake_up(&gb->wq);
+		break;
+	default:
+		gb->type = 0;
+		break;
+	}
 }
 
 /* Time to send and receive one message */
@@ -397,11 +400,12 @@ static int gb_loopback_fn(void *data)
 	struct timeval tlat = {0, 0};
 	struct gb_loopback *gb = (struct gb_loopback *)data;
 
-	while (!kthread_should_stop()) {
-		if (!gb->type) {
-			msleep(1000);
-			continue;
-		}
+	while (1) {
+		if (!gb->type)
+			wait_event_interruptible(gb->wq, gb->type ||
+						 kthread_should_stop());
+		if (kthread_should_stop())
+			break;
 		if (gb->iteration_max) {
 			if (gb->iteration_count < gb->iteration_max) {
 				gb->iteration_count++;
@@ -429,7 +433,6 @@ static int gb_loopback_fn(void *data)
 		gb->ts = gb->te;
 		if (gb->ms_wait)
 			msleep(gb->ms_wait);
-
 	}
 	return 0;
 }
@@ -463,6 +466,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	gb->size_max -= sizeof(struct gb_loopback_transfer_request);
 
 	gb_loopback_reset_stats(gb);
+	init_waitqueue_head(&gb->wq);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
