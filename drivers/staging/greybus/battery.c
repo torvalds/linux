@@ -281,7 +281,7 @@ static int get_property(struct power_supply *b,
 		return -EINVAL;
 	}
 
-	return 0;
+	return (val->intval < 0) ? val->intval : 0;
 }
 
 // FIXME - verify this list, odds are some can be removed and others added.
