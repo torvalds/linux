@@ -75,10 +75,10 @@
 #define NR_BANKS		3
 #define IRQS_PER_BANK		32
 
-static int reg_pending[] __initconst = { 0x00, 0x04, 0x08 };
-static int reg_enable[] __initconst = { 0x18, 0x10, 0x14 };
-static int reg_disable[] __initconst = { 0x24, 0x1c, 0x20 };
-static int bank_irqs[] __initconst = { 8, 32, 32 };
+static const int reg_pending[] __initconst = { 0x00, 0x04, 0x08 };
+static const int reg_enable[] __initconst = { 0x18, 0x10, 0x14 };
+static const int reg_disable[] __initconst = { 0x24, 0x1c, 0x20 };
+static const int bank_irqs[] __initconst = { 8, 32, 32 };
 
 static const int shortcuts[] = {
 	7, 9, 10, 18, 19,		/* Bank 1 */
