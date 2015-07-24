@@ -1373,7 +1373,7 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->rx_timeout_pri[1] = __cpu_to_le32(0x64);
 	cfg->rx_timeout_pri[2] = __cpu_to_le32(0x64);
 	cfg->rx_timeout_pri[3] = __cpu_to_le32(0x28);
-	cfg->rx_decap_mode = __cpu_to_le32(1);
+	cfg->rx_decap_mode = __cpu_to_le32(ar->wmi.rx_decap_mode);
 	cfg->scan_max_pending_reqs = __cpu_to_le32(4);
 	cfg->bmiss_offload_max_vdev = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
 	cfg->roam_offload_max_vdev = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
