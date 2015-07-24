@@ -9,6 +9,10 @@
 
 #include "greybus.h"
 
+#define CPORT_FLAGS_E2EFC       (1)
+#define CPORT_FLAGS_CSD_N       (2)
+#define CPORT_FLAGS_CSV_N       (4)
+
 struct gb_svc {
 	struct gb_connection	*connection;
 	u8			version_major;
@@ -98,6 +102,12 @@ static int connection_create_operation(struct gb_svc *svc,
 	request.cport1_id = cport1_id;
 	request.intf2_id = intf2_id;
 	request.cport2_id = cport2_id;
+	/*
+	 * XXX: fix connections paramaters to TC0 and all CPort flags
+	 * for now.
+	 */
+	request.tc = 0;
+	request.flags = CPORT_FLAGS_CSV_N | CPORT_FLAGS_E2EFC;
 
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_CREATE,
 				 &request, sizeof(request), NULL, 0);
