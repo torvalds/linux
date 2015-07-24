@@ -18,6 +18,7 @@
 
 #ifdef __KERNEL__
 
+#include <asm/esr.h>
 #include <asm/insn.h>
 
 /* Low-level stepping controls. */
@@ -45,7 +46,8 @@
 /*
  * ESR values expected for dynamic and compile time BRK instruction
  */
-#define DBG_ESR_VAL_BRK(x)	(0xf2000000 | ((x) & 0xffff))
+#define DBG_ESR_VAL_BRK(x) \
+	((ESR_ELx_EC_BRK64 << ESR_ELx_EC_SHIFT) | ESR_ELx_IL | ((x) & 0xffff))
 
 /*
  * #imm16 values used for BRK instruction generation
