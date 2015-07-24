@@ -497,8 +497,7 @@ void i915_gem_restore_fences(struct drm_device *dev)
 }
 
 /**
- *
- * Support for managing tiling state of buffer objects.
+ * DOC: tiling swizzling details
  *
  * The idea behind tiling is to increase cache hit rates by rearranging
  * pixel data so that a group of pixel accesses are in the same cacheline.
@@ -546,6 +545,9 @@ void i915_gem_restore_fences(struct drm_device *dev)
  */
 
 /**
+ * i915_gem_detect_bit_6_swizzle - detect bit 6 swizzling pattern
+ * @dev: DRM device
+ *
  * Detects bit 6 swizzling of address lookup between IGD access and CPU
  * access through main memory.
  */
@@ -692,7 +694,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	dev_priv->mm.bit_6_swizzle_y = swizzle_y;
 }
 
-/**
+/*
  * Swap every 64 bytes of this page around, to account for it having a new
  * bit 17 of its physical address and therefore being interpreted differently
  * by the GPU.
@@ -715,6 +717,18 @@ i915_gem_swizzle_page(struct page *page)
 	kunmap(page);
 }
 
+/**
+ * i915_gem_object_do_bit_17_swizzle - fixup bit 17 swizzling
+ * @obj: i915 GEM buffer object
+ *
+ * This function fixes up the swizzling in case any page frame number for this
+ * object has changed in bit 17 since that state has been saved with
+ * i915_gem_object_save_bit_17_swizzle().
+ *
+ * This is called when pinning backing storage again, since the kernel is free
+ * to move unpinned backing storage around (either by directly moving pages or
+ * by swapping them out and back in again).
+ */
 void
 i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
@@ -737,6 +751,14 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 	}
 }
 
+/**
+ * i915_gem_object_save_bit_17_swizzle - save bit 17 swizzling
+ * @obj: i915 GEM buffer object
+ *
+ * This function saves the bit 17 of each page frame number so that swizzling
+ * can be fixed up later on with i915_gem_object_do_bit_17_swizzle(). This must
+ * be called before the backing storage can be unpinned.
+ */
 void
 i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {

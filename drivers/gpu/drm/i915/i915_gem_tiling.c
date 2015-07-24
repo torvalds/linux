@@ -31,53 +31,31 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-/** @file i915_gem_tiling.c
+/**
+ * DOC: buffer object tiling
  *
- * Support for managing tiling state of buffer objects.
+ * i915_gem_set_tiling() and i915_gem_get_tiling() is the userspace interface to
+ * declare fence register requirements.
  *
- * The idea behind tiling is to increase cache hit rates by rearranging
- * pixel data so that a group of pixel accesses are in the same cacheline.
- * Performance improvement from doing this on the back/depth buffer are on
- * the order of 30%.
+ * In principle GEM doesn't care at all about the internal data layout of an
+ * object, and hence it also doesn't care about tiling or swizzling. There's two
+ * exceptions:
  *
- * Intel architectures make this somewhat more complicated, though, by
- * adjustments made to addressing of data when the memory is in interleaved
- * mode (matched pairs of DIMMS) to improve memory bandwidth.
- * For interleaved memory, the CPU sends every sequential 64 bytes
- * to an alternate memory channel so it can get the bandwidth from both.
+ * - For X and Y tiling the hardware provides detilers for CPU access, so called
+ *   fences. Since there's only a limited amount of them the kernel must manage
+ *   these, and therefore userspace must tell the kernel the object tiling if it
+ *   wants to use fences for detiling.
+ * - On gen3 and gen4 platforms have a swizzling pattern for tiled objects which
+ *   depends upon the physical page frame number. When swapping such objects the
+ *   page frame number might change and the kernel must be able to fix this up
+ *   and hence now the tiling. Note that on a subset of platforms with
+ *   asymmetric memory channel population the swizzling pattern changes in an
+ *   unknown way, and for those the kernel simply forbids swapping completely.
  *
- * The GPU also rearranges its accesses for increased bandwidth to interleaved
- * memory, and it matches what the CPU does for non-tiled.  However, when tiled
- * it does it a little differently, since one walks addresses not just in the
- * X direction but also Y.  So, along with alternating channels when bit
- * 6 of the address flips, it also alternates when other bits flip --  Bits 9
- * (every 512 bytes, an X tile scanline) and 10 (every two X tile scanlines)
- * are common to both the 915 and 965-class hardware.
- *
- * The CPU also sometimes XORs in higher bits as well, to improve
- * bandwidth doing strided access like we do so frequently in graphics.  This
- * is called "Channel XOR Randomization" in the MCH documentation.  The result
- * is that the CPU is XORing in either bit 11 or bit 17 to bit 6 of its address
- * decode.
- *
- * All of this bit 6 XORing has an effect on our memory management,
- * as we need to make sure that the 3d driver can correctly address object
- * contents.
- *
- * If we don't have interleaved memory, all tiling is safe and no swizzling is
- * required.
- *
- * When bit 17 is XORed in, we simply refuse to tile at all.  Bit
- * 17 is not just a page offset, so as we page an objet out and back in,
- * individual pages in it will have different bit 17 addresses, resulting in
- * each 64 bytes being swapped with its neighbor!
- *
- * Otherwise, if interleaved, we have to tell the 3d driver what the address
- * swizzling it needs to do is, since it's writing with the CPU to the pages
- * (bit 6 and potentially bit 11 XORed in), and the GPU is reading from the
- * pages (bit 6, 9, and 10 XORed in), resulting in a cumulative bit swizzling
- * required by the CPU of XORing in bit 6, 9, 10, and potentially 11, in order
- * to match what the GPU expects.
+ * Since neither of this applies for new tiling layouts on modern platforms like
+ * W, Ys and Yf tiling GEM only allows object tiling to be set to X or Y tiled.
+ * Anything else can be handled in userspace entirely without the kernel's
+ * invovlement.
  */
 
 /* Check pitch constriants for all chips & tiling formats */
@@ -166,8 +144,18 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 }
 
 /**
+ * i915_gem_set_tiling - IOCTL handler to set tiling mode
+ * @dev: DRM device
+ * @data: data pointer for the ioctl
+ * @file: DRM file for the ioctl call
+ *
  * Sets the tiling mode of an object, returning the required swizzling of
  * bit 6 of addresses in the object.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
  */
 int
 i915_gem_set_tiling(struct drm_device *dev, void *data,
@@ -285,7 +273,17 @@ err:
 }
 
 /**
+ * i915_gem_get_tiling - IOCTL handler to get tiling mode
+ * @dev: DRM device
+ * @data: data pointer for the ioctl
+ * @file: DRM file for the ioctl call
+ *
  * Returns the current tiling mode and required bit 6 swizzling for the object.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
  */
 int
 i915_gem_get_tiling(struct drm_device *dev, void *data,
