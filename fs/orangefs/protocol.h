@@ -1,6 +1,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/ioctl.h>
 
 extern struct client_debug_mask *cdm_array;
 extern char *debug_help_string;

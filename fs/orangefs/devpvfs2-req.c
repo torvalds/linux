@@ -36,7 +36,7 @@ do {                                                                          \
 
 static int hash_func(__u64 tag, int table_size)
 {
-	return tag % ((unsigned int)table_size);
+	return do_div(tag, (unsigned int)table_size);
 }
 
 static void pvfs2_devreq_add_op(struct pvfs2_kernel_op_s *op)
@@ -279,7 +279,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 
 	/* Either there is a trailer or there isn't */
 	if (count != notrailer_count && count != (notrailer_count + 1)) {
-		gossip_err("Error: Number of iov vectors is (%ld) and notrailer count is %d\n",
+		gossip_err("Error: Number of iov vectors is (%zu) and notrailer count is %d\n",
 			count,
 			notrailer_count);
 		return -EPROTO;
@@ -356,7 +356,7 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 				     "writev: trailer size %ld\n",
 				     (unsigned long)op->downcall.trailer_size);
 			if (count != (notrailer_count + 1)) {
-				gossip_err("Error: trailer size (%ld) is non-zero, no trailer elements though? (%ld)\n", (unsigned long)op->downcall.trailer_size, count);
+				gossip_err("Error: trailer size (%ld) is non-zero, no trailer elements though? (%zu)\n", (unsigned long)op->downcall.trailer_size, count);
 				dev_req_release(buffer);
 				put_op(op);
 				return -EPROTO;
@@ -908,6 +908,14 @@ static long pvfs2_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
 	return dispatch_ioctl_command(cmd, arg);
 }
 
+#endif /* CONFIG_COMPAT is in .config */
+
+/*
+ * The following two ioctl32 functions had been refactored into the above
+ * CONFIG_COMPAT ifdef, but that was an over simplification that was
+ * not noticed until we tried to compile on power pc...
+ */
+#if (defined(CONFIG_COMPAT) && !defined(HAVE_REGISTER_IOCTL32_CONVERSION)) || !defined(CONFIG_COMPAT)
 static int pvfs2_ioctl32_init(void)
 {
 	return 0;
@@ -917,8 +925,7 @@ static void pvfs2_ioctl32_cleanup(void)
 {
 	return;
 }
-
-#endif /* CONFIG_COMPAT is in .config */
+#endif
 
 /* the assigned character device major number */
 static int pvfs2_dev_major;
