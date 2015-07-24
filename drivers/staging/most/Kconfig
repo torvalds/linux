@@ -19,4 +19,6 @@ source "drivers/staging/most/aim-network/Kconfig"
 
 source "drivers/staging/most/aim-sound/Kconfig"
 
+source "drivers/staging/most/aim-v4l2/Kconfig"
+
 endif
