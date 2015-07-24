@@ -69,6 +69,38 @@ static const struct attribute_group *visorbus_bus_groups[] = {
 	NULL,
 };
 
+/*
+ * DEVICE type attributes
+ *
+ * The modalias file will contain the guid of the device.
+ */
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct visor_device *vdev;
+	uuid_le guid;
+
+	vdev = to_visor_device(dev);
+	guid = visorchannel_get_uuid(vdev->visorchannel);
+	return snprintf(buf, PAGE_SIZE, "visorbus:%pUl\n", &guid);
+}
+static DEVICE_ATTR_RO(modalias);
+
+static struct attribute *visorbus_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
+};
+
+/* sysfs example for bridge-only sysfs files using device_type's */
+static const struct attribute_group visorbus_dev_group = {
+	.attrs = visorbus_dev_attrs,
+};
+
+const struct attribute_group *visorbus_dev_groups[] = {
+	&visorbus_dev_group,
+	NULL,
+};
+
 /** This describes the TYPE of bus.
  *  (Don't confuse this with an INSTANCE of the bus.)
  */
@@ -76,6 +108,7 @@ struct bus_type visorbus_type = {
 	.name = "visorbus",
 	.match = visorbus_match,
 	.uevent = visorbus_uevent,
+	.dev_groups = visorbus_dev_groups,
 	.bus_groups = visorbus_bus_groups,
 };
 
@@ -128,7 +161,13 @@ static LIST_HEAD(list_all_device_instances);
 static int
 visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 {
-	if (add_uevent_var(env, "VERSION=%s", VERSION))
+	struct visor_device *dev;
+	uuid_le guid;
+
+	dev = to_visor_device(xdev);
+	guid = visorchannel_get_uuid(dev->visorchannel);
+
+	if (add_uevent_var(env, "MODALIAS=visorbus:%pUl", &guid))
 		return -ENOMEM;
 	return 0;
 }
@@ -477,7 +516,7 @@ static struct attribute_group channel_attr_grp = {
 		.attrs = channel_attrs,
 };
 
-static const struct attribute_group *visorbus_dev_groups[] = {
+static const struct attribute_group *visorbus_channel_groups[] = {
 		&channel_attr_grp,
 		NULL
 };
@@ -936,7 +975,7 @@ create_visor_device(struct visor_device *dev)
 
 	sema_init(&dev->visordriver_callback_lock, 1);	/* unlocked */
 	dev->device.bus = &visorbus_type;
-	dev->device.groups = visorbus_dev_groups;
+	dev->device.groups = visorbus_channel_groups;
 	device_initialize(&dev->device);
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
