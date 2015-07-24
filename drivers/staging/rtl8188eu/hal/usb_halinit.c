@@ -743,19 +743,16 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	if (Adapter->registrypriv.mp_mode == 1) {
 		_InitRxSetting(Adapter);
 		Adapter->bFWReady = false;
-		haldata->fw_ractrl = false;
 	} else {
 		status = rtl88eu_download_fw(Adapter);
 
 		if (status) {
 			DBG_88E("%s: Download Firmware failed!!\n", __func__);
 			Adapter->bFWReady = false;
-			haldata->fw_ractrl = false;
 			return status;
 		} else {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializeadapt8192CSdio(): Download Firmware Success!!\n"));
 			Adapter->bFWReady = true;
-			haldata->fw_ractrl = false;
 		}
 	}
 	rtl8188e_InitializeFirmwareVars(Adapter);
@@ -2016,28 +2013,9 @@ static void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_l
 
 	init_rate = get_highest_rate_idx(mask)&0x3f;
 
-	if (haldata->fw_ractrl) {
-		u8 arg;
+	ODM_RA_UpdateRateInfo_8188E(&haldata->odmpriv, mac_id,
+				    raid, mask, shortGIrate);
 
-		arg = mac_id & 0x1f;/* MACID */
-		arg |= BIT(7);
-		if (shortGIrate)
-			arg |= BIT(5);
-		mask |= ((raid << 28) & 0xf0000000);
-		DBG_88E("update raid entry, mask=0x%x, arg=0x%x\n", mask, arg);
-		psta->ra_mask = mask;
-		mask |= ((raid << 28) & 0xf0000000);
-
-		/* to do ,for 8188E-SMIC */
-		rtl8188e_set_raid_cmd(adapt, mask);
-	} else {
-		ODM_RA_UpdateRateInfo_8188E(&(haldata->odmpriv),
-				mac_id,
-				raid,
-				mask,
-				shortGIrate
-				);
-	}
 	/* set ra_id */
 	psta->raid = raid;
 	psta->init_rate = init_rate;
@@ -2087,7 +2065,6 @@ static void rtl8188eu_init_default_value(struct adapter *adapt)
 	pwrctrlpriv = &adapt->pwrctrlpriv;
 
 	/* init default value */
-	haldata->fw_ractrl = false;
 	if (!pwrctrlpriv->bkeepfwalive)
 		haldata->LastHMEBoxNum = 0;
 

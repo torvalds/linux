@@ -113,7 +113,6 @@ struct sta_info {
 
 	u8	raid;
 	u8	init_rate;
-	u32	ra_mask;
 	u8	wireless_mode;	/*  NETWORK_TYPE */
 	struct stainfo_stats sta_stats;
 
