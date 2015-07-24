@@ -1267,7 +1267,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_off);
 
 /**
  * drm_crtc_vblank_reset - reset vblank state to off on a CRTC
- * @crtc: CRTC in question
+ * @drm_crtc: CRTC in question
  *
  * Drivers can use this function to reset the vblank state to off at load time.
  * Drivers should use this together with the drm_crtc_vblank_off() and

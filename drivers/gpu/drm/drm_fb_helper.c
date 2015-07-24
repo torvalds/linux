@@ -429,24 +429,6 @@ static bool drm_fb_helper_force_kernel_mode(void)
 	return error;
 }
 
-static int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
-			void *panic_str)
-{
-	/*
-	 * It's a waste of time and effort to switch back to text console
-	 * if the kernel should reboot before panic messages can be seen.
-	 */
-	if (panic_timeout < 0)
-		return 0;
-
-	pr_err("panic occurred, switching back to text console\n");
-	return drm_fb_helper_force_kernel_mode();
-}
-
-static struct notifier_block paniced = {
-	.notifier_call = drm_fb_helper_panic,
-};
-
 static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
@@ -672,9 +654,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
-			pr_info("drm: unregistered panic notifier\n");
-			atomic_notifier_chain_unregister(&panic_notifier_list,
-							 &paniced);
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 		}
 	}
@@ -1109,12 +1088,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
 			info->node, info->fix.id);
 
-	/* Switch back to kernel console on panic */
-	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		dev_info(fb_helper->dev->dev, "registered panic notifier\n");
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 

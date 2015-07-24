@@ -167,7 +167,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *gobj = NULL;
 	struct device *device = &dev->pdev->dev;
-	struct mgag200_bo *bo;
 	int ret;
 	void *sysram;
 	int size;
@@ -185,7 +184,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 		DRM_ERROR("failed to create fbcon backing object %d\n", ret);
 		return ret;
 	}
-	bo = gem_to_mga_bo(gobj);
 
 	sysram = vmalloc(size);
 	if (!sysram)
