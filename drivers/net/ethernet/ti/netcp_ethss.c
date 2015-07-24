@@ -1901,11 +1901,28 @@ static void gbe_port_config(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 	writel(slave->mac_control, GBE_REG_ADDR(slave, emac_regs, mac_control));
 }
 
+static void gbe_sgmii_rtreset(struct gbe_priv *priv,
+			      struct gbe_slave *slave, bool set)
+{
+	void __iomem *sgmii_port_regs;
+
+	if (SLAVE_LINK_IS_XGMII(slave))
+		return;
+
+	if ((priv->ss_version == GBE_SS_VERSION_14) && (slave->slave_num >= 2))
+		sgmii_port_regs = priv->sgmii_port34_regs;
+	else
+		sgmii_port_regs = priv->sgmii_port_regs;
+
+	netcp_sgmii_rtreset(sgmii_port_regs, slave->slave_num, set);
+}
+
 static void gbe_slave_stop(struct gbe_intf *intf)
 {
 	struct gbe_priv *gbe_dev = intf->gbe_dev;
 	struct gbe_slave *slave = intf->slave;
 
+	gbe_sgmii_rtreset(gbe_dev, slave, true);
 	gbe_port_reset(slave);
 	/* Disable forwarding */
 	cpsw_ale_control_set(gbe_dev->ale, slave->port_num,
@@ -1947,6 +1964,7 @@ static int gbe_slave_open(struct gbe_intf *gbe_intf)
 
 	gbe_sgmii_config(priv, slave);
 	gbe_port_reset(slave);
+	gbe_sgmii_rtreset(priv, slave, false);
 	gbe_port_config(priv, slave, priv->rx_packet_max);
 	gbe_set_slave_mac(slave, gbe_intf);
 	/* enable forwarding */
