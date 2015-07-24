@@ -731,6 +731,12 @@ visornic_timeout_reset(struct work_struct *work)
 	devdata = container_of(work, struct visornic_devdata, timeout_reset);
 	netdev = devdata->netdev;
 
+	rtnl_lock();
+	if (!netif_running(netdev)) {
+		rtnl_unlock();
+		return;
+	}
+
 	response = visornic_disable_with_timeout(netdev,
 						 VISORNIC_INFINITE_RSP_WAIT);
 	if (response)
@@ -741,10 +747,13 @@ visornic_timeout_reset(struct work_struct *work)
 	if (response)
 		goto call_serverdown;
 
+	rtnl_unlock();
+
 	return;
 
 call_serverdown:
 	visornic_serverdown(devdata, NULL);
+	rtnl_unlock();
 }
 
 /**
