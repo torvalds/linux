@@ -251,7 +251,8 @@ static void parse_config_file(const char *map, size_t len)
 			continue;
 		if (memcmp(p, "CONFIG_", 7))
 			continue;
-		for (q = p + 7; q < map + len; q++) {
+		p += 7;
+		for (q = p; q < map + len; q++) {
 			if (!(isalnum(*q) || *q == '_'))
 				goto found;
 		}
@@ -260,9 +261,9 @@ static void parse_config_file(const char *map, size_t len)
 	found:
 		if (!memcmp(q - 7, "_MODULE", 7))
 			q -= 7;
-		if( (q-p-7) < 0 )
+		if (q - p < 0)
 			continue;
-		use_config(p+7, q-p-7);
+		use_config(p, q - p);
 	}
 }
 
