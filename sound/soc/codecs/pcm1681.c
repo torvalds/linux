@@ -330,7 +330,6 @@ static int pcm1681_i2c_remove(struct i2c_client *client)
 static struct i2c_driver pcm1681_i2c_driver = {
 	.driver = {
 		.name	= "pcm1681",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pcm1681_dt_ids),
 	},
 	.id_table	= pcm1681_i2c_id,

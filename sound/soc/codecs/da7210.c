@@ -1259,7 +1259,6 @@ MODULE_DEVICE_TABLE(i2c, da7210_i2c_id);
 static struct i2c_driver da7210_i2c_driver = {
 	.driver = {
 		.name = "da7210",
-		.owner = THIS_MODULE,
 	},
 	.probe		= da7210_i2c_probe,
 	.remove		= da7210_i2c_remove,

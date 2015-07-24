@@ -536,7 +536,6 @@ MODULE_DEVICE_TABLE(i2c, wm8776_i2c_id);
 static struct i2c_driver wm8776_i2c_driver = {
 	.driver = {
 		.name = "wm8776",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8776_of_match,
 	},
 	.probe =    wm8776_i2c_probe,

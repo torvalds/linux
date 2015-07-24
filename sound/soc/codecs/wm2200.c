@@ -2495,7 +2495,6 @@ MODULE_DEVICE_TABLE(i2c, wm2200_i2c_id);
 static struct i2c_driver wm2200_i2c_driver = {
 	.driver = {
 		.name = "wm2200",
-		.owner = THIS_MODULE,
 		.pm = &wm2200_pm,
 	},
 	.probe =    wm2200_i2c_probe,

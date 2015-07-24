@@ -1825,7 +1825,6 @@ MODULE_DEVICE_TABLE(of, tlv320aic3x_of_match);
 static struct i2c_driver aic3x_i2c_driver = {
 	.driver = {
 		.name = "tlv320aic3x-codec",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(tlv320aic3x_of_match),
 	},
 	.probe	= aic3x_i2c_probe,

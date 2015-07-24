@@ -488,7 +488,6 @@ MODULE_DEVICE_TABLE(of, tpa6130a2_of_match);
 static struct i2c_driver tpa6130a2_i2c_driver = {
 	.driver = {
 		.name = "tpa6130a2",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(tpa6130a2_of_match),
 	},
 	.probe = tpa6130a2_probe,

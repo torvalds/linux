@@ -314,7 +314,6 @@ MODULE_DEVICE_TABLE(i2c, tfa9879_i2c_id);
 static struct i2c_driver tfa9879_i2c_driver = {
 	.driver = {
 		.name = "tfa9879",
-		.owner = THIS_MODULE,
 	},
 	.probe = tfa9879_i2c_probe,
 	.remove = tfa9879_i2c_remove,

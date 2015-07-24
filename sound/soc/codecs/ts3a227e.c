@@ -23,11 +23,13 @@
 #include "ts3a227e.h"
 
 struct ts3a227e {
+	struct device *dev;
 	struct regmap *regmap;
 	struct snd_soc_jack *jack;
 	bool plugged;
 	bool mic_present;
 	unsigned int buttons_held;
+	int irq;
 };
 
 /* Button values to be reported on the jack */
@@ -189,16 +191,28 @@ static irqreturn_t ts3a227e_interrupt(int irq, void *data)
 	struct ts3a227e *ts3a227e = (struct ts3a227e *)data;
 	struct regmap *regmap = ts3a227e->regmap;
 	unsigned int int_reg, kp_int_reg, acc_reg, i;
+	struct device *dev = ts3a227e->dev;
+	int ret;
 
 	/* Check for plug/unplug. */
-	regmap_read(regmap, TS3A227E_REG_INTERRUPT, &int_reg);
+	ret = regmap_read(regmap, TS3A227E_REG_INTERRUPT, &int_reg);
+	if (ret) {
+		dev_err(dev, "failed to clear interrupt ret=%d\n", ret);
+		return IRQ_NONE;
+	}
+
 	if (int_reg & (DETECTION_COMPLETE_EVENT | INS_REM_EVENT)) {
 		regmap_read(regmap, TS3A227E_REG_ACCESSORY_STATUS, &acc_reg);
 		ts3a227e_new_jack_state(ts3a227e, acc_reg);
 	}
 
 	/* Report any key events. */
-	regmap_read(regmap, TS3A227E_REG_KP_INTERRUPT, &kp_int_reg);
+	ret = regmap_read(regmap, TS3A227E_REG_KP_INTERRUPT, &kp_int_reg);
+	if (ret) {
+		dev_err(dev, "failed to clear key interrupt ret=%d\n", ret);
+		return IRQ_NONE;
+	}
+
 	for (i = 0; i < TS3A227E_NUM_BUTTONS; i++) {
 		if (kp_int_reg & PRESS_MASK(i))
 			ts3a227e->buttons_held |= (1 << i);
@@ -283,6 +297,8 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, ts3a227e);
+	ts3a227e->dev = dev;
+	ts3a227e->irq = i2c->irq;
 
 	ts3a227e->regmap = devm_regmap_init_i2c(i2c, &ts3a227e_regmap_config);
 	if (IS_ERR(ts3a227e->regmap))
@@ -320,6 +336,32 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ts3a227e_suspend(struct device *dev)
+{
+	struct ts3a227e *ts3a227e = dev_get_drvdata(dev);
+
+	dev_dbg(ts3a227e->dev, "suspend disable irq\n");
+	disable_irq(ts3a227e->irq);
+
+	return 0;
+}
+
+static int ts3a227e_resume(struct device *dev)
+{
+	struct ts3a227e *ts3a227e = dev_get_drvdata(dev);
+
+	dev_dbg(ts3a227e->dev, "resume enable irq\n");
+	enable_irq(ts3a227e->irq);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops ts3a227e_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(ts3a227e_suspend, ts3a227e_resume)
+};
+
 static const struct i2c_device_id ts3a227e_i2c_ids[] = {
 	{ "ts3a227e", 0 },
 	{ }
@@ -335,7 +377,7 @@ MODULE_DEVICE_TABLE(of, ts3a227e_of_match);
 static struct i2c_driver ts3a227e_driver = {
 	.driver = {
 		.name = "ts3a227e",
-		.owner = THIS_MODULE,
+		.pm = &ts3a227e_pm,
 		.of_match_table = of_match_ptr(ts3a227e_of_match),
 	},
 	.probe = ts3a227e_i2c_probe,

@@ -1538,7 +1538,6 @@ static const struct of_device_id da9055_of_match[] = {
 static struct i2c_driver da9055_i2c_driver = {
 	.driver = {
 		.name = "da9055-codec",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(da9055_of_match),
 	},
 	.probe		= da9055_i2c_probe,

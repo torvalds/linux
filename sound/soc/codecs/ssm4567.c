@@ -464,7 +464,6 @@ MODULE_DEVICE_TABLE(acpi, ssm4567_acpi_match);
 static struct i2c_driver ssm4567_driver = {
 	.driver = {
 		.name = "ssm4567",
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
 	.probe = ssm4567_i2c_probe,

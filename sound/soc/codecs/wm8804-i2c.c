@@ -49,7 +49,6 @@ MODULE_DEVICE_TABLE(of, wm8804_of_match);
 static struct i2c_driver wm8804_i2c_driver = {
 	.driver = {
 		.name = "wm8804",
-		.owner = THIS_MODULE,
 		.pm = &wm8804_pm,
 		.of_match_table = wm8804_of_match,
 	},

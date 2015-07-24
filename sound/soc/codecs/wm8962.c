@@ -3878,7 +3878,6 @@ MODULE_DEVICE_TABLE(of, wm8962_of_match);
 static struct i2c_driver wm8962_i2c_driver = {
 	.driver = {
 		.name = "wm8962",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8962_of_match,
 		.pm = &wm8962_pm,
 	},
