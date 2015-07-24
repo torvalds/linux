@@ -339,8 +339,7 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *);
 
 static void qfq_destroy_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 {
-	if (!hlist_unhashed(&agg->nonfull_next))
-		hlist_del_init(&agg->nonfull_next);
+	hlist_del_init(&agg->nonfull_next);
 	q->wsum -= agg->class_weight;
 	if (q->wsum != 0)
 		q->iwsum = ONE_FP / q->wsum;

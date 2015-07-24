@@ -2255,6 +2255,8 @@ typedef struct {
 
 
 /* List of FileSystemAttributes - see 2.5.1 of MS-FSCC */
+#define FILE_SUPPORTS_SPARSE_VDL	0x10000000 /* faster nonsparse extend */
+#define FILE_SUPPORTS_BLOCK_REFCOUNTING	0x08000000 /* allow ioctl dup extents */
 #define FILE_SUPPORT_INTEGRITY_STREAMS	0x04000000
 #define FILE_SUPPORTS_USN_JOURNAL	0x02000000
 #define FILE_SUPPORTS_OPEN_BY_FILE_ID	0x01000000
@@ -2309,6 +2311,16 @@ typedef struct { /* data block encoding of response to level 263 QPathInfo */
 	__le32 FileNameLength;
 	char FileName[1];
 } __attribute__((packed)) FILE_ALL_INFO;	/* level 0x107 QPathInfo */
+
+typedef struct {
+	__le64 AllocationSize;
+	__le64 EndOfFile;	/* size ie offset to first free byte in file */
+	__le32 NumberOfLinks;	/* hard links */
+	__u8 DeletePending;
+	__u8 Directory;
+	__u16 Pad;
+} __attribute__((packed)) FILE_STANDARD_INFO;	/* level 0x102 QPathInfo */
+
 
 /* defines for enumerating possible values of the Unix type field below */
 #define UNIX_FILE      0

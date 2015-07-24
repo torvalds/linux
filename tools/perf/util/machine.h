@@ -30,11 +30,11 @@ struct machine {
 	bool		  comm_exec;
 	char		  *root_dir;
 	struct rb_root	  threads;
+	pthread_rwlock_t  threads_lock;
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
-	struct dsos	  user_dsos;
-	struct dsos	  kernel_dsos;
+	struct dsos	  dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
 	u64		  kernel_start;
@@ -81,6 +81,12 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 				struct perf_sample *sample);
 int machine__process_lost_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
+int machine__process_lost_samples_event(struct machine *machine, union perf_event *event,
+					struct perf_sample *sample);
+int machine__process_aux_event(struct machine *machine,
+			       union perf_event *event);
+int machine__process_itrace_start_event(struct machine *machine,
+					union perf_event *event);
 int machine__process_mmap_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
 int machine__process_mmap2_event(struct machine *machine, union perf_event *event,
@@ -147,8 +153,10 @@ static inline bool machine__is_host(struct machine *machine)
 	return machine ? machine->pid == HOST_KERNEL_ID : false;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
-				       pid_t tid);
+struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
+
+struct dso *machine__findnew_dso(struct machine *machine, const char *filename);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 
@@ -181,8 +189,8 @@ struct symbol *machine__find_kernel_function_by_name(struct machine *machine,
 						 filter);
 }
 
-struct map *machine__new_module(struct machine *machine, u64 start,
-				const char *filename);
+struct map *machine__findnew_module_map(struct machine *machine, u64 start,
+					const char *filename);
 
 int machine__load_kallsyms(struct machine *machine, const char *filename,
 			   enum map_type type, symbol_filter_t filter);
@@ -208,16 +216,22 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
 int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv);
+int machines__for_each_thread(struct machines *machines,
+			      int (*fn)(struct thread *thread, void *p),
+			      void *priv);
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
 				  struct target *target, struct thread_map *threads,
-				  perf_event__handler_t process, bool data_mmap);
+				  perf_event__handler_t process, bool data_mmap,
+				  unsigned int proc_map_timeout);
 static inline
 int machine__synthesize_threads(struct machine *machine, struct target *target,
-				struct thread_map *threads, bool data_mmap)
+				struct thread_map *threads, bool data_mmap,
+				unsigned int proc_map_timeout)
 {
 	return __machine__synthesize_threads(machine, NULL, target, threads,
-					     perf_event__process, data_mmap);
+					     perf_event__process, data_mmap,
+					     proc_map_timeout);
 }
 
 pid_t machine__get_current_tid(struct machine *machine, int cpu);

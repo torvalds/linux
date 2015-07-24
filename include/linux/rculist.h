@@ -29,8 +29,8 @@
  */
 static inline void INIT_LIST_HEAD_RCU(struct list_head *list)
 {
-	ACCESS_ONCE(list->next) = list;
-	ACCESS_ONCE(list->prev) = list;
+	WRITE_ONCE(list->next, list);
+	WRITE_ONCE(list->prev, list);
 }
 
 /*
@@ -288,7 +288,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
 #define list_first_or_null_rcu(ptr, type, member) \
 ({ \
 	struct list_head *__ptr = (ptr); \
-	struct list_head *__next = ACCESS_ONCE(__ptr->next); \
+	struct list_head *__next = READ_ONCE(__ptr->next); \
 	likely(__ptr != __next) ? list_entry_rcu(__next, type, member) : NULL; \
 })
 
@@ -549,8 +549,8 @@ static inline void hlist_add_behind_rcu(struct hlist_node *n,
  */
 #define hlist_for_each_entry_from_rcu(pos, member)			\
 	for (; pos;							\
-	     pos = hlist_entry_safe(rcu_dereference((pos)->member.next),\
-			typeof(*(pos)), member))
+	     pos = hlist_entry_safe(rcu_dereference_raw(hlist_next_rcu(	\
+			&(pos)->member)), typeof(*(pos)), member))
 
 #endif	/* __KERNEL__ */
 #endif

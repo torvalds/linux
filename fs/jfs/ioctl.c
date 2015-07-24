@@ -180,9 +180,6 @@ long jfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case JFS_IOC_SETFLAGS32:
 		cmd = JFS_IOC_SETFLAGS;
 		break;
-	case FITRIM:
-		cmd = FITRIM;
-		break;
 	}
 	return jfs_ioctl(filp, cmd, arg);
 }

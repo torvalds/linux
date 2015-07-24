@@ -25,14 +25,7 @@
 #include <asm/div64.h>
 
 #include "berlin2-div.h"
-
-struct berlin2_pll_map {
-	const u8 vcodiv[16];
-	u8 mult;
-	u8 fbdiv_shift;
-	u8 rfdiv_shift;
-	u8 divsel_shift;
-};
+#include "berlin2-pll.h"
 
 struct berlin2_pll {
 	struct clk_hw hw;

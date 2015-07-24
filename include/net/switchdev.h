@@ -14,154 +14,261 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 
+#define SWITCHDEV_F_NO_RECURSE		BIT(0)
+
+enum switchdev_trans {
+	SWITCHDEV_TRANS_NONE,
+	SWITCHDEV_TRANS_PREPARE,
+	SWITCHDEV_TRANS_ABORT,
+	SWITCHDEV_TRANS_COMMIT,
+};
+
+enum switchdev_attr_id {
+	SWITCHDEV_ATTR_UNDEFINED,
+	SWITCHDEV_ATTR_PORT_PARENT_ID,
+	SWITCHDEV_ATTR_PORT_STP_STATE,
+	SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS,
+};
+
+struct switchdev_attr {
+	enum switchdev_attr_id id;
+	enum switchdev_trans trans;
+	u32 flags;
+	union {
+		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
+		u8 stp_state;				/* PORT_STP_STATE */
+		unsigned long brport_flags;		/* PORT_BRIDGE_FLAGS */
+	} u;
+};
+
 struct fib_info;
+
+enum switchdev_obj_id {
+	SWITCHDEV_OBJ_UNDEFINED,
+	SWITCHDEV_OBJ_PORT_VLAN,
+	SWITCHDEV_OBJ_IPV4_FIB,
+	SWITCHDEV_OBJ_PORT_FDB,
+};
+
+struct switchdev_obj {
+	enum switchdev_obj_id id;
+	enum switchdev_trans trans;
+	int (*cb)(struct net_device *dev, struct switchdev_obj *obj);
+	union {
+		struct switchdev_obj_vlan {		/* PORT_VLAN */
+			u16 flags;
+			u16 vid_begin;
+			u16 vid_end;
+		} vlan;
+		struct switchdev_obj_ipv4_fib {		/* IPV4_FIB */
+			u32 dst;
+			int dst_len;
+			struct fib_info *fi;
+			u8 tos;
+			u8 type;
+			u32 nlflags;
+			u32 tb_id;
+		} ipv4_fib;
+		struct switchdev_obj_fdb {		/* PORT_FDB */
+			const unsigned char *addr;
+			u16 vid;
+		} fdb;
+	} u;
+};
 
 /**
  * struct switchdev_ops - switchdev operations
  *
- * @swdev_parent_id_get: Called to get an ID of the switch chip this port
- *   is part of.  If driver implements this, it indicates that it
- *   represents a port of a switch chip.
+ * @switchdev_port_attr_get: Get a port attribute (see switchdev_attr).
  *
- * @swdev_port_stp_update: Called to notify switch device port of bridge
- *   port STP state change.
+ * @switchdev_port_attr_set: Set a port attribute (see switchdev_attr).
  *
- * @swdev_fib_ipv4_add: Called to add/modify IPv4 route to switch device.
+ * @switchdev_port_obj_add: Add an object to port (see switchdev_obj).
  *
- * @swdev_fib_ipv4_del: Called to delete IPv4 route from switch device.
+ * @switchdev_port_obj_del: Delete an object from port (see switchdev_obj).
+ *
+ * @switchdev_port_obj_dump: Dump port objects (see switchdev_obj).
  */
-struct swdev_ops {
-	int	(*swdev_parent_id_get)(struct net_device *dev,
-				       struct netdev_phys_item_id *psid);
-	int	(*swdev_port_stp_update)(struct net_device *dev, u8 state);
-	int	(*swdev_fib_ipv4_add)(struct net_device *dev, __be32 dst,
-				      int dst_len, struct fib_info *fi,
-				      u8 tos, u8 type, u32 nlflags,
-				      u32 tb_id);
-	int	(*swdev_fib_ipv4_del)(struct net_device *dev, __be32 dst,
-				      int dst_len, struct fib_info *fi,
-				      u8 tos, u8 type, u32 tb_id);
+struct switchdev_ops {
+	int	(*switchdev_port_attr_get)(struct net_device *dev,
+					   struct switchdev_attr *attr);
+	int	(*switchdev_port_attr_set)(struct net_device *dev,
+					   struct switchdev_attr *attr);
+	int	(*switchdev_port_obj_add)(struct net_device *dev,
+					  struct switchdev_obj *obj);
+	int	(*switchdev_port_obj_del)(struct net_device *dev,
+					  struct switchdev_obj *obj);
+	int	(*switchdev_port_obj_dump)(struct net_device *dev,
+					  struct switchdev_obj *obj);
 };
 
-enum netdev_switch_notifier_type {
-	NETDEV_SWITCH_FDB_ADD = 1,
-	NETDEV_SWITCH_FDB_DEL,
+enum switchdev_notifier_type {
+	SWITCHDEV_FDB_ADD = 1,
+	SWITCHDEV_FDB_DEL,
 };
 
-struct netdev_switch_notifier_info {
+struct switchdev_notifier_info {
 	struct net_device *dev;
 };
 
-struct netdev_switch_notifier_fdb_info {
-	struct netdev_switch_notifier_info info; /* must be first */
+struct switchdev_notifier_fdb_info {
+	struct switchdev_notifier_info info; /* must be first */
 	const unsigned char *addr;
 	u16 vid;
 };
 
 static inline struct net_device *
-netdev_switch_notifier_info_to_dev(const struct netdev_switch_notifier_info *info)
+switchdev_notifier_info_to_dev(const struct switchdev_notifier_info *info)
 {
 	return info->dev;
 }
 
 #ifdef CONFIG_NET_SWITCHDEV
 
-int netdev_switch_parent_id_get(struct net_device *dev,
-				struct netdev_phys_item_id *psid);
-int netdev_switch_port_stp_update(struct net_device *dev, u8 state);
-int register_netdev_switch_notifier(struct notifier_block *nb);
-int unregister_netdev_switch_notifier(struct notifier_block *nb);
-int call_netdev_switch_notifiers(unsigned long val, struct net_device *dev,
-				 struct netdev_switch_notifier_info *info);
-int netdev_switch_port_bridge_setlink(struct net_device *dev,
-				struct nlmsghdr *nlh, u16 flags);
-int netdev_switch_port_bridge_dellink(struct net_device *dev,
-				struct nlmsghdr *nlh, u16 flags);
-int ndo_dflt_netdev_switch_port_bridge_dellink(struct net_device *dev,
-					       struct nlmsghdr *nlh, u16 flags);
-int ndo_dflt_netdev_switch_port_bridge_setlink(struct net_device *dev,
-					       struct nlmsghdr *nlh, u16 flags);
-int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
-			       u8 tos, u8 type, u32 nlflags, u32 tb_id);
-int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
-			       u8 tos, u8 type, u32 tb_id);
-void netdev_switch_fib_ipv4_abort(struct fib_info *fi);
+int switchdev_port_attr_get(struct net_device *dev,
+			    struct switchdev_attr *attr);
+int switchdev_port_attr_set(struct net_device *dev,
+			    struct switchdev_attr *attr);
+int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj);
+int switchdev_port_obj_del(struct net_device *dev, struct switchdev_obj *obj);
+int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj);
+int register_switchdev_notifier(struct notifier_block *nb);
+int unregister_switchdev_notifier(struct notifier_block *nb);
+int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
+			     struct switchdev_notifier_info *info);
+int switchdev_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+				  struct net_device *dev, u32 filter_mask,
+				  int nlflags);
+int switchdev_port_bridge_setlink(struct net_device *dev,
+				  struct nlmsghdr *nlh, u16 flags);
+int switchdev_port_bridge_dellink(struct net_device *dev,
+				  struct nlmsghdr *nlh, u16 flags);
+int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
+			   u8 tos, u8 type, u32 nlflags, u32 tb_id);
+int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
+			   u8 tos, u8 type, u32 tb_id);
+void switchdev_fib_ipv4_abort(struct fib_info *fi);
+int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+			   struct net_device *dev, const unsigned char *addr,
+			   u16 vid, u16 nlm_flags);
+int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+			   struct net_device *dev, const unsigned char *addr,
+			   u16 vid);
+int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
+			    struct net_device *dev,
+			    struct net_device *filter_dev, int idx);
 
 #else
 
-static inline int netdev_switch_parent_id_get(struct net_device *dev,
-					      struct netdev_phys_item_id *psid)
+static inline int switchdev_port_attr_get(struct net_device *dev,
+					  struct switchdev_attr *attr)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int netdev_switch_port_stp_update(struct net_device *dev,
-						u8 state)
+static inline int switchdev_port_attr_set(struct net_device *dev,
+					  struct switchdev_attr *attr)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int register_netdev_switch_notifier(struct notifier_block *nb)
+static inline int switchdev_port_obj_add(struct net_device *dev,
+					 struct switchdev_obj *obj)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_port_obj_del(struct net_device *dev,
+					 struct switchdev_obj *obj)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_port_obj_dump(struct net_device *dev,
+					  struct switchdev_obj *obj)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int register_switchdev_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
 
-static inline int unregister_netdev_switch_notifier(struct notifier_block *nb)
+static inline int unregister_switchdev_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
 
-static inline int call_netdev_switch_notifiers(unsigned long val, struct net_device *dev,
-					       struct netdev_switch_notifier_info *info)
+static inline int call_switchdev_notifiers(unsigned long val,
+					   struct net_device *dev,
+					   struct switchdev_notifier_info *info)
 {
 	return NOTIFY_DONE;
 }
 
-static inline int netdev_switch_port_bridge_setlink(struct net_device *dev,
-						    struct nlmsghdr *nlh,
-						    u16 flags)
+static inline int switchdev_port_bridge_getlink(struct sk_buff *skb, u32 pid,
+					    u32 seq, struct net_device *dev,
+					    u32 filter_mask, int nlflags)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int netdev_switch_port_bridge_dellink(struct net_device *dev,
-						    struct nlmsghdr *nlh,
-						    u16 flags)
+static inline int switchdev_port_bridge_setlink(struct net_device *dev,
+						struct nlmsghdr *nlh,
+						u16 flags)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int ndo_dflt_netdev_switch_port_bridge_dellink(struct net_device *dev,
-							struct nlmsghdr *nlh,
-							u16 flags)
+static inline int switchdev_port_bridge_dellink(struct net_device *dev,
+						struct nlmsghdr *nlh,
+						u16 flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_fib_ipv4_add(u32 dst, int dst_len,
+					 struct fib_info *fi,
+					 u8 tos, u8 type,
+					 u32 nlflags, u32 tb_id)
 {
 	return 0;
 }
 
-static inline int ndo_dflt_netdev_switch_port_bridge_setlink(struct net_device *dev,
-							struct nlmsghdr *nlh,
-							u16 flags)
+static inline int switchdev_fib_ipv4_del(u32 dst, int dst_len,
+					 struct fib_info *fi,
+					 u8 tos, u8 type, u32 tb_id)
 {
 	return 0;
 }
 
-static inline int netdev_switch_fib_ipv4_add(u32 dst, int dst_len,
-					     struct fib_info *fi,
-					     u8 tos, u8 type,
-					     u32 nlflags, u32 tb_id)
+static inline void switchdev_fib_ipv4_abort(struct fib_info *fi)
 {
-	return 0;
 }
 
-static inline int netdev_switch_fib_ipv4_del(u32 dst, int dst_len,
-					     struct fib_info *fi,
-					     u8 tos, u8 type, u32 tb_id)
+static inline int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+					 struct net_device *dev,
+					 const unsigned char *addr,
+					 u16 vid, u16 nlm_flags)
 {
-	return 0;
+	return -EOPNOTSUPP;
 }
 
-static inline void netdev_switch_fib_ipv4_abort(struct fib_info *fi)
+static inline int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+					 struct net_device *dev,
+					 const unsigned char *addr, u16 vid)
 {
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_port_fdb_dump(struct sk_buff *skb,
+					  struct netlink_callback *cb,
+					  struct net_device *dev,
+					  struct net_device *filter_dev,
+					  int idx)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif

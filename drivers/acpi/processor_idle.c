@@ -94,7 +94,7 @@ static int set_max_cstate(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id processor_power_dmi_table[] = {
+static const struct dmi_system_id processor_power_dmi_table[] = {
 	{ set_max_cstate, "Clevo 5600D", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
 	  DMI_MATCH(DMI_BIOS_VERSION,"SHE845M0.86C.0013.D.0302131307")},

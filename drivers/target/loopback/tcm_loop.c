@@ -35,13 +35,10 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_configfs.h>
 
 #include "tcm_loop.h"
 
 #define to_tcm_loop_hba(hba)	container_of(hba, struct tcm_loop_hba, dev)
-
-static const struct target_core_fabric_ops loop_ops;
 
 static struct workqueue_struct *tcm_loop_workqueue;
 static struct kmem_cache *tcm_loop_cmd_cache;
@@ -165,6 +162,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 		transfer_length = scsi_bufflen(sc);
 	}
 
+	se_cmd->tag = tl_cmd->sc_cmd_tag;
 	rc = target_submit_cmd_map_sgls(se_cmd, tl_nexus->se_sess, sc->cmnd,
 			&tl_cmd->tl_sense_buf[0], tl_cmd->sc->device->lun,
 			transfer_length, TCM_SIMPLE_TAG,
@@ -217,7 +215,7 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
  * to struct scsi_device
  */
 static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
-			      int lun, int task, enum tcm_tmreq_table tmr)
+			      u64 lun, int task, enum tcm_tmreq_table tmr)
 {
 	struct se_cmd *se_cmd = NULL;
 	struct se_session *se_sess;
@@ -409,7 +407,7 @@ static int tcm_loop_driver_probe(struct device *dev)
 	sh->max_id = 2;
 	sh->max_lun = 0;
 	sh->max_channel = 0;
-	sh->max_cmd_len = TL_SCSI_MAX_CMD_LEN;
+	sh->max_cmd_len = SCSI_MAX_VARLEN_CDB_SIZE;
 
 	host_prot = SHOST_DIF_TYPE1_PROTECTION | SHOST_DIF_TYPE2_PROTECTION |
 		    SHOST_DIF_TYPE3_PROTECTION | SHOST_DIX_TYPE1_PROTECTION |
@@ -520,147 +518,26 @@ static char *tcm_loop_get_fabric_name(void)
 	return "loopback";
 }
 
-static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
+static inline struct tcm_loop_tpg *tl_tpg(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
-	/*
-	 * tl_proto_id is set at tcm_loop_configfs.c:tcm_loop_make_scsi_hba()
-	 * time based on the protocol dependent prefix of the passed configfs group.
-	 *
-	 * Based upon tl_proto_id, TCM_Loop emulates the requested fabric
-	 * ProtocolID using target_core_fabric_lib.c symbols.
-	 */
-	switch (tl_hba->tl_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_fabric_proto_ident(se_tpg);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_fabric_proto_ident(se_tpg);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_fabric_proto_ident(se_tpg);
-	default:
-		pr_err("Unknown tl_proto_id: 0x%02x, using"
-			" SAS emulation\n", tl_hba->tl_proto_id);
-		break;
-	}
-
-	return sas_get_fabric_proto_ident(se_tpg);
+	return container_of(se_tpg, struct tcm_loop_tpg, tl_se_tpg);
 }
 
 static char *tcm_loop_get_endpoint_wwn(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * Return the passed NAA identifier for the SAS Target Port
 	 */
-	return &tl_tpg->tl_hba->tl_wwn_address[0];
+	return &tl_tpg(se_tpg)->tl_hba->tl_wwn_address[0];
 }
 
 static u16 tcm_loop_get_tag(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * This Tag is used when forming SCSI Name identifier in EVPD=1 0x83
 	 * to represent the SCSI Target Port.
 	 */
-	return tl_tpg->tl_tpgt;
-}
-
-static u32 tcm_loop_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
-static u32 tcm_loop_get_pr_transport_id(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code,
-	unsigned char *buf)
-{
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
-
-	switch (tl_hba->tl_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	default:
-		pr_err("Unknown tl_proto_id: 0x%02x, using"
-			" SAS emulation\n", tl_hba->tl_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-			format_code, buf);
-}
-
-static u32 tcm_loop_get_pr_transport_id_len(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code)
-{
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
-
-	switch (tl_hba->tl_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	default:
-		pr_err("Unknown tl_proto_id: 0x%02x, using"
-			" SAS emulation\n", tl_hba->tl_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-			format_code);
-}
-
-/*
- * Used for handling SCSI fabric dependent TransportIDs in SPC-3 and above
- * Persistent Reservation SPEC_I_PT=1 and PROUT REGISTER_AND_MOVE operations.
- */
-static char *tcm_loop_parse_pr_out_transport_id(
-	struct se_portal_group *se_tpg,
-	const char *buf,
-	u32 *out_tid_len,
-	char **port_nexus_ptr)
-{
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
-
-	switch (tl_hba->tl_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_FCP:
-		return fc_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	default:
-		pr_err("Unknown tl_proto_id: 0x%02x, using"
-			" SAS emulation\n", tl_hba->tl_proto_id);
-		break;
-	}
-
-	return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-			port_nexus_ptr);
+	return tl_tpg(se_tpg)->tl_tpgt;
 }
 
 /*
@@ -703,30 +580,6 @@ static int tcm_loop_check_prot_fabric_only(struct se_portal_group *se_tpg)
 	return tl_tpg->tl_fabric_prot_type;
 }
 
-static struct se_node_acl *tcm_loop_tpg_alloc_fabric_acl(
-	struct se_portal_group *se_tpg)
-{
-	struct tcm_loop_nacl *tl_nacl;
-
-	tl_nacl = kzalloc(sizeof(struct tcm_loop_nacl), GFP_KERNEL);
-	if (!tl_nacl) {
-		pr_err("Unable to allocate struct tcm_loop_nacl\n");
-		return NULL;
-	}
-
-	return &tl_nacl->se_node_acl;
-}
-
-static void tcm_loop_tpg_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl)
-{
-	struct tcm_loop_nacl *tl_nacl = container_of(se_nacl,
-				struct tcm_loop_nacl, se_node_acl);
-
-	kfree(tl_nacl);
-}
-
 static u32 tcm_loop_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -740,14 +593,6 @@ static u32 tcm_loop_sess_get_index(struct se_session *se_sess)
 static void tcm_loop_set_default_node_attributes(struct se_node_acl *se_acl)
 {
 	return;
-}
-
-static u32 tcm_loop_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
-			struct tcm_loop_cmd, tl_se_cmd);
-
-	return tl_cmd->sc_cmd_tag;
 }
 
 static int tcm_loop_get_cmd_state(struct se_cmd *se_cmd)
@@ -902,7 +747,7 @@ static void tcm_loop_port_unlink(
 				se_lun->unpacked_lun);
 	if (!sd) {
 		pr_err("Unable to locate struct scsi_device for %d:%d:"
-			"%d\n", 0, tl_tpg->tl_tpgt, se_lun->unpacked_lun);
+			"%llu\n", 0, tl_tpg->tl_tpgt, se_lun->unpacked_lun);
 		return;
 	}
 	/*
@@ -1234,8 +1079,7 @@ static struct se_portal_group *tcm_loop_make_naa_tpg(
 	/*
 	 * Register the tl_tpg as a emulated SAS TCM Target Endpoint
 	 */
-	ret = core_tpg_register(&loop_ops, wwn, &tl_tpg->tl_se_tpg, tl_tpg,
-			TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(wwn, &tl_tpg->tl_se_tpg, tl_hba->tl_proto_id);
 	if (ret < 0)
 		return ERR_PTR(-ENOMEM);
 
@@ -1386,13 +1230,8 @@ static const struct target_core_fabric_ops loop_ops = {
 	.module				= THIS_MODULE,
 	.name				= "loopback",
 	.get_fabric_name		= tcm_loop_get_fabric_name,
-	.get_fabric_proto_ident		= tcm_loop_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_loop_get_endpoint_wwn,
 	.tpg_get_tag			= tcm_loop_get_tag,
-	.tpg_get_default_depth		= tcm_loop_get_default_depth,
-	.tpg_get_pr_transport_id	= tcm_loop_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= tcm_loop_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= tcm_loop_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= tcm_loop_check_demo_mode,
 	.tpg_check_demo_mode_cache	= tcm_loop_check_demo_mode_cache,
 	.tpg_check_demo_mode_write_protect =
@@ -1400,8 +1239,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.tpg_check_prod_mode_write_protect =
 				tcm_loop_check_prod_mode_write_protect,
 	.tpg_check_prot_fabric_only	= tcm_loop_check_prot_fabric_only,
-	.tpg_alloc_fabric_acl		= tcm_loop_tpg_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= tcm_loop_tpg_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_loop_get_inst_index,
 	.check_stop_free		= tcm_loop_check_stop_free,
 	.release_cmd			= tcm_loop_release_cmd,
@@ -1411,7 +1248,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.write_pending			= tcm_loop_write_pending,
 	.write_pending_status		= tcm_loop_write_pending_status,
 	.set_default_node_attributes	= tcm_loop_set_default_node_attributes,
-	.get_task_tag			= tcm_loop_get_task_tag,
 	.get_cmd_state			= tcm_loop_get_cmd_state,
 	.queue_data_in			= tcm_loop_queue_data_in,
 	.queue_status			= tcm_loop_queue_status,

@@ -798,7 +798,7 @@ static void hip04_free_ring(struct net_device *ndev, struct device *d)
 
 	for (i = 0; i < RX_DESC_NUM; i++)
 		if (priv->rx_buf[i])
-			put_page(virt_to_head_page(priv->rx_buf[i]));
+			skb_free_frag(priv->rx_buf[i]);
 
 	for (i = 0; i < TX_DESC_NUM; i++)
 		if (priv->tx_skb[i])

@@ -85,10 +85,8 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
  * 64-bit PTEs
  */
 #if defined(CONFIG_PPC32) && defined(CONFIG_PTE_64BIT)
-#define PTE_RPN_MAX	(1ULL << (64 - PTE_RPN_SHIFT))
 #define PTE_RPN_MASK	(~((1ULL<<PTE_RPN_SHIFT)-1))
 #else
-#define PTE_RPN_MAX	(1UL << (32 - PTE_RPN_SHIFT))
 #define PTE_RPN_MASK	(~((1UL<<PTE_RPN_SHIFT)-1))
 #endif
 

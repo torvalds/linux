@@ -144,19 +144,6 @@ enum rf_optype {
 	RF_OP_MAX
 };
 
-
-enum power_save_mode {
-	POWER_SAVE_MODE_ACTIVE,
-	POWER_SAVE_MODE_SAVE,
-};
-
-enum interface_select_8190pci {
-	INTF_SEL1_MINICARD		= 0,
-	INTF_SEL0_PCIE			= 1,
-	INTF_SEL2_RSV			= 2,
-	INTF_SEL3_RSV			= 3,
-};
-
 struct bb_reg_definition {
 	u32 rfintfs;
 	u32 rfintfi;
@@ -176,33 +163,6 @@ struct bb_reg_definition {
 	u32 rfTxAFE;
 	u32 rfLSSIReadBack;
 	u32 rfLSSIReadBackPi;
-};
-
-struct tx_fwinfo {
-	u8			TxRate:7;
-	u8			CtsEnable:1;
-	u8			RtsRate:7;
-	u8			RtsEnable:1;
-	u8			TxHT:1;
-	u8			Short:1;
-	u8			TxBandwidth:1;
-	u8			TxSubCarrier:2;
-	u8			STBC:2;
-	u8			AllowAggregation:1;
-	u8			RtsHT:1;
-	u8			RtsShort:1;
-	u8			RtsBandwidth:1;
-	u8			RtsSubcarrier:2;
-	u8			RtsSTBC:2;
-	u8			EnableCPUDur:1;
-
-	u32			RxMF:2;
-	u32			RxAMD:3;
-	u32			Reserved1:3;
-	u32			TxAGCOffset:4;
-	u32			TxAGCSign:1;
-	u32			Tx_INFO_RSVD:6;
-	u32			PacketID:13;
 };
 
 struct tx_fwinfo_8190pci {

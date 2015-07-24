@@ -18,7 +18,6 @@ enum cpufreq_level_index {
 };
 
 enum exynos_soc_type {
-	EXYNOS_SOC_4210,
 	EXYNOS_SOC_4212,
 	EXYNOS_SOC_4412,
 	EXYNOS_SOC_5250,
@@ -53,14 +52,6 @@ struct exynos_dvfs_info {
 	void __iomem	*cmu_regs;
 };
 
-#ifdef CONFIG_ARM_EXYNOS4210_CPUFREQ
-extern int exynos4210_cpufreq_init(struct exynos_dvfs_info *);
-#else
-static inline int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
-{
-	return -EOPNOTSUPP;
-}
-#endif
 #ifdef CONFIG_ARM_EXYNOS4X12_CPUFREQ
 extern int exynos4x12_cpufreq_init(struct exynos_dvfs_info *);
 #else

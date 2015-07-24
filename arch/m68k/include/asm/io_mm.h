@@ -20,6 +20,8 @@
 
 #ifdef __KERNEL__
 
+#define ARCH_HAS_IOREMAP_WT
+
 #include <linux/compiler.h>
 #include <asm/raw_io.h>
 #include <asm/virtconvert.h>
@@ -411,7 +413,8 @@ static inline void isa_delay(void)
 #define writew(val, addr)	out_le16((addr), (val))
 #endif /* CONFIG_ATARI_ROM_ISA */
 
-#if !defined(CONFIG_ISA) && !defined(CONFIG_ATARI_ROM_ISA)
+#if !defined(CONFIG_ISA) && !defined(CONFIG_ATARI_ROM_ISA) && \
+    !(defined(CONFIG_PCI) && defined(CONFIG_COLDFIRE))
 /*
  * We need to define dummy functions for GENERIC_IOMAP support.
  */
@@ -465,7 +468,7 @@ static inline void __iomem *ioremap_nocache(unsigned long physaddr, unsigned lon
 {
 	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
 }
-static inline void __iomem *ioremap_writethrough(unsigned long physaddr,
+static inline void __iomem *ioremap_wt(unsigned long physaddr,
 					 unsigned long size)
 {
 	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);

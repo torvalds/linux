@@ -37,7 +37,7 @@ u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers, u8 fab_vers,
 	do {
 		pwrcfgcmd = pwrseqcmd[aryidx];
 
-		RT_TRACE(_module_hal_init_c_ , _drv_info_,
+		RT_TRACE(_module_hal_init_c_, _drv_info_,
 			 ("rtl88eu_pwrseqcmdparsing: offset(%#x) cut_msk(%#x)"
 			  "fab_msk(%#x) interface_msk(%#x) base(%#x) cmd(%#x)"
 			  "msk(%#x) value(%#x)\n",

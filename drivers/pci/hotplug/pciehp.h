@@ -132,11 +132,7 @@ struct controller {
 
 int pciehp_sysfs_enable_slot(struct slot *slot);
 int pciehp_sysfs_disable_slot(struct slot *slot);
-u8 pciehp_handle_attention_button(struct slot *p_slot);
-u8 pciehp_handle_switch_change(struct slot *p_slot);
-u8 pciehp_handle_presence_change(struct slot *p_slot);
-u8 pciehp_handle_power_fault(struct slot *p_slot);
-void pciehp_handle_linkstate_change(struct slot *p_slot);
+void pciehp_queue_interrupt_event(struct slot *slot, u32 event_type);
 int pciehp_configure_device(struct slot *p_slot);
 int pciehp_unconfigure_device(struct slot *p_slot);
 void pciehp_queue_pushbutton_work(struct work_struct *work);
@@ -167,21 +163,4 @@ static inline const char *slot_name(struct slot *slot)
 	return hotplug_slot_name(slot->hotplug_slot);
 }
 
-#ifdef CONFIG_ACPI
-#include <linux/pci-acpi.h>
-
-void __init pciehp_acpi_slot_detection_init(void);
-int pciehp_acpi_slot_detection_check(struct pci_dev *dev);
-
-static inline void pciehp_firmware_init(void)
-{
-	pciehp_acpi_slot_detection_init();
-}
-#else
-#define pciehp_firmware_init()				do {} while (0)
-static inline int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
-{
-	return 0;
-}
-#endif				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */

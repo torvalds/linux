@@ -56,7 +56,7 @@ static int notify_exec(struct mm_struct *mm)
 	if (exe_file == NULL)
 		goto done_free;
 
-	path = d_path(&exe_file->f_path, buf, PAGE_SIZE);
+	path = file_path(exe_file, buf, PAGE_SIZE);
 	if (IS_ERR(path))
 		goto done_put;
 

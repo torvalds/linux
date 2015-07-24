@@ -86,7 +86,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 	struct net_device *dev = fep->ndev;
 	const struct fs_platform_info *fpi = fep->fpi;
 	cbd_t __iomem *bdp;
-	struct sk_buff *skb, *skbn, *skbt;
+	struct sk_buff *skb, *skbn;
 	int received = 0;
 	u16 pkt_len, sc;
 	int curidx;
@@ -161,10 +161,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 					skb_reserve(skbn, 2);	/* align IP header */
 					skb_copy_from_linear_data(skb,
 						      skbn->data, pkt_len);
-					/* swap */
-					skbt = skb;
-					skb = skbn;
-					skbn = skbt;
+					swap(skb, skbn);
 				}
 			} else {
 				skbn = netdev_alloc_skb(dev, ENET_RX_FRSIZE);
@@ -490,6 +487,9 @@ static struct sk_buff *tx_skb_align_workaround(struct net_device *dev,
 {
 	struct sk_buff *new_skb;
 
+	if (skb_linearize(skb))
+		return NULL;
+
 	/* Alloc new skb */
 	new_skb = netdev_alloc_skb(dev, skb->len + 4);
 	if (!new_skb)
@@ -515,12 +515,27 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	cbd_t __iomem *bdp;
 	int curidx;
 	u16 sc;
-	int nr_frags = skb_shinfo(skb)->nr_frags;
+	int nr_frags;
 	skb_frag_t *frag;
 	int len;
-
 #ifdef CONFIG_FS_ENET_MPC5121_FEC
-	if (((unsigned long)skb->data) & 0x3) {
+	int is_aligned = 1;
+	int i;
+
+	if (!IS_ALIGNED((unsigned long)skb->data, 4)) {
+		is_aligned = 0;
+	} else {
+		nr_frags = skb_shinfo(skb)->nr_frags;
+		frag = skb_shinfo(skb)->frags;
+		for (i = 0; i < nr_frags; i++, frag++) {
+			if (!IS_ALIGNED(frag->page_offset, 4)) {
+				is_aligned = 0;
+				break;
+			}
+		}
+	}
+
+	if (!is_aligned) {
 		skb = tx_skb_align_workaround(dev, skb);
 		if (!skb) {
 			/*
@@ -532,6 +547,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 #endif
+
 	spin_lock(&fep->tx_lock);
 
 	/*
@@ -539,6 +555,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	bdp = fep->cur_tx;
 
+	nr_frags = skb_shinfo(skb)->nr_frags;
 	if (fep->tx_free <= nr_frags || (CBDR_SC(bdp) & BD_ENET_TX_READY)) {
 		netif_stop_queue(dev);
 		spin_unlock(&fep->tx_lock);

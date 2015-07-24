@@ -82,6 +82,9 @@ static int udf_pc_to_char(struct super_block *sb, unsigned char *from,
 			comp_len = udf_get_filename(sb, pc->componentIdent,
 						    pc->lengthComponentIdent,
 						    p, tolen);
+			if (comp_len < 0)
+				return comp_len;
+
 			p += comp_len;
 			tolen -= comp_len;
 			if (tolen == 0)

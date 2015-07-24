@@ -44,6 +44,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/timex.h>
+#include <sys/errno.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
@@ -62,6 +63,9 @@ static inline int ksft_exit_fail(void)
 
 #define NSEC_PER_SEC 1000000000ULL
 #define CLOCK_TAI 11
+
+time_t next_leap;
+int error_found;
 
 /* returns 1 if a <= b, 0 otherwise */
 static inline int in_order(struct timespec a, struct timespec b)
@@ -134,6 +138,35 @@ void handler(int unused)
 	exit(0);
 }
 
+void sigalarm(int signo)
+{
+	struct timex tx;
+	int ret;
+
+	tx.modes = 0;
+	ret = adjtimex(&tx);
+
+	if (tx.time.tv_sec < next_leap) {
+		printf("Error: Early timer expiration! (Should be %ld)\n", next_leap);
+		error_found = 1;
+		printf("adjtimex: %10ld sec + %6ld us (%i)\t%s\n",
+					tx.time.tv_sec,
+					tx.time.tv_usec,
+					tx.tai,
+					time_state_str(ret));
+	}
+	if (ret != TIME_WAIT) {
+		printf("Error: Timer seeing incorrect NTP state? (Should be TIME_WAIT)\n");
+		error_found = 1;
+		printf("adjtimex: %10ld sec + %6ld us (%i)\t%s\n",
+					tx.time.tv_sec,
+					tx.time.tv_usec,
+					tx.tai,
+					time_state_str(ret));
+	}
+}
+
+
 /* Test for known hrtimer failure */
 void test_hrtimer_failure(void)
 {
@@ -144,12 +177,19 @@ void test_hrtimer_failure(void)
 	clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &target, NULL);
 	clock_gettime(CLOCK_REALTIME, &now);
 
-	if (!in_order(target, now))
+	if (!in_order(target, now)) {
 		printf("ERROR: hrtimer early expiration failure observed.\n");
+		error_found = 1;
+	}
 }
 
 int main(int argc, char **argv)
 {
+	timer_t tm1;
+	struct itimerspec its1;
+	struct sigevent se;
+	struct sigaction act;
+	int signum = SIGRTMAX;
 	int settime = 0;
 	int tai_time = 0;
 	int insert = 1;
@@ -191,6 +231,12 @@ int main(int argc, char **argv)
 	signal(SIGINT, handler);
 	signal(SIGKILL, handler);
 
+	/* Set up timer signal handler: */
+	sigfillset(&act.sa_mask);
+	act.sa_flags = 0;
+	act.sa_handler = sigalarm;
+	sigaction(signum, &act, NULL);
+
 	if (iterations < 0)
 		printf("This runs continuously. Press ctrl-c to stop\n");
 	else
@@ -201,7 +247,7 @@ int main(int argc, char **argv)
 		int ret;
 		struct timespec ts;
 		struct timex tx;
-		time_t now, next_leap;
+		time_t now;
 
 		/* Get the current time */
 		clock_gettime(CLOCK_REALTIME, &ts);
@@ -251,9 +297,26 @@ int main(int argc, char **argv)
 
 		printf("Scheduling leap second for %s", ctime(&next_leap));
 
+		/* Set up timer */
+		printf("Setting timer for %ld -  %s", next_leap, ctime(&next_leap));
+		memset(&se, 0, sizeof(se));
+		se.sigev_notify = SIGEV_SIGNAL;
+		se.sigev_signo = signum;
+		se.sigev_value.sival_int = 0;
+		if (timer_create(CLOCK_REALTIME, &se, &tm1) == -1) {
+			printf("Error: timer_create failed\n");
+			return ksft_exit_fail();
+		}
+		its1.it_value.tv_sec = next_leap;
+		its1.it_value.tv_nsec = 0;
+		its1.it_interval.tv_sec = 0;
+		its1.it_interval.tv_nsec = 0;
+		timer_settime(tm1, TIMER_ABSTIME, &its1, NULL);
+
 		/* Wake up 3 seconds before leap */
 		ts.tv_sec = next_leap - 3;
 		ts.tv_nsec = 0;
+
 
 		while (clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL))
 			printf("Something woke us up, returning to sleep\n");
@@ -276,6 +339,7 @@ int main(int argc, char **argv)
 		while (now < next_leap + 2) {
 			char buf[26];
 			struct timespec tai;
+			int ret;
 
 			tx.modes = 0;
 			ret = adjtimex(&tx);
@@ -308,8 +372,13 @@ int main(int argc, char **argv)
 		/* Note if kernel has known hrtimer failure */
 		test_hrtimer_failure();
 
-		printf("Leap complete\n\n");
-
+		printf("Leap complete\n");
+		if (error_found) {
+			printf("Errors observed\n");
+			clear_time_state();
+			return ksft_exit_fail();
+		}
+		printf("\n");
 		if ((iterations != -1) && !(--iterations))
 			break;
 	}

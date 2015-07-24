@@ -125,10 +125,7 @@ long sii164InitChip(
     unsigned char pllFilterValue
 )
 {
-    //unsigned char ucRegIndex, ucRegValue;
-    //unsigned char ucDeviceAddress,
 	unsigned char config;
-    //unsigned long delayCount;
 
     /* Initialize the i2c bus */
 #ifdef USE_HW_I2C
@@ -141,10 +138,6 @@ long sii164InitChip(
     /* Check if SII164 Chip exists */
     if ((sii164GetVendorID() == SII164_VENDOR_ID) && (sii164GetDeviceID() == SII164_DEVICE_ID))
     {
-
-#ifdef DDKDEBUG
-        //sii164PrintRegisterValues();
-#endif
         /*
          *  Initialize SII164 controller chip.
          */
@@ -241,10 +234,6 @@ long sii164InitChip(
         config |= SII164_CONFIGURATION_POWER_NORMAL;
         i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 
-#ifdef DDKDEBUG
-        //sii164PrintRegisterValues();
-#endif
-
         return 0;
     }
 
@@ -256,7 +245,7 @@ long sii164InitChip(
 
 
 
-/* below sii164 function is not neccessary */
+/* below sii164 function is not necessary */
 
 #ifdef SII164_FULL_FUNCTIONS
 
@@ -388,7 +377,7 @@ unsigned char sii164IsConnected(void)
 
 /*
  *  sii164CheckInterrupt
- *      Checks if interrupt has occured.
+ *      Checks if interrupt has occurred.
  *
  *  Output:
  *      0   - No interrupt

@@ -1454,6 +1454,174 @@ struct wmi_tlv_stats_ev {
 	__le32 num_chan_stats;
 } __packed;
 
+struct wmi_tlv_p2p_noa_ev {
+	__le32 vdev_id;
+} __packed;
+
+struct wmi_tlv_roam_ev {
+	__le32 vdev_id;
+	__le32 reason;
+	__le32 rssi;
+} __packed;
+
+struct wmi_tlv_wow_add_del_event_cmd {
+	__le32 vdev_id;
+	__le32 is_add;
+	__le32 event_bitmap;
+} __packed;
+
+struct wmi_tlv_wow_enable_cmd {
+	__le32 enable;
+} __packed;
+
+struct wmi_tlv_wow_host_wakeup_ind {
+	__le32 reserved;
+} __packed;
+
+struct wmi_tlv_wow_event_info {
+	__le32 vdev_id;
+	__le32 flag;
+	__le32 wake_reason;
+	__le32 data_len;
+} __packed;
+
+enum wmi_tlv_pattern_type {
+	WOW_PATTERN_MIN = 0,
+	WOW_BITMAP_PATTERN = WOW_PATTERN_MIN,
+	WOW_IPV4_SYNC_PATTERN,
+	WOW_IPV6_SYNC_PATTERN,
+	WOW_WILD_CARD_PATTERN,
+	WOW_TIMER_PATTERN,
+	WOW_MAGIC_PATTERN,
+	WOW_IPV6_RA_PATTERN,
+	WOW_IOAC_PKT_PATTERN,
+	WOW_IOAC_TMR_PATTERN,
+	WOW_PATTERN_MAX
+};
+
+#define WOW_DEFAULT_BITMAP_PATTERN_SIZE		148
+#define WOW_DEFAULT_BITMASK_SIZE		148
+
+struct wmi_tlv_wow_bitmap_pattern {
+	u8 patternbuf[WOW_DEFAULT_BITMAP_PATTERN_SIZE];
+	u8 bitmaskbuf[WOW_DEFAULT_BITMASK_SIZE];
+	__le32 pattern_offset;
+	__le32 pattern_len;
+	__le32 bitmask_len;
+	__le32 pattern_id;
+} __packed;
+
+struct wmi_tlv_wow_add_pattern_cmd {
+	__le32 vdev_id;
+	__le32 pattern_id;
+	__le32 pattern_type;
+} __packed;
+
+struct wmi_tlv_wow_del_pattern_cmd {
+	__le32 vdev_id;
+	__le32 pattern_id;
+	__le32 pattern_type;
+} __packed;
+
+/* TDLS Options */
+enum wmi_tlv_tdls_options {
+	WMI_TLV_TDLS_OFFCHAN_EN = BIT(0),
+	WMI_TLV_TDLS_BUFFER_STA_EN = BIT(1),
+	WMI_TLV_TDLS_SLEEP_STA_EN = BIT(2),
+};
+
+struct wmi_tdls_set_state_cmd {
+	__le32 vdev_id;
+	__le32 state;
+	__le32 notification_interval_ms;
+	__le32 tx_discovery_threshold;
+	__le32 tx_teardown_threshold;
+	__le32 rssi_teardown_threshold;
+	__le32 rssi_delta;
+	__le32 tdls_options;
+	__le32 tdls_peer_traffic_ind_window;
+	__le32 tdls_peer_traffic_response_timeout_ms;
+	__le32 tdls_puapsd_mask;
+	__le32 tdls_puapsd_inactivity_time_ms;
+	__le32 tdls_puapsd_rx_frame_threshold;
+} __packed;
+
+struct wmi_tdls_peer_update_cmd {
+	__le32 vdev_id;
+	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_state;
+} __packed;
+
+enum {
+	WMI_TLV_TDLS_PEER_QOS_AC_VO = BIT(0),
+	WMI_TLV_TDLS_PEER_QOS_AC_VI = BIT(1),
+	WMI_TLV_TDLS_PEER_QOS_AC_BK = BIT(2),
+	WMI_TLV_TDLS_PEER_QOS_AC_BE = BIT(3),
+};
+
+#define WMI_TLV_TDLS_PEER_SP_MASK	0x60
+#define WMI_TLV_TDLS_PEER_SP_LSB	5
+
+struct wmi_tdls_peer_capab {
+	__le32 peer_qos;
+	__le32 buff_sta_support;
+	__le32 off_chan_support;
+	__le32 peer_curr_operclass;
+	__le32 self_curr_operclass;
+	__le32 peer_chan_len;
+	__le32 peer_operclass_len;
+	u8 peer_operclass[WMI_TDLS_MAX_SUPP_OPER_CLASSES];
+	__le32 is_peer_responder;
+	__le32 pref_offchan_num;
+	__le32 pref_offchan_bw;
+} __packed;
+
+struct wmi_tlv_adaptive_qcs {
+	__le32 enable;
+} __packed;
+
+/**
+ * wmi_tlv_tx_pause_id - firmware tx queue pause reason types
+ *
+ * @WMI_TLV_TX_PAUSE_ID_MCC: used for by multi-channel firmware scheduler.
+ *		Only vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_AP_PEER_PS: peer in AP mode is asleep.
+ *		Only peer_id is valid.
+ * @WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD: Only peer_id and tid_map are valid.
+ * @WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA: Only vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_P2P_GO_PS: Only vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_STA_ADD_BA: Only peer_id and tid_map are valid.
+ * @WMI_TLV_TX_PAUSE_ID_AP_PS: When all peers are asleep in AP mode. Only
+ *		vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_IBSS_PS: When all peers are asleep in IBSS mode. Only
+ *		vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_HOST: Host itself requested tx pause.
+ */
+enum wmi_tlv_tx_pause_id {
+	WMI_TLV_TX_PAUSE_ID_MCC = 1,
+	WMI_TLV_TX_PAUSE_ID_AP_PEER_PS = 2,
+	WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD = 3,
+	WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA = 4,
+	WMI_TLV_TX_PAUSE_ID_P2P_GO_PS = 5,
+	WMI_TLV_TX_PAUSE_ID_STA_ADD_BA = 6,
+	WMI_TLV_TX_PAUSE_ID_AP_PS = 7,
+	WMI_TLV_TX_PAUSE_ID_IBSS_PS = 8,
+	WMI_TLV_TX_PAUSE_ID_HOST = 21,
+};
+
+enum wmi_tlv_tx_pause_action {
+	WMI_TLV_TX_PAUSE_ACTION_STOP,
+	WMI_TLV_TX_PAUSE_ACTION_WAKE,
+};
+
+struct wmi_tlv_tx_pause_ev {
+	__le32 pause_id;
+	__le32 action;
+	__le32 vdev_map;
+	__le32 peer_id;
+	__le32 tid_map;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif

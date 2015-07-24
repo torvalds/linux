@@ -42,8 +42,11 @@
 #include <rdma/ib_verbs.h>
 #include <uapi/rdma/ib_user_mad.h>
 
-/* Management base version */
+/* Management base versions */
 #define IB_MGMT_BASE_VERSION			1
+#define OPA_MGMT_BASE_VERSION			0x80
+
+#define OPA_SMP_CLASS_VERSION			0x80
 
 /* Management classes */
 #define IB_MGMT_CLASS_SUBN_LID_ROUTED		0x01
@@ -135,6 +138,10 @@ enum {
 	IB_MGMT_SA_DATA = 200,
 	IB_MGMT_DEVICE_HDR = 64,
 	IB_MGMT_DEVICE_DATA = 192,
+	IB_MGMT_MAD_SIZE = IB_MGMT_MAD_HDR + IB_MGMT_MAD_DATA,
+	OPA_MGMT_MAD_DATA = 2024,
+	OPA_MGMT_RMPP_DATA = 2012,
+	OPA_MGMT_MAD_SIZE = IB_MGMT_MAD_HDR + OPA_MGMT_MAD_DATA,
 };
 
 struct ib_mad_hdr {
@@ -181,10 +188,21 @@ struct ib_mad {
 	u8			data[IB_MGMT_MAD_DATA];
 };
 
+struct opa_mad {
+	struct ib_mad_hdr	mad_hdr;
+	u8			data[OPA_MGMT_MAD_DATA];
+};
+
 struct ib_rmpp_mad {
 	struct ib_mad_hdr	mad_hdr;
 	struct ib_rmpp_hdr	rmpp_hdr;
 	u8			data[IB_MGMT_RMPP_DATA];
+};
+
+struct opa_rmpp_mad {
+	struct ib_mad_hdr	mad_hdr;
+	struct ib_rmpp_hdr	rmpp_hdr;
+	u8			data[OPA_MGMT_RMPP_DATA];
 };
 
 struct ib_sa_mad {
@@ -235,7 +253,10 @@ struct ib_class_port_info {
  *   includes the common MAD, RMPP, and class specific headers.
  * @data_len: Indicates the total size of user-transferred data.
  * @seg_count: The number of RMPP segments allocated for this send.
- * @seg_size: Size of each RMPP segment.
+ * @seg_size: Size of the data in each RMPP segment.  This does not include
+ *   class specific headers.
+ * @seg_rmpp_size: Size of each RMPP segment including the class specific
+ *   headers.
  * @timeout_ms: Time to wait for a response.
  * @retries: Number of times to retry a request for a response.  For MADs
  *   using RMPP, this applies per window.  On completion, returns the number
@@ -255,6 +276,7 @@ struct ib_mad_send_buf {
 	int			data_len;
 	int			seg_count;
 	int			seg_size;
+	int			seg_rmpp_size;
 	int			timeout_ms;
 	int			retries;
 };
@@ -263,7 +285,7 @@ struct ib_mad_send_buf {
  * ib_response_mad - Returns if the specified MAD has been generated in
  *   response to a sent request or trap.
  */
-int ib_response_mad(struct ib_mad *mad);
+int ib_response_mad(const struct ib_mad_hdr *hdr);
 
 /**
  * ib_get_rmpp_resptime - Returns the RMPP response time.
@@ -401,7 +423,10 @@ struct ib_mad_send_wc {
 struct ib_mad_recv_buf {
 	struct list_head	list;
 	struct ib_grh		*grh;
-	struct ib_mad		*mad;
+	union {
+		struct ib_mad	*mad;
+		struct opa_mad	*opa_mad;
+	};
 };
 
 /**
@@ -410,6 +435,7 @@ struct ib_mad_recv_buf {
  * @recv_buf: Specifies the location of the received data buffer(s).
  * @rmpp_list: Specifies a list of RMPP reassembled received MAD buffers.
  * @mad_len: The length of the received MAD, without duplicated headers.
+ * @mad_seg_size: The size of individual MAD segments
  *
  * For received response, the wr_id contains a pointer to the ib_mad_send_buf
  *   for the corresponding send request.
@@ -419,6 +445,7 @@ struct ib_mad_recv_wc {
 	struct ib_mad_recv_buf	recv_buf;
 	struct list_head	rmpp_list;
 	int			mad_len;
+	size_t			mad_seg_size;
 };
 
 /**
@@ -618,6 +645,7 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  *   automatically adjust the allocated buffer size to account for any
  *   additional padding that may be necessary.
  * @gfp_mask: GFP mask used for the memory allocation.
+ * @base_version: Base Version of this MAD
  *
  * This routine allocates a MAD for sending.  The returned MAD send buffer
  * will reference a data buffer usable for sending a MAD, along
@@ -633,7 +661,8 @@ struct ib_mad_send_buf *ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					   u32 remote_qpn, u16 pkey_index,
 					   int rmpp_active,
 					   int hdr_len, int data_len,
-					   gfp_t gfp_mask);
+					   gfp_t gfp_mask,
+					   u8 base_version);
 
 /**
  * ib_is_mad_class_rmpp - returns whether given management class
@@ -675,6 +704,6 @@ void ib_free_send_mad(struct ib_mad_send_buf *send_buf);
  * @agent: the agent in question
  * @return: true if agent is performing rmpp, false otherwise.
  */
-int ib_mad_kernel_rmpp_agent(struct ib_mad_agent *agent);
+int ib_mad_kernel_rmpp_agent(const struct ib_mad_agent *agent);
 
 #endif /* IB_MAD_H */

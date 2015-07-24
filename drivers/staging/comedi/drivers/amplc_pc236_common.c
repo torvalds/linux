@@ -28,14 +28,14 @@
 
 static void pc236_intr_update(struct comedi_device *dev, bool enable)
 {
-	const struct pc236_board *thisboard = dev->board_ptr;
+	const struct pc236_board *board = dev->board_ptr;
 	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = enable;
-	if (thisboard->intr_update_cb)
-		thisboard->intr_update_cb(dev, enable);
+	if (board->intr_update_cb)
+		board->intr_update_cb(dev, enable);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -48,15 +48,15 @@ static void pc236_intr_update(struct comedi_device *dev, bool enable)
  */
 static bool pc236_intr_check(struct comedi_device *dev)
 {
-	const struct pc236_board *thisboard = dev->board_ptr;
+	const struct pc236_board *board = dev->board_ptr;
 	struct pc236_private *devpriv = dev->private;
 	bool retval = false;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->enable_irq) {
-		if (thisboard->intr_chk_clr_cb)
-			retval = thisboard->intr_chk_clr_cb(dev);
+		if (board->intr_chk_clr_cb)
+			retval = board->intr_chk_clr_cb(dev);
 		else
 			retval = true;
 	}

@@ -147,24 +147,17 @@ static void ops_free_list(const struct pernet_operations *ops,
 	}
 }
 
-static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
-			      int id);
+/* should be called with nsid_lock held */
 static int alloc_netid(struct net *net, struct net *peer, int reqid)
 {
-	int min = 0, max = 0, id;
-
-	ASSERT_RTNL();
+	int min = 0, max = 0;
 
 	if (reqid >= 0) {
 		min = reqid;
 		max = reqid + 1;
 	}
 
-	id = idr_alloc(&net->netns_ids, peer, min, max, GFP_KERNEL);
-	if (id >= 0)
-		rtnl_net_notifyid(net, peer, RTM_NEWNSID, id);
-
-	return id;
+	return idr_alloc(&net->netns_ids, peer, min, max, GFP_ATOMIC);
 }
 
 /* This function is used by idr_for_each(). If net is equal to peer, the
@@ -180,11 +173,16 @@ static int net_eq_idr(int id, void *net, void *peer)
 	return 0;
 }
 
-static int __peernet2id(struct net *net, struct net *peer, bool alloc)
+/* Should be called with nsid_lock held. If a new id is assigned, the bool alloc
+ * is set to true, thus the caller knows that the new id must be notified via
+ * rtnl.
+ */
+static int __peernet2id_alloc(struct net *net, struct net *peer, bool *alloc)
 {
 	int id = idr_for_each(&net->netns_ids, net_eq_idr, peer);
+	bool alloc_it = *alloc;
 
-	ASSERT_RTNL();
+	*alloc = false;
 
 	/* Magic value for id 0. */
 	if (id == NET_ID_ZERO)
@@ -192,36 +190,77 @@ static int __peernet2id(struct net *net, struct net *peer, bool alloc)
 	if (id > 0)
 		return id;
 
-	if (alloc)
-		return alloc_netid(net, peer, -1);
+	if (alloc_it) {
+		id = alloc_netid(net, peer, -1);
+		*alloc = true;
+		return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
+	}
 
-	return -ENOENT;
+	return NETNSA_NSID_NOT_ASSIGNED;
 }
 
+/* should be called with nsid_lock held */
+static int __peernet2id(struct net *net, struct net *peer)
+{
+	bool no = false;
+
+	return __peernet2id_alloc(net, peer, &no);
+}
+
+static void rtnl_net_notifyid(struct net *net, int cmd, int id);
 /* This function returns the id of a peer netns. If no id is assigned, one will
  * be allocated and returned.
  */
-int peernet2id(struct net *net, struct net *peer)
+int peernet2id_alloc(struct net *net, struct net *peer)
 {
-	bool alloc = atomic_read(&peer->count) == 0 ? false : true;
+	unsigned long flags;
+	bool alloc;
 	int id;
 
-	id = __peernet2id(net, peer, alloc);
-	return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
+	spin_lock_irqsave(&net->nsid_lock, flags);
+	alloc = atomic_read(&peer->count) == 0 ? false : true;
+	id = __peernet2id_alloc(net, peer, &alloc);
+	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	if (alloc && id >= 0)
+		rtnl_net_notifyid(net, RTM_NEWNSID, id);
+	return id;
 }
-EXPORT_SYMBOL(peernet2id);
+EXPORT_SYMBOL(peernet2id_alloc);
+
+/* This function returns, if assigned, the id of a peer netns. */
+int peernet2id(struct net *net, struct net *peer)
+{
+	unsigned long flags;
+	int id;
+
+	spin_lock_irqsave(&net->nsid_lock, flags);
+	id = __peernet2id(net, peer);
+	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	return id;
+}
+
+/* This function returns true is the peer netns has an id assigned into the
+ * current netns.
+ */
+bool peernet_has_id(struct net *net, struct net *peer)
+{
+	return peernet2id(net, peer) >= 0;
+}
 
 struct net *get_net_ns_by_id(struct net *net, int id)
 {
+	unsigned long flags;
 	struct net *peer;
 
 	if (id < 0)
 		return NULL;
 
 	rcu_read_lock();
+	spin_lock_irqsave(&net->nsid_lock, flags);
 	peer = idr_find(&net->netns_ids, id);
 	if (peer)
 		get_net(peer);
+	spin_unlock_irqrestore(&net->nsid_lock, flags);
 	rcu_read_unlock();
 
 	return peer;
@@ -242,6 +281,7 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 	net->dev_base_seq = 1;
 	net->user_ns = user_ns;
 	idr_init(&net->netns_ids);
+	spin_lock_init(&net->nsid_lock);
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);
@@ -362,14 +402,19 @@ static void cleanup_net(struct work_struct *work)
 		list_del_rcu(&net->list);
 		list_add_tail(&net->exit_list, &net_exit_list);
 		for_each_net(tmp) {
-			int id = __peernet2id(tmp, net, false);
+			int id;
 
-			if (id >= 0) {
-				rtnl_net_notifyid(tmp, net, RTM_DELNSID, id);
+			spin_lock_irq(&tmp->nsid_lock);
+			id = __peernet2id(tmp, net);
+			if (id >= 0)
 				idr_remove(&tmp->netns_ids, id);
-			}
+			spin_unlock_irq(&tmp->nsid_lock);
+			if (id >= 0)
+				rtnl_net_notifyid(tmp, RTM_DELNSID, id);
 		}
+		spin_lock_irq(&net->nsid_lock);
 		idr_destroy(&net->netns_ids);
+		spin_unlock_irq(&net->nsid_lock);
 
 	}
 	rtnl_unlock();
@@ -497,6 +542,7 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
+	unsigned long flags;
 	struct net *peer;
 	int nsid, err;
 
@@ -517,14 +563,19 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (IS_ERR(peer))
 		return PTR_ERR(peer);
 
-	if (__peernet2id(net, peer, false) >= 0) {
+	spin_lock_irqsave(&net->nsid_lock, flags);
+	if (__peernet2id(net, peer) >= 0) {
+		spin_unlock_irqrestore(&net->nsid_lock, flags);
 		err = -EEXIST;
 		goto out;
 	}
 
 	err = alloc_netid(net, peer, nsid);
-	if (err > 0)
+	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	if (err >= 0) {
+		rtnl_net_notifyid(net, RTM_NEWNSID, err);
 		err = 0;
+	}
 out:
 	put_net(peer);
 	return err;
@@ -538,14 +589,10 @@ static int rtnl_net_get_size(void)
 }
 
 static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
-			 int cmd, struct net *net, struct net *peer,
-			 int nsid)
+			 int cmd, struct net *net, int nsid)
 {
 	struct nlmsghdr *nlh;
 	struct rtgenmsg *rth;
-	int id;
-
-	ASSERT_RTNL();
 
 	nlh = nlmsg_put(skb, portid, seq, cmd, sizeof(*rth), flags);
 	if (!nlh)
@@ -554,14 +601,7 @@ static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
 	rth = nlmsg_data(nlh);
 	rth->rtgen_family = AF_UNSPEC;
 
-	if (nsid >= 0) {
-		id = nsid;
-	} else {
-		id = __peernet2id(net, peer, false);
-		if  (id < 0)
-			id = NETNSA_NSID_NOT_ASSIGNED;
-	}
-	if (nla_put_s32(skb, NETNSA_NSID, id))
+	if (nla_put_s32(skb, NETNSA_NSID, nsid))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -578,7 +618,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct nlattr *tb[NETNSA_MAX + 1];
 	struct sk_buff *msg;
 	struct net *peer;
-	int err;
+	int err, id;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
 			  rtnl_net_policy);
@@ -600,8 +640,9 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto out;
 	}
 
+	id = peernet2id(net, peer);
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-			    RTM_NEWNSID, net, peer, -1);
+			    RTM_NEWNSID, net, id);
 	if (err < 0)
 		goto err_out;
 
@@ -633,7 +674,7 @@ static int rtnl_net_dumpid_one(int id, void *peer, void *data)
 
 	ret = rtnl_net_fill(net_cb->skb, NETLINK_CB(net_cb->cb->skb).portid,
 			    net_cb->cb->nlh->nlmsg_seq, NLM_F_MULTI,
-			    RTM_NEWNSID, net_cb->net, peer, id);
+			    RTM_NEWNSID, net_cb->net, id);
 	if (ret < 0)
 		return ret;
 
@@ -652,17 +693,17 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 		.idx = 0,
 		.s_idx = cb->args[0],
 	};
+	unsigned long flags;
 
-	ASSERT_RTNL();
-
+	spin_lock_irqsave(&net->nsid_lock, flags);
 	idr_for_each(&net->netns_ids, rtnl_net_dumpid_one, &net_cb);
+	spin_unlock_irqrestore(&net->nsid_lock, flags);
 
 	cb->args[0] = net_cb.idx;
 	return skb->len;
 }
 
-static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
-			      int id)
+static void rtnl_net_notifyid(struct net *net, int cmd, int id)
 {
 	struct sk_buff *msg;
 	int err = -ENOMEM;
@@ -671,7 +712,7 @@ static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
 	if (!msg)
 		goto out;
 
-	err = rtnl_net_fill(msg, 0, 0, 0, cmd, net, peer, id);
+	err = rtnl_net_fill(msg, 0, 0, 0, cmd, net, id);
 	if (err < 0)
 		goto err_out;
 

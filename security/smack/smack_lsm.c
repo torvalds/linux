@@ -245,8 +245,8 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
  * @ip: a pointer to the inode
  * @dp: a pointer to the dentry
  *
- * Returns a pointer to the master list entry for the Smack label
- * or NULL if there was no label to fetch.
+ * Returns a pointer to the master list entry for the Smack label,
+ * NULL if there was no label to fetch, or an error code.
  */
 static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 					struct dentry *dp)
@@ -256,14 +256,18 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 	struct smack_known *skp = NULL;
 
 	if (ip->i_op->getxattr == NULL)
-		return NULL;
+		return ERR_PTR(-EOPNOTSUPP);
 
 	buffer = kzalloc(SMK_LONGLABEL, GFP_KERNEL);
 	if (buffer == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	rc = ip->i_op->getxattr(dp, name, buffer, SMK_LONGLABEL);
-	if (rc > 0)
+	if (rc < 0)
+		skp = ERR_PTR(rc);
+	else if (rc == 0)
+		skp = NULL;
+	else
 		skp = smk_import_entry(buffer, rc);
 
 	kfree(buffer);
@@ -436,17 +440,11 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
  */
 static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 {
-	int rc;
 	struct smack_known *skp;
-
-	rc = cap_ptrace_access_check(ctp, mode);
-	if (rc != 0)
-		return rc;
 
 	skp = smk_of_task_struct(ctp);
 
-	rc = smk_ptrace_rule_check(current, skp, mode, __func__);
-	return rc;
+	return smk_ptrace_rule_check(current, skp, mode, __func__);
 }
 
 /**
@@ -461,10 +459,6 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
 {
 	int rc;
 	struct smack_known *skp;
-
-	rc = cap_ptrace_traceme(ptp);
-	if (rc != 0)
-		return rc;
 
 	skp = smk_of_task(current_security());
 
@@ -615,40 +609,44 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 		if (strncmp(op, SMK_FSHAT, strlen(SMK_FSHAT)) == 0) {
 			op += strlen(SMK_FSHAT);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_hat = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_hat = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSFLOOR, strlen(SMK_FSFLOOR)) == 0) {
 			op += strlen(SMK_FSFLOOR);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_floor = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_floor = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSDEFAULT,
 				   strlen(SMK_FSDEFAULT)) == 0) {
 			op += strlen(SMK_FSDEFAULT);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_default = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_default = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSROOT, strlen(SMK_FSROOT)) == 0) {
 			op += strlen(SMK_FSROOT);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_root = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_root = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSTRANS, strlen(SMK_FSTRANS)) == 0) {
 			op += strlen(SMK_FSTRANS);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_root = skp;
-				transmute = 1;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_root = skp;
+			transmute = 1;
+			specified = 1;
 		}
 	}
 
@@ -721,10 +719,6 @@ static int smack_bprm_set_creds(struct linux_binprm *bprm)
 	struct inode_smack *isp;
 	int rc;
 
-	rc = cap_bprm_set_creds(bprm);
-	if (rc != 0)
-		return rc;
-
 	if (bprm->cred_prepared)
 		return 0;
 
@@ -779,12 +773,11 @@ static void smack_bprm_committing_creds(struct linux_binprm *bprm)
 static int smack_bprm_secureexec(struct linux_binprm *bprm)
 {
 	struct task_smack *tsp = current_security();
-	int ret = cap_bprm_secureexec(bprm);
 
-	if (!ret && (tsp->smk_task != tsp->smk_forked))
-		ret = 1;
+	if (tsp->smk_task != tsp->smk_forked)
+		return 1;
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -1133,7 +1126,9 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 
 	if (rc == 0 && check_import) {
 		skp = size ? smk_import_entry(value, size) : NULL;
-		if (skp == NULL || (check_star &&
+		if (IS_ERR(skp))
+			rc = PTR_ERR(skp);
+		else if (skp == NULL || (check_star &&
 		    (skp == &smack_known_star || skp == &smack_known_web)))
 			rc = -EINVAL;
 	}
@@ -1173,19 +1168,19 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 
 	if (strcmp(name, XATTR_NAME_SMACK) == 0) {
 		skp = smk_import_entry(value, size);
-		if (skp != NULL)
+		if (!IS_ERR(skp))
 			isp->smk_inode = skp;
 		else
 			isp->smk_inode = &smack_known_invalid;
 	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0) {
 		skp = smk_import_entry(value, size);
-		if (skp != NULL)
+		if (!IS_ERR(skp))
 			isp->smk_task = skp;
 		else
 			isp->smk_task = &smack_known_invalid;
 	} else if (strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
 		skp = smk_import_entry(value, size);
-		if (skp != NULL)
+		if (!IS_ERR(skp))
 			isp->smk_mmap = skp;
 		else
 			isp->smk_mmap = &smack_known_invalid;
@@ -1673,6 +1668,9 @@ static int smack_file_receive(struct file *file)
 	struct smk_audit_info ad;
 	struct inode *inode = file_inode(file);
 
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 	/*
@@ -1934,12 +1932,7 @@ static void smack_task_getsecid(struct task_struct *p, u32 *secid)
  */
 static int smack_task_setnice(struct task_struct *p, int nice)
 {
-	int rc;
-
-	rc = cap_task_setnice(p, nice);
-	if (rc == 0)
-		rc = smk_curacc_on_task(p, MAY_WRITE, __func__);
-	return rc;
+	return smk_curacc_on_task(p, MAY_WRITE, __func__);
 }
 
 /**
@@ -1951,12 +1944,7 @@ static int smack_task_setnice(struct task_struct *p, int nice)
  */
 static int smack_task_setioprio(struct task_struct *p, int ioprio)
 {
-	int rc;
-
-	rc = cap_task_setioprio(p, ioprio);
-	if (rc == 0)
-		rc = smk_curacc_on_task(p, MAY_WRITE, __func__);
-	return rc;
+	return smk_curacc_on_task(p, MAY_WRITE, __func__);
 }
 
 /**
@@ -1980,12 +1968,7 @@ static int smack_task_getioprio(struct task_struct *p)
  */
 static int smack_task_setscheduler(struct task_struct *p)
 {
-	int rc;
-
-	rc = cap_task_setscheduler(p);
-	if (rc == 0)
-		rc = smk_curacc_on_task(p, MAY_WRITE, __func__);
-	return rc;
+	return smk_curacc_on_task(p, MAY_WRITE, __func__);
 }
 
 /**
@@ -2430,8 +2413,8 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		return -EINVAL;
 
 	skp = smk_import_entry(value, size);
-	if (skp == NULL)
-		return -EINVAL;
+	if (IS_ERR(skp))
+		return PTR_ERR(skp);
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0) {
 		nsp->smk_inode = skp;
@@ -3204,7 +3187,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 */
 		dp = dget(opt_dentry);
 		skp = smk_fetch(XATTR_NAME_SMACK, inode, dp);
-		if (skp != NULL)
+		if (!IS_ERR_OR_NULL(skp))
 			final = skp;
 
 		/*
@@ -3241,11 +3224,14 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 * Don't let the exec or mmap label be "*" or "@".
 		 */
 		skp = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
-		if (skp == &smack_known_star || skp == &smack_known_web)
+		if (IS_ERR(skp) || skp == &smack_known_star ||
+		    skp == &smack_known_web)
 			skp = NULL;
 		isp->smk_task = skp;
+
 		skp = smk_fetch(XATTR_NAME_SMACKMMAP, inode, dp);
-		if (skp == &smack_known_star || skp == &smack_known_web)
+		if (IS_ERR(skp) || skp == &smack_known_star ||
+		    skp == &smack_known_web)
 			skp = NULL;
 		isp->smk_mmap = skp;
 
@@ -3329,8 +3315,8 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 		return -EINVAL;
 
 	skp = smk_import_entry(value, size);
-	if (skp == NULL)
-		return -EINVAL;
+	if (IS_ERR(skp))
+		return PTR_ERR(skp);
 
 	/*
 	 * No process is ever allowed the web ("@") label.
@@ -4105,8 +4091,10 @@ static int smack_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 		return -EINVAL;
 
 	skp = smk_import_entry(rulestr, 0);
-	if (skp)
-		*rule = skp->smk_known;
+	if (IS_ERR(skp))
+		return PTR_ERR(skp);
+
+	*rule = skp->smk_known;
 
 	return 0;
 }
@@ -4266,147 +4254,145 @@ static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 	return 0;
 }
 
-struct security_operations smack_ops = {
-	.name =				"smack",
+struct security_hook_list smack_hooks[] = {
+	LSM_HOOK_INIT(ptrace_access_check, smack_ptrace_access_check),
+	LSM_HOOK_INIT(ptrace_traceme, smack_ptrace_traceme),
+	LSM_HOOK_INIT(syslog, smack_syslog),
 
-	.ptrace_access_check =		smack_ptrace_access_check,
-	.ptrace_traceme =		smack_ptrace_traceme,
-	.syslog = 			smack_syslog,
+	LSM_HOOK_INIT(sb_alloc_security, smack_sb_alloc_security),
+	LSM_HOOK_INIT(sb_free_security, smack_sb_free_security),
+	LSM_HOOK_INIT(sb_copy_data, smack_sb_copy_data),
+	LSM_HOOK_INIT(sb_kern_mount, smack_sb_kern_mount),
+	LSM_HOOK_INIT(sb_statfs, smack_sb_statfs),
 
-	.sb_alloc_security = 		smack_sb_alloc_security,
-	.sb_free_security = 		smack_sb_free_security,
-	.sb_copy_data = 		smack_sb_copy_data,
-	.sb_kern_mount = 		smack_sb_kern_mount,
-	.sb_statfs = 			smack_sb_statfs,
+	LSM_HOOK_INIT(bprm_set_creds, smack_bprm_set_creds),
+	LSM_HOOK_INIT(bprm_committing_creds, smack_bprm_committing_creds),
+	LSM_HOOK_INIT(bprm_secureexec, smack_bprm_secureexec),
 
-	.bprm_set_creds =		smack_bprm_set_creds,
-	.bprm_committing_creds =	smack_bprm_committing_creds,
-	.bprm_secureexec =		smack_bprm_secureexec,
+	LSM_HOOK_INIT(inode_alloc_security, smack_inode_alloc_security),
+	LSM_HOOK_INIT(inode_free_security, smack_inode_free_security),
+	LSM_HOOK_INIT(inode_init_security, smack_inode_init_security),
+	LSM_HOOK_INIT(inode_link, smack_inode_link),
+	LSM_HOOK_INIT(inode_unlink, smack_inode_unlink),
+	LSM_HOOK_INIT(inode_rmdir, smack_inode_rmdir),
+	LSM_HOOK_INIT(inode_rename, smack_inode_rename),
+	LSM_HOOK_INIT(inode_permission, smack_inode_permission),
+	LSM_HOOK_INIT(inode_setattr, smack_inode_setattr),
+	LSM_HOOK_INIT(inode_getattr, smack_inode_getattr),
+	LSM_HOOK_INIT(inode_setxattr, smack_inode_setxattr),
+	LSM_HOOK_INIT(inode_post_setxattr, smack_inode_post_setxattr),
+	LSM_HOOK_INIT(inode_getxattr, smack_inode_getxattr),
+	LSM_HOOK_INIT(inode_removexattr, smack_inode_removexattr),
+	LSM_HOOK_INIT(inode_getsecurity, smack_inode_getsecurity),
+	LSM_HOOK_INIT(inode_setsecurity, smack_inode_setsecurity),
+	LSM_HOOK_INIT(inode_listsecurity, smack_inode_listsecurity),
+	LSM_HOOK_INIT(inode_getsecid, smack_inode_getsecid),
 
-	.inode_alloc_security = 	smack_inode_alloc_security,
-	.inode_free_security = 		smack_inode_free_security,
-	.inode_init_security = 		smack_inode_init_security,
-	.inode_link = 			smack_inode_link,
-	.inode_unlink = 		smack_inode_unlink,
-	.inode_rmdir = 			smack_inode_rmdir,
-	.inode_rename = 		smack_inode_rename,
-	.inode_permission = 		smack_inode_permission,
-	.inode_setattr = 		smack_inode_setattr,
-	.inode_getattr = 		smack_inode_getattr,
-	.inode_setxattr = 		smack_inode_setxattr,
-	.inode_post_setxattr = 		smack_inode_post_setxattr,
-	.inode_getxattr = 		smack_inode_getxattr,
-	.inode_removexattr = 		smack_inode_removexattr,
-	.inode_getsecurity = 		smack_inode_getsecurity,
-	.inode_setsecurity = 		smack_inode_setsecurity,
-	.inode_listsecurity = 		smack_inode_listsecurity,
-	.inode_getsecid =		smack_inode_getsecid,
+	LSM_HOOK_INIT(file_permission, smack_file_permission),
+	LSM_HOOK_INIT(file_alloc_security, smack_file_alloc_security),
+	LSM_HOOK_INIT(file_free_security, smack_file_free_security),
+	LSM_HOOK_INIT(file_ioctl, smack_file_ioctl),
+	LSM_HOOK_INIT(file_lock, smack_file_lock),
+	LSM_HOOK_INIT(file_fcntl, smack_file_fcntl),
+	LSM_HOOK_INIT(mmap_file, smack_mmap_file),
+	LSM_HOOK_INIT(mmap_addr, cap_mmap_addr),
+	LSM_HOOK_INIT(file_set_fowner, smack_file_set_fowner),
+	LSM_HOOK_INIT(file_send_sigiotask, smack_file_send_sigiotask),
+	LSM_HOOK_INIT(file_receive, smack_file_receive),
 
-	.file_permission = 		smack_file_permission,
-	.file_alloc_security = 		smack_file_alloc_security,
-	.file_free_security = 		smack_file_free_security,
-	.file_ioctl = 			smack_file_ioctl,
-	.file_lock = 			smack_file_lock,
-	.file_fcntl = 			smack_file_fcntl,
-	.mmap_file =			smack_mmap_file,
-	.mmap_addr =			cap_mmap_addr,
-	.file_set_fowner = 		smack_file_set_fowner,
-	.file_send_sigiotask = 		smack_file_send_sigiotask,
-	.file_receive = 		smack_file_receive,
+	LSM_HOOK_INIT(file_open, smack_file_open),
 
-	.file_open =			smack_file_open,
+	LSM_HOOK_INIT(cred_alloc_blank, smack_cred_alloc_blank),
+	LSM_HOOK_INIT(cred_free, smack_cred_free),
+	LSM_HOOK_INIT(cred_prepare, smack_cred_prepare),
+	LSM_HOOK_INIT(cred_transfer, smack_cred_transfer),
+	LSM_HOOK_INIT(kernel_act_as, smack_kernel_act_as),
+	LSM_HOOK_INIT(kernel_create_files_as, smack_kernel_create_files_as),
+	LSM_HOOK_INIT(task_setpgid, smack_task_setpgid),
+	LSM_HOOK_INIT(task_getpgid, smack_task_getpgid),
+	LSM_HOOK_INIT(task_getsid, smack_task_getsid),
+	LSM_HOOK_INIT(task_getsecid, smack_task_getsecid),
+	LSM_HOOK_INIT(task_setnice, smack_task_setnice),
+	LSM_HOOK_INIT(task_setioprio, smack_task_setioprio),
+	LSM_HOOK_INIT(task_getioprio, smack_task_getioprio),
+	LSM_HOOK_INIT(task_setscheduler, smack_task_setscheduler),
+	LSM_HOOK_INIT(task_getscheduler, smack_task_getscheduler),
+	LSM_HOOK_INIT(task_movememory, smack_task_movememory),
+	LSM_HOOK_INIT(task_kill, smack_task_kill),
+	LSM_HOOK_INIT(task_wait, smack_task_wait),
+	LSM_HOOK_INIT(task_to_inode, smack_task_to_inode),
 
-	.cred_alloc_blank =		smack_cred_alloc_blank,
-	.cred_free =			smack_cred_free,
-	.cred_prepare =			smack_cred_prepare,
-	.cred_transfer =		smack_cred_transfer,
-	.kernel_act_as =		smack_kernel_act_as,
-	.kernel_create_files_as =	smack_kernel_create_files_as,
-	.task_setpgid = 		smack_task_setpgid,
-	.task_getpgid = 		smack_task_getpgid,
-	.task_getsid = 			smack_task_getsid,
-	.task_getsecid = 		smack_task_getsecid,
-	.task_setnice = 		smack_task_setnice,
-	.task_setioprio = 		smack_task_setioprio,
-	.task_getioprio = 		smack_task_getioprio,
-	.task_setscheduler = 		smack_task_setscheduler,
-	.task_getscheduler = 		smack_task_getscheduler,
-	.task_movememory = 		smack_task_movememory,
-	.task_kill = 			smack_task_kill,
-	.task_wait = 			smack_task_wait,
-	.task_to_inode = 		smack_task_to_inode,
+	LSM_HOOK_INIT(ipc_permission, smack_ipc_permission),
+	LSM_HOOK_INIT(ipc_getsecid, smack_ipc_getsecid),
 
-	.ipc_permission = 		smack_ipc_permission,
-	.ipc_getsecid =			smack_ipc_getsecid,
+	LSM_HOOK_INIT(msg_msg_alloc_security, smack_msg_msg_alloc_security),
+	LSM_HOOK_INIT(msg_msg_free_security, smack_msg_msg_free_security),
 
-	.msg_msg_alloc_security = 	smack_msg_msg_alloc_security,
-	.msg_msg_free_security = 	smack_msg_msg_free_security,
+	LSM_HOOK_INIT(msg_queue_alloc_security, smack_msg_queue_alloc_security),
+	LSM_HOOK_INIT(msg_queue_free_security, smack_msg_queue_free_security),
+	LSM_HOOK_INIT(msg_queue_associate, smack_msg_queue_associate),
+	LSM_HOOK_INIT(msg_queue_msgctl, smack_msg_queue_msgctl),
+	LSM_HOOK_INIT(msg_queue_msgsnd, smack_msg_queue_msgsnd),
+	LSM_HOOK_INIT(msg_queue_msgrcv, smack_msg_queue_msgrcv),
 
-	.msg_queue_alloc_security = 	smack_msg_queue_alloc_security,
-	.msg_queue_free_security = 	smack_msg_queue_free_security,
-	.msg_queue_associate = 		smack_msg_queue_associate,
-	.msg_queue_msgctl = 		smack_msg_queue_msgctl,
-	.msg_queue_msgsnd = 		smack_msg_queue_msgsnd,
-	.msg_queue_msgrcv = 		smack_msg_queue_msgrcv,
+	LSM_HOOK_INIT(shm_alloc_security, smack_shm_alloc_security),
+	LSM_HOOK_INIT(shm_free_security, smack_shm_free_security),
+	LSM_HOOK_INIT(shm_associate, smack_shm_associate),
+	LSM_HOOK_INIT(shm_shmctl, smack_shm_shmctl),
+	LSM_HOOK_INIT(shm_shmat, smack_shm_shmat),
 
-	.shm_alloc_security = 		smack_shm_alloc_security,
-	.shm_free_security = 		smack_shm_free_security,
-	.shm_associate = 		smack_shm_associate,
-	.shm_shmctl = 			smack_shm_shmctl,
-	.shm_shmat = 			smack_shm_shmat,
+	LSM_HOOK_INIT(sem_alloc_security, smack_sem_alloc_security),
+	LSM_HOOK_INIT(sem_free_security, smack_sem_free_security),
+	LSM_HOOK_INIT(sem_associate, smack_sem_associate),
+	LSM_HOOK_INIT(sem_semctl, smack_sem_semctl),
+	LSM_HOOK_INIT(sem_semop, smack_sem_semop),
 
-	.sem_alloc_security = 		smack_sem_alloc_security,
-	.sem_free_security = 		smack_sem_free_security,
-	.sem_associate = 		smack_sem_associate,
-	.sem_semctl = 			smack_sem_semctl,
-	.sem_semop = 			smack_sem_semop,
+	LSM_HOOK_INIT(d_instantiate, smack_d_instantiate),
 
-	.d_instantiate = 		smack_d_instantiate,
+	LSM_HOOK_INIT(getprocattr, smack_getprocattr),
+	LSM_HOOK_INIT(setprocattr, smack_setprocattr),
 
-	.getprocattr = 			smack_getprocattr,
-	.setprocattr = 			smack_setprocattr,
+	LSM_HOOK_INIT(unix_stream_connect, smack_unix_stream_connect),
+	LSM_HOOK_INIT(unix_may_send, smack_unix_may_send),
 
-	.unix_stream_connect = 		smack_unix_stream_connect,
-	.unix_may_send = 		smack_unix_may_send,
-
-	.socket_post_create = 		smack_socket_post_create,
+	LSM_HOOK_INIT(socket_post_create, smack_socket_post_create),
 #ifndef CONFIG_SECURITY_SMACK_NETFILTER
-	.socket_bind =			smack_socket_bind,
+	LSM_HOOK_INIT(socket_bind, smack_socket_bind),
 #endif /* CONFIG_SECURITY_SMACK_NETFILTER */
-	.socket_connect =		smack_socket_connect,
-	.socket_sendmsg =		smack_socket_sendmsg,
-	.socket_sock_rcv_skb = 		smack_socket_sock_rcv_skb,
-	.socket_getpeersec_stream =	smack_socket_getpeersec_stream,
-	.socket_getpeersec_dgram =	smack_socket_getpeersec_dgram,
-	.sk_alloc_security = 		smack_sk_alloc_security,
-	.sk_free_security = 		smack_sk_free_security,
-	.sock_graft = 			smack_sock_graft,
-	.inet_conn_request = 		smack_inet_conn_request,
-	.inet_csk_clone =		smack_inet_csk_clone,
+	LSM_HOOK_INIT(socket_connect, smack_socket_connect),
+	LSM_HOOK_INIT(socket_sendmsg, smack_socket_sendmsg),
+	LSM_HOOK_INIT(socket_sock_rcv_skb, smack_socket_sock_rcv_skb),
+	LSM_HOOK_INIT(socket_getpeersec_stream, smack_socket_getpeersec_stream),
+	LSM_HOOK_INIT(socket_getpeersec_dgram, smack_socket_getpeersec_dgram),
+	LSM_HOOK_INIT(sk_alloc_security, smack_sk_alloc_security),
+	LSM_HOOK_INIT(sk_free_security, smack_sk_free_security),
+	LSM_HOOK_INIT(sock_graft, smack_sock_graft),
+	LSM_HOOK_INIT(inet_conn_request, smack_inet_conn_request),
+	LSM_HOOK_INIT(inet_csk_clone, smack_inet_csk_clone),
 
  /* key management security hooks */
 #ifdef CONFIG_KEYS
-	.key_alloc = 			smack_key_alloc,
-	.key_free = 			smack_key_free,
-	.key_permission = 		smack_key_permission,
-	.key_getsecurity =		smack_key_getsecurity,
+	LSM_HOOK_INIT(key_alloc, smack_key_alloc),
+	LSM_HOOK_INIT(key_free, smack_key_free),
+	LSM_HOOK_INIT(key_permission, smack_key_permission),
+	LSM_HOOK_INIT(key_getsecurity, smack_key_getsecurity),
 #endif /* CONFIG_KEYS */
 
  /* Audit hooks */
 #ifdef CONFIG_AUDIT
-	.audit_rule_init =		smack_audit_rule_init,
-	.audit_rule_known =		smack_audit_rule_known,
-	.audit_rule_match =		smack_audit_rule_match,
-	.audit_rule_free =		smack_audit_rule_free,
+	LSM_HOOK_INIT(audit_rule_init, smack_audit_rule_init),
+	LSM_HOOK_INIT(audit_rule_known, smack_audit_rule_known),
+	LSM_HOOK_INIT(audit_rule_match, smack_audit_rule_match),
+	LSM_HOOK_INIT(audit_rule_free, smack_audit_rule_free),
 #endif /* CONFIG_AUDIT */
 
-	.ismaclabel =			smack_ismaclabel,
-	.secid_to_secctx = 		smack_secid_to_secctx,
-	.secctx_to_secid = 		smack_secctx_to_secid,
-	.release_secctx = 		smack_release_secctx,
-	.inode_notifysecctx =		smack_inode_notifysecctx,
-	.inode_setsecctx =		smack_inode_setsecctx,
-	.inode_getsecctx =		smack_inode_getsecctx,
+	LSM_HOOK_INIT(ismaclabel, smack_ismaclabel),
+	LSM_HOOK_INIT(secid_to_secctx, smack_secid_to_secctx),
+	LSM_HOOK_INIT(secctx_to_secid, smack_secctx_to_secid),
+	LSM_HOOK_INIT(release_secctx, smack_release_secctx),
+	LSM_HOOK_INIT(inode_notifysecctx, smack_inode_notifysecctx),
+	LSM_HOOK_INIT(inode_setsecctx, smack_inode_setsecctx),
+	LSM_HOOK_INIT(inode_getsecctx, smack_inode_getsecctx),
 };
 
 
@@ -4451,7 +4437,7 @@ static __init int smack_init(void)
 	struct cred *cred;
 	struct task_smack *tsp;
 
-	if (!security_module_enable(&smack_ops))
+	if (!security_module_enable("smack"))
 		return 0;
 
 	smack_enabled = 1;
@@ -4481,8 +4467,7 @@ static __init int smack_init(void)
 	/*
 	 * Register with LSM
 	 */
-	if (register_security(&smack_ops))
-		panic("smack: Unable to register with kernel.\n");
+	security_add_hooks(smack_hooks, ARRAY_SIZE(smack_hooks));
 
 	return 0;
 }

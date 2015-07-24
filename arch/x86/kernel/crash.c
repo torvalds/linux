@@ -22,6 +22,7 @@
 #include <linux/elfcore.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <asm/processor.h>
 #include <asm/hardirq.h>

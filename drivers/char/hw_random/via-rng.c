@@ -33,7 +33,7 @@
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/cpufeature.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 
 

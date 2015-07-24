@@ -163,7 +163,7 @@ int mc13xxx_irq_request(struct mc13xxx *mc13xxx, int irq,
 	int virq = regmap_irq_get_virq(mc13xxx->irq_data, irq);
 
 	return devm_request_threaded_irq(mc13xxx->dev, virq, NULL, handler,
-					 0, name, dev);
+					 IRQF_ONESHOT, name, dev);
 }
 EXPORT_SYMBOL(mc13xxx_irq_request);
 

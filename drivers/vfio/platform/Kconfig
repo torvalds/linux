@@ -1,6 +1,6 @@
 config VFIO_PLATFORM
 	tristate "VFIO support for platform devices"
-	depends on VFIO && EVENTFD && ARM
+	depends on VFIO && EVENTFD && (ARM || ARM64)
 	select VFIO_VIRQFD
 	help
 	  Support for platform devices with VFIO. This is required to make
@@ -18,3 +18,5 @@ config VFIO_AMBA
 	  framework.
 
 	  If you don't know what to do here, say N.
+
+source "drivers/vfio/platform/reset/Kconfig"

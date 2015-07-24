@@ -218,7 +218,7 @@ struct fwconsole_ops {
  *         prevented with the IN_TX flag. Scheduled under lock to
  *         limit scheduling when fifo has just been drained.
  * @tx_fifo: fifo used to store & block-up writes for dma to remote
- * @max_payload: max bytes transmissable per dma (based on peer's max_payload)
+ * @max_payload: max bytes transmissible per dma (based on peer's max_payload)
  * @status_mask: UART_LSR_* bitmask significant to rx (based on termios)
  * @ignore_mask: UART_LSR_* bitmask of states to ignore (also based on termios)
  * @break_ctl: if set, port is 'sending break' to remote

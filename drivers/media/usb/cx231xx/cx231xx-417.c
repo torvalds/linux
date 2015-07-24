@@ -1160,9 +1160,9 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 	}
 
 	cx231xx_enable656(dev);
-			/* stop mpeg capture */
-			cx231xx_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE,
-				 3, 0, 1, 3, 4);
+
+	/* stop mpeg capture */
+	cx231xx_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE, 3, 0, 1, 3, 4);
 
 	cx231xx_codec_settings(dev);
 	msleep(60);
@@ -1249,8 +1249,7 @@ static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 	struct cx231xx *dev = fh->dev;
 	unsigned long flags = 0;
 
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 
 	spin_lock_irqsave(&dev->video_mode.slock, flags);
 	if (dev->USE_ISO) {
@@ -1878,13 +1877,15 @@ static int cx231xx_s_video_encoding(struct cx2341x_handler *cxhdl, u32 val)
 {
 	struct cx231xx *dev = container_of(cxhdl, struct cx231xx, mpeg_ctrl_handler);
 	int is_mpeg1 = val == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
-	struct v4l2_mbus_framefmt fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 
 	/* fix videodecoder resolution */
-	fmt.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
-	fmt.height = cxhdl->height;
-	fmt.code = MEDIA_BUS_FMT_FIXED;
-	v4l2_subdev_call(dev->sd_cx25840, video, s_mbus_fmt, &fmt);
+	format.format.width = cxhdl->width / (is_mpeg1 ? 2 : 1);
+	format.format.height = cxhdl->height;
+	format.format.code = MEDIA_BUS_FMT_FIXED;
+	v4l2_subdev_call(dev->sd_cx25840, pad, set_fmt, NULL, &format);
 	return 0;
 }
 

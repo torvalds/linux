@@ -175,6 +175,9 @@
 #elif defined(_APPLE) || defined(__APPLE__)
 #include "acmacosx.h"
 
+#elif defined(__DragonFly__)
+#include "acdragonfly.h"
+
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include "acfreebsd.h"
 
@@ -343,29 +346,6 @@
 
 /* We will be linking to the standard Clib functions */
 
-#define ACPI_STRSTR(s1,s2)      strstr((s1), (s2))
-#define ACPI_STRCHR(s1,c)       strchr((s1), (c))
-#define ACPI_STRLEN(s)          (acpi_size) strlen((s))
-#define ACPI_STRCPY(d,s)        (void) strcpy((d), (s))
-#define ACPI_STRNCPY(d,s,n)     (void) strncpy((d), (s), (acpi_size)(n))
-#define ACPI_STRNCMP(d,s,n)     strncmp((d), (s), (acpi_size)(n))
-#define ACPI_STRCMP(d,s)        strcmp((d), (s))
-#define ACPI_STRCAT(d,s)        (void) strcat((d), (s))
-#define ACPI_STRNCAT(d,s,n)     strncat((d), (s), (acpi_size)(n))
-#define ACPI_STRTOUL(d,s,n)     strtoul((d), (s), (acpi_size)(n))
-#define ACPI_MEMCMP(s1,s2,n)    memcmp((const char *)(s1), (const char *)(s2), (acpi_size)(n))
-#define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (acpi_size)(n))
-#define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (acpi_size)(n))
-
-#define ACPI_TOUPPER(i)         toupper((int) (i))
-#define ACPI_TOLOWER(i)         tolower((int) (i))
-#define ACPI_IS_XDIGIT(i)       isxdigit((int) (i))
-#define ACPI_IS_DIGIT(i)        isdigit((int) (i))
-#define ACPI_IS_SPACE(i)        isspace((int) (i))
-#define ACPI_IS_UPPER(i)        isupper((int) (i))
-#define ACPI_IS_PRINT(i)        isprint((int) (i))
-#define ACPI_IS_ALPHA(i)        isalpha((int) (i))
-
 #else
 
 /******************************************************************************
@@ -402,22 +382,6 @@ typedef char *va_list;
 #endif				/* va_arg */
 
 /* Use the local (ACPICA) definitions of the clib functions */
-
-#define ACPI_STRSTR(s1,s2)      acpi_ut_strstr ((s1), (s2))
-#define ACPI_STRCHR(s1,c)       acpi_ut_strchr ((s1), (c))
-#define ACPI_STRLEN(s)          (acpi_size) acpi_ut_strlen ((s))
-#define ACPI_STRCPY(d,s)        (void) acpi_ut_strcpy ((d), (s))
-#define ACPI_STRNCPY(d,s,n)     (void) acpi_ut_strncpy ((d), (s), (acpi_size)(n))
-#define ACPI_STRNCMP(d,s,n)     acpi_ut_strncmp ((d), (s), (acpi_size)(n))
-#define ACPI_STRCMP(d,s)        acpi_ut_strcmp ((d), (s))
-#define ACPI_STRCAT(d,s)        (void) acpi_ut_strcat ((d), (s))
-#define ACPI_STRNCAT(d,s,n)     acpi_ut_strncat ((d), (s), (acpi_size)(n))
-#define ACPI_STRTOUL(d,s,n)     acpi_ut_strtoul ((d), (s), (acpi_size)(n))
-#define ACPI_MEMCMP(s1,s2,n)    acpi_ut_memcmp((const char *)(s1), (const char *)(s2), (acpi_size)(n))
-#define ACPI_MEMCPY(d,s,n)      (void) acpi_ut_memcpy ((d), (s), (acpi_size)(n))
-#define ACPI_MEMSET(d,v,n)      (void) acpi_ut_memset ((d), (v), (acpi_size)(n))
-#define ACPI_TOUPPER(c)         acpi_ut_to_upper ((int) (c))
-#define ACPI_TOLOWER(c)         acpi_ut_to_lower ((int) (c))
 
 #endif				/* ACPI_USE_SYSTEM_CLIBRARY */
 

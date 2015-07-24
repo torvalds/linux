@@ -2797,10 +2797,10 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 	handle = req->current_outstanding_cmd;
 	for (index = 1; index < req->num_outstanding_cmds; index++) {
 		handle++;
-	if (handle == req->num_outstanding_cmds)
-		handle = 1;
-	if (!req->outstanding_cmds[handle])
-		break;
+		if (handle == req->num_outstanding_cmds)
+			handle = 1;
+		if (!req->outstanding_cmds[handle])
+			break;
 	}
 
 	if (index == req->num_outstanding_cmds) {

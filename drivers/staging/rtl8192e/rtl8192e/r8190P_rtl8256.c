@@ -47,8 +47,8 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 						0x0e, bMask12Bits, 0x021);
 
 			} else {
-				RT_TRACE(COMP_ERR,
-					 "PHY_SetRF8256Bandwidth(): unknown hardware version\n");
+				netdev_warn(dev, "%s(): Unknown HW version.\n",
+					    __func__);
 			}
 
 			break;
@@ -66,16 +66,15 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 						 0x0e, bMask12Bits, 0x0e1);
 
 			} else {
-				RT_TRACE(COMP_ERR,
-					 "PHY_SetRF8256Bandwidth(): unknown hardware version\n");
+				netdev_warn(dev, "%s(): Unknown HW version.\n",
+					    __func__);
 			}
 
 
 			break;
 		default:
-			RT_TRACE(COMP_ERR,
-				 "PHY_SetRF8256Bandwidth(): unknown Bandwidth: %#X\n",
-				 Bandwidth);
+			netdev_err(dev, "%s(): Unknown bandwidth: %#X\n",
+				   __func__, Bandwidth);
 			break;
 
 		}
@@ -139,9 +138,8 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		rtStatus = rtl8192_phy_checkBBAndRF(dev, HW90_BLOCK_RF,
 						(enum rf90_radio_path)eRFPath);
 		if (!rtStatus) {
-			RT_TRACE(COMP_ERR,
-				 "PHY_RF8256_Config():Check Radio[%d] Fail!!\n",
-				 eRFPath);
+			netdev_err(dev, "%s(): Failed to check RF Path %d.\n",
+				   __func__, eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
 		}
 
@@ -227,9 +225,9 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		}
 
 		if (ret) {
-			RT_TRACE(COMP_ERR,
-				 "phy_RF8256_Config_ParaFile():Radio[%d] Fail!!",
-				 eRFPath);
+			netdev_err(dev,
+				   "%s(): Failed to initialize RF Path %d.\n",
+				   __func__, eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
 		}
 
@@ -239,7 +237,6 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 	return true;
 
 phy_RF8256_Config_ParaFile_Fail:
-	RT_TRACE(COMP_ERR, "PHY Initialization failed\n");
 	return false;
 }
 

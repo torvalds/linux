@@ -70,6 +70,14 @@ static inline bool guest_cpuid_has_fsgsbase(struct kvm_vcpu *vcpu)
 	return best && (best->ebx & bit(X86_FEATURE_FSGSBASE));
 }
 
+static inline bool guest_cpuid_has_longmode(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
+	return best && (best->edx & bit(X86_FEATURE_LM));
+}
+
 static inline bool guest_cpuid_has_osvw(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;

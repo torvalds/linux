@@ -69,6 +69,15 @@ static int perf_session__list_build_ids(bool force, bool with_hits)
 	session = perf_session__new(&file, false, &build_id__mark_dso_hit_ops);
 	if (session == NULL)
 		return -1;
+
+	/*
+	 * We take all buildids when the file contains AUX area tracing data
+	 * because we do not decode the trace because it would take too long.
+	 */
+	if (!perf_data_file__is_pipe(&file) &&
+	    perf_header__has_feat(&session->header, HEADER_AUXTRACE))
+		with_hits = false;
+
 	/*
 	 * in pipe-mode, the only way to get the buildids is to parse
 	 * the record stream. Buildids are stored as RECORD_HEADER_BUILD_ID

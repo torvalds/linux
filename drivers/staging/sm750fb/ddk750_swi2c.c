@@ -96,15 +96,14 @@ static void swI2CWait(void)
        it's more reliable than counter loop ..
        write 0x61 to 0x3ce and read from 0x3cf
        */
-	while(peekIO(0x3ce,0x61) & 0x10);
+	while (peekIO(0x3ce, 0x61) & 0x10);
 #else
-    int i, Temp;
+	int i, Temp;
 
-    for(i=0; i<600; i++)
-    {
-        Temp = i;
-        Temp += i;
-    }
+	for (i = 0; i < 600; i++) {
+		Temp = i;
+		Temp += i;
+	}
 #endif
 }
 
@@ -122,27 +121,24 @@ static void swI2CWait(void)
  */
 void swI2CSCL(unsigned char value)
 {
-    unsigned long ulGPIOData;
-    unsigned long ulGPIODirection;
+	unsigned long ulGPIOData;
+	unsigned long ulGPIODirection;
 
-    ulGPIODirection = PEEK32(g_i2cClkGPIODataDirReg);
-    if (value)      /* High */
-    {
-        /* Set direction as input. This will automatically pull the signal up. */
-        ulGPIODirection &= ~(1 << g_i2cClockGPIO);
-        POKE32(g_i2cClkGPIODataDirReg, ulGPIODirection);
-    }
-    else            /* Low */
-    {
-        /* Set the signal down */
-        ulGPIOData = PEEK32(g_i2cClkGPIODataReg);
-        ulGPIOData &= ~(1 << g_i2cClockGPIO);
-        POKE32(g_i2cClkGPIODataReg, ulGPIOData);
+	ulGPIODirection = PEEK32(g_i2cClkGPIODataDirReg);
+	if (value) {    /* High */
+		/* Set direction as input. This will automatically pull the signal up. */
+		ulGPIODirection &= ~(1 << g_i2cClockGPIO);
+		POKE32(g_i2cClkGPIODataDirReg, ulGPIODirection);
+	} else {        /* Low */
+		/* Set the signal down */
+		ulGPIOData = PEEK32(g_i2cClkGPIODataReg);
+		ulGPIOData &= ~(1 << g_i2cClockGPIO);
+		POKE32(g_i2cClkGPIODataReg, ulGPIOData);
 
-        /* Set direction as output */
-        ulGPIODirection |= (1 << g_i2cClockGPIO);
-        POKE32(g_i2cClkGPIODataDirReg, ulGPIODirection);
-    }
+		/* Set direction as output */
+		ulGPIODirection |= (1 << g_i2cClockGPIO);
+		POKE32(g_i2cClkGPIODataDirReg, ulGPIODirection);
+	}
 }
 
 /*
@@ -159,27 +155,24 @@ void swI2CSCL(unsigned char value)
  */
 void swI2CSDA(unsigned char value)
 {
-    unsigned long ulGPIOData;
-    unsigned long ulGPIODirection;
+	unsigned long ulGPIOData;
+	unsigned long ulGPIODirection;
 
-    ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
-    if (value)      /* High */
-    {
-        /* Set direction as input. This will automatically pull the signal up. */
-        ulGPIODirection &= ~(1 << g_i2cDataGPIO);
-        POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
-    }
-    else            /* Low */
-    {
-        /* Set the signal down */
-        ulGPIOData = PEEK32(g_i2cDataGPIODataReg);
-        ulGPIOData &= ~(1 << g_i2cDataGPIO);
-        POKE32(g_i2cDataGPIODataReg, ulGPIOData);
+	ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
+	if (value) {    /* High */
+		/* Set direction as input. This will automatically pull the signal up. */
+		ulGPIODirection &= ~(1 << g_i2cDataGPIO);
+		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
+	} else {        /* Low */
+		/* Set the signal down */
+		ulGPIOData = PEEK32(g_i2cDataGPIODataReg);
+		ulGPIOData &= ~(1 << g_i2cDataGPIO);
+		POKE32(g_i2cDataGPIODataReg, ulGPIOData);
 
-        /* Set direction as output */
-        ulGPIODirection |= (1 << g_i2cDataGPIO);
-        POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
-    }
+		/* Set direction as output */
+		ulGPIODirection |= (1 << g_i2cDataGPIO);
+		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
+	}
 }
 
 /*
@@ -190,23 +183,22 @@ void swI2CSDA(unsigned char value)
  */
 static unsigned char swI2CReadSDA(void)
 {
-    unsigned long ulGPIODirection;
-    unsigned long ulGPIOData;
+	unsigned long ulGPIODirection;
+	unsigned long ulGPIOData;
 
-    /* Make sure that the direction is input (High) */
-    ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
-    if ((ulGPIODirection & (1 << g_i2cDataGPIO)) != (~(1 << g_i2cDataGPIO)))
-    {
-        ulGPIODirection &= ~(1 << g_i2cDataGPIO);
-        POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
-    }
+	/* Make sure that the direction is input (High) */
+	ulGPIODirection = PEEK32(g_i2cDataGPIODataDirReg);
+	if ((ulGPIODirection & (1 << g_i2cDataGPIO)) != (~(1 << g_i2cDataGPIO))) {
+		ulGPIODirection &= ~(1 << g_i2cDataGPIO);
+		POKE32(g_i2cDataGPIODataDirReg, ulGPIODirection);
+	}
 
-    /* Now read the SDA line */
-    ulGPIOData = PEEK32(g_i2cDataGPIODataReg);
-    if (ulGPIOData & (1 << g_i2cDataGPIO))
-        return 1;
-    else
-        return 0;
+	/* Now read the SDA line */
+	ulGPIOData = PEEK32(g_i2cDataGPIODataReg);
+	if (ulGPIOData & (1 << g_i2cDataGPIO))
+		return 1;
+	else
+		return 0;
 }
 
 /*
@@ -214,7 +206,7 @@ static unsigned char swI2CReadSDA(void)
  */
 static void swI2CAck(void)
 {
-    return;  /* Single byte read is ok without it. */
+	return;  /* Single byte read is ok without it. */
 }
 
 /*
@@ -222,10 +214,10 @@ static void swI2CAck(void)
  */
 static void swI2CStart(void)
 {
-    /* Start I2C */
-    swI2CSDA(1);
-    swI2CSCL(1);
-    swI2CSDA(0);
+	/* Start I2C */
+	swI2CSDA(1);
+	swI2CSCL(1);
+	swI2CSDA(0);
 }
 
 /*
@@ -233,10 +225,10 @@ static void swI2CStart(void)
  */
 static void swI2CStop(void)
 {
-    /* Stop the I2C */
-    swI2CSCL(1);
-    swI2CSDA(0);
-    swI2CSDA(1);
+	/* Stop the I2C */
+	swI2CSCL(1);
+	swI2CSDA(0);
+	swI2CSDA(1);
 }
 
 /*
@@ -251,60 +243,58 @@ static void swI2CStop(void)
  */
 static long swI2CWriteByte(unsigned char data)
 {
-    unsigned char value = data;
-    int i;
+	unsigned char value = data;
+	int i;
 
-    /* Sending the data bit by bit */
-    for (i=0; i<8; i++)
-    {
-        /* Set SCL to low */
-        swI2CSCL(0);
+	/* Sending the data bit by bit */
+	for (i = 0; i < 8; i++) {
+		/* Set SCL to low */
+		swI2CSCL(0);
 
-        /* Send data bit */
-        if ((value & 0x80) != 0)
-            swI2CSDA(1);
-        else
-            swI2CSDA(0);
+		/* Send data bit */
+		if ((value & 0x80) != 0)
+			swI2CSDA(1);
+		else
+			swI2CSDA(0);
 
-        swI2CWait();
+		swI2CWait();
 
-        /* Toggle clk line to one */
-        swI2CSCL(1);
-        swI2CWait();
+		/* Toggle clk line to one */
+		swI2CSCL(1);
+		swI2CWait();
 
-        /* Shift byte to be sent */
-        value = value << 1;
-    }
+		/* Shift byte to be sent */
+		value = value << 1;
+	}
 
-    /* Set the SCL Low and SDA High (prepare to get input) */
-    swI2CSCL(0);
-    swI2CSDA(1);
+	/* Set the SCL Low and SDA High (prepare to get input) */
+	swI2CSCL(0);
+	swI2CSDA(1);
 
-    /* Set the SCL High for ack */
-    swI2CWait();
-    swI2CSCL(1);
-    swI2CWait();
+	/* Set the SCL High for ack */
+	swI2CWait();
+	swI2CSCL(1);
+	swI2CWait();
 
-    /* Read SDA, until SDA==0 */
-    for(i=0; i<0xff; i++)
-    {
-        if (!swI2CReadSDA())
-            break;
+	/* Read SDA, until SDA==0 */
+	for (i = 0; i < 0xff; i++) {
+		if (!swI2CReadSDA())
+			break;
 
-        swI2CSCL(0);
-        swI2CWait();
-        swI2CSCL(1);
-        swI2CWait();
-    }
+		swI2CSCL(0);
+		swI2CWait();
+		swI2CSCL(1);
+		swI2CWait();
+	}
 
-    /* Set the SCL Low and SDA High */
-    swI2CSCL(0);
-    swI2CSDA(1);
+	/* Set the SCL Low and SDA High */
+	swI2CSCL(0);
+	swI2CSDA(1);
 
-    if (i<0xff)
-        return 0;
-    else
-        return -1;
+	if (i < 0xff)
+		return 0;
+	else
+		return -1;
 }
 
 /*
@@ -319,32 +309,31 @@ static long swI2CWriteByte(unsigned char data)
  */
 static unsigned char swI2CReadByte(unsigned char ack)
 {
-    int i;
-    unsigned char data = 0;
+	int i;
+	unsigned char data = 0;
 
-    for(i=7; i>=0; i--)
-    {
-        /* Set the SCL to Low and SDA to High (Input) */
-        swI2CSCL(0);
-        swI2CSDA(1);
-        swI2CWait();
+	for (i = 7; i >= 0; i--) {
+		/* Set the SCL to Low and SDA to High (Input) */
+		swI2CSCL(0);
+		swI2CSDA(1);
+		swI2CWait();
 
-        /* Set the SCL High */
-        swI2CSCL(1);
-        swI2CWait();
+		/* Set the SCL High */
+		swI2CSCL(1);
+		swI2CWait();
 
-        /* Read data bits from SDA */
-        data |= (swI2CReadSDA() << i);
-    }
+		/* Read data bits from SDA */
+		data |= (swI2CReadSDA() << i);
+	}
 
-    if (ack)
-        swI2CAck();
+	if (ack)
+		swI2CAck();
 
-    /* Set the SCL Low and SDA High */
-    swI2CSCL(0);
-    swI2CSDA(1);
+	/* Set the SCL Low and SDA High */
+	swI2CSCL(0);
+	swI2CSDA(1);
 
-    return data;
+	return data;
 }
 
 /*
@@ -361,29 +350,29 @@ static unsigned char swI2CReadByte(unsigned char ack)
 static long swI2CInit_SM750LE(unsigned char i2cClkGPIO,
 			      unsigned char i2cDataGPIO)
 {
-    int i;
+	int i;
 
-    /* Initialize the GPIO pin for the i2c Clock Register */
-    g_i2cClkGPIODataReg = GPIO_DATA_SM750LE;
-    g_i2cClkGPIODataDirReg = GPIO_DATA_DIRECTION_SM750LE;
+	/* Initialize the GPIO pin for the i2c Clock Register */
+	g_i2cClkGPIODataReg = GPIO_DATA_SM750LE;
+	g_i2cClkGPIODataDirReg = GPIO_DATA_DIRECTION_SM750LE;
 
-    /* Initialize the Clock GPIO Offset */
-    g_i2cClockGPIO = i2cClkGPIO;
+	/* Initialize the Clock GPIO Offset */
+	g_i2cClockGPIO = i2cClkGPIO;
 
-    /* Initialize the GPIO pin for the i2c Data Register */
-    g_i2cDataGPIODataReg = GPIO_DATA_SM750LE;
-    g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION_SM750LE;
+	/* Initialize the GPIO pin for the i2c Data Register */
+	g_i2cDataGPIODataReg = GPIO_DATA_SM750LE;
+	g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION_SM750LE;
 
-    /* Initialize the Data GPIO Offset */
-    g_i2cDataGPIO = i2cDataGPIO;
+	/* Initialize the Data GPIO Offset */
+	g_i2cDataGPIO = i2cDataGPIO;
 
-    /* Note that SM750LE don't have GPIO MUX and power is always on */
+	/* Note that SM750LE don't have GPIO MUX and power is always on */
 
-    /* Clear the i2c lines. */
-    for(i=0; i<9; i++)
-        swI2CStop();
+	/* Clear the i2c lines. */
+	for (i = 0; i < 9; i++)
+		swI2CStop();
 
-    return 0;
+	return 0;
 }
 
 /*
@@ -398,49 +387,49 @@ static long swI2CInit_SM750LE(unsigned char i2cClkGPIO,
  *       0   - Success
  */
 long swI2CInit(
-    unsigned char i2cClkGPIO,
-    unsigned char i2cDataGPIO
+	unsigned char i2cClkGPIO,
+	unsigned char i2cDataGPIO
 )
 {
-    int i;
+	int i;
 
-    /* Return 0 if the GPIO pins to be used is out of range. The range is only from [0..63] */
-    if ((i2cClkGPIO > 31) || (i2cDataGPIO > 31))
-        return -1;
+	/* Return 0 if the GPIO pins to be used is out of range. The range is only from [0..63] */
+	if ((i2cClkGPIO > 31) || (i2cDataGPIO > 31))
+		return -1;
 
-    if (getChipType() == SM750LE)
-        return swI2CInit_SM750LE(i2cClkGPIO, i2cDataGPIO);
+	if (getChipType() == SM750LE)
+		return swI2CInit_SM750LE(i2cClkGPIO, i2cDataGPIO);
 
-    /* Initialize the GPIO pin for the i2c Clock Register */
-    g_i2cClkGPIOMuxReg = GPIO_MUX;
-    g_i2cClkGPIODataReg = GPIO_DATA;
-    g_i2cClkGPIODataDirReg = GPIO_DATA_DIRECTION;
+	/* Initialize the GPIO pin for the i2c Clock Register */
+	g_i2cClkGPIOMuxReg = GPIO_MUX;
+	g_i2cClkGPIODataReg = GPIO_DATA;
+	g_i2cClkGPIODataDirReg = GPIO_DATA_DIRECTION;
 
-    /* Initialize the Clock GPIO Offset */
-    g_i2cClockGPIO = i2cClkGPIO;
+	/* Initialize the Clock GPIO Offset */
+	g_i2cClockGPIO = i2cClkGPIO;
 
-    /* Initialize the GPIO pin for the i2c Data Register */
-    g_i2cDataGPIOMuxReg = GPIO_MUX;
-    g_i2cDataGPIODataReg = GPIO_DATA;
-    g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION;
+	/* Initialize the GPIO pin for the i2c Data Register */
+	g_i2cDataGPIOMuxReg = GPIO_MUX;
+	g_i2cDataGPIODataReg = GPIO_DATA;
+	g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION;
 
-    /* Initialize the Data GPIO Offset */
-    g_i2cDataGPIO = i2cDataGPIO;
+	/* Initialize the Data GPIO Offset */
+	g_i2cDataGPIO = i2cDataGPIO;
 
-    /* Enable the GPIO pins for the i2c Clock and Data (GPIO MUX) */
-    POKE32(g_i2cClkGPIOMuxReg,
-                      PEEK32(g_i2cClkGPIOMuxReg) & ~(1 << g_i2cClockGPIO));
-    POKE32(g_i2cDataGPIOMuxReg,
-                      PEEK32(g_i2cDataGPIOMuxReg) & ~(1 << g_i2cDataGPIO));
+	/* Enable the GPIO pins for the i2c Clock and Data (GPIO MUX) */
+	POKE32(g_i2cClkGPIOMuxReg,
+			PEEK32(g_i2cClkGPIOMuxReg) & ~(1 << g_i2cClockGPIO));
+	POKE32(g_i2cDataGPIOMuxReg,
+			PEEK32(g_i2cDataGPIOMuxReg) & ~(1 << g_i2cDataGPIO));
 
-    /* Enable GPIO power */
-    enableGPIO(1);
+	/* Enable GPIO power */
+	enableGPIO(1);
 
-    /* Clear the i2c lines. */
-    for(i=0; i<9; i++)
-        swI2CStop();
+	/* Clear the i2c lines. */
+	for (i = 0; i < 9; i++)
+		swI2CStop();
 
-    return 0;
+	return 0;
 }
 
 /*
@@ -455,30 +444,30 @@ long swI2CInit(
  *      Register value
  */
 unsigned char swI2CReadReg(
-    unsigned char deviceAddress,
-    unsigned char registerIndex
+	unsigned char deviceAddress,
+	unsigned char registerIndex
 )
 {
-    unsigned char data;
+	unsigned char data;
 
-    /* Send the Start signal */
-    swI2CStart();
+	/* Send the Start signal */
+	swI2CStart();
 
-    /* Send the device address */
-    swI2CWriteByte(deviceAddress);
+	/* Send the device address */
+	swI2CWriteByte(deviceAddress);
 
-    /* Send the register index */
-    swI2CWriteByte(registerIndex);
+	/* Send the register index */
+	swI2CWriteByte(registerIndex);
 
-    /* Get the bus again and get the data from the device read address */
-    swI2CStart();
-    swI2CWriteByte(deviceAddress + 1);
-    data = swI2CReadByte(1);
+	/* Get the bus again and get the data from the device read address */
+	swI2CStart();
+	swI2CWriteByte(deviceAddress + 1);
+	data = swI2CReadByte(1);
 
-    /* Stop swI2C and release the bus */
-    swI2CStop();
+	/* Stop swI2C and release the bus */
+	swI2CStop();
 
-    return data;
+	return data;
 }
 
 /*
@@ -495,28 +484,27 @@ unsigned char swI2CReadReg(
  *         -1   - Fail
  */
 long swI2CWriteReg(
-    unsigned char deviceAddress,
-    unsigned char registerIndex,
-    unsigned char data
+	unsigned char deviceAddress,
+	unsigned char registerIndex,
+	unsigned char data
 )
 {
-    long returnValue = 0;
+	long returnValue = 0;
 
-    /* Send the Start signal */
-    swI2CStart();
+	/* Send the Start signal */
+	swI2CStart();
 
-    /* Send the device address and read the data. All should return success
-       in order for the writing processed to be successful
-     */
-    if ((swI2CWriteByte(deviceAddress) != 0) ||
-        (swI2CWriteByte(registerIndex) != 0) ||
-        (swI2CWriteByte(data) != 0))
-    {
-        returnValue = -1;
-    }
+	/* Send the device address and read the data. All should return success
+	   in order for the writing processed to be successful
+	*/
+	if ((swI2CWriteByte(deviceAddress) != 0) ||
+	    (swI2CWriteByte(registerIndex) != 0) ||
+	    (swI2CWriteByte(data) != 0)) {
+		returnValue = -1;
+	}
 
-    /* Stop i2c and release the bus */
-    swI2CStop();
+	/* Stop i2c and release the bus */
+	swI2CStop();
 
-    return returnValue;
+	return returnValue;
 }

@@ -29,6 +29,7 @@
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -95,6 +96,13 @@ struct adv76xx_format_info {
 	u8 op_format_sel;
 };
 
+struct adv76xx_cfg_read_infoframe {
+	const char *desc;
+	u8 present_mask;
+	u8 head_addr;
+	u8 payload_addr;
+};
+
 struct adv76xx_chip_info {
 	enum adv76xx_type type;
 
@@ -124,6 +132,20 @@ struct adv76xx_chip_info {
 	unsigned int num_recommended_settings[2];
 
 	unsigned long page_mask;
+
+	/* Masks for timings */
+	unsigned int linewidth_mask;
+	unsigned int field0_height_mask;
+	unsigned int field1_height_mask;
+	unsigned int hfrontporch_mask;
+	unsigned int hsync_mask;
+	unsigned int hbackporch_mask;
+	unsigned int field0_vfrontporch_mask;
+	unsigned int field1_vfrontporch_mask;
+	unsigned int field0_vsync_mask;
+	unsigned int field1_vsync_mask;
+	unsigned int field0_vbackporch_mask;
+	unsigned int field1_vbackporch_mask;
 };
 
 /*
@@ -325,6 +347,11 @@ static const struct adv76xx_video_standards adv76xx_prim_mode_hdmi_gr[] = {
 	{ V4L2_DV_BT_DMT_1280X1024P60, 0x05, 0x00 },
 	{ V4L2_DV_BT_DMT_1280X1024P75, 0x06, 0x00 },
 	{ },
+};
+
+static const struct v4l2_event adv76xx_ev_fmt = {
+	.type = V4L2_EVENT_SOURCE_CHANGE,
+	.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -1304,12 +1331,12 @@ static int stdi2dv_timings(struct v4l2_subdev *sd,
 	if (v4l2_detect_cvt(stdi->lcf + 1, hfreq, stdi->lcvs,
 			(stdi->hs_pol == '+' ? V4L2_DV_HSYNC_POS_POL : 0) |
 			(stdi->vs_pol == '+' ? V4L2_DV_VSYNC_POS_POL : 0),
-			timings))
+			false, timings))
 		return 0;
 	if (v4l2_detect_gtf(stdi->lcf + 1, hfreq, stdi->lcvs,
 			(stdi->hs_pol == '+' ? V4L2_DV_HSYNC_POS_POL : 0) |
 			(stdi->vs_pol == '+' ? V4L2_DV_VSYNC_POS_POL : 0),
-			state->aspect_ratio, timings))
+			false, state->aspect_ratio, timings))
 		return 0;
 
 	v4l2_dbg(2, debug, sd,
@@ -1504,23 +1531,28 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 	if (is_digital_input(sd)) {
 		timings->type = V4L2_DV_BT_656_1120;
 
-		/* FIXME: All masks are incorrect for ADV7611 */
-		bt->width = hdmi_read16(sd, 0x07, 0xfff);
-		bt->height = hdmi_read16(sd, 0x09, 0xfff);
+		bt->width = hdmi_read16(sd, 0x07, info->linewidth_mask);
+		bt->height = hdmi_read16(sd, 0x09, info->field0_height_mask);
 		bt->pixelclock = info->read_hdmi_pixelclock(sd);
-		bt->hfrontporch = hdmi_read16(sd, 0x20, 0x3ff);
-		bt->hsync = hdmi_read16(sd, 0x22, 0x3ff);
-		bt->hbackporch = hdmi_read16(sd, 0x24, 0x3ff);
-		bt->vfrontporch = hdmi_read16(sd, 0x2a, 0x1fff) / 2;
-		bt->vsync = hdmi_read16(sd, 0x2e, 0x1fff) / 2;
-		bt->vbackporch = hdmi_read16(sd, 0x32, 0x1fff) / 2;
+		bt->hfrontporch = hdmi_read16(sd, 0x20, info->hfrontporch_mask);
+		bt->hsync = hdmi_read16(sd, 0x22, info->hsync_mask);
+		bt->hbackporch = hdmi_read16(sd, 0x24, info->hbackporch_mask);
+		bt->vfrontporch = hdmi_read16(sd, 0x2a,
+			info->field0_vfrontporch_mask) / 2;
+		bt->vsync = hdmi_read16(sd, 0x2e, info->field0_vsync_mask) / 2;
+		bt->vbackporch = hdmi_read16(sd, 0x32,
+			info->field0_vbackporch_mask) / 2;
 		bt->polarities = ((hdmi_read(sd, 0x05) & 0x10) ? V4L2_DV_VSYNC_POS_POL : 0) |
 			((hdmi_read(sd, 0x05) & 0x20) ? V4L2_DV_HSYNC_POS_POL : 0);
 		if (bt->interlaced == V4L2_DV_INTERLACED) {
-			bt->height += hdmi_read16(sd, 0x0b, 0xfff);
-			bt->il_vfrontporch = hdmi_read16(sd, 0x2c, 0x1fff) / 2;
-			bt->il_vsync = hdmi_read16(sd, 0x30, 0x1fff) / 2;
-			bt->il_vbackporch = hdmi_read16(sd, 0x34, 0x1fff) / 2;
+			bt->height += hdmi_read16(sd, 0x0b,
+				info->field1_height_mask);
+			bt->il_vfrontporch = hdmi_read16(sd, 0x2c,
+				info->field1_vfrontporch_mask) / 2;
+			bt->il_vsync = hdmi_read16(sd, 0x30,
+				info->field1_vsync_mask) / 2;
+			bt->il_vbackporch = hdmi_read16(sd, 0x34,
+				info->field1_vbackporch_mask) / 2;
 		}
 		adv76xx_fill_optional_dv_timings_fields(sd, timings);
 	} else {
@@ -1725,11 +1757,11 @@ static int adv76xx_s_routing(struct v4l2_subdev *sd,
 	state->selected_input = input;
 
 	disable_input(sd);
-
 	select_input(sd);
-
 	enable_input(sd);
 
+	v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
+			   (void *)&adv76xx_ev_fmt);
 	return 0;
 }
 
@@ -1896,7 +1928,8 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			"%s: fmt_change = 0x%x, fmt_change_digital = 0x%x\n",
 			__func__, fmt_change, fmt_change_digital);
 
-		v4l2_subdev_notify(sd, ADV76XX_FMT_CHANGE, NULL);
+		v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
+				   (void *)&adv76xx_ev_fmt);
 
 		if (handled)
 			*handled = true;
@@ -2102,46 +2135,67 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 
 /*********** avi info frame CEA-861-E **************/
 
-static void print_avi_infoframe(struct v4l2_subdev *sd)
+static const struct adv76xx_cfg_read_infoframe adv76xx_cri[] = {
+	{ "AVI", 0x01, 0xe0, 0x00 },
+	{ "Audio", 0x02, 0xe3, 0x1c },
+	{ "SDP", 0x04, 0xe6, 0x2a },
+	{ "Vendor", 0x10, 0xec, 0x54 }
+};
+
+static int adv76xx_read_infoframe(struct v4l2_subdev *sd, int index,
+				  union hdmi_infoframe *frame)
+{
+	uint8_t buffer[32];
+	u8 len;
+	int i;
+
+	if (!(io_read(sd, 0x60) & adv76xx_cri[index].present_mask)) {
+		v4l2_info(sd, "%s infoframe not received\n",
+			  adv76xx_cri[index].desc);
+		return -ENOENT;
+	}
+
+	for (i = 0; i < 3; i++)
+		buffer[i] = infoframe_read(sd,
+					   adv76xx_cri[index].head_addr + i);
+
+	len = buffer[2] + 1;
+
+	if (len + 3 > sizeof(buffer)) {
+		v4l2_err(sd, "%s: invalid %s infoframe length %d\n", __func__,
+			 adv76xx_cri[index].desc, len);
+		return -ENOENT;
+	}
+
+	for (i = 0; i < len; i++)
+		buffer[i + 3] = infoframe_read(sd,
+				       adv76xx_cri[index].payload_addr + i);
+
+	if (hdmi_infoframe_unpack(frame, buffer) < 0) {
+		v4l2_err(sd, "%s: unpack of %s infoframe failed\n", __func__,
+			 adv76xx_cri[index].desc);
+		return -ENOENT;
+	}
+	return 0;
+}
+
+static void adv76xx_log_infoframes(struct v4l2_subdev *sd)
 {
 	int i;
-	u8 buf[14];
-	u8 avi_len;
-	u8 avi_ver;
 
 	if (!is_hdmi(sd)) {
-		v4l2_info(sd, "receive DVI-D signal (AVI infoframe not supported)\n");
-		return;
-	}
-	if (!(io_read(sd, 0x60) & 0x01)) {
-		v4l2_info(sd, "AVI infoframe not received\n");
+		v4l2_info(sd, "receive DVI-D signal, no infoframes\n");
 		return;
 	}
 
-	if (io_read(sd, 0x83) & 0x01) {
-		v4l2_info(sd, "AVI infoframe checksum error has occurred earlier\n");
-		io_write(sd, 0x85, 0x01); /* clear AVI_INF_CKS_ERR_RAW */
-		if (io_read(sd, 0x83) & 0x01) {
-			v4l2_info(sd, "AVI infoframe checksum error still present\n");
-			io_write(sd, 0x85, 0x01); /* clear AVI_INF_CKS_ERR_RAW */
-		}
+	for (i = 0; i < ARRAY_SIZE(adv76xx_cri); i++) {
+		union hdmi_infoframe frame;
+		struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+		if (adv76xx_read_infoframe(sd, i, &frame))
+			return;
+		hdmi_infoframe_log(KERN_INFO, &client->dev, &frame);
 	}
-
-	avi_len = infoframe_read(sd, 0xe2);
-	avi_ver = infoframe_read(sd, 0xe1);
-	v4l2_info(sd, "AVI infoframe version %d (%d byte)\n",
-			avi_ver, avi_len);
-
-	if (avi_ver != 0x02)
-		return;
-
-	for (i = 0; i < 14; i++)
-		buf[i] = infoframe_read(sd, i);
-
-	v4l2_info(sd,
-		"\t%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
-		buf[8], buf[9], buf[10], buf[11], buf[12], buf[13]);
 }
 
 static int adv76xx_log_status(struct v4l2_subdev *sd)
@@ -2167,6 +2221,14 @@ static int adv76xx_log_status(struct v4l2_subdev *sd)
 		"YCbCr Bt.601 (0-255)", "YCbCr Bt.709 (0-255)",
 		"invalid", "invalid", "invalid", "invalid", "invalid",
 		"invalid", "invalid", "automatic"
+	};
+	static const char * const hdmi_color_space_txt[16] = {
+		"RGB limited range (16-235)", "RGB full range (0-255)",
+		"YCbCr Bt.601 (16-235)", "YCbCr Bt.709 (16-235)",
+		"xvYCC Bt.601", "xvYCC Bt.709",
+		"YCbCr Bt.601 (0-255)", "YCbCr Bt.709 (0-255)",
+		"sYCC", "Adobe YCC 601", "AdobeRGB", "invalid", "invalid",
+		"invalid", "invalid", "invalid"
 	};
 	static const char * const rgb_quantization_range_txt[] = {
 		"Automatic",
@@ -2235,11 +2297,12 @@ static int adv76xx_log_status(struct v4l2_subdev *sd)
 			rgb_quantization_range_txt[state->rgb_quantization_range]);
 	v4l2_info(sd, "Input color space: %s\n",
 			input_color_space_txt[reg_io_0x02 >> 4]);
-	v4l2_info(sd, "Output color space: %s %s, saturator %s\n",
+	v4l2_info(sd, "Output color space: %s %s, saturator %s, alt-gamma %s\n",
 			(reg_io_0x02 & 0x02) ? "RGB" : "YCbCr",
 			(reg_io_0x02 & 0x04) ? "(16-235)" : "(0-255)",
-			((reg_io_0x02 & 0x04) ^ (reg_io_0x02 & 0x01)) ?
-				"enabled" : "disabled");
+			(((reg_io_0x02 >> 2) & 0x01) ^ (reg_io_0x02 & 0x01)) ?
+				"enabled" : "disabled",
+			(reg_io_0x02 & 0x08) ? "enabled" : "disabled");
 	v4l2_info(sd, "Color space conversion: %s\n",
 			csc_coeff_sel_rb[cp_read(sd, info->cp_csc) >> 4]);
 
@@ -2276,8 +2339,9 @@ static int adv76xx_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "AV Mute: %s\n", (hdmi_read(sd, 0x04) & 0x40) ? "on" : "off");
 
 		v4l2_info(sd, "Deep color mode: %s\n", deep_color_mode_txt[(hdmi_read(sd, 0x0b) & 0x60) >> 5]);
+		v4l2_info(sd, "HDMI colorspace: %s\n", hdmi_color_space_txt[hdmi_read(sd, 0x53) & 0xf]);
 
-		print_avi_infoframe(sd);
+		adv76xx_log_infoframes(sd);
 	}
 
 	return 0;
@@ -2567,6 +2631,18 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 			BIT(ADV76XX_PAGE_EDID) | BIT(ADV76XX_PAGE_HDMI) |
 			BIT(ADV76XX_PAGE_TEST) | BIT(ADV76XX_PAGE_CP) |
 			BIT(ADV7604_PAGE_VDP),
+		.linewidth_mask = 0xfff,
+		.field0_height_mask = 0xfff,
+		.field1_height_mask = 0xfff,
+		.hfrontporch_mask = 0x3ff,
+		.hsync_mask = 0x3ff,
+		.hbackporch_mask = 0x3ff,
+		.field0_vfrontporch_mask = 0x1fff,
+		.field0_vsync_mask = 0x1fff,
+		.field0_vbackporch_mask = 0x1fff,
+		.field1_vfrontporch_mask = 0x1fff,
+		.field1_vsync_mask = 0x1fff,
+		.field1_vbackporch_mask = 0x1fff,
 	},
 	[ADV7611] = {
 		.type = ADV7611,
@@ -2596,17 +2672,29 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 			BIT(ADV76XX_PAGE_INFOFRAME) | BIT(ADV76XX_PAGE_AFE) |
 			BIT(ADV76XX_PAGE_REP) |  BIT(ADV76XX_PAGE_EDID) |
 			BIT(ADV76XX_PAGE_HDMI) | BIT(ADV76XX_PAGE_CP),
+		.linewidth_mask = 0x1fff,
+		.field0_height_mask = 0x1fff,
+		.field1_height_mask = 0x1fff,
+		.hfrontporch_mask = 0x1fff,
+		.hsync_mask = 0x1fff,
+		.hbackporch_mask = 0x1fff,
+		.field0_vfrontporch_mask = 0x3fff,
+		.field0_vsync_mask = 0x3fff,
+		.field0_vbackporch_mask = 0x3fff,
+		.field1_vfrontporch_mask = 0x3fff,
+		.field1_vsync_mask = 0x3fff,
+		.field1_vbackporch_mask = 0x3fff,
 	},
 };
 
-static struct i2c_device_id adv76xx_i2c_id[] = {
+static const struct i2c_device_id adv76xx_i2c_id[] = {
 	{ "adv7604", (kernel_ulong_t)&adv76xx_chip_info[ADV7604] },
 	{ "adv7611", (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adv76xx_i2c_id);
 
-static struct of_device_id adv76xx_of_id[] __maybe_unused = {
+static const struct of_device_id adv76xx_of_id[] __maybe_unused = {
 	{ .compatible = "adi,adv7611", .data = &adv76xx_chip_info[ADV7611] },
 	{ }
 };

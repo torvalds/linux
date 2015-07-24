@@ -439,7 +439,7 @@ static u64 lbtf_op_prepare_multicast(struct ieee80211_hw *hw,
 	return mc_count;
 }
 
-#define SUPPORTED_FIF_FLAGS  (FIF_PROMISC_IN_BSS | FIF_ALLMULTI)
+#define SUPPORTED_FIF_FLAGS  FIF_ALLMULTI
 static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
 			unsigned int *new_flags,
@@ -458,10 +458,7 @@ static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 		return;
 	}
 
-	if (*new_flags & (FIF_PROMISC_IN_BSS))
-		priv->mac_control |= CMD_ACT_MAC_PROMISCUOUS_ENABLE;
-	else
-		priv->mac_control &= ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
+	priv->mac_control &= ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
 	if (*new_flags & (FIF_ALLMULTI) ||
 	    multicast > MRVDRV_MAX_MULTICAST_LIST_SIZE) {
 		priv->mac_control |= CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
@@ -637,7 +634,7 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 	priv->tx_skb = NULL;
 
 	hw->queues = 1;
-	hw->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
+	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 	hw->extra_tx_headroom = sizeof(struct txpd);
 	memcpy(priv->channels, lbtf_channels, sizeof(lbtf_channels));
 	memcpy(priv->rates, lbtf_rates, sizeof(lbtf_rates));

@@ -129,50 +129,50 @@ static void byt_i2c_setup(struct lpss_private_data *pdata)
 	writel(0, pdata->mmio_base + LPSS_I2C_ENABLE);
 }
 
-static struct lpss_device_desc lpt_dev_desc = {
+static const struct lpss_device_desc lpt_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_LTR,
 	.prv_offset = 0x800,
 };
 
-static struct lpss_device_desc lpt_i2c_dev_desc = {
+static const struct lpss_device_desc lpt_i2c_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_LTR,
 	.prv_offset = 0x800,
 };
 
-static struct lpss_device_desc lpt_uart_dev_desc = {
+static const struct lpss_device_desc lpt_uart_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_LTR,
 	.clk_con_id = "baudclk",
 	.prv_offset = 0x800,
 	.setup = lpss_uart_setup,
 };
 
-static struct lpss_device_desc lpt_sdio_dev_desc = {
+static const struct lpss_device_desc lpt_sdio_dev_desc = {
 	.flags = LPSS_LTR,
 	.prv_offset = 0x1000,
 	.prv_size_override = 0x1018,
 };
 
-static struct lpss_device_desc byt_pwm_dev_desc = {
+static const struct lpss_device_desc byt_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX,
 };
 
-static struct lpss_device_desc byt_uart_dev_desc = {
+static const struct lpss_device_desc byt_uart_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX,
 	.clk_con_id = "baudclk",
 	.prv_offset = 0x800,
 	.setup = lpss_uart_setup,
 };
 
-static struct lpss_device_desc byt_spi_dev_desc = {
+static const struct lpss_device_desc byt_spi_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX,
 	.prv_offset = 0x400,
 };
 
-static struct lpss_device_desc byt_sdio_dev_desc = {
+static const struct lpss_device_desc byt_sdio_dev_desc = {
 	.flags = LPSS_CLK,
 };
 
-static struct lpss_device_desc byt_i2c_dev_desc = {
+static const struct lpss_device_desc byt_i2c_dev_desc = {
 	.flags = LPSS_CLK | LPSS_SAVE_CTX,
 	.prv_offset = 0x800,
 	.setup = byt_i2c_setup,
@@ -323,14 +323,14 @@ out:
 static int acpi_lpss_create_device(struct acpi_device *adev,
 				   const struct acpi_device_id *id)
 {
-	struct lpss_device_desc *dev_desc;
+	const struct lpss_device_desc *dev_desc;
 	struct lpss_private_data *pdata;
 	struct resource_entry *rentry;
 	struct list_head resource_list;
 	struct platform_device *pdev;
 	int ret;
 
-	dev_desc = (struct lpss_device_desc *)id->driver_data;
+	dev_desc = (const struct lpss_device_desc *)id->driver_data;
 	if (!dev_desc) {
 		pdev = acpi_create_platform_device(adev);
 		return IS_ERR_OR_NULL(pdev) ? PTR_ERR(pdev) : 1;
@@ -352,12 +352,15 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 				pdata->mmio_size = resource_size(rentry->res);
 			pdata->mmio_base = ioremap(rentry->res->start,
 						   pdata->mmio_size);
-			if (!pdata->mmio_base)
-				goto err_out;
 			break;
 		}
 
 	acpi_dev_free_resource_list(&resource_list);
+
+	if (!pdata->mmio_base) {
+		ret = -ENOMEM;
+		goto err_out;
+	}
 
 	pdata->dev_desc = dev_desc;
 

@@ -1,8 +1,10 @@
 <title>Examples</title>
 <para>In this section we would like to present some examples for using the DVB API.
 </para>
-<para>Maintainer note: This section is out of date. Please refer to the sample programs packaged
-with the driver distribution from <ulink url="http://linuxtv.org/hg/dvb-apps" />.
+<para>NOTE: This section is out of date, and the code below won't even
+    compile. Please refer to the
+    <ulink url="http://linuxtv.org/docs/libdvbv5/index.html">libdvbv5</ulink>
+    for updated/recommended examples.
 </para>
 
 <section id="tuning">

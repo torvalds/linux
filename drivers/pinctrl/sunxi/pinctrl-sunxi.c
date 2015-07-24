@@ -911,9 +911,9 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	pctl->pctl_dev = pinctrl_register(pctrl_desc,
 					  &pdev->dev, pctl);
-	if (!pctl->pctl_dev) {
+	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(pctl->pctl_dev);
 	}
 
 	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
@@ -1005,9 +1005,9 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 		writel(0xffffffff,
 			pctl->membase + sunxi_irq_status_reg_from_bank(i));
 
-		irq_set_chained_handler(pctl->irq[i],
-					sunxi_pinctrl_irq_handler);
-		irq_set_handler_data(pctl->irq[i], pctl);
+		irq_set_chained_handler_and_data(pctl->irq[i],
+						 sunxi_pinctrl_irq_handler,
+						 pctl);
 	}
 
 	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");

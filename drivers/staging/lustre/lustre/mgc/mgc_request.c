@@ -149,7 +149,7 @@ static void config_log_put(struct config_llog_data *cld)
 			sptlrpc_conf_log_stop(cld->cld_logname);
 
 		class_export_put(cld->cld_mgcexp);
-		OBD_FREE(cld, sizeof(*cld) + strlen(cld->cld_logname) + 1);
+		kfree(cld);
 	}
 }
 
@@ -198,7 +198,7 @@ struct config_llog_data *do_config_log_add(struct obd_device *obd,
 	CDEBUG(D_MGC, "do adding config log %s:%p\n", logname,
 	       cfg ? cfg->cfg_instance : NULL);
 
-	OBD_ALLOC(cld, sizeof(*cld) + strlen(logname) + 1);
+	cld = kzalloc(sizeof(*cld) + strlen(logname) + 1, GFP_NOFS);
 	if (!cld)
 		return ERR_PTR(-ENOMEM);
 
@@ -448,7 +448,6 @@ static int config_log_end(char *logname, struct config_llog_instance *cfg)
 	return rc;
 }
 
-#if defined (CONFIG_PROC_FS)
 int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 {
 	struct obd_device       *obd = data;
@@ -477,7 +476,6 @@ int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 	LPROCFS_CLIMP_EXIT(obd);
 	return 0;
 }
-#endif
 
 /* reenqueue any lost locks */
 #define RQ_RUNNING 0x1
@@ -722,7 +720,7 @@ static int mgc_cleanup(struct obd_device *obd)
 
 static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
-	struct lprocfs_static_vars lvars;
+	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
 	ptlrpcd_addref();
@@ -738,7 +736,7 @@ static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	}
 
 	lprocfs_mgc_init_vars(&lvars);
-	lprocfs_obd_setup(obd, lvars.obd_vars);
+	lprocfs_obd_setup(obd, lvars.obd_vars, lvars.sysfs_vars);
 	sptlrpc_lprocfs_cliobd_attach(obd);
 
 	if (atomic_inc_return(&mgc_count) == 1) {
@@ -1129,14 +1127,14 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 	LASSERT(cfg->cfg_instance != NULL);
 	LASSERT(cfg->cfg_sb == cfg->cfg_instance);
 
-	OBD_ALLOC(inst, PAGE_CACHE_SIZE);
+	inst = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
 	if (inst == NULL)
 		return -ENOMEM;
 
 	if (!IS_SERVER(lsi)) {
 		pos = snprintf(inst, PAGE_CACHE_SIZE, "%p", cfg->cfg_instance);
 		if (pos >= PAGE_CACHE_SIZE) {
-			OBD_FREE(inst, PAGE_CACHE_SIZE);
+			kfree(inst);
 			return -E2BIG;
 		}
 	} else {
@@ -1144,7 +1142,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		rc = server_name2svname(lsi->lsi_svname, inst, NULL,
 					PAGE_CACHE_SIZE);
 		if (rc) {
-			OBD_FREE(inst, PAGE_CACHE_SIZE);
+			kfree(inst);
 			return -EINVAL;
 		}
 		pos = strlen(inst);
@@ -1302,7 +1300,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		/* continue, even one with error */
 	}
 
-	OBD_FREE(inst, PAGE_CACHE_SIZE);
+	kfree(inst);
 	return rc;
 }
 
@@ -1336,7 +1334,7 @@ static int mgc_process_recover_log(struct obd_device *obd,
 	if (cfg->cfg_last_idx == 0) /* the first time */
 		nrpages = CONFIG_READ_NRPAGES_INIT;
 
-	OBD_ALLOC(pages, sizeof(*pages) * nrpages);
+	pages = kcalloc(nrpages, sizeof(*pages), GFP_NOFS);
 	if (pages == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -1466,7 +1464,7 @@ out:
 				break;
 			__free_page(pages[i]);
 		}
-		OBD_FREE(pages, sizeof(*pages) * nrpages);
+		kfree(pages);
 	}
 	return rc;
 }
@@ -1494,7 +1492,7 @@ static int mgc_process_cfg_log(struct obd_device *mgc,
 	if (cld->cld_cfg.cfg_sb)
 		lsi = s2lsi(cld->cld_cfg.cfg_sb);
 
-	OBD_ALLOC_PTR(env);
+	env = kzalloc(sizeof(*env), GFP_NOFS);
 	if (env == NULL)
 		return -ENOMEM;
 
@@ -1540,7 +1538,7 @@ out_pop:
 
 	lu_env_fini(env);
 out_free:
-	OBD_FREE_PTR(env);
+	kfree(env);
 	return rc;
 }
 
@@ -1745,7 +1743,7 @@ struct obd_ops mgc_obd_ops = {
 
 static int __init mgc_init(void)
 {
-	return class_register_type(&mgc_obd_ops, NULL, NULL,
+	return class_register_type(&mgc_obd_ops, NULL,
 				   LUSTRE_MGC_NAME, NULL);
 }
 

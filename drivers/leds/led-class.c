@@ -121,6 +121,11 @@ static void led_timer_function(unsigned long data)
 	brightness = led_get_brightness(led_cdev);
 	if (!brightness) {
 		/* Time to switch the LED on. */
+		if (led_cdev->delayed_set_value) {
+			led_cdev->blink_brightness =
+					led_cdev->delayed_set_value;
+			led_cdev->delayed_set_value = 0;
+		}
 		brightness = led_cdev->blink_brightness;
 		delay = led_cdev->blink_delay_on;
 	} else {
@@ -187,6 +192,7 @@ void led_classdev_resume(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_classdev_resume);
 
+#ifdef CONFIG_PM_SLEEP
 static int led_suspend(struct device *dev)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
@@ -206,11 +212,9 @@ static int led_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops leds_class_dev_pm_ops = {
-	.suspend        = led_suspend,
-	.resume         = led_resume,
-};
+static SIMPLE_DEV_PM_OPS(leds_class_dev_pm_ops, led_suspend, led_resume);
 
 static int match_name(struct device *dev, const void *data)
 {

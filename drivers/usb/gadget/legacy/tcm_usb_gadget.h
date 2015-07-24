@@ -6,7 +6,6 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/uas.h>
 #include <linux/usb/storage.h>
-#include <scsi/scsi.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 
@@ -24,15 +23,6 @@ enum {
 
 #define USB_G_ALT_INT_BBB       0
 #define USB_G_ALT_INT_UAS       1
-
-struct usbg_nacl {
-	/* Binary World Wide unique Port Name for SAS Initiator port */
-	u64 iport_wwpn;
-	/* ASCII formatted WWPN for Sas Initiator port */
-	char iport_name[USBG_NAMELEN];
-	/* Returned by usbg_make_nodeacl() */
-	struct se_node_acl se_node_acl;
-};
 
 struct tcm_usbg_nexus {
 	struct se_session *tvn_se_sess;
@@ -53,8 +43,6 @@ struct usbg_tpg {
 };
 
 struct usbg_tport {
-	/* SCSI protocol the tport is providing */
-	u8 tport_proto_id;
 	/* Binary World Wide unique Port Name for SAS Target port */
 	u64 tport_wwpn;
 	/* ASCII formatted WWPN for SAS Target port */

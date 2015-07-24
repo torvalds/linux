@@ -22,8 +22,8 @@ struct st_rc_device {
 	int				irq;
 	int				irq_wake;
 	struct clk			*sys_clock;
-	volatile void __iomem		*base;	/* Register base address */
-	volatile void __iomem		*rx_base;/* RX Register base address */
+	void __iomem			*base;	/* Register base address */
+	void __iomem			*rx_base;/* RX Register base address */
 	struct rc_dev			*rdev;
 	bool				overclocking;
 	int				sample_mult;
@@ -267,8 +267,8 @@ static int st_rc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	rc_dev->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR((__force void *)rc_dev->base)) {
-		ret = PTR_ERR((__force void *)rc_dev->base);
+	if (IS_ERR(rc_dev->base)) {
+		ret = PTR_ERR(rc_dev->base);
 		goto err;
 	}
 
@@ -334,7 +334,7 @@ err:
 	return ret;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int st_rc_suspend(struct device *dev)
 {
 	struct st_rc_device *rc_dev = dev_get_drvdata(dev);
@@ -381,7 +381,7 @@ static int st_rc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(st_rc_pm_ops, st_rc_suspend, st_rc_resume);
 
 #ifdef CONFIG_OF
-static struct of_device_id st_rc_match[] = {
+static const struct of_device_id st_rc_match[] = {
 	{ .compatible = "st,comms-irb", },
 	{},
 };

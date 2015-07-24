@@ -1046,16 +1046,21 @@ static int ov2659_get_fmt(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov2659 *ov2659 = to_ov2659(sd);
-	struct v4l2_mbus_framefmt *mf;
 
 	dev_dbg(&client->dev, "ov2659_get_fmt\n");
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		struct v4l2_mbus_framefmt *mf;
+
 		mf = v4l2_subdev_get_try_format(sd, cfg, 0);
 		mutex_lock(&ov2659->lock);
 		fmt->format = *mf;
 		mutex_unlock(&ov2659->lock);
 		return 0;
+#else
+	return -ENOTTY;
+#endif
 	}
 
 	mutex_lock(&ov2659->lock);
@@ -1102,7 +1107,7 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	unsigned int index = ARRAY_SIZE(ov2659_formats);
+	int index = ARRAY_SIZE(ov2659_formats);
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	const struct ov2659_framesize *size = NULL;
 	struct ov2659 *ov2659 = to_ov2659(sd);
@@ -1126,8 +1131,12 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov2659->lock);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 		*mf = fmt->format;
+#else
+		return -ENOTTY;
+#endif
 	} else {
 		s64 val;
 
@@ -1257,6 +1266,7 @@ static const char * const ov2659_test_pattern_menu[] = {
  * V4L2 subdev internal operations
  */
 
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static int ov2659_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1269,6 +1279,7 @@ static int ov2659_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	return 0;
 }
+#endif
 
 static const struct v4l2_subdev_core_ops ov2659_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
@@ -1287,6 +1298,7 @@ static const struct v4l2_subdev_pad_ops ov2659_subdev_pad_ops = {
 	.set_fmt = ov2659_set_fmt,
 };
 
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static const struct v4l2_subdev_ops ov2659_subdev_ops = {
 	.core  = &ov2659_subdev_core_ops,
 	.video = &ov2659_subdev_video_ops,
@@ -1296,6 +1308,7 @@ static const struct v4l2_subdev_ops ov2659_subdev_ops = {
 static const struct v4l2_subdev_internal_ops ov2659_subdev_internal_ops = {
 	.open = ov2659_open,
 };
+#endif
 
 static int ov2659_detect(struct v4l2_subdev *sd)
 {
@@ -1340,8 +1353,8 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
+	struct v4l2_of_endpoint *bus_cfg;
 	struct device_node *endpoint;
-	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
@@ -1350,18 +1363,27 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
+	bus_cfg = v4l2_of_alloc_parse_endpoint(endpoint);
+	if (IS_ERR(bus_cfg)) {
+		pdata = NULL;
+		goto done;
+	}
+
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		goto done;
 
-	ret = of_property_read_u64(endpoint, "link-frequencies",
-				   &pdata->link_frequency);
-	if (ret) {
-		dev_err(&client->dev, "link-frequencies property not found\n");
+	if (!bus_cfg->nr_of_link_frequencies) {
+		dev_err(&client->dev,
+			"link-frequencies property not found or too many\n");
 		pdata = NULL;
+		goto done;
 	}
 
+	pdata->link_frequency = bus_cfg->link_frequencies[0];
+
 done:
+	v4l2_of_free_endpoint(bus_cfg);
 	of_node_put(endpoint);
 	return pdata;
 }
@@ -1417,11 +1439,13 @@ static int ov2659_probe(struct i2c_client *client,
 
 	sd = &ov2659->sd;
 	client->flags |= I2C_CLIENT_SCCB;
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	v4l2_i2c_subdev_init(sd, client, &ov2659_subdev_ops);
 
 	sd->internal_ops = &ov2659_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 		     V4L2_SUBDEV_FL_HAS_EVENTS;
+#endif
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	ov2659->pad.flags = MEDIA_PAD_FL_SOURCE;

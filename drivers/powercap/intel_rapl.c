@@ -187,6 +187,7 @@ struct rapl_package {
 };
 
 struct rapl_defaults {
+	u8 floor_freq_reg_addr;
 	int (*check_unit)(struct rapl_package *rp, int cpu);
 	void (*set_floor_freq)(struct rapl_domain *rd, bool mode);
 	u64 (*compute_time_window)(struct rapl_package *rp, u64 val,
@@ -196,7 +197,8 @@ struct rapl_defaults {
 static struct rapl_defaults *rapl_defaults;
 
 /* Sideband MBI registers */
-#define IOSF_CPU_POWER_BUDGET_CTL (0x2)
+#define IOSF_CPU_POWER_BUDGET_CTL_BYT (0x2)
+#define IOSF_CPU_POWER_BUDGET_CTL_TNG (0xdf)
 
 #define PACKAGE_PLN_INT_SAVED   BIT(0)
 #define MAX_PRIM_NAME (32)
@@ -358,7 +360,8 @@ static int set_domain_enable(struct powercap_zone *power_zone, bool mode)
 
 	get_online_cpus();
 	rapl_write_data_raw(rd, PL1_ENABLE, mode);
-	rapl_defaults->set_floor_freq(rd, mode);
+	if (rapl_defaults->set_floor_freq)
+		rapl_defaults->set_floor_freq(rd, mode);
 	put_online_cpus();
 
 	return 0;
@@ -979,16 +982,22 @@ static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
 	static u32 power_ctrl_orig_val;
 	u32 mdata;
 
+	if (!rapl_defaults->floor_freq_reg_addr) {
+		pr_err("Invalid floor frequency config register\n");
+		return;
+	}
+
 	if (!power_ctrl_orig_val)
 		iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_PMC_READ,
-			IOSF_CPU_POWER_BUDGET_CTL, &power_ctrl_orig_val);
+			rapl_defaults->floor_freq_reg_addr,
+				&power_ctrl_orig_val);
 	mdata = power_ctrl_orig_val;
 	if (enable) {
 		mdata &= ~(0x7f << 8);
 		mdata |= 1 << 8;
 	}
 	iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_PMC_WRITE,
-		IOSF_CPU_POWER_BUDGET_CTL, mdata);
+		rapl_defaults->floor_freq_reg_addr, mdata);
 }
 
 static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,
@@ -1029,6 +1038,7 @@ static u64 rapl_compute_time_window_atom(struct rapl_package *rp, u64 value,
 }
 
 static const struct rapl_defaults rapl_defaults_core = {
+	.floor_freq_reg_addr = 0,
 	.check_unit = rapl_check_unit_core,
 	.set_floor_freq = set_floor_freq_default,
 	.compute_time_window = rapl_compute_time_window_core,
@@ -1041,9 +1051,31 @@ static const struct rapl_defaults rapl_defaults_hsw_server = {
 	.dram_domain_energy_unit = 15300,
 };
 
-static const struct rapl_defaults rapl_defaults_atom = {
+static const struct rapl_defaults rapl_defaults_byt = {
+	.floor_freq_reg_addr = IOSF_CPU_POWER_BUDGET_CTL_BYT,
 	.check_unit = rapl_check_unit_atom,
 	.set_floor_freq = set_floor_freq_atom,
+	.compute_time_window = rapl_compute_time_window_atom,
+};
+
+static const struct rapl_defaults rapl_defaults_tng = {
+	.floor_freq_reg_addr = IOSF_CPU_POWER_BUDGET_CTL_TNG,
+	.check_unit = rapl_check_unit_atom,
+	.set_floor_freq = set_floor_freq_atom,
+	.compute_time_window = rapl_compute_time_window_atom,
+};
+
+static const struct rapl_defaults rapl_defaults_ann = {
+	.floor_freq_reg_addr = 0,
+	.check_unit = rapl_check_unit_atom,
+	.set_floor_freq = NULL,
+	.compute_time_window = rapl_compute_time_window_atom,
+};
+
+static const struct rapl_defaults rapl_defaults_cht = {
+	.floor_freq_reg_addr = 0,
+	.check_unit = rapl_check_unit_atom,
+	.set_floor_freq = NULL,
 	.compute_time_window = rapl_compute_time_window_atom,
 };
 
@@ -1057,7 +1089,7 @@ static const struct rapl_defaults rapl_defaults_atom = {
 static const struct x86_cpu_id rapl_ids[] __initconst = {
 	RAPL_CPU(0x2a, rapl_defaults_core),/* Sandy Bridge */
 	RAPL_CPU(0x2d, rapl_defaults_core),/* Sandy Bridge EP */
-	RAPL_CPU(0x37, rapl_defaults_atom),/* Valleyview */
+	RAPL_CPU(0x37, rapl_defaults_byt),/* Valleyview */
 	RAPL_CPU(0x3a, rapl_defaults_core),/* Ivy Bridge */
 	RAPL_CPU(0x3c, rapl_defaults_core),/* Haswell */
 	RAPL_CPU(0x3d, rapl_defaults_core),/* Broadwell */
@@ -1065,10 +1097,11 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	RAPL_CPU(0x4f, rapl_defaults_hsw_server),/* Broadwell servers */
 	RAPL_CPU(0x45, rapl_defaults_core),/* Haswell ULT */
 	RAPL_CPU(0x4E, rapl_defaults_core),/* Skylake */
-	RAPL_CPU(0x4C, rapl_defaults_atom),/* Braswell */
-	RAPL_CPU(0x4A, rapl_defaults_atom),/* Tangier */
+	RAPL_CPU(0x4C, rapl_defaults_cht),/* Braswell/Cherryview */
+	RAPL_CPU(0x4A, rapl_defaults_tng),/* Tangier */
 	RAPL_CPU(0x56, rapl_defaults_core),/* Future Xeon */
-	RAPL_CPU(0x5A, rapl_defaults_atom),/* Annidale */
+	RAPL_CPU(0x5A, rapl_defaults_ann),/* Annidale */
+	RAPL_CPU(0x57, rapl_defaults_hsw_server),/* Knights Landing */
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);

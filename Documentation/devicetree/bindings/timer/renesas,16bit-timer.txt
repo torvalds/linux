@@ -1,0 +1,25 @@
+* Renesas H8/300 16bit timer
+
+The 16bit timer is a 16bit timer/counter with configurable clock inputs and
+programmable compare match.
+
+Required Properties:
+
+  - compatible: must contain "renesas,16bit-timer"
+  - reg: base address and length of the registers block for the timer module.
+  - interrupts: interrupt-specifier for the timer, IMIA
+  - clocks: a list of phandle, one for each entry in clock-names.
+  - clock-names: must contain "peripheral_clk" for the functional clock.
+  - renesas,channel: timer channel number.
+
+Example:
+
+	timer16: timer@ffff68 {
+		compatible = "reneas,16bit-timer";
+		reg = <0xffff68 8>, <0xffff60 8>;
+		interrupts = <24>;
+		renesas,channel = <0>;
+		clocks = <&pclk>;
+		clock-names = "peripheral_clk";
+	};
+

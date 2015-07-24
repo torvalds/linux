@@ -141,6 +141,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
 		.qp_type     = IB_QPT_UD
 	};
+	struct ib_cq_init_attr cq_attr = {};
 
 	int ret, size;
 	int i;
@@ -178,14 +179,17 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	} else
 		goto out_free_wq;
 
-	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size, 0);
+	cq_attr.cqe = size;
+	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL,
+				     dev, &cq_attr);
 	if (IS_ERR(priv->recv_cq)) {
 		printk(KERN_WARNING "%s: failed to create receive CQ\n", ca->name);
 		goto out_cm_dev_cleanup;
 	}
 
+	cq_attr.cqe = ipoib_sendq_size;
 	priv->send_cq = ib_create_cq(priv->ca, ipoib_send_comp_handler, NULL,
-				     dev, ipoib_sendq_size, 0);
+				     dev, &cq_attr);
 	if (IS_ERR(priv->send_cq)) {
 		printk(KERN_WARNING "%s: failed to create send CQ\n", ca->name);
 		goto out_free_recv_cq;

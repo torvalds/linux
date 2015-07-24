@@ -12,6 +12,7 @@ struct context_tracking {
 	 * may be further optimized using static keys.
 	 */
 	bool active;
+	int recursion;
 	enum ctx_state {
 		CONTEXT_KERNEL = 0,
 		CONTEXT_USER,

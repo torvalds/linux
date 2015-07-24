@@ -57,5 +57,8 @@ config VIDEO_FB_IVTV
 	  This is used in the Hauppauge PVR-350 card. There is a driver
 	  homepage at <http://www.ivtvdriver.org>.
 
+	  In order to use this module, you will need to boot with PAT disabled
+	  on x86 systems, using the nopat kernel parameter.
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtvfb.

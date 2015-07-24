@@ -17,6 +17,7 @@
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -351,16 +352,40 @@ static void *sti_dwmac_setup(struct platform_device *pdev)
 	return dwmac;
 }
 
-const struct stmmac_of_data stih4xx_dwmac_data = {
+static const struct stmmac_of_data stih4xx_dwmac_data = {
 	.fix_mac_speed = stih4xx_fix_retime_src,
 	.setup = sti_dwmac_setup,
 	.init = stix4xx_init,
 	.exit = sti_dwmac_exit,
 };
 
-const struct stmmac_of_data stid127_dwmac_data = {
+static const struct stmmac_of_data stid127_dwmac_data = {
 	.fix_mac_speed = stid127_fix_retime_src,
 	.setup = sti_dwmac_setup,
 	.init = stid127_init,
 	.exit = sti_dwmac_exit,
 };
+
+static const struct of_device_id sti_dwmac_match[] = {
+	{ .compatible = "st,stih415-dwmac", .data = &stih4xx_dwmac_data},
+	{ .compatible = "st,stih416-dwmac", .data = &stih4xx_dwmac_data},
+	{ .compatible = "st,stid127-dwmac", .data = &stid127_dwmac_data},
+	{ .compatible = "st,stih407-dwmac", .data = &stih4xx_dwmac_data},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sti_dwmac_match);
+
+static struct platform_driver sti_dwmac_driver = {
+	.probe  = stmmac_pltfr_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "sti-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = sti_dwmac_match,
+	},
+};
+module_platform_driver(sti_dwmac_driver);
+
+MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@st.com>");
+MODULE_DESCRIPTION("STMicroelectronics DWMAC Specific Glue layer");
+MODULE_LICENSE("GPL");

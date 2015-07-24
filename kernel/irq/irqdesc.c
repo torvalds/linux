@@ -59,16 +59,10 @@ static void desc_smp_init(struct irq_desc *desc, int node)
 #endif
 }
 
-static inline int desc_node(struct irq_desc *desc)
-{
-	return desc->irq_data.node;
-}
-
 #else
 static inline int
 alloc_masks(struct irq_desc *desc, gfp_t gfp, int node) { return 0; }
 static inline void desc_smp_init(struct irq_desc *desc, int node) { }
-static inline int desc_node(struct irq_desc *desc) { return 0; }
 #endif
 
 static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
@@ -76,6 +70,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 {
 	int cpu;
 
+	desc->irq_data.common = &desc->irq_common_data;
 	desc->irq_data.irq = irq;
 	desc->irq_data.chip = &no_irq_chip;
 	desc->irq_data.chip_data = NULL;
@@ -299,7 +294,7 @@ static void free_desc(unsigned int irq)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc_set_defaults(irq, desc, desc_node(desc), NULL);
+	desc_set_defaults(irq, desc, irq_desc_get_node(desc), NULL);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
@@ -619,7 +614,7 @@ unsigned int kstat_irqs(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	int cpu;
-	int sum = 0;
+	unsigned int sum = 0;
 
 	if (!desc || !desc->kstat_irqs)
 		return 0;
@@ -639,7 +634,7 @@ unsigned int kstat_irqs(unsigned int irq)
  */
 unsigned int kstat_irqs_usr(unsigned int irq)
 {
-	int sum;
+	unsigned int sum;
 
 	irq_lock_sparse();
 	sum = kstat_irqs(irq);

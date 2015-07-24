@@ -714,7 +714,8 @@ static int uss720_probe(struct usb_interface *intf,
 	/*
 	 * Allocate parport interface 
 	 */
-	if (!(priv = kzalloc(sizeof(struct parport_uss720_private), GFP_KERNEL))) {
+	priv = kzalloc(sizeof(struct parport_uss720_private), GFP_KERNEL);
+	if (!priv) {
 		usb_put_dev(usbdev);
 		return -ENOMEM;
 	}
@@ -723,7 +724,8 @@ static int uss720_probe(struct usb_interface *intf,
 	kref_init(&priv->ref_count);
 	spin_lock_init(&priv->asynclock);
 	INIT_LIST_HEAD(&priv->asynclist);
-	if (!(pp = parport_register_port(0, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, &parport_uss720_ops))) {
+	pp = parport_register_port(0, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, &parport_uss720_ops);
+	if (!pp) {
 		printk(KERN_WARNING "uss720: could not register parport\n");
 		goto probe_abort;
 	}

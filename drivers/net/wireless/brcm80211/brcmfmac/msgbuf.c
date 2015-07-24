@@ -73,8 +73,10 @@
 #define BRCMF_MSGBUF_TX_FLUSH_CNT1		32
 #define BRCMF_MSGBUF_TX_FLUSH_CNT2		96
 
-#define BRCMF_MSGBUF_DELAY_TXWORKER_THRS	64
+#define BRCMF_MSGBUF_DELAY_TXWORKER_THRS	96
 #define BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS	32
+#define BRCMF_MSGBUF_UPDATE_RX_PTR_THRS		48
+
 
 struct msgbuf_common_hdr {
 	u8				msgtype;
@@ -278,16 +280,6 @@ struct brcmf_msgbuf_pktids {
 	struct brcmf_msgbuf_pktid *array;
 };
 
-
-/* dma flushing needs implementation for mips and arm platforms. Should
- * be put in util. Note, this is not real flushing. It is virtual non
- * cached memory. Only write buffers should have to be drained. Though
- * this may be different depending on platform......
- */
-#define brcmf_dma_flush(addr, len)
-#define brcmf_dma_invalidate_cache(addr, len)
-
-
 static void brcmf_msgbuf_rxbuf_ioctlresp_post(struct brcmf_msgbuf *msgbuf);
 
 
@@ -462,7 +454,6 @@ static int brcmf_msgbuf_tx_ioctl(struct brcmf_pub *drvr, int ifidx,
 		memcpy(msgbuf->ioctbuf, buf, buf_len);
 	else
 		memset(msgbuf->ioctbuf, 0, buf_len);
-	brcmf_dma_flush(ioctl_buf, buf_len);
 
 	err = brcmf_commonring_write_complete(commonring);
 	brcmf_commonring_unlock(commonring);
@@ -795,6 +786,8 @@ static int brcmf_msgbuf_txdata(struct brcmf_pub *drvr, int ifidx,
 	struct brcmf_flowring *flow = msgbuf->flow;
 	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 	u32 flowid;
+	u32 queue_count;
+	bool force;
 
 	flowid = brcmf_flowring_lookup(flow, eh->h_dest, skb->priority, ifidx);
 	if (flowid == BRCMF_FLOWRING_INVALID_ID) {
@@ -802,8 +795,9 @@ static int brcmf_msgbuf_txdata(struct brcmf_pub *drvr, int ifidx,
 		if (flowid == BRCMF_FLOWRING_INVALID_ID)
 			return -ENOMEM;
 	}
-	brcmf_flowring_enqueue(flow, flowid, skb);
-	brcmf_msgbuf_schedule_txdata(msgbuf, flowid, false);
+	queue_count = brcmf_flowring_enqueue(flow, flowid, skb);
+	force = ((queue_count % BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS) == 0);
+	brcmf_msgbuf_schedule_txdata(msgbuf, flowid, force);
 
 	return 0;
 }
@@ -1265,19 +1259,27 @@ static void brcmf_msgbuf_process_rx(struct brcmf_msgbuf *msgbuf,
 {
 	void *buf;
 	u16 count;
+	u16 processed;
 
 again:
 	buf = brcmf_commonring_get_read_ptr(commonring, &count);
 	if (buf == NULL)
 		return;
 
+	processed = 0;
 	while (count) {
 		brcmf_msgbuf_process_msgtype(msgbuf,
 					     buf + msgbuf->rx_dataoffset);
 		buf += brcmf_commonring_len_item(commonring);
+		processed++;
+		if (processed == BRCMF_MSGBUF_UPDATE_RX_PTR_THRS) {
+			brcmf_commonring_read_complete(commonring, processed);
+			processed = 0;
+		}
 		count--;
 	}
-	brcmf_commonring_read_complete(commonring);
+	if (processed)
+		brcmf_commonring_read_complete(commonring, processed);
 
 	if (commonring->r_ptr == 0)
 		goto again;

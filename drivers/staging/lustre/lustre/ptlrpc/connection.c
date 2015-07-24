@@ -54,7 +54,7 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 	if (conn)
 		goto out;
 
-	OBD_ALLOC_PTR(conn);
+	conn = kzalloc(sizeof(*conn), GFP_NOFS);
 	if (!conn)
 		return NULL;
 
@@ -76,7 +76,7 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 	/* coverity[overrun-buffer-val] */
 	conn2 = cfs_hash_findadd_unique(conn_hash, &peer, &conn->c_hash);
 	if (conn != conn2) {
-		OBD_FREE_PTR(conn);
+		kfree(conn);
 		conn = conn2;
 	}
 out:
@@ -227,7 +227,7 @@ conn_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 	LASSERTF(atomic_read(&conn->c_refcount) == 0,
 		 "Busy connection with %d refs\n",
 		 atomic_read(&conn->c_refcount));
-	OBD_FREE_PTR(conn);
+	kfree(conn);
 }
 
 static cfs_hash_ops_t conn_hash_ops = {

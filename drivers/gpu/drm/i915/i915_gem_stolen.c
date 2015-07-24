@@ -209,7 +209,7 @@ static int i915_setup_compression(struct drm_device *dev, int size, int fb_cpp)
 
 	dev_priv->fbc.threshold = ret;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (INTEL_INFO(dev_priv)->gen >= 5)
 		I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->fbc.compressed_fb.start);
 	else if (IS_GM45(dev)) {
 		I915_WRITE(DPFC_CB_BASE, dev_priv->fbc.compressed_fb.start);
@@ -416,7 +416,6 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	if (obj->pages == NULL)
 		goto cleanup;
 
-	obj->has_dma_mapping = true;
 	i915_gem_object_pin_pages(obj);
 	obj->stolen = stolen;
 

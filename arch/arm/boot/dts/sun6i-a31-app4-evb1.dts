@@ -18,11 +18,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -58,39 +53,41 @@
 	model = "Allwinner A31 APP4 EVB1 Evaluation Board";
 	compatible = "allwinner,app4-evb1", "allwinner,sun6i-a31";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
+};
 
-	soc@01c00000 {
-		pio: pinctrl@01c20800 {
-			usb1_vbus_pin_a: usb1_vbus_pin@0 {
-				allwinner,pins = "PH27";
-				allwinner,function = "gpio_out";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-		};
+&ehci0 {
+	status = "okay";
+};
 
-		usbphy: phy@01c19400 {
-			usb1_vbus-supply = <&reg_usb1_vbus>;
-			status = "okay";
-		};
-
-		ehci0: usb@01c1a000 {
-			status = "okay";
-		};
-
-		uart0: serial@01c28000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_pins_a>;
-			status = "okay";
-		};
+&pio {
+	usb1_vbus_pin_a: usb1_vbus_pin@0 {
+		allwinner,pins = "PH27";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
+};
 
-	reg_usb1_vbus: usb1-vbus {
-		pinctrl-0 = <&usb1_vbus_pin_a>;
-		gpio = <&pio 7 27 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
+&reg_usb1_vbus {
+	pinctrl-0 = <&usb1_vbus_pin_a>;
+	gpio = <&pio 7 27 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usbphy {
+	usb1_vbus-supply = <&reg_usb1_vbus>;
+	status = "okay";
 };

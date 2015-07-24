@@ -455,6 +455,7 @@ static int decode_cb_sequence4res(struct xdr_stream *xdr,
 	if (unlikely(status || cb->cb_status))
 		return status;
 
+	cb->cb_update_seq_nr = true;
 	return decode_cb_sequence4resok(xdr, cb);
 }
 
@@ -875,6 +876,8 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	u32 minorversion = clp->cl_minorversion;
 
 	cb->cb_minorversion = minorversion;
+	cb->cb_update_seq_nr = false;
+	cb->cb_status = 0;
 	if (minorversion) {
 		if (!nfsd41_cb_get_slot(clp, task))
 			return;
@@ -891,9 +894,16 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 		clp->cl_minorversion);
 
 	if (clp->cl_minorversion) {
-		/* No need for lock, access serialized in nfsd4_cb_prepare */
-		if (!task->tk_status)
+		/*
+		 * No need for lock, access serialized in nfsd4_cb_prepare
+		 *
+		 * RFC5661 20.9.3
+		 * If CB_SEQUENCE returns an error, then the state of the slot
+		 * (sequence ID, cached reply) MUST NOT change.
+		 */
+		if (cb->cb_update_seq_nr)
 			++clp->cl_cb_session->se_cb_seq_nr;
+
 		clear_bit(0, &clp->cl_cb_slot_busy);
 		rpc_wake_up_next(&clp->cl_cb_waitq);
 		dprintk("%s: freed slot, new seqid=%d\n", __func__,
@@ -1090,6 +1100,7 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 	cb->cb_ops = ops;
 	INIT_WORK(&cb->cb_work, nfsd4_run_cb_work);
 	cb->cb_status = 0;
+	cb->cb_update_seq_nr = false;
 	cb->cb_need_restart = false;
 }
 

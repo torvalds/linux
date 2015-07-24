@@ -111,8 +111,6 @@ struct thread_struct {
 	unsigned long long interrupt_mask;
 	/* User interrupt-control 0 state */
 	unsigned long intctrl_0;
-	/* Is this task currently doing a backtrace? */
-	bool in_backtrace;
 	/* Any other miscellaneous processor state bits */
 	unsigned long proc_status;
 #if !CHIP_HAS_FIXED_INTVEC_BASE()

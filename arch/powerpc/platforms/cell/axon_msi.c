@@ -22,6 +22,7 @@
 #include <asm/machdep.h>
 #include <asm/prom.h>
 
+#include "cell.h"
 
 /*
  * MSIC registers, specified as offsets from dcr_base
@@ -95,7 +96,7 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct axon_msic *msic = irq_get_handler_data(irq);
+	struct axon_msic *msic = irq_desc_get_handler_data(desc);
 	u32 write_offset, msi;
 	int idx;
 	int retry = 0;
@@ -406,8 +407,8 @@ static int axon_msi_probe(struct platform_device *device)
 
 	dev_set_drvdata(&device->dev, msic);
 
-	ppc_md.setup_msi_irqs = axon_msi_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = axon_msi_teardown_msi_irqs;
+	cell_pci_controller_ops.setup_msi_irqs = axon_msi_setup_msi_irqs;
+	cell_pci_controller_ops.teardown_msi_irqs = axon_msi_teardown_msi_irqs;
 
 	axon_msi_debug_setup(dn, msic);
 

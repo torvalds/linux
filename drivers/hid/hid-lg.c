@@ -700,7 +700,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			/* insert a little delay of 10 jiffies ~ 40ms */
 			wait_queue_head_t wait;
 			init_waitqueue_head (&wait);
-			wait_event_interruptible_timeout(wait, 0, 10);
+			wait_event_interruptible_timeout(wait, 0,
+							 msecs_to_jiffies(40));
 
 			/* Select random Address */
 			buf[1] = 0xB2;
@@ -712,13 +713,16 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (drv_data->quirks & LG_FF)
-		lgff_init(hdev);
-	if (drv_data->quirks & LG_FF2)
-		lg2ff_init(hdev);
-	if (drv_data->quirks & LG_FF3)
-		lg3ff_init(hdev);
-	if (drv_data->quirks & LG_FF4)
-		lg4ff_init(hdev);
+		ret = lgff_init(hdev);
+	else if (drv_data->quirks & LG_FF2)
+		ret = lg2ff_init(hdev);
+	else if (drv_data->quirks & LG_FF3)
+		ret = lg3ff_init(hdev);
+	else if (drv_data->quirks & LG_FF4)
+		ret = lg4ff_init(hdev);
+
+	if (ret)
+		goto err_free;
 
 	return 0;
 err_free:
@@ -731,8 +735,8 @@ static void lg_remove(struct hid_device *hdev)
 	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	if (drv_data->quirks & LG_FF4)
 		lg4ff_deinit(hdev);
-
-	hid_hw_stop(hdev);
+	else
+		hid_hw_stop(hdev);
 	kfree(drv_data);
 }
 

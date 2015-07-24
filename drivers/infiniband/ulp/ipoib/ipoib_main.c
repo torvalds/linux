@@ -190,7 +190,7 @@ static netdev_features_t ipoib_fix_features(struct net_device *dev, netdev_featu
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	if (test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags))
-		features &= ~(NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO);
+		features &= ~(NETIF_F_IP_CSUM | NETIF_F_TSO);
 
 	return features;
 }
@@ -232,6 +232,7 @@ int ipoib_set_mode(struct net_device *dev, const char *buf)
 		ipoib_warn(priv, "enabling connected mode "
 			   "will cause multicast packet drops\n");
 		netdev_update_features(dev);
+		dev_set_mtu(dev, ipoib_cm_max_mtu(dev));
 		rtnl_unlock();
 		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
 
@@ -1128,7 +1129,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 {
 	struct ipoib_neigh_table *ntbl = &priv->ntbl;
 	struct ipoib_neigh_hash *htbl;
-	struct ipoib_neigh **buckets;
+	struct ipoib_neigh __rcu **buckets;
 	u32 size;
 
 	clear_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
@@ -1146,7 +1147,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 	htbl->size = size;
 	htbl->mask = (size - 1);
 	htbl->buckets = buckets;
-	ntbl->htbl = htbl;
+	RCU_INIT_POINTER(ntbl->htbl, htbl);
 	htbl->ntbl = ntbl;
 	atomic_set(&ntbl->entries, 0);
 
@@ -1577,7 +1578,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	SET_NETDEV_DEV(priv->dev, hca->dma_device);
 	priv->dev->dev_id = port - 1;
 
-	if (!ib_query_port(hca, port, &attr))
+	result = ib_query_port(hca, port, &attr);
+	if (!result)
 		priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
 	else {
 		printk(KERN_WARNING "%s: ib_query_port %d failed\n",
@@ -1598,7 +1600,8 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto device_init_failed;
 	}
 
-	if (ipoib_set_dev_features(priv, hca))
+	result = ipoib_set_dev_features(priv, hca);
+	if (result)
 		goto device_init_failed;
 
 	/*
@@ -1684,10 +1687,8 @@ static void ipoib_add_one(struct ib_device *device)
 	struct list_head *dev_list;
 	struct net_device *dev;
 	struct ipoib_dev_priv *priv;
-	int s, e, p;
-
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
-		return;
+	int p;
+	int count = 0;
 
 	dev_list = kmalloc(sizeof *dev_list, GFP_KERNEL);
 	if (!dev_list)
@@ -1695,22 +1696,20 @@ static void ipoib_add_one(struct ib_device *device)
 
 	INIT_LIST_HEAD(dev_list);
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		s = 0;
-		e = 0;
-	} else {
-		s = 1;
-		e = device->phys_port_cnt;
-	}
-
-	for (p = s; p <= e; ++p) {
-		if (rdma_port_get_link_layer(device, p) != IB_LINK_LAYER_INFINIBAND)
+	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
+		if (!rdma_protocol_ib(device, p))
 			continue;
 		dev = ipoib_add_port("ib%d", device, p);
 		if (!IS_ERR(dev)) {
 			priv = netdev_priv(dev);
 			list_add_tail(&priv->list, dev_list);
+			count++;
 		}
+	}
+
+	if (!count) {
+		kfree(dev_list);
+		return;
 	}
 
 	ib_set_client_data(device, &ipoib_client, dev_list);
@@ -1720,9 +1719,6 @@ static void ipoib_remove_one(struct ib_device *device)
 {
 	struct ipoib_dev_priv *priv, *tmp;
 	struct list_head *dev_list;
-
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
-		return;
 
 	dev_list = ib_get_client_data(device, &ipoib_client);
 	if (!dev_list)

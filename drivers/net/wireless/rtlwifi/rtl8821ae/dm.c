@@ -1068,20 +1068,18 @@ static void rtl8812ae_dm_check_txpower_tracking_thermalmeter(
 		struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	static u8 tm_trigger;
 
-	if (!tm_trigger) {
+	if (!rtlpriv->dm.tm_trigger) {
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_T_METER_88E,
 			      BIT(17) | BIT(16), 0x03);
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Trigger 8812 Thermal Meter!!\n");
-		tm_trigger = 1;
+		rtlpriv->dm.tm_trigger = 1;
 		return;
 	}
 	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 		 "Schedule TxPowerTracking direct call!!\n");
 	rtl8812ae_dm_txpower_tracking_callback_thermalmeter(hw);
-	tm_trigger = 0;
 }
 
 static void rtl8821ae_dm_iq_calibrate(struct ieee80211_hw *hw)
@@ -2519,21 +2517,19 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 void rtl8821ae_dm_check_txpower_tracking_thermalmeter(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	static u8 tm_trigger;
-
-	if (!tm_trigger) {
+	if (!rtlpriv->dm.tm_trigger) {
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_T_METER_88E, BIT(17)|BIT(16),
 			      0x03);
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Trigger 8821ae Thermal Meter!!\n");
-		tm_trigger = 1;
+		rtlpriv->dm.tm_trigger = 1;
 		return;
 	} else {
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
 			 "Schedule TxPowerTracking !!\n");
 
 		rtl8821ae_dm_txpower_tracking_callback_thermalmeter(hw);
-		tm_trigger = 0;
+		rtlpriv->dm.tm_trigger = 0;
 	}
 }
 

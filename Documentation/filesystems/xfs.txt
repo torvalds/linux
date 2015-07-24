@@ -236,10 +236,10 @@ Removed Mount Options
 
   Name				Removed
   ----				-------
-  delaylog/nodelaylog		v3.20
-  ihashsize			v3.20
-  irixsgid			v3.20
-  osyncisdsync/osyncisosync	v3.20
+  delaylog/nodelaylog		v4.0
+  ihashsize			v4.0
+  irixsgid			v4.0
+  osyncisdsync/osyncisosync	v4.0
 
 
 sysctls
@@ -346,5 +346,5 @@ Removed Sysctls
 
   Name				Removed
   ----				-------
-  fs.xfs.xfsbufd_centisec	v3.20
-  fs.xfs.age_buffer_centisecs	v3.20
+  fs.xfs.xfsbufd_centisec	v4.0
+  fs.xfs.age_buffer_centisecs	v4.0

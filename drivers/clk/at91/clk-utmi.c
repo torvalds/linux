@@ -118,12 +118,16 @@ at91_clk_register_utmi(struct at91_pmc *pmc, unsigned int irq,
 	irq_set_status_flags(utmi->irq, IRQ_NOAUTOEN);
 	ret = request_irq(utmi->irq, clk_utmi_irq_handler,
 			  IRQF_TRIGGER_HIGH, "clk-utmi", utmi);
-	if (ret)
+	if (ret) {
+		kfree(utmi);
 		return ERR_PTR(ret);
+	}
 
 	clk = clk_register(NULL, &utmi->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		free_irq(utmi->irq, utmi);
 		kfree(utmi);
+	}
 
 	return clk;
 }

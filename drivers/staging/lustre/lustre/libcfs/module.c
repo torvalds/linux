@@ -49,7 +49,6 @@
 #include <linux/file.h>
 #include <linux/list.h>
 
-#include <linux/proc_fs.h>
 #include <linux/sysctl.h>
 
 # define DEBUG_SUBSYSTEM S_LNET
@@ -67,8 +66,6 @@ MODULE_DESCRIPTION("Portals v3.1");
 MODULE_LICENSE("GPL");
 
 extern struct miscdevice libcfs_dev;
-extern struct rw_semaphore cfs_tracefile_sem;
-extern struct mutex cfs_trace_thread_mutex;
 extern struct cfs_wi_sched *cfs_sched_rehash;
 extern void libcfs_init_nidstrings(void);
 
@@ -249,8 +246,8 @@ static int libcfs_psdev_release(unsigned long flags, void *args)
 	return 0;
 }
 
-static struct rw_semaphore ioctl_list_sem;
-static struct list_head ioctl_list;
+static DECLARE_RWSEM(ioctl_list_sem);
+static LIST_HEAD(ioctl_list);
 
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand)
 {
@@ -393,11 +390,6 @@ static int init_libcfs_module(void)
 
 	libcfs_arch_init();
 	libcfs_init_nidstrings();
-	init_rwsem(&cfs_tracefile_sem);
-	mutex_init(&cfs_trace_thread_mutex);
-	init_rwsem(&ioctl_list_sem);
-	INIT_LIST_HEAD(&ioctl_list);
-	init_waitqueue_head(&cfs_race_waitq);
 
 	rc = libcfs_debug_init(5 * 1024 * 1024);
 	if (rc < 0) {

@@ -17,9 +17,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
+#include <linux/spinlock.h>
+
 #include <drm/drm_vma_manager.h>
 
 #include "omap_drv.h"
@@ -808,10 +808,10 @@ fail:
 /* Release physical address, when DMA is no longer being performed.. this
  * could potentially unpin and unmap buffers from TILER
  */
-int omap_gem_put_paddr(struct drm_gem_object *obj)
+void omap_gem_put_paddr(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&obj->dev->struct_mutex);
 	if (omap_obj->paddr_cnt > 0) {
@@ -821,7 +821,6 @@ int omap_gem_put_paddr(struct drm_gem_object *obj)
 			if (ret) {
 				dev_err(obj->dev->dev,
 					"could not unpin pages: %d\n", ret);
-				goto fail;
 			}
 			ret = tiler_release(omap_obj->block);
 			if (ret) {
@@ -832,9 +831,8 @@ int omap_gem_put_paddr(struct drm_gem_object *obj)
 			omap_obj->block = NULL;
 		}
 	}
-fail:
+
 	mutex_unlock(&obj->dev->struct_mutex);
-	return ret;
 }
 
 /* Get rotated scanout address (only valid if already pinned), at the
@@ -1378,11 +1376,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 	omap_obj = kzalloc(sizeof(*omap_obj), GFP_KERNEL);
 	if (!omap_obj)
-		goto fail;
-
-	spin_lock(&priv->list_lock);
-	list_add(&omap_obj->mm_list, &priv->obj_list);
-	spin_unlock(&priv->list_lock);
+		return NULL;
 
 	obj = &omap_obj->base;
 
@@ -1392,10 +1386,18 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		 */
 		omap_obj->vaddr =  dma_alloc_writecombine(dev->dev, size,
 				&omap_obj->paddr, GFP_KERNEL);
-		if (omap_obj->vaddr)
-			flags |= OMAP_BO_DMA;
+		if (!omap_obj->vaddr) {
+			kfree(omap_obj);
 
+			return NULL;
+		}
+
+		flags |= OMAP_BO_DMA;
 	}
+
+	spin_lock(&priv->list_lock);
+	list_add(&omap_obj->mm_list, &priv->obj_list);
+	spin_unlock(&priv->list_lock);
 
 	omap_obj->flags = flags;
 

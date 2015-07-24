@@ -49,8 +49,6 @@
 /* fid_be_to_cpu() */
 #include "../include/lustre_fid.h"
 
-#include "../include/lustre_quota.h"
-
 /* context key constructor/destructor: dt_global_key_init, dt_global_key_fini */
 LU_KEY_INIT(dt_global, struct dt_thread_info);
 LU_KEY_FINI(dt_global, struct dt_thread_info);
@@ -237,7 +235,8 @@ EXPORT_SYMBOL(dt_locate_at);
 /**
  * find a object named \a entry in given \a dfh->dfh_o directory.
  */
-static int dt_find_entry(const struct lu_env *env, const char *entry, void *data)
+static int dt_find_entry(const struct lu_env *env,
+			 const char *entry, void *data)
 {
 	struct dt_find_hint  *dfh = data;
 	struct dt_device     *dt = dfh->dfh_dt;
@@ -330,9 +329,9 @@ static struct dt_object *dt_reg_open(const struct lu_env *env,
 	int result;
 
 	result = dt_lookup_dir(env, p, name, fid);
-	if (result == 0){
+	if (result == 0)
 		o = dt_locate(env, dt, fid);
-	} else
+	else
 		o = ERR_PTR(result);
 
 	return o;
@@ -923,7 +922,7 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 	ii->ii_version = dt_version_get(env, obj);
 
 	/* walk the index and fill lu_idxpages with key/record pairs */
-	rc = dt_index_walk(env, obj, rdpg, dt_index_page_build ,ii);
+	rc = dt_index_walk(env, obj, rdpg, dt_index_page_build, ii);
 	dt_read_unlock(env, obj);
 
 	if (rc == 0) {
@@ -938,8 +937,6 @@ out:
 	return rc;
 }
 EXPORT_SYMBOL(dt_index_read);
-
-#if defined (CONFIG_PROC_FS)
 
 int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 			  int count, int *eof, void *data)
@@ -1055,5 +1052,3 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_dt_rd_filesfree);
-
-#endif /* CONFIG_PROC_FS */

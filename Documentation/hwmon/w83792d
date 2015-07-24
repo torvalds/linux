@@ -8,6 +8,7 @@ Supported chips:
     Datasheet: http://www.winbond.com.tw
 
 Author: Shane Huang (Winbond)
+Updated: Roger Lucas
 
 
 Module Parameters
@@ -38,9 +39,16 @@ parameter; this will put it into a more well-behaved state first.
 The driver implements three temperature sensors, seven fan rotation speed
 sensors, nine voltage sensors, and two automatic fan regulation
 strategies called: Smart Fan I (Thermal Cruise mode) and Smart Fan II.
-Automatic fan control mode is possible only for fan1-fan3. Fan4-fan7 can run
-synchronized with selected fan (fan1-fan3). This functionality and manual PWM
-control for fan4-fan7 is not yet implemented.
+
+The driver also implements up to seven fan control outputs: pwm1-7.  Pwm1-7
+can be configured to PWM output or Analogue DC output via their associated
+pwmX_mode. Outputs pwm4 through pwm7 may or may not be present depending on
+how the W83792AD/D was configured by the BIOS.
+
+Automatic fan control mode is possible only for fan1-fan3.
+
+For all pwmX outputs, a value of 0 means minimum fan speed and a value of
+255 means maximum fan speed.
 
 Temperatures are measured in degrees Celsius and measurement resolution is 1
 degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when
@@ -157,14 +165,14 @@ for each fan.
 /sys files
 ----------
 
-pwm[1-3] - this file stores PWM duty cycle or DC value (fan speed) in range:
+pwm[1-7] - this file stores PWM duty cycle or DC value (fan speed) in range:
 	0 (stop) to 255 (full)
 pwm[1-3]_enable - this file controls mode of fan/temperature control:
             * 0 Disabled
             * 1 Manual mode
             * 2 Smart Fan II
             * 3 Thermal Cruise
-pwm[1-3]_mode - Select PWM of DC mode
+pwm[1-7]_mode - Select PWM or DC mode
             * 0 DC
             * 1 PWM
 thermal_cruise[1-3] - Selects the desired temperature for cruise (degC)

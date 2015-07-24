@@ -30,6 +30,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_mad.h>
 
 #include <linux/netdevice.h>
 #include <net/addrconf.h>
@@ -202,6 +203,24 @@ static enum rdma_link_layer ocrdma_link_layer(struct ib_device *device,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
+static int ocrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
+			         struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = ocrdma_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
 static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
 	strlcpy(dev->ibdev.name, "ocrdma%d", IB_DEVICE_NAME_MAX);
@@ -286,6 +305,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.dma_device = &dev->nic_info.pdev->dev;
 
 	dev->ibdev.process_mad = ocrdma_process_mad;
+	dev->ibdev.get_port_immutable = ocrdma_port_immutable;
 
 	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		dev->ibdev.uverbs_cmd_mask |=
@@ -676,6 +696,7 @@ static void __exit ocrdma_exit_module(void)
 	ocrdma_unregister_inet6addr_notifier();
 	ocrdma_unregister_inetaddr_notifier();
 	ocrdma_rem_debugfs();
+	idr_destroy(&ocrdma_dev_id);
 }
 
 module_init(ocrdma_init_module);

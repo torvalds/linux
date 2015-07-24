@@ -12,7 +12,6 @@
 #
 
 import gdb
-import string
 
 from linux import utils
 

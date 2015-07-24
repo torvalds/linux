@@ -601,14 +601,14 @@ static const struct proto_ops data_sock_ops = {
 };
 
 static int
-data_sock_create(struct net *net, struct socket *sock, int protocol)
+data_sock_create(struct net *net, struct socket *sock, int protocol, int kern)
 {
 	struct sock *sk;
 
 	if (sock->type != SOCK_DGRAM)
 		return -ESOCKTNOSUPPORT;
 
-	sk = sk_alloc(net, PF_ISDN, GFP_KERNEL, &mISDN_proto);
+	sk = sk_alloc(net, PF_ISDN, GFP_KERNEL, &mISDN_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 
@@ -756,14 +756,14 @@ static const struct proto_ops base_sock_ops = {
 
 
 static int
-base_sock_create(struct net *net, struct socket *sock, int protocol)
+base_sock_create(struct net *net, struct socket *sock, int protocol, int kern)
 {
 	struct sock *sk;
 
 	if (sock->type != SOCK_RAW)
 		return -ESOCKTNOSUPPORT;
 
-	sk = sk_alloc(net, PF_ISDN, GFP_KERNEL, &mISDN_proto);
+	sk = sk_alloc(net, PF_ISDN, GFP_KERNEL, &mISDN_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 
@@ -785,7 +785,7 @@ mISDN_sock_create(struct net *net, struct socket *sock, int proto, int kern)
 
 	switch (proto) {
 	case ISDN_P_BASE:
-		err = base_sock_create(net, sock, proto);
+		err = base_sock_create(net, sock, proto, kern);
 		break;
 	case ISDN_P_TE_S0:
 	case ISDN_P_NT_S0:
@@ -799,7 +799,7 @@ mISDN_sock_create(struct net *net, struct socket *sock, int proto, int kern)
 	case ISDN_P_B_L2DTMF:
 	case ISDN_P_B_L2DSP:
 	case ISDN_P_B_L2DSPHDLC:
-		err = data_sock_create(net, sock, proto);
+		err = data_sock_create(net, sock, proto, kern);
 		break;
 	default:
 		return err;

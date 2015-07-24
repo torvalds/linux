@@ -20,7 +20,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	if (!evlist)
 		return -ENOMEM;
 
-	if (parse_events(evlist, str))
+	if (parse_events(evlist, str, NULL))
 		goto out_delete;
 
 	evsel = perf_evlist__first(evlist);
@@ -64,7 +64,7 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 	if (!cpus)
 		return false;
 	cpu = cpus->map[0];
-	cpu_map__delete(cpus);
+	cpu_map__put(cpus);
 
 	do {
 		ret = perf_do_probe_api(fn, cpu, try[i++]);
@@ -119,7 +119,16 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 			evsel->attr.comm_exec = 1;
 	}
 
-	if (evlist->nr_entries > 1) {
+	if (opts->full_auxtrace) {
+		/*
+		 * Need to be able to synthesize and parse selected events with
+		 * arbitrary sample types, which requires always being able to
+		 * match the id.
+		 */
+		use_sample_identifier = perf_can_sample_identifier();
+		evlist__for_each(evlist, evsel)
+			perf_evsel__set_sample_id(evsel, use_sample_identifier);
+	} else if (evlist->nr_entries > 1) {
 		struct perf_evsel *first = perf_evlist__first(evlist);
 
 		evlist__for_each(evlist, evsel) {
@@ -207,7 +216,7 @@ bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 	if (!temp_evlist)
 		return false;
 
-	err = parse_events(temp_evlist, str);
+	err = parse_events(temp_evlist, str, NULL);
 	if (err)
 		goto out_delete;
 
@@ -217,7 +226,7 @@ bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 		struct cpu_map *cpus = cpu_map__new(NULL);
 
 		cpu =  cpus ? cpus->map[0] : 0;
-		cpu_map__delete(cpus);
+		cpu_map__put(cpus);
 	} else {
 		cpu = evlist->cpus->map[0];
 	}

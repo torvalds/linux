@@ -2204,7 +2204,7 @@ out:
 	kfree(o2net_hand);
 	kfree(o2net_keep_req);
 	kfree(o2net_keep_resp);
-
+	o2net_debugfs_exit();
 	o2quo_exit();
 	return -ENOMEM;
 }

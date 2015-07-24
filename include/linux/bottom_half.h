@@ -2,7 +2,6 @@
 #define _LINUX_BH_H
 
 #include <linux/preempt.h>
-#include <linux/preempt_mask.h>
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 extern void __local_bh_disable_ip(unsigned long ip, unsigned int cnt);

@@ -50,7 +50,7 @@ static inline struct dvb_frontend *cx24123_attach(
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-static struct i2c_adapter *
+static inline struct i2c_adapter *
 	cx24123_get_tuner_i2c_adapter(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

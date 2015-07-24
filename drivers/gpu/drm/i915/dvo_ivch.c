@@ -23,6 +23,9 @@
  * Authors:
  *    Eric Anholt <eric@anholt.net>
  *
+ * Minor modifications (Dithering enable):
+ *    Thomas Richter <thor@math.tu-berlin.de>
+ *
  */
 
 #include "dvo.h"
@@ -59,6 +62,8 @@
 # define VR01_DVO_BYPASS_ENABLE		(1 << 1)
 /** Enables the DVO clock */
 # define VR01_DVO_ENABLE		(1 << 0)
+/** Enable dithering for 18bpp panels. Not documented. */
+# define VR01_DITHER_ENABLE             (1 << 4)
 
 /*
  * LCD Interface Format
@@ -74,6 +79,8 @@
 # define VR10_INTERFACE_2X18		(2 << 2)
 /** Enables 2x24-bit LVDS output */
 # define VR10_INTERFACE_2X24		(3 << 2)
+/** Mask that defines the depth of the pipeline */
+# define VR10_INTERFACE_DEPTH_MASK      (3 << 2)
 
 /*
  * VR20 LCD Horizontal Display Size
@@ -342,9 +349,15 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 			  struct drm_display_mode *adjusted_mode)
 {
 	uint16_t vr40 = 0;
-	uint16_t vr01;
+	uint16_t vr01 = 0;
+	uint16_t vr10;
 
-	vr01 = 0;
+	ivch_read(dvo, VR10, &vr10);
+	/* Enable dithering for 18 bpp pipelines */
+	vr10 &= VR10_INTERFACE_DEPTH_MASK;
+	if (vr10 == VR10_INTERFACE_2X18 || vr10 == VR10_INTERFACE_1X18)
+		vr01 = VR01_DITHER_ENABLE;
+
 	vr40 = (VR40_STALL_ENABLE | VR40_VERTICAL_INTERP_ENABLE |
 		VR40_HORIZONTAL_INTERP_ENABLE);
 
@@ -353,7 +366,7 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 		uint16_t x_ratio, y_ratio;
 
 		vr01 |= VR01_PANEL_FIT_ENABLE;
-		vr40 |= VR40_CLOCK_GATING_ENABLE;
+		vr40 |= VR40_CLOCK_GATING_ENABLE | VR40_ENHANCED_PANEL_FITTING;
 		x_ratio = (((mode->hdisplay - 1) << 16) /
 			   (adjusted_mode->hdisplay - 1)) >> 2;
 		y_ratio = (((mode->vdisplay - 1) << 16) /
@@ -380,6 +393,8 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo)
 	DRM_DEBUG_KMS("VR00: 0x%04x\n", val);
 	ivch_read(dvo, VR01, &val);
 	DRM_DEBUG_KMS("VR01: 0x%04x\n", val);
+	ivch_read(dvo, VR10, &val);
+	DRM_DEBUG_KMS("VR10: 0x%04x\n", val);
 	ivch_read(dvo, VR30, &val);
 	DRM_DEBUG_KMS("VR30: 0x%04x\n", val);
 	ivch_read(dvo, VR40, &val);

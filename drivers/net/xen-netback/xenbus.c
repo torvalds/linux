@@ -681,6 +681,9 @@ static int xen_register_watchers(struct xenbus_device *dev, struct xenvif *vif)
 	char *node;
 	unsigned maxlen = strlen(dev->nodename) + sizeof("/rate");
 
+	if (vif->credit_watch.node)
+		return -EADDRINUSE;
+
 	node = kmalloc(maxlen, GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
@@ -770,6 +773,7 @@ static void connect(struct backend_info *be)
 	}
 
 	xen_net_read_rate(dev, &credit_bytes, &credit_usec);
+	xen_unregister_watchers(be->vif);
 	xen_register_watchers(dev, be->vif);
 	read_xenbus_vif_flags(be);
 

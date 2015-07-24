@@ -24,7 +24,6 @@
 #include <linux/types.h>
 #include <linux/mfd/cros_ec.h>
 
-#define CROS_EC_DEV_NAME "cros_ec"
 #define CROS_EC_DEV_VERSION "1.0.0"
 
 /*
@@ -43,11 +42,5 @@ struct cros_ec_readmem {
 #define CROS_EC_DEV_IOC       0xEC
 #define CROS_EC_DEV_IOCXCMD   _IOWR(CROS_EC_DEV_IOC, 0, struct cros_ec_command)
 #define CROS_EC_DEV_IOCRDMEM  _IOWR(CROS_EC_DEV_IOC, 1, struct cros_ec_readmem)
-
-void ec_dev_sysfs_init(struct cros_ec_device *);
-void ec_dev_sysfs_remove(struct cros_ec_device *);
-
-void ec_dev_lightbar_init(struct cros_ec_device *);
-void ec_dev_lightbar_remove(struct cros_ec_device *);
 
 #endif /* _CROS_EC_DEV_H_ */

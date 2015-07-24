@@ -106,34 +106,6 @@ struct mgs_export_data {
 	spinlock_t		med_lock;	/* protect med_clients */
 };
 
-/**
- * per-NID statistics structure.
- * It tracks access patterns to this export on a per-client-NID basis
- */
-struct nid_stat {
-	lnet_nid_t	       nid;
-	struct hlist_node	 nid_hash;
-	struct list_head	       nid_list;
-	struct obd_device       *nid_obd;
-	struct proc_dir_entry   *nid_proc;
-	struct lprocfs_stats    *nid_stats;
-	struct lprocfs_stats    *nid_ldlm_stats;
-	atomic_t	     nid_exp_ref_count; /* for obd_nid_stats_hash
-							   exp_nid_stats */
-};
-
-#define nidstat_getref(nidstat)						\
-do {									   \
-	atomic_inc(&(nidstat)->nid_exp_ref_count);			 \
-} while (0)
-
-#define nidstat_putref(nidstat)						\
-do {									   \
-	atomic_dec(&(nidstat)->nid_exp_ref_count);			 \
-	LASSERTF(atomic_read(&(nidstat)->nid_exp_ref_count) >= 0,	  \
-		 "stat %p nid_exp_ref_count < 0\n", nidstat);		  \
-} while (0)
-
 enum obd_option {
 	OBD_OPT_FORCE =	 0x0001,
 	OBD_OPT_FAILOVER =      0x0002,
@@ -190,7 +162,6 @@ struct obd_export {
 	 * exp_lock protect its change
 	 */
 	struct obd_import	*exp_imp_reverse;
-	struct nid_stat	  *exp_nid_stats;
 	struct lprocfs_stats     *exp_md_stats;
 	/** Active connection */
 	struct ptlrpc_connection *exp_connection;

@@ -223,13 +223,16 @@ void *pwm_get_chip_data(struct pwm_device *pwm)
 EXPORT_SYMBOL_GPL(pwm_get_chip_data);
 
 /**
- * pwmchip_add() - register a new PWM chip
+ * pwmchip_add_with_polarity() - register a new PWM chip
  * @chip: the PWM chip to add
+ * @polarity: initial polarity of PWM channels
  *
  * Register a new PWM chip. If chip->base < 0 then a dynamically assigned base
- * will be used.
+ * will be used. The initial polarity for all channels is specified by the
+ * @polarity parameter.
  */
-int pwmchip_add(struct pwm_chip *chip)
+int pwmchip_add_with_polarity(struct pwm_chip *chip,
+			      enum pwm_polarity polarity)
 {
 	struct pwm_device *pwm;
 	unsigned int i;
@@ -259,6 +262,7 @@ int pwmchip_add(struct pwm_chip *chip)
 		pwm->chip = chip;
 		pwm->pwm = chip->base + i;
 		pwm->hwpwm = i;
+		pwm->polarity = polarity;
 
 		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
 	}
@@ -278,6 +282,19 @@ int pwmchip_add(struct pwm_chip *chip)
 out:
 	mutex_unlock(&pwm_lock);
 	return ret;
+}
+EXPORT_SYMBOL_GPL(pwmchip_add_with_polarity);
+
+/**
+ * pwmchip_add() - register a new PWM chip
+ * @chip: the PWM chip to add
+ *
+ * Register a new PWM chip. If chip->base < 0 then a dynamically assigned base
+ * will be used. The initial polarity for all channels is normal.
+ */
+int pwmchip_add(struct pwm_chip *chip)
+{
+	return pwmchip_add_with_polarity(chip, PWM_POLARITY_NORMAL);
 }
 EXPORT_SYMBOL_GPL(pwmchip_add);
 
@@ -579,6 +596,23 @@ void pwm_add_table(struct pwm_lookup *table, size_t num)
 
 	while (num--) {
 		list_add_tail(&table->list, &pwm_lookup_list);
+		table++;
+	}
+
+	mutex_unlock(&pwm_lookup_lock);
+}
+
+/**
+ * pwm_remove_table() - unregister PWM device consumers
+ * @table: array of consumers to unregister
+ * @num: number of consumers in table
+ */
+void pwm_remove_table(struct pwm_lookup *table, size_t num)
+{
+	mutex_lock(&pwm_lookup_lock);
+
+	while (num--) {
+		list_del(&table->list);
 		table++;
 	}
 

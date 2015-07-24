@@ -45,6 +45,9 @@ config COMPAT_NETLINK_MESSAGES
 	  Newly written code should NEVER need this option but do
 	  compat-independent messages instead!
 
+config NET_INGRESS
+	bool
+
 menu "Networking options"
 
 source "net/packet/Kconfig"

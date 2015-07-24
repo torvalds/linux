@@ -1,6 +1,6 @@
 
 Export CPU topology info via sysfs. Items (attributes) are similar
-to /proc/cpuinfo.
+to /proc/cpuinfo output of some architectures:
 
 1) /sys/devices/system/cpu/cpuX/topology/physical_package_id:
 
@@ -23,20 +23,35 @@ to /proc/cpuinfo.
 4) /sys/devices/system/cpu/cpuX/topology/thread_siblings:
 
 	internal kernel map of cpuX's hardware threads within the same
-	core as cpuX
+	core as cpuX.
 
-5) /sys/devices/system/cpu/cpuX/topology/core_siblings:
+5) /sys/devices/system/cpu/cpuX/topology/thread_siblings_list:
+
+	human-readable list of cpuX's hardware threads within the same
+	core as cpuX.
+
+6) /sys/devices/system/cpu/cpuX/topology/core_siblings:
 
 	internal kernel map of cpuX's hardware threads within the same
 	physical_package_id.
 
-6) /sys/devices/system/cpu/cpuX/topology/book_siblings:
+7) /sys/devices/system/cpu/cpuX/topology/core_siblings_list:
+
+	human-readable list of cpuX's hardware threads within the same
+	physical_package_id.
+
+8) /sys/devices/system/cpu/cpuX/topology/book_siblings:
 
 	internal kernel map of cpuX's hardware threads within the same
 	book_id.
 
+9) /sys/devices/system/cpu/cpuX/topology/book_siblings_list:
+
+	human-readable list of cpuX's hardware threads within the same
+	book_id.
+
 To implement it in an architecture-neutral way, a new source file,
-drivers/base/topology.c, is to export the 4 or 6 attributes. The two book
+drivers/base/topology.c, is to export the 6 or 9 attributes. The three book
 related sysfs files will only be created if CONFIG_SCHED_BOOK is selected.
 
 For an architecture to support this feature, it must define some of
@@ -44,20 +59,22 @@ these macros in include/asm-XXX/topology.h:
 #define topology_physical_package_id(cpu)
 #define topology_core_id(cpu)
 #define topology_book_id(cpu)
-#define topology_thread_cpumask(cpu)
+#define topology_sibling_cpumask(cpu)
 #define topology_core_cpumask(cpu)
 #define topology_book_cpumask(cpu)
 
-The type of **_id is int.
-The type of siblings is (const) struct cpumask *.
+The type of **_id macros is int.
+The type of **_cpumask macros is (const) struct cpumask *. The latter
+correspond with appropriate **_siblings sysfs attributes (except for
+topology_sibling_cpumask() which corresponds with thread_siblings).
 
 To be consistent on all architectures, include/linux/topology.h
 provides default definitions for any of the above macros that are
 not defined by include/asm-XXX/topology.h:
 1) physical_package_id: -1
 2) core_id: 0
-3) thread_siblings: just the given CPU
-4) core_siblings: just the given CPU
+3) sibling_cpumask: just the given CPU
+4) core_cpumask: just the given CPU
 
 For architectures that don't support books (CONFIG_SCHED_BOOK) there are no
 default definitions for topology_book_id() and topology_book_cpumask().

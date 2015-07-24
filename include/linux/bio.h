@@ -290,7 +290,21 @@ static inline unsigned bio_segments(struct bio *bio)
  * returns. and then bio would be freed memory when if (bio->bi_flags ...)
  * runs
  */
-#define bio_get(bio)	atomic_inc(&(bio)->bi_cnt)
+static inline void bio_get(struct bio *bio)
+{
+	bio->bi_flags |= (1 << BIO_REFFED);
+	smp_mb__before_atomic();
+	atomic_inc(&bio->__bi_cnt);
+}
+
+static inline void bio_cnt_set(struct bio *bio, unsigned int count)
+{
+	if (count != 1) {
+		bio->bi_flags |= (1 << BIO_REFFED);
+		smp_mb__before_atomic();
+	}
+	atomic_set(&bio->__bi_cnt, count);
+}
 
 enum bip_flags {
 	BIP_BLOCK_INTEGRITY	= 1 << 0, /* block layer owns integrity data */
@@ -413,7 +427,6 @@ static inline struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
 }
 
 extern void bio_endio(struct bio *, int);
-extern void bio_endio_nodec(struct bio *, int);
 struct request_queue;
 extern int bio_phys_segments(struct request_queue *, struct bio *);
 
@@ -469,9 +482,12 @@ extern void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
 
 #ifdef CONFIG_BLK_CGROUP
+int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css);
 int bio_associate_current(struct bio *bio);
 void bio_disassociate_task(struct bio *bio);
 #else	/* CONFIG_BLK_CGROUP */
+static inline int bio_associate_blkcg(struct bio *bio,
+			struct cgroup_subsys_state *blkcg_css) { return 0; }
 static inline int bio_associate_current(struct bio *bio) { return -ENOENT; }
 static inline void bio_disassociate_task(struct bio *bio) { }
 #endif	/* CONFIG_BLK_CGROUP */

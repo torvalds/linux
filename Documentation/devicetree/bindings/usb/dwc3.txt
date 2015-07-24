@@ -38,6 +38,8 @@ Optional properties:
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold
+ - snps,hsphy_interface: High-Speed PHY interface selection between "utmi" for
+   UTMI+ and "ulpi" for ULPI when the DWC_USB3_HSPHY_INTERFACE has value 3.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 

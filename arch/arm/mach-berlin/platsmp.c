@@ -22,7 +22,6 @@
 #define RESET_VECT		0x00
 #define SW_RESET_ADDR		0x94
 
-extern void berlin_secondary_startup(void);
 extern u32 boot_inst;
 
 static void __iomem *cpu_ctrl;
@@ -85,7 +84,7 @@ static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 	 * Write the secondary startup address into the SW reset address
 	 * vector. This is used by boot_inst.
 	 */
-	writel(virt_to_phys(berlin_secondary_startup), vectors_base + SW_RESET_ADDR);
+	writel(virt_to_phys(secondary_startup), vectors_base + SW_RESET_ADDR);
 
 	iounmap(vectors_base);
 unmap_scu:

@@ -132,14 +132,14 @@ module_param(recov_time, int, 0444);
 
 /*====================================================================*/
 
-typedef struct cirrus_state_t {
+struct cirrus_state {
     u_char		misc1, misc2;
     u_char		timer[6];
-} cirrus_state_t;
+};
 
-typedef struct vg46x_state_t {
+struct vg46x_state {
     u_char		ctl, ema;
-} vg46x_state_t;
+};
 
 struct i82365_socket {
     u_short		type, flags;
@@ -149,8 +149,8 @@ struct i82365_socket {
     u_short		psock;
     u_char		cs_irq, intr;
     union {
-	cirrus_state_t		cirrus;
-	vg46x_state_t		vg46x;
+	struct cirrus_state		cirrus;
+	struct vg46x_state		vg46x;
     } state;
 };
 
@@ -173,11 +173,11 @@ static struct timer_list poll_timer;
 /*====================================================================*/
 
 /* These definitions must match the pcic table! */
-typedef enum pcic_id {
+enum pcic_id {
     IS_I82365A, IS_I82365B, IS_I82365DF,
     IS_IBM, IS_RF5Cx96, IS_VLSI, IS_VG468, IS_VG469,
     IS_PD6710, IS_PD672X, IS_VT83C469,
-} pcic_id;
+};
 
 /* Flags for classifying groups of controllers */
 #define IS_VADEM	0x0001
@@ -189,12 +189,12 @@ typedef enum pcic_id {
 #define IS_REGISTERED	0x2000
 #define IS_ALIVE	0x8000
 
-typedef struct pcic_t {
+struct pcic {
     char		*name;
     u_short		flags;
-} pcic_t;
+};
 
-static pcic_t pcic[] = {
+static struct pcic pcic[] = {
     { "Intel i82365sl A step", 0 },
     { "Intel i82365sl B step", 0 },
     { "Intel i82365sl DF", IS_DF_PWR },
@@ -208,7 +208,7 @@ static pcic_t pcic[] = {
     { "VIA VT83C469", IS_CIRRUS|IS_VIA },
 };
 
-#define PCIC_COUNT	(sizeof(pcic)/sizeof(pcic_t))
+#define PCIC_COUNT	ARRAY_SIZE(pcic)
 
 /*====================================================================*/
 
@@ -294,7 +294,7 @@ static void i365_set_pair(u_short sock, u_short reg, u_short data)
 static void cirrus_get_state(u_short s)
 {
     int i;
-    cirrus_state_t *p = &socket[s].state.cirrus;
+    struct cirrus_state *p = &socket[s].state.cirrus;
     p->misc1 = i365_get(s, PD67_MISC_CTL_1);
     p->misc1 &= (PD67_MC1_MEDIA_ENA | PD67_MC1_INPACK_ENA);
     p->misc2 = i365_get(s, PD67_MISC_CTL_2);
@@ -306,7 +306,7 @@ static void cirrus_set_state(u_short s)
 {
     int i;
     u_char misc;
-    cirrus_state_t *p = &socket[s].state.cirrus;
+    struct cirrus_state *p = &socket[s].state.cirrus;
 
     misc = i365_get(s, PD67_MISC_CTL_2);
     i365_set(s, PD67_MISC_CTL_2, p->misc2);
@@ -321,7 +321,7 @@ static void cirrus_set_state(u_short s)
 static u_int __init cirrus_set_opts(u_short s, char *buf)
 {
     struct i82365_socket *t = &socket[s];
-    cirrus_state_t *p = &socket[s].state.cirrus;
+    struct cirrus_state *p = &socket[s].state.cirrus;
     u_int mask = 0xffff;
 
     if (has_ring == -1) has_ring = 1;
@@ -377,7 +377,7 @@ static u_int __init cirrus_set_opts(u_short s, char *buf)
 
 static void vg46x_get_state(u_short s)
 {
-    vg46x_state_t *p = &socket[s].state.vg46x;
+    struct vg46x_state *p = &socket[s].state.vg46x;
     p->ctl = i365_get(s, VG468_CTL);
     if (socket[s].type == IS_VG469)
 	p->ema = i365_get(s, VG469_EXT_MODE);
@@ -385,7 +385,7 @@ static void vg46x_get_state(u_short s)
 
 static void vg46x_set_state(u_short s)
 {
-    vg46x_state_t *p = &socket[s].state.vg46x;
+    struct vg46x_state *p = &socket[s].state.vg46x;
     i365_set(s, VG468_CTL, p->ctl);
     if (socket[s].type == IS_VG469)
 	i365_set(s, VG469_EXT_MODE, p->ema);
@@ -393,7 +393,7 @@ static void vg46x_set_state(u_short s)
 
 static u_int __init vg46x_set_opts(u_short s, char *buf)
 {
-    vg46x_state_t *p = &socket[s].state.vg46x;
+    struct vg46x_state *p = &socket[s].state.vg46x;
     
     flip(p->ctl, VG468_CTL_ASYNC, async_clock);
     flip(p->ema, VG469_MODE_CABLE, cable_mode);
@@ -1285,13 +1285,6 @@ static int __init init_i82365(void)
 	    ret = pcmcia_register_socket(&socket[i].socket);
 	    if (!ret)
 		    socket[i].flags |= IS_REGISTERED;
-
-#if 0 /* driver model ordering issue */
-	   class_device_create_file(&socket[i].socket.dev,
-			   	    &class_device_attr_info);
-	   class_device_create_file(&socket[i].socket.dev,
-			   	    &class_device_attr_exca);
-#endif
     }
 
     /* Finally, schedule a polling interrupt */

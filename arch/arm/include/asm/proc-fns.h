@@ -125,13 +125,6 @@ extern void cpu_resume(void);
 		ttbr;						\
 	})
 
-#define cpu_set_ttbr(nr, val)					\
-	do {							\
-		u64 ttbr = val;					\
-		__asm__("mcrr	p15, " #nr ", %Q0, %R0, c2"	\
-			: : "r" (ttbr));			\
-	} while (0)
-
 #define cpu_get_pgd()	\
 	({						\
 		u64 pg = cpu_get_ttbr(0);		\

@@ -81,7 +81,7 @@
 		regulator-boot-on;
 	};
 
-	lan9220@20000000 {
+	ethernet@20000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x20000000 0x10000>;
 		phy-mode = "mii";
@@ -96,7 +96,7 @@
 };
 
 &pfc {
-	uart1_pins: uart@e1030000 {
+	uart1_pins: serial@e1030000 {
 		renesas,groups = "uart1_ctrl", "uart1_data";
 		renesas,function = "uart1";
 	};

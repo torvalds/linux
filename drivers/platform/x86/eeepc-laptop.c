@@ -37,6 +37,7 @@
 #include <linux/pci_hotplug.h>
 #include <linux/leds.h>
 #include <linux/dmi.h>
+#include <acpi/video.h>
 
 #define EEEPC_LAPTOP_VERSION	"0.1"
 #define EEEPC_LAPTOP_NAME	"Eee PC Hotkey Driver"
@@ -1433,12 +1434,10 @@ static int eeepc_acpi_add(struct acpi_device *device)
 	if (result)
 		goto fail_platform;
 
-	if (!acpi_video_backlight_support()) {
+	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		result = eeepc_backlight_init(eeepc);
 		if (result)
 			goto fail_backlight;
-	} else {
-		pr_info("Backlight controlled by ACPI video driver\n");
 	}
 
 	result = eeepc_input_init(eeepc);

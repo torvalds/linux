@@ -72,6 +72,10 @@ extern struct callchain_param callchain_param;
 struct callchain_list {
 	u64			ip;
 	struct map_symbol	ms;
+	struct /* for TUI */ {
+		bool		unfolded;
+		bool		has_children;
+	};
 	char		       *srcline;
 	struct list_head	list;
 };

@@ -60,6 +60,7 @@ config SOC_AM43XX
 	select ARM_GIC
 	select MACH_OMAP_GENERIC
 	select MIGHT_HAVE_CACHE_L2X0
+	select HAVE_ARM_SCU
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"
@@ -171,12 +172,6 @@ config MACH_OMAP2_TUSB6010
 	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
 
-config MACH_OMAP3_BEAGLE
-	bool "OMAP3 BEAGLE board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_OMAP_LDP
 	bool "OMAP3 LDP board"
 	depends on ARCH_OMAP3
@@ -202,12 +197,6 @@ config MACH_OMAP3_TORPEDO
 	 Support for the LogicPD OMAP35x Torpedo Development kit
 	 for full description please see the products webpage at
 	 http://www.logicpd.com/products/development-kits/zoom-omap35x-torpedo-development-kit
-
-config MACH_OVERO
-	bool "Gumstix Overo board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
@@ -239,16 +228,6 @@ config MACH_NOKIA_RX51
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-
-config MACH_CM_T35
-	bool "CompuLab CM-T35/CM-T3730 modules"
-	depends on ARCH_OMAP3
-	default y
-	select MACH_CM_T3730
-	select OMAP_PACKAGE_CUS
-
-config MACH_CM_T3730
-       bool
 
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"

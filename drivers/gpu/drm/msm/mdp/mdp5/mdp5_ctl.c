@@ -392,8 +392,10 @@ static u32 fix_sw_flush(struct mdp5_ctl *ctl, u32 flush_mask)
  * CTL registers need to be flushed in some circumstances; if that is the
  * case, some trigger bits will be present in both flush mask and
  * ctl->pending_ctl_trigger.
+ *
+ * Return H/W flushed bit mask.
  */
-int mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask)
+u32 mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask)
 {
 	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
 	struct op_mode *pipeline = &ctl->pipeline;
@@ -424,7 +426,12 @@ int mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask)
 		refill_start_mask(ctl);
 	}
 
-	return 0;
+	return flush_mask;
+}
+
+u32 mdp5_ctl_get_commit_status(struct mdp5_ctl *ctl)
+{
+	return ctl_read(ctl, REG_MDP5_CTL_FLUSH(ctl->id));
 }
 
 void mdp5_ctl_release(struct mdp5_ctl *ctl)

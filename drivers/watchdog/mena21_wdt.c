@@ -208,13 +208,14 @@ static int a21_wdt_probe(struct platform_device *pdev)
 	else if (reset == 7)
 		a21_wdt.bootstatus |= WDIOF_EXTERN2;
 
+	drv->wdt = a21_wdt;
+	dev_set_drvdata(&pdev->dev, drv);
+
 	ret = watchdog_register_device(&a21_wdt);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register watchdog device\n");
 		goto err_register_wd;
 	}
-
-	dev_set_drvdata(&pdev->dev, drv);
 
 	dev_info(&pdev->dev, "MEN A21 watchdog timer driver enabled\n");
 

@@ -16,6 +16,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/seq_file.h>
@@ -94,9 +95,8 @@ static inline int to_reg(int gpio, enum ctrl_register reg_type)
 {
 	int reg;
 
-	if (gpio == 94) {
+	if (gpio == 94)
 		return GPIOPANELCTL;
-	}
 
 	if (reg_type == CTRL_IN) {
 		if (gpio < 8)
@@ -255,6 +255,7 @@ static struct irq_chip crystalcove_irqchip = {
 	.irq_set_type		= crystalcove_irq_type,
 	.irq_bus_lock		= crystalcove_bus_lock,
 	.irq_bus_sync_unlock	= crystalcove_bus_sync_unlock,
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)

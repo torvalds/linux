@@ -25,6 +25,7 @@
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
@@ -240,6 +241,8 @@ struct efx_tx_queue {
 	unsigned int read_count ____cacheline_aligned_in_smp;
 	unsigned int old_write_count;
 	unsigned int merge_events;
+	unsigned int bytes_compl;
+	unsigned int pkts_compl;
 
 	/* Members used only on the xmit path */
 	unsigned int insert_count ____cacheline_aligned_in_smp;
@@ -793,7 +796,6 @@ union efx_multicast_hash {
 	efx_oword_t oword[EFX_MCAST_HASH_ENTRIES / sizeof(efx_oword_t) / 8];
 };
 
-struct efx_vf;
 struct vfdi_status;
 
 /**
@@ -897,7 +899,8 @@ struct vfdi_status;
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
- * @filter_lock: Filter table lock
+ * @filter_sem: Filter table rw_semaphore, for freeing the table
+ * @filter_lock: Filter table lock, for mere content changes
  * @filter_state: Architecture-dependent filter table state
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *	indexed by filter ID
@@ -909,7 +912,6 @@ struct vfdi_status;
  *	completed (either success or failure). Not used when MCDI is used to
  *	flush receive queues.
  * @flush_wq: wait queue used by efx_nic_flush_queues() to wait for flush completions.
- * @vf: Array of &struct efx_vf objects.
  * @vf_count: Number of VFs intended to be enabled.
  * @vf_init_count: Number of VFs that have been fully initialised.
  * @vi_scale: log2 number of vnics per VF.
@@ -1040,6 +1042,7 @@ struct efx_nic {
 
 	void *loopback_selftest;
 
+	struct rw_semaphore filter_sem;
 	spinlock_t filter_lock;
 	void *filter_state;
 #ifdef CONFIG_RFS_ACCEL
@@ -1053,7 +1056,6 @@ struct efx_nic {
 	wait_queue_head_t flush_wq;
 
 #ifdef CONFIG_SFC_SRIOV
-	struct efx_vf *vf;
 	unsigned vf_count;
 	unsigned vf_init_count;
 	unsigned vi_scale;
@@ -1092,6 +1094,7 @@ struct efx_mtd_partition {
 
 /**
  * struct efx_nic_type - Efx device type definition
+ * @mem_bar: Get the memory BAR
  * @mem_map_size: Get memory BAR mapped size
  * @probe: Probe the controller
  * @remove: Free resources allocated by probe()
@@ -1204,6 +1207,7 @@ struct efx_mtd_partition {
  * @ptp_set_ts_config: Set hardware timestamp configuration.  The flags
  *	and tx_type will already have been validated but this operation
  *	must validate and update rx_filter.
+ * @set_mac_address: Set the MAC address of the device
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1226,6 +1230,8 @@ struct efx_mtd_partition {
  * @hwtstamp_filters: Mask of hardware timestamp filter types supported
  */
 struct efx_nic_type {
+	bool is_vf;
+	unsigned int mem_bar;
 	unsigned int (*mem_map_size)(struct efx_nic *efx);
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
@@ -1277,7 +1283,8 @@ struct efx_nic_type {
 	void (*tx_init)(struct efx_tx_queue *tx_queue);
 	void (*tx_remove)(struct efx_tx_queue *tx_queue);
 	void (*tx_write)(struct efx_tx_queue *tx_queue);
-	void (*rx_push_rss_config)(struct efx_nic *efx);
+	int (*rx_push_rss_config)(struct efx_nic *efx, bool user,
+				  const u32 *rx_indir_table);
 	int (*rx_probe)(struct efx_rx_queue *rx_queue);
 	void (*rx_init)(struct efx_rx_queue *rx_queue);
 	void (*rx_remove)(struct efx_rx_queue *rx_queue);
@@ -1330,11 +1337,28 @@ struct efx_nic_type {
 	int (*ptp_set_ts_sync_events)(struct efx_nic *efx, bool en, bool temp);
 	int (*ptp_set_ts_config)(struct efx_nic *efx,
 				 struct hwtstamp_config *init);
+	int (*sriov_configure)(struct efx_nic *efx, int num_vfs);
 	int (*sriov_init)(struct efx_nic *efx);
 	void (*sriov_fini)(struct efx_nic *efx);
-	void (*sriov_mac_address_changed)(struct efx_nic *efx);
 	bool (*sriov_wanted)(struct efx_nic *efx);
 	void (*sriov_reset)(struct efx_nic *efx);
+	void (*sriov_flr)(struct efx_nic *efx, unsigned vf_i);
+	int (*sriov_set_vf_mac)(struct efx_nic *efx, int vf_i, u8 *mac);
+	int (*sriov_set_vf_vlan)(struct efx_nic *efx, int vf_i, u16 vlan,
+				 u8 qos);
+	int (*sriov_set_vf_spoofchk)(struct efx_nic *efx, int vf_i,
+				     bool spoofchk);
+	int (*sriov_get_vf_config)(struct efx_nic *efx, int vf_i,
+				   struct ifla_vf_info *ivi);
+	int (*sriov_set_vf_link_state)(struct efx_nic *efx, int vf_i,
+				       int link_state);
+	int (*sriov_get_phys_port_id)(struct efx_nic *efx,
+				      struct netdev_phys_item_id *ppid);
+	int (*vswitching_probe)(struct efx_nic *efx);
+	int (*vswitching_restore)(struct efx_nic *efx);
+	void (*vswitching_remove)(struct efx_nic *efx);
+	int (*get_mac_address)(struct efx_nic *efx, unsigned char *perm_addr);
+	int (*set_mac_address)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;

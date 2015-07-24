@@ -16,6 +16,7 @@
 
 /* THE pt_regs: Defines how regs are saved during entry into kernel */
 
+#ifdef CONFIG_ISA_ARCOMPACT
 struct pt_regs {
 
 	/* Real registers */
@@ -56,6 +57,48 @@ struct pt_regs {
 
 	long user_r25;
 };
+#else
+
+struct pt_regs {
+
+	long orig_r0;
+
+	union {
+		struct {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+			unsigned long state:8, ecr_vec:8,
+				      ecr_cause:8, ecr_param:8;
+#else
+			unsigned long ecr_param:8, ecr_cause:8,
+				      ecr_vec:8, state:8;
+#endif
+		};
+		unsigned long event;
+	};
+
+	long bta;	/* bta_l1, bta_l2, erbta */
+
+	long user_r25;
+
+	long r26;	/* gp */
+	long fp;
+	long sp;	/* user/kernel sp depending on where we came from  */
+
+	long r12;
+
+	/*------- Below list auto saved by h/w -----------*/
+	long r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11;
+
+	long blink;
+	long lp_end, lp_start, lp_count;
+
+	long ei, ldi, jli;
+
+	long ret;
+	long status32;
+};
+
+#endif
 
 /* Callee saved registers - need to be saved only when you are scheduled out */
 
@@ -63,7 +106,7 @@ struct callee_regs {
 	long r25, r24, r23, r22, r21, r20, r19, r18, r17, r16, r15, r14, r13;
 };
 
-#define instruction_pointer(regs)	((regs)->ret)
+#define instruction_pointer(regs)	(unsigned long)((regs)->ret)
 #define profile_pc(regs)		instruction_pointer(regs)
 
 /* return 1 if user mode or 0 if kernel mode */

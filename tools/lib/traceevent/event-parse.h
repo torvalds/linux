@@ -191,6 +191,7 @@ struct format_field {
 	struct event_format	*event;
 	char			*type;
 	char			*name;
+	char			*alias;
 	int			offset;
 	int			size;
 	unsigned int		arraylen;

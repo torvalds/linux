@@ -99,11 +99,9 @@ static __always_inline bool should_resched(void)
   extern asmlinkage void ___preempt_schedule(void);
 # define __preempt_schedule() asm ("call ___preempt_schedule")
   extern asmlinkage void preempt_schedule(void);
-# ifdef CONFIG_CONTEXT_TRACKING
-    extern asmlinkage void ___preempt_schedule_context(void);
-#   define __preempt_schedule_context() asm ("call ___preempt_schedule_context")
-    extern asmlinkage void preempt_schedule_context(void);
-# endif
+  extern asmlinkage void ___preempt_schedule_notrace(void);
+# define __preempt_schedule_notrace() asm ("call ___preempt_schedule_notrace")
+  extern asmlinkage void preempt_schedule_notrace(void);
 #endif
 
 #endif /* __ASM_PREEMPT_H */

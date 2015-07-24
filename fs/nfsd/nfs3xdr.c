@@ -805,7 +805,7 @@ encode_entry_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name,
 
 static __be32
 compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
-		const char *name, int namlen)
+		 const char *name, int namlen, u64 ino)
 {
 	struct svc_export	*exp;
 	struct dentry		*dparent, *dchild;
@@ -830,19 +830,21 @@ compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 		goto out;
 	if (d_really_is_negative(dchild))
 		goto out;
+	if (dchild->d_inode->i_ino != ino)
+		goto out;
 	rv = fh_compose(fhp, exp, dchild, &cd->fh);
 out:
 	dput(dchild);
 	return rv;
 }
 
-static __be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen)
+static __be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen, u64 ino)
 {
 	struct svc_fh	*fh = &cd->scratch;
 	__be32 err;
 
 	fh_init(fh, NFS3_FHSIZE);
-	err = compose_entry_fh(cd, fh, name, namlen);
+	err = compose_entry_fh(cd, fh, name, namlen, ino);
 	if (err) {
 		*p++ = 0;
 		*p++ = 0;
@@ -927,7 +929,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 		p = encode_entry_baggage(cd, p, name, namlen, ino);
 
 		if (plus)
-			p = encode_entryplus_baggage(cd, p, name, namlen);
+			p = encode_entryplus_baggage(cd, p, name, namlen, ino);
 		num_entry_words = p - cd->buffer;
 	} else if (*(page+1) != NULL) {
 		/* temporarily encode entry into next page, then move back to
@@ -941,7 +943,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 		p1 = encode_entry_baggage(cd, p1, name, namlen, ino);
 
 		if (plus)
-			p1 = encode_entryplus_baggage(cd, p1, name, namlen);
+			p1 = encode_entryplus_baggage(cd, p1, name, namlen, ino);
 
 		/* determine entry word length and lengths to go in pages */
 		num_entry_words = p1 - tmp;

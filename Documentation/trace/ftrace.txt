@@ -108,8 +108,8 @@ of ftrace. Here is a list of some of the key files:
 	data is read from this file, it is consumed, and
 	will not be read again with a sequential read. The
 	"trace" file is static, and if the tracer is not
-	adding more data,they will display the same
-	information every time they are read.
+	adding more data, it will display the same
+	information every time it is read.
 
   trace_options:
 
