@@ -2378,6 +2378,13 @@ static void r8153_power_cut_en(struct r8152 *tp, bool enable)
 	ocp_write_word(tp, MCU_TYPE_USB, USB_MISC_0, ocp_data);
 }
 
+static bool rtl_can_wakeup(struct r8152 *tp)
+{
+	struct usb_device *udev = tp->udev;
+
+	return (udev->actconfig->desc.bmAttributes & USB_CONFIG_ATT_WAKEUP);
+}
+
 static void rtl_runtime_suspend_enable(struct r8152 *tp, bool enable)
 {
 	if (enable) {
@@ -3417,12 +3424,15 @@ static void rtl8152_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (usb_autopm_get_interface(tp->intf) < 0)
 		return;
 
-	mutex_lock(&tp->control);
-
-	wol->supported = WAKE_ANY;
-	wol->wolopts = __rtl_get_wol(tp);
-
-	mutex_unlock(&tp->control);
+	if (!rtl_can_wakeup(tp)) {
+		wol->supported = 0;
+		wol->wolopts = 0;
+	} else {
+		mutex_lock(&tp->control);
+		wol->supported = WAKE_ANY;
+		wol->wolopts = __rtl_get_wol(tp);
+		mutex_unlock(&tp->control);
+	}
 
 	usb_autopm_put_interface(tp->intf);
 }
@@ -3431,6 +3441,9 @@ static int rtl8152_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct r8152 *tp = netdev_priv(dev);
 	int ret;
+
+	if (!rtl_can_wakeup(tp))
+		return -EOPNOTSUPP;
 
 	ret = usb_autopm_get_interface(tp->intf);
 	if (ret < 0)
@@ -4072,6 +4085,9 @@ static int rtl8152_probe(struct usb_interface *intf,
 		netif_err(tp, probe, netdev, "couldn't register the device\n");
 		goto out1;
 	}
+
+	if (!rtl_can_wakeup(tp))
+		__rtl_set_wol(tp, 0);
 
 	tp->saved_wolopts = __rtl_get_wol(tp);
 	if (tp->saved_wolopts)
