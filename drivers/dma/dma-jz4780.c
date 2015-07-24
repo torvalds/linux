@@ -726,9 +726,14 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 				data.channel);
 			return NULL;
 		}
-	}
 
-	return dma_request_channel(mask, jz4780_dma_filter_fn, &data);
+		jzdma->chan[data.channel].transfer_type = data.transfer_type;
+
+		return dma_get_slave_channel(
+			&jzdma->chan[data.channel].vchan.chan);
+	} else {
+		return dma_request_channel(mask, jz4780_dma_filter_fn, &data);
+	}
 }
 
 static int jz4780_dma_probe(struct platform_device *pdev)
