@@ -3084,7 +3084,7 @@ static int ext4_symlink(struct inode *dir,
 
 	err = dquot_initialize(dir);
 	if (err)
-		return err;
+		goto err_free_sd;
 
 	if ((disk_link.len > EXT4_N_BLOCKS * 4)) {
 		/*
