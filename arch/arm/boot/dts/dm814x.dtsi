@@ -329,3 +329,5 @@
 		};
 	};
 };
+
+#include "dm814x-clocks.dtsi"
