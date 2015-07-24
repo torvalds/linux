@@ -1532,7 +1532,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 		if (unlikely(nid >= nm_i->max_nid))
 			nid = 0;
 
-		if (i++ == FREE_NID_PAGES)
+		if (++i >= FREE_NID_PAGES)
 			break;
 	}
 
