@@ -541,6 +541,29 @@ union nvsp_2_message_uber {
 	struct nvsp_2_free_rxbuf free_rxbuf;
 } __packed;
 
+struct nvsp_4_send_vf_association {
+	/* 1: allocated, serial number is valid. 0: not allocated */
+	u32 allocated;
+
+	/* Serial number of the VF to team with */
+	u32 serial;
+} __packed;
+
+enum nvsp_vm_datapath {
+	NVSP_DATAPATH_SYNTHETIC = 0,
+	NVSP_DATAPATH_VF,
+	NVSP_DATAPATH_MAX
+};
+
+struct nvsp_4_sw_datapath {
+	u32 active_datapath; /* active data path in VM */
+} __packed;
+
+union nvsp_4_message_uber {
+	struct nvsp_4_send_vf_association vf_assoc;
+	struct nvsp_4_sw_datapath active_dp;
+} __packed;
+
 enum nvsp_subchannel_operation {
 	NVSP_SUBCHANNEL_NONE = 0,
 	NVSP_SUBCHANNEL_ALLOCATE,
@@ -578,6 +601,7 @@ union nvsp_all_messages {
 	union nvsp_message_init_uber init_msg;
 	union nvsp_1_message_uber v1_msg;
 	union nvsp_2_message_uber v2_msg;
+	union nvsp_4_message_uber v4_msg;
 	union nvsp_5_message_uber v5_msg;
 } __packed;
 
@@ -691,6 +715,11 @@ struct netvsc_device {
 
 	/* The net device context */
 	struct net_device_context *nd_ctx;
+
+	/* 1: allocated, serial number is valid. 0: not allocated */
+	u32 vf_alloc;
+	/* Serial number of the VF to team with */
+	u32 vf_serial;
 };
 
 /* NdisInitialize message */
