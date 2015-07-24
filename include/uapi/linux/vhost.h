@@ -103,6 +103,20 @@ struct vhost_memory {
 /* Get accessor: reads index, writes value in num */
 #define VHOST_GET_VRING_BASE _IOWR(VHOST_VIRTIO, 0x12, struct vhost_vring_state)
 
+/* Set the vring byte order in num. Valid values are VHOST_VRING_LITTLE_ENDIAN
+ * or VHOST_VRING_BIG_ENDIAN (other values return -EINVAL).
+ * The byte order cannot be changed while the device is active: trying to do so
+ * returns -EBUSY.
+ * This is a legacy only API that is simply ignored when VIRTIO_F_VERSION_1 is
+ * set.
+ * Not all kernel configurations support this ioctl, but all configurations that
+ * support SET also support GET.
+ */
+#define VHOST_VRING_LITTLE_ENDIAN 0
+#define VHOST_VRING_BIG_ENDIAN 1
+#define VHOST_SET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x13, struct vhost_vring_state)
+#define VHOST_GET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x14, struct vhost_vring_state)
+
 /* The following ioctls use eventfd file descriptors to signal and poll
  * for events. */
 

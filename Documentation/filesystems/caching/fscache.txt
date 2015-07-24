@@ -284,8 +284,9 @@ proc files.
 		enq=N	Number of times async ops queued for processing
 		can=N	Number of async ops cancelled
 		rej=N	Number of async ops rejected due to object lookup/create failure
+		ini=N	Number of async ops initialised
 		dfr=N	Number of async ops queued for deferred release
-		rel=N	Number of async ops released
+		rel=N	Number of async ops released (should equal ini=N when idle)
 		gc=N	Number of deferred-release async ops garbage collected
 	CacheOp	alo=N	Number of in-progress alloc_object() cache ops
 		luo=N	Number of in-progress lookup_object() cache ops
@@ -303,6 +304,10 @@ proc files.
 		wrp=N	Number of in-progress write_page() cache ops
 		ucp=N	Number of in-progress uncache_page() cache ops
 		dsp=N	Number of in-progress dissociate_pages() cache ops
+	CacheEv	nsp=N	Number of object lookups/creations rejected due to lack of space
+		stl=N	Number of stale objects deleted
+		rtr=N	Number of objects retired when relinquished
+		cul=N	Number of objects culled
 
 
  (*) /proc/fs/fscache/histogram

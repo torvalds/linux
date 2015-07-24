@@ -35,7 +35,7 @@
 #define uart_console(port) \
 	((port)->cons && (port)->cons->index == (port)->line)
 #else
-#define uart_console(port)      (0)
+#define uart_console(port)      ({ (void)port; 0; })
 #endif
 
 struct uart_port;

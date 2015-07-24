@@ -23,14 +23,19 @@
 	model = "Adapteva Parallella Board";
 	compatible = "adapteva,parallella", "xlnx,zynq-7000";
 
+	aliases {
+		ethernet0 = &gem0;
+		serial0 = &uart1;
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x40000000>;
 	};
 
 	chosen {
-		bootargs = "console=ttyPS0,115200 earlyprintk root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait";
-		linux,stdout-path = "/amba/serial@e0001000";
+		bootargs = "earlyprintk root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait";
+		stdout-path = "serial0:115200n8";
 	};
 };
 

@@ -35,6 +35,7 @@
 #define NCI_MAX_NUM_RF_CONFIGS					10
 #define NCI_MAX_NUM_CONN					10
 #define NCI_MAX_PARAM_LEN					251
+#define NCI_MAX_PACKET_SIZE					258
 
 /* NCI Status Codes */
 #define NCI_STATUS_OK						0x00

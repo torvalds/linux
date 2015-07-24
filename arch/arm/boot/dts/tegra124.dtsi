@@ -300,7 +300,7 @@
 	apbmisc@0,70000800 {
 		compatible = "nvidia,tegra124-apbmisc", "nvidia,tegra20-apbmisc";
 		reg = <0x0 0x70000800 0x0 0x64>,   /* Chip revision */
-		      <0x0 0x7000E864 0x0 0x04>;   /* Strapping options */
+		      <0x0 0x7000e864 0x0 0x04>;   /* Strapping options */
 	};
 
 	pinmux: pinmux@0,70000868 {
@@ -633,11 +633,11 @@
 		clocks = <&tegra_car TEGRA124_CLK_HDA>,
 		         <&tegra_car TEGRA124_CLK_HDA2HDMI>,
 			 <&tegra_car TEGRA124_CLK_HDA2CODEC_2X>;
-		clock-names = "hda", "hda2hdmi", "hdacodec_2x";
+		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
 		resets = <&tegra_car 125>, /* hda */
 			 <&tegra_car 128>, /* hda2hdmi */
 			 <&tegra_car 111>; /* hda2codec_2x */
-		reset-names = "hda", "hda2hdmi", "hdacodec_2x";
+		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
 		status = "disabled";
 	};
 

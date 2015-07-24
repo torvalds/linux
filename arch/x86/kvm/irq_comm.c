@@ -31,6 +31,8 @@
 
 #include "ioapic.h"
 
+#include "lapic.h"
+
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   struct kvm *kvm, int irq_source_id, int level,
 			   bool line_status)
@@ -48,11 +50,6 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 				line_status);
 }
 
-inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
-{
-	return irq->delivery_mode == APIC_DM_LOWEST;
-}
-
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, unsigned long *dest_map)
 {
@@ -60,7 +57,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	struct kvm_vcpu *vcpu, *lowest = NULL;
 
 	if (irq->dest_mode == 0 && irq->dest_id == 0xff &&
-			kvm_is_dm_lowest_prio(irq)) {
+			kvm_lowest_prio_delivery(irq)) {
 		printk(KERN_INFO "kvm: apic: phys broadcast and lowest prio\n");
 		irq->delivery_mode = APIC_DM_FIXED;
 	}
@@ -76,7 +73,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 					irq->dest_id, irq->dest_mode))
 			continue;
 
-		if (!kvm_is_dm_lowest_prio(irq)) {
+		if (!kvm_lowest_prio_delivery(irq)) {
 			if (r < 0)
 				r = 0;
 			r += kvm_apic_set_irq(vcpu, irq, dest_map);
@@ -106,9 +103,10 @@ static inline void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 	irq->dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
 	irq->trig_mode = (1 << MSI_DATA_TRIGGER_SHIFT) & e->msi.data;
 	irq->delivery_mode = e->msi.data & 0x700;
+	irq->msi_redir_hint = ((e->msi.address_lo
+		& MSI_ADDR_REDIRECTION_LOWPRI) > 0);
 	irq->level = 1;
 	irq->shorthand = 0;
-	/* TODO Deal with RH bit of MSI message address */
 }
 
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,

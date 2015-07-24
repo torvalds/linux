@@ -331,6 +331,17 @@ enum dwc2_ep0_state {
  *                      by the driver and are ignored in this
  *                      configuration value.
  * @uframe_sched:       True to enable the microframe scheduler
+ * @external_id_pin_ctl: Specifies whether ID pin is handled externally.
+ *                      Disable CONIDSTSCHNG controller interrupt in such
+ *                      case.
+ *                      0 - No (default)
+ *                      1 - Yes
+ * @hibernation:	Specifies whether the controller support hibernation.
+ *			If hibernation is enabled, the controller will enter
+ *			hibernation in both peripheral and host mode when
+ *			needed.
+ *			0 - No (default)
+ *			1 - Yes
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -368,6 +379,8 @@ struct dwc2_core_params {
 	int reload_ctl;
 	int ahbcfg;
 	int uframe_sched;
+	int external_id_pin_ctl;
+	int hibernation;
 };
 
 /**
@@ -452,6 +465,85 @@ struct dwc2_hw_params {
 #define DWC2_CTRL_BUFF_SIZE 8
 
 /**
+ * struct dwc2_gregs_backup - Holds global registers state before entering partial
+ * power down
+ * @gotgctl:		Backup of GOTGCTL register
+ * @gintmsk:		Backup of GINTMSK register
+ * @gahbcfg:		Backup of GAHBCFG register
+ * @gusbcfg:		Backup of GUSBCFG register
+ * @grxfsiz:		Backup of GRXFSIZ register
+ * @gnptxfsiz:		Backup of GNPTXFSIZ register
+ * @gi2cctl:		Backup of GI2CCTL register
+ * @hptxfsiz:		Backup of HPTXFSIZ register
+ * @gdfifocfg:		Backup of GDFIFOCFG register
+ * @dtxfsiz:		Backup of DTXFSIZ registers for each endpoint
+ * @gpwrdn:		Backup of GPWRDN register
+ */
+struct dwc2_gregs_backup {
+	u32 gotgctl;
+	u32 gintmsk;
+	u32 gahbcfg;
+	u32 gusbcfg;
+	u32 grxfsiz;
+	u32 gnptxfsiz;
+	u32 gi2cctl;
+	u32 hptxfsiz;
+	u32 pcgcctl;
+	u32 gdfifocfg;
+	u32 dtxfsiz[MAX_EPS_CHANNELS];
+	u32 gpwrdn;
+	bool valid;
+};
+
+/**
+ * struct  dwc2_dregs_backup - Holds device registers state before entering partial
+ * power down
+ * @dcfg:		Backup of DCFG register
+ * @dctl:		Backup of DCTL register
+ * @daintmsk:		Backup of DAINTMSK register
+ * @diepmsk:		Backup of DIEPMSK register
+ * @doepmsk:		Backup of DOEPMSK register
+ * @diepctl:		Backup of DIEPCTL register
+ * @dieptsiz:		Backup of DIEPTSIZ register
+ * @diepdma:		Backup of DIEPDMA register
+ * @doepctl:		Backup of DOEPCTL register
+ * @doeptsiz:		Backup of DOEPTSIZ register
+ * @doepdma:		Backup of DOEPDMA register
+ */
+struct dwc2_dregs_backup {
+	u32 dcfg;
+	u32 dctl;
+	u32 daintmsk;
+	u32 diepmsk;
+	u32 doepmsk;
+	u32 diepctl[MAX_EPS_CHANNELS];
+	u32 dieptsiz[MAX_EPS_CHANNELS];
+	u32 diepdma[MAX_EPS_CHANNELS];
+	u32 doepctl[MAX_EPS_CHANNELS];
+	u32 doeptsiz[MAX_EPS_CHANNELS];
+	u32 doepdma[MAX_EPS_CHANNELS];
+	bool valid;
+};
+
+/**
+ * struct  dwc2_hregs_backup - Holds host registers state before entering partial
+ * power down
+ * @hcfg:		Backup of HCFG register
+ * @haintmsk:		Backup of HAINTMSK register
+ * @hcintmsk:		Backup of HCINTMSK register
+ * @hptr0:		Backup of HPTR0 register
+ * @hfir:		Backup of HFIR register
+ */
+struct dwc2_hregs_backup {
+	u32 hcfg;
+	u32 haintmsk;
+	u32 hcintmsk[MAX_EPS_CHANNELS];
+	u32 hprt0;
+	u32 hfir;
+	bool valid;
+};
+
+/**
  * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
  * and periodic schedules
  *
@@ -481,6 +573,9 @@ struct dwc2_hw_params {
  *                      interrupt
  * @wkp_timer:          Timer object for handling Wakeup Detected interrupt
  * @lx_state:           Lx state of connected device
+ * @gregs_backup: Backup of global registers during suspend
+ * @dregs_backup: Backup of device registers during suspend
+ * @hregs_backup: Backup of host registers during suspend
  *
  * These are for host mode:
  *
@@ -613,11 +708,12 @@ struct dwc2_hsotg {
 	struct work_struct wf_otg;
 	struct timer_list wkp_timer;
 	enum dwc2_lx_state lx_state;
+	struct dwc2_gregs_backup gr_backup;
+	struct dwc2_dregs_backup dr_backup;
+	struct dwc2_hregs_backup hr_backup;
 
 	struct dentry *debug_root;
-	struct dentry *debug_file;
-	struct dentry *debug_testmode;
-	struct dentry *debug_fifo;
+	struct debugfs_regset32 *regset;
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
@@ -751,6 +847,8 @@ enum dwc2_halt_status {
  * and the DWC_otg controller
  */
 extern void dwc2_core_host_init(struct dwc2_hsotg *hsotg);
+extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
+extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
 
 /*
  * Host core Functions.
@@ -983,6 +1081,15 @@ extern void dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val);
 
 extern void dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val);
 
+extern void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
+				const struct dwc2_core_params *params);
+
+extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
+
+extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
+
+
+
 /*
  * Dump core registers and SPRAM
  */
@@ -1005,6 +1112,8 @@ extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset);
 extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
 extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
+extern int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
+#define dwc2_is_device_connected(hsotg) (hsotg->connected)
 #else
 static inline int s3c_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1018,6 +1127,10 @@ static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset) {}
 static inline void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
 static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
+static inline int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
+							int testmode)
+{ return 0; }
+#define dwc2_is_device_connected(hsotg) (0)
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
@@ -1025,14 +1138,12 @@ extern int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg);
 extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg);
 extern void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
 #else
-static inline void dwc2_set_all_params(struct dwc2_core_params *params, int value) {}
 static inline int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_start(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_remove(struct dwc2_hsotg *hsotg) {}
-static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
-				const struct dwc2_core_params *params)
+static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
 #endif
 

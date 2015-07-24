@@ -53,16 +53,3 @@ void __init prom_init(void)
 void __init prom_free_prom_memory(void)
 {
 }
-
-#define UART_REG(_reg) ((void __iomem *)CKSEG1ADDR(JZ4740_UART0_BASE_ADDR + (_reg << 2)))
-
-void prom_putchar(char c)
-{
-	uint8_t lsr;
-
-	do {
-		lsr = readb(UART_REG(UART_LSR));
-	} while ((lsr & UART_LSR_TEMT) == 0);
-
-	writeb(c, UART_REG(UART_TX));
-}

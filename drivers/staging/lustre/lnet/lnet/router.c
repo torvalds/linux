@@ -24,8 +24,6 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #include "../../include/linux/lnet/lib-lnet.h"
 
-#if  defined(LNET_ROUTER)
-
 #define LNET_NRB_TINY_MIN	512	/* min value for each CPT */
 #define LNET_NRB_TINY		(LNET_NRB_TINY_MIN * 4)
 #define LNET_NRB_SMALL_MIN	4096	/* min value for each CPT */
@@ -70,15 +68,6 @@ lnet_peer_buffer_credits(lnet_ni_t *ni)
 
 /* forward ref's */
 static int lnet_router_checker(void *);
-#else
-
-int
-lnet_peer_buffer_credits(lnet_ni_t *ni)
-{
-	return 0;
-}
-
-#endif
 
 static int check_routers_before_use;
 module_param(check_routers_before_use, int, 0444);
@@ -139,8 +128,8 @@ lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive,
 static void
 lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 {
-	int	alive;
-	int	notifylnd;
+	int alive;
+	int notifylnd;
 
 	/* Notify only in 1 thread at any time to ensure ordered notification.
 	 * NB individual events can be missed; the only guarantee is that you
@@ -152,7 +141,7 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 	lp->lp_notifying = 1;
 
 	while (lp->lp_notify) {
-		alive     = lp->lp_alive;
+		alive = lp->lp_alive;
 		notifylnd = lp->lp_notifylnd;
 
 		lp->lp_notifylnd = 0;
@@ -228,9 +217,9 @@ lnet_rtr_decref_locked(lnet_peer_t *lp)
 lnet_remotenet_t *
 lnet_find_net_locked(__u32 net)
 {
-	lnet_remotenet_t	*rnet;
-	struct list_head		*tmp;
-	struct list_head		*rn_list;
+	lnet_remotenet_t *rnet;
+	struct list_head *tmp;
+	struct list_head *rn_list;
 
 	LASSERT(!the_lnet.ln_shutdown);
 
@@ -276,9 +265,9 @@ static void lnet_shuffle_seed(void)
 static void
 lnet_add_route_to_rnet(lnet_remotenet_t *rnet, lnet_route_t *route)
 {
-	unsigned int      len = 0;
-	unsigned int      offset = 0;
-	struct list_head       *e;
+	unsigned int len = 0;
+	unsigned int offset = 0;
+	struct list_head *e;
 
 	lnet_shuffle_seed();
 
@@ -304,13 +293,13 @@ int
 lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 	       unsigned int priority)
 {
-	struct list_head	  *e;
-	lnet_remotenet_t    *rnet;
-	lnet_remotenet_t    *rnet2;
-	lnet_route_t	*route;
-	lnet_ni_t	   *ni;
-	int		  add_route;
-	int		  rc;
+	struct list_head *e;
+	lnet_remotenet_t *rnet;
+	lnet_remotenet_t *rnet2;
+	lnet_route_t *route;
+	lnet_ni_t *ni;
+	int add_route;
+	int rc;
 
 	CDEBUG(D_NET, "Add route: net %s hops %u priority %u gw %s\n",
 	       libcfs_net2str(net), hops, priority, libcfs_nid2str(gateway));
@@ -416,14 +405,14 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 int
 lnet_check_routes(void)
 {
-	lnet_remotenet_t	*rnet;
-	lnet_route_t		*route;
-	lnet_route_t		*route2;
-	struct list_head		*e1;
-	struct list_head		*e2;
-	int			cpt;
-	struct list_head		*rn_list;
-	int			i;
+	lnet_remotenet_t *rnet;
+	lnet_route_t *route;
+	lnet_route_t *route2;
+	struct list_head *e1;
+	struct list_head *e2;
+	int cpt;
+	struct list_head *rn_list;
+	int i;
 
 	cpt = lnet_net_lock_current();
 
@@ -434,9 +423,9 @@ lnet_check_routes(void)
 
 			route2 = NULL;
 			list_for_each(e2, &rnet->lrn_routes) {
-				lnet_nid_t	nid1;
-				lnet_nid_t	nid2;
-				int		net;
+				lnet_nid_t nid1;
+				lnet_nid_t nid2;
+				int net;
 
 				route = list_entry(e2, lnet_route_t,
 						       lr_list);
@@ -472,14 +461,14 @@ lnet_check_routes(void)
 int
 lnet_del_route(__u32 net, lnet_nid_t gw_nid)
 {
-	struct lnet_peer	*gateway;
-	lnet_remotenet_t	*rnet;
-	lnet_route_t		*route;
-	struct list_head		*e1;
-	struct list_head		*e2;
-	int			rc = -ENOENT;
-	struct list_head		*rn_list;
-	int			idx = 0;
+	struct lnet_peer *gateway;
+	lnet_remotenet_t *rnet;
+	lnet_route_t *route;
+	struct list_head *e1;
+	struct list_head *e2;
+	int rc = -ENOENT;
+	struct list_head *rn_list;
+	int idx = 0;
 
 	CDEBUG(D_NET, "Del route: net %s : gw %s\n",
 	       libcfs_net2str(net), libcfs_nid2str(gw_nid));
@@ -554,13 +543,13 @@ int
 lnet_get_route(int idx, __u32 *net, __u32 *hops,
 	       lnet_nid_t *gateway, __u32 *alive, __u32 *priority)
 {
-	struct list_head		*e1;
-	struct list_head		*e2;
-	lnet_remotenet_t	*rnet;
-	lnet_route_t		*route;
-	int			cpt;
-	int			i;
-	struct list_head		*rn_list;
+	struct list_head *e1;
+	struct list_head *e2;
+	lnet_remotenet_t *rnet;
+	lnet_route_t *route;
+	int cpt;
+	int i;
+	struct list_head *rn_list;
 
 	cpt = lnet_net_lock_current();
 
@@ -574,11 +563,11 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 						       lr_list);
 
 				if (idx-- == 0) {
-					*net	  = rnet->lrn_net;
-					*hops	  = route->lr_hops;
+					*net      = rnet->lrn_net;
+					*hops     = route->lr_hops;
 					*priority = route->lr_priority;
 					*gateway  = route->lr_gateway->lp_nid;
-					*alive	  = route->lr_gateway->lp_alive;
+					*alive    = route->lr_gateway->lp_alive;
 					lnet_net_unlock(cpt);
 					return 0;
 				}
@@ -593,7 +582,7 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 void
 lnet_swap_pinginfo(lnet_ping_info_t *info)
 {
-	int	       i;
+	int i;
 	lnet_ni_status_t *stat;
 
 	__swab32s(&info->pi_magic);
@@ -614,9 +603,9 @@ lnet_swap_pinginfo(lnet_ping_info_t *info)
 static void
 lnet_parse_rc_info(lnet_rc_data_t *rcd)
 {
-	lnet_ping_info_t	*info = rcd->rcd_pinginfo;
-	struct lnet_peer	*gw   = rcd->rcd_gateway;
-	lnet_route_t		*rtr;
+	lnet_ping_info_t *info = rcd->rcd_pinginfo;
+	struct lnet_peer *gw = rcd->rcd_gateway;
+	lnet_route_t *rtr;
 
 	if (!gw->lp_alive)
 		return;
@@ -643,14 +632,14 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 		return; /* can't carry NI status info */
 
 	list_for_each_entry(rtr, &gw->lp_routes, lr_gwlist) {
-		int	ptl_status = LNET_NI_STATUS_INVALID;
-		int	down = 0;
-		int	up = 0;
-		int	i;
+		int ptl_status = LNET_NI_STATUS_INVALID;
+		int down = 0;
+		int up = 0;
+		int i;
 
 		for (i = 0; i < info->pi_nnis && i < LNET_MAX_RTR_NIS; i++) {
 			lnet_ni_status_t *stat = &info->pi_ni[i];
-			lnet_nid_t	 nid = stat->ns_nid;
+			lnet_nid_t nid = stat->ns_nid;
 
 			if (nid == LNET_NID_ANY) {
 				CDEBUG(D_NET, "%s: unexpected LNET_NID_ANY\n",
@@ -699,8 +688,8 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 static void
 lnet_router_checker_event(lnet_event_t *event)
 {
-	lnet_rc_data_t		*rcd = event->md.user_ptr;
-	struct lnet_peer	*lp;
+	lnet_rc_data_t *rcd = event->md.user_ptr;
+	struct lnet_peer *lp;
 
 	LASSERT(rcd != NULL);
 
@@ -752,14 +741,14 @@ lnet_router_checker_event(lnet_event_t *event)
 static void
 lnet_wait_known_routerstate(void)
 {
-	lnet_peer_t	 *rtr;
-	struct list_head	  *entry;
-	int		  all_known;
+	lnet_peer_t *rtr;
+	struct list_head *entry;
+	int all_known;
 
 	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING);
 
 	for (;;) {
-		int	cpt = lnet_net_lock_current();
+		int cpt = lnet_net_lock_current();
 
 		all_known = 1;
 		list_for_each(entry, &the_lnet.ln_routers) {
@@ -799,9 +788,9 @@ lnet_router_ni_update_locked(lnet_peer_t *gw, __u32 net)
 static void
 lnet_update_ni_status_locked(void)
 {
-	lnet_ni_t	*ni;
-	long		now;
-	int		timeout;
+	lnet_ni_t *ni;
+	long now;
+	int timeout;
 
 	LASSERT(the_lnet.ln_routing);
 
@@ -860,10 +849,10 @@ lnet_destroy_rc_data(lnet_rc_data_t *rcd)
 static lnet_rc_data_t *
 lnet_create_rc_data_locked(lnet_peer_t *gateway)
 {
-	lnet_rc_data_t		*rcd = NULL;
-	lnet_ping_info_t	*pi;
-	int			rc;
-	int			i;
+	lnet_rc_data_t *rcd = NULL;
+	lnet_ping_info_t *pi;
+	int rc;
+	int i;
 
 	lnet_net_unlock(gateway->lp_cpt);
 
@@ -943,8 +932,8 @@ static void
 lnet_ping_router_locked(lnet_peer_t *rtr)
 {
 	lnet_rc_data_t *rcd = NULL;
-	unsigned long      now = cfs_time_current();
-	int	     secs;
+	unsigned long now = cfs_time_current();
+	int secs;
 
 	lnet_peer_addref_locked(rtr);
 
@@ -979,9 +968,9 @@ lnet_ping_router_locked(lnet_peer_t *rtr)
 	if (secs != 0 && !rtr->lp_ping_notsent &&
 	    cfs_time_after(now, cfs_time_add(rtr->lp_ping_timestamp,
 					     cfs_time_seconds(secs)))) {
-		int	       rc;
+		int rc;
 		lnet_process_id_t id;
-		lnet_handle_md_t  mdh;
+		lnet_handle_md_t mdh;
 
 		id.nid = rtr->lp_nid;
 		id.pid = LUSTRE_SRV_LNET_PID;
@@ -1013,8 +1002,8 @@ lnet_ping_router_locked(lnet_peer_t *rtr)
 int
 lnet_router_checker_start(void)
 {
-	int	  rc;
-	int	  eqsz;
+	int rc;
+	int eqsz;
 
 	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_SHUTDOWN);
 
@@ -1085,11 +1074,11 @@ lnet_router_checker_stop(void)
 static void
 lnet_prune_rc_data(int wait_unlink)
 {
-	lnet_rc_data_t		*rcd;
-	lnet_rc_data_t		*tmp;
-	lnet_peer_t		*lp;
-	struct list_head		head;
-	int			i = 2;
+	lnet_rc_data_t *rcd;
+	lnet_rc_data_t *tmp;
+	lnet_peer_t *lp;
+	struct list_head head;
+	int i = 2;
 
 	if (likely(the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING &&
 		   list_empty(&the_lnet.ln_rcd_deathrow) &&
@@ -1163,23 +1152,20 @@ lnet_prune_rc_data(int wait_unlink)
 	lnet_net_unlock(LNET_LOCK_EX);
 }
 
-
-#if  defined(LNET_ROUTER)
-
 static int
 lnet_router_checker(void *arg)
 {
-	lnet_peer_t       *rtr;
-	struct list_head	*entry;
+	lnet_peer_t *rtr;
+	struct list_head *entry;
 
 	cfs_block_allsigs();
 
 	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING);
 
 	while (the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING) {
-		__u64	version;
-		int	cpt;
-		int	cpt2;
+		__u64 version;
+		int cpt;
+		int cpt2;
 
 		cpt = lnet_net_lock_current();
 rescan:
@@ -1245,11 +1231,11 @@ lnet_destroy_rtrbuf(lnet_rtrbuf_t *rb, int npages)
 static lnet_rtrbuf_t *
 lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
 {
-	int	    npages = rbp->rbp_npages;
-	int	    sz = offsetof(lnet_rtrbuf_t, rb_kiov[npages]);
-	struct page   *page;
+	int npages = rbp->rbp_npages;
+	int sz = offsetof(lnet_rtrbuf_t, rb_kiov[npages]);
+	struct page *page;
 	lnet_rtrbuf_t *rb;
-	int	    i;
+	int i;
 
 	LIBCFS_CPT_ALLOC(rb, lnet_cpt_table(), cpt, sz);
 	if (rb == NULL)
@@ -1280,9 +1266,9 @@ lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
 static void
 lnet_rtrpool_free_bufs(lnet_rtrbufpool_t *rbp)
 {
-	int		npages = rbp->rbp_npages;
-	int		nbuffers = 0;
-	lnet_rtrbuf_t	*rb;
+	int npages = rbp->rbp_npages;
+	int nbuffers = 0;
+	lnet_rtrbuf_t *rb;
 
 	if (rbp->rbp_nbuffers == 0) /* not initialized or already freed */
 		return;
@@ -1310,7 +1296,7 @@ static int
 lnet_rtrpool_alloc_bufs(lnet_rtrbufpool_t *rbp, int nbufs, int cpt)
 {
 	lnet_rtrbuf_t *rb;
-	int	    i;
+	int i;
 
 	if (rbp->rbp_nbuffers != 0) {
 		LASSERT(rbp->rbp_nbuffers == nbufs);
@@ -1355,7 +1341,7 @@ void
 lnet_rtrpools_free(void)
 {
 	lnet_rtrbufpool_t *rtrp;
-	int		  i;
+	int i;
 
 	if (the_lnet.ln_rtrpools == NULL) /* uninitialized or freed */
 		return;
@@ -1373,7 +1359,7 @@ lnet_rtrpools_free(void)
 static int
 lnet_nrb_tiny_calculate(int npages)
 {
-	int	nrbs = LNET_NRB_TINY;
+	int nrbs = LNET_NRB_TINY;
 
 	if (tiny_router_buffers < 0) {
 		LCONSOLE_ERROR_MSG(0x10c,
@@ -1392,7 +1378,7 @@ lnet_nrb_tiny_calculate(int npages)
 static int
 lnet_nrb_small_calculate(int npages)
 {
-	int	nrbs = LNET_NRB_SMALL;
+	int nrbs = LNET_NRB_SMALL;
 
 	if (small_router_buffers < 0) {
 		LCONSOLE_ERROR_MSG(0x10c,
@@ -1411,7 +1397,7 @@ lnet_nrb_small_calculate(int npages)
 static int
 lnet_nrb_large_calculate(int npages)
 {
-	int	nrbs = LNET_NRB_LARGE;
+	int nrbs = LNET_NRB_LARGE;
 
 	if (large_router_buffers < 0) {
 		LCONSOLE_ERROR_MSG(0x10c,
@@ -1431,13 +1417,13 @@ int
 lnet_rtrpools_alloc(int im_a_router)
 {
 	lnet_rtrbufpool_t *rtrp;
-	int	large_pages;
-	int	small_pages = 1;
-	int	nrb_tiny;
-	int	nrb_small;
-	int	nrb_large;
-	int	rc;
-	int	i;
+	int large_pages;
+	int small_pages = 1;
+	int nrb_tiny;
+	int nrb_small;
+	int nrb_large;
+	int rc;
+	int i;
 
 	large_pages = (LNET_MTU + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
@@ -1507,9 +1493,9 @@ lnet_rtrpools_alloc(int im_a_router)
 int
 lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 {
-	struct lnet_peer	*lp = NULL;
-	unsigned long		now = cfs_time_current();
-	int			cpt = lnet_cpt_of_nid(nid);
+	struct lnet_peer *lp = NULL;
+	unsigned long now = cfs_time_current();
+	int cpt = lnet_cpt_of_nid(nid);
 
 	LASSERT(!in_interrupt ());
 
@@ -1573,134 +1559,3 @@ lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 	return 0;
 }
 EXPORT_SYMBOL(lnet_notify);
-
-void
-lnet_get_tunables(void)
-{
-}
-
-#else
-
-int
-lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
-{
-	return -EOPNOTSUPP;
-}
-
-void
-lnet_router_checker(void)
-{
-	static time_t last;
-	static int    running;
-
-	time_t	    now = get_seconds();
-	int	       interval = now - last;
-	int	       rc;
-	__u64	     version;
-	lnet_peer_t      *rtr;
-
-	/* It's no use to call me again within a sec - all intervals and
-	 * timeouts are measured in seconds */
-	if (last != 0 && interval < 2)
-		return;
-
-	if (last != 0 &&
-	    interval > max(live_router_check_interval,
-			   dead_router_check_interval))
-		CNETERR("Checker(%d/%d) not called for %d seconds\n",
-			live_router_check_interval, dead_router_check_interval,
-			interval);
-
-	LASSERT(LNET_CPT_NUMBER == 1);
-
-	lnet_net_lock(0);
-	LASSERT(!running); /* recursion check */
-	running = 1;
-	lnet_net_unlock(0);
-
-	last = now;
-
-	if (the_lnet.ln_rc_state == LNET_RC_STATE_STOPPING)
-		lnet_prune_rc_data(0); /* unlink all rcd and nowait */
-
-	/* consume all pending events */
-	while (1) {
-		int	  i;
-		lnet_event_t ev;
-
-		/* NB ln_rc_eqh must be the 1st in 'eventqs' otherwise the
-		 * recursion breaker in LNetEQPoll would fail */
-		rc = LNetEQPoll(&the_lnet.ln_rc_eqh, 1, 0, &ev, &i);
-		if (rc == 0)   /* no event pending */
-			break;
-
-		/* NB a lost SENT prevents me from pinging a router again */
-		if (rc == -EOVERFLOW) {
-			CERROR("Dropped an event!!!\n");
-			abort();
-		}
-
-		LASSERT(rc == 1);
-
-		lnet_router_checker_event(&ev);
-	}
-
-	if (the_lnet.ln_rc_state == LNET_RC_STATE_STOPPING) {
-		lnet_prune_rc_data(1); /* release rcd */
-		the_lnet.ln_rc_state = LNET_RC_STATE_SHUTDOWN;
-		running = 0;
-		return;
-	}
-
-	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_RUNNING);
-
-	lnet_net_lock(0);
-
-	version = the_lnet.ln_routers_version;
-	list_for_each_entry(rtr, &the_lnet.ln_routers, lp_rtr_list) {
-		lnet_ping_router_locked(rtr);
-		LASSERT(version == the_lnet.ln_routers_version);
-	}
-
-	lnet_net_unlock(0);
-
-	running = 0; /* lock only needed for the recursion check */
-}
-
-/* NB lnet_peers_start_down depends on me,
- * so must be called before any peer creation */
-void
-lnet_get_tunables(void)
-{
-	char *s;
-
-	s = getenv("LNET_ROUTER_PING_TIMEOUT");
-	if (s != NULL)
-		router_ping_timeout = atoi(s);
-
-	s = getenv("LNET_LIVE_ROUTER_CHECK_INTERVAL");
-	if (s != NULL)
-		live_router_check_interval = atoi(s);
-
-	s = getenv("LNET_DEAD_ROUTER_CHECK_INTERVAL");
-	if (s != NULL)
-		dead_router_check_interval = atoi(s);
-
-	/* This replaces old lnd_notify mechanism */
-	check_routers_before_use = 1;
-	if (dead_router_check_interval <= 0)
-		dead_router_check_interval = 30;
-}
-
-void
-lnet_rtrpools_free(void)
-{
-}
-
-int
-lnet_rtrpools_alloc(int im_a_arouter)
-{
-	return 0;
-}
-
-#endif

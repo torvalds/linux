@@ -20,6 +20,9 @@ Required properties:
 Optional properties:
 - qcom,hdmi-tx-mux-en-gpio: hdmi mux enable pin
 - qcom,hdmi-tx-mux-sel-gpio: hdmi mux select pin
+- pinctrl-names: the pin control state names; should contain "default"
+- pinctrl-0: the default pinctrl state (active)
+- pinctrl-1: the "sleep" pinctrl state
 
 Example:
 
@@ -44,5 +47,8 @@ Example:
 		qcom,hdmi-tx-hpd = <&msmgpio 72 GPIO_ACTIVE_HIGH>;
 		core-vdda-supply = <&pm8921_hdmi_mvs>;
 		hdmi-mux-supply = <&ext_3p3v>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&hpd_active  &ddc_active  &cec_active>;
+		pinctrl-1 = <&hpd_suspend &ddc_suspend &cec_suspend>;
 	};
 };

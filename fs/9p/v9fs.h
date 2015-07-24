@@ -149,8 +149,6 @@ extern int v9fs_vfs_unlink(struct inode *i, struct dentry *d);
 extern int v9fs_vfs_rmdir(struct inode *i, struct dentry *d);
 extern int v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry);
-extern void v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd,
-			void *p);
 extern struct inode *v9fs_inode_from_fid(struct v9fs_session_info *v9ses,
 					 struct p9_fid *fid,
 					 struct super_block *sb, int new);

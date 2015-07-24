@@ -96,6 +96,7 @@ enum {
 	X86_BR_NO_TX		= 1 << 14,/* not in transaction */
 	X86_BR_ZERO_CALL	= 1 << 15,/* zero length call */
 	X86_BR_CALL_STACK	= 1 << 16,/* call stack */
+	X86_BR_IND_JMP		= 1 << 17,/* indirect jump */
 };
 
 #define X86_BR_PLM (X86_BR_USER | X86_BR_KERNEL)
@@ -113,6 +114,7 @@ enum {
 	 X86_BR_IRQ	 |\
 	 X86_BR_ABORT	 |\
 	 X86_BR_IND_CALL |\
+	 X86_BR_IND_JMP  |\
 	 X86_BR_ZERO_CALL)
 
 #define X86_BR_ALL (X86_BR_PLM | X86_BR_ANY)
@@ -261,9 +263,6 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
-
-	if (!x86_pmu.lbr_nr)
-		return;
 
 	/*
 	 * If LBR callstack feature is enabled and the stack was saved when
@@ -523,6 +522,9 @@ static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
 			X86_BR_CALL_STACK;
 	}
 
+	if (br_type & PERF_SAMPLE_BRANCH_IND_JUMP)
+		mask |= X86_BR_IND_JMP;
+
 	/*
 	 * stash actual user request into reg, it may
 	 * be used by fixup code for some CPU
@@ -736,7 +738,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 			break;
 		case 4:
 		case 5:
-			ret = X86_BR_JMP;
+			ret = X86_BR_IND_JMP;
 			break;
 		}
 		break;
@@ -844,6 +846,7 @@ static const int nhm_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	 */
 	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT] = LBR_IND_CALL | LBR_IND_JMP,
 	[PERF_SAMPLE_BRANCH_COND_SHIFT]     = LBR_JCC,
+	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT] = LBR_IND_JMP,
 };
 
 static const int snb_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
@@ -856,6 +859,7 @@ static const int snb_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 						| LBR_FAR,
 	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]	= LBR_IND_CALL,
 	[PERF_SAMPLE_BRANCH_COND_SHIFT]		= LBR_JCC,
+	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
 };
 
 static const int hsw_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
@@ -870,6 +874,7 @@ static const int hsw_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_COND_SHIFT]		= LBR_JCC,
 	[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL
 						| LBR_RETURN | LBR_CALL_STACK,
+	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
 };
 
 /* core */

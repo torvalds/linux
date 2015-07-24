@@ -47,7 +47,12 @@ static int bcmgenet_mii_read(struct mii_bus *bus, int phy_id, int location)
 			   HZ / 100);
 	ret = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 
-	if (ret & MDIO_READ_FAIL)
+	/* Some broken devices are known not to release the line during
+	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
+	 * that condition here and ignore the MDIO controller read failure
+	 * indication.
+	 */
+	if (!(bus->phy_ignore_ta_mask & 1 << phy_id) && (ret & MDIO_READ_FAIL))
 		return -EIO;
 
 	return ret & 0xffff;
@@ -403,6 +408,52 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	return 0;
 }
 
+/* Workaround for integrated BCM7xxx Gigabit PHYs which have a problem with
+ * their internal MDIO management controller making them fail to successfully
+ * be read from or written to for the first transaction.  We insert a dummy
+ * BMSR read here to make sure that phy_get_device() and get_phy_id() can
+ * correctly read the PHY MII_PHYSID1/2 registers and successfully register a
+ * PHY device for this peripheral.
+ *
+ * Once the PHY driver is registered, we can workaround subsequent reads from
+ * there (e.g: during system-wide power management).
+ *
+ * bus->reset is invoked before mdiobus_scan during mdiobus_register and is
+ * therefore the right location to stick that workaround. Since we do not want
+ * to read from non-existing PHYs, we either use bus->phy_mask or do a manual
+ * Device Tree scan to limit the search area.
+ */
+static int bcmgenet_mii_bus_reset(struct mii_bus *bus)
+{
+	struct net_device *dev = bus->priv;
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct device_node *np = priv->mdio_dn;
+	struct device_node *child = NULL;
+	u32 read_mask = 0;
+	int addr = 0;
+
+	if (!np) {
+		read_mask = 1 << priv->phy_addr;
+	} else {
+		for_each_available_child_of_node(np, child) {
+			addr = of_mdio_parse_addr(&dev->dev, child);
+			if (addr < 0)
+				continue;
+
+			read_mask |= 1 << addr;
+		}
+	}
+
+	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+		if (read_mask & 1 << addr) {
+			dev_dbg(&dev->dev, "Workaround for PHY @ %d\n", addr);
+			mdiobus_read(bus, addr, MII_BMSR);
+		}
+	}
+
+	return 0;
+}
+
 static int bcmgenet_mii_alloc(struct bcmgenet_priv *priv)
 {
 	struct mii_bus *bus;
@@ -422,6 +473,7 @@ static int bcmgenet_mii_alloc(struct bcmgenet_priv *priv)
 	bus->parent = &priv->pdev->dev;
 	bus->read = bcmgenet_mii_read;
 	bus->write = bcmgenet_mii_write;
+	bus->reset = bcmgenet_mii_bus_reset;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d",
 		 priv->pdev->name, priv->pdev->id);
 
@@ -438,7 +490,6 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 {
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct device *kdev = &priv->pdev->dev;
-	struct device_node *mdio_dn;
 	char *compat;
 	int ret;
 
@@ -446,14 +497,14 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	if (!compat)
 		return -ENOMEM;
 
-	mdio_dn = of_find_compatible_node(dn, NULL, compat);
+	priv->mdio_dn = of_find_compatible_node(dn, NULL, compat);
 	kfree(compat);
-	if (!mdio_dn) {
+	if (!priv->mdio_dn) {
 		dev_err(kdev, "unable to find MDIO bus node\n");
 		return -ENODEV;
 	}
 
-	ret = of_mdiobus_register(priv->mii_bus, mdio_dn);
+	ret = of_mdiobus_register(priv->mii_bus, priv->mdio_dn);
 	if (ret) {
 		dev_err(kdev, "failed to register MDIO bus\n");
 		return ret;

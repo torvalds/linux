@@ -813,7 +813,7 @@ static irqreturn_t vip_irq(int irq, struct sta2x11_vip *vip)
 		/* Disable acquisition */
 		reg_write(vip, DVP_CTL, reg_read(vip, DVP_CTL) & ~DVP_CTL_ENA);
 		/* Remove the active buffer from the list */
-		do_gettimeofday(&vip->active->vb.v4l2_buf.timestamp);
+		v4l2_get_timestamp(&vip->active->vb.v4l2_buf.timestamp);
 		vip->active->vb.v4l2_buf.sequence = vip->sequence++;
 		vb2_buffer_done(&vip->active->vb, VB2_BUF_STATE_DONE);
 	}
@@ -864,6 +864,7 @@ static int sta2x11_vip_init_buffer(struct sta2x11_vip *vip)
 	vip->vb_vidq.buf_struct_size = sizeof(struct vip_buffer);
 	vip->vb_vidq.ops = &vip_video_qops;
 	vip->vb_vidq.mem_ops = &vb2_dma_contig_memops;
+	vip->vb_vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	err = vb2_queue_init(&vip->vb_vidq);
 	if (err)
 		return err;

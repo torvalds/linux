@@ -249,7 +249,7 @@ extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
 
 extern void osd_req_op_init(struct ceph_osd_request *osd_req,
-					unsigned int which, u16 opcode);
+			    unsigned int which, u16 opcode, u32 flags);
 
 extern void osd_req_op_raw_data_in_pages(struct ceph_osd_request *,
 					unsigned int which,

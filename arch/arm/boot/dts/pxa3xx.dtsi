@@ -1,5 +1,5 @@
 /* The pxa3xx skeleton simply augments the 2xx version */
-/include/ "pxa2xx.dtsi"
+#include "pxa2xx.dtsi"
 
 / {
 	model = "Marvell PXA3xx familiy SoC";
@@ -10,6 +10,7 @@
 			compatible = "mrvl,pwri2c";
 			reg = <0x40f500c0 0x30>;
 			interrupts = <6>;
+			clocks = <&clks CLK_PWRI2C>;
 			#address-cells = <0x1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -19,6 +20,7 @@
 			compatible = "marvell,pxa3xx-nand";
 			reg = <0x43100000 90>;
 			interrupts = <45>;
+			clocks = <&clks CLK_NAND>;
 			#address-cells = <1>;
 			#size-cells = <1>;	
 			status = "disabled";
@@ -32,6 +34,7 @@
 		gpio: gpio@40e00000 {
 			compatible = "intel,pxa3xx-gpio";
 			reg = <0x40e00000 0x10000>;
+			clocks = <&clks CLK_GPIO>;
 			interrupt-names = "gpio0", "gpio1", "gpio_mux";
 			interrupts = <8 9 10>;
 			gpio-controller;
@@ -39,5 +42,29 @@
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
 		};
+	};
+
+	clocks {
+	       /*
+		* The muxing of external clocks/internal dividers for osc* clock
+		* sources has been hidden under the carpet by now.
+		*/
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		clks: pxa3xx_clks@41300004 {
+			compatible = "marvell,pxa300-clocks";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+	};
+
+	timer@40a00000 {
+		compatible = "marvell,pxa-timer";
+		reg = <0x40a00000 0x20>;
+		interrupts = <26>;
+		clocks = <&clks CLK_OSTIMER>;
+		status = "okay";
 	};
 };

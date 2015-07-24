@@ -56,6 +56,364 @@
 #include "core.h"
 #include "hcd.h"
 
+#if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+/**
+ * dwc2_backup_host_registers() - Backup controller host registers.
+ * When suspending usb bus, registers needs to be backuped
+ * if controller power is disabled once suspended.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+static int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hregs_backup *hr;
+	int i;
+
+	dev_dbg(hsotg->dev, "%s\n", __func__);
+
+	/* Backup Host regs */
+	hr = &hsotg->hr_backup;
+	hr->hcfg = readl(hsotg->regs + HCFG);
+	hr->haintmsk = readl(hsotg->regs + HAINTMSK);
+	for (i = 0; i < hsotg->core_params->host_channels; ++i)
+		hr->hcintmsk[i] = readl(hsotg->regs + HCINTMSK(i));
+
+	hr->hprt0 = readl(hsotg->regs + HPRT0);
+	hr->hfir = readl(hsotg->regs + HFIR);
+	hr->valid = true;
+
+	return 0;
+}
+
+/**
+ * dwc2_restore_host_registers() - Restore controller host registers.
+ * When resuming usb bus, device registers needs to be restored
+ * if controller power were disabled.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+static int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hregs_backup *hr;
+	int i;
+
+	dev_dbg(hsotg->dev, "%s\n", __func__);
+
+	/* Restore host regs */
+	hr = &hsotg->hr_backup;
+	if (!hr->valid) {
+		dev_err(hsotg->dev, "%s: no host registers to restore\n",
+				__func__);
+		return -EINVAL;
+	}
+	hr->valid = false;
+
+	writel(hr->hcfg, hsotg->regs + HCFG);
+	writel(hr->haintmsk, hsotg->regs + HAINTMSK);
+
+	for (i = 0; i < hsotg->core_params->host_channels; ++i)
+		writel(hr->hcintmsk[i], hsotg->regs + HCINTMSK(i));
+
+	writel(hr->hprt0, hsotg->regs + HPRT0);
+	writel(hr->hfir, hsotg->regs + HFIR);
+
+	return 0;
+}
+#else
+static inline int dwc2_backup_host_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+
+static inline int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+#endif
+
+#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
+	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+/**
+ * dwc2_backup_device_registers() - Backup controller device registers.
+ * When suspending usb bus, registers needs to be backuped
+ * if controller power is disabled once suspended.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+static int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_dregs_backup *dr;
+	int i;
+
+	dev_dbg(hsotg->dev, "%s\n", __func__);
+
+	/* Backup dev regs */
+	dr = &hsotg->dr_backup;
+
+	dr->dcfg = readl(hsotg->regs + DCFG);
+	dr->dctl = readl(hsotg->regs + DCTL);
+	dr->daintmsk = readl(hsotg->regs + DAINTMSK);
+	dr->diepmsk = readl(hsotg->regs + DIEPMSK);
+	dr->doepmsk = readl(hsotg->regs + DOEPMSK);
+
+	for (i = 0; i < hsotg->num_of_eps; i++) {
+		/* Backup IN EPs */
+		dr->diepctl[i] = readl(hsotg->regs + DIEPCTL(i));
+
+		/* Ensure DATA PID is correctly configured */
+		if (dr->diepctl[i] & DXEPCTL_DPID)
+			dr->diepctl[i] |= DXEPCTL_SETD1PID;
+		else
+			dr->diepctl[i] |= DXEPCTL_SETD0PID;
+
+		dr->dieptsiz[i] = readl(hsotg->regs + DIEPTSIZ(i));
+		dr->diepdma[i] = readl(hsotg->regs + DIEPDMA(i));
+
+		/* Backup OUT EPs */
+		dr->doepctl[i] = readl(hsotg->regs + DOEPCTL(i));
+
+		/* Ensure DATA PID is correctly configured */
+		if (dr->doepctl[i] & DXEPCTL_DPID)
+			dr->doepctl[i] |= DXEPCTL_SETD1PID;
+		else
+			dr->doepctl[i] |= DXEPCTL_SETD0PID;
+
+		dr->doeptsiz[i] = readl(hsotg->regs + DOEPTSIZ(i));
+		dr->doepdma[i] = readl(hsotg->regs + DOEPDMA(i));
+	}
+	dr->valid = true;
+	return 0;
+}
+
+/**
+ * dwc2_restore_device_registers() - Restore controller device registers.
+ * When resuming usb bus, device registers needs to be restored
+ * if controller power were disabled.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+static int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_dregs_backup *dr;
+	u32 dctl;
+	int i;
+
+	dev_dbg(hsotg->dev, "%s\n", __func__);
+
+	/* Restore dev regs */
+	dr = &hsotg->dr_backup;
+	if (!dr->valid) {
+		dev_err(hsotg->dev, "%s: no device registers to restore\n",
+				__func__);
+		return -EINVAL;
+	}
+	dr->valid = false;
+
+	writel(dr->dcfg, hsotg->regs + DCFG);
+	writel(dr->dctl, hsotg->regs + DCTL);
+	writel(dr->daintmsk, hsotg->regs + DAINTMSK);
+	writel(dr->diepmsk, hsotg->regs + DIEPMSK);
+	writel(dr->doepmsk, hsotg->regs + DOEPMSK);
+
+	for (i = 0; i < hsotg->num_of_eps; i++) {
+		/* Restore IN EPs */
+		writel(dr->diepctl[i], hsotg->regs + DIEPCTL(i));
+		writel(dr->dieptsiz[i], hsotg->regs + DIEPTSIZ(i));
+		writel(dr->diepdma[i], hsotg->regs + DIEPDMA(i));
+
+		/* Restore OUT EPs */
+		writel(dr->doepctl[i], hsotg->regs + DOEPCTL(i));
+		writel(dr->doeptsiz[i], hsotg->regs + DOEPTSIZ(i));
+		writel(dr->doepdma[i], hsotg->regs + DOEPDMA(i));
+	}
+
+	/* Set the Power-On Programming done bit */
+	dctl = readl(hsotg->regs + DCTL);
+	dctl |= DCTL_PWRONPRGDONE;
+	writel(dctl, hsotg->regs + DCTL);
+
+	return 0;
+}
+#else
+static inline int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+
+static inline int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+#endif
+
+/**
+ * dwc2_backup_global_registers() - Backup global controller registers.
+ * When suspending usb bus, registers needs to be backuped
+ * if controller power is disabled once suspended.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+static int dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_gregs_backup *gr;
+	int i;
+
+	/* Backup global regs */
+	gr = &hsotg->gr_backup;
+
+	gr->gotgctl = readl(hsotg->regs + GOTGCTL);
+	gr->gintmsk = readl(hsotg->regs + GINTMSK);
+	gr->gahbcfg = readl(hsotg->regs + GAHBCFG);
+	gr->gusbcfg = readl(hsotg->regs + GUSBCFG);
+	gr->grxfsiz = readl(hsotg->regs + GRXFSIZ);
+	gr->gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
+	gr->hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
+	gr->gdfifocfg = readl(hsotg->regs + GDFIFOCFG);
+	for (i = 0; i < MAX_EPS_CHANNELS; i++)
+		gr->dtxfsiz[i] = readl(hsotg->regs + DPTXFSIZN(i));
+
+	gr->valid = true;
+	return 0;
+}
+
+/**
+ * dwc2_restore_global_registers() - Restore controller global registers.
+ * When resuming usb bus, device registers needs to be restored
+ * if controller power were disabled.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+static int dwc2_restore_global_registers(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_gregs_backup *gr;
+	int i;
+
+	dev_dbg(hsotg->dev, "%s\n", __func__);
+
+	/* Restore global regs */
+	gr = &hsotg->gr_backup;
+	if (!gr->valid) {
+		dev_err(hsotg->dev, "%s: no global registers to restore\n",
+				__func__);
+		return -EINVAL;
+	}
+	gr->valid = false;
+
+	writel(0xffffffff, hsotg->regs + GINTSTS);
+	writel(gr->gotgctl, hsotg->regs + GOTGCTL);
+	writel(gr->gintmsk, hsotg->regs + GINTMSK);
+	writel(gr->gusbcfg, hsotg->regs + GUSBCFG);
+	writel(gr->gahbcfg, hsotg->regs + GAHBCFG);
+	writel(gr->grxfsiz, hsotg->regs + GRXFSIZ);
+	writel(gr->gnptxfsiz, hsotg->regs + GNPTXFSIZ);
+	writel(gr->hptxfsiz, hsotg->regs + HPTXFSIZ);
+	writel(gr->gdfifocfg, hsotg->regs + GDFIFOCFG);
+	for (i = 0; i < MAX_EPS_CHANNELS; i++)
+		writel(gr->dtxfsiz[i], hsotg->regs + DPTXFSIZN(i));
+
+	return 0;
+}
+
+/**
+ * dwc2_exit_hibernation() - Exit controller from Partial Power Down.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @restore: Controller registers need to be restored
+ */
+int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore)
+{
+	u32 pcgcctl;
+	int ret = 0;
+
+	if (!hsotg->core_params->hibernation)
+		return -ENOTSUPP;
+
+	pcgcctl = readl(hsotg->regs + PCGCTL);
+	pcgcctl &= ~PCGCTL_STOPPCLK;
+	writel(pcgcctl, hsotg->regs + PCGCTL);
+
+	pcgcctl = readl(hsotg->regs + PCGCTL);
+	pcgcctl &= ~PCGCTL_PWRCLMP;
+	writel(pcgcctl, hsotg->regs + PCGCTL);
+
+	pcgcctl = readl(hsotg->regs + PCGCTL);
+	pcgcctl &= ~PCGCTL_RSTPDWNMODULE;
+	writel(pcgcctl, hsotg->regs + PCGCTL);
+
+	udelay(100);
+	if (restore) {
+		ret = dwc2_restore_global_registers(hsotg);
+		if (ret) {
+			dev_err(hsotg->dev, "%s: failed to restore registers\n",
+					__func__);
+			return ret;
+		}
+		if (dwc2_is_host_mode(hsotg)) {
+			ret = dwc2_restore_host_registers(hsotg);
+			if (ret) {
+				dev_err(hsotg->dev, "%s: failed to restore host registers\n",
+						__func__);
+				return ret;
+			}
+		} else {
+			ret = dwc2_restore_device_registers(hsotg);
+			if (ret) {
+				dev_err(hsotg->dev, "%s: failed to restore device registers\n",
+						__func__);
+				return ret;
+			}
+		}
+	}
+
+	return ret;
+}
+
+/**
+ * dwc2_enter_hibernation() - Put controller in Partial Power Down.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ */
+int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
+{
+	u32 pcgcctl;
+	int ret = 0;
+
+	if (!hsotg->core_params->hibernation)
+		return -ENOTSUPP;
+
+	/* Backup all registers */
+	ret = dwc2_backup_global_registers(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "%s: failed to backup global registers\n",
+				__func__);
+		return ret;
+	}
+
+	if (dwc2_is_host_mode(hsotg)) {
+		ret = dwc2_backup_host_registers(hsotg);
+		if (ret) {
+			dev_err(hsotg->dev, "%s: failed to backup host registers\n",
+					__func__);
+			return ret;
+		}
+	} else {
+		ret = dwc2_backup_device_registers(hsotg);
+		if (ret) {
+			dev_err(hsotg->dev, "%s: failed to backup device registers\n",
+					__func__);
+			return ret;
+		}
+	}
+
+	/* Put the controller in low power state */
+	pcgcctl = readl(hsotg->regs + PCGCTL);
+
+	pcgcctl |= PCGCTL_PWRCLMP;
+	writel(pcgcctl, hsotg->regs + PCGCTL);
+	ndelay(20);
+
+	pcgcctl |= PCGCTL_RSTPDWNMODULE;
+	writel(pcgcctl, hsotg->regs + PCGCTL);
+	ndelay(20);
+
+	pcgcctl |= PCGCTL_STOPPCLK;
+	writel(pcgcctl, hsotg->regs + PCGCTL);
+
+	return ret;
+}
+
 /**
  * dwc2_enable_common_interrupts() - Initializes the commmon interrupts,
  * used in both device and host modes
@@ -77,8 +435,10 @@ static void dwc2_enable_common_interrupts(struct dwc2_hsotg *hsotg)
 
 	if (hsotg->core_params->dma_enable <= 0)
 		intmsk |= GINTSTS_RXFLVL;
+	if (hsotg->core_params->external_id_pin_ctl <= 0)
+		intmsk |= GINTSTS_CONIDSTSCHNG;
 
-	intmsk |= GINTSTS_CONIDSTSCHNG | GINTSTS_WKUPINT | GINTSTS_USBSUSP |
+	intmsk |= GINTSTS_WKUPINT | GINTSTS_USBSUSP |
 		  GINTSTS_SESSREQINT;
 
 	writel(intmsk, hsotg->regs + GINTMSK);
@@ -2602,6 +2962,40 @@ static void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
 	hsotg->core_params->uframe_sched = val;
 }
 
+static void dwc2_set_param_external_id_pin_ctl(struct dwc2_hsotg *hsotg,
+		int val)
+{
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
+		if (val >= 0) {
+			dev_err(hsotg->dev,
+				"'%d' invalid for parameter external_id_pin_ctl\n",
+				val);
+			dev_err(hsotg->dev, "external_id_pin_ctl must be 0 or 1\n");
+		}
+		val = 0;
+		dev_dbg(hsotg->dev, "Setting external_id_pin_ctl to %d\n", val);
+	}
+
+	hsotg->core_params->external_id_pin_ctl = val;
+}
+
+static void dwc2_set_param_hibernation(struct dwc2_hsotg *hsotg,
+		int val)
+{
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
+		if (val >= 0) {
+			dev_err(hsotg->dev,
+				"'%d' invalid for parameter hibernation\n",
+				val);
+			dev_err(hsotg->dev, "hibernation must be 0 or 1\n");
+		}
+		val = 0;
+		dev_dbg(hsotg->dev, "Setting hibernation to %d\n", val);
+	}
+
+	hsotg->core_params->hibernation = val;
+}
+
 /*
  * This function is called during module intialization to pass module parameters
  * for the DWC_otg core.
@@ -2646,6 +3040,8 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_ahbcfg(hsotg, params->ahbcfg);
 	dwc2_set_param_otg_ver(hsotg, params->otg_ver);
 	dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
+	dwc2_set_param_external_id_pin_ctl(hsotg, params->external_id_pin_ctl);
+	dwc2_set_param_hibernation(hsotg, params->hibernation);
 }
 
 /**
@@ -2813,6 +3209,22 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 
 	return 0;
 }
+
+/*
+ * Sets all parameters to the given value.
+ *
+ * Assumes that the dwc2_core_params struct contains only integers.
+ */
+void dwc2_set_all_params(struct dwc2_core_params *params, int value)
+{
+	int *p = (int *)params;
+	size_t size = sizeof(*params) / sizeof(*p);
+	int i;
+
+	for (i = 0; i < size; i++)
+		p[i] = value;
+}
+
 
 u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg)
 {

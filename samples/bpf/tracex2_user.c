@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <linux/bpf.h>
+#include <string.h>
 #include "libbpf.h"
 #include "bpf_load.h"
 
@@ -20,23 +21,42 @@ static void stars(char *str, long val, long max, int width)
 	str[i] = '\0';
 }
 
-static void print_hist(int fd)
+struct task {
+	char comm[16];
+	__u64 pid_tgid;
+	__u64 uid_gid;
+};
+
+struct hist_key {
+	struct task t;
+	__u32 index;
+};
+
+#define SIZE sizeof(struct task)
+
+static void print_hist_for_pid(int fd, void *task)
 {
-	int key;
+	struct hist_key key = {}, next_key;
+	char starstr[MAX_STARS];
 	long value;
 	long data[MAX_INDEX] = {};
-	char starstr[MAX_STARS];
-	int i;
 	int max_ind = -1;
 	long max_value = 0;
+	int i, ind;
 
-	for (key = 0; key < MAX_INDEX; key++) {
-		bpf_lookup_elem(fd, &key, &value);
-		data[key] = value;
-		if (value && key > max_ind)
-			max_ind = key;
+	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
+		if (memcmp(&next_key, task, SIZE)) {
+			key = next_key;
+			continue;
+		}
+		bpf_lookup_elem(fd, &next_key, &value);
+		ind = next_key.index;
+		data[ind] = value;
+		if (value && ind > max_ind)
+			max_ind = ind;
 		if (value > max_value)
 			max_value = value;
+		key = next_key;
 	}
 
 	printf("           syscall write() stats\n");
@@ -48,6 +68,35 @@ static void print_hist(int fd)
 		       MAX_STARS, starstr);
 	}
 }
+
+static void print_hist(int fd)
+{
+	struct hist_key key = {}, next_key;
+	static struct task tasks[1024];
+	int task_cnt = 0;
+	int i;
+
+	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
+		int found = 0;
+
+		for (i = 0; i < task_cnt; i++)
+			if (memcmp(&tasks[i], &next_key, SIZE) == 0)
+				found = 1;
+		if (!found)
+			memcpy(&tasks[task_cnt++], &next_key, SIZE);
+		key = next_key;
+	}
+
+	for (i = 0; i < task_cnt; i++) {
+		printf("\npid %d cmd %s uid %d\n",
+		       (__u32) tasks[i].pid_tgid,
+		       tasks[i].comm,
+		       (__u32) tasks[i].uid_gid);
+		print_hist_for_pid(fd, &tasks[i]);
+	}
+
+}
+
 static void int_exit(int sig)
 {
 	print_hist(map_fd[1]);

@@ -61,14 +61,14 @@ static int system_refcount_dec(struct event_subsystem *system)
 
 #define do_for_each_event_file_safe(tr, file)			\
 	list_for_each_entry(tr, &ftrace_trace_arrays, list) {	\
-		struct ftrace_event_file *___n;				\
+		struct trace_event_file *___n;				\
 		list_for_each_entry_safe(file, ___n, &tr->events, list)
 
 #define while_for_each_event_file()		\
 	}
 
 static struct list_head *
-trace_get_fields(struct ftrace_event_call *event_call)
+trace_get_fields(struct trace_event_call *event_call)
 {
 	if (!event_call->class->get_fields)
 		return &event_call->class->fields;
@@ -89,7 +89,7 @@ __find_event_field(struct list_head *head, char *name)
 }
 
 struct ftrace_event_field *
-trace_find_event_field(struct ftrace_event_call *call, char *name)
+trace_find_event_field(struct trace_event_call *call, char *name)
 {
 	struct ftrace_event_field *field;
 	struct list_head *head;
@@ -129,7 +129,7 @@ static int __trace_define_field(struct list_head *head, const char *type,
 	return 0;
 }
 
-int trace_define_field(struct ftrace_event_call *call, const char *type,
+int trace_define_field(struct trace_event_call *call, const char *type,
 		       const char *name, int offset, int size, int is_signed,
 		       int filter_type)
 {
@@ -166,7 +166,7 @@ static int trace_define_common_fields(void)
 	return ret;
 }
 
-static void trace_destroy_fields(struct ftrace_event_call *call)
+static void trace_destroy_fields(struct trace_event_call *call)
 {
 	struct ftrace_event_field *field, *next;
 	struct list_head *head;
@@ -178,11 +178,11 @@ static void trace_destroy_fields(struct ftrace_event_call *call)
 	}
 }
 
-int trace_event_raw_init(struct ftrace_event_call *call)
+int trace_event_raw_init(struct trace_event_call *call)
 {
 	int id;
 
-	id = register_ftrace_event(&call->event);
+	id = register_trace_event(&call->event);
 	if (!id)
 		return -ENODEV;
 
@@ -190,18 +190,18 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_event_raw_init);
 
-void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
-				  struct ftrace_event_file *ftrace_file,
-				  unsigned long len)
+void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
+				 struct trace_event_file *trace_file,
+				 unsigned long len)
 {
-	struct ftrace_event_call *event_call = ftrace_file->event_call;
+	struct trace_event_call *event_call = trace_file->event_call;
 
 	local_save_flags(fbuffer->flags);
 	fbuffer->pc = preempt_count();
-	fbuffer->ftrace_file = ftrace_file;
+	fbuffer->trace_file = trace_file;
 
 	fbuffer->event =
-		trace_event_buffer_lock_reserve(&fbuffer->buffer, ftrace_file,
+		trace_event_buffer_lock_reserve(&fbuffer->buffer, trace_file,
 						event_call->event.type, len,
 						fbuffer->flags, fbuffer->pc);
 	if (!fbuffer->event)
@@ -210,13 +210,13 @@ void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
 	fbuffer->entry = ring_buffer_event_data(fbuffer->event);
 	return fbuffer->entry;
 }
-EXPORT_SYMBOL_GPL(ftrace_event_buffer_reserve);
+EXPORT_SYMBOL_GPL(trace_event_buffer_reserve);
 
 static DEFINE_SPINLOCK(tracepoint_iter_lock);
 
-static void output_printk(struct ftrace_event_buffer *fbuffer)
+static void output_printk(struct trace_event_buffer *fbuffer)
 {
-	struct ftrace_event_call *event_call;
+	struct trace_event_call *event_call;
 	struct trace_event *event;
 	unsigned long flags;
 	struct trace_iterator *iter = tracepoint_print_iter;
@@ -224,12 +224,12 @@ static void output_printk(struct ftrace_event_buffer *fbuffer)
 	if (!iter)
 		return;
 
-	event_call = fbuffer->ftrace_file->event_call;
+	event_call = fbuffer->trace_file->event_call;
 	if (!event_call || !event_call->event.funcs ||
 	    !event_call->event.funcs->trace)
 		return;
 
-	event = &fbuffer->ftrace_file->event_call->event;
+	event = &fbuffer->trace_file->event_call->event;
 
 	spin_lock_irqsave(&tracepoint_iter_lock, flags);
 	trace_seq_init(&iter->seq);
@@ -241,21 +241,21 @@ static void output_printk(struct ftrace_event_buffer *fbuffer)
 	spin_unlock_irqrestore(&tracepoint_iter_lock, flags);
 }
 
-void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer)
+void trace_event_buffer_commit(struct trace_event_buffer *fbuffer)
 {
 	if (tracepoint_printk)
 		output_printk(fbuffer);
 
-	event_trigger_unlock_commit(fbuffer->ftrace_file, fbuffer->buffer,
+	event_trigger_unlock_commit(fbuffer->trace_file, fbuffer->buffer,
 				    fbuffer->event, fbuffer->entry,
 				    fbuffer->flags, fbuffer->pc);
 }
-EXPORT_SYMBOL_GPL(ftrace_event_buffer_commit);
+EXPORT_SYMBOL_GPL(trace_event_buffer_commit);
 
-int ftrace_event_reg(struct ftrace_event_call *call,
-		     enum trace_reg type, void *data)
+int trace_event_reg(struct trace_event_call *call,
+		    enum trace_reg type, void *data)
 {
-	struct ftrace_event_file *file = data;
+	struct trace_event_file *file = data;
 
 	WARN_ON(!(call->flags & TRACE_EVENT_FL_TRACEPOINT));
 	switch (type) {
@@ -288,34 +288,34 @@ int ftrace_event_reg(struct ftrace_event_call *call,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ftrace_event_reg);
+EXPORT_SYMBOL_GPL(trace_event_reg);
 
 void trace_event_enable_cmd_record(bool enable)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	struct trace_array *tr;
 
 	mutex_lock(&event_mutex);
 	do_for_each_event_file(tr, file) {
 
-		if (!(file->flags & FTRACE_EVENT_FL_ENABLED))
+		if (!(file->flags & EVENT_FILE_FL_ENABLED))
 			continue;
 
 		if (enable) {
 			tracing_start_cmdline_record();
-			set_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+			set_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 		} else {
 			tracing_stop_cmdline_record();
-			clear_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+			clear_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 		}
 	} while_for_each_event_file();
 	mutex_unlock(&event_mutex);
 }
 
-static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
+static int __ftrace_event_enable_disable(struct trace_event_file *file,
 					 int enable, int soft_disable)
 {
-	struct ftrace_event_call *call = file->event_call;
+	struct trace_event_call *call = file->event_call;
 	int ret = 0;
 	int disable;
 
@@ -337,24 +337,24 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 		if (soft_disable) {
 			if (atomic_dec_return(&file->sm_ref) > 0)
 				break;
-			disable = file->flags & FTRACE_EVENT_FL_SOFT_DISABLED;
-			clear_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+			disable = file->flags & EVENT_FILE_FL_SOFT_DISABLED;
+			clear_bit(EVENT_FILE_FL_SOFT_MODE_BIT, &file->flags);
 		} else
-			disable = !(file->flags & FTRACE_EVENT_FL_SOFT_MODE);
+			disable = !(file->flags & EVENT_FILE_FL_SOFT_MODE);
 
-		if (disable && (file->flags & FTRACE_EVENT_FL_ENABLED)) {
-			clear_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
-			if (file->flags & FTRACE_EVENT_FL_RECORDED_CMD) {
+		if (disable && (file->flags & EVENT_FILE_FL_ENABLED)) {
+			clear_bit(EVENT_FILE_FL_ENABLED_BIT, &file->flags);
+			if (file->flags & EVENT_FILE_FL_RECORDED_CMD) {
 				tracing_stop_cmdline_record();
-				clear_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+				clear_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 			}
 			call->class->reg(call, TRACE_REG_UNREGISTER, file);
 		}
 		/* If in SOFT_MODE, just set the SOFT_DISABLE_BIT, else clear it */
-		if (file->flags & FTRACE_EVENT_FL_SOFT_MODE)
-			set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+		if (file->flags & EVENT_FILE_FL_SOFT_MODE)
+			set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 		else
-			clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+			clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 		break;
 	case 1:
 		/*
@@ -366,31 +366,31 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 		 * it still seems to be disabled.
 		 */
 		if (!soft_disable)
-			clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+			clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 		else {
 			if (atomic_inc_return(&file->sm_ref) > 1)
 				break;
-			set_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+			set_bit(EVENT_FILE_FL_SOFT_MODE_BIT, &file->flags);
 		}
 
-		if (!(file->flags & FTRACE_EVENT_FL_ENABLED)) {
+		if (!(file->flags & EVENT_FILE_FL_ENABLED)) {
 
 			/* Keep the event disabled, when going to SOFT_MODE. */
 			if (soft_disable)
-				set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+				set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 
 			if (trace_flags & TRACE_ITER_RECORD_CMD) {
 				tracing_start_cmdline_record();
-				set_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+				set_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 			}
 			ret = call->class->reg(call, TRACE_REG_REGISTER, file);
 			if (ret) {
 				tracing_stop_cmdline_record();
 				pr_info("event trace: Could not enable event "
-					"%s\n", ftrace_event_name(call));
+					"%s\n", trace_event_name(call));
 				break;
 			}
-			set_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
+			set_bit(EVENT_FILE_FL_ENABLED_BIT, &file->flags);
 
 			/* WAS_ENABLED gets set but never cleared. */
 			call->flags |= TRACE_EVENT_FL_WAS_ENABLED;
@@ -401,13 +401,13 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 	return ret;
 }
 
-int trace_event_enable_disable(struct ftrace_event_file *file,
+int trace_event_enable_disable(struct trace_event_file *file,
 			       int enable, int soft_disable)
 {
 	return __ftrace_event_enable_disable(file, enable, soft_disable);
 }
 
-static int ftrace_event_enable_disable(struct ftrace_event_file *file,
+static int ftrace_event_enable_disable(struct trace_event_file *file,
 				       int enable)
 {
 	return __ftrace_event_enable_disable(file, enable, 0);
@@ -415,7 +415,7 @@ static int ftrace_event_enable_disable(struct ftrace_event_file *file,
 
 static void ftrace_clear_events(struct trace_array *tr)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(file, &tr->events, list) {
@@ -449,14 +449,14 @@ static void __get_system(struct event_subsystem *system)
 	system_refcount_inc(system);
 }
 
-static void __get_system_dir(struct ftrace_subsystem_dir *dir)
+static void __get_system_dir(struct trace_subsystem_dir *dir)
 {
 	WARN_ON_ONCE(dir->ref_count == 0);
 	dir->ref_count++;
 	__get_system(dir->subsystem);
 }
 
-static void __put_system_dir(struct ftrace_subsystem_dir *dir)
+static void __put_system_dir(struct trace_subsystem_dir *dir)
 {
 	WARN_ON_ONCE(dir->ref_count == 0);
 	/* If the subsystem is about to be freed, the dir must be too */
@@ -467,14 +467,14 @@ static void __put_system_dir(struct ftrace_subsystem_dir *dir)
 		kfree(dir);
 }
 
-static void put_system(struct ftrace_subsystem_dir *dir)
+static void put_system(struct trace_subsystem_dir *dir)
 {
 	mutex_lock(&event_mutex);
 	__put_system_dir(dir);
 	mutex_unlock(&event_mutex);
 }
 
-static void remove_subsystem(struct ftrace_subsystem_dir *dir)
+static void remove_subsystem(struct trace_subsystem_dir *dir)
 {
 	if (!dir)
 		return;
@@ -486,7 +486,7 @@ static void remove_subsystem(struct ftrace_subsystem_dir *dir)
 	}
 }
 
-static void remove_event_file_dir(struct ftrace_event_file *file)
+static void remove_event_file_dir(struct trace_event_file *file)
 {
 	struct dentry *dir = file->dir;
 	struct dentry *child;
@@ -515,15 +515,15 @@ static int
 __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 			      const char *sub, const char *event, int set)
 {
-	struct ftrace_event_file *file;
-	struct ftrace_event_call *call;
+	struct trace_event_file *file;
+	struct trace_event_call *call;
 	const char *name;
 	int ret = -EINVAL;
 
 	list_for_each_entry(file, &tr->events, list) {
 
 		call = file->event_call;
-		name = ftrace_event_name(call);
+		name = trace_event_name(call);
 
 		if (!name || !call->class || !call->class->reg)
 			continue;
@@ -671,8 +671,8 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct ftrace_event_file *file = v;
-	struct ftrace_event_call *call;
+	struct trace_event_file *file = v;
+	struct trace_event_call *call;
 	struct trace_array *tr = m->private;
 
 	(*pos)++;
@@ -692,13 +692,13 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	struct trace_array *tr = m->private;
 	loff_t l;
 
 	mutex_lock(&event_mutex);
 
-	file = list_entry(&tr->events, struct ftrace_event_file, list);
+	file = list_entry(&tr->events, struct trace_event_file, list);
 	for (l = 0; l <= *pos; ) {
 		file = t_next(m, file, &l);
 		if (!file)
@@ -710,13 +710,13 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 static void *
 s_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct ftrace_event_file *file = v;
+	struct trace_event_file *file = v;
 	struct trace_array *tr = m->private;
 
 	(*pos)++;
 
 	list_for_each_entry_continue(file, &tr->events, list) {
-		if (file->flags & FTRACE_EVENT_FL_ENABLED)
+		if (file->flags & EVENT_FILE_FL_ENABLED)
 			return file;
 	}
 
@@ -725,13 +725,13 @@ s_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *s_start(struct seq_file *m, loff_t *pos)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	struct trace_array *tr = m->private;
 	loff_t l;
 
 	mutex_lock(&event_mutex);
 
-	file = list_entry(&tr->events, struct ftrace_event_file, list);
+	file = list_entry(&tr->events, struct trace_event_file, list);
 	for (l = 0; l <= *pos; ) {
 		file = s_next(m, file, &l);
 		if (!file)
@@ -742,12 +742,12 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 
 static int t_show(struct seq_file *m, void *v)
 {
-	struct ftrace_event_file *file = v;
-	struct ftrace_event_call *call = file->event_call;
+	struct trace_event_file *file = v;
+	struct trace_event_call *call = file->event_call;
 
 	if (strcmp(call->class->system, TRACE_SYSTEM) != 0)
 		seq_printf(m, "%s:", call->class->system);
-	seq_printf(m, "%s\n", ftrace_event_name(call));
+	seq_printf(m, "%s\n", trace_event_name(call));
 
 	return 0;
 }
@@ -761,7 +761,7 @@ static ssize_t
 event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	unsigned long flags;
 	char buf[4] = "0";
 
@@ -774,12 +774,12 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	if (!file)
 		return -ENODEV;
 
-	if (flags & FTRACE_EVENT_FL_ENABLED &&
-	    !(flags & FTRACE_EVENT_FL_SOFT_DISABLED))
+	if (flags & EVENT_FILE_FL_ENABLED &&
+	    !(flags & EVENT_FILE_FL_SOFT_DISABLED))
 		strcpy(buf, "1");
 
-	if (flags & FTRACE_EVENT_FL_SOFT_DISABLED ||
-	    flags & FTRACE_EVENT_FL_SOFT_MODE)
+	if (flags & EVENT_FILE_FL_SOFT_DISABLED ||
+	    flags & EVENT_FILE_FL_SOFT_MODE)
 		strcat(buf, "*");
 
 	strcat(buf, "\n");
@@ -791,7 +791,7 @@ static ssize_t
 event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		   loff_t *ppos)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	unsigned long val;
 	int ret;
 
@@ -828,10 +828,10 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		   loff_t *ppos)
 {
 	const char set_to_char[4] = { '?', '0', '1', 'X' };
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	struct event_subsystem *system = dir->subsystem;
-	struct ftrace_event_call *call;
-	struct ftrace_event_file *file;
+	struct trace_event_call *call;
+	struct trace_event_file *file;
 	struct trace_array *tr = dir->tr;
 	char buf[2];
 	int set = 0;
@@ -840,7 +840,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	mutex_lock(&event_mutex);
 	list_for_each_entry(file, &tr->events, list) {
 		call = file->event_call;
-		if (!ftrace_event_name(call) || !call->class || !call->class->reg)
+		if (!trace_event_name(call) || !call->class || !call->class->reg)
 			continue;
 
 		if (system && strcmp(call->class->system, system->name) != 0)
@@ -851,7 +851,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		 * or if all events or cleared, or if we have
 		 * a mixture.
 		 */
-		set |= (1 << !!(file->flags & FTRACE_EVENT_FL_ENABLED));
+		set |= (1 << !!(file->flags & EVENT_FILE_FL_ENABLED));
 
 		/*
 		 * If we have a mixture, no need to look further.
@@ -873,7 +873,7 @@ static ssize_t
 system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		    loff_t *ppos)
 {
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	struct event_subsystem *system = dir->subsystem;
 	const char *name = NULL;
 	unsigned long val;
@@ -917,7 +917,7 @@ enum {
 
 static void *f_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct ftrace_event_call *call = event_file_data(m->private);
+	struct trace_event_call *call = event_file_data(m->private);
 	struct list_head *common_head = &ftrace_common_fields;
 	struct list_head *head = trace_get_fields(call);
 	struct list_head *node = v;
@@ -949,13 +949,13 @@ static void *f_next(struct seq_file *m, void *v, loff_t *pos)
 
 static int f_show(struct seq_file *m, void *v)
 {
-	struct ftrace_event_call *call = event_file_data(m->private);
+	struct trace_event_call *call = event_file_data(m->private);
 	struct ftrace_event_field *field;
 	const char *array_descriptor;
 
 	switch ((unsigned long)v) {
 	case FORMAT_HEADER:
-		seq_printf(m, "name: %s\n", ftrace_event_name(call));
+		seq_printf(m, "name: %s\n", trace_event_name(call));
 		seq_printf(m, "ID: %d\n", call->event.type);
 		seq_puts(m, "format:\n");
 		return 0;
@@ -1062,7 +1062,7 @@ static ssize_t
 event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	struct trace_seq *s;
 	int r = -ENODEV;
 
@@ -1095,7 +1095,7 @@ static ssize_t
 event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		   loff_t *ppos)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	char *buf;
 	int err = -ENODEV;
 
@@ -1132,7 +1132,7 @@ static LIST_HEAD(event_subsystems);
 static int subsystem_open(struct inode *inode, struct file *filp)
 {
 	struct event_subsystem *system = NULL;
-	struct ftrace_subsystem_dir *dir = NULL; /* Initialize for gcc */
+	struct trace_subsystem_dir *dir = NULL; /* Initialize for gcc */
 	struct trace_array *tr;
 	int ret;
 
@@ -1181,7 +1181,7 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 
 static int system_tr_open(struct inode *inode, struct file *filp)
 {
-	struct ftrace_subsystem_dir *dir;
+	struct trace_subsystem_dir *dir;
 	struct trace_array *tr = inode->i_private;
 	int ret;
 
@@ -1214,7 +1214,7 @@ static int system_tr_open(struct inode *inode, struct file *filp)
 
 static int subsystem_release(struct inode *inode, struct file *file)
 {
-	struct ftrace_subsystem_dir *dir = file->private_data;
+	struct trace_subsystem_dir *dir = file->private_data;
 
 	trace_array_put(dir->tr);
 
@@ -1235,7 +1235,7 @@ static ssize_t
 subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 		      loff_t *ppos)
 {
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	struct event_subsystem *system = dir->subsystem;
 	struct trace_seq *s;
 	int r;
@@ -1262,7 +1262,7 @@ static ssize_t
 subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		       loff_t *ppos)
 {
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	char *buf;
 	int err;
 
@@ -1497,9 +1497,9 @@ create_new_subsystem(const char *name)
 
 static struct dentry *
 event_subsystem_dir(struct trace_array *tr, const char *name,
-		    struct ftrace_event_file *file, struct dentry *parent)
+		    struct trace_event_file *file, struct dentry *parent)
 {
-	struct ftrace_subsystem_dir *dir;
+	struct trace_subsystem_dir *dir;
 	struct event_subsystem *system;
 	struct dentry *entry;
 
@@ -1571,9 +1571,9 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 }
 
 static int
-event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
+event_create_dir(struct dentry *parent, struct trace_event_file *file)
 {
-	struct ftrace_event_call *call = file->event_call;
+	struct trace_event_call *call = file->event_call;
 	struct trace_array *tr = file->tr;
 	struct list_head *head;
 	struct dentry *d_events;
@@ -1591,7 +1591,7 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 	} else
 		d_events = parent;
 
-	name = ftrace_event_name(call);
+	name = trace_event_name(call);
 	file->dir = tracefs_create_dir(name, d_events);
 	if (!file->dir) {
 		pr_warn("Could not create tracefs '%s' directory\n", name);
@@ -1634,9 +1634,9 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 	return 0;
 }
 
-static void remove_event_from_tracers(struct ftrace_event_call *call)
+static void remove_event_from_tracers(struct trace_event_call *call)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	struct trace_array *tr;
 
 	do_for_each_event_file_safe(tr, file) {
@@ -1654,10 +1654,10 @@ static void remove_event_from_tracers(struct ftrace_event_call *call)
 	} while_for_each_event_file();
 }
 
-static void event_remove(struct ftrace_event_call *call)
+static void event_remove(struct trace_event_call *call)
 {
 	struct trace_array *tr;
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 	do_for_each_event_file(tr, file) {
 		if (file->event_call != call)
@@ -1673,17 +1673,17 @@ static void event_remove(struct ftrace_event_call *call)
 	} while_for_each_event_file();
 
 	if (call->event.funcs)
-		__unregister_ftrace_event(&call->event);
+		__unregister_trace_event(&call->event);
 	remove_event_from_tracers(call);
 	list_del(&call->list);
 }
 
-static int event_init(struct ftrace_event_call *call)
+static int event_init(struct trace_event_call *call)
 {
 	int ret = 0;
 	const char *name;
 
-	name = ftrace_event_name(call);
+	name = trace_event_name(call);
 	if (WARN_ON(!name))
 		return -EINVAL;
 
@@ -1697,7 +1697,7 @@ static int event_init(struct ftrace_event_call *call)
 }
 
 static int
-__register_event(struct ftrace_event_call *call, struct module *mod)
+__register_event(struct trace_event_call *call, struct module *mod)
 {
 	int ret;
 
@@ -1733,7 +1733,7 @@ static char *enum_replace(char *ptr, struct trace_enum_map *map, int len)
 	return ptr + elen;
 }
 
-static void update_event_printk(struct ftrace_event_call *call,
+static void update_event_printk(struct trace_event_call *call,
 				struct trace_enum_map *map)
 {
 	char *ptr;
@@ -1811,7 +1811,7 @@ static void update_event_printk(struct ftrace_event_call *call,
 
 void trace_event_enum_update(struct trace_enum_map **map, int len)
 {
-	struct ftrace_event_call *call, *p;
+	struct trace_event_call *call, *p;
 	const char *last_system = NULL;
 	int last_i;
 	int i;
@@ -1836,11 +1836,11 @@ void trace_event_enum_update(struct trace_enum_map **map, int len)
 	up_write(&trace_event_sem);
 }
 
-static struct ftrace_event_file *
-trace_create_new_event(struct ftrace_event_call *call,
+static struct trace_event_file *
+trace_create_new_event(struct trace_event_call *call,
 		       struct trace_array *tr)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 	file = kmem_cache_alloc(file_cachep, GFP_TRACE);
 	if (!file)
@@ -1858,9 +1858,9 @@ trace_create_new_event(struct ftrace_event_call *call,
 
 /* Add an event to a trace directory */
 static int
-__trace_add_new_event(struct ftrace_event_call *call, struct trace_array *tr)
+__trace_add_new_event(struct trace_event_call *call, struct trace_array *tr)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 	file = trace_create_new_event(call, tr);
 	if (!file)
@@ -1875,10 +1875,10 @@ __trace_add_new_event(struct ftrace_event_call *call, struct trace_array *tr)
  * the filesystem is initialized.
  */
 static __init int
-__trace_early_add_new_event(struct ftrace_event_call *call,
+__trace_early_add_new_event(struct trace_event_call *call,
 			    struct trace_array *tr)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 	file = trace_create_new_event(call, tr);
 	if (!file)
@@ -1888,10 +1888,10 @@ __trace_early_add_new_event(struct ftrace_event_call *call,
 }
 
 struct ftrace_module_file_ops;
-static void __add_event_to_tracers(struct ftrace_event_call *call);
+static void __add_event_to_tracers(struct trace_event_call *call);
 
 /* Add an additional event_call dynamically */
-int trace_add_event_call(struct ftrace_event_call *call)
+int trace_add_event_call(struct trace_event_call *call)
 {
 	int ret;
 	mutex_lock(&trace_types_lock);
@@ -1910,7 +1910,7 @@ int trace_add_event_call(struct ftrace_event_call *call)
  * Must be called under locking of trace_types_lock, event_mutex and
  * trace_event_sem.
  */
-static void __trace_remove_event_call(struct ftrace_event_call *call)
+static void __trace_remove_event_call(struct trace_event_call *call)
 {
 	event_remove(call);
 	trace_destroy_fields(call);
@@ -1918,10 +1918,10 @@ static void __trace_remove_event_call(struct ftrace_event_call *call)
 	call->filter = NULL;
 }
 
-static int probe_remove_event_call(struct ftrace_event_call *call)
+static int probe_remove_event_call(struct trace_event_call *call)
 {
 	struct trace_array *tr;
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 #ifdef CONFIG_PERF_EVENTS
 	if (call->perf_refcount)
@@ -1932,10 +1932,10 @@ static int probe_remove_event_call(struct ftrace_event_call *call)
 			continue;
 		/*
 		 * We can't rely on ftrace_event_enable_disable(enable => 0)
-		 * we are going to do, FTRACE_EVENT_FL_SOFT_MODE can suppress
+		 * we are going to do, EVENT_FILE_FL_SOFT_MODE can suppress
 		 * TRACE_REG_UNREGISTER.
 		 */
-		if (file->flags & FTRACE_EVENT_FL_ENABLED)
+		if (file->flags & EVENT_FILE_FL_ENABLED)
 			return -EBUSY;
 		/*
 		 * The do_for_each_event_file_safe() is
@@ -1952,7 +1952,7 @@ static int probe_remove_event_call(struct ftrace_event_call *call)
 }
 
 /* Remove an event_call */
-int trace_remove_event_call(struct ftrace_event_call *call)
+int trace_remove_event_call(struct trace_event_call *call)
 {
 	int ret;
 
@@ -1976,7 +1976,7 @@ int trace_remove_event_call(struct ftrace_event_call *call)
 
 static void trace_module_add_events(struct module *mod)
 {
-	struct ftrace_event_call **call, **start, **end;
+	struct trace_event_call **call, **start, **end;
 
 	if (!mod->num_trace_events)
 		return;
@@ -1999,7 +1999,7 @@ static void trace_module_add_events(struct module *mod)
 
 static void trace_module_remove_events(struct module *mod)
 {
-	struct ftrace_event_call *call, *p;
+	struct trace_event_call *call, *p;
 	bool clear_trace = false;
 
 	down_write(&trace_event_sem);
@@ -2055,28 +2055,28 @@ static struct notifier_block trace_module_nb = {
 static void
 __trace_add_event_dirs(struct trace_array *tr)
 {
-	struct ftrace_event_call *call;
+	struct trace_event_call *call;
 	int ret;
 
 	list_for_each_entry(call, &ftrace_events, list) {
 		ret = __trace_add_new_event(call, tr);
 		if (ret < 0)
 			pr_warn("Could not create directory for event %s\n",
-				ftrace_event_name(call));
+				trace_event_name(call));
 	}
 }
 
-struct ftrace_event_file *
+struct trace_event_file *
 find_event_file(struct trace_array *tr, const char *system,  const char *event)
 {
-	struct ftrace_event_file *file;
-	struct ftrace_event_call *call;
+	struct trace_event_file *file;
+	struct trace_event_call *call;
 	const char *name;
 
 	list_for_each_entry(file, &tr->events, list) {
 
 		call = file->event_call;
-		name = ftrace_event_name(call);
+		name = trace_event_name(call);
 
 		if (!name || !call->class || !call->class->reg)
 			continue;
@@ -2098,7 +2098,7 @@ find_event_file(struct trace_array *tr, const char *system,  const char *event)
 #define DISABLE_EVENT_STR	"disable_event"
 
 struct event_probe_data {
-	struct ftrace_event_file	*file;
+	struct trace_event_file	*file;
 	unsigned long			count;
 	int				ref;
 	bool				enable;
@@ -2114,9 +2114,9 @@ event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
 		return;
 
 	if (data->enable)
-		clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &data->file->flags);
+		clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &data->file->flags);
 	else
-		set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &data->file->flags);
+		set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &data->file->flags);
 }
 
 static void
@@ -2132,7 +2132,7 @@ event_enable_count_probe(unsigned long ip, unsigned long parent_ip, void **_data
 		return;
 
 	/* Skip if the event is in a state we want to switch to */
-	if (data->enable == !(data->file->flags & FTRACE_EVENT_FL_SOFT_DISABLED))
+	if (data->enable == !(data->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
 		return;
 
 	if (data->count != -1)
@@ -2152,7 +2152,7 @@ event_enable_print(struct seq_file *m, unsigned long ip,
 	seq_printf(m, "%s:%s:%s",
 		   data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
 		   data->file->event_call->class->system,
-		   ftrace_event_name(data->file->event_call));
+		   trace_event_name(data->file->event_call));
 
 	if (data->count == -1)
 		seq_puts(m, ":unlimited\n");
@@ -2226,7 +2226,7 @@ event_enable_func(struct ftrace_hash *hash,
 		  char *glob, char *cmd, char *param, int enabled)
 {
 	struct trace_array *tr = top_trace_array();
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	struct ftrace_probe_ops *ops;
 	struct event_probe_data *data;
 	const char *system;
@@ -2358,7 +2358,7 @@ static inline int register_event_cmds(void) { return 0; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /*
- * The top level array has already had its ftrace_event_file
+ * The top level array has already had its trace_event_file
  * descriptors created in order to allow for early events to
  * be recorded. This function is called after the tracefs has been
  * initialized, and we now have to create the files associated
@@ -2367,7 +2367,7 @@ static inline int register_event_cmds(void) { return 0; }
 static __init void
 __trace_early_add_event_dirs(struct trace_array *tr)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	int ret;
 
 
@@ -2375,7 +2375,7 @@ __trace_early_add_event_dirs(struct trace_array *tr)
 		ret = event_create_dir(tr->event_dir, file);
 		if (ret < 0)
 			pr_warn("Could not create directory for event %s\n",
-				ftrace_event_name(file->event_call));
+				trace_event_name(file->event_call));
 	}
 }
 
@@ -2388,7 +2388,7 @@ __trace_early_add_event_dirs(struct trace_array *tr)
 static __init void
 __trace_early_add_events(struct trace_array *tr)
 {
-	struct ftrace_event_call *call;
+	struct trace_event_call *call;
 	int ret;
 
 	list_for_each_entry(call, &ftrace_events, list) {
@@ -2399,7 +2399,7 @@ __trace_early_add_events(struct trace_array *tr)
 		ret = __trace_early_add_new_event(call, tr);
 		if (ret < 0)
 			pr_warn("Could not create early event %s\n",
-				ftrace_event_name(call));
+				trace_event_name(call));
 	}
 }
 
@@ -2407,13 +2407,13 @@ __trace_early_add_events(struct trace_array *tr)
 static void
 __trace_remove_event_dirs(struct trace_array *tr)
 {
-	struct ftrace_event_file *file, *next;
+	struct trace_event_file *file, *next;
 
 	list_for_each_entry_safe(file, next, &tr->events, list)
 		remove_event_file_dir(file);
 }
 
-static void __add_event_to_tracers(struct ftrace_event_call *call)
+static void __add_event_to_tracers(struct trace_event_call *call)
 {
 	struct trace_array *tr;
 
@@ -2421,8 +2421,8 @@ static void __add_event_to_tracers(struct ftrace_event_call *call)
 		__trace_add_new_event(call, tr);
 }
 
-extern struct ftrace_event_call *__start_ftrace_events[];
-extern struct ftrace_event_call *__stop_ftrace_events[];
+extern struct trace_event_call *__start_ftrace_events[];
+extern struct trace_event_call *__stop_ftrace_events[];
 
 static char bootup_event_buf[COMMAND_LINE_SIZE] __initdata;
 
@@ -2557,7 +2557,7 @@ int event_trace_del_tracer(struct trace_array *tr)
 static __init int event_trace_memsetup(void)
 {
 	field_cachep = KMEM_CACHE(ftrace_event_field, SLAB_PANIC);
-	file_cachep = KMEM_CACHE(ftrace_event_file, SLAB_PANIC);
+	file_cachep = KMEM_CACHE(trace_event_file, SLAB_PANIC);
 	return 0;
 }
 
@@ -2593,7 +2593,7 @@ early_enable_events(struct trace_array *tr, bool disable_first)
 static __init int event_trace_enable(void)
 {
 	struct trace_array *tr = top_trace_array();
-	struct ftrace_event_call **iter, *call;
+	struct trace_event_call **iter, *call;
 	int ret;
 
 	if (!tr)
@@ -2754,9 +2754,9 @@ static __init void event_test_stuff(void)
  */
 static __init void event_trace_self_tests(void)
 {
-	struct ftrace_subsystem_dir *dir;
-	struct ftrace_event_file *file;
-	struct ftrace_event_call *call;
+	struct trace_subsystem_dir *dir;
+	struct trace_event_file *file;
+	struct trace_event_call *call;
 	struct event_subsystem *system;
 	struct trace_array *tr;
 	int ret;
@@ -2787,13 +2787,13 @@ static __init void event_trace_self_tests(void)
 			continue;
 #endif
 
-		pr_info("Testing event %s: ", ftrace_event_name(call));
+		pr_info("Testing event %s: ", trace_event_name(call));
 
 		/*
 		 * If an event is already enabled, someone is using
 		 * it and the self test should not be on.
 		 */
-		if (file->flags & FTRACE_EVENT_FL_ENABLED) {
+		if (file->flags & EVENT_FILE_FL_ENABLED) {
 			pr_warn("Enabled event during self test!\n");
 			WARN_ON_ONCE(1);
 			continue;

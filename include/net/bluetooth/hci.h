@@ -1202,6 +1202,16 @@ struct hci_rp_read_clock {
 	__le16   accuracy;
 } __packed;
 
+#define HCI_OP_READ_ENC_KEY_SIZE	0x1408
+struct hci_cp_read_enc_key_size {
+	__le16   handle;
+} __packed;
+struct hci_rp_read_enc_key_size {
+	__u8     status;
+	__le16   handle;
+	__u8     key_size;
+} __packed;
+
 #define HCI_OP_READ_LOCAL_AMP_INFO	0x1409
 struct hci_rp_read_local_amp_info {
 	__u8     status;

@@ -52,7 +52,7 @@ usia_u0_sclk: usia_u0_sclk {
 
 Example of consumer:
 
-uart@e1020000 {
+serial@e1020000 {
 	compatible = "renesas,em-uart";
 	reg = <0xe1020000 0x38>;
 	interrupts = <0 8 0>;

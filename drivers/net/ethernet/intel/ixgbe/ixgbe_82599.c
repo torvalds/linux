@@ -71,7 +71,7 @@ bool ixgbe_mng_enabled(struct ixgbe_hw *hw)
 {
 	u32 fwsm, manc, factps;
 
-	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM);
+	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM(hw));
 	if ((fwsm & IXGBE_FWSM_MODE_MASK) != IXGBE_FWSM_FW_MODE_PT)
 		return false;
 
@@ -79,7 +79,7 @@ bool ixgbe_mng_enabled(struct ixgbe_hw *hw)
 	if (!(manc & IXGBE_MANC_RCV_TCO_EN))
 		return false;
 
-	factps = IXGBE_READ_REG(hw, IXGBE_FACTPS);
+	factps = IXGBE_READ_REG(hw, IXGBE_FACTPS(hw));
 	if (factps & IXGBE_FACTPS_MNGCG)
 		return false;
 
@@ -510,7 +510,7 @@ static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
 	hw->eeprom.ops.read(hw, IXGBE_EEPROM_CTRL_2, &ee_ctrl_2);
 
 	/* Check to see if MNG FW could be enabled */
-	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM);
+	fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM(hw));
 
 	if (((fwsm & IXGBE_FWSM_MODE_MASK) != IXGBE_FWSM_FW_MODE_PT) &&
 	    !hw->wol_enabled &&
@@ -2378,4 +2378,5 @@ struct ixgbe_info ixgbe_82599_info = {
 	.eeprom_ops             = &eeprom_ops_82599,
 	.phy_ops                = &phy_ops_82599,
 	.mbx_ops                = &mbx_ops_generic,
+	.mvals			= ixgbe_mvals_8259X,
 };

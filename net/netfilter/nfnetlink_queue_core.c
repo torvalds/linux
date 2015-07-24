@@ -278,6 +278,23 @@ nla_put_failure:
 	return -1;
 }
 
+static u32 nfqnl_get_sk_secctx(struct sk_buff *skb, char **secdata)
+{
+	u32 seclen = 0;
+#if IS_ENABLED(CONFIG_NETWORK_SECMARK)
+	if (!skb || !sk_fullsock(skb->sk))
+		return 0;
+
+	read_lock_bh(&skb->sk->sk_callback_lock);
+
+	if (skb->secmark)
+		security_secid_to_secctx(skb->secmark, secdata, &seclen);
+
+	read_unlock_bh(&skb->sk->sk_callback_lock);
+#endif
+	return seclen;
+}
+
 static struct sk_buff *
 nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			   struct nf_queue_entry *entry,
@@ -297,6 +314,8 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	struct nf_conn *ct = NULL;
 	enum ip_conntrack_info uninitialized_var(ctinfo);
 	bool csum_verify;
+	char *secdata = NULL;
+	u32 seclen = 0;
 
 	size =    nlmsg_total_size(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
@@ -350,6 +369,12 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (queue->flags & NFQA_CFG_F_UID_GID) {
 		size +=  (nla_total_size(sizeof(u_int32_t))	/* uid */
 			+ nla_total_size(sizeof(u_int32_t)));	/* gid */
+	}
+
+	if ((queue->flags & NFQA_CFG_F_SECCTX) && entskb->sk) {
+		seclen = nfqnl_get_sk_secctx(entskb, &secdata);
+		if (seclen)
+			size += nla_total_size(seclen);
 	}
 
 	skb = nfnetlink_alloc_skb(net, size, queue->peer_portid,
@@ -477,6 +502,9 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	if ((queue->flags & NFQA_CFG_F_UID_GID) && entskb->sk &&
 	    nfqnl_put_sk_uidgid(skb, entskb->sk) < 0)
+		goto nla_put_failure;
+
+	if (seclen && nla_put(skb, NFQA_SECCTX, seclen, secdata))
 		goto nla_put_failure;
 
 	if (ct && nfqnl_ct_put(skb, ct, ctinfo) < 0)
@@ -806,8 +834,6 @@ nfqnl_dev_drop(struct net *net, int ifindex)
 	rcu_read_unlock();
 }
 
-#define RCV_SKB_FAIL(err) do { netlink_ack(skb, nlh, (err)); return; } while (0)
-
 static int
 nfqnl_rcv_dev_event(struct notifier_block *this,
 		    unsigned long event, void *ptr)
@@ -823,6 +849,27 @@ nfqnl_rcv_dev_event(struct notifier_block *this,
 static struct notifier_block nfqnl_dev_notifier = {
 	.notifier_call	= nfqnl_rcv_dev_event,
 };
+
+static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long ops_ptr)
+{
+	return entry->elem == (struct nf_hook_ops *)ops_ptr;
+}
+
+static void nfqnl_nf_hook_drop(struct net *net, struct nf_hook_ops *hook)
+{
+	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	int i;
+
+	rcu_read_lock();
+	for (i = 0; i < INSTANCE_BUCKETS; i++) {
+		struct nfqnl_instance *inst;
+		struct hlist_head *head = &q->instance_table[i];
+
+		hlist_for_each_entry_rcu(inst, head, hlist)
+			nfqnl_flush(inst, nf_hook_cmp, (unsigned long)hook);
+	}
+	rcu_read_unlock();
+}
 
 static int
 nfqnl_rcv_nl_event(struct notifier_block *this,
@@ -1031,7 +1078,8 @@ static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 };
 
 static const struct nf_queue_handler nfqh = {
-	.outfn	= &nfqnl_enqueue_packet,
+	.outfn		= &nfqnl_enqueue_packet,
+	.nf_hook_drop	= &nfqnl_nf_hook_drop,
 };
 
 static int
@@ -1142,7 +1190,12 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			ret = -EOPNOTSUPP;
 			goto err_out_unlock;
 		}
-
+#if !IS_ENABLED(CONFIG_NETWORK_SECMARK)
+		if (flags & mask & NFQA_CFG_F_SECCTX) {
+			ret = -EOPNOTSUPP;
+			goto err_out_unlock;
+		}
+#endif
 		spin_lock_bh(&queue->lock);
 		queue->flags &= ~mask;
 		queue->flags |= flags & mask;
@@ -1257,7 +1310,7 @@ static int seq_show(struct seq_file *s, void *v)
 		   inst->copy_mode, inst->copy_range,
 		   inst->queue_dropped, inst->queue_user_dropped,
 		   inst->id_sequence, 1);
-	return seq_has_overflowed(s);
+	return 0;
 }
 
 static const struct seq_operations nfqnl_seq_ops = {

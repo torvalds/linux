@@ -64,10 +64,8 @@ ieee802154_get_dev(struct net *net, const struct ieee802154_addr *addr)
 			if (tmp->type != ARPHRD_IEEE802154)
 				continue;
 
-			pan_id = ieee802154_mlme_ops(tmp)->get_pan_id(tmp);
-			short_addr =
-				ieee802154_mlme_ops(tmp)->get_short_addr(tmp);
-
+			pan_id = tmp->ieee802154_ptr->pan_id;
+			short_addr = tmp->ieee802154_ptr->short_addr;
 			if (pan_id == addr->pan_id &&
 			    short_addr == addr->short_addr) {
 				dev = tmp;
@@ -228,15 +226,9 @@ static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 		goto out;
 	}
 
-	if (dev->type != ARPHRD_IEEE802154) {
-		err = -ENODEV;
-		goto out_put;
-	}
-
 	sk->sk_bound_dev_if = dev->ifindex;
 	sk_dst_reset(sk);
 
-out_put:
 	dev_put(dev);
 out:
 	release_sock(sk);
@@ -286,7 +278,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	if (size > mtu) {
 		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
-		err = -EINVAL;
+		err = -EMSGSIZE;
 		goto out_dev;
 	}
 
@@ -739,6 +731,12 @@ static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (saddr) {
+		/* Clear the implicit padding in struct sockaddr_ieee802154
+		 * (16 bits between 'family' and 'addr') and in struct
+		 * ieee802154_addr_sa (16 bits at the end of the structure).
+		 */
+		memset(saddr, 0, sizeof(*saddr));
+
 		saddr->family = AF_IEEE802154;
 		ieee802154_addr_to_sa(&saddr->addr, &mac_cb(skb)->source);
 		*addr_len = sizeof(*saddr);
@@ -797,9 +795,9 @@ static int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	/* Data frame processing */
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
-	short_addr = ieee802154_mlme_ops(dev)->get_short_addr(dev);
-	hw_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	pan_id = dev->ieee802154_ptr->pan_id;
+	short_addr = dev->ieee802154_ptr->short_addr;
+	hw_addr = dev->ieee802154_ptr->extended_addr;
 
 	read_lock(&dgram_lock);
 	sk_for_each(sk, &dgram_head) {
@@ -1014,7 +1012,7 @@ static int ieee802154_create(struct net *net, struct socket *sock,
 	}
 
 	rc = -ENOMEM;
-	sk = sk_alloc(net, PF_IEEE802154, GFP_KERNEL, proto);
+	sk = sk_alloc(net, PF_IEEE802154, GFP_KERNEL, proto, kern);
 	if (!sk)
 		goto out;
 	rc = 0;

@@ -14,8 +14,6 @@ extern void context_tracking_enter(enum ctx_state state);
 extern void context_tracking_exit(enum ctx_state state);
 extern void context_tracking_user_enter(void);
 extern void context_tracking_user_exit(void);
-extern void __context_tracking_task_switch(struct task_struct *prev,
-					   struct task_struct *next);
 
 static inline void user_enter(void)
 {
@@ -51,19 +49,11 @@ static inline void exception_exit(enum ctx_state prev_ctx)
 	}
 }
 
-static inline void context_tracking_task_switch(struct task_struct *prev,
-						struct task_struct *next)
-{
-	if (context_tracking_is_enabled())
-		__context_tracking_task_switch(prev, next);
-}
 #else
 static inline void user_enter(void) { }
 static inline void user_exit(void) { }
 static inline enum ctx_state exception_enter(void) { return 0; }
 static inline void exception_exit(enum ctx_state prev_ctx) { }
-static inline void context_tracking_task_switch(struct task_struct *prev,
-						struct task_struct *next) { }
 #endif /* !CONFIG_CONTEXT_TRACKING */
 
 

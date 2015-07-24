@@ -564,8 +564,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		return -EINVAL;
 
 	if ((tid >= IEEE80211_NUM_TIDS) ||
-	    !(local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION) ||
-	    (local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW))
+	    !ieee80211_hw_check(&local->hw, AMPDU_AGGREGATION) ||
+	    ieee80211_hw_check(&local->hw, TX_AMPDU_SETUP_IN_HW))
 		return -EINVAL;
 
 	ht_dbg(sdata, "Open BA session requested for %pM tid %u\n",

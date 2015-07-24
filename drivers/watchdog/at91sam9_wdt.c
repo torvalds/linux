@@ -40,9 +40,9 @@
 #define DRV_NAME "AT91SAM9 Watchdog"
 
 #define wdt_read(wdt, field) \
-	__raw_readl((wdt)->base + (field))
+	readl_relaxed((wdt)->base + (field))
 #define wdt_write(wtd, field, val) \
-	__raw_writel((val), (wdt)->base + (field))
+	writel_relaxed((val), (wdt)->base + (field))
 
 /* AT91SAM9 watchdog runs a 12bit counter @ 256Hz,
  * use this to convert a watchdog

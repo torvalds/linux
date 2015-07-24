@@ -2,8 +2,8 @@
 #define _PARISC_DMA_MAPPING_H
 
 #include <linux/mm.h>
+#include <linux/scatterlist.h>
 #include <asm/cacheflush.h>
-#include <asm/scatterlist.h>
 
 /* See Documentation/DMA-API-HOWTO.txt */
 struct hppa_dma_ops {

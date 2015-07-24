@@ -123,7 +123,7 @@ static void it8761e_gpio_set(struct gpio_chip *gc,
 
 	curr_vals = inb(reg);
 	if (val)
-		outb(curr_vals | (1 << bit) , reg);
+		outb(curr_vals | (1 << bit), reg);
 	else
 		outb(curr_vals & ~(1 << bit), reg);
 

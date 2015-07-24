@@ -65,6 +65,8 @@
 
 #define INIT_HCA_TPT_MW_ENABLE          (1 << 7)
 
+#define MLX4_QUERY_IF_STAT_RESET	BIT(31)
+
 enum {
 	MLX4_HCR_BASE		= 0x80680,
 	MLX4_HCR_SIZE		= 0x0001c,
@@ -287,6 +289,12 @@ struct mlx4_icm_table {
 #define MLX4_CQE_SIZE_MASK_STRIDE	0x3
 #define MLX4_EQE_SIZE_MASK_STRIDE	0x30
 
+#define MLX4_EQ_ASYNC			0
+#define MLX4_EQ_TO_CQ_VECTOR(vector)	((vector) - \
+					 !!((int)(vector) >= MLX4_EQ_ASYNC))
+#define MLX4_CQ_TO_EQ_VECTOR(vector)	((vector) + \
+					 !!((int)(vector) >= MLX4_EQ_ASYNC))
+
 /*
  * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
  */
@@ -391,6 +399,9 @@ struct mlx4_eq {
 	struct mlx4_buf_list   *page_list;
 	struct mlx4_mtt		mtt;
 	struct mlx4_eq_tasklet	tasklet_ctx;
+	struct mlx4_active_ports actv_ports;
+	u32			ref_count;
+	cpumask_var_t		affinity_mask;
 };
 
 struct mlx4_slave_eqe {
@@ -808,6 +819,7 @@ struct mlx4_port_info {
 	struct mlx4_vlan_table	vlan_table;
 	struct mlx4_roce_gid_table gid_table;
 	int			base_qpn;
+	struct cpu_rmap		*rmap;
 };
 
 struct mlx4_sense {
@@ -818,7 +830,7 @@ struct mlx4_sense {
 };
 
 struct mlx4_msix_ctl {
-	u64		pool_bm;
+	DECLARE_BITMAP(pool_bm, MAX_MSIX);
 	struct mutex	pool_lock;
 };
 
@@ -864,6 +876,7 @@ struct mlx4_priv {
 	struct mlx4_qp_table	qp_table;
 	struct mlx4_mcg_table	mcg_table;
 	struct mlx4_bitmap	counters_bitmap;
+	int			def_counter[MLX4_MAX_PORTS];
 
 	struct mlx4_catas_err	catas_err;
 
@@ -997,6 +1010,8 @@ int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		     int start_index, int npages, u64 *page_list);
 int __mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
 void __mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
+int mlx4_calc_vf_counters(struct mlx4_dev *dev, int slave, int port,
+			  struct mlx4_counter *data);
 int __mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn);
 void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn);
 

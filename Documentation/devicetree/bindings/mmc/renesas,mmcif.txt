@@ -18,6 +18,8 @@ Required properties:
   dma-names property.
 - dma-names: must contain "tx" for the transmit DMA channel and "rx" for the
   receive DMA channel.
+- max-frequency: Maximum operating clock frequency, driver uses default clock
+  frequency if it is not set.
 
 
 Example: R8A7790 (R-Car H2) MMCIF0
@@ -29,4 +31,5 @@ Example: R8A7790 (R-Car H2) MMCIF0
 		clocks = <&mstp3_clks R8A7790_CLK_MMCIF0>;
 		dmas = <&dmac0 0xd1>, <&dmac0 0xd2>;
 		dma-names = "tx", "rx";
+		max-frequency = <97500000>;
 	};

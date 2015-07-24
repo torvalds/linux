@@ -119,6 +119,14 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 		ctrl->dwMaxVideoFrameSize =
 			frame->dwMaxVideoFrameBufferSize;
 
+	/* The "TOSHIBA Web Camera - 5M" Chicony device (04f2:b50b) seems to
+	 * compute the bandwidth on 16 bits and erroneously sign-extend it to
+	 * 32 bits, resulting in a huge bandwidth value. Detect and fix that
+	 * condition by setting the 16 MSBs to 0 when they're all equal to 1.
+	 */
+	if ((ctrl->dwMaxPayloadTransferSize & 0xffff0000) == 0xffff0000)
+		ctrl->dwMaxPayloadTransferSize &= ~0xffff0000;
+
 	if (!(format->flags & UVC_FMT_FLAG_COMPRESSED) &&
 	    stream->dev->quirks & UVC_QUIRK_FIX_BANDWIDTH &&
 	    stream->intf->num_altsetting > 1) {

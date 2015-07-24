@@ -29,7 +29,7 @@
 #define PERIPHERAL_RSHIFT_MASK	0x3
 #define PERIPHERAL_RSHIFT(val)	(((val) >> 16) & PERIPHERAL_RSHIFT_MASK)
 
-#define PERIPHERAL_MAX_SHIFT	4
+#define PERIPHERAL_MAX_SHIFT	3
 
 struct clk_peripheral {
 	struct clk_hw hw;
@@ -242,7 +242,7 @@ static long clk_sam9x5_peripheral_round_rate(struct clk_hw *hw,
 		return *parent_rate;
 
 	if (periph->range.max) {
-		for (; shift < PERIPHERAL_MAX_SHIFT; shift++) {
+		for (; shift <= PERIPHERAL_MAX_SHIFT; shift++) {
 			cur_rate = *parent_rate >> shift;
 			if (cur_rate <= periph->range.max)
 				break;
@@ -254,7 +254,7 @@ static long clk_sam9x5_peripheral_round_rate(struct clk_hw *hw,
 
 	best_diff = cur_rate - rate;
 	best_rate = cur_rate;
-	for (; shift < PERIPHERAL_MAX_SHIFT; shift++) {
+	for (; shift <= PERIPHERAL_MAX_SHIFT; shift++) {
 		cur_rate = *parent_rate >> shift;
 		if (cur_rate < rate)
 			cur_diff = rate - cur_rate;
@@ -289,7 +289,7 @@ static int clk_sam9x5_peripheral_set_rate(struct clk_hw *hw,
 	if (periph->range.max && rate > periph->range.max)
 		return -EINVAL;
 
-	for (shift = 0; shift < PERIPHERAL_MAX_SHIFT; shift++) {
+	for (shift = 0; shift <= PERIPHERAL_MAX_SHIFT; shift++) {
 		if (parent_rate >> shift == rate) {
 			periph->auto_div = false;
 			periph->div = shift;

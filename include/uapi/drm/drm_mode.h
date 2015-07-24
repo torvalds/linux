@@ -558,4 +558,24 @@ struct drm_mode_atomic {
 	__u64 user_data;
 };
 
+/**
+ * Create a new 'blob' data property, copying length bytes from data pointer,
+ * and returning new blob ID.
+ */
+struct drm_mode_create_blob {
+	/** Pointer to data to copy. */
+	__u64 data;
+	/** Length of data to copy. */
+	__u32 length;
+	/** Return: new property ID. */
+	__u32 blob_id;
+};
+
+/**
+ * Destroy a user-created blob property.
+ */
+struct drm_mode_destroy_blob {
+	__u32 blob_id;
+};
+
 #endif

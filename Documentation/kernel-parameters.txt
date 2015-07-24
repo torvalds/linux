@@ -179,11 +179,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			See also Documentation/power/runtime_pm.txt, pci=noacpi
 
-	acpi_rsdp=	[ACPI,EFI,KEXEC]
-			Pass the RSDP address to the kernel, mostly used
-			on machines running EFI runtime service to boot the
-			second kernel for kdump.
-
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>
 			2: use 2nd APIC table, if available
@@ -196,6 +191,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			If set to vendor, prefer vendor specific driver
 			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
 			of the ACPI video.ko driver.
+
+	acpica_no_return_repair [HW, ACPI]
+			Disable AML predefined validation mechanism
+			This mechanism can repair the evaluation result to make
+			the return objects more ACPI specification compliant.
+			This option is useful for developers to identify the
+			root cause of an AML interpreter issue when the issue
+			has something to do with the repair mechanism.
 
 	acpi.debug_layer=	[HW,ACPI,ACPI_DEBUG]
 	acpi.debug_level=	[HW,ACPI,ACPI_DEBUG]
@@ -225,6 +228,22 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unusable.  The "log_buf_len" parameter may be useful
 			if you need to capture more output.
 
+	acpi_enforce_resources=	[ACPI]
+			{ strict | lax | no }
+			Check for resource conflicts between native drivers
+			and ACPI OperationRegions (SystemIO and SystemMemory
+			only). IO ports and memory declared in ACPI might be
+			used by the ACPI subsystem in arbitrary AML code and
+			can interfere with legacy drivers.
+			strict (default): access to resources claimed by ACPI
+			is denied; legacy drivers trying to access reserved
+			resources will fail to bind to device using them.
+			lax: access to resources claimed by ACPI is allowed;
+			legacy drivers trying to access reserved resources
+			will bind successfully but a warning message is logged.
+			no: ACPI OperationRegions are not marked as reserved,
+			no further checks are performed.
+
 	acpi_force_table_verification	[HW,ACPI]
 			Enable table checksum verification during early stage.
 			By default, this is disabled due to x86 early mapping
@@ -253,6 +272,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			This feature is enabled by default.
 			This option allows to turn off the feature.
 
+	acpi_no_memhotplug [ACPI] Disable memory hotplug.  Useful for kdump
+			   kernels.
+
 	acpi_no_static_ssdt	[HW,ACPI]
 			Disable installation of static SSDTs at early boot time
 			By default, SSDTs contained in the RSDT/XSDT will be
@@ -263,16 +285,19 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			dynamic table installation which will install SSDT
 			tables to /sys/firmware/acpi/tables/dynamic.
 
-	acpica_no_return_repair [HW, ACPI]
-			Disable AML predefined validation mechanism
-			This mechanism can repair the evaluation result to make
-			the return objects more ACPI specification compliant.
-			This option is useful for developers to identify the
-			root cause of an AML interpreter issue when the issue
-			has something to do with the repair mechanism.
+	acpi_rsdp=	[ACPI,EFI,KEXEC]
+			Pass the RSDP address to the kernel, mostly used
+			on machines running EFI runtime service to boot the
+			second kernel for kdump.
 
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
+
+	acpi_rev_override [ACPI] Override the _REV object to return 5 (instead
+			of 2 which is mandated by ACPI 6) as the supported ACPI
+			specification revision (when using this switch, it may
+			be necessary to carry out a cold reboot _twice_ in a
+			row to make it take effect on the platform firmware).
 
 	acpi_osi=	[HW,ACPI] Modify list of supported OS interface strings
 			acpi_osi="string1"	# add string1
@@ -364,25 +389,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	acpi_use_timer_override [HW,ACPI]
 			Use timer override. For some broken Nvidia NF5 boards
 			that require a timer override, but don't have HPET
-
-	acpi_enforce_resources=	[ACPI]
-			{ strict | lax | no }
-			Check for resource conflicts between native drivers
-			and ACPI OperationRegions (SystemIO and SystemMemory
-			only). IO ports and memory declared in ACPI might be
-			used by the ACPI subsystem in arbitrary AML code and
-			can interfere with legacy drivers.
-			strict (default): access to resources claimed by ACPI
-			is denied; legacy drivers trying to access reserved
-			resources will fail to bind to device using them.
-			lax: access to resources claimed by ACPI is allowed;
-			legacy drivers trying to access reserved resources
-			will bind successfully but a warning message is logged.
-			no: ACPI OperationRegions are not marked as reserved,
-			no further checks are performed.
-
-	acpi_no_memhotplug [ACPI] Disable memory hotplug.  Useful for kdump
-			   kernels.
 
 	add_efi_memmap	[EFI; X86] Include EFI memory map in
 			kernel's map of available physical RAM.
@@ -746,6 +752,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	cpuidle.off=1	[CPU_IDLE]
 			disable the cpuidle sub-system
 
+	cpu_init_udelay=N
+			[X86] Delay for N microsec between assert and de-assert
+			of APIC INIT to start processors.  This delay occurs
+			on every CPU online, such as boot, and resume from suspend.
+			Default: 10000
+
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:
 			<first_slot>,<last_slot>,<port>,<enum_bit>[,<debug>]
@@ -937,11 +949,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Enable debug messages at boot time.  See
 			Documentation/dynamic-debug-howto.txt for details.
 
+	nompx		[X86] Disables Intel Memory Protection Extensions.
+			See Documentation/x86/intel_mpx.txt for more
+			information about the feature.
+
 	eagerfpu=	[X86]
 			on	enable eager fpu restore
 			off	disable eager fpu restore
 			auto	selects the default scheme, which automatically
 				enables eagerfpu restore for xsaveopt.
+
+	module.async_probe [KNL]
+			Enable asynchronous probe on this module.
 
 	early_ioremap_debug [KNL]
 			Enable debug messages in early_ioremap support. This
@@ -959,14 +978,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
+		uart[8250],mmio32be,<addr>[,options]
 		uart[8250],0x<addr>[,options]
 			Start an early, polled-mode console on the 8250/16550
 			UART at the specified I/O port or MMIO address.
 			MMIO inter-register address stride is either 8-bit
-			(mmio) or 32-bit (mmio32).
-			If none of [io|mmio|mmio32], <addr> is assumed to be
-			equivalent to 'mmio'. 'options' are specified in the
-			same format described for "console=ttyS<n>"; if
+			(mmio) or 32-bit (mmio32 or mmio32be).
+			If none of [io|mmio|mmio32|mmio32be], <addr> is assumed
+			to be equivalent to 'mmio'. 'options' are specified
+			in the same format described for "console=ttyS<n>"; if
 			unspecified, the h/w is not initialized.
 
 		pl011,<addr>
@@ -1009,6 +1029,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			earlyprintk=serial[,0x...[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
+			earlyprintk=pciserial,bus:device.function[,baudrate]
 
 			earlyprintk is useful when the kernel crashes before
 			the normal console is initialized. It is not enabled by
@@ -1398,7 +1419,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The list of supported hash algorithms is defined
 			in crypto/hash_info.h.
 
-	ima_tcb		[IMA]
+	ima_policy=	[IMA]
+			The builtin measurement policy to load during IMA
+			setup.  Specyfing "tcb" as the value, measures all
+			programs exec'd, files mmap'd for exec, and all files
+			opened with the read mode bit set by either the
+			effective uid (euid=0) or uid=0.
+			Format: "tcb"
+
+	ima_tcb		[IMA] Deprecated.  Use ima_policy= instead.
 			Load a policy which meets the needs of the Trusted
 			Computing Base.  This means IMA will measure all
 			programs exec'd, files mmap'd for exec, and all files
@@ -1406,7 +1435,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	ima_template=   [IMA]
 			Select one of defined IMA measurements template formats.
-			Formats: { "ima" | "ima-ng" }
+			Formats: { "ima" | "ima-ng" | "ima-sig" }
 			Default: "ima-ng"
 
 	ima_template_fmt=
@@ -1779,6 +1808,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			  allowed.
 
 			* [no]ncq: Turn on or off NCQ.
+
+			* [no]ncqtrim: Turn off queued DSM TRIM.
 
 			* nohrst, nosrst, norst: suppress hard, soft
                           and both resets.
@@ -2443,7 +2474,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nomca		[IA-64] Disable machine check abort handling
 
-	nomce		[X86-32] Machine Check Exception
+	nomce		[X86-32] Disable Machine Check Exception
 
 	nomfgpt		[X86-32] Disable Multi-Function General Purpose
 			Timer usage (for AMD Geode machines).
@@ -2998,11 +3029,34 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
 
+	rcutree.dump_tree=	[KNL]
+			Dump the structure of the rcu_node combining tree
+			out at early boot.  This is used for diagnostic
+			purposes, to verify correct tree setup.
+
+	rcutree.gp_cleanup_delay=	[KNL]
+			Set the number of jiffies to delay each step of
+			RCU grace-period cleanup.  This only has effect
+			when CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP is set.
+
 	rcutree.gp_init_delay=	[KNL]
 			Set the number of jiffies to delay each step of
 			RCU grace-period initialization.  This only has
-			effect when CONFIG_RCU_TORTURE_TEST_SLOW_INIT is
-			set.
+			effect when CONFIG_RCU_TORTURE_TEST_SLOW_INIT
+			is set.
+
+	rcutree.gp_preinit_delay=	[KNL]
+			Set the number of jiffies to delay each step of
+			RCU grace-period pre-initialization, that is,
+			the propagation of recent CPU-hotplug changes up
+			the rcu_node combining tree.  This only has effect
+			when CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT is set.
+
+	rcutree.rcu_fanout_exact= [KNL]
+			Disable autobalancing of the rcu_node combining
+			tree.  This is used by rcutorture, and might
+			possibly be useful for architectures having high
+			cache-to-cache transfer latencies.
 
 	rcutree.rcu_fanout_leaf= [KNL]
 			Increase the number of CPUs assigned to each
@@ -3107,7 +3161,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			test, hence the "fake".
 
 	rcutorture.nreaders= [KNL]
-			Set number of RCU readers.
+			Set number of RCU readers.  The value -1 selects
+			N-1, where N is the number of CPUs.  A value
+			"n" less than -1 selects N-n-2, where N is again
+			the number of CPUs.  For example, -2 selects N
+			(the number of CPUs), -3 selects N+1, and so on.
 
 	rcutorture.object_debug= [KNL]
 			Enable debug-object double-call_rcu() testing.

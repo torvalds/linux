@@ -205,7 +205,8 @@ int pvr2_ioread_setup(struct pvr2_ioread *cp,struct pvr2_stream *sp)
 	unsigned int idx;
 	struct pvr2_buffer *bp;
 
-	mutex_lock(&cp->mutex); do {
+	mutex_lock(&cp->mutex);
+	do {
 		if (cp->stream) {
 			pvr2_trace(PVR2_TRACE_START_STOP,
 				   "/*---TRACE_READ---*/"
@@ -235,7 +236,8 @@ int pvr2_ioread_setup(struct pvr2_ioread *cp,struct pvr2_stream *sp)
 			}
 			cp->stream = sp;
 		}
-	} while (0); mutex_unlock(&cp->mutex);
+	} while (0);
+	mutex_unlock(&cp->mutex);
 
 	return 0;
 }
@@ -245,13 +247,15 @@ int pvr2_ioread_set_enabled(struct pvr2_ioread *cp,int fl)
 	int ret = 0;
 	if ((!fl) == (!(cp->enabled))) return ret;
 
-	mutex_lock(&cp->mutex); do {
+	mutex_lock(&cp->mutex);
+	do {
 		if (fl) {
 			ret = pvr2_ioread_start(cp);
 		} else {
 			pvr2_ioread_stop(cp);
 		}
-	} while (0); mutex_unlock(&cp->mutex);
+	} while (0);
+	mutex_unlock(&cp->mutex);
 	return ret;
 }
 
@@ -315,7 +319,8 @@ static void pvr2_ioread_filter(struct pvr2_ioread *cp)
 	// Search the stream for our synchronization key.  This is made
 	// complicated by the fact that in order to be honest with
 	// ourselves here we must search across buffer boundaries...
-	mutex_lock(&cp->mutex); while (1) {
+	mutex_lock(&cp->mutex);
+	while (1) {
 		// Ensure we have a buffer
 		if (!pvr2_ioread_get_buffer(cp)) break;
 		if (!cp->c_data_len) break;
@@ -362,7 +367,8 @@ static void pvr2_ioread_filter(struct pvr2_ioread *cp)
 		}
 
 		continue; // (for clarity)
-	} mutex_unlock(&cp->mutex);
+	}
+	mutex_unlock(&cp->mutex);
 }
 
 int pvr2_ioread_avail(struct pvr2_ioread *cp)
@@ -422,7 +428,8 @@ int pvr2_ioread_read(struct pvr2_ioread *cp,void __user *buf,unsigned int cnt)
 
 	cp->stream_running = !0;
 
-	mutex_lock(&cp->mutex); do {
+	mutex_lock(&cp->mutex);
+	do {
 
 		// Suck data out of the buffers and copy to the user
 		copied_cnt = 0;
@@ -480,7 +487,8 @@ int pvr2_ioread_read(struct pvr2_ioread *cp,void __user *buf,unsigned int cnt)
 			}
 		}
 
-	} while (0); mutex_unlock(&cp->mutex);
+	} while (0);
+	mutex_unlock(&cp->mutex);
 
 	if (!ret) {
 		if (copied_cnt) {

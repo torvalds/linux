@@ -178,6 +178,9 @@ config OMAP_IOMMU
 	depends on ARM && MMU
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select IOMMU_API
+	---help---
+	  The OMAP3 media platform drivers depend on iommu support,
+	  if you need them say Y here.
 
 config OMAP_IOMMU_DEBUG
 	bool "Export OMAP IOMMU internals in DebugFS"
@@ -219,7 +222,7 @@ config TEGRA_IOMMU_SMMU
 	select IOMMU_API
 	help
 	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
-	  SoCs (Tegra30 up to Tegra124).
+	  SoCs (Tegra30 up to Tegra132).
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
@@ -339,6 +342,7 @@ config SPAPR_TCE_IOMMU
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
 	  is not implemented as it is not necessary for VFIO.
 
+# ARM IOMMU support
 config ARM_SMMU
 	bool "ARM Ltd. System MMU (SMMU) Support"
 	depends on (ARM64 || ARM) && MMU
@@ -351,5 +355,17 @@ config ARM_SMMU
 
 	  Say Y here if your SoC includes an IOMMU device implementing
 	  the ARM SMMU architecture.
+
+config ARM_SMMU_V3
+	bool "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
+	depends on ARM64 && PCI
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	help
+	  Support for implementations of the ARM System MMU architecture
+	  version 3 providing translation support to a PCIe root complex.
+
+	  Say Y here if your system includes an IOMMU device implementing
+	  the ARM SMMUv3 architecture.
 
 endif # IOMMU_SUPPORT

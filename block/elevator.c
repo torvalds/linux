@@ -35,11 +35,11 @@
 #include <linux/hash.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/blk-cgroup.h>
 
 #include <trace/events/block.h>
 
 #include "blk.h"
-#include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -806,6 +806,8 @@ int elv_register_queue(struct request_queue *q)
 		}
 		kobject_uevent(&e->kobj, KOBJ_ADD);
 		e->registered = 1;
+		if (e->type->ops.elevator_registered_fn)
+			e->type->ops.elevator_registered_fn(q);
 	}
 	return error;
 }

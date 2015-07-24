@@ -20,13 +20,6 @@ enum nf_br_hook_priorities {
 #define BRNF_BRIDGED_DNAT		0x02
 #define BRNF_NF_BRIDGE_PREROUTING	0x08
 
-static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
-{
-	if (skb->nf_bridge->orig_proto == BRNF_PROTO_PPPOE)
-		return PPPOE_SES_HLEN;
-	return 0;
-}
-
 int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb);
 
 static inline void br_drop_fake_rtable(struct sk_buff *skb)

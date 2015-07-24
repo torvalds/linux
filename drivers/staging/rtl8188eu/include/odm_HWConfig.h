@@ -120,7 +120,4 @@ void ODM_MacStatusQuery(struct odm_dm_struct *pDM_Odm,
 			bool	bPacketToSelf,
 			bool	bPacketBeacon);
 
-enum HAL_STATUS ODM_ConfigBBWithHeaderFile(struct odm_dm_struct *pDM_Odm,
-					   enum odm_bb_config_type ConfigType);
-
 #endif

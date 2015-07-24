@@ -27,6 +27,8 @@ struct cpuidle_driver pseries_idle_driver = {
 
 static int max_idle_state;
 static struct cpuidle_state *cpuidle_state_table;
+static u64 snooze_timeout;
+static bool snooze_timeout_en;
 
 static inline void idle_loop_prolog(unsigned long *in_purr)
 {
@@ -58,14 +60,18 @@ static int snooze_loop(struct cpuidle_device *dev,
 			int index)
 {
 	unsigned long in_purr;
+	u64 snooze_exit_time;
 
 	idle_loop_prolog(&in_purr);
 	local_irq_enable();
 	set_thread_flag(TIF_POLLING_NRFLAG);
+	snooze_exit_time = get_tb() + snooze_timeout;
 
 	while (!need_resched()) {
 		HMT_low();
 		HMT_very_low();
+		if (snooze_timeout_en && get_tb() > snooze_exit_time)
+			break;
 	}
 
 	HMT_medium();
@@ -244,6 +250,11 @@ static int pseries_idle_probe(void)
 	} else
 		return -ENODEV;
 
+	if (max_idle_state > 1) {
+		snooze_timeout_en = true;
+		snooze_timeout = cpuidle_state_table[1].target_residency *
+				 tb_ticks_per_usec;
+	}
 	return 0;
 }
 

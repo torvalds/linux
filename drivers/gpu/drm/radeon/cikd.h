@@ -1335,6 +1335,7 @@
 #       define CNTX_EMPTY_INT_ENABLE                    (1 << 20)
 #       define PRIV_INSTR_INT_ENABLE                    (1 << 22)
 #       define PRIV_REG_INT_ENABLE                      (1 << 23)
+#       define OPCODE_ERROR_INT_ENABLE                  (1 << 24)
 #       define TIME_STAMP_INT_ENABLE                    (1 << 26)
 #       define CP_RINGID2_INT_ENABLE                    (1 << 29)
 #       define CP_RINGID1_INT_ENABLE                    (1 << 30)
@@ -2147,9 +2148,12 @@
 #define VCE_CMD_IB_AUTO		0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
 
-#define ATC_VMID0_PASID_MAPPING					0x339Cu
-#define	ATC_VMID_PASID_MAPPING_UPDATE_STATUS	0x3398u
-#define	ATC_VMID_PASID_MAPPING_VALID				(1U << 31)
+#define ATC_VMID_PASID_MAPPING_UPDATE_STATUS		0x3398u
+#define ATC_VMID0_PASID_MAPPING				0x339Cu
+#define ATC_VMID_PASID_MAPPING_PASID_MASK		(0xFFFF)
+#define ATC_VMID_PASID_MAPPING_PASID_SHIFT		0
+#define ATC_VMID_PASID_MAPPING_VALID_MASK		(0x1 << 31)
+#define ATC_VMID_PASID_MAPPING_VALID_SHIFT		31
 
 #define ATC_VM_APERTURE0_CNTL					0x3310u
 #define	ATS_ACCESS_MODE_NEVER						0

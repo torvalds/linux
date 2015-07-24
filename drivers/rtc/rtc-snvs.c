@@ -322,6 +322,13 @@ static int snvs_rtc_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		enable_irq_wake(data->irq);
 
+	return 0;
+}
+
+static int snvs_rtc_suspend_noirq(struct device *dev)
+{
+	struct snvs_rtc_data *data = dev_get_drvdata(dev);
+
 	if (data->clk)
 		clk_disable_unprepare(data->clk);
 
@@ -331,23 +338,28 @@ static int snvs_rtc_suspend(struct device *dev)
 static int snvs_rtc_resume(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
-	int ret;
 
 	if (device_may_wakeup(dev))
-		disable_irq_wake(data->irq);
+		return disable_irq_wake(data->irq);
 
-	if (data->clk) {
-		ret = clk_prepare_enable(data->clk);
-		if (ret)
-			return ret;
-	}
+	return 0;
+}
+
+static int snvs_rtc_resume_noirq(struct device *dev)
+{
+	struct snvs_rtc_data *data = dev_get_drvdata(dev);
+
+	if (data->clk)
+		return clk_prepare_enable(data->clk);
 
 	return 0;
 }
 
 static const struct dev_pm_ops snvs_rtc_pm_ops = {
-	.suspend_noirq = snvs_rtc_suspend,
-	.resume_noirq = snvs_rtc_resume,
+	.suspend = snvs_rtc_suspend,
+	.suspend_noirq = snvs_rtc_suspend_noirq,
+	.resume = snvs_rtc_resume,
+	.resume_noirq = snvs_rtc_resume_noirq,
 };
 
 #define SNVS_RTC_PM_OPS	(&snvs_rtc_pm_ops)

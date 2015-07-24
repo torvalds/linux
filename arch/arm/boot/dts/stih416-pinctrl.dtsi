@@ -216,6 +216,29 @@
 					};
 				};
 			};
+
+			pwm1 {
+				pinctrl_pwm1_chan0_default: pwm1-0-default {
+					st,pins {
+						pwm-out    = <&pio3 0 ALT1 OUT>;
+					};
+				};
+				pinctrl_pwm1_chan1_default: pwm1-1-default {
+					st,pins {
+						pwm-out    = <&pio4 4 ALT1 OUT>;
+					};
+				};
+				pinctrl_pwm1_chan2_default: pwm1-2-default {
+					st,pins {
+						pwm-out    = <&pio4 6 ALT3 OUT>;
+					};
+				};
+				pinctrl_pwm1_chan3_default: pwm1-3-default {
+					st,pins {
+						pwm-out    = <&pio4 7 ALT3 OUT>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front {
@@ -308,6 +331,14 @@
 				#interrupt-cells = <2>;
 				reg		= <0x9000 0x100>;
 				st,bank-name	= "PIO31";
+			};
+
+			pwm0 {
+				pinctrl_pwm0_chan0_default: pwm0-0-default {
+					st,pins {
+						pwm-out    = <&pio9 7 ALT2 OUT>;
+					};
+				};
 			};
 
 			serial2-oe {
@@ -540,6 +571,25 @@
 					};
 				};
 			};
+
+			pwm0 {
+				pinctrl_pwm0_chan1_default: pwm0-1-default {
+					st,pins {
+						pwm-out    = <&pio13 2 ALT2 OUT>;
+					};
+				};
+				pinctrl_pwm0_chan2_default: pwm0-2-default {
+					st,pins {
+						pwm-out    = <&pio15 2 ALT4 OUT>;
+					};
+				};
+				pinctrl_pwm0_chan3_default: pwm0-3-default {
+					st,pins {
+						pwm-out    = <&pio17 4 ALT1 OUT>;
+					};
+				};
+			};
+
 		};
 
 		pin-controller-fvdp-fe {

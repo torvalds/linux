@@ -86,15 +86,16 @@ config KVM_MMU_AUDIT
 	 auditing of KVM MMU events at runtime.
 
 config KVM_DEVICE_ASSIGNMENT
-	bool "KVM legacy PCI device assignment support"
+	bool "KVM legacy PCI device assignment support (DEPRECATED)"
 	depends on KVM && PCI && IOMMU_API
-	default y
+	default n
 	---help---
 	  Provide support for legacy PCI device assignment through KVM.  The
 	  kernel now also supports a full featured userspace device driver
-	  framework through VFIO, which supersedes much of this support.
+	  framework through VFIO, which supersedes this support and provides
+	  better security.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.

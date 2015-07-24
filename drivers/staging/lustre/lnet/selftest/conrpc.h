@@ -64,31 +64,29 @@ struct lstcon_test;
 struct lstcon_node;
 
 typedef struct lstcon_rpc {
-	struct list_head	       crp_link;       /* chain on rpc transaction */
+	struct list_head        crp_link;       /* chain on rpc transaction */
 	srpc_client_rpc_t       *crp_rpc;	/* client rpc */
-	struct lstcon_node      *crp_node;       /* destination node */
+	struct lstcon_node      *crp_node;      /* destination node */
 	struct lstcon_rpc_trans *crp_trans;     /* conrpc transaction */
 
-	unsigned int		 crp_posted:1;   /* rpc is posted */
-	unsigned int		 crp_finished:1; /* rpc is finished */
-	unsigned int		 crp_unpacked:1; /* reply is unpacked */
+	unsigned int            crp_posted:1;   /* rpc is posted */
+	unsigned int            crp_finished:1; /* rpc is finished */
+	unsigned int            crp_unpacked:1; /* reply is unpacked */
 	/** RPC is embedded in other structure and can't free it */
-	unsigned int		 crp_embedded:1;
-	int		      crp_status;     /* console rpc errors */
-	unsigned long	       crp_stamp;      /* replied time stamp */
+	unsigned int            crp_embedded:1;
+	int                     crp_status;     /* console rpc errors */
+	unsigned long           crp_stamp;      /* replied time stamp */
 } lstcon_rpc_t;
 
 typedef struct lstcon_rpc_trans {
-	struct list_head	    tas_olink;     /* link chain on owner list */
-	struct list_head	    tas_link;      /* link chain on global list */
-	int		   tas_opc;       /* operation code of transaction */
-	/* features mask is uptodate */
-	unsigned	      tas_feats_updated;
-	/* test features mask */
-	unsigned	      tas_features;
-	wait_queue_head_t	   tas_waitq;     /* wait queue head */
-	atomic_t	  tas_remaining; /* # of un-scheduled rpcs */
-	struct list_head	    tas_rpcs_list; /* queued requests */
+	struct list_head  tas_olink;         /* link chain on owner list */
+	struct list_head  tas_link;          /* link chain on global list */
+	int               tas_opc;           /* operation code of transaction */
+	unsigned          tas_feats_updated; /* features mask is uptodate */
+	unsigned          tas_features;      /* test features mask */
+	wait_queue_head_t tas_waitq;         /* wait queue head */
+	atomic_t          tas_remaining;     /* # of un-scheduled rpcs */
+	struct list_head  tas_rpcs_list;     /* queued requests */
 } lstcon_rpc_trans_t;
 
 #define LST_TRANS_PRIVATE       0x1000

@@ -14,57 +14,47 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_plane.h"
 
-static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void exynos_drm_crtc_enable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
-	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
-
-	if (exynos_crtc->dpms == mode) {
-		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
+	if (exynos_crtc->enabled)
 		return;
-	}
 
-	if (mode > DRM_MODE_DPMS_ON) {
-		/* wait for the completion of page flip. */
-		if (!wait_event_timeout(exynos_crtc->pending_flip_queue,
-				(exynos_crtc->event == NULL), HZ/20))
-			exynos_crtc->event = NULL;
-		drm_crtc_vblank_off(crtc);
-	}
+	if (exynos_crtc->ops->enable)
+		exynos_crtc->ops->enable(exynos_crtc);
 
-	if (exynos_crtc->ops->dpms)
-		exynos_crtc->ops->dpms(exynos_crtc, mode);
+	exynos_crtc->enabled = true;
 
-	exynos_crtc->dpms = mode;
-
-	if (mode == DRM_MODE_DPMS_ON)
-		drm_crtc_vblank_on(crtc);
+	drm_crtc_vblank_on(crtc);
 }
 
-static void exynos_drm_crtc_prepare(struct drm_crtc *crtc)
-{
-	/* drm framework doesn't check NULL. */
-}
-
-static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
+static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(crtc->primary);
 
-	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+	if (!exynos_crtc->enabled)
+		return;
 
-	if (exynos_crtc->ops->win_commit)
-		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
+	/* wait for the completion of page flip. */
+	if (!wait_event_timeout(exynos_crtc->pending_flip_queue,
+				(exynos_crtc->event == NULL), HZ/20))
+		exynos_crtc->event = NULL;
 
-	if (exynos_crtc->ops->commit)
-		exynos_crtc->ops->commit(exynos_crtc);
+	drm_crtc_vblank_off(crtc);
+
+	if (exynos_crtc->ops->disable)
+		exynos_crtc->ops->disable(exynos_crtc);
+
+	exynos_crtc->enabled = false;
 }
 
 static bool
@@ -81,144 +71,37 @@ exynos_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static int
-exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			  struct drm_display_mode *adjusted_mode, int x, int y,
-			  struct drm_framebuffer *old_fb)
-{
-	struct drm_framebuffer *fb = crtc->primary->fb;
-	unsigned int crtc_w;
-	unsigned int crtc_h;
-	int ret;
-
-	/*
-	 * copy the mode data adjusted by mode_fixup() into crtc->mode
-	 * so that hardware can be seet to proper mode.
-	 */
-	memcpy(&crtc->mode, adjusted_mode, sizeof(*adjusted_mode));
-
-	ret = exynos_check_plane(crtc->primary, fb);
-	if (ret < 0)
-		return ret;
-
-	crtc_w = fb->width - x;
-	crtc_h = fb->height - y;
-	exynos_plane_mode_set(crtc->primary, crtc, fb, 0, 0,
-			      crtc_w, crtc_h, x, y, crtc_w, crtc_h);
-
-	return 0;
-}
-
-static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-					  struct drm_framebuffer *old_fb)
+static void
+exynos_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_framebuffer *fb = crtc->primary->fb;
-	unsigned int crtc_w;
-	unsigned int crtc_h;
 
-	/* when framebuffer changing is requested, crtc's dpms should be on */
-	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
-		DRM_ERROR("failed framebuffer changing request.\n");
-		return -EPERM;
-	}
-
-	crtc_w = fb->width - x;
-	crtc_h = fb->height - y;
-
-	return exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-				   crtc_w, crtc_h, x, y, crtc_w, crtc_h);
+	if (exynos_crtc->ops->commit)
+		exynos_crtc->ops->commit(exynos_crtc);
 }
 
-static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
+static void exynos_crtc_atomic_begin(struct drm_crtc *crtc)
 {
-	struct drm_plane *plane;
-	int ret;
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
-	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-
-	drm_for_each_legacy_plane(plane, &crtc->dev->mode_config.plane_list) {
-		if (plane->crtc != crtc)
-			continue;
-
-		ret = plane->funcs->disable_plane(plane);
-		if (ret)
-			DRM_ERROR("Failed to disable plane %d\n", ret);
+	if (crtc->state->event) {
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+		exynos_crtc->event = crtc->state->event;
 	}
+}
+
+static void exynos_crtc_atomic_flush(struct drm_crtc *crtc)
+{
 }
 
 static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
-	.dpms		= exynos_drm_crtc_dpms,
-	.prepare	= exynos_drm_crtc_prepare,
-	.commit		= exynos_drm_crtc_commit,
-	.mode_fixup	= exynos_drm_crtc_mode_fixup,
-	.mode_set	= exynos_drm_crtc_mode_set,
-	.mode_set_base	= exynos_drm_crtc_mode_set_base,
+	.enable		= exynos_drm_crtc_enable,
 	.disable	= exynos_drm_crtc_disable,
+	.mode_fixup	= exynos_drm_crtc_mode_fixup,
+	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
+	.atomic_begin	= exynos_crtc_atomic_begin,
+	.atomic_flush	= exynos_crtc_atomic_flush,
 };
-
-static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
-				     struct drm_framebuffer *fb,
-				     struct drm_pending_vblank_event *event,
-				     uint32_t page_flip_flags)
-{
-	struct drm_device *dev = crtc->dev;
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	unsigned int crtc_w, crtc_h;
-	int ret;
-
-	/* when the page flip is requested, crtc's dpms should be on */
-	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
-		DRM_ERROR("failed page flip request.\n");
-		return -EINVAL;
-	}
-
-	if (!event)
-		return -EINVAL;
-
-	spin_lock_irq(&dev->event_lock);
-	if (exynos_crtc->event) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	ret = drm_vblank_get(dev, exynos_crtc->pipe);
-	if (ret) {
-		DRM_DEBUG("failed to acquire vblank counter\n");
-		goto out;
-	}
-
-	exynos_crtc->event = event;
-	spin_unlock_irq(&dev->event_lock);
-
-	/*
-	 * the pipe from user always is 0 so we can set pipe number
-	 * of current owner to event.
-	 */
-	event->pipe = exynos_crtc->pipe;
-
-	crtc->primary->fb = fb;
-	crtc_w = fb->width - crtc->x;
-	crtc_h = fb->height - crtc->y;
-	ret = exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
-				  crtc_w, crtc_h, crtc->x, crtc->y,
-				  crtc_w, crtc_h);
-	if (ret) {
-		crtc->primary->fb = old_fb;
-		spin_lock_irq(&dev->event_lock);
-		exynos_crtc->event = NULL;
-		drm_vblank_put(dev, exynos_crtc->pipe);
-		spin_unlock_irq(&dev->event_lock);
-		return ret;
-	}
-
-	return 0;
-
-out:
-	spin_unlock_irq(&dev->event_lock);
-	return ret;
-}
 
 static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 {
@@ -232,9 +115,12 @@ static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static struct drm_crtc_funcs exynos_crtc_funcs = {
-	.set_config	= drm_crtc_helper_set_config,
-	.page_flip	= exynos_drm_crtc_page_flip,
+	.set_config	= drm_atomic_helper_set_config,
+	.page_flip	= drm_atomic_helper_page_flip,
 	.destroy	= exynos_drm_crtc_destroy,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
@@ -255,7 +141,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 
 	init_waitqueue_head(&exynos_crtc->pending_flip_queue);
 
-	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
 	exynos_crtc->pipe = pipe;
 	exynos_crtc->type = type;
 	exynos_crtc->ops = ops;
@@ -286,7 +171,7 @@ int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[pipe]);
 
-	if (exynos_crtc->dpms != DRM_MODE_DPMS_ON)
+	if (!exynos_crtc->enabled)
 		return -EPERM;
 
 	if (exynos_crtc->ops->enable_vblank)
@@ -301,7 +186,7 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[pipe]);
 
-	if (exynos_crtc->dpms != DRM_MODE_DPMS_ON)
+	if (!exynos_crtc->enabled)
 		return;
 
 	if (exynos_crtc->ops->disable_vblank)

@@ -759,7 +759,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 	if (0 != ret)
 		goto err;
 
-       inter->state[ci_nr - 1] = state;
+	inter->state[ci_nr - 1] = state;
 
 	altera_hw_filt_init(config, ci_nr);
 

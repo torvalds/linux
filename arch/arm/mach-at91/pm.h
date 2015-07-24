@@ -13,7 +13,19 @@
 
 #include <asm/proc-fns.h>
 
-#include <mach/at91_ramc.h>
+#include <linux/mfd/syscon/atmel-mc.h>
+#include <soc/at91/at91sam9_ddrsdr.h>
+#include <soc/at91/at91sam9_sdramc.h>
+
+#ifndef __ASSEMBLY__
+extern void __iomem *at91_ramc_base[];
+
+#define at91_ramc_read(id, field) \
+	__raw_readl(at91_ramc_base[id] + field)
+
+#define at91_ramc_write(id, field, value) \
+	__raw_writel(value, at91_ramc_base[id] + field)
+#endif
 
 #define AT91_MEMCTRL_MC		0
 #define AT91_MEMCTRL_SDRAMC	1

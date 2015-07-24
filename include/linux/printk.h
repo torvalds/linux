@@ -30,6 +30,8 @@ static inline const char *printk_skip_level(const char *buffer)
 	return buffer;
 }
 
+#define CONSOLE_EXT_LOG_MAX	8192
+
 /* printk's without a loglevel use this.. */
 #define MESSAGE_LOGLEVEL_DEFAULT CONFIG_MESSAGE_LOGLEVEL_DEFAULT
 
@@ -120,7 +122,7 @@ static inline __printf(1, 2) __cold
 void early_printk(const char *s, ...) { }
 #endif
 
-typedef int(*printk_func_t)(const char *fmt, va_list args);
+typedef __printf(1, 0) int (*printk_func_t)(const char *fmt, va_list args);
 
 #ifdef CONFIG_PRINTK
 asmlinkage __printf(5, 0)
@@ -164,7 +166,7 @@ char *log_buf_addr_get(void);
 u32 log_buf_len_get(void);
 void log_buf_kexec_setup(void);
 void __init setup_log_buf(int early);
-void dump_stack_set_arch_desc(const char *fmt, ...);
+__printf(1, 2) void dump_stack_set_arch_desc(const char *fmt, ...);
 void dump_stack_print_info(const char *log_lvl);
 void show_regs_print_info(const char *log_lvl);
 #else
@@ -215,7 +217,7 @@ static inline void setup_log_buf(int early)
 {
 }
 
-static inline void dump_stack_set_arch_desc(const char *fmt, ...)
+static inline __printf(1, 2) void dump_stack_set_arch_desc(const char *fmt, ...)
 {
 }
 

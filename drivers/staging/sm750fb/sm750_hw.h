@@ -8,9 +8,6 @@
 #define SM750LE_REVISION_ID (unsigned char)0xfe
 #endif
 
-//#define DEFAULT_MEM_CLOCK	(DEFAULT_SM750_CHIP_CLOCK/1)
-//#define DEFAULT_MASTER_CLOCK	(DEFAULT_SM750_CHIP_CLOCK/3)
-
 
 enum sm750_pnltype{
 
@@ -65,7 +62,7 @@ struct sm750_state{
 };
 
 /* 	sm750_share stands for a presentation of two frame buffer
-	that use one sm750 adaptor, it is similiar to the super class of lynx_share
+	that use one sm750 adaptor, it is similar to the super class of lynx_share
 	in C++
 */
 
@@ -81,20 +78,20 @@ struct sm750_share{
 	*/
 };
 
-int hw_sm750_map(struct lynx_share* share,struct pci_dev* pdev);
-int hw_sm750_inithw(struct lynx_share*,struct pci_dev *);
+int hw_sm750_map(struct lynx_share* share, struct pci_dev* pdev);
+int hw_sm750_inithw(struct lynx_share*, struct pci_dev *);
 void hw_sm750_initAccel(struct lynx_share *);
 int hw_sm750_deWait(void);
 int hw_sm750le_deWait(void);
 
 resource_size_t hw_sm750_getVMSize(struct lynx_share *);
-int hw_sm750_output_checkMode(struct lynxfb_output*,struct fb_var_screeninfo*);
-int hw_sm750_output_setMode(struct lynxfb_output*,struct fb_var_screeninfo*,struct fb_fix_screeninfo*);
-int hw_sm750_crtc_checkMode(struct lynxfb_crtc*,struct fb_var_screeninfo*);
-int hw_sm750_crtc_setMode(struct lynxfb_crtc*,struct fb_var_screeninfo*,struct fb_fix_screeninfo*);
-int hw_sm750_setColReg(struct lynxfb_crtc*,ushort,ushort,ushort,ushort);
-int hw_sm750_setBLANK(struct lynxfb_output*,int);
-int hw_sm750le_setBLANK(struct lynxfb_output*,int);
+int hw_sm750_output_checkMode(struct lynxfb_output*, struct fb_var_screeninfo*);
+int hw_sm750_output_setMode(struct lynxfb_output*, struct fb_var_screeninfo*, struct fb_fix_screeninfo*);
+int hw_sm750_crtc_checkMode(struct lynxfb_crtc*, struct fb_var_screeninfo*);
+int hw_sm750_crtc_setMode(struct lynxfb_crtc*, struct fb_var_screeninfo*, struct fb_fix_screeninfo*);
+int hw_sm750_setColReg(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
+int hw_sm750_setBLANK(struct lynxfb_output*, int);
+int hw_sm750le_setBLANK(struct lynxfb_output*, int);
 void hw_sm750_crtc_clear(struct lynxfb_crtc*);
 void hw_sm750_output_clear(struct lynxfb_output*);
 int hw_sm750_pan_display(struct lynxfb_crtc *crtc,

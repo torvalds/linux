@@ -749,7 +749,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 
 	{
 		int sort[MLX4_NUM_QP_REGION];
-		int i, j, tmp;
+		int i, j;
 		int last_base = dev->caps.num_qps;
 
 		for (i = 1; i < MLX4_NUM_QP_REGION; ++i)
@@ -758,11 +758,8 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 		for (i = MLX4_NUM_QP_REGION; i > MLX4_QP_REGION_BOTTOM; --i) {
 			for (j = MLX4_QP_REGION_BOTTOM + 2; j < i; ++j) {
 				if (dev->caps.reserved_qps_cnt[sort[j]] >
-				    dev->caps.reserved_qps_cnt[sort[j - 1]]) {
-					tmp             = sort[j];
-					sort[j]         = sort[j - 1];
-					sort[j - 1]     = tmp;
-				}
+				    dev->caps.reserved_qps_cnt[sort[j - 1]])
+					swap(sort[j], sort[j - 1]);
 			}
 		}
 

@@ -119,7 +119,7 @@
 
     <para>
      Note: The terms "transformation" and cipher algorithm are used
-     interchangably.
+     interchangeably.
     </para>
    </sect1>
 
@@ -536,8 +536,8 @@
 
      <para>
       For other use cases of AEAD ciphers, the ASCII art applies as
-      well, but the caller may not use the GIVCIPHER interface. In
-      this case, the caller must generate the IV.
+      well, but the caller may not use the AEAD cipher with a separate
+      IV generator. In this case, the caller must generate the IV.
      </para>
 
      <para>
@@ -584,8 +584,8 @@ kernel crypto API                                |   IPSEC Layer
                                                  |
 +-----------+                                    |
 |           |            (1)
-| givcipher | <-----------------------------------  esp_output
-|  (seqiv)  | ---+
+|   aead    | <-----------------------------------  esp_output
+| (seqniv)  | ---+
 +-----------+    |
                  | (2)
 +-----------+    |
@@ -620,8 +620,8 @@ kernel crypto API                                |   IPSEC Layer
      <orderedlist>
       <listitem>
        <para>
-        esp_output() invokes crypto_aead_givencrypt() to trigger an encryption
-        operation of the GIVCIPHER implementation.
+        esp_output() invokes crypto_aead_encrypt() to trigger an encryption
+        operation of the AEAD cipher with IV generator.
        </para>
 
        <para>
@@ -1563,7 +1563,7 @@ struct sockaddr_alg sa = {
 
    <sect1><title>Zero-Copy Interface</title>
     <para>
-     In addition to the send/write/read/recv system call familty, the AF_ALG
+     In addition to the send/write/read/recv system call family, the AF_ALG
      interface can be accessed with the zero-copy interface of splice/vmsplice.
      As the name indicates, the kernel tries to avoid a copy operation into
      kernel space.
@@ -1669,9 +1669,19 @@ read(opfd, out, outlen);
   </chapter>
 
   <chapter id="API"><title>Programming Interface</title>
+   <para>
+    Please note that the kernel crypto API contains the AEAD givcrypt
+    API (crypto_aead_giv* and aead_givcrypt_* function calls in
+    include/crypto/aead.h). This API is obsolete and will be removed
+    in the future. To obtain the functionality of an AEAD cipher with
+    internal IV generation, use the IV generator as a regular cipher.
+    For example, rfc4106(gcm(aes)) is the AEAD cipher with external
+    IV generation and seqniv(rfc4106(gcm(aes))) implies that the kernel
+    crypto API generates the IV. Different IV generators are available.
+   </para>
    <sect1><title>Block Cipher Context Data Structures</title>
 !Pinclude/linux/crypto.h Block Cipher Context Data Structures
-!Finclude/linux/crypto.h aead_request
+!Finclude/crypto/aead.h aead_request
    </sect1>
    <sect1><title>Block Cipher Algorithm Definitions</title>
 !Pinclude/linux/crypto.h Block Cipher Algorithm Definitions
@@ -1680,7 +1690,7 @@ read(opfd, out, outlen);
 !Finclude/linux/crypto.h aead_alg
 !Finclude/linux/crypto.h blkcipher_alg
 !Finclude/linux/crypto.h cipher_alg
-!Finclude/linux/crypto.h rng_alg
+!Finclude/crypto/rng.h rng_alg
    </sect1>
    <sect1><title>Asynchronous Block Cipher API</title>
 !Pinclude/linux/crypto.h Asynchronous Block Cipher API
@@ -1704,26 +1714,27 @@ read(opfd, out, outlen);
 !Finclude/linux/crypto.h ablkcipher_request_set_crypt
    </sect1>
    <sect1><title>Authenticated Encryption With Associated Data (AEAD) Cipher API</title>
-!Pinclude/linux/crypto.h Authenticated Encryption With Associated Data (AEAD) Cipher API
-!Finclude/linux/crypto.h crypto_alloc_aead
-!Finclude/linux/crypto.h crypto_free_aead
-!Finclude/linux/crypto.h crypto_aead_ivsize
-!Finclude/linux/crypto.h crypto_aead_authsize
-!Finclude/linux/crypto.h crypto_aead_blocksize
-!Finclude/linux/crypto.h crypto_aead_setkey
-!Finclude/linux/crypto.h crypto_aead_setauthsize
-!Finclude/linux/crypto.h crypto_aead_encrypt
-!Finclude/linux/crypto.h crypto_aead_decrypt
+!Pinclude/crypto/aead.h Authenticated Encryption With Associated Data (AEAD) Cipher API
+!Finclude/crypto/aead.h crypto_alloc_aead
+!Finclude/crypto/aead.h crypto_free_aead
+!Finclude/crypto/aead.h crypto_aead_ivsize
+!Finclude/crypto/aead.h crypto_aead_authsize
+!Finclude/crypto/aead.h crypto_aead_blocksize
+!Finclude/crypto/aead.h crypto_aead_setkey
+!Finclude/crypto/aead.h crypto_aead_setauthsize
+!Finclude/crypto/aead.h crypto_aead_encrypt
+!Finclude/crypto/aead.h crypto_aead_decrypt
    </sect1>
    <sect1><title>Asynchronous AEAD Request Handle</title>
-!Pinclude/linux/crypto.h Asynchronous AEAD Request Handle
-!Finclude/linux/crypto.h crypto_aead_reqsize
-!Finclude/linux/crypto.h aead_request_set_tfm
-!Finclude/linux/crypto.h aead_request_alloc
-!Finclude/linux/crypto.h aead_request_free
-!Finclude/linux/crypto.h aead_request_set_callback
-!Finclude/linux/crypto.h aead_request_set_crypt
-!Finclude/linux/crypto.h aead_request_set_assoc
+!Pinclude/crypto/aead.h Asynchronous AEAD Request Handle
+!Finclude/crypto/aead.h crypto_aead_reqsize
+!Finclude/crypto/aead.h aead_request_set_tfm
+!Finclude/crypto/aead.h aead_request_alloc
+!Finclude/crypto/aead.h aead_request_free
+!Finclude/crypto/aead.h aead_request_set_callback
+!Finclude/crypto/aead.h aead_request_set_crypt
+!Finclude/crypto/aead.h aead_request_set_assoc
+!Finclude/crypto/aead.h aead_request_set_ad
    </sect1>
    <sect1><title>Synchronous Block Cipher API</title>
 !Pinclude/linux/crypto.h Synchronous Block Cipher API

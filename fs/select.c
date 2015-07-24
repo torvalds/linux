@@ -189,7 +189,7 @@ static int __pollwake(wait_queue_t *wait, unsigned mode, int sync, void *key)
 	 * doesn't imply write barrier and the users expect write
 	 * barrier semantics on wakeup functions.  The following
 	 * smp_wmb() is equivalent to smp_wmb() in try_to_wake_up()
-	 * and is paired with set_mb() in poll_schedule_timeout.
+	 * and is paired with smp_store_mb() in poll_schedule_timeout.
 	 */
 	smp_wmb();
 	pwq->triggered = 1;
@@ -244,7 +244,7 @@ int poll_schedule_timeout(struct poll_wqueues *pwq, int state,
 	/*
 	 * Prepare for the next iteration.
 	 *
-	 * The following set_mb() serves two purposes.  First, it's
+	 * The following smp_store_mb() serves two purposes.  First, it's
 	 * the counterpart rmb of the wmb in pollwake() such that data
 	 * written before wake up is always visible after wake up.
 	 * Second, the full barrier guarantees that triggered clearing
@@ -252,7 +252,7 @@ int poll_schedule_timeout(struct poll_wqueues *pwq, int state,
 	 * this problem doesn't exist for the first iteration as
 	 * add_wait_queue() has full barrier semantics.
 	 */
-	set_mb(pwq->triggered, 0);
+	smp_store_mb(pwq->triggered, 0);
 
 	return rc;
 }

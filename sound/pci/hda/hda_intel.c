@@ -171,7 +171,7 @@ MODULE_PARM_DESC(beep_mode, "Select HDA Beep registration mode "
 
 #ifdef CONFIG_PM
 static int param_set_xint(const char *val, const struct kernel_param *kp);
-static struct kernel_param_ops param_ops_xint = {
+static const struct kernel_param_ops param_ops_xint = {
 	.set = param_set_xint,
 	.get = param_get_int,
 };

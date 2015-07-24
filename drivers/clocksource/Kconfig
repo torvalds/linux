@@ -106,6 +106,16 @@ config CLKSRC_EFM32
 	  Support to use the timers of EFM32 SoCs as clock source and clock
 	  event device.
 
+config CLKSRC_LPC32XX
+	bool
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+
+config CLKSRC_STM32
+	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
+	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)
+	select CLKSRC_MMIO
+
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
@@ -132,12 +142,25 @@ config ARM_GLOBAL_TIMER
 	help
 	  This options enables support for the ARM global timer unit
 
+config ARM_TIMER_SP804
+	bool "Support for Dual Timer SP804 module"
+	depends on GENERIC_SCHED_CLOCK && CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CLKSRC_OF if OF
+
 config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	bool
 	depends on ARM_GLOBAL_TIMER
 	default y
 	help
 	 Use ARM global timer clock source as sched_clock
+
+config ARMV7M_SYSTICK
+	bool
+	select CLKSRC_OF if OF
+	select CLKSRC_MMIO
+	help
+	  This options enables support for the ARMv7M system timer unit
 
 config ATMEL_PIT
 	select CLKSRC_OF if OF
@@ -258,4 +281,16 @@ config CLKSRC_PXA
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
+
+config H8300_TMR16
+        bool
+
+config H8300_TPU
+        bool
+
+config CLKSRC_IMX_GPT
+	bool "Clocksource using i.MX GPT" if COMPILE_TEST
+	depends on ARM && CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+
 endmenu

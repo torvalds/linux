@@ -152,9 +152,9 @@ static u32 saa717x_read(struct v4l2_subdev *sd, u32 reg)
 	i2c_transfer(adap, msgs, 2);
 
 	if (fw_addr)
-		value = (mm2[2] & 0xff)  | ((mm2[1] & 0xff) >> 8) | ((mm2[0] & 0xff) >> 16);
+		value = (mm2[2] << 16)  | (mm2[1] << 8) | mm2[0];
 	else
-		value = mm2[0] & 0xff;
+		value = mm2[0];
 
 	v4l2_dbg(2, debug, sd, "read:  reg 0x%03x=0x%08x\n", reg, value);
 	return value;
@@ -992,13 +992,16 @@ static int saa717x_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 }
 #endif
 
-static int saa717x_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
+static int saa717x_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *fmt = &format->format;
 	int prescale, h_scale, v_scale;
 
 	v4l2_dbg(1, debug, sd, "decoder set size\n");
 
-	if (fmt->code != MEDIA_BUS_FMT_FIXED)
+	if (format->pad || fmt->code != MEDIA_BUS_FMT_FIXED)
 		return -EINVAL;
 
 	/* FIXME need better bounds checking here */
@@ -1009,6 +1012,9 @@ static int saa717x_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 
 	fmt->field = V4L2_FIELD_INTERLACED;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		return 0;
 
 	/* scaling setting */
 	/* NTSC and interlace only */
@@ -1217,7 +1223,6 @@ static const struct v4l2_subdev_tuner_ops saa717x_tuner_ops = {
 static const struct v4l2_subdev_video_ops saa717x_video_ops = {
 	.s_std = saa717x_s_std,
 	.s_routing = saa717x_s_video_routing,
-	.s_mbus_fmt = saa717x_s_mbus_fmt,
 	.s_stream = saa717x_s_stream,
 };
 
@@ -1225,11 +1230,16 @@ static const struct v4l2_subdev_audio_ops saa717x_audio_ops = {
 	.s_routing = saa717x_s_audio_routing,
 };
 
+static const struct v4l2_subdev_pad_ops saa717x_pad_ops = {
+	.set_fmt = saa717x_set_fmt,
+};
+
 static const struct v4l2_subdev_ops saa717x_ops = {
 	.core = &saa717x_core_ops,
 	.tuner = &saa717x_tuner_ops,
 	.audio = &saa717x_audio_ops,
 	.video = &saa717x_video_ops,
+	.pad = &saa717x_pad_ops,
 };
 
 /* ----------------------------------------------------------------------- */

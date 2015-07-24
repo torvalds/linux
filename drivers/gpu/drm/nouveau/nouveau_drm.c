@@ -23,6 +23,7 @@
  */
 
 #include <linux/console.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
@@ -666,6 +667,7 @@ nouveau_pmops_suspend(struct device *dev)
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
+	udelay(200);
 	return 0;
 }
 

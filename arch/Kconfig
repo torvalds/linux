@@ -221,6 +221,10 @@ config ARCH_TASK_STRUCT_ALLOCATOR
 config ARCH_THREAD_INFO_ALLOCATOR
 	bool
 
+# Select if arch wants to size task_struct dynamically via arch_task_struct_size:
+config ARCH_WANTS_DYNAMIC_TASK_STRUCT
+	bool
+
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
 	help
@@ -498,6 +502,13 @@ config ARCH_HAS_ELF_RANDOMIZE
 	  stack, mmap, brk, and ET_DYN. Defined functions:
 	  - arch_mmap_rnd()
 	  - arch_randomize_brk()
+
+config HAVE_COPY_THREAD_TLS
+	bool
+	help
+	  Architecture provides copy_thread_tls to accept tls argument via
+	  normal C parameter passing, rather than extracting the syscall
+	  argument from pt_regs.
 
 #
 # ABI hall of shame

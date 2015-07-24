@@ -130,7 +130,7 @@ start:
 		.endr
    ARM(		mov	r0, r0		)
    ARM(		b	1f		)
- THUMB(		adr	r12, BSYM(1f)	)
+ THUMB(		badr	r12, 1f		)
  THUMB(		bx	r12		)
 
 		.word	_magic_sig	@ Magic numbers to help the loader
@@ -447,7 +447,7 @@ dtb_check_done:
 
 		bl	cache_clean_flush
 
-		adr	r0, BSYM(restart)
+		badr	r0, restart
 		add	r0, r0, r6
 		mov	pc, r0
 

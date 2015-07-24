@@ -252,6 +252,12 @@ ENDPROC(cpu_pj4b_do_resume)
  *	Initialise TLB, Caches, and MMU state ready to switch the MMU
  *	on.  Return in r0 the new CP15 C1 control register setting.
  *
+ *	r1, r2, r4, r5, r9, r13 must be preserved - r13 is not a stack
+ *	r4: TTBR0 (low word)
+ *	r5: TTBR0 (high word if LPAE)
+ *	r8: TTBR1
+ *	r9: Main ID register
+ *
  *	This should be able to cover all ARMv7 cores.
  *
  *	It is assumed that:
@@ -268,7 +274,10 @@ __v7_ca15mp_setup:
 __v7_b15mp_setup:
 __v7_ca17mp_setup:
 	mov	r10, #0
-1:
+1:	adr	r12, __v7_setup_stack		@ the local stack
+	stmia	r12, {r0-r5, lr}		@ v7_invalidate_l1 touches r0-r6
+	bl      v7_invalidate_l1
+	ldmia	r12, {r0-r5, lr}
 #ifdef CONFIG_SMP
 	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)
 	ALT_UP(mov	r0, #(1 << 6))		@ fake it for UP
@@ -277,7 +286,79 @@ __v7_ca17mp_setup:
 	orreq	r0, r0, r10			@ Enable CPU-specific SMP bits
 	mcreq	p15, 0, r0, c1, c0, 1
 #endif
-	b	__v7_setup
+	b	__v7_setup_cont
+
+/*
+ * Errata:
+ *  r0, r10 available for use
+ *  r1, r2, r4, r5, r9, r13: must be preserved
+ *  r3: contains MIDR rX number in bits 23-20
+ *  r6: contains MIDR rXpY as 8-bit XY number
+ *  r9: MIDR
+ */
+__ca8_errata:
+#if defined(CONFIG_ARM_ERRATA_430973) && !defined(CONFIG_ARCH_MULTIPLATFORM)
+	teq	r3, #0x00100000			@ only present in r1p*
+	mrceq	p15, 0, r0, c1, c0, 1		@ read aux control register
+	orreq	r0, r0, #(1 << 6)		@ set IBE to 1
+	mcreq	p15, 0, r0, c1, c0, 1		@ write aux control register
+#endif
+#ifdef CONFIG_ARM_ERRATA_458693
+	teq	r6, #0x20			@ only present in r2p0
+	mrceq	p15, 0, r0, c1, c0, 1		@ read aux control register
+	orreq	r0, r0, #(1 << 5)		@ set L1NEON to 1
+	orreq	r0, r0, #(1 << 9)		@ set PLDNOP to 1
+	mcreq	p15, 0, r0, c1, c0, 1		@ write aux control register
+#endif
+#ifdef CONFIG_ARM_ERRATA_460075
+	teq	r6, #0x20			@ only present in r2p0
+	mrceq	p15, 1, r0, c9, c0, 2		@ read L2 cache aux ctrl register
+	tsteq	r0, #1 << 22
+	orreq	r0, r0, #(1 << 22)		@ set the Write Allocate disable bit
+	mcreq	p15, 1, r0, c9, c0, 2		@ write the L2 cache aux ctrl register
+#endif
+	b	__errata_finish
+
+__ca9_errata:
+#ifdef CONFIG_ARM_ERRATA_742230
+	cmp	r6, #0x22			@ only present up to r2p2
+	mrcle	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	orrle	r0, r0, #1 << 4			@ set bit #4
+	mcrle	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+#endif
+#ifdef CONFIG_ARM_ERRATA_742231
+	teq	r6, #0x20			@ present in r2p0
+	teqne	r6, #0x21			@ present in r2p1
+	teqne	r6, #0x22			@ present in r2p2
+	mrceq	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	orreq	r0, r0, #1 << 12		@ set bit #12
+	orreq	r0, r0, #1 << 22		@ set bit #22
+	mcreq	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+#endif
+#ifdef CONFIG_ARM_ERRATA_743622
+	teq	r3, #0x00200000			@ only present in r2p*
+	mrceq	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	orreq	r0, r0, #1 << 6			@ set bit #6
+	mcreq	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+#endif
+#if defined(CONFIG_ARM_ERRATA_751472) && defined(CONFIG_SMP)
+	ALT_SMP(cmp r6, #0x30)			@ present prior to r3p0
+	ALT_UP_B(1f)
+	mrclt	p15, 0, r0, c15, c0, 1		@ read diagnostic register
+	orrlt	r0, r0, #1 << 11		@ set bit #11
+	mcrlt	p15, 0, r0, c15, c0, 1		@ write diagnostic register
+1:
+#endif
+	b	__errata_finish
+
+__ca15_errata:
+#ifdef CONFIG_ARM_ERRATA_773022
+	cmp	r6, #0x4			@ only present up to r0p4
+	mrcle	p15, 0, r0, c1, c0, 1		@ read aux control register
+	orrle	r0, r0, #1 << 1			@ disable loop buffer
+	mcrle	p15, 0, r0, c1, c0, 1		@ write aux control register
+#endif
+	b	__errata_finish
 
 __v7_pj4b_setup:
 #ifdef CONFIG_CPU_PJ4B
@@ -335,100 +416,43 @@ __v7_pj4b_setup:
 
 __v7_setup:
 	adr	r12, __v7_setup_stack		@ the local stack
-	stmia	r12, {r0-r5, r7, r9, r11, lr}
-	bl      v7_flush_dcache_louis
-	ldmia	r12, {r0-r5, r7, r9, r11, lr}
+	stmia	r12, {r0-r5, lr}		@ v7_invalidate_l1 touches r0-r6
+	bl      v7_invalidate_l1
+	ldmia	r12, {r0-r5, lr}
 
-	mrc	p15, 0, r0, c0, c0, 0		@ read main ID register
-	and	r10, r0, #0xff000000		@ ARM?
-	teq	r10, #0x41000000
-	bne	3f
-	and	r5, r0, #0x00f00000		@ variant
-	and	r6, r0, #0x0000000f		@ revision
-	orr	r6, r6, r5, lsr #20-4		@ combine variant and revision
-	ubfx	r0, r0, #4, #12			@ primary part number
+__v7_setup_cont:
+	and	r0, r9, #0xff000000		@ ARM?
+	teq	r0, #0x41000000
+	bne	__errata_finish
+	and	r3, r9, #0x00f00000		@ variant
+	and	r6, r9, #0x0000000f		@ revision
+	orr	r6, r6, r3, lsr #20-4		@ combine variant and revision
+	ubfx	r0, r9, #4, #12			@ primary part number
 
 	/* Cortex-A8 Errata */
 	ldr	r10, =0x00000c08		@ Cortex-A8 primary part number
 	teq	r0, r10
-	bne	2f
-#if defined(CONFIG_ARM_ERRATA_430973) && !defined(CONFIG_ARCH_MULTIPLATFORM)
-
-	teq	r5, #0x00100000			@ only present in r1p*
-	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
-	orreq	r10, r10, #(1 << 6)		@ set IBE to 1
-	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
-#endif
-#ifdef CONFIG_ARM_ERRATA_458693
-	teq	r6, #0x20			@ only present in r2p0
-	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
-	orreq	r10, r10, #(1 << 5)		@ set L1NEON to 1
-	orreq	r10, r10, #(1 << 9)		@ set PLDNOP to 1
-	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
-#endif
-#ifdef CONFIG_ARM_ERRATA_460075
-	teq	r6, #0x20			@ only present in r2p0
-	mrceq	p15, 1, r10, c9, c0, 2		@ read L2 cache aux ctrl register
-	tsteq	r10, #1 << 22
-	orreq	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
-	mcreq	p15, 1, r10, c9, c0, 2		@ write the L2 cache aux ctrl register
-#endif
-	b	3f
+	beq	__ca8_errata
 
 	/* Cortex-A9 Errata */
-2:	ldr	r10, =0x00000c09		@ Cortex-A9 primary part number
+	ldr	r10, =0x00000c09		@ Cortex-A9 primary part number
 	teq	r0, r10
-	bne	3f
-#ifdef CONFIG_ARM_ERRATA_742230
-	cmp	r6, #0x22			@ only present up to r2p2
-	mrcle	p15, 0, r10, c15, c0, 1		@ read diagnostic register
-	orrle	r10, r10, #1 << 4		@ set bit #4
-	mcrle	p15, 0, r10, c15, c0, 1		@ write diagnostic register
-#endif
-#ifdef CONFIG_ARM_ERRATA_742231
-	teq	r6, #0x20			@ present in r2p0
-	teqne	r6, #0x21			@ present in r2p1
-	teqne	r6, #0x22			@ present in r2p2
-	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
-	orreq	r10, r10, #1 << 12		@ set bit #12
-	orreq	r10, r10, #1 << 22		@ set bit #22
-	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
-#endif
-#ifdef CONFIG_ARM_ERRATA_743622
-	teq	r5, #0x00200000			@ only present in r2p*
-	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
-	orreq	r10, r10, #1 << 6		@ set bit #6
-	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
-#endif
-#if defined(CONFIG_ARM_ERRATA_751472) && defined(CONFIG_SMP)
-	ALT_SMP(cmp r6, #0x30)			@ present prior to r3p0
-	ALT_UP_B(1f)
-	mrclt	p15, 0, r10, c15, c0, 1		@ read diagnostic register
-	orrlt	r10, r10, #1 << 11		@ set bit #11
-	mcrlt	p15, 0, r10, c15, c0, 1		@ write diagnostic register
-1:
-#endif
+	beq	__ca9_errata
 
 	/* Cortex-A15 Errata */
-3:	ldr	r10, =0x00000c0f		@ Cortex-A15 primary part number
+	ldr	r10, =0x00000c0f		@ Cortex-A15 primary part number
 	teq	r0, r10
-	bne	4f
+	beq	__ca15_errata
 
-#ifdef CONFIG_ARM_ERRATA_773022
-	cmp	r6, #0x4			@ only present up to r0p4
-	mrcle	p15, 0, r10, c1, c0, 1		@ read aux control register
-	orrle	r10, r10, #1 << 1		@ disable loop buffer
-	mcrle	p15, 0, r10, c1, c0, 1		@ write aux control register
-#endif
-
-4:	mov	r10, #0
+__errata_finish:
+	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
-	v7_ttb_setup r10, r4, r8, r5		@ TTBCR, TTBRx setup
-	ldr	r5, =PRRR			@ PRRR
+	v7_ttb_setup r10, r4, r5, r8, r3	@ TTBCR, TTBRx setup
+	ldr	r3, =PRRR			@ PRRR
 	ldr	r6, =NMRR			@ NMRR
-	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
+	mcr	p15, 0, r3, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 #endif
 	dsb					@ Complete invalidations
@@ -437,22 +461,22 @@ __v7_setup:
 	and	r0, r0, #(0xf << 12)		@ ThumbEE enabled field
 	teq	r0, #(1 << 12)			@ check if ThumbEE is present
 	bne	1f
-	mov	r5, #0
-	mcr	p14, 6, r5, c1, c0, 0		@ Initialize TEEHBR to 0
+	mov	r3, #0
+	mcr	p14, 6, r3, c1, c0, 0		@ Initialize TEEHBR to 0
 	mrc	p14, 6, r0, c0, c0, 0		@ load TEECR
 	orr	r0, r0, #1			@ set the 1st bit in order to
 	mcr	p14, 6, r0, c0, c0, 0		@ stop userspace TEEHBR access
 1:
 #endif
-	adr	r5, v7_crval
-	ldmia	r5, {r5, r6}
+	adr	r3, v7_crval
+	ldmia	r3, {r3, r6}
  ARM_BE8(orr	r6, r6, #1 << 25)		@ big-endian page tables
 #ifdef CONFIG_SWP_EMULATE
-	orr     r5, r5, #(1 << 10)              @ set SW bit in "clear"
+	orr     r3, r3, #(1 << 10)              @ set SW bit in "clear"
 	bic     r6, r6, #(1 << 10)              @ clear it in "mmuset"
 #endif
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
-	bic	r0, r0, r5			@ clear bits them
+	bic	r0, r0, r3			@ clear bits them
 	orr	r0, r0, r6			@ set them
  THUMB(	orr	r0, r0, #1 << 30	)	@ Thumb exceptions
 	ret	lr				@ return to head.S:__ret
@@ -460,7 +484,7 @@ ENDPROC(__v7_setup)
 
 	.align	2
 __v7_setup_stack:
-	.space	4 * 11				@ 11 registers
+	.space	4 * 7				@ 12 registers
 
 	__INITDATA
 

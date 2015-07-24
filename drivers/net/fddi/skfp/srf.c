@@ -414,7 +414,7 @@ static void smt_send_srf(struct s_smc *smc)
 	smt->smt_len = SMT_MAX_INFO_LEN - pcon.pc_len ;
 	mb->sm_len = smt->smt_len + sizeof(struct smt_header) ;
 
-	DB_SMT("SRF: sending SRF at %x, len %d\n",smt,mb->sm_len) ;
+	DB_SMT("SRF: sending SRF at %p, len %d\n",smt,mb->sm_len) ;
 	DB_SMT("SRF: state SR%d Threshold %d\n",
 		smc->srf.sr_state,smc->srf.SRThreshold/TICKS_PER_SECOND) ;
 #ifdef	DEBUG

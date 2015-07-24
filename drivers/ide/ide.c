@@ -199,7 +199,7 @@ static int ide_set_dev_param_mask(const char *s, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_ide_dev_mask = {
+static const struct kernel_param_ops param_ops_ide_dev_mask = {
 	.set = ide_set_dev_param_mask
 };
 

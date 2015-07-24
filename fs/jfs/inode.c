@@ -63,11 +63,12 @@ struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_mapping->a_ops = &jfs_aops;
 		} else {
 			inode->i_op = &jfs_fast_symlink_inode_operations;
+			inode->i_link = JFS_IP(inode)->i_inline;
 			/*
 			 * The inline data should be null-terminated, but
 			 * don't let on-disk corruption crash the kernel
 			 */
-			JFS_IP(inode)->i_inline[inode->i_size] = '\0';
+			inode->i_link[inode->i_size] = '\0';
 		}
 	} else {
 		inode->i_op = &jfs_file_inode_operations;
@@ -133,11 +134,11 @@ int jfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	 * It has been committed since the last change, but was still
 	 * on the dirty inode list.
 	 */
-	 if (!test_cflag(COMMIT_Dirty, inode)) {
+	if (!test_cflag(COMMIT_Dirty, inode)) {
 		/* Make sure committed changes hit the disk */
 		jfs_flush_journal(JFS_SBI(inode->i_sb)->log, wait);
 		return 0;
-	 }
+	}
 
 	if (jfs_commit_inode(inode, wait)) {
 		jfs_err("jfs_write_inode: jfs_commit_inode failed!");

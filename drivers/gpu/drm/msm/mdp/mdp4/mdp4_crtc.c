@@ -51,6 +51,11 @@ struct mdp4_crtc {
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
 
+	/* Bits have been flushed at the last commit,
+	 * used to decide if a vsync has happened since last commit.
+	 */
+	u32 flushed_mask;
+
 #define PENDING_CURSOR 0x1
 #define PENDING_FLIP   0x2
 	atomic_t pending;
@@ -92,6 +97,8 @@ static void crtc_flush(struct drm_crtc *crtc)
 	flush |= ovlp2flush(mdp4_crtc->ovlp);
 
 	DBG("%s: flush=%08x", mdp4_crtc->name, flush);
+
+	mdp4_crtc->flushed_mask = flush;
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVERLAY_FLUSH, flush);
 }
@@ -537,6 +544,29 @@ static void mdp4_crtc_err_irq(struct mdp_irq *irq, uint32_t irqstatus)
 	crtc_flush(crtc);
 }
 
+static void mdp4_crtc_wait_for_flush_done(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+	int ret;
+
+	ret = drm_crtc_vblank_get(crtc);
+	if (ret)
+		return;
+
+	ret = wait_event_timeout(dev->vblank[drm_crtc_index(crtc)].queue,
+		!(mdp4_read(mdp4_kms, REG_MDP4_OVERLAY_FLUSH) &
+			mdp4_crtc->flushed_mask),
+		msecs_to_jiffies(50));
+	if (ret <= 0)
+		dev_warn(dev->dev, "vblank time out, crtc=%d\n", mdp4_crtc->id);
+
+	mdp4_crtc->flushed_mask = 0;
+
+	drm_crtc_vblank_put(crtc);
+}
+
 uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
@@ -598,6 +628,15 @@ void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf, int mixer)
 	DBG("%s: intf_sel=%08x", mdp4_crtc->name, intf_sel);
 
 	mdp4_write(mdp4_kms, REG_MDP4_DISP_INTF_SEL, intf_sel);
+}
+
+void mdp4_crtc_wait_for_commit_done(struct drm_crtc *crtc)
+{
+	/* wait_for_flush_done is the only case for now.
+	 * Later we will have command mode CRTC to wait for
+	 * other event.
+	 */
+	mdp4_crtc_wait_for_flush_done(crtc);
 }
 
 static const char *dma_names[] = {

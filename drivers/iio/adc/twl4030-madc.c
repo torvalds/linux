@@ -235,7 +235,7 @@ static int twl4030battery_temperature(int raw_volt)
 	if (ret < 0)
 		return ret;
 
-	curr = ((val & TWL4030_BCI_ITHEN) + 1) * 10;
+	curr = ((val & TWL4030_BCI_ITHSENS) + 1) * 10;
 	/* Getting and calculating the thermistor resistance in ohms */
 	res = volt * 1000 / curr;
 	/* calculating temperature */
@@ -662,10 +662,8 @@ EXPORT_SYMBOL_GPL(twl4030_get_madc_conversion);
  *
  * @madc:	pointer to twl4030_madc_data struct
  * @chan:	can be one of the two values:
- *		TWL4030_BCI_ITHEN
- *		Enables bias current for main battery type reading
- *		TWL4030_BCI_TYPEN
- *		Enables bias current for main battery temperature sensing
+ *		0 - Enables bias current for main battery type reading
+ *		1 - Enables bias current for main battery temperature sensing
  * @on:		enable or disable chan.
  *
  * Function to enable or disable bias current for
@@ -835,7 +833,8 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				   twl4030_madc_threaded_irq_handler,
-				   IRQF_TRIGGER_RISING, "twl4030_madc", madc);
+				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				   "twl4030_madc", madc);
 	if (ret) {
 		dev_err(&pdev->dev, "could not request irq\n");
 		goto err_i2c;

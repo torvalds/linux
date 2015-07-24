@@ -371,16 +371,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 	 */
 	J_ASSERT_BH(bh_in, buffer_jbddirty(bh_in));
 
-retry_alloc:
-	new_bh = alloc_buffer_head(GFP_NOFS);
-	if (!new_bh) {
-		/*
-		 * Failure is not an option, but __GFP_NOFAIL is going
-		 * away; so we retry ourselves here.
-		 */
-		congestion_wait(BLK_RW_ASYNC, HZ/50);
-		goto retry_alloc;
-	}
+	new_bh = alloc_buffer_head(GFP_NOFS|__GFP_NOFAIL);
 
 	/* keep subsequent assertions sane */
 	atomic_set(&new_bh->b_count, 1);
@@ -885,9 +876,10 @@ int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
  *
  * Requires j_checkpoint_mutex
  */
-void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
+int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 {
 	unsigned long freed;
+	int ret;
 
 	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 
@@ -897,7 +889,10 @@ void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 	 * space and if we lose sb update during power failure we'd replay
 	 * old transaction with possibly newly overwritten data.
 	 */
-	jbd2_journal_update_sb_log_tail(journal, tid, block, WRITE_FUA);
+	ret = jbd2_journal_update_sb_log_tail(journal, tid, block, WRITE_FUA);
+	if (ret)
+		goto out;
+
 	write_lock(&journal->j_state_lock);
 	freed = block - journal->j_tail;
 	if (block < journal->j_tail)
@@ -913,6 +908,9 @@ void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 	journal->j_tail_sequence = tid;
 	journal->j_tail = block;
 	write_unlock(&journal->j_state_lock);
+
+out:
+	return ret;
 }
 
 /*
@@ -1137,7 +1135,6 @@ journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 {
 	journal_t *journal = journal_init_common();
 	struct buffer_head *bh;
-	char *p;
 	int n;
 
 	if (!journal)
@@ -1150,9 +1147,7 @@ journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 	journal->j_blk_offset = start;
 	journal->j_maxlen = len;
 	bdevname(journal->j_dev, journal->j_devname);
-	p = journal->j_devname;
-	while ((p = strchr(p, '/')))
-		*p = '!';
+	strreplace(journal->j_devname, '/', '!');
 	jbd2_stats_proc_init(journal);
 	n = journal->j_blocksize / sizeof(journal_block_tag_t);
 	journal->j_wbufsize = n;
@@ -1204,10 +1199,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 	journal->j_dev = journal->j_fs_dev = inode->i_sb->s_bdev;
 	journal->j_inode = inode;
 	bdevname(journal->j_dev, journal->j_devname);
-	p = journal->j_devname;
-	while ((p = strchr(p, '/')))
-		*p = '!';
-	p = journal->j_devname + strlen(journal->j_devname);
+	p = strreplace(journal->j_devname, '/', '!');
 	sprintf(p, "-%lu", journal->j_inode->i_ino);
 	jbd_debug(1,
 		  "journal %p: inode %s/%ld, size %Ld, bits %d, blksize %ld\n",
@@ -1331,7 +1323,7 @@ static int journal_reset(journal_t *journal)
 	return jbd2_journal_start_thread(journal);
 }
 
-static void jbd2_write_superblock(journal_t *journal, int write_op)
+static int jbd2_write_superblock(journal_t *journal, int write_op)
 {
 	struct buffer_head *bh = journal->j_sb_buffer;
 	journal_superblock_t *sb = journal->j_superblock;
@@ -1370,7 +1362,10 @@ static void jbd2_write_superblock(journal_t *journal, int write_op)
 		printk(KERN_ERR "JBD2: Error %d detected when updating "
 		       "journal superblock for %s.\n", ret,
 		       journal->j_devname);
+		jbd2_journal_abort(journal, ret);
 	}
+
+	return ret;
 }
 
 /**
@@ -1383,10 +1378,11 @@ static void jbd2_write_superblock(journal_t *journal, int write_op)
  * Update a journal's superblock information about log tail and write it to
  * disk, waiting for the IO to complete.
  */
-void jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
+int jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
 				     unsigned long tail_block, int write_op)
 {
 	journal_superblock_t *sb = journal->j_superblock;
+	int ret;
 
 	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 	jbd_debug(1, "JBD2: updating superblock (start %lu, seq %u)\n",
@@ -1395,13 +1391,18 @@ void jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
 	sb->s_sequence = cpu_to_be32(tail_tid);
 	sb->s_start    = cpu_to_be32(tail_block);
 
-	jbd2_write_superblock(journal, write_op);
+	ret = jbd2_write_superblock(journal, write_op);
+	if (ret)
+		goto out;
 
 	/* Log is no longer empty */
 	write_lock(&journal->j_state_lock);
 	WARN_ON(!sb->s_sequence);
 	journal->j_flags &= ~JBD2_FLUSHED;
 	write_unlock(&journal->j_state_lock);
+
+out:
+	return ret;
 }
 
 /**
@@ -1950,7 +1951,14 @@ int jbd2_journal_flush(journal_t *journal)
 		return -EIO;
 
 	mutex_lock(&journal->j_checkpoint_mutex);
-	jbd2_cleanup_journal_tail(journal);
+	if (!err) {
+		err = jbd2_cleanup_journal_tail(journal);
+		if (err < 0) {
+			mutex_unlock(&journal->j_checkpoint_mutex);
+			goto out;
+		}
+		err = 0;
+	}
 
 	/* Finally, mark the journal as really needing no recovery.
 	 * This sets s_start==0 in the underlying superblock, which is
@@ -1966,7 +1974,8 @@ int jbd2_journal_flush(journal_t *journal)
 	J_ASSERT(journal->j_head == journal->j_tail);
 	J_ASSERT(journal->j_tail_sequence == journal->j_transaction_sequence);
 	write_unlock(&journal->j_state_lock);
-	return 0;
+out:
+	return err;
 }
 
 /**
@@ -2330,7 +2339,7 @@ static int jbd2_journal_init_journal_head_cache(void)
 	jbd2_journal_head_cache = kmem_cache_create("jbd2_journal_head",
 				sizeof(struct journal_head),
 				0,		/* offset */
-				SLAB_TEMPORARY,	/* flags */
+				SLAB_TEMPORARY | SLAB_DESTROY_BY_RCU,
 				NULL);		/* ctor */
 	retval = 0;
 	if (!jbd2_journal_head_cache) {
@@ -2362,10 +2371,8 @@ static struct journal_head *journal_alloc_journal_head(void)
 	if (!ret) {
 		jbd_debug(1, "out of memory for journal_head\n");
 		pr_notice_ratelimited("ENOMEM in %s, retrying.\n", __func__);
-		while (!ret) {
-			yield();
-			ret = kmem_cache_zalloc(jbd2_journal_head_cache, GFP_NOFS);
-		}
+		ret = kmem_cache_zalloc(jbd2_journal_head_cache,
+				GFP_NOFS | __GFP_NOFAIL);
 	}
 	return ret;
 }

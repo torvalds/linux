@@ -118,6 +118,8 @@ bool ixgbe_mng_enabled(struct ixgbe_hw *hw);
 void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb,
 			     u32 headroom, int strategy);
 
+extern const u32 ixgbe_mvals_8259X[IXGBE_MVALS_IDX_LIMIT];
+
 #define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define IXGBE_EMC_INTERNAL_DATA		0x00
 #define IXGBE_EMC_INTERNAL_THERM_LIMIT	0x20

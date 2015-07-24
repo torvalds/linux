@@ -899,6 +899,7 @@
 	sdhci@0,700b0600 {
 		status = "okay";
 		bus-width = <8>;
+		non-removable;
 	};
 
 	ahub@0,70300000 {
@@ -1040,6 +1041,8 @@
 			compatible = "regulator-fixed";
 			reg = <5>;
 			regulator-name = "+VDD_LED";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio TEGRA_GPIO(P, 2) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&vdd_mux>;

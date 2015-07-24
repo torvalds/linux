@@ -30,14 +30,38 @@ enum adv7842_ain_sel {
 	ADV7842_AIN9_4_5_6_SYNC_2_1 = 4,
 };
 
-/* Bus rotation and reordering (IO register 0x04, [7:5]) */
-enum adv7842_op_ch_sel {
-	ADV7842_OP_CH_SEL_GBR = 0,
-	ADV7842_OP_CH_SEL_GRB = 1,
-	ADV7842_OP_CH_SEL_BGR = 2,
-	ADV7842_OP_CH_SEL_RGB = 3,
-	ADV7842_OP_CH_SEL_BRG = 4,
-	ADV7842_OP_CH_SEL_RBG = 5,
+/*
+ * Bus rotation and reordering. This is used to specify component reordering on
+ * the board and describes the components order on the bus when the ADV7842
+ * outputs RGB.
+ */
+enum adv7842_bus_order {
+	ADV7842_BUS_ORDER_RGB,		/* No operation	*/
+	ADV7842_BUS_ORDER_GRB,		/* Swap 1-2	*/
+	ADV7842_BUS_ORDER_RBG,		/* Swap 2-3	*/
+	ADV7842_BUS_ORDER_BGR,		/* Swap 1-3	*/
+	ADV7842_BUS_ORDER_BRG,		/* Rotate right	*/
+	ADV7842_BUS_ORDER_GBR,		/* Rotate left	*/
+};
+
+/* Input Color Space (IO register 0x02, [7:4]) */
+enum adv7842_inp_color_space {
+	ADV7842_INP_COLOR_SPACE_LIM_RGB = 0,
+	ADV7842_INP_COLOR_SPACE_FULL_RGB = 1,
+	ADV7842_INP_COLOR_SPACE_LIM_YCbCr_601 = 2,
+	ADV7842_INP_COLOR_SPACE_LIM_YCbCr_709 = 3,
+	ADV7842_INP_COLOR_SPACE_XVYCC_601 = 4,
+	ADV7842_INP_COLOR_SPACE_XVYCC_709 = 5,
+	ADV7842_INP_COLOR_SPACE_FULL_YCbCr_601 = 6,
+	ADV7842_INP_COLOR_SPACE_FULL_YCbCr_709 = 7,
+	ADV7842_INP_COLOR_SPACE_AUTO = 0xf,
+};
+
+/* Select output format (IO register 0x03, [4:2]) */
+enum adv7842_op_format_mode_sel {
+	ADV7842_OP_FORMAT_MODE0 = 0x00,
+	ADV7842_OP_FORMAT_MODE1 = 0x04,
+	ADV7842_OP_FORMAT_MODE2 = 0x08,
 };
 
 /* Mode of operation */
@@ -61,44 +85,6 @@ enum adv7842_vid_std_select {
 	ADV7842_HDMI_COMP_VID_STD_HD_1250P = 0x1e,
 };
 
-/* Input Color Space (IO register 0x02, [7:4]) */
-enum adv7842_inp_color_space {
-	ADV7842_INP_COLOR_SPACE_LIM_RGB = 0,
-	ADV7842_INP_COLOR_SPACE_FULL_RGB = 1,
-	ADV7842_INP_COLOR_SPACE_LIM_YCbCr_601 = 2,
-	ADV7842_INP_COLOR_SPACE_LIM_YCbCr_709 = 3,
-	ADV7842_INP_COLOR_SPACE_XVYCC_601 = 4,
-	ADV7842_INP_COLOR_SPACE_XVYCC_709 = 5,
-	ADV7842_INP_COLOR_SPACE_FULL_YCbCr_601 = 6,
-	ADV7842_INP_COLOR_SPACE_FULL_YCbCr_709 = 7,
-	ADV7842_INP_COLOR_SPACE_AUTO = 0xf,
-};
-
-/* Select output format (IO register 0x03, [7:0]) */
-enum adv7842_op_format_sel {
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_8 = 0x00,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_10 = 0x01,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_12_MODE0 = 0x02,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_12_MODE1 = 0x06,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_12_MODE2 = 0x0a,
-	ADV7842_OP_FORMAT_SEL_DDR_422_8 = 0x20,
-	ADV7842_OP_FORMAT_SEL_DDR_422_10 = 0x21,
-	ADV7842_OP_FORMAT_SEL_DDR_422_12_MODE0 = 0x22,
-	ADV7842_OP_FORMAT_SEL_DDR_422_12_MODE1 = 0x23,
-	ADV7842_OP_FORMAT_SEL_DDR_422_12_MODE2 = 0x24,
-	ADV7842_OP_FORMAT_SEL_SDR_444_24 = 0x40,
-	ADV7842_OP_FORMAT_SEL_SDR_444_30 = 0x41,
-	ADV7842_OP_FORMAT_SEL_SDR_444_36_MODE0 = 0x42,
-	ADV7842_OP_FORMAT_SEL_DDR_444_24 = 0x60,
-	ADV7842_OP_FORMAT_SEL_DDR_444_30 = 0x61,
-	ADV7842_OP_FORMAT_SEL_DDR_444_36 = 0x62,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_16 = 0x80,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_20 = 0x81,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_24_MODE0 = 0x82,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_24_MODE1 = 0x86,
-	ADV7842_OP_FORMAT_SEL_SDR_ITU656_24_MODE2 = 0x8a,
-};
-
 enum adv7842_select_input {
 	ADV7842_SELECT_HDMI_PORT_A,
 	ADV7842_SELECT_HDMI_PORT_B,
@@ -117,35 +103,35 @@ enum adv7842_drive_strength {
 
 struct adv7842_sdp_csc_coeff {
 	bool manual;
-	uint16_t scaling;
-	uint16_t A1;
-	uint16_t A2;
-	uint16_t A3;
-	uint16_t A4;
-	uint16_t B1;
-	uint16_t B2;
-	uint16_t B3;
-	uint16_t B4;
-	uint16_t C1;
-	uint16_t C2;
-	uint16_t C3;
-	uint16_t C4;
+	u16 scaling;
+	u16 A1;
+	u16 A2;
+	u16 A3;
+	u16 A4;
+	u16 B1;
+	u16 B2;
+	u16 B3;
+	u16 B4;
+	u16 C1;
+	u16 C2;
+	u16 C3;
+	u16 C4;
 };
 
 struct adv7842_sdp_io_sync_adjustment {
 	bool adjust;
-	uint16_t hs_beg;
-	uint16_t hs_width;
-	uint16_t de_beg;
-	uint16_t de_end;
-	uint8_t vs_beg_o;
-	uint8_t vs_beg_e;
-	uint8_t vs_end_o;
-	uint8_t vs_end_e;
-	uint8_t de_v_beg_o;
-	uint8_t de_v_beg_e;
-	uint8_t de_v_end_o;
-	uint8_t de_v_end_e;
+	u16 hs_beg;
+	u16 hs_width;
+	u16 de_beg;
+	u16 de_end;
+	u8 vs_beg_o;
+	u8 vs_beg_e;
+	u8 vs_end_o;
+	u8 vs_end_e;
+	u8 de_v_beg_o;
+	u8 de_v_beg_e;
+	u8 de_v_end_o;
+	u8 de_v_end_e;
 };
 
 /* Platform dependent definition */
@@ -163,7 +149,10 @@ struct adv7842_platform_data {
 	enum adv7842_ain_sel ain_sel;
 
 	/* Bus rotation and reordering */
-	enum adv7842_op_ch_sel op_ch_sel;
+	enum adv7842_bus_order bus_order;
+
+	/* Select output format mode */
+	enum adv7842_op_format_mode_sel op_format_mode_sel;
 
 	/* Default mode */
 	enum adv7842_mode mode;
@@ -174,20 +163,15 @@ struct adv7842_platform_data {
 	/* Video standard */
 	enum adv7842_vid_std_select vid_std_select;
 
-	/* Select output format */
-	enum adv7842_op_format_sel op_format_sel;
-
 	/* IO register 0x02 */
 	unsigned alt_gamma:1;
 	unsigned op_656_range:1;
-	unsigned rgb_out:1;
 	unsigned alt_data_sat:1;
 
 	/* IO register 0x05 */
 	unsigned blank_data:1;
 	unsigned insert_av_codes:1;
 	unsigned replicate_av_codes:1;
-	unsigned invert_cbcr:1;
 
 	/* IO register 0x30 */
 	unsigned output_bus_lsb_to_msb:1;
@@ -246,9 +230,6 @@ struct adv7842_platform_data {
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR_MANUAL	(V4L2_CID_DV_CLASS_BASE + 0x1001)
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR		(V4L2_CID_DV_CLASS_BASE + 0x1002)
 
-/* notify events */
-#define ADV7842_FMT_CHANGE	1
-
 /* custom ioctl, used to test the external RAM that's used by the
  * deinterlacer. */
 #define ADV7842_CMD_RAM_TEST _IO('V', BASE_VIDIOC_PRIVATE)
@@ -256,5 +237,6 @@ struct adv7842_platform_data {
 #define ADV7842_EDID_PORT_A   0
 #define ADV7842_EDID_PORT_B   1
 #define ADV7842_EDID_PORT_VGA 2
+#define ADV7842_PAD_SOURCE    3
 
 #endif

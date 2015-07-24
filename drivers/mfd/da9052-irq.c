@@ -35,7 +35,7 @@
 #define DA9052_IRQ_MASK_POS_7		0x40
 #define DA9052_IRQ_MASK_POS_8		0x80
 
-static struct regmap_irq da9052_irqs[] = {
+static const struct regmap_irq da9052_irqs[] = {
 	[DA9052_IRQ_DCIN] = {
 		.reg_offset = 0,
 		.mask = DA9052_IRQ_MASK_POS_1,
@@ -166,7 +166,7 @@ static struct regmap_irq da9052_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip da9052_regmap_irq_chip = {
+static const struct regmap_irq_chip da9052_regmap_irq_chip = {
 	.name = "da9052_irq",
 	.status_base = DA9052_EVENT_A_REG,
 	.mask_base = DA9052_IRQ_MASK_A_REG,

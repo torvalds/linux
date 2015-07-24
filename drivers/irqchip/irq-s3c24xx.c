@@ -502,7 +502,7 @@ err:
 	return -EINVAL;
 }
 
-static struct irq_domain_ops s3c24xx_irq_ops = {
+static const struct irq_domain_ops s3c24xx_irq_ops = {
 	.map = s3c24xx_irq_map,
 	.xlate = irq_domain_xlate_twocell,
 };
@@ -1228,7 +1228,7 @@ static int s3c24xx_irq_xlate_of(struct irq_domain *d, struct device_node *n,
 	return 0;
 }
 
-static struct irq_domain_ops s3c24xx_irq_ops_of = {
+static const struct irq_domain_ops s3c24xx_irq_ops_of = {
 	.map = s3c24xx_irq_map_of,
 	.xlate = s3c24xx_irq_xlate_of,
 };

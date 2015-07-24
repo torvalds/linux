@@ -241,6 +241,34 @@ struct sta_ampdu_mlme {
 /* Value to indicate no TID reservation */
 #define IEEE80211_TID_UNRESERVED	0xff
 
+#define IEEE80211_FAST_XMIT_MAX_IV	18
+
+/**
+ * struct ieee80211_fast_tx - TX fastpath information
+ * @key: key to use for hw crypto
+ * @hdr: the 802.11 header to put with the frame
+ * @hdr_len: actual 802.11 header length
+ * @sa_offs: offset of the SA
+ * @da_offs: offset of the DA
+ * @pn_offs: offset where to put PN for crypto (or 0 if not needed)
+ * @band: band this will be transmitted on, for tx_info
+ * @rcu_head: RCU head to free this struct
+ *
+ * This struct is small enough so that the common case (maximum crypto
+ * header length of 8 like for CCMP/GCMP) fits into a single 64-byte
+ * cache line.
+ */
+struct ieee80211_fast_tx {
+	struct ieee80211_key *key;
+	u8 hdr_len;
+	u8 sa_offs, da_offs, pn_offs;
+	u8 band;
+	u8 hdr[30 + 2 + IEEE80211_FAST_XMIT_MAX_IV +
+	       sizeof(rfc1042_header)];
+
+	struct rcu_head rcu_head;
+};
+
 /**
  * struct sta_info - STA information
  *
@@ -257,6 +285,8 @@ struct sta_ampdu_mlme {
  * @gtk: group keys negotiated with this station, if any
  * @gtk_idx: last installed group key index
  * @rate_ctrl: rate control algorithm reference
+ * @rate_ctrl_lock: spinlock used to protect rate control data
+ *	(data inside the algorithm, so serializes calls there)
  * @rate_ctrl_priv: rate control private per-STA pointer
  * @last_tx_rate: rate used for last transmit, to report to userspace as
  *	"the" transmit rate
@@ -295,10 +325,10 @@ struct sta_ampdu_mlme {
  * @fail_avg: moving percentage of failed MSDUs
  * @tx_packets: number of RX/TX MSDUs
  * @tx_bytes: number of bytes transmitted to this STA
- * @tx_fragments: number of transmitted MPDUs
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
+ * @plink_lock: serialize access to plink fields
  * @llid: Local link ID
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
@@ -338,6 +368,9 @@ struct sta_ampdu_mlme {
  *	using IEEE80211_NUM_TID entry for non-QoS frames
  * @rx_msdu: MSDUs received from this station, using IEEE80211_NUM_TID
  *	entry for non-QoS frames
+ * @fast_tx: TX fastpath information
+ * @processed_beacon: set to true after peer rates and capabilities are
+ *	processed
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -352,7 +385,10 @@ struct sta_info {
 	u8 ptk_idx;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
+	spinlock_t rate_ctrl_lock;
 	spinlock_t lock;
+
+	struct ieee80211_fast_tx __rcu *fast_tx;
 
 	struct work_struct drv_deliver_wk;
 
@@ -400,7 +436,6 @@ struct sta_info {
 	unsigned int fail_avg;
 
 	/* Updated from TX path only, no locking requirements */
-	u32 tx_fragments;
 	u64 tx_packets[IEEE80211_NUM_ACS];
 	u64 tx_bytes[IEEE80211_NUM_ACS];
 	struct ieee80211_tx_rate last_tx_rate;
@@ -422,9 +457,10 @@ struct sta_info {
 
 #ifdef CONFIG_MAC80211_MESH
 	/*
-	 * Mesh peer link attributes
+	 * Mesh peer link attributes, protected by plink_lock.
 	 * TODO: move to a sub-structure that is referenced with pointer?
 	 */
+	spinlock_t plink_lock;
 	u16 llid;
 	u16 plid;
 	u16 reason;
@@ -432,12 +468,14 @@ struct sta_info {
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
+
 	s64 t_offset;
 	s64 t_offset_setpoint;
 	/* mesh power save */
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
 	enum nl80211_mesh_power_mode nonpeer_pm;
+	bool processed_beacon;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS

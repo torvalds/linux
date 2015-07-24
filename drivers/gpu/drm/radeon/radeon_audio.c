@@ -242,6 +242,13 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.dpms = evergreen_dp_enable,
 };
 
+static void radeon_audio_enable(struct radeon_device *rdev,
+				struct r600_audio_pin *pin, u8 enable_mask)
+{
+	if (rdev->audio.funcs->enable)
+		rdev->audio.funcs->enable(rdev, pin, enable_mask);
+}
+
 static void radeon_audio_interface_init(struct radeon_device *rdev)
 {
 	if (ASIC_IS_DCE6(rdev)) {
@@ -307,7 +314,7 @@ int radeon_audio_init(struct radeon_device *rdev)
 
 	/* disable audio.  it will be set up later */
 	for (i = 0; i < rdev->audio.num_pins; i++)
-		radeon_audio_enable(rdev, &rdev->audio.pin[i], false);
+		radeon_audio_enable(rdev, &rdev->audio.pin[i], 0);
 
 	return 0;
 }
@@ -443,13 +450,6 @@ static void radeon_audio_select_pin(struct drm_encoder *encoder)
 		radeon_encoder->audio->select_pin(encoder);
 }
 
-void radeon_audio_enable(struct radeon_device *rdev,
-	struct r600_audio_pin *pin, u8 enable_mask)
-{
-	if (rdev->audio.funcs->enable)
-		rdev->audio.funcs->enable(rdev, pin, enable_mask);
-}
-
 void radeon_audio_detect(struct drm_connector *connector,
 			 enum drm_connector_status status)
 {
@@ -469,22 +469,22 @@ void radeon_audio_detect(struct drm_connector *connector,
 	dig = radeon_encoder->enc_priv;
 
 	if (status == connector_status_connected) {
-		struct radeon_connector *radeon_connector;
-		int sink_type;
-
 		if (!drm_detect_monitor_audio(radeon_connector_edid(connector))) {
 			radeon_encoder->audio = NULL;
 			return;
 		}
 
-		radeon_connector = to_radeon_connector(connector);
-		sink_type = radeon_dp_getsinktype(radeon_connector);
+		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
-			sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
-			radeon_encoder->audio = rdev->audio.dp_funcs;
-		else
+			if (radeon_dp_getsinktype(radeon_connector) ==
+			    CONNECTOR_OBJECT_ID_DISPLAYPORT)
+				radeon_encoder->audio = rdev->audio.dp_funcs;
+			else
+				radeon_encoder->audio = rdev->audio.hdmi_funcs;
+		} else {
 			radeon_encoder->audio = rdev->audio.hdmi_funcs;
+		}
 
 		dig->afmt->pin = radeon_audio_get_pin(connector->encoder);
 		radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
@@ -502,7 +502,7 @@ void radeon_audio_fini(struct radeon_device *rdev)
 		return;
 
 	for (i = 0; i < rdev->audio.num_pins; i++)
-		radeon_audio_enable(rdev, &rdev->audio.pin[i], false);
+		radeon_audio_enable(rdev, &rdev->audio.pin[i], 0);
 
 	rdev->audio.enabled = false;
 }

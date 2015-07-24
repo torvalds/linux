@@ -52,10 +52,15 @@ struct lglock {
 	static struct lglock name = { .lock = &name ## _lock }
 
 void lg_lock_init(struct lglock *lg, char *name);
+
 void lg_local_lock(struct lglock *lg);
 void lg_local_unlock(struct lglock *lg);
 void lg_local_lock_cpu(struct lglock *lg, int cpu);
 void lg_local_unlock_cpu(struct lglock *lg, int cpu);
+
+void lg_double_lock(struct lglock *lg, int cpu1, int cpu2);
+void lg_double_unlock(struct lglock *lg, int cpu1, int cpu2);
+
 void lg_global_lock(struct lglock *lg);
 void lg_global_unlock(struct lglock *lg);
 

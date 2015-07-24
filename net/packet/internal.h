@@ -82,11 +82,20 @@ struct packet_fanout {
 	atomic_t		rr_cur;
 	struct list_head	list;
 	struct sock		*arr[PACKET_FANOUT_MAX];
-	int			next[PACKET_FANOUT_MAX];
 	spinlock_t		lock;
 	atomic_t		sk_ref;
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 };
+
+struct packet_rollover {
+	int			sock;
+	struct rcu_head		rcu;
+	atomic_long_t		num;
+	atomic_long_t		num_huge;
+	atomic_long_t		num_failed;
+#define ROLLOVER_HLEN	(L1_CACHE_BYTES / sizeof(u32))
+	u32			history[ROLLOVER_HLEN] ____cacheline_aligned;
+} ____cacheline_aligned_in_smp;
 
 struct packet_sock {
 	/* struct sock has to be the first member of packet_sock */
@@ -102,8 +111,10 @@ struct packet_sock {
 				auxdata:1,
 				origdev:1,
 				has_vnet_hdr:1;
+	int			pressure;
 	int			ifindex;	/* bound device		*/
 	__be16			num;
+	struct packet_rollover	*rollover;
 	struct packet_mclist	*mclist;
 	atomic_t		mapped;
 	enum tpacket_versions	tp_version;

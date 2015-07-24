@@ -89,7 +89,7 @@ static int sun4i_irq_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops sun4i_irq_ops = {
+static const struct irq_domain_ops sun4i_irq_ops = {
 	.map = sun4i_irq_map,
 	.xlate = irq_domain_xlate_onecell,
 };

@@ -198,9 +198,6 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->file_offset = file_offset;
 	entry->start = start;
 	entry->len = len;
-	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM) &&
-	    !(type == BTRFS_ORDERED_NOCOW))
-		entry->csum_bytes_left = disk_len;
 	entry->disk_len = disk_len;
 	entry->bytes_left = len;
 	entry->inode = igrab(inode);
@@ -286,10 +283,6 @@ void btrfs_add_ordered_sum(struct inode *inode,
 	tree = &BTRFS_I(inode)->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	list_add_tail(&sum->list, &entry->list);
-	WARN_ON(entry->csum_bytes_left < sum->len);
-	entry->csum_bytes_left -= sum->len;
-	if (entry->csum_bytes_left == 0)
-		wake_up(&entry->wait);
 	spin_unlock_irq(&tree->lock);
 }
 
@@ -509,7 +502,21 @@ void btrfs_wait_logged_extents(struct btrfs_trans_handle *trans,
 		wait_event(ordered->wait, test_bit(BTRFS_ORDERED_IO_DONE,
 						   &ordered->flags));
 
-		list_add_tail(&ordered->trans_list, &trans->ordered);
+		/*
+		 * If our ordered extent completed it means it updated the
+		 * fs/subvol and csum trees already, so no need to make the
+		 * current transaction's commit wait for it, as we end up
+		 * holding memory unnecessarily and delaying the inode's iput
+		 * until the transaction commit (we schedule an iput for the
+		 * inode when the ordered extent's refcount drops to 0), which
+		 * prevents it from being evictable until the transaction
+		 * commits.
+		 */
+		if (test_bit(BTRFS_ORDERED_COMPLETE, &ordered->flags))
+			btrfs_put_ordered_extent(ordered);
+		else
+			list_add_tail(&ordered->trans_list, &trans->ordered);
+
 		spin_lock_irq(&log->log_extents_lock[index]);
 	}
 	spin_unlock_irq(&log->log_extents_lock[index]);
@@ -545,6 +552,10 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 	trace_btrfs_ordered_extent_put(entry->inode, entry);
 
 	if (atomic_dec_and_test(&entry->refs)) {
+		ASSERT(list_empty(&entry->log_list));
+		ASSERT(list_empty(&entry->trans_list));
+		ASSERT(list_empty(&entry->root_extent_list));
+		ASSERT(RB_EMPTY_NODE(&entry->rb_node));
 		if (entry->inode)
 			btrfs_add_delayed_iput(entry->inode);
 		while (!list_empty(&entry->list)) {
@@ -572,6 +583,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	spin_lock_irq(&tree->lock);
 	node = &entry->rb_node;
 	rb_erase(node, &tree->tree);
+	RB_CLEAR_NODE(node);
 	if (tree->last == node)
 		tree->last = NULL;
 	set_bit(BTRFS_ORDERED_COMPLETE, &entry->flags);
@@ -842,6 +854,20 @@ out:
 		atomic_inc(&entry->refs);
 	spin_unlock_irq(&tree->lock);
 	return entry;
+}
+
+bool btrfs_have_ordered_extents_in_range(struct inode *inode,
+					 u64 file_offset,
+					 u64 len)
+{
+	struct btrfs_ordered_extent *oe;
+
+	oe = btrfs_lookup_ordered_range(inode, file_offset, len);
+	if (oe) {
+		btrfs_put_ordered_extent(oe);
+		return true;
+	}
+	return false;
 }
 
 /*

@@ -299,7 +299,9 @@ toward the stable maintainers by putting a line like this:
 
   Cc: stable@vger.kernel.org
 
-into your patch.
+into the sign-off area of your patch (note, NOT an email recipient).  You
+should also read Documentation/stable_kernel_rules.txt in addition to this
+file.
 
 Note, however, that some subsystem maintainers want to come to their own
 conclusions on which patches should go to the stable trees.  The networking

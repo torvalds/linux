@@ -79,24 +79,7 @@ static bool acpi_properties_format_valid(const union acpi_object *properties)
 static void acpi_init_of_compatible(struct acpi_device *adev)
 {
 	const union acpi_object *of_compatible;
-	struct acpi_hardware_id *hwid;
-	bool acpi_of = false;
 	int ret;
-
-	/*
-	 * Check if the special PRP0001 ACPI ID is present and in that
-	 * case we fill in Device Tree compatible properties for this
-	 * device.
-	 */
-	list_for_each_entry(hwid, &adev->pnp.ids, list) {
-		if (!strcmp(hwid->id, "PRP0001")) {
-			acpi_of = true;
-			break;
-		}
-	}
-
-	if (!acpi_of)
-		return;
 
 	ret = acpi_dev_get_property_array(adev, "compatible", ACPI_TYPE_STRING,
 					  &of_compatible);
@@ -104,25 +87,43 @@ static void acpi_init_of_compatible(struct acpi_device *adev)
 		ret = acpi_dev_get_property(adev, "compatible",
 					    ACPI_TYPE_STRING, &of_compatible);
 		if (ret) {
-			acpi_handle_warn(adev->handle,
-					 "PRP0001 requires compatible property\n");
+			if (adev->parent
+			    && adev->parent->flags.of_compatible_ok)
+				goto out;
+
 			return;
 		}
 	}
 	adev->data.of_compatible = of_compatible;
+
+ out:
+	adev->flags.of_compatible_ok = 1;
 }
 
 void acpi_init_properties(struct acpi_device *adev)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+	bool acpi_of = false;
+	struct acpi_hardware_id *hwid;
 	const union acpi_object *desc;
 	acpi_status status;
 	int i;
 
+	/*
+	 * Check if ACPI_DT_NAMESPACE_HID is present and inthat case we fill in
+	 * Device Tree compatible properties for this device.
+	 */
+	list_for_each_entry(hwid, &adev->pnp.ids, list) {
+		if (!strcmp(hwid->id, ACPI_DT_NAMESPACE_HID)) {
+			acpi_of = true;
+			break;
+		}
+	}
+
 	status = acpi_evaluate_object_typed(adev->handle, "_DSD", NULL, &buf,
 					    ACPI_TYPE_PACKAGE);
 	if (ACPI_FAILURE(status))
-		return;
+		goto out;
 
 	desc = buf.pointer;
 	if (desc->package.count % 2)
@@ -156,13 +157,20 @@ void acpi_init_properties(struct acpi_device *adev)
 		adev->data.pointer = buf.pointer;
 		adev->data.properties = properties;
 
-		acpi_init_of_compatible(adev);
-		return;
+		if (acpi_of)
+			acpi_init_of_compatible(adev);
+
+		goto out;
 	}
 
  fail:
-	dev_warn(&adev->dev, "Returned _DSD data is not valid, skipping\n");
+	dev_dbg(&adev->dev, "Returned _DSD data is not valid, skipping\n");
 	ACPI_FREE(buf.pointer);
+
+ out:
+	if (acpi_of && !adev->flags.of_compatible_ok)
+		acpi_handle_info(adev->handle,
+			 ACPI_DT_NAMESPACE_HID " requires 'compatible' property\n");
 }
 
 void acpi_free_properties(struct acpi_device *adev)

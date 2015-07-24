@@ -38,6 +38,8 @@
  */
 #define DASD_CHANQ_MAX_SIZE 4
 
+#define DASD_DIAG_MOD		"dasd_diag_mod"
+
 /*
  * SECTION: exported variables of dasd.c
  */
@@ -1861,6 +1863,33 @@ static void __dasd_device_check_expire(struct dasd_device *device)
 }
 
 /*
+ * return 1 when device is not eligible for IO
+ */
+static int __dasd_device_is_unusable(struct dasd_device *device,
+				     struct dasd_ccw_req *cqr)
+{
+	int mask = ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM);
+
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		/* dasd is being set offline. */
+		return 1;
+	}
+	if (device->stopped) {
+		if (device->stopped & mask) {
+			/* stopped and CQR will not change that. */
+			return 1;
+		}
+		if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags)) {
+			/* CQR is not able to change device to
+			 * operational. */
+			return 1;
+		}
+		/* CQR required to get device operational. */
+	}
+	return 0;
+}
+
+/*
  * Take a look at the first request on the ccw queue and check
  * if it needs to be started.
  */
@@ -1874,13 +1903,8 @@ static void __dasd_device_start_head(struct dasd_device *device)
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, devlist);
 	if (cqr->status != DASD_CQR_QUEUED)
 		return;
-	/* when device is stopped, return request to previous layer
-	 * exception: only the disconnect or unresumed bits are set and the
-	 * cqr is a path verification request
-	 */
-	if (device->stopped &&
-	    !(!(device->stopped & ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM))
-	      && test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))) {
+	/* if device is not usable return request to upper layer */
+	if (__dasd_device_is_unusable(device, cqr)) {
 		cqr->intrc = -EAGAIN;
 		cqr->status = DASD_CQR_CLEARED;
 		dasd_schedule_device_bh(device);
@@ -3300,6 +3324,21 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	discipline = base_discipline;
 	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
+			/* Try to load the required module. */
+			rc = request_module(DASD_DIAG_MOD);
+			if (rc) {
+				pr_warn("%s Setting the DASD online failed "
+					"because the required module %s "
+					"could not be loaded (rc=%d)\n",
+					dev_name(&cdev->dev), DASD_DIAG_MOD,
+					rc);
+				dasd_delete_device(device);
+				return -ENODEV;
+			}
+		}
+		/* Module init could have failed, so check again here after
+		 * request_module(). */
+		if (!dasd_diag_discipline_pointer) {
 			pr_warn("%s Setting the DASD online failed because of missing DIAG discipline\n",
 				dev_name(&cdev->dev));
 			dasd_delete_device(device);

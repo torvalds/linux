@@ -1022,7 +1022,7 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	}
 
 	pending = __vsock_create(sock_net(sk), NULL, sk, GFP_KERNEL,
-				 sk->sk_type);
+				 sk->sk_type, 0);
 	if (!pending) {
 		vmci_transport_send_reset(sk, pkt);
 		return -ENOMEM;

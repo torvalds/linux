@@ -57,6 +57,7 @@
 #include <linux/of_address.h>
 #include <linux/debugfs.h>
 #include <linux/log2.h>
+#include <linux/memblock.h>
 #include <linux/syscore_ops.h>
 
 /*
@@ -152,12 +153,38 @@ struct mvebu_mbus_state {
 
 static struct mvebu_mbus_state mbus_state;
 
+/*
+ * We provide two variants of the mv_mbus_dram_info() function:
+ *
+ * - The normal one, where the described DRAM ranges may overlap with
+ *   the I/O windows, but for which the DRAM ranges are guaranteed to
+ *   have a power of two size. Such ranges are suitable for the DMA
+ *   masters that only DMA between the RAM and the device, which is
+ *   actually all devices except the crypto engines.
+ *
+ * - The 'nooverlap' one, where the described DRAM ranges are
+ *   guaranteed to not overlap with the I/O windows, but for which the
+ *   DRAM ranges will not have power of two sizes. They will only be
+ *   aligned on a 64 KB boundary, and have a size multiple of 64
+ *   KB. Such ranges are suitable for the DMA masters that DMA between
+ *   the crypto SRAM (which is mapped through an I/O window) and a
+ *   device. This is the case for the crypto engines.
+ */
+
 static struct mbus_dram_target_info mvebu_mbus_dram_info;
+static struct mbus_dram_target_info mvebu_mbus_dram_info_nooverlap;
+
 const struct mbus_dram_target_info *mv_mbus_dram_info(void)
 {
 	return &mvebu_mbus_dram_info;
 }
 EXPORT_SYMBOL_GPL(mv_mbus_dram_info);
+
+const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void)
+{
+	return &mvebu_mbus_dram_info_nooverlap;
+}
+EXPORT_SYMBOL_GPL(mv_mbus_dram_info_nooverlap);
 
 /* Checks whether the given window has remap capability */
 static bool mvebu_mbus_window_is_remappable(struct mvebu_mbus_state *mbus,
@@ -576,6 +603,95 @@ static unsigned int armada_xp_mbus_win_remap_offset(int win)
 		return MVEBU_MBUS_NO_REMAP;
 }
 
+/*
+ * Use the memblock information to find the MBus bridge hole in the
+ * physical address space.
+ */
+static void __init
+mvebu_mbus_find_bridge_hole(uint64_t *start, uint64_t *end)
+{
+	struct memblock_region *r;
+	uint64_t s = 0;
+
+	for_each_memblock(memory, r) {
+		/*
+		 * This part of the memory is above 4 GB, so we don't
+		 * care for the MBus bridge hole.
+		 */
+		if (r->base >= 0x100000000ULL)
+			continue;
+
+		/*
+		 * The MBus bridge hole is at the end of the RAM under
+		 * the 4 GB limit.
+		 */
+		if (r->base + r->size > s)
+			s = r->base + r->size;
+	}
+
+	*start = s;
+	*end = 0x100000000ULL;
+}
+
+/*
+ * This function fills in the mvebu_mbus_dram_info_nooverlap data
+ * structure, by looking at the mvebu_mbus_dram_info data, and
+ * removing the parts of it that overlap with I/O windows.
+ */
+static void __init
+mvebu_mbus_setup_cpu_target_nooverlap(struct mvebu_mbus_state *mbus)
+{
+	uint64_t mbus_bridge_base, mbus_bridge_end;
+	int cs_nooverlap = 0;
+	int i;
+
+	mvebu_mbus_find_bridge_hole(&mbus_bridge_base, &mbus_bridge_end);
+
+	for (i = 0; i < mvebu_mbus_dram_info.num_cs; i++) {
+		struct mbus_dram_window *w;
+		u64 base, size, end;
+
+		w = &mvebu_mbus_dram_info.cs[i];
+		base = w->base;
+		size = w->size;
+		end = base + size;
+
+		/*
+		 * The CS is fully enclosed inside the MBus bridge
+		 * area, so ignore it.
+		 */
+		if (base >= mbus_bridge_base && end <= mbus_bridge_end)
+			continue;
+
+		/*
+		 * Beginning of CS overlaps with end of MBus, raise CS
+		 * base address, and shrink its size.
+		 */
+		if (base >= mbus_bridge_base && end > mbus_bridge_end) {
+			size -= mbus_bridge_end - base;
+			base = mbus_bridge_end;
+		}
+
+		/*
+		 * End of CS overlaps with beginning of MBus, shrink
+		 * CS size.
+		 */
+		if (base < mbus_bridge_base && end > mbus_bridge_base)
+			size -= end - mbus_bridge_base;
+
+		w = &mvebu_mbus_dram_info_nooverlap.cs[cs_nooverlap++];
+		w->cs_index = i;
+		w->mbus_attr = 0xf & ~(1 << i);
+		if (mbus->hw_io_coherency)
+			w->mbus_attr |= ATTR_HW_COHERENCY;
+		w->base = base;
+		w->size = size;
+	}
+
+	mvebu_mbus_dram_info_nooverlap.mbus_dram_target_id = TARGET_DDR;
+	mvebu_mbus_dram_info_nooverlap.num_cs = cs_nooverlap;
+}
+
 static void __init
 mvebu_mbus_default_setup_cpu_target(struct mvebu_mbus_state *mbus)
 {
@@ -964,6 +1080,7 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 		mvebu_mbus_disable_window(mbus, win);
 
 	mbus->soc->setup_cpu_target(mbus);
+	mvebu_mbus_setup_cpu_target_nooverlap(mbus);
 
 	if (is_coherent)
 		writel(UNIT_SYNC_BARRIER_ALL,

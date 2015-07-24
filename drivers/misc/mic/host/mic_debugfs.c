@@ -214,6 +214,19 @@ static int mic_dp_show(struct seq_file *s, void *pos)
 		   bootparam->shutdown_status);
 	seq_printf(s, "Bootparam: shutdown_card %d\n",
 		   bootparam->shutdown_card);
+	seq_printf(s, "Bootparam: tot_nodes %d\n",
+		   bootparam->tot_nodes);
+	seq_printf(s, "Bootparam: node_id %d\n",
+		   bootparam->node_id);
+	seq_printf(s, "Bootparam: c2h_scif_db %d\n",
+		   bootparam->c2h_scif_db);
+	seq_printf(s, "Bootparam: h2c_scif_db %d\n",
+		   bootparam->h2c_scif_db);
+	seq_printf(s, "Bootparam: scif_host_dma_addr 0x%llx\n",
+		   bootparam->scif_host_dma_addr);
+	seq_printf(s, "Bootparam: scif_card_dma_addr 0x%llx\n",
+		   bootparam->scif_card_dma_addr);
+
 
 	for (i = sizeof(*bootparam); i < MIC_DP_SIZE;
 	     i += mic_total_desc_size(d)) {

@@ -1966,7 +1966,8 @@ static phys_addr_t __init available_memory(void)
 	phys_addr_t pa_start, pa_end;
 	u64 i;
 
-	for_each_free_mem_range(i, NUMA_NO_NODE, &pa_start, &pa_end, NULL)
+	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
+				&pa_end, NULL)
 		available = available + (pa_end  - pa_start);
 
 	return available;
@@ -1992,7 +1993,8 @@ static void __init reduce_memory(phys_addr_t limit_ram)
 	if (limit_ram >= avail_ram)
 		return;
 
-	for_each_free_mem_range(i, NUMA_NO_NODE, &pa_start, &pa_end, NULL) {
+	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
+				&pa_end, NULL) {
 		phys_addr_t region_size = pa_end - pa_start;
 		phys_addr_t clip_start = pa_start;
 
@@ -2738,7 +2740,7 @@ void hugetlb_setup(struct pt_regs *regs)
 	struct mm_struct *mm = current->mm;
 	struct tsb_config *tp;
 
-	if (in_atomic() || !mm) {
+	if (faulthandler_disabled() || !mm) {
 		const struct exception_table_entry *entry;
 
 		entry = search_exception_tables(regs->tpc);

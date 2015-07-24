@@ -1,3 +1,4 @@
+#define pr_fmt(fmt) "kasan: " fmt
 #include <linux/bootmem.h>
 #include <linux/kasan.h>
 #include <linux/kdebug.h>
@@ -11,7 +12,19 @@
 extern pgd_t early_level4_pgt[PTRS_PER_PGD];
 extern struct range pfn_mapped[E820_X_MAX];
 
-extern unsigned char kasan_zero_page[PAGE_SIZE];
+static pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
+static pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
+static pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+
+/*
+ * This page used as early shadow. We don't use empty_zero_page
+ * at early stages, stack instrumentation could write some garbage
+ * to this page.
+ * Latter we reuse it as zero shadow for large ranges of memory
+ * that allowed to access, but not instrumented by kasan
+ * (vmalloc/vmemmap ...).
+ */
+static unsigned char kasan_zero_page[PAGE_SIZE] __page_aligned_bss;
 
 static int __init map_range(struct range *range)
 {
@@ -36,7 +49,7 @@ static void __init clear_pgds(unsigned long start,
 		pgd_clear(pgd_offset_k(start));
 }
 
-void __init kasan_map_early_shadow(pgd_t *pgd)
+static void __init kasan_map_early_shadow(pgd_t *pgd)
 {
 	int i;
 	unsigned long start = KASAN_SHADOW_START;
@@ -73,7 +86,7 @@ static int __init zero_pmd_populate(pud_t *pud, unsigned long addr,
 	while (IS_ALIGNED(addr, PMD_SIZE) && addr + PMD_SIZE <= end) {
 		WARN_ON(!pmd_none(*pmd));
 		set_pmd(pmd, __pmd(__pa_nodebug(kasan_zero_pte)
-					| __PAGE_KERNEL_RO));
+					| _KERNPG_TABLE));
 		addr += PMD_SIZE;
 		pmd = pmd_offset(pud, addr);
 	}
@@ -99,7 +112,7 @@ static int __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
 	while (IS_ALIGNED(addr, PUD_SIZE) && addr + PUD_SIZE <= end) {
 		WARN_ON(!pud_none(*pud));
 		set_pud(pud, __pud(__pa_nodebug(kasan_zero_pmd)
-					| __PAGE_KERNEL_RO));
+					| _KERNPG_TABLE));
 		addr += PUD_SIZE;
 		pud = pud_offset(pgd, addr);
 	}
@@ -124,7 +137,7 @@ static int __init zero_pgd_populate(unsigned long addr, unsigned long end)
 	while (IS_ALIGNED(addr, PGDIR_SIZE) && addr + PGDIR_SIZE <= end) {
 		WARN_ON(!pgd_none(*pgd));
 		set_pgd(pgd, __pgd(__pa_nodebug(kasan_zero_pud)
-					| __PAGE_KERNEL_RO));
+					| _KERNPG_TABLE));
 		addr += PGDIR_SIZE;
 		pgd = pgd_offset_k(addr);
 	}
@@ -166,6 +179,26 @@ static struct notifier_block kasan_die_notifier = {
 };
 #endif
 
+void __init kasan_early_init(void)
+{
+	int i;
+	pteval_t pte_val = __pa_nodebug(kasan_zero_page) | __PAGE_KERNEL;
+	pmdval_t pmd_val = __pa_nodebug(kasan_zero_pte) | _KERNPG_TABLE;
+	pudval_t pud_val = __pa_nodebug(kasan_zero_pmd) | _KERNPG_TABLE;
+
+	for (i = 0; i < PTRS_PER_PTE; i++)
+		kasan_zero_pte[i] = __pte(pte_val);
+
+	for (i = 0; i < PTRS_PER_PMD; i++)
+		kasan_zero_pmd[i] = __pmd(pmd_val);
+
+	for (i = 0; i < PTRS_PER_PUD; i++)
+		kasan_zero_pud[i] = __pud(pud_val);
+
+	kasan_map_early_shadow(early_level4_pgt);
+	kasan_map_early_shadow(init_level4_pgt);
+}
+
 void __init kasan_init(void)
 {
 	int i;
@@ -176,6 +209,7 @@ void __init kasan_init(void)
 
 	memcpy(early_level4_pgt, init_level4_pgt, sizeof(early_level4_pgt));
 	load_cr3(early_level4_pgt);
+	__flush_tlb_all();
 
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
 
@@ -202,5 +236,8 @@ void __init kasan_init(void)
 	memset(kasan_zero_page, 0, PAGE_SIZE);
 
 	load_cr3(init_level4_pgt);
+	__flush_tlb_all();
 	init_task.kasan_depth = 0;
+
+	pr_info("Kernel address sanitizer initialized\n");
 }

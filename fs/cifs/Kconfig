@@ -192,6 +192,15 @@ config CIFS_SMB2
 	  options are also slightly simpler (compared to CIFS) due
 	  to protocol improvements.
 
+config CIFS_SMB311
+	bool "SMB3.1.1 network file system support (Experimental)"
+	depends on CIFS_SMB2 && INET
+
+	help
+	  This enables experimental support for the newest, SMB3.1.1, dialect.
+	  This dialect includes improved security negotiation features.
+	  If unsure, say N
+
 config CIFS_FSCACHE
 	  bool "Provide CIFS client caching support"
 	  depends on CIFS=m && FSCACHE || CIFS=y && FSCACHE=y

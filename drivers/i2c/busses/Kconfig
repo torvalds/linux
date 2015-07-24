@@ -392,6 +392,16 @@ config I2C_BCM_KONA
 
 	  If you do not need KONA I2C interface, say N.
 
+config I2C_BRCMSTB
+	tristate "BRCM Settop I2C controller"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	default y
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Broadcom Settop SoCs.
+
+	  If you do not need I2C interface, say N.
+
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
@@ -419,7 +429,7 @@ config I2C_CADENCE
 
 config I2C_CBUS_GPIO
 	tristate "CBUS I2C driver"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Support for CBUS access using I2C API. Mostly relevant for Nokia
 	  Internet Tablets (770, N800 and N810).
@@ -525,7 +535,7 @@ config I2C_EXYNOS5
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select I2C_ALGOBIT
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
@@ -619,6 +629,16 @@ config I2C_MPC
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mpc.
+
+config I2C_MT65XX
+	tristate "MediaTek I2C adapter"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_DMA
+	help
+	  This selects the MediaTek(R) Integrated Inter Circuit bus driver
+	  for MT65xx and MT81xx.
+	  If you want to use MediaTek(R) I2C interface, say Y or M here.
+	  If unsure, say N.
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
@@ -1103,12 +1123,21 @@ config I2C_SIBYTE
 
 config I2C_CROS_EC_TUNNEL
 	tristate "ChromeOS EC tunnel I2C bus"
-	depends on MFD_CROS_EC
+	depends on CROS_EC_PROTO
 	help
 	  If you say yes here you get an I2C bus that will tunnel i2c commands
 	  through to the other side of the ChromeOS EC to the i2c bus
 	  connected there. This will work whatever the interface used to
 	  talk to the EC (SPI, I2C or LPC).
+
+config I2C_XGENE_SLIMPRO
+	tristate "APM X-Gene SoC I2C SLIMpro devices support"
+	depends on ARCH_XGENE && MAILBOX
+	help
+	  Enable I2C bus access using the APM X-Gene SoC SLIMpro
+	  co-processor. The I2C device access the I2C bus via the X-Gene
+	  to SLIMpro (On chip coprocessor) mailbox mechanism.
+	  If unsure, say N.
 
 config SCx200_ACB
 	tristate "Geode ACCESS.bus support"

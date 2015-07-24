@@ -365,7 +365,7 @@ root      5674  0.0  0.0      0     0 ?        S    12:13   0:00 [kworker/1:0]
 If kworkers are going crazy (using too much cpu), there are two types
 of possible problems:
 
-	1. Something beeing scheduled in rapid succession
+	1. Something being scheduled in rapid succession
 	2. A single work item that consumes lots of cpu cycles
 
 The first one can be tracked using tracing:

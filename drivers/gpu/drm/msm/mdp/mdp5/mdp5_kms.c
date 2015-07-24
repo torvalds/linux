@@ -80,6 +80,12 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 	mdp5_disable(mdp5_kms);
 }
 
+static void mdp5_wait_for_crtc_commit_done(struct msm_kms *kms,
+						struct drm_crtc *crtc)
+{
+	mdp5_crtc_wait_for_commit_done(crtc);
+}
+
 static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
@@ -141,6 +147,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.disable_vblank  = mdp5_disable_vblank,
 		.prepare_commit  = mdp5_prepare_commit,
 		.complete_commit = mdp5_complete_commit,
+		.wait_for_crtc_commit_done = mdp5_wait_for_crtc_commit_done,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,

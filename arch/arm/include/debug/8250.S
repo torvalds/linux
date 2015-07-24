@@ -16,11 +16,14 @@
 
 #ifdef CONFIG_DEBUG_UART_8250_WORD
 		.macro	store, rd, rx:vararg
+	 ARM_BE8(rev \rd, \rd)
 		str	\rd, \rx
+	 ARM_BE8(rev \rd, \rd)
 		.endm
 
 		.macro	load, rd, rx:vararg
 		ldr	\rd, \rx
+	ARM_BE8(rev \rd, \rd)
 		.endm
 #else
 		.macro	store, rd, rx:vararg

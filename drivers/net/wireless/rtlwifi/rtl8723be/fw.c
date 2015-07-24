@@ -613,7 +613,7 @@ static void _rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw,
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "[C2H], Unkown packet!! CmdId(%#X)!\n", c2h_cmd_id);
+			 "[C2H], Unknown packet!! CmdId(%#X)!\n", c2h_cmd_id);
 		break;
 	}
 }

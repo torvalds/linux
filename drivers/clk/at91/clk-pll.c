@@ -173,8 +173,7 @@ static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
 	int i = 0;
 
 	/* Check if parent_rate is a valid input rate */
-	if (parent_rate < characteristics->input.min ||
-	    parent_rate > characteristics->input.max)
+	if (parent_rate < characteristics->input.min)
 		return -ERANGE;
 
 	/*
@@ -186,6 +185,15 @@ static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
 	mindiv = (parent_rate * PLL_MUL_MIN) / rate;
 	if (!mindiv)
 		mindiv = 1;
+
+	if (parent_rate > characteristics->input.max) {
+		tmpdiv = DIV_ROUND_UP(parent_rate, characteristics->input.max);
+		if (tmpdiv > PLL_DIV_MAX)
+			return -ERANGE;
+
+		if (tmpdiv > mindiv)
+			mindiv = tmpdiv;
+	}
 
 	/*
 	 * Calculate the maximum divider which is limited by PLL register
@@ -338,12 +346,16 @@ at91_clk_register_pll(struct at91_pmc *pmc, unsigned int irq, const char *name,
 	irq_set_status_flags(pll->irq, IRQ_NOAUTOEN);
 	ret = request_irq(pll->irq, clk_pll_irq_handler, IRQF_TRIGGER_HIGH,
 			  id ? "clk-pllb" : "clk-plla", pll);
-	if (ret)
+	if (ret) {
+		kfree(pll);
 		return ERR_PTR(ret);
+	}
 
 	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		free_irq(pll->irq, pll);
 		kfree(pll);
+	}
 
 	return clk;
 }

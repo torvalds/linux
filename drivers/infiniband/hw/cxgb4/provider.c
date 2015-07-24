@@ -80,9 +80,13 @@ static int c4iw_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 }
 
 static int c4iw_process_mad(struct ib_device *ibdev, int mad_flags,
-			    u8 port_num, struct ib_wc *in_wc,
-			    struct ib_grh *in_grh, struct ib_mad *in_mad,
-			    struct ib_mad *out_mad)
+			    u8 port_num, const struct ib_wc *in_wc,
+			    const struct ib_grh *in_grh,
+			    const struct ib_mad_hdr *in_mad,
+			    size_t in_mad_size,
+			    struct ib_mad_hdr *out_mad,
+			    size_t *out_mad_size,
+			    u16 *out_mad_pkey_index)
 {
 	return -ENOSYS;
 }
@@ -301,12 +305,16 @@ static int c4iw_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return 0;
 }
 
-static int c4iw_query_device(struct ib_device *ibdev,
-			     struct ib_device_attr *props)
+static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			     struct ib_udata *uhw)
 {
 
 	struct c4iw_dev *dev;
+
 	PDBG("%s ibdev %p\n", __func__, ibdev);
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	dev = to_c4iw_dev(ibdev);
 	memset(props, 0, sizeof *props);
@@ -445,10 +453,10 @@ static int c4iw_get_mib(struct ib_device *ibdev,
 
 	cxgb4_get_tcp_stats(c4iw_dev->rdev.lldi.pdev, &v4, &v6);
 	memset(stats, 0, sizeof *stats);
-	stats->iw.tcpInSegs = v4.tcpInSegs + v6.tcpInSegs;
-	stats->iw.tcpOutSegs = v4.tcpOutSegs + v6.tcpOutSegs;
-	stats->iw.tcpRetransSegs = v4.tcpRetransSegs + v6.tcpRetransSegs;
-	stats->iw.tcpOutRsts = v4.tcpOutRsts + v6.tcpOutSegs;
+	stats->iw.tcpInSegs = v4.tcp_in_segs + v6.tcp_in_segs;
+	stats->iw.tcpOutSegs = v4.tcp_out_segs + v6.tcp_out_segs;
+	stats->iw.tcpRetransSegs = v4.tcp_retrans_segs + v6.tcp_retrans_segs;
+	stats->iw.tcpOutRsts = v4.tcp_out_rsts + v6.tcp_out_rsts;
 
 	return 0;
 }
@@ -464,6 +472,23 @@ static struct device_attribute *c4iw_class_attributes[] = {
 	&dev_attr_hca_type,
 	&dev_attr_board_id,
 };
+
+static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = c4iw_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	return 0;
+}
 
 int c4iw_register_device(struct c4iw_dev *dev)
 {
@@ -542,6 +567,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.post_recv = c4iw_post_receive;
 	dev->ibdev.get_protocol_stats = c4iw_get_mib;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
+	dev->ibdev.get_port_immutable = c4iw_port_immutable;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)

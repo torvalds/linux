@@ -23,7 +23,7 @@
 #define c0_MPIDR	1	/* MultiProcessor ID Register */
 #define c0_CSSELR	2	/* Cache Size Selection Register */
 #define c1_SCTLR	3	/* System Control Register */
-#define c1_ACTLR	4	/* Auxilliary Control Register */
+#define c1_ACTLR	4	/* Auxiliary Control Register */
 #define c1_CPACR	5	/* Coprocessor Access Control */
 #define c2_TTBR0	6	/* Translation Table Base Register 0 */
 #define c2_TTBR0_high	7	/* TTBR0 top 32 bits */

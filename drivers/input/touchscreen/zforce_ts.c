@@ -30,7 +30,6 @@
 #include <linux/input/mt.h>
 #include <linux/platform_data/zforce_ts.h>
 #include <linux/regulator/consumer.h>
-#include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 

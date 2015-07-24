@@ -544,29 +544,45 @@ static void bnx2x_set_gro_params(struct sk_buff *skb, u16 parsing_flags,
 static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			      u16 index, gfp_t gfp_mask)
 {
-	struct page *page = alloc_pages(gfp_mask, PAGES_PER_SGE_SHIFT);
 	struct sw_rx_page *sw_buf = &fp->rx_page_ring[index];
 	struct eth_rx_sge *sge = &fp->rx_sge_ring[index];
+	struct bnx2x_alloc_pool *pool = &fp->page_pool;
 	dma_addr_t mapping;
 
-	if (unlikely(page == NULL)) {
-		BNX2X_ERR("Can't alloc sge\n");
-		return -ENOMEM;
+	if (!pool->page || (PAGE_SIZE - pool->offset) < SGE_PAGE_SIZE) {
+
+		/* put page reference used by the memory pool, since we
+		 * won't be using this page as the mempool anymore.
+		 */
+		if (pool->page)
+			put_page(pool->page);
+
+		pool->page = alloc_pages(gfp_mask, PAGES_PER_SGE_SHIFT);
+		if (unlikely(!pool->page)) {
+			BNX2X_ERR("Can't alloc sge\n");
+			return -ENOMEM;
+		}
+
+		pool->offset = 0;
 	}
 
-	mapping = dma_map_page(&bp->pdev->dev, page, 0,
-			       SGE_PAGES, DMA_FROM_DEVICE);
+	mapping = dma_map_page(&bp->pdev->dev, pool->page,
+			       pool->offset, SGE_PAGE_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
-		__free_pages(page, PAGES_PER_SGE_SHIFT);
 		BNX2X_ERR("Can't map sge\n");
 		return -ENOMEM;
 	}
 
-	sw_buf->page = page;
+	get_page(pool->page);
+	sw_buf->page = pool->page;
+	sw_buf->offset = pool->offset;
+
 	dma_unmap_addr_set(sw_buf, mapping, mapping);
 
 	sge->addr_hi = cpu_to_le32(U64_HI(mapping));
 	sge->addr_lo = cpu_to_le32(U64_LO(mapping));
+
+	pool->offset += SGE_PAGE_SIZE;
 
 	return 0;
 }
@@ -629,20 +645,22 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			return err;
 		}
 
-		/* Unmap the page as we're going to pass it to the stack */
 		dma_unmap_page(&bp->pdev->dev,
 			       dma_unmap_addr(&old_rx_pg, mapping),
-			       SGE_PAGES, DMA_FROM_DEVICE);
+			       SGE_PAGE_SIZE, DMA_FROM_DEVICE);
 		/* Add one frag and update the appropriate fields in the skb */
 		if (fp->mode == TPA_MODE_LRO)
-			skb_fill_page_desc(skb, j, old_rx_pg.page, 0, frag_len);
+			skb_fill_page_desc(skb, j, old_rx_pg.page,
+					   old_rx_pg.offset, frag_len);
 		else { /* GRO */
 			int rem;
 			int offset = 0;
 			for (rem = frag_len; rem > 0; rem -= gro_size) {
 				int len = rem > gro_size ? gro_size : rem;
 				skb_fill_page_desc(skb, frag_id++,
-						   old_rx_pg.page, offset, len);
+						   old_rx_pg.page,
+						   old_rx_pg.offset + offset,
+						   len);
 				if (offset)
 					get_page(old_rx_pg.page);
 				offset += len;
@@ -662,7 +680,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 static void bnx2x_frag_free(const struct bnx2x_fastpath *fp, void *data)
 {
 	if (fp->rx_frag_size)
-		put_page(virt_to_head_page(data));
+		skb_free_frag(data);
 	else
 		kfree(data);
 }
@@ -3400,8 +3418,13 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			u32 wnd_sum = 0;
 
 			/* Headers length */
-			hlen = (int)(skb_transport_header(skb) - skb->data) +
-				tcp_hdrlen(skb);
+			if (xmit_type & XMIT_GSO_ENC)
+				hlen = (int)(skb_inner_transport_header(skb) -
+					     skb->data) +
+					     inner_tcp_hdrlen(skb);
+			else
+				hlen = (int)(skb_transport_header(skb) -
+					     skb->data) + tcp_hdrlen(skb);
 
 			/* Amount of data (w/o headers) on linear part of SKB*/
 			first_bd_sz = skb_headlen(skb) - hlen;

@@ -172,7 +172,7 @@
 /*
  * Define a local default termios struct. All ports will be created
  * with this termios initially.  This is the same structure that is defined
- * as the default in tty_io.c with the same settings overriden as in serial.c
+ * as the default in tty_io.c with the same settings overridden as in serial.c
  *
  * In short, this should match the internal serial ports' defaults.
  */

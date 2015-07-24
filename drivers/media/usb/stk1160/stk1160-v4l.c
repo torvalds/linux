@@ -500,6 +500,7 @@ static const struct v4l2_ioctl_ops stk1160_ioctl_ops = {
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
+	.vidioc_expbuf        = vb2_ioctl_expbuf,
 
 	.vidioc_log_status  = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
@@ -645,7 +646,7 @@ int stk1160_vb2_setup(struct stk1160 *dev)
 
 	q = &dev->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR;
+	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct stk1160_buffer);
 	q->ops = &stk1160_video_qops;

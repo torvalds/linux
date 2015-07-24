@@ -5,6 +5,19 @@
 
 menu "Light sensors"
 
+config ACPI_ALS
+	tristate "ACPI Ambient Light Sensor"
+	depends on ACPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	 Say Y here if you want to build a driver for the ACPI0008
+	 Ambient Light Sensor.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called acpi-als.
+
 config ADJD_S311
 	tristate "ADJD-S311-CR999 digital color sensor"
 	select IIO_BUFFER
@@ -36,6 +49,16 @@ config APDS9300
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called apds9300.
+
+config BH1750
+	tristate "ROHM BH1750 ambient light sensor"
+	depends on I2C
+	help
+	 Say Y here to build support for the ROHM BH1710, BH1715, BH1721,
+	 BH1750, BH1751 ambient light sensors.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called bh1750.
 
 config CM32181
 	depends on I2C
@@ -165,14 +188,28 @@ config SENSORS_LM3533
 config LTR501
 	tristate "LTR-501ALS-01 light sensor"
 	depends on I2C
+	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
 	 If you say yes here you get support for the Lite-On LTR-501ALS-01
-	 ambient light and proximity sensor.
+	 ambient light and proximity sensor. This driver also supports LTR-559
+	 ALS/PS or LTR-301 ALS sensors.
 
 	 This driver can also be built as a module.  If so, the module
          will be called ltr501.
+
+config STK3310
+	tristate "STK3310 ALS and proximity sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	 Say yes here to get support for the Sensortek STK3310 ambient light
+	 and proximity sensor. The STK3311 model is also supported by this
+	 driver.
+
+	 Choosing M will build the driver as a module. If so, the module
+	 will be called stk3310.
 
 config TCS3414
 	tristate "TAOS TCS3414 digital color sensor"

@@ -223,8 +223,8 @@ void __init gemini_gpio_init(void)
 			set_irq_flags(j, IRQF_VALID);
 		}
 
-		irq_set_chained_handler(IRQ_GPIO(i), gpio_irq_handler);
-		irq_set_handler_data(IRQ_GPIO(i), (void *)i);
+		irq_set_chained_handler_and_data(IRQ_GPIO(i), gpio_irq_handler,
+						 (void *)i);
 	}
 
 	BUG_ON(gpiochip_add(&gemini_gpio_chip));

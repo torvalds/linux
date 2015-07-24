@@ -113,6 +113,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_UNSPEC,
 	BPF_MAP_TYPE_HASH,
 	BPF_MAP_TYPE_ARRAY,
+	BPF_MAP_TYPE_PROG_ARRAY,
 };
 
 enum bpf_prog_type {
@@ -210,6 +211,44 @@ enum bpf_func_id {
 	 * Return: 0 on success
 	 */
 	BPF_FUNC_l4_csum_replace,
+
+	/**
+	 * bpf_tail_call(ctx, prog_array_map, index) - jump into another BPF program
+	 * @ctx: context pointer passed to next program
+	 * @prog_array_map: pointer to map which type is BPF_MAP_TYPE_PROG_ARRAY
+	 * @index: index inside array that selects specific program to run
+	 * Return: 0 on success
+	 */
+	BPF_FUNC_tail_call,
+
+	/**
+	 * bpf_clone_redirect(skb, ifindex, flags) - redirect to another netdev
+	 * @skb: pointer to skb
+	 * @ifindex: ifindex of the net device
+	 * @flags: bit 0 - if set, redirect to ingress instead of egress
+	 *         other bits - reserved
+	 * Return: 0 on success
+	 */
+	BPF_FUNC_clone_redirect,
+
+	/**
+	 * u64 bpf_get_current_pid_tgid(void)
+	 * Return: current->tgid << 32 | current->pid
+	 */
+	BPF_FUNC_get_current_pid_tgid,
+
+	/**
+	 * u64 bpf_get_current_uid_gid(void)
+	 * Return: current_gid << 32 | current_uid
+	 */
+	BPF_FUNC_get_current_uid_gid,
+
+	/**
+	 * bpf_get_current_comm(char *buf, int size_of_buf)
+	 * stores current->comm into buf
+	 * Return: 0 on success
+	 */
+	BPF_FUNC_get_current_comm,
 	__BPF_FUNC_MAX_ID,
 };
 
@@ -226,6 +265,10 @@ struct __sk_buff {
 	__u32 vlan_tci;
 	__u32 vlan_proto;
 	__u32 priority;
+	__u32 ingress_ifindex;
+	__u32 ifindex;
+	__u32 tc_index;
+	__u32 cb[5];
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */

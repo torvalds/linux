@@ -52,9 +52,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
 		goto out;
 
-	if (btrfs_test_opt(root, SSD))
-		goto out;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;

@@ -60,6 +60,53 @@ static int dsi_mgr_parse_dual_panel(struct device_node *np, int id)
 	return 0;
 }
 
+static int dsi_mgr_host_register(int id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
+	struct msm_dsi *clk_master_dsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi_pll *src_pll;
+	int ret;
+
+	if (!IS_DUAL_PANEL()) {
+		ret = msm_dsi_host_register(msm_dsi->host, true);
+		if (ret)
+			return ret;
+
+		src_pll = msm_dsi_phy_get_pll(msm_dsi->phy);
+		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
+	} else if (!other_dsi) {
+		ret = 0;
+	} else {
+		struct msm_dsi *mdsi = IS_MASTER_PANEL(id) ?
+					msm_dsi : other_dsi;
+		struct msm_dsi *sdsi = IS_MASTER_PANEL(id) ?
+					other_dsi : msm_dsi;
+		/* Register slave host first, so that slave DSI device
+		 * has a chance to probe, and do not block the master
+		 * DSI device's probe.
+		 * Also, do not check defer for the slave host,
+		 * because only master DSI device adds the panel to global
+		 * panel list. The panel's device is the master DSI device.
+		 */
+		ret = msm_dsi_host_register(sdsi->host, false);
+		if (ret)
+			return ret;
+		ret = msm_dsi_host_register(mdsi->host, true);
+		if (ret)
+			return ret;
+
+		/* PLL0 is to drive both 2 DSI link clocks in Dual DSI mode. */
+		src_pll = msm_dsi_phy_get_pll(clk_master_dsi->phy);
+		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
+		if (ret)
+			return ret;
+		ret = msm_dsi_host_set_src_pll(other_dsi->host, src_pll);
+	}
+
+	return ret;
+}
+
 struct dsi_connector {
 	struct drm_connector base;
 	int id;
@@ -652,7 +699,6 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
 	int id = msm_dsi->id;
-	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	int ret;
 
 	if (id > DSI_MAX) {
@@ -670,31 +716,20 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 	ret = dsi_mgr_parse_dual_panel(msm_dsi->pdev->dev.of_node, id);
 	if (ret) {
 		pr_err("%s: failed to parse dual panel info\n", __func__);
-		return ret;
+		goto fail;
 	}
 
-	if (!IS_DUAL_PANEL()) {
-		ret = msm_dsi_host_register(msm_dsi->host, true);
-	} else if (!other_dsi) {
-		return 0;
-	} else {
-		struct msm_dsi *mdsi = IS_MASTER_PANEL(id) ?
-					msm_dsi : other_dsi;
-		struct msm_dsi *sdsi = IS_MASTER_PANEL(id) ?
-					other_dsi : msm_dsi;
-		/* Register slave host first, so that slave DSI device
-		 * has a chance to probe, and do not block the master
-		 * DSI device's probe.
-		 * Also, do not check defer for the slave host,
-		 * because only master DSI device adds the panel to global
-		 * panel list. The panel's device is the master DSI device.
-		 */
-		ret = msm_dsi_host_register(sdsi->host, false);
-		if (ret)
-			return ret;
-		ret = msm_dsi_host_register(mdsi->host, true);
+	ret = dsi_mgr_host_register(id);
+	if (ret) {
+		pr_err("%s: failed to register mipi dsi host for DSI %d\n",
+			__func__, id);
+		goto fail;
 	}
 
+	return 0;
+
+fail:
+	msm_dsim->dsi[id] = NULL;
 	return ret;
 }
 

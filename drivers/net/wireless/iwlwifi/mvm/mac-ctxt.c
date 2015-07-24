@@ -852,7 +852,7 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 				       MAC_FILTER_IN_BEACON |
 				       MAC_FILTER_IN_PROBE_REQUEST |
 				       MAC_FILTER_IN_CRC32);
-	mvm->hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+	ieee80211_hw_set(mvm->hw, RX_INCLUDES_FCS);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -1270,7 +1270,7 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	mvmvif->uploaded = false;
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)
-		mvm->hw->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, mvm->hw->flags);
 
 	return 0;
 }

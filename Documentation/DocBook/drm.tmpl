@@ -2439,6 +2439,18 @@ void intel_crt_init(struct drm_device *dev)
 	  <title>Tile group</title>
 !Pdrivers/gpu/drm/drm_crtc.c Tile group
     </sect2>
+    <sect2>
+	<title>Bridges</title>
+      <sect3>
+	 <title>Overview</title>
+!Pdrivers/gpu/drm/drm_bridge.c overview
+      </sect3>
+      <sect3>
+	 <title>Default bridge callback sequence</title>
+!Pdrivers/gpu/drm/drm_bridge.c bridge callbacks
+      </sect3>
+!Edrivers/gpu/drm/drm_bridge.c
+    </sect2>
   </sect1>
 
   <!-- Internals: kms properties -->
@@ -2573,7 +2585,22 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="36" valign="top" >DRM</td>
+	<td rowspan="37" valign="top" >DRM</td>
+	<td valign="top" >Generic</td>
+	<td valign="top" >“rotation”</td>
+	<td valign="top" >BITMASK</td>
+	<td valign="top" >{ 0, "rotate-0" },
+	{ 1, "rotate-90" },
+	{ 2, "rotate-180" },
+	{ 3, "rotate-270" },
+	{ 4, "reflect-x" },
+	{ 5, "reflect-y" }</td>
+	<td valign="top" >CRTC, Plane</td>
+	<td valign="top" >rotate-(degrees) rotates the image by the specified amount in degrees
+	in counter clockwise direction. reflect-x and reflect-y reflects the
+	image along the specified axis prior to rotation</td>
+	</tr>
+	<tr>
 	<td rowspan="5" valign="top" >Connector</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
@@ -2834,7 +2861,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="21" valign="top" >i915</td>
+	<td rowspan="20" valign="top" >i915</td>
 	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >"Broadcast RGB"</td>
 	<td valign="top" >ENUM</td>
@@ -2847,14 +2874,6 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "force-dvi", "off", "auto", "on" }</td>
 	<td valign="top" >Connector</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
-	<td rowspan="1" valign="top" >Plane</td>
-	<td valign="top" >“rotation”</td>
-	<td valign="top" >BITMASK</td>
-	<td valign="top" >{ 0, "rotate-0" }, { 2, "rotate-180" }</td>
-	<td valign="top" >Plane</td>
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
@@ -3364,20 +3383,8 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="2" valign="top" >omap</td>
-	<td rowspan="2" valign="top" >Generic</td>
-	<td valign="top" >“rotation”</td>
-	<td valign="top" >BITMASK</td>
-	<td valign="top" >{ 0, "rotate-0" },
-	{ 1, "rotate-90" },
-	{ 2, "rotate-180" },
-	{ 3, "rotate-270" },
-	{ 4, "reflect-x" },
-	{ 5, "reflect-y" }</td>
-	<td valign="top" >CRTC, Plane</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
+	<td valign="top" >omap</td>
+	<td valign="top" >Generic</td>
 	<td valign="top" >“zorder”</td>
 	<td valign="top" >RANGE</td>
 	<td valign="top" >Min=0, Max=3</td>
@@ -4067,7 +4074,7 @@ int num_ioctls;</synopsis>
         <title>DPIO</title>
 !Pdrivers/gpu/drm/i915/i915_reg.h DPIO
 	<table id="dpiox2">
-	  <title>Dual channel PHY (VLV/CHV)</title>
+	  <title>Dual channel PHY (VLV/CHV/BXT)</title>
 	  <tgroup cols="8">
 	    <colspec colname="c0" />
 	    <colspec colname="c1" />
@@ -4118,7 +4125,7 @@ int num_ioctls;</synopsis>
 	  </tgroup>
 	</table>
 	<table id="dpiox1">
-	  <title>Single channel PHY (CHV)</title>
+	  <title>Single channel PHY (CHV/BXT)</title>
 	  <tgroup cols="4">
 	    <colspec colname="c0" />
 	    <colspec colname="c1" />
@@ -4152,6 +4159,12 @@ int num_ioctls;</synopsis>
 	    </tbody>
 	  </tgroup>
 	</table>
+      </sect2>
+
+      <sect2>
+       <title>CSR firmware support for DMC</title>
+!Pdrivers/gpu/drm/i915/intel_csr.c csr support for dmc
+!Idrivers/gpu/drm/i915/intel_csr.c
       </sect2>
     </sect1>
 
@@ -4204,7 +4217,6 @@ int num_ioctls;</synopsis>
 !Idrivers/gpu/drm/i915/i915_gem_shrinker.c
       </sect2>
     </sect1>
-
     <sect1>
       <title> Tracing </title>
       <para>

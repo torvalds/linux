@@ -13,6 +13,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_atomic_helper.h>
 
 #include <linux/regulator/consumer.h>
 
@@ -59,10 +60,13 @@ static void exynos_dpi_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs exynos_dpi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = exynos_dpi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = exynos_dpi_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int exynos_dpi_get_modes(struct drm_connector *connector)
@@ -309,33 +313,19 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 	ctx->dev = dev;
 	ctx->dpms_mode = DRM_MODE_DPMS_OFF;
 
-	ret = exynos_drm_component_add(dev,
-					EXYNOS_DEVICE_TYPE_CONNECTOR,
-					ctx->display.type);
-	if (ret)
-		return ERR_PTR(ret);
-
 	ret = exynos_dpi_parse_dt(ctx);
 	if (ret < 0) {
 		devm_kfree(dev, ctx);
-		goto err_del_component;
+		return NULL;
 	}
 
 	if (ctx->panel_node) {
 		ctx->panel = of_drm_find_panel(ctx->panel_node);
-		if (!ctx->panel) {
-			exynos_drm_component_del(dev,
-						EXYNOS_DEVICE_TYPE_CONNECTOR);
+		if (!ctx->panel)
 			return ERR_PTR(-EPROBE_DEFER);
-		}
 	}
 
 	return &ctx->display;
-
-err_del_component:
-	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
-
-	return NULL;
 }
 
 int exynos_dpi_remove(struct exynos_drm_display *display)
@@ -346,8 +336,6 @@ int exynos_dpi_remove(struct exynos_drm_display *display)
 
 	if (ctx->panel)
 		drm_panel_detach(ctx->panel);
-
-	exynos_drm_component_del(ctx->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
 	return 0;
 }

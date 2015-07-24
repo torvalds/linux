@@ -37,12 +37,14 @@ static int (*orig_bus_suspend)(struct usb_hcd *hcd);
 
 struct ehci_ci_priv {
 	struct regulator *reg_vbus;
+	struct ci_hdrc *ci;
 };
 
 static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct ehci_ci_priv *priv = (struct ehci_ci_priv *)ehci->priv;
+	struct ci_hdrc *ci = priv->ci;
 	struct device *dev = hcd->self.controller;
 	int ret = 0;
 	int port = HCS_N_PORTS(ehci->hcs_params);
@@ -63,6 +65,15 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 				enable ? "enable" : "disable", ret);
 			return ret;
 		}
+	}
+
+	if (enable && (ci->platdata->phy_mode == USBPHY_INTERFACE_MODE_HSIC)) {
+		/*
+		 * Marvell 28nm HSIC PHY requires forcing the port to HS mode.
+		 * As HSIC is always HS, this should be safe for others.
+		 */
+		hw_port_test_set(ci, 5);
+		hw_port_test_set(ci, 0);
 	}
 	return 0;
 };
@@ -112,6 +123,7 @@ static int host_start(struct ci_hdrc *ci)
 
 	priv = (struct ehci_ci_priv *)ehci->priv;
 	priv->reg_vbus = NULL;
+	priv->ci = ci;
 
 	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci)) {
 		if (ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON) {

@@ -62,9 +62,10 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
 
-	ASSERT_RTNL();
+	if (cmd != SIOCGIFADDR && cmd != SIOCSIFADDR)
+		return err;
 
-	spin_lock_bh(&sdata->mib_lock);
+	rtnl_lock();
 
 	switch (cmd) {
 	case SIOCGIFADDR:
@@ -89,7 +90,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 	case SIOCSIFADDR:
 		if (netif_running(dev)) {
-			spin_unlock_bh(&sdata->mib_lock);
+			rtnl_unlock();
 			return -EBUSY;
 		}
 
@@ -111,7 +112,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	}
 
-	spin_unlock_bh(&sdata->mib_lock);
+	rtnl_unlock();
 	return err;
 }
 
@@ -125,7 +126,7 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 		return -EBUSY;
 
 	ieee802154_be64_to_le64(&extended_addr, addr->sa_data);
-	if (!ieee802154_is_valid_extended_addr(extended_addr))
+	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr))
 		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
@@ -134,19 +135,72 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	return mac802154_wpan_update_llsec(dev);
 }
 
+static int ieee802154_setup_hw(struct ieee802154_sub_if_data *sdata)
+{
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	int ret;
+
+	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+		ret = drv_set_promiscuous_mode(local,
+					       wpan_dev->promiscuous_mode);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_pan_id(local, wpan_dev->pan_id);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_extended_addr(local, wpan_dev->extended_addr);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_short_addr(local, wpan_dev->short_addr);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_LBT) {
+		ret = drv_set_lbt_mode(local, wpan_dev->lbt);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
+		ret = drv_set_csma_params(local, wpan_dev->min_be,
+					  wpan_dev->max_be,
+					  wpan_dev->csma_retries);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
+		ret = drv_set_max_frame_retries(local, wpan_dev->frame_retries);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mac802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
-	int res = 0;
+	int res;
 
 	ASSERT_RTNL();
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (!local->open_count) {
+		res = ieee802154_setup_hw(sdata);
+		if (res)
+			goto err;
+
 		res = drv_start(local);
-		WARN_ON(res);
 		if (res)
 			goto err;
 	}
@@ -218,8 +272,8 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 			 * exist really an use case if we need to support
 			 * multiple node types at the same time.
 			 */
-			if (sdata->vif.type == NL802154_IFTYPE_NODE &&
-			    nsdata->vif.type == NL802154_IFTYPE_NODE)
+			if (wpan_dev->iftype == NL802154_IFTYPE_NODE &&
+			    nsdata->wpan_dev.iftype == NL802154_IFTYPE_NODE)
 				return -EBUSY;
 
 			/* check all phy mac sublayer settings are the same.
@@ -239,67 +293,13 @@ static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct wpan_phy *phy = sdata->local->phy;
 
-	rc = ieee802154_check_concurrent_iface(sdata, sdata->vif.type);
+	rc = ieee802154_check_concurrent_iface(sdata, wpan_dev->iftype);
 	if (rc < 0)
 		return rc;
 
-	rc = mac802154_slave_open(dev);
-	if (rc < 0)
-		return rc;
-
-	mutex_lock(&phy->pib_lock);
-
-	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-		rc = drv_set_promiscuous_mode(local,
-					      wpan_dev->promiscuous_mode);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		rc = drv_set_pan_id(local, wpan_dev->pan_id);
-		if (rc < 0)
-			goto out;
-
-		rc = drv_set_extended_addr(local, wpan_dev->extended_addr);
-		if (rc < 0)
-			goto out;
-
-		rc = drv_set_short_addr(local, wpan_dev->short_addr);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_LBT) {
-		rc = drv_set_lbt_mode(local, wpan_dev->lbt);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
-		rc = drv_set_csma_params(local, wpan_dev->min_be,
-					 wpan_dev->max_be,
-					 wpan_dev->csma_retries);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
-		rc = drv_set_max_frame_retries(local, wpan_dev->frame_retries);
-		if (rc < 0)
-			goto out;
-	}
-
-	mutex_unlock(&phy->pib_lock);
-	return 0;
-
-out:
-	mutex_unlock(&phy->pib_lock);
-	return rc;
+	return mac802154_slave_open(dev);
 }
 
 static int mac802154_slave_close(struct net_device *dev)
@@ -309,15 +309,16 @@ static int mac802154_slave_close(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	hrtimer_cancel(&local->ifs_timer);
-
 	netif_stop_queue(dev);
 	local->open_count--;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (!local->open_count)
+	if (!local->open_count) {
+		flush_workqueue(local->workqueue);
+		hrtimer_cancel(&local->ifs_timer);
 		drv_stop(local);
+	}
 
 	return 0;
 }
@@ -374,14 +375,12 @@ static int mac802154_header_create(struct sk_buff *skb,
 	hdr.fc.type = cb->type;
 	hdr.fc.security_enabled = cb->secen;
 	hdr.fc.ack_request = cb->ackreq;
-	hdr.seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
+	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
 
 	if (mac802154_set_header_security(sdata, &hdr, cb) < 0)
 		return -EINVAL;
 
 	if (!saddr) {
-		spin_lock_bh(&sdata->mib_lock);
-
 		if (wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
 		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
 		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
@@ -393,8 +392,6 @@ static int mac802154_header_create(struct sk_buff *skb,
 		}
 
 		hdr.source.pan_id = wpan_dev->pan_id;
-
-		spin_unlock_bh(&sdata->mib_lock);
 	} else {
 		hdr.source = *(const struct ieee802154_addr *)saddr;
 	}
@@ -474,13 +471,15 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		       enum nl802154_iftype type)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	u8 tmp;
 
 	/* set some type-dependent values */
-	sdata->vif.type = type;
 	sdata->wpan_dev.iftype = type;
 
-	get_random_bytes(&wpan_dev->bsn, 1);
-	get_random_bytes(&wpan_dev->dsn, 1);
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&wpan_dev->bsn, tmp);
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&wpan_dev->dsn, tmp);
 
 	/* defaults per 802.15.4-2011 */
 	wpan_dev->min_be = 3;
@@ -503,7 +502,6 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
 		wpan_dev->promiscuous_mode = false;
 
-		spin_lock_init(&sdata->mib_lock);
 		mutex_init(&sdata->sec_mtx);
 
 		mac802154_llsec_init(&sdata->sec);
@@ -531,7 +529,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size, name,
+	ndev = alloc_netdev(sizeof(*sdata), name,
 			    name_assign_type, ieee802154_if_setup);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
@@ -547,7 +545,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
 		ndev->type = ARPHRD_IEEE802154;
-		if (ieee802154_is_valid_extended_addr(extended_addr))
+		if (ieee802154_is_valid_extended_unicast_addr(extended_addr))
 			ieee802154_le64_to_be64(ndev->dev_addr, &extended_addr);
 		else
 			memcpy(ndev->dev_addr, ndev->perm_addr,

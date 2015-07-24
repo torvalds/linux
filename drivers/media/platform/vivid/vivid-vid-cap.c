@@ -40,7 +40,6 @@ static const struct v4l2_fract
 
 static const struct vivid_fmt formats_ovl[] = {
 	{
-		.name     = "RGB565 (LE)",
 		.fourcc   = V4L2_PIX_FMT_RGB565, /* gggbbbbb rrrrrggg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
@@ -48,7 +47,6 @@ static const struct vivid_fmt formats_ovl[] = {
 		.buffers = 1,
 	},
 	{
-		.name     = "XRGB555 (LE)",
 		.fourcc   = V4L2_PIX_FMT_XRGB555, /* gggbbbbb arrrrrgg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
@@ -56,7 +54,6 @@ static const struct vivid_fmt formats_ovl[] = {
 		.buffers = 1,
 	},
 	{
-		.name     = "ARGB555 (LE)",
 		.fourcc   = V4L2_PIX_FMT_ARGB555, /* gggbbbbb arrrrrgg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
@@ -66,7 +63,7 @@ static const struct vivid_fmt formats_ovl[] = {
 };
 
 /* The number of discrete webcam framesizes */
-#define VIVID_WEBCAM_SIZES 3
+#define VIVID_WEBCAM_SIZES 4
 /* The number of discrete webcam frameintervals */
 #define VIVID_WEBCAM_IVALS (VIVID_WEBCAM_SIZES * 2)
 
@@ -75,6 +72,7 @@ static const struct v4l2_frmsize_discrete webcam_sizes[VIVID_WEBCAM_SIZES] = {
 	{  320, 180 },
 	{  640, 360 },
 	{ 1280, 720 },
+	{ 1920, 1080 },
 };
 
 /*
@@ -82,6 +80,8 @@ static const struct v4l2_frmsize_discrete webcam_sizes[VIVID_WEBCAM_SIZES] = {
  * elements in this array as there are in webcam_sizes.
  */
 static const struct v4l2_fract webcam_intervals[VIVID_WEBCAM_IVALS] = {
+	{  1, 2 },
+	{  1, 5 },
 	{  1, 10 },
 	{  1, 15 },
 	{  1, 25 },
@@ -501,6 +501,13 @@ static unsigned vivid_colorspace_cap(struct vivid_dev *dev)
 	return dev->colorspace_out;
 }
 
+static unsigned vivid_xfer_func_cap(struct vivid_dev *dev)
+{
+	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+		return tpg_g_xfer_func(&dev->tpg);
+	return dev->xfer_func_out;
+}
+
 static unsigned vivid_ycbcr_enc_cap(struct vivid_dev *dev)
 {
 	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
@@ -527,6 +534,7 @@ int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 	mp->field        = dev->field_cap;
 	mp->pixelformat  = dev->fmt_cap->fourcc;
 	mp->colorspace   = vivid_colorspace_cap(dev);
+	mp->xfer_func    = vivid_xfer_func_cap(dev);
 	mp->ycbcr_enc    = vivid_ycbcr_enc_cap(dev);
 	mp->quantization = vivid_quantization_cap(dev);
 	mp->num_planes = dev->fmt_cap->buffers;
@@ -616,6 +624,7 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 	mp->colorspace = vivid_colorspace_cap(dev);
 	mp->ycbcr_enc = vivid_ycbcr_enc_cap(dev);
+	mp->xfer_func = vivid_xfer_func_cap(dev);
 	mp->quantization = vivid_quantization_cap(dev);
 	memset(mp->reserved, 0, sizeof(mp->reserved));
 	return 0;
@@ -720,8 +729,8 @@ int vivid_s_fmt_vid_cap(struct file *file, void *priv,
 					webcam_sizes[i].height == mp->height)
 				break;
 		dev->webcam_size_idx = i;
-		if (dev->webcam_ival_idx >= 2 * (3 - i))
-			dev->webcam_ival_idx = 2 * (3 - i) - 1;
+		if (dev->webcam_ival_idx >= 2 * (VIVID_WEBCAM_SIZES - i))
+			dev->webcam_ival_idx = 2 * (VIVID_WEBCAM_SIZES - i) - 1;
 		vivid_update_format_cap(dev, false);
 	} else {
 		struct v4l2_rect r = { 0, 0, mp->width, mp->height };
@@ -1030,7 +1039,6 @@ int vidioc_enum_fmt_vid_overlay(struct file *file, void  *priv,
 
 	fmt = &formats_ovl[f->index];
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	return 0;
 }
@@ -1620,7 +1628,7 @@ static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
 
 	if (bt->standards == 0 || (bt->standards & V4L2_DV_BT_STD_CVT)) {
 		if (v4l2_detect_cvt(total_v_lines, h_freq, bt->vsync,
-				    bt->polarities, timings))
+				    bt->polarities, bt->interlaced, timings))
 			return true;
 	}
 
@@ -1631,7 +1639,8 @@ static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
 				  &aspect_ratio.numerator,
 				  &aspect_ratio.denominator);
 		if (v4l2_detect_gtf(total_v_lines, h_freq, bt->vsync,
-				    bt->polarities, aspect_ratio, timings))
+				    bt->polarities, bt->interlaced,
+				    aspect_ratio, timings))
 			return true;
 	}
 	return false;
@@ -1768,7 +1777,7 @@ int vidioc_enum_frameintervals(struct file *file, void *priv,
 			break;
 	if (i == ARRAY_SIZE(webcam_sizes))
 		return -EINVAL;
-	if (fival->index >= 2 * (3 - i))
+	if (fival->index >= 2 * (VIVID_WEBCAM_SIZES - i))
 		return -EINVAL;
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	fival->discrete = webcam_intervals[fival->index];
@@ -1798,7 +1807,7 @@ int vivid_vid_cap_s_parm(struct file *file, void *priv,
 			  struct v4l2_streamparm *parm)
 {
 	struct vivid_dev *dev = video_drvdata(file);
-	unsigned ival_sz = 2 * (3 - dev->webcam_size_idx);
+	unsigned ival_sz = 2 * (VIVID_WEBCAM_SIZES - dev->webcam_size_idx);
 	struct v4l2_fract tpf;
 	unsigned i;
 

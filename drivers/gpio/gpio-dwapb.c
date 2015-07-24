@@ -348,8 +348,8 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	irq_gc->chip_types[1].handler = handle_edge_irq;
 
 	if (!pp->irq_shared) {
-		irq_set_chained_handler(pp->irq, dwapb_irq_handler);
-		irq_set_handler_data(pp->irq, gpio);
+		irq_set_chained_handler_and_data(pp->irq, dwapb_irq_handler,
+						 gpio);
 	} else {
 		/*
 		 * Request a shared IRQ since where MFD would have devices

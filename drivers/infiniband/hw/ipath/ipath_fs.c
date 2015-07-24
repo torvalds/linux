@@ -277,7 +277,7 @@ static int remove_file(struct dentry *parent, char *name)
 	}
 
 	spin_lock(&tmp->d_lock);
-	if (!d_unhashed(tmp) && d_really_is_positive(tmp)) {
+	if (simple_positive(tmp)) {
 		dget_dlock(tmp);
 		__d_drop(tmp);
 		spin_unlock(&tmp->d_lock);

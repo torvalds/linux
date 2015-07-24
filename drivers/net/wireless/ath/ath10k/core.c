@@ -48,6 +48,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.name = "qca988x hw2.0",
 		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
 		.uart_pin = 7,
+		.has_shifted_cc_wraparound = true,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
 			.fw = QCA988X_HW_2_0_FW_FILE,
@@ -387,7 +388,9 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot otp execute result %d\n", result);
 
-	if (!skip_otp && result != 0) {
+	if (!(skip_otp || test_bit(ATH10K_FW_FEATURE_IGNORE_OTP_RESULT,
+				   ar->fw_features))
+	    && result != 0) {
 		ath10k_err(ar, "otp calibration failed: %d", result);
 		return -EINVAL;
 	}
@@ -482,6 +485,71 @@ static int ath10k_fetch_cal_file(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_core_fetch_spec_board_file(struct ath10k *ar)
+{
+	char filename[100];
+
+	scnprintf(filename, sizeof(filename), "board-%s-%s.bin",
+		  ath10k_bus_str(ar->hif.bus), ar->spec_board_id);
+
+	ar->board = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, filename);
+	if (IS_ERR(ar->board))
+		return PTR_ERR(ar->board);
+
+	ar->board_data = ar->board->data;
+	ar->board_len = ar->board->size;
+	ar->spec_board_loaded = true;
+
+	return 0;
+}
+
+static int ath10k_core_fetch_generic_board_file(struct ath10k *ar)
+{
+	if (!ar->hw_params.fw.board) {
+		ath10k_err(ar, "failed to find board file fw entry\n");
+		return -EINVAL;
+	}
+
+	ar->board = ath10k_fetch_fw_file(ar,
+					 ar->hw_params.fw.dir,
+					 ar->hw_params.fw.board);
+	if (IS_ERR(ar->board))
+		return PTR_ERR(ar->board);
+
+	ar->board_data = ar->board->data;
+	ar->board_len = ar->board->size;
+	ar->spec_board_loaded = false;
+
+	return 0;
+}
+
+static int ath10k_core_fetch_board_file(struct ath10k *ar)
+{
+	int ret;
+
+	if (strlen(ar->spec_board_id) > 0) {
+		ret = ath10k_core_fetch_spec_board_file(ar);
+		if (ret) {
+			ath10k_info(ar, "failed to load spec board file, falling back to generic: %d\n",
+				    ret);
+			goto generic;
+		}
+
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "found specific board file for %s\n",
+			   ar->spec_board_id);
+		return 0;
+	}
+
+generic:
+	ret = ath10k_core_fetch_generic_board_file(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to fetch generic board data: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int ath10k_core_fetch_firmware_api_1(struct ath10k *ar)
 {
 	int ret = 0;
@@ -490,23 +558,6 @@ static int ath10k_core_fetch_firmware_api_1(struct ath10k *ar)
 		ath10k_err(ar, "firmware file not defined\n");
 		return -EINVAL;
 	}
-
-	if (ar->hw_params.fw.board == NULL) {
-		ath10k_err(ar, "board data file not defined");
-		return -EINVAL;
-	}
-
-	ar->board = ath10k_fetch_fw_file(ar,
-					 ar->hw_params.fw.dir,
-					 ar->hw_params.fw.board);
-	if (IS_ERR(ar->board)) {
-		ret = PTR_ERR(ar->board);
-		ath10k_err(ar, "could not fetch board data (%d)\n", ret);
-		goto err;
-	}
-
-	ar->board_data = ar->board->data;
-	ar->board_len = ar->board->size;
 
 	ar->firmware = ath10k_fetch_fw_file(ar,
 					    ar->hw_params.fw.dir,
@@ -675,6 +726,17 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie wmi op version %d\n",
 				   ar->wmi.op_version);
 			break;
+		case ATH10K_FW_IE_HTT_OP_VERSION:
+			if (ie_len != sizeof(u32))
+				break;
+
+			version = (__le32 *)data;
+
+			ar->htt.op_version = le32_to_cpup(version);
+
+			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie htt op version %d\n",
+				   ar->htt.op_version);
+			break;
 		default:
 			ath10k_warn(ar, "Unknown FW IE: %u\n",
 				    le32_to_cpu(hdr->id));
@@ -695,27 +757,6 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		goto err;
 	}
 
-	/* now fetch the board file */
-	if (ar->hw_params.fw.board == NULL) {
-		ath10k_err(ar, "board data file not defined");
-		ret = -EINVAL;
-		goto err;
-	}
-
-	ar->board = ath10k_fetch_fw_file(ar,
-					 ar->hw_params.fw.dir,
-					 ar->hw_params.fw.board);
-	if (IS_ERR(ar->board)) {
-		ret = PTR_ERR(ar->board);
-		ath10k_err(ar, "could not fetch board data '%s/%s' (%d)\n",
-			   ar->hw_params.fw.dir, ar->hw_params.fw.board,
-			   ret);
-		goto err;
-	}
-
-	ar->board_data = ar->board->data;
-	ar->board_len = ar->board->size;
-
 	return 0;
 
 err:
@@ -729,6 +770,19 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 
 	/* calibration file is optional, don't check for any errors */
 	ath10k_fetch_cal_file(ar);
+
+	ret = ath10k_core_fetch_board_file(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to fetch board file: %d\n", ret);
+		return ret;
+	}
+
+	ar->fw_api = 5;
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
+
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API5_FILE);
+	if (ret == 0)
+		goto success;
 
 	ar->fw_api = 4;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
@@ -958,6 +1012,8 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->max_num_stations = TARGET_NUM_STATIONS;
 		ar->max_num_vdevs = TARGET_NUM_VDEVS;
 		ar->htt.max_num_pending_tx = TARGET_NUM_MSDU_DESC;
+		ar->fw_stats_req_mask = WMI_STAT_PDEV | WMI_STAT_VDEV |
+			WMI_STAT_PEER;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_1:
 	case ATH10K_FW_WMI_OP_VERSION_10_2:
@@ -966,17 +1022,45 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->max_num_stations = TARGET_10X_NUM_STATIONS;
 		ar->max_num_vdevs = TARGET_10X_NUM_VDEVS;
 		ar->htt.max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
+		ar->fw_stats_req_mask = WMI_STAT_PEER;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_TLV:
 		ar->max_num_peers = TARGET_TLV_NUM_PEERS;
 		ar->max_num_stations = TARGET_TLV_NUM_STATIONS;
 		ar->max_num_vdevs = TARGET_TLV_NUM_VDEVS;
+		ar->max_num_tdls_vdevs = TARGET_TLV_NUM_TDLS_VDEVS;
 		ar->htt.max_num_pending_tx = TARGET_TLV_NUM_MSDU_DESC;
+		ar->wow.max_num_patterns = TARGET_TLV_NUM_WOW_PATTERNS;
+		ar->fw_stats_req_mask = WMI_STAT_PDEV | WMI_STAT_VDEV |
+			WMI_STAT_PEER;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
 		WARN_ON(1);
 		return -EINVAL;
+	}
+
+	/* Backwards compatibility for firmwares without
+	 * ATH10K_FW_IE_HTT_OP_VERSION.
+	 */
+	if (ar->htt.op_version == ATH10K_FW_HTT_OP_VERSION_UNSET) {
+		switch (ar->wmi.op_version) {
+		case ATH10K_FW_WMI_OP_VERSION_MAIN:
+			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_MAIN;
+			break;
+		case ATH10K_FW_WMI_OP_VERSION_10_1:
+		case ATH10K_FW_WMI_OP_VERSION_10_2:
+		case ATH10K_FW_WMI_OP_VERSION_10_2_4:
+			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_10_1;
+			break;
+		case ATH10K_FW_WMI_OP_VERSION_TLV:
+			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_TLV;
+			break;
+		case ATH10K_FW_WMI_OP_VERSION_UNSET:
+		case ATH10K_FW_WMI_OP_VERSION_MAX:
+			WARN_ON(1);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -1000,6 +1084,22 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	status = ath10k_download_cal_data(ar);
 	if (status)
 		goto err;
+
+	/* Some of of qca988x solutions are having global reset issue
+         * during target initialization. Bypassing PLL setting before
+         * downloading firmware and letting the SoC run on REF_CLK is
+         * fixing the problem. Corresponding firmware change is also needed
+         * to set the clock source once the target is initialized.
+	 */
+	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT,
+		     ar->fw_features)) {
+		status = ath10k_bmi_write32(ar, hi_skip_clock_init, 1);
+		if (status) {
+			ath10k_err(ar, "could not write to skip_clock_init: %d\n",
+				   status);
+			goto err;
+		}
+	}
 
 	status = ath10k_download_fw(ar, mode);
 	if (status)
@@ -1080,9 +1180,8 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 
 	if (mode == ATH10K_FIRMWARE_MODE_NORMAL) {
 		status = ath10k_wmi_wait_for_service_ready(ar);
-		if (status <= 0) {
+		if (status) {
 			ath10k_warn(ar, "wmi service ready event not received");
-			status = -ETIMEDOUT;
 			goto err_hif_stop;
 		}
 	}
@@ -1098,9 +1197,8 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	}
 
 	status = ath10k_wmi_wait_for_unified_ready(ar);
-	if (status <= 0) {
+	if (status) {
 		ath10k_err(ar, "wmi unified ready event not received\n");
-		status = -ETIMEDOUT;
 		goto err_hif_stop;
 	}
 
@@ -1151,6 +1249,7 @@ EXPORT_SYMBOL(ath10k_core_start);
 int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
 {
 	int ret;
+	unsigned long time_left;
 
 	reinit_completion(&ar->target_suspend);
 
@@ -1160,9 +1259,9 @@ int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
 		return ret;
 	}
 
-	ret = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
+	time_left = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
 
-	if (ret == 0) {
+	if (!time_left) {
 		ath10k_warn(ar, "suspend timed out - target pause event never came\n");
 		return -ETIMEDOUT;
 	}
@@ -1386,6 +1485,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	init_completion(&ar->scan.completed);
 	init_completion(&ar->scan.on_channel);
 	init_completion(&ar->target_suspend);
+	init_completion(&ar->wow.wakeup_completed);
 
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);

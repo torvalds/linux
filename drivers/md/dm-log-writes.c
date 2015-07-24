@@ -55,8 +55,8 @@
 #define LOG_DISCARD_FLAG (1 << 2)
 #define LOG_MARK_FLAG (1 << 3)
 
-#define WRITE_LOG_VERSION 1
-#define WRITE_LOG_MAGIC 0x6a736677736872
+#define WRITE_LOG_VERSION 1ULL
+#define WRITE_LOG_MAGIC 0x6a736677736872ULL
 
 /*
  * The disk format for this is braindead simple.

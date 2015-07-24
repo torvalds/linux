@@ -839,7 +839,7 @@ static void bitmap_file_kick(struct bitmap *bitmap)
 		if (bitmap->storage.file) {
 			path = kmalloc(PAGE_SIZE, GFP_KERNEL);
 			if (path)
-				ptr = d_path(&bitmap->storage.file->f_path,
+				ptr = file_path(bitmap->storage.file,
 					     path, PAGE_SIZE);
 
 			printk(KERN_ALERT
@@ -1927,7 +1927,7 @@ void bitmap_status(struct seq_file *seq, struct bitmap *bitmap)
 		   chunk_kb ? "KB" : "B");
 	if (bitmap->storage.file) {
 		seq_printf(seq, ", file: ");
-		seq_path(seq, &bitmap->storage.file->f_path, " \t\n");
+		seq_file_path(seq, bitmap->storage.file, " \t\n");
 	}
 
 	seq_printf(seq, "\n");

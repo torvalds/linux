@@ -132,7 +132,8 @@ static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long
  *   Voltage must be set here.
  *   GPIO 1: LNBP EN, GPIO 2: LNBP VSEL
  */
-static int SetVoltage_Activy (struct budget *budget, fe_sec_voltage_t voltage)
+static int SetVoltage_Activy(struct budget *budget,
+			     enum fe_sec_voltage voltage)
 {
 	struct saa7146_dev *dev=budget->dev;
 
@@ -157,14 +158,16 @@ static int SetVoltage_Activy (struct budget *budget, fe_sec_voltage_t voltage)
 	return 0;
 }
 
-static int siemens_budget_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int siemens_budget_set_voltage(struct dvb_frontend *fe,
+				      enum fe_sec_voltage voltage)
 {
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 
 	return SetVoltage_Activy (budget, voltage);
 }
 
-static int budget_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int budget_set_tone(struct dvb_frontend *fe,
+			   enum fe_sec_tone_mode tone)
 {
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 
@@ -193,7 +196,8 @@ static int budget_diseqc_send_master_cmd(struct dvb_frontend* fe, struct dvb_dis
 	return 0;
 }
 
-static int budget_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd)
+static int budget_diseqc_send_burst(struct dvb_frontend *fe,
+				    enum fe_sec_mini_cmd minicmd)
 {
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 

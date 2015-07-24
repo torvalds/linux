@@ -2253,30 +2253,10 @@ void rtl8821ae_set_qos(struct ieee80211_hw *hw, int aci)
 	}
 }
 
-static void rtl8821ae_clear_interrupt(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 tmp;
-	tmp = rtl_read_dword(rtlpriv, REG_HISR);
-	/*printk("clear interrupt first:\n");
-	printk("0x%x = 0x%08x\n",REG_HISR, tmp);*/
-	rtl_write_dword(rtlpriv, REG_HISR, tmp);
-
-	tmp = rtl_read_dword(rtlpriv, REG_HISRE);
-	/*printk("0x%x = 0x%08x\n",REG_HISRE, tmp);*/
-	rtl_write_dword(rtlpriv, REG_HISRE, tmp);
-
-	tmp = rtl_read_dword(rtlpriv, REG_HSISR);
-	/*printk("0x%x = 0x%08x\n",REG_HSISR, tmp);*/
-	rtl_write_dword(rtlpriv, REG_HSISR, tmp);
-}
-
 void rtl8821ae_enable_interrupt(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-	rtl8821ae_clear_interrupt(hw);/*clear it here first*/
 
 	rtl_write_dword(rtlpriv, REG_HIMR, rtlpci->irq_mask[0] & 0xFFFFFFFF);
 	rtl_write_dword(rtlpriv, REG_HIMRE, rtlpci->irq_mask[1] & 0xFFFFFFFF);
@@ -3232,8 +3212,8 @@ static void _rtl8821ae_read_adapter_info(struct ieee80211_hw *hw, bool b_pseudo_
 	if (rtlefuse->eeprom_channelplan == 0xff)
 		rtlefuse->eeprom_channelplan = 0x7F;
 
-	/* set channel paln to world wide 13 */
-	/* rtlefuse->channel_plan = (u8)rtlefuse->eeprom_channelplan; */
+	/* set channel plan from efuse */
+	rtlefuse->channel_plan = rtlefuse->eeprom_channelplan;
 
 	/*parse xtal*/
 	rtlefuse->crystalcap = hwinfo[EEPROM_XTAL_8821AE];

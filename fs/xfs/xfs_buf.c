@@ -1419,9 +1419,9 @@ xfs_buf_submit_wait(
 	return error;
 }
 
-xfs_caddr_t
+void *
 xfs_buf_offset(
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	size_t			offset)
 {
 	struct page		*page;
@@ -1431,7 +1431,7 @@ xfs_buf_offset(
 
 	offset += bp->b_offset;
 	page = bp->b_pages[offset >> PAGE_SHIFT];
-	return (xfs_caddr_t)page_address(page) + (offset & (PAGE_SIZE-1));
+	return page_address(page) + (offset & (PAGE_SIZE-1));
 }
 
 /*

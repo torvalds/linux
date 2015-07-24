@@ -99,6 +99,7 @@ struct plat_stmmacenet_data {
 	int phy_addr;
 	int interface;
 	struct stmmac_mdio_bus_data *mdio_bus_data;
+	struct device_node *phy_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	int clk_csr;
 	int has_gmac;

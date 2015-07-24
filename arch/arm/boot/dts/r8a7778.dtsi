@@ -68,7 +68,7 @@
 	};
 
 	/* irqpin: IRQ0 - IRQ3 */
-	irqpin: irqpin@fe78001c {
+	irqpin: interrupt-controller@fe78001c {
 		compatible = "renesas,intc-irqpin-r8a7778", "renesas,intc-irqpin";
 		#interrupt-cells = <2>;
 		interrupt-controller;

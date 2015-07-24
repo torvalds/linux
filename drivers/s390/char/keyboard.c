@@ -433,20 +433,23 @@ do_kdgkb_ioctl(struct kbd_data *kbd, struct kbsentry __user *u_kbs,
 	case KDSKBSENT:
 		if (!perm)
 			return -EPERM;
-		len = strnlen_user(u_kbs->kb_string,
-				   sizeof(u_kbs->kb_string) - 1);
+		len = strnlen_user(u_kbs->kb_string, sizeof(u_kbs->kb_string));
 		if (!len)
 			return -EFAULT;
-		if (len > sizeof(u_kbs->kb_string) - 1)
+		if (len > sizeof(u_kbs->kb_string))
 			return -EINVAL;
-		p = kmalloc(len + 1, GFP_KERNEL);
+		p = kmalloc(len, GFP_KERNEL);
 		if (!p)
 			return -ENOMEM;
 		if (copy_from_user(p, u_kbs->kb_string, len)) {
 			kfree(p);
 			return -EFAULT;
 		}
-		p[len] = 0;
+		/*
+		 * Make sure the string is terminated by 0. User could have
+		 * modified it between us running strnlen_user() and copying it.
+		 */
+		p[len - 1] = 0;
 		kfree(kbd->func_table[kb_func]);
 		kbd->func_table[kb_func] = p;
 		break;

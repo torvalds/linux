@@ -39,7 +39,7 @@ static int cma_used_get(void *data, u64 *val)
 
 	mutex_lock(&cma->lock);
 	/* pages counter is smaller than sizeof(int) */
-	used = bitmap_weight(cma->bitmap, (int)cma->count);
+	used = bitmap_weight(cma->bitmap, (int)cma_bitmap_maxno(cma));
 	mutex_unlock(&cma->lock);
 	*val = (u64)used << cma->order_per_bit;
 
@@ -52,13 +52,14 @@ static int cma_maxchunk_get(void *data, u64 *val)
 	struct cma *cma = data;
 	unsigned long maxchunk = 0;
 	unsigned long start, end = 0;
+	unsigned long bitmap_maxno = cma_bitmap_maxno(cma);
 
 	mutex_lock(&cma->lock);
 	for (;;) {
-		start = find_next_zero_bit(cma->bitmap, cma->count, end);
+		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
 		if (start >= cma->count)
 			break;
-		end = find_next_bit(cma->bitmap, cma->count, start);
+		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
 		maxchunk = max(end - start, maxchunk);
 	}
 	mutex_unlock(&cma->lock);
@@ -170,10 +171,10 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
 
 	tmp = debugfs_create_dir(name, cma_debugfs_root);
 
-	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
+	debugfs_create_file("alloc", S_IWUSR, tmp, cma,
 				&cma_alloc_fops);
 
-	debugfs_create_file("free", S_IWUSR, cma_debugfs_root, cma,
+	debugfs_create_file("free", S_IWUSR, tmp, cma,
 				&cma_free_fops);
 
 	debugfs_create_file("base_pfn", S_IRUGO, tmp,

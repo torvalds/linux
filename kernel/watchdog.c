@@ -19,6 +19,7 @@
 #include <linux/sysctl.h>
 #include <linux/smpboot.h>
 #include <linux/sched/rt.h>
+#include <linux/tick.h>
 
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
@@ -58,6 +59,12 @@ int __read_mostly sysctl_softlockup_all_cpu_backtrace;
 #else
 #define sysctl_softlockup_all_cpu_backtrace 0
 #endif
+static struct cpumask watchdog_cpumask __read_mostly;
+unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
+
+/* Helper for online, unparked cpus. */
+#define for_each_watchdog_cpu(cpu) \
+	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
 
 static int __read_mostly watchdog_running;
 static u64 __read_mostly sample_period;
@@ -207,7 +214,7 @@ void touch_all_softlockup_watchdogs(void)
 	 * do we care if a 0 races with a timestamp?
 	 * all it means is the softlock check starts one cycle later
 	 */
-	for_each_online_cpu(cpu)
+	for_each_watchdog_cpu(cpu)
 		per_cpu(watchdog_touch_ts, cpu) = 0;
 }
 
@@ -616,7 +623,7 @@ void watchdog_nmi_enable_all(void)
 		goto unlock;
 
 	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_watchdog_cpu(cpu)
 		watchdog_nmi_enable(cpu);
 	put_online_cpus();
 
@@ -634,7 +641,7 @@ void watchdog_nmi_disable_all(void)
 		goto unlock;
 
 	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_watchdog_cpu(cpu)
 		watchdog_nmi_disable(cpu);
 	put_online_cpus();
 
@@ -696,7 +703,7 @@ static void update_watchdog_all_cpus(void)
 	int cpu;
 
 	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_watchdog_cpu(cpu)
 		update_watchdog(cpu);
 	put_online_cpus();
 }
@@ -709,8 +716,12 @@ static int watchdog_enable_all_cpus(void)
 		err = smpboot_register_percpu_thread(&watchdog_threads);
 		if (err)
 			pr_err("Failed to create watchdog threads, disabled\n");
-		else
+		else {
+			if (smpboot_update_cpumask_percpu_thread(
+				    &watchdog_threads, &watchdog_cpumask))
+				pr_err("Failed to set cpumask for watchdog threads\n");
 			watchdog_running = 1;
+		}
 	} else {
 		/*
 		 * Enable/disable the lockup detectors or
@@ -879,11 +890,57 @@ out:
 	mutex_unlock(&watchdog_proc_mutex);
 	return err;
 }
+
+/*
+ * The cpumask is the mask of possible cpus that the watchdog can run
+ * on, not the mask of cpus it is actually running on.  This allows the
+ * user to specify a mask that will include cpus that have not yet
+ * been brought online, if desired.
+ */
+int proc_watchdog_cpumask(struct ctl_table *table, int write,
+			  void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int err;
+
+	mutex_lock(&watchdog_proc_mutex);
+	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
+	if (!err && write) {
+		/* Remove impossible cpus to keep sysctl output cleaner. */
+		cpumask_and(&watchdog_cpumask, &watchdog_cpumask,
+			    cpu_possible_mask);
+
+		if (watchdog_running) {
+			/*
+			 * Failure would be due to being unable to allocate
+			 * a temporary cpumask, so we are likely not in a
+			 * position to do much else to make things better.
+			 */
+			if (smpboot_update_cpumask_percpu_thread(
+				    &watchdog_threads, &watchdog_cpumask) != 0)
+				pr_err("cpumask update failed\n");
+		}
+	}
+	mutex_unlock(&watchdog_proc_mutex);
+	return err;
+}
+
 #endif /* CONFIG_SYSCTL */
 
 void __init lockup_detector_init(void)
 {
 	set_sample_period();
+
+#ifdef CONFIG_NO_HZ_FULL
+	if (tick_nohz_full_enabled()) {
+		if (!cpumask_empty(tick_nohz_full_mask))
+			pr_info("Disabling watchdog on nohz_full cores by default\n");
+		cpumask_andnot(&watchdog_cpumask, cpu_possible_mask,
+			       tick_nohz_full_mask);
+	} else
+		cpumask_copy(&watchdog_cpumask, cpu_possible_mask);
+#else
+	cpumask_copy(&watchdog_cpumask, cpu_possible_mask);
+#endif
 
 	if (watchdog_enabled)
 		watchdog_enable_all_cpus();

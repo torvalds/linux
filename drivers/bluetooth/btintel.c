@@ -53,12 +53,6 @@ int btintel_check_bdaddr(struct hci_dev *hdev)
 	}
 
 	bda = (struct hci_rp_read_bd_addr *)skb->data;
-	if (bda->status) {
-		BT_ERR("%s: Intel device address result failed (%02x)",
-		       hdev->name, bda->status);
-		kfree_skb(skb);
-		return -bt_to_errno(bda->status);
-	}
 
 	/* For some Intel based controllers, the default Bluetooth device
 	 * address 00:03:19:9E:8B:00 can be found. These controllers are

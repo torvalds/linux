@@ -21,6 +21,11 @@ Optional properties:
   below for the case, when a GPIO is used for the CD line
 - wp-inverted: when present, polarity on the WP line is inverted. See the note
   below for the case, when a GPIO is used for the WP line
+- disable-wp: When set no physical WP line is present. This property should
+  only be specified when the controller has a dedicated write-protect
+  detection logic. If a GPIO is always used for the write-protect detection
+  logic it is sufficient to not specify wp-gpios property in the absence of a WP
+  line.
 - max-frequency: maximum operating clock frequency
 - no-1-8-v: when present, denotes that 1.8v card voltage is not supported on
   this system, even if the controller claims it is.

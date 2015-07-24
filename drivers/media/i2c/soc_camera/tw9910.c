@@ -691,11 +691,16 @@ static int tw9910_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int tw9910_g_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
+static int tw9910_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
+
+	if (format->pad)
+		return -EINVAL;
 
 	if (!priv->scale) {
 		priv->scale = tw9910_select_norm(priv->norm, 640, 480);
@@ -737,12 +742,17 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int tw9910_try_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *mf)
+static int tw9910_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 	const struct tw9910_scale_ctrl *scale;
+
+	if (format->pad)
+		return -EINVAL;
 
 	if (V4L2_FIELD_ANY == mf->field) {
 		mf->field = V4L2_FIELD_INTERLACED_BT;
@@ -764,6 +774,9 @@ static int tw9910_try_fmt(struct v4l2_subdev *sd,
 	mf->width	= scale->width;
 	mf->height	= scale->height;
 
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		return tw9910_s_fmt(sd, mf);
+	cfg->try_fmt = *mf;
 	return 0;
 }
 
@@ -821,13 +834,14 @@ static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 	.s_power	= tw9910_s_power,
 };
 
-static int tw9910_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int tw9910_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index)
+	if (code->pad || code->index)
 		return -EINVAL;
 
-	*code = MEDIA_BUS_FMT_UYVY8_2X8;
+	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	return 0;
 }
 
@@ -880,20 +894,23 @@ static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_std		= tw9910_s_std,
 	.g_std		= tw9910_g_std,
 	.s_stream	= tw9910_s_stream,
-	.g_mbus_fmt	= tw9910_g_fmt,
-	.s_mbus_fmt	= tw9910_s_fmt,
-	.try_mbus_fmt	= tw9910_try_fmt,
 	.cropcap	= tw9910_cropcap,
 	.g_crop		= tw9910_g_crop,
-	.enum_mbus_fmt	= tw9910_enum_fmt,
 	.g_mbus_config	= tw9910_g_mbus_config,
 	.s_mbus_config	= tw9910_s_mbus_config,
 	.g_tvnorms	= tw9910_g_tvnorms,
 };
 
+static const struct v4l2_subdev_pad_ops tw9910_subdev_pad_ops = {
+	.enum_mbus_code = tw9910_enum_mbus_code,
+	.get_fmt	= tw9910_get_fmt,
+	.set_fmt	= tw9910_set_fmt,
+};
+
 static struct v4l2_subdev_ops tw9910_subdev_ops = {
 	.core	= &tw9910_subdev_core_ops,
 	.video	= &tw9910_subdev_video_ops,
+	.pad	= &tw9910_subdev_pad_ops,
 };
 
 /*

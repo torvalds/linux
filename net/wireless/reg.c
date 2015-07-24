@@ -989,8 +989,8 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_NO_OFDM;
 	if (rd_flags & NL80211_RRF_NO_OUTDOOR)
 		channel_flags |= IEEE80211_CHAN_INDOOR_ONLY;
-	if (rd_flags & NL80211_RRF_GO_CONCURRENT)
-		channel_flags |= IEEE80211_CHAN_GO_CONCURRENT;
+	if (rd_flags & NL80211_RRF_IR_CONCURRENT)
+		channel_flags |= IEEE80211_CHAN_IR_CONCURRENT;
 	if (rd_flags & NL80211_RRF_NO_HT40MINUS)
 		channel_flags |= IEEE80211_CHAN_NO_HT40MINUS;
 	if (rd_flags & NL80211_RRF_NO_HT40PLUS)

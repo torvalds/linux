@@ -498,3 +498,5 @@ bool lpfc_disable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
 bool lpfc_find_next_oas_lun(struct lpfc_hba *, struct lpfc_name *,
 			    struct lpfc_name *, uint64_t *, struct lpfc_name *,
 			    struct lpfc_name *, uint64_t *, uint32_t *);
+int lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox);
+void lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb);

@@ -84,8 +84,6 @@ struct fsnotify_fname;
  * Each group much define these ops.  The fsnotify infrastructure will call
  * these operations for each relevant group.
  *
- * should_send_event - given a group, inode, and mask this function determines
- *		if the group is interested in this event.
  * handle_event - main call for a group to handle an fs event
  * free_group_priv - called when a group refcnt hits 0 to clean up the private union
  * freeing_mark - called when a mark is being destroyed for some reason.  The group

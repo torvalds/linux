@@ -19,7 +19,7 @@
 
 #include "adreno_gpu.h"
 
-#if defined(CONFIG_MSM_BUS_SCALING) && !defined(CONFIG_OF)
+#if defined(DOWNSTREAM_CONFIG_MSM_BUS_SCALING) && !defined(CONFIG_OF)
 #  include <mach/kgsl.h>
 #endif
 
@@ -40,6 +40,14 @@ static const struct adreno_info gpulist[] = {
 		.pm4fw = "a300_pm4.fw",
 		.pfpfw = "a300_pfp.fw",
 		.gmem  = SZ_256K,
+		.init  = a3xx_gpu_init,
+	}, {
+		.rev   = ADRENO_REV(3, 0, 6, 0),
+		.revn  = 307,        /* because a305c is revn==306 */
+		.name  = "A306",
+		.pm4fw = "a300_pm4.fw",
+		.pfpfw = "a300_pfp.fw",
+		.gmem  = SZ_128K,
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 2, ANY_ID, ANY_ID),
@@ -240,7 +248,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 			config.rev = ADRENO_REV(3, 0, 5, 0);
 
 	}
-#  ifdef CONFIG_MSM_BUS_SCALING
+#  ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	config.bus_scale_table = pdata->bus_scale_table;
 #  endif
 #endif

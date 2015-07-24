@@ -254,9 +254,10 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	unsigned int verdict = NF_DROP;
 	const struct arphdr *arp;
-	struct arpt_entry *e, *back;
+	struct arpt_entry *e, **jumpstack;
 	const char *indev, *outdev;
-	void *table_base;
+	const void *table_base;
+	unsigned int cpu, stackidx = 0;
 	const struct xt_table_info *private;
 	struct xt_action_param acpar;
 	unsigned int addend;
@@ -270,15 +271,16 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	local_bh_disable();
 	addend = xt_write_recseq_begin();
 	private = table->private;
+	cpu     = smp_processor_id();
 	/*
 	 * Ensure we load private-> members after we've fetched the base
 	 * pointer.
 	 */
 	smp_read_barrier_depends();
-	table_base = private->entries[smp_processor_id()];
+	table_base = private->entries;
+	jumpstack  = (struct arpt_entry **)private->jumpstack[cpu];
 
 	e = get_entry(table_base, private->hook_entry[hook]);
-	back = get_entry(table_base, private->underflow[hook]);
 
 	acpar.in      = state->in;
 	acpar.out     = state->out;
@@ -289,13 +291,15 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	arp = arp_hdr(skb);
 	do {
 		const struct xt_entry_target *t;
+		struct xt_counters *counter;
 
 		if (!arp_packet_match(arp, skb->dev, indev, outdev, &e->arp)) {
 			e = arpt_next_entry(e);
 			continue;
 		}
 
-		ADD_COUNTER(e->counters, arp_hdr_len(skb->dev), 1);
+		counter = xt_get_this_cpu_counter(&e->counters);
+		ADD_COUNTER(*counter, arp_hdr_len(skb->dev), 1);
 
 		t = arpt_get_target_c(e);
 
@@ -310,18 +314,23 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 					verdict = (unsigned int)(-v) - 1;
 					break;
 				}
-				e = back;
-				back = get_entry(table_base, back->comefrom);
+				if (stackidx == 0) {
+					e = get_entry(table_base,
+						      private->underflow[hook]);
+				} else {
+					e = jumpstack[--stackidx];
+					e = arpt_next_entry(e);
+				}
 				continue;
 			}
 			if (table_base + v
 			    != arpt_next_entry(e)) {
-				/* Save old back ptr in next entry */
-				struct arpt_entry *next = arpt_next_entry(e);
-				next->comefrom = (void *)back - table_base;
 
-				/* set back pointer to next entry */
-				back = next;
+				if (stackidx >= private->stacksize) {
+					verdict = NF_DROP;
+					break;
+				}
+				jumpstack[stackidx++] = e;
 			}
 
 			e = get_entry(table_base, v);
@@ -521,6 +530,10 @@ find_check_entry(struct arpt_entry *e, const char *name, unsigned int size)
 	if (ret)
 		return ret;
 
+	e->counters.pcnt = xt_percpu_counter_alloc();
+	if (IS_ERR_VALUE(e->counters.pcnt))
+		return -ENOMEM;
+
 	t = arpt_get_target(e);
 	target = xt_request_find_target(NFPROTO_ARP, t->u.user.name,
 					t->u.user.revision);
@@ -538,6 +551,8 @@ find_check_entry(struct arpt_entry *e, const char *name, unsigned int size)
 err:
 	module_put(t->u.kernel.target->me);
 out:
+	xt_percpu_counter_free(e->counters.pcnt);
+
 	return ret;
 }
 
@@ -614,6 +629,7 @@ static inline void cleanup_entry(struct arpt_entry *e)
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);
+	xt_percpu_counter_free(e->counters.pcnt);
 }
 
 /* Checks and translates the user-supplied table segment (held in
@@ -702,12 +718,6 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 		return ret;
 	}
 
-	/* And one copy for every other CPU */
-	for_each_possible_cpu(i) {
-		if (newinfo->entries[i] && newinfo->entries[i] != entry0)
-			memcpy(newinfo->entries[i], entry0, newinfo->size);
-	}
-
 	return ret;
 }
 
@@ -722,14 +732,16 @@ static void get_counters(const struct xt_table_info *t,
 		seqcount_t *s = &per_cpu(xt_recseq, cpu);
 
 		i = 0;
-		xt_entry_foreach(iter, t->entries[cpu], t->size) {
+		xt_entry_foreach(iter, t->entries, t->size) {
+			struct xt_counters *tmp;
 			u64 bcnt, pcnt;
 			unsigned int start;
 
+			tmp = xt_get_per_cpu_counter(&iter->counters, cpu);
 			do {
 				start = read_seqcount_begin(s);
-				bcnt = iter->counters.bcnt;
-				pcnt = iter->counters.pcnt;
+				bcnt = tmp->bcnt;
+				pcnt = tmp->pcnt;
 			} while (read_seqcount_retry(s, start));
 
 			ADD_COUNTER(counters[i], bcnt, pcnt);
@@ -774,7 +786,7 @@ static int copy_entries_to_user(unsigned int total_size,
 	if (IS_ERR(counters))
 		return PTR_ERR(counters);
 
-	loc_cpu_entry = private->entries[raw_smp_processor_id()];
+	loc_cpu_entry = private->entries;
 	/* ... then copy entire thing ... */
 	if (copy_to_user(userptr, loc_cpu_entry, total_size) != 0) {
 		ret = -EFAULT;
@@ -863,16 +875,16 @@ static int compat_table_info(const struct xt_table_info *info,
 			     struct xt_table_info *newinfo)
 {
 	struct arpt_entry *iter;
-	void *loc_cpu_entry;
+	const void *loc_cpu_entry;
 	int ret;
 
 	if (!newinfo || !info)
 		return -EINVAL;
 
-	/* we dont care about newinfo->entries[] */
+	/* we dont care about newinfo->entries */
 	memcpy(newinfo, info, offsetof(struct xt_table_info, entries));
 	newinfo->initial_entries = 0;
-	loc_cpu_entry = info->entries[raw_smp_processor_id()];
+	loc_cpu_entry = info->entries;
 	xt_compat_init_offsets(NFPROTO_ARP, info->number);
 	xt_entry_foreach(iter, loc_cpu_entry, info->size) {
 		ret = compat_calc_entry(iter, info, loc_cpu_entry, newinfo);
@@ -1037,7 +1049,7 @@ static int __do_replace(struct net *net, const char *name,
 	get_counters(oldinfo, counters);
 
 	/* Decrease module usage counts and free resource */
-	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
+	loc_cpu_old_entry = oldinfo->entries;
 	xt_entry_foreach(iter, loc_cpu_old_entry, oldinfo->size)
 		cleanup_entry(iter);
 
@@ -1084,8 +1096,7 @@ static int do_replace(struct net *net, const void __user *user,
 	if (!newinfo)
 		return -ENOMEM;
 
-	/* choose the copy that is on our node/cpu */
-	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	loc_cpu_entry = newinfo->entries;
 	if (copy_from_user(loc_cpu_entry, user + sizeof(tmp),
 			   tmp.size) != 0) {
 		ret = -EFAULT;
@@ -1115,7 +1126,7 @@ static int do_replace(struct net *net, const void __user *user,
 static int do_add_counters(struct net *net, const void __user *user,
 			   unsigned int len, int compat)
 {
-	unsigned int i, curcpu;
+	unsigned int i;
 	struct xt_counters_info tmp;
 	struct xt_counters *paddc;
 	unsigned int num_counters;
@@ -1125,7 +1136,6 @@ static int do_add_counters(struct net *net, const void __user *user,
 	struct xt_table *t;
 	const struct xt_table_info *private;
 	int ret = 0;
-	void *loc_cpu_entry;
 	struct arpt_entry *iter;
 	unsigned int addend;
 #ifdef CONFIG_COMPAT
@@ -1181,12 +1191,13 @@ static int do_add_counters(struct net *net, const void __user *user,
 	}
 
 	i = 0;
-	/* Choose the copy that is on our node */
-	curcpu = smp_processor_id();
-	loc_cpu_entry = private->entries[curcpu];
+
 	addend = xt_write_recseq_begin();
-	xt_entry_foreach(iter, loc_cpu_entry, private->size) {
-		ADD_COUNTER(iter->counters, paddc[i].bcnt, paddc[i].pcnt);
+	xt_entry_foreach(iter,  private->entries, private->size) {
+		struct xt_counters *tmp;
+
+		tmp = xt_get_this_cpu_counter(&iter->counters);
+		ADD_COUNTER(*tmp, paddc[i].bcnt, paddc[i].pcnt);
 		++i;
 	}
 	xt_write_recseq_end(addend);
@@ -1396,7 +1407,7 @@ static int translate_compat_table(const char *name,
 		newinfo->hook_entry[i] = info->hook_entry[i];
 		newinfo->underflow[i] = info->underflow[i];
 	}
-	entry1 = newinfo->entries[raw_smp_processor_id()];
+	entry1 = newinfo->entries;
 	pos = entry1;
 	size = total_size;
 	xt_entry_foreach(iter0, entry0, total_size) {
@@ -1416,9 +1427,17 @@ static int translate_compat_table(const char *name,
 
 	i = 0;
 	xt_entry_foreach(iter1, entry1, newinfo->size) {
-		ret = check_target(iter1, name);
-		if (ret != 0)
+		iter1->counters.pcnt = xt_percpu_counter_alloc();
+		if (IS_ERR_VALUE(iter1->counters.pcnt)) {
+			ret = -ENOMEM;
 			break;
+		}
+
+		ret = check_target(iter1, name);
+		if (ret != 0) {
+			xt_percpu_counter_free(iter1->counters.pcnt);
+			break;
+		}
 		++i;
 		if (strcmp(arpt_get_target(iter1)->u.user.name,
 		    XT_ERROR_TARGET) == 0)
@@ -1447,11 +1466,6 @@ static int translate_compat_table(const char *name,
 		xt_free_table_info(newinfo);
 		return ret;
 	}
-
-	/* And one copy for every other CPU */
-	for_each_possible_cpu(i)
-		if (newinfo->entries[i] && newinfo->entries[i] != entry1)
-			memcpy(newinfo->entries[i], entry1, newinfo->size);
 
 	*pinfo = newinfo;
 	*pentry0 = entry1;
@@ -1511,8 +1525,7 @@ static int compat_do_replace(struct net *net, void __user *user,
 	if (!newinfo)
 		return -ENOMEM;
 
-	/* choose the copy that is on our node/cpu */
-	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	loc_cpu_entry = newinfo->entries;
 	if (copy_from_user(loc_cpu_entry, user + sizeof(tmp), tmp.size) != 0) {
 		ret = -EFAULT;
 		goto free_newinfo;
@@ -1609,7 +1622,6 @@ static int compat_copy_entries_to_user(unsigned int total_size,
 	void __user *pos;
 	unsigned int size;
 	int ret = 0;
-	void *loc_cpu_entry;
 	unsigned int i = 0;
 	struct arpt_entry *iter;
 
@@ -1617,11 +1629,9 @@ static int compat_copy_entries_to_user(unsigned int total_size,
 	if (IS_ERR(counters))
 		return PTR_ERR(counters);
 
-	/* choose the copy on our node/cpu */
-	loc_cpu_entry = private->entries[raw_smp_processor_id()];
 	pos = userptr;
 	size = total_size;
-	xt_entry_foreach(iter, loc_cpu_entry, total_size) {
+	xt_entry_foreach(iter, private->entries, total_size) {
 		ret = compat_copy_entry_to_user(iter, &pos,
 						&size, counters, i++);
 		if (ret != 0)
@@ -1790,8 +1800,7 @@ struct xt_table *arpt_register_table(struct net *net,
 		goto out;
 	}
 
-	/* choose the copy on our node/cpu */
-	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	loc_cpu_entry = newinfo->entries;
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
 	ret = translate_table(newinfo, loc_cpu_entry, repl);
@@ -1822,7 +1831,7 @@ void arpt_unregister_table(struct xt_table *table)
 	private = xt_unregister_table(table);
 
 	/* Decrease module usage counts and free resources */
-	loc_cpu_entry = private->entries[raw_smp_processor_id()];
+	loc_cpu_entry = private->entries;
 	xt_entry_foreach(iter, loc_cpu_entry, private->size)
 		cleanup_entry(iter);
 	if (private->number > private->initial_entries)

@@ -204,9 +204,8 @@ again:
 
 static void rapl_start_hrtimer(struct rapl_pmu *pmu)
 {
-	__hrtimer_start_range_ns(&pmu->hrtimer,
-			pmu->timer_interval, 0,
-			HRTIMER_MODE_REL_PINNED, 0);
+       hrtimer_start(&pmu->hrtimer, pmu->timer_interval,
+		     HRTIMER_MODE_REL_PINNED);
 }
 
 static void rapl_stop_hrtimer(struct rapl_pmu *pmu)

@@ -941,8 +941,8 @@ static int r820t_sysfreq_sel(struct r820t_priv *priv, u32 freq,
 		rc = r820t_write_reg_mask(priv, 0x10, 0x00, 0x04);
 		if (rc < 0)
 			return rc;
-	 }
-	 return 0;
+	}
+	return 0;
 }
 
 static int r820t_set_tv_standard(struct r820t_priv *priv,

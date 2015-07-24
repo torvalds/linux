@@ -88,6 +88,15 @@ config PINCTRL_LANTIQ
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_LPC18XX
+	bool "NXP LPC18XX/43XX SCU pinctrl driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Pinctrl driver for NXP LPC18xx/43xx System Control Unit (SCU).
+
 config PINCTRL_FALCON
 	bool
 	depends on SOC_FALCON
@@ -123,7 +132,17 @@ config PINCTRL_SIRF
 	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_SIRF
 	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
+
+config PINCTRL_PISTACHIO
+	def_bool y if MACH_PISTACHIO
+	depends on GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
 
 config PINCTRL_ST
 	bool

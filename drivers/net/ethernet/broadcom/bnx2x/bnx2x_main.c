@@ -2287,13 +2287,11 @@ static int bnx2x_set_spio(struct bnx2x *bp, int spio, u32 mode)
 void bnx2x_calc_fc_adv(struct bnx2x *bp)
 {
 	u8 cfg_idx = bnx2x_get_link_cfg_idx(bp);
+
+	bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
+					   ADVERTISED_Pause);
 	switch (bp->link_vars.ieee_fc &
 		MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK) {
-	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE:
-		bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
-						   ADVERTISED_Pause);
-		break;
-
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH:
 		bp->port.advertising[cfg_idx] |= (ADVERTISED_Asym_Pause |
 						  ADVERTISED_Pause);
@@ -2304,8 +2302,6 @@ void bnx2x_calc_fc_adv(struct bnx2x *bp)
 		break;
 
 	default:
-		bp->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
-						   ADVERTISED_Pause);
 		break;
 	}
 }
@@ -2351,12 +2347,16 @@ int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		if (load_mode == LOAD_DIAG) {
 			struct link_params *lp = &bp->link_params;
 			lp->loopback_mode = LOOPBACK_XGXS;
-			/* do PHY loopback at 10G speed, if possible */
-			if (lp->req_line_speed[cfx_idx] < SPEED_10000) {
+			/* Prefer doing PHY loopback at highest speed */
+			if (lp->req_line_speed[cfx_idx] < SPEED_20000) {
 				if (lp->speed_cap_mask[cfx_idx] &
-				    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+				    PORT_HW_CFG_SPEED_CAPABILITY_D0_20G)
 					lp->req_line_speed[cfx_idx] =
-					SPEED_10000;
+					SPEED_20000;
+				else if (lp->speed_cap_mask[cfx_idx] &
+					    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+						lp->req_line_speed[cfx_idx] =
+						SPEED_10000;
 				else
 					lp->req_line_speed[cfx_idx] =
 					SPEED_1000;
@@ -4867,9 +4867,7 @@ static bool bnx2x_check_blocks_with_parity3(struct bnx2x *bp, u32 sig,
 				res = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY:
-				if (print)
-					_print_next_block((*par_num)++,
-							  "MCP SCPAD");
+				(*par_num)++;
 				/* clear latched SCPAD PATIRY from MCP */
 				REG_WR(bp, MISC_REG_AEU_CLR_LATCH_SIGNAL,
 				       1UL << 10);
@@ -4931,6 +4929,7 @@ static bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
 	    (sig[3] & HW_PRTY_ASSERT_SET_3) ||
 	    (sig[4] & HW_PRTY_ASSERT_SET_4)) {
 		int par_num = 0;
+
 		DP(NETIF_MSG_HW, "Was parity error: HW block parity attention:\n"
 				 "[0]:0x%08x [1]:0x%08x [2]:0x%08x [3]:0x%08x [4]:0x%08x\n",
 			  sig[0] & HW_PRTY_ASSERT_SET_0,
@@ -4938,9 +4937,18 @@ static bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
 			  sig[2] & HW_PRTY_ASSERT_SET_2,
 			  sig[3] & HW_PRTY_ASSERT_SET_3,
 			  sig[4] & HW_PRTY_ASSERT_SET_4);
-		if (print)
-			netdev_err(bp->dev,
-				   "Parity errors detected in blocks: ");
+		if (print) {
+			if (((sig[0] & HW_PRTY_ASSERT_SET_0) ||
+			     (sig[1] & HW_PRTY_ASSERT_SET_1) ||
+			     (sig[2] & HW_PRTY_ASSERT_SET_2) ||
+			     (sig[4] & HW_PRTY_ASSERT_SET_4)) ||
+			     (sig[3] & HW_PRTY_ASSERT_SET_3_WITHOUT_SCPAD)) {
+				netdev_err(bp->dev,
+					   "Parity errors detected in blocks: ");
+			} else {
+				print = false;
+			}
+		}
 		res |= bnx2x_check_blocks_with_parity0(bp,
 			sig[0] & HW_PRTY_ASSERT_SET_0, &par_num, print);
 		res |= bnx2x_check_blocks_with_parity1(bp,
@@ -8431,7 +8439,7 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 					 BNX2X_ETH_MAC, &ramrod_flags);
 	} else { /* vf */
 		return bnx2x_vfpf_config_mac(bp, bp->dev->dev_addr,
-					     bp->fp->index, true);
+					     bp->fp->index, set);
 	}
 }
 
@@ -9323,7 +9331,8 @@ unload_error:
 	 * function stop ramrod is sent, since as part of this ramrod FW access
 	 * PTP registers.
 	 */
-	bnx2x_stop_ptp(bp);
+	if (bp->flags & PTP_SUPPORTED)
+		bnx2x_stop_ptp(bp);
 
 	/* Disable HW interrupts, NAPI */
 	bnx2x_netif_stop(bp, 1);
@@ -11147,6 +11156,12 @@ static void bnx2x_link_settings_requested(struct bnx2x *bp)
 				bp->port.advertising[idx] |=
 					(ADVERTISED_1000baseT_Full |
 					 ADVERTISED_TP);
+			} else if (bp->port.supported[idx] &
+				   SUPPORTED_1000baseKX_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_1000;
+				bp->port.advertising[idx] |=
+					ADVERTISED_1000baseKX_Full;
 			} else {
 				BNX2X_ERR("NVRAM config error. Invalid link_config 0x%x  speed_cap_mask 0x%x\n",
 				    link_config,
@@ -11178,6 +11193,13 @@ static void bnx2x_link_settings_requested(struct bnx2x *bp)
 					SPEED_10000;
 				bp->port.advertising[idx] |=
 					(ADVERTISED_10000baseT_Full |
+						ADVERTISED_FIBRE);
+			} else if (bp->port.supported[idx] &
+				   SUPPORTED_10000baseKR_Full) {
+				bp->link_params.req_line_speed[idx] =
+					SPEED_10000;
+				bp->port.advertising[idx] |=
+					(ADVERTISED_10000baseKR_Full |
 						ADVERTISED_FIBRE);
 			} else {
 				BNX2X_ERR("NVRAM config error. Invalid link_config 0x%x  speed_cap_mask 0x%x\n",

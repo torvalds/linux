@@ -422,10 +422,7 @@ static int evdev_release(struct inode *inode, struct file *file)
 
 	evdev_detach_client(evdev, client);
 
-	if (is_vmalloc_addr(client))
-		vfree(client);
-	else
-		kfree(client);
+	kvfree(client);
 
 	evdev_close_device(evdev);
 

@@ -84,9 +84,9 @@
 #define	ABIST_BIN4_VGA3				0x01D4
 #define	ABIST_BIN5_VGA4				0x01D8
 #define	ABIST_BIN6_VGA5				0x01DC
-#define	ABIST_BIN7_VGA6				0x0x1E0
-#define	ABIST_CLAMP_A				0x0x1E4
-#define	ABIST_CLAMP_B				0x0x1E8
+#define	ABIST_BIN7_VGA6				0x01E0
+#define	ABIST_CLAMP_A				0x01E4
+#define	ABIST_CLAMP_B				0x01E8
 #define	ABIST_CLAMP_C				0x01EC
 #define	ABIST_CLAMP_D				0x01F0
 #define	ABIST_CLAMP_E				0x01F4

@@ -1937,27 +1937,11 @@ static inline void w83627ehf_init_device(struct w83627ehf_data *data,
 static void w82627ehf_swap_tempreg(struct w83627ehf_data *data,
 				   int r1, int r2)
 {
-	u16 tmp;
-
-	tmp = data->temp_src[r1];
-	data->temp_src[r1] = data->temp_src[r2];
-	data->temp_src[r2] = tmp;
-
-	tmp = data->reg_temp[r1];
-	data->reg_temp[r1] = data->reg_temp[r2];
-	data->reg_temp[r2] = tmp;
-
-	tmp = data->reg_temp_over[r1];
-	data->reg_temp_over[r1] = data->reg_temp_over[r2];
-	data->reg_temp_over[r2] = tmp;
-
-	tmp = data->reg_temp_hyst[r1];
-	data->reg_temp_hyst[r1] = data->reg_temp_hyst[r2];
-	data->reg_temp_hyst[r2] = tmp;
-
-	tmp = data->reg_temp_config[r1];
-	data->reg_temp_config[r1] = data->reg_temp_config[r2];
-	data->reg_temp_config[r2] = tmp;
+	swap(data->temp_src[r1], data->temp_src[r2]);
+	swap(data->reg_temp[r1], data->reg_temp[r2]);
+	swap(data->reg_temp_over[r1], data->reg_temp_over[r2]);
+	swap(data->reg_temp_hyst[r1], data->reg_temp_hyst[r2]);
+	swap(data->reg_temp_config[r1], data->reg_temp_config[r2]);
 }
 
 static void

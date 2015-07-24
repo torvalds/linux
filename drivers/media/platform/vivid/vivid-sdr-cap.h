@@ -27,6 +27,8 @@ int vivid_sdr_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt);
 int vivid_sdr_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt);
 int vidioc_enum_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_fmtdesc *f);
 int vidioc_g_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f);
+int vidioc_s_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f);
+int vidioc_try_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f);
 void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf);
 
 extern const struct vb2_ops vivid_sdr_cap_qops;

@@ -167,8 +167,7 @@ static void mic_x100_send_intr(struct mic_device *mdev, int doorbell)
 	if (doorbell < MIC_X100_NUM_SBOX_IRQ) {
 		mic_x100_send_sbox_intr(mdev, doorbell);
 	} else {
-		rdmasr_db = doorbell - MIC_X100_NUM_SBOX_IRQ +
-			MIC_X100_RDMASR_IRQ_BASE;
+		rdmasr_db = doorbell - MIC_X100_NUM_SBOX_IRQ;
 		mic_x100_send_rdmasr_intr(mdev, rdmasr_db);
 	}
 }

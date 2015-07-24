@@ -120,13 +120,16 @@ void dma_sync_single_for_device(struct device *dev, dma_addr_t handle,
 }
 EXPORT_SYMBOL(dma_sync_single_for_device);
 
-void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
-			    enum dma_data_direction dir)
+void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sglist,
+			    int nents, enum dma_data_direction dir)
 {
 	int i;
+	struct scatterlist *sg;
 
-	for (i = 0; i < nents; sg++, i++)
-		dma_sync_single_for_device(dev, sg->dma_address, sg->length, dir);
+	for_each_sg(sglist, sg, nents, i) {
+		dma_sync_single_for_device(dev, sg->dma_address, sg->length,
+					   dir);
+	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
 
@@ -151,14 +154,16 @@ dma_addr_t dma_map_page(struct device *dev, struct page *page,
 }
 EXPORT_SYMBOL(dma_map_page);
 
-int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+int dma_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	       enum dma_data_direction dir)
 {
 	int i;
+	struct scatterlist *sg;
 
-	for (i = 0; i < nents; sg++, i++) {
+	for_each_sg(sglist, sg, nents, i) {
 		sg->dma_address = sg_phys(sg);
-		dma_sync_single_for_device(dev, sg->dma_address, sg->length, dir);
+		dma_sync_single_for_device(dev, sg->dma_address, sg->length,
+					   dir);
 	}
 	return nents;
 }

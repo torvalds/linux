@@ -249,10 +249,24 @@ struct intel_plane_state {
 	bool visible;
 
 	/*
-	 * used only for sprite planes to determine when to implicitly
-	 * enable/disable the primary plane
+	 * scaler_id
+	 *    = -1 : not using a scaler
+	 *    >=  0 : using a scalers
+	 *
+	 * plane requiring a scaler:
+	 *   - During check_plane, its bit is set in
+	 *     crtc_state->scaler_state.scaler_users by calling helper function
+	 *     update_scaler_users.
+	 *   - scaler_id indicates the scaler it got assigned.
+	 *
+	 * plane doesn't require a scaler:
+	 *   - this can happen when scaling is no more required or plane simply
+	 *     got disabled.
+	 *   - During check_plane, corresponding bit is reset in
+	 *     crtc_state->scaler_state.scaler_users by calling helper function
+	 *     update_scaler_users.
 	 */
-	bool hides_primary;
+	int scaler_id;
 };
 
 struct intel_initial_plane_config {
@@ -260,6 +274,49 @@ struct intel_initial_plane_config {
 	unsigned int tiling;
 	int size;
 	u32 base;
+};
+
+#define SKL_MIN_SRC_W 8
+#define SKL_MAX_SRC_W 4096
+#define SKL_MIN_SRC_H 8
+#define SKL_MAX_SRC_H 4096
+#define SKL_MIN_DST_W 8
+#define SKL_MAX_DST_W 4096
+#define SKL_MIN_DST_H 8
+#define SKL_MAX_DST_H 4096
+
+struct intel_scaler {
+	int id;
+	int in_use;
+	uint32_t mode;
+};
+
+struct intel_crtc_scaler_state {
+#define SKL_NUM_SCALERS 2
+	struct intel_scaler scalers[SKL_NUM_SCALERS];
+
+	/*
+	 * scaler_users: keeps track of users requesting scalers on this crtc.
+	 *
+	 *     If a bit is set, a user is using a scaler.
+	 *     Here user can be a plane or crtc as defined below:
+	 *       bits 0-30 - plane (bit position is index from drm_plane_index)
+	 *       bit 31    - crtc
+	 *
+	 * Instead of creating a new index to cover planes and crtc, using
+	 * existing drm_plane_index for planes which is well less than 31
+	 * planes and bit 31 for crtc. This should be fine to cover all
+	 * our platforms.
+	 *
+	 * intel_atomic_setup_scalers will setup available scalers to users
+	 * requesting scalers. It will gracefully fail if request exceeds
+	 * avilability.
+	 */
+#define SKL_CRTC_INDEX 31
+	unsigned scaler_users;
+
+	/* scaler used by crtc for panel fitting purpose */
+	int scaler_id;
 };
 
 struct intel_crtc_state {
@@ -388,6 +445,8 @@ struct intel_crtc_state {
 
 	bool dp_encoder_is_mst;
 	int pbn;
+
+	struct intel_crtc_scaler_state scaler_state;
 };
 
 struct intel_pipe_wm {
@@ -400,8 +459,10 @@ struct intel_pipe_wm {
 };
 
 struct intel_mmio_flip {
-	struct drm_i915_gem_request *req;
 	struct work_struct work;
+	struct drm_i915_private *i915;
+	struct drm_i915_gem_request *req;
+	struct intel_crtc *crtc;
 };
 
 struct skl_pipe_wm {
@@ -424,6 +485,7 @@ struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
 	bool wait_for_flips;
 	bool disable_fbc;
+	bool disable_ips;
 	bool pre_disable_primary;
 	bool update_wm;
 	unsigned disabled_planes;
@@ -448,7 +510,6 @@ struct intel_crtc {
 	 */
 	bool active;
 	unsigned long enabled_power_domains;
-	bool primary_enabled; /* is the primary plane (partially) visible? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
@@ -468,7 +529,6 @@ struct intel_crtc {
 
 	struct intel_initial_plane_config plane_config;
 	struct intel_crtc_state *config;
-	struct intel_crtc_state *new_config;
 	bool new_enabled;
 
 	/* reset counter value when the last flip was submitted */
@@ -487,15 +547,25 @@ struct intel_crtc {
 	} wm;
 
 	int scanline_offset;
-	struct intel_mmio_flip mmio_flip;
 
 	struct intel_crtc_atomic_commit atomic;
+
+	/* scalers available on this crtc */
+	int num_scalers;
 };
 
 struct intel_plane_wm_parameters {
 	uint32_t horiz_pixels;
 	uint32_t vert_pixels;
+	/*
+	 *   For packed pixel formats:
+	 *     bytes_per_pixel - holds bytes per pixel
+	 *   For planar pixel formats:
+	 *     bytes_per_pixel - holds bytes per pixel for uv-plane
+	 *     y_bytes_per_pixel - holds bytes per pixel for y-plane
+	 */
 	uint8_t bytes_per_pixel;
+	uint8_t y_bytes_per_pixel;
 	bool enabled;
 	bool scaled;
 	u64 tiling;
@@ -533,7 +603,7 @@ struct intel_plane {
 			     uint32_t x, uint32_t y,
 			     uint32_t src_w, uint32_t src_h);
 	void (*disable_plane)(struct drm_plane *plane,
-			      struct drm_crtc *crtc);
+			      struct drm_crtc *crtc, bool force);
 	int (*check_plane)(struct drm_plane *plane,
 			   struct intel_plane_state *state);
 	void (*commit_plane)(struct drm_plane *plane,
@@ -669,6 +739,12 @@ struct intel_dp {
 				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
+	bool train_set_valid;
+
+	/* Displayport compliance testing */
+	unsigned long compliance_test_type;
+	unsigned long compliance_test_data;
+	bool compliance_test_active;
 };
 
 struct intel_digital_port {
@@ -745,15 +821,6 @@ struct intel_unpin_work {
 	int flip_queued_vblank;
 	int flip_ready_vblank;
 	bool enable_stall_check;
-};
-
-struct intel_set_config {
-	struct drm_encoder **save_connector_encoders;
-	struct drm_crtc **save_encoder_crtcs;
-	bool *save_crtc_enabled;
-
-	bool fb_changed;
-	bool mode_changed;
 };
 
 struct intel_load_detect_pipe {
@@ -852,7 +919,6 @@ void hsw_fdi_link_train(struct drm_crtc *crtc);
 void intel_ddi_init(struct drm_device *dev, enum port port);
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder);
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe);
-int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv);
 void intel_ddi_pll_init(struct drm_device *dev);
 void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc);
 void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
@@ -867,11 +933,15 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 void intel_ddi_fdi_disable(struct drm_crtc *crtc);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);
+struct intel_encoder *
+intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state);
 
 void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder);
 void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_state *pipe_config);
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
+void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
+				enum port port, int type);
 
 /* intel_frontbuffer.c */
 void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
@@ -925,6 +995,7 @@ void intel_mark_busy(struct drm_device *dev);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 void intel_crtc_control(struct drm_crtc *crtc, bool enable);
+void intel_crtc_reset(struct intel_crtc *crtc);
 void intel_crtc_update_dpms(struct drm_crtc *crtc);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 int intel_connector_init(struct intel_connector *);
@@ -952,7 +1023,8 @@ intel_wait_for_vblank(struct drm_device *dev, int pipe)
 }
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
-			 struct intel_digital_port *dport);
+			 struct intel_digital_port *dport,
+			 unsigned int expected_mask);
 bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
 				struct intel_load_detect_pipe *old,
@@ -997,6 +1069,9 @@ intel_rotation_90_or_270(unsigned int rotation)
 	return rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270));
 }
 
+void intel_create_rotation_property(struct drm_device *dev,
+					struct intel_plane *plane);
+
 bool intel_wm_need_update(struct drm_plane *plane,
 			  struct drm_plane_state *state);
 
@@ -1037,6 +1112,15 @@ void intel_prepare_reset(struct drm_device *dev);
 void intel_finish_reset(struct drm_device *dev);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
+void broxton_init_cdclk(struct drm_device *dev);
+void broxton_uninit_cdclk(struct drm_device *dev);
+void broxton_set_cdclk(struct drm_device *dev, int frequency);
+void broxton_ddi_phy_init(struct drm_device *dev);
+void broxton_ddi_phy_uninit(struct drm_device *dev);
+void bxt_enable_dc9(struct drm_i915_private *dev_priv);
+void bxt_disable_dc9(struct drm_i915_private *dev_priv);
+void skl_init_cdclk(struct drm_i915_private *dev_priv);
+void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n);
@@ -1044,6 +1128,8 @@ int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 void
 ironlake_check_encoder_dotclock(const struct intel_crtc_state *pipe_config,
 				int dotclock);
+bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
+			intel_clock_t *best_clock);
 bool intel_crtc_active(struct drm_crtc *crtc);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
@@ -1053,9 +1139,26 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_state *pipe_config);
 void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
 void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file);
+void skl_detach_scalers(struct intel_crtc *intel_crtc);
+int skl_update_scaler_users(struct intel_crtc *intel_crtc,
+	struct intel_crtc_state *crtc_state, struct intel_plane *intel_plane,
+	struct intel_plane_state *plane_state, int force_detach);
+int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
 unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 				     struct drm_i915_gem_object *obj);
+u32 skl_plane_ctl_format(uint32_t pixel_format);
+u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
+u32 skl_plane_ctl_rotation(unsigned int rotation);
+
+/* intel_csr.c */
+void intel_csr_ucode_init(struct drm_device *dev);
+enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv);
+void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
+					enum csr_state state);
+void intel_csr_load_program(struct drm_device *dev);
+void intel_csr_ucode_fini(struct drm_device *dev);
+void assert_csr_loaded(struct drm_i915_private *dev_priv);
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
@@ -1215,6 +1318,7 @@ void intel_psr_invalidate(struct drm_device *dev,
 void intel_psr_flush(struct drm_device *dev,
 			 unsigned frontbuffer_bits);
 void intel_psr_init(struct drm_device *dev);
+void intel_psr_single_frame_update(struct drm_device *dev);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
@@ -1263,7 +1367,11 @@ void gen6_update_ring_freq(struct drm_device *dev);
 void gen6_rps_busy(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
-void gen6_rps_boost(struct drm_i915_private *dev_priv);
+void gen6_rps_boost(struct drm_i915_private *dev_priv,
+		    struct intel_rps_client *rps,
+		    unsigned long submitted);
+void intel_queue_rps_boost_for_request(struct drm_device *dev,
+				       struct drm_i915_gem_request *req);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
@@ -1276,16 +1384,12 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
 
 /* intel_sprite.c */
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
-void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
-			       enum plane plane);
 int intel_plane_restore(struct drm_plane *plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 bool intel_pipe_update_start(struct intel_crtc *crtc,
 			     uint32_t *start_vbl_count);
 void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
-void intel_post_enable_primary(struct drm_crtc *crtc);
-void intel_pre_disable_primary(struct drm_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
@@ -1310,10 +1414,13 @@ intel_atomic_get_crtc_state(struct drm_atomic_state *state,
 	struct drm_crtc_state *crtc_state;
 	crtc_state = drm_atomic_get_crtc_state(state, &crtc->base);
 	if (IS_ERR(crtc_state))
-		return ERR_PTR(PTR_ERR(crtc_state));
+		return ERR_CAST(crtc_state);
 
 	return to_intel_crtc_state(crtc_state);
 }
+int intel_atomic_setup_scalers(struct drm_device *dev,
+	struct intel_crtc *intel_crtc,
+	struct intel_crtc_state *crtc_state);
 
 /* intel_atomic_plane.c */
 struct intel_plane_state *intel_create_plane_state(struct drm_plane *plane);

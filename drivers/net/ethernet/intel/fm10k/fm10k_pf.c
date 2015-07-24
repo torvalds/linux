@@ -1046,6 +1046,12 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 		fm10k_write_reg(hw, FM10K_RQMAP(qmap_idx + i), vf_q_idx + i);
 	}
 
+	/* repeat the first ring for all the remaining VF rings */
+	for (i = queues_per_pool; i < qmap_stride; i++) {
+		fm10k_write_reg(hw, FM10K_TQMAP(qmap_idx + i), vf_q_idx);
+		fm10k_write_reg(hw, FM10K_RQMAP(qmap_idx + i), vf_q_idx);
+	}
+
 	return 0;
 }
 
@@ -1344,6 +1350,14 @@ s32 fm10k_iov_msg_lport_state_pf(struct fm10k_hw *hw, u32 **results,
 		if (FM10K_VF_FLAG_ENABLED(vf_info))
 			err = fm10k_update_lport_state_pf(hw, vf_info->glort,
 							  1, false);
+
+		/* we need to clear VF_FLAG_ENABLED flags in order to ensure
+		 * that we actually re-enable the LPORT state below. Note that
+		 * this has no impact if the VF is already disabled, as the
+		 * flags are already cleared.
+		 */
+		if (!err)
+			vf_info->vf_flags = FM10K_VF_FLAG_CAPABLE(vf_info);
 
 		/* when enabling the port we should reset the rate limiters */
 		hw->iov.ops.configure_tc(hw, vf_info->vf_idx, vf_info->rate);
@@ -1786,8 +1800,8 @@ static s32 fm10k_adjust_systime_pf(struct fm10k_hw *hw, s32 ppb)
 	if (systime_adjust > FM10K_SW_SYSTIME_ADJUST_MASK)
 		return FM10K_ERR_PARAM;
 
-	if (ppb < 0)
-		systime_adjust |= FM10K_SW_SYSTIME_ADJUST_DIR_NEGATIVE;
+	if (ppb > 0)
+		systime_adjust |= FM10K_SW_SYSTIME_ADJUST_DIR_POSITIVE;
 
 	fm10k_write_sw_reg(hw, FM10K_SW_SYSTIME_ADJUST, (u32)systime_adjust);
 

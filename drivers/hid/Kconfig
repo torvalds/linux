@@ -634,7 +634,12 @@ config HID_PLANTRONICS
 	tristate "Plantronics USB HID Driver"
 	depends on HID
 	---help---
-	Provides HID support for Plantronics telephony devices.
+	  Provides HID support for Plantronics USB audio devices.
+	  Correctly maps vendor unique volume up/down HID usages to
+	  KEY_VOLUMEUP and KEY_VOLUMEDOWN events and prevents core mapping
+	  of other vendor unique HID usages to random mouse events.
+
+	  Say M here if you may ever plug in a Plantronics USB audio device.
 
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"

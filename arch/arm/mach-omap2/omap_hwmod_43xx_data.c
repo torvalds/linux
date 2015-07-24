@@ -24,6 +24,20 @@
 
 
 /* IP blocks */
+static struct omap_hwmod am43xx_emif_hwmod = {
+	.name		= "emif",
+	.class		= &am33xx_emif_hwmod_class,
+	.clkdm_name	= "emif_clkdm",
+	.flags		= HWMOD_INIT_NO_IDLE,
+	.main_clk	= "dpll_ddr_m2_ck",
+	.prcm		= {
+		.omap4	= {
+			.clkctrl_offs	= AM43XX_CM_PER_EMIF_CLKCTRL_OFFSET,
+			.modulemode	= MODULEMODE_SWCTRL,
+		},
+	},
+};
+
 static struct omap_hwmod am43xx_l4_hs_hwmod = {
 	.name		= "l4_hs",
 	.class		= &am33xx_l4_hwmod_class,
@@ -583,6 +597,13 @@ static struct omap_hwmod am43xx_vpfe1_hwmod = {
 };
 
 /* Interfaces */
+static struct omap_hwmod_ocp_if am43xx_l3_main__emif = {
+	.master		= &am33xx_l3_main_hwmod,
+	.slave		= &am43xx_emif_hwmod,
+	.clk		= "dpll_core_m4_ck",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if am43xx_l3_main__l4_hs = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am43xx_l4_hs_hwmod,
@@ -918,6 +939,7 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__l3_instr,
 	&am33xx_l3_main__gfx,
 	&am33xx_l3_s__l3_main,
+	&am43xx_l3_main__emif,
 	&am33xx_pruss__l3_main,
 	&am43xx_wkup_m3__l4_wkup,
 	&am33xx_gfx__l3_main,

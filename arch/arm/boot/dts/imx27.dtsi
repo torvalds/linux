@@ -108,7 +108,7 @@
 			};
 
 			gpt1: timer@10003000 {
-				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				compatible = "fsl,imx27-gpt", "fsl,imx21-gpt";
 				reg = <0x10003000 0x1000>;
 				interrupts = <26>;
 				clocks = <&clks IMX27_CLK_GPT1_IPG_GATE>,
@@ -117,7 +117,7 @@
 			};
 
 			gpt2: timer@10004000 {
-				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				compatible = "fsl,imx27-gpt", "fsl,imx21-gpt";
 				reg = <0x10004000 0x1000>;
 				interrupts = <25>;
 				clocks = <&clks IMX27_CLK_GPT2_IPG_GATE>,
@@ -126,7 +126,7 @@
 			};
 
 			gpt3: timer@10005000 {
-				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				compatible = "fsl,imx27-gpt", "fsl,imx21-gpt";
 				reg = <0x10005000 0x1000>;
 				interrupts = <24>;
 				clocks = <&clks IMX27_CLK_GPT3_IPG_GATE>,
@@ -376,7 +376,7 @@
 			};
 
 			gpt4: timer@10019000 {
-				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				compatible = "fsl,imx27-gpt", "fsl,imx21-gpt";
 				reg = <0x10019000 0x1000>;
 				interrupts = <4>;
 				clocks = <&clks IMX27_CLK_GPT4_IPG_GATE>,
@@ -385,7 +385,7 @@
 			};
 
 			gpt5: timer@1001a000 {
-				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				compatible = "fsl,imx27-gpt", "fsl,imx21-gpt";
 				reg = <0x1001a000 0x1000>;
 				interrupts = <3>;
 				clocks = <&clks IMX27_CLK_GPT5_IPG_GATE>,
@@ -436,7 +436,7 @@
 			};
 
 			gpt6: timer@1001f000 {
-				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				compatible = "fsl,imx27-gpt", "fsl,imx21-gpt";
 				reg = <0x1001f000 0x1000>;
 				interrupts = <2>;
 				clocks = <&clks IMX27_CLK_GPT6_IPG_GATE>,

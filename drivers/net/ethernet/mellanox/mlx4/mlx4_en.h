@@ -279,6 +279,7 @@ struct mlx4_en_tx_ring {
 	u32			size; /* number of TXBBs */
 	u32			size_mask;
 	u16			stride;
+	u32			full_size;
 	u16			cqn;	/* index of port CQ associated with this ring */
 	u32			buf_size;
 	__be32			doorbell_qpn;
@@ -338,7 +339,7 @@ struct mlx4_en_cq {
 	struct napi_struct	napi;
 	int size;
 	int buf_size;
-	unsigned vector;
+	int vector;
 	enum cq_type is_tx;
 	u16 moder_time;
 	u16 moder_cnt;
@@ -566,6 +567,7 @@ struct mlx4_en_priv {
 #endif
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
+	struct mlx4_en_counter_stats pf_stats;
 	struct mlx4_en_flow_stats_rx rx_priority_flowstats[MLX4_NUM_PRIORITIES];
 	struct mlx4_en_flow_stats_tx tx_priority_flowstats[MLX4_NUM_PRIORITIES];
 	struct mlx4_en_flow_stats_rx rx_flowstats;
@@ -579,9 +581,9 @@ struct mlx4_en_priv {
 	int vids[128];
 	bool wol;
 	struct device *ddev;
-	int base_tx_qpn;
 	struct hlist_head mac_hash[MLX4_EN_MAC_HASH_SIZE];
 	struct hwtstamp_config hwtstamp_config;
+	u32 counter_index;
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;

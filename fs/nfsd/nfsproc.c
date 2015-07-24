@@ -59,13 +59,61 @@ static __be32
 nfsd_proc_setattr(struct svc_rqst *rqstp, struct nfsd_sattrargs *argp,
 					  struct nfsd_attrstat  *resp)
 {
+	struct iattr *iap = &argp->attrs;
+	struct svc_fh *fhp;
 	__be32 nfserr;
+
 	dprintk("nfsd: SETATTR  %s, valid=%x, size=%ld\n",
 		SVCFH_fmt(&argp->fh),
 		argp->attrs.ia_valid, (long) argp->attrs.ia_size);
 
-	fh_copy(&resp->fh, &argp->fh);
-	nfserr = nfsd_setattr(rqstp, &resp->fh, &argp->attrs,0, (time_t)0);
+	fhp = fh_copy(&resp->fh, &argp->fh);
+
+	/*
+	 * NFSv2 does not differentiate between "set-[ac]time-to-now"
+	 * which only requires access, and "set-[ac]time-to-X" which
+	 * requires ownership.
+	 * So if it looks like it might be "set both to the same time which
+	 * is close to now", and if inode_change_ok fails, then we
+	 * convert to "set to now" instead of "set to explicit time"
+	 *
+	 * We only call inode_change_ok as the last test as technically
+	 * it is not an interface that we should be using.
+	 */
+#define BOTH_TIME_SET (ATTR_ATIME_SET | ATTR_MTIME_SET)
+#define	MAX_TOUCH_TIME_ERROR (30*60)
+	if ((iap->ia_valid & BOTH_TIME_SET) == BOTH_TIME_SET &&
+	    iap->ia_mtime.tv_sec == iap->ia_atime.tv_sec) {
+		/*
+		 * Looks probable.
+		 *
+		 * Now just make sure time is in the right ballpark.
+		 * Solaris, at least, doesn't seem to care what the time
+		 * request is.  We require it be within 30 minutes of now.
+		 */
+		time_t delta = iap->ia_atime.tv_sec - get_seconds();
+		struct inode *inode;
+
+		nfserr = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
+		if (nfserr)
+			goto done;
+		inode = d_inode(fhp->fh_dentry);
+
+		if (delta < 0)
+			delta = -delta;
+		if (delta < MAX_TOUCH_TIME_ERROR &&
+		    inode_change_ok(inode, iap) != 0) {
+			/*
+			 * Turn off ATTR_[AM]TIME_SET but leave ATTR_[AM]TIME.
+			 * This will cause notify_change to set these times
+			 * to "now"
+			 */
+			iap->ia_valid &= ~BOTH_TIME_SET;
+		}
+	}
+
+	nfserr = nfsd_setattr(rqstp, fhp, iap, 0, (time_t)0);
+done:
 	return nfsd_return_attrs(nfserr, resp);
 }
 

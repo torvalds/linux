@@ -73,7 +73,7 @@ config SCSI_UFSHCD_PLATFORM
 
 config SCSI_UFS_QCOM
 	bool "QCOM specific hooks to UFS controller platform driver"
-	depends on SCSI_UFSHCD_PLATFORM && ARCH_MSM
+	depends on SCSI_UFSHCD_PLATFORM && ARCH_QCOM
 	select PHY_QCOM_UFS
 	help
 	  This selects the QCOM specific additions to UFSHCD platform driver.

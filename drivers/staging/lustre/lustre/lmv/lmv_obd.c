@@ -199,7 +199,6 @@ static int lmv_connect(const struct lu_env *env,
 		       struct obd_uuid *cluuid, struct obd_connect_data *data,
 		       void *localdata)
 {
-	struct proc_dir_entry *lmv_proc_dir;
 	struct lmv_obd	*lmv = &obd->u.lmv;
 	struct lustre_handle  conn = { 0 };
 	int		    rc = 0;
@@ -230,19 +229,8 @@ static int lmv_connect(const struct lu_env *env,
 	if (data)
 		lmv->conn_data = *data;
 
-	if (obd->obd_proc_private != NULL) {
-		lmv_proc_dir = obd->obd_proc_private;
-	} else {
-		lmv_proc_dir = lprocfs_register("target_obds", obd->obd_proc_entry,
-						NULL, NULL);
-		if (IS_ERR(lmv_proc_dir)) {
-			CERROR("could not register /proc/fs/lustre/%s/%s/target_obds.",
-			       obd->obd_type->typ_name, obd->obd_name);
-			lmv_proc_dir = NULL;
-		}
-		obd->obd_proc_private = lmv_proc_dir;
-	}
-
+	lmv->lmv_tgts_kobj = kobject_create_and_add("target_obds",
+						    &obd->obd_kobj);
 	/*
 	 * All real clients should perform actual connection right away, because
 	 * it is possible, that LMV will not have opportunity to connect targets
@@ -252,10 +240,8 @@ static int lmv_connect(const struct lu_env *env,
 	if (data->ocd_connect_flags & OBD_CONNECT_REAL)
 		rc = lmv_check_connect(obd);
 
-	if (rc && lmv_proc_dir) {
-		lprocfs_remove(&lmv_proc_dir);
-		obd->obd_proc_private = NULL;
-	}
+	if (rc && lmv->lmv_tgts_kobj)
+		kobject_put(lmv->lmv_tgts_kobj);
 
 	return rc;
 }
@@ -337,7 +323,6 @@ static int lmv_init_ea_size(struct obd_export *exp, int easize,
 
 static int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 {
-	struct proc_dir_entry   *lmv_proc_dir;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct obd_uuid	 *cluuid = &lmv->cluuid;
 	struct obd_uuid	  lmv_mdc_uuid = { "LMV_MDC_UUID" };
@@ -415,25 +400,10 @@ static int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 		mdc_obd->obd_name, mdc_obd->obd_uuid.uuid,
 		atomic_read(&obd->obd_refcount));
 
-	lmv_proc_dir = obd->obd_proc_private;
-	if (lmv_proc_dir) {
-		struct proc_dir_entry *mdc_symlink;
-
-		LASSERT(mdc_obd->obd_type != NULL);
-		LASSERT(mdc_obd->obd_type->typ_name != NULL);
-		mdc_symlink = lprocfs_add_symlink(mdc_obd->obd_name,
-						  lmv_proc_dir,
-						  "../../../%s/%s",
-						  mdc_obd->obd_type->typ_name,
-						  mdc_obd->obd_name);
-		if (mdc_symlink == NULL) {
-			CERROR("Could not register LMV target /proc/fs/lustre/%s/%s/target_obds/%s.",
-			       obd->obd_type->typ_name, obd->obd_name,
-			       mdc_obd->obd_name);
-			lprocfs_remove(&lmv_proc_dir);
-			obd->obd_proc_private = NULL;
-		}
-	}
+	if (lmv->lmv_tgts_kobj)
+		/* Even if we failed to create the link, that's fine */
+		rc = sysfs_create_link(lmv->lmv_tgts_kobj, &mdc_obd->obd_kobj,
+				       mdc_obd->obd_name);
 	return 0;
 }
 
@@ -442,7 +412,7 @@ static void lmv_del_target(struct lmv_obd *lmv, int index)
 	if (lmv->tgts[index] == NULL)
 		return;
 
-	OBD_FREE_PTR(lmv->tgts[index]);
+	kfree(lmv->tgts[index]);
 	lmv->tgts[index] = NULL;
 	return;
 }
@@ -488,7 +458,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 		while (newsize < index + 1)
 			newsize <<= 1;
-		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
+		newtgts = kcalloc(newsize, sizeof(*newtgts), GFP_NOFS);
 		if (newtgts == NULL) {
 			lmv_init_unlock(lmv);
 			return -ENOMEM;
@@ -504,14 +474,13 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		lmv->tgts = newtgts;
 		lmv->tgts_size = newsize;
 		smp_rmb();
-		if (old)
-			OBD_FREE(old, sizeof(*old) * oldsize);
+		kfree(old);
 
 		CDEBUG(D_CONFIG, "tgts: %p size: %d\n", lmv->tgts,
 		       lmv->tgts_size);
 	}
 
-	OBD_ALLOC_PTR(tgt);
+	tgt = kzalloc(sizeof(*tgt), GFP_NOFS);
 	if (!tgt) {
 		lmv_init_unlock(lmv);
 		return -ENOMEM;
@@ -611,7 +580,6 @@ int lmv_check_connect(struct obd_device *obd)
 
 static int lmv_disconnect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 {
-	struct proc_dir_entry  *lmv_proc_dir;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
 	struct obd_device      *mdc_obd;
 	int		     rc;
@@ -627,9 +595,9 @@ static int lmv_disconnect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 		mdc_obd->obd_no_recov = obd->obd_no_recov;
 	}
 
-	lmv_proc_dir = obd->obd_proc_private;
-	if (lmv_proc_dir)
-		lprocfs_remove_proc_entry(mdc_obd->obd_name, lmv_proc_dir);
+	if (lmv->lmv_tgts_kobj)
+		sysfs_remove_link(lmv->lmv_tgts_kobj,
+				  mdc_obd->obd_name);
 
 	rc = obd_fid_fini(tgt->ltd_exp->exp_obd);
 	if (rc)
@@ -677,11 +645,8 @@ static int lmv_disconnect(struct obd_export *exp)
 		lmv_disconnect_mdc(obd, lmv->tgts[i]);
 	}
 
-	if (obd->obd_proc_private)
-		lprocfs_remove((struct proc_dir_entry **)&obd->obd_proc_private);
-	else
-		CERROR("/proc/fs/lustre/%s/%s/target_obds missing\n",
-		       obd->obd_type->typ_name, obd->obd_name);
+	if (lmv->lmv_tgts_kobj)
+		kobject_put(lmv->lmv_tgts_kobj);
 
 out_local:
 	/*
@@ -750,7 +715,7 @@ repeat_fid2path:
 	/* sigh, has to go to another MDT to do path building further */
 	if (remote_gf == NULL) {
 		remote_gf_size = sizeof(*remote_gf) + PATH_MAX;
-		OBD_ALLOC(remote_gf, remote_gf_size);
+		remote_gf = kzalloc(remote_gf_size, GFP_NOFS);
 		if (remote_gf == NULL) {
 			rc = -ENOMEM;
 			goto out_fid2path;
@@ -780,8 +745,7 @@ repeat_fid2path:
 	goto repeat_fid2path;
 
 out_fid2path:
-	if (remote_gf != NULL)
-		OBD_FREE(remote_gf, remote_gf_size);
+	kfree(remote_gf);
 	return rc;
 }
 
@@ -984,7 +948,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 			return -EAGAIN;
 
 		LASSERT(tgt && tgt->ltd_exp);
-		OBD_ALLOC_PTR(oqctl);
+		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
 		if (!oqctl)
 			return -ENOMEM;
 
@@ -995,7 +959,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 			qctl->qc_valid = QC_MDTIDX;
 			qctl->obd_uuid = tgt->ltd_uuid;
 		}
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 		break;
 	}
 	case OBD_IOC_CHANGELOG_SEND:
@@ -1081,7 +1045,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 				reqlen = offsetof(typeof(*hur),
 						  hur_user_item[nr])
 					 + hur->hur_request.hr_data_len;
-				OBD_ALLOC_LARGE(req, reqlen);
+				req = libcfs_kvzalloc(reqlen, GFP_NOFS);
 				if (req == NULL)
 					return -ENOMEM;
 
@@ -1091,7 +1055,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 						    reqlen, req, uarg);
 				if (rc1 != 0 && rc == 0)
 					rc = rc1;
-				OBD_FREE_LARGE(req, reqlen);
+				kvfree(req);
 			}
 		}
 		break;
@@ -1311,7 +1275,7 @@ int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	struct lmv_obd	     *lmv = &obd->u.lmv;
-	struct lprocfs_static_vars  lvars;
+	struct lprocfs_static_vars  lvars = { NULL };
 	struct lmv_desc	    *desc;
 	int			 rc;
 
@@ -1327,7 +1291,7 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		return -EINVAL;
 	}
 
-	OBD_ALLOC(lmv->tgts, sizeof(*lmv->tgts) * 32);
+	lmv->tgts = kcalloc(32, sizeof(*lmv->tgts), GFP_NOFS);
 	if (lmv->tgts == NULL)
 		return -ENOMEM;
 	lmv->tgts_size = 32;
@@ -1345,16 +1309,12 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	lprocfs_lmv_init_vars(&lvars);
 
-	lprocfs_obd_setup(obd, lvars.obd_vars);
-#if defined (CONFIG_PROC_FS)
-	{
-		rc = lprocfs_seq_create(obd->obd_proc_entry, "target_obd",
-					0444, &lmv_proc_target_fops, obd);
-		if (rc)
-			CWARN("%s: error adding LMV target_obd file: rc = %d\n",
-			       obd->obd_name, rc);
-       }
-#endif
+	lprocfs_obd_setup(obd, lvars.obd_vars, lvars.sysfs_vars);
+	rc = ldebugfs_seq_create(obd->obd_debugfs_entry, "target_obd",
+				 0444, &lmv_proc_target_fops, obd);
+	if (rc)
+		CWARN("%s: error adding LMV target_obd file: rc = %d\n",
+		      obd->obd_name, rc);
 	rc = fld_client_init(&lmv->lmv_fld, obd->obd_name,
 			     LUSTRE_CLI_FLD_HASH_DHT);
 	if (rc) {
@@ -1380,7 +1340,7 @@ static int lmv_cleanup(struct obd_device *obd)
 				continue;
 			lmv_del_target(lmv, i);
 		}
-		OBD_FREE(lmv->tgts, sizeof(*lmv->tgts) * lmv->tgts_size);
+		kfree(lmv->tgts);
 		lmv->tgts_size = 0;
 	}
 	return 0;
@@ -1437,7 +1397,7 @@ static int lmv_statfs(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	OBD_ALLOC(temp, sizeof(*temp));
+	temp = kzalloc(sizeof(*temp), GFP_NOFS);
 	if (temp == NULL)
 		return -ENOMEM;
 
@@ -1473,7 +1433,7 @@ static int lmv_statfs(const struct lu_env *env, struct obd_export *exp,
 	}
 
 out_free_temp:
-	OBD_FREE(temp, sizeof(*temp));
+	kfree(temp);
 	return rc;
 }
 
@@ -1769,7 +1729,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		goto out;
 	}
 
-	OBD_ALLOC_PTR(rdata);
+	rdata = kzalloc(sizeof(*rdata), GFP_NOFS);
 	if (rdata == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -1780,7 +1740,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 
 	rc = md_enqueue(tgt->ltd_exp, einfo, it, rdata, lockh,
 			lmm, lmmsize, NULL, extra_lock_flags);
-	OBD_FREE_PTR(rdata);
+	kfree(rdata);
 out:
 	ldlm_lock_decref(&plock, pmode);
 	return rc;
@@ -2313,7 +2273,7 @@ static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		 * stack. */
 		break;
 	case OBD_CLEANUP_EXPORTS:
-		fld_client_proc_fini(&lmv->lmv_fld);
+		fld_client_debugfs_fini(&lmv->lmv_fld);
 		lprocfs_obd_cleanup(obd);
 		break;
 	default:
@@ -2440,13 +2400,13 @@ static int lmv_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		return mea_size;
 
 	if (*lmmp && !lsm) {
-		OBD_FREE_LARGE(*lmmp, mea_size);
+		kvfree(*lmmp);
 		*lmmp = NULL;
 		return 0;
 	}
 
 	if (*lmmp == NULL) {
-		OBD_ALLOC_LARGE(*lmmp, mea_size);
+		*lmmp = libcfs_kvzalloc(mea_size, GFP_NOFS);
 		if (*lmmp == NULL)
 			return -ENOMEM;
 	}
@@ -2489,14 +2449,14 @@ static int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		return mea_size;
 
 	if (*lsmp != NULL && lmm == NULL) {
-		OBD_FREE_LARGE(*tmea, mea_size);
+		kvfree(*tmea);
 		*lsmp = NULL;
 		return 0;
 	}
 
 	LASSERT(mea_size == lmm_size);
 
-	OBD_ALLOC_LARGE(*tmea, mea_size);
+	*tmea = libcfs_kvzalloc(mea_size, GFP_NOFS);
 	if (*tmea == NULL)
 		return -ENOMEM;
 
@@ -2875,7 +2835,7 @@ static int __init lmv_init(void)
 	lprocfs_lmv_init_vars(&lvars);
 
 	rc = class_register_type(&lmv_obd_ops, &lmv_md_ops,
-				 lvars.module_vars, LUSTRE_LMV_NAME, NULL);
+				 LUSTRE_LMV_NAME, NULL);
 	return rc;
 }
 

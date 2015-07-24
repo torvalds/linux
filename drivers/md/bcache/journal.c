@@ -157,7 +157,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 
 	for_each_cache(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
-		unsigned long bitmap[SB_JOURNAL_BUCKETS / BITS_PER_LONG];
+		DECLARE_BITMAP(bitmap, SB_JOURNAL_BUCKETS);
 		unsigned i, l, r, m;
 		uint64_t seq;
 
@@ -592,12 +592,14 @@ static void journal_write_unlocked(struct closure *cl)
 
 	if (!w->need_write) {
 		closure_return_with_destructor(cl, journal_write_unlock);
+		return;
 	} else if (journal_full(&c->journal)) {
 		journal_reclaim(c);
 		spin_unlock(&c->journal.lock);
 
 		btree_flush_write(c);
 		continue_at(cl, journal_write, system_wq);
+		return;
 	}
 
 	c->journal.blocks_free -= set_blocks(w->data, block_bytes(c));
