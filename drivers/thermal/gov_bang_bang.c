@@ -25,14 +25,13 @@
 
 static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 {
-	long trip_temp;
-	unsigned long trip_hyst;
+	int trip_temp, trip_hyst;
 	struct thermal_instance *instance;
 
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
 	tz->ops->get_trip_hyst(tz, trip, &trip_hyst);
 
-	dev_dbg(&tz->device, "Trip%d[temp=%ld]:temp=%d:hyst=%ld\n",
+	dev_dbg(&tz->device, "Trip%d[temp=%d]:temp=%d:hyst=%d\n",
 				trip, trip_temp, tz->temperature,
 				trip_hyst);
 

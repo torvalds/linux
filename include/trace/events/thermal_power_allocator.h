@@ -11,7 +11,7 @@ TRACE_EVENT(thermal_power_allocator,
 		 u32 total_req_power, u32 *granted_power,
 		 u32 total_granted_power, size_t num_actors,
 		 u32 power_range, u32 max_allocatable_power,
-		 unsigned long current_temp, s32 delta_temp),
+		 int current_temp, s32 delta_temp),
 	TP_ARGS(tz, req_power, total_req_power, granted_power,
 		total_granted_power, num_actors, power_range,
 		max_allocatable_power, current_temp, delta_temp),
@@ -24,7 +24,7 @@ TRACE_EVENT(thermal_power_allocator,
 		__field(size_t,        num_actors               )
 		__field(u32,           power_range              )
 		__field(u32,           max_allocatable_power    )
-		__field(unsigned long, current_temp             )
+		__field(int,           current_temp             )
 		__field(s32,           delta_temp               )
 	),
 	TP_fast_assign(
@@ -42,7 +42,7 @@ TRACE_EVENT(thermal_power_allocator,
 		__entry->delta_temp = delta_temp;
 	),
 
-	TP_printk("thermal_zone_id=%d req_power={%s} total_req_power=%u granted_power={%s} total_granted_power=%u power_range=%u max_allocatable_power=%u current_temperature=%lu delta_temperature=%d",
+	TP_printk("thermal_zone_id=%d req_power={%s} total_req_power=%u granted_power={%s} total_granted_power=%u power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d",
 		__entry->tz_id,
 		__print_array(__get_dynamic_array(req_power),
                               __entry->num_actors, 4),

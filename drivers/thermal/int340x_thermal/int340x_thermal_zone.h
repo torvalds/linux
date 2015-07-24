@@ -21,7 +21,7 @@
 #define INT340X_THERMAL_MAX_ACT_TRIP_COUNT	10
 
 struct active_trip {
-	unsigned long temp;
+	int temp;
 	int id;
 	bool valid;
 };
@@ -31,11 +31,11 @@ struct int34x_thermal_zone {
 	struct active_trip act_trips[INT340X_THERMAL_MAX_ACT_TRIP_COUNT];
 	unsigned long *aux_trips;
 	int aux_trip_nr;
-	unsigned long psv_temp;
+	int psv_temp;
 	int psv_trip_id;
-	unsigned long crt_temp;
+	int crt_temp;
 	int crt_trip_id;
-	unsigned long hot_temp;
+	int hot_temp;
 	int hot_trip_id;
 	struct thermal_zone_device *zone;
 	struct thermal_zone_device_ops *override_ops;

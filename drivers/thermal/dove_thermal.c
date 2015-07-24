@@ -93,7 +93,7 @@ static int dove_init_sensor(const struct dove_thermal_priv *priv)
 }
 
 static int dove_get_temp(struct thermal_zone_device *thermal,
-			  unsigned long *temp)
+			  int *temp)
 {
 	unsigned long reg;
 	struct dove_thermal_priv *priv = thermal->devdata;
