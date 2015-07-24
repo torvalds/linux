@@ -114,12 +114,14 @@ static void clk_prepare_unlock(void)
 }
 
 static unsigned long clk_enable_lock(void)
+	__acquires(enable_lock)
 {
 	unsigned long flags;
 
 	if (!spin_trylock_irqsave(&enable_lock, flags)) {
 		if (enable_owner == current) {
 			enable_refcnt++;
+			__acquire(enable_lock);
 			return flags;
 		}
 		spin_lock_irqsave(&enable_lock, flags);
@@ -132,12 +134,15 @@ static unsigned long clk_enable_lock(void)
 }
 
 static void clk_enable_unlock(unsigned long flags)
+	__releases(enable_lock)
 {
 	WARN_ON_ONCE(enable_owner != current);
 	WARN_ON_ONCE(enable_refcnt == 0);
 
-	if (--enable_refcnt)
+	if (--enable_refcnt) {
+		__release(enable_lock);
 		return;
+	}
 	enable_owner = NULL;
 	spin_unlock_irqrestore(&enable_lock, flags);
 }
