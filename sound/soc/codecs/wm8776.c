@@ -265,7 +265,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Set word length */
-	switch (snd_pcm_format_width(params_format(params))) {
+	switch (params_width(params)) {
 	case 16:
 		iface = 0;
 		break;
@@ -280,7 +280,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(codec->dev, "Unsupported sample size: %i\n",
-			snd_pcm_format_width(params_format(params)));
+			params_width(params));
 		return -EINVAL;
 	}
 

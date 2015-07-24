@@ -1702,7 +1702,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 	int *bclk_rates;
 
 	/* Data sizes if not using TDM */
-	wl = snd_pcm_format_width(params_format(params));
+	wl = params_width(params);
 	if (wl < 0)
 		return wl;
 	fl = snd_soc_params_to_frame_size(params);

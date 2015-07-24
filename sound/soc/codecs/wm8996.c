@@ -1780,7 +1780,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 	wm8996->rx_rate[dai->id] = params_rate(params);
 
 	/* Needs looking at for TDM */
-	bits = snd_pcm_format_width(params_format(params));
+	bits = params_width(params);
 	if (bits < 0)
 		return bits;
 	aifdata |= (bits << WM8996_AIF1TX_WL_SHIFT) | bits;

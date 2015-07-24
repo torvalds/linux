@@ -1117,7 +1117,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		params_rate(params),
 		params_channels(params));
 
-	switch (snd_pcm_format_width(params_format(params))) {
+	switch (params_width(params)) {
 	case 16:
 		alen = PCM512x_ALEN_16;
 		break;
@@ -1132,7 +1132,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(codec->dev, "Bad frame size: %d\n",
-			snd_pcm_format_width(params_format(params)));
+			params_width(params));
 		return -EINVAL;
 	}
 
