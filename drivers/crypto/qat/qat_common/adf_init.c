@@ -69,7 +69,7 @@ static void adf_service_add(struct service_hndl *service)
  * Function adds the acceleration service to the acceleration framework.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_service_register(struct service_hndl *service)
 {
@@ -94,7 +94,7 @@ static void adf_service_remove(struct service_hndl *service)
  * Function remove the acceleration service from the acceleration framework.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_service_unregister(struct service_hndl *service)
 {
@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(adf_service_unregister);
  * Initialize the ring data structures and the admin comms and arbitration
  * services.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_dev_init(struct adf_accel_dev *accel_dev)
 {
@@ -214,7 +214,7 @@ EXPORT_SYMBOL_GPL(adf_dev_init);
  * is ready to be used.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_dev_start(struct adf_accel_dev *accel_dev)
 {
@@ -276,7 +276,7 @@ EXPORT_SYMBOL_GPL(adf_dev_start);
  * is shuting down.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_dev_stop(struct adf_accel_dev *accel_dev)
 {

@@ -206,7 +206,7 @@ static struct pci_error_handlers adf_err_handler = {
  * QAT acceleration device accel_dev.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_enable_aer(struct adf_accel_dev *accel_dev, struct pci_driver *adf)
 {

@@ -463,7 +463,7 @@ err:
  * acceleration device accel_dev.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 {

@@ -60,7 +60,7 @@ static uint32_t num_devices;
  * Function adds acceleration device to the acceleration framework.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code othewise.
+ * Return: 0 on success, error code otherwise.
  */
 int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev)
 {
