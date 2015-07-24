@@ -4995,7 +4995,7 @@ EXPORT_SYMBOL(netdev_all_upper_get_next_dev_rcu);
  * Gets the next netdev_adjacent->private from the dev's lower neighbour
  * list, starting from iter position. The caller must hold either hold the
  * RTNL lock or its own locking that guarantees that the neighbour lower
- * list will remain unchainged.
+ * list will remain unchanged.
  */
 void *netdev_lower_get_next_private(struct net_device *dev,
 				    struct list_head **iter)
@@ -5050,7 +5050,7 @@ EXPORT_SYMBOL(netdev_lower_get_next_private_rcu);
  * Gets the next netdev_adjacent from the dev's lower neighbour
  * list, starting from iter position. The caller must hold RTNL lock or
  * its own locking that guarantees that the neighbour lower
- * list will remain unchainged.
+ * list will remain unchanged.
  */
 void *netdev_lower_get_next(struct net_device *dev, struct list_head **iter)
 {
