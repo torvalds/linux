@@ -2868,11 +2868,6 @@ static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req,
 
 int __must_check i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
 int __must_check i915_gem_set_seqno(struct drm_device *dev, u32 seqno);
-int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
-
-bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
-void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
 
 struct drm_i915_gem_request *
 i915_gem_find_active_request(struct intel_engine_cs *ring);
@@ -2970,8 +2965,6 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
-void i915_gem_restore_fences(struct drm_device *dev);
-
 unsigned long
 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
 			      const struct i915_ggtt_view *view);
@@ -3065,6 +3058,15 @@ i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_ggtt_unpin_view(obj, &i915_ggtt_view_normal);
 }
+
+/* i915_gem_fence.c */
+int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
+
+bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
+void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
+
+void i915_gem_restore_fences(struct drm_device *dev);
 
 /* i915_gem_context.c */
 int __must_check i915_gem_context_init(struct drm_device *dev);
