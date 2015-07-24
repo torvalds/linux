@@ -380,6 +380,8 @@ visornic_serverdown_complete(struct visornic_devdata *devdata)
 	rtnl_unlock();
 
 	atomic_set(&devdata->num_rcvbuf_in_iovm, 0);
+	devdata->chstat.sent_xmit = 0;
+	devdata->chstat.got_xmit_done = 0;
 
 	if (devdata->server_down_complete_func)
 		(*devdata->server_down_complete_func)(devdata->dev, 0);
