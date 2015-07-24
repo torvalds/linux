@@ -95,7 +95,7 @@ const struct clk_ops clk_gpio_mux_ops = {
 EXPORT_SYMBOL_GPL(clk_gpio_mux_ops);
 
 static struct clk *clk_register_gpio(struct device *dev, const char *name,
-		const char **parent_names, u8 num_parents, unsigned gpio,
+		const char * const *parent_names, u8 num_parents, unsigned gpio,
 		bool active_low, unsigned long flags,
 		const struct clk_ops *clk_gpio_ops)
 {
@@ -188,7 +188,7 @@ EXPORT_SYMBOL_GPL(clk_register_gpio_gate);
  * @flags: clock flags
  */
 struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
-		const char **parent_names, u8 num_parents, unsigned gpio,
+		const char * const *parent_names, u8 num_parents, unsigned gpio,
 		bool active_low, unsigned long flags)
 {
 	if (num_parents != 2) {
@@ -213,7 +213,7 @@ struct clk_gpio_delayed_register_data {
 	struct mutex lock;
 	struct clk *clk;
 	struct clk *(*clk_register_get)(const char *name,
-			const char **parent_names, u8 num_parents,
+			const char * const *parent_names, u8 num_parents,
 			unsigned gpio, bool active_low);
 };
 
@@ -273,7 +273,7 @@ out:
 }
 
 static struct clk *of_clk_gpio_gate_delayed_register_get(const char *name,
-		const char **parent_names, u8 num_parents,
+		const char * const *parent_names, u8 num_parents,
 		unsigned gpio, bool active_low)
 {
 	return clk_register_gpio_gate(NULL, name, parent_names[0],
@@ -281,7 +281,7 @@ static struct clk *of_clk_gpio_gate_delayed_register_get(const char *name,
 }
 
 static struct clk *of_clk_gpio_mux_delayed_register_get(const char *name,
-		const char **parent_names, u8 num_parents, unsigned gpio,
+		const char * const *parent_names, u8 num_parents, unsigned gpio,
 		bool active_low)
 {
 	return clk_register_gpio_mux(NULL, name, parent_names, num_parents,
@@ -291,7 +291,8 @@ static struct clk *of_clk_gpio_mux_delayed_register_get(const char *name,
 static void __init of_gpio_clk_setup(struct device_node *node,
 		const char *gpio_name,
 		struct clk *(*clk_register_get)(const char *name,
-				const char **parent_names, u8 num_parents,
+				const char * const *parent_names,
+				u8 num_parents,
 				unsigned gpio, bool active_low))
 {
 	struct clk_gpio_delayed_register_data *data;
