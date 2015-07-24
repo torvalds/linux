@@ -2075,7 +2075,6 @@ static int rtl_start_rx(struct r8152 *tp)
 {
 	int i, ret = 0;
 
-	napi_disable(&tp->napi);
 	INIT_LIST_HEAD(&tp->rx_done);
 	for (i = 0; i < RTL8152_MAX_RX; i++) {
 		INIT_LIST_HEAD(&tp->rx_info[i].list);
@@ -2083,7 +2082,6 @@ static int rtl_start_rx(struct r8152 *tp)
 		if (ret)
 			break;
 	}
-	napi_enable(&tp->napi);
 
 	if (ret && ++i < RTL8152_MAX_RX) {
 		struct list_head rx_queue;
@@ -2951,8 +2949,10 @@ static void set_carrier(struct r8152 *tp)
 		if (!netif_carrier_ok(netdev)) {
 			tp->rtl_ops.enable(tp);
 			set_bit(RTL8152_SET_RX_MODE, &tp->flags);
+			napi_disable(&tp->napi);
 			netif_carrier_on(netdev);
 			rtl_start_rx(tp);
+			napi_enable(&tp->napi);
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
@@ -3395,9 +3395,11 @@ static int rtl8152_resume(struct usb_interface *intf)
 		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
 			rtl_runtime_suspend_enable(tp, false);
 			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+			napi_disable(&tp->napi);
 			set_bit(WORK_ENABLE, &tp->flags);
 			if (netif_carrier_ok(tp->netdev))
 				rtl_start_rx(tp);
+			napi_enable(&tp->napi);
 		} else {
 			tp->rtl_ops.up(tp);
 			rtl8152_set_speed(tp, AUTONEG_ENABLE,
