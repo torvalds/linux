@@ -866,9 +866,15 @@ err_free_irq:
 static int jz4780_dma_remove(struct platform_device *pdev)
 {
 	struct jz4780_dma_dev *jzdma = platform_get_drvdata(pdev);
+	int i;
 
 	of_dma_controller_free(pdev->dev.of_node);
+
 	free_irq(jzdma->irq, jzdma);
+
+	for (i = 0; i < JZ_DMA_NR_CHANNELS; i++)
+		tasklet_kill(&jzdma->chan[i].vchan.task);
+
 	dma_async_device_unregister(&jzdma->dma_device);
 	return 0;
 }
