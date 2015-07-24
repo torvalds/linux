@@ -231,7 +231,7 @@ cfs_str2num_check(char *str, int nob, unsigned *num,
 	char	*endp;
 
 	str = cfs_trimwhite(str);
-	*num = strtoul(str, &endp, 0);
+	*num = simple_strtoul(str, &endp, 0);
 	if (endp == str)
 		return 0;
 

@@ -102,6 +102,4 @@ int cfs_ip_addr_parse(char *str, int len, struct list_head *list);
 int cfs_ip_addr_match(__u32 addr, struct list_head *list);
 void cfs_ip_addr_free(struct list_head *list);
 
-#define	strtoul(str, endp, base)	simple_strtoul(str, endp, base)
-
 #endif
