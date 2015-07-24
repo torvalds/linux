@@ -286,17 +286,17 @@ error_free_builtname:
  * @cnt: the amount of array elements
  **/
 
-void bsort_channel_array_by_index(struct iio_channel_info **ci_array, int cnt)
+void bsort_channel_array_by_index(struct iio_channel_info *ci_array, int cnt)
 {
 	struct iio_channel_info temp;
 	int x, y;
 
 	for (x = 0; x < cnt; x++)
 		for (y = 0; y < (cnt - 1); y++)
-			if ((*ci_array)[y].index > (*ci_array)[y + 1].index) {
-				temp = (*ci_array)[y + 1];
-				(*ci_array)[y + 1] = (*ci_array)[y];
-				(*ci_array)[y] = temp;
+			if (ci_array[y].index > ci_array[y + 1].index) {
+				temp = ci_array[y + 1];
+				ci_array[y + 1] = ci_array[y];
+				ci_array[y] = temp;
 			}
 }
 
@@ -516,7 +516,7 @@ int build_channel_array(const char *device_dir,
 
 	free(scan_el_dir);
 	/* reorder so that the array is in index order */
-	bsort_channel_array_by_index(ci_array, *counter);
+	bsort_channel_array_by_index(*ci_array, *counter);
 
 	return 0;
 

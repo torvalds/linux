@@ -60,7 +60,7 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 int iioutils_get_param_float(float *output, const char *param_name,
 			     const char *device_dir, const char *name,
 			     const char *generic_name);
-void bsort_channel_array_by_index(struct iio_channel_info **ci_array, int cnt);
+void bsort_channel_array_by_index(struct iio_channel_info *ci_array, int cnt);
 int build_channel_array(const char *device_dir,
 			struct iio_channel_info **ci_array, int *counter);
 int find_type_by_name(const char *name, const char *type);
