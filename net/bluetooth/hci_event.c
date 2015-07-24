@@ -823,7 +823,7 @@ static void hci_cc_read_local_amp_info(struct hci_dev *hdev,
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
 
 	if (rp->status)
-		goto a2mp_rsp;
+		return;
 
 	hdev->amp_status = rp->amp_status;
 	hdev->amp_total_bw = __le32_to_cpu(rp->total_bw);
@@ -835,9 +835,6 @@ static void hci_cc_read_local_amp_info(struct hci_dev *hdev,
 	hdev->amp_assoc_size = __le16_to_cpu(rp->max_assoc_size);
 	hdev->amp_be_flush_to = __le32_to_cpu(rp->be_flush_to);
 	hdev->amp_max_flush_to = __le32_to_cpu(rp->max_flush_to);
-
-a2mp_rsp:
-	a2mp_send_getinfo_rsp(hdev);
 }
 
 static void hci_cc_read_local_amp_assoc(struct hci_dev *hdev,
