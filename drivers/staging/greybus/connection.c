@@ -251,7 +251,12 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	spin_unlock_irq(&gb_connections_lock);
 
-	/* XXX Will have to establish connections to get version */
+	if (hd_cport_id != GB_SVC_CPORT_ID) {
+		gb_svc_connection_create(hd->svc,
+					 hd->endo->ap_intf_id, hd_cport_id,
+					 bundle->intf->interface_id, cport_id);
+	}
+
 	gb_connection_bind_protocol(connection);
 	if (!connection->protocol)
 		dev_warn(&connection->dev,
