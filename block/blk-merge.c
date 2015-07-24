@@ -116,7 +116,7 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
 		bio->bi_next = nxt;
 	}
 
-	bio->bi_flags |= (1 << BIO_SEG_VALID);
+	bio_set_flag(bio, BIO_SEG_VALID);
 }
 EXPORT_SYMBOL(blk_recount_segments);
 

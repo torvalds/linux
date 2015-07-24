@@ -1216,7 +1216,7 @@ static void __make_request(struct mddev *mddev, struct bio *bio)
 	 * non-zero, then it is the number of not-completed requests.
 	 */
 	bio->bi_phys_segments = 0;
-	clear_bit(BIO_SEG_VALID, &bio->bi_flags);
+	bio_clear_flag(bio, BIO_SEG_VALID);
 
 	if (rw == READ) {
 		/*
@@ -3353,7 +3353,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 				/* remove last page from this bio */
 				bio2->bi_vcnt--;
 				bio2->bi_iter.bi_size -= len;
-				__clear_bit(BIO_SEG_VALID, &bio2->bi_flags);
+				bio_clear_flag(bio2, BIO_SEG_VALID);
 			}
 			goto bio_full;
 		}
@@ -4433,7 +4433,7 @@ read_more:
 				/* Remove last page from this bio */
 				bio2->bi_vcnt--;
 				bio2->bi_iter.bi_size -= len;
-				__clear_bit(BIO_SEG_VALID, &bio2->bi_flags);
+				bio_clear_flag(bio2, BIO_SEG_VALID);
 			}
 			goto bio_full;
 		}

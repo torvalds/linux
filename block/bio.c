@@ -311,7 +311,7 @@ static void bio_chain_endio(struct bio *bio)
  */
 static inline void bio_inc_remaining(struct bio *bio)
 {
-	bio->bi_flags |= (1 << BIO_CHAIN);
+	bio_set_flag(bio, BIO_CHAIN);
 	smp_mb__before_atomic();
 	atomic_inc(&bio->__bi_remaining);
 }
@@ -495,7 +495,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 		if (unlikely(!bvl))
 			goto err_free;
 
-		bio->bi_flags |= 1 << BIO_OWNS_VEC;
+		bio_set_flag(bio, BIO_OWNS_VEC);
 	} else if (nr_iovecs) {
 		bvl = bio->bi_inline_vecs;
 	}
@@ -580,7 +580,7 @@ void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 	 * so we don't set nor calculate new physical/hw segment counts here
 	 */
 	bio->bi_bdev = bio_src->bi_bdev;
-	bio->bi_flags |= 1 << BIO_CLONED;
+	bio_set_flag(bio, BIO_CLONED);
 	bio->bi_rw = bio_src->bi_rw;
 	bio->bi_iter = bio_src->bi_iter;
 	bio->bi_io_vec = bio_src->bi_io_vec;
@@ -829,7 +829,7 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 
 	/* If we may be able to merge these biovecs, force a recount */
 	if (bio->bi_vcnt > 1 && (BIOVEC_PHYS_MERGEABLE(bvec-1, bvec)))
-		bio->bi_flags &= ~(1 << BIO_SEG_VALID);
+		bio_clear_flag(bio, BIO_SEG_VALID);
 
  done:
 	return len;
@@ -1390,7 +1390,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	if (iter->type & WRITE)
 		bio->bi_rw |= REQ_WRITE;
 
-	bio->bi_flags |= (1 << BIO_USER_MAPPED);
+	bio_set_flag(bio, BIO_USER_MAPPED);
 
 	/*
 	 * subtle -- if __bio_map_user() ended up bouncing a bio,
@@ -1770,7 +1770,7 @@ static inline bool bio_remaining_done(struct bio *bio)
 	BUG_ON(atomic_read(&bio->__bi_remaining) <= 0);
 
 	if (atomic_dec_and_test(&bio->__bi_remaining)) {
-		clear_bit(BIO_CHAIN, &bio->bi_flags);
+		bio_clear_flag(bio, BIO_CHAIN);
 		return true;
 	}
 
@@ -1866,7 +1866,7 @@ void bio_trim(struct bio *bio, int offset, int size)
 	if (offset == 0 && size == bio->bi_iter.bi_size)
 		return;
 
-	clear_bit(BIO_SEG_VALID, &bio->bi_flags);
+	bio_clear_flag(bio, BIO_SEG_VALID);
 
 	bio_advance(bio, offset << 9);
 

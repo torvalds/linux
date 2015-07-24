@@ -129,8 +129,6 @@ struct bio {
 #define BIO_RESET_BITS	13
 #define BIO_OWNS_VEC	13	/* bio_free() should free bvec */
 
-#define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
-
 /*
  * top 4 bits of bio flags indicate the pool this bio came from
  */

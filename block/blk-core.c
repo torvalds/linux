@@ -146,7 +146,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 		bio->bi_error = error;
 
 	if (unlikely(rq->cmd_flags & REQ_QUIET))
-		set_bit(BIO_QUIET, &bio->bi_flags);
+		bio_set_flag(bio, BIO_QUIET);
 
 	bio_advance(bio, nbytes);
 

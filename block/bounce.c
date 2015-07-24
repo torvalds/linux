@@ -186,7 +186,7 @@ static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
 	if (!bdi_cap_stable_pages_required(&q->backing_dev_info))
 		return 0;
 
-	return test_bit(BIO_SNAP_STABLE, &bio->bi_flags);
+	return bio_flagged(bio, BIO_SNAP_STABLE);
 }
 #else
 static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
