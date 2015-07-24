@@ -29,7 +29,7 @@ static unsigned int refresh_rate;
 /* -------------------- Macro definitions ---------------------------- */
 
 #ifdef DEBUG
-static void dumpVGAReg(void)
+static void dumpVGAReg(struct xgifb_video_info *xgifb_info)
 {
 	u8 i, reg;
 
@@ -48,7 +48,7 @@ static void dumpVGAReg(void)
 	}
 }
 #else
-static inline void dumpVGAReg(void)
+static inline void dumpVGAReg(struct xgifb_video_info *xgifb_info)
 {
 }
 #endif
@@ -1073,7 +1073,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	}
 	XGIfb_bpp_to_var(xgifb_info, var); /*update ARGB info*/
 
-	dumpVGAReg();
+	dumpVGAReg(xgifb_info);
 	return 0;
 }
 
@@ -2019,7 +2019,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 		goto error_mtrr;
 	}
 
-	dumpVGAReg();
+	dumpVGAReg(xgifb_info);
 
 	return 0;
 
