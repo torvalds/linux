@@ -395,6 +395,8 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (divider->lock)
 		spin_lock_irqsave(divider->lock, flags);
+	else
+		__acquire(divider->lock);
 
 	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
 		val = div_mask(divider->width) << (divider->shift + 16);
@@ -407,6 +409,8 @@ static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (divider->lock)
 		spin_unlock_irqrestore(divider->lock, flags);
+	else
+		__release(divider->lock);
 
 	return 0;
 }
