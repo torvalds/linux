@@ -502,6 +502,8 @@ static void mddev_put(struct mddev *mddev)
 		bioset_free(bs);
 }
 
+static void md_safemode_timeout(unsigned long data);
+
 void mddev_init(struct mddev *mddev)
 {
 	mutex_init(&mddev->open_mutex);
@@ -509,7 +511,8 @@ void mddev_init(struct mddev *mddev)
 	mutex_init(&mddev->bitmap_info.mutex);
 	INIT_LIST_HEAD(&mddev->disks);
 	INIT_LIST_HEAD(&mddev->all_mddevs);
-	init_timer(&mddev->safemode_timer);
+	setup_timer(&mddev->safemode_timer, md_safemode_timeout,
+		    (unsigned long) mddev);
 	atomic_set(&mddev->active, 1);
 	atomic_set(&mddev->openers, 0);
 	atomic_set(&mddev->active_io, 0);
@@ -3276,8 +3279,6 @@ int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale)
 	return 0;
 }
 
-static void md_safemode_timeout(unsigned long data);
-
 static ssize_t
 safe_delay_show(struct mddev *mddev, char *page)
 {
@@ -5204,8 +5205,6 @@ int md_run(struct mddev *mddev)
 	atomic_set(&mddev->max_corr_read_errors,
 		   MD_DEFAULT_MAX_CORRECTED_READ_ERRORS);
 	mddev->safemode = 0;
-	mddev->safemode_timer.function = md_safemode_timeout;
-	mddev->safemode_timer.data = (unsigned long) mddev;
 	mddev->safemode_delay = (200 * HZ)/1000 +1; /* 200 msec delay */
 	mddev->in_sync = 1;
 	smp_wmb();
