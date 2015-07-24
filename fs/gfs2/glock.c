@@ -446,7 +446,7 @@ __acquires(&gl->gl_lockref.lock)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	unsigned int lck_flags = gh ? gh->gh_flags : 0;
+	unsigned int lck_flags = (unsigned int)(gh ? gh->gh_flags : 0);
 	int ret;
 
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
@@ -750,7 +750,7 @@ again:
  *
  */
 
-void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
+void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, u16 flags,
 		      struct gfs2_holder *gh)
 {
 	INIT_LIST_HEAD(&gh->gh_list);
@@ -774,7 +774,7 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
  *
  */
 
-void gfs2_holder_reinit(unsigned int state, unsigned flags, struct gfs2_holder *gh)
+void gfs2_holder_reinit(unsigned int state, u16 flags, struct gfs2_holder *gh)
 {
 	gh->gh_state = state;
 	gh->gh_flags = flags;
@@ -1080,7 +1080,7 @@ void gfs2_glock_dq_uninit(struct gfs2_holder *gh)
 
 int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
 		      const struct gfs2_glock_operations *glops,
-		      unsigned int state, int flags, struct gfs2_holder *gh)
+		      unsigned int state, u16 flags, struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl;
 	int error;
@@ -1539,7 +1539,7 @@ static const char *state2str(unsigned state)
 	return "??";
 }
 
-static const char *hflags2str(char *buf, unsigned flags, unsigned long iflags)
+static const char *hflags2str(char *buf, u16 flags, unsigned long iflags)
 {
 	char *p = buf;
 	if (flags & LM_FLAG_TRY)

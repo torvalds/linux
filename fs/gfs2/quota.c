@@ -620,7 +620,7 @@ out:
 void gfs2_quota_unhold(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	unsigned int x;
+	u32 x;
 
 	if (ip->i_qadata == NULL)
 		return;
@@ -1036,7 +1036,7 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qd;
-	unsigned int x;
+	u32 x;
 	int error = 0;
 
 	if (capable(CAP_SYS_RESOURCE) ||
@@ -1109,7 +1109,7 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qda[4];
 	unsigned int count = 0;
-	unsigned int x;
+	u32 x;
 	int found;
 
 	if (!test_and_clear_bit(GIF_QD_LOCKED, &ip->i_flags))
@@ -1191,7 +1191,7 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qd;
 	s64 value, warn, limit;
-	unsigned int x;
+	u32 x;
 	int error = 0;
 
 	ap->allowed = UINT_MAX; /* Assume we are permitted a whole lot */
@@ -1249,7 +1249,7 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 		       kuid_t uid, kgid_t gid)
 {
 	struct gfs2_quota_data *qd;
-	unsigned int x;
+	u32 x;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
 	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON ||

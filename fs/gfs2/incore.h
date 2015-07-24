@@ -259,8 +259,8 @@ struct gfs2_holder {
 
 	struct gfs2_glock *gh_gl;
 	struct pid *gh_owner_pid;
-	unsigned int gh_state;
-	unsigned gh_flags;
+	u16 gh_flags;
+	u16 gh_state;
 
 	int gh_error;
 	unsigned long gh_iflags; /* HIF_... */
