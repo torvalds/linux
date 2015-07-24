@@ -118,6 +118,20 @@ static int connection_destroy_operation(struct gb_svc *svc,
 				 &request, sizeof(request), NULL, 0);
 }
 
+static int route_create_operation(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
+				  u8 intf2_id, u8 dev2_id)
+{
+	struct gb_svc_route_create_request request;
+
+	request.intf1_id = intf1_id;
+	request.dev1_id = dev1_id;
+	request.intf2_id = intf2_id;
+	request.dev2_id = dev2_id;
+
+	return gb_operation_sync(svc->connection, GB_SVC_TYPE_ROUTE_CREATE,
+				 &request, sizeof(request), NULL, 0);
+}
+
 int gb_svc_intf_device_id(struct gb_svc *svc, u8 intf_id, u8 device_id)
 {
 	return intf_device_id_operation(svc, intf_id, device_id);
@@ -147,6 +161,13 @@ int gb_svc_connection_destroy(struct gb_svc *svc,
 						intf2_id, cport2_id);
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
+
+int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
+			u8 intf2_id, u8 dev2_id) {
+	return route_create_operation(svc, intf1_id, dev1_id,
+				      intf2_id, dev2_id);
+}
+EXPORT_SYMBOL_GPL(gb_svc_route_create);
 
 static int gb_svc_version_request(struct gb_operation *op)
 {
