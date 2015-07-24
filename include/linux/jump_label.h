@@ -198,6 +198,26 @@ static inline bool static_key_enabled(struct static_key *key)
 	return static_key_count(key) > 0;
 }
 
+static inline void static_key_enable(struct static_key *key)
+{
+	int count = static_key_count(key);
+
+	WARN_ON_ONCE(count < 0 || count > 1);
+
+	if (!count)
+		static_key_slow_inc(key);
+}
+
+static inline void static_key_disable(struct static_key *key)
+{
+	int count = static_key_count(key);
+
+	WARN_ON_ONCE(count < 0 || count > 1);
+
+	if (count)
+		static_key_slow_dec(key);
+}
+
 #endif	/* _LINUX_JUMP_LABEL_H */
 
 #endif /* __ASSEMBLY__ */
