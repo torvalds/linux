@@ -51,8 +51,15 @@ static int teranetics_aneg_done(struct phy_device *phydev)
 {
 	int reg;
 
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
-	return (reg < 0) ? reg : (reg & BMSR_ANEGCOMPLETE);
+	/* auto negotiation state can only be checked when using copper
+	 * port, if using fiber port, just lie it's done.
+	 */
+	if (!phy_read_mmd(phydev, MDIO_MMD_VEND1, 93)) {
+		reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
+		return (reg < 0) ? reg : (reg & BMSR_ANEGCOMPLETE);
+	}
+
+	return 1;
 }
 
 static int teranetics_config_aneg(struct phy_device *phydev)
