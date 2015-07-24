@@ -18,6 +18,8 @@
 #ifndef __ASM_ESR_H
 #define __ASM_ESR_H
 
+#include <asm/memory.h>
+
 #define ESR_ELx_EC_UNKNOWN	(0x00)
 #define ESR_ELx_EC_WFx		(0x01)
 /* Unallocated EC: 0x02 */

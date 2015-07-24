@@ -18,8 +18,11 @@
 
 #ifdef __KERNEL__
 
+#include <linux/errno.h>
+#include <linux/types.h>
 #include <asm/esr.h>
 #include <asm/insn.h>
+#include <asm/ptrace.h>
 
 /* Low-level stepping controls. */
 #define DBG_MDSCR_SS		(1 << 0)
