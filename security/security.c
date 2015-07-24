@@ -56,18 +56,13 @@ int __init security_init(void)
 	pr_info("Security Framework initialized\n");
 
 	/*
-	 * Always load the capability module.
+	 * Load minor LSMs, with the capability module always first.
 	 */
 	capability_add_hooks();
-#ifdef CONFIG_SECURITY_YAMA_STACKED
-	/*
-	 * If Yama is configured for stacking load it next.
-	 */
 	yama_add_hooks();
-#endif
+
 	/*
-	 * Load the chosen module if there is one.
-	 * This will also find yama if it is stacking
+	 * Load all the remaining security modules.
 	 */
 	do_security_initcalls();
 
