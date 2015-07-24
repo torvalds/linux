@@ -16,7 +16,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
-extern spinlock_t pa_dbit_lock;
+extern spinlock_t pa_tlb_lock;
 
 /*
  * kern_addr_valid(ADDR) tests if ADDR is pointing to valid kernel
@@ -33,6 +33,19 @@ extern spinlock_t pa_dbit_lock;
  */
 #define kern_addr_valid(addr)	(1)
 
+/* Purge data and instruction TLB entries.  Must be called holding
+ * the pa_tlb_lock.  The TLB purge instructions are slow on SMP
+ * machines since the purge must be broadcast to all CPUs.
+ */
+
+static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
+{
+	mtsp(mm->context, 1);
+	pdtlb(addr);
+	if (unlikely(split_tlb))
+		pitlb(addr);
+}
+
 /* Certain architectures need to do special things when PTEs
  * within a page table are directly modified.  Thus, the following
  * hook is made available.
@@ -42,15 +55,20 @@ extern spinlock_t pa_dbit_lock;
                 *(pteptr) = (pteval);                           \
         } while(0)
 
-extern void purge_tlb_entries(struct mm_struct *, unsigned long);
+#define pte_inserted(x)						\
+	((pte_val(x) & (_PAGE_PRESENT|_PAGE_ACCESSED))		\
+	 == (_PAGE_PRESENT|_PAGE_ACCESSED))
 
-#define set_pte_at(mm, addr, ptep, pteval)                      \
-	do {                                                    \
+#define set_pte_at(mm, addr, ptep, pteval)			\
+	do {							\
+		pte_t old_pte;					\
 		unsigned long flags;				\
-		spin_lock_irqsave(&pa_dbit_lock, flags);	\
-		set_pte(ptep, pteval);                          \
-		purge_tlb_entries(mm, addr);                    \
-		spin_unlock_irqrestore(&pa_dbit_lock, flags);	\
+		spin_lock_irqsave(&pa_tlb_lock, flags);		\
+		old_pte = *ptep;				\
+		set_pte(ptep, pteval);				\
+		if (pte_inserted(old_pte))			\
+			purge_tlb_entries(mm, addr);		\
+		spin_unlock_irqrestore(&pa_tlb_lock, flags);	\
 	} while (0)
 
 #endif /* !__ASSEMBLY__ */
@@ -268,7 +286,7 @@ extern unsigned long *empty_zero_page;
 
 #define pte_none(x)     (pte_val(x) == 0)
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
-#define pte_clear(mm,addr,xp)	do { pte_val(*(xp)) = 0; } while (0)
+#define pte_clear(mm, addr, xp)  set_pte_at(mm, addr, xp, __pte(0))
 
 #define pmd_flag(x)	(pmd_val(x) & PxD_FLAG_MASK)
 #define pmd_address(x)	((unsigned long)(pmd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
@@ -435,15 +453,15 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned
 	if (!pte_young(*ptep))
 		return 0;
 
-	spin_lock_irqsave(&pa_dbit_lock, flags);
+	spin_lock_irqsave(&pa_tlb_lock, flags);
 	pte = *ptep;
 	if (!pte_young(pte)) {
-		spin_unlock_irqrestore(&pa_dbit_lock, flags);
+		spin_unlock_irqrestore(&pa_tlb_lock, flags);
 		return 0;
 	}
 	set_pte(ptep, pte_mkold(pte));
 	purge_tlb_entries(vma->vm_mm, addr);
-	spin_unlock_irqrestore(&pa_dbit_lock, flags);
+	spin_unlock_irqrestore(&pa_tlb_lock, flags);
 	return 1;
 }
 
@@ -453,11 +471,12 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	pte_t old_pte;
 	unsigned long flags;
 
-	spin_lock_irqsave(&pa_dbit_lock, flags);
+	spin_lock_irqsave(&pa_tlb_lock, flags);
 	old_pte = *ptep;
-	pte_clear(mm,addr,ptep);
-	purge_tlb_entries(mm, addr);
-	spin_unlock_irqrestore(&pa_dbit_lock, flags);
+	set_pte(ptep, __pte(0));
+	if (pte_inserted(old_pte))
+		purge_tlb_entries(mm, addr);
+	spin_unlock_irqrestore(&pa_tlb_lock, flags);
 
 	return old_pte;
 }
@@ -465,10 +484,10 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&pa_dbit_lock, flags);
+	spin_lock_irqsave(&pa_tlb_lock, flags);
 	set_pte(ptep, pte_wrprotect(*ptep));
 	purge_tlb_entries(mm, addr);
-	spin_unlock_irqrestore(&pa_dbit_lock, flags);
+	spin_unlock_irqrestore(&pa_tlb_lock, flags);
 }
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))

@@ -145,7 +145,6 @@ static inline void getboottime(struct timespec *ts)
 }
 #endif
 
-#define do_posix_clock_monotonic_gettime(ts) ktime_get_ts(ts)
 #define ktime_get_real_ts64(ts)	getnstimeofday64(ts)
 
 /*

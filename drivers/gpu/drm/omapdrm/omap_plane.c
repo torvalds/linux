@@ -17,6 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -153,9 +154,34 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	dispc_ovl_enable(omap_plane->id, false);
 }
 
+static int omap_plane_atomic_check(struct drm_plane *plane,
+				   struct drm_plane_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+
+	if (!state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	if (state->crtc_x < 0 || state->crtc_y < 0)
+		return -EINVAL;
+
+	if (state->crtc_x + state->crtc_w > crtc_state->adjusted_mode.hdisplay)
+		return -EINVAL;
+
+	if (state->crtc_y + state->crtc_h > crtc_state->adjusted_mode.vdisplay)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct drm_plane_helper_funcs omap_plane_helper_funcs = {
 	.prepare_fb = omap_plane_prepare_fb,
 	.cleanup_fb = omap_plane_cleanup_fb,
+	.atomic_check = omap_plane_atomic_check,
 	.atomic_update = omap_plane_atomic_update,
 	.atomic_disable = omap_plane_atomic_disable,
 };
