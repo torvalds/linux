@@ -1360,9 +1360,9 @@ static void pl011_tx_softirq(struct work_struct *work)
 	struct uart_amba_port *uap =
 		container_of(dwork, struct uart_amba_port, tx_softirq_work);
 
-	spin_lock(&uap->port.lock);
+	spin_lock_irq(&uap->port.lock);
 	while (pl011_tx_chars(uap)) ;
-	spin_unlock(&uap->port.lock);
+	spin_unlock_irq(&uap->port.lock);
 }
 
 static void pl011_tx_irq_seen(struct uart_amba_port *uap)
