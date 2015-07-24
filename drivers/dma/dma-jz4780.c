@@ -214,11 +214,25 @@ static void jz4780_dma_desc_free(struct virt_dma_desc *vdesc)
 	kfree(desc);
 }
 
-static uint32_t jz4780_dma_transfer_size(unsigned long val, int *ord)
+static uint32_t jz4780_dma_transfer_size(unsigned long val, uint32_t *shift)
 {
-	*ord = ffs(val) - 1;
+	int ord = ffs(val) - 1;
 
-	switch (*ord) {
+	/*
+	 * 8 byte transfer sizes unsupported so fall back on 4. If it's larger
+	 * than the maximum, just limit it. It is perfectly safe to fall back
+	 * in this way since we won't exceed the maximum burst size supported
+	 * by the device, the only effect is reduced efficiency. This is better
+	 * than refusing to perform the request at all.
+	 */
+	if (ord == 3)
+		ord = 2;
+	else if (ord > 7)
+		ord = 7;
+
+	*shift = ord;
+
+	switch (ord) {
 	case 0:
 		return JZ_DMA_SIZE_1_BYTE;
 	case 1:
@@ -231,10 +245,8 @@ static uint32_t jz4780_dma_transfer_size(unsigned long val, int *ord)
 		return JZ_DMA_SIZE_32_BYTE;
 	case 6:
 		return JZ_DMA_SIZE_64_BYTE;
-	case 7:
-		return JZ_DMA_SIZE_128_BYTE;
 	default:
-		return -EINVAL;
+		return JZ_DMA_SIZE_128_BYTE;
 	}
 }
 
@@ -244,7 +256,6 @@ static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 {
 	struct dma_slave_config *config = &jzchan->config;
 	uint32_t width, maxburst, tsz;
-	int ord;
 
 	if (direction == DMA_MEM_TO_DEV) {
 		desc->dcm = JZ_DMA_DCM_SAI;
@@ -271,8 +282,8 @@ static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	 * divisible by the transfer size, and we must not use more than the
 	 * maximum burst specified by the user.
 	 */
-	tsz = jz4780_dma_transfer_size(addr | len | (width * maxburst), &ord);
-	jzchan->transfer_shift = ord;
+	tsz = jz4780_dma_transfer_size(addr | len | (width * maxburst),
+				       &jzchan->transfer_shift);
 
 	switch (width) {
 	case DMA_SLAVE_BUSWIDTH_1_BYTE:
@@ -289,7 +300,7 @@ static uint32_t jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	desc->dcm |= width << JZ_DMA_DCM_SP_SHIFT;
 	desc->dcm |= width << JZ_DMA_DCM_DP_SHIFT;
 
-	desc->dtc = len >> ord;
+	desc->dtc = len >> jzchan->transfer_shift;
 }
 
 static struct dma_async_tx_descriptor *jz4780_dma_prep_slave_sg(
@@ -391,15 +402,13 @@ struct dma_async_tx_descriptor *jz4780_dma_prep_dma_memcpy(
 	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
 	struct jz4780_dma_desc *desc;
 	uint32_t tsz;
-	int ord;
 
 	desc = jz4780_dma_desc_alloc(jzchan, 1, DMA_MEMCPY);
 	if (!desc)
 		return NULL;
 
-	tsz = jz4780_dma_transfer_size(dest | src | len, &ord);
-	if (tsz < 0)
-		return ERR_PTR(tsz);
+	tsz = jz4780_dma_transfer_size(dest | src | len,
+				       &jzchan->transfer_shift);
 
 	desc->desc[0].dsa = src;
 	desc->desc[0].dta = dest;
