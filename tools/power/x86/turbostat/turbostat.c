@@ -372,7 +372,7 @@ void print_header(void)
 		if (do_rapl & RAPL_GFX)
 			outp += sprintf(outp, "   GFX_J");
 		if (do_rapl & RAPL_DRAM)
-			outp += sprintf(outp, "   RAM_W");
+			outp += sprintf(outp, "   RAM_J");
 		if (do_rapl & RAPL_PKG_PERF_STATUS)
 			outp += sprintf(outp, "   PKG_%%");
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
