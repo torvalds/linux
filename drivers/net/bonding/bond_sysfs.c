@@ -380,7 +380,7 @@ static ssize_t bonding_show_ad_select(struct device *d,
 static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
 		   bonding_show_ad_select, bonding_sysfs_store_option);
 
-/* Show and set the number of peer notifications to send after a failover event. */
+/* Show the number of peer notifications to send after a failover event. */
 static ssize_t bonding_show_num_peer_notif(struct device *d,
 					   struct device_attribute *attr,
 					   char *buf)
@@ -388,24 +388,10 @@ static ssize_t bonding_show_num_peer_notif(struct device *d,
 	struct bonding *bond = to_bond(d);
 	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
 }
-
-static ssize_t bonding_store_num_peer_notif(struct device *d,
-					    struct device_attribute *attr,
-					    const char *buf, size_t count)
-{
-	struct bonding *bond = to_bond(d);
-	int ret;
-
-	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_NUM_PEER_NOTIF, (char *)buf);
-	if (!ret)
-		ret = count;
-
-	return ret;
-}
 static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
-		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
 static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
-		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
 
 /* Show the MII monitor interval. */
 static ssize_t bonding_show_miimon(struct device *d,
