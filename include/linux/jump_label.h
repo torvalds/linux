@@ -101,24 +101,9 @@ static inline int static_key_count(struct static_key *key)
 
 #ifdef HAVE_JUMP_LABEL
 
-#define JUMP_LABEL_TYPE_FALSE_BRANCH	0UL
-#define JUMP_LABEL_TYPE_TRUE_BRANCH	1UL
-#define JUMP_LABEL_TYPE_MASK		1UL
-
-static
-inline struct jump_entry *jump_label_get_entries(struct static_key *key)
-{
-	return (struct jump_entry *)((unsigned long)key->entries
-						& ~JUMP_LABEL_TYPE_MASK);
-}
-
-static inline bool jump_label_get_branch_default(struct static_key *key)
-{
-	if (((unsigned long)key->entries & JUMP_LABEL_TYPE_MASK) ==
-	    JUMP_LABEL_TYPE_TRUE_BRANCH)
-		return true;
-	return false;
-}
+#define JUMP_TYPE_FALSE	0UL
+#define JUMP_TYPE_TRUE	1UL
+#define JUMP_TYPE_MASK	1UL
 
 static __always_inline bool static_key_false(struct static_key *key)
 {
@@ -147,10 +132,10 @@ extern void jump_label_apply_nops(struct module *mod);
 
 #define STATIC_KEY_INIT_TRUE ((struct static_key)		\
 	{ .enabled = ATOMIC_INIT(1),				\
-	  .entries = (void *)JUMP_LABEL_TYPE_TRUE_BRANCH })
+	  .entries = (void *)JUMP_TYPE_TRUE })
 #define STATIC_KEY_INIT_FALSE ((struct static_key)		\
 	{ .enabled = ATOMIC_INIT(0),				\
-	  .entries = (void *)JUMP_LABEL_TYPE_FALSE_BRANCH })
+	  .entries = (void *)JUMP_TYPE_FALSE })
 
 #else  /* !HAVE_JUMP_LABEL */
 
