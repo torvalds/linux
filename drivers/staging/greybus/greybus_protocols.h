@@ -563,6 +563,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_RESET		0x06
 #define GB_SVC_TYPE_CONN_CREATE		0x07
 #define GB_SVC_TYPE_CONN_DESTROY	0x08
+#define GB_SVC_TYPE_ROUTE_CREATE	0x0b
 
 /* SVC version request/response have same payload as gb_protocol_version_response */
 
@@ -615,6 +616,13 @@ struct gb_svc_conn_destroy_request {
 	__u16	cport2_id;
 };
 /* connection destroy response has no payload */
+
+struct gb_svc_route_create_request {
+	__u8	intf1_id;
+	__u8	dev1_id;
+	__u8	intf2_id;
+	__u8	dev2_id;
+};
 
 /* UART */
 
