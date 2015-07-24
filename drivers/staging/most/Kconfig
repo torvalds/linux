@@ -13,4 +13,6 @@ if MOST
 
 source "drivers/staging/most/mostcore/Kconfig"
 
+source "drivers/staging/most/aim-cdev/Kconfig"
+
 endif
