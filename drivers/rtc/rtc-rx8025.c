@@ -18,13 +18,10 @@
  * modify it under the terms of the GNU General Public License
  * version 2 as published by the Free Software Foundation.
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/bcd.h>
 #include <linux/i2c.h>
-#include <linux/list.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/rtc.h>
 
 /* Register definitions */
