@@ -3068,6 +3068,10 @@ void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
 
 void i915_gem_restore_fences(struct drm_device *dev);
 
+void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
+void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
+void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
+
 /* i915_gem_context.c */
 int __must_check i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
@@ -3159,10 +3163,6 @@ static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_objec
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		obj->tiling_mode != I915_TILING_NONE;
 }
-
-void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
-void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
-void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
 
 /* i915_gem_debug.c */
 #if WATCH_LISTS
