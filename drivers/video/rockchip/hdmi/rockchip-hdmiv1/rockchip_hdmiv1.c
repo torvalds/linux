@@ -130,13 +130,10 @@ static int rockchip_hdmiv1_clk_disable(struct hdmi_dev *hdmi_dev)
 static void rockchip_hdmiv1_early_suspend(void)
 {
 	struct hdmi *hdmi_drv =  hdmi_dev->hdmi;
-	struct delayed_work *delay_work;
 
 	dev_info(hdmi_drv->dev, "hdmi suspend\n");
-	delay_work = hdmi_submit_work(hdmi_drv,
-				      HDMI_SUSPEND_CTL, 0, NULL);
-	if (delay_work)
-		flush_delayed_work(delay_work);
+	hdmi_submit_work(hdmi_drv,
+			 HDMI_SUSPEND_CTL, 0, 1);
 	mutex_lock(&hdmi_drv->lock);
 	if (hdmi_dev->irq)
 		disable_irq(hdmi_dev->irq);
@@ -157,7 +154,7 @@ static void rockchip_hdmiv1_early_resume(void)
 		enable_irq(hdmi_dev->irq);
 	}
 	mutex_unlock(&hdmi_drv->lock);
-	hdmi_submit_work(hdmi_drv, HDMI_RESUME_CTL, 0, NULL);
+	hdmi_submit_work(hdmi_drv, HDMI_RESUME_CTL, 0, 0);
 }
 
 static int rockchip_hdmiv1_fb_event_notify(struct notifier_block *self,
@@ -271,7 +268,6 @@ static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *res;
-	struct delayed_work *delay_work;
 
 	hdmi_dev = devm_kzalloc(&pdev->dev,
 				sizeof(struct hdmi_dev),
@@ -337,10 +333,7 @@ static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 	rockchip_hdmiv1_initial(hdmi_dev->hdmi);
 
 	rk_display_device_enable(hdmi_dev->hdmi->ddev);
-	delay_work = hdmi_submit_work(hdmi_dev->hdmi,
-				      HDMI_HPD_CHANGE, 0, NULL);
-	if (delay_work)
-		flush_delayed_work(delay_work);
+	hdmi_submit_work(hdmi_dev->hdmi, HDMI_HPD_CHANGE, 0, 1);
 
 #if defined(CONFIG_DEBUG_FS)
 	hdmi_dev->debugfs_dir = debugfs_create_dir("rockchip_hdmiv1", NULL);

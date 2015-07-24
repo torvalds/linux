@@ -879,7 +879,7 @@ static int rockchip_hdmiv1_enable(struct hdmi *hdmi_drv)
 		hdmi_msk_reg(hdmi_dev, HDMI_STATUS,
 			     m_MASK_INT_HOTPLUG, v_MASK_INT_HOTPLUG(1));
 	}
-	hdmi_submit_work(hdmi_drv, HDMI_HPD_CHANGE, 10, NULL);
+	hdmi_submit_work(hdmi_drv, HDMI_HPD_CHANGE, 10, 0);
 	return 0;
 }
 
@@ -910,7 +910,7 @@ void rockchip_hdmiv1_irq(struct hdmi *hdmi_drv)
 	if (interrupt)
 		hdmi_writel(hdmi_dev, HDMI_STATUS, interrupt);
 	if (interrupt & m_INT_HOTPLUG)
-		hdmi_submit_work(hdmi_drv, HDMI_HPD_CHANGE, 20, NULL);
+		hdmi_submit_work(hdmi_drv, HDMI_HPD_CHANGE, 20, 0);
 
 	if (hdmi_drv->ops->hdcp_irq_cb)
 		hdmi_drv->ops->hdcp_irq_cb(0);

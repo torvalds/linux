@@ -520,12 +520,12 @@ void rockchip_hdmiv2_hdcp_isr(struct hdmi_dev *hdmi_dev, int hdcp_int)
 
 	if (hdcp_int & m_KSVSHA1_CALC_INT) {
 		pr_info("hdcp sink is a repeater\n");
-		hdmi_submit_work(hdcp->hdmi, HDMI_HDCP_AUTH_2ND, 0, NULL);
+		hdmi_submit_work(hdcp->hdmi, HDMI_HDCP_AUTH_2ND, 0, 0);
 	}
 	if (hdcp_int & 0x40) {
 		pr_info("hdcp check failed\n");
 		rockchip_hdmiv2_hdcp_stop(hdmi_dev->hdmi);
-		hdmi_submit_work(hdcp->hdmi, HDMI_ENABLE_HDCP, 0, NULL);
+		hdmi_submit_work(hdcp->hdmi, HDMI_ENABLE_HDCP, 0, 0);
 	}
 }
 
@@ -557,7 +557,7 @@ static ssize_t hdcp_enable_write(struct device *device,
 
 	if (hdcp->enable != enable) {
 		if (!hdcp->enable)
-			hdmi_submit_work(hdcp->hdmi, HDMI_ENABLE_HDCP, 0, NULL);
+			hdmi_submit_work(hdcp->hdmi, HDMI_ENABLE_HDCP, 0, 0);
 		else
 			rockchip_hdmiv2_hdcp_stop(hdcp->hdmi);
 		hdcp->enable =	enable;

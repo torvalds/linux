@@ -492,8 +492,8 @@ struct hdmi {
 struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 				    struct hdmi_ops *ops);
 void rockchip_hdmi_unregister(struct hdmi *hdmi);
-struct delayed_work *hdmi_submit_work(struct hdmi *hdmi,
-				      int event, int delay, void *data);
+void hdmi_submit_work(struct hdmi *hdmi,
+		      int event, int delay, int sync);
 
 struct rk_display_device *hdmi_register_display_sysfs(struct hdmi *hdmi,
 						      struct device *parent);

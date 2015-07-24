@@ -146,13 +146,10 @@ HDMI_DEBUG_ENTRY(regs_ctrl);
 static void rockchip_hdmiv2_early_suspend(struct early_suspend *h)
 {
 	struct hdmi *hdmi = hdmi_dev->hdmi;
-	struct delay_work *delay_work;
 	struct pinctrl_state *gpio_state;
 
 	HDMIDBG("hdmi enter early suspend\n");
-	delay_work = hdmi_submit_work(hdmi, HDMI_SUSPEND_CTL, 0, NULL);
-	if (delay_work)
-		flush_delayed_work_sync(delay_work);
+	hdmi_submit_work(hdmi, HDMI_SUSPEND_CTL, 0, 1);
 	/* iomux to gpio and pull down when suspend */
 	gpio_state = pinctrl_lookup_state(hdmi_dev->dev->pins->p, "gpio");
 	pinctrl_select_state(hdmi_dev->dev->pins->p, gpio_state);
@@ -171,7 +168,7 @@ static void rockchip_hdmiv2_early_resume(struct early_suspend *h)
 	hdmi_dev_initial(hdmi_dev);
 	if (hdmi->ops->hdcp_power_on_cb)
 		hdmi->ops->hdcp_power_on_cb();
-	hdmi_submit_work(hdmi, HDMI_RESUME_CTL, 0, NULL);
+	hdmi_submit_work(hdmi, HDMI_RESUME_CTL, 0, 0);
 }
 #endif
 
@@ -276,7 +273,6 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 	struct fb_event *event = data;
 	int blank_mode = *((int *)event->data);
 	struct hdmi *hdmi = hdmi_dev->hdmi;
-	struct delayed_work *delay_work;
 	struct pinctrl_state *gpio_state;
 #ifdef CONFIG_PINCTRL
 	struct dev_pin_info *pins = hdmi_dev->dev->pins;
@@ -289,12 +285,9 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 		default:
 			HDMIDBG("suspend hdmi\n");
 			if (!hdmi->sleep) {
-				delay_work =
-					hdmi_submit_work(hdmi,
-							 HDMI_SUSPEND_CTL,
-							 0, NULL);
-				if (delay_work)
-					flush_delayed_work(delay_work);
+				hdmi_submit_work(hdmi,
+						 HDMI_SUSPEND_CTL,
+						 0, 1);
 				if (hdmi_dev->hdcp2_en)
 					hdmi_dev->hdcp2_en(0);
 				rockchip_hdmiv2_clk_disable(hdmi_dev);
@@ -331,7 +324,7 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 				if (hdmi_dev->hdcp2_en)
 					hdmi_dev->hdcp2_en(1);
 				hdmi_submit_work(hdmi, HDMI_RESUME_CTL,
-						 0, NULL);
+						 0, 0);
 			}
 			break;
 		default:

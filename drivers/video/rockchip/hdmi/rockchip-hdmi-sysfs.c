@@ -18,9 +18,9 @@ static int hdmi_set_enable(struct rk_display_device *device, int enable)
 	struct hdmi *hdmi = device->priv_data;
 
 	if (enable == 0)
-		hdmi_submit_work(hdmi, HDMI_DISABLE_CTL, 0, NULL);
+		hdmi_submit_work(hdmi, HDMI_DISABLE_CTL, 0, 0);
 	else
-		hdmi_submit_work(hdmi, HDMI_ENABLE_CTL, 0, NULL);
+		hdmi_submit_work(hdmi, HDMI_ENABLE_CTL, 0, 0);
 	return 0;
 }
 
@@ -62,7 +62,7 @@ static int hdmi_set_mode(struct rk_display_device *device,
 	if (vic && hdmi->vic != vic) {
 		hdmi->vic = vic;
 		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
-			hdmi_submit_work(hdmi, HDMI_SET_VIDEO, 0, NULL);
+			hdmi_submit_work(hdmi, HDMI_SET_VIDEO, 0, 0);
 	}
 	return 0;
 }
@@ -118,7 +118,7 @@ static int hdmi_set_3dmode(struct rk_display_device *device, int mode)
 	if (hdmi->mode_3d != mode) {
 		hdmi->mode_3d = mode;
 		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
-			hdmi_submit_work(hdmi, HDMI_SET_3D, 0, NULL);
+			hdmi_submit_work(hdmi, HDMI_SET_3D, 0, 0);
 	}
 	return 0;
 }
@@ -251,7 +251,7 @@ static int hdmi_set_color(struct rk_display_device *device,
 		return -1;
 	}
 	if (hdmi->hotplug == HDMI_HPD_ACTIVED)
-		hdmi_submit_work(hdmi, HDMI_SET_COLOR, 0, NULL);
+		hdmi_submit_work(hdmi, HDMI_SET_COLOR, 0, 0);
 	return 0;
 }
 

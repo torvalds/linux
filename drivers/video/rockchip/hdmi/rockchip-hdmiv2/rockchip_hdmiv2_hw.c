@@ -1609,7 +1609,7 @@ static int hdmi_dev_enable(struct hdmi *hdmi)
 		hdmi_writel(hdmi_dev, IH_MUTE, 0x00);
 		hdmi_dev->enable = 1;
 	}
-	hdmi_submit_work(hdmi, HDMI_HPD_CHANGE, 10, NULL);
+	hdmi_submit_work(hdmi, HDMI_HPD_CHANGE, 10, 0);
 	return 0;
 }
 
@@ -1714,7 +1714,7 @@ irqreturn_t rockchip_hdmiv2_dev_irq(int irq, void *priv)
 		hdmi_writel(hdmi_dev, PHY_POL0, phy_pol);
 		hdmi_writel(hdmi_dev, IH_PHY_STAT0, phy_int);
 		if ((phy_int & m_HPD) || ((phy_int & 0x3c) == 0x3c))
-			hdmi_submit_work(hdmi, HDMI_HPD_CHANGE, 20, NULL);
+			hdmi_submit_work(hdmi, HDMI_HPD_CHANGE, 20, 0);
 	}
 
 	/* Audio error */
