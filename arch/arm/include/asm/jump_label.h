@@ -4,23 +4,32 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <asm/unified.h>
 
 #define JUMP_LABEL_NOP_SIZE 4
 
-#ifdef CONFIG_THUMB2_KERNEL
-#define JUMP_LABEL_NOP	"nop.w"
-#else
-#define JUMP_LABEL_NOP	"nop"
-#endif
-
-static __always_inline bool arch_static_branch(struct static_key *key)
+static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
 	asm_volatile_goto("1:\n\t"
-		 JUMP_LABEL_NOP "\n\t"
+		 WASM(nop) "\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
 		 ".word 1b, %l[l_yes], %c0\n\t"
 		 ".popsection\n\t"
-		 : :  "i" (key) :  : l_yes);
+		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
+
+	return false;
+l_yes:
+	return true;
+}
+
+static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
+{
+	asm_volatile_goto("1:\n\t"
+		 WASM(b) " %l[l_yes]\n\t"
+		 ".pushsection __jump_table,  \"aw\"\n\t"
+		 ".word 1b, %l[l_yes], %c0\n\t"
+		 ".popsection\n\t"
+		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
 
 	return false;
 l_yes:
