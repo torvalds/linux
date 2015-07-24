@@ -390,8 +390,6 @@ void handle_failed_inode(struct inode *inode)
 	remove_inode_page(inode);
 
 	set_inode_flag(F2FS_I(inode), FI_FREE_NID);
-	clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
-	clear_inode_flag(F2FS_I(inode), FI_INLINE_DENTRY);
 	f2fs_unlock_op(sbi);
 
 	/* iput will drop the inode object */
