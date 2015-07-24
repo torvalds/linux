@@ -1555,13 +1555,17 @@ static int vgic_validate_injection(struct kvm_vcpu *vcpu, int irq, int level)
 }
 
 static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
-				  unsigned int irq_num, bool level)
+				   struct irq_phys_map *map,
+				   unsigned int irq_num, bool level)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
 	int edge_triggered, level_triggered;
 	int enabled;
 	bool ret = true, can_inject = true;
+
+	if (irq_num >= min(kvm->arch.vgic.nr_irqs, 1020))
+		return -EINVAL;
 
 	spin_lock(&dist->lock);
 
@@ -1625,28 +1629,17 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 out:
 	spin_unlock(&dist->lock);
 
-	return ret ? cpuid : -EINVAL;
+	if (ret) {
+		/* kick the specified vcpu */
+		kvm_vcpu_kick(kvm_get_vcpu(kvm, cpuid));
+	}
+
+	return 0;
 }
 
-/**
- * kvm_vgic_inject_irq - Inject an IRQ from a device to the vgic
- * @kvm:     The VM structure pointer
- * @cpuid:   The CPU for PPIs
- * @irq_num: The IRQ number that is assigned to the device
- * @level:   Edge-triggered:  true:  to trigger the interrupt
- *			      false: to ignore the call
- *	     Level-sensitive  true:  activates an interrupt
- *			      false: deactivates an interrupt
- *
- * The GIC is not concerned with devices being active-LOW or active-HIGH for
- * level-sensitive interrupts.  You can think of the level parameter as 1
- * being HIGH and 0 being LOW and all devices being active-HIGH.
- */
-int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
-			bool level)
+static int vgic_lazy_init(struct kvm *kvm)
 {
 	int ret = 0;
-	int vcpu_id;
 
 	if (unlikely(!vgic_initialized(kvm))) {
 		/*
@@ -1655,29 +1648,73 @@ int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
 		 * be explicitly initialized once setup with the respective
 		 * KVM device call.
 		 */
-		if (kvm->arch.vgic.vgic_model != KVM_DEV_TYPE_ARM_VGIC_V2) {
-			ret = -EBUSY;
-			goto out;
-		}
+		if (kvm->arch.vgic.vgic_model != KVM_DEV_TYPE_ARM_VGIC_V2)
+			return -EBUSY;
+
 		mutex_lock(&kvm->lock);
 		ret = vgic_init(kvm);
 		mutex_unlock(&kvm->lock);
-
-		if (ret)
-			goto out;
 	}
 
-	if (irq_num >= min(kvm->arch.vgic.nr_irqs, 1020))
+	return ret;
+}
+
+/**
+ * kvm_vgic_inject_irq - Inject an IRQ from a device to the vgic
+ * @kvm:     The VM structure pointer
+ * @cpuid:   The CPU for PPIs
+ * @irq_num: The IRQ number that is assigned to the device. This IRQ
+ *           must not be mapped to a HW interrupt.
+ * @level:   Edge-triggered:  true:  to trigger the interrupt
+ *			      false: to ignore the call
+ *	     Level-sensitive  true:  raise the input signal
+ *			      false: lower the input signal
+ *
+ * The GIC is not concerned with devices being active-LOW or active-HIGH for
+ * level-sensitive interrupts.  You can think of the level parameter as 1
+ * being HIGH and 0 being LOW and all devices being active-HIGH.
+ */
+int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
+			bool level)
+{
+	struct irq_phys_map *map;
+	int ret;
+
+	ret = vgic_lazy_init(kvm);
+	if (ret)
+		return ret;
+
+	map = vgic_irq_map_search(kvm_get_vcpu(kvm, cpuid), irq_num);
+	if (map)
 		return -EINVAL;
 
-	vcpu_id = vgic_update_irq_pending(kvm, cpuid, irq_num, level);
-	if (vcpu_id >= 0) {
-		/* kick the specified vcpu */
-		kvm_vcpu_kick(kvm_get_vcpu(kvm, vcpu_id));
-	}
+	return vgic_update_irq_pending(kvm, cpuid, NULL, irq_num, level);
+}
 
-out:
-	return ret;
+/**
+ * kvm_vgic_inject_mapped_irq - Inject a physically mapped IRQ to the vgic
+ * @kvm:     The VM structure pointer
+ * @cpuid:   The CPU for PPIs
+ * @map:     Pointer to a irq_phys_map structure describing the mapping
+ * @level:   Edge-triggered:  true:  to trigger the interrupt
+ *			      false: to ignore the call
+ *	     Level-sensitive  true:  raise the input signal
+ *			      false: lower the input signal
+ *
+ * The GIC is not concerned with devices being active-LOW or active-HIGH for
+ * level-sensitive interrupts.  You can think of the level parameter as 1
+ * being HIGH and 0 being LOW and all devices being active-HIGH.
+ */
+int kvm_vgic_inject_mapped_irq(struct kvm *kvm, int cpuid,
+			       struct irq_phys_map *map, bool level)
+{
+	int ret;
+
+	ret = vgic_lazy_init(kvm);
+	if (ret)
+		return ret;
+
+	return vgic_update_irq_pending(kvm, cpuid, map, map->virt_irq, level);
 }
 
 static irqreturn_t vgic_maintenance_handler(int irq, void *data)
