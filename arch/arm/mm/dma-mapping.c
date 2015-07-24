@@ -39,6 +39,7 @@
 #include <asm/system_info.h>
 #include <asm/dma-contiguous.h>
 
+#include "dma.h"
 #include "mm.h"
 
 /*
