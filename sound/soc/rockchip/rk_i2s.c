@@ -63,6 +63,7 @@ struct rk_i2s_dev {
 	struct regmap *regmap;
 	bool tx_start;
 	bool rx_start;
+	int xfer_mode; /* 0: i2s, 1: pcm */
 #ifdef CLK_SET_LATER
 	struct delayed_work clk_delayed_work;
 #endif
@@ -709,6 +710,19 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		goto err_unregister_component;
 	}
 
+	ret = of_property_read_u32(node, "rockchip,xfer-mode", &i2s->xfer_mode);
+	if (ret < 0)
+		i2s->xfer_mode = I2S_XFER_MODE;
+
+	if (PCM_XFER_MODE == i2s->xfer_mode) {
+		regmap_update_bits(i2s->regmap, I2S_TXCR,
+				   I2S_TXCR_TFS_MASK,
+				   I2S_TXCR_TFS_PCM);
+		regmap_update_bits(i2s->regmap, I2S_RXCR,
+				   I2S_RXCR_TFS_MASK,
+				   I2S_RXCR_TFS_PCM);
+	}
+
 	rockchip_snd_txctrl(i2s, 0);
 	rockchip_snd_rxctrl(i2s, 0);
 
@@ -773,6 +787,15 @@ static int rockchip_i2s_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 	ret = regmap_reinit_cache(i2s->regmap, &rockchip_i2s_regmap_config);
+
+	if (PCM_XFER_MODE == i2s->xfer_mode) {
+		regmap_update_bits(i2s->regmap, I2S_TXCR,
+				   I2S_TXCR_TFS_MASK,
+				   I2S_TXCR_TFS_PCM);
+		regmap_update_bits(i2s->regmap, I2S_RXCR,
+				   I2S_RXCR_TFS_MASK,
+				   I2S_RXCR_TFS_PCM);
+	}
 
 	pm_runtime_put(dev);
 

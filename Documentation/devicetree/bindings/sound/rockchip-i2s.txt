@@ -6,6 +6,7 @@ Required SoC Specific Properties:
 - reg: physical base address of the controller and length of memory mapped
   region.
 - i2s-id: i2s controller id,
+- rockchip,xfer-mode: transfer mode select, 0:i2s, 1: pcm.
 - clocks: must include clock specifiers corresponding to entries in the
   clock-names property.
 - clocks-names: list of clock names sorted in the same order as the clocks
