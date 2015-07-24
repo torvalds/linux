@@ -9,6 +9,12 @@
 
 #include "greybus.h"
 
+struct gb_svc {
+	struct gb_connection	*connection;
+	u8			version_major;
+	u8			version_minor;
+};
+
 static struct ida greybus_svc_device_id_map;
 
 /*
