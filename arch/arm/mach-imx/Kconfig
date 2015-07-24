@@ -607,6 +607,7 @@ config SOC_IMX6UL
 	select PINCTRL_IMX6UL
 	select SOC_IMX6
 	select KEYBOARD_SNVS_PWRKEY
+	select ARM_ERRATA_814220
 
 	help
 	  This enables support for Freescale i.MX6 UltraLite processor.
@@ -620,6 +621,7 @@ config SOC_IMX7
 	select HAVE_IMX_SRC
 	select HAVE_IMX_DDRC
 	select HAVE_IMX_GPCV2
+	select ARM_ERRATA_814220
 
 config SOC_IMX7D
 	bool "i.MX7 Dual support"
