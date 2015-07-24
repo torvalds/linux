@@ -552,6 +552,12 @@
 #define VCE_CMD_IB_AUTO		0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
 
+/* if PTR32, these are the bases for scratch and lds */
+#define	PRIVATE_BASE(x)	((x) << 0) /* scratch */
+#define	SHARED_BASE(x)	((x) << 16) /* LDS */
+
+#define KFD_CIK_SDMA_QUEUE_OFFSET	0x200
+
 /* valid for both DEFAULT_MTYPE and APE1_MTYPE */
 enum {
 	MTYPE_CACHED = 0,

@@ -2011,6 +2011,9 @@ struct amdgpu_device {
 	/* tracking pinned memory */
 	u64 vram_pin_size;
 	u64 gart_pin_size;
+
+	/* amdkfd interface */
+	struct kfd_dev          *kfd;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);
