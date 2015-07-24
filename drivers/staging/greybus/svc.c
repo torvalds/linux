@@ -309,6 +309,25 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 		goto ida_put;
 	}
 
+	/*
+	 * Create a two-way route between the AP and the new interface
+	 */
+	ret = route_create_operation(svc, hd->endo->ap_intf_id,
+				     GB_DEVICE_ID_AP, intf_id, device_id);
+	if (ret) {
+		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
+			__func__, intf_id, device_id, ret);
+		goto ida_put;
+	}
+
+	ret = route_create_operation(svc, intf_id, device_id,
+				     hd->endo->ap_intf_id, GB_DEVICE_ID_AP);
+	if (ret) {
+		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
+			__func__, intf_id, device_id, ret);
+		goto ida_put;
+	}
+
 	ret = gb_interface_init(intf, device_id);
 	if (ret) {
 		dev_err(dev, "%s: Failed to initialize interface, interface %hhu device_id %hhu (%d)\n",
