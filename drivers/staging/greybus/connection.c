@@ -111,6 +111,30 @@ struct device_type greybus_connection_type = {
 };
 
 
+int svc_update_connection(struct gb_interface *intf,
+			  struct gb_connection *connection)
+{
+	struct gb_bundle *bundle;
+
+	bundle = gb_bundle_create(intf, GB_SVC_BUNDLE_ID, GREYBUS_CLASS_SVC);
+	if (!bundle)
+		return -EINVAL;
+
+	device_del(&connection->dev);
+	connection->bundle = bundle;
+	connection->dev.parent = &bundle->dev;
+	dev_set_name(&connection->dev, "%s:%d", dev_name(&bundle->dev),
+		     GB_SVC_CPORT_ID);
+
+	WARN_ON(device_add(&connection->dev));
+
+	spin_lock_irq(&gb_connections_lock);
+	list_add(&connection->bundle_links, &bundle->connections);
+	spin_unlock_irq(&gb_connections_lock);
+
+	return 0;
+}
+
 void gb_connection_bind_protocol(struct gb_connection *connection)
 {
 	struct gb_protocol *protocol;

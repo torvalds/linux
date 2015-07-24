@@ -43,7 +43,6 @@ gb_ap_interface_create(struct greybus_host_device *hd,
 {
 	struct gb_interface *intf;
 	struct device *dev = &hd->endo->dev;
-	int ret;
 
 	intf = gb_interface_create(hd, interface_id);
 	if (!intf) {
@@ -53,20 +52,7 @@ gb_ap_interface_create(struct greybus_host_device *hd,
 	}
 
 	intf->device_id = GB_DEVICE_ID_AP;
-
-	/*
-	 * XXX: Disable the initial svc connection here, but don't destroy it
-	 * yet. We do need to send a response of 'svc-hello message' on that.
-	 */
-
-	/* Establish new control CPort connection */
-	ret = gb_create_bundle_connection(intf, GREYBUS_CLASS_SVC);
-	if (ret) {
-		dev_err(&intf->dev, "%s: Failed to create svc connection (%d %d)\n",
-			__func__, interface_id, ret);
-		gb_interface_destroy(intf);
-		intf = NULL;
-	}
+	svc_update_connection(intf, connection);
 
 	return intf;
 }

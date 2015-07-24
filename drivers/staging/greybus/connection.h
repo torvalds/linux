@@ -47,6 +47,8 @@ struct gb_connection {
 };
 #define to_gb_connection(d) container_of(d, struct gb_connection, dev)
 
+int svc_update_connection(struct gb_interface *intf,
+			  struct gb_connection *connection);
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, u8 protocol_id);
 struct gb_connection *gb_connection_create_range(struct greybus_host_device *hd,
