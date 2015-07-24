@@ -56,8 +56,11 @@ int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
 		enable ? "enable" : "disable");
 
 	if (enable) {
-		if (!bus->i915_power_refcount++)
+		if (!bus->i915_power_refcount++) {
 			acomp->ops->get_power(acomp->dev);
+			snd_hdac_set_codec_wakeup(bus, true);
+			snd_hdac_set_codec_wakeup(bus, false);
+		}
 	} else {
 		WARN_ON(!bus->i915_power_refcount);
 		if (!--bus->i915_power_refcount)
