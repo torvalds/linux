@@ -12,6 +12,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include <linux/clk-provider.h>
@@ -144,3 +145,5 @@ void qcom_cc_remove(struct platform_device *pdev)
 	reset_controller_unregister(platform_get_drvdata(pdev));
 }
 EXPORT_SYMBOL_GPL(qcom_cc_remove);
+
+MODULE_LICENSE("GPL v2");
