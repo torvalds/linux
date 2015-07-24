@@ -78,31 +78,31 @@ static inline void hdmi_wq_set_audio(struct hdmi *hdmi)
 
 static void hdmi_wq_set_video(struct hdmi *hdmi)
 {
-	struct hdmi_video	video;
+	struct hdmi_video *video = &(hdmi->video);
 	int	deepcolor;
 
 	DBG("%s\n", __func__);
 
-	video.sink_hdmi = hdmi->edid.sink_hdmi;
-	video.format_3d = hdmi->mode_3d;
-	video.colorimetry = hdmi->colorimetry;
+	video->sink_hdmi = hdmi->edid.sink_hdmi;
+	video->format_3d = hdmi->mode_3d;
+	video->colorimetry = hdmi->colorimetry;
 	/* For DVI, output RGB */
 	if (hdmi->edid.sink_hdmi == 0) {
-		video.color_output = HDMI_COLOR_RGB_0_255;
+		video->color_output = HDMI_COLOR_RGB_0_255;
 	} else {
 		if (hdmi->colormode == HDMI_COLOR_AUTO) {
 			if (hdmi->edid.ycbcr444)
-				video.color_output = HDMI_COLOR_YCBCR444;
+				video->color_output = HDMI_COLOR_YCBCR444;
 			else if (hdmi->edid.ycbcr422)
-				video.color_output = HDMI_COLOR_YCBCR422;
+				video->color_output = HDMI_COLOR_YCBCR422;
 			else
-				video.color_output = HDMI_COLOR_RGB_16_235;
+				video->color_output = HDMI_COLOR_RGB_16_235;
 		} else {
-			video.color_output = hdmi->colormode;
+			video->color_output = hdmi->colormode;
 		}
 	}
 	if (hdmi->vic & HDMI_VIDEO_YUV420) {
-		video.color_output = HDMI_COLOR_YCBCR420;
+		video->color_output = HDMI_COLOR_YCBCR420;
 		deepcolor = hdmi->edid.deepcolor_420;
 	} else {
 		deepcolor = hdmi->edid.deepcolor;
@@ -111,25 +111,24 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	    (deepcolor & HDMI_DEEP_COLOR_30BITS)) {
 		if (hdmi->colordepth == HDMI_DEPP_COLOR_AUTO ||
 		    hdmi->colordepth == 10)
-			video.color_output_depth = 10;
+			video->color_output_depth = 10;
 	} else {
-		video.color_output_depth = 8;
+		video->color_output_depth = 8;
 	}
 
-	pr_info("hdmi output corlor mode is %d\n", video.color_output);
-	video.color_input = HDMI_COLOR_RGB_0_255;
+	pr_info("hdmi output corlor mode is %d\n", video->color_output);
+	video->color_input = HDMI_COLOR_RGB_0_255;
 	if (hdmi->property->feature & SUPPORT_YCBCR_INPUT) {
-		if (video.color_output == HDMI_COLOR_YCBCR444 ||
-		    video.color_output == HDMI_COLOR_YCBCR422)
-			video.color_input = HDMI_COLOR_YCBCR444;
-		else if (video.color_output == HDMI_COLOR_YCBCR420)
-			video.color_input = HDMI_COLOR_YCBCR420;
+		if (video->color_output == HDMI_COLOR_YCBCR444 ||
+		    video->color_output == HDMI_COLOR_YCBCR422)
+			video->color_input = HDMI_COLOR_YCBCR444;
+		else if (video->color_output == HDMI_COLOR_YCBCR420)
+			video->color_input = HDMI_COLOR_YCBCR420;
 	}
-	hdmi->colormode_input = video.color_input;
 	hdmi_set_lcdc(hdmi);
-	video.vic = hdmi->vic & HDMI_VIC_MASK;
+	video->vic = hdmi->vic & HDMI_VIC_MASK;
 	if (hdmi->ops->setvideo)
-		hdmi->ops->setvideo(hdmi, &video);
+		hdmi->ops->setvideo(hdmi, video);
 }
 
 static void hdmi_wq_parse_edid(struct hdmi *hdmi)

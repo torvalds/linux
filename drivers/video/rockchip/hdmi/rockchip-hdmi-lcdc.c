@@ -54,14 +54,21 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 
 	/* screen type & face */
 	screen->type = SCREEN_HDMI;
-	if (hdmi->colormode_input == HDMI_COLOR_RGB_0_255)
+	if (hdmi->video.color_input == HDMI_COLOR_RGB_0_255)
 		screen->color_mode = COLOR_RGB;
 	else
 		screen->color_mode = COLOR_YCBCR;
-	if (hdmi->vic & HDMI_VIDEO_YUV420)
-		screen->face = OUT_YUV_420;
-	else
-		screen->face = hdmi_mode[i].interface;
+	if (hdmi->vic & HDMI_VIDEO_YUV420) {
+		if (hdmi->video.color_output_depth == 10)
+			screen->face = OUT_YUV_420_10BIT;
+		else
+			screen->face = OUT_YUV_420;
+	} else {
+		if (hdmi->video.color_output_depth == 10)
+			screen->face = OUT_P101010;
+		else
+			screen->face = hdmi_mode[i].interface;
+	}
 	screen->pixelrepeat = hdmi_mode[i].pixelrepeat - 1;
 	mode = (struct fb_videomode *)&(hdmi_mode[i].mode);
 

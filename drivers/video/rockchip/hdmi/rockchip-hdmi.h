@@ -398,7 +398,6 @@ struct hdmi {
 			   0 is unmute*/
 	int colordepth;			/* Output color depth*/
 	int colormode;			/* Output color mode*/
-	int colormode_input;		/* Input color mode*/
 	int colorimetry;		/* Output colorimetry */
 	struct hdmi_edid edid;		/* EDID information*/
 	int enable;			/* Enable flag*/
@@ -406,7 +405,7 @@ struct hdmi {
 	int vic;			/* HDMI output video information code*/
 	int mode_3d;			/* HDMI output video 3d mode*/
 	struct hdmi_audio audio;	/* HDMI output audio information.*/
-
+	struct hdmi_video video;	/* HDMI output video information.*/
 	int xscale;
 	int yscale;
 };
