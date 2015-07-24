@@ -1,0 +1,15 @@
+#
+# MediaLB configuration
+#
+
+config HDM_DIM2
+	tristate "DIM2 HDM"
+
+	---help---
+	  Say Y here if you want to connect via MediaLB to network tranceiver.
+	  This device driver is platform dependent and needs an addtional
+	  platform driver to be installed. For more information contact
+	  maintainer of this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hdm_dim2.
