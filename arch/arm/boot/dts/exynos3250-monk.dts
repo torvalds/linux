@@ -141,6 +141,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
+};
+
 &exynos_usbphy {
 	status = "okay";
 };
