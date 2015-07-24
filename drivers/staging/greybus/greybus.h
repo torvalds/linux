@@ -103,6 +103,7 @@ struct greybus_host_device {
 
 	struct gb_endo *endo;
 	struct gb_connection *initial_svc_connection;
+	struct gb_svc *svc;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __aligned(sizeof(s64));

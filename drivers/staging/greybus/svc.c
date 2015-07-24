@@ -430,6 +430,7 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	if (!svc)
 		return -ENOMEM;
 
+	connection->hd->svc = svc;
 	svc->connection = connection;
 	connection->private = svc;
 
@@ -445,6 +446,7 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
 
+	connection->hd->svc = NULL;
 	connection->private = NULL;
 	kfree(svc);
 }
