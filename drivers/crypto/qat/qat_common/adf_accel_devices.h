@@ -153,7 +153,6 @@ struct adf_hw_device_data {
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
 	const char *fw_mmp_name;
-	uint32_t pci_dev_id;
 	uint32_t fuses;
 	uint32_t accel_capabilities_mask;
 	uint16_t accel_mask;

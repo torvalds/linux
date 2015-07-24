@@ -208,7 +208,6 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->instance_id = dh895xcc_class.instances++;
 	hw_data->num_banks = ADF_DH895XCC_ETR_MAX_BANKS;
 	hw_data->num_accel = ADF_DH895XCC_MAX_ACCELERATORS;
-	hw_data->pci_dev_id = ADF_DH895XCC_PCI_DEVICE_ID;
 	hw_data->num_logical_accel = 1;
 	hw_data->num_engines = ADF_DH895XCC_MAX_ACCELENGINES;
 	hw_data->tx_rx_gap = ADF_DH895XCC_RX_RINGS_OFFSET;

@@ -100,7 +100,7 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 	}
 
 	if (accel_dev->hw_device) {
-		switch (accel_dev->hw_device->pci_dev_id) {
+		switch (accel_pci_dev->pci_dev->device) {
 		case ADF_DH895XCC_PCI_DEVICE_ID:
 			adf_clean_hw_data_dh895xcc(accel_dev->hw_device);
 			break;
