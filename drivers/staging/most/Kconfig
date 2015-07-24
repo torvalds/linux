@@ -25,4 +25,6 @@ source "drivers/staging/most/hdm-dim2/Kconfig"
 
 source "drivers/staging/most/hdm-i2c/Kconfig"
 
+source "drivers/staging/most/hdm-usb/Kconfig"
+
 endif
