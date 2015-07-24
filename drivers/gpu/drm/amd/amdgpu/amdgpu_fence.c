@@ -295,6 +295,7 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 	uint64_t seq, last_seq, last_emitted;
 	unsigned count_loop = 0;
 	bool wake = false;
+	unsigned long irqflags;
 
 	/* Note there is a scenario here for an infinite loop but it's
 	 * very unlikely to happen. For it to happen, the current polling
@@ -317,6 +318,7 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 	 * have temporarly set the last_seq not to the true real last
 	 * seq but to an older one.
 	 */
+	spin_lock_irqsave(&ring->fence_lock, irqflags);
 	last_seq = atomic64_read(&ring->fence_drv.last_seq);
 	do {
 		last_emitted = ring->fence_drv.sync_seq[ring->idx];
@@ -355,7 +357,7 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 			if (handled_seq == latest_seq) {
 				DRM_ERROR("ring %d, EOP without seq update (lastest_seq=%llu)\n",
 					  ring->idx, latest_seq);
-				return;
+				goto exit;
 			}
 			do {
 				amd_sched_isr(ring->scheduler);
@@ -364,6 +366,8 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 
 		wake_up_all(&ring->adev->fence_queue);
 	}
+exit:
+	spin_unlock_irqrestore(&ring->fence_lock, irqflags);
 }
 
 /**

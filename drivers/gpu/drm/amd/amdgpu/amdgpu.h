@@ -869,6 +869,7 @@ struct amdgpu_ring {
 	struct amdgpu_fence_driver	fence_drv;
 	struct amd_gpu_scheduler 	*scheduler;
 
+	spinlock_t              fence_lock;
 	struct mutex		*ring_lock;
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
