@@ -209,7 +209,7 @@ static void free_fib_info_rcu(struct rcu_head *head)
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
 			dev_put(nexthop_nh->nh_dev);
-		lwtunnel_state_put(nexthop_nh->nh_lwtstate);
+		lwtstate_put(nexthop_nh->nh_lwtstate);
 		free_nh_exceptions(nexthop_nh);
 		rt_fibinfo_free_cpus(nexthop_nh->nh_pcpu_rth_output);
 		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
@@ -514,8 +514,8 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 							   nla, &lwtstate);
 				if (ret)
 					goto errout;
-				lwtunnel_state_get(lwtstate);
-				nexthop_nh->nh_lwtstate = lwtstate;
+				nexthop_nh->nh_lwtstate =
+					lwtstate_get(lwtstate);
 			}
 		}
 
@@ -971,8 +971,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			if (err)
 				goto failure;
 
-			lwtunnel_state_get(lwtstate);
-			nh->nh_lwtstate = lwtstate;
+			nh->nh_lwtstate = lwtstate_get(lwtstate);
 		}
 		nh->nh_oif = cfg->fc_oif;
 		nh->nh_gw = cfg->fc_gw;

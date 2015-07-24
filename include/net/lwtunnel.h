@@ -35,12 +35,16 @@ extern const struct lwtunnel_encap_ops __rcu *
 		lwtun_encaps[LWTUNNEL_ENCAP_MAX+1];
 
 #ifdef CONFIG_LWTUNNEL
-static inline void lwtunnel_state_get(struct lwtunnel_state *lws)
+static inline struct lwtunnel_state *
+lwtstate_get(struct lwtunnel_state *lws)
 {
-	atomic_inc(&lws->refcnt);
+	if (lws)
+		atomic_inc(&lws->refcnt);
+
+	return lws;
 }
 
-static inline void lwtunnel_state_put(struct lwtunnel_state *lws)
+static inline void lwtstate_put(struct lwtunnel_state *lws)
 {
 	if (!lws)
 		return;
@@ -74,11 +78,13 @@ int lwtunnel_output6(struct sock *sk, struct sk_buff *skb);
 
 #else
 
-static inline void lwtunnel_state_get(struct lwtunnel_state *lws)
+static inline struct lwtunnel_state *
+lwtstate_get(struct lwtunnel_state *lws)
 {
+	return lws;
 }
 
-static inline void lwtunnel_state_put(struct lwtunnel_state *lws)
+static inline void lwtstate_put(struct lwtunnel_state *lws)
 {
 }
 
