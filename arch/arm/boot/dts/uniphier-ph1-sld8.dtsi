@@ -148,6 +148,12 @@
 			interrupts = <0 82 4>;
 		};
 
+		pinctrl: pinctrl@5f801000 {
+			compatible = "socionext,ph1-sld8-pinctrl",
+				     "syscon";
+			reg = <0x5f801000 0xe00>;
+		};
+
 		timer@60000200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0x60000200 0x20>;
