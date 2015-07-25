@@ -426,28 +426,17 @@
         status = "okay";
     };
 
-    aml_audio_codec{
-        compatible = "amlogic,audio_codec";
-        pcm5102:pcm5102{
-          codec_name = "pcm5102";
-          status = "okay";
-        };
-    };
-
     aml_m8_sound_card{
         compatible = "sound_card, aml_snd_m8";
-        aml,sound_card = "AML-M8AUDIO";
-        aml,codec_dai = "AML-M8","pcm5102";
-        aml,audio-routing-amlm8 =
-            "Ext Spk","LINEOUTL",
-            "Ext Spk","LINEOUTR",
-            "HP","HP_L",
-            "HP","HP_R";
-        aml,audio-routing-pcm5102=
-            "Ext Spk","LOUTL",
-            "Ext Spk","LOUTR";
+        aml,sound_card = "ODROID-HDMI";
         sleep_time = <130>;
-        pinctrl-names = "aml_snd_m8";
+        status = "okay";
+    };
+
+    odroid_sound_card{
+        compatible = "sound_card, odroid_snd";
+        aml,sound_card = "ODROID-DAC";
+        pinctrl-names = "odroid_i2s";
         pinctrl-0 = <&audio_pins>;
         status = "okay";
     };

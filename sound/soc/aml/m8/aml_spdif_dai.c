@@ -172,6 +172,9 @@ static void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	set.chan_stat = &chstat;
     printk("----aml_hw_iec958_init,runtime->rate=%d--\n",runtime->rate);
 	switch(runtime->rate){
+		case 352800:
+			sample_rate	=	AUDIO_CLK_FREQ_3528;
+			break;
 		case 192000:
 			sample_rate	=	AUDIO_CLK_FREQ_192;
 			break;
@@ -494,14 +497,7 @@ static struct snd_soc_dai_driver aml_spdif_dai[] = {
 			.stream_name = "S/PDIF Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = (
-					SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_88200 |
-					SNDRV_PCM_RATE_96000  |
-					SNDRV_PCM_RATE_176400 |
-					SNDRV_PCM_RATE_192000),
+			.rates = SNDRV_PCM_RATE_8000_352800,
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE), },
 		.capture = {
 			.stream_name = "S/PDIF Capture",

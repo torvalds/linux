@@ -2552,6 +2552,9 @@ static int hdmitx_set_audmode(struct hdmi_tx_dev_s* hdmitx_device, Hdmi_tx_audio
                 case FS_192K:
                     audio_N_para = 24576;
                     break;
+                case FS_385K2:
+                    audio_N_para = 50176;
+                    break;
                 default:
                     break;
             }
@@ -2589,6 +2592,9 @@ static int hdmitx_set_audmode(struct hdmi_tx_dev_s* hdmitx_device, Hdmi_tx_audio
                 case FS_192K:
                     audio_N_para = 24576;
                     break;
+                case FS_385K2:
+                    audio_N_para = 50176;
+                    break;
                 default:
                     break;
             }
@@ -2619,6 +2625,9 @@ static int hdmitx_set_audmode(struct hdmi_tx_dev_s* hdmitx_device, Hdmi_tx_audio
                     break;
                 case FS_192K:
                     audio_N_para = 24576;
+                    break;
+                case FS_385K2:
+                    audio_N_para = 50176;
                     break;
                 default:
                     break;

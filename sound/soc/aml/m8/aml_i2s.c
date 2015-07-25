@@ -88,16 +88,16 @@ static const struct snd_pcm_hardware aml_i2s_hardware = {
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE|SNDRV_PCM_FMTBIT_S24_LE|SNDRV_PCM_FMTBIT_S32_LE,
 
 	.period_bytes_min	= 32,
-	.period_bytes_max	= 32 * 1024,
+	.period_bytes_max	= 32 * 1024 * 2,
 	.periods_min		= 2,
-	.periods_max		= 1024,
+	.periods_max		= 256,
 	.buffer_bytes_max	= 32 * 1024 * 2,
 
 	.rate_min = 8000,
 	.rate_max = 192000,
 	.channels_min = 1,
 	.channels_max = 8,
-	.fifo_size = 0,
+	.fifo_size = 32,
 };
 
 static const struct snd_pcm_hardware aml_i2s_capture = {
@@ -111,7 +111,7 @@ static const struct snd_pcm_hardware aml_i2s_capture = {
 	.period_bytes_min	= 64,
 	.period_bytes_max	= 32 * 1024,
 	.periods_min		= 2,
-	.periods_max		= 1024,
+	.periods_max		= 256,
 	.buffer_bytes_max	= 64 * 1024,
 
 	.rate_min = 8000,
@@ -236,7 +236,7 @@ static int aml_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	runtime->dma_bytes = params_buffer_bytes(params);
-	ALSA_DEBUG("runtime dma_bytes %d,stream type %d \n",runtime->dma_bytes,substream->stream);
+	printk(KERN_INFO "runtime dma_bytes %d,stream type %d \n",runtime->dma_bytes,substream->stream);
 	s->I2S_addr = runtime->dma_addr;
 
     /*
