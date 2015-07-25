@@ -188,10 +188,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 
 	dt->tm_mday = bcd2bin(date[RX8025_REG_MDAY] & 0x3f);
 	dt->tm_mon = bcd2bin(date[RX8025_REG_MONTH] & 0x1f) - 1;
-	dt->tm_year = bcd2bin(date[RX8025_REG_YEAR]);
-
-	if (dt->tm_year < 70)
-		dt->tm_year += 100;
+	dt->tm_year = bcd2bin(date[RX8025_REG_YEAR]) + 100;
 
 	dev_dbg(dev, "%s: date %ds %dm %dh %dmd %dm %dy\n", __func__,
 		dt->tm_sec, dt->tm_min, dt->tm_hour,
@@ -205,11 +202,8 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 date[7];
 
-	/*
-	 * BUG: The HW assumes every year that is a multiple of 4 to be a leap
-	 * year.  Next time this is wrong is 2100, which will not be a leap
-	 * year.
-	 */
+	if ((dt->tm_year < 100) || (dt->tm_year > 199))
+		return -EINVAL;
 
 	/*
 	 * Here the read-only bits are written as "0".  I'm not sure if that
@@ -226,7 +220,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	date[RX8025_REG_WDAY] = bin2bcd(dt->tm_wday);
 	date[RX8025_REG_MDAY] = bin2bcd(dt->tm_mday);
 	date[RX8025_REG_MONTH] = bin2bcd(dt->tm_mon + 1);
-	date[RX8025_REG_YEAR] = bin2bcd(dt->tm_year % 100);
+	date[RX8025_REG_YEAR] = bin2bcd(dt->tm_year - 100);
 
 	dev_dbg(dev,
 		"%s: write 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
