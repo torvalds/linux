@@ -89,6 +89,8 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006800 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart0>;
 			interrupts = <0 33 4>;
 			clocks = <&uart_clk>;
 			fifo-size = <64>;
@@ -98,6 +100,8 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006900 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart1>;
 			interrupts = <0 35 4>;
 			clocks = <&uart_clk>;
 			fifo-size = <64>;
@@ -107,6 +111,8 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006a00 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart2>;
 			interrupts = <0 37 4>;
 			clocks = <&uart_clk>;
 			fifo-size = <64>;
@@ -116,6 +122,8 @@
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
 			reg = <0x54006b00 0x40>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_uart3>;
 			interrupts = <0 29 4>;
 			clocks = <&uart_clk>;
 			fifo-size = <64>;
@@ -131,6 +139,8 @@
 			compatible = "socionext,uniphier-ehci", "generic-ehci";
 			status = "disabled";
 			reg = <0x5a800100 0x100>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb0>;
 			interrupts = <0 80 4>;
 		};
 
@@ -138,6 +148,8 @@
 			compatible = "socionext,uniphier-ehci", "generic-ehci";
 			status = "disabled";
 			reg = <0x5a810100 0x100>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb1>;
 			interrupts = <0 81 4>;
 		};
 
@@ -145,6 +157,8 @@
 			compatible = "socionext,uniphier-ehci", "generic-ehci";
 			status = "disabled";
 			reg = <0x5a820100 0x100>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2>;
 			interrupts = <0 82 4>;
 		};
 
@@ -177,3 +191,5 @@
 		};
 	};
 };
+
+/include/ "uniphier-pinctrl.dtsi"
