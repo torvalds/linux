@@ -568,6 +568,11 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 	if (unlikely(fio.encrypted_page->mapping != META_MAPPING(fio.sbi)))
 		goto put_page_out;
 
+	set_page_dirty(fio.encrypted_page);
+	f2fs_wait_on_page_writeback(fio.encrypted_page, META);
+	if (clear_page_dirty_for_io(fio.encrypted_page))
+		dec_page_count(fio.sbi, F2FS_DIRTY_META);
+
 	set_page_writeback(fio.encrypted_page);
 
 	/* allocate block address */
@@ -612,8 +617,8 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			.page = page,
 			.encrypted_page = NULL,
 		};
+		set_page_dirty(page);
 		f2fs_wait_on_page_writeback(page, DATA);
-
 		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_pages(inode);
 		set_cold_data(page);
