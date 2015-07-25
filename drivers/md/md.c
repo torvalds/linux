@@ -5382,6 +5382,8 @@ static void __md_stop(struct mddev *mddev)
 {
 	struct md_personality *pers = mddev->pers;
 	mddev_detach(mddev);
+	/* Ensure ->event_work is done */
+	flush_workqueue(md_misc_wq);
 	spin_lock(&mddev->lock);
 	mddev->ready = 0;
 	mddev->pers = NULL;
@@ -7437,7 +7439,7 @@ int md_setup_cluster(struct mddev *mddev, int nodes)
 	err = request_module("md-cluster");
 	if (err) {
 		pr_err("md-cluster module not found.\n");
-		return err;
+		return -ENOENT;
 	}
 
 	spin_lock(&pers_lock);
