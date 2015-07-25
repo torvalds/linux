@@ -73,7 +73,6 @@
  */
 
 struct greybus_host_device;
-struct svc_msg;
 
 /* Greybus "Host driver" structure, needed by a host controller driver to be
  * able to handle both SVC control as well as "real" greybus messages
