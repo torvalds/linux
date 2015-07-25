@@ -366,14 +366,6 @@ static void etraxfs_uart_stop_rx(struct uart_port *port)
 	REG_WR(ser, regi_ser, rw_rec_ctrl, rec_ctrl);
 }
 
-static void etraxfs_uart_enable_ms(struct uart_port *port)
-{
-}
-
-static void check_modem_status(struct uart_cris_port *up)
-{
-}
-
 static unsigned int etraxfs_uart_tx_empty(struct uart_port *port)
 {
 	struct uart_cris_port *up = (struct uart_cris_port *)port;
@@ -591,7 +583,6 @@ ser_interrupt(int irq, void *dev_id)
 			receive_chars_no_dma(up);
 			handled = 1;
 		}
-		check_modem_status(up);
 
 		if (masked_intr.tr_rdy) {
 			transmit_chars_no_dma(up);
@@ -855,7 +846,6 @@ static const struct uart_ops etraxfs_uart_pops = {
 	.start_tx = etraxfs_uart_start_tx,
 	.send_xchar = etraxfs_uart_send_xchar,
 	.stop_rx = etraxfs_uart_stop_rx,
-	.enable_ms = etraxfs_uart_enable_ms,
 	.break_ctl = etraxfs_uart_break_ctl,
 	.startup = etraxfs_uart_startup,
 	.shutdown = etraxfs_uart_shutdown,
