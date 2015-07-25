@@ -183,7 +183,7 @@ put_module:
 /*
  * Tear down a previously set up module.
  */
-void gb_interface_destroy(struct gb_interface *intf)
+static void interface_destroy(struct gb_interface *intf)
 {
 	struct gb_module *module;
 	struct gb_bundle *bundle;
@@ -279,7 +279,7 @@ void gb_interface_remove(struct greybus_host_device *hd, u8 interface_id)
 	struct gb_interface *intf = gb_interface_find(hd, interface_id);
 
 	if (intf)
-		gb_interface_destroy(intf);
+		interface_destroy(intf);
 	else
 		dev_err(hd->parent, "interface id %d not found\n",
 			interface_id);
@@ -290,5 +290,5 @@ void gb_interfaces_remove(struct greybus_host_device *hd)
 	struct gb_interface *intf, *temp;
 
 	list_for_each_entry_safe(intf, temp, &hd->interfaces, links)
-		gb_interface_destroy(intf);
+		interface_destroy(intf);
 }
