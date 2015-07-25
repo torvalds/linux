@@ -22,6 +22,7 @@
 /* Clock Manager offsets */
 #define CLKMGR_CTRL		0x0
 #define CLKMGR_BYPASS		0x4
+#define CLKMGR_DBCTRL		0x10
 #define CLKMGR_L4SRC		0x70
 #define CLKMGR_PERPLL_SRC	0xAC
 
