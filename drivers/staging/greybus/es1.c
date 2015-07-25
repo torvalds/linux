@@ -563,6 +563,12 @@ static int ap_probe(struct usb_interface *interface,
 		return PTR_ERR(hd);
 	}
 
+	/* Initialize AP's greybus interface */
+	if (!gb_ap_svc_connection_create(hd)) {
+		retval = -EINVAL;
+		goto error;
+	}
+
 	es1 = hd_to_es1(hd);
 	es1->hd = hd;
 	es1->usb_intf = interface;
@@ -630,12 +636,6 @@ static int ap_probe(struct usb_interface *interface,
 
 		es1->cport_out_urb[i] = urb;
 		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
-	}
-
-	/* Initialize AP's greybus interface */
-	if (!gb_ap_svc_connection_create(hd)) {
-		retval = -EINVAL;
-		goto error;
 	}
 
 	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
