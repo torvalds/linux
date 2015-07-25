@@ -457,6 +457,10 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 {
 	struct batadv_neigh_node *neigh_node;
 
+	neigh_node = batadv_neigh_node_get(orig_node, hard_iface, neigh_addr);
+	if (neigh_node)
+		goto out;
+
 	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
 	if (!neigh_node)
 		goto out;
@@ -477,6 +481,14 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 
 	/* extra reference for return */
 	atomic_set(&neigh_node->refcount, 2);
+
+	spin_lock_bh(&orig_node->neigh_list_lock);
+	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
+	spin_unlock_bh(&orig_node->neigh_list_lock);
+
+	batadv_dbg(BATADV_DBG_BATMAN, orig_node->bat_priv,
+		   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
+		   neigh_addr, orig_node->orig, hard_iface->net_dev->name);
 
 out:
 	return neigh_node;
