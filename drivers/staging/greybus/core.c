@@ -176,8 +176,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	 * Validate that the driver implements all of the callbacks
 	 * so that we don't have to every time we make them.
 	 */
-	if ((!driver->message_send) || (!driver->message_cancel) ||
-	    (!driver->submit_svc)) {
+	if ((!driver->message_send) || (!driver->message_cancel)) {
 		pr_err("Must implement all greybus_host_driver callbacks!\n");
 		return ERR_PTR(-EINVAL);
 	}

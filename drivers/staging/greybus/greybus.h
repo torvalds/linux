@@ -84,8 +84,6 @@ struct greybus_host_driver {
 	int (*message_send)(struct greybus_host_device *hd, u16 dest_cport_id,
 			struct gb_message *message, gfp_t gfp_mask);
 	void (*message_cancel)(struct gb_message *message);
-	int (*submit_svc)(struct svc_msg *svc_msg,
-			    struct greybus_host_device *hd);
 };
 
 struct greybus_host_device {
