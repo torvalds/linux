@@ -14,7 +14,6 @@
 #include <asm/unaligned.h>
 
 #include "greybus.h"
-#include "svc_msg.h"
 #include "kernel_ver.h"
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
@@ -134,26 +133,6 @@ static int cport_to_ep(struct es1_ap_dev *es1, u16 cport_id)
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
-static int submit_svc(struct svc_msg *svc_msg, struct greybus_host_device *hd)
-{
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
-	int retval;
-
-	/* SVC messages go down our control pipe */
-	retval = usb_control_msg(es1->usb_dev,
-				 usb_sndctrlpipe(es1->usb_dev,
-						 es1->control_endpoint),
-				 REQUEST_SVC,
-				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-				 0x00, 0x00,
-				 (char *)svc_msg,
-				 sizeof(*svc_msg),
-				 ES1_TIMEOUT);
-	if (retval != sizeof(*svc_msg))
-		return retval;
-
-	return 0;
-}
 
 static int ep_in_use(struct es1_ap_dev *es1, int bulk_ep_set)
 {
@@ -391,7 +370,6 @@ static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.message_send		= message_send,
 	.message_cancel		= message_cancel,
-	.submit_svc		= submit_svc,
 };
 
 /* Common function to report consistent warnings based on URB status */
