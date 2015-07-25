@@ -1067,6 +1067,7 @@ config SERIAL_ETRAXFS
 	bool "ETRAX FS serial port support"
 	depends on ETRAX_ARCH_V32 && OF
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 
 config SERIAL_ETRAXFS_CONSOLE
 	bool "ETRAX FS serial console support"

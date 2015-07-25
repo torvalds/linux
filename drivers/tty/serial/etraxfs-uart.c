@@ -10,6 +10,8 @@
 #include <linux/of_address.h>
 #include <hwregs/ser_defs.h>
 
+#include "serial_mctrl_gpio.h"
+
 #define DRV_NAME "etraxfs-uart"
 #define UART_NR CONFIG_ETRAX_SERIAL_PORTS
 
@@ -28,10 +30,7 @@ struct uart_cris_port {
 
 	void __iomem *regi_ser;
 
-	struct gpio_desc *dtr_pin;
-	struct gpio_desc *dsr_pin;
-	struct gpio_desc *ri_pin;
-	struct gpio_desc *cd_pin;
+	struct mctrl_gpios *gpios;
 
 	int write_ongoing;
 };
@@ -389,21 +388,9 @@ static unsigned int etraxfs_uart_get_mctrl(struct uart_port *port)
 	ret = 0;
 	if (crisv32_serial_get_rts(up))
 		ret |= TIOCM_RTS;
-	/* DTR is active low */
-	if (up->dtr_pin && !gpiod_get_raw_value(up->dtr_pin))
-		ret |= TIOCM_DTR;
-	/* CD is active low */
-	if (up->cd_pin && !gpiod_get_raw_value(up->cd_pin))
-		ret |= TIOCM_CD;
-	/* RI is active low */
-	if (up->ri_pin && !gpiod_get_raw_value(up->ri_pin))
-		ret |= TIOCM_RI;
-	/* DSR is active low */
-	if (up->dsr_pin && !gpiod_get_raw_value(up->dsr_pin))
-		ret |= TIOCM_DSR;
 	if (crisv32_serial_get_cts(up))
 		ret |= TIOCM_CTS;
-	return ret;
+	return mctrl_gpio_get(up->gpios, &ret);
 }
 
 static void etraxfs_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
@@ -411,15 +398,7 @@ static void etraxfs_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct uart_cris_port *up = (struct uart_cris_port *)port;
 
 	crisv32_serial_set_rts(up, mctrl & TIOCM_RTS ? 1 : 0, 0);
-	/* DTR is active low */
-	if (up->dtr_pin)
-		gpiod_set_raw_value(up->dtr_pin, mctrl & TIOCM_DTR ? 0 : 1);
-	/* RI is active low */
-	if (up->ri_pin)
-		gpiod_set_raw_value(up->ri_pin, mctrl & TIOCM_RNG ? 0 : 1);
-	/* CD is active low */
-	if (up->cd_pin)
-		gpiod_set_raw_value(up->cd_pin, mctrl & TIOCM_CD ? 0 : 1);
+	mctrl_gpio_set(up->gpios, mctrl);
 }
 
 static void etraxfs_uart_break_ctl(struct uart_port *port, int break_state)
@@ -913,11 +892,12 @@ static int etraxfs_uart_probe(struct platform_device *pdev)
 
 	up->irq = irq_of_parse_and_map(np, 0);
 	up->regi_ser = of_iomap(np, 0);
-	up->dtr_pin = devm_gpiod_get_optional(&pdev->dev, "dtr");
-	up->dsr_pin = devm_gpiod_get_optional(&pdev->dev, "dsr");
-	up->ri_pin = devm_gpiod_get_optional(&pdev->dev, "ri");
-	up->cd_pin = devm_gpiod_get_optional(&pdev->dev, "cd");
 	up->port.dev = &pdev->dev;
+
+	up->gpios = mctrl_gpio_init(&pdev->dev, 0);
+	if (IS_ERR(up->gpios))
+		return PTR_ERR(up->gpios);
+
 	cris_serial_port_init(&up->port, dev_id);
 
 	etraxfs_uart_ports[dev_id] = up;
