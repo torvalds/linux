@@ -1,4 +1,5 @@
 source "$BACKPORT_DIR/drivers/realtek/8192cu/Kconfig"
+source "$BACKPORT_DIR/drivers/realtek/rtl8812au/Kconfig"
 
 config RTL8188EU
         tristate "Realtek 8188E USB WiFi"
