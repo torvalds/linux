@@ -304,7 +304,6 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 		goto out;
 
 	neigh_node->orig_node = orig_neigh;
-	neigh_node->if_incoming = hard_iface;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 	tmp_neigh_node = batadv_neigh_node_get(orig_node, hard_iface,
