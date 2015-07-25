@@ -444,16 +444,17 @@ out:
 
 /**
  * batadv_neigh_node_new - create and init a new neigh_node object
+ * @orig_node: originator object representing the neighbour
  * @hard_iface: the interface where the neighbour is connected to
  * @neigh_addr: the mac address of the neighbour interface
- * @orig_node: originator object representing the neighbour
  *
  * Allocates a new neigh_node object and initialises all the generic fields.
  * Returns the new object or NULL on failure.
  */
 struct batadv_neigh_node *
-batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
-		      const u8 *neigh_addr, struct batadv_orig_node *orig_node)
+batadv_neigh_node_new(struct batadv_orig_node *orig_node,
+		      struct batadv_hard_iface *hard_iface,
+		      const u8 *neigh_addr)
 {
 	struct batadv_neigh_node *neigh_node;
 

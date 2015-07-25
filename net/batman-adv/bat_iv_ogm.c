@@ -298,7 +298,7 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 {
 	struct batadv_neigh_node *neigh_node;
 
-	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr, orig_node);
+	neigh_node = batadv_neigh_node_new(orig_node, hard_iface, neigh_addr);
 	if (!neigh_node)
 		goto out;
 
