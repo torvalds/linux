@@ -60,6 +60,8 @@ void i40e_idle_aq(struct i40e_hw *hw);
 void i40evf_resume_aq(struct i40e_hw *hw);
 bool i40evf_check_asq_alive(struct i40e_hw *hw);
 i40e_status i40evf_aq_queue_shutdown(struct i40e_hw *hw, bool unloading);
+char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err);
+char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err);
 
 i40e_status i40e_set_mac_type(struct i40e_hw *hw);
 

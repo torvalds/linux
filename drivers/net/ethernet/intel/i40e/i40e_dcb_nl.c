@@ -187,7 +187,7 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 	/* Set up all the App TLVs if DCBx is negotiated */
 	for (i = 0; i < dcbxcfg->numapps; i++) {
 		prio = dcbxcfg->app[i].priority;
-		tc_map = (1 << dcbxcfg->etscfg.prioritytable[prio]);
+		tc_map = BIT(dcbxcfg->etscfg.prioritytable[prio]);
 
 		/* Add APP only if the TC is enabled for this VSI */
 		if (tc_map & vsi->tc_config.enabled_tc) {

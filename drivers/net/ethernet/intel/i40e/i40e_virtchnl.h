@@ -110,7 +110,9 @@ struct i40e_virtchnl_msg {
  * error regardless of version mismatch.
  */
 #define I40E_VIRTCHNL_VERSION_MAJOR		1
-#define I40E_VIRTCHNL_VERSION_MINOR		0
+#define I40E_VIRTCHNL_VERSION_MINOR		1
+#define I40E_VIRTCHNL_VERSION_MINOR_NO_VF_CAPS	0
+
 struct i40e_virtchnl_version_info {
 	u32 major;
 	u32 minor;
@@ -129,7 +131,8 @@ struct i40e_virtchnl_version_info {
  */
 
 /* I40E_VIRTCHNL_OP_GET_VF_RESOURCES
- * VF sends this request to PF with no parameters
+ * Version 1.0 VF sends this request to PF with no parameters
+ * Version 1.1 VF sends this request to PF with u32 bitmap of its capabilities
  * PF responds with an indirect message containing
  * i40e_virtchnl_vf_resource and one or more
  * i40e_virtchnl_vsi_resource structures.
@@ -143,9 +146,12 @@ struct i40e_virtchnl_vsi_resource {
 	u8 default_mac_addr[ETH_ALEN];
 };
 /* VF offload flags */
-#define I40E_VIRTCHNL_VF_OFFLOAD_L2	0x00000001
-#define I40E_VIRTCHNL_VF_OFFLOAD_FCOE	0x00000004
-#define I40E_VIRTCHNL_VF_OFFLOAD_VLAN	0x00010000
+#define I40E_VIRTCHNL_VF_OFFLOAD_L2		0x00000001
+#define I40E_VIRTCHNL_VF_OFFLOAD_IWARP		0x00000002
+#define I40E_VIRTCHNL_VF_OFFLOAD_FCOE		0x00000004
+#define I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ		0x00000008
+#define I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG	0x00000010
+#define I40E_VIRTCHNL_VF_OFFLOAD_VLAN		0x00010000
 
 struct i40e_virtchnl_vf_resource {
 	u16 num_vsis;

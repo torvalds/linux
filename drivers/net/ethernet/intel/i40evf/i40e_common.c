@@ -72,6 +72,212 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 }
 
 /**
+ * i40evf_aq_str - convert AQ err code to a string
+ * @hw: pointer to the HW structure
+ * @aq_err: the AQ error code to convert
+ **/
+char *i40evf_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
+{
+	switch (aq_err) {
+	case I40E_AQ_RC_OK:
+		return "OK";
+	case I40E_AQ_RC_EPERM:
+		return "I40E_AQ_RC_EPERM";
+	case I40E_AQ_RC_ENOENT:
+		return "I40E_AQ_RC_ENOENT";
+	case I40E_AQ_RC_ESRCH:
+		return "I40E_AQ_RC_ESRCH";
+	case I40E_AQ_RC_EINTR:
+		return "I40E_AQ_RC_EINTR";
+	case I40E_AQ_RC_EIO:
+		return "I40E_AQ_RC_EIO";
+	case I40E_AQ_RC_ENXIO:
+		return "I40E_AQ_RC_ENXIO";
+	case I40E_AQ_RC_E2BIG:
+		return "I40E_AQ_RC_E2BIG";
+	case I40E_AQ_RC_EAGAIN:
+		return "I40E_AQ_RC_EAGAIN";
+	case I40E_AQ_RC_ENOMEM:
+		return "I40E_AQ_RC_ENOMEM";
+	case I40E_AQ_RC_EACCES:
+		return "I40E_AQ_RC_EACCES";
+	case I40E_AQ_RC_EFAULT:
+		return "I40E_AQ_RC_EFAULT";
+	case I40E_AQ_RC_EBUSY:
+		return "I40E_AQ_RC_EBUSY";
+	case I40E_AQ_RC_EEXIST:
+		return "I40E_AQ_RC_EEXIST";
+	case I40E_AQ_RC_EINVAL:
+		return "I40E_AQ_RC_EINVAL";
+	case I40E_AQ_RC_ENOTTY:
+		return "I40E_AQ_RC_ENOTTY";
+	case I40E_AQ_RC_ENOSPC:
+		return "I40E_AQ_RC_ENOSPC";
+	case I40E_AQ_RC_ENOSYS:
+		return "I40E_AQ_RC_ENOSYS";
+	case I40E_AQ_RC_ERANGE:
+		return "I40E_AQ_RC_ERANGE";
+	case I40E_AQ_RC_EFLUSHED:
+		return "I40E_AQ_RC_EFLUSHED";
+	case I40E_AQ_RC_BAD_ADDR:
+		return "I40E_AQ_RC_BAD_ADDR";
+	case I40E_AQ_RC_EMODE:
+		return "I40E_AQ_RC_EMODE";
+	case I40E_AQ_RC_EFBIG:
+		return "I40E_AQ_RC_EFBIG";
+	}
+
+	snprintf(hw->err_str, sizeof(hw->err_str), "%d", aq_err);
+	return hw->err_str;
+}
+
+/**
+ * i40evf_stat_str - convert status err code to a string
+ * @hw: pointer to the HW structure
+ * @stat_err: the status error code to convert
+ **/
+char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
+{
+	switch (stat_err) {
+	case 0:
+		return "OK";
+	case I40E_ERR_NVM:
+		return "I40E_ERR_NVM";
+	case I40E_ERR_NVM_CHECKSUM:
+		return "I40E_ERR_NVM_CHECKSUM";
+	case I40E_ERR_PHY:
+		return "I40E_ERR_PHY";
+	case I40E_ERR_CONFIG:
+		return "I40E_ERR_CONFIG";
+	case I40E_ERR_PARAM:
+		return "I40E_ERR_PARAM";
+	case I40E_ERR_MAC_TYPE:
+		return "I40E_ERR_MAC_TYPE";
+	case I40E_ERR_UNKNOWN_PHY:
+		return "I40E_ERR_UNKNOWN_PHY";
+	case I40E_ERR_LINK_SETUP:
+		return "I40E_ERR_LINK_SETUP";
+	case I40E_ERR_ADAPTER_STOPPED:
+		return "I40E_ERR_ADAPTER_STOPPED";
+	case I40E_ERR_INVALID_MAC_ADDR:
+		return "I40E_ERR_INVALID_MAC_ADDR";
+	case I40E_ERR_DEVICE_NOT_SUPPORTED:
+		return "I40E_ERR_DEVICE_NOT_SUPPORTED";
+	case I40E_ERR_MASTER_REQUESTS_PENDING:
+		return "I40E_ERR_MASTER_REQUESTS_PENDING";
+	case I40E_ERR_INVALID_LINK_SETTINGS:
+		return "I40E_ERR_INVALID_LINK_SETTINGS";
+	case I40E_ERR_AUTONEG_NOT_COMPLETE:
+		return "I40E_ERR_AUTONEG_NOT_COMPLETE";
+	case I40E_ERR_RESET_FAILED:
+		return "I40E_ERR_RESET_FAILED";
+	case I40E_ERR_SWFW_SYNC:
+		return "I40E_ERR_SWFW_SYNC";
+	case I40E_ERR_NO_AVAILABLE_VSI:
+		return "I40E_ERR_NO_AVAILABLE_VSI";
+	case I40E_ERR_NO_MEMORY:
+		return "I40E_ERR_NO_MEMORY";
+	case I40E_ERR_BAD_PTR:
+		return "I40E_ERR_BAD_PTR";
+	case I40E_ERR_RING_FULL:
+		return "I40E_ERR_RING_FULL";
+	case I40E_ERR_INVALID_PD_ID:
+		return "I40E_ERR_INVALID_PD_ID";
+	case I40E_ERR_INVALID_QP_ID:
+		return "I40E_ERR_INVALID_QP_ID";
+	case I40E_ERR_INVALID_CQ_ID:
+		return "I40E_ERR_INVALID_CQ_ID";
+	case I40E_ERR_INVALID_CEQ_ID:
+		return "I40E_ERR_INVALID_CEQ_ID";
+	case I40E_ERR_INVALID_AEQ_ID:
+		return "I40E_ERR_INVALID_AEQ_ID";
+	case I40E_ERR_INVALID_SIZE:
+		return "I40E_ERR_INVALID_SIZE";
+	case I40E_ERR_INVALID_ARP_INDEX:
+		return "I40E_ERR_INVALID_ARP_INDEX";
+	case I40E_ERR_INVALID_FPM_FUNC_ID:
+		return "I40E_ERR_INVALID_FPM_FUNC_ID";
+	case I40E_ERR_QP_INVALID_MSG_SIZE:
+		return "I40E_ERR_QP_INVALID_MSG_SIZE";
+	case I40E_ERR_QP_TOOMANY_WRS_POSTED:
+		return "I40E_ERR_QP_TOOMANY_WRS_POSTED";
+	case I40E_ERR_INVALID_FRAG_COUNT:
+		return "I40E_ERR_INVALID_FRAG_COUNT";
+	case I40E_ERR_QUEUE_EMPTY:
+		return "I40E_ERR_QUEUE_EMPTY";
+	case I40E_ERR_INVALID_ALIGNMENT:
+		return "I40E_ERR_INVALID_ALIGNMENT";
+	case I40E_ERR_FLUSHED_QUEUE:
+		return "I40E_ERR_FLUSHED_QUEUE";
+	case I40E_ERR_INVALID_PUSH_PAGE_INDEX:
+		return "I40E_ERR_INVALID_PUSH_PAGE_INDEX";
+	case I40E_ERR_INVALID_IMM_DATA_SIZE:
+		return "I40E_ERR_INVALID_IMM_DATA_SIZE";
+	case I40E_ERR_TIMEOUT:
+		return "I40E_ERR_TIMEOUT";
+	case I40E_ERR_OPCODE_MISMATCH:
+		return "I40E_ERR_OPCODE_MISMATCH";
+	case I40E_ERR_CQP_COMPL_ERROR:
+		return "I40E_ERR_CQP_COMPL_ERROR";
+	case I40E_ERR_INVALID_VF_ID:
+		return "I40E_ERR_INVALID_VF_ID";
+	case I40E_ERR_INVALID_HMCFN_ID:
+		return "I40E_ERR_INVALID_HMCFN_ID";
+	case I40E_ERR_BACKING_PAGE_ERROR:
+		return "I40E_ERR_BACKING_PAGE_ERROR";
+	case I40E_ERR_NO_PBLCHUNKS_AVAILABLE:
+		return "I40E_ERR_NO_PBLCHUNKS_AVAILABLE";
+	case I40E_ERR_INVALID_PBLE_INDEX:
+		return "I40E_ERR_INVALID_PBLE_INDEX";
+	case I40E_ERR_INVALID_SD_INDEX:
+		return "I40E_ERR_INVALID_SD_INDEX";
+	case I40E_ERR_INVALID_PAGE_DESC_INDEX:
+		return "I40E_ERR_INVALID_PAGE_DESC_INDEX";
+	case I40E_ERR_INVALID_SD_TYPE:
+		return "I40E_ERR_INVALID_SD_TYPE";
+	case I40E_ERR_MEMCPY_FAILED:
+		return "I40E_ERR_MEMCPY_FAILED";
+	case I40E_ERR_INVALID_HMC_OBJ_INDEX:
+		return "I40E_ERR_INVALID_HMC_OBJ_INDEX";
+	case I40E_ERR_INVALID_HMC_OBJ_COUNT:
+		return "I40E_ERR_INVALID_HMC_OBJ_COUNT";
+	case I40E_ERR_INVALID_SRQ_ARM_LIMIT:
+		return "I40E_ERR_INVALID_SRQ_ARM_LIMIT";
+	case I40E_ERR_SRQ_ENABLED:
+		return "I40E_ERR_SRQ_ENABLED";
+	case I40E_ERR_ADMIN_QUEUE_ERROR:
+		return "I40E_ERR_ADMIN_QUEUE_ERROR";
+	case I40E_ERR_ADMIN_QUEUE_TIMEOUT:
+		return "I40E_ERR_ADMIN_QUEUE_TIMEOUT";
+	case I40E_ERR_BUF_TOO_SHORT:
+		return "I40E_ERR_BUF_TOO_SHORT";
+	case I40E_ERR_ADMIN_QUEUE_FULL:
+		return "I40E_ERR_ADMIN_QUEUE_FULL";
+	case I40E_ERR_ADMIN_QUEUE_NO_WORK:
+		return "I40E_ERR_ADMIN_QUEUE_NO_WORK";
+	case I40E_ERR_BAD_IWARP_CQE:
+		return "I40E_ERR_BAD_IWARP_CQE";
+	case I40E_ERR_NVM_BLANK_MODE:
+		return "I40E_ERR_NVM_BLANK_MODE";
+	case I40E_ERR_NOT_IMPLEMENTED:
+		return "I40E_ERR_NOT_IMPLEMENTED";
+	case I40E_ERR_PE_DOORBELL_NOT_ENABLED:
+		return "I40E_ERR_PE_DOORBELL_NOT_ENABLED";
+	case I40E_ERR_DIAG_TEST_FAILED:
+		return "I40E_ERR_DIAG_TEST_FAILED";
+	case I40E_ERR_NOT_READY:
+		return "I40E_ERR_NOT_READY";
+	case I40E_NOT_SUPPORTED:
+		return "I40E_NOT_SUPPORTED";
+	case I40E_ERR_FIRMWARE_API_VERSION:
+		return "I40E_ERR_FIRMWARE_API_VERSION";
+	}
+
+	snprintf(hw->err_str, sizeof(hw->err_str), "%d", stat_err);
+	return hw->err_str;
+}
+
+/**
  * i40evf_debug_aq
  * @hw: debug mask related to admin queue
  * @mask: debug mask

@@ -277,16 +277,14 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 	}
 	tempmap = vecmap->rxq_map;
 	for_each_set_bit(vsi_queue_id, &tempmap, I40E_MAX_VSI_QP) {
-		linklistmap |= (1 <<
-				(I40E_VIRTCHNL_SUPPORTED_QTYPES *
-				 vsi_queue_id));
+		linklistmap |= (BIT(I40E_VIRTCHNL_SUPPORTED_QTYPES *
+				    vsi_queue_id));
 	}
 
 	tempmap = vecmap->txq_map;
 	for_each_set_bit(vsi_queue_id, &tempmap, I40E_MAX_VSI_QP) {
-		linklistmap |= (1 <<
-				(I40E_VIRTCHNL_SUPPORTED_QTYPES * vsi_queue_id
-				 + 1));
+		linklistmap |= (BIT(I40E_VIRTCHNL_SUPPORTED_QTYPES *
+				     vsi_queue_id + 1));
 	}
 
 	next_q = find_first_bit(&linklistmap,
@@ -332,7 +330,7 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 		reg = (vector_id) |
 		    (qtype << I40E_QINT_RQCTL_NEXTQ_TYPE_SHIFT) |
 		    (pf_queue_id << I40E_QINT_RQCTL_NEXTQ_INDX_SHIFT) |
-		    (1 << I40E_QINT_RQCTL_CAUSE_ENA_SHIFT) |
+		    BIT(I40E_QINT_RQCTL_CAUSE_ENA_SHIFT) |
 		    (itr_idx << I40E_QINT_RQCTL_ITR_INDX_SHIFT);
 		wr32(hw, reg_idx, reg);
 	}
@@ -897,7 +895,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 		for (vf_id = 0; vf_id < tmp; vf_id++) {
 			reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
 			bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
-			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
+			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 		}
 	}
 	clear_bit(__I40E_VF_DISABLE, &pf->state);
@@ -1121,12 +1119,16 @@ static int i40e_vc_send_resp_to_vf(struct i40e_vf *vf,
  *
  * called from the VF to request the API version used by the PF
  **/
-static int i40e_vc_get_version_msg(struct i40e_vf *vf)
+static int i40e_vc_get_version_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct i40e_virtchnl_version_info info = {
 		I40E_VIRTCHNL_VERSION_MAJOR, I40E_VIRTCHNL_VERSION_MINOR
 	};
 
+	vf->vf_ver = *(struct i40e_virtchnl_version_info *)msg;
+	/* VFs running the 1.0 API expect to get 1.0 back or they will cry. */
+	if (VF_IS_V10(vf))
+		info.minor = I40E_VIRTCHNL_VERSION_MINOR_NO_VF_CAPS;
 	return i40e_vc_send_msg_to_vf(vf, I40E_VIRTCHNL_OP_VERSION,
 				      I40E_SUCCESS, (u8 *)&info,
 				      sizeof(struct
@@ -1141,7 +1143,7 @@ static int i40e_vc_get_version_msg(struct i40e_vf *vf)
  *
  * called from the VF to request its resources
  **/
-static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf)
+static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct i40e_virtchnl_vf_resource *vfres = NULL;
 	struct i40e_pf *pf = vf->pf;
@@ -1165,11 +1167,18 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf)
 		len = 0;
 		goto err;
 	}
+	if (VF_IS_V11(vf))
+		vf->driver_caps = *(u32 *)msg;
+	else
+		vf->driver_caps = I40E_VIRTCHNL_VF_OFFLOAD_L2 |
+				  I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
+				  I40E_VIRTCHNL_VF_OFFLOAD_VLAN;
 
 	vfres->vf_offload_flags = I40E_VIRTCHNL_VF_OFFLOAD_L2;
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	if (!vsi->info.pvid)
-		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_VLAN;
+		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_VLAN |
+					   I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG;
 
 	vfres->num_vsis = num_vsis;
 	vfres->num_queue_pairs = vf->num_queue_pairs;
@@ -1771,8 +1780,13 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 		valid_len = sizeof(struct i40e_virtchnl_version_info);
 		break;
 	case I40E_VIRTCHNL_OP_RESET_VF:
-	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
 		valid_len = 0;
+		break;
+	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
+		if (VF_IS_V11(vf))
+			valid_len = sizeof(u32);
+		else
+			valid_len = 0;
 		break;
 	case I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE:
 		valid_len = sizeof(struct i40e_virtchnl_txq_info);
@@ -1886,10 +1900,10 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, u16 vf_id, u32 v_opcode,
 
 	switch (v_opcode) {
 	case I40E_VIRTCHNL_OP_VERSION:
-		ret = i40e_vc_get_version_msg(vf);
+		ret = i40e_vc_get_version_msg(vf, msg);
 		break;
 	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
-		ret = i40e_vc_get_vf_resources_msg(vf);
+		ret = i40e_vc_get_vf_resources_msg(vf, msg);
 		break;
 	case I40E_VIRTCHNL_OP_RESET_VF:
 		i40e_vc_reset_vf_msg(vf);
@@ -1967,9 +1981,9 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 		/* read GLGEN_VFLRSTAT register to find out the flr VFs */
 		vf = &pf->vf[vf_id];
 		reg = rd32(hw, I40E_GLGEN_VFLRSTAT(reg_idx));
-		if (reg & (1 << bit_idx)) {
+		if (reg & BIT(bit_idx)) {
 			/* clear the bit in GLGEN_VFLRSTAT */
-			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), (1 << bit_idx));
+			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 
 			if (!test_bit(__I40E_DOWN, &pf->state))
 				i40e_reset_vf(vf, true);

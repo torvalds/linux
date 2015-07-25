@@ -42,6 +42,9 @@
 #define I40E_VLAN_MASK			0xFFF
 #define I40E_PRIORITY_MASK		0x7000
 
+#define VF_IS_V10(_v) (((_v)->vf_ver.major == 1) && ((_v)->vf_ver.minor == 0))
+#define VF_IS_V11(_v) (((_v)->vf_ver.major == 1) && ((_v)->vf_ver.minor == 1))
+
 /* Various queue ctrls */
 enum i40e_queue_ctrl {
 	I40E_QUEUE_CTRL_UNKNOWN = 0,
@@ -75,6 +78,8 @@ struct i40e_vf {
 	u16 vf_id;
 	/* all VF vsis connect to the same parent */
 	enum i40e_switch_element_types parent_type;
+	struct i40e_virtchnl_version_info vf_ver;
+	u32 driver_caps; /* reported by VF driver */
 
 	/* VF Port Extender (PE) stag if used */
 	u16 stag;

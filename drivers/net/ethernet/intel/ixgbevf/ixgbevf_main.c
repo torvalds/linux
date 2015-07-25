@@ -1696,22 +1696,25 @@ static void ixgbevf_setup_vfmrqc(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 vfmrqc = 0, vfreta = 0;
-	u32 rss_key[10];
 	u16 rss_i = adapter->num_rx_queues;
-	int i, j;
+	u8 i, j;
 
 	/* Fill out hash function seeds */
-	netdev_rss_key_fill(rss_key, sizeof(rss_key));
-	for (i = 0; i < 10; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(i), rss_key[i]);
+	netdev_rss_key_fill(adapter->rss_key, sizeof(adapter->rss_key));
+	for (i = 0; i < IXGBEVF_VFRSSRK_REGS; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(i), adapter->rss_key[i]);
 
-	/* Fill out redirection table */
-	for (i = 0, j = 0; i < 64; i++, j++) {
+	for (i = 0, j = 0; i < IXGBEVF_X550_VFRETA_SIZE; i++, j++) {
 		if (j == rss_i)
 			j = 0;
-		vfreta = (vfreta << 8) | (j * 0x1);
-		if ((i & 3) == 3)
+
+		adapter->rss_indir_tbl[i] = j;
+
+		vfreta |= j << (i & 0x3) * 8;
+		if ((i & 3) == 3) {
 			IXGBE_WRITE_REG(hw, IXGBE_VFRETA(i >> 2), vfreta);
+			vfreta = 0;
+		}
 	}
 
 	/* Perform hash on these packet types */

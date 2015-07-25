@@ -240,7 +240,7 @@ void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask)
 	int i;
 
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
-		if (mask & (1 << (i - 1))) {
+		if (mask & BIT(i - 1)) {
 			wr32(hw, I40E_VFINT_DYN_CTLN1(i - 1),
 			     I40E_VFINT_DYN_CTLN1_INTENA_MASK |
 			     I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
@@ -268,7 +268,7 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 		wr32(hw, I40E_VFINT_DYN_CTL01, dyn_ctl);
 	}
 	for (i = 1; i < adapter->num_msix_vectors; i++) {
-		if (mask & (1 << i)) {
+		if (mask & BIT(i)) {
 			dyn_ctl = rd32(hw, I40E_VFINT_DYN_CTLN1(i - 1));
 			dyn_ctl |= I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
 				   I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK |
@@ -377,7 +377,7 @@ i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
 	q_vector->tx.count++;
 	q_vector->tx.latency_range = I40E_LOW_LATENCY;
 	q_vector->num_ringpairs++;
-	q_vector->ring_mask |= (1 << t_idx);
+	q_vector->ring_mask |= BIT(t_idx);
 }
 
 /**
@@ -1371,6 +1371,10 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		}
 		goto watchdog_done;
 	}
+	if (adapter->aq_required & I40EVF_FLAG_AQ_GET_CONFIG) {
+		i40evf_send_vf_config_msg(adapter);
+		goto watchdog_done;
+	}
 
 	if (adapter->aq_required & I40EVF_FLAG_AQ_DISABLE_QUEUES) {
 		i40evf_disable_queues(adapter);
@@ -1606,7 +1610,8 @@ continue_reset:
 		dev_info(&adapter->pdev->dev, "Failed to init adminq: %d\n",
 			 err);
 
-	i40evf_map_queues(adapter);
+	adapter->aq_required = I40EVF_FLAG_AQ_GET_CONFIG;
+	adapter->aq_required |= I40EVF_FLAG_AQ_MAP_VECTORS;
 
 	/* re-add all MAC filters */
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
@@ -1616,7 +1621,7 @@ continue_reset:
 	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
 		f->add = true;
 	}
-	adapter->aq_required = I40EVF_FLAG_AQ_ADD_MAC_FILTER;
+	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 	i40evf_misc_irq_enable(adapter);
@@ -1982,6 +1987,62 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
 }
 
 /**
+ * i40evf_process_config - Process the config information we got from the PF
+ * @adapter: board private structure
+ *
+ * Verify that we have a valid config struct, and set up our netdev features
+ * and our VSI struct.
+ **/
+int i40evf_process_config(struct i40evf_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int i;
+
+	/* got VF config message back from PF, now we can parse it */
+	for (i = 0; i < adapter->vf_res->num_vsis; i++) {
+		if (adapter->vf_res->vsi_res[i].vsi_type == I40E_VSI_SRIOV)
+			adapter->vsi_res = &adapter->vf_res->vsi_res[i];
+	}
+	if (!adapter->vsi_res) {
+		dev_err(&adapter->pdev->dev, "No LAN VSI found\n");
+		return -ENODEV;
+	}
+
+	if (adapter->vf_res->vf_offload_flags
+	    & I40E_VIRTCHNL_VF_OFFLOAD_VLAN) {
+		netdev->vlan_features = netdev->features;
+		netdev->features |= NETIF_F_HW_VLAN_CTAG_TX |
+				    NETIF_F_HW_VLAN_CTAG_RX |
+				    NETIF_F_HW_VLAN_CTAG_FILTER;
+	}
+	netdev->features |= NETIF_F_HIGHDMA |
+			    NETIF_F_SG |
+			    NETIF_F_IP_CSUM |
+			    NETIF_F_SCTP_CSUM |
+			    NETIF_F_IPV6_CSUM |
+			    NETIF_F_TSO |
+			    NETIF_F_TSO6 |
+			    NETIF_F_RXCSUM |
+			    NETIF_F_GRO;
+
+	/* copy netdev features into list of user selectable features */
+	netdev->hw_features |= netdev->features;
+	netdev->hw_features &= ~NETIF_F_RXCSUM;
+
+	adapter->vsi.id = adapter->vsi_res->vsi_id;
+
+	adapter->vsi.back = adapter;
+	adapter->vsi.base_vector = 1;
+	adapter->vsi.work_limit = I40E_DEFAULT_IRQ_WORK;
+	adapter->vsi.rx_itr_setting = (I40E_ITR_DYNAMIC |
+				       ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
+	adapter->vsi.tx_itr_setting = (I40E_ITR_DYNAMIC |
+				       ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
+	adapter->vsi.netdev = adapter->netdev;
+	return 0;
+}
+
+/**
  * i40evf_init_task - worker thread to perform delayed initialization
  * @work: pointer to work_struct containing our data
  *
@@ -2001,7 +2062,7 @@ static void i40evf_init_task(struct work_struct *work)
 	struct net_device *netdev = adapter->netdev;
 	struct i40e_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	int i, err, bufsz;
+	int err, bufsz;
 
 	switch (adapter->state) {
 	case __I40EVF_STARTUP:
@@ -2052,6 +2113,12 @@ static void i40evf_init_task(struct work_struct *work)
 		if (err) {
 			if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 				err = i40evf_send_api_ver(adapter);
+			else
+				dev_err(&pdev->dev, "Unsupported PF API version %d.%d, expected %d.%d\n",
+					adapter->pf_version.major,
+					adapter->pf_version.minor,
+					I40E_VIRTCHNL_VERSION_MAJOR,
+					I40E_VIRTCHNL_VERSION_MINOR);
 			goto err;
 		}
 		err = i40evf_send_vf_config_msg(adapter);
@@ -2087,42 +2154,15 @@ static void i40evf_init_task(struct work_struct *work)
 	default:
 		goto err_alloc;
 	}
-	/* got VF config message back from PF, now we can parse it */
-	for (i = 0; i < adapter->vf_res->num_vsis; i++) {
-		if (adapter->vf_res->vsi_res[i].vsi_type == I40E_VSI_SRIOV)
-			adapter->vsi_res = &adapter->vf_res->vsi_res[i];
-	}
-	if (!adapter->vsi_res) {
-		dev_err(&pdev->dev, "No LAN VSI found\n");
+	if (i40evf_process_config(adapter))
 		goto err_alloc;
-	}
+	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
 
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
-	netdev->features |= NETIF_F_HIGHDMA |
-			    NETIF_F_SG |
-			    NETIF_F_IP_CSUM |
-			    NETIF_F_SCTP_CSUM |
-			    NETIF_F_IPV6_CSUM |
-			    NETIF_F_TSO |
-			    NETIF_F_TSO6 |
-			    NETIF_F_RXCSUM |
-			    NETIF_F_GRO;
-
-	if (adapter->vf_res->vf_offload_flags
-	    & I40E_VIRTCHNL_VF_OFFLOAD_VLAN) {
-		netdev->vlan_features = netdev->features;
-		netdev->features |= NETIF_F_HW_VLAN_CTAG_TX |
-				    NETIF_F_HW_VLAN_CTAG_RX |
-				    NETIF_F_HW_VLAN_CTAG_FILTER;
-	}
-
-	/* copy netdev features into list of user selectable features */
-	netdev->hw_features |= netdev->features;
-	netdev->hw_features &= ~NETIF_F_RXCSUM;
 
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
 		dev_info(&pdev->dev, "Invalid MAC address %pM, using random\n",
@@ -2152,17 +2192,6 @@ static void i40evf_init_task(struct work_struct *work)
 		goto err_sw_init;
 
 	netif_carrier_off(netdev);
-
-	adapter->vsi.id = adapter->vsi_res->vsi_id;
-	adapter->vsi.seid = adapter->vsi_res->vsi_id; /* dummy */
-	adapter->vsi.back = adapter;
-	adapter->vsi.base_vector = 1;
-	adapter->vsi.work_limit = I40E_DEFAULT_IRQ_WORK;
-	adapter->vsi.rx_itr_setting = (I40E_ITR_DYNAMIC |
-				       ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
-	adapter->vsi.tx_itr_setting = (I40E_ITR_DYNAMIC |
-				       ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
-	adapter->vsi.netdev = adapter->netdev;
 
 	if (!adapter->netdev_registered) {
 		err = register_netdev(netdev);
@@ -2291,7 +2320,7 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw = &adapter->hw;
 	hw->back = adapter;
 
-	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	adapter->msg_enable = BIT(DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 	adapter->state = __I40EVF_STARTUP;
 
 	/* Call save state here because it relies on the adapter struct. */

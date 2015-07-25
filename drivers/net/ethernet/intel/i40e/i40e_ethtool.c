@@ -681,15 +681,17 @@ static int i40e_set_settings(struct net_device *netdev,
 		/* make the aq call */
 		status = i40e_aq_set_phy_config(hw, &config, NULL);
 		if (status) {
-			netdev_info(netdev, "Set phy config failed with error %d.\n",
-				    status);
+			netdev_info(netdev, "Set phy config failed, err %s aq_err %s\n",
+				    i40e_stat_str(hw, status),
+				    i40e_aq_str(hw, hw->aq.asq_last_status));
 			return -EAGAIN;
 		}
 
 		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 		if (status)
-			netdev_info(netdev, "Updating link info failed with error %d\n",
-				    status);
+			netdev_info(netdev, "Updating link info failed with err %s aq_err %s\n",
+				    i40e_stat_str(hw, status),
+				    i40e_aq_str(hw, hw->aq.asq_last_status));
 
 	} else {
 		netdev_info(netdev, "Nothing changed, exiting without setting anything.\n");
@@ -709,8 +711,9 @@ static int i40e_nway_reset(struct net_device *netdev)
 
 	ret = i40e_aq_set_link_restart_an(hw, link_up, NULL);
 	if (ret) {
-		netdev_info(netdev, "link restart failed, aq_err=%d\n",
-			    pf->hw.aq.asq_last_status);
+		netdev_info(netdev, "link restart failed, err %s aq_err %s\n",
+			    i40e_stat_str(hw, ret),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
 		return -EIO;
 	}
 
@@ -822,18 +825,21 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	status = i40e_set_fc(hw, &aq_failures, link_up);
 
 	if (aq_failures & I40E_SET_FC_AQ_FAIL_GET) {
-		netdev_info(netdev, "Set fc failed on the get_phy_capabilities call with error %d and status %d\n",
-			    status, hw->aq.asq_last_status);
+		netdev_info(netdev, "Set fc failed on the get_phy_capabilities call with err %s aq_err %s\n",
+			    i40e_stat_str(hw, status),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
 		err = -EAGAIN;
 	}
 	if (aq_failures & I40E_SET_FC_AQ_FAIL_SET) {
-		netdev_info(netdev, "Set fc failed on the set_phy_config call with error %d and status %d\n",
-			    status, hw->aq.asq_last_status);
+		netdev_info(netdev, "Set fc failed on the set_phy_config call with err %s aq_err %s\n",
+			    i40e_stat_str(hw, status),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
 		err = -EAGAIN;
 	}
 	if (aq_failures & I40E_SET_FC_AQ_FAIL_UPDATE) {
-		netdev_info(netdev, "Set fc failed on the get_link_info call with error %d and status %d\n",
-			    status, hw->aq.asq_last_status);
+		netdev_info(netdev, "Set fc failed on the get_link_info call with err %s aq_err %s\n",
+			    i40e_stat_str(hw, status),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
 		err = -EAGAIN;
 	}
 
@@ -1011,7 +1017,7 @@ static int i40e_get_eeprom_len(struct net_device *netdev)
 		& I40E_GLPCI_LBARCTRL_FL_SIZE_MASK)
 		>> I40E_GLPCI_LBARCTRL_FL_SIZE_SHIFT;
 	/* register returns value in power of 2, 64Kbyte chunks. */
-	val = (64 * 1024) * (1 << val);
+	val = (64 * 1024) * BIT(val);
 	return val;
 }
 
@@ -1464,11 +1470,11 @@ static int i40e_get_ts_info(struct net_device *dev,
 	else
 		info->phc_index = -1;
 
-	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
-			   (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
-			   (1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 	return 0;
 }
@@ -1584,7 +1590,7 @@ static void i40e_diag_test(struct net_device *netdev,
 			/* indicate we're in test mode */
 			dev_close(netdev);
 		else
-			i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
+			i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
 
 		/* Link test performed before hardware reset
 		 * so autoneg doesn't interfere with test result
@@ -1606,7 +1612,7 @@ static void i40e_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		clear_bit(__I40E_TESTING, &pf->state);
-		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
+		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
 
 		if (if_running)
 			dev_open(netdev);
@@ -1639,7 +1645,7 @@ static void i40e_get_wol(struct net_device *netdev,
 
 	/* NVM bit on means WoL disabled for the port */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
-	if ((1 << hw->port) & wol_nvm_bits || hw->partition_id != 1) {
+	if ((BIT(hw->port) & wol_nvm_bits) || (hw->partition_id != 1)) {
 		wol->supported = 0;
 		wol->wolopts = 0;
 	} else {
@@ -1672,7 +1678,7 @@ static int i40e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	/* NVM bit on means WoL disabled for the port */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
-	if (((1 << hw->port) & wol_nvm_bits))
+	if (BIT(hw->port) & wol_nvm_bits)
 		return -EOPNOTSUPP;
 
 	/* only magic packet is supported */
@@ -2018,10 +2024,10 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case TCP_V4_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
 			break;
 		default:
 			return -EINVAL;
@@ -2030,10 +2036,10 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case TCP_V6_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
 			break;
 		default:
 			return -EINVAL;
@@ -2042,12 +2048,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case UDP_V4_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		default:
 			return -EINVAL;
@@ -2056,12 +2062,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	case UDP_V6_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-				 ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		default:
 			return -EINVAL;
@@ -2074,7 +2080,7 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 		if ((nfc->data & RXH_L4_B_0_1) ||
 		    (nfc->data & RXH_L4_B_2_3))
 			return -EINVAL;
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER);
+		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_OTHER);
 		break;
 	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
@@ -2083,15 +2089,15 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 		if ((nfc->data & RXH_L4_B_0_1) ||
 		    (nfc->data & RXH_L4_B_2_3))
 			return -EINVAL;
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
+		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
 		break;
 	case IPV4_FLOW:
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4);
+		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) |
+			BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4);
 		break;
 	case IPV6_FLOW:
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
+		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
+			BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6);
 		break;
 	default:
 		return -EINVAL;
