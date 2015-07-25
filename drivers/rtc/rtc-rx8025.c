@@ -19,6 +19,7 @@
  * version 2 as published by the Free Software Foundation.
  */
 #include <linux/bcd.h>
+#include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -45,17 +46,17 @@
 #define RX8025_BIT_CTRL1_CT	(7 << 0)
 /* 1 Hz periodic level irq */
 #define RX8025_BIT_CTRL1_CT_1HZ	4
-#define RX8025_BIT_CTRL1_TEST	(1 << 3)
-#define RX8025_BIT_CTRL1_1224	(1 << 5)
-#define RX8025_BIT_CTRL1_DALE	(1 << 6)
-#define RX8025_BIT_CTRL1_WALE	(1 << 7)
+#define RX8025_BIT_CTRL1_TEST	BIT(3)
+#define RX8025_BIT_CTRL1_1224	BIT(5)
+#define RX8025_BIT_CTRL1_DALE	BIT(6)
+#define RX8025_BIT_CTRL1_WALE	BIT(7)
 
-#define RX8025_BIT_CTRL2_DAFG	(1 << 0)
-#define RX8025_BIT_CTRL2_WAFG	(1 << 1)
-#define RX8025_BIT_CTRL2_CTFG	(1 << 2)
-#define RX8025_BIT_CTRL2_PON	(1 << 4)
-#define RX8025_BIT_CTRL2_XST	(1 << 5)
-#define RX8025_BIT_CTRL2_VDET	(1 << 6)
+#define RX8025_BIT_CTRL2_DAFG	BIT(0)
+#define RX8025_BIT_CTRL2_WAFG	BIT(1)
+#define RX8025_BIT_CTRL2_CTFG	BIT(2)
+#define RX8025_BIT_CTRL2_PON	BIT(4)
+#define RX8025_BIT_CTRL2_XST	BIT(5)
+#define RX8025_BIT_CTRL2_VDET	BIT(6)
 
 /* Clock precision adjustment */
 #define RX8025_ADJ_RESOLUTION	3050 /* in ppb */
