@@ -816,7 +816,6 @@ static void free_pardevice(struct device *dev)
 	struct pardevice *par_dev = to_pardevice(dev);
 
 	kfree(par_dev->name);
-	kfree(par_dev->state);
 	kfree(par_dev);
 }
 
