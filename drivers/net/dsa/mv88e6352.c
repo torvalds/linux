@@ -92,70 +92,6 @@ static int mv88e6352_setup_global(struct dsa_switch *ds)
 	return 0;
 }
 
-#ifdef CONFIG_NET_DSA_HWMON
-
-static int mv88e6352_get_temp(struct dsa_switch *ds, int *temp)
-{
-	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
-	int ret;
-
-	*temp = 0;
-
-	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 27);
-	if (ret < 0)
-		return ret;
-
-	*temp = (ret & 0xff) - 25;
-
-	return 0;
-}
-
-static int mv88e6352_get_temp_limit(struct dsa_switch *ds, int *temp)
-{
-	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
-	int ret;
-
-	*temp = 0;
-
-	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 26);
-	if (ret < 0)
-		return ret;
-
-	*temp = (((ret >> 8) & 0x1f) * 5) - 25;
-
-	return 0;
-}
-
-static int mv88e6352_set_temp_limit(struct dsa_switch *ds, int temp)
-{
-	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
-	int ret;
-
-	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 26);
-	if (ret < 0)
-		return ret;
-	temp = clamp_val(DIV_ROUND_CLOSEST(temp, 5) + 5, 0, 0x1f);
-	return mv88e6xxx_phy_page_write(ds, phy, 6, 26,
-					(ret & 0xe0ff) | (temp << 8));
-}
-
-static int mv88e6352_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
-{
-	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
-	int ret;
-
-	*alarm = false;
-
-	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 26);
-	if (ret < 0)
-		return ret;
-
-	*alarm = !!(ret & 0x40);
-
-	return 0;
-}
-#endif /* CONFIG_NET_DSA_HWMON */
-
 static int mv88e6352_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -393,10 +329,10 @@ struct dsa_switch_driver mv88e6352_switch_driver = {
 	.set_eee		= mv88e6xxx_set_eee,
 	.get_eee		= mv88e6xxx_get_eee,
 #ifdef CONFIG_NET_DSA_HWMON
-	.get_temp		= mv88e6352_get_temp,
-	.get_temp_limit		= mv88e6352_get_temp_limit,
-	.set_temp_limit		= mv88e6352_set_temp_limit,
-	.get_temp_alarm		= mv88e6352_get_temp_alarm,
+	.get_temp		= mv88e6xxx_get_temp,
+	.get_temp_limit		= mv88e6xxx_get_temp_limit,
+	.set_temp_limit		= mv88e6xxx_set_temp_limit,
+	.get_temp_alarm		= mv88e6xxx_get_temp_alarm,
 #endif
 	.get_eeprom		= mv88e6352_get_eeprom,
 	.set_eeprom		= mv88e6352_set_eeprom,

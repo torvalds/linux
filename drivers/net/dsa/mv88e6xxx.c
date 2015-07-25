@@ -517,7 +517,7 @@ static bool mv88e6xxx_6185_family(struct dsa_switch *ds)
 	return false;
 }
 
-bool mv88e6xxx_6320_family(struct dsa_switch *ds)
+static bool mv88e6xxx_6320_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
@@ -807,54 +807,6 @@ void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 			p[i] = ret;
 	}
 }
-
-#ifdef CONFIG_NET_DSA_HWMON
-
-int  mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret;
-	int val;
-
-	*temp = 0;
-
-	mutex_lock(&ps->smi_mutex);
-
-	ret = _mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x6);
-	if (ret < 0)
-		goto error;
-
-	/* Enable temperature sensor */
-	ret = _mv88e6xxx_phy_read(ds, 0x0, 0x1a);
-	if (ret < 0)
-		goto error;
-
-	ret = _mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret | (1 << 5));
-	if (ret < 0)
-		goto error;
-
-	/* Wait for temperature to stabilize */
-	usleep_range(10000, 12000);
-
-	val = _mv88e6xxx_phy_read(ds, 0x0, 0x1a);
-	if (val < 0) {
-		ret = val;
-		goto error;
-	}
-
-	/* Disable temperature sensor */
-	ret = _mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret & ~(1 << 5));
-	if (ret < 0)
-		goto error;
-
-	*temp = ((val & 0x1f) - 5) * 5;
-
-error:
-	_mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x0);
-	mutex_unlock(&ps->smi_mutex);
-	return ret;
-}
-#endif /* CONFIG_NET_DSA_HWMON */
 
 /* Must be called with SMI lock held */
 static int _mv88e6xxx_wait(struct dsa_switch *ds, int reg, int offset,
@@ -2179,6 +2131,132 @@ mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int port, int regnum,
 	mutex_unlock(&ps->smi_mutex);
 	return ret;
 }
+
+#ifdef CONFIG_NET_DSA_HWMON
+
+static int mv88e61xx_get_temp(struct dsa_switch *ds, int *temp)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+	int val;
+
+	*temp = 0;
+
+	mutex_lock(&ps->smi_mutex);
+
+	ret = _mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x6);
+	if (ret < 0)
+		goto error;
+
+	/* Enable temperature sensor */
+	ret = _mv88e6xxx_phy_read(ds, 0x0, 0x1a);
+	if (ret < 0)
+		goto error;
+
+	ret = _mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret | (1 << 5));
+	if (ret < 0)
+		goto error;
+
+	/* Wait for temperature to stabilize */
+	usleep_range(10000, 12000);
+
+	val = _mv88e6xxx_phy_read(ds, 0x0, 0x1a);
+	if (val < 0) {
+		ret = val;
+		goto error;
+	}
+
+	/* Disable temperature sensor */
+	ret = _mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret & ~(1 << 5));
+	if (ret < 0)
+		goto error;
+
+	*temp = ((val & 0x1f) - 5) * 5;
+
+error:
+	_mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x0);
+	mutex_unlock(&ps->smi_mutex);
+	return ret;
+}
+
+static int mv88e63xx_get_temp(struct dsa_switch *ds, int *temp)
+{
+	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
+	int ret;
+
+	*temp = 0;
+
+	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 27);
+	if (ret < 0)
+		return ret;
+
+	*temp = (ret & 0xff) - 25;
+
+	return 0;
+}
+
+int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
+{
+	if (mv88e6xxx_6320_family(ds) || mv88e6xxx_6352_family(ds))
+		return mv88e63xx_get_temp(ds, temp);
+
+	return mv88e61xx_get_temp(ds, temp);
+}
+
+int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp)
+{
+	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
+	int ret;
+
+	if (!mv88e6xxx_6320_family(ds) && !mv88e6xxx_6352_family(ds))
+		return -EOPNOTSUPP;
+
+	*temp = 0;
+
+	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 26);
+	if (ret < 0)
+		return ret;
+
+	*temp = (((ret >> 8) & 0x1f) * 5) - 25;
+
+	return 0;
+}
+
+int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp)
+{
+	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
+	int ret;
+
+	if (!mv88e6xxx_6320_family(ds) && !mv88e6xxx_6352_family(ds))
+		return -EOPNOTSUPP;
+
+	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 26);
+	if (ret < 0)
+		return ret;
+	temp = clamp_val(DIV_ROUND_CLOSEST(temp, 5) + 5, 0, 0x1f);
+	return mv88e6xxx_phy_page_write(ds, phy, 6, 26,
+					(ret & 0xe0ff) | (temp << 8));
+}
+
+int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
+{
+	int phy = mv88e6xxx_6320_family(ds) ? 3 : 0;
+	int ret;
+
+	if (!mv88e6xxx_6320_family(ds) && !mv88e6xxx_6352_family(ds))
+		return -EOPNOTSUPP;
+
+	*alarm = false;
+
+	ret = mv88e6xxx_phy_page_read(ds, phy, 6, 26);
+	if (ret < 0)
+		return ret;
+
+	*alarm = !!(ret & 0x40);
+
+	return 0;
+}
+#endif /* CONFIG_NET_DSA_HWMON */
 
 static int __init mv88e6xxx_init(void)
 {
