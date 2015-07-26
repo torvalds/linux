@@ -54,6 +54,8 @@ int mei_hbm_cl_disconnect_rsp(struct mei_device *dev, struct mei_cl *cl);
 int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl);
 bool mei_hbm_version_is_supported(struct mei_device *dev);
 int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd);
+int mei_hbm_cl_notify_req(struct mei_device *dev,
+			  struct mei_cl *cl, u8 request);
 
 #endif /* _MEI_HBM_H_ */
 

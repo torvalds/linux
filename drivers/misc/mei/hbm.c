@@ -403,6 +403,125 @@ static int mei_hbm_fw_add_cl_req(struct mei_device *dev,
 }
 
 /**
+ * mei_hbm_cl_notify_req - send notification request
+ *
+ * @dev: the device structure
+ * @cl: a client to disconnect from
+ * @start: true for start false for stop
+ *
+ * Return: 0 on success and -EIO on write failure
+ */
+int mei_hbm_cl_notify_req(struct mei_device *dev,
+			  struct mei_cl *cl, u8 start)
+{
+
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
+	struct hbm_notification_request *req;
+	const size_t len = sizeof(struct hbm_notification_request);
+	int ret;
+
+	mei_hbm_hdr(mei_hdr, len);
+	mei_hbm_cl_hdr(cl, MEI_HBM_NOTIFY_REQ_CMD, dev->wr_msg.data, len);
+
+	req = (struct hbm_notification_request *)dev->wr_msg.data;
+	req->start = start;
+
+	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
+	if (ret)
+		dev_err(dev->dev, "notify request failed: ret = %d\n", ret);
+
+	return ret;
+}
+
+/**
+ *  notify_res_to_fop - convert notification response to the proper
+ *      notification FOP
+ *
+ * @cmd: client notification start response command
+ *
+ * Return:  MEI_FOP_NOTIFY_START or MEI_FOP_NOTIFY_STOP;
+ */
+static inline enum mei_cb_file_ops notify_res_to_fop(struct mei_hbm_cl_cmd *cmd)
+{
+	struct hbm_notification_response *rs =
+		(struct hbm_notification_response *)cmd;
+
+	if (rs->start == MEI_HBM_NOTIFICATION_START)
+		return MEI_FOP_NOTIFY_START;
+	else
+		return MEI_FOP_NOTIFY_STOP;
+}
+
+/**
+ * mei_hbm_cl_notify_start_res - update the client state according
+ *       notify start response
+ *
+ * @dev: the device structure
+ * @cl: mei host client
+ * @cmd: client notification start response command
+ */
+static void mei_hbm_cl_notify_start_res(struct mei_device *dev,
+					struct mei_cl *cl,
+					struct mei_hbm_cl_cmd *cmd)
+{
+	struct hbm_notification_response *rs =
+		(struct hbm_notification_response *)cmd;
+
+	cl_dbg(dev, cl, "hbm: notify start response status=%d\n", rs->status);
+
+	if (rs->status == MEI_HBMS_SUCCESS ||
+	    rs->status == MEI_HBMS_ALREADY_STARTED) {
+		cl->notify_en = true;
+		cl->status = 0;
+	} else {
+		cl->status = -EINVAL;
+	}
+}
+
+/**
+ * mei_hbm_cl_notify_stop_res - update the client state according
+ *       notify stop response
+ *
+ * @dev: the device structure
+ * @cl: mei host client
+ * @cmd: client notification stop response command
+ */
+static void mei_hbm_cl_notify_stop_res(struct mei_device *dev,
+				       struct mei_cl *cl,
+				       struct mei_hbm_cl_cmd *cmd)
+{
+	struct hbm_notification_response *rs =
+		(struct hbm_notification_response *)cmd;
+
+	cl_dbg(dev, cl, "hbm: notify stop response status=%d\n", rs->status);
+
+	if (rs->status == MEI_HBMS_SUCCESS ||
+	    rs->status == MEI_HBMS_NOT_STARTED) {
+		cl->notify_en = false;
+		cl->status = 0;
+	} else {
+		/* TODO: spec is not clear yet about other possible issues */
+		cl->status = -EINVAL;
+	}
+}
+
+/**
+ * mei_hbm_cl_notify - signal notification event
+ *
+ * @dev: the device structure
+ * @cmd: notification client message
+ */
+static void mei_hbm_cl_notify(struct mei_device *dev,
+			      struct mei_hbm_cl_cmd *cmd)
+{
+	struct mei_cl *cl;
+
+	cl = mei_hbm_cl_find_by_cmd(dev, cmd);
+	if (cl && cl->notify_en)
+		cl->notify_ev = true;
+}
+
+/**
  * mei_hbm_prop_req - request property for a single client
  *
  * @dev: the device structure
@@ -715,6 +834,12 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 		break;
 	case MEI_FOP_DISCONNECT:
 		mei_hbm_cl_disconnect_res(dev, cl, rs);
+		break;
+	case MEI_FOP_NOTIFY_START:
+		mei_hbm_cl_notify_start_res(dev, cl, rs);
+		break;
+	case MEI_FOP_NOTIFY_STOP:
+		mei_hbm_cl_notify_stop_res(dev, cl, rs);
 		break;
 	default:
 		return;
@@ -1029,6 +1154,16 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return -EIO;
 		}
 		dev_dbg(dev->dev, "hbm: add client request processed\n");
+		break;
+
+	case MEI_HBM_NOTIFY_RES_CMD:
+		dev_dbg(dev->dev, "hbm: notify response received\n");
+		mei_hbm_cl_res(dev, cl_cmd, notify_res_to_fop(cl_cmd));
+		break;
+
+	case MEI_HBM_NOTIFICATION_CMD:
+		dev_dbg(dev->dev, "hbm: notification\n");
+		mei_hbm_cl_notify(dev, cl_cmd);
 		break;
 
 	default:

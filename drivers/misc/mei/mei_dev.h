@@ -136,6 +136,8 @@ enum mei_wd_states {
  * @MEI_FOP_CONNECT:    connect
  * @MEI_FOP_DISCONNECT: disconnect
  * @MEI_FOP_DISCONNECT_RSP: disconnect response
+ * @MEI_FOP_NOTIFY_START:   start notification
+ * @MEI_FOP_NOTIFY_STOP:    stop notification
  */
 enum mei_cb_file_ops {
 	MEI_FOP_READ = 0,
@@ -143,6 +145,8 @@ enum mei_cb_file_ops {
 	MEI_FOP_CONNECT,
 	MEI_FOP_DISCONNECT,
 	MEI_FOP_DISCONNECT_RSP,
+	MEI_FOP_NOTIFY_START,
+	MEI_FOP_NOTIFY_STOP,
 };
 
 /*
@@ -237,6 +241,8 @@ struct mei_cl_cb {
  * @mei_flow_ctrl_creds: transmit flow credentials
  * @timer_count:  watchdog timer for operation completion
  * @reserved: reserved for alignment
+ * @notify_en: notification - enabled/disabled
+ * @notify_ev: pending notification event
  * @writing_state: state of the tx
  * @rd_pending: pending read credits
  * @rd_completed: completed read
@@ -256,6 +262,8 @@ struct mei_cl {
 	u8 mei_flow_ctrl_creds;
 	u8 timer_count;
 	u8 reserved;
+	u8 notify_en;
+	u8 notify_ev;
 	enum mei_file_transaction_states writing_state;
 	struct list_head rd_pending;
 	struct list_head rd_completed;
