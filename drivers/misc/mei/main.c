@@ -651,6 +651,26 @@ out:
 }
 
 /**
+ * mei_fasync - asynchronous io support
+ *
+ * @fd: file descriptor
+ * @file: pointer to file structure
+ * @band: band bitmap
+ *
+ * Return: poll mask
+ */
+static int mei_fasync(int fd, struct file *file, int band)
+{
+
+	struct mei_cl *cl = file->private_data;
+
+	if (!mei_cl_is_connected(cl))
+		return POLLERR;
+
+	return fasync_helper(fd, file, band, &cl->ev_async);
+}
+
+/**
  * fw_status_show - mei device attribute show method
  *
  * @device: device pointer
@@ -702,6 +722,7 @@ static const struct file_operations mei_fops = {
 	.release = mei_release,
 	.write = mei_write,
 	.poll = mei_poll,
+	.fasync = mei_fasync,
 	.llseek = no_llseek
 };
 

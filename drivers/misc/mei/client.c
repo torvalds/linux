@@ -1351,6 +1351,33 @@ out:
 }
 
 /**
+ * mei_cl_notify - raise notification
+ *
+ * @cl: host client
+ *
+ * Locking: called under "dev->device_lock" lock
+ */
+void mei_cl_notify(struct mei_cl *cl)
+{
+	struct mei_device *dev;
+
+	if (!cl || !cl->dev)
+		return;
+
+	dev = cl->dev;
+
+	if (!cl->notify_en)
+		return;
+
+	cl_dbg(dev, cl, "notify event");
+	cl->notify_ev = true;
+	wake_up_interruptible_all(&cl->ev_wait);
+
+	if (cl->ev_async)
+		kill_fasync(&cl->ev_async, SIGIO, POLL_PRI);
+}
+
+/**
  * mei_cl_notify_get - get or wait for notification event
  *
  * @cl: host client

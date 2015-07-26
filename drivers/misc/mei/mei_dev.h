@@ -236,6 +236,7 @@ struct mei_cl_cb {
  * @rx_wait: wait queue for rx completion
  * @wait:  wait queue for management operation
  * @ev_wait: notification wait queue
+ * @ev_async: event async notification
  * @status: connection status
  * @me_cl: fw client connected
  * @host_client_id: host id
@@ -258,6 +259,7 @@ struct mei_cl {
 	wait_queue_head_t rx_wait;
 	wait_queue_head_t wait;
 	wait_queue_head_t ev_wait;
+	struct fasync_struct *ev_async;
 	int status;
 	struct mei_me_client *me_cl;
 	u8 host_client_id;
