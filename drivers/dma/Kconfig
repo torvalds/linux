@@ -434,6 +434,17 @@ config XILINX_VDMA
 	  channels, Memory Mapped to Stream (MM2S) and Stream to
 	  Memory Mapped (S2MM) for the data transfers.
 
+config DMA_SUN4I
+	tristate "Allwinner A10 DMA SoCs support"
+	depends on MACH_SUN4I || MACH_SUN5I || MACH_SUN7I || COMPILE_TEST
+	default (MACH_SUN4I || MACH_SUN5I || MACH_SUN7I)
+	select DMA_ENGINE
+	select DMA_OF
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the DMA controller present in the sun4i,
+	  sun5i and sun7i Allwinner ARM SoCs.
+
 config DMA_SUN6I
 	tristate "Allwinner A31 SoCs DMA support"
 	depends on MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
