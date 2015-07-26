@@ -34,7 +34,7 @@ nv50_prop_sources[] = {
 
 const struct nvkm_specsrc
 nv50_zcull_sources[] = {
-	{ 0x4002ca4, (const struct nvkm_specmux[]) {
+	{ 0x402ca4, (const struct nvkm_specmux[]) {
 			{ 0x7fff, 0, "unk0" },
 			{}
 		}, "pgraph_zcull_pm_unka4" },
