@@ -2336,10 +2336,15 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
 
 		if (cmd == IP_VS_SO_SET_STARTDAEMON) {
+			struct ipvs_sync_daemon_cfg cfg;
+
+			memset(&cfg, 0, sizeof(cfg));
+			strlcpy(cfg.mcast_ifn, dm->mcast_ifn,
+				sizeof(cfg.mcast_ifn));
+			cfg.syncid = dm->syncid;
 			rtnl_lock();
 			mutex_lock(&ipvs->sync_mutex);
-			ret = start_sync_thread(net, dm->state, dm->mcast_ifn,
-						dm->syncid);
+			ret = start_sync_thread(net, &cfg, dm->state);
 			mutex_unlock(&ipvs->sync_mutex);
 			rtnl_unlock();
 		} else {
@@ -2650,15 +2655,15 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		mutex_lock(&ipvs->sync_mutex);
 		if (ipvs->sync_state & IP_VS_STATE_MASTER) {
 			d[0].state = IP_VS_STATE_MASTER;
-			strlcpy(d[0].mcast_ifn, ipvs->master_mcast_ifn,
+			strlcpy(d[0].mcast_ifn, ipvs->mcfg.mcast_ifn,
 				sizeof(d[0].mcast_ifn));
-			d[0].syncid = ipvs->master_syncid;
+			d[0].syncid = ipvs->mcfg.syncid;
 		}
 		if (ipvs->sync_state & IP_VS_STATE_BACKUP) {
 			d[1].state = IP_VS_STATE_BACKUP;
-			strlcpy(d[1].mcast_ifn, ipvs->backup_mcast_ifn,
+			strlcpy(d[1].mcast_ifn, ipvs->bcfg.mcast_ifn,
 				sizeof(d[1].mcast_ifn));
-			d[1].syncid = ipvs->backup_syncid;
+			d[1].syncid = ipvs->bcfg.syncid;
 		}
 		if (copy_to_user(user, &d, sizeof(d)) != 0)
 			ret = -EFAULT;
@@ -2813,6 +2818,7 @@ static const struct nla_policy ip_vs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1] = {
 	[IPVS_DAEMON_ATTR_MCAST_IFN]	= { .type = NLA_NUL_STRING,
 					    .len = IP_VS_IFNAME_MAXLEN },
 	[IPVS_DAEMON_ATTR_SYNC_ID]	= { .type = NLA_U32 },
+	[IPVS_DAEMON_ATTR_SYNC_MAXLEN]	= { .type = NLA_U16 },
 };
 
 /* Policy used for attributes in nested attribute IPVS_CMD_ATTR_SERVICE */
@@ -3271,7 +3277,7 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 }
 
 static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __u32 state,
-				  const char *mcast_ifn, __u32 syncid)
+				  struct ipvs_sync_daemon_cfg *c)
 {
 	struct nlattr *nl_daemon;
 
@@ -3280,8 +3286,9 @@ static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __u32 state,
 		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, IPVS_DAEMON_ATTR_STATE, state) ||
-	    nla_put_string(skb, IPVS_DAEMON_ATTR_MCAST_IFN, mcast_ifn) ||
-	    nla_put_u32(skb, IPVS_DAEMON_ATTR_SYNC_ID, syncid))
+	    nla_put_string(skb, IPVS_DAEMON_ATTR_MCAST_IFN, c->mcast_ifn) ||
+	    nla_put_u32(skb, IPVS_DAEMON_ATTR_SYNC_ID, c->syncid) ||
+	    nla_put_u16(skb, IPVS_DAEMON_ATTR_SYNC_MAXLEN, c->sync_maxlen))
 		goto nla_put_failure;
 	nla_nest_end(skb, nl_daemon);
 
@@ -3293,7 +3300,7 @@ nla_put_failure:
 }
 
 static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __u32 state,
-				  const char *mcast_ifn, __u32 syncid,
+				  struct ipvs_sync_daemon_cfg *c,
 				  struct netlink_callback *cb)
 {
 	void *hdr;
@@ -3303,7 +3310,7 @@ static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __u32 state,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	if (ip_vs_genl_fill_daemon(skb, state, mcast_ifn, syncid))
+	if (ip_vs_genl_fill_daemon(skb, state, c))
 		goto nla_put_failure;
 
 	genlmsg_end(skb, hdr);
@@ -3323,8 +3330,7 @@ static int ip_vs_genl_dump_daemons(struct sk_buff *skb,
 	mutex_lock(&ipvs->sync_mutex);
 	if ((ipvs->sync_state & IP_VS_STATE_MASTER) && !cb->args[0]) {
 		if (ip_vs_genl_dump_daemon(skb, IP_VS_STATE_MASTER,
-					   ipvs->master_mcast_ifn,
-					   ipvs->master_syncid, cb) < 0)
+					   &ipvs->mcfg, cb) < 0)
 			goto nla_put_failure;
 
 		cb->args[0] = 1;
@@ -3332,8 +3338,7 @@ static int ip_vs_genl_dump_daemons(struct sk_buff *skb,
 
 	if ((ipvs->sync_state & IP_VS_STATE_BACKUP) && !cb->args[1]) {
 		if (ip_vs_genl_dump_daemon(skb, IP_VS_STATE_BACKUP,
-					   ipvs->backup_mcast_ifn,
-					   ipvs->backup_syncid, cb) < 0)
+					   &ipvs->bcfg, cb) < 0)
 			goto nla_put_failure;
 
 		cb->args[1] = 1;
@@ -3348,25 +3353,33 @@ nla_put_failure:
 static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ipvs_sync_daemon_cfg c;
+	struct nlattr *a;
 	int ret;
 
+	memset(&c, 0, sizeof(c));
 	if (!(attrs[IPVS_DAEMON_ATTR_STATE] &&
 	      attrs[IPVS_DAEMON_ATTR_MCAST_IFN] &&
 	      attrs[IPVS_DAEMON_ATTR_SYNC_ID]))
 		return -EINVAL;
+	strlcpy(c.mcast_ifn, nla_data(attrs[IPVS_DAEMON_ATTR_MCAST_IFN]),
+		sizeof(c.mcast_ifn));
+	c.syncid = nla_get_u32(attrs[IPVS_DAEMON_ATTR_SYNC_ID]);
+
+	a = attrs[IPVS_DAEMON_ATTR_SYNC_MAXLEN];
+	if (a)
+		c.sync_maxlen = nla_get_u16(a);
 
 	/* The synchronization protocol is incompatible with mixed family
 	 * services
 	 */
-	if (net_ipvs(net)->mixed_address_family_dests > 0)
+	if (ipvs->mixed_address_family_dests > 0)
 		return -EINVAL;
 
 	rtnl_lock();
 	mutex_lock(&ipvs->sync_mutex);
-	ret = start_sync_thread(net,
-				nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]),
-				nla_data(attrs[IPVS_DAEMON_ATTR_MCAST_IFN]),
-				nla_get_u32(attrs[IPVS_DAEMON_ATTR_SYNC_ID]));
+	ret = start_sync_thread(net, &c,
+				nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
 	mutex_unlock(&ipvs->sync_mutex);
 	rtnl_unlock();
 	return ret;
