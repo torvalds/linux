@@ -2335,13 +2335,18 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	    cmd == IP_VS_SO_SET_STOPDAEMON) {
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
 
-		mutex_lock(&ipvs->sync_mutex);
-		if (cmd == IP_VS_SO_SET_STARTDAEMON)
+		if (cmd == IP_VS_SO_SET_STARTDAEMON) {
+			rtnl_lock();
+			mutex_lock(&ipvs->sync_mutex);
 			ret = start_sync_thread(net, dm->state, dm->mcast_ifn,
 						dm->syncid);
-		else
+			mutex_unlock(&ipvs->sync_mutex);
+			rtnl_unlock();
+		} else {
+			mutex_lock(&ipvs->sync_mutex);
 			ret = stop_sync_thread(net, dm->state);
-		mutex_unlock(&ipvs->sync_mutex);
+			mutex_unlock(&ipvs->sync_mutex);
+		}
 		goto out_dec;
 	}
 
@@ -3342,6 +3347,9 @@ nla_put_failure:
 
 static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	int ret;
+
 	if (!(attrs[IPVS_DAEMON_ATTR_STATE] &&
 	      attrs[IPVS_DAEMON_ATTR_MCAST_IFN] &&
 	      attrs[IPVS_DAEMON_ATTR_SYNC_ID]))
@@ -3353,19 +3361,30 @@ static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 	if (net_ipvs(net)->mixed_address_family_dests > 0)
 		return -EINVAL;
 
-	return start_sync_thread(net,
-				 nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]),
-				 nla_data(attrs[IPVS_DAEMON_ATTR_MCAST_IFN]),
-				 nla_get_u32(attrs[IPVS_DAEMON_ATTR_SYNC_ID]));
+	rtnl_lock();
+	mutex_lock(&ipvs->sync_mutex);
+	ret = start_sync_thread(net,
+				nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]),
+				nla_data(attrs[IPVS_DAEMON_ATTR_MCAST_IFN]),
+				nla_get_u32(attrs[IPVS_DAEMON_ATTR_SYNC_ID]));
+	mutex_unlock(&ipvs->sync_mutex);
+	rtnl_unlock();
+	return ret;
 }
 
 static int ip_vs_genl_del_daemon(struct net *net, struct nlattr **attrs)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	int ret;
+
 	if (!attrs[IPVS_DAEMON_ATTR_STATE])
 		return -EINVAL;
 
-	return stop_sync_thread(net,
-				nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
+	mutex_lock(&ipvs->sync_mutex);
+	ret = stop_sync_thread(net,
+			       nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
+	mutex_unlock(&ipvs->sync_mutex);
+	return ret;
 }
 
 static int ip_vs_genl_set_config(struct net *net, struct nlattr **attrs)
@@ -3389,7 +3408,7 @@ static int ip_vs_genl_set_config(struct net *net, struct nlattr **attrs)
 
 static int ip_vs_genl_set_daemon(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret = 0, cmd;
+	int ret = -EINVAL, cmd;
 	struct net *net;
 	struct netns_ipvs *ipvs;
 
@@ -3400,22 +3419,19 @@ static int ip_vs_genl_set_daemon(struct sk_buff *skb, struct genl_info *info)
 	if (cmd == IPVS_CMD_NEW_DAEMON || cmd == IPVS_CMD_DEL_DAEMON) {
 		struct nlattr *daemon_attrs[IPVS_DAEMON_ATTR_MAX + 1];
 
-		mutex_lock(&ipvs->sync_mutex);
 		if (!info->attrs[IPVS_CMD_ATTR_DAEMON] ||
 		    nla_parse_nested(daemon_attrs, IPVS_DAEMON_ATTR_MAX,
 				     info->attrs[IPVS_CMD_ATTR_DAEMON],
-				     ip_vs_daemon_policy)) {
-			ret = -EINVAL;
+				     ip_vs_daemon_policy))
 			goto out;
-		}
 
 		if (cmd == IPVS_CMD_NEW_DAEMON)
 			ret = ip_vs_genl_new_daemon(net, daemon_attrs);
 		else
 			ret = ip_vs_genl_del_daemon(net, daemon_attrs);
-out:
-		mutex_unlock(&ipvs->sync_mutex);
 	}
+
+out:
 	return ret;
 }
 
