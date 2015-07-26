@@ -847,8 +847,12 @@ struct ipvs_master_sync_state {
 #define IP_VS_DEST_TRASH_PERIOD		(120 * HZ)
 
 struct ipvs_sync_daemon_cfg {
+	union nf_inet_addr	mcast_group;
 	int			syncid;
 	u16			sync_maxlen;
+	u16			mcast_port;
+	u8			mcast_af;
+	u8			mcast_ttl;
 	/* multicast interface name */
 	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
 };

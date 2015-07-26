@@ -2819,6 +2819,10 @@ static const struct nla_policy ip_vs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1] = {
 					    .len = IP_VS_IFNAME_MAXLEN },
 	[IPVS_DAEMON_ATTR_SYNC_ID]	= { .type = NLA_U32 },
 	[IPVS_DAEMON_ATTR_SYNC_MAXLEN]	= { .type = NLA_U16 },
+	[IPVS_DAEMON_ATTR_MCAST_GROUP]	= { .type = NLA_U32 },
+	[IPVS_DAEMON_ATTR_MCAST_GROUP6]	= { .len = sizeof(struct in6_addr) },
+	[IPVS_DAEMON_ATTR_MCAST_PORT]	= { .type = NLA_U16 },
+	[IPVS_DAEMON_ATTR_MCAST_TTL]	= { .type = NLA_U8 },
 };
 
 /* Policy used for attributes in nested attribute IPVS_CMD_ATTR_SERVICE */
@@ -3288,8 +3292,21 @@ static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __u32 state,
 	if (nla_put_u32(skb, IPVS_DAEMON_ATTR_STATE, state) ||
 	    nla_put_string(skb, IPVS_DAEMON_ATTR_MCAST_IFN, c->mcast_ifn) ||
 	    nla_put_u32(skb, IPVS_DAEMON_ATTR_SYNC_ID, c->syncid) ||
-	    nla_put_u16(skb, IPVS_DAEMON_ATTR_SYNC_MAXLEN, c->sync_maxlen))
+	    nla_put_u16(skb, IPVS_DAEMON_ATTR_SYNC_MAXLEN, c->sync_maxlen) ||
+	    nla_put_u16(skb, IPVS_DAEMON_ATTR_MCAST_PORT, c->mcast_port) ||
+	    nla_put_u8(skb, IPVS_DAEMON_ATTR_MCAST_TTL, c->mcast_ttl))
 		goto nla_put_failure;
+#ifdef CONFIG_IP_VS_IPV6
+	if (c->mcast_af == AF_INET6) {
+		if (nla_put_in6_addr(skb, IPVS_DAEMON_ATTR_MCAST_GROUP6,
+				     &c->mcast_group.in6))
+			goto nla_put_failure;
+	} else
+#endif
+		if (c->mcast_af == AF_INET &&
+		    nla_put_in_addr(skb, IPVS_DAEMON_ATTR_MCAST_GROUP,
+				    c->mcast_group.ip))
+			goto nla_put_failure;
 	nla_nest_end(skb, nl_daemon);
 
 	return 0;
@@ -3369,6 +3386,37 @@ static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 	a = attrs[IPVS_DAEMON_ATTR_SYNC_MAXLEN];
 	if (a)
 		c.sync_maxlen = nla_get_u16(a);
+
+	a = attrs[IPVS_DAEMON_ATTR_MCAST_GROUP];
+	if (a) {
+		c.mcast_af = AF_INET;
+		c.mcast_group.ip = nla_get_in_addr(a);
+		if (!ipv4_is_multicast(c.mcast_group.ip))
+			return -EINVAL;
+	} else {
+		a = attrs[IPVS_DAEMON_ATTR_MCAST_GROUP6];
+		if (a) {
+#ifdef CONFIG_IP_VS_IPV6
+			int addr_type;
+
+			c.mcast_af = AF_INET6;
+			c.mcast_group.in6 = nla_get_in6_addr(a);
+			addr_type = ipv6_addr_type(&c.mcast_group.in6);
+			if (!(addr_type & IPV6_ADDR_MULTICAST))
+				return -EINVAL;
+#else
+			return -EAFNOSUPPORT;
+#endif
+		}
+	}
+
+	a = attrs[IPVS_DAEMON_ATTR_MCAST_PORT];
+	if (a)
+		c.mcast_port = nla_get_u16(a);
+
+	a = attrs[IPVS_DAEMON_ATTR_MCAST_TTL];
+	if (a)
+		c.mcast_ttl = nla_get_u8(a);
 
 	/* The synchronization protocol is incompatible with mixed family
 	 * services
