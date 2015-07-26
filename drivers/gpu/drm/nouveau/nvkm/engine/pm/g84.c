@@ -33,6 +33,15 @@ g84_vfetch_sources[] = {
 };
 
 static const struct nvkm_specsrc
+g84_prop_sources[] = {
+	{ 0x408e50, (const struct nvkm_specmux[]) {
+			{ 0x1f, 0, "sel", true },
+			{}
+		}, "pgraph_tpc0_prop_pm_mux" },
+	{}
+};
+
+static const struct nvkm_specsrc
 g84_crop_sources[] = {
 	{ 0x407008, (const struct nvkm_specmux[]) {
 			{ 0xf, 0, "sel0", true },
@@ -109,14 +118,14 @@ g84_pm[] = {
 			{ 0x31, "pc02_crop_01", g84_crop_sources },
 			{ 0x32, "pc02_crop_02", g84_crop_sources },
 			{ 0x33, "pc02_crop_03", g84_crop_sources },
-			{ 0x00, "pc02_prop_00", nv50_prop_sources },
-			{ 0x01, "pc02_prop_01", nv50_prop_sources },
-			{ 0x02, "pc02_prop_02", nv50_prop_sources },
-			{ 0x03, "pc02_prop_03", nv50_prop_sources },
-			{ 0x04, "pc02_prop_04", nv50_prop_sources },
-			{ 0x05, "pc02_prop_05", nv50_prop_sources },
-			{ 0x06, "pc02_prop_06", nv50_prop_sources },
-			{ 0x07, "pc02_prop_07", nv50_prop_sources },
+			{ 0x00, "pc02_prop_00", g84_prop_sources },
+			{ 0x01, "pc02_prop_01", g84_prop_sources },
+			{ 0x02, "pc02_prop_02", g84_prop_sources },
+			{ 0x03, "pc02_prop_03", g84_prop_sources },
+			{ 0x04, "pc02_prop_04", g84_prop_sources },
+			{ 0x05, "pc02_prop_05", g84_prop_sources },
+			{ 0x06, "pc02_prop_06", g84_prop_sources },
+			{ 0x07, "pc02_prop_07", g84_prop_sources },
 			{ 0x48, "pc02_tex_00", g84_tex_sources },
 			{ 0x49, "pc02_tex_01", g84_tex_sources },
 			{ 0x4a, "pc02_tex_02", g84_tex_sources },

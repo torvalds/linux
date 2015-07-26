@@ -44,7 +44,6 @@ struct nvkm_perfsrc {
 	bool enable;
 };
 
-extern const struct nvkm_specsrc nv50_prop_sources[];
 extern const struct nvkm_specsrc nv50_zcull_sources[];
 extern const struct nvkm_specsrc nv50_zrop_sources[];
 extern const struct nvkm_specsrc g84_vfetch_sources[];

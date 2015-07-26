@@ -24,15 +24,6 @@
 #include "nv40.h"
 
 const struct nvkm_specsrc
-nv50_prop_sources[] = {
-	{ 0x408e50, (const struct nvkm_specmux[]) {
-			{ 0x1f, 0, "sel", true },
-			{}
-		}, "pgraph_tpc0_prop_pm_mux" },
-	{}
-};
-
-const struct nvkm_specsrc
 nv50_zcull_sources[] = {
 	{ 0x402ca4, (const struct nvkm_specmux[]) {
 			{ 0x7fff, 0, "unk0" },
@@ -52,6 +43,15 @@ nv50_zrop_sources[] = {
 };
 
 static const struct nvkm_specsrc
+nv50_prop_sources[] = {
+	{ 0x40be50, (const struct nvkm_specmux[]) {
+			{ 0x1f, 0, "sel", true },
+			{}
+		}, "pgraph_tpc3_prop_pm_mux" },
+	{}
+};
+
+static const struct nvkm_specsrc
 nv50_crop_sources[] = {
         { 0x407008, (const struct nvkm_specmux[]) {
                         { 0x7, 0, "sel0", true },
@@ -63,10 +63,10 @@ nv50_crop_sources[] = {
 
 static const struct nvkm_specsrc
 nv50_tex_sources[] = {
-	{ 0x408808, (const struct nvkm_specmux[]) {
+	{ 0x40b808, (const struct nvkm_specmux[]) {
 			{ 0x3fff, 0, "unk0" },
 			{}
-		}, "pgraph_tpc0_tex_unk08" },
+		}, "pgraph_tpc3_tex_unk08" },
 	{}
 };
 
