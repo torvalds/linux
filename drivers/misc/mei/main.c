@@ -608,6 +608,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
 	unsigned int mask = 0;
+	bool notify_en;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return POLLERR;
@@ -616,6 +617,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 
 	mutex_lock(&dev->device_lock);
 
+	notify_en = cl->notify_en && (req_events & POLLPRI);
 
 	if (dev->dev_state != MEI_DEV_ENABLED ||
 	    !mei_cl_is_connected(cl)) {
@@ -626,6 +628,12 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 	if (cl == &dev->iamthif_cl) {
 		mask = mei_amthif_poll(dev, file, wait);
 		goto out;
+	}
+
+	if (notify_en) {
+		poll_wait(file, &cl->ev_wait, wait);
+		if (cl->notify_ev)
+			mask |= POLLPRI;
 	}
 
 	if (req_events & (POLLIN | POLLRDNORM)) {
