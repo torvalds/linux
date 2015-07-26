@@ -3482,11 +3482,6 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	sink_p = list_first_entry(&w->sinks, struct snd_soc_dapm_path,
 				  list_source);
 
-	if (WARN_ON(!source_p || !sink_p) ||
-	    WARN_ON(!sink_p->source || !source_p->sink) ||
-	    WARN_ON(!source_p->source || !sink_p->sink))
-		return -EINVAL;
-
 	source = source_p->source->priv;
 	sink = sink_p->sink->priv;
 
