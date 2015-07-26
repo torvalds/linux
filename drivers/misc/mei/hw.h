@@ -58,6 +58,12 @@
 #define HBM_MINOR_VERSION_DOT              0
 #define HBM_MAJOR_VERSION_DOT              2
 
+/*
+ * MEI version with notifcation support
+ */
+#define HBM_MINOR_VERSION_EV               0
+#define HBM_MAJOR_VERSION_EV               2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */
