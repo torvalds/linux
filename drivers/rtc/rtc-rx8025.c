@@ -166,8 +166,22 @@ out:
 static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 {
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
-	u8 date[7];
+	u8 date[7], ctrl;
 	int err;
+
+	err = rx8025_read_reg(rx8025->client, RX8025_REG_CTRL2, &ctrl);
+	if (err)
+		return err;
+
+	if (ctrl & RX8025_BIT_CTRL2_PON) {
+		dev_warn(dev, "power-on reset detected, date is invalid\n");
+		return -EINVAL;
+	}
+
+	if (!(ctrl & RX8025_BIT_CTRL2_XST)) {
+		dev_warn(dev, "crystal stopped, date is invalid\n");
+		return -EINVAL;
+	}
 
 	err = rx8025_read_regs(rx8025->client, RX8025_REG_SEC, 7, date);
 	if (err)
@@ -230,7 +244,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	return rx8025_write_regs(rx8025->client, RX8025_REG_SEC, 7, date);
 }
 
-static int rx8025_init_client(struct i2c_client *client, int *need_reset)
+static int rx8025_init_client(struct i2c_client *client)
 {
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
 	u8 ctrl[2], ctrl2;
@@ -247,19 +261,19 @@ static int rx8025_init_client(struct i2c_client *client, int *need_reset)
 	if (ctrl[1] & RX8025_BIT_CTRL2_PON) {
 		dev_warn(&client->dev, "power-on reset was detected, "
 			 "you may have to readjust the clock\n");
-		*need_reset = 1;
+		need_clear = 1;
 	}
 
 	if (ctrl[1] & RX8025_BIT_CTRL2_VDET) {
 		dev_warn(&client->dev, "a power voltage drop was detected, "
 			 "you may have to readjust the clock\n");
-		*need_reset = 1;
+		need_clear = 1;
 	}
 
 	if (!(ctrl[1] & RX8025_BIT_CTRL2_XST)) {
 		dev_warn(&client->dev, "Oscillation stop was detected,"
 			 "you may have to readjust the clock\n");
-		*need_reset = 1;
+		need_clear = 1;
 	}
 
 	if (ctrl[1] & (RX8025_BIT_CTRL2_DAFG | RX8025_BIT_CTRL2_WAFG)) {
@@ -270,7 +284,7 @@ static int rx8025_init_client(struct i2c_client *client, int *need_reset)
 	if (!(ctrl[1] & RX8025_BIT_CTRL2_CTFG))
 		need_clear = 1;
 
-	if (*need_reset || need_clear) {
+	if (need_clear) {
 		ctrl2 = ctrl[0];
 		ctrl2 &= ~(RX8025_BIT_CTRL2_PON | RX8025_BIT_CTRL2_VDET |
 			   RX8025_BIT_CTRL2_CTFG | RX8025_BIT_CTRL2_WAFG |
@@ -508,7 +522,7 @@ static int rx8025_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rx8025_data *rx8025;
-	int err = 0, need_reset = 0;
+	int err = 0;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 				     | I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -525,17 +539,9 @@ static int rx8025_probe(struct i2c_client *client,
 	rx8025->client = client;
 	i2c_set_clientdata(client, rx8025);
 
-	err = rx8025_init_client(client, &need_reset);
+	err = rx8025_init_client(client);
 	if (err)
 		return err;
-
-	if (need_reset) {
-		struct rtc_time tm;
-		dev_info(&client->dev,
-			 "bad conditions detected, resetting date\n");
-		rtc_time_to_tm(0, &tm);	/* 1970/1/1 */
-		rx8025_set_time(&client->dev, &tm);
-	}
 
 	rx8025->rtc = devm_rtc_device_register(&client->dev, client->name,
 					  &rx8025_rtc_ops, THIS_MODULE);
