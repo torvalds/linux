@@ -673,4 +673,22 @@ static inline enum snd_soc_bias_level snd_soc_dapm_get_bias_level(
 	return dapm->bias_level;
 }
 
+/**
+ * snd_soc_dapm_widget_for_each_sink_path - Iterates over all paths leaving a
+ *  widget
+ * @w: The widget
+ * @p: The path iterator variable
+ */
+#define snd_soc_dapm_widget_for_each_sink_path(w, p) \
+	list_for_each_entry(p, &w->sinks, list_source)
+
+/**
+ * snd_soc_dapm_widget_for_each_source_path - Iterates over all paths leading to
+ *  a widget
+ * @w: The widget
+ * @p: The path iterator variable
+ */
+#define snd_soc_dapm_widget_for_each_source_path(w, p) \
+	list_for_each_entry(p, &w->sources, list_sink)
+
 #endif

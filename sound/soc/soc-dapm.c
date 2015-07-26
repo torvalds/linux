@@ -193,7 +193,7 @@ static void dapm_widget_invalidate_input_paths(struct snd_soc_dapm_widget *w)
 	list_add_tail(&w->work_list, &list);
 
 	list_for_each_entry(w, &list, work_list) {
-		list_for_each_entry(p, &w->sinks, list_source) {
+		snd_soc_dapm_widget_for_each_sink_path(w, p) {
 			if (p->is_supply || p->weak || !p->connect)
 				continue;
 			sink = p->sink;
@@ -232,7 +232,7 @@ static void dapm_widget_invalidate_output_paths(struct snd_soc_dapm_widget *w)
 	list_add_tail(&w->work_list, &list);
 
 	list_for_each_entry(w, &list, work_list) {
-		list_for_each_entry(p, &w->sources, list_sink) {
+		snd_soc_dapm_widget_for_each_source_path(w, p) {
 			if (p->is_supply || p->weak || !p->connect)
 				continue;
 			source = p->source;
@@ -894,7 +894,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 	/* add kcontrol */
 	for (i = 0; i < w->num_kcontrols; i++) {
 		/* match name */
-		list_for_each_entry(path, &w->sources, list_sink) {
+		snd_soc_dapm_widget_for_each_source_path(w, path) {
 			/* mixer/mux paths name must match control name */
 			if (path->name != (char *)w->kcontrol_news[i].name)
 				continue;
@@ -958,12 +958,12 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 		return ret;
 
 	if (w->id == snd_soc_dapm_mux) {
-		list_for_each_entry(path, &w->sources, list_sink) {
+		snd_soc_dapm_widget_for_each_source_path(w, path) {
 			if (path->name)
 				dapm_kcontrol_add_path(w->kcontrols[0], path);
 		}
 	} else {
-		list_for_each_entry(path, &w->sinks, list_source) {
+		snd_soc_dapm_widget_for_each_sink_path(w, path) {
 			if (path->name)
 				dapm_kcontrol_add_path(w->kcontrols[0], path);
 		}
@@ -1079,7 +1079,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 		return widget->outputs;
 	}
 
-	list_for_each_entry(path, &widget->sinks, list_source) {
+	snd_soc_dapm_widget_for_each_sink_path(widget, path) {
 		DAPM_UPDATE_STAT(widget, neighbour_checks);
 
 		if (path->weak || path->is_supply)
@@ -1126,7 +1126,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 		return widget->inputs;
 	}
 
-	list_for_each_entry(path, &widget->sources, list_sink) {
+	snd_soc_dapm_widget_for_each_source_path(widget, path) {
 		DAPM_UPDATE_STAT(widget, neighbour_checks);
 
 		if (path->weak || path->is_supply)
@@ -1292,7 +1292,7 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 	DAPM_UPDATE_STAT(w, power_checks);
 
 	/* Check if one of our outputs is connected */
-	list_for_each_entry(path, &w->sinks, list_source) {
+	snd_soc_dapm_widget_for_each_sink_path(w, path) {
 		DAPM_UPDATE_STAT(w, neighbour_checks);
 
 		if (path->weak)
@@ -1716,12 +1716,12 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 	/* If we changed our power state perhaps our neigbours changed
 	 * also.
 	 */
-	list_for_each_entry(path, &w->sources, list_sink)
+	snd_soc_dapm_widget_for_each_source_path(w, path)
 		dapm_widget_set_peer_power(path->source, power, path->connect);
 
 	/* Supplies can't affect their outputs, only their inputs */
 	if (!w->is_supply) {
-		list_for_each_entry(path, &w->sinks, list_source)
+		snd_soc_dapm_widget_for_each_sink_path(w, path)
 			dapm_widget_set_peer_power(path->sink, power,
 						   path->connect);
 	}
@@ -1958,7 +1958,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 				w->sname,
 				w->active ? "active" : "inactive");
 
-	list_for_each_entry(p, &w->sources, list_sink) {
+	snd_soc_dapm_widget_for_each_source_path(w, p) {
 		if (p->connected && !p->connected(w, p->source))
 			continue;
 
@@ -1968,7 +1968,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 					p->name ? p->name : "static",
 					p->source->name);
 	}
-	list_for_each_entry(p, &w->sinks, list_source) {
+	snd_soc_dapm_widget_for_each_sink_path(w, p) {
 		if (p->connected && !p->connected(w, p->sink))
 			continue;
 
@@ -2426,7 +2426,7 @@ static void dapm_update_widget_flags(struct snd_soc_dapm_widget *w)
 		if (w->dapm->card->fully_routed)
 			break;
 		w->is_source = 1;
-		list_for_each_entry(p, &w->sources, list_sink) {
+		snd_soc_dapm_widget_for_each_source_path(w, p) {
 			if (p->source->id == snd_soc_dapm_micbias ||
 				p->source->id == snd_soc_dapm_mic ||
 				p->source->id == snd_soc_dapm_line ||
@@ -2441,7 +2441,7 @@ static void dapm_update_widget_flags(struct snd_soc_dapm_widget *w)
 		if (w->dapm->card->fully_routed)
 			break;
 		w->is_sink = 1;
-		list_for_each_entry(p, &w->sinks, list_source) {
+		snd_soc_dapm_widget_for_each_sink_path(w, p) {
 			if (p->sink->id == snd_soc_dapm_spk ||
 				p->sink->id == snd_soc_dapm_hp ||
 				p->sink->id == snd_soc_dapm_line ||
@@ -2841,7 +2841,7 @@ static int snd_soc_dapm_weak_route(struct snd_soc_dapm_context *dapm,
 		dev_warn(dapm->dev, "ASoC: Ignoring control for weak route %s->%s\n",
 			 route->source, route->sink);
 
-	list_for_each_entry(path, &source->sinks, list_source) {
+	snd_soc_dapm_widget_for_each_sink_path(source, path) {
 		if (path->sink == sink) {
 			path->weak = 1;
 			count++;
