@@ -95,6 +95,11 @@
 
 #define MEI_HBM_ADD_CLIENT_REQ_CMD          0x0f
 #define MEI_HBM_ADD_CLIENT_RES_CMD          0x8f
+
+#define MEI_HBM_NOTIFY_REQ_CMD              0x10
+#define MEI_HBM_NOTIFY_RES_CMD              0x90
+#define MEI_HBM_NOTIFICATION_CMD            0x11
+
 /*
  * MEI Stop Reason
  * used by hbm_host_stop_request.reason
@@ -352,5 +357,62 @@ struct hbm_flow_control {
 	u8 reserved[MEI_FC_MESSAGE_RESERVED_LENGTH];
 } __packed;
 
+#define MEI_HBM_NOTIFICATION_START 1
+#define MEI_HBM_NOTIFICATION_STOP  0
+/**
+ * struct hbm_notification_request - start/stop notification request
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @host_addr: address of the client in the driver
+ * @start:  start = 1 or stop = 0 asynchronous notifications
+ */
+struct hbm_notification_request {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 host_addr;
+	u8 start;
+} __packed;
+
+/**
+ * struct hbm_notification_response - start/stop notification response
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr: address of the client in ME
+ * @host_addr: - address of the client in the driver
+ * @status: (mei_hbm_status) response status for the request
+ *  - MEI_HBMS_SUCCESS: successful stop/start
+ *  - MEI_HBMS_CLIENT_NOT_FOUND: if the connection could not be found.
+ *  - MEI_HBMS_ALREADY_STARTED: for start requests for a previously
+ *                         started notification.
+ *  - MEI_HBMS_NOT_STARTED: for stop request for a connected client for whom
+ *                         asynchronous notifications are currently disabled.
+ *
+ * @start:  start = 1 or stop = 0 asynchronous notifications
+ * @reserved: reserved
+ */
+struct hbm_notification_response {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 host_addr;
+	u8 status;
+	u8 start;
+	u8 reserved[3];
+} __packed;
+
+/**
+ * struct hbm_notification - notification event
+ *
+ * @hbm_cmd: bus message command header
+ * @me_addr:  address of the client in ME
+ * @host_addr:  address of the client in the driver
+ * @reserved: reserved for alignment
+ */
+struct hbm_notification {
+	u8 hbm_cmd;
+	u8 me_addr;
+	u8 host_addr;
+	u8 reserved[1];
+} __packed;
 
 #endif
