@@ -446,6 +446,45 @@ end:
 }
 
 /**
+ * mei_ioctl_client_notify_request -
+ *     propagate event notification request to client
+ *
+ * @file: pointer to file structure
+ * @request: 0 - disable, 1 - enable
+ *
+ * Return: 0 on success , <0 on error
+ */
+static int mei_ioctl_client_notify_request(struct file *file, u32 request)
+{
+	struct mei_cl *cl = file->private_data;
+
+	return mei_cl_notify_request(cl, file, request);
+}
+
+/**
+ * mei_ioctl_client_notify_get -  wait for notification request
+ *
+ * @file: pointer to file structure
+ * @notify_get: 0 - disable, 1 - enable
+ *
+ * Return: 0 on success , <0 on error
+ */
+static int mei_ioctl_client_notify_get(struct file *file, u32 *notify_get)
+{
+	struct mei_cl *cl = file->private_data;
+	bool notify_ev;
+	bool block = (file->f_flags & O_NONBLOCK) == 0;
+	int rets;
+
+	rets = mei_cl_notify_get(cl, block, &notify_ev);
+	if (rets)
+		return rets;
+
+	*notify_get = notify_ev ? 1 : 0;
+	return 0;
+}
+
+/**
  * mei_ioctl - the IOCTL function
  *
  * @file: pointer to file structure
@@ -459,6 +498,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	struct mei_device *dev;
 	struct mei_cl *cl = file->private_data;
 	struct mei_connect_client_data connect_data;
+	u32 notify_get, notify_req;
 	int rets;
 
 
@@ -497,6 +537,33 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 			goto out;
 		}
 
+		break;
+
+	case IOCTL_MEI_NOTIFY_SET:
+		dev_dbg(dev->dev, ": IOCTL_MEI_NOTIFY_SET.\n");
+		if (copy_from_user(&notify_req,
+				   (char __user *)data, sizeof(notify_req))) {
+			dev_dbg(dev->dev, "failed to copy data from userland\n");
+			rets = -EFAULT;
+			goto out;
+		}
+		rets = mei_ioctl_client_notify_request(file, notify_req);
+		break;
+
+	case IOCTL_MEI_NOTIFY_GET:
+		dev_dbg(dev->dev, ": IOCTL_MEI_NOTIFY_GET.\n");
+		rets = mei_ioctl_client_notify_get(file, &notify_get);
+		if (rets)
+			goto out;
+
+		dev_dbg(dev->dev, "copy connect data to user\n");
+		if (copy_to_user((char __user *)data,
+				&notify_get, sizeof(notify_get))) {
+			dev_dbg(dev->dev, "failed to copy data to userland\n");
+			rets = -EFAULT;
+			goto out;
+
+		}
 		break;
 
 	default:
