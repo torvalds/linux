@@ -403,6 +403,13 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 			if (ret)
 				return ret;
 			break;
+
+		case MEI_FOP_NOTIFY_START:
+		case MEI_FOP_NOTIFY_STOP:
+			ret = mei_cl_irq_notify(cl, cb, cmpl_list);
+			if (ret)
+				return ret;
+			break;
 		default:
 			BUG();
 		}

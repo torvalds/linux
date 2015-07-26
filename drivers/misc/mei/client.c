@@ -1209,6 +1209,147 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 }
 
 /**
+ *  mei_cl_notify_fop2req - convert fop to proper request
+ *
+ * @fop: client notification start response command
+ *
+ * Return:  MEI_HBM_NOTIFICATION_START/STOP
+ */
+u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop)
+{
+	if (fop == MEI_FOP_NOTIFY_START)
+		return MEI_HBM_NOTIFICATION_START;
+	else
+		return MEI_HBM_NOTIFICATION_STOP;
+}
+
+/**
+ *  mei_cl_notify_req2fop - convert notification request top file operation type
+ *
+ * @req: hbm notification request type
+ *
+ * Return:  MEI_FOP_NOTIFY_START/STOP
+ */
+enum mei_cb_file_ops mei_cl_notify_req2fop(u8 req)
+{
+	if (req == MEI_HBM_NOTIFICATION_START)
+		return MEI_FOP_NOTIFY_START;
+	else
+		return MEI_FOP_NOTIFY_STOP;
+}
+
+/**
+ * mei_cl_irq_notify - send notification request in irq_thread context
+ *
+ * @cl: client
+ * @cb: callback block.
+ * @cmpl_list: complete list.
+ *
+ * Return: 0 on such and error otherwise.
+ */
+int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
+		      struct mei_cl_cb *cmpl_list)
+{
+	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
+	int ret;
+	bool request;
+
+	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	slots = mei_hbuf_empty_slots(dev);
+
+	if (slots < msg_slots)
+		return -EMSGSIZE;
+
+	request = mei_cl_notify_fop2req(cb->fop_type);
+	ret = mei_hbm_cl_notify_req(dev, cl, request);
+	if (ret) {
+		cl->status = ret;
+		list_move_tail(&cb->list, &cmpl_list->list);
+		return ret;
+	}
+
+	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	return 0;
+}
+
+/**
+ * mei_cl_notify_request - send notification stop/start request
+ *
+ * @cl: host client
+ * @file: associate request with file
+ * @request: 1 for start or 0 for stop
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return: 0 on such and error otherwise.
+ */
+int mei_cl_notify_request(struct mei_cl *cl, struct file *file, u8 request)
+{
+	struct mei_device *dev;
+	struct mei_cl_cb *cb;
+	enum mei_cb_file_ops fop_type;
+	int rets;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	if (!dev->hbm_f_ev_supported) {
+		cl_dbg(dev, cl, "notifications not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	rets = pm_runtime_get(dev->dev);
+	if (rets < 0 && rets != -EINPROGRESS) {
+		pm_runtime_put_noidle(dev->dev);
+		cl_err(dev, cl, "rpm: get failed %d\n", rets);
+		return rets;
+	}
+
+	fop_type = mei_cl_notify_req2fop(request);
+	cb = mei_io_cb_init(cl, fop_type, file);
+	if (!cb) {
+		rets = -ENOMEM;
+		goto out;
+	}
+
+	if (mei_hbuf_acquire(dev)) {
+		if (mei_hbm_cl_notify_req(dev, cl, request)) {
+			rets = -ENODEV;
+			goto out;
+		}
+		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
+	} else {
+		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+	}
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(cl->wait, cl->notify_en == request,
+			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
+	mutex_lock(&dev->device_lock);
+
+	if (cl->notify_en != request) {
+		mei_io_list_flush(&dev->ctrl_rd_list, cl);
+		mei_io_list_flush(&dev->ctrl_wr_list, cl);
+		if (!cl->status)
+			cl->status = -EFAULT;
+	}
+
+	rets = cl->status;
+
+out:
+	cl_dbg(dev, cl, "rpm: autosuspend\n");
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
+
+	mei_io_cb_free(cb);
+	return rets;
+}
+
+/**
  * mei_cl_read_start - the start read client message function.
  *
  * @cl: host client
@@ -1516,6 +1657,8 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	case MEI_FOP_CONNECT:
 	case MEI_FOP_DISCONNECT:
+	case MEI_FOP_NOTIFY_STOP:
+	case MEI_FOP_NOTIFY_START:
 		if (waitqueue_active(&cl->wait))
 			wake_up(&cl->wait);
 

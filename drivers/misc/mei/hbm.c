@@ -446,10 +446,7 @@ static inline enum mei_cb_file_ops notify_res_to_fop(struct mei_hbm_cl_cmd *cmd)
 	struct hbm_notification_response *rs =
 		(struct hbm_notification_response *)cmd;
 
-	if (rs->start == MEI_HBM_NOTIFICATION_START)
-		return MEI_FOP_NOTIFY_START;
-	else
-		return MEI_FOP_NOTIFY_STOP;
+	return mei_cl_notify_req2fop(rs->start);
 }
 
 /**
