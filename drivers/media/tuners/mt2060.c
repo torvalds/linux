@@ -392,6 +392,89 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 }
 EXPORT_SYMBOL(mt2060_attach);
 
+static int mt2060_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct mt2060_platform_data *pdata = client->dev.platform_data;
+	struct dvb_frontend *fe;
+	struct mt2060_priv *dev;
+	int ret;
+	u8 chip_id;
+
+	dev_dbg(&client->dev, "\n");
+
+	if (!pdata) {
+		dev_err(&client->dev, "Cannot proceed without platform data\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	fe = pdata->dvb_frontend;
+	dev->config.i2c_address = client->addr;
+	dev->config.clock_out = pdata->clock_out;
+	dev->cfg = &dev->config;
+	dev->i2c = client->adapter;
+	dev->if1_freq = pdata->if1 ? pdata->if1 : 1220;
+	dev->client = client;
+
+	ret = mt2060_readreg(dev, REG_PART_REV, &chip_id);
+	if (ret) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	dev_dbg(&client->dev, "chip id=%02x\n", chip_id);
+
+	if (chip_id != PART_REV) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	dev_info(&client->dev, "Microtune MT2060 successfully identified\n");
+	memcpy(&fe->ops.tuner_ops, &mt2060_tuner_ops, sizeof(fe->ops.tuner_ops));
+	fe->ops.tuner_ops.release = NULL;
+	fe->tuner_priv = dev;
+	i2c_set_clientdata(client, dev);
+
+	mt2060_calibrate(dev);
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int mt2060_remove(struct i2c_client *client)
+{
+	dev_dbg(&client->dev, "\n");
+
+	return 0;
+}
+
+static const struct i2c_device_id mt2060_id_table[] = {
+	{"mt2060", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, mt2060_id_table);
+
+static struct i2c_driver mt2060_driver = {
+	.driver = {
+		.name = "mt2060",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= mt2060_probe,
+	.remove		= mt2060_remove,
+	.id_table	= mt2060_id_table,
+};
+
+module_i2c_driver(mt2060_driver);
+
 MODULE_AUTHOR("Olivier DANET");
 MODULE_DESCRIPTION("Microtune MT2060 silicon tuner driver");
 MODULE_LICENSE("GPL");
