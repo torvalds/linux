@@ -782,13 +782,6 @@ ds1307_nvram_read(struct file *filp, struct kobject *kobj,
 	client = kobj_to_i2c_client(kobj);
 	ds1307 = i2c_get_clientdata(client);
 
-	if (unlikely(off >= ds1307->nvram->size))
-		return 0;
-	if ((off + count) > ds1307->nvram->size)
-		count = ds1307->nvram->size - off;
-	if (unlikely(!count))
-		return count;
-
 	result = ds1307->read_block_data(client, ds1307->nvram_offset + off,
 								count, buf);
 	if (result < 0)
@@ -807,13 +800,6 @@ ds1307_nvram_write(struct file *filp, struct kobject *kobj,
 
 	client = kobj_to_i2c_client(kobj);
 	ds1307 = i2c_get_clientdata(client);
-
-	if (unlikely(off >= ds1307->nvram->size))
-		return -EFBIG;
-	if ((off + count) > ds1307->nvram->size)
-		count = ds1307->nvram->size - off;
-	if (unlikely(!count))
-		return count;
 
 	result = ds1307->write_block_data(client, ds1307->nvram_offset + off,
 								count, buf);
