@@ -1032,43 +1032,27 @@ static int snd_soc_dapm_suspend_check(struct snd_soc_dapm_widget *widget)
 	}
 }
 
-/* add widget to list if it's not already in the list */
-static int dapm_list_add_widget(struct snd_soc_dapm_widget_list **list,
-	struct snd_soc_dapm_widget *w)
+static int dapm_widget_list_create(struct snd_soc_dapm_widget_list **list,
+	struct list_head *widgets)
 {
-	struct snd_soc_dapm_widget_list *wlist;
-	int wlistsize, wlistentries, i;
+	struct snd_soc_dapm_widget *w;
+	struct list_head *it;
+	unsigned int size = 0;
+	unsigned int i = 0;
 
+	list_for_each(it, widgets)
+		size++;
+
+	*list = kzalloc(sizeof(**list) + size * sizeof(*w), GFP_KERNEL);
 	if (*list == NULL)
-		return -EINVAL;
-
-	wlist = *list;
-
-	/* is this widget already in the list */
-	for (i = 0; i < wlist->num_widgets; i++) {
-		if (wlist->widgets[i] == w)
-			return 0;
-	}
-
-	/* allocate some new space */
-	wlistentries = wlist->num_widgets + 1;
-	wlistsize = sizeof(struct snd_soc_dapm_widget_list) +
-			wlistentries * sizeof(struct snd_soc_dapm_widget *);
-	*list = krealloc(wlist, wlistsize, GFP_KERNEL);
-	if (*list == NULL) {
-		dev_err(w->dapm->dev, "ASoC: can't allocate widget list for %s\n",
-			w->name);
 		return -ENOMEM;
-	}
-	wlist = *list;
 
-	/* insert the widget */
-	dev_dbg(w->dapm->dev, "ASoC: added %s in widget list pos %d\n",
-			w->name, wlist->num_widgets);
+	list_for_each_entry(w, widgets, work_list)
+		(*list)->widgets[i++] = w;
 
-	wlist->widgets[wlist->num_widgets] = w;
-	wlist->num_widgets++;
-	return 1;
+	(*list)->num_widgets = i;
+
+	return 0;
 }
 
 /*
@@ -1076,7 +1060,7 @@ static int dapm_list_add_widget(struct snd_soc_dapm_widget_list **list,
  * output widget. Returns number of complete paths.
  */
 static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
-	struct snd_soc_dapm_widget_list **list)
+	struct list_head *list)
 {
 	struct snd_soc_dapm_path *path;
 	int con = 0;
@@ -1085,6 +1069,10 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 		return widget->outputs;
 
 	DAPM_UPDATE_STAT(widget, path_checks);
+
+	/* do we need to add this widget to the list ? */
+	if (list)
+		list_add_tail(&widget->work_list, list);
 
 	if (widget->is_sink && widget->connected) {
 		widget->outputs = snd_soc_dapm_suspend_check(widget);
@@ -1104,22 +1092,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 
 		if (path->connect) {
 			path->walking = 1;
-
-			/* do we need to add this widget to the list ? */
-			if (list) {
-				int err;
-				err = dapm_list_add_widget(list, path->sink);
-				if (err < 0) {
-					dev_err(widget->dapm->dev,
-						"ASoC: could not add widget %s\n",
-						widget->name);
-					path->walking = 0;
-					return con;
-				}
-			}
-
 			con += is_connected_output_ep(path->sink, list);
-
 			path->walking = 0;
 		}
 	}
@@ -1134,7 +1107,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
  * input widget. Returns number of complete paths.
  */
 static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
-	struct snd_soc_dapm_widget_list **list)
+	struct list_head *list)
 {
 	struct snd_soc_dapm_path *path;
 	int con = 0;
@@ -1143,6 +1116,10 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 		return widget->inputs;
 
 	DAPM_UPDATE_STAT(widget, path_checks);
+
+	/* do we need to add this widget to the list ? */
+	if (list)
+		list_add_tail(&widget->work_list, list);
 
 	if (widget->is_source && widget->connected) {
 		widget->inputs = snd_soc_dapm_suspend_check(widget);
@@ -1162,22 +1139,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 
 		if (path->connect) {
 			path->walking = 1;
-
-			/* do we need to add this widget to the list ? */
-			if (list) {
-				int err;
-				err = dapm_list_add_widget(list, path->source);
-				if (err < 0) {
-					dev_err(widget->dapm->dev,
-						"ASoC: could not add widget %s\n",
-						widget->name);
-					path->walking = 0;
-					return con;
-				}
-			}
-
 			con += is_connected_input_ep(path->source, list);
-
 			path->walking = 0;
 		}
 	}
@@ -1204,7 +1166,9 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 {
 	struct snd_soc_card *card = dai->component->card;
 	struct snd_soc_dapm_widget *w;
+	LIST_HEAD(widgets);
 	int paths;
+	int ret;
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
@@ -1218,9 +1182,16 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 	}
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		paths = is_connected_output_ep(dai->playback_widget, list);
+		paths = is_connected_output_ep(dai->playback_widget, &widgets);
 	else
-		paths = is_connected_input_ep(dai->capture_widget, list);
+		paths = is_connected_input_ep(dai->capture_widget, &widgets);
+
+	/* Drop starting point */
+	list_del(widgets.next);
+
+	ret = dapm_widget_list_create(list, &widgets);
+	if (ret)
+		return ret;
 
 	trace_snd_soc_dapm_connected(paths, stream);
 	mutex_unlock(&card->dapm_mutex);
