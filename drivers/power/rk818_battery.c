@@ -135,6 +135,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define	TREND_STAT_UP		1
 #define	TREND_CAP_DIFF		5
 
+#define	POWER_ON_SEC_BASE	1
 #define MINUTE			60
 
 #define SLP_CURR_MAX		40
@@ -3909,7 +3910,7 @@ static void rk81x_bat_info_init(struct rk81x_battery *di,
 				struct rk818 *chip)
 {
 	u8 val;
-	unsigned long time_base = get_runtime_sec();
+	unsigned long time_base = POWER_ON_SEC_BASE;
 
 	rk81x_bat_read(di, RK818_VB_MON_REG, &val, 1);
 	if (val & PLUG_IN_STS)
