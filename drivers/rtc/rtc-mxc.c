@@ -16,6 +16,8 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #define RTC_INPUT_CLK_32768HZ	(0x00 << 5)
 #define RTC_INPUT_CLK_32000HZ	(0x01 << 5)
@@ -97,6 +99,15 @@ static const struct platform_device_id imx_rtc_devtype[] = {
 	}
 };
 MODULE_DEVICE_TABLE(platform, imx_rtc_devtype);
+
+#ifdef CONFIG_OF
+static const struct of_device_id imx_rtc_dt_ids[] = {
+	{ .compatible = "fsl,imx1-rtc", .data = (const void *)IMX1_RTC },
+	{ .compatible = "fsl,imx21-rtc", .data = (const void *)IMX21_RTC },
+	{}
+};
+MODULE_DEVICE_TABLE(of, imx_rtc_dt_ids);
+#endif
 
 static inline int is_imx1_rtc(struct rtc_plat_data *data)
 {
@@ -362,12 +373,17 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	u32 reg;
 	unsigned long rate;
 	int ret;
+	const struct of_device_id *of_id;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->devtype = pdev->id_entry->driver_data;
+	of_id = of_match_device(imx_rtc_dt_ids, &pdev->dev);
+	if (of_id)
+		pdata->devtype = (enum imx_rtc_type)of_id->data;
+	else
+		pdata->devtype = pdev->id_entry->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
@@ -488,6 +504,7 @@ static SIMPLE_DEV_PM_OPS(mxc_rtc_pm_ops, mxc_rtc_suspend, mxc_rtc_resume);
 static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
+		   .of_match_table = of_match_ptr(imx_rtc_dt_ids),
 		   .pm		= &mxc_rtc_pm_ops,
 	},
 	.id_table = imx_rtc_devtype,
