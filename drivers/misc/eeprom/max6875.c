@@ -114,12 +114,6 @@ static ssize_t max6875_read(struct file *filp, struct kobject *kobj,
 	struct max6875_data *data = i2c_get_clientdata(client);
 	int slice, max_slice;
 
-	if (off > USER_EEPROM_SIZE)
-		return 0;
-
-	if (off + count > USER_EEPROM_SIZE)
-		count = USER_EEPROM_SIZE - off;
-
 	/* refresh slices which contain requested bytes */
 	max_slice = (off + count - 1) >> SLICE_BITS;
 	for (slice = (off >> SLICE_BITS); slice <= max_slice; slice++)
