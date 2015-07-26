@@ -1375,6 +1375,8 @@ void mei_cl_notify(struct mei_cl *cl)
 
 	if (cl->ev_async)
 		kill_fasync(&cl->ev_async, SIGIO, POLL_PRI);
+
+	mei_cl_bus_notify_event(cl);
 }
 
 /**

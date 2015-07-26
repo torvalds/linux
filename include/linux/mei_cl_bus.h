@@ -28,6 +28,7 @@ typedef void (*mei_cl_event_cb_t)(struct mei_cl_device *device,
  * @event_cb: Drivers register this callback to get asynchronous ME
  *	events (e.g. Rx buffer pending) notifications.
  * @event_context: event callback run context
+ * @events_mask: Events bit mask requested by driver.
  * @events: Events bitmask sent to the driver.
  *
  * @do_match: wheather device can be matched with a driver
@@ -46,6 +47,7 @@ struct mei_cl_device {
 	struct work_struct event_work;
 	mei_cl_event_cb_t event_cb;
 	void *event_context;
+	unsigned long events_mask;
 	unsigned long events;
 
 	unsigned int do_match:1;
@@ -76,10 +78,12 @@ ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length);
 ssize_t  mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length);
 
 int mei_cl_register_event_cb(struct mei_cl_device *device,
+			  unsigned long event_mask,
 			  mei_cl_event_cb_t read_cb, void *context);
 
 #define MEI_CL_EVENT_RX 0
 #define MEI_CL_EVENT_TX 1
+#define MEI_CL_EVENT_NOTIF 2
 
 void *mei_cl_get_drvdata(const struct mei_cl_device *device);
 void mei_cl_set_drvdata(struct mei_cl_device *device, void *data);

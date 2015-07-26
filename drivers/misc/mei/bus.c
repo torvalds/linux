@@ -222,7 +222,33 @@ static void mei_bus_event_work(struct work_struct *work)
 	cldev->events = 0;
 
 	/* Prepare for the next read */
-	mei_cl_read_start(cldev->cl, 0, NULL);
+	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX))
+		mei_cl_read_start(cldev->cl, 0, NULL);
+}
+
+/**
+ * mei_cl_bus_notify_event - schedule notify cb on bus client
+ *
+ * @cl: host client
+ */
+void mei_cl_bus_notify_event(struct mei_cl *cl)
+{
+	struct mei_cl_device *cldev = cl->cldev;
+
+	if (!cldev || !cldev->event_cb)
+		return;
+
+	if (!(cldev->events_mask & BIT(MEI_CL_EVENT_NOTIF)))
+		return;
+
+	if (!cl->notify_ev)
+		return;
+
+	set_bit(MEI_CL_EVENT_NOTIF, &cldev->events);
+
+	schedule_work(&cldev->event_work);
+
+	cl->notify_ev = false;
 }
 
 /**
@@ -237,6 +263,9 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
 	if (!cldev || !cldev->event_cb)
 		return;
 
+	if (!(cldev->events_mask & BIT(MEI_CL_EVENT_RX)))
+		return;
+
 	set_bit(MEI_CL_EVENT_RX, &cldev->events);
 
 	schedule_work(&cldev->event_work);
@@ -247,6 +276,7 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
  *
  * @cldev: me client devices
  * @event_cb: callback function
+ * @events_mask: requested events bitmask
  * @context: driver context data
  *
  * Return: 0 on success
@@ -254,6 +284,7 @@ void mei_cl_bus_rx_event(struct mei_cl *cl)
  *         <0 on other errors
  */
 int mei_cl_register_event_cb(struct mei_cl_device *cldev,
+			  unsigned long events_mask,
 			  mei_cl_event_cb_t event_cb, void *context)
 {
 	int ret;
@@ -262,13 +293,24 @@ int mei_cl_register_event_cb(struct mei_cl_device *cldev,
 		return -EALREADY;
 
 	cldev->events = 0;
+	cldev->events_mask = events_mask;
 	cldev->event_cb = event_cb;
 	cldev->event_context = context;
 	INIT_WORK(&cldev->event_work, mei_bus_event_work);
 
-	ret = mei_cl_read_start(cldev->cl, 0, NULL);
-	if (ret && ret != -EBUSY)
-		return ret;
+	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
+		ret = mei_cl_read_start(cldev->cl, 0, NULL);
+		if (ret && ret != -EBUSY)
+			return ret;
+	}
+
+	if (cldev->events_mask & BIT(MEI_CL_EVENT_NOTIF)) {
+		mutex_lock(&cldev->cl->dev->device_lock);
+		ret = mei_cl_notify_request(cldev->cl, NULL, event_cb ? 1 : 0);
+		mutex_unlock(&cldev->cl->dev->device_lock);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
