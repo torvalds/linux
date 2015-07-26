@@ -555,6 +555,7 @@ void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	init_waitqueue_head(&cl->wait);
 	init_waitqueue_head(&cl->rx_wait);
 	init_waitqueue_head(&cl->tx_wait);
+	init_waitqueue_head(&cl->ev_wait);
 	INIT_LIST_HEAD(&cl->rd_completed);
 	INIT_LIST_HEAD(&cl->rd_pending);
 	INIT_LIST_HEAD(&cl->link);
@@ -1350,6 +1351,51 @@ out:
 }
 
 /**
+ * mei_cl_notify_get - get or wait for notification event
+ *
+ * @cl: host client
+ * @block: this request is blocking
+ * @notify_ev: true if notification event was received
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return: 0 on such and error otherwise.
+ */
+int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev)
+{
+	struct mei_device *dev;
+	int rets;
+
+	*notify_ev = false;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	if (!mei_cl_is_connected(cl))
+		return -ENODEV;
+
+	if (cl->notify_ev)
+		goto out;
+
+	if (!block)
+		return -EAGAIN;
+
+	mutex_unlock(&dev->device_lock);
+	rets = wait_event_interruptible(cl->ev_wait, cl->notify_ev);
+	mutex_lock(&dev->device_lock);
+
+	if (rets < 0)
+		return rets;
+
+out:
+	*notify_ev = cl->notify_ev;
+	cl->notify_ev = false;
+	return 0;
+}
+
+/**
  * mei_cl_read_start - the start read client message function.
  *
  * @cl: host client
@@ -1700,6 +1746,12 @@ void mei_cl_all_wakeup(struct mei_device *dev)
 		if (waitqueue_active(&cl->tx_wait)) {
 			cl_dbg(dev, cl, "Waking up writing client!\n");
 			wake_up_interruptible(&cl->tx_wait);
+		}
+
+		/* synchronized under device mutex */
+		if (waitqueue_active(&cl->ev_wait)) {
+			cl_dbg(dev, cl, "Waking up waiting for event clients!\n");
+			wake_up_interruptible(&cl->ev_wait);
 		}
 	}
 }

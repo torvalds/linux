@@ -514,8 +514,10 @@ static void mei_hbm_cl_notify(struct mei_device *dev,
 	struct mei_cl *cl;
 
 	cl = mei_hbm_cl_find_by_cmd(dev, cmd);
-	if (cl && cl->notify_en)
+	if (cl && cl->notify_en) {
 		cl->notify_ev = true;
+		wake_up_interruptible(&cl->ev_wait);
+	}
 }
 
 /**
