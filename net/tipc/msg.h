@@ -785,8 +785,7 @@ static inline bool msg_peer_is_up(struct tipc_msg *m)
 
 struct sk_buff *tipc_buf_acquire(u32 size);
 bool tipc_msg_validate(struct sk_buff *skb);
-bool tipc_msg_reverse(u32 own_addr, struct sk_buff *buf, u32 *dnode,
-		      int err);
+bool tipc_msg_reverse(u32 own_addr, struct sk_buff **skb, int err);
 void tipc_msg_init(u32 own_addr, struct tipc_msg *m, u32 user, u32 type,
 		   u32 hsize, u32 destnode);
 struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
@@ -799,8 +798,7 @@ bool tipc_msg_make_bundle(struct sk_buff **skb, struct tipc_msg *msg,
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
-bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, u32 *dnode,
-			  int *err);
+bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err);
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
 
 static inline u16 buf_seqno(struct sk_buff *skb)
