@@ -547,11 +547,13 @@ static void __rb_free_aux(struct ring_buffer *rb)
 		rb->aux_priv = NULL;
 	}
 
-	for (pg = 0; pg < rb->aux_nr_pages; pg++)
-		rb_free_aux_page(rb, pg);
+	if (rb->aux_nr_pages) {
+		for (pg = 0; pg < rb->aux_nr_pages; pg++)
+			rb_free_aux_page(rb, pg);
 
-	kfree(rb->aux_pages);
-	rb->aux_nr_pages = 0;
+		kfree(rb->aux_pages);
+		rb->aux_nr_pages = 0;
+	}
 }
 
 void rb_free_aux(struct ring_buffer *rb)
