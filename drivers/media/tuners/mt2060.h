@@ -30,12 +30,15 @@ struct i2c_adapter;
  * struct mt2060_platform_data - Platform data for the mt2060 driver
  * @clock_out: Clock output setting. 0 = off, 1 = CLK/4, 2 = CLK/2, 3 = CLK/1.
  * @if1: First IF used [MHz]. 0 defaults to 1220.
+ * @i2c_write_max: Maximum number of bytes I2C adapter can write at once.
+ *  0 defaults to maximum.
  * @dvb_frontend: DVB frontend.
  */
 
 struct mt2060_platform_data {
 	u8 clock_out;
 	u16 if1;
+	unsigned int i2c_write_max:5;
 	struct dvb_frontend *dvb_frontend;
 };
 

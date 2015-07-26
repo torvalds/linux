@@ -67,13 +67,24 @@ static int mt2060_writereg(struct mt2060_priv *priv, u8 reg, u8 val)
 // Writes a set of consecutive registers
 static int mt2060_writeregs(struct mt2060_priv *priv,u8 *buf, u8 len)
 {
+	int rem, val_len;
+	u8 xfer_buf[16];
 	struct i2c_msg msg = {
-		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = len
+		.addr = priv->cfg->i2c_address, .flags = 0, .buf = xfer_buf
 	};
-	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
-		printk(KERN_WARNING "mt2060 I2C write failed (len=%i)\n",(int)len);
-		return -EREMOTEIO;
+
+	for (rem = len - 1; rem > 0; rem -= priv->i2c_max_regs) {
+		val_len = min_t(int, rem, priv->i2c_max_regs);
+		msg.len = 1 + val_len;
+		xfer_buf[0] = buf[0] + len - 1 - rem;
+		memcpy(&xfer_buf[1], &buf[1 + len - 1 - rem], val_len);
+
+		if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
+			printk(KERN_WARNING "mt2060 I2C write failed (len=%i)\n", val_len);
+			return -EREMOTEIO;
+		}
 	}
+
 	return 0;
 }
 
@@ -365,6 +376,7 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	priv->cfg      = cfg;
 	priv->i2c      = i2c;
 	priv->if1_freq = if1;
+	priv->i2c_max_regs = ~0;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
@@ -422,6 +434,7 @@ static int mt2060_probe(struct i2c_client *client,
 	dev->i2c = client->adapter;
 	dev->if1_freq = pdata->if1 ? pdata->if1 : 1220;
 	dev->client = client;
+	dev->i2c_max_regs = pdata->i2c_write_max ? pdata->i2c_write_max - 1 : ~0;
 
 	ret = mt2060_readreg(dev, REG_PART_REV, &chip_id);
 	if (ret) {

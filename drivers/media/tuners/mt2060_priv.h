@@ -94,6 +94,7 @@ struct mt2060_priv {
 	struct i2c_client *client;
 	struct mt2060_config config;
 
+	u8 i2c_max_regs;
 	u32 frequency;
 	u16 if1_freq;
 	u8  fmfreq;
