@@ -8650,7 +8650,10 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 
 	if (kvm_read_cr0(vcpu) & X86_CR0_CD) {
 		ipat = VMX_EPT_IPAT_BIT;
-		cache = MTRR_TYPE_UNCACHABLE;
+		if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED))
+			cache = MTRR_TYPE_WRBACK;
+		else
+			cache = MTRR_TYPE_UNCACHABLE;
 		goto exit;
 	}
 

@@ -35,3 +35,6 @@ the PCIe specification.
 
                       NOTE: this only applies to the SMMU itself, not
                       masters connected upstream of the SMMU.
+
+- hisilicon,broken-prefetch-cmd
+                    : Avoid sending CMD_PREFETCH_* commands to the SMMU.

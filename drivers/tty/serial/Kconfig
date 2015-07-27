@@ -1185,7 +1185,7 @@ config SERIAL_SC16IS7XX_CORE
 config SERIAL_SC16IS7XX
         tristate "SC16IS7xx serial support"
         select SERIAL_CORE
-        depends on I2C || SPI_MASTER
+        depends on (SPI_MASTER && !I2C) || I2C
         help
           This selects support for SC16IS7xx serial ports.
           Supported ICs are SC16IS740, SC16IS741, SC16IS750, SC16IS752,

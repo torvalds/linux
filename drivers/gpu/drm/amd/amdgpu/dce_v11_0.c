@@ -2631,6 +2631,7 @@ static void dce_v11_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	unsigned type;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -2639,6 +2640,9 @@ static void dce_v11_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		dce_v11_0_vga_enable(crtc, true);
 		amdgpu_atombios_crtc_blank(crtc, ATOM_DISABLE);
 		dce_v11_0_vga_enable(crtc, false);
+		/* Make sure VBLANK interrupt is still enabled */
+		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
+		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		drm_vblank_post_modeset(dev, amdgpu_crtc->crtc_id);
 		dce_v11_0_crtc_load_lut(crtc);
 		break;
