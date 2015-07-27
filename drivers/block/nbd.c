@@ -100,6 +100,11 @@ static inline struct device *nbd_to_dev(struct nbd_device *nbd)
 	return disk_to_dev(nbd->disk);
 }
 
+static bool nbd_is_connected(struct nbd_device *nbd)
+{
+	return !!nbd->task_recv;
+}
+
 static const char *nbdcmd_to_ascii(int cmd)
 {
 	switch (cmd) {
@@ -110,6 +115,42 @@ static const char *nbdcmd_to_ascii(int cmd)
 	case  NBD_CMD_TRIM: return "trim/discard";
 	}
 	return "invalid";
+}
+
+static int nbd_size_clear(struct nbd_device *nbd, struct block_device *bdev)
+{
+	bdev->bd_inode->i_size = 0;
+	set_capacity(nbd->disk, 0);
+	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
+
+	return 0;
+}
+
+static void nbd_size_update(struct nbd_device *nbd, struct block_device *bdev)
+{
+	if (!nbd_is_connected(nbd))
+		return;
+
+	bdev->bd_inode->i_size = nbd->bytesize;
+	set_capacity(nbd->disk, nbd->bytesize >> 9);
+	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
+}
+
+static int nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
+			int blocksize, int nr_blocks)
+{
+	int ret;
+
+	ret = set_blocksize(bdev, blocksize);
+	if (ret)
+		return ret;
+
+	nbd->blksize = blocksize;
+	nbd->bytesize = (loff_t)blocksize * (loff_t)nr_blocks;
+
+	nbd_size_update(nbd, bdev);
+
+	return 0;
 }
 
 static void nbd_end_request(struct nbd_device *nbd, struct request *req)
@@ -401,7 +442,7 @@ static struct device_attribute pid_attr = {
 	.show = pid_show,
 };
 
-static int nbd_thread_recv(struct nbd_device *nbd)
+static int nbd_thread_recv(struct nbd_device *nbd, struct block_device *bdev)
 {
 	struct request *req;
 	int ret;
@@ -421,6 +462,8 @@ static int nbd_thread_recv(struct nbd_device *nbd)
 		return ret;
 	}
 
+	nbd_size_update(nbd, bdev);
+
 	while (1) {
 		req = nbd_read_stat(nbd);
 		if (IS_ERR(req)) {
@@ -430,6 +473,8 @@ static int nbd_thread_recv(struct nbd_device *nbd)
 
 		nbd_end_request(nbd, req);
 	}
+
+	nbd_size_clear(nbd, bdev);
 
 	device_remove_file(disk_to_dev(nbd->disk), &pid_attr);
 
@@ -707,20 +752,19 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		return err;
 	}
 
-	case NBD_SET_BLKSIZE:
-		nbd->blksize = arg;
-		nbd->bytesize &= ~(nbd->blksize-1);
-		bdev->bd_inode->i_size = nbd->bytesize;
-		set_blocksize(bdev, nbd->blksize);
-		set_capacity(nbd->disk, nbd->bytesize >> 9);
-		return 0;
+	case NBD_SET_BLKSIZE: {
+		loff_t bsize = nbd->bytesize;
+		do_div(bsize, arg);
+
+		return nbd_size_set(nbd, bdev, arg, bsize);
+	}
 
 	case NBD_SET_SIZE:
-		nbd->bytesize = arg & ~(nbd->blksize-1);
-		bdev->bd_inode->i_size = nbd->bytesize;
-		set_blocksize(bdev, nbd->blksize);
-		set_capacity(nbd->disk, nbd->bytesize >> 9);
-		return 0;
+		return nbd_size_set(nbd, bdev, nbd->blksize,
+				    arg / nbd->blksize);
+
+	case NBD_SET_SIZE_BLOCKS:
+		return nbd_size_set(nbd, bdev, nbd->blksize, arg);
 
 	case NBD_SET_TIMEOUT:
 		nbd->xmit_timeout = arg * HZ;
@@ -734,13 +778,6 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 	case NBD_SET_FLAGS:
 		nbd->flags = arg;
-		return 0;
-
-	case NBD_SET_SIZE_BLOCKS:
-		nbd->bytesize = ((u64) arg) * nbd->blksize;
-		bdev->bd_inode->i_size = nbd->bytesize;
-		set_blocksize(bdev, nbd->blksize);
-		set_capacity(nbd->disk, nbd->bytesize >> 9);
 		return 0;
 
 	case NBD_DO_IT: {
@@ -764,7 +801,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		}
 
 		nbd_dev_dbg_init(nbd);
-		error = nbd_thread_recv(nbd);
+		error = nbd_thread_recv(nbd, bdev);
 		nbd_dev_dbg_close(nbd);
 		kthread_stop(thread);
 
