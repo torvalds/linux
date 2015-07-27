@@ -122,10 +122,23 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		f = rcu_dereference_protected(flist->shared[i],
 					      reservation_object_held(resv));
 		fence = f ? to_amdgpu_fence(f) : NULL;
-		if (fence && fence->ring->adev == adev &&
-		    fence->owner == owner &&
-		    fence->owner != AMDGPU_FENCE_OWNER_UNDEFINED)
+		if (fence && fence->ring->adev == adev) {
+			/* VM updates are only interesting
+			 * for other VM updates and moves.
+			 */
+			if ((owner != AMDGPU_FENCE_OWNER_MOVE) &&
+			    (fence->owner != AMDGPU_FENCE_OWNER_MOVE) &&
+			    ((owner == AMDGPU_FENCE_OWNER_VM) !=
+			     (fence->owner == AMDGPU_FENCE_OWNER_VM)))
 				continue;
+
+			/* Ignore fence from the same owner as
+			 * long as it isn't undefined.
+			 */
+			if (owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
+			    fence->owner == owner)
+				continue;
+		}
 
 		r = amdgpu_sync_fence(adev, sync, f);
 		if (r)
