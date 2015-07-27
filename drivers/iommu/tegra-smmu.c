@@ -592,6 +592,9 @@ static phys_addr_t tegra_smmu_iova_to_phys(struct iommu_domain *domain,
 	u32 *pte;
 
 	pte = as_get_pte(as, iova, &page);
+	if (!pte || !*pte)
+		return 0;
+
 	pfn = *pte & as->smmu->pfn_mask;
 
 	return PFN_PHYS(pfn);
