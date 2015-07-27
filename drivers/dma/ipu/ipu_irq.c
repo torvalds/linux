@@ -341,9 +341,7 @@ int __init ipu_irq_attach_irq(struct ipu *ipu, struct platform_device *dev)
 		irq_map[i].irq = irq;
 		irq_map[i].source = -EINVAL;
 		irq_set_handler(irq, handle_level_irq);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-#endif
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_chained_handler_and_data(ipu->irq_fn, ipu_irq_handler, ipu);
@@ -366,9 +364,7 @@ void ipu_irq_detach_irq(struct ipu *ipu, struct platform_device *dev)
 	irq_set_chained_handler_and_data(ipu->irq_err, NULL, NULL);
 
 	for (irq = irq_base; irq < irq_base + CONFIG_MX3_IPU_IRQS; irq++) {
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, 0);
-#endif
+		irq_set_status_flags(irq, IRQ_NOREQUEST);
 		irq_set_chip(irq, NULL);
 		irq_set_chip_data(irq, NULL);
 	}
