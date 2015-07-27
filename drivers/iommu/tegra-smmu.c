@@ -293,7 +293,6 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 
 	/* clear PDEs */
 	pd = page_address(as->pd);
-	SetPageReserved(as->pd);
 
 	for (i = 0; i < SMMU_NUM_PDE; i++)
 		pd[i] = 0;
@@ -311,7 +310,6 @@ static void tegra_smmu_domain_free(struct iommu_domain *domain)
 	struct tegra_smmu_as *as = to_smmu_as(domain);
 
 	/* TODO: free page directory and page tables */
-	ClearPageReserved(as->pd);
 
 	kfree(as);
 }
@@ -566,8 +564,6 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 
 		as->pts[pde] = page;
 
-		SetPageReserved(page);
-
 		pd[pde] = SMMU_MK_PDE(dma, SMMU_PDE_ATTR | SMMU_PDE_NEXT);
 
 		dma_sync_single_range_for_device(smmu->dev, as->pd_dma,
@@ -617,7 +613,6 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 
 		/* Finally, free the page */
 		dma_unmap_page(smmu->dev, pte_dma, SMMU_SIZE_PT, DMA_TO_DEVICE);
-		ClearPageReserved(page);
 		__free_page(page);
 		as->pts[pde] = NULL;
 	}
