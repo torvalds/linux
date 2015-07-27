@@ -6,4 +6,12 @@ config RPMSG
 	select VIRTIO
 	select VIRTUALIZATION
 
+config IMX_RPMSG_PINGPONG
+	tristate "IMX RPMSG pingpong driver"
+	depends on RPMSG && m
+
+config IMX_RPMSG_TTY
+	tristate "IMX RPMSG tty driver"
+	depends on RPMSG && m
+
 endmenu
