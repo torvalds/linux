@@ -134,6 +134,16 @@ static inline u32 smmu_readl(struct tegra_smmu *smmu, unsigned long offset)
 #define SMMU_PTE_ATTR		(SMMU_PTE_READABLE | SMMU_PTE_WRITABLE | \
 				 SMMU_PTE_NONSECURE)
 
+static unsigned int iova_pd_index(unsigned long iova)
+{
+	return (iova >> SMMU_PDE_SHIFT) & (SMMU_NUM_PDE - 1);
+}
+
+static unsigned int iova_pt_index(unsigned long iova)
+{
+	return (iova >> SMMU_PTE_SHIFT) & (SMMU_NUM_PTE - 1);
+}
+
 static inline void smmu_flush_ptc(struct tegra_smmu *smmu, struct page *page,
 				  unsigned long offset)
 {
@@ -469,8 +479,8 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		       struct page **pagep)
 {
 	u32 *pd = page_address(as->pd), *pt, *count;
-	u32 pde = (iova >> SMMU_PDE_SHIFT) & 0x3ff;
-	u32 pte = (iova >> SMMU_PTE_SHIFT) & 0x3ff;
+	unsigned int pde = iova_pd_index(iova);
+	unsigned int pte = iova_pt_index(iova);
 	struct tegra_smmu *smmu = as->smmu;
 	struct page *page;
 	unsigned int i;
@@ -512,7 +522,7 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 {
 	struct tegra_smmu *smmu = as->smmu;
-	u32 pde = (iova >> SMMU_PDE_SHIFT) & 0x3ff;
+	unsigned int pde = iova_pd_index(iova);
 	u32 *count = page_address(as->count);
 	u32 *pd = page_address(as->pd);
 	struct page *page;
