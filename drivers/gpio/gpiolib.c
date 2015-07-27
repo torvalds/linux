@@ -486,11 +486,8 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	/* Chips that can sleep need nested thread handlers */
 	if (chip->can_sleep && !chip->irq_not_threaded)
 		irq_set_nested_thread(irq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
+
 	/*
 	 * No set-up of the hardware will happen if IRQ_TYPE_NONE
 	 * is passed as default type.
@@ -505,9 +502,6 @@ static void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
 	struct gpio_chip *chip = d->host_data;
 
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, 0);
-#endif
 	if (chip->can_sleep)
 		irq_set_nested_thread(irq, 0);
 	irq_set_chip_and_handler(irq, NULL, NULL);

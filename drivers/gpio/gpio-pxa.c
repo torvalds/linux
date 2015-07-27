@@ -524,7 +524,7 @@ static int pxa_irq_domain_map(struct irq_domain *d, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 				 handle_edge_irq);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_noprobe(irq);
 	return 0;
 }
 
@@ -643,20 +643,20 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 			irq = gpio_to_irq(0);
 			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 						 handle_edge_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 		if (irq1 > 0) {
 			irq = gpio_to_irq(1);
 			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 						 handle_edge_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 
 		for (irq  = gpio_to_irq(gpio_offset);
 			irq <= gpio_to_irq(pxa_last_gpio); irq++) {
 			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 						 handle_edge_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 	}
 

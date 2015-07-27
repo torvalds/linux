@@ -355,7 +355,6 @@ static int msm_gpio_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_lockdep_class(irq, &msm_gpio_lock_class);
 	irq_set_chip_and_handler(irq, &msm_gpio_irq_chip,
 			handle_level_irq);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }

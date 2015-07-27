@@ -423,7 +423,6 @@ davinci_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 	irq_set_chip_data(irq, (__force void *)g);
 	irq_set_handler_data(irq, (void *)__gpio_mask(hw));
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }

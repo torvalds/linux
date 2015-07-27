@@ -507,11 +507,7 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 		irq_set_chip_data(irq, mcp);
 		irq_set_chip(irq, &mcp23s08_irq_chip);
 		irq_set_nested_thread(irq, true);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID);
-#else
 		irq_set_noprobe(irq);
-#endif
 	}
 	return 0;
 }

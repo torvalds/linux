@@ -295,9 +295,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 		irq_set_chip_and_handler(tgpio->irq_base + i,
 			&timbgpio_irqchip, handle_simple_irq);
 		irq_set_chip_data(tgpio->irq_base + i, tgpio);
-#ifdef CONFIG_ARM
-		set_irq_flags(tgpio->irq_base + i, IRQF_VALID | IRQF_PROBE);
-#endif
+		irq_clear_status_flags(tgpio->irq_base + i, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_chained_handler_and_data(irq, timbgpio_irq, tgpio);

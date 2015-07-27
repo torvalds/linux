@@ -281,12 +281,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, priv);
 	irq_set_chip_and_handler(irq, &grgpio_irq_chip,
 				 handle_simple_irq);
-	irq_clear_status_flags(irq, IRQ_NOREQUEST);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 
 	return ret;
 }
@@ -301,9 +296,6 @@ static void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	int ngpio = priv->bgc.gc.ngpio;
 	int i;
 
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, 0);
-#endif
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
 
