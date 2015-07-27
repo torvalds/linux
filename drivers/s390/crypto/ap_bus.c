@@ -76,13 +76,12 @@ static DEFINE_SPINLOCK(ap_device_list_lock);
 static LIST_HEAD(ap_device_list);
 
 /*
- * Workqueue & timer for bus rescan.
+ * Workqueue timer for bus rescan.
  */
-static struct workqueue_struct *ap_work_queue;
 static struct timer_list ap_config_timer;
 static int ap_config_time = AP_CONFIG_TIME;
 static void ap_scan_bus(struct work_struct *);
-static DECLARE_WORK(ap_config_work, ap_scan_bus);
+static DECLARE_WORK(ap_scan_work, ap_scan_bus);
 
 /*
  * Tasklet & timer for AP request polling and interrupts
@@ -1247,7 +1246,7 @@ static void ap_bus_suspend(void)
 	 * Disable scanning for devices, thus we do not want to scan
 	 * for them after removing.
 	 */
-	flush_workqueue(ap_work_queue);
+	flush_work(&ap_scan_work);
 	tasklet_disable(&ap_tasklet);
 }
 
@@ -1280,7 +1279,7 @@ static void ap_bus_resume(void)
 	if (ap_airq_flag)
 		xchg(ap_airq.lsi_ptr, 0);
 	tasklet_enable(&ap_tasklet);
-	queue_work(ap_work_queue, &ap_config_work);
+	queue_work(system_long_wq, &ap_scan_work);
 }
 
 static int ap_power_event(struct notifier_block *this, unsigned long event,
@@ -1406,8 +1405,8 @@ void ap_bus_force_rescan(void)
 		return;
 	/* processing a asynchronous bus rescan */
 	del_timer(&ap_config_timer);
-	queue_work(ap_work_queue, &ap_config_work);
-	flush_work(&ap_config_work);
+	queue_work(system_long_wq, &ap_scan_work);
+	flush_work(&ap_scan_work);
 }
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
@@ -1696,7 +1695,7 @@ static void ap_config_timeout(unsigned long ptr)
 {
 	if (ap_suspend_flag)
 		return;
-	queue_work(ap_work_queue, &ap_config_work);
+	queue_work(system_long_wq, &ap_scan_work);
 }
 
 static void ap_reset_domain(void)
@@ -1784,12 +1783,6 @@ int __init ap_module_init(void)
 	if (rc)
 		goto out_bus;
 
-	ap_work_queue = create_singlethread_workqueue("kapwork");
-	if (!ap_work_queue) {
-		rc = -ENOMEM;
-		goto out_root;
-	}
-
 	/* Setup the AP bus rescan timer. */
 	setup_timer(&ap_config_timer, ap_config_timeout, 0);
 
@@ -1814,7 +1807,7 @@ int __init ap_module_init(void)
 	if (rc)
 		goto out_pm;
 
-	queue_work(ap_work_queue, &ap_config_work);
+	queue_work(system_long_wq, &ap_scan_work);
 
 	return 0;
 
@@ -1822,8 +1815,6 @@ out_pm:
 	ap_poll_thread_stop();
 out_work:
 	hrtimer_cancel(&ap_poll_timer);
-	destroy_workqueue(ap_work_queue);
-out_root:
 	root_device_unregister(ap_root_device);
 out_bus:
 	while (i--)
@@ -1850,7 +1841,6 @@ void ap_module_exit(void)
 	ap_poll_thread_stop();
 	del_timer_sync(&ap_config_timer);
 	hrtimer_cancel(&ap_poll_timer);
-	destroy_workqueue(ap_work_queue);
 	tasklet_kill(&ap_tasklet);
 	bus_for_each_dev(&ap_bus_type, NULL, NULL, __ap_devices_unregister);
 	for (i = 0; ap_bus_attrs[i]; i++)
