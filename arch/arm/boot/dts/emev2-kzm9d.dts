@@ -95,6 +95,14 @@
 	};
 };
 
+&iic0 {
+	status = "okay";
+};
+
+&iic1 {
+	status = "okay";
+};
+
 &pfc {
 	uart1_pins: serial@e1030000 {
 		renesas,groups = "uart1_ctrl", "uart1_data";
