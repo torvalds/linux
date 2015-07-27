@@ -4953,9 +4953,8 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
 		spin_unlock_irqrestore(&bd->bd_lock, lock_flags);
 
-		rc = put_user(C_CLOCAL(tty) ? 1 : 0,
+		return put_user(C_CLOCAL(tty) ? 1 : 0,
 				(unsigned long __user *) arg);
-		return rc;
 
 	case TIOCSSOFTCAR:
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags2);
