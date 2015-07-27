@@ -52,12 +52,12 @@ static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
 			    int radix);
 
 # define PASSERT(env, page, expr)				       \
-  do {								    \
+	do {								    \
 	  if (unlikely(!(expr))) {				      \
 		  CL_PAGE_DEBUG(D_ERROR, (env), (page), #expr "\n");    \
 		  LASSERT(0);					   \
 	  }							     \
-  } while (0)
+	} while (0)
 
 # define PINVRNT(env, page, exp) \
 	((void)sizeof(env), (void)sizeof(page), (void)sizeof !!(exp))
