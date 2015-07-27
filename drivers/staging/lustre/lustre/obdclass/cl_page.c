@@ -376,9 +376,8 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 						       idx) == page));
 	}
 
-	if (page != NULL) {
+	if (page != NULL)
 		return page;
-	}
 
 	/* allocate and initialize cl_page */
 	page = cl_page_alloc(env, o, idx, vmpage, type);
