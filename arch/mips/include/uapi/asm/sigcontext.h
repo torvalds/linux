@@ -21,6 +21,9 @@
 /* FR=1, but with odd singles in bits 63:32 of preceding even double */
 #define USED_HYBRID_FPRS	(1 << 2)
 
+/* extended context was used, see struct extcontext for details */
+#define USED_EXTCONTEXT		(1 << 3)
+
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
 /*

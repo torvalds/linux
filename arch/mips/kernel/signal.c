@@ -47,8 +47,11 @@ static int (*restore_fp_context)(void __user *sc);
 struct sigframe {
 	u32 sf_ass[4];		/* argument save space for o32 */
 	u32 sf_pad[2];		/* Was: signal trampoline */
+
+	/* Matches struct ucontext from its uc_mcontext field onwards */
 	struct sigcontext sf_sc;
 	sigset_t sf_mask;
+	unsigned long long sf_extcontext[0];
 };
 
 struct rt_sigframe {
@@ -686,6 +689,16 @@ static int smp_restore_fp_context(void __user *sc)
 
 static int signal_setup(void)
 {
+	/*
+	 * The offset from sigcontext to extended context should be the same
+	 * regardless of the type of signal, such that userland can always know
+	 * where to look if it wishes to find the extended context structures.
+	 */
+	BUILD_BUG_ON((offsetof(struct sigframe, sf_extcontext) -
+		      offsetof(struct sigframe, sf_sc)) !=
+		     (offsetof(struct rt_sigframe, rs_uc.uc_extcontext) -
+		      offsetof(struct rt_sigframe, rs_uc.uc_mcontext)));
+
 #ifdef CONFIG_SMP
 	/* For now just do the cpu_has_fpu check when the functions are invoked */
 	save_fp_context = smp_save_fp_context;
