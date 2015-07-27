@@ -1223,6 +1223,13 @@ static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
 		.rev = 0,
 		.funcs = &uvd_v6_0_ip_funcs,
 	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_VCE,
+		.major = 3,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vce_v3_0_ip_funcs,
+	},
 };
 
 static const struct amdgpu_ip_block_version cz_ip_blocks[] =

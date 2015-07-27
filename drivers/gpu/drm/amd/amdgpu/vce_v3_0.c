@@ -205,6 +205,13 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 	u32 tmp;
 	unsigned ret;
 
+	/* Fiji is single pipe */
+	if (adev->asic_type == CHIP_FIJI) {
+		ret = AMDGPU_VCE_HARVEST_VCE1;
+		return ret;
+	}
+
+	/* Tonga and CZ are dual or single pipe */
 	if (adev->flags & AMD_IS_APU)
 		tmp = (RREG32_SMC(ixVCE_HARVEST_FUSE_MACRO__ADDRESS) &
 		       VCE_HARVEST_FUSE_MACRO__MASK) >>
