@@ -25,4 +25,15 @@ config QCOM_QFPROM
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_qfprom.
 
+config NVMEM_SUNXI_SID
+	tristate "Allwinner SoCs SID support"
+	depends on ARCH_SUNXI
+	select REGMAP_MMIO
+	help
+	  This is a driver for the 'security ID' available on various Allwinner
+	  devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_sunxi_sid.
+
 endif
