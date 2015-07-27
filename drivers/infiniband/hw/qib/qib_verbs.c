@@ -1575,6 +1575,7 @@ static int qib_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_qp = ib_qib_max_qps;
 	props->max_qp_wr = ib_qib_max_qp_wrs;
 	props->max_sge = ib_qib_max_sges;
+	props->max_sge_rd = ib_qib_max_sges;
 	props->max_cq = ib_qib_max_cqs;
 	props->max_ah = ib_qib_max_ahs;
 	props->max_cqe = ib_qib_max_cqes;
