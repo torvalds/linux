@@ -182,12 +182,7 @@ int adf_devmgr_verify_id(uint32_t id)
 
 void adf_devmgr_get_num_dev(uint32_t *num)
 {
-	struct list_head *itr;
-
-	*num = 0;
-	list_for_each(itr, &accel_table) {
-		(*num)++;
-	}
+	*num = num_devices;
 }
 
 int adf_dev_in_use(struct adf_accel_dev *accel_dev)
