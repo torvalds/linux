@@ -958,7 +958,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->bf.offset ^= ring->bf.buf_size;
 	} else {
 		tx_desc->ctrl.vlan_tag = cpu_to_be16(vlan_tag);
-		tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
+		tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_CVLAN *
 			!!skb_vlan_tag_present(skb);
 		tx_desc->ctrl.fence_size = real_size;
 
