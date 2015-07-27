@@ -32,6 +32,9 @@
 #include <asm/spram.h>
 #include <asm/uaccess.h>
 
+/* Hardware capabilities */
+unsigned int elf_hwcap __read_mostly;
+
 /*
  * Get the FPU Implementation/Revision.
  */
