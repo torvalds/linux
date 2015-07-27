@@ -258,8 +258,6 @@ static bool tegra_smmu_capable(enum iommu_cap cap)
 static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 {
 	struct tegra_smmu_as *as;
-	unsigned int i;
-	uint32_t *pd;
 
 	if (type != IOMMU_DOMAIN_UNMANAGED)
 		return NULL;
@@ -270,7 +268,7 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 
 	as->attr = SMMU_PD_READABLE | SMMU_PD_WRITABLE | SMMU_PD_NONSECURE;
 
-	as->pd = alloc_page(GFP_KERNEL | __GFP_DMA);
+	as->pd = alloc_page(GFP_KERNEL | __GFP_DMA | __GFP_ZERO);
 	if (!as->pd) {
 		kfree(as);
 		return NULL;
@@ -290,12 +288,6 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 		kfree(as);
 		return NULL;
 	}
-
-	/* clear PDEs */
-	pd = page_address(as->pd);
-
-	for (i = 0; i < SMMU_NUM_PDE; i++)
-		pd[i] = 0;
 
 	/* setup aperture */
 	as->domain.geometry.aperture_start = 0;
@@ -533,20 +525,14 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 	u32 *pd = page_address(as->pd), *pt;
 	unsigned int pde = iova_pd_index(iova);
 	struct tegra_smmu *smmu = as->smmu;
-	unsigned int i;
 
 	if (!as->pts[pde]) {
 		struct page *page;
 		dma_addr_t dma;
 
-		page = alloc_page(GFP_KERNEL | __GFP_DMA);
+		page = alloc_page(GFP_KERNEL | __GFP_DMA | __GFP_ZERO);
 		if (!page)
 			return NULL;
-
-		pt = page_address(page);
-
-		for (i = 0; i < SMMU_NUM_PTE; i++)
-			pt[i] = 0;
 
 		dma = dma_map_page(smmu->dev, page, 0, SMMU_SIZE_PT,
 				   DMA_TO_DEVICE);
