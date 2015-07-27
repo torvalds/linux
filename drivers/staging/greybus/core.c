@@ -161,6 +161,7 @@ static void free_hd(struct kref *kref)
 
 	hd = container_of(kref, struct greybus_host_device, kref);
 
+	ida_destroy(&hd->cport_id_map);
 	kfree(hd);
 	mutex_unlock(&hd_mutex);
 }
