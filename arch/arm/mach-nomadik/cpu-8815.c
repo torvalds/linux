@@ -114,9 +114,8 @@ static const char * cpu8815_board_compat[] = {
 };
 
 DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
-	/* At full speed latency must be >=2, so 0x249 in low bits */
-	.l2c_aux_val	= 0x00700249,
-	.l2c_aux_mask	= 0xfe0fefff,
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.map_io		= cpu8815_map_io,
 	.restart	= cpu8815_restart,
 	.dt_compat      = cpu8815_board_compat,

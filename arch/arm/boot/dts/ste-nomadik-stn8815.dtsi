@@ -21,6 +21,13 @@
 		interrupts = <30>;
 		cache-unified;
 		cache-level = <2>;
+		cache-size = <131072>;
+		cache-sets = <512>;
+		cache-line-size = <32>;
+		/* At full speed latency must be >=2 */
+		arm,tag-latency = <2>;
+		arm,data-latency = <2 2>;
+		arm,dirty-latency = <2>;
 	};
 
 	mtu0: mtu@101e2000 {
