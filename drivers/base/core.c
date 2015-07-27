@@ -534,6 +534,52 @@ static DEVICE_ATTR_RO(dev);
 struct kset *devices_kset;
 
 /**
+ * devices_kset_move_before - Move device in the devices_kset's list.
+ * @deva: Device to move.
+ * @devb: Device @deva should come before.
+ */
+static void devices_kset_move_before(struct device *deva, struct device *devb)
+{
+	if (!devices_kset)
+		return;
+	pr_debug("devices_kset: Moving %s before %s\n",
+		 dev_name(deva), dev_name(devb));
+	spin_lock(&devices_kset->list_lock);
+	list_move_tail(&deva->kobj.entry, &devb->kobj.entry);
+	spin_unlock(&devices_kset->list_lock);
+}
+
+/**
+ * devices_kset_move_after - Move device in the devices_kset's list.
+ * @deva: Device to move
+ * @devb: Device @deva should come after.
+ */
+static void devices_kset_move_after(struct device *deva, struct device *devb)
+{
+	if (!devices_kset)
+		return;
+	pr_debug("devices_kset: Moving %s after %s\n",
+		 dev_name(deva), dev_name(devb));
+	spin_lock(&devices_kset->list_lock);
+	list_move(&deva->kobj.entry, &devb->kobj.entry);
+	spin_unlock(&devices_kset->list_lock);
+}
+
+/**
+ * devices_kset_move_last - move the device to the end of devices_kset's list.
+ * @dev: device to move
+ */
+void devices_kset_move_last(struct device *dev)
+{
+	if (!devices_kset)
+		return;
+	pr_debug("devices_kset: Moving %s to end of list\n", dev_name(dev));
+	spin_lock(&devices_kset->list_lock);
+	list_move_tail(&dev->kobj.entry, &devices_kset->list);
+	spin_unlock(&devices_kset->list_lock);
+}
+
+/**
  * device_create_file - create sysfs attribute file for device.
  * @dev: device.
  * @attr: device attribute descriptor.
@@ -1923,12 +1969,15 @@ int device_move(struct device *dev, struct device *new_parent,
 		break;
 	case DPM_ORDER_DEV_AFTER_PARENT:
 		device_pm_move_after(dev, new_parent);
+		devices_kset_move_after(dev, new_parent);
 		break;
 	case DPM_ORDER_PARENT_BEFORE_DEV:
 		device_pm_move_before(new_parent, dev);
+		devices_kset_move_before(new_parent, dev);
 		break;
 	case DPM_ORDER_DEV_LAST:
 		device_pm_move_last(dev);
+		devices_kset_move_last(dev);
 		break;
 	}
 

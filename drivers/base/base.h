@@ -134,6 +134,7 @@ extern int devres_release_all(struct device *dev);
 
 /* /sys/devices directory */
 extern struct kset *devices_kset;
+extern void devices_kset_move_last(struct device *dev);
 
 #if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)
 extern void module_add_driver(struct module *mod, struct device_driver *drv);
