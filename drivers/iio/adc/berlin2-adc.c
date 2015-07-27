@@ -86,7 +86,7 @@ struct berlin2_adc_priv {
 			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 		}
 
-static struct iio_chan_spec berlin2_adc_channels[] = {
+static const struct iio_chan_spec berlin2_adc_channels[] = {
 	BERLIN2_ADC_CHANNEL(0, IIO_VOLTAGE),	/* external input */
 	BERLIN2_ADC_CHANNEL(1, IIO_VOLTAGE),	/* external input */
 	BERLIN2_ADC_CHANNEL(2, IIO_VOLTAGE),	/* external input */
