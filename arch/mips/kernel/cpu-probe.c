@@ -1524,6 +1524,9 @@ void cpu_probe(void)
 	else
 		c->srsets = 1;
 
+	if (cpu_has_mips_r6)
+		elf_hwcap |= HWCAP_MIPS_R6;
+
 	if (cpu_has_msa) {
 		c->msa_id = cpu_get_msa_id();
 		WARN(c->msa_id & MSA_IR_WRPF,
