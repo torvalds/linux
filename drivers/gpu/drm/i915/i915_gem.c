@@ -2385,6 +2385,13 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring)
 	if (obj->active)
 		return;
 
+	/* Bump our place on the bound list to keep it roughly in LRU order
+	 * so that we don't steal from recently used but inactive objects
+	 * (unless we are forced to ofc!)
+	 */
+	list_move_tail(&obj->global_list,
+		       &to_i915(obj->base.dev)->mm.bound_list);
+
 	list_for_each_entry(vma, &obj->vma_list, vma_link) {
 		if (!list_empty(&vma->mm_list))
 			list_move_tail(&vma->mm_list, &vma->vm->inactive_list);
