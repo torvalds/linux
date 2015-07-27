@@ -169,7 +169,7 @@ static const char *const ti814x_boards_compat[] __initconst = {
 	NULL,
 };
 
-DT_MACHINE_START(TI81XX_DT, "Generic ti814x (Flattened Device Tree)")
+DT_MACHINE_START(TI814X_DT, "Generic ti814x (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.map_io		= ti81xx_map_io,
 	.init_early	= ti814x_init_early,
@@ -297,7 +297,7 @@ static const char *const dra74x_boards_compat[] __initconst = {
 DT_MACHINE_START(DRA74X_DT, "Generic DRA74X (Flattened Device Tree)")
 	.reserve	= omap_reserve,
 	.smp		= smp_ops(omap4_smp_ops),
-	.map_io		= omap5_map_io,
+	.map_io		= dra7xx_map_io,
 	.init_early	= dra7xx_init_early,
 	.init_late	= dra7xx_init_late,
 	.init_irq	= omap_gic_of_init,
@@ -316,7 +316,7 @@ static const char *const dra72x_boards_compat[] __initconst = {
 
 DT_MACHINE_START(DRA72X_DT, "Generic DRA72X (Flattened Device Tree)")
 	.reserve	= omap_reserve,
-	.map_io		= omap5_map_io,
+	.map_io		= dra7xx_map_io,
 	.init_early	= dra7xx_init_early,
 	.init_late	= dra7xx_init_late,
 	.init_irq	= omap_gic_of_init,
