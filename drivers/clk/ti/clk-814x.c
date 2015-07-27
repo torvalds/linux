@@ -8,6 +8,8 @@
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 static struct ti_dt_clk dm814_clks[] = {
 	DT_CLK(NULL, "devosc_ck", "devosc_ck"),
 	DT_CLK(NULL, "mpu_ck", "mpu_ck"),
