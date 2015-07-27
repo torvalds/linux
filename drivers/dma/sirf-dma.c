@@ -455,6 +455,7 @@ static int sirfsoc_dma_terminate_all(struct dma_chan *chan)
 	switch (sdma->type) {
 	case SIRFSOC_DMA_VER_A7V1:
 		writel_relaxed(1 << cid, sdma->base + SIRFSOC_DMA_INT_EN_CLR);
+		writel_relaxed(1 << cid, sdma->base + SIRFSOC_DMA_CH_INT);
 		writel_relaxed((1 << cid) | 1 << (cid + 16),
 			       sdma->base +
 			       SIRFSOC_DMA_CH_LOOP_CTRL_CLR_ATLAS7);
@@ -462,6 +463,8 @@ static int sirfsoc_dma_terminate_all(struct dma_chan *chan)
 		break;
 	case SIRFSOC_DMA_VER_A7V2:
 		writel_relaxed(0, sdma->base + SIRFSOC_DMA_INT_EN_ATLAS7);
+		writel_relaxed(SIRFSOC_DMA_INT_ALL_ATLAS7,
+			       sdma->base + SIRFSOC_DMA_INT_ATLAS7);
 		writel_relaxed(0, sdma->base + SIRFSOC_DMA_LOOP_CTRL_ATLAS7);
 		writel_relaxed(0, sdma->base + SIRFSOC_DMA_VALID_ATLAS7);
 		break;
