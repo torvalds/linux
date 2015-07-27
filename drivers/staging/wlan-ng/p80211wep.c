@@ -53,7 +53,6 @@
 #include <linux/random.h>
 #include <linux/kernel.h>
 
-/* #define WEP_DEBUG	*/
 
 #include "p80211hdr.h"
 #include "p80211types.h"
@@ -133,10 +132,6 @@ int wep_change_key(wlandevice_t *wlandev, int keynum, u8 *key, int keylen)
 	if (keynum >= NUM_WEPKEYS)
 		return -1;
 
-#ifdef WEP_DEBUG
-	pr_debug("WEP key %d len %d = %*phC\n", keynum, keylen,
-			  8, key);
-#endif
 
 	wlandev->wep_keylens[keynum] = keylen;
 	memcpy(wlandev->wep_keys[keynum], key, keylen);
@@ -181,10 +176,6 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
 
 	keylen += 3;		/* add in IV bytes */
 
-#ifdef WEP_DEBUG
-	pr_debug("D %d: %*ph (%d %d) %*phC\n", len, 3, key,
-			  keyidx, keylen, 5, key + 3);
-#endif
 
 	/* set up the RC4 state */
 	for (i = 0; i < 256; i++)
@@ -257,11 +248,6 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 	memcpy(key + 3, wlandev->wep_keys[keynum], keylen);
 
 	keylen += 3;		/* add in IV bytes */
-
-#ifdef WEP_DEBUG
-	pr_debug("E %d (%d/%d %d) %*ph %*phC\n", len,
-			  iv[3], keynum, keylen, 3, key, 5, key + 3);
-#endif
 
 	/* set up the RC4 state */
 	for (i = 0; i < 256; i++)

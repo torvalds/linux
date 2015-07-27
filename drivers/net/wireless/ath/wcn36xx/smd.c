@@ -216,9 +216,7 @@ static void wcn36xx_smd_set_sta_params(struct wcn36xx *wcn,
 		memcpy(&sta_params->bssid, vif->addr, ETH_ALEN);
 
 	sta_params->encrypt_type = priv_vif->encrypt_type;
-	sta_params->short_preamble_supported =
-		!(WCN36XX_FLAGS(wcn) &
-		  IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE);
+	sta_params->short_preamble_supported = true;
 
 	sta_params->rifs_mode = 0;
 	sta_params->rmf = 0;

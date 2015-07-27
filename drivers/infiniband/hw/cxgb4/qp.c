@@ -165,6 +165,29 @@ static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	return 0;
 }
 
+/*
+ * Determine the BAR2 virtual address and qid. If pbar2_pa is not NULL,
+ * then this is a user mapping so compute the page-aligned physical address
+ * for mapping.
+ */
+void __iomem *c4iw_bar2_addrs(struct c4iw_rdev *rdev, unsigned int qid,
+			      enum cxgb4_bar2_qtype qtype,
+			      unsigned int *pbar2_qid, u64 *pbar2_pa)
+{
+	u64 bar2_qoffset;
+	int ret;
+
+	ret = cxgb4_bar2_sge_qregs(rdev->lldi.ports[0], qid, qtype,
+				   pbar2_pa ? 1 : 0,
+				   &bar2_qoffset, pbar2_qid);
+	if (ret)
+		return NULL;
+
+	if (pbar2_pa)
+		*pbar2_pa = (rdev->bar2_pa + bar2_qoffset) & PAGE_MASK;
+	return rdev->bar2_kva + bar2_qoffset;
+}
+
 static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		     struct t4_cq *rcq, struct t4_cq *scq,
 		     struct c4iw_dev_ucontext *uctx)
@@ -236,25 +259,23 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	dma_unmap_addr_set(&wq->rq, mapping, wq->rq.dma_addr);
 
 	wq->db = rdev->lldi.db_reg;
-	wq->gts = rdev->lldi.gts_reg;
-	if (user || is_t5(rdev->lldi.adapter_type)) {
-		u32 off;
 
-		off = (wq->sq.qid << rdev->qpshift) & PAGE_MASK;
-		if (user) {
-			wq->sq.udb = (u64 __iomem *)(rdev->bar2_pa + off);
-		} else {
-			off += 128 * (wq->sq.qid & rdev->qpmask) + 8;
-			wq->sq.udb = (u64 __iomem *)(rdev->bar2_kva + off);
-		}
-		off = (wq->rq.qid << rdev->qpshift) & PAGE_MASK;
-		if (user) {
-			wq->rq.udb = (u64 __iomem *)(rdev->bar2_pa + off);
-		} else {
-			off += 128 * (wq->rq.qid & rdev->qpmask) + 8;
-			wq->rq.udb = (u64 __iomem *)(rdev->bar2_kva + off);
-		}
+	wq->sq.bar2_va = c4iw_bar2_addrs(rdev, wq->sq.qid, T4_BAR2_QTYPE_EGRESS,
+					 &wq->sq.bar2_qid,
+					 user ? &wq->sq.bar2_pa : NULL);
+	wq->rq.bar2_va = c4iw_bar2_addrs(rdev, wq->rq.qid, T4_BAR2_QTYPE_EGRESS,
+					 &wq->rq.bar2_qid,
+					 user ? &wq->rq.bar2_pa : NULL);
+
+	/*
+	 * User mode must have bar2 access.
+	 */
+	if (user && (!wq->sq.bar2_va || !wq->rq.bar2_va)) {
+		pr_warn(MOD "%s: sqid %u or rqid %u not in BAR2 range.\n",
+			pci_name(rdev->lldi.pdev), wq->sq.qid, wq->rq.qid);
+		goto free_dma;
 	}
+
 	wq->rdev = rdev;
 	wq->rq.msn = 1;
 
@@ -336,10 +357,9 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	if (ret)
 		goto free_dma;
 
-	PDBG("%s sqid 0x%x rqid 0x%x kdb 0x%p squdb 0x%lx rqudb 0x%lx\n",
+	PDBG("%s sqid 0x%x rqid 0x%x kdb 0x%p sq_bar2_addr %p rq_bar2_addr %p\n",
 	     __func__, wq->sq.qid, wq->rq.qid, wq->db,
-	     (__force unsigned long) wq->sq.udb,
-	     (__force unsigned long) wq->rq.udb);
+	     wq->sq.bar2_va, wq->rq.bar2_va);
 
 	return 0;
 free_dma:
@@ -1766,11 +1786,11 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		mm2->len = PAGE_ALIGN(qhp->wq.rq.memsize);
 		insert_mmap(ucontext, mm2);
 		mm3->key = uresp.sq_db_gts_key;
-		mm3->addr = (__force unsigned long)qhp->wq.sq.udb;
+		mm3->addr = (__force unsigned long)qhp->wq.sq.bar2_pa;
 		mm3->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm3);
 		mm4->key = uresp.rq_db_gts_key;
-		mm4->addr = (__force unsigned long)qhp->wq.rq.udb;
+		mm4->addr = (__force unsigned long)qhp->wq.rq.bar2_pa;
 		mm4->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm4);
 		if (mm5) {

@@ -148,11 +148,14 @@ static void *arm_coherent_dma_alloc(struct device *dev, size_t size,
 	dma_addr_t *handle, gfp_t gfp, struct dma_attrs *attrs);
 static void arm_coherent_dma_free(struct device *dev, size_t size, void *cpu_addr,
 				  dma_addr_t handle, struct dma_attrs *attrs);
+static int arm_coherent_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+		 void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		 struct dma_attrs *attrs);
 
 struct dma_map_ops arm_coherent_dma_ops = {
 	.alloc			= arm_coherent_dma_alloc,
 	.free			= arm_coherent_dma_free,
-	.mmap			= arm_dma_mmap,
+	.mmap			= arm_coherent_dma_mmap,
 	.get_sgtable		= arm_dma_get_sgtable,
 	.map_page		= arm_coherent_dma_map_page,
 	.map_sg			= arm_dma_map_sg,
@@ -690,10 +693,7 @@ static void *arm_coherent_dma_alloc(struct device *dev, size_t size,
 			   attrs, __builtin_return_address(0));
 }
 
-/*
- * Create userspace mapping for the DMA-coherent memory.
- */
-int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+static int __arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		 void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		 struct dma_attrs *attrs)
 {
@@ -703,8 +703,6 @@ int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	unsigned long pfn = dma_to_pfn(dev, dma_addr);
 	unsigned long off = vma->vm_pgoff;
-
-	vma->vm_page_prot = __get_dma_pgprot(attrs, vma->vm_page_prot);
 
 	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
@@ -718,6 +716,26 @@ int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 #endif	/* CONFIG_MMU */
 
 	return ret;
+}
+
+/*
+ * Create userspace mapping for the DMA-coherent memory.
+ */
+static int arm_coherent_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+		 void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		 struct dma_attrs *attrs)
+{
+	return __arm_dma_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
+}
+
+int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+		 void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		 struct dma_attrs *attrs)
+{
+#ifdef CONFIG_MMU
+	vma->vm_page_prot = __get_dma_pgprot(attrs, vma->vm_page_prot);
+#endif	/* CONFIG_MMU */
+	return __arm_dma_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
 }
 
 /*
@@ -1953,7 +1971,7 @@ static int extend_iommu_mapping(struct dma_iommu_mapping *mapping)
 {
 	int next_bitmap;
 
-	if (mapping->nr_bitmaps > mapping->extensions)
+	if (mapping->nr_bitmaps >= mapping->extensions)
 		return -EINVAL;
 
 	next_bitmap = mapping->nr_bitmaps;

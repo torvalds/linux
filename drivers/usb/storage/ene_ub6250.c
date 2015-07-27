@@ -28,6 +28,7 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
+#include "scsiglue.h"
 
 #define SD_INIT1_FIRMWARE "ene-ub6250/sd_init1.bin"
 #define SD_INIT2_FIRMWARE "ene-ub6250/sd_init2.bin"
@@ -35,6 +36,8 @@
 #define MS_INIT_FIRMWARE "ene-ub6250/ms_init.bin"
 #define MSP_RW_FIRMWARE "ene-ub6250/msp_rdwr.bin"
 #define MS_RW_FIRMWARE "ene-ub6250/ms_rdwr.bin"
+
+#define DRV_NAME "ums_eneub6250"
 
 MODULE_DESCRIPTION("Driver for ENE UB6250 reader");
 MODULE_LICENSE("GPL");
@@ -2307,6 +2310,7 @@ static int ene_transport(struct scsi_cmnd *srb, struct us_data *us)
 	return 0;
 }
 
+static struct scsi_host_template ene_ub6250_host_template;
 
 static int ene_ub6250_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
@@ -2316,7 +2320,8 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 	struct us_data *us;
 
 	result = usb_stor_probe1(&us, intf, id,
-		   (id - ene_ub6250_usb_ids) + ene_ub6250_unusual_dev_list);
+		   (id - ene_ub6250_usb_ids) + ene_ub6250_unusual_dev_list,
+		   &ene_ub6250_host_template);
 	if (result)
 		return result;
 
@@ -2404,7 +2409,7 @@ static int ene_ub6250_reset_resume(struct usb_interface *iface)
 #endif
 
 static struct usb_driver ene_ub6250_driver = {
-	.name =		"ums_eneub6250",
+	.name =		DRV_NAME,
 	.probe =	ene_ub6250_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -2417,4 +2422,4 @@ static struct usb_driver ene_ub6250_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(ene_ub6250_driver);
+module_usb_stor_driver(ene_ub6250_driver, ene_ub6250_host_template, DRV_NAME);

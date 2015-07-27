@@ -336,7 +336,7 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 
 	if (!net_eq(dev_net(vxlan->dev), vxlan->net) &&
 	    nla_put_s32(skb, NDA_LINK_NETNSID,
-			peernet2id(dev_net(vxlan->dev), vxlan->net)))
+			peernet2id_alloc(dev_net(vxlan->dev), vxlan->net)))
 		goto nla_put_failure;
 
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
@@ -1921,6 +1921,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		memset(&fl4, 0, sizeof(fl4));
 		fl4.flowi4_oif = rdst->remote_ifindex;
 		fl4.flowi4_tos = RT_TOS(tos);
+		fl4.flowi4_mark = skb->mark;
+		fl4.flowi4_proto = IPPROTO_UDP;
 		fl4.daddr = dst->sin.sin_addr.s_addr;
 		fl4.saddr = vxlan->saddr.sin.sin_addr.s_addr;
 
@@ -1981,6 +1983,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		fl6.flowi6_oif = rdst->remote_ifindex;
 		fl6.daddr = dst->sin6.sin6_addr;
 		fl6.saddr = vxlan->saddr.sin6.sin6_addr;
+		fl6.flowi6_mark = skb->mark;
 		fl6.flowi6_proto = IPPROTO_UDP;
 
 		if (ipv6_stub->ipv6_dst_lookup(sk, &ndst, &fl6)) {
@@ -2128,9 +2131,10 @@ static void vxlan_cleanup(unsigned long arg)
 	if (!netif_running(vxlan->dev))
 		return;
 
-	spin_lock_bh(&vxlan->hash_lock);
 	for (h = 0; h < FDB_HASH_SIZE; ++h) {
 		struct hlist_node *p, *n;
+
+		spin_lock_bh(&vxlan->hash_lock);
 		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
 			struct vxlan_fdb *f
 				= container_of(p, struct vxlan_fdb, hlist);
@@ -2149,8 +2153,8 @@ static void vxlan_cleanup(unsigned long arg)
 			} else if (time_before(timeout, next_timer))
 				next_timer = timeout;
 		}
+		spin_unlock_bh(&vxlan->hash_lock);
 	}
-	spin_unlock_bh(&vxlan->hash_lock);
 
 	mod_timer(&vxlan->age_timer, next_timer);
 }

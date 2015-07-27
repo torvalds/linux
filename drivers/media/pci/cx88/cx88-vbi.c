@@ -59,7 +59,7 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 
 	/* reset counter */
 	cx_write(MO_VBI_GPCNTRL, GP_COUNT_CONTROL_RESET);
-	q->count = 1;
+	q->count = 0;
 
 	/* enable irqs */
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_VIDINT);
@@ -102,8 +102,6 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.v4l2_buf.index);
 	cx8800_start_vbi_dma(dev, q, buf);
-	list_for_each_entry(buf, &q->active, list)
-		buf->count = q->count++;
 	return 0;
 }
 
@@ -175,7 +173,6 @@ static void buffer_queue(struct vb2_buffer *vb)
 	if (list_empty(&q->active)) {
 		list_add_tail(&buf->list, &q->active);
 		cx8800_start_vbi_dma(dev, q, buf);
-		buf->count    = q->count++;
 		dprintk(2,"[%p/%d] vbi_queue - first active\n",
 			buf, buf->vb.v4l2_buf.index);
 
@@ -183,7 +180,6 @@ static void buffer_queue(struct vb2_buffer *vb)
 		buf->risc.cpu[0] |= cpu_to_le32(RISC_IRQ1);
 		prev = list_entry(q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &q->active);
-		buf->count    = q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk(2,"[%p/%d] buffer_queue - append to active\n",
 			buf, buf->vb.v4l2_buf.index);

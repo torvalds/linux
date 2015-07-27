@@ -57,12 +57,6 @@
 #define VM_FAULT_RETRY 0
 #endif
 
-/* Kernel 3.1 kills LOOKUP_CONTINUE, LOOKUP_PARENT is equivalent to it.
- * seem kernel commit 49084c3bb2055c401f3493c13edae14d49128ca0 */
-#ifndef LOOKUP_CONTINUE
-#define LOOKUP_CONTINUE LOOKUP_PARENT
-#endif
-
 /** Only used on client-side for indicating the tail of dir hash/offset. */
 #define LL_DIR_END_OFF	  0x7fffffffffffffffULL
 #define LL_DIR_END_OFF_32BIT    0x7fffffffUL
@@ -471,7 +465,7 @@ struct ll_sb_info {
 	struct obd_uuid	   ll_sb_uuid;
 	struct obd_export	*ll_md_exp;
 	struct obd_export	*ll_dt_exp;
-	struct proc_dir_entry*    ll_proc_root;
+	struct dentry		*ll_debugfs_entry;
 	struct lu_fid	     ll_root_fid; /* root object fid */
 
 	int		       ll_flags;
@@ -493,9 +487,6 @@ struct ll_sb_info {
 	unsigned int	      ll_namelen;
 	struct file_operations   *ll_fop;
 
-	/* =0 - hold lock over whole read/write
-	 * >0 - max. chunk to be read/written w/o lock re-acquiring */
-	unsigned long	     ll_max_rw_chunk;
 	unsigned int	      ll_md_brw_size; /* used by readdir */
 
 	struct lu_site	   *ll_site;
@@ -524,9 +515,10 @@ struct ll_sb_info {
 	struct rmtacl_ctl_table   ll_rct;
 	struct eacl_table	 ll_et;
 	__kernel_fsid_t		  ll_fsid;
+	struct kobject		 ll_kobj; /* sysfs object */
+	struct super_block	*ll_sb; /* struct super_block (for sysfs code)*/
+	struct completion	 ll_kobj_unregister;
 };
-
-#define LL_DEFAULT_MAX_RW_CHUNK      (32 * 1024 * 1024)
 
 struct ll_ra_read {
 	pgoff_t	     lrr_start;
@@ -644,7 +636,8 @@ struct lov_stripe_md;
 
 extern spinlock_t inode_lock;
 
-extern struct proc_dir_entry *proc_lustre_fs_root;
+extern struct dentry *llite_root;
+extern struct kset *llite_kset;
 
 static inline struct inode *ll_info2i(struct ll_inode_info *lli)
 {
@@ -670,30 +663,14 @@ void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar);
 struct ll_ra_read *ll_ra_read_get(struct file *f);
 
 /* llite/lproc_llite.c */
-#if defined (CONFIG_PROC_FS)
-int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
-				struct super_block *sb, char *osc, char *mdc);
-void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi);
+int ldebugfs_register_mountpoint(struct dentry *parent,
+				 struct super_block *sb, char *osc, char *mdc);
+void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi);
 void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count);
 void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars);
 void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 		       struct ll_file_data *file, loff_t pos,
 		       size_t count, int rw);
-#else
-static inline int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
-			struct super_block *sb, char *osc, char *mdc){return 0;}
-static inline void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi) {}
-static inline
-void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count) {}
-static inline void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
-{
-	memset(lvars, 0, sizeof(*lvars));
-}
-static inline void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
-				     struct ll_file_data *file, loff_t pos,
-				     size_t count, int rw) {}
-#endif
-
 
 /* llite/dir.c */
 void ll_release_page(struct page *page, int remove);
@@ -727,11 +704,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		 struct ll_readahead_state *ras, struct address_space *mapping,
 		 struct cl_page_list *queue, int flags);
 
-#ifndef MS_HAS_NEW_AOPS
 extern const struct address_space_operations ll_aops;
-#else
-extern const struct address_space_operations_ext ll_aops;
-#endif
 
 /* llite/file.c */
 extern struct file_operations ll_file_operations;

@@ -73,3 +73,18 @@
 		};
 	};
 };
+
+&dss {
+	reg = <0x58000000 0x80>,
+	      <0x58004054 0x4>,
+	      <0x58004300 0x20>,
+	      <0x58005054 0x4>,
+	      <0x58005300 0x20>;
+	reg-names = "dss", "pll1_clkctrl", "pll1",
+		    "pll2_clkctrl", "pll2";
+
+	clocks = <&dss_dss_clk>,
+		 <&dss_video1_clk>,
+		 <&dss_video2_clk>;
+	clock-names = "fck", "video1_clk", "video2_clk";
+};

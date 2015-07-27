@@ -23,6 +23,8 @@
  *   o Allow clocksource drivers to be unregistered
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
@@ -216,10 +218,11 @@ static void clocksource_watchdog(unsigned long data)
 
 		/* Check the deviation from the watchdog clocksource. */
 		if ((abs(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD)) {
-			pr_warn("timekeeping watchdog: Marking clocksource '%s' as unstable, because the skew is too large:\n", cs->name);
-			pr_warn("	'%s' wd_now: %llx wd_last: %llx mask: %llx\n",
+			pr_warn("timekeeping watchdog: Marking clocksource '%s' as unstable because the skew is too large:\n",
+				cs->name);
+			pr_warn("                      '%s' wd_now: %llx wd_last: %llx mask: %llx\n",
 				watchdog->name, wdnow, wdlast, watchdog->mask);
-			pr_warn("	'%s' cs_now: %llx cs_last: %llx mask: %llx\n",
+			pr_warn("                      '%s' cs_now: %llx cs_last: %llx mask: %llx\n",
 				cs->name, csnow, cslast, cs->mask);
 			__clocksource_unstable(cs);
 			continue;
@@ -567,9 +570,8 @@ static void __clocksource_select(bool skipcur)
 		 */
 		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) && oneshot) {
 			/* Override clocksource cannot be used. */
-			printk(KERN_WARNING "Override clocksource %s is not "
-			       "HRT compatible. Cannot switch while in "
-			       "HRT/NOHZ mode\n", cs->name);
+			pr_warn("Override clocksource %s is not HRT compatible - cannot switch while in HRT/NOHZ mode\n",
+				cs->name);
 			override_name[0] = 0;
 		} else
 			/* Override clocksource can be used. */
@@ -708,8 +710,8 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq
 
 	clocksource_update_max_deferment(cs);
 
-	pr_info("clocksource %s: mask: 0x%llx max_cycles: 0x%llx, max_idle_ns: %lld ns\n",
-			cs->name, cs->mask, cs->max_cycles, cs->max_idle_ns);
+	pr_info("%s: mask: 0x%llx max_cycles: 0x%llx, max_idle_ns: %lld ns\n",
+		cs->name, cs->mask, cs->max_cycles, cs->max_idle_ns);
 }
 EXPORT_SYMBOL_GPL(__clocksource_update_freq_scale);
 
@@ -1008,12 +1010,10 @@ __setup("clocksource=", boot_override_clocksource);
 static int __init boot_override_clock(char* str)
 {
 	if (!strcmp(str, "pmtmr")) {
-		printk("Warning: clock=pmtmr is deprecated. "
-			"Use clocksource=acpi_pm.\n");
+		pr_warn("clock=pmtmr is deprecated - use clocksource=acpi_pm\n");
 		return boot_override_clocksource("acpi_pm");
 	}
-	printk("Warning! clock= boot option is deprecated. "
-		"Use clocksource=xyz\n");
+	pr_warn("clock= boot option is deprecated - use clocksource=xyz\n");
 	return boot_override_clocksource(str);
 }
 

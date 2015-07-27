@@ -1520,8 +1520,9 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	int rc = arpindex;
 	struct net_device *netdev;
 	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
+	__be32 dst_ipaddr = htonl(dst_ip);
 
-	rt = ip_route_output(&init_net, htonl(dst_ip), 0, 0, 0);
+	rt = ip_route_output(&init_net, dst_ipaddr, nesvnic->local_ipaddr, 0, 0);
 	if (IS_ERR(rt)) {
 		printk(KERN_ERR "%s: ip_route_output_key failed for 0x%08X\n",
 		       __func__, dst_ip);
@@ -1533,7 +1534,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	else
 		netdev = nesvnic->netdev;
 
-	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, netdev);
+	neigh = dst_neigh_lookup(&rt->dst, &dst_ipaddr);
 
 	rcu_read_lock();
 	if (neigh) {
@@ -1616,6 +1617,8 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 		  &cm_node->loc_addr, cm_node->loc_port,
 		  &cm_node->rem_addr, cm_node->rem_port);
 	cm_node->listener = listener;
+	if (listener)
+		cm_node->tos = listener->tos;
 	cm_node->netdev = nesvnic->netdev;
 	cm_node->cm_id = cm_info->cm_id;
 	memcpy(cm_node->loc_mac, nesvnic->netdev->dev_addr, ETH_ALEN);
@@ -2938,6 +2941,9 @@ static int nes_cm_init_tsa_conn(struct nes_qp *nesqp, struct nes_cm_node *cm_nod
 
 	nesqp->nesqp_context->misc2 |= cpu_to_le32(64 << NES_QPCONTEXT_MISC2_TTL_SHIFT);
 
+	nesqp->nesqp_context->misc2 |= cpu_to_le32(
+		cm_node->tos << NES_QPCONTEXT_MISC2_TOS_SHIFT);
+
 	nesqp->nesqp_context->mss |= cpu_to_le32(((u32)cm_node->tcp_cntxt.mss) << 16);
 
 	nesqp->nesqp_context->tcp_state_flow_label |= cpu_to_le32(
@@ -3612,6 +3618,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_node->ord_size = 1;
 
 	cm_node->apbvt_set = apbvt_set;
+	cm_node->tos = cm_id->tos;
 	nesqp->cm_node = cm_node;
 	cm_node->nesqp = nesqp;
 	nes_add_ref(&nesqp->ibqp);
@@ -3666,6 +3673,7 @@ int nes_create_listen(struct iw_cm_id *cm_id, int backlog)
 	}
 
 	cm_id->provider_data = cm_node;
+	cm_node->tos = cm_id->tos;
 
 	if (!cm_node->reused_node) {
 		if (nes_create_mapinfo(&cm_info))

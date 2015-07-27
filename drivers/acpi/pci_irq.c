@@ -44,7 +44,6 @@
 ACPI_MODULE_NAME("pci_irq");
 
 struct acpi_prt_entry {
-	struct list_head	list;
 	struct acpi_pci_id	id;
 	u8			pin;
 	acpi_handle		link;
@@ -163,7 +162,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 {
 	int segment = pci_domain_nr(dev->bus);
 	int bus = dev->bus->number;
-	int device = PCI_SLOT(dev->devfn);
+	int device = pci_ari_enabled(dev->bus) ? 0 : PCI_SLOT(dev->devfn);
 	struct acpi_prt_entry *entry;
 
 	if (((prt->address >> 16) & 0xffff) != device ||

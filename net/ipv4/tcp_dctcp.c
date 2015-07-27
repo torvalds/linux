@@ -204,20 +204,26 @@ static void dctcp_update_alpha(struct sock *sk, u32 flags)
 
 	/* Expired RTT */
 	if (!before(tp->snd_una, ca->next_seq)) {
-		/* For avoiding denominator == 1. */
-		if (ca->acked_bytes_total == 0)
-			ca->acked_bytes_total = 1;
+		u64 bytes_ecn = ca->acked_bytes_ecn;
+		u32 alpha = ca->dctcp_alpha;
 
 		/* alpha = (1 - g) * alpha + g * F */
-		ca->dctcp_alpha = ca->dctcp_alpha -
-				  (ca->dctcp_alpha >> dctcp_shift_g) +
-				  (ca->acked_bytes_ecn << (10U - dctcp_shift_g)) /
-				  ca->acked_bytes_total;
 
-		if (ca->dctcp_alpha > DCTCP_MAX_ALPHA)
-			/* Clamp dctcp_alpha to max. */
-			ca->dctcp_alpha = DCTCP_MAX_ALPHA;
+		alpha -= alpha >> dctcp_shift_g;
+		if (bytes_ecn) {
+			/* If dctcp_shift_g == 1, a 32bit value would overflow
+			 * after 8 Mbytes.
+			 */
+			bytes_ecn <<= (10 - dctcp_shift_g);
+			do_div(bytes_ecn, max(1U, ca->acked_bytes_total));
 
+			alpha = min(alpha + (u32)bytes_ecn, DCTCP_MAX_ALPHA);
+		}
+		/* dctcp_alpha can be read from dctcp_get_info() without
+		 * synchro, so we ask compiler to not use dctcp_alpha
+		 * as a temporary variable in prior operations.
+		 */
+		WRITE_ONCE(ca->dctcp_alpha, alpha);
 		dctcp_reset(tp, ca);
 	}
 }

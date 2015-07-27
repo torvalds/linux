@@ -60,6 +60,8 @@
 #include "debug.h"
 #include "scsiglue.h"
 
+#define DRV_NAME "ums-isd200"
+
 MODULE_DESCRIPTION("Driver for In-System Design, Inc. ISD200 ASIC");
 MODULE_AUTHOR("Björn Stenberg <bjorn@haxx.se>");
 MODULE_LICENSE("GPL");
@@ -1537,6 +1539,8 @@ static void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us)
 	isd200_srb_set_bufflen(srb, orig_bufflen);
 }
 
+static struct scsi_host_template isd200_host_template;
+
 static int isd200_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -1544,7 +1548,8 @@ static int isd200_probe(struct usb_interface *intf,
 	int result;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - isd200_usb_ids) + isd200_unusual_dev_list);
+			(id - isd200_usb_ids) + isd200_unusual_dev_list,
+			&isd200_host_template);
 	if (result)
 		return result;
 
@@ -1556,7 +1561,7 @@ static int isd200_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver isd200_driver = {
-	.name =		"ums-isd200",
+	.name =		DRV_NAME,
 	.probe =	isd200_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -1569,4 +1574,4 @@ static struct usb_driver isd200_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(isd200_driver);
+module_usb_stor_driver(isd200_driver, isd200_host_template, DRV_NAME);

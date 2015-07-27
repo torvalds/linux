@@ -1748,7 +1748,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	}
 
 	current->backing_dev_info = inode_to_bdi(inode);
-	err = file_remove_suid(file);
+	err = file_remove_privs(file);
 	if (err) {
 		mutex_unlock(&inode->i_mutex);
 		goto out;
@@ -1868,6 +1868,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	struct btrfs_log_ctx ctx;
 	int ret = 0;
 	bool full_sync = 0;
+	const u64 len = end - start + 1;
 
 	trace_btrfs_sync_file(file, datasync);
 
@@ -1896,7 +1897,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 * all extents are persisted and the respective file extent
 		 * items are in the fs/subvol btree.
 		 */
-		ret = btrfs_wait_ordered_range(inode, start, end - start + 1);
+		ret = btrfs_wait_ordered_range(inode, start, len);
 	} else {
 		/*
 		 * Start any new ordered operations before starting to log the
@@ -1968,8 +1969,10 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	smp_mb();
 	if (btrfs_inode_in_log(inode, root->fs_info->generation) ||
-	    (full_sync && BTRFS_I(inode)->last_trans <=
-	     root->fs_info->last_trans_committed)) {
+	    (BTRFS_I(inode)->last_trans <=
+	     root->fs_info->last_trans_committed &&
+	     (full_sync ||
+	      !btrfs_have_ordered_extents_in_range(inode, start, len)))) {
 		/*
 		 * We'v had everything committed since the last time we were
 		 * modified so clear this flag in case it was set for whatever

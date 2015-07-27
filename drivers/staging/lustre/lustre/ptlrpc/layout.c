@@ -807,11 +807,11 @@ struct req_capsule;
 /*
  * Request fields.
  */
-#define DEFINE_MSGF(name, flags, size, swabber, dumper) {       \
-	.rmf_name    = (name),				  \
-	.rmf_flags   = (flags),				 \
-	.rmf_size    = (size),				  \
-	.rmf_swabber = (void (*)(void *))(swabber),	      \
+#define DEFINE_MSGF(name, flags, size, swabber, dumper) {	\
+	.rmf_name    = (name),					\
+	.rmf_flags   = (flags),					\
+	.rmf_size    = (size),					\
+	.rmf_swabber = (void (*)(void *))(swabber),		\
 	.rmf_dumper  = (void (*)(void *))(dumper)		\
 }
 
@@ -1164,25 +1164,25 @@ EXPORT_SYMBOL(RMF_SWAP_LAYOUTS);
 
 struct req_format {
 	const char *rf_name;
-	int	 rf_idx;
+	int rf_idx;
 	struct {
-		int			  nr;
+		int nr;
 		const struct req_msg_field **d;
 	} rf_fields[RCL_NR];
 };
 
-#define DEFINE_REQ_FMT(name, client, client_nr, server, server_nr) {    \
-	.rf_name   = name,					      \
-	.rf_fields = {						  \
+#define DEFINE_REQ_FMT(name, client, client_nr, server, server_nr) {	\
+	.rf_name = name,						\
+	.rf_fields = {							\
 		[RCL_CLIENT] = {					\
 			.nr = client_nr,				\
-			.d  = client				    \
-		},						      \
+			.d = client					\
+		},							\
 		[RCL_SERVER] = {					\
 			.nr = server_nr,				\
-			.d  = server				    \
-		}						       \
-	}							       \
+			.d = server					\
+		}							\
+	}								\
 }
 
 #define DEFINE_REQ_FMT0(name, client, server)				  \
@@ -1769,10 +1769,10 @@ EXPORT_SYMBOL(req_capsule_set);
  * field of a \a pill's \a rc_fmt's RMF's.
  */
 int req_capsule_filled_sizes(struct req_capsule *pill,
-			   enum req_location loc)
+			     enum req_location loc)
 {
 	const struct req_format *fmt = pill->rc_fmt;
-	int		      i;
+	int i;
 
 	LASSERT(fmt != NULL);
 
@@ -1806,8 +1806,8 @@ EXPORT_SYMBOL(req_capsule_filled_sizes);
 int req_capsule_server_pack(struct req_capsule *pill)
 {
 	const struct req_format *fmt;
-	int		      count;
-	int		      rc;
+	int count;
+	int rc;
 
 	LASSERT(pill->rc_loc == RCL_SERVER);
 	fmt = pill->rc_fmt;
@@ -1857,11 +1857,11 @@ swabber_dumper_helper(struct req_capsule *pill,
 		      int offset,
 		      void *value, int len, int dump, void (*swabber)(void *))
 {
-	void    *p;
-	int     i;
-	int     n;
-	int     do_swab;
-	int     inout = loc == RCL_CLIENT;
+	void *p;
+	int i;
+	int n;
+	int do_swab;
+	int inout = loc == RCL_CLIENT;
 
 	swabber = swabber ?: field->rmf_swabber;
 
@@ -1936,10 +1936,10 @@ static void *__req_capsule_get(struct req_capsule *pill,
 			       int dump)
 {
 	const struct req_format *fmt;
-	struct lustre_msg       *msg;
-	void		    *value;
-	int		      len;
-	int		      offset;
+	struct lustre_msg *msg;
+	void *value;
+	int len;
+	int offset;
 
 	void *(*getter)(struct lustre_msg *m, int n, int minlen);
 
@@ -2000,10 +2000,10 @@ static void *__req_capsule_get(struct req_capsule *pill,
  */
 static void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
 {
-	const struct    req_format *fmt;
-	const struct    req_msg_field *field;
-	int	     len;
-	int	     i;
+	const struct req_format *fmt;
+	const struct req_msg_field *field;
+	int len;
+	int i;
 
 	fmt = pill->rc_fmt;
 
@@ -2350,9 +2350,9 @@ void req_capsule_shrink(struct req_capsule *pill,
 			enum req_location loc)
 {
 	const struct req_format *fmt;
-	struct lustre_msg       *msg;
-	int		      len;
-	int		      offset;
+	struct lustre_msg *msg;
+	int len;
+	int offset;
 
 	fmt = pill->rc_fmt;
 	LASSERT(fmt != NULL);

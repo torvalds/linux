@@ -366,7 +366,7 @@ static const struct file_operations vhci_fops = {
 	.llseek		= no_llseek,
 };
 
-static struct miscdevice vhci_miscdev= {
+static struct miscdevice vhci_miscdev = {
 	.name	= "vhci",
 	.fops	= &vhci_fops,
 	.minor	= VHCI_MINOR,

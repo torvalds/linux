@@ -9,140 +9,147 @@ config 64BIT
 config X86_32
 	def_bool y
 	depends on !64BIT
-	select CLKSRC_I8253
-	select HAVE_UID16
 
 config X86_64
 	def_bool y
 	depends on 64BIT
-	select X86_DEV_DMA_OPS
-	select ARCH_USE_CMPXCHG_LOCKREF
-	select HAVE_LIVEPATCH
 
 ### Arch settings
 config X86
 	def_bool y
-	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
-	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
+	select ACPI_LEGACY_TABLES_LOOKUP	if ACPI
+	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
+	select ANON_INODES
+	select ARCH_CLOCKSOURCE_DATA
+	select ARCH_DISCARD_MEMBLOCK
+	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_PMEM_API
+	select ARCH_HAS_SG_CHAIN
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select HAVE_AOUT if X86_32
-	select HAVE_UNSTABLE_SCHED_CLOCK
-	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
-	select ARCH_SUPPORTS_INT128 if X86_64
-	select HAVE_IDE
-	select HAVE_OPROFILE
-	select HAVE_PCSPKR_PLATFORM
-	select HAVE_PERF_EVENTS
-	select HAVE_IOREMAP_PROT
-	select HAVE_KPROBES
-	select HAVE_MEMBLOCK
-	select HAVE_MEMBLOCK_NODE_MAP
-	select ARCH_DISCARD_MEMBLOCK
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+	select ARCH_SUPPORTS_INT128		if X86_64
+	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
+	select ARCH_USE_BUILTIN_BSWAP
+	select ARCH_USE_CMPXCHG_LOCKREF		if X86_64
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_FRAME_POINTERS
+	select ARCH_WANT_IPC_PARSE_VERSION	if X86_32
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select BUILDTIME_EXTABLE_SORT
+	select CLKEVT_I8253
+	select CLKSRC_I8253			if X86_32
+	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
+	select CLOCKSOURCE_WATCHDOG
+	select CLONE_BACKWARDS			if X86_32
+	select COMPAT_OLD_SIGACTION		if IA32_EMULATION
+	select DCACHE_WORD_ACCESS
+	select EDAC_ATOMIC_SCRUB
+	select EDAC_SUPPORT
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CLOCKEVENTS_BROADCAST	if X86_64 || (X86_32 && X86_LOCAL_APIC)
+	select GENERIC_CLOCKEVENTS_MIN_ADJUST
+	select GENERIC_CMOS_UPDATE
+	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_EARLY_IOREMAP
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_IOMAP
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select GENERIC_PENDING_IRQ		if SMP
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
+	select GENERIC_TIME_VSYSCALL
+	select HAVE_ACPI_APEI			if ACPI
+	select HAVE_ACPI_APEI_NMI		if ACPI
+	select HAVE_ALIGNED_STRUCT_PAGE		if SLUB
+	select HAVE_AOUT			if X86_32
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_HUGE_VMAP		if X86_64 || X86_PAE
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
+	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_KMEMCHECK
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_SOFT_DIRTY		if X86_64
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_BPF_JIT			if X86_64
+	select HAVE_CC_STACKPROTECTOR
+	select HAVE_CMPXCHG_DOUBLE
+	select HAVE_CMPXCHG_LOCAL
+	select HAVE_CONTEXT_TRACKING		if X86_64
+	select HAVE_COPY_THREAD_TLS
+	select HAVE_C_RECORDMCOUNT
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS
-	select HAVE_KRETPROBES
-	select GENERIC_EARLY_IOREMAP
-	select HAVE_OPTPROBES
-	select HAVE_KPROBES_ON_FTRACE
-	select HAVE_FTRACE_MCOUNT_RECORD
-	select HAVE_FENTRY if X86_64
-	select HAVE_C_RECORDMCOUNT
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
-	select HAVE_FUNCTION_TRACER
-	select HAVE_FUNCTION_GRAPH_TRACER
-	select HAVE_FUNCTION_GRAPH_FP_TEST
-	select HAVE_SYSCALL_TRACEPOINTS
-	select SYSCTL_EXCEPTION_TRACE
-	select HAVE_KVM
-	select HAVE_ARCH_KGDB
-	select HAVE_ARCH_TRACEHOOK
-	select HAVE_GENERIC_DMA_COHERENT if X86_32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
-	select USER_STACKTRACE_SUPPORT
-	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_DMA_API_DEBUG
-	select HAVE_KERNEL_GZIP
-	select HAVE_KERNEL_BZIP2
-	select HAVE_KERNEL_LZMA
-	select HAVE_KERNEL_XZ
-	select HAVE_KERNEL_LZO
-	select HAVE_KERNEL_LZ4
+	select HAVE_FENTRY			if X86_64
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FUNCTION_GRAPH_FP_TEST
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER
+	select HAVE_GENERIC_DMA_COHERENT	if X86_32
 	select HAVE_HW_BREAKPOINT
+	select HAVE_IDE
+	select HAVE_IOREMAP_PROT
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK	if X86_64
+	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZ4
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select HAVE_KPROBES
+	select HAVE_KPROBES_ON_FTRACE
+	select HAVE_KRETPROBES
+	select HAVE_KVM
+	select HAVE_LIVEPATCH			if X86_64
+	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MIXED_BREAKPOINTS_REGS
-	select PERF_EVENTS
+	select HAVE_OPROFILE
+	select HAVE_OPTPROBES
+	select HAVE_PCSPKR_PLATFORM
+	select HAVE_PERF_EVENTS
 	select HAVE_PERF_EVENTS_NMI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select HAVE_DEBUG_KMEMLEAK
-	select ANON_INODES
-	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
-	select HAVE_CMPXCHG_LOCAL
-	select HAVE_CMPXCHG_DOUBLE
-	select HAVE_ARCH_KMEMCHECK
-	select HAVE_ARCH_KASAN if X86_64 && SPARSEMEM_VMEMMAP
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_UID16			if X86_32
+	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
-	select ARCH_HAS_ELF_RANDOMIZE
-	select HAVE_ARCH_JUMP_LABEL
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select SPARSE_IRQ
-	select GENERIC_FIND_FIRST_BIT
-	select GENERIC_IRQ_PROBE
-	select GENERIC_PENDING_IRQ if SMP
-	select GENERIC_IRQ_SHOW
-	select GENERIC_CLOCKEVENTS_MIN_ADJUST
 	select IRQ_FORCED_THREADING
-	select HAVE_BPF_JIT if X86_64
-	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
-	select HAVE_ARCH_HUGE_VMAP if X86_64 || (X86_32 && X86_PAE)
-	select ARCH_HAS_SG_CHAIN
-	select CLKEVT_I8253
-	select ARCH_HAVE_NMI_SAFE_CMPXCHG
-	select GENERIC_IOMAP
-	select DCACHE_WORD_ACCESS
-	select GENERIC_SMP_IDLE_THREAD
-	select ARCH_WANT_IPC_PARSE_VERSION if X86_32
-	select HAVE_ARCH_SECCOMP_FILTER
-	select BUILDTIME_EXTABLE_SORT
-	select GENERIC_CMOS_UPDATE
-	select HAVE_ARCH_SOFT_DIRTY if X86_64
-	select CLOCKSOURCE_WATCHDOG
-	select GENERIC_CLOCKEVENTS
-	select ARCH_CLOCKSOURCE_DATA
-	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
-	select GENERIC_CLOCKEVENTS_BROADCAST if X86_64 || (X86_32 && X86_LOCAL_APIC)
-	select GENERIC_TIME_VSYSCALL
-	select GENERIC_STRNCPY_FROM_USER
-	select GENERIC_STRNLEN_USER
-	select HAVE_CONTEXT_TRACKING if X86_64
-	select HAVE_IRQ_TIME_ACCOUNTING
-	select VIRT_TO_BUS
-	select MODULES_USE_ELF_REL if X86_32
-	select MODULES_USE_ELF_RELA if X86_64
-	select CLONE_BACKWARDS if X86_32
-	select ARCH_USE_BUILTIN_BSWAP
-	select ARCH_USE_QUEUE_RWLOCK
-	select OLD_SIGSUSPEND3 if X86_32 || IA32_EMULATION
-	select OLD_SIGACTION if X86_32
-	select COMPAT_OLD_SIGACTION if IA32_EMULATION
+	select MODULES_USE_ELF_RELA		if X86_64
+	select MODULES_USE_ELF_REL		if X86_32
+	select OLD_SIGACTION			if X86_32
+	select OLD_SIGSUSPEND3			if X86_32 || IA32_EMULATION
+	select PERF_EVENTS
 	select RTC_LIB
-	select HAVE_DEBUG_STACKOVERFLOW
-	select HAVE_IRQ_EXIT_ON_IRQ_STACK if X86_64
-	select HAVE_CC_STACKPROTECTOR
-	select GENERIC_CPU_AUTOPROBE
-	select HAVE_ARCH_AUDITSYSCALL
-	select ARCH_SUPPORTS_ATOMIC_RMW
-	select HAVE_ACPI_APEI if ACPI
-	select HAVE_ACPI_APEI_NMI if ACPI
-	select ACPI_LEGACY_TABLES_LOOKUP if ACPI
-	select X86_FEATURE_NAMES if PROC_FS
+	select SPARSE_IRQ
 	select SRCU
+	select SYSCTL_EXCEPTION_TRACE
+	select USER_STACKTRACE_SUPPORT
+	select VIRT_TO_BUS
+	select X86_DEV_DMA_OPS			if X86_64
+	select X86_FEATURE_NAMES		if PROC_FS
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -248,6 +255,11 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN
+	default 0xdffffc0000000000
+
 config HAVE_INTEL_TXT
 	def_bool y
 	depends on INTEL_IOMMU && ACPI
@@ -259,10 +271,6 @@ config X86_32_SMP
 config X86_64_SMP
 	def_bool y
 	depends on X86_64 && SMP
-
-config X86_HT
-	def_bool y
-	depends on SMP
 
 config X86_32_LAZY_GS
 	def_bool y
@@ -341,7 +349,7 @@ config X86_FEATURE_NAMES
 
 config X86_X2APIC
 	bool "Support x2apic"
-	depends on X86_LOCAL_APIC && X86_64 && IRQ_REMAP
+	depends on X86_LOCAL_APIC && X86_64 && (IRQ_REMAP || HYPERVISOR_GUEST)
 	---help---
 	  This enables x2apic support on CPUs that have this feature.
 
@@ -441,6 +449,7 @@ config X86_UV
 	depends on X86_EXTENDED_PLATFORM
 	depends on NUMA
 	depends on X86_X2APIC
+	depends on PCI
 	---help---
 	  This option is needed in order to support SGI Ultraviolet systems.
 	  If you don't have one of these, you should say N here.
@@ -466,7 +475,6 @@ config X86_INTEL_CE
 	select X86_REBOOTFIXUPS
 	select OF
 	select OF_EARLY_FLATTREE
-	select IRQ_DOMAIN
 	---help---
 	  Select for the Intel CE media processor (CE4100) SOC.
 	  This option compiles in support for the CE4100 SOC for settop
@@ -666,7 +674,7 @@ config PARAVIRT_DEBUG
 config PARAVIRT_SPINLOCKS
 	bool "Paravirtualization layer for spinlocks"
 	depends on PARAVIRT && SMP
-	select UNINLINE_SPIN_UNLOCK
+	select UNINLINE_SPIN_UNLOCK if !QUEUED_SPINLOCKS
 	---help---
 	  Paravirtualized spinlocks allow a pvops backend to replace the
 	  spinlock implementation with something virtualization-friendly
@@ -851,11 +859,12 @@ config NR_CPUS
 	default "1" if !SMP
 	default "8192" if MAXSMP
 	default "32" if SMP && X86_BIGSMP
-	default "8" if SMP
+	default "8" if SMP && X86_32
+	default "64" if SMP
 	---help---
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  If CPUMASK_OFFSTACK is enabled, the maximum
-	  supported value is 4096, otherwise the maximum value is 512.  The
+	  supported value is 8192, otherwise the maximum value is 512.  The
 	  minimum value which makes sense is 2.
 
 	  This is purely to save memory - each supported CPU adds
@@ -863,7 +872,7 @@ config NR_CPUS
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
-	depends on X86_HT
+	depends on SMP
 	---help---
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
@@ -873,7 +882,7 @@ config SCHED_SMT
 config SCHED_MC
 	def_bool y
 	prompt "Multi-core scheduler support"
-	depends on X86_HT
+	depends on SMP
 	---help---
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
@@ -914,12 +923,12 @@ config X86_UP_IOAPIC
 config X86_LOCAL_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC || PCI_MSI
-	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
+	select IRQ_DOMAIN_HIERARCHY
+	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
 
 config X86_IO_APIC
 	def_bool y
 	depends on X86_LOCAL_APIC || X86_UP_IOAPIC
-	select IRQ_DOMAIN
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 	bool "Reroute for broken boot IRQs"
@@ -1055,24 +1064,19 @@ config TOSHIBA
 	  Say N otherwise.
 
 config I8K
-	tristate "Dell laptop support"
+	tristate "Dell i8k legacy laptop support"
 	select HWMON
+	select SENSORS_DELL_SMM
 	---help---
-	  This adds a driver to safely access the System Management Mode
-	  of the CPU on the Dell Inspiron 8000. The System Management Mode
-	  is used to read cpu temperature and cooling fan status and to
-	  control the fans on the I8K portables.
+	  This option enables legacy /proc/i8k userspace interface in hwmon
+	  dell-smm-hwmon driver. Character file /proc/i8k reports bios version,
+	  temperature and allows controlling fan speeds of Dell laptops via
+	  System Management Mode. For old Dell laptops (like Dell Inspiron 8000)
+	  it reports also power and hotkey status. For fan speed control is
+	  needed userspace package i8kutils.
 
-	  This driver has been tested only on the Inspiron 8000 but it may
-	  also work with other Dell laptops. You can force loading on other
-	  models by passing the parameter `force=1' to the module. Use at
-	  your own risk.
-
-	  For information on utilities to make use of this driver see the
-	  I8K Linux utilities web site at:
-	  <http://people.debian.org/~dz/i8k/>
-
-	  Say Y if you intend to run this kernel on a Dell Inspiron 8000.
+	  Say Y if you intend to run this kernel on old Dell laptops or want to
+	  use userspace package i8kutils.
 	  Say N otherwise.
 
 config X86_REBOOTFIXUPS
@@ -1424,6 +1428,9 @@ source "mm/Kconfig"
 
 config X86_PMEM_LEGACY
 	bool "Support non-standard NVDIMMs and ADR protected memory"
+	depends on PHYS_ADDR_T_64BIT
+	depends on BLK_DEV
+	select LIBNVDIMM
 	help
 	  Treat memory marked using the non-standard e820 type of 12 as used
 	  by the Intel Sandy Bridge-EP reference BIOS as protected memory.
@@ -2014,7 +2021,7 @@ config CMDLINE_BOOL
 
 	  To compile command line arguments into the kernel,
 	  set this option to 'Y', then fill in the
-	  the boot arguments in CONFIG_CMDLINE.
+	  boot arguments in CONFIG_CMDLINE.
 
 	  Systems with fully functional boot loaders (i.e. non-embedded)
 	  should leave this option set to 'N'.

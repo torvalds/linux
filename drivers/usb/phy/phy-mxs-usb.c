@@ -217,6 +217,9 @@ static bool mxs_phy_get_vbus_status(struct mxs_phy *mxs_phy)
 {
 	unsigned int vbus_value;
 
+	if (!mxs_phy->regmap_anatop)
+		return false;
+
 	if (mxs_phy->port_id == 0)
 		regmap_read(mxs_phy->regmap_anatop,
 			ANADIG_USB1_VBUS_DET_STAT,

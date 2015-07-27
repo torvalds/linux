@@ -249,7 +249,7 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
 	 */
 	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
 	    (flags & IEEE80211_CHAN_NO_IR))
-		flags |= IEEE80211_CHAN_GO_CONCURRENT;
+		flags |= IEEE80211_CHAN_IR_CONCURRENT;
 
 	return flags;
 }

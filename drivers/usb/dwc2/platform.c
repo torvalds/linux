@@ -47,6 +47,7 @@
 
 #include "core.h"
 #include "hcd.h"
+#include "debug.h"
 
 static const char dwc2_driver_name[] = "dwc2";
 
@@ -76,6 +77,8 @@ static const struct dwc2_core_params params_bcm2835 = {
 	.reload_ctl			= 0,
 	.ahbcfg				= 0x10,
 	.uframe_sched			= 0,
+	.external_id_pin_ctl		= -1,
+	.hibernation			= -1,
 };
 
 static const struct dwc2_core_params params_rk3066 = {
@@ -104,6 +107,8 @@ static const struct dwc2_core_params params_rk3066 = {
 	.reload_ctl			= -1,
 	.ahbcfg				= 0x7, /* INCR16 */
 	.uframe_sched			= -1,
+	.external_id_pin_ctl		= -1,
+	.hibernation			= -1,
 };
 
 /**
@@ -121,6 +126,7 @@ static int dwc2_driver_remove(struct platform_device *dev)
 {
 	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
 
+	dwc2_debugfs_exit(hsotg);
 	if (hsotg->hcd_enabled)
 		dwc2_hcd_remove(hsotg);
 	if (hsotg->gadget_enabled)
@@ -237,6 +243,21 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	spin_lock_init(&hsotg->lock);
 	mutex_init(&hsotg->init_mutex);
 
+	/* Detect config values from hardware */
+	retval = dwc2_get_hwparams(hsotg);
+	if (retval)
+		return retval;
+
+	hsotg->core_params = devm_kzalloc(&dev->dev,
+				sizeof(*hsotg->core_params), GFP_KERNEL);
+	if (!hsotg->core_params)
+		return -ENOMEM;
+
+	dwc2_set_all_params(hsotg->core_params, -1);
+
+	/* Validate parameter values */
+	dwc2_set_parameters(hsotg, params);
+
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		retval = dwc2_gadget_init(hsotg, irq);
 		if (retval)
@@ -245,7 +266,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		retval = dwc2_hcd_init(hsotg, irq, params);
+		retval = dwc2_hcd_init(hsotg, irq);
 		if (retval) {
 			if (hsotg->gadget_enabled)
 				s3c_hsotg_remove(hsotg);
@@ -255,6 +276,8 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	platform_set_drvdata(dev, hsotg);
+
+	dwc2_debugfs_init(hsotg);
 
 	return retval;
 }

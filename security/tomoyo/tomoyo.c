@@ -4,7 +4,7 @@
  * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include "common.h"
 
 /**
@@ -72,12 +72,6 @@ static void tomoyo_cred_free(struct cred *cred)
  */
 static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
 {
-	int rc;
-
-	rc = cap_bprm_set_creds(bprm);
-	if (rc)
-		return rc;
-
 	/*
 	 * Do only if this function is called for the first time of an execve
 	 * operation.
@@ -502,36 +496,35 @@ static int tomoyo_socket_sendmsg(struct socket *sock, struct msghdr *msg,
  * tomoyo_security_ops is a "struct security_operations" which is used for
  * registering TOMOYO.
  */
-static struct security_operations tomoyo_security_ops = {
-	.name                = "tomoyo",
-	.cred_alloc_blank    = tomoyo_cred_alloc_blank,
-	.cred_prepare        = tomoyo_cred_prepare,
-	.cred_transfer	     = tomoyo_cred_transfer,
-	.cred_free           = tomoyo_cred_free,
-	.bprm_set_creds      = tomoyo_bprm_set_creds,
-	.bprm_check_security = tomoyo_bprm_check_security,
-	.file_fcntl          = tomoyo_file_fcntl,
-	.file_open           = tomoyo_file_open,
-	.path_truncate       = tomoyo_path_truncate,
-	.path_unlink         = tomoyo_path_unlink,
-	.path_mkdir          = tomoyo_path_mkdir,
-	.path_rmdir          = tomoyo_path_rmdir,
-	.path_symlink        = tomoyo_path_symlink,
-	.path_mknod          = tomoyo_path_mknod,
-	.path_link           = tomoyo_path_link,
-	.path_rename         = tomoyo_path_rename,
-	.inode_getattr       = tomoyo_inode_getattr,
-	.file_ioctl          = tomoyo_file_ioctl,
-	.path_chmod          = tomoyo_path_chmod,
-	.path_chown          = tomoyo_path_chown,
-	.path_chroot         = tomoyo_path_chroot,
-	.sb_mount            = tomoyo_sb_mount,
-	.sb_umount           = tomoyo_sb_umount,
-	.sb_pivotroot        = tomoyo_sb_pivotroot,
-	.socket_bind         = tomoyo_socket_bind,
-	.socket_connect      = tomoyo_socket_connect,
-	.socket_listen       = tomoyo_socket_listen,
-	.socket_sendmsg      = tomoyo_socket_sendmsg,
+static struct security_hook_list tomoyo_hooks[] = {
+	LSM_HOOK_INIT(cred_alloc_blank, tomoyo_cred_alloc_blank),
+	LSM_HOOK_INIT(cred_prepare, tomoyo_cred_prepare),
+	LSM_HOOK_INIT(cred_transfer, tomoyo_cred_transfer),
+	LSM_HOOK_INIT(cred_free, tomoyo_cred_free),
+	LSM_HOOK_INIT(bprm_set_creds, tomoyo_bprm_set_creds),
+	LSM_HOOK_INIT(bprm_check_security, tomoyo_bprm_check_security),
+	LSM_HOOK_INIT(file_fcntl, tomoyo_file_fcntl),
+	LSM_HOOK_INIT(file_open, tomoyo_file_open),
+	LSM_HOOK_INIT(path_truncate, tomoyo_path_truncate),
+	LSM_HOOK_INIT(path_unlink, tomoyo_path_unlink),
+	LSM_HOOK_INIT(path_mkdir, tomoyo_path_mkdir),
+	LSM_HOOK_INIT(path_rmdir, tomoyo_path_rmdir),
+	LSM_HOOK_INIT(path_symlink, tomoyo_path_symlink),
+	LSM_HOOK_INIT(path_mknod, tomoyo_path_mknod),
+	LSM_HOOK_INIT(path_link, tomoyo_path_link),
+	LSM_HOOK_INIT(path_rename, tomoyo_path_rename),
+	LSM_HOOK_INIT(inode_getattr, tomoyo_inode_getattr),
+	LSM_HOOK_INIT(file_ioctl, tomoyo_file_ioctl),
+	LSM_HOOK_INIT(path_chmod, tomoyo_path_chmod),
+	LSM_HOOK_INIT(path_chown, tomoyo_path_chown),
+	LSM_HOOK_INIT(path_chroot, tomoyo_path_chroot),
+	LSM_HOOK_INIT(sb_mount, tomoyo_sb_mount),
+	LSM_HOOK_INIT(sb_umount, tomoyo_sb_umount),
+	LSM_HOOK_INIT(sb_pivotroot, tomoyo_sb_pivotroot),
+	LSM_HOOK_INIT(socket_bind, tomoyo_socket_bind),
+	LSM_HOOK_INIT(socket_connect, tomoyo_socket_connect),
+	LSM_HOOK_INIT(socket_listen, tomoyo_socket_listen),
+	LSM_HOOK_INIT(socket_sendmsg, tomoyo_socket_sendmsg),
 };
 
 /* Lock for GC. */
@@ -546,11 +539,10 @@ static int __init tomoyo_init(void)
 {
 	struct cred *cred = (struct cred *) current_cred();
 
-	if (!security_module_enable(&tomoyo_security_ops))
+	if (!security_module_enable("tomoyo"))
 		return 0;
 	/* register ourselves with the security framework */
-	if (register_security(&tomoyo_security_ops))
-		panic("Failure registering TOMOYO Linux");
+	security_add_hooks(tomoyo_hooks, ARRAY_SIZE(tomoyo_hooks));
 	printk(KERN_INFO "TOMOYO Linux initialized\n");
 	cred->security = &tomoyo_kernel_domain;
 	tomoyo_mm_init();

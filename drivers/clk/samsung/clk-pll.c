@@ -1156,7 +1156,7 @@ static const struct clk_ops samsung_pll2650xx_clk_min_ops = {
 };
 
 static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
-				struct samsung_pll_clock *pll_clk,
+				const struct samsung_pll_clock *pll_clk,
 				void __iomem *base)
 {
 	struct samsung_clk_pll *pll;
@@ -1303,7 +1303,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 }
 
 void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
-			struct samsung_pll_clock *pll_list,
+			const struct samsung_pll_clock *pll_list,
 			unsigned int nr_pll, void __iomem *base)
 {
 	int cnt;

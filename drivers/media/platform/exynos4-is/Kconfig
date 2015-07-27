@@ -57,6 +57,7 @@ endif
 
 config VIDEO_EXYNOS4_FIMC_IS
 	tristate "EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver"
+	depends on I2C
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	depends on OF

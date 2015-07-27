@@ -708,7 +708,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 		if (rval != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x00d4,
 			    "Unable to initialize ISP84XX.\n");
-		qla84xx_put_chip(vha);
+			qla84xx_put_chip(vha);
 		}
 	}
 

@@ -26,9 +26,9 @@
 #include <linux/console.h>
 #include <linux/bug.h>
 #include <linux/ratelimit.h>
+#include <linux/uaccess.h>
 
 #include <asm/assembly.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
@@ -42,10 +42,6 @@
 #include <asm/cacheflush.h>
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
-
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
-DEFINE_SPINLOCK(pa_dbit_lock);
-#endif
 
 static void parisc_show_stack(struct task_struct *task, unsigned long *sp,
 	struct pt_regs *regs);
@@ -800,7 +796,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	     * unless pagefault_disable() was called before.
 	     */
 
-	    if (fault_space == 0 && !in_atomic())
+	    if (fault_space == 0 && !faulthandler_disabled())
 	    {
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
 		parisc_terminate("Kernel Fault", regs, code, fault_address);

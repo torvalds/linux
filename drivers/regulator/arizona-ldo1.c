@@ -173,6 +173,16 @@ static const struct regulator_init_data arizona_ldo1_default = {
 	.num_consumer_supplies = 1,
 };
 
+static const struct regulator_init_data arizona_ldo1_wm5110 = {
+	.constraints = {
+		.min_uV = 1175000,
+		.max_uV = 1200000,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
+				  REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = 1,
+};
+
 static int arizona_ldo1_of_get_pdata(struct arizona *arizona,
 				     struct regulator_config *config,
 				     const struct regulator_desc *desc)
@@ -237,6 +247,11 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	case WM8997:
 		desc = &arizona_ldo1_hc;
 		ldo1->init_data = arizona_ldo1_dvfs;
+		break;
+	case WM5110:
+	case WM8280:
+		desc = &arizona_ldo1;
+		ldo1->init_data = arizona_ldo1_wm5110;
 		break;
 	default:
 		desc = &arizona_ldo1;

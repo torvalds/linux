@@ -42,10 +42,10 @@
 		regulator-always-on;
 	};
 
-	lan0@18000000 {
+	ethernet@18000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
-		pinctrl-0 = <&lan0_pins>;
+		pinctrl-0 = <&ethernet_pins>;
 		pinctrl-names = "default";
 
 		phy-mode = "mii";
@@ -176,7 +176,7 @@
 		};
 	};
 
-	lan0_pins: lan0 {
+	ethernet_pins: ethernet {
 		intc {
 			renesas,groups = "intc_irq1_b";
 			renesas,function = "intc";

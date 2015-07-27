@@ -840,6 +840,26 @@ static void _rtl92cu_init_wmac_setting(struct ieee80211_hw *hw)
 	rtl92c_set_data_filter(hw, value16);
 }
 
+static void _rtl92cu_init_beacon_parameters(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+
+	rtl_write_word(rtlpriv, REG_BCN_CTRL, 0x1010);
+
+	/* TODO: Remove these magic number */
+	rtl_write_word(rtlpriv, REG_TBTT_PROHIBIT, 0x6404);
+	rtl_write_byte(rtlpriv, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);
+	rtl_write_byte(rtlpriv, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME);
+	/* Change beacon AIFS to the largest number
+	 * beacause test chip does not contension before sending beacon.
+	 */
+	if (IS_NORMAL_CHIP(rtlhal->version))
+		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x660F);
+	else
+		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x66FF);
+}
+
 static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -887,9 +907,9 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 	_rtl92cu_init_usb_aggregation(hw);
 	rtlpriv->cfg->ops->set_bw_mode(hw, NL80211_CHAN_HT20);
 	rtl92c_set_min_space(hw, IS_92C_SERIAL(rtlhal->version));
-	rtl92c_init_beacon_parameters(hw, rtlhal->version);
+	_rtl92cu_init_beacon_parameters(hw);
 	rtl92c_init_ampdu_aggregation(hw);
-	rtl92c_init_beacon_max_error(hw, true);
+	rtl92c_init_beacon_max_error(hw);
 	return err;
 }
 
@@ -987,7 +1007,6 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	int err = 0;
-	static bool iqk_initialized;
 	unsigned long flags;
 
 	/* As this function can take a very long time (up to 350 ms)
@@ -1038,11 +1057,11 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ETHER_ADDR, mac->mac_addr);
 	if (ppsc->rfpwr_state == ERFON) {
 		rtl92c_phy_set_rfpath_switch(hw, 1);
-		if (iqk_initialized) {
+		if (rtlphy->iqk_initialized) {
 			rtl92c_phy_iq_calibrate(hw, true);
 		} else {
 			rtl92c_phy_iq_calibrate(hw, false);
-			iqk_initialized = true;
+			rtlphy->iqk_initialized = true;
 		}
 		rtl92c_dm_check_txpower_tracking(hw);
 		rtl92c_phy_lc_calibrate(hw);
@@ -1323,7 +1342,6 @@ static int _rtl92cu_set_media_status(struct ieee80211_hw *hw,
 	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
 
 	bt_msr &= 0xfc;
-	rtl_write_byte(rtlpriv, REG_BCN_MAX_ERR, 0xFF);
 	if (type == NL80211_IFTYPE_UNSPECIFIED || type ==
 	    NL80211_IFTYPE_STATION) {
 		_rtl92cu_stop_tx_beacon(hw);
@@ -1392,6 +1410,9 @@ void rtl92cu_card_disable(struct ieee80211_hw *hw)
 		_CardDisableHWSM(hw);
 	else
 		_CardDisableWithoutHWSM(hw);
+
+	/* after power off we should do iqk again */
+	rtlpriv->phy.iqk_initialized = false;
 }
 
 void rtl92cu_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
@@ -1452,25 +1473,6 @@ int rtl92cu_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 	return 0;
 }
 
-static void _InitBeaconParameters(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-
-	rtl_write_word(rtlpriv, REG_BCN_CTRL, 0x1010);
-
-	/* TODO: Remove these magic number */
-	rtl_write_word(rtlpriv, REG_TBTT_PROHIBIT, 0x6404);
-	rtl_write_byte(rtlpriv, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);
-	rtl_write_byte(rtlpriv, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME);
-	/* Change beacon AIFS to the largest number
-	 * beacause test chip does not contension before sending beacon. */
-	if (IS_NORMAL_CHIP(rtlhal->version))
-		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x660F);
-	else
-		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x66FF);
-}
-
 static void _beacon_function_enable(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1491,7 +1493,7 @@ void rtl92cu_set_beacon_related_registers(struct ieee80211_hw *hw)
 	atim_window = 2;	/*FIX MERGE */
 	rtl_write_word(rtlpriv, REG_ATIMWND, atim_window);
 	rtl_write_word(rtlpriv, REG_BCN_INTERVAL, bcn_interval);
-	_InitBeaconParameters(hw);
+	_rtl92cu_init_beacon_parameters(hw);
 	rtl_write_byte(rtlpriv, REG_SLOT, 0x09);
 	/*
 	 * Force beacon frame transmission even after receiving beacon frame

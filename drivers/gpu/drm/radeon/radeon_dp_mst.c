@@ -663,10 +663,15 @@ int
 radeon_dp_mst_probe(struct radeon_connector *radeon_connector)
 {
 	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
+	struct drm_device *dev = radeon_connector->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	int ret;
 	u8 msg[1];
 
 	if (!radeon_mst)
+		return 0;
+
+	if (!ASIC_IS_DCE5(rdev))
 		return 0;
 
 	if (dig_connector->dpcd[DP_DPCD_REV] < 0x12)

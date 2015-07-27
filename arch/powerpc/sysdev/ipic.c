@@ -691,7 +691,7 @@ static int ipic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops ipic_host_ops = {
+static const struct irq_domain_ops ipic_host_ops = {
 	.match	= ipic_host_match,
 	.map	= ipic_host_map,
 	.xlate	= irq_domain_xlate_onetwocell,

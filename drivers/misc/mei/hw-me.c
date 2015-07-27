@@ -663,15 +663,44 @@ int mei_me_pg_exit_sync(struct mei_device *dev)
 	mutex_lock(&dev->device_lock);
 
 reply:
-	if (dev->pg_event == MEI_PG_EVENT_RECEIVED)
-		ret = mei_hbm_pg(dev, MEI_PG_ISOLATION_EXIT_RES_CMD);
+	if (dev->pg_event != MEI_PG_EVENT_RECEIVED) {
+		ret = -ETIME;
+		goto out;
+	}
+
+	dev->pg_event = MEI_PG_EVENT_INTR_WAIT;
+	ret = mei_hbm_pg(dev, MEI_PG_ISOLATION_EXIT_RES_CMD);
+	if (ret)
+		return ret;
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_INTR_RECEIVED, timeout);
+	mutex_lock(&dev->device_lock);
+
+	if (dev->pg_event == MEI_PG_EVENT_INTR_RECEIVED)
+		ret = 0;
 	else
 		ret = -ETIME;
 
+out:
 	dev->pg_event = MEI_PG_EVENT_IDLE;
 	hw->pg_state = MEI_PG_OFF;
 
 	return ret;
+}
+
+/**
+ * mei_me_pg_in_transition - is device now in pg transition
+ *
+ * @dev: the device structure
+ *
+ * Return: true if in pg transition, false otherwise
+ */
+static bool mei_me_pg_in_transition(struct mei_device *dev)
+{
+	return dev->pg_event >= MEI_PG_EVENT_WAIT &&
+	       dev->pg_event <= MEI_PG_EVENT_INTR_WAIT;
 }
 
 /**
@@ -702,6 +731,24 @@ notsupported:
 		HBM_MINOR_VERSION_PGI);
 
 	return false;
+}
+
+/**
+ * mei_me_pg_intr - perform pg processing in interrupt thread handler
+ *
+ * @dev: the device structure
+ */
+static void mei_me_pg_intr(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	if (dev->pg_event != MEI_PG_EVENT_INTR_WAIT)
+		return;
+
+	dev->pg_event = MEI_PG_EVENT_INTR_RECEIVED;
+	hw->pg_state = MEI_PG_OFF;
+	if (waitqueue_active(&dev->wait_pg))
+		wake_up(&dev->wait_pg);
 }
 
 /**
@@ -761,6 +808,8 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		goto end;
 	}
 
+	mei_me_pg_intr(dev);
+
 	/*  check if we need to start the dev */
 	if (!mei_host_is_ready(dev)) {
 		if (mei_hw_is_ready(dev)) {
@@ -797,9 +846,10 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	/*
 	 * During PG handshake only allowed write is the replay to the
 	 * PG exit message, so block calling write function
-	 * if the pg state is not idle
+	 * if the pg event is in PG handshake
 	 */
-	if (dev->pg_event == MEI_PG_EVENT_IDLE) {
+	if (dev->pg_event != MEI_PG_EVENT_WAIT &&
+	    dev->pg_event != MEI_PG_EVENT_RECEIVED) {
 		rets = mei_irq_write_handler(dev, &complete_list);
 		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 	}
@@ -824,6 +874,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.hw_config = mei_me_hw_config,
 	.hw_start = mei_me_hw_start,
 
+	.pg_in_transition = mei_me_pg_in_transition,
 	.pg_is_enabled = mei_me_pg_is_enabled,
 
 	.intr_clear = mei_me_intr_clear,

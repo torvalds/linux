@@ -22,7 +22,7 @@
 #include <linux/of.h>
 #include <linux/err.h>
 
-#define DRV_VERSION "0.4.3"
+#define DRV_VERSION "0.4.4"
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
@@ -202,8 +202,9 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	if (buf[PCF8563_REG_SC] & PCF8563_SC_LV) {
 		pcf8563->voltage_low = 1;
-		dev_info(&client->dev,
+		dev_err(&client->dev,
 			"low voltage detected, date/time is not reliable.\n");
+		return -EINVAL;
 	}
 
 	dev_dbg(&client->dev,
@@ -233,12 +234,6 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
-
-	/* the clock can give out invalid datetime, but we cannot return
-	 * -EINVAL otherwise hwclock will refuse to set the time on bootup.
-	 */
-	if (rtc_valid_tm(tm) < 0)
-		dev_err(&client->dev, "retrieved date/time is not valid.\n");
 
 	return 0;
 }
@@ -363,13 +358,13 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char buf[4];
 	int err;
-	unsigned long alarm_time;
 
 	/* The alarm has no seconds, round up to nearest minute */
 	if (tm->time.tm_sec) {
-		rtc_tm_to_time(&tm->time, &alarm_time);
-		alarm_time += 60-tm->time.tm_sec;
-		rtc_time_to_tm(alarm_time, &tm->time);
+		time64_t alarm_time = rtc_tm_to_time64(&tm->time);
+
+		alarm_time += 60 - tm->time.tm_sec;
+		rtc_time64_to_tm(alarm_time, &tm->time);
 	}
 
 	dev_dbg(dev, "%s, min=%d hour=%d wday=%d mday=%d "
@@ -437,7 +432,7 @@ static int pcf8563_probe(struct i2c_client *client,
 	}
 
 	err = pcf8563_get_alarm_mode(client, NULL, &alm_pending);
-	if (err < 0) {
+	if (err) {
 		dev_err(&client->dev, "%s: read error\n", __func__);
 		return err;
 	}

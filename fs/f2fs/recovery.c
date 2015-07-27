@@ -83,6 +83,11 @@ static int recover_dentry(struct inode *inode, struct page *ipage)
 		goto out;
 	}
 
+	if (file_enc_name(inode)) {
+		iput(dir);
+		return 0;
+	}
+
 	name.len = le32_to_cpu(raw_inode->i_namelen);
 	name.name = raw_inode->i_name;
 
@@ -143,6 +148,7 @@ out:
 static void recover_inode(struct inode *inode, struct page *page)
 {
 	struct f2fs_inode *raw = F2FS_INODE(page);
+	char *name;
 
 	inode->i_mode = le16_to_cpu(raw->i_mode);
 	i_size_write(inode, le64_to_cpu(raw->i_size));
@@ -153,8 +159,13 @@ static void recover_inode(struct inode *inode, struct page *page)
 	inode->i_ctime.tv_nsec = le32_to_cpu(raw->i_ctime_nsec);
 	inode->i_mtime.tv_nsec = le32_to_cpu(raw->i_mtime_nsec);
 
+	if (file_enc_name(inode))
+		name = "<encrypted>";
+	else
+		name = F2FS_INODE(page)->i_name;
+
 	f2fs_msg(inode->i_sb, KERN_NOTICE, "recover_inode: ino = %x, name = %s",
-			ino_of_node(page), F2FS_INODE(page)->i_name);
+			ino_of_node(page), name);
 }
 
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
@@ -174,7 +185,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 	while (1) {
 		struct fsync_inode_entry *entry;
 
-		if (blkaddr < MAIN_BLKADDR(sbi) || blkaddr >= MAX_BLKADDR(sbi))
+		if (!is_valid_blkaddr(sbi, blkaddr, META_POR))
 			return 0;
 
 		page = get_meta_page(sbi, blkaddr);
@@ -349,7 +360,6 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	unsigned int start, end;
 	struct dnode_of_data dn;
-	struct f2fs_summary sum;
 	struct node_info ni;
 	int err = 0, recovered = 0;
 
@@ -396,7 +406,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 		dest = datablock_addr(page, dn.ofs_in_node);
 
 		if (src != dest && dest != NEW_ADDR && dest != NULL_ADDR &&
-			dest >= MAIN_BLKADDR(sbi) && dest < MAX_BLKADDR(sbi)) {
+			is_valid_blkaddr(sbi, dest, META_POR)) {
 
 			if (src == NULL_ADDR) {
 				err = reserve_new_block(&dn);
@@ -409,13 +419,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			if (err)
 				goto err;
 
-			set_summary(&sum, dn.nid, dn.ofs_in_node, ni.version);
-
 			/* write dummy data page */
-			recover_data_page(sbi, NULL, &sum, src, dest);
-			dn.data_blkaddr = dest;
-			set_data_blkaddr(&dn);
-			f2fs_update_extent_cache(&dn);
+			f2fs_replace_block(sbi, &dn, src, dest,
+							ni.version, false);
 			recovered++;
 		}
 		dn.ofs_in_node++;
@@ -454,7 +460,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 	while (1) {
 		struct fsync_inode_entry *entry;
 
-		if (blkaddr < MAIN_BLKADDR(sbi) || blkaddr >= MAX_BLKADDR(sbi))
+		if (!is_valid_blkaddr(sbi, blkaddr, META_POR))
 			break;
 
 		ra_meta_pages_cond(sbi, blkaddr);

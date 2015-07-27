@@ -289,10 +289,12 @@ PPC64 sPAPR implementation note
 
 This implementation has some specifics:
 
-1) Only one IOMMU group per container is supported as an IOMMU group
-represents the minimal entity which isolation can be guaranteed for and
-groups are allocated statically, one per a Partitionable Endpoint (PE)
+1) On older systems (POWER7 with P5IOC2/IODA1) only one IOMMU group per
+container is supported as an IOMMU table is allocated at the boot time,
+one table per a IOMMU group which is a Partitionable Endpoint (PE)
 (PE is often a PCI domain but not always).
+Newer systems (POWER8 with IODA2) have improved hardware design which allows
+to remove this limitation and have multiple IOMMU groups per a VFIO container.
 
 2) The hardware supports so called DMA windows - the PCI address range
 within which DMA transfer is allowed, any attempt to access address space
@@ -385,6 +387,18 @@ The code flow from the example above should be slightly changed:
 
 	....
 
+	/* Inject EEH error, which is expected to be caused by 32-bits
+	 * config load.
+	 */
+	pe_op.op = VFIO_EEH_PE_INJECT_ERR;
+	pe_op.err.type = EEH_ERR_TYPE_32;
+	pe_op.err.func = EEH_ERR_FUNC_LD_CFG_ADDR;
+	pe_op.err.addr = 0ul;
+	pe_op.err.mask = 0ul;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	....
+
 	/* When 0xFF's returned from reading PCI config space or IO BARs
 	 * of the PCI device. Check the PE's state to see if that has been
 	 * frozen.
@@ -426,6 +440,48 @@ The code flow from the example above should be slightly changed:
 	 */
 
 	....
+
+5) There is v2 of SPAPR TCE IOMMU. It deprecates VFIO_IOMMU_ENABLE/
+VFIO_IOMMU_DISABLE and implements 2 new ioctls:
+VFIO_IOMMU_SPAPR_REGISTER_MEMORY and VFIO_IOMMU_SPAPR_UNREGISTER_MEMORY
+(which are unsupported in v1 IOMMU).
+
+PPC64 paravirtualized guests generate a lot of map/unmap requests,
+and the handling of those includes pinning/unpinning pages and updating
+mm::locked_vm counter to make sure we do not exceed the rlimit.
+The v2 IOMMU splits accounting and pinning into separate operations:
+
+- VFIO_IOMMU_SPAPR_REGISTER_MEMORY/VFIO_IOMMU_SPAPR_UNREGISTER_MEMORY ioctls
+receive a user space address and size of the block to be pinned.
+Bisecting is not supported and VFIO_IOMMU_UNREGISTER_MEMORY is expected to
+be called with the exact address and size used for registering
+the memory block. The userspace is not expected to call these often.
+The ranges are stored in a linked list in a VFIO container.
+
+- VFIO_IOMMU_MAP_DMA/VFIO_IOMMU_UNMAP_DMA ioctls only update the actual
+IOMMU table and do not do pinning; instead these check that the userspace
+address is from pre-registered range.
+
+This separation helps in optimizing DMA for guests.
+
+6) sPAPR specification allows guests to have an additional DMA window(s) on
+a PCI bus with a variable page size. Two ioctls have been added to support
+this: VFIO_IOMMU_SPAPR_TCE_CREATE and VFIO_IOMMU_SPAPR_TCE_REMOVE.
+The platform has to support the functionality or error will be returned to
+the userspace. The existing hardware supports up to 2 DMA windows, one is
+2GB long, uses 4K pages and called "default 32bit window"; the other can
+be as big as entire RAM, use different page size, it is optional - guests
+create those in run-time if the guest driver supports 64bit DMA.
+
+VFIO_IOMMU_SPAPR_TCE_CREATE receives a page shift, a DMA window size and
+a number of TCE table levels (if a TCE table is going to be big enough and
+the kernel may not be able to allocate enough of physically contiguous memory).
+It creates a new window in the available slot and returns the bus address where
+the new window starts. Due to hardware limitation, the user space cannot choose
+the location of DMA windows.
+
+VFIO_IOMMU_SPAPR_TCE_REMOVE receives the bus start address of the window
+and removes it.
 
 -------------------------------------------------------------------------------
 

@@ -159,7 +159,7 @@ struct txpowerinfo24g {
 /*  | 1byte|----8bytes----|1byte|--5bytes--| */
 /*  |         |            Reserved(14bytes)	      | */
 
-/*  PG data exclude header, dummy 6 bytes frome CP test and reserved 1byte. */
+/*  PG data exclude header, dummy 6 bytes from CP test and reserved 1byte. */
 #define EFUSE_OOB_PROTECT_BYTES			15
 
 #define		HWSET_MAX_SIZE_88E		512
@@ -177,7 +177,7 @@ struct txpowerinfo24g {
 /*  9bytes + 1byt + 5bytes and pre 1byte. */
 /*  For worst case: */
 /*  | 2byte|----8bytes----|1byte|--7bytes--| 92D */
-/*  PG data exclude header, dummy 7 bytes frome CP test and reserved 1byte. */
+/*  PG data exclude header, dummy 7 bytes from CP test and reserved 1byte. */
 #define		EFUSE_OOB_PROTECT_BYTES_88E	18
 #define		EFUSE_PROTECT_BYTES_BANK_88E	16
 
@@ -187,14 +187,6 @@ struct txpowerinfo24g {
 #define EFUSE_BT_MAX_SECTION		128	/*  1024/8 */
 
 #define EFUSE_PROTECT_BYTES_BANK	16
-
-/*  For RTL8723 WiFi/BT/GPS multi-function configuration. */
-enum rt_multi_func {
-	RT_MULTI_FUNC_NONE = 0x00,
-	RT_MULTI_FUNC_WIFI = 0x01,
-	RT_MULTI_FUNC_BT = 0x02,
-	RT_MULTI_FUNC_GPS = 0x04,
-};
 
 /*  For RTL8723 regulator mode. */
 enum rt_regulator_mode {
@@ -377,11 +369,6 @@ struct hal_data_8188e {
 #define GET_HAL_DATA(__pAdapter)				\
 	((struct hal_data_8188e *)((__pAdapter)->HalData))
 #define GET_RF_TYPE(priv)		(GET_HAL_DATA(priv)->rf_type)
-
-#define INCLUDE_MULTI_FUNC_BT(_Adapter)				\
-	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
-#define INCLUDE_MULTI_FUNC_GPS(_Adapter)			\
-	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
 
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);

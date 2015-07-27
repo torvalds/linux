@@ -199,7 +199,7 @@ static unsigned int esdhc_of_get_min_clock(struct sdhci_host *host)
 
 static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 {
-	int pre_div = 2;
+	int pre_div = 1;
 	int div = 1;
 	u32 temp;
 
@@ -229,7 +229,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	dev_dbg(mmc_dev(host->mmc), "desired SD clock: %d, actual: %d\n",
 		clock, host->max_clk / pre_div / div);
-
+	host->mmc->actual_clock = host->max_clk / pre_div / div;
 	pre_div >>= 1;
 	div--;
 
@@ -361,6 +361,13 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	sdhci_get_of_property(pdev);
 
 	np = pdev->dev.of_node;
+	if (of_device_is_compatible(np, "fsl,p5040-esdhc") ||
+	    of_device_is_compatible(np, "fsl,p5020-esdhc") ||
+	    of_device_is_compatible(np, "fsl,p4080-esdhc") ||
+	    of_device_is_compatible(np, "fsl,p1020-esdhc") ||
+	    of_device_is_compatible(np, "fsl,t1040-esdhc"))
+		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+
 	if (of_device_is_compatible(np, "fsl,p2020-esdhc")) {
 		/*
 		 * Freescale messed up with P2020 as it has a non-standard

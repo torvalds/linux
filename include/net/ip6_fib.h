@@ -120,44 +120,18 @@ struct rt6_info {
 	struct rt6key			rt6i_src;
 	struct rt6key			rt6i_prefsrc;
 
+	struct list_head		rt6i_uncached;
+	struct uncached_list		*rt6i_uncached_list;
+
 	struct inet6_dev		*rt6i_idev;
-	unsigned long			_rt6i_peer;
+	struct rt6_info * __percpu	*rt6i_pcpu;
 
 	u32				rt6i_metric;
+	u32				rt6i_pmtu;
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
 };
-
-static inline struct inet_peer *rt6_peer_ptr(struct rt6_info *rt)
-{
-	return inetpeer_ptr(rt->_rt6i_peer);
-}
-
-static inline bool rt6_has_peer(struct rt6_info *rt)
-{
-	return inetpeer_ptr_is_peer(rt->_rt6i_peer);
-}
-
-static inline void __rt6_set_peer(struct rt6_info *rt, struct inet_peer *peer)
-{
-	__inetpeer_ptr_set_peer(&rt->_rt6i_peer, peer);
-}
-
-static inline bool rt6_set_peer(struct rt6_info *rt, struct inet_peer *peer)
-{
-	return inetpeer_ptr_set_peer(&rt->_rt6i_peer, peer);
-}
-
-static inline void rt6_init_peer(struct rt6_info *rt, struct inet_peer_base *base)
-{
-	inetpeer_init_ptr(&rt->_rt6i_peer, base);
-}
-
-static inline void rt6_transfer_peer(struct rt6_info *rt, struct rt6_info *ort)
-{
-	inetpeer_transfer_peer(&rt->_rt6i_peer, &ort->_rt6i_peer);
-}
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
@@ -189,13 +163,12 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 	rt0->rt6i_flags |= RTF_EXPIRES;
 }
 
-static inline void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
+static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 {
-	struct dst_entry *new = (struct dst_entry *) from;
+	if (rt->rt6i_flags & RTF_PCPU || unlikely(rt->dst.flags & DST_NOCACHE))
+		rt = (struct rt6_info *)(rt->dst.from);
 
-	rt->rt6i_flags &= ~RTF_EXPIRES;
-	dst_hold(new);
-	rt->dst.from = new;
+	return rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
 }
 
 static inline void ip6_rt_put(struct rt6_info *rt)

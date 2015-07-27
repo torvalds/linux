@@ -37,6 +37,11 @@
 		};
 	};
 
+	cpu-pmu {
+		compatible = "qcom,scorpion-mp-pmu";
+		interrupts = <1 9 0x304>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;

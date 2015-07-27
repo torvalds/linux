@@ -610,6 +610,16 @@ config INPUT_DA9055_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9055_onkey.
 
+config INPUT_DA9063_ONKEY
+	tristate "Dialog DA9063 OnKey"
+	depends on MFD_DA9063
+	help
+	  Support the ONKEY of Dialog DA9063 Power Management IC as an
+	  input device reporting power button statue.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called da9063_onkey.
+
 config INPUT_DM355EVM
 	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
 	depends on MFD_DM355EVM_MSP
@@ -775,6 +785,17 @@ config INPUT_DRV260X_HAPTICS
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv260x-haptics.
 
+config INPUT_DRV2665_HAPTICS
+	tristate "TI DRV2665 haptics support"
+	depends on INPUT && I2C
+	select INPUT_FF_MEMLESS
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI DRV2665 haptics driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called drv2665-haptics.
+
 config INPUT_DRV2667_HAPTICS
 	tristate "TI DRV2667 haptics support"
 	depends on INPUT && I2C
@@ -784,6 +805,6 @@ config INPUT_DRV2667_HAPTICS
 	  Say Y to enable support for the TI DRV2667 haptics driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called drv260x-haptics.
+	  module will be called drv2667-haptics.
 
 endif

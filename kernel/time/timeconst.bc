@@ -50,7 +50,7 @@ define timeconst(hz) {
 	print "#include <linux/types.h>\n\n"
 
 	print "#if HZ != ", hz, "\n"
-	print "#error \qkernel/timeconst.h has the wrong HZ value!\q\n"
+	print "#error \qinclude/generated/timeconst.h has the wrong HZ value!\q\n"
 	print "#endif\n\n"
 
 	if (hz < 2) {
@@ -105,4 +105,5 @@ define timeconst(hz) {
 	halt
 }
 
+hz = read();
 timeconst(hz)

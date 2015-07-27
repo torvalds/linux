@@ -42,6 +42,7 @@ void *kmap_atomic(struct page *page)
 	unsigned long paddr;
 	int type;
 
+	preempt_disable();
 	pagefault_disable();
 	type = kmap_atomic_idx_push();
 	paddr = page_to_phys(page);
@@ -85,5 +86,6 @@ void __kunmap_atomic(void *kvaddr)
 	}
 	kmap_atomic_idx_pop();
 	pagefault_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);

@@ -231,7 +231,7 @@ static int rockchip_cpuclk_notifier_cb(struct notifier_block *nb,
 }
 
 struct clk *rockchip_clk_register_cpuclk(const char *name,
-			const char **parent_names, u8 num_parents,
+			const char *const *parent_names, u8 num_parents,
 			const struct rockchip_cpuclk_reg_data *reg_data,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates, void __iomem *reg_base, spinlock_t *lock)

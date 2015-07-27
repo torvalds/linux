@@ -110,7 +110,6 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh = NULL;
 	int dir_has_error = 0;
-	struct ext4_fname_crypto_ctx *enc_ctx = NULL;
 	struct ext4_str fname_crypto_str = {.name = NULL, .len = 0};
 
 	if (is_dx_dir(inode)) {
@@ -134,16 +133,11 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			return err;
 	}
 
-	enc_ctx = ext4_get_fname_crypto_ctx(inode, EXT4_NAME_LEN);
-	if (IS_ERR(enc_ctx))
-		return PTR_ERR(enc_ctx);
-	if (enc_ctx) {
-		err = ext4_fname_crypto_alloc_buffer(enc_ctx, EXT4_NAME_LEN,
+	if (ext4_encrypted_inode(inode)) {
+		err = ext4_fname_crypto_alloc_buffer(inode, EXT4_NAME_LEN,
 						     &fname_crypto_str);
-		if (err < 0) {
-			ext4_put_fname_crypto_ctx(&enc_ctx);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	offset = ctx->pos & (sb->s_blocksize - 1);
@@ -239,17 +233,19 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			offset += ext4_rec_len_from_disk(de->rec_len,
 					sb->s_blocksize);
 			if (le32_to_cpu(de->inode)) {
-				if (enc_ctx == NULL) {
-					/* Directory is not encrypted */
+				if (!ext4_encrypted_inode(inode)) {
 					if (!dir_emit(ctx, de->name,
 					    de->name_len,
 					    le32_to_cpu(de->inode),
 					    get_dtype(sb, de->file_type)))
 						goto done;
 				} else {
+					int save_len = fname_crypto_str.len;
+
 					/* Directory is encrypted */
-					err = ext4_fname_disk_to_usr(enc_ctx,
+					err = ext4_fname_disk_to_usr(inode,
 						NULL, de, &fname_crypto_str);
+					fname_crypto_str.len = save_len;
 					if (err < 0)
 						goto errout;
 					if (!dir_emit(ctx,
@@ -272,7 +268,6 @@ done:
 	err = 0;
 errout:
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-	ext4_put_fname_crypto_ctx(&enc_ctx);
 	ext4_fname_crypto_free_buffer(&fname_crypto_str);
 #endif
 	brelse(bh);
@@ -598,6 +593,13 @@ finished:
 	return 0;
 }
 
+static int ext4_dir_open(struct inode * inode, struct file * filp)
+{
+	if (ext4_encrypted_inode(inode))
+		return ext4_get_encryption_info(inode) ? -EACCES : 0;
+	return 0;
+}
+
 static int ext4_release_dir(struct inode *inode, struct file *filp)
 {
 	if (filp->private_data)
@@ -640,5 +642,6 @@ const struct file_operations ext4_dir_operations = {
 	.compat_ioctl	= ext4_compat_ioctl,
 #endif
 	.fsync		= ext4_sync_file,
+	.open		= ext4_dir_open,
 	.release	= ext4_release_dir,
 };

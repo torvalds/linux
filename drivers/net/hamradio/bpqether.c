@@ -76,7 +76,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stat.h>
-#include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
@@ -483,6 +482,7 @@ static void bpq_setup(struct net_device *dev)
 	memcpy(dev->dev_addr,  &ax25_defaddr, AX25_ADDR_LEN);
 
 	dev->flags      = 0;
+	dev->features	= NETIF_F_LLTX;	/* Allow recursion */
 
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 	dev->header_ops      = &ax25_header_ops;

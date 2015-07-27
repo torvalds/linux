@@ -90,7 +90,7 @@ static int icoll_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops icoll_irq_domain_ops = {
+static const struct irq_domain_ops icoll_irq_domain_ops = {
 	.map = icoll_irq_domain_map,
 	.xlate = irq_domain_xlate_onecell,
 };

@@ -890,7 +890,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 
 		dev_dbg(musb->controller, "DMA IRQ %08x\n", dma_src);
 		real_dma_src = ~real_dma_src & dma_src;
-		if (tusb_dma_omap() && real_dma_src) {
+		if (tusb_dma_omap(musb) && real_dma_src) {
 			int	tx_source = (real_dma_src & 0xffff);
 			int	i;
 
@@ -1181,7 +1181,7 @@ static int tusb_musb_exit(struct musb *musb)
 }
 
 static const struct musb_platform_ops tusb_ops = {
-	.quirks		= MUSB_IN_TUSB,
+	.quirks		= MUSB_DMA_TUSB_OMAP | MUSB_IN_TUSB,
 	.init		= tusb_musb_init,
 	.exit		= tusb_musb_exit,
 
@@ -1192,6 +1192,10 @@ static const struct musb_platform_ops tusb_ops = {
 	.writeb		= tusb_writeb,
 	.read_fifo	= tusb_read_fifo,
 	.write_fifo	= tusb_write_fifo,
+#ifdef CONFIG_USB_TUSB_OMAP_DMA
+	.dma_init	= tusb_dma_controller_create,
+	.dma_exit	= tusb_dma_controller_destroy,
+#endif
 	.enable		= tusb_musb_enable,
 	.disable	= tusb_musb_disable,
 

@@ -195,6 +195,14 @@ config MTD_BLOCK2MTD
 	  Testing MTD users (eg JFFS2) on large media and media that might
 	  be removed during a write (using the floppy drive).
 
+config MTD_POWERNV_FLASH
+	tristate "powernv flash MTD driver"
+	depends on PPC_POWERNV
+	help
+	  This provides an MTD device to access flash on powernv OPAL
+	  platforms from Linux. This device abstracts away the
+	  firmware interface for flash access.
+
 comment "Disk-On-Chip Device Drivers"
 
 config MTD_DOCG3

@@ -241,8 +241,8 @@ static int hpfb_init_one(unsigned long phys_base, unsigned long virt_base)
 	fb_info.fix.line_length = fb_width;
 	fb_height = (in_8(fb_regs + HPFB_FBHMSB) << 8) | in_8(fb_regs + HPFB_FBHLSB);
 	fb_info.fix.smem_len = fb_width * fb_height;
-	fb_start = (unsigned long)ioremap_writethrough(fb_info.fix.smem_start,
-						       fb_info.fix.smem_len);
+	fb_start = (unsigned long)ioremap_wt(fb_info.fix.smem_start,
+					     fb_info.fix.smem_len);
 	hpfb_defined.xres = (in_8(fb_regs + HPFB_DWMSB) << 8) | in_8(fb_regs + HPFB_DWLSB);
 	hpfb_defined.yres = (in_8(fb_regs + HPFB_DHMSB) << 8) | in_8(fb_regs + HPFB_DHLSB);
 	hpfb_defined.xres_virtual = hpfb_defined.xres;

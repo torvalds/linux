@@ -25,13 +25,6 @@
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
-/* This enumerates device type. */
-enum exynos_drm_device_type {
-	EXYNOS_DEVICE_TYPE_NONE,
-	EXYNOS_DEVICE_TYPE_CRTC,
-	EXYNOS_DEVICE_TYPE_CONNECTOR,
-};
-
 /* this enumerates display type. */
 enum exynos_drm_output_type {
 	EXYNOS_DISPLAY_TYPE_NONE,
@@ -71,8 +64,6 @@ enum exynos_drm_output_type {
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
  * @zpos: order of overlay layer(z position).
- * @enabled: enabled or not.
- * @resume: to resume or not.
  *
  * this structure is common to exynos SoC and its contents would be copied
  * to hardware specific overlay info.
@@ -101,9 +92,6 @@ struct exynos_drm_plane {
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	unsigned int zpos;
-
-	bool enabled:1;
-	bool resume:1;
 };
 
 /*
@@ -157,7 +145,8 @@ struct exynos_drm_display {
 /*
  * Exynos drm crtc ops
  *
- * @dpms: control device power.
+ * @enable: enable the device
+ * @disable: disable the device
  * @mode_fixup: fix mode data before applying it
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
@@ -175,7 +164,8 @@ struct exynos_drm_display {
  */
 struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
-	void (*dpms)(struct exynos_drm_crtc *crtc, int mode);
+	void (*enable)(struct exynos_drm_crtc *crtc);
+	void (*disable)(struct exynos_drm_crtc *crtc);
 	bool (*mode_fixup)(struct exynos_drm_crtc *crtc,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
@@ -187,6 +177,7 @@ struct exynos_drm_crtc_ops {
 	void (*win_disable)(struct exynos_drm_crtc *crtc, unsigned int zpos);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
+	void (*clear_channels)(struct exynos_drm_crtc *crtc);
 };
 
 /*
@@ -201,7 +192,7 @@ struct exynos_drm_crtc_ops {
  *	drm framework doesn't support multiple irq yet.
  *	we can refer to the crtc to current hardware interrupt occurred through
  *	this pipe value.
- * @dpms: store the crtc dpms value
+ * @enabled: if the crtc is enabled or not
  * @event: vblank event that is currently queued for flip
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
@@ -210,7 +201,7 @@ struct exynos_drm_crtc {
 	struct drm_crtc			base;
 	enum exynos_drm_output_type	type;
 	unsigned int			pipe;
-	unsigned int			dpms;
+	bool				enabled;
 	wait_queue_head_t		pending_flip_queue;
 	struct drm_pending_vblank_event	*event;
 	const struct exynos_drm_crtc_ops	*ops;
@@ -293,15 +284,6 @@ int exynos_drm_device_subdrv_remove(struct drm_device *dev);
 int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
-#ifdef CONFIG_DRM_EXYNOS_IPP
-int exynos_platform_device_ipp_register(void);
-void exynos_platform_device_ipp_unregister(void);
-#else
-static inline int exynos_platform_device_ipp_register(void) { return 0; }
-static inline void exynos_platform_device_ipp_unregister(void) {}
-#endif
-
-
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
 int exynos_dpi_remove(struct exynos_drm_display *display);
@@ -314,26 +296,12 @@ static inline int exynos_dpi_remove(struct exynos_drm_display *display)
 }
 #endif
 
-#ifdef CONFIG_DRM_EXYNOS_VIDI
-int exynos_drm_probe_vidi(void);
-void exynos_drm_remove_vidi(void);
-#else
-static inline int exynos_drm_probe_vidi(void) { return 0; }
-static inline void exynos_drm_remove_vidi(void) {}
-#endif
-
 /* This function creates a encoder and a connector, and initializes them. */
 int exynos_drm_create_enc_conn(struct drm_device *dev,
 				struct exynos_drm_display *display);
 
-int exynos_drm_component_add(struct device *dev,
-				enum exynos_drm_device_type dev_type,
-				enum exynos_drm_output_type out_type);
-
-void exynos_drm_component_del(struct device *dev,
-				enum exynos_drm_device_type dev_type);
-
 extern struct platform_driver fimd_driver;
+extern struct platform_driver exynos5433_decon_driver;
 extern struct platform_driver decon_driver;
 extern struct platform_driver dp_driver;
 extern struct platform_driver dsi_driver;
@@ -346,4 +314,5 @@ extern struct platform_driver fimc_driver;
 extern struct platform_driver rotator_driver;
 extern struct platform_driver gsc_driver;
 extern struct platform_driver ipp_driver;
+extern struct platform_driver mic_driver;
 #endif

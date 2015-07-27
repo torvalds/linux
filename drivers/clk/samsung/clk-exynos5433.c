@@ -835,6 +835,7 @@ static unsigned long cpif_clk_regs[] __initdata = {
 	MPHY_PLL_CON1,
 	MPHY_PLL_FREQ_DET,
 	MUX_SEL_CPIF0,
+	DIV_CPIF,
 	ENABLE_SCLK_CPIF,
 };
 
@@ -1389,7 +1390,7 @@ static struct samsung_gate_clock mif_gate_clks[] __initdata = {
 
 	/* ENABLE_ACLK_MIF2 */
 	GATE(CLK_ACLK_MIFND_266, "aclk_mifnd_266", "div_aclk_mif_266",
-			ENABLE_ACLK_MIF2, 20, 0, 0),
+			ENABLE_ACLK_MIF2, 20, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_PPMU_DREX1S3, "aclk_ppmu_drex1s3", "div_aclk_drex1",
 			ENABLE_ACLK_MIF2, 17, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_PPMU_DREX1S1, "aclk_ppmu_drex1s1", "div_aclk_drex1",
@@ -1832,39 +1833,39 @@ static struct samsung_gate_clock peris_gate_clks[] __initdata = {
 
 	/* ENABLE_PCLK_PERIS_SECURE_TZPC */
 	GATE(CLK_PCLK_TZPC12, "pclk_tzpc12", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 12, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 12, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC11, "pclk_tzpc11", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 11, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 11, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC10, "pclk_tzpc10", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 10, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 10, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC9, "pclk_tzpc9", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 9, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 9, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC8, "pclk_tzpc8", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 8, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 8, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC7, "pclk_tzpc7", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 7, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 7, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC6, "pclk_tzpc6", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 6, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 6, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC5, "pclk_tzpc5", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 5, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 5, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC4, "pclk_tzpc4", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 4, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 4, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC3, "pclk_tzpc3", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 3, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 3, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC2, "pclk_tzpc2", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 2, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 2, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC1, "pclk_tzpc1", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 1, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 1, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_TZPC0, "pclk_tzpc0", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_TZPC, 0, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 0, CLK_IGNORE_UNUSED, 0),
 
 	/* ENABLE_PCLK_PERIS_SECURE_SECKEY_APBIF */
 	GATE(CLK_PCLK_SECKEY_APBIF, "pclk_seckey_apbif", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_SECKEY_APBIF, 0, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_SECKEY_APBIF, 0, CLK_IGNORE_UNUSED, 0),
 
 	/* ENABLE_PCLK_PERIS_SECURE_CHIPID_APBIF */
 	GATE(CLK_PCLK_CHIPID_APBIF, "pclk_chipid_apbif", "aclk_peris_66",
-			ENABLE_PCLK_PERIS_SECURE_CHIPID_APBIF, 0, 0, 0),
+			ENABLE_PCLK_PERIS_SECURE_CHIPID_APBIF, 0, CLK_IGNORE_UNUSED, 0),
 
 	/* ENABLE_PCLK_PERIS_SECURE_TOPRTC */
 	GATE(CLK_PCLK_TOPRTC, "pclk_toprtc", "aclk_peris_66",
@@ -1895,11 +1896,11 @@ static struct samsung_gate_clock peris_gate_clks[] __initdata = {
 
 	/* ENABLE_SCLK_PERIS_SECURE_SECKEY */
 	GATE(CLK_SCLK_SECKEY, "sclk_seckey", "oscclk_efuse_common",
-			ENABLE_SCLK_PERIS_SECURE_SECKEY, 0, 0, 0),
+			ENABLE_SCLK_PERIS_SECURE_SECKEY, 0, CLK_IGNORE_UNUSED, 0),
 
 	/* ENABLE_SCLK_PERIS_SECURE_CHIPID */
 	GATE(CLK_SCLK_CHIPID, "sclk_chipid", "oscclk_efuse_common",
-			ENABLE_SCLK_PERIS_SECURE_CHIPID, 0, 0, 0),
+			ENABLE_SCLK_PERIS_SECURE_CHIPID, 0, CLK_IGNORE_UNUSED, 0),
 
 	/* ENABLE_SCLK_PERIS_SECURE_TOPRTC */
 	GATE(CLK_SCLK_TOPRTC, "sclk_toprtc", "oscclk_efuse_common",
@@ -3286,10 +3287,10 @@ static struct samsung_pll_clock g3d_pll_clks[] __initdata = {
 
 static struct samsung_mux_clock g3d_mux_clks[] __initdata = {
 	/* MUX_SEL_G3D */
-	MUX(CLK_MOUT_ACLK_G3D_400, "mout_aclk_g3d_400", mout_aclk_g3d_400_p,
-			MUX_SEL_G3D, 8, 1),
-	MUX(CLK_MOUT_G3D_PLL, "mout_g3d_pll", mout_g3d_pll_p,
-			MUX_SEL_G3D, 0, 1),
+	MUX_F(CLK_MOUT_ACLK_G3D_400, "mout_aclk_g3d_400", mout_aclk_g3d_400_p,
+			MUX_SEL_G3D, 8, 1, CLK_SET_RATE_PARENT, 0),
+	MUX_F(CLK_MOUT_G3D_PLL, "mout_g3d_pll", mout_g3d_pll_p,
+			MUX_SEL_G3D, 0, 1, CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_div_clock g3d_div_clks[] __initdata = {
@@ -3298,8 +3299,8 @@ static struct samsung_div_clock g3d_div_clks[] __initdata = {
 			8, 2),
 	DIV(CLK_DIV_PCLK_G3D, "div_pclk_g3d", "div_aclk_g3d", DIV_G3D,
 			4, 3),
-	DIV(CLK_DIV_ACLK_G3D, "div_aclk_g3d", "mout_aclk_g3d_400", DIV_G3D,
-			0, 3),
+	DIV_F(CLK_DIV_ACLK_G3D, "div_aclk_g3d", "mout_aclk_g3d_400", DIV_G3D,
+			0, 3, CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_gate_clock g3d_gate_clks[] __initdata = {
@@ -3309,9 +3310,9 @@ static struct samsung_gate_clock g3d_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_BTS_G3D0, "aclk_bts_g3d0", "div_aclk_g3d",
 			ENABLE_ACLK_G3D, 6, 0, 0),
 	GATE(CLK_ACLK_ASYNCAPBS_G3D, "aclk_asyncapbs_g3d", "div_pclk_g3d",
-			ENABLE_ACLK_G3D, 5, 0, 0),
+			ENABLE_ACLK_G3D, 5, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_ASYNCAPBM_G3D, "aclk_asyncapbm_g3d", "div_aclk_g3d",
-			ENABLE_ACLK_G3D, 4, 0, 0),
+			ENABLE_ACLK_G3D, 4, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_AHB2APB_G3DP, "aclk_ahb2apb_g3dp", "div_pclk_g3d",
 			ENABLE_ACLK_G3D, 3, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_G3DNP_150, "aclk_g3dnp_150", "div_pclk_g3d",
@@ -3319,7 +3320,7 @@ static struct samsung_gate_clock g3d_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_G3DND_600, "aclk_g3dnd_600", "div_aclk_g3d",
 			ENABLE_ACLK_G3D, 1, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_G3D, "aclk_g3d", "div_aclk_g3d",
-			ENABLE_ACLK_G3D, 0, 0, 0),
+			ENABLE_ACLK_G3D, 0, CLK_SET_RATE_PARENT, 0),
 
 	/* ENABLE_PCLK_G3D */
 	GATE(CLK_PCLK_BTS_G3D1, "pclk_bts_g3d1", "div_pclk_g3d",
@@ -3582,7 +3583,7 @@ static struct samsung_pll_clock apollo_pll_clks[] __initdata = {
 static struct samsung_mux_clock apollo_mux_clks[] __initdata = {
 	/* MUX_SEL_APOLLO0 */
 	MUX_F(CLK_MOUT_APOLLO_PLL, "mout_apollo_pll", mout_apollo_pll_p,
-			MUX_SEL_APOLLO0, 0, 1, 0, CLK_MUX_READ_ONLY),
+			MUX_SEL_APOLLO0, 0, 1, CLK_SET_RATE_PARENT, 0),
 
 	/* MUX_SEL_APOLLO1 */
 	MUX(CLK_MOUT_BUS_PLL_APOLLO_USER, "mout_bus_pll_apollo_user",
@@ -3590,7 +3591,7 @@ static struct samsung_mux_clock apollo_mux_clks[] __initdata = {
 
 	/* MUX_SEL_APOLLO2 */
 	MUX_F(CLK_MOUT_APOLLO, "mout_apollo", mout_apollo_p, MUX_SEL_APOLLO2,
-			0, 1, 0, CLK_MUX_READ_ONLY),
+			0, 1, CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_div_clock apollo_div_clks[] __initdata = {
@@ -3611,11 +3612,9 @@ static struct samsung_div_clock apollo_div_clks[] __initdata = {
 			DIV_APOLLO0, 8, 3, CLK_GET_RATE_NOCACHE,
 			CLK_DIVIDER_READ_ONLY),
 	DIV_F(CLK_DIV_APOLLO2, "div_apollo2", "div_apollo1",
-			DIV_APOLLO0, 4, 3, CLK_GET_RATE_NOCACHE,
-			CLK_DIVIDER_READ_ONLY),
+			DIV_APOLLO0, 4, 3, CLK_SET_RATE_PARENT, 0),
 	DIV_F(CLK_DIV_APOLLO1, "div_apollo1", "mout_apollo",
-			DIV_APOLLO0, 0, 3, CLK_GET_RATE_NOCACHE,
-			CLK_DIVIDER_READ_ONLY),
+			DIV_APOLLO0, 0, 3, CLK_SET_RATE_PARENT, 0),
 
 	/* DIV_APOLLO1 */
 	DIV_F(CLK_DIV_SCLK_HPM_APOLLO, "div_sclk_hpm_apollo", "mout_apollo",
@@ -3666,7 +3665,8 @@ static struct samsung_gate_clock apollo_gate_clks[] __initdata = {
 	GATE(CLK_SCLK_HPM_APOLLO, "sclk_hpm_apollo", "div_sclk_hpm_apollo",
 			ENABLE_SCLK_APOLLO, 1, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_APOLLO, "sclk_apollo", "div_apollo2",
-			ENABLE_SCLK_APOLLO, 0, CLK_IGNORE_UNUSED, 0),
+			ENABLE_SCLK_APOLLO, 0,
+			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_cmu_info apollo_cmu_info __initdata = {
@@ -3775,7 +3775,7 @@ static struct samsung_pll_clock atlas_pll_clks[] __initdata = {
 static struct samsung_mux_clock atlas_mux_clks[] __initdata = {
 	/* MUX_SEL_ATLAS0 */
 	MUX_F(CLK_MOUT_ATLAS_PLL, "mout_atlas_pll", mout_atlas_pll_p,
-			MUX_SEL_ATLAS0, 0, 1, 0, CLK_MUX_READ_ONLY),
+			MUX_SEL_ATLAS0, 0, 1, CLK_SET_RATE_PARENT, 0),
 
 	/* MUX_SEL_ATLAS1 */
 	MUX(CLK_MOUT_BUS_PLL_ATLAS_USER, "mout_bus_pll_atlas_user",
@@ -3783,7 +3783,7 @@ static struct samsung_mux_clock atlas_mux_clks[] __initdata = {
 
 	/* MUX_SEL_ATLAS2 */
 	MUX_F(CLK_MOUT_ATLAS, "mout_atlas", mout_atlas_p, MUX_SEL_ATLAS2,
-			0, 1, 0, CLK_MUX_READ_ONLY),
+			0, 1, CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_div_clock atlas_div_clks[] __initdata = {
@@ -3804,11 +3804,9 @@ static struct samsung_div_clock atlas_div_clks[] __initdata = {
 			DIV_ATLAS0, 8, 3, CLK_GET_RATE_NOCACHE,
 			CLK_DIVIDER_READ_ONLY),
 	DIV_F(CLK_DIV_ATLAS2, "div_atlas2", "div_atlas1",
-			DIV_ATLAS0, 4, 3, CLK_GET_RATE_NOCACHE,
-			CLK_DIVIDER_READ_ONLY),
+			DIV_ATLAS0, 4, 3, CLK_SET_RATE_PARENT, 0),
 	DIV_F(CLK_DIV_ATLAS1, "div_atlas1", "mout_atlas",
-			DIV_ATLAS0, 0, 3, CLK_GET_RATE_NOCACHE,
-			CLK_DIVIDER_READ_ONLY),
+			DIV_ATLAS0, 0, 3, CLK_SET_RATE_PARENT, 0),
 
 	/* DIV_ATLAS1 */
 	DIV_F(CLK_DIV_SCLK_HPM_ATLAS, "div_sclk_hpm_atlas", "mout_atlas",
@@ -3885,7 +3883,8 @@ static struct samsung_gate_clock atlas_gate_clks[] __initdata = {
 	GATE(CLK_ATCLK, "atclk", "div_atclk_atlas",
 			ENABLE_SCLK_ATLAS, 1, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_ATLAS, "sclk_atlas", "div_atlas2",
-			ENABLE_SCLK_ATLAS, 0, CLK_IGNORE_UNUSED, 0),
+			ENABLE_SCLK_ATLAS, 0,
+			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
 };
 
 static struct samsung_cmu_info atlas_cmu_info __initdata = {

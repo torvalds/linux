@@ -1843,7 +1843,7 @@ qla82xx_set_product_offset(struct qla_hw_data *ha)
 
 	ptab_desc = qla82xx_get_table_desc(unirom,
 		 QLA82XX_URI_DIR_SECT_PRODUCT_TBL);
-       if (!ptab_desc)
+	if (!ptab_desc)
 		return -1;
 
 	entries = cpu_to_le32(ptab_desc->num_entries);

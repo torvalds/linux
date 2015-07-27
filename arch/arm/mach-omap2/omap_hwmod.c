@@ -3318,16 +3318,17 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
  */
 int omap_hwmod_idle(struct omap_hwmod *oh)
 {
+	int r;
 	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
 	spin_lock_irqsave(&oh->_lock, flags);
-	_idle(oh);
+	r = _idle(oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
-	return 0;
+	return r;
 }
 
 /**
@@ -3340,16 +3341,17 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
  */
 int omap_hwmod_shutdown(struct omap_hwmod *oh)
 {
+	int r;
 	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
 	spin_lock_irqsave(&oh->_lock, flags);
-	_shutdown(oh);
+	r = _shutdown(oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
-	return 0;
+	return r;
 }
 
 /*

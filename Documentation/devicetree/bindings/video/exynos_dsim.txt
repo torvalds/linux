@@ -6,17 +6,19 @@ Required properties:
 		"samsung,exynos4210-mipi-dsi" /* for Exynos4 SoCs */
 		"samsung,exynos4415-mipi-dsi" /* for Exynos4415 SoC */
 		"samsung,exynos5410-mipi-dsi" /* for Exynos5410/5420/5440 SoCs */
+		"samsung,exynos5433-mipi-dsi" /* for Exynos5433 SoCs */
   - reg: physical base address and length of the registers set for the device
   - interrupts: should contain DSI interrupt
   - clocks: list of clock specifiers, must contain an entry for each required
     entry in clock-names
-  - clock-names: should include "bus_clk"and "pll_clk" entries
+  - clock-names: should include "bus_clk"and "sclk_mipi" entries
+		 the use of "pll_clk" is deprecated
   - phys: list of phy specifiers, must contain an entry for each required
     entry in phy-names
   - phy-names: should include "dsim" entry
   - vddcore-supply: MIPI DSIM Core voltage supply (e.g. 1.1V)
   - vddio-supply: MIPI DSIM I/O and PLL voltage supply (e.g. 1.8V)
-  - samsung,pll-clock-frequency: specifies frequency of the "pll_clk" clock
+  - samsung,pll-clock-frequency: specifies frequency of the oscillator clock
   - #address-cells, #size-cells: should be set respectively to <1> and <0>
     according to DSI host bindings (see MIPI DSI bindings [1])
 
@@ -30,10 +32,19 @@ Video interfaces:
   Device node can contain video interface port nodes according to [2].
   The following are properties specific to those nodes:
 
-  port node:
-    - reg: (required) can be 0 for input RGB/I80 port or 1 for DSI port;
+  port node inbound:
+    - reg: (required) must be 0.
+  port node outbound:
+    - reg: (required) must be 1.
 
-  endpoint node of DSI port (reg = 1):
+  endpoint node connected from mic node (reg = 0):
+    - remote-endpoint: specifies the endpoint in mic node. This node is required
+		       for Exynos5433 mipi dsi. So mic can access to panel node
+		       thoughout this dsi node.
+  endpoint node connected to panel node (reg = 1):
+    - remote-endpoint: specifies the endpoint in panel node. This node is
+		       required in all kinds of exynos mipi dsi to represent
+		       the connection between mipi dsi and panel.
     - samsung,burst-clock-frequency: specifies DSI frequency in high-speed burst
       mode
     - samsung,esc-clock-frequency: specifies DSI frequency in escape mode
@@ -48,7 +59,7 @@ Example:
 		reg = <0x11C80000 0x10000>;
 		interrupts = <0 79 0>;
 		clocks = <&clock 286>, <&clock 143>;
-		clock-names = "bus_clk", "pll_clk";
+		clock-names = "bus_clk", "sclk_mipi";
 		phys = <&mipi_phy 1>;
 		phy-names = "dsim";
 		vddcore-supply = <&vusb_reg>;
@@ -72,7 +83,15 @@ Example:
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			port@0 {
+				reg = <0>;
+				decon_to_mic: endpoint {
+					remote-endpoint = <&mic_to_decon>;
+				};
+			};
+
 			port@1 {
+				reg = <1>;
 				dsi_ep: endpoint {
 					reg = <0>;
 					samsung,burst-clock-frequency = <500000000>;

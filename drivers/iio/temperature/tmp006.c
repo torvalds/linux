@@ -41,8 +41,8 @@
 #define TMP006_CONFIG_CR_MASK 0x0e00
 #define TMP006_CONFIG_CR_SHIFT 9
 
-#define MANUFACTURER_MAGIC 0x5449
-#define DEVICE_MAGIC 0x0067
+#define TMP006_MANUFACTURER_MAGIC 0x5449
+#define TMP006_DEVICE_MAGIC 0x0067
 
 struct tmp006_data {
 	struct i2c_client *client;
@@ -132,6 +132,9 @@ static int tmp006_write_raw(struct iio_dev *indio_dev,
 	struct tmp006_data *data = iio_priv(indio_dev);
 	int i;
 
+	if (mask != IIO_CHAN_INFO_SAMP_FREQ)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(tmp006_freqs); i++)
 		if ((val == tmp006_freqs[i][0]) &&
 		    (val2 == tmp006_freqs[i][1])) {
@@ -191,7 +194,7 @@ static bool tmp006_check_identification(struct i2c_client *client)
 	if (did < 0)
 		return false;
 
-	return mid == MANUFACTURER_MAGIC && did == DEVICE_MAGIC;
+	return mid == TMP006_MANUFACTURER_MAGIC && did == TMP006_DEVICE_MAGIC;
 }
 
 static int tmp006_probe(struct i2c_client *client,

@@ -52,45 +52,45 @@
  * PCI BAR2 Register map (dev->mmio)
  */
 #define FIRMWARE_REV_REG			0x00
-#define FEATURES_REG_PRESENT_BIT		(1 << 15)
+#define FEATURES_REG_PRESENT_BIT		BIT(15)
 #define BOARD_CONTROL_REG			0x04
-#define BOARD_RESET_BIT				(1 << 0)
-#define TX_FIFO_RESET_BIT			(1 << 1)
-#define RX_FIFO_RESET_BIT			(1 << 2)
-#define TX_ENABLE_BIT				(1 << 4)
-#define RX_ENABLE_BIT				(1 << 5)
-#define DEMAND_DMA_DIRECTION_TX_BIT		(1 << 6)  /* ch 0 only */
-#define LINE_VALID_ON_STATUS_VALID_BIT		(1 << 7)
-#define START_TX_BIT				(1 << 8)
-#define CABLE_THROTTLE_ENABLE_BIT		(1 << 9)
-#define TEST_MODE_ENABLE_BIT			(1 << 31)
+#define BOARD_RESET_BIT				BIT(0)
+#define TX_FIFO_RESET_BIT			BIT(1)
+#define RX_FIFO_RESET_BIT			BIT(2)
+#define TX_ENABLE_BIT				BIT(4)
+#define RX_ENABLE_BIT				BIT(5)
+#define DEMAND_DMA_DIRECTION_TX_BIT		BIT(6)  /* ch 0 only */
+#define LINE_VALID_ON_STATUS_VALID_BIT		BIT(7)
+#define START_TX_BIT				BIT(8)
+#define CABLE_THROTTLE_ENABLE_BIT		BIT(9)
+#define TEST_MODE_ENABLE_BIT			BIT(31)
 #define BOARD_STATUS_REG			0x08
 #define COMMAND_LINE_STATUS_MASK		(0x7f << 0)
-#define TX_IN_PROGRESS_BIT			(1 << 7)
-#define TX_NOT_EMPTY_BIT			(1 << 8)
-#define TX_NOT_ALMOST_EMPTY_BIT			(1 << 9)
-#define TX_NOT_ALMOST_FULL_BIT			(1 << 10)
-#define TX_NOT_FULL_BIT				(1 << 11)
-#define RX_NOT_EMPTY_BIT			(1 << 12)
-#define RX_NOT_ALMOST_EMPTY_BIT			(1 << 13)
-#define RX_NOT_ALMOST_FULL_BIT			(1 << 14)
-#define RX_NOT_FULL_BIT				(1 << 15)
-#define BOARD_JUMPER0_INSTALLED_BIT		(1 << 16)
-#define BOARD_JUMPER1_INSTALLED_BIT		(1 << 17)
-#define TX_OVERRUN_BIT				(1 << 21)
-#define RX_UNDERRUN_BIT				(1 << 22)
-#define RX_OVERRUN_BIT				(1 << 23)
+#define TX_IN_PROGRESS_BIT			BIT(7)
+#define TX_NOT_EMPTY_BIT			BIT(8)
+#define TX_NOT_ALMOST_EMPTY_BIT			BIT(9)
+#define TX_NOT_ALMOST_FULL_BIT			BIT(10)
+#define TX_NOT_FULL_BIT				BIT(11)
+#define RX_NOT_EMPTY_BIT			BIT(12)
+#define RX_NOT_ALMOST_EMPTY_BIT			BIT(13)
+#define RX_NOT_ALMOST_FULL_BIT			BIT(14)
+#define RX_NOT_FULL_BIT				BIT(15)
+#define BOARD_JUMPER0_INSTALLED_BIT		BIT(16)
+#define BOARD_JUMPER1_INSTALLED_BIT		BIT(17)
+#define TX_OVERRUN_BIT				BIT(21)
+#define RX_UNDERRUN_BIT				BIT(22)
+#define RX_OVERRUN_BIT				BIT(23)
 #define TX_PROG_ALMOST_REG			0x0c
 #define RX_PROG_ALMOST_REG			0x10
 #define ALMOST_EMPTY_BITS(x)			(((x) & 0xffff) << 0)
 #define ALMOST_FULL_BITS(x)			(((x) & 0xff) << 16)
 #define FEATURES_REG				0x14
-#define FIFO_SIZE_PRESENT_BIT			(1 << 0)
-#define FIFO_WORDS_PRESENT_BIT			(1 << 1)
-#define LEVEL_EDGE_INTERRUPTS_PRESENT_BIT	(1 << 2)
-#define GPIO_SUPPORTED_BIT			(1 << 3)
-#define PLX_DMA_CH1_SUPPORTED_BIT		(1 << 4)
-#define OVERRUN_UNDERRUN_SUPPORTED_BIT		(1 << 5)
+#define FIFO_SIZE_PRESENT_BIT			BIT(0)
+#define FIFO_WORDS_PRESENT_BIT			BIT(1)
+#define LEVEL_EDGE_INTERRUPTS_PRESENT_BIT	BIT(2)
+#define GPIO_SUPPORTED_BIT			BIT(3)
+#define PLX_DMA_CH1_SUPPORTED_BIT		BIT(4)
+#define OVERRUN_UNDERRUN_SUPPORTED_BIT		BIT(5)
 #define FIFO_REG				0x18
 #define TX_STATUS_COUNT_REG			0x1c
 #define TX_LINE_VALID_COUNT_REG			0x20,
@@ -98,16 +98,16 @@
 #define RX_STATUS_COUNT_REG			0x28
 #define RX_LINE_COUNT_REG			0x2c
 #define INTERRUPT_CONTROL_REG			0x30
-#define FRAME_VALID_START_INTR			(1 << 0)
-#define FRAME_VALID_END_INTR			(1 << 1)
-#define TX_FIFO_EMPTY_INTR			(1 << 8)
-#define TX_FIFO_ALMOST_EMPTY_INTR		(1 << 9)
-#define TX_FIFO_ALMOST_FULL_INTR		(1 << 10)
-#define TX_FIFO_FULL_INTR			(1 << 11)
-#define RX_EMPTY_INTR				(1 << 12)
-#define RX_ALMOST_EMPTY_INTR			(1 << 13)
-#define RX_ALMOST_FULL_INTR			(1 << 14)
-#define RX_FULL_INTR				(1 << 15)
+#define FRAME_VALID_START_INTR			BIT(0)
+#define FRAME_VALID_END_INTR			BIT(1)
+#define TX_FIFO_EMPTY_INTR			BIT(8)
+#define TX_FIFO_ALMOST_EMPTY_INTR		BIT(9)
+#define TX_FIFO_ALMOST_FULL_INTR		BIT(10)
+#define TX_FIFO_FULL_INTR			BIT(11)
+#define RX_EMPTY_INTR				BIT(12)
+#define RX_ALMOST_EMPTY_INTR			BIT(13)
+#define RX_ALMOST_FULL_INTR			BIT(14)
+#define RX_FULL_INTR				BIT(15)
 #define INTERRUPT_STATUS_REG			0x34
 #define TX_CLOCK_DIVIDER_REG			0x38
 #define TX_FIFO_SIZE_REG			0x40
@@ -123,34 +123,15 @@
 #define NUM_DMA_BUFFERS				4
 #define NUM_DMA_DESCRIPTORS			256
 
-struct hpdi_board {
-	const char *name;
-	int device_id;
-	int subdevice_id;
-};
-
-static const struct hpdi_board hpdi_boards[] = {
-	{
-		.name		= "pci-hpdi32",
-		.device_id	= PCI_DEVICE_ID_PLX_9080,
-		.subdevice_id	= 0x2400,
-	 },
-#if 0
-	{
-		.name		= "pxi-hpdi32",
-		.device_id	= 0x9656,
-		.subdevice_id	= 0x2705,
-	 },
-#endif
-};
-
 struct hpdi_private {
 	void __iomem *plx9080_mmio;
-	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/*  dma buffers */
+	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/* dma buffers */
 	/* physical addresses of dma buffers */
 	dma_addr_t dio_buffer_phys_addr[NUM_DMA_BUFFERS];
-	/* array of dma descriptors read by plx9080, allocated to get proper
-	 * alignment */
+	/*
+	 * array of dma descriptors read by plx9080, allocated to get proper
+	 * alignment
+	 */
 	struct plx_dma_desc *dma_desc;
 	/* physical address of dma descriptor array */
 	dma_addr_t dma_desc_phys_addr;
@@ -202,7 +183,7 @@ static void gsc_hpdi_drain_dma(struct comedi_device *dev, unsigned int channel)
 
 		devpriv->dma_desc_index = idx;
 	}
-	/*  XXX check for buffer overrun somehow */
+	/* XXX check for buffer overrun somehow */
 }
 
 static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
@@ -230,10 +211,11 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	if (hpdi_intr_status)
 		writel(hpdi_intr_status, dev->mmio + INTERRUPT_STATUS_REG);
 
-	/*  spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
-	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
+	if (plx_status & ICS_DMA0_A) {
+		/* dma chan 0 interrupt */
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 		       devpriv->plx9080_mmio + PLX_DMA0_CS_REG);
 
@@ -242,17 +224,19 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/*  spin lock makes sure no one else changes plx dma control reg */
+	/* spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_mmio + PLX_DMA1_CS_REG);
-	if (plx_status & ICS_DMA1_A) {	/*  XXX *//*  dma chan 1 interrupt */
+	if (plx_status & ICS_DMA1_A) {
+		/* XXX */ /* dma chan 1 interrupt */
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 		       devpriv->plx9080_mmio + PLX_DMA1_CS_REG);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/*  clear possible plx9080 interrupt sources */
-	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
+	/* clear possible plx9080 interrupt sources */
+	if (plx_status & ICS_LDIA) {
+		/* clear local doorbell interrupt */
 		plx_bits = readl(devpriv->plx9080_mmio + PLX_DBR_OUT_REG);
 		writel(plx_bits, devpriv->plx9080_mmio + PLX_DBR_OUT_REG);
 	}
@@ -280,7 +264,7 @@ static void gsc_hpdi_abort_dma(struct comedi_device *dev, unsigned int channel)
 	struct hpdi_private *devpriv = dev->private;
 	unsigned long flags;
 
-	/*  spinlock for plx dma control/status reg */
+	/* spinlock for plx dma control/status reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 
 	plx9080_abort_dma(devpriv->plx9080_mmio, channel);
@@ -536,7 +520,7 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 
 	/* wait 10usec after reset before accessing fifos */
 	writel(BOARD_RESET_BIT, dev->mmio + BOARD_CONTROL_REG);
-	udelay(10);
+	usleep_range(10, 1000);
 
 	writel(ALMOST_EMPTY_BITS(32) | ALMOST_FULL_BITS(32),
 	       dev->mmio + RX_PROG_ALMOST_REG);
@@ -550,7 +534,7 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 
 	writel(0, dev->mmio + INTERRUPT_CONTROL_REG);
 
-	/*  enable interrupts */
+	/* enable interrupts */
 	plx_intcsr_bits =
 	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
 	    ICS_DMA0_E;
@@ -577,57 +561,42 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 	gsc_hpdi_abort_dma(dev, 0);
 	gsc_hpdi_abort_dma(dev, 1);
 
-	/*  configure dma0 mode */
+	/* configure dma0 mode */
 	bits = 0;
-	/*  enable ready input */
+	/* enable ready input */
 	bits |= PLX_DMA_EN_READYIN_BIT;
-	/*  enable dma chaining */
+	/* enable dma chaining */
 	bits |= PLX_EN_CHAIN_BIT;
-	/*  enable interrupt on dma done
-	 *  (probably don't need this, since chain never finishes) */
+	/*
+	 * enable interrupt on dma done
+	 * (probably don't need this, since chain never finishes)
+	 */
 	bits |= PLX_EN_DMA_DONE_INTR_BIT;
-	/*  don't increment local address during transfers
-	 *  (we are transferring from a fixed fifo register) */
+	/*
+	 * don't increment local address during transfers
+	 * (we are transferring from a fixed fifo register)
+	 */
 	bits |= PLX_LOCAL_ADDR_CONST_BIT;
-	/*  route dma interrupt to pci bus */
+	/* route dma interrupt to pci bus */
 	bits |= PLX_DMA_INTR_PCI_BIT;
-	/*  enable demand mode */
+	/* enable demand mode */
 	bits |= PLX_DEMAND_MODE_BIT;
-	/*  enable local burst mode */
+	/* enable local burst mode */
 	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
 	bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
 	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
-}
-
-static const struct hpdi_board *gsc_hpdi_find_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(hpdi_boards); i++)
-		if (pcidev->device == hpdi_boards[i].device_id &&
-		    pcidev->subsystem_device == hpdi_boards[i].subdevice_id)
-			return &hpdi_boards[i];
-	return NULL;
 }
 
 static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct hpdi_board *thisboard;
 	struct hpdi_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
 	int retval;
 
-	thisboard = gsc_hpdi_find_board(pcidev);
-	if (!thisboard) {
-		dev_err(dev->class_dev, "gsc_hpdi: pci %s not supported\n",
-			pci_name(pcidev));
-		return -EINVAL;
-	}
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_name = "pci-hpdi32";
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -647,7 +616,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 
 	gsc_hpdi_init_plx9080(dev);
 
-	/*  get irq */
+	/* get irq */
 	if (request_irq(pcidev->irq, gsc_hpdi_interrupt, IRQF_SHARED,
 			dev->board_name, dev)) {
 		dev_warn(dev->class_dev,
@@ -658,13 +627,13 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 
 	dev_dbg(dev->class_dev, " irq %u\n", dev->irq);
 
-	/*  allocate pci dma buffers */
+	/* allocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		devpriv->dio_buffer[i] =
 		    pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 					 &devpriv->dio_buffer_phys_addr[i]);
 	}
-	/*  allocate dma descriptors */
+	/* allocate dma descriptors */
 	devpriv->dma_desc = pci_alloc_consistent(pcidev,
 						 sizeof(struct plx_dma_desc) *
 						 NUM_DMA_DESCRIPTORS,
@@ -733,8 +702,8 @@ static int gsc_hpdi_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id gsc_hpdi_pci_table[] = {
-	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080, PCI_VENDOR_ID_PLX,
-		    0x2400, 0, 0, 0},
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080,
+			 PCI_VENDOR_ID_PLX, 0x2400) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, gsc_hpdi_pci_table);
@@ -748,5 +717,5 @@ static struct pci_driver gsc_hpdi_pci_driver = {
 module_comedi_pci_driver(gsc_hpdi_driver, gsc_hpdi_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for General Standards PCI-HPDI32/PMC-HPDI32");
 MODULE_LICENSE("GPL");

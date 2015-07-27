@@ -42,8 +42,8 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 int ocfs2_add_inode_to_orphan(struct ocfs2_super *osb,
 		struct inode *inode);
 int ocfs2_del_inode_from_orphan(struct ocfs2_super *osb,
-		struct inode *inode, int update_isize,
-		loff_t end);
+		struct inode *inode, struct buffer_head *di_bh,
+		int update_isize, loff_t end);
 int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 				   struct inode *new_inode,
 				   struct dentry *new_dentry);

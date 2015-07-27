@@ -506,8 +506,7 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 		data->domains[nr_domains++] = bank->irq_domain;
 	}
 
-	irq_set_chained_handler(d->irq, s3c64xx_eint_gpio_irq);
-	irq_set_handler_data(d->irq, data);
+	irq_set_chained_handler_and_data(d->irq, s3c64xx_eint_gpio_irq, data);
 
 	return 0;
 }
@@ -731,8 +730,9 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 			return -ENXIO;
 		}
 
-		irq_set_chained_handler(irq, s3c64xx_eint0_handlers[i]);
-		irq_set_handler_data(irq, data);
+		irq_set_chained_handler_and_data(irq,
+						 s3c64xx_eint0_handlers[i],
+						 data);
 	}
 
 	bank = d->pin_banks;

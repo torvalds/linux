@@ -169,6 +169,7 @@ struct cm_device {
 	struct ib_device *ib_device;
 	struct device *device;
 	u8 ack_delay;
+	int going_down;
 	struct cm_port *port[0];
 };
 
@@ -267,7 +268,8 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn,
 			       cm_id_priv->av.pkey_index,
 			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-			       GFP_ATOMIC);
+			       GFP_ATOMIC,
+			       IB_MGMT_BASE_VERSION);
 	if (IS_ERR(m)) {
 		ib_destroy_ah(ah);
 		return PTR_ERR(m);
@@ -297,7 +299,8 @@ static int cm_alloc_response_msg(struct cm_port *port,
 
 	m = ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
 			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-			       GFP_ATOMIC);
+			       GFP_ATOMIC,
+			       IB_MGMT_BASE_VERSION);
 	if (IS_ERR(m)) {
 		ib_destroy_ah(ah);
 		return PTR_ERR(m);
@@ -803,6 +806,11 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 {
 	int wait_time;
 	unsigned long flags;
+	struct cm_device *cm_dev;
+
+	cm_dev = ib_get_client_data(cm_id_priv->id.device, &cm_client);
+	if (!cm_dev)
+		return;
 
 	spin_lock_irqsave(&cm.lock, flags);
 	cm_cleanup_timewait(cm_id_priv->timewait_info);
@@ -816,8 +824,14 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 	 */
 	cm_id_priv->id.state = IB_CM_TIMEWAIT;
 	wait_time = cm_convert_to_ms(cm_id_priv->av.timeout);
-	queue_delayed_work(cm.wq, &cm_id_priv->timewait_info->work.work,
-			   msecs_to_jiffies(wait_time));
+
+	/* Check if the device started its remove_one */
+	spin_lock_irq(&cm.lock);
+	if (!cm_dev->going_down)
+		queue_delayed_work(cm.wq, &cm_id_priv->timewait_info->work.work,
+				   msecs_to_jiffies(wait_time));
+	spin_unlock_irq(&cm.lock);
+
 	cm_id_priv->timewait_info = NULL;
 }
 
@@ -3303,6 +3317,11 @@ static int cm_establish(struct ib_cm_id *cm_id)
 	struct cm_work *work;
 	unsigned long flags;
 	int ret = 0;
+	struct cm_device *cm_dev;
+
+	cm_dev = ib_get_client_data(cm_id->device, &cm_client);
+	if (!cm_dev)
+		return -ENODEV;
 
 	work = kmalloc(sizeof *work, GFP_ATOMIC);
 	if (!work)
@@ -3341,7 +3360,17 @@ static int cm_establish(struct ib_cm_id *cm_id)
 	work->remote_id = cm_id->remote_id;
 	work->mad_recv_wc = NULL;
 	work->cm_event.event = IB_CM_USER_ESTABLISHED;
-	queue_delayed_work(cm.wq, &work->work, 0);
+
+	/* Check if the device started its remove_one */
+	spin_lock_irq(&cm.lock);
+	if (!cm_dev->going_down) {
+		queue_delayed_work(cm.wq, &work->work, 0);
+	} else {
+		kfree(work);
+		ret = -ENODEV;
+	}
+	spin_unlock_irq(&cm.lock);
+
 out:
 	return ret;
 }
@@ -3392,6 +3421,7 @@ static void cm_recv_handler(struct ib_mad_agent *mad_agent,
 	enum ib_cm_event_type event;
 	u16 attr_id;
 	int paths = 0;
+	int going_down = 0;
 
 	switch (mad_recv_wc->recv_buf.mad->mad_hdr.attr_id) {
 	case CM_REQ_ATTR_ID:
@@ -3450,7 +3480,19 @@ static void cm_recv_handler(struct ib_mad_agent *mad_agent,
 	work->cm_event.event = event;
 	work->mad_recv_wc = mad_recv_wc;
 	work->port = port;
-	queue_delayed_work(cm.wq, &work->work, 0);
+
+	/* Check if the device started its remove_one */
+	spin_lock_irq(&cm.lock);
+	if (!port->cm_dev->going_down)
+		queue_delayed_work(cm.wq, &work->work, 0);
+	else
+		going_down = 1;
+	spin_unlock_irq(&cm.lock);
+
+	if (going_down) {
+		kfree(work);
+		ib_free_recv_mad(mad_recv_wc);
+	}
 }
 
 static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,
@@ -3759,10 +3801,8 @@ static void cm_add_one(struct ib_device *ib_device)
 	};
 	unsigned long flags;
 	int ret;
+	int count = 0;
 	u8 i;
-
-	if (rdma_node_get_transport(ib_device->node_type) != RDMA_TRANSPORT_IB)
-		return;
 
 	cm_dev = kzalloc(sizeof(*cm_dev) + sizeof(*port) *
 			 ib_device->phys_port_cnt, GFP_KERNEL);
@@ -3771,7 +3811,7 @@ static void cm_add_one(struct ib_device *ib_device)
 
 	cm_dev->ib_device = ib_device;
 	cm_get_ack_delay(cm_dev);
-
+	cm_dev->going_down = 0;
 	cm_dev->device = device_create(&cm_class, &ib_device->dev,
 				       MKDEV(0, 0), NULL,
 				       "%s", ib_device->name);
@@ -3782,6 +3822,9 @@ static void cm_add_one(struct ib_device *ib_device)
 
 	set_bit(IB_MGMT_METHOD_SEND, reg_req.method_mask);
 	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
+		if (!rdma_cap_ib_cm(ib_device, i))
+			continue;
+
 		port = kzalloc(sizeof *port, GFP_KERNEL);
 		if (!port)
 			goto error1;
@@ -3808,7 +3851,13 @@ static void cm_add_one(struct ib_device *ib_device)
 		ret = ib_modify_port(ib_device, i, 0, &port_modify);
 		if (ret)
 			goto error3;
+
+		count++;
 	}
+
+	if (!count)
+		goto free;
+
 	ib_set_client_data(ib_device, &cm_client, cm_dev);
 
 	write_lock_irqsave(&cm.device_lock, flags);
@@ -3824,11 +3873,15 @@ error1:
 	port_modify.set_port_cap_mask = 0;
 	port_modify.clr_port_cap_mask = IB_PORT_CM_SUP;
 	while (--i) {
+		if (!rdma_cap_ib_cm(ib_device, i))
+			continue;
+
 		port = cm_dev->port[i-1];
 		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
 		ib_unregister_mad_agent(port->mad_agent);
 		cm_remove_port_fs(port);
 	}
+free:
 	device_unregister(cm_dev->device);
 	kfree(cm_dev);
 }
@@ -3851,11 +3904,23 @@ static void cm_remove_one(struct ib_device *ib_device)
 	list_del(&cm_dev->list);
 	write_unlock_irqrestore(&cm.device_lock, flags);
 
+	spin_lock_irq(&cm.lock);
+	cm_dev->going_down = 1;
+	spin_unlock_irq(&cm.lock);
+
 	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
+		if (!rdma_cap_ib_cm(ib_device, i))
+			continue;
+
 		port = cm_dev->port[i-1];
 		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
-		ib_unregister_mad_agent(port->mad_agent);
+		/*
+		 * We flush the queue here after the going_down set, this
+		 * verify that no new works will be queued in the recv handler,
+		 * after that we can call the unregister_mad_agent
+		 */
 		flush_workqueue(cm.wq);
+		ib_unregister_mad_agent(port->mad_agent);
 		cm_remove_port_fs(port);
 	}
 	device_unregister(cm_dev->device);

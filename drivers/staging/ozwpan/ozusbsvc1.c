@@ -342,11 +342,15 @@ static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 	case OZ_DATA_F_ISOC_FIXED: {
 			struct oz_isoc_fixed *body =
 				(struct oz_isoc_fixed *)data_hdr;
-			int data_len = len-sizeof(struct oz_isoc_fixed)+1;
+			int data_len;
 			int unit_size = body->unit_size;
 			u8 *data = body->data;
 			int count;
 			int i;
+
+			if (len < sizeof(struct oz_isoc_fixed) - 1)
+				break;
+			data_len = len - (sizeof(struct oz_isoc_fixed) - 1);
 
 			if (!unit_size)
 				break;
@@ -427,6 +431,11 @@ void oz_usb_rx(struct oz_pd *pd, struct oz_elt *elt)
 	case OZ_VENDOR_CLASS_RSP: {
 			struct oz_vendor_class_rsp *body =
 				(struct oz_vendor_class_rsp *)usb_hdr;
+
+			if (elt->length <
+			    sizeof(struct oz_vendor_class_rsp) - 1)
+				break;
+
 			oz_hcd_control_cnf(usb_ctx->hport, body->req_id,
 				body->rcode, body->data, elt->length-
 				sizeof(struct oz_vendor_class_rsp)+1);

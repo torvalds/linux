@@ -78,8 +78,6 @@ static bool __tcp_fastopen_cookie_gen(const void *path,
 	struct tcp_fastopen_context *ctx;
 	bool ok = false;
 
-	tcp_fastopen_init_key_once(true);
-
 	rcu_read_lock();
 	ctx = rcu_dereference(tcp_fastopen_ctx);
 	if (ctx) {

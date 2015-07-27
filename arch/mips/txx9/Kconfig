@@ -8,7 +8,7 @@ config MACH_TX49XX
 	select MACH_TXX9
 	select CEVT_R4K
 	select CSRC_R4K
-	select IRQ_CPU
+	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_64BIT_KERNEL
 

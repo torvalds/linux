@@ -144,6 +144,16 @@
 #define PMBR1				0x0D
 #define GPIO_USB_4PIN_ULPI_2430C	(3 << 0)
 
+/*
+ * If VBUS is valid or ID is ground, then we know a
+ * cable is present and we need to be runtime-enabled
+ */
+static inline bool cable_present(enum omap_musb_vbus_id_status stat)
+{
+	return stat == OMAP_MUSB_VBUS_VALID ||
+		stat == OMAP_MUSB_ID_GROUND;
+}
+
 struct twl4030_usb {
 	struct usb_phy		phy;
 	struct device		*dev;
@@ -386,8 +396,6 @@ static int twl4030_usb_runtime_suspend(struct device *dev)
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
 
 	dev_dbg(twl->dev, "%s\n", __func__);
-	if (pm_runtime_suspended(dev))
-		return 0;
 
 	__twl4030_phy_power(twl, 0);
 	regulator_disable(twl->usb1v5);
@@ -403,8 +411,6 @@ static int twl4030_usb_runtime_resume(struct device *dev)
 	int res;
 
 	dev_dbg(twl->dev, "%s\n", __func__);
-	if (pm_runtime_active(dev))
-		return 0;
 
 	res = regulator_enable(twl->usb3v1);
 	if (res)
@@ -536,8 +542,10 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 
 	mutex_lock(&twl->lock);
 	if (status >= 0 && status != twl->linkstat) {
+		status_changed =
+			cable_present(twl->linkstat) !=
+			cable_present(status);
 		twl->linkstat = status;
-		status_changed = true;
 	}
 	mutex_unlock(&twl->lock);
 
@@ -553,15 +561,11 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
 		 * starts to handle softconnect right.
 		 */
-		if ((status == OMAP_MUSB_VBUS_VALID) ||
-		    (status == OMAP_MUSB_ID_GROUND)) {
-			if (pm_runtime_suspended(twl->dev))
-				pm_runtime_get_sync(twl->dev);
+		if (cable_present(status)) {
+			pm_runtime_get_sync(twl->dev);
 		} else {
-			if (pm_runtime_active(twl->dev)) {
-				pm_runtime_mark_last_busy(twl->dev);
-				pm_runtime_put_autosuspend(twl->dev);
-			}
+			pm_runtime_mark_last_busy(twl->dev);
+			pm_runtime_put_autosuspend(twl->dev);
 		}
 		omap_musb_mailbox(status);
 	}
@@ -711,7 +715,6 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 
 	/* Our job is to use irqs and status from the power module
 	 * to keep the transceiver disabled when nothing's connected.
@@ -767,6 +770,9 @@ static int twl4030_usb_remove(struct platform_device *pdev)
 
 	/* disable complete OTG block */
 	twl4030_usb_clear_bits(twl, POWER_CTRL, POWER_CTRL_OTG_ENAB);
+
+	if (cable_present(twl->linkstat))
+		pm_runtime_put_noidle(twl->dev);
 	pm_runtime_mark_last_busy(twl->dev);
 	pm_runtime_put(twl->dev);
 

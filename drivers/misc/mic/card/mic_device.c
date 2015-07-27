@@ -28,6 +28,8 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
+#include <linux/dmaengine.h>
+#include <linux/kmod.h>
 
 #include <linux/mic_common.h>
 #include "../common/mic_dev.h"
@@ -240,6 +242,111 @@ static void mic_uninit_irq(void)
 	kfree(mdrv->irq_info.irq_usage_count);
 }
 
+static inline struct mic_driver *scdev_to_mdrv(struct scif_hw_dev *scdev)
+{
+	return dev_get_drvdata(scdev->dev.parent);
+}
+
+static struct mic_irq *
+___mic_request_irq(struct scif_hw_dev *scdev,
+		   irqreturn_t (*func)(int irq, void *data),
+				       const char *name, void *data,
+				       int db)
+{
+	return mic_request_card_irq(func, NULL, name, data, db);
+}
+
+static void
+___mic_free_irq(struct scif_hw_dev *scdev,
+		struct mic_irq *cookie, void *data)
+{
+	return mic_free_card_irq(cookie, data);
+}
+
+static void ___mic_ack_interrupt(struct scif_hw_dev *scdev, int num)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	mic_ack_interrupt(&mdrv->mdev);
+}
+
+static int ___mic_next_db(struct scif_hw_dev *scdev)
+{
+	return mic_next_card_db();
+}
+
+static void ___mic_send_intr(struct scif_hw_dev *scdev, int db)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	mic_send_intr(&mdrv->mdev, db);
+}
+
+static void ___mic_send_p2p_intr(struct scif_hw_dev *scdev, int db,
+				 struct mic_mw *mw)
+{
+	mic_send_p2p_intr(db, mw);
+}
+
+static void __iomem *
+___mic_ioremap(struct scif_hw_dev *scdev,
+	       phys_addr_t pa, size_t len)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	return mic_card_map(&mdrv->mdev, pa, len);
+}
+
+static void ___mic_iounmap(struct scif_hw_dev *scdev, void __iomem *va)
+{
+	struct mic_driver *mdrv = scdev_to_mdrv(scdev);
+
+	mic_card_unmap(&mdrv->mdev, va);
+}
+
+static struct scif_hw_ops scif_hw_ops = {
+	.request_irq = ___mic_request_irq,
+	.free_irq = ___mic_free_irq,
+	.ack_interrupt = ___mic_ack_interrupt,
+	.next_db = ___mic_next_db,
+	.send_intr = ___mic_send_intr,
+	.send_p2p_intr = ___mic_send_p2p_intr,
+	.ioremap = ___mic_ioremap,
+	.iounmap = ___mic_iounmap,
+};
+
+static int mic_request_dma_chans(struct mic_driver *mdrv)
+{
+	dma_cap_mask_t mask;
+	struct dma_chan *chan;
+
+	request_module("mic_x100_dma");
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
+
+	do {
+		chan = dma_request_channel(mask, NULL, NULL);
+		if (chan) {
+			mdrv->dma_ch[mdrv->num_dma_ch++] = chan;
+			if (mdrv->num_dma_ch >= MIC_MAX_DMA_CHAN)
+				break;
+		}
+	} while (chan);
+	dev_info(mdrv->dev, "DMA channels # %d\n", mdrv->num_dma_ch);
+	return mdrv->num_dma_ch;
+}
+
+static void mic_free_dma_chans(struct mic_driver *mdrv)
+{
+	int i = 0;
+
+	for (i = 0; i < mdrv->num_dma_ch; i++) {
+		dma_release_channel(mdrv->dma_ch[i]);
+		mdrv->dma_ch[i] = NULL;
+	}
+	mdrv->num_dma_ch = 0;
+}
+
 /*
  * mic_driver_init - MIC driver initialization tasks.
  *
@@ -248,6 +355,8 @@ static void mic_uninit_irq(void)
 int __init mic_driver_init(struct mic_driver *mdrv)
 {
 	int rc;
+	struct mic_bootparam __iomem *bootparam;
+	u8 node_id;
 
 	g_drv = mdrv;
 	/*
@@ -268,13 +377,32 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 	rc = mic_shutdown_init();
 	if (rc)
 		goto irq_uninit;
+	if (!mic_request_dma_chans(mdrv)) {
+		rc = -ENODEV;
+		goto shutdown_uninit;
+	}
 	rc = mic_devices_init(mdrv);
 	if (rc)
-		goto shutdown_uninit;
+		goto dma_free;
+	bootparam = mdrv->dp;
+	node_id = ioread8(&bootparam->node_id);
+	mdrv->scdev = scif_register_device(mdrv->dev, MIC_SCIF_DEV,
+					   NULL, &scif_hw_ops,
+					   0, node_id, &mdrv->mdev.mmio, NULL,
+					   NULL, mdrv->dp, mdrv->dma_ch,
+					   mdrv->num_dma_ch);
+	if (IS_ERR(mdrv->scdev)) {
+		rc = PTR_ERR(mdrv->scdev);
+		goto device_uninit;
+	}
 	mic_create_card_debug_dir(mdrv);
 	atomic_notifier_chain_register(&panic_notifier_list, &mic_panic);
 done:
 	return rc;
+device_uninit:
+	mic_devices_uninit(mdrv);
+dma_free:
+	mic_free_dma_chans(mdrv);
 shutdown_uninit:
 	mic_shutdown_uninit();
 irq_uninit:
@@ -294,7 +422,9 @@ put:
 void mic_driver_uninit(struct mic_driver *mdrv)
 {
 	mic_delete_card_debug_dir(mdrv);
+	scif_unregister_device(mdrv->scdev);
 	mic_devices_uninit(mdrv);
+	mic_free_dma_chans(mdrv);
 	/*
 	 * Inform the host about the shutdown status i.e. poweroff/restart etc.
 	 * The module cannot be unloaded so the only code path to call

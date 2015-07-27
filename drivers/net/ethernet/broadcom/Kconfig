@@ -26,8 +26,7 @@ config B44
 	select PHYLIB
 	---help---
 	  If you have a network (Ethernet) controller of this type, say Y
-	  or M and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  or M here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called b44.

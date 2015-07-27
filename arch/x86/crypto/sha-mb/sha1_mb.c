@@ -65,11 +65,8 @@
 #include <crypto/mcryptd.h>
 #include <crypto/crypto_wq.h>
 #include <asm/byteorder.h>
-#include <asm/i387.h>
-#include <asm/xcr.h>
-#include <asm/xsave.h>
 #include <linux/hardirq.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/api.h>
 #include "sha_mb_ctx.h"
 
 #define FLUSH_INTERVAL 1000 /* in usec */
@@ -885,7 +882,8 @@ static int __init sha1_mb_mod_init(void)
 		INIT_DELAYED_WORK(&cpu_state->flush, mcryptd_flusher);
 		cpu_state->cpu = cpu;
 		cpu_state->alg_state = &sha1_mb_alg_state;
-		cpu_state->mgr = (struct sha1_ctx_mgr *) kzalloc(sizeof(struct sha1_ctx_mgr), GFP_KERNEL);
+		cpu_state->mgr = kzalloc(sizeof(struct sha1_ctx_mgr),
+					GFP_KERNEL);
 		if (!cpu_state->mgr)
 			goto err2;
 		sha1_ctx_mgr_init(cpu_state->mgr);

@@ -52,6 +52,12 @@ struct alt_instr {
 	u8  padlen;		/* length of build-time padding */
 } __packed;
 
+/*
+ * Debug flag that can be tested to see whether alternative
+ * instructions were patched in already:
+ */
+extern int alternatives_patched;
+
 extern void alternative_instructions(void);
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 

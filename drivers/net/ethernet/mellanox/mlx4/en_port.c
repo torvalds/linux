@@ -149,6 +149,7 @@ static unsigned long en_stats_adder(__be64 *start, __be64 *next, int num)
 
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 {
+	struct mlx4_counter tmp_counter_stats;
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
 	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
 	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
@@ -156,7 +157,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	struct mlx4_cmd_mailbox *mailbox;
 	u64 in_mod = reset << 8 | port;
 	int err;
-	int i;
+	int i, counter_index;
 
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
@@ -201,6 +202,20 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		priv->port_stats.wake_queue        += ring->wake_queue;
 		priv->port_stats.tso_packets       += ring->tso_packets;
 		priv->port_stats.xmit_more         += ring->xmit_more;
+	}
+	if (mlx4_is_master(mdev->dev)) {
+		stats->rx_packets = en_stats_adder(&mlx4_en_stats->RTOT_prio_0,
+						   &mlx4_en_stats->RTOT_prio_1,
+						   NUM_PRIORITIES);
+		stats->tx_packets = en_stats_adder(&mlx4_en_stats->TTOT_prio_0,
+						   &mlx4_en_stats->TTOT_prio_1,
+						   NUM_PRIORITIES);
+		stats->rx_bytes = en_stats_adder(&mlx4_en_stats->ROCT_prio_0,
+						 &mlx4_en_stats->ROCT_prio_1,
+						 NUM_PRIORITIES);
+		stats->tx_bytes = en_stats_adder(&mlx4_en_stats->TOCT_prio_0,
+						 &mlx4_en_stats->TOCT_prio_1,
+						 NUM_PRIORITIES);
 	}
 
 	/* net device stats */
@@ -296,6 +311,11 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 
 	spin_unlock_bh(&priv->stats_lock);
 
+	memset(&tmp_counter_stats, 0, sizeof(tmp_counter_stats));
+	counter_index = mlx4_get_default_counter_index(mdev->dev, port);
+	err = mlx4_get_counter_stats(mdev->dev, counter_index,
+				     &tmp_counter_stats, reset);
+
 	/* 0xffs indicates invalid value */
 	memset(mailbox->buf, 0xff, sizeof(*flowstats) * MLX4_NUM_PRIORITIES);
 
@@ -313,6 +333,13 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	flowstats = mailbox->buf;
 
 	spin_lock_bh(&priv->stats_lock);
+
+	if (tmp_counter_stats.counter_mode == 0) {
+		priv->pf_stats.rx_bytes   = be64_to_cpu(tmp_counter_stats.rx_bytes);
+		priv->pf_stats.tx_bytes   = be64_to_cpu(tmp_counter_stats.tx_bytes);
+		priv->pf_stats.rx_packets = be64_to_cpu(tmp_counter_stats.rx_frames);
+		priv->pf_stats.tx_packets = be64_to_cpu(tmp_counter_stats.tx_frames);
+	}
 
 	for (i = 0; i < MLX4_NUM_PRIORITIES; i++)	{
 		priv->rx_priority_flowstats[i].rx_pause =

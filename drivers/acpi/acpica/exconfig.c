@@ -470,7 +470,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
-		ACPI_MEMCPY(table, table_header, length);
+		memcpy(table, table_header, length);
 		break;
 
 	default:

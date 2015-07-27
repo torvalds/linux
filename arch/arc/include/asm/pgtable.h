@@ -72,8 +72,18 @@
 #define _PAGE_READ          (1<<3)	/* Page has user read perm (H) */
 #define _PAGE_ACCESSED      (1<<4)	/* Page is accessed (S) */
 #define _PAGE_MODIFIED      (1<<5)	/* Page modified (dirty) (S) */
+
+#if (CONFIG_ARC_MMU_VER >= 4)
+#define _PAGE_WTHRU         (1<<7)	/* Page cache mode write-thru (H) */
+#endif
+
 #define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
 #define _PAGE_PRESENT       (1<<9)	/* TLB entry is valid (H) */
+
+#if (CONFIG_ARC_MMU_VER >= 4)
+#define _PAGE_SZ            (1<<10)	/* Page Size indicator (H) */
+#endif
+
 #define _PAGE_SHARED_CODE   (1<<11)	/* Shared Code page with cmn vaddr
 					   usable for shared TLB entries (H) */
 #endif

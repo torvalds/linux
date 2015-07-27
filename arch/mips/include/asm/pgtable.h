@@ -568,12 +568,12 @@ static inline pmd_t pmd_mknotpresent(pmd_t pmd)
 }
 
 /*
- * The generic version pmdp_get_and_clear uses a version of pmd_clear() with a
+ * The generic version pmdp_huge_get_and_clear uses a version of pmd_clear() with a
  * different prototype.
  */
-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
-				       unsigned long address, pmd_t *pmdp)
+#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
+static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+					    unsigned long address, pmd_t *pmdp)
 {
 	pmd_t old = *pmdp;
 

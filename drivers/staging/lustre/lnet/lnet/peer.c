@@ -43,10 +43,10 @@
 int
 lnet_peer_tables_create(void)
 {
-	struct lnet_peer_table	*ptable;
-	struct list_head		*hash;
-	int			i;
-	int			j;
+	struct lnet_peer_table *ptable;
+	struct list_head *hash;
+	int i;
+	int j;
 
 	the_lnet.ln_peer_tables = cfs_percpt_alloc(lnet_cpt_table(),
 						   sizeof(*ptable));
@@ -77,10 +77,10 @@ lnet_peer_tables_create(void)
 void
 lnet_peer_tables_destroy(void)
 {
-	struct lnet_peer_table	*ptable;
-	struct list_head		*hash;
-	int			i;
-	int			j;
+	struct lnet_peer_table *ptable;
+	struct list_head *hash;
+	int i;
+	int j;
 
 	if (the_lnet.ln_peer_tables == NULL)
 		return;
@@ -106,9 +106,9 @@ lnet_peer_tables_destroy(void)
 void
 lnet_peer_tables_cleanup(void)
 {
-	struct lnet_peer_table	*ptable;
-	int			i;
-	int			j;
+	struct lnet_peer_table *ptable;
+	int i;
+	int j;
 
 	LASSERT(the_lnet.ln_shutdown);	/* i.e. no new peers */
 
@@ -133,7 +133,7 @@ lnet_peer_tables_cleanup(void)
 
 	cfs_percpt_for_each(ptable, i, the_lnet.ln_peer_tables) {
 		LIST_HEAD(deathrow);
-		lnet_peer_t	*lp;
+		lnet_peer_t *lp;
 
 		lnet_net_lock(i);
 
@@ -186,8 +186,8 @@ lnet_destroy_peer_locked(lnet_peer_t *lp)
 lnet_peer_t *
 lnet_find_peer_locked(struct lnet_peer_table *ptable, lnet_nid_t nid)
 {
-	struct list_head	*peers;
-	lnet_peer_t	*lp;
+	struct list_head *peers;
+	lnet_peer_t *lp;
 
 	LASSERT(!the_lnet.ln_shutdown);
 
@@ -205,11 +205,11 @@ lnet_find_peer_locked(struct lnet_peer_table *ptable, lnet_nid_t nid)
 int
 lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 {
-	struct lnet_peer_table	*ptable;
-	lnet_peer_t		*lp = NULL;
-	lnet_peer_t		*lp2;
-	int			cpt2;
-	int			rc = 0;
+	struct lnet_peer_table *ptable;
+	lnet_peer_t *lp = NULL;
+	lnet_peer_t *lp2;
+	int cpt2;
+	int rc = 0;
 
 	*lpp = NULL;
 	if (the_lnet.ln_shutdown) /* it's shutting down */
@@ -287,8 +287,8 @@ lnet_nid2peer_locked(lnet_peer_t **lpp, lnet_nid_t nid, int cpt)
 		goto out;
 	}
 
-	lp->lp_txcredits    =
-	lp->lp_mintxcredits = lp->lp_ni->ni_peertxcredits;
+	lp->lp_txcredits     =
+	lp->lp_mintxcredits  = lp->lp_ni->ni_peertxcredits;
 	lp->lp_rtrcredits    =
 	lp->lp_minrtrcredits = lnet_peer_buffer_credits(lp->lp_ni);
 
@@ -308,10 +308,10 @@ out:
 void
 lnet_debug_peer(lnet_nid_t nid)
 {
-	char		*aliveness = "NA";
-	lnet_peer_t	*lp;
-	int		rc;
-	int		cpt;
+	char *aliveness = "NA";
+	lnet_peer_t *lp;
+	int rc;
+	int cpt;
 
 	cpt = lnet_cpt_of_nid(nid);
 	lnet_net_lock(cpt);

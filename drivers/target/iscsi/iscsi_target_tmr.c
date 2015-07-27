@@ -17,7 +17,7 @@
  ******************************************************************************/
 
 #include <asm/unaligned.h>
-#include <scsi/scsi_device.h>
+#include <scsi/scsi_proto.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
@@ -120,7 +120,7 @@ u8 iscsit_tmr_task_reassign(
 	struct iscsi_tmr_req *tmr_req = cmd->tmr_req;
 	struct se_tmr_req *se_tmr = cmd->se_cmd.se_tmr_req;
 	struct iscsi_tm *hdr = (struct iscsi_tm *) buf;
-	int ret, ref_lun;
+	u64 ret, ref_lun;
 
 	pr_debug("Got TASK_REASSIGN TMR ITT: 0x%08x,"
 		" RefTaskTag: 0x%08x, ExpDataSN: 0x%08x, CID: %hu\n",
@@ -164,7 +164,7 @@ u8 iscsit_tmr_task_reassign(
 	ref_lun = scsilun_to_int(&hdr->lun);
 	if (ref_lun != ref_cmd->se_cmd.orig_fe_lun) {
 		pr_err("Unable to perform connection recovery for"
-			" differing ref_lun: %d ref_cmd orig_fe_lun: %u\n",
+			" differing ref_lun: %llu ref_cmd orig_fe_lun: %llu\n",
 			ref_lun, ref_cmd->se_cmd.orig_fe_lun);
 		return ISCSI_TMF_RSP_REJECTED;
 	}

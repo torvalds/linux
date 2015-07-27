@@ -151,6 +151,10 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 			if (nla_put_u8(skb, INET_DIAG_TCLASS,
 				       inet6_sk(sk)->tclass) < 0)
 				goto errout;
+
+		if (((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE)) &&
+		    nla_put_u8(skb, INET_DIAG_SKV6ONLY, ipv6_only_sock(sk)))
+			goto errout;
 	}
 #endif
 
@@ -200,9 +204,9 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	}
 #undef EXPIRES_IN_MS
 
-	if (ext & (1 << (INET_DIAG_INFO - 1))) {
+	if ((ext & (1 << (INET_DIAG_INFO - 1))) && handler->idiag_info_size) {
 		attr = nla_reserve(skb, INET_DIAG_INFO,
-				   sizeof(struct tcp_info));
+				   handler->idiag_info_size);
 		if (!attr)
 			goto errout;
 
@@ -746,7 +750,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 	entry.family = sk->sk_family;
 
-	spin_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_lock(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	lopt = icsk->icsk_accept_queue.listen_opt;
 	if (!lopt || !listen_sock_qlen(lopt))
@@ -794,7 +798,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	}
 
 out:
-	spin_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	return err;
 }
@@ -1078,14 +1082,62 @@ static int inet_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 	return inet_diag_get_exact(skb, h, nlmsg_data(h));
 }
 
+static
+int inet_diag_handler_get_info(struct sk_buff *skb, struct sock *sk)
+{
+	const struct inet_diag_handler *handler;
+	struct nlmsghdr *nlh;
+	struct nlattr *attr;
+	struct inet_diag_msg *r;
+	void *info = NULL;
+	int err = 0;
+
+	nlh = nlmsg_put(skb, 0, 0, SOCK_DIAG_BY_FAMILY, sizeof(*r), 0);
+	if (!nlh)
+		return -ENOMEM;
+
+	r = nlmsg_data(nlh);
+	memset(r, 0, sizeof(*r));
+	inet_diag_msg_common_fill(r, sk);
+	if (sk->sk_type == SOCK_DGRAM || sk->sk_type == SOCK_STREAM)
+		r->id.idiag_sport = inet_sk(sk)->inet_sport;
+	r->idiag_state = sk->sk_state;
+
+	if ((err = nla_put_u8(skb, INET_DIAG_PROTOCOL, sk->sk_protocol))) {
+		nlmsg_cancel(skb, nlh);
+		return err;
+	}
+
+	handler = inet_diag_lock_handler(sk->sk_protocol);
+	if (IS_ERR(handler)) {
+		inet_diag_unlock_handler(handler);
+		nlmsg_cancel(skb, nlh);
+		return PTR_ERR(handler);
+	}
+
+	attr = handler->idiag_info_size
+		? nla_reserve(skb, INET_DIAG_INFO, handler->idiag_info_size)
+		: NULL;
+	if (attr)
+		info = nla_data(attr);
+
+	handler->idiag_get_info(sk, r, info);
+	inet_diag_unlock_handler(handler);
+
+	nlmsg_end(skb, nlh);
+	return 0;
+}
+
 static const struct sock_diag_handler inet_diag_handler = {
 	.family = AF_INET,
 	.dump = inet_diag_handler_dump,
+	.get_info = inet_diag_handler_get_info,
 };
 
 static const struct sock_diag_handler inet6_diag_handler = {
 	.family = AF_INET6,
 	.dump = inet_diag_handler_dump,
+	.get_info = inet_diag_handler_get_info,
 };
 
 int inet_diag_register(const struct inet_diag_handler *h)

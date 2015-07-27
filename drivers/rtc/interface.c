@@ -91,51 +91,6 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 }
 EXPORT_SYMBOL_GPL(rtc_set_time);
 
-int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
-{
-	int err;
-
-	err = mutex_lock_interruptible(&rtc->ops_lock);
-	if (err)
-		return err;
-
-	if (!rtc->ops)
-		err = -ENODEV;
-	else if (rtc->ops->set_mmss64)
-		err = rtc->ops->set_mmss64(rtc->dev.parent, secs);
-	else if (rtc->ops->set_mmss)
-		err = rtc->ops->set_mmss(rtc->dev.parent, secs);
-	else if (rtc->ops->read_time && rtc->ops->set_time) {
-		struct rtc_time new, old;
-
-		err = rtc->ops->read_time(rtc->dev.parent, &old);
-		if (err == 0) {
-			rtc_time64_to_tm(secs, &new);
-
-			/*
-			 * avoid writing when we're going to change the day of
-			 * the month. We will retry in the next minute. This
-			 * basically means that if the RTC must not drift
-			 * by more than 1 minute in 11 minutes.
-			 */
-			if (!((old.tm_hour == 23 && old.tm_min == 59) ||
-				(new.tm_hour == 23 && new.tm_min == 59)))
-				err = rtc->ops->set_time(rtc->dev.parent,
-						&new);
-		}
-	} else {
-		err = -EINVAL;
-	}
-
-	pm_stay_awake(rtc->dev.parent);
-	mutex_unlock(&rtc->ops_lock);
-	/* A timer might have just expired */
-	schedule_work(&rtc->irqwork);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(rtc_set_mmss);
-
 static int rtc_read_alarm_internal(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 {
 	int err;
@@ -976,14 +931,12 @@ int rtc_timer_start(struct rtc_device *rtc, struct rtc_timer *timer,
  *
  * Kernel interface to cancel an rtc_timer
  */
-int rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
+void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
 {
-	int ret = 0;
 	mutex_lock(&rtc->ops_lock);
 	if (timer->enabled)
 		rtc_timer_remove(rtc, timer);
 	mutex_unlock(&rtc->ops_lock);
-	return ret;
 }
 
 

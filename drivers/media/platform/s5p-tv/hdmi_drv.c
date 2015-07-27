@@ -96,7 +96,7 @@ struct hdmi_device {
 	struct hdmi_resources res;
 };
 
-static struct platform_device_id hdmi_driver_types[] = {
+static const struct platform_device_id hdmi_driver_types[] = {
 	{
 		.name		= "s5pv210-hdmi",
 	}, {
@@ -648,15 +648,20 @@ static int hdmi_g_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int hdmi_g_mbus_fmt(struct v4l2_subdev *sd,
-	  struct v4l2_mbus_framefmt *fmt)
+static int hdmi_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
 	const struct hdmi_timings *t = hdev->cur_conf;
 
 	dev_dbg(hdev->dev, "%s\n", __func__);
 	if (!hdev->cur_conf)
 		return -EINVAL;
+	if (format->pad)
+		return -EINVAL;
+
 	memset(fmt, 0, sizeof(*fmt));
 	fmt->width = t->hact.end - t->hact.beg;
 	fmt->height = t->vact[0].end - t->vact[0].beg;
@@ -712,18 +717,19 @@ static const struct v4l2_subdev_core_ops hdmi_sd_core_ops = {
 static const struct v4l2_subdev_video_ops hdmi_sd_video_ops = {
 	.s_dv_timings = hdmi_s_dv_timings,
 	.g_dv_timings = hdmi_g_dv_timings,
-	.g_mbus_fmt = hdmi_g_mbus_fmt,
 	.s_stream = hdmi_s_stream,
 };
 
 static const struct v4l2_subdev_pad_ops hdmi_sd_pad_ops = {
 	.enum_dv_timings = hdmi_enum_dv_timings,
 	.dv_timings_cap = hdmi_dv_timings_cap,
+	.get_fmt = hdmi_get_fmt,
 };
 
 static const struct v4l2_subdev_ops hdmi_sd_ops = {
 	.core = &hdmi_sd_core_ops,
 	.video = &hdmi_sd_video_ops,
+	.pad = &hdmi_sd_pad_ops,
 };
 
 static int hdmi_runtime_suspend(struct device *dev)

@@ -15,7 +15,7 @@
 
 #include <linux/capability.h>
 #include <linux/spinlock.h>
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/in.h>
 #include <net/netlabel.h>
 #include <linux/list.h>
@@ -138,6 +138,11 @@ struct smk_port_label {
 	struct smack_known	*smk_out;	/* outgoing label */
 };
 
+struct smack_onlycap {
+	struct list_head	list;
+	struct smack_known	*smk_label;
+};
+
 /*
  * Mount options
  */
@@ -249,6 +254,7 @@ int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 struct smack_known *smk_import_entry(const char *, int);
 void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
+int smack_privileged(int cap);
 
 /*
  * Shared data.
@@ -257,7 +263,6 @@ extern int smack_enabled;
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
-extern struct smack_known *smack_onlycap;
 extern struct smack_known *smack_syslog_label;
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 extern struct smack_known *smack_unconfined;
@@ -276,7 +281,8 @@ extern struct mutex	smack_known_lock;
 extern struct list_head smack_known_list;
 extern struct list_head smk_netlbladdr_list;
 
-extern struct security_operations smack_ops;
+extern struct mutex     smack_onlycap_lock;
+extern struct list_head smack_onlycap_list;
 
 #define SMACK_HASH_SLOTS 16
 extern struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
@@ -331,21 +337,6 @@ static inline struct smack_known *smk_of_forked(const struct task_smack *tsp)
 static inline struct smack_known *smk_of_current(void)
 {
 	return smk_of_task(current_security());
-}
-
-/*
- * Is the task privileged and allowed to be privileged
- * by the onlycap rule.
- */
-static inline int smack_privileged(int cap)
-{
-	struct smack_known *skp = smk_of_current();
-
-	if (!capable(cap))
-		return 0;
-	if (smack_onlycap == NULL || smack_onlycap == skp)
-		return 1;
-	return 0;
 }
 
 /*

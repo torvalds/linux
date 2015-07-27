@@ -86,7 +86,7 @@
 			gpio,syscon-dev = <&devctrl 0x240>;
 		};
 
-		pcie@21020000 {
+		pcie1: pcie@21020000 {
 			compatible = "ti,keystone-pcie","snps,dw-pcie";
 			clocks = <&clkpcie1>;
 			clock-names = "pcie";
@@ -96,6 +96,7 @@
 			ranges = <0x81000000 0 0 0x23260000 0x4000 0x4000
 				0x82000000 0 0x60000000 0x60000000 0 0x10000000>;
 
+			status = "disabled";
 			device_type = "pci";
 			num-lanes = <2>;
 
@@ -130,6 +131,7 @@
 					<GIC_SPI 376 IRQ_TYPE_EDGE_RISING>;
 			};
 		};
+		/include/ "k2e-netcp.dtsi"
 	};
 };
 

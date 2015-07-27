@@ -1740,6 +1740,7 @@ struct ni_power_info *ni_get_pi(struct radeon_device *rdev);
 struct ni_ps *ni_get_ps(struct radeon_ps *rps);
 
 extern int si_mc_load_microcode(struct radeon_device *rdev);
+extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 
 static int si_populate_voltage_value(struct radeon_device *rdev,
 				     const struct atom_voltage_table *table,
@@ -2925,8 +2926,59 @@ static struct si_dpm_quirk si_dpm_quirk_list[] = {
 	/* PITCAIRN - https://bugs.freedesktop.org/show_bug.cgi?id=76490 */
 	{ PCI_VENDOR_ID_ATI, 0x6810, 0x1462, 0x3036, 0, 120000 },
 	{ PCI_VENDOR_ID_ATI, 0x6811, 0x174b, 0xe271, 0, 120000 },
+	{ PCI_VENDOR_ID_ATI, 0x6810, 0x174b, 0xe271, 85000, 90000 },
 	{ 0, 0, 0, 0 },
 };
+
+static u16 si_get_lower_of_leakage_and_vce_voltage(struct radeon_device *rdev,
+						   u16 vce_voltage)
+{
+	u16 highest_leakage = 0;
+	struct si_power_info *si_pi = si_get_pi(rdev);
+	int i;
+
+	for (i = 0; i < si_pi->leakage_voltage.count; i++){
+		if (highest_leakage < si_pi->leakage_voltage.entries[i].voltage)
+			highest_leakage = si_pi->leakage_voltage.entries[i].voltage;
+	}
+
+	if (si_pi->leakage_voltage.count && (highest_leakage < vce_voltage))
+		return highest_leakage;
+
+	return vce_voltage;
+}
+
+static int si_get_vce_clock_voltage(struct radeon_device *rdev,
+				    u32 evclk, u32 ecclk, u16 *voltage)
+{
+	u32 i;
+	int ret = -EINVAL;
+	struct radeon_vce_clock_voltage_dependency_table *table =
+		&rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table;
+
+	if (((evclk == 0) && (ecclk == 0)) ||
+	    (table && (table->count == 0))) {
+		*voltage = 0;
+		return 0;
+	}
+
+	for (i = 0; i < table->count; i++) {
+		if ((evclk <= table->entries[i].evclk) &&
+		    (ecclk <= table->entries[i].ecclk)) {
+			*voltage = table->entries[i].v;
+			ret = 0;
+			break;
+		}
+	}
+
+	/* if no match return the highest voltage */
+	if (ret)
+		*voltage = table->entries[table->count - 1].v;
+
+	*voltage = si_get_lower_of_leakage_and_vce_voltage(rdev, *voltage);
+
+	return ret;
+}
 
 static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 					struct radeon_ps *rps)
@@ -2936,7 +2988,7 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	bool disable_mclk_switching = false;
 	bool disable_sclk_switching = false;
 	u32 mclk, sclk;
-	u16 vddc, vddci;
+	u16 vddc, vddci, min_vce_voltage = 0;
 	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	u32 max_sclk = 0, max_mclk = 0;
 	int i;
@@ -2953,6 +3005,16 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 			break;
 		}
 		++p;
+	}
+
+	if (rps->vce_active) {
+		rps->evclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].evclk;
+		rps->ecclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].ecclk;
+		si_get_vce_clock_voltage(rdev, rps->evclk, rps->ecclk,
+					 &min_vce_voltage);
+	} else {
+		rps->evclk = 0;
+		rps->ecclk = 0;
 	}
 
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
@@ -3035,6 +3097,13 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 		vddc = ps->performance_levels[0].vddc;
 	}
 
+	if (rps->vce_active) {
+		if (sclk < rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].sclk)
+			sclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].sclk;
+		if (mclk < rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].mclk)
+			mclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].mclk;
+	}
+
 	/* adjusted low state */
 	ps->performance_levels[0].sclk = sclk;
 	ps->performance_levels[0].mclk = mclk;
@@ -3084,6 +3153,8 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
                                               &ps->performance_levels[i]);
 
 	for (i = 0; i < ps->performance_level_count; i++) {
+		if (ps->performance_levels[i].vddc < min_vce_voltage)
+			ps->performance_levels[i].vddc = min_vce_voltage;
 		btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
 						   ps->performance_levels[i].sclk,
 						   max_limits->vddc,  &ps->performance_levels[i].vddc);
@@ -3110,7 +3181,6 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 		if (ps->performance_levels[i].vddc > rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.vddc)
 			ps->dc_compatible = false;
 	}
-
 }
 
 #if 0
@@ -5859,6 +5929,21 @@ static void si_set_pcie_lane_width_in_smc(struct radeon_device *rdev,
 	}
 }
 
+static void si_set_vce_clock(struct radeon_device *rdev,
+			     struct radeon_ps *new_rps,
+			     struct radeon_ps *old_rps)
+{
+	if ((old_rps->evclk != new_rps->evclk) ||
+	    (old_rps->ecclk != new_rps->ecclk)) {
+		/* turn the clocks on when encoding, off otherwise */
+		if (new_rps->evclk || new_rps->ecclk)
+			vce_v1_0_enable_mgcg(rdev, false);
+		else
+			vce_v1_0_enable_mgcg(rdev, true);
+		radeon_set_vce_clocks(rdev, new_rps->evclk, new_rps->ecclk);
+	}
+}
+
 void si_dpm_setup_asic(struct radeon_device *rdev)
 {
 	int r;
@@ -6547,6 +6632,7 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 	ni_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
+	si_set_vce_clock(rdev, new_ps, old_ps);
 	if (eg_pi->pcie_performance_request)
 		si_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 	ret = si_set_power_state_conditionally_enable_ulv(rdev, new_ps);
@@ -6793,6 +6879,21 @@ static int si_parse_power_table(struct radeon_device *rdev)
 		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	rdev->pm.dpm.num_ps = state_array->ucNumEntries;
+
+	/* fill in the vce power states */
+	for (i = 0; i < RADEON_MAX_VCE_LEVELS; i++) {
+		u32 sclk, mclk;
+		clock_array_index = rdev->pm.dpm.vce_states[i].clk_idx;
+		clock_info = (union pplib_clock_info *)
+			&clock_info_array->clockInfo[clock_array_index * clock_info_array->ucEntrySize];
+		sclk = le16_to_cpu(clock_info->si.usEngineClockLow);
+		sclk |= clock_info->si.ucEngineClockHigh << 16;
+		mclk = le16_to_cpu(clock_info->si.usMemoryClockLow);
+		mclk |= clock_info->si.ucMemoryClockHigh << 16;
+		rdev->pm.dpm.vce_states[i].sclk = sclk;
+		rdev->pm.dpm.vce_states[i].mclk = mclk;
+	}
+
 	return 0;
 }
 
@@ -6837,10 +6938,11 @@ int si_dpm_init(struct radeon_device *rdev)
 	if (ret)
 		return ret;
 
-	ret = si_parse_power_table(rdev);
+	ret = r600_parse_extended_power_table(rdev);
 	if (ret)
 		return ret;
-	ret = r600_parse_extended_power_table(rdev);
+
+	ret = si_parse_power_table(rdev);
 	if (ret)
 		return ret;
 

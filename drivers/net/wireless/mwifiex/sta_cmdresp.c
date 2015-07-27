@@ -49,8 +49,9 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	struct host_cmd_ds_802_11_ps_mode_enh *pm;
 	unsigned long flags;
 
-	dev_err(adapter->dev, "CMD_RESP: cmd %#x error, result=%#x\n",
-		resp->command, resp->result);
+	mwifiex_dbg(adapter, ERROR,
+		    "CMD_RESP: cmd %#x error, result=%#x\n",
+		    resp->command, resp->result);
 
 	if (adapter->curr_cmd->wait_q_enabled)
 		adapter->cmd_wait_q.status = -1;
@@ -58,9 +59,9 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	switch (le16_to_cpu(resp->command)) {
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		pm = &resp->params.psmode_enh;
-		dev_err(adapter->dev,
-			"PS_MODE_ENH cmd failed: result=0x%x action=0x%X\n",
-			resp->result, le16_to_cpu(pm->action));
+		mwifiex_dbg(adapter, ERROR,
+			    "PS_MODE_ENH cmd failed: result=0x%x action=0x%X\n",
+			    resp->result, le16_to_cpu(pm->action));
 		/* We do not re-try enter-ps command in ad-hoc mode. */
 		if (le16_to_cpu(pm->action) == EN_AUTO_PS &&
 		    (le16_to_cpu(pm->params.ps_bitmap) & BITMAP_STA_PS) &&
@@ -91,7 +92,8 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		break;
 
 	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
-		dev_err(priv->adapter->dev, "SDIO RX single-port aggregation Not support\n");
+		mwifiex_dbg(adapter, MSG,
+			    "SDIO RX single-port aggregation Not support\n");
 		break;
 
 	default:
@@ -187,29 +189,34 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 	u16 query_type = le16_to_cpu(smib->query_type);
 	u32 ul_temp;
 
-	dev_dbg(priv->adapter->dev, "info: SNMP_RESP: oid value = %#x,"
-		" query_type = %#x, buf size = %#x\n",
-		oid, query_type, le16_to_cpu(smib->buf_size));
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: SNMP_RESP: oid value = %#x,\t"
+		    "query_type = %#x, buf size = %#x\n",
+		    oid, query_type, le16_to_cpu(smib->buf_size));
 	if (query_type == HostCmd_ACT_GEN_GET) {
 		ul_temp = le16_to_cpu(*((__le16 *) (smib->value)));
 		if (data_buf)
 			*data_buf = ul_temp;
 		switch (oid) {
 		case FRAG_THRESH_I:
-			dev_dbg(priv->adapter->dev,
-				"info: SNMP_RESP: FragThsd =%u\n", ul_temp);
+			mwifiex_dbg(priv->adapter, INFO,
+				    "info: SNMP_RESP: FragThsd =%u\n",
+				    ul_temp);
 			break;
 		case RTS_THRESH_I:
-			dev_dbg(priv->adapter->dev,
-				"info: SNMP_RESP: RTSThsd =%u\n", ul_temp);
+			mwifiex_dbg(priv->adapter, INFO,
+				    "info: SNMP_RESP: RTSThsd =%u\n",
+				    ul_temp);
 			break;
 		case SHORT_RETRY_LIM_I:
-			dev_dbg(priv->adapter->dev,
-				"info: SNMP_RESP: TxRetryCount=%u\n", ul_temp);
+			mwifiex_dbg(priv->adapter, INFO,
+				    "info: SNMP_RESP: TxRetryCount=%u\n",
+				    ul_temp);
 			break;
 		case DTIM_PERIOD_I:
-			dev_dbg(priv->adapter->dev,
-				"info: SNMP_RESP: DTIM period=%u\n", ul_temp);
+			mwifiex_dbg(priv->adapter, INFO,
+				    "info: SNMP_RESP: DTIM period=%u\n",
+				    ul_temp);
 		default:
 			break;
 		}
@@ -426,14 +433,15 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 			priv->tx_power_level = (u16) pg->power_min;
 		break;
 	default:
-		dev_err(adapter->dev, "CMD_RESP: unknown cmd action %d\n",
-			action);
+		mwifiex_dbg(adapter, ERROR,
+			    "CMD_RESP: unknown cmd action %d\n",
+			    action);
 		return 0;
 	}
-	dev_dbg(adapter->dev,
-		"info: Current TxPower Level = %d, Max Power=%d, Min Power=%d\n",
-	       priv->tx_power_level, priv->max_tx_power_level,
-	       priv->min_tx_power_level);
+	mwifiex_dbg(adapter, INFO,
+		    "info: Current TxPower Level = %d, Max Power=%d, Min Power=%d\n",
+		    priv->tx_power_level, priv->max_tx_power_level,
+		    priv->min_tx_power_level);
 
 	return 0;
 }
@@ -454,10 +462,10 @@ static int mwifiex_ret_rf_tx_power(struct mwifiex_private *priv,
 		priv->min_tx_power_level = txp->min_power;
 	}
 
-	dev_dbg(priv->adapter->dev,
-		"Current TxPower Level=%d, Max Power=%d, Min Power=%d\n",
-		priv->tx_power_level, priv->max_tx_power_level,
-		priv->min_tx_power_level);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "Current TxPower Level=%d, Max Power=%d, Min Power=%d\n",
+		    priv->tx_power_level, priv->max_tx_power_level,
+		    priv->min_tx_power_level);
 
 	return 0;
 }
@@ -473,18 +481,18 @@ static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
-		dev_dbg(adapter->dev,
-			"RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x"
-			" Rx action = 0x%x, Rx Mode = 0x%04x\n",
-			le16_to_cpu(ant_mimo->action_tx),
-			le16_to_cpu(ant_mimo->tx_ant_mode),
-			le16_to_cpu(ant_mimo->action_rx),
-			le16_to_cpu(ant_mimo->rx_ant_mode));
+		mwifiex_dbg(adapter, INFO,
+			    "RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x\t"
+			    "Rx action = 0x%x, Rx Mode = 0x%04x\n",
+			    le16_to_cpu(ant_mimo->action_tx),
+			    le16_to_cpu(ant_mimo->tx_ant_mode),
+			    le16_to_cpu(ant_mimo->action_rx),
+			    le16_to_cpu(ant_mimo->rx_ant_mode));
 	else
-		dev_dbg(adapter->dev,
-			"RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
-			le16_to_cpu(ant_siso->action),
-			le16_to_cpu(ant_siso->ant_mode));
+		mwifiex_dbg(adapter, INFO,
+			    "RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
+			    le16_to_cpu(ant_siso->action),
+			    le16_to_cpu(ant_siso->ant_mode));
 
 	return 0;
 }
@@ -502,8 +510,8 @@ static int mwifiex_ret_802_11_mac_address(struct mwifiex_private *priv,
 
 	memcpy(priv->curr_addr, cmd_mac_addr->mac_addr, ETH_ALEN);
 
-	dev_dbg(priv->adapter->dev,
-		"info: set mac address: %pM\n", priv->curr_addr);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: set mac address: %pM\n", priv->curr_addr);
 
 	return 0;
 }
@@ -587,7 +595,8 @@ static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
 
 	if (le16_to_cpu(key->action) == HostCmd_ACT_GEN_SET) {
 		if ((le16_to_cpu(key->key_param_set.key_info) & KEY_MCAST)) {
-			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
+			mwifiex_dbg(priv->adapter, INFO,
+				    "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;
 		}
@@ -617,7 +626,7 @@ static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
 	key_v2 = &resp->params.key_material_v2;
 	if (le16_to_cpu(key_v2->action) == HostCmd_ACT_GEN_SET) {
 		if ((le16_to_cpu(key_v2->key_param_set.key_info) & KEY_MCAST)) {
-			dev_dbg(priv->adapter->dev, "info: key: GTK is set\n");
+			mwifiex_dbg(priv->adapter, INFO, "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;
 		}
@@ -663,14 +672,14 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 				- IEEE80211_COUNTRY_STRING_LEN)
 			      / sizeof(struct ieee80211_country_ie_triplet));
 
-	dev_dbg(priv->adapter->dev,
-		"info: 11D Domain Info Resp: no_of_triplet=%d\n",
-		no_of_triplet);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: 11D Domain Info Resp: no_of_triplet=%d\n",
+		    no_of_triplet);
 
 	if (no_of_triplet > MWIFIEX_MAX_TRIPLET_802_11D) {
-		dev_warn(priv->adapter->dev,
-			 "11D: invalid number of triplets %d returned\n",
-			 no_of_triplet);
+		mwifiex_dbg(priv->adapter, FATAL,
+			    "11D: invalid number of triplets %d returned\n",
+			    no_of_triplet);
 		return -1;
 	}
 
@@ -680,8 +689,8 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 	case HostCmd_ACT_GEN_GET:
 		break;
 	default:
-		dev_err(priv->adapter->dev,
-			"11D: invalid action:%d\n", domain_info->action);
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "11D: invalid action:%d\n", domain_info->action);
 		return -1;
 	}
 
@@ -741,6 +750,19 @@ mwifiex_ret_p2p_mode_cfg(struct mwifiex_private *priv,
 	return 0;
 }
 
+/* This function handles the command response of mem_access command
+ */
+static int
+mwifiex_ret_mem_access(struct mwifiex_private *priv,
+		       struct host_cmd_ds_command *resp, void *pioctl_buf)
+{
+	struct host_cmd_ds_mem_access *mem = (void *)&resp->params.mem;
+
+	priv->mem_rw.addr = le32_to_cpu(mem->addr);
+	priv->mem_rw.value = le32_to_cpu(mem->value);
+
+	return 0;
+}
 /*
  * This function handles the command response of register access.
  *
@@ -830,12 +852,12 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 	if (le16_to_cpu(ibss_coal_resp->action) == HostCmd_ACT_GEN_SET)
 		return 0;
 
-	dev_dbg(priv->adapter->dev,
-		"info: new BSSID %pM\n", ibss_coal_resp->bssid);
+	mwifiex_dbg(priv->adapter, INFO,
+		    "info: new BSSID %pM\n", ibss_coal_resp->bssid);
 
 	/* If rsp has NULL BSSID, Just return..... No Action */
 	if (is_zero_ether_addr(ibss_coal_resp->bssid)) {
-		dev_warn(priv->adapter->dev, "new BSSID is NULL\n");
+		mwifiex_dbg(priv->adapter, FATAL, "new BSSID is NULL\n");
 		return 0;
 	}
 
@@ -871,48 +893,48 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 	case ACT_TDLS_DELETE:
 		if (reason) {
 			if (!node || reason == TDLS_ERR_LINK_NONEXISTENT)
-				dev_dbg(priv->adapter->dev,
-					"TDLS link delete for %pM failed: reason %d\n",
-					cmd_tdls_oper->peer_mac, reason);
+				mwifiex_dbg(priv->adapter, ERROR,
+					    "TDLS link delete for %pM failed: reason %d\n",
+					    cmd_tdls_oper->peer_mac, reason);
 			else
-				dev_err(priv->adapter->dev,
-					"TDLS link delete for %pM failed: reason %d\n",
-					cmd_tdls_oper->peer_mac, reason);
+				mwifiex_dbg(priv->adapter, ERROR,
+					    "TDLS link delete for %pM failed: reason %d\n",
+					    cmd_tdls_oper->peer_mac, reason);
 		} else {
-			dev_dbg(priv->adapter->dev,
-				"TDLS link delete for %pM successful\n",
-				cmd_tdls_oper->peer_mac);
+			mwifiex_dbg(priv->adapter, MSG,
+				    "TDLS link delete for %pM successful\n",
+				    cmd_tdls_oper->peer_mac);
 		}
 		break;
 	case ACT_TDLS_CREATE:
 		if (reason) {
-			dev_err(priv->adapter->dev,
-				"TDLS link creation for %pM failed: reason %d",
-				cmd_tdls_oper->peer_mac, reason);
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "TDLS link creation for %pM failed: reason %d",
+				    cmd_tdls_oper->peer_mac, reason);
 			if (node && reason != TDLS_ERR_LINK_EXISTS)
 				node->tdls_status = TDLS_SETUP_FAILURE;
 		} else {
-			dev_dbg(priv->adapter->dev,
-				"TDLS link creation for %pM successful",
-				cmd_tdls_oper->peer_mac);
+			mwifiex_dbg(priv->adapter, MSG,
+				    "TDLS link creation for %pM successful",
+				    cmd_tdls_oper->peer_mac);
 		}
 		break;
 	case ACT_TDLS_CONFIG:
 		if (reason) {
-			dev_err(priv->adapter->dev,
-				"TDLS link config for %pM failed, reason %d\n",
-				cmd_tdls_oper->peer_mac, reason);
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "TDLS link config for %pM failed, reason %d\n",
+				    cmd_tdls_oper->peer_mac, reason);
 			if (node)
 				node->tdls_status = TDLS_SETUP_FAILURE;
 		} else {
-			dev_dbg(priv->adapter->dev,
-				"TDLS link config for %pM successful\n",
-				cmd_tdls_oper->peer_mac);
+			mwifiex_dbg(priv->adapter, MSG,
+				    "TDLS link config for %pM successful\n",
+				    cmd_tdls_oper->peer_mac);
 		}
 		break;
 	default:
-		dev_err(priv->adapter->dev,
-			"Unknown TDLS command action response %d", action);
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Unknown TDLS command action response %d", action);
 		return -1;
 	}
 
@@ -929,8 +951,30 @@ static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
 
 	/* For every subscribe event command (Get/Set/Clear), FW reports the
 	 * current set of subscribed events*/
-	dev_dbg(priv->adapter->dev, "Bitmap of currently subscribed events: %16x\n",
-		le16_to_cpu(cmd_sub_event->events));
+	mwifiex_dbg(priv->adapter, EVENT,
+		    "Bitmap of currently subscribed events: %16x\n",
+		    le16_to_cpu(cmd_sub_event->events));
+
+	return 0;
+}
+
+static int mwifiex_ret_uap_sta_list(struct mwifiex_private *priv,
+				    struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_sta_list *sta_list =
+		&resp->params.sta_list;
+	struct mwifiex_ie_types_sta_info *sta_info = (void *)&sta_list->tlv;
+	int i;
+	struct mwifiex_sta_node *sta_node;
+
+	for (i = 0; i < sta_list->sta_count; i++) {
+		sta_node = mwifiex_get_sta_entry(priv, sta_info->mac);
+		if (unlikely(!sta_node))
+			continue;
+
+		sta_node->stats.rssi = sta_info->rssi;
+		sta_info++;
+	}
 
 	return 0;
 }
@@ -940,7 +984,7 @@ static int mwifiex_ret_cfg_data(struct mwifiex_private *priv,
 				struct host_cmd_ds_command *resp)
 {
 	if (resp->result != HostCmd_RESULT_OK) {
-		dev_err(priv->adapter->dev, "Cal data cmd resp failed\n");
+		mwifiex_dbg(priv->adapter, ERROR, "Cal data cmd resp failed\n");
 		return -1;
 	}
 
@@ -1008,8 +1052,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
-		dev_dbg(adapter->dev,
-			"info: CMD_RESP: BG_SCAN result is ready!\n");
+		mwifiex_dbg(adapter, CMD,
+			    "info: CMD_RESP: BG_SCAN result is ready!\n");
 		break;
 	case HostCmd_CMD_TXPWR_CFG:
 		ret = mwifiex_ret_tx_power_cfg(priv, resp);
@@ -1088,8 +1132,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 					/ MWIFIEX_SDIO_BLOCK_SIZE)
 				       * MWIFIEX_SDIO_BLOCK_SIZE;
 		adapter->curr_tx_buf_size = adapter->tx_buf_size;
-		dev_dbg(adapter->dev, "cmd: curr_tx_buf_size=%d\n",
-			adapter->curr_tx_buf_size);
+		mwifiex_dbg(adapter, CMD, "cmd: curr_tx_buf_size=%d\n",
+			    adapter->curr_tx_buf_size);
 
 		if (adapter->if_ops.update_mp_end_port)
 			adapter->if_ops.update_mp_end_port(adapter,
@@ -1102,6 +1146,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_IBSS_COALESCING_STATUS:
 		ret = mwifiex_ret_ibss_coalescing_status(priv, resp);
+		break;
+	case HostCmd_CMD_MEM_ACCESS:
+		ret = mwifiex_ret_mem_access(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_MAC_REG_ACCESS:
 	case HostCmd_CMD_BBP_REG_ACCESS:
@@ -1122,6 +1169,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		break;
+	case HOST_CMD_APCMD_STA_LIST:
+		ret = mwifiex_ret_uap_sta_list(priv, resp);
+		break;
 	case HostCmd_CMD_UAP_BSS_START:
 		adapter->tx_lock_flag = false;
 		adapter->pps_uapsd_mode = false;
@@ -1132,6 +1182,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		priv->bss_started = 0;
 		break;
 	case HostCmd_CMD_UAP_STA_DEAUTH:
+		break;
+	case HOST_CMD_APCMD_SYS_RESET:
 		break;
 	case HostCmd_CMD_MEF_CFG:
 		break;
@@ -1146,8 +1198,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_sdio_rx_aggr_cfg(priv, resp);
 		break;
 	default:
-		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",
-			resp->command);
+		mwifiex_dbg(adapter, ERROR,
+			    "CMD_RESP: unknown cmd response %#x\n",
+			    resp->command);
 		break;
 	}
 

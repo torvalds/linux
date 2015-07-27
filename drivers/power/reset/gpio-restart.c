@@ -78,7 +78,7 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	}
 
 	gpio_restart->restart_handler.notifier_call = gpio_restart_notify;
-	gpio_restart->restart_handler.priority = 128;
+	gpio_restart->restart_handler.priority = 129;
 	gpio_restart->active_delay_ms = 100;
 	gpio_restart->inactive_delay_ms = 100;
 	gpio_restart->wait_delay_ms = 3000;

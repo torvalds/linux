@@ -20,6 +20,13 @@ void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 {
 	void *vaddr;
 
+	/*
+	 * Don't print a warning when the first allocation attempt fails.
+	 * swiotlb_alloc_coherent() will print a warning when the DMA
+	 * memory allocation ultimately failed.
+	 */
+	flags |= __GFP_NOWARN;
+
 	vaddr = dma_generic_alloc_coherent(hwdev, size, dma_handle, flags,
 					   attrs);
 	if (vaddr)

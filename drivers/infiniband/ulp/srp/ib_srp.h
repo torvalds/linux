@@ -54,7 +54,6 @@ enum {
 	SRP_DLID_REDIRECT	= 2,
 	SRP_STALE_CONN		= 3,
 
-	SRP_MAX_LUN		= 512,
 	SRP_DEF_SG_TABLESIZE	= 12,
 
 	SRP_DEFAULT_QUEUE_SIZE	= 1 << 6,
@@ -170,6 +169,7 @@ struct srp_rdma_ch {
 
 	struct completion	tsk_mgmt_done;
 	u8			tsk_mgmt_status;
+	bool			connected;
 };
 
 /**
@@ -214,7 +214,6 @@ struct srp_target_port {
 	__be16			pkey;
 
 	u32			rq_tmo_jiffies;
-	bool			connected;
 
 	int			zero_req_lim;
 

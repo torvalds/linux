@@ -121,6 +121,9 @@ struct arizona_pdata {
 	/** GPIO used for mic isolation with HPDET */
 	int hpdet_id_gpio;
 
+	/** Channel to use for headphone detection */
+	unsigned int hpdet_channel;
+
 	/** Extra debounce timeout used during initial mic detection (ms) */
 	int micd_detect_debounce;
 
@@ -156,7 +159,10 @@ struct arizona_pdata {
 	/** MICBIAS configurations */
 	struct arizona_micbias micbias[ARIZONA_MAX_MICBIAS];
 
-	/** Mode of input structures */
+	/**
+	 * Mode of input structures
+	 * One of the ARIZONA_INMODE_xxx values
+	 */
 	int inmode[ARIZONA_MAX_INPUT];
 
 	/** Mode for outputs */

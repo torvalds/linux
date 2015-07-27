@@ -23,12 +23,12 @@ static struct test {
 		.func = test__vmlinux_matches_kallsyms,
 	},
 	{
-		.desc = "detect open syscall event",
-		.func = test__open_syscall_event,
+		.desc = "detect openat syscall event",
+		.func = test__openat_syscall_event,
 	},
 	{
-		.desc = "detect open syscall event on all cpus",
-		.func = test__open_syscall_event_on_all_cpus,
+		.desc = "detect openat syscall event on all cpus",
+		.func = test__openat_syscall_event_on_all_cpus,
 	},
 	{
 		.desc = "read samples using the mmap interface",
@@ -73,8 +73,8 @@ static struct test {
 		.func = test__perf_evsel__tp_sched_test,
 	},
 	{
-		.desc = "Generate and check syscalls:sys_enter_open event fields",
-		.func = test__syscall_open_tp_fields,
+		.desc = "Generate and check syscalls:sys_enter_openat event fields",
+		.func = test__syscall_openat_tp_fields,
 	},
 	{
 		.desc = "struct perf_event_attr setup",
@@ -126,7 +126,7 @@ static struct test {
 		.desc = "Test parsing with no sample_id_all bit set",
 		.func = test__parse_no_sample_id_all,
 	},
-#if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
+#if defined(__x86_64__) || defined(__i386__) || defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 	{
 		.desc = "Test dwarf unwind",
@@ -169,6 +169,10 @@ static struct test {
 	{
 		.desc = "Test kmod_path__parse function",
 		.func = test__kmod_path__parse,
+	},
+	{
+		.desc = "Test thread map",
+		.func = test__thread_map,
 	},
 	{
 		.func = NULL,
@@ -219,7 +223,7 @@ static int run_test(struct test *test)
 	wait(&status);
 
 	if (WIFEXITED(status)) {
-		err = WEXITSTATUS(status);
+		err = (signed char)WEXITSTATUS(status);
 		pr_debug("test child finished with %d\n", err);
 	} else if (WIFSIGNALED(status)) {
 		err = -1;

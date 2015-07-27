@@ -395,13 +395,11 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	*total_flags &= FIF_PROMISC_IN_BSS |
-			FIF_ALLMULTI |
-			FIF_OTHER_BSS;
+	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS;
 
 	priv->filter_flags = *total_flags;
 
-	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
+	if (changed_flags & FIF_OTHER_BSS)
 		p54_setup_mac(priv);
 
 	if (changed_flags & FIF_ALLMULTI || multicast)
@@ -748,12 +746,12 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	spin_lock_init(&priv->tx_stats_lock);
 	skb_queue_head_init(&priv->tx_queue);
 	skb_queue_head_init(&priv->tx_pending);
-	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_SIGNAL_DBM |
-		     IEEE80211_HW_SUPPORTS_PS |
-		     IEEE80211_HW_PS_NULLFUNC_STACK |
-		     IEEE80211_HW_MFP_CAPABLE |
-		     IEEE80211_HW_REPORTS_TX_ACK_STATUS;
+	ieee80211_hw_set(dev, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(dev, MFP_CAPABLE);
+	ieee80211_hw_set(dev, PS_NULLFUNC_STACK);
+	ieee80211_hw_set(dev, SUPPORTS_PS);
+	ieee80211_hw_set(dev, RX_INCLUDES_FCS);
+	ieee80211_hw_set(dev, SIGNAL_DBM);
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				      BIT(NL80211_IFTYPE_ADHOC) |

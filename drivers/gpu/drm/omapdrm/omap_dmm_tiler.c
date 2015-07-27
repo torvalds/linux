@@ -15,21 +15,22 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+#include <linux/completion.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h> /* platform_device() */
-#include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/interrupt.h>
-#include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/delay.h>
-#include <linux/mm.h>
 #include <linux/time.h>
-#include <linux/list.h>
-#include <linux/completion.h>
+#include <linux/vmalloc.h>
+#include <linux/wait.h>
 
 #include "omap_dmm_tiler.h"
 #include "omap_dmm_priv.h"
@@ -284,7 +285,7 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 
 	if (wait) {
 		if (!wait_for_completion_timeout(&engine->compl,
-				msecs_to_jiffies(1))) {
+				msecs_to_jiffies(100))) {
 			dev_err(dmm->dev, "timed out waiting for done\n");
 			ret = -ETIMEDOUT;
 		}

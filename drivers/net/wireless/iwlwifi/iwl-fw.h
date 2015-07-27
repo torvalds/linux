@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,9 +105,23 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
-	u32 api[IWL_API_ARRAY_SIZE];
-	u32 capa[IWL_CAPABILITIES_ARRAY_SIZE];
+	unsigned long _api[BITS_TO_LONGS(IWL_API_MAX_BITS)];
+	unsigned long _capa[BITS_TO_LONGS(IWL_CAPABILITIES_MAX_BITS)];
 };
+
+static inline bool
+fw_has_api(const struct iwl_ucode_capabilities *capabilities,
+	   iwl_ucode_tlv_api_t api)
+{
+	return test_bit((__force long)api, capabilities->_api);
+}
+
+static inline bool
+fw_has_capa(const struct iwl_ucode_capabilities *capabilities,
+	    iwl_ucode_tlv_capa_t capa)
+{
+	return test_bit((__force long)capa, capabilities->_capa);
+}
 
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
 struct fw_desc {
@@ -205,6 +219,8 @@ static inline const char *get_fw_dbg_mode_string(int mode)
 		return "EXTERNAL_DRAM";
 	case MARBH_MODE:
 		return "MARBH";
+	case MIPI_MODE:
+		return "MIPI";
 	default:
 		return "UNKNOWN";
 	}

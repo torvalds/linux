@@ -811,7 +811,6 @@ static struct scsi_host_template uas_host_template = {
 	.can_queue = 65536,	/* Is there a limit on the _host_ ? */
 	.this_id = -1,
 	.sg_tablesize = SG_NONE,
-	.cmd_per_lun = 1,	/* until we override it */
 	.skip_settle_delay = 1,
 	.use_blk_tags = 1,
 };

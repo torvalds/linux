@@ -119,10 +119,11 @@ void led_set_brightness(struct led_classdev *led_cdev,
 {
 	int ret = 0;
 
-	/* delay brightness setting if need to stop soft-blink timer */
+	/* delay brightness if soft-blink is active */
 	if (led_cdev->blink_delay_on || led_cdev->blink_delay_off) {
 		led_cdev->delayed_set_value = brightness;
-		schedule_work(&led_cdev->set_brightness_work);
+		if (brightness == LED_OFF)
+			schedule_work(&led_cdev->set_brightness_work);
 		return;
 	}
 

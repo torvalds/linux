@@ -781,7 +781,7 @@ static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int nxt200x_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int nxt200x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct nxt200x_state* state = fe->demodulator_priv;
 	u8 lock;

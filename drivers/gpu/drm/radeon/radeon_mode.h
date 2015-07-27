@@ -343,7 +343,6 @@ struct radeon_crtc {
 	int max_cursor_width;
 	int max_cursor_height;
 	uint32_t legacy_display_base_addr;
-	uint32_t legacy_cursor_offset;
 	enum radeon_rmx_type rmx_type;
 	u8 h_border;
 	u8 v_border;
@@ -754,7 +753,7 @@ extern bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 				    struct drm_connector *connector);
 int radeon_dp_get_max_link_rate(struct drm_connector *connector,
-				u8 *dpcd);
+				const u8 *dpcd);
 extern void radeon_dp_set_rx_power_state(struct drm_connector *connector,
 					 u8 power_state);
 extern void radeon_dp_aux_init(struct radeon_connector *radeon_connector);

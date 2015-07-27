@@ -64,6 +64,8 @@ BTRFS_WORK_HELPER_PROTO(extent_refs_helper);
 BTRFS_WORK_HELPER_PROTO(scrub_helper);
 BTRFS_WORK_HELPER_PROTO(scrubwrc_helper);
 BTRFS_WORK_HELPER_PROTO(scrubnc_helper);
+BTRFS_WORK_HELPER_PROTO(scrubparity_helper);
+
 
 struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 					      unsigned int flags,

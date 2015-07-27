@@ -1,0 +1,39 @@
+/*
+ * NXP LPC435x, LPC433x, LPC4327, LPC4325, LPC4317 and LPC4315 SoC
+ *
+ * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This code is released using a dual license strategy: BSD/GPL
+ * You can choose the licence that better fits your requirements.
+ *
+ * Released under the terms of 3-clause BSD License
+ * Released under the terms of GNU General Public License Version 2.0
+ *
+ */
+
+/ {
+	compatible = "nxp,lpc4357";
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-m4";
+		};
+	};
+
+	soc {
+		sram0: sram@10000000 {
+			compatible = "mmio-sram";
+			reg = <0x10000000 0x8000>; /* 32 KiB local SRAM */
+		};
+
+		sram1: sram@10080000 {
+			compatible = "mmio-sram";
+			reg = <0x10080000 0xa000>; /* 32 + 8 KiB local SRAM */
+		};
+
+		sram2: sram@20000000 {
+			compatible = "mmio-sram";
+			reg = <0x20000000 0x10000>; /* 4 x 16 KiB AHB SRAM */
+		};
+	};
+};

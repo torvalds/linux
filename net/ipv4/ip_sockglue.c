@@ -432,6 +432,15 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 		kfree_skb(skb);
 }
 
+/* For some errors we have valid addr_offset even with zero payload and
+ * zero port. Also, addr_offset should be supported if port is set.
+ */
+static inline bool ipv4_datagram_support_addr(struct sock_exterr_skb *serr)
+{
+	return serr->ee.ee_origin == SO_EE_ORIGIN_ICMP ||
+	       serr->ee.ee_origin == SO_EE_ORIGIN_LOCAL || serr->port;
+}
+
 /* IPv4 supports cmsg on all imcp errors and some timestamps
  *
  * Timestamp code paths do not initialize the fields expected by cmsg:
@@ -498,7 +507,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	serr = SKB_EXT_ERR(skb);
 
-	if (sin && serr->port) {
+	if (sin && ipv4_datagram_support_addr(serr)) {
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = *(__be32 *)(skb_network_header(skb) +
 						   serr->addr_offset);
@@ -582,6 +591,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	case IP_TRANSPARENT:
 	case IP_MINTTL:
 	case IP_NODEFRAG:
+	case IP_BIND_ADDRESS_NO_PORT:
 	case IP_UNICAST_IF:
 	case IP_MULTICAST_TTL:
 	case IP_MULTICAST_ALL:
@@ -731,6 +741,9 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			break;
 		}
 		inet->nodefrag = val ? 1 : 0;
+		break;
+	case IP_BIND_ADDRESS_NO_PORT:
+		inet->bind_address_no_port = val ? 1 : 0;
 		break;
 	case IP_MTU_DISCOVER:
 		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
@@ -1323,6 +1336,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_NODEFRAG:
 		val = inet->nodefrag;
+		break;
+	case IP_BIND_ADDRESS_NO_PORT:
+		val = inet->bind_address_no_port;
 		break;
 	case IP_MTU_DISCOVER:
 		val = inet->pmtudisc;

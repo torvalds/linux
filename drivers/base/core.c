@@ -1303,12 +1303,11 @@ const char *device_get_devnode(struct device *dev,
 		return dev_name(dev);
 
 	/* replace '!' in the name with '/' */
-	*tmp = kstrdup(dev_name(dev), GFP_KERNEL);
-	if (!*tmp)
+	s = kstrdup(dev_name(dev), GFP_KERNEL);
+	if (!s)
 		return NULL;
-	while ((s = strchr(*tmp, '!')))
-		s[0] = '/';
-	return *tmp;
+	strreplace(s, '!', '/');
+	return *tmp = s;
 }
 
 /**

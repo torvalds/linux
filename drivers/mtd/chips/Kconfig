@@ -16,6 +16,7 @@ config MTD_CFI
 config MTD_JEDECPROBE
 	tristate "Detect non-CFI AMD/JEDEC-compatible flash chips"
 	select MTD_GEN_PROBE
+	select MTD_CFI_UTIL
 	help
 	  This option enables JEDEC-style probing of flash chips which are not
 	  compatible with the Common Flash Interface, but will use the common

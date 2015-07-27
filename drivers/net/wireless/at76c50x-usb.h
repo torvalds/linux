@@ -447,7 +447,7 @@ struct at76_priv {
 	int mac80211_registered;
 };
 
-#define AT76_SUPPORTED_FILTERS FIF_PROMISC_IN_BSS
+#define AT76_SUPPORTED_FILTERS 0
 
 #define SCAN_POLL_INTERVAL	(HZ / 4)
 

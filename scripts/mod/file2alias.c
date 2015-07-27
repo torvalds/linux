@@ -34,6 +34,9 @@ typedef Elf64_Addr	kernel_ulong_t;
 typedef uint32_t	__u32;
 typedef uint16_t	__u16;
 typedef unsigned char	__u8;
+typedef struct {
+	__u8 b[16];
+} uuid_le;
 
 /* Big exception to the "don't include kernel headers into userspace, which
  * even potentially has different endianness and word sizes, since
@@ -129,6 +132,15 @@ static inline void add_wildcard(char *str)
 
 	if (str[len - 1] != '*')
 		strcat(str + len, "*");
+}
+
+static inline void add_uuid(char *str, uuid_le uuid)
+{
+	int len = strlen(str);
+	int i;
+
+	for (i = 0; i < 16; i++)
+		sprintf(str + len + (i << 1), "%02x", uuid.b[i]);
 }
 
 /**
@@ -511,12 +523,40 @@ static int do_serio_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("serio", serio_device_id, do_serio_entry);
 
-/* looks like: "acpi:ACPI0003 or acpi:PNP0C0B" or "acpi:LNXVIDEO" */
+/* looks like: "acpi:ACPI0003" or "acpi:PNP0C0B" or "acpi:LNXVIDEO" or
+ *             "acpi:bbsspp" (bb=base-class, ss=sub-class, pp=prog-if)
+ *
+ * NOTE: Each driver should use one of the following : _HID, _CIDs
+ *       or _CLS. Also, bb, ss, and pp can be substituted with ??
+ *       as don't care byte.
+ */
 static int do_acpi_entry(const char *filename,
 			void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, acpi_device_id, id);
-	sprintf(alias, "acpi*:%s:*", *id);
+	DEF_FIELD_ADDR(symval, acpi_device_id, cls);
+	DEF_FIELD_ADDR(symval, acpi_device_id, cls_msk);
+
+	if (id && strlen((const char *)*id))
+		sprintf(alias, "acpi*:%s:*", *id);
+	else if (cls) {
+		int i, byte_shift, cnt = 0;
+		unsigned int msk;
+
+		sprintf(&alias[cnt], "acpi*:");
+		cnt = 6;
+		for (i = 1; i <= 3; i++) {
+			byte_shift = 8 * (3-i);
+			msk = (*cls_msk >> byte_shift) & 0xFF;
+			if (msk)
+				sprintf(&alias[cnt], "%02x",
+					(*cls >> byte_shift) & 0xFF);
+			else
+				sprintf(&alias[cnt], "??");
+			cnt += 2;
+		}
+		sprintf(&alias[cnt], ":*");
+	}
 	return 1;
 }
 ADD_TO_DEVTABLE("acpi", acpi_device_id, do_acpi_entry);
@@ -1160,13 +1200,18 @@ static int do_cpu_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("cpu", cpu_feature, do_cpu_entry);
 
-/* Looks like: mei:S */
+/* Looks like: mei:S:uuid */
 static int do_mei_entry(const char *filename, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
+	DEF_FIELD_ADDR(symval, mei_cl_device_id, uuid);
 
-	sprintf(alias, MEI_CL_MODULE_PREFIX "%s", *name);
+	sprintf(alias, MEI_CL_MODULE_PREFIX);
+	sprintf(alias + strlen(alias), "%s:",  (*name)[0]  ? *name : "*");
+	add_uuid(alias, *uuid);
+
+	strcat(alias, ":*");
 
 	return 1;
 }
@@ -1191,6 +1236,19 @@ static int do_rio_entry(const char *filename,
 	return 1;
 }
 ADD_TO_DEVTABLE("rapidio", rio_device_id, do_rio_entry);
+
+/* Looks like: ulpi:vNpN */
+static int do_ulpi_entry(const char *filename, void *symval,
+			 char *alias)
+{
+	DEF_FIELD(symval, ulpi_device_id, vendor);
+	DEF_FIELD(symval, ulpi_device_id, product);
+
+	sprintf(alias, "ulpi:v%04xp%04x", vendor, product);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("ulpi", ulpi_device_id, do_ulpi_entry);
 
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)

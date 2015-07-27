@@ -2,6 +2,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <net/switchdev.h>
 
 #include "br_private.h"
 
@@ -36,6 +37,36 @@ static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
 		clear_bit(vid, v->untagged_bitmap);
 }
 
+static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
+			  u16 vid, u16 flags)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	int err;
+
+	/* If driver uses VLAN ndo ops, use 8021q to install vid
+	 * on device, otherwise try switchdev ops to install vid.
+	 */
+
+	if (ops->ndo_vlan_rx_add_vid) {
+		err = vlan_vid_add(dev, br->vlan_proto, vid);
+	} else {
+		struct switchdev_obj vlan_obj = {
+			.id = SWITCHDEV_OBJ_PORT_VLAN,
+			.u.vlan = {
+				.flags = flags,
+				.vid_begin = vid,
+				.vid_end = vid,
+			},
+		};
+
+		err = switchdev_port_obj_add(dev, &vlan_obj);
+		if (err == -EOPNOTSUPP)
+			err = 0;
+	}
+
+	return err;
+}
+
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
 	struct net_bridge_port *p = NULL;
@@ -62,7 +93,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		 * This ensures tagged traffic enters the bridge when
 		 * promiscuous mode is disabled by br_manage_promisc().
 		 */
-		err = vlan_vid_add(dev, br->vlan_proto, vid);
+		err = __vlan_vid_add(dev, br, vid, flags);
 		if (err)
 			return err;
 	}
@@ -86,6 +117,30 @@ out_filt:
 	return err;
 }
 
+static void __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
+			   u16 vid)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	/* If driver uses VLAN ndo ops, use 8021q to delete vid
+	 * on device, otherwise try switchdev ops to delete vid.
+	 */
+
+	if (ops->ndo_vlan_rx_kill_vid) {
+		vlan_vid_del(dev, br->vlan_proto, vid);
+	} else {
+		struct switchdev_obj vlan_obj = {
+			.id = SWITCHDEV_OBJ_PORT_VLAN,
+			.u.vlan = {
+				.vid_begin = vid,
+				.vid_end = vid,
+			},
+		};
+
+		switchdev_port_obj_del(dev, &vlan_obj);
+	}
+}
+
 static int __vlan_del(struct net_port_vlans *v, u16 vid)
 {
 	if (!test_bit(vid, v->vlan_bitmap))
@@ -96,7 +151,7 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 
 	if (v->port_idx) {
 		struct net_bridge_port *p = v->parent.port;
-		vlan_vid_del(p->dev, p->br->vlan_proto, vid);
+		__vlan_vid_del(p->dev, p->br, vid);
 	}
 
 	clear_bit(vid, v->vlan_bitmap);
@@ -686,6 +741,7 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 		return -EINVAL;
 
 	br_fdb_find_delete_local(port->br, port, port->dev->dev_addr, vid);
+	br_fdb_delete_by_port(port->br, port, vid, 0);
 
 	return __vlan_del(pv, vid);
 }

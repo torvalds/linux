@@ -195,26 +195,27 @@ void rcar_du_crtc_route_output(struct drm_crtc *crtc,
 
 static unsigned int plane_zpos(struct rcar_du_plane *plane)
 {
-	return to_rcar_du_plane_state(plane->plane.state)->zpos;
+	return to_rcar_plane_state(plane->plane.state)->zpos;
 }
 
 static const struct rcar_du_format_info *
 plane_format(struct rcar_du_plane *plane)
 {
-	return to_rcar_du_plane_state(plane->plane.state)->format;
+	return to_rcar_plane_state(plane->plane.state)->format;
 }
 
 static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 {
 	struct rcar_du_plane *planes[RCAR_DU_NUM_HW_PLANES];
 	unsigned int num_planes = 0;
+	unsigned int dptsr_planes;
+	unsigned int hwplanes = 0;
 	unsigned int prio = 0;
 	unsigned int i;
-	u32 dptsr = 0;
 	u32 dspr = 0;
 
-	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes.planes); ++i) {
-		struct rcar_du_plane *plane = &rcrtc->group->planes.planes[i];
+	for (i = 0; i < rcrtc->group->num_planes; ++i) {
+		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 		unsigned int j;
 
 		if (plane->plane.state->crtc != &rcrtc->crtc)
@@ -234,40 +235,44 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	for (i = 0; i < num_planes; ++i) {
 		struct rcar_du_plane *plane = planes[i];
 		struct drm_plane_state *state = plane->plane.state;
-		unsigned int index = to_rcar_du_plane_state(state)->hwindex;
+		unsigned int index = to_rcar_plane_state(state)->hwindex;
 
 		prio -= 4;
 		dspr |= (index + 1) << prio;
-		dptsr |= DPTSR_PnDK(index) |  DPTSR_PnTS(index);
+		hwplanes |= 1 << index;
 
 		if (plane_format(plane)->planes == 2) {
 			index = (index + 1) % 8;
 
 			prio -= 4;
 			dspr |= (index + 1) << prio;
-			dptsr |= DPTSR_PnDK(index) |  DPTSR_PnTS(index);
+			hwplanes |= 1 << index;
 		}
 	}
 
-	/* Select display timing and dot clock generator 2 for planes associated
-	 * with superposition controller 2.
+	/* Update the planes to display timing and dot clock generator
+	 * associations.
+	 *
+	 * Updating the DPTSR register requires restarting the CRTC group,
+	 * resulting in visible flicker. To mitigate the issue only update the
+	 * association if needed by enabled planes. Planes being disabled will
+	 * keep their current association.
 	 */
-	if (rcrtc->index % 2) {
-		/* The DPTSR register is updated when the display controller is
-		 * stopped. We thus need to restart the DU. Once again, sorry
-		 * for the flicker. One way to mitigate the issue would be to
-		 * pre-associate planes with CRTCs (either with a fixed 4/4
-		 * split, or through a module parameter). Flicker would then
-		 * occur only if we need to break the pre-association.
-		 */
-		mutex_lock(&rcrtc->group->lock);
-		if (rcar_du_group_read(rcrtc->group, DPTSR) != dptsr) {
-			rcar_du_group_write(rcrtc->group, DPTSR, dptsr);
-			if (rcrtc->group->used_crtcs)
-				rcar_du_group_restart(rcrtc->group);
-		}
-		mutex_unlock(&rcrtc->group->lock);
+	mutex_lock(&rcrtc->group->lock);
+
+	dptsr_planes = rcrtc->index % 2 ? rcrtc->group->dptsr_planes | hwplanes
+		     : rcrtc->group->dptsr_planes & ~hwplanes;
+
+	if (dptsr_planes != rcrtc->group->dptsr_planes) {
+		rcar_du_group_write(rcrtc->group, DPTSR,
+				    (dptsr_planes << 16) | dptsr_planes);
+		rcrtc->group->dptsr_planes = dptsr_planes;
+
+		if (rcrtc->group->used_crtcs)
+			rcar_du_group_restart(rcrtc->group);
 	}
+
+	mutex_unlock(&rcrtc->group->lock);
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR,
 			    dspr);
@@ -393,6 +398,19 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	if (!rcrtc->started)
 		return;
 
+	/* Disable all planes and wait for the change to take effect. This is
+	 * required as the DSnPR registers are updated on vblank, and no vblank
+	 * will occur once the CRTC is stopped. Disabling planes when starting
+	 * the CRTC thus wouldn't be enough as it would start scanning out
+	 * immediately from old frame buffers until the next vblank.
+	 *
+	 * This increases the CRTC stop delay, especially when multiple CRTCs
+	 * are stopped in one operation as we now wait for one vblank per CRTC.
+	 * Whether this can be improved needs to be researched.
+	 */
+	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR, 0);
+	drm_crtc_wait_one_vblank(crtc);
+
 	/* Disable vertical blanking interrupt reporting. We first need to wait
 	 * for page flip completion before stopping the CRTC as userspace
 	 * expects page flips to eventually complete.
@@ -427,8 +445,8 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_start(rcrtc);
 
 	/* Commit the planes state. */
-	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes.planes); ++i) {
-		struct rcar_du_plane *plane = &rcrtc->group->planes.planes[i];
+	for (i = 0; i < rcrtc->group->num_planes; ++i) {
+		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 
 		if (plane->plane.state->crtc != &rcrtc->crtc)
 			continue;
@@ -592,7 +610,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->enabled = false;
 
 	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc,
-					&rgrp->planes.planes[index % 2].plane,
+					&rgrp->planes[index % 2].plane,
 					NULL, &crtc_funcs);
 	if (ret < 0)
 		return ret;

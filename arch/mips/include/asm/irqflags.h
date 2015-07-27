@@ -60,7 +60,7 @@ static inline void arch_local_irq_restore(unsigned long flags)
 	"	.set	push						\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
-#if defined(CONFIG_IRQ_CPU)
+#if defined(CONFIG_IRQ_MIPS_CPU)
 	/*
 	 * Slow, but doesn't suffer from a relatively unlikely race
 	 * condition we're having since days 1.
@@ -90,7 +90,7 @@ static inline void __arch_local_irq_restore(unsigned long flags)
 	"	.set	push						\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
-#if defined(CONFIG_IRQ_CPU)
+#if defined(CONFIG_IRQ_MIPS_CPU)
 	/*
 	 * Slow, but doesn't suffer from a relatively unlikely race
 	 * condition we're having since days 1.

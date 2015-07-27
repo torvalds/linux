@@ -2380,7 +2380,7 @@ mwl8k_set_ht_caps(struct ieee80211_hw *hw,
 	if (cap & MWL8K_CAP_GREENFIELD)
 		band->ht_cap.cap |= IEEE80211_HT_CAP_GRN_FLD;
 	if (cap & MWL8K_CAP_AMPDU) {
-		hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
+		ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 		band->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 		band->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
 	}
@@ -5192,7 +5192,7 @@ mwl8k_configure_filter_sniffer(struct ieee80211_hw *hw,
 		priv->sniffer_enabled = true;
 	}
 
-	*total_flags &=	FIF_PROMISC_IN_BSS | FIF_ALLMULTI |
+	*total_flags &=	FIF_ALLMULTI |
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL |
 			FIF_OTHER_BSS;
 
@@ -5431,7 +5431,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u8 *addr = sta->addr, idx;
 	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
 
-	if (!(hw->flags & IEEE80211_HW_AMPDU_AGGREGATION))
+	if (!ieee80211_hw_check(hw, AMPDU_AGGREGATION))
 		return -ENOTSUPP;
 
 	spin_lock(&priv->stream_lock);
@@ -6076,14 +6076,15 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	hw->queues = MWL8K_TX_WMM_QUEUES;
 
 	/* Set rssi values to dBm */
-	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_HAS_RATE_CONTROL;
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 
 	/*
 	 * Ask mac80211 to not to trigger PS mode
 	 * based on PM bit of incoming frames.
 	 */
 	if (priv->ap_fw)
-		hw->flags |= IEEE80211_HW_AP_LINK_PS;
+		ieee80211_hw_set(hw, AP_LINK_PS);
 
 	hw->vif_data_size = sizeof(struct mwl8k_vif);
 	hw->sta_data_size = sizeof(struct mwl8k_sta);

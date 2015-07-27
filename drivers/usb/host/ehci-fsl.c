@@ -1,6 +1,6 @@
 /*
  * Copyright 2005-2009 MontaVista Software, Inc.
- * Copyright 2008,2012      Freescale Semiconductor, Inc.
+ * Copyright 2008,2012,2015      Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,29 +24,38 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/err.h>
+#include <linux/usb.h>
+#include <linux/usb/ehci_def.h>
+#include <linux/usb/hcd.h>
+#include <linux/usb/otg.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
 
+#include "ehci.h"
 #include "ehci-fsl.h"
+
+#define DRIVER_DESC "Freescale EHCI Host controller driver"
+#define DRV_NAME "ehci-fsl"
+
+static struct hc_driver __read_mostly fsl_ehci_hc_driver;
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
 
-/**
- * usb_hcd_fsl_probe - initialize FSL-based HCDs
- * @drvier: Driver to be used for this HCD
+/*
+ * fsl_ehci_drv_probe - initialize FSL-based HCDs
  * @pdev: USB Host Controller being probed
  * Context: !in_interrupt()
  *
  * Allocates basic resources for this USB host controller.
  *
  */
-static int usb_hcd_fsl_probe(const struct hc_driver *driver,
-			     struct platform_device *pdev)
+static int fsl_ehci_drv_probe(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata;
 	struct usb_hcd *hcd;
@@ -86,7 +95,8 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	}
 	irq = res->start;
 
-	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
+	hcd = usb_create_hcd(&fsl_ehci_hc_driver, &pdev->dev,
+				dev_name(&pdev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err1;
@@ -157,38 +167,6 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	if (pdata->exit)
 		pdata->exit(pdev);
 	return retval;
-}
-
-/* may be called without controller electrically present */
-/* may be called with controller, bus, and devices active */
-
-/**
- * usb_hcd_fsl_remove - shutdown processing for FSL-based HCDs
- * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
- *
- * Reverses the effect of usb_hcd_fsl_probe().
- *
- */
-static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
-			       struct platform_device *pdev)
-{
-	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
-
-	if (!IS_ERR_OR_NULL(hcd->usb_phy)) {
-		otg_set_host(hcd->usb_phy->otg, NULL);
-		usb_put_phy(hcd->usb_phy);
-	}
-
-	usb_remove_hcd(hcd);
-
-	/*
-	 * do platform specific un-initialization:
-	 * release iomux pins, disable clock, etc.
-	 */
-	if (pdata->exit)
-		pdata->exit(pdev);
-	usb_put_hcd(hcd);
 }
 
 static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
@@ -636,79 +614,77 @@ static int ehci_start_port_reset(struct usb_hcd *hcd, unsigned port)
 #define ehci_start_port_reset	NULL
 #endif /* CONFIG_USB_OTG */
 
-
-static const struct hc_driver ehci_fsl_hc_driver = {
-	.description = hcd_name,
-	.product_desc = "Freescale On-Chip EHCI Host Controller",
-	.hcd_priv_size = sizeof(struct ehci_fsl),
-
-	/*
-	 * generic hardware linkage
-	 */
-	.irq = ehci_irq,
-	.flags = HCD_USB2 | HCD_MEMORY | HCD_BH,
-
-	/*
-	 * basic lifecycle operations
-	 */
+static struct ehci_driver_overrides ehci_fsl_overrides __initdata = {
+	.extra_priv_size = sizeof(struct ehci_fsl),
 	.reset = ehci_fsl_setup,
-	.start = ehci_run,
-	.stop = ehci_stop,
-	.shutdown = ehci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue = ehci_urb_enqueue,
-	.urb_dequeue = ehci_urb_dequeue,
-	.endpoint_disable = ehci_endpoint_disable,
-	.endpoint_reset = ehci_endpoint_reset,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number = ehci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data = ehci_hub_status_data,
-	.hub_control = ehci_hub_control,
-	.bus_suspend = ehci_bus_suspend,
-	.bus_resume = ehci_bus_resume,
-	.start_port_reset = ehci_start_port_reset,
-	.relinquish_port = ehci_relinquish_port,
-	.port_handed_over = ehci_port_handed_over,
-
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
-static int ehci_fsl_drv_probe(struct platform_device *pdev)
-{
-	if (usb_disabled())
-		return -ENODEV;
+/**
+ * fsl_ehci_drv_remove - shutdown processing for FSL-based HCDs
+ * @dev: USB Host Controller being removed
+ * Context: !in_interrupt()
+ *
+ * Reverses the effect of usb_hcd_fsl_probe().
+ *
+ */
 
-	/* FIXME we only want one one probe() not two */
-	return usb_hcd_fsl_probe(&ehci_fsl_hc_driver, pdev);
-}
-
-static int ehci_fsl_drv_remove(struct platform_device *pdev)
+static int fsl_ehci_drv_remove(struct platform_device *pdev)
 {
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
-	/* FIXME we only want one one remove() not two */
-	usb_hcd_fsl_remove(hcd, pdev);
+	if (!IS_ERR_OR_NULL(hcd->usb_phy)) {
+		otg_set_host(hcd->usb_phy->otg, NULL);
+		usb_put_phy(hcd->usb_phy);
+	}
+
+	usb_remove_hcd(hcd);
+
+	/*
+	 * do platform specific un-initialization:
+	 * release iomux pins, disable clock, etc.
+	 */
+	if (pdata->exit)
+		pdata->exit(pdev);
+	usb_put_hcd(hcd);
+
 	return 0;
 }
 
-MODULE_ALIAS("platform:fsl-ehci");
-
 static struct platform_driver ehci_fsl_driver = {
-	.probe = ehci_fsl_drv_probe,
-	.remove = ehci_fsl_drv_remove,
+	.probe = fsl_ehci_drv_probe,
+	.remove = fsl_ehci_drv_remove,
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "fsl-ehci",
 		.pm = EHCI_FSL_PM_OPS,
 	},
 };
+
+static int __init ehci_fsl_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info(DRV_NAME ": " DRIVER_DESC "\n");
+
+	ehci_init_driver(&fsl_ehci_hc_driver, &ehci_fsl_overrides);
+
+	fsl_ehci_hc_driver.product_desc =
+			"Freescale On-Chip EHCI Host Controller";
+	fsl_ehci_hc_driver.start_port_reset = ehci_start_port_reset;
+
+
+	return platform_driver_register(&ehci_fsl_driver);
+}
+module_init(ehci_fsl_init);
+
+static void __exit ehci_fsl_cleanup(void)
+{
+	platform_driver_unregister(&ehci_fsl_driver);
+}
+module_exit(ehci_fsl_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRV_NAME);

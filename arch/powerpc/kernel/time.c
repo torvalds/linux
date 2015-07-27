@@ -1124,4 +1124,4 @@ static int __init rtc_init(void)
 	return PTR_ERR_OR_ZERO(pdev);
 }
 
-module_init(rtc_init);
+device_initcall(rtc_init);

@@ -114,7 +114,7 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 		return;
 
 	gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
-	pfn = gfn_to_pfn_atomic(vcpu->kvm, gfn);
+	pfn = kvm_vcpu_gfn_to_pfn_atomic(vcpu, gfn);
 
 	if (is_error_pfn(pfn))
 		return;
@@ -131,12 +131,16 @@ static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
 	unsigned long *rmapp;
 	struct kvm_mmu_page *rev_sp;
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *slot;
 	gfn_t gfn;
 
 	rev_sp = page_header(__pa(sptep));
 	gfn = kvm_mmu_page_get_gfn(rev_sp, sptep - rev_sp->spt);
 
-	if (!gfn_to_memslot(kvm, gfn)) {
+	slots = kvm_memslots_for_spte_role(kvm, rev_sp->role);
+	slot = __gfn_to_memslot(slots, gfn);
+	if (!slot) {
 		if (!__ratelimit(&ratelimit_state))
 			return;
 		audit_printk(kvm, "no memslot for gfn %llx\n", gfn);
@@ -146,7 +150,7 @@ static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 		return;
 	}
 
-	rmapp = gfn_to_rmap(kvm, gfn, rev_sp->role.level);
+	rmapp = __gfn_to_rmap(gfn, rev_sp->role.level, slot);
 	if (!*rmapp) {
 		if (!__ratelimit(&ratelimit_state))
 			return;
@@ -191,19 +195,21 @@ static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 	unsigned long *rmapp;
 	u64 *sptep;
 	struct rmap_iterator iter;
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *slot;
 
 	if (sp->role.direct || sp->unsync || sp->role.invalid)
 		return;
 
-	rmapp = gfn_to_rmap(kvm, sp->gfn, PT_PAGE_TABLE_LEVEL);
+	slots = kvm_memslots_for_spte_role(kvm, sp->role);
+	slot = __gfn_to_memslot(slots, sp->gfn);
+	rmapp = __gfn_to_rmap(sp->gfn, PT_PAGE_TABLE_LEVEL, slot);
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
-	     sptep = rmap_get_next(&iter)) {
+	for_each_rmap_spte(rmapp, &iter, sptep)
 		if (is_writable_pte(*sptep))
 			audit_printk(kvm, "shadow page has writable "
 				     "mappings: gfn %llx role %x\n",
 				     sp->gfn, sp->role.word);
-	}
 }
 
 static void audit_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
@@ -291,7 +297,7 @@ static int mmu_audit_set(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops audit_param_ops = {
+static const struct kernel_param_ops audit_param_ops = {
 	.set = mmu_audit_set,
 	.get = param_get_bool,
 };

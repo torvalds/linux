@@ -1,0 +1,55 @@
+* Clock and reset bindings for CSR atlas7
+
+Required properties:
+- compatible: Should be "sirf,atlas7-car"
+- reg: Address and length of the register set
+- #clock-cells: Should be <1>
+- #reset-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell.
+The ID list atlas7_clks defined in drivers/clk/sirf/clk-atlas7.c
+
+The reset consumer should specify the desired reset by having the reset
+ID in its "reset" phandle cell.
+The ID list atlas7_reset_unit defined in drivers/clk/sirf/clk-atlas7.c
+
+Examples: Clock and reset controller node:
+
+car: clock-controller@18620000 {
+	compatible = "sirf,atlas7-car";
+	reg = <0x18620000 0x1000>;
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};
+
+Examples: Consumers using clock or reset:
+
+timer@10dc0000 {
+	compatible = "sirf,macro-tick";
+	reg = <0x10dc0000 0x1000>;
+	clocks = <&car 54>;
+	interrupts = <0 0 0>,
+		   <0 1 0>,
+		   <0 2 0>,
+		   <0 49 0>,
+		   <0 50 0>,
+		   <0 51 0>;
+};
+
+uart1: uart@18020000 {
+	cell-index = <1>;
+	compatible = "sirf,macro-uart";
+	reg = <0x18020000 0x1000>;
+	clocks = <&clks 95>;
+	interrupts = <0 18 0>;
+	fifosize = <32>;
+};
+
+vpp@13110000 {
+	compatible = "sirf,prima2-vpp";
+	reg = <0x13110000 0x10000>;
+	interrupts = <0 31 0>;
+	clocks = <&car 85>;
+	resets = <&car 29>;
+};

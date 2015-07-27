@@ -40,6 +40,7 @@
 #include <linux/signal.h>
 #include <linux/ioctl.h>
 #include <linux/skbuff.h>
+#include <linux/firmware.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -265,11 +266,133 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
+/* Flow control or un-flow control the device */
+void hci_uart_set_flow_control(struct hci_uart *hu, bool enable)
+{
+	struct tty_struct *tty = hu->tty;
+	struct ktermios ktermios;
+	int status;
+	unsigned int set = 0;
+	unsigned int clear = 0;
+
+	if (enable) {
+		/* Disable hardware flow control */
+		ktermios = tty->termios;
+		ktermios.c_cflag &= ~CRTSCTS;
+		status = tty_set_termios(tty, &ktermios);
+		BT_DBG("Disabling hardware flow control: %s",
+		       status ? "failed" : "success");
+
+		/* Clear RTS to prevent the device from sending */
+		/* Most UARTs need OUT2 to enable interrupts */
+		status = tty->driver->ops->tiocmget(tty);
+		BT_DBG("Current tiocm 0x%x", status);
+
+		set &= ~(TIOCM_OUT2 | TIOCM_RTS);
+		clear = ~set;
+		set &= TIOCM_DTR | TIOCM_RTS | TIOCM_OUT1 |
+		       TIOCM_OUT2 | TIOCM_LOOP;
+		clear &= TIOCM_DTR | TIOCM_RTS | TIOCM_OUT1 |
+			 TIOCM_OUT2 | TIOCM_LOOP;
+		status = tty->driver->ops->tiocmset(tty, set, clear);
+		BT_DBG("Clearing RTS: %s", status ? "failed" : "success");
+	} else {
+		/* Set RTS to allow the device to send again */
+		status = tty->driver->ops->tiocmget(tty);
+		BT_DBG("Current tiocm 0x%x", status);
+
+		set |= (TIOCM_OUT2 | TIOCM_RTS);
+		clear = ~set;
+		set &= TIOCM_DTR | TIOCM_RTS | TIOCM_OUT1 |
+		       TIOCM_OUT2 | TIOCM_LOOP;
+		clear &= TIOCM_DTR | TIOCM_RTS | TIOCM_OUT1 |
+			 TIOCM_OUT2 | TIOCM_LOOP;
+		status = tty->driver->ops->tiocmset(tty, set, clear);
+		BT_DBG("Setting RTS: %s", status ? "failed" : "success");
+
+		/* Re-enable hardware flow control */
+		ktermios = tty->termios;
+		ktermios.c_cflag |= CRTSCTS;
+		status = tty_set_termios(tty, &ktermios);
+		BT_DBG("Enabling hardware flow control: %s",
+		       status ? "failed" : "success");
+	}
+}
+
+void hci_uart_set_speeds(struct hci_uart *hu, unsigned int init_speed,
+			 unsigned int oper_speed)
+{
+	hu->init_speed = init_speed;
+	hu->oper_speed = oper_speed;
+}
+
+void hci_uart_init_tty(struct hci_uart *hu)
+{
+	struct tty_struct *tty = hu->tty;
+	struct ktermios ktermios;
+
+	/* Bring the UART into a known 8 bits no parity hw fc state */
+	ktermios = tty->termios;
+	ktermios.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP |
+			      INLCR | IGNCR | ICRNL | IXON);
+	ktermios.c_oflag &= ~OPOST;
+	ktermios.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	ktermios.c_cflag &= ~(CSIZE | PARENB);
+	ktermios.c_cflag |= CS8;
+	ktermios.c_cflag |= CRTSCTS;
+
+	/* tty_set_termios() return not checked as it is always 0 */
+	tty_set_termios(tty, &ktermios);
+}
+
+void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed)
+{
+	struct tty_struct *tty = hu->tty;
+	struct ktermios ktermios;
+
+	ktermios = tty->termios;
+	ktermios.c_cflag &= ~CBAUD;
+	tty_termios_encode_baud_rate(&ktermios, speed, speed);
+
+	/* tty_set_termios() return not checked as it is always 0 */
+	tty_set_termios(tty, &ktermios);
+
+	BT_DBG("%s: New tty speeds: %d/%d", hu->hdev->name,
+	       tty->termios.c_ispeed, tty->termios.c_ospeed);
+}
+
 static int hci_uart_setup(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct hci_rp_read_local_version *ver;
 	struct sk_buff *skb;
+	unsigned int speed;
+	int err;
+
+	/* Init speed if any */
+	if (hu->init_speed)
+		speed = hu->init_speed;
+	else if (hu->proto->init_speed)
+		speed = hu->proto->init_speed;
+	else
+		speed = 0;
+
+	if (speed)
+		hci_uart_set_baudrate(hu, speed);
+
+	/* Operational speed if any */
+	if (hu->oper_speed)
+		speed = hu->oper_speed;
+	else if (hu->proto->oper_speed)
+		speed = hu->proto->oper_speed;
+	else
+		speed = 0;
+
+	if (hu->proto->set_baudrate && speed) {
+		err = hu->proto->set_baudrate(hu, speed);
+		if (!err)
+			hci_uart_set_baudrate(hu, speed);
+	}
 
 	if (hu->proto->setup)
 		return hu->proto->setup(hu);

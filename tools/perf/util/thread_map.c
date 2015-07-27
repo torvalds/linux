@@ -8,8 +8,11 @@
 #include <unistd.h>
 #include "strlist.h"
 #include <string.h>
+#include <api/fs/fs.h>
+#include "asm/bug.h"
 #include "thread_map.h"
 #include "util.h"
+#include "debug.h"
 
 /* Skip "." and ".." directories */
 static int filter(const struct dirent *dir)
@@ -19,6 +22,30 @@ static int filter(const struct dirent *dir)
 	else
 		return 1;
 }
+
+static void thread_map__reset(struct thread_map *map, int start, int nr)
+{
+	size_t size = (nr - start) * sizeof(map->map[0]);
+
+	memset(&map->map[start], 0, size);
+}
+
+static struct thread_map *thread_map__realloc(struct thread_map *map, int nr)
+{
+	size_t size = sizeof(*map) + sizeof(map->map[0]) * nr;
+	int start = map ? map->nr : 0;
+
+	map = realloc(map, size);
+	/*
+	 * We only realloc to add more items, let's reset new items.
+	 */
+	if (map)
+		thread_map__reset(map, start, nr);
+
+	return map;
+}
+
+#define thread_map__alloc(__nr) thread_map__realloc(NULL, __nr)
 
 struct thread_map *thread_map__new_by_pid(pid_t pid)
 {
@@ -33,11 +60,12 @@ struct thread_map *thread_map__new_by_pid(pid_t pid)
 	if (items <= 0)
 		return NULL;
 
-	threads = malloc(sizeof(*threads) + sizeof(pid_t) * items);
+	threads = thread_map__alloc(items);
 	if (threads != NULL) {
 		for (i = 0; i < items; i++)
-			threads->map[i] = atoi(namelist[i]->d_name);
+			thread_map__set_pid(threads, i, atoi(namelist[i]->d_name));
 		threads->nr = items;
+		atomic_set(&threads->refcnt, 1);
 	}
 
 	for (i=0; i<items; i++)
@@ -49,11 +77,12 @@ struct thread_map *thread_map__new_by_pid(pid_t pid)
 
 struct thread_map *thread_map__new_by_tid(pid_t tid)
 {
-	struct thread_map *threads = malloc(sizeof(*threads) + sizeof(pid_t));
+	struct thread_map *threads = thread_map__alloc(1);
 
 	if (threads != NULL) {
-		threads->map[0] = tid;
-		threads->nr	= 1;
+		thread_map__set_pid(threads, 0, tid);
+		threads->nr = 1;
+		atomic_set(&threads->refcnt, 1);
 	}
 
 	return threads;
@@ -65,8 +94,8 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 	int max_threads = 32, items, i;
 	char path[256];
 	struct dirent dirent, *next, **namelist = NULL;
-	struct thread_map *threads = malloc(sizeof(*threads) +
-					    max_threads * sizeof(pid_t));
+	struct thread_map *threads = thread_map__alloc(max_threads);
+
 	if (threads == NULL)
 		goto out;
 
@@ -75,6 +104,7 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 		goto out_free_threads;
 
 	threads->nr = 0;
+	atomic_set(&threads->refcnt, 1);
 
 	while (!readdir_r(proc, &dirent, &next) && next) {
 		char *end;
@@ -106,16 +136,17 @@ struct thread_map *thread_map__new_by_uid(uid_t uid)
 		if (grow) {
 			struct thread_map *tmp;
 
-			tmp = realloc(threads, (sizeof(*threads) +
-						max_threads * sizeof(pid_t)));
+			tmp = thread_map__realloc(threads, max_threads);
 			if (tmp == NULL)
 				goto out_free_namelist;
 
 			threads = tmp;
 		}
 
-		for (i = 0; i < items; i++)
-			threads->map[threads->nr + i] = atoi(namelist[i]->d_name);
+		for (i = 0; i < items; i++) {
+			thread_map__set_pid(threads, threads->nr + i,
+					    atoi(namelist[i]->d_name));
+		}
 
 		for (i = 0; i < items; i++)
 			zfree(&namelist[i]);
@@ -185,15 +216,14 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 			goto out_free_threads;
 
 		total_tasks += items;
-		nt = realloc(threads, (sizeof(*threads) +
-				       sizeof(pid_t) * total_tasks));
+		nt = thread_map__realloc(threads, total_tasks);
 		if (nt == NULL)
 			goto out_free_namelist;
 
 		threads = nt;
 
 		for (i = 0; i < items; i++) {
-			threads->map[j++] = atoi(namelist[i]->d_name);
+			thread_map__set_pid(threads, j++, atoi(namelist[i]->d_name));
 			zfree(&namelist[i]);
 		}
 		threads->nr = total_tasks;
@@ -202,6 +232,8 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 
 out:
 	strlist__delete(slist);
+	if (threads)
+		atomic_set(&threads->refcnt, 1);
 	return threads;
 
 out_free_namelist:
@@ -216,11 +248,12 @@ out_free_threads:
 
 struct thread_map *thread_map__new_dummy(void)
 {
-	struct thread_map *threads = malloc(sizeof(*threads) + sizeof(pid_t));
+	struct thread_map *threads = thread_map__alloc(1);
 
 	if (threads != NULL) {
-		threads->map[0]	= -1;
-		threads->nr	= 1;
+		thread_map__set_pid(threads, 0, -1);
+		threads->nr = 1;
+		atomic_set(&threads->refcnt, 1);
 	}
 	return threads;
 }
@@ -253,16 +286,18 @@ static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 			continue;
 
 		ntasks++;
-		nt = realloc(threads, sizeof(*threads) + sizeof(pid_t) * ntasks);
+		nt = thread_map__realloc(threads, ntasks);
 
 		if (nt == NULL)
 			goto out_free_threads;
 
 		threads = nt;
-		threads->map[ntasks - 1] = tid;
-		threads->nr		 = ntasks;
+		thread_map__set_pid(threads, ntasks - 1, tid);
+		threads->nr = ntasks;
 	}
 out:
+	if (threads)
+		atomic_set(&threads->refcnt, 1);
 	return threads;
 
 out_free_threads:
@@ -282,9 +317,30 @@ struct thread_map *thread_map__new_str(const char *pid, const char *tid,
 	return thread_map__new_by_tid_str(tid);
 }
 
-void thread_map__delete(struct thread_map *threads)
+static void thread_map__delete(struct thread_map *threads)
 {
-	free(threads);
+	if (threads) {
+		int i;
+
+		WARN_ONCE(atomic_read(&threads->refcnt) != 0,
+			  "thread map refcnt unbalanced\n");
+		for (i = 0; i < threads->nr; i++)
+			free(thread_map__comm(threads, i));
+		free(threads);
+	}
+}
+
+struct thread_map *thread_map__get(struct thread_map *map)
+{
+	if (map)
+		atomic_inc(&map->refcnt);
+	return map;
+}
+
+void thread_map__put(struct thread_map *map)
+{
+	if (map && atomic_dec_and_test(&map->refcnt))
+		thread_map__delete(map);
 }
 
 size_t thread_map__fprintf(struct thread_map *threads, FILE *fp)
@@ -293,7 +349,60 @@ size_t thread_map__fprintf(struct thread_map *threads, FILE *fp)
 	size_t printed = fprintf(fp, "%d thread%s: ",
 				 threads->nr, threads->nr > 1 ? "s" : "");
 	for (i = 0; i < threads->nr; ++i)
-		printed += fprintf(fp, "%s%d", i ? ", " : "", threads->map[i]);
+		printed += fprintf(fp, "%s%d", i ? ", " : "", thread_map__pid(threads, i));
 
 	return printed + fprintf(fp, "\n");
+}
+
+static int get_comm(char **comm, pid_t pid)
+{
+	char *path;
+	size_t size;
+	int err;
+
+	if (asprintf(&path, "%s/%d/comm", procfs__mountpoint(), pid) == -1)
+		return -ENOMEM;
+
+	err = filename__read_str(path, comm, &size);
+	if (!err) {
+		/*
+		 * We're reading 16 bytes, while filename__read_str
+		 * allocates data per BUFSIZ bytes, so we can safely
+		 * mark the end of the string.
+		 */
+		(*comm)[size] = 0;
+		rtrim(*comm);
+	}
+
+	free(path);
+	return err;
+}
+
+static void comm_init(struct thread_map *map, int i)
+{
+	pid_t pid = thread_map__pid(map, i);
+	char *comm = NULL;
+
+	/* dummy pid comm initialization */
+	if (pid == -1) {
+		map->map[i].comm = strdup("dummy");
+		return;
+	}
+
+	/*
+	 * The comm name is like extra bonus ;-),
+	 * so just warn if we fail for any reason.
+	 */
+	if (get_comm(&comm, pid))
+		pr_warning("Couldn't resolve comm name for pid %d\n", pid);
+
+	map->map[i].comm = comm;
+}
+
+void thread_map__read_comms(struct thread_map *threads)
+{
+	int i;
+
+	for (i = 0; i < threads->nr; ++i)
+		comm_init(threads, i);
 }

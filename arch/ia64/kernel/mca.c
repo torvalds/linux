@@ -2117,8 +2117,7 @@ ia64_mca_late_init(void)
 	register_hotcpu_notifier(&mca_cpu_notifier);
 
 	/* Setup the CMCI/P vector and handler */
-	init_timer(&cmc_poll_timer);
-	cmc_poll_timer.function = ia64_mca_cmc_poll;
+	setup_timer(&cmc_poll_timer, ia64_mca_cmc_poll, 0UL);
 
 	/* Unmask/enable the vector */
 	cmc_polling_enabled = 0;
@@ -2129,8 +2128,7 @@ ia64_mca_late_init(void)
 #ifdef CONFIG_ACPI
 	/* Setup the CPEI/P vector and handler */
 	cpe_vector = acpi_request_vector(ACPI_INTERRUPT_CPEI);
-	init_timer(&cpe_poll_timer);
-	cpe_poll_timer.function = ia64_mca_cpe_poll;
+	setup_timer(&cpe_poll_timer, ia64_mca_cpe_poll, 0UL);
 
 	{
 		unsigned int irq;

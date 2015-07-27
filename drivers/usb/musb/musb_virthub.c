@@ -195,8 +195,10 @@ void musb_port_reset(struct musb *musb, bool do_reset)
 				      msecs_to_jiffies(50));
 	} else {
 		dev_dbg(musb->controller, "root port reset stopped\n");
+		musb_platform_pre_root_reset_end(musb);
 		musb_writeb(mbase, MUSB_POWER,
 				power & ~MUSB_POWER_RESET);
+		musb_platform_post_root_reset_end(musb);
 
 		power = musb_readb(mbase, MUSB_POWER);
 		if (power & MUSB_POWER_HSMODE) {
@@ -273,9 +275,7 @@ static int musb_has_gadget(struct musb *musb)
 #ifdef CONFIG_USB_MUSB_HOST
 	return 1;
 #else
-	if (musb->port_mode == MUSB_PORT_MODE_HOST)
-		return 1;
-	return musb->g.dev.driver != NULL;
+	return musb->port_mode == MUSB_PORT_MODE_HOST;
 #endif
 }
 

@@ -28,9 +28,12 @@ extern const char *iio_dir;
  * @offset: offset to be applied for conversion to si units
  * @index: the channel index in the buffer output
  * @bytes: number of bytes occupied in buffer output
+ * @bits_used: number of valid bits of data
+ * @shift: amount of bits to shift right data before applying bit mask
  * @mask: a bit mask for the raw output
+ * @be: flag if data is big endian
  * @is_signed: is the raw value stored signed
- * @enabled: is this channel enabled
+ * @location: data offset for this channel inside the buffer (in bytes)
  **/
 struct iio_channel_info {
 	char *name;
@@ -60,12 +63,15 @@ void bsort_channel_array_by_index(struct iio_channel_info **ci_array, int cnt);
 int build_channel_array(const char *device_dir,
 						struct iio_channel_info **ci_array, int *counter);
 int find_type_by_name(const char *name, const char *type);
-int write_sysfs_int(char *filename, char *basedir, int val);
-int write_sysfs_int_and_verify(char *filename, char *basedir, int val);
-int write_sysfs_string_and_verify(char *filename, char *basedir, char *val);
-int write_sysfs_string(char *filename, char *basedir, char *val);
-int read_sysfs_posint(char *filename, char *basedir);
-int read_sysfs_float(char *filename, char *basedir, float *val);
+int write_sysfs_int(const char *filename, const char *basedir, int val);
+int write_sysfs_int_and_verify(const char *filename, const char *basedir,
+			       int val);
+int write_sysfs_string_and_verify(const char *filename, const char *basedir,
+				  const char *val);
+int write_sysfs_string(const char *filename, const char *basedir,
+		       const char *val);
+int read_sysfs_posint(const char *filename, const char *basedir);
+int read_sysfs_float(const char *filename, const char *basedir, float *val);
 int read_sysfs_string(const char *filename, const char *basedir, char *str);
 
 #endif /* _IIO_UTILS_H_ */

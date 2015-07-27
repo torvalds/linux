@@ -17,8 +17,8 @@
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
+#include <xen/page.h>
 #include <asm/xen/hypercall.h>
-#include <asm/xen/page.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/tmem.h>
 
@@ -381,21 +381,15 @@ static int __init xen_tmem_init(void)
 #ifdef CONFIG_FRONTSWAP
 	if (tmem_enabled && frontswap) {
 		char *s = "";
-		struct frontswap_ops *old_ops;
 
 		tmem_frontswap_poolid = -1;
-		old_ops = frontswap_register_ops(&tmem_frontswap_ops);
-		if (IS_ERR(old_ops) || old_ops) {
-			if (IS_ERR(old_ops))
-				return PTR_ERR(old_ops);
-			s = " (WARNING: frontswap_ops overridden)";
-		}
+		frontswap_register_ops(&tmem_frontswap_ops);
 		pr_info("frontswap enabled, RAM provided by Xen Transcendent Memory%s\n",
 			s);
 	}
 #endif
 #ifdef CONFIG_CLEANCACHE
-	BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
+	BUILD_BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
 	if (tmem_enabled && cleancache) {
 		int err;
 

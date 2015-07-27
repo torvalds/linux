@@ -36,7 +36,7 @@ static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp5_kms(to_mdp_kms(priv->kms));
 }
 
-#ifdef CONFIG_MSM_BUS_SCALING
+#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 #include <mach/board.h>
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
@@ -144,10 +144,14 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 			mode->type, mode->flags);
 
 	ctrl_pol = 0;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		ctrl_pol |= MDP5_INTF_POLARITY_CTL_HSYNC_LOW;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		ctrl_pol |= MDP5_INTF_POLARITY_CTL_VSYNC_LOW;
+
+	/* DSI controller cannot handle active-low sync signals. */
+	if (mdp5_encoder->intf.type != INTF_DSI) {
+		if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+			ctrl_pol |= MDP5_INTF_POLARITY_CTL_HSYNC_LOW;
+		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+			ctrl_pol |= MDP5_INTF_POLARITY_CTL_VSYNC_LOW;
+	}
 	/* probably need to get DATA_EN polarity from panel.. */
 
 	dtv_hsync_skew = 0;  /* get this from panel? */
@@ -304,9 +308,9 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 	 * to use the master's enable signal for the slave encoder.
 	 */
 	if (intf_num == 1)
-		data |= MDP5_SPLIT_DPL_LOWER_INTF2_TG_SYNC;
+		data |= MDP5_MDP_SPLIT_DPL_LOWER_INTF2_TG_SYNC;
 	else if (intf_num == 2)
-		data |= MDP5_SPLIT_DPL_LOWER_INTF1_TG_SYNC;
+		data |= MDP5_MDP_SPLIT_DPL_LOWER_INTF1_TG_SYNC;
 	else
 		return -EINVAL;
 
@@ -315,9 +319,9 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPARE_0(0),
 		MDP5_MDP_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
 	/* Dumb Panel, Sync mode */
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, 0);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER, data);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_UPPER(0), 0);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_LOWER(0), data);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPLIT_DPL_EN(0), 1);
 	mdp5_disable(mdp5_kms);
 
 	return 0;

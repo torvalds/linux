@@ -467,7 +467,13 @@ mmap(MAP_LOCKED) SYSTEM CALL HANDLING
 
 In addition the mlock()/mlockall() system calls, an application can request
 that a region of memory be mlocked supplying the MAP_LOCKED flag to the mmap()
-call.  Furthermore, any mmap() call or brk() call that expands the heap by a
+call. There is one important and subtle difference here, though. mmap() + mlock()
+will fail if the range cannot be faulted in (e.g. because mm_populate fails)
+and returns with ENOMEM while mmap(MAP_LOCKED) will not fail. The mmaped
+area will still have properties of the locked area - aka. pages will not get
+swapped out - but major page faults to fault memory in might still happen.
+
+Furthermore, any mmap() call or brk() call that expands the heap by a
 task that has previously called mlockall() with the MCL_FUTURE flag will result
 in the newly mapped memory being mlocked.  Before the unevictable/mlock
 changes, the kernel simply called make_pages_present() to allocate pages and

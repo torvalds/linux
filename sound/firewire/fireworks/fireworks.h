@@ -70,6 +70,7 @@ struct snd_efw {
 	bool resp_addr_changable;
 
 	/* for quirks */
+	bool is_af2;
 	bool is_af9;
 	u32 firmware_version;
 

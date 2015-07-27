@@ -119,7 +119,7 @@ static const struct dev_pm_ops ad7606_pm_ops = {
 #define AD7606_PAR_PM_OPS NULL
 #endif  /* CONFIG_PM */
 
-static struct platform_device_id ad7606_driver_ids[] = {
+static const struct platform_device_id ad7606_driver_ids[] = {
 	{
 		.name		= "ad7606-8",
 		.driver_data	= ID_AD7606_8,

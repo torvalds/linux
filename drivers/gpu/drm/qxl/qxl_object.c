@@ -208,19 +208,16 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 
 void qxl_bo_unref(struct qxl_bo **bo)
 {
-	struct ttm_buffer_object *tbo;
-
 	if ((*bo) == NULL)
 		return;
-	tbo = &((*bo)->tbo);
-	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
+
+	drm_gem_object_unreference_unlocked(&(*bo)->gem_base);
+	*bo = NULL;
 }
 
 struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 {
-	ttm_bo_reference(&bo->tbo);
+	drm_gem_object_reference(&bo->gem_base);
 	return bo;
 }
 

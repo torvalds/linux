@@ -1395,7 +1395,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
 	struct edid *edid;
-	int ret;
+	int ret = 0;
 
 	if (!hdmi->ddc)
 		return 0;
@@ -1412,7 +1412,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		dev_dbg(hdmi->dev, "failed to get edid\n");
 	}
 
-	return 0;
+	return ret;
 }
 
 static enum drm_mode_status
@@ -1457,7 +1457,7 @@ static struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.best_encoder = dw_hdmi_connector_best_encoder,
 };
 
-struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
+static struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
 	.enable = dw_hdmi_bridge_enable,
 	.disable = dw_hdmi_bridge_disable,
 	.pre_enable = dw_hdmi_bridge_nop,

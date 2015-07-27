@@ -76,6 +76,8 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 {
 	u32 i;
 	u32 timer;
+	union acpi_operand_object *object_desc;
+	u32 value;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_do_debug_object, source_desc);
 
@@ -254,8 +256,44 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 							 object)->object,
 							level + 4, 0);
 			} else {
-				acpi_ex_do_debug_object(source_desc->reference.
-							object, level + 4, 0);
+				object_desc = source_desc->reference.object;
+				value = source_desc->reference.value;
+
+				switch (object_desc->common.type) {
+				case ACPI_TYPE_BUFFER:
+
+					acpi_os_printf("Buffer[%u] = 0x%2.2X\n",
+						       value,
+						       *source_desc->reference.
+						       index_pointer);
+					break;
+
+				case ACPI_TYPE_STRING:
+
+					acpi_os_printf
+					    ("String[%u] = \"%c\" (0x%2.2X)\n",
+					     value,
+					     *source_desc->reference.
+					     index_pointer,
+					     *source_desc->reference.
+					     index_pointer);
+					break;
+
+				case ACPI_TYPE_PACKAGE:
+
+					acpi_os_printf("Package[%u] = ", value);
+					acpi_ex_do_debug_object(*source_desc->
+								reference.where,
+								level + 4, 0);
+					break;
+
+				default:
+
+					acpi_os_printf
+					    ("Unknown Reference object type %X\n",
+					     object_desc->common.type);
+					break;
+				}
 			}
 		}
 		break;

@@ -13,6 +13,8 @@
  *
  */
 
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
@@ -20,6 +22,7 @@
 #include <linux/clockchips.h>
 #include <linux/sched_clock.h>
 
+#include <asm/mach-jz4740/clock.h>
 #include <asm/mach-jz4740/irq.h>
 #include <asm/mach-jz4740/timer.h>
 #include <asm/time.h>
@@ -99,7 +102,12 @@ static struct clock_event_device jz4740_clockevent = {
 	.set_next_event = jz4740_clockevent_set_next,
 	.set_mode = jz4740_clockevent_set_mode,
 	.rating = 200,
+#ifdef CONFIG_MACH_JZ4740
 	.irq = JZ4740_IRQ_TCU0,
+#endif
+#ifdef CONFIG_MACH_JZ4780
+	.irq = JZ4780_IRQ_TCU2,
+#endif
 };
 
 static struct irqaction timer_irqaction = {
@@ -114,10 +122,17 @@ void __init plat_time_init(void)
 	int ret;
 	uint32_t clk_rate;
 	uint16_t ctrl;
+	struct clk *ext_clk;
 
+	of_clk_init(NULL);
 	jz4740_timer_init();
 
-	clk_rate = jz4740_clock_bdata.ext_rate >> 4;
+	ext_clk = clk_get(NULL, "ext");
+	if (IS_ERR(ext_clk))
+		panic("unable to get ext clock");
+	clk_rate = clk_get_rate(ext_clk) >> 4;
+	clk_put(ext_clk);
+
 	jz4740_jiffies_per_tick = DIV_ROUND_CLOSEST(clk_rate, HZ);
 
 	clockevent_set_clock(&jz4740_clockevent, clk_rate);
@@ -134,7 +149,7 @@ void __init plat_time_init(void)
 
 	sched_clock_register(jz4740_read_sched_clock, 16, clk_rate);
 
-	setup_irq(JZ4740_IRQ_TCU0, &timer_irqaction);
+	setup_irq(jz4740_clockevent.irq, &timer_irqaction);
 
 	ctrl = JZ_TIMER_CTRL_PRESCALE_16 | JZ_TIMER_CTRL_SRC_EXT;
 

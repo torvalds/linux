@@ -73,9 +73,9 @@ struct xfs_trans_resv {
  * 2 trees * (2 blocks/level * max depth - 1) * block size
  */
 #define	XFS_ALLOCFREE_LOG_RES(mp,nx) \
-	((nx) * (2 * XFS_FSB_TO_B((mp), 2 * XFS_AG_MAXLEVELS(mp) - 1)))
+	((nx) * (2 * XFS_FSB_TO_B((mp), 2 * (mp)->m_ag_maxlevels - 1)))
 #define	XFS_ALLOCFREE_LOG_COUNT(mp,nx) \
-	((nx) * (2 * (2 * XFS_AG_MAXLEVELS(mp) - 1)))
+	((nx) * (2 * (2 * (mp)->m_ag_maxlevels - 1)))
 
 /*
  * Per-directory log reservation for any directory change.

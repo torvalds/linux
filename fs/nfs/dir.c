@@ -1470,9 +1470,6 @@ static int nfs_finish_open(struct nfs_open_context *ctx,
 {
 	int err;
 
-	if ((open_flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
-		*opened |= FILE_CREATED;
-
 	err = finish_open(file, dentry, do_open, opened);
 	if (err)
 		goto out;
@@ -1771,7 +1768,7 @@ EXPORT_SYMBOL_GPL(nfs_mkdir);
 
 static void nfs_dentry_handle_enoent(struct dentry *dentry)
 {
-	if (d_really_is_positive(dentry) && !d_unhashed(dentry))
+	if (simple_positive(dentry))
 		d_delete(dentry);
 }
 

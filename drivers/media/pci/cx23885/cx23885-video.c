@@ -581,7 +581,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_format *f)
 {
 	struct cx23885_dev *dev = video_drvdata(file);
-	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int err;
 
 	dprintk(2, "%s()\n", __func__);
@@ -600,10 +602,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->field	= f->fmt.pix.field;
 	dprintk(2, "%s() width=%d height=%d field=%d\n", __func__,
 		dev->width, dev->height, dev->field);
-	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, MEDIA_BUS_FMT_FIXED);
-	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
-	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
-	/* s_mbus_fmt overwrites f->fmt.pix.field, restore it */
+	v4l2_fill_mbus_format(&format.format, &f->fmt.pix, MEDIA_BUS_FMT_FIXED);
+	call_all(dev, pad, set_fmt, NULL, &format);
+	v4l2_fill_pix_format(&f->fmt.pix, &format.format);
+	/* set_fmt overwrites f->fmt.pix.field, restore it */
 	f->fmt.pix.field = dev->field;
 	return 0;
 }

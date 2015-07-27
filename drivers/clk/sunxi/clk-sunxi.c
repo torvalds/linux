@@ -198,6 +198,8 @@ static void __init sun6i_ahb1_clk_setup(struct device_node *node)
 	int i = 0;
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (IS_ERR(reg))
+		return;
 
 	/* we have a mux, we will have >1 parents */
 	while (i < SUN6I_AHB1_MAX_PARENTS &&
@@ -1389,6 +1391,7 @@ static void __init sun6i_init_clocks(struct device_node *node)
 CLK_OF_DECLARE(sun6i_a31_clk_init, "allwinner,sun6i-a31", sun6i_init_clocks);
 CLK_OF_DECLARE(sun6i_a31s_clk_init, "allwinner,sun6i-a31s", sun6i_init_clocks);
 CLK_OF_DECLARE(sun8i_a23_clk_init, "allwinner,sun8i-a23", sun6i_init_clocks);
+CLK_OF_DECLARE(sun8i_a33_clk_init, "allwinner,sun8i-a33", sun6i_init_clocks);
 
 static void __init sun9i_init_clocks(struct device_node *node)
 {

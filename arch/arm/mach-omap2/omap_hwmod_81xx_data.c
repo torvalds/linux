@@ -478,6 +478,8 @@ static struct omap_hwmod dm81xx_gpmc_hwmod = {
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.class		= &dm81xx_gpmc_hwmod_class,
 	.main_clk	= "sysclk6_ck",
+	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
+	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DM816X_CM_ALWON_GPMC_CLKCTRL,

@@ -47,6 +47,7 @@ struct vf610_mscm_ir_chip_data {
 	void __iomem *mscm_ir_base;
 	u16 cpu_mask;
 	u16 saved_irsprc[MSCM_IRSPRC_NUM];
+	bool is_nvic;
 };
 
 static struct vf610_mscm_ir_chip_data *mscm_ir_data;
@@ -101,7 +102,7 @@ static void vf610_mscm_ir_enable(struct irq_data *data)
 	writew_relaxed(chip_data->cpu_mask,
 		       chip_data->mscm_ir_base + MSCM_IRSPRC(hwirq));
 
-	irq_chip_unmask_parent(data);
+	irq_chip_enable_parent(data);
 }
 
 static void vf610_mscm_ir_disable(struct irq_data *data)
@@ -111,7 +112,7 @@ static void vf610_mscm_ir_disable(struct irq_data *data)
 
 	writew_relaxed(0x0, chip_data->mscm_ir_base + MSCM_IRSPRC(hwirq));
 
-	irq_chip_mask_parent(data);
+	irq_chip_disable_parent(data);
 }
 
 static struct irq_chip vf610_mscm_ir_irq_chip = {
@@ -143,10 +144,17 @@ static int vf610_mscm_ir_domain_alloc(struct irq_domain *domain, unsigned int vi
 					      domain->host_data);
 
 	gic_data.np = domain->parent->of_node;
-	gic_data.args_count = 3;
-	gic_data.args[0] = GIC_SPI;
-	gic_data.args[1] = irq_data->args[0];
-	gic_data.args[2] = irq_data->args[1];
+
+	if (mscm_ir_data->is_nvic) {
+		gic_data.args_count = 1;
+		gic_data.args[0] = irq_data->args[0];
+	} else {
+		gic_data.args_count = 3;
+		gic_data.args[0] = GIC_SPI;
+		gic_data.args[1] = irq_data->args[0];
+		gic_data.args[2] = irq_data->args[1];
+	}
+
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &gic_data);
 }
 
@@ -174,10 +182,9 @@ static int __init vf610_mscm_ir_of_init(struct device_node *node,
 		return -ENOMEM;
 
 	mscm_ir_data->mscm_ir_base = of_io_request_and_map(node, 0, "mscm-ir");
-
-	if (!mscm_ir_data->mscm_ir_base) {
+	if (IS_ERR(mscm_ir_data->mscm_ir_base)) {
 		pr_err("vf610_mscm_ir: unable to map mscm register\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(mscm_ir_data->mscm_ir_base);
 		goto out_free;
 	}
 
@@ -198,6 +205,9 @@ static int __init vf610_mscm_ir_of_init(struct device_node *node,
 		ret = -ENOMEM;
 		goto out_unmap;
 	}
+
+	if (of_device_is_compatible(domain->parent->of_node, "arm,armv7m-nvic"))
+		mscm_ir_data->is_nvic = true;
 
 	cpu_pm_register_notifier(&mscm_ir_notifier_block);
 

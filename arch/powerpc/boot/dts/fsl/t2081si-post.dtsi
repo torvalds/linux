@@ -37,6 +37,16 @@
 	alloc-ranges = <0 0 0x10000 0>;
 };
 
+&qman_fqd {
+	compatible = "fsl,qman-fqd";
+	alloc-ranges = <0 0 0x10000 0>;
+};
+
+&qman_pfdr {
+	compatible = "fsl,qman-pfdr";
+	alloc-ranges = <0 0 0x10000 0>;
+};
+
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;
@@ -326,6 +336,121 @@
 	};
 };
 
+&qportals {
+	#address-cells = <0x1>;
+	#size-cells = <0x1>;
+	compatible = "simple-bus";
+
+	qportal0: qman-portal@0 {
+		compatible = "fsl,qman-portal";
+		reg = <0x0 0x4000>, <0x1000000 0x1000>;
+		interrupts = <104 0x2 0 0>;
+		cell-index = <0x0>;
+	};
+	qportal1: qman-portal@4000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x4000 0x4000>, <0x1001000 0x1000>;
+		interrupts = <106 0x2 0 0>;
+		cell-index = <0x1>;
+	};
+	qportal2: qman-portal@8000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x8000 0x4000>, <0x1002000 0x1000>;
+		interrupts = <108 0x2 0 0>;
+		cell-index = <0x2>;
+	};
+	qportal3: qman-portal@c000 {
+		compatible = "fsl,qman-portal";
+		reg = <0xc000 0x4000>, <0x1003000 0x1000>;
+		interrupts = <110 0x2 0 0>;
+		cell-index = <0x3>;
+	};
+	qportal4: qman-portal@10000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x10000 0x4000>, <0x1004000 0x1000>;
+		interrupts = <112 0x2 0 0>;
+		cell-index = <0x4>;
+	};
+	qportal5: qman-portal@14000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x14000 0x4000>, <0x1005000 0x1000>;
+		interrupts = <114 0x2 0 0>;
+		cell-index = <0x5>;
+	};
+	qportal6: qman-portal@18000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x18000 0x4000>, <0x1006000 0x1000>;
+		interrupts = <116 0x2 0 0>;
+		cell-index = <0x6>;
+	};
+	qportal7: qman-portal@1c000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x1c000 0x4000>, <0x1007000 0x1000>;
+		interrupts = <118 0x2 0 0>;
+		cell-index = <0x7>;
+	};
+	qportal8: qman-portal@20000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x20000 0x4000>, <0x1008000 0x1000>;
+		interrupts = <120 0x2 0 0>;
+		cell-index = <0x8>;
+	};
+	qportal9: qman-portal@24000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x24000 0x4000>, <0x1009000 0x1000>;
+		interrupts = <122 0x2 0 0>;
+		cell-index = <0x9>;
+	};
+	qportal10: qman-portal@28000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x28000 0x4000>, <0x100a000 0x1000>;
+		interrupts = <124 0x2 0 0>;
+		cell-index = <0xa>;
+	};
+	qportal11: qman-portal@2c000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x2c000 0x4000>, <0x100b000 0x1000>;
+		interrupts = <126 0x2 0 0>;
+		cell-index = <0xb>;
+	};
+	qportal12: qman-portal@30000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x30000 0x4000>, <0x100c000 0x1000>;
+		interrupts = <128 0x2 0 0>;
+		cell-index = <0xc>;
+	};
+	qportal13: qman-portal@34000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x34000 0x4000>, <0x100d000 0x1000>;
+		interrupts = <130 0x2 0 0>;
+		cell-index = <0xd>;
+	};
+	qportal14: qman-portal@38000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x38000 0x4000>, <0x100e000 0x1000>;
+		interrupts = <132 0x2 0 0>;
+		cell-index = <0xe>;
+	};
+	qportal15: qman-portal@3c000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x3c000 0x4000>, <0x100f000 0x1000>;
+		interrupts = <134 0x2 0 0>;
+		cell-index = <0xf>;
+	};
+	qportal16: qman-portal@40000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x40000 0x4000>, <0x1010000 0x1000>;
+		interrupts = <136 0x2 0 0>;
+		cell-index = <0x10>;
+	};
+	qportal17: qman-portal@44000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x44000 0x4000>, <0x1011000 0x1000>;
+		interrupts = <138 0x2 0 0>;
+		cell-index = <0x11>;
+	};
+};
+
 &soc {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -417,7 +542,7 @@
 			compatible = "fsl,qoriq-core-mux-2.0";
 			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
 				 <&pll1 0>, <&pll1 1>, <&pll1 2>;
-			clock-names = "pll0", "pll0-div2", "pll1-div4",
+			clock-names = "pll0", "pll0-div2", "pll0-div4",
 				"pll1", "pll1-div2", "pll1-div4";
 			clock-output-names = "cmux0";
 		};
@@ -428,7 +553,7 @@
 			compatible = "fsl,qoriq-core-mux-2.0";
 			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
 				 <&pll1 0>, <&pll1 1>, <&pll1 2>;
-			clock-names = "pll0", "pll0-div2", "pll1-div4",
+			clock-names = "pll0", "pll0-div2", "pll0-div4",
 				"pll1", "pll1-div2", "pll1-div4";
 			clock-output-names = "cmux1";
 		};
@@ -502,6 +627,7 @@
 		phy_type = "utmi";
 	};
 /include/ "qoriq-sec5.2-0.dtsi"
+/include/ "qoriq-qman3.dtsi"
 /include/ "qoriq-bman1.dtsi"
 
 	L2_1: l2-cache-controller@c20000 {

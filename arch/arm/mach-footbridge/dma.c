@@ -13,9 +13,9 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/scatterlist.h>
 
 #include <asm/dma.h>
-#include <asm/scatterlist.h>
 
 #include <asm/mach/dma.h>
 #include <asm/hardware/dec21285.h>

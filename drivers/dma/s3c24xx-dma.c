@@ -1168,7 +1168,7 @@ static struct soc_data soc_s3c2443 = {
 	.has_clocks = true,
 };
 
-static struct platform_device_id s3c24xx_dma_driver_ids[] = {
+static const struct platform_device_id s3c24xx_dma_driver_ids[] = {
 	{
 		.name		= "s3c2410-dma",
 		.driver_data	= (kernel_ulong_t)&soc_s3c2410,

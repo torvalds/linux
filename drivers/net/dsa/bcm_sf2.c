@@ -24,6 +24,7 @@
 #include <net/dsa.h>
 #include <linux/ethtool.h>
 #include <linux/if_bridge.h>
+#include <linux/brcmphy.h>
 
 #include "bcm_sf2.h"
 #include "bcm_sf2_regs.h"
@@ -697,7 +698,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	/* Include the pseudo-PHY address and the broadcast PHY address to
 	 * divert reads towards our workaround
 	 */
-	ds->phys_mii_mask |= ((1 << 30) | (1 << 0));
+	ds->phys_mii_mask |= ((1 << BRCM_PSEUDO_PHY_ADDR) | (1 << 0));
 
 	rev = reg_readl(priv, REG_SWITCH_REVISION);
 	priv->hw_params.top_rev = (rev >> SWITCH_TOP_REV_SHIFT) &
@@ -782,7 +783,7 @@ static int bcm_sf2_sw_phy_read(struct dsa_switch *ds, int addr, int regnum)
 	 */
 	switch (addr) {
 	case 0:
-	case 30:
+	case BRCM_PSEUDO_PHY_ADDR:
 		return bcm_sf2_sw_indir_rw(ds, 1, addr, regnum, 0);
 	default:
 		return 0xffff;
@@ -797,7 +798,7 @@ static int bcm_sf2_sw_phy_write(struct dsa_switch *ds, int addr, int regnum,
 	 */
 	switch (addr) {
 	case 0:
-	case 30:
+	case BRCM_PSEUDO_PHY_ADDR:
 		bcm_sf2_sw_indir_rw(ds, 0, addr, regnum, val);
 		break;
 	}
@@ -911,6 +912,13 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 	 */
 	if (port == 7) {
 		status->link = priv->port_sts[port].link;
+		/* For MoCA interfaces, also force a link down notification
+		 * since some version of the user-space daemon (mocad) use
+		 * cmd->autoneg to force the link, which messes up the PHY
+		 * state machine and make it go in PHY_FORCING state instead.
+		 */
+		if (!status->link)
+			netif_carrier_off(ds->ports[port]);
 		status->duplex = 1;
 	} else {
 		status->link = 1;

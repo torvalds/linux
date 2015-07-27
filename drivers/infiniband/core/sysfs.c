@@ -326,6 +326,8 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	int width  = (tab_attr->index >> 16) & 0xff;
 	struct ib_mad *in_mad  = NULL;
 	struct ib_mad *out_mad = NULL;
+	size_t mad_size = sizeof(*out_mad);
+	u16 out_mad_pkey_index = 0;
 	ssize_t ret;
 
 	if (!p->ibdev->process_mad)
@@ -347,7 +349,10 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	in_mad->data[41] = p->port_num;	/* PortSelect field */
 
 	if ((p->ibdev->process_mad(p->ibdev, IB_MAD_IGNORE_MKEY,
-		 p->port_num, NULL, NULL, in_mad, out_mad) &
+		 p->port_num, NULL, NULL,
+		 (const struct ib_mad_hdr *)in_mad, mad_size,
+		 (struct ib_mad_hdr *)out_mad, &mad_size,
+		 &out_mad_pkey_index) &
 	     (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) !=
 	    (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) {
 		ret = -EINVAL;
@@ -456,6 +461,7 @@ static void ib_device_release(struct device *device)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
 
+	kfree(dev->port_immutable);
 	kfree(dev);
 }
 
@@ -864,7 +870,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 		goto err_put;
 	}
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
+	if (rdma_cap_ib_switch(device)) {
 		ret = add_port(device, 0, port_callback);
 		if (ret)
 			goto err_put;

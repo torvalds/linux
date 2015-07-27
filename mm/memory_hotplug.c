@@ -513,6 +513,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
 			break;
 		err = 0;
 	}
+	vmemmap_populate_print_last();
 
 	return err;
 }

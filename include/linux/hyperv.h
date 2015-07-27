@@ -160,16 +160,18 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
  * 1 . 1  (Windows 7)
  * 2 . 4  (Windows 8)
  * 3 . 0  (Windows 8 R2)
+ * 4 . 0  (Windows 10)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
 #define VERSION_WIN7    ((1 << 16) | (1))
 #define VERSION_WIN8    ((2 << 16) | (4))
 #define VERSION_WIN8_1    ((3 << 16) | (0))
+#define VERSION_WIN10	((4 << 16) | (0))
 
 #define VERSION_INVAL -1
 
-#define VERSION_CURRENT VERSION_WIN8_1
+#define VERSION_CURRENT VERSION_WIN10
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -389,10 +391,7 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_INITIATE_CONTACT		= 14,
 	CHANNELMSG_VERSION_RESPONSE		= 15,
 	CHANNELMSG_UNLOAD			= 16,
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-	CHANNELMSG_VIEWRANGE_ADD		= 17,
-	CHANNELMSG_VIEWRANGE_REMOVE		= 18,
-#endif
+	CHANNELMSG_UNLOAD_RESPONSE		= 17,
 	CHANNELMSG_COUNT
 };
 
@@ -549,21 +548,6 @@ struct vmbus_channel_gpadl_torndown {
 	u32 gpadl;
 } __packed;
 
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-struct vmbus_channel_view_range_add {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u64 viewrange_length;
-	u32 child_relid;
-} __packed;
-
-struct vmbus_channel_view_range_remove {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u32 child_relid;
-} __packed;
-#endif
-
 struct vmbus_channel_relid_released {
 	struct vmbus_channel_message_header header;
 	u32 child_relid;
@@ -713,6 +697,11 @@ struct vmbus_channel {
 	/* The corresponding CPUID in the guest */
 	u32 target_cpu;
 	/*
+	 * State to manage the CPU affiliation of channels.
+	 */
+	struct cpumask alloced_cpus_in_node;
+	int numa_node;
+	/*
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
 	 * a scalable communication infrastructure with the host.
@@ -745,6 +734,15 @@ struct vmbus_channel {
 	 */
 	struct list_head sc_list;
 	/*
+	 * Current number of sub-channels.
+	 */
+	int num_sc;
+	/*
+	 * Number of a sub-channel (position within sc_list) which is supposed
+	 * to be used as the next outgoing channel.
+	 */
+	int next_oc;
+	/*
 	 * The primary channel this sub-channel belongs to.
 	 * This will be NULL for the primary channel.
 	 */
@@ -758,9 +756,6 @@ struct vmbus_channel {
 	 * link up channels based on their CPU affinity.
 	 */
 	struct list_head percpu_list;
-
-	int num_sc;
-	int next_oc;
 };
 
 static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
@@ -1236,13 +1231,6 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 					struct icmsg_negotiate *, u8 *, int,
 					int);
 
-int hv_kvp_init(struct hv_util_service *);
-void hv_kvp_deinit(void);
-void hv_kvp_onchannelcallback(void *);
-
-int hv_vss_init(struct hv_util_service *);
-void hv_vss_deinit(void);
-void hv_vss_onchannelcallback(void *);
 void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
 extern struct resource hyperv_mmio;

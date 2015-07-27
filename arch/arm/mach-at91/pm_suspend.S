@@ -13,7 +13,6 @@
  */
 #include <linux/linkage.h>
 #include <linux/clk/at91_pmc.h>
-#include <mach/at91_ramc.h>
 #include "pm.h"
 
 #define	SRAMC_SELF_FRESH_ACTIVE		0x01
@@ -216,7 +215,7 @@ ENTRY(at91_sramc_self_refresh)
 
 	/* Active SDRAM self-refresh mode */
 	mov	r3, #1
-	str	r3, [r2, #AT91RM9200_SDRAMC_SRR]
+	str	r3, [r2, #AT91_MC_SDRAMC_SRR]
 	b	exit_sramc_sf
 
 ddrc_sf:

@@ -185,7 +185,7 @@ static ssize_t reset_store_afu(struct device *device,
 		goto err;
 	}
 
-	if ((rc = cxl_afu_reset(afu)))
+	if ((rc = __cxl_afu_reset(afu)))
 		goto err;
 
 	rc = count;
@@ -354,6 +354,16 @@ static ssize_t api_version_compatible_show(struct device *device,
 					   char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%i\n", CXL_API_VERSION_COMPATIBLE);
+}
+
+static ssize_t afu_eb_read(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr, char *buf,
+			       loff_t off, size_t count)
+{
+	struct cxl_afu *afu = to_cxl_afu(container_of(kobj,
+						      struct device, kobj));
+
+	return cxl_afu_read_err_buffer(afu, buf, off, count);
 }
 
 static struct device_attribute afu_attrs[] = {
@@ -534,6 +544,10 @@ void cxl_sysfs_afu_remove(struct cxl_afu *afu)
 	struct afu_config_record *cr, *tmp;
 	int i;
 
+	/* remove the err buffer bin attribute */
+	if (afu->eb_len)
+		device_remove_bin_file(&afu->dev, &afu->attr_eb);
+
 	for (i = 0; i < ARRAY_SIZE(afu_attrs); i++)
 		device_remove_file(&afu->dev, &afu_attrs[i]);
 
@@ -555,6 +569,22 @@ int cxl_sysfs_afu_add(struct cxl_afu *afu)
 			goto err;
 	}
 
+	/* conditionally create the add the binary file for error info buffer */
+	if (afu->eb_len) {
+		afu->attr_eb.attr.name = "afu_err_buff";
+		afu->attr_eb.attr.mode = S_IRUGO;
+		afu->attr_eb.size = afu->eb_len;
+		afu->attr_eb.read = afu_eb_read;
+
+		rc = device_create_bin_file(&afu->dev, &afu->attr_eb);
+		if (rc) {
+			dev_err(&afu->dev,
+				"Unable to create eb attr for the afu. Err(%d)\n",
+				rc);
+			goto err;
+		}
+	}
+
 	for (i = 0; i < afu->crs_num; i++) {
 		cr = cxl_sysfs_afu_new_cr(afu, i);
 		if (IS_ERR(cr)) {
@@ -570,6 +600,9 @@ err1:
 	cxl_sysfs_afu_remove(afu);
 	return rc;
 err:
+	/* reset the eb_len as we havent created the bin attr */
+	afu->eb_len = 0;
+
 	for (i--; i >= 0; i--)
 		device_remove_file(&afu->dev, &afu_attrs[i]);
 	return rc;

@@ -406,9 +406,7 @@ static int skeleton_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strlcpy(f->description, "4:2:2, packed, YUYV", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_YUYV;
-	f->flags = 0;
 	return 0;
 }
 

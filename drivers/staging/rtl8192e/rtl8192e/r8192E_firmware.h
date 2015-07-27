@@ -52,11 +52,6 @@ enum firmware_status {
 	FW_STATUS_5_READY = 5,
 };
 
-struct fw_seg_container {
-	u16	seg_size;
-	u8	*seg_ptr;
-};
-
 struct rt_firmware {
 	enum firmware_status firmware_status;
 	u16		  cmdpacket_frag_thresold;

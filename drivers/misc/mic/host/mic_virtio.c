@@ -40,7 +40,7 @@ static int mic_sync_dma(struct mic_device *mdev, dma_addr_t dst,
 {
 	int err = 0;
 	struct dma_async_tx_descriptor *tx;
-	struct dma_chan *mic_ch = mdev->dma_ch;
+	struct dma_chan *mic_ch = mdev->dma_ch[0];
 
 	if (!mic_ch) {
 		err = -EBUSY;
@@ -80,7 +80,7 @@ static int mic_virtio_copy_to_user(struct mic_vdev *mvdev, void __user *ubuf,
 	struct mic_device *mdev = mvdev->mdev;
 	void __iomem *dbuf = mdev->aper.va + daddr;
 	struct mic_vringh *mvr = &mvdev->mvr[vr_idx];
-	size_t dma_alignment = 1 << mdev->dma_ch->device->copy_align;
+	size_t dma_alignment = 1 << mdev->dma_ch[0]->device->copy_align;
 	size_t dma_offset;
 	size_t partlen;
 	int err;
@@ -129,7 +129,7 @@ static int mic_virtio_copy_from_user(struct mic_vdev *mvdev, void __user *ubuf,
 	struct mic_device *mdev = mvdev->mdev;
 	void __iomem *dbuf = mdev->aper.va + daddr;
 	struct mic_vringh *mvr = &mvdev->mvr[vr_idx];
-	size_t dma_alignment = 1 << mdev->dma_ch->device->copy_align;
+	size_t dma_alignment = 1 << mdev->dma_ch[0]->device->copy_align;
 	size_t partlen;
 	int err;
 

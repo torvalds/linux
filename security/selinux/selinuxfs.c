@@ -1853,7 +1853,6 @@ static struct file_system_type sel_fs_type = {
 };
 
 struct vfsmount *selinuxfs_mount;
-static struct kobject *selinuxfs_kobj;
 
 static int __init init_sel_fs(void)
 {
@@ -1862,13 +1861,13 @@ static int __init init_sel_fs(void)
 	if (!selinux_enabled)
 		return 0;
 
-	selinuxfs_kobj = kobject_create_and_add("selinux", fs_kobj);
-	if (!selinuxfs_kobj)
-		return -ENOMEM;
+	err = sysfs_create_mount_point(fs_kobj, "selinux");
+	if (err)
+		return err;
 
 	err = register_filesystem(&sel_fs_type);
 	if (err) {
-		kobject_put(selinuxfs_kobj);
+		sysfs_remove_mount_point(fs_kobj, "selinux");
 		return err;
 	}
 
@@ -1887,7 +1886,7 @@ __initcall(init_sel_fs);
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 void exit_sel_fs(void)
 {
-	kobject_put(selinuxfs_kobj);
+	sysfs_remove_mount_point(fs_kobj, "selinux");
 	kern_unmount(selinuxfs_mount);
 	unregister_filesystem(&sel_fs_type);
 }

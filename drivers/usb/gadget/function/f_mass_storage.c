@@ -2786,7 +2786,7 @@ int fsg_common_set_nluns(struct fsg_common *common, int nluns)
 		return -EINVAL;
 	}
 
-	curlun = kcalloc(nluns, sizeof(*curlun), GFP_KERNEL);
+	curlun = kcalloc(FSG_MAX_LUNS, sizeof(*curlun), GFP_KERNEL);
 	if (unlikely(!curlun))
 		return -ENOMEM;
 
@@ -2795,8 +2795,6 @@ int fsg_common_set_nluns(struct fsg_common *common, int nluns)
 
 	common->luns = curlun;
 	common->nluns = nluns;
-
-	pr_info("Number of LUNs=%d\n", common->nluns);
 
 	return 0;
 }
@@ -2936,7 +2934,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 	if (fsg_lun_is_open(lun)) {
 		p = "(error)";
 		if (pathbuf) {
-			p = d_path(&lun->filp->f_path, pathbuf, PATH_MAX);
+			p = file_path(lun->filp, pathbuf, PATH_MAX);
 			if (IS_ERR(p))
 				p = "(error)";
 		}
@@ -3563,14 +3561,26 @@ static struct usb_function *fsg_alloc(struct usb_function_instance *fi)
 	struct fsg_opts *opts = fsg_opts_from_func_inst(fi);
 	struct fsg_common *common = opts->common;
 	struct fsg_dev *fsg;
+	unsigned nluns, i;
 
 	fsg = kzalloc(sizeof(*fsg), GFP_KERNEL);
 	if (unlikely(!fsg))
 		return ERR_PTR(-ENOMEM);
 
 	mutex_lock(&opts->lock);
+	if (!opts->refcnt) {
+		for (nluns = i = 0; i < FSG_MAX_LUNS; ++i)
+			if (common->luns[i])
+				nluns = i + 1;
+		if (!nluns)
+			pr_warn("No LUNS defined, continuing anyway\n");
+		else
+			common->nluns = nluns;
+		pr_info("Number of LUNs=%u\n", common->nluns);
+	}
 	opts->refcnt++;
 	mutex_unlock(&opts->lock);
+
 	fsg->function.name	= FSG_DRIVER_DESC;
 	fsg->function.bind	= fsg_bind;
 	fsg->function.unbind	= fsg_unbind;

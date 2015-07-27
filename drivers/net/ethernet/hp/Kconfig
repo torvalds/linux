@@ -7,9 +7,7 @@ config NET_VENDOR_HP
 	default y
 	depends on ISA || EISA || PCI
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -22,9 +20,7 @@ config HP100
 	tristate "HP 10/100VG PCLAN (ISA, EISA, PCI) support"
 	depends on (ISA || EISA || PCI)
 	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card of this type, say Y here.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called hp100.

@@ -11,9 +11,8 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/crypto.h>
 #include <linux/err.h>
-#include <crypto/aes.h>
+#include <crypto/aead.h>
 
 #include <net/mac80211.h>
 #include "key.h"
@@ -23,7 +22,7 @@ void ieee80211_aes_ccm_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 			       u8 *data, size_t data_len, u8 *mic,
 			       size_t mic_len)
 {
-	struct scatterlist assoc, pt, ct[2];
+	struct scatterlist sg[3];
 
 	char aead_req_data[sizeof(struct aead_request) +
 			   crypto_aead_reqsize(tfm)]
@@ -32,15 +31,14 @@ void ieee80211_aes_ccm_encrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 
 	memset(aead_req, 0, sizeof(aead_req_data));
 
-	sg_init_one(&pt, data, data_len);
-	sg_init_one(&assoc, &aad[2], be16_to_cpup((__be16 *)aad));
-	sg_init_table(ct, 2);
-	sg_set_buf(&ct[0], data, data_len);
-	sg_set_buf(&ct[1], mic, mic_len);
+	sg_init_table(sg, 3);
+	sg_set_buf(&sg[0], &aad[2], be16_to_cpup((__be16 *)aad));
+	sg_set_buf(&sg[1], data, data_len);
+	sg_set_buf(&sg[2], mic, mic_len);
 
 	aead_request_set_tfm(aead_req, tfm);
-	aead_request_set_assoc(aead_req, &assoc, assoc.length);
-	aead_request_set_crypt(aead_req, &pt, ct, data_len, b_0);
+	aead_request_set_crypt(aead_req, sg, sg, data_len, b_0);
+	aead_request_set_ad(aead_req, sg[0].length);
 
 	crypto_aead_encrypt(aead_req);
 }
@@ -49,7 +47,7 @@ int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 			      u8 *data, size_t data_len, u8 *mic,
 			      size_t mic_len)
 {
-	struct scatterlist assoc, pt, ct[2];
+	struct scatterlist sg[3];
 	char aead_req_data[sizeof(struct aead_request) +
 			   crypto_aead_reqsize(tfm)]
 		__aligned(__alignof__(struct aead_request));
@@ -60,15 +58,14 @@ int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 
 	memset(aead_req, 0, sizeof(aead_req_data));
 
-	sg_init_one(&pt, data, data_len);
-	sg_init_one(&assoc, &aad[2], be16_to_cpup((__be16 *)aad));
-	sg_init_table(ct, 2);
-	sg_set_buf(&ct[0], data, data_len);
-	sg_set_buf(&ct[1], mic, mic_len);
+	sg_init_table(sg, 3);
+	sg_set_buf(&sg[0], &aad[2], be16_to_cpup((__be16 *)aad));
+	sg_set_buf(&sg[1], data, data_len);
+	sg_set_buf(&sg[2], mic, mic_len);
 
 	aead_request_set_tfm(aead_req, tfm);
-	aead_request_set_assoc(aead_req, &assoc, assoc.length);
-	aead_request_set_crypt(aead_req, ct, &pt, data_len + mic_len, b_0);
+	aead_request_set_crypt(aead_req, sg, sg, data_len + mic_len, b_0);
+	aead_request_set_ad(aead_req, sg[0].length);
 
 	return crypto_aead_decrypt(aead_req);
 }

@@ -161,7 +161,8 @@ static int start_ts_capture(struct budget *budget)
 	return 0;
 }
 
-static int budget_read_fe_status(struct dvb_frontend *fe, fe_status_t *status)
+static int budget_read_fe_status(struct dvb_frontend *fe,
+				 enum fe_status *status)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	int synced;

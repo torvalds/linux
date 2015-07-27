@@ -25,7 +25,7 @@ struct sched_param {
 #include <linux/errno.h>
 #include <linux/nodemask.h>
 #include <linux/mm_types.h>
-#include <linux/preempt_mask.h>
+#include <linux/preempt.h>
 
 #include <asm/page.h>
 #include <asm/ptrace.h>
@@ -58,6 +58,7 @@ struct sched_param {
 #include <linux/uidgid.h>
 #include <linux/gfp.h>
 #include <linux/magic.h>
+#include <linux/cgroup-defs.h>
 
 #include <asm/processor.h>
 
@@ -132,6 +133,7 @@ struct fs_struct;
 struct perf_event_context;
 struct blk_plug;
 struct filename;
+struct nameidata;
 
 #define VMACACHE_BITS 2
 #define VMACACHE_SIZE (1U << VMACACHE_BITS)
@@ -173,7 +175,12 @@ extern unsigned long nr_iowait_cpu(int cpu);
 extern void get_iowait_load(unsigned long *nr_waiters, unsigned long *load);
 
 extern void calc_global_load(unsigned long ticks);
+
+#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
 extern void update_cpu_load_nohz(void);
+#else
+static inline void update_cpu_load_nohz(void) { }
+#endif
 
 extern unsigned long get_parent_ip(unsigned long addr);
 
@@ -185,8 +192,6 @@ struct task_group;
 #ifdef CONFIG_SCHED_DEBUG
 extern void proc_sched_show_task(struct task_struct *p, struct seq_file *m);
 extern void proc_sched_set_task(struct task_struct *p);
-extern void
-print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq);
 #endif
 
 /*
@@ -213,9 +218,10 @@ print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq);
 #define TASK_WAKEKILL		128
 #define TASK_WAKING		256
 #define TASK_PARKED		512
-#define TASK_STATE_MAX		1024
+#define TASK_NOLOAD		1024
+#define TASK_STATE_MAX		2048
 
-#define TASK_STATE_TO_CHAR_STR "RSDTtXZxKWP"
+#define TASK_STATE_TO_CHAR_STR "RSDTtXZxKWPN"
 
 extern char ___assert_task_state[1 - 2*!!(
 		sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1)];
@@ -224,6 +230,8 @@ extern char ___assert_task_state[1 - 2*!!(
 #define TASK_KILLABLE		(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
 #define TASK_STOPPED		(TASK_WAKEKILL | __TASK_STOPPED)
 #define TASK_TRACED		(TASK_WAKEKILL | __TASK_TRACED)
+
+#define TASK_IDLE		(TASK_UNINTERRUPTIBLE | TASK_NOLOAD)
 
 /* Convenience macros for the sake of wake_up */
 #define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
@@ -240,7 +248,8 @@ extern char ___assert_task_state[1 - 2*!!(
 			((task->state & (__TASK_STOPPED | __TASK_TRACED)) != 0)
 #define task_contributes_to_load(task)	\
 				((task->state & TASK_UNINTERRUPTIBLE) != 0 && \
-				 (task->flags & PF_FROZEN) == 0)
+				 (task->flags & PF_FROZEN) == 0 && \
+				 (task->state & TASK_NOLOAD) == 0)
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 
@@ -252,7 +261,7 @@ extern char ___assert_task_state[1 - 2*!!(
 #define set_task_state(tsk, state_value)			\
 	do {							\
 		(tsk)->task_state_change = _THIS_IP_;		\
-		set_mb((tsk)->state, (state_value));		\
+		smp_store_mb((tsk)->state, (state_value));		\
 	} while (0)
 
 /*
@@ -274,7 +283,7 @@ extern char ___assert_task_state[1 - 2*!!(
 #define set_current_state(state_value)				\
 	do {							\
 		current->task_state_change = _THIS_IP_;		\
-		set_mb(current->state, (state_value));		\
+		smp_store_mb(current->state, (state_value));		\
 	} while (0)
 
 #else
@@ -282,7 +291,7 @@ extern char ___assert_task_state[1 - 2*!!(
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
 #define set_task_state(tsk, state_value)		\
-	set_mb((tsk)->state, (state_value))
+	smp_store_mb((tsk)->state, (state_value))
 
 /*
  * set_current_state() includes a barrier so that the write of current->state
@@ -298,7 +307,7 @@ extern char ___assert_task_state[1 - 2*!!(
 #define __set_current_state(state_value)		\
 	do { current->state = (state_value); } while (0)
 #define set_current_state(state_value)			\
-	set_mb(current->state, (state_value))
+	smp_store_mb(current->state, (state_value))
 
 #endif
 
@@ -335,14 +344,10 @@ extern int runqueue_is_locked(int cpu);
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
 extern void nohz_balance_enter_idle(int cpu);
 extern void set_cpu_sd_state_idle(void);
-extern int get_nohz_timer_target(int pinned);
+extern int get_nohz_timer_target(void);
 #else
 static inline void nohz_balance_enter_idle(int cpu) { }
 static inline void set_cpu_sd_state_idle(void) { }
-static inline int get_nohz_timer_target(int pinned)
-{
-	return smp_processor_id();
-}
 #endif
 
 /*
@@ -567,6 +572,23 @@ struct task_cputime {
 		.sum_exec_runtime = 0,				\
 	}
 
+/*
+ * This is the atomic variant of task_cputime, which can be used for
+ * storing and updating task_cputime statistics without locking.
+ */
+struct task_cputime_atomic {
+	atomic64_t utime;
+	atomic64_t stime;
+	atomic64_t sum_exec_runtime;
+};
+
+#define INIT_CPUTIME_ATOMIC \
+	(struct task_cputime_atomic) {				\
+		.utime = ATOMIC64_INIT(0),			\
+		.stime = ATOMIC64_INIT(0),			\
+		.sum_exec_runtime = ATOMIC64_INIT(0),		\
+	}
+
 #ifdef CONFIG_PREEMPT_COUNT
 #define PREEMPT_DISABLED	(1 + PREEMPT_ENABLED)
 #else
@@ -584,18 +606,16 @@ struct task_cputime {
 
 /**
  * struct thread_group_cputimer - thread group interval timer counts
- * @cputime:		thread group interval timers.
+ * @cputime_atomic:	atomic thread group interval timers.
  * @running:		non-zero when there are timers running and
  * 			@cputime receives updates.
- * @lock:		lock for fields in this struct.
  *
  * This structure contains the version of task_cputime, above, that is
  * used for thread group CPU timer calculations.
  */
 struct thread_group_cputimer {
-	struct task_cputime cputime;
+	struct task_cputime_atomic cputime_atomic;
 	int running;
-	raw_spinlock_t lock;
 };
 
 #include <linux/rwsem.h>
@@ -734,18 +754,6 @@ struct signal_struct {
 	unsigned audit_tty_log_passwd;
 	struct tty_audit_buf *tty_audit_buf;
 #endif
-#ifdef CONFIG_CGROUPS
-	/*
-	 * group_rwsem prevents new tasks from entering the threadgroup and
-	 * member tasks from exiting,a more specifically, setting of
-	 * PF_EXITING.  fork and exit paths are protected with this rwsem
-	 * using threadgroup_change_begin/end().  Users which require
-	 * threadgroup to remain stable should use threadgroup_[un]lock()
-	 * which also takes care of exec path.  Currently, cgroup is the
-	 * only user.
-	 */
-	struct rw_semaphore group_rwsem;
-#endif
 
 	oom_flags_t oom_flags;
 	short oom_score_adj;		/* OOM kill score adjustment */
@@ -828,7 +836,7 @@ extern struct user_struct root_user;
 struct backing_dev_info;
 struct reclaim_state;
 
-#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+#ifdef CONFIG_SCHED_INFO
 struct sched_info {
 	/* cumulative counters */
 	unsigned long pcount;	      /* # of times run on this cpu */
@@ -838,7 +846,7 @@ struct sched_info {
 	unsigned long long last_arrival,/* when we last ran on a cpu */
 			   last_queued;	/* when we were last queued to run */
 };
-#endif /* defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT) */
+#endif /* CONFIG_SCHED_INFO */
 
 #ifdef CONFIG_TASK_DELAY_ACCT
 struct task_delay_info {
@@ -898,6 +906,50 @@ enum cpu_idle_type {
  */
 #define SCHED_CAPACITY_SHIFT	10
 #define SCHED_CAPACITY_SCALE	(1L << SCHED_CAPACITY_SHIFT)
+
+/*
+ * Wake-queues are lists of tasks with a pending wakeup, whose
+ * callers have already marked the task as woken internally,
+ * and can thus carry on. A common use case is being able to
+ * do the wakeups once the corresponding user lock as been
+ * released.
+ *
+ * We hold reference to each task in the list across the wakeup,
+ * thus guaranteeing that the memory is still valid by the time
+ * the actual wakeups are performed in wake_up_q().
+ *
+ * One per task suffices, because there's never a need for a task to be
+ * in two wake queues simultaneously; it is forbidden to abandon a task
+ * in a wake queue (a call to wake_up_q() _must_ follow), so if a task is
+ * already in a wake queue, the wakeup will happen soon and the second
+ * waker can just skip it.
+ *
+ * The WAKE_Q macro declares and initializes the list head.
+ * wake_up_q() does NOT reinitialize the list; it's expected to be
+ * called near the end of a function, where the fact that the queue is
+ * not used again will be easy to see by inspection.
+ *
+ * Note that this can cause spurious wakeups. schedule() callers
+ * must ensure the call is done inside a loop, confirming that the
+ * wakeup condition has in fact occurred.
+ */
+struct wake_q_node {
+	struct wake_q_node *next;
+};
+
+struct wake_q_head {
+	struct wake_q_node *first;
+	struct wake_q_node **lastp;
+};
+
+#define WAKE_Q_TAIL ((struct wake_q_node *) 0x01)
+
+#define WAKE_Q(name)					\
+	struct wake_q_head name = { WAKE_Q_TAIL, &name.first }
+
+extern void wake_q_add(struct wake_q_head *head,
+		       struct task_struct *task);
+extern void wake_up_q(struct wake_q_head *head);
 
 /*
  * sched-domains (multiprocessor balancing) declarations:
@@ -1334,8 +1386,6 @@ struct task_struct {
 	int rcu_read_lock_nesting;
 	union rcu_special rcu_read_unlock_special;
 	struct list_head rcu_node_entry;
-#endif /* #ifdef CONFIG_PREEMPT_RCU */
-#ifdef CONFIG_PREEMPT_RCU
 	struct rcu_node *rcu_blocked_node;
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 #ifdef CONFIG_TASKS_RCU
@@ -1345,7 +1395,7 @@ struct task_struct {
 	int rcu_tasks_idle_cpu;
 #endif /* #ifdef CONFIG_TASKS_RCU */
 
-#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
+#ifdef CONFIG_SCHED_INFO
 	struct sched_info sched_info;
 #endif
 
@@ -1356,9 +1406,6 @@ struct task_struct {
 #endif
 
 	struct mm_struct *mm, *active_mm;
-#ifdef CONFIG_COMPAT_BRK
-	unsigned brk_randomized:1;
-#endif
 	/* per-thread vma caching */
 	u32 vmacache_seqnum;
 	struct vm_area_struct *vmacache[VMACACHE_SIZE];
@@ -1369,7 +1416,7 @@ struct task_struct {
 	int exit_state;
 	int exit_code, exit_signal;
 	int pdeath_signal;  /*  The signal sent when the parent dies  */
-	unsigned int jobctl;	/* JOBCTL_*, siglock protected */
+	unsigned long jobctl;	/* JOBCTL_*, siglock protected */
 
 	/* Used for emulating ABI behavior of previous Linux versions */
 	unsigned int personality;
@@ -1381,9 +1428,13 @@ struct task_struct {
 	/* Revert to default priority/policy when forking */
 	unsigned sched_reset_on_fork:1;
 	unsigned sched_contributes_to_load:1;
+	unsigned sched_migrated:1;
 
 #ifdef CONFIG_MEMCG_KMEM
 	unsigned memcg_kmem_skip_account:1;
+#endif
+#ifdef CONFIG_COMPAT_BRK
+	unsigned brk_randomized:1;
 #endif
 
 	unsigned long atomic_flags; /* Flags needing atomic access. */
@@ -1461,7 +1512,7 @@ struct task_struct {
 				       it with task_lock())
 				     - initialized normally by setup_new_exec */
 /* file system info */
-	int link_count, total_link_count;
+	struct nameidata *nameidata;
 #ifdef CONFIG_SYSVIPC
 /* ipc stuff */
 	struct sysv_sem sysvsem;
@@ -1471,8 +1522,6 @@ struct task_struct {
 /* hung task detection */
 	unsigned long last_switch_count;
 #endif
-/* CPU-specific state of this task */
-	struct thread_struct thread;
 /* filesystem information */
 	struct fs_struct *fs;
 /* open file information */
@@ -1510,6 +1559,8 @@ struct task_struct {
 
 	/* Protection of the PI data structures: */
 	raw_spinlock_t pi_lock;
+
+	struct wake_q_node wake_q;
 
 #ifdef CONFIG_RT_MUTEXES
 	/* PI waiters blocked on a rt_mutex held by this task */
@@ -1724,7 +1775,22 @@ struct task_struct {
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	unsigned long	task_state_change;
 #endif
+	int pagefault_disabled;
+/* CPU-specific state of this task */
+	struct thread_struct thread;
+/*
+ * WARNING: on x86, 'thread_struct' contains a variable-sized
+ * structure.  It *MUST* be at the end of 'task_struct'.
+ *
+ * Do not put anything below here!
+ */
 };
+
+#ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
+extern int arch_task_struct_size __read_mostly;
+#else
+# define arch_task_struct_size (sizeof(struct task_struct))
+#endif
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
 #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
@@ -2077,22 +2143,22 @@ TASK_PFA_CLEAR(SPREAD_SLAB, spread_slab)
 #define JOBCTL_TRAPPING_BIT	21	/* switching to TRACED */
 #define JOBCTL_LISTENING_BIT	22	/* ptracer is listening for events */
 
-#define JOBCTL_STOP_DEQUEUED	(1 << JOBCTL_STOP_DEQUEUED_BIT)
-#define JOBCTL_STOP_PENDING	(1 << JOBCTL_STOP_PENDING_BIT)
-#define JOBCTL_STOP_CONSUME	(1 << JOBCTL_STOP_CONSUME_BIT)
-#define JOBCTL_TRAP_STOP	(1 << JOBCTL_TRAP_STOP_BIT)
-#define JOBCTL_TRAP_NOTIFY	(1 << JOBCTL_TRAP_NOTIFY_BIT)
-#define JOBCTL_TRAPPING		(1 << JOBCTL_TRAPPING_BIT)
-#define JOBCTL_LISTENING	(1 << JOBCTL_LISTENING_BIT)
+#define JOBCTL_STOP_DEQUEUED	(1UL << JOBCTL_STOP_DEQUEUED_BIT)
+#define JOBCTL_STOP_PENDING	(1UL << JOBCTL_STOP_PENDING_BIT)
+#define JOBCTL_STOP_CONSUME	(1UL << JOBCTL_STOP_CONSUME_BIT)
+#define JOBCTL_TRAP_STOP	(1UL << JOBCTL_TRAP_STOP_BIT)
+#define JOBCTL_TRAP_NOTIFY	(1UL << JOBCTL_TRAP_NOTIFY_BIT)
+#define JOBCTL_TRAPPING		(1UL << JOBCTL_TRAPPING_BIT)
+#define JOBCTL_LISTENING	(1UL << JOBCTL_LISTENING_BIT)
 
 #define JOBCTL_TRAP_MASK	(JOBCTL_TRAP_STOP | JOBCTL_TRAP_NOTIFY)
 #define JOBCTL_PENDING_MASK	(JOBCTL_STOP_PENDING | JOBCTL_TRAP_MASK)
 
 extern bool task_set_jobctl_pending(struct task_struct *task,
-				    unsigned int mask);
+				    unsigned long mask);
 extern void task_clear_jobctl_trapping(struct task_struct *task);
 extern void task_clear_jobctl_pending(struct task_struct *task,
-				      unsigned int mask);
+				      unsigned long mask);
 
 static inline void rcu_copy_process(struct task_struct *p)
 {
@@ -2365,7 +2431,6 @@ extern void sched_dead(struct task_struct *p);
 
 extern void proc_caches_init(void);
 extern void flush_signals(struct task_struct *);
-extern void __flush_signals(struct task_struct *);
 extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
 extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info);
@@ -2489,8 +2554,22 @@ extern struct mm_struct *mm_access(struct task_struct *task, unsigned int mode);
 /* Remove the current tasks stale references to the old mm_struct */
 extern void mm_release(struct task_struct *, struct mm_struct *);
 
+#ifdef CONFIG_HAVE_COPY_THREAD_TLS
+extern int copy_thread_tls(unsigned long, unsigned long, unsigned long,
+			struct task_struct *, unsigned long);
+#else
 extern int copy_thread(unsigned long, unsigned long, unsigned long,
 			struct task_struct *);
+
+/* Architectures that haven't opted into copy_thread_tls get the tls argument
+ * via pt_regs, so ignore the tls argument passed via C. */
+static inline int copy_thread_tls(
+		unsigned long clone_flags, unsigned long sp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
+{
+	return copy_thread(clone_flags, sp, arg, p);
+}
+#endif
 extern void flush_thread(void);
 extern void exit_thread(void);
 
@@ -2509,6 +2588,7 @@ extern int do_execveat(int, struct filename *,
 		       const char __user * const __user *,
 		       const char __user * const __user *,
 		       int);
+extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
 extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
 struct task_struct *fork_idle(int);
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
@@ -2531,6 +2611,9 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 	return 1;
 }
 #endif
+
+#define tasklist_empty() \
+	list_empty(&init_task.tasks)
 
 #define next_task(p) \
 	list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
@@ -2640,53 +2723,33 @@ static inline void unlock_task_sighand(struct task_struct *tsk,
 	spin_unlock_irqrestore(&tsk->sighand->siglock, *flags);
 }
 
-#ifdef CONFIG_CGROUPS
+/**
+ * threadgroup_change_begin - mark the beginning of changes to a threadgroup
+ * @tsk: task causing the changes
+ *
+ * All operations which modify a threadgroup - a new thread joining the
+ * group, death of a member thread (the assertion of PF_EXITING) and
+ * exec(2) dethreading the process and replacing the leader - are wrapped
+ * by threadgroup_change_{begin|end}().  This is to provide a place which
+ * subsystems needing threadgroup stability can hook into for
+ * synchronization.
+ */
 static inline void threadgroup_change_begin(struct task_struct *tsk)
 {
-	down_read(&tsk->signal->group_rwsem);
+	might_sleep();
+	cgroup_threadgroup_change_begin(tsk);
 }
+
+/**
+ * threadgroup_change_end - mark the end of changes to a threadgroup
+ * @tsk: task causing the changes
+ *
+ * See threadgroup_change_begin().
+ */
 static inline void threadgroup_change_end(struct task_struct *tsk)
 {
-	up_read(&tsk->signal->group_rwsem);
+	cgroup_threadgroup_change_end(tsk);
 }
-
-/**
- * threadgroup_lock - lock threadgroup
- * @tsk: member task of the threadgroup to lock
- *
- * Lock the threadgroup @tsk belongs to.  No new task is allowed to enter
- * and member tasks aren't allowed to exit (as indicated by PF_EXITING) or
- * change ->group_leader/pid.  This is useful for cases where the threadgroup
- * needs to stay stable across blockable operations.
- *
- * fork and exit paths explicitly call threadgroup_change_{begin|end}() for
- * synchronization.  While held, no new task will be added to threadgroup
- * and no existing live task will have its PF_EXITING set.
- *
- * de_thread() does threadgroup_change_{begin|end}() when a non-leader
- * sub-thread becomes a new leader.
- */
-static inline void threadgroup_lock(struct task_struct *tsk)
-{
-	down_write(&tsk->signal->group_rwsem);
-}
-
-/**
- * threadgroup_unlock - unlock threadgroup
- * @tsk: member task of the threadgroup to unlock
- *
- * Reverse threadgroup_lock().
- */
-static inline void threadgroup_unlock(struct task_struct *tsk)
-{
-	up_write(&tsk->signal->group_rwsem);
-}
-#else
-static inline void threadgroup_change_begin(struct task_struct *tsk) {}
-static inline void threadgroup_change_end(struct task_struct *tsk) {}
-static inline void threadgroup_lock(struct task_struct *tsk) {}
-static inline void threadgroup_unlock(struct task_struct *tsk) {}
-#endif
 
 #ifndef __HAVE_THREAD_FUNCTIONS
 
@@ -2962,11 +3025,6 @@ static __always_inline bool need_resched(void)
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
 void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
 
-static inline void thread_group_cputime_init(struct signal_struct *sig)
-{
-	raw_spin_lock_init(&sig->cputimer.lock);
-}
-
 /*
  * Reevaluate whether the task has signals pending delivery.
  * Wake the task if so.
@@ -3080,13 +3138,13 @@ static inline void mm_update_next_owner(struct mm_struct *mm)
 static inline unsigned long task_rlimit(const struct task_struct *tsk,
 		unsigned int limit)
 {
-	return ACCESS_ONCE(tsk->signal->rlim[limit].rlim_cur);
+	return READ_ONCE(tsk->signal->rlim[limit].rlim_cur);
 }
 
 static inline unsigned long task_rlimit_max(const struct task_struct *tsk,
 		unsigned int limit)
 {
-	return ACCESS_ONCE(tsk->signal->rlim[limit].rlim_max);
+	return READ_ONCE(tsk->signal->rlim[limit].rlim_max);
 }
 
 static inline unsigned long rlimit(unsigned int limit)

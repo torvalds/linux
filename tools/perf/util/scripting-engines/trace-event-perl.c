@@ -55,10 +55,10 @@ void xs_init(pTHX)
 
 INTERP my_perl;
 
-#define FTRACE_MAX_EVENT				\
+#define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, FTRACE_MAX_EVENT);
+static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
 extern struct scripting_context *scripting_context;
 

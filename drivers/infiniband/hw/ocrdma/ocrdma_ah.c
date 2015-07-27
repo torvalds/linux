@@ -204,12 +204,20 @@ int ocrdma_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 int ocrdma_process_mad(struct ib_device *ibdev,
 		       int process_mad_flags,
 		       u8 port_num,
-		       struct ib_wc *in_wc,
-		       struct ib_grh *in_grh,
-		       struct ib_mad *in_mad, struct ib_mad *out_mad)
+		       const struct ib_wc *in_wc,
+		       const struct ib_grh *in_grh,
+		       const struct ib_mad_hdr *in, size_t in_mad_size,
+		       struct ib_mad_hdr *out, size_t *out_mad_size,
+		       u16 *out_mad_pkey_index)
 {
 	int status;
 	struct ocrdma_dev *dev;
+	const struct ib_mad *in_mad = (const struct ib_mad *)in;
+	struct ib_mad *out_mad = (struct ib_mad *)out;
+
+	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
+			 *out_mad_size != sizeof(*out_mad)))
+		return IB_MAD_RESULT_FAILURE;
 
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_PERF_MGMT:

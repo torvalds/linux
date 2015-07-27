@@ -551,6 +551,15 @@ static void rk_iommu_zap_iova(struct rk_iommu_domain *rk_domain,
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 }
 
+static void rk_iommu_zap_iova_first_last(struct rk_iommu_domain *rk_domain,
+					 dma_addr_t iova, size_t size)
+{
+	rk_iommu_zap_iova(rk_domain, iova, SPAGE_SIZE);
+	if (size > SPAGE_SIZE)
+		rk_iommu_zap_iova(rk_domain, iova + size - SPAGE_SIZE,
+					SPAGE_SIZE);
+}
+
 static u32 *rk_dte_get_page_table(struct rk_iommu_domain *rk_domain,
 				  dma_addr_t iova)
 {
@@ -574,12 +583,6 @@ static u32 *rk_dte_get_page_table(struct rk_iommu_domain *rk_domain,
 
 	rk_table_flush(page_table, NUM_PT_ENTRIES);
 	rk_table_flush(dte_addr, 1);
-
-	/*
-	 * Zap the first iova of newly allocated page table so iommu evicts
-	 * old cached value of new dte from the iotlb.
-	 */
-	rk_iommu_zap_iova(rk_domain, iova, SPAGE_SIZE);
 
 done:
 	pt_phys = rk_dte_pt_address(dte);
@@ -629,6 +632,14 @@ static int rk_iommu_map_iova(struct rk_iommu_domain *rk_domain, u32 *pte_addr,
 	}
 
 	rk_table_flush(pte_addr, pte_count);
+
+	/*
+	 * Zap the first and last iova to evict from iotlb any previously
+	 * mapped cachelines holding stale values for its dte and pte.
+	 * We only zap the first and last iova, since only they could have
+	 * dte or pte shared with an existing mapping.
+	 */
+	rk_iommu_zap_iova_first_last(rk_domain, iova, size);
 
 	return 0;
 unwind:
@@ -774,7 +785,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 	list_add_tail(&iommu->node, &rk_domain->iommus);
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 
-	dev_info(dev, "Attached to iommu domain\n");
+	dev_dbg(dev, "Attached to iommu domain\n");
 
 	rk_iommu_disable_stall(iommu);
 
@@ -808,7 +819,7 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 
 	iommu->domain = NULL;
 
-	dev_info(dev, "Detached from iommu domain\n");
+	dev_dbg(dev, "Detached from iommu domain\n");
 }
 
 static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)

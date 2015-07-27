@@ -45,7 +45,6 @@
 #include <linux/slab.h>
 #include <net/ip.h>
 
-#include <asm/xen/page.h>
 #include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
@@ -733,7 +732,7 @@ static int xennet_get_responses(struct netfront_queue *queue,
 		if (unlikely(rx->status < 0 ||
 			     rx->offset + rx->status > PAGE_SIZE)) {
 			if (net_ratelimit())
-				dev_warn(dev, "rx->offset: %x, size: %u\n",
+				dev_warn(dev, "rx->offset: %u, size: %d\n",
 					 rx->offset, rx->status);
 			xennet_move_rx_slot(queue, skb, ref);
 			err = -EINVAL;
@@ -1245,10 +1244,6 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	np                   = netdev_priv(netdev);
 	np->xbdev            = dev;
 
-	/* No need to use rtnl_lock() before the call below as it
-	 * happens before register_netdev().
-	 */
-	netif_set_real_num_tx_queues(netdev, 0);
 	np->queues = NULL;
 
 	err = -ENOMEM;
@@ -1560,9 +1555,8 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	spin_lock_init(&queue->tx_lock);
 	spin_lock_init(&queue->rx_lock);
 
-	init_timer(&queue->rx_refill_timer);
-	queue->rx_refill_timer.data = (unsigned long)queue;
-	queue->rx_refill_timer.function = rx_refill_timeout;
+	setup_timer(&queue->rx_refill_timer, rx_refill_timeout,
+		    (unsigned long)queue);
 
 	snprintf(queue->name, sizeof(queue->name), "%s-q%u",
 		 queue->info->netdev->name, queue->id);
@@ -1901,9 +1895,6 @@ abort_transaction_no_dev_fatal:
 	xennet_disconnect_backend(info);
 	kfree(info->queues);
 	info->queues = NULL;
-	rtnl_lock();
-	netif_set_real_num_tx_queues(info->netdev, 0);
-	rtnl_unlock();
  out:
 	return err;
 }

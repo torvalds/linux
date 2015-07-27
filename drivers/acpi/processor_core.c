@@ -184,7 +184,7 @@ phys_cpuid_t acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
 	phys_cpuid_t phys_id;
 
 	phys_id = map_mat_entry(handle, type, acpi_id);
-	if (phys_id == PHYS_CPUID_INVALID)
+	if (invalid_phys_cpuid(phys_id))
 		phys_id = map_madt_entry(type, acpi_id);
 
 	return phys_id;
@@ -196,7 +196,7 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 	int i;
 #endif
 
-	if (phys_id == PHYS_CPUID_INVALID) {
+	if (invalid_phys_cpuid(phys_id)) {
 		/*
 		 * On UP processor, there is no _MAT or MADT table.
 		 * So above phys_id is always set to PHYS_CPUID_INVALID.
@@ -215,12 +215,12 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 		 * Ignores phys_id and always returns 0 for the processor
 		 * handle with acpi id 0 if nr_cpu_ids is 1.
 		 * This should be the case if SMP tables are not found.
-		 * Return -1 for other CPU's handle.
+		 * Return -EINVAL for other CPU's handle.
 		 */
 		if (nr_cpu_ids <= 1 && acpi_id == 0)
 			return acpi_id;
 		else
-			return -1;
+			return -EINVAL;
 	}
 
 #ifdef CONFIG_SMP
@@ -233,7 +233,7 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 	if (phys_id == 0)
 		return phys_id;
 #endif
-	return -1;
+	return -ENODEV;
 }
 
 int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)

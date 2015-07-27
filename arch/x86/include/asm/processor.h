@@ -21,6 +21,7 @@ struct mm_struct;
 #include <asm/desc_defs.h>
 #include <asm/nops.h>
 #include <asm/special_insns.h>
+#include <asm/fpu/types.h>
 
 #include <linux/personality.h>
 #include <linux/cpumask.h>
@@ -52,11 +53,16 @@ static inline void *current_text_addr(void)
 	return pc;
 }
 
+/*
+ * These alignment constraints are for performance in the vSMP case,
+ * but in the task_struct case we must also meet hardware imposed
+ * alignment requirements of the FPU state:
+ */
 #ifdef CONFIG_X86_VSMP
 # define ARCH_MIN_TASKALIGN		(1 << INTERNODE_CACHE_SHIFT)
 # define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
 #else
-# define ARCH_MIN_TASKALIGN		16
+# define ARCH_MIN_TASKALIGN		__alignof__(union fpregs_state)
 # define ARCH_MIN_MMSTRUCT_ALIGN	0
 #endif
 
@@ -166,7 +172,6 @@ extern const struct seq_operations cpuinfo_op;
 #define cache_line_size()	(boot_cpu_data.x86_cache_alignment)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
-extern void fpu_detect(struct cpuinfo_x86 *c);
 
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
@@ -313,128 +318,6 @@ struct orig_ist {
 	unsigned long		ist[7];
 };
 
-#define	MXCSR_DEFAULT		0x1f80
-
-struct i387_fsave_struct {
-	u32			cwd;	/* FPU Control Word		*/
-	u32			swd;	/* FPU Status Word		*/
-	u32			twd;	/* FPU Tag Word			*/
-	u32			fip;	/* FPU IP Offset		*/
-	u32			fcs;	/* FPU IP Selector		*/
-	u32			foo;	/* FPU Operand Pointer Offset	*/
-	u32			fos;	/* FPU Operand Pointer Selector	*/
-
-	/* 8*10 bytes for each FP-reg = 80 bytes:			*/
-	u32			st_space[20];
-
-	/* Software status information [not touched by FSAVE ]:		*/
-	u32			status;
-};
-
-struct i387_fxsave_struct {
-	u16			cwd; /* Control Word			*/
-	u16			swd; /* Status Word			*/
-	u16			twd; /* Tag Word			*/
-	u16			fop; /* Last Instruction Opcode		*/
-	union {
-		struct {
-			u64	rip; /* Instruction Pointer		*/
-			u64	rdp; /* Data Pointer			*/
-		};
-		struct {
-			u32	fip; /* FPU IP Offset			*/
-			u32	fcs; /* FPU IP Selector			*/
-			u32	foo; /* FPU Operand Offset		*/
-			u32	fos; /* FPU Operand Selector		*/
-		};
-	};
-	u32			mxcsr;		/* MXCSR Register State */
-	u32			mxcsr_mask;	/* MXCSR Mask		*/
-
-	/* 8*16 bytes for each FP-reg = 128 bytes:			*/
-	u32			st_space[32];
-
-	/* 16*16 bytes for each XMM-reg = 256 bytes:			*/
-	u32			xmm_space[64];
-
-	u32			padding[12];
-
-	union {
-		u32		padding1[12];
-		u32		sw_reserved[12];
-	};
-
-} __attribute__((aligned(16)));
-
-struct i387_soft_struct {
-	u32			cwd;
-	u32			swd;
-	u32			twd;
-	u32			fip;
-	u32			fcs;
-	u32			foo;
-	u32			fos;
-	/* 8*10 bytes for each FP-reg = 80 bytes: */
-	u32			st_space[20];
-	u8			ftop;
-	u8			changed;
-	u8			lookahead;
-	u8			no_update;
-	u8			rm;
-	u8			alimit;
-	struct math_emu_info	*info;
-	u32			entry_eip;
-};
-
-struct ymmh_struct {
-	/* 16 * 16 bytes for each YMMH-reg = 256 bytes */
-	u32 ymmh_space[64];
-};
-
-/* We don't support LWP yet: */
-struct lwp_struct {
-	u8 reserved[128];
-};
-
-struct bndreg {
-	u64 lower_bound;
-	u64 upper_bound;
-} __packed;
-
-struct bndcsr {
-	u64 bndcfgu;
-	u64 bndstatus;
-} __packed;
-
-struct xsave_hdr_struct {
-	u64 xstate_bv;
-	u64 xcomp_bv;
-	u64 reserved[6];
-} __attribute__((packed));
-
-struct xsave_struct {
-	struct i387_fxsave_struct i387;
-	struct xsave_hdr_struct xsave_hdr;
-	struct ymmh_struct ymmh;
-	struct lwp_struct lwp;
-	struct bndreg bndreg[4];
-	struct bndcsr bndcsr;
-	/* new processor state extensions will go here */
-} __attribute__ ((packed, aligned (64)));
-
-union thread_xstate {
-	struct i387_fsave_struct	fsave;
-	struct i387_fxsave_struct	fxsave;
-	struct i387_soft_struct		soft;
-	struct xsave_struct		xsave;
-};
-
-struct fpu {
-	unsigned int last_cpu;
-	unsigned int has_fpu;
-	union thread_xstate *state;
-};
-
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
 
@@ -483,8 +366,6 @@ DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
 #endif	/* X86_64 */
 
 extern unsigned int xstate_size;
-extern void free_thread_xstate(struct task_struct *);
-extern struct kmem_cache *task_xstate_cachep;
 
 struct perf_event;
 
@@ -508,6 +389,7 @@ struct thread_struct {
 	unsigned long		fs;
 #endif
 	unsigned long		gs;
+
 	/* Save middle states of ptrace breakpoints */
 	struct perf_event	*ptrace_bps[HBP_NUM];
 	/* Debug status used for traps, single steps, etc... */
@@ -518,8 +400,6 @@ struct thread_struct {
 	unsigned long		cr2;
 	unsigned long		trap_nr;
 	unsigned long		error_code;
-	/* floating point and extended processor state */
-	struct fpu		fpu;
 #ifdef CONFIG_X86_32
 	/* Virtual 86 mode info */
 	struct vm86_struct __user *vm86_info;
@@ -535,15 +415,13 @@ struct thread_struct {
 	unsigned long		iopl;
 	/* Max allowed port in the bitmap, in bytes: */
 	unsigned		io_bitmap_max;
+
+	/* Floating point and extended processor state */
+	struct fpu		fpu;
 	/*
-	 * fpu_counter contains the number of consecutive context switches
-	 * that the FPU is used. If this is over a threshold, the lazy fpu
-	 * saving becomes unlazy to save the trap. This is an unsigned char
-	 * so that after 256 times the counter wraps and the behavior turns
-	 * lazy again; this to deal with bursty apps that only use FPU for
-	 * a short time
+	 * WARNING: 'fpu' is dynamically-sized.  It *MUST* be at
+	 * the end.
 	 */
-	unsigned char fpu_counter;
 };
 
 /*
@@ -928,24 +806,25 @@ extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
 /* Register/unregister a process' MPX related resource */
-#define MPX_ENABLE_MANAGEMENT(tsk)	mpx_enable_management((tsk))
-#define MPX_DISABLE_MANAGEMENT(tsk)	mpx_disable_management((tsk))
+#define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()
+#define MPX_DISABLE_MANAGEMENT()	mpx_disable_management()
 
 #ifdef CONFIG_X86_INTEL_MPX
-extern int mpx_enable_management(struct task_struct *tsk);
-extern int mpx_disable_management(struct task_struct *tsk);
+extern int mpx_enable_management(void);
+extern int mpx_disable_management(void);
 #else
-static inline int mpx_enable_management(struct task_struct *tsk)
+static inline int mpx_enable_management(void)
 {
 	return -EINVAL;
 }
-static inline int mpx_disable_management(struct task_struct *tsk)
+static inline int mpx_disable_management(void)
 {
 	return -EINVAL;
 }
 #endif /* CONFIG_X86_INTEL_MPX */
 
 extern u16 amd_get_nb_id(int cpu);
+extern u32 amd_get_nodes_per_socket(void);
 
 static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 {

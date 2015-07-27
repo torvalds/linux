@@ -19,7 +19,7 @@
 #include "ieee80211.h"
 
 #include <linux/crypto.h>
-    #include <linux/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
@@ -43,38 +43,24 @@ static void *prism2_wep_init(int keyidx)
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
-		goto fail;
+		return NULL;
 	priv->key_idx = keyidx;
 
 	priv->tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(priv->tx_tfm)) {
-		pr_debug("ieee80211_crypt_wep: could not allocate "
-		       "crypto API arc4\n");
-		priv->tx_tfm = NULL;
-		goto fail;
-	}
+	if (IS_ERR(priv->tx_tfm))
+		goto free_priv;
 	priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(priv->rx_tfm)) {
-		pr_debug("ieee80211_crypt_wep: could not allocate "
-		       "crypto API arc4\n");
-		priv->rx_tfm = NULL;
-		goto fail;
-	}
+	if (IS_ERR(priv->rx_tfm))
+		goto free_tx;
 
 	/* start WEP IV from a random value */
 	get_random_bytes(&priv->iv, 4);
 
 	return priv;
-
-fail:
-	if (priv) {
-		if (priv->tx_tfm)
-			crypto_free_blkcipher(priv->tx_tfm);
-		if (priv->rx_tfm)
-			crypto_free_blkcipher(priv->rx_tfm);
-		kfree(priv);
-	}
-
+free_tx:
+	crypto_free_blkcipher(priv->tx_tfm);
+free_priv:
+	kfree(priv);
 	return NULL;
 }
 
@@ -142,9 +128,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(key + 3, wep->key, wep->key_len);
 
-	if (!tcb_desc->bHwSec)
-	{
-
+	if (!tcb_desc->bHwSec) {
 		/* Append little-endian CRC32 and encrypt it to produce ICV */
 		crc = ~crc32_le(~0, pos, len);
 		icv = skb_put(skb, 4);
@@ -201,8 +185,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	/* Apply RC4 to data and compute CRC32 over decrypted data */
 	plen = skb->len - hdr_len - 8;
 
-	if (!tcb_desc->bHwSec)
-	{
+	if (!tcb_desc->bHwSec) {
 		crypto_blkcipher_setkey(wep->rx_tfm, key, klen);
 		sg_init_one(&sg, pos, plen+4);
 
@@ -293,6 +276,4 @@ void __exit ieee80211_crypto_wep_exit(void)
 
 void ieee80211_wep_null(void)
 {
-//	printk("============>%s()\n", __func__);
-	return;
 }

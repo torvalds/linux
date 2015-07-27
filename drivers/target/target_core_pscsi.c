@@ -36,17 +36,15 @@
 #include <linux/module.h>
 #include <asm/unaligned.h>
 
-#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
-#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include "target_core_alua.h"
+#include "target_core_internal.h"
 #include "target_core_pscsi.h"
 
 #define ISPRINT(a)  ((a >= ' ') && (a <= '~'))
@@ -55,8 +53,6 @@ static inline struct pscsi_dev_virt *PSCSI_DEV(struct se_device *dev)
 {
 	return container_of(dev, struct pscsi_dev_virt, dev);
 }
-
-static struct se_subsystem_api pscsi_template;
 
 static sense_reason_t pscsi_execute_cmd(struct se_cmd *cmd);
 static void pscsi_req_done(struct request *, int);
@@ -82,7 +78,7 @@ static int pscsi_attach_hba(struct se_hba *hba, u32 host_id)
 
 	pr_debug("CORE_HBA[%d] - TCM SCSI HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
-		PSCSI_VERSION, TARGET_CORE_MOD_VERSION);
+		PSCSI_VERSION, TARGET_CORE_VERSION);
 	pr_debug("CORE_HBA[%d] - Attached SCSI HBA to Generic\n",
 	       hba->hba_id);
 
@@ -581,6 +577,14 @@ static int pscsi_configure_device(struct se_device *dev)
 	return -ENODEV;
 }
 
+static void pscsi_dev_call_rcu(struct rcu_head *p)
+{
+	struct se_device *dev = container_of(p, struct se_device, rcu_head);
+	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
+
+	kfree(pdv);
+}
+
 static void pscsi_free_device(struct se_device *dev)
 {
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
@@ -612,8 +616,7 @@ static void pscsi_free_device(struct se_device *dev)
 
 		pdv->pdv_sd = NULL;
 	}
-
-	kfree(pdv);
+	call_rcu(&dev->rcu_head, pscsi_dev_call_rcu);
 }
 
 static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
@@ -637,12 +640,14 @@ static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
 	 * Hack to make sure that Write-Protect modepage is set if R/O mode is
 	 * forced.
 	 */
-	if (!cmd->se_deve || !cmd->data_length)
+	if (!cmd->data_length)
 		goto after_mode_sense;
 
 	if (((cdb[0] == MODE_SENSE) || (cdb[0] == MODE_SENSE_10)) &&
 	     (status_byte(result) << 1) == SAM_STAT_GOOD) {
-		if (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY) {
+		bool read_only = target_lun_is_rdonly(cmd);
+
+		if (read_only) {
 			unsigned char *buf;
 
 			buf = transport_kmap_data_sg(cmd);
@@ -1118,27 +1123,7 @@ static void pscsi_req_done(struct request *req, int uptodate)
 	kfree(pt);
 }
 
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_pi_prot_type);
-TB_DEV_ATTR_RO(pscsi, hw_pi_prot_type);
-
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_block_size);
-TB_DEV_ATTR_RO(pscsi, hw_block_size);
-
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_max_sectors);
-TB_DEV_ATTR_RO(pscsi, hw_max_sectors);
-
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_queue_depth);
-TB_DEV_ATTR_RO(pscsi, hw_queue_depth);
-
-static struct configfs_attribute *pscsi_backend_dev_attrs[] = {
-	&pscsi_dev_attrib_hw_pi_prot_type.attr,
-	&pscsi_dev_attrib_hw_block_size.attr,
-	&pscsi_dev_attrib_hw_max_sectors.attr,
-	&pscsi_dev_attrib_hw_queue_depth.attr,
-	NULL,
-};
-
-static struct se_subsystem_api pscsi_template = {
+static const struct target_backend_ops pscsi_ops = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
 	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH,
@@ -1154,21 +1139,17 @@ static struct se_subsystem_api pscsi_template = {
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
 	.get_device_type	= pscsi_get_device_type,
 	.get_blocks		= pscsi_get_blocks,
+	.tb_dev_attrib_attrs	= passthrough_attrib_attrs,
 };
 
 static int __init pscsi_module_init(void)
 {
-	struct target_backend_cits *tbc = &pscsi_template.tb_cits;
-
-	target_core_setup_sub_cits(&pscsi_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = pscsi_backend_dev_attrs;
-
-	return transport_subsystem_register(&pscsi_template);
+	return transport_backend_register(&pscsi_ops);
 }
 
 static void __exit pscsi_module_exit(void)
 {
-	transport_subsystem_release(&pscsi_template);
+	target_backend_unregister(&pscsi_ops);
 }
 
 MODULE_DESCRIPTION("TCM PSCSI subsystem plugin");
