@@ -165,29 +165,29 @@ static void smmu_flush_dcache(struct page *page, unsigned long offset,
 #endif
 }
 
+static void smmu_flush_ptc_all(struct tegra_smmu *smmu)
+{
+	smmu_writel(smmu, SMMU_PTC_FLUSH_TYPE_ALL, SMMU_PTC_FLUSH);
+}
+
 static inline void smmu_flush_ptc(struct tegra_smmu *smmu, struct page *page,
 				  unsigned long offset)
 {
-	phys_addr_t phys = page ? page_to_phys(page) : 0;
+	phys_addr_t phys = page_to_phys(page);
 	u32 value;
 
-	if (page) {
-		offset &= ~(smmu->mc->soc->atom_size - 1);
+	offset &= ~(smmu->mc->soc->atom_size - 1);
 
-		if (smmu->mc->soc->num_address_bits > 32) {
+	if (smmu->mc->soc->num_address_bits > 32) {
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
-			value = (phys >> 32) & SMMU_PTC_FLUSH_HI_MASK;
+		value = (phys >> 32) & SMMU_PTC_FLUSH_HI_MASK;
 #else
-			value = 0;
+		value = 0;
 #endif
-			smmu_writel(smmu, value, SMMU_PTC_FLUSH_HI);
-		}
-
-		value = (phys + offset) | SMMU_PTC_FLUSH_TYPE_ADR;
-	} else {
-		value = SMMU_PTC_FLUSH_TYPE_ALL;
+		smmu_writel(smmu, value, SMMU_PTC_FLUSH_HI);
 	}
 
+	value = (phys + offset) | SMMU_PTC_FLUSH_TYPE_ADR;
 	smmu_writel(smmu, value, SMMU_PTC_FLUSH);
 }
 
@@ -894,7 +894,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 
 	smmu_writel(smmu, value, SMMU_TLB_CONFIG);
 
-	smmu_flush_ptc(smmu, NULL, 0);
+	smmu_flush_ptc_all(smmu);
 	smmu_flush_tlb(smmu);
 	smmu_writel(smmu, SMMU_CONFIG_ENABLE, SMMU_CONFIG);
 	smmu_flush(smmu);
