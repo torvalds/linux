@@ -266,14 +266,14 @@ static int img_spfi_start_pio(struct spi_master *master,
 		cpu_relax();
 	}
 
-	ret = spfi_wait_all_done(spfi);
-	if (ret < 0)
-		return ret;
-
 	if (rx_bytes > 0 || tx_bytes > 0) {
 		dev_err(spfi->dev, "PIO transfer timed out\n");
 		return -ETIMEDOUT;
 	}
+
+	ret = spfi_wait_all_done(spfi);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
