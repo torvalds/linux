@@ -999,8 +999,7 @@ static void cpufreq_remove_dev_symlink(struct cpufreq_policy *policy)
 	}
 }
 
-static int cpufreq_add_dev_interface(struct cpufreq_policy *policy,
-				     struct device *dev)
+static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 {
 	struct freq_attr **drv_attr;
 	int ret = 0;
@@ -1057,8 +1056,7 @@ static int cpufreq_init_policy(struct cpufreq_policy *policy)
 	return cpufreq_set_policy(policy, &new_policy);
 }
 
-static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy,
-				  unsigned int cpu, struct device *dev)
+static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
 {
 	int ret = 0;
 
@@ -1225,7 +1223,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	if (policy) {
 		WARN_ON(!cpumask_test_cpu(cpu, policy->related_cpus));
 		if (!policy_is_inactive(policy))
-			return cpufreq_add_policy_cpu(policy, cpu, dev);
+			return cpufreq_add_policy_cpu(policy, cpu);
 
 		/* This is the only online CPU for the policy.  Start over. */
 		recover_policy = true;
@@ -1328,7 +1326,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 				     CPUFREQ_START, policy);
 
 	if (!recover_policy) {
-		ret = cpufreq_add_dev_interface(policy, dev);
+		ret = cpufreq_add_dev_interface(policy);
 		if (ret)
 			goto out_exit_policy;
 		blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
