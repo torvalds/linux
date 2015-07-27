@@ -463,11 +463,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	for (i = pcap->irq_base; i < (pcap->irq_base + PCAP_NIRQS); i++) {
 		irq_set_chip_and_handler(i, &pcap_irq_chip, handle_simple_irq);
 		irq_set_chip_data(i, pcap);
-#ifdef CONFIG_ARM
-		set_irq_flags(i, IRQF_VALID);
-#else
-		irq_set_noprobe(i);
-#endif
+		irq_clear_status_flags(i, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	/* mask/ack all PCAP interrupts */

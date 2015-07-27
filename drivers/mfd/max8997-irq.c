@@ -295,11 +295,8 @@ static int max8997_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, max8997);
 	irq_set_chip_and_handler(irq, &max8997_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(irq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
+
 	return 0;
 }
 

@@ -352,26 +352,13 @@ static int twl6030_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq,  &pdata->irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, true);
 	irq_set_parent(virq, pdata->twl_irq);
-
-#ifdef CONFIG_ARM
-	/*
-	 * ARM requires an extra step to clear IRQ_NOREQUEST, which it
-	 * sets on behalf of every irq_chip.  Also sets IRQ_NOPROBE.
-	 */
-	set_irq_flags(virq, IRQF_VALID);
-#else
-	/* same effect on other architectures */
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
 static void twl6030_irq_unmap(struct irq_domain *d, unsigned int virq)
 {
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, 0);
-#endif
 	irq_set_chip_and_handler(virq, NULL, NULL);
 	irq_set_chip_data(virq, NULL);
 }

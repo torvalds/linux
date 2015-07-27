@@ -586,7 +586,7 @@ static void tc6393xb_attach_irq(struct platform_device *dev)
 	for (irq = irq_base; irq < irq_base + TC6393XB_NR_IRQS; irq++) {
 		irq_set_chip_and_handler(irq, &tc6393xb_chip, handle_edge_irq);
 		irq_set_chip_data(irq, tc6393xb);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_irq_type(tc6393xb->irq, IRQ_TYPE_EDGE_FALLING);
@@ -605,7 +605,7 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 	irq_base = tc6393xb->irq_base;
 
 	for (irq = irq_base; irq < irq_base + TC6393XB_NR_IRQS; irq++) {
-		set_irq_flags(irq, 0);
+		irq_set_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		irq_set_chip(irq, NULL);
 		irq_set_chip_data(irq, NULL);
 	}

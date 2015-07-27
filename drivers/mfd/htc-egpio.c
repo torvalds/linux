@@ -350,7 +350,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 			irq_set_chip_and_handler(irq, &egpio_muxed_chip,
 						 handle_simple_irq);
 			irq_set_chip_data(irq, ei);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 		irq_set_irq_type(ei->chained_irq, IRQ_TYPE_EDGE_RISING);
 		irq_set_handler_data(ei->chained_irq, ei);
@@ -376,7 +376,7 @@ static int __exit egpio_remove(struct platform_device *pdev)
 		irq_end = ei->irq_start + ei->nirqs;
 		for (irq = ei->irq_start; irq < irq_end; irq++) {
 			irq_set_chip_and_handler(irq, NULL, NULL);
-			set_irq_flags(irq, 0);
+			irq_set_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 		irq_set_chained_handler(ei->chained_irq, NULL);
 		device_init_wakeup(&pdev->dev, 0);

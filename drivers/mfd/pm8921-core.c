@@ -289,11 +289,8 @@ static int pm8xxx_irq_domain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &pm8xxx_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, chip);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
+
 	return 0;
 }
 
