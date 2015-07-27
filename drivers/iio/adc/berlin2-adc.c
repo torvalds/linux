@@ -221,7 +221,7 @@ static int berlin2_adc_read_raw(struct iio_dev *indio_dev,
 			return temp;
 
 		if (temp > 2047)
-			temp = -(4096 - temp);
+			temp -= 4096;
 
 		/* Convert to milli Celsius */
 		*val = ((temp * 100000) / 264 - 270000);
@@ -286,8 +286,7 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 	int irq, tsen_irq;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev,
-					  sizeof(struct berlin2_adc_priv));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!indio_dev)
 		return -ENOMEM;
 
