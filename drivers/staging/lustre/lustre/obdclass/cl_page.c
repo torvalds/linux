@@ -354,8 +354,10 @@ static struct cl_page *cl_page_find0(const struct lu_env *env,
 	       idx, PFID(&hdr->coh_lu.loh_fid), vmpage, vmpage->private, type);
 	/* fast path. */
 	if (type == CPT_CACHEABLE) {
-		/* vmpage lock is used to protect the child/parent
-		 * relationship */
+		/*
+		 * vmpage lock is used to protect the child/parent
+		 * relationship
+		 */
 		KLASSERT(PageLocked(vmpage));
 		/*
 		 * cl_vmpage_page() can be called here without any locks as
