@@ -41,6 +41,8 @@ static int mwifiex_check_uap_capabilties(struct mwifiex_private *priv,
 	mwifiex_dbg_dump(priv->adapter, EVT_D, "uap capabilties:",
 			 event->data, event->len);
 
+	skb_push(event, MWIFIEX_BSS_START_EVT_FIX_SIZE);
+
 	while ((evt_len >= sizeof(tlv_hdr->header))) {
 		tlv_hdr = (struct mwifiex_ie_types_data *)curr;
 		tlv_len = le16_to_cpu(tlv_hdr->header.len);
