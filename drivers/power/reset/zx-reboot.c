@@ -18,8 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 
-#include <asm/proc-fns.h>
-
 static void __iomem *base;
 static void __iomem *pcu_base;
 
