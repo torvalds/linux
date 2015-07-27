@@ -2033,8 +2033,7 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 		if (!try_module_get(policy->governor->owner))
 			return -EINVAL;
 
-	pr_debug("__cpufreq_governor for CPU %u, event %u\n",
-		 policy->cpu, event);
+	pr_debug("%s: for CPU %u, event %u\n", __func__, policy->cpu, event);
 
 	mutex_lock(&cpufreq_governor_lock);
 	if ((policy->governor_enabled && event == CPUFREQ_GOV_START)
