@@ -816,10 +816,8 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	length = trb->size & DWC3_TRB_SIZE_MASK;
 
 	if (dwc->ep0_bounced) {
-		unsigned transfer_size = ur->length;
 		unsigned maxp = ep0->endpoint.maxpacket;
-
-		transfer_size += (maxp - (transfer_size % maxp));
+		unsigned transfer_size = roundup(ur->length, maxp);
 
 		/* Maximum of DWC3_EP0_BOUNCE_SIZE can only be received */
 		if (transfer_size > DWC3_EP0_BOUNCE_SIZE)
