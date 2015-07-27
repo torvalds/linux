@@ -163,7 +163,7 @@
 		};
 
 		gpio: gpio@ff0a0000 {
-			compatible = "xlnx,zynq-gpio-1.0";
+			compatible = "xlnx,zynqmp-gpio-1.0";
 			status = "disabled";
 			#gpio-cells = <0x2>;
 			clocks = <&misc_clk>;

@@ -42,6 +42,10 @@
 	};
 };
 
+&gpio {
+	status = "okay";
+};
+
 &sata {
 	status = "okay";
 	ceva,broken-gen2;
