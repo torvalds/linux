@@ -711,6 +711,37 @@ static struct irq_chip sunxi_pinctrl_level_irq_chip = {
 			  IRQCHIP_EOI_IF_HANDLED,
 };
 
+static int sunxi_pinctrl_irq_of_xlate(struct irq_domain *d,
+				      struct device_node *node,
+				      const u32 *intspec,
+				      unsigned int intsize,
+				      unsigned long *out_hwirq,
+				      unsigned int *out_type)
+{
+	struct sunxi_desc_function *desc;
+	int pin, base;
+
+	if (intsize < 3)
+		return -EINVAL;
+
+	base = PINS_PER_BANK * intspec[0];
+	pin = base + intspec[1];
+
+	desc = sunxi_pinctrl_desc_find_function_by_pin(d->host_data,
+						       pin, "irq");
+	if (!desc)
+		return -EINVAL;
+
+	*out_hwirq = desc->irqbank * PINS_PER_BANK + desc->irqnum;
+	*out_type = intspec[2];
+
+	return 0;
+}
+
+static struct irq_domain_ops sunxi_pinctrl_irq_domain_ops = {
+	.xlate		= sunxi_pinctrl_irq_of_xlate,
+};
+
 static void sunxi_pinctrl_irq_handler(unsigned __irq, struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
@@ -986,8 +1017,8 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	pctl->domain = irq_domain_add_linear(node,
 					     pctl->desc->irq_banks * IRQ_PER_BANK,
-					     &irq_domain_simple_ops,
-					     NULL);
+					     &sunxi_pinctrl_irq_domain_ops,
+					     pctl);
 	if (!pctl->domain) {
 		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
 		ret = -ENOMEM;
