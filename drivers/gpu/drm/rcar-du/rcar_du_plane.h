@@ -71,6 +71,9 @@ to_rcar_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct rcar_du_plane_state, state);
 }
 
+int rcar_du_atomic_check_planes(struct drm_device *dev,
+				struct drm_atomic_state *state);
+
 int rcar_du_planes_init(struct rcar_du_group *rgrp);
 
 void rcar_du_plane_setup(struct rcar_du_plane *plane);
