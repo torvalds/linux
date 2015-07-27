@@ -1092,28 +1092,6 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
-{
-	struct cpufreq_policy *policy;
-	unsigned long flags;
-
-	read_lock_irqsave(&cpufreq_driver_lock, flags);
-	policy = per_cpu(cpufreq_cpu_data, cpu);
-	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
-
-	if (likely(policy)) {
-		/* Policy should be inactive here */
-		WARN_ON(!policy_is_inactive(policy));
-
-		down_write(&policy->rwsem);
-		policy->cpu = cpu;
-		policy->governor = NULL;
-		up_write(&policy->rwsem);
-	}
-
-	return policy;
-}
-
 static struct cpufreq_policy *cpufreq_policy_alloc(struct device *dev)
 {
 	struct cpufreq_policy *policy;
@@ -1226,7 +1204,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	int ret = -ENOMEM;
 	struct cpufreq_policy *policy;
 	unsigned long flags;
-	bool recover_policy = !sif;
+	bool recover_policy;
 
 	pr_debug("adding CPU %u\n", cpu);
 
@@ -1244,18 +1222,18 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	/* Check if this CPU already has a policy to manage it */
 	policy = per_cpu(cpufreq_cpu_data, cpu);
-	if (policy && !policy_is_inactive(policy)) {
+	if (policy) {
 		WARN_ON(!cpumask_test_cpu(cpu, policy->related_cpus));
-		ret = cpufreq_add_policy_cpu(policy, cpu, dev);
-		return ret;
-	}
+		if (!policy_is_inactive(policy))
+			return cpufreq_add_policy_cpu(policy, cpu, dev);
 
-	/*
-	 * Restore the saved policy when doing light-weight init and fall back
-	 * to the full init if that fails.
-	 */
-	policy = recover_policy ? cpufreq_policy_restore(cpu) : NULL;
-	if (!policy) {
+		/* This is the only online CPU for the policy.  Start over. */
+		recover_policy = true;
+		down_write(&policy->rwsem);
+		policy->cpu = cpu;
+		policy->governor = NULL;
+		up_write(&policy->rwsem);
+	} else {
 		recover_policy = false;
 		policy = cpufreq_policy_alloc(dev);
 		if (!policy)
