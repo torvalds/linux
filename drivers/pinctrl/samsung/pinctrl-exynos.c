@@ -256,7 +256,6 @@ static int exynos_eint_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, b);
 	irq_set_chip_and_handler(virq, &b->irq_chip->chip,
 					handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID);
 	return 0;
 }
 

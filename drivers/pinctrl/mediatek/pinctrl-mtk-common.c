@@ -1348,11 +1348,9 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		irq_set_chip_and_handler(virq, &mtk_pinctrl_irq_chip,
 			handle_level_irq);
 		irq_set_chip_data(virq, pctl);
-		set_irq_flags(virq, IRQF_VALID);
 	};
 
 	irq_set_chained_handler_and_data(irq, mtk_eint_irq_handler, pctl);
-	set_irq_flags(irq, IRQF_VALID);
 	return 0;
 
 chip_error:
