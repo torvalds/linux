@@ -150,6 +150,8 @@ static int stk8312_otp_init(struct stk8312_data *data)
 		goto exit_err;
 
 	ret = i2c_smbus_read_byte_data(client, STK8312_REG_OTPDATA);
+	if (ret == 0)
+		ret = -EINVAL;
 	if (ret < 0)
 		goto exit_err;
 
