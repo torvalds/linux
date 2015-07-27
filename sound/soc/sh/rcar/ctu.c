@@ -69,7 +69,7 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
 	return &((struct rsnd_ctu *)(priv->ctu) + id)->mod;
 }
 
-void rsnd_of_parse_ctu(struct platform_device *pdev,
+static void rsnd_of_parse_ctu(struct platform_device *pdev,
 		       const struct rsnd_of_data *of_data,
 		       struct rsnd_priv *priv)
 {
