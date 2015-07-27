@@ -459,6 +459,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		memcpy(&dev_info.cu_bitmap[0], &cu_info.bitmap[0], sizeof(cu_info.bitmap));
 		dev_info.vram_type = adev->mc.vram_type;
 		dev_info.vram_bit_width = adev->mc.vram_width;
+		dev_info.vce_harvest_config = adev->vce.harvest_config;
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;

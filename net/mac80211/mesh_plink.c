@@ -306,7 +306,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		if (action == WLAN_SP_MESH_PEERING_CONFIRM) {
 			/* AID */
 			pos = skb_put(skb, 2);
-			put_unaligned_le16(plid, pos + 2);
+			put_unaligned_le16(plid, pos);
 		}
 		if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
 		    ieee80211_add_ext_srates_ie(sdata, skb, true, band) ||
@@ -1122,6 +1122,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 						WLAN_SP_MESH_PEERING_CONFIRM) {
 		baseaddr += 4;
 		baselen += 4;
+
+		if (baselen > len)
+			return;
 	}
 	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems);
 	mesh_process_plink_frame(sdata, mgmt, &elems);
