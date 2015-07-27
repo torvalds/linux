@@ -482,4 +482,41 @@ static void jump_label_update(struct static_key *key)
 		__jump_label_update(key, entry, stop);
 }
 
-#endif
+#ifdef CONFIG_STATIC_KEYS_SELFTEST
+static DEFINE_STATIC_KEY_TRUE(sk_true);
+static DEFINE_STATIC_KEY_FALSE(sk_false);
+
+static __init int jump_label_test(void)
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		WARN_ON(static_key_enabled(&sk_true.key) != true);
+		WARN_ON(static_key_enabled(&sk_false.key) != false);
+
+		WARN_ON(!static_branch_likely(&sk_true));
+		WARN_ON(!static_branch_unlikely(&sk_true));
+		WARN_ON(static_branch_likely(&sk_false));
+		WARN_ON(static_branch_unlikely(&sk_false));
+
+		static_branch_disable(&sk_true);
+		static_branch_enable(&sk_false);
+
+		WARN_ON(static_key_enabled(&sk_true.key) == true);
+		WARN_ON(static_key_enabled(&sk_false.key) == false);
+
+		WARN_ON(static_branch_likely(&sk_true));
+		WARN_ON(static_branch_unlikely(&sk_true));
+		WARN_ON(!static_branch_likely(&sk_false));
+		WARN_ON(!static_branch_unlikely(&sk_false));
+
+		static_branch_enable(&sk_true);
+		static_branch_disable(&sk_false);
+	}
+
+	return 0;
+}
+late_initcall(jump_label_test);
+#endif /* STATIC_KEYS_SELFTEST */
+
+#endif /* HAVE_JUMP_LABEL */
