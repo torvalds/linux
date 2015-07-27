@@ -347,6 +347,7 @@
                         power_off_thresd = <3400>;
                         chrg_diff_voltagemV = <0>;
                         virtual_power = <0>;
+                        power_dc2otg = <1>;
                         support_usb_adp = <1>;
                         support_dc_adp = <1>;
                         dc_det_gpio = <&gpio0 GPIO_C1 GPIO_ACTIVE_LOW>;
