@@ -509,29 +509,35 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 	return &pt[pte];
 }
 
-static void as_put_pte(struct tegra_smmu_as *as, dma_addr_t iova)
+static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 {
+	struct tegra_smmu *smmu = as->smmu;
 	u32 pde = (iova >> SMMU_PDE_SHIFT) & 0x3ff;
-	u32 pte = (iova >> SMMU_PTE_SHIFT) & 0x3ff;
 	u32 *count = page_address(as->count);
-	u32 *pd = page_address(as->pd), *pt;
+	u32 *pd = page_address(as->pd);
 	struct page *page;
 
-	page = pfn_to_page(pd[pde] & as->smmu->pfn_mask);
-	pt = page_address(page);
+	page = pfn_to_page(pd[pde] & smmu->pfn_mask);
 
 	/*
 	 * When no entries in this page table are used anymore, return the
 	 * memory page to the system.
 	 */
-	if (pt[pte] != 0) {
-		if (--count[pde] == 0) {
-			ClearPageReserved(page);
-			__free_page(page);
-			pd[pde] = 0;
-		}
+	if (--count[pde] == 0) {
+		unsigned int offset = pde * sizeof(*pd);
 
-		pt[pte] = 0;
+		/* Clear the page directory entry first */
+		pd[pde] = 0;
+
+		/* Flush the page directory entry */
+		smmu->soc->ops->flush_dcache(as->pd, offset, sizeof(*pd));
+		smmu_flush_ptc(smmu, as->pd, offset);
+		smmu_flush_tlb_section(smmu, as->id, iova);
+		smmu_flush(smmu);
+
+		/* Finally, free the page */
+		ClearPageReserved(page);
+		__free_page(page);
 	}
 }
 
@@ -569,16 +575,19 @@ static size_t tegra_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 	u32 *pte;
 
 	pte = as_get_pte(as, iova, &page);
-	if (!pte)
+	if (!pte || !*pte)
 		return 0;
 
+	*pte = 0;
+
 	offset = offset_in_page(pte);
-	as_put_pte(as, iova);
 
 	smmu->soc->ops->flush_dcache(page, offset, 4);
 	smmu_flush_ptc(smmu, page, offset);
 	smmu_flush_tlb_group(smmu, as->id, iova);
 	smmu_flush(smmu);
+
+	tegra_smmu_pte_put_use(as, iova);
 
 	return size;
 }
