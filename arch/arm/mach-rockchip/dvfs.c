@@ -1671,8 +1671,11 @@ static int dvfs_target(struct dvfs_node *clk_dvfs_node, unsigned long rate)
 	if (!clk)
 		return -EINVAL;
 
-	if (!clk_dvfs_node->enable_count)
+	if (!clk_dvfs_node->enable_count) {
+		DVFS_ERR("%s: %s is disable, set rate error\n",
+			 __func__, clk_dvfs_node->name);
 		return 0;
+	}
 	
 	if (clk_dvfs_node->vd->volt_set_flag == DVFS_SET_VOLT_FAILURE) {
 		/* It means the last time set voltage error */
