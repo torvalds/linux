@@ -49,8 +49,8 @@
 #include "stm32f429.dtsi"
 
 / {
-	model = "STMicroelectronics STM32F429i-DISCO board";
-	compatible = "st,stm32f429i-disco", "st,stm32f429";
+	model = "STMicroelectronics STM32429i-EVAL board";
+	compatible = "st,stm32429i-eval", "st,stm32f429";
 
 	chosen {
 		bootargs = "root=/dev/ram rdinit=/linuxrc";
@@ -58,7 +58,7 @@
 	};
 
 	memory {
-		reg = <0x90000000 0x800000>;
+		reg = <0xc0000000 0x2000000>;
 	};
 
 	aliases {
@@ -67,7 +67,7 @@
 };
 
 &clk_hse {
-	clock-frequency = <8000000>;
+	clock-frequency = <25000000>;
 };
 
 &usart1 {
