@@ -70,3 +70,7 @@
 	dr_mode = "host";
 	maximum-speed = "high-speed";
 };
+
+&watchdog0 {
+	status = "okay";
+};
