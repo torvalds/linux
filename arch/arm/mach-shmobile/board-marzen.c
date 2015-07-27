@@ -330,7 +330,7 @@ static void __init marzen_init(void)
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }
 
-static const char *marzen_boards_compat_dt[] __initdata = {
+static const char *const marzen_boards_compat_dt[] __initconst = {
         "renesas,marzen",
         NULL,
 };

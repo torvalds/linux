@@ -52,7 +52,7 @@ static void __init sama5_dt_device_init(void)
 	at91sam9x5_pm_init();
 }
 
-static const char *sama5_dt_board_compat[] __initconst = {
+static const char *const sama5_dt_board_compat[] __initconst = {
 	"atmel,sama5",
 	NULL
 };
@@ -63,7 +63,7 @@ DT_MACHINE_START(sama5_dt, "Atmel SAMA5")
 	.dt_compat	= sama5_dt_board_compat,
 MACHINE_END
 
-static const char *sama5_alt_dt_board_compat[] __initconst = {
+static const char *const sama5_alt_dt_board_compat[] __initconst = {
 	"atmel,sama5d4",
 	NULL
 };

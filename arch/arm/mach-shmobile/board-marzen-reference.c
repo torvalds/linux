@@ -38,7 +38,7 @@ static void __init marzen_init(void)
 	r8a7779_init_irq_extpin_dt(1); /* IRQ1 as individual interrupt */
 }
 
-static const char *marzen_boards_compat_dt[] __initdata = {
+static const char *const marzen_boards_compat_dt[] __initconst = {
 	"renesas,marzen",
 	"renesas,marzen-reference",
 	NULL,

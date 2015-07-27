@@ -13,7 +13,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include "core.h"
 
-static const char *realview_dt_platform_compat[] __initconst = {
+static const char *const realview_dt_platform_compat[] __initconst = {
 	"arm,realview-eb",
 	"arm,realview-pb1176",
 	"arm,realview-pb11mp",

@@ -346,7 +346,7 @@ static struct usb_ohci_pdata cns3xxx_usb_ohci_pdata = {
 	.power_off	= csn3xxx_usb_power_off,
 };
 
-static struct of_dev_auxdata cns3xxx_auxdata[] __initconst = {
+static const struct of_dev_auxdata const cns3xxx_auxdata[] __initconst = {
 	{ "intel,usb-ehci", CNS3XXX_USB_BASE, "ehci-platform", &cns3xxx_usb_ehci_pdata },
 	{ "intel,usb-ohci", CNS3XXX_USB_OHCI_BASE, "ohci-platform", &cns3xxx_usb_ohci_pdata },
 	{ "cavium,cns3420-ahci", CNS3XXX_SATA2_BASE, "ahci", NULL },
@@ -399,7 +399,7 @@ static void __init cns3xxx_init(void)
                         cns3xxx_auxdata, NULL);
 }
 
-static const char *cns3xxx_dt_compat[] __initdata = {
+static const char *const cns3xxx_dt_compat[] __initconst = {
 	"cavium,cns3410",
 	"cavium,cns3420",
 	NULL,

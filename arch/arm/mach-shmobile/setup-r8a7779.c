@@ -756,7 +756,7 @@ u32 __init r8a7779_read_mode_pins(void)
 	return mode;
 }
 
-static const char *r8a7779_compat_dt[] __initdata = {
+static const char *const r8a7779_compat_dt[] __initconst = {
 	"renesas,r8a7779",
 	NULL,
 };

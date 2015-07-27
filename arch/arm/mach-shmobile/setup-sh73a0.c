@@ -58,7 +58,7 @@ static void __init sh73a0_generic_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *sh73a0_boards_compat_dt[] __initdata = {
+static const char *const sh73a0_boards_compat_dt[] __initconst = {
 	"renesas,sh73a0",
 	NULL,
 };
