@@ -46,7 +46,7 @@
  * 
  */
 struct cache_head {
-	struct cache_head * next;
+	struct hlist_node	cache_list;
 	time_t		expiry_time;	/* After time time, don't use the data */
 	time_t		last_refresh;   /* If CACHE_PENDING, this is when upcall 
 					 * was sent, else this is when update was received
@@ -73,7 +73,7 @@ struct cache_detail_pipefs {
 struct cache_detail {
 	struct module *		owner;
 	int			hash_size;
-	struct cache_head **	hash_table;
+	struct hlist_head *	hash_table;
 	rwlock_t		hash_lock;
 
 	atomic_t		inuse; /* active user-space update or lookup */
