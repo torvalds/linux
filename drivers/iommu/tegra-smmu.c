@@ -40,7 +40,7 @@ struct tegra_smmu_as {
 	struct iommu_domain domain;
 	struct tegra_smmu *smmu;
 	unsigned int use_count;
-	struct page *count;
+	u32 *count;
 	struct page **pts;
 	struct page *pd;
 	unsigned id;
@@ -265,7 +265,7 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 		return NULL;
 	}
 
-	as->count = alloc_page(GFP_KERNEL);
+	as->count = kcalloc(SMMU_NUM_PDE, sizeof(u32), GFP_KERNEL);
 	if (!as->count) {
 		__free_page(as->pd);
 		kfree(as);
@@ -274,7 +274,7 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 
 	as->pts = kcalloc(SMMU_NUM_PDE, sizeof(*as->pts), GFP_KERNEL);
 	if (!as->pts) {
-		__free_page(as->count);
+		kfree(as->count);
 		__free_page(as->pd);
 		kfree(as);
 		return NULL;
@@ -283,13 +283,6 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 	/* clear PDEs */
 	pd = page_address(as->pd);
 	SetPageReserved(as->pd);
-
-	for (i = 0; i < SMMU_NUM_PDE; i++)
-		pd[i] = 0;
-
-	/* clear PDE usage counters */
-	pd = page_address(as->count);
-	SetPageReserved(as->count);
 
 	for (i = 0; i < SMMU_NUM_PDE; i++)
 		pd[i] = 0;
@@ -509,7 +502,7 @@ static u32 *tegra_smmu_pte_lookup(struct tegra_smmu_as *as, unsigned long iova,
 static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		       struct page **pagep)
 {
-	u32 *pd = page_address(as->pd), *pt, *count;
+	u32 *pd = page_address(as->pd), *pt;
 	unsigned int pde = iova_pd_index(iova);
 	struct tegra_smmu *smmu = as->smmu;
 	struct page *page;
@@ -545,9 +538,8 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 	pt = page_address(page);
 
 	/* Keep track of entries in this page table. */
-	count = page_address(as->count);
 	if (pt[iova_pt_index(iova)] == 0)
-		count[pde]++;
+		as->count[pde]++;
 
 	return tegra_smmu_pte_offset(page, iova);
 }
@@ -556,7 +548,6 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 {
 	struct tegra_smmu *smmu = as->smmu;
 	unsigned int pde = iova_pd_index(iova);
-	u32 *count = page_address(as->count);
 	u32 *pd = page_address(as->pd);
 	struct page *page = as->pts[pde];
 
@@ -564,7 +555,7 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 	 * When no entries in this page table are used anymore, return the
 	 * memory page to the system.
 	 */
-	if (--count[pde] == 0) {
+	if (--as->count[pde] == 0) {
 		unsigned int offset = pde * sizeof(*pd);
 
 		/* Clear the page directory entry first */
