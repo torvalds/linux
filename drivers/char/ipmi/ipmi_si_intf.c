@@ -924,8 +924,9 @@ static void check_start_timer_thread(struct smi_info *smi_info)
 	}
 }
 
-static void flush_messages(struct smi_info *smi_info)
+static void flush_messages(void *send_info)
 {
+	struct smi_info *smi_info = send_info;
 	enum si_sm_result result;
 
 	/*
@@ -949,12 +950,10 @@ static void sender(void                *send_info,
 
 	if (smi_info->run_to_completion) {
 		/*
-		 * If we are running to completion, start it and run
-		 * transactions until everything is clear.
+		 * If we are running to completion, start it.  Upper
+		 * layer will call flush_messages to clear it out.
 		 */
 		smi_info->waiting_msg = msg;
-
-		flush_messages(smi_info);
 		return;
 	}
 
@@ -1260,6 +1259,7 @@ static const struct ipmi_smi_handlers handlers = {
 	.set_need_watch		= set_need_watch,
 	.set_maintenance_mode   = set_maintenance_mode,
 	.set_run_to_completion  = set_run_to_completion,
+	.flush_messages		= flush_messages,
 	.poll			= poll,
 };
 

@@ -115,6 +115,11 @@ struct ipmi_smi_handlers {
 	   implement it. */
 	void (*set_need_watch)(void *send_info, bool enable);
 
+	/*
+	 * Called when flushing all pending messages.
+	 */
+	void (*flush_messages)(void *send_info);
+
 	/* Called when the interface should go into "run to
 	   completion" mode.  If this call sets the value to true, the
 	   interface should make sure that all messages are flushed
