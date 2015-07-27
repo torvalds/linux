@@ -12349,16 +12349,9 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 			continue;
 
 		if (crtc->state->active) {
-			struct drm_property *dpms_property =
-				dev->mode_config.dpms_property;
-
-			connector->dpms = DRM_MODE_DPMS_ON;
-			drm_object_property_set_value(&connector->base, dpms_property, DRM_MODE_DPMS_ON);
-
 			intel_encoder = to_intel_encoder(connector->encoder);
 			intel_encoder->connectors_active = true;
-		} else
-			connector->dpms = DRM_MODE_DPMS_OFF;
+		}
 	}
 }
 

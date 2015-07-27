@@ -660,15 +660,29 @@ drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
 	struct drm_crtc_state *old_crtc_state;
 	int i;
 
-	/* clear out existing links */
+	/* clear out existing links and update dpms */
 	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
-		if (!connector->encoder)
-			continue;
+		if (connector->encoder) {
+			WARN_ON(!connector->encoder->crtc);
 
-		WARN_ON(!connector->encoder->crtc);
+			connector->encoder->crtc = NULL;
+			connector->encoder = NULL;
+		}
 
-		connector->encoder->crtc = NULL;
-		connector->encoder = NULL;
+		crtc = connector->state->crtc;
+		if ((!crtc && old_conn_state->crtc) ||
+		    (crtc && drm_atomic_crtc_needs_modeset(crtc->state))) {
+			struct drm_property *dpms_prop =
+				dev->mode_config.dpms_property;
+			int mode = DRM_MODE_DPMS_OFF;
+
+			if (crtc && crtc->state->active)
+				mode = DRM_MODE_DPMS_ON;
+
+			connector->dpms = mode;
+			drm_object_property_set_value(&connector->base,
+						      dpms_prop, mode);
+		}
 	}
 
 	/* set new links */
