@@ -79,6 +79,18 @@ enum {
 	PWMF_EXPORTED = 1 << 2,
 };
 
+/**
+ * struct pwm_device - PWM channel object
+ * @label: name of the PWM device
+ * @flags: flags associated with the PWM device
+ * @hwpwm: per-chip relative index of the PWM device
+ * @pwm: global index of the PWM device
+ * @chip: PWM chip providing this PWM device
+ * @chip_data: chip-private data associated with the PWM device
+ * @period: period of the PWM signal (in nanoseconds)
+ * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
+ * @polarity: polarity of the PWM signal
+ */
 struct pwm_device {
 	const char *label;
 	unsigned long flags;
@@ -163,6 +175,8 @@ struct pwm_ops {
  * @base: number of first PWM controlled by this chip
  * @npwm: number of PWMs controlled by this chip
  * @pwms: array of PWM devices allocated by the framework
+ * @of_xlate: request a PWM device given a device tree PWM specifier
+ * @of_pwm_n_cells: number of cells expected in the device tree PWM specifier
  * @can_sleep: must be true if the .config(), .enable() or .disable()
  *             operations may sleep
  */
