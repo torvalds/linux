@@ -444,7 +444,12 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 struct symbol *dso__find_symbol(struct dso *dso,
 				enum map_type type, u64 addr)
 {
-	return symbols__find(&dso->symbols[type], addr);
+	if (dso->last_find_result[type].addr != addr) {
+		dso->last_find_result[type].addr   = addr;
+		dso->last_find_result[type].symbol = symbols__find(&dso->symbols[type], addr);
+	}
+
+	return dso->last_find_result[type].symbol;
 }
 
 struct symbol *dso__first_symbol(struct dso *dso, enum map_type type)

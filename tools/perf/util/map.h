@@ -256,4 +256,11 @@ int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 struct map *map_groups__find_by_name(struct map_groups *mg,
 				     enum map_type type, const char *name);
 
+bool __map__is_kernel(const struct map *map);
+
+static inline bool __map__is_kmodule(const struct map *map)
+{
+	return !__map__is_kernel(map);
+}
+
 #endif /* __PERF_MAP_H */

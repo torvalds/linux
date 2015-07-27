@@ -163,6 +163,7 @@ static atomic_t nr_mmap_events __read_mostly;
 static atomic_t nr_comm_events __read_mostly;
 static atomic_t nr_task_events __read_mostly;
 static atomic_t nr_freq_events __read_mostly;
+static atomic_t nr_switch_events __read_mostly;
 
 static LIST_HEAD(pmus);
 static DEFINE_MUTEX(pmus_lock);
@@ -2619,6 +2620,9 @@ static void perf_pmu_sched_task(struct task_struct *prev,
 	local_irq_restore(flags);
 }
 
+static void perf_event_switch(struct task_struct *task,
+			      struct task_struct *next_prev, bool sched_in);
+
 #define for_each_task_context_nr(ctxn)					\
 	for ((ctxn) = 0; (ctxn) < perf_nr_task_contexts; (ctxn)++)
 
@@ -2640,6 +2644,9 @@ void __perf_event_task_sched_out(struct task_struct *task,
 
 	if (__this_cpu_read(perf_sched_cb_usages))
 		perf_pmu_sched_task(task, next, false);
+
+	if (atomic_read(&nr_switch_events))
+		perf_event_switch(task, next, false);
 
 	for_each_task_context_nr(ctxn)
 		perf_event_context_sched_out(task, ctxn, next);
@@ -2830,6 +2837,9 @@ void __perf_event_task_sched_in(struct task_struct *prev,
 	 */
 	if (atomic_read(this_cpu_ptr(&perf_cgroup_events)))
 		perf_cgroup_sched_in(prev, task);
+
+	if (atomic_read(&nr_switch_events))
+		perf_event_switch(task, prev, true);
 
 	if (__this_cpu_read(perf_sched_cb_usages))
 		perf_pmu_sched_task(prev, task, true);
@@ -3454,6 +3464,10 @@ static void unaccount_event(struct perf_event *event)
 		atomic_dec(&nr_task_events);
 	if (event->attr.freq)
 		atomic_dec(&nr_freq_events);
+	if (event->attr.context_switch) {
+		static_key_slow_dec_deferred(&perf_sched_events);
+		atomic_dec(&nr_switch_events);
+	}
 	if (is_cgroup_event(event))
 		static_key_slow_dec_deferred(&perf_sched_events);
 	if (has_branch_stack(event))
@@ -5982,6 +5996,91 @@ void perf_log_lost_samples(struct perf_event *event, u64 lost)
 }
 
 /*
+ * context_switch tracking
+ */
+
+struct perf_switch_event {
+	struct task_struct	*task;
+	struct task_struct	*next_prev;
+
+	struct {
+		struct perf_event_header	header;
+		u32				next_prev_pid;
+		u32				next_prev_tid;
+	} event_id;
+};
+
+static int perf_event_switch_match(struct perf_event *event)
+{
+	return event->attr.context_switch;
+}
+
+static void perf_event_switch_output(struct perf_event *event, void *data)
+{
+	struct perf_switch_event *se = data;
+	struct perf_output_handle handle;
+	struct perf_sample_data sample;
+	int ret;
+
+	if (!perf_event_switch_match(event))
+		return;
+
+	/* Only CPU-wide events are allowed to see next/prev pid/tid */
+	if (event->ctx->task) {
+		se->event_id.header.type = PERF_RECORD_SWITCH;
+		se->event_id.header.size = sizeof(se->event_id.header);
+	} else {
+		se->event_id.header.type = PERF_RECORD_SWITCH_CPU_WIDE;
+		se->event_id.header.size = sizeof(se->event_id);
+		se->event_id.next_prev_pid =
+					perf_event_pid(event, se->next_prev);
+		se->event_id.next_prev_tid =
+					perf_event_tid(event, se->next_prev);
+	}
+
+	perf_event_header__init_id(&se->event_id.header, &sample, event);
+
+	ret = perf_output_begin(&handle, event, se->event_id.header.size);
+	if (ret)
+		return;
+
+	if (event->ctx->task)
+		perf_output_put(&handle, se->event_id.header);
+	else
+		perf_output_put(&handle, se->event_id);
+
+	perf_event__output_id_sample(event, &handle, &sample);
+
+	perf_output_end(&handle);
+}
+
+static void perf_event_switch(struct task_struct *task,
+			      struct task_struct *next_prev, bool sched_in)
+{
+	struct perf_switch_event switch_event;
+
+	/* N.B. caller checks nr_switch_events != 0 */
+
+	switch_event = (struct perf_switch_event){
+		.task		= task,
+		.next_prev	= next_prev,
+		.event_id	= {
+			.header = {
+				/* .type */
+				.misc = sched_in ? 0 : PERF_RECORD_MISC_SWITCH_OUT,
+				/* .size */
+			},
+			/* .next_prev_pid */
+			/* .next_prev_tid */
+		},
+	};
+
+	perf_event_aux(perf_event_switch_output,
+		       &switch_event,
+		       NULL);
+}
+
+/*
  * IRQ throttle logging
  */
 
@@ -7478,6 +7577,10 @@ static void account_event(struct perf_event *event)
 	if (event->attr.freq) {
 		if (atomic_inc_return(&nr_freq_events) == 1)
 			tick_nohz_full_kick_all();
+	}
+	if (event->attr.context_switch) {
+		atomic_inc(&nr_switch_events);
+		static_key_slow_inc(&perf_sched_events.key);
 	}
 	if (has_branch_stack(event))
 		static_key_slow_inc(&perf_sched_events.key);

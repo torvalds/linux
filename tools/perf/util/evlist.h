@@ -114,6 +114,7 @@ void perf_evlist__close(struct perf_evlist *evlist);
 
 void perf_evlist__set_id_pos(struct perf_evlist *evlist);
 bool perf_can_sample_identifier(void);
+bool perf_can_record_switch_events(void);
 void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts);
 int record_opts__config(struct record_opts *opts);
 
@@ -152,14 +153,9 @@ int perf_evlist__enable_event_idx(struct perf_evlist *evlist,
 void perf_evlist__set_selected(struct perf_evlist *evlist,
 			       struct perf_evsel *evsel);
 
-static inline void perf_evlist__set_maps(struct perf_evlist *evlist,
-					 struct cpu_map *cpus,
-					 struct thread_map *threads)
-{
-	evlist->cpus	= cpus;
-	evlist->threads	= threads;
-}
-
+int perf_evlist__set_maps(struct perf_evlist *evlist,
+			  struct cpu_map *cpus,
+			  struct thread_map *threads);
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target);
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel);
 

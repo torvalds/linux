@@ -137,6 +137,10 @@ struct dso {
 	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	struct {
+		u64		addr;
+		struct symbol	*symbol;
+	} last_find_result[MAP__NR_TYPES];
 	void		 *a2l;
 	char		 *symsrc_filename;
 	unsigned int	 a2l_fails;

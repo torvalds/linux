@@ -738,6 +738,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
 
+	if (opts->record_switch_events)
+		attr->context_switch = track;
+
 	if (opts->sample_transaction)
 		perf_evsel__set_sample_bit(evsel, TRANSACTION);
 
@@ -1127,6 +1130,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(mmap2, p_unsigned);
 	PRINT_ATTRf(comm_exec, p_unsigned);
 	PRINT_ATTRf(use_clockid, p_unsigned);
+	PRINT_ATTRf(context_switch, p_unsigned);
 
 	PRINT_ATTRn("{ wakeup_events, wakeup_watermark }", wakeup_events, p_unsigned);
 	PRINT_ATTRf(bp_type, p_unsigned);

@@ -623,6 +623,7 @@ struct perf_script {
 	struct perf_session	*session;
 	bool			show_task_events;
 	bool			show_mmap_events;
+	bool			show_switch_events;
 };
 
 static int process_attr(struct perf_tool *tool, union perf_event *event,
@@ -661,7 +662,7 @@ static int process_comm_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__first(session->evlist);
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 	int ret = -1;
 
 	thread = machine__findnew_thread(machine, event->comm.pid, event->comm.tid);
@@ -695,7 +696,7 @@ static int process_fork_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__first(session->evlist);
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (perf_event__process_fork(tool, event, sample, machine) < 0)
 		return -1;
@@ -727,7 +728,7 @@ static int process_exit_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__first(session->evlist);
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	thread = machine__findnew_thread(machine, event->fork.pid, event->fork.tid);
 	if (thread == NULL) {
@@ -759,7 +760,7 @@ static int process_mmap_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__first(session->evlist);
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (perf_event__process_mmap(tool, event, sample, machine) < 0)
 		return -1;
@@ -790,7 +791,7 @@ static int process_mmap2_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__first(session->evlist);
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (perf_event__process_mmap2(tool, event, sample, machine) < 0)
 		return -1;
@@ -807,6 +808,32 @@ static int process_mmap2_event(struct perf_tool *tool,
 		sample->tid = event->mmap2.tid;
 		sample->pid = event->mmap2.pid;
 	}
+	print_sample_start(sample, thread, evsel);
+	perf_event__fprintf(event, stdout);
+	thread__put(thread);
+	return 0;
+}
+
+static int process_switch_event(struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct machine *machine)
+{
+	struct thread *thread;
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+	struct perf_session *session = script->session;
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+
+	if (perf_event__process_switch(tool, event, sample, machine) < 0)
+		return -1;
+
+	thread = machine__findnew_thread(machine, sample->pid,
+					 sample->tid);
+	if (thread == NULL) {
+		pr_debug("problem processing SWITCH event, skipping it.\n");
+		return -1;
+	}
+
 	print_sample_start(sample, thread, evsel);
 	perf_event__fprintf(event, stdout);
 	thread__put(thread);
@@ -834,6 +861,8 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.mmap = process_mmap_event;
 		script->tool.mmap2 = process_mmap2_event;
 	}
+	if (script->show_switch_events)
+		script->tool.context_switch = process_switch_event;
 
 	ret = perf_session__process_events(script->session);
 
@@ -1618,6 +1647,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show the fork/comm/exit events"),
 	OPT_BOOLEAN('\0', "show-mmap-events", &script.show_mmap_events,
 		    "Show the mmap events"),
+	OPT_BOOLEAN('\0', "show-switch-events", &script.show_switch_events,
+		    "Show context switch events (if recorded)"),
 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options",
@@ -1829,6 +1860,13 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		symbol_conf.use_callchain = true;
 	else
 		symbol_conf.use_callchain = false;
+
+	if (pevent_set_function_resolver(session->tevent.pevent,
+					 machine__resolve_kernel_addr,
+					 &session->machines.host) < 0) {
+		pr_err("%s: failed to set libtraceevent function resolver\n", __func__);
+		return -1;
+	}
 
 	if (generate_script_lang) {
 		struct stat perf_stat;
