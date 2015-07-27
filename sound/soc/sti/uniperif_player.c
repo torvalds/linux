@@ -956,7 +956,7 @@ static int uni_player_parse_dt(struct platform_device *pdev,
 	return 0;
 }
 
-const struct snd_soc_dai_ops uni_player_dai_ops = {
+static const struct snd_soc_dai_ops uni_player_dai_ops = {
 		.startup = uni_player_startup,
 		.shutdown = uni_player_shutdown,
 		.prepare = uni_player_prepare,
