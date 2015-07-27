@@ -328,7 +328,7 @@ static ssize_t show_channel_starving(struct most_c_obj *c,
 
 
 #define create_show_channel_attribute(val) \
-	static MOST_CHNL_ATTR(val, S_IRUGO, show_##val, NULL);
+	static MOST_CHNL_ATTR(val, S_IRUGO, show_##val, NULL)
 
 create_show_channel_attribute(available_directions);
 create_show_channel_attribute(available_datatypes);
