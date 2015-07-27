@@ -74,6 +74,7 @@
 #define ARM_INST_LDRB_I		0x05d00000
 #define ARM_INST_LDRB_R		0x07d00000
 #define ARM_INST_LDRH_I		0x01d000b0
+#define ARM_INST_LDRH_R		0x019000b0
 #define ARM_INST_LDR_I		0x05900000
 
 #define ARM_INST_LDM		0x08900000
@@ -160,6 +161,8 @@
 				 | (rm))
 #define ARM_LDRH_I(rt, rn, off)	(ARM_INST_LDRH_I | (rt) << 12 | (rn) << 16 \
 				 | (((off) & 0xf0) << 4) | ((off) & 0xf))
+#define ARM_LDRH_R(rt, rn, rm)	(ARM_INST_LDRH_R | (rt) << 12 | (rn) << 16 \
+				 | (rm))
 
 #define ARM_LDM(rn, regs)	(ARM_INST_LDM | (rn) << 16 | (regs))
 
