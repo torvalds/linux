@@ -111,6 +111,10 @@ static int berlin2_adc_read(struct iio_dev *indio_dev, int channel)
 
 	mutex_lock(&priv->lock);
 
+	/* Enable the interrupts */
+	regmap_write(priv->regmap, BERLIN2_SM_ADC_STATUS,
+		     BERLIN2_SM_ADC_STATUS_INT_EN(channel));
+
 	/* Configure the ADC */
 	regmap_update_bits(priv->regmap, BERLIN2_SM_CTRL,
 			BERLIN2_SM_CTRL_ADC_RESET | BERLIN2_SM_CTRL_ADC_SEL_MASK
@@ -148,6 +152,10 @@ static int berlin2_adc_tsen_read(struct iio_dev *indio_dev)
 	int data, ret;
 
 	mutex_lock(&priv->lock);
+
+	/* Enable interrupts */
+	regmap_write(priv->regmap, BERLIN2_SM_TSEN_STATUS,
+		     BERLIN2_SM_TSEN_STATUS_INT_EN);
 
 	/* Configure the ADC */
 	regmap_update_bits(priv->regmap, BERLIN2_SM_CTRL,
@@ -190,17 +198,12 @@ static int berlin2_adc_read_raw(struct iio_dev *indio_dev,
 		struct iio_chan_spec const *chan, int *val, int *val2,
 		long mask)
 {
-	struct berlin2_adc_priv *priv = iio_priv(indio_dev);
 	int temp;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (chan->type != IIO_VOLTAGE)
 			return -EINVAL;
-
-		/* Enable the interrupts */
-		regmap_write(priv->regmap, BERLIN2_SM_ADC_STATUS,
-				BERLIN2_SM_ADC_STATUS_INT_EN(chan->channel));
 
 		*val = berlin2_adc_read(indio_dev, chan->channel);
 		if (*val < 0)
@@ -210,10 +213,6 @@ static int berlin2_adc_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		if (chan->type != IIO_TEMP)
 			return -EINVAL;
-
-		/* Enable interrupts */
-		regmap_write(priv->regmap, BERLIN2_SM_TSEN_STATUS,
-				BERLIN2_SM_TSEN_STATUS_INT_EN);
 
 		temp = berlin2_adc_tsen_read(indio_dev);
 		if (temp < 0)
