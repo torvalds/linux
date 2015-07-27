@@ -156,7 +156,7 @@ static void write_wb_reg(int reg, int n, u64 val)
  * Convert a breakpoint privilege level to the corresponding exception
  * level.
  */
-static enum debug_el debug_exception_level(int privilege)
+static enum dbg_active_el debug_exception_level(int privilege)
 {
 	switch (privilege) {
 	case AARCH64_BREAKPOINT_EL0:
@@ -230,7 +230,7 @@ static int hw_breakpoint_control(struct perf_event *bp,
 	struct perf_event **slots;
 	struct debug_info *debug_info = &current->thread.debug;
 	int i, max_slots, ctrl_reg, val_reg, reg_enable;
-	enum debug_el dbg_el = debug_exception_level(info->ctrl.privilege);
+	enum dbg_active_el dbg_el = debug_exception_level(info->ctrl.privilege);
 	u32 ctrl;
 
 	if (info->ctrl.type == ARM_BREAKPOINT_EXECUTE) {
@@ -537,7 +537,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
  * exception level at the register level.
  * This is used when single-stepping after a breakpoint exception.
  */
-static void toggle_bp_registers(int reg, enum debug_el el, int enable)
+static void toggle_bp_registers(int reg, enum dbg_active_el el, int enable)
 {
 	int i, max_slots, privilege;
 	u32 ctrl;

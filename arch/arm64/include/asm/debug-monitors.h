@@ -115,13 +115,13 @@ void unregister_break_hook(struct break_hook *hook);
 
 u8 debug_monitors_arch(void);
 
-enum debug_el {
+enum dbg_active_el {
 	DBG_ACTIVE_EL0 = 0,
 	DBG_ACTIVE_EL1,
 };
 
-void enable_debug_monitors(enum debug_el el);
-void disable_debug_monitors(enum debug_el el);
+void enable_debug_monitors(enum dbg_active_el el);
+void disable_debug_monitors(enum dbg_active_el el);
 
 void user_rewind_single_step(struct task_struct *task);
 void user_fastforward_single_step(struct task_struct *task);
