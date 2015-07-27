@@ -36,6 +36,14 @@
 
 	.set	noreorder
 
+/**
+ * _save_fp_context() - save FP context from the FPU
+ * @a0 - pointer to fpregs field of sigcontext
+ * @a1 - pointer to fpc_csr field of sigcontext
+ *
+ * Save FP context, including the 32 FP data registers and the FP
+ * control & status register, from the FPU to signal context.
+ */
 LEAF(_save_fp_context)
 	.set	push
 	SET_HARDFLOAT
@@ -55,45 +63,45 @@ LEAF(_save_fp_context)
 	 nop
 #endif
 	/* Store the 16 odd double precision registers */
-	EX	sdc1 $f1, SC_FPREGS+8(a0)
-	EX	sdc1 $f3, SC_FPREGS+24(a0)
-	EX	sdc1 $f5, SC_FPREGS+40(a0)
-	EX	sdc1 $f7, SC_FPREGS+56(a0)
-	EX	sdc1 $f9, SC_FPREGS+72(a0)
-	EX	sdc1 $f11, SC_FPREGS+88(a0)
-	EX	sdc1 $f13, SC_FPREGS+104(a0)
-	EX	sdc1 $f15, SC_FPREGS+120(a0)
-	EX	sdc1 $f17, SC_FPREGS+136(a0)
-	EX	sdc1 $f19, SC_FPREGS+152(a0)
-	EX	sdc1 $f21, SC_FPREGS+168(a0)
-	EX	sdc1 $f23, SC_FPREGS+184(a0)
-	EX	sdc1 $f25, SC_FPREGS+200(a0)
-	EX	sdc1 $f27, SC_FPREGS+216(a0)
-	EX	sdc1 $f29, SC_FPREGS+232(a0)
-	EX	sdc1 $f31, SC_FPREGS+248(a0)
+	EX	sdc1 $f1, 8(a0)
+	EX	sdc1 $f3, 24(a0)
+	EX	sdc1 $f5, 40(a0)
+	EX	sdc1 $f7, 56(a0)
+	EX	sdc1 $f9, 72(a0)
+	EX	sdc1 $f11, 88(a0)
+	EX	sdc1 $f13, 104(a0)
+	EX	sdc1 $f15, 120(a0)
+	EX	sdc1 $f17, 136(a0)
+	EX	sdc1 $f19, 152(a0)
+	EX	sdc1 $f21, 168(a0)
+	EX	sdc1 $f23, 184(a0)
+	EX	sdc1 $f25, 200(a0)
+	EX	sdc1 $f27, 216(a0)
+	EX	sdc1 $f29, 232(a0)
+	EX	sdc1 $f31, 248(a0)
 1:	.set	pop
 #endif
 
 	.set push
 	SET_HARDFLOAT
 	/* Store the 16 even double precision registers */
-	EX	sdc1 $f0, SC_FPREGS+0(a0)
-	EX	sdc1 $f2, SC_FPREGS+16(a0)
-	EX	sdc1 $f4, SC_FPREGS+32(a0)
-	EX	sdc1 $f6, SC_FPREGS+48(a0)
-	EX	sdc1 $f8, SC_FPREGS+64(a0)
-	EX	sdc1 $f10, SC_FPREGS+80(a0)
-	EX	sdc1 $f12, SC_FPREGS+96(a0)
-	EX	sdc1 $f14, SC_FPREGS+112(a0)
-	EX	sdc1 $f16, SC_FPREGS+128(a0)
-	EX	sdc1 $f18, SC_FPREGS+144(a0)
-	EX	sdc1 $f20, SC_FPREGS+160(a0)
-	EX	sdc1 $f22, SC_FPREGS+176(a0)
-	EX	sdc1 $f24, SC_FPREGS+192(a0)
-	EX	sdc1 $f26, SC_FPREGS+208(a0)
-	EX	sdc1 $f28, SC_FPREGS+224(a0)
-	EX	sdc1 $f30, SC_FPREGS+240(a0)
-	EX	sw t1, SC_FPC_CSR(a0)
+	EX	sdc1 $f0, 0(a0)
+	EX	sdc1 $f2, 16(a0)
+	EX	sdc1 $f4, 32(a0)
+	EX	sdc1 $f6, 48(a0)
+	EX	sdc1 $f8, 64(a0)
+	EX	sdc1 $f10, 80(a0)
+	EX	sdc1 $f12, 96(a0)
+	EX	sdc1 $f14, 112(a0)
+	EX	sdc1 $f16, 128(a0)
+	EX	sdc1 $f18, 144(a0)
+	EX	sdc1 $f20, 160(a0)
+	EX	sdc1 $f22, 176(a0)
+	EX	sdc1 $f24, 192(a0)
+	EX	sdc1 $f26, 208(a0)
+	EX	sdc1 $f28, 224(a0)
+	EX	sdc1 $f30, 240(a0)
+	EX	sw t1, 0(a1)
 	jr	ra
 	 li	v0, 0					# success
 	.set pop
@@ -159,13 +167,16 @@ LEAF(_save_fp_context32)
 	END(_save_fp_context32)
 #endif
 
-/*
- * Restore FPU state:
- *  - fp gp registers
- *  - cp1 status/control register
+/**
+ * _restore_fp_context() - restore FP context to the FPU
+ * @a0 - pointer to fpregs field of sigcontext
+ * @a1 - pointer to fpc_csr field of sigcontext
+ *
+ * Restore FP context, including the 32 FP data registers and the FP
+ * control & status register, from signal context to the FPU.
  */
 LEAF(_restore_fp_context)
-	EX	lw t1, SC_FPC_CSR(a0)
+	EX	lw t1, 0(a1)
 
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)  || \
 		defined(CONFIG_CPU_MIPS32_R6)
@@ -179,42 +190,42 @@ LEAF(_restore_fp_context)
 	bgez	t0, 1f			# skip loading odd if FR=0
 	 nop
 #endif
-	EX	ldc1 $f1, SC_FPREGS+8(a0)
-	EX	ldc1 $f3, SC_FPREGS+24(a0)
-	EX	ldc1 $f5, SC_FPREGS+40(a0)
-	EX	ldc1 $f7, SC_FPREGS+56(a0)
-	EX	ldc1 $f9, SC_FPREGS+72(a0)
-	EX	ldc1 $f11, SC_FPREGS+88(a0)
-	EX	ldc1 $f13, SC_FPREGS+104(a0)
-	EX	ldc1 $f15, SC_FPREGS+120(a0)
-	EX	ldc1 $f17, SC_FPREGS+136(a0)
-	EX	ldc1 $f19, SC_FPREGS+152(a0)
-	EX	ldc1 $f21, SC_FPREGS+168(a0)
-	EX	ldc1 $f23, SC_FPREGS+184(a0)
-	EX	ldc1 $f25, SC_FPREGS+200(a0)
-	EX	ldc1 $f27, SC_FPREGS+216(a0)
-	EX	ldc1 $f29, SC_FPREGS+232(a0)
-	EX	ldc1 $f31, SC_FPREGS+248(a0)
+	EX	ldc1 $f1, 8(a0)
+	EX	ldc1 $f3, 24(a0)
+	EX	ldc1 $f5, 40(a0)
+	EX	ldc1 $f7, 56(a0)
+	EX	ldc1 $f9, 72(a0)
+	EX	ldc1 $f11, 88(a0)
+	EX	ldc1 $f13, 104(a0)
+	EX	ldc1 $f15, 120(a0)
+	EX	ldc1 $f17, 136(a0)
+	EX	ldc1 $f19, 152(a0)
+	EX	ldc1 $f21, 168(a0)
+	EX	ldc1 $f23, 184(a0)
+	EX	ldc1 $f25, 200(a0)
+	EX	ldc1 $f27, 216(a0)
+	EX	ldc1 $f29, 232(a0)
+	EX	ldc1 $f31, 248(a0)
 1:	.set pop
 #endif
 	.set push
 	SET_HARDFLOAT
-	EX	ldc1 $f0, SC_FPREGS+0(a0)
-	EX	ldc1 $f2, SC_FPREGS+16(a0)
-	EX	ldc1 $f4, SC_FPREGS+32(a0)
-	EX	ldc1 $f6, SC_FPREGS+48(a0)
-	EX	ldc1 $f8, SC_FPREGS+64(a0)
-	EX	ldc1 $f10, SC_FPREGS+80(a0)
-	EX	ldc1 $f12, SC_FPREGS+96(a0)
-	EX	ldc1 $f14, SC_FPREGS+112(a0)
-	EX	ldc1 $f16, SC_FPREGS+128(a0)
-	EX	ldc1 $f18, SC_FPREGS+144(a0)
-	EX	ldc1 $f20, SC_FPREGS+160(a0)
-	EX	ldc1 $f22, SC_FPREGS+176(a0)
-	EX	ldc1 $f24, SC_FPREGS+192(a0)
-	EX	ldc1 $f26, SC_FPREGS+208(a0)
-	EX	ldc1 $f28, SC_FPREGS+224(a0)
-	EX	ldc1 $f30, SC_FPREGS+240(a0)
+	EX	ldc1 $f0, 0(a0)
+	EX	ldc1 $f2, 16(a0)
+	EX	ldc1 $f4, 32(a0)
+	EX	ldc1 $f6, 48(a0)
+	EX	ldc1 $f8, 64(a0)
+	EX	ldc1 $f10, 80(a0)
+	EX	ldc1 $f12, 96(a0)
+	EX	ldc1 $f14, 112(a0)
+	EX	ldc1 $f16, 128(a0)
+	EX	ldc1 $f18, 144(a0)
+	EX	ldc1 $f20, 160(a0)
+	EX	ldc1 $f22, 176(a0)
+	EX	ldc1 $f24, 192(a0)
+	EX	ldc1 $f26, 208(a0)
+	EX	ldc1 $f28, 224(a0)
+	EX	ldc1 $f30, 240(a0)
 	ctc1	t1, fcr31
 	.set pop
 	jr	ra

@@ -41,11 +41,8 @@
 
 #include "signal-common.h"
 
-static int (*save_fp_context)(struct sigcontext __user *sc);
-static int (*restore_fp_context)(struct sigcontext __user *sc);
-
-extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
-extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
+static int (*save_fp_context)(void __user *sc);
+static int (*restore_fp_context)(void __user *sc);
 
 struct sigframe {
 	u32 sf_ass[4];		/* argument save space for o32 */
@@ -65,41 +62,71 @@ struct rt_sigframe {
  * Thread saved context copy to/from a signal context presumed to be on the
  * user stack, and therefore accessed with appropriate macros from uaccess.h.
  */
-static int copy_fp_to_sigcontext(struct sigcontext __user *sc)
+static int copy_fp_to_sigcontext(void __user *sc)
 {
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
 	int i;
 	int err = 0;
 
 	for (i = 0; i < NUM_FPU_REGS; i++) {
 		err |=
 		    __put_user(get_fpr64(&current->thread.fpu.fpr[i], 0),
-			       &sc->sc_fpregs[i]);
+			       &fpregs[i]);
 	}
-	err |= __put_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
+	err |= __put_user(current->thread.fpu.fcr31, csr);
 
 	return err;
 }
 
-static int copy_fp_from_sigcontext(struct sigcontext __user *sc)
+static int copy_fp_from_sigcontext(void __user *sc)
 {
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
 	int i;
 	int err = 0;
 	u64 fpr_val;
 
 	for (i = 0; i < NUM_FPU_REGS; i++) {
-		err |= __get_user(fpr_val, &sc->sc_fpregs[i]);
+		err |= __get_user(fpr_val, &fpregs[i]);
 		set_fpr64(&current->thread.fpu.fpr[i], 0, fpr_val);
 	}
-	err |= __get_user(current->thread.fpu.fcr31, &sc->sc_fpc_csr);
+	err |= __get_user(current->thread.fpu.fcr31, csr);
 
 	return err;
 }
 
 /*
+ * Wrappers for the assembly _{save,restore}_fp_context functions.
+ */
+static int save_hw_fp_context(void __user *sc)
+{
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+
+	return _save_fp_context(fpregs, csr);
+}
+
+static int restore_hw_fp_context(void __user *sc)
+{
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+
+	return _restore_fp_context(fpregs, csr);
+}
+
+/*
  * Helper routines
  */
-static int protected_save_fp_context(struct sigcontext __user *sc)
+static int protected_save_fp_context(void __user *sc)
 {
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
 	int err;
 
 	/*
@@ -121,9 +148,9 @@ static int protected_save_fp_context(struct sigcontext __user *sc)
 		if (likely(!err))
 			break;
 		/* touch the sigcontext and try again */
-		err = __put_user(0, &sc->sc_fpregs[0]) |
-			__put_user(0, &sc->sc_fpregs[31]) |
-			__put_user(0, &sc->sc_fpc_csr);
+		err = __put_user(0, &fpregs[0]) |
+			__put_user(0, &fpregs[31]) |
+			__put_user(0, csr);
 		if (err)
 			break;	/* really bad sigcontext */
 	}
@@ -131,8 +158,11 @@ static int protected_save_fp_context(struct sigcontext __user *sc)
 	return err;
 }
 
-static int protected_restore_fp_context(struct sigcontext __user *sc)
+static int protected_restore_fp_context(void __user *sc)
 {
+	struct mips_abi *abi = current->thread.abi;
+	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
+	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
 	int err, tmp __maybe_unused;
 
 	/*
@@ -155,9 +185,9 @@ static int protected_restore_fp_context(struct sigcontext __user *sc)
 		if (likely(!err))
 			break;
 		/* touch the sigcontext and try again */
-		err = __get_user(tmp, &sc->sc_fpregs[0]) |
-			__get_user(tmp, &sc->sc_fpregs[31]) |
-			__get_user(tmp, &sc->sc_fpc_csr);
+		err = __get_user(tmp, &fpregs[0]) |
+			__get_user(tmp, &fpregs[31]) |
+			__get_user(tmp, csr);
 		if (err)
 			break;	/* really bad sigcontext */
 	}
@@ -225,11 +255,12 @@ int fpcsr_pending(unsigned int __user *fpcsr)
 }
 
 static int
-check_and_restore_fp_context(struct sigcontext __user *sc)
+check_and_restore_fp_context(void __user *sc)
 {
+	struct mips_abi *abi = current->thread.abi;
 	int err, sig;
 
-	err = sig = fpcsr_pending(&sc->sc_fpc_csr);
+	err = sig = fpcsr_pending(sc + abi->off_sc_fpc_csr);
 	if (err > 0)
 		err = 0;
 	err |= protected_restore_fp_context(sc);
@@ -634,17 +665,17 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 }
 
 #ifdef CONFIG_SMP
-static int smp_save_fp_context(struct sigcontext __user *sc)
+static int smp_save_fp_context(void __user *sc)
 {
 	return raw_cpu_has_fpu
-	       ? _save_fp_context(sc)
+	       ? save_hw_fp_context(sc)
 	       : copy_fp_to_sigcontext(sc);
 }
 
-static int smp_restore_fp_context(struct sigcontext __user *sc)
+static int smp_restore_fp_context(void __user *sc)
 {
 	return raw_cpu_has_fpu
-	       ? _restore_fp_context(sc)
+	       ? restore_hw_fp_context(sc)
 	       : copy_fp_from_sigcontext(sc);
 }
 #endif
@@ -657,8 +688,8 @@ static int signal_setup(void)
 	restore_fp_context = smp_restore_fp_context;
 #else
 	if (cpu_has_fpu) {
-		save_fp_context = _save_fp_context;
-		restore_fp_context = _restore_fp_context;
+		save_fp_context = save_hw_fp_context;
+		restore_fp_context = restore_hw_fp_context;
 	} else {
 		save_fp_context = copy_fp_to_sigcontext;
 		restore_fp_context = copy_fp_from_sigcontext;
