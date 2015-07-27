@@ -245,17 +245,6 @@ void output_sc_defines(void)
 }
 #endif
 
-#ifdef CONFIG_MIPS32_COMPAT
-void output_sc32_defines(void)
-{
-	COMMENT("Linux 32-bit sigcontext offsets.");
-	OFFSET(SC32_FPREGS, sigcontext32, sc_fpregs);
-	OFFSET(SC32_FPC_CSR, sigcontext32, sc_fpc_csr);
-	OFFSET(SC32_FPC_EIR, sigcontext32, sc_fpc_eir);
-	BLANK();
-}
-#endif
-
 void output_signal_defined(void)
 {
 	COMMENT("Linux signal numbers.");

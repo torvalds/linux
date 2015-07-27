@@ -124,7 +124,7 @@ static int restore_hw_fp_context(void __user *sc)
 /*
  * Helper routines
  */
-static int protected_save_fp_context(void __user *sc)
+int protected_save_fp_context(void __user *sc)
 {
 	struct mips_abi *abi = current->thread.abi;
 	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
@@ -167,7 +167,7 @@ static int protected_save_fp_context(void __user *sc)
 	return err;
 }
 
-static int protected_restore_fp_context(void __user *sc)
+int protected_restore_fp_context(void __user *sc)
 {
 	struct mips_abi *abi = current->thread.abi;
 	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;

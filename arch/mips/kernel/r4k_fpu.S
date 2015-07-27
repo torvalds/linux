@@ -107,66 +107,6 @@ LEAF(_save_fp_context)
 	.set pop
 	END(_save_fp_context)
 
-#ifdef CONFIG_MIPS32_COMPAT
-	/* Save 32-bit process floating point context */
-LEAF(_save_fp_context32)
-	.set push
-	.set MIPS_ISA_ARCH_LEVEL_RAW
-	SET_HARDFLOAT
-	cfc1	t1, fcr31
-
-#ifndef CONFIG_CPU_MIPS64_R6
-	mfc0	t0, CP0_STATUS
-	sll	t0, t0, 5
-	bgez	t0, 1f			# skip storing odd if FR=0
-	 nop
-#endif
-
-	/* Store the 16 odd double precision registers */
-	EX      sdc1 $f1, SC32_FPREGS+8(a0)
-	EX      sdc1 $f3, SC32_FPREGS+24(a0)
-	EX      sdc1 $f5, SC32_FPREGS+40(a0)
-	EX      sdc1 $f7, SC32_FPREGS+56(a0)
-	EX      sdc1 $f9, SC32_FPREGS+72(a0)
-	EX      sdc1 $f11, SC32_FPREGS+88(a0)
-	EX      sdc1 $f13, SC32_FPREGS+104(a0)
-	EX      sdc1 $f15, SC32_FPREGS+120(a0)
-	EX      sdc1 $f17, SC32_FPREGS+136(a0)
-	EX      sdc1 $f19, SC32_FPREGS+152(a0)
-	EX      sdc1 $f21, SC32_FPREGS+168(a0)
-	EX      sdc1 $f23, SC32_FPREGS+184(a0)
-	EX      sdc1 $f25, SC32_FPREGS+200(a0)
-	EX      sdc1 $f27, SC32_FPREGS+216(a0)
-	EX      sdc1 $f29, SC32_FPREGS+232(a0)
-	EX      sdc1 $f31, SC32_FPREGS+248(a0)
-
-	/* Store the 16 even double precision registers */
-1:	EX	sdc1 $f0, SC32_FPREGS+0(a0)
-	EX	sdc1 $f2, SC32_FPREGS+16(a0)
-	EX	sdc1 $f4, SC32_FPREGS+32(a0)
-	EX	sdc1 $f6, SC32_FPREGS+48(a0)
-	EX	sdc1 $f8, SC32_FPREGS+64(a0)
-	EX	sdc1 $f10, SC32_FPREGS+80(a0)
-	EX	sdc1 $f12, SC32_FPREGS+96(a0)
-	EX	sdc1 $f14, SC32_FPREGS+112(a0)
-	EX	sdc1 $f16, SC32_FPREGS+128(a0)
-	EX	sdc1 $f18, SC32_FPREGS+144(a0)
-	EX	sdc1 $f20, SC32_FPREGS+160(a0)
-	EX	sdc1 $f22, SC32_FPREGS+176(a0)
-	EX	sdc1 $f24, SC32_FPREGS+192(a0)
-	EX	sdc1 $f26, SC32_FPREGS+208(a0)
-	EX	sdc1 $f28, SC32_FPREGS+224(a0)
-	EX	sdc1 $f30, SC32_FPREGS+240(a0)
-	EX	sw t1, SC32_FPC_CSR(a0)
-	cfc1	t0, $0				# implementation/version
-	EX	sw t0, SC32_FPC_EIR(a0)
-	.set pop
-
-	jr	ra
-	 li	v0, 0					# success
-	END(_save_fp_context32)
-#endif
-
 /**
  * _restore_fp_context() - restore FP context to the FPU
  * @a0 - pointer to fpregs field of sigcontext
@@ -231,60 +171,6 @@ LEAF(_restore_fp_context)
 	jr	ra
 	 li	v0, 0					# success
 	END(_restore_fp_context)
-
-#ifdef CONFIG_MIPS32_COMPAT
-LEAF(_restore_fp_context32)
-	/* Restore an o32 sigcontext.  */
-	.set push
-	SET_HARDFLOAT
-	EX	lw t1, SC32_FPC_CSR(a0)
-
-#ifndef CONFIG_CPU_MIPS64_R6
-	mfc0	t0, CP0_STATUS
-	sll	t0, t0, 5
-	bgez	t0, 1f			# skip loading odd if FR=0
-	 nop
-#endif
-
-	EX      ldc1 $f1, SC32_FPREGS+8(a0)
-	EX      ldc1 $f3, SC32_FPREGS+24(a0)
-	EX      ldc1 $f5, SC32_FPREGS+40(a0)
-	EX      ldc1 $f7, SC32_FPREGS+56(a0)
-	EX      ldc1 $f9, SC32_FPREGS+72(a0)
-	EX      ldc1 $f11, SC32_FPREGS+88(a0)
-	EX      ldc1 $f13, SC32_FPREGS+104(a0)
-	EX      ldc1 $f15, SC32_FPREGS+120(a0)
-	EX      ldc1 $f17, SC32_FPREGS+136(a0)
-	EX      ldc1 $f19, SC32_FPREGS+152(a0)
-	EX      ldc1 $f21, SC32_FPREGS+168(a0)
-	EX      ldc1 $f23, SC32_FPREGS+184(a0)
-	EX      ldc1 $f25, SC32_FPREGS+200(a0)
-	EX      ldc1 $f27, SC32_FPREGS+216(a0)
-	EX      ldc1 $f29, SC32_FPREGS+232(a0)
-	EX      ldc1 $f31, SC32_FPREGS+248(a0)
-
-1:	EX	ldc1 $f0, SC32_FPREGS+0(a0)
-	EX	ldc1 $f2, SC32_FPREGS+16(a0)
-	EX	ldc1 $f4, SC32_FPREGS+32(a0)
-	EX	ldc1 $f6, SC32_FPREGS+48(a0)
-	EX	ldc1 $f8, SC32_FPREGS+64(a0)
-	EX	ldc1 $f10, SC32_FPREGS+80(a0)
-	EX	ldc1 $f12, SC32_FPREGS+96(a0)
-	EX	ldc1 $f14, SC32_FPREGS+112(a0)
-	EX	ldc1 $f16, SC32_FPREGS+128(a0)
-	EX	ldc1 $f18, SC32_FPREGS+144(a0)
-	EX	ldc1 $f20, SC32_FPREGS+160(a0)
-	EX	ldc1 $f22, SC32_FPREGS+176(a0)
-	EX	ldc1 $f24, SC32_FPREGS+192(a0)
-	EX	ldc1 $f26, SC32_FPREGS+208(a0)
-	EX	ldc1 $f28, SC32_FPREGS+224(a0)
-	EX	ldc1 $f30, SC32_FPREGS+240(a0)
-	ctc1	t1, fcr31
-	jr	ra
-	 li	v0, 0					# success
-	.set pop
-	END(_restore_fp_context32)
-#endif
 
 #ifdef CONFIG_CPU_HAS_MSA
 
