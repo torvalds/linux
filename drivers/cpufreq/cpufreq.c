@@ -1398,10 +1398,8 @@ out_release_rwsem:
 	return ret;
 }
 
-static int __cpufreq_remove_dev_prepare(struct device *dev)
+static void cpufreq_offline_prepare(unsigned int cpu)
 {
-	unsigned int cpu = dev->id;
-	int ret = 0;
 	struct cpufreq_policy *policy;
 
 	pr_debug("%s: unregistering CPU %u\n", __func__, cpu);
@@ -1409,11 +1407,11 @@ static int __cpufreq_remove_dev_prepare(struct device *dev)
 	policy = cpufreq_cpu_get_raw(cpu);
 	if (!policy) {
 		pr_debug("%s: No cpu_data found\n", __func__);
-		return -EINVAL;
+		return;
 	}
 
 	if (has_target()) {
-		ret = __cpufreq_governor(policy, CPUFREQ_GOV_STOP);
+		int ret = __cpufreq_governor(policy, CPUFREQ_GOV_STOP);
 		if (ret)
 			pr_err("%s: Failed to stop governor\n", __func__);
 	}
@@ -1434,7 +1432,7 @@ static int __cpufreq_remove_dev_prepare(struct device *dev)
 	/* Start governor again for active policy */
 	if (!policy_is_inactive(policy)) {
 		if (has_target()) {
-			ret = __cpufreq_governor(policy, CPUFREQ_GOV_START);
+			int ret = __cpufreq_governor(policy, CPUFREQ_GOV_START);
 			if (!ret)
 				ret = __cpufreq_governor(policy, CPUFREQ_GOV_LIMITS);
 
@@ -1444,28 +1442,24 @@ static int __cpufreq_remove_dev_prepare(struct device *dev)
 	} else if (cpufreq_driver->stop_cpu) {
 		cpufreq_driver->stop_cpu(policy);
 	}
-
-	return ret;
 }
 
-static int __cpufreq_remove_dev_finish(struct device *dev)
+static void cpufreq_offline_finish(unsigned int cpu)
 {
-	unsigned int cpu = dev->id;
-	int ret;
 	struct cpufreq_policy *policy = per_cpu(cpufreq_cpu_data, cpu);
 
 	if (!policy) {
 		pr_debug("%s: No cpu_data found\n", __func__);
-		return -EINVAL;
+		return;
 	}
 
 	/* Only proceed for inactive policies */
 	if (!policy_is_inactive(policy))
-		return 0;
+		return;
 
 	/* If cpu is last user of policy, free policy */
 	if (has_target()) {
-		ret = __cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
+		int ret = __cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
 		if (ret)
 			pr_err("%s: Failed to exit governor\n", __func__);
 	}
@@ -1477,8 +1471,6 @@ static int __cpufreq_remove_dev_finish(struct device *dev)
 	 */
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(policy);
-
-	return 0;
 }
 
 /**
@@ -1495,8 +1487,8 @@ static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 		return 0;
 
 	if (cpu_online(cpu)) {
-		__cpufreq_remove_dev_prepare(dev);
-		__cpufreq_remove_dev_finish(dev);
+		cpufreq_offline_prepare(cpu);
+		cpufreq_offline_finish(cpu);
 	}
 
 	cpumask_clear_cpu(cpu, policy->real_cpus);
@@ -2379,11 +2371,11 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 			break;
 
 		case CPU_DOWN_PREPARE:
-			__cpufreq_remove_dev_prepare(dev);
+			cpufreq_offline_prepare(cpu);
 			break;
 
 		case CPU_POST_DEAD:
-			__cpufreq_remove_dev_finish(dev);
+			cpufreq_offline_finish(cpu);
 			break;
 
 		case CPU_DOWN_FAILED:
