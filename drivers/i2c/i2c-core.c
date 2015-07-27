@@ -1340,13 +1340,17 @@ static int of_dev_node_match(struct device *dev, void *data)
 struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 {
 	struct device *dev;
+	struct i2c_client *client;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node,
-					 of_dev_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, node, of_dev_node_match);
 	if (!dev)
 		return NULL;
 
-	return i2c_verify_client(dev);
+	client = i2c_verify_client(dev);
+	if (!client)
+		put_device(dev);
+
+	return client;
 }
 EXPORT_SYMBOL(of_find_i2c_device_by_node);
 
@@ -1354,13 +1358,17 @@ EXPORT_SYMBOL(of_find_i2c_device_by_node);
 struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 {
 	struct device *dev;
+	struct i2c_adapter *adapter;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node,
-					 of_dev_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, node, of_dev_node_match);
 	if (!dev)
 		return NULL;
 
-	return i2c_verify_adapter(dev);
+	adapter = i2c_verify_adapter(dev);
+	if (!adapter)
+		put_device(dev);
+
+	return adapter;
 }
 EXPORT_SYMBOL(of_find_i2c_adapter_by_node);
 #else
