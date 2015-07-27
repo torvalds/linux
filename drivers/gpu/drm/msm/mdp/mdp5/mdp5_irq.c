@@ -112,15 +112,24 @@ irqreturn_t mdp5_irq(struct msm_kms *kms)
 
 int mdp5_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+
+	mdp5_enable(mdp5_kms);
 	mdp_update_vblank_mask(to_mdp_kms(kms),
 			mdp5_crtc_vblank(crtc), true);
+	mdp5_disable(mdp5_kms);
+
 	return 0;
 }
 
 void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+
+	mdp5_enable(mdp5_kms);
 	mdp_update_vblank_mask(to_mdp_kms(kms),
 			mdp5_crtc_vblank(crtc), false);
+	mdp5_disable(mdp5_kms);
 }
 
 /*

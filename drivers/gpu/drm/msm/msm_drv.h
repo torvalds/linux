@@ -71,6 +71,12 @@ enum msm_mdp_plane_property {
 	PLANE_PROP_MAX_NUM
 };
 
+struct msm_vblank_ctrl {
+	struct work_struct work;
+	struct list_head event_list;
+	spinlock_t lock;
+};
+
 struct msm_drm_private {
 
 	struct msm_kms *kms;
@@ -147,6 +153,8 @@ struct msm_drm_private {
 		 */
 		struct drm_mm mm;
 	} vram;
+
+	struct msm_vblank_ctrl vblank_ctrl;
 };
 
 struct msm_format {

@@ -86,13 +86,22 @@ irqreturn_t mdp4_irq(struct msm_kms *kms)
 
 int mdp4_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+
+	mdp4_enable(mdp4_kms);
 	mdp_update_vblank_mask(to_mdp_kms(kms),
 			mdp4_crtc_vblank(crtc), true);
+	mdp4_disable(mdp4_kms);
+
 	return 0;
 }
 
 void mdp4_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+
+	mdp4_enable(mdp4_kms);
 	mdp_update_vblank_mask(to_mdp_kms(kms),
 			mdp4_crtc_vblank(crtc), false);
+	mdp4_disable(mdp4_kms);
 }
