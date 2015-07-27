@@ -915,6 +915,14 @@ b_epilogue:
 			off = offsetof(struct sk_buff, queue_mapping);
 			emit(ARM_LDRH_I(r_A, r_skb, off), ctx);
 			break;
+		case BPF_ANC | SKF_AD_PAY_OFFSET:
+			ctx->seen |= SEEN_SKB | SEEN_CALL;
+
+			emit(ARM_MOV_R(ARM_R0, r_skb), ctx);
+			emit_mov_i(ARM_R3, (unsigned int)skb_get_poff, ctx);
+			emit_blx_r(ARM_R3, ctx);
+			emit(ARM_MOV_R(r_A, ARM_R0), ctx);
+			break;
 		case BPF_LDX | BPF_W | BPF_ABS:
 			/*
 			 * load a 32bit word from struct seccomp_data.
