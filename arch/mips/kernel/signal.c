@@ -133,9 +133,16 @@ int protected_save_fp_context(void __user *sc)
 	unsigned int used;
 	int err;
 
-	used = !!used_math();
+	used = used_math() ? USED_FP : 0;
+	if (used) {
+		if (!test_thread_flag(TIF_32BIT_FPREGS))
+			used |= USED_FR1;
+		if (test_thread_flag(TIF_HYBRID_FPREGS))
+			used |= USED_HYBRID_FPRS;
+	}
+
 	err = __put_user(used, used_math);
-	if (err || !used)
+	if (err || !(used & USED_FP))
 		return err;
 
 	/*
@@ -177,13 +184,13 @@ int protected_restore_fp_context(void __user *sc)
 	int err, sig, tmp __maybe_unused;
 
 	err = __get_user(used, used_math);
-	conditional_used_math(used);
+	conditional_used_math(used & USED_FP);
 
 	/*
 	 * The signal handler may have used FPU; give it up if the program
 	 * doesn't want it following sigreturn.
 	 */
-	if (err || !used) {
+	if (err || !(used & USED_FP)) {
 		lose_fpu(0);
 		return err;
 	}
