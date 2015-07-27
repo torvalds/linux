@@ -390,10 +390,10 @@ static uint32_t get_scalex_config(uint32_t src, uint32_t dest)
 
 	filter = (src <= dest) ? SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
 
-	return  MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
-		MDP5_PIPE_SCALE_CONFIG_SCALEX_MIN_FILTER(filter) |
-		MDP5_PIPE_SCALE_CONFIG_SCALEX_CR_FILTER(filter)  |
-		MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER(filter);
+	return MDP5_PIPE_SCALE_CONFIG_SCALEX_EN |
+		MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_0(filter) |
+		MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_1_2(filter)  |
+		MDP5_PIPE_SCALE_CONFIG_SCALEX_FILTER_COMP_3(filter);
 }
 
 static uint32_t get_scaley_config(uint32_t src, uint32_t dest)
@@ -402,10 +402,10 @@ static uint32_t get_scaley_config(uint32_t src, uint32_t dest)
 
 	filter = (src <= dest) ? SCALE_FILTER_BIL : SCALE_FILTER_PCMN;
 
-	return  MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
-		MDP5_PIPE_SCALE_CONFIG_SCALEY_MIN_FILTER(filter) |
-		MDP5_PIPE_SCALE_CONFIG_SCALEY_CR_FILTER(filter)  |
-		MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER(filter);
+	return MDP5_PIPE_SCALE_CONFIG_SCALEY_EN |
+		MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_0(filter) |
+		MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_1_2(filter)  |
+		MDP5_PIPE_SCALE_CONFIG_SCALEY_FILTER_COMP_3(filter);
 }
 
 static int mdp5_plane_mode_set(struct drm_plane *plane,
@@ -516,7 +516,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 			MDP5_PIPE_SRC_FORMAT_CPP(format->cpp - 1) |
 			MDP5_PIPE_SRC_FORMAT_UNPACK_COUNT(format->unpack_count - 1) |
 			COND(format->unpack_tight, MDP5_PIPE_SRC_FORMAT_UNPACK_TIGHT) |
-			MDP5_PIPE_SRC_FORMAT_NUM_PLANES(format->fetch_type) |
+			MDP5_PIPE_SRC_FORMAT_FETCH_TYPE(format->fetch_type) |
 			MDP5_PIPE_SRC_FORMAT_CHROMA_SAMP(format->chroma_sample));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_UNPACK(pipe),

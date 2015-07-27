@@ -95,23 +95,23 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 static const struct mdp_format formats[] = {
 	/*  name      a  r  g  b   e0 e1 e2 e3  alpha   tight  cpp cnt ... */
 	FMT(ARGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(ABGR8888, 8, 8, 8, 8,  2, 0, 1, 3,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(RGBA8888, 8, 8, 8, 8,  3, 1, 0, 2,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(BGRA8888, 8, 8, 8, 8,  3, 2, 0, 1,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(XRGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  false,  true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(RGB888,   0, 8, 8, 8,  1, 0, 2, 0,  false,  true,  3,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(BGR888,   0, 8, 8, 8,  2, 0, 1, 0,  false,  true,  3,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(RGB565,   0, 5, 6, 5,  1, 0, 2, 0,  false,  true,  2,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 	FMT(BGR565,   0, 5, 6, 5,  2, 0, 1, 0,  false,  true,  2,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_RGB),
+			MDP_PLANE_INTERLEAVED, CHROMA_FULL),
 
 	/* --- RGB formats above / YUV formats below this line --- */
 
