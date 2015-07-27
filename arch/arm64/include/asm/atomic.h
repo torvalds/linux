@@ -85,6 +85,13 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 ATOMIC_OPS(add, add)
 ATOMIC_OPS(sub, sub)
 
+#define atomic_andnot atomic_andnot
+
+ATOMIC_OP(and, and)
+ATOMIC_OP(andnot, bic)
+ATOMIC_OP(or, orr)
+ATOMIC_OP(xor, eor)
+
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
@@ -182,6 +189,13 @@ static inline long atomic64_##op##_return(long i, atomic64_t *v)	\
 
 ATOMIC64_OPS(add, add)
 ATOMIC64_OPS(sub, sub)
+
+#define atomic64_andnot atomic64_andnot
+
+ATOMIC64_OP(and, and)
+ATOMIC64_OP(andnot, bic)
+ATOMIC64_OP(or, orr)
+ATOMIC64_OP(xor, eor)
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_OP_RETURN

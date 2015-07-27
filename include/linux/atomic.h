@@ -28,6 +28,23 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 #define atomic_inc_not_zero(v)		atomic_add_unless((v), 1, 0)
 #endif
 
+#ifndef atomic_andnot
+static inline void atomic_andnot(int i, atomic_t *v)
+{
+	atomic_and(~i, v);
+}
+#endif
+
+static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_andnot(mask, v);
+}
+
+static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
+{
+	atomic_or(mask, v);
+}
+
 /**
  * atomic_inc_not_zero_hint - increment if not null
  * @v: pointer of type atomic_t
@@ -111,21 +128,16 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 }
 #endif
 
-#ifndef CONFIG_ARCH_HAS_ATOMIC_OR
-static inline void atomic_or(int i, atomic_t *v)
-{
-	int old;
-	int new;
-
-	do {
-		old = atomic_read(v);
-		new = old | i;
-	} while (atomic_cmpxchg(v, old, new) != old);
-}
-#endif /* #ifndef CONFIG_ARCH_HAS_ATOMIC_OR */
-
 #include <asm-generic/atomic-long.h>
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
 #endif
+
+#ifndef atomic64_andnot
+static inline void atomic64_andnot(long long i, atomic64_t *v)
+{
+	atomic64_and(~i, v);
+}
+#endif
+
 #endif /* _LINUX_ATOMIC_H */
