@@ -448,8 +448,8 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	cd-gpios = <&gpio7 0 0>;
-	wp-gpios = <&gpio7 1 0>;
+	cd-gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };
@@ -457,7 +457,7 @@
 &usdhc4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
-	cd-gpios = <&gpio2 6 0>;
+	cd-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };
