@@ -11,3 +11,18 @@ menuconfig NVMEM
 	  will be called nvmem_core.
 
 	  If unsure, say no.
+
+if NVMEM
+
+config QCOM_QFPROM
+	tristate "QCOM QFPROM Support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  Say y here to enable QFPROM support. The QFPROM provides access
+	  functions for QFPROM data to rest of the drivers via nvmem interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_qfprom.
+
+endif
