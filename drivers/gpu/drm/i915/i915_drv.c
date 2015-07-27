@@ -935,8 +935,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
-	driver.driver_features &= ~(DRIVER_USE_AGP);
-
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
@@ -1649,7 +1647,6 @@ static struct drm_driver driver = {
 	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
-	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
 	    DRIVER_RENDER,
 	.load = i915_driver_load,
@@ -1664,7 +1661,6 @@ static struct drm_driver driver = {
 	.suspend = i915_suspend_legacy,
 	.resume = i915_resume_legacy,
 
-	.device_is_agp = i915_driver_device_is_agp,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = i915_debugfs_init,
 	.debugfs_cleanup = i915_debugfs_cleanup,
