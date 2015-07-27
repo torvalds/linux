@@ -169,6 +169,7 @@ int cl_page_gang_lookup(const struct lu_env *env, struct cl_object *obj,
 	while ((nr = radix_tree_gang_lookup(&hdr->coh_tree, (void **)pvec,
 					    idx, CLT_PVEC_SIZE)) > 0) {
 		int end_of_region = 0;
+
 		idx = pvec[nr - 1]->cp_index + 1;
 		for (i = 0, j = 0; i < nr; ++i) {
 			page = pvec[i];
@@ -286,6 +287,7 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 			GFP_NOFS);
 	if (page != NULL) {
 		int result = 0;
+
 		atomic_set(&page->cp_ref, 1);
 		if (type == CPT_CACHEABLE) /* for radix tree */
 			atomic_inc(&page->cp_ref);
