@@ -28,13 +28,6 @@
 #define RCAR_DU_COLORKEY_SOURCE		(1 << 24)
 #define RCAR_DU_COLORKEY_MASK		(1 << 24)
 
-static u32 rcar_du_plane_read(struct rcar_du_group *rgrp,
-			      unsigned int index, u32 reg)
-{
-	return rcar_du_read(rgrp->dev,
-			    rgrp->mmio_offset + index * PLANE_OFF + reg);
-}
-
 static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 				unsigned int index, u32 reg, u32 data)
 {
@@ -182,9 +175,6 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 	 * The data format is selected by the DDDF field in PnMR and the EDF
 	 * field in DDCR4.
 	 */
-	ddcr4 = rcar_du_plane_read(rgrp, index, PnDDCR4);
-	ddcr4 &= ~PnDDCR4_EDF_MASK;
-	ddcr4 |= state->format->edf | PnDDCR4_CODE;
 
 	rcar_du_plane_setup_mode(plane, index);
 
@@ -204,6 +194,9 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 	}
 
 	rcar_du_plane_write(rgrp, index, PnDDCR2, ddcr2);
+
+	ddcr4 = state->format->edf | PnDDCR4_CODE;
+
 	rcar_du_plane_write(rgrp, index, PnDDCR4, ddcr4);
 
 	/* Destination position and size */
