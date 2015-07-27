@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <asm/cacheflush.h>
+
 #include <soc/tegra/ahb.h>
 #include <soc/tegra/mc.h>
 
@@ -143,6 +145,24 @@ static unsigned int iova_pd_index(unsigned long iova)
 static unsigned int iova_pt_index(unsigned long iova)
 {
 	return (iova >> SMMU_PTE_SHIFT) & (SMMU_NUM_PTE - 1);
+}
+
+static void smmu_flush_dcache(struct page *page, unsigned long offset,
+			      size_t size)
+{
+#ifdef CONFIG_ARM
+	phys_addr_t phys = page_to_phys(page) + offset;
+#endif
+	void *virt = page_address(page) + offset;
+
+#ifdef CONFIG_ARM
+	__cpuc_flush_dcache_area(virt, size);
+	outer_flush_range(phys, phys + size);
+#endif
+
+#ifdef CONFIG_ARM64
+	__flush_dcache_area(virt, size);
+#endif
 }
 
 static inline void smmu_flush_ptc(struct tegra_smmu *smmu, struct page *page,
@@ -392,7 +412,7 @@ static int tegra_smmu_as_prepare(struct tegra_smmu *smmu,
 	if (err < 0)
 		return err;
 
-	smmu->soc->ops->flush_dcache(as->pd, 0, SMMU_SIZE_PD);
+	smmu_flush_dcache(as->pd, 0, SMMU_SIZE_PD);
 	smmu_flush_ptc(smmu, as->pd, 0);
 	smmu_flush_tlb_asid(smmu, as->id);
 
@@ -521,11 +541,11 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 
 		as->pts[pde] = page;
 
-		smmu->soc->ops->flush_dcache(page, 0, SMMU_SIZE_PT);
+		smmu_flush_dcache(page, 0, SMMU_SIZE_PT);
 
 		pd[pde] = SMMU_MK_PDE(page, SMMU_PDE_ATTR | SMMU_PDE_NEXT);
 
-		smmu->soc->ops->flush_dcache(as->pd, pde << 2, 4);
+		smmu_flush_dcache(as->pd, pde << 2, 4);
 		smmu_flush_ptc(smmu, as->pd, pde << 2);
 		smmu_flush_tlb_section(smmu, as->id, iova);
 		smmu_flush(smmu);
@@ -562,7 +582,7 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 		pd[pde] = 0;
 
 		/* Flush the page directory entry */
-		smmu->soc->ops->flush_dcache(as->pd, offset, sizeof(*pd));
+		smmu_flush_dcache(as->pd, offset, sizeof(*pd));
 		smmu_flush_ptc(smmu, as->pd, offset);
 		smmu_flush_tlb_section(smmu, as->id, iova);
 		smmu_flush(smmu);
@@ -582,7 +602,7 @@ static void tegra_smmu_set_pte(struct tegra_smmu_as *as, unsigned long iova,
 
 	*pte = val;
 
-	smmu->soc->ops->flush_dcache(pte_page, offset, 4);
+	smmu_flush_dcache(pte_page, offset, 4);
 	smmu_flush_ptc(smmu, pte_page, offset);
 	smmu_flush_tlb_group(smmu, as->id, iova);
 	smmu_flush(smmu);

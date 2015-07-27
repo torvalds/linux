@@ -51,11 +51,6 @@ struct tegra_smmu_swgroup {
 	unsigned int reg;
 };
 
-struct tegra_smmu_ops {
-	void (*flush_dcache)(struct page *page, unsigned long offset,
-			     size_t size);
-};
-
 struct tegra_smmu_soc {
 	const struct tegra_mc_client *clients;
 	unsigned int num_clients;
@@ -67,8 +62,6 @@ struct tegra_smmu_soc {
 	bool supports_request_limit;
 
 	unsigned int num_asids;
-
-	const struct tegra_smmu_ops *ops;
 };
 
 struct tegra_mc;
