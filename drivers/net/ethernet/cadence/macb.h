@@ -429,12 +429,12 @@
 	 | GEM_BF(name, value))
 
 /* Register access macros */
-#define macb_readl(port, reg)		(port)->readl((port), MACB_##reg)
-#define macb_writel(port, reg, value)	(port)->writel((port), MACB_##reg, (value))
-#define gem_readl(port, reg)		(port)->readl((port), GEM_##reg)
-#define gem_writel(port, reg, value)	(port)->writel((port), GEM_##reg, (value))
-#define queue_readl(queue, reg)		(queue)->bp->readl((queue)->bp, (queue)->reg)
-#define queue_writel(queue, reg, value)	(queue)->bp->writel((queue)->bp, (queue)->reg, (value))
+#define macb_readl(port, reg)		(port)->macb_reg_readl((port), MACB_##reg)
+#define macb_writel(port, reg, value)	(port)->macb_reg_writel((port), MACB_##reg, (value))
+#define gem_readl(port, reg)		(port)->macb_reg_readl((port), GEM_##reg)
+#define gem_writel(port, reg, value)	(port)->macb_reg_writel((port), GEM_##reg, (value))
+#define queue_readl(queue, reg)		(queue)->bp->macb_reg_readl((queue)->bp, (queue)->reg)
+#define queue_writel(queue, reg, value)	(queue)->bp->macb_reg_writel((queue)->bp, (queue)->reg, (value))
 
 /* Conditional GEM/MACB macros.  These perform the operation to the correct
  * register dependent on whether the device is a GEM or a MACB.  For registers
@@ -782,8 +782,8 @@ struct macb {
 	bool			native_io;
 
 	/* hardware IO accessors */
-	u32	(*readl)(struct macb *bp, int offset);
-	void	(*writel)(struct macb *bp, int offset, u32 value);
+	u32	(*macb_reg_readl)(struct macb *bp, int offset);
+	void	(*macb_reg_writel)(struct macb *bp, int offset, u32 value);
 
 	unsigned int		rx_tail;
 	unsigned int		rx_prepared_head;

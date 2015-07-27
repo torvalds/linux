@@ -506,7 +506,7 @@ static void macb_update_stats(struct macb *bp)
 	WARN_ON((unsigned long)(end - p - 1) != (MACB_TPF - MACB_PFR) / 4);
 
 	for(; p < end; p++, offset += 4)
-		*p += bp->readl(bp, offset);
+		*p += bp->macb_reg_readl(bp, offset);
 }
 
 static int macb_halt_tx(struct macb *bp)
@@ -1934,14 +1934,14 @@ static void gem_update_stats(struct macb *bp)
 
 	for (i = 0; i < GEM_STATS_LEN; ++i, ++p) {
 		u32 offset = gem_statistics[i].offset;
-		u64 val = bp->readl(bp, offset);
+		u64 val = bp->macb_reg_readl(bp, offset);
 
 		bp->ethtool_stats[i] += val;
 		*p += val;
 
 		if (offset == GEM_OCTTXL || offset == GEM_OCTRXL) {
 			/* Add GEM_OCTTXH, GEM_OCTRXH */
-			val = bp->readl(bp, offset + 4);
+			val = bp->macb_reg_readl(bp, offset + 4);
 			bp->ethtool_stats[i] += ((u64)val) << 32;
 			*(++p) += val;
 		}
@@ -2867,11 +2867,11 @@ static int macb_probe(struct platform_device *pdev)
 	bp->regs = mem;
 	bp->native_io = native_io;
 	if (native_io) {
-		bp->readl = hw_readl_native;
-		bp->writel = hw_writel_native;
+		bp->macb_reg_readl = hw_readl_native;
+		bp->macb_reg_writel = hw_writel_native;
 	} else {
-		bp->readl = hw_readl;
-		bp->writel = hw_writel;
+		bp->macb_reg_readl = hw_readl;
+		bp->macb_reg_writel = hw_writel;
 	}
 	bp->num_queues = num_queues;
 	bp->queue_mask = queue_mask;
