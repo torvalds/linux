@@ -1251,12 +1251,12 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	down_write(&policy->rwsem);
 
-	/* related cpus should atleast have policy->cpus */
-	cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
-
-	/* Remember which CPUs have been present at the policy creation time. */
-	if (!recover_policy)
+	if (!recover_policy) {
+		/* related_cpus should at least include policy->cpus. */
+		cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
+		/* Remember CPUs present at the policy creation time. */
 		cpumask_and(policy->real_cpus, policy->cpus, cpu_present_mask);
+	}
 
 	/*
 	 * affected cpus must always be the one, which are online. We aren't
