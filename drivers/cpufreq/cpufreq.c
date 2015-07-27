@@ -1201,7 +1201,7 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy, bool notify)
 static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int j, cpu = dev->id;
-	int ret = -ENOMEM;
+	int ret;
 	struct cpufreq_policy *policy;
 	unsigned long flags;
 	bool recover_policy;
@@ -1237,7 +1237,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		recover_policy = false;
 		policy = cpufreq_policy_alloc(dev);
 		if (!policy)
-			goto out_release_rwsem;
+			return -ENOMEM;
 	}
 
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
@@ -1372,7 +1372,6 @@ out_exit_policy:
 		cpufreq_driver->exit(policy);
 out_free_policy:
 	cpufreq_policy_free(policy, recover_policy);
-out_release_rwsem:
 	return ret;
 }
 
