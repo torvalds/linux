@@ -96,6 +96,30 @@
 		#size-cells = <1>;
 		ranges;
 
+		can0: can@ff060000 {
+			compatible = "xlnx,zynq-can-1.0";
+			status = "disabled";
+			clocks = <&misc_clk &misc_clk>;
+			clock-names = "can_clk", "pclk";
+			reg = <0x0 0xff060000 0x1000>;
+			interrupts = <0 23 4>;
+			interrupt-parent = <&gic>;
+			tx-fifo-depth = <0x40>;
+			rx-fifo-depth = <0x40>;
+		};
+
+		can1: can@ff070000 {
+			compatible = "xlnx,zynq-can-1.0";
+			status = "disabled";
+			clocks = <&misc_clk &misc_clk>;
+			clock-names = "can_clk", "pclk";
+			reg = <0x0 0xff070000 0x1000>;
+			interrupts = <0 24 4>;
+			interrupt-parent = <&gic>;
+			tx-fifo-depth = <0x40>;
+			rx-fifo-depth = <0x40>;
+		};
+
 		misc_clk: misc_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
