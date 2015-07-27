@@ -744,7 +744,13 @@ static void deliver_response(struct ipmi_recv_msg *msg)
 			ipmi_inc_stat(intf, unhandled_local_responses);
 		}
 		ipmi_free_recv_msg(msg);
-	} else {
+	} else if (!oops_in_progress) {
+		/*
+		 * If we are running in the panic context, calling the
+		 * receive handler doesn't much meaning and has a deadlock
+		 * risk.  At this moment, simply skip it in that case.
+		 */
+
 		ipmi_user_t user = msg->user;
 		user->handler->ipmi_recv_hndl(msg, user->handler_data);
 	}
