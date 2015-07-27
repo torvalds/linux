@@ -75,7 +75,7 @@ struct xtfpga_i2s {
 	 * stream in the pcm_close callback it synchronizes with the interrupt
 	 * handler by means of synchronize_rcu call.
 	 */
-	struct snd_pcm_substream *tx_substream;
+	struct snd_pcm_substream __rcu *tx_substream;
 	unsigned (*tx_fn)(struct xtfpga_i2s *i2s,
 			  struct snd_pcm_runtime *runtime,
 			  unsigned tx_ptr);
