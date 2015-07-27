@@ -495,6 +495,27 @@ static void tegra_smmu_detach_dev(struct iommu_domain *domain, struct device *de
 	}
 }
 
+static void tegra_smmu_set_pde(struct tegra_smmu_as *as, unsigned long iova,
+			       u32 value)
+{
+	unsigned int pd_index = iova_pd_index(iova);
+	struct tegra_smmu *smmu = as->smmu;
+	u32 *pd = page_address(as->pd);
+	unsigned long offset = pd_index * sizeof(*pd);
+
+	/* Set the page directory entry first */
+	pd[pd_index] = value;
+
+	/* The flush the page directory entry from caches */
+	dma_sync_single_range_for_device(smmu->dev, as->pd_dma, offset,
+					 sizeof(*pd), DMA_TO_DEVICE);
+
+	/* And flush the iommu */
+	smmu_flush_ptc(smmu, as->pd_dma, offset);
+	smmu_flush_tlb_section(smmu, as->id, iova);
+	smmu_flush(smmu);
+}
+
 static u32 *tegra_smmu_pte_offset(struct page *pt_page, unsigned long iova)
 {
 	u32 *pt = page_address(pt_page);
@@ -522,7 +543,6 @@ static u32 *tegra_smmu_pte_lookup(struct tegra_smmu_as *as, unsigned long iova,
 static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		       dma_addr_t *dmap)
 {
-	u32 *pd = page_address(as->pd);
 	unsigned int pde = iova_pd_index(iova);
 	struct tegra_smmu *smmu = as->smmu;
 
@@ -550,16 +570,13 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 
 		as->pts[pde] = page;
 
-		pd[pde] = SMMU_MK_PDE(dma, SMMU_PDE_ATTR | SMMU_PDE_NEXT);
-
-		dma_sync_single_range_for_device(smmu->dev, as->pd_dma,
-						 pde << 2, 4, DMA_TO_DEVICE);
-		smmu_flush_ptc(smmu, as->pd_dma, pde << 2);
-		smmu_flush_tlb_section(smmu, as->id, iova);
-		smmu_flush(smmu);
+		tegra_smmu_set_pde(as, iova, SMMU_MK_PDE(dma, SMMU_PDE_ATTR |
+							      SMMU_PDE_NEXT));
 
 		*dmap = dma;
 	} else {
+		u32 *pd = page_address(as->pd);
+
 		*dmap = smmu_pde_to_dma(pd[pde]);
 	}
 
@@ -575,9 +592,7 @@ static void tegra_smmu_pte_get_use(struct tegra_smmu_as *as, unsigned long iova)
 
 static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 {
-	struct tegra_smmu *smmu = as->smmu;
 	unsigned int pde = iova_pd_index(iova);
-	u32 *pd = page_address(as->pd);
 	struct page *page = as->pts[pde];
 
 	/*
@@ -585,20 +600,12 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 	 * memory page to the system.
 	 */
 	if (--as->count[pde] == 0) {
-		unsigned int offset = pde * sizeof(*pd);
+		struct tegra_smmu *smmu = as->smmu;
+		u32 *pd = page_address(as->pd);
 		dma_addr_t pte_dma = smmu_pde_to_dma(pd[pde]);
 
-		/* Clear the page directory entry first */
-		pd[pde] = 0;
+		tegra_smmu_set_pde(as, iova, 0);
 
-		/* Flush the page directory entry */
-		dma_sync_single_range_for_device(smmu->dev, as->pd_dma, offset,
-						 sizeof(*pd), DMA_TO_DEVICE);
-		smmu_flush_ptc(smmu, as->pd_dma, offset);
-		smmu_flush_tlb_section(smmu, as->id, iova);
-		smmu_flush(smmu);
-
-		/* Finally, free the page */
 		dma_unmap_page(smmu->dev, pte_dma, SMMU_SIZE_PT, DMA_TO_DEVICE);
 		__free_page(page);
 		as->pts[pde] = NULL;
