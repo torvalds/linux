@@ -50,6 +50,24 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+	eeprom@54 {
+		compatible = "at,24c64";
+		reg = <0x54>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+	eeprom@55 {
+		compatible = "at,24c64";
+		reg = <0x55>;
+	};
+};
+
 &sata {
 	status = "okay";
 	ceva,broken-gen2;
