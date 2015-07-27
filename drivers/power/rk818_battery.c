@@ -204,6 +204,7 @@ struct rk81x_battery {
 	int				ac_online;
 	int				usb_online;
 	int				otg_online;
+	int				dc_online;
 	int				psy_status;
 	int				current_avg;
 	int				current_offset;
@@ -336,7 +337,7 @@ struct rk81x_battery {
 	struct timeval			suspend_rtc_base;
 };
 
-u32 support_usb_adp, support_dc_adp;
+u32 support_usb_adp, support_dc_adp, power_dc2otg;
 
 #define to_device_info(x) container_of((x), \
 				struct rk81x_battery, bat)
@@ -1228,6 +1229,7 @@ static void rk81x_bat_set_power_supply_state(struct rk81x_battery *di,
 {
 	di->usb_online = OFFLINE;
 	di->ac_online = OFFLINE;
+	di->dc_online = OFFLINE;
 
 	switch (charger_type) {
 	case NO_CHARGER:
@@ -1238,6 +1240,7 @@ static void rk81x_bat_set_power_supply_state(struct rk81x_battery *di,
 		di->psy_status = POWER_SUPPLY_STATUS_CHARGING;
 		break;
 	case DC_CHARGER:/*treat dc as ac*/
+		di->dc_online = ONLINE;
 	case AC_CHARGER:
 		di->ac_online = ONLINE;
 		di->psy_status = POWER_SUPPLY_STATUS_CHARGING;
@@ -1761,6 +1764,24 @@ static void rk81x_bat_set_charger_param(struct rk81x_battery *di,
 	}
 }
 
+static void rk81x_bat_set_otg_state(struct rk81x_battery *di, int state)
+{
+	switch (state) {
+	case USB_OTG_POWER_ON:
+		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
+		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
+		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_EN);
+		break;
+	case USB_OTG_POWER_OFF:
+		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
+		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
+		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_DIS);
+		break;
+	default:
+		break;
+	}
+}
+
 static enum charger_type rk81x_bat_get_dc_state(struct rk81x_battery *di)
 {
 	int ret;
@@ -1803,12 +1824,20 @@ static void rk81x_battery_dc_delay_work(struct work_struct *work)
 
 	charger_type = rk81x_bat_get_dc_state(di);
 
-	if (charger_type == DC_CHARGER)
+	if (charger_type == DC_CHARGER) {
 		rk81x_bat_set_charger_param(di, DC_CHARGER);
-	else/*NO_CHARGER: maybe usb charger still plugin*/
-		queue_delayed_work(di->wq,
-				   &di->ac_usb_check_work,
-				   msecs_to_jiffies(10));
+		if (power_dc2otg && di->otg_online)
+			rk81x_bat_set_otg_state(di, USB_OTG_POWER_OFF);
+	} else {
+		if (di->otg_online) {
+			rk81x_bat_set_otg_state(di, USB_OTG_POWER_ON);
+			rk81x_bat_set_charger_param(di, NO_CHARGER);
+		} else {
+			queue_delayed_work(di->wq,
+					   &di->ac_usb_check_work,
+					   msecs_to_jiffies(10));
+		}
+	}
 }
 
 static void rk81x_battery_acusb_delay_work(struct work_struct *work)
@@ -3711,20 +3740,19 @@ static void rk81x_battery_otg_delay_work(struct work_struct *work)
 	 */
 	switch (event) {
 	case USB_OTG_POWER_ON:
-		dev_info(di->dev, "charge disable, otg enable\n");
 		di->otg_online = ONLINE;
-		/*rk81x_bat_set_charger_param(di, NO_CHARGER);*/
-		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
-		rk81x_bat_set_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
-		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_EN);
+		if (power_dc2otg && di->dc_online) {
+			dev_info(di->dev, "otg power from dc adapter\n");
+			return;
+		}
+		dev_info(di->dev, "charge disable, otg enable\n");
+		rk81x_bat_set_otg_state(di, USB_OTG_POWER_ON);
 		break;
 
 	case USB_OTG_POWER_OFF:
 		dev_info(di->dev, "charge enable, otg disable\n");
 		di->otg_online = OFFLINE;
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_IN_INT);
-		rk81x_bat_clr_bit(di, NT_STS_MSK_REG2, PLUG_OUT_INT);
-		rk818_set_bits(di->rk818, DCDC_EN_REG, OTG_EN_MASK, OTG_DIS);
+		rk81x_bat_set_otg_state(di, USB_OTG_POWER_OFF);
 		/*maybe dc still plugin*/
 		queue_delayed_work(di->wq, &di->dc_det_check_work,
 				   msecs_to_jiffies(10));
@@ -4121,6 +4149,7 @@ static int rk81x_bat_parse_dt(struct rk81x_battery *di)
 	/*************  charger support adp types **********************/
 	ret = of_property_read_u32(np, "support_usb_adp", &support_usb_adp);
 	ret = of_property_read_u32(np, "support_dc_adp", &support_dc_adp);
+	ret = of_property_read_u32(np, "power_dc2otg", &power_dc2otg);
 
 	if (!support_usb_adp && !support_dc_adp) {
 		dev_err(dev, "miss both: usb_adp and dc_adp,default:usb_adp!\n");
