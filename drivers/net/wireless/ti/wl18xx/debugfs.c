@@ -281,6 +281,55 @@ static const struct file_operations radar_detection_ops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t dynamic_fw_traces_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul_from_user(user_buf, count, 0, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&wl->mutex);
+
+	wl->dynamic_fw_traces = value;
+
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl18xx_acx_dynamic_fw_traces(wl);
+	if (ret < 0)
+		count = ret;
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static ssize_t dynamic_fw_traces_read(struct file *file,
+					char __user *userbuf,
+					size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	return wl1271_format_buffer(userbuf, count, ppos,
+				    "%d\n", wl->dynamic_fw_traces);
+}
+
+static const struct file_operations dynamic_fw_traces_ops = {
+	.read = dynamic_fw_traces_read,
+	.write = dynamic_fw_traces_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 int wl18xx_debugfs_add_files(struct wl1271 *wl,
 			     struct dentry *rootdir)
 {
@@ -433,6 +482,7 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 
 	DEBUGFS_ADD(conf, moddir);
 	DEBUGFS_ADD(radar_detection, moddir);
+	DEBUGFS_ADD(dynamic_fw_traces, moddir);
 
 	return 0;
 

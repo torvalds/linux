@@ -35,7 +35,8 @@ enum {
 	ACX_PEER_CAP			 = 0x0056,
 	ACX_INTERRUPT_NOTIFY		 = 0x0057,
 	ACX_RX_BA_FILTER		 = 0x0058,
-	ACX_AP_SLEEP_CFG                 = 0x0059
+	ACX_AP_SLEEP_CFG                 = 0x0059,
+	ACX_DYNAMIC_TRACES_CFG		 = 0x005A,
 };
 
 /* numbers of bits the length field takes (add 1 for the actual number) */
@@ -367,6 +368,15 @@ struct acx_ap_sleep_cfg {
 	u8 idle_conn_thresh;
 } __packed;
 
+/*
+ * ACX_DYNAMIC_TRACES_CFG
+ * configure the FW dynamic traces
+ */
+struct acx_dynamic_fw_traces_cfg {
+	struct acx_header header;
+	__le32 dynamic_fw_traces;
+} __packed;
+
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
 				  u32 len_field_size);
@@ -380,5 +390,6 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl, bool action);
 int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action);
 int wl18xx_acx_ap_sleep(struct wl1271 *wl);
+int wl18xx_acx_dynamic_fw_traces(struct wl1271 *wl);
 
 #endif /* __WL18XX_ACX_H__ */

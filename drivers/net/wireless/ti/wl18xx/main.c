@@ -1159,6 +1159,11 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	/* set the dynamic fw traces bitmap */
+	ret = wl18xx_acx_dynamic_fw_traces(wl);
+	if (ret < 0)
+		return ret;
+
 	if (checksum_param) {
 		ret = wl18xx_acx_set_checksum_state(wl);
 		if (ret != 0)

@@ -500,6 +500,9 @@ struct wl1271 {
 	/* interface combinations supported by the hw */
 	const struct ieee80211_iface_combination *iface_combinations;
 	u8 n_iface_combinations;
+
+	/* dynamic fw traces */
+	u32 dynamic_fw_traces;
 };
 
 int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
