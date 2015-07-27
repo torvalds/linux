@@ -41,6 +41,7 @@ struct mlx5e_rq_param {
 struct mlx5e_sq_param {
 	u32                        sqc[MLX5_ST_SZ_DW(sqc)];
 	struct mlx5_wq_param       wq;
+	u16                        max_inline;
 };
 
 struct mlx5e_cq_param {
@@ -272,6 +273,8 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	int err;
 	int i;
 
+	param->wq.db_numa_node = cpu_to_node(c->cpu);
+
 	err = mlx5_wq_ll_create(mdev, &param->wq, rqc_wq, &rq->wq,
 				&rq->wq_ctrl);
 	if (err)
@@ -502,6 +505,8 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	if (err)
 		return err;
 
+	param->wq.db_numa_node = cpu_to_node(c->cpu);
+
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq,
 				 &sq->wq_ctrl);
 	if (err)
@@ -509,7 +514,9 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 
 	sq->wq.db       = &sq->wq.db[MLX5_SND_DBR];
 	sq->uar_map     = sq->uar.map;
+	sq->uar_bf_map  = sq->uar.bf_map;
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+	sq->max_inline  = param->max_inline;
 
 	err = mlx5e_alloc_sq_db(sq, cpu_to_node(c->cpu));
 	if (err)
@@ -518,11 +525,12 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	txq_ix = c->ix + tc * priv->params.num_channels;
 	sq->txq = netdev_get_tx_queue(priv->netdev, txq_ix);
 
-	sq->pdev    = c->pdev;
-	sq->mkey_be = c->mkey_be;
-	sq->channel = c;
-	sq->tc      = tc;
-	sq->edge    = (sq->wq.sz_m1 + 1) - MLX5_SEND_WQE_MAX_WQEBBS;
+	sq->pdev      = c->pdev;
+	sq->mkey_be   = c->mkey_be;
+	sq->channel   = c;
+	sq->tc        = tc;
+	sq->edge      = (sq->wq.sz_m1 + 1) - MLX5_SEND_WQE_MAX_WQEBBS;
+	sq->bf_budget = MLX5E_SQ_BF_BUDGET;
 	priv->txq_to_sq_map[txq_ix] = sq;
 
 	return 0;
@@ -702,7 +710,8 @@ static int mlx5e_create_cq(struct mlx5e_channel *c,
 	int err;
 	u32 i;
 
-	param->wq.numa = cpu_to_node(c->cpu);
+	param->wq.buf_numa_node = cpu_to_node(c->cpu);
+	param->wq.db_numa_node  = cpu_to_node(c->cpu);
 	param->eq_ix   = c->ix;
 
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
@@ -1000,7 +1009,7 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, log_wq_sz,        priv->params.log_rq_size);
 	MLX5_SET(wq, wq, pd,               priv->pdn);
 
-	param->wq.numa   = dev_to_node(&priv->mdev->pdev->dev);
+	param->wq.buf_numa_node = dev_to_node(&priv->mdev->pdev->dev);
 	param->wq.linear = 1;
 }
 
@@ -1014,7 +1023,8 @@ static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, log_wq_stride, ilog2(MLX5_SEND_WQE_BB));
 	MLX5_SET(wq, wq, pd,            priv->pdn);
 
-	param->wq.numa = dev_to_node(&priv->mdev->pdev->dev);
+	param->wq.buf_numa_node = dev_to_node(&priv->mdev->pdev->dev);
+	param->max_inline = priv->params.tx_max_inline;
 }
 
 static void mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
@@ -1158,6 +1168,24 @@ static void mlx5e_close_tises(struct mlx5e_priv *priv)
 		mlx5e_close_tis(priv, tc);
 }
 
+static int mlx5e_rx_hash_fn(int hfunc)
+{
+	return (hfunc == ETH_RSS_HASH_TOP) ?
+	       MLX5_RX_HASH_FN_TOEPLITZ :
+	       MLX5_RX_HASH_FN_INVERTED_XOR8;
+}
+
+static int mlx5e_bits_invert(unsigned long a, int size)
+{
+	int inv = 0;
+	int i;
+
+	for (i = 0; i < size; i++)
+		inv |= (test_bit(size - i - 1, &a) ? 1 : 0) << i;
+
+	return inv;
+}
+
 static int mlx5e_open_rqt(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1166,10 +1194,9 @@ static int mlx5e_open_rqt(struct mlx5e_priv *priv)
 	void *rqtc;
 	int inlen;
 	int err;
-	int sz;
+	int log_tbl_sz = priv->params.rx_hash_log_tbl_sz;
+	int sz = 1 << log_tbl_sz;
 	int i;
-
-	sz = 1 << priv->params.rx_hash_log_tbl_sz;
 
 	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * sz;
 	in = mlx5_vzalloc(inlen);
@@ -1182,8 +1209,12 @@ static int mlx5e_open_rqt(struct mlx5e_priv *priv)
 	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
 
 	for (i = 0; i < sz; i++) {
-		int ix = i % priv->params.num_channels;
+		int ix = i;
 
+		if (priv->params.rss_hfunc == ETH_RSS_HASH_XOR)
+			ix = mlx5e_bits_invert(i, log_tbl_sz);
+
+		ix = ix % priv->params.num_channels;
 		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix]->rq.rqn);
 	}
 
@@ -1221,13 +1252,17 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 
 #define ROUGH_MAX_L2_L3_HDR_SZ 256
 
-#define MLX5_HASH_IP     (MLX5_HASH_FIELD_SEL_SRC_IP   |\
-			  MLX5_HASH_FIELD_SEL_DST_IP)
+#define MLX5_HASH_IP            (MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP)
 
-#define MLX5_HASH_ALL    (MLX5_HASH_FIELD_SEL_SRC_IP   |\
-			  MLX5_HASH_FIELD_SEL_DST_IP   |\
-			  MLX5_HASH_FIELD_SEL_L4_SPORT |\
-			  MLX5_HASH_FIELD_SEL_L4_DPORT)
+#define MLX5_HASH_IP_L4PORTS    (MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP   |\
+				 MLX5_HASH_FIELD_SEL_L4_SPORT |\
+				 MLX5_HASH_FIELD_SEL_L4_DPORT)
+
+#define MLX5_HASH_IP_IPSEC_SPI  (MLX5_HASH_FIELD_SEL_SRC_IP   |\
+				 MLX5_HASH_FIELD_SEL_DST_IP   |\
+				 MLX5_HASH_FIELD_SEL_IPSEC_SPI)
 
 	if (priv->params.lro_en) {
 		MLX5_SET(tirc, tirc, lro_enable_mask,
@@ -1254,12 +1289,16 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(tirc, tirc, indirect_table,
 			 priv->rqtn);
 		MLX5_SET(tirc, tirc, rx_hash_fn,
-			 MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ);
-		MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
-		netdev_rss_key_fill(MLX5_ADDR_OF(tirc, tirc,
-						 rx_hash_toeplitz_key),
-				    MLX5_FLD_SZ_BYTES(tirc,
-						      rx_hash_toeplitz_key));
+			 mlx5e_rx_hash_fn(priv->params.rss_hfunc));
+		if (priv->params.rss_hfunc == ETH_RSS_HASH_TOP) {
+			void *rss_key = MLX5_ADDR_OF(tirc, tirc,
+						     rx_hash_toeplitz_key);
+			size_t len = MLX5_FLD_SZ_BYTES(tirc,
+						       rx_hash_toeplitz_key);
+
+			MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
+			netdev_rss_key_fill(rss_key, len);
+		}
 		break;
 	}
 
@@ -1270,7 +1309,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_TCP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
 		break;
 
 	case MLX5E_TT_IPV6_TCP:
@@ -1279,7 +1318,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_TCP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
 		break;
 
 	case MLX5E_TT_IPV4_UDP:
@@ -1288,7 +1327,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_UDP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
 		break;
 
 	case MLX5E_TT_IPV6_UDP:
@@ -1297,7 +1336,35 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 			 MLX5_L4_PROT_TYPE_UDP);
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
-			 MLX5_HASH_ALL);
+			 MLX5_HASH_IP_L4PORTS);
+		break;
+
+	case MLX5E_TT_IPV4_IPSEC_AH:
+		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+			 MLX5_L3_PROT_TYPE_IPV4);
+		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			 MLX5_HASH_IP_IPSEC_SPI);
+		break;
+
+	case MLX5E_TT_IPV6_IPSEC_AH:
+		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+			 MLX5_L3_PROT_TYPE_IPV6);
+		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			 MLX5_HASH_IP_IPSEC_SPI);
+		break;
+
+	case MLX5E_TT_IPV4_IPSEC_ESP:
+		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+			 MLX5_L3_PROT_TYPE_IPV4);
+		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			 MLX5_HASH_IP_IPSEC_SPI);
+		break;
+
+	case MLX5E_TT_IPV6_IPSEC_ESP:
+		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+			 MLX5_L3_PROT_TYPE_IPV6);
+		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			 MLX5_HASH_IP_IPSEC_SPI);
 		break;
 
 	case MLX5E_TT_IPV4:
@@ -1673,6 +1740,15 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	return 0;
 }
 
+u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
+{
+	int bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+
+	return bf_buf_size -
+	       sizeof(struct mlx5e_tx_wqe) +
+	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
+}
+
 static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 				    struct net_device *netdev,
 				    int num_comp_vectors)
@@ -1691,6 +1767,7 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
 	priv->params.tx_cq_moderation_pkts =
 		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
+	priv->params.tx_max_inline         = mlx5e_get_max_inline_cap(mdev);
 	priv->params.min_rx_wqes           =
 		MLX5E_PARAMS_DEFAULT_MIN_RX_WQES;
 	priv->params.rx_hash_log_tbl_sz    =
@@ -1700,6 +1777,7 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 		MLX5E_PARAMS_DEFAULT_RX_HASH_LOG_TBL_SZ;
 	priv->params.num_tc                = 1;
 	priv->params.default_vlan_prio     = 0;
+	priv->params.rss_hfunc             = ETH_RSS_HASH_XOR;
 
 	priv->params.lro_en = false && !!MLX5_CAP_ETH(priv->mdev, lro_cap);
 	priv->params.lro_wqe_sz            =
