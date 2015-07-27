@@ -7,6 +7,7 @@
 
 	aliases {
 		serial0 = &gsbi7_serial;
+		serial1 = &gsbi6_serial;
 	};
 
 	soc {
@@ -112,6 +113,18 @@
 					reg = <0x52>;
 					pagesize = <32>;
 				};
+			};
+		};
+
+		gsbi@16500000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+
+			serial@16540000 {
+				status = "ok";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart_pins>;
 			};
 		};
 
