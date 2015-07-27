@@ -475,12 +475,36 @@ static void tegra_smmu_detach_dev(struct iommu_domain *domain, struct device *de
 	}
 }
 
+static u32 *tegra_smmu_pte_offset(struct page *pt_page, unsigned long iova)
+{
+	u32 *pt = page_address(pt_page);
+
+	return pt + iova_pt_index(iova);
+}
+
+static u32 *tegra_smmu_pte_lookup(struct tegra_smmu_as *as, unsigned long iova,
+				  struct page **pagep)
+{
+	unsigned int pd_index = iova_pd_index(iova);
+	struct page *pt_page;
+	u32 *pd;
+
+	pd = page_address(as->pd);
+
+	if (!pd[pd_index])
+		return NULL;
+
+	pt_page = pfn_to_page(pd[pd_index] & as->smmu->pfn_mask);
+	*pagep = pt_page;
+
+	return tegra_smmu_pte_offset(pt_page, iova);
+}
+
 static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		       struct page **pagep)
 {
 	u32 *pd = page_address(as->pd), *pt, *count;
 	unsigned int pde = iova_pd_index(iova);
-	unsigned int pte = iova_pt_index(iova);
 	struct tegra_smmu *smmu = as->smmu;
 	struct page *page;
 	unsigned int i;
@@ -506,17 +530,18 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		smmu_flush(smmu);
 	} else {
 		page = pfn_to_page(pd[pde] & smmu->pfn_mask);
-		pt = page_address(page);
 	}
 
 	*pagep = page;
 
+	pt = page_address(page);
+
 	/* Keep track of entries in this page table. */
 	count = page_address(as->count);
-	if (pt[pte] == 0)
+	if (pt[iova_pt_index(iova)] == 0)
 		count[pde]++;
 
-	return &pt[pte];
+	return tegra_smmu_pte_offset(page, iova);
 }
 
 static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
@@ -586,14 +611,14 @@ static size_t tegra_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 			       size_t size)
 {
 	struct tegra_smmu_as *as = to_smmu_as(domain);
-	struct page *page;
+	struct page *pte_page;
 	u32 *pte;
 
-	pte = as_get_pte(as, iova, &page);
+	pte = tegra_smmu_pte_lookup(as, iova, &pte_page);
 	if (!pte || !*pte)
 		return 0;
 
-	tegra_smmu_set_pte(as, iova, pte, page, 0);
+	tegra_smmu_set_pte(as, iova, pte, pte_page, 0);
 	tegra_smmu_pte_put_use(as, iova);
 
 	return size;
@@ -603,11 +628,11 @@ static phys_addr_t tegra_smmu_iova_to_phys(struct iommu_domain *domain,
 					   dma_addr_t iova)
 {
 	struct tegra_smmu_as *as = to_smmu_as(domain);
-	struct page *page;
+	struct page *pte_page;
 	unsigned long pfn;
 	u32 *pte;
 
-	pte = as_get_pte(as, iova, &page);
+	pte = tegra_smmu_pte_lookup(as, iova, &pte_page);
 	if (!pte || !*pte)
 		return 0;
 
