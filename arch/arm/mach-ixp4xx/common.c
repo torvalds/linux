@@ -296,7 +296,7 @@ void __init ixp4xx_init_irq(void)
 	for(i = 0; i < NR_IRQS; i++) {
 		irq_set_chip_and_handler(i, &ixp4xx_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 }
 

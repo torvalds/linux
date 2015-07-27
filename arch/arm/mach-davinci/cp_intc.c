@@ -112,7 +112,7 @@ static int cp_intc_host_map(struct irq_domain *h, unsigned int virq,
 	pr_debug("cp_intc_host_map(%d, 0x%lx)\n", virq, hw);
 
 	irq_set_chip(virq, &cp_intc_irq_chip);
-	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(virq);
 	irq_set_handler(virq, handle_edge_irq);
 	return 0;
 }

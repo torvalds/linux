@@ -169,7 +169,7 @@ void omap1510_fpga_init_irq(void)
 		}
 
 		irq_set_handler(i, handle_edge_irq);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 
 	/*

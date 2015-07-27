@@ -151,7 +151,7 @@ static void __init zeus_init_irq(void)
 		isa_irq = zeus_bit_to_irq(level);
 		irq_set_chip_and_handler(isa_irq, &zeus_irq_chip,
 					 handle_edge_irq);
-		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(isa_irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_irq_type(gpio_to_irq(ZEUS_ISA_GPIO), IRQ_TYPE_EDGE_RISING);

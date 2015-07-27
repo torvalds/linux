@@ -91,7 +91,7 @@ void it8152_init_irq(void)
 	for (irq = IT8152_IRQ(0); irq <= IT8152_LAST_IRQ; irq++) {
 		irq_set_chip_and_handler(irq, &it8152_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 }
 
