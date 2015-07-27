@@ -1,5 +1,10 @@
 menu "Platform selection"
 
+config ARCH_BCM_IPROC
+	bool "Broadcom iProc SoC Family"
+	help
+	  This enables support for Broadcom iProc based SoCs
+
 config ARCH_EXYNOS
 	bool
 	help
