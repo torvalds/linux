@@ -500,7 +500,31 @@ void imx_gpcv2_pre_suspend(bool arm_power_off)
 void imx_gpcv2_post_resume(void)
 {
 	void __iomem *reg_imr1 = gpc_base + GPC_IMR1_CORE0;
-	int i;
+	int i, val;
+
+	/* only external IRQs to wake up LPM and core 0/1 */
+	val = readl_relaxed(gpc_base + GPC_LPCR_A7_BSC);
+	val |= BM_LPCR_A7_BSC_IRQ_SRC_A7_WAKEUP;
+	writel_relaxed(val, gpc_base + GPC_LPCR_A7_BSC);
+	/* mask m4 dsm trigger */
+	writel_relaxed(readl_relaxed(gpc_base + GPC_LPCR_M4) |
+		BM_LPCR_M4_MASK_DSM_TRIGGER, gpc_base + GPC_LPCR_M4);
+	/* set mega/fast mix in A7 domain */
+	writel_relaxed(0x1, gpc_base + GPC_PGC_CPU_MAPPING);
+	/* set SCU timing */
+	writel_relaxed((0x59 << 10) | 0x5B | (0x51 << 20),
+		gpc_base + GPC_PGC_SCU_TIMING);
+
+	val = readl_relaxed(gpc_base + GPC_SLPCR);
+	val &= ~(BM_SLPCR_EN_DSM | BM_SLPCR_VSTBY | BM_SLPCR_RBC_EN |
+		BM_SLPCR_SBYOS | BM_SLPCR_BYPASS_PMIC_READY);
+	val |= BM_SLPCR_EN_A7_FASTWUP_WAIT_MODE;
+	writel_relaxed(val, gpc_base + GPC_SLPCR);
+
+	/* disable memory low power mode */
+	val = readl_relaxed(gpc_base + GPC_MLPCR);
+	val |= BM_GPC_MLPCR_MEMLP_CTL_DIS;
+	writel_relaxed(val, gpc_base + GPC_MLPCR);
 
 	for (i = 0; i < IMR_NUM; i++)
 		writel_relaxed(gpcv2_saved_imrs[i], reg_imr1 + i * 4);
