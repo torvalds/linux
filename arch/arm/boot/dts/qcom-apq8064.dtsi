@@ -320,6 +320,18 @@
 					#gpio-cells = <2>;
 
 				};
+
+				pm8921_mpps: mpps@50 {
+					compatible = "qcom,pm8921-mpp";
+					reg = <0x50>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupts =
+					<128 1>, <129 1>, <130 1>, <131 1>,
+					<132 1>, <133 1>, <134 1>, <135 1>,
+					<136 1>, <137 1>, <138 1>, <139 1>;
+				};
+
 			};
 		};
 
