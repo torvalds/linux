@@ -238,6 +238,124 @@ LEAF(\name)
 
 #endif /* CONFIG_CPU_HAS_MSA */
 
+#ifdef CONFIG_CPU_HAS_MSA
+
+	.macro	save_msa_upper	wr, off, base
+	.set	push
+	.set	noat
+#ifdef CONFIG_64BIT
+	copy_u_d \wr, 1
+	EX sd	$1, \off(\base)
+#elif defined(CONFIG_CPU_LITTLE_ENDIAN)
+	copy_u_w \wr, 2
+	EX sw	$1, \off(\base)
+	copy_u_w \wr, 3
+	EX sw	$1, (\off+4)(\base)
+#else /* CONFIG_CPU_BIG_ENDIAN */
+	copy_u_w \wr, 2
+	EX sw	$1, (\off+4)(\base)
+	copy_u_w \wr, 3
+	EX sw	$1, \off(\base)
+#endif
+	.set	pop
+	.endm
+
+LEAF(_save_msa_all_upper)
+	save_msa_upper	0, 0x00, a0
+	save_msa_upper	1, 0x08, a0
+	save_msa_upper	2, 0x10, a0
+	save_msa_upper	3, 0x18, a0
+	save_msa_upper	4, 0x20, a0
+	save_msa_upper	5, 0x28, a0
+	save_msa_upper	6, 0x30, a0
+	save_msa_upper	7, 0x38, a0
+	save_msa_upper	8, 0x40, a0
+	save_msa_upper	9, 0x48, a0
+	save_msa_upper	10, 0x50, a0
+	save_msa_upper	11, 0x58, a0
+	save_msa_upper	12, 0x60, a0
+	save_msa_upper	13, 0x68, a0
+	save_msa_upper	14, 0x70, a0
+	save_msa_upper	15, 0x78, a0
+	save_msa_upper	16, 0x80, a0
+	save_msa_upper	17, 0x88, a0
+	save_msa_upper	18, 0x90, a0
+	save_msa_upper	19, 0x98, a0
+	save_msa_upper	20, 0xa0, a0
+	save_msa_upper	21, 0xa8, a0
+	save_msa_upper	22, 0xb0, a0
+	save_msa_upper	23, 0xb8, a0
+	save_msa_upper	24, 0xc0, a0
+	save_msa_upper	25, 0xc8, a0
+	save_msa_upper	26, 0xd0, a0
+	save_msa_upper	27, 0xd8, a0
+	save_msa_upper	28, 0xe0, a0
+	save_msa_upper	29, 0xe8, a0
+	save_msa_upper	30, 0xf0, a0
+	save_msa_upper	31, 0xf8, a0
+	jr	ra
+	 li	v0, 0
+	END(_save_msa_all_upper)
+
+	.macro	restore_msa_upper	wr, off, base
+	.set	push
+	.set	noat
+#ifdef CONFIG_64BIT
+	EX ld	$1, \off(\base)
+	insert_d \wr, 1
+#elif defined(CONFIG_CPU_LITTLE_ENDIAN)
+	EX lw	$1, \off(\base)
+	insert_w \wr, 2
+	EX lw	$1, (\off+4)(\base)
+	insert_w \wr, 3
+#else /* CONFIG_CPU_BIG_ENDIAN */
+	EX lw	$1, (\off+4)(\base)
+	insert_w \wr, 2
+	EX lw	$1, \off(\base)
+	insert_w \wr, 3
+#endif
+	.set	pop
+	.endm
+
+LEAF(_restore_msa_all_upper)
+	restore_msa_upper	0, 0x00, a0
+	restore_msa_upper	1, 0x08, a0
+	restore_msa_upper	2, 0x10, a0
+	restore_msa_upper	3, 0x18, a0
+	restore_msa_upper	4, 0x20, a0
+	restore_msa_upper	5, 0x28, a0
+	restore_msa_upper	6, 0x30, a0
+	restore_msa_upper	7, 0x38, a0
+	restore_msa_upper	8, 0x40, a0
+	restore_msa_upper	9, 0x48, a0
+	restore_msa_upper	10, 0x50, a0
+	restore_msa_upper	11, 0x58, a0
+	restore_msa_upper	12, 0x60, a0
+	restore_msa_upper	13, 0x68, a0
+	restore_msa_upper	14, 0x70, a0
+	restore_msa_upper	15, 0x78, a0
+	restore_msa_upper	16, 0x80, a0
+	restore_msa_upper	17, 0x88, a0
+	restore_msa_upper	18, 0x90, a0
+	restore_msa_upper	19, 0x98, a0
+	restore_msa_upper	20, 0xa0, a0
+	restore_msa_upper	21, 0xa8, a0
+	restore_msa_upper	22, 0xb0, a0
+	restore_msa_upper	23, 0xb8, a0
+	restore_msa_upper	24, 0xc0, a0
+	restore_msa_upper	25, 0xc8, a0
+	restore_msa_upper	26, 0xd0, a0
+	restore_msa_upper	27, 0xd8, a0
+	restore_msa_upper	28, 0xe0, a0
+	restore_msa_upper	29, 0xe8, a0
+	restore_msa_upper	30, 0xf0, a0
+	restore_msa_upper	31, 0xf8, a0
+	jr	ra
+	 li	v0, 0
+	END(_restore_msa_all_upper)
+
+#endif /* CONFIG_CPU_HAS_MSA */
+
 	.set	reorder
 
 	.type	fault@function

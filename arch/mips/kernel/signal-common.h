@@ -37,4 +37,7 @@ _save_fp_context(void __user *fpregs, void __user *csr);
 extern asmlinkage int
 _restore_fp_context(void __user *fpregs, void __user *csr);
 
+extern asmlinkage int _save_msa_all_upper(void __user *buf);
+extern asmlinkage int _restore_msa_all_upper(void __user *buf);
+
 #endif	/* __SIGNAL_COMMON_H */
