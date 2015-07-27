@@ -1531,6 +1531,7 @@ void cpu_probe(void)
 		c->msa_id = cpu_get_msa_id();
 		WARN(c->msa_id & MSA_IR_WRPF,
 		     "Vector register partitioning unimplemented!");
+		elf_hwcap |= HWCAP_MIPS_MSA;
 	}
 
 	cpu_probe_vmbits(c);
