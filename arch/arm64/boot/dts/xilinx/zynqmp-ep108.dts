@@ -55,6 +55,14 @@
 	ceva,broken-gen2;
 };
 
+&sdhci0 {
+	status = "okay";
+};
+
+&sdhci1 {
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };
