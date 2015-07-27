@@ -58,3 +58,15 @@
 &uart0 {
 	status = "okay";
 };
+
+&usb0 {
+	status = "okay";
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+};
+
+&usb1 {
+	status = "okay";
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+};

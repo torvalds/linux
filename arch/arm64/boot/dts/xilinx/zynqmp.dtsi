@@ -343,6 +343,26 @@
 				<0 157 4>, <0 157 4>, <0 157 4>, <0 157 4>;
 		};
 
+		usb0: usb@fe200000 {
+			compatible = "snps,dwc3";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 65 4>;
+			reg = <0x0 0xfe200000 0x40000>;
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&misc_clk>, <&misc_clk>;
+		};
+
+		usb1: usb@fe300000 {
+			compatible = "snps,dwc3";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 70 4>;
+			reg = <0x0 0xfe300000 0x40000>;
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&misc_clk>, <&misc_clk>;
+		};
+
 		watchdog0: watchdog@fd4d0000 {
 			compatible = "cdns,wdt-r1p2";
 			status = "disabled";
