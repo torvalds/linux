@@ -35,7 +35,7 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 		      data);
 }
 
-static void rcar_du_plane_setup_fb(struct rcar_du_plane *plane)
+static void rcar_du_plane_setup_scanout(struct rcar_du_plane *plane)
 {
 	struct rcar_du_plane_state *state =
 		to_rcar_plane_state(plane->plane.state);
@@ -45,8 +45,10 @@ static void rcar_du_plane_setup_fb(struct rcar_du_plane *plane)
 	unsigned int src_y = state->state.src_y >> 16;
 	unsigned int index = state->hwindex;
 	struct drm_gem_cma_object *gem;
+	unsigned int pitch;
 	bool interlaced;
-	u32 mwr;
+	unsigned int i;
+	u32 dma[2];
 
 	interlaced = state->state.crtc->state->adjusted_mode.flags
 		   & DRM_MODE_FLAG_INTERLACE;
@@ -55,14 +57,18 @@ static void rcar_du_plane_setup_fb(struct rcar_du_plane *plane)
 	 * operation with 32bpp formats.
 	 */
 	if (state->format->planes == 2)
-		mwr = fb->pitches[0];
+		pitch = fb->pitches[0];
 	else
-		mwr = fb->pitches[0] * 8 / state->format->bpp;
+		pitch = fb->pitches[0] * 8 / state->format->bpp;
 
-	if (interlaced && state->format->bpp == 32)
-		mwr *= 2;
+	for (i = 0; i < state->format->planes; ++i) {
+		gem = drm_fb_cma_get_gem_obj(fb, i);
+		dma[i] = gem->paddr + fb->offsets[i];
+	}
 
-	rcar_du_plane_write(rgrp, index, PnMWR, mwr);
+	rcar_du_plane_write(rgrp, index, PnMWR,
+			    (interlaced && state->format->bpp == 32) ?
+			    pitch * 2 : pitch);
 
 	/* The Y position is expressed in raster line units and must be doubled
 	 * for 32bpp formats, according to the R8A7790 datasheet. No mention of
@@ -80,21 +86,18 @@ static void rcar_du_plane_setup_fb(struct rcar_du_plane *plane)
 	rcar_du_plane_write(rgrp, index, PnSPYR, src_y *
 			    (!interlaced && state->format->bpp == 32 ? 2 : 1));
 
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-	rcar_du_plane_write(rgrp, index, PnDSA0R, gem->paddr + fb->offsets[0]);
+	rcar_du_plane_write(rgrp, index, PnDSA0R, dma[0]);
 
 	if (state->format->planes == 2) {
 		index = (index + 1) % 8;
 
-		rcar_du_plane_write(rgrp, index, PnMWR, fb->pitches[0]);
+		rcar_du_plane_write(rgrp, index, PnMWR, pitch);
 
 		rcar_du_plane_write(rgrp, index, PnSPXR, src_x);
 		rcar_du_plane_write(rgrp, index, PnSPYR, src_y *
 				    (state->format->bpp == 16 ? 2 : 1) / 2);
 
-		gem = drm_fb_cma_get_gem_obj(fb, 1);
-		rcar_du_plane_write(rgrp, index, PnDSA0R,
-				    gem->paddr + fb->offsets[1]);
+		rcar_du_plane_write(rgrp, index, PnDSA0R, dma[1]);
 	}
 }
 
@@ -161,8 +164,8 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 	}
 }
 
-static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
-				  unsigned int index)
+static void rcar_du_plane_setup_format(struct rcar_du_plane *plane,
+				       unsigned int index)
 {
 	struct rcar_du_plane_state *state =
 		to_rcar_plane_state(plane->plane.state);
@@ -217,11 +220,11 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 	struct rcar_du_plane_state *state =
 		to_rcar_plane_state(plane->plane.state);
 
-	__rcar_du_plane_setup(plane, state->hwindex);
+	rcar_du_plane_setup_format(plane, state->hwindex);
 	if (state->format->planes == 2)
-		__rcar_du_plane_setup(plane, (state->hwindex + 1) % 8);
+		rcar_du_plane_setup_format(plane, (state->hwindex + 1) % 8);
 
-	rcar_du_plane_setup_fb(plane);
+	rcar_du_plane_setup_scanout(plane);
 }
 
 static int rcar_du_plane_atomic_check(struct drm_plane *plane,
