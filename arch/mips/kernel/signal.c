@@ -127,7 +127,14 @@ static int protected_save_fp_context(void __user *sc)
 	struct mips_abi *abi = current->thread.abi;
 	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
 	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
+	uint32_t __user *used_math = sc + abi->off_sc_used_math;
+	unsigned int used;
 	int err;
+
+	used = !!used_math();
+	err = __put_user(used, used_math);
+	if (err || !used)
+		return err;
 
 	/*
 	 * EVA does not have userland equivalents of ldc1 or sdc1, so
@@ -163,7 +170,25 @@ static int protected_restore_fp_context(void __user *sc)
 	struct mips_abi *abi = current->thread.abi;
 	uint64_t __user *fpregs = sc + abi->off_sc_fpregs;
 	uint32_t __user *csr = sc + abi->off_sc_fpc_csr;
-	int err, tmp __maybe_unused;
+	uint32_t __user *used_math = sc + abi->off_sc_used_math;
+	unsigned int used;
+	int err, sig, tmp __maybe_unused;
+
+	err = __get_user(used, used_math);
+	conditional_used_math(used);
+
+	/*
+	 * The signal handler may have used FPU; give it up if the program
+	 * doesn't want it following sigreturn.
+	 */
+	if (err || !used) {
+		lose_fpu(0);
+		return err;
+	}
+
+	err = sig = fpcsr_pending(csr);
+	if (err < 0)
+		return err;
 
 	/*
 	 * EVA does not have userland equivalents of ldc1 or sdc1, so we
@@ -192,14 +217,13 @@ static int protected_restore_fp_context(void __user *sc)
 			break;	/* really bad sigcontext */
 	}
 
-	return err;
+	return err ?: sig;
 }
 
 int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	int err = 0;
 	int i;
-	unsigned int used_math;
 
 	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
 
@@ -222,16 +246,13 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
 	}
 
-	used_math = !!used_math();
-	err |= __put_user(used_math, &sc->sc_used_math);
 
-	if (used_math) {
-		/*
-		 * Save FPU state to signal context. Signal handler
-		 * will "inherit" current FPU state.
-		 */
-		err |= protected_save_fp_context(sc);
-	}
+	/*
+	 * Save FPU state to signal context. Signal handler
+	 * will "inherit" current FPU state.
+	 */
+	err |= protected_save_fp_context(sc);
+
 	return err;
 }
 
@@ -254,22 +275,8 @@ int fpcsr_pending(unsigned int __user *fpcsr)
 	return err ?: sig;
 }
 
-static int
-check_and_restore_fp_context(void __user *sc)
-{
-	struct mips_abi *abi = current->thread.abi;
-	int err, sig;
-
-	err = sig = fpcsr_pending(sc + abi->off_sc_fpc_csr);
-	if (err > 0)
-		err = 0;
-	err |= protected_restore_fp_context(sc);
-	return err ?: sig;
-}
-
 int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
-	unsigned int used_math;
 	unsigned long treg;
 	int err = 0;
 	int i;
@@ -297,19 +304,7 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	for (i = 1; i < 32; i++)
 		err |= __get_user(regs->regs[i], &sc->sc_regs[i]);
 
-	err |= __get_user(used_math, &sc->sc_used_math);
-	conditional_used_math(used_math);
-
-	if (used_math) {
-		/* restore fpu context if we have used it before */
-		if (!err)
-			err = check_and_restore_fp_context(sc);
-	} else {
-		/* signal handler may have used FPU.  Give it up. */
-		lose_fpu(0);
-	}
-
-	return err;
+	return err ?: protected_restore_fp_context(sc);
 }
 
 void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
