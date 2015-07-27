@@ -895,6 +895,17 @@ b_epilogue:
 				OP_IMM3(ARM_AND, r_A, r_A, 0x1, ctx);
 			}
 			break;
+		case BPF_ANC | SKF_AD_PKTTYPE:
+			ctx->seen |= SEEN_SKB;
+			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
+						  __pkt_type_offset[0]) != 1);
+			off = PKT_TYPE_OFFSET();
+			emit(ARM_LDRB_I(r_A, r_skb, off), ctx);
+			emit(ARM_AND_I(r_A, r_A, PKT_TYPE_MAX), ctx);
+#ifdef __BIG_ENDIAN_BITFIELD
+			emit(ARM_LSR_I(r_A, r_A, 5), ctx);
+#endif
+			break;
 		case BPF_ANC | SKF_AD_QUEUE:
 			ctx->seen |= SEEN_SKB;
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
