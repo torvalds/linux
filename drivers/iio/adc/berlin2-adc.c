@@ -103,7 +103,6 @@ static const struct iio_chan_spec berlin2_adc_channels[] = {
 	BERLIN2_ADC_CHANNEL(7, IIO_VOLTAGE),	/* reserved */
 	IIO_CHAN_SOFT_TIMESTAMP(8),		/* timestamp */
 };
-#define BERLIN2_N_CHANNELS	ARRAY_SIZE(berlin2_adc_channels)
 
 static int berlin2_adc_read(struct iio_dev *indio_dev, int channel)
 {
@@ -324,8 +323,8 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &berlin2_adc_info;
 
-	indio_dev->num_channels = BERLIN2_N_CHANNELS;
 	indio_dev->channels = berlin2_adc_channels;
+	indio_dev->num_channels = ARRAY_SIZE(berlin2_adc_channels);
 
 	/* Power up the ADC */
 	regmap_update_bits(priv->regmap, BERLIN2_SM_CTRL,
