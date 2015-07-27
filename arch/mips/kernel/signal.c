@@ -521,7 +521,11 @@ struct mips_abi mips_abi = {
 	.setup_rt_frame = setup_rt_frame,
 	.rt_signal_return_offset =
 		offsetof(struct mips_vdso, rt_signal_trampoline),
-	.restart	= __NR_restart_syscall
+	.restart	= __NR_restart_syscall,
+
+	.off_sc_fpregs = offsetof(struct sigcontext, sc_fpregs),
+	.off_sc_fpc_csr = offsetof(struct sigcontext, sc_fpc_csr),
+	.off_sc_used_math = offsetof(struct sigcontext, sc_used_math),
 };
 
 static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
