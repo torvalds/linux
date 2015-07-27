@@ -20,6 +20,7 @@
 #ifndef CONFIG_ARC_PLAT_EZNPS
 
 #define atomic_read(v)  READ_ONCE((v)->counter)
+#define ATOMIC_INIT(i)	{ (i) }
 
 #ifdef CONFIG_ARC_HAS_LLSC
 
@@ -343,10 +344,266 @@ ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
 
 #define atomic_add_negative(i, v)	(atomic_add_return(i, v) < 0)
 
-#define ATOMIC_INIT(i)			{ (i) }
+
+#ifdef CONFIG_GENERIC_ATOMIC64
 
 #include <asm-generic/atomic64.h>
 
-#endif
+#else	/* Kconfig ensures this is only enabled with needed h/w assist */
+
+/*
+ * ARCv2 supports 64-bit exclusive load (LLOCKD) / store (SCONDD)
+ *  - The address HAS to be 64-bit aligned
+ *  - There are 2 semantics involved here:
+ *    = exclusive implies no interim update between load/store to same addr
+ *    = both words are observed/updated together: this is guaranteed even
+ *      for regular 64-bit load (LDD) / store (STD). Thus atomic64_set()
+ *      is NOT required to use LLOCKD+SCONDD, STD suffices
+ */
+
+typedef struct {
+	aligned_u64 counter;
+} atomic64_t;
+
+#define ATOMIC64_INIT(a) { (a) }
+
+static inline long long atomic64_read(const atomic64_t *v)
+{
+	unsigned long long val;
+
+	__asm__ __volatile__(
+	"	ldd   %0, [%1]	\n"
+	: "=r"(val)
+	: "r"(&v->counter));
+
+	return val;
+}
+
+static inline void atomic64_set(atomic64_t *v, long long a)
+{
+	/*
+	 * This could have been a simple assignment in "C" but would need
+	 * explicit volatile. Otherwise gcc optimizers could elide the store
+	 * which borked atomic64 self-test
+	 * In the inline asm version, memory clobber needed for exact same
+	 * reason, to tell gcc about the store.
+	 *
+	 * This however is not needed for sibling atomic64_add() etc since both
+	 * load/store are explicitly done in inline asm. As long as API is used
+	 * for each access, gcc has no way to optimize away any load/store
+	 */
+	__asm__ __volatile__(
+	"	std   %0, [%1]	\n"
+	:
+	: "r"(a), "r"(&v->counter)
+	: "memory");
+}
+
+#define ATOMIC64_OP(op, op1, op2)					\
+static inline void atomic64_##op(long long a, atomic64_t *v)		\
+{									\
+	unsigned long long val;						\
+									\
+	__asm__ __volatile__(						\
+	"1:				\n"				\
+	"	llockd  %0, [%1]	\n"				\
+	"	" #op1 " %L0, %L0, %L2	\n"				\
+	"	" #op2 " %H0, %H0, %H2	\n"				\
+	"	scondd   %0, [%1]	\n"				\
+	"	bnz     1b		\n"				\
+	: "=&r"(val)							\
+	: "r"(&v->counter), "ir"(a)					\
+	: "cc");						\
+}									\
+
+#define ATOMIC64_OP_RETURN(op, op1, op2)		        	\
+static inline long long atomic64_##op##_return(long long a, atomic64_t *v)	\
+{									\
+	unsigned long long val;						\
+									\
+	smp_mb();							\
+									\
+	__asm__ __volatile__(						\
+	"1:				\n"				\
+	"	llockd   %0, [%1]	\n"				\
+	"	" #op1 " %L0, %L0, %L2	\n"				\
+	"	" #op2 " %H0, %H0, %H2	\n"				\
+	"	scondd   %0, [%1]	\n"				\
+	"	bnz     1b		\n"				\
+	: [val] "=&r"(val)						\
+	: "r"(&v->counter), "ir"(a)					\
+	: "cc");	/* memory clobber comes from smp_mb() */	\
+									\
+	smp_mb();							\
+									\
+	return val;							\
+}
+
+#define ATOMIC64_FETCH_OP(op, op1, op2)		        		\
+static inline long long atomic64_fetch_##op(long long a, atomic64_t *v)	\
+{									\
+	unsigned long long val, orig;					\
+									\
+	smp_mb();							\
+									\
+	__asm__ __volatile__(						\
+	"1:				\n"				\
+	"	llockd   %0, [%2]	\n"				\
+	"	" #op1 " %L1, %L0, %L3	\n"				\
+	"	" #op2 " %H1, %H0, %H3	\n"				\
+	"	scondd   %1, [%2]	\n"				\
+	"	bnz     1b		\n"				\
+	: "=&r"(orig), "=&r"(val)					\
+	: "r"(&v->counter), "ir"(a)					\
+	: "cc");	/* memory clobber comes from smp_mb() */	\
+									\
+	smp_mb();							\
+									\
+	return orig;							\
+}
+
+#define ATOMIC64_OPS(op, op1, op2)					\
+	ATOMIC64_OP(op, op1, op2)					\
+	ATOMIC64_OP_RETURN(op, op1, op2)				\
+	ATOMIC64_FETCH_OP(op, op1, op2)
+
+#define atomic64_andnot atomic64_andnot
+
+ATOMIC64_OPS(add, add.f, adc)
+ATOMIC64_OPS(sub, sub.f, sbc)
+ATOMIC64_OPS(and, and, and)
+ATOMIC64_OPS(andnot, bic, bic)
+ATOMIC64_OPS(or, or, or)
+ATOMIC64_OPS(xor, xor, xor)
+
+#undef ATOMIC64_OPS
+#undef ATOMIC64_FETCH_OP
+#undef ATOMIC64_OP_RETURN
+#undef ATOMIC64_OP
+
+static inline long long
+atomic64_cmpxchg(atomic64_t *ptr, long long expected, long long new)
+{
+	long long prev;
+
+	smp_mb();
+
+	__asm__ __volatile__(
+	"1:	llockd  %0, [%1]	\n"
+	"	brne    %L0, %L2, 2f	\n"
+	"	brne    %H0, %H2, 2f	\n"
+	"	scondd  %3, [%1]	\n"
+	"	bnz     1b		\n"
+	"2:				\n"
+	: "=&r"(prev)
+	: "r"(ptr), "ir"(expected), "r"(new)
+	: "cc");	/* memory clobber comes from smp_mb() */
+
+	smp_mb();
+
+	return prev;
+}
+
+static inline long long atomic64_xchg(atomic64_t *ptr, long long new)
+{
+	long long prev;
+
+	smp_mb();
+
+	__asm__ __volatile__(
+	"1:	llockd  %0, [%1]	\n"
+	"	scondd  %2, [%1]	\n"
+	"	bnz     1b		\n"
+	"2:				\n"
+	: "=&r"(prev)
+	: "r"(ptr), "r"(new)
+	: "cc");	/* memory clobber comes from smp_mb() */
+
+	smp_mb();
+
+	return prev;
+}
+
+/**
+ * atomic64_dec_if_positive - decrement by 1 if old value positive
+ * @v: pointer of type atomic64_t
+ *
+ * The function returns the old value of *v minus 1, even if
+ * the atomic variable, v, was not decremented.
+ */
+
+static inline long long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long long val;
+
+	smp_mb();
+
+	__asm__ __volatile__(
+	"1:	llockd  %0, [%1]	\n"
+	"	sub.f   %L0, %L0, 1	# w0 - 1, set C on borrow\n"
+	"	sub.c   %H0, %H0, 1	# if C set, w1 - 1\n"
+	"	brlt    %H0, 0, 2f	\n"
+	"	scondd  %0, [%1]	\n"
+	"	bnz     1b		\n"
+	"2:				\n"
+	: "=&r"(val)
+	: "r"(&v->counter)
+	: "cc");	/* memory clobber comes from smp_mb() */
+
+	smp_mb();
+
+	return val;
+}
+
+/**
+ * atomic64_add_unless - add unless the number is a given value
+ * @v: pointer of type atomic64_t
+ * @a: the amount to add to v...
+ * @u: ...unless v is equal to u.
+ *
+ * if (v != u) { v += a; ret = 1} else {ret = 0}
+ * Returns 1 iff @v was not @u (i.e. if add actually happened)
+ */
+static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
+{
+	long long val;
+	int op_done;
+
+	smp_mb();
+
+	__asm__ __volatile__(
+	"1:	llockd  %0, [%2]	\n"
+	"	mov	%1, 1		\n"
+	"	brne	%L0, %L4, 2f	# continue to add since v != u \n"
+	"	breq.d	%H0, %H4, 3f	# return since v == u \n"
+	"	mov	%1, 0		\n"
+	"2:				\n"
+	"	add.f   %L0, %L0, %L3	\n"
+	"	adc     %H0, %H0, %H3	\n"
+	"	scondd  %0, [%2]	\n"
+	"	bnz     1b		\n"
+	"3:				\n"
+	: "=&r"(val), "=&r" (op_done)
+	: "r"(&v->counter), "r"(a), "r"(u)
+	: "cc");	/* memory clobber comes from smp_mb() */
+
+	smp_mb();
+
+	return op_done;
+}
+
+#define atomic64_add_negative(a, v)	(atomic64_add_return((a), (v)) < 0)
+#define atomic64_inc(v)			atomic64_add(1LL, (v))
+#define atomic64_inc_return(v)		atomic64_add_return(1LL, (v))
+#define atomic64_inc_and_test(v)	(atomic64_inc_return(v) == 0)
+#define atomic64_sub_and_test(a, v)	(atomic64_sub_return((a), (v)) == 0)
+#define atomic64_dec(v)			atomic64_sub(1LL, (v))
+#define atomic64_dec_return(v)		atomic64_sub_return(1LL, (v))
+#define atomic64_dec_and_test(v)	(atomic64_dec_return((v)) == 0)
+#define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1LL, 0LL)
+
+#endif	/* !CONFIG_GENERIC_ATOMIC64 */
+
+#endif	/* !__ASSEMBLY__ */
 
 #endif
