@@ -924,11 +924,25 @@ static void check_start_timer_thread(struct smi_info *smi_info)
 	}
 }
 
+static void flush_messages(struct smi_info *smi_info)
+{
+	enum si_sm_result result;
+
+	/*
+	 * Currently, this function is called only in run-to-completion
+	 * mode.  This means we are single-threaded, no need for locks.
+	 */
+	result = smi_event_handler(smi_info, 0);
+	while (result != SI_SM_IDLE) {
+		udelay(SI_SHORT_TIMEOUT_USEC);
+		result = smi_event_handler(smi_info, SI_SHORT_TIMEOUT_USEC);
+	}
+}
+
 static void sender(void                *send_info,
 		   struct ipmi_smi_msg *msg)
 {
 	struct smi_info   *smi_info = send_info;
-	enum si_sm_result result;
 	unsigned long     flags;
 
 	debug_timestamp("Enqueue");
@@ -940,17 +954,7 @@ static void sender(void                *send_info,
 		 */
 		smi_info->waiting_msg = msg;
 
-		/*
-		 * Run to completion means we are single-threaded, no
-		 * need for locks.
-		 */
-
-		result = smi_event_handler(smi_info, 0);
-		while (result != SI_SM_IDLE) {
-			udelay(SI_SHORT_TIMEOUT_USEC);
-			result = smi_event_handler(smi_info,
-						   SI_SHORT_TIMEOUT_USEC);
-		}
+		flush_messages(smi_info);
 		return;
 	}
 
@@ -971,17 +975,10 @@ static void sender(void                *send_info,
 static void set_run_to_completion(void *send_info, bool i_run_to_completion)
 {
 	struct smi_info   *smi_info = send_info;
-	enum si_sm_result result;
 
 	smi_info->run_to_completion = i_run_to_completion;
-	if (i_run_to_completion) {
-		result = smi_event_handler(smi_info, 0);
-		while (result != SI_SM_IDLE) {
-			udelay(SI_SHORT_TIMEOUT_USEC);
-			result = smi_event_handler(smi_info,
-						   SI_SHORT_TIMEOUT_USEC);
-		}
-	}
+	if (i_run_to_completion)
+		flush_messages(smi_info);
 }
 
 /*
