@@ -1168,7 +1168,7 @@ struct uniperif {
 
 	/* Resources */
 	struct resource *mem_region;
-	void *base;
+	void __iomem *base;
 	unsigned long fifo_phys_address;
 	int irq;
 
