@@ -205,7 +205,7 @@ int __lwtunnel_output(struct sock *sk, struct sk_buff *skb,
 	return ret;
 
 drop:
-	kfree(skb);
+	kfree_skb(skb);
 
 	return ret;
 }
