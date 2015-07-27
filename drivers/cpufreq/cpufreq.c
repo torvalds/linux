@@ -1090,10 +1090,14 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy, unsigned int cp
 	return 0;
 }
 
-static struct cpufreq_policy *cpufreq_policy_alloc(struct device *dev)
+static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 {
+	struct device *dev = get_cpu_device(cpu);
 	struct cpufreq_policy *policy;
 	int ret;
+
+	if (WARN_ON(!dev))
+		return NULL;
 
 	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
 	if (!policy)
@@ -1122,10 +1126,10 @@ static struct cpufreq_policy *cpufreq_policy_alloc(struct device *dev)
 	init_completion(&policy->kobj_unregister);
 	INIT_WORK(&policy->update, handle_update);
 
-	policy->cpu = dev->id;
+	policy->cpu = cpu;
 
 	/* Set this once on allocation */
-	policy->kobj_cpu = dev->id;
+	policy->kobj_cpu = cpu;
 
 	return policy;
 
@@ -1233,7 +1237,7 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		up_write(&policy->rwsem);
 	} else {
 		recover_policy = false;
-		policy = cpufreq_policy_alloc(dev);
+		policy = cpufreq_policy_alloc(cpu);
 		if (!policy)
 			return -ENOMEM;
 	}
