@@ -363,6 +363,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX + 1] = {
 	CMD(TDLS_CONFIG_CMD),
 	CMD(MCC_UPDATE_CMD),
 	CMD(SCAN_ITERATION_COMPLETE_UMAC),
+	CMD(LDBG_CONFIG_CMD),
 };
 #undef CMD
 

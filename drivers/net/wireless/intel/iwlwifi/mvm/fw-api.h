@@ -239,6 +239,7 @@ enum {
 	DTS_MEASUREMENT_NOTIFICATION = 0xdd,
 
 	REPLY_DEBUG_CMD = 0xf0,
+	LDBG_CONFIG_CMD = 0xf6,
 	DEBUG_LOG_MSG = 0xf7,
 
 	BCAST_FILTER_CMD = 0xcf,
@@ -425,6 +426,26 @@ enum iwl_fw_item_id {
 struct iwl_fw_get_item_cmd {
 	__le32 item_id;
 } __packed; /* FW_GET_ITEM_CMD_API_S_VER_1 */
+
+#define CONT_REC_COMMAND_SIZE	80
+#define ENABLE_CONT_RECORDING	0x15
+#define DISABLE_CONT_RECORDING	0x16
+
+/*
+ * struct iwl_continuous_record_mode - recording mode
+ */
+struct iwl_continuous_record_mode {
+	__le16 enable_recording;
+} __packed;
+
+/*
+ * struct iwl_continuous_record_cmd - enable/disable continuous recording
+ */
+struct iwl_continuous_record_cmd {
+	struct iwl_continuous_record_mode record_mode;
+	u8 pad[CONT_REC_COMMAND_SIZE -
+		sizeof(struct iwl_continuous_record_mode)];
+} __packed;
 
 struct iwl_fw_get_item_resp {
 	__le32 item_id;

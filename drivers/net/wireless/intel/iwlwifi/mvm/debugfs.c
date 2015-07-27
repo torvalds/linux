@@ -961,6 +961,44 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+/*
+ * Enable / Disable continuous recording.
+ * Cause the FW to start continuous recording, by sending the relevant hcmd.
+ * Enable: input of every integer larger than 0, ENABLE_CONT_RECORDING.
+ * Disable: for 0 as input, DISABLE_CONT_RECORDING.
+ */
+static ssize_t iwl_dbgfs_cont_recording_write(struct iwl_mvm *mvm,
+					      char *buf, size_t count,
+					      loff_t *ppos)
+{
+	struct iwl_trans *trans = mvm->trans;
+	const struct iwl_fw_dbg_dest_tlv *dest = trans->dbg_dest_tlv;
+	struct iwl_continuous_record_cmd cont_rec = {};
+	int ret, rec_mode;
+
+	if (!dest)
+		return -EOPNOTSUPP;
+
+	if (dest->monitor_mode != SMEM_MODE ||
+	    trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+		return -EOPNOTSUPP;
+
+	ret = kstrtouint(buf, 0, &rec_mode);
+	if (ret)
+		return ret;
+
+	cont_rec.record_mode.enable_recording = rec_mode ?
+		cpu_to_le16(ENABLE_CONT_RECORDING) :
+		cpu_to_le16(DISABLE_CONT_RECORDING);
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd_pdu(mvm, LDBG_CONFIG_CMD, 0,
+				   sizeof(cont_rec), &cont_rec);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
 static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
 					   char *buf, size_t count,
 					   loff_t *ppos)
@@ -1413,6 +1451,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 8);
+MVM_DEBUGFS_WRITE_FILE_OPS(cont_recording, 8);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1456,6 +1495,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, S_IWUSR);
 	if (!debugfs_create_bool("enable_scan_iteration_notif",
 				 S_IRUSR | S_IWUSR,
 				 mvm->debugfs_dir,
