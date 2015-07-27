@@ -1270,7 +1270,7 @@ EXPORT_SYMBOL_GPL(qword_get);
  * get a header, then pass each real item in the cache
  */
 
-static void *c_start(struct seq_file *m, loff_t *pos)
+void *cache_seq_start(struct seq_file *m, loff_t *pos)
 	__acquires(cd->hash_lock)
 {
 	loff_t n = *pos;
@@ -1298,8 +1298,9 @@ static void *c_start(struct seq_file *m, loff_t *pos)
 	*pos = n+1;
 	return cd->hash_table[hash];
 }
+EXPORT_SYMBOL_GPL(cache_seq_start);
 
-static void *c_next(struct seq_file *m, void *p, loff_t *pos)
+void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
 {
 	struct cache_head *ch = p;
 	int hash = (*pos >> 32);
@@ -1325,13 +1326,15 @@ static void *c_next(struct seq_file *m, void *p, loff_t *pos)
 	++*pos;
 	return cd->hash_table[hash];
 }
+EXPORT_SYMBOL_GPL(cache_seq_next);
 
-static void c_stop(struct seq_file *m, void *p)
+void cache_seq_stop(struct seq_file *m, void *p)
 	__releases(cd->hash_lock)
 {
 	struct cache_detail *cd = m->private;
 	read_unlock(&cd->hash_lock);
 }
+EXPORT_SYMBOL_GPL(cache_seq_stop);
 
 static int c_show(struct seq_file *m, void *p)
 {
@@ -1359,9 +1362,9 @@ static int c_show(struct seq_file *m, void *p)
 }
 
 static const struct seq_operations cache_content_op = {
-	.start	= c_start,
-	.next	= c_next,
-	.stop	= c_stop,
+	.start	= cache_seq_start,
+	.next	= cache_seq_next,
+	.stop	= cache_seq_stop,
 	.show	= c_show,
 };
 

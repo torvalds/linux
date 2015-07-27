@@ -224,6 +224,11 @@ extern int sunrpc_cache_register_pipefs(struct dentry *parent, const char *,
 					umode_t, struct cache_detail *);
 extern void sunrpc_cache_unregister_pipefs(struct cache_detail *);
 
+/* Must store cache_detail in seq_file->private if using next three functions */
+extern void *cache_seq_start(struct seq_file *file, loff_t *pos);
+extern void *cache_seq_next(struct seq_file *file, void *p, loff_t *pos);
+extern void cache_seq_stop(struct seq_file *file, void *p);
+
 extern void qword_add(char **bpp, int *lp, char *str);
 extern void qword_addhex(char **bpp, int *lp, char *buf, int blen);
 extern int qword_get(char **bpp, char *dest, int bufsize);
