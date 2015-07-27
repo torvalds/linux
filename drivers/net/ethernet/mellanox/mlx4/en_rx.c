@@ -912,6 +912,12 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				u16 vid = be16_to_cpu(cqe->sl_vid);
 
 				__vlan_hwaccel_put_tag(gro_skb, htons(ETH_P_8021Q), vid);
+			} else if ((be32_to_cpu(cqe->vlan_my_qpn) &
+				  MLX4_CQE_SVLAN_PRESENT_MASK) &&
+				 (dev->features & NETIF_F_HW_VLAN_STAG_RX)) {
+				__vlan_hwaccel_put_tag(gro_skb,
+						       htons(ETH_P_8021AD),
+						       be16_to_cpu(cqe->sl_vid));
 			}
 
 			if (dev->features & NETIF_F_RXHASH)
@@ -973,6 +979,11 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		    MLX4_CQE_CVLAN_PRESENT_MASK) &&
 		    (dev->features & NETIF_F_HW_VLAN_CTAG_RX))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), be16_to_cpu(cqe->sl_vid));
+		else if ((be32_to_cpu(cqe->vlan_my_qpn) &
+			  MLX4_CQE_SVLAN_PRESENT_MASK) &&
+			 (dev->features & NETIF_F_HW_VLAN_STAG_RX))
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD),
+					       be16_to_cpu(cqe->sl_vid));
 
 		if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 			timestamp = mlx4_en_get_cqe_ts(cqe);
@@ -1070,7 +1081,10 @@ static const int frag_sizes[] = {
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int eff_mtu = dev->mtu + ETH_HLEN + VLAN_HLEN;
+	/* VLAN_HLEN is added twice,to support skb vlan tagged with multiple
+	 * headers. (For example: ETH_P_8021Q and ETH_P_8021AD).
+	 */
+	int eff_mtu = dev->mtu + ETH_HLEN + (2 * VLAN_HLEN);
 	int buf_size = 0;
 	int i = 0;
 

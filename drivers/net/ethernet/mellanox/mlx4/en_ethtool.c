@@ -102,6 +102,7 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 
 static const char mlx4_en_priv_flags[][ETH_GSTRING_LEN] = {
 	"blueflame",
+	"phv-bit"
 };
 
 static const char main_strings[][ETH_GSTRING_LEN] = {
@@ -1797,9 +1798,13 @@ static int mlx4_en_get_ts_info(struct net_device *dev,
 static int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
 	bool bf_enabled_new = !!(flags & MLX4_EN_PRIV_FLAGS_BLUEFLAME);
 	bool bf_enabled_old = !!(priv->pflags & MLX4_EN_PRIV_FLAGS_BLUEFLAME);
+	bool phv_enabled_new = !!(flags & MLX4_EN_PRIV_FLAGS_PHV);
+	bool phv_enabled_old = !!(priv->pflags & MLX4_EN_PRIV_FLAGS_PHV);
 	int i;
+	int ret = 0;
 
 	if (bf_enabled_new != bf_enabled_old) {
 		if (bf_enabled_new) {
@@ -1825,6 +1830,17 @@ static int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
 			bf_enabled_new ?  "Enabled" : "Disabled");
 	}
 
+	if (phv_enabled_new != phv_enabled_old) {
+		ret = set_phv_bit(mdev->dev, priv->port, (int)phv_enabled_new);
+		if (ret)
+			return ret;
+		else if (phv_enabled_new)
+			priv->pflags |= MLX4_EN_PRIV_FLAGS_PHV;
+		else
+			priv->pflags &= ~MLX4_EN_PRIV_FLAGS_PHV;
+		en_info(priv, "PHV bit %s\n",
+			phv_enabled_new ?  "Enabled" : "Disabled");
+	}
 	return 0;
 }
 
