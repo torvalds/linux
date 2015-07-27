@@ -301,11 +301,11 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "adc");
 	if (irq < 0)
-		return -ENODEV;
+		return irq;
 
 	tsen_irq = platform_get_irq_byname(pdev, "tsen");
 	if (tsen_irq < 0)
-		return -ENODEV;
+		return tsen_irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, berlin2_adc_irq, 0,
 			pdev->dev.driver->name, indio_dev);
