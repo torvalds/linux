@@ -4368,9 +4368,7 @@ static void send_panic_events(char *str)
 			/* Interface is not ready. */
 			continue;
 
-		intf->run_to_completion = 1;
 		/* Send the event announcing the panic. */
-		intf->handlers->set_run_to_completion(intf->send_info, 1);
 		ipmi_panic_request_and_wait(intf, &addr, &msg);
 	}
 
