@@ -126,66 +126,6 @@
 			clock-frequency = <25000000>;
 		};
 
-		ttc0: timer@ff110000 {
-			compatible = "cdns,ttc";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 36 4>, <0 37 4>, <0 38 4>;
-			reg = <0x0 0xff110000 0x1000>;
-			clocks = <&misc_clk>;
-			timer-width = <32>;
-		};
-
-		ttc1: timer@ff120000 {
-			compatible = "cdns,ttc";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 39 4>, <0 40 4>, <0 41 4>;
-			reg = <0x0 0xff120000 0x1000>;
-			clocks = <&misc_clk>;
-			timer-width = <32>;
-		};
-
-		ttc2: timer@ff130000 {
-			compatible = "cdns,ttc";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 42 4>, <0 43 4>, <0 44 4>;
-			reg = <0x0 0xff130000 0x1000>;
-			clocks = <&misc_clk>;
-			timer-width = <32>;
-		};
-
-		ttc3: timer@ff140000 {
-			compatible = "cdns,ttc";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 45 4>, <0 46 4>, <0 47 4>;
-			reg = <0x0 0xff140000 0x1000>;
-			clocks = <&misc_clk>;
-			timer-width = <32>;
-		};
-
-		uart0: serial@ff000000 {
-			compatible = "cdns,uart-r1p8";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 21 4>;
-			reg = <0x0 0xff000000 0x1000>;
-			clock-names = "uart_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
-		};
-
-		uart1: serial@ff010000 {
-			compatible = "cdns,uart-r1p8";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 22 4>;
-			reg = <0x0 0xff010000 0x1000>;
-			clock-names = "uart_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
-		};
-
 		gpio: gpio@ff0a0000 {
 			compatible = "xlnx,zynqmp-gpio-1.0";
 			status = "disabled";
@@ -341,6 +281,66 @@
 				<0 157 4>, <0 157 4>, <0 157 4>, <0 157 4>,
 				<0 157 4>, <0 157 4>, <0 157 4>, <0 157 4>,
 				<0 157 4>, <0 157 4>, <0 157 4>, <0 157 4>;
+		};
+
+		ttc0: timer@ff110000 {
+			compatible = "cdns,ttc";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 36 4>, <0 37 4>, <0 38 4>;
+			reg = <0x0 0xff110000 0x1000>;
+			clocks = <&misc_clk>;
+			timer-width = <32>;
+		};
+
+		ttc1: timer@ff120000 {
+			compatible = "cdns,ttc";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 39 4>, <0 40 4>, <0 41 4>;
+			reg = <0x0 0xff120000 0x1000>;
+			clocks = <&misc_clk>;
+			timer-width = <32>;
+		};
+
+		ttc2: timer@ff130000 {
+			compatible = "cdns,ttc";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 42 4>, <0 43 4>, <0 44 4>;
+			reg = <0x0 0xff130000 0x1000>;
+			clocks = <&misc_clk>;
+			timer-width = <32>;
+		};
+
+		ttc3: timer@ff140000 {
+			compatible = "cdns,ttc";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 45 4>, <0 46 4>, <0 47 4>;
+			reg = <0x0 0xff140000 0x1000>;
+			clocks = <&misc_clk>;
+			timer-width = <32>;
+		};
+
+		uart0: serial@ff000000 {
+			compatible = "cdns,uart-r1p8";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 21 4>;
+			reg = <0x0 0xff000000 0x1000>;
+			clock-names = "uart_clk", "pclk";
+			clocks = <&misc_clk &misc_clk>;
+		};
+
+		uart1: serial@ff010000 {
+			compatible = "cdns,uart-r1p8";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 22 4>;
+			reg = <0x0 0xff010000 0x1000>;
+			clock-names = "uart_clk", "pclk";
+			clocks = <&misc_clk &misc_clk>;
 		};
 
 		usb0: usb@fe200000 {
