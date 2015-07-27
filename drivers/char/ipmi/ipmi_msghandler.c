@@ -4511,6 +4511,23 @@ static int panic_event(struct notifier_block *this,
 			/* Interface is not ready. */
 			continue;
 
+		/*
+		 * If we were interrupted while locking xmit_msgs_lock or
+		 * waiting_rcv_msgs_lock, the corresponding list may be
+		 * corrupted.  In this case, drop items on the list for
+		 * the safety.
+		 */
+		if (!spin_trylock(&intf->xmit_msgs_lock)) {
+			INIT_LIST_HEAD(&intf->xmit_msgs);
+			INIT_LIST_HEAD(&intf->hp_xmit_msgs);
+		} else
+			spin_unlock(&intf->xmit_msgs_lock);
+
+		if (!spin_trylock(&intf->waiting_rcv_msgs_lock))
+			INIT_LIST_HEAD(&intf->waiting_rcv_msgs);
+		else
+			spin_unlock(&intf->waiting_rcv_msgs_lock);
+
 		intf->run_to_completion = 1;
 		intf->handlers->set_run_to_completion(intf->send_info, 1);
 	}
