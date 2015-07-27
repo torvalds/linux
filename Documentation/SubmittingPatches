@@ -739,7 +739,7 @@ interest on a single line; it should look something like:
 
       git://jdelvare.pck.nerim.net/jdelvare-2.6 i2c-for-linus
 
-  to get these changes:"
+  to get these changes:
 
 A pull request should also include an overall message saying what will be
 included in the request, a "git shortlog" listing of the patches
