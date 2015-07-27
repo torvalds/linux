@@ -377,8 +377,12 @@ EXPORT_SYMBOL_GPL(nvmem_register);
  */
 int nvmem_unregister(struct nvmem_device *nvmem)
 {
-	if (nvmem->users)
+	mutex_lock(&nvmem_mutex);
+	if (nvmem->users) {
+		mutex_unlock(&nvmem_mutex);
 		return -EBUSY;
+	}
+	mutex_unlock(&nvmem_mutex);
 
 	nvmem_device_remove_all_cells(nvmem);
 	device_del(&nvmem->dev);
@@ -386,6 +390,421 @@ int nvmem_unregister(struct nvmem_device *nvmem)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvmem_unregister);
+
+static struct nvmem_device *__nvmem_device_get(struct device_node *np,
+					       struct nvmem_cell **cellp,
+					       const char *cell_id)
+{
+	struct nvmem_device *nvmem = NULL;
+
+	mutex_lock(&nvmem_mutex);
+
+	if (np) {
+		nvmem = of_nvmem_find(np);
+		if (!nvmem) {
+			mutex_unlock(&nvmem_mutex);
+			return ERR_PTR(-EPROBE_DEFER);
+		}
+	} else {
+		struct nvmem_cell *cell = nvmem_find_cell(cell_id);
+
+		if (cell) {
+			nvmem = cell->nvmem;
+			*cellp = cell;
+		}
+
+		if (!nvmem) {
+			mutex_unlock(&nvmem_mutex);
+			return ERR_PTR(-ENOENT);
+		}
+	}
+
+	nvmem->users++;
+	mutex_unlock(&nvmem_mutex);
+
+	if (!try_module_get(nvmem->owner)) {
+		dev_err(&nvmem->dev,
+			"could not increase module refcount for cell %s\n",
+			nvmem->name);
+
+		mutex_lock(&nvmem_mutex);
+		nvmem->users--;
+		mutex_unlock(&nvmem_mutex);
+
+		return ERR_PTR(-EINVAL);
+	}
+
+	return nvmem;
+}
+
+static void __nvmem_device_put(struct nvmem_device *nvmem)
+{
+	module_put(nvmem->owner);
+	mutex_lock(&nvmem_mutex);
+	nvmem->users--;
+	mutex_unlock(&nvmem_mutex);
+}
+
+static struct nvmem_cell *nvmem_cell_get_from_list(const char *cell_id)
+{
+	struct nvmem_cell *cell = NULL;
+	struct nvmem_device *nvmem;
+
+	nvmem = __nvmem_device_get(NULL, &cell, cell_id);
+	if (IS_ERR(nvmem))
+		return ERR_CAST(nvmem);
+
+	return cell;
+}
+
+#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+/**
+ * of_nvmem_cell_get() - Get a nvmem cell from given device node and cell id
+ *
+ * @dev node: Device tree node that uses the nvmem cell
+ * @id: nvmem cell name from nvmem-cell-names property.
+ *
+ * Return: Will be an ERR_PTR() on error or a valid pointer
+ * to a struct nvmem_cell.  The nvmem_cell will be freed by the
+ * nvmem_cell_put().
+ */
+struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
+					    const char *name)
+{
+	struct device_node *cell_np, *nvmem_np;
+	struct nvmem_cell *cell;
+	struct nvmem_device *nvmem;
+	const __be32 *addr;
+	int rval, len, index;
+
+	index = of_property_match_string(np, "nvmem-cell-names", name);
+
+	cell_np = of_parse_phandle(np, "nvmem-cells", index);
+	if (!cell_np)
+		return ERR_PTR(-EINVAL);
+
+	nvmem_np = of_get_next_parent(cell_np);
+	if (!nvmem_np)
+		return ERR_PTR(-EINVAL);
+
+	nvmem = __nvmem_device_get(nvmem_np, NULL, NULL);
+	if (IS_ERR(nvmem))
+		return ERR_CAST(nvmem);
+
+	addr = of_get_property(cell_np, "reg", &len);
+	if (!addr || (len < 2 * sizeof(u32))) {
+		dev_err(&nvmem->dev, "nvmem: invalid reg on %s\n",
+			cell_np->full_name);
+		rval  = -EINVAL;
+		goto err_mem;
+	}
+
+	cell = kzalloc(sizeof(*cell), GFP_KERNEL);
+	if (!cell) {
+		rval = -ENOMEM;
+		goto err_mem;
+	}
+
+	cell->nvmem = nvmem;
+	cell->offset = be32_to_cpup(addr++);
+	cell->bytes = be32_to_cpup(addr);
+	cell->name = cell_np->name;
+
+	addr = of_get_property(cell_np, "bits", &len);
+	if (addr && len == (2 * sizeof(u32))) {
+		cell->bit_offset = be32_to_cpup(addr++);
+		cell->nbits = be32_to_cpup(addr);
+	}
+
+	if (cell->nbits)
+		cell->bytes = DIV_ROUND_UP(cell->nbits + cell->bit_offset,
+					   BITS_PER_BYTE);
+
+	if (!IS_ALIGNED(cell->offset, nvmem->stride)) {
+			dev_err(&nvmem->dev,
+				"cell %s unaligned to nvmem stride %d\n",
+				cell->name, nvmem->stride);
+		rval  = -EINVAL;
+		goto err_sanity;
+	}
+
+	nvmem_cell_add(cell);
+
+	return cell;
+
+err_sanity:
+	kfree(cell);
+
+err_mem:
+	__nvmem_device_put(nvmem);
+
+	return ERR_PTR(rval);
+}
+EXPORT_SYMBOL_GPL(of_nvmem_cell_get);
+#endif
+
+/**
+ * nvmem_cell_get() - Get nvmem cell of device form a given cell name
+ *
+ * @dev node: Device tree node that uses the nvmem cell
+ * @id: nvmem cell name to get.
+ *
+ * Return: Will be an ERR_PTR() on error or a valid pointer
+ * to a struct nvmem_cell.  The nvmem_cell will be freed by the
+ * nvmem_cell_put().
+ */
+struct nvmem_cell *nvmem_cell_get(struct device *dev, const char *cell_id)
+{
+	struct nvmem_cell *cell;
+
+	if (dev->of_node) { /* try dt first */
+		cell = of_nvmem_cell_get(dev->of_node, cell_id);
+		if (!IS_ERR(cell) || PTR_ERR(cell) == -EPROBE_DEFER)
+			return cell;
+	}
+
+	return nvmem_cell_get_from_list(cell_id);
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_get);
+
+static void devm_nvmem_cell_release(struct device *dev, void *res)
+{
+	nvmem_cell_put(*(struct nvmem_cell **)res);
+}
+
+/**
+ * devm_nvmem_cell_get() - Get nvmem cell of device form a given id
+ *
+ * @dev node: Device tree node that uses the nvmem cell
+ * @id: nvmem id in nvmem-names property.
+ *
+ * Return: Will be an ERR_PTR() on error or a valid pointer
+ * to a struct nvmem_cell.  The nvmem_cell will be freed by the
+ * automatically once the device is freed.
+ */
+struct nvmem_cell *devm_nvmem_cell_get(struct device *dev, const char *id)
+{
+	struct nvmem_cell **ptr, *cell;
+
+	ptr = devres_alloc(devm_nvmem_cell_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	cell = nvmem_cell_get(dev, id);
+	if (!IS_ERR(cell)) {
+		*ptr = cell;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return cell;
+}
+EXPORT_SYMBOL_GPL(devm_nvmem_cell_get);
+
+static int devm_nvmem_cell_match(struct device *dev, void *res, void *data)
+{
+	struct nvmem_cell **c = res;
+
+	if (WARN_ON(!c || !*c))
+		return 0;
+
+	return *c == data;
+}
+
+/**
+ * devm_nvmem_cell_put() - Release previously allocated nvmem cell
+ * from devm_nvmem_cell_get.
+ *
+ * @cell: Previously allocated nvmem cell by devm_nvmem_cell_get()
+ */
+void devm_nvmem_cell_put(struct device *dev, struct nvmem_cell *cell)
+{
+	int ret;
+
+	ret = devres_release(dev, devm_nvmem_cell_release,
+				devm_nvmem_cell_match, cell);
+
+	WARN_ON(ret);
+}
+EXPORT_SYMBOL(devm_nvmem_cell_put);
+
+/**
+ * nvmem_cell_put() - Release previously allocated nvmem cell.
+ *
+ * @cell: Previously allocated nvmem cell by nvmem_cell_get()
+ */
+void nvmem_cell_put(struct nvmem_cell *cell)
+{
+	struct nvmem_device *nvmem = cell->nvmem;
+
+	__nvmem_device_put(nvmem);
+	nvmem_cell_drop(cell);
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_put);
+
+static inline void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell,
+						    void *buf)
+{
+	u8 *p, *b;
+	int i, bit_offset = cell->bit_offset;
+
+	p = b = buf;
+	if (bit_offset) {
+		/* First shift */
+		*b++ >>= bit_offset;
+
+		/* setup rest of the bytes if any */
+		for (i = 1; i < cell->bytes; i++) {
+			/* Get bits from next byte and shift them towards msb */
+			*p |= *b << (BITS_PER_BYTE - bit_offset);
+
+			p = b;
+			*b++ >>= bit_offset;
+		}
+
+		/* result fits in less bytes */
+		if (cell->bytes != DIV_ROUND_UP(cell->nbits, BITS_PER_BYTE))
+			*p-- = 0;
+	}
+	/* clear msb bits if any leftover in the last byte */
+	*p &= GENMASK((cell->nbits%BITS_PER_BYTE) - 1, 0);
+}
+
+static int __nvmem_cell_read(struct nvmem_device *nvmem,
+		      struct nvmem_cell *cell,
+		      void *buf, size_t *len)
+{
+	int rc;
+
+	rc = regmap_raw_read(nvmem->regmap, cell->offset, buf, cell->bytes);
+
+	if (IS_ERR_VALUE(rc))
+		return rc;
+
+	/* shift bits in-place */
+	if (cell->bit_offset || cell->bit_offset)
+		nvmem_shift_read_buffer_in_place(cell, buf);
+
+	*len = cell->bytes;
+
+	return 0;
+}
+
+/**
+ * nvmem_cell_read() - Read a given nvmem cell
+ *
+ * @cell: nvmem cell to be read.
+ * @len: pointer to length of cell which will be populated on successful read.
+ *
+ * Return: ERR_PTR() on error or a valid pointer to a char * buffer on success.
+ * The buffer should be freed by the consumer with a kfree().
+ */
+void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
+{
+	struct nvmem_device *nvmem = cell->nvmem;
+	u8 *buf;
+	int rc;
+
+	if (!nvmem || !nvmem->regmap)
+		return ERR_PTR(-EINVAL);
+
+	buf = kzalloc(cell->bytes, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	rc = __nvmem_cell_read(nvmem, cell, buf, len);
+	if (IS_ERR_VALUE(rc)) {
+		kfree(buf);
+		return ERR_PTR(rc);
+	}
+
+	return buf;
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_read);
+
+static inline void *nvmem_cell_prepare_write_buffer(struct nvmem_cell *cell,
+						    u8 *_buf, int len)
+{
+	struct nvmem_device *nvmem = cell->nvmem;
+	int i, rc, nbits, bit_offset = cell->bit_offset;
+	u8 v, *p, *buf, *b, pbyte, pbits;
+
+	nbits = cell->nbits;
+	buf = kzalloc(cell->bytes, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(buf, _buf, len);
+	p = b = buf;
+
+	if (bit_offset) {
+		pbyte = *b;
+		*b <<= bit_offset;
+
+		/* setup the first byte with lsb bits from nvmem */
+		rc = regmap_raw_read(nvmem->regmap, cell->offset, &v, 1);
+		*b++ |= GENMASK(bit_offset - 1, 0) & v;
+
+		/* setup rest of the byte if any */
+		for (i = 1; i < cell->bytes; i++) {
+			/* Get last byte bits and shift them towards lsb */
+			pbits = pbyte >> (BITS_PER_BYTE - 1 - bit_offset);
+			pbyte = *b;
+			p = b;
+			*b <<= bit_offset;
+			*b++ |= pbits;
+		}
+	}
+
+	/* if it's not end on byte boundary */
+	if ((nbits + bit_offset) % BITS_PER_BYTE) {
+		/* setup the last byte with msb bits from nvmem */
+		rc = regmap_raw_read(nvmem->regmap,
+				    cell->offset + cell->bytes - 1, &v, 1);
+		*p |= GENMASK(7, (nbits + bit_offset) % BITS_PER_BYTE) & v;
+
+	}
+
+	return buf;
+}
+
+/**
+ * nvmem_cell_write() - Write to a given nvmem cell
+ *
+ * @cell: nvmem cell to be written.
+ * @buf: Buffer to be written.
+ * @len: length of buffer to be written to nvmem cell.
+ *
+ * Return: length of bytes written or negative on failure.
+ */
+int nvmem_cell_write(struct nvmem_cell *cell, void *buf, size_t len)
+{
+	struct nvmem_device *nvmem = cell->nvmem;
+	int rc;
+
+	if (!nvmem || !nvmem->regmap || nvmem->read_only ||
+	    (cell->bit_offset == 0 && len != cell->bytes))
+		return -EINVAL;
+
+	if (cell->bit_offset || cell->nbits) {
+		buf = nvmem_cell_prepare_write_buffer(cell, buf, len);
+		if (IS_ERR(buf))
+			return PTR_ERR(buf);
+	}
+
+	rc = regmap_raw_write(nvmem->regmap, cell->offset, buf, cell->bytes);
+
+	/* free the tmp buffer */
+	if (cell->bit_offset)
+		kfree(buf);
+
+	if (IS_ERR_VALUE(rc))
+		return rc;
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_write);
 
 static int __init nvmem_init(void)
 {
