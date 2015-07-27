@@ -481,23 +481,6 @@ config ARM64_VA_BITS
 	default 42 if ARM64_VA_BITS_42
 	default 48 if ARM64_VA_BITS_48
 
-config ARM64_HW_AFDBM
-	bool "Support for hardware updates of the Access and Dirty page flags"
-	default y
-	help
-	  The ARMv8.1 architecture extensions introduce support for
-	  hardware updates of the access and dirty information in page
-	  table entries. When enabled in TCR_EL1 (HA and HD bits) on
-	  capable processors, accesses to pages with PTE_AF cleared will
-	  set this bit instead of raising an access flag fault.
-	  Similarly, writes to read-only pages with the DBM bit set will
-	  clear the read-only bit (AP[2]) instead of raising a
-	  permission fault.
-
-	  Kernels built with this configuration option enabled continue
-	  to work on pre-ARMv8.1 hardware and the performance impact is
-	  minimal. If unsure, say Y.
-
 config CPU_BIG_ENDIAN
        bool "Build big-endian kernel"
        help
@@ -605,32 +588,6 @@ config FORCE_MAX_ZONEORDER
 	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
 	default "11"
 
-config ARM64_PAN
-	bool "Enable support for Privileged Access Never (PAN)"
-	default y
-	help
-	 Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
-	 prevents the kernel or hypervisor from accessing user-space (EL0)
-	 memory directly.
-
-	 Choosing this option will cause any unprotected (not using
-	 copy_to_user et al) memory access to fail with a permission fault.
-
-	 The feature is detected at runtime, and will remain as a 'nop'
-	 instruction if the cpu does not implement the feature.
-
-config ARM64_LSE_ATOMICS
-	bool "ARMv8.1 atomic instructions"
-	help
-	  As part of the Large System Extensions, ARMv8.1 introduces new
-	  atomic instructions that are designed specifically to scale in
-	  very large systems.
-
-	  Say Y here to make use of these instructions for the in-kernel
-	  atomic routines. This incurs a small overhead on CPUs that do
-	  not support these instructions and requires the kernel to be
-	  built with binutils >= 2.25.
-
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on COMPAT
@@ -697,6 +654,53 @@ config SETEND_EMULATION
 
 	  If unsure, say Y
 endif
+
+menu "ARMv8.1 architectural features"
+
+config ARM64_HW_AFDBM
+	bool "Support for hardware updates of the Access and Dirty page flags"
+	default y
+	help
+	  The ARMv8.1 architecture extensions introduce support for
+	  hardware updates of the access and dirty information in page
+	  table entries. When enabled in TCR_EL1 (HA and HD bits) on
+	  capable processors, accesses to pages with PTE_AF cleared will
+	  set this bit instead of raising an access flag fault.
+	  Similarly, writes to read-only pages with the DBM bit set will
+	  clear the read-only bit (AP[2]) instead of raising a
+	  permission fault.
+
+	  Kernels built with this configuration option enabled continue
+	  to work on pre-ARMv8.1 hardware and the performance impact is
+	  minimal. If unsure, say Y.
+
+config ARM64_PAN
+	bool "Enable support for Privileged Access Never (PAN)"
+	default y
+	help
+	 Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
+	 prevents the kernel or hypervisor from accessing user-space (EL0)
+	 memory directly.
+
+	 Choosing this option will cause any unprotected (not using
+	 copy_to_user et al) memory access to fail with a permission fault.
+
+	 The feature is detected at runtime, and will remain as a 'nop'
+	 instruction if the cpu does not implement the feature.
+
+config ARM64_LSE_ATOMICS
+	bool "Atomic instructions"
+	help
+	  As part of the Large System Extensions, ARMv8.1 introduces new
+	  atomic instructions that are designed specifically to scale in
+	  very large systems.
+
+	  Say Y here to make use of these instructions for the in-kernel
+	  atomic routines. This incurs a small overhead on CPUs that do
+	  not support these instructions and requires the kernel to be
+	  built with binutils >= 2.25.
+
+endmenu
 
 endmenu
 
