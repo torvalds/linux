@@ -184,30 +184,6 @@
 			#size-cells = <0>;
 		};
 
-		spi0: spi@ff040000 {
-			compatible = "cdns,spi-r1p6";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 19 4>;
-			reg = <0x0 0xff040000 0x1000>;
-			clock-names = "ref_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		spi1: spi@ff050000 {
-			compatible = "cdns,spi-r1p6";
-			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 20 4>;
-			reg = <0x0 0xff050000 0x1000>;
-			clock-names = "ref_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
 		i2c_clk: i2c_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0x0>;
@@ -281,6 +257,30 @@
 				<0 157 4>, <0 157 4>, <0 157 4>, <0 157 4>,
 				<0 157 4>, <0 157 4>, <0 157 4>, <0 157 4>,
 				<0 157 4>, <0 157 4>, <0 157 4>, <0 157 4>;
+		};
+
+		spi0: spi@ff040000 {
+			compatible = "cdns,spi-r1p6";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 19 4>;
+			reg = <0x0 0xff040000 0x1000>;
+			clock-names = "ref_clk", "pclk";
+			clocks = <&misc_clk &misc_clk>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		spi1: spi@ff050000 {
+			compatible = "cdns,spi-r1p6";
+			status = "disabled";
+			interrupt-parent = <&gic>;
+			interrupts = <0 20 4>;
+			reg = <0x0 0xff050000 0x1000>;
+			clock-names = "ref_clk", "pclk";
+			clocks = <&misc_clk &misc_clk>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		ttc0: timer@ff110000 {
