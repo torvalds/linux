@@ -441,9 +441,6 @@ static struct mlx5_ib_mr *alloc_cached_mr(struct mlx5_ib_dev *dev, int order)
 		spin_unlock_irq(&ent->lock);
 
 		queue_work(cache->wq, &ent->work);
-
-		if (mr)
-			break;
 	}
 
 	if (!mr)
