@@ -101,7 +101,14 @@ static int copy_fp_from_sigcontext(struct sigcontext __user *sc)
 static int protected_save_fp_context(struct sigcontext __user *sc)
 {
 	int err;
-#ifndef CONFIG_EVA
+
+	/*
+	 * EVA does not have userland equivalents of ldc1 or sdc1, so
+	 * save to the kernel FP context & copy that to userland below.
+	 */
+	if (config_enabled(CONFIG_EVA))
+		lose_fpu(1);
+
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
@@ -120,21 +127,22 @@ static int protected_save_fp_context(struct sigcontext __user *sc)
 		if (err)
 			break;	/* really bad sigcontext */
 	}
-#else
-	/*
-	 * EVA does not have FPU EVA instructions so saving fpu context directly
-	 * does not work.
-	 */
-	lose_fpu(1);
-	err = save_fp_context(sc); /* this might fail */
-#endif
+
 	return err;
 }
 
 static int protected_restore_fp_context(struct sigcontext __user *sc)
 {
 	int err, tmp __maybe_unused;
-#ifndef CONFIG_EVA
+
+	/*
+	 * EVA does not have userland equivalents of ldc1 or sdc1, so we
+	 * disable the FPU here such that the code below simply copies to
+	 * the kernel FP context.
+	 */
+	if (config_enabled(CONFIG_EVA))
+		lose_fpu(0);
+
 	while (1) {
 		lock_fpu_owner();
 		if (is_fpu_owner()) {
@@ -153,14 +161,7 @@ static int protected_restore_fp_context(struct sigcontext __user *sc)
 		if (err)
 			break;	/* really bad sigcontext */
 	}
-#else
-	/*
-	 * EVA does not have FPU EVA instructions so restoring fpu context
-	 * directly does not work.
-	 */
-	lose_fpu(0);
-	err = restore_fp_context(sc); /* this might fail */
-#endif
+
 	return err;
 }
 
@@ -629,7 +630,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 }
 
 #ifdef CONFIG_SMP
-#ifndef CONFIG_EVA
 static int smp_save_fp_context(struct sigcontext __user *sc)
 {
 	return raw_cpu_has_fpu
@@ -643,12 +643,10 @@ static int smp_restore_fp_context(struct sigcontext __user *sc)
 	       ? _restore_fp_context(sc)
 	       : copy_fp_from_sigcontext(sc);
 }
-#endif /* CONFIG_EVA */
 #endif
 
 static int signal_setup(void)
 {
-#ifndef CONFIG_EVA
 #ifdef CONFIG_SMP
 	/* For now just do the cpu_has_fpu check when the functions are invoked */
 	save_fp_context = smp_save_fp_context;
@@ -662,10 +660,6 @@ static int signal_setup(void)
 		restore_fp_context = copy_fp_from_sigcontext;
 	}
 #endif /* CONFIG_SMP */
-#else
-	save_fp_context = copy_fp_to_sigcontext;
-	restore_fp_context = copy_fp_from_sigcontext;
-#endif
 
 	return 0;
 }
