@@ -536,6 +536,25 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	return 0;
 }
 
+static void calculate_plane_sizes(struct rk3288_vpu_fmt *fmt,
+				  unsigned int w, unsigned int h,
+				  struct v4l2_pix_format_mplane *pix_fmt_mp)
+{
+	int i;
+
+	for (i = 0; i < fmt->num_planes; ++i) {
+		pix_fmt_mp->plane_fmt[i].bytesperline = w * fmt->depth[i] / 8;
+		pix_fmt_mp->plane_fmt[i].sizeimage = h *
+					pix_fmt_mp->plane_fmt[i].bytesperline;
+		/*
+		 * All of multiplanar formats we support have chroma
+		 * planes subsampled by 2 vertically.
+		 */
+		if (i != 0)
+			pix_fmt_mp->plane_fmt[i].sizeimage /= 2;
+	}
+}
+
 static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
@@ -543,7 +562,6 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	unsigned int mb_width, mb_height;
 	struct rk3288_vpu_fmt *fmt;
 	int ret = 0;
-	int i;
 
 	vpu_debug_enter();
 
@@ -599,19 +617,8 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			  pix_fmt_mp->width, pix_fmt_mp->height,
 			  mb_width, mb_height);
 
-		for (i = 0; i < fmt->num_planes; ++i) {
-			pix_fmt_mp->plane_fmt[i].bytesperline =
-				mb_width * MB_DIM * fmt->depth[i] / 8;
-			pix_fmt_mp->plane_fmt[i].sizeimage =
-				pix_fmt_mp->plane_fmt[i].bytesperline
-				* mb_height * MB_DIM;
-			/*
-			 * All of multiplanar formats we support have chroma
-			 * planes subsampled by 2.
-			 */
-			if (i != 0)
-				pix_fmt_mp->plane_fmt[i].sizeimage /= 2;
-		}
+		calculate_plane_sizes(fmt, mb_width * MB_DIM,
+					mb_height * MB_DIM, pix_fmt_mp);
 
 		/* Reset crop rectangle. */
 		ctx->src_crop.width = pix_fmt_mp->width;
