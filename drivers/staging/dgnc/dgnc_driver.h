@@ -21,9 +21,9 @@
 #ifndef __DGNC_DRIVER_H
 #define __DGNC_DRIVER_H
 
-#include <linux/types.h>	/* To pick up the varions Linux types */
-#include <linux/tty.h>	  /* To pick up the various tty structs/defines */
-#include <linux/interrupt.h>	/* For irqreturn_t type */
+#include <linux/types.h>
+#include <linux/tty.h>
+#include <linux/interrupt.h>
 
 #include "digi.h"		/* Digi specific ioctl header */
 #include "dgnc_sysfs.h"		/* Support for SYSFS */
