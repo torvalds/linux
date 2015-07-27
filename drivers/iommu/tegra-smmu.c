@@ -170,10 +170,9 @@ static void smmu_flush_ptc_all(struct tegra_smmu *smmu)
 	smmu_writel(smmu, SMMU_PTC_FLUSH_TYPE_ALL, SMMU_PTC_FLUSH);
 }
 
-static inline void smmu_flush_ptc(struct tegra_smmu *smmu, struct page *page,
+static inline void smmu_flush_ptc(struct tegra_smmu *smmu, phys_addr_t phys,
 				  unsigned long offset)
 {
-	phys_addr_t phys = page_to_phys(page);
 	u32 value;
 
 	offset &= ~(smmu->mc->soc->atom_size - 1);
@@ -413,7 +412,7 @@ static int tegra_smmu_as_prepare(struct tegra_smmu *smmu,
 		return err;
 
 	smmu_flush_dcache(as->pd, 0, SMMU_SIZE_PD);
-	smmu_flush_ptc(smmu, as->pd, 0);
+	smmu_flush_ptc(smmu, page_to_phys(as->pd), 0);
 	smmu_flush_tlb_asid(smmu, as->id);
 
 	smmu_writel(smmu, as->id & 0x7f, SMMU_PTB_ASID);
@@ -546,7 +545,7 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		pd[pde] = SMMU_MK_PDE(page, SMMU_PDE_ATTR | SMMU_PDE_NEXT);
 
 		smmu_flush_dcache(as->pd, pde << 2, 4);
-		smmu_flush_ptc(smmu, as->pd, pde << 2);
+		smmu_flush_ptc(smmu, page_to_phys(as->pd), pde << 2);
 		smmu_flush_tlb_section(smmu, as->id, iova);
 		smmu_flush(smmu);
 	} else {
@@ -583,7 +582,7 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 
 		/* Flush the page directory entry */
 		smmu_flush_dcache(as->pd, offset, sizeof(*pd));
-		smmu_flush_ptc(smmu, as->pd, offset);
+		smmu_flush_ptc(smmu, page_to_phys(as->pd), offset);
 		smmu_flush_tlb_section(smmu, as->id, iova);
 		smmu_flush(smmu);
 
@@ -603,7 +602,7 @@ static void tegra_smmu_set_pte(struct tegra_smmu_as *as, unsigned long iova,
 	*pte = val;
 
 	smmu_flush_dcache(pte_page, offset, 4);
-	smmu_flush_ptc(smmu, pte_page, offset);
+	smmu_flush_ptc(smmu, page_to_phys(pte_page), offset);
 	smmu_flush_tlb_group(smmu, as->id, iova);
 	smmu_flush(smmu);
 }
