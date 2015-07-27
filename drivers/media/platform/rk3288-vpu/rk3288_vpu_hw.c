@@ -402,7 +402,7 @@ int rk3288_vpu_init(struct rk3288_vpu_ctx *ctx)
 {
 	enum rk3288_vpu_codec_mode codec_mode;
 
-	if (ctx->vpu_dst_fmt->codec_mode != RK_VPU_CODEC_NONE)
+	if (rk3288_vpu_ctx_is_encoder(ctx))
 		codec_mode = ctx->vpu_dst_fmt->codec_mode; /* Encoder */
 	else
 		codec_mode = ctx->vpu_src_fmt->codec_mode; /* Decoder */

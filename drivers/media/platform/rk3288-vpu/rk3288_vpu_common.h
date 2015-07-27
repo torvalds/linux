@@ -434,6 +434,11 @@ static inline struct rk3288_vpu_buf *vb_to_buf(struct vb2_buffer *vb)
 	return container_of(vb, struct rk3288_vpu_buf, b);
 }
 
+static inline bool rk3288_vpu_ctx_is_encoder(struct rk3288_vpu_ctx *ctx)
+{
+	return ctx->vpu_dst_fmt->codec_mode != RK_VPU_CODEC_NONE;
+}
+
 int rk3288_vpu_ctrls_setup(struct rk3288_vpu_ctx *ctx,
 			   const struct v4l2_ctrl_ops *ctrl_ops,
 			   struct rk3288_vpu_control *controls,
