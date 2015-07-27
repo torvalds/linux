@@ -20,18 +20,20 @@ OPERATORS = r"&|\(|\)|\||\!"
 FEATURE = r"(?:\w*[A-Z0-9]\w*){2,}"
 DEF = r"^\s*(?:menu){,1}config\s+(" + FEATURE + r")\s*"
 EXPR = r"(?:" + OPERATORS + r"|\s|" + FEATURE + r")+"
-STMT = r"^\s*(?:if|select|depends\s+on)\s+" + EXPR
+DEFAULT = r"default\s+.*?(?:if\s.+){,1}"
+STMT = r"^\s*(?:if|select|depends\s+on|(?:" + DEFAULT + r"))\s+" + EXPR
 SOURCE_FEATURE = r"(?:\W|\b)+[D]{,1}CONFIG_(" + FEATURE + r")"
 
 # regex objects
 REGEX_FILE_KCONFIG = re.compile(r".*Kconfig[\.\w+\-]*$")
-REGEX_FEATURE = re.compile(r"(" + FEATURE + r")")
+REGEX_FEATURE = re.compile(r'(?!\B"[^"]*)' + FEATURE + r'(?![^"]*"\B)')
 REGEX_SOURCE_FEATURE = re.compile(SOURCE_FEATURE)
 REGEX_KCONFIG_DEF = re.compile(DEF)
 REGEX_KCONFIG_EXPR = re.compile(EXPR)
 REGEX_KCONFIG_STMT = re.compile(STMT)
 REGEX_KCONFIG_HELP = re.compile(r"^\s+(help|---help---)\s*$")
 REGEX_FILTER_FEATURES = re.compile(r"[A-Za-z0-9]$")
+REGEX_NUMERIC = re.compile(r"0[xX][0-9a-fA-F]+|[0-9]+")
 
 
 def parse_options():
@@ -314,6 +316,9 @@ def parse_kconfig_file(kfile, defined_features, referenced_features):
                 line = line.strip('\n')
                 features.extend(get_features_in_line(line))
             for feature in set(features):
+                if REGEX_NUMERIC.match(feature):
+                    # ignore numeric values
+                    continue
                 paths = referenced_features.get(feature, set())
                 paths.add(kfile)
                 referenced_features[feature] = paths
