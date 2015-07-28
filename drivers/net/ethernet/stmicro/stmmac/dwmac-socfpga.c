@@ -175,31 +175,6 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	return 0;
 }
 
-static void *socfpga_dwmac_probe(struct platform_device *pdev)
-{
-	struct device		*dev = &pdev->dev;
-	int			ret;
-	struct socfpga_dwmac	*dwmac;
-
-	dwmac = devm_kzalloc(dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac)
-		return ERR_PTR(-ENOMEM);
-
-	ret = socfpga_dwmac_parse_data(dwmac, dev);
-	if (ret) {
-		dev_err(dev, "Unable to parse OF data\n");
-		return ERR_PTR(ret);
-	}
-
-	ret = socfpga_dwmac_setup(dwmac);
-	if (ret) {
-		dev_err(dev, "couldn't setup SoC glue (%d)\n", ret);
-		return ERR_PTR(ret);
-	}
-
-	return dwmac;
-}
-
 static void socfpga_dwmac_exit(struct platform_device *pdev, void *priv)
 {
 	struct socfpga_dwmac	*dwmac = priv;
@@ -255,6 +230,31 @@ static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 		phy_resume(stpriv->phydev);
 
 	return ret;
+}
+
+static void *socfpga_dwmac_probe(struct platform_device *pdev)
+{
+	struct device		*dev = &pdev->dev;
+	int			ret;
+	struct socfpga_dwmac	*dwmac;
+
+	dwmac = devm_kzalloc(dev, sizeof(*dwmac), GFP_KERNEL);
+	if (!dwmac)
+		return ERR_PTR(-ENOMEM);
+
+	ret = socfpga_dwmac_parse_data(dwmac, dev);
+	if (ret) {
+		dev_err(dev, "Unable to parse OF data\n");
+		return ERR_PTR(ret);
+	}
+
+	ret = socfpga_dwmac_setup(dwmac);
+	if (ret) {
+		dev_err(dev, "couldn't setup SoC glue (%d)\n", ret);
+		return ERR_PTR(ret);
+	}
+
+	return dwmac;
 }
 
 static const struct stmmac_of_data socfpga_gmac_data = {
