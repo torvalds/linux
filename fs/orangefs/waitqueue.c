@@ -314,6 +314,13 @@ void pvfs2_clean_up_interrupted_operation(struct pvfs2_kernel_op_s *op)
 		spin_unlock(&op->lock);
 		gossip_err("interrupted operation is in a weird state 0x%x\n",
 			   op->op_state);
+	} else {
+		/*
+		 * It is not intended for execution to flow here,
+		 * but having this unlock here makes sparse happy.
+		 */
+		gossip_err("%s: can't get here.\n", __func__);
+		spin_unlock(&op->lock);
 	}
 }
 

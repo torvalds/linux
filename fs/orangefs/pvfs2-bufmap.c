@@ -9,7 +9,7 @@
 
 DECLARE_WAIT_QUEUE_HEAD(pvfs2_bufmap_init_waitq);
 
-struct pvfs2_bufmap {
+static struct pvfs2_bufmap {
 	atomic_t refcnt;
 
 	int desc_size;
@@ -663,6 +663,7 @@ int pvfs_bufmap_copy_iovec_from_kernel(struct pvfs2_bufmap *bufmap,
 	int to_page_index = 0;
 	void *to_kaddr = NULL;
 	void *from_kaddr = NULL;
+	struct kvec *iv = NULL;
 	struct iovec *copied_iovec = NULL;
 	struct pvfs_bufmap_desc *to;
 	unsigned int seg;
@@ -708,8 +709,9 @@ int pvfs_bufmap_copy_iovec_from_kernel(struct pvfs2_bufmap *bufmap,
 	 * buffer into the mapped buffer one page at a time though
 	 */
 	while (amt_copied < size) {
-		struct iovec *iv = &copied_iovec[seg];
 		int inc_to_page_index;
+
+		iv = (struct kvec *) &copied_iovec[seg];
 
 		if (iv->iov_len < (PAGE_SIZE - to_page_offset)) {
 			cur_copy_size =
@@ -885,6 +887,7 @@ int pvfs_bufmap_copy_to_kernel_iovec(struct pvfs2_bufmap *bufmap,
 	int from_page_index = 0;
 	void *from_kaddr = NULL;
 	void *to_kaddr = NULL;
+	struct kvec *iv;
 	struct iovec *copied_iovec = NULL;
 	struct pvfs_bufmap_desc *from;
 	unsigned int seg;
@@ -930,8 +933,9 @@ int pvfs_bufmap_copy_to_kernel_iovec(struct pvfs2_bufmap *bufmap,
 	 * but make sure that we do so one page at a time.
 	 */
 	while (amt_copied < size) {
-		struct iovec *iv = &copied_iovec[seg];
 		int inc_from_page_index;
+
+		iv = (struct kvec *) &copied_iovec[seg];
 
 		if (iv->iov_len < (PAGE_SIZE - from_page_offset)) {
 			cur_copy_size =

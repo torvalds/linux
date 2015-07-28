@@ -269,7 +269,7 @@ static void pvfs2_dirty_inode(struct inode *inode, int flags)
 	SetAtimeFlag(pvfs2_inode);
 }
 
-struct super_operations pvfs2_s_ops = {
+static const struct super_operations pvfs2_s_ops = {
 	.alloc_inode = pvfs2_alloc_inode,
 	.destroy_inode = pvfs2_destroy_inode,
 	.dirty_inode = pvfs2_dirty_inode,
@@ -279,7 +279,7 @@ struct super_operations pvfs2_s_ops = {
 	.show_options = generic_show_options,
 };
 
-struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
+static struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
 				  struct fid *fid,
 				  int fh_len,
 				  int fh_type)
@@ -299,7 +299,7 @@ struct dentry *pvfs2_fh_to_dentry(struct super_block *sb,
 	return d_obtain_alias(pvfs2_iget(sb, &refn));
 }
 
-int pvfs2_encode_fh(struct inode *inode,
+static int pvfs2_encode_fh(struct inode *inode,
 		    __u32 *fh,
 		    int *max_len,
 		    struct inode *parent)
@@ -347,7 +347,7 @@ static struct export_operations pvfs2_export_ops = {
 	.fh_to_dentry = pvfs2_fh_to_dentry,
 };
 
-int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
+static int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 {
 	int ret = -EINVAL;
 	struct inode *root = NULL;

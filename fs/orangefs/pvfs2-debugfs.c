@@ -70,7 +70,7 @@ static const struct seq_operations help_debug_ops = {
  * Used to protect data in ORANGEFS_KMOD_DEBUG_FILE and
  * ORANGEFS_KMOD_DEBUG_FILE.
  */
-DEFINE_MUTEX(orangefs_debug_lock);
+static DEFINE_MUTEX(orangefs_debug_lock);
 
 int orangefs_debug_open(struct inode *, struct file *);
 

@@ -857,7 +857,7 @@ static unsigned long translate_dev_map26(unsigned long args, long *error)
 	 */
 	struct PVFS_dev_map_desc __user *p =
 	    compat_alloc_user_space(sizeof(*p));
-	u32 addr;
+	compat_uptr_t addr;
 
 	*error = 0;
 	/* get the ptr from the 32 bit user-space */

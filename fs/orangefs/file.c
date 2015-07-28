@@ -799,7 +799,7 @@ out:
 /*
  * Perform a miscellaneous operation on a file.
  */
-long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long pvfs2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
 	__u64 val = 0;
@@ -885,7 +885,7 @@ static int pvfs2_file_mmap(struct file *file, struct vm_area_struct *vma)
  *
  * \note Not called when each file is closed.
  */
-int pvfs2_file_release(struct inode *inode, struct file *file)
+static int pvfs2_file_release(struct inode *inode, struct file *file)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "pvfs2_file_release: called on %s\n",
@@ -909,7 +909,10 @@ int pvfs2_file_release(struct inode *inode, struct file *file)
 /*
  * Push all data for a specific file onto permanent storage.
  */
-int pvfs2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+static int pvfs2_fsync(struct file *file,
+		       loff_t start,
+		       loff_t end,
+		       int datasync)
 {
 	int ret = -EINVAL;
 	struct pvfs2_inode_s *pvfs2_inode =
@@ -947,7 +950,7 @@ int pvfs2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
  * Future upgrade could support SEEK_DATA and SEEK_HOLE but would
  * require much changes to the FS
  */
-loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
+static loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
 {
 	int ret = -EINVAL;
 	struct inode *inode = file->f_path.dentry->d_inode;
@@ -989,7 +992,7 @@ loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
  * Support local locks (locks that only this kernel knows about)
  * if Orangefs was mounted -o local_lock.
  */
-int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
+static int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int rc = -ENOLCK;
 

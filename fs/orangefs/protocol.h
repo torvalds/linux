@@ -341,7 +341,7 @@ __s32 PINT_non_errno_mapping[] = {               \
 extern __s32 PINT_errno_mapping[];					\
 extern __s32 PINT_non_errno_mapping[];				\
 extern const char *PINT_non_errno_strerror_mapping[];			\
-__s32 PVFS_get_errno_mapping(__s32 error)			\
+static __s32 PVFS_get_errno_mapping(__s32 error)			\
 {									\
 	__s32 ret = error, mask = 0;				\
 	__s32 positive = ((error > -1) ? 1 : 0);			\
@@ -363,16 +363,6 @@ __s32 PVFS_get_errno_mapping(__s32 error)			\
 							  ~mask)];	\
 	}								\
 	return ret;							\
-}									\
-__s32 PVFS_errno_to_error(int err)					\
-{									\
-	__s32 e = 0;						\
-									\
-	for (; e < PVFS_ERRNO_MAX; ++e)					\
-		if (PINT_errno_mapping[e] == err)			\
-			return e | PVFS_ERROR_BIT;			\
-									\
-	return err;							\
 }									\
 DECLARE_ERRNO_MAPPING()
 

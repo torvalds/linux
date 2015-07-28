@@ -33,7 +33,7 @@ static int read_one_page(struct page *page)
 		loff_t blockptr_offset = (((loff_t) page->index) << blockbits);
 
 		bytes_read = pvfs2_inode_read(inode,
-					      page_data,
+					      (char __user *) page_data,
 					      blocksize,
 					      &blockptr_offset,
 					      inode->i_size);

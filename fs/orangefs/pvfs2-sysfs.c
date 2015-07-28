@@ -750,7 +750,7 @@ out:
 /*
  * obtain attribute values from userspace with a service operation.
  */
-int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
+static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 {
 	struct pvfs2_kernel_op_s *new_op = NULL;
 	int rc = 0;
@@ -1023,7 +1023,7 @@ static ssize_t
  * We want to return 1 if we think everything went OK, and
  * EINVAL if not.
  */
-int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
+static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 {
 	struct pvfs2_kernel_op_s *new_op = NULL;
 	int val = 0;
