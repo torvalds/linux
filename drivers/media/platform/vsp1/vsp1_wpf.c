@@ -195,7 +195,7 @@ static struct v4l2_subdev_ops wpf_ops = {
  * Video Device Operations
  */
 
-static void wpf_buf_queue(struct vsp1_rwpf *wpf, struct vsp1_video_buffer *buf)
+static void wpf_buf_queue(struct vsp1_rwpf *wpf, struct vsp1_vb2_buffer *buf)
 {
 	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, buf->addr[0]);
 	if (buf->buf.vb2_buf.num_planes > 1)

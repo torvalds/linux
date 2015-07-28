@@ -186,7 +186,7 @@ static struct v4l2_subdev_ops rpf_ops = {
  * Video Device Operations
  */
 
-static void rpf_buf_queue(struct vsp1_rwpf *rpf, struct vsp1_video_buffer *buf)
+static void rpf_buf_queue(struct vsp1_rwpf *rpf, struct vsp1_vb2_buffer *buf)
 {
 	unsigned int i;
 

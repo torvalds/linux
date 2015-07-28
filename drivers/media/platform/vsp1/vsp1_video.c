@@ -592,12 +592,12 @@ static bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
  *
  * Return the next queued buffer or NULL if the queue is empty.
  */
-static struct vsp1_video_buffer *
+static struct vsp1_vb2_buffer *
 vsp1_video_complete_buffer(struct vsp1_video *video)
 {
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
-	struct vsp1_video_buffer *next = NULL;
-	struct vsp1_video_buffer *done;
+	struct vsp1_vb2_buffer *next = NULL;
+	struct vsp1_vb2_buffer *done;
 	unsigned long flags;
 	unsigned int i;
 
@@ -609,7 +609,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 	}
 
 	done = list_first_entry(&video->irqqueue,
-				struct vsp1_video_buffer, queue);
+				struct vsp1_vb2_buffer, queue);
 
 	/* In DU output mode reuse the buffer if the list is singular. */
 	if (pipe->lif && list_is_singular(&video->irqqueue)) {
@@ -621,7 +621,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 
 	if (!list_empty(&video->irqqueue))
 		next = list_first_entry(&video->irqqueue,
-					struct vsp1_video_buffer, queue);
+					struct vsp1_vb2_buffer, queue);
 
 	spin_unlock_irqrestore(&video->irqlock, flags);
 
@@ -637,7 +637,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 				 struct vsp1_video *video)
 {
-	struct vsp1_video_buffer *buf;
+	struct vsp1_vb2_buffer *buf;
 	unsigned long flags;
 
 	buf = vsp1_video_complete_buffer(video);
@@ -836,7 +836,7 @@ static int vsp1_video_buffer_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vsp1_video *video = vb2_get_drv_priv(vb->vb2_queue);
-	struct vsp1_video_buffer *buf = to_vsp1_video_buffer(vbuf);
+	struct vsp1_vb2_buffer *buf = to_vsp1_vb2_buffer(vbuf);
 	const struct v4l2_pix_format_mplane *format = &video->rwpf->format;
 	unsigned int i;
 
@@ -859,7 +859,7 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vsp1_video *video = vb2_get_drv_priv(vb->vb2_queue);
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
-	struct vsp1_video_buffer *buf = to_vsp1_video_buffer(vbuf);
+	struct vsp1_vb2_buffer *buf = to_vsp1_vb2_buffer(vbuf);
 	unsigned long flags;
 	bool empty;
 
@@ -951,7 +951,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&video->video.entity);
-	struct vsp1_video_buffer *buffer;
+	struct vsp1_vb2_buffer *buffer;
 	unsigned long flags;
 	int ret;
 
@@ -1276,7 +1276,7 @@ int vsp1_video_init(struct vsp1_video *video, struct vsp1_rwpf *rwpf)
 	video->queue.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	video->queue.lock = &video->lock;
 	video->queue.drv_priv = video;
-	video->queue.buf_struct_size = sizeof(struct vsp1_video_buffer);
+	video->queue.buf_struct_size = sizeof(struct vsp1_vb2_buffer);
 	video->queue.ops = &vsp1_video_queue_qops;
 	video->queue.mem_ops = &vb2_dma_contig_memops;
 	video->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;

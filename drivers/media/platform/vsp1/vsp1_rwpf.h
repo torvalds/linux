@@ -25,10 +25,10 @@
 #define RWPF_PAD_SOURCE				1
 
 struct vsp1_rwpf;
-struct vsp1_video_buffer;
+struct vsp1_vb2_buffer;
 
 struct vsp1_rwpf_operations {
-	void (*queue)(struct vsp1_rwpf *rwpf, struct vsp1_video_buffer *buf);
+	void (*queue)(struct vsp1_rwpf *rwpf, struct vsp1_vb2_buffer *buf);
 };
 
 struct vsp1_rwpf {
