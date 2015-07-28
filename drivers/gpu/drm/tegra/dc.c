@@ -759,7 +759,6 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 	/* position the cursor */
 	value = (state->crtc_y & 0x3fff) << 16 | (state->crtc_x & 0x3fff);
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_POSITION);
-
 }
 
 static void tegra_cursor_atomic_disable(struct drm_plane *plane,
