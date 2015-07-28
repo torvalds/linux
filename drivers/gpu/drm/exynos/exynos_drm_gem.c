@@ -20,29 +20,6 @@
 #include "exynos_drm_buf.h"
 #include "exynos_drm_iommu.h"
 
-static unsigned int convert_to_vm_err_msg(int msg)
-{
-	unsigned int out_msg;
-
-	switch (msg) {
-	case 0:
-	case -ERESTARTSYS:
-	case -EINTR:
-		out_msg = VM_FAULT_NOPAGE;
-		break;
-
-	case -ENOMEM:
-		out_msg = VM_FAULT_OOM;
-		break;
-
-	default:
-		out_msg = VM_FAULT_SIGBUS;
-		break;
-	}
-
-	return out_msg;
-}
-
 static int check_gem_flags(unsigned int flags)
 {
 	if (flags & ~(EXYNOS_BO_MASK)) {
@@ -600,7 +577,16 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	mutex_unlock(&dev->struct_mutex);
 
-	return convert_to_vm_err_msg(ret);
+	switch (ret) {
+	case 0:
+	case -ERESTARTSYS:
+	case -EINTR:
+		return VM_FAULT_NOPAGE;
+	case -ENOMEM:
+		return VM_FAULT_OOM;
+	default:
+		return VM_FAULT_SIGBUS;
+	}
 }
 
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
