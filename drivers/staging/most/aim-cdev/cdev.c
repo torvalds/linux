@@ -124,9 +124,9 @@ static int aim_close(struct inode *inode, struct file *filp)
 		cdev_del(&channel->cdev);
 		kfifo_free(&channel->fifo);
 		list_del(&channel->list);
-		kfree(channel);
 		ida_simple_remove(&minor_id, MINOR(channel->devno));
 		wake_up_interruptible(&channel->wq);
+		kfree(channel);
 		return 0;
 	}
 	mutex_unlock(&channel->io_mutex);
