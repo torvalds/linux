@@ -24,7 +24,7 @@
 #include "clk-mtk.h"
 #include "clk-gate.h"
 
-struct clk_onecell_data *mtk_alloc_clk_data(unsigned int clk_num)
+struct clk_onecell_data * __init mtk_alloc_clk_data(unsigned int clk_num)
 {
 	int i;
 	struct clk_onecell_data *clk_data;
@@ -49,8 +49,8 @@ err_out:
 	return NULL;
 }
 
-void mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
-		struct clk_onecell_data *clk_data)
+void __init mtk_clk_register_factors(const struct mtk_fixed_factor *clks,
+		int num, struct clk_onecell_data *clk_data)
 {
 	int i;
 	struct clk *clk;
@@ -72,7 +72,8 @@ void mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
 	}
 }
 
-int mtk_clk_register_gates(struct device_node *node, const struct mtk_gate *clks,
+int __init mtk_clk_register_gates(struct device_node *node,
+		const struct mtk_gate *clks,
 		int num, struct clk_onecell_data *clk_data)
 {
 	int i;
@@ -111,7 +112,7 @@ int mtk_clk_register_gates(struct device_node *node, const struct mtk_gate *clks
 	return 0;
 }
 
-struct clk *mtk_clk_register_composite(const struct mtk_composite *mc,
+struct clk * __init mtk_clk_register_composite(const struct mtk_composite *mc,
 		void __iomem *base, spinlock_t *lock)
 {
 	struct clk *clk;
@@ -196,7 +197,7 @@ err_out:
 	return ERR_PTR(ret);
 }
 
-void mtk_clk_register_composites(const struct mtk_composite *mcs,
+void __init mtk_clk_register_composites(const struct mtk_composite *mcs,
 		int num, void __iomem *base, spinlock_t *lock,
 		struct clk_onecell_data *clk_data)
 {
