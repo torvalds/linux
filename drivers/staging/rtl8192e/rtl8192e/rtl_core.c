@@ -90,7 +90,6 @@ static struct pci_driver rtl8192_pci_driver = {
 static short rtl8192_is_tx_queue_empty(struct net_device *dev);
 static void rtl819x_watchdog_wqcallback(void *data);
 static void watch_dog_timer_callback(unsigned long data);
-static void rtl8192_data_hard_stop(struct net_device *dev);
 static void rtl8192_data_hard_resume(struct net_device *dev);
 static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
@@ -866,7 +865,6 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->set_chan			= rtl8192_set_chan;
 	priv->rtllib->link_change		= priv->ops->link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = rtl8192_hard_data_xmit;
-	priv->rtllib->data_hard_stop		= rtl8192_data_hard_stop;
 	priv->rtllib->data_hard_resume		= rtl8192_data_hard_resume;
 	priv->rtllib->check_nic_enough_desc	= rtl8192_check_nic_enough_desc;
 	priv->rtllib->handle_assoc_response	= rtl8192_handle_assoc_response;
@@ -1639,10 +1637,6 @@ static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
 	pci_free_consistent(priv->pdev, sizeof(*ring->desc)*ring->entries,
 	ring->desc, ring->dma);
 	ring->desc = NULL;
-}
-
-static void rtl8192_data_hard_stop(struct net_device *dev)
-{
 }
 
 static void rtl8192_data_hard_resume(struct net_device *dev)
