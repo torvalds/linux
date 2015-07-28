@@ -14,6 +14,10 @@
 #include <linux/delay.h>
 #include <linux/random.h>
 #include <linux/sizes.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/kfifo.h>
+
 #include <asm/div64.h>
 
 #include "greybus.h"
@@ -31,9 +35,13 @@ struct gb_loopback {
 	u8 version_major;
 	u8 version_minor;
 
+	struct kfifo kfifo;
 	struct mutex mutex;
 	struct task_struct *task;
 	wait_queue_head_t wq;
+	dev_t dev;
+	struct cdev cdev;
+	struct device *device;
 
 	int type;
 	u32 size;
@@ -48,6 +56,21 @@ struct gb_loopback {
 	u64 elapsed_nsecs;
 	u32 error;
 };
+
+#define GB_LOOPBACK_FIFO_DEFAULT			8192
+
+static struct class *loopback_class;
+static int loopback_major;
+static const struct file_operations loopback_fops;
+static DEFINE_IDA(minors);
+static unsigned kfifo_depth = GB_LOOPBACK_FIFO_DEFAULT;
+module_param(kfifo_depth, uint, 0444);
+
+/* Number of minor devices this driver supports */
+#define NUM_MINORS      256
+
+/* Maximum size of any one send data buffer we support */
+#define MAX_PACKET_SIZE (PAGE_SIZE * 2)
 
 #define GB_LOOPBACK_MS_WAIT_MAX				1000
 
@@ -129,6 +152,7 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 	case GB_LOOPBACK_TYPE_PING:
 	case GB_LOOPBACK_TYPE_TRANSFER:
 	case GB_LOOPBACK_TYPE_SINK:
+		kfifo_reset_out(&gb->kfifo);
 		wake_up(&gb->wq);
 		break;
 	default:
@@ -381,6 +405,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 
 	/* Log latency stastic */
 	gb_loopback_update_stats(&gb->latency, lat);
+	kfifo_in(&gb->kfifo, (unsigned char *)&lat, sizeof(lat));
 
 	/* Log throughput and requests using latency as benchmark */
 	gb_loopback_throughput_update(gb, lat);
@@ -433,16 +458,25 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 {
 	struct gb_loopback *gb;
 	int retval;
+	int minor;
 
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
 		return -ENOMEM;
+	gb_loopback_reset_stats(gb);
 
 	gb->connection = connection;
 	connection->private = gb;
 	retval = sysfs_create_groups(&connection->dev.kobj, loopback_groups);
 	if (retval)
 		goto out_free;
+
+	/* Get a minor number */
+	minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
+	if (minor < 0) {
+		retval = minor;
+		goto out_free;
+	}
 
 	/* Check the version */
 	retval = get_version(gb);
@@ -457,17 +491,44 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	}
 	gb->size_max -= sizeof(struct gb_loopback_transfer_request);
 
-	gb_loopback_reset_stats(gb);
+	/* Allocate kfifo */
+	if (kfifo_alloc(&gb->kfifo, kfifo_depth * sizeof(u32),
+			  GFP_KERNEL)) {
+		retval = -ENOMEM;
+		goto out_get_ver;
+	}
+
+	/* Create device entry */
+	gb->dev = MKDEV(loopback_major, minor);
+	cdev_init(&gb->cdev, &loopback_fops);
+	retval = cdev_add(&gb->cdev, gb->dev, 1);
+	if (retval)
+		goto out_cdev;
+
+	gb->device = device_create(loopback_class, &connection->dev, gb->dev,
+				   gb, "gb!loopback%d", minor);
+	if (IS_ERR(gb->device)) {
+		retval = PTR_ERR(gb->device);
+		goto out_device;
+	}
+
+	/* Fork worker thread */
 	init_waitqueue_head(&gb->wq);
 	mutex_init(&gb->mutex);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
-		goto out_get_ver;
+		goto out_kfifo;
 	}
 
 	return 0;
 
+out_device:
+	cdev_del(&gb->cdev);
+out_cdev:
+	ida_simple_remove(&minors, minor);
+out_kfifo:
+	kfifo_free(&gb->kfifo);
 out_get_ver:
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 out_free:
@@ -481,6 +542,11 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
+
+	cdev_del(&gb->cdev);
+	ida_simple_remove(&minors, MINOR(gb->dev));
+	device_del(gb->device);
+	kfifo_free(&gb->kfifo);
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 	kfree(gb);
 }
@@ -495,6 +561,80 @@ static struct gb_protocol loopback_protocol = {
 	.request_recv		= gb_loopback_request_recv,
 };
 
-gb_protocol_driver(&loopback_protocol);
+static int loopback_open(struct inode *inode, struct file *file)
+{
+	struct cdev *cdev = inode->i_cdev;
+	struct gb_loopback *gb = container_of(cdev, struct gb_loopback, cdev);
+
+	file->private_data = gb;
+	return 0;
+}
+
+static ssize_t loopback_read(struct file *file, char __user *buf, size_t count,
+			     loff_t *ppos)
+{
+	struct gb_loopback *gb = file->private_data;
+	size_t fifo_len;
+	int retval;
+
+	if (!count || count%sizeof(u32))
+		return -EINVAL;
+
+	mutex_lock(&gb->mutex);
+	fifo_len = kfifo_len(&gb->kfifo);
+	if (kfifo_to_user(&gb->kfifo, buf, min(fifo_len, count), &retval) != 0)
+		retval = -EIO;
+	mutex_unlock(&gb->mutex);
+
+	return retval;
+}
+
+static const struct file_operations loopback_fops = {
+	.owner          = THIS_MODULE,
+	.read           = loopback_read,
+	.open           = loopback_open,
+	.llseek         = noop_llseek,
+};
+
+static int loopback_init(void)
+{
+	dev_t dev;
+	int retval;
+
+	loopback_class = class_create(THIS_MODULE, "gb_loopback");
+	if (IS_ERR(loopback_class)) {
+		retval = PTR_ERR(loopback_class);
+		goto error_class;
+	}
+
+	retval = alloc_chrdev_region(&dev, 0, NUM_MINORS, "gb_loopback");
+	if (retval < 0)
+		goto error_chrdev;
+
+	loopback_major = MAJOR(dev);
+
+	retval = gb_protocol_register(&loopback_protocol);
+	if (retval)
+		goto error_gb;
+
+	return 0;
+
+error_gb:
+	unregister_chrdev_region(dev, NUM_MINORS);
+error_chrdev:
+	class_destroy(loopback_class);
+error_class:
+	return retval;
+}
+module_init(loopback_init);
+
+static void __exit loopback_exit(void)
+{
+	gb_protocol_deregister(&loopback_protocol);
+	unregister_chrdev_region(MKDEV(loopback_major, 0), NUM_MINORS);
+	class_destroy(loopback_class);
+	ida_destroy(&minors);
+}
+module_exit(loopback_exit);
 
 MODULE_LICENSE("GPL v2");
