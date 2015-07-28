@@ -334,36 +334,49 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	return 0;
 }
 
-static void *sti_dwmac_setup(struct platform_device *pdev)
+static int sti_dwmac_probe(struct platform_device *pdev)
 {
+	struct plat_stmmacenet_data *plat_dat;
+	struct stmmac_resources stmmac_res;
 	struct sti_dwmac *dwmac;
 	int ret;
 
+	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
+	if (ret)
+		return ret;
+
+	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	if (IS_ERR(plat_dat))
+		return PTR_ERR(plat_dat);
+
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	ret = sti_dwmac_parse_data(dwmac, pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to parse OF data\n");
-		return ERR_PTR(ret);
+		return ret;
 	}
 
-	return dwmac;
+	plat_dat->bsp_priv = dwmac;
+	plat_dat->exit = sti_dwmac_exit;
+
+	ret = plat_dat->init(pdev, plat_dat->bsp_priv);
+	if (ret)
+		return ret;
+
+	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 
 static const struct stmmac_of_data stih4xx_dwmac_data = {
 	.fix_mac_speed = stih4xx_fix_retime_src,
-	.setup = sti_dwmac_setup,
 	.init = stix4xx_init,
-	.exit = sti_dwmac_exit,
 };
 
 static const struct stmmac_of_data stid127_dwmac_data = {
 	.fix_mac_speed = stid127_fix_retime_src,
-	.setup = sti_dwmac_setup,
 	.init = stid127_init,
-	.exit = sti_dwmac_exit,
 };
 
 static const struct of_device_id sti_dwmac_match[] = {
@@ -376,7 +389,7 @@ static const struct of_device_id sti_dwmac_match[] = {
 MODULE_DEVICE_TABLE(of, sti_dwmac_match);
 
 static struct platform_driver sti_dwmac_driver = {
-	.probe  = stmmac_pltfr_probe,
+	.probe  = sti_dwmac_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "sti-dwmac",
