@@ -8,6 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
@@ -30,6 +31,7 @@ struct gb_loopback {
 	u8 version_major;
 	u8 version_minor;
 
+	struct mutex mutex;
 	struct task_struct *task;
 	wait_queue_head_t wq;
 
@@ -101,10 +103,13 @@ static ssize_t field##_store(struct device *dev,			\
 	struct gb_connection *connection = to_gb_connection(dev);	\
 	struct gb_loopback *gb =					\
 		(struct gb_loopback *)connection->private;		\
+	mutex_lock(&gb->mutex);						\
 	ret = sscanf(buf, "%"#type, &gb->field);			\
 	if (ret != 1)							\
-		return -EINVAL;						\
-	gb_loopback_check_attr(gb);					\
+		len = -EINVAL;						\
+	else								\
+		gb_loopback_check_attr(gb);				\
+	mutex_unlock(&gb->mutex);					\
 	return len;							\
 }									\
 static DEVICE_ATTR_RW(field)
@@ -385,6 +390,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 static int gb_loopback_fn(void *data)
 {
 	int error = 0;
+	int ms_wait;
 	struct gb_loopback *gb = (struct gb_loopback *)data;
 
 	while (1) {
@@ -393,6 +399,8 @@ static int gb_loopback_fn(void *data)
 						 kthread_should_stop());
 		if (kthread_should_stop())
 			break;
+
+		mutex_lock(&gb->mutex);
 		if (gb->iteration_max) {
 			if (gb->iteration_count < gb->iteration_max) {
 				gb->iteration_count++;
@@ -400,6 +408,7 @@ static int gb_loopback_fn(void *data)
 					     "iteration_count");
 			} else {
 				gb->type = 0;
+				mutex_unlock(&gb->mutex);
 				continue;
 			}
 		}
@@ -412,8 +421,10 @@ static int gb_loopback_fn(void *data)
 		if (error)
 			gb->error++;
 		gb_loopback_calculate_stats(gb);
-		if (gb->ms_wait)
-			msleep(gb->ms_wait);
+		ms_wait = gb->ms_wait;
+		mutex_unlock(&gb->mutex);
+		if (ms_wait)
+			msleep(ms_wait);
 	}
 	return 0;
 }
@@ -448,6 +459,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 
 	gb_loopback_reset_stats(gb);
 	init_waitqueue_head(&gb->wq);
+	mutex_init(&gb->mutex);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
