@@ -316,7 +316,7 @@ static int visor_thread_start(struct visor_thread_info *thrinfo,
 			      void *thrcontext, char *name)
 {
 	/* used to stop the thread */
-	thrinfo->task = kthread_run(threadfn, thrcontext, name);
+	thrinfo->task = kthread_run(threadfn, thrcontext, "%s", name);
 	if (IS_ERR(thrinfo->task)) {
 		pr_debug("%s failed (%ld)\n",
 			 __func__, PTR_ERR(thrinfo->task));
