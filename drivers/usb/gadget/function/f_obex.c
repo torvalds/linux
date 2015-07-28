@@ -297,7 +297,7 @@ static inline bool can_support_obex(struct usb_configuration *c)
 	 *
 	 * Altsettings are mandatory, however...
 	 */
-	if (!gadget_supports_altsettings(c->cdev->gadget))
+	if (!gadget_is_altset_supported(c->cdev->gadget))
 		return false;
 
 	/* everything else is *probably* fine ... */

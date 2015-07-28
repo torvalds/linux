@@ -292,7 +292,7 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 	nokia_config_500ma_driver.iConfiguration = status;
 	nokia_config_100ma_driver.iConfiguration = status;
 
-	if (!gadget_supports_altsettings(gadget)) {
+	if (!gadget_is_altset_supported(gadget)) {
 		status = -ENODEV;
 		goto err_usb;
 	}
