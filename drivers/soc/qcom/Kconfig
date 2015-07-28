@@ -19,6 +19,14 @@ config QCOM_PM
 	  modes. It interface with various system drivers to put the cores in
 	  low power modes.
 
+config QCOM_SMD
+	tristate "Qualcomm Shared Memory Driver (SMD)"
+	depends on QCOM_SMEM
+	help
+	  Say y here to enable support for the Qualcomm Shared Memory Driver
+	  providing communication channels to remote processors in Qualcomm
+	  platforms.
+
 config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"
 	depends on ARCH_QCOM
