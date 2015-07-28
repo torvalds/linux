@@ -131,6 +131,11 @@ struct sti_dwmac {
 	u32 speed;
 };
 
+struct sti_dwmac_of_data {
+	void (*fix_mac_speed)(void *priv, unsigned int speed);
+	int (*init)(struct platform_device *pdev, void *priv);
+};
+
 static u32 phy_intf_sels[] = {
 	[PHY_INTERFACE_MODE_MII] = ETH_PHY_SEL_MII,
 	[PHY_INTERFACE_MODE_GMII] = ETH_PHY_SEL_GMII,
@@ -338,7 +343,7 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 static int sti_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
-	const struct stmmac_of_data *data;
+	const struct sti_dwmac_of_data *data;
 	struct stmmac_resources stmmac_res;
 	struct sti_dwmac *dwmac;
 	int ret;
@@ -379,12 +384,12 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 
-static const struct stmmac_of_data stih4xx_dwmac_data = {
+static const struct sti_dwmac_of_data stih4xx_dwmac_data = {
 	.fix_mac_speed = stih4xx_fix_retime_src,
 	.init = stix4xx_init,
 };
 
-static const struct stmmac_of_data stid127_dwmac_data = {
+static const struct sti_dwmac_of_data stid127_dwmac_data = {
 	.fix_mac_speed = stid127_fix_retime_src,
 	.init = stid127_init,
 };
