@@ -895,7 +895,7 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 	case ACT_TDLS_DELETE:
 		if (reason) {
 			if (!node || reason == TDLS_ERR_LINK_NONEXISTENT)
-				mwifiex_dbg(priv->adapter, ERROR,
+				mwifiex_dbg(priv->adapter, MSG,
 					    "TDLS link delete for %pM failed: reason %d\n",
 					    cmd_tdls_oper->peer_mac, reason);
 			else
