@@ -2403,7 +2403,8 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		}
 		tp_len = tpacket_fill_skb(po, skb, ph, dev, size_max, proto,
 					  addr, hlen);
-		if (tp_len > dev->mtu + dev->hard_header_len) {
+		if (likely(tp_len >= 0) &&
+		    tp_len > dev->mtu + dev->hard_header_len) {
 			struct ethhdr *ehdr;
 			/* Earlier code assumed this would be a VLAN pkt,
 			 * double-check this now that we have the actual
