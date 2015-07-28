@@ -2119,6 +2119,8 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	if (hsw == NULL)
 		return -ENOMEM;
 
+	hsw->dev = dev;
+
 	ipc = &hsw->ipc;
 	ipc->dev = dev;
 	ipc->ops.tx_msg = hsw_tx_msg;
