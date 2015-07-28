@@ -663,12 +663,6 @@ static int ap_probe(struct usb_interface *interface,
 		return PTR_ERR(hd);
 	}
 
-	/* Initialize AP's greybus interface */
-	if (!gb_ap_svc_connection_create(hd)) {
-		retval = -EINVAL;
-		goto error;
-	}
-
 	es1 = hd_to_es1(hd);
 	es1->hd = hd;
 	es1->usb_intf = interface;
