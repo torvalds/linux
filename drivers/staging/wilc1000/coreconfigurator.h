@@ -167,17 +167,18 @@ extern s32 CoreConfiguratorInit(void);
 extern s32 CoreConfiguratorDeInit(void);
 
 extern s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-				 u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
+			 u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
 extern s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
 extern s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 
 extern s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
-				      tstrConnectRespInfo **ppstrConnectRespInfo);
+			      tstrConnectRespInfo **ppstrConnectRespInfo);
 extern s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
 
 #ifndef CONNECT_DIRECT
 extern s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
-				      wid_site_survey_reslts_s **ppstrSurveyResults, u32 *pu32SurveyResultsCount);
+			      wid_site_survey_reslts_s **ppstrSurveyResults,
+			      u32 *pu32SurveyResultsCount);
 extern s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
 #endif
 
