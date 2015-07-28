@@ -74,6 +74,19 @@ static void socfpga_cyclone5_restart(enum reboot_mode mode, const char *cmd)
 	writel(temp, rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
 }
 
+static void socfpga_arria10_restart(enum reboot_mode mode, const char *cmd)
+{
+	u32 temp;
+
+	temp = readl(rst_manager_base_addr + SOCFPGA_A10_RSTMGR_CTRL);
+
+	if (mode == REBOOT_HARD)
+		temp |= RSTMGR_CTRL_SWCOLDRSTREQ;
+	else
+		temp |= RSTMGR_CTRL_SWWARMRSTREQ;
+	writel(temp, rst_manager_base_addr + SOCFPGA_A10_RSTMGR_CTRL);
+}
+
 static const char *altera_dt_match[] = {
 	"altr,socfpga",
 	NULL
@@ -85,4 +98,17 @@ DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
 	.init_irq	= socfpga_init_irq,
 	.restart	= socfpga_cyclone5_restart,
 	.dt_compat	= altera_dt_match,
+MACHINE_END
+
+static const char *altera_a10_dt_match[] = {
+	"altr,socfpga-arria10",
+	NULL
+};
+
+DT_MACHINE_START(SOCFPGA_A10, "Altera SOCFPGA Arria10")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
+	.init_irq	= socfpga_init_irq,
+	.restart	= socfpga_arria10_restart,
+	.dt_compat	= altera_a10_dt_match,
 MACHINE_END
