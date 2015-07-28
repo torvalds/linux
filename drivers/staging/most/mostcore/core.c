@@ -983,7 +983,7 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 		return ret;
 
 	if (mdev_devnod == 0 || *mdev_devnod == 0) {
-		snprintf(devnod_buf, PAGE_SIZE, "%s-%s", mdev, mdev_ch);
+		snprintf(devnod_buf, sizeof(devnod_buf), "%s-%s", mdev, mdev_ch);
 		mdev_devnod = devnod_buf;
 	}
 
