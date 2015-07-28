@@ -823,6 +823,13 @@ config DVB_HORUS3A
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_ASCOT2E
+	tristate "Sony Ascot2E tuner"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE
