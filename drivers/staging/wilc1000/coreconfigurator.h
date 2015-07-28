@@ -8,7 +8,6 @@
  *  @version	1.0
  */
 
-
 #ifndef CORECONFIGURATOR_H
 #define CORECONFIGURATOR_H
 
@@ -42,7 +41,6 @@ extern u16 g_num_total_switches;
 #define AID_LEN                 2
 #define IE_HDR_LEN              2
 
-
 /* Operating Mode: SET */
 #define SET_CFG              0
 /* Operating Mode: GET */
@@ -59,14 +57,11 @@ extern u16 g_num_total_switches;
 #define MAC_CONNECTED                1
 #define MAC_DISCONNECTED             0
 
-
-
 /*****************************************************************************/
 /* Function Macros                                                           */
 /*****************************************************************************/
 #define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
 #define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
-
 
 /*****************************************************************************/
 /* Type Definitions                                                                                                                       */
@@ -140,7 +135,6 @@ typedef struct {
 	u16 u16RespIEsLen;
 } tstrConnectRespInfo;
 
-
 typedef struct {
 	u8 au8bssid[6];
 	u8 *pu8ReqIEs;
@@ -149,8 +143,6 @@ typedef struct {
 	u16 u16RespIEsLen;
 	u16 u16ConnectStatus;
 } tstrConnectInfo;
-
-
 
 typedef struct {
 	u16 u16reason;
