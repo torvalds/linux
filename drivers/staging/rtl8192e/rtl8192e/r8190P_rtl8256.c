@@ -64,7 +64,7 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 	}
 }
 
-static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
+bool rtl92e_config_rf(struct net_device *dev)
 {
 	u32	u4RegValue = 0;
 	u8	eRFPath;
@@ -76,6 +76,8 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 	u32	RF3_Final_Value = 0;
 	u8	ConstRetryTimes = 5, RetryTimes = 5;
 	u8 ret = 0;
+
+	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
 
 	for (eRFPath = (enum rf90_radio_path)RF90_PATH_A;
 	     eRFPath < priv->NumTotalRFPath; eRFPath++) {
@@ -115,7 +117,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		if (!rtStatus) {
 			netdev_err(dev, "%s(): Failed to check RF Path %d.\n",
 				   __func__, eRFPath);
-			goto phy_RF8256_Config_ParaFile_Fail;
+			goto fail;
 		}
 
 		RetryTimes = ConstRetryTimes;
@@ -203,7 +205,7 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 			netdev_err(dev,
 				   "%s(): Failed to initialize RF Path %d.\n",
 				   __func__, eRFPath);
-			goto phy_RF8256_Config_ParaFile_Fail;
+			goto fail;
 		}
 
 	}
@@ -211,16 +213,8 @@ static bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 	RT_TRACE(COMP_PHY, "PHY Initialization Success\n");
 	return true;
 
-phy_RF8256_Config_ParaFile_Fail:
+fail:
 	return false;
-}
-
-bool rtl92e_config_rf(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
-	return phy_RF8256_Config_ParaFile(dev);
 }
 
 void rtl92e_set_cck_tx_power(struct net_device *dev, u8 powerlevel)
