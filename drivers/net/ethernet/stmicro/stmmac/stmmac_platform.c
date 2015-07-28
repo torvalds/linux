@@ -304,61 +304,6 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 EXPORT_SYMBOL_GPL(stmmac_get_platform_resources);
 
 /**
- * stmmac_pltfr_probe - platform driver probe.
- * @pdev: platform device pointer
- * Description: platform_device probe function. It is to allocate
- * the necessary platform resources, invoke custom helper (if required) and
- * invoke the main probe function.
- */
-int stmmac_pltfr_probe(struct platform_device *pdev)
-{
-	struct plat_stmmacenet_data *plat_dat;
-	struct stmmac_resources stmmac_res;
-	int ret;
-
-	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
-	if (ret)
-		return ret;
-
-	if (pdev->dev.of_node) {
-		plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
-		if (IS_ERR(plat_dat)) {
-			dev_err(&pdev->dev, "dt configuration failed\n");
-			return PTR_ERR(plat_dat);
-		}
-	} else {
-		plat_dat = dev_get_platdata(&pdev->dev);
-		if (!plat_dat) {
-			dev_err(&pdev->dev, "no platform data provided\n");
-			return  -EINVAL;
-		}
-
-		/* Set default value for multicast hash bins */
-		plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-		/* Set default value for unicast filter entries */
-		plat_dat->unicast_filter_entries = 1;
-	}
-
-	/* Custom setup (if needed) */
-	if (plat_dat->setup) {
-		plat_dat->bsp_priv = plat_dat->setup(pdev);
-		if (IS_ERR(plat_dat->bsp_priv))
-			return PTR_ERR(plat_dat->bsp_priv);
-	}
-
-	/* Custom initialisation (if needed)*/
-	if (plat_dat->init) {
-		ret = plat_dat->init(pdev, plat_dat->bsp_priv);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
-}
-EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
-
-/**
  * stmmac_pltfr_remove
  * @pdev: platform device pointer
  * Description: this function calls the main to free the net resources
