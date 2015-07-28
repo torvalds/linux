@@ -915,10 +915,10 @@ config TOUCHSCREEN_TSC_SERIO
 	  module will be called tsc40.
 
 config TOUCHSCREEN_TSC2005
-        tristate "TSC2005 based touchscreens"
-        depends on SPI_MASTER
-        help
-          Say Y here if you have a TSC2005 based touchscreen.
+	tristate "TSC2005 based touchscreens"
+	depends on SPI_MASTER
+	help
+	  Say Y here if you have a TSC2005 based touchscreen.
 
 	  If unsure, say N.
 
