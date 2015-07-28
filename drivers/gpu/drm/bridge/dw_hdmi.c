@@ -737,9 +737,9 @@ static int hdmi_phy_i2c_write(struct dw_hdmi *hdmi, unsigned short data,
 	return 0;
 }
 
-static void dw_hdmi_phy_enable_power(struct dw_hdmi *hdmi, u8 enable)
+static void dw_hdmi_phy_enable_powerdown(struct dw_hdmi *hdmi, bool enable)
 {
-	hdmi_mask_writeb(hdmi, enable, HDMI_PHY_CONF0,
+	hdmi_mask_writeb(hdmi, !enable, HDMI_PHY_CONF0,
 			 HDMI_PHY_CONF0_PDZ_OFFSET,
 			 HDMI_PHY_CONF0_PDZ_MASK);
 }
@@ -879,7 +879,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	/* REMOVE CLK TERM */
 	hdmi_phy_i2c_write(hdmi, 0x8000, 0x05);  /* CKCALCTRL */
 
-	dw_hdmi_phy_enable_power(hdmi, 1);
+	dw_hdmi_phy_enable_powerdown(hdmi, false);
 
 	/* toggle TMDS enable */
 	dw_hdmi_phy_enable_tmds(hdmi, 0);
@@ -924,7 +924,7 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi)
 		dw_hdmi_phy_sel_data_en_pol(hdmi, 1);
 		dw_hdmi_phy_sel_interface_control(hdmi, 0);
 		dw_hdmi_phy_enable_tmds(hdmi, 0);
-		dw_hdmi_phy_enable_power(hdmi, 0);
+		dw_hdmi_phy_enable_powerdown(hdmi, true);
 
 		/* Enable CSC */
 		ret = hdmi_phy_configure(hdmi, 0, 8, cscon);
@@ -1141,7 +1141,7 @@ static void dw_hdmi_phy_disable(struct dw_hdmi *hdmi)
 		return;
 
 	dw_hdmi_phy_enable_tmds(hdmi, 0);
-	dw_hdmi_phy_enable_power(hdmi, 0);
+	dw_hdmi_phy_enable_powerdown(hdmi, true);
 
 	hdmi->phy_enabled = false;
 }
