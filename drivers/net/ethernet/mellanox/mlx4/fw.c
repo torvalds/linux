@@ -2815,7 +2815,7 @@ int get_phv_bit(struct mlx4_dev *dev, u8 port, int *phv)
 	struct mlx4_func_cap func_cap;
 
 	memset(&func_cap, 0, sizeof(func_cap));
-	err = mlx4_QUERY_FUNC_CAP(dev, 1, &func_cap);
+	err = mlx4_QUERY_FUNC_CAP(dev, port, &func_cap);
 	if (!err)
 		*phv = func_cap.flags & QUERY_FUNC_CAP_PHV_BIT;
 	return err;
