@@ -10,18 +10,18 @@
 
 include ../../scripts/Makefile.include
 
-all: acpidump
-clean: acpidump_clean
-install: acpidump_install
-uninstall: acpidump_uninstall
+all: acpidump ec
+clean: acpidump_clean ec_clean
+install: acpidump_install ec_install
+uninstall: acpidump_uninstall ec_uninstall
 
-acpidump: FORCE
+acpidump ec: FORCE
 	$(call descend,tools/$@,all)
-acpidump_clean:
+acpidump_clean ec_clean:
 	$(call descend,tools/$(@:_clean=),clean)
-acpidump_install:
+acpidump_install ec_install:
 	$(call descend,tools/$(@:_install=),install)
-acpidump_uninstall:
+acpidump_uninstall ec_uninstall:
 	$(call descend,tools/$(@:_uninstall=),uninstall)
 
 .PHONY: FORCE
