@@ -537,7 +537,7 @@ error_free_name:
 	return ret;
 }
 
-int calc_digits(int num)
+static int calc_digits(int num)
 {
 	int count = 0;
 
