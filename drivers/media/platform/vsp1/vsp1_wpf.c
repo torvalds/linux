@@ -112,7 +112,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	/* Destination stride. */
 	if (!pipe->lif) {
-		struct v4l2_pix_format_mplane *format = &wpf->video.format;
+		struct v4l2_pix_format_mplane *format = &wpf->format;
 
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_STRIDE_Y,
 			       format->plane_fmt[0].bytesperline);
@@ -130,7 +130,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	/* Format */
 	if (!pipe->lif) {
-		const struct vsp1_format_info *fmtinfo = wpf->video.fmtinfo;
+		const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 
 		outfmt = fmtinfo->hwfmt << VI6_WPF_OUTFMT_WRFMT_SHIFT;
 

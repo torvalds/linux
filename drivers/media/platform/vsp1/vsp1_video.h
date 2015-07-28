@@ -123,8 +123,6 @@ struct vsp1_video {
 	struct media_pad pad;
 
 	struct mutex lock;
-	struct v4l2_pix_format_mplane format;
-	const struct vsp1_format_info *fmtinfo;
 
 	struct vsp1_pipeline pipe;
 	unsigned int pipe_index;

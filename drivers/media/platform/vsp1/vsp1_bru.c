@@ -94,7 +94,7 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 	/* Disable dithering and enable color data normalization unless the
 	 * format at the pipeline output is premultiplied.
 	 */
-	flags = pipe->output ? pipe->output->video.format.flags : 0;
+	flags = pipe->output ? pipe->output->format.flags : 0;
 	vsp1_bru_write(bru, VI6_BRU_INCTRL,
 		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
 		       0 : VI6_BRU_INCTRL_NRM);
@@ -125,7 +125,7 @@ static int bru_s_stream(struct v4l2_subdev *subdev, int enable)
 		if (bru->inputs[i].rpf) {
 			ctrl |= VI6_BRU_CTRL_RBC;
 
-			premultiplied = bru->inputs[i].rpf->video.format.flags
+			premultiplied = bru->inputs[i].rpf->format.flags
 				      & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA;
 		} else {
 			ctrl |= VI6_BRU_CTRL_CROP(VI6_ROP_NOP)

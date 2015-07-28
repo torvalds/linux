@@ -75,8 +75,8 @@ static const struct v4l2_ctrl_ops rpf_ctrl_ops = {
 static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
-	const struct vsp1_format_info *fmtinfo = rpf->video.fmtinfo;
-	const struct v4l2_pix_format_mplane *format = &rpf->video.format;
+	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
+	const struct v4l2_pix_format_mplane *format = &rpf->format;
 	const struct v4l2_rect *crop = &rpf->crop;
 	u32 pstride;
 	u32 infmt;
