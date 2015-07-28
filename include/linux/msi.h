@@ -15,8 +15,22 @@ extern int pci_msi_ignore_mask;
 struct irq_data;
 struct msi_desc;
 struct pci_dev;
+struct platform_msi_priv_data;
 void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg);
+
+typedef void (*irq_write_msi_msg_t)(struct msi_desc *desc,
+				    struct msi_msg *msg);
+
+/**
+ * platform_msi_desc - Platform device specific msi descriptor data
+ * @msi_priv_data:	Pointer to platform private data
+ * @msi_index:		The index of the MSI descriptor for multi MSI
+ */
+struct platform_msi_desc {
+	struct platform_msi_priv_data	*msi_priv_data;
+	u16				msi_index;
+};
 
 /**
  * struct msi_desc - Descriptor structure for MSI based interrupts
@@ -36,6 +50,7 @@ void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg);
  * @default_irq:[PCI MSI/X] The default pre-assigned non-MSI irq
  * @mask_pos:	[PCI MSI]   Mask register position
  * @mask_base:	[PCI MSI-X] Mask register base address
+ * @platform:	[platform]  Platform device specific msi descriptor data
  */
 struct msi_desc {
 	/* Shared device/bus type independent data */
@@ -71,6 +86,7 @@ struct msi_desc {
 		 * anonymous for now as it would require an immediate
 		 * tree wide cleanup.
 		 */
+		struct platform_msi_desc platform;
 	};
 };
 
@@ -257,6 +273,12 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
 struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain);
 
+struct irq_domain *platform_msi_create_irq_domain(struct device_node *np,
+						  struct msi_domain_info *info,
+						  struct irq_domain *parent);
+int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
+				   irq_write_msi_msg_t write_msi_msg);
+void platform_msi_domain_free_irqs(struct device *dev);
 #endif /* CONFIG_GENERIC_MSI_IRQ_DOMAIN */
 
 #ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
