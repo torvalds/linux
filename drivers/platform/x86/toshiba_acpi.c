@@ -1422,27 +1422,47 @@ static const struct file_operations video_proc_fops = {
 	.write		= video_proc_write,
 };
 
+/* Fan status */
 static int get_fan_status(struct toshiba_acpi_dev *dev, u32 *status)
 {
-	u32 hci_result;
+	u32 result = hci_read(dev, HCI_FAN, status);
 
-	hci_result = hci_read(dev, HCI_FAN, status);
-	return hci_result == TOS_SUCCESS ? 0 : -EIO;
+	if (result == TOS_FAILURE)
+		pr_err("ACPI call to get Fan status failed\n");
+	else if (result == TOS_NOT_SUPPORTED)
+		return -ENODEV;
+	else if (result == TOS_SUCCESS)
+		return 0;
+
+	return -EIO;
+}
+
+static int set_fan_status(struct toshiba_acpi_dev *dev, u32 status)
+{
+	u32 result = hci_write(dev, HCI_FAN, status);
+
+	if (result == TOS_FAILURE)
+		pr_err("ACPI call to set Fan status failed\n");
+	else if (result == TOS_NOT_SUPPORTED)
+		return -ENODEV;
+	else if (result == TOS_SUCCESS)
+		return 0;
+
+	return -EIO;
 }
 
 static int fan_proc_show(struct seq_file *m, void *v)
 {
 	struct toshiba_acpi_dev *dev = m->private;
-	int ret;
 	u32 value;
 
-	ret = get_fan_status(dev, &value);
-	if (!ret) {
-		seq_printf(m, "running:                 %d\n", (value > 0));
-		seq_printf(m, "force_on:                %d\n", dev->force_fan);
-	}
+	if (get_fan_status(dev, &value))
+		return -EIO;
 
-	return ret;
+	seq_printf(m, "running:                 %d\n", (value > 0));
+	seq_printf(m, "force_on:                %d\n", dev->force_fan);
+
+	return 0;
 }
 
 static int fan_proc_open(struct inode *inode, struct file *file)
@@ -1457,23 +1477,20 @@ static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 	char cmd[42];
 	size_t len;
 	int value;
-	u32 hci_result;
 
 	len = min(count, sizeof(cmd) - 1);
 	if (copy_from_user(cmd, buf, len))
 		return -EFAULT;
 	cmd[len] = '\0';
 
-	if (sscanf(cmd, " force_on : %i", &value) == 1 &&
-	    value >= 0 && value <= 1) {
-		hci_result = hci_write(dev, HCI_FAN, value);
-		if (hci_result == TOS_SUCCESS)
-			dev->force_fan = value;
-		else
-			return -EIO;
-	} else {
+	if (sscanf(cmd, " force_on : %i", &value) != 1 &&
+	    value != 0 && value != 1)
 		return -EINVAL;
-	}
+
+	if (set_fan_status(dev, value))
+		return -EIO;
+
+	dev->force_fan = value;
 
 	return count;
 }
@@ -1610,7 +1627,6 @@ static ssize_t fan_store(struct device *dev,
 			 const char *buf, size_t count)
 {
 	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
-	u32 result;
 	int state;
 	int ret;
 
@@ -1621,11 +1637,9 @@ static ssize_t fan_store(struct device *dev,
 	if (state != 0 && state != 1)
 		return -EINVAL;
 
-	result = hci_write(toshiba, HCI_FAN, state);
-	if (result == TOS_FAILURE)
-		return -EIO;
-	else if (result == TOS_NOT_SUPPORTED)
-		return -ENODEV;
+	ret = set_fan_status(toshiba, state);
+	if (ret)
+		return ret;
 
 	return count;
 }
