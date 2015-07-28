@@ -23,11 +23,12 @@
 
 #include "clock.h"
 #include "clock3xxx.h"
-#include "clock34xx.h"
 #include "sdrc.h"
 #include "sram.h"
 
 #define CYCLES_PER_MHZ			1000000
+
+struct clk *sdrc_ick_p, *arm_fck_p;
 
 /*
  * CORE DPLL (DPLL3) M2 divider rate programming functions
@@ -60,7 +61,9 @@ int omap3_core_dpll_m2_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!clk || !rate)
 		return -EINVAL;
 
-	validrate = omap2_clksel_round_rate_div(clk, rate, &new_div);
+	new_div = DIV_ROUND_UP(parent_rate, rate);
+	validrate = parent_rate / new_div;
+
 	if (validrate != rate)
 		return -EINVAL;
 

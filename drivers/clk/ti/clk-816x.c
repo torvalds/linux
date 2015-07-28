@@ -14,6 +14,8 @@
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 static struct ti_dt_clk dm816x_clks[] = {
 	DT_CLK(NULL, "sys_clkin", "sys_clkin_ck"),
 	DT_CLK(NULL, "timer_sys_ck", "sys_clkin_ck"),

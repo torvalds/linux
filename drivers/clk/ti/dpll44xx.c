@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <linux/clk/ti.h>
 
 #include "clock.h"
 
@@ -29,14 +30,14 @@
 /*
  * Bitfield declarations
  */
-#define OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK		(1 << 8)
-#define OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK		(1 << 10)
-#define OMAP4430_DPLL_REGM4XEN_MASK			(1 << 11)
+#define OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK		BIT(8)
+#define OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK		BIT(10)
+#define OMAP4430_DPLL_REGM4XEN_MASK			BIT(11)
 
 /* Static rate multiplier for OMAP4 REGM4XEN clocks */
 #define OMAP4430_REGM4XEN_MULT				4
 
-void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
+static void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
 {
 	u32 v;
 	u32 mask;
@@ -48,13 +49,13 @@ void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
 			OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK :
 			OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK;
 
-	v = omap2_clk_readl(clk, clk->clksel_reg);
+	v = ti_clk_ll_ops->clk_readl(clk->clksel_reg);
 	/* Clear the bit to allow gatectrl */
 	v &= ~mask;
-	omap2_clk_writel(v, clk, clk->clksel_reg);
+	ti_clk_ll_ops->clk_writel(v, clk->clksel_reg);
 }
 
-void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
+static void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
 {
 	u32 v;
 	u32 mask;
@@ -66,10 +67,10 @@ void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
 			OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK :
 			OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK;
 
-	v = omap2_clk_readl(clk, clk->clksel_reg);
+	v = ti_clk_ll_ops->clk_readl(clk->clksel_reg);
 	/* Set the bit to deny gatectrl */
 	v |= mask;
-	omap2_clk_writel(v, clk, clk->clksel_reg);
+	ti_clk_ll_ops->clk_writel(v, clk->clksel_reg);
 }
 
 const struct clk_hw_omap_ops clkhwops_omap4_dpllmx = {
@@ -112,7 +113,7 @@ static void omap4_dpll_lpmode_recalc(struct dpll_data *dd)
  * upon success, or 0 upon error.
  */
 unsigned long omap4_dpll_regm4xen_recalc(struct clk_hw *hw,
-			unsigned long parent_rate)
+					 unsigned long parent_rate)
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	u32 v;
@@ -127,7 +128,7 @@ unsigned long omap4_dpll_regm4xen_recalc(struct clk_hw *hw,
 	rate = omap2_get_dpll_rate(clk);
 
 	/* regm4xen adds a multiplier of 4 to DPLL calculations */
-	v = omap2_clk_readl(clk, dd->control_reg);
+	v = ti_clk_ll_ops->clk_readl(dd->control_reg);
 	if (v & OMAP4430_DPLL_REGM4XEN_MASK)
 		rate *= OMAP4430_REGM4XEN_MULT;
 

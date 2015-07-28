@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/clk/ti.h>
 
 #include <asm/div64.h>
 
@@ -80,8 +81,8 @@ static int _dpll_test_fint(struct clk_hw_omap *clk, unsigned int n)
 		fint_min = OMAP3PLUS_DPLL_FINT_JTYPE_MIN;
 		fint_max = OMAP3PLUS_DPLL_FINT_JTYPE_MAX;
 	} else {
-		fint_min = ti_clk_features.fint_min;
-		fint_max = ti_clk_features.fint_max;
+		fint_min = ti_clk_get_features()->fint_min;
+		fint_max = ti_clk_get_features()->fint_max;
 	}
 
 	if (!fint_min || !fint_max) {
@@ -89,18 +90,18 @@ static int _dpll_test_fint(struct clk_hw_omap *clk, unsigned int n)
 		return DPLL_FINT_INVALID;
 	}
 
-	if (fint < ti_clk_features.fint_min) {
+	if (fint < ti_clk_get_features()->fint_min) {
 		pr_debug("rejecting n=%d due to Fint failure, lowering max_divider\n",
 			 n);
 		dd->max_divider = n;
 		ret = DPLL_FINT_UNDERFLOW;
-	} else if (fint > ti_clk_features.fint_max) {
+	} else if (fint > ti_clk_get_features()->fint_max) {
 		pr_debug("rejecting n=%d due to Fint failure, boosting min_divider\n",
 			 n);
 		dd->min_divider = n;
 		ret = DPLL_FINT_INVALID;
-	} else if (fint > ti_clk_features.fint_band1_max &&
-		   fint < ti_clk_features.fint_band2_min) {
+	} else if (fint > ti_clk_get_features()->fint_band1_max &&
+		   fint < ti_clk_get_features()->fint_band2_min) {
 		pr_debug("rejecting n=%d due to Fint failure\n", n);
 		ret = DPLL_FINT_INVALID;
 	}
@@ -183,7 +184,7 @@ static int _omap2_dpll_is_in_bypass(u32 v)
 {
 	u8 mask, val;
 
-	mask = ti_clk_features.dpll_bypass_vals;
+	mask = ti_clk_get_features()->dpll_bypass_vals;
 
 	/*
 	 * Each set bit in the mask corresponds to a bypass value equal
@@ -211,7 +212,7 @@ u8 omap2_init_dpll_parent(struct clk_hw *hw)
 	if (!dd)
 		return -EINVAL;
 
-	v = omap2_clk_readl(clk, dd->control_reg);
+	v = ti_clk_ll_ops->clk_readl(dd->control_reg);
 	v &= dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
 
@@ -247,20 +248,20 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 		return 0;
 
 	/* Return bypass rate if DPLL is bypassed */
-	v = omap2_clk_readl(clk, dd->control_reg);
+	v = ti_clk_ll_ops->clk_readl(dd->control_reg);
 	v &= dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
 
 	if (_omap2_dpll_is_in_bypass(v))
 		return __clk_get_rate(dd->clk_bypass);
 
-	v = omap2_clk_readl(clk, dd->mult_div1_reg);
+	v = ti_clk_ll_ops->clk_readl(dd->mult_div1_reg);
 	dpll_mult = v & dd->mult_mask;
 	dpll_mult >>= __ffs(dd->mult_mask);
 	dpll_div = v & dd->div1_mask;
 	dpll_div >>= __ffs(dd->div1_mask);
 
-	dpll_clk = (long long) __clk_get_rate(dd->clk_ref) * dpll_mult;
+	dpll_clk = (long long)__clk_get_rate(dd->clk_ref) * dpll_mult;
 	do_div(dpll_clk, dpll_div + 1);
 
 	return dpll_clk;
@@ -281,7 +282,7 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
  * be rounded, or the rounded rate upon success.
  */
 long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
-		unsigned long *parent_rate)
+			   unsigned long *parent_rate)
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	int m, n, r, scaled_max_m;
@@ -310,7 +311,6 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 	dd->last_rounded_rate = 0;
 
 	for (n = dd->min_divider; n <= dd->max_divider; n++) {
-
 		/* Is the (input clk, divider) pair valid for the DPLL? */
 		r = _dpll_test_fint(clk, n);
 		if (r == DPLL_FINT_UNDERFLOW)
@@ -367,4 +367,3 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 
 	return dd->last_rounded_rate;
 }
-
