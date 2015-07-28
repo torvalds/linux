@@ -24,26 +24,19 @@
  *
  * @cookie: cookie returned by dma_alloc_attrs
  * @kvaddr: kernel virtual address to allocated memory region.
- * *userptr: user space address.
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
  *	- this address could be physical address without IOMMU and
  *	device address with IOMMU.
- * @write: whether pages will be written to by the caller.
  * @pages: Array of backing pages.
  * @size: size of allocated memory region.
- * @pfnmap: indicate whether memory region from userptr is mmaped with
- *	VM_PFNMAP or not.
  */
 struct exynos_drm_gem_buf {
 	void 			*cookie;
 	void __iomem		*kvaddr;
-	unsigned long		userptr;
 	dma_addr_t		dma_addr;
 	struct dma_attrs	dma_attrs;
-	unsigned int		write;
 	struct page		**pages;
 	unsigned long		size;
-	bool			pfnmap;
 };
 
 /*
