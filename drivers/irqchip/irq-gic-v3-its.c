@@ -1444,13 +1444,14 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
 	if (of_property_read_bool(its->msi_chip.of_node, "msi-controller")) {
-		its->domain = irq_domain_add_tree(NULL, &its_domain_ops, its);
+		its->domain = irq_domain_add_tree(node, &its_domain_ops, its);
 		if (!its->domain) {
 			err = -ENOMEM;
 			goto out_free_tables;
 		}
 
 		its->domain->parent = parent;
+		its->domain->bus_token = DOMAIN_BUS_NEXUS;
 
 		its->msi_chip.domain = its_pci_msi_alloc_domain(node,
 								its->domain);
