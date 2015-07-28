@@ -11,20 +11,20 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/time.h>
-#include <linux/rtc.h>
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
-#include <linux/slab.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/platform_data/atmel.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/rtc.h>
+#include <linux/slab.h>
 #include <linux/suspend.h>
-#include <linux/clk.h>
+#include <linux/time.h>
 
 /*
  * This driver uses two configurable hardware resources that live in the
