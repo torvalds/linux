@@ -194,9 +194,9 @@ static char *ps8current = DebugBuffer;
 void printk_later(const char *format, ...)
 {
 	va_list args;
-	va_start (args, format);
-	ps8current += vsprintf (ps8current, format, args);
-	va_end (args);
+	va_start(args, format);
+	ps8current += vsprintf(ps8current, format, args);
+	va_end(args);
 	if ((ps8current - DebugBuffer) > DEGUG_BUFFER_LENGTH)
 		ps8current = DebugBuffer;
 
@@ -477,9 +477,9 @@ static int init_irq(linux_wlan_t *p_nic)
  *
  * ex) nic->dev_irq_num = gpio_to_irq(GPIO_NUM);
  */
-#elif defined (NM73131_0_BOARD)
+#elif defined(NM73131_0_BOARD)
 		nic->dev_irq_num = IRQ_WILC1000;
-#elif defined (PANDA_BOARD)
+#elif defined(PANDA_BOARD)
 		gpio_export(GPIO_NUM, 1);
 		nic->dev_irq_num = OMAP_GPIO_IRQ(GPIO_NUM);
 		irq_set_irq_type(nic->dev_irq_num, IRQ_TYPE_LEVEL_LOW);
@@ -1483,7 +1483,7 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 
 	nwi->os_context.txq_wait_event = (void *)&g_linux_wlan->txq_event;
 
-#if defined (MEMORY_STATIC)
+#if defined(MEMORY_STATIC)
 	nwi->os_context.rx_buffer_size = LINUX_RX_SIZE;
 #endif
 	nwi->os_context.rxq_critical_section = (void *)&g_linux_wlan->rxq_cs;
@@ -1935,7 +1935,7 @@ _fail_locks_:
  *      - this function will be called automatically by OS when module inserted.
  */
 
-#if !defined (NM73131_0_BOARD)
+#if !defined(NM73131_0_BOARD)
 int mac_init_fn(struct net_device *ndev)
 {
 
@@ -1966,7 +1966,7 @@ void    WILC_WFI_frame_register(struct wiphy *wiphy, struct net_device *dev,
 				u16 frame_type, bool reg);
 
 /* This fn is called, when this device is setup using ifconfig */
-#if !defined (NM73131_0_BOARD)
+#if !defined(NM73131_0_BOARD)
 int mac_open(struct net_device *ndev)
 {
 	perInterface_wlan_t *nic;
@@ -2565,7 +2565,7 @@ int wilc_netdev_init(void)
 /*The 1st function called after module inserted*/
 static int __init init_wilc_driver(void)
 {
-#if defined (WILC_DEBUGFS)
+#if defined(WILC_DEBUGFS)
 	if (wilc_debugfs_init() < 0) {
 		PRINT_D(GENERIC_DBG, "fail to create debugfs for wilc driver\n");
 		return -1;
@@ -2671,7 +2671,7 @@ static void __exit exit_wilc_driver(void)
 		}
 		printk("Module_exit Done.\n");
 
-#if defined (WILC_DEBUGFS)
+#if defined(WILC_DEBUGFS)
 		wilc_debugfs_remove();
 #endif
 
