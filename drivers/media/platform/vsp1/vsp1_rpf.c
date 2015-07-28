@@ -271,7 +271,7 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	video->vsp1 = vsp1;
 	video->ops = &rpf_vdev_ops;
 
-	ret = vsp1_video_init(video, &rpf->entity);
+	ret = vsp1_video_init(video, rpf);
 	if (ret < 0)
 		goto error;
 
