@@ -103,13 +103,13 @@ static inline int have_expired_capa(void)
 	spin_lock(&capa_lock);
 	if (!list_empty(ll_capa_list)) {
 		ocapa = list_entry(ll_capa_list->next, struct obd_capa,
-				       c_list);
+				   c_list);
 		expired = capa_is_to_expire(ocapa);
 		if (!expired)
 			update_capa_timer(ocapa, capa_renewal_time(ocapa));
 	} else if (!list_empty(&ll_idle_capas)) {
 		ocapa = list_entry(ll_idle_capas.next, struct obd_capa,
-				       c_list);
+				   c_list);
 		expired = capa_is_expired(ocapa);
 		if (!expired)
 			update_capa_timer(ocapa, ocapa->c_expiry);
@@ -259,7 +259,7 @@ static int capa_thread_main(void *unused)
 			update_capa_timer(next, capa_renewal_time(next));
 
 		list_for_each_entry_safe(ocapa, tmp, &ll_idle_capas,
-					     c_list) {
+					 c_list) {
 			if (!capa_is_expired(ocapa)) {
 				if (!next)
 					update_capa_timer(ocapa,
@@ -303,11 +303,11 @@ int ll_capa_thread_start(void)
 	task = kthread_run(capa_thread_main, NULL, "ll_capa");
 	if (IS_ERR(task)) {
 		CERROR("cannot start expired capa thread: rc %ld\n",
-			PTR_ERR(task));
+		       PTR_ERR(task));
 		return PTR_ERR(task);
 	}
 	wait_event(ll_capa_thread.t_ctl_waitq,
-		       thread_is_running(&ll_capa_thread));
+		   thread_is_running(&ll_capa_thread));
 
 	return 0;
 }
@@ -317,7 +317,7 @@ void ll_capa_thread_stop(void)
 	thread_set_flags(&ll_capa_thread, SVC_STOPPING);
 	wake_up(&ll_capa_thread.t_ctl_waitq);
 	wait_event(ll_capa_thread.t_ctl_waitq,
-		       thread_is_stopped(&ll_capa_thread));
+		   thread_is_stopped(&ll_capa_thread));
 }
 
 struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
@@ -644,7 +644,7 @@ void ll_clear_inode_capas(struct inode *inode)
 		ll_delete_capa(ocapa);
 
 	list_for_each_entry_safe(ocapa, tmp, &lli->lli_oss_capas,
-				     u.cli.lli_list)
+				 u.cli.lli_list)
 		ll_delete_capa(ocapa);
 	spin_unlock(&capa_lock);
 }
