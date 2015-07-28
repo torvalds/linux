@@ -149,8 +149,7 @@ void rtl92e_writew(struct net_device *dev, int x, u16 y)
 *****************************************************************************/
 bool rtl92e_set_rf_state(struct net_device *dev,
 			 enum rt_rf_power_state StateToSet,
-			 RT_RF_CHANGE_SOURCE ChangeSource,
-			 bool	ProtectOrNot)
+			 RT_RF_CHANGE_SOURCE ChangeSource)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -163,37 +162,32 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	RT_TRACE((COMP_PS | COMP_RF),
 		 "===>rtl92e_set_rf_state(): StateToSet(%d)\n", StateToSet);
 
-	ProtectOrNot = false;
+	while (true) {
+		spin_lock_irqsave(&priv->rf_ps_lock, flag);
+		if (priv->RFChangeInProgress) {
+			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
+			RT_TRACE((COMP_PS | COMP_RF),
+				 "rtl92e_set_rf_state(): RF Change in progress! Wait to set..StateToSet(%d).\n",
+				 StateToSet);
 
-
-	if (!ProtectOrNot) {
-		while (true) {
-			spin_lock_irqsave(&priv->rf_ps_lock, flag);
-			if (priv->RFChangeInProgress) {
-				spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
+			while (priv->RFChangeInProgress) {
+				RFWaitCounter++;
 				RT_TRACE((COMP_PS | COMP_RF),
-					 "rtl92e_set_rf_state(): RF Change in progress! Wait to set..StateToSet(%d).\n",
-					 StateToSet);
+					 "rtl92e_set_rf_state(): Wait 1 ms (%d times)...\n",
+					 RFWaitCounter);
+				mdelay(1);
 
-				while (priv->RFChangeInProgress) {
-					RFWaitCounter++;
-					RT_TRACE((COMP_PS | COMP_RF),
-						 "rtl92e_set_rf_state(): Wait 1 ms (%d times)...\n",
-						 RFWaitCounter);
-					mdelay(1);
-
-					if (RFWaitCounter > 100) {
-						netdev_warn(dev,
-							    "%s(): Timeout waiting for RF change.\n",
-							    __func__);
-						return false;
-					}
+				if (RFWaitCounter > 100) {
+					netdev_warn(dev,
+						    "%s(): Timeout waiting for RF change.\n",
+						    __func__);
+					return false;
 				}
-			} else {
-				priv->RFChangeInProgress = true;
-				spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-				break;
 			}
+		} else {
+			priv->RFChangeInProgress = true;
+			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
+			break;
 		}
 	}
 
@@ -270,11 +264,9 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			 StateToSet, ChangeSource, priv->rtllib->RfOffReason);
 	}
 
-	if (!ProtectOrNot) {
-		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		priv->RFChangeInProgress = false;
-		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-	}
+	spin_lock_irqsave(&priv->rf_ps_lock, flag);
+	priv->RFChangeInProgress = false;
+	spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
 	RT_TRACE((COMP_PS | COMP_RF), "<===rtl92e_set_rf_state()\n");
 	return bActionAllowed;

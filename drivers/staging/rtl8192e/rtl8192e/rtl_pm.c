@@ -45,7 +45,7 @@ int rtl92e_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(dev);
 
 	if (!priv->rtllib->bSupportRemoteWakeUp) {
-		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_INIT, true);
+		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_INIT);
 		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
 		rtl92e_writel(dev, CPU_GEN, ulRegRead);
@@ -108,7 +108,7 @@ int rtl92e_resume(struct pci_dev *pdev)
 		dev->netdev_ops->ndo_open(dev);
 
 	if (!priv->rtllib->bSupportRemoteWakeUp)
-		rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_INIT, true);
+		rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_INIT);
 
 out:
 	RT_TRACE(COMP_POWER, "<================r8192E resume call.\n");
