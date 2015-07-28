@@ -109,29 +109,11 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
-	const struct stmmac_of_data *data;
 	struct stmmac_dma_cfg *dma_cfg;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
-
-	data = of_device_get_match_data(&pdev->dev);
-	if (data) {
-		plat->has_gmac = data->has_gmac;
-		plat->enh_desc = data->enh_desc;
-		plat->tx_coe = data->tx_coe;
-		plat->rx_coe = data->rx_coe;
-		plat->bugged_jumbo = data->bugged_jumbo;
-		plat->pmt = data->pmt;
-		plat->riwt_off = data->riwt_off;
-		plat->fix_mac_speed = data->fix_mac_speed;
-		plat->bus_setup = data->bus_setup;
-		plat->setup = data->setup;
-		plat->free = data->free;
-		plat->init = data->init;
-		plat->exit = data->exit;
-	}
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);

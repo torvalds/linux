@@ -21,6 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_net.h>
 
 #include "stmmac_platform.h"
@@ -337,9 +338,16 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 static int sti_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
+	const struct stmmac_of_data *data;
 	struct stmmac_resources stmmac_res;
 	struct sti_dwmac *dwmac;
 	int ret;
+
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data) {
+		dev_err(&pdev->dev, "No OF match data provided\n");
+		return -EINVAL;
+	}
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
@@ -360,7 +368,9 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	}
 
 	plat_dat->bsp_priv = dwmac;
+	plat_dat->init = data->init;
 	plat_dat->exit = sti_dwmac_exit;
+	plat_dat->fix_mac_speed = data->fix_mac_speed;
 
 	ret = plat_dat->init(pdev, plat_dat->bsp_priv);
 	if (ret)
