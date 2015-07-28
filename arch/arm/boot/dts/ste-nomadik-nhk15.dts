@@ -83,6 +83,11 @@
 	};
 
 	i2c0 {
+		lis3lv02dl@1d {
+			/* Accelerometer */
+			compatible = "st,lis3lv02dl-accel";
+			reg = <0x1d>;
+		};
 		stmpe0: stmpe2401@43 {
 			compatible = "st,stmpe2401";
 			reg = <0x43>;

@@ -720,11 +720,6 @@
 			   compatible = "st,stw5095";
 			   reg = <0x1a>;
 		};
-		lis3lv02dl@1d {
-			/* Accelerometer */
-			compatible = "st,lis3lv02dl-accel";
-			reg = <0x1d>;
-		};
 	};
 
 	amba {

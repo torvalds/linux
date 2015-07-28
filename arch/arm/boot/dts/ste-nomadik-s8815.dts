@@ -105,6 +105,14 @@
 		};
 	};
 
+	i2c1 {
+		lis3lv02dl@1d {
+			/* Accelerometer */
+			compatible = "st,lis3lv02dl-accel";
+			reg = <0x1d>;
+		};
+	};
+
 	/* GPIO I2C connected to the USB portions of the STw4811 only */
 	gpio-i2c {
 		compatible = "i2c-gpio";
