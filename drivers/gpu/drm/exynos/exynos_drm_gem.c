@@ -455,9 +455,6 @@ void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 	exynos_gem_obj = to_exynos_gem_obj(obj);
 	buf = exynos_gem_obj->buffer;
 
-	if (obj->import_attach)
-		drm_prime_gem_destroy(obj, buf->sgt);
-
 	exynos_drm_gem_destroy(to_exynos_gem_obj(obj));
 }
 

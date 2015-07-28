@@ -18,7 +18,7 @@
 #include <linux/dma-buf.h>
 
 struct exynos_drm_dmabuf_attachment {
-	struct sg_table sgt;
+	struct sg_table *sgt;
 	enum dma_data_direction dir;
 	bool is_mapped;
 };
@@ -53,13 +53,15 @@ static void exynos_gem_detach_dma_buf(struct dma_buf *dmabuf,
 	if (!exynos_attach)
 		return;
 
-	sgt = &exynos_attach->sgt;
+	sgt = exynos_attach->sgt;
+	if (sgt) {
+		if (exynos_attach->dir != DMA_NONE)
+			dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+					exynos_attach->dir);
+		sg_free_table(sgt);
+	}
 
-	if (exynos_attach->dir != DMA_NONE)
-		dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
-				exynos_attach->dir);
-
-	sg_free_table(sgt);
+	kfree(sgt);
 	kfree(exynos_attach);
 	attach->priv = NULL;
 }
@@ -70,16 +72,13 @@ static struct sg_table *
 {
 	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
 	struct exynos_drm_gem_obj *gem_obj = dma_buf_to_obj(attach->dmabuf);
-	struct drm_device *dev = gem_obj->base.dev;
 	struct exynos_drm_gem_buf *buf;
-	struct scatterlist *rd, *wr;
-	struct sg_table *sgt = NULL;
-	unsigned int i;
-	int nents, ret;
+	struct sg_table *sgt;
+	int npages;
 
 	/* just return current sgt if already requested. */
 	if (exynos_attach->dir == dir && exynos_attach->is_mapped)
-		return &exynos_attach->sgt;
+		return exynos_attach->sgt;
 
 	buf = gem_obj->buffer;
 	if (!buf) {
@@ -87,42 +86,29 @@ static struct sg_table *
 		return ERR_PTR(-ENOMEM);
 	}
 
-	sgt = &exynos_attach->sgt;
+	npages = buf->size >> PAGE_SHIFT;
 
-	ret = sg_alloc_table(sgt, buf->sgt->orig_nents, GFP_KERNEL);
-	if (ret) {
-		DRM_ERROR("failed to alloc sgt.\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	mutex_lock(&dev->struct_mutex);
-
-	rd = buf->sgt->sgl;
-	wr = sgt->sgl;
-	for (i = 0; i < sgt->orig_nents; ++i) {
-		sg_set_page(wr, sg_page(rd), rd->length, rd->offset);
-		rd = sg_next(rd);
-		wr = sg_next(wr);
-	}
+	sgt = drm_prime_pages_to_sg(buf->pages, npages);
+	if (IS_ERR(sgt))
+		goto err;
 
 	if (dir != DMA_NONE) {
-		nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
-		if (!nents) {
+		if (!dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir)) {
 			DRM_ERROR("failed to map sgl with iommu.\n");
 			sg_free_table(sgt);
 			sgt = ERR_PTR(-EIO);
-			goto err_unlock;
+			goto err;
 		}
 	}
 
 	exynos_attach->is_mapped = true;
+	exynos_attach->sgt = sgt;
 	exynos_attach->dir = dir;
 	attach->priv = exynos_attach;
 
 	DRM_DEBUG_PRIME("buffer size = 0x%lx\n", buf->size);
 
-err_unlock:
-	mutex_unlock(&dev->struct_mutex);
+err:
 	return sgt;
 }
 
@@ -280,7 +266,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	}
 
 	exynos_gem_obj->buffer = buffer;
-	buffer->sgt = sgt;
 	exynos_gem_obj->base.import_attach = attach;
 
 	DRM_DEBUG_PRIME("dma_addr = %pad, size = 0x%lx\n", &buffer->dma_addr,
