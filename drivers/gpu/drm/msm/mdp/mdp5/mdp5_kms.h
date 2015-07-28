@@ -223,8 +223,6 @@ uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
 				!pipe_supports_yuv(pipe));
 }
 
-void mdp5_plane_install_properties(struct drm_plane *plane,
-		struct drm_mode_object *obj);
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 void mdp5_plane_complete_flip(struct drm_plane *plane);
 void mdp5_plane_complete_commit(struct drm_plane *plane,

@@ -65,7 +65,7 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 }
 
 /* helper to install properties which are common to planes and crtcs */
-void mdp5_plane_install_properties(struct drm_plane *plane,
+static void mdp5_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj)
 {
 	// XXX
