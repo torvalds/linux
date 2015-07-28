@@ -24,9 +24,6 @@
 #include <linux/delay.h>
 #include <asm/proc-fns.h>
 #include <mach/system.h>
-
-#include <linux/amlogic/aml_gpio_consumer.h>
-
 /*
  * These are system power hooks to implement power down policy
  * pls add rule and policy notes 
@@ -43,21 +40,6 @@
 void meson_common_restart(char mode,const char *cmd)
 {
     u32 reboot_reason = MESON_NORMAL_BOOT;
-
-#if defined(CONFIG_MACH_MESON8B_ODROIDC)
-#define MMC_POWEREN	92
-#define MMC_VOLSW	3
-	/* Power cycle of SD card */
-	amlogic_gpio_request(MMC_POWEREN, "sdhc");
-	amlogic_disable_pullup(MMC_POWEREN, "sdhc");
-	amlogic_gpio_direction_output(MMC_POWEREN, 0, "sdhc");
-	msleep(200);
-	amlogic_gpio_direction_output(MMC_POWEREN, 1, "sdhc");
-
-	/* Recall SD card bus voltage to 3.3V */
-	amlogic_gpio_direction_output(MMC_VOLSW, 0, "amlsd");
-#endif
-
     if (cmd) {
         if (strcmp(cmd, "poweroff") == 0)
             reboot_reason = LINUX_REBOOT_CMD_POWER_OFF;
