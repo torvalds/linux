@@ -131,14 +131,15 @@ static ssize_t field##_store(struct device *dev,			\
 	if (ret != 1)							\
 		len = -EINVAL;						\
 	else								\
-		gb_loopback_check_attr(gb);				\
+		gb_loopback_check_attr(connection, gb);			\
 	mutex_unlock(&gb->mutex);					\
 	return len;							\
 }									\
 static DEVICE_ATTR_RW(field)
 
 static void gb_loopback_reset_stats(struct gb_loopback *gb);
-static void gb_loopback_check_attr(struct gb_loopback *gb)
+static void gb_loopback_check_attr(struct gb_connection *connection,
+				   struct gb_loopback *gb)
 {
 	if (gb->ms_wait > GB_LOOPBACK_MS_WAIT_MAX)
 		gb->ms_wait = GB_LOOPBACK_MS_WAIT_MAX;
@@ -147,6 +148,12 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 	gb->error = 0;
 	gb->iteration_count = 0;
 	gb_loopback_reset_stats(gb);
+
+	if (kfifo_depth < gb->iteration_max) {
+		dev_warn(&connection->dev,
+			 "iteration_max %u kfifo_depth %u cannot log all data\n",
+			 gb->iteration_max, kfifo_depth);
+	}
 
 	switch (gb->type) {
 	case GB_LOOPBACK_TYPE_PING:
