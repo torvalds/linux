@@ -28,49 +28,32 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 	u8	eRFPath;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
+	if (priv->card_8192_version != VERSION_8190_BD &&
+	    priv->card_8192_version != VERSION_8190_BE) {
+		netdev_warn(dev, "%s(): Unknown HW version.\n", __func__);
+		return;
+	}
+
 	for (eRFPath = 0; eRFPath < priv->NumTotalRFPath; eRFPath++) {
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 				continue;
 
 		switch (Bandwidth) {
 		case HT_CHANNEL_WIDTH_20:
-			if (priv->card_8192_version == VERSION_8190_BD ||
-			    priv->card_8192_version == VERSION_8190_BE) {
-				rtl92e_set_rf_reg(dev,
-						  (enum rf90_radio_path)eRFPath,
-						  0x0b, bMask12Bits, 0x100);
-				rtl92e_set_rf_reg(dev,
-						  (enum rf90_radio_path)eRFPath,
-						  0x2c, bMask12Bits, 0x3d7);
-				rtl92e_set_rf_reg(dev,
-						  (enum rf90_radio_path)eRFPath,
-						  0x0e, bMask12Bits, 0x021);
-
-			} else {
-				netdev_warn(dev, "%s(): Unknown HW version.\n",
-					    __func__);
-			}
-
+			rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath,
+					  0x0b, bMask12Bits, 0x100);
+			rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath,
+					  0x2c, bMask12Bits, 0x3d7);
+			rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath,
+					  0x0e, bMask12Bits, 0x021);
 			break;
 		case HT_CHANNEL_WIDTH_20_40:
-			if (priv->card_8192_version == VERSION_8190_BD ||
-			    priv->card_8192_version == VERSION_8190_BE) {
-				rtl92e_set_rf_reg(dev,
-						  (enum rf90_radio_path)eRFPath,
-						  0x0b, bMask12Bits, 0x300);
-				rtl92e_set_rf_reg(dev,
-						  (enum rf90_radio_path)eRFPath,
-						  0x2c, bMask12Bits, 0x3ff);
-				rtl92e_set_rf_reg(dev,
-						  (enum rf90_radio_path)eRFPath,
-						  0x0e, bMask12Bits, 0x0e1);
-
-			} else {
-				netdev_warn(dev, "%s(): Unknown HW version.\n",
-					    __func__);
-			}
-
-
+			rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath,
+					  0x0b, bMask12Bits, 0x300);
+			rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath,
+					  0x2c, bMask12Bits, 0x3ff);
+			rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath,
+					  0x0e, bMask12Bits, 0x0e1);
 			break;
 		default:
 			netdev_err(dev, "%s(): Unknown bandwidth: %#X\n",
