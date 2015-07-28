@@ -1176,6 +1176,7 @@ static void udc_reinit(struct pxa25x_udc *dev)
 	INIT_LIST_HEAD (&dev->gadget.ep_list);
 	INIT_LIST_HEAD (&dev->gadget.ep0->ep_list);
 	dev->ep0state = EP0_IDLE;
+	dev->gadget.quirk_altset_not_supp = 1;
 
 	/* basic endpoint records init */
 	for (i = 0; i < PXA_UDC_NUM_ENDPOINTS; i++) {
