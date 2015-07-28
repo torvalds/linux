@@ -663,12 +663,15 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 
 static struct irq_domain *pci_host_bridge_msi_domain(struct pci_bus *bus)
 {
+	struct irq_domain *d;
+
 	/*
 	 * Any firmware interface that can resolve the msi_domain
 	 * should be called from here.
 	 */
+	d = pci_host_bridge_of_msi_domain(bus);
 
-	return NULL;
+	return d;
 }
 
 static void pci_set_bus_msi_domain(struct pci_bus *bus)
