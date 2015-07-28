@@ -6,9 +6,6 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#ifndef _IIO_UTILS_H
-#define _IIO_UTILS_H
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -990,5 +987,3 @@ error_free:
 
 	return ret;
 }
-
-#endif /* _IIO_UTILS_H */
