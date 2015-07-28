@@ -42,6 +42,7 @@
 #include <ttm/ttm_module.h>
 #include <ttm/ttm_execbuf_util.h>
 
+#include <drm/drmP.h>
 #include <drm/drm_gem.h>
 #include <drm/amdgpu_drm.h>
 
@@ -1860,6 +1861,13 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
 extern int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 						 struct drm_file *filp);
+
+/*
+ * CGS
+ */
+void *amdgpu_cgs_create_device(struct amdgpu_device *adev);
+void amdgpu_cgs_destroy_device(void *cgs_device);
+
 
 /*
  * Core structure, functions and helpers.
