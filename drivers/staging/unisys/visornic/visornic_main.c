@@ -680,6 +680,7 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
 	devdata->enabled = 1;
+	devdata->enab_dis_acked = 0;
 
 	/* now we're ready, let's send an ENB to uisnic but until we get
 	 * an ACK back from uisnic, we'll drop the packets
