@@ -14,6 +14,8 @@
 
 / {
 	aliases {
+		ethernet0 = &fec1;
+		ethernet1 = &fec2;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -293,6 +295,23 @@
 				#interrupt-cells = <2>;
 			};
 
+			fec2: ethernet@020b4000 {
+				compatible = "fsl,imx6ul-fec", "fsl,imx6q-fec";
+				reg = <0x020b4000 0x4000>;
+				interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_ENET>,
+					 <&clks IMX6UL_CLK_ENET_AHB>,
+					 <&clks IMX6UL_CLK_ENET_PTP>,
+					 <&clks IMX6UL_CLK_ENET2_REF_125M>,
+					 <&clks IMX6UL_CLK_ENET2_REF_125M>;
+				clock-names = "ipg", "ahb", "ptp",
+					      "enet_clk_ref", "enet_out";
+				fsl,num-tx-queues=<1>;
+				fsl,num-rx-queues=<1>;
+				status = "disabled";
+			};
+
 			wdog1: wdog@020bc000 {
 				compatible = "fsl,imx6ul-wdt", "fsl,imx21-wdt";
 				reg = <0x020bc000 0x4000>;
@@ -509,6 +528,23 @@
 				#index-cells = <1>;
 				compatible = "fsl,imx6ul-usbmisc", "fsl,imx6q-usbmisc";
 				reg = <0x02184800 0x200>;
+			};
+
+			fec1: ethernet@02188000 {
+				compatible = "fsl,imx6ul-fec", "fsl,imx6q-fec";
+				reg = <0x02188000 0x4000>;
+				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_ENET>,
+					 <&clks IMX6UL_CLK_ENET_AHB>,
+					 <&clks IMX6UL_CLK_ENET_PTP>,
+					 <&clks IMX6UL_CLK_ENET_REF>,
+					 <&clks IMX6UL_CLK_ENET_REF>;
+				clock-names = "ipg", "ahb", "ptp",
+					      "enet_clk_ref", "enet_out";
+				fsl,num-tx-queues=<1>;
+				fsl,num-rx-queues=<1>;
+				status = "disabled";
 			};
 
 			usdhc1: usdhc@02190000 {
