@@ -13,12 +13,13 @@ Required properties:
   - clocks: A phandle + clock-specifier pair for the VSP1 functional clock.
 
   - renesas,#rpf: Number of Read Pixel Formatter (RPF) modules in the VSP1.
-  - renesas,#uds: Number of Up Down Scaler (UDS) modules in the VSP1.
   - renesas,#wpf: Number of Write Pixel Formatter (WPF) modules in the VSP1.
 
 
 Optional properties:
 
+  - renesas,#uds: Number of Up Down Scaler (UDS) modules in the VSP1. Defaults
+    to 0 if not present.
   - renesas,has-lif: Boolean, indicates that the LCD Interface (LIF) module is
     available.
   - renesas,has-lut: Boolean, indicates that the Look Up Table (LUT) module is
