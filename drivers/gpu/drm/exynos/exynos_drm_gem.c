@@ -83,26 +83,14 @@ static int exynos_drm_gem_map_buf(struct drm_gem_object *obj,
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 	struct exynos_drm_gem_buf *buf = exynos_gem_obj->buffer;
-	struct scatterlist *sgl;
 	unsigned long pfn;
-	int i;
-
-	if (!buf->sgt)
-		return -EINTR;
 
 	if (page_offset >= (buf->size >> PAGE_SHIFT)) {
 		DRM_ERROR("invalid page offset\n");
 		return -EINVAL;
 	}
 
-	sgl = buf->sgt->sgl;
-	for_each_sg(buf->sgt->sgl, sgl, buf->sgt->nents, i) {
-		if (page_offset < (sgl->length >> PAGE_SHIFT))
-			break;
-		page_offset -=	(sgl->length >> PAGE_SHIFT);
-	}
-
-	pfn = __phys_to_pfn(sg_phys(sgl)) + page_offset;
+	pfn = page_to_pfn(buf->pages[page_offset]);
 
 	return vm_insert_mixed(vma, f_vaddr, pfn);
 }

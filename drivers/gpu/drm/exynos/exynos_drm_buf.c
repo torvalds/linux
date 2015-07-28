@@ -90,23 +90,12 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 		}
 	}
 
-	buf->sgt = drm_prime_pages_to_sg(buf->pages, nr_pages);
-	if (IS_ERR(buf->sgt)) {
-		DRM_ERROR("failed to get sg table.\n");
-		ret = PTR_ERR(buf->sgt);
-		goto err_free_attrs;
-	}
-
 	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)buf->dma_addr,
 			buf->size);
 
 	return ret;
 
-err_free_attrs:
-	dma_free_attrs(dev->dev, buf->size, buf->pages,
-			(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
-	buf->dma_addr = (dma_addr_t)NULL;
 err_free:
 	if (!is_drm_iommu_supported(dev))
 		drm_free_large(buf->pages);
@@ -125,11 +114,6 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)buf->dma_addr,
 			buf->size);
-
-	sg_free_table(buf->sgt);
-
-	kfree(buf->sgt);
-	buf->sgt = NULL;
 
 	if (!is_drm_iommu_supported(dev)) {
 		dma_free_attrs(dev->dev, buf->size, buf->cookie,

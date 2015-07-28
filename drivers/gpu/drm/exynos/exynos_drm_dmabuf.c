@@ -203,6 +203,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	struct scatterlist *sgl;
 	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct exynos_drm_gem_buf *buffer;
+	int npages;
 	int ret;
 
 	/* is this one of own objects? */
@@ -251,6 +252,20 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	buffer->size = dma_buf->size;
 	buffer->dma_addr = sg_dma_address(sgl);
 
+	npages = dma_buf->size >> PAGE_SHIFT;
+	buffer->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	if (!buffer->pages) {
+		ret = -ENOMEM;
+		goto err_free_gem;
+	}
+
+	ret = drm_prime_sg_to_page_addr_arrays(sgt, buffer->pages, NULL,
+			npages);
+	if (ret < 0) {
+		drm_free_large(buffer->pages);
+		goto err_free_gem;
+	}
+
 	if (sgt->nents == 1) {
 		/* always physically continuous memory if sgt->nents is 1. */
 		exynos_gem_obj->flags |= EXYNOS_BO_CONTIG;
@@ -273,6 +288,9 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 
 	return &exynos_gem_obj->base;
 
+err_free_gem:
+	drm_gem_object_release(&exynos_gem_obj->base);
+	kfree(exynos_gem_obj);
 err_free_buffer:
 	kfree(buffer);
 	buffer = NULL;
