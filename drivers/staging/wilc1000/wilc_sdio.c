@@ -692,11 +692,10 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 		goto _fail_;
 	}
 	g_sdio.dPrint(N_ERR, "[wilc sdio]: chipid (%08x)\n", chipid);
-	if ((chipid & 0xfff) > 0x2a0) {
+	if ((chipid & 0xfff) > 0x2a0)
 		g_sdio.has_thrpt_enh3 = 1;
-	} else {
+	else
 		g_sdio.has_thrpt_enh3 = 0;
-	}
 	g_sdio.dPrint(N_ERR, "[wilc sdio]: has_thrpt_enh3 = %d...\n", g_sdio.has_thrpt_enh3);
 
 	return 1;
