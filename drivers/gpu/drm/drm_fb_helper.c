@@ -416,19 +416,10 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
 
-		/*
-		 * NOTE: Use trylock mode to avoid deadlocks and sleeping in
-		 * panic context.
-		 */
-		if (__drm_modeset_lock_all(dev, true) != 0) {
-			error = true;
-			continue;
-		}
-
+		drm_modeset_lock_all(dev);
 		ret = drm_fb_helper_restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
-
 		drm_modeset_unlock_all(dev);
 	}
 	return error;
