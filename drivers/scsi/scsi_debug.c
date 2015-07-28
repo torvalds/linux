@@ -1429,12 +1429,11 @@ static int resp_requests(struct scsi_cmnd * scp,
 	unsigned char * sbuff;
 	unsigned char *cmd = scp->cmnd;
 	unsigned char arr[SCSI_SENSE_BUFFERSIZE];
-	bool dsense, want_dsense;
+	bool dsense;
 	int len = 18;
 
 	memset(arr, 0, sizeof(arr));
 	dsense = !!(cmd[1] & 1);
-	want_dsense = dsense || scsi_debug_dsense;
 	sbuff = scp->sense_buffer;
 	if ((iec_m_pg[2] & 0x4) && (6 == (iec_m_pg[3] & 0xf))) {
 		if (dsense) {
