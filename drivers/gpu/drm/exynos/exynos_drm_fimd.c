@@ -956,7 +956,8 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
 
-	fimd_clear_channels(ctx->crtc);
+	if (is_drm_iommu_supported(drm_dev))
+		fimd_clear_channels(ctx->crtc);
 
 	ret = drm_iommu_attach_device(drm_dev, dev);
 	if (ret)
