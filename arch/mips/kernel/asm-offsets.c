@@ -128,6 +128,7 @@ void output_thread_defines(void)
 	       thread.cp0_baduaddr);
 	OFFSET(THREAD_ECODE, task_struct, \
 	       thread.error_code);
+	OFFSET(THREAD_TRAPNO, task_struct, thread.trap_nr);
 	BLANK();
 }
 
