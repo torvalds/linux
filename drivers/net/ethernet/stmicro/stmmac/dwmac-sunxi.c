@@ -33,35 +33,6 @@ struct sunxi_priv_data {
 	struct regulator *regulator;
 };
 
-static void *sun7i_gmac_setup(struct platform_device *pdev)
-{
-	struct sunxi_priv_data *gmac;
-	struct device *dev = &pdev->dev;
-
-	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
-	if (!gmac)
-		return ERR_PTR(-ENOMEM);
-
-	gmac->interface = of_get_phy_mode(dev->of_node);
-
-	gmac->tx_clk = devm_clk_get(dev, "allwinner_gmac_tx");
-	if (IS_ERR(gmac->tx_clk)) {
-		dev_err(dev, "could not get tx clock\n");
-		return gmac->tx_clk;
-	}
-
-	/* Optional regulator for PHY */
-	gmac->regulator = devm_regulator_get_optional(dev, "phy");
-	if (IS_ERR(gmac->regulator)) {
-		if (PTR_ERR(gmac->regulator) == -EPROBE_DEFER)
-			return ERR_PTR(-EPROBE_DEFER);
-		dev_info(dev, "no regulator found\n");
-		gmac->regulator = NULL;
-	}
-
-	return gmac;
-}
-
 #define SUN7I_GMAC_GMII_RGMII_RATE	125000000
 #define SUN7I_GMAC_MII_RATE		25000000
 
@@ -130,6 +101,35 @@ static void sun7i_fix_speed(void *priv, unsigned int speed)
 		clk_set_rate(gmac->tx_clk, SUN7I_GMAC_MII_RATE);
 		clk_prepare(gmac->tx_clk);
 	}
+}
+
+static void *sun7i_gmac_setup(struct platform_device *pdev)
+{
+	struct sunxi_priv_data *gmac;
+	struct device *dev = &pdev->dev;
+
+	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
+	if (!gmac)
+		return ERR_PTR(-ENOMEM);
+
+	gmac->interface = of_get_phy_mode(dev->of_node);
+
+	gmac->tx_clk = devm_clk_get(dev, "allwinner_gmac_tx");
+	if (IS_ERR(gmac->tx_clk)) {
+		dev_err(dev, "could not get tx clock\n");
+		return gmac->tx_clk;
+	}
+
+	/* Optional regulator for PHY */
+	gmac->regulator = devm_regulator_get_optional(dev, "phy");
+	if (IS_ERR(gmac->regulator)) {
+		if (PTR_ERR(gmac->regulator) == -EPROBE_DEFER)
+			return ERR_PTR(-EPROBE_DEFER);
+		dev_info(dev, "no regulator found\n");
+		gmac->regulator = NULL;
+	}
+
+	return gmac;
 }
 
 /* of_data specifying hardware features and callbacks.
