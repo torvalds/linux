@@ -1236,6 +1236,7 @@
 				<0x18040000 0x18040000 0x1000>,
 				<0x18050000 0x18050000 0x1000>,
 				<0x18060000 0x18060000 0x1000>,
+				<0x180b0000 0x180b0000 0x4000>,
 				<0x18100000 0x18100000 0x3000>,
 				<0x18250000 0x18250000 0x10000>,
 				<0x18200000 0x18200000 0x1000>;
@@ -1318,6 +1319,18 @@
 				dmas = <&dmac0 8>, <&dmac0 9>;
 				dma-names = "rx", "tx";
 				status = "disabled";
+			};
+			gmac: eth@180b0000 {
+				compatible = "snps, dwc-eth-qos";
+				reg = <0x180b0000 0x4000>;
+				interrupts = <0 59 0>, <0 70 0>;
+				interrupt-names = "macirq", "macpmt";
+				clocks = <&car 39>, <&car 45>,
+				       <&car 86>, <&car 87>;
+				clock-names = "gnssm_rgmii", "gnssm_gmac",
+					"rgmii", "gmac";
+				local-mac-address = [00 00 00 00 00 00];
+				phy-mode = "rgmii";
 			};
 			dspub@18250000 {
 				compatible = "dx,cc44p";
