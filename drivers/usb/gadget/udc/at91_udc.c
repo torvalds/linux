@@ -825,6 +825,7 @@ static void udc_reinit(struct at91_udc *udc)
 
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 	INIT_LIST_HEAD(&udc->gadget.ep0->ep_list);
+	udc->gadget.quirk_stall_not_supp = 1;
 
 	for (i = 0; i < NUM_ENDPOINTS; i++) {
 		struct at91_ep *ep = &udc->ep[i];
