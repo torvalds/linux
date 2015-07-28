@@ -39,14 +39,16 @@ struct irq_domain * __weak arch_get_pci_msi_domain(struct pci_dev *dev)
 
 static struct irq_domain *pci_msi_get_domain(struct pci_dev *dev)
 {
-	struct irq_domain *domain = NULL;
+	struct irq_domain *domain;
 
-	if (dev->bus->msi)
-		domain = dev->bus->msi->domain;
-	if (!domain)
-		domain = arch_get_pci_msi_domain(dev);
+	domain = dev_get_msi_domain(&dev->dev);
+	if (domain)
+		return domain;
 
-	return domain;
+	if (dev->bus->msi && (domain = dev->bus->msi->domain))
+		return domain;
+
+	return arch_get_pci_msi_domain(dev);
 }
 
 static int pci_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
