@@ -127,6 +127,16 @@
 
 #define MLX5E_NUM_MAIN_GROUPS 9
 
+#define MLX5E_MSG_LEVEL			NETIF_MSG_LINK
+
+#define mlx5e_dbg(mlevel, priv, format, ...)                    \
+do {                                                            \
+	if (NETIF_MSG_##mlevel & (priv)->msglevel)              \
+		netdev_warn(priv->netdev, format,               \
+			    ##__VA_ARGS__);                     \
+} while (0)
+
+
 static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
 {
 	switch (wq_type) {
@@ -754,6 +764,7 @@ struct mlx5e_priv {
 #endif
 	/* priv data path fields - end */
 
+	u32                        msglevel;
 	unsigned long              state;
 	struct mutex               state_lock; /* Protects Interface state */
 	struct mlx5e_rq            drop_rq;
