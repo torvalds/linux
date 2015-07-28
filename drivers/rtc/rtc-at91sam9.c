@@ -425,16 +425,17 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->sclk))
 		return PTR_ERR(rtc->sclk);
 
-	sclk_rate = clk_get_rate(rtc->sclk);
-	if (!sclk_rate || sclk_rate > AT91_RTT_RTPRES) {
-		dev_err(&pdev->dev, "Invalid slow clock rate\n");
-		return -EINVAL;
-	}
-
 	ret = clk_prepare_enable(rtc->sclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not enable slow clock\n");
 		return ret;
+	}
+
+	sclk_rate = clk_get_rate(rtc->sclk);
+	if (!sclk_rate || sclk_rate > AT91_RTT_RTPRES) {
+		dev_err(&pdev->dev, "Invalid slow clock rate\n");
+		ret = -EINVAL;
+		goto err_clk;
 	}
 
 	mr = rtt_readl(rtc, MR);
