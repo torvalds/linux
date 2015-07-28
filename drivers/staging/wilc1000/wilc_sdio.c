@@ -13,12 +13,7 @@
 #ifdef WILC1000_SINGLE_TRANSFER
 #define WILC_SDIO_BLOCK_SIZE 256
 #else
- #if defined(PLAT_AML8726_M3) /* johnny */
-	#define WILC_SDIO_BLOCK_SIZE 512
-	#define MAX_SEG_SIZE (1 << 12) /* 4096 */
- #else
-	#define WILC_SDIO_BLOCK_SIZE 512
- #endif
+#define WILC_SDIO_BLOCK_SIZE 512
 #endif
 
 typedef struct {
@@ -356,88 +351,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 	nleft = size % block_size;
 
 	if (nblk > 0) {
-
-#if defined(PLAT_AML8726_M3_BACKUP) /* johnny */
-		int i;
-
-		for (i = 0; i < nblk; i++) {
-			cmd.block_mode = 0; /* 1; */
-			cmd.increment = 1;
-			cmd.count = block_size; /* nblk; */
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block send...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += block_size;     /* addr += nblk*block_size; */
-
-			buf += block_size;              /* buf += nblk*block_size; */
-		}
-
-#elif defined(PLAT_AML8726_M3) /* johnny */
-
-		int i;
-		int rest;
-		int seg_cnt;
-
-		seg_cnt = (nblk * block_size) / MAX_SEG_SIZE;
-		rest = (nblk * block_size) & (MAX_SEG_SIZE - 1);
-
-		for (i = 0; i < seg_cnt; i++) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = MAX_SEG_SIZE / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block send...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += MAX_SEG_SIZE;
-
-			buf += MAX_SEG_SIZE;
-
-		}
-
-		if (rest > 0) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = rest / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size; /* johnny : prevent it from setting unexpected value */
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes send...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += rest;
-
-			buf += rest;
-
-		}
-
-#else
-
 		cmd.block_mode = 1;
 		cmd.increment = 1;
 		cmd.count = nblk;
@@ -454,8 +367,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 		if (addr > 0)
 			addr += nblk * block_size;
 		buf += nblk * block_size;
-
-#endif /* platform */
 	}
 
 	if (nleft > 0) {
@@ -582,87 +493,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 	nleft = size % block_size;
 
 	if (nblk > 0) {
-
-#if defined(PLAT_AML8726_M3_BACKUP) /* johnny */
-
-		int i;
-
-		for (i = 0; i < nblk; i++) {
-			cmd.block_mode = 0; /* 1; */
-			cmd.increment = 1;
-			cmd.count = block_size; /* nblk; */
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
-				goto _fail_;
-			}
-			if (addr > 0)
-				addr += block_size;             /* addr += nblk*block_size; */
-			buf += block_size;              /* buf += nblk*block_size; */
-		}
-
-#elif defined(PLAT_AML8726_M3) /* johnny */
-
-		int i;
-		int rest;
-		int seg_cnt;
-
-		seg_cnt = (nblk * block_size) / MAX_SEG_SIZE;
-		rest = (nblk * block_size) & (MAX_SEG_SIZE - 1);
-
-		for (i = 0; i < seg_cnt; i++) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = MAX_SEG_SIZE / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += MAX_SEG_SIZE;
-
-			buf += MAX_SEG_SIZE;
-
-		}
-
-		if (rest > 0) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = rest / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size; /* johnny : prevent it from setting unexpected value */
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += rest;
-
-			buf += rest;
-
-		}
-
-#else
-
 		cmd.block_mode = 1;
 		cmd.increment = 1;
 		cmd.count = nblk;
@@ -679,8 +509,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 		if (addr > 0)
 			addr += nblk * block_size;
 		buf += nblk * block_size;
-
-#endif /* platform */
 	}       /* if (nblk > 0) */
 
 	if (nleft > 0) {
