@@ -2856,14 +2856,13 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 				      &gbe_dev->dma_chan_name);
 	if (ret < 0) {
 		dev_err(dev, "missing \"tx-channel\" parameter\n");
-		ret = -ENODEV;
-		goto quit;
+		return -EINVAL;
 	}
 
 	if (!strcmp(node->name, "gbe")) {
 		ret = get_gbe_resource_version(gbe_dev, node);
 		if (ret)
-			goto quit;
+			return ret;
 
 		dev_dbg(dev, "ss_version: 0x%08x\n", gbe_dev->ss_version);
 
@@ -2874,21 +2873,19 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		else
 			ret = -ENODEV;
 
-		if (ret)
-			goto quit;
 	} else if (!strcmp(node->name, "xgbe")) {
 		ret = set_xgbe_ethss10_priv(gbe_dev, node);
 		if (ret)
-			goto quit;
+			return ret;
 		ret = netcp_xgbe_serdes_init(gbe_dev->xgbe_serdes_regs,
 					     gbe_dev->ss_regs);
-		if (ret)
-			goto quit;
 	} else {
 		dev_err(dev, "unknown GBE node(%s)\n", node->name);
 		ret = -ENODEV;
-		goto quit;
 	}
+
+	if (ret)
+		return ret;
 
 	interfaces = of_get_child_by_name(node, "interfaces");
 	if (!interfaces)
@@ -2897,11 +2894,11 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	ret = netcp_txpipe_init(&gbe_dev->tx_pipe, netcp_device,
 				gbe_dev->dma_chan_name, gbe_dev->tx_queue_id);
 	if (ret)
-		goto quit;
+		return ret;
 
 	ret = netcp_txpipe_open(&gbe_dev->tx_pipe);
 	if (ret)
-		goto quit;
+		return ret;
 
 	/* Create network interfaces */
 	INIT_LIST_HEAD(&gbe_dev->gbe_intf_head);
@@ -2916,6 +2913,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		if (gbe_dev->num_slaves >= gbe_dev->max_num_slaves)
 			break;
 	}
+	of_node_put(interfaces);
 
 	if (!gbe_dev->num_slaves)
 		dev_warn(dev, "No network interface configured\n");
@@ -2928,9 +2926,10 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	of_node_put(secondary_ports);
 
 	if (!gbe_dev->num_slaves) {
-		dev_err(dev, "No network interface or secondary ports configured\n");
+		dev_err(dev,
+			"No network interface or secondary ports configured\n");
 		ret = -ENODEV;
-		goto quit;
+		goto free_sec_ports;
 	}
 
 	memset(&ale_params, 0, sizeof(ale_params));
@@ -2944,7 +2943,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	if (!gbe_dev->ale) {
 		dev_err(gbe_dev->dev, "error initializing ale engine\n");
 		ret = -ENODEV;
-		goto quit;
+		goto free_sec_ports;
 	} else {
 		dev_dbg(gbe_dev->dev, "Created a gbe ale engine\n");
 	}
@@ -2960,14 +2959,8 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	*inst_priv = gbe_dev;
 	return 0;
 
-quit:
-	if (gbe_dev->hw_stats)
-		devm_kfree(dev, gbe_dev->hw_stats);
-	cpsw_ale_destroy(gbe_dev->ale);
-	if (gbe_dev->ss_regs)
-		devm_iounmap(dev, gbe_dev->ss_regs);
-	of_node_put(interfaces);
-	devm_kfree(dev, gbe_dev);
+free_sec_ports:
+	free_secondary_ports(gbe_dev);
 	return ret;
 }
 
@@ -3040,12 +3033,9 @@ static int gbe_remove(struct netcp_device *netcp_device, void *inst_priv)
 	free_secondary_ports(gbe_dev);
 
 	if (!list_empty(&gbe_dev->gbe_intf_head))
-		dev_alert(gbe_dev->dev, "unreleased ethss interfaces present\n");
+		dev_alert(gbe_dev->dev,
+			  "unreleased ethss interfaces present\n");
 
-	devm_kfree(gbe_dev->dev, gbe_dev->hw_stats);
-	devm_iounmap(gbe_dev->dev, gbe_dev->ss_regs);
-	memset(gbe_dev, 0x00, sizeof(*gbe_dev));
-	devm_kfree(gbe_dev->dev, gbe_dev);
 	return 0;
 }
 

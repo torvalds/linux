@@ -2135,7 +2135,6 @@ static int netcp_remove(struct platform_device *pdev)
 	WARN(!list_empty(&netcp_device->interface_head),
 	     "%s interface list not empty!\n", pdev->name);
 
-	devm_kfree(&pdev->dev, netcp_device);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
