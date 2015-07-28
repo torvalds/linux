@@ -1742,10 +1742,10 @@ static bool ibs_enabled(struct kvm_vcpu *vcpu)
 
 static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->requests)
-		return 0;
 retry:
 	kvm_s390_vcpu_request_handled(vcpu);
+	if (!vcpu->requests)
+		return 0;
 	/*
 	 * We use MMU_RELOAD just to re-arm the ipte notifier for the
 	 * guest prefix page. gmap_ipte_notify will wait on the ptl lock.
