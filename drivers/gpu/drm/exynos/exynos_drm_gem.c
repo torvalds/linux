@@ -560,7 +560,6 @@ unlock:
 int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
-	struct drm_device *dev = obj->dev;
 	unsigned long f_vaddr;
 	pgoff_t page_offset;
 	int ret;
@@ -569,13 +568,9 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			vma->vm_start) >> PAGE_SHIFT;
 	f_vaddr = (unsigned long)vmf->virtual_address;
 
-	mutex_lock(&dev->struct_mutex);
-
 	ret = exynos_drm_gem_map_buf(obj, vma, f_vaddr, page_offset);
 	if (ret < 0)
 		DRM_ERROR("failed to map a buffer with user.\n");
-
-	mutex_unlock(&dev->struct_mutex);
 
 	switch (ret) {
 	case 0:
