@@ -235,7 +235,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		for (i = 0; i < adev->num_ip_blocks; i++) {
 			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_enabled[i]) {
+			    adev->ip_block_status[i].valid) {
 				ip.hw_ip_version_major = adev->ip_blocks[i].major;
 				ip.hw_ip_version_minor = adev->ip_blocks[i].minor;
 				ip.capabilities_flags = 0;
@@ -274,7 +274,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		for (i = 0; i < adev->num_ip_blocks; i++)
 			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_enabled[i] &&
+			    adev->ip_block_status[i].valid &&
 			    count < AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
 				count++;
 
