@@ -61,16 +61,24 @@
 #define TSC2005_CMD_12BIT		0x04
 
 /* control byte 0 */
-#define TSC2005_REG_READ		0x0001
-#define TSC2005_REG_PND0		0x0002
-#define TSC2005_REG_X			0x0000
-#define TSC2005_REG_Y			0x0008
-#define TSC2005_REG_Z1			0x0010
-#define TSC2005_REG_Z2			0x0018
-#define TSC2005_REG_TEMP_HIGH		0x0050
-#define TSC2005_REG_CFR0		0x0060
-#define TSC2005_REG_CFR1		0x0068
-#define TSC2005_REG_CFR2		0x0070
+#define TSC2005_REG_READ		0x01 /* R/W access */
+#define TSC2005_REG_PND0		0x02 /* Power Not Down Control */
+#define TSC2005_REG_X			(0x0 << 3)
+#define TSC2005_REG_Y			(0x1 << 3)
+#define TSC2005_REG_Z1			(0x2 << 3)
+#define TSC2005_REG_Z2			(0x3 << 3)
+#define TSC2005_REG_AUX			(0x4 << 3)
+#define TSC2005_REG_TEMP1		(0x5 << 3)
+#define TSC2005_REG_TEMP2		(0x6 << 3)
+#define TSC2005_REG_STATUS		(0x7 << 3)
+#define TSC2005_REG_AUX_HIGH		(0x8 << 3)
+#define TSC2005_REG_AUX_LOW		(0x9 << 3)
+#define TSC2005_REG_TEMP_HIGH		(0xA << 3)
+#define TSC2005_REG_TEMP_LOW		(0xB << 3)
+#define TSC2005_REG_CFR0		(0xC << 3)
+#define TSC2005_REG_CFR1		(0xD << 3)
+#define TSC2005_REG_CFR2		(0xE << 3)
+#define TSC2005_REG_CONV_FUNC		(0xF << 3)
 
 /* configuration register 0 */
 #define TSC2005_CFR0_PRECHARGE_276US	0x0040
