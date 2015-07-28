@@ -713,6 +713,14 @@ comment "SEC control devices for DVB-S"
 
 source "drivers/media/dvb-frontends/drx39xyj/Kconfig"
 
+config DVB_LNBH25
+	tristate "LNBH25 SEC controller"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  An SEC control chip.
+	  Say Y when you want to support this chip.
+
 config DVB_LNBP21
 	tristate "LNBP21/LNBH24 SEC controllers"
 	depends on DVB_CORE && I2C
