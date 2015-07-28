@@ -11,6 +11,7 @@ Required properties:
 	"mediatek,mt6592-sysirq"
 	"mediatek,mt6589-sysirq"
 	"mediatek,mt6582-sysirq"
+	"mediatek,mt6580-sysirq"
 	"mediatek,mt6577-sysirq"
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Use the same format as specified by GIC in
