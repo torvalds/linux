@@ -19,6 +19,7 @@
 #include "vsp1.h"
 #include "vsp1_bru.h"
 #include "vsp1_rwpf.h"
+#include "vsp1_video.h"
 
 #define BRU_MIN_SIZE				1U
 #define BRU_MAX_SIZE				8190U

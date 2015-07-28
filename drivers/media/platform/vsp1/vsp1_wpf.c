@@ -215,7 +215,6 @@ static const struct vsp1_rwpf_operations wpf_vdev_ops = {
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 {
 	struct v4l2_subdev *subdev;
-	struct vsp1_video *video;
 	struct vsp1_rwpf *wpf;
 	int ret;
 
@@ -261,19 +260,6 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 		ret = wpf->ctrls.error;
 		goto error;
 	}
-
-	/* Initialize the video device. */
-	video = &wpf->video;
-
-	video->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	video->vsp1 = vsp1;
-
-	ret = vsp1_video_init(video, wpf);
-	if (ret < 0)
-		goto error;
-
-	wpf->entity.video = video;
-	wpf->entity.sink = &wpf->video.video.entity;
 
 	return wpf;
 

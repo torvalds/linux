@@ -71,6 +71,7 @@ struct vsp1_device {
 	struct vsp1_rwpf *wpf[VSP1_MAX_WPF];
 
 	struct list_head entities;
+	struct list_head videos;
 
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
