@@ -1458,6 +1458,8 @@
 			nand@17050000 {
 				compatible = "sirf,atlas7-nand";
 				reg = <0x17050000 0x10000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&nd_df_pmx>;
 				interrupts = <0 41 0>;
 				clocks = <&car 108>, <&car 112>;
 				clock-names = "nand_io", "nand_nand";
