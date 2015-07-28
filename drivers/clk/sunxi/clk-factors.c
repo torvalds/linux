@@ -79,11 +79,8 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 	return rate;
 }
 
-static long clk_factors_determine_rate(struct clk_hw *hw, unsigned long rate,
-				       unsigned long min_rate,
-				       unsigned long max_rate,
-				       unsigned long *best_parent_rate,
-				       struct clk_hw **best_parent_p)
+static int clk_factors_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
 	struct clk *clk = hw->clk, *parent, *best_parent = NULL;
 	int i, num_parents;
@@ -96,24 +93,28 @@ static long clk_factors_determine_rate(struct clk_hw *hw, unsigned long rate,
 		if (!parent)
 			continue;
 		if (__clk_get_flags(clk) & CLK_SET_RATE_PARENT)
-			parent_rate = __clk_round_rate(parent, rate);
+			parent_rate = __clk_round_rate(parent, req->rate);
 		else
 			parent_rate = __clk_get_rate(parent);
 
-		child_rate = clk_factors_round_rate(hw, rate, &parent_rate);
+		child_rate = clk_factors_round_rate(hw, req->rate,
+						    &parent_rate);
 
-		if (child_rate <= rate && child_rate > best_child_rate) {
+		if (child_rate <= req->rate && child_rate > best_child_rate) {
 			best_parent = parent;
 			best = parent_rate;
 			best_child_rate = child_rate;
 		}
 	}
 
-	if (best_parent)
-		*best_parent_p = __clk_get_hw(best_parent);
-	*best_parent_rate = best;
+	if (!best_parent)
+		return -EINVAL;
 
-	return best_child_rate;
+	req->best_parent_hw = __clk_get_hw(best_parent);
+	req->best_parent_rate = best;
+	req->rate = best_child_rate;
+
+	return 0;
 }
 
 static int clk_factors_set_rate(struct clk_hw *hw, unsigned long rate,

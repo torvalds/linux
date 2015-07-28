@@ -54,12 +54,8 @@ static unsigned long clk_programmable_recalc_rate(struct clk_hw *hw,
 	return parent_rate >> pres;
 }
 
-static long clk_programmable_determine_rate(struct clk_hw *hw,
-					    unsigned long rate,
-					    unsigned long min_rate,
-					    unsigned long max_rate,
-					    unsigned long *best_parent_rate,
-					    struct clk_hw **best_parent_hw)
+static int clk_programmable_determine_rate(struct clk_hw *hw,
+					   struct clk_rate_request *req)
 {
 	struct clk *parent = NULL;
 	long best_rate = -EINVAL;
@@ -76,24 +72,29 @@ static long clk_programmable_determine_rate(struct clk_hw *hw,
 		parent_rate = __clk_get_rate(parent);
 		for (shift = 0; shift < PROG_PRES_MASK; shift++) {
 			tmp_rate = parent_rate >> shift;
-			if (tmp_rate <= rate)
+			if (tmp_rate <= req->rate)
 				break;
 		}
 
-		if (tmp_rate > rate)
+		if (tmp_rate > req->rate)
 			continue;
 
-		if (best_rate < 0 || (rate - tmp_rate) < (rate - best_rate)) {
+		if (best_rate < 0 ||
+		    (req->rate - tmp_rate) < (req->rate - best_rate)) {
 			best_rate = tmp_rate;
-			*best_parent_rate = parent_rate;
-			*best_parent_hw = __clk_get_hw(parent);
+			req->best_parent_rate = parent_rate;
+			req->best_parent_hw = __clk_get_hw(parent);
 		}
 
 		if (!best_rate)
 			break;
 	}
 
-	return best_rate;
+	if (best_rate < 0)
+		return best_rate;
+
+	req->rate = best_rate;
+	return 0;
 }
 
 static int clk_programmable_set_parent(struct clk_hw *hw, u8 index)

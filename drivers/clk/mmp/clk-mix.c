@@ -201,11 +201,8 @@ error:
 	return ret;
 }
 
-static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long min_rate,
-					unsigned long max_rate,
-					unsigned long *best_parent_rate,
-					struct clk_hw **best_parent_clk)
+static int mmp_clk_mix_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
 	struct mmp_clk_mix *mix = to_clk_mix(hw);
 	struct mmp_clk_mix_clk_table *item;
@@ -221,7 +218,7 @@ static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
 	parent = NULL;
 	mix_rate_best = 0;
 	parent_rate_best = 0;
-	gap_best = rate;
+	gap_best = ULONG_MAX;
 	parent_best = NULL;
 
 	if (mix->table) {
@@ -233,7 +230,7 @@ static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
 							item->parent_index);
 			parent_rate = __clk_get_rate(parent);
 			mix_rate = parent_rate / item->divisor;
-			gap = abs(mix_rate - rate);
+			gap = abs(mix_rate - req->rate);
 			if (parent_best == NULL || gap < gap_best) {
 				parent_best = parent;
 				parent_rate_best = parent_rate;
@@ -251,7 +248,7 @@ static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
 			for (j = 0; j < div_val_max; j++) {
 				div = _get_div(mix, j);
 				mix_rate = parent_rate / div;
-				gap = abs(mix_rate - rate);
+				gap = abs(mix_rate - req->rate);
 				if (parent_best == NULL || gap < gap_best) {
 					parent_best = parent;
 					parent_rate_best = parent_rate;
@@ -265,10 +262,14 @@ static long mmp_clk_mix_determine_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 found:
-	*best_parent_rate = parent_rate_best;
-	*best_parent_clk = __clk_get_hw(parent_best);
+	if (!parent_best)
+		return -EINVAL;
 
-	return mix_rate_best;
+	req->best_parent_rate = parent_rate_best;
+	req->best_parent_hw = __clk_get_hw(parent_best);
+	req->rate = mix_rate_best;
+
+	return 0;
 }
 
 static int mmp_clk_mix_set_rate_and_parent(struct clk_hw *hw,

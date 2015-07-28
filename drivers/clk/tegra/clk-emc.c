@@ -116,11 +116,7 @@ static unsigned long emc_recalc_rate(struct clk_hw *hw,
  * safer since things have EMC rate floors. Also don't touch parent_rate
  * since we don't want the CCF to play with our parent clocks.
  */
-static long emc_determine_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long min_rate,
-			       unsigned long max_rate,
-			       unsigned long *best_parent_rate,
-			       struct clk_hw **best_parent_hw)
+static int emc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 {
 	struct tegra_clk_emc *tegra;
 	u8 ram_code = tegra_read_ram_code();
@@ -135,22 +131,28 @@ static long emc_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 		timing = tegra->timings + i;
 
-		if (timing->rate > max_rate) {
+		if (timing->rate > req->max_rate) {
 			i = min(i, 1);
-			return tegra->timings[i - 1].rate;
+			req->rate = tegra->timings[i - 1].rate;
+			return 0;
 		}
 
-		if (timing->rate < min_rate)
+		if (timing->rate < req->min_rate)
 			continue;
 
-		if (timing->rate >= rate)
-			return timing->rate;
+		if (timing->rate >= req->rate) {
+			req->rate = timing->rate;
+			return 0;
+		}
 	}
 
-	if (timing)
-		return timing->rate;
+	if (timing) {
+		req->rate = timing->rate;
+		return 0;
+	}
 
-	return __clk_get_rate(hw->clk);
+	req->rate = __clk_get_rate(hw->clk);
+	return 0;
 }
 
 static u8 emc_get_parent(struct clk_hw *hw)
