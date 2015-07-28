@@ -2375,14 +2375,8 @@ bool rtl92e_get_nmode_support_by_sec(struct net_device *dev)
 
 bool rtl92e_is_halfn_supported_by_ap(struct net_device *dev)
 {
-	bool Reval;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	if (ieee->bHalfWirelessN24GMode == true)
-		Reval = true;
-	else
-		Reval =  false;
-
-	return Reval;
+	return ieee->bHalfWirelessN24GMode;
 }
