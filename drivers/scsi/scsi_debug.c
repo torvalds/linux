@@ -3941,13 +3941,20 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	unsigned long iflags;
 	int k, num_in_q, qdepth, inject;
 	struct sdebug_queued_cmd *sqcp = NULL;
-	struct scsi_device *sdp = cmnd->device;
+	struct scsi_device *sdp;
 
-	if (NULL == cmnd || NULL == devip) {
-		pr_warn("called with NULL cmnd or devip pointer\n");
+	/* this should never happen */
+	if (WARN_ON(!cmnd))
+		return SCSI_MLQUEUE_HOST_BUSY;
+
+	if (NULL == devip) {
+		pr_warn("called devip == NULL\n");
 		/* no particularly good error to report back */
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
+
+	sdp = cmnd->device;
+
 	if ((scsi_result) && (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts))
 		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
 			    __func__, scsi_result);
