@@ -10,11 +10,7 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 
-#ifdef WILC1000_SINGLE_TRANSFER
-#define WILC_SDIO_BLOCK_SIZE 256
-#else
 #define WILC_SDIO_BLOCK_SIZE 512
-#endif
 
 typedef struct {
 	void *os_context;
@@ -321,16 +317,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 		cmd.function = 0;
 		cmd.address = 0x10f;
 	} else {
-#ifdef WILC1000_SINGLE_TRANSFER
-		/**
-		 *      has to be block aligned...
-		 **/
-		nleft = size % block_size;
-		if (nleft > 0) {
-			size += block_size;
-			size &= ~(block_size - 1);
-		}
-#else
 		/**
 		 *      has to be word aligned...
 		 **/
@@ -338,7 +324,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 			size += 4;
 			size &= ~0x3;
 		}
-#endif
 
 		/**
 		 *      func 1 access
@@ -463,16 +448,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 		cmd.function = 0;
 		cmd.address = 0x10f;
 	} else {
-#ifdef WILC1000_SINGLE_TRANSFER
-		/**
-		 *      has to be block aligned...
-		 **/
-		nleft = size % block_size;
-		if (nleft > 0) {
-			size += block_size;
-			size &= ~(block_size - 1);
-		}
-#else
 		/**
 		 *      has to be word aligned...
 		 **/
@@ -480,7 +455,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 			size += 4;
 			size &= ~0x3;
 		}
-#endif
 
 		/**
 		 *      func 1 access
