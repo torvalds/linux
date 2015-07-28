@@ -6601,6 +6601,15 @@ S:	Supported
 F:	Documentation/devicetree/bindings/media/renesas,vsp1.txt
 F:	drivers/media/platform/vsp1/
 
+MEDIA DRIVERS FOR HORUS3A
+M:	Sergey Kozlov <serjk@netup.ru>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/dvb-frontends/horus3a*
+
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
 M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 P:	LinuxTV.org Project
