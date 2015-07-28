@@ -561,11 +561,20 @@ out:
 
 	clear_sbi_flag(sbi, SBI_POR_DOING);
 	if (err) {
-		discard_next_dnode(sbi, blkaddr);
+		bool invalidate = false;
+
+		if (discard_next_dnode(sbi, blkaddr))
+			invalidate = true;
 
 		/* Flush all the NAT/SIT pages */
 		while (get_pages(sbi, F2FS_DIRTY_META))
 			sync_meta_pages(sbi, META, LONG_MAX);
+
+		/* invalidate temporary meta page */
+		if (invalidate)
+			invalidate_mapping_pages(META_MAPPING(sbi),
+							blkaddr, blkaddr);
+
 		set_ckpt_flags(sbi->ckpt, CP_ERROR_FLAG);
 		mutex_unlock(&sbi->cp_mutex);
 	} else if (need_writecp) {

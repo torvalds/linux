@@ -514,7 +514,7 @@ static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 	return blkdev_issue_discard(sbi->sb->s_bdev, start, len, GFP_NOFS, 0);
 }
 
-void discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
+bool discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
 	int err = -ENOTSUPP;
 
@@ -524,13 +524,16 @@ void discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
 		unsigned int offset = GET_BLKOFF_FROM_SEG0(sbi, blkaddr);
 
 		if (f2fs_test_bit(offset, se->discard_map))
-			return;
+			return false;
 
 		err = f2fs_issue_discard(sbi, blkaddr, 1);
 	}
 
-	if (err)
+	if (err) {
 		update_meta_page(sbi, NULL, blkaddr);
+		return true;
+	}
+	return false;
 }
 
 static void __add_discard_entry(struct f2fs_sb_info *sbi,

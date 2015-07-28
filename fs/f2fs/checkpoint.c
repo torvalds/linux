@@ -896,12 +896,15 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	__u32 crc32 = 0;
 	int i;
 	int cp_payload_blks = __cp_payload(sbi);
+	block_t discard_blk = NEXT_FREE_BLKADDR(sbi, curseg);
+	bool invalidate = false;
 
 	/*
 	 * This avoids to conduct wrong roll-forward operations and uses
 	 * metapages, so should be called prior to sync_meta_pages below.
 	 */
-	discard_next_dnode(sbi, NEXT_FREE_BLKADDR(sbi, curseg));
+	if (discard_next_dnode(sbi, discard_blk))
+		invalidate = true;
 
 	/* Flush all the NAT/SIT pages */
 	while (get_pages(sbi, F2FS_DIRTY_META)) {
@@ -1029,6 +1032,14 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* wait for previous submitted meta pages writeback */
 	wait_on_all_pages_writeback(sbi);
+
+	/*
+	 * invalidate meta page which is used temporarily for zeroing out
+	 * block at the end of warm node chain.
+	 */
+	if (invalidate)
+		invalidate_mapping_pages(META_MAPPING(sbi), discard_blk,
+								discard_blk);
 
 	release_dirty_inode(sbi);
 
