@@ -640,6 +640,15 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 						   SHOST_DIX_GUARD_CRC);
 		}
 
+		/*
+		 * Limit the sg_tablesize and max_sectors based on the device
+		 * max fastreg page list length.
+		 */
+		shost->sg_tablesize = min_t(unsigned short, shost->sg_tablesize,
+			ib_conn->device->dev_attr.max_fast_reg_page_list_len);
+		shost->max_sectors = min_t(unsigned int,
+			1024, (shost->sg_tablesize * PAGE_SIZE) >> 9);
+
 		if (iscsi_host_add(shost,
 				   ib_conn->device->ib_device->dma_device)) {
 			mutex_unlock(&iser_conn->state_mutex);
