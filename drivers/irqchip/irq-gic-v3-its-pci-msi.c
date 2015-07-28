@@ -20,8 +20,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
 
-#include <linux/irqchip/arm-gic-v3.h>
-
 static void its_mask_msi_irq(struct irq_data *d)
 {
 	pci_msi_mask_irq(d);
@@ -74,9 +72,12 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 {
 	struct pci_dev *pdev;
 	struct its_pci_alias dev_alias;
+	struct msi_domain_info *msi_info;
 
 	if (!dev_is_pci(dev))
 		return -EINVAL;
+
+	msi_info = msi_get_domain_info(domain->parent);
 
 	pdev = to_pci_dev(dev);
 	dev_alias.pdev = pdev;
@@ -84,7 +85,11 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 
 	pci_for_each_dma_alias(pdev, its_get_pci_alias, &dev_alias);
 
-	return its_msi_prepare(domain, dev_alias.dev_id, dev_alias.count, info);
+	/* ITS specific DeviceID, as the core ITS ignores dev. */
+	info->scratchpad[0].ul = dev_alias.dev_id;
+
+	return msi_info->ops->msi_prepare(domain->parent,
+					  dev, dev_alias.count, info);
 }
 
 static struct msi_domain_ops its_pci_msi_ops = {
@@ -98,8 +103,38 @@ static struct msi_domain_info its_pci_msi_domain_info = {
 	.chip	= &its_msi_irq_chip,
 };
 
-struct irq_domain *its_pci_msi_alloc_domain(struct device_node *np,
-					    struct irq_domain *parent)
+static struct of_device_id its_device_id[] = {
+	{	.compatible	= "arm,gic-v3-its",	},
+	{},
+};
+
+static int __init its_pci_msi_init(void)
 {
-	return pci_msi_create_irq_domain(np, &its_pci_msi_domain_info, parent);
+	struct device_node *np;
+	struct irq_domain *parent;
+
+	for (np = of_find_matching_node(NULL, its_device_id); np;
+	     np = of_find_matching_node(np, its_device_id)) {
+		if (!of_property_read_bool(np, "msi-controller"))
+			continue;
+
+		parent = irq_find_matching_host(np, DOMAIN_BUS_NEXUS);
+		if (!parent || !msi_get_domain_info(parent)) {
+			pr_err("%s: unable to locate ITS domain\n",
+			       np->full_name);
+			continue;
+		}
+
+		if (!pci_msi_create_irq_domain(np, &its_pci_msi_domain_info,
+					       parent)) {
+			pr_err("%s: unable to create PCI domain\n",
+			       np->full_name);
+			continue;
+		}
+
+		pr_info("PCI/MSI: %s domain created\n", np->full_name);
+	}
+
+	return 0;
 }
+early_initcall(its_pci_msi_init);

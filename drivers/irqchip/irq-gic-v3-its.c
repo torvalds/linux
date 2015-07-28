@@ -59,7 +59,6 @@ struct its_collection {
 struct its_node {
 	raw_spinlock_t		lock;
 	struct list_head	entry;
-	struct irq_domain	*domain;
 	void __iomem		*base;
 	unsigned long		phys_base;
 	struct its_cmd_block	*cmd_base;
@@ -1187,13 +1186,25 @@ static int its_alloc_device_irq(struct its_device *dev, irq_hw_number_t *hwirq)
 	return 0;
 }
 
-int its_msi_prepare(struct irq_domain *domain, u32 dev_id,
-		    int nvec, msi_alloc_info_t *info)
+static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
+			   int nvec, msi_alloc_info_t *info)
 {
 	struct its_node *its;
 	struct its_device *its_dev;
+	struct msi_domain_info *msi_info;
+	u32 dev_id;
 
-	its = domain->parent->host_data;
+	/*
+	 * We ignore "dev" entierely, and rely on the dev_id that has
+	 * been passed via the scratchpad. This limits this domain's
+	 * usefulness to upper layers that definitely know that they
+	 * are built on top of the ITS.
+	 */
+	dev_id = info->scratchpad[0].ul;
+
+	msi_info = msi_get_domain_info(domain);
+	its = msi_info->data;
+
 	its_dev = its_find_device(its, dev_id);
 	if (its_dev) {
 		/*
@@ -1214,6 +1225,10 @@ out:
 	info->scratchpad[0].ptr = its_dev;
 	return 0;
 }
+
+static struct msi_domain_ops its_msi_domain_ops = {
+	.msi_prepare	= its_msi_prepare,
+};
 
 static int its_irq_gic_domain_alloc(struct irq_domain *domain,
 				    unsigned int virq,
@@ -1353,7 +1368,7 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	struct resource res;
 	struct its_node *its;
 	void __iomem *its_base;
-	struct irq_domain *inner_domain = NULL;
+	struct irq_domain *inner_domain;
 	u32 val;
 	u64 baser, tmp;
 	int err;
@@ -1443,20 +1458,26 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
 	if (of_property_read_bool(node, "msi-controller")) {
+		struct msi_domain_info *info;
+
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info) {
+			err = -ENOMEM;
+			goto out_free_tables;
+		}
+
 		inner_domain = irq_domain_add_tree(node, &its_domain_ops, its);
 		if (!inner_domain) {
 			err = -ENOMEM;
+			kfree(info);
 			goto out_free_tables;
 		}
 
 		inner_domain->parent = parent;
 		inner_domain->bus_token = DOMAIN_BUS_NEXUS;
-
-		its->domain = its_pci_msi_alloc_domain(node, inner_domain);
-		if (!its->domain) {
-			err = -ENOMEM;
-			goto out_free_domains;
-		}
+		info->ops = &its_msi_domain_ops;
+		info->data = its;
+		inner_domain->host_data = info;
 	}
 
 	spin_lock(&its_lock);
@@ -1465,11 +1486,6 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 
 	return 0;
 
-out_free_domains:
-	if (its->domain)
-		irq_domain_remove(its->domain);
-	if (inner_domain)
-		irq_domain_remove(inner_domain);
 out_free_tables:
 	its_free_tables(its);
 out_free_cmd:
