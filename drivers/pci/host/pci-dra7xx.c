@@ -17,6 +17,7 @@
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -336,6 +337,9 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	char name[10];
+	int gpio_sel;
+	enum of_gpio_flags flags;
+	unsigned long gpio_flags;
 
 	dra7xx = devm_kzalloc(dev, sizeof(*dra7xx), GFP_KERNEL);
 	if (!dra7xx)
@@ -398,6 +402,22 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 		goto err_get_sync;
 	}
 
+	gpio_sel = of_get_gpio_flags(dev->of_node, 0, &flags);
+	if (gpio_is_valid(gpio_sel)) {
+		gpio_flags = (flags & OF_GPIO_ACTIVE_LOW) ?
+				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+		ret = devm_gpio_request_one(dev, gpio_sel, gpio_flags,
+					    "pcie_reset");
+		if (ret) {
+			dev_err(&pdev->dev, "gpio%d request failed, ret %d\n",
+				gpio_sel, ret);
+			goto err_gpio;
+		}
+	} else if (gpio_sel == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_gpio;
+	}
+
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD);
 	reg &= ~LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
@@ -406,11 +426,11 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	ret = dra7xx_add_pcie_port(dra7xx, pdev);
 	if (ret < 0)
-		goto err_add_port;
+		goto err_gpio;
 
 	return 0;
 
-err_add_port:
+err_gpio:
 	pm_runtime_put(dev);
 
 err_get_sync:
