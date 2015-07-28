@@ -30,11 +30,11 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/tsc2005.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
+#include <linux/gpio/consumer.h>
 
 /*
  * The touchscreen interface operates as follows:
@@ -180,7 +180,7 @@ struct tsc2005 {
 
 	struct regulator	*vio;
 
-	int			reset_gpio;
+	struct gpio_desc	*reset_gpio;
 	void			(*set_reset)(bool enable);
 };
 
@@ -318,8 +318,8 @@ static void tsc2005_stop_scan(struct tsc2005 *ts)
 
 static void tsc2005_set_reset(struct tsc2005 *ts, bool enable)
 {
-	if (ts->reset_gpio >= 0)
-		gpio_set_value(ts->reset_gpio, enable);
+	if (ts->reset_gpio)
+		gpiod_set_value_cansleep(ts->reset_gpio, enable);
 	else if (ts->set_reset)
 		ts->set_reset(enable);
 }
@@ -611,34 +611,23 @@ static int tsc2005_probe(struct spi_device *spi)
 	ts->x_plate_ohm = x_plate_ohm;
 	ts->esd_timeout = esd_timeout;
 
-	if (np) {
-		ts->reset_gpio = of_get_named_gpio(np, "reset-gpios", 0);
-		if (ts->reset_gpio == -EPROBE_DEFER)
-			return ts->reset_gpio;
-		if (ts->reset_gpio < 0) {
-			dev_err(&spi->dev, "error acquiring reset gpio: %d\n",
-				ts->reset_gpio);
-			return ts->reset_gpio;
-		}
-
-		error = devm_gpio_request_one(&spi->dev, ts->reset_gpio, 0,
-					      "reset-gpios");
-		if (error) {
-			dev_err(&spi->dev, "error requesting reset gpio: %d\n",
-				error);
-			return error;
-		}
-
-		ts->vio = devm_regulator_get(&spi->dev, "vio");
-		if (IS_ERR(ts->vio)) {
-			error = PTR_ERR(ts->vio);
-			dev_err(&spi->dev, "vio regulator missing (%d)", error);
-			return error;
-		}
-	} else {
-		ts->reset_gpio = -1;
-		ts->set_reset = pdata->set_reset;
+	ts->reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset",
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(ts->reset_gpio)) {
+		error = PTR_ERR(ts->reset_gpio);
+		dev_err(&spi->dev, "error acquiring reset gpio: %d\n", error);
+		return error;
 	}
+
+	ts->vio = devm_regulator_get_optional(&spi->dev, "vio");
+	if (IS_ERR(ts->vio)) {
+		error = PTR_ERR(ts->vio);
+		dev_err(&spi->dev, "vio regulator missing (%d)", error);
+		return error;
+	}
+
+	if (!ts->reset_gpio && pdata)
+		ts->set_reset = pdata->set_reset;
 
 	mutex_init(&ts->mutex);
 
