@@ -494,8 +494,7 @@ static int at91_rtc_remove(struct platform_device *pdev)
 	/* disable all interrupts */
 	rtt_writel(rtc, MR, mr & ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN));
 
-	if (!IS_ERR(rtc->sclk))
-		clk_disable_unprepare(rtc->sclk);
+	clk_disable_unprepare(rtc->sclk);
 
 	return 0;
 }
