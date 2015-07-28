@@ -2282,12 +2282,10 @@ static int amd_iommu_add_device(struct device *dev)
 
 	/* Domains are initialized for this device - have a look what we ended up with */
 	domain = iommu_get_domain_for_dev(dev);
-	if (domain->type == IOMMU_DOMAIN_IDENTITY) {
+	if (domain->type == IOMMU_DOMAIN_IDENTITY)
 		dev_data->passthrough = true;
-		dev->archdata.dma_ops = &nommu_dma_ops;
-	} else {
+	else
 		dev->archdata.dma_ops = &amd_iommu_dma_ops;
-	}
 
 out:
 	iommu_completion_wait(iommu);
@@ -2852,8 +2850,8 @@ int __init amd_iommu_init_api(void)
 
 int __init amd_iommu_init_dma_ops(void)
 {
+	swiotlb        = iommu_pass_through ? 1 : 0;
 	iommu_detected = 1;
-	swiotlb = 0;
 
 	amd_iommu_stats_init();
 
