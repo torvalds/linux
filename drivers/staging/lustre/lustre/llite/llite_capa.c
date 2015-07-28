@@ -208,7 +208,8 @@ static int capa_thread_main(void *unused)
 			 * lock.
 			 */
 			/* ibits may be changed by ll_have_md_lock() so we have
-			 * to set it each time */
+			 * to set it each time
+			 */
 			ibits = MDS_INODELOCK_LOOKUP;
 			if (capa_for_mds(&ocapa->c_capa) &&
 			    !S_ISDIR(ocapa->u.cli.inode->i_mode) &&
@@ -227,7 +228,8 @@ static int capa_thread_main(void *unused)
 			if (capa_for_oss(&ocapa->c_capa) &&
 			    obd_capa_open_count(ocapa) == 0) {
 				/* oss capa with open count == 0 won't renew,
-				 * move to idle list */
+				 * move to idle list
+				 */
 				sort_add_capa(ocapa, &ll_idle_capas);
 				continue;
 			}
@@ -449,7 +451,8 @@ static inline void inode_add_oss_capa(struct inode *inode,
 	struct list_head *next = NULL;
 
 	/* capa is sorted in lli_oss_capas so lookup can always find the
-	 * latest one */
+	 * latest one
+	 */
 	list_for_each_entry(tmp, &lli->lli_oss_capas, u.cli.lli_list) {
 		if (cfs_time_after(ocapa->c_expiry, tmp->c_expiry)) {
 			next = &tmp->u.cli.lli_list;
@@ -539,7 +542,8 @@ static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa)
 			ll_capa_renewal_failed++;
 
 			/* failed capa won't be renewed any longer, but if -EIO,
-			 * client might be doing recovery, retry in 2 min. */
+			 * client might be doing recovery, retry in 2 min.
+			 */
 			if (rc == -EIO && !capa_is_expired(ocapa)) {
 				delay_capa_renew(ocapa, 120);
 				DEBUG_CAPA(D_ERROR, &ocapa->c_capa,
