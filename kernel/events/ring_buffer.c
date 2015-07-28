@@ -437,7 +437,10 @@ static struct page *rb_alloc_aux_page(int node, int order)
 
 	if (page && order) {
 		/*
-		 * Communicate the allocation size to the driver
+		 * Communicate the allocation size to the driver:
+		 * if we managed to secure a high-order allocation,
+		 * set its first page's private to this order;
+		 * !PagePrivate(page) means it's just a normal page.
 		 */
 		split_page(page, order);
 		SetPagePrivate(page);
