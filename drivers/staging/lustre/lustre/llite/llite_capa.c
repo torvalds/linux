@@ -70,7 +70,8 @@ static unsigned long long ll_capa_renewal_retries;
 
 static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa);
 
-static inline void update_capa_timer(struct obd_capa *ocapa, unsigned long expiry)
+static inline void update_capa_timer(struct obd_capa *ocapa,
+				     unsigned long expiry)
 {
 	if (time_before(expiry, ll_capa_timer.expires) ||
 	    !timer_pending(&ll_capa_timer)) {
@@ -165,7 +166,8 @@ static void ll_delete_capa(struct obd_capa *ocapa)
 /* three places where client capa is deleted:
  * 1. capa_thread_main(), main place to delete expired capa.
  * 2. ll_clear_inode_capas() in ll_clear_inode().
- * 3. ll_truncate_free_capa() delete truncate capa explicitly in ll_setattr_ost().
+ * 3. ll_truncate_free_capa() delete truncate capa explicitly in
+ *    ll_setattr_ost().
  */
 static int capa_thread_main(void *unused)
 {
