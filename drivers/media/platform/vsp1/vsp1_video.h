@@ -108,15 +108,9 @@ to_vsp1_video_buffer(struct vb2_v4l2_buffer *vbuf)
 	return container_of(vbuf, struct vsp1_video_buffer, buf);
 }
 
-struct vsp1_video_operations {
-	void (*queue)(struct vsp1_video *video, struct vsp1_video_buffer *buf);
-};
-
 struct vsp1_video {
 	struct vsp1_device *vsp1;
 	struct vsp1_rwpf *rwpf;
-
-	const struct vsp1_video_operations *ops;
 
 	struct video_device video;
 	enum v4l2_buf_type type;

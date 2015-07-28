@@ -24,10 +24,19 @@
 #define RWPF_PAD_SINK				0
 #define RWPF_PAD_SOURCE				1
 
+struct vsp1_rwpf;
+struct vsp1_video_buffer;
+
+struct vsp1_rwpf_operations {
+	void (*queue)(struct vsp1_rwpf *rwpf, struct vsp1_video_buffer *buf);
+};
+
 struct vsp1_rwpf {
 	struct vsp1_entity entity;
 	struct vsp1_video video;
 	struct v4l2_ctrl_handler ctrls;
+
+	const struct vsp1_rwpf_operations *ops;
 
 	unsigned int max_width;
 	unsigned int max_height;

@@ -195,11 +195,8 @@ static struct v4l2_subdev_ops wpf_ops = {
  * Video Device Operations
  */
 
-static void wpf_vdev_queue(struct vsp1_video *video,
-			   struct vsp1_video_buffer *buf)
+static void wpf_buf_queue(struct vsp1_rwpf *wpf, struct vsp1_video_buffer *buf)
 {
-	struct vsp1_rwpf *wpf = container_of(video, struct vsp1_rwpf, video);
-
 	vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_Y, buf->addr[0]);
 	if (buf->buf.vb2_buf.num_planes > 1)
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C0, buf->addr[1]);
@@ -207,8 +204,8 @@ static void wpf_vdev_queue(struct vsp1_video *video,
 		vsp1_wpf_write(wpf, VI6_WPF_DSTM_ADDR_C1, buf->addr[2]);
 }
 
-static const struct vsp1_video_operations wpf_vdev_ops = {
-	.queue = wpf_vdev_queue,
+static const struct vsp1_rwpf_operations wpf_vdev_ops = {
+	.queue = wpf_buf_queue,
 };
 
 /* -----------------------------------------------------------------------------
@@ -225,6 +222,8 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	wpf = devm_kzalloc(vsp1->dev, sizeof(*wpf), GFP_KERNEL);
 	if (wpf == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	wpf->ops = &wpf_vdev_ops;
 
 	wpf->max_width = WPF_MAX_WIDTH;
 	wpf->max_height = WPF_MAX_HEIGHT;
@@ -268,7 +267,6 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	video->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	video->vsp1 = vsp1;
-	video->ops = &wpf_vdev_ops;
 
 	ret = vsp1_video_init(video, wpf);
 	if (ret < 0)

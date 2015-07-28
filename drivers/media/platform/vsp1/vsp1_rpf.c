@@ -186,10 +186,8 @@ static struct v4l2_subdev_ops rpf_ops = {
  * Video Device Operations
  */
 
-static void rpf_vdev_queue(struct vsp1_video *video,
-			   struct vsp1_video_buffer *buf)
+static void rpf_buf_queue(struct vsp1_rwpf *rpf, struct vsp1_video_buffer *buf)
 {
-	struct vsp1_rwpf *rpf = container_of(video, struct vsp1_rwpf, video);
 	unsigned int i;
 
 	for (i = 0; i < 3; ++i)
@@ -208,8 +206,8 @@ static void rpf_vdev_queue(struct vsp1_video *video,
 			       buf->addr[2] + rpf->offsets[1]);
 }
 
-static const struct vsp1_video_operations rpf_vdev_ops = {
-	.queue = rpf_vdev_queue,
+static const struct vsp1_rwpf_operations rpf_vdev_ops = {
+	.queue = rpf_buf_queue,
 };
 
 /* -----------------------------------------------------------------------------
@@ -226,6 +224,8 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	rpf = devm_kzalloc(vsp1->dev, sizeof(*rpf), GFP_KERNEL);
 	if (rpf == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	rpf->ops = &rpf_vdev_ops;
 
 	rpf->max_width = RPF_MAX_WIDTH;
 	rpf->max_height = RPF_MAX_HEIGHT;
@@ -269,7 +269,6 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	video->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	video->vsp1 = vsp1;
-	video->ops = &rpf_vdev_ops;
 
 	ret = vsp1_video_init(video, rpf);
 	if (ret < 0)
