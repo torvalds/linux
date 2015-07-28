@@ -236,7 +236,7 @@ static int capa_thread_main(void *unused)
 
 			/* NB iput() is in ll_update_capa() */
 			inode = igrab(ocapa->u.cli.inode);
-			if (inode == NULL) {
+			if (!inode) {
 				DEBUG_CAPA(D_ERROR, &ocapa->c_capa,
 					   "igrab failed for");
 				continue;
@@ -380,7 +380,7 @@ struct obd_capa *ll_mdscapa_get(struct inode *inode)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct obd_capa *ocapa;
 
-	LASSERT(inode != NULL);
+	LASSERT(inode);
 
 	if ((ll_i2sbi(inode)->ll_flags & LL_SBI_MDS_CAPA) == 0)
 		return NULL;
