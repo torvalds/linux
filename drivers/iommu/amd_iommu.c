@@ -2164,15 +2164,17 @@ static int attach_device(struct device *dev,
 	dev_data = get_dev_data(dev);
 
 	if (domain->flags & PD_IOMMUV2_MASK) {
-		if (!dev_data->iommu_v2 || !dev_data->passthrough)
+		if (!dev_data->passthrough)
 			return -EINVAL;
 
-		if (pdev_iommuv2_enable(pdev) != 0)
-			return -EINVAL;
+		if (dev_data->iommu_v2) {
+			if (pdev_iommuv2_enable(pdev) != 0)
+				return -EINVAL;
 
-		dev_data->ats.enabled = true;
-		dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
-		dev_data->pri_tlp     = pci_pri_tlp_required(pdev);
+			dev_data->ats.enabled = true;
+			dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
+			dev_data->pri_tlp     = pci_pri_tlp_required(pdev);
+		}
 	} else if (amd_iommu_iotlb_sup &&
 		   pci_enable_ats(pdev, PAGE_SHIFT) == 0) {
 		dev_data->ats.enabled = true;
@@ -2237,7 +2239,7 @@ static void detach_device(struct device *dev)
 	__detach_device(dev_data);
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
-	if (domain->flags & PD_IOMMUV2_MASK)
+	if (domain->flags & PD_IOMMUV2_MASK && dev_data->iommu_v2)
 		pdev_iommuv2_disable(to_pci_dev(dev));
 	else if (dev_data->ats.enabled)
 		pci_disable_ats(to_pci_dev(dev));
