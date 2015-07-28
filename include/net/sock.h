@@ -1687,6 +1687,14 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 kuid_t sock_i_uid(struct sock *sk);
 unsigned long sock_i_ino(struct sock *sk);
 
+static inline void sk_set_txhash(struct sock *sk)
+{
+	sk->sk_txhash = prandom_u32();
+
+	if (unlikely(!sk->sk_txhash))
+		sk->sk_txhash = 1;
+}
+
 static inline struct dst_entry *
 __sk_dst_get(struct sock *sk)
 {
