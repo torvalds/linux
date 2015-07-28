@@ -274,8 +274,6 @@ capability register can replace what has been passed from the platform.
 Please see the following document:
 	Documentation/devicetree/bindings/net/stmmac.txt
 
-and the stmmac_of_data structure inside the include/linux/stmmac.h header file.
-
 4.11) This is a summary of the content of some relevant files:
  o stmmac_main.c: to implement the main network device driver;
  o stmmac_mdio.c: to provide mdio functions;
