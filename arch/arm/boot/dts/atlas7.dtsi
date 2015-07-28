@@ -1865,7 +1865,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x13100000 0x13100000 0x20000>,
-				 <0x10e10000 0x10e10000 0x10000>;
+				<0x10e10000 0x10e10000 0x10000>,
+				<0x17010000 0x17010000 0x10000>;
 
 			lcd@13100000 {
 				compatible = "sirf,atlas7-lcdc";
@@ -1886,6 +1887,12 @@
 				interrupts = <0 64 0>;
 				clocks = <&car 54>;
 				resets = <&car 29>;
+			};
+			g2d@17010000 {
+				compatible = "sirf, atlas7-g2d";
+				reg = <0x17010000 0x10000>;
+				interrupts = <0 61 0>;
+				clocks = <&car 104>;
 			};
 
 		};
