@@ -33,7 +33,7 @@ static const struct icst_params cp_auxosc_params = {
 	.idx2s		= icst525_idx2s,
 };
 
-static const struct clk_icst_desc __initdata cm_auxosc_desc = {
+static const struct clk_icst_desc cm_auxosc_desc __initconst = {
 	.params = &cp_auxosc_params,
 	.vco_offset = 0x1c,
 	.lock_offset = INTEGRATOR_HDR_LOCK_OFFSET,

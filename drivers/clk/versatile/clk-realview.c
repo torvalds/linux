@@ -32,13 +32,13 @@ static const struct icst_params realview_oscvco_params = {
 	.idx2s		= icst307_idx2s,
 };
 
-static const struct clk_icst_desc __initdata realview_osc0_desc = {
+static const struct clk_icst_desc realview_osc0_desc __initconst = {
 	.params = &realview_oscvco_params,
 	.vco_offset = REALVIEW_SYS_OSC0_OFFSET,
 	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,
 };
 
-static const struct clk_icst_desc __initdata realview_osc4_desc = {
+static const struct clk_icst_desc realview_osc4_desc __initconst = {
 	.params = &realview_oscvco_params,
 	.vco_offset = REALVIEW_SYS_OSC4_OFFSET,
 	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,
