@@ -416,7 +416,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return n ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_DEV_INFO: {
-		struct drm_amdgpu_info_device dev_info;
+		struct drm_amdgpu_info_device dev_info = {};
 		struct amdgpu_cu_info cu_info;
 
 		dev_info.device_id = dev->pdev->device;
