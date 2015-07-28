@@ -45,9 +45,6 @@ static struct irq_domain *pci_msi_get_domain(struct pci_dev *dev)
 	if (domain)
 		return domain;
 
-	if (dev->bus->msi && (domain = dev->bus->msi->domain))
-		return domain;
-
 	return arch_get_pci_msi_domain(dev);
 }
 
