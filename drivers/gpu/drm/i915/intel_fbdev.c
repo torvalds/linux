@@ -55,13 +55,6 @@ static int intel_fbdev_set_par(struct fb_info *info)
 	ret = drm_fb_helper_set_par(info);
 
 	if (ret == 0) {
-		/*
-		 * FIXME: fbdev presumes that all callbacks also work from
-		 * atomic contexts and relies on that for emergency oops
-		 * printing. KMS totally doesn't do that and the locking here is
-		 * by far not the only place this goes wrong.  Ignore this for
-		 * now until we solve this for real.
-		 */
 		mutex_lock(&fb_helper->dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
 		mutex_unlock(&fb_helper->dev->struct_mutex);
@@ -80,13 +73,6 @@ static int intel_fbdev_blank(int blank, struct fb_info *info)
 	ret = drm_fb_helper_blank(blank, info);
 
 	if (ret == 0) {
-		/*
-		 * FIXME: fbdev presumes that all callbacks also work from
-		 * atomic contexts and relies on that for emergency oops
-		 * printing. KMS totally doesn't do that and the locking here is
-		 * by far not the only place this goes wrong.  Ignore this for
-		 * now until we solve this for real.
-		 */
 		mutex_lock(&fb_helper->dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
 		mutex_unlock(&fb_helper->dev->struct_mutex);
@@ -106,13 +92,6 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 	ret = drm_fb_helper_pan_display(var, info);
 
 	if (ret == 0) {
-		/*
-		 * FIXME: fbdev presumes that all callbacks also work from
-		 * atomic contexts and relies on that for emergency oops
-		 * printing. KMS totally doesn't do that and the locking here is
-		 * by far not the only place this goes wrong.  Ignore this for
-		 * now until we solve this for real.
-		 */
 		mutex_lock(&fb_helper->dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
 		mutex_unlock(&fb_helper->dev->struct_mutex);

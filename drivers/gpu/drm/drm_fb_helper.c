@@ -491,14 +491,6 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 	int i, j;
 
 	/*
-	 * fbdev->blank can be called from irq context in case of a panic.
-	 * Since we already have our own special panic handler which will
-	 * restore the fbdev console mode completely, just bail out early.
-	 */
-	if (oops_in_progress)
-		return;
-
-	/*
 	 * For each CRTC in this fb, turn the connectors on/off.
 	 */
 	drm_modeset_lock_all(dev);
@@ -531,6 +523,9 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
  */
 int drm_fb_helper_blank(int blank, struct fb_info *info)
 {
+	if (oops_in_progress)
+		return -EBUSY;
+
 	switch (blank) {
 	/* Display: On; HSync: On, VSync: On */
 	case FB_BLANK_UNBLANK:
@@ -978,9 +973,10 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	int i, j, rc = 0;
 	int start;
 
-	if (__drm_modeset_lock_all(dev, !!oops_in_progress)) {
+	if (oops_in_progress)
 		return -EBUSY;
-	}
+
+	drm_modeset_lock_all(dev);
 	if (!drm_fb_helper_is_bound(fb_helper)) {
 		drm_modeset_unlock_all(dev);
 		return -EBUSY;
@@ -1129,6 +1125,9 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 
+	if (oops_in_progress)
+		return -EBUSY;
+
 	if (var->pixclock != 0) {
 		DRM_ERROR("PIXEL CLOCK SET\n");
 		return -EINVAL;
@@ -1154,9 +1153,10 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	int ret = 0;
 	int i;
 
-	if (__drm_modeset_lock_all(dev, !!oops_in_progress)) {
+	if (oops_in_progress)
 		return -EBUSY;
-	}
+
+	drm_modeset_lock_all(dev);
 	if (!drm_fb_helper_is_bound(fb_helper)) {
 		drm_modeset_unlock_all(dev);
 		return -EBUSY;
