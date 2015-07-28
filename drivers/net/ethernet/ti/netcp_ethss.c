@@ -2508,10 +2508,9 @@ static void free_secondary_ports(struct gbe_priv *gbe_dev)
 {
 	struct gbe_slave *slave;
 
-	for (;;) {
+	while (!list_empty(&gbe_dev->secondary_slaves)) {
 		slave = first_sec_slave(gbe_dev);
-		if (!slave)
-			break;
+
 		if (slave->phy)
 			phy_disconnect(slave->phy);
 		list_del(&slave->slave_list);
