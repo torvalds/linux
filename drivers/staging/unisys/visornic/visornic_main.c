@@ -1169,9 +1169,6 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	int cc, currsize, off, status;
 	struct ethhdr *eth;
 	unsigned long flags;
-#ifdef DEBUG
-	struct phys_info testfrags[MAX_PHYS_INFO];
-#endif
 
 	/* post new rcv buf to the other end using the cmdrsp we have at hand
 	 * post it without holding lock - but we'll use the signal lock to
@@ -1282,29 +1279,12 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			curr->data_len = 0;
 			off += currsize;
 		}
-#ifdef DEBUG
 		/* assert skb->len == off */
 		if (skb->len != off) {
-			dev_err(&devdata->netdev->dev,
-				"%s something wrong; skb->len:%d != off:%d\n",
-				netdev->name, skb->len, off);
+			netdev_err(devdata->netdev,
+				   "something wrong; skb->len:%d != off:%d\n",
+				   skb->len, off);
 		}
-		/* test code */
-		cc = util_copy_fragsinfo_from_skb("rcvchaintest", skb,
-						  RCVPOST_BUF_SIZE,
-						  MAX_PHYS_INFO, testfrags);
-		if (cc != cmdrsp->net.rcv.numrcvbufs) {
-			dev_err(&devdata->netdev->dev,
-				"**** %s Something wrong; rcvd chain length %d different from one we calculated %d\n",
-				netdev->name, cmdrsp->net.rcv.numrcvbufs, cc);
-		}
-		for (i = 0; i < cc; i++) {
-			dev_inf(&devdata->netdev->dev,
-				"test:RCVPOST_BUF_SIZE:%d[%d] pfn:%llu off:0x%x len:%d\n",
-				RCVPOST_BUF_SIZE, i, testfrags[i].pi_pfn,
-				testfrags[i].pi_off, testfrags[i].pi_len);
-		}
-#endif
 	}
 
 	/* set up packet's protocl type using ethernet header - this
