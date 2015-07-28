@@ -248,6 +248,13 @@ static void *ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	return NULL;
 }
 
+static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed)
+{
+	struct ipq806x_gmac *gmac = priv;
+
+	ipq806x_gmac_set_speed(gmac, speed);
+}
+
 static void *ipq806x_gmac_setup(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -328,13 +335,6 @@ static void *ipq806x_gmac_setup(struct platform_device *pdev)
 	}
 
 	return gmac;
-}
-
-static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed)
-{
-	struct ipq806x_gmac *gmac = priv;
-
-	ipq806x_gmac_set_speed(gmac, speed);
 }
 
 static const struct stmmac_of_data ipq806x_gmac_data = {
