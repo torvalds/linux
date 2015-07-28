@@ -576,20 +576,42 @@ static void rk_fix_speed(void *priv, unsigned int speed)
 		dev_err(dev, "unsupported interface %d", bsp_priv->phy_iface);
 }
 
+static int rk_gmac_probe(struct platform_device *pdev)
+{
+	struct plat_stmmacenet_data *plat_dat;
+	struct stmmac_resources stmmac_res;
+	int ret;
+
+	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
+	if (ret)
+		return ret;
+
+	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	if (IS_ERR(plat_dat))
+		return PTR_ERR(plat_dat);
+
+	plat_dat->has_gmac = true;
+	plat_dat->init = rk_gmac_init;
+	plat_dat->exit = rk_gmac_exit;
+	plat_dat->fix_mac_speed = rk_fix_speed;
+
+	plat_dat->bsp_priv = plat_dat->setup(pdev);
+	if (IS_ERR(plat_dat->bsp_priv))
+		return PTR_ERR(plat_dat->bsp_priv);
+
+	ret = rk_gmac_init(pdev, plat_dat->bsp_priv);
+	if (ret)
+		return ret;
+
+	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+}
+
 static const struct stmmac_of_data rk3288_gmac_data = {
-	.has_gmac = 1,
-	.fix_mac_speed = rk_fix_speed,
 	.setup = rk3288_gmac_setup,
-	.init = rk_gmac_init,
-	.exit = rk_gmac_exit,
 };
 
 static const struct stmmac_of_data rk3368_gmac_data = {
-	.has_gmac = 1,
-	.fix_mac_speed = rk_fix_speed,
 	.setup = rk3368_gmac_setup,
-	.init = rk_gmac_init,
-	.exit = rk_gmac_exit,
 };
 
 static const struct of_device_id rk_gmac_dwmac_match[] = {
@@ -600,7 +622,7 @@ static const struct of_device_id rk_gmac_dwmac_match[] = {
 MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
 
 static struct platform_driver rk_gmac_dwmac_driver = {
-	.probe  = stmmac_pltfr_probe,
+	.probe  = rk_gmac_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "rk_gmac-dwmac",
