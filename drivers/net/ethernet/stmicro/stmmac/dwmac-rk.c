@@ -46,7 +46,7 @@ struct rk_priv_data {
 	struct platform_device *pdev;
 	int phy_iface;
 	struct regulator *regulator;
-	struct rk_gmac_ops *ops;
+	const struct rk_gmac_ops *ops;
 
 	bool clk_enabled;
 	bool clock_input;
@@ -177,7 +177,7 @@ static void rk3288_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 	}
 }
 
-struct rk_gmac_ops rk3288_ops = {
+static const struct rk_gmac_ops rk3288_ops = {
 	.set_to_rgmii = rk3288_set_to_rgmii,
 	.set_to_rmii = rk3288_set_to_rmii,
 	.set_rgmii_speed = rk3288_set_rgmii_speed,
@@ -289,7 +289,7 @@ static void rk3368_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 	}
 }
 
-struct rk_gmac_ops rk3368_ops = {
+static const struct rk_gmac_ops rk3368_ops = {
 	.set_to_rgmii = rk3368_set_to_rgmii,
 	.set_to_rmii = rk3368_set_to_rmii,
 	.set_rgmii_speed = rk3368_set_rgmii_speed,
@@ -448,7 +448,7 @@ static int phy_power_on(struct rk_priv_data *bsp_priv, bool enable)
 }
 
 static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
-					  struct rk_gmac_ops *ops)
+					  const struct rk_gmac_ops *ops)
 {
 	struct rk_priv_data *bsp_priv;
 	struct device *dev = &pdev->dev;
