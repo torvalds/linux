@@ -917,6 +917,7 @@ config TOUCHSCREEN_TSC_SERIO
 config TOUCHSCREEN_TSC2005
 	tristate "TSC2005 based touchscreens"
 	depends on SPI_MASTER
+	select REGMAP_SPI
 	help
 	  Say Y here if you have a TSC2005 based touchscreen.
 
