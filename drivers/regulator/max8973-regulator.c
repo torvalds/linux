@@ -637,6 +637,15 @@ static int max8973_probe(struct i2c_client *client,
 			max->lru_index[i] = i;
 		max->lru_index[0] = max->curr_vout_reg;
 		max->lru_index[max->curr_vout_reg] = 0;
+	} else {
+		/*
+		 * If there is no DVS GPIO, the VOUT register
+		 * address is fixed.
+		 */
+		max->ops.set_voltage_sel = regulator_set_voltage_sel_regmap;
+		max->ops.get_voltage_sel = regulator_get_voltage_sel_regmap;
+		max->desc.vsel_reg = max->curr_vout_reg;
+		max->desc.vsel_mask = MAX8973_VOUT_MASK;
 	}
 
 	if (pdata_from_dt)
