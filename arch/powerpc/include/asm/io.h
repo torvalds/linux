@@ -721,6 +721,7 @@ extern void __iomem *ioremap_prot(phys_addr_t address, unsigned long size,
 				  unsigned long flags);
 extern void __iomem *ioremap_wc(phys_addr_t address, unsigned long size);
 #define ioremap_nocache(addr, size)	ioremap((addr), (size))
+#define ioremap_uc(addr, size)		ioremap((addr), (size))
 
 extern void iounmap(volatile void __iomem *addr);
 
