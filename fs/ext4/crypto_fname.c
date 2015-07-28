@@ -19,7 +19,6 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/key.h>
-#include <linux/key.h>
 #include <linux/list.h>
 #include <linux/mempool.h>
 #include <linux/random.h>
