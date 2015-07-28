@@ -364,7 +364,7 @@ struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
 		ocapa = NULL;
 
 		if (atomic_read(&ll_capa_debug)) {
-			CERROR("no capability for "DFID" opc %#llx\n",
+			CERROR("no capability for " DFID " opc %#llx\n",
 			       PFID(&lli->lli_fid), opc);
 			atomic_set(&ll_capa_debug, 0);
 		}
@@ -389,7 +389,7 @@ struct obd_capa *ll_mdscapa_get(struct inode *inode)
 	ocapa = capa_get(lli->lli_mds_capa);
 	spin_unlock(&capa_lock);
 	if (!ocapa && atomic_read(&ll_capa_debug)) {
-		CERROR("no mds capability for "DFID"\n", PFID(&lli->lli_fid));
+		CERROR("no mds capability for " DFID "\n", PFID(&lli->lli_fid));
 		atomic_set(&ll_capa_debug, 0);
 	}
 
