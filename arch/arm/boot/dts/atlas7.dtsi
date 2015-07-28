@@ -1371,7 +1371,8 @@
 			compatible = "arteris, flexnoc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x16000000 0x16000000 0x00200000>,
+			ranges = <0x15000000 0x15000000 0x00600000>,
+				<0x16000000 0x16000000 0x00200000>,
 				<0x17000000 0x17000000 0x10000>,
 				<0x17020000 0x17020000 0x1000>,
 				<0x17030000 0x17030000 0x1000>,
@@ -1382,6 +1383,13 @@
 				<0x17070000 0x17070000 0x200>,
 				<0x17070200 0x17070200 0x100>,
 				<0x170A0000 0x170A0000 0x3000>;
+
+			multimedia@15000000 {
+				compatible = "sirf,atlas7-video-codec";
+				reg = <0x15000000 0x10000>;
+				interrupts = <0 5 0>;
+				clocks = <&car 102>;
+			};
 
 			mediam@170A0000 {
 				compatible = "sirf,nocfw-mediam";
