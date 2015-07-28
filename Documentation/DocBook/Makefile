@@ -66,8 +66,9 @@ installmandocs: mandocs
 
 ###
 #External programs used
-KERNELDOC = $(srctree)/scripts/kernel-doc
-DOCPROC   = $(objtree)/scripts/docproc
+KERNELDOCXMLREF = $(srctree)/scripts/kernel-doc-xml-ref
+KERNELDOC       = $(srctree)/scripts/kernel-doc
+DOCPROC         = $(objtree)/scripts/docproc
 
 XMLTOFLAGS = -m $(srctree)/$(src)/stylesheet.xsl
 XMLTOFLAGS += --skip-validation
@@ -91,7 +92,7 @@ define rule_docproc
         ) > $(dir $@).$(notdir $@).cmd
 endef
 
-%.xml: %.tmpl $(KERNELDOC) $(DOCPROC) FORCE
+%.xml: %.tmpl $(KERNELDOC) $(DOCPROC) $(KERNELDOCXMLREF) FORCE
 	$(call if_changed_rule,docproc)
 
 # Tell kbuild to always build the programs
@@ -142,7 +143,20 @@ quiet_cmd_db2html = HTML    $@
 		echo '<a HREF="$(patsubst %.html,%,$(notdir $@))/index.html"> \
 		$(patsubst %.html,%,$(notdir $@))</a><p>' > $@
 
-%.html:	%.xml
+###
+# Rules to create an aux XML and .db, and use them to re-process the DocBook XML
+# to fill internal hyperlinks
+       gen_aux_xml = :
+ quiet_gen_aux_xml = echo '  XMLREF  $@'
+silent_gen_aux_xml = :
+%.aux.xml: %.xml
+	@$($(quiet)gen_aux_xml)
+	@rm -rf $@
+	@(cat $< | egrep "^<refentry id" | egrep -o "\".*\"" | cut -f 2 -d \" > $<.db)
+	@$(KERNELDOCXMLREF) -db $<.db $< > $@
+.PRECIOUS: %.aux.xml
+
+%.html:	%.aux.xml
 	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install xmlto ***"; \
 	  exit 1)
@@ -211,15 +225,18 @@ dochelp:
 ###
 # Temporary files left by various tools
 clean-files := $(DOCBOOKS) \
-	$(patsubst %.xml, %.dvi,  $(DOCBOOKS)) \
-	$(patsubst %.xml, %.aux,  $(DOCBOOKS)) \
-	$(patsubst %.xml, %.tex,  $(DOCBOOKS)) \
-	$(patsubst %.xml, %.log,  $(DOCBOOKS)) \
-	$(patsubst %.xml, %.out,  $(DOCBOOKS)) \
-	$(patsubst %.xml, %.ps,   $(DOCBOOKS)) \
-	$(patsubst %.xml, %.pdf,  $(DOCBOOKS)) \
-	$(patsubst %.xml, %.html, $(DOCBOOKS)) \
-	$(patsubst %.xml, %.9,    $(DOCBOOKS)) \
+	$(patsubst %.xml, %.dvi,     $(DOCBOOKS)) \
+	$(patsubst %.xml, %.aux,     $(DOCBOOKS)) \
+	$(patsubst %.xml, %.tex,     $(DOCBOOKS)) \
+	$(patsubst %.xml, %.log,     $(DOCBOOKS)) \
+	$(patsubst %.xml, %.out,     $(DOCBOOKS)) \
+	$(patsubst %.xml, %.ps,      $(DOCBOOKS)) \
+	$(patsubst %.xml, %.pdf,     $(DOCBOOKS)) \
+	$(patsubst %.xml, %.html,    $(DOCBOOKS)) \
+	$(patsubst %.xml, %.9,       $(DOCBOOKS)) \
+	$(patsubst %.xml, %.aux.xml, $(DOCBOOKS)) \
+	$(patsubst %.xml, %.xml.db,  $(DOCBOOKS)) \
+	$(patsubst %.xml, %.xml,     $(DOCBOOKS)) \
 	$(index)
 
 clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man
