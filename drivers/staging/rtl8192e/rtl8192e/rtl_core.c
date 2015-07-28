@@ -2642,12 +2642,12 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 	pci_read_config_byte(pdev, 0x08, &revision_id);
 	/* If the revisionid is 0x10, the device uses rtl8192se. */
 	if (pdev->device == 0x8192 && revision_id == 0x10)
-		goto err_rel_mem;
+		goto err_unmap;
 
 	priv->ops = ops;
 
 	if (rtl92e_check_adapter(pdev, dev) == false)
-		goto err_rel_mem;
+		goto err_unmap;
 
 	dev->irq = pdev->irq;
 	priv->irq = 0;
@@ -2688,6 +2688,8 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 err_free_irq:
 	free_irq(dev->irq, dev);
 	priv->irq = 0;
+err_unmap:
+	iounmap((void __iomem *)ioaddr);
 err_rel_mem:
 	release_mem_region(pmem_start, pmem_len);
 err_rel_rtllib:
