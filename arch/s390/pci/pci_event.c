@@ -87,7 +87,9 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		ret = zpci_enable_device(zdev);
 		if (ret)
 			break;
+		pci_lock_rescan_remove();
 		pci_rescan_bus(zdev->bus);
+		pci_unlock_rescan_remove();
 		break;
 	case 0x0302: /* Reserved -> Standby */
 		if (!zdev)
@@ -95,7 +97,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		break;
 	case 0x0303: /* Deconfiguration requested */
 		if (pdev)
-			pci_stop_and_remove_bus_device(pdev);
+			pci_stop_and_remove_bus_device_locked(pdev);
 
 		ret = zpci_disable_device(zdev);
 		if (ret)
@@ -112,7 +114,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			/* Give the driver a hint that the function is
 			 * already unusable. */
 			pdev->error_state = pci_channel_io_perm_failure;
-			pci_stop_and_remove_bus_device(pdev);
+			pci_stop_and_remove_bus_device_locked(pdev);
 		}
 
 		zdev->fh = ccdf->fh;

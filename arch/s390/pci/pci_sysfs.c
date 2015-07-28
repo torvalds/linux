@@ -44,17 +44,24 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 	if (!device_remove_file_self(dev, attr))
 		return count;
 
+	pci_lock_rescan_remove();
 	pci_stop_and_remove_bus_device(pdev);
 	ret = zpci_disable_device(zdev);
 	if (ret)
-		return ret;
+		goto error;
 
 	ret = zpci_enable_device(zdev);
 	if (ret)
-		return ret;
+		goto error;
 
 	pci_rescan_bus(zdev->bus);
+	pci_unlock_rescan_remove();
+
 	return count;
+
+error:
+	pci_unlock_rescan_remove();
+	return ret;
 }
 static DEVICE_ATTR_WO(recover);
 
