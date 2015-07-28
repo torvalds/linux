@@ -135,15 +135,16 @@ struct visornic_devdata {
 	atomic_t num_rcvbuf_in_iovm;
 	unsigned long alloc_failed_in_if_needed_cnt;
 	unsigned long alloc_failed_in_repost_rtn_cnt;
-	int max_outstanding_net_xmits;   /* absolute max number of outstanding
-					  * xmits - should never hit this
-					  */
-	int upper_threshold_net_xmits;   /* high water mark for calling
-					  * netif_stop_queue()
-					  */
-	int lower_threshold_net_xmits;	 /* high water mark for calling
-					  * netif_wake_queue()
-					  */
+	unsigned long max_outstanding_net_xmits; /* absolute max number of
+						  * outstanding xmits - should
+						  * never hit this
+						  */
+	unsigned long upper_threshold_net_xmits;  /* high water mark for
+						   * calling netif_stop_queue()
+						   */
+	unsigned long lower_threshold_net_xmits; /* high water mark for calling
+						  * netif_wake_queue()
+						  */
 	struct sk_buff_head xmitbufhead; /* xmitbufhead is the head of the
 					  * xmit buffer list that have been
 					  * sent to the IOPART end
@@ -795,6 +796,53 @@ visornic_close(struct net_device *netdev)
 }
 
 /**
+ *	devdata_xmits_outstanding - compute outstanding xmits
+ *	@devdata: visornic_devdata for device
+ *
+ *	Return value is the number of outstanding xmits.
+ */
+static unsigned long devdata_xmits_outstanding(struct visornic_devdata *devdata)
+{
+	if (devdata->chstat.sent_xmit >= devdata->chstat.got_xmit_done)
+		return devdata->chstat.sent_xmit -
+			devdata->chstat.got_xmit_done;
+	else
+		return (ULONG_MAX - devdata->chstat.got_xmit_done
+			+ devdata->chstat.sent_xmit + 1);
+}
+
+/**
+ *	vnic_hit_high_watermark
+ *	@devdata: indicates visornic device we are checking
+ *	@high_watermark: max num of unacked xmits we will tolerate,
+ *                       before we will start throttling
+ *
+ *      Returns true iff the number of unacked xmits sent to
+ *      the IO partition is >= high_watermark.
+ */
+static inline bool vnic_hit_high_watermark(struct visornic_devdata *devdata,
+					   ulong high_watermark)
+{
+	return (devdata_xmits_outstanding(devdata) >= high_watermark);
+}
+
+/**
+ *	vnic_hit_low_watermark
+ *	@devdata: indicates visornic device we are checking
+ *	@low_watermark: we will wait until the num of unacked xmits
+ *                      drops to this value or lower before we start
+ *                      transmitting again
+ *
+ *      Returns true iff the number of unacked xmits sent to
+ *      the IO partition is <= low_watermark.
+ */
+static inline bool vnic_hit_low_watermark(struct visornic_devdata *devdata,
+					  ulong low_watermark)
+{
+	return (devdata_xmits_outstanding(devdata) <= low_watermark);
+}
+
+/**
  *	visornic_xmit - send a packet to the IO Partition
  *	@skb: Packet to be sent
  *	@netdev: net device the packet is being sent from
@@ -869,13 +917,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* save the pointer to skb -- we'll need it for completion */
 	cmdrsp->net.buf = skb;
 
-	if (((devdata->chstat.sent_xmit >= devdata->chstat.got_xmit_done) &&
-	     (devdata->chstat.sent_xmit - devdata->chstat.got_xmit_done >=
-	     devdata->max_outstanding_net_xmits)) ||
-	     ((devdata->chstat.sent_xmit < devdata->chstat.got_xmit_done) &&
-	     (ULONG_MAX - devdata->chstat.got_xmit_done +
-	      devdata->chstat.sent_xmit >=
-	      devdata->max_outstanding_net_xmits))) {
+	if (vnic_hit_high_watermark(devdata,
+				    devdata->max_outstanding_net_xmits)) {
 		/* too many NET_XMITs queued over to IOVM - need to wait
 		 */
 		devdata->chstat.reject_count++;
@@ -957,13 +1000,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* check to see if we have hit the high watermark for
 	 * netif_stop_queue()
 	 */
-	if (((devdata->chstat.sent_xmit >= devdata->chstat.got_xmit_done) &&
-	     (devdata->chstat.sent_xmit - devdata->chstat.got_xmit_done >=
-	      devdata->upper_threshold_net_xmits)) ||
-	    ((devdata->chstat.sent_xmit < devdata->chstat.got_xmit_done) &&
-	     (ULONG_MAX - devdata->chstat.got_xmit_done +
-	      devdata->chstat.sent_xmit >=
-	      devdata->upper_threshold_net_xmits))) {
+	if (vnic_hit_high_watermark(devdata,
+				    devdata->upper_threshold_net_xmits)) {
 		/* too many NET_XMITs queued over to IOVM - need to wait */
 		netif_stop_queue(netdev); /* calling stop queue - call
 					   * netif_wake_queue() after lower
@@ -1457,13 +1495,13 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				     " num_rcv_bufs = %d\n",
 				     devdata->num_rcv_bufs);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " max_oustanding_next_xmits = %d\n",
+				     " max_oustanding_next_xmits = %lu\n",
 				    devdata->max_outstanding_net_xmits);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " upper_threshold_net_xmits = %d\n",
+				     " upper_threshold_net_xmits = %lu\n",
 				     devdata->upper_threshold_net_xmits);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " lower_threshold_net_xmits = %d\n",
+				     " lower_threshold_net_xmits = %lu\n",
 				     devdata->lower_threshold_net_xmits);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				     " queuefullmsg_logged = %d\n",
@@ -1562,6 +1600,9 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				     " netif_queue = %s\n",
 				     netif_queue_stopped(devdata->netdev) ?
 				     "stopped" : "running");
+		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
+				     " xmits_outstanding = %lu\n",
+				     devdata_xmits_outstanding(devdata));
 	}
 	rcu_read_unlock();
 	bytes_read = simple_read_from_buffer(buf, len, offset, vbuf, str_pos);
@@ -1655,16 +1696,8 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 				 * the lower watermark for
 				 * netif_wake_queue()
 				 */
-				if (((devdata->chstat.sent_xmit >=
-				    devdata->chstat.got_xmit_done) &&
-				    (devdata->chstat.sent_xmit -
-				    devdata->chstat.got_xmit_done <=
-				    devdata->lower_threshold_net_xmits)) ||
-				    ((devdata->chstat.sent_xmit <
-				    devdata->chstat.got_xmit_done) &&
-				    (ULONG_MAX - devdata->chstat.got_xmit_done
-				    + devdata->chstat.sent_xmit <=
-				    devdata->lower_threshold_net_xmits))) {
+				if (vnic_hit_low_watermark(devdata,
+					devdata->lower_threshold_net_xmits)) {
 					/* enough NET_XMITs completed
 					 * so can restart netif queue
 					 */
@@ -1834,12 +1867,15 @@ static int visornic_probe(struct visor_device *dev)
 
 	/* set the net_xmit outstanding threshold */
 	/* always leave two slots open but you should have 3 at a minimum */
+	/* note that max_outstanding_net_xmits must be > 0 */
 	devdata->max_outstanding_net_xmits =
-		max(3, ((devdata->num_rcv_bufs / 3) - 2));
+		max_t(unsigned long, 3, ((devdata->num_rcv_bufs / 3) - 2));
 	devdata->upper_threshold_net_xmits =
-		max(2, devdata->max_outstanding_net_xmits - 1);
+		max_t(unsigned long,
+		      2, (devdata->max_outstanding_net_xmits - 1));
 	devdata->lower_threshold_net_xmits =
-		max(1, devdata->max_outstanding_net_xmits / 2);
+		max_t(unsigned long,
+		      1, (devdata->max_outstanding_net_xmits / 2));
 
 	skb_queue_head_init(&devdata->xmitbufhead);
 
