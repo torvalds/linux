@@ -737,9 +737,6 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 
 	priv->rtllib->mode = wireless_mode;
 
-	ActUpdateChannelAccessSetting(dev, wireless_mode,
-				      &priv->ChannelAccessSetting);
-
 	if ((wireless_mode == WIRELESS_MODE_N_24G) ||
 	    (wireless_mode == WIRELESS_MODE_N_5G)) {
 		priv->rtllib->pHTInfo->bEnableHT = 1;

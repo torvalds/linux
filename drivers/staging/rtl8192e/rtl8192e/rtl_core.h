@@ -619,8 +619,4 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			 enum rt_rf_power_state StateToSet,
 			 RT_RF_CHANGE_SOURCE ChangeSource,
 			 bool	ProtectOrNot);
-void ActUpdateChannelAccessSetting(struct net_device *dev,
-			   enum wireless_mode WirelessMode,
-			   struct channel_access_setting *ChnlAccessSetting);
-
 #endif

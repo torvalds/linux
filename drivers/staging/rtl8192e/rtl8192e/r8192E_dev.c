@@ -2388,9 +2388,3 @@ bool rtl92e_is_halfn_supported_by_ap(struct net_device *dev)
 
 	return Reval;
 }
-
-void ActUpdateChannelAccessSetting(struct net_device *dev,
-	enum wireless_mode WirelessMode,
-	struct channel_access_setting *ChnlAccessSetting)
-{
-}
