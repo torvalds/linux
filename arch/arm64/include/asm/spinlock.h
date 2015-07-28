@@ -110,7 +110,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
-	"	ldr	%w1, %0\n"
+	"	ldrh	%w1, %0\n"
 	"	add	%w1, %w1, #1\n"
 	"	stlrh	%w1, %0",
 	/* LSE atomics */
