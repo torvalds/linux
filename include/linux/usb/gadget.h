@@ -574,6 +574,7 @@ struct usb_gadget {
 	unsigned			quirk_ep_out_aligned_size:1;
 	unsigned			quirk_altset_not_supp:1;
 	unsigned			quirk_stall_not_supp:1;
+	unsigned			quirk_zlp_not_supp:1;
 	unsigned			is_selfpowered:1;
 	unsigned			deactivated:1;
 	unsigned			connected:1;
@@ -628,6 +629,15 @@ static inline int gadget_is_altset_supported(struct usb_gadget *g)
 static inline int gadget_is_stall_supported(struct usb_gadget *g)
 {
 	return !g->quirk_stall_not_supp;
+}
+
+/**
+ * gadget_is_zlp_supported - return true iff the hardware supports zlp
+ * @g: controller to check for quirk
+ */
+static inline int gadget_is_zlp_supported(struct usb_gadget *g)
+{
+	return !g->quirk_zlp_not_supp;
 }
 
 /**

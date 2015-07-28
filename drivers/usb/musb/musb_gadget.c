@@ -2075,6 +2075,7 @@ __acquires(musb->lock)
 	musb->g.b_hnp_enable = 0;
 	musb->g.a_alt_hnp_support = 0;
 	musb->g.a_hnp_support = 0;
+	musb->g.quirk_zlp_not_supp = 1;
 
 	/* Normal reset, as B-Device;
 	 * or else after HNP, as A-Device
