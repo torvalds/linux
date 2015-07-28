@@ -724,23 +724,21 @@ static int sdio_read_size(uint32_t *size)
 	/**
 	 *      Read DMA count in words
 	 **/
-	{
-		cmd.read_write = 0;
-		cmd.function = 0;
-		cmd.raw = 0;
-		cmd.address = 0xf2;
-		cmd.data = 0;
-		g_sdio.sdio_cmd52(&cmd);
-		tmp = cmd.data;
+	cmd.read_write = 0;
+	cmd.function = 0;
+	cmd.raw = 0;
+	cmd.address = 0xf2;
+	cmd.data = 0;
+	g_sdio.sdio_cmd52(&cmd);
+	tmp = cmd.data;
 
-		/* cmd.read_write = 0; */
-		/* cmd.function = 0; */
-		/* cmd.raw = 0; */
-		cmd.address = 0xf3;
-		cmd.data = 0;
-		g_sdio.sdio_cmd52(&cmd);
-		tmp |= (cmd.data << 8);
-	}
+	/* cmd.read_write = 0; */
+	/* cmd.function = 0; */
+	/* cmd.raw = 0; */
+	cmd.address = 0xf3;
+	cmd.data = 0;
+	g_sdio.sdio_cmd52(&cmd);
+	tmp |= (cmd.data << 8);
 
 	*size = tmp;
 	return 1;
