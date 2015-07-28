@@ -306,17 +306,17 @@ static inline void bio_cnt_set(struct bio *bio, unsigned int count)
 
 static inline bool bio_flagged(struct bio *bio, unsigned int bit)
 {
-	return (bio->bi_flags & (1UL << bit)) != 0;
+	return (bio->bi_flags & (1U << bit)) != 0;
 }
 
 static inline void bio_set_flag(struct bio *bio, unsigned int bit)
 {
-	bio->bi_flags |= (1UL << bit);
+	bio->bi_flags |= (1U << bit);
 }
 
 static inline void bio_clear_flag(struct bio *bio, unsigned int bit)
 {
-	bio->bi_flags &= ~(1UL << bit);
+	bio->bi_flags &= ~(1U << bit);
 }
 
 enum bip_flags {

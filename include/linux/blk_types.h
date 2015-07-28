@@ -46,14 +46,14 @@ struct bvec_iter {
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
-	unsigned long		bi_flags;	/* status, command, etc */
+	unsigned int		bi_flags;	/* status, command, etc */
+	int			bi_error;
 	unsigned long		bi_rw;		/* bottom bits READ/WRITE,
 						 * top bits priority
 						 */
 
 	struct bvec_iter	bi_iter;
 
-	int			bi_error;
 	/* Number of segments in this BIO after
 	 * physical address coalescing is performed.
 	 */
@@ -134,7 +134,7 @@ struct bio {
  */
 #define BIO_POOL_BITS		(4)
 #define BIO_POOL_NONE		((1UL << BIO_POOL_BITS) - 1)
-#define BIO_POOL_OFFSET		(BITS_PER_LONG - BIO_POOL_BITS)
+#define BIO_POOL_OFFSET		(32 - BIO_POOL_BITS)
 #define BIO_POOL_MASK		(1UL << BIO_POOL_OFFSET)
 #define BIO_POOL_IDX(bio)	((bio)->bi_flags >> BIO_POOL_OFFSET)
 
