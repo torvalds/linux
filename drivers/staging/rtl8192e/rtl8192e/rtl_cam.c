@@ -117,8 +117,10 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 		}
 	}
 	priv->rtllib->is_set_key = true;
-	if (EntryNo >= TOTAL_CAM_ENTRY)
+	if (EntryNo >= TOTAL_CAM_ENTRY) {
 		netdev_info(dev, "%s(): Invalid CAM entry\n", __func__);
+		return;
+	}
 
 	RT_TRACE(COMP_SEC,
 		 "====>to rtl92e_set_key(), dev:%p, EntryNo:%d, KeyIndex:%d,KeyType:%d, MacAddr %pM\n",
