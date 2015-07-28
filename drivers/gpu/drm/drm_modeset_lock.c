@@ -55,41 +55,27 @@
  *     drm_modeset_acquire_fini(&ctx);
  */
 
-
 /**
- * __drm_modeset_lock_all - internal helper to grab all modeset locks
- * @dev: DRM device
- * @trylock: trylock mode for atomic contexts
+ * drm_modeset_lock_all - take all modeset locks
+ * @dev: drm device
  *
- * This is a special version of drm_modeset_lock_all() which can also be used in
- * atomic contexts. Then @trylock must be set to true.
- *
- * Returns:
- * 0 on success or negative error code on failure.
+ * This function takes all modeset locks, suitable where a more fine-grained
+ * scheme isn't (yet) implemented. Locks must be dropped with
+ * drm_modeset_unlock_all.
  */
-int __drm_modeset_lock_all(struct drm_device *dev,
-			   bool trylock)
+void drm_modeset_lock_all(struct drm_device *dev)
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_modeset_acquire_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx),
-		      trylock ? GFP_ATOMIC : GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (WARN_ON(!ctx))
+		return;
 
-	if (trylock) {
-		if (!mutex_trylock(&config->mutex)) {
-			ret = -EBUSY;
-			goto out;
-		}
-	} else {
-		mutex_lock(&config->mutex);
-	}
+	mutex_lock(&config->mutex);
 
 	drm_modeset_acquire_init(ctx, 0);
-	ctx->trylock_only = trylock;
 
 retry:
 	ret = drm_modeset_lock(&config->connection_mutex, ctx);
@@ -108,7 +94,7 @@ retry:
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
-	return 0;
+	return;
 
 fail:
 	if (ret == -EDEADLK) {
@@ -116,23 +102,7 @@ fail:
 		goto retry;
 	}
 
-out:
 	kfree(ctx);
-	return ret;
-}
-EXPORT_SYMBOL(__drm_modeset_lock_all);
-
-/**
- * drm_modeset_lock_all - take all modeset locks
- * @dev: drm device
- *
- * This function takes all modeset locks, suitable where a more fine-grained
- * scheme isn't (yet) implemented. Locks must be dropped with
- * drm_modeset_unlock_all.
- */
-void drm_modeset_lock_all(struct drm_device *dev)
-{
-	WARN_ON(__drm_modeset_lock_all(dev, false) != 0);
 }
 EXPORT_SYMBOL(drm_modeset_lock_all);
 
