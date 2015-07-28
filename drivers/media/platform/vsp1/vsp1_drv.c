@@ -143,6 +143,9 @@ static int vsp1_create_links(struct vsp1_device *vsp1)
 			return ret;
 	}
 
+	if (!vsp1->pdata.uapi)
+		return 0;
+
 	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
 		struct vsp1_rwpf *rpf = vsp1->rpf[i];
 
@@ -267,7 +270,6 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
-		struct vsp1_video *video;
 		struct vsp1_rwpf *rpf;
 
 		rpf = vsp1_rpf_create(vsp1, i);
@@ -279,13 +281,16 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		vsp1->rpf[i] = rpf;
 		list_add_tail(&rpf->entity.list_dev, &vsp1->entities);
 
-		video = vsp1_video_create(vsp1, rpf);
-		if (IS_ERR(video)) {
-			ret = PTR_ERR(video);
-			goto done;
-		}
+		if (vsp1->pdata.uapi) {
+			struct vsp1_video *video = vsp1_video_create(vsp1, rpf);
 
-		list_add_tail(&video->list, &vsp1->videos);
+			if (IS_ERR(video)) {
+				ret = PTR_ERR(video);
+				goto done;
+			}
+
+			list_add_tail(&video->list, &vsp1->videos);
+		}
 	}
 
 	if (vsp1->pdata.features & VSP1_HAS_SRU) {
@@ -312,7 +317,6 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
-		struct vsp1_video *video;
 		struct vsp1_rwpf *wpf;
 
 		wpf = vsp1_wpf_create(vsp1, i);
@@ -324,14 +328,17 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		vsp1->wpf[i] = wpf;
 		list_add_tail(&wpf->entity.list_dev, &vsp1->entities);
 
-		video = vsp1_video_create(vsp1, wpf);
-		if (IS_ERR(video)) {
-			ret = PTR_ERR(video);
-			goto done;
-		}
+		if (vsp1->pdata.uapi) {
+			struct vsp1_video *video = vsp1_video_create(vsp1, wpf);
 
-		list_add_tail(&video->list, &vsp1->videos);
-		wpf->entity.sink = &video->video.entity;
+			if (IS_ERR(video)) {
+				ret = PTR_ERR(video);
+				goto done;
+			}
+
+			list_add_tail(&video->list, &vsp1->videos);
+			wpf->entity.sink = &video->video.entity;
+		}
 	}
 
 	/* Register all subdevs. */
@@ -347,9 +354,11 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	if (ret < 0)
 		goto done;
 
-	ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
-	if (ret < 0)
-		goto done;
+	if (vsp1->pdata.uapi) {
+		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
+		if (ret < 0)
+			goto done;
+	}
 
 	ret = media_device_register(mdev);
 
@@ -545,6 +554,7 @@ static int vsp1_parse_dt(struct vsp1_device *vsp1)
 
 	pdata->features |= VSP1_HAS_BRU;
 	pdata->num_bru_inputs = 4;
+	pdata->uapi = true;
 
 	return 0;
 }

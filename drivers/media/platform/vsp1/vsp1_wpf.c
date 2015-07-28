@@ -151,10 +151,12 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	/* Take the control handler lock to ensure that the PDV value won't be
 	 * changed behind our back by a set control operation.
 	 */
-	mutex_lock(wpf->ctrls.lock);
+	if (vsp1->pdata.uapi)
+		mutex_lock(wpf->ctrls.lock);
 	outfmt |= vsp1_wpf_read(wpf, VI6_WPF_OUTFMT) & VI6_WPF_OUTFMT_PDV_MASK;
 	vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, outfmt);
-	mutex_unlock(wpf->ctrls.lock);
+	if (vsp1->pdata.uapi)
+		mutex_unlock(wpf->ctrls.lock);
 
 	vsp1_write(vsp1, VI6_DPR_WPF_FPORCH(wpf->entity.index),
 		   VI6_DPR_WPF_FPORCH_FP_WPFN);

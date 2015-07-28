@@ -50,6 +50,7 @@ struct vsp1_platform_data {
 	unsigned int uds_count;
 	unsigned int wpf_count;
 	unsigned int num_bru_inputs;
+	bool uapi;
 };
 
 struct vsp1_device {
