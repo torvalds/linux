@@ -2071,39 +2071,35 @@ static int visornic_resume(struct visor_device *dev,
 
 	netdev = devdata->netdev;
 
-	if (devdata->server_down && !devdata->server_change_state) {
-		devdata->server_change_state = true;
-		/* Must transition channel to ATTACHED state BEFORE
-		 * we can start using the device again.
-		 * TODO: State transitions
-		 */
-		if (!devdata->threadinfo.id)
-			visor_thread_start(&devdata->threadinfo,
-					   process_incoming_rsps,
-					   devdata, "vnic_incoming");
-		else
-			pr_warn("vnic_incoming already running!\n");
-
-		init_rcv_bufs(netdev, devdata);
-		spin_lock_irqsave(&devdata->priv_lock, flags);
-		devdata->enabled = 1;
-
-		/* Now we're ready, let's send an ENB to uisnic but until
-		 * we get an ACK back from uisnic, we'll drop the packets
-		 */
-		devdata->enab_dis_acked = 0;
+	spin_lock_irqsave(&devdata->priv_lock, flags);
+	if (devdata->server_change_state) {
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
-
-		/* send enable and wait for ack - don't hold lock when
-		 * sending enable because if the queue if sull, insert
-		 * might sleep.
-		 */
-		send_enbdis(netdev, 1, devdata);
-	} else if (devdata->server_change_state) {
-		dev_err(&dev->device, "%s server_change_state\n",
+		dev_err(&dev->device, "%s server already changing state\n",
 			__func__);
-		return -EIO;
+		return -EINVAL;
 	}
+	if (!devdata->server_down) {
+		spin_unlock_irqrestore(&devdata->priv_lock, flags);
+		dev_err(&dev->device, "%s server not down\n", __func__);
+		complete_func(dev, 0);
+		return 0;
+	}
+	devdata->server_change_state = true;
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+	/* Must transition channel to ATTACHED state BEFORE
+	 * we can start using the device again.
+	 * TODO: State transitions
+	 */
+	if (!devdata->threadinfo.id)
+		visor_thread_start(&devdata->threadinfo,
+				   process_incoming_rsps,
+				   devdata, "vnic_incoming");
+	else
+		pr_warn("vnic_incoming already running!\n");
+
+	rtnl_lock();
+	dev_open(netdev);
+	rtnl_unlock();
 
 	complete_func(dev, 0);
 	return 0;
