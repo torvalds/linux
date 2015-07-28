@@ -53,6 +53,11 @@
 		};
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts = <0 29 4>, <0 82 4>;
+	};
+
 	noc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
