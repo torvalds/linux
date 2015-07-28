@@ -1,4 +1,3 @@
-#ifndef SIMULATION
 #include "wilc_wfi_cfgoperations.h"
 #include "linux_wlan_common.h"
 #include "wilc_wlan_if.h"
@@ -2778,4 +2777,3 @@ static void __exit exit_wilc_driver(void)
 module_exit(exit_wilc_driver);
 
 MODULE_LICENSE("GPL");
-#endif

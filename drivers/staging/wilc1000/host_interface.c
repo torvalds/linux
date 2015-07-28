@@ -570,9 +570,7 @@ static u8 gs8GetIP[2][4];
 static u32 gu32InactiveTime;
 static u8 gu8DelBcn;
 #endif
-#ifndef SIMULATION
 static u32 gu32WidConnRstHack;
-#endif
 
 /*BugID_5137*/
 u8 *gu8FlushedJoinReq;
@@ -1626,14 +1624,12 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 		strWIDList[u32WidsCount].ps8WidVal = (s8 *)&u8bssDscListIndex;
 		u32WidsCount++;
 
-		#ifndef SIMULATION
 		/* A temporary workaround to avoid handling the misleading MAC_DISCONNECTED raised from the
 		 *   firmware at chip reset when processing the WIDs of the Connect Request.
 		 *   (This workaround should be removed in the future when the Chip reset of the Connect WIDs is disabled) */
 		/* ////////////////////// */
 		gu32WidConnRstHack = 0;
 		/* ////////////////////// */
-		#endif
 
 		s32Error = SendConfigPkt(SET_CFG, strWIDList, u32WidsCount, false, (u32)pstrWFIDrv);
 		if (s32Error) {
@@ -1936,14 +1932,12 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 	#endif /* #ifdef WILC_PARSE_SCAN_IN_HOST*/
 	u32WidsCount++;
 
-	#ifndef SIMULATION
 	/* A temporary workaround to avoid handling the misleading MAC_DISCONNECTED raised from the
 	 *   firmware at chip reset when processing the WIDs of the Connect Request.
 	 *   (This workaround should be removed in the future when the Chip reset of the Connect WIDs is disabled) */
 	/* ////////////////////// */
 	gu32WidConnRstHack = 0;
 	/* ////////////////////// */
-	#endif
 
 	/*BugID_5137*/
 	if (WILC_memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
@@ -6586,12 +6580,6 @@ s32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 	sema_init(&(pstrWFIDrv->gtOsCfgValuesSem), 1);
 	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
-
-
-#ifdef SIMULATION
-	TransportInit();
-#endif
-
 	pstrWFIDrv->enuHostIFstate = HOST_IF_IDLE;
 	/* gWFiDrvHandle->bPendingConnRequest = false; */
 
@@ -6626,11 +6614,6 @@ s32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 		PRINT_ER("Failed to initialize core configurator\n");
 		goto _fail_mem_;
 	}
-
-#ifdef SIMULATION
-	/*Initialize Simulaor*/
-	CoreConfigSimulatorInit();
-#endif
 
 	u32Intialized = 1;
 	clients_count++; /* increase number of created entities */
@@ -6731,13 +6714,7 @@ s32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = NULL;
 	}
 	/*deinit configurator and simulator*/
-#ifdef SIMULATION
-	CoreConfigSimulatorDeInit();
-#endif
 	CoreConfiguratorDeInit();
-#ifdef SIMULATION
-	TransportDeInit();
-#endif
 
 	pstrWFIDrv->enuHostIFstate = HOST_IF_IDLE;
 

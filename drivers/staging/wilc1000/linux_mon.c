@@ -6,20 +6,15 @@
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-
-#ifndef SIMULATION
 #include "wilc_wfi_cfgoperations.h"
 #include "linux_wlan_common.h"
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
-#endif
+
 #ifdef WILC_FULLY_HOSTING_AP
 #include "wilc_host_ap.h"
 #endif
 #ifdef WILC_AP_EXTERNAL_MLME
-#ifdef SIMULATION
-#include "wilc_wfi_cfgoperations.h"
-#endif
 
 struct wilc_wfi_radiotap_hdr {
 	struct ieee80211_radiotap_header hdr;
@@ -39,9 +34,7 @@ extern linux_wlan_t *g_linux_wlan;
 
 static struct net_device *wilc_wfi_mon; /* global monitor netdev */
 
-#ifdef SIMULATION
-extern int WILC_WFI_Tx(struct sk_buff *skb, struct net_device *dev);
-#elif USE_WIRELESS
+#if USE_WIRELESS
 extern int  mac_xmit(struct sk_buff *skb, struct net_device *dev);
 #endif
 
@@ -374,9 +367,7 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	PRINT_INFO(HOSTAPD_DBG, "SKB netdevice name = %s\n", skb->dev->name);
 	PRINT_INFO(HOSTAPD_DBG, "MONITOR real dev name = %s\n", mon_priv->real_ndev->name);
 
-	#ifdef SIMULATION
-	ret = WILC_WFI_Tx(skb, mon_priv->real_ndev);
-	#elif USE_WIRELESS
+	#if USE_WIRELESS
 	/* Identify if Ethernet or MAC header (data or mgmt) */
 	memcpy(srcAdd, &skb->data[10], 6);
 	memcpy(bssid, &skb->data[16], 6);

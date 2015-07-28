@@ -1877,89 +1877,6 @@ s32 ConfigWaitResponse(char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32Bytes
 	return s32Error;
 }
 
-/**
- *  @brief              sends certain Configuration Packet based on the input WIDs pstrWIDs
- *                      and retrieves the packet response pu8RxResp
- *  @details
- *  @param[in]  pstrWIDs WIDs to be sent in the configuration packet
- *  @param[in]  u32WIDsCount number of WIDs to be sent in the configuration packet
- *  @param[out]         pu8RxResp The received Packet Response
- *  @param[out]         ps32RxRespLen Length of the received Packet Response
- *  @return     Error code indicating success/failure
- *  @note
- *  @author	mabubakr
- *  @date		1 Mar 2012
- *  @version	1.0
- */
-#ifdef SIMULATION
-s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-			  u32 u32WIDsCount, bool bRespRequired, u32 drvHandler)
-{
-	s32 s32Error = WILC_SUCCESS;
-	s32 err = WILC_SUCCESS;
-	s32 s32ConfigPacketLen = 0;
-	s32 s32RcvdRespLen = 0;
-
-	down(&SemHandleSendPkt);
-
-	/*set the packet mode*/
-	g_oper_mode = u8Mode;
-
-	WILC_memset((void *)gps8ConfigPacket, 0, MAX_PACKET_BUFF_SIZE);
-
-	if (CreateConfigPacket(gps8ConfigPacket, &s32ConfigPacketLen, pstrWIDs, u32WIDsCount) != WILC_SUCCESS) {
-		s32Error = WILC_FAIL;
-		goto End_ConfigPkt;
-	}
-	/*bug 3878*/
-	gstrConfigPktInfo.pcRespBuffer = gps8ConfigPacket;
-	gstrConfigPktInfo.s32MaxRespBuffLen = MAX_PACKET_BUFF_SIZE;
-	PRINT_INFO(CORECONFIG_DBG, "GLOBAL =bRespRequired =%d\n", bRespRequired);
-	gstrConfigPktInfo.bRespRequired = bRespRequired;
-
-	s32Error = SendRawPacket(gps8ConfigPacket, s32ConfigPacketLen);
-	if (s32Error != WILC_SUCCESS) {
-		goto End_ConfigPkt;
-	}
-
-	WILC_memset((void *)gps8ConfigPacket, 0, MAX_PACKET_BUFF_SIZE);
-
-	ConfigWaitResponse(gps8ConfigPacket, MAX_PACKET_BUFF_SIZE, &s32RcvdRespLen, bRespRequired);
-
-
-	if (bRespRequired)	{
-		/* If the operating Mode is GET, then we expect a response frame from */
-		/* the driver. Hence start listening to the port for response         */
-		if (g_oper_mode == GET_CFG) {
-			#if 1
-			err = ParseResponse(gps8ConfigPacket, pstrWIDs);
-			if (err != 0) {
-				s32Error = WILC_FAIL;
-				goto End_ConfigPkt;
-			} else {
-				s32Error = WILC_SUCCESS;
-			}
-			#endif
-		} else {
-			err = ParseWriteResponse(gps8ConfigPacket);
-			if (err != WRITE_RESP_SUCCESS) {
-				s32Error = WILC_FAIL;
-				goto End_ConfigPkt;
-			} else {
-				s32Error = WILC_SUCCESS;
-			}
-		}
-
-
-	}
-
-
-End_ConfigPkt:
-	up(&SemHandleSendPkt);
-
-	return s32Error;
-}
-#endif
 s32 ConfigProvideResponse(char *pcRespBuffer, s32 s32RespLen)
 {
 	s32 s32Error = WILC_SUCCESS;
@@ -2052,8 +1969,6 @@ s32 CoreConfiguratorDeInit(void)
 	return s32Error;
 }
 
-
-#ifndef SIMULATION
 /*Using the global handle of the driver*/
 extern wilc_wlan_oup_t *gpstrWlanOps;
 /**
@@ -2127,4 +2042,3 @@ s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 
 	return ret;
 }
-#endif
