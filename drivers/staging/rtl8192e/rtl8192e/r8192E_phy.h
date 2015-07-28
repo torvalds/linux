@@ -86,7 +86,6 @@ extern bool rtl92e_config_bb(struct net_device *dev);
 extern void rtl92e_get_tx_power(struct net_device *dev);
 extern void rtl92e_set_tx_power(struct net_device *dev, u8 channel);
 extern bool rtl92e_config_phy(struct net_device *dev);
-extern void rtl8192_phy_updateInitGain(struct net_device *dev);
 extern u8 rtl92e_config_rf_path(struct net_device *dev,
 				enum rf90_radio_path eRFPath);
 

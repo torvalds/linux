@@ -712,10 +712,6 @@ bool rtl92e_config_phy(struct net_device *dev)
 	return rtStatus;
 }
 
-void rtl8192_phy_updateInitGain(struct net_device *dev)
-{
-}
-
 u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 {
 

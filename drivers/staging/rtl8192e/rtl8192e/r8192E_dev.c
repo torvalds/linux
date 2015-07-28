@@ -872,7 +872,6 @@ start:
 		}
 		RT_TRACE(COMP_INIT, "RF Config Finished!\n");
 	}
-	rtl8192_phy_updateInitGain(dev);
 
 	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
 	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
