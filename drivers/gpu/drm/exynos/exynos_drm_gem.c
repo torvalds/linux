@@ -139,7 +139,7 @@ struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 
 	exynos_gem_obj = kzalloc(sizeof(*exynos_gem_obj), GFP_KERNEL);
 	if (!exynos_gem_obj)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	exynos_gem_obj->size = size;
 	obj = &exynos_gem_obj->base;
@@ -148,7 +148,7 @@ struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize gem object\n");
 		kfree(exynos_gem_obj);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	DRM_DEBUG_KMS("created file object = 0x%x\n", (unsigned int)obj->filp);
@@ -180,8 +180,8 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	exynos_gem_obj = exynos_drm_gem_init(dev, size);
-	if (!exynos_gem_obj) {
-		ret = -ENOMEM;
+	if (IS_ERR(exynos_gem_obj)) {
+		ret = PTR_ERR(exynos_gem_obj);
 		goto err_fini_buf;
 	}
 
