@@ -20,13 +20,6 @@
 #include "exynos_drm_buf.h"
 #include "exynos_drm_iommu.h"
 
-static unsigned long roundup_gem_size(unsigned long size, unsigned int flags)
-{
-	/* TODO */
-
-	return roundup(size, PAGE_SIZE);
-}
-
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 					struct drm_file *file_priv,
 					unsigned int *handle)
@@ -148,7 +141,7 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	size = roundup_gem_size(size, flags);
+	size = roundup(size, PAGE_SIZE);
 
 	buf = exynos_drm_init_buf(dev, size);
 	if (!buf)
