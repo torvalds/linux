@@ -46,15 +46,13 @@ struct zpci_ccdf_avail {
 static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
+	struct pci_dev *pdev = zdev ? zdev->pdev : NULL;
 
 	zpci_err("error CCDF:\n");
 	zpci_err_hex(ccdf, sizeof(*ccdf));
 
-	if (!zdev)
-		return;
-
 	pr_err("%s: Event 0x%x reports an error for PCI function 0x%x\n",
-	       pci_name(zdev->pdev), ccdf->pec, ccdf->fid);
+	       pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
 }
 
 void zpci_event_error(void *data)
