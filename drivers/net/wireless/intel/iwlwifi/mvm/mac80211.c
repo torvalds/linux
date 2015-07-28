@@ -992,6 +992,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	iwl_mvm_reset_phy_ctxts(mvm);
 	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
 	memset(mvm->sta_drained, 0, sizeof(mvm->sta_drained));
+	memset(mvm->sta_deferred_frames, 0, sizeof(mvm->sta_deferred_frames));
 	memset(mvm->tfd_drained, 0, sizeof(mvm->tfd_drained));
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 	memset(&mvm->last_bt_notif_old, 0, sizeof(mvm->last_bt_notif_old));
@@ -1178,6 +1179,7 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 
 	flush_work(&mvm->d0i3_exit_work);
 	flush_work(&mvm->async_handlers_wk);
+	flush_work(&mvm->add_stream_wk);
 	cancel_delayed_work_sync(&mvm->fw_dump_wk);
 	iwl_mvm_free_fw_dump_desc(mvm);
 
@@ -2382,6 +2384,22 @@ iwl_mvm_tdls_check_trigger(struct iwl_mvm *mvm,
 				    peer_addr, action);
 }
 
+static void iwl_mvm_purge_deferred_tx_frames(struct iwl_mvm *mvm,
+					     struct iwl_mvm_sta *mvm_sta)
+{
+	struct iwl_mvm_tid_data *tid_data;
+	struct sk_buff *skb;
+	int i;
+
+	spin_lock_bh(&mvm_sta->lock);
+	for (i = 0; i <= IWL_MAX_TID_COUNT; i++) {
+		tid_data = &mvm_sta->tid_data[i];
+		while ((skb = __skb_dequeue(&tid_data->deferred_tx_frames)))
+			ieee80211_free_txskb(mvm->hw, skb);
+	}
+	spin_unlock_bh(&mvm_sta->lock);
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -2401,6 +2419,33 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 	/* if a STA is being removed, reuse its ID */
 	flush_work(&mvm->sta_drained_wk);
+
+	/*
+	 * If we are in a STA removal flow and in DQA mode:
+	 *
+	 * This is after the sync_rcu part, so the queues have already been
+	 * flushed. No more TXs on their way in mac80211's path, and no more in
+	 * the queues.
+	 * Also, we won't be getting any new TX frames for this station.
+	 * What we might have are deferred TX frames that need to be taken care
+	 * of.
+	 *
+	 * Drop any still-queued deferred-frame before removing the STA, and
+	 * make sure the worker is no longer handling frames for this STA.
+	 */
+	if (old_state == IEEE80211_STA_NONE &&
+	    new_state == IEEE80211_STA_NOTEXIST &&
+	    iwl_mvm_is_dqa_supported(mvm)) {
+		struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+
+		iwl_mvm_purge_deferred_tx_frames(mvm, mvm_sta);
+		flush_work(&mvm->add_stream_wk);
+
+		/*
+		 * No need to make sure deferred TX indication is off since the
+		 * worker will already remove it if it was on
+		 */
+	}
 
 	mutex_lock(&mvm->mutex);
 	if (old_state == IEEE80211_STA_NOTEXIST &&
@@ -3737,6 +3782,10 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 
 	if (!vif || vif->type != NL80211_IFTYPE_STATION)
 		return;
+
+	/* Make sure we're done with the deferred traffic before flushing */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		flush_work(&mvm->add_stream_wk);
 
 	mutex_lock(&mvm->mutex);
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);

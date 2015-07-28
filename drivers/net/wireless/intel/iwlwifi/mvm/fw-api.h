@@ -80,10 +80,30 @@
 #include "fw-api-stats.h"
 #include "fw-api-tof.h"
 
-/* Tx queue numbers */
+/* Tx queue numbers for non-DQA mode */
 enum {
 	IWL_MVM_OFFCHANNEL_QUEUE = 8,
 	IWL_MVM_CMD_QUEUE = 9,
+};
+
+/*
+ * DQA queue numbers
+ *
+ * @IWL_MVM_DQA_MIN_MGMT_QUEUE: first TXQ in pool for MGMT and non-QOS frames.
+ *	Each MGMT queue is mapped to a single STA
+ *	MGMT frames are frames that return true on ieee80211_is_mgmt()
+ * @IWL_MVM_DQA_MAX_MGMT_QUEUE: last TXQ in pool for MGMT frames
+ * @IWL_MVM_DQA_MIN_DATA_QUEUE: first TXQ in pool for DATA frames.
+ *	DATA frames are intended for !ieee80211_is_mgmt() frames, but if
+ *	the MGMT TXQ pool is exhausted, mgmt frames can be sent on DATA queues
+ *	as well
+ * @IWL_MVM_DQA_MAX_DATA_QUEUE: last TXQ in pool for DATA frames
+ */
+enum iwl_mvm_dqa_txq {
+	IWL_MVM_DQA_MIN_MGMT_QUEUE = 5,
+	IWL_MVM_DQA_MAX_MGMT_QUEUE = 8,
+	IWL_MVM_DQA_MIN_DATA_QUEUE = 10,
+	IWL_MVM_DQA_MAX_DATA_QUEUE = 31,
 };
 
 enum iwl_mvm_tx_fifo {

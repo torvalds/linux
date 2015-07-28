@@ -665,10 +665,16 @@ struct iwl_mvm {
 		/* Map to HW queue */
 		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
+		/*
+		 * This is to mark that queue is reserved for a STA but not yet
+		 * allocated. This is needed to make sure we have at least one
+		 * available queue to use when adding a new STA
+		 */
 		bool setup_reserved;
 		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
 	} queue_info[IWL_MAX_HW_QUEUES];
 	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
+	struct work_struct add_stream_wk; /* To add streams to queues */
 	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
 	const char *nvm_file_name;
@@ -688,6 +694,7 @@ struct iwl_mvm {
 	struct iwl_rx_phy_info last_phy_info;
 	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT];
 	struct work_struct sta_drained_wk;
+	unsigned long sta_deferred_frames[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
 	unsigned long sta_drained[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
 	atomic_t pending_frames[IWL_MVM_STATION_COUNT];
 	u32 tfd_drained[IWL_MVM_STATION_COUNT];

@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,60 @@
 
 struct iwl_mvm;
 struct iwl_mvm_vif;
+
+/**
+ * DOC: DQA - Dynamic Queue Allocation -introduction
+ *
+ * Dynamic Queue Allocation (AKA "DQA") is a feature implemented in iwlwifi
+ * driver to allow dynamic allocation of queues on-demand, rather than allocate
+ * them statically ahead of time. Ideally, we would like to allocate one queue
+ * per RA/TID, thus allowing an AP - for example - to send BE traffic to STA2
+ * even if it also needs to send traffic to a sleeping STA1, without being
+ * blocked by the sleeping station.
+ *
+ * Although the queues in DQA mode are dynamically allocated, there are still
+ * some queues that are statically allocated:
+ *	TXQ #0 - command queue
+ *	TXQ #1 - aux frames
+ *	TXQ #2 - P2P device frames
+ *	TXQ #3 - P2P GO/SoftAP GCAST/BCAST frames
+ *	TXQ #4 - BSS DATA frames queue
+ *	TXQ #5-8 - Non-QoS and MGMT frames queue pool
+ *	TXQ #9 - P2P GO/SoftAP probe responses
+ *	TXQ #10-31 - DATA frames queue pool
+ * The queues are dynamically taken from either the MGMT frames queue pool or
+ * the DATA frames one. See the %iwl_mvm_dqa_txq for more information on every
+ * queue.
+ *
+ * When a frame for a previously unseen RA/TID comes in, it needs to be deferred
+ * until a queue is allocated for it, and only then can be TXed. Therefore, it
+ * is placed into %iwl_mvm_tid_data.deferred_tx_frames, and a worker called
+ * %mvm->add_stream_wk later allocates the queues and TXes the deferred frames.
+ *
+ * For convenience, MGMT is considered as if it has TID=8, and go to the MGMT
+ * queues in the pool. If there is no longer a free MGMT queue to allocate, a
+ * queue will be allocated from the DATA pool instead. Since QoS NDPs can create
+ * a problem for aggregations, they too will use a MGMT queue.
+ *
+ * When adding a STA, a DATA queue is reserved for it so that it can TX from
+ * it. If no such free queue exists for reserving, the STA addition will fail.
+ *
+ * If the DATA queue pool gets exhausted, no new STA will be accepted, and if a
+ * new RA/TID comes in for an existing STA, one of the STA's queues will become
+ * shared and will serve more than the single TID (but always for the same RA!).
+ *
+ * When a RA/TID needs to become aggregated, no new queue is required to be
+ * allocated, only mark the queue as aggregated via the ADD_STA command. Note,
+ * however, that a shared queue cannot be aggregated, and only after the other
+ * TIDs become inactive and are removed - only then can the queue be
+ * reconfigured and become aggregated.
+ *
+ * When removing a station, its queues are returned to the pool for reuse. Here
+ * we also need to make sure that we are synced with the worker thread that TXes
+ * the deferred frames so we don't get into a situation where the queues are
+ * removed and then the worker puts deferred frames onto the released queues or
+ * tries to allocate new queues for a STA we don't need anymore.
+ */
 
 /**
  * DOC: station table - introduction
@@ -253,6 +307,7 @@ enum iwl_mvm_agg_state {
 
 /**
  * struct iwl_mvm_tid_data - holds the states for each RA / TID
+ * @deferred_tx_frames: deferred TX frames for this RA/TID
  * @seq_number: the next WiFi sequence number to use
  * @next_reclaimed: the WiFi sequence number of the next packet to be acked.
  *	This is basically (last acked packet++).
@@ -260,7 +315,7 @@ enum iwl_mvm_agg_state {
  *	Tx response (TX_CMD), and the block ack notification (COMPRESSED_BA).
  * @amsdu_in_ampdu_allowed: true if A-MSDU in A-MPDU is allowed.
  * @state: state of the BA agreement establishment / tear down.
- * @txq_id: Tx queue used by the BA session
+ * @txq_id: Tx queue used by the BA session / DQA
  * @ssn: the first packet to be sent in AGG HW queue in Tx AGG start flow, or
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
@@ -268,6 +323,7 @@ enum iwl_mvm_agg_state {
  * @tx_time: medium time consumed by this A-MPDU
  */
 struct iwl_mvm_tid_data {
+	struct sk_buff_head deferred_tx_frames;
 	u16 seq_number;
 	u16 next_reclaimed;
 	/* The rest is Tx AGG related */
@@ -316,7 +372,10 @@ struct iwl_mvm_rxq_dup_data {
  *	we need to signal the EOSP
  * @lock: lock to protect the whole struct. Since %tid_data is access from Tx
  * and from Tx response flow, it needs a spinlock.
- * @tid_data: per tid data. Look at %iwl_mvm_tid_data.
+ * @tid_data: per tid data + mgmt. Look at %iwl_mvm_tid_data.
+ * @reserved_queue: the queue reserved for this STA for DQA purposes
+ *	Every STA has is given one reserved queue to allow it to operate. If no
+ *	such queue can be guaranteed, the STA addition will fail.
  * @tx_protection: reference counter for controlling the Tx protection.
  * @tt_tx_protection: is thermal throttling enable Tx protection?
  * @disable_tx: is tx to this STA disabled?
@@ -329,6 +388,7 @@ struct iwl_mvm_rxq_dup_data {
  *	the BA window. To be used for UAPSD only.
  * @ptk_pn: per-queue PTK PN data structures
  * @dup_data: per queue duplicate packet detection data
+ * @deferred_traffic_tid_map: indication bitmap of deferred traffic per-TID
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is placed in that
@@ -345,11 +405,15 @@ struct iwl_mvm_sta {
 	bool bt_reduced_txpower;
 	bool next_status_eosp;
 	spinlock_t lock;
-	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT];
+	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT + 1];
 	struct iwl_lq_sta lq_sta;
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;
+
+	u16 deferred_traffic_tid_map;
+
+	u8 reserved_queue;
 
 	/* Temporary, until the new TLC will control the Tx protection */
 	s8 tx_protection;
@@ -378,8 +442,18 @@ struct iwl_mvm_int_sta {
 	u32 tfd_queue_msk;
 };
 
+/**
+ * Send the STA info to the FW.
+ *
+ * @mvm: the iwl_mvm* to use
+ * @sta: the STA
+ * @update: this is true if the FW is being updated about a STA it already knows
+ *	about. Otherwise (if this is a new STA), this should be false.
+ * @flags: if update==true, this marks what is being changed via ORs of values
+ *	from enum iwl_sta_modify_flag. Otherwise, this is ignored.
+ */
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			   bool update);
+			   bool update, unsigned int flags);
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta);
@@ -459,5 +533,6 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvmvif,
 				       bool disable);
 void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
 
 #endif /* __sta_h__ */

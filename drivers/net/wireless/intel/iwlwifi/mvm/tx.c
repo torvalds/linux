@@ -639,6 +639,35 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 }
 #endif
 
+static void iwl_mvm_tx_add_stream(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvm_sta, u8 tid,
+				  struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	u8 mac_queue = info->hw_queue;
+	struct sk_buff_head *deferred_tx_frames;
+
+	lockdep_assert_held(&mvm_sta->lock);
+
+	mvm_sta->deferred_traffic_tid_map |= BIT(tid);
+	set_bit(mvm_sta->sta_id, mvm->sta_deferred_frames);
+
+	deferred_tx_frames = &mvm_sta->tid_data[tid].deferred_tx_frames;
+
+	skb_queue_tail(deferred_tx_frames, skb);
+
+	/*
+	 * The first deferred frame should've stopped the MAC queues, so we
+	 * should never get a second deferred frame for the RA/TID.
+	 */
+	if (!WARN(skb_queue_len(deferred_tx_frames) != 1,
+		  "RATID %d/%d has %d deferred frames\n", mvm_sta->sta_id, tid,
+		  skb_queue_len(deferred_tx_frames))) {
+		iwl_mvm_stop_mac_queues(mvm, BIT(mac_queue));
+		schedule_work(&mvm->add_stream_wk);
+	}
+}
+
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
@@ -695,6 +724,14 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		is_ampdu = info->flags & IEEE80211_TX_CTL_AMPDU;
+	} else if (iwl_mvm_is_dqa_supported(mvm) &&
+		   (ieee80211_is_qos_nullfunc(fc) ||
+		    ieee80211_is_nullfunc(fc))) {
+		/*
+		 * nullfunc frames should go to the MGMT queue regardless of QOS
+		 */
+		tid = IWL_MAX_TID_COUNT;
+		txq_id = mvmsta->tid_data[tid].txq_id;
 	}
 
 	/* Copy MAC header from skb into command buffer */
@@ -712,6 +749,23 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (is_ampdu) {
 		if (WARN_ON_ONCE(mvmsta->tid_data[tid].state != IWL_AGG_ON))
 			goto drop_unlock_sta;
+		txq_id = mvmsta->tid_data[tid].txq_id;
+	}
+
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		if (unlikely(mvmsta->tid_data[tid].txq_id ==
+			     IEEE80211_INVAL_HW_QUEUE)) {
+			iwl_mvm_tx_add_stream(mvm, mvmsta, tid, skb);
+
+			/*
+			 * The frame is now deferred, and the worker scheduled
+			 * will re-allocate it, so we can free it for now.
+			 */
+			iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
+			spin_unlock(&mvmsta->lock);
+			return 0;
+		}
+
 		txq_id = mvmsta->tid_data[tid].txq_id;
 	}
 
