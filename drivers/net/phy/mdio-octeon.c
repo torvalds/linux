@@ -277,24 +277,28 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 	if (res_mem == NULL) {
 		dev_err(&pdev->dev, "found no memory resource\n");
-		err = -ENXIO;
-		goto fail;
+		return -ENXIO;
 	}
+
 	bus->mdio_phys = res_mem->start;
 	bus->regsize = resource_size(res_mem);
+
 	if (!devm_request_mem_region(&pdev->dev, bus->mdio_phys, bus->regsize,
 				     res_mem->name)) {
 		dev_err(&pdev->dev, "request_mem_region failed\n");
-		goto fail;
+		return -ENXIO;
 	}
+
 	bus->register_base =
 		(u64)devm_ioremap(&pdev->dev, bus->mdio_phys, bus->regsize);
+	if (!bus->register_base) {
+		dev_err(&pdev->dev, "dev_ioremap failed\n");
+		return -ENOMEM;
+	}
 
 	bus->mii_bus = mdiobus_alloc();
-
 	if (!bus->mii_bus)
 		goto fail;
 
