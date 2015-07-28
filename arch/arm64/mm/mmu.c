@@ -267,7 +267,7 @@ static void *late_alloc(unsigned long size)
 	return ptr;
 }
 
-static void __ref create_mapping(phys_addr_t phys, unsigned long virt,
+static void __init create_mapping(phys_addr_t phys, unsigned long virt,
 				  phys_addr_t size, pgprot_t prot)
 {
 	if (virt < VMALLOC_START) {
