@@ -347,7 +347,7 @@ static const char *pwr_clk_names_8x74[] = {"extp_clk", "alt_iface_clk"};
 static const char *hpd_clk_names_8x74[] = {"iface_clk", "core_clk", "mdp_core_clk"};
 static unsigned long hpd_clk_freq_8x74[] = {0, 19200000, 0};
 
-static struct hdmi_platform_config hdmi_tx_8074_config = {
+static struct hdmi_platform_config hdmi_tx_8974_config = {
 		.phy_init = hdmi_phy_8x74_init,
 		HDMI_CFG(pwr_reg, 8x74),
 		HDMI_CFG(hpd_reg, 8x74),
@@ -369,7 +369,7 @@ static struct hdmi_platform_config hdmi_tx_8084_config = {
 
 static const char *hpd_reg_names_8x94[] = {};
 
-static struct hdmi_platform_config hdmi_tx_8x94_config = {
+static struct hdmi_platform_config hdmi_tx_8994_config = {
 		.phy_init = NULL, /* nothing to do for this HDMI PHY 20nm */
 		HDMI_CFG(pwr_reg, 8x74),
 		HDMI_CFG(hpd_reg, 8x94),
@@ -379,9 +379,9 @@ static struct hdmi_platform_config hdmi_tx_8x94_config = {
 };
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,hdmi-tx-8994", .data = &hdmi_tx_8x94_config },
+	{ .compatible = "qcom,hdmi-tx-8994", .data = &hdmi_tx_8994_config },
 	{ .compatible = "qcom,hdmi-tx-8084", .data = &hdmi_tx_8084_config },
-	{ .compatible = "qcom,hdmi-tx-8074", .data = &hdmi_tx_8074_config },
+	{ .compatible = "qcom,hdmi-tx-8974", .data = &hdmi_tx_8974_config },
 	{ .compatible = "qcom,hdmi-tx-8960", .data = &hdmi_tx_8960_config },
 	{ .compatible = "qcom,hdmi-tx-8660", .data = &hdmi_tx_8660_config },
 	{}
