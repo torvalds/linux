@@ -135,8 +135,6 @@ struct plat_stmmacenet_data {
 	int maxmtu;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-	void *(*setup)(struct platform_device *pdev);
-	void (*free)(struct platform_device *pdev, void *priv);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
@@ -177,12 +175,10 @@ Where:
  o bus_setup: perform HW setup of the bus. For example, on some ST platforms
 	     this field is used to configure the AMBA  bridge to generate more
 	     efficient STBus traffic.
- o setup/init/exit: callbacks used for calling a custom initialization;
+ o init/exit: callbacks used for calling a custom initialization;
 	     this is sometime necessary on some platforms (e.g. ST boxes)
 	     where the HW needs to have set some PIO lines or system cfg
-	     registers. setup should return a pointer to private data,
-	     which will be stored in bsp_priv, and then passed to init and
-	     exit callbacks. init/exit callbacks should not use or modify
+	     registers.  init/exit callbacks should not use or modify
 	     platform data.
  o bsp_priv: another private pointer.
 

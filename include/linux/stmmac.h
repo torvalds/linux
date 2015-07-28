@@ -119,8 +119,6 @@ struct plat_stmmacenet_data {
 	int rx_fifo_size;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
-	void *(*setup)(struct platform_device *pdev);
-	void (*free)(struct platform_device *pdev, void *priv);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;

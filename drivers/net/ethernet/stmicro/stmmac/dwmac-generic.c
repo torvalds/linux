@@ -46,13 +46,6 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 		plat_dat->unicast_filter_entries = 1;
 	}
 
-	/* Custom setup (if needed) */
-	if (plat_dat->setup) {
-		plat_dat->bsp_priv = plat_dat->setup(pdev);
-		if (IS_ERR(plat_dat->bsp_priv))
-			return PTR_ERR(plat_dat->bsp_priv);
-	}
-
 	/* Custom initialisation (if needed) */
 	if (plat_dat->init) {
 		ret = plat_dat->init(pdev, plat_dat->bsp_priv);

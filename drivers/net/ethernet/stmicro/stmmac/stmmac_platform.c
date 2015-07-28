@@ -300,9 +300,6 @@ int stmmac_pltfr_remove(struct platform_device *pdev)
 	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
 
-	if (priv->plat->free)
-		priv->plat->free(pdev, priv->plat->bsp_priv);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
