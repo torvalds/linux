@@ -632,7 +632,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 	int i;
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
-		if (!zdev->bars[i].size)
+		if (!zdev->bars[i].size || !zdev->bars[i].res)
 			continue;
 
 		zpci_free_iomap(zdev, zdev->bars[i].map_idx);
@@ -772,17 +772,22 @@ static int zpci_scan_bus(struct zpci_dev *zdev)
 
 	ret = zpci_setup_bus_resources(zdev, &resources);
 	if (ret)
-		return ret;
+		goto error;
 
 	zdev->bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, &pci_root_ops,
 				      zdev, &resources);
 	if (!zdev->bus) {
-		zpci_cleanup_bus_resources(zdev);
-		return -EIO;
+		ret = -EIO;
+		goto error;
 	}
 	zdev->bus->max_bus_speed = zdev->max_bus_speed;
 	pci_bus_add_devices(zdev->bus);
 	return 0;
+
+error:
+	zpci_cleanup_bus_resources(zdev);
+	pci_free_resource_list(&resources);
+	return ret;
 }
 
 int zpci_enable_device(struct zpci_dev *zdev)
