@@ -137,7 +137,8 @@ static void amdgpu_job_work_func(struct work_struct *work)
 		container_of(work, struct amdgpu_cs_parser,
 			     job_work);
 	mutex_lock(&sched_job->job_lock);
-	sched_job->free_job(sched_job);
+	if (sched_job->free_job)
+		sched_job->free_job(sched_job);
 	mutex_unlock(&sched_job->job_lock);
 	/* after processing job, free memory */
 	kfree(sched_job);
