@@ -40,7 +40,6 @@ gb_ap_svc_connection_create(struct greybus_host_device *hd)
 
 	return connection;
 }
-EXPORT_SYMBOL_GPL(gb_ap_svc_connection_create);
 
 /*
  * We know endo-type and AP's interface id now, lets create a proper svc

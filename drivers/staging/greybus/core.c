@@ -208,6 +208,21 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;
 
+	/*
+	 * Initialize AP's SVC protocol connection:
+	 *
+	 * This is required as part of early initialization of the host device
+	 * as we need this connection in order to start any kind of message
+	 * exchange between the AP and the SVC. SVC will start with a
+	 * 'get-version' request followed by a 'svc-hello' message and at that
+	 * time we will create a fully initialized svc-connection, as we need
+	 * endo-id and AP's interface id for that.
+	 */
+	if (!gb_ap_svc_connection_create(hd)) {
+		kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	return hd;
 }
 EXPORT_SYMBOL_GPL(greybus_create_hd);
