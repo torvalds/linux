@@ -199,6 +199,13 @@ static struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 		return ERR_PTR(ret);
 	}
 
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret < 0) {
+		drm_gem_object_release(obj);
+		kfree(exynos_gem_obj);
+		return ERR_PTR(ret);
+	}
+
 	DRM_DEBUG_KMS("created file object = 0x%x\n", (unsigned int)obj->filp);
 
 	return exynos_gem_obj;
@@ -445,14 +452,9 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 		goto unlock;
 	}
 
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto out;
-
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
-out:
 	drm_gem_object_unreference(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
