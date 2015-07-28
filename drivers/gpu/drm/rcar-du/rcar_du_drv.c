@@ -140,15 +140,21 @@ static const struct rcar_du_device_info rcar_du_r8a7795_info = {
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 4,
 	.routes = {
-		/* R8A7795 has one RGB output, and two HDMI and one LVDS
-		 * (currently unsupported) outputs
+		/* R8A7795 has one RGB output, one LVDS output and two
+		 * (currently unsupported) HDMI outputs.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
 			.possible_crtcs = BIT(3),
 			.encoder_type = DRM_MODE_ENCODER_NONE,
 			.port = 0,
 		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 3,
+		},
 	},
+	.num_lvds = 1,
 };
 
 static const struct of_device_id rcar_du_of_table[] = {
