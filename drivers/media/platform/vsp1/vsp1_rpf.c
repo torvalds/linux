@@ -186,28 +186,28 @@ static struct v4l2_subdev_ops rpf_ops = {
  * Video Device Operations
  */
 
-static void rpf_buf_queue(struct vsp1_rwpf *rpf, struct vsp1_vb2_buffer *buf)
+static void rpf_set_memory(struct vsp1_rwpf *rpf, struct vsp1_rwpf_memory *mem)
 {
 	unsigned int i;
 
 	for (i = 0; i < 3; ++i)
-		rpf->buf_addr[i] = buf->addr[i];
+		rpf->buf_addr[i] = mem->addr[i];
 
 	if (!vsp1_entity_is_streaming(&rpf->entity))
 		return;
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
-		       buf->addr[0] + rpf->offsets[0]);
-	if (buf->buf.vb2_buf.num_planes > 1)
+		       mem->addr[0] + rpf->offsets[0]);
+	if (mem->num_planes > 1)
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
-			       buf->addr[1] + rpf->offsets[1]);
-	if (buf->buf.vb2_buf.num_planes > 2)
+			       mem->addr[1] + rpf->offsets[1]);
+	if (mem->num_planes > 2)
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
-			       buf->addr[2] + rpf->offsets[1]);
+			       mem->addr[2] + rpf->offsets[1]);
 }
 
 static const struct vsp1_rwpf_operations rpf_vdev_ops = {
-	.queue = rpf_buf_queue,
+	.set_memory = rpf_set_memory,
 };
 
 /* -----------------------------------------------------------------------------

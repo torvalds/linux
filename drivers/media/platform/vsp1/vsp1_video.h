@@ -20,7 +20,8 @@
 #include <media/media-entity.h>
 #include <media/videobuf2-v4l2.h>
 
-struct vsp1_rwpf;
+#include "vsp1_rwpf.h"
+
 struct vsp1_video;
 
 /*
@@ -97,9 +98,7 @@ static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)
 struct vsp1_vb2_buffer {
 	struct vb2_v4l2_buffer buf;
 	struct list_head queue;
-
-	dma_addr_t addr[3];
-	unsigned int length[3];
+	struct vsp1_rwpf_memory mem;
 };
 
 static inline struct vsp1_vb2_buffer *

@@ -24,10 +24,16 @@
 #define RWPF_PAD_SOURCE				1
 
 struct vsp1_rwpf;
-struct vsp1_vb2_buffer;
+
+struct vsp1_rwpf_memory {
+	unsigned int num_planes;
+	dma_addr_t addr[3];
+	unsigned int length[3];
+};
 
 struct vsp1_rwpf_operations {
-	void (*queue)(struct vsp1_rwpf *rwpf, struct vsp1_vb2_buffer *buf);
+	void (*set_memory)(struct vsp1_rwpf *rwpf,
+			   struct vsp1_rwpf_memory *mem);
 };
 
 struct vsp1_rwpf {
