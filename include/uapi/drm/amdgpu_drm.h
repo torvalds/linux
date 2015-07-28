@@ -614,6 +614,8 @@ struct drm_amdgpu_info_device {
 	uint32_t vram_type;
 	/** video memory bit width*/
 	uint32_t vram_bit_width;
+	/* vce harvesting instance */
+	uint32_t vce_harvest_config;
 };
 
 struct drm_amdgpu_info_hw_ip {

@@ -499,7 +499,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	*arg = (unsigned long) fnew;
 
 	if (fold) {
-		list_replace_rcu(&fnew->list, &fold->list);
+		list_replace_rcu(&fold->list, &fnew->list);
 		tcf_unbind_filter(tp, &fold->res);
 		call_rcu(&fold->rcu, fl_destroy_filter);
 	} else {

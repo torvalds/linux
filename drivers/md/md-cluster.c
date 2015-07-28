@@ -44,6 +44,7 @@ struct resync_info {
 
 /* md_cluster_info flags */
 #define		MD_CLUSTER_WAITING_FOR_NEWDISK		1
+#define		MD_CLUSTER_SUSPEND_READ_BALANCING	2
 
 
 struct md_cluster_info {
@@ -275,6 +276,9 @@ clear_bit:
 
 static void recover_prep(void *arg)
 {
+	struct mddev *mddev = arg;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	set_bit(MD_CLUSTER_SUSPEND_READ_BALANCING, &cinfo->state);
 }
 
 static void recover_slot(void *arg, struct dlm_slot *slot)
@@ -307,6 +311,7 @@ static void recover_done(void *arg, struct dlm_slot *slots,
 
 	cinfo->slot_number = our_slot;
 	complete(&cinfo->completion);
+	clear_bit(MD_CLUSTER_SUSPEND_READ_BALANCING, &cinfo->state);
 }
 
 static const struct dlm_lockspace_ops md_ls_ops = {
@@ -816,11 +821,16 @@ static void resync_finish(struct mddev *mddev)
 	resync_send(mddev, RESYNCING, 0, 0);
 }
 
-static int area_resyncing(struct mddev *mddev, sector_t lo, sector_t hi)
+static int area_resyncing(struct mddev *mddev, int direction,
+		sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	int ret = 0;
 	struct suspend_info *s;
+
+	if ((direction == READ) &&
+		test_bit(MD_CLUSTER_SUSPEND_READ_BALANCING, &cinfo->state))
+		return 1;
 
 	spin_lock_irq(&cinfo->suspend_lock);
 	if (list_empty(&cinfo->suspend_list))

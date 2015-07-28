@@ -306,10 +306,10 @@ drop:
 		len = qdisc_pkt_len(skb);
 		slot->backlog -= len;
 		sfq_dec(q, x);
-		kfree_skb(skb);
 		sch->q.qlen--;
 		qdisc_qstats_drop(sch);
 		qdisc_qstats_backlog_dec(sch, skb);
+		kfree_skb(skb);
 		return len;
 	}
 
