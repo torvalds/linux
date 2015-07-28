@@ -2836,7 +2836,8 @@ int fsg_common_set_cdev(struct fsg_common *common,
 	 * halt bulk endpoints correctly.  If one of them is present,
 	 * disable stalls.
 	 */
-	common->can_stall = can_stall && !(gadget_is_at91(common->gadget));
+	common->can_stall = can_stall &&
+			gadget_is_stall_supported(common->gadget);
 
 	return 0;
 }
