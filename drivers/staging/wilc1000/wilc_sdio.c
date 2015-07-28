@@ -10,7 +10,6 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 
-
 #ifdef WILC1000_SINGLE_TRANSFER
 #define WILC_SDIO_BLOCK_SIZE 256
 #else
@@ -89,7 +88,6 @@ _fail_:
 static int sdio_set_func0_csa_address_byte0(uint32_t adr)
 {
 	sdio_cmd52_t cmd;
-
 
 	/**
 	 *      Review: BIG ENDIAN
@@ -222,8 +220,6 @@ uint32_t sdio_xfer_cnt(void)
 	cnt |= (cmd.data << 16);
 
 	return cnt;
-
-
 }
 
 /********************************************
@@ -412,7 +408,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 
 		}
 
-
 		if (rest > 0) {
 			cmd.block_mode = 1;
 			cmd.increment = 1;
@@ -457,7 +452,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 
 #endif /* platform */
 	}
-
 
 	if (nleft > 0) {
 		cmd.block_mode = 0;
@@ -622,7 +616,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 			cmd.buffer = buf;
 			cmd.block_size = block_size;
 
-
 			if (addr > 0) {
 				if (!sdio_set_func0_csa_address(addr))
 					goto _fail_;
@@ -638,7 +631,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 			buf += MAX_SEG_SIZE;
 
 		}
-
 
 		if (rest > 0) {
 			cmd.block_mode = 1;
@@ -898,7 +890,6 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 	}
 	g_sdio.dPrint(N_ERR, "[wilc sdio]: has_thrpt_enh3 = %d...\n", g_sdio.has_thrpt_enh3);
 
-
 	return 1;
 
 _fail_:
@@ -1097,7 +1088,6 @@ static int sdio_clear_int_ext(uint32_t val)
 		}
 #endif /* WILC_SDIO_IRQ_GPIO */
 
-
 		{
 			uint32_t vmm_ctl;
 
@@ -1138,7 +1128,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 {
 	uint32_t reg;
 
-
 	if (nint > MAX_NUM_INT) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Too many interupts (%d)...\n", nint);
 		return 0;
@@ -1147,7 +1136,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Error: Cannot support more than 5 interrupts when has_thrpt_enh2=1.\n");
 		return 0;
 	}
-
 
 	g_sdio.nint = nint;
 
@@ -1169,7 +1157,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 	{
 		uint32_t reg;
 		int ret, i;
-
 
 		/**
 		 *      interrupt pin mux select
@@ -1224,7 +1211,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 #endif /* WILC_SDIO_IRQ_GPIO */
 	return 1;
 }
-
 
 /********************************************
  *
