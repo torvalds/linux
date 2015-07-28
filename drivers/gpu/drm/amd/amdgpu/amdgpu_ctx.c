@@ -302,8 +302,8 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 	if (amdgpu_enable_scheduler) {
 		r = amd_sched_wait_emit(&cring->c_entity,
 					seq,
-					true,
-					AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS);
+					false,
+					-1);
 		if (r)
 			return NULL;
 	}

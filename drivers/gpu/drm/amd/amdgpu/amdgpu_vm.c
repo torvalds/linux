@@ -386,7 +386,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 				   sched_job);
 		r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
 					v_seq,
-					true,
+					false,
 					-1);
 		if (r)
 			DRM_ERROR("emit timeout\n");
@@ -537,7 +537,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 					   sched_job);
 			r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
 						v_seq,
-						true,
+						false,
 						-1);
 			if (r)
 				DRM_ERROR("emit timeout\n");
@@ -890,7 +890,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				   sched_job);
 		r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
 					v_seq,
-					true,
+					false,
 					-1);
 		if (r)
 			DRM_ERROR("emit timeout\n");
