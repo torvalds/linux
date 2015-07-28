@@ -53,25 +53,6 @@ static unsigned long roundup_gem_size(unsigned long size, unsigned int flags)
 	return roundup(size, PAGE_SIZE);
 }
 
-static int exynos_drm_gem_map_buf(struct drm_gem_object *obj,
-					struct vm_area_struct *vma,
-					unsigned long f_vaddr,
-					pgoff_t page_offset)
-{
-	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
-	struct exynos_drm_gem_buf *buf = exynos_gem_obj->buffer;
-	unsigned long pfn;
-
-	if (page_offset >= (buf->size >> PAGE_SHIFT)) {
-		DRM_ERROR("invalid page offset\n");
-		return -EINVAL;
-	}
-
-	pfn = page_to_pfn(buf->pages[page_offset]);
-
-	return vm_insert_mixed(vma, f_vaddr, pfn);
-}
-
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 					struct drm_file *file_priv,
 					unsigned int *handle)
@@ -560,18 +541,25 @@ unlock:
 int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
-	unsigned long f_vaddr;
+	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	struct exynos_drm_gem_buf *buf = exynos_gem_obj->buffer;
+	unsigned long pfn;
 	pgoff_t page_offset;
 	int ret;
 
 	page_offset = ((unsigned long)vmf->virtual_address -
 			vma->vm_start) >> PAGE_SHIFT;
-	f_vaddr = (unsigned long)vmf->virtual_address;
 
-	ret = exynos_drm_gem_map_buf(obj, vma, f_vaddr, page_offset);
-	if (ret < 0)
-		DRM_ERROR("failed to map a buffer with user.\n");
+	if (page_offset >= (buf->size >> PAGE_SHIFT)) {
+		DRM_ERROR("invalid page offset\n");
+		ret = -EINVAL;
+		goto out;
+	}
 
+	pfn = page_to_pfn(buf->pages[page_offset]);
+	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
+
+out:
 	switch (ret) {
 	case 0:
 	case -ERESTARTSYS:
