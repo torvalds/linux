@@ -105,6 +105,7 @@ struct smp_operations {
 #ifdef CONFIG_HOTPLUG_CPU
 	int  (*cpu_kill)(unsigned int cpu);
 	void (*cpu_die)(unsigned int cpu);
+	bool  (*cpu_can_disable)(unsigned int cpu);
 	int  (*cpu_disable)(unsigned int cpu);
 #endif
 #endif

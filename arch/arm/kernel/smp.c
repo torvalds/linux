@@ -175,13 +175,26 @@ static int platform_cpu_disable(unsigned int cpu)
 	if (smp_ops.cpu_disable)
 		return smp_ops.cpu_disable(cpu);
 
+	return 0;
+}
+
+int platform_can_hotplug_cpu(unsigned int cpu)
+{
+	/* cpu_die must be specified to support hotplug */
+	if (!smp_ops.cpu_die)
+		return 0;
+
+	if (smp_ops.cpu_can_disable)
+		return smp_ops.cpu_can_disable(cpu);
+
 	/*
 	 * By default, allow disabling all CPUs except the first one,
 	 * since this is special on a lot of platforms, e.g. because
 	 * of clock tick interrupts.
 	 */
-	return cpu == 0 ? -EPERM : 0;
+	return cpu != 0;
 }
+
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
