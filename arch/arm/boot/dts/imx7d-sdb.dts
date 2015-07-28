@@ -18,11 +18,35 @@
 	memory {
 		reg = <0x80000000 0x80000000>;
 	};
+
+	spi4 {
+		compatible = "spi-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spi1>;
+		status = "okay";
+		gpio-sck = <&gpio1 13 0>;
+		gpio-mosi = <&gpio1 9 0>;
+		cs-gpios = <&gpio1 12 0>;
+		num-chipselects = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpio_spi: gpio_spi@0 {
+			compatible = "fairchild,74hc595";
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0>;
+			registers-number = <1>;
+			registers-default = /bits/ 8 <0x74>; /* Enable PERI_3V3, SENSOR_RST_B and HDMI_RST*/
+			spi-max-frequency = <100000>;
+		};
+	};
 };
 
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
+	pinctrl-assert-gpios = <&gpio_spi 5 GPIO_ACTIVE_HIGH>;
 	assigned-clocks = <&clks IMX7D_ENET1_TIME_ROOT_SRC>,
 			  <&clks IMX7D_ENET1_TIME_ROOT_CLK>;
 	assigned-clock-parents = <&clks IMX7D_PLL_ENET_MAIN_100M_CLK>;
@@ -243,6 +267,14 @@
 			fsl,pins = <
 				MX7D_PAD_SAI1_RX_BCLK__I2C4_SDA		0x4000007f
 				MX7D_PAD_SAI1_RX_SYNC__I2C4_SCL		0x4000007f
+			>;
+		};
+
+		pinctrl_spi1: spi1grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
+				MX7D_PAD_GPIO1_IO12__GPIO1_IO12	0x59
+				MX7D_PAD_GPIO1_IO13__GPIO1_IO13	0x59
 			>;
 		};
 
