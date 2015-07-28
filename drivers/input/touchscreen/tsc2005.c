@@ -355,8 +355,7 @@ static ssize_t tsc2005_selftest_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	struct tsc2005 *ts = spi_get_drvdata(spi);
+	struct tsc2005 *ts = dev_get_drvdata(dev);
 	unsigned int temp_high;
 	unsigned int temp_high_orig;
 	unsigned int temp_high_test;
@@ -441,8 +440,7 @@ static umode_t tsc2005_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct spi_device *spi = to_spi_device(dev);
-	struct tsc2005 *ts = spi_get_drvdata(spi);
+	struct tsc2005 *ts = dev_get_drvdata(dev);
 	umode_t mode = attr->mode;
 
 	if (attr == &dev_attr_selftest.attr) {
@@ -690,7 +688,7 @@ static int tsc2005_probe(struct spi_device *spi)
 			return error;
 	}
 
-	spi_set_drvdata(spi, ts);
+	dev_set_drvdata(&spi->dev, ts);
 	error = sysfs_create_group(&spi->dev.kobj, &tsc2005_attr_group);
 	if (error) {
 		dev_err(&spi->dev,
@@ -718,7 +716,7 @@ disable_regulator:
 
 static int tsc2005_remove(struct spi_device *spi)
 {
-	struct tsc2005 *ts = spi_get_drvdata(spi);
+	struct tsc2005 *ts = dev_get_drvdata(&spi->dev);
 
 	sysfs_remove_group(&spi->dev.kobj, &tsc2005_attr_group);
 
@@ -730,8 +728,7 @@ static int tsc2005_remove(struct spi_device *spi)
 
 static int __maybe_unused tsc2005_suspend(struct device *dev)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	struct tsc2005 *ts = spi_get_drvdata(spi);
+	struct tsc2005 *ts = dev_get_drvdata(dev);
 
 	mutex_lock(&ts->mutex);
 
@@ -747,8 +744,7 @@ static int __maybe_unused tsc2005_suspend(struct device *dev)
 
 static int __maybe_unused tsc2005_resume(struct device *dev)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	struct tsc2005 *ts = spi_get_drvdata(spi);
+	struct tsc2005 *ts = dev_get_drvdata(dev);
 
 	mutex_lock(&ts->mutex);
 
