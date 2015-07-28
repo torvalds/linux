@@ -166,7 +166,7 @@ int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata);
 bool is_nd_btt(struct device *dev);
 struct device *nd_btt_create(struct nd_region *nd_region);
 #else
-static inline nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
+static inline int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
 {
 	return -ENODEV;
 }
