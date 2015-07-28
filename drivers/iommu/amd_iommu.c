@@ -2853,6 +2853,15 @@ int __init amd_iommu_init_dma_ops(void)
 	swiotlb        = iommu_pass_through ? 1 : 0;
 	iommu_detected = 1;
 
+	/*
+	 * In case we don't initialize SWIOTLB (actually the common case
+	 * when AMD IOMMU is enabled), make sure there are global
+	 * dma_ops set as a fall-back for devices not handled by this
+	 * driver (for example non-PCI devices).
+	 */
+	if (!swiotlb)
+		dma_ops = &nommu_dma_ops;
+
 	amd_iommu_stats_init();
 
 	if (amd_iommu_unmap_flush)
