@@ -37,7 +37,9 @@ static int camsys_mrv_iomux_cb(camsys_extdev_t *extdev,void *ptr)
                     strcpy(state_str,"isp_dvp8bit0");
                 } else if (extdev->phy.info.cif.cifio == CamSys_SensorBit0_CifBit2) {
                     strcpy(state_str,"isp_dvp8bit2");
-                } else {
+                } else if (extdev->phy.info.cif.cifio == CamSys_SensorBit0_CifBit4) {
+                    strcpy(state_str,"isp_dvp8bit4");
+                }else {
                     camsys_err("extdev->phy.info.cif.cifio: 0x%x is invalidate!", extdev->phy.info.cif.cifio);
                     goto fail;
                 }
