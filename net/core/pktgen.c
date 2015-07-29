@@ -2279,7 +2279,7 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 
 static inline void set_pkt_overhead(struct pktgen_dev *pkt_dev)
 {
-	pkt_dev->pkt_overhead = 0;
+	pkt_dev->pkt_overhead = LL_RESERVED_SPACE(pkt_dev->odev);
 	pkt_dev->pkt_overhead += pkt_dev->nr_labels*sizeof(u32);
 	pkt_dev->pkt_overhead += VLAN_TAG_SIZE(pkt_dev);
 	pkt_dev->pkt_overhead += SVLAN_TAG_SIZE(pkt_dev);
@@ -2788,6 +2788,7 @@ static struct sk_buff *pktgen_alloc_skb(struct net_device *dev,
 	} else {
 		 skb = __netdev_alloc_skb(dev, size, GFP_NOWAIT);
 	}
+	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 
 	return skb;
 }
