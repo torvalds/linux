@@ -382,7 +382,8 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 		return;
 
 	if (sq->tso_hdrs)
-		dma_free_coherent(&nic->pdev->dev, sq->dmem.q_len,
+		dma_free_coherent(&nic->pdev->dev,
+				  sq->dmem.q_len * TSO_HEADER_SIZE,
 				  sq->tso_hdrs, sq->tso_hdrs_phys);
 
 	kfree(sq->skbuff);
@@ -863,10 +864,11 @@ void nicvf_sq_free_used_descs(struct net_device *netdev, struct snd_queue *sq,
 			continue;
 		}
 		skb = (struct sk_buff *)sq->skbuff[sq->head];
+		if (skb)
+			dev_kfree_skb_any(skb);
 		atomic64_add(1, (atomic64_t *)&netdev->stats.tx_packets);
 		atomic64_add(hdr->tot_len,
 			     (atomic64_t *)&netdev->stats.tx_bytes);
-		dev_kfree_skb_any(skb);
 		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
 }
@@ -1048,7 +1050,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 		}
 		nicvf_sq_add_hdr_subdesc(sq, hdr_qentry,
 					 seg_subdescs - 1, skb, seg_len);
-		sq->skbuff[hdr_qentry] = 0;
+		sq->skbuff[hdr_qentry] = (u64)NULL;
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
 
 		desc_cnt += seg_subdescs;
