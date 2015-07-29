@@ -98,6 +98,9 @@ typedef uint64_t gen8_pde_t;
 #define GEN8_LEGACY_PDPES		4
 #define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
+/* FIXME: Next patch will use dev */
+#define I915_PDPES_PER_PDP(dev)		GEN8_LEGACY_PDPES
+
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
 #define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
@@ -241,9 +244,10 @@ struct i915_page_directory {
 };
 
 struct i915_page_directory_pointer {
-	/* struct page *page; */
-	DECLARE_BITMAP(used_pdpes, GEN8_LEGACY_PDPES);
-	struct i915_page_directory *page_directory[GEN8_LEGACY_PDPES];
+	struct i915_page_dma base;
+
+	unsigned long *used_pdpes;
+	struct i915_page_directory **page_directory;
 };
 
 struct i915_address_space {
@@ -436,9 +440,10 @@ static inline uint32_t gen6_pde_index(uint32_t addr)
 	     temp = min(temp, length),					\
 	     start += temp, length -= temp)
 
-#define gen8_for_each_pdpe(pd, pdp, start, length, temp, iter)		\
-	for (iter = gen8_pdpe_index(start);	\
-	     pd = (pdp)->page_directory[iter], length > 0 && iter < GEN8_LEGACY_PDPES;	\
+#define gen8_for_each_pdpe(pd, pdp, start, length, temp, iter)	\
+	for (iter = gen8_pdpe_index(start); \
+	     pd = (pdp)->page_directory[iter], \
+	     length > 0 && (iter < I915_PDPES_PER_PDP(dev)); \
 	     iter++,				\
 	     temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT) - start,	\
 	     temp = min(temp, length),					\
