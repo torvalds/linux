@@ -79,6 +79,14 @@ repeat:
 		f2fs_put_page(page, 1);
 		goto repeat;
 	}
+
+	/*
+	 * if there is any IO error when accessing device, make our filesystem
+	 * readonly and make sure do not write checkpoint with non-uptodate
+	 * meta page.
+	 */
+	if (unlikely(!PageUptodate(page)))
+		f2fs_stop_checkpoint(sbi);
 out:
 	return page;
 }
