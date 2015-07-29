@@ -2809,13 +2809,13 @@ static void igb_remove(struct pci_dev *pdev)
 	 */
 	igb_release_hw_control(adapter);
 
-	unregister_netdev(netdev);
-
-	igb_clear_interrupt_scheme(adapter);
-
 #ifdef CONFIG_PCI_IOV
 	igb_disable_sriov(pdev);
 #endif
+
+	unregister_netdev(netdev);
+
+	igb_clear_interrupt_scheme(adapter);
 
 	pci_iounmap(pdev, hw->hw_addr);
 	if (hw->flash_address)
