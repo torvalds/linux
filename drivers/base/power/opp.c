@@ -484,6 +484,7 @@ static void _kfree_opp_rcu(struct rcu_head *head)
  * _opp_remove()  - Remove an OPP from a table definition
  * @dev_opp:	points back to the device_opp struct this opp belongs to
  * @opp:	pointer to the OPP to remove
+ * @notify:	OPP_EVENT_REMOVE notification should be sent or not
  *
  * This function removes an opp definition from the opp list.
  *
@@ -492,13 +493,14 @@ static void _kfree_opp_rcu(struct rcu_head *head)
  * strategy.
  */
 static void _opp_remove(struct device_opp *dev_opp,
-			struct dev_pm_opp *opp)
+			struct dev_pm_opp *opp, bool notify)
 {
 	/*
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
 	 */
-	srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_REMOVE, opp);
+	if (notify)
+		srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_REMOVE, opp);
 	list_del_rcu(&opp->node);
 	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
 
@@ -544,11 +546,69 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 		goto unlock;
 	}
 
-	_opp_remove(dev_opp, opp);
+	_opp_remove(dev_opp, opp, true);
 unlock:
 	mutex_unlock(&dev_opp_list_lock);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
+
+static struct dev_pm_opp *_allocate_opp(struct device *dev,
+					struct device_opp **dev_opp)
+{
+	struct dev_pm_opp *opp;
+
+	/* allocate new OPP node */
+	opp = kzalloc(sizeof(*opp), GFP_KERNEL);
+	if (!opp)
+		return NULL;
+
+	INIT_LIST_HEAD(&opp->node);
+
+	*dev_opp = _add_device_opp(dev);
+	if (!*dev_opp) {
+		kfree(opp);
+		return NULL;
+	}
+
+	return opp;
+}
+
+static int _opp_add(struct dev_pm_opp *new_opp, struct device_opp *dev_opp)
+{
+	struct dev_pm_opp *opp;
+	struct list_head *head = &dev_opp->opp_list;
+
+	/*
+	 * Insert new OPP in order of increasing frequency and discard if
+	 * already present.
+	 *
+	 * Need to use &dev_opp->opp_list in the condition part of the 'for'
+	 * loop, don't replace it with head otherwise it will become an infinite
+	 * loop.
+	 */
+	list_for_each_entry_rcu(opp, &dev_opp->opp_list, node) {
+		if (new_opp->rate > opp->rate) {
+			head = &opp->node;
+			continue;
+		}
+
+		if (new_opp->rate < opp->rate)
+			break;
+
+		/* Duplicate OPPs */
+		dev_warn(dev_opp->dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
+			 __func__, opp->rate, opp->u_volt, opp->available,
+			 new_opp->rate, new_opp->u_volt, new_opp->available);
+
+		return opp->available && new_opp->u_volt == opp->u_volt ?
+			0 : -EEXIST;
+	}
+
+	new_opp->dev_opp = dev_opp;
+	list_add_rcu(&new_opp->node, head);
+
+	return 0;
+}
 
 /**
  * _opp_add_dynamic() - Allocate a dynamic OPP.
@@ -581,62 +641,28 @@ static int _opp_add_dynamic(struct device *dev, unsigned long freq,
 			    long u_volt, bool dynamic)
 {
 	struct device_opp *dev_opp;
-	struct dev_pm_opp *opp, *new_opp;
-	struct list_head *head;
+	struct dev_pm_opp *new_opp;
 	int ret;
-
-	/* allocate new OPP node */
-	new_opp = kzalloc(sizeof(*new_opp), GFP_KERNEL);
-	if (!new_opp)
-		return -ENOMEM;
 
 	/* Hold our list modification lock here */
 	mutex_lock(&dev_opp_list_lock);
+
+	new_opp = _allocate_opp(dev, &dev_opp);
+	if (!new_opp) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
 
 	/* populate the opp table */
 	new_opp->rate = freq;
 	new_opp->u_volt = u_volt;
 	new_opp->available = true;
-
-	dev_opp = _add_device_opp(dev);
-	if (!dev_opp) {
-		ret = -ENOMEM;
-		goto free_opp;
-	}
-
-	/*
-	 * Insert new OPP in order of increasing frequency
-	 * and discard if already present
-	 */
-	head = &dev_opp->opp_list;
-
-	/*
-	 * Need to use &dev_opp->opp_list in the condition part of the 'for'
-	 * loop, don't replace it with head otherwise it will become an infinite
-	 * loop.
-	 */
-	list_for_each_entry_rcu(opp, &dev_opp->opp_list, node) {
-		if (new_opp->rate > opp->rate) {
-			head = &opp->node;
-			continue;
-		}
-
-		if (new_opp->rate < opp->rate)
-			break;
-
-		/* Duplicate OPPs */
-		ret = opp->available && new_opp->u_volt == opp->u_volt ?
-			0 : -EEXIST;
-
-		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
-			 __func__, opp->rate, opp->u_volt, opp->available,
-			 new_opp->rate, new_opp->u_volt, new_opp->available);
-		goto free_opp;
-	}
-
 	new_opp->dynamic = dynamic;
-	new_opp->dev_opp = dev_opp;
-	list_add_rcu(&new_opp->node, head);
+
+	ret = _opp_add(new_opp, dev_opp);
+	if (ret)
+		goto free_opp;
+
 	mutex_unlock(&dev_opp_list_lock);
 
 	/*
@@ -647,8 +673,9 @@ static int _opp_add_dynamic(struct device *dev, unsigned long freq,
 	return 0;
 
 free_opp:
+	_opp_remove(dev_opp, new_opp, false);
+unlock:
 	mutex_unlock(&dev_opp_list_lock);
-	kfree(new_opp);
 	return ret;
 }
 
@@ -876,7 +903,7 @@ void of_free_opp_table(struct device *dev)
 	/* Free static OPPs */
 	list_for_each_entry_safe(opp, tmp, &dev_opp->opp_list, node) {
 		if (!opp->dynamic)
-			_opp_remove(dev_opp, opp);
+			_opp_remove(dev_opp, opp, true);
 	}
 
 	mutex_unlock(&dev_opp_list_lock);
