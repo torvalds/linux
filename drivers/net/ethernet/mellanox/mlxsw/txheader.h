@@ -1,9 +1,8 @@
 /*
- * drivers/net/ethernet/mellanox/mlxsw/port.h
+ * drivers/net/ethernet/mellanox/mlxsw/txheader.h
  * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
- * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
+ * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,43 +32,49 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _MLXSW_PORT_H
-#define _MLXSW_PORT_H
 
-#include <linux/types.h>
+#ifndef _MLXSW_TXHEADER_H
+#define _MLXSW_TXHEADER_H
 
-#define MLXSW_PORT_MAX_MTU		10000
+#define MLXSW_TXHDR_LEN 0x10
+#define MLXSW_TXHDR_VERSION_0 0
 
-#define MLXSW_PORT_DEFAULT_VID		1
-
-#define MLXSW_PORT_SWID_DISABLED_PORT	255
-#define MLXSW_PORT_SWID_ALL_SWIDS	254
-#define MLXSW_PORT_SWID_TYPE_ETH	2
-
-#define MLXSW_PORT_MID			0xd000
-
-#define MLXSW_PORT_MAX_PHY_PORTS	0x40
-#define MLXSW_PORT_MAX_PORTS		MLXSW_PORT_MAX_PHY_PORTS
-
-#define MLXSW_PORT_DEVID_BITS_OFFSET	10
-#define MLXSW_PORT_PHY_BITS_OFFSET	4
-#define MLXSW_PORT_PHY_BITS_MASK	(MLXSW_PORT_MAX_PHY_PORTS - 1)
-
-#define MLXSW_PORT_CPU_PORT		0x0
-
-#define MLXSW_PORT_DONT_CARE		(MLXSW_PORT_MAX_PORTS)
-
-enum mlxsw_port_admin_status {
-	MLXSW_PORT_ADMIN_STATUS_UP = 1,
-	MLXSW_PORT_ADMIN_STATUS_DOWN = 2,
-	MLXSW_PORT_ADMIN_STATUS_UP_ONCE = 3,
-	MLXSW_PORT_ADMIN_STATUS_DISABLED = 4,
+enum {
+	MLXSW_TXHDR_ETH_CTL,
+	MLXSW_TXHDR_ETH_DATA,
 };
 
-enum mlxsw_reg_pude_oper_status {
-	MLXSW_PORT_OPER_STATUS_UP = 1,
-	MLXSW_PORT_OPER_STATUS_DOWN = 2,
-	MLXSW_PORT_OPER_STATUS_FAILURE = 4,	/* Can be set to up again. */
+#define MLXSW_TXHDR_PROTO_ETH 1
+
+enum {
+	MLXSW_TXHDR_ETCLASS_0,
+	MLXSW_TXHDR_ETCLASS_1,
+	MLXSW_TXHDR_ETCLASS_2,
+	MLXSW_TXHDR_ETCLASS_3,
+	MLXSW_TXHDR_ETCLASS_4,
+	MLXSW_TXHDR_ETCLASS_5,
+	MLXSW_TXHDR_ETCLASS_6,
+	MLXSW_TXHDR_ETCLASS_7,
 };
 
-#endif /* _MLXSW_PORT_H */
+enum {
+	MLXSW_TXHDR_RDQ_OTHER,
+	MLXSW_TXHDR_RDQ_EMAD = 0x1f,
+};
+
+#define MLXSW_TXHDR_CTCLASS3 0
+#define MLXSW_TXHDR_CPU_SIG 0
+#define MLXSW_TXHDR_SIG 0xE0E0
+#define MLXSW_TXHDR_STCLASS_NONE 0
+
+enum {
+	MLXSW_TXHDR_NOT_EMAD,
+	MLXSW_TXHDR_EMAD,
+};
+
+enum {
+	MLXSW_TXHDR_TYPE_DATA,
+	MLXSW_TXHDR_TYPE_CONTROL = 6,
+};
+
+#endif

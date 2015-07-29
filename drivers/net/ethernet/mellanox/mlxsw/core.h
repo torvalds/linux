@@ -53,6 +53,8 @@
 #define MODULE_MLXSW_DRIVER_ALIAS(kind)	\
 	MODULE_ALIAS(MLXSW_MODULE_ALIAS_PREFIX kind)
 
+#define MLXSW_DEVICE_KIND_SWITCHX2 "switchx2"
+
 struct mlxsw_core;
 struct mlxsw_driver;
 struct mlxsw_bus;

@@ -55,6 +55,7 @@
 static const char mlxsw_pci_driver_name[] = "mlxsw_pci";
 
 static const struct pci_device_id mlxsw_pci_id_table[] = {
+	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SWITCHX2), 0},
 	{0, }
 };
 
@@ -63,6 +64,8 @@ static struct dentry *mlxsw_pci_dbg_root;
 static const char *mlxsw_pci_device_kind_get(const struct pci_device_id *id)
 {
 	switch (id->device) {
+	case PCI_DEVICE_ID_MELLANOX_SWITCHX2:
+		return MLXSW_DEVICE_KIND_SWITCHX2;
 	default:
 		BUG();
 	}
