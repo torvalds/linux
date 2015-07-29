@@ -159,11 +159,10 @@ xfs_attr3_rmt_write_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
-	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	int		blksize = mp->m_attr_geo->blksize;
 	char		*ptr;
 	int		len;
 	xfs_daddr_t	bno;
-	int		blksize = mp->m_attr_geo->blksize;
 
 	/* no verification of non-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
@@ -175,16 +174,22 @@ xfs_attr3_rmt_write_verify(
 	ASSERT(len >= blksize);
 
 	while (len > 0) {
+		struct xfs_attr3_rmt_hdr *rmt = (struct xfs_attr3_rmt_hdr *)ptr;
+
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
 			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			xfs_verifier_error(bp);
 			return;
 		}
-		if (bip) {
-			struct xfs_attr3_rmt_hdr *rmt;
 
-			rmt = (struct xfs_attr3_rmt_hdr *)ptr;
-			rmt->rm_lsn = cpu_to_be64(bip->bli_item.li_lsn);
+		/*
+		 * Ensure we aren't writing bogus LSNs to disk. See
+		 * xfs_attr3_rmt_hdr_set() for the explanation.
+		 */
+		if (rmt->rm_lsn != cpu_to_be64(NULLCOMMITLSN)) {
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
+			xfs_verifier_error(bp);
+			return;
 		}
 		xfs_update_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF);
 
@@ -220,6 +225,18 @@ xfs_attr3_rmt_hdr_set(
 	uuid_copy(&rmt->rm_uuid, &mp->m_sb.sb_uuid);
 	rmt->rm_owner = cpu_to_be64(ino);
 	rmt->rm_blkno = cpu_to_be64(bno);
+
+	/*
+	 * Remote attribute blocks are written synchronously, so we don't
+	 * have an LSN that we can stamp in them that makes any sense to log
+	 * recovery. To ensure that log recovery handles overwrites of these
+	 * blocks sanely (i.e. once they've been freed and reallocated as some
+	 * other type of metadata) we need to ensure that the LSN has a value
+	 * that tells log recovery to ignore the LSN and overwrite the buffer
+	 * with whatever is in it's log. To do this, we use the magic
+	 * NULLCOMMITLSN to indicate that the LSN is invalid.
+	 */
+	rmt->rm_lsn = cpu_to_be64(NULLCOMMITLSN);
 
 	return sizeof(struct xfs_attr3_rmt_hdr);
 }
