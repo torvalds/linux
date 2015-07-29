@@ -3659,7 +3659,7 @@ static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	return;
 }
 
-static int svm_vm_has_apicv(struct kvm *kvm)
+static int svm_cpu_uses_apicv(struct kvm_vcpu *vcpu)
 {
 	return 0;
 }
@@ -4425,7 +4425,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_x2apic_mode = svm_set_virtual_x2apic_mode,
-	.vm_has_apicv = svm_vm_has_apicv,
+	.cpu_uses_apicv = svm_cpu_uses_apicv,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.sync_pir_to_irr = svm_sync_pir_to_irr,
 

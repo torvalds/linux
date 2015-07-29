@@ -390,7 +390,7 @@ static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 
 	vcpu = apic->vcpu;
 
-	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm))) {
+	if (unlikely(kvm_vcpu_apic_vid_enabled(vcpu))) {
 		/* try to update RVI */
 		apic_clear_vector(vec, apic->regs + APIC_IRR);
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
@@ -1622,7 +1622,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 		apic_set_reg(apic, APIC_ISR + 0x10 * i, 0);
 		apic_set_reg(apic, APIC_TMR + 0x10 * i, 0);
 	}
-	apic->irr_pending = kvm_apic_vid_enabled(vcpu->kvm);
+	apic->irr_pending = kvm_vcpu_apic_vid_enabled(vcpu);
 	apic->isr_count = kvm_x86_ops->hwapic_isr_update ? 1 : 0;
 	apic->highest_isr_cache = -1;
 	update_divide_count(apic);

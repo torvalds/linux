@@ -810,6 +810,7 @@ static void kvm_cpu_vmxoff(void);
 static bool vmx_mpx_supported(void);
 static bool vmx_xsaves_supported(void);
 static int vmx_vm_has_apicv(struct kvm *kvm);
+static int vmx_cpu_uses_apicv(struct kvm_vcpu *vcpu);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
@@ -4335,6 +4336,11 @@ static void vmx_disable_intercept_msr_write_x2apic(u32 msr)
 static int vmx_vm_has_apicv(struct kvm *kvm)
 {
 	return enable_apicv && irqchip_in_kernel(kvm);
+}
+
+static int vmx_cpu_uses_apicv(struct kvm_vcpu *vcpu)
+{
+	return vmx_vm_has_apicv(vcpu->kvm);
 }
 
 static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
@@ -10362,7 +10368,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_x2apic_mode = vmx_set_virtual_x2apic_mode,
 	.set_apic_access_page_addr = vmx_set_apic_access_page_addr,
-	.vm_has_apicv = vmx_vm_has_apicv,
+	.cpu_uses_apicv = vmx_cpu_uses_apicv,
 	.load_eoi_exitmap = vmx_load_eoi_exitmap,
 	.hwapic_irr_update = vmx_hwapic_irr_update,
 	.hwapic_isr_update = vmx_hwapic_isr_update,
