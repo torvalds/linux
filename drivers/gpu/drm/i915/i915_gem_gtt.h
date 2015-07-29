@@ -444,17 +444,6 @@ static inline uint32_t gen6_pde_index(uint32_t addr)
 	     temp = min(temp, length),					\
 	     start += temp, length -= temp)
 
-/* Clamp length to the next page_directory boundary */
-static inline uint64_t gen8_clamp_pd(uint64_t start, uint64_t length)
-{
-	uint64_t next_pd = ALIGN(start + 1, 1 << GEN8_PDPE_SHIFT);
-
-	if (next_pd > (start + length))
-		return length;
-
-	return next_pd - start;
-}
-
 static inline uint32_t gen8_pte_index(uint64_t address)
 {
 	return i915_pte_index(address, GEN8_PDE_SHIFT);

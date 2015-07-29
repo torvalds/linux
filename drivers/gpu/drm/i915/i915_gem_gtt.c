@@ -955,7 +955,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	gen8_for_each_pdpe(pd, &ppgtt->pdp, start, length, temp, pdpe) {
 		gen8_pde_t *const page_directory = kmap_px(pd);
 		struct i915_page_table *pt;
-		uint64_t pd_len = gen8_clamp_pd(start, length);
+		uint64_t pd_len = length;
 		uint64_t pd_start = start;
 		uint32_t pde;
 
