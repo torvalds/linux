@@ -1413,6 +1413,14 @@ void bnx2x_init_vlan_obj(struct bnx2x *bp,
 			 unsigned long *pstate, bnx2x_obj_type type,
 			 struct bnx2x_credit_pool_obj *vlans_pool);
 
+void bnx2x_init_vlan_mac_obj(struct bnx2x *bp,
+			     struct bnx2x_vlan_mac_obj *vlan_mac_obj,
+			     u8 cl_id, u32 cid, u8 func_id, void *rdata,
+			     dma_addr_t rdata_mapping, int state,
+			     unsigned long *pstate, bnx2x_obj_type type,
+			     struct bnx2x_credit_pool_obj *macs_pool,
+			     struct bnx2x_credit_pool_obj *vlans_pool);
+
 int bnx2x_vlan_mac_h_read_lock(struct bnx2x *bp,
 					struct bnx2x_vlan_mac_obj *o);
 void bnx2x_vlan_mac_h_read_unlock(struct bnx2x *bp,
@@ -1483,6 +1491,8 @@ void bnx2x_init_mac_credit_pool(struct bnx2x *bp,
 void bnx2x_init_vlan_credit_pool(struct bnx2x *bp,
 				 struct bnx2x_credit_pool_obj *p, u8 func_id,
 				 u8 func_num);
+void bnx2x_init_credit_pool(struct bnx2x_credit_pool_obj *p,
+			    int base, int credit);
 
 /****************** RSS CONFIGURATION ****************/
 void bnx2x_init_rss_config_obj(struct bnx2x *bp,
@@ -1509,5 +1519,13 @@ int bnx2x_config_rss(struct bnx2x *bp,
  */
 void bnx2x_get_rss_ind_table(struct bnx2x_rss_config_obj *rss_obj,
 			     u8 *ind_table);
+
+#define PF_MAC_CREDIT_E2(bp, func_num)					\
+	((MAX_MAC_CREDIT_E2 - GET_NUM_VFS_PER_PATH(bp) * VF_MAC_CREDIT_CNT) / \
+	 func_num + GET_NUM_VFS_PER_PF(bp) * VF_MAC_CREDIT_CNT)
+
+#define PF_VLAN_CREDIT_E2(bp, func_num)					 \
+	((MAX_MAC_CREDIT_E2 - GET_NUM_VFS_PER_PATH(bp) * VF_VLAN_CREDIT_CNT) / \
+	 func_num + GET_NUM_VFS_PER_PF(bp) * VF_VLAN_CREDIT_CNT)
 
 #endif /* BNX2X_SP_VERBS */

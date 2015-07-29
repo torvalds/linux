@@ -2848,6 +2848,11 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* Start fast path */
 
+	/* Re-configure vlan filters */
+	rc = bnx2x_vlan_reconfigure_vid(bp);
+	if (rc)
+		LOAD_ERROR_EXIT(bp, load_error3);
+
 	/* Initialize Rx filter. */
 	bnx2x_set_rx_mode_inner(bp);
 

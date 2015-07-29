@@ -3067,7 +3067,7 @@ void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 	storm_memset_func_en(bp, p->func_id, 1);
 
 	/* spq */
-	if (p->func_flgs & FUNC_FLG_SPQ) {
+	if (p->spq_active) {
 		storm_memset_spq_addr(bp, p->spq_map, p->func_id);
 		REG_WR(bp, XSEM_REG_FAST_MEMORY +
 		       XSTORM_SPQ_PROD_OFFSET(p->func_id), p->spq_prod);
@@ -3283,7 +3283,6 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 {
 	struct bnx2x_func_init_params func_init = {0};
 	struct event_ring_data eq_data = { {0} };
-	u16 flags;
 
 	if (!CHIP_IS_E1x(bp)) {
 		/* reset IGU PF statistics: MSIX + ATTN */
@@ -3300,15 +3299,7 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 				BP_FUNC(bp) : BP_VN(bp))*4, 0);
 	}
 
-	/* function setup flags */
-	flags = (FUNC_FLG_STATS | FUNC_FLG_LEADING | FUNC_FLG_SPQ);
-
-	/* This flag is relevant for E1x only.
-	 * E2 doesn't have a TPA configuration in a function level.
-	 */
-	flags |= (bp->dev->features & NETIF_F_LRO) ? FUNC_FLG_TPA : 0;
-
-	func_init.func_flgs = flags;
+	func_init.spq_active = true;
 	func_init.pf_id = BP_FUNC(bp);
 	func_init.func_id = BP_FUNC(bp);
 	func_init.spq_map = bp->spq_mapping;
@@ -5304,6 +5295,10 @@ static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 			vlan_mac_obj = &bp->sp_objs[cid].mac_obj;
 
 		break;
+	case BNX2X_FILTER_VLAN_PENDING:
+		DP(BNX2X_MSG_SP, "Got SETUP_VLAN completions\n");
+		vlan_mac_obj = &bp->sp_objs[cid].vlan_obj;
+		break;
 	case BNX2X_FILTER_MCAST_PENDING:
 		DP(BNX2X_MSG_SP, "Got SETUP_MCAST completions\n");
 		/* This is only relevant for 57710 where multicast MACs are
@@ -5617,7 +5612,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_DIAG):
 		case (EVENT_RING_OPCODE_CLASSIFICATION_RULES |
 		      BNX2X_STATE_CLOSING_WAIT4_HALT):
-			DP(BNX2X_MSG_SP, "got (un)set mac ramrod\n");
+			DP(BNX2X_MSG_SP, "got (un)set vlan/mac ramrod\n");
 			bnx2x_handle_classification_eqe(bp, elem);
 			break;
 
@@ -6205,6 +6200,11 @@ static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
 		__set_bit(BNX2X_ACCEPT_MULTICAST, tx_accept_flags);
 		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
 
+		if (bp->accept_any_vlan) {
+			__set_bit(BNX2X_ACCEPT_ANY_VLAN, rx_accept_flags);
+			__set_bit(BNX2X_ACCEPT_ANY_VLAN, tx_accept_flags);
+		}
+
 		break;
 	case BNX2X_RX_MODE_ALLMULTI:
 		__set_bit(BNX2X_ACCEPT_UNICAST, rx_accept_flags);
@@ -6215,6 +6215,11 @@ static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
 		__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
 		__set_bit(BNX2X_ACCEPT_ALL_MULTICAST, tx_accept_flags);
 		__set_bit(BNX2X_ACCEPT_BROADCAST, tx_accept_flags);
+
+		if (bp->accept_any_vlan) {
+			__set_bit(BNX2X_ACCEPT_ANY_VLAN, rx_accept_flags);
+			__set_bit(BNX2X_ACCEPT_ANY_VLAN, tx_accept_flags);
+		}
 
 		break;
 	case BNX2X_RX_MODE_PROMISC:
@@ -6236,16 +6241,13 @@ static int bnx2x_fill_accept_flags(struct bnx2x *bp, u32 rx_mode,
 		else
 			__set_bit(BNX2X_ACCEPT_UNICAST, tx_accept_flags);
 
+		__set_bit(BNX2X_ACCEPT_ANY_VLAN, rx_accept_flags);
+		__set_bit(BNX2X_ACCEPT_ANY_VLAN, tx_accept_flags);
+
 		break;
 	default:
 		BNX2X_ERR("Unknown rx_mode: %d\n", rx_mode);
 		return -EINVAL;
-	}
-
-	/* Set ACCEPT_ANY_VLAN as we do not enable filtering by VLAN */
-	if (rx_mode != BNX2X_RX_MODE_NONE) {
-		__set_bit(BNX2X_ACCEPT_ANY_VLAN, rx_accept_flags);
-		__set_bit(BNX2X_ACCEPT_ANY_VLAN, tx_accept_flags);
 	}
 
 	return 0;
@@ -8437,6 +8439,42 @@ int bnx2x_set_mac_one(struct bnx2x *bp, u8 *mac,
 		rc = 0;
 	} else if (rc < 0)
 		BNX2X_ERR("%s MAC failed\n", (set ? "Set" : "Del"));
+
+	return rc;
+}
+
+int bnx2x_set_vlan_one(struct bnx2x *bp, u16 vlan,
+		       struct bnx2x_vlan_mac_obj *obj, bool set,
+		       unsigned long *ramrod_flags)
+{
+	int rc;
+	struct bnx2x_vlan_mac_ramrod_params ramrod_param;
+
+	memset(&ramrod_param, 0, sizeof(ramrod_param));
+
+	/* Fill general parameters */
+	ramrod_param.vlan_mac_obj = obj;
+	ramrod_param.ramrod_flags = *ramrod_flags;
+
+	/* Fill a user request section if needed */
+	if (!test_bit(RAMROD_CONT, ramrod_flags)) {
+		ramrod_param.user_req.u.vlan.vlan = vlan;
+		/* Set the command: ADD or DEL */
+		if (set)
+			ramrod_param.user_req.cmd = BNX2X_VLAN_MAC_ADD;
+		else
+			ramrod_param.user_req.cmd = BNX2X_VLAN_MAC_DEL;
+	}
+
+	rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
+
+	if (rc == -EEXIST) {
+		/* Do not treat adding same vlan as error. */
+		DP(BNX2X_MSG_SP, "Failed to schedule ADD operations: %d\n", rc);
+		rc = 0;
+	} else if (rc < 0) {
+		BNX2X_ERR("%s VLAN failed\n", (set ? "Set" : "Del"));
+	}
 
 	return rc;
 }
@@ -12140,6 +12178,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->drv_info_mutex);
 	sema_init(&bp->stats_lock, 1);
 	bp->drv_info_mng_owner = false;
+	INIT_LIST_HEAD(&bp->vlan_reg);
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
@@ -12658,6 +12697,169 @@ static netdev_features_t bnx2x_features_check(struct sk_buff *skb,
 	return vxlan_features_check(skb, features);
 }
 
+static int __bnx2x_vlan_configure_vid(struct bnx2x *bp, u16 vid, bool add)
+{
+	int rc;
+
+	if (IS_PF(bp)) {
+		unsigned long ramrod_flags = 0;
+
+		__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+		rc = bnx2x_set_vlan_one(bp, vid, &bp->sp_objs->vlan_obj,
+					add, &ramrod_flags);
+	} else {
+		rc = bnx2x_vfpf_update_vlan(bp, vid, bp->fp->index, add);
+	}
+
+	return rc;
+}
+
+int bnx2x_vlan_reconfigure_vid(struct bnx2x *bp)
+{
+	struct bnx2x_vlan_entry *vlan;
+	int rc = 0;
+
+	if (!bp->vlan_cnt) {
+		DP(NETIF_MSG_IFUP, "No need to re-configure vlan filters\n");
+		return 0;
+	}
+
+	list_for_each_entry(vlan, &bp->vlan_reg, link) {
+		/* Prepare for cleanup in case of errors */
+		if (rc) {
+			vlan->hw = false;
+			continue;
+		}
+
+		if (!vlan->hw)
+			continue;
+
+		DP(NETIF_MSG_IFUP, "Re-configuring vlan 0x%04x\n", vlan->vid);
+
+		rc = __bnx2x_vlan_configure_vid(bp, vlan->vid, true);
+		if (rc) {
+			BNX2X_ERR("Unable to configure VLAN %d\n", vlan->vid);
+			vlan->hw = false;
+			rc = -EINVAL;
+			continue;
+		}
+	}
+
+	return rc;
+}
+
+static int bnx2x_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	struct bnx2x_vlan_entry *vlan;
+	bool hw = false;
+	int rc = 0;
+
+	if (!netif_running(bp->dev)) {
+		DP(NETIF_MSG_IFUP,
+		   "Ignoring VLAN configuration the interface is down\n");
+		return -EFAULT;
+	}
+
+	DP(NETIF_MSG_IFUP, "Adding VLAN %d\n", vid);
+
+	vlan = kmalloc(sizeof(*vlan), GFP_KERNEL);
+	if (!vlan)
+		return -ENOMEM;
+
+	bp->vlan_cnt++;
+	if (bp->vlan_cnt > bp->vlan_credit && !bp->accept_any_vlan) {
+		DP(NETIF_MSG_IFUP, "Accept all VLAN raised\n");
+		bp->accept_any_vlan = true;
+		if (IS_PF(bp))
+			bnx2x_set_rx_mode_inner(bp);
+		else
+			bnx2x_vfpf_storm_rx_mode(bp);
+	} else if (bp->vlan_cnt <= bp->vlan_credit) {
+		rc = __bnx2x_vlan_configure_vid(bp, vid, true);
+		hw = true;
+	}
+
+	vlan->vid = vid;
+	vlan->hw = hw;
+
+	if (!rc) {
+		list_add(&vlan->link, &bp->vlan_reg);
+	} else {
+		bp->vlan_cnt--;
+		kfree(vlan);
+	}
+
+	DP(NETIF_MSG_IFUP, "Adding VLAN result %d\n", rc);
+
+	return rc;
+}
+
+static int bnx2x_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	struct bnx2x_vlan_entry *vlan;
+	int rc = 0;
+
+	if (!netif_running(bp->dev)) {
+		DP(NETIF_MSG_IFUP,
+		   "Ignoring VLAN configuration the interface is down\n");
+		return -EFAULT;
+	}
+
+	DP(NETIF_MSG_IFUP, "Removing VLAN %d\n", vid);
+
+	if (!bp->vlan_cnt) {
+		BNX2X_ERR("Unable to kill VLAN %d\n", vid);
+		return -EINVAL;
+	}
+
+	list_for_each_entry(vlan, &bp->vlan_reg, link)
+		if (vlan->vid == vid)
+			break;
+
+	if (vlan->vid != vid) {
+		BNX2X_ERR("Unable to kill VLAN %d - not found\n", vid);
+		return -EINVAL;
+	}
+
+	if (vlan->hw)
+		rc = __bnx2x_vlan_configure_vid(bp, vid, false);
+
+	list_del(&vlan->link);
+	kfree(vlan);
+
+	bp->vlan_cnt--;
+
+	if (bp->vlan_cnt <= bp->vlan_credit && bp->accept_any_vlan) {
+		/* Configure all non-configured entries */
+		list_for_each_entry(vlan, &bp->vlan_reg, link) {
+			if (vlan->hw)
+				continue;
+
+			rc = __bnx2x_vlan_configure_vid(bp, vlan->vid, true);
+			if (rc) {
+				BNX2X_ERR("Unable to config VLAN %d\n",
+					  vlan->vid);
+				continue;
+			}
+			DP(NETIF_MSG_IFUP, "HW configured for VLAN %d\n",
+			   vlan->vid);
+			vlan->hw = true;
+		}
+		DP(NETIF_MSG_IFUP, "Accept all VLAN Removed\n");
+		bp->accept_any_vlan = false;
+		if (IS_PF(bp))
+			bnx2x_set_rx_mode_inner(bp);
+		else
+			bnx2x_vfpf_storm_rx_mode(bp);
+	}
+
+	DP(NETIF_MSG_IFUP, "Removing VLAN result %d\n", rc);
+
+	return rc;
+}
+
 static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_open		= bnx2x_open,
 	.ndo_stop		= bnx2x_close,
@@ -12671,6 +12873,8 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_fix_features	= bnx2x_fix_features,
 	.ndo_set_features	= bnx2x_set_features,
 	.ndo_tx_timeout		= bnx2x_tx_timeout,
+	.ndo_vlan_rx_add_vid	= bnx2x_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= bnx2x_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
@@ -12880,6 +13084,16 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_HIGHDMA;
+
+	/* VF with OLD Hypervisor or old PF do not support filtering */
+	if (IS_PF(bp)) {
+		if (CHIP_IS_E1x(bp))
+			bp->accept_any_vlan = true;
+		else
+			dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	} else if (bp->acquire_resp.pfdev_info.pf_cap & PFVF_CAP_VLAN_FILTER) {
+		dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	}
 
 	dev->features |= dev->hw_features | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->features |= NETIF_F_HIGHDMA;
