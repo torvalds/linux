@@ -105,7 +105,8 @@ extern unsigned char vmcode[], end_vmcode[];
 extern unsigned char vmcode_bound[], vmcode_sysenter[], vmcode_syscall[],
 	vmcode_sti[], vmcode_int3[], vmcode_int80[];
 
-static void do_test(struct vm86plus_struct *v86, unsigned long eip,
+/* Returns false if the test was skipped. */
+static bool do_test(struct vm86plus_struct *v86, unsigned long eip,
 		    unsigned int rettype, unsigned int retarg,
 		    const char *text)
 {
@@ -117,7 +118,7 @@ static void do_test(struct vm86plus_struct *v86, unsigned long eip,
 
 	if (ret == -1 && errno == ENOSYS) {
 		printf("[SKIP]\tvm86 not supported\n");
-		return;
+		return false;
 	}
 
 	if (VM86_TYPE(ret) == VM86_INTx) {
@@ -154,6 +155,8 @@ static void do_test(struct vm86plus_struct *v86, unsigned long eip,
 		printf("[FAIL]\tIncorrect return reason\n");
 		nerrs++;
 	}
+
+	return true;
 }
 
 int main(void)
@@ -219,8 +222,8 @@ int main(void)
 	v86.regs.ss = 0;
 	sethandler(SIGSEGV, sighandler, 0);
 	got_signal = 0;
-	do_test(&v86, 0, VM86_SIGNAL, 0, "Execute null pointer");
-	if (!got_signal) {
+	if (do_test(&v86, 0, VM86_SIGNAL, 0, "Execute null pointer") &&
+	    !got_signal) {
 		printf("[FAIL]\tDid not receive SIGSEGV\n");
 		nerrs++;
 	}
