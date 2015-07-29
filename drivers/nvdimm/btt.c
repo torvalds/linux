@@ -583,32 +583,6 @@ static void free_arenas(struct btt *btt)
 }
 
 /*
- * This function checks if the metadata layout is valid and error free
- */
-static int arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super)
-{
-	u64 checksum;
-
-	if (memcmp(super->uuid, nd_btt->uuid, 16))
-		return 0;
-
-	checksum = le64_to_cpu(super->checksum);
-	super->checksum = 0;
-	if (checksum != nd_btt_sb_checksum(super))
-		return 0;
-	super->checksum = cpu_to_le64(checksum);
-
-	if (nd_btt->lbasize != le32_to_cpu(super->external_lbasize))
-		return 0;
-
-	/* TODO: figure out action for this */
-	if ((le32_to_cpu(super->flags) & IB_FLAG_ERROR_MASK) != 0)
-		dev_info(&nd_btt->dev, "Found arena with an error flag\n");
-
-	return 1;
-}
-
-/*
  * This function reads an existing valid btt superblock and
  * populates the corresponding arena_info struct
  */
@@ -665,7 +639,7 @@ static int discover_arenas(struct btt *btt)
 		if (ret)
 			goto out;
 
-		if (!arena_is_valid(btt->nd_btt, super)) {
+		if (!nd_btt_arena_is_valid(btt->nd_btt, super)) {
 			if (remaining == btt->rawsize) {
 				btt->init_state = INIT_NOTFOUND;
 				dev_info(to_dev(arena), "No existing arenas\n");

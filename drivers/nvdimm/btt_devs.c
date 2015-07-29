@@ -342,6 +342,38 @@ struct device *nd_btt_create(struct nd_region *nd_region)
 	return dev;
 }
 
+/**
+ * nd_btt_arena_is_valid - check if the metadata layout is valid
+ * @nd_btt:	device with BTT geometry and backing device info
+ * @super:	pointer to the arena's info block being tested
+ *
+ * Check consistency of the btt info block with itself by validating
+ * the checksum.
+ *
+ * Returns:
+ * false for an invalid info block, true for a valid one
+ */
+bool nd_btt_arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super)
+{
+	u64 checksum;
+
+	if (memcmp(super->signature, BTT_SIG, BTT_SIG_LEN) != 0)
+		return false;
+
+	checksum = le64_to_cpu(super->checksum);
+	super->checksum = 0;
+	if (checksum != nd_btt_sb_checksum(super))
+		return false;
+	super->checksum = cpu_to_le64(checksum);
+
+	/* TODO: figure out action for this */
+	if ((le32_to_cpu(super->flags) & IB_FLAG_ERROR_MASK) != 0)
+		dev_info(&nd_btt->dev, "Found arena with an error flag\n");
+
+	return true;
+}
+EXPORT_SYMBOL(nd_btt_arena_is_valid);
+
 /*
  * nd_btt_sb_checksum: compute checksum for btt info block
  *
@@ -364,8 +396,6 @@ EXPORT_SYMBOL(nd_btt_sb_checksum);
 static int __nd_btt_probe(struct nd_btt *nd_btt,
 		struct nd_namespace_common *ndns, struct btt_sb *btt_sb)
 {
-	u64 checksum;
-
 	if (!btt_sb || !ndns || !nd_btt)
 		return -ENODEV;
 
@@ -375,14 +405,8 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
 	if (nvdimm_namespace_capacity(ndns) < SZ_16M)
 		return -ENXIO;
 
-	if (memcmp(btt_sb->signature, BTT_SIG, BTT_SIG_LEN) != 0)
+	if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
 		return -ENODEV;
-
-	checksum = le64_to_cpu(btt_sb->checksum);
-	btt_sb->checksum = 0;
-	if (checksum != nd_btt_sb_checksum(btt_sb))
-		return -ENODEV;
-	btt_sb->checksum = cpu_to_le64(checksum);
 
 	nd_btt->lbasize = le32_to_cpu(btt_sb->external_lbasize);
 	nd_btt->uuid = kmemdup(btt_sb->uuid, 16, GFP_KERNEL);
