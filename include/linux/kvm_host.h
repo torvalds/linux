@@ -427,6 +427,10 @@ struct kvm {
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
+	/* Pairs with smp_wmb() in kvm_vm_ioctl_create_vcpu, in case
+	 * the caller has read kvm->online_vcpus before (as is the case
+	 * for kvm_for_each_vcpu, for example).
+	 */
 	smp_rmb();
 	return kvm->vcpus[i];
 }

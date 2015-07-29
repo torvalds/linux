@@ -2206,6 +2206,11 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	}
 
 	kvm->vcpus[atomic_read(&kvm->online_vcpus)] = vcpu;
+
+	/*
+	 * Pairs with smp_rmb() in kvm_get_vcpu.  Write kvm->vcpus
+	 * before kvm->online_vcpu's incremented value.
+	 */
 	smp_wmb();
 	atomic_inc(&kvm->online_vcpus);
 
