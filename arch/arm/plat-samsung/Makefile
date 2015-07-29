@@ -24,8 +24,6 @@ obj-$(CONFIG_S5P_DEV_MFC)	+= s5p-dev-mfc.o
 
 obj-$(CONFIG_SAMSUNG_DEV_BACKLIGHT)	+= dev-backlight.o
 
-obj-$(CONFIG_S3C_SETUP_CAMIF)	+= setup-camif.o
-
 # PM support
 
 obj-$(CONFIG_PM_SLEEP)		+= pm-common.o

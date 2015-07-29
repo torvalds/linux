@@ -231,18 +231,12 @@ config S3C24XX_PWM
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
 
-config S3C_SETUP_CAMIF
-	bool
-	help
-	  Compile in common setup code for S3C CAMIF devices
-
 config SAMSUNG_PM_GPIO
 	bool
 	default y if GPIO_SAMSUNG && PM
 	help
 	  Include legacy GPIO power management code for platforms not using
 	  pinctrl-samsung driver.
-
 endif
 
 config S5P_DEV_MFC
