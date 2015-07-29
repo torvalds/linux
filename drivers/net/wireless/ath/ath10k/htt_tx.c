@@ -543,6 +543,8 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		/* pass through */
 	case ATH10K_HW_TXRX_ETHERNET:
 		if (ar->hw_params.continuous_frag_desc) {
+			memset(&htt->frag_desc.vaddr[msdu_id], 0,
+			       sizeof(struct htt_msdu_ext_desc));
 			frags = (struct htt_data_tx_desc_frag *)
 				&htt->frag_desc.vaddr[msdu_id].frags;
 			ext_desc = &htt->frag_desc.vaddr[msdu_id];
@@ -550,8 +552,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 				__cpu_to_le32(skb_cb->paddr);
 			frags[0].tword_addr.paddr_hi = 0;
 			frags[0].tword_addr.len_16 = __cpu_to_le16(msdu->len);
-			frags[1].tword_addr.paddr_lo = 0;
-			frags[1].tword_addr.paddr_hi = 0;
 
 			frags_paddr =  htt->frag_desc.paddr +
 				(sizeof(struct htt_msdu_ext_desc) * msdu_id);
