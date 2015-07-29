@@ -992,7 +992,7 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 
 	memset(gather, 0, SND_QUEUE_DESC_SIZE);
 	gather->subdesc_type = SQ_DESC_TYPE_GATHER;
-	gather->ld_type = NIC_SEND_LD_TYPE_E_LDWB;
+	gather->ld_type = NIC_SEND_LD_TYPE_E_LDD;
 	gather->size = size;
 	gather->addr = data;
 }
