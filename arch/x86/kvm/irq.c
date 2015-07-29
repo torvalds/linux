@@ -57,7 +57,7 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 {
-	if (!irqchip_in_kernel(v->kvm))
+	if (!lapic_in_kernel(v))
 		return v->arch.interrupt.pending;
 
 	if (kvm_cpu_has_extint(v))
@@ -75,7 +75,7 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
-	if (!irqchip_in_kernel(v->kvm))
+	if (!lapic_in_kernel(v))
 		return v->arch.interrupt.pending;
 
 	if (kvm_cpu_has_extint(v))
@@ -103,7 +103,7 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 {
 	int vector;
 
-	if (!irqchip_in_kernel(v->kvm))
+	if (!lapic_in_kernel(v))
 		return v->arch.interrupt.nr;
 
 	vector = kvm_cpu_get_extint(v);

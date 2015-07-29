@@ -809,7 +809,6 @@ static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
 static bool vmx_mpx_supported(void);
 static bool vmx_xsaves_supported(void);
-static int vmx_vm_has_apicv(struct kvm *kvm);
 static int vmx_cpu_uses_apicv(struct kvm_vcpu *vcpu);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
@@ -947,9 +946,9 @@ static inline bool cpu_has_vmx_tpr_shadow(void)
 	return vmcs_config.cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW;
 }
 
-static inline bool vm_need_tpr_shadow(struct kvm *kvm)
+static inline bool cpu_need_tpr_shadow(struct kvm_vcpu *vcpu)
 {
-	return (cpu_has_vmx_tpr_shadow()) && (irqchip_in_kernel(kvm));
+	return cpu_has_vmx_tpr_shadow() && lapic_in_kernel(vcpu);
 }
 
 static inline bool cpu_has_secondary_exec_ctrls(void)
@@ -1063,9 +1062,9 @@ static inline bool cpu_has_vmx_ple(void)
 		SECONDARY_EXEC_PAUSE_LOOP_EXITING;
 }
 
-static inline bool vm_need_virtualize_apic_accesses(struct kvm *kvm)
+static inline bool cpu_need_virtualize_apic_accesses(struct kvm_vcpu *vcpu)
 {
-	return flexpriority_enabled && irqchip_in_kernel(kvm);
+	return flexpriority_enabled && lapic_in_kernel(vcpu);
 }
 
 static inline bool cpu_has_vmx_vpid(void)
@@ -2378,7 +2377,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	vmx->nested.nested_vmx_pinbased_ctls_high |=
 		PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR |
 		PIN_BASED_VMX_PREEMPTION_TIMER;
-	if (vmx_vm_has_apicv(vmx->vcpu.kvm))
+	if (vmx_cpu_uses_apicv(&vmx->vcpu))
 		vmx->nested.nested_vmx_pinbased_ctls_high |=
 			PIN_BASED_POSTED_INTR;
 
@@ -4333,14 +4332,9 @@ static void vmx_disable_intercept_msr_write_x2apic(u32 msr)
 			msr, MSR_TYPE_W);
 }
 
-static int vmx_vm_has_apicv(struct kvm *kvm)
-{
-	return enable_apicv && irqchip_in_kernel(kvm);
-}
-
 static int vmx_cpu_uses_apicv(struct kvm_vcpu *vcpu)
 {
-	return vmx_vm_has_apicv(vcpu->kvm);
+	return enable_apicv && lapic_in_kernel(vcpu);
 }
 
 static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
@@ -4520,7 +4514,7 @@ static u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
 {
 	u32 pin_based_exec_ctrl = vmcs_config.pin_based_exec_ctrl;
 
-	if (!vmx_vm_has_apicv(vmx->vcpu.kvm))
+	if (!vmx_cpu_uses_apicv(&vmx->vcpu))
 		pin_based_exec_ctrl &= ~PIN_BASED_POSTED_INTR;
 	return pin_based_exec_ctrl;
 }
@@ -4532,7 +4526,7 @@ static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 	if (vmx->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT)
 		exec_control &= ~CPU_BASED_MOV_DR_EXITING;
 
-	if (!vm_need_tpr_shadow(vmx->vcpu.kvm)) {
+	if (!cpu_need_tpr_shadow(&vmx->vcpu)) {
 		exec_control &= ~CPU_BASED_TPR_SHADOW;
 #ifdef CONFIG_X86_64
 		exec_control |= CPU_BASED_CR8_STORE_EXITING |
@@ -4549,7 +4543,7 @@ static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 {
 	u32 exec_control = vmcs_config.cpu_based_2nd_exec_ctrl;
-	if (!vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
+	if (!cpu_need_virtualize_apic_accesses(&vmx->vcpu))
 		exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 	if (vmx->vpid == 0)
 		exec_control &= ~SECONDARY_EXEC_ENABLE_VPID;
@@ -4563,7 +4557,7 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 		exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
 	if (!ple_gap)
 		exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
-	if (!vmx_vm_has_apicv(vmx->vcpu.kvm))
+	if (!vmx_cpu_uses_apicv(&vmx->vcpu))
 		exec_control &= ~(SECONDARY_EXEC_APIC_REGISTER_VIRT |
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 	exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE;
@@ -4624,7 +4618,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 				vmx_secondary_exec_control(vmx));
 	}
 
-	if (vmx_vm_has_apicv(vmx->vcpu.kvm)) {
+	if (vmx_cpu_uses_apicv(&vmx->vcpu)) {
 		vmcs_write64(EOI_EXIT_BITMAP0, 0);
 		vmcs_write64(EOI_EXIT_BITMAP1, 0);
 		vmcs_write64(EOI_EXIT_BITMAP2, 0);
@@ -4768,7 +4762,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	if (cpu_has_vmx_tpr_shadow() && !init_event) {
 		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
-		if (vm_need_tpr_shadow(vcpu->kvm))
+		if (cpu_need_tpr_shadow(vcpu))
 			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
 				     __pa(vcpu->arch.apic->regs));
 		vmcs_write32(TPR_THRESHOLD, 0);
@@ -4776,7 +4770,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
-	if (vmx_vm_has_apicv(vcpu->kvm))
+	if (vmx_cpu_uses_apicv(vcpu))
 		memset(&vmx->pi_desc, 0, sizeof(struct pi_desc));
 
 	if (vmx->vpid != 0)
@@ -5316,7 +5310,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 				u8 cr8 = (u8)val;
 				err = kvm_set_cr8(vcpu, cr8);
 				kvm_complete_insn_gp(vcpu, err);
-				if (irqchip_in_kernel(vcpu->kvm))
+				if (lapic_in_kernel(vcpu))
 					return 1;
 				if (cr8_prev <= cr8)
 					return 1;
@@ -5535,7 +5529,7 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
 	 */
-	if (!irqchip_in_kernel(vcpu->kvm) &&
+	if (!lapic_in_kernel(vcpu) &&
 	    vcpu->run->request_interrupt_window &&
 	    !kvm_cpu_has_interrupt(vcpu)) {
 		vcpu->run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
@@ -7944,10 +7938,10 @@ static void vmx_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	 * apicv
 	 */
 	if (!cpu_has_vmx_virtualize_x2apic_mode() ||
-				!vmx_vm_has_apicv(vcpu->kvm))
+				!vmx_cpu_uses_apicv(vcpu))
 		return;
 
-	if (!vm_need_tpr_shadow(vcpu->kvm))
+	if (!cpu_need_tpr_shadow(vcpu))
 		return;
 
 	sec_exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
@@ -8052,7 +8046,7 @@ static void vmx_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
 static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu)
 {
 	u64 *eoi_exit_bitmap = vcpu->arch.eoi_exit_bitmap;
-	if (!vmx_vm_has_apicv(vcpu->kvm))
+	if (!vmx_cpu_uses_apicv(vcpu))
 		return;
 
 	vmcs_write64(EOI_EXIT_BITMAP0, eoi_exit_bitmap[0]);
@@ -8551,7 +8545,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	put_cpu();
 	if (err)
 		goto free_vmcs;
-	if (vm_need_virtualize_apic_accesses(kvm)) {
+	if (cpu_need_virtualize_apic_accesses(&vmx->vcpu)) {
 		err = alloc_apic_access_page(kvm);
 		if (err)
 			goto free_vmcs;
@@ -9344,7 +9338,7 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 				vmcs_write64(APIC_ACCESS_ADDR,
 				  page_to_phys(vmx->nested.apic_access_page));
 		} else if (!(nested_cpu_has_virt_x2apic_mode(vmcs12)) &&
-			    (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))) {
+			    cpu_need_virtualize_apic_accesses(&vmx->vcpu)) {
 			exec_control |=
 				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 			kvm_vcpu_reload_apic_access_page(vcpu);

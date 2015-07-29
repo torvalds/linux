@@ -3060,7 +3060,7 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
 	/* instruction emulation calls kvm_set_cr8() */
 	r = cr_interception(svm);
-	if (irqchip_in_kernel(svm->vcpu.kvm))
+	if (lapic_in_kernel(&svm->vcpu))
 		return r;
 	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
 		return r;
@@ -3305,7 +3305,7 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
 	 */
-	if (!irqchip_in_kernel(svm->vcpu.kvm) &&
+	if (!lapic_in_kernel(&svm->vcpu) &&
 	    kvm_run->request_interrupt_window &&
 	    !kvm_cpu_has_interrupt(&svm->vcpu)) {
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
