@@ -540,7 +540,7 @@ EXPORT_SYMBOL(__usecs_to_jiffies);
  * value to a scaled second value.
  */
 static unsigned long
-__timespec_to_jiffies(unsigned long sec, long nsec)
+__timespec64_to_jiffies(u64 sec, long nsec)
 {
 	nsec = nsec + TICK_NSEC - 1;
 
@@ -548,22 +548,27 @@ __timespec_to_jiffies(unsigned long sec, long nsec)
 		sec = MAX_SEC_IN_JIFFIES;
 		nsec = 0;
 	}
-	return (((u64)sec * SEC_CONVERSION) +
+	return ((sec * SEC_CONVERSION) +
 		(((u64)nsec * NSEC_CONVERSION) >>
 		 (NSEC_JIFFIE_SC - SEC_JIFFIE_SC))) >> SEC_JIFFIE_SC;
 
 }
 
-unsigned long
-timespec_to_jiffies(const struct timespec *value)
+static unsigned long
+__timespec_to_jiffies(unsigned long sec, long nsec)
 {
-	return __timespec_to_jiffies(value->tv_sec, value->tv_nsec);
+	return __timespec64_to_jiffies((u64)sec, nsec);
 }
 
-EXPORT_SYMBOL(timespec_to_jiffies);
+unsigned long
+timespec64_to_jiffies(const struct timespec64 *value)
+{
+	return __timespec64_to_jiffies(value->tv_sec, value->tv_nsec);
+}
+EXPORT_SYMBOL(timespec64_to_jiffies);
 
 void
-jiffies_to_timespec(const unsigned long jiffies, struct timespec *value)
+jiffies_to_timespec64(const unsigned long jiffies, struct timespec64 *value)
 {
 	/*
 	 * Convert jiffies to nanoseconds and separate with
@@ -574,7 +579,7 @@ jiffies_to_timespec(const unsigned long jiffies, struct timespec *value)
 				    NSEC_PER_SEC, &rem);
 	value->tv_nsec = rem;
 }
-EXPORT_SYMBOL(jiffies_to_timespec);
+EXPORT_SYMBOL(jiffies_to_timespec64);
 
 /*
  * We could use a similar algorithm to timespec_to_jiffies (with a
