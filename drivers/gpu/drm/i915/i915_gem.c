@@ -3355,7 +3355,8 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 size, fence_size, fence_alignment, unfenced_alignment;
+	u32 fence_alignment, unfenced_alignment;
+	u64 size, fence_size;
 	u64 start =
 		flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
 	u64 end =
@@ -3414,7 +3415,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	 * attempt to find space.
 	 */
 	if (size > end) {
-		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: size=%u > %s aperture=%llu\n",
+		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: size=%llu > %s aperture=%llu\n",
 			  ggtt_view ? ggtt_view->type : 0,
 			  size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
