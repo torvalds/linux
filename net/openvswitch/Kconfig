@@ -5,7 +5,6 @@
 config OPENVSWITCH
 	tristate "Open vSwitch"
 	depends on INET
-	depends on VXLAN
 	select LIBCRC32C
 	select MPLS
 	select NET_MPLS_GSO
@@ -40,6 +39,18 @@ config OPENVSWITCH_GRE
 	---help---
 	  If you say Y here, then the Open vSwitch will be able create GRE
 	  vport.
+
+	  Say N to exclude this support and reduce the binary size.
+
+	  If unsure, say Y.
+
+config OPENVSWITCH_VXLAN
+	tristate "Open vSwitch VXLAN tunneling support"
+	depends on OPENVSWITCH
+	depends on VXLAN
+	default OPENVSWITCH
+	---help---
+	  If you say Y here, then the Open vSwitch will be able create vxlan vport.
 
 	  Say N to exclude this support and reduce the binary size.
 
