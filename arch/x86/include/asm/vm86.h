@@ -29,7 +29,7 @@ struct kernel_vm86_regs {
 
 struct vm86 {
 	struct vm86plus_struct __user *vm86_info;
-	struct pt_regs *regs32;
+	struct pt_regs regs32;
 	unsigned long v86flags;
 	unsigned long v86mask;
 	unsigned long saved_sp0;
@@ -46,7 +46,7 @@ struct vm86 {
 
 void handle_vm86_fault(struct kernel_vm86_regs *, long);
 int handle_vm86_trap(struct kernel_vm86_regs *, long, int);
-struct pt_regs *save_v86_state(struct kernel_vm86_regs *);
+void save_v86_state(struct kernel_vm86_regs *, int);
 
 struct task_struct;
 void release_vm86_irqs(struct task_struct *);
@@ -68,6 +68,8 @@ static inline int handle_vm86_trap(struct kernel_vm86_regs *a, long b, int c)
 {
 	return 0;
 }
+
+static inline void save_v86_state(struct kernel_vm86_regs *a, int b) { }
 
 #define free_vm86(t) do { } while(0)
 

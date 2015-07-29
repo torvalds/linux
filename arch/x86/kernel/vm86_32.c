@@ -50,6 +50,7 @@
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/irq.h>
+#include <asm/traps.h>
 
 /*
  * Known problems:
@@ -87,10 +88,9 @@
 #define SAFE_MASK	(0xDD5)
 #define RETURN_MASK	(0xDFF)
 
-struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
+void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 {
 	struct tss_struct *tss;
-	struct pt_regs *ret;
 	struct task_struct *tsk = current;
 	struct vm86plus_struct __user *user;
 	struct vm86 *vm86 = current->thread.vm86;
@@ -149,11 +149,11 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	vm86->saved_sp0 = 0;
 	put_cpu();
 
-	ret = vm86->regs32;
+	memcpy(&regs->pt, &vm86->regs32, sizeof(struct pt_regs));
 
-	lazy_load_gs(ret->gs);
+	lazy_load_gs(vm86->regs32.gs);
 
-	return ret;
+	regs->pt.ax = retval;
 }
 
 static void mark_screen_rdonly(struct mm_struct *mm)
@@ -228,7 +228,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
 	struct task_struct *tsk = current;
 	struct vm86 *vm86 = tsk->thread.vm86;
 	struct kernel_vm86_regs vm86regs;
-	struct pt_regs *regs32 = current_pt_regs();
+	struct pt_regs *regs = current_pt_regs();
 	unsigned long err = 0;
 
 	if (!vm86) {
@@ -287,7 +287,8 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
 	} else
 		memset(&vm86->vm86plus, 0,
 		       sizeof(struct vm86plus_info_struct));
-	vm86->regs32 = regs32;
+
+	memcpy(&vm86->regs32, regs, sizeof(struct pt_regs));
 	vm86->vm86_info = v86;
 
 /*
@@ -297,10 +298,10 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
  */
 	VEFLAGS = vm86regs.pt.flags;
 	vm86regs.pt.flags &= SAFE_MASK;
-	vm86regs.pt.flags |= regs32->flags & ~SAFE_MASK;
+	vm86regs.pt.flags |= regs->flags & ~SAFE_MASK;
 	vm86regs.pt.flags |= X86_VM_MASK;
 
-	vm86regs.pt.orig_ax = regs32->orig_ax;
+	vm86regs.pt.orig_ax = regs->orig_ax;
 
 	switch (vm86->cpu_type) {
 	case CPU_286:
@@ -318,15 +319,14 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
 	}
 
 /*
- * Save old state, set default return value (%ax) to 0 (VM86_SIGNAL)
+ * Save old state
  */
-	regs32->ax = VM86_SIGNAL;
 	vm86->saved_sp0 = tsk->thread.sp0;
-	lazy_save_gs(regs32->gs);
+	lazy_save_gs(vm86->regs32.gs);
 
 	tss = &per_cpu(cpu_tss, get_cpu());
-	/* Set new sp0 right below 32-bit regs */
-	tsk->thread.sp0 = (unsigned long) regs32;
+	/* make room for real-mode segments */
+	tsk->thread.sp0 += 16;
 	if (cpu_has_sep)
 		tsk->thread.sysenter_cs = 0;
 	load_sp0(tss, &tsk->thread);
@@ -335,41 +335,14 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
 	if (vm86->flags & VM86_SCREEN_BITMAP)
 		mark_screen_rdonly(tsk->mm);
 
-	/*call __audit_syscall_exit since we do not exit via the normal paths */
-#ifdef CONFIG_AUDITSYSCALL
-	if (unlikely(current->audit_context))
-		__audit_syscall_exit(1, 0);
-#endif
-
-	__asm__ __volatile__(
-		"movl %0,%%esp\n\t"
-		"movl %1,%%ebp\n\t"
-#ifdef CONFIG_X86_32_LAZY_GS
-		"mov  %2, %%gs\n\t"
-#endif
-		"jmp resume_userspace"
-		: /* no outputs */
-		:"r" (&vm86regs), "r" (task_thread_info(tsk)), "r" (0));
-	unreachable();	/* we never return here */
-}
-
-static inline void return_to_32bit(struct kernel_vm86_regs *regs16, int retval)
-{
-	struct pt_regs *regs32;
-
-	regs32 = save_v86_state(regs16);
-	regs32->ax = retval;
-	__asm__ __volatile__("movl %0,%%esp\n\t"
-		"movl %1,%%ebp\n\t"
-		"jmp resume_userspace"
-		: : "r" (regs32), "r" (current_thread_info()));
+	memcpy((struct kernel_vm86_regs *)regs, &vm86regs, sizeof(vm86regs));
+	force_iret();
+	return regs->ax;
 }
 
 static inline void set_IF(struct kernel_vm86_regs *regs)
 {
 	VEFLAGS |= X86_EFLAGS_VIF;
-	if (VEFLAGS & X86_EFLAGS_VIP)
-		return_to_32bit(regs, VM86_STI);
 }
 
 static inline void clear_IF(struct kernel_vm86_regs *regs)
@@ -549,7 +522,7 @@ static void do_int(struct kernel_vm86_regs *regs, int i,
 	return;
 
 cannot_handle:
-	return_to_32bit(regs, VM86_INTx + (i << 8));
+	save_v86_state(regs, VM86_INTx + (i << 8));
 }
 
 int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
@@ -558,11 +531,7 @@ int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
 
 	if (vm86->vm86plus.is_vm86pus) {
 		if ((trapno == 3) || (trapno == 1)) {
-			vm86->regs32->ax = VM86_TRAP + (trapno << 8);
-			/* setting this flag forces the code in entry_32.S to
-			   the path where we call save_v86_state() and change
-			   the stack pointer to regs32 */
-			set_thread_flag(TIF_NOTIFY_RESUME);
+			save_v86_state(regs, VM86_TRAP + (trapno << 8));
 			return 0;
 		}
 		do_int(regs, trapno, (unsigned char __user *) (regs->pt.ss << 4), SP(regs));
@@ -588,12 +557,6 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 #define CHECK_IF_IN_TRAP \
 	if (vmpi->vm86dbg_active && vmpi->vm86dbg_TFpendig) \
 		newflags |= X86_EFLAGS_TF
-#define VM86_FAULT_RETURN do { \
-	if (vmpi->force_return_for_pic  && (VEFLAGS & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) \
-		return_to_32bit(regs, VM86_PICRETURN); \
-	if (orig_flags & X86_EFLAGS_TF) \
-		handle_vm86_trap(regs, 0, 1); \
-	return; } while (0)
 
 	orig_flags = *(unsigned short *)&regs->pt.flags;
 
@@ -632,7 +595,7 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 			SP(regs) -= 2;
 		}
 		IP(regs) = ip;
-		VM86_FAULT_RETURN;
+		goto vm86_fault_return;
 
 	/* popf */
 	case 0x9d:
@@ -652,7 +615,7 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 		else
 			set_vflags_short(newflags, regs);
 
-		VM86_FAULT_RETURN;
+		goto check_vip;
 		}
 
 	/* int xx */
@@ -660,8 +623,10 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 		int intno = popb(csp, ip, simulate_sigsegv);
 		IP(regs) = ip;
 		if (vmpi->vm86dbg_active) {
-			if ((1 << (intno & 7)) & vmpi->vm86dbg_intxxtab[intno >> 3])
-				return_to_32bit(regs, VM86_INTx + (intno << 8));
+			if ((1 << (intno & 7)) & vmpi->vm86dbg_intxxtab[intno >> 3]) {
+				save_v86_state(regs, VM86_INTx + (intno << 8));
+				return;
+			}
 		}
 		do_int(regs, intno, ssp, sp);
 		return;
@@ -692,14 +657,14 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 		} else {
 			set_vflags_short(newflags, regs);
 		}
-		VM86_FAULT_RETURN;
+		goto check_vip;
 		}
 
 	/* cli */
 	case 0xfa:
 		IP(regs) = ip;
 		clear_IF(regs);
-		VM86_FAULT_RETURN;
+		goto vm86_fault_return;
 
 	/* sti */
 	/*
@@ -711,12 +676,27 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 	case 0xfb:
 		IP(regs) = ip;
 		set_IF(regs);
-		VM86_FAULT_RETURN;
+		goto check_vip;
 
 	default:
-		return_to_32bit(regs, VM86_UNKNOWN);
+		save_v86_state(regs, VM86_UNKNOWN);
 	}
 
+	return;
+
+check_vip:
+	if (VEFLAGS & X86_EFLAGS_VIP) {
+		save_v86_state(regs, VM86_STI);
+		return;
+	}
+
+vm86_fault_return:
+	if (vmpi->force_return_for_pic  && (VEFLAGS & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) {
+		save_v86_state(regs, VM86_PICRETURN);
+		return;
+	}
+	if (orig_flags & X86_EFLAGS_TF)
+		handle_vm86_trap(regs, 0, X86_TRAP_DB);
 	return;
 
 simulate_sigsegv:
@@ -730,7 +710,7 @@ simulate_sigsegv:
 	 *        should be a mixture of the two, but how do we
 	 *        get the information? [KD]
 	 */
-	return_to_32bit(regs, VM86_UNKNOWN);
+	save_v86_state(regs, VM86_UNKNOWN);
 }
 
 /* ---------------- vm86 special IRQ passing stuff ----------------- */
