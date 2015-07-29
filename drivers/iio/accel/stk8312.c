@@ -69,8 +69,8 @@ static const int stk8312_scale_table[][2] = {
 };
 
 static const struct {
-	u16 val;
-	u32 val2;
+	int val;
+	int val2;
 } stk8312_samp_freq_table[] = {
 	{400, 0}, {200, 0}, {100, 0}, {50, 0}, {25, 0},
 	{12, 500000}, {6, 250000}, {3, 125000}
@@ -103,7 +103,7 @@ static const struct iio_chan_spec stk8312_channels[] = {
 struct stk8312_data {
 	struct i2c_client *client;
 	struct mutex lock;
-	int range;
+	u8 range;
 	u8 sample_rate_idx;
 	u8 mode;
 	struct iio_trigger *dready_trig;
@@ -243,7 +243,7 @@ static const struct iio_trigger_ops stk8312_trigger_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int stk8312_set_sample_rate(struct stk8312_data *data, int rate)
+static int stk8312_set_sample_rate(struct stk8312_data *data, u8 rate)
 {
 	int ret;
 	u8 masked_reg;
