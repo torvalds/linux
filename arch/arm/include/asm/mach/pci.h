@@ -19,9 +19,7 @@ struct pci_bus;
 struct device;
 
 struct hw_pci {
-#ifdef CONFIG_PCI_MSI
 	struct msi_controller *msi_ctrl;
-#endif
 	struct pci_ops	*ops;
 	int		nr_controllers;
 	void		**private_data;

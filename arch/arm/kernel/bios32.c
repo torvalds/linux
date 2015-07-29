@@ -486,8 +486,9 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 			if (hw->scan)
 				sys->bus = hw->scan(nr, sys);
 			else
-				sys->bus = pci_scan_root_bus(parent, sys->busnr,
-						hw->ops, sys, &sys->resources);
+				sys->bus = pci_scan_root_bus_msi(parent,
+					sys->busnr, hw->ops, sys,
+					&sys->resources, hw->msi_ctrl);
 
 			if (WARN(!sys->bus, "PCI: unable to scan bus!")) {
 				kfree(sys);
