@@ -226,9 +226,12 @@ static int nx842_validate_result(struct device *dev,
 	switch (csb->completion_code) {
 	case 0:	/* Completed without error */
 		break;
-	case 64: /* Target bytes > Source bytes during compression */
+	case 64: /* Compression ok, but output larger than input */
+		dev_dbg(dev, "%s: output size larger than input size\n",
+					__func__);
+		break;
 	case 13: /* Output buffer too small */
-		dev_dbg(dev, "%s: Compression output larger than input\n",
+		dev_dbg(dev, "%s: Out of space in output buffer\n",
 					__func__);
 		return -ENOSPC;
 	case 66: /* Input data contains an illegal template field */
