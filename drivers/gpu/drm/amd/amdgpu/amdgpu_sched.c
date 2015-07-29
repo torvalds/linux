@@ -108,3 +108,38 @@ struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.process_job = amdgpu_sched_process_job
 };
 
+int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
+					 struct amdgpu_ring *ring,
+					 struct amdgpu_ib *ibs,
+					 unsigned num_ibs,
+					 int (*free_job)(struct amdgpu_cs_parser *),
+					 void *owner)
+{
+	int r = 0;
+	if (amdgpu_enable_scheduler) {
+		uint64_t v_seq;
+		struct amdgpu_cs_parser *sched_job =
+			amdgpu_cs_parser_create(adev,
+						owner,
+						adev->kernel_ctx,
+						ibs, 1);
+		if(!sched_job) {
+			return -ENOMEM;
+		}
+		sched_job->free_job = free_job;
+		v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
+		ibs[num_ibs - 1].sequence = v_seq;
+		amd_sched_push_job(ring->scheduler,
+				   &adev->kernel_ctx->rings[ring->idx].c_entity,
+				   sched_job);
+		r = amd_sched_wait_emit(
+			&adev->kernel_ctx->rings[ring->idx].c_entity,
+			v_seq,
+			false,
+			-1);
+		if (r)
+			WARN(true, "emit timeout\n");
+	} else
+		r = amdgpu_ib_schedule(adev, 1, ibs, owner);
+	return r;
+}

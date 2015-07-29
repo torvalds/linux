@@ -864,6 +864,13 @@ enum amdgpu_ring_type {
 
 extern struct amd_sched_backend_ops amdgpu_sched_ops;
 
+int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
+					 struct amdgpu_ring *ring,
+					 struct amdgpu_ib *ibs,
+					 unsigned num_ibs,
+					 int (*free_job)(struct amdgpu_cs_parser *),
+					 void *owner);
+
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
