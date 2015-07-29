@@ -464,40 +464,27 @@ static int lapic_next_deadline(unsigned long delta,
 
 static int lapic_timer_shutdown(struct clock_event_device *evt)
 {
-	unsigned long flags;
 	unsigned int v;
 
 	/* Lapic used as dummy for broadcast ? */
 	if (evt->features & CLOCK_EVT_FEAT_DUMMY)
 		return 0;
 
-	local_irq_save(flags);
-
 	v = apic_read(APIC_LVTT);
 	v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
 	apic_write(APIC_LVTT, v);
 	apic_write(APIC_TMICT, 0);
-
-	local_irq_restore(flags);
-
 	return 0;
 }
 
 static inline int
 lapic_timer_set_periodic_oneshot(struct clock_event_device *evt, bool oneshot)
 {
-	unsigned long flags;
-
 	/* Lapic used as dummy for broadcast ? */
 	if (evt->features & CLOCK_EVT_FEAT_DUMMY)
 		return 0;
 
-	local_irq_save(flags);
-
 	__setup_APIC_LVTT(lapic_timer_frequency, oneshot, 1);
-
-	local_irq_restore(flags);
-
 	return 0;
 }
 
@@ -804,6 +791,7 @@ static int __init calibrate_APIC_clock(void)
 			cpu_relax();
 
 		/* Stop the lapic timer */
+		local_irq_disable();
 		lapic_timer_shutdown(levt);
 
 		/* Jiffies delta */
@@ -815,8 +803,8 @@ static int __init calibrate_APIC_clock(void)
 			apic_printk(APIC_VERBOSE, "... jiffies result ok\n");
 		else
 			levt->features |= CLOCK_EVT_FEAT_DUMMY;
-	} else
-		local_irq_enable();
+	}
+	local_irq_enable();
 
 	if (levt->features & CLOCK_EVT_FEAT_DUMMY) {
 		pr_warning("APIC timer disabled due to verification failure\n");
