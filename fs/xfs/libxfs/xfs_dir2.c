@@ -674,25 +674,22 @@ xfs_dir2_shrink_inode(
 	mp = dp->i_mount;
 	tp = args->trans;
 	da = xfs_dir2_db_to_da(args->geo, db);
-	/*
-	 * Unmap the fsblock(s).
-	 */
-	if ((error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount,
-			XFS_BMAPI_METADATA, 0, args->firstblock, args->flist,
-			&done))) {
+
+	/* Unmap the fsblock(s). */
+	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0,
+			    args->firstblock, args->flist, &done);
+	if (error) {
 		/*
-		 * ENOSPC actually can happen if we're in a removename with
-		 * no space reservation, and the resulting block removal
-		 * would cause a bmap btree split or conversion from extents
-		 * to btree.  This can only happen for un-fragmented
-		 * directory blocks, since you need to be punching out
-		 * the middle of an extent.
-		 * In this case we need to leave the block in the file,
-		 * and not binval it.
-		 * So the block has to be in a consistent empty state
-		 * and appropriately logged.
-		 * We don't free up the buffer, the caller can tell it
-		 * hasn't happened since it got an error back.
+		 * ENOSPC actually can happen if we're in a removename with no
+		 * space reservation, and the resulting block removal would
+		 * cause a bmap btree split or conversion from extents to btree.
+		 * This can only happen for un-fragmented directory blocks,
+		 * since you need to be punching out the middle of an extent.
+		 * In this case we need to leave the block in the file, and not
+		 * binval it.  So the block has to be in a consistent empty
+		 * state and appropriately logged.  We don't free up the buffer,
+		 * the caller can tell it hasn't happened since it got an error
+		 * back.
 		 */
 		return error;
 	}
