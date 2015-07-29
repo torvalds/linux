@@ -733,6 +733,7 @@ static int btt_arena_write_layout(struct arena_info *arena)
 	int ret;
 	struct btt_sb *super;
 	struct nd_btt *nd_btt = arena->nd_btt;
+	const u8 *parent_uuid = nd_dev_to_uuid(&nd_btt->ndns->dev);
 
 	ret = btt_map_init(arena);
 	if (ret)
@@ -748,6 +749,7 @@ static int btt_arena_write_layout(struct arena_info *arena)
 
 	strncpy(super->signature, BTT_SIG, BTT_SIG_LEN);
 	memcpy(super->uuid, nd_btt->uuid, 16);
+	memcpy(super->parent_uuid, parent_uuid, 16);
 	super->flags = cpu_to_le32(arena->flags);
 	super->version_major = cpu_to_le16(arena->version_major);
 	super->version_minor = cpu_to_le16(arena->version_minor);

@@ -342,23 +342,36 @@ struct device *nd_btt_create(struct nd_region *nd_region)
 	return dev;
 }
 
+static bool uuid_is_null(u8 *uuid)
+{
+	static const u8 null_uuid[16];
+
+	return (memcmp(uuid, null_uuid, 16) == 0);
+}
+
 /**
  * nd_btt_arena_is_valid - check if the metadata layout is valid
  * @nd_btt:	device with BTT geometry and backing device info
  * @super:	pointer to the arena's info block being tested
  *
  * Check consistency of the btt info block with itself by validating
- * the checksum.
+ * the checksum, and with the parent namespace by verifying the
+ * parent_uuid contained in the info block with the one supplied in.
  *
  * Returns:
  * false for an invalid info block, true for a valid one
  */
 bool nd_btt_arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super)
 {
+	const u8 *parent_uuid = nd_dev_to_uuid(&nd_btt->ndns->dev);
 	u64 checksum;
 
 	if (memcmp(super->signature, BTT_SIG, BTT_SIG_LEN) != 0)
 		return false;
+
+	if (!uuid_is_null(super->parent_uuid))
+		if (memcmp(super->parent_uuid, parent_uuid, 16) != 0)
+			return false;
 
 	checksum = le64_to_cpu(super->checksum);
 	super->checksum = 0;

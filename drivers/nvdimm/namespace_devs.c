@@ -100,6 +100,26 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 }
 EXPORT_SYMBOL(nvdimm_namespace_disk_name);
 
+const u8 *nd_dev_to_uuid(struct device *dev)
+{
+	static const u8 null_uuid[16];
+
+	if (!dev)
+		return null_uuid;
+
+	if (is_namespace_pmem(dev)) {
+		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
+
+		return nspm->uuid;
+	} else if (is_namespace_blk(dev)) {
+		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+
+		return nsblk->uuid;
+	} else
+		return null_uuid;
+}
+EXPORT_SYMBOL(nd_dev_to_uuid);
+
 static ssize_t nstype_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
