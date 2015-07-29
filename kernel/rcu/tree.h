@@ -464,8 +464,7 @@ struct rcu_state {
 						/*  shut bogus gcc warning) */
 	u8 flavor_mask;				/* bit in flavor mask. */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
-	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
-		     void (*func)(struct rcu_head *head));
+	call_rcu_func_t call;			/* call_rcu() flavor. */
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 

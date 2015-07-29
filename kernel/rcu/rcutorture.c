@@ -252,7 +252,7 @@ struct rcu_torture_ops {
 	void (*exp_sync)(void);
 	unsigned long (*get_state)(void);
 	void (*cond_sync)(unsigned long oldstate);
-	void (*call)(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
+	call_rcu_func_t call;
 	void (*cb_barrier)(void);
 	void (*fqs)(void);
 	void (*stats)(void);
