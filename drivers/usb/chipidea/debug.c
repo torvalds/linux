@@ -66,9 +66,11 @@ static int ci_port_test_show(struct seq_file *s, void *data)
 	unsigned long flags;
 	unsigned mode;
 
+	pm_runtime_get_sync(ci->dev);
 	spin_lock_irqsave(&ci->lock, flags);
 	mode = hw_port_test_get(ci);
 	spin_unlock_irqrestore(&ci->lock, flags);
+	pm_runtime_put_sync(ci->dev);
 
 	seq_printf(s, "mode = %u\n", mode);
 
@@ -98,9 +100,11 @@ static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
 	if (sscanf(buf, "%u", &mode) != 1)
 		return -EINVAL;
 
+	pm_runtime_get_sync(ci->dev);
 	spin_lock_irqsave(&ci->lock, flags);
 	ret = hw_port_test_set(ci, mode);
 	spin_unlock_irqrestore(&ci->lock, flags);
+	pm_runtime_put_sync(ci->dev);
 
 	return ret ? ret : count;
 }
@@ -316,8 +320,10 @@ static ssize_t ci_role_write(struct file *file, const char __user *ubuf,
 	if (role == CI_ROLE_END || role == ci->role)
 		return -EINVAL;
 
+	pm_runtime_get_sync(ci->dev);
 	ci_role_stop(ci);
 	ret = ci_role_start(ci, role);
+	pm_runtime_put_sync(ci->dev);
 
 	return ret ? ret : count;
 }
