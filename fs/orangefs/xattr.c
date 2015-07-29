@@ -77,10 +77,8 @@ ssize_t pvfs2_inode_getxattr(struct inode *inode, const char *prefix,
 		gossip_err("pvfs2_inode_getxattr: bogus NULL pointers\n");
 		return -EINVAL;
 	}
-	if (size < 0 ||
-	    (strlen(name) + strlen(prefix)) >= PVFS_MAX_XATTR_NAMELEN) {
-		gossip_err("Invalid size (%d) or key length (%d)\n",
-			   (int)size,
+	if ((strlen(name) + strlen(prefix)) >= PVFS_MAX_XATTR_NAMELEN) {
+		gossip_err("Invalid key length (%d)\n",
 			   (int)(strlen(name) + strlen(prefix)));
 		return -EINVAL;
 	}

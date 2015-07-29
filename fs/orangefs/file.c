@@ -463,12 +463,12 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 	unsigned int to_free;
 	size_t count;
 	unsigned long seg;
-	unsigned long new_nr_segs = 0;
-	unsigned long max_new_nr_segs = 0;
-	unsigned long seg_count = 0;
-	unsigned long *seg_array = NULL;
-	struct iovec *iovecptr = NULL;
-	struct iovec *ptr = NULL;
+	unsigned long new_nr_segs;
+	unsigned long max_new_nr_segs;
+	unsigned long seg_count;
+	unsigned long *seg_array;
+	struct iovec *iovecptr;
+	struct iovec *ptr;
 
 	total_count = 0;
 	ret = -EINVAL;
@@ -477,12 +477,6 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 
 	/* Compute total and max number of segments after split */
 	max_new_nr_segs = bound_max_iovecs(iov, nr_segs, &count);
-	if (max_new_nr_segs < 0) {
-		gossip_lerr("%s: could not bound iovec %lu\n",
-			    __func__,
-			    max_new_nr_segs);
-		goto out;
-	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		"%s-BEGIN(%pU): count(%d) after estimate_max_iovecs.\n",

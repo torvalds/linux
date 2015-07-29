@@ -1077,6 +1077,7 @@ void debug_string_to_mask(char *debug_string, void *mask, int type)
 	char *unchecked_keyword;
 	int i;
 	char *strsep_fodder = kstrdup(debug_string, GFP_KERNEL);
+	char *original_pointer;
 	int element_count = 0;
 	struct client_debug_mask *c_mask;
 	__u64 *k_mask;
@@ -1092,6 +1093,7 @@ void debug_string_to_mask(char *debug_string, void *mask, int type)
 		element_count = num_kmod_keyword_mask_map;
 	}
 
+	original_pointer = strsep_fodder;
 	while ((unchecked_keyword = strsep(&strsep_fodder, ",")))
 		if (strlen(unchecked_keyword)) {
 			for (i = 0; i < element_count; i++)
@@ -1105,7 +1107,7 @@ void debug_string_to_mask(char *debug_string, void *mask, int type)
 						  &k_mask);
 		}
 
-	kfree(strsep_fodder);
+	kfree(original_pointer);
 }
 
 void do_c_mask(int i,

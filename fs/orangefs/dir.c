@@ -104,7 +104,6 @@ static void readdir_handle_dtor(struct pvfs2_bufmap *bufmap,
  *
  * \param dir_emit callback function called for each entry read.
  *
- * \retval <0 on error
  * \retval 0  when directory has been completely traversed
  * \retval >0 if we don't call dir_emit for all entries
  *
@@ -253,8 +252,6 @@ get_new_buffer_index:
 			     __func__,
 			     llu(pos));
 		ret = dir_emit(ctx, ".", 1, ino, DT_DIR);
-		if (ret < 0)
-			goto out_destroy_handle;
 		ctx->pos++;
 		gossip_ldebug(GOSSIP_DIR_DEBUG,
 			      "%s: ctx->pos:%lld\n",
@@ -270,8 +267,6 @@ get_new_buffer_index:
 			     __func__,
 			     llu(pos));
 		ret = dir_emit(ctx, "..", 2, ino, DT_DIR);
-		if (ret < 0)
-			goto out_destroy_handle;
 		ctx->pos++;
 		gossip_ldebug(GOSSIP_DIR_DEBUG,
 			      "%s: ctx->pos:%lld\n",
@@ -293,17 +288,6 @@ get_new_buffer_index:
 			     (unsigned long)pos);
 		ret =
 		    dir_emit(ctx, current_entry, len, current_ino, DT_UNKNOWN);
-		if (ret < 0) {
-			gossip_debug(GOSSIP_DIR_DEBUG,
-				     "dir_emit() failed. ret:%d\n",
-				     ret);
-			if (i < 2) {
-				gossip_err("dir_emit failed on one of the first two true PVFS directory entries.\n");
-				gossip_err("Duplicate entries may appear.\n");
-			}
-			buffer_full = 1;
-			break;
-		}
 		ctx->pos++;
 		gossip_ldebug(GOSSIP_DIR_DEBUG,
 			      "%s: ctx->pos:%lld\n",
