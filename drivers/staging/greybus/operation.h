@@ -62,7 +62,7 @@ enum gb_operation_result {
  *
  * The wire format for all numeric fields in the header is little
  * endian.  Any operation-specific data begins immediately after the
- * header, and is 64-bit aligned.
+ * header.
  */
 struct gb_operation_msg_hdr {
 	__le16	size;		/* Size in bytes of header + payload */
@@ -70,7 +70,7 @@ struct gb_operation_msg_hdr {
 	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
 	__u8	result;		/* Result of request (in responses only) */
 	__u8	pad[2];		/* must be zero (ignore when read) */
-} __aligned(sizeof(u64));
+};
 
 #define GB_OPERATION_MESSAGE_SIZE_MIN	sizeof(struct gb_operation_msg_hdr)
 #define GB_OPERATION_MESSAGE_SIZE_MAX	U16_MAX
