@@ -276,7 +276,8 @@ const char *event_type(int type)
 static struct perf_evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
-	    char *name, struct cpu_map *cpus)
+	    char *name, struct cpu_map *cpus,
+	    struct list_head *config_terms)
 {
 	struct perf_evsel *evsel;
 
@@ -291,14 +292,19 @@ __add_event(struct list_head *list, int *idx,
 
 	if (name)
 		evsel->name = strdup(name);
+
+	if (config_terms)
+		list_splice(config_terms, &evsel->config_terms);
+
 	list_add_tail(&evsel->node, list);
 	return evsel;
 }
 
 static int add_event(struct list_head *list, int *idx,
-		     struct perf_event_attr *attr, char *name)
+		     struct perf_event_attr *attr, char *name,
+		     struct list_head *config_terms)
 {
-	return __add_event(list, idx, attr, name, NULL) ? 0 : -ENOMEM;
+	return __add_event(list, idx, attr, name, NULL, config_terms) ? 0 : -ENOMEM;
 }
 
 static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
@@ -377,7 +383,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	memset(&attr, 0, sizeof(attr));
 	attr.config = cache_type | (cache_op << 8) | (cache_result << 16);
 	attr.type = PERF_TYPE_HW_CACHE;
-	return add_event(list, idx, &attr, name);
+	return add_event(list, idx, &attr, name, NULL);
 }
 
 static int add_tracepoint(struct list_head *list, int *idx,
@@ -539,7 +545,7 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 	attr.type = PERF_TYPE_BREAKPOINT;
 	attr.sample_period = 1;
 
-	return add_event(list, idx, &attr, NULL);
+	return add_event(list, idx, &attr, NULL, NULL);
 }
 
 static int check_type_val(struct parse_events_term *term,
@@ -622,22 +628,56 @@ static int config_attr(struct perf_event_attr *attr,
 	return 0;
 }
 
+static int get_config_terms(struct list_head *head_config,
+			    struct list_head *head_terms __maybe_unused)
+{
+#define ADD_CONFIG_TERM(__type, __name, __val)			\
+do {								\
+	struct perf_evsel_config_term *__t;			\
+								\
+	__t = zalloc(sizeof(*__t));				\
+	if (!__t)						\
+		return -ENOMEM;					\
+								\
+	INIT_LIST_HEAD(&__t->list);				\
+	__t->type       = PERF_EVSEL__CONFIG_TERM_ ## __type;	\
+	__t->val.__name = __val;				\
+	list_add_tail(&__t->list, head_terms);			\
+} while (0)
+
+	struct parse_events_term *term;
+
+	list_for_each_entry(term, head_config, list) {
+		switch (term->type_term) {
+		default:
+			break;
+		}
+	}
+#undef ADD_EVSEL_CONFIG
+	return 0;
+}
+
 int parse_events_add_numeric(struct parse_events_evlist *data,
 			     struct list_head *list,
 			     u32 type, u64 config,
 			     struct list_head *head_config)
 {
 	struct perf_event_attr attr;
+	LIST_HEAD(config_terms);
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = type;
 	attr.config = config;
 
-	if (head_config &&
-	    config_attr(&attr, head_config, data->error))
-		return -EINVAL;
+	if (head_config) {
+		if (config_attr(&attr, head_config, data->error))
+			return -EINVAL;
 
-	return add_event(list, &data->idx, &attr, NULL);
+		if (get_config_terms(head_config, &config_terms))
+			return -ENOMEM;
+	}
+
+	return add_event(list, &data->idx, &attr, NULL, &config_terms);
 }
 
 static int parse_events__is_name_term(struct parse_events_term *term)
@@ -664,6 +704,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
+	LIST_HEAD(config_terms);
 
 	pmu = perf_pmu__find(name);
 	if (!pmu)
@@ -678,7 +719,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, &data->idx, &attr, NULL, pmu->cpus);
+		evsel = __add_event(list, &data->idx, &attr, NULL, pmu->cpus, NULL);
 		return evsel ? 0 : -ENOMEM;
 	}
 
@@ -692,11 +733,15 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	if (config_attr(&attr, head_config, data->error))
 		return -EINVAL;
 
+	if (get_config_terms(head_config, &config_terms))
+		return -ENOMEM;
+
 	if (perf_pmu__config(pmu, &attr, head_config, data->error))
 		return -EINVAL;
 
 	evsel = __add_event(list, &data->idx, &attr,
-			    pmu_event_name(head_config), pmu->cpus);
+			    pmu_event_name(head_config), pmu->cpus,
+			    &config_terms);
 	if (evsel) {
 		evsel->unit = info.unit;
 		evsel->scale = info.scale;
