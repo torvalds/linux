@@ -80,8 +80,8 @@
 /*
  * virtual flags (16 and 32-bit versions)
  */
-#define VFLAGS	(*(unsigned short *)&(current->thread.vm86->v86flags))
-#define VEFLAGS	(current->thread.vm86->v86flags)
+#define VFLAGS	(*(unsigned short *)&(current->thread.vm86->veflags))
+#define VEFLAGS	(current->thread.vm86->veflags)
 
 #define set_flags(X, new, mask) \
 ((X) = ((X) & ~(mask)) | ((new) & (mask)))
@@ -108,7 +108,7 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 		pr_alert("no user_vm86: BAD\n");
 		do_exit(SIGSEGV);
 	}
-	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->v86mask);
+	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->veflags_mask);
 	user = vm86->user_vm86;
 
 	if (!access_ok(VERIFY_WRITE, user, vm86->vm86plus.is_vm86pus ?
@@ -308,16 +308,16 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 
 	switch (vm86->cpu_type) {
 	case CPU_286:
-		vm86->v86mask = 0;
+		vm86->veflags_mask = 0;
 		break;
 	case CPU_386:
-		vm86->v86mask = X86_EFLAGS_NT | X86_EFLAGS_IOPL;
+		vm86->veflags_mask = X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	case CPU_486:
-		vm86->v86mask = X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
+		vm86->veflags_mask = X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	default:
-		vm86->v86mask = X86_EFLAGS_ID | X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
+		vm86->veflags_mask = X86_EFLAGS_ID | X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	}
 
@@ -377,7 +377,7 @@ static inline void clear_AC(struct kernel_vm86_regs *regs)
 
 static inline void set_vflags_long(unsigned long flags, struct kernel_vm86_regs *regs)
 {
-	set_flags(VEFLAGS, flags, current->thread.vm86->v86mask);
+	set_flags(VEFLAGS, flags, current->thread.vm86->veflags_mask);
 	set_flags(regs->pt.flags, flags, SAFE_MASK);
 	if (flags & X86_EFLAGS_IF)
 		set_IF(regs);
@@ -387,7 +387,7 @@ static inline void set_vflags_long(unsigned long flags, struct kernel_vm86_regs 
 
 static inline void set_vflags_short(unsigned short flags, struct kernel_vm86_regs *regs)
 {
-	set_flags(VFLAGS, flags, current->thread.vm86->v86mask);
+	set_flags(VFLAGS, flags, current->thread.vm86->veflags_mask);
 	set_flags(regs->pt.flags, flags, SAFE_MASK);
 	if (flags & X86_EFLAGS_IF)
 		set_IF(regs);
@@ -402,7 +402,7 @@ static inline unsigned long get_vflags(struct kernel_vm86_regs *regs)
 	if (VEFLAGS & X86_EFLAGS_VIF)
 		flags |= X86_EFLAGS_IF;
 	flags |= X86_EFLAGS_IOPL;
-	return flags | (VEFLAGS & current->thread.vm86->v86mask);
+	return flags | (VEFLAGS & current->thread.vm86->veflags_mask);
 }
 
 static inline int is_revectored(int nr, struct revectored_struct *bitmap)

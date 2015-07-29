@@ -30,8 +30,8 @@ struct kernel_vm86_regs {
 struct vm86 {
 	struct vm86plus_struct __user *user_vm86;
 	struct pt_regs regs32;
-	unsigned long v86flags;
-	unsigned long v86mask;
+	unsigned long veflags;
+	unsigned long veflags_mask;
 	unsigned long saved_sp0;
 
 	unsigned long flags;
