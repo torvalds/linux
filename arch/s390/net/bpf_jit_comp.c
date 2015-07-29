@@ -53,6 +53,7 @@ struct bpf_jit {
 #define SEEN_LITERAL	8	/* code uses literals */
 #define SEEN_FUNC	16	/* calls C functions */
 #define SEEN_TAIL_CALL	32	/* code uses tail calls */
+#define SEEN_SKB_CHANGE	64	/* code changes skb data */
 #define SEEN_STACK	(SEEN_FUNC | SEEN_MEM | SEEN_SKB)
 
 /*
@@ -382,6 +383,26 @@ static void save_restore_regs(struct bpf_jit *jit, int op)
 }
 
 /*
+ * For SKB access %b1 contains the SKB pointer. For "bpf_jit.S"
+ * we store the SKB header length on the stack and the SKB data
+ * pointer in REG_SKB_DATA.
+ */
+static void emit_load_skb_data_hlen(struct bpf_jit *jit)
+{
+	/* Header length: llgf %w1,<len>(%b1) */
+	EMIT6_DISP_LH(0xe3000000, 0x0016, REG_W1, REG_0, BPF_REG_1,
+		      offsetof(struct sk_buff, len));
+	/* s %w1,<data_len>(%b1) */
+	EMIT4_DISP(0x5b000000, REG_W1, BPF_REG_1,
+		   offsetof(struct sk_buff, data_len));
+	/* stg %w1,ST_OFF_HLEN(%r0,%r15) */
+	EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0, REG_15, STK_OFF_HLEN);
+	/* lg %skb_data,data_off(%b1) */
+	EMIT6_DISP_LH(0xe3000000, 0x0004, REG_SKB_DATA, REG_0,
+		      BPF_REG_1, offsetof(struct sk_buff, data));
+}
+
+/*
  * Emit function prologue
  *
  * Save registers and create stack frame if necessary.
@@ -421,25 +442,12 @@ static void bpf_jit_prologue(struct bpf_jit *jit, bool is_classic)
 			EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
 				      REG_15, 152);
 	}
-	/*
-	 * For SKB access %b1 contains the SKB pointer. For "bpf_jit.S"
-	 * we store the SKB header length on the stack and the SKB data
-	 * pointer in REG_SKB_DATA.
-	 */
-	if (jit->seen & SEEN_SKB) {
-		/* Header length: llgf %w1,<len>(%b1) */
-		EMIT6_DISP_LH(0xe3000000, 0x0016, REG_W1, REG_0, BPF_REG_1,
-			      offsetof(struct sk_buff, len));
-		/* s %w1,<data_len>(%b1) */
-		EMIT4_DISP(0x5b000000, REG_W1, BPF_REG_1,
-			   offsetof(struct sk_buff, data_len));
-		/* stg %w1,ST_OFF_HLEN(%r0,%r15) */
+	if (jit->seen & SEEN_SKB)
+		emit_load_skb_data_hlen(jit);
+	if (jit->seen & SEEN_SKB_CHANGE)
+		/* stg %b1,ST_OFF_SKBP(%r0,%r15) */
 		EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0, REG_15,
-			      STK_OFF_HLEN);
-		/* lg %skb_data,data_off(%b1) */
-		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_SKB_DATA, REG_0,
-			      BPF_REG_1, offsetof(struct sk_buff, data));
-	}
+			      STK_OFF_SKBP);
 	/* Clear A (%b0) and X (%b7) registers for converted BPF programs */
 	if (is_classic) {
 		if (REG_SEEN(BPF_REG_A))
@@ -967,10 +975,6 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		 */
 		const u64 func = (u64)__bpf_call_base + imm;
 
-		if (bpf_helper_changes_skb_data((void *)func))
-			/* TODO reload skb->data, hlen */
-			return -1;
-
 		REG_SET_SEEN(BPF_REG_5);
 		jit->seen |= SEEN_FUNC;
 		/* lg %w1,<d(imm)>(%l) */
@@ -980,6 +984,13 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT2(0x0d00, REG_14, REG_W1);
 		/* lgr %b0,%r2: load return value into %b0 */
 		EMIT4(0xb9040000, BPF_REG_0, REG_2);
+		if (bpf_helper_changes_skb_data((void *)func)) {
+			jit->seen |= SEEN_SKB_CHANGE;
+			/* lg %b1,ST_OFF_SKBP(%r15) */
+			EMIT6_DISP_LH(0xe3000000, 0x0004, BPF_REG_1, REG_0,
+				      REG_15, STK_OFF_SKBP);
+			emit_load_skb_data_hlen(jit);
+		}
 		break;
 	}
 	case BPF_JMP | BPF_CALL | BPF_X:
