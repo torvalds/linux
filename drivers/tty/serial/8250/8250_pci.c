@@ -1417,6 +1417,10 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 	reg |= BYT_PRV_CLK_EN | BYT_PRV_CLK_UPDATE;
 	writel(reg, p->membase + BYT_PRV_CLK);
 
+	p->status &= ~UPSTAT_AUTOCTS;
+	if (termios->c_cflag & CRTSCTS)
+		p->status |= UPSTAT_AUTOCTS;
+
 	serial8250_do_set_termios(p, termios, old);
 }
 

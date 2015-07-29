@@ -257,6 +257,11 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 
 	if (!ret)
 		p->uartclk = rate;
+
+	p->status &= ~UPSTAT_AUTOCTS;
+	if (termios->c_cflag & CRTSCTS)
+		p->status |= UPSTAT_AUTOCTS;
+
 out:
 	serial8250_do_set_termios(p, termios, old);
 }
