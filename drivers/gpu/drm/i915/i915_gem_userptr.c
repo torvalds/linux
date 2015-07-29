@@ -813,7 +813,6 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 int
 i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_userptr *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -825,9 +824,6 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	if (offset_in_page(args->user_ptr | args->user_size))
 		return -EINVAL;
-
-	if (args->user_size > dev_priv->gtt.base.total)
-		return -E2BIG;
 
 	if (!access_ok(args->flags & I915_USERPTR_READ_ONLY ? VERIFY_READ : VERIFY_WRITE,
 		       (char __user *)(unsigned long)args->user_ptr, args->user_size))
