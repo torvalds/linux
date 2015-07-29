@@ -294,11 +294,14 @@ static void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
 {
 	struct sk_buff *skb;
 	struct sk_buff_head list;
+	u16 last_sent;
 
 	skb = tipc_msg_create(BCAST_PROTOCOL, STATE_MSG, INT_H_SIZE,
 			      0, l->addr, link_own_addr(l), 0, 0, 0);
 	if (!skb)
 		return;
+	last_sent = tipc_bclink_get_last_sent(l->owner->net);
+	msg_set_last_bcast(buf_msg(skb), last_sent);
 	__skb_queue_head_init(&list);
 	__skb_queue_tail(&list, skb);
 	tipc_link_xmit(l, &list, xmitq);
