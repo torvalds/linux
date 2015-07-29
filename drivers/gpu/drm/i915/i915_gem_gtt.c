@@ -596,6 +596,27 @@ static void free_pdp(struct drm_device *dev,
 	}
 }
 
+static void gen8_initialize_pdp(struct i915_address_space *vm,
+				struct i915_page_directory_pointer *pdp)
+{
+	gen8_ppgtt_pdpe_t scratch_pdpe;
+
+	scratch_pdpe = gen8_pdpe_encode(px_dma(vm->scratch_pd), I915_CACHE_LLC);
+
+	fill_px(vm->dev, pdp, scratch_pdpe);
+}
+
+static void gen8_initialize_pml4(struct i915_address_space *vm,
+				 struct i915_pml4 *pml4)
+{
+	gen8_ppgtt_pml4e_t scratch_pml4e;
+
+	scratch_pml4e = gen8_pml4e_encode(px_dma(vm->scratch_pdp),
+					  I915_CACHE_LLC);
+
+	fill_px(vm->dev, pml4, scratch_pml4e);
+}
+
 static void
 gen8_setup_page_directory(struct i915_hw_ppgtt *ppgtt,
 			  struct i915_page_directory_pointer *pdp,
@@ -860,8 +881,20 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 		return PTR_ERR(vm->scratch_pd);
 	}
 
+	if (USES_FULL_48BIT_PPGTT(dev)) {
+		vm->scratch_pdp = alloc_pdp(dev);
+		if (IS_ERR(vm->scratch_pdp)) {
+			free_pd(dev, vm->scratch_pd);
+			free_pt(dev, vm->scratch_pt);
+			free_scratch_page(dev, vm->scratch_page);
+			return PTR_ERR(vm->scratch_pdp);
+		}
+	}
+
 	gen8_initialize_pt(vm, vm->scratch_pt);
 	gen8_initialize_pd(vm, vm->scratch_pd);
+	if (USES_FULL_48BIT_PPGTT(dev))
+		gen8_initialize_pdp(vm, vm->scratch_pdp);
 
 	return 0;
 }
@@ -870,6 +903,8 @@ static void gen8_free_scratch(struct i915_address_space *vm)
 {
 	struct drm_device *dev = vm->dev;
 
+	if (USES_FULL_48BIT_PPGTT(dev))
+		free_pdp(dev, vm->scratch_pdp);
 	free_pd(dev, vm->scratch_pd);
 	free_pt(dev, vm->scratch_pt);
 	free_scratch_page(dev, vm->scratch_page);
@@ -1071,6 +1106,7 @@ gen8_ppgtt_alloc_page_dirpointers(struct i915_address_space *vm,
 			if (IS_ERR(pdp))
 				goto unwind_out;
 
+			gen8_initialize_pdp(vm, pdp);
 			pml4->pdps[pml4e] = pdp;
 			__set_bit(pml4e, new_pdps);
 			trace_i915_page_directory_pointer_entry_alloc(vm,
@@ -1349,6 +1385,8 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ret = setup_px(ppgtt->base.dev, &ppgtt->pml4);
 		if (ret)
 			goto free_scratch;
+
+		gen8_initialize_pml4(&ppgtt->base, &ppgtt->pml4);
 
 		ppgtt->base.total = 1ULL << 48;
 		ppgtt->switch_mm = gen8_48b_mm_switch;

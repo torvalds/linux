@@ -278,6 +278,7 @@ struct i915_address_space {
 	struct i915_page_scratch *scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
+	struct i915_page_directory_pointer *scratch_pdp; /* GEN8+ & 48b PPGTT */
 
 	/**
 	 * List of objects currently involved in rendering.
