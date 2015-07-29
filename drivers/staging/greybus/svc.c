@@ -9,10 +9,6 @@
 
 #include "greybus.h"
 
-#define CPORT_FLAGS_E2EFC       (1)
-#define CPORT_FLAGS_CSD_N       (2)
-#define CPORT_FLAGS_CSV_N       (4)
-
 struct gb_svc {
 	struct gb_connection	*connection;
 	u8			version_major;
@@ -40,6 +36,7 @@ gb_ap_svc_connection_create(struct greybus_host_device *hd)
 
 	return connection;
 }
+EXPORT_SYMBOL_GPL(gb_ap_svc_connection_create);
 
 /*
  * We know endo-type and AP's interface id now, lets create a proper svc
@@ -101,12 +98,6 @@ static int connection_create_operation(struct gb_svc *svc,
 	request.cport1_id = cport1_id;
 	request.intf2_id = intf2_id;
 	request.cport2_id = cport2_id;
-	/*
-	 * XXX: fix connections paramaters to TC0 and all CPort flags
-	 * for now.
-	 */
-	request.tc = 0;
-	request.flags = CPORT_FLAGS_CSV_N | CPORT_FLAGS_E2EFC;
 
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_CREATE,
 				 &request, sizeof(request), NULL, 0);
@@ -124,20 +115,6 @@ static int connection_destroy_operation(struct gb_svc *svc,
 	request.cport2_id = cport2_id;
 
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_DESTROY,
-				 &request, sizeof(request), NULL, 0);
-}
-
-static int route_create_operation(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
-				  u8 intf2_id, u8 dev2_id)
-{
-	struct gb_svc_route_create_request request;
-
-	request.intf1_id = intf1_id;
-	request.dev1_id = dev1_id;
-	request.intf2_id = intf2_id;
-	request.dev2_id = dev2_id;
-
-	return gb_operation_sync(svc->connection, GB_SVC_TYPE_ROUTE_CREATE,
 				 &request, sizeof(request), NULL, 0);
 }
 
@@ -170,13 +147,6 @@ int gb_svc_connection_destroy(struct gb_svc *svc,
 						intf2_id, cport2_id);
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
-
-int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
-			u8 intf2_id, u8 dev2_id) {
-	return route_create_operation(svc, intf1_id, dev1_id,
-				      intf2_id, dev2_id);
-}
-EXPORT_SYMBOL_GPL(gb_svc_route_create);
 
 static int gb_svc_version_request(struct gb_operation *op)
 {
@@ -318,25 +288,6 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 		goto ida_put;
 	}
 
-	/*
-	 * Create a two-way route between the AP and the new interface
-	 */
-	ret = route_create_operation(svc, hd->endo->ap_intf_id,
-				     GB_DEVICE_ID_AP, intf_id, device_id);
-	if (ret) {
-		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
-			__func__, intf_id, device_id, ret);
-		goto ida_put;
-	}
-
-	ret = route_create_operation(svc, intf_id, device_id,
-				     hd->endo->ap_intf_id, GB_DEVICE_ID_AP);
-	if (ret) {
-		dev_err(dev, "%s: Route create operation failed, interface %hhu device_id %hhu (%d)\n",
-			__func__, intf_id, device_id, ret);
-		goto ida_put;
-	}
-
 	ret = gb_interface_init(intf, device_id);
 	if (ret) {
 		dev_err(dev, "%s: Failed to initialize interface, interface %hhu device_id %hhu (%d)\n",
@@ -439,7 +390,6 @@ static int gb_svc_connection_init(struct gb_connection *connection)
 	if (!svc)
 		return -ENOMEM;
 
-	connection->hd->svc = svc;
 	svc->connection = connection;
 	connection->private = svc;
 
@@ -455,7 +405,6 @@ static void gb_svc_connection_exit(struct gb_connection *connection)
 {
 	struct gb_svc *svc = connection->private;
 
-	connection->hd->svc = NULL;
 	connection->private = NULL;
 	kfree(svc);
 }

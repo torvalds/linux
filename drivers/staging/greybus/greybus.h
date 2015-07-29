@@ -73,6 +73,7 @@
  */
 
 struct greybus_host_device;
+struct svc_msg;
 
 /* Greybus "Host driver" structure, needed by a host controller driver to be
  * able to handle both SVC control as well as "real" greybus messages
@@ -83,6 +84,8 @@ struct greybus_host_driver {
 	int (*message_send)(struct greybus_host_device *hd, u16 dest_cport_id,
 			struct gb_message *message, gfp_t gfp_mask);
 	void (*message_cancel)(struct gb_message *message);
+	int (*submit_svc)(struct svc_msg *svc_msg,
+			    struct greybus_host_device *hd);
 };
 
 struct greybus_host_device {
@@ -100,7 +103,6 @@ struct greybus_host_device {
 
 	struct gb_endo *endo;
 	struct gb_connection *initial_svc_connection;
-	struct gb_svc *svc;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __aligned(sizeof(s64));
@@ -153,6 +155,9 @@ void greybus_deregister_driver(struct greybus_driver *driver);
 
 int greybus_disabled(void);
 
+int greybus_svc_in(struct greybus_host_device *hd, u8 *data, int length);
+int gb_ap_init(void);
+void gb_ap_exit(void);
 void gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
 struct dentry *gb_debugfs_get(void);

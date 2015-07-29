@@ -176,7 +176,8 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	 * Validate that the driver implements all of the callbacks
 	 * so that we don't have to every time we make them.
 	 */
-	if ((!driver->message_send) || (!driver->message_cancel)) {
+	if ((!driver->message_send) || (!driver->message_cancel) ||
+	    (!driver->submit_svc)) {
 		pr_err("Must implement all greybus_host_driver callbacks!\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -207,21 +208,6 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	INIT_LIST_HEAD(&hd->connections);
 	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;
-
-	/*
-	 * Initialize AP's SVC protocol connection:
-	 *
-	 * This is required as part of early initialization of the host device
-	 * as we need this connection in order to start any kind of message
-	 * exchange between the AP and the SVC. SVC will start with a
-	 * 'get-version' request followed by a 'svc-hello' message and at that
-	 * time we will create a fully initialized svc-connection, as we need
-	 * endo-id and AP's interface id for that.
-	 */
-	if (!gb_ap_svc_connection_create(hd)) {
-		kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
-		return ERR_PTR(-ENOMEM);
-	}
 
 	return hd;
 }
@@ -284,6 +270,12 @@ static int __init gb_init(void)
 		goto error_bus;
 	}
 
+	retval = gb_ap_init();
+	if (retval) {
+		pr_err("gb_ap_init failed (%d)\n", retval);
+		goto error_ap;
+	}
+
 	retval = gb_operation_init();
 	if (retval) {
 		pr_err("gb_operation_init failed (%d)\n", retval);
@@ -317,6 +309,8 @@ error_control:
 error_endo:
 	gb_operation_exit();
 error_operation:
+	gb_ap_exit();
+error_ap:
 	bus_unregister(&greybus_bus_type);
 error_bus:
 	gb_debugfs_cleanup();
@@ -331,6 +325,7 @@ static void __exit gb_exit(void)
 	gb_control_protocol_exit();
 	gb_endo_exit();
 	gb_operation_exit();
+	gb_ap_exit();
 	bus_unregister(&greybus_bus_type);
 	gb_debugfs_cleanup();
 }
