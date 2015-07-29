@@ -1,5 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/regs-usb-hsotg-phy.h
- *
+/*
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
  *      http://armlinux.simtec.co.uk/
