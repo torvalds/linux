@@ -18,20 +18,20 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/time.h>
-#include <linux/rtc.h>
 #include <linux/bcd.h>
-#include <linux/interrupt.h>
-#include <linux/spinlock.h>
-#include <linux/ioctl.h>
 #include <linux/completion.h>
+#include <linux/interrupt.h>
+#include <linux/ioctl.h>
 #include <linux/io.h>
-#include <linux/of.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/rtc.h>
+#include <linux/spinlock.h>
 #include <linux/suspend.h>
+#include <linux/time.h>
 #include <linux/uaccess.h>
 
 #include "rtc-at91rm9200.h"
