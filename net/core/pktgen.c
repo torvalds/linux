@@ -273,7 +273,6 @@ struct pktgen_dev {
 
 	/* runtime counters relating to clone_skb */
 
-	__u64 allocated_skbs;
 	__u32 clone_count;
 	int last_ok;		/* Was last skb sent?
 				 * Or a failed transmit of some sort?
@@ -3398,7 +3397,6 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			return;
 		}
 		pkt_dev->last_pkt_size = pkt_dev->skb->len;
-		pkt_dev->allocated_skbs++;
 		pkt_dev->clone_count = 0;	/* reset counter */
 	}
 
