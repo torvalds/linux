@@ -387,7 +387,7 @@ static void srcu_flip(struct srcu_struct *sp)
  * srcu_struct structure.
  */
 void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
-		void (*func)(struct rcu_head *head))
+	       rcu_callback_t func)
 {
 	unsigned long flags;
 

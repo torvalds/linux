@@ -160,7 +160,7 @@ void do_trace_rcu_torture_read(const char *rcutorturename,
  * more than one CPU).
  */
 void call_rcu(struct rcu_head *head,
-	      void (*func)(struct rcu_head *head));
+	      rcu_callback_t func);
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
@@ -191,7 +191,7 @@ void call_rcu(struct rcu_head *head,
  * memory ordering guarantees.
  */
 void call_rcu_bh(struct rcu_head *head,
-		 void (*func)(struct rcu_head *head));
+		 rcu_callback_t func);
 
 /**
  * call_rcu_sched() - Queue an RCU for invocation after sched grace period.
@@ -213,7 +213,7 @@ void call_rcu_bh(struct rcu_head *head,
  * memory ordering guarantees.
  */
 void call_rcu_sched(struct rcu_head *head,
-		    void (*func)(struct rcu_head *rcu));
+		    rcu_callback_t func);
 
 void synchronize_sched(void);
 
@@ -274,7 +274,7 @@ do {									\
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
  */
-void call_rcu_tasks(struct rcu_head *head, void (*func)(struct rcu_head *head));
+void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
 void synchronize_rcu_tasks(void);
 void rcu_barrier_tasks(void);
 
@@ -1065,7 +1065,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define __kfree_rcu(head, offset) \
 	do { \
 		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
-		kfree_call_rcu(head, (void (*)(struct rcu_head *))(unsigned long)(offset)); \
+		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
 	} while (0)
 
 /**

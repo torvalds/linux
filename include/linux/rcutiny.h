@@ -83,7 +83,7 @@ static inline void synchronize_sched_expedited(void)
 }
 
 static inline void kfree_call_rcu(struct rcu_head *head,
-				  void (*func)(struct rcu_head *rcu))
+				  rcu_callback_t func)
 {
 	call_rcu(head, func);
 }

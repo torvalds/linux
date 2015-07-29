@@ -448,7 +448,7 @@ static void synchronize_rcu_busted(void)
 }
 
 static void
-call_rcu_busted(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
+call_rcu_busted(struct rcu_head *head, rcu_callback_t func)
 {
 	/* This is a deliberate bug for testing purposes only! */
 	func(head);
@@ -523,7 +523,7 @@ static void srcu_torture_synchronize(void)
 }
 
 static void srcu_torture_call(struct rcu_head *head,
-			      void (*func)(struct rcu_head *head))
+			      rcu_callback_t func)
 {
 	call_srcu(srcu_ctlp, head, func);
 }
