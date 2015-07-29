@@ -17,7 +17,9 @@ enum io_pgtable_fmt {
  *
  * @tlb_flush_all: Synchronously invalidate the entire TLB context.
  * @tlb_add_flush: Queue up a TLB invalidation for a virtual address range.
- * @tlb_sync:      Ensure any queue TLB invalidation has taken effect.
+ * @tlb_sync:      Ensure any queued TLB invalidation has taken effect, and
+ *                 any corresponding page table updates are visible to the
+ *                 IOMMU.
  * @flush_pgtable: Ensure page table updates are visible to the IOMMU.
  *
  * Note that these can all be called in atomic context and must therefore
