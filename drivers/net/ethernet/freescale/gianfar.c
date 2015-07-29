@@ -2611,7 +2611,8 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 
 		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
 			struct skb_shared_hwtstamps shhwtstamps;
-			u64 *ns = (u64*) (((u32)skb->data + 0x10) & ~0x7);
+			u64 *ns = (u64 *)(((uintptr_t)skb->data + 0x10) &
+					  ~0x7UL);
 
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 			shhwtstamps.hwtstamp = ns_to_ktime(*ns);
@@ -3043,8 +3044,9 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 
 	/* Update Last Free RxBD pointer for LFC */
 	if (unlikely(priv->tx_actual_en)) {
-		bdp = gfar_rxbd_lastfree(rx_queue);
-		gfar_write(rx_queue->rfbptr, (u32)bdp);
+		u32 bdp_dma = gfar_rxbd_dma_lastfree(rx_queue);
+
+		gfar_write(rx_queue->rfbptr, bdp_dma);
 	}
 
 	return howmany;
@@ -3563,7 +3565,6 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 	struct phy_device *phydev = priv->phydev;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	int i;
-	struct rxbd8 *bdp;
 
 	if (unlikely(test_bit(GFAR_RESETTING, &priv->state)))
 		return;
@@ -3620,9 +3621,11 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 		/* Turn last free buffer recording on */
 		if ((tempval1 & MACCFG1_TX_FLOW) && !tx_flow_oldval) {
 			for (i = 0; i < priv->num_rx_queues; i++) {
+				u32 bdp_dma;
+
 				rx_queue = priv->rx_queue[i];
-				bdp = gfar_rxbd_lastfree(rx_queue);
-				gfar_write(rx_queue->rfbptr, (u32)bdp);
+				bdp_dma = gfar_rxbd_dma_lastfree(rx_queue);
+				gfar_write(rx_queue->rfbptr, bdp_dma);
 			}
 
 			priv->tx_actual_en = 1;

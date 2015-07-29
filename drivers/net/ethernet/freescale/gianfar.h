@@ -1310,13 +1310,18 @@ static inline int gfar_rxbd_unused(struct gfar_priv_rx_q *rxq)
 	return rxq->rx_ring_size + rxq->next_to_clean - rxq->next_to_use - 1;
 }
 
-static inline struct rxbd8 *gfar_rxbd_lastfree(struct gfar_priv_rx_q *rxq)
+static inline u32 gfar_rxbd_dma_lastfree(struct gfar_priv_rx_q *rxq)
 {
+	struct rxbd8 *bdp;
+	u32 bdp_dma;
 	int i;
 
 	i = rxq->next_to_use ? rxq->next_to_use - 1 : rxq->rx_ring_size - 1;
+	bdp = &rxq->rx_bd_base[i];
+	bdp_dma = lower_32_bits(rxq->rx_bd_dma_base);
+	bdp_dma += (uintptr_t)bdp - (uintptr_t)rxq->rx_bd_base;
 
-	return &rxq->rx_bd_base[i];
+	return bdp_dma;
 }
 
 irqreturn_t gfar_receive(int irq, void *dev_id);
