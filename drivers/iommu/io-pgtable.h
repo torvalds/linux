@@ -20,7 +20,6 @@ enum io_pgtable_fmt {
  * @tlb_sync:      Ensure any queued TLB invalidation has taken effect, and
  *                 any corresponding page table updates are visible to the
  *                 IOMMU.
- * @flush_pgtable: Ensure page table updates are visible to the IOMMU.
  *
  * Note that these can all be called in atomic context and must therefore
  * not block.
@@ -30,7 +29,6 @@ struct iommu_gather_ops {
 	void (*tlb_add_flush)(unsigned long iova, size_t size, bool leaf,
 			      void *cookie);
 	void (*tlb_sync)(void *cookie);
-	void (*flush_pgtable)(void *ptr, size_t size, void *cookie);
 };
 
 /**

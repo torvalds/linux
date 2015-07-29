@@ -884,16 +884,10 @@ static void dummy_tlb_sync(void *cookie)
 	WARN_ON(cookie != cfg_cookie);
 }
 
-static void dummy_flush_pgtable(void *ptr, size_t size, void *cookie)
-{
-	WARN_ON(cookie != cfg_cookie);
-}
-
 static struct iommu_gather_ops dummy_tlb_ops __initdata = {
 	.tlb_flush_all	= dummy_tlb_flush_all,
 	.tlb_add_flush	= dummy_tlb_add_flush,
 	.tlb_sync	= dummy_tlb_sync,
-	.flush_pgtable	= dummy_flush_pgtable,
 };
 
 static void __init arm_lpae_dump_ops(struct io_pgtable_ops *ops)
