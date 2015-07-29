@@ -385,7 +385,7 @@ static int tegra_sor_compute_params(struct tegra_sor *sor,
 }
 
 static int tegra_sor_calc_config(struct tegra_sor *sor,
-				 struct drm_display_mode *mode,
+				 const struct drm_display_mode *mode,
 				 struct tegra_sor_config *config,
 				 struct drm_dp_link *link)
 {
