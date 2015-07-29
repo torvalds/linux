@@ -62,6 +62,7 @@
 #include <asm/fpu/xstate.h>
 #include <asm/trace/mpx.h>
 #include <asm/mpx.h>
+#include <asm/vm86.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>

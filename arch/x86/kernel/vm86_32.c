@@ -51,6 +51,7 @@
 #include <asm/tlbflush.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
+#include <asm/vm86.h>
 
 /*
  * Known problems:

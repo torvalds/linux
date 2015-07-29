@@ -31,6 +31,7 @@
 #include <asm/vdso.h>
 #include <asm/mce.h>
 #include <asm/sighandling.h>
+#include <asm/vm86.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/proto.h>

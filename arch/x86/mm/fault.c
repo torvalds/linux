@@ -20,6 +20,7 @@
 #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
 #include <asm/fixmap.h>			/* VSYSCALL_ADDR		*/
 #include <asm/vsyscall.h>		/* emulate_vsyscall		*/
+#include <asm/vm86.h>			/* struct vm86			*/
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
