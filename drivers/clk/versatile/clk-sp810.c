@@ -128,8 +128,8 @@ struct clk *clk_sp810_timerclken_of_get(struct of_phandle_args *clkspec,
 {
 	struct clk_sp810 *sp810 = data;
 
-	if (WARN_ON(clkspec->args_count != 1 || clkspec->args[0] >
-			ARRAY_SIZE(sp810->timerclken)))
+	if (WARN_ON(clkspec->args_count != 1 ||
+		    clkspec->args[0] >=	ARRAY_SIZE(sp810->timerclken)))
 		return NULL;
 
 	return sp810->timerclken[clkspec->args[0]].clk;
