@@ -984,6 +984,18 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	 * pertain to them.
 	 */
 	switch (bcode) {
+	case BRK_UPROBE:
+		if (notify_die(DIE_UPROBE, "uprobe", regs, bcode,
+			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+			goto out;
+		else
+			break;
+	case BRK_UPROBE_XOL:
+		if (notify_die(DIE_UPROBE_XOL, "uprobe_xol", regs, bcode,
+			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+			goto out;
+		else
+			break;
 	case BRK_KPROBE_BP:
 		if (notify_die(DIE_BREAK, "debug", regs, bcode,
 			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)

@@ -21,6 +21,7 @@
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
+#include <linux/uprobes.h>
 #include <linux/compiler.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
@@ -855,6 +856,9 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 	local_irq_enable();
 
 	user_exit();
+
+	if (thread_info_flags & _TIF_UPROBE)
+		uprobe_notify_resume(regs);
 
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING)
