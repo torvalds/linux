@@ -36,6 +36,11 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 	enum pci_bar_type type;
 	struct resource *res = dev->resource + resno;
 
+	if (dev->is_virtfn) {
+		dev_warn(&dev->dev, "can't update VF BAR%d\n", resno);
+		return;
+	}
+
 	/*
 	 * Ignore resources for unimplemented BARs and unused resource slots
 	 * for 64 bit BARs.

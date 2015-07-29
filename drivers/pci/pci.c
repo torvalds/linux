@@ -484,7 +484,7 @@ int pci_wait_for_pending(struct pci_dev *dev, int pos, u16 mask)
 }
 
 /**
- * pci_restore_bars - restore a devices BAR values (e.g. after wake-up)
+ * pci_restore_bars - restore a device's BAR values (e.g. after wake-up)
  * @dev: PCI device to have its BARs restored
  *
  * Restore the BAR values for a given device, so as to make it
@@ -493,6 +493,10 @@ int pci_wait_for_pending(struct pci_dev *dev, int pos, u16 mask)
 static void pci_restore_bars(struct pci_dev *dev)
 {
 	int i;
+
+	/* Per SR-IOV spec 3.4.1.11, VF BARs are RO zero */
+	if (dev->is_virtfn)
+		return;
 
 	for (i = 0; i < PCI_BRIDGE_RESOURCES; i++)
 		pci_update_resource(dev, i);
