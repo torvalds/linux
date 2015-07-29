@@ -1893,36 +1893,31 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar);
 	if (err) {
-		netdev_err(netdev, "%s: mlx5_alloc_map_uar failed, %d\n",
-			   __func__, err);
+		mlx5_core_err(mdev, "alloc_map uar failed, %d\n", err);
 		goto err_free_netdev;
 	}
 
 	err = mlx5_core_alloc_pd(mdev, &priv->pdn);
 	if (err) {
-		netdev_err(netdev, "%s: mlx5_core_alloc_pd failed, %d\n",
-			   __func__, err);
+		mlx5_core_err(mdev, "alloc pd failed, %d\n", err);
 		goto err_unmap_free_uar;
 	}
 
 	err = mlx5_alloc_transport_domain(mdev, &priv->tdn);
 	if (err) {
-		netdev_err(netdev, "%s: mlx5_alloc_transport_domain failed, %d\n",
-			   __func__, err);
+		mlx5_core_err(mdev, "alloc td failed, %d\n", err);
 		goto err_dealloc_pd;
 	}
 
 	err = mlx5e_create_mkey(priv, priv->pdn, &priv->mr);
 	if (err) {
-		netdev_err(netdev, "%s: mlx5e_create_mkey failed, %d\n",
-			   __func__, err);
+		mlx5_core_err(mdev, "create mkey failed, %d\n", err);
 		goto err_dealloc_transport_domain;
 	}
 
 	err = register_netdev(netdev);
 	if (err) {
-		netdev_err(netdev, "%s: register_netdev failed, %d\n",
-			   __func__, err);
+		mlx5_core_err(mdev, "register_netdev failed, %d\n", err);
 		goto err_destroy_mkey;
 	}
 
