@@ -1745,6 +1745,7 @@ struct ib_device {
 	char			     node_desc[64];
 	__be64			     node_guid;
 	u32			     local_dma_lkey;
+	u16                          is_switch:1;
 	u8                           node_type;
 	u8                           phys_port_cnt;
 
@@ -1824,6 +1825,20 @@ enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
 					       u8 port_num);
 
 /**
+ * rdma_cap_ib_switch - Check if the device is IB switch
+ * @device: Device to check
+ *
+ * Device driver is responsible for setting is_switch bit on
+ * in ib_device structure at init time.
+ *
+ * Return: true if the device is IB switch.
+ */
+static inline bool rdma_cap_ib_switch(const struct ib_device *device)
+{
+	return device->is_switch;
+}
+
+/**
  * rdma_start_port - Return the first valid port number for the device
  * specified
  *
@@ -1833,7 +1848,7 @@ enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
  */
 static inline u8 rdma_start_port(const struct ib_device *device)
 {
-	return (device->node_type == RDMA_NODE_IB_SWITCH) ? 0 : 1;
+	return rdma_cap_ib_switch(device) ? 0 : 1;
 }
 
 /**
@@ -1846,8 +1861,7 @@ static inline u8 rdma_start_port(const struct ib_device *device)
  */
 static inline u8 rdma_end_port(const struct ib_device *device)
 {
-	return (device->node_type == RDMA_NODE_IB_SWITCH) ?
-		0 : device->phys_port_cnt;
+	return rdma_cap_ib_switch(device) ? 0 : device->phys_port_cnt;
 }
 
 static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)

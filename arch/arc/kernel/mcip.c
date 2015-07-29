@@ -175,7 +175,6 @@ void mcip_init_early_smp(void)
 #include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include "../../drivers/irqchip/irqchip.h"
 
 /*
  * Set the DEST for @cmn_irq to @cpu_mask (1 bit per core)
@@ -218,11 +217,28 @@ static void idu_irq_unmask(struct irq_data *data)
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
 }
 
+#ifdef CONFIG_SMP
 static int
-idu_irq_set_affinity(struct irq_data *d, const struct cpumask *cpumask, bool f)
+idu_irq_set_affinity(struct irq_data *data, const struct cpumask *cpumask,
+		     bool force)
 {
+	unsigned long flags;
+	cpumask_t online;
+
+	/* errout if no online cpu per @cpumask */
+	if (!cpumask_and(&online, cpumask, cpu_online_mask))
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&mcip_lock, flags);
+
+	idu_set_dest(data->hwirq, cpumask_bits(&online)[0]);
+	idu_set_mode(data->hwirq, IDU_M_TRIG_LEVEL, IDU_M_DISTRI_RR);
+
+	raw_spin_unlock_irqrestore(&mcip_lock, flags);
+
 	return IRQ_SET_MASK_OK;
 }
+#endif
 
 static struct irq_chip idu_irq_chip = {
 	.name			= "MCIP IDU Intc",
@@ -330,8 +346,7 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 		if (!i)
 			idu_first_irq = irq;
 
-		irq_set_handler_data(irq, domain);
-		irq_set_chained_handler(irq, idu_cascade_isr);
+		irq_set_chained_handler_and_data(irq, idu_cascade_isr, domain);
 	}
 
 	__mcip_cmd(CMD_IDU_ENABLE, 0);

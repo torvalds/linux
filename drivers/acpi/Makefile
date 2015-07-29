@@ -24,7 +24,7 @@ acpi-y				+= nvs.o
 # Power management related files
 acpi-y				+= wakeup.o
 acpi-$(CONFIG_ACPI_SYSTEM_POWER_STATES_SUPPORT) += sleep.o
-acpi-y				+= device_pm.o
+acpi-y				+= device_sysfs.o device_pm.o
 acpi-$(CONFIG_ACPI_SLEEP)	+= proc.o
 
 
