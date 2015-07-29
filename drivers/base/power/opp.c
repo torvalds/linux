@@ -57,6 +57,8 @@
  * @u_volt_min:	Minimum voltage in microvolts corresponding to this OPP
  * @u_volt_max:	Maximum voltage in microvolts corresponding to this OPP
  * @u_amp:	Maximum current drawn by the device in microamperes
+ * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
+ *		frequency from any other OPP's frequency.
  * @dev_opp:	points back to the device_opp struct this opp belongs to
  * @rcu_head:	RCU callback head used for deferred freeing
  * @np:		OPP's device node.
@@ -75,6 +77,7 @@ struct dev_pm_opp {
 	unsigned long u_volt_min;
 	unsigned long u_volt_max;
 	unsigned long u_amp;
+	unsigned long clock_latency_ns;
 
 	struct device_opp *dev_opp;
 	struct rcu_head rcu_head;
@@ -109,6 +112,8 @@ struct device_opp {
 	struct srcu_notifier_head srcu_head;
 	struct rcu_head rcu_head;
 	struct list_head opp_list;
+
+	unsigned long clock_latency_ns_max;
 };
 
 /*
@@ -224,6 +229,32 @@ unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 	return f;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
+
+/**
+ * dev_pm_opp_get_max_clock_latency() - Get max clock latency in nanoseconds
+ * @dev:	device for which we do this operation
+ *
+ * Return: This function returns the max clock latency in nanoseconds.
+ *
+ * Locking: This function takes rcu_read_lock().
+ */
+unsigned long dev_pm_opp_get_max_clock_latency(struct device *dev)
+{
+	struct device_opp *dev_opp;
+	unsigned long clock_latency_ns;
+
+	rcu_read_lock();
+
+	dev_opp = _find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		clock_latency_ns = 0;
+	else
+		clock_latency_ns = dev_opp->clock_latency_ns_max;
+
+	rcu_read_unlock();
+	return clock_latency_ns;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_clock_latency);
 
 /**
  * dev_pm_opp_get_opp_count() - Get number of opps available in the opp list
@@ -779,6 +810,8 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	new_opp->np = np;
 	new_opp->dynamic = false;
 	new_opp->available = true;
+	of_property_read_u32(np, "clock-latency-ns",
+			     (u32 *)&new_opp->clock_latency_ns);
 
 	ret = opp_get_microvolt(new_opp, dev);
 	if (ret)
@@ -790,11 +823,15 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	if (ret)
 		goto free_opp;
 
+	if (new_opp->clock_latency_ns > dev_opp->clock_latency_ns_max)
+		dev_opp->clock_latency_ns_max = new_opp->clock_latency_ns;
+
 	mutex_unlock(&dev_opp_list_lock);
 
-	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu\n",
+	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu\n",
 		 __func__, new_opp->turbo, new_opp->rate, new_opp->u_volt,
-		 new_opp->u_volt_min, new_opp->u_volt_max);
+		 new_opp->u_volt_min, new_opp->u_volt_max,
+		 new_opp->clock_latency_ns);
 
 	/*
 	 * Notify the changes in the availability of the operable
