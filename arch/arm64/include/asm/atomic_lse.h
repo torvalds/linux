@@ -319,9 +319,9 @@ static inline unsigned long __cmpxchg_case_##name(volatile void *ptr,	\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"nop\n"								\
-	__LL_SC_CMPXCHG(name)						\
-	"nop",								\
+	"	nop\n"							\
+		__LL_SC_CMPXCHG(name)					\
+	"	nop",							\
 	/* LSE atomics */						\
 	"	mov	" #w "30, %" #w "[old]\n"			\
 	"	cas" #mb #sz "\t" #w "30, %" #w "[new], %[v]\n"		\
