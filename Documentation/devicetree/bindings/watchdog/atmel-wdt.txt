@@ -6,6 +6,7 @@ Required properties:
 - compatible: must be "atmel,at91sam9260-wdt".
 - reg: physical base address of the controller and length of memory mapped
   region.
+- clocks: phandle to input clock.
 
 Optional properties:
 - timeout-sec: contains the watchdog timeout in seconds.
@@ -39,6 +40,7 @@ Example:
 		compatible = "atmel,at91sam9260-wdt";
 		reg = <0xfffffd40 0x10>;
 		interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+		clocks = <&clk32k>;
 		timeout-sec = <15>;
 		atmel,watchdog-type = "hardware";
 		atmel,reset-type = "all";
