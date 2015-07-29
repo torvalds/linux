@@ -9,3 +9,13 @@ config MLXSW_CORE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlxsw_core.
+
+config MLXSW_PCI
+	tristate "PCI bus implementation for Mellanox Technologies Switch ASICs"
+	depends on PCI && MLXSW_CORE
+	default m
+	---help---
+	  This is PCI bus implementation for Mellanox Technologies Switch ASICs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlxsw_pci.
