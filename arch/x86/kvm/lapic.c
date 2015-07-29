@@ -869,14 +869,20 @@ int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
 	return vcpu1->arch.apic_arb_prio - vcpu2->arch.apic_arb_prio;
 }
 
+static bool kvm_ioapic_handles_vector(struct kvm_lapic *apic, int vector)
+{
+	return test_bit(vector, (ulong *)apic->vcpu->arch.eoi_exit_bitmap);
+}
+
 static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 {
-	if (kvm_ioapic_handles_vector(apic->vcpu->kvm, vector)) {
+	if (kvm_ioapic_handles_vector(apic, vector)) {
 		int trigger_mode;
 		if (apic_test_vector(vector, apic->regs + APIC_TMR))
 			trigger_mode = IOAPIC_LEVEL_TRIG;
 		else
 			trigger_mode = IOAPIC_EDGE_TRIG;
+
 		kvm_ioapic_update_eoi(apic->vcpu, vector, trigger_mode);
 	}
 }
@@ -1923,7 +1929,7 @@ static void apic_sync_pv_eoi_to_guest(struct kvm_vcpu *vcpu,
 	    /* Cache not set: could be safe but we don't bother. */
 	    apic->highest_isr_cache == -1 ||
 	    /* Need EOI to update ioapic. */
-	    kvm_ioapic_handles_vector(vcpu->kvm, apic->highest_isr_cache)) {
+	    kvm_ioapic_handles_vector(apic, apic->highest_isr_cache)) {
 		/*
 		 * PV EOI was disabled by apic_sync_pv_eoi_from_guest
 		 * so we need not do anything here.

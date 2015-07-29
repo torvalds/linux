@@ -73,7 +73,6 @@ struct kvm_ioapic {
 	struct kvm *kvm;
 	void (*ack_notifier)(void *opaque, int irq);
 	spinlock_t lock;
-	DECLARE_BITMAP(handled_vectors, 256);
 	struct rtc_status rtc_status;
 	struct delayed_work eoi_inject;
 	u32 irq_eoi[IOAPIC_NUM_PINS];
@@ -96,13 +95,6 @@ do {									\
 static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 {
 	return kvm->arch.vioapic;
-}
-
-static inline bool kvm_ioapic_handles_vector(struct kvm *kvm, int vector)
-{
-	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-	smp_rmb();
-	return test_bit(vector, ioapic->handled_vectors);
 }
 
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
