@@ -157,8 +157,7 @@ static int stk8312_otp_init(struct stk8312_data *data)
 	if (ret < 0)
 		goto exit_err;
 
-	ret = i2c_smbus_write_byte_data(data->client,
-			STK8312_REG_AFECTRL, ret);
+	ret = i2c_smbus_write_byte_data(data->client, STK8312_REG_AFECTRL, ret);
 	if (ret < 0)
 		goto exit_err;
 	msleep(150);
@@ -458,7 +457,7 @@ static irqreturn_t stk8312_trigger_handler(int irq, void *p)
 		data->buffer[2] = buffer[2];
 	} else {
 		for_each_set_bit(bit, indio_dev->active_scan_mask,
-			   indio_dev->masklength) {
+				 indio_dev->masklength) {
 			ret = stk8312_read_accel(data, bit);
 			if (ret < 0) {
 				mutex_unlock(&data->lock);
