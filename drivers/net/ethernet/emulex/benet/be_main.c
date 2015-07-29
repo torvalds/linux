@@ -677,11 +677,14 @@ void be_link_status_update(struct be_adapter *adapter, u8 link_status)
 static void be_tx_stats_update(struct be_tx_obj *txo, struct sk_buff *skb)
 {
 	struct be_tx_stats *stats = tx_stats(txo);
+	u64 tx_pkts = skb_shinfo(skb)->gso_segs ? : 1;
 
 	u64_stats_update_begin(&stats->sync);
 	stats->tx_reqs++;
 	stats->tx_bytes += skb->len;
-	stats->tx_pkts += (skb_shinfo(skb)->gso_segs ? : 1);
+	stats->tx_pkts += tx_pkts;
+	if (skb->encapsulation && skb->ip_summed == CHECKSUM_PARTIAL)
+		stats->tx_vxlan_offload_pkts += tx_pkts;
 	u64_stats_update_end(&stats->sync);
 }
 
@@ -1957,6 +1960,8 @@ static void be_rx_stats_update(struct be_rx_obj *rxo,
 	stats->rx_compl++;
 	stats->rx_bytes += rxcp->pkt_size;
 	stats->rx_pkts++;
+	if (rxcp->tunneled)
+		stats->rx_vxlan_offload_pkts++;
 	if (rxcp->pkt_type == BE_MULTICAST_PACKET)
 		stats->rx_mcast_pkts++;
 	if (rxcp->err)

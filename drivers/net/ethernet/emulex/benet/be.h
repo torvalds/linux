@@ -230,6 +230,7 @@ struct be_mcc_obj {
 struct be_tx_stats {
 	u64 tx_bytes;
 	u64 tx_pkts;
+	u64 tx_vxlan_offload_pkts;
 	u64 tx_reqs;
 	u64 tx_compl;
 	ulong tx_jiffies;
@@ -277,6 +278,7 @@ struct be_rx_page_info {
 struct be_rx_stats {
 	u64 rx_bytes;
 	u64 rx_pkts;
+	u64 rx_vxlan_offload_pkts;
 	u32 rx_drops_no_skbs;	/* skb allocation errors */
 	u32 rx_drops_no_frags;	/* HW has no fetched frags */
 	u32 rx_post_fail;	/* page post alloc failures */
