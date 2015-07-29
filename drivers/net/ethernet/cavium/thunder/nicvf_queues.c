@@ -1064,6 +1064,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 	/* Inform HW to xmit all TSO segments */
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
 			      skb_get_queue_mapping(skb), desc_cnt);
+	nic->drv_stats.tx_tso++;
 	return 1;
 }
 
