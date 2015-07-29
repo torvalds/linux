@@ -389,7 +389,6 @@ struct mlx5e_flow_table {
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	int                        num_tc;
 	int                        default_vlan_prio;
 	struct mlx5e_sq            **txq_to_sq_map;
 	/* priv data path fields - end */

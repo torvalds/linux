@@ -173,7 +173,7 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return NUM_VPORT_COUNTERS +
 		       priv->params.num_channels * NUM_RQ_STATS +
-		       priv->params.num_channels * priv->num_tc *
+		       priv->params.num_channels * priv->params.num_tc *
 						   NUM_SQ_STATS;
 	/* fallthrough */
 	default:
@@ -207,7 +207,7 @@ static void mlx5e_get_strings(struct net_device *dev,
 					"rx%d_%s", i, rq_stats_strings[j]);
 
 		for (i = 0; i < priv->params.num_channels; i++)
-			for (tc = 0; tc < priv->num_tc; tc++)
+			for (tc = 0; tc < priv->params.num_tc; tc++)
 				for (j = 0; j < NUM_SQ_STATS; j++)
 					sprintf(data +
 						(idx++) * ETH_GSTRING_LEN,
@@ -242,7 +242,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 				       ((u64 *)&priv->channel[i]->rq.stats)[j];
 
 	for (i = 0; i < priv->params.num_channels; i++)
-		for (tc = 0; tc < priv->num_tc; tc++)
+		for (tc = 0; tc < priv->params.num_tc; tc++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				data[idx++] = !test_bit(MLX5E_STATE_OPENED,
 							&priv->state) ? 0 :
