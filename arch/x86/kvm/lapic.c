@@ -551,15 +551,6 @@ static void pv_eoi_clr_pending(struct kvm_vcpu *vcpu)
 	__clear_bit(KVM_APIC_PV_EOI_PENDING, &vcpu->arch.apic_attention);
 }
 
-void kvm_apic_update_tmr(struct kvm_vcpu *vcpu, u32 *tmr)
-{
-	struct kvm_lapic *apic = vcpu->arch.apic;
-	int i;
-
-	for (i = 0; i < 8; i++)
-		apic_set_reg(apic, APIC_TMR + 0x10 * i, tmr[i]);
-}
-
 static void apic_update_ppr(struct kvm_lapic *apic)
 {
 	u32 tpr, isrv, ppr, old_ppr;
@@ -781,6 +772,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_LOWEST:
 		vcpu->arch.apic_arb_prio++;
 	case APIC_DM_FIXED:
+		if (unlikely(trig_mode && !level))
+			break;
+
 		/* FIXME add logic for vcpu on reset */
 		if (unlikely(!apic_enabled(apic)))
 			break;
@@ -789,6 +783,13 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		if (dest_map)
 			__set_bit(vcpu->vcpu_id, dest_map);
+
+		if (apic_test_vector(vector, apic->regs + APIC_TMR) != !!trig_mode) {
+			if (trig_mode)
+				apic_set_vector(vector, apic->regs + APIC_TMR);
+			else
+				apic_clear_vector(vector, apic->regs + APIC_TMR);
+		}
 
 		if (kvm_x86_ops->deliver_posted_interrupt)
 			kvm_x86_ops->deliver_posted_interrupt(vcpu, vector);
