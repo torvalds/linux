@@ -17,7 +17,8 @@
 
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>
-#include <plat/backlight.h>
+
+#include "backlight.h"
 
 struct samsung_bl_drvdata {
 	struct platform_pwm_backlight_data plat_data;
