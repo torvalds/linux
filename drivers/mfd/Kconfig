@@ -328,6 +328,29 @@ config INTEL_SOC_PMIC
 	  thermal, charger and related power management functions
 	  on these systems.
 
+config MFD_INTEL_LPSS
+	tristate
+	select COMMON_CLK
+	select MFD_CORE
+
+config MFD_INTEL_LPSS_ACPI
+	tristate "Intel Low Power Subsystem support in ACPI mode"
+	select MFD_INTEL_LPSS
+	depends on X86 && ACPI
+	help
+	  This driver supports Intel Low Power Subsystem (LPSS) devices such as
+	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
+	  PCH) in ACPI mode.
+
+config MFD_INTEL_LPSS_PCI
+	tristate "Intel Low Power Subsystem support in PCI mode"
+	select MFD_INTEL_LPSS
+	depends on X86 && PCI
+	help
+	  This driver supports Intel Low Power Subsystem (LPSS) devices such as
+	  I2C, SPI and HS-UART starting from Intel Sunrisepoint (Intel Skylake
+	  PCH) in PCI mode.
+
 config MFD_INTEL_MSIC
 	bool "Intel MSIC"
 	depends on INTEL_SCU_IPC
