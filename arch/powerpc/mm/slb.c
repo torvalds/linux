@@ -41,9 +41,9 @@ static void slb_allocate(unsigned long ea)
 	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)
 
 static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
-					 unsigned long slot)
+					 unsigned long entry)
 {
-	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | slot;
+	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | entry;
 }
 
 static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
@@ -308,12 +308,11 @@ void slb_initialize(void)
 	lflags = SLB_VSID_KERNEL | linear_llp;
 	vflags = SLB_VSID_KERNEL | vmalloc_llp;
 
-	/* Invalidate the entire SLB (even slot 0) & all the ERATS */
+	/* Invalidate the entire SLB (even entry 0) & all the ERATS */
 	asm volatile("isync":::"memory");
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
 	create_shadowed_slbe(PAGE_OFFSET, mmu_kernel_ssize, lflags, 0);
-
 	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
 
 	/* For the boot cpu, we're running on the stack in init_thread_union,
