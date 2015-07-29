@@ -438,6 +438,102 @@ static struct device_opp *_add_device_opp(struct device *dev)
 }
 
 /**
+ * _kfree_device_rcu() - Free device_opp RCU handler
+ * @head:	RCU head
+ */
+static void _kfree_device_rcu(struct rcu_head *head)
+{
+	struct device_opp *device_opp = container_of(head, struct device_opp, rcu_head);
+
+	kfree_rcu(device_opp, rcu_head);
+}
+
+/**
+ * _kfree_opp_rcu() - Free OPP RCU handler
+ * @head:	RCU head
+ */
+static void _kfree_opp_rcu(struct rcu_head *head)
+{
+	struct dev_pm_opp *opp = container_of(head, struct dev_pm_opp, rcu_head);
+
+	kfree_rcu(opp, rcu_head);
+}
+
+/**
+ * _opp_remove()  - Remove an OPP from a table definition
+ * @dev_opp:	points back to the device_opp struct this opp belongs to
+ * @opp:	pointer to the OPP to remove
+ *
+ * This function removes an opp definition from the opp list.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * It is assumed that the caller holds required mutex for an RCU updater
+ * strategy.
+ */
+static void _opp_remove(struct device_opp *dev_opp,
+			struct dev_pm_opp *opp)
+{
+	/*
+	 * Notify the changes in the availability of the operable
+	 * frequency/voltage list.
+	 */
+	srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_REMOVE, opp);
+	list_del_rcu(&opp->node);
+	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
+
+	if (list_empty(&dev_opp->opp_list)) {
+		list_del_rcu(&dev_opp->node);
+		call_srcu(&dev_opp->srcu_head.srcu, &dev_opp->rcu_head,
+			  _kfree_device_rcu);
+	}
+}
+
+/**
+ * dev_pm_opp_remove()  - Remove an OPP from OPP list
+ * @dev:	device for which we do this operation
+ * @freq:	OPP to remove with matching 'freq'
+ *
+ * This function removes an opp from the opp list.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * Hence this function internally uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ */
+void dev_pm_opp_remove(struct device *dev, unsigned long freq)
+{
+	struct dev_pm_opp *opp;
+	struct device_opp *dev_opp;
+	bool found = false;
+
+	/* Hold our list modification lock here */
+	mutex_lock(&dev_opp_list_lock);
+
+	dev_opp = _find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		goto unlock;
+
+	list_for_each_entry(opp, &dev_opp->opp_list, node) {
+		if (opp->rate == freq) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		dev_warn(dev, "%s: Couldn't find OPP with freq: %lu\n",
+			 __func__, freq);
+		goto unlock;
+	}
+
+	_opp_remove(dev_opp, opp);
+unlock:
+	mutex_unlock(&dev_opp_list_lock);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
+
+/**
  * _opp_add_dynamic() - Allocate a dynamic OPP.
  * @dev:	device for which we do this operation
  * @freq:	Frequency in Hz for this OPP
@@ -568,102 +664,6 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	return _opp_add_dynamic(dev, freq, u_volt, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_add);
-
-/**
- * _kfree_opp_rcu() - Free OPP RCU handler
- * @head:	RCU head
- */
-static void _kfree_opp_rcu(struct rcu_head *head)
-{
-	struct dev_pm_opp *opp = container_of(head, struct dev_pm_opp, rcu_head);
-
-	kfree_rcu(opp, rcu_head);
-}
-
-/**
- * _kfree_device_rcu() - Free device_opp RCU handler
- * @head:	RCU head
- */
-static void _kfree_device_rcu(struct rcu_head *head)
-{
-	struct device_opp *device_opp = container_of(head, struct device_opp, rcu_head);
-
-	kfree_rcu(device_opp, rcu_head);
-}
-
-/**
- * _opp_remove()  - Remove an OPP from a table definition
- * @dev_opp:	points back to the device_opp struct this opp belongs to
- * @opp:	pointer to the OPP to remove
- *
- * This function removes an opp definition from the opp list.
- *
- * Locking: The internal device_opp and opp structures are RCU protected.
- * It is assumed that the caller holds required mutex for an RCU updater
- * strategy.
- */
-static void _opp_remove(struct device_opp *dev_opp,
-			struct dev_pm_opp *opp)
-{
-	/*
-	 * Notify the changes in the availability of the operable
-	 * frequency/voltage list.
-	 */
-	srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_REMOVE, opp);
-	list_del_rcu(&opp->node);
-	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
-
-	if (list_empty(&dev_opp->opp_list)) {
-		list_del_rcu(&dev_opp->node);
-		call_srcu(&dev_opp->srcu_head.srcu, &dev_opp->rcu_head,
-			  _kfree_device_rcu);
-	}
-}
-
-/**
- * dev_pm_opp_remove()  - Remove an OPP from OPP list
- * @dev:	device for which we do this operation
- * @freq:	OPP to remove with matching 'freq'
- *
- * This function removes an opp from the opp list.
- *
- * Locking: The internal device_opp and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
- */
-void dev_pm_opp_remove(struct device *dev, unsigned long freq)
-{
-	struct dev_pm_opp *opp;
-	struct device_opp *dev_opp;
-	bool found = false;
-
-	/* Hold our list modification lock here */
-	mutex_lock(&dev_opp_list_lock);
-
-	dev_opp = _find_device_opp(dev);
-	if (IS_ERR(dev_opp))
-		goto unlock;
-
-	list_for_each_entry(opp, &dev_opp->opp_list, node) {
-		if (opp->rate == freq) {
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) {
-		dev_warn(dev, "%s: Couldn't find OPP with freq: %lu\n",
-			 __func__, freq);
-		goto unlock;
-	}
-
-	_opp_remove(dev_opp, opp);
-unlock:
-	mutex_unlock(&dev_opp_list_lock);
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 
 /**
  * _opp_set_availability() - helper to set the availability of an opp
@@ -825,6 +825,49 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
 
 #ifdef CONFIG_OF
 /**
+ * of_free_opp_table() - Free OPP table entries created from static DT entries
+ * @dev:	device pointer used to lookup device OPPs.
+ *
+ * Free OPPs created using static entries present in DT.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * Hence this function indirectly uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ */
+void of_free_opp_table(struct device *dev)
+{
+	struct device_opp *dev_opp;
+	struct dev_pm_opp *opp, *tmp;
+
+	/* Check for existing list for 'dev' */
+	dev_opp = _find_device_opp(dev);
+	if (IS_ERR(dev_opp)) {
+		int error = PTR_ERR(dev_opp);
+
+		if (error != -ENODEV)
+			WARN(1, "%s: dev_opp: %d\n",
+			     IS_ERR_OR_NULL(dev) ?
+					"Invalid device" : dev_name(dev),
+			     error);
+		return;
+	}
+
+	/* Hold our list modification lock here */
+	mutex_lock(&dev_opp_list_lock);
+
+	/* Free static OPPs */
+	list_for_each_entry_safe(opp, tmp, &dev_opp->opp_list, node) {
+		if (!opp->dynamic)
+			_opp_remove(dev_opp, opp);
+	}
+
+	mutex_unlock(&dev_opp_list_lock);
+}
+EXPORT_SYMBOL_GPL(of_free_opp_table);
+
+/**
  * of_init_opp_table() - Initialize opp table from device tree
  * @dev:	device pointer used to lookup device OPPs.
  *
@@ -882,46 +925,4 @@ int of_init_opp_table(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_init_opp_table);
-
-/**
- * of_free_opp_table() - Free OPP table entries created from static DT entries
- * @dev:	device pointer used to lookup device OPPs.
- *
- * Free OPPs created using static entries present in DT.
- *
- * Locking: The internal device_opp and opp structures are RCU protected.
- * Hence this function indirectly uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
- */
-void of_free_opp_table(struct device *dev)
-{
-	struct device_opp *dev_opp;
-	struct dev_pm_opp *opp, *tmp;
-
-	/* Check for existing list for 'dev' */
-	dev_opp = _find_device_opp(dev);
-	if (IS_ERR(dev_opp)) {
-		int error = PTR_ERR(dev_opp);
-		if (error != -ENODEV)
-			WARN(1, "%s: dev_opp: %d\n",
-			     IS_ERR_OR_NULL(dev) ?
-					"Invalid device" : dev_name(dev),
-			     error);
-		return;
-	}
-
-	/* Hold our list modification lock here */
-	mutex_lock(&dev_opp_list_lock);
-
-	/* Free static OPPs */
-	list_for_each_entry_safe(opp, tmp, &dev_opp->opp_list, node) {
-		if (!opp->dynamic)
-			_opp_remove(dev_opp, opp);
-	}
-
-	mutex_unlock(&dev_opp_list_lock);
-}
-EXPORT_SYMBOL_GPL(of_free_opp_table);
 #endif
