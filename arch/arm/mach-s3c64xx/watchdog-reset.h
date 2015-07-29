@@ -1,5 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/watchdog-reset.h
- *
+/*
  * Copyright (c) 2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *

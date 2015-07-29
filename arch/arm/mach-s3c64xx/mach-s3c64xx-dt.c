@@ -15,11 +15,10 @@
 #include <asm/system_misc.h>
 
 #include <plat/cpu.h>
-#include <plat/watchdog-reset.h>
-
 #include <mach/map.h>
 
 #include "common.h"
+#include "watchdog-reset.h"
 
 /*
  * IO mapping for shared system controller IP.
