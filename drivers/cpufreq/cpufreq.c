@@ -1194,7 +1194,7 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy, bool notify)
 static int cpufreq_online(unsigned int cpu)
 {
 	struct cpufreq_policy *policy;
-	bool recover_policy;
+	bool new_policy;
 	unsigned long flags;
 	unsigned int j;
 	int ret;
@@ -1209,13 +1209,13 @@ static int cpufreq_online(unsigned int cpu)
 			return cpufreq_add_policy_cpu(policy, cpu);
 
 		/* This is the only online CPU for the policy.  Start over. */
-		recover_policy = true;
+		new_policy = false;
 		down_write(&policy->rwsem);
 		policy->cpu = cpu;
 		policy->governor = NULL;
 		up_write(&policy->rwsem);
 	} else {
-		recover_policy = false;
+		new_policy = true;
 		policy = cpufreq_policy_alloc(cpu);
 		if (!policy)
 			return -ENOMEM;
@@ -1234,7 +1234,7 @@ static int cpufreq_online(unsigned int cpu)
 
 	down_write(&policy->rwsem);
 
-	if (!recover_policy) {
+	if (new_policy) {
 		/* related_cpus should at least include policy->cpus. */
 		cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
 		/* Remember CPUs present at the policy creation time. */
@@ -1247,7 +1247,7 @@ static int cpufreq_online(unsigned int cpu)
 	 */
 	cpumask_and(policy->cpus, policy->cpus, cpu_online_mask);
 
-	if (!recover_policy) {
+	if (new_policy) {
 		policy->user_policy.min = policy->min;
 		policy->user_policy.max = policy->max;
 
@@ -1308,7 +1308,7 @@ static int cpufreq_online(unsigned int cpu)
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 				     CPUFREQ_START, policy);
 
-	if (!recover_policy) {
+	if (new_policy) {
 		ret = cpufreq_add_dev_interface(policy);
 		if (ret)
 			goto out_exit_policy;
@@ -1324,10 +1324,12 @@ static int cpufreq_online(unsigned int cpu)
 	if (ret) {
 		pr_err("%s: Failed to initialize policy for cpu: %d (%d)\n",
 		       __func__, cpu, ret);
-		goto out_remove_policy_notify;
+		/* cpufreq_policy_free() will notify based on this */
+		new_policy = false;
+		goto out_exit_policy;
 	}
 
-	if (!recover_policy) {
+	if (new_policy) {
 		policy->user_policy.policy = policy->policy;
 		policy->user_policy.governor = policy->governor;
 	}
@@ -1343,16 +1345,13 @@ static int cpufreq_online(unsigned int cpu)
 
 	return 0;
 
-out_remove_policy_notify:
-	/* cpufreq_policy_free() will notify based on this */
-	recover_policy = true;
 out_exit_policy:
 	up_write(&policy->rwsem);
 
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(policy);
 out_free_policy:
-	cpufreq_policy_free(policy, recover_policy);
+	cpufreq_policy_free(policy, !new_policy);
 	return ret;
 }
 
