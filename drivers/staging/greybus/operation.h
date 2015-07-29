@@ -43,35 +43,6 @@ enum gb_operation_result {
 	GB_OP_MALFUNCTION	= 0xff,
 };
 
-/*
- * All operation messages (both requests and responses) begin with
- * a header that encodes the size of the message (header included).
- * This header also contains a unique identifier, that associates a
- * response message with its operation.  The header contains an
- * operation type field, whose interpretation is dependent on what
- * type of protocol is used over the connection.  The high bit
- * (0x80) of the operation type field is used to indicate whether
- * the message is a request (clear) or a response (set).
- *
- * Response messages include an additional result byte, which
- * communicates the result of the corresponding request.  A zero
- * result value means the operation completed successfully.  Any
- * other value indicates an error; in this case, the payload of the
- * response message (if any) is ignored.  The result byte must be
- * zero in the header for a request message.
- *
- * The wire format for all numeric fields in the header is little
- * endian.  Any operation-specific data begins immediately after the
- * header.
- */
-struct gb_operation_msg_hdr {
-	__le16	size;		/* Size in bytes of header + payload */
-	__le16	operation_id;	/* Operation unique id */
-	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
-	__u8	result;		/* Result of request (in responses only) */
-	__u8	pad[2];		/* must be zero (ignore when read) */
-};
-
 #define GB_OPERATION_MESSAGE_SIZE_MIN	sizeof(struct gb_operation_msg_hdr)
 #define GB_OPERATION_MESSAGE_SIZE_MAX	U16_MAX
 
