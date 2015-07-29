@@ -37,16 +37,16 @@
 #define STK8312_REG_OTPDATA		0x3E
 #define STK8312_REG_OTPCTRL		0x3F
 
-#define STK8312_MODE_ACTIVE		0x01
+#define STK8312_MODE_ACTIVE		BIT(0)
 #define STK8312_MODE_STANDBY		0x00
-#define STK8312_DREADY_BIT		0x10
-#define STK8312_INT_MODE		0xC0
-#define STK8312_RNG_MASK		0xC0
-#define STK8312_SR_MASK			0x07
-#define STK8312_SR_400HZ_IDX		0
+#define STK8312_MODE_INT_AH_PP		0xC0	/* active-high, push-pull */
+#define STK8312_DREADY_BIT		BIT(4)
+#define STK8312_RNG_6G			1
 #define STK8312_RNG_SHIFT		6
-#define STK8312_READ_RETRIES		16
-#define STK8312_ALL_CHANNEL_MASK	7
+#define STK8312_RNG_MASK		GENMASK(7, 6)
+#define STK8312_SR_MASK			GENMASK(2, 0)
+#define STK8312_SR_400HZ_IDX		0
+#define STK8312_ALL_CHANNEL_MASK	GENMASK(2, 0)
 #define STK8312_ALL_CHANNEL_SIZE	3
 
 #define STK8312_DRIVER_NAME		"stk8312"
@@ -144,7 +144,7 @@ static int stk8312_otp_init(struct stk8312_data *data)
 		if (ret < 0)
 			goto exit_err;
 		count--;
-	} while (!(ret & 0x80) && count > 0);
+	} while (!(ret & BIT(7)) && count > 0);
 
 	if (count == 0) {
 		ret = -ETIMEDOUT;
@@ -565,11 +565,12 @@ static int stk8312_probe(struct i2c_client *client,
 		return ret;
 	}
 	data->sample_rate_idx = STK8312_SR_400HZ_IDX;
-	ret = stk8312_set_range(data, 1);
+	ret = stk8312_set_range(data, STK8312_RNG_6G);
 	if (ret < 0)
 		return ret;
 
-	ret = stk8312_set_mode(data, STK8312_INT_MODE | STK8312_MODE_ACTIVE);
+	ret = stk8312_set_mode(data,
+			       STK8312_MODE_INT_AH_PP | STK8312_MODE_ACTIVE);
 	if (ret < 0)
 		return ret;
 
@@ -691,7 +692,7 @@ MODULE_DEVICE_TABLE(acpi, stk8312_acpi_id);
 
 static struct i2c_driver stk8312_driver = {
 	.driver = {
-		.name = "stk8312",
+		.name = STK8312_DRIVER_NAME,
 		.pm = STK8312_PM_OPS,
 		.acpi_match_table = ACPI_PTR(stk8312_acpi_id),
 	},
