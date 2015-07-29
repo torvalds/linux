@@ -1175,11 +1175,8 @@ xfs_create(
 	 */
 	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev,
 			       prid, resblks > 0, &ip, &committed);
-	if (error) {
-		if (error == -ENOSPC)
-			goto out_trans_cancel;
+	if (error)
 		goto out_trans_cancel;
-	}
 
 	/*
 	 * Now we join the directory inode to the transaction.  We do not do it
@@ -1318,11 +1315,8 @@ xfs_create_tmpfile(
 
 	error = xfs_dir_ialloc(&tp, dp, mode, 1, 0,
 				prid, resblks > 0, &ip, NULL);
-	if (error) {
-		if (error == -ENOSPC)
-			goto out_trans_cancel;
+	if (error)
 		goto out_trans_cancel;
-	}
 
 	if (mp->m_flags & XFS_MOUNT_WSYNC)
 		xfs_trans_set_sync(tp);
