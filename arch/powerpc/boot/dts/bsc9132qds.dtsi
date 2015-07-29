@@ -87,6 +87,18 @@
 		};
 	};
 
+	ptp_clock@b0e00 {
+		compatible = "fsl,etsec-ptp";
+		reg = <0xb0e00 0xb0>;
+		interrupts = <68 2 0 0 69 2 0 0>;
+		fsl,tclk-period	= <5>;
+		fsl,tmr-prsc	= <2>;
+		fsl,tmr-add	= <0xcccccccd>;
+		fsl,tmr-fiper1	= <999999995>;
+		fsl,tmr-fiper2	= <99990>;
+		fsl,max-adj	= <249999999>;
+	};
+
 	enet0: ethernet@b0000 {
 		phy-handle = <&phy0>;
 		tbi-handle = <&tbi0>;

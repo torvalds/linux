@@ -215,12 +215,12 @@
 	};
 
 	ptp_clock@24e00 {
-		fsl,tclk-period = <5>;
-		fsl,tmr-prsc = <200>;
-		fsl,tmr-add = <0xCCCCCCCD>;
-		fsl,tmr-fiper1 = <0x3B9AC9FB>;
-		fsl,tmr-fiper2 = <0x0001869B>;
-		fsl,max-adj = <249999999>;
+		fsl,tclk-period	= <5>;
+		fsl,tmr-prsc	= <2>;
+		fsl,tmr-add	= <0xaaaaaaab>;
+		fsl,tmr-fiper1	= <999999995>;
+		fsl,tmr-fiper2	= <99990>;
+		fsl,max-adj	= <299999999>;
 	};
 
 	enet0: ethernet@24000 {

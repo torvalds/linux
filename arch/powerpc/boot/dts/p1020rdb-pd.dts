@@ -225,6 +225,18 @@
 			};
 		};
 
+		ptp_clock@b0e00 {
+			compatible = "fsl,etsec-ptp";
+			reg = <0xb0e00 0xb0>;
+			interrupts = <68 2 0 0 69 2 0 0>;
+			fsl,tclk-period	= <10>;
+			fsl,tmr-prsc	= <2>;
+			fsl,tmr-add	= <0x80000016>;
+			fsl,tmr-fiper1	= <999999990>;
+			fsl,tmr-fiper2	= <99990>;
+			fsl,max-adj	= <199999999>;
+		};
+
 		enet0: ethernet@b0000 {
 			fixed-link = <1 1 1000 0 0>;
 			phy-connection-type = "rgmii-id";
