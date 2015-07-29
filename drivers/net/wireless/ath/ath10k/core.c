@@ -1649,6 +1649,10 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	if (!ar->workqueue)
 		goto err_free_mac;
 
+	ar->workqueue_aux = create_singlethread_workqueue("ath10k_aux_wq");
+	if (!ar->workqueue_aux)
+		goto err_free_wq;
+
 	mutex_init(&ar->conf_mutex);
 	spin_lock_init(&ar->data_lock);
 
@@ -1669,10 +1673,12 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	ret = ath10k_debug_create(ar);
 	if (ret)
-		goto err_free_wq;
+		goto err_free_aux_wq;
 
 	return ar;
 
+err_free_aux_wq:
+	destroy_workqueue(ar->workqueue_aux);
 err_free_wq:
 	destroy_workqueue(ar->workqueue);
 
@@ -1687,6 +1693,9 @@ void ath10k_core_destroy(struct ath10k *ar)
 {
 	flush_workqueue(ar->workqueue);
 	destroy_workqueue(ar->workqueue);
+
+	flush_workqueue(ar->workqueue_aux);
+	destroy_workqueue(ar->workqueue_aux);
 
 	ath10k_debug_destroy(ar);
 	ath10k_mac_destroy(ar);

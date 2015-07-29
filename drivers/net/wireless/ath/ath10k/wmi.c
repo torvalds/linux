@@ -3789,7 +3789,7 @@ static int ath10k_wmi_alloc_host_mem(struct ath10k *ar, u32 req_id,
 	ar->wmi.mem_chunks[idx].vaddr = dma_alloc_coherent(ar->dev,
 							   pool_size,
 							   &paddr,
-							   GFP_ATOMIC);
+							   GFP_KERNEL);
 	if (!ar->wmi.mem_chunks[idx].vaddr) {
 		ath10k_warn(ar, "failed to allocate memory chunk\n");
 		return -ENOMEM;
@@ -3878,11 +3878,18 @@ ath10k_wmi_10x_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	return 0;
 }
 
-void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb)
+static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 {
+	struct ath10k *ar = container_of(work, struct ath10k, svc_rdy_work);
+	struct sk_buff *skb = ar->svc_rdy_skb;
 	struct wmi_svc_rdy_ev_arg arg = {};
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
 	int ret;
+
+	if (!skb) {
+		ath10k_warn(ar, "invalid service ready event skb\n");
+		return;
+	}
 
 	ret = ath10k_wmi_pull_svc_rdy(ar, skb, &arg);
 	if (ret) {
@@ -4003,7 +4010,15 @@ void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb)
 		   __le32_to_cpu(arg.eeprom_rd),
 		   __le32_to_cpu(arg.num_mem_reqs));
 
+	dev_kfree_skb(skb);
+	ar->svc_rdy_skb = NULL;
 	complete(&ar->wmi.service_ready);
+}
+
+void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb)
+{
+	ar->svc_rdy_skb = skb;
+	queue_work(ar->workqueue_aux, &ar->svc_rdy_work);
 }
 
 static int ath10k_wmi_op_pull_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
@@ -4177,7 +4192,7 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_SERVICE_READY_EVENTID:
 		ath10k_wmi_event_service_ready(ar, skb);
-		break;
+		return;
 	case WMI_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		break;
@@ -4298,7 +4313,7 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10X_SERVICE_READY_EVENTID:
 		ath10k_wmi_event_service_ready(ar, skb);
-		break;
+		return;
 	case WMI_10X_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		break;
@@ -4409,7 +4424,7 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_2_SERVICE_READY_EVENTID:
 		ath10k_wmi_event_service_ready(ar, skb);
-		break;
+		return;
 	case WMI_10_2_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
 		break;
@@ -4461,7 +4476,7 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_SERVICE_READY_EVENTID:
 		ath10k_wmi_event_service_ready(ar, skb);
-		break;
+		return;
 	case WMI_10_4_SCAN_EVENTID:
 		ath10k_wmi_event_scan(ar, skb);
 		break;
@@ -6512,12 +6527,19 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
 
+	INIT_WORK(&ar->svc_rdy_work, ath10k_wmi_event_service_ready_work);
+
 	return 0;
 }
 
 void ath10k_wmi_detach(struct ath10k *ar)
 {
 	int i;
+
+	cancel_work_sync(&ar->svc_rdy_work);
+
+	if (ar->svc_rdy_skb)
+		dev_kfree_skb(ar->svc_rdy_skb);
 
 	/* free the host memory chunks requested by firmware */
 	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {

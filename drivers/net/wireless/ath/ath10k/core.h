@@ -694,6 +694,8 @@ struct ath10k {
 	struct completion vdev_setup_done;
 
 	struct workqueue_struct *workqueue;
+	/* Auxiliary workqueue */
+	struct workqueue_struct *workqueue_aux;
 
 	/* prevents concurrent FW reconfiguration */
 	struct mutex conf_mutex;
@@ -715,6 +717,9 @@ struct ath10k {
 	int max_num_tdls_vdevs;
 	int num_active_peers;
 	int num_tids;
+
+	struct work_struct svc_rdy_work;
+	struct sk_buff *svc_rdy_skb;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
