@@ -448,13 +448,13 @@ static void bpf_jit_prologue(struct bpf_jit *jit)
 		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_SKB_DATA, REG_0,
 			      BPF_REG_1, offsetof(struct sk_buff, data));
 	}
-	/* BPF compatibility: clear A (%b7) and X (%b8) registers */
-	if (REG_SEEN(BPF_REG_7))
-		/* lghi %b7,0 */
-		EMIT4_IMM(0xa7090000, BPF_REG_7, 0);
-	if (REG_SEEN(BPF_REG_8))
-		/* lghi %b8,0 */
-		EMIT4_IMM(0xa7090000, BPF_REG_8, 0);
+	/* BPF compatibility: clear A (%b0) and X (%b7) registers */
+	if (REG_SEEN(BPF_REG_A))
+		/* lghi %ba,0 */
+		EMIT4_IMM(0xa7090000, BPF_REG_A, 0);
+	if (REG_SEEN(BPF_REG_X))
+		/* lghi %bx,0 */
+		EMIT4_IMM(0xa7090000, BPF_REG_X, 0);
 }
 
 /*
