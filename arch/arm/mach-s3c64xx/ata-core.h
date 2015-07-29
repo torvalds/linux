@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-samsung/include/plat/ata-core.h
- *
+/*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
