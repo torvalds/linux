@@ -29,6 +29,7 @@
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
+#include <asm/vm86.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -109,6 +110,8 @@ void exit_thread(void)
 		put_cpu();
 		kfree(bp);
 	}
+
+	free_vm86(t);
 
 	fpu__drop(fpu);
 }

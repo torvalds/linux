@@ -44,6 +44,7 @@
 #include <linux/ptrace.h>
 #include <linux/audit.h>
 #include <linux/stddef.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -81,8 +82,8 @@
 /*
  * virtual flags (16 and 32-bit versions)
  */
-#define VFLAGS	(*(unsigned short *)&(current->thread.v86flags))
-#define VEFLAGS	(current->thread.v86flags)
+#define VFLAGS	(*(unsigned short *)&(current->thread.vm86->v86flags))
+#define VEFLAGS	(current->thread.vm86->v86flags)
 
 #define set_flags(X, new, mask) \
 ((X) = ((X) & ~(mask)) | ((new) & (mask)))
@@ -96,6 +97,7 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	struct pt_regs *ret;
 	struct task_struct *tsk = current;
 	struct vm86plus_struct __user *user;
+	struct vm86 *vm86 = current->thread.vm86;
 	long err = 0;
 
 	/*
@@ -105,12 +107,12 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	 */
 	local_irq_enable();
 
-	if (!tsk->thread.vm86_info) {
+	if (!vm86 || !vm86->vm86_info) {
 		pr_alert("no vm86_info: BAD\n");
 		do_exit(SIGSEGV);
 	}
-	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | tsk->thread.v86mask);
-	user = tsk->thread.vm86_info;
+	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->v86mask);
+	user = vm86->vm86_info;
 
 	if (!access_ok(VERIFY_WRITE, user, VMPI.is_vm86pus ?
 		       sizeof(struct vm86plus_struct) :
@@ -137,7 +139,7 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 		put_user_ex(regs->fs, &user->regs.fs);
 		put_user_ex(regs->gs, &user->regs.gs);
 
-		put_user_ex(tsk->thread.screen_bitmap, &user->screen_bitmap);
+		put_user_ex(vm86->screen_bitmap, &user->screen_bitmap);
 	} put_user_catch(err);
 	if (err) {
 		pr_alert("could not access userspace vm86_info\n");
@@ -145,10 +147,10 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	}
 
 	tss = &per_cpu(cpu_tss, get_cpu());
-	tsk->thread.sp0 = tsk->thread.saved_sp0;
+	tsk->thread.sp0 = vm86->saved_sp0;
 	tsk->thread.sysenter_cs = __KERNEL_CS;
 	load_sp0(tss, &tsk->thread);
-	tsk->thread.saved_sp0 = 0;
+	vm86->saved_sp0 = 0;
 	put_cpu();
 
 	ret = KVM86->regs32;
@@ -242,9 +244,15 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
 {
 	struct tss_struct *tss;
 	struct task_struct *tsk = current;
+	struct vm86 *vm86 = tsk->thread.vm86;
 	unsigned long err = 0;
 
-	if (tsk->thread.saved_sp0)
+	if (!vm86) {
+		if (!(vm86 = kzalloc(sizeof(*vm86), GFP_KERNEL)))
+			return -ENOMEM;
+		tsk->thread.vm86 = vm86;
+	}
+	if (vm86->saved_sp0)
 		return -EPERM;
 
 	if (!access_ok(VERIFY_READ, v86, plus ?
@@ -295,7 +303,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
 	}
 
 	info->regs32 = current_pt_regs();
-	tsk->thread.vm86_info = v86;
+	vm86->vm86_info = v86;
 
 /*
  * The flags register is also special: we cannot trust that the user
@@ -311,16 +319,16 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
 
 	switch (info->cpu_type) {
 	case CPU_286:
-		tsk->thread.v86mask = 0;
+		vm86->v86mask = 0;
 		break;
 	case CPU_386:
-		tsk->thread.v86mask = X86_EFLAGS_NT | X86_EFLAGS_IOPL;
+		vm86->v86mask = X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	case CPU_486:
-		tsk->thread.v86mask = X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
+		vm86->v86mask = X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	default:
-		tsk->thread.v86mask = X86_EFLAGS_ID | X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
+		vm86->v86mask = X86_EFLAGS_ID | X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	}
 
@@ -328,7 +336,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
  * Save old state, set default return value (%ax) to 0 (VM86_SIGNAL)
  */
 	info->regs32->ax = VM86_SIGNAL;
-	tsk->thread.saved_sp0 = tsk->thread.sp0;
+	vm86->saved_sp0 = tsk->thread.sp0;
 	lazy_save_gs(info->regs32->gs);
 
 	tss = &per_cpu(cpu_tss, get_cpu());
@@ -338,7 +346,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
 	load_sp0(tss, &tsk->thread);
 	put_cpu();
 
-	tsk->thread.screen_bitmap = info->screen_bitmap;
+	vm86->screen_bitmap = info->screen_bitmap;
 	if (info->flags & VM86_SCREEN_BITMAP)
 		mark_screen_rdonly(tsk->mm);
 
@@ -408,7 +416,7 @@ static inline void clear_AC(struct kernel_vm86_regs *regs)
 
 static inline void set_vflags_long(unsigned long flags, struct kernel_vm86_regs *regs)
 {
-	set_flags(VEFLAGS, flags, current->thread.v86mask);
+	set_flags(VEFLAGS, flags, current->thread.vm86->v86mask);
 	set_flags(regs->pt.flags, flags, SAFE_MASK);
 	if (flags & X86_EFLAGS_IF)
 		set_IF(regs);
@@ -418,7 +426,7 @@ static inline void set_vflags_long(unsigned long flags, struct kernel_vm86_regs 
 
 static inline void set_vflags_short(unsigned short flags, struct kernel_vm86_regs *regs)
 {
-	set_flags(VFLAGS, flags, current->thread.v86mask);
+	set_flags(VFLAGS, flags, current->thread.vm86->v86mask);
 	set_flags(regs->pt.flags, flags, SAFE_MASK);
 	if (flags & X86_EFLAGS_IF)
 		set_IF(regs);
@@ -433,7 +441,7 @@ static inline unsigned long get_vflags(struct kernel_vm86_regs *regs)
 	if (VEFLAGS & X86_EFLAGS_VIF)
 		flags |= X86_EFLAGS_IF;
 	flags |= X86_EFLAGS_IOPL;
-	return flags | (VEFLAGS & current->thread.v86mask);
+	return flags | (VEFLAGS & current->thread.vm86->v86mask);
 }
 
 static inline int is_revectored(int nr, struct revectored_struct *bitmap)

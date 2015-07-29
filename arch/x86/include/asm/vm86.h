@@ -1,7 +1,6 @@
 #ifndef _ASM_X86_VM86_H
 #define _ASM_X86_VM86_H
 
-
 #include <asm/ptrace.h>
 #include <uapi/asm/vm86.h>
 
@@ -58,6 +57,14 @@ struct kernel_vm86_struct {
  */
 };
 
+struct vm86 {
+	struct vm86plus_struct __user *vm86_info;
+	unsigned long screen_bitmap;
+	unsigned long v86flags;
+	unsigned long v86mask;
+	unsigned long saved_sp0;
+};
+
 #ifdef CONFIG_VM86
 
 void handle_vm86_fault(struct kernel_vm86_regs *, long);
@@ -66,6 +73,14 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *);
 
 struct task_struct;
 void release_vm86_irqs(struct task_struct *);
+
+#define free_vm86(t) do {				\
+	struct thread_struct *__t = (t);		\
+	if (__t->vm86 != NULL) {			\
+		kfree(__t->vm86);			\
+		__t->vm86 = NULL;			\
+	}						\
+} while (0)
 
 #else
 
@@ -76,6 +91,8 @@ static inline int handle_vm86_trap(struct kernel_vm86_regs *a, long b, int c)
 {
 	return 0;
 }
+
+#define free_vm86(t) do { } while(0)
 
 #endif /* CONFIG_VM86 */
 
