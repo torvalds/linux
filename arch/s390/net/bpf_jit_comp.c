@@ -214,8 +214,9 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define _EMIT6_DISP_LH(op1, op2, disp)				\
 ({								\
-	unsigned int __disp_h = ((u32)disp) & 0xff000;		\
-	unsigned int __disp_l = ((u32)disp) & 0x00fff;		\
+	u32 _disp = (u32) disp;					\
+	unsigned int __disp_h = _disp & 0xff000;		\
+	unsigned int __disp_l = _disp & 0x00fff;		\
 	_EMIT6(op1 | __disp_l, op2 | __disp_h >> 4);		\
 })
 
