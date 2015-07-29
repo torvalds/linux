@@ -2395,6 +2395,8 @@ void dwc_otg_disable_host_interrupts(dwc_otg_core_if_t *core_if)
 	intr_mask.b.nptxfempty = 1;
 
 	DWC_MODIFY_REG32(&global_regs->gintmsk, intr_mask.d32, 0);
+	/* Clear pending interrupts */
+	DWC_WRITE_REG32(&global_regs->gintsts, intr_mask.d32);
 }
 
 /**

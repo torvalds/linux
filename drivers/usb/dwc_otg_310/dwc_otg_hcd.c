@@ -480,9 +480,6 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	pldata = hcd->core_if->otg_dev->pldata;
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD STOP\n");
 
-	/* Turn off all host-specific interrupts. */
-	dwc_otg_disable_host_interrupts(hcd->core_if);
-
 	/*
 	 * Set status flags for the hub driver.
 	 */
@@ -495,6 +492,9 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	 * and the QH lists (via ..._hcd_endpoint_disable).
 	 */
 	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
+	/* Turn off all host-specific interrupts. */
+	dwc_otg_disable_host_interrupts(hcd->core_if);
+
 	kill_all_urbs(hcd);
 	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
 
