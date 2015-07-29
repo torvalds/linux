@@ -1570,26 +1570,6 @@ static int mlx5e_close(struct net_device *netdev)
 	return err;
 }
 
-int mlx5e_update_priv_params(struct mlx5e_priv *priv,
-			     struct mlx5e_params *new_params)
-{
-	int err = 0;
-	int was_opened;
-
-	WARN_ON(!mutex_is_locked(&priv->state_lock));
-
-	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (was_opened)
-		mlx5e_close_locked(priv->netdev);
-
-	priv->params = *new_params;
-
-	if (was_opened)
-		err = mlx5e_open_locked(priv->netdev);
-
-	return err;
-}
-
 static struct rtnl_link_stats64 *
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
@@ -1639,20 +1619,22 @@ static int mlx5e_set_features(struct net_device *netdev,
 			      netdev_features_t features)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err = 0;
 	netdev_features_t changes = features ^ netdev->features;
-	struct mlx5e_params new_params;
-	bool update_params = false;
 
 	mutex_lock(&priv->state_lock);
-	new_params = priv->params;
 
 	if (changes & NETIF_F_LRO) {
-		new_params.lro_en = !!(features & NETIF_F_LRO);
-		update_params = true;
-	}
+		bool was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	if (update_params)
-		mlx5e_update_priv_params(priv, &new_params);
+		if (was_opened)
+			mlx5e_close_locked(priv->netdev);
+
+		priv->params.lro_en = !!(features & NETIF_F_LRO);
+
+		if (was_opened)
+			err = mlx5e_open_locked(priv->netdev);
+	}
 
 	if (changes & NETIF_F_HW_VLAN_CTAG_FILTER) {
 		if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
@@ -1670,8 +1652,9 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+	bool was_opened;
 	int max_mtu;
-	int err;
+	int err = 0;
 
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 
@@ -1683,8 +1666,16 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	mutex_lock(&priv->state_lock);
+
+	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (was_opened)
+		mlx5e_close_locked(netdev);
+
 	netdev->mtu = new_mtu;
-	err = mlx5e_update_priv_params(priv, &priv->params);
+
+	if (was_opened)
+		err = mlx5e_open_locked(netdev);
+
 	mutex_unlock(&priv->state_lock);
 
 	return err;
