@@ -1293,6 +1293,7 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hw_features = netdev->features;
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
+	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;
 
 	INIT_WORK(&nic->reset_task, nicvf_reset_task);
 
