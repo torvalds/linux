@@ -206,10 +206,33 @@ static int __add_prelim_ref(struct list_head *head, u64 root_id,
 		return -ENOMEM;
 
 	ref->root_id = root_id;
-	if (key)
+	if (key) {
 		ref->key_for_search = *key;
-	else
+		/*
+		 * We can often find data backrefs with an offset that is too
+		 * large (>= LLONG_MAX, maximum allowed file offset) due to
+		 * underflows when subtracting a file's offset with the data
+		 * offset of its corresponding extent data item. This can
+		 * happen for example in the clone ioctl.
+		 * So if we detect such case we set the search key's offset to
+		 * zero to make sure we will find the matching file extent item
+		 * at add_all_parents(), otherwise we will miss it because the
+		 * offset taken form the backref is much larger then the offset
+		 * of the file extent item. This can make us scan a very large
+		 * number of file extent items, but at least it will not make
+		 * us miss any.
+		 * This is an ugly workaround for a behaviour that should have
+		 * never existed, but it does and a fix for the clone ioctl
+		 * would touch a lot of places, cause backwards incompatibility
+		 * and would not fix the problem for extents cloned with older
+		 * kernels.
+		 */
+		if (ref->key_for_search.type == BTRFS_EXTENT_DATA_KEY &&
+		    ref->key_for_search.offset >= LLONG_MAX)
+			ref->key_for_search.offset = 0;
+	} else {
 		memset(&ref->key_for_search, 0, sizeof(ref->key_for_search));
+	}
 
 	ref->inode_list = NULL;
 	ref->level = level;
