@@ -38,9 +38,6 @@ struct tegra_sor {
 
 	struct tegra_dpaux *dpaux;
 
-	struct mutex lock;
-	bool enabled;
-
 	struct drm_info_list *debugfs_files;
 	struct drm_minor *minor;
 	struct dentry *debugfs;
@@ -616,13 +613,15 @@ static int tegra_sor_show_crc(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_sor *sor = node->info_ent->data;
+	struct drm_crtc *crtc = sor->output.encoder.crtc;
+	struct drm_device *drm = node->minor->dev;
 	int err = 0;
 	u32 value;
 
-	mutex_lock(&sor->lock);
+	drm_modeset_lock_all(drm);
 
-	if (!sor->enabled) {
-		err = -EAGAIN;
+	if (!crtc || !crtc->state->active) {
+		err = -EBUSY;
 		goto unlock;
 	}
 
@@ -648,7 +647,7 @@ static int tegra_sor_show_crc(struct seq_file *s, void *data)
 	seq_printf(s, "%08x\n", value);
 
 unlock:
-	mutex_unlock(&sor->lock);
+	drm_modeset_unlock_all(drm);
 	return err;
 }
 
@@ -656,6 +655,16 @@ static int tegra_sor_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_sor *sor = node->info_ent->data;
+	struct drm_crtc *crtc = sor->output.encoder.crtc;
+	struct drm_device *drm = node->minor->dev;
+	int err = 0;
+
+	drm_modeset_lock_all(drm);
+
+	if (!crtc || !crtc->state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 #define DUMP_REG(name)						\
 	seq_printf(s, "%-38s %#05x %08x\n", #name, name,	\
@@ -778,7 +787,9 @@ static int tegra_sor_show_regs(struct seq_file *s, void *data)
 
 #undef DUMP_REG
 
-	return 0;
+unlock:
+	drm_modeset_unlock_all(drm);
+	return err;
 }
 
 static const struct drm_info_list debugfs_files[] = {
@@ -838,10 +849,6 @@ static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 	sor->debugfs = NULL;
 }
 
-static void tegra_sor_connector_dpms(struct drm_connector *connector, int mode)
-{
-}
-
 static enum drm_connector_status
 tegra_sor_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -855,7 +862,7 @@ tegra_sor_connector_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_funcs tegra_sor_connector_funcs = {
-	.dpms = tegra_sor_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_sor_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -898,22 +905,60 @@ static const struct drm_encoder_funcs tegra_sor_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
 
-static void tegra_sor_encoder_dpms(struct drm_encoder *encoder, int mode)
+static void tegra_sor_edp_disable(struct drm_encoder *encoder)
 {
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
+	struct tegra_sor *sor = to_sor(output);
+	u32 value;
+	int err;
+
+	if (output->panel)
+		drm_panel_disable(output->panel);
+
+	err = tegra_sor_detach(sor);
+	if (err < 0)
+		dev_err(sor->dev, "failed to detach SOR: %d\n", err);
+
+	tegra_sor_writel(sor, 0, SOR_STATE1);
+	tegra_sor_update(sor);
+
+	/*
+	 * The following accesses registers of the display controller, so make
+	 * sure it's only executed when the output is attached to one.
+	 */
+	if (dc) {
+		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+		value &= ~SOR_ENABLE;
+		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+		tegra_dc_commit(dc);
+	}
+
+	err = tegra_sor_power_down(sor);
+	if (err < 0)
+		dev_err(sor->dev, "failed to power down SOR: %d\n", err);
+
+	if (sor->dpaux) {
+		err = tegra_dpaux_disable(sor->dpaux);
+		if (err < 0)
+			dev_err(sor->dev, "failed to disable DP: %d\n", err);
+	}
+
+	err = tegra_io_rail_power_off(TEGRA_IO_RAIL_LVDS);
+	if (err < 0)
+		dev_err(sor->dev, "failed to power off I/O rail: %d\n", err);
+
+	if (output->panel)
+		drm_panel_unprepare(output->panel);
+
+	reset_control_assert(sor->rst);
+	clk_disable_unprepare(sor->clk);
 }
 
-static void tegra_sor_encoder_prepare(struct drm_encoder *encoder)
+static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 {
-}
-
-static void tegra_sor_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
-static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted)
-{
+	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct tegra_output *output = encoder_to_output(encoder);
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
 	unsigned int vbe, vse, hbe, hse, vbs, hbs, i;
@@ -924,14 +969,9 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 	int err = 0;
 	u32 value;
 
-	mutex_lock(&sor->lock);
-
-	if (sor->enabled)
-		goto unlock;
-
 	err = clk_prepare_enable(sor->clk);
 	if (err < 0)
-		goto unlock;
+		dev_err(sor->dev, "failed to enable clock: %d\n", err);
 
 	reset_control_deassert(sor->rst);
 
@@ -950,7 +990,7 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 		if (err < 0) {
 			dev_err(sor->dev, "failed to probe eDP link: %d\n",
 				err);
-			goto unlock;
+			return;
 		}
 	}
 
@@ -1032,10 +1072,8 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 
 	/* step 2 */
 	err = tegra_io_rail_power_on(TEGRA_IO_RAIL_LVDS);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to power on I/O rail: %d\n", err);
-		goto unlock;
-	}
 
 	usleep_range(5, 100);
 
@@ -1169,25 +1207,19 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 		u8 rate, lanes;
 
 		err = drm_dp_link_probe(aux, &link);
-		if (err < 0) {
+		if (err < 0)
 			dev_err(sor->dev, "failed to probe eDP link: %d\n",
 				err);
-			goto unlock;
-		}
 
 		err = drm_dp_link_power_up(aux, &link);
-		if (err < 0) {
+		if (err < 0)
 			dev_err(sor->dev, "failed to power up eDP link: %d\n",
 				err);
-			goto unlock;
-		}
 
 		err = drm_dp_link_configure(aux, &link);
-		if (err < 0) {
+		if (err < 0)
 			dev_err(sor->dev, "failed to configure eDP link: %d\n",
 				err);
-			goto unlock;
-		}
 
 		rate = drm_dp_link_rate_to_bw_code(link.rate);
 		lanes = link.num_lanes;
@@ -1221,17 +1253,14 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 		if (err < 0) {
 			dev_err(sor->dev, "DP fast link training failed: %d\n",
 				err);
-			goto unlock;
 		}
 
 		dev_dbg(sor->dev, "fast link training succeeded\n");
 	}
 
 	err = tegra_sor_power_up(sor, 250);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to power up SOR: %d\n", err);
-		goto unlock;
-	}
 
 	/*
 	 * configure panel (24bpp, vsync-, hsync-, DP-A protocol, complete
@@ -1304,10 +1333,8 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 
 	/* PWM setup */
 	err = tegra_sor_setup_pwm(sor, 250);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to setup PWM: %d\n", err);
-		goto unlock;
-	}
 
 	tegra_sor_update(sor);
 
@@ -1318,93 +1345,15 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 	tegra_dc_commit(dc);
 
 	err = tegra_sor_attach(sor);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to attach SOR: %d\n", err);
-		goto unlock;
-	}
 
 	err = tegra_sor_wakeup(sor);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to enable DC: %d\n", err);
-		goto unlock;
-	}
 
 	if (output->panel)
 		drm_panel_enable(output->panel);
-
-	sor->enabled = true;
-
-unlock:
-	mutex_unlock(&sor->lock);
-}
-
-static void tegra_sor_encoder_disable(struct drm_encoder *encoder)
-{
-	struct tegra_output *output = encoder_to_output(encoder);
-	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
-	struct tegra_sor *sor = to_sor(output);
-	u32 value;
-	int err;
-
-	mutex_lock(&sor->lock);
-
-	if (!sor->enabled)
-		goto unlock;
-
-	if (output->panel)
-		drm_panel_disable(output->panel);
-
-	err = tegra_sor_detach(sor);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to detach SOR: %d\n", err);
-		goto unlock;
-	}
-
-	tegra_sor_writel(sor, 0, SOR_STATE1);
-	tegra_sor_update(sor);
-
-	/*
-	 * The following accesses registers of the display controller, so make
-	 * sure it's only executed when the output is attached to one.
-	 */
-	if (dc) {
-		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
-		value &= ~SOR_ENABLE;
-		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
-
-		tegra_dc_commit(dc);
-	}
-
-	err = tegra_sor_power_down(sor);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to power down SOR: %d\n", err);
-		goto unlock;
-	}
-
-	if (sor->dpaux) {
-		err = tegra_dpaux_disable(sor->dpaux);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to disable DP: %d\n", err);
-			goto unlock;
-		}
-	}
-
-	err = tegra_io_rail_power_off(TEGRA_IO_RAIL_LVDS);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to power off I/O rail: %d\n", err);
-		goto unlock;
-	}
-
-	if (output->panel)
-		drm_panel_unprepare(output->panel);
-
-	clk_disable_unprepare(sor->clk);
-	reset_control_assert(sor->rst);
-
-	sor->enabled = false;
-
-unlock:
-	mutex_unlock(&sor->lock);
 }
 
 static int
@@ -1428,12 +1377,9 @@ tegra_sor_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static const struct drm_encoder_helper_funcs tegra_sor_encoder_helper_funcs = {
-	.dpms = tegra_sor_encoder_dpms,
-	.prepare = tegra_sor_encoder_prepare,
-	.commit = tegra_sor_encoder_commit,
-	.mode_set = tegra_sor_encoder_mode_set,
-	.disable = tegra_sor_encoder_disable,
+static const struct drm_encoder_helper_funcs tegra_sor_edp_helper_funcs = {
+	.disable = tegra_sor_edp_disable,
+	.enable = tegra_sor_edp_enable,
 	.atomic_check = tegra_sor_encoder_atomic_check,
 };
 
@@ -1458,7 +1404,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	drm_encoder_init(drm, &sor->output.encoder, &tegra_sor_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&sor->output.encoder,
-			       &tegra_sor_encoder_helper_funcs);
+			       &tegra_sor_edp_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&sor->output.connector,
 					  &sor->output.encoder);
@@ -1622,8 +1568,6 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&sor->client.list);
 	sor->client.ops = &sor_client_ops;
 	sor->client.dev = &pdev->dev;
-
-	mutex_init(&sor->lock);
 
 	err = host1x_client_register(&sor->client);
 	if (err < 0) {
