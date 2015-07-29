@@ -1335,11 +1335,17 @@ static void nicvf_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static void nicvf_shutdown(struct pci_dev *pdev)
+{
+	nicvf_remove(pdev);
+}
+
 static struct pci_driver nicvf_driver = {
 	.name = DRV_NAME,
 	.id_table = nicvf_id_table,
 	.probe = nicvf_probe,
 	.remove = nicvf_remove,
+	.shutdown = nicvf_shutdown,
 };
 
 static int __init nicvf_init_module(void)
