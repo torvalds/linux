@@ -1887,9 +1887,14 @@ xlog_recover_get_buf_lsn(
 		uuid = &((struct xfs_dir3_blk_hdr *)blk)->uuid;
 		break;
 	case XFS_ATTR3_RMT_MAGIC:
-		lsn = be64_to_cpu(((struct xfs_attr3_rmt_hdr *)blk)->rm_lsn);
-		uuid = &((struct xfs_attr3_rmt_hdr *)blk)->rm_uuid;
-		break;
+		/*
+		 * Remote attr blocks are written synchronously, rather than
+		 * being logged. That means they do not contain a valid LSN
+		 * (i.e. transactionally ordered) in them, and hence any time we
+		 * see a buffer to replay over the top of a remote attribute
+		 * block we should simply do so.
+		 */
+		goto recover_immediately;
 	case XFS_SB_MAGIC:
 		lsn = be64_to_cpu(((struct xfs_dsb *)blk)->sb_lsn);
 		uuid = &((struct xfs_dsb *)blk)->sb_uuid;
