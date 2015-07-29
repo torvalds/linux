@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-samsung/include/plat/fb-core.h
- *
  * Copyright 2010 Samsung Electronics Co., Ltd.
  *	Pawel Osciak <p.osciak@samsung.com>
  *
