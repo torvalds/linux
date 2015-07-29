@@ -1188,7 +1188,6 @@ static int mlx5e_open_rqt(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 *in;
-	u32 out[MLX5_ST_SZ_DW(create_rqt_out)];
 	void *rqtc;
 	int inlen;
 	int err;
@@ -1216,12 +1215,7 @@ static int mlx5e_open_rqt(struct mlx5e_priv *priv)
 		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix]->rq.rqn);
 	}
 
-	MLX5_SET(create_rqt_in, in, opcode, MLX5_CMD_OP_CREATE_RQT);
-
-	memset(out, 0, sizeof(out));
-	err = mlx5_cmd_exec_check_status(mdev, in, inlen, out, sizeof(out));
-	if (!err)
-		priv->rqtn = MLX5_GET(create_rqt_out, out, rqtn);
+	err = mlx5_core_create_rqt(mdev, in, inlen, &priv->rqtn);
 
 	kvfree(in);
 
@@ -1230,16 +1224,7 @@ static int mlx5e_open_rqt(struct mlx5e_priv *priv)
 
 static void mlx5e_close_rqt(struct mlx5e_priv *priv)
 {
-	u32 in[MLX5_ST_SZ_DW(destroy_rqt_in)];
-	u32 out[MLX5_ST_SZ_DW(destroy_rqt_out)];
-
-	memset(in, 0, sizeof(in));
-
-	MLX5_SET(destroy_rqt_in, in, opcode, MLX5_CMD_OP_DESTROY_RQT);
-	MLX5_SET(destroy_rqt_in, in, rqtn, priv->rqtn);
-
-	mlx5_cmd_exec_check_status(priv->mdev, in, sizeof(in), out,
-				   sizeof(out));
+	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn);
 }
 
 static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
