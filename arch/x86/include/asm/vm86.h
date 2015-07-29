@@ -27,32 +27,9 @@ struct kernel_vm86_regs {
 	unsigned short gs, __gsh;
 };
 
-struct kernel_vm86_struct {
-	struct kernel_vm86_regs regs;
-/*
- * the below part remains on the kernel stack while we are in VM86 mode.
- * 'tss.esp0' then contains the address of VM86_TSS_ESP0 below, and when we
- * get forced back from VM86, the CPU and "SAVE_ALL" will restore the above
- * 'struct kernel_vm86_regs' with the then actual values.
- * Therefore, pt_regs in fact points to a complete 'kernel_vm86_struct'
- * in kernelspace, hence we need not reget the data from userspace.
- */
-#define VM86_TSS_ESP0 regs32
-	struct pt_regs *regs32;   /* here we save the pointer to the old regs */
-/*
- * The below is not part of the structure, but the stack layout continues
- * this way. In front of 'return-eip' may be some data, depending on
- * compilation, so we don't rely on this and save the pointer to 'oldregs'
- * in 'regs32' above.
- * However, with GCC-2.7.2 and the current CFLAGS you see exactly this:
-
-	long return-eip;        from call to vm86()
-	struct pt_regs oldregs;  user space registers as saved by syscall
- */
-};
-
 struct vm86 {
 	struct vm86plus_struct __user *vm86_info;
+	struct pt_regs *regs32;
 	unsigned long v86flags;
 	unsigned long v86mask;
 	unsigned long saved_sp0;
