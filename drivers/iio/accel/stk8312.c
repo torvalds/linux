@@ -435,7 +435,6 @@ static irqreturn_t stk8312_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct stk8312_data *data = iio_priv(indio_dev);
 	int bit, ret, i = 0;
-	u8 buffer[STK8312_ALL_CHANNEL_SIZE];
 
 	mutex_lock(&data->lock);
 	/*
@@ -446,15 +445,12 @@ static irqreturn_t stk8312_trigger_handler(int irq, void *p)
 		ret = i2c_smbus_read_i2c_block_data(data->client,
 						    STK8312_REG_XOUT,
 						    STK8312_ALL_CHANNEL_SIZE,
-						    buffer);
+						    data->buffer);
 		if (ret < STK8312_ALL_CHANNEL_SIZE) {
 			dev_err(&data->client->dev, "register read failed\n");
 			mutex_unlock(&data->lock);
 			goto err;
 		}
-		data->buffer[0] = buffer[0];
-		data->buffer[1] = buffer[1];
-		data->buffer[2] = buffer[2];
 	} else {
 		for_each_set_bit(bit, indio_dev->active_scan_mask,
 				 indio_dev->masklength) {
