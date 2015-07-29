@@ -52,6 +52,7 @@ static const char *mei_cl_conn_status_str(enum mei_cl_connect_status status)
 	MEI_CL_CS(ALREADY_STARTED);
 	MEI_CL_CS(OUT_OF_RESOURCES);
 	MEI_CL_CS(MESSAGE_SMALL);
+	MEI_CL_CS(NOT_ALLOWED);
 	default: return "unknown";
 	}
 #undef MEI_CL_CCS
@@ -89,6 +90,7 @@ static int mei_cl_conn_status_to_errno(enum mei_cl_connect_status status)
 	case MEI_CL_CONN_ALREADY_STARTED:  return -EBUSY;
 	case MEI_CL_CONN_OUT_OF_RESOURCES: return -EBUSY;
 	case MEI_CL_CONN_MESSAGE_SMALL:    return -EINVAL;
+	case MEI_CL_CONN_NOT_ALLOWED:      return -EBUSY;
 	default:                           return -EINVAL;
 	}
 }
