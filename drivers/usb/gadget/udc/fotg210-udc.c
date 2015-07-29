@@ -384,25 +384,15 @@ static void fotg210_ep0_queue(struct fotg210_ep *ep,
 		return;
 	}
 	if (ep->dir_in) { /* if IN */
-		if (req->req.length) {
-			fotg210_start_dma(ep, req);
-		} else {
-			pr_err("%s : req->req.length = 0x%x\n",
-			       __func__, req->req.length);
-		}
+		fotg210_start_dma(ep, req);
 		if ((req->req.length == req->req.actual) ||
 		    (req->req.actual < ep->ep.maxpacket))
 			fotg210_done(ep, req, 0);
 	} else { /* OUT */
-		if (!req->req.length) {
-			fotg210_done(ep, req, 0);
-		} else {
-			u32 value = ioread32(ep->fotg210->reg +
-						FOTG210_DMISGR0);
+		u32 value = ioread32(ep->fotg210->reg + FOTG210_DMISGR0);
 
-			value &= ~DMISGR0_MCX_OUT_INT;
-			iowrite32(value, ep->fotg210->reg + FOTG210_DMISGR0);
-		}
+		value &= ~DMISGR0_MCX_OUT_INT;
+		iowrite32(value, ep->fotg210->reg + FOTG210_DMISGR0);
 	}
 }
 
