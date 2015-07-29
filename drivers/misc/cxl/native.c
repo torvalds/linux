@@ -492,9 +492,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	if ((result = cxl_afu_check_and_enable(ctx->afu)))
 		return result;
 
-	add_process_element(ctx);
-
-	return 0;
+	return add_process_element(ctx);
 }
 
 static int deactivate_afu_directed(struct cxl_afu *afu)
