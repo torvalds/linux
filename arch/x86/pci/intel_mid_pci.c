@@ -35,6 +35,9 @@
 
 #define PCIE_CAP_OFFSET	0x100
 
+/* Quirks for the listed devices */
+#define PCI_DEVICE_ID_INTEL_MRFL_MMC	0x1190
+
 /* Fixed BAR fields */
 #define PCIE_VNDR_CAP_ID_FIXED_BAR 0x00	/* Fixed BAR (TBD) */
 #define PCI_FIXED_BAR_0_SIZE	0x04
@@ -214,10 +217,27 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 	if (dev->irq_managed && dev->irq > 0)
 		return 0;
 
-	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
+	switch (intel_mid_identify_cpu()) {
+	case INTEL_MID_CPU_CHIP_TANGIER:
 		polarity = 0; /* active high */
-	else
+
+		/* Special treatment for IRQ0 */
+		if (dev->irq == 0) {
+			/*
+			 * TNG has IRQ0 assigned to eMMC controller. But there
+			 * are also other devices with bogus PCI configuration
+			 * that have IRQ0 assigned. This check ensures that
+			 * eMMC gets it.
+			 */
+			if (dev->device != PCI_DEVICE_ID_INTEL_MRFL_MMC)
+				return -EBUSY;
+		}
+		break;
+	default:
 		polarity = 1; /* active low */
+		break;
+	}
+
 	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity);
 
 	/*
