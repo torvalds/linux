@@ -1052,7 +1052,7 @@ static void set_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 				tmp = m66592_read(m66592, M66592_INTSTS0) &
 								M66592_CTSQ;
 				udelay(1);
-			} while (tmp != M66592_CS_IDST || timeout-- > 0);
+			} while (tmp != M66592_CS_IDST && timeout-- > 0);
 
 			if (tmp == M66592_CS_IDST)
 				m66592_bset(m66592,
