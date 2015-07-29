@@ -38,6 +38,7 @@ struct cgroup_sel;
  * perf_evsel::config_terms list head.
 */
 enum {
+	PERF_EVSEL__CONFIG_TERM_PERIOD,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 

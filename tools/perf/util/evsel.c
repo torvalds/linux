@@ -594,6 +594,8 @@ static void apply_config_terms(struct perf_event_attr *attr __maybe_unused,
 
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
+		case PERF_EVSEL__CONFIG_TERM_PERIOD:
+			attr->sample_period = term->val.period;
 		default:
 			break;
 		}

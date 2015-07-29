@@ -596,7 +596,6 @@ do {									   \
 		break;
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 		CHECK_TYPE_VAL(NUM);
-		attr->sample_period = term->val.num;
 		break;
 	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
 		/*
@@ -649,6 +648,8 @@ do {								\
 
 	list_for_each_entry(term, head_config, list) {
 		switch (term->type_term) {
+		case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
+			ADD_CONFIG_TERM(PERIOD, period, term->val.num);
 		default:
 			break;
 		}
