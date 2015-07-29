@@ -44,6 +44,9 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 
+#include "trap.h"
+#include "reg.h"
+
 #include "cmd.h"
 
 #define MLXSW_MODULE_ALIAS_PREFIX "mlxsw-driver-"
@@ -77,12 +80,30 @@ struct mlxsw_rx_listener {
 	u16 trap_id;
 };
 
+struct mlxsw_event_listener {
+	void (*func)(const struct mlxsw_reg_info *reg,
+		     char *payload, void *priv);
+	enum mlxsw_event_trap_id trap_id;
+};
+
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
 				    void *priv);
 void mlxsw_core_rx_listener_unregister(struct mlxsw_core *mlxsw_core,
 				       const struct mlxsw_rx_listener *rxl,
 				       void *priv);
+
+int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
+				       const struct mlxsw_event_listener *el,
+				       void *priv);
+void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
+					  const struct mlxsw_event_listener *el,
+					  void *priv);
+
+int mlxsw_reg_query(struct mlxsw_core *mlxsw_core,
+		    const struct mlxsw_reg_info *reg, char *payload);
+int mlxsw_reg_write(struct mlxsw_core *mlxsw_core,
+		    const struct mlxsw_reg_info *reg, char *payload);
 
 struct mlxsw_rx_info {
 	u16 sys_port;
