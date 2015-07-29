@@ -108,6 +108,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "diagnose_10", VCPU_STAT(diagnose_10) },
 	{ "diagnose_44", VCPU_STAT(diagnose_44) },
 	{ "diagnose_9c", VCPU_STAT(diagnose_9c) },
+	{ "diagnose_258", VCPU_STAT(diagnose_258) },
+	{ "diagnose_308", VCPU_STAT(diagnose_308) },
+	{ "diagnose_500", VCPU_STAT(diagnose_500) },
 	{ NULL }
 };
 
@@ -124,6 +127,7 @@ unsigned long kvm_s390_fac_list_mask_size(void)
 }
 
 static struct gmap_notifier gmap_notifier;
+debug_info_t *kvm_s390_dbf;
 
 /* Section: not file related */
 int kvm_arch_hardware_enable(void)
@@ -148,8 +152,22 @@ void kvm_arch_hardware_unsetup(void)
 
 int kvm_arch_init(void *opaque)
 {
+	kvm_s390_dbf = debug_register("kvm-trace", 32, 1, 7 * sizeof(long));
+	if (!kvm_s390_dbf)
+		return -ENOMEM;
+
+	if (debug_register_view(kvm_s390_dbf, &debug_sprintf_view)) {
+		debug_unregister(kvm_s390_dbf);
+		return -ENOMEM;
+	}
+
 	/* Register floating interrupt controller interface. */
 	return kvm_register_device_ops(&kvm_flic_ops, KVM_DEV_TYPE_FLIC);
+}
+
+void kvm_arch_exit(void)
+{
+	debug_unregister(kvm_s390_dbf);
 }
 
 /* Section: device related */
@@ -281,10 +299,12 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 
 	switch (cap->cap) {
 	case KVM_CAP_S390_IRQCHIP:
+		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_IRQCHIP");
 		kvm->arch.use_irqchip = 1;
 		r = 0;
 		break;
 	case KVM_CAP_S390_USER_SIGP:
+		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_SIGP");
 		kvm->arch.user_sigp = 1;
 		r = 0;
 		break;
@@ -295,8 +315,11 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 			r = 0;
 		} else
 			r = -EINVAL;
+		VM_EVENT(kvm, 3, "ENABLE: CAP_S390_VECTOR_REGISTERS %s",
+			 r ? "(not available)" : "(success)");
 		break;
 	case KVM_CAP_S390_USER_STSI:
+		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_STSI");
 		kvm->arch.user_stsi = 1;
 		r = 0;
 		break;
@@ -314,6 +337,8 @@ static int kvm_s390_get_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	switch (attr->attr) {
 	case KVM_S390_VM_MEM_LIMIT_SIZE:
 		ret = 0;
+		VM_EVENT(kvm, 3, "QUERY: max guest memory: %lu bytes",
+			 kvm->arch.gmap->asce_end);
 		if (put_user(kvm->arch.gmap->asce_end, (u64 __user *)attr->addr))
 			ret = -EFAULT;
 		break;
@@ -330,7 +355,13 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	unsigned int idx;
 	switch (attr->attr) {
 	case KVM_S390_VM_MEM_ENABLE_CMMA:
+		/* enable CMMA only for z10 and later (EDAT_1) */
+		ret = -EINVAL;
+		if (!MACHINE_IS_LPAR || !MACHINE_HAS_EDAT1)
+			break;
+
 		ret = -EBUSY;
+		VM_EVENT(kvm, 3, "%s", "ENABLE: CMMA support");
 		mutex_lock(&kvm->lock);
 		if (atomic_read(&kvm->online_vcpus) == 0) {
 			kvm->arch.use_cmma = 1;
@@ -339,6 +370,11 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		mutex_unlock(&kvm->lock);
 		break;
 	case KVM_S390_VM_MEM_CLR_CMMA:
+		ret = -EINVAL;
+		if (!kvm->arch.use_cmma)
+			break;
+
+		VM_EVENT(kvm, 3, "%s", "RESET: CMMA states");
 		mutex_lock(&kvm->lock);
 		idx = srcu_read_lock(&kvm->srcu);
 		s390_reset_cmma(kvm->arch.gmap->mm);
@@ -374,6 +410,7 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 			}
 		}
 		mutex_unlock(&kvm->lock);
+		VM_EVENT(kvm, 3, "SET: max guest memory: %lu bytes", new_limit);
 		break;
 	}
 	default:
@@ -400,22 +437,26 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 			kvm->arch.crypto.crycb->aes_wrapping_key_mask,
 			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
 		kvm->arch.crypto.aes_kw = 1;
+		VM_EVENT(kvm, 3, "%s", "ENABLE: AES keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_ENABLE_DEA_KW:
 		get_random_bytes(
 			kvm->arch.crypto.crycb->dea_wrapping_key_mask,
 			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
 		kvm->arch.crypto.dea_kw = 1;
+		VM_EVENT(kvm, 3, "%s", "ENABLE: DEA keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_DISABLE_AES_KW:
 		kvm->arch.crypto.aes_kw = 0;
 		memset(kvm->arch.crypto.crycb->aes_wrapping_key_mask, 0,
 			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
+		VM_EVENT(kvm, 3, "%s", "DISABLE: AES keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_DISABLE_DEA_KW:
 		kvm->arch.crypto.dea_kw = 0;
 		memset(kvm->arch.crypto.crycb->dea_wrapping_key_mask, 0,
 			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
+		VM_EVENT(kvm, 3, "%s", "DISABLE: DEA keywrapping support");
 		break;
 	default:
 		mutex_unlock(&kvm->lock);
@@ -440,6 +481,7 @@ static int kvm_s390_set_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 
 	if (gtod_high != 0)
 		return -EINVAL;
+	VM_EVENT(kvm, 3, "SET: TOD extension: 0x%x\n", gtod_high);
 
 	return 0;
 }
@@ -465,6 +507,7 @@ static int kvm_s390_set_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 		cur_vcpu->arch.sie_block->epoch = kvm->arch.epoch;
 	kvm_s390_vcpu_unblock_all(kvm);
 	mutex_unlock(&kvm->lock);
+	VM_EVENT(kvm, 3, "SET: TOD base: 0x%llx\n", gtod);
 	return 0;
 }
 
@@ -496,6 +539,7 @@ static int kvm_s390_get_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 	if (copy_to_user((void __user *)attr->addr, &gtod_high,
 					 sizeof(gtod_high)))
 		return -EFAULT;
+	VM_EVENT(kvm, 3, "QUERY: TOD extension: 0x%x\n", gtod_high);
 
 	return 0;
 }
@@ -512,6 +556,7 @@ static int kvm_s390_get_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 	gtod = host_tod + kvm->arch.epoch;
 	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
 		return -EFAULT;
+	VM_EVENT(kvm, 3, "QUERY: TOD base: 0x%llx\n", gtod);
 
 	return 0;
 }
@@ -821,7 +866,9 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	}
 
 	/* Enable storage key handling for the guest */
-	s390_enable_skey();
+	r = s390_enable_skey();
+	if (r)
+		goto out;
 
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
@@ -1043,7 +1090,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	sprintf(debug_name, "kvm-%u", current->pid);
 
-	kvm->arch.dbf = debug_register(debug_name, 8, 2, 8 * sizeof(long));
+	kvm->arch.dbf = debug_register(debug_name, 32, 1, 7 * sizeof(long));
 	if (!kvm->arch.dbf)
 		goto out_err;
 
@@ -1086,7 +1133,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	mutex_init(&kvm->arch.ipte_mutex);
 
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
-	VM_EVENT(kvm, 3, "%s", "vm created");
+	VM_EVENT(kvm, 3, "vm created with type %lu", type);
 
 	if (type & KVM_VM_S390_UCONTROL) {
 		kvm->arch.gmap = NULL;
@@ -1103,6 +1150,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
+	KVM_EVENT(3, "vm 0x%p created by pid %u", kvm, current->pid);
 
 	return 0;
 out_err:
@@ -1110,6 +1158,7 @@ out_err:
 	free_page((unsigned long)kvm->arch.model.fac);
 	debug_unregister(kvm->arch.dbf);
 	free_page((unsigned long)(kvm->arch.sca));
+	KVM_EVENT(3, "creation of vm failed: %d", rc);
 	return rc;
 }
 
@@ -1131,7 +1180,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	if (kvm_is_ucontrol(vcpu->kvm))
 		gmap_free(vcpu->arch.gmap);
 
-	if (kvm_s390_cmma_enabled(vcpu->kvm))
+	if (vcpu->kvm->arch.use_cmma)
 		kvm_s390_vcpu_unsetup_cmma(vcpu);
 	free_page((unsigned long)(vcpu->arch.sie_block));
 
@@ -1166,6 +1215,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		gmap_free(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
+	KVM_EVENT(3, "vm 0x%p destroyed", kvm);
 }
 
 /* Section: vcpu related */
@@ -1342,7 +1392,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
 
-	if (kvm_s390_cmma_enabled(vcpu->kvm)) {
+	if (vcpu->kvm->arch.use_cmma) {
 		rc = kvm_s390_vcpu_setup_cmma(vcpu);
 		if (rc)
 			return rc;
@@ -1721,18 +1771,6 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	}
 
 	return rc;
-}
-
-bool kvm_s390_cmma_enabled(struct kvm *kvm)
-{
-	if (!MACHINE_IS_LPAR)
-		return false;
-	/* only enable for z10 and later */
-	if (!MACHINE_HAS_EDAT1)
-		return false;
-	if (!kvm->arch.use_cmma)
-		return false;
-	return true;
 }
 
 static bool ibs_enabled(struct kvm_vcpu *vcpu)
@@ -2340,6 +2378,7 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	case KVM_CAP_S390_CSS_SUPPORT:
 		if (!vcpu->kvm->arch.css_support) {
 			vcpu->kvm->arch.css_support = 1;
+			VM_EVENT(vcpu->kvm, 3, "%s", "ENABLE: CSS support");
 			trace_kvm_s390_enable_css(vcpu->kvm);
 		}
 		r = 0;
