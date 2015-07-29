@@ -37,7 +37,7 @@ struct lwtunnel_state *lwtunnel_state_alloc(int encap_len)
 }
 EXPORT_SYMBOL(lwtunnel_state_alloc);
 
-const struct lwtunnel_encap_ops __rcu *
+static const struct lwtunnel_encap_ops __rcu *
 		lwtun_encaps[LWTUNNEL_ENCAP_MAX + 1] __read_mostly;
 
 int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *ops,

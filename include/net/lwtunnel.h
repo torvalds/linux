@@ -31,9 +31,6 @@ struct lwtunnel_encap_ops {
 	int (*cmp_encap)(struct lwtunnel_state *a, struct lwtunnel_state *b);
 };
 
-extern const struct lwtunnel_encap_ops __rcu *
-		lwtun_encaps[LWTUNNEL_ENCAP_MAX+1];
-
 #ifdef CONFIG_LWTUNNEL
 static inline struct lwtunnel_state *
 lwtstate_get(struct lwtunnel_state *lws)
