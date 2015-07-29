@@ -6645,6 +6645,15 @@ W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlx4/en_*
 
+MELLANOX ETHERNET SWITCH DRIVERS
+M:	Jiri Pirko <jiri@mellanox.com>
+M:	Ido Schimmel <idosch@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
+F:	drivers/net/ethernet/mellanox/mlxsw/
+
 MEMORY MANAGEMENT
 L:	linux-mm@kvack.org
 W:	http://www.linux-mm.org

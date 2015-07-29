@@ -1,0 +1,11 @@
+#
+# Mellanox switch drivers configuration
+#
+
+config MLXSW_CORE
+	tristate "Mellanox Technologies Switch ASICs support"
+	---help---
+	  This driver supports Mellanox Technologies Switch ASICs family.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlxsw_core.
