@@ -104,17 +104,17 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	 */
 	local_irq_enable();
 
-	if (!vm86 || !vm86->vm86_info) {
-		pr_alert("no vm86_info: BAD\n");
+	if (!vm86 || !vm86->user_vm86) {
+		pr_alert("no user_vm86: BAD\n");
 		do_exit(SIGSEGV);
 	}
 	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->v86mask);
-	user = vm86->vm86_info;
+	user = vm86->user_vm86;
 
 	if (!access_ok(VERIFY_WRITE, user, vm86->vm86plus.is_vm86pus ?
 		       sizeof(struct vm86plus_struct) :
 		       sizeof(struct vm86_struct))) {
-		pr_alert("could not access userspace vm86_info\n");
+		pr_alert("could not access userspace vm86 info\n");
 		do_exit(SIGSEGV);
 	}
 
@@ -139,7 +139,7 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 		put_user_ex(vm86->screen_bitmap, &user->screen_bitmap);
 	} put_user_catch(err);
 	if (err) {
-		pr_alert("could not access userspace vm86_info\n");
+		pr_alert("could not access userspace vm86 info\n");
 		do_exit(SIGSEGV);
 	}
 
@@ -192,11 +192,11 @@ out:
 
 
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
-static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus);
+static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus);
 
-SYSCALL_DEFINE1(vm86old, struct vm86_struct __user *, v86)
+SYSCALL_DEFINE1(vm86old, struct vm86_struct __user *, user_vm86)
 {
-	return do_sys_vm86((struct vm86plus_struct __user *) v86, false);
+	return do_sys_vm86((struct vm86plus_struct __user *) user_vm86, false);
 }
 
 
@@ -223,7 +223,7 @@ SYSCALL_DEFINE2(vm86, unsigned long, cmd, unsigned long, arg)
 }
 
 
-static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
+static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 {
 	struct tss_struct *tss;
 	struct task_struct *tsk = current;
@@ -240,7 +240,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
 	if (vm86->saved_sp0)
 		return -EPERM;
 
-	if (!access_ok(VERIFY_READ, v86, plus ?
+	if (!access_ok(VERIFY_READ, user_vm86, plus ?
 		       sizeof(struct vm86_struct) :
 		       sizeof(struct vm86plus_struct)))
 		return -EFAULT;
@@ -248,40 +248,42 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
 	memset(&vm86regs, 0, sizeof(vm86regs));
 	get_user_try {
 		unsigned short seg;
-		get_user_ex(vm86regs.pt.bx, &v86->regs.ebx);
-		get_user_ex(vm86regs.pt.cx, &v86->regs.ecx);
-		get_user_ex(vm86regs.pt.dx, &v86->regs.edx);
-		get_user_ex(vm86regs.pt.si, &v86->regs.esi);
-		get_user_ex(vm86regs.pt.di, &v86->regs.edi);
-		get_user_ex(vm86regs.pt.bp, &v86->regs.ebp);
-		get_user_ex(vm86regs.pt.ax, &v86->regs.eax);
-		get_user_ex(vm86regs.pt.ip, &v86->regs.eip);
-		get_user_ex(seg, &v86->regs.cs);
+		get_user_ex(vm86regs.pt.bx, &user_vm86->regs.ebx);
+		get_user_ex(vm86regs.pt.cx, &user_vm86->regs.ecx);
+		get_user_ex(vm86regs.pt.dx, &user_vm86->regs.edx);
+		get_user_ex(vm86regs.pt.si, &user_vm86->regs.esi);
+		get_user_ex(vm86regs.pt.di, &user_vm86->regs.edi);
+		get_user_ex(vm86regs.pt.bp, &user_vm86->regs.ebp);
+		get_user_ex(vm86regs.pt.ax, &user_vm86->regs.eax);
+		get_user_ex(vm86regs.pt.ip, &user_vm86->regs.eip);
+		get_user_ex(seg, &user_vm86->regs.cs);
 		vm86regs.pt.cs = seg;
-		get_user_ex(vm86regs.pt.flags, &v86->regs.eflags);
-		get_user_ex(vm86regs.pt.sp, &v86->regs.esp);
-		get_user_ex(seg, &v86->regs.ss);
+		get_user_ex(vm86regs.pt.flags, &user_vm86->regs.eflags);
+		get_user_ex(vm86regs.pt.sp, &user_vm86->regs.esp);
+		get_user_ex(seg, &user_vm86->regs.ss);
 		vm86regs.pt.ss = seg;
-		get_user_ex(vm86regs.es, &v86->regs.es);
-		get_user_ex(vm86regs.ds, &v86->regs.ds);
-		get_user_ex(vm86regs.fs, &v86->regs.fs);
-		get_user_ex(vm86regs.gs, &v86->regs.gs);
+		get_user_ex(vm86regs.es, &user_vm86->regs.es);
+		get_user_ex(vm86regs.ds, &user_vm86->regs.ds);
+		get_user_ex(vm86regs.fs, &user_vm86->regs.fs);
+		get_user_ex(vm86regs.gs, &user_vm86->regs.gs);
 
-		get_user_ex(vm86->flags, &v86->flags);
-		get_user_ex(vm86->screen_bitmap, &v86->screen_bitmap);
-		get_user_ex(vm86->cpu_type, &v86->cpu_type);
+		get_user_ex(vm86->flags, &user_vm86->flags);
+		get_user_ex(vm86->screen_bitmap, &user_vm86->screen_bitmap);
+		get_user_ex(vm86->cpu_type, &user_vm86->cpu_type);
 	} get_user_catch(err);
 	if (err)
 		return err;
 
-	if (copy_from_user(&vm86->int_revectored, &v86->int_revectored,
+	if (copy_from_user(&vm86->int_revectored,
+			   &user_vm86->int_revectored,
 			   sizeof(struct revectored_struct)))
 		return -EFAULT;
-	if (copy_from_user(&vm86->int21_revectored, &v86->int21_revectored,
+	if (copy_from_user(&vm86->int21_revectored,
+			   &user_vm86->int21_revectored,
 			   sizeof(struct revectored_struct)))
 		return -EFAULT;
 	if (plus) {
-		if (copy_from_user(&vm86->vm86plus, &v86->vm86plus,
+		if (copy_from_user(&vm86->vm86plus, &user_vm86->vm86plus,
 				   sizeof(struct vm86plus_info_struct)))
 			return -EFAULT;
 		vm86->vm86plus.is_vm86pus = 1;
@@ -290,7 +292,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus)
 		       sizeof(struct vm86plus_info_struct));
 
 	memcpy(&vm86->regs32, regs, sizeof(struct pt_regs));
-	vm86->vm86_info = v86;
+	vm86->user_vm86 = user_vm86;
 
 /*
  * The flags register is also special: we cannot trust that the user
