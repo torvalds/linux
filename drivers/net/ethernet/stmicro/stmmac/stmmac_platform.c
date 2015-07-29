@@ -109,29 +109,11 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
-	const struct stmmac_of_data *data;
 	struct stmmac_dma_cfg *dma_cfg;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
-
-	data = of_device_get_match_data(&pdev->dev);
-	if (data) {
-		plat->has_gmac = data->has_gmac;
-		plat->enh_desc = data->enh_desc;
-		plat->tx_coe = data->tx_coe;
-		plat->rx_coe = data->rx_coe;
-		plat->bugged_jumbo = data->bugged_jumbo;
-		plat->pmt = data->pmt;
-		plat->riwt_off = data->riwt_off;
-		plat->fix_mac_speed = data->fix_mac_speed;
-		plat->bus_setup = data->bus_setup;
-		plat->setup = data->setup;
-		plat->free = data->free;
-		plat->init = data->init;
-		plat->exit = data->exit;
-	}
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
@@ -298,67 +280,10 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	stmmac_res->addr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(stmmac_res->addr))
-		return PTR_ERR(stmmac_res->addr);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(stmmac_res->addr);
 }
 EXPORT_SYMBOL_GPL(stmmac_get_platform_resources);
-
-/**
- * stmmac_pltfr_probe - platform driver probe.
- * @pdev: platform device pointer
- * Description: platform_device probe function. It is to allocate
- * the necessary platform resources, invoke custom helper (if required) and
- * invoke the main probe function.
- */
-int stmmac_pltfr_probe(struct platform_device *pdev)
-{
-	struct plat_stmmacenet_data *plat_dat;
-	struct stmmac_resources stmmac_res;
-	int ret;
-
-	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
-	if (ret)
-		return ret;
-
-	if (pdev->dev.of_node) {
-		plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
-		if (IS_ERR(plat_dat)) {
-			dev_err(&pdev->dev, "dt configuration failed\n");
-			return PTR_ERR(plat_dat);
-		}
-	} else {
-		plat_dat = dev_get_platdata(&pdev->dev);
-		if (!plat_dat) {
-			dev_err(&pdev->dev, "no platform data provided\n");
-			return  -EINVAL;
-		}
-
-		/* Set default value for multicast hash bins */
-		plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-		/* Set default value for unicast filter entries */
-		plat_dat->unicast_filter_entries = 1;
-	}
-
-	/* Custom setup (if needed) */
-	if (plat_dat->setup) {
-		plat_dat->bsp_priv = plat_dat->setup(pdev);
-		if (IS_ERR(plat_dat->bsp_priv))
-			return PTR_ERR(plat_dat->bsp_priv);
-	}
-
-	/* Custom initialisation (if needed)*/
-	if (plat_dat->init) {
-		ret = plat_dat->init(pdev, plat_dat->bsp_priv);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
-}
-EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
 
 /**
  * stmmac_pltfr_remove
@@ -374,9 +299,6 @@ int stmmac_pltfr_remove(struct platform_device *pdev)
 
 	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
-
-	if (priv->plat->free)
-		priv->plat->free(pdev, priv->plat->bsp_priv);
 
 	return ret;
 }
