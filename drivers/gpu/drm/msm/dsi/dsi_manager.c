@@ -669,13 +669,39 @@ int msm_dsi_manager_phy_enable(int id,
 		struct msm_dsi_phy_shared_timings *shared_timings)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
 	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
 	int ret;
 
-	ret = msm_dsi_phy_enable(phy, src_pll_id, bit_rate, esc_rate);
-	if (ret)
-		return ret;
+	/* In case of dual DSI, some registers in PHY1 have been programmed
+	 * during PLL0 clock's set_rate. The PHY1 reset called by host1 here
+	 * will silently reset those PHY1 registers. Therefore we need to reset
+	 * and enable both PHYs before any PLL clock operation.
+	 */
+	if (IS_DUAL_DSI() && mdsi && sdsi) {
+		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
+			msm_dsi_host_reset_phy(mdsi->host);
+			msm_dsi_host_reset_phy(sdsi->host);
+			ret = msm_dsi_phy_enable(mdsi->phy, src_pll_id,
+						 bit_rate, esc_rate);
+			if (ret)
+				return ret;
+			ret = msm_dsi_phy_enable(sdsi->phy, src_pll_id,
+						 bit_rate, esc_rate);
+			if (ret) {
+				msm_dsi_phy_disable(mdsi->phy);
+				return ret;
+			}
+		}
+	} else {
+		msm_dsi_host_reset_phy(msm_dsi->host);
+		ret = msm_dsi_phy_enable(msm_dsi->phy, src_pll_id, bit_rate,
+								esc_rate);
+		if (ret)
+			return ret;
+	}
 
 	msm_dsi->phy_enabled = true;
 	msm_dsi_phy_get_shared_timings(phy, shared_timings);

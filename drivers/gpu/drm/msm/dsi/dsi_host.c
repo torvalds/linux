@@ -691,17 +691,6 @@ static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 	return 0;
 }
 
-static void dsi_phy_sw_reset(struct msm_dsi_host *msm_host)
-{
-	DBG("");
-	dsi_write(msm_host, REG_DSI_PHY_RESET, DSI_PHY_RESET_RESET);
-	/* Make sure fully reset */
-	wmb();
-	udelay(1000);
-	dsi_write(msm_host, REG_DSI_PHY_RESET, 0);
-	udelay(100);
-}
-
 static void dsi_intr_ctrl(struct msm_dsi_host *msm_host, u32 mask, int enable)
 {
 	u32 intr;
@@ -2126,6 +2115,19 @@ exit:
 	return ret;
 }
 
+void msm_dsi_host_reset_phy(struct mipi_dsi_host *host)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+
+	DBG("");
+	dsi_write(msm_host, REG_DSI_PHY_RESET, DSI_PHY_RESET_RESET);
+	/* Make sure fully reset */
+	wmb();
+	udelay(1000);
+	dsi_write(msm_host, REG_DSI_PHY_RESET, 0);
+	udelay(100);
+}
+
 int msm_dsi_host_enable(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
@@ -2206,7 +2208,6 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		goto fail_disable_reg;
 	}
 
-	dsi_phy_sw_reset(msm_host);
 	ret = msm_dsi_manager_phy_enable(msm_host->id,
 					msm_host->byte_clk_rate * 8,
 					msm_host->esc_clk_rate,
