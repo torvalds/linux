@@ -22,6 +22,8 @@ menuconfig STAGING_RDMA
 # Please keep entries in alphabetic order
 if STAGING_RDMA
 
+source "drivers/staging/rdma/amso1100/Kconfig"
+
 source "drivers/staging/rdma/ipath/Kconfig"
 
 endif
