@@ -288,6 +288,26 @@ PHONY += pseries_le_defconfig
 pseries_le_defconfig:
 	$(call merge_into_defconfig,pseries_defconfig,le)
 
+PHONY += mpc85xx_defconfig
+mpc85xx_defconfig:
+	$(call merge_into_defconfig,mpc85xx_basic_defconfig,\
+		85xx-32bit 85xx-hw fsl-emb-nonhw)
+
+PHONY += mpc85xx_smp_defconfig
+mpc85xx_smp_defconfig:
+	$(call merge_into_defconfig,mpc85xx_basic_defconfig,\
+		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw)
+
+PHONY += corenet32_smp_defconfig
+corenet32_smp_defconfig:
+	$(call merge_into_defconfig,corenet_basic_defconfig,\
+		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw)
+
+PHONY += corenet64_smp_defconfig
+corenet64_smp_defconfig:
+	$(call merge_into_defconfig,corenet_basic_defconfig,\
+		85xx-64bit 85xx-smp altivec 85xx-hw fsl-emb-nonhw)
+
 define archhelp
   @echo '* zImage          - Build default images selected by kernel config'
   @echo '  zImage.*        - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
