@@ -1686,7 +1686,7 @@ struct i915_execbuffer_params {
 	struct drm_file                 *file;
 	uint32_t                        dispatch_flags;
 	uint32_t                        args_batch_start_offset;
-	uint32_t                        batch_obj_vm_offset;
+	uint64_t                        batch_obj_vm_offset;
 	struct intel_engine_cs          *ring;
 	struct drm_i915_gem_object      *batch_obj;
 	struct intel_context            *ctx;
