@@ -585,12 +585,11 @@ static void free_arenas(struct btt *btt)
 /*
  * This function checks if the metadata layout is valid and error free
  */
-static int arena_is_valid(struct arena_info *arena, struct btt_sb *super,
-				u8 *uuid, u32 lbasize)
+static int arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super)
 {
 	u64 checksum;
 
-	if (memcmp(super->uuid, uuid, 16))
+	if (memcmp(super->uuid, nd_btt->uuid, 16))
 		return 0;
 
 	checksum = le64_to_cpu(super->checksum);
@@ -599,12 +598,12 @@ static int arena_is_valid(struct arena_info *arena, struct btt_sb *super,
 		return 0;
 	super->checksum = cpu_to_le64(checksum);
 
-	if (lbasize != le32_to_cpu(super->external_lbasize))
+	if (nd_btt->lbasize != le32_to_cpu(super->external_lbasize))
 		return 0;
 
 	/* TODO: figure out action for this */
 	if ((le32_to_cpu(super->flags) & IB_FLAG_ERROR_MASK) != 0)
-		dev_info(to_dev(arena), "Found arena with an error flag\n");
+		dev_info(&nd_btt->dev, "Found arena with an error flag\n");
 
 	return 1;
 }
@@ -666,8 +665,7 @@ static int discover_arenas(struct btt *btt)
 		if (ret)
 			goto out;
 
-		if (!arena_is_valid(arena, super, btt->nd_btt->uuid,
-				btt->lbasize)) {
+		if (!arena_is_valid(btt->nd_btt, super)) {
 			if (remaining == btt->rawsize) {
 				btt->init_state = INIT_NOTFOUND;
 				dev_info(to_dev(arena), "No existing arenas\n");
@@ -756,10 +754,11 @@ static int create_arenas(struct btt *btt)
  * It is only called for an uninitialized arena when a write
  * to that arena occurs for the first time.
  */
-static int btt_arena_write_layout(struct arena_info *arena, u8 *uuid)
+static int btt_arena_write_layout(struct arena_info *arena)
 {
 	int ret;
 	struct btt_sb *super;
+	struct nd_btt *nd_btt = arena->nd_btt;
 
 	ret = btt_map_init(arena);
 	if (ret)
@@ -774,7 +773,7 @@ static int btt_arena_write_layout(struct arena_info *arena, u8 *uuid)
 		return -ENOMEM;
 
 	strncpy(super->signature, BTT_SIG, BTT_SIG_LEN);
-	memcpy(super->uuid, uuid, 16);
+	memcpy(super->uuid, nd_btt->uuid, 16);
 	super->flags = cpu_to_le32(arena->flags);
 	super->version_major = cpu_to_le16(arena->version_major);
 	super->version_minor = cpu_to_le16(arena->version_minor);
@@ -814,7 +813,7 @@ static int btt_meta_init(struct btt *btt)
 
 	mutex_lock(&btt->init_lock);
 	list_for_each_entry(arena, &btt->arena_list, list) {
-		ret = btt_arena_write_layout(arena, btt->nd_btt->uuid);
+		ret = btt_arena_write_layout(arena);
 		if (ret)
 			goto unlock;
 
