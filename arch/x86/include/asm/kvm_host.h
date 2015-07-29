@@ -667,6 +667,7 @@ struct kvm_arch {
 	#endif
 
 	bool boot_vcpu_runs_old_kvmclock;
+	u32 bsp_vcpu_id;
 
 	u64 disabled_quirks;
 };
@@ -1215,5 +1216,7 @@ int __x86_set_memory_region(struct kvm *kvm,
 			    const struct kvm_userspace_memory_region *mem);
 int x86_set_memory_region(struct kvm *kvm,
 			  const struct kvm_userspace_memory_region *mem);
+bool kvm_vcpu_is_reset_bsp(struct kvm_vcpu *vcpu);
+bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu);
 
 #endif /* _ASM_X86_KVM_HOST_H */

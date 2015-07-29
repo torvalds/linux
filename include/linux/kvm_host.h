@@ -364,9 +364,6 @@ struct kvm {
 	struct kvm_memslots *memslots[KVM_ADDRESS_SPACE_NUM];
 	struct srcu_struct srcu;
 	struct srcu_struct irq_srcu;
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-	u32 bsp_vcpu_id;
-#endif
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
 	atomic_t online_vcpus;
 	int last_boosted_vcpu;
@@ -1059,22 +1056,9 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
-static inline bool kvm_vcpu_is_reset_bsp(struct kvm_vcpu *vcpu)
-{
-	return vcpu->kvm->bsp_vcpu_id == vcpu->vcpu_id;
-}
-
-static inline bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
-{
-	return (vcpu->arch.apic_base & MSR_IA32_APICBASE_BSP) != 0;
-}
-
 bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu);
-
 #else
-
 static inline bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu) { return true; }
-
 #endif
 
 static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
