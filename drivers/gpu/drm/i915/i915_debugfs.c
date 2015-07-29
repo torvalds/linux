@@ -2250,7 +2250,6 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	struct drm_file *file;
 	int i;
 
 	if (INTEL_INFO(dev)->gen == 6)
@@ -2273,13 +2272,6 @@ static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 		ppgtt->debug_dump(ppgtt, m);
 	}
 
-	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
-		struct drm_i915_file_private *file_priv = file->driver_priv;
-
-		seq_printf(m, "proc: %s\n",
-			   get_pid_task(file->pid, PIDTYPE_PID)->comm);
-		idr_for_each(&file_priv->context_idr, per_file_ctx, m);
-	}
 	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
 }
 
@@ -2288,6 +2280,7 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_file *file;
 
 	int ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -2298,6 +2291,15 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 		gen8_ppgtt_info(m, dev);
 	else if (INTEL_INFO(dev)->gen >= 6)
 		gen6_ppgtt_info(m, dev);
+
+	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
+		struct drm_i915_file_private *file_priv = file->driver_priv;
+
+		seq_printf(m, "\nproc: %s\n",
+			   get_pid_task(file->pid, PIDTYPE_PID)->comm);
+		idr_for_each(&file_priv->context_idr, per_file_ctx,
+			     (void *)(unsigned long)m);
+	}
 
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);

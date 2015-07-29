@@ -1358,6 +1358,89 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 		return gen8_alloc_va_range_3lvl(vm, &ppgtt->pdp, start, length);
 }
 
+static void gen8_dump_pdp(struct i915_page_directory_pointer *pdp,
+			  uint64_t start, uint64_t length,
+			  gen8_pte_t scratch_pte,
+			  struct seq_file *m)
+{
+	struct i915_page_directory *pd;
+	uint64_t temp;
+	uint32_t pdpe;
+
+	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+		struct i915_page_table *pt;
+		uint64_t pd_len = length;
+		uint64_t pd_start = start;
+		uint32_t pde;
+
+		if (!test_bit(pdpe, pdp->used_pdpes))
+			continue;
+
+		seq_printf(m, "\tPDPE #%d\n", pdpe);
+		gen8_for_each_pde(pt, pd, pd_start, pd_len, temp, pde) {
+			uint32_t  pte;
+			gen8_pte_t *pt_vaddr;
+
+			if (!test_bit(pde, pd->used_pdes))
+				continue;
+
+			pt_vaddr = kmap_px(pt);
+			for (pte = 0; pte < GEN8_PTES; pte += 4) {
+				uint64_t va =
+					(pdpe << GEN8_PDPE_SHIFT) |
+					(pde << GEN8_PDE_SHIFT) |
+					(pte << GEN8_PTE_SHIFT);
+				int i;
+				bool found = false;
+
+				for (i = 0; i < 4; i++)
+					if (pt_vaddr[pte + i] != scratch_pte)
+						found = true;
+				if (!found)
+					continue;
+
+				seq_printf(m, "\t\t0x%llx [%03d,%03d,%04d]: =", va, pdpe, pde, pte);
+				for (i = 0; i < 4; i++) {
+					if (pt_vaddr[pte + i] != scratch_pte)
+						seq_printf(m, " %llx", pt_vaddr[pte + i]);
+					else
+						seq_puts(m, "  SCRATCH ");
+				}
+				seq_puts(m, "\n");
+			}
+			/* don't use kunmap_px, it could trigger
+			 * an unnecessary flush.
+			 */
+			kunmap_atomic(pt_vaddr);
+		}
+	}
+}
+
+static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
+{
+	struct i915_address_space *vm = &ppgtt->base;
+	uint64_t start = ppgtt->base.start;
+	uint64_t length = ppgtt->base.total;
+	gen8_pte_t scratch_pte = gen8_pte_encode(px_dma(vm->scratch_page),
+						 I915_CACHE_LLC, true);
+
+	if (!USES_FULL_48BIT_PPGTT(vm->dev)) {
+		gen8_dump_pdp(&ppgtt->pdp, start, length, scratch_pte, m);
+	} else {
+		uint64_t templ4, pml4e;
+		struct i915_pml4 *pml4 = &ppgtt->pml4;
+		struct i915_page_directory_pointer *pdp;
+
+		gen8_for_each_pml4e(pdp, pml4, start, length, templ4, pml4e) {
+			if (!test_bit(pml4e, pml4->used_pml4es))
+				continue;
+
+			seq_printf(m, "    PML4E #%llu\n", pml4e);
+			gen8_dump_pdp(pdp, start, length, scratch_pte, m);
+		}
+	}
+}
+
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
@@ -1380,6 +1463,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
+	ppgtt->debug_dump = gen8_dump_ppgtt;
 
 	if (USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
 		ret = setup_px(ppgtt->base.dev, &ppgtt->pml4);
