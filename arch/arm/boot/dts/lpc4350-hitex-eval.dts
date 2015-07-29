@@ -186,6 +186,35 @@
 		};
 	};
 
+	spifi_pins: spifi-pins {
+		spifi_clk_cfg {
+			pins = "p3_3";
+			function = "spifi";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		spifi_mosi_miso_sio2_3_cfg {
+			pins = "p3_7", "p3_6", "p3_5", "p3_4";
+			function = "spifi";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		spifi_cs_cfg {
+			pins = "p3_8";
+			function = "spifi";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+	};
+
 	uart0_pins: uart0-pins {
 		uart0_rx_cfg {
 			pins = "pf_11";
@@ -276,6 +305,34 @@
 	phy-mode = "mii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&enet_mii_pins>;
+};
+
+&spifi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spifi_pins>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "bootloader";
+			reg = <0x000000 0x040000>; /* 256 KiB */
+		};
+
+		partition@1 {
+			label = "kernel";
+			reg = <0x040000 0x2c0000>; /* 2.75 MiB */
+		};
+
+		partition@2 {
+			label = "rootfs";
+			reg = <0x300000 0x500000>; /* 5 MiB */
+		};
+	};
 };
 
 &uart0 {
