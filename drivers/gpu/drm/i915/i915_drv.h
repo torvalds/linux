@@ -547,7 +547,7 @@ struct drm_i915_error_state {
 
 		struct drm_i915_error_object {
 			int page_count;
-			u32 gtt_offset;
+			u64 gtt_offset;
 			u32 *pages[0];
 		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
 
@@ -573,7 +573,7 @@ struct drm_i915_error_state {
 		u32 size;
 		u32 name;
 		u32 rseqno[I915_NUM_RINGS], wseqno;
-		u32 gtt_offset;
+		u64 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
 		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
