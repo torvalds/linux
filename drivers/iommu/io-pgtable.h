@@ -41,6 +41,8 @@ struct iommu_gather_ops {
  * @ias:           Input address (iova) size, in bits.
  * @oas:           Output address (paddr) size, in bits.
  * @tlb:           TLB management callbacks for this set of tables.
+ * @iommu_dev:     The device representing the DMA configuration for the
+ *                 page table walker.
  */
 struct io_pgtable_cfg {
 	#define IO_PGTABLE_QUIRK_ARM_NS	(1 << 0)	/* Set NS bit in PTEs */
@@ -49,6 +51,7 @@ struct io_pgtable_cfg {
 	unsigned int			ias;
 	unsigned int			oas;
 	const struct iommu_gather_ops	*tlb;
+	struct device			*iommu_dev;
 
 	/* Low-level data specific to the table format */
 	union {

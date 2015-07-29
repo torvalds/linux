@@ -200,12 +200,76 @@ typedef u64 arm_lpae_iopte;
 
 static bool selftest_running = false;
 
+static dma_addr_t __arm_lpae_dma_addr(struct device *dev, void *pages)
+{
+	return phys_to_dma(dev, virt_to_phys(pages));
+}
+
+static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
+				    struct io_pgtable_cfg *cfg)
+{
+	struct device *dev = cfg->iommu_dev;
+	dma_addr_t dma;
+	void *pages = alloc_pages_exact(size, gfp | __GFP_ZERO);
+
+	if (!pages)
+		return NULL;
+
+	if (dev) {
+		dma = dma_map_single(dev, pages, size, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, dma))
+			goto out_free;
+		/*
+		 * We depend on the IOMMU being able to work with any physical
+		 * address directly, so if the DMA layer suggests it can't by
+		 * giving us back some translation, that bodes very badly...
+		 */
+		if (dma != __arm_lpae_dma_addr(dev, pages))
+			goto out_unmap;
+	}
+
+	return pages;
+
+out_unmap:
+	dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
+	dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
+out_free:
+	free_pages_exact(pages, size);
+	return NULL;
+}
+
+static void __arm_lpae_free_pages(void *pages, size_t size,
+				  struct io_pgtable_cfg *cfg)
+{
+	struct device *dev = cfg->iommu_dev;
+
+	if (dev)
+		dma_unmap_single(dev, __arm_lpae_dma_addr(dev, pages),
+				 size, DMA_TO_DEVICE);
+	free_pages_exact(pages, size);
+}
+
+static void __arm_lpae_set_pte(arm_lpae_iopte *ptep, arm_lpae_iopte pte,
+			       struct io_pgtable_cfg *cfg, void *cookie)
+{
+	struct device *dev = cfg->iommu_dev;
+
+	*ptep = pte;
+
+	if (dev)
+		dma_sync_single_for_device(dev, __arm_lpae_dma_addr(dev, ptep),
+					   sizeof(pte), DMA_TO_DEVICE);
+	else if (cfg->tlb->flush_pgtable)
+		cfg->tlb->flush_pgtable(ptep, sizeof(pte), cookie);
+}
+
 static int arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 			     unsigned long iova, phys_addr_t paddr,
 			     arm_lpae_iopte prot, int lvl,
 			     arm_lpae_iopte *ptep)
 {
 	arm_lpae_iopte pte = prot;
+	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 
 	/* We require an unmap first */
 	if (iopte_leaf(*ptep, lvl)) {
@@ -213,7 +277,7 @@ static int arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 		return -EEXIST;
 	}
 
-	if (data->iop.cfg.quirks & IO_PGTABLE_QUIRK_ARM_NS)
+	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
 		pte |= ARM_LPAE_PTE_NS;
 
 	if (lvl == ARM_LPAE_MAX_LEVELS - 1)
@@ -224,8 +288,7 @@ static int arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 	pte |= ARM_LPAE_PTE_AF | ARM_LPAE_PTE_SH_IS;
 	pte |= pfn_to_iopte(paddr >> data->pg_shift, data);
 
-	*ptep = pte;
-	data->iop.cfg.tlb->flush_pgtable(ptep, sizeof(*ptep), data->iop.cookie);
+	__arm_lpae_set_pte(ptep, pte, cfg, data->iop.cookie);
 	return 0;
 }
 
@@ -236,12 +299,13 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 	arm_lpae_iopte *cptep, pte;
 	void *cookie = data->iop.cookie;
 	size_t block_size = ARM_LPAE_BLOCK_SIZE(lvl, data);
+	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 
 	/* Find our entry at the current level */
 	ptep += ARM_LPAE_LVL_IDX(iova, lvl, data);
 
 	/* If we can install a leaf entry at this level, then do so */
-	if (size == block_size && (size & data->iop.cfg.pgsize_bitmap))
+	if (size == block_size && (size & cfg->pgsize_bitmap))
 		return arm_lpae_init_pte(data, iova, paddr, prot, lvl, ptep);
 
 	/* We can't allocate tables at the final level */
@@ -251,18 +315,15 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 	/* Grab a pointer to the next level */
 	pte = *ptep;
 	if (!pte) {
-		cptep = alloc_pages_exact(1UL << data->pg_shift,
-					 GFP_ATOMIC | __GFP_ZERO);
+		cptep = __arm_lpae_alloc_pages(1UL << data->pg_shift,
+					       GFP_ATOMIC, cfg);
 		if (!cptep)
 			return -ENOMEM;
 
-		data->iop.cfg.tlb->flush_pgtable(cptep, 1UL << data->pg_shift,
-						 cookie);
 		pte = __pa(cptep) | ARM_LPAE_PTE_TYPE_TABLE;
-		if (data->iop.cfg.quirks & IO_PGTABLE_QUIRK_ARM_NS)
+		if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
 			pte |= ARM_LPAE_PTE_NSTABLE;
-		*ptep = pte;
-		data->iop.cfg.tlb->flush_pgtable(ptep, sizeof(*ptep), cookie);
+		__arm_lpae_set_pte(ptep, pte, cfg, cookie);
 	} else {
 		cptep = iopte_deref(pte, data);
 	}
@@ -347,7 +408,7 @@ static void __arm_lpae_free_pgtable(struct arm_lpae_io_pgtable *data, int lvl,
 		__arm_lpae_free_pgtable(data, lvl + 1, iopte_deref(pte, data));
 	}
 
-	free_pages_exact(start, table_size);
+	__arm_lpae_free_pages(start, table_size, &data->iop.cfg);
 }
 
 static void arm_lpae_free_pgtable(struct io_pgtable *iop)
@@ -366,8 +427,8 @@ static int arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 	unsigned long blk_start, blk_end;
 	phys_addr_t blk_paddr;
 	arm_lpae_iopte table = 0;
+	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 	void *cookie = data->iop.cookie;
-	const struct iommu_gather_ops *tlb = data->iop.cfg.tlb;
 
 	blk_start = iova & ~(blk_size - 1);
 	blk_end = blk_start + blk_size;
@@ -393,10 +454,9 @@ static int arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 		}
 	}
 
-	*ptep = table;
-	tlb->flush_pgtable(ptep, sizeof(*ptep), cookie);
+	__arm_lpae_set_pte(ptep, table, cfg, cookie);
 	iova &= ~(blk_size - 1);
-	tlb->tlb_add_flush(iova, blk_size, true, cookie);
+	cfg->tlb->tlb_add_flush(iova, blk_size, true, cookie);
 	return size;
 }
 
@@ -418,13 +478,12 @@ static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 
 	/* If the size matches this level, we're in the right place */
 	if (size == blk_size) {
-		*ptep = 0;
-		tlb->flush_pgtable(ptep, sizeof(*ptep), cookie);
+		__arm_lpae_set_pte(ptep, 0, &data->iop.cfg, cookie);
 
 		if (!iopte_leaf(pte, lvl)) {
 			/* Also flush any partial walks */
 			tlb->tlb_add_flush(iova, size, false, cookie);
-			tlb->tlb_sync(data->iop.cookie);
+			tlb->tlb_sync(cookie);
 			ptep = iopte_deref(pte, data);
 			__arm_lpae_free_pgtable(data, lvl + 1, ptep);
 		} else {
@@ -640,11 +699,12 @@ arm_64_lpae_alloc_pgtable_s1(struct io_pgtable_cfg *cfg, void *cookie)
 	cfg->arm_lpae_s1_cfg.mair[1] = 0;
 
 	/* Looking good; allocate a pgd */
-	data->pgd = alloc_pages_exact(data->pgd_size, GFP_KERNEL | __GFP_ZERO);
+	data->pgd = __arm_lpae_alloc_pages(data->pgd_size, GFP_KERNEL, cfg);
 	if (!data->pgd)
 		goto out_free_data;
 
-	cfg->tlb->flush_pgtable(data->pgd, data->pgd_size, cookie);
+	if (cfg->tlb->flush_pgtable)
+		cfg->tlb->flush_pgtable(data->pgd, data->pgd_size, cookie);
 
 	/* TTBRs */
 	cfg->arm_lpae_s1_cfg.ttbr[0] = virt_to_phys(data->pgd);
@@ -728,11 +788,12 @@ arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 	cfg->arm_lpae_s2_cfg.vtcr = reg;
 
 	/* Allocate pgd pages */
-	data->pgd = alloc_pages_exact(data->pgd_size, GFP_KERNEL | __GFP_ZERO);
+	data->pgd = __arm_lpae_alloc_pages(data->pgd_size, GFP_KERNEL, cfg);
 	if (!data->pgd)
 		goto out_free_data;
 
-	cfg->tlb->flush_pgtable(data->pgd, data->pgd_size, cookie);
+	if (cfg->tlb->flush_pgtable)
+		cfg->tlb->flush_pgtable(data->pgd, data->pgd_size, cookie);
 
 	/* VTTBR */
 	cfg->arm_lpae_s2_cfg.vttbr = virt_to_phys(data->pgd);
