@@ -450,7 +450,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 
 	while (true) {
 		temp = RREG32(mmCP_HQD_ACTIVE);
-		if (temp & CP_HQD_ACTIVE__ACTIVE__SHIFT)
+		if (temp & CP_HQD_ACTIVE__ACTIVE_MASK)
 			break;
 		if (timeout == 0) {
 			pr_err("kfd: cp queue preemption time out (%dms)\n",
