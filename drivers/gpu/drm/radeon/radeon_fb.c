@@ -257,6 +257,7 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	}
 
 	info->par = rfbdev;
+	info->skip_vt_switch = true;
 
 	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
 	if (ret) {

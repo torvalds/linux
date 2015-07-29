@@ -870,7 +870,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 		goto err_put;
 	}
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
+	if (rdma_cap_ib_switch(device)) {
 		ret = add_port(device, 0, port_callback);
 		if (ret)
 			goto err_put;

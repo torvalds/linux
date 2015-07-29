@@ -60,13 +60,15 @@ static DEFINE_MUTEX(udc_lock);
 int usb_gadget_map_request(struct usb_gadget *gadget,
 		struct usb_request *req, int is_in)
 {
+	struct device *dev = gadget->dev.parent;
+
 	if (req->length == 0)
 		return 0;
 
 	if (req->num_sgs) {
 		int     mapped;
 
-		mapped = dma_map_sg(&gadget->dev, req->sg, req->num_sgs,
+		mapped = dma_map_sg(dev, req->sg, req->num_sgs,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		if (mapped == 0) {
 			dev_err(&gadget->dev, "failed to map SGs\n");
@@ -75,11 +77,11 @@ int usb_gadget_map_request(struct usb_gadget *gadget,
 
 		req->num_mapped_sgs = mapped;
 	} else {
-		req->dma = dma_map_single(&gadget->dev, req->buf, req->length,
+		req->dma = dma_map_single(dev, req->buf, req->length,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
-		if (dma_mapping_error(&gadget->dev, req->dma)) {
-			dev_err(&gadget->dev, "failed to map buffer\n");
+		if (dma_mapping_error(dev, req->dma)) {
+			dev_err(dev, "failed to map buffer\n");
 			return -EFAULT;
 		}
 	}
@@ -95,12 +97,12 @@ void usb_gadget_unmap_request(struct usb_gadget *gadget,
 		return;
 
 	if (req->num_mapped_sgs) {
-		dma_unmap_sg(&gadget->dev, req->sg, req->num_mapped_sgs,
+		dma_unmap_sg(gadget->dev.parent, req->sg, req->num_mapped_sgs,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 		req->num_mapped_sgs = 0;
 	} else {
-		dma_unmap_single(&gadget->dev, req->dma, req->length,
+		dma_unmap_single(gadget->dev.parent, req->dma, req->length,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	}
 }

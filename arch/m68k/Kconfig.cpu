@@ -125,6 +125,13 @@ endif # M68KCLASSIC
 
 if COLDFIRE
 
+choice
+	prompt "ColdFire SoC type"
+	default M520x
+	help
+	  Select the type of ColdFire System-on-Chip (SoC) that you want
+	  to build for.
+
 config M5206
 	bool "MCF5206"
 	depends on !MMU
@@ -174,9 +181,6 @@ config M525x
 	help
 	  Freescale (Motorola) Coldfire 5251/5253 processor support.
 
-config M527x
-	bool
-
 config M5271
 	bool "MCF5271"
 	depends on !MMU
@@ -223,9 +227,6 @@ config M5307
 	help
 	  Motorola ColdFire 5307 processor support.
 
-config M53xx
-	bool
-
 config M532x
 	bool "MCF532x"
 	depends on !MMU
@@ -250,9 +251,6 @@ config M5407
 	select HAVE_MBAR
 	help
 	  Motorola ColdFire 5407 processor support.
-
-config M54xx
-	bool
 
 config M547x
 	bool "MCF547x"
@@ -279,6 +277,17 @@ config M5441x
 	select HAVE_CACHE_CB
 	help
 	  Freescale Coldfire 54410/54415/54416/54417/54418 processor support.
+
+endchoice
+
+config M527x
+	bool
+
+config M53xx
+	bool
+
+config M54xx
+	bool
 
 endif # COLDFIRE
 
@@ -416,22 +425,18 @@ config HAVE_MBAR
 config HAVE_IPSBAR
 	bool
 
-config CLOCK_SET
-	bool "Enable setting the CPU clock frequency"
-	depends on COLDFIRE
-	default n
-	help
-	  On some CPU's you do not need to know what the core CPU clock
-	  frequency is. On these you can disable clock setting. On some
-	  traditional 68K parts, and on all ColdFire parts you need to set
-	  the appropriate CPU clock frequency. On these devices many of the
-	  onboard peripherals derive their timing from the master CPU clock
-	  frequency.
-
 config CLOCK_FREQ
 	int "Set the core clock frequency"
+	default "25000000" if M5206
+	default "54000000" if M5206e
+	default "166666666" if M520x
+	default "140000000" if M5249
+	default "150000000" if M527x || M523x
+	default "90000000" if M5307
+	default "50000000" if M5407
+	default "266000000" if M54xx
 	default "66666666"
-	depends on CLOCK_SET
+	depends on COLDFIRE
 	help
 	  Define the CPU clock frequency in use. This is the core clock
 	  frequency, it may or may not be the same as the external clock

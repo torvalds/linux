@@ -1614,6 +1614,9 @@ struct amdgpu_uvd {
 #define AMDGPU_MAX_VCE_HANDLES	16
 #define AMDGPU_VCE_FIRMWARE_OFFSET 256
 
+#define AMDGPU_VCE_HARVEST_VCE0 (1 << 0)
+#define AMDGPU_VCE_HARVEST_VCE1 (1 << 1)
+
 struct amdgpu_vce {
 	struct amdgpu_bo	*vcpu_bo;
 	uint64_t		gpu_addr;
@@ -1626,6 +1629,7 @@ struct amdgpu_vce {
 	const struct firmware	*fw;	/* VCE firmware */
 	struct amdgpu_ring	ring[AMDGPU_MAX_VCE_RINGS];
 	struct amdgpu_irq_src	irq;
+	unsigned		harvest_config;
 };
 
 /*

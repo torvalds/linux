@@ -19,6 +19,14 @@
 #include <asm/psci.h>
 #include <asm/smp_plat.h>
 
+/* Macros for consistency checks of the GICC subtable of MADT */
+#define ACPI_MADT_GICC_LENGTH	\
+	(acpi_gbl_FADT.header.revision < 6 ? 76 : 80)
+
+#define BAD_MADT_GICC_ENTRY(entry, end)						\
+	(!(entry) || (unsigned long)(entry) + sizeof(*(entry)) > (end) ||	\
+	 (entry)->header.length != ACPI_MADT_GICC_LENGTH)
+
 /* Basic configuration for ACPI */
 #ifdef	CONFIG_ACPI
 /* ACPI table mapping after acpi_gbl_permanent_mmap is set */

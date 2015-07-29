@@ -769,7 +769,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	bool opa = rdma_cap_opa_mad(mad_agent_priv->qp_info->port_priv->device,
 				    mad_agent_priv->qp_info->port_priv->port_num);
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH &&
+	if (rdma_cap_ib_switch(device) &&
 	    smp->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
 		port_num = send_wr->wr.ud.port_num;
 	else
@@ -787,14 +787,15 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		if ((opa_get_smp_direction(opa_smp)
 		     ? opa_smp->route.dr.dr_dlid : opa_smp->route.dr.dr_slid) ==
 		     OPA_LID_PERMISSIVE &&
-		     opa_smi_handle_dr_smp_send(opa_smp, device->node_type,
+		     opa_smi_handle_dr_smp_send(opa_smp,
+						rdma_cap_ib_switch(device),
 						port_num) == IB_SMI_DISCARD) {
 			ret = -EINVAL;
 			dev_err(&device->dev, "OPA Invalid directed route\n");
 			goto out;
 		}
 		opa_drslid = be32_to_cpu(opa_smp->route.dr.dr_slid);
-		if (opa_drslid != OPA_LID_PERMISSIVE &&
+		if (opa_drslid != be32_to_cpu(OPA_LID_PERMISSIVE) &&
 		    opa_drslid & 0xffff0000) {
 			ret = -EINVAL;
 			dev_err(&device->dev, "OPA Invalid dr_slid 0x%x\n",
@@ -810,7 +811,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	} else {
 		if ((ib_get_smp_direction(smp) ? smp->dr_dlid : smp->dr_slid) ==
 		     IB_LID_PERMISSIVE &&
-		     smi_handle_dr_smp_send(smp, device->node_type, port_num) ==
+		     smi_handle_dr_smp_send(smp, rdma_cap_ib_switch(device), port_num) ==
 		     IB_SMI_DISCARD) {
 			ret = -EINVAL;
 			dev_err(&device->dev, "Invalid directed route\n");
@@ -2030,7 +2031,7 @@ static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv
 	struct ib_smp *smp = (struct ib_smp *)recv->mad;
 
 	if (smi_handle_dr_smp_recv(smp,
-				   port_priv->device->node_type,
+				   rdma_cap_ib_switch(port_priv->device),
 				   port_num,
 				   port_priv->device->phys_port_cnt) ==
 				   IB_SMI_DISCARD)
@@ -2042,13 +2043,13 @@ static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv
 
 	if (retsmi == IB_SMI_SEND) { /* don't forward */
 		if (smi_handle_dr_smp_send(smp,
-					   port_priv->device->node_type,
+					   rdma_cap_ib_switch(port_priv->device),
 					   port_num) == IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
 
 		if (smi_check_local_smp(smp, port_priv->device) == IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
-	} else if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH) {
+	} else if (rdma_cap_ib_switch(port_priv->device)) {
 		/* forward case for switches */
 		memcpy(response, recv, mad_priv_size(response));
 		response->header.recv_wc.wc = &response->header.wc;
@@ -2115,7 +2116,7 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 	struct opa_smp *smp = (struct opa_smp *)recv->mad;
 
 	if (opa_smi_handle_dr_smp_recv(smp,
-				   port_priv->device->node_type,
+				   rdma_cap_ib_switch(port_priv->device),
 				   port_num,
 				   port_priv->device->phys_port_cnt) ==
 				   IB_SMI_DISCARD)
@@ -2127,7 +2128,7 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 
 	if (retsmi == IB_SMI_SEND) { /* don't forward */
 		if (opa_smi_handle_dr_smp_send(smp,
-					   port_priv->device->node_type,
+					   rdma_cap_ib_switch(port_priv->device),
 					   port_num) == IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
 
@@ -2135,7 +2136,7 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 		    IB_SMI_DISCARD)
 			return IB_SMI_DISCARD;
 
-	} else if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH) {
+	} else if (rdma_cap_ib_switch(port_priv->device)) {
 		/* forward case for switches */
 		memcpy(response, recv, mad_priv_size(response));
 		response->header.recv_wc.wc = &response->header.wc;
@@ -2235,7 +2236,7 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 		goto out;
 	}
 
-	if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH)
+	if (rdma_cap_ib_switch(port_priv->device))
 		port_num = wc->port_num;
 	else
 		port_num = port_priv->port_num;
@@ -3297,17 +3298,11 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 
 static void ib_mad_init_device(struct ib_device *device)
 {
-	int start, end, i;
+	int start, i;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		start = 0;
-		end   = 0;
-	} else {
-		start = 1;
-		end   = device->phys_port_cnt;
-	}
+	start = rdma_start_port(device);
 
-	for (i = start; i <= end; i++) {
+	for (i = start; i <= rdma_end_port(device); i++) {
 		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
@@ -3342,17 +3337,9 @@ error:
 
 static void ib_mad_remove_device(struct ib_device *device)
 {
-	int start, end, i;
+	int i;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		start = 0;
-		end   = 0;
-	} else {
-		start = 1;
-		end   = device->phys_port_cnt;
-	}
-
-	for (i = start; i <= end; i++) {
+	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
 		if (!rdma_cap_ib_mad(device, i))
 			continue;
 

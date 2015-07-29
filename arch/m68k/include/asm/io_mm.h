@@ -413,7 +413,8 @@ static inline void isa_delay(void)
 #define writew(val, addr)	out_le16((addr), (val))
 #endif /* CONFIG_ATARI_ROM_ISA */
 
-#if !defined(CONFIG_ISA) && !defined(CONFIG_ATARI_ROM_ISA)
+#if !defined(CONFIG_ISA) && !defined(CONFIG_ATARI_ROM_ISA) && \
+    !(defined(CONFIG_PCI) && defined(CONFIG_COLDFIRE))
 /*
  * We need to define dummy functions for GENERIC_IOMAP support.
  */

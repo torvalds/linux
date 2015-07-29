@@ -950,7 +950,7 @@ static int etraxfs_uart_remove(struct platform_device *pdev)
 
 	port = platform_get_drvdata(pdev);
 	uart_remove_one_port(&etraxfs_uart_driver, port);
-	etraxfs_uart_ports[pdev->id] = NULL;
+	etraxfs_uart_ports[port->line] = NULL;
 
 	return 0;
 }

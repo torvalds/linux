@@ -440,9 +440,6 @@ unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx)
 		struct can_frame *cf = (struct can_frame *)skb->data;
 		u8 dlc = cf->can_dlc;
 
-		if (!(skb->tstamp.tv64))
-			__net_timestamp(skb);
-
 		netif_rx(priv->echo_skb[idx]);
 		priv->echo_skb[idx] = NULL;
 
@@ -578,7 +575,6 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 	if (unlikely(!skb))
 		return NULL;
 
-	__net_timestamp(skb);
 	skb->protocol = htons(ETH_P_CAN);
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -589,6 +585,7 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = dev->ifindex;
+	can_skb_prv(skb)->skbcnt = 0;
 
 	*cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
 	memset(*cf, 0, sizeof(struct can_frame));
@@ -607,7 +604,6 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 	if (unlikely(!skb))
 		return NULL;
 
-	__net_timestamp(skb);
 	skb->protocol = htons(ETH_P_CANFD);
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -618,6 +614,7 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = dev->ifindex;
+	can_skb_prv(skb)->skbcnt = 0;
 
 	*cfd = (struct canfd_frame *)skb_put(skb, sizeof(struct canfd_frame));
 	memset(*cfd, 0, sizeof(struct canfd_frame));

@@ -92,7 +92,7 @@ static size_t get_kcore_size(int *nphdr, size_t *elf_buflen)
 			     roundup(sizeof(CORE_STR), 4)) +
 			roundup(sizeof(struct elf_prstatus), 4) +
 			roundup(sizeof(struct elf_prpsinfo), 4) +
-			roundup(sizeof(struct task_struct), 4);
+			roundup(arch_task_struct_size, 4);
 	*elf_buflen = PAGE_ALIGN(*elf_buflen);
 	return size + *elf_buflen;
 }
@@ -415,7 +415,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 	/* set up the task structure */
 	notes[2].name	= CORE_STR;
 	notes[2].type	= NT_TASKSTRUCT;
-	notes[2].datasz	= sizeof(struct task_struct);
+	notes[2].datasz	= arch_task_struct_size;
 	notes[2].data	= current;
 
 	nhdr->p_filesz	+= notesize(&notes[2]);

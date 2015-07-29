@@ -41,7 +41,7 @@
 #include "smi.h"
 #include "opa_smi.h"
 
-static enum smi_action __smi_handle_dr_smp_send(u8 node_type, int port_num,
+static enum smi_action __smi_handle_dr_smp_send(bool is_switch, int port_num,
 						u8 *hop_ptr, u8 hop_cnt,
 						const u8 *initial_path,
 						const u8 *return_path,
@@ -64,7 +64,7 @@ static enum smi_action __smi_handle_dr_smp_send(u8 node_type, int port_num,
 
 		/* C14-9:2 */
 		if (*hop_ptr && *hop_ptr < hop_cnt) {
-			if (node_type != RDMA_NODE_IB_SWITCH)
+			if (!is_switch)
 				return IB_SMI_DISCARD;
 
 			/* return_path set when received */
@@ -77,7 +77,7 @@ static enum smi_action __smi_handle_dr_smp_send(u8 node_type, int port_num,
 		if (*hop_ptr == hop_cnt) {
 			/* return_path set when received */
 			(*hop_ptr)++;
-			return (node_type == RDMA_NODE_IB_SWITCH ||
+			return (is_switch ||
 				dr_dlid_is_permissive ?
 				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
@@ -96,7 +96,7 @@ static enum smi_action __smi_handle_dr_smp_send(u8 node_type, int port_num,
 
 		/* C14-13:2 */
 		if (2 <= *hop_ptr && *hop_ptr <= hop_cnt) {
-			if (node_type != RDMA_NODE_IB_SWITCH)
+			if (!is_switch)
 				return IB_SMI_DISCARD;
 
 			(*hop_ptr)--;
@@ -108,7 +108,7 @@ static enum smi_action __smi_handle_dr_smp_send(u8 node_type, int port_num,
 		if (*hop_ptr == 1) {
 			(*hop_ptr)--;
 			/* C14-13:3 -- SMPs destined for SM shouldn't be here */
-			return (node_type == RDMA_NODE_IB_SWITCH ||
+			return (is_switch ||
 				dr_slid_is_permissive ?
 				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
@@ -127,9 +127,9 @@ static enum smi_action __smi_handle_dr_smp_send(u8 node_type, int port_num,
  * Return IB_SMI_DISCARD if the SMP should be discarded
  */
 enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
-				       u8 node_type, int port_num)
+				       bool is_switch, int port_num)
 {
-	return __smi_handle_dr_smp_send(node_type, port_num,
+	return __smi_handle_dr_smp_send(is_switch, port_num,
 					&smp->hop_ptr, smp->hop_cnt,
 					smp->initial_path,
 					smp->return_path,
@@ -139,9 +139,9 @@ enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
 }
 
 enum smi_action opa_smi_handle_dr_smp_send(struct opa_smp *smp,
-				       u8 node_type, int port_num)
+				       bool is_switch, int port_num)
 {
-	return __smi_handle_dr_smp_send(node_type, port_num,
+	return __smi_handle_dr_smp_send(is_switch, port_num,
 					&smp->hop_ptr, smp->hop_cnt,
 					smp->route.dr.initial_path,
 					smp->route.dr.return_path,
@@ -152,7 +152,7 @@ enum smi_action opa_smi_handle_dr_smp_send(struct opa_smp *smp,
 					OPA_LID_PERMISSIVE);
 }
 
-static enum smi_action __smi_handle_dr_smp_recv(u8 node_type, int port_num,
+static enum smi_action __smi_handle_dr_smp_recv(bool is_switch, int port_num,
 						int phys_port_cnt,
 						u8 *hop_ptr, u8 hop_cnt,
 						const u8 *initial_path,
@@ -173,7 +173,7 @@ static enum smi_action __smi_handle_dr_smp_recv(u8 node_type, int port_num,
 
 		/* C14-9:2 -- intermediate hop */
 		if (*hop_ptr && *hop_ptr < hop_cnt) {
-			if (node_type != RDMA_NODE_IB_SWITCH)
+			if (!is_switch)
 				return IB_SMI_DISCARD;
 
 			return_path[*hop_ptr] = port_num;
@@ -188,7 +188,7 @@ static enum smi_action __smi_handle_dr_smp_recv(u8 node_type, int port_num,
 				return_path[*hop_ptr] = port_num;
 			/* hop_ptr updated when sending */
 
-			return (node_type == RDMA_NODE_IB_SWITCH ||
+			return (is_switch ||
 				dr_dlid_is_permissive ?
 				IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
@@ -208,7 +208,7 @@ static enum smi_action __smi_handle_dr_smp_recv(u8 node_type, int port_num,
 
 		/* C14-13:2 */
 		if (2 <= *hop_ptr && *hop_ptr <= hop_cnt) {
-			if (node_type != RDMA_NODE_IB_SWITCH)
+			if (!is_switch)
 				return IB_SMI_DISCARD;
 
 			/* hop_ptr updated when sending */
@@ -224,8 +224,7 @@ static enum smi_action __smi_handle_dr_smp_recv(u8 node_type, int port_num,
 				return IB_SMI_HANDLE;
 			}
 			/* hop_ptr updated when sending */
-			return (node_type == RDMA_NODE_IB_SWITCH ?
-				IB_SMI_HANDLE : IB_SMI_DISCARD);
+			return (is_switch ? IB_SMI_HANDLE : IB_SMI_DISCARD);
 		}
 
 		/* C14-13:4 -- hop_ptr = 0 -> give to SM */
@@ -238,10 +237,10 @@ static enum smi_action __smi_handle_dr_smp_recv(u8 node_type, int port_num,
  * Adjust information for a received SMP
  * Return IB_SMI_DISCARD if the SMP should be dropped
  */
-enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, u8 node_type,
+enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, bool is_switch,
 				       int port_num, int phys_port_cnt)
 {
-	return __smi_handle_dr_smp_recv(node_type, port_num, phys_port_cnt,
+	return __smi_handle_dr_smp_recv(is_switch, port_num, phys_port_cnt,
 					&smp->hop_ptr, smp->hop_cnt,
 					smp->initial_path,
 					smp->return_path,
@@ -254,10 +253,10 @@ enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, u8 node_type,
  * Adjust information for a received SMP
  * Return IB_SMI_DISCARD if the SMP should be dropped
  */
-enum smi_action opa_smi_handle_dr_smp_recv(struct opa_smp *smp, u8 node_type,
+enum smi_action opa_smi_handle_dr_smp_recv(struct opa_smp *smp, bool is_switch,
 					   int port_num, int phys_port_cnt)
 {
-	return __smi_handle_dr_smp_recv(node_type, port_num, phys_port_cnt,
+	return __smi_handle_dr_smp_recv(is_switch, port_num, phys_port_cnt,
 					&smp->hop_ptr, smp->hop_cnt,
 					smp->route.dr.initial_path,
 					smp->route.dr.return_path,

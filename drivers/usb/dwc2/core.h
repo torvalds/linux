@@ -492,6 +492,7 @@ struct dwc2_gregs_backup {
 	u32 gdfifocfg;
 	u32 dtxfsiz[MAX_EPS_CHANNELS];
 	u32 gpwrdn;
+	bool valid;
 };
 
 /**
@@ -521,6 +522,7 @@ struct dwc2_dregs_backup {
 	u32 doepctl[MAX_EPS_CHANNELS];
 	u32 doeptsiz[MAX_EPS_CHANNELS];
 	u32 doepdma[MAX_EPS_CHANNELS];
+	bool valid;
 };
 
 /**
@@ -538,6 +540,7 @@ struct dwc2_hregs_backup {
 	u32 hcintmsk[MAX_EPS_CHANNELS];
 	u32 hprt0;
 	u32 hfir;
+	bool valid;
 };
 
 /**
@@ -705,9 +708,9 @@ struct dwc2_hsotg {
 	struct work_struct wf_otg;
 	struct timer_list wkp_timer;
 	enum dwc2_lx_state lx_state;
-	struct dwc2_gregs_backup *gr_backup;
-	struct dwc2_dregs_backup *dr_backup;
-	struct dwc2_hregs_backup *hr_backup;
+	struct dwc2_gregs_backup gr_backup;
+	struct dwc2_dregs_backup dr_backup;
+	struct dwc2_hregs_backup hr_backup;
 
 	struct dentry *debug_root;
 	struct debugfs_regset32 *regset;

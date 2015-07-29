@@ -18,6 +18,7 @@ tools/arch/x86/include/asm/atomic.h
 tools/arch/x86/include/asm/rmwcc.h
 tools/lib/traceevent
 tools/lib/api
+tools/lib/hweight.c
 tools/lib/rbtree.c
 tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
@@ -57,7 +58,6 @@ include/linux/perf_event.h
 include/linux/list.h
 include/linux/hash.h
 include/linux/stringify.h
-lib/hweight.c
 include/linux/swab.h
 arch/*/include/asm/unistd*.h
 arch/*/include/uapi/asm/unistd*.h

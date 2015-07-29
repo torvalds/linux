@@ -23,15 +23,15 @@
 
 int main(void)
 {
-	DEFINE(__THREAD_info, offsetof(struct task_struct, stack));
-	DEFINE(__THREAD_ksp, offsetof(struct task_struct, thread.ksp));
-	DEFINE(__THREAD_mm_segment, offsetof(struct task_struct, thread.mm_segment));
-	BLANK();
+	DEFINE(__TASK_thread_info, offsetof(struct task_struct, stack));
+	DEFINE(__TASK_thread, offsetof(struct task_struct, thread));
 	DEFINE(__TASK_pid, offsetof(struct task_struct, pid));
 	BLANK();
-	DEFINE(__THREAD_per_cause, offsetof(struct task_struct, thread.per_event.cause));
-	DEFINE(__THREAD_per_address, offsetof(struct task_struct, thread.per_event.address));
-	DEFINE(__THREAD_per_paid, offsetof(struct task_struct, thread.per_event.paid));
+	DEFINE(__THREAD_ksp, offsetof(struct thread_struct, ksp));
+	DEFINE(__THREAD_per_cause, offsetof(struct thread_struct, per_event.cause));
+	DEFINE(__THREAD_per_address, offsetof(struct thread_struct, per_event.address));
+	DEFINE(__THREAD_per_paid, offsetof(struct thread_struct, per_event.paid));
+	DEFINE(__THREAD_trap_tdb, offsetof(struct thread_struct, trap_tdb));
 	BLANK();
 	DEFINE(__TI_task, offsetof(struct thread_info, task));
 	DEFINE(__TI_flags, offsetof(struct thread_info, flags));
@@ -176,7 +176,6 @@ int main(void)
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
 	DEFINE(__LC_GMAP, offsetof(struct _lowcore, gmap));
 	DEFINE(__LC_PGM_TDB, offsetof(struct _lowcore, pgm_tdb));
-	DEFINE(__THREAD_trap_tdb, offsetof(struct task_struct, thread.trap_tdb));
 	DEFINE(__GMAP_ASCE, offsetof(struct gmap, asce));
 	DEFINE(__SIE_PROG0C, offsetof(struct kvm_s390_sie_block, prog0c));
 	DEFINE(__SIE_PROG20, offsetof(struct kvm_s390_sie_block, prog20));
