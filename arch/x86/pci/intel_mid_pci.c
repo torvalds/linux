@@ -220,7 +220,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 
 	switch (intel_mid_identify_cpu()) {
 	case INTEL_MID_CPU_CHIP_TANGIER:
-		polarity = 0; /* active high */
+		polarity = IOAPIC_POL_HIGH;
 
 		/* Special treatment for IRQ0 */
 		if (dev->irq == 0) {
@@ -235,7 +235,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		}
 		break;
 	default:
-		polarity = 1; /* active low */
+		polarity = IOAPIC_POL_LOW;
 		break;
 	}
 
