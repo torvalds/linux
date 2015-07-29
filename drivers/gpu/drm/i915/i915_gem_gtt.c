@@ -847,6 +847,7 @@ static int gen8_ppgtt_alloc_pagetabs(struct i915_address_space *vm,
 		gen8_initialize_pt(vm, pt);
 		pd->page_table[pde] = pt;
 		__set_bit(pde, new_pts);
+		trace_i915_page_table_entry_alloc(vm, pde, start, GEN8_PDE_SHIFT);
 	}
 
 	return 0;
@@ -907,6 +908,7 @@ gen8_ppgtt_alloc_page_directories(struct i915_address_space *vm,
 		gen8_initialize_pd(vm, pd);
 		pdp->page_directory[pdpe] = pd;
 		__set_bit(pdpe, new_pds);
+		trace_i915_page_directory_entry_alloc(vm, pdpe, start, GEN8_PDPE_SHIFT);
 	}
 
 	return 0;
@@ -1056,6 +1058,10 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 			/* Map the PDE to the page table */
 			page_directory[pde] = gen8_pde_encode(px_dma(pt),
 							      I915_CACHE_LLC);
+			trace_i915_page_table_entry_map(&ppgtt->base, pde, pt,
+							gen8_pte_index(start),
+							gen8_pte_count(start, length),
+							GEN8_PTES);
 
 			/* NB: We haven't yet mapped ptes to pages. At this
 			 * point we're still relying on insert_entries() */
