@@ -42,10 +42,10 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc-core.h>
-#include <plat/spi-core.h>
 
 #include "fb-core.h"
 #include "nand-core.h"
+#include "spi-core.h"
 
 static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
