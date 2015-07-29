@@ -1881,7 +1881,7 @@ struct timespec __current_kernel_time(void)
 	return timespec64_to_timespec(tk_xtime(tk));
 }
 
-struct timespec current_kernel_time(void)
+struct timespec64 current_kernel_time64(void)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	struct timespec64 now;
@@ -1893,9 +1893,9 @@ struct timespec current_kernel_time(void)
 		now = tk_xtime(tk);
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 
-	return timespec64_to_timespec(now);
+	return now;
 }
-EXPORT_SYMBOL(current_kernel_time);
+EXPORT_SYMBOL(current_kernel_time64);
 
 struct timespec64 get_monotonic_coarse64(void)
 {
