@@ -477,12 +477,13 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 				 struct napi_struct *napi, int budget)
 {
-	int processed_cqe, work_done = 0;
+	int processed_cqe, work_done = 0, tx_done = 0;
 	int cqe_count, cqe_head;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
 	struct cqe_rx_t *cq_desc;
+	struct netdev_queue *txq;
 
 	spin_lock_bh(&cq->lock);
 loop:
@@ -497,8 +498,8 @@ loop:
 	cqe_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD, cq_idx) >> 9;
 	cqe_head &= 0xFFFF;
 
-	netdev_dbg(nic->netdev, "%s cqe_count %d cqe_head %d\n",
-		   __func__, cqe_count, cqe_head);
+	netdev_dbg(nic->netdev, "%s CQ%d cqe_count %d cqe_head %d\n",
+		   __func__, cq_idx, cqe_count, cqe_head);
 	while (processed_cqe < cqe_count) {
 		/* Get the CQ descriptor */
 		cq_desc = (struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head);
@@ -512,8 +513,8 @@ loop:
 			break;
 		}
 
-		netdev_dbg(nic->netdev, "cq_desc->cqe_type %d\n",
-			   cq_desc->cqe_type);
+		netdev_dbg(nic->netdev, "CQ%d cq_desc->cqe_type %d\n",
+			   cq_idx, cq_desc->cqe_type);
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
 			nicvf_rcv_pkt_handler(netdev, napi, cq,
@@ -523,6 +524,7 @@ loop:
 		case CQE_TYPE_SEND:
 			nicvf_snd_pkt_handler(netdev, cq,
 					      (void *)cq_desc, CQE_TYPE_SEND);
+			tx_done++;
 		break;
 		case CQE_TYPE_INVALID:
 		case CQE_TYPE_RX_SPLIT:
@@ -533,8 +535,9 @@ loop:
 		}
 		processed_cqe++;
 	}
-	netdev_dbg(nic->netdev, "%s processed_cqe %d work_done %d budget %d\n",
-		   __func__, processed_cqe, work_done, budget);
+	netdev_dbg(nic->netdev,
+		   "%s CQ%d processed_cqe %d work_done %d budget %d\n",
+		   __func__, cq_idx, processed_cqe, work_done, budget);
 
 	/* Ring doorbell to inform H/W to reuse processed CQEs */
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_DOOR,
@@ -544,6 +547,19 @@ loop:
 		goto loop;
 
 done:
+	/* Wakeup TXQ if its stopped earlier due to SQ full */
+	if (tx_done) {
+		txq = netdev_get_tx_queue(netdev, cq_idx);
+		if (netif_tx_queue_stopped(txq)) {
+			netif_tx_wake_queue(txq);
+			nic->drv_stats.txq_wake++;
+			if (netif_msg_tx_err(nic))
+				netdev_warn(netdev,
+					    "%s: Transmit queue wakeup SQ%d\n",
+					    netdev->name, cq_idx);
+		}
+	}
+
 	spin_unlock_bh(&cq->lock);
 	return work_done;
 }
@@ -555,14 +571,9 @@ static int nicvf_poll(struct napi_struct *napi, int budget)
 	struct net_device *netdev = napi->dev;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct nicvf_cq_poll *cq;
-	struct netdev_queue *txq;
 
 	cq = container_of(napi, struct nicvf_cq_poll, napi);
 	work_done = nicvf_cq_intr_handler(netdev, cq->cq_idx, napi, budget);
-
-	txq = netdev_get_tx_queue(netdev, cq->cq_idx);
-	if (netif_tx_queue_stopped(txq))
-		netif_tx_wake_queue(txq);
 
 	if (work_done < budget) {
 		/* Slow packet rate, exit polling */
@@ -836,7 +847,7 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (!nicvf_sq_append_skb(nic, skb) && !netif_tx_queue_stopped(txq)) {
 		netif_tx_stop_queue(txq);
-		nic->drv_stats.tx_busy++;
+		nic->drv_stats.txq_stop++;
 		if (netif_msg_tx_err(nic))
 			netdev_warn(netdev,
 				    "%s: Transmit ring full, stopping SQ%d\n",
@@ -988,6 +999,9 @@ int nicvf_open(struct net_device *netdev)
 	/* Enable RBDR threshold interrupt */
 	for (qidx = 0; qidx < qs->rbdr_cnt; qidx++)
 		nicvf_enable_intr(nic, NICVF_INTR_RBDR, qidx);
+
+	nic->drv_stats.txq_stop = 0;
+	nic->drv_stats.txq_wake = 0;
 
 	netif_carrier_on(netdev);
 	netif_tx_start_all_queues(netdev);

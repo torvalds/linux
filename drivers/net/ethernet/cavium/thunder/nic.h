@@ -216,8 +216,9 @@ struct nicvf_drv_stats {
 	/* Tx */
 	u64 tx_frames_ok;
 	u64 tx_drops;
-	u64 tx_busy;
 	u64 tx_tso;
+	u64 txq_stop;
+	u64 txq_wake;
 };
 
 struct nicvf {

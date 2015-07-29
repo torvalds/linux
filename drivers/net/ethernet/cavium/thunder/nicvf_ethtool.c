@@ -66,9 +66,10 @@ static const struct nicvf_stat nicvf_drv_stats[] = {
 	NICVF_DRV_STAT(rx_frames_jumbo),
 	NICVF_DRV_STAT(rx_drops),
 	NICVF_DRV_STAT(tx_frames_ok),
-	NICVF_DRV_STAT(tx_busy),
 	NICVF_DRV_STAT(tx_tso),
 	NICVF_DRV_STAT(tx_drops),
+	NICVF_DRV_STAT(txq_stop),
+	NICVF_DRV_STAT(txq_wake),
 };
 
 static const struct nicvf_stat nicvf_queue_stats[] = {
