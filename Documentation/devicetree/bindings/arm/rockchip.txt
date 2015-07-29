@@ -38,6 +38,13 @@ Rockchip platforms device tree bindings
 		     "google,veyron-jerry-rev3", "google,veyron-jerry",
 		     "google,veyron", "rockchip,rk3288";
 
+- Google Minnie (Asus Chromebook Flip C100P):
+    Required root node properties:
+      - compatible = "google,veyron-minnie-rev4", "google,veyron-minnie-rev3",
+		     "google,veyron-minnie-rev2", "google,veyron-minnie-rev1",
+		     "google,veyron-minnie-rev0", "google,veyron-minnie",
+		     "google,veyron", "rockchip,rk3288";
+
 - Google Pinky (dev-board):
     Required root node properties:
       - compatible = "google,veyron-pinky-rev2", "google,veyron-pinky",
