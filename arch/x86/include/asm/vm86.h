@@ -37,13 +37,7 @@ struct kernel_vm86_struct {
  * Therefore, pt_regs in fact points to a complete 'kernel_vm86_struct'
  * in kernelspace, hence we need not reget the data from userspace.
  */
-#define VM86_TSS_ESP0 flags
-	unsigned long flags;
-	unsigned long screen_bitmap;
-	unsigned long cpu_type;
-	struct revectored_struct int_revectored;
-	struct revectored_struct int21_revectored;
-	struct vm86plus_info_struct vm86plus;
+#define VM86_TSS_ESP0 regs32
 	struct pt_regs *regs32;   /* here we save the pointer to the old regs */
 /*
  * The below is not part of the structure, but the stack layout continues
@@ -59,10 +53,16 @@ struct kernel_vm86_struct {
 
 struct vm86 {
 	struct vm86plus_struct __user *vm86_info;
-	unsigned long screen_bitmap;
 	unsigned long v86flags;
 	unsigned long v86mask;
 	unsigned long saved_sp0;
+
+	unsigned long flags;
+	unsigned long screen_bitmap;
+	unsigned long cpu_type;
+	struct revectored_struct int_revectored;
+	struct revectored_struct int21_revectored;
+	struct vm86plus_info_struct vm86plus;
 };
 
 #ifdef CONFIG_VM86

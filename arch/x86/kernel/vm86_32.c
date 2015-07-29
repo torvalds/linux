@@ -68,7 +68,6 @@
 
 
 #define KVM86	((struct kernel_vm86_struct *)regs)
-#define VMPI	KVM86->vm86plus
 
 
 /*
@@ -114,7 +113,7 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | vm86->v86mask);
 	user = vm86->vm86_info;
 
-	if (!access_ok(VERIFY_WRITE, user, VMPI.is_vm86pus ?
+	if (!access_ok(VERIFY_WRITE, user, vm86->vm86plus.is_vm86pus ?
 		       sizeof(struct vm86plus_struct) :
 		       sizeof(struct vm86_struct))) {
 		pr_alert("could not access userspace vm86_info\n");
@@ -282,25 +281,27 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
 		get_user_ex(info->regs.fs, &v86->regs.fs);
 		get_user_ex(info->regs.gs, &v86->regs.gs);
 
-		get_user_ex(info->flags, &v86->flags);
-		get_user_ex(info->screen_bitmap, &v86->screen_bitmap);
-		get_user_ex(info->cpu_type, &v86->cpu_type);
+		get_user_ex(vm86->flags, &v86->flags);
+		get_user_ex(vm86->screen_bitmap, &v86->screen_bitmap);
+		get_user_ex(vm86->cpu_type, &v86->cpu_type);
 	} get_user_catch(err);
 	if (err)
 		return err;
 
-	if (copy_from_user(&info->int_revectored, &v86->int_revectored,
+	if (copy_from_user(&vm86->int_revectored, &v86->int_revectored,
 			   sizeof(struct revectored_struct)))
 		return -EFAULT;
-	if (copy_from_user(&info->int21_revectored, &v86->int21_revectored,
+	if (copy_from_user(&vm86->int21_revectored, &v86->int21_revectored,
 			   sizeof(struct revectored_struct)))
 		return -EFAULT;
 	if (plus) {
-		if (copy_from_user(&info->vm86plus, &v86->vm86plus,
+		if (copy_from_user(&vm86->vm86plus, &v86->vm86plus,
 				   sizeof(struct vm86plus_info_struct)))
 			return -EFAULT;
-		info->vm86plus.is_vm86pus = 1;
-	}
+		vm86->vm86plus.is_vm86pus = 1;
+	} else
+		memset(&vm86->vm86plus, 0,
+		       sizeof(struct vm86plus_info_struct));
 
 	info->regs32 = current_pt_regs();
 	vm86->vm86_info = v86;
@@ -317,7 +318,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
 
 	info->regs.pt.orig_ax = info->regs32->orig_ax;
 
-	switch (info->cpu_type) {
+	switch (vm86->cpu_type) {
 	case CPU_286:
 		vm86->v86mask = 0;
 		break;
@@ -346,8 +347,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *v86, bool plus,
 	load_sp0(tss, &tsk->thread);
 	put_cpu();
 
-	vm86->screen_bitmap = info->screen_bitmap;
-	if (info->flags & VM86_SCREEN_BITMAP)
+	if (vm86->flags & VM86_SCREEN_BITMAP)
 		mark_screen_rdonly(tsk->mm);
 
 	/*call __audit_syscall_exit since we do not exit via the normal paths */
@@ -539,12 +539,13 @@ static void do_int(struct kernel_vm86_regs *regs, int i,
 {
 	unsigned long __user *intr_ptr;
 	unsigned long segoffs;
+	struct kernel_vm86_info *vm86 = current->thread.vm86;
 
 	if (regs->pt.cs == BIOSSEG)
 		goto cannot_handle;
-	if (is_revectored(i, &KVM86->int_revectored))
+	if (is_revectored(i, &vm86->int_revectored))
 		goto cannot_handle;
-	if (i == 0x21 && is_revectored(AH(regs), &KVM86->int21_revectored))
+	if (i == 0x21 && is_revectored(AH(regs), &vm86->int21_revectored))
 		goto cannot_handle;
 	intr_ptr = (unsigned long __user *) (i << 2);
 	if (get_user(segoffs, intr_ptr))
@@ -568,7 +569,7 @@ cannot_handle:
 
 int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
 {
-	if (VMPI.is_vm86pus) {
+	if (current->thread.vm86->vm86plus.is_vm86pus) {
 		if ((trapno == 3) || (trapno == 1)) {
 			KVM86->regs32->ax = VM86_TRAP + (trapno << 8);
 			/* setting this flag forces the code in entry_32.S to
@@ -595,12 +596,13 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 	unsigned char __user *ssp;
 	unsigned short ip, sp, orig_flags;
 	int data32, pref_done;
+	struct vm86plus_info_struct *vmpi = &current->thread.vm86->vm86plus;
 
 #define CHECK_IF_IN_TRAP \
-	if (VMPI.vm86dbg_active && VMPI.vm86dbg_TFpendig) \
+	if (vmpi->vm86dbg_active && vmpi->vm86dbg_TFpendig) \
 		newflags |= X86_EFLAGS_TF
 #define VM86_FAULT_RETURN do { \
-	if (VMPI.force_return_for_pic  && (VEFLAGS & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) \
+	if (vmpi->force_return_for_pic  && (VEFLAGS & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) \
 		return_to_32bit(regs, VM86_PICRETURN); \
 	if (orig_flags & X86_EFLAGS_TF) \
 		handle_vm86_trap(regs, 0, 1); \
@@ -670,8 +672,8 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 	case 0xcd: {
 		int intno = popb(csp, ip, simulate_sigsegv);
 		IP(regs) = ip;
-		if (VMPI.vm86dbg_active) {
-			if ((1 << (intno & 7)) & VMPI.vm86dbg_intxxtab[intno >> 3])
+		if (vmpi->vm86dbg_active) {
+			if ((1 << (intno & 7)) & vmpi->vm86dbg_intxxtab[intno >> 3])
 				return_to_32bit(regs, VM86_INTx + (intno << 8));
 		}
 		do_int(regs, intno, ssp, sp);
