@@ -608,23 +608,10 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 	}
 }
 
-static void arm_smmu_flush_pgtable(void *addr, size_t size, void *cookie)
-{
-	struct arm_smmu_domain *smmu_domain = cookie;
-
-	/*
-	 * Ensure new page tables are visible to a coherent hardware walker.
-	 * The page table code deals with flushing for the non-coherent case.
-	 */
-	if (smmu_domain->smmu->features & ARM_SMMU_FEAT_COHERENT_WALK)
-		dsb(ishst);
-}
-
 static struct iommu_gather_ops arm_smmu_gather_ops = {
 	.tlb_flush_all	= arm_smmu_tlb_inv_context,
 	.tlb_add_flush	= arm_smmu_tlb_inv_range_nosync,
 	.tlb_sync	= arm_smmu_tlb_sync,
-	.flush_pgtable	= arm_smmu_flush_pgtable,
 };
 
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
