@@ -651,15 +651,10 @@ fail_unlock:
 	return NULL;
 }
 
-void kvm_destroy_pic(struct kvm *kvm)
+void kvm_destroy_pic(struct kvm_pic *vpic)
 {
-	struct kvm_pic *vpic = kvm->arch.vpic;
-
-	if (vpic) {
-		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &vpic->dev_master);
-		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &vpic->dev_slave);
-		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &vpic->dev_eclr);
-		kvm->arch.vpic = NULL;
-		kfree(vpic);
-	}
+	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_master);
+	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_slave);
+	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_eclr);
+	kfree(vpic);
 }
