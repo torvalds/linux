@@ -564,7 +564,7 @@ static bool validate_cmds_sorted(struct intel_engine_cs *ring,
 
 		for (j = 0; j < table->count; j++) {
 			const struct drm_i915_cmd_descriptor *desc =
-				&table->table[i];
+				&table->table[j];
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
 			if (curr < previous) {
