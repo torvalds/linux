@@ -1262,6 +1262,8 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			switch (hw->phy.id) {
 			case I347AT4_E_PHY_ID:
 			case M88E1112_E_PHY_ID:
+			case M88E1543_E_PHY_ID:
+			case M88E1512_E_PHY_ID:
 			case I210_I_PHY_ID:
 				reset_dsp = false;
 				break;
@@ -1270,9 +1272,9 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 					reset_dsp = false;
 				break;
 			}
-			if (!reset_dsp)
+			if (!reset_dsp) {
 				hw_dbg("Link taking longer than expected.\n");
-			else {
+			} else {
 				/* We didn't get link.
 				 * Reset the DSP and cross our fingers.
 				 */
@@ -1297,6 +1299,8 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	if (hw->phy.type != e1000_phy_m88 ||
 	    hw->phy.id == I347AT4_E_PHY_ID ||
 	    hw->phy.id == M88E1112_E_PHY_ID ||
+	    hw->phy.id == M88E1543_E_PHY_ID ||
+	    hw->phy.id == M88E1512_E_PHY_ID ||
 	    hw->phy.id == I210_I_PHY_ID)
 		goto out;
 
@@ -1737,6 +1741,7 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		phy->cable_length = phy_data / (is_cm ? 100 : 1);
 		break;
 	case M88E1543_E_PHY_ID:
+	case M88E1512_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 		/* Remember the original page select and set it to 7 */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
@@ -2186,6 +2191,90 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 	hw->phy.ops.write_reg(hw, 0x0000, 0x1340);
 
 	return 0;
+}
+
+/**
+ *  igb_initialize_M88E1512_phy - Initialize M88E1512 PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Initialize Marvel 1512 to work correctly with Avoton.
+ **/
+s32 igb_initialize_M88E1512_phy(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+
+	/* Switch to PHY page 0xFF. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FF);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x214B);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2144);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x0C28);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2146);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xB233);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x214D);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xCC0C);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2159);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0xFB. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FB);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_3, 0x000D);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0x12. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x12);
+	if (ret_val)
+		goto out;
+
+	/* Change mode to SGMII-to-Copper */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_MODE, 0x8001);
+	if (ret_val)
+		goto out;
+
+	/* Return the PHY to page 0. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0);
+	if (ret_val)
+		goto out;
+
+	ret_val = igb_phy_sw_reset(hw);
+	if (ret_val) {
+		hw_dbg("Error committing the PHY changes\n");
+		return ret_val;
+	}
+
+	/* msec_delay(1000); */
+	usleep_range(1000, 2000);
+out:
+	return ret_val;
 }
 
 /**
