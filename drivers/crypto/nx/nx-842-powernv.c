@@ -346,7 +346,8 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	}
 
 	/* successful completion */
-	pr_debug_ratelimited("Processed %u bytes in %lu us\n", csb->count,
+	pr_debug_ratelimited("Processed %u bytes in %lu us\n",
+			     be32_to_cpu(csb->count),
 			     (unsigned long)ktime_us_delta(now, start));
 
 	return 0;
