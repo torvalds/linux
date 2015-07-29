@@ -23,8 +23,8 @@ struct x509_certificate {
 	struct asymmetric_key_id *skid;		/* Subject + subjectKeyId (optional) */
 	struct asymmetric_key_id *akid_id;	/* CA AuthKeyId matching ->id (optional) */
 	struct asymmetric_key_id *akid_skid;	/* CA AuthKeyId matching ->skid (optional) */
-	struct tm	valid_from;
-	struct tm	valid_to;
+	time64_t	valid_from;
+	time64_t	valid_to;
 	const void	*tbs;			/* Signed data */
 	unsigned	tbs_size;		/* Size of signed data */
 	unsigned	raw_sig_size;		/* Size of sigature */
@@ -49,6 +49,9 @@ struct x509_certificate {
  */
 extern void x509_free_certificate(struct x509_certificate *cert);
 extern struct x509_certificate *x509_cert_parse(const void *data, size_t datalen);
+extern int x509_decode_time(time64_t *_t,  size_t hdrlen,
+			    unsigned char tag,
+			    const unsigned char *value, size_t vlen);
 
 /*
  * x509_public_key.c

@@ -472,60 +472,105 @@ int x509_process_extension(void *context, size_t hdrlen,
 	return 0;
 }
 
-/*
- * Record a certificate time.
+/**
+ * x509_decode_time - Decode an X.509 time ASN.1 object
+ * @_t: The time to fill in
+ * @hdrlen: The length of the object header
+ * @tag: The object tag
+ * @value: The object value
+ * @vlen: The size of the object value
+ *
+ * Decode an ASN.1 universal time or generalised time field into a struct the
+ * kernel can handle and check it for validity.  The time is decoded thus:
+ *
+ *	[RFC5280 §4.1.2.5]
+ *	CAs conforming to this profile MUST always encode certificate validity
+ *	dates through the year 2049 as UTCTime; certificate validity dates in
+ *	2050 or later MUST be encoded as GeneralizedTime.  Conforming
+ *	applications MUST be able to process validity dates that are encoded in
+ *	either UTCTime or GeneralizedTime.
  */
-static int x509_note_time(struct tm *tm,  size_t hdrlen,
-			  unsigned char tag,
-			  const unsigned char *value, size_t vlen)
+int x509_decode_time(time64_t *_t,  size_t hdrlen,
+		     unsigned char tag,
+		     const unsigned char *value, size_t vlen)
 {
+	static const unsigned char month_lengths[] = { 31, 29, 31, 30, 31, 30,
+						       31, 31, 30, 31, 30, 31 };
 	const unsigned char *p = value;
+	unsigned year, mon, day, hour, min, sec, mon_len;
 
-#define dec2bin(X) ((X) - '0')
+#define dec2bin(X) ({ unsigned char x = (X) - '0'; if (x > 9) goto invalid_time; x; })
 #define DD2bin(P) ({ unsigned x = dec2bin(P[0]) * 10 + dec2bin(P[1]); P += 2; x; })
 
 	if (tag == ASN1_UNITIM) {
 		/* UTCTime: YYMMDDHHMMSSZ */
 		if (vlen != 13)
 			goto unsupported_time;
-		tm->tm_year = DD2bin(p);
-		if (tm->tm_year >= 50)
-			tm->tm_year += 1900;
+		year = DD2bin(p);
+		if (year >= 50)
+			year += 1900;
 		else
-			tm->tm_year += 2000;
+			year += 2000;
 	} else if (tag == ASN1_GENTIM) {
 		/* GenTime: YYYYMMDDHHMMSSZ */
 		if (vlen != 15)
 			goto unsupported_time;
-		tm->tm_year = DD2bin(p) * 100 + DD2bin(p);
+		year = DD2bin(p) * 100 + DD2bin(p);
+		if (year >= 1950 && year <= 2049)
+			goto invalid_time;
 	} else {
 		goto unsupported_time;
 	}
 
-	tm->tm_year -= 1900;
-	tm->tm_mon  = DD2bin(p) - 1;
-	tm->tm_mday = DD2bin(p);
-	tm->tm_hour = DD2bin(p);
-	tm->tm_min  = DD2bin(p);
-	tm->tm_sec  = DD2bin(p);
+	mon  = DD2bin(p);
+	day = DD2bin(p);
+	hour = DD2bin(p);
+	min  = DD2bin(p);
+	sec  = DD2bin(p);
 
 	if (*p != 'Z')
 		goto unsupported_time;
 
+	mon_len = month_lengths[mon];
+	if (mon == 2) {
+		if (year % 4 == 0) {
+			mon_len = 29;
+			if (year % 100 == 0) {
+				year /= 100;
+				if (year % 4 != 0)
+					mon_len = 28;
+			}
+		}
+	}
+
+	if (year < 1970 ||
+	    mon < 1 || mon > 12 ||
+	    day < 1 || day > mon_len ||
+	    hour < 0 || hour > 23 ||
+	    min < 0 || min > 59 ||
+	    sec < 0 || sec > 59)
+		goto invalid_time;
+	
+	*_t = mktime64(year, mon, day, hour, min, sec);
 	return 0;
 
 unsupported_time:
-	pr_debug("Got unsupported time [tag %02x]: '%*.*s'\n",
-		 tag, (int)vlen, (int)vlen, value);
+	pr_debug("Got unsupported time [tag %02x]: '%*phN'\n",
+		 tag, (int)vlen, value);
+	return -EBADMSG;
+invalid_time:
+	pr_debug("Got invalid time [tag %02x]: '%*phN'\n",
+		 tag, (int)vlen, value);
 	return -EBADMSG;
 }
+EXPORT_SYMBOL_GPL(x509_decode_time);
 
 int x509_note_not_before(void *context, size_t hdrlen,
 			 unsigned char tag,
 			 const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
-	return x509_note_time(&ctx->cert->valid_from, hdrlen, tag, value, vlen);
+	return x509_decode_time(&ctx->cert->valid_from, hdrlen, tag, value, vlen);
 }
 
 int x509_note_not_after(void *context, size_t hdrlen,
@@ -533,7 +578,7 @@ int x509_note_not_after(void *context, size_t hdrlen,
 			const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
-	return x509_note_time(&ctx->cert->valid_to, hdrlen, tag, value, vlen);
+	return x509_decode_time(&ctx->cert->valid_to, hdrlen, tag, value, vlen);
 }
 
 /*
