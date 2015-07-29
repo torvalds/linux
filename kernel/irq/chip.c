@@ -1003,7 +1003,7 @@ int irq_chip_retrigger_hierarchy(struct irq_data *data)
 /**
  * irq_chip_set_vcpu_affinity_parent - Set vcpu affinity on the parent interrupt
  * @data:	Pointer to interrupt specific data
- * @dest:	The vcpu affinity information
+ * @vcpu_info:	The vcpu affinity information
  */
 int irq_chip_set_vcpu_affinity_parent(struct irq_data *data, void *vcpu_info)
 {
