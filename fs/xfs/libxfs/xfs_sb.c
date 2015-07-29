@@ -131,10 +131,11 @@ xfs_mount_validate_sb(
 		if (xfs_sb_has_compat_feature(sbp,
 					XFS_SB_FEAT_COMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown compatible features (0x%x) enabled.\n"
-"Using a more recent kernel is recommended.",
+"Superblock has unknown compatible features (0x%x) enabled.",
 				(sbp->sb_features_compat &
 						XFS_SB_FEAT_COMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Using a more recent kernel is recommended.");
 		}
 
 		if (xfs_sb_has_ro_compat_feature(sbp,
@@ -145,18 +146,21 @@ xfs_mount_validate_sb(
 						XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
 			if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 				xfs_warn(mp,
-"Attempted to mount read-only compatible filesystem read-write.\n"
+"Attempted to mount read-only compatible filesystem read-write.");
+				xfs_warn(mp,
 "Filesystem can only be safely mounted read only.");
+
 				return -EINVAL;
 			}
 		}
 		if (xfs_sb_has_incompat_feature(sbp,
 					XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
 			xfs_warn(mp,
-"Superblock has unknown incompatible features (0x%x) enabled.\n"
-"Filesystem can not be safely mounted by this kernel.",
+"Superblock has unknown incompatible features (0x%x) enabled.",
 				(sbp->sb_features_incompat &
 						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+			xfs_warn(mp,
+"Filesystem can not be safely mounted by this kernel.");
 			return -EINVAL;
 		}
 	}

@@ -2351,8 +2351,8 @@ xfs_da_shrink_inode(
 		 * the last block to the place we want to kill.
 		 */
 		error = xfs_bunmapi(tp, dp, dead_blkno, count,
-				    xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,
-				    0, args->firstblock, args->flist, &done);
+				    xfs_bmapi_aflag(w), 0, args->firstblock,
+				    args->flist, &done);
 		if (error == -ENOSPC) {
 			if (w != XFS_DATA_FORK)
 				break;

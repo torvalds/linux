@@ -618,9 +618,8 @@ xfs_attr_rmtval_remove(
 
 		xfs_bmap_init(args->flist, args->firstblock);
 		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
-				    XFS_BMAPI_ATTRFORK | XFS_BMAPI_METADATA,
-				    1, args->firstblock, args->flist,
-				    &done);
+				    XFS_BMAPI_ATTRFORK, 1, args->firstblock,
+				    args->flist, &done);
 		if (!error) {
 			error = xfs_bmap_finish(&args->trans, args->flist,
 						&committed);

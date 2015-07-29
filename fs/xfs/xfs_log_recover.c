@@ -3385,14 +3385,24 @@ xlog_recover_add_to_cont_trans(
 	char			*ptr, *old_ptr;
 	int			old_len;
 
+	/*
+	 * If the transaction is empty, the header was split across this and the
+	 * previous record. Copy the rest of the header.
+	 */
 	if (list_empty(&trans->r_itemq)) {
-		/* finish copying rest of trans header */
+		ASSERT(len < sizeof(struct xfs_trans_header));
+		if (len > sizeof(struct xfs_trans_header)) {
+			xfs_warn(log->l_mp, "%s: bad header length", __func__);
+			return -EIO;
+		}
+
 		xlog_recover_add_item(&trans->r_itemq);
 		ptr = (char *)&trans->r_theader +
-				sizeof(xfs_trans_header_t) - len;
+				sizeof(struct xfs_trans_header) - len;
 		memcpy(ptr, dp, len);
 		return 0;
 	}
+
 	/* take the tail entry */
 	item = list_entry(trans->r_itemq.prev, xlog_recover_item_t, ri_list);
 
@@ -3441,7 +3451,19 @@ xlog_recover_add_to_trans(
 			ASSERT(0);
 			return -EIO;
 		}
-		if (len == sizeof(xfs_trans_header_t))
+
+		if (len > sizeof(struct xfs_trans_header)) {
+			xfs_warn(log->l_mp, "%s: bad header length", __func__);
+			ASSERT(0);
+			return -EIO;
+		}
+
+		/*
+		 * The transaction header can be arbitrarily split across op
+		 * records. If we don't have the whole thing here, copy what we
+		 * do have and handle the rest in the next record.
+		 */
+		if (len == sizeof(struct xfs_trans_header))
 			xlog_recover_add_item(&trans->r_itemq);
 		memcpy(&trans->r_theader, dp, len);
 		return 0;
@@ -4532,11 +4554,13 @@ xlog_recover(
 		    xfs_sb_has_incompat_log_feature(&log->l_mp->m_sb,
 					XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN)) {
 			xfs_warn(log->l_mp,
-"Superblock has unknown incompatible log features (0x%x) enabled.\n"
-"The log can not be fully and/or safely recovered by this kernel.\n"
-"Please recover the log on a kernel that supports the unknown features.",
+"Superblock has unknown incompatible log features (0x%x) enabled.",
 				(log->l_mp->m_sb.sb_features_log_incompat &
 					XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN));
+			xfs_warn(log->l_mp,
+"The log can not be fully and/or safely recovered by this kernel.");
+			xfs_warn(log->l_mp,
+"Please recover the log on a kernel that supports the unknown features.");
 			return -EINVAL;
 		}
 

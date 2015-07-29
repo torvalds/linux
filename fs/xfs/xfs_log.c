@@ -668,9 +668,9 @@ xfs_log_mount(
 			ASSERT(0);
 			goto out_free_log;
 		}
+		xfs_crit(mp, "Log size out of supported range.");
 		xfs_crit(mp,
-"Log size out of supported range. Continuing onwards, but if log hangs are\n"
-"experienced then please report this message in the bug report.");
+"Continuing onwards, but if log hangs are experienced then please report this message in the bug report.");
 	}
 
 	/*
@@ -1142,11 +1142,13 @@ xlog_space_left(
 		 * In this case we just want to return the size of the
 		 * log as the amount of space left.
 		 */
+		xfs_alert(log->l_mp, "xlog_space_left: head behind tail");
 		xfs_alert(log->l_mp,
-			"xlog_space_left: head behind tail\n"
-			"  tail_cycle = %d, tail_bytes = %d\n"
-			"  GH   cycle = %d, GH   bytes = %d",
-			tail_cycle, tail_bytes, head_cycle, head_bytes);
+			  "  tail_cycle = %d, tail_bytes = %d",
+			  tail_cycle, tail_bytes);
+		xfs_alert(log->l_mp,
+			  "  GH   cycle = %d, GH   bytes = %d",
+			  head_cycle, head_bytes);
 		ASSERT(0);
 		free_bytes = log->l_logsize;
 	}
@@ -2028,26 +2030,24 @@ xlog_print_tic_res(
 	    "SWAPEXT"
 	};
 
-	xfs_warn(mp,
-		"xlog_write: reservation summary:\n"
-		"  trans type  = %s (%u)\n"
-		"  unit res    = %d bytes\n"
-		"  current res = %d bytes\n"
-		"  total reg   = %u bytes (o/flow = %u bytes)\n"
-		"  ophdrs      = %u (ophdr space = %u bytes)\n"
-		"  ophdr + reg = %u bytes\n"
-		"  num regions = %u",
-		((ticket->t_trans_type <= 0 ||
-		  ticket->t_trans_type > XFS_TRANS_TYPE_MAX) ?
+	xfs_warn(mp, "xlog_write: reservation summary:");
+	xfs_warn(mp, "  trans type  = %s (%u)",
+		 ((ticket->t_trans_type <= 0 ||
+		   ticket->t_trans_type > XFS_TRANS_TYPE_MAX) ?
 		  "bad-trans-type" : trans_type_str[ticket->t_trans_type-1]),
-		ticket->t_trans_type,
-		ticket->t_unit_res,
-		ticket->t_curr_res,
-		ticket->t_res_arr_sum, ticket->t_res_o_flow,
-		ticket->t_res_num_ophdrs, ophdr_spc,
-		ticket->t_res_arr_sum +
-		ticket->t_res_o_flow + ophdr_spc,
-		ticket->t_res_num);
+		 ticket->t_trans_type);
+	xfs_warn(mp, "  unit res    = %d bytes",
+		 ticket->t_unit_res);
+	xfs_warn(mp, "  current res = %d bytes",
+		 ticket->t_curr_res);
+	xfs_warn(mp, "  total reg   = %u bytes (o/flow = %u bytes)",
+		 ticket->t_res_arr_sum, ticket->t_res_o_flow);
+	xfs_warn(mp, "  ophdrs      = %u (ophdr space = %u bytes)",
+		 ticket->t_res_num_ophdrs, ophdr_spc);
+	xfs_warn(mp, "  ophdr + reg = %u bytes",
+		 ticket->t_res_arr_sum + ticket->t_res_o_flow + ophdr_spc);
+	xfs_warn(mp, "  num regions = %u",
+		 ticket->t_res_num);
 
 	for (i = 0; i < ticket->t_res_num; i++) {
 		uint r_type = ticket->t_res_arr[i].r_type;

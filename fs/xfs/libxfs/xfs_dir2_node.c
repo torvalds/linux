@@ -1845,8 +1845,7 @@ xfs_dir2_node_addname_int(
 
 			if (dp->d_ops->db_to_fdb(args->geo, dbno) != fbno) {
 				xfs_alert(mp,
-			"%s: dir ino %llu needed freesp block %lld for\n"
-			"  data block %lld, got %lld ifbno %llu lastfbno %d",
+"%s: dir ino %llu needed freesp block %lld for data block %lld, got %lld ifbno %llu lastfbno %d",
 					__func__, (unsigned long long)dp->i_ino,
 					(long long)dp->d_ops->db_to_fdb(
 								args->geo, dbno),

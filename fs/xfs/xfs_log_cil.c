@@ -307,7 +307,13 @@ xlog_cil_insert_items(
 		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
 
-		list_move_tail(&lip->li_cil, &cil->xc_cil);
+		/*
+		 * Only move the item if it isn't already at the tail. This is
+		 * to prevent a transient list_empty() state when reinserting
+		 * an item that is already the only item in the CIL.
+		 */
+		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
+			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
 	/* account for space used by new iovec headers  */

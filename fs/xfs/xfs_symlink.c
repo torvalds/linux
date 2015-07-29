@@ -501,7 +501,7 @@ xfs_inactive_symlink_rmt(
 	/*
 	 * Unmap the dead block(s) to the free_list.
 	 */
-	error = xfs_bunmapi(tp, ip, 0, size, XFS_BMAPI_METADATA, nmaps,
+	error = xfs_bunmapi(tp, ip, 0, size, 0, nmaps,
 			    &first_block, &free_list, &done);
 	if (error)
 		goto error_bmap_cancel;
