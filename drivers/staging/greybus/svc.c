@@ -172,7 +172,8 @@ int gb_svc_connection_destroy(struct gb_svc *svc,
 EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
 int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
-			u8 intf2_id, u8 dev2_id) {
+			u8 intf2_id, u8 dev2_id)
+{
 	return route_create_operation(svc, intf1_id, dev1_id,
 				      intf2_id, dev2_id);
 }
