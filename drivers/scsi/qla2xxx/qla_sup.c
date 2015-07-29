@@ -1697,7 +1697,7 @@ qla83xx_select_led_port(struct qla_hw_data *ha)
 {
 	uint32_t led_select_value = 0;
 
-	if (!IS_QLA83XX(ha))
+	if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha))
 		goto out;
 
 	if (ha->port_no == 0)
