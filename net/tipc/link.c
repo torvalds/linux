@@ -489,8 +489,8 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 		xmit = true;
 		mtyp = ACTIVATE_MSG;
 		break;
-	case LINK_RESETTING:
 	case LINK_PEER_RESET:
+	case LINK_RESETTING:
 	case LINK_FAILINGOVER:
 		break;
 	default:

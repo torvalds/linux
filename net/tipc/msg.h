@@ -916,4 +916,33 @@ static inline bool __tipc_skb_queue_sorted(struct sk_buff_head *list,
 	return false;
 }
 
+/* tipc_skb_queue_splice_tail - append an skb list to lock protected list
+ * @list: the new list to append. Not lock protected
+ * @head: target list. Lock protected.
+ */
+static inline void tipc_skb_queue_splice_tail(struct sk_buff_head *list,
+					      struct sk_buff_head *head)
+{
+	spin_lock_bh(&head->lock);
+	skb_queue_splice_tail(list, head);
+	spin_unlock_bh(&head->lock);
+}
+
+/* tipc_skb_queue_splice_tail_init - merge two lock protected skb lists
+ * @list: the new list to add. Lock protected. Will be reinitialized
+ * @head: target list. Lock protected.
+ */
+static inline void tipc_skb_queue_splice_tail_init(struct sk_buff_head *list,
+						   struct sk_buff_head *head)
+{
+	struct sk_buff_head tmp;
+
+	__skb_queue_head_init(&tmp);
+
+	spin_lock_bh(&list->lock);
+	skb_queue_splice_tail_init(list, &tmp);
+	spin_unlock_bh(&list->lock);
+	tipc_skb_queue_splice_tail(&tmp, head);
+}
+
 #endif
