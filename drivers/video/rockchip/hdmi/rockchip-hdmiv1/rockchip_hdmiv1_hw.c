@@ -608,10 +608,16 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 	rockchip_hdmiv1_video_csc(hdmi_drv, vpara);
 
 	/* Set ext video timing */
-	if (mode->vmode || mode->pixclock <= 27000000) {
+	if ((mode->vmode || mode->pixclock <= 27000000) &&
+	    vpara->format_3d != HDMI_3D_FRAME_PACKING) {
 		hdmi_writel(hdmi_dev, VIDEO_TIMING_CTL, 0);
 	} else {
-		value = v_EXTERANL_VIDEO(1) | v_INETLACE(mode->vmode);
+		if (vpara->format_3d == HDMI_3D_FRAME_PACKING)
+			value = v_EXTERANL_VIDEO(1) |
+				v_INETLACE(0);
+		else
+			value = v_EXTERANL_VIDEO(1) |
+				v_INETLACE(mode->vmode);
 		if (mode->sync & FB_SYNC_HOR_HIGH_ACT)
 			value |= v_HSYNC_POLARITY(1);
 		if (mode->sync & FB_SYNC_VERT_HIGH_ACT)
@@ -640,8 +646,23 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 		hdmi_writel(hdmi_dev, VIDEO_EXT_HDURATION_H,
 			    (value >> 8) & 0xFF);
 
-		value = mode->upper_margin + mode->yres + mode->lower_margin +
-		    mode->vsync_len;
+		if (vpara->format_3d == HDMI_3D_FRAME_PACKING) {
+			if (mode->vmode == 0)
+				value = mode->upper_margin +
+					mode->lower_margin +
+					mode->vsync_len +
+					2 * mode->yres;
+			else
+				value = 4 * (mode->upper_margin +
+					     mode->lower_margin +
+					     mode->vsync_len) +
+					2 * mode->yres + 2;
+		} else {
+			value = mode->upper_margin +
+				mode->lower_margin +
+				mode->vsync_len +
+				mode->yres;
+		}
 		hdmi_writel(hdmi_dev, VIDEO_EXT_VTOTAL_L, value & 0xFF);
 		hdmi_writel(hdmi_dev, VIDEO_EXT_VTOTAL_H, (value >> 8) & 0xFF);
 
