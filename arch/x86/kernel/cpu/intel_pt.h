@@ -72,9 +72,15 @@ struct topa_entry {
 enum pt_capabilities {
 	PT_CAP_max_subleaf = 0,
 	PT_CAP_cr3_filtering,
+	PT_CAP_psb_cyc,
+	PT_CAP_mtc,
 	PT_CAP_topa_output,
 	PT_CAP_topa_multiple_entries,
+	PT_CAP_single_range_output,
 	PT_CAP_payloads_lip,
+	PT_CAP_mtc_periods,
+	PT_CAP_cycle_thresholds,
+	PT_CAP_psb_periods,
 };
 
 struct pt_pmu {

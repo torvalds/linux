@@ -65,9 +65,15 @@ static struct pt_cap_desc {
 } pt_caps[] = {
 	PT_CAP(max_subleaf,		0, CR_EAX, 0xffffffff),
 	PT_CAP(cr3_filtering,		0, CR_EBX, BIT(0)),
+	PT_CAP(psb_cyc,			0, CR_EBX, BIT(1)),
+	PT_CAP(mtc,			0, CR_EBX, BIT(3)),
 	PT_CAP(topa_output,		0, CR_ECX, BIT(0)),
 	PT_CAP(topa_multiple_entries,	0, CR_ECX, BIT(1)),
+	PT_CAP(single_range_output,	0, CR_ECX, BIT(2)),
 	PT_CAP(payloads_lip,		0, CR_ECX, BIT(31)),
+	PT_CAP(mtc_periods,		1, CR_EAX, 0xffff0000),
+	PT_CAP(cycle_thresholds,	1, CR_EBX, 0xffff),
+	PT_CAP(psb_periods,		1, CR_EBX, 0xffff0000),
 };
 
 static u32 pt_cap_get(enum pt_capabilities cap)
@@ -94,12 +100,22 @@ static struct attribute_group pt_cap_group = {
 	.name	= "caps",
 };
 
+PMU_FORMAT_ATTR(cyc,		"config:1"	);
+PMU_FORMAT_ATTR(mtc,		"config:9"	);
 PMU_FORMAT_ATTR(tsc,		"config:10"	);
 PMU_FORMAT_ATTR(noretcomp,	"config:11"	);
+PMU_FORMAT_ATTR(mtc_period,	"config:14-17"	);
+PMU_FORMAT_ATTR(cyc_thresh,	"config:19-22"	);
+PMU_FORMAT_ATTR(psb_period,	"config:24-27"	);
 
 static struct attribute *pt_formats_attr[] = {
+	&format_attr_cyc.attr,
+	&format_attr_mtc.attr,
 	&format_attr_tsc.attr,
 	&format_attr_noretcomp.attr,
+	&format_attr_mtc_period.attr,
+	&format_attr_cyc_thresh.attr,
+	&format_attr_psb_period.attr,
 	NULL,
 };
 
@@ -170,14 +186,64 @@ fail:
 	return ret;
 }
 
-#define PT_CONFIG_MASK (RTIT_CTL_TSC_EN | RTIT_CTL_DISRETC)
+#define RTIT_CTL_CYC_PSB (RTIT_CTL_CYCLEACC	| \
+			  RTIT_CTL_CYC_THRESH	| \
+			  RTIT_CTL_PSB_FREQ)
+
+#define RTIT_CTL_MTC	(RTIT_CTL_MTC_EN	| \
+			 RTIT_CTL_MTC_RANGE)
+
+#define PT_CONFIG_MASK (RTIT_CTL_TSC_EN		| \
+			RTIT_CTL_DISRETC	| \
+			RTIT_CTL_CYC_PSB	| \
+			RTIT_CTL_MTC)
 
 static bool pt_event_valid(struct perf_event *event)
 {
 	u64 config = event->attr.config;
+	u64 allowed, requested;
 
 	if ((config & PT_CONFIG_MASK) != config)
 		return false;
+
+	if (config & RTIT_CTL_CYC_PSB) {
+		if (!pt_cap_get(PT_CAP_psb_cyc))
+			return false;
+
+		allowed = pt_cap_get(PT_CAP_psb_periods);
+		requested = (config & RTIT_CTL_PSB_FREQ) >>
+			RTIT_CTL_PSB_FREQ_OFFSET;
+		if (requested && (!(allowed & BIT(requested))))
+			return false;
+
+		allowed = pt_cap_get(PT_CAP_cycle_thresholds);
+		requested = (config & RTIT_CTL_CYC_THRESH) >>
+			RTIT_CTL_CYC_THRESH_OFFSET;
+		if (requested && (!(allowed & BIT(requested))))
+			return false;
+	}
+
+	if (config & RTIT_CTL_MTC) {
+		/*
+		 * In the unlikely case that CPUID lists valid mtc periods,
+		 * but not the mtc capability, drop out here.
+		 *
+		 * Spec says that setting mtc period bits while mtc bit in
+		 * CPUID is 0 will #GP, so better safe than sorry.
+		 */
+		if (!pt_cap_get(PT_CAP_mtc))
+			return false;
+
+		allowed = pt_cap_get(PT_CAP_mtc_periods);
+		if (!allowed)
+			return false;
+
+		requested = (config & RTIT_CTL_MTC_RANGE) >>
+			RTIT_CTL_MTC_RANGE_OFFSET;
+
+		if (!(allowed & BIT(requested)))
+			return false;
+	}
 
 	return true;
 }
