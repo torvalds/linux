@@ -235,7 +235,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		for (i = 0; i < adev->num_ip_blocks; i++) {
 			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_enabled[i]) {
+			    adev->ip_block_status[i].valid) {
 				ip.hw_ip_version_major = adev->ip_blocks[i].major;
 				ip.hw_ip_version_minor = adev->ip_blocks[i].minor;
 				ip.capabilities_flags = 0;
@@ -274,7 +274,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		for (i = 0; i < adev->num_ip_blocks; i++)
 			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_enabled[i] &&
+			    adev->ip_block_status[i].valid &&
 			    count < AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
 				count++;
 
@@ -416,7 +416,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return n ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_DEV_INFO: {
-		struct drm_amdgpu_info_device dev_info;
+		struct drm_amdgpu_info_device dev_info = {};
 		struct amdgpu_cu_info cu_info;
 
 		dev_info.device_id = dev->pdev->device;
