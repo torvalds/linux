@@ -1340,7 +1340,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 		/* search for handler */
 		if (!wmi_evt_call_handler(wil, id, evt_data,
 					  len - sizeof(*wmi))) {
-			wil_err(wil, "Unhandled event 0x%04x\n", id);
+			wil_info(wil, "Unhandled event 0x%04x\n", id);
 		}
 	} else {
 		wil_err(wil, "Unknown event type\n");
