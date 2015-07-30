@@ -278,51 +278,38 @@ static int wm8741_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	switch (freq) {
 	case 0:
 		wm8741->sysclk_constraints = NULL;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 11289600:
 		wm8741->sysclk_constraints = &constraints_11289;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 12288000:
 		wm8741->sysclk_constraints = &constraints_12288;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 16384000:
 		wm8741->sysclk_constraints = &constraints_16384;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 16934400:
 		wm8741->sysclk_constraints = &constraints_16934;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 18432000:
 		wm8741->sysclk_constraints = &constraints_18432;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 22579200:
 	case 33868800:
 		wm8741->sysclk_constraints = &constraints_22579;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 24576000:
 		wm8741->sysclk_constraints = &constraints_24576;
-		wm8741->sysclk = freq;
-		return 0;
-
+		break;
 	case 36864000:
 		wm8741->sysclk_constraints = &constraints_36864;
-		wm8741->sysclk = freq;
-		return 0;
+		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	wm8741->sysclk = freq;
+	return 0;
 }
 
 static int wm8741_set_dai_fmt(struct snd_soc_dai *codec_dai,
