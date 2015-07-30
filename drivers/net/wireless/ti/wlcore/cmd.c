@@ -2003,12 +2003,15 @@ int wl12xx_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		      wlvif->bss_type == BSS_TYPE_IBSS)))
 		return -EINVAL;
 
-	ret = wl12xx_cmd_role_enable(wl,
-				     wl12xx_wlvif_to_vif(wlvif)->addr,
-				     WL1271_ROLE_DEVICE,
-				     &wlvif->dev_role_id);
-	if (ret < 0)
-		goto out;
+	/* the dev role is already started for p2p mgmt interfaces */
+	if (!wlcore_is_p2p_mgmt(wlvif)) {
+		ret = wl12xx_cmd_role_enable(wl,
+					     wl12xx_wlvif_to_vif(wlvif)->addr,
+					     WL1271_ROLE_DEVICE,
+					     &wlvif->dev_role_id);
+		if (ret < 0)
+			goto out;
+	}
 
 	ret = wl12xx_cmd_role_start_dev(wl, wlvif, band, channel);
 	if (ret < 0)
@@ -2023,7 +2026,8 @@ int wl12xx_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 out_stop:
 	wl12xx_cmd_role_stop_dev(wl, wlvif);
 out_disable:
-	wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
+	if (!wlcore_is_p2p_mgmt(wlvif))
+		wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
 out:
 	return ret;
 }
@@ -2052,9 +2056,11 @@ int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (ret < 0)
 		goto out;
 
-	ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
-	if (ret < 0)
-		goto out;
+	if (!wlcore_is_p2p_mgmt(wlvif)) {
+		ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
+		if (ret < 0)
+			goto out;
+	}
 
 out:
 	return ret;

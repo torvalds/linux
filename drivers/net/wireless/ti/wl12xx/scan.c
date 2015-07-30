@@ -118,7 +118,11 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	cmd->params.role_id = wlvif->role_id;
+	/* scan on the dev role if the regular one is not started */
+	if (wlcore_is_p2p_mgmt(wlvif))
+		cmd->params.role_id = wlvif->dev_role_id;
+	else
+		cmd->params.role_id = wlvif->role_id;
 
 	if (WARN_ON(cmd->params.role_id == WL12XX_INVALID_ROLE_ID)) {
 		ret = -EINVAL;

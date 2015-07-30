@@ -51,7 +51,11 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 	}
 
-	cmd->role_id = wlvif->role_id;
+	/* scan on the dev role if the regular one is not started */
+	if (wlcore_is_p2p_mgmt(wlvif))
+		cmd->role_id = wlvif->dev_role_id;
+	else
+		cmd->role_id = wlvif->role_id;
 
 	if (WARN_ON(cmd->role_id == WL12XX_INVALID_ROLE_ID)) {
 		ret = -EINVAL;
