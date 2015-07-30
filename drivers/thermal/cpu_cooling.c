@@ -218,7 +218,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	unsigned long max_freq;
+	unsigned long clipped_freq;
 	struct cpufreq_cooling_device *cpufreq_dev;
 
 	if (event != CPUFREQ_ADJUST)
@@ -229,10 +229,10 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 		if (!cpumask_test_cpu(policy->cpu, &cpufreq_dev->allowed_cpus))
 			continue;
 
-		max_freq = cpufreq_dev->clipped_freq;
+		clipped_freq = cpufreq_dev->clipped_freq;
 
-		if (policy->max != max_freq)
-			cpufreq_verify_within_limits(policy, 0, max_freq);
+		if (policy->max != clipped_freq)
+			cpufreq_verify_within_limits(policy, 0, clipped_freq);
 		break;
 	}
 	mutex_unlock(&cooling_list_lock);
