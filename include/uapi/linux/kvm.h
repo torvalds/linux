@@ -183,6 +183,7 @@ struct kvm_s390_skeys {
 #define KVM_EXIT_EPR              23
 #define KVM_EXIT_SYSTEM_EVENT     24
 #define KVM_EXIT_S390_STSI        25
+#define KVM_EXIT_IOAPIC_EOI       26
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -333,6 +334,10 @@ struct kvm_run {
 			__u8 sel1;
 			__u16 sel2;
 		} s390_stsi;
+		/* KVM_EXIT_IOAPIC_EOI */
+		struct {
+			__u8 vector;
+		} eoi;
 		/* Fix the size of the union. */
 		char padding[256];
 	};

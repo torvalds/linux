@@ -3309,6 +3309,18 @@ Valid values for 'type' are:
    to ignore the request, or to gather VM memory core dump and/or
    reset/shutdown of the VM.
 
+		/* KVM_EXIT_IOAPIC_EOI */
+		struct {
+			__u8 vector;
+		} eoi;
+
+Indicates that the VCPU's in-kernel local APIC received an EOI for a
+level-triggered IOAPIC interrupt.  This exit only triggers when the
+IOAPIC is implemented in userspace (i.e. KVM_CAP_SPLIT_IRQCHIP is enabled);
+the userspace IOAPIC should process the EOI and retrigger the interrupt if
+it is still asserted.  Vector is the LAPIC interrupt vector for which the
+EOI was received.
+
 		/* Fix the size of the union. */
 		char padding[256];
 	};

@@ -6271,6 +6271,17 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_pmu_handle_event(vcpu);
 		if (kvm_check_request(KVM_REQ_PMI, vcpu))
 			kvm_pmu_deliver_pmi(vcpu);
+		if (kvm_check_request(KVM_REQ_IOAPIC_EOI_EXIT, vcpu)) {
+			BUG_ON(vcpu->arch.pending_ioapic_eoi > 255);
+			if (test_bit(vcpu->arch.pending_ioapic_eoi,
+				     (void *) vcpu->arch.eoi_exit_bitmap)) {
+				vcpu->run->exit_reason = KVM_EXIT_IOAPIC_EOI;
+				vcpu->run->eoi.vector =
+						vcpu->arch.pending_ioapic_eoi;
+				r = 0;
+				goto out;
+			}
+		}
 		if (kvm_check_request(KVM_REQ_SCAN_IOAPIC, vcpu))
 			vcpu_scan_ioapic(vcpu);
 		if (kvm_check_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu))

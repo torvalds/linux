@@ -877,15 +877,25 @@ static bool kvm_ioapic_handles_vector(struct kvm_lapic *apic, int vector)
 
 static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 {
-	if (kvm_ioapic_handles_vector(apic, vector)) {
-		int trigger_mode;
-		if (apic_test_vector(vector, apic->regs + APIC_TMR))
-			trigger_mode = IOAPIC_LEVEL_TRIG;
-		else
-			trigger_mode = IOAPIC_EDGE_TRIG;
+	int trigger_mode;
 
-		kvm_ioapic_update_eoi(apic->vcpu, vector, trigger_mode);
+	/* Eoi the ioapic only if the ioapic doesn't own the vector. */
+	if (!kvm_ioapic_handles_vector(apic, vector))
+		return;
+
+	/* Request a KVM exit to inform the userspace IOAPIC. */
+	if (irqchip_split(apic->vcpu->kvm)) {
+		apic->vcpu->arch.pending_ioapic_eoi = vector;
+		kvm_make_request(KVM_REQ_IOAPIC_EOI_EXIT, apic->vcpu);
+		return;
 	}
+
+	if (apic_test_vector(vector, apic->regs + APIC_TMR))
+		trigger_mode = IOAPIC_LEVEL_TRIG;
+	else
+		trigger_mode = IOAPIC_EDGE_TRIG;
+
+	kvm_ioapic_update_eoi(apic->vcpu, vector, trigger_mode);
 }
 
 static int apic_set_eoi(struct kvm_lapic *apic)

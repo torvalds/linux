@@ -574,6 +574,8 @@ struct kvm_vcpu_arch {
 	struct {
 		bool pv_unhalted;
 	} pv;
+
+	int pending_ioapic_eoi;
 };
 
 struct kvm_lpage_info {
