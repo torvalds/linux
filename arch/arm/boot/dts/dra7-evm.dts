@@ -19,6 +19,15 @@
 		reg = <0x80000000 0x60000000>; /* 1536 MB */
 	};
 
+	evm_3v3_sd: fixedregulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&pcf_gpio_21 5 GPIO_ACTIVE_HIGH>;
+	};
+
 	mmc2_3v3: fixedregulator-mmc2 {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc2_3v3";
@@ -462,7 +471,8 @@
 
 &mmc1 {
 	status = "okay";
-	vmmc-supply = <&ldo1_reg>;
+	vmmc-supply = <&evm_3v3_sd>;
+	vmmc_aux-supply = <&ldo1_reg>;
 	bus-width = <4>;
 };
 
