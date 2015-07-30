@@ -541,6 +541,14 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		[GRO_DROP]		= "GRO_DROP",
 	};
 
+	if (ndev->features & NETIF_F_RXHASH)
+		/* fake L4 to ensure it won't be re-calculated later
+		 * set hash to any non-zero value to activate rps
+		 * mechanism, core will be chosen according
+		 * to user-level rps configuration.
+		 */
+		skb_set_hash(skb, 1, PKT_HASH_TYPE_L4);
+
 	skb_orphan(skb);
 
 	if (wdev->iftype == NL80211_IFTYPE_AP && !wil->ap_isolate) {
