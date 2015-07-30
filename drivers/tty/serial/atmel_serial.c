@@ -204,15 +204,32 @@ static inline void atmel_uart_writel(struct uart_port *port, u32 reg, u32 value)
 	__raw_writel(value, port->membase + reg);
 }
 
-static inline u8 atmel_uart_readb(struct uart_port *port, u32 reg)
+#ifdef CONFIG_AVR32
+
+/* AVR32 cannot handle 8 or 16bit I/O accesses but only 32bit I/O accesses */
+static inline u8 atmel_uart_read_char(struct uart_port *port)
 {
-	return __raw_readb(port->membase + reg);
+	return __raw_readl(port->membase + ATMEL_US_RHR);
 }
 
-static inline void atmel_uart_writeb(struct uart_port *port, u32 reg, u8 value)
+static inline void atmel_uart_write_char(struct uart_port *port, u8 value)
 {
-	__raw_writeb(value, port->membase + reg);
+	__raw_writel(value, port->membase + ATMEL_US_THR);
 }
+
+#else
+
+static inline u8 atmel_uart_read_char(struct uart_port *port)
+{
+	return __raw_readb(port->membase + ATMEL_US_RHR);
+}
+
+static inline void atmel_uart_write_char(struct uart_port *port, u8 value)
+{
+	__raw_writeb(value, port->membase + ATMEL_US_THR);
+}
+
+#endif
 
 #ifdef CONFIG_SERIAL_ATMEL_PDC
 static bool atmel_use_pdc_rx(struct uart_port *port)
@@ -658,7 +675,7 @@ static void atmel_rx_chars(struct uart_port *port)
 
 	status = atmel_uart_readl(port, ATMEL_US_CSR);
 	while (status & ATMEL_US_RXRDY) {
-		ch = atmel_uart_readb(port, ATMEL_US_RHR);
+		ch = atmel_uart_read_char(port);
 
 		/*
 		 * note that the error handling code is
@@ -709,7 +726,7 @@ static void atmel_tx_chars(struct uart_port *port)
 
 	if (port->x_char &&
 	    (atmel_uart_readl(port, ATMEL_US_CSR) & atmel_port->tx_done_mask)) {
-		atmel_uart_writeb(port, ATMEL_US_THR, port->x_char);
+		atmel_uart_write_char(port, port->x_char);
 		port->icount.tx++;
 		port->x_char = 0;
 	}
@@ -718,7 +735,7 @@ static void atmel_tx_chars(struct uart_port *port)
 
 	while (atmel_uart_readl(port, ATMEL_US_CSR) &
 	       atmel_port->tx_done_mask) {
-		atmel_uart_writeb(port, ATMEL_US_THR, xmit->buf[xmit->tail]);
+		atmel_uart_write_char(port, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 		if (uart_circ_empty(xmit))
@@ -2294,7 +2311,7 @@ static int atmel_poll_get_char(struct uart_port *port)
 	while (!(atmel_uart_readl(port, ATMEL_US_CSR) & ATMEL_US_RXRDY))
 		cpu_relax();
 
-	return atmel_uart_readb(port, ATMEL_US_RHR);
+	return atmel_uart_read_char(port);
 }
 
 static void atmel_poll_put_char(struct uart_port *port, unsigned char ch)
@@ -2302,7 +2319,7 @@ static void atmel_poll_put_char(struct uart_port *port, unsigned char ch)
 	while (!(atmel_uart_readl(port, ATMEL_US_CSR) & ATMEL_US_TXRDY))
 		cpu_relax();
 
-	atmel_uart_writeb(port, ATMEL_US_THR, ch);
+	atmel_uart_write_char(port, ch);
 }
 #endif
 
@@ -2409,7 +2426,7 @@ static void atmel_console_putchar(struct uart_port *port, int ch)
 {
 	while (!(atmel_uart_readl(port, ATMEL_US_CSR) & ATMEL_US_TXRDY))
 		cpu_relax();
-	atmel_uart_writeb(port, ATMEL_US_THR, ch);
+	atmel_uart_write_char(port, ch);
 }
 
 /*
