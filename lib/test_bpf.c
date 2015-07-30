@@ -4613,6 +4613,8 @@ static struct bpf_prog *generate_filter(int which, int *err)
 		}
 
 		fp->len = flen;
+		/* Type doesn't really matter here as long as it's not unspec. */
+		fp->type = BPF_PROG_TYPE_SOCKET_FILTER;
 		memcpy(fp->insnsi, fptr, fp->len * sizeof(struct bpf_insn));
 
 		bpf_prog_select_runtime(fp);
