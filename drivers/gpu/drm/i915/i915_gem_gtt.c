@@ -650,8 +650,8 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 	return 0;
 }
 
-static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct drm_i915_gem_request *req)
+static int gen8_legacy_mm_switch(struct i915_hw_ppgtt *ppgtt,
+				 struct drm_i915_gem_request *req)
 {
 	int i, ret;
 
@@ -664,6 +664,12 @@ static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	}
 
 	return 0;
+}
+
+static int gen8_48b_mm_switch(struct i915_hw_ppgtt *ppgtt,
+			      struct drm_i915_gem_request *req)
+{
+	return gen8_write_pdp(req, 0, px_dma(&ppgtt->pml4));
 }
 
 static void gen8_ppgtt_clear_pte_range(struct i915_address_space *vm,
@@ -1318,14 +1324,13 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
 
-	ppgtt->switch_mm = gen8_mm_switch;
-
 	if (USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
 		ret = setup_px(ppgtt->base.dev, &ppgtt->pml4);
 		if (ret)
 			goto free_scratch;
 
 		ppgtt->base.total = 1ULL << 48;
+		ppgtt->switch_mm = gen8_48b_mm_switch;
 	} else {
 		ret = __pdp_init(false, &ppgtt->pdp);
 		if (ret)
@@ -1340,6 +1345,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			 */
 			ppgtt->base.total = to_i915(ppgtt->base.dev)->gtt.base.total;
 
+		ppgtt->switch_mm = gen8_legacy_mm_switch;
 		trace_i915_page_directory_pointer_entry_alloc(&ppgtt->base,
 							      0, 0,
 							      GEN8_PML4E_SHIFT);
@@ -1537,8 +1543,9 @@ static void gen8_ppgtt_enable(struct drm_device *dev)
 	int j;
 
 	for_each_ring(ring, dev_priv, j) {
+		u32 four_level = USES_FULL_48BIT_PPGTT(dev) ? GEN8_GFX_PPGTT_48B : 0;
 		I915_WRITE(RING_MODE_GEN7(ring),
-			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE | four_level));
 	}
 }
 
