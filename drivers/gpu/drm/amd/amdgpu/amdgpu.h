@@ -539,13 +539,15 @@ struct amdgpu_bo_va_mapping {
 struct amdgpu_bo_va {
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
-	uint64_t			addr;
 	struct amdgpu_fence		*last_pt_update;
 	unsigned			ref_count;
 
-	/* protected by vm mutex */
-	struct list_head		mappings;
+	/* protected by vm mutex and spinlock */
 	struct list_head		vm_status;
+
+	/* mappings for this bo_va */
+	struct list_head		invalids;
+	struct list_head		valids;
 
 	/* constant after initialization */
 	struct amdgpu_vm		*vm;
@@ -964,13 +966,16 @@ struct amdgpu_vm {
 
 	struct rb_root		va;
 
-	/* protecting invalidated and freed */
+	/* protecting invalidated */
 	spinlock_t		status_lock;
 
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	invalidated;
 
-	/* BOs freed, but not yet updated in the PT */
+	/* BOs cleared in the PT because of a move */
+	struct list_head	cleared;
+
+	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
 
 	/* contains the page directory */
