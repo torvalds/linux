@@ -568,7 +568,7 @@ static const struct power_supply_desc twl4030_bci_usb_desc = {
 	.get_property	= twl4030_bci_get_property,
 };
 
-static int __init twl4030_bci_probe(struct platform_device *pdev)
+static int twl4030_bci_probe(struct platform_device *pdev)
 {
 	struct twl4030_bci *bci;
 	const struct twl4030_bci_platform_data *pdata = pdev->dev.platform_data;
@@ -692,14 +692,14 @@ static const struct of_device_id twl_bci_of_match[] = {
 MODULE_DEVICE_TABLE(of, twl_bci_of_match);
 
 static struct platform_driver twl4030_bci_driver = {
+	.probe = twl4030_bci_probe,
 	.driver	= {
 		.name	= "twl4030_bci",
 		.of_match_table = of_match_ptr(twl_bci_of_match),
 	},
 	.remove	= __exit_p(twl4030_bci_remove),
 };
-
-module_platform_driver_probe(twl4030_bci_driver, twl4030_bci_probe);
+module_platform_driver(twl4030_bci_driver);
 
 MODULE_AUTHOR("Gražvydas Ignotas");
 MODULE_DESCRIPTION("TWL4030 Battery Charger Interface driver");
