@@ -221,6 +221,14 @@ DEFINE_EVENT_PRINT(i915_px_entry, i915_page_directory_entry_alloc,
 			     __entry->vm, __entry->px, __entry->start, __entry->end)
 );
 
+DEFINE_EVENT_PRINT(i915_px_entry, i915_page_directory_pointer_entry_alloc,
+		   TP_PROTO(struct i915_address_space *vm, u32 pml4e, u64 start, u64 pml4e_shift),
+		   TP_ARGS(vm, pml4e, start, pml4e_shift),
+
+		   TP_printk("vm=%p, pml4e=%d (0x%llx-0x%llx)",
+			     __entry->vm, __entry->px, __entry->start, __entry->end)
+);
+
 /* Avoid extra math because we only support two sizes. The format is defined by
  * bitmap_scnprintf. Each 32 bits is 8 HEX digits followed by comma */
 #define TRACE_PT_SIZE(bits) \
