@@ -21,11 +21,9 @@
 
 #include "wil6210.h"
 
-static int use_msi = 1;
-module_param(use_msi, int, S_IRUGO);
-MODULE_PARM_DESC(use_msi,
-		 " Use MSI interrupt: "
-		 "0 - don't, 1 - (default) - single, or 3");
+static bool use_msi = true;
+module_param(use_msi, bool, S_IRUGO);
+MODULE_PARM_DESC(use_msi, " Use MSI interrupt, default - true");
 
 static
 void wil_set_capabilities(struct wil6210_priv *wil)
@@ -50,24 +48,12 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 
 void wil_disable_irq(struct wil6210_priv *wil)
 {
-	int irq = wil->pdev->irq;
-
-	disable_irq(irq);
-	if (wil->n_msi == 3) {
-		disable_irq(irq + 1);
-		disable_irq(irq + 2);
-	}
+	disable_irq(wil->pdev->irq);
 }
 
 void wil_enable_irq(struct wil6210_priv *wil)
 {
-	int irq = wil->pdev->irq;
-
-	enable_irq(irq);
-	if (wil->n_msi == 3) {
-		enable_irq(irq + 1);
-		enable_irq(irq + 2);
-	}
+	enable_irq(wil->pdev->irq);
 }
 
 /* Bus ops */
@@ -80,6 +66,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	 * and only MSI should be used
 	 */
 	int msi_only = pdev->msi_enabled;
+	bool _use_msi = use_msi;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
@@ -87,41 +74,20 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
 	pci_set_master(pdev);
 
-	/*
-	 * how many MSI interrupts to request?
-	 */
-	switch (use_msi) {
-	case 3:
-	case 1:
-		wil_dbg_misc(wil, "Setup %d MSI interrupts\n", use_msi);
-		break;
-	case 0:
-		wil_dbg_misc(wil, "MSI interrupts disabled, use INTx\n");
-		break;
-	default:
-		wil_err(wil, "Invalid use_msi=%d, default to 1\n", use_msi);
-		use_msi = 1;
-	}
+	wil_dbg_misc(wil, "Setup %s interrupt\n", use_msi ? "MSI" : "INTx");
 
-	if (use_msi == 3 && pci_enable_msi_range(pdev, 3, 3) < 0) {
-		wil_err(wil, "3 MSI mode failed, try 1 MSI\n");
-		use_msi = 1;
-	}
-
-	if (use_msi == 1 && pci_enable_msi(pdev)) {
+	if (use_msi && pci_enable_msi(pdev)) {
 		wil_err(wil, "pci_enable_msi failed, use INTx\n");
-		use_msi = 0;
+		_use_msi = false;
 	}
 
-	wil->n_msi = use_msi;
-
-	if ((wil->n_msi == 0) && msi_only) {
+	if (!_use_msi && msi_only) {
 		wil_err(wil, "Interrupt pin not routed, unable to use INTx\n");
 		rc = -ENODEV;
 		goto stop_master;
 	}
 
-	rc = wil6210_init_irq(wil, pdev->irq);
+	rc = wil6210_init_irq(wil, pdev->irq, _use_msi);
 	if (rc)
 		goto stop_master;
 

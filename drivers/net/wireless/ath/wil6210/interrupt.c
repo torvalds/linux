@@ -541,42 +541,6 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	return rc;
 }
 
-static int wil6210_request_3msi(struct wil6210_priv *wil, int irq)
-{
-	int rc;
-	/*
-	 * IRQ's are in the following order:
-	 * - Tx
-	 * - Rx
-	 * - Misc
-	 */
-
-	rc = request_irq(irq, wil6210_irq_tx, IRQF_SHARED,
-			 WIL_NAME"_tx", wil);
-	if (rc)
-		return rc;
-
-	rc = request_irq(irq + 1, wil6210_irq_rx, IRQF_SHARED,
-			 WIL_NAME"_rx", wil);
-	if (rc)
-		goto free0;
-
-	rc = request_threaded_irq(irq + 2, wil6210_irq_misc,
-				  wil6210_irq_misc_thread,
-				  IRQF_SHARED, WIL_NAME"_misc", wil);
-	if (rc)
-		goto free1;
-
-	return 0;
-	/* error branch */
-free1:
-	free_irq(irq + 1, wil);
-free0:
-	free_irq(irq, wil);
-
-	return rc;
-}
-
 /* can't use wil_ioread32_and_clear because ICC value is not set yet */
 static inline void wil_clear32(void __iomem *addr)
 {
@@ -596,19 +560,16 @@ void wil6210_clear_irq(struct wil6210_priv *wil)
 	wmb(); /* make sure write completed */
 }
 
-int wil6210_init_irq(struct wil6210_priv *wil, int irq)
+int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi)
 {
 	int rc;
 
-	wil_dbg_misc(wil, "%s() n_msi=%d\n", __func__, wil->n_msi);
+	wil_dbg_misc(wil, "%s(%s)\n", __func__, use_msi ? "MSI" : "INTx");
 
-	if (wil->n_msi == 3)
-		rc = wil6210_request_3msi(wil, irq);
-	else
-		rc = request_threaded_irq(irq, wil6210_hardirq,
-					  wil6210_thread_irq,
-					  wil->n_msi ? 0 : IRQF_SHARED,
-					  WIL_NAME, wil);
+	rc = request_threaded_irq(irq, wil6210_hardirq,
+				  wil6210_thread_irq,
+				  use_msi ? 0 : IRQF_SHARED,
+				  WIL_NAME, wil);
 	return rc;
 }
 
@@ -618,8 +579,4 @@ void wil6210_fini_irq(struct wil6210_priv *wil, int irq)
 
 	wil_mask_irq(wil);
 	free_irq(irq, wil);
-	if (wil->n_msi == 3) {
-		free_irq(irq + 1, wil);
-		free_irq(irq + 2, wil);
-	}
 }

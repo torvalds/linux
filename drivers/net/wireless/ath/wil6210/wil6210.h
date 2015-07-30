@@ -536,7 +536,6 @@ struct pmc_ctx {
 
 struct wil6210_priv {
 	struct pci_dev *pdev;
-	int n_msi;
 	struct wireless_dev *wdev;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
@@ -739,7 +738,7 @@ void wil_back_tx_worker(struct work_struct *work);
 void wil_back_tx_flush(struct wil6210_priv *wil);
 
 void wil6210_clear_irq(struct wil6210_priv *wil);
-int wil6210_init_irq(struct wil6210_priv *wil, int irq);
+int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
 void wil_mask_irq(struct wil6210_priv *wil);
 void wil_unmask_irq(struct wil6210_priv *wil);
