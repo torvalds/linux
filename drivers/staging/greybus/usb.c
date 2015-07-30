@@ -190,6 +190,18 @@ static int gb_usb_connection_init(struct gb_connection *connection)
 
 	hcd->has_tt = 1;
 
+	/*
+	 * FIXME: The USB bridged-PHY protocol driver depends on changes to
+	 *        USB core which are not yet upstream.
+	 *
+	 *        Disable for now.
+	 */
+	if (1) {
+		dev_warn(&connection->dev, "USB protocol disabled\n");
+		retval = -EPROTONOSUPPORT;
+		goto err_put_hcd;
+	}
+
 	retval = usb_add_hcd(hcd, 0, 0);
 	if (retval)
 		goto err_put_hcd;
