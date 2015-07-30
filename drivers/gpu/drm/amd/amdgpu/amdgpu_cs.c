@@ -739,7 +739,6 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			ib->oa_size = amdgpu_bo_size(oa);
 		}
 	}
-
 	/* wrap the last IB with user fence */
 	if (parser->uf.bo) {
 		struct amdgpu_ib *ib = &parser->ibs[parser->num_ibs - 1];
@@ -908,7 +907,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (amdgpu_enable_scheduler && parser->num_ibs) {
 		struct amdgpu_ring * ring =
 			amdgpu_cs_parser_get_ring(adev, parser);
-		parser->uf.sequence = atomic64_inc_return(
+		parser->ibs[parser->num_ibs - 1].sequence = atomic64_inc_return(
 			&parser->ctx->rings[ring->idx].c_entity.last_queued_v_seq);
 		if (ring->is_pte_ring || (parser->bo_list && parser->bo_list->has_userptr)) {
 			r = amdgpu_cs_parser_prepare_job(parser);
@@ -922,7 +921,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		amd_sched_push_job(ring->scheduler,
 				   &parser->ctx->rings[ring->idx].c_entity,
 				   parser);
-		cs->out.handle = parser->uf.sequence;
+		cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
 		up_read(&adev->exclusive_lock);
 		return 0;
 	}

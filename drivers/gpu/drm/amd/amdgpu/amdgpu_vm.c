@@ -380,7 +380,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		sched_job->run_job = amdgpu_vm_run_job;
 		sched_job->free_job = amdgpu_vm_free_job;
 		v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
-		sched_job->uf.sequence = v_seq;
+		ib->sequence = v_seq;
 		amd_sched_push_job(ring->scheduler,
 				   &adev->kernel_ctx->rings[ring->idx].c_entity,
 				   sched_job);
@@ -531,7 +531,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 			sched_job->run_job = amdgpu_vm_run_job;
 			sched_job->free_job = amdgpu_vm_free_job;
 			v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
-			sched_job->uf.sequence = v_seq;
+			ib->sequence = v_seq;
 			amd_sched_push_job(ring->scheduler,
 					   &adev->kernel_ctx->rings[ring->idx].c_entity,
 					   sched_job);
@@ -884,7 +884,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		sched_job->run_job = amdgpu_vm_bo_update_mapping_run_job;
 		sched_job->free_job = amdgpu_vm_free_job;
 		v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
-		sched_job->uf.sequence = v_seq;
+		ib->sequence = v_seq;
 		amd_sched_push_job(ring->scheduler,
 				   &adev->kernel_ctx->rings[ring->idx].c_entity,
 				   sched_job);

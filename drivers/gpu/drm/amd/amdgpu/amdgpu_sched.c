@@ -62,7 +62,7 @@ static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 			goto err;
 	}
 	atomic64_set(&c_entity->last_emitted_v_seq,
-		     sched_job->uf.sequence);
+		     sched_job->ibs[sched_job->num_ibs - 1].sequence);
 	wake_up_all(&c_entity->wait_emit);
 
 	mutex_unlock(&sched_job->job_lock);
@@ -93,7 +93,7 @@ static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched, void *job)
 	if (sched_job->ctx) {
 		c_entity = &sched_job->ctx->rings[ring->idx].c_entity;
 		atomic64_set(&c_entity->last_signaled_v_seq,
-			     sched_job->uf.sequence);
+			     sched_job->ibs[sched_job->num_ibs - 1].sequence);
 	}
 
 	/* wake up users waiting for time stamp */

@@ -258,7 +258,7 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
 }
 
 uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
-			      struct fence *fence)
+			      struct fence *fence, uint64_t queued_seq)
 {
 	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
 	uint64_t seq = 0;
@@ -266,7 +266,7 @@ uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 	struct fence *other = NULL;
 
 	if (amdgpu_enable_scheduler)
-		seq = atomic64_read(&cring->c_entity.last_queued_v_seq);
+		seq = queued_seq;
 	else
 		seq = cring->sequence;
 	idx = seq % AMDGPU_CTX_MAX_CS_PENDING;
