@@ -6469,8 +6469,8 @@ static int vcpu_run(struct kvm_vcpu *vcpu)
 			kvm_inject_pending_timer_irqs(vcpu);
 
 		if (dm_request_for_irq_injection(vcpu)) {
-			r = -EINTR;
-			vcpu->run->exit_reason = KVM_EXIT_INTR;
+			r = 0;
+			vcpu->run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 			++vcpu->stat.request_irq_exits;
 			break;
 		}

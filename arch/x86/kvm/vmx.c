@@ -5524,17 +5524,6 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	++vcpu->stat.irq_window_exits;
-
-	/*
-	 * If the user space waits to inject interrupts, exit as soon as
-	 * possible
-	 */
-	if (!lapic_in_kernel(vcpu) &&
-	    vcpu->run->request_interrupt_window &&
-	    !kvm_cpu_has_interrupt(vcpu)) {
-		vcpu->run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
-		return 0;
-	}
 	return 1;
 }
 
