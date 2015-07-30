@@ -1150,6 +1150,8 @@ void ll_clear_inode(struct inode *inode)
 	lli->lli_has_smd = false;
 }
 
+#define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
+
 static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 		  struct md_open_data **mod)
 {

@@ -140,10 +140,4 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 # define ext2_find_next_zero_bit  find_next_zero_bit_le
 #endif
 
-#ifdef ATTR_TIMES_SET
-# define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
-#else
-# define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET)
-#endif
-
 #endif /* _COMPAT25_H */
