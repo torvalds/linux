@@ -1404,6 +1404,24 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 	}
 }
 
+static u16 cm_get_bth_pkey(struct cm_work *work)
+{
+	struct ib_device *ib_dev = work->port->cm_dev->ib_device;
+	u8 port_num = work->port->port_num;
+	u16 pkey_index = work->mad_recv_wc->wc->pkey_index;
+	u16 pkey;
+	int ret;
+
+	ret = ib_get_cached_pkey(ib_dev, port_num, pkey_index, &pkey);
+	if (ret) {
+		dev_warn_ratelimited(&ib_dev->dev, "ib_cm: Couldn't retrieve pkey for incoming request (port %d, pkey index %d). %d\n",
+				     port_num, pkey_index, ret);
+		return 0;
+	}
+
+	return pkey;
+}
+
 static void cm_format_req_event(struct cm_work *work,
 				struct cm_id_private *cm_id_priv,
 				struct ib_cm_id *listen_id)
@@ -1414,6 +1432,7 @@ static void cm_format_req_event(struct cm_work *work,
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 	param = &work->cm_event.param.req_rcvd;
 	param->listen_id = listen_id;
+	param->bth_pkey = cm_get_bth_pkey(work);
 	param->port = cm_id_priv->av.port->port_num;
 	param->primary_path = &work->path[0];
 	if (req_msg->alt_local_lid)
@@ -3105,6 +3124,7 @@ static void cm_format_sidr_req_event(struct cm_work *work,
 	param->pkey = __be16_to_cpu(sidr_req_msg->pkey);
 	param->listen_id = listen_id;
 	param->service_id = sidr_req_msg->service_id;
+	param->bth_pkey = cm_get_bth_pkey(work);
 	param->port = work->port->port_num;
 	work->cm_event.private_data = &sidr_req_msg->private_data;
 }

@@ -113,6 +113,10 @@ struct ib_cm_id;
 
 struct ib_cm_req_event_param {
 	struct ib_cm_id		*listen_id;
+
+	/* P_Key that was used by the GMP's BTH header */
+	u16			bth_pkey;
+
 	u8			port;
 
 	struct ib_sa_path_rec	*primary_path;
@@ -224,6 +228,8 @@ struct ib_cm_apr_event_param {
 struct ib_cm_sidr_req_event_param {
 	struct ib_cm_id		*listen_id;
 	__be64			service_id;
+	/* P_Key that was used by the GMP's BTH header */
+	u16			bth_pkey;
 	u8			port;
 	u16			pkey;
 };
