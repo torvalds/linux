@@ -968,6 +968,7 @@ static const struct of_device_id mma8452_dt_ids[] = {
 	{ .compatible = "fsl,mma8452" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mma8452_dt_ids);
 
 static struct i2c_driver mma8452_driver = {
 	.driver = {
