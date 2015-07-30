@@ -1116,43 +1116,14 @@ static void amdgpu_fence_wait_cb(struct fence *fence, struct fence_cb *cb)
 static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
 					     signed long t)
 {
+	struct amdgpu_fence *array[AMDGPU_MAX_RINGS];
 	struct amdgpu_fence *fence = to_amdgpu_fence(f);
 	struct amdgpu_device *adev = fence->ring->adev;
-	struct amdgpu_wait_cb cb;
 
-	cb.task = current;
+	memset(&array[0], 0, sizeof(array));
+	array[0] = fence;
 
-	if (fence_add_callback(f, &cb.base, amdgpu_fence_wait_cb))
-		return t;
-
-	while (t > 0) {
-		if (intr)
-			set_current_state(TASK_INTERRUPTIBLE);
-		else
-			set_current_state(TASK_UNINTERRUPTIBLE);
-
-		/*
-		 * amdgpu_test_signaled must be called after
-		 * set_current_state to prevent a race with wake_up_process
-		 */
-		if (amdgpu_test_signaled(fence))
-			break;
-
-		if (adev->needs_reset) {
-			t = -EDEADLK;
-			break;
-		}
-
-		t = schedule_timeout(t);
-
-		if (t > 0 && intr && signal_pending(current))
-			t = -ERESTARTSYS;
-	}
-
-	__set_current_state(TASK_RUNNING);
-	fence_remove_callback(f, &cb.base);
-
-	return t;
+	return amdgpu_fence_wait_any(adev, array, intr, t);
 }
 
 /* wait until any fence in array signaled */
