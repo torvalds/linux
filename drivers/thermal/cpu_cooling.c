@@ -235,6 +235,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 			if (policy->max != max_freq)
 				cpufreq_verify_within_limits(policy, 0,
 							     max_freq);
+			break;
 		}
 		mutex_unlock(&cooling_list_lock);
 		break;
