@@ -223,6 +223,7 @@ struct ib_cm_apr_event_param {
 
 struct ib_cm_sidr_req_event_param {
 	struct ib_cm_id		*listen_id;
+	__be64			service_id;
 	u8			port;
 	u16			pkey;
 };
