@@ -218,7 +218,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	unsigned long max_freq = 0;
+	unsigned long max_freq;
 	struct cpufreq_cooling_device *cpufreq_dev;
 
 	switch (event) {
