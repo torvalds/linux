@@ -264,8 +264,9 @@ struct fbtft_par {
 /* fbtft-core.c */
 extern void fbtft_dbg_hex(const struct device *dev,
 	int groupsize, void *buf, size_t len, const char *fmt, ...);
-extern struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
-	struct device *dev);
+struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
+					struct device *dev,
+					struct fbtft_platform_data *pdata);
 extern void fbtft_framebuffer_release(struct fb_info *info);
 extern int fbtft_register_framebuffer(struct fb_info *fb_info);
 extern int fbtft_unregister_framebuffer(struct fb_info *fb_info);

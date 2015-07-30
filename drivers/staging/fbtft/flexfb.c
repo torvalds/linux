@@ -379,7 +379,7 @@ static int flexfb_probe_common(struct spi_device *sdev,
 	fbtft_init_dbg(dev, "regwidth = %d\n", regwidth);
 	fbtft_init_dbg(dev, "buswidth = %d\n", buswidth);
 
-	info = fbtft_framebuffer_alloc(&flex_display, dev);
+	info = fbtft_framebuffer_alloc(&flex_display, dev, dev->platform_data);
 	if (!info)
 		return -ENOMEM;
 
