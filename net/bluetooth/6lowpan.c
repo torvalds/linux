@@ -859,18 +859,6 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_dev **dev)
 	SET_NETDEV_DEV(netdev, &chan->conn->hcon->hdev->dev);
 	SET_NETDEV_DEVTYPE(netdev, &bt_type);
 
-	err = register_netdev(netdev);
-	if (err < 0) {
-		BT_INFO("register_netdev failed %d", err);
-		free_netdev(netdev);
-		goto out;
-	}
-
-	BT_DBG("ifindex %d peer bdaddr %pMR type %d my addr %pMR type %d",
-	       netdev->ifindex, &chan->dst, chan->dst_type,
-	       &chan->src, chan->src_type);
-	set_bit(__LINK_STATE_PRESENT, &netdev->state);
-
 	*dev = netdev_priv(netdev);
 	(*dev)->netdev = netdev;
 	(*dev)->hdev = chan->conn->hcon->hdev;
@@ -880,6 +868,21 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_dev **dev)
 	INIT_LIST_HEAD(&(*dev)->list);
 	list_add_rcu(&(*dev)->list, &bt_6lowpan_devices);
 	spin_unlock(&devices_lock);
+
+	err = register_netdev(netdev);
+	if (err < 0) {
+		BT_INFO("register_netdev failed %d", err);
+		spin_lock(&devices_lock);
+		list_del_rcu(&(*dev)->list);
+		spin_unlock(&devices_lock);
+		free_netdev(netdev);
+		goto out;
+	}
+
+	BT_DBG("ifindex %d peer bdaddr %pMR type %d my addr %pMR type %d",
+	       netdev->ifindex, &chan->dst, chan->dst_type,
+	       &chan->src, chan->src_type);
+	set_bit(__LINK_STATE_PRESENT, &netdev->state);
 
 	return 0;
 

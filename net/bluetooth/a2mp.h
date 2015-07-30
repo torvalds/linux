@@ -130,10 +130,29 @@ struct a2mp_physlink_rsp {
 #define A2MP_STATUS_SECURITY_VIOLATION		0x06
 
 struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr);
+
+#if IS_ENABLED(CONFIG_BT_HS)
 int amp_mgr_put(struct amp_mgr *mgr);
 struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 				       struct sk_buff *skb);
 void a2mp_discover_amp(struct l2cap_chan *chan);
+#else
+static inline int amp_mgr_put(struct amp_mgr *mgr)
+{
+	return 0;
+}
+
+static inline struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
+						     struct sk_buff *skb)
+{
+	return NULL;
+}
+
+static inline void a2mp_discover_amp(struct l2cap_chan *chan)
+{
+}
+#endif
+
 void a2mp_send_getinfo_rsp(struct hci_dev *hdev);
 void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status);
 void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status);

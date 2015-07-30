@@ -40,7 +40,7 @@ static void ieee802154_tasklet_handler(unsigned long data)
 			 * netstack.
 			 */
 			skb->pkt_type = 0;
-			ieee802154_rx(&local->hw, skb);
+			ieee802154_rx(local, skb);
 			break;
 		default:
 			WARN(1, "mac802154: Packet is of unknown type %d\n",
@@ -58,11 +58,9 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	struct ieee802154_local *local;
 	size_t priv_size;
 
-	if (!ops || !(ops->xmit_async || ops->xmit_sync) || !ops->ed ||
-	    !ops->start || !ops->stop || !ops->set_channel) {
-		pr_err("undefined IEEE802.15.4 device operations\n");
+	if (WARN_ON(!ops || !(ops->xmit_async || ops->xmit_sync) || !ops->ed ||
+		    !ops->start || !ops->stop || !ops->set_channel))
 		return NULL;
-	}
 
 	/* Ensure 32-byte alignment of our private data and hw private data.
 	 * We use the wpan_phy priv data for both our ieee802154_local and for
@@ -106,6 +104,8 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 		     (unsigned long)local);
 
 	skb_queue_head_init(&local->skb_queue);
+
+	INIT_WORK(&local->tx_work, ieee802154_xmit_worker);
 
 	/* init supported flags with 802.15.4 default ranges */
 	phy->supported.max_minbe = 8;

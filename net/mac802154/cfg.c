@@ -44,6 +44,49 @@ static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,
 	ieee802154_if_remove(sdata);
 }
 
+#ifdef CONFIG_PM
+static int ieee802154_suspend(struct wpan_phy *wpan_phy)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+
+	if (!local->open_count)
+		goto suspend;
+
+	ieee802154_stop_queue(&local->hw);
+	synchronize_net();
+
+	/* stop hardware - this must stop RX */
+	ieee802154_stop_device(local);
+
+suspend:
+	local->suspended = true;
+	return 0;
+}
+
+static int ieee802154_resume(struct wpan_phy *wpan_phy)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	int ret;
+
+	/* nothing to do if HW shouldn't run */
+	if (!local->open_count)
+		goto wake_up;
+
+	/* restart hardware */
+	ret = drv_start(local);
+	if (ret)
+		return ret;
+
+wake_up:
+	ieee802154_wake_queue(&local->hw);
+	local->suspended = false;
+	return 0;
+}
+#else
+#define ieee802154_suspend NULL
+#define ieee802154_resume NULL
+#endif
+
 static int
 ieee802154_add_iface(struct wpan_phy *phy, const char *name,
 		     unsigned char name_assign_type,
@@ -145,13 +188,18 @@ static int
 ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 		      __le16 pan_id)
 {
+	int ret;
+
 	ASSERT_RTNL();
 
 	if (wpan_dev->pan_id == pan_id)
 		return 0;
 
-	wpan_dev->pan_id = pan_id;
-	return 0;
+	ret = mac802154_wpan_update_llsec(wpan_dev->netdev);
+	if (!ret)
+		wpan_dev->pan_id = pan_id;
+
+	return ret;
 }
 
 static int
@@ -227,6 +275,8 @@ ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
+	.suspend = ieee802154_suspend,
+	.resume = ieee802154_resume,
 	.add_virtual_intf = ieee802154_add_iface,
 	.del_virtual_intf = ieee802154_del_iface,
 	.set_channel = ieee802154_set_channel,

@@ -95,10 +95,10 @@ struct btmrvl_private {
 	struct btmrvl_device btmrvl_dev;
 	struct btmrvl_adapter *adapter;
 	struct btmrvl_thread main_thread;
-	int (*hw_host_to_card) (struct btmrvl_private *priv,
+	int (*hw_host_to_card)(struct btmrvl_private *priv,
 				u8 *payload, u16 nb);
-	int (*hw_wakeup_firmware) (struct btmrvl_private *priv);
-	int (*hw_process_int_status) (struct btmrvl_private *priv);
+	int (*hw_wakeup_firmware)(struct btmrvl_private *priv);
+	int (*hw_process_int_status)(struct btmrvl_private *priv);
 	void (*firmware_dump)(struct btmrvl_private *priv);
 	spinlock_t driver_lock;		/* spinlock used by driver */
 #ifdef CONFIG_DEBUG_FS

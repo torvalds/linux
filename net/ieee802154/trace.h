@@ -40,6 +40,28 @@
  *			rdev->ops traces		     *
  *************************************************************/
 
+DECLARE_EVENT_CLASS(wpan_phy_only_evt,
+	TP_PROTO(struct wpan_phy *wpan_phy),
+	TP_ARGS(wpan_phy),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+	),
+	TP_printk(WPAN_PHY_PR_FMT, WPAN_PHY_PR_ARG)
+);
+
+DEFINE_EVENT(wpan_phy_only_evt, 802154_rdev_suspend,
+	TP_PROTO(struct wpan_phy *wpan_phy),
+	TP_ARGS(wpan_phy)
+);
+
+DEFINE_EVENT(wpan_phy_only_evt, 802154_rdev_resume,
+	TP_PROTO(struct wpan_phy *wpan_phy),
+	TP_ARGS(wpan_phy)
+);
+
 TRACE_EVENT(802154_rdev_add_virtual_intf,
 	TP_PROTO(struct wpan_phy *wpan_phy, char *name,
 		 enum nl802154_iftype type, __le64 extended_addr),

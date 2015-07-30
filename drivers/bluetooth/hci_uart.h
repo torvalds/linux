@@ -167,6 +167,11 @@ int h5_init(void);
 int h5_deinit(void);
 #endif
 
+#ifdef CONFIG_BT_HCIUART_INTEL
+int intel_init(void);
+int intel_deinit(void);
+#endif
+
 #ifdef CONFIG_BT_HCIUART_BCM
 int bcm_init(void);
 int bcm_deinit(void);

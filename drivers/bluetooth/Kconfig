@@ -132,6 +132,7 @@ config BT_HCIUART_3WIRE
 config BT_HCIUART_INTEL
 	bool "Intel protocol support"
 	depends on BT_HCIUART
+	select BT_HCIUART_H4
 	select BT_INTEL
 	help
 	  The Intel protocol support enables Bluetooth HCI over serial
