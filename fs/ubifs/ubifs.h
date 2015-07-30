@@ -858,9 +858,9 @@ struct ubifs_compressor {
  * @mod_dent: non-zero if the operation removes or modifies an existing
  *            directory entry
  * @new_ino: non-zero if the operation adds a new inode
- * @new_ino_d: now much data newly created inode contains
+ * @new_ino_d: how much data newly created inode contains
  * @dirtied_ino: how many inodes the operation makes dirty
- * @dirtied_ino_d: now much data dirtied inode contains
+ * @dirtied_ino_d: how much data dirtied inode contains
  * @idx_growth: how much the index will supposedly grow
  * @data_growth: how much new data the operation will supposedly add
  * @dd_growth: how much data that makes other data dirty the operation will
