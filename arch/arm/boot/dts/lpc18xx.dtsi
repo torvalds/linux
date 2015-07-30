@@ -97,6 +97,16 @@
 			status = "disabled";
 		};
 
+		lcdc: lcd-controller@40008000 {
+			compatible = "arm,pl111", "arm,primecell";
+			reg = <0x40008000 0x1000>;
+			interrupts = <7>;
+			interrupt-names = "combined";
+			clocks = <&cgu BASE_LCD_CLK>, <&ccu1 CLK_CPU_LCD>;
+			clock-names = "clcdclk", "apb_pclk";
+			status = "disabled";
+		};
+
 		mac: ethernet@40010000 {
 			compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
 			reg = <0x40010000 0x2000>;
