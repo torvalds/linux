@@ -817,14 +817,14 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 
 static int amdgpu_cs_parser_prepare_job(struct amdgpu_cs_parser *sched_job)
 {
-        int r, i;
+	int r, i;
 	struct amdgpu_cs_parser *parser = sched_job;
 	struct amdgpu_device *adev = sched_job->adev;
-        bool reserved_buffers = false;
+	bool reserved_buffers = false;
 
-        r = amdgpu_cs_parser_relocs(parser);
-        if (r) {
-                if (r != -ERESTARTSYS) {
+	r = amdgpu_cs_parser_relocs(parser);
+	if (r) {
+		if (r != -ERESTARTSYS) {
 			if (r == -ENOMEM)
 				DRM_ERROR("Not enough memory for command submission!\n");
 			else
@@ -841,16 +841,16 @@ static int amdgpu_cs_parser_prepare_job(struct amdgpu_cs_parser *sched_job)
 		if (r)
 			DRM_ERROR("Failed in the dependencies handling %d!\n", r);
 	}
-        if (r) {
-                amdgpu_cs_parser_fini(parser, r, reserved_buffers);
-               return r;
-        }
+	if (r) {
+		amdgpu_cs_parser_fini(parser, r, reserved_buffers);
+		return r;
+	}
 
-        for (i = 0; i < parser->num_ibs; i++)
-                trace_amdgpu_cs(parser, i);
+	for (i = 0; i < parser->num_ibs; i++)
+		trace_amdgpu_cs(parser, i);
 
-       r = amdgpu_cs_ib_vm_chunk(adev, parser);
-       return r;
+	r = amdgpu_cs_ib_vm_chunk(adev, parser);
+	return r;
 }
 
 static struct amdgpu_ring *amdgpu_cs_parser_get_ring(

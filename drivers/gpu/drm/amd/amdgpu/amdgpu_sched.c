@@ -33,11 +33,12 @@ static int amdgpu_sched_prepare_job(struct amd_gpu_scheduler *sched,
 {
 	int r = 0;
 	struct amdgpu_cs_parser *sched_job = (struct amdgpu_cs_parser *)job;
-	if (sched_job->prepare_job)
+	if (sched_job->prepare_job) {
 		r = sched_job->prepare_job(sched_job);
-	if (r) {
-		DRM_ERROR("Prepare job error\n");
-		schedule_work(&sched_job->job_work);
+		if (r) {
+			DRM_ERROR("Prepare job error\n");
+			schedule_work(&sched_job->job_work);
+		}
 	}
 	return r;
 }
