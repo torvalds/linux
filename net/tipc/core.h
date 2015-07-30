@@ -109,6 +109,11 @@ struct tipc_net {
 	atomic_t subscription_count;
 };
 
+static inline struct tipc_net *tipc_net(struct net *net)
+{
+	return net_generic(net, tipc_net_id);
+}
+
 static inline u16 mod(u16 x)
 {
 	return x & 0xffffu;

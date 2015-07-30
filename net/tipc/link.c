@@ -147,87 +147,71 @@ int tipc_link_is_active(struct tipc_link *l)
 	return (node_active_link(n, 0) == l) || (node_active_link(n, 1) == l);
 }
 
+static u32 link_own_addr(struct tipc_link *l)
+{
+	return msg_prevnode(l->pmsg);
+}
+
 /**
  * tipc_link_create - create a new link
- * @n_ptr: pointer to associated node
- * @b_ptr: pointer to associated bearer
- * @media_addr: media address to use when sending messages over link
+ * @n: pointer to associated node
+ * @b: pointer to associated bearer
+ * @ownnode: identity of own node
+ * @peer: identity of peer node
+ * @maddr: media address to be used
+ * @inputq: queue to put messages ready for delivery
+ * @namedq: queue to put binding table update messages ready for delivery
+ * @link: return value, pointer to put the created link
  *
- * Returns pointer to link.
+ * Returns true if link was created, otherwise false
  */
-struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
-				   struct tipc_bearer *b_ptr,
-				   const struct tipc_media_addr *media_addr,
-				   struct sk_buff_head *inputq,
-				   struct sk_buff_head *namedq)
+bool tipc_link_create(struct tipc_node *n, struct tipc_bearer *b, u32 session,
+		      u32 ownnode, u32 peer, struct tipc_media_addr *maddr,
+		      struct sk_buff_head *inputq, struct sk_buff_head *namedq,
+		      struct tipc_link **link)
 {
-	struct tipc_net *tn = net_generic(n_ptr->net, tipc_net_id);
-	struct tipc_link *l_ptr;
-	struct tipc_msg *msg;
+	struct tipc_link *l;
+	struct tipc_msg *hdr;
 	char *if_name;
-	char addr_string[16];
-	u32 peer = n_ptr->addr;
 
-	if (n_ptr->link_cnt >= MAX_BEARERS) {
-		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		pr_err("Cannot establish %uth link to %s. Max %u allowed.\n",
-		       n_ptr->link_cnt, addr_string, MAX_BEARERS);
-		return NULL;
-	}
+	l = kzalloc(sizeof(*l), GFP_ATOMIC);
+	if (!l)
+		return false;
+	*link = l;
 
-	if (n_ptr->links[b_ptr->identity].link) {
-		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		pr_err("Attempt to establish second link on <%s> to %s\n",
-		       b_ptr->name, addr_string);
-		return NULL;
-	}
+	/* Note: peer i/f name is completed by reset/activate message */
+	if_name = strchr(b->name, ':') + 1;
+	sprintf(l->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
+		tipc_zone(ownnode), tipc_cluster(ownnode), tipc_node(ownnode),
+		if_name, tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
 
-	l_ptr = kzalloc(sizeof(*l_ptr), GFP_ATOMIC);
-	if (!l_ptr) {
-		pr_warn("Link creation failed, no memory\n");
-		return NULL;
-	}
-	l_ptr->addr = peer;
-	if_name = strchr(b_ptr->name, ':') + 1;
-	sprintf(l_ptr->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
-		tipc_zone(tn->own_addr), tipc_cluster(tn->own_addr),
-		tipc_node(tn->own_addr),
-		if_name,
-		tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
-		/* note: peer i/f name is updated by reset/activate message */
-	memcpy(&l_ptr->media_addr, media_addr, sizeof(*media_addr));
-	l_ptr->owner = n_ptr;
-	l_ptr->peer_session = WILDCARD_SESSION;
-	l_ptr->bearer_id = b_ptr->identity;
-	l_ptr->tolerance = b_ptr->tolerance;
-	l_ptr->snd_nxt = 1;
-	l_ptr->rcv_nxt = 1;
-	l_ptr->state = LINK_RESET;
-
-	l_ptr->pmsg = (struct tipc_msg *)&l_ptr->proto_msg;
-	msg = l_ptr->pmsg;
-	tipc_msg_init(tn->own_addr, msg, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE,
-		      l_ptr->addr);
-	msg_set_size(msg, sizeof(l_ptr->proto_msg));
-	msg_set_session(msg, (tn->random & 0xffff));
-	msg_set_bearer_id(msg, b_ptr->identity);
-	strcpy((char *)msg_data(msg), if_name);
-	l_ptr->net_plane = b_ptr->net_plane;
-	l_ptr->advertised_mtu = b_ptr->mtu;
-	l_ptr->mtu = l_ptr->advertised_mtu;
-	l_ptr->priority = b_ptr->priority;
-	tipc_link_set_queue_limits(l_ptr, b_ptr->window);
-	l_ptr->snd_nxt = 1;
-	__skb_queue_head_init(&l_ptr->transmq);
-	__skb_queue_head_init(&l_ptr->backlogq);
-	__skb_queue_head_init(&l_ptr->deferdq);
-	skb_queue_head_init(&l_ptr->wakeupq);
-	l_ptr->inputq = inputq;
-	l_ptr->namedq = namedq;
-	skb_queue_head_init(l_ptr->inputq);
-	link_reset_statistics(l_ptr);
-	tipc_node_attach_link(n_ptr, l_ptr);
-	return l_ptr;
+	l->addr = peer;
+	l->media_addr = maddr;
+	l->owner = n;
+	l->peer_session = WILDCARD_SESSION;
+	l->bearer_id = b->identity;
+	l->tolerance = b->tolerance;
+	l->net_plane = b->net_plane;
+	l->advertised_mtu = b->mtu;
+	l->mtu = b->mtu;
+	l->priority = b->priority;
+	tipc_link_set_queue_limits(l, b->window);
+	l->inputq = inputq;
+	l->namedq = namedq;
+	l->state = LINK_RESETTING;
+	l->pmsg = (struct tipc_msg *)&l->proto_msg;
+	hdr = l->pmsg;
+	tipc_msg_init(ownnode, hdr, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE, peer);
+	msg_set_size(hdr, sizeof(l->proto_msg));
+	msg_set_session(hdr, session);
+	msg_set_bearer_id(hdr, l->bearer_id);
+	strcpy((char *)msg_data(hdr), if_name);
+	__skb_queue_head_init(&l->transmq);
+	__skb_queue_head_init(&l->backlogq);
+	__skb_queue_head_init(&l->deferdq);
+	skb_queue_head_init(&l->wakeupq);
+	skb_queue_head_init(l->inputq);
+	return true;
 }
 
 /* tipc_link_build_bcast_sync_msg() - synchronize broadcast link endpoints.
@@ -643,7 +627,7 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 	u16 ack = mod(link->rcv_nxt - 1);
 	u16 seqno = link->snd_nxt;
 	u16 bc_last_in = link->owner->bclink.last_in;
-	struct tipc_media_addr *addr = &link->media_addr;
+	struct tipc_media_addr *addr = link->media_addr;
 	struct sk_buff_head *transmq = &link->transmq;
 	struct sk_buff_head *backlogq = &link->backlogq;
 	struct sk_buff *skb, *bskb;
@@ -809,7 +793,7 @@ void tipc_link_push_packets(struct tipc_link *link)
 		link->rcv_unacked = 0;
 		__skb_queue_tail(&link->transmq, skb);
 		tipc_bearer_send(link->owner->net, link->bearer_id,
-				 skb, &link->media_addr);
+				 skb, link->media_addr);
 	}
 	link->snd_nxt = seqno;
 }
@@ -912,7 +896,7 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *skb,
 		msg_set_ack(msg, mod(l_ptr->rcv_nxt - 1));
 		msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
 		tipc_bearer_send(l_ptr->owner->net, l_ptr->bearer_id, skb,
-				 &l_ptr->media_addr);
+				 l_ptr->media_addr);
 		retransmits--;
 		l_ptr->stats.retransmitted++;
 	}
@@ -1200,7 +1184,7 @@ void tipc_link_proto_xmit(struct tipc_link *l, u32 msg_typ, int probe_msg,
 	skb = __skb_dequeue(&xmitq);
 	if (!skb)
 		return;
-	tipc_bearer_send(l->owner->net, l->bearer_id, skb, &l->media_addr);
+	tipc_bearer_send(l->owner->net, l->bearer_id, skb, l->media_addr);
 	l->rcv_unacked = 0;
 	kfree_skb(skb);
 }

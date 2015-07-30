@@ -320,10 +320,6 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	if (!nl || !tipc_link_is_up(nl))
 		return;
 
-	if (n->working_links > 1) {
-		pr_warn("Attempt to establish 3rd link to %x\n", n->addr);
-		return;
-	}
 	n->working_links++;
 	n->action_flags |= TIPC_NOTIFY_LINK_UP;
 	n->link_id = nl->peer_bearer_id << 16 | bearer_id;
@@ -470,13 +466,13 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 {
 	struct tipc_node *n;
 	struct tipc_link *l;
-	struct tipc_media_addr *curr_maddr;
-	struct sk_buff_head *inputq;
+	struct tipc_link_entry *le;
 	bool addr_match = false;
 	bool sign_match = false;
 	bool link_up = false;
 	bool accept_addr = false;
 	bool reset = true;
+
 	*dupl_addr = false;
 	*respond = false;
 
@@ -486,13 +482,12 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 
 	tipc_node_lock(n);
 
-	curr_maddr = &n->links[b->identity].maddr;
-	inputq = &n->links[b->identity].inputq;
+	le = &n->links[b->identity];
 
 	/* Prepare to validate requesting node's signature and media address */
-	l = n->links[b->identity].link;
+	l = le->link;
 	link_up = l && tipc_link_is_up(l);
-	addr_match = l && !memcmp(curr_maddr, maddr, sizeof(*maddr));
+	addr_match = l && !memcmp(&le->maddr, maddr, sizeof(*maddr));
 	sign_match = (signature == n->signature);
 
 	/* These three flags give us eight permutations: */
@@ -559,18 +554,25 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 
 	/* Now create new link if not already existing */
 	if (!l) {
-		l = tipc_link_create(n, b, maddr, inputq, &n->bclink.namedq);
-		if (!l) {
+		if (n->link_cnt == 2) {
+			pr_warn("Cannot establish 3rd link to %x\n", n->addr);
+			goto exit;
+		}
+		if (!tipc_link_create(n, b, mod(tipc_net(net)->random),
+				      tipc_own_addr(net), onode, &le->maddr,
+				      &le->inputq, &n->bclink.namedq, &l)) {
 			*respond = false;
 			goto exit;
 		}
+		tipc_link_reset(l);
+		le->link = l;
+		n->link_cnt++;
 		tipc_node_calculate_timer(n, l);
 		if (n->link_cnt == 1)
 			if (!mod_timer(&n->timer, jiffies + n->keepalive_intv))
 				tipc_node_get(n);
 	}
-	memcpy(&l->media_addr, maddr, sizeof(*maddr));
-	memcpy(curr_maddr, maddr, sizeof(*maddr));
+	memcpy(&le->maddr, maddr, sizeof(*maddr));
 exit:
 	tipc_node_unlock(n);
 	if (reset)
@@ -600,24 +602,6 @@ static void tipc_node_reset_links(struct tipc_node *n)
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		tipc_node_link_down(n, i, false);
-	}
-}
-
-void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
-{
-	n_ptr->links[l_ptr->bearer_id].link = l_ptr;
-	n_ptr->link_cnt++;
-}
-
-void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
-{
-	int i;
-
-	for (i = 0; i < MAX_BEARERS; i++) {
-		if (l_ptr != n_ptr->links[i].link)
-			continue;
-		n_ptr->links[i].link = NULL;
-		n_ptr->link_cnt--;
 	}
 }
 
