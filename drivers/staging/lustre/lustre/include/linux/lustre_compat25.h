@@ -146,10 +146,4 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 # define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET)
 #endif
 
-
-#include <linux/version.h>
-#include <linux/fs.h>
-
-# define ll_umode_t	umode_t
-
 #endif /* _COMPAT25_H */

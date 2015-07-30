@@ -1008,7 +1008,7 @@ static int ll_unlink(struct inode *dir, struct dentry *dentry)
 	return rc;
 }
 
-static int ll_mkdir(struct inode *dir, struct dentry *dentry, ll_umode_t mode)
+static int ll_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err;
 
