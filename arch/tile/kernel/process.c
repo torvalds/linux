@@ -446,6 +446,11 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	hardwall_switch_tasks(prev, next);
 #endif
 
+	/* Notify the simulator of task exit. */
+	if (unlikely(prev->state == TASK_DEAD))
+		__insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_OS_EXIT |
+			     (prev->pid << _SIM_CONTROL_OPERATOR_BITS));
+
 	/*
 	 * Switch kernel SP, PC, and callee-saved registers.
 	 * In the context of the new task, return the old task pointer
