@@ -619,6 +619,7 @@ static void __exit aim_exit(void)
 		aim_unregister_videodev(mdev);
 		v4l2_device_disconnect(&mdev->v4l2_dev);
 		v4l2_device_put(&mdev->v4l2_dev);
+		spin_lock(&list_lock);
 	}
 	spin_unlock(&list_lock);
 
