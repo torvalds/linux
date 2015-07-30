@@ -622,18 +622,11 @@ static long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev,
  */
 int amdgpu_fence_wait(struct amdgpu_fence *fence, bool intr)
 {
-	uint64_t seq[AMDGPU_MAX_RINGS] = {};
 	long r;
 
-	seq[fence->ring->idx] = fence->seq;
-	r = amdgpu_fence_wait_seq_timeout(fence->ring->adev, seq, intr, MAX_SCHEDULE_TIMEOUT);
-	if (r < 0) {
-		return r;
-	}
-
-	r = fence_signal(&fence->base);
-	if (!r)
-		FENCE_TRACE(&fence->base, "signaled from fence_wait\n");
+	r = fence_wait_timeout(&fence->base, intr, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
+		return  r;
 	return 0;
 }
 
