@@ -61,8 +61,8 @@ int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_get) {
-		dev_dbg(pctldev->dev, "cannot get pin configuration, missing "
-			"pin_config_get() function in driver\n");
+		dev_dbg(pctldev->dev,
+			"cannot get pin configuration, .pin_config_get missing in driver\n");
 		return -ENOTSUPP;
 	}
 
