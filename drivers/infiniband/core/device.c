@@ -55,17 +55,24 @@ struct ib_client_data {
 struct workqueue_struct *ib_wq;
 EXPORT_SYMBOL_GPL(ib_wq);
 
+/* The device_list and client_list contain devices and clients after their
+ * registration has completed, and the devices and clients are removed
+ * during unregistration. */
 static LIST_HEAD(device_list);
 static LIST_HEAD(client_list);
 
 /*
- * device_mutex protects access to both device_list and client_list.
- * There's no real point to using multiple locks or something fancier
- * like an rwsem: we always access both lists, and we're always
- * modifying one list or the other list.  In any case this is not a
- * hot path so there's no point in trying to optimize.
+ * device_mutex and lists_rwsem protect access to both device_list and
+ * client_list.  device_mutex protects writer access by device and client
+ * registration / de-registration.  lists_rwsem protects reader access to
+ * these lists.  Iterators of these lists must lock it for read, while updates
+ * to the lists must be done with a write lock. A special case is when the
+ * device_mutex is locked. In this case locking the lists for read access is
+ * not necessary as the device_mutex implies it.
  */
 static DEFINE_MUTEX(device_mutex);
+static DECLARE_RWSEM(lists_rwsem);
+
 
 static int ib_device_check_mandatory(struct ib_device *device)
 {
@@ -305,8 +312,6 @@ int ib_register_device(struct ib_device *device,
 		goto out;
 	}
 
-	list_add_tail(&device->core_list, &device_list);
-
 	device->reg_state = IB_DEV_REGISTERED;
 
 	{
@@ -317,7 +322,10 @@ int ib_register_device(struct ib_device *device,
 				client->add(device);
 	}
 
- out:
+	down_write(&lists_rwsem);
+	list_add_tail(&device->core_list, &device_list);
+	up_write(&lists_rwsem);
+out:
 	mutex_unlock(&device_mutex);
 	return ret;
 }
@@ -337,11 +345,13 @@ void ib_unregister_device(struct ib_device *device)
 
 	mutex_lock(&device_mutex);
 
+	down_write(&lists_rwsem);
+	list_del(&device->core_list);
+	up_write(&lists_rwsem);
+
 	list_for_each_entry_reverse(client, &client_list, list)
 		if (client->remove)
 			client->remove(device);
-
-	list_del(&device->core_list);
 
 	mutex_unlock(&device_mutex);
 
@@ -375,10 +385,13 @@ int ib_register_client(struct ib_client *client)
 
 	mutex_lock(&device_mutex);
 
-	list_add_tail(&client->list, &client_list);
 	list_for_each_entry(device, &device_list, core_list)
 		if (client->add && !add_client_context(device, client))
 			client->add(device);
+
+	down_write(&lists_rwsem);
+	list_add_tail(&client->list, &client_list);
+	up_write(&lists_rwsem);
 
 	mutex_unlock(&device_mutex);
 
@@ -402,6 +415,10 @@ void ib_unregister_client(struct ib_client *client)
 
 	mutex_lock(&device_mutex);
 
+	down_write(&lists_rwsem);
+	list_del(&client->list);
+	up_write(&lists_rwsem);
+
 	list_for_each_entry(device, &device_list, core_list) {
 		if (client->remove)
 			client->remove(device);
@@ -414,7 +431,6 @@ void ib_unregister_client(struct ib_client *client)
 			}
 		spin_unlock_irqrestore(&device->client_data_lock, flags);
 	}
-	list_del(&client->list);
 
 	mutex_unlock(&device_mutex);
 }
