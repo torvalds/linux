@@ -1170,6 +1170,19 @@ static int clean_mr(struct mlx5_ib_mr *mr)
 	int umred = mr->umred;
 	int err;
 
+	if (mr->sig) {
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_memory.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
+				     mr->sig->psv_memory.psv_idx);
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_wire.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
+				     mr->sig->psv_wire.psv_idx);
+		kfree(mr->sig);
+		mr->sig = NULL;
+	}
+
 	if (!umred) {
 		err = destroy_mkey(dev, mr);
 		if (err) {
@@ -1315,36 +1328,6 @@ err_free_in:
 err_free:
 	kfree(mr);
 	return ERR_PTR(err);
-}
-
-int mlx5_ib_destroy_mr(struct ib_mr *ibmr)
-{
-	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
-	struct mlx5_ib_mr *mr = to_mmr(ibmr);
-	int err;
-
-	if (mr->sig) {
-		if (mlx5_core_destroy_psv(dev->mdev,
-					  mr->sig->psv_memory.psv_idx))
-			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
-				     mr->sig->psv_memory.psv_idx);
-		if (mlx5_core_destroy_psv(dev->mdev,
-					  mr->sig->psv_wire.psv_idx))
-			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
-				     mr->sig->psv_wire.psv_idx);
-		kfree(mr->sig);
-	}
-
-	err = destroy_mkey(dev, mr);
-	if (err) {
-		mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
-			     mr->mmr.key, err);
-		return err;
-	}
-
-	kfree(mr);
-
-	return err;
 }
 
 struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,

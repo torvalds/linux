@@ -334,7 +334,7 @@ iser_free_pi_ctx(struct iser_pi_context *pi_ctx)
 {
 	ib_free_fast_reg_page_list(pi_ctx->prot_frpl);
 	ib_dereg_mr(pi_ctx->prot_mr);
-	ib_destroy_mr(pi_ctx->sig_mr);
+	ib_dereg_mr(pi_ctx->sig_mr);
 	kfree(pi_ctx);
 }
 

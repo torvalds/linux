@@ -1671,7 +1671,6 @@ struct ib_device {
 	int                        (*query_mr)(struct ib_mr *mr,
 					       struct ib_mr_attr *mr_attr);
 	int                        (*dereg_mr)(struct ib_mr *mr);
-	int                        (*destroy_mr)(struct ib_mr *mr);
 	struct ib_mr *		   (*create_mr)(struct ib_pd *pd,
 						struct ib_mr_init_attr *mr_init_attr);
 	struct ib_mr *		   (*alloc_fast_reg_mr)(struct ib_pd *pd,
@@ -2827,15 +2826,6 @@ int ib_dereg_mr(struct ib_mr *mr);
  */
 struct ib_mr *ib_create_mr(struct ib_pd *pd,
 			   struct ib_mr_init_attr *mr_init_attr);
-
-/**
- * ib_destroy_mr - Destroys a memory region that was created using
- *     ib_create_mr and removes it from HW translation tables.
- * @mr: The memory region to destroy.
- *
- * This function can fail, if the memory region has memory windows bound to it.
- */
-int ib_destroy_mr(struct ib_mr *mr);
 
 /**
  * ib_alloc_fast_reg_mr - Allocates memory region usable with the

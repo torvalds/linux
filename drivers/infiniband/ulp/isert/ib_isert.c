@@ -491,7 +491,7 @@ isert_conn_free_fastreg_pool(struct isert_conn *isert_conn)
 		if (fr_desc->pi_ctx) {
 			ib_free_fast_reg_page_list(fr_desc->pi_ctx->prot_frpl);
 			ib_dereg_mr(fr_desc->pi_ctx->prot_mr);
-			ib_destroy_mr(fr_desc->pi_ctx->sig_mr);
+			ib_dereg_mr(fr_desc->pi_ctx->sig_mr);
 			kfree(fr_desc->pi_ctx);
 		}
 		kfree(fr_desc);
