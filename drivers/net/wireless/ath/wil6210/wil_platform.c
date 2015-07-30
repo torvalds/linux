@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "linux/device.h"
+#include <linux/device.h>
 #include "wil_platform.h"
 
 int __init wil_platform_modinit(void)
