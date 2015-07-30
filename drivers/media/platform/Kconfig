@@ -1,6 +1,6 @@
 #
 # Platform drivers
-#	All drivers here are currently for webcam support
+#	Most drivers here are currently for webcam support
 
 menuconfig V4L_PLATFORM_DRIVERS
 	bool "V4L platform devices"
@@ -292,3 +292,5 @@ config VIDEO_VIM2M
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 endif #V4L_TEST_DRIVERS
+
+source "drivers/media/platform/sti/c8sectpfe/Kconfig"
