@@ -100,10 +100,6 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 
 
 
-#define queue_max_phys_segments(rq)       queue_max_segments(rq)
-#define queue_max_hw_segments(rq)	 queue_max_segments(rq)
-
-
 #define ll_d_hlist_node hlist_node
 #define ll_d_hlist_empty(list) hlist_empty(list)
 #define ll_d_hlist_entry(ptr, type, name) hlist_entry(ptr.first, type, name)
@@ -111,8 +107,6 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 #define ll_d_hlist_for_each_entry(dentry, p, i_dentry, alias) \
 	p = NULL; hlist_for_each_entry(dentry, i_dentry, alias)
 
-
-#define bio_hw_segments(q, bio) 0
 
 
 #define ll_pagevec_init(pv, cold)       do {} while (0)
