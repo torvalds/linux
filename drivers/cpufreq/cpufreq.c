@@ -1518,7 +1518,7 @@ static int __cpufreq_remove_dev_finish(struct device *dev,
  *
  * Removes the cpufreq interface for a CPU device.
  */
-static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
+static void cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int cpu = dev->id;
 	int ret;
@@ -1533,7 +1533,7 @@ static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 		struct cpumask mask;
 
 		if (!policy)
-			return 0;
+			return;
 
 		cpumask_copy(&mask, policy->related_cpus);
 		cpumask_clear_cpu(cpu, &mask);
@@ -1544,19 +1544,17 @@ static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 		 */
 		if (cpumask_intersects(&mask, cpu_present_mask)) {
 			remove_cpu_dev_symlink(policy, cpu);
-			return 0;
+			return;
 		}
 
 		cpufreq_policy_free(policy, true);
-		return 0;
+		return;
 	}
 
 	ret = __cpufreq_remove_dev_prepare(dev, sif);
 
 	if (!ret)
-		ret = __cpufreq_remove_dev_finish(dev, sif);
-
-	return ret;
+		__cpufreq_remove_dev_finish(dev, sif);
 }
 
 static void handle_update(struct work_struct *work)
