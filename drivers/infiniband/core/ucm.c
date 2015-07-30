@@ -658,8 +658,7 @@ static ssize_t ib_ucm_listen(struct ib_ucm_file *file,
 	if (result)
 		goto out;
 
-	result = ib_cm_listen(ctx->cm_id, cmd.service_id, cmd.service_mask,
-			      NULL);
+	result = ib_cm_listen(ctx->cm_id, cmd.service_id, cmd.service_mask);
 out:
 	ib_ucm_ctx_put(ctx);
 	return result;

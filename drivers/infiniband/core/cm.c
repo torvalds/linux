@@ -222,7 +222,6 @@ struct cm_id_private {
 	/* todo: use alternate port on send failure */
 	struct cm_av av;
 	struct cm_av alt_av;
-	struct ib_cm_compare_data *compare_data;
 
 	void *private_data;
 	__be64 tid;
@@ -443,40 +442,6 @@ static struct cm_id_private * cm_acquire_id(__be32 local_id, __be32 remote_id)
 	return cm_id_priv;
 }
 
-static void cm_mask_copy(u32 *dst, const u32 *src, const u32 *mask)
-{
-	int i;
-
-	for (i = 0; i < IB_CM_COMPARE_SIZE; i++)
-		dst[i] = src[i] & mask[i];
-}
-
-static int cm_compare_data(struct ib_cm_compare_data *src_data,
-			   struct ib_cm_compare_data *dst_data)
-{
-	u32 src[IB_CM_COMPARE_SIZE];
-	u32 dst[IB_CM_COMPARE_SIZE];
-
-	if (!src_data || !dst_data)
-		return 0;
-
-	cm_mask_copy(src, src_data->data, dst_data->mask);
-	cm_mask_copy(dst, dst_data->data, src_data->mask);
-	return memcmp(src, dst, sizeof(src));
-}
-
-static int cm_compare_private_data(u32 *private_data,
-				   struct ib_cm_compare_data *dst_data)
-{
-	u32 src[IB_CM_COMPARE_SIZE];
-
-	if (!dst_data)
-		return 0;
-
-	cm_mask_copy(src, private_data, dst_data->mask);
-	return memcmp(src, dst_data->data, sizeof(src));
-}
-
 /*
  * Trivial helpers to strip endian annotation and compare; the
  * endianness doesn't actually matter since we just need a stable
@@ -509,18 +474,14 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 	struct cm_id_private *cur_cm_id_priv;
 	__be64 service_id = cm_id_priv->id.service_id;
 	__be64 service_mask = cm_id_priv->id.service_mask;
-	int data_cmp;
 
 	while (*link) {
 		parent = *link;
 		cur_cm_id_priv = rb_entry(parent, struct cm_id_private,
 					  service_node);
-		data_cmp = cm_compare_data(cm_id_priv->compare_data,
-					   cur_cm_id_priv->compare_data);
 		if ((cur_cm_id_priv->id.service_mask & service_id) ==
 		    (service_mask & cur_cm_id_priv->id.service_id) &&
-		    (cm_id_priv->id.device == cur_cm_id_priv->id.device) &&
-		    !data_cmp)
+		    (cm_id_priv->id.device == cur_cm_id_priv->id.device))
 			return cur_cm_id_priv;
 
 		if (cm_id_priv->id.device < cur_cm_id_priv->id.device)
@@ -531,8 +492,6 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 			link = &(*link)->rb_left;
 		else if (be64_gt(service_id, cur_cm_id_priv->id.service_id))
 			link = &(*link)->rb_right;
-		else if (data_cmp < 0)
-			link = &(*link)->rb_left;
 		else
 			link = &(*link)->rb_right;
 	}
@@ -542,20 +501,16 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 }
 
 static struct cm_id_private * cm_find_listen(struct ib_device *device,
-					     __be64 service_id,
-					     u32 *private_data)
+					     __be64 service_id)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
-	int data_cmp;
 
 	while (node) {
 		cm_id_priv = rb_entry(node, struct cm_id_private, service_node);
-		data_cmp = cm_compare_private_data(private_data,
-						   cm_id_priv->compare_data);
 		if ((cm_id_priv->id.service_mask & service_id) ==
 		     cm_id_priv->id.service_id &&
-		    (cm_id_priv->id.device == device) && !data_cmp)
+		    (cm_id_priv->id.device == device))
 			return cm_id_priv;
 
 		if (device < cm_id_priv->id.device)
@@ -566,8 +521,6 @@ static struct cm_id_private * cm_find_listen(struct ib_device *device,
 			node = node->rb_left;
 		else if (be64_gt(service_id, cm_id_priv->id.service_id))
 			node = node->rb_right;
-		else if (data_cmp < 0)
-			node = node->rb_left;
 		else
 			node = node->rb_right;
 	}
@@ -939,7 +892,6 @@ retest:
 	wait_for_completion(&cm_id_priv->comp);
 	while ((work = cm_dequeue_work(cm_id_priv)) != NULL)
 		cm_free_work(work);
-	kfree(cm_id_priv->compare_data);
 	kfree(cm_id_priv->private_data);
 	kfree(cm_id_priv);
 }
@@ -962,20 +914,11 @@ EXPORT_SYMBOL(ib_destroy_cm_id);
  *   range of service IDs.  If set to 0, the service ID is matched
  *   exactly.  This parameter is ignored if %service_id is set to
  *   IB_CM_ASSIGN_SERVICE_ID.
- * @compare_data: This parameter is optional.  It specifies data that must
- *   appear in the private data of a connection request for the specified
- *   listen request.
- * @lock: If set, lock the cm.lock spin-lock when adding the id to the
- *   listener tree. When false, the caller must already hold the spin-lock,
- *   and compare_data must be NULL.
  */
 static int __ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id,
-			  __be64 service_mask,
-			  struct ib_cm_compare_data *compare_data,
-			  bool lock)
+			  __be64 service_mask)
 {
 	struct cm_id_private *cm_id_priv, *cur_cm_id_priv;
-	unsigned long flags = 0;
 	int ret = 0;
 
 	service_mask = service_mask ? service_mask : ~cpu_to_be64(0);
@@ -988,22 +931,9 @@ static int __ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id,
 	if (cm_id->state != IB_CM_IDLE)
 		return -EINVAL;
 
-	if (compare_data) {
-		cm_id_priv->compare_data = kzalloc(sizeof *compare_data,
-						   GFP_KERNEL);
-		if (!cm_id_priv->compare_data)
-			return -ENOMEM;
-		cm_mask_copy(cm_id_priv->compare_data->data,
-			     compare_data->data, compare_data->mask);
-		memcpy(cm_id_priv->compare_data->mask, compare_data->mask,
-		       sizeof(compare_data->mask));
-	}
-
 	cm_id->state = IB_CM_LISTEN;
-	if (lock)
-		spin_lock_irqsave(&cm.lock, flags);
-
 	++cm_id_priv->listen_sharecount;
+
 	if (service_id == IB_CM_ASSIGN_SERVICE_ID) {
 		cm_id->service_id = cpu_to_be64(cm.listen_service_id++);
 		cm_id->service_mask = ~cpu_to_be64(0);
@@ -1016,22 +946,21 @@ static int __ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id,
 	if (cur_cm_id_priv) {
 		cm_id->state = IB_CM_IDLE;
 		--cm_id_priv->listen_sharecount;
-		kfree(cm_id_priv->compare_data);
-		cm_id_priv->compare_data = NULL;
 		ret = -EBUSY;
 	}
-
-	if (lock)
-		spin_unlock_irqrestore(&cm.lock, flags);
-
 	return ret;
 }
 
-int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
-		 struct ib_cm_compare_data *compare_data)
+int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask)
 {
-	return __ib_cm_listen(cm_id, service_id, service_mask, compare_data,
-			      true);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&cm.lock, flags);
+	ret = __ib_cm_listen(cm_id, service_id, service_mask);
+	spin_unlock_irqrestore(&cm.lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL(ib_cm_listen);
 
@@ -1071,7 +1000,7 @@ struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
 		goto new_id;
 
 	/* Find an existing ID */
-	cm_id_priv = cm_find_listen(device, service_id, NULL);
+	cm_id_priv = cm_find_listen(device, service_id);
 	if (cm_id_priv) {
 		if (cm_id->cm_handler != cm_handler || cm_id->context) {
 			/* Sharing an ib_cm_id with different handlers is not
@@ -1090,7 +1019,7 @@ struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
 
 new_id:
 	/* Use newly created ID */
-	err = __ib_cm_listen(cm_id, service_id, 0, NULL, false);
+	err = __ib_cm_listen(cm_id, service_id, 0);
 
 	spin_unlock_irqrestore(&cm.lock, flags);
 
@@ -1615,8 +1544,7 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 
 	/* Find matching listen request. */
 	listen_cm_id_priv = cm_find_listen(cm_id_priv->id.device,
-					   req_msg->service_id,
-					   req_msg->private_data);
+					   req_msg->service_id);
 	if (!listen_cm_id_priv) {
 		cm_cleanup_timewait(cm_id_priv->timewait_info);
 		spin_unlock_irq(&cm.lock);
@@ -3164,8 +3092,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	}
 	cm_id_priv->id.state = IB_CM_SIDR_REQ_RCVD;
 	cur_cm_id_priv = cm_find_listen(cm_id->device,
-					sidr_req_msg->service_id,
-					sidr_req_msg->private_data);
+					sidr_req_msg->service_id);
 	if (!cur_cm_id_priv) {
 		spin_unlock_irq(&cm.lock);
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_UNSUPPORTED);
