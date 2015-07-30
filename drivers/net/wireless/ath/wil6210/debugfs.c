@@ -1344,6 +1344,7 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 {
 	int i;
 	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
+	unsigned long long drop_dup = r->drop_dup, drop_old = r->drop_old;
 
 	seq_printf(s, "([%2d] %3d TU) 0x%03x [", r->buf_size, r->timeout,
 		   r->head_seq_num);
@@ -1353,7 +1354,10 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 		else
 			seq_printf(s, "%c", r->reorder_buf[i] ? '*' : '_');
 	}
-	seq_printf(s, "] drop %llu last 0x%03x\n", r->drop, r->ssn_last_drop);
+	seq_printf(s,
+		   "] total %llu drop %llu (dup %llu + old %llu) last 0x%03x\n",
+		   r->total, drop_dup + drop_old, drop_dup, drop_old,
+		   r->ssn_last_drop);
 }
 
 static int wil_sta_debugfs_show(struct seq_file *s, void *data)

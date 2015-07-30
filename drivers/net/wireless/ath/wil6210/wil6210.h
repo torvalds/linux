@@ -424,13 +424,12 @@ struct pci_dev;
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value (in TUs).
+ * @ssn_last_drop: SSN of the last dropped frame
+ * @total: total number of processed incoming frames
+ * @drop_dup: duplicate frames dropped for this reorder buffer
+ * @drop_old: old frames dropped for this reorder buffer
  * @dialog_token: dialog token for aggregation session
- * @rcu_head: RCU head used for freeing this struct
- * @drop: total frames dropped for this reorder buffer
- *
- * This structure's lifetime is managed by RCU, assignments to
- * the array holding it must hold the aggregation mutex.
- *
+ * @first_time: true when this buffer used 1-st time
  */
 struct wil_tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
@@ -444,7 +443,9 @@ struct wil_tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u16 ssn_last_drop;
-	unsigned long long drop;
+	unsigned long long total; /* frames processed */
+	unsigned long long drop_dup;
+	unsigned long long drop_old;
 	u8 dialog_token;
 	bool first_time; /* is it 1-st time this buffer used? */
 };
