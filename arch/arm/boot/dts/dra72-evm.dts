@@ -514,6 +514,7 @@
 	 * is a viable alternative
 	 */
 	cd-gpios = <&gpio6 27 0>;
+	max-frequency = <192000000>;
 };
 
 &mmc2 {
@@ -525,6 +526,7 @@
 	vmmc-supply = <&evm_3v3>;
 	bus-width = <8>;
 	ti,non-removable;
+	max-frequency = <192000000>;
 };
 
 &dra7_pmx_core {
