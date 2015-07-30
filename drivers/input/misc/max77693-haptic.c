@@ -47,6 +47,8 @@ enum max77693_haptic_pwm_divisor {
 };
 
 struct max77693_haptic {
+	enum max77693_types dev_type;
+
 	struct regmap *regmap_pmic;
 	struct regmap *regmap_haptic;
 	struct device *dev;
@@ -81,16 +83,23 @@ static int max77693_haptic_set_duty_cycle(struct max77693_haptic *haptic)
 static int max77693_haptic_configure(struct max77693_haptic *haptic,
 				     bool enable)
 {
-	unsigned int value;
+	unsigned int value, config_reg;
 	int error;
 
-	value = ((haptic->type << MAX77693_CONFIG2_MODE) |
-		(enable << MAX77693_CONFIG2_MEN) |
-		(haptic->mode << MAX77693_CONFIG2_HTYP) |
-		MAX77693_HAPTIC_PWM_DIVISOR_128);
+	switch (haptic->dev_type) {
+	case TYPE_MAX77693:
+		value = ((haptic->type << MAX77693_CONFIG2_MODE) |
+			(enable << MAX77693_CONFIG2_MEN) |
+			(haptic->mode << MAX77693_CONFIG2_HTYP) |
+			MAX77693_HAPTIC_PWM_DIVISOR_128);
+		config_reg = MAX77693_HAPTIC_REG_CONFIG2;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	error = regmap_write(haptic->regmap_haptic,
-			     MAX77693_HAPTIC_REG_CONFIG2, value);
+			     config_reg, value);
 	if (error) {
 		dev_err(haptic->dev,
 			"failed to update haptic config: %d\n", error);
@@ -254,11 +263,22 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	haptic->regmap_pmic = max77693->regmap;
-	haptic->regmap_haptic = max77693->regmap_haptic;
 	haptic->dev = &pdev->dev;
 	haptic->type = MAX77693_HAPTIC_LRA;
 	haptic->mode = MAX77693_HAPTIC_EXTERNAL_MODE;
 	haptic->suspend_state = false;
+
+	/* Variant-specific init */
+	haptic->dev_type = platform_get_device_id(pdev)->driver_data;
+	switch (haptic->dev_type) {
+	case TYPE_MAX77693:
+		haptic->regmap_haptic = max77693->regmap_haptic;
+		break;
+	default:
+		dev_err(&pdev->dev, "unsupported device type: %u\n",
+			haptic->dev_type);
+		return -EINVAL;
+	}
 
 	INIT_WORK(&haptic->work, max77693_haptic_play_work);
 
@@ -337,12 +357,19 @@ static int __maybe_unused max77693_haptic_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(max77693_haptic_pm_ops,
 			 max77693_haptic_suspend, max77693_haptic_resume);
 
+static const struct platform_device_id max77693_haptic_id[] = {
+	{ "max77693-haptic", TYPE_MAX77693 },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, max77693_haptic_id);
+
 static struct platform_driver max77693_haptic_driver = {
 	.driver		= {
 		.name	= "max77693-haptic",
 		.pm	= &max77693_haptic_pm_ops,
 	},
 	.probe		= max77693_haptic_probe,
+	.id_table	= max77693_haptic_id,
 };
 module_platform_driver(max77693_haptic_driver);
 
