@@ -45,6 +45,9 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_cache.h>
+
+#include <net/bonding.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/cmd.h>
@@ -93,8 +96,6 @@ static void init_query_mad(struct ib_smp *mad)
 	mad->method	   = IB_MGMT_METHOD_GET;
 }
 
-static union ib_gid zgid;
-
 static int check_flow_steering_support(struct mlx4_dev *dev)
 {
 	int eth_num_ports = 0;
@@ -129,6 +130,237 @@ static int num_ib_ports(struct mlx4_dev *dev)
 		ib_ports++;
 
 	return ib_ports;
+}
+
+static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
+{
+	struct mlx4_ib_dev *ibdev = to_mdev(device);
+	struct net_device *dev;
+
+	rcu_read_lock();
+	dev = mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port_num);
+
+	if (dev) {
+		if (mlx4_is_bonded(ibdev->dev)) {
+			struct net_device *upper = NULL;
+
+			upper = netdev_master_upper_dev_get_rcu(dev);
+			if (upper) {
+				struct net_device *active;
+
+				active = bond_option_active_slave_get_rcu(netdev_priv(upper));
+				if (active)
+					dev = active;
+			}
+		}
+	}
+	if (dev)
+		dev_hold(dev);
+
+	rcu_read_unlock();
+	return dev;
+}
+
+static int mlx4_ib_update_gids(struct gid_entry *gids,
+			       struct mlx4_ib_dev *ibdev,
+			       u8 port_num)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	int err;
+	struct mlx4_dev *dev = ibdev->dev;
+	int i;
+	union ib_gid *gid_tbl;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return -ENOMEM;
+
+	gid_tbl = mailbox->buf;
+
+	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i)
+		memcpy(&gid_tbl[i], &gids[i].gid, sizeof(union ib_gid));
+
+	err = mlx4_cmd(dev, mailbox->dma,
+		       MLX4_SET_PORT_GID_TABLE << 8 | port_num,
+		       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_WRAPPED);
+	if (mlx4_is_bonded(dev))
+		err += mlx4_cmd(dev, mailbox->dma,
+				MLX4_SET_PORT_GID_TABLE << 8 | 2,
+				1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+				MLX4_CMD_WRAPPED);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
+static int mlx4_ib_add_gid(struct ib_device *device,
+			   u8 port_num,
+			   unsigned int index,
+			   const union ib_gid *gid,
+			   const struct ib_gid_attr *attr,
+			   void **context)
+{
+	struct mlx4_ib_dev *ibdev = to_mdev(device);
+	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
+	struct mlx4_port_gid_table   *port_gid_table;
+	int free = -1, found = -1;
+	int ret = 0;
+	int hw_update = 0;
+	int i;
+	struct gid_entry *gids = NULL;
+
+	if (!rdma_cap_roce_gid_table(device, port_num))
+		return -EINVAL;
+
+	if (port_num > MLX4_MAX_PORTS)
+		return -EINVAL;
+
+	if (!context)
+		return -EINVAL;
+
+	port_gid_table = &iboe->gids[port_num - 1];
+	spin_lock_bh(&iboe->lock);
+	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
+		if (!memcmp(&port_gid_table->gids[i].gid, gid, sizeof(*gid))) {
+			found = i;
+			break;
+		}
+		if (free < 0 && !memcmp(&port_gid_table->gids[i].gid, &zgid, sizeof(*gid)))
+			free = i; /* HW has space */
+	}
+
+	if (found < 0) {
+		if (free < 0) {
+			ret = -ENOSPC;
+		} else {
+			port_gid_table->gids[free].ctx = kmalloc(sizeof(*port_gid_table->gids[free].ctx), GFP_ATOMIC);
+			if (!port_gid_table->gids[free].ctx) {
+				ret = -ENOMEM;
+			} else {
+				*context = port_gid_table->gids[free].ctx;
+				memcpy(&port_gid_table->gids[free].gid, gid, sizeof(*gid));
+				port_gid_table->gids[free].ctx->real_index = free;
+				port_gid_table->gids[free].ctx->refcount = 1;
+				hw_update = 1;
+			}
+		}
+	} else {
+		struct gid_cache_context *ctx = port_gid_table->gids[found].ctx;
+		*context = ctx;
+		ctx->refcount++;
+	}
+	if (!ret && hw_update) {
+		gids = kmalloc(sizeof(*gids) * MLX4_MAX_PORT_GIDS, GFP_ATOMIC);
+		if (!gids) {
+			ret = -ENOMEM;
+		} else {
+			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++)
+				memcpy(&gids[i].gid, &port_gid_table->gids[i].gid, sizeof(union ib_gid));
+		}
+	}
+	spin_unlock_bh(&iboe->lock);
+
+	if (!ret && hw_update) {
+		ret = mlx4_ib_update_gids(gids, ibdev, port_num);
+		kfree(gids);
+	}
+
+	return ret;
+}
+
+static int mlx4_ib_del_gid(struct ib_device *device,
+			   u8 port_num,
+			   unsigned int index,
+			   void **context)
+{
+	struct gid_cache_context *ctx = *context;
+	struct mlx4_ib_dev *ibdev = to_mdev(device);
+	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
+	struct mlx4_port_gid_table   *port_gid_table;
+	int ret = 0;
+	int hw_update = 0;
+	struct gid_entry *gids = NULL;
+
+	if (!rdma_cap_roce_gid_table(device, port_num))
+		return -EINVAL;
+
+	if (port_num > MLX4_MAX_PORTS)
+		return -EINVAL;
+
+	port_gid_table = &iboe->gids[port_num - 1];
+	spin_lock_bh(&iboe->lock);
+	if (ctx) {
+		ctx->refcount--;
+		if (!ctx->refcount) {
+			unsigned int real_index = ctx->real_index;
+
+			memcpy(&port_gid_table->gids[real_index].gid, &zgid, sizeof(zgid));
+			kfree(port_gid_table->gids[real_index].ctx);
+			port_gid_table->gids[real_index].ctx = NULL;
+			hw_update = 1;
+		}
+	}
+	if (!ret && hw_update) {
+		int i;
+
+		gids = kmalloc(sizeof(*gids) * MLX4_MAX_PORT_GIDS, GFP_ATOMIC);
+		if (!gids) {
+			ret = -ENOMEM;
+		} else {
+			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++)
+				memcpy(&gids[i].gid, &port_gid_table->gids[i].gid, sizeof(union ib_gid));
+		}
+	}
+	spin_unlock_bh(&iboe->lock);
+
+	if (!ret && hw_update) {
+		ret = mlx4_ib_update_gids(gids, ibdev, port_num);
+		kfree(gids);
+	}
+	return ret;
+}
+
+int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
+				    u8 port_num, int index)
+{
+	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
+	struct gid_cache_context *ctx = NULL;
+	union ib_gid gid;
+	struct mlx4_port_gid_table   *port_gid_table;
+	int real_index = -EINVAL;
+	int i;
+	int ret;
+	unsigned long flags;
+
+	if (port_num > MLX4_MAX_PORTS)
+		return -EINVAL;
+
+	if (mlx4_is_bonded(ibdev->dev))
+		port_num = 1;
+
+	if (!rdma_cap_roce_gid_table(&ibdev->ib_dev, port_num))
+		return index;
+
+	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid);
+	if (ret)
+		return ret;
+
+	if (!memcmp(&gid, &zgid, sizeof(gid)))
+		return -EINVAL;
+
+	spin_lock_irqsave(&iboe->lock, flags);
+	port_gid_table = &iboe->gids[port_num - 1];
+
+	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i)
+		if (!memcmp(&port_gid_table->gids[i].gid, &gid, sizeof(gid))) {
+			ctx = port_gid_table->gids[i].ctx;
+			break;
+		}
+	if (ctx)
+		real_index = ctx->real_index;
+	spin_unlock_irqrestore(&iboe->lock, flags);
+	return real_index;
 }
 
 static int mlx4_ib_query_device(struct ib_device *ibdev,

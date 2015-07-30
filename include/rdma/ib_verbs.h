@@ -65,6 +65,8 @@ union ib_gid {
 	} global;
 };
 
+extern union ib_gid zgid;
+
 struct ib_gid_attr {
 	struct net_device	*ndev;
 };

@@ -55,7 +55,8 @@ struct ib_update_work {
 	u8                 port_num;
 };
 
-static union ib_gid zgid;
+union ib_gid zgid;
+EXPORT_SYMBOL(zgid);
 
 static const struct ib_gid_attr zattr;
 
