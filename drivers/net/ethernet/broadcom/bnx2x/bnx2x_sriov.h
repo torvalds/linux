@@ -551,6 +551,11 @@ int bnx2x_set_vf_link_state(struct net_device *dev, int vf, int link_state);
 int bnx2x_vfpf_update_vlan(struct bnx2x *bp, u16 vid, u8 vf_qid, bool add);
 #else /* CONFIG_BNX2X_SRIOV */
 
+#define GET_NUM_VFS_PER_PATH(bp)	0
+#define GET_NUM_VFS_PER_PF(bp)		0
+#define VF_MAC_CREDIT_CNT		0
+#define VF_VLAN_CREDIT_CNT		0
+
 static inline void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
 				struct bnx2x_queue_sp_obj **q_obj) {}
 static inline void bnx2x_vf_handle_flr_event(struct bnx2x *bp) {}
