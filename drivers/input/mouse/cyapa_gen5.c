@@ -2519,10 +2519,13 @@ static int cyapa_gen5_do_operational_check(struct cyapa *cyapa)
 				__func__);
 
 		/* By default, the trackpad proximity function is enabled. */
-		error = cyapa_pip_set_proximity(cyapa, true);
-		if (error)
-			dev_warn(dev, "%s: failed to enable proximity.\n",
-				__func__);
+		if (cyapa->platform_ver >= 2) {
+			error = cyapa_pip_set_proximity(cyapa, true);
+			if (error)
+				dev_warn(dev,
+					"%s: failed to enable proximity.\n",
+					__func__);
+		}
 
 		/* Get trackpad product information. */
 		error = cyapa_gen5_get_query_data(cyapa);
