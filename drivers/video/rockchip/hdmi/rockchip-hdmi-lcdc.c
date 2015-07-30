@@ -73,7 +73,21 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 	mode = (struct fb_videomode *)&(hdmi_mode[i].mode);
 
 	screen->mode = *mode;
-
+	if (hdmi->video.format_3d == HDMI_3D_FRAME_PACKING) {
+		screen->mode.pixclock = 2 * mode->pixclock;
+		if (mode->vmode == 0) {
+			screen->mode.yres = 2 * mode->yres +
+					mode->upper_margin +
+					mode->lower_margin +
+					mode->vsync_len;
+		} else {
+			screen->mode.yres = 2 * mode->yres +
+					    3 * (mode->upper_margin +
+						 mode->lower_margin +
+						 mode->vsync_len) + 2;
+			screen->mode.vmode = 0;
+		}
+	}
 	/* Pin polarity */
 	#ifdef CONFIG_HDMI_RK616
 	screen->pin_hsync = 0;

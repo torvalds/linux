@@ -303,8 +303,8 @@ static const struct phy_mpll_config_tab *get_phy_mpll_tab(
 
 	if (pixclock == 0)
 		return NULL;
-	HDMIDBG("%s pixClock %u pixRepet %d colorDepth %d\n",
-		__func__, pixclock, pixrepet, colordepth);
+	HDMIDBG("%s pixClock %u tmdsclk %u pixRepet %d colorDepth %d\n",
+		__func__, pixclock, tmdsclk, pixrepet, colordepth);
 	for (i = 0; i < ARRAY_SIZE(PHY_MPLL_TABLE); i++) {
 		if ((PHY_MPLL_TABLE[i].pix_clock == pixclock) &&
 		    (PHY_MPLL_TABLE[i].tmdsclock == tmdsclk) &&
@@ -546,6 +546,8 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 	mode = &(timing->mode);
 	if (vpara->color_input == HDMI_COLOR_YCBCR420)
 		tmdsclk = mode->pixclock / 2;
+	else if (vpara->format_3d == HDMI_3D_FRAME_PACKING)
+		tmdsclk = 2 * mode->pixclock;
 	else
 		tmdsclk = mode->pixclock;
 	switch (vpara->color_output_depth) {
@@ -567,7 +569,7 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 		vpara->color_output_depth = 8;
 		tmdsclk = mode->pixclock;
 	}
-	pr_info("pixel clk is %u tmds clk is %u\n", mode->pixclock, tmdsclk);
+
 	if ((tmdsclk > 340000000 && hdmi_dev->tmdsclk < 340000000) ||
 	    (tmdsclk < 340000000 && hdmi_dev->tmdsclk > 340000000))
 		hdmi_dev->tmdsclk_ratio_change = true;
@@ -575,10 +577,15 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 		hdmi_dev->tmdsclk_ratio_change = false;
 
 	hdmi_dev->tmdsclk = tmdsclk;
-	hdmi_dev->pixelclk = mode->pixclock;
+	if (vpara->format_3d == HDMI_3D_FRAME_PACKING)
+		hdmi_dev->pixelclk = 2 * mode->pixclock;
+	else
+		hdmi_dev->pixelclk = mode->pixclock;
 	hdmi_dev->pixelrepeat = timing->pixelrepeat;
 	hdmi_dev->colordepth = vpara->color_output_depth;
 
+	pr_info("pixel clk is %lu tmds clk is %u\n",
+		hdmi_dev->pixelclk, hdmi_dev->tmdsclk);
 	/* Start/stop HDCP keepout window generation */
 	hdmi_msk_reg(hdmi_dev, FC_INVIDCONF,
 		     m_FC_HDCP_KEEPOUT, v_FC_HDCP_KEEPOUT(1));
@@ -610,7 +617,8 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 		     v_FC_VSYNC_POL(vsync_pol) | v_FC_HSYNC_POL(hsync_pol) |
 		     v_FC_DE_POL(de_pol) | v_FC_HDMI_DVI(vpara->sink_hdmi) |
 		     v_FC_INTERLACE_MODE(mode->vmode));
-	if (mode->vmode == FB_VMODE_INTERLACED)
+	if (mode->vmode == FB_VMODE_INTERLACED &&
+	    vpara->format_3d != HDMI_3D_FRAME_PACKING)
 		hdmi_msk_reg(hdmi_dev, FC_INVIDCONF,
 			     m_FC_VBLANK, v_FC_VBLANK(1));
 	else
@@ -623,7 +631,20 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 	hdmi_writel(hdmi_dev, FC_INHACTIV1, v_FC_HACTIVE1(value >> 8));
 	hdmi_writel(hdmi_dev, FC_INHACTIV0, (value & 0xff));
 
-	value = mode->yres;
+	if (vpara->format_3d == HDMI_3D_FRAME_PACKING) {
+		if (mode->vmode == 0)
+			value = 2 * mode->yres +
+				mode->upper_margin +
+				mode->lower_margin +
+				mode->vsync_len;
+		else
+			value = 2 * mode->yres +
+				3 * (mode->upper_margin +
+				     mode->lower_margin +
+				     mode->vsync_len) + 2;
+	} else {
+		value = mode->yres;
+	}
 	hdmi_writel(hdmi_dev, FC_INVACTIV1, v_FC_VACTIVE1(value >> 8));
 	hdmi_writel(hdmi_dev, FC_INVACTIV0, (value & 0xff));
 

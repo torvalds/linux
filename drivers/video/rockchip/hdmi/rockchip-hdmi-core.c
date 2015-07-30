@@ -100,22 +100,21 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 		} else {
 			video->color_output = hdmi->colormode;
 		}
+		if (hdmi->vic & HDMI_VIDEO_YUV420) {
+			video->color_output = HDMI_COLOR_YCBCR420;
+			deepcolor = hdmi->edid.deepcolor_420;
+		} else {
+			deepcolor = hdmi->edid.deepcolor;
+		}
+		if ((hdmi->property->feature & SUPPORT_DEEP_10BIT) &&
+		    (deepcolor & HDMI_DEEP_COLOR_30BITS)) {
+			if (hdmi->colordepth == HDMI_DEPP_COLOR_AUTO ||
+			    hdmi->colordepth == 10)
+				video->color_output_depth = 10;
+		} else {
+			video->color_output_depth = 8;
+		}
 	}
-	if (hdmi->vic & HDMI_VIDEO_YUV420) {
-		video->color_output = HDMI_COLOR_YCBCR420;
-		deepcolor = hdmi->edid.deepcolor_420;
-	} else {
-		deepcolor = hdmi->edid.deepcolor;
-	}
-	if ((hdmi->property->feature & SUPPORT_DEEP_10BIT) &&
-	    (deepcolor & HDMI_DEEP_COLOR_30BITS)) {
-		if (hdmi->colordepth == HDMI_DEPP_COLOR_AUTO ||
-		    hdmi->colordepth == 10)
-			video->color_output_depth = 10;
-	} else {
-		video->color_output_depth = 8;
-	}
-
 	pr_info("hdmi output corlor mode is %d\n", video->color_output);
 	video->color_input = HDMI_COLOR_RGB_0_255;
 	if (hdmi->property->feature & SUPPORT_YCBCR_INPUT) {
@@ -396,13 +395,23 @@ static void hdmi_work_queue(struct work_struct *work)
 					   hdmi->mute & (~HDMI_AUDIO_MUTE));
 		break;
 	case HDMI_SET_3D:
-		if (hdmi->ops->setvsi) {
-			if (hdmi->mode_3d != HDMI_3D_NONE)
+		if (hdmi->ops->setvsi && hdmi->edid.sink_hdmi) {
+			if (hdmi->mode_3d == HDMI_3D_FRAME_PACKING ||
+			    hdmi->video.format_3d ==
+			    HDMI_3D_FRAME_PACKING) {
+				hdmi_wq_set_output(hdmi,
+						   HDMI_VIDEO_MUTE |
+						   HDMI_AUDIO_MUTE);
+				msleep(100);
+				hdmi_wq_set_video(hdmi);
+				hdmi_wq_set_output(hdmi, hdmi->mute);
+			} else if (hdmi->mode_3d != HDMI_3D_NONE) {
 				hdmi->ops->setvsi(hdmi, hdmi->mode_3d,
 						  HDMI_VIDEO_FORMAT_3D);
-			else if ((hdmi->vic & HDMI_TYPE_MASK) == 0)
+			} else if ((hdmi->vic & HDMI_TYPE_MASK) == 0) {
 				hdmi->ops->setvsi(hdmi, hdmi->vic,
 						  HDMI_VIDEO_FORMAT_NORMAL);
+			}
 		}
 		break;
 	case HDMI_SET_COLOR:
