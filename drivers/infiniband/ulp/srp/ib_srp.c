@@ -3154,7 +3154,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target->io_class	= SRP_REV16A_IB_IO_CLASS;
 	target->scsi_host	= target_host;
 	target->srp_host	= host;
-	target->lkey		= host->srp_dev->mr->lkey;
+	target->lkey		= host->srp_dev->pd->local_dma_lkey;
 	target->rkey		= host->srp_dev->mr->rkey;
 	target->cmd_sg_cnt	= cmd_sg_entries;
 	target->sg_tablesize	= indirect_sg_entries ? : cmd_sg_entries;
