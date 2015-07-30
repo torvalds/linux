@@ -40,12 +40,19 @@ struct gb_usb_hub_control_response {
 struct gb_usb_device {
 	struct gb_connection *connection;
 
-	struct usb_hcd *hcd;
 	u8 version_major;
 	u8 version_minor;
 };
 
-#define to_gb_usb_device(d) ((struct gb_usb_device*) d->hcd_priv)
+static inline struct gb_usb_device *to_gb_usb_device(struct usb_hcd *hcd)
+{
+	return (struct gb_usb_device *)hcd->hcd_priv;
+}
+
+static inline struct usb_hcd *gb_usb_device_to_hcd(struct gb_usb_device *dev)
+{
+	return container_of((void *)dev, struct usb_hcd, hcd_priv);
+}
 
 /* Define get_version() routine */
 define_get_version(gb_usb_device, USB);
@@ -143,45 +150,44 @@ static int gb_usb_connection_init(struct gb_connection *connection)
 {
 	struct device *dev = &connection->dev;
 	struct gb_usb_device *gb_usb_dev;
+	struct usb_hcd *hcd;
 
 	int retval;
 
-	gb_usb_dev = kzalloc(sizeof(*gb_usb_dev), GFP_KERNEL);
-	if (!gb_usb_dev)
+	hcd = usb_create_hcd(&usb_gb_hc_driver, dev, dev_name(dev));
+	if (!hcd)
 		return -ENOMEM;
 
+	gb_usb_dev = to_gb_usb_device(hcd);
 	gb_usb_dev->connection = connection;
 	connection->private = gb_usb_dev;
 
 	/* Check for compatible protocol version */
 	retval = get_version(gb_usb_dev);
 	if (retval)
-		goto error_create_hcd;
+		goto err_put_hcd;
 
-	gb_usb_dev->hcd = usb_create_hcd(&usb_gb_hc_driver, dev, dev_name(dev));
-	if (!gb_usb_dev->hcd) {
-		retval = -ENODEV;
-		goto error_create_hcd;
-	}
+	hcd->has_tt = 1;
 
-	gb_usb_dev->hcd->has_tt = 1;
-	gb_usb_dev->hcd->hcd_priv[0] = (unsigned long) gb_usb_dev;
-
-	retval = usb_add_hcd(gb_usb_dev->hcd, 0, 0);
+	retval = usb_add_hcd(hcd, 0, 0);
 	if (retval)
-		goto error_add_hcd;
+		goto err_put_hcd;
 
 	return 0;
-error_add_hcd:
-	usb_put_hcd(gb_usb_dev->hcd);
-error_create_hcd:
-	kfree(gb_usb_dev);
+
+err_put_hcd:
+	usb_put_hcd(hcd);
+
 	return retval;
 }
 
 static void gb_usb_connection_exit(struct gb_connection *connection)
 {
-	// FIXME - tear everything down!
+	struct gb_usb_device *gb_usb_dev = connection->private;
+	struct usb_hcd *hcd = gb_usb_device_to_hcd(gb_usb_dev);
+
+	usb_remove_hcd(hcd);
+	usb_put_hcd(hcd);
 }
 
 static struct gb_protocol usb_protocol = {
