@@ -82,8 +82,16 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
 	const char *suffix = "";
 
-	if (ndns->claim && is_nd_btt(ndns->claim))
-		suffix = "s";
+	if (ndns->claim) {
+		if (is_nd_btt(ndns->claim))
+			suffix = "s";
+		else if (is_nd_pfn(ndns->claim))
+			suffix = "m";
+		else
+			dev_WARN_ONCE(&ndns->dev, 1,
+					"unknown claim type by %s\n",
+					dev_name(ndns->claim));
+	}
 
 	if (is_namespace_pmem(&ndns->dev) || is_namespace_io(&ndns->dev))
 		sprintf(name, "pmem%d%s", nd_region->id, suffix);
@@ -1255,12 +1263,22 @@ static const struct attribute_group *nd_namespace_attribute_groups[] = {
 struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 {
 	struct nd_btt *nd_btt = is_nd_btt(dev) ? to_nd_btt(dev) : NULL;
+	struct nd_pfn *nd_pfn = is_nd_pfn(dev) ? to_nd_pfn(dev) : NULL;
 	struct nd_namespace_common *ndns;
 	resource_size_t size;
 
-	if (nd_btt) {
-		ndns = nd_btt->ndns;
-		if (!ndns)
+	if (nd_btt || nd_pfn) {
+		struct device *host = NULL;
+
+		if (nd_btt) {
+			host = &nd_btt->dev;
+			ndns = nd_btt->ndns;
+		} else if (nd_pfn) {
+			host = &nd_pfn->dev;
+			ndns = nd_pfn->ndns;
+		}
+
+		if (!ndns || !host)
 			return ERR_PTR(-ENODEV);
 
 		/*
@@ -1271,12 +1289,12 @@ struct nd_namespace_common *nvdimm_namespace_common_probe(struct device *dev)
 		device_unlock(&ndns->dev);
 		if (ndns->dev.driver) {
 			dev_dbg(&ndns->dev, "is active, can't bind %s\n",
-					dev_name(&nd_btt->dev));
+					dev_name(host));
 			return ERR_PTR(-EBUSY);
 		}
-		if (dev_WARN_ONCE(&ndns->dev, ndns->claim != &nd_btt->dev,
+		if (dev_WARN_ONCE(&ndns->dev, ndns->claim != host,
 					"host (%s) vs claim (%s) mismatch\n",
-					dev_name(&nd_btt->dev),
+					dev_name(host),
 					dev_name(ndns->claim)))
 			return ERR_PTR(-ENXIO);
 	} else {

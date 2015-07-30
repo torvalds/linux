@@ -731,6 +731,7 @@ static int create_arenas(struct btt *btt)
 static int btt_arena_write_layout(struct arena_info *arena)
 {
 	int ret;
+	u64 sum;
 	struct btt_sb *super;
 	struct nd_btt *nd_btt = arena->nd_btt;
 	const u8 *parent_uuid = nd_dev_to_uuid(&nd_btt->ndns->dev);
@@ -770,7 +771,8 @@ static int btt_arena_write_layout(struct arena_info *arena)
 	super->info2off = cpu_to_le64(arena->info2off - arena->infooff);
 
 	super->flags = 0;
-	super->checksum = cpu_to_le64(nd_btt_sb_checksum(super));
+	sum = nd_sb_checksum((struct nd_gen_sb *) super);
+	super->checksum = cpu_to_le64(sum);
 
 	ret = btt_info_write(arena, super);
 
@@ -1421,8 +1423,6 @@ EXPORT_SYMBOL(nvdimm_namespace_detach_btt);
 static int __init nd_btt_init(void)
 {
 	int rc;
-
-	BUILD_BUG_ON(sizeof(struct btt_sb) != SZ_4K);
 
 	btt_major = register_blkdev(0, "btt");
 	if (btt_major < 0)
