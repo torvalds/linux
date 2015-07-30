@@ -1009,6 +1009,7 @@ static const struct of_device_id abb5zes3_dt_match[] = {
 	{ .compatible = "abracon,abb5zes3" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, abb5zes3_dt_match);
 #endif
 
 static const struct i2c_device_id abb5zes3_id[] = {

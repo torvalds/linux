@@ -648,6 +648,7 @@ static const struct of_device_id isl12057_dt_match[] = {
 	{ .compatible = "isil,isl12057" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, isl12057_dt_match);
 #endif
 
 static const struct i2c_device_id isl12057_id[] = {

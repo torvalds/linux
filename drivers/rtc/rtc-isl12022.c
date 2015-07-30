@@ -274,6 +274,7 @@ static const struct of_device_id isl12022_dt_match[] = {
 	{ .compatible = "isil,isl12022" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, isl12022_dt_match);
 #endif
 
 static const struct i2c_device_id isl12022_id[] = {
