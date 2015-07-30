@@ -89,7 +89,7 @@ struct workqueue_struct *ipoib_workqueue;
 struct ib_sa_client ipoib_sa_client;
 
 static void ipoib_add_one(struct ib_device *device);
-static void ipoib_remove_one(struct ib_device *device);
+static void ipoib_remove_one(struct ib_device *device, void *client_data);
 static void ipoib_neigh_reclaim(struct rcu_head *rp);
 
 static struct ib_client ipoib_client = {
@@ -1715,12 +1715,11 @@ static void ipoib_add_one(struct ib_device *device)
 	ib_set_client_data(device, &ipoib_client, dev_list);
 }
 
-static void ipoib_remove_one(struct ib_device *device)
+static void ipoib_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ipoib_dev_priv *priv, *tmp;
-	struct list_head *dev_list;
+	struct list_head *dev_list = client_data;
 
-	dev_list = ib_get_client_data(device, &ipoib_client);
 	if (!dev_list)
 		return;
 

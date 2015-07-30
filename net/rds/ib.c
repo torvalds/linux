@@ -230,11 +230,10 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
  *
  * This can be called at any time and can be racing with any other RDS path.
  */
-static void rds_ib_remove_one(struct ib_device *device)
+static void rds_ib_remove_one(struct ib_device *device, void *client_data)
 {
-	struct rds_ib_device *rds_ibdev;
+	struct rds_ib_device *rds_ibdev = client_data;
 
-	rds_ibdev = ib_get_client_data(device, &rds_ib_client);
 	if (!rds_ibdev)
 		return;
 

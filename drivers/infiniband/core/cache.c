@@ -394,7 +394,7 @@ err:
 	kfree(device->cache.lmc_cache);
 }
 
-static void ib_cache_cleanup_one(struct ib_device *device)
+static void ib_cache_cleanup_one(struct ib_device *device, void *client_data)
 {
 	int p;
 

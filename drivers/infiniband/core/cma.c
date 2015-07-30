@@ -94,7 +94,7 @@ const char *rdma_event_msg(enum rdma_cm_event_type event)
 EXPORT_SYMBOL(rdma_event_msg);
 
 static void cma_add_one(struct ib_device *device);
-static void cma_remove_one(struct ib_device *device);
+static void cma_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client cma_client = {
 	.name   = "cma",
@@ -3554,11 +3554,10 @@ static void cma_process_remove(struct cma_device *cma_dev)
 	wait_for_completion(&cma_dev->comp);
 }
 
-static void cma_remove_one(struct ib_device *device)
+static void cma_remove_one(struct ib_device *device, void *client_data)
 {
-	struct cma_device *cma_dev;
+	struct cma_device *cma_dev = client_data;
 
-	cma_dev = ib_get_client_data(device, &cma_client);
 	if (!cma_dev)
 		return;
 

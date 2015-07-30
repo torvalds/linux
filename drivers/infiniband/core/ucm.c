@@ -109,7 +109,7 @@ enum {
 #define IB_UCM_BASE_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_BASE_MINOR)
 
 static void ib_ucm_add_one(struct ib_device *device);
-static void ib_ucm_remove_one(struct ib_device *device);
+static void ib_ucm_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client ucm_client = {
 	.name   = "ucm",
@@ -1310,9 +1310,9 @@ err:
 	return;
 }
 
-static void ib_ucm_remove_one(struct ib_device *device)
+static void ib_ucm_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ib_ucm_device *ucm_dev = ib_get_client_data(device, &ucm_client);
+	struct ib_ucm_device *ucm_dev = client_data;
 
 	if (!ucm_dev)
 		return;

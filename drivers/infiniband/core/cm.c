@@ -58,7 +58,7 @@ MODULE_DESCRIPTION("InfiniBand CM");
 MODULE_LICENSE("Dual BSD/GPL");
 
 static void cm_add_one(struct ib_device *device);
-static void cm_remove_one(struct ib_device *device);
+static void cm_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client cm_client = {
 	.name   = "cm",
@@ -3886,9 +3886,9 @@ free:
 	kfree(cm_dev);
 }
 
-static void cm_remove_one(struct ib_device *ib_device)
+static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 {
-	struct cm_device *cm_dev;
+	struct cm_device *cm_dev = client_data;
 	struct cm_port *port;
 	struct ib_port_modify port_modify = {
 		.clr_port_cap_mask = IB_PORT_CM_SUP
@@ -3896,7 +3896,6 @@ static void cm_remove_one(struct ib_device *ib_device)
 	unsigned long flags;
 	int i;
 
-	cm_dev = ib_get_client_data(ib_device, &cm_client);
 	if (!cm_dev)
 		return;
 

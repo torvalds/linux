@@ -50,6 +50,9 @@ struct ib_client_data {
 	struct list_head  list;
 	struct ib_client *client;
 	void *            data;
+	/* The device or client is going down. Do not call client or device
+	 * callbacks other than remove(). */
+	bool		  going_down;
 };
 
 struct workqueue_struct *ib_wq;
@@ -69,6 +72,8 @@ static LIST_HEAD(client_list);
  * to the lists must be done with a write lock. A special case is when the
  * device_mutex is locked. In this case locking the lists for read access is
  * not necessary as the device_mutex implies it.
+ *
+ * lists_rwsem also protects access to the client data list.
  */
 static DEFINE_MUTEX(device_mutex);
 static DECLARE_RWSEM(lists_rwsem);
@@ -210,10 +215,13 @@ static int add_client_context(struct ib_device *device, struct ib_client *client
 
 	context->client = client;
 	context->data   = NULL;
+	context->going_down = false;
 
+	down_write(&lists_rwsem);
 	spin_lock_irqsave(&device->client_data_lock, flags);
 	list_add(&context->list, &device->client_data_list);
 	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	up_write(&lists_rwsem);
 
 	return 0;
 }
@@ -339,7 +347,6 @@ EXPORT_SYMBOL(ib_register_device);
  */
 void ib_unregister_device(struct ib_device *device)
 {
-	struct ib_client *client;
 	struct ib_client_data *context, *tmp;
 	unsigned long flags;
 
@@ -347,20 +354,29 @@ void ib_unregister_device(struct ib_device *device)
 
 	down_write(&lists_rwsem);
 	list_del(&device->core_list);
-	up_write(&lists_rwsem);
+	spin_lock_irqsave(&device->client_data_lock, flags);
+	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
+		context->going_down = true;
+	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	downgrade_write(&lists_rwsem);
 
-	list_for_each_entry_reverse(client, &client_list, list)
-		if (client->remove)
-			client->remove(device);
+	list_for_each_entry_safe(context, tmp, &device->client_data_list,
+				 list) {
+		if (context->client->remove)
+			context->client->remove(device, context->data);
+	}
+	up_read(&lists_rwsem);
 
 	mutex_unlock(&device_mutex);
 
 	ib_device_unregister_sysfs(device);
 
+	down_write(&lists_rwsem);
 	spin_lock_irqsave(&device->client_data_lock, flags);
 	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
 		kfree(context);
 	spin_unlock_irqrestore(&device->client_data_lock, flags);
+	up_write(&lists_rwsem);
 
 	device->reg_state = IB_DEV_UNREGISTERED;
 }
@@ -420,16 +436,35 @@ void ib_unregister_client(struct ib_client *client)
 	up_write(&lists_rwsem);
 
 	list_for_each_entry(device, &device_list, core_list) {
-		if (client->remove)
-			client->remove(device);
+		struct ib_client_data *found_context = NULL;
 
+		down_write(&lists_rwsem);
 		spin_lock_irqsave(&device->client_data_lock, flags);
 		list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
 			if (context->client == client) {
-				list_del(&context->list);
-				kfree(context);
+				context->going_down = true;
+				found_context = context;
+				break;
 			}
 		spin_unlock_irqrestore(&device->client_data_lock, flags);
+		up_write(&lists_rwsem);
+
+		if (client->remove)
+			client->remove(device, found_context ?
+					       found_context->data : NULL);
+
+		if (!found_context) {
+			pr_warn("No client context found for %s/%s\n",
+				device->name, client->name);
+			continue;
+		}
+
+		down_write(&lists_rwsem);
+		spin_lock_irqsave(&device->client_data_lock, flags);
+		list_del(&found_context->list);
+		kfree(found_context);
+		spin_unlock_irqrestore(&device->client_data_lock, flags);
+		up_write(&lists_rwsem);
 	}
 
 	mutex_unlock(&device_mutex);

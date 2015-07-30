@@ -107,7 +107,7 @@ struct ib_sa_mcmember_query {
 };
 
 static void ib_sa_add_one(struct ib_device *device);
-static void ib_sa_remove_one(struct ib_device *device);
+static void ib_sa_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client sa_client = {
 	.name   = "sa",
@@ -1221,9 +1221,9 @@ free:
 	return;
 }
 
-static void ib_sa_remove_one(struct ib_device *device)
+static void ib_sa_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
+	struct ib_sa_device *sa_dev = client_data;
 	int i;
 
 	if (!sa_dev)

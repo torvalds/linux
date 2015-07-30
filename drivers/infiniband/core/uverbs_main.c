@@ -128,7 +128,7 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
-static void ib_uverbs_remove_one(struct ib_device *device);
+static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
 static void ib_uverbs_release_dev(struct kref *ref)
 {
@@ -948,9 +948,9 @@ err:
 	return;
 }
 
-static void ib_uverbs_remove_one(struct ib_device *device)
+static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ib_uverbs_device *uverbs_dev = ib_get_client_data(device, &uverbs_client);
+	struct ib_uverbs_device *uverbs_dev = client_data;
 
 	if (!uverbs_dev)
 		return;

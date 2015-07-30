@@ -1550,6 +1550,8 @@ struct ib_device {
 
 	spinlock_t                    client_data_lock;
 	struct list_head              core_list;
+	/* Access to the client_data_list is protected by the client_data_lock
+	 * spinlock and the lists_rwsem read-write semaphore */
 	struct list_head              client_data_list;
 
 	struct ib_cache               cache;
@@ -1761,7 +1763,7 @@ struct ib_device {
 struct ib_client {
 	char  *name;
 	void (*add)   (struct ib_device *);
-	void (*remove)(struct ib_device *);
+	void (*remove)(struct ib_device *, void *client_data);
 
 	struct list_head list;
 };

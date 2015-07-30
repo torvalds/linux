@@ -125,12 +125,11 @@ free_attr:
 	kfree(dev_attr);
 }
 
-static void rds_iw_remove_one(struct ib_device *device)
+static void rds_iw_remove_one(struct ib_device *device, void *client_data)
 {
-	struct rds_iw_device *rds_iwdev;
+	struct rds_iw_device *rds_iwdev = client_data;
 	struct rds_iw_cm_id *i_cm_id, *next;
 
-	rds_iwdev = ib_get_client_data(device, &rds_iw_client);
 	if (!rds_iwdev)
 		return;
 
