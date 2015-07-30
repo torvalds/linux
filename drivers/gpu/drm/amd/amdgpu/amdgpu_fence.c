@@ -126,7 +126,8 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
 	(*fence)->ring = ring;
 	(*fence)->owner = owner;
 	fence_init(&(*fence)->base, &amdgpu_fence_ops,
-		&adev->fence_queue.lock, adev->fence_context + ring->idx,
+		&ring->fence_drv.fence_queue.lock,
+		adev->fence_context + ring->idx,
 		(*fence)->seq);
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
 			       (*fence)->seq,
@@ -164,7 +165,7 @@ static int amdgpu_fence_check_signaled(wait_queue_t *wait, unsigned mode, int fl
 		else
 			FENCE_TRACE(&fence->base, "was already signaled\n");
 
-		__remove_wait_queue(&adev->fence_queue, &fence->fence_wake);
+		__remove_wait_queue(&fence->ring->fence_drv.fence_queue, &fence->fence_wake);
 		fence_put(&fence->base);
 	} else
 		FENCE_TRACE(&fence->base, "pending\n");
@@ -265,8 +266,9 @@ static void amdgpu_fence_check_lockup(struct work_struct *work)
 		return;
 	}
 
-	if (amdgpu_fence_activity(ring))
-		wake_up_all(&ring->adev->fence_queue);
+	if (amdgpu_fence_activity(ring)) {
+		wake_up_all(&ring->fence_drv.fence_queue);
+	}
 	else if (amdgpu_ring_is_lockup(ring)) {
 		/* good news we believe it's a lockup */
 		dev_warn(ring->adev->dev, "GPU lockup (current fence id "
@@ -276,7 +278,7 @@ static void amdgpu_fence_check_lockup(struct work_struct *work)
 
 		/* remember that we need an reset */
 		ring->adev->needs_reset = true;
-		wake_up_all(&ring->adev->fence_queue);
+		wake_up_all(&ring->fence_drv.fence_queue);
 	}
 	up_read(&ring->adev->exclusive_lock);
 }
@@ -364,7 +366,7 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 			} while (amd_sched_get_handled_seq(ring->scheduler) < latest_seq);
 		}
 
-		wake_up_all(&ring->adev->fence_queue);
+		wake_up_all(&ring->fence_drv.fence_queue);
 	}
 exit:
 	spin_unlock_irqrestore(&ring->fence_lock, irqflags);
@@ -427,7 +429,6 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 {
 	struct amdgpu_fence *fence = to_amdgpu_fence(f);
 	struct amdgpu_ring *ring = fence->ring;
-	struct amdgpu_device *adev = ring->adev;
 
 	if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq)
 		return false;
@@ -435,7 +436,7 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 	fence->fence_wake.flags = 0;
 	fence->fence_wake.private = NULL;
 	fence->fence_wake.func = amdgpu_fence_check_signaled;
-	__add_wait_queue(&adev->fence_queue, &fence->fence_wake);
+	__add_wait_queue(&ring->fence_drv.fence_queue, &fence->fence_wake);
 	fence_get(f);
 	FENCE_TRACE(&fence->base, "armed on ring %i!\n", ring->idx);
 	return true;
@@ -463,151 +464,78 @@ bool amdgpu_fence_signaled(struct amdgpu_fence *fence)
 	return false;
 }
 
-/**
- * amdgpu_fence_any_seq_signaled - check if any sequence number is signaled
+/*
+ * amdgpu_ring_wait_seq_timeout - wait for seq of the specific ring to signal
+ * @ring: ring to wait on for the seq number
+ * @seq: seq number wait for
+ * @intr: if interruptible
+ * @timeout: jiffies before time out
  *
- * @adev: amdgpu device pointer
- * @seq: sequence numbers
- *
- * Check if the last signaled fence sequnce number is >= the requested
- * sequence number (all asics).
- * Returns true if any has signaled (current value is >= requested value)
- * or false if it has not. Helper function for amdgpu_fence_wait_seq.
+ * return value:
+ * 0: time out but seq not signaled, and gpu not hang
+ * X (X > 0): seq signaled and X means how many jiffies remains before time out
+ * -EDEADL: GPU hang before time out
+ * -ESYSRESTART: interrupted before seq signaled
+ * -EINVAL: some paramter is not valid
  */
-static bool amdgpu_fence_any_seq_signaled(struct amdgpu_device *adev, u64 *seq)
+static long amdgpu_fence_ring_wait_seq_timeout(struct amdgpu_ring *ring, uint64_t seq,
+				   bool intr, long timeout)
 {
-	unsigned i;
+	struct amdgpu_device *adev = ring->adev;
+	long r = 0;
+	bool signaled = false;
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		if (!adev->rings[i] || !seq[i])
-			continue;
+	BUG_ON(!ring);
+	if (seq > ring->fence_drv.sync_seq[ring->idx])
+		return -EINVAL;
 
-		if (amdgpu_fence_seq_signaled(adev->rings[i], seq[i]))
-			return true;
-	}
+	if (atomic64_read(&ring->fence_drv.last_seq) >= seq)
+		return timeout;
 
-	return false;
-}
-
-/**
- * amdgpu_fence_wait_seq_timeout - wait for a specific sequence numbers
- *
- * @adev: amdgpu device pointer
- * @target_seq: sequence number(s) we want to wait for
- * @intr: use interruptable sleep
- * @timeout: maximum time to wait, or MAX_SCHEDULE_TIMEOUT for infinite wait
- *
- * Wait for the requested sequence number(s) to be written by any ring
- * (all asics).  Sequnce number array is indexed by ring id.
- * @intr selects whether to use interruptable (true) or non-interruptable
- * (false) sleep when waiting for the sequence number.  Helper function
- * for amdgpu_fence_wait_*().
- * Returns remaining time if the sequence number has passed, 0 when
- * the wait timeout, or an error for all other cases.
- * -EDEADLK is returned when a GPU lockup has been detected.
- */
-static long amdgpu_fence_wait_seq_timeout(struct amdgpu_device *adev,
-					  u64 *target_seq, bool intr,
-					  long timeout)
-{
-	uint64_t last_seq[AMDGPU_MAX_RINGS];
-	bool signaled;
-	int i;
-	long r;
-
-	if (timeout == 0) {
-		return amdgpu_fence_any_seq_signaled(adev, target_seq);
-	}
-
-	while (!amdgpu_fence_any_seq_signaled(adev, target_seq)) {
-
-		/* Save current sequence values, used to check for GPU lockups */
-		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-			struct amdgpu_ring *ring = adev->rings[i];
-
-			if (!ring || !target_seq[i])
-				continue;
-
-			last_seq[i] = atomic64_read(&ring->fence_drv.last_seq);
-			trace_amdgpu_fence_wait_begin(adev->ddev, i, target_seq[i]);
-		}
-
+	while (1) {
 		if (intr) {
-			r = wait_event_interruptible_timeout(adev->fence_queue, (
-				(signaled = amdgpu_fence_any_seq_signaled(adev, target_seq))
-				 || adev->needs_reset), AMDGPU_FENCE_JIFFIES_TIMEOUT);
+			r = wait_event_interruptible_timeout(ring->fence_drv.fence_queue, (
+					(signaled = amdgpu_fence_seq_signaled(ring, seq))
+					|| adev->needs_reset), AMDGPU_FENCE_JIFFIES_TIMEOUT);
+
+			if (r == -ERESTARTSYS) /* interrupted */
+				return r;
 		} else {
-			r = wait_event_timeout(adev->fence_queue, (
-				(signaled = amdgpu_fence_any_seq_signaled(adev, target_seq))
-				 || adev->needs_reset), AMDGPU_FENCE_JIFFIES_TIMEOUT);
+			r = wait_event_timeout(ring->fence_drv.fence_queue, (
+					(signaled = amdgpu_fence_seq_signaled(ring, seq))
+					|| adev->needs_reset), AMDGPU_FENCE_JIFFIES_TIMEOUT);
 		}
 
-		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-			struct amdgpu_ring *ring = adev->rings[i];
-
-			if (!ring || !target_seq[i])
-				continue;
-
-			trace_amdgpu_fence_wait_end(adev->ddev, i, target_seq[i]);
+		if (signaled) {
+			/* seq signaled */
+			if (timeout == MAX_SCHEDULE_TIMEOUT)
+				return timeout;
+			return (timeout - AMDGPU_FENCE_JIFFIES_TIMEOUT - r);
+		}
+		else if (adev->needs_reset) {
+			return -EDEADLK;
 		}
 
-		if (unlikely(r < 0))
-			return r;
-
-		if (unlikely(!signaled)) {
-
-			if (adev->needs_reset)
-				return -EDEADLK;
-
-			/* we were interrupted for some reason and fence
-			 * isn't signaled yet, resume waiting */
-			if (r)
-				continue;
-
-			for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-				struct amdgpu_ring *ring = adev->rings[i];
-
-				if (!ring || !target_seq[i])
-					continue;
-
-				if (last_seq[i] != atomic64_read(&ring->fence_drv.last_seq))
-					break;
-			}
-
-			if (i != AMDGPU_MAX_RINGS)
-				continue;
-
-			for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-				if (!adev->rings[i] || !target_seq[i])
-					continue;
-
-				if (amdgpu_ring_is_lockup(adev->rings[i]))
-					break;
-			}
-
-			if (i < AMDGPU_MAX_RINGS) {
-				/* good news we believe it's a lockup */
-				dev_warn(adev->dev, "GPU lockup (waiting for "
+		/* check if it's a lockup */
+		if (amdgpu_ring_is_lockup(ring)) {
+			uint64_t last_seq = atomic64_read(&ring->fence_drv.last_seq);
+			/* ring lookup */
+			dev_warn(adev->dev, "GPU lockup (waiting for "
 					 "0x%016llx last fence id 0x%016llx on"
 					 " ring %d)\n",
-					 target_seq[i], last_seq[i], i);
+					 seq, last_seq, ring->idx);
+			wake_up_all(&ring->fence_drv.fence_queue);
+			return -EDEADLK;
+		}
 
-				/* remember that we need an reset */
-				adev->needs_reset = true;
-				wake_up_all(&adev->fence_queue);
-				return -EDEADLK;
-			}
-
-			if (timeout < MAX_SCHEDULE_TIMEOUT) {
-				timeout -= AMDGPU_FENCE_JIFFIES_TIMEOUT;
-				if (timeout <= 0) {
-					return 0;
-				}
-			}
+		if (timeout < MAX_SCHEDULE_TIMEOUT) {
+			timeout -= AMDGPU_FENCE_JIFFIES_TIMEOUT;
+			if (timeout < 1)
+				return 0;
 		}
 	}
-	return timeout;
 }
+
 
 /**
  * amdgpu_fence_wait - wait for a fence to signal
@@ -642,18 +570,15 @@ int amdgpu_fence_wait(struct amdgpu_fence *fence, bool intr)
  */
 int amdgpu_fence_wait_next(struct amdgpu_ring *ring)
 {
-	uint64_t seq[AMDGPU_MAX_RINGS] = {};
 	long r;
 
-	seq[ring->idx] = atomic64_read(&ring->fence_drv.last_seq) + 1ULL;
-	if (seq[ring->idx] >= ring->fence_drv.sync_seq[ring->idx]) {
-		/* nothing to wait for, last_seq is
-		   already the last emited fence */
+	uint64_t seq = atomic64_read(&ring->fence_drv.last_seq) + 1ULL;
+	if (seq >= ring->fence_drv.sync_seq[ring->idx])
 		return -ENOENT;
-	}
-	r = amdgpu_fence_wait_seq_timeout(ring->adev, seq, false, MAX_SCHEDULE_TIMEOUT);
+	r = amdgpu_fence_ring_wait_seq_timeout(ring, seq, false, MAX_SCHEDULE_TIMEOUT);
 	if (r < 0)
 		return r;
+
 	return 0;
 }
 
@@ -669,21 +594,20 @@ int amdgpu_fence_wait_next(struct amdgpu_ring *ring)
  */
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring)
 {
-	struct amdgpu_device *adev = ring->adev;
-	uint64_t seq[AMDGPU_MAX_RINGS] = {};
 	long r;
 
-	seq[ring->idx] = ring->fence_drv.sync_seq[ring->idx];
-	if (!seq[ring->idx])
+	uint64_t seq = ring->fence_drv.sync_seq[ring->idx];
+	if (!seq)
 		return 0;
 
-	r = amdgpu_fence_wait_seq_timeout(adev, seq, false, MAX_SCHEDULE_TIMEOUT);
+	r = amdgpu_fence_ring_wait_seq_timeout(ring, seq, false, MAX_SCHEDULE_TIMEOUT);
+
 	if (r < 0) {
 		if (r == -EDEADLK)
 			return -EDEADLK;
 
-		dev_err(adev->dev, "error waiting for ring[%d] to become idle (%ld)\n",
-			ring->idx, r);
+		dev_err(ring->adev->dev, "error waiting for ring[%d] to become idle (%ld)\n",
+				ring->idx, r);
 	}
 	return 0;
 }
@@ -898,7 +822,6 @@ void amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
  */
 int amdgpu_fence_driver_init(struct amdgpu_device *adev)
 {
-	init_waitqueue_head(&adev->fence_queue);
 	if (amdgpu_debugfs_fence_init(adev))
 		dev_err(adev->dev, "fence debugfs file creation failed\n");
 
@@ -927,7 +850,7 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 			/* no need to trigger GPU reset as we are unloading */
 			amdgpu_fence_driver_force_completion(adev);
 		}
-		wake_up_all(&adev->fence_queue);
+		wake_up_all(&ring->fence_drv.fence_queue);
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
 		if (ring->scheduler)

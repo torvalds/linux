@@ -391,6 +391,7 @@ struct amdgpu_fence_driver {
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
 	struct delayed_work             lockup_work;
+	wait_queue_head_t		fence_queue;
 };
 
 /* some special values for the owner field */
@@ -2036,7 +2037,6 @@ struct amdgpu_device {
 	struct amdgpu_irq_src		hpd_irq;
 
 	/* rings */
-	wait_queue_head_t		fence_queue;
 	unsigned			fence_context;
 	struct mutex			ring_lock;
 	unsigned			num_rings;
