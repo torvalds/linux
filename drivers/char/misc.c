@@ -243,17 +243,15 @@ int misc_register(struct miscdevice * misc)
  *	@misc: device to unregister
  *
  *	Unregister a miscellaneous device that was previously
- *	successfully registered with misc_register(). Success
- *	is indicated by a zero return, a negative errno code
- *	indicates an error.
+ *	successfully registered with misc_register().
  */
 
-int misc_deregister(struct miscdevice *misc)
+void misc_deregister(struct miscdevice *misc)
 {
 	int i = DYNAMIC_MINORS - misc->minor - 1;
 
 	if (WARN_ON(list_empty(&misc->list)))
-		return -EINVAL;
+		return;
 
 	mutex_lock(&misc_mtx);
 	list_del(&misc->list);
@@ -261,7 +259,6 @@ int misc_deregister(struct miscdevice *misc)
 	if (i < DYNAMIC_MINORS && i >= 0)
 		clear_bit(i, misc_minors);
 	mutex_unlock(&misc_mtx);
-	return 0;
 }
 
 EXPORT_SYMBOL(misc_register);

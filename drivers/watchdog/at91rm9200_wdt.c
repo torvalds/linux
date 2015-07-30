@@ -269,9 +269,8 @@ static int at91wdt_remove(struct platform_device *pdev)
 	if (res)
 		dev_warn(dev, "failed to unregister restart handler\n");
 
-	res = misc_deregister(&at91wdt_miscdev);
-	if (!res)
-		at91wdt_miscdev.parent = NULL;
+	misc_deregister(&at91wdt_miscdev);
+	at91wdt_miscdev.parent = NULL;
 
 	return res;
 }

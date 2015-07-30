@@ -362,18 +362,15 @@ fail:
 
 int dlm_device_deregister(struct dlm_ls *ls)
 {
-	int error;
-
 	/* The device is not registered.  This happens when the lockspace
 	   was never used from userspace, or when device_create_lockspace()
 	   calls dlm_release_lockspace() after the register fails. */
 	if (!ls->ls_device.name)
 		return 0;
 
-	error = misc_deregister(&ls->ls_device);
-	if (!error)
-		kfree(ls->ls_device.name);
-	return error;
+	misc_deregister(&ls->ls_device);
+	kfree(ls->ls_device.name);
+	return 0;
 }
 
 static int device_user_purge(struct dlm_user_proc *proc,

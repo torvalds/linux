@@ -863,14 +863,9 @@ static int __init ashmem_init(void)
 
 static void __exit ashmem_exit(void)
 {
-	int ret;
-
 	unregister_shrinker(&ashmem_shrinker);
 
-	ret = misc_deregister(&ashmem_misc);
-	if (unlikely(ret))
-		pr_err("failed to unregister misc device!\n");
-
+	misc_deregister(&ashmem_misc);
 	kmem_cache_destroy(ashmem_range_cachep);
 	kmem_cache_destroy(ashmem_area_cachep);
 

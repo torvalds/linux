@@ -467,9 +467,7 @@ static void exit_libcfs_module(void)
 	cfs_crypto_unregister();
 	cfs_wi_shutdown();
 
-	rc = misc_deregister(&libcfs_dev);
-	if (rc)
-		CERROR("misc_deregister error %d\n", rc);
+	misc_deregister(&libcfs_dev);
 
 	cfs_cpu_fini();
 
