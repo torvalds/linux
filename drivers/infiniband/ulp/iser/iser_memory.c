@@ -471,7 +471,7 @@ iser_reg_dma(struct iser_device *device, struct iser_data_buf *mem,
 {
 	struct scatterlist *sg = mem->sg;
 
-	reg->sge.lkey = device->mr->lkey;
+	reg->sge.lkey = device->pd->local_dma_lkey;
 	reg->rkey = device->mr->rkey;
 	reg->sge.addr = ib_sg_dma_address(device->ib_device, &sg[0]);
 	reg->sge.length = ib_sg_dma_len(device->ib_device, &sg[0]);

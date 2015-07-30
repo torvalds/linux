@@ -284,7 +284,7 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 		rx_sg = &rx_desc->rx_sg;
 		rx_sg->addr   = rx_desc->dma_addr;
 		rx_sg->length = ISER_RX_PAYLOAD_SIZE;
-		rx_sg->lkey   = device->mr->lkey;
+		rx_sg->lkey   = device->pd->local_dma_lkey;
 	}
 
 	iser_conn->rx_desc_head = 0;
@@ -538,7 +538,7 @@ int iser_send_control(struct iscsi_conn *conn,
 
 		tx_dsg->addr    = iser_conn->login_req_dma;
 		tx_dsg->length  = task->data_count;
-		tx_dsg->lkey    = device->mr->lkey;
+		tx_dsg->lkey    = device->pd->local_dma_lkey;
 		mdesc->num_sge = 2;
 	}
 

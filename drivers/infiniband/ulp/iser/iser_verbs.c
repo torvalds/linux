@@ -1061,7 +1061,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 
 	sge.addr   = iser_conn->login_resp_dma;
 	sge.length = ISER_RX_LOGIN_SIZE;
-	sge.lkey   = ib_conn->device->mr->lkey;
+	sge.lkey   = ib_conn->device->pd->local_dma_lkey;
 
 	rx_wr.wr_id   = (uintptr_t)iser_conn->login_resp_buf;
 	rx_wr.sg_list = &sge;
