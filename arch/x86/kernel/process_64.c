@@ -121,6 +121,7 @@ void __show_regs(struct pt_regs *regs, int all)
 void release_thread(struct task_struct *dead_task)
 {
 	if (dead_task->mm) {
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
 		if (dead_task->mm->context.ldt) {
 			pr_warn("WARNING: dead process %s still has LDT? <%p/%d>\n",
 				dead_task->comm,
@@ -128,6 +129,7 @@ void release_thread(struct task_struct *dead_task)
 				dead_task->mm->context.ldt->size);
 			BUG();
 		}
+#endif
 	}
 }
 

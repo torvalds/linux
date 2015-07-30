@@ -1036,6 +1036,7 @@ config VM86
 config X86_16BIT
 	bool "Enable support for 16-bit segments" if EXPERT
 	default y
+	depends on MODIFY_LDT_SYSCALL
 	---help---
 	  This option is required by programs like Wine to run 16-bit
 	  protected mode legacy code on x86 processors.  Disabling
@@ -1530,6 +1531,7 @@ config X86_RESERVE_LOW
 
 config MATH_EMULATION
 	bool
+	depends on MODIFY_LDT_SYSCALL
 	prompt "Math emulation" if X86_32
 	---help---
 	  Linux can emulate a math coprocessor (used for floating point
@@ -2073,6 +2075,22 @@ config CMDLINE_OVERRIDE
 
 	  This is used to work around broken boot loaders.  This should
 	  be set to 'N' under normal conditions.
+
+config MODIFY_LDT_SYSCALL
+	bool "Enable the LDT (local descriptor table)" if EXPERT
+	default y
+	---help---
+	  Linux can allow user programs to install a per-process x86
+	  Local Descriptor Table (LDT) using the modify_ldt(2) system
+	  call.  This is required to run 16-bit or segmented code such as
+	  DOSEMU or some Wine programs.  It is also used by some very old
+	  threading libraries.
+
+	  Enabling this feature adds a small amount of overhead to
+	  context switches and increases the low-level kernel attack
+	  surface.  Disabling it removes the modify_ldt(2) system call.
+
+	  Saying 'N' here may make sense for embedded or server kernels.
 
 source "kernel/livepatch/Kconfig"
 
