@@ -415,7 +415,6 @@ struct mlx4_ib_demux_pv_ctx {
 	struct ib_device *ib_dev;
 	struct ib_cq *cq;
 	struct ib_pd *pd;
-	struct ib_mr *mr;
 	struct work_struct work;
 	struct workqueue_struct *wq;
 	struct mlx4_ib_demux_pv_qp qp[2];
