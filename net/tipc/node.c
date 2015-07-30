@@ -295,11 +295,13 @@ void tipc_node_link_up(struct tipc_node *n, int bearer_id)
 	n->action_flags |= TIPC_NOTIFY_LINK_UP;
 	n->link_id = l->peer_bearer_id << 16 | l->bearer_id;
 
+	tipc_bearer_add_dest(n->net, bearer_id, n->addr);
+
 	pr_debug("Established link <%s> on network plane %c\n",
 		 l->name, l->net_plane);
 
 	/* No active links ? => take both active slots */
-	if (*slot0 < 0) {
+	if (!tipc_node_is_up(n)) {
 		*slot0 = bearer_id;
 		*slot1 = bearer_id;
 		node_established_contact(n);
@@ -896,7 +898,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 	rc = tipc_link_rcv(l, skb, &xmitq);
 
 	if (unlikely(rc & TIPC_LINK_UP_EVT))
-		tipc_link_activate(l);
+		tipc_node_link_up(n, bearer_id);
 	if (unlikely(rc & TIPC_LINK_DOWN_EVT))
 		tipc_link_reset(l);
 	skb = NULL;

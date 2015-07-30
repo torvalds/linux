@@ -223,7 +223,6 @@ void tipc_link_purge_queues(struct tipc_link *l_ptr);
 void tipc_link_purge_backlog(struct tipc_link *l);
 void tipc_link_reset_all(struct tipc_node *node);
 void tipc_link_reset(struct tipc_link *l_ptr);
-void tipc_link_activate(struct tipc_link *link);
 int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		     struct sk_buff_head *list);
 int tipc_link_xmit(struct tipc_link *link,	struct sk_buff_head *list,

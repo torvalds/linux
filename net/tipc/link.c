@@ -228,6 +228,8 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	l_ptr->peer_session = WILDCARD_SESSION;
 	l_ptr->bearer_id = b_ptr->identity;
 	l_ptr->tolerance = b_ptr->tolerance;
+	l_ptr->snd_nxt = 1;
+	l_ptr->rcv_nxt = 1;
 	l_ptr->state = TIPC_LINK_RESETTING;
 
 	l_ptr->pmsg = (struct tipc_msg *)&l_ptr->proto_msg;
@@ -376,6 +378,7 @@ static int tipc_link_fsm_evt(struct tipc_link *l, int evt,
 			pl = node_active_link(l->owner, 0);
 			if (pl && link_probing(pl))
 				break;
+			l->state = TIPC_LINK_WORKING;
 			actions |= LINK_ACTIVATE;
 			if (!l->owner->working_links)
 				actions |= SND_BCAST_SYNC;
@@ -398,6 +401,7 @@ static int tipc_link_fsm_evt(struct tipc_link *l, int evt,
 			pl = node_active_link(l->owner, 0);
 			if (pl && link_probing(pl))
 				break;
+			l->state = TIPC_LINK_WORKING;
 			actions |= LINK_ACTIVATE;
 			if (!l->owner->working_links)
 				actions |= SND_BCAST_SYNC;
@@ -637,19 +641,6 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	l_ptr->stats.recv_info = 0;
 	l_ptr->stale_count = 0;
 	link_reset_statistics(l_ptr);
-}
-
-void tipc_link_activate(struct tipc_link *link)
-{
-	struct tipc_node *node = link->owner;
-
-	link->rcv_nxt = 1;
-	link->stats.recv_info = 1;
-	link->silent_intv_cnt = 0;
-	link->state = TIPC_LINK_WORKING;
-	link->exec_mode = TIPC_LINK_OPEN;
-	tipc_node_link_up(node, link->bearer_id);
-	tipc_bearer_add_dest(node->net, link->bearer_id, link->addr);
 }
 
 /**
