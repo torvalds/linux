@@ -84,8 +84,16 @@ void target_backend_unregister(const struct target_backend_ops *ops)
 	list_for_each_entry(tb, &backend_list, list) {
 		if (tb->ops == ops) {
 			list_del(&tb->list);
+			mutex_unlock(&backend_mutex);
+			/*
+			 * Wait for any outstanding backend driver ->rcu_head
+			 * callbacks to complete post TBO->free_device() ->
+			 * call_rcu(), before allowing backend driver module
+			 * unload of target_backend_ops->owner to proceed.
+			 */
+			rcu_barrier();
 			kfree(tb);
-			break;
+			return;
 		}
 	}
 	mutex_unlock(&backend_mutex);
