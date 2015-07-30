@@ -41,7 +41,7 @@ static const struct regulator_linear_range buck_volt_range[] = {
 	REGULATOR_LINEAR_RANGE(MT6311_MIN_UV, 0, 0x7f, MT6311_STEP_UV),
 };
 
-static struct regulator_ops mt6311_buck_ops = {
+static const struct regulator_ops mt6311_buck_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 	.map_voltage = regulator_map_voltage_linear_range,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -52,7 +52,7 @@ static struct regulator_ops mt6311_buck_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 };
 
-static struct regulator_ops mt6311_ldo_ops = {
+static const struct regulator_ops mt6311_ldo_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -91,7 +91,7 @@ static struct regulator_ops mt6311_ldo_ops = {
 	.enable_mask = MT6311_PMIC_RG_VBIASN_EN_MASK,\
 }
 
-static struct regulator_desc mt6311_regulators[] = {
+static const struct regulator_desc mt6311_regulators[] = {
 	MT6311_BUCK(VDVFS),
 	MT6311_LDO(VBIASN),
 };
@@ -105,15 +105,15 @@ static int mt6311_i2c_probe(struct i2c_client *i2c,
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
-	int error, i, ret;
+	int i, ret;
 	unsigned int data;
 
 	regmap = devm_regmap_init_i2c(i2c, &mt6311_regmap_config);
 	if (IS_ERR(regmap)) {
-		error = PTR_ERR(regmap);
+		ret = PTR_ERR(regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
-			error);
-		return error;
+			ret);
+		return ret;
 	}
 
 	ret = regmap_read(regmap, MT6311_SWCID, &data);
