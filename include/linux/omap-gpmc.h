@@ -11,8 +11,9 @@
 
 #define GPMC_CONFIG_WP		0x00000005
 
-#define GPMC_IRQ_FIFOEVENTENABLE	0x01
-#define GPMC_IRQ_COUNT_EVENT		0x02
+/* IRQ numbers in GPMC IRQ domain for legacy boot use */
+#define GPMC_IRQ_FIFOEVENTENABLE	0
+#define GPMC_IRQ_COUNT_EVENT		1
 
 /**
  * gpmc_nand_ops - Interface between NAND and GPMC
