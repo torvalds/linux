@@ -810,7 +810,8 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	might_sleep();
-	trans->ops->d3_suspend(trans, test);
+	if (trans->ops->d3_suspend)
+		trans->ops->d3_suspend(trans, test);
 }
 
 static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
@@ -818,6 +819,9 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 				      bool test)
 {
 	might_sleep();
+	if (!trans->ops->d3_resume)
+		return 0;
+
 	return trans->ops->d3_resume(trans, status, test);
 }
 
