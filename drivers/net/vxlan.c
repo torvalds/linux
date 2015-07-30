@@ -2034,7 +2034,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		fl6.flowi6_mark = skb->mark;
 		fl6.flowi6_proto = IPPROTO_UDP;
 
-		if (ipv6_stub->ipv6_dst_lookup(sk, &ndst, &fl6)) {
+		if (ipv6_stub->ipv6_dst_lookup(vxlan->net, sk, &ndst, &fl6)) {
 			netdev_dbg(dev, "no route to %pI6\n",
 				   &dst->sin6.sin6_addr);
 			dev->stats.tx_carrier_errors++;

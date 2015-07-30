@@ -813,7 +813,8 @@ static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 			      &inet6_sk(sk)->cork);
 }
 
-int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi6 *fl6);
+int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
+		   struct flowi6 *fl6);
 struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
 				      const struct in6_addr *final_dst);
 struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
