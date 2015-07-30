@@ -111,6 +111,9 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	audio_stream_t *s = &prtd->s;	
     ALSA_TRACE();
 	switch(runtime->rate){
+		case 384000:
+			audio_clk_config	=	AUDIO_CLK_FREQ_384;
+			break;
 		case 352800:
 			audio_clk_config	=	AUDIO_CLK_FREQ_3528;
 			break;
@@ -161,7 +164,10 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
     if( i2s->old_samplerate != runtime->rate ){
 		ALSA_PRINT("enterd %s,old_samplerate:%d,sample_rate=%d\n",__func__,i2s->old_samplerate,runtime->rate);
         i2s->old_samplerate = runtime->rate;
-        audio_set_i2s_clk(audio_clk_config, AUDIO_CLK_256FS, i2s->mpll);
+        if(runtime->rate > 192000)
+            audio_set_i2s_clk(audio_clk_config, AUDIO_CLK_128FS, i2s->mpll);
+        else 
+            audio_set_i2s_clk(audio_clk_config, AUDIO_CLK_256FS, i2s->mpll);
     }
     audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP); 
     
@@ -280,7 +286,7 @@ static int aml_dai_i2s_resume(struct snd_soc_dai *dai)
 
 
 
-#define AML_DAI_I2S_RATES		(SNDRV_PCM_RATE_8000_352800)
+#define AML_DAI_I2S_RATES		(SNDRV_PCM_RATE_8000_384000)
 #define AML_DAI_I2S_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 
