@@ -163,7 +163,7 @@ static void trigger_resync_vr(struct usb_device *dev)
 	if (retval >= 0)
 		return;
 error:
-	pr_info("Vendor request \"stall\" failed\n");
+	dev_err(&dev->dev, "Vendor request \"stall\" failed\n");
 }
 
 /**
@@ -256,7 +256,7 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 	unsigned int sub_size = cfg->subbuffer_size;
 
 	if (!sub_size) {
-		pr_info("Misconfig: Subbuffer size zero.\n");
+		pr_warn("Misconfig: Subbuffer size zero.\n");
 		return frame_size;
 	}
 	switch (cfg->data_type) {
@@ -265,7 +265,7 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 		break;
 	case MOST_CH_SYNC:
 		if (cfg->packets_per_xact == 0) {
-			pr_info("Misconfig: Packets per XACT zero\n");
+			pr_warn("Misconfig: Packets per XACT zero\n");
 			frame_size = 0;
 		} else if (cfg->packets_per_xact == 0xFF)
 			frame_size = (USB_MTU / sub_size) * sub_size;
@@ -294,16 +294,16 @@ int hdm_poison_channel(struct most_interface *iface, int channel)
 {
 	struct most_dev *mdev;
 
+	mdev = to_mdev(iface);
 	if (unlikely(!iface)) {
-		pr_info("Poison: Bad interface.\n");
+		dev_warn(&mdev->usb_device->dev, "Poison: Bad interface.\n");
 		return -EIO;
 	}
 	if (unlikely((channel < 0) || (channel >= iface->num_channels))) {
-		pr_info("Channel ID out of range.\n");
+		dev_warn(&mdev->usb_device->dev, "Channel ID out of range.\n");
 		return -ECHRNG;
 	}
 
-	mdev = to_mdev(iface);
 	mdev->is_channel_healthy[channel] = false;
 
 	mutex_lock(&mdev->io_mutex);
@@ -340,7 +340,8 @@ int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 	num_frames = mbo->buffer_length / frame_size;
 
 	if (num_frames < 1) {
-		pr_err("Missed minimal transfer unit.\n");
+		dev_err(&mdev->usb_device->dev,
+			"Missed minimal transfer unit.\n");
 		return -EIO;
 	}
 
@@ -399,6 +400,7 @@ static void hdm_write_completion(struct urb *urb)
 	struct mbo *mbo;
 	struct buf_anchor *anchor;
 	struct most_dev *mdev;
+	struct device *dev;
 	unsigned int channel;
 	unsigned long flags;
 
@@ -406,6 +408,7 @@ static void hdm_write_completion(struct urb *urb)
 	anchor = mbo->priv;
 	mdev = to_mdev(mbo->ifp);
 	channel = mbo->hdm_channel_id;
+	dev = &mdev->usb_device->dev;
 
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (mdev->is_channel_healthy[channel] == false)) {
@@ -419,7 +422,7 @@ static void hdm_write_completion(struct urb *urb)
 		mbo->processed_length = 0;
 		switch (urb->status) {
 		case -EPIPE:
-			pr_info("Broken OUT pipe detected\n");
+			dev_warn(dev, "Broken OUT pipe detected\n");
 			most_stop_enqueue(&mdev->iface, channel);
 			mbo->status = MBO_E_INVAL;
 			usb_unlink_urb(urb);
@@ -562,6 +565,7 @@ static void hdm_read_completion(struct urb *urb)
 	struct mbo *mbo;
 	struct buf_anchor *anchor;
 	struct most_dev *mdev;
+	struct device *dev;
 	unsigned long flags;
 	unsigned int channel;
 	struct most_channel_config *conf;
@@ -570,6 +574,7 @@ static void hdm_read_completion(struct urb *urb)
 	anchor = mbo->priv;
 	mdev = to_mdev(mbo->ifp);
 	channel = mbo->hdm_channel_id;
+	dev = &mdev->usb_device->dev;
 
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (mdev->is_channel_healthy[channel] == false)) {
@@ -585,7 +590,7 @@ static void hdm_read_completion(struct urb *urb)
 		mbo->processed_length = 0;
 		switch (urb->status) {
 		case -EPIPE:
-			pr_info("Broken IN pipe detected\n");
+			dev_warn(dev, "Broken IN pipe detected\n");
 			mbo->status = MBO_E_INVAL;
 			usb_unlink_urb(urb);
 			INIT_WORK(&anchor->clear_work_obj, wq_clear_halt);
@@ -596,7 +601,7 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_CLOSE;
 			break;
 		case -EOVERFLOW:
-			pr_info("Babble on IN pipe detected\n");
+			dev_warn(dev, "Babble on IN pipe detected\n");
 		default:
 			mbo->status = MBO_E_INVAL;
 			break;
@@ -644,30 +649,28 @@ int hdm_enqueue(struct most_interface *iface, int channel, struct mbo *mbo)
 	struct most_dev *mdev;
 	struct buf_anchor *anchor;
 	struct most_channel_config *conf;
+	struct device *dev;
 	int retval = 0;
 	struct urb *urb;
 	unsigned long flags;
 	unsigned long length;
 	void *virt_address;
 
-	if (unlikely(!iface || !mbo)) {
-		pr_info("Bad interface or MBO\n");
+	if (unlikely(!iface || !mbo))
 		return -EIO;
-	}
-	if (unlikely(iface->num_channels <= channel) || (channel < 0)) {
-		pr_info("Channel ID out of range\n");
+	if (unlikely(iface->num_channels <= channel) || (channel < 0))
 		return -ECHRNG;
-	}
 
 	mdev = to_mdev(iface);
 	conf = &mdev->conf[channel];
+	dev = &mdev->usb_device->dev;
 
 	if (!mdev->usb_device)
 		return -ENODEV;
 
 	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
 	if (!urb) {
-		pr_info("Failed to allocate URB\n");
+		dev_err(dev, "Failed to allocate URB\n");
 		return -ENOMEM;
 	}
 
@@ -719,7 +722,7 @@ int hdm_enqueue(struct most_interface *iface, int channel, struct mbo *mbo)
 
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval) {
-		pr_info("URB submit failed with error %d.\n", retval);
+		dev_err(dev, "URB submit failed with error %d.\n", retval);
 		goto _error_1;
 	}
 	return 0;
@@ -748,22 +751,24 @@ int hdm_configure_channel(struct most_interface *iface, int channel,
 	unsigned int temp_size;
 	unsigned int tail_space;
 	struct most_dev *mdev;
-
-	if (unlikely(!iface || !conf)) {
-		pr_info("Bad interface or config pointer.\n");
-		return -EINVAL;
-	}
-	if (unlikely((channel < 0) || (channel >= iface->num_channels))) {
-		pr_info("Channel ID out of range.\n");
-		return -EINVAL;
-	}
-	if ((!conf->num_buffers) || (!conf->buffer_size)) {
-		pr_info("Misconfig: buffer size or number of buffers zero.\n");
-		return -EINVAL;
-	}
+	struct device *dev;
 
 	mdev = to_mdev(iface);
 	mdev->is_channel_healthy[channel] = true;
+	dev = &mdev->usb_device->dev;
+
+	if (unlikely(!iface || !conf)) {
+		dev_err(dev, "Bad interface or config pointer.\n");
+		return -EINVAL;
+	}
+	if (unlikely((channel < 0) || (channel >= iface->num_channels))) {
+		dev_err(dev, "Channel ID out of range.\n");
+		return -EINVAL;
+	}
+	if ((!conf->num_buffers) || (!conf->buffer_size)) {
+		dev_err(dev, "Misconfig: buffer size or #buffers zero.\n");
+		return -EINVAL;
+	}
 
 	if (!(conf->data_type == MOST_CH_SYNC) &&
 	    !((conf->data_type == MOST_CH_ISOC_AVP) &&
@@ -777,13 +782,13 @@ int hdm_configure_channel(struct most_interface *iface, int channel,
 
 	if ((conf->data_type != MOST_CH_SYNC) &&
 	    (conf->data_type != MOST_CH_ISOC_AVP)) {
-		pr_info("Unsupported data type\n");
+		dev_warn(dev, "Unsupported data type\n");
 		return -EINVAL;
 	}
 
 	frame_size = get_stream_frame_size(conf);
 	if ((frame_size == 0) || (frame_size > USB_MTU)) {
-		pr_info("Misconfig: frame size wrong\n");
+		dev_warn(dev, "Misconfig: frame size wrong\n");
 		return -EINVAL;
 	}
 
@@ -792,11 +797,12 @@ int hdm_configure_channel(struct most_interface *iface, int channel,
 
 		tmp_val = conf->buffer_size / frame_size;
 		conf->buffer_size = tmp_val * frame_size;
-		pr_info("Channel %d - rouding buffer size to %d bytes,"
-			" channel config says %d bytes",
-			channel,
-			conf->buffer_size,
-			temp_size);
+		dev_notice(dev,
+			   "Channel %d - rouding buffer size to %d bytes, "
+			   "channel config says %d bytes\n",
+			   channel,
+			   conf->buffer_size,
+			   temp_size);
 	}
 
 	num_frames = conf->buffer_size / frame_size;
@@ -820,6 +826,7 @@ exit:
  */
 int hdm_update_netinfo(struct most_dev *mdev)
 {
+	struct device *dev = &mdev->usb_device->dev;
 	int i;
 	u16 link;
 	u8 addr[6];
@@ -827,17 +834,17 @@ int hdm_update_netinfo(struct most_dev *mdev)
 	if (!is_valid_ether_addr(mdev->hw_addr)) {
 		if (0 > drci_rd_reg(mdev->usb_device,
 				    DRCI_REG_HW_ADDR_HI, addr)) {
-			pr_info("Vendor request \"hw_addr_hi\" failed\n");
+			dev_err(dev, "Vendor request \"hw_addr_hi\" failed\n");
 			return -1;
 		}
 		if (0 > drci_rd_reg(mdev->usb_device,
 				    DRCI_REG_HW_ADDR_MI, addr + 2)) {
-			pr_info("Vendor request \"hw_addr_mid\" failed\n");
+			dev_err(dev, "Vendor request \"hw_addr_mid\" failed\n");
 			return -1;
 		}
 		if (0 > drci_rd_reg(mdev->usb_device,
 				    DRCI_REG_HW_ADDR_LO, addr + 4)) {
-			pr_info("Vendor request \"hw_addr_low\" failed\n");
+			dev_err(dev, "Vendor request \"hw_addr_low\" failed\n");
 			return -1;
 		}
 		mutex_lock(&mdev->io_mutex);
@@ -847,7 +854,7 @@ int hdm_update_netinfo(struct most_dev *mdev)
 
 	}
 	if (0 > drci_rd_reg(mdev->usb_device, DRCI_REG_NI_STATE, &link)) {
-		pr_info("Vendor request \"link status\" failed\n");
+		dev_err(dev, "Vendor request \"link status\" failed\n");
 		return -1;
 	}
 	le16_to_cpus(&link);
@@ -947,7 +954,7 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	channel = mbo->hdm_channel_id;
 
 	if (usb_clear_halt(urb->dev, urb->pipe))
-		pr_info("Failed to reset endpoint.\n");
+		dev_warn(&mdev->usb_device->dev, "Failed to reset endpoint.\n");
 
 	usb_free_urb(urb);
 	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
@@ -1237,12 +1244,14 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	struct most_channel_capability *tmp_cap;
 	struct most_dev *mdev;
 	struct usb_device *usb_dev;
+	struct device *dev;
 	struct usb_host_interface *usb_iface_desc;
 	struct usb_endpoint_descriptor *ep_desc;
 	int ret = 0;
 
 	usb_iface_desc = interface->cur_altsetting;
 	usb_dev = interface_to_usbdev(interface);
+	dev = &usb_dev->dev;
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		goto exit_ENOMEM;
@@ -1320,19 +1329,17 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		INIT_LIST_HEAD(&mdev->anchor_list[i]);
 		spin_lock_init(&mdev->anchor_list_lock[i]);
 	}
-	pr_info("claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x If#=%d Alt=%d\n",
-		le16_to_cpu(usb_dev->descriptor.idVendor),
-		le16_to_cpu(usb_dev->descriptor.idProduct),
-		usb_dev->bus->busnum,
-		usb_dev->devnum,
-		usb_iface_desc->desc.bInterfaceNumber,
-		usb_iface_desc->desc.bAlternateSetting);
+	dev_notice(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
+		   le16_to_cpu(usb_dev->descriptor.idVendor),
+		   le16_to_cpu(usb_dev->descriptor.idProduct),
+		   usb_dev->bus->busnum,
+		   usb_dev->devnum);
 
-	pr_info("device path: /sys/bus/usb/devices/%d-%s:%d.%d\n",
-		usb_dev->bus->busnum,
-		usb_dev->devpath,
-		usb_dev->config->desc.bConfigurationValue,
-		usb_iface_desc->desc.bInterfaceNumber);
+	dev_notice(dev, "device path: /sys/bus/usb/devices/%d-%s:%d.%d\n",
+		   usb_dev->bus->busnum,
+		   usb_dev->devpath,
+		   usb_dev->config->desc.bConfigurationValue,
+		   usb_iface_desc->desc.bInterfaceNumber);
 
 	mdev->parent = most_register_interface(&mdev->iface);
 	if (IS_ERR(mdev->parent)) {
@@ -1373,7 +1380,7 @@ exit_free:
 exit_ENOMEM:
 	if (ret == 0 || ret == -ENOMEM) {
 		ret = -ENOMEM;
-		pr_info("out of memory\n");
+		dev_err(dev, "out of memory\n");
 	}
 	return ret;
 }
@@ -1392,11 +1399,6 @@ static void hdm_disconnect(struct usb_interface *interface)
 	struct most_dev *mdev;
 
 	mdev = usb_get_intfdata(interface);
-	if (unlikely(!mdev)) {
-		pr_info("failed to retrieve interface data\n");
-		return;
-	}
-
 	mutex_lock(&mdev->io_mutex);
 	usb_set_intfdata(interface, NULL);
 	mdev->usb_device = NULL;
@@ -1426,12 +1428,12 @@ static int __init hdm_usb_init(void)
 {
 	pr_info("hdm_usb_init()\n");
 	if (usb_register(&hdm_usb)) {
-		pr_info("could not register hdm_usb driver\n");
+		pr_err("could not register hdm_usb driver\n");
 		return -EIO;
 	}
 	schedule_usb_work = create_workqueue("hdmu_work");
 	if (schedule_usb_work == NULL) {
-		pr_info("could not create workqueue\n");
+		pr_err("could not create workqueue\n");
 		usb_deregister(&hdm_usb);
 		return -ENOMEM;
 	}
