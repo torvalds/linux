@@ -83,6 +83,8 @@
 			reg = <0x40006100 0x100>;
 			interrupts = <8>;
 			clocks = <&ccu1 CLK_CPU_USB0>;
+			phys = <&usb0_otg_phy>;
+			phy-names = "usb";
 			has-transaction-translator;
 			status = "disabled";
 		};
@@ -109,6 +111,12 @@
 			compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
 			reg = <0x40043000 0x1000>;
 			clocks = <&ccu1 CLK_CPU_CREG>;
+
+			usb0_otg_phy: phy@004 {
+				compatible = "nxp,lpc1850-usb-otg-phy";
+				clocks = <&ccu1 CLK_USB0>;
+				#phy-cells = <0>;
+			};
 		};
 
 		cgu: clock-controller@40050000 {
