@@ -3958,39 +3958,63 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 	return intel_dp->is_mst;
 }
 
-int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
+static void intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(intel_dig_port->base.base.crtc);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
 	u8 buf;
-	int test_crc_count;
-	int attempts = 6;
-	int ret = 0;
-
-	hsw_disable_ips(intel_crtc);
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0) {
-		ret = -EIO;
-		goto out;
-	}
-
-	if (!(buf & DP_TEST_CRC_SUPPORTED)) {
-		ret = -ENOTTY;
-		goto out;
-	}
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
-		ret = -EIO;
-		goto out;
+		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
+		return;
 	}
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-				buf | DP_TEST_SINK_START) < 0) {
-		ret = -EIO;
-		goto out;
+			       buf & ~DP_TEST_SINK_START) < 0)
+		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
+
+	hsw_enable_ips(intel_crtc);
+}
+
+static int intel_dp_sink_crc_start(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
+	u8 buf;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
+		return -EIO;
+
+	if (!(buf & DP_TEST_CRC_SUPPORTED))
+		return -ENOTTY;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
+		return -EIO;
+
+	hsw_disable_ips(intel_crtc);
+
+	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
+			       buf | DP_TEST_SINK_START) < 0) {
+		hsw_enable_ips(intel_crtc);
+		return -EIO;
 	}
+
+	return 0;
+}
+
+int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(dig_port->base.base.crtc);
+	u8 buf;
+	int test_crc_count;
+	int attempts = 6;
+	int ret;
+
+	ret = intel_dp_sink_crc_start(intel_dp);
+	if (ret)
+		return ret;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0) {
 		ret = -EIO;
@@ -4014,23 +4038,10 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 		goto stop;
 	}
 
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0) {
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
 		ret = -EIO;
-		goto stop;
-	}
-
 stop:
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
-		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
-		goto out;
-	}
-	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-			       buf & ~DP_TEST_SINK_START) < 0) {
-		DRM_DEBUG_KMS("Sink CRC couldn't be stopped properly\n");
-		goto out;
-	}
-out:
-	hsw_enable_ips(intel_crtc);
+	intel_dp_sink_crc_stop(intel_dp);
 	return ret;
 }
 
