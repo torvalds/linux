@@ -299,8 +299,8 @@ iser_alloc_pi_ctx(struct ib_device *ib_device, struct ib_pd *pd,
 		goto prot_frpl_failure;
 	}
 
-	pi_ctx->prot_mr = ib_alloc_fast_reg_mr(pd,
-					ISCSI_ISER_SG_TABLESIZE + 1);
+	pi_ctx->prot_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
+				      ISCSI_ISER_SG_TABLESIZE + 1);
 	if (IS_ERR(pi_ctx->prot_mr)) {
 		ret = PTR_ERR(pi_ctx->prot_mr);
 		goto prot_mr_failure;
@@ -351,7 +351,8 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 		return PTR_ERR(desc->data_frpl);
 	}
 
-	desc->data_mr = ib_alloc_fast_reg_mr(pd, ISCSI_ISER_SG_TABLESIZE + 1);
+	desc->data_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
+				    ISCSI_ISER_SG_TABLESIZE + 1);
 	if (IS_ERR(desc->data_mr)) {
 		ret = PTR_ERR(desc->data_mr);
 		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
