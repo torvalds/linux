@@ -60,7 +60,6 @@ struct max77693_haptic {
 	unsigned int pwm_duty;
 	enum max77693_haptic_motor_type type;
 	enum max77693_haptic_pulse_mode mode;
-	enum max77693_haptic_pwm_divisor pwm_divisor;
 
 	struct work_struct work;
 };
@@ -88,7 +87,7 @@ static int max77693_haptic_configure(struct max77693_haptic *haptic,
 	value = ((haptic->type << MAX77693_CONFIG2_MODE) |
 		(enable << MAX77693_CONFIG2_MEN) |
 		(haptic->mode << MAX77693_CONFIG2_HTYP) |
-		(haptic->pwm_divisor));
+		MAX77693_HAPTIC_PWM_DIVISOR_128);
 
 	error = regmap_write(haptic->regmap_haptic,
 			     MAX77693_HAPTIC_REG_CONFIG2, value);
@@ -259,7 +258,6 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	haptic->dev = &pdev->dev;
 	haptic->type = MAX77693_HAPTIC_LRA;
 	haptic->mode = MAX77693_HAPTIC_EXTERNAL_MODE;
-	haptic->pwm_divisor = MAX77693_HAPTIC_PWM_DIVISOR_128;
 	haptic->suspend_state = false;
 
 	INIT_WORK(&haptic->work, max77693_haptic_play_work);
