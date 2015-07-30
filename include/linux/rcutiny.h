@@ -216,6 +216,7 @@ static inline bool rcu_is_watching(void)
 
 static inline void rcu_all_qs(void)
 {
+	barrier(); /* Avoid RCU read-side critical sections leaking across. */
 }
 
 #endif /* __LINUX_RCUTINY_H */
