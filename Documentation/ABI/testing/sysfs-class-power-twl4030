@@ -13,3 +13,14 @@ Description:
 	Value can the set by writing to the attribute.
 	The change will only persist until the next
 	plug event.  These event are reported via udev.
+
+
+What: /sys/class/power_supply/twl4030_usb/mode
+Description:
+	Changing mode for USB port.
+	Writing to this can disable charging.
+
+	Possible values are:
+		"auto" - draw power as appropriate for detected
+			 power source and battery status.
+		"off"  - do not draw any power.
