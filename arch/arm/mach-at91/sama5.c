@@ -18,6 +18,8 @@
 #include "soc.h"
 
 static const struct at91_soc sama5_socs[] = {
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D27_EXID_MATCH,
+		 "sama5d27", "sama5d2"),
 	AT91_SOC(SAMA5D3_CIDR_MATCH, SAMA5D31_EXID_MATCH,
 		 "sama5d31", "sama5d3"),
 	AT91_SOC(SAMA5D3_CIDR_MATCH, SAMA5D33_EXID_MATCH,
@@ -64,6 +66,7 @@ DT_MACHINE_START(sama5_dt, "Atmel SAMA5")
 MACHINE_END
 
 static const char *sama5_alt_dt_board_compat[] __initconst = {
+	"atmel,sama5d2",
 	"atmel,sama5d4",
 	NULL
 };
