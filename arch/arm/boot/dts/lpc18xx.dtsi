@@ -97,6 +97,20 @@
 			status = "disabled";
 		};
 
+		emc: memory-controller@40005000 {
+			compatible = "arm,pl172", "arm,primecell";
+			reg = <0x40005000 0x1000>;
+			clocks = <&ccu1 CLK_CPU_EMCDIV>, <&ccu1 CLK_CPU_EMC>;
+			clock-names = "mpmcclk", "apb_pclk";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0 0x1c000000 0x1000000
+				  1 0 0x1d000000 0x1000000
+				  2 0 0x1e000000 0x1000000
+				  3 0 0x1f000000 0x1000000>;
+			status = "disabled";
+		};
+
 		lcdc: lcd-controller@40008000 {
 			compatible = "arm,pl111", "arm,primecell";
 			reg = <0x40008000 0x1000>;
