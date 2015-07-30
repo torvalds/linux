@@ -271,8 +271,7 @@ static void wil_scan_timer_fn(ulong x)
 
 	clear_bit(wil_status_fwready, wil->status);
 	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
-	wil->recovery_state = fw_recovery_pending;
-	schedule_work(&wil->fw_error_worker);
+	wil_fw_error_recovery(wil);
 }
 
 static int wil_wait_for_recovery(struct wil6210_priv *wil)
