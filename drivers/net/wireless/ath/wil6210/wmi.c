@@ -228,8 +228,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	wil_dbg_wmi(wil, "Head 0x%08x -> 0x%08x\n", r->head, next_head);
 	/* wait till FW finish with previous command */
 	for (retry = 5; retry > 0; retry--) {
-		r->tail = ioread32(wil->csr + HOST_MBOX +
-				   offsetof(struct wil6210_mbox_ctl, tx.tail));
+		r->tail = wil_r(wil, RGF_MBOX +
+				offsetof(struct wil6210_mbox_ctl, tx.tail));
 		if (next_head != r->tail)
 			break;
 		msleep(20);
@@ -254,16 +254,16 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	wil_memcpy_toio_32(dst, &cmd, sizeof(cmd));
 	wil_memcpy_toio_32(dst + sizeof(cmd), buf, len);
 	/* mark entry as full */
-	iowrite32(1, wil->csr + HOSTADDR(r->head) +
-		  offsetof(struct wil6210_mbox_ring_desc, sync));
+	wil_w(wil, r->head + offsetof(struct wil6210_mbox_ring_desc, sync), 1);
 	/* advance next ptr */
-	iowrite32(r->head = next_head, wil->csr + HOST_MBOX +
-		  offsetof(struct wil6210_mbox_ctl, tx.head));
+	wil_w(wil, RGF_MBOX + offsetof(struct wil6210_mbox_ctl, tx.head),
+	      r->head = next_head);
 
 	trace_wil6210_wmi_cmd(&cmd.wmi, buf, len);
 
 	/* interrupt to FW */
-	iowrite32(SW_INT_MBOX, wil->csr + HOST_SW_INT);
+	wil_w(wil, RGF_USER_USER_ICR + offsetof(struct RGF_ICR, ICS),
+	      SW_INT_MBOX);
 
 	return 0;
 }
@@ -729,8 +729,8 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		u16 len;
 		bool q;
 
-		r->head = ioread32(wil->csr + HOST_MBOX +
-				   offsetof(struct wil6210_mbox_ctl, rx.head));
+		r->head = wil_r(wil, RGF_MBOX +
+				offsetof(struct wil6210_mbox_ctl, rx.head));
 		if (r->tail == r->head)
 			break;
 
@@ -768,8 +768,8 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		cmd = (void *)&evt->event.wmi;
 		wil_memcpy_fromio_32(cmd, src, len);
 		/* mark entry as empty */
-		iowrite32(0, wil->csr + HOSTADDR(r->tail) +
-			  offsetof(struct wil6210_mbox_ring_desc, sync));
+		wil_w(wil, r->tail +
+		      offsetof(struct wil6210_mbox_ring_desc, sync), 0);
 		/* indicate */
 		if ((hdr.type == WIL_MBOX_HDR_TYPE_WMI) &&
 		    (len >= sizeof(struct wil6210_mbox_hdr_wmi))) {
@@ -788,8 +788,8 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		/* advance tail */
 		r->tail = r->base + ((r->tail - r->base +
 			  sizeof(struct wil6210_mbox_ring_desc)) % r->size);
-		iowrite32(r->tail, wil->csr + HOST_MBOX +
-			  offsetof(struct wil6210_mbox_ctl, rx.tail));
+		wil_w(wil, RGF_MBOX +
+		      offsetof(struct wil6210_mbox_ctl, rx.tail), r->tail);
 
 		/* add to the pending list */
 		spin_lock_irqsave(&wil->wmi_ev_lock, flags);

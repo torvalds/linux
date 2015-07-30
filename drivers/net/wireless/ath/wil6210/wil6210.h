@@ -252,9 +252,8 @@ enum {
 };
 
 /* popular locations */
-#define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
-#define HOST_SW_INT (HOSTADDR(RGF_USER_USER_ICR) + \
-	offsetof(struct RGF_ICR, ICS))
+#define RGF_MBOX   RGF_USER_USER_SCRATCH_PAD
+#define HOST_MBOX   HOSTADDR(RGF_MBOX)
 #define SW_INT_MBOX BIT_USER_USER_ICR_SW_INT_2
 
 /* ISR register bits */
@@ -648,6 +647,32 @@ void wil_info(struct wil6210_priv *wil, const char *fmt, ...);
 #define wil_dbg_txrx(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
 #define wil_dbg_wmi(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
 #define wil_dbg_misc(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
+
+/* target operations */
+/* register read */
+static inline u32 wil_r(struct wil6210_priv *wil, u32 reg)
+{
+	return readl(wil->csr + HOSTADDR(reg));
+}
+
+/* register write. wmb() to make sure it is completed */
+static inline void wil_w(struct wil6210_priv *wil, u32 reg, u32 val)
+{
+	writel(val, wil->csr + HOSTADDR(reg));
+	wmb(); /* wait for write to propagate to the HW */
+}
+
+/* register set = read, OR, write */
+static inline void wil_s(struct wil6210_priv *wil, u32 reg, u32 val)
+{
+	wil_w(wil, reg, wil_r(wil, reg) | val);
+}
+
+/* register clear = read, AND with inverted, write */
+static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
+{
+	wil_w(wil, reg, wil_r(wil, reg) & ~val);
+}
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\

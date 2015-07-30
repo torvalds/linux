@@ -62,7 +62,7 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 	seq_printf(s, "  swhead = %d\n", vring->swhead);
 	seq_printf(s, "  hwtail = [0x%08x] -> ", vring->hwtail);
 	if (x) {
-		v = ioread32(x);
+		v = readl(x);
 		seq_printf(s, "0x%08x = %d\n", v, v);
 	} else {
 		seq_puts(s, "???\n");
@@ -268,7 +268,7 @@ static const struct file_operations fops_mbox = {
 
 static int wil_debugfs_iomem_x32_set(void *data, u64 val)
 {
-	iowrite32(val, (void __iomem *)data);
+	writel(val, (void __iomem *)data);
 	wmb(); /* make sure write propagated to HW */
 
 	return 0;
@@ -276,7 +276,7 @@ static int wil_debugfs_iomem_x32_set(void *data, u64 val)
 
 static int wil_debugfs_iomem_x32_get(void *data, u64 *val)
 {
-	*val = ioread32((void __iomem *)data);
+	*val = readl((void __iomem *)data);
 
 	return 0;
 }
@@ -477,7 +477,7 @@ static int wil_memread_debugfs_show(struct seq_file *s, void *data)
 	void __iomem *a = wmi_buffer(wil, cpu_to_le32(mem_addr));
 
 	if (a)
-		seq_printf(s, "[0x%08x] = 0x%08x\n", mem_addr, ioread32(a));
+		seq_printf(s, "[0x%08x] = 0x%08x\n", mem_addr, readl(a));
 	else
 		seq_printf(s, "[0x%08x] = INVALID\n", mem_addr);
 

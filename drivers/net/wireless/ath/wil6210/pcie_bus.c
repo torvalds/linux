@@ -28,7 +28,7 @@ MODULE_PARM_DESC(use_msi, " Use MSI interrupt, default - true");
 static
 void wil_set_capabilities(struct wil6210_priv *wil)
 {
-	u32 rev_id = ioread32(wil->csr + HOSTADDR(RGF_USER_JTAG_DEV_ID));
+	u32 rev_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
 
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
 

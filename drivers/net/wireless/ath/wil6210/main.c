@@ -528,26 +528,16 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	destroy_workqueue(wil->wmi_wq);
 }
 
-/* target operations */
-/* register read */
-#define R(a) ioread32(wil->csr + HOSTADDR(a))
-/* register write. wmb() to make sure it is completed */
-#define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
-/* register set = read, OR, write */
-#define S(a, v) W(a, R(a) | v)
-/* register clear = read, AND with inverted, write */
-#define C(a, v) W(a, R(a) & ~v)
-
 static inline void wil_halt_cpu(struct wil6210_priv *wil)
 {
-	W(RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
-	W(RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+	wil_w(wil, RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
+	wil_w(wil, RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
 }
 
 static inline void wil_release_cpu(struct wil6210_priv *wil)
 {
 	/* Start CPU */
-	W(RGF_USER_USER_CPU_0, 1);
+	wil_w(wil, RGF_USER_USER_CPU_0, 1);
 }
 
 static int wil_target_reset(struct wil6210_priv *wil)
@@ -558,58 +548,60 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
 	/* Clear MAC link up */
-	S(RGF_HP_CTRL, BIT(15));
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_HPAL_PERST_FROM_PAD);
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
+	wil_s(wil, RGF_HP_CTRL, BIT(15));
+	wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_HPAL_PERST_FROM_PAD);
+	wil_s(wil, RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
 
 	wil_halt_cpu(wil);
 
 	/* clear all boot loader "ready" bits */
-	W(RGF_USER_BL +
-	  offsetof(struct bl_dedicated_registers_v0, boot_loader_ready), 0);
+	wil_w(wil, RGF_USER_BL +
+	      offsetof(struct bl_dedicated_registers_v0, boot_loader_ready), 0);
 	/* Clear Fw Download notification */
-	C(RGF_USER_USAGE_6, BIT(0));
+	wil_c(wil, RGF_USER_USAGE_6, BIT(0));
 
-	S(RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
+	wil_s(wil, RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
 	/* XTAL stabilization should take about 3ms */
 	usleep_range(5000, 7000);
-	x = R(RGF_CAF_PLL_LOCK_STATUS);
+	x = wil_r(wil, RGF_CAF_PLL_LOCK_STATUS);
 	if (!(x & BIT_CAF_OSC_DIG_XTAL_STABLE)) {
 		wil_err(wil, "Xtal stabilization timeout\n"
 			"RGF_CAF_PLL_LOCK_STATUS = 0x%08x\n", x);
 		return -ETIME;
 	}
 	/* switch 10k to XTAL*/
-	C(RGF_USER_SPARROW_M_4, BIT_SPARROW_M_4_SEL_SLEEP_OR_REF);
+	wil_c(wil, RGF_USER_SPARROW_M_4, BIT_SPARROW_M_4_SEL_SLEEP_OR_REF);
 	/* 40 MHz */
-	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL);
+	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL);
 
-	W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
-	W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
 
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x000000f0);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x000000f0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
 
-	W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
-	W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
+	wil_w(wil, RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
 
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000003);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000); /* reset A2 PCIE AHB */
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000003);
+	/* reset A2 PCIE AHB */
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
+	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
 	/* wait until device ready. typical time is 20..80 msec */
 	do {
 		msleep(RST_DELAY);
-		x = R(RGF_USER_BL + offsetof(struct bl_dedicated_registers_v0,
-					     boot_loader_ready));
+		x = wil_r(wil, RGF_USER_BL +
+			  offsetof(struct bl_dedicated_registers_v0,
+				   boot_loader_ready));
 		if (x1 != x) {
 			wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n", x1, x);
 			x1 = x;
@@ -621,11 +613,11 @@ static int wil_target_reset(struct wil6210_priv *wil)
 		}
 	} while (x != BL_READY);
 
-	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
+	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
 	/* enable fix for HW bug related to the SA/DA swap in AP Rx */
-	S(RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
-	  BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
+	wil_s(wil, RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
+	      BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
@@ -651,8 +643,9 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 	u8 *mac;
 	u16 rf_status;
 
-	bl_ver = R(RGF_USER_BL + offsetof(struct bl_dedicated_registers_v0,
-					  boot_loader_struct_version));
+	bl_ver = wil_r(wil, RGF_USER_BL +
+		       offsetof(struct bl_dedicated_registers_v0,
+				boot_loader_struct_version));
 	switch (bl_ver) {
 	case 0:
 		wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
@@ -802,7 +795,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 			return rc;
 
 		/* Mark FW as loaded from host */
-		S(RGF_USER_USAGE_6, 1);
+		wil_s(wil, RGF_USER_USAGE_6, 1);
 
 		/* clear any interrupts which on-card-firmware
 		 * may have set
@@ -810,8 +803,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		wil6210_clear_irq(wil);
 		/* CAF_ICR - clear and mask */
 		/* it is W1C, clear by writing back same value */
-		S(RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
-		W(RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
+		wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
+		wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
 
 		wil_release_cpu(wil);
 	}
@@ -834,11 +827,6 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	return rc;
 }
-
-#undef R
-#undef W
-#undef S
-#undef C
 
 void wil_fw_error_recovery(struct wil6210_priv *wil)
 {

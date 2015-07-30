@@ -509,7 +509,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
 			break;
 		}
 	}
-	iowrite32(v->swtail, wil->csr + HOSTADDR(v->hwtail));
+	wil_w(wil, v->hwtail, v->swtail);
 
 	return rc;
 }
@@ -1422,7 +1422,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 	 */
 	wmb();
 
-	iowrite32(vring->swhead, wil->csr + HOSTADDR(vring->hwtail));
+	wil_w(wil, vring->hwtail, vring->swhead);
 	return 0;
 
 dma_error:
@@ -1565,7 +1565,7 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	 */
 	wmb();
 
-	iowrite32(vring->swhead, wil->csr + HOSTADDR(vring->hwtail));
+	wil_w(wil, vring->hwtail, vring->swhead);
 
 	return 0;
  dma_error:
