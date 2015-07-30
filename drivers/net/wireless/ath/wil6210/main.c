@@ -21,6 +21,7 @@
 #include "wil6210.h"
 #include "txrx.h"
 #include "wmi.h"
+#include "boot_loader.h"
 
 #define WAIT_FOR_DISCONNECT_TIMEOUT_MS 2000
 #define WAIT_FOR_DISCONNECT_INTERVAL_MS 10
@@ -565,7 +566,8 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	wil_halt_cpu(wil);
 
 	/* clear all boot loader "ready" bits */
-	W(RGF_USER_BL + offsetof(struct RGF_BL, ready), 0);
+	W(RGF_USER_BL +
+	  offsetof(struct bl_dedicated_registers_v0, boot_loader_ready), 0);
 	/* Clear Fw Download notification */
 	C(RGF_USER_USAGE_6, BIT(0));
 
@@ -607,7 +609,8 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	/* wait until device ready. typical time is 20..80 msec */
 	do {
 		msleep(RST_DELAY);
-		x = R(RGF_USER_BL + offsetof(struct RGF_BL, ready));
+		x = R(RGF_USER_BL + offsetof(struct bl_dedicated_registers_v0,
+					     boot_loader_ready));
 		if (x1 != x) {
 			wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n", x1, x);
 			x1 = x;
@@ -617,7 +620,7 @@ static int wil_target_reset(struct wil6210_priv *wil)
 				x);
 			return -ETIME;
 		}
-	} while (x != BIT_BL_READY);
+	} while (x != BL_READY);
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
@@ -641,25 +644,71 @@ void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 static int wil_get_bl_info(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
-	struct RGF_BL bl;
+	union {
+		struct bl_dedicated_registers_v0 bl0;
+		struct bl_dedicated_registers_v1 bl1;
+	} bl;
+	u32 bl_ver;
+	u8 *mac;
+	u16 rf_status;
 
-	wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL), sizeof(bl));
-	le32_to_cpus(&bl.ready);
-	le32_to_cpus(&bl.version);
-	le32_to_cpus(&bl.rf_type);
-	le32_to_cpus(&bl.baseband_type);
-
-	if (!is_valid_ether_addr(bl.mac_address)) {
-		wil_err(wil, "BL: Invalid MAC %pM\n", bl.mac_address);
+	bl_ver = R(RGF_USER_BL + offsetof(struct bl_dedicated_registers_v0,
+					  boot_loader_struct_version));
+	switch (bl_ver) {
+	case 0:
+		wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
+				     sizeof(bl.bl0));
+		le32_to_cpus(&bl.bl0.boot_loader_ready);
+		le32_to_cpus(&bl.bl0.boot_loader_struct_version);
+		le32_to_cpus(&bl.bl0.rf_type);
+		le32_to_cpus(&bl.bl0.baseband_type);
+		mac = bl.bl0.mac_address;
+		rf_status = 0; /* actually, unknown */
+		wil_info(wil,
+			 "Boot Loader struct v%d: MAC = %pM RF = 0x%08x bband = 0x%08x\n",
+			 bl_ver, mac,
+			 bl.bl0.rf_type, bl.bl0.baseband_type);
+		wil_info(wil, "Boot Loader build unknown for struct v0\n");
+		break;
+	case 1:
+		wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
+				     sizeof(bl.bl1));
+		le32_to_cpus(&bl.bl1.boot_loader_ready);
+		le32_to_cpus(&bl.bl1.boot_loader_struct_version);
+		le16_to_cpus(&bl.bl1.rf_type);
+		rf_status = le16_to_cpu(bl.bl1.rf_status);
+		le32_to_cpus(&bl.bl1.baseband_type);
+		le16_to_cpus(&bl.bl1.bl_version_subminor);
+		le16_to_cpus(&bl.bl1.bl_version_build);
+		mac = bl.bl1.mac_address;
+		wil_info(wil,
+			 "Boot Loader struct v%d: MAC = %pM RF = 0x%04x (status 0x%04x) bband = 0x%08x\n",
+			 bl_ver, mac,
+			 bl.bl1.rf_type, rf_status,
+			 bl.bl1.baseband_type);
+		wil_info(wil, "Boot Loader build %d.%d.%d.%d\n",
+			 bl.bl1.bl_version_major, bl.bl1.bl_version_minor,
+			 bl.bl1.bl_version_subminor, bl.bl1.bl_version_build);
+		break;
+	default:
+		wil_err(wil, "BL: unsupported struct version 0x%08x\n", bl_ver);
 		return -EINVAL;
 	}
 
-	ether_addr_copy(ndev->perm_addr, bl.mac_address);
+	if (!is_valid_ether_addr(mac)) {
+		wil_err(wil, "BL: Invalid MAC %pM\n", mac);
+		return -EINVAL;
+	}
+
+	ether_addr_copy(ndev->perm_addr, mac);
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		ether_addr_copy(ndev->dev_addr, bl.mac_address);
-	wil_info(wil,
-		 "Boot Loader: ver = %d MAC = %pM RF = 0x%08x bband = 0x%08x\n",
-		 bl.version, bl.mac_address, bl.rf_type, bl.baseband_type);
+		ether_addr_copy(ndev->dev_addr, mac);
+
+	if (rf_status) {/* bad RF cable? */
+		wil_err(wil, "RF communication error 0x%04x",
+			rf_status);
+		return -EAGAIN;
+	}
 
 	return 0;
 }
@@ -735,6 +784,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		return rc;
 
 	rc = wil_get_bl_info(wil);
+	if (rc == -EAGAIN && !load_fw) /* ignore RF error if not going up */
+		rc = 0;
 	if (rc)
 		return rc;
 

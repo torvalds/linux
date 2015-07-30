@@ -127,16 +127,6 @@ struct RGF_ICR {
 	u32 IMC; /* Mask Clear, write 1 to clear */
 } __packed;
 
-struct RGF_BL {
-	u32 ready;		/* 0x880A3C bit [0] */
-#define BIT_BL_READY	BIT(0)
-	u32 version;		/* 0x880A40 version of the BL struct */
-	u32 rf_type;		/* 0x880A44 ID of the connected RF */
-	u32 baseband_type;	/* 0x880A48 ID of the baseband */
-	u8  mac_address[ETH_ALEN]; /* 0x880A4C permanent MAC */
-	u8 pad[2];
-} __packed;
-
 /* registers - FW addresses */
 #define RGF_USER_USAGE_1		(0x880004)
 #define RGF_USER_USAGE_6		(0x880018)
