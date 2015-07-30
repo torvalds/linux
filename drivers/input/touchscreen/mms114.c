@@ -572,6 +572,7 @@ static const struct of_device_id mms114_dt_match[] = {
 	{ .compatible = "melfas,mms114" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mms114_dt_match);
 #endif
 
 static struct i2c_driver mms114_driver = {
