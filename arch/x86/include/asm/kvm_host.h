@@ -688,6 +688,7 @@ struct kvm_arch {
 	u64 disabled_quirks;
 
 	bool irqchip_split;
+	u8 nr_reserved_ioapic_pins;
 };
 
 struct kvm_vm_stat {

@@ -209,8 +209,7 @@ out:
 	if (old)
 		kfree_rcu(old, rcu);
 
-	if (ioapic_in_kernel(kvm))
-		kvm_vcpu_request_scan_ioapic(kvm);
+	kvm_make_scan_ioapic_request(kvm);
 }
 
 static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)

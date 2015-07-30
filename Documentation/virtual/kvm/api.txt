@@ -3642,7 +3642,7 @@ KVM handlers should exit to userspace with rc = -EREMOTE.
 7.5 KVM_CAP_SPLIT_IRQCHIP
 
 Architectures: x86
-Parameters: None
+Parameters: args[0] - number of routes reserved for userspace IOAPICs
 Returns: 0 on success, -1 on error
 
 Create a local apic for each processor in the kernel. This can be used
@@ -3650,8 +3650,11 @@ instead of KVM_CREATE_IRQCHIP if the userspace VMM wishes to emulate the
 IOAPIC and PIC (and also the PIT, even though this has to be enabled
 separately).
 
-This supersedes KVM_CREATE_IRQCHIP, creating only local APICs, but no in kernel
-IOAPIC or PIC. This also enables in kernel routing of interrupt requests.
+This capability also enables in kernel routing of interrupt requests;
+when KVM_CAP_SPLIT_IRQCHIP only routes of KVM_IRQ_ROUTING_MSI type are
+used in the IRQ routing table.  The first args[0] MSI routes are reserved
+for the IOAPIC pins.  Whenever the LAPIC receives an EOI for these routes,
+a KVM_EXIT_IOAPIC_EOI vmexit will be reported to userspace.
 
 Fails if VCPU has already been created, or if the irqchip is already in the
 kernel (i.e. KVM_CREATE_IRQCHIP has already been called).

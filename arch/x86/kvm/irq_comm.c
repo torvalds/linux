@@ -335,3 +335,45 @@ int kvm_setup_empty_irq_routing(struct kvm *kvm)
 {
 	return kvm_set_irq_routing(kvm, empty_routing, 0, 0);
 }
+
+void kvm_arch_irq_routing_update(struct kvm *kvm)
+{
+	if (ioapic_in_kernel(kvm) || !irqchip_in_kernel(kvm))
+		return;
+	kvm_make_scan_ioapic_request(kvm);
+}
+
+void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_kernel_irq_routing_entry *entry;
+	struct kvm_irq_routing_table *table;
+	u32 i, nr_ioapic_pins;
+	int idx;
+
+	/* kvm->irq_routing must be read after clearing
+	 * KVM_SCAN_IOAPIC. */
+	smp_mb();
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	table = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
+	nr_ioapic_pins = min_t(u32, table->nr_rt_entries,
+			       kvm->arch.nr_reserved_ioapic_pins);
+	for (i = 0; i < nr_ioapic_pins; ++i) {
+		hlist_for_each_entry(entry, &table->map[i], link) {
+			u32 dest_id, dest_mode;
+
+			if (entry->type != KVM_IRQ_ROUTING_MSI)
+				continue;
+			dest_id = (entry->msi.address_lo >> 12) & 0xff;
+			dest_mode = (entry->msi.address_lo >> 2) & 0x1;
+			if (kvm_apic_match_dest(vcpu, NULL, 0, dest_id,
+						dest_mode)) {
+				u32 vector = entry->msi.data & 0xff;
+
+				__set_bit(vector,
+					  (unsigned long *) eoi_exit_bitmap);
+			}
+		}
+	}
+	srcu_read_unlock(&kvm->irq_srcu, idx);
+}
