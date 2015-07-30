@@ -2059,3 +2059,33 @@ int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 out:
 	return ret;
 }
+
+int wlcore_cmd_generic_cfg(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			   u8 feature, u8 enable, u8 value)
+{
+	struct wlcore_cmd_generic_cfg *cmd;
+	int ret;
+
+	wl1271_debug(DEBUG_CMD,
+		     "cmd generic cfg (role %d feature %d enable %d value %d)",
+		     wlvif->role_id, feature, enable, value);
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->role_id = wlvif->role_id;
+	cmd->feature = feature;
+	cmd->enable = enable;
+	cmd->value = value;
+
+	ret = wl1271_cmd_send(wl, CMD_GENERIC_CFG, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send generic cfg command");
+		goto out_free;
+	}
+out_free:
+	kfree(cmd);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wlcore_cmd_generic_cfg);
