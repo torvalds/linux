@@ -40,6 +40,8 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <rdma/rdma_netlink.h>
+#include <rdma/ib_addr.h>
+#include <rdma/ib_cache.h>
 
 #include "core_priv.h"
 
@@ -169,6 +171,7 @@ static void ib_device_release(struct device *device)
 {
 	struct ib_device *dev = container_of(device, struct ib_device, dev);
 
+	ib_cache_release_one(dev);
 	kfree(dev->port_immutable);
 	kfree(dev);
 }
@@ -342,10 +345,17 @@ int ib_register_device(struct ib_device *device,
 		goto out;
 	}
 
+	ret = ib_cache_setup_one(device);
+	if (ret) {
+		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
+		goto out;
+	}
+
 	ret = ib_device_register_sysfs(device, port_callback);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't register device %s with driver model\n",
 		       device->name);
+		ib_cache_cleanup_one(device);
 		goto out;
 	}
 
@@ -399,6 +409,7 @@ void ib_unregister_device(struct ib_device *device)
 	mutex_unlock(&device_mutex);
 
 	ib_device_unregister_sysfs(device);
+	ib_cache_cleanup_one(device);
 
 	down_write(&lists_rwsem);
 	spin_lock_irqsave(&device->client_data_lock, flags);
@@ -670,9 +681,78 @@ EXPORT_SYMBOL(ib_query_port);
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid)
 {
+	if (rdma_cap_roce_gid_table(device, port_num))
+		return ib_get_cached_gid(device, port_num, index, gid);
+
 	return device->query_gid(device, port_num, index, gid);
 }
 EXPORT_SYMBOL(ib_query_gid);
+
+/**
+ * ib_enum_roce_netdev - enumerate all RoCE ports
+ * @ib_dev : IB device we want to query
+ * @filter: Should we call the callback?
+ * @filter_cookie: Cookie passed to filter
+ * @cb: Callback to call for each found RoCE ports
+ * @cookie: Cookie passed back to the callback
+ *
+ * Enumerates all of the physical RoCE ports of ib_dev
+ * which are related to netdevice and calls callback() on each
+ * device for which filter() function returns non zero.
+ */
+void ib_enum_roce_netdev(struct ib_device *ib_dev,
+			 roce_netdev_filter filter,
+			 void *filter_cookie,
+			 roce_netdev_callback cb,
+			 void *cookie)
+{
+	u8 port;
+
+	for (port = rdma_start_port(ib_dev); port <= rdma_end_port(ib_dev);
+	     port++)
+		if (rdma_protocol_roce(ib_dev, port)) {
+			struct net_device *idev = NULL;
+
+			if (ib_dev->get_netdev)
+				idev = ib_dev->get_netdev(ib_dev, port);
+
+			if (idev &&
+			    idev->reg_state >= NETREG_UNREGISTERED) {
+				dev_put(idev);
+				idev = NULL;
+			}
+
+			if (filter(ib_dev, port, idev, filter_cookie))
+				cb(ib_dev, port, idev, cookie);
+
+			if (idev)
+				dev_put(idev);
+		}
+}
+
+/**
+ * ib_enum_all_roce_netdevs - enumerate all RoCE devices
+ * @filter: Should we call the callback?
+ * @filter_cookie: Cookie passed to filter
+ * @cb: Callback to call for each found RoCE ports
+ * @cookie: Cookie passed back to the callback
+ *
+ * Enumerates all RoCE devices' physical ports which are related
+ * to netdevices and calls callback() on each device for which
+ * filter() function returns non zero.
+ */
+void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
+			      void *filter_cookie,
+			      roce_netdev_callback cb,
+			      void *cookie)
+{
+	struct ib_device *dev;
+
+	down_read(&lists_rwsem);
+	list_for_each_entry(dev, &device_list, core_list)
+		ib_enum_roce_netdev(dev, filter, filter_cookie, cb, cookie);
+	up_read(&lists_rwsem);
+}
 
 /**
  * ib_query_pkey - Get P_Key table entry
@@ -753,6 +833,13 @@ int ib_find_gid(struct ib_device *device, union ib_gid *gid,
 	int ret, port, i;
 
 	for (port = rdma_start_port(device); port <= rdma_end_port(device); ++port) {
+		if (rdma_cap_roce_gid_table(device, port)) {
+			if (!ib_cache_gid_find_by_port(device, gid, port,
+						       NULL, index))
+				*port_num = port;
+				return 0;
+		}
+
 		for (i = 0; i < device->port_immutable[port].gid_tbl_len; ++i) {
 			ret = ib_query_gid(device, port, i, &tmp_gid);
 			if (ret)
@@ -874,16 +961,9 @@ static int __init ib_core_init(void)
 		goto err_sysfs;
 	}
 
-	ret = ib_cache_setup();
-	if (ret) {
-		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
-		goto err_nl;
-	}
+	ib_cache_setup();
 
 	return 0;
-
-err_nl:
-	ibnl_cleanup();
 
 err_sysfs:
 	class_unregister(&ib_class);
