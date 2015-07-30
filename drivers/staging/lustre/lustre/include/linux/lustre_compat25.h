@@ -69,12 +69,6 @@
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
 /* inode_dio_done(i) use as-is for read unlock */
 
-#ifndef SLAB_DESTROY_BY_RCU
-#define SLAB_DESTROY_BY_RCU 0
-#endif
-
-
-
 static inline int
 ll_quota_on(struct super_block *sb, int off, int ver, char *name, int remount)
 {
