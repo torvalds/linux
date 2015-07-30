@@ -430,6 +430,7 @@ static const struct of_device_id wm8523_of_match[] = {
 	{ .compatible = "wlf,wm8523" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, wm8523_of_match);
 
 static const struct regmap_config wm8523_regmap = {
 	.reg_bits = 8,
