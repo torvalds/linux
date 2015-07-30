@@ -182,10 +182,10 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	ret = of_property_read_string(pdev->dev.of_node, "hw_algo", &algo);
 	if (ret)
 		return ret;
-	if (!strncmp(algo, "toggle", 6)) {
+	if (!strcmp(algo, "toggle")) {
 		priv->hw_algo = HW_ALGO_TOGGLE;
 		f = GPIOF_IN;
-	} else if (!strncmp(algo, "level", 5)) {
+	} else if (!strcmp(algo, "level")) {
 		priv->hw_algo = HW_ALGO_LEVEL;
 		f = priv->active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
 	} else {
