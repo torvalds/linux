@@ -2090,7 +2090,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha1),cbc(aes))",
+		.alg = "authenc(hmac(sha1),cbc(aes))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2104,7 +2104,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha1),cbc(des))",
+		.alg = "authenc(hmac(sha1),cbc(des))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2118,7 +2118,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha1),cbc(des3_ede))",
+		.alg = "authenc(hmac(sha1),cbc(des3_ede))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2152,7 +2152,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha224),cbc(des))",
+		.alg = "authenc(hmac(sha224),cbc(des))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2166,7 +2166,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha224),cbc(des3_ede))",
+		.alg = "authenc(hmac(sha224),cbc(des3_ede))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2180,7 +2180,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha256),cbc(aes))",
+		.alg = "authenc(hmac(sha256),cbc(aes))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2194,7 +2194,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha256),cbc(des))",
+		.alg = "authenc(hmac(sha256),cbc(des))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2208,7 +2208,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha256),cbc(des3_ede))",
+		.alg = "authenc(hmac(sha256),cbc(des3_ede))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2222,7 +2222,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha384),cbc(des))",
+		.alg = "authenc(hmac(sha384),cbc(des))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2236,7 +2236,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha384),cbc(des3_ede))",
+		.alg = "authenc(hmac(sha384),cbc(des3_ede))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2250,7 +2250,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha512),cbc(aes))",
+		.alg = "authenc(hmac(sha512),cbc(aes))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2264,7 +2264,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha512),cbc(des))",
+		.alg = "authenc(hmac(sha512),cbc(des))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -2278,7 +2278,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "authenc(hmac(sha512),cbc(des3_ede))",
+		.alg = "authenc(hmac(sha512),cbc(des3_ede))-disabled",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
