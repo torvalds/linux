@@ -389,7 +389,6 @@ struct mlx5e_flow_table {
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	int                        num_tc;
 	int                        default_vlan_prio;
 	struct mlx5e_sq            **txq_to_sq_map;
 	/* priv data path fields - end */
@@ -497,8 +496,6 @@ void mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
-int mlx5e_update_priv_params(struct mlx5e_priv *priv,
-			     struct mlx5e_params *new_params);
 
 static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 				      struct mlx5e_tx_wqe *wqe, int bf_sz)

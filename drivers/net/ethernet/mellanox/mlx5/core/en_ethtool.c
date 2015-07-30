@@ -173,7 +173,7 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return NUM_VPORT_COUNTERS +
 		       priv->params.num_channels * NUM_RQ_STATS +
-		       priv->params.num_channels * priv->num_tc *
+		       priv->params.num_channels * priv->params.num_tc *
 						   NUM_SQ_STATS;
 	/* fallthrough */
 	default:
@@ -207,7 +207,7 @@ static void mlx5e_get_strings(struct net_device *dev,
 					"rx%d_%s", i, rq_stats_strings[j]);
 
 		for (i = 0; i < priv->params.num_channels; i++)
-			for (tc = 0; tc < priv->num_tc; tc++)
+			for (tc = 0; tc < priv->params.num_tc; tc++)
 				for (j = 0; j < NUM_SQ_STATS; j++)
 					sprintf(data +
 						(idx++) * ETH_GSTRING_LEN,
@@ -242,7 +242,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 				       ((u64 *)&priv->channel[i]->rq.stats)[j];
 
 	for (i = 0; i < priv->params.num_channels; i++)
-		for (tc = 0; tc < priv->num_tc; tc++)
+		for (tc = 0; tc < priv->params.num_tc; tc++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				data[idx++] = !test_bit(MLX5E_STATE_OPENED,
 							&priv->state) ? 0 :
@@ -264,7 +264,7 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 			       struct ethtool_ringparam *param)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_params new_params;
+	bool was_opened;
 	u16 min_rx_wqes;
 	u8 log_rq_size;
 	u8 log_sq_size;
@@ -316,11 +316,18 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 		return 0;
 
 	mutex_lock(&priv->state_lock);
-	new_params = priv->params;
-	new_params.log_rq_size = log_rq_size;
-	new_params.log_sq_size = log_sq_size;
-	new_params.min_rx_wqes = min_rx_wqes;
-	err = mlx5e_update_priv_params(priv, &new_params);
+
+	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (was_opened)
+		mlx5e_close_locked(dev);
+
+	priv->params.log_rq_size = log_rq_size;
+	priv->params.log_sq_size = log_sq_size;
+	priv->params.min_rx_wqes = min_rx_wqes;
+
+	if (was_opened)
+		err = mlx5e_open_locked(dev);
+
 	mutex_unlock(&priv->state_lock);
 
 	return err;
@@ -342,7 +349,7 @@ static int mlx5e_set_channels(struct net_device *dev,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int ncv = priv->mdev->priv.eq_table.num_comp_vectors;
 	unsigned int count = ch->combined_count;
-	struct mlx5e_params new_params;
+	bool was_opened;
 	int err = 0;
 
 	if (!count) {
@@ -365,9 +372,16 @@ static int mlx5e_set_channels(struct net_device *dev,
 		return 0;
 
 	mutex_lock(&priv->state_lock);
-	new_params = priv->params;
-	new_params.num_channels = count;
-	err = mlx5e_update_priv_params(priv, &new_params);
+
+	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (was_opened)
+		mlx5e_close_locked(dev);
+
+	priv->params.num_channels = count;
+
+	if (was_opened)
+		err = mlx5e_open_locked(dev);
+
 	mutex_unlock(&priv->state_lock);
 
 	return err;
@@ -673,10 +687,10 @@ static int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	return 0;
 }
 
-static int mlx5e_set_rxfh(struct net_device *netdev, const u32 *indir,
+static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 			  const u8 *key, const u8 hfunc)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_priv *priv = netdev_priv(dev);
 	int err = 0;
 
 	if (hfunc == ETH_RSS_HASH_NO_CHANGE)
@@ -690,8 +704,8 @@ static int mlx5e_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 	priv->params.rss_hfunc = hfunc;
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		mlx5e_close_locked(priv->netdev);
-		err = mlx5e_open_locked(priv->netdev);
+		mlx5e_close_locked(dev);
+		err = mlx5e_open_locked(dev);
 	}
 
 	mutex_unlock(&priv->state_lock);
@@ -724,7 +738,7 @@ static int mlx5e_set_tunable(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_params new_params;
+	bool was_opened;
 	u32 val;
 	int err = 0;
 
@@ -737,9 +751,16 @@ static int mlx5e_set_tunable(struct net_device *dev,
 		}
 
 		mutex_lock(&priv->state_lock);
-		new_params = priv->params;
-		new_params.tx_max_inline = val;
-		err = mlx5e_update_priv_params(priv, &new_params);
+
+		was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+		if (was_opened)
+			mlx5e_close_locked(dev);
+
+		priv->params.tx_max_inline = val;
+
+		if (was_opened)
+			err = mlx5e_open_locked(dev);
+
 		mutex_unlock(&priv->state_lock);
 		break;
 	default:
