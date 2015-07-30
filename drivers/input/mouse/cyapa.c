@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
 #include <linux/acpi.h>
+#include <linux/of.h>
 #include "cyapa.h"
 
 
@@ -1487,11 +1488,20 @@ static const struct acpi_device_id cyapa_acpi_id[] = {
 MODULE_DEVICE_TABLE(acpi, cyapa_acpi_id);
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id cyapa_of_match[] = {
+	{ .compatible = "cypress,cyapa" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, cyapa_of_match);
+#endif
+
 static struct i2c_driver cyapa_driver = {
 	.driver = {
 		.name = "cyapa",
 		.pm = &cyapa_pm_ops,
 		.acpi_match_table = ACPI_PTR(cyapa_acpi_id),
+		.of_match_table = of_match_ptr(cyapa_of_match),
 	},
 
 	.probe = cyapa_probe,
