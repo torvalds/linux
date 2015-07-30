@@ -420,7 +420,7 @@
 
 #define DP_TEST_SINK_MISC		    0x246
 # define DP_TEST_CRC_SUPPORTED		    (1 << 5)
-# define DP_TEST_COUNT_MASK		    0x7
+# define DP_TEST_COUNT_MASK		    0xf
 
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)

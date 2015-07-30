@@ -437,7 +437,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 
 	for (i = 0; i < 2; i++) {
 		if (crtc_funcs[i] && crtc_funcs[i]->atomic_begin)
-			crtc_funcs[i]->atomic_begin(crtc[i]);
+			crtc_funcs[i]->atomic_begin(crtc[i], crtc[i]->state);
 	}
 
 	/*
@@ -452,7 +452,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 
 	for (i = 0; i < 2; i++) {
 		if (crtc_funcs[i] && crtc_funcs[i]->atomic_flush)
-			crtc_funcs[i]->atomic_flush(crtc[i]);
+			crtc_funcs[i]->atomic_flush(crtc[i], crtc[i]->state);
 	}
 
 	/*

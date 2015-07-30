@@ -237,7 +237,7 @@ static void intel_enable_crt(struct intel_encoder *encoder)
 }
 
 /* Special dpms function to support cloning between dvo/sdvo/crt. */
-static void intel_crt_dpms(struct drm_connector *connector, int mode)
+static int intel_crt_dpms(struct drm_connector *connector, int mode)
 {
 	struct drm_device *dev = connector->dev;
 	struct intel_encoder *encoder = intel_attached_encoder(connector);
@@ -249,7 +249,7 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 		mode = DRM_MODE_DPMS_OFF;
 
 	if (mode == connector->dpms)
-		return;
+		return 0;
 
 	old_dpms = connector->dpms;
 	connector->dpms = mode;
@@ -258,7 +258,7 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 	crtc = encoder->base.crtc;
 	if (!crtc) {
 		encoder->connectors_active = false;
-		return;
+		return 0;
 	}
 
 	/* We need the pipe to run for anything but OFF. */
@@ -281,6 +281,8 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 	}
 
 	intel_modeset_check_state(connector->dev);
+
+	return 0;
 }
 
 static enum drm_mode_status

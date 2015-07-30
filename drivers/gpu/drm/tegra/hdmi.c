@@ -772,9 +772,10 @@ static bool tegra_output_is_hdmi(struct tegra_output *output)
 	return drm_detect_hdmi_monitor(edid);
 }
 
-static void tegra_hdmi_connector_dpms(struct drm_connector *connector,
-				      int mode)
+static int tegra_hdmi_connector_dpms(struct drm_connector *connector,
+				     int mode)
 {
+	return 0;
 }
 
 static const struct drm_connector_funcs tegra_hdmi_connector_funcs = {

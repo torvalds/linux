@@ -88,9 +88,10 @@ static void tegra_dc_write_regs(struct tegra_dc *dc,
 		tegra_dc_writel(dc, table[i].value, table[i].offset);
 }
 
-static void tegra_rgb_connector_dpms(struct drm_connector *connector,
-				     int mode)
+static int tegra_rgb_connector_dpms(struct drm_connector *connector,
+				    int mode)
 {
+	return 0;
 }
 
 static const struct drm_connector_funcs tegra_rgb_connector_funcs = {

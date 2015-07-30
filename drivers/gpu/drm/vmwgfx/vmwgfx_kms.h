@@ -133,7 +133,7 @@ void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 			   uint32_t handle, uint32_t width, uint32_t height);
 int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
-void vmw_du_connector_dpms(struct drm_connector *connector, int mode);
+int vmw_du_connector_dpms(struct drm_connector *connector, int mode);
 void vmw_du_connector_save(struct drm_connector *connector);
 void vmw_du_connector_restore(struct drm_connector *connector);
 enum drm_connector_status
