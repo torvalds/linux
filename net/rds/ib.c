@@ -99,8 +99,6 @@ static void rds_ib_dev_free(struct work_struct *work)
 
 	if (rds_ibdev->mr_pool)
 		rds_ib_destroy_mr_pool(rds_ibdev->mr_pool);
-	if (rds_ibdev->mr)
-		ib_dereg_mr(rds_ibdev->mr);
 	if (rds_ibdev->pd)
 		ib_dealloc_pd(rds_ibdev->pd);
 
@@ -161,12 +159,6 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->pd = ib_alloc_pd(device);
 	if (IS_ERR(rds_ibdev->pd)) {
 		rds_ibdev->pd = NULL;
-		goto put_dev;
-	}
-
-	rds_ibdev->mr = ib_get_dma_mr(rds_ibdev->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(rds_ibdev->mr)) {
-		rds_ibdev->mr = NULL;
 		goto put_dev;
 	}
 

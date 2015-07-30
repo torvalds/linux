@@ -62,12 +62,12 @@ void rds_ib_recv_init_ring(struct rds_ib_connection *ic)
 		sge = &recv->r_sge[0];
 		sge->addr = ic->i_recv_hdrs_dma + (i * sizeof(struct rds_header));
 		sge->length = sizeof(struct rds_header);
-		sge->lkey = ic->i_mr->lkey;
+		sge->lkey = ic->i_pd->local_dma_lkey;
 
 		sge = &recv->r_sge[1];
 		sge->addr = 0;
 		sge->length = RDS_FRAG_SIZE;
-		sge->lkey = ic->i_mr->lkey;
+		sge->lkey = ic->i_pd->local_dma_lkey;
 	}
 }
 
@@ -520,7 +520,7 @@ void rds_ib_recv_init_ack(struct rds_ib_connection *ic)
 
 	sge->addr = ic->i_ack_dma;
 	sge->length = sizeof(struct rds_header);
-	sge->lkey = ic->i_mr->lkey;
+	sge->lkey = ic->i_pd->local_dma_lkey;
 
 	wr->sg_list = sge;
 	wr->num_sge = 1;
