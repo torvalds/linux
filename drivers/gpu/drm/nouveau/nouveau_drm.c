@@ -47,7 +47,6 @@
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
 #include "nouveau_vga.h"
-#include "nouveau_sysfs.h"
 #include "nouveau_hwmon.h"
 #include "nouveau_acpi.h"
 #include "nouveau_bios.h"
@@ -454,7 +453,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	nouveau_debugfs_init(drm);
-	nouveau_sysfs_init(dev);
 	nouveau_hwmon_init(dev);
 	nouveau_accel_init(drm);
 	nouveau_fbcon_init(dev);
@@ -492,7 +490,6 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_fbcon_fini(dev);
 	nouveau_accel_fini(drm);
 	nouveau_hwmon_fini(dev);
-	nouveau_sysfs_fini(dev);
 	nouveau_debugfs_fini(drm);
 
 	if (dev->mode_config.num_crtc)
@@ -1010,7 +1007,6 @@ static void nouveau_display_options(void)
 	DRM_DEBUG_DRIVER("... modeset      : %d\n", nouveau_modeset);
 	DRM_DEBUG_DRIVER("... runpm        : %d\n", nouveau_runtime_pm);
 	DRM_DEBUG_DRIVER("... vram_pushbuf : %d\n", nouveau_vram_pushbuf);
-	DRM_DEBUG_DRIVER("... pstate       : %d\n", nouveau_pstate);
 }
 
 static const struct dev_pm_ops nouveau_pm_ops = {
