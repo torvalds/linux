@@ -130,10 +130,11 @@ static int hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 }
 
 static struct hc_driver usb_gb_hc_driver = {
-	.description = "greybus_usb",
-	.product_desc = "GB-Bridge USB Controller", /* TODO: Get this from GPB ?*/
-	.flags = HCD_MEMORY | HCD_USB2, /* FIXME: Get this from GPB */
+	.description = "greybus-hcd",
+	.product_desc = "Greybus USB Host Controller",
 	.hcd_priv_size = sizeof(struct gb_usb_device),
+
+	.flags = HCD_USB2,
 
 	.start = hcd_start,
 	.stop = hcd_stop,
