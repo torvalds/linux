@@ -164,13 +164,11 @@ struct tipc_link {
 	struct tipc_msg *pmsg;
 	u32 priority;
 	char net_plane;
-	u8 exec_mode;
-	u16 synch_point;
 
-	/* Failover */
-	u16 failover_pkts;
-	u16 failover_checkpt;
-	struct sk_buff *failover_skb;
+	/* Failover/synch */
+	u8 exec_mode;
+	u16 drop_point;
+	struct sk_buff *failover_reasm_skb;
 
 	/* Max packet negotiation */
 	u16 mtu;
@@ -212,8 +210,8 @@ struct tipc_link *tipc_link_create(struct tipc_node *n,
 				   const struct tipc_media_addr *maddr,
 				   struct sk_buff_head *inputq,
 				   struct sk_buff_head *namedq);
-void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
-void tipc_link_dup_queue_xmit(struct tipc_link *l_ptr, struct tipc_link *dest);
+void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
+			   int mtyp, struct sk_buff_head *xmitq);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);

@@ -47,33 +47,7 @@
 
 #define INVALID_BEARER_ID -1
 
-/* Node FSM states and events:
- */
-enum {
-	SELF_DOWN_PEER_DOWN    = 0xdd,
-	SELF_UP_PEER_UP        = 0xaa,
-	SELF_DOWN_PEER_LEAVING = 0xd1,
-	SELF_UP_PEER_COMING    = 0xac,
-	SELF_COMING_PEER_UP    = 0xca,
-	SELF_LEAVING_PEER_DOWN = 0x1d,
-	NODE_FAILINGOVER       = 0xf0,
-	NODE_SYNCHING          = 0xcc
-};
-
-enum {
-	SELF_ESTABL_CONTACT_EVT = 0xece,
-	SELF_LOST_CONTACT_EVT   = 0x1ce,
-	PEER_ESTABL_CONTACT_EVT = 0xfece,
-	PEER_LOST_CONTACT_EVT   = 0xf1ce,
-	NODE_FAILOVER_BEGIN_EVT = 0xfbe,
-	NODE_FAILOVER_END_EVT   = 0xfee,
-	NODE_SYNCH_BEGIN_EVT    = 0xcbe,
-	NODE_SYNCH_END_EVT      = 0xcee
-};
-
 /* Flags used to take different actions according to flag type
- * TIPC_WAIT_PEER_LINKS_DOWN: wait to see that peer's links are down
- * TIPC_WAIT_OWN_LINKS_DOWN: wait until peer node is declared down
  * TIPC_NOTIFY_NODE_DOWN: notify node is down
  * TIPC_NOTIFY_NODE_UP: notify node is up
  * TIPC_DISTRIBUTE_NAME: publish or withdraw link state name type
@@ -133,6 +107,8 @@ struct tipc_link_entry {
  * @links: array containing references to all links to node
  * @action_flags: bit mask of different types of node actions
  * @bclink: broadcast-related info
+ * @state: connectivity state vs peer node
+ * @sync_point: sequence number where synch/failover is finished
  * @list: links to adjacent nodes in sorted list of cluster's nodes
  * @working_links: number of working links to node (both active and standby)
  * @link_cnt: number of links to node
@@ -156,6 +132,7 @@ struct tipc_node {
 	struct tipc_node_bclink bclink;
 	struct list_head list;
 	int state;
+	u16 sync_point;
 	int link_cnt;
 	u16 working_links;
 	u16 capabilities;
@@ -180,8 +157,6 @@ bool tipc_node_update_dest(struct tipc_node *n, struct tipc_bearer *bearer,
 void tipc_node_delete_links(struct net *net, int bearer_id);
 void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
-void tipc_node_link_down(struct tipc_node *n_ptr, int bearer_id);
-void tipc_node_link_up(struct tipc_node *n_ptr, int bearer_id);
 bool tipc_node_is_up(struct tipc_node *n);
 int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 node,
 			   char *linkname, size_t len);
