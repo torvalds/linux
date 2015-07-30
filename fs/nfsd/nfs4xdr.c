@@ -2139,6 +2139,27 @@ nfsd4_encode_aclname(struct xdr_stream *xdr, struct svc_rqst *rqstp,
 		return nfsd4_encode_user(xdr, rqstp, ace->who_uid);
 }
 
+static inline __be32
+nfsd4_encode_layout_type(struct xdr_stream *xdr, enum pnfs_layouttype layout_type)
+{
+	__be32 *p;
+
+	if (layout_type) {
+		p = xdr_reserve_space(xdr, 8);
+		if (!p)
+			return nfserr_resource;
+		*p++ = cpu_to_be32(1);
+		*p++ = cpu_to_be32(layout_type);
+	} else {
+		p = xdr_reserve_space(xdr, 4);
+		if (!p)
+			return nfserr_resource;
+		*p++ = cpu_to_be32(0);
+	}
+
+	return 0;
+}
+
 #define WORD0_ABSENT_FS_ATTRS (FATTR4_WORD0_FS_LOCATIONS | FATTR4_WORD0_FSID | \
 			      FATTR4_WORD0_RDATTR_ERROR)
 #define WORD1_ABSENT_FS_ATTRS FATTR4_WORD1_MOUNTED_ON_FILEID
@@ -2692,20 +2713,16 @@ out_acl:
 		p = xdr_encode_hyper(p, stat.ino);
 	}
 #ifdef CONFIG_NFSD_PNFS
-	if ((bmval1 & FATTR4_WORD1_FS_LAYOUT_TYPES) ||
-	    (bmval2 & FATTR4_WORD2_LAYOUT_TYPES)) {
-		if (exp->ex_layout_type) {
-			p = xdr_reserve_space(xdr, 8);
-			if (!p)
-				goto out_resource;
-			*p++ = cpu_to_be32(1);
-			*p++ = cpu_to_be32(exp->ex_layout_type);
-		} else {
-			p = xdr_reserve_space(xdr, 4);
-			if (!p)
-				goto out_resource;
-			*p++ = cpu_to_be32(0);
-		}
+	if (bmval1 & FATTR4_WORD1_FS_LAYOUT_TYPES) {
+		status = nfsd4_encode_layout_type(xdr, exp->ex_layout_type);
+		if (status)
+			goto out;
+	}
+
+	if (bmval2 & FATTR4_WORD2_LAYOUT_TYPES) {
+		status = nfsd4_encode_layout_type(xdr, exp->ex_layout_type);
+		if (status)
+			goto out;
 	}
 
 	if (bmval2 & FATTR4_WORD2_LAYOUT_BLKSIZE) {
