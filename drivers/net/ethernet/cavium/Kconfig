@@ -37,6 +37,8 @@ config	THUNDER_NIC_BGX
 	tristate "Thunder MAC interface driver (BGX)"
 	depends on 64BIT
 	default ARCH_THUNDER
+	select PHYLIB
+	select MDIO_OCTEON
 	---help---
 	  This driver supports programming and controlling of MAC
 	  interface from NIC physical function driver.
