@@ -219,6 +219,13 @@
 
 		clocks {
 			compatible = "stericsson,u8500-clks";
+			/*
+			 * Registers for the CLKRST block on peripheral
+			 * groups 1, 2, 3, 5, 6,
+			 */
+			reg = <0x8012f000 0x1000>, <0x8011f000 0x1000>,
+			    <0x8000f000 0x1000>, <0xa03ff000 0x1000>,
+			    <0xa03cf000 0x1000>;
 
 			prcmu_clk: prcmu-clock {
 				#clock-cells = <1>;
