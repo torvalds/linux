@@ -643,37 +643,26 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 	u8 *mac;
 	u16 rf_status;
 
-	bl_ver = wil_r(wil, RGF_USER_BL +
-		       offsetof(struct bl_dedicated_registers_v0,
-				boot_loader_struct_version));
-	switch (bl_ver) {
-	case 0:
-		wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
-				     sizeof(bl.bl0));
-		le32_to_cpus(&bl.bl0.boot_loader_ready);
-		le32_to_cpus(&bl.bl0.boot_loader_struct_version);
+	wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
+			     sizeof(bl));
+	bl_ver = le32_to_cpu(bl.bl0.boot_loader_struct_version);
+	mac = bl.bl0.mac_address;
+
+	if (bl_ver == 0) {
 		le32_to_cpus(&bl.bl0.rf_type);
 		le32_to_cpus(&bl.bl0.baseband_type);
-		mac = bl.bl0.mac_address;
 		rf_status = 0; /* actually, unknown */
 		wil_info(wil,
 			 "Boot Loader struct v%d: MAC = %pM RF = 0x%08x bband = 0x%08x\n",
 			 bl_ver, mac,
 			 bl.bl0.rf_type, bl.bl0.baseband_type);
 		wil_info(wil, "Boot Loader build unknown for struct v0\n");
-		break;
-	case 1:
-	case 2:
-		wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
-				     sizeof(bl.bl1));
-		le32_to_cpus(&bl.bl1.boot_loader_ready);
-		le32_to_cpus(&bl.bl1.boot_loader_struct_version);
+	} else {
 		le16_to_cpus(&bl.bl1.rf_type);
 		rf_status = le16_to_cpu(bl.bl1.rf_status);
 		le32_to_cpus(&bl.bl1.baseband_type);
 		le16_to_cpus(&bl.bl1.bl_version_subminor);
 		le16_to_cpus(&bl.bl1.bl_version_build);
-		mac = bl.bl1.mac_address;
 		wil_info(wil,
 			 "Boot Loader struct v%d: MAC = %pM RF = 0x%04x (status 0x%04x) bband = 0x%08x\n",
 			 bl_ver, mac,
@@ -682,10 +671,6 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 		wil_info(wil, "Boot Loader build %d.%d.%d.%d\n",
 			 bl.bl1.bl_version_major, bl.bl1.bl_version_minor,
 			 bl.bl1.bl_version_subminor, bl.bl1.bl_version_build);
-		break;
-	default:
-		wil_err(wil, "BL: unsupported struct version 0x%08x\n", bl_ver);
-		return -EINVAL;
 	}
 
 	if (!is_valid_ether_addr(mac)) {
