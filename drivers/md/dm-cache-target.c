@@ -424,7 +424,6 @@ static void free_migration(struct dm_cache_migration *mg)
 		wake_up(&cache->migration_wait);
 
 	mempool_free(mg, cache->migration_pool);
-	wake_worker(cache);
 }
 
 static int prealloc_data_structs(struct cache *cache, struct prealloc *p)
@@ -1125,6 +1124,7 @@ static void free_io_migration(struct dm_cache_migration *mg)
 {
 	dec_io_migrations(mg->cache);
 	free_migration(mg);
+	wake_worker(mg->cache);
 }
 
 static void migration_failure(struct dm_cache_migration *mg)
@@ -1361,6 +1361,7 @@ static void issue_discard(struct dm_cache_migration *mg)
 	bio_endio(bio, 0);
 	cell_defer(mg->cache, mg->new_ocell, false);
 	free_migration(mg);
+	wake_worker(mg->cache);
 }
 
 static void issue_copy_or_discard(struct dm_cache_migration *mg)
