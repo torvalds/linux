@@ -51,5 +51,6 @@ static inline bool skb_valid_dst(const struct sk_buff *skb)
 }
 
 struct metadata_dst *metadata_dst_alloc(u8 optslen, gfp_t flags);
+struct metadata_dst __percpu *metadata_dst_alloc_percpu(u8 optslen, gfp_t flags);
 
 #endif /* __NET_DST_METADATA_H */

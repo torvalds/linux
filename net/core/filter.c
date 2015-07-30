@@ -48,6 +48,7 @@
 #include <linux/bpf.h>
 #include <net/sch_generic.h>
 #include <net/cls_cgroup.h>
+#include <net/dst_metadata.h>
 
 /**
  *	sk_filter - run a packet through a socket filter
@@ -1483,6 +1484,78 @@ bool bpf_helper_changes_skb_data(void *func)
 	return false;
 }
 
+static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	struct bpf_tunnel_key *to = (struct bpf_tunnel_key *) (long) r2;
+	struct ip_tunnel_info *info = skb_tunnel_info(skb, AF_INET);
+
+	if (unlikely(size != sizeof(struct bpf_tunnel_key) || flags || !info))
+		return -EINVAL;
+
+	to->tunnel_id = be64_to_cpu(info->key.tun_id);
+	to->remote_ipv4 = be32_to_cpu(info->key.ipv4_src);
+
+	return 0;
+}
+
+const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
+	.func		= bpf_skb_get_tunnel_key,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_STACK,
+	.arg3_type	= ARG_CONST_STACK_SIZE,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+static struct metadata_dst __percpu *md_dst;
+
+static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	struct bpf_tunnel_key *from = (struct bpf_tunnel_key *) (long) r2;
+	struct metadata_dst *md = this_cpu_ptr(md_dst);
+	struct ip_tunnel_info *info;
+
+	if (unlikely(size != sizeof(struct bpf_tunnel_key) || flags))
+		return -EINVAL;
+
+	skb_dst_drop(skb);
+	dst_hold((struct dst_entry *) md);
+	skb_dst_set(skb, (struct dst_entry *) md);
+
+	info = &md->u.tun_info;
+	info->mode = IP_TUNNEL_INFO_TX;
+	info->key.tun_id = cpu_to_be64(from->tunnel_id);
+	info->key.ipv4_dst = cpu_to_be32(from->remote_ipv4);
+
+	return 0;
+}
+
+const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
+	.func		= bpf_skb_set_tunnel_key,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_STACK,
+	.arg3_type	= ARG_CONST_STACK_SIZE,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+static const struct bpf_func_proto *bpf_get_skb_set_tunnel_key_proto(void)
+{
+	if (!md_dst) {
+		/* race is not possible, since it's called from
+		 * verifier that is holding verifier mutex
+		 */
+		md_dst = metadata_dst_alloc_percpu(0, GFP_KERNEL);
+		if (!md_dst)
+			return NULL;
+	}
+	return &bpf_skb_set_tunnel_key_proto;
+}
+
 static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
 {
@@ -1526,6 +1599,10 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_skb_vlan_push_proto;
 	case BPF_FUNC_skb_vlan_pop:
 		return &bpf_skb_vlan_pop_proto;
+	case BPF_FUNC_skb_get_tunnel_key:
+		return &bpf_skb_get_tunnel_key_proto;
+	case BPF_FUNC_skb_set_tunnel_key:
+		return bpf_get_skb_set_tunnel_key_proto();
 	default:
 		return sk_filter_func_proto(func_id);
 	}

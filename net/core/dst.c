@@ -362,14 +362,9 @@ static int dst_md_discard(struct sk_buff *skb)
 	return 0;
 }
 
-struct metadata_dst *metadata_dst_alloc(u8 optslen, gfp_t flags)
+static void __metadata_dst_init(struct metadata_dst *md_dst, u8 optslen)
 {
-	struct metadata_dst *md_dst;
 	struct dst_entry *dst;
-
-	md_dst = kmalloc(sizeof(*md_dst) + optslen, flags);
-	if (!md_dst)
-		return ERR_PTR(-ENOMEM);
 
 	dst = &md_dst->dst;
 	dst_init(dst, &md_dst_ops, NULL, 1, DST_OBSOLETE_NONE,
@@ -380,10 +375,38 @@ struct metadata_dst *metadata_dst_alloc(u8 optslen, gfp_t flags)
 
 	memset(dst + 1, 0, sizeof(*md_dst) + optslen - sizeof(*dst));
 	md_dst->opts_len = optslen;
+}
+
+struct metadata_dst *metadata_dst_alloc(u8 optslen, gfp_t flags)
+{
+	struct metadata_dst *md_dst;
+
+	md_dst = kmalloc(sizeof(*md_dst) + optslen, flags);
+	if (!md_dst)
+		return NULL;
+
+	__metadata_dst_init(md_dst, optslen);
 
 	return md_dst;
 }
 EXPORT_SYMBOL_GPL(metadata_dst_alloc);
+
+struct metadata_dst __percpu *metadata_dst_alloc_percpu(u8 optslen, gfp_t flags)
+{
+	int cpu;
+	struct metadata_dst __percpu *md_dst;
+
+	md_dst = __alloc_percpu_gfp(sizeof(struct metadata_dst) + optslen,
+				    __alignof__(struct metadata_dst), flags);
+	if (!md_dst)
+		return NULL;
+
+	for_each_possible_cpu(cpu)
+		__metadata_dst_init(per_cpu_ptr(md_dst, cpu), optslen);
+
+	return md_dst;
+}
+EXPORT_SYMBOL_GPL(metadata_dst_alloc_percpu);
 
 /* Dirty hack. We did it in 2.2 (in __dst_free),
  * we have _very_ good reasons not to repeat
