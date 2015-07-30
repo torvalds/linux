@@ -48,7 +48,7 @@ static char *icache_policy_str[] = {
 
 unsigned long __icache_flags;
 
-static const char *hwcap_str[] = {
+static const char *const hwcap_str[] = {
 	"fp",
 	"asimd",
 	"evtstrm",
@@ -62,7 +62,7 @@ static const char *hwcap_str[] = {
 };
 
 #ifdef CONFIG_COMPAT
-static const char *compat_hwcap_str[] = {
+static const char *const compat_hwcap_str[] = {
 	"swp",
 	"half",
 	"thumb",
@@ -87,7 +87,7 @@ static const char *compat_hwcap_str[] = {
 	"evtstrm"
 };
 
-static const char *compat_hwcap2_str[] = {
+static const char *const compat_hwcap2_str[] = {
 	"aes",
 	"pmull",
 	"sha1",
