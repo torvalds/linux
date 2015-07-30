@@ -36,6 +36,11 @@ struct bl_dedicated_registers_v1 {
 	u8	bl_version_minor;		/* 0x880A53 BL ver. minor */
 	__le16	bl_version_subminor;		/* 0x880A54 BL ver. subminor */
 	__le16	bl_version_build;		/* 0x880A56 BL ver. build */
+	/* valid only for version 2 and above */
+	__le32  bl_assert_code;         /* 0x880A58 BL Assert code */
+	__le32  bl_assert_blink;        /* 0x880A5C BL Assert Branch */
+	__le32  bl_reserved[22];        /* 0x880A60 - 0x880AB4 */
+	__le32  bl_magic_number;        /* 0x880AB8 BL Magic number */
 } __packed;
 
 /* the following struct is the version 0 struct */

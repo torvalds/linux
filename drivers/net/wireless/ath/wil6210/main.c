@@ -663,6 +663,7 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 		wil_info(wil, "Boot Loader build unknown for struct v0\n");
 		break;
 	case 1:
+	case 2:
 		wil_memcpy_fromio_32(&bl, wil->csr + HOSTADDR(RGF_USER_BL),
 				     sizeof(bl.bl1));
 		le32_to_cpus(&bl.bl1.boot_loader_ready);
@@ -703,6 +704,37 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 	}
 
 	return 0;
+}
+
+static void wil_bl_crash_info(struct wil6210_priv *wil, bool is_err)
+{
+	u32 bl_assert_code, bl_assert_blink, bl_magic_number;
+	u32 bl_ver = wil_r(wil, RGF_USER_BL +
+			   offsetof(struct bl_dedicated_registers_v0,
+				    boot_loader_struct_version));
+
+	if (bl_ver < 2)
+		return;
+
+	bl_assert_code = wil_r(wil, RGF_USER_BL +
+			       offsetof(struct bl_dedicated_registers_v1,
+					bl_assert_code));
+	bl_assert_blink = wil_r(wil, RGF_USER_BL +
+				offsetof(struct bl_dedicated_registers_v1,
+					 bl_assert_blink));
+	bl_magic_number = wil_r(wil, RGF_USER_BL +
+				offsetof(struct bl_dedicated_registers_v1,
+					 bl_magic_number));
+
+	if (is_err) {
+		wil_err(wil,
+			"BL assert code 0x%08x blink 0x%08x magic 0x%08x\n",
+			bl_assert_code, bl_assert_blink, bl_magic_number);
+	} else {
+		wil_dbg_misc(wil,
+			     "BL assert code 0x%08x blink 0x%08x magic 0x%08x\n",
+			     bl_assert_code, bl_assert_blink, bl_magic_number);
+	}
 }
 
 static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
@@ -770,10 +802,13 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	flush_workqueue(wil->wq_service);
 	flush_workqueue(wil->wmi_wq);
 
+	wil_bl_crash_info(wil, false);
 	rc = wil_target_reset(wil);
 	wil_rx_fini(wil);
-	if (rc)
+	if (rc) {
+		wil_bl_crash_info(wil, true);
 		return rc;
+	}
 
 	rc = wil_get_bl_info(wil);
 	if (rc == -EAGAIN && !load_fw) /* ignore RF error if not going up */
