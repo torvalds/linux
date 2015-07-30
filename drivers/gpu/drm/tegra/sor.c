@@ -1600,6 +1600,7 @@ static int tegra_sor_remove(struct platform_device *pdev)
 
 static const struct of_device_id tegra_sor_of_match[] = {
 	{ .compatible = "nvidia,tegra124-sor", },
+	{ .compatible = "nvidia,tegra210-sor", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
