@@ -453,6 +453,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 			goto fail_dispinit;
 	}
 
+	nouveau_debugfs_init(drm);
 	nouveau_sysfs_init(dev);
 	nouveau_hwmon_init(dev);
 	nouveau_accel_init(drm);
@@ -492,6 +493,7 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_accel_fini(drm);
 	nouveau_hwmon_fini(dev);
 	nouveau_sysfs_fini(dev);
+	nouveau_debugfs_fini(drm);
 
 	if (dev->mode_config.num_crtc)
 		nouveau_display_fini(dev);
