@@ -1515,6 +1515,7 @@ static const struct i2c_device_id bq24190_i2c_ids[] = {
 	{ "bq24190", BQ24190_REG_VPRS_PN_24190 },
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id bq24190_of_match[] = {
