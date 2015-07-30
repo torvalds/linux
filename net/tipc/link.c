@@ -566,7 +566,6 @@ void tipc_link_purge_queues(struct tipc_link *l_ptr)
 void tipc_link_reset(struct tipc_link *l_ptr)
 {
 	u32 prev_state = l_ptr->state;
-	int was_active_link = tipc_link_is_active(l_ptr);
 	struct tipc_node *owner = l_ptr->owner;
 	struct tipc_link *pl = tipc_parallel_link(l_ptr);
 
@@ -584,10 +583,7 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	    (prev_state == TIPC_LINK_ESTABLISHING))
 		return;
 
-	tipc_node_link_down(l_ptr->owner, l_ptr->bearer_id);
-	tipc_bearer_remove_dest(owner->net, l_ptr->bearer_id, l_ptr->addr);
-
-	if (was_active_link && tipc_node_is_up(l_ptr->owner) && (pl != l_ptr)) {
+	if (tipc_node_is_up(l_ptr->owner) && (pl != l_ptr)) {
 		l_ptr->exec_mode = TIPC_LINK_BLOCKED;
 		l_ptr->failover_checkpt = l_ptr->rcv_nxt;
 		pl->failover_pkts = FIRST_FAILOVER;

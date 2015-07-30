@@ -265,7 +265,7 @@ static void tipc_node_timeout(unsigned long data)
 			tipc_node_calculate_timer(n, l);
 			rc = tipc_link_timeout(l, &xmitq);
 			if (rc & TIPC_LINK_DOWN_EVT)
-				tipc_link_reset(l);
+				tipc_node_link_down(n, bearer_id);
 		}
 		tipc_node_unlock(n);
 		maddr = &n->links[bearer_id].maddr;
@@ -338,9 +338,14 @@ void tipc_node_link_down(struct tipc_node *n, int bearer_id)
 	struct tipc_link *l, *_l;
 
 	l = n->links[bearer_id].link;
+	if (!l || !tipc_link_is_up(l))
+		return;
+
 	n->working_links--;
 	n->action_flags |= TIPC_NOTIFY_LINK_DOWN;
 	n->link_id = l->peer_bearer_id << 16 | l->bearer_id;
+
+	tipc_bearer_remove_dest(n->net, l->bearer_id, n->addr);
 
 	pr_debug("Lost link <%s> on network plane %c\n",
 		 l->name, l->net_plane);
@@ -352,6 +357,8 @@ void tipc_node_link_down(struct tipc_node *n, int bearer_id)
 		_l = n->links[i].link;
 		if (!_l || !tipc_link_is_up(_l))
 			continue;
+		if (_l == l)
+			continue;
 		if (_l->priority < highest)
 			continue;
 		if (_l->priority > highest) {
@@ -362,9 +369,13 @@ void tipc_node_link_down(struct tipc_node *n, int bearer_id)
 		}
 		*slot1 = i;
 	}
+
 	if (tipc_node_is_up(n))
 		tipc_link_failover_send_queue(l);
-	else
+
+	tipc_link_reset(l);
+
+	if (!tipc_node_is_up(n))
 		node_lost_contact(n);
 }
 
@@ -403,7 +414,7 @@ bool tipc_node_update_dest(struct tipc_node *n,  struct tipc_bearer *b,
 	}
 	memcpy(&l->media_addr, maddr, sizeof(*maddr));
 	memcpy(curr, maddr, sizeof(*maddr));
-	tipc_link_reset(l);
+	tipc_node_link_down(n, b->identity);
 	return true;
 }
 
@@ -418,7 +429,7 @@ void tipc_node_delete_links(struct net *net, int bearer_id)
 		tipc_node_lock(n);
 		l = n->links[bearer_id].link;
 		if (l) {
-			tipc_link_reset(l);
+			tipc_node_link_down(n, bearer_id);
 			n->links[bearer_id].link = NULL;
 			n->link_cnt--;
 		}
@@ -439,8 +450,9 @@ static void tipc_node_reset_links(struct tipc_node *n)
 		tipc_addr_string_fill(addr_string, n->addr));
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (n->links[i].link)
-			tipc_link_reset(n->links[i].link);
+		if (!n->links[i].link)
+			continue;
+		tipc_node_link_down(n, i);
 	}
 	tipc_node_unlock(n);
 }
@@ -837,7 +849,7 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 		if (likely(l))
 			rc = tipc_link_xmit(l, list, &xmitq);
 		if (unlikely(rc == -ENOBUFS))
-			tipc_link_reset(l);
+			tipc_node_link_down(n, bearer_id);
 		tipc_node_unlock(n);
 		tipc_node_put(n);
 	}
@@ -902,7 +914,7 @@ static void tipc_node_tnl_init(struct tipc_node *n, int bearer_id,
 
 	if (msg_type(hdr) == FAILOVER_MSG) {
 		if (tipc_link_is_up(pl)) {
-			tipc_link_reset(pl);
+			tipc_node_link_down(n, pb_id);
 			pl->exec_mode = TIPC_LINK_BLOCKED;
 		}
 	}
@@ -978,7 +990,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 	if (unlikely(rc & TIPC_LINK_UP_EVT))
 		tipc_node_link_up(n, bearer_id);
 	if (unlikely(rc & TIPC_LINK_DOWN_EVT))
-		tipc_link_reset(l);
+		tipc_node_link_down(n, bearer_id);
 	skb = NULL;
 unlock:
 	tipc_node_unlock(n);
