@@ -1304,25 +1304,27 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 	 */
 
 	value = ((mode->vtotal & 0x7fff) << 16) | (mode->htotal & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE1(0));
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE1(dc->pipe));
 
 	vse = mode->vsync_end - mode->vsync_start - 1;
 	hse = mode->hsync_end - mode->hsync_start - 1;
 
 	value = ((vse & 0x7fff) << 16) | (hse & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE2(0));
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE2(dc->pipe));
 
 	vbe = vse + (mode->vsync_start - mode->vdisplay);
 	hbe = hse + (mode->hsync_start - mode->hdisplay);
 
 	value = ((vbe & 0x7fff) << 16) | (hbe & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE3(0));
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE3(dc->pipe));
 
 	vbs = vbe + mode->vdisplay;
 	hbs = hbe + mode->hdisplay;
 
 	value = ((vbs & 0x7fff) << 16) | (hbs & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE4(0));
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE4(dc->pipe));
+
+	tegra_sor_writel(sor, 0x1, SOR_HEAD_STATE5(dc->pipe));
 
 	/* CSTM (LVDS, link A/B, upper) */
 	value = SOR_CSTM_LVDS | SOR_CSTM_LINK_ACT_A | SOR_CSTM_LINK_ACT_B |
