@@ -138,7 +138,7 @@ struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 	return NULL;
 }
 
-struct tipc_node *tipc_node_create(struct net *net, u32 addr)
+struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *n_ptr, *temp_node;
@@ -154,6 +154,7 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	}
 	n_ptr->addr = addr;
 	n_ptr->net = net;
+	n_ptr->capabilities = capabilities;
 	kref_init(&n_ptr->kref);
 	spin_lock_init(&n_ptr->lock);
 	INIT_HLIST_NODE(&n_ptr->hash);
@@ -422,38 +423,118 @@ bool tipc_node_is_up(struct tipc_node *n)
 	return n->active_links[0] != INVALID_BEARER_ID;
 }
 
-void tipc_node_check_dest(struct tipc_node *n, struct tipc_bearer *b,
-			  bool *link_up, bool *addr_match,
-			  struct tipc_media_addr *maddr)
+void tipc_node_check_dest(struct net *net, u32 onode,
+			  struct tipc_bearer *b,
+			  u16 capabilities, u32 signature,
+			  struct tipc_media_addr *maddr,
+			  bool *respond, bool *dupl_addr)
 {
-	struct tipc_link *l = n->links[b->identity].link;
-	struct tipc_media_addr *curr = &n->links[b->identity].maddr;
+	struct tipc_node *n;
+	struct tipc_link *l;
+	struct tipc_media_addr *curr_maddr;
+	struct sk_buff_head *inputq;
+	bool addr_match = false;
+	bool sign_match = false;
+	bool link_up = false;
+	bool accept_addr = false;
 
-	*link_up = l && tipc_link_is_up(l);
-	*addr_match = l && !memcmp(curr, maddr, sizeof(*maddr));
-}
+	*dupl_addr = false;
+	*respond = false;
 
-bool tipc_node_update_dest(struct tipc_node *n,  struct tipc_bearer *b,
-			   struct tipc_media_addr *maddr)
-{
-	struct tipc_link *l = n->links[b->identity].link;
-	struct tipc_media_addr *curr = &n->links[b->identity].maddr;
-	struct sk_buff_head *inputq = &n->links[b->identity].inputq;
+	n = tipc_node_create(net, onode, capabilities);
+	if (!n)
+		return;
 
+	tipc_node_lock(n);
+
+	curr_maddr = &n->links[b->identity].maddr;
+	inputq = &n->links[b->identity].inputq;
+
+	/* Prepare to validate requesting node's signature and media address */
+	l = n->links[b->identity].link;
+	link_up = l && tipc_link_is_up(l);
+	addr_match = l && !memcmp(curr_maddr, maddr, sizeof(*maddr));
+	sign_match = (signature == n->signature);
+
+	/* These three flags give us eight permutations: */
+
+	if (sign_match && addr_match && link_up) {
+		/* All is fine. Do nothing. */
+	} else if (sign_match && addr_match && !link_up) {
+		/* Respond. The link will come up in due time */
+		*respond = true;
+	} else if (sign_match && !addr_match && link_up) {
+		/* Peer has changed i/f address without rebooting.
+		 * If so, the link will reset soon, and the next
+		 * discovery will be accepted. So we can ignore it.
+		 * It may also be an cloned or malicious peer having
+		 * chosen the same node address and signature as an
+		 * existing one.
+		 * Ignore requests until the link goes down, if ever.
+		 */
+		*dupl_addr = true;
+	} else if (sign_match && !addr_match && !link_up) {
+		/* Peer link has changed i/f address without rebooting.
+		 * It may also be a cloned or malicious peer; we can't
+		 * distinguish between the two.
+		 * The signature is correct, so we must accept.
+		 */
+		accept_addr = true;
+		*respond = true;
+	} else if (!sign_match && addr_match && link_up) {
+		/* Peer node rebooted. Two possibilities:
+		 *  - Delayed re-discovery; this link endpoint has already
+		 *    reset and re-established contact with the peer, before
+		 *    receiving a discovery message from that node.
+		 *    (The peer happened to receive one from this node first).
+		 *  - The peer came back so fast that our side has not
+		 *    discovered it yet. Probing from this side will soon
+		 *    reset the link, since there can be no working link
+		 *    endpoint at the peer end, and the link will re-establish.
+		 *  Accept the signature, since it comes from a known peer.
+		 */
+		n->signature = signature;
+	} else if (!sign_match && addr_match && !link_up) {
+		/*  The peer node has rebooted.
+		 *  Accept signature, since it is a known peer.
+		 */
+		n->signature = signature;
+		*respond = true;
+	} else if (!sign_match && !addr_match && link_up) {
+		/* Peer rebooted with new address, or a new/duplicate peer.
+		 * Ignore until the link goes down, if ever.
+		 */
+		*dupl_addr = true;
+	} else if (!sign_match && !addr_match && !link_up) {
+		/* Peer rebooted with new address, or it is a new peer.
+		 * Accept signature and address.
+		 */
+		n->signature = signature;
+		accept_addr = true;
+		*respond = true;
+	}
+
+	if (!accept_addr)
+		goto exit;
+
+	/* Now create new link if not already existing */
 	if (!l) {
 		l = tipc_link_create(n, b, maddr, inputq, &n->bclink.namedq);
-		if (!l)
-			return false;
+		if (!l) {
+			*respond = false;
+			goto exit;
+		}
 		tipc_node_calculate_timer(n, l);
-		if (n->link_cnt == 1) {
+		if (n->link_cnt == 1)
 			if (!mod_timer(&n->timer, jiffies + n->keepalive_intv))
 				tipc_node_get(n);
-		}
 	}
 	memcpy(&l->media_addr, maddr, sizeof(*maddr));
-	memcpy(curr, maddr, sizeof(*maddr));
+	memcpy(curr_maddr, maddr, sizeof(*maddr));
 	tipc_node_link_down(n, b->identity);
-	return true;
+exit:
+	tipc_node_unlock(n);
+	tipc_node_put(n);
 }
 
 void tipc_node_delete_links(struct net *net, int bearer_id)
