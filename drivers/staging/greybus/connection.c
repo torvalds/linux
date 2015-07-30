@@ -349,8 +349,7 @@ int gb_connection_init(struct gb_connection *connection)
 	 * Inform Interface about Active CPorts. We don't need to do this
 	 * operation for control cport.
 	 */
-	if (cport_id != GB_CONTROL_CPORT_ID &&
-	    connection->hd_cport_id != GB_SVC_CPORT_ID) {
+	if (cport_id != GB_CONTROL_CPORT_ID) {
 		struct gb_control *control = connection->bundle->intf->control;
 
 		ret = gb_control_connected_operation(control, cport_id);
@@ -402,8 +401,7 @@ void gb_connection_exit(struct gb_connection *connection)
 	 * Inform Interface about In-active CPorts. We don't need to do this
 	 * operation for control cport.
 	 */
-	if (cport_id != GB_CONTROL_CPORT_ID &&
-	    connection->hd_cport_id != GB_SVC_CPORT_ID) {
+	if (cport_id != GB_CONTROL_CPORT_ID) {
 		struct gb_control *control = connection->bundle->intf->control;
 		int ret;
 
