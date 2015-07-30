@@ -139,7 +139,7 @@ struct smack_master_list {
 	struct smack_rule	*smk_rule;
 };
 
-LIST_HEAD(smack_rule_list);
+static LIST_HEAD(smack_rule_list);
 
 struct smack_parsed_rule {
 	struct smack_known	*smk_subject;

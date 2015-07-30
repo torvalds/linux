@@ -291,7 +291,7 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
  *
  * Returns the new blob or NULL if there's no memory available
  */
-struct inode_smack *new_inode_smack(struct smack_known *skp)
+static struct inode_smack *new_inode_smack(struct smack_known *skp)
 {
 	struct inode_smack *isp;
 
@@ -4516,7 +4516,7 @@ static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 	return 0;
 }
 
-struct security_hook_list smack_hooks[] = {
+static struct security_hook_list smack_hooks[] = {
 	LSM_HOOK_INIT(ptrace_access_check, smack_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, smack_ptrace_traceme),
 	LSM_HOOK_INIT(syslog, smack_syslog),
