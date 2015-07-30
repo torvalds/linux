@@ -929,6 +929,21 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 
 MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
 
+static struct dmi_system_id i8k_blacklist_dmi_table[] __initdata = {
+	{
+		/*
+		 * CPU fan speed going up and down on Dell Studio XPS 8100
+		 * for unknown reasons.
+		 */
+		.ident = "Dell Studio XPS 8100",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Studio XPS 8100"),
+		},
+	},
+	{ }
+};
+
 /*
  * Probe for the presence of a supported laptop.
  */
@@ -940,7 +955,8 @@ static int __init i8k_probe(void)
 	/*
 	 * Get DMI information
 	 */
-	if (!dmi_check_system(i8k_dmi_table)) {
+	if (!dmi_check_system(i8k_dmi_table) ||
+	    dmi_check_system(i8k_blacklist_dmi_table)) {
 		if (!ignore_dmi && !force)
 			return -ENODEV;
 
