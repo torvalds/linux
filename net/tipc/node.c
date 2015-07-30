@@ -407,6 +407,44 @@ bool tipc_node_update_dest(struct tipc_node *n,  struct tipc_bearer *b,
 	return true;
 }
 
+void tipc_node_delete_links(struct net *net, int bearer_id)
+{
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_link *l;
+	struct tipc_node *n;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(n, &tn->node_list, list) {
+		tipc_node_lock(n);
+		l = n->links[bearer_id].link;
+		if (l) {
+			tipc_link_reset(l);
+			n->links[bearer_id].link = NULL;
+			n->link_cnt--;
+		}
+		tipc_node_unlock(n);
+		kfree(l);
+	}
+	rcu_read_unlock();
+}
+
+static void tipc_node_reset_links(struct tipc_node *n)
+{
+	char addr_string[16];
+	u32 i;
+
+	tipc_node_lock(n);
+
+	pr_warn("Resetting all links to %s\n",
+		tipc_addr_string_fill(addr_string, n->addr));
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		if (n->links[i].link)
+			tipc_link_reset(n->links[i].link);
+	}
+	tipc_node_unlock(n);
+}
+
 void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	n_ptr->links[l_ptr->bearer_id].link = l_ptr;
@@ -721,7 +759,7 @@ void tipc_node_unlock(struct tipc_node *node)
 		tipc_bclink_input(net);
 
 	if (flags & TIPC_BCAST_RESET)
-		tipc_link_reset_all(node);
+		tipc_node_reset_links(node);
 }
 
 /* Caller should hold node lock for the passed node */
@@ -836,6 +874,40 @@ int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
 	return 0;
 }
 
+/* tipc_node_tnl_init(): handle a received TUNNEL_PROTOCOL packet,
+ * in order to control parallel link failover or synchronization
+ */
+static void tipc_node_tnl_init(struct tipc_node *n, int bearer_id,
+			       struct sk_buff *skb)
+{
+	struct tipc_link *tnl, *pl;
+	struct tipc_msg *hdr = buf_msg(skb);
+	u16 oseqno = msg_seqno(hdr);
+	int pb_id = msg_bearer_id(hdr);
+
+	if (pb_id >= MAX_BEARERS)
+		return;
+
+	tnl = n->links[bearer_id].link;
+	if (!tnl)
+		return;
+
+	/* Ignore if duplicate */
+	if (less(oseqno, tnl->rcv_nxt))
+		return;
+
+	pl = n->links[pb_id].link;
+	if (!pl)
+		return;
+
+	if (msg_type(hdr) == FAILOVER_MSG) {
+		if (tipc_link_is_up(pl)) {
+			tipc_link_reset(pl);
+			pl->exec_mode = TIPC_LINK_BLOCKED;
+		}
+	}
+}
+
 /**
  * tipc_rcv - process TIPC packets/messages arriving from off-node
  * @net: the applicable net namespace
@@ -854,6 +926,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 	struct tipc_media_addr *maddr;
 	int bearer_id = b->identity;
 	int rc = 0;
+	int usr;
 
 	__skb_queue_head_init(&xmitq);
 
@@ -863,8 +936,9 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 
 	/* Handle arrival of a non-unicast link packet */
 	hdr = buf_msg(skb);
+	usr = msg_user(hdr);
 	if (unlikely(msg_non_seq(hdr))) {
-		if (msg_user(hdr) ==  LINK_CONFIG)
+		if (usr ==  LINK_CONFIG)
 			tipc_disc_rcv(net, skb, b);
 		else
 			tipc_bclink_rcv(net, skb);
@@ -877,6 +951,10 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 		goto discard;
 	tipc_node_lock(n);
 
+	/* Prepare links for tunneled reception if applicable */
+	if (unlikely(usr == TUNNEL_PROTOCOL))
+		tipc_node_tnl_init(n, bearer_id, skb);
+
 	/* Locate link endpoint that should handle packet */
 	l = n->links[bearer_id].link;
 	if (unlikely(!l))
@@ -887,7 +965,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 		if (!tipc_node_filter_skb(n, l, hdr))
 			goto unlock;
 
-	if (unlikely(msg_user(hdr) == LINK_PROTOCOL))
+	if (unlikely(usr == LINK_PROTOCOL))
 		tipc_bclink_sync_state(n, hdr);
 
 	/* Release acked broadcast messages */

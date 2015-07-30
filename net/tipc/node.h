@@ -171,6 +171,7 @@ void tipc_node_check_dest(struct tipc_node *n, struct tipc_bearer *bearer,
 			  struct tipc_media_addr *maddr);
 bool tipc_node_update_dest(struct tipc_node *n, struct tipc_bearer *bearer,
 			   struct tipc_media_addr *maddr);
+void tipc_node_delete_links(struct net *net, int bearer_id);
 void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr);
 void tipc_node_link_down(struct tipc_node *n_ptr, int bearer_id);

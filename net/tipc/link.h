@@ -212,8 +212,6 @@ struct tipc_link *tipc_link_create(struct tipc_node *n,
 				   const struct tipc_media_addr *maddr,
 				   struct sk_buff_head *inputq,
 				   struct sk_buff_head *namedq);
-void tipc_link_delete(struct tipc_link *link);
-void tipc_link_delete_list(struct net *net, unsigned int bearer_id);
 void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
 void tipc_link_dup_queue_xmit(struct tipc_link *l_ptr, struct tipc_link *dest);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
@@ -221,7 +219,6 @@ int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);
 void tipc_link_purge_queues(struct tipc_link *l_ptr);
 void tipc_link_purge_backlog(struct tipc_link *l);
-void tipc_link_reset_all(struct tipc_node *node);
 void tipc_link_reset(struct tipc_link *l_ptr);
 int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		     struct sk_buff_head *list);
