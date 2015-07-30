@@ -1340,6 +1340,14 @@ accept_ra_from_local - BOOLEAN
 	   disabled if accept_ra_from_local is disabled
                on a specific interface.
 
+accept_ra_min_hop_limit - INTEGER
+	Minimum hop limit Information in Router Advertisement.
+
+	Hop limit Information in Router Advertisement less than this
+	variable shall be ignored.
+
+	Default: 1
+
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.
 
