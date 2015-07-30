@@ -362,6 +362,10 @@ struct ib_cm_compare_data {
 int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
 		 struct ib_cm_compare_data *compare_data);
 
+struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
+				     ib_cm_handler cm_handler,
+				     __be64 service_id);
+
 struct ib_cm_req_param {
 	struct ib_sa_path_rec	*primary_path;
 	struct ib_sa_path_rec	*alternate_path;

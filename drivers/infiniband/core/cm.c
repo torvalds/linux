@@ -213,6 +213,9 @@ struct cm_id_private {
 	spinlock_t lock;	/* Do not acquire inside cm.lock */
 	struct completion comp;
 	atomic_t refcount;
+	/* Number of clients sharing this ib_cm_id. Only valid for listeners.
+	 * Protected by the cm.lock spinlock. */
+	int listen_sharecount;
 
 	struct ib_mad_send_buf *msg;
 	struct cm_timewait_info *timewait_info;
@@ -859,9 +862,15 @@ retest:
 	spin_lock_irq(&cm_id_priv->lock);
 	switch (cm_id->state) {
 	case IB_CM_LISTEN:
-		cm_id->state = IB_CM_IDLE;
 		spin_unlock_irq(&cm_id_priv->lock);
+
 		spin_lock_irq(&cm.lock);
+		if (--cm_id_priv->listen_sharecount > 0) {
+			/* The id is still shared. */
+			cm_deref_id(cm_id_priv);
+			spin_unlock_irq(&cm.lock);
+			return;
+		}
 		rb_erase(&cm_id_priv->service_node, &cm.listen_service_table);
 		spin_unlock_irq(&cm.lock);
 		break;
@@ -941,11 +950,32 @@ void ib_destroy_cm_id(struct ib_cm_id *cm_id)
 }
 EXPORT_SYMBOL(ib_destroy_cm_id);
 
-int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
-		 struct ib_cm_compare_data *compare_data)
+/**
+ * __ib_cm_listen - Initiates listening on the specified service ID for
+ *   connection and service ID resolution requests.
+ * @cm_id: Connection identifier associated with the listen request.
+ * @service_id: Service identifier matched against incoming connection
+ *   and service ID resolution requests.  The service ID should be specified
+ *   network-byte order.  If set to IB_CM_ASSIGN_SERVICE_ID, the CM will
+ *   assign a service ID to the caller.
+ * @service_mask: Mask applied to service ID used to listen across a
+ *   range of service IDs.  If set to 0, the service ID is matched
+ *   exactly.  This parameter is ignored if %service_id is set to
+ *   IB_CM_ASSIGN_SERVICE_ID.
+ * @compare_data: This parameter is optional.  It specifies data that must
+ *   appear in the private data of a connection request for the specified
+ *   listen request.
+ * @lock: If set, lock the cm.lock spin-lock when adding the id to the
+ *   listener tree. When false, the caller must already hold the spin-lock,
+ *   and compare_data must be NULL.
+ */
+static int __ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id,
+			  __be64 service_mask,
+			  struct ib_cm_compare_data *compare_data,
+			  bool lock)
 {
 	struct cm_id_private *cm_id_priv, *cur_cm_id_priv;
-	unsigned long flags;
+	unsigned long flags = 0;
 	int ret = 0;
 
 	service_mask = service_mask ? service_mask : ~cpu_to_be64(0);
@@ -970,8 +1000,10 @@ int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
 	}
 
 	cm_id->state = IB_CM_LISTEN;
+	if (lock)
+		spin_lock_irqsave(&cm.lock, flags);
 
-	spin_lock_irqsave(&cm.lock, flags);
+	++cm_id_priv->listen_sharecount;
 	if (service_id == IB_CM_ASSIGN_SERVICE_ID) {
 		cm_id->service_id = cpu_to_be64(cm.listen_service_id++);
 		cm_id->service_mask = ~cpu_to_be64(0);
@@ -980,17 +1012,95 @@ int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
 		cm_id->service_mask = service_mask;
 	}
 	cur_cm_id_priv = cm_insert_listen(cm_id_priv);
-	spin_unlock_irqrestore(&cm.lock, flags);
 
 	if (cur_cm_id_priv) {
 		cm_id->state = IB_CM_IDLE;
+		--cm_id_priv->listen_sharecount;
 		kfree(cm_id_priv->compare_data);
 		cm_id_priv->compare_data = NULL;
 		ret = -EBUSY;
 	}
+
+	if (lock)
+		spin_unlock_irqrestore(&cm.lock, flags);
+
 	return ret;
 }
+
+int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
+		 struct ib_cm_compare_data *compare_data)
+{
+	return __ib_cm_listen(cm_id, service_id, service_mask, compare_data,
+			      true);
+}
 EXPORT_SYMBOL(ib_cm_listen);
+
+/**
+ * Create a new listening ib_cm_id and listen on the given service ID.
+ *
+ * If there's an existing ID listening on that same device and service ID,
+ * return it.
+ *
+ * @device: Device associated with the cm_id.  All related communication will
+ * be associated with the specified device.
+ * @cm_handler: Callback invoked to notify the user of CM events.
+ * @service_id: Service identifier matched against incoming connection
+ *   and service ID resolution requests.  The service ID should be specified
+ *   network-byte order.  If set to IB_CM_ASSIGN_SERVICE_ID, the CM will
+ *   assign a service ID to the caller.
+ *
+ * Callers should call ib_destroy_cm_id when done with the listener ID.
+ */
+struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
+				     ib_cm_handler cm_handler,
+				     __be64 service_id)
+{
+	struct cm_id_private *cm_id_priv;
+	struct ib_cm_id *cm_id;
+	unsigned long flags;
+	int err = 0;
+
+	/* Create an ID in advance, since the creation may sleep */
+	cm_id = ib_create_cm_id(device, cm_handler, NULL);
+	if (IS_ERR(cm_id))
+		return cm_id;
+
+	spin_lock_irqsave(&cm.lock, flags);
+
+	if (service_id == IB_CM_ASSIGN_SERVICE_ID)
+		goto new_id;
+
+	/* Find an existing ID */
+	cm_id_priv = cm_find_listen(device, service_id, NULL);
+	if (cm_id_priv) {
+		if (cm_id->cm_handler != cm_handler || cm_id->context) {
+			/* Sharing an ib_cm_id with different handlers is not
+			 * supported */
+			spin_unlock_irqrestore(&cm.lock, flags);
+			return ERR_PTR(-EINVAL);
+		}
+		atomic_inc(&cm_id_priv->refcount);
+		++cm_id_priv->listen_sharecount;
+		spin_unlock_irqrestore(&cm.lock, flags);
+
+		ib_destroy_cm_id(cm_id);
+		cm_id = &cm_id_priv->id;
+		return cm_id;
+	}
+
+new_id:
+	/* Use newly created ID */
+	err = __ib_cm_listen(cm_id, service_id, 0, NULL, false);
+
+	spin_unlock_irqrestore(&cm.lock, flags);
+
+	if (err) {
+		ib_destroy_cm_id(cm_id);
+		return ERR_PTR(err);
+	}
+	return cm_id;
+}
+EXPORT_SYMBOL(ib_cm_insert_listen);
 
 static __be64 cm_form_tid(struct cm_id_private *cm_id_priv,
 			  enum cm_msg_sequence msg_seq)
