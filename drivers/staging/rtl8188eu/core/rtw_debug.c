@@ -219,6 +219,7 @@ int proc_get_ht_option(char *page, char **start,
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
 	int len = 0;
+
 	len += snprintf(page + len, count - len, "ht_option=%d\n", pmlmepriv->htpriv.ht_option);
 	*eof = 1;
 	return len;
@@ -588,6 +589,7 @@ int proc_set_rx_signal(struct file *file, const char __user *buffer,
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		int num = sscanf(tmp, "%u %u", &is_signal_dbg, &signal_strength);
+
 		is_signal_dbg = is_signal_dbg == 0 ? 0 : 1;
 		if (is_signal_dbg && num != 2)
 			return count;
