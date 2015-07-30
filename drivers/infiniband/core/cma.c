@@ -113,6 +113,22 @@ static DEFINE_IDR(udp_ps);
 static DEFINE_IDR(ipoib_ps);
 static DEFINE_IDR(ib_ps);
 
+static struct idr *cma_idr(enum rdma_port_space ps)
+{
+	switch (ps) {
+	case RDMA_PS_TCP:
+		return &tcp_ps;
+	case RDMA_PS_UDP:
+		return &udp_ps;
+	case RDMA_PS_IPOIB:
+		return &ipoib_ps;
+	case RDMA_PS_IB:
+		return &ib_ps;
+	default:
+		return NULL;
+	}
+}
+
 struct cma_device {
 	struct list_head	list;
 	struct ib_device	*device;
@@ -122,10 +138,32 @@ struct cma_device {
 };
 
 struct rdma_bind_list {
-	struct idr		*ps;
+	enum rdma_port_space	ps;
 	struct hlist_head	owners;
 	unsigned short		port;
 };
+
+static int cma_ps_alloc(enum rdma_port_space ps,
+			struct rdma_bind_list *bind_list, int snum)
+{
+	struct idr *idr = cma_idr(ps);
+
+	return idr_alloc(idr, bind_list, snum, snum + 1, GFP_KERNEL);
+}
+
+static struct rdma_bind_list *cma_ps_find(enum rdma_port_space ps, int snum)
+{
+	struct idr *idr = cma_idr(ps);
+
+	return idr_find(idr, snum);
+}
+
+static void cma_ps_remove(enum rdma_port_space ps, int snum)
+{
+	struct idr *idr = cma_idr(ps);
+
+	idr_remove(idr, snum);
+}
 
 enum {
 	CMA_OPTION_AFONLY,
@@ -1069,7 +1107,7 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 	mutex_lock(&lock);
 	hlist_del(&id_priv->node);
 	if (hlist_empty(&bind_list->owners)) {
-		idr_remove(bind_list->ps, bind_list->port);
+		cma_ps_remove(bind_list->ps, bind_list->port);
 		kfree(bind_list);
 	}
 	mutex_unlock(&lock);
@@ -2368,8 +2406,8 @@ static void cma_bind_port(struct rdma_bind_list *bind_list,
 	hlist_add_head(&id_priv->node, &bind_list->owners);
 }
 
-static int cma_alloc_port(struct idr *ps, struct rdma_id_private *id_priv,
-			  unsigned short snum)
+static int cma_alloc_port(enum rdma_port_space ps,
+			  struct rdma_id_private *id_priv, unsigned short snum)
 {
 	struct rdma_bind_list *bind_list;
 	int ret;
@@ -2378,7 +2416,7 @@ static int cma_alloc_port(struct idr *ps, struct rdma_id_private *id_priv,
 	if (!bind_list)
 		return -ENOMEM;
 
-	ret = idr_alloc(ps, bind_list, snum, snum + 1, GFP_KERNEL);
+	ret = cma_ps_alloc(ps, bind_list, snum);
 	if (ret < 0)
 		goto err;
 
@@ -2391,7 +2429,8 @@ err:
 	return ret == -ENOSPC ? -EADDRNOTAVAIL : ret;
 }
 
-static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
+static int cma_alloc_any_port(enum rdma_port_space ps,
+			      struct rdma_id_private *id_priv)
 {
 	static unsigned int last_used_port;
 	int low, high, remaining;
@@ -2402,7 +2441,7 @@ static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 	rover = prandom_u32() % remaining + low;
 retry:
 	if (last_used_port != rover &&
-	    !idr_find(ps, (unsigned short) rover)) {
+	    !cma_ps_find(ps, (unsigned short)rover)) {
 		int ret = cma_alloc_port(ps, id_priv, rover);
 		/*
 		 * Remember previously used port number in order to avoid
@@ -2457,7 +2496,8 @@ static int cma_check_port(struct rdma_bind_list *bind_list,
 	return 0;
 }
 
-static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
+static int cma_use_port(enum rdma_port_space ps,
+			struct rdma_id_private *id_priv)
 {
 	struct rdma_bind_list *bind_list;
 	unsigned short snum;
@@ -2467,7 +2507,7 @@ static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
 	if (snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
-	bind_list = idr_find(ps, snum);
+	bind_list = cma_ps_find(ps, snum);
 	if (!bind_list) {
 		ret = cma_alloc_port(ps, id_priv, snum);
 	} else {
@@ -2490,25 +2530,24 @@ static int cma_bind_listen(struct rdma_id_private *id_priv)
 	return ret;
 }
 
-static struct idr *cma_select_inet_ps(struct rdma_id_private *id_priv)
+static enum rdma_port_space cma_select_inet_ps(
+		struct rdma_id_private *id_priv)
 {
 	switch (id_priv->id.ps) {
 	case RDMA_PS_TCP:
-		return &tcp_ps;
 	case RDMA_PS_UDP:
-		return &udp_ps;
 	case RDMA_PS_IPOIB:
-		return &ipoib_ps;
 	case RDMA_PS_IB:
-		return &ib_ps;
+		return id_priv->id.ps;
 	default:
-		return NULL;
+
+		return 0;
 	}
 }
 
-static struct idr *cma_select_ib_ps(struct rdma_id_private *id_priv)
+static enum rdma_port_space cma_select_ib_ps(struct rdma_id_private *id_priv)
 {
-	struct idr *ps = NULL;
+	enum rdma_port_space ps = 0;
 	struct sockaddr_ib *sib;
 	u64 sid_ps, mask, sid;
 
@@ -2518,15 +2557,15 @@ static struct idr *cma_select_ib_ps(struct rdma_id_private *id_priv)
 
 	if ((id_priv->id.ps == RDMA_PS_IB) && (sid == (RDMA_IB_IP_PS_IB & mask))) {
 		sid_ps = RDMA_IB_IP_PS_IB;
-		ps = &ib_ps;
+		ps = RDMA_PS_IB;
 	} else if (((id_priv->id.ps == RDMA_PS_IB) || (id_priv->id.ps == RDMA_PS_TCP)) &&
 		   (sid == (RDMA_IB_IP_PS_TCP & mask))) {
 		sid_ps = RDMA_IB_IP_PS_TCP;
-		ps = &tcp_ps;
+		ps = RDMA_PS_TCP;
 	} else if (((id_priv->id.ps == RDMA_PS_IB) || (id_priv->id.ps == RDMA_PS_UDP)) &&
 		   (sid == (RDMA_IB_IP_PS_UDP & mask))) {
 		sid_ps = RDMA_IB_IP_PS_UDP;
-		ps = &udp_ps;
+		ps = RDMA_PS_UDP;
 	}
 
 	if (ps) {
@@ -2539,7 +2578,7 @@ static struct idr *cma_select_ib_ps(struct rdma_id_private *id_priv)
 
 static int cma_get_port(struct rdma_id_private *id_priv)
 {
-	struct idr *ps;
+	enum rdma_port_space ps;
 	int ret;
 
 	if (cma_family(id_priv) != AF_IB)
