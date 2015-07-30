@@ -24,32 +24,7 @@
 #define GB_USB_TYPE_PROTOCOL_VERSION	0x01
 #define GB_USB_TYPE_HCD_STOP		0x02
 #define GB_USB_TYPE_HCD_START		0x03
-#define GB_USB_TYPE_URB_ENQUEUE		0x04
-#define GB_USB_TYPE_URB_DEQUEUE		0x05
-#define GB_USB_TYPE_ENDPOINT_DISABLE	0x06
 #define GB_USB_TYPE_HUB_CONTROL		0x07
-#define GB_USB_TYPE_GET_FRAME_NUMBER	0x08
-#define GB_USB_TYPE_HUB_STATUS_DATA	0x09
-
-struct gb_usb_urb_enqueue_request {
-	__le32 pipe;
-	__le32 transfer_flags;
-	__le32 transfer_buffer_length;
-	__le32 maxpacket;
-	__le32 interval;
-	__le64 hcpriv_ep;
-	__le32 number_of_packets;
-	u8 setup_packet[8];
-	u8 payload[0];
-};
-
-struct gb_usb_urb_dequeue_request {
-	__le64 hcpriv_ep;
-};
-
-struct gb_usb_endpoint_disable_request {
-	__le64	hcpriv;
-};
 
 struct gb_usb_hub_control_request {
 	__le16 typeReq;
@@ -61,22 +36,6 @@ struct gb_usb_hub_control_request {
 struct gb_usb_hub_control_response {
 	u8 buf[0];
 };
-
-struct gb_usb_header {
-	__le16	size;
-	__le16	id;
-	__u8	type;
-};
-
-struct gb_usb_hub_status {
-	__le32 status;
-	__le16 buf_size;
-	u8 buf[0];
-};
-
-static struct gb_usb_hub_status *hub_status;	// FIXME!!!
-static DEFINE_SPINLOCK(hub_status_lock);
-static atomic_t frame_number;			// FIXME!!!
 
 struct gb_usb_device {
 	struct gb_connection *connection;
@@ -123,83 +82,22 @@ static int hcd_start(struct usb_hcd *hcd)
 
 static int urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 {
-	struct gb_usb_device *dev = to_gb_usb_device(hcd);
-	struct gb_usb_urb_enqueue_request *request;
-	struct gb_operation *operation;
-	int ret;
-
-	operation = gb_operation_create(dev->connection,
-					GB_USB_TYPE_URB_ENQUEUE,
-					sizeof(*request) +
-					urb->transfer_buffer_length, 0,
-					GFP_KERNEL);
-	if (!operation)
-		return -ENODEV;
-
-	request = operation->request->payload;
-	request->pipe = cpu_to_le32(urb->pipe);
-	request->transfer_flags = cpu_to_le32(urb->transfer_flags);
-	request->transfer_buffer_length = cpu_to_le32(urb->transfer_buffer_length);
-	request->interval = cpu_to_le32(urb->interval);
-	request->hcpriv_ep = cpu_to_le64((unsigned long)urb->ep->hcpriv);
-	request->number_of_packets = cpu_to_le32(urb->number_of_packets);
-
-	memcpy(request->setup_packet, urb->setup_packet, 8);
-	memcpy(&request->payload, urb->transfer_buffer,
-	       urb->transfer_buffer_length);
-
-	ret = gb_operation_request_send_sync(operation);
-	gb_operation_destroy(operation);
-
-	return ret;
+	return -ENXIO;
 }
 
 static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
-	struct gb_usb_device *dev = to_gb_usb_device(hcd);
-	struct gb_usb_urb_dequeue_request request;
-	int ret;
-
-	urb->ep->hcpriv = NULL;
-	request.hcpriv_ep = cpu_to_le64((unsigned long)urb->hcpriv);
-	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_URB_DEQUEUE,
-				&request, sizeof(request), NULL, 0);
-	urb->hcpriv = NULL;
-	return ret;
-}
-
-static void endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
-{
-	struct gb_usb_device *dev = to_gb_usb_device(hcd);
-	struct gb_usb_endpoint_disable_request request;
-	int ret;
-
-	request.hcpriv = cpu_to_le64((unsigned long)ep->hcpriv);
-	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_ENDPOINT_DISABLE,
-				&request, sizeof(request), NULL, 0);
-	ep->hcpriv = NULL;
-}
-
-static void endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
-{
+	return -ENXIO;
 }
 
 static int get_frame_number(struct usb_hcd *hcd)
 {
-	return atomic_read(&frame_number);
+	return 0;
 }
 
 static int hub_status_data(struct usb_hcd *hcd, char *buf)
 {
-	int retval;
-	unsigned long flags;
-
-	spin_lock_irqsave(&hub_status_lock, flags);
-	memcpy(buf, hub_status->buf, le16_to_cpu(hub_status->buf_size));
-	retval = le32_to_cpu(hub_status->status);
-	spin_unlock_irqrestore(&hub_status_lock, flags);
-
-	return retval;
+	return 0;
 }
 
 static int hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
@@ -232,81 +130,14 @@ static struct hc_driver usb_gb_hc_driver = {
 
 	.start = hcd_start,
 	.stop = hcd_stop,
+
 	.urb_enqueue = urb_enqueue,
 	.urb_dequeue = urb_dequeue,
-	.endpoint_disable = endpoint_disable,
-	.endpoint_reset = endpoint_reset,
+
 	.get_frame_number = get_frame_number,
 	.hub_status_data = hub_status_data,
 	.hub_control = hub_control,
 };
-
-#if 0
-static inline void gb_usb_handle_get_frame_number(struct gbuf *gbuf)
-{
-	__le32 frame_num;
-	const size_t packet_size = sizeof(struct gb_usb_header) +
-				   sizeof(frame_num);
-	struct gb_usb_header* hdr = gbuf->transfer_buffer;
-
-	if (le16_to_cpu(hdr->size) != packet_size) {
-		pr_err("%s(): dropping packet too small\n", __func__);
-		return;
-	}
-
-	frame_num = (__le32) ((char*) gbuf->transfer_buffer +
-			      sizeof(struct gb_usb_header));
-	atomic_set(&frame_number, le32_to_cpu(frame_num));
-}
-
-static inline void gb_usb_handle_hubs_status_data(struct gbuf *gbuf)
-{
-	struct gb_usb_hub_status *new_hubstatus, *hubstatus;
-	struct gb_usb_header* hdr = gbuf->transfer_buffer;
-	const size_t min_packet_size = sizeof(struct gb_usb_header) +
-				       sizeof(struct gb_usb_hub_status);
-	unsigned long flags;
-
-	if (le16_to_cpu(hdr->size) < min_packet_size) {
-		pr_err("%s(): dropping packet too small\n", __func__);
-		return;
-	}
-
-	hubstatus = (struct gb_usb_hub_status*) ((char*) gbuf->transfer_buffer
-						+ sizeof(struct gb_usb_header));
-
-	if (le16_to_cpu(hdr->size) != min_packet_size + hubstatus->buf_size) {
-		pr_err("%s(): invalid packet size, dropping packet\n",
-		       __func__);
-		return;
-	}
-
-	new_hubstatus = kmalloc(hubstatus->buf_size, GFP_KERNEL);
-	memcpy(&new_hubstatus, hubstatus, hubstatus->buf_size);
-
-	spin_lock_irqsave(&hub_status_lock, flags);
-	hubstatus = hub_status;
-	hub_status = new_hubstatus;
-	spin_unlock_irqrestore(&hub_status_lock, flags);
-
-	kfree(hubstatus);
-}
-
-static void gb_usb_in_handler(struct gbuf *gbuf)
-{
-	struct gb_usb_header* hdr = gbuf->transfer_buffer;
-
-	switch (hdr->type) {
-		case GB_USB_TYPE_GET_FRAME_NUMBER:
-			gb_usb_handle_get_frame_number(gbuf);
-			break;
-
-		case GB_USB_TYPE_HUB_STATUS_DATA:
-			gb_usb_handle_hubs_status_data(gbuf);
-			break;
-	}
-}
-#endif
 
 static int gb_usb_connection_init(struct gb_connection *connection)
 {
