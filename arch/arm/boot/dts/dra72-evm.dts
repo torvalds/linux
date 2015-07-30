@@ -30,6 +30,15 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	evm_3v3_sd: fixedregulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&pcf_gpio_21 5 GPIO_ACTIVE_HIGH>;
+	};
+
 	extcon_usb1: extcon_usb1 {
 		compatible = "linux,extcon-usb-gpio";
 		id-gpio = <&pcf_gpio_21 1 GPIO_ACTIVE_HIGH>;
@@ -497,8 +506,8 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_default>;
-
-	vmmc-supply = <&ldo1_reg>;
+	vmmc-supply = <&evm_3v3_sd>;
+	vmmc_aux-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	/*
 	 * SDCD signal is not being used here - using the fact that GPIO mode
