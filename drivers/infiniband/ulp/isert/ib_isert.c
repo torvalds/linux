@@ -508,7 +508,6 @@ isert_create_pi_ctx(struct fast_reg_descriptor *desc,
 		    struct ib_device *device,
 		    struct ib_pd *pd)
 {
-	struct ib_mr_init_attr mr_init_attr;
 	struct pi_context *pi_ctx;
 	int ret;
 
@@ -536,10 +535,7 @@ isert_create_pi_ctx(struct fast_reg_descriptor *desc,
 	}
 	desc->ind |= ISERT_PROT_KEY_VALID;
 
-	memset(&mr_init_attr, 0, sizeof(mr_init_attr));
-	mr_init_attr.max_reg_descriptors = 2;
-	mr_init_attr.flags |= IB_MR_SIGNATURE_EN;
-	pi_ctx->sig_mr = ib_create_mr(pd, &mr_init_attr);
+	pi_ctx->sig_mr = ib_alloc_mr(pd, IB_MR_TYPE_SIGNATURE, 2);
 	if (IS_ERR(pi_ctx->sig_mr)) {
 		isert_err("Failed to allocate signature enabled mr err=%ld\n",
 			  PTR_ERR(pi_ctx->sig_mr));

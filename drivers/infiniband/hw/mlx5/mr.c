@@ -1244,14 +1244,15 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 	return 0;
 }
 
-struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
-				struct ib_mr_init_attr *mr_init_attr)
+struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
+			       enum ib_mr_type mr_type,
+			       u32 max_num_sg)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_create_mkey_mbox_in *in;
 	struct mlx5_ib_mr *mr;
 	int access_mode, err;
-	int ndescs = roundup(mr_init_attr->max_reg_descriptors, 4);
+	int ndescs = roundup(max_num_sg, 4);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
@@ -1267,9 +1268,11 @@ struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
 	in->seg.xlt_oct_size = cpu_to_be32(ndescs);
 	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
-	access_mode = MLX5_ACCESS_MODE_MTT;
 
-	if (mr_init_attr->flags & IB_MR_SIGNATURE_EN) {
+	if (mr_type == IB_MR_TYPE_MEM_REG) {
+		access_mode = MLX5_ACCESS_MODE_MTT;
+		in->seg.log2_page_size = PAGE_SHIFT;
+	} else if (mr_type == IB_MR_TYPE_SIGNATURE) {
 		u32 psv_index[2];
 
 		in->seg.flags_pd = cpu_to_be32(be32_to_cpu(in->seg.flags_pd) |
@@ -1295,6 +1298,10 @@ struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
 		mr->sig->sig_err_exists = false;
 		/* Next UMR, Arm SIGERR */
 		++mr->sig->sigerr_count;
+	} else {
+		mlx5_ib_warn(dev, "Invalid mr type %d\n", mr_type);
+		err = -EINVAL;
+		goto err_free_in;
 	}
 
 	in->seg.flags = MLX5_PERM_UMR_EN | access_mode;

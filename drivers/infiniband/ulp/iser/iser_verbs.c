@@ -284,9 +284,7 @@ iser_alloc_pi_ctx(struct ib_device *ib_device, struct ib_pd *pd,
 		  struct fast_reg_descriptor *desc)
 {
 	struct iser_pi_context *pi_ctx = NULL;
-	struct ib_mr_init_attr mr_init_attr = {.max_reg_descriptors = 2,
-					       .flags = IB_MR_SIGNATURE_EN};
-	int ret = 0;
+	int ret;
 
 	desc->pi_ctx = kzalloc(sizeof(*desc->pi_ctx), GFP_KERNEL);
 	if (!desc->pi_ctx)
@@ -309,7 +307,7 @@ iser_alloc_pi_ctx(struct ib_device *ib_device, struct ib_pd *pd,
 	}
 	desc->reg_indicators |= ISER_PROT_KEY_VALID;
 
-	pi_ctx->sig_mr = ib_create_mr(pd, &mr_init_attr);
+	pi_ctx->sig_mr = ib_alloc_mr(pd, IB_MR_TYPE_SIGNATURE, 2);
 	if (IS_ERR(pi_ctx->sig_mr)) {
 		ret = PTR_ERR(pi_ctx->sig_mr);
 		goto sig_mr_failure;
