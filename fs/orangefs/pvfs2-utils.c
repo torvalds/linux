@@ -163,7 +163,7 @@ static int copy_attributes_to_inode(struct inode *inode,
 		/*FALLTHRU*/
 	default:
 		pvfs2_lock_inode(inode);
-		inode->i_bytes = PAGE_CACHE_SIZE;
+		inode->i_bytes = (unsigned short)PAGE_CACHE_SIZE;
 		inode->i_blocks = (unsigned long)(PAGE_CACHE_SIZE / 512);
 		pvfs2_unlock_inode(inode);
 
