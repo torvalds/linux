@@ -332,7 +332,7 @@ static void ipoib_cm_init_rx_wr(struct net_device *dev,
 	int i;
 
 	for (i = 0; i < priv->cm.num_frags; ++i)
-		sge[i].lkey = priv->mr->lkey;
+		sge[i].lkey = priv->pd->local_dma_lkey;
 
 	sge[0].length = IPOIB_CM_HEAD_SIZE;
 	for (i = 1; i < priv->cm.num_frags; ++i)
