@@ -1672,8 +1672,6 @@ struct ib_device {
 	struct ib_mr *		   (*alloc_mr)(struct ib_pd *pd,
 					       enum ib_mr_type mr_type,
 					       u32 max_num_sg);
-	struct ib_mr *		   (*alloc_fast_reg_mr)(struct ib_pd *pd,
-					       int max_page_list_len);
 	struct ib_fast_reg_page_list * (*alloc_fast_reg_page_list)(struct ib_device *device,
 								   int page_list_len);
 	void			   (*free_fast_reg_page_list)(struct ib_fast_reg_page_list *page_list);
@@ -2819,15 +2817,6 @@ int ib_dereg_mr(struct ib_mr *mr);
 struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 			  enum ib_mr_type mr_type,
 			  u32 max_num_sg);
-
-/**
- * ib_alloc_fast_reg_mr - Allocates memory region usable with the
- *   IB_WR_FAST_REG_MR send work request.
- * @pd: The protection domain associated with the region.
- * @max_page_list_len: requested max physical buffer list length to be
- *   used with fast register work requests for this MR.
- */
-struct ib_mr *ib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len);
 
 /**
  * ib_alloc_fast_reg_page_list - Allocates a page list array

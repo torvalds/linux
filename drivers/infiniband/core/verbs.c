@@ -1253,15 +1253,10 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 {
 	struct ib_mr *mr;
 
-	if (pd->device->alloc_mr) {
-		mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
-	} else {
-		if (mr_type != IB_MR_TYPE_MEM_REG ||
-		    !pd->device->alloc_fast_reg_mr)
-			return ERR_PTR(-ENOSYS);
-		mr = pd->device->alloc_fast_reg_mr(pd, max_num_sg);
-	}
+	if (!pd->device->alloc_mr)
+		return ERR_PTR(-ENOSYS);
 
+	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
 		mr->pd      = pd;
@@ -1273,27 +1268,6 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 	return mr;
 }
 EXPORT_SYMBOL(ib_alloc_mr);
-
-struct ib_mr *ib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len)
-{
-	struct ib_mr *mr;
-
-	if (!pd->device->alloc_fast_reg_mr)
-		return ERR_PTR(-ENOSYS);
-
-	mr = pd->device->alloc_fast_reg_mr(pd, max_page_list_len);
-
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
-	}
-
-	return mr;
-}
-EXPORT_SYMBOL(ib_alloc_fast_reg_mr);
 
 struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(struct ib_device *device,
 							  int max_page_list_len)
