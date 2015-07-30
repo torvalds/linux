@@ -1129,15 +1129,42 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_bb, u32 *t_rf)
 
 int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason)
 {
+	int rc;
+	u16 reason_code;
 	struct wmi_disconnect_sta_cmd cmd = {
 		.disconnect_reason = cpu_to_le16(reason),
 	};
+	struct {
+		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_disconnect_event evt;
+	} __packed reply;
 
 	ether_addr_copy(cmd.dst_mac, mac);
 
 	wil_dbg_wmi(wil, "%s(%pM, reason %d)\n", __func__, mac, reason);
 
-	return wmi_send(wil, WMI_DISCONNECT_STA_CMDID, &cmd, sizeof(cmd));
+	rc = wmi_call(wil, WMI_DISCONNECT_STA_CMDID, &cmd, sizeof(cmd),
+		      WMI_DISCONNECT_EVENTID, &reply, sizeof(reply), 1000);
+	/* failure to disconnect in reasonable time treated as FW error */
+	if (rc) {
+		wil_fw_error_recovery(wil);
+		return rc;
+	}
+
+	/* call event handler manually after processing wmi_call,
+	 * to avoid deadlock - disconnect event handler acquires wil->mutex
+	 * while it is already held here
+	 */
+	reason_code = le16_to_cpu(reply.evt.protocol_reason_status);
+
+	wil_dbg_wmi(wil, "Disconnect %pM reason [proto %d wmi %d]\n",
+		    reply.evt.bssid, reason_code,
+		    reply.evt.disconnect_reason);
+
+	wil->sinfo_gen++;
+	wil6210_disconnect(wil, reply.evt.bssid, reason_code, true);
+
+	return 0;
 }
 
 int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout)
