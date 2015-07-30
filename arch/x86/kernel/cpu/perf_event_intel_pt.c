@@ -191,6 +191,11 @@ static void pt_config(struct perf_event *event)
 {
 	u64 reg;
 
+	if (!event->hw.itrace_started) {
+		event->hw.itrace_started = 1;
+		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
+	}
+
 	reg = RTIT_CTL_TOPA | RTIT_CTL_BRANCH_EN | RTIT_CTL_TRACEEN;
 
 	if (!event->attr.exclude_kernel)
@@ -910,7 +915,6 @@ void intel_pt_interrupt(void)
 
 		pt_config_buffer(buf->cur->table, buf->cur_idx,
 				 buf->output_off);
-		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 		pt_config(event);
 	}
 }
@@ -934,7 +938,6 @@ static void pt_event_start(struct perf_event *event, int mode)
 
 	pt_config_buffer(buf->cur->table, buf->cur_idx,
 			 buf->output_off);
-	wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 	pt_config(event);
 }
 

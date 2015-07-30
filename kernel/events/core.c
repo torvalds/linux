@@ -6139,8 +6139,6 @@ static void perf_log_itrace_start(struct perf_event *event)
 	    event->hw.itrace_started)
 		return;
 
-	event->hw.itrace_started = 1;
-
 	rec.header.type	= PERF_RECORD_ITRACE_START;
 	rec.header.misc	= 0;
 	rec.header.size	= sizeof(rec);
