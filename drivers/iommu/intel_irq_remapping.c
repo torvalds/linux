@@ -426,6 +426,8 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 			bitmap_set(iommu->ir_table->bitmap, i, 1);
 	}
 
+	iounmap(old_ir_table);
+
 	return 0;
 }
 
