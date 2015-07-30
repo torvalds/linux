@@ -3556,6 +3556,20 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 				    netdev_features_t features);
 
+enum netdev_changeupper_event {
+	NETDEV_CHANGEUPPER_LINK,
+	NETDEV_CHANGEUPPER_UNLINK,
+};
+
+struct netdev_changeupper_info {
+	struct netdev_notifier_info	info; /* must be first */
+	enum netdev_changeupper_event	event;
+	struct net_device		*upper;
+};
+
+void netdev_changeupper_info_change(struct net_device *dev,
+				    struct netdev_changeupper_info *info);
+
 struct netdev_bonding_info {
 	ifslave	slave;
 	ifbond	master;
