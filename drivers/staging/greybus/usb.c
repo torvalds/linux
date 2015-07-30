@@ -110,21 +110,41 @@ static int hub_status_data(struct usb_hcd *hcd, char *buf)
 static int hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		       char *buf, u16 wLength)
 {
-	struct gb_usb_hub_control_request request;
 	struct gb_usb_device *dev = to_gb_usb_device(hcd);
+	struct gb_operation *operation;
+	struct gb_usb_hub_control_request *request;
+	struct gb_usb_hub_control_response *response;
+	size_t response_size;
 	int ret;
 
-	request.typeReq = cpu_to_le16(typeReq);
-	request.wValue = cpu_to_le16(wValue);
-	request.wIndex = cpu_to_le16(wIndex);
-	request.wLength = cpu_to_le16(wLength);
+	/* FIXME: handle unspecified lengths */
+	response_size = sizeof(*response) + wLength;
 
-	// FIXME - buf needs to come back in struct gb_usb_hub_control_response
-	// for some types of requests, depending on typeReq.  Do we do this in a
-	// "generic" way, or only ask for a response for the ones we "know" need
-	// a response (a small subset of all valid typeReq, thankfully.)
-	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_HUB_CONTROL,
-				&request, sizeof(request), NULL, 0);
+	operation = gb_operation_create(dev->connection,
+					GB_USB_TYPE_HUB_CONTROL,
+					sizeof(*request),
+					response_size,
+					GFP_KERNEL);
+	if (!operation)
+		return -ENOMEM;
+
+	request = operation->request->payload;
+	request->typeReq = cpu_to_le16(typeReq);
+	request->wValue = cpu_to_le16(wValue);
+	request->wIndex = cpu_to_le16(wIndex);
+	request->wLength = cpu_to_le16(wLength);
+
+	ret = gb_operation_request_send_sync(operation);
+	if (ret)
+		goto out;
+
+	if (wLength) {
+		/* Greybus core has verified response size */
+		response = operation->response->payload;
+		memcpy(buf, response->buf, wLength);
+	}
+out:
+	gb_operation_put(operation);
 
 	return ret;
 }
