@@ -122,9 +122,9 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 {
 	switch (size) {
 	case 1:
-		return __cmpxchg_case_1(ptr, old, new);
+		return __cmpxchg_case_1(ptr, (u8)old, new);
 	case 2:
-		return __cmpxchg_case_2(ptr, old, new);
+		return __cmpxchg_case_2(ptr, (u16)old, new);
 	case 4:
 		return __cmpxchg_case_4(ptr, old, new);
 	case 8:
@@ -141,9 +141,9 @@ static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 {
 	switch (size) {
 	case 1:
-		return __cmpxchg_case_mb_1(ptr, old, new);
+		return __cmpxchg_case_mb_1(ptr, (u8)old, new);
 	case 2:
-		return __cmpxchg_case_mb_2(ptr, old, new);
+		return __cmpxchg_case_mb_2(ptr, (u16)old, new);
 	case 4:
 		return __cmpxchg_case_mb_4(ptr, old, new);
 	case 8:
