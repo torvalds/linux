@@ -3627,6 +3627,23 @@ struct {
 
 KVM handlers should exit to userspace with rc = -EREMOTE.
 
+7.5 KVM_CAP_SPLIT_IRQCHIP
+
+Architectures: x86
+Parameters: None
+Returns: 0 on success, -1 on error
+
+Create a local apic for each processor in the kernel. This can be used
+instead of KVM_CREATE_IRQCHIP if the userspace VMM wishes to emulate the
+IOAPIC and PIC (and also the PIT, even though this has to be enabled
+separately).
+
+This supersedes KVM_CREATE_IRQCHIP, creating only local APICs, but no in kernel
+IOAPIC or PIC. This also enables in kernel routing of interrupt requests.
+
+Fails if VCPU has already been created, or if the irqchip is already in the
+kernel (i.e. KVM_CREATE_IRQCHIP has already been called).
+
 
 8. Other capabilities.
 ----------------------

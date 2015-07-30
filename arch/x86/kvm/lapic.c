@@ -209,7 +209,8 @@ out:
 	if (old)
 		kfree_rcu(old, rcu);
 
-	kvm_vcpu_request_scan_ioapic(kvm);
+	if (ioapic_in_kernel(kvm))
+		kvm_vcpu_request_scan_ioapic(kvm);
 }
 
 static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
@@ -1845,7 +1846,8 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 		kvm_x86_ops->hwapic_isr_update(vcpu->kvm,
 				apic_find_highest_isr(apic));
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
-	kvm_rtc_eoi_tracking_restore_one(vcpu);
+	if (ioapic_in_kernel(vcpu->kvm))
+		kvm_rtc_eoi_tracking_restore_one(vcpu);
 }
 
 void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)

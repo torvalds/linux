@@ -684,6 +684,8 @@ struct kvm_arch {
 	u32 bsp_vcpu_id;
 
 	u64 disabled_quirks;
+
+	bool irqchip_split;
 };
 
 struct kvm_vm_stat {
