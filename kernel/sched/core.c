@@ -5934,9 +5934,6 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 
 	if (!(sd->flags & SD_LOAD_BALANCE)) {
 		printk("does not load-balance\n");
-		if (sd->parent)
-			printk(KERN_ERR "ERROR: !SD_LOAD_BALANCE domain"
-					" has parent");
 		return -1;
 	}
 
@@ -6029,8 +6026,12 @@ static inline bool sched_debug(void)
 
 static int sd_degenerate(struct sched_domain *sd)
 {
-	if (cpumask_weight(sched_domain_span(sd)) == 1)
-		return 1;
+	if (cpumask_weight(sched_domain_span(sd)) == 1) {
+		if (sd->groups->sge)
+			sd->flags &= ~SD_LOAD_BALANCE;
+		else
+			return 1;
+	}
 
 	/* Following flags need at least 2 groups */
 	if (sd->flags & (SD_LOAD_BALANCE |
@@ -6076,6 +6077,10 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 				SD_PREFER_SIBLING |
 				SD_SHARE_POWERDOMAIN |
 				SD_SHARE_CAP_STATES);
+		if (parent->groups->sge) {
+			parent->flags &= ~SD_LOAD_BALANCE;
+			return 0;
+		}
 		if (nr_node_ids == 1)
 			pflags &= ~SD_SERIALIZE;
 	}
@@ -7353,8 +7358,6 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 				*per_cpu_ptr(d.sd, i) = sd;
 			if (tl->flags & SDTL_OVERLAP || sched_feat(FORCE_SD_OVERLAP))
 				sd->flags |= SD_OVERLAP;
-			if (cpumask_equal(cpu_map, sched_domain_span(sd)))
-				break;
 		}
 	}
 
