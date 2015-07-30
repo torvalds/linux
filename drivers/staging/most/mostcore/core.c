@@ -973,7 +973,7 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 	char *mdev_devnod;
 	char devnod_buf[STRING_SIZE];
 	int ret;
-	unsigned int max_len = min((int)len + 1, STRING_SIZE);
+	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
 	strlcpy(aim_obj->add_link, buf, max_len);
@@ -1036,7 +1036,7 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 	char *mdev;
 	char *mdev_ch;
 	int ret;
-	unsigned int max_len = min((int)len + 1, STRING_SIZE);
+	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
 	strlcpy(aim_obj->remove_link, buf, max_len);
