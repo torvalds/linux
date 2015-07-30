@@ -1245,7 +1245,7 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp)
 	jit->lit = jit->lit_start;
 	jit->prg = 0;
 
-	bpf_jit_prologue(jit, fp->type == BPF_PROG_TYPE_UNSPEC);
+	bpf_jit_prologue(jit, bpf_prog_was_classic(fp));
 	for (i = 0; i < fp->len; i += insn_count) {
 		insn_count = bpf_jit_insn(jit, fp, i);
 		if (insn_count < 0)

@@ -354,6 +354,16 @@ static inline unsigned int bpf_prog_size(unsigned int proglen)
 		   offsetof(struct bpf_prog, insns[proglen]));
 }
 
+static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
+{
+	/* When classic BPF programs have been loaded and the arch
+	 * does not have a classic BPF JIT (anymore), they have been
+	 * converted via bpf_migrate_filter() to eBPF and thus always
+	 * have an unspec program type.
+	 */
+	return prog->type == BPF_PROG_TYPE_UNSPEC;
+}
+
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
 
 #ifdef CONFIG_DEBUG_SET_MODULE_RONX
