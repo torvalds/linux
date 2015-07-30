@@ -87,6 +87,13 @@ MODULE_FIRMWARE("amdgpu/topaz_mec.bin");
 MODULE_FIRMWARE("amdgpu/topaz_mec2.bin");
 MODULE_FIRMWARE("amdgpu/topaz_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/fiji_ce.bin");
+MODULE_FIRMWARE("amdgpu/fiji_pfp.bin");
+MODULE_FIRMWARE("amdgpu/fiji_me.bin");
+MODULE_FIRMWARE("amdgpu/fiji_mec.bin");
+MODULE_FIRMWARE("amdgpu/fiji_mec2.bin");
+MODULE_FIRMWARE("amdgpu/fiji_rlc.bin");
+
 static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 {
 	{mmGDS_VMID0_BASE, mmGDS_VMID0_SIZE, mmGDS_GWS_VMID0, mmGDS_OA_VMID0},
@@ -211,6 +218,71 @@ static const u32 tonga_mgcg_cgcg_init[] =
 	mmCGTS_CU7_TA_CTRL_REG, 0xffffffff, 0x00040007,
 	mmCGTS_CU7_SP1_CTRL_REG, 0xffffffff, 0x00060005,
 	mmCGTS_CU7_TD_TCP_CTRL_REG, 0xffffffff, 0x00090008,
+	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96e00200,
+	mmCP_RB_WPTR_POLL_CNTL, 0xffffffff, 0x00900100,
+	mmRLC_CGCG_CGLS_CTRL, 0xffffffff, 0x0020003c,
+	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
+};
+
+static const u32 fiji_golden_common_all[] =
+{
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmPA_SC_RASTER_CONFIG, 0xffffffff, 0x3a00161a,
+	mmPA_SC_RASTER_CONFIG_1, 0xffffffff, 0x0000002e,
+	mmGB_ADDR_CONFIG, 0xffffffff, 0x12011003,
+	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF
+};
+
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
+	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
+	mmPA_SC_FIFO_DEPTH_CNTL, 0x000003ff, 0x00000100,
+	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
+	mmTCC_CTRL, 0x00100000, 0xf30fff7f,
+	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000ff,
+	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x7d6cf5e4,
+	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x3928b1a0,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
+{
+	mmRLC_CGTT_MGCG_OVERRIDE, 0xffffffff, 0xffffffc0,
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
+	mmCB_CGTT_SCLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_BCI_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_CP_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_CPC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_CPF_CLK_CTRL, 0xffffffff, 0x40000100,
+	mmCGTT_GDS_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_IA_CLK_CTRL, 0xffffffff, 0x06000100,
+	mmCGTT_PA_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_WD_CLK_CTRL, 0xffffffff, 0x06000100,
+	mmCGTT_PC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_RLC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SC_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SPI_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SQ_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SQG_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL0, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL1, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL2, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL3, 0xffffffff, 0x00000100,
+	mmCGTT_SX_CLK_CTRL4, 0xffffffff, 0x00000100,
+	mmCGTT_TCI_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_TCP_CLK_CTRL, 0xffffffff, 0x00000100,
+	mmCGTT_VGT_CLK_CTRL, 0xffffffff, 0x06000100,
+	mmDB_CGTT_CLK_CTRL_0, 0xffffffff, 0x00000100,
+	mmTA_CGTT_CTRL, 0xffffffff, 0x00000100,
+	mmTCA_CGTT_SCLK_CTRL, 0xffffffff, 0x00000100,
+	mmTCC_CGTT_SCLK_CTRL, 0xffffffff, 0x00000100,
+	mmTD_CGTT_CTRL, 0xffffffff, 0x00000100,
+	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
 	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96e00200,
 	mmCP_RB_WPTR_POLL_CNTL, 0xffffffff, 0x00900100,
 	mmRLC_CGCG_CGLS_CTRL, 0xffffffff, 0x0020003c,
@@ -439,6 +511,18 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 						 iceland_golden_common_all,
 						 (const u32)ARRAY_SIZE(iceland_golden_common_all));
 		break;
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
+		amdgpu_program_register_sequence(adev,
+						 fiji_golden_common_all,
+						 (const u32)ARRAY_SIZE(fiji_golden_common_all));
+		break;
+
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
@@ -600,6 +684,9 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
+		break;
+	case CHIP_FIJI:
+		chip_name = "fiji";
 		break;
 	default:
 		BUG();
@@ -1236,6 +1323,7 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 			adev->gfx.config.macrotile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(mmGB_MACROTILE_MODE0 + reg_offset, gb_tile_moden);
 		}
+	case CHIP_FIJI:
 	case CHIP_TONGA:
 		for (reg_offset = 0; reg_offset < num_tile_mode_states; reg_offset++) {
 			switch (reg_offset) {
@@ -1984,6 +2072,23 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
 		gb_addr_config = TOPAZ_GB_ADDR_CONFIG_GOLDEN;
 		break;
+	case CHIP_FIJI:
+		adev->gfx.config.max_shader_engines = 4;
+		adev->gfx.config.max_tile_pipes = 16;
+		adev->gfx.config.max_cu_per_sh = 16;
+		adev->gfx.config.max_sh_per_se = 1;
+		adev->gfx.config.max_backends_per_se = 4;
+		adev->gfx.config.max_texture_channel_caches = 8;
+		adev->gfx.config.max_gprs = 256;
+		adev->gfx.config.max_gs_threads = 32;
+		adev->gfx.config.max_hw_contexts = 8;
+
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
+		gb_addr_config = TONGA_GB_ADDR_CONFIG_GOLDEN;
+		break;
 	case CHIP_TONGA:
 		adev->gfx.config.max_shader_engines = 4;
 		adev->gfx.config.max_tile_pipes = 8;
@@ -2490,6 +2595,7 @@ static int gfx_v8_0_cp_gfx_start(struct amdgpu_device *adev)
 	amdgpu_ring_write(ring, mmPA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
+	case CHIP_FIJI:
 		amdgpu_ring_write(ring, 0x16000012);
 		amdgpu_ring_write(ring, 0x0000002A);
 		break;
@@ -3875,7 +3981,8 @@ static bool gfx_v8_0_ring_emit_semaphore(struct amdgpu_ring *ring,
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
 	if (ring->adev->asic_type == CHIP_TOPAZ ||
-	    ring->adev->asic_type == CHIP_TONGA)
+	    ring->adev->asic_type == CHIP_TONGA ||
+	    ring->adev->asic_type == CHIP_FIJI)
 		/* we got a hw semaphore bug in VI TONGA, return false to switch back to sw fence wait */
 		return false;
 	else {
