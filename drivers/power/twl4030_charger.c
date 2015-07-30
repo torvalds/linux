@@ -119,6 +119,18 @@ struct twl4030_bci {
 #define	CHARGE_AUTO	1
 #define	CHARGE_LINEAR	2
 
+	/* When setting the USB current we slowly increase the
+	 * requested current until target is reached or the voltage
+	 * drops below 4.75V.  In the latter case we step back one
+	 * step.
+	 */
+	unsigned int		usb_cur_target;
+	struct delayed_work	current_worker;
+#define	USB_CUR_STEP	20000	/* 20mA at a time */
+#define	USB_MIN_VOLT	4750000	/* 4.75V */
+#define	USB_CUR_DELAY	msecs_to_jiffies(100)
+#define	USB_MAX_CURRENT	1700000 /* TWL4030 caps at 1.7A */
+
 	unsigned long		event;
 };
 
@@ -257,6 +269,12 @@ static int twl4030_charger_update_current(struct twl4030_bci *bci)
 	} else {
 		cur = bci->usb_cur;
 		bci->ac_is_active = false;
+		if (cur > bci->usb_cur_target) {
+			cur = bci->usb_cur_target;
+			bci->usb_cur = cur;
+		}
+		if (cur < bci->usb_cur_target)
+			schedule_delayed_work(&bci->current_worker, USB_CUR_DELAY);
 	}
 
 	/* First, check thresholds and see if cgain is needed */
@@ -391,6 +409,41 @@ static int twl4030_charger_update_current(struct twl4030_bci *bci)
 	return 0;
 }
 
+static int twl4030_charger_get_current(void);
+
+static void twl4030_current_worker(struct work_struct *data)
+{
+	int v, curr;
+	int res;
+	struct twl4030_bci *bci = container_of(data, struct twl4030_bci,
+					       current_worker.work);
+
+	res = twl4030bci_read_adc_val(TWL4030_BCIVBUS);
+	if (res < 0)
+		v = 0;
+	else
+		/* BCIVBUS uses ADCIN8, 7/1023 V/step */
+		v = res * 6843;
+	curr = twl4030_charger_get_current();
+
+	dev_dbg(bci->dev, "v=%d cur=%d limit=%d target=%d\n", v, curr,
+		bci->usb_cur, bci->usb_cur_target);
+
+	if (v < USB_MIN_VOLT) {
+		/* Back up and stop adjusting. */
+		bci->usb_cur -= USB_CUR_STEP;
+		bci->usb_cur_target = bci->usb_cur;
+	} else if (bci->usb_cur >= bci->usb_cur_target ||
+		   bci->usb_cur + USB_CUR_STEP > USB_MAX_CURRENT) {
+		/* Reached target and voltage is OK - stop */
+		return;
+	} else {
+		bci->usb_cur += USB_CUR_STEP;
+		schedule_delayed_work(&bci->current_worker, USB_CUR_DELAY);
+	}
+	twl4030_charger_update_current(bci);
+}
+
 /*
  * Enable/Disable USB Charge functionality.
  */
@@ -451,6 +504,7 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 			pm_runtime_put_autosuspend(bci->transceiver->dev);
 			bci->usb_enabled = 0;
 		}
+		bci->usb_cur = 0;
 	}
 
 	return ret;
@@ -599,7 +653,7 @@ twl4030_bci_max_current_store(struct device *dev, struct device_attribute *attr,
 	if (dev == &bci->ac->dev)
 		bci->ac_cur = cur;
 	else
-		bci->usb_cur = cur;
+		bci->usb_cur_target = cur;
 
 	twl4030_charger_update_current(bci);
 	return n;
@@ -621,7 +675,7 @@ static ssize_t twl4030_bci_max_current_show(struct device *dev,
 			cur = bci->ac_cur;
 	} else {
 		if (bci->ac_is_active)
-			cur = bci->usb_cur;
+			cur = bci->usb_cur_target;
 	}
 	if (cur < 0) {
 		cur = twl4030bci_read_adc_val(TWL4030_BCIIREF1);
@@ -662,9 +716,9 @@ static int twl4030_bci_usb_ncb(struct notifier_block *nb, unsigned long val,
 
 	/* reset current on each 'plug' event */
 	if (allow_usb)
-		bci->usb_cur = 500000;
+		bci->usb_cur_target = 500000;
 	else
-		bci->usb_cur = 100000;
+		bci->usb_cur_target = 100000;
 
 	bci->event = val;
 	schedule_work(&bci->work);
@@ -927,9 +981,9 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 	bci->ichg_hi = 500000; /* High threshold */
 	bci->ac_cur = 500000; /* 500mA */
 	if (allow_usb)
-		bci->usb_cur = 500000;  /* 500mA */
+		bci->usb_cur_target = 500000;  /* 500mA */
 	else
-		bci->usb_cur = 100000;  /* 100mA */
+		bci->usb_cur_target = 100000;  /* 100mA */
 	bci->usb_mode = CHARGE_AUTO;
 	bci->ac_mode = CHARGE_AUTO;
 
@@ -980,6 +1034,7 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 	}
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
+	INIT_DELAYED_WORK(&bci->current_worker, twl4030_current_worker);
 
 	bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
 	if (bci->dev->of_node) {
