@@ -422,6 +422,8 @@ static struct wlcore_conf wl18xx_conf = {
 		.num_probe_reqs			= 2,
 		.rssi_threshold			= -90,
 		.snr_threshold			= 0,
+		.num_short_intervals		= SCAN_MAX_SHORT_INTERVALS,
+		.long_interval			= 30000,
 	},
 	.ht = {
 		.rx_ba_win_size = 32,
