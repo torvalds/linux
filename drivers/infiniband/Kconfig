@@ -55,7 +55,6 @@ config INFINIBAND_ADDR_TRANS
 	default y
 
 source "drivers/infiniband/hw/mthca/Kconfig"
-source "drivers/infiniband/hw/ipath/Kconfig"
 source "drivers/infiniband/hw/qib/Kconfig"
 source "drivers/infiniband/hw/ehca/Kconfig"
 source "drivers/infiniband/hw/amso1100/Kconfig"

@@ -5536,7 +5536,7 @@ IPATH DRIVER
 M:	Mike Marciniszyn <infinipath@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Maintained
-F:	drivers/infiniband/hw/ipath/
+F:	drivers/staging/rdma/ipath/
 
 IPMI SUBSYSTEM
 M:	Corey Minyard <minyard@acm.org>

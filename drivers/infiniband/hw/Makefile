@@ -1,5 +1,4 @@
 obj-$(CONFIG_INFINIBAND_MTHCA)		+= mthca/
-obj-$(CONFIG_INFINIBAND_IPATH)		+= ipath/
 obj-$(CONFIG_INFINIBAND_QIB)		+= qib/
 obj-$(CONFIG_INFINIBAND_EHCA)		+= ehca/
 obj-$(CONFIG_INFINIBAND_AMSO1100)	+= amso1100/
