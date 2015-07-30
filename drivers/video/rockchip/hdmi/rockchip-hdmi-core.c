@@ -404,6 +404,7 @@ static void hdmi_work_queue(struct work_struct *work)
 						   HDMI_AUDIO_MUTE);
 				msleep(100);
 				hdmi_wq_set_video(hdmi);
+				hdmi_wq_set_audio(hdmi);
 				hdmi_wq_set_output(hdmi, hdmi->mute);
 			} else if (hdmi->mode_3d != HDMI_3D_NONE) {
 				hdmi->ops->setvsi(hdmi, hdmi->mode_3d,
