@@ -474,12 +474,8 @@ struct mlx4_port_gid_table {
 struct mlx4_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[MLX4_MAX_PORTS];
-	struct net_device      *masters[MLX4_MAX_PORTS];
 	atomic64_t		mac[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
-	struct notifier_block	nb_inet;
-	struct notifier_block	nb_inet6;
-	union ib_gid		gid_table[MLX4_MAX_PORTS][128];
 	struct mlx4_port_gid_table gids[MLX4_MAX_PORTS];
 };
 
