@@ -1364,6 +1364,7 @@ static const struct i2c_device_id ir_transceiver_id[] = {
 	{ "ir_rx_z8f0811_hdpvr", ID_FLAG_HDPVR              },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, ir_transceiver_id);
 
 static struct i2c_driver driver = {
 	.driver = {
