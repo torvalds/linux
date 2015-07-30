@@ -39,8 +39,9 @@
 };
 
 &qspi1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_qspi1_1>;
+	pinctrl-1 = <&pinctrl_qspi1_1>;
 	status = "okay";
 	fsl,qspi-has-second-chip = <1>;
 	ddrsmp=<0>;
