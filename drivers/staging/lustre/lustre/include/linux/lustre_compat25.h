@@ -69,11 +69,6 @@
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
 /* inode_dio_done(i) use as-is for read unlock */
 
-
-#ifndef FS_HAS_FIEMAP
-#define FS_HAS_FIEMAP			(0)
-#endif
-
 #ifndef SLAB_DESTROY_BY_RCU
 #define SLAB_DESTROY_BY_RCU 0
 #endif
