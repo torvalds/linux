@@ -85,6 +85,75 @@
 			gpios = <&gpio LPC_GPIO(4,13) GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	leds_mmio {
+		compatible = "gpio-leds";
+
+		led1 {
+			gpios = <&mmio_leds 15 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led2 {
+			gpios = <&mmio_leds 14 GPIO_ACTIVE_HIGH>;
+		};
+
+		led3 {
+			gpios = <&mmio_leds 13 GPIO_ACTIVE_HIGH>;
+		};
+
+		led4 {
+			gpios = <&mmio_leds 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		led5 {
+			gpios = <&mmio_leds 11 GPIO_ACTIVE_HIGH>;
+		};
+
+		led6 {
+			gpios = <&mmio_leds 10 GPIO_ACTIVE_HIGH>;
+		};
+
+		led7 {
+			gpios = <&mmio_leds 9 GPIO_ACTIVE_HIGH>;
+		};
+
+		led8 {
+			gpios = <&mmio_leds 8 GPIO_ACTIVE_HIGH>;
+		};
+
+		led9 {
+			gpios = <&mmio_leds 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		led10 {
+			gpios = <&mmio_leds 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led11 {
+			gpios = <&mmio_leds 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led12 {
+			gpios = <&mmio_leds 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led13 {
+			gpios = <&mmio_leds 3 GPIO_ACTIVE_HIGH>;
+		};
+
+		led14 {
+			gpios = <&mmio_leds 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led15 {
+			gpios = <&mmio_leds 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		led16 {
+			gpios = <&mmio_leds 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
 };
 
 &pinctrl {
