@@ -45,6 +45,7 @@
 #define USB_VENDOR_ID_SMSC	0x0424  /* VID: SMSC */
 #define USB_DEV_ID_BRDG		0xC001  /* PID: USB Bridge */
 #define USB_DEV_ID_INIC		0xCF18  /* PID: USB INIC */
+#define HW_RESYNC		0x0000
 /* DRCI Addresses */
 #define DRCI_REG_NI_STATE	0x0100
 #define DRCI_REG_PACKET_BW	0x0101
@@ -140,20 +141,29 @@ static void wq_netinfo(struct work_struct *wq_obj);
  * @dev: usb device
  *
  */
-static inline void trigger_resync_vr(struct usb_device *dev)
+static void trigger_resync_vr(struct usb_device *dev)
 {
-	int data = 0;
+	int retval;
+	u8 request_type = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT;
+	int *data = kzalloc(sizeof(*data), GFP_KERNEL);
 
-	if (0 > usb_control_msg(dev,
-				usb_sndctrlpipe(dev, 0),
-				0,
-				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT,
-				0,
-				0,
-				&data,
-				0,
-				5 * HZ))
-		pr_info("Vendor request \"stall\" failed\n");
+	if (!data)
+		goto error;
+	*data = HW_RESYNC;
+	retval = usb_control_msg(dev,
+				 usb_sndctrlpipe(dev, 0),
+				 0,
+				 request_type,
+				 0,
+				 0,
+				 data,
+				 0,
+				 5 * HZ);
+	kfree(data);
+	if (retval >= 0)
+		return;
+error:
+	pr_info("Vendor request \"stall\" failed\n");
 }
 
 /**
