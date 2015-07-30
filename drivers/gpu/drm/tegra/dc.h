@@ -128,6 +128,8 @@
 #define DC_DISP_DISP_WIN_OPTIONS		0x402
 #define HDMI_ENABLE	(1 << 30)
 #define DSI_ENABLE	(1 << 29)
+#define SOR1_TIMING_CYA	(1 << 27)
+#define SOR1_ENABLE	(1 << 26)
 #define SOR_ENABLE	(1 << 25)
 #define CURSOR_ENABLE	(1 << 16)
 
@@ -247,9 +249,11 @@
 #define BASE_COLOR_SIZE565     (6 << 0)
 #define BASE_COLOR_SIZE332     (7 << 0)
 #define BASE_COLOR_SIZE888     (8 << 0)
+#define DITHER_CONTROL_MASK    (3 << 8)
 #define DITHER_CONTROL_DISABLE (0 << 8)
 #define DITHER_CONTROL_ORDERED (2 << 8)
 #define DITHER_CONTROL_ERRDIFF (3 << 8)
+#define BASE_COLOR_SIZE_MASK   (0xf << 0)
 #define BASE_COLOR_SIZE_666    (0 << 0)
 #define BASE_COLOR_SIZE_111    (1 << 0)
 #define BASE_COLOR_SIZE_222    (2 << 0)
