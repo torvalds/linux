@@ -3556,7 +3556,6 @@ void synchronize_sched_expedited(void)
 	rcu_exp_gp_seq_start(rsp);
 
 	/* Stop each CPU that is online, non-idle, and not us. */
-	init_waitqueue_head(&rsp->expedited_wq);
 	atomic_set(&rsp->expedited_need_qs, 1); /* Extra count avoids race. */
 	for_each_online_cpu(cpu) {
 		struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
@@ -4179,6 +4178,7 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 	}
 
 	init_waitqueue_head(&rsp->gp_wq);
+	init_waitqueue_head(&rsp->expedited_wq);
 	rnp = rsp->level[rcu_num_lvls - 1];
 	for_each_possible_cpu(i) {
 		while (i > rnp->grphi)

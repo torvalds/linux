@@ -535,8 +535,6 @@ void synchronize_rcu(void)
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
-static DECLARE_WAIT_QUEUE_HEAD(sync_rcu_preempt_exp_wq);
-
 /*
  * Return non-zero if there are any tasks in RCU read-side critical
  * sections blocking the current preemptible-RCU expedited grace period.
@@ -590,7 +588,7 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 			if (wake) {
 				smp_mb(); /* EGP done before wake_up(). */
-				wake_up(&sync_rcu_preempt_exp_wq);
+				wake_up(&rsp->expedited_wq);
 			}
 			break;
 		}
@@ -729,7 +727,7 @@ void synchronize_rcu_expedited(void)
 
 	/* Wait for snapshotted ->blkd_tasks lists to drain. */
 	rnp = rcu_get_root(rsp);
-	wait_event(sync_rcu_preempt_exp_wq,
+	wait_event(rsp->expedited_wq,
 		   sync_rcu_preempt_exp_done(rnp));
 
 	/* Clean up and exit. */
