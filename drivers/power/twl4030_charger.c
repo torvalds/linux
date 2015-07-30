@@ -22,7 +22,6 @@
 #include <linux/power_supply.h>
 #include <linux/notifier.h>
 #include <linux/usb/otg.h>
-#include <linux/regulator/machine.h>
 
 #define TWL4030_BCIMSTATEC	0x02
 #define TWL4030_BCIICHG		0x08
@@ -94,7 +93,6 @@ struct twl4030_bci {
 	struct work_struct	work;
 	int			irq_chg;
 	int			irq_bci;
-	struct regulator	*usb_reg;
 	int			usb_enabled;
 
 	unsigned long		event;
@@ -208,7 +206,7 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 {
 	int ret;
 
-	if (enable) {
+	if (enable && !IS_ERR_OR_NULL(bci->transceiver)) {
 		/* Check for USB charger connected */
 		if (!twl4030_bci_have_vbus(bci))
 			return -ENODEV;
@@ -222,14 +220,9 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 			return -EACCES;
 		}
 
-		/* Need to keep regulator on */
+		/* Need to keep phy powered */
 		if (!bci->usb_enabled) {
-			ret = regulator_enable(bci->usb_reg);
-			if (ret) {
-				dev_err(bci->dev,
-					"Failed to enable regulator\n");
-				return ret;
-			}
+			pm_runtime_get_sync(bci->transceiver->dev);
 			bci->usb_enabled = 1;
 		}
 
@@ -244,7 +237,8 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 	} else {
 		ret = twl4030_clear_set_boot_bci(TWL4030_BCIAUTOUSB, 0);
 		if (bci->usb_enabled) {
-			regulator_disable(bci->usb_reg);
+			pm_runtime_mark_last_busy(bci->transceiver->dev);
+			pm_runtime_put_autosuspend(bci->transceiver->dev);
 			bci->usb_enabled = 0;
 		}
 	}
@@ -608,8 +602,6 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register ac: %d\n", ret);
 		return ret;
 	}
-
-	bci->usb_reg = regulator_get(bci->dev, "bci3v1");
 
 	bci->usb = devm_power_supply_register(&pdev->dev, &twl4030_bci_usb_desc,
 					      NULL);
