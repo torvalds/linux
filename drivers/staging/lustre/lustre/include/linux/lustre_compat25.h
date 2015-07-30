@@ -74,10 +74,6 @@
 #define FS_HAS_FIEMAP			(0)
 #endif
 
-#define cfs_bio_io_error(a, b)   bio_io_error((a))
-#define cfs_bio_endio(a, b, c)    bio_endio((a), (c))
-
-
 #ifndef SLAB_DESTROY_BY_RCU
 #define SLAB_DESTROY_BY_RCU 0
 #endif
