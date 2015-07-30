@@ -1093,16 +1093,20 @@ static int sdma_alloc_chan_resources(struct dma_chan *chan)
 	sdmac->event_id0 = data->dma_request;
 	sdmac->event_id1 = data->dma_request2;
 
-	clk_enable(sdmac->sdma->clk_ipg);
-	clk_enable(sdmac->sdma->clk_ahb);
+	ret = clk_enable(sdmac->sdma->clk_ipg);
+	if (ret)
+		return ret;
+	ret = clk_enable(sdmac->sdma->clk_ahb);
+	if (ret)
+		goto disable_clk_ipg;
 
 	ret = sdma_request_channel(sdmac);
 	if (ret)
-		return ret;
+		goto disable_clk_ahb;
 
 	ret = sdma_set_channel_priority(sdmac, prio);
 	if (ret)
-		return ret;
+		goto disable_clk_ahb;
 
 	dma_async_tx_descriptor_init(&sdmac->desc, chan);
 	sdmac->desc.tx_submit = sdma_tx_submit;
@@ -1110,6 +1114,12 @@ static int sdma_alloc_chan_resources(struct dma_chan *chan)
 	sdmac->desc.flags = DMA_CTRL_ACK;
 
 	return 0;
+
+disable_clk_ahb:
+	clk_disable(sdmac->sdma->clk_ahb);
+disable_clk_ipg:
+	clk_disable(sdmac->sdma->clk_ipg);
+	return ret;
 }
 
 static void sdma_free_chan_resources(struct dma_chan *chan)
@@ -1533,8 +1543,12 @@ static int sdma_init(struct sdma_engine *sdma)
 	int i, ret;
 	dma_addr_t ccb_phys;
 
-	clk_enable(sdma->clk_ipg);
-	clk_enable(sdma->clk_ahb);
+	ret = clk_enable(sdma->clk_ipg);
+	if (ret)
+		return ret;
+	ret = clk_enable(sdma->clk_ahb);
+	if (ret)
+		goto disable_clk_ipg;
 
 	/* Be sure SDMA has not started yet */
 	writel_relaxed(0, sdma->regs + SDMA_H_C0PTR);
@@ -1590,8 +1604,9 @@ static int sdma_init(struct sdma_engine *sdma)
 	return 0;
 
 err_dma_alloc:
-	clk_disable(sdma->clk_ipg);
 	clk_disable(sdma->clk_ahb);
+disable_clk_ipg:
+	clk_disable(sdma->clk_ipg);
 	dev_err(sdma->dev, "initialisation failed with %d\n", ret);
 	return ret;
 }
