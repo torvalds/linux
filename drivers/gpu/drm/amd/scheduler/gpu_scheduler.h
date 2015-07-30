@@ -26,8 +26,6 @@
 
 #include <linux/kfifo.h>
 
-#define AMD_MAX_ACTIVE_HW_SUBMISSION		2
-
 #define AMD_KERNEL_CONTEXT_ID			0
 #define AMD_KERNEL_PROCESS_ID			0
 
@@ -127,7 +125,8 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 				struct amd_sched_backend_ops *ops,
 				uint32_t ring,
 				uint32_t granularity,
-				uint32_t preemption);
+				uint32_t preemption,
+				uint32_t hw_submission);
 
 int amd_sched_destroy(struct amd_gpu_scheduler *sched);
 

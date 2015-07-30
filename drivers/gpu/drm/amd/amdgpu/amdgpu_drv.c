@@ -77,6 +77,7 @@ int amdgpu_vm_block_size = -1;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_enable_scheduler = 0;
 int amdgpu_sched_jobs = 16;
+int amdgpu_sched_hw_submission = 2;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -146,6 +147,9 @@ module_param_named(enable_scheduler, amdgpu_enable_scheduler, int, 0444);
 
 MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 16)");
 module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
+
+MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
+module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK

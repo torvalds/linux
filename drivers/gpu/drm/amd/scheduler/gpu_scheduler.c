@@ -468,7 +468,8 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 					   struct amd_sched_backend_ops *ops,
 					   unsigned ring,
 					   unsigned granularity,
-					   unsigned preemption)
+					   unsigned preemption,
+					   unsigned hw_submission)
 {
 	struct amd_gpu_scheduler *sched;
 	char name[20] = "gpu_sched[0]";
@@ -495,7 +496,7 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 
 	init_waitqueue_head(&sched->wait_queue);
 	if(kfifo_alloc(&sched->active_hw_rq,
-		       AMD_MAX_ACTIVE_HW_SUBMISSION * sizeof(void *),
+		       hw_submission * sizeof(void *),
 		       GFP_KERNEL)) {
 		kfree(sched);
 		return NULL;
