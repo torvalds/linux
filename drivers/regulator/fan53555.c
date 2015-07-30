@@ -439,6 +439,7 @@ static const struct i2c_device_id fan53555_id[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, fan53555_id);
 
 static struct i2c_driver fan53555_regulator_driver = {
 	.driver = {
