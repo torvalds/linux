@@ -259,11 +259,80 @@ static const struct pci_device_id wil6210_pcie_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);
 
+#ifdef CONFIG_PM
+
+static int wil6210_suspend(struct device *dev, bool is_runtime)
+{
+	int rc = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+
+	wil_dbg_pm(wil, "%s(%s)\n", __func__,
+		   is_runtime ? "runtime" : "system");
+
+	rc = wil_can_suspend(wil, is_runtime);
+	if (rc)
+		goto out;
+
+	rc = wil_suspend(wil, is_runtime);
+	if (rc)
+		goto out;
+
+	/* TODO: how do I bring card in low power state? */
+
+	/* disable bus mastering */
+	pci_clear_master(pdev);
+	/* PCI will call pci_save_state(pdev) and pci_prepare_to_sleep(pdev) */
+
+out:
+	return rc;
+}
+
+static int wil6210_resume(struct device *dev, bool is_runtime)
+{
+	int rc = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+
+	wil_dbg_pm(wil, "%s(%s)\n", __func__,
+		   is_runtime ? "runtime" : "system");
+
+	/* allow master */
+	pci_set_master(pdev);
+
+	rc = wil_resume(wil, is_runtime);
+	if (rc)
+		pci_clear_master(pdev);
+
+	return rc;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int wil6210_pm_suspend(struct device *dev)
+{
+	return wil6210_suspend(dev, false);
+}
+
+static int wil6210_pm_resume(struct device *dev)
+{
+	return wil6210_resume(dev, false);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops wil6210_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(wil6210_pm_suspend, wil6210_pm_resume)
+};
+
 static struct pci_driver wil6210_driver = {
 	.probe		= wil_pcie_probe,
 	.remove		= wil_pcie_remove,
 	.id_table	= wil6210_pcie_ids,
 	.name		= WIL_NAME,
+	.driver		= {
+		.pm = &wil6210_pm_ops,
+	},
 };
 
 static int __init wil6210_driver_init(void)
