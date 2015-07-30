@@ -1123,7 +1123,6 @@ static void destroy_umrc_res(struct mlx5_ib_dev *dev)
 
 	mlx5_ib_destroy_qp(dev->umrc.qp);
 	ib_destroy_cq(dev->umrc.cq);
-	ib_dereg_mr(dev->umrc.mr);
 	ib_dealloc_pd(dev->umrc.pd);
 }
 
@@ -1138,7 +1137,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	struct ib_pd *pd;
 	struct ib_cq *cq;
 	struct ib_qp *qp;
-	struct ib_mr *mr;
 	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
@@ -1154,13 +1152,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 		mlx5_ib_dbg(dev, "Couldn't create PD for sync UMR QP\n");
 		ret = PTR_ERR(pd);
 		goto error_0;
-	}
-
-	mr = ib_get_dma_mr(pd,  IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(mr)) {
-		mlx5_ib_dbg(dev, "Couldn't create DMA MR for sync UMR QP\n");
-		ret = PTR_ERR(mr);
-		goto error_1;
 	}
 
 	cq_attr.cqe = 128;
@@ -1220,7 +1211,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 
 	dev->umrc.qp = qp;
 	dev->umrc.cq = cq;
-	dev->umrc.mr = mr;
 	dev->umrc.pd = pd;
 
 	sema_init(&dev->umrc.sem, MAX_UMR_WR);
@@ -1242,9 +1232,6 @@ error_3:
 	ib_destroy_cq(cq);
 
 error_2:
-	ib_dereg_mr(mr);
-
-error_1:
 	ib_dealloc_pd(pd);
 
 error_0:

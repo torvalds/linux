@@ -687,12 +687,11 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 			     int access_flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct ib_mr *mr = dev->umrc.mr;
 	struct mlx5_umr_wr *umrwr = (struct mlx5_umr_wr *)&wr->wr.fast_reg;
 
 	sg->addr = dma;
 	sg->length = ALIGN(sizeof(u64) * n, 64);
-	sg->lkey = mr->lkey;
+	sg->lkey = dev->umrc.pd->local_dma_lkey;
 
 	wr->next = NULL;
 	wr->send_flags = 0;
@@ -923,7 +922,7 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 		sg.addr = dma;
 		sg.length = ALIGN(npages * sizeof(u64),
 				MLX5_UMR_MTT_ALIGNMENT);
-		sg.lkey = dev->umrc.mr->lkey;
+		sg.lkey = dev->umrc.pd->local_dma_lkey;
 
 		wr.send_flags = MLX5_IB_SEND_UMR_FAIL_IF_FREE |
 				MLX5_IB_SEND_UMR_UPDATE_MTT;

@@ -349,7 +349,6 @@ struct umr_common {
 	struct ib_pd	*pd;
 	struct ib_cq	*cq;
 	struct ib_qp	*qp;
-	struct ib_mr	*mr;
 	/* control access to UMR QP
 	 */
 	struct semaphore	sem;
