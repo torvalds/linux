@@ -49,13 +49,17 @@
  */
 #define INVALID_LINK_SEQ 0x10000
 
-
-/* Link endpoint receive states
+/* Link FSM events:
  */
 enum {
-	TIPC_LINK_OPEN,
-	TIPC_LINK_BLOCKED,
-	TIPC_LINK_TUNNEL
+	LINK_ESTABLISH_EVT       = 0xec1ab1e,
+	LINK_PEER_RESET_EVT      = 0x9eed0e,
+	LINK_FAILURE_EVT         = 0xfa110e,
+	LINK_RESET_EVT           = 0x10ca1d0e,
+	LINK_FAILOVER_BEGIN_EVT  = 0xfa110bee,
+	LINK_FAILOVER_END_EVT    = 0xfa110ede,
+	LINK_SYNCH_BEGIN_EVT     = 0xc1ccbee,
+	LINK_SYNCH_END_EVT       = 0xc1ccede
 };
 
 /* Events returned from link at packet reception or at timeout
@@ -120,7 +124,6 @@ struct tipc_stats {
  * @pmsg: convenience pointer to "proto_msg" field
  * @priority: current link priority
  * @net_plane: current link network plane ('A' through 'H')
- * @exec_mode: transmit/receive mode for link endpoint instance
  * @backlog_limit: backlog queue congestion thresholds (indexed by importance)
  * @exp_msg_count: # of tunnelled messages expected during link changeover
  * @reset_rcv_checkpt: seq # of last acknowledged message at time of link reset
@@ -155,7 +158,7 @@ struct tipc_link {
 	u32 tolerance;
 	unsigned long keepalive_intv;
 	u32 abort_limit;
-	int state;
+	u32 state;
 	u32 silent_intv_cnt;
 	struct {
 		unchar hdr[INT_H_SIZE];
@@ -166,7 +169,6 @@ struct tipc_link {
 	char net_plane;
 
 	/* Failover/synch */
-	u8 exec_mode;
 	u16 drop_point;
 	struct sk_buff *failover_reasm_skb;
 
@@ -214,8 +216,13 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq);
 void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
 				    struct sk_buff_head *xmitq);
+int tipc_link_fsm_evt(struct tipc_link *l, int evt);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
-int tipc_link_is_up(struct tipc_link *l_ptr);
+bool tipc_link_is_up(struct tipc_link *l);
+bool tipc_link_is_reset(struct tipc_link *l);
+bool tipc_link_is_synching(struct tipc_link *l);
+bool tipc_link_is_failingover(struct tipc_link *l);
+bool tipc_link_is_blocked(struct tipc_link *l);
 int tipc_link_is_active(struct tipc_link *l_ptr);
 void tipc_link_purge_queues(struct tipc_link *l_ptr);
 void tipc_link_purge_backlog(struct tipc_link *l);

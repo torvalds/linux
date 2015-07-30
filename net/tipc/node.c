@@ -334,7 +334,6 @@ static void tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	if (!ol) {
 		*slot0 = bearer_id;
 		*slot1 = bearer_id;
-		nl->exec_mode = TIPC_LINK_OPEN;
 		tipc_link_build_bcast_sync_msg(nl, xmitq);
 		node_established_contact(n);
 		return;
@@ -368,7 +367,7 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id)
 	struct sk_buff_head xmitq;
 
 	l = n->links[bearer_id].link;
-	if (!l || !tipc_link_is_up(l))
+	if (!l || tipc_link_is_reset(l))
 		return;
 
 	__skb_queue_head_init(&xmitq);
@@ -414,6 +413,7 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id)
 	n->sync_point = tnl->rcv_nxt + (U16_MAX / 2 - 1);
 	tipc_link_tnl_prepare(l, tnl, FAILOVER_MSG, &xmitq);
 	tipc_link_reset(l);
+	tipc_link_fsm_evt(l, LINK_FAILOVER_BEGIN_EVT);
 	tipc_bearer_xmit(n->net, tnl->bearer_id, &xmitq, maddr);
 }
 
@@ -749,7 +749,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		struct tipc_link *l_ptr = n_ptr->links[i].link;
 		if (!l_ptr)
 			continue;
-		l_ptr->exec_mode = TIPC_LINK_OPEN;
+		tipc_link_fsm_evt(l_ptr, LINK_FAILOVER_END_EVT);
 		kfree_skb(l_ptr->failover_reasm_skb);
 		l_ptr->failover_reasm_skb = NULL;
 		tipc_link_reset_fragments(l_ptr);
@@ -989,7 +989,7 @@ int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
  * Returns true if state is ok, otherwise consumes buffer and returns false
  */
 static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
-				  int bearer_id)
+				  int bearer_id, struct sk_buff_head *xmitq)
 {
 	struct tipc_msg *hdr = buf_msg(skb);
 	int usr = msg_user(hdr);
@@ -1042,42 +1042,47 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	/* Initiate or update failover mode if applicable */
 	if ((usr == TUNNEL_PROTOCOL) && (mtyp == FAILOVER_MSG)) {
 		syncpt = oseqno + exp_pkts - 1;
-		if (pl && tipc_link_is_up(pl)) {
+		if (pl && tipc_link_is_up(pl))
 			tipc_node_link_down(n, pl->bearer_id);
-			pl->exec_mode = TIPC_LINK_BLOCKED;
-		}
+
 		/* If pkts arrive out of order, use lowest calculated syncpt */
 		if (less(syncpt, n->sync_point))
 			n->sync_point = syncpt;
 	}
 
 	/* Open parallel link when tunnel link reaches synch point */
-	if ((n->state == NODE_FAILINGOVER) && (more(rcv_nxt, n->sync_point))) {
+	if ((n->state == NODE_FAILINGOVER) && !tipc_link_is_failingover(l)) {
+		if (!more(rcv_nxt, n->sync_point))
+			return true;
 		tipc_node_fsm_evt(n, NODE_FAILOVER_END_EVT);
 		if (pl)
-			pl->exec_mode = TIPC_LINK_OPEN;
+			tipc_link_fsm_evt(pl, LINK_FAILOVER_END_EVT);
 		return true;
 	}
 
 	/* Initiate or update synch mode if applicable */
 	if ((usr == TUNNEL_PROTOCOL) && (mtyp == SYNCH_MSG)) {
 		syncpt = iseqno + exp_pkts - 1;
+		if (!tipc_link_is_up(l)) {
+			tipc_link_fsm_evt(l, LINK_ESTABLISH_EVT);
+			tipc_node_link_up(n, bearer_id, xmitq);
+		}
 		if (n->state == SELF_UP_PEER_UP) {
 			n->sync_point = syncpt;
+			tipc_link_fsm_evt(l, LINK_SYNCH_BEGIN_EVT);
 			tipc_node_fsm_evt(n, NODE_SYNCH_BEGIN_EVT);
 		}
-		l->exec_mode = TIPC_LINK_TUNNEL;
 		if (less(syncpt, n->sync_point))
 			n->sync_point = syncpt;
 	}
 
 	/* Open tunnel link when parallel link reaches synch point */
-	if ((n->state == NODE_SYNCHING) && (l->exec_mode == TIPC_LINK_TUNNEL)) {
+	if ((n->state == NODE_SYNCHING) && tipc_link_is_synching(l)) {
 		if (pl)
 			dlv_nxt = mod(pl->rcv_nxt - skb_queue_len(pl->inputq));
 		if (!pl || more(dlv_nxt, n->sync_point)) {
+			tipc_link_fsm_evt(l, LINK_SYNCH_END_EVT);
 			tipc_node_fsm_evt(n, NODE_SYNCH_END_EVT);
-			l->exec_mode = TIPC_LINK_OPEN;
 			return true;
 		}
 		if ((usr == TUNNEL_PROTOCOL) && (mtyp == SYNCH_MSG))
@@ -1143,7 +1148,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 		tipc_bclink_acknowledge(n, msg_bcast_ack(hdr));
 
 	/* Check and if necessary update node state */
-	if (likely(tipc_node_check_state(n, skb, bearer_id))) {
+	if (likely(tipc_node_check_state(n, skb, bearer_id, &xmitq))) {
 		rc = tipc_link_rcv(le->link, skb, &xmitq);
 		skb = NULL;
 	}
