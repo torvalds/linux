@@ -545,7 +545,9 @@ at86rf230_async_state_delay(void *context)
 	}
 
 	/* Default delay is 1us in the most cases */
-	tim = ktime_set(0, NSEC_PER_USEC);
+	udelay(1);
+	at86rf230_async_state_timer(&ctx->timer);
+	return;
 
 change:
 	hrtimer_start(&ctx->timer, tim, HRTIMER_MODE_REL);
