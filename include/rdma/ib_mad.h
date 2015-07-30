@@ -526,7 +526,6 @@ enum {
 struct ib_mad_agent {
 	struct ib_device	*device;
 	struct ib_qp		*qp;
-	struct ib_mr		*mr;
 	ib_mad_recv_handler	recv_handler;
 	ib_mad_send_handler	send_handler;
 	ib_mad_snoop_handler	snoop_handler;
