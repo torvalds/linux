@@ -124,6 +124,7 @@ static const struct of_device_id rt5033_dt_match[] = {
 	{ .compatible = "richtek,rt5033", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, rt5033_dt_match);
 
 static struct i2c_driver rt5033_driver = {
 	.driver = {
