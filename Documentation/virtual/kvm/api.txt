@@ -401,10 +401,9 @@ Capability: basic
 Architectures: x86, ppc, mips
 Type: vcpu ioctl
 Parameters: struct kvm_interrupt (in)
-Returns: 0 on success, -1 on error
+Returns: 0 on success, negative on failure.
 
-Queues a hardware interrupt vector to be injected.  This is only
-useful if in-kernel local APIC or equivalent is not used.
+Queues a hardware interrupt vector to be injected.
 
 /* for KVM_INTERRUPT */
 struct kvm_interrupt {
@@ -414,7 +413,14 @@ struct kvm_interrupt {
 
 X86:
 
-Note 'irq' is an interrupt vector, not an interrupt pin or line.
+Returns: 0 on success,
+	 -EEXIST if an interrupt is already enqueued
+	 -EINVAL the the irq number is invalid
+	 -ENXIO if the PIC is in the kernel
+	 -EFAULT if the pointer is invalid
+
+Note 'irq' is an interrupt vector, not an interrupt pin or line. This
+ioctl is useful if the in-kernel PIC is not used.
 
 PPC:
 

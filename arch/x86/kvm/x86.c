@@ -2662,12 +2662,24 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 {
 	if (irq->irq >= KVM_NR_INTERRUPTS)
 		return -EINVAL;
-	if (irqchip_in_kernel(vcpu->kvm))
+
+	if (!irqchip_in_kernel(vcpu->kvm)) {
+		kvm_queue_interrupt(vcpu, irq->irq, false);
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		return 0;
+	}
+
+	/*
+	 * With in-kernel LAPIC, we only use this to inject EXTINT, so
+	 * fail for in-kernel 8259.
+	 */
+	if (pic_in_kernel(vcpu->kvm))
 		return -ENXIO;
 
-	kvm_queue_interrupt(vcpu, irq->irq, false);
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
+	if (vcpu->arch.pending_external_vector != -1)
+		return -EEXIST;
 
+	vcpu->arch.pending_external_vector = irq->irq;
 	return 0;
 }
 
@@ -5796,9 +5808,15 @@ static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt)
  */
 static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu)
 {
-	return (!irqchip_in_kernel(vcpu->kvm) && !kvm_cpu_has_interrupt(vcpu) &&
-		vcpu->run->request_interrupt_window &&
-		kvm_arch_interrupt_allowed(vcpu));
+	if (!vcpu->run->request_interrupt_window || pic_in_kernel(vcpu->kvm))
+		return false;
+
+	if (kvm_cpu_has_interrupt(vcpu))
+		return false;
+
+	return (irqchip_split(vcpu->kvm)
+		? kvm_apic_accept_pic_intr(vcpu)
+		: kvm_arch_interrupt_allowed(vcpu));
 }
 
 static void post_kvm_run_save(struct kvm_vcpu *vcpu)
@@ -5809,13 +5827,17 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu)
 	kvm_run->flags = is_smm(vcpu) ? KVM_RUN_X86_SMM : 0;
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
-	if (irqchip_in_kernel(vcpu->kvm))
-		kvm_run->ready_for_interrupt_injection = 1;
-	else
+	if (!irqchip_in_kernel(vcpu->kvm))
 		kvm_run->ready_for_interrupt_injection =
 			kvm_arch_interrupt_allowed(vcpu) &&
 			!kvm_cpu_has_interrupt(vcpu) &&
 			!kvm_event_needs_reinjection(vcpu);
+	else if (!pic_in_kernel(vcpu->kvm))
+		kvm_run->ready_for_interrupt_injection =
+			kvm_apic_accept_pic_intr(vcpu) &&
+			!kvm_cpu_has_interrupt(vcpu);
+	else
+		kvm_run->ready_for_interrupt_injection = 1;
 }
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu)
@@ -7402,6 +7424,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	kvm_async_pf_hash_reset(vcpu);
 	kvm_pmu_init(vcpu);
+
+	vcpu->arch.pending_external_vector = -1;
 
 	return 0;
 

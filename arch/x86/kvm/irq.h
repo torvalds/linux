@@ -83,6 +83,14 @@ static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
 	return kvm->arch.vpic;
 }
 
+static inline int pic_in_kernel(struct kvm *kvm)
+{
+	int ret;
+
+	ret = (pic_irqchip(kvm) != NULL);
+	return ret;
+}
+
 static inline int irqchip_split(struct kvm *kvm)
 {
 	return kvm->arch.irqchip_split;

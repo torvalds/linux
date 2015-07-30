@@ -38,14 +38,27 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
 
 /*
+ * check if there is a pending userspace external interrupt
+ */
+static int pending_userspace_extint(struct kvm_vcpu *v)
+{
+	return v->arch.pending_external_vector != -1;
+}
+
+/*
  * check if there is pending interrupt from
  * non-APIC source without intack.
  */
 static int kvm_cpu_has_extint(struct kvm_vcpu *v)
 {
-	if (kvm_apic_accept_pic_intr(v))
-		return pic_irqchip(v->kvm)->output;	/* PIC */
-	else
+	u8 accept = kvm_apic_accept_pic_intr(v);
+
+	if (accept) {
+		if (irqchip_split(v->kvm))
+			return pending_userspace_extint(v);
+		else
+			return pic_irqchip(v->kvm)->output;
+	} else
 		return 0;
 }
 
@@ -91,9 +104,16 @@ EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
  */
 static int kvm_cpu_get_extint(struct kvm_vcpu *v)
 {
-	if (kvm_cpu_has_extint(v))
-		return kvm_pic_read_irq(v->kvm); /* PIC */
-	return -1;
+	if (kvm_cpu_has_extint(v)) {
+		if (irqchip_split(v->kvm)) {
+			int vector = v->arch.pending_external_vector;
+
+			v->arch.pending_external_vector = -1;
+			return vector;
+		} else
+			return kvm_pic_read_irq(v->kvm); /* PIC */
+	} else
+		return -1;
 }
 
 /*
