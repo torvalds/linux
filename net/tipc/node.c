@@ -873,10 +873,8 @@ static void node_lost_contact(struct tipc_node *n_ptr,
 				      SHORT_H_SIZE, 0, tn->own_addr,
 				      conn->peer_node, conn->port,
 				      conn->peer_port, TIPC_ERR_NO_NODE);
-		if (likely(skb)) {
+		if (likely(skb))
 			skb_queue_tail(inputq, skb);
-			n_ptr->action_flags |= TIPC_MSG_EVT;
-		}
 		list_del(&conn->list);
 		kfree(conn);
 	}
@@ -923,27 +921,20 @@ void tipc_node_unlock(struct tipc_node *node)
 	u32 flags = node->action_flags;
 	u32 link_id = 0;
 	struct list_head *publ_list;
-	struct sk_buff_head *inputq = node->inputq;
-	struct sk_buff_head *namedq;
 
-	if (likely(!flags || (flags == TIPC_MSG_EVT))) {
-		node->action_flags = 0;
+	if (likely(!flags)) {
 		spin_unlock_bh(&node->lock);
-		if (flags == TIPC_MSG_EVT)
-			tipc_sk_rcv(net, inputq);
 		return;
 	}
 
 	addr = node->addr;
 	link_id = node->link_id;
-	namedq = node->namedq;
 	publ_list = &node->publ_list;
 
-	node->action_flags &= ~(TIPC_MSG_EVT |
-				TIPC_NOTIFY_NODE_DOWN | TIPC_NOTIFY_NODE_UP |
+	node->action_flags &= ~(TIPC_NOTIFY_NODE_DOWN | TIPC_NOTIFY_NODE_UP |
 				TIPC_NOTIFY_LINK_DOWN | TIPC_NOTIFY_LINK_UP |
 				TIPC_WAKEUP_BCAST_USERS | TIPC_BCAST_MSG_EVT |
-				TIPC_NAMED_MSG_EVT | TIPC_BCAST_RESET);
+				TIPC_BCAST_RESET);
 
 	spin_unlock_bh(&node->lock);
 
@@ -963,12 +954,6 @@ void tipc_node_unlock(struct tipc_node *node)
 	if (flags & TIPC_NOTIFY_LINK_DOWN)
 		tipc_nametbl_withdraw(net, TIPC_LINK_STATE, addr,
 				      link_id, addr);
-
-	if (flags & TIPC_MSG_EVT)
-		tipc_sk_rcv(net, inputq);
-
-	if (flags & TIPC_NAMED_MSG_EVT)
-		tipc_named_rcv(net, namedq);
 
 	if (flags & TIPC_BCAST_MSG_EVT)
 		tipc_bclink_input(net);
@@ -1269,6 +1254,9 @@ unlock:
 
 	if (unlikely(rc & TIPC_LINK_DOWN_EVT))
 		tipc_node_link_down(n, bearer_id, false);
+
+	if (unlikely(!skb_queue_empty(&n->bclink.namedq)))
+		tipc_named_rcv(net, &n->bclink.namedq);
 
 	if (!skb_queue_empty(&le->inputq))
 		tipc_sk_rcv(net, &le->inputq);

@@ -862,28 +862,6 @@ static inline struct sk_buff *tipc_skb_dequeue(struct sk_buff_head *list,
 	return skb;
 }
 
-/* tipc_skb_queue_tail(): add buffer to tail of list;
- * @list: list to be appended to
- * @skb: buffer to append. Always appended
- * @dport: the destination port of the buffer
- * returns true if dport differs from previous destination
- */
-static inline bool tipc_skb_queue_tail(struct sk_buff_head *list,
-				       struct sk_buff *skb, u32 dport)
-{
-	struct sk_buff *_skb = NULL;
-	bool rv = false;
-
-	spin_lock_bh(&list->lock);
-	_skb = skb_peek_tail(list);
-	if (!_skb || (msg_destport(buf_msg(_skb)) != dport) ||
-	    (skb_queue_len(list) > 32))
-		rv = true;
-	__skb_queue_tail(list, skb);
-	spin_unlock_bh(&list->lock);
-	return rv;
-}
-
 /* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
  * @list: list to be appended to
  * @skb: buffer to add

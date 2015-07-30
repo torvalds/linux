@@ -559,8 +559,6 @@ void link_prepare_wakeup(struct tipc_link *l)
 			break;
 		skb_unlink(skb, &l->wakeupq);
 		skb_queue_tail(l->inputq, skb);
-		l->owner->inputq = l->inputq;
-		l->owner->action_flags |= TIPC_MSG_EVT;
 	}
 }
 
@@ -598,8 +596,6 @@ void tipc_link_purge_queues(struct tipc_link *l_ptr)
 
 void tipc_link_reset(struct tipc_link *l)
 {
-	struct tipc_node *owner = l->owner;
-
 	tipc_link_fsm_evt(l, LINK_RESET_EVT);
 
 	/* Link is down, accept any session */
@@ -611,14 +607,10 @@ void tipc_link_reset(struct tipc_link *l)
 	/* Prepare for renewed mtu size negotiation */
 	l->mtu = l->advertised_mtu;
 
-	/* Clean up all queues, except inputq: */
+	/* Clean up all queues: */
 	__skb_queue_purge(&l->transmq);
 	__skb_queue_purge(&l->deferdq);
-	if (!owner->inputq)
-		owner->inputq = l->inputq;
-	skb_queue_splice_init(&l->wakeupq, owner->inputq);
-	if (!skb_queue_empty(owner->inputq))
-		owner->action_flags |= TIPC_MSG_EVT;
+	skb_queue_splice_init(&l->wakeupq, l->inputq);
 
 	tipc_link_purge_backlog(l);
 	kfree_skb(l->reasm_buf);
@@ -972,7 +964,6 @@ static bool tipc_data_input(struct tipc_link *link, struct sk_buff *skb)
 {
 	struct tipc_node *node = link->owner;
 	struct tipc_msg *msg = buf_msg(skb);
-	u32 dport = msg_destport(msg);
 
 	switch (msg_user(msg)) {
 	case TIPC_LOW_IMPORTANCE:
@@ -980,17 +971,11 @@ static bool tipc_data_input(struct tipc_link *link, struct sk_buff *skb)
 	case TIPC_HIGH_IMPORTANCE:
 	case TIPC_CRITICAL_IMPORTANCE:
 	case CONN_MANAGER:
-		if (tipc_skb_queue_tail(link->inputq, skb, dport)) {
-			node->inputq = link->inputq;
-			node->action_flags |= TIPC_MSG_EVT;
-		}
+		skb_queue_tail(link->inputq, skb);
 		return true;
 	case NAME_DISTRIBUTOR:
 		node->bclink.recv_permitted = true;
-		node->namedq = link->namedq;
 		skb_queue_tail(link->namedq, skb);
-		if (skb_queue_len(link->namedq) == 1)
-			node->action_flags |= TIPC_NAMED_MSG_EVT;
 		return true;
 	case MSG_BUNDLER:
 	case TUNNEL_PROTOCOL:

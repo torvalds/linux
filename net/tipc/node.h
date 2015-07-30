@@ -53,13 +53,11 @@
  * TIPC_DISTRIBUTE_NAME: publish or withdraw link state name type
  */
 enum {
-	TIPC_MSG_EVT                    = 1,
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
 	TIPC_NOTIFY_NODE_UP		= (1 << 4),
 	TIPC_WAKEUP_BCAST_USERS		= (1 << 5),
 	TIPC_NOTIFY_LINK_UP		= (1 << 6),
 	TIPC_NOTIFY_LINK_DOWN		= (1 << 7),
-	TIPC_NAMED_MSG_EVT		= (1 << 8),
 	TIPC_BCAST_MSG_EVT		= (1 << 9),
 	TIPC_BCAST_RESET		= (1 << 10)
 };
@@ -124,8 +122,6 @@ struct tipc_node {
 	spinlock_t lock;
 	struct net *net;
 	struct hlist_node hash;
-	struct sk_buff_head *inputq;
-	struct sk_buff_head *namedq;
 	int active_links[2];
 	struct tipc_link_entry links[MAX_BEARERS];
 	int action_flags;
