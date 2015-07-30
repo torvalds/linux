@@ -56,13 +56,19 @@ enum {
 	SELF_UP_PEER_COMING    = 0xac,
 	SELF_COMING_PEER_UP    = 0xca,
 	SELF_LEAVING_PEER_DOWN = 0x1d,
+	NODE_FAILINGOVER       = 0xf0,
+	NODE_SYNCHING          = 0xcc
 };
 
 enum {
-	SELF_ESTABL_CONTACT_EVT = 0xec,
-	SELF_LOST_CONTACT_EVT   = 0x1c,
-	PEER_ESTABL_CONTACT_EVT = 0xfec,
-	PEER_LOST_CONTACT_EVT   = 0xf1c
+	SELF_ESTABL_CONTACT_EVT = 0xece,
+	SELF_LOST_CONTACT_EVT   = 0x1ce,
+	PEER_ESTABL_CONTACT_EVT = 0xfece,
+	PEER_LOST_CONTACT_EVT   = 0xf1ce,
+	NODE_FAILOVER_BEGIN_EVT = 0xfbe,
+	NODE_FAILOVER_END_EVT   = 0xfee,
+	NODE_SYNCH_BEGIN_EVT    = 0xcbe,
+	NODE_SYNCH_END_EVT      = 0xcee
 };
 
 /* Flags used to take different actions according to flag type

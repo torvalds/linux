@@ -494,8 +494,12 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 		case SELF_LOST_CONTACT_EVT:
 		case PEER_LOST_CONTACT_EVT:
 			break;
+		case NODE_SYNCH_END_EVT:
+		case NODE_SYNCH_BEGIN_EVT:
+		case NODE_FAILOVER_BEGIN_EVT:
+		case NODE_FAILOVER_END_EVT:
 		default:
-			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+			goto illegal_evt;
 		}
 		break;
 	case SELF_UP_PEER_UP:
@@ -506,11 +510,19 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 		case PEER_LOST_CONTACT_EVT:
 			state = SELF_LEAVING_PEER_DOWN;
 			break;
+		case NODE_SYNCH_BEGIN_EVT:
+			state = NODE_SYNCHING;
+			break;
+		case NODE_FAILOVER_BEGIN_EVT:
+			state = NODE_FAILINGOVER;
+			break;
 		case SELF_ESTABL_CONTACT_EVT:
 		case PEER_ESTABL_CONTACT_EVT:
+		case NODE_SYNCH_END_EVT:
+		case NODE_FAILOVER_END_EVT:
 			break;
 		default:
-			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+			goto illegal_evt;
 		}
 		break;
 	case SELF_DOWN_PEER_LEAVING:
@@ -522,8 +534,12 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 		case PEER_ESTABL_CONTACT_EVT:
 		case SELF_LOST_CONTACT_EVT:
 			break;
+		case NODE_SYNCH_END_EVT:
+		case NODE_SYNCH_BEGIN_EVT:
+		case NODE_FAILOVER_BEGIN_EVT:
+		case NODE_FAILOVER_END_EVT:
 		default:
-			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+			goto illegal_evt;
 		}
 		break;
 	case SELF_UP_PEER_COMING:
@@ -537,8 +553,12 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 		case SELF_ESTABL_CONTACT_EVT:
 		case PEER_LOST_CONTACT_EVT:
 			break;
+		case NODE_SYNCH_END_EVT:
+		case NODE_SYNCH_BEGIN_EVT:
+		case NODE_FAILOVER_BEGIN_EVT:
+		case NODE_FAILOVER_END_EVT:
 		default:
-			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+			goto illegal_evt;
 		}
 		break;
 	case SELF_COMING_PEER_UP:
@@ -552,8 +572,12 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 		case SELF_LOST_CONTACT_EVT:
 		case PEER_ESTABL_CONTACT_EVT:
 			break;
+		case NODE_SYNCH_END_EVT:
+		case NODE_SYNCH_BEGIN_EVT:
+		case NODE_FAILOVER_BEGIN_EVT:
+		case NODE_FAILOVER_END_EVT:
 		default:
-			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+			goto illegal_evt;
 		}
 		break;
 	case SELF_LEAVING_PEER_DOWN:
@@ -565,16 +589,67 @@ static void tipc_node_fsm_evt(struct tipc_node *n, int evt)
 		case PEER_ESTABL_CONTACT_EVT:
 		case PEER_LOST_CONTACT_EVT:
 			break;
+		case NODE_SYNCH_END_EVT:
+		case NODE_SYNCH_BEGIN_EVT:
+		case NODE_FAILOVER_BEGIN_EVT:
+		case NODE_FAILOVER_END_EVT:
 		default:
-			pr_err("Unknown node fsm evt %x/%x\n", state, evt);
+			goto illegal_evt;
+		}
+		break;
+	case NODE_FAILINGOVER:
+		switch (evt) {
+		case SELF_LOST_CONTACT_EVT:
+			state = SELF_DOWN_PEER_LEAVING;
+			break;
+		case PEER_LOST_CONTACT_EVT:
+			state = SELF_LEAVING_PEER_DOWN;
+			break;
+		case NODE_FAILOVER_END_EVT:
+			state = SELF_UP_PEER_UP;
+			break;
+		case NODE_FAILOVER_BEGIN_EVT:
+		case SELF_ESTABL_CONTACT_EVT:
+		case PEER_ESTABL_CONTACT_EVT:
+			break;
+		case NODE_SYNCH_BEGIN_EVT:
+		case NODE_SYNCH_END_EVT:
+		default:
+			goto illegal_evt;
+		}
+		break;
+	case NODE_SYNCHING:
+		switch (evt) {
+		case SELF_LOST_CONTACT_EVT:
+			state = SELF_DOWN_PEER_LEAVING;
+			break;
+		case PEER_LOST_CONTACT_EVT:
+			state = SELF_LEAVING_PEER_DOWN;
+			break;
+		case NODE_SYNCH_END_EVT:
+			state = SELF_UP_PEER_UP;
+			break;
+		case NODE_FAILOVER_BEGIN_EVT:
+			state = NODE_FAILINGOVER;
+			break;
+		case NODE_SYNCH_BEGIN_EVT:
+		case SELF_ESTABL_CONTACT_EVT:
+		case PEER_ESTABL_CONTACT_EVT:
+			break;
+		case NODE_FAILOVER_END_EVT:
+		default:
+			goto illegal_evt;
 		}
 		break;
 	default:
 		pr_err("Unknown node fsm state %x\n", state);
 		break;
 	}
-
 	n->state = state;
+	return;
+
+illegal_evt:
+	pr_err("Illegal node fsm evt %x in state %x\n", evt, state);
 }
 
 bool tipc_node_filter_skb(struct tipc_node *n, struct tipc_link *l,
