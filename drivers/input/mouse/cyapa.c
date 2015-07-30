@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
@@ -1241,6 +1242,13 @@ static void cyapa_remove_sysfs_group(void *data)
 	sysfs_remove_group(&cyapa->client->dev.kobj, &cyapa_sysfs_group);
 }
 
+static void cyapa_disable_regulator(void *data)
+{
+	struct cyapa *cyapa = data;
+
+	regulator_disable(cyapa->vcc);
+}
+
 static int cyapa_probe(struct i2c_client *client,
 		       const struct i2c_device_id *dev_id)
 {
@@ -1273,6 +1281,27 @@ static int cyapa_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, cyapa);
 	sprintf(cyapa->phys, "i2c-%d-%04x/input0", client->adapter->nr,
 		client->addr);
+
+	cyapa->vcc = devm_regulator_get(dev, "vcc");
+	if (IS_ERR(cyapa->vcc)) {
+		error = PTR_ERR(cyapa->vcc);
+		dev_err(dev, "failed to get vcc regulator: %d\n", error);
+		return error;
+	}
+
+	error = regulator_enable(cyapa->vcc);
+	if (error) {
+		dev_err(dev, "failed to enable regulator: %d\n", error);
+		return error;
+	}
+
+	error = devm_add_action(dev, cyapa_disable_regulator, cyapa);
+	if (error) {
+		cyapa_disable_regulator(cyapa);
+		dev_err(dev, "failed to add disable regulator action: %d\n",
+			error);
+		return error;
+	}
 
 	error = cyapa_initialize(cyapa);
 	if (error) {

@@ -321,6 +321,7 @@ struct cyapa {
 	u8 status[BL_STATUS_SIZE];
 	bool operational; /* true: ready for data reporting; false: not. */
 
+	struct regulator *vcc;
 	struct i2c_client *client;
 	struct input_dev *input;
 	char phys[32];	/* Device physical location */
