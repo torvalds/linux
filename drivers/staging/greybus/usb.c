@@ -22,9 +22,9 @@
 /* Greybus USB request types */
 #define GB_USB_TYPE_INVALID		0x00
 #define GB_USB_TYPE_PROTOCOL_VERSION	0x01
-#define GB_USB_TYPE_HCD_STOP		0x02
-#define GB_USB_TYPE_HCD_START		0x03
-#define GB_USB_TYPE_HUB_CONTROL		0x07
+#define GB_USB_TYPE_HCD_START		0x02
+#define GB_USB_TYPE_HCD_STOP		0x03
+#define GB_USB_TYPE_HUB_CONTROL		0x04
 
 struct gb_usb_hub_control_request {
 	__le16 typeReq;
