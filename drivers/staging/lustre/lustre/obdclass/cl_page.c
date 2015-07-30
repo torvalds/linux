@@ -1192,9 +1192,6 @@ int cl_page_prep(const struct lu_env *env, struct cl_io *io,
 	if (result == 0)
 		cl_page_io_start(env, pg, crt);
 
-	KLASSERT(ergo(crt == CRT_WRITE && pg->cp_type == CPT_CACHEABLE,
-		      equi(result == 0,
-			   PageWriteback(cl_page_vmpage(env, pg)))));
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", crt, result);
 	return result;
 }
