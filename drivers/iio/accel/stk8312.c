@@ -662,6 +662,7 @@ static const struct i2c_device_id stk8312_i2c_id[] = {
 	{"STK8312", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, stk8312_i2c_id);
 
 static const struct acpi_device_id stk8312_acpi_id[] = {
 	{"STK8312", 0},
