@@ -87,8 +87,8 @@
 #define DESC_GCM_DEC_LEN		(DESC_GCM_BASE + 12 * CAAM_CMD_SZ)
 
 #define DESC_RFC4106_BASE		(3 * CAAM_CMD_SZ)
-#define DESC_RFC4106_ENC_LEN		(DESC_RFC4106_BASE + 12 * CAAM_CMD_SZ)
-#define DESC_RFC4106_DEC_LEN		(DESC_RFC4106_BASE + 12 * CAAM_CMD_SZ)
+#define DESC_RFC4106_ENC_LEN		(DESC_RFC4106_BASE + 13 * CAAM_CMD_SZ)
+#define DESC_RFC4106_DEC_LEN		(DESC_RFC4106_BASE + 13 * CAAM_CMD_SZ)
 
 #define DESC_RFC4543_BASE		(3 * CAAM_CMD_SZ)
 #define DESC_RFC4543_ENC_LEN		(DESC_RFC4543_BASE + 11 * CAAM_CMD_SZ)
@@ -989,18 +989,21 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	/* Will read cryptlen bytes */
 	append_math_sub(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
 
-	/* Read payload data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
+	/* Workaround for erratum A-005473 (simultaneous SEQ FIFO skips) */
+	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLD_TYPE_MSG);
 
 	/* Skip assoc data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
 
 	/* cryptlen = seqoutlen - assoclen */
-	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
+	append_math_sub(desc, VARSEQOUTLEN, VARSEQINLEN, REG0, CAAM_CMD_SZ);
 
 	/* Write encrypted data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
+
+	/* Read payload data */
+	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
+			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
 
 	/* Write ICV */
 	append_seq_store(desc, ctx->authsize, LDST_CLASS_1_CCB |
@@ -1060,9 +1063,8 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	/* Will read cryptlen bytes */
 	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG3, CAAM_CMD_SZ);
 
-	/* Read encrypted data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
+	/* Workaround for erratum A-005473 (simultaneous SEQ FIFO skips) */
+	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLD_TYPE_MSG);
 
 	/* Skip assoc data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
@@ -1072,6 +1074,10 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 
 	/* Store payload data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
+
+	/* Read encrypted data */
+	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
+			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
 
 	/* Read ICV */
 	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS1 |
