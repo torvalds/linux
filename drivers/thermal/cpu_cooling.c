@@ -68,7 +68,7 @@ struct power_table {
  *	registered cooling device.
  * @cpufreq_state: integer value representing the current state of cpufreq
  *	cooling	devices.
- * @cpufreq_val: integer value representing the absolute value of the clipped
+ * @clipped_freq: integer value representing the absolute value of the clipped
  *	frequency.
  * @max_level: maximum cooling level. One less than total number of valid
  *	cpufreq frequencies.
@@ -91,7 +91,7 @@ struct cpufreq_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
 	unsigned int cpufreq_state;
-	unsigned int cpufreq_val;
+	unsigned int clipped_freq;
 	unsigned int max_level;
 	unsigned int *freq_table;	/* In descending order */
 	struct cpumask allowed_cpus;
@@ -229,7 +229,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 		if (!cpumask_test_cpu(policy->cpu, &cpufreq_dev->allowed_cpus))
 			continue;
 
-		max_freq = cpufreq_dev->cpufreq_val;
+		max_freq = cpufreq_dev->clipped_freq;
 
 		if (policy->max != max_freq)
 			cpufreq_verify_within_limits(policy, 0, max_freq);
@@ -517,7 +517,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	clip_freq = cpufreq_device->freq_table[state];
 	cpufreq_device->cpufreq_state = state;
-	cpufreq_device->cpufreq_val = clip_freq;
+	cpufreq_device->clipped_freq = clip_freq;
 
 	cpufreq_update_policy(cpu);
 
@@ -859,7 +859,7 @@ __cpufreq_cooling_register(struct device_node *np,
 			pr_debug("%s: freq:%u KHz\n", __func__, freq);
 	}
 
-	cpufreq_dev->cpufreq_val = cpufreq_dev->freq_table[0];
+	cpufreq_dev->clipped_freq = cpufreq_dev->freq_table[0];
 	cpufreq_dev->cool_dev = cool_dev;
 
 	mutex_lock(&cooling_cpufreq_lock);
