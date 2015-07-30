@@ -336,12 +336,9 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	else
 		wil_dbg_misc(wil, "Scan has no IE's\n");
 
-	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_REQ, request->ie_len,
-			request->ie);
-	if (rc) {
-		wil_err(wil, "Aborting scan, set_ie failed: %d\n", rc);
+	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_REQ, request->ie_len, request->ie);
+	if (rc)
 		goto out;
-	}
 
 	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
 			cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
@@ -462,10 +459,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	 * ies in FW.
 	 */
 	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_REQ, sme->ie_len, sme->ie);
-	if (rc) {
-		wil_err(wil, "WMI_SET_APPIE_CMD failed\n");
+	if (rc)
 		goto out;
-	}
 
 	/* WMI_CONNECT_CMD */
 	memset(&conn, 0, sizeof(conn));
@@ -748,27 +743,19 @@ static int _wil_cfg80211_set_ies(struct wiphy *wiphy,
 
 	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, bcon->proberesp_ies_len,
 			bcon->proberesp_ies);
-	if (rc) {
-		wil_err(wil, "set_ie(PROBE_RESP) failed\n");
+	if (rc)
 		return rc;
-	}
 
 	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
 			bcon->assocresp_ies);
-	if (rc) {
-		wil_err(wil, "set_ie(ASSOC_RESP) failed\n");
-		return rc;
-	}
 #if 0 /* to use beacon IE's, remove this #if 0 */
-	rc = wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->tail_len,
-			bcon->tail);
-	if (rc) {
-		wil_err(wil, "set_ie(BEACON) failed\n");
+	if (rc)
 		return rc;
-	}
+
+	rc = wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->tail_len, bcon->tail);
 #endif
 
-	return 0;
+	return rc;
 }
 
 static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
