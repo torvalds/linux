@@ -738,9 +738,6 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
-	if (wil->hw_version == HW_VER_UNKNOWN)
-		return -ENODEV;
-
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 	WARN_ON(test_bit(wil_status_napi_en, wil->status));
 
@@ -754,6 +751,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		ether_addr_copy(ndev->dev_addr, ndev->perm_addr);
 		return 0;
 	}
+
+	if (wil->hw_version == HW_VER_UNKNOWN)
+		return -ENODEV;
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
