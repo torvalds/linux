@@ -105,7 +105,8 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 				rq = &adev->rings[i]->scheduler->kernel_rq;
 			r = amd_context_entity_init(adev->rings[i]->scheduler,
 						    &ctx->rings[i].c_entity,
-						    NULL, rq, *id);
+						    NULL, rq, *id,
+						    amdgpu_sched_jobs);
 			if (r)
 				break;
 		}

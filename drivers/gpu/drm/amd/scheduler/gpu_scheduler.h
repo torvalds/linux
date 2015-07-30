@@ -27,7 +27,6 @@
 #include <linux/kfifo.h>
 
 #define AMD_MAX_ACTIVE_HW_SUBMISSION		2
-#define AMD_MAX_JOB_ENTRY_PER_CONTEXT		16
 
 #define AMD_KERNEL_CONTEXT_ID			0
 #define AMD_KERNEL_PROCESS_ID			0
@@ -155,6 +154,7 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 			    struct amd_context_entity *entity,
 			    struct amd_sched_entity *parent,
 			    struct amd_run_queue *rq,
-			    uint32_t context_id);
+			    uint32_t context_id,
+			    uint32_t jobs);
 
 #endif

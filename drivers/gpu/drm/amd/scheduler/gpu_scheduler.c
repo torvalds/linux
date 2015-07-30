@@ -173,6 +173,7 @@ exit:
  * @parent	The parent entity of this amd_context_entity
  * @rq		The run queue this entity belongs
  * @context_id	The context id for this entity
+ * @jobs	The max number of jobs in the job queue
  *
  * return 0 if succeed. negative error code on failure
 */
@@ -180,7 +181,8 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 			    struct amd_context_entity *entity,
 			    struct amd_sched_entity *parent,
 			    struct amd_run_queue *rq,
-			    uint32_t context_id)
+			    uint32_t context_id,
+			    uint32_t jobs)
 {
 	uint64_t seq_ring = 0;
 
@@ -196,7 +198,7 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 	init_waitqueue_head(&entity->wait_queue);
 	init_waitqueue_head(&entity->wait_emit);
 	if(kfifo_alloc(&entity->job_queue,
-		       AMD_MAX_JOB_ENTRY_PER_CONTEXT * sizeof(void *),
+		       jobs * sizeof(void *),
 		       GFP_KERNEL))
 		return -EINVAL;
 
