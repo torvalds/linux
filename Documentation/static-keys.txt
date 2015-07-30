@@ -1,7 +1,22 @@
 			Static Keys
 			-----------
 
-By: Jason Baron <jbaron@redhat.com>
+DEPRECATED API:
+
+The use of 'struct static_key' directly, is now DEPRECATED. In addition
+static_key_{true,false}() is also DEPRECATED. IE DO NOT use the following:
+
+struct static_key false = STATIC_KEY_INIT_FALSE;
+struct static_key true = STATIC_KEY_INIT_TRUE;
+static_key_true()
+static_key_false()
+
+The updated API replacements are:
+
+DEFINE_STATIC_KEY_TRUE(key);
+DEFINE_STATIC_KEY_FALSE(key);
+static_key_likely()
+statick_key_unlikely()
 
 0) Abstract
 
@@ -9,22 +24,22 @@ Static keys allows the inclusion of seldom used features in
 performance-sensitive fast-path kernel code, via a GCC feature and a code
 patching technique. A quick example:
 
-	struct static_key key = STATIC_KEY_INIT_FALSE;
+	DEFINE_STATIC_KEY_FALSE(key);
 
 	...
 
-        if (static_key_false(&key))
+        if (static_branch_unlikely(&key))
                 do unlikely code
         else
                 do likely code
 
 	...
-	static_key_slow_inc();
+	static_branch_enable(&key);
 	...
-	static_key_slow_inc();
+	static_branch_disable(&key);
 	...
 
-The static_key_false() branch will be generated into the code with as little
+The static_branch_unlikely() branch will be generated into the code with as little
 impact to the likely code path as possible.
 
 
@@ -56,7 +71,7 @@ the branch site to change the branch direction.
 
 For example, if we have a simple branch that is disabled by default:
 
-	if (static_key_false(&key))
+	if (static_branch_unlikely(&key))
 		printk("I am the true branch\n");
 
 Thus, by default the 'printk' will not be emitted. And the code generated will
@@ -75,68 +90,55 @@ the basis for the static keys facility.
 
 In order to make use of this optimization you must first define a key:
 
-	struct static_key key;
-
-Which is initialized as:
-
-	struct static_key key = STATIC_KEY_INIT_TRUE;
+	DEFINE_STATIC_KEY_TRUE(key);
 
 or:
 
-	struct static_key key = STATIC_KEY_INIT_FALSE;
+	DEFINE_STATIC_KEY_FALSE(key);
 
-If the key is not initialized, it is default false. The 'struct static_key',
-must be a 'global'. That is, it can't be allocated on the stack or dynamically
+
+The key must be global, that is, it can't be allocated on the stack or dynamically
 allocated at run-time.
 
 The key is then used in code as:
 
-        if (static_key_false(&key))
+        if (static_branch_unlikely(&key))
                 do unlikely code
         else
                 do likely code
 
 Or:
 
-        if (static_key_true(&key))
+        if (static_branch_likely(&key))
                 do likely code
         else
                 do unlikely code
 
-A key that is initialized via 'STATIC_KEY_INIT_FALSE', must be used in a
-'static_key_false()' construct. Likewise, a key initialized via
-'STATIC_KEY_INIT_TRUE' must be used in a 'static_key_true()' construct. A
-single key can be used in many branches, but all the branches must match the
-way that the key has been initialized.
+Keys defined via DEFINE_STATIC_KEY_TRUE(), or DEFINE_STATIC_KEY_FALSE, may
+be used in either static_branch_likely() or static_branch_unlikely()
+statemnts.
 
-The branch(es) can then be switched via:
+Branch(es) can be set true via:
 
-	static_key_slow_inc(&key);
+static_branch_enable(&key);
+
+or false via:
+
+static_branch_disable(&key);
+
+The branch(es) can then be switched via reference counts:
+
+	static_branch_inc(&key);
 	...
-	static_key_slow_dec(&key);
+	static_branch_dec(&key);
 
-Thus, 'static_key_slow_inc()' means 'make the branch true', and
-'static_key_slow_dec()' means 'make the branch false' with appropriate
+Thus, 'static_branch_inc()' means 'make the branch true', and
+'static_branch_dec()' means 'make the branch false' with appropriate
 reference counting. For example, if the key is initialized true, a
-static_key_slow_dec(), will switch the branch to false. And a subsequent
-static_key_slow_inc(), will change the branch back to true. Likewise, if the
-key is initialized false, a 'static_key_slow_inc()', will change the branch to
-true. And then a 'static_key_slow_dec()', will again make the branch false.
-
-An example usage in the kernel is the implementation of tracepoints:
-
-        static inline void trace_##name(proto)                          \
-        {                                                               \
-                if (static_key_false(&__tracepoint_##name.key))		\
-                        __DO_TRACE(&__tracepoint_##name,                \
-                                TP_PROTO(data_proto),                   \
-                                TP_ARGS(data_args),                     \
-                                TP_CONDITION(cond));                    \
-        }
-
-Tracepoints are disabled by default, and can be placed in performance critical
-pieces of the kernel. Thus, by using a static key, the tracepoints can have
-absolutely minimal impact when not in use.
+static_branch_dec(), will switch the branch to false. And a subsequent
+static_branch_inc(), will change the branch back to true. Likewise, if the
+key is initialized false, a 'static_branch_inc()', will change the branch to
+true. And then a 'static_branch_dec()', will again make the branch false.
 
 
 4) Architecture level code patching interface, 'jump labels'
@@ -150,8 +152,11 @@ simply fall back to a traditional, load, test, and jump sequence.
 
 * #define JUMP_LABEL_NOP_SIZE, see: arch/x86/include/asm/jump_label.h
 
-* __always_inline bool arch_static_branch(struct static_key *key), see:
+* __always_inline bool arch_static_branch(struct static_key *key, bool branch), see:
 					arch/x86/include/asm/jump_label.h
+
+* __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch),
+					see: arch/x86/include/asm/jump_label.h
 
 * void arch_jump_label_transform(struct jump_entry *entry, enum jump_label_type type),
 					see: arch/x86/kernel/jump_label.c
@@ -173,7 +178,7 @@ SYSCALL_DEFINE0(getppid)
 {
         int pid;
 
-+       if (static_key_false(&key))
++       if (static_branch_unlikely(&key))
 +               printk("I am the true branch\n");
 
         rcu_read_lock();

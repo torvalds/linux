@@ -7,17 +7,52 @@
  * Copyright (C) 2009-2012 Jason Baron <jbaron@redhat.com>
  * Copyright (C) 2011-2012 Peter Zijlstra <pzijlstr@redhat.com>
  *
+ * DEPRECATED API:
+ *
+ * The use of 'struct static_key' directly, is now DEPRECATED. In addition
+ * static_key_{true,false}() is also DEPRECATED. IE DO NOT use the following:
+ *
+ * struct static_key false = STATIC_KEY_INIT_FALSE;
+ * struct static_key true = STATIC_KEY_INIT_TRUE;
+ * static_key_true()
+ * static_key_false()
+ *
+ * The updated API replacements are:
+ *
+ * DEFINE_STATIC_KEY_TRUE(key);
+ * DEFINE_STATIC_KEY_FALSE(key);
+ * static_key_likely()
+ * statick_key_unlikely()
+ *
  * Jump labels provide an interface to generate dynamic branches using
- * self-modifying code. Assuming toolchain and architecture support, the result
- * of a "if (static_key_false(&key))" statement is an unconditional branch (which
- * defaults to false - and the true block is placed out of line).
+ * self-modifying code. Assuming toolchain and architecture support, if we
+ * define a "key" that is initially false via "DEFINE_STATIC_KEY_FALSE(key)",
+ * an "if (static_branch_unlikely(&key))" statement is an unconditional branch
+ * (which defaults to false - and the true block is placed out of line).
+ * Similarly, we can define an initially true key via
+ * "DEFINE_STATIC_KEY_TRUE(key)", and use it in the same
+ * "if (static_branch_unlikely(&key))", in which case we will generate an
+ * unconditional branch to the out-of-line true branch. Keys that are
+ * initially true or false can be using in both static_branch_unlikely()
+ * and static_branch_likely() statements.
  *
- * However at runtime we can change the branch target using
- * static_key_slow_{inc,dec}(). These function as a 'reference' count on the key
- * object, and for as long as there are references all branches referring to
- * that particular key will point to the (out of line) true block.
+ * At runtime we can change the branch target by setting the key
+ * to true via a call to static_branch_enable(), or false using
+ * static_branch_disable(). If the direction of the branch is switched by
+ * these calls then we run-time modify the branch target via a
+ * no-op -> jump or jump -> no-op conversion. For example, for an
+ * initially false key that is used in an "if (static_branch_unlikely(&key))"
+ * statement, setting the key to true requires us to patch in a jump
+ * to the out-of-line of true branch.
  *
- * Since this relies on modifying code, the static_key_slow_{inc,dec}() functions
+ * In addtion to static_branch_{enable,disable}, we can also reference count
+ * the key or branch direction via static_branch_{inc,dec}. Thus,
+ * static_branch_inc() can be thought of as a 'make more true' and
+ * static_branch_dec() as a 'make more false'. The inc()/dec()
+ * interface is meant to be used exclusively from the inc()/dec() for a given
+ * key.
+ *
+ * Since this relies on modifying code, the branch modifying functions
  * must be considered absolute slow paths (machine wide synchronization etc.).
  * OTOH, since the affected branches are unconditional, their runtime overhead
  * will be absolutely minimal, esp. in the default (off) case where the total
@@ -29,20 +64,10 @@
  * cause significant performance degradation. Struct static_key_deferred and
  * static_key_slow_dec_deferred() provide for this.
  *
- * Lacking toolchain and or architecture support, jump labels fall back to a simple
- * conditional branch.
+ * Lacking toolchain and or architecture support, static keys fall back to a
+ * simple conditional branch.
  *
- * struct static_key my_key = STATIC_KEY_INIT_TRUE;
- *
- *   if (static_key_true(&my_key)) {
- *   }
- *
- * will result in the true case being in-line and starts the key with a single
- * reference. Mixing static_key_true() and static_key_false() on the same key is not
- * allowed.
- *
- * Not initializing the key (static data is initialized to 0s anyway) is the
- * same as using STATIC_KEY_INIT_FALSE.
+ * Additional babbling in: Documentation/static-keys.txt
  */
 
 #if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_JUMP_LABEL)
