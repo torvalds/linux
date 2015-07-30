@@ -503,8 +503,6 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	sched->thread = kthread_create(amd_sched_main, sched, name);
 	if (sched->thread) {
 		wake_up_process(sched->thread);
-		DRM_INFO("Create gpu scheduler for id %d successfully.\n",
-			 ring);
 		return sched;
 	}
 
