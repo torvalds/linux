@@ -933,8 +933,8 @@ driver_stub = {
 	.lastclose = nouveau_vga_lastclose,
 
 #if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = nouveau_debugfs_init,
-	.debugfs_cleanup = nouveau_debugfs_takedown,
+	.debugfs_init = nouveau_drm_debugfs_init,
+	.debugfs_cleanup = nouveau_drm_debugfs_cleanup,
 #endif
 
 	.get_vblank_counter = drm_vblank_no_hw_counter,
