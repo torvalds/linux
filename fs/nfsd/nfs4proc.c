@@ -276,13 +276,13 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 			nfsd4_security_inode_setsecctx(*resfh, &open->op_label, open->op_bmval);
 
 		/*
-		 * Following rfc 3530 14.2.16, use the returned bitmask
-		 * to indicate which attributes we used to store the
-		 * verifier:
+		 * Following rfc 3530 14.2.16, and rfc 5661 18.16.4
+		 * use the returned bitmask to indicate which attributes
+		 * we used to store the verifier:
 		 */
-		if (open->op_createmode == NFS4_CREATE_EXCLUSIVE && status == 0)
-			open->op_bmval[1] = (FATTR4_WORD1_TIME_ACCESS |
-							FATTR4_WORD1_TIME_MODIFY);
+		if (nfsd_create_is_exclusive(open->op_createmode) && status == 0)
+			open->op_bmval[1] |= (FATTR4_WORD1_TIME_ACCESS |
+						FATTR4_WORD1_TIME_MODIFY);
 	} else
 		/*
 		 * Note this may exit with the parent still locked.
