@@ -363,6 +363,7 @@ static int s5k6a3_remove(struct i2c_client *client)
 static const struct i2c_device_id s5k6a3_ids[] = {
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, s5k6a3_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id s5k6a3_of_match[] = {
