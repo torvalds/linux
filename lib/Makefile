@@ -39,6 +39,8 @@ obj-$(CONFIG_TEST_KSTRTOX) += test-kstrtox.o
 obj-$(CONFIG_TEST_LKM) += test_module.o
 obj-$(CONFIG_TEST_RHASHTABLE) += test_rhashtable.o
 obj-$(CONFIG_TEST_USER_COPY) += test_user_copy.o
+obj-$(CONFIG_TEST_JUMP_LABEL) += test_jump_label.o
+obj-$(CONFIG_TEST_JUMP_LABEL) += test_jump_label_base.o
 
 ifeq ($(CONFIG_DEBUG_KOBJECT),y)
 CFLAGS_kobject.o += -DDEBUG

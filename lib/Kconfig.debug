@@ -1841,6 +1841,15 @@ config MEMTEST
 	        memtest=17, mean do 17 test patterns.
 	  If you are unsure how to answer this question, answer N.
 
+config TEST_JUMP_LABEL
+	tristate "Test jump label"
+	default n
+	depends on m
+	help
+	  Test jump labels.
+
+	  If unsure, say N.
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
