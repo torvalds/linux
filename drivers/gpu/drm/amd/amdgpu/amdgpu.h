@@ -440,9 +440,9 @@ unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
 bool amdgpu_fence_signaled(struct amdgpu_fence *fence);
 int amdgpu_fence_wait(struct amdgpu_fence *fence, bool interruptible);
-int amdgpu_fence_wait_any(struct amdgpu_device *adev,
+signed long amdgpu_fence_wait_any(struct amdgpu_device *adev,
 			  struct amdgpu_fence **fences,
-			  bool intr);
+			  bool intr, long t);
 struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence);
 void amdgpu_fence_unref(struct amdgpu_fence **fence);
 
@@ -487,7 +487,7 @@ static inline bool amdgpu_fence_is_earlier(struct amdgpu_fence *a,
 	return a->seq < b->seq;
 }
 
-int amdgpu_user_fence_emit(struct amdgpu_ring *ring, struct amdgpu_user_fence *user, 
+int amdgpu_user_fence_emit(struct amdgpu_ring *ring, struct amdgpu_user_fence *user,
 			   void *owner, struct amdgpu_fence **fence);
 
 /*
