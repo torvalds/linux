@@ -212,6 +212,8 @@ struct tipc_link *tipc_link_create(struct tipc_node *n,
 				   struct sk_buff_head *namedq);
 void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq);
+void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
+				    struct sk_buff_head *xmitq);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
 int tipc_link_is_up(struct tipc_link *l_ptr);
 int tipc_link_is_active(struct tipc_link *l_ptr);

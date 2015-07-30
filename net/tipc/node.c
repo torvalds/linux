@@ -335,6 +335,7 @@ static void tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		*slot0 = bearer_id;
 		*slot1 = bearer_id;
 		nl->exec_mode = TIPC_LINK_OPEN;
+		tipc_link_build_bcast_sync_msg(nl, xmitq);
 		node_established_contact(n);
 		return;
 	}

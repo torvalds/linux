@@ -134,8 +134,6 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 				      struct sk_buff_head *xmitq);
 static void link_reset_statistics(struct tipc_link *l_ptr);
 static void link_print(struct tipc_link *l_ptr, const char *str);
-static void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
-					   struct sk_buff_head *xmitq);
 static void tipc_link_sync_rcv(struct tipc_node *n, struct sk_buff *buf);
 static int tipc_link_input(struct tipc_link *l, struct sk_buff *skb);
 static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb);
@@ -245,8 +243,8 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
  * Give a newly added peer node the sequence number where it should
  * start receiving and acking broadcast packets.
  */
-static void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
-					   struct sk_buff_head *xmitq)
+void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
+				    struct sk_buff_head *xmitq)
 {
 	struct sk_buff *skb;
 	struct sk_buff_head list;
@@ -272,7 +270,7 @@ static void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
 static int tipc_link_fsm_evt(struct tipc_link *l, int evt,
 			     struct sk_buff_head *xmitq)
 {
-	int mtyp = 0, rc = 0;
+	int rc = 0;
 	struct tipc_link *pl;
 	enum {
 		LINK_RESET     = 1,
@@ -380,17 +378,7 @@ static int tipc_link_fsm_evt(struct tipc_link *l, int evt,
 	}
 	if (actions & LINK_ACTIVATE)
 		rc = TIPC_LINK_UP_EVT;
-	if (actions & (SND_STATE | SND_PROBE))
-		mtyp = STATE_MSG;
-	if (actions & SND_RESET)
-		mtyp = RESET_MSG;
-	if (actions & SND_ACTIVATE)
-		mtyp = ACTIVATE_MSG;
-	if (actions & (SND_PROBE | SND_STATE | SND_RESET | SND_ACTIVATE))
-		tipc_link_build_proto_msg(l, mtyp, actions & SND_PROBE,
-					  0, 0, 0, xmitq);
-	if (actions & SND_BCAST_SYNC)
-		tipc_link_build_bcast_sync_msg(l, xmitq);
+
 	return rc;
 }
 
@@ -440,16 +428,37 @@ static void link_profile_stats(struct tipc_link *l)
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
 	int rc = 0;
+	int mtyp = STATE_MSG;
+	bool xmit = false;
+	bool prb = false;
 
 	if (l->exec_mode == TIPC_LINK_BLOCKED)
 		return rc;
 
 	link_profile_stats(l);
-	if (l->silent_intv_cnt)
-		rc = tipc_link_fsm_evt(l, SILENCE_EVT, xmitq);
-	else if (link_working(l) && tipc_bclink_acks_missing(l->owner))
-		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, xmitq);
-	l->silent_intv_cnt++;
+
+	if (l->state == TIPC_LINK_WORKING) {
+		if (!l->silent_intv_cnt) {
+			if (tipc_bclink_acks_missing(l->owner))
+				xmit = true;
+		} else if (l->silent_intv_cnt <= l->abort_limit) {
+			xmit = true;
+			prb = true;
+		} else {
+			l->exec_mode = TIPC_LINK_BLOCKED;
+			rc |= TIPC_LINK_DOWN_EVT;
+		}
+		l->silent_intv_cnt++;
+	} else if (l->state == TIPC_LINK_RESETTING) {
+		xmit = true;
+		mtyp = RESET_MSG;
+	} else if (l->state == TIPC_LINK_ESTABLISHING) {
+		xmit = true;
+		mtyp = ACTIVATE_MSG;
+	}
+	if (xmit)
+		tipc_link_build_proto_msg(l, mtyp, prb, 0, 0, 0, xmitq);
+
 	return rc;
 }
 
