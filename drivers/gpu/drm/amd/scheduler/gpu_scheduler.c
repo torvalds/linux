@@ -495,3 +495,15 @@ int amd_sched_destroy(struct amd_gpu_scheduler *sched)
 	return  0;
 }
 
+/**
+ * Update emitted sequence and wake up the waiters, called by run_job
+ * in driver side
+ *
+ * @entity The context entity
+ * @seq The sequence number for the latest emitted job
+*/
+void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq)
+{
+	atomic64_set(&c_entity->last_emitted_v_seq, seq);
+	wake_up_all(&c_entity->wait_emit);
+}

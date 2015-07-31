@@ -151,4 +151,6 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 			    uint32_t context_id,
 			    uint32_t jobs);
 
+void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq);
+
 #endif

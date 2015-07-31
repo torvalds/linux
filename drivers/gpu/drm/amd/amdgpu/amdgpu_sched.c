@@ -62,9 +62,8 @@ static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 		if (r)
 			goto err;
 	}
-	atomic64_set(&c_entity->last_emitted_v_seq,
-		     sched_job->ibs[sched_job->num_ibs - 1].sequence);
-	wake_up_all(&c_entity->wait_emit);
+
+	amd_sched_emit(c_entity, sched_job->ibs[sched_job->num_ibs - 1].sequence);
 
 	mutex_unlock(&sched_job->job_lock);
 	return;
