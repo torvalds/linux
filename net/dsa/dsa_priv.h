@@ -15,7 +15,7 @@
 #include <linux/netdevice.h>
 
 struct dsa_device_ops {
-	netdev_tx_t (*xmit)(struct sk_buff *skb, struct net_device *dev);
+	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	int (*rcv)(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev);
 };
@@ -26,7 +26,7 @@ struct dsa_slave_priv {
 	 * switch port.
 	 */
 	struct net_device	*dev;
-	netdev_tx_t		(*xmit)(struct sk_buff *skb,
+	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
 	/*

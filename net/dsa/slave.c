@@ -421,19 +421,30 @@ static int dsa_slave_port_attr_get(struct net_device *dev,
 static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct sk_buff *nskb;
 
-	return p->xmit(skb, dev);
-}
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
-static netdev_tx_t dsa_slave_notag_xmit(struct sk_buff *skb,
-					struct net_device *dev)
-{
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	/* Transmit function may have to reallocate the original SKB */
+	nskb = p->xmit(skb, dev);
+	if (!nskb)
+		return NETDEV_TX_OK;
 
-	skb->dev = p->parent->dst->master_netdev;
-	dev_queue_xmit(skb);
+	/* Queue the SKB for transmission on the parent interface, but
+	 * do not modify its EtherType
+	 */
+	nskb->dev = p->parent->dst->master_netdev;
+	dev_queue_xmit(nskb);
 
 	return NETDEV_TX_OK;
+}
+
+static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
+{
+	/* Just return the original SKB */
+	return skb;
 }
 
 
