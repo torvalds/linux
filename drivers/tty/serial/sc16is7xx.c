@@ -312,6 +312,7 @@ struct sc16is7xx_one_config {
 
 struct sc16is7xx_one {
 	struct uart_port		port;
+	u8				line;
 	struct kthread_work		tx_work;
 	struct kthread_work		reg_work;
 	struct sc16is7xx_one_config	config;
@@ -335,13 +336,20 @@ struct sc16is7xx_port {
 #define to_sc16is7xx_port(p,e)	((container_of((p), struct sc16is7xx_port, e)))
 #define to_sc16is7xx_one(p,e)	((container_of((p), struct sc16is7xx_one, e)))
 
+static int sc16is7xx_line(struct uart_port *port)
+{
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	return one->line;
+}
+
 static u8 sc16is7xx_port_read(struct uart_port *port, u8 reg)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	unsigned int val = 0;
+	const u8 line = sc16is7xx_line(port);
 
-	regmap_read(s->regmap,
-		    (reg << SC16IS7XX_REG_SHIFT) | port->line, &val);
+	regmap_read(s->regmap, (reg << SC16IS7XX_REG_SHIFT) | line, &val);
 
 	return val;
 }
@@ -349,15 +357,16 @@ static u8 sc16is7xx_port_read(struct uart_port *port, u8 reg)
 static void sc16is7xx_port_write(struct uart_port *port, u8 reg, u8 val)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	const u8 line = sc16is7xx_line(port);
 
-	regmap_write(s->regmap,
-		     (reg << SC16IS7XX_REG_SHIFT) | port->line, val);
+	regmap_write(s->regmap, (reg << SC16IS7XX_REG_SHIFT) | line, val);
 }
 
 static void sc16is7xx_fifo_read(struct uart_port *port, unsigned int rxlen)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
-	u8 addr = (SC16IS7XX_RHR_REG << SC16IS7XX_REG_SHIFT) | port->line;
+	const u8 line = sc16is7xx_line(port);
+	u8 addr = (SC16IS7XX_RHR_REG << SC16IS7XX_REG_SHIFT) | line;
 
 	regcache_cache_bypass(s->regmap, true);
 	regmap_raw_read(s->regmap, addr, s->buf, rxlen);
@@ -367,7 +376,8 @@ static void sc16is7xx_fifo_read(struct uart_port *port, unsigned int rxlen)
 static void sc16is7xx_fifo_write(struct uart_port *port, u8 to_send)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
-	u8 addr = (SC16IS7XX_THR_REG << SC16IS7XX_REG_SHIFT) | port->line;
+	const u8 line = sc16is7xx_line(port);
+	u8 addr = (SC16IS7XX_THR_REG << SC16IS7XX_REG_SHIFT) | line;
 
 	regcache_cache_bypass(s->regmap, true);
 	regmap_raw_write(s->regmap, addr, s->buf, to_send);
@@ -378,9 +388,9 @@ static void sc16is7xx_port_update(struct uart_port *port, u8 reg,
 				  u8 mask, u8 val)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	const u8 line = sc16is7xx_line(port);
 
-	regmap_update_bits(s->regmap,
-			   (reg << SC16IS7XX_REG_SHIFT) | port->line,
+	regmap_update_bits(s->regmap, (reg << SC16IS7XX_REG_SHIFT) | line,
 			   mask, val);
 }
 
@@ -508,7 +518,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 
 	if (unlikely(rxlen >= sizeof(s->buf))) {
 		dev_warn_ratelimited(port->dev,
-				     "Port %i: Possible RX FIFO overrun: %d\n",
+				     "ttySC%i: Possible RX FIFO overrun: %d\n",
 				     port->line, rxlen);
 		port->icount.buf_overrun++;
 		/* Ensure sanity of RX level */
@@ -649,7 +659,7 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 			break;
 		default:
 			dev_err_ratelimited(port->dev,
-					    "Port %i: Unexpected interrupt: %x",
+					    "ttySC%i: Unexpected interrupt: %x",
 					    port->line, iir);
 			break;
 		}
@@ -1174,6 +1184,7 @@ static int sc16is7xx_probe(struct device *dev,
 #endif
 
 	for (i = 0; i < devtype->nr_uart; ++i) {
+		s->p[i].line		= i;
 		/* Initialize port data */
 		s->p[i].port.line	= i;
 		s->p[i].port.dev	= dev;
