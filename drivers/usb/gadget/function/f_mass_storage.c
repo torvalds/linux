@@ -2742,9 +2742,9 @@ error_release:
 }
 EXPORT_SYMBOL_GPL(fsg_common_set_num_buffers);
 
-void fsg_common_remove_lun(struct fsg_lun *lun, bool sysfs)
+void fsg_common_remove_lun(struct fsg_lun *lun)
 {
-	if (sysfs)
+	if (device_is_registered(&lun->dev))
 		device_unregister(&lun->dev);
 	fsg_lun_close(lun);
 	kfree(lun);
@@ -2757,7 +2757,7 @@ static void _fsg_common_remove_luns(struct fsg_common *common, int n)
 
 	for (i = 0; i < n; ++i)
 		if (common->luns[i]) {
-			fsg_common_remove_lun(common->luns[i], common->sysfs);
+			fsg_common_remove_lun(common->luns[i]);
 			common->luns[i] = NULL;
 		}
 }
@@ -2950,7 +2950,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 	return 0;
 
 error_lun:
-	if (common->sysfs)
+	if (device_is_registered(&lun->dev))
 		device_unregister(&lun->dev);
 	fsg_lun_close(lun);
 	common->luns[id] = NULL;
@@ -3038,7 +3038,7 @@ static void fsg_common_release(struct kref *ref)
 			if (!lun)
 				continue;
 			fsg_lun_close(lun);
-			if (common->sysfs)
+		if (device_is_registered(&lun->dev))
 				device_unregister(&lun->dev);
 			kfree(lun);
 		}
@@ -3363,7 +3363,7 @@ static void fsg_lun_drop(struct config_group *group, struct config_item *item)
 		unregister_gadget_item(gadget);
 	}
 
-	fsg_common_remove_lun(lun_opts->lun, fsg_opts->common->sysfs);
+	fsg_common_remove_lun(lun_opts->lun);
 	fsg_opts->common->luns[lun_opts->lun_id] = NULL;
 	lun_opts->lun_id = 0;
 	mutex_unlock(&fsg_opts->lock);
