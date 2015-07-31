@@ -147,6 +147,11 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 
 void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper);
 
+ssize_t drm_fb_helper_sys_read(struct fb_info *info, char __user *buf,
+			       size_t count, loff_t *ppos);
+ssize_t drm_fb_helper_sys_write(struct fb_info *info, const char __user *buf,
+				size_t count, loff_t *ppos);
+
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);

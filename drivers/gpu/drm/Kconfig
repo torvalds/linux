@@ -37,6 +37,7 @@ config DRM_KMS_FB_HELPER
 	select FB
 	select FRAMEBUFFER_CONSOLE if !EXPERT
 	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY if FRAMEBUFFER_CONSOLE
+	select FB_SYS_FOPS
 	help
 	  FBDEV helpers for KMS drivers.
 
