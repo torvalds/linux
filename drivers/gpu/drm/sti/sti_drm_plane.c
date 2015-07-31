@@ -15,16 +15,15 @@
 #include "sti_drm_plane.h"
 #include "sti_vtg.h"
 
+/* (Background) < GDP0 < GDP1 < VID0 < VID1 < GDP2 < GDP3 < (ForeGround) */
 enum sti_layer_desc sti_layer_default_zorder[] = {
 	STI_GDP_0,
-	STI_VID_0,
 	STI_GDP_1,
+	STI_VID_0,
 	STI_VID_1,
 	STI_GDP_2,
 	STI_GDP_3,
 };
-
-/* (Background) < GDP0 < VID0 < GDP1 < VID1 < GDP2 < GDP3 < (ForeGround) */
 
 static int
 sti_drm_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
@@ -191,8 +190,7 @@ static const struct drm_plane_helper_funcs sti_drm_plane_helpers_funcs = {
 	.atomic_disable = sti_drm_plane_atomic_disable,
 };
 
-static void sti_drm_plane_attach_zorder_property(struct drm_plane *plane,
-						 uint64_t default_val)
+static void sti_drm_plane_attach_zorder_property(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
 	struct sti_drm_private *private = dev->dev_private;
@@ -201,16 +199,15 @@ static void sti_drm_plane_attach_zorder_property(struct drm_plane *plane,
 
 	prop = private->plane_zorder_property;
 	if (!prop) {
-		prop = drm_property_create_range(dev, 0, "zpos", 0,
-						 GAM_MIXER_NB_DEPTH_LEVEL - 1);
+		prop = drm_property_create_range(dev, 0, "zpos", 1,
+						 GAM_MIXER_NB_DEPTH_LEVEL);
 		if (!prop)
 			return;
 
 		private->plane_zorder_property = prop;
 	}
 
-	drm_object_attach_property(&plane->base, prop, default_val);
-	layer->zorder = default_val;
+	drm_object_attach_property(&plane->base, prop, layer->zorder);
 }
 
 struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
@@ -219,7 +216,6 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 				     enum drm_plane_type type)
 {
 	int err, i;
-	uint64_t default_zorder = 0;
 
 	err = drm_universal_plane_init(dev, &layer->plane, possible_crtcs,
 			     &sti_drm_plane_funcs,
@@ -236,15 +232,14 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 		if (sti_layer_default_zorder[i] == layer->desc)
 			break;
 
-	default_zorder = i + 1;
+	layer->zorder = i + 1;
 
 	if (type == DRM_PLANE_TYPE_OVERLAY)
-		sti_drm_plane_attach_zorder_property(&layer->plane,
-				default_zorder);
+		sti_drm_plane_attach_zorder_property(&layer->plane);
 
 	DRM_DEBUG_DRIVER("drm plane:%d mapped to %s with zorder:%llu\n",
 			 layer->plane.base.id,
-			 sti_layer_to_str(layer), default_zorder);
+			 sti_layer_to_str(layer), layer->zorder);
 
 	return &layer->plane;
 }

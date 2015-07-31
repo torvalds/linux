@@ -103,10 +103,11 @@ static void sti_mixer_set_background_area(struct sti_mixer *mixer,
 
 int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer)
 {
-	int layer_id = 0, depth = layer->zorder;
+	int layer_id, depth = layer->zorder;
+	unsigned int i;
 	u32 mask, val;
 
-	if (depth >= GAM_MIXER_NB_DEPTH_LEVEL)
+	if ((depth < 1) || (depth > GAM_MIXER_NB_DEPTH_LEVEL))
 		return 1;
 
 	switch (layer->desc) {
@@ -136,15 +137,23 @@ int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer)
 		DRM_ERROR("Unknown layer %d\n", layer->desc);
 		return 1;
 	}
-	mask = GAM_DEPTH_MASK_ID << (3 * depth);
-	layer_id = layer_id << (3 * depth);
+
+	/* Search if a previous depth was already assigned to the layer */
+	val = sti_mixer_reg_read(mixer, GAM_MIXER_CRB);
+	for (i = 0; i < GAM_MIXER_NB_DEPTH_LEVEL; i++) {
+		mask = GAM_DEPTH_MASK_ID << (3 * i);
+		if ((val & mask) == layer_id << (3 * i))
+			break;
+	}
+
+	mask |= GAM_DEPTH_MASK_ID << (3 * (depth - 1));
+	layer_id = layer_id << (3 * (depth - 1));
 
 	DRM_DEBUG_DRIVER("%s %s depth=%d\n", sti_mixer_to_str(mixer),
 			 sti_layer_to_str(layer), depth);
 	dev_dbg(mixer->dev, "GAM_MIXER_CRB val 0x%x mask 0x%x\n",
 		layer_id, mask);
 
-	val = sti_mixer_reg_read(mixer, GAM_MIXER_CRB);
 	val &= ~mask;
 	val |= layer_id;
 	sti_mixer_reg_write(mixer, GAM_MIXER_CRB, val);
