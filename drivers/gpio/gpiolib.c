@@ -641,8 +641,16 @@ int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 		gpiochip->irqchip = NULL;
 		return -EINVAL;
 	}
-	irqchip->irq_request_resources = gpiochip_irq_reqres;
-	irqchip->irq_release_resources = gpiochip_irq_relres;
+
+	/*
+	 * It is possible for a driver to override this, but only if the
+	 * alternative functions are both implemented.
+	 */
+	if (!irqchip->irq_request_resources &&
+	    !irqchip->irq_release_resources) {
+		irqchip->irq_request_resources = gpiochip_irq_reqres;
+		irqchip->irq_release_resources = gpiochip_irq_relres;
+	}
 
 	/*
 	 * Prepare the mapping since the irqchip shall be orthogonal to
