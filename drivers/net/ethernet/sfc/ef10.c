@@ -991,12 +991,24 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 static void efx_ef10_reset_mc_allocations(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+#ifdef CONFIG_SFC_SRIOV
+	unsigned int i;
+#endif
 
 	/* All our allocations have been reset */
 	nic_data->must_realloc_vis = true;
 	nic_data->must_restore_filters = true;
 	nic_data->must_restore_piobufs = true;
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+
+	/* Driver-created vswitches and vports must be re-created */
+	nic_data->must_probe_vswitching = true;
+	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+#ifdef CONFIG_SFC_SRIOV
+	if (nic_data->vf)
+		for (i = 0; i < efx->vf_count; i++)
+			nic_data->vf[i].vport_id = 0;
+#endif
 }
 
 static enum reset_type efx_ef10_map_reset_reason(enum reset_type reason)
@@ -1570,10 +1582,6 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 
 	/* All our allocations have been reset */
 	efx_ef10_reset_mc_allocations(efx);
-
-	/* Driver-created vswitches and vports must be re-created */
-	nic_data->must_probe_vswitching = true;
-	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 
 	/* The datapath firmware might have been changed */
 	nic_data->must_check_datapath_caps = true;
