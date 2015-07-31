@@ -59,7 +59,7 @@ static unsigned long at91sam9x5_clk_usb_recalc_rate(struct clk_hw *hw,
 static int at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 					     struct clk_rate_request *req)
 {
-	struct clk *parent = NULL;
+	struct clk_hw *parent;
 	long best_rate = -EINVAL;
 	unsigned long tmp_rate;
 	int best_diff = -1;
@@ -69,7 +69,7 @@ static int at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 		int div;
 
-		parent = clk_get_parent_by_index(hw->clk, i);
+		parent = clk_hw_get_parent_by_index(hw, i);
 		if (!parent)
 			continue;
 
@@ -77,7 +77,7 @@ static int at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 			unsigned long tmp_parent_rate;
 
 			tmp_parent_rate = req->rate * div;
-			tmp_parent_rate = __clk_round_rate(parent,
+			tmp_parent_rate = clk_hw_round_rate(parent,
 							   tmp_parent_rate);
 			tmp_rate = DIV_ROUND_CLOSEST(tmp_parent_rate, div);
 			if (tmp_rate < req->rate)
@@ -89,7 +89,7 @@ static int at91sam9x5_clk_usb_determine_rate(struct clk_hw *hw,
 				best_rate = tmp_rate;
 				best_diff = tmp_diff;
 				req->best_parent_rate = tmp_parent_rate;
-				req->best_parent_hw = __clk_get_hw(parent);
+				req->best_parent_hw = parent;
 			}
 
 			if (!best_diff || tmp_rate < req->rate)
@@ -273,7 +273,7 @@ static long at91rm9200_clk_usb_round_rate(struct clk_hw *hw, unsigned long rate,
 					  unsigned long *parent_rate)
 {
 	struct at91rm9200_clk_usb *usb = to_at91rm9200_clk_usb(hw);
-	struct clk *parent = __clk_get_parent(hw->clk);
+	struct clk_hw *parent = clk_hw_get_parent(hw);
 	unsigned long bestrate = 0;
 	int bestdiff = -1;
 	unsigned long tmprate;
@@ -287,7 +287,7 @@ static long at91rm9200_clk_usb_round_rate(struct clk_hw *hw, unsigned long rate,
 			continue;
 
 		tmp_parent_rate = rate * usb->divisors[i];
-		tmp_parent_rate = __clk_round_rate(parent, tmp_parent_rate);
+		tmp_parent_rate = clk_hw_round_rate(parent, tmp_parent_rate);
 		tmprate = DIV_ROUND_CLOSEST(tmp_parent_rate, usb->divisors[i]);
 		if (tmprate < rate)
 			tmpdiff = rate - tmprate;
