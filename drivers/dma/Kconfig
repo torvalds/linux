@@ -85,6 +85,14 @@ config INTEL_IOP_ADMA
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
 
+config IDMA64
+	tristate "Intel integrated DMA 64-bit support"
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable DMA support for Intel Low Power Subsystem such as found on
+	  Intel Skylake PCH.
+
 source "drivers/dma/dw/Kconfig"
 
 config AT_HDMAC
