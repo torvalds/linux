@@ -1160,8 +1160,13 @@ int scsi_eh_get_sense(struct list_head *work_q,
 	struct Scsi_Host *shost;
 	int rtn;
 
+	/*
+	 * If SCSI_EH_ABORT_SCHEDULED has been set, it is timeout IO,
+	 * should not get sense.
+	 */
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		if ((scmd->eh_eflags & SCSI_EH_CANCEL_CMD) ||
+		    (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) ||
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
