@@ -207,37 +207,6 @@ long syscall_trace_enter(struct pt_regs *regs)
 		return syscall_trace_enter_phase2(regs, arch, phase1_result);
 }
 
-/* Deprecated. */
-void syscall_trace_leave(struct pt_regs *regs)
-{
-	bool step;
-
-	/*
-	 * We may come here right after calling schedule_user()
-	 * or do_notify_resume(), in which case we can be in RCU
-	 * user mode.
-	 */
-	user_exit();
-
-	audit_syscall_exit(regs);
-
-	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_exit(regs, regs->ax);
-
-	/*
-	 * If TIF_SYSCALL_EMU is set, we only get here because of
-	 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
-	 * We already reported this syscall instruction in
-	 * syscall_trace_enter().
-	 */
-	step = unlikely(test_thread_flag(TIF_SINGLESTEP)) &&
-			!test_thread_flag(TIF_SYSCALL_EMU);
-	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, step);
-
-	user_enter();
-}
-
 static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
 {
 	unsigned long top_of_stack =
@@ -346,30 +315,4 @@ __visible void syscall_return_slowpath(struct pt_regs *regs)
 
 	local_irq_disable();
 	prepare_exit_to_usermode(regs);
-}
-
-/*
- * Deprecated notification of userspace execution resumption
- * - triggered by the TIF_WORK_MASK flags
- */
-__visible void
-do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
-{
-	user_exit();
-
-	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
-
-	/* deal with pending signal delivery */
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs);
-
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
-	if (thread_info_flags & _TIF_USER_RETURN_NOTIFY)
-		fire_user_return_notifiers();
-
-	user_enter();
 }
