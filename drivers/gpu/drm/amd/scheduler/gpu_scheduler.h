@@ -112,7 +112,7 @@ struct amd_gpu_scheduler {
 	uint32_t			ring_id;
 	uint32_t			granularity; /* in ms unit */
 	uint32_t			preemption;
-	uint64_t                        last_handled_seq;
+	atomic64_t			last_handled_seq;
 	wait_queue_head_t		wait_queue;
 	struct amd_context_entity	*current_entity;
 	struct mutex			sched_lock;

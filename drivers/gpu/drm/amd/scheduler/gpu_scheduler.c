@@ -393,7 +393,7 @@ static int amd_sched_main(void *param)
 
 uint64_t amd_sched_get_handled_seq(struct amd_gpu_scheduler *sched)
 {
-	return sched->last_handled_seq;
+	return atomic64_read(&sched->last_handled_seq);
 }
 
 /**
@@ -414,7 +414,7 @@ void amd_sched_isr(struct amd_gpu_scheduler *sched)
 		job = NULL;
 
 	sched->ops->process_job(sched, job);
-	sched->last_handled_seq++;
+	atomic64_inc(&sched->last_handled_seq);
 	wake_up_interruptible(&sched->wait_queue);
 }
 
@@ -448,7 +448,7 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	sched->granularity = granularity;
 	sched->ring_id = ring;
 	sched->preemption = preemption;
-	sched->last_handled_seq = 0;
+	atomic64_set(&sched->last_handled_seq, 0);
 
 	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
 	mutex_init(&sched->sched_lock);
