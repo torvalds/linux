@@ -168,7 +168,10 @@
  *
  *      For __dynamic_array(int, foo, bar) use __get_dynamic_array(foo)
  *            Use __get_dynamic_array_len(foo) to get the length of the array
- *            saved.
+ *            saved. Note, __get_dynamic_array_len() returns the total allocated
+ *            length of the dynamic array; __print_array() expects the second
+ *            parameter to be the number of elements. To get that, the array length
+ *            needs to be divided by the element size.
  *
  *      For __string(foo, bar) use __get_str(foo)
  *
@@ -288,7 +291,7 @@ TRACE_EVENT(foo_bar,
  *    This prints out the array that is defined by __array in a nice format.
  */
 		  __print_array(__get_dynamic_array(list),
-				__get_dynamic_array_len(list),
+				__get_dynamic_array_len(list) / sizeof(int),
 				sizeof(int)),
 		  __get_str(str), __get_bitmask(cpus))
 );

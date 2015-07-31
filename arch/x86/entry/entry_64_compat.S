@@ -205,7 +205,6 @@ sysexit_from_sys_call:
 	movl	RDX(%rsp), %edx		/* arg3 */
 	movl	RSI(%rsp), %ecx		/* arg4 */
 	movl	RDI(%rsp), %r8d		/* arg5 */
-	movl	%ebp, %r9d		/* arg6 */
 	.endm
 
 	.macro auditsys_exit exit
@@ -236,6 +235,7 @@ sysexit_from_sys_call:
 
 sysenter_auditsys:
 	auditsys_entry_common
+	movl	%ebp, %r9d		/* reload 6th syscall arg */
 	jmp	sysenter_dispatch
 
 sysexit_audit:
@@ -336,7 +336,7 @@ ENTRY(entry_SYSCALL_compat)
 	 * 32-bit zero extended:
 	 */
 	ASM_STAC
-1:	movl	(%r8), %ebp
+1:	movl	(%r8), %r9d
 	_ASM_EXTABLE(1b, ia32_badarg)
 	ASM_CLAC
 	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
@@ -346,7 +346,7 @@ ENTRY(entry_SYSCALL_compat)
 cstar_do_call:
 	/* 32-bit syscall -> 64-bit C ABI argument conversion */
 	movl	%edi, %r8d		/* arg5 */
-	movl	%ebp, %r9d		/* arg6 */
+	/* r9 already loaded */		/* arg6 */
 	xchg	%ecx, %esi		/* rsi:arg2, rcx:arg4 */
 	movl	%ebx, %edi		/* arg1 */
 	movl	%edx, %edx		/* arg3 (zero extension) */
@@ -358,7 +358,6 @@ cstar_dispatch:
 	call	*ia32_sys_call_table(, %rax, 8)
 	movq	%rax, RAX(%rsp)
 1:
-	movl	RCX(%rsp), %ebp
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
@@ -392,7 +391,9 @@ sysretl_from_sys_call:
 
 #ifdef CONFIG_AUDITSYSCALL
 cstar_auditsys:
+	movl	%r9d, R9(%rsp)		/* register to be clobbered by call */
 	auditsys_entry_common
+	movl	R9(%rsp), %r9d		/* reload 6th syscall arg */
 	jmp	cstar_dispatch
 
 sysretl_audit:
@@ -404,14 +405,16 @@ cstar_tracesys:
 	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jz	cstar_auditsys
 #endif
+	xchgl	%r9d, %ebp
 	SAVE_EXTRA_REGS
 	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
 	movq	%rax, R10(%rsp)
-	movq	%rax, R9(%rsp)
+	movq	%r9, R9(%rsp)
 	movq	%rax, R8(%rsp)
 	movq	%rsp, %rdi		/* &pt_regs -> arg1 */
 	call	syscall_trace_enter
+	movl	R9(%rsp), %r9d
 
 	/* Reload arg registers from stack. (see sysenter_tracesys) */
 	movl	RCX(%rsp), %ecx
@@ -421,6 +424,7 @@ cstar_tracesys:
 	movl	%eax, %eax		/* zero extension */
 
 	RESTORE_EXTRA_REGS
+	xchgl	%ebp, %r9d
 	jmp	cstar_do_call
 END(entry_SYSCALL_compat)
 

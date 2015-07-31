@@ -354,6 +354,26 @@ static void sc16is7xx_port_write(struct uart_port *port, u8 reg, u8 val)
 		     (reg << SC16IS7XX_REG_SHIFT) | port->line, val);
 }
 
+static void sc16is7xx_fifo_read(struct uart_port *port, unsigned int rxlen)
+{
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	u8 addr = (SC16IS7XX_RHR_REG << SC16IS7XX_REG_SHIFT) | port->line;
+
+	regcache_cache_bypass(s->regmap, true);
+	regmap_raw_read(s->regmap, addr, s->buf, rxlen);
+	regcache_cache_bypass(s->regmap, false);
+}
+
+static void sc16is7xx_fifo_write(struct uart_port *port, u8 to_send)
+{
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	u8 addr = (SC16IS7XX_THR_REG << SC16IS7XX_REG_SHIFT) | port->line;
+
+	regcache_cache_bypass(s->regmap, true);
+	regmap_raw_write(s->regmap, addr, s->buf, to_send);
+	regcache_cache_bypass(s->regmap, false);
+}
+
 static void sc16is7xx_port_update(struct uart_port *port, u8 reg,
 				  u8 mask, u8 val)
 {
@@ -508,10 +528,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 			s->buf[0] = sc16is7xx_port_read(port, SC16IS7XX_RHR_REG);
 			bytes_read = 1;
 		} else {
-			regcache_cache_bypass(s->regmap, true);
-			regmap_raw_read(s->regmap, SC16IS7XX_RHR_REG,
-					s->buf, rxlen);
-			regcache_cache_bypass(s->regmap, false);
+			sc16is7xx_fifo_read(port, rxlen);
 			bytes_read = rxlen;
 		}
 
@@ -591,9 +608,8 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 			s->buf[i] = xmit->buf[xmit->tail];
 			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		}
-		regcache_cache_bypass(s->regmap, true);
-		regmap_raw_write(s->regmap, SC16IS7XX_THR_REG, s->buf, to_send);
-		regcache_cache_bypass(s->regmap, false);
+
+		sc16is7xx_fifo_write(port, to_send);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)

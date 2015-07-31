@@ -56,6 +56,7 @@ config PHY_EXYNOS_MIPI_VIDEO
 
 config PHY_PXA_28NM_HSIC
 	tristate "Marvell USB HSIC 28nm PHY Driver"
+	depends on HAS_IOMEM
 	select GENERIC_PHY
 	help
 	  Enable this to support Marvell USB HSIC PHY driver for Marvell
@@ -66,6 +67,7 @@ config PHY_PXA_28NM_HSIC
 
 config PHY_PXA_28NM_USB2
 	tristate "Marvell USB 2.0 28nm PHY Driver"
+	depends on HAS_IOMEM
 	select GENERIC_PHY
 	help
 	  Enable this to support Marvell USB 2.0 PHY driver for Marvell

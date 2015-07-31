@@ -214,6 +214,7 @@ static void zynqmp_gqspi_selectslave(struct zynqmp_qspi *instanceptr,
 	case GQSPI_SELECT_FLASH_CS_BOTH:
 		instanceptr->genfifocs = GQSPI_GENFIFO_CS_LOWER |
 			GQSPI_GENFIFO_CS_UPPER;
+		break;
 	case GQSPI_SELECT_FLASH_CS_UPPER:
 		instanceptr->genfifocs = GQSPI_GENFIFO_CS_UPPER;
 		break;

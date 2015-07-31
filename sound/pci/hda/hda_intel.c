@@ -979,14 +979,16 @@ static int azx_runtime_resume(struct device *dev)
 	if (!azx_has_pm_runtime(chip))
 		return 0;
 
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
-		&& hda->need_i915_power) {
-		bus =  azx_bus(chip);
-		snd_hdac_display_power(bus, true);
-		haswell_set_bclk(hda);
-		/* toggle codec wakeup bit for STATESTS read */
-		snd_hdac_set_codec_wakeup(bus, true);
-		snd_hdac_set_codec_wakeup(bus, false);
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		bus = azx_bus(chip);
+		if (hda->need_i915_power) {
+			snd_hdac_display_power(bus, true);
+			haswell_set_bclk(hda);
+		} else {
+			/* toggle codec wakeup bit for STATESTS read */
+			snd_hdac_set_codec_wakeup(bus, true);
+			snd_hdac_set_codec_wakeup(bus, false);
+		}
 	}
 
 	/* Read STATESTS before controller reset */
@@ -2182,6 +2184,8 @@ static const struct pci_device_id azx_ids[] = {
 	/* ATI HDMI */
 	{ PCI_DEVICE(0x1002, 0x1308),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
+	{ PCI_DEVICE(0x1002, 0x157a),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	{ PCI_DEVICE(0x1002, 0x793b),
 	  .driver_data = AZX_DRIVER_ATIHDMI | AZX_DCAPS_PRESET_ATI_HDMI },
 	{ PCI_DEVICE(0x1002, 0x7919),
@@ -2236,7 +2240,13 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	{ PCI_DEVICE(0x1002, 0xaab0),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
+	{ PCI_DEVICE(0x1002, 0xaac0),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	{ PCI_DEVICE(0x1002, 0xaac8),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
+	{ PCI_DEVICE(0x1002, 0xaad8),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
+	{ PCI_DEVICE(0x1002, 0xaae8),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	/* VIA VT8251/VT8237A */
 	{ PCI_DEVICE(0x1106, 0x3288),
