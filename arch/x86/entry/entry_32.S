@@ -256,14 +256,10 @@ ret_from_intr:
 
 ENTRY(resume_userspace)
 	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)		# make sure we don't miss an interrupt
-						# setting need_resched or sigpending
-						# between sampling and the iret
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	andl	$_TIF_WORK_MASK, %ecx		# is there any work to be done on
-						# int/exception return?
-	jne	work_pending
+	movl	%esp, %eax
+	call	prepare_exit_to_usermode
 	jmp	restore_all
 END(ret_from_exception)
 
@@ -341,7 +337,7 @@ sysenter_after_call:
 	TRACE_IRQS_OFF
 	movl	TI_flags(%ebp), %ecx
 	testl	$_TIF_ALLWORK_MASK, %ecx
-	jnz	syscall_exit_work
+	jnz	syscall_exit_work_irqs_off
 sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
 	movl	PT_EIP(%esp), %edx
@@ -377,13 +373,7 @@ syscall_after_call:
 	movl	%eax, PT_EAX(%esp)		# store the return value
 syscall_exit:
 	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)		# make sure we don't miss an interrupt
-						# setting need_resched or sigpending
-						# between sampling and the iret
-	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	testl	$_TIF_ALLWORK_MASK, %ecx	# current->work
-	jnz	syscall_exit_work
+	jmp	syscall_exit_work
 
 restore_all:
 	TRACE_IRQS_IRET
@@ -460,35 +450,6 @@ ldt_ss:
 #endif
 ENDPROC(entry_INT80_32)
 
-	# perform work that needs to be done immediately before resumption
-	ALIGN
-work_pending:
-	testb	$_TIF_NEED_RESCHED, %cl
-	jz	work_notifysig
-work_resched:
-	call	schedule
-	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)		# make sure we don't miss an interrupt
-						# setting need_resched or sigpending
-						# between sampling and the iret
-	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	andl	$_TIF_WORK_MASK, %ecx		# is there any work to be done other
-						# than syscall tracing?
-	jz	restore_all
-	testb	$_TIF_NEED_RESCHED, %cl
-	jnz	work_resched
-
-work_notifysig:					# deal with pending signals and
-						# notify-resume requests
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	movl	%esp, %eax
-	xorl	%edx, %edx
-	call	do_notify_resume
-	jmp	resume_userspace
-END(work_pending)
-
 	# perform syscall exit tracing
 	ALIGN
 syscall_trace_entry:
@@ -503,15 +464,14 @@ END(syscall_trace_entry)
 
 	# perform syscall exit tracing
 	ALIGN
-syscall_exit_work:
-	testl	$_TIF_WORK_SYSCALL_EXIT, %ecx
-	jz	work_pending
+syscall_exit_work_irqs_off:
 	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)		# could let syscall_trace_leave() call
-						# schedule() instead
+	ENABLE_INTERRUPTS(CLBR_ANY)
+
+syscall_exit_work:
 	movl	%esp, %eax
-	call	syscall_trace_leave
-	jmp	resume_userspace
+	call	syscall_return_slowpath
+	jmp	restore_all
 END(syscall_exit_work)
 
 syscall_fault:
