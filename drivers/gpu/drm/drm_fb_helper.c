@@ -877,6 +877,20 @@ void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 }
 EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
 
+/**
+ * drm_fb_helper_set_suspend - wrapper around fb_set_suspend
+ * @fb_helper: driver-allocated fbdev helper
+ * @state: desired state, zero to resume, non-zero to suspend
+ *
+ * A wrapper around fb_set_suspend implemented by fbdev core
+ */
+void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state)
+{
+	if (fb_helper && fb_helper->fbdev)
+		fb_set_suspend(fb_helper->fbdev, state);
+}
+EXPORT_SYMBOL(drm_fb_helper_set_suspend);
+
 static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
 {
