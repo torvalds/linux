@@ -377,7 +377,6 @@ static struct snd_soc_dai_driver cs42xx8_dai = {
 };
 
 static const struct reg_default cs42xx8_reg[] = {
-	{ 0x01, 0x01 },   /* Chip I.D. and Revision Register */
 	{ 0x02, 0x00 },   /* Power Control */
 	{ 0x03, 0xF0 },   /* Functional Mode */
 	{ 0x04, 0x46 },   /* Interface Formats */
@@ -619,8 +618,13 @@ static int cs42xx8_runtime_resume(struct device *dev)
 		goto err_clk;
 	}
 
+	regmap_update_bits(cs42xx8->regmap, CS42XX8_PWRCTL,
+				CS42XX8_PWRCTL_PDN_MASK, 1);
 	/* Make sure hardware reset done */
 	msleep(5);
+
+	regmap_update_bits(cs42xx8->regmap, CS42XX8_PWRCTL,
+				CS42XX8_PWRCTL_PDN_MASK, 0);
 
 	regcache_cache_only(cs42xx8->regmap, false);
 
@@ -645,7 +649,6 @@ static int cs42xx8_runtime_suspend(struct device *dev)
 {
 	struct cs42xx8_priv *cs42xx8 = dev_get_drvdata(dev);
 
-	regcache_mark_dirty(cs42xx8->regmap);
 	regcache_cache_only(cs42xx8->regmap, true);
 
 	regulator_bulk_disable(ARRAY_SIZE(cs42xx8->supplies),
