@@ -394,7 +394,7 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 				 struct clk_rate_request *req,
 				 int scale, int maxdiv)
 {
-	struct clk *pc, *bpc, *free;
+	struct clk_hw *pc, *bpc, *free;
 	long tdv, tpr, pr, nr, br, bpr, diff, lastdiff;
 	int j;
 
@@ -408,7 +408,7 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 	 * the one that gets closest to but not over the requested rate.
 	 */
 	for (j = 0; j < 7; j++) {
-		pc = clk_get_parent_by_index(hw->clk, j);
+		pc = clk_hw_get_parent_by_index(hw, j);
 		if (!pc)
 			break;
 
@@ -416,12 +416,12 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 		 * XXX: we would actually want clk_has_active_children()
 		 * but this is a good-enough approximation for now.
 		 */
-		if (!__clk_is_prepared(pc)) {
+		if (!clk_hw_is_prepared(pc)) {
 			if (!free)
 				free = pc;
 		}
 
-		pr = clk_get_rate(pc);
+		pr = clk_hw_get_rate(pc);
 		if (pr < req->rate)
 			continue;
 
@@ -451,7 +451,7 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 			tpr = req->rate * j;
 			if (tpr < 0)
 				break;
-			pr = clk_round_rate(free, tpr);
+			pr = clk_hw_round_rate(free, tpr);
 
 			tdv = alchemy_calc_div(req->rate, pr, scale, maxdiv,
 					       NULL);
@@ -474,7 +474,7 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 		return br;
 
 	req->best_parent_rate = bpr;
-	req->best_parent_hw = __clk_get_hw(bpc);
+	req->best_parent_hw = bpc;
 	req->rate = br;
 
 	return 0;
