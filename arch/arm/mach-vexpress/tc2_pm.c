@@ -80,7 +80,7 @@ static void tc2_pm_cpu_powerdown_prepare(unsigned int cpu, unsigned int cluster)
 	 * to the CPU by disabling the GIC CPU IF to prevent wfi
 	 * from completing execution behind power controller back
 	 */
-	gic_cpu_if_down();
+	gic_cpu_if_down(0);
 }
 
 static void tc2_pm_cluster_powerdown_prepare(unsigned int cluster)

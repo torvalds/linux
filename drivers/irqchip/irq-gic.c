@@ -356,9 +356,9 @@ static u8 gic_get_cpumask(struct gic_chip_data *gic)
 	return mask;
 }
 
-static void gic_cpu_if_up(void)
+static void gic_cpu_if_up(struct gic_chip_data *gic)
 {
-	void __iomem *cpu_base = gic_data_cpu_base(&gic_data[0]);
+	void __iomem *cpu_base = gic_data_cpu_base(gic);
 	u32 bypass = 0;
 
 	/*
@@ -426,17 +426,23 @@ static void gic_cpu_init(struct gic_chip_data *gic)
 	gic_cpu_config(dist_base, NULL);
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, base + GIC_CPU_PRIMASK);
-	gic_cpu_if_up();
+	gic_cpu_if_up(gic);
 }
 
-void gic_cpu_if_down(void)
+int gic_cpu_if_down(unsigned int gic_nr)
 {
-	void __iomem *cpu_base = gic_data_cpu_base(&gic_data[0]);
+	void __iomem *cpu_base;
 	u32 val = 0;
 
+	if (gic_nr >= MAX_GIC_NR)
+		return -EINVAL;
+
+	cpu_base = gic_data_cpu_base(&gic_data[gic_nr]);
 	val = readl(cpu_base + GIC_CPU_CTRL);
 	val &= ~GICC_ENABLE;
 	writel_relaxed(val, cpu_base + GIC_CPU_CTRL);
+
+	return 0;
 }
 
 #ifdef CONFIG_CPU_PM
@@ -572,7 +578,7 @@ static void gic_cpu_restore(unsigned int gic_nr)
 					dist_base + GIC_DIST_PRI + i * 4);
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, cpu_base + GIC_CPU_PRIMASK);
-	gic_cpu_if_up();
+	gic_cpu_if_up(&gic_data[gic_nr]);
 }
 
 static int gic_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
