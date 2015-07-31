@@ -146,7 +146,7 @@ enum {
  * @rx_lock:		protects @rx_q.
  * @con_mon_lock:	protects @ap_bssid, @bcn_*, @avg_rssi.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
- * @vendor_req_mutex:	ensures atomicity of vendor requests.
+ * @vendor_req_mutex:	protects @vend_buf, ensures atomicity of split writes.
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
  *			(accesses to RF and BBP).
  * @hw_atomic_mutex:	ensures exclusive access to HW during critical
@@ -184,6 +184,8 @@ struct mt7601u_dev {
 	struct mt7601u_eeprom_params *ee;
 
 	struct mutex vendor_req_mutex;
+	void *vend_buf;
+
 	struct mutex reg_atomic_mutex;
 	struct mutex hw_atomic_mutex;
 

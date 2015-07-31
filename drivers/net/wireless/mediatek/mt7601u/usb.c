@@ -92,10 +92,9 @@ void mt7601u_complete_urb(struct urb *urb)
 	complete(cmpl);
 }
 
-static int
-__mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
-			 const u8 direction, const u16 val, const u16 offset,
-			 void *buf, const size_t buflen)
+int mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
+			   const u8 direction, const u16 val, const u16 offset,
+			   void *buf, const size_t buflen)
 {
 	int i, ret;
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
@@ -110,6 +109,8 @@ __mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 		trace_mt_vend_req(dev, pipe, req, req_type, val, offset,
 				  buf, buflen, ret);
 
+		if (ret == -ENODEV)
+			set_bit(MT7601U_STATE_REMOVED, &dev->state);
 		if (ret >= 0 || ret == -ENODEV)
 			return ret;
 
@@ -118,25 +119,6 @@ __mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 
 	dev_err(dev->dev, "Vendor request req:%02x off:%04x failed:%d\n",
 		req, offset, ret);
-
-	return ret;
-}
-
-int
-mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
-		       const u8 direction, const u16 val, const u16 offset,
-		       void *buf, const size_t buflen)
-{
-	int ret;
-
-	mutex_lock(&dev->vendor_req_mutex);
-
-	ret = __mt7601u_vendor_request(dev, req, direction, val, offset,
-				       buf, buflen);
-	if (ret == -ENODEV)
-		set_bit(MT7601U_STATE_REMOVED, &dev->state);
-
-	mutex_unlock(&dev->vendor_req_mutex);
 
 	return ret;
 }
@@ -150,19 +132,21 @@ void mt7601u_vendor_reset(struct mt7601u_dev *dev)
 u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
 {
 	int ret;
-	__le32 reg;
-	u32 val;
+	u32 val = ~0;
 
 	WARN_ONCE(offset > USHRT_MAX, "read high off:%08x", offset);
 
+	mutex_lock(&dev->vendor_req_mutex);
+
 	ret = mt7601u_vendor_request(dev, MT_VEND_MULTI_READ, USB_DIR_IN,
-				     0, offset, &reg, sizeof(reg));
-	val = le32_to_cpu(reg);
-	if (ret > 0 && ret != sizeof(reg)) {
+				     0, offset, dev->vend_buf, MT_VEND_BUF);
+	if (ret == MT_VEND_BUF)
+		val = get_unaligned_le32(dev->vend_buf);
+	else if (ret > 0)
 		dev_err(dev->dev, "Error: wrong size read:%d off:%08x\n",
 			ret, offset);
-		val = ~0;
-	}
+
+	mutex_unlock(&dev->vendor_req_mutex);
 
 	trace_reg_read(dev, offset, val);
 	return val;
@@ -173,12 +157,17 @@ int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
 {
 	int ret;
 
+	mutex_lock(&dev->vendor_req_mutex);
+
 	ret = mt7601u_vendor_request(dev, req, USB_DIR_OUT,
 				     val & 0xffff, offset, NULL, 0);
-	if (ret)
-		return ret;
-	return mt7601u_vendor_request(dev, req, USB_DIR_OUT,
-				      val >> 16, offset + 2, NULL, 0);
+	if (!ret)
+		ret = mt7601u_vendor_request(dev, req, USB_DIR_OUT,
+					     val >> 16, offset + 2, NULL, 0);
+
+	mutex_unlock(&dev->vendor_req_mutex);
+
+	return ret;
 }
 
 void mt7601u_wr(struct mt7601u_dev *dev, u32 offset, u32 val)
@@ -274,6 +263,12 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	usb_reset_device(usb_dev);
 
 	usb_set_intfdata(usb_intf, dev);
+
+	dev->vend_buf = devm_kmalloc(dev->dev, MT_VEND_BUF, GFP_KERNEL);
+	if (!dev->vend_buf) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	ret = mt7601u_assign_pipes(usb_intf, dev);
 	if (ret)
