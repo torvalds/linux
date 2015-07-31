@@ -22,7 +22,8 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o gmc_v7_0.o cik_ih.o kv_smc.o kv_dpm.o \
-	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o
+	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o \
+	amdgpu_amdkfd_gfx_v7.o
 
 amdgpu-y += \
 	vi.o
@@ -75,7 +76,6 @@ amdgpu-y += \
 # add amdkfd interfaces
 amdgpu-y += \
 	 amdgpu_amdkfd.o \
-	 amdgpu_amdkfd_gfx_v7.o \
 	 amdgpu_amdkfd_gfx_v8.o
 
 # add cgs
