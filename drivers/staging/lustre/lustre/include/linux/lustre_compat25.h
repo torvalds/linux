@@ -121,13 +121,6 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 # define NO_QUOTA (-EDQUOT)
 #endif
 
-#ifndef SEEK_DATA
-#define SEEK_DATA      3       /* seek to the next data */
-#endif
-#ifndef SEEK_HOLE
-#define SEEK_HOLE      4       /* seek to the next hole */
-#endif
-
 #ifndef FMODE_UNSIGNED_OFFSET
 #define FMODE_UNSIGNED_OFFSET	((__force fmode_t)0x2000)
 #endif
