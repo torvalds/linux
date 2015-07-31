@@ -110,7 +110,6 @@ struct tipc_skb_cb {
 	struct sk_buff *tail;
 	bool validated;
 	bool wakeup_pending;
-	bool bundling;
 	u16 chain_sz;
 	u16 chain_imp;
 };
@@ -559,15 +558,6 @@ static inline void msg_set_node_capabilities(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 15, 0x1fff, n);
 }
 
-static inline bool msg_dup(struct tipc_msg *m)
-{
-	if (likely(msg_user(m) != TUNNEL_PROTOCOL))
-		return false;
-	if (msg_type(m) != SYNCH_MSG)
-		return false;
-	return true;
-}
-
 /*
  * Word 2
  */
@@ -621,12 +611,12 @@ static inline void msg_set_fragm_no(struct tipc_msg *m, u32 n)
 }
 
 
-static inline u32 msg_next_sent(struct tipc_msg *m)
+static inline u16 msg_next_sent(struct tipc_msg *m)
 {
 	return msg_bits(m, 4, 0, 0xffff);
 }
 
-static inline void msg_set_next_sent(struct tipc_msg *m, u32 n)
+static inline void msg_set_next_sent(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 4, 0, 0xffff, n);
 }
@@ -727,12 +717,12 @@ static inline char *msg_media_addr(struct tipc_msg *m)
 /*
  * Word 9
  */
-static inline u32 msg_msgcnt(struct tipc_msg *m)
+static inline u16 msg_msgcnt(struct tipc_msg *m)
 {
 	return msg_bits(m, 9, 16, 0xffff);
 }
 
-static inline void msg_set_msgcnt(struct tipc_msg *m, u32 n)
+static inline void msg_set_msgcnt(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }
@@ -767,19 +757,19 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 9, 0, 0xffff, n);
 }
 
-static inline bool msg_is_traffic(struct tipc_msg *m)
+static inline bool msg_peer_link_is_up(struct tipc_msg *m)
 {
 	if (likely(msg_user(m) != LINK_PROTOCOL))
 		return true;
-	if ((msg_type(m) == RESET_MSG) || (msg_type(m) == ACTIVATE_MSG))
-		return false;
-	return true;
+	if (msg_type(m) == STATE_MSG)
+		return true;
+	return false;
 }
 
-static inline bool msg_peer_is_up(struct tipc_msg *m)
+static inline bool msg_peer_node_is_up(struct tipc_msg *m)
 {
-	if (likely(msg_is_traffic(m)))
-		return false;
+	if (msg_peer_link_is_up(m))
+		return true;
 	return msg_redundant_link(m);
 }
 
@@ -872,28 +862,6 @@ static inline struct sk_buff *tipc_skb_dequeue(struct sk_buff_head *list,
 	return skb;
 }
 
-/* tipc_skb_queue_tail(): add buffer to tail of list;
- * @list: list to be appended to
- * @skb: buffer to append. Always appended
- * @dport: the destination port of the buffer
- * returns true if dport differs from previous destination
- */
-static inline bool tipc_skb_queue_tail(struct sk_buff_head *list,
-				       struct sk_buff *skb, u32 dport)
-{
-	struct sk_buff *_skb = NULL;
-	bool rv = false;
-
-	spin_lock_bh(&list->lock);
-	_skb = skb_peek_tail(list);
-	if (!_skb || (msg_destport(buf_msg(_skb)) != dport) ||
-	    (skb_queue_len(list) > 32))
-		rv = true;
-	__skb_queue_tail(list, skb);
-	spin_unlock_bh(&list->lock);
-	return rv;
-}
-
 /* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
  * @list: list to be appended to
  * @skb: buffer to add
@@ -924,6 +892,35 @@ static inline bool __tipc_skb_queue_sorted(struct sk_buff_head *list,
 	}
 	__skb_queue_tail(list, skb);
 	return false;
+}
+
+/* tipc_skb_queue_splice_tail - append an skb list to lock protected list
+ * @list: the new list to append. Not lock protected
+ * @head: target list. Lock protected.
+ */
+static inline void tipc_skb_queue_splice_tail(struct sk_buff_head *list,
+					      struct sk_buff_head *head)
+{
+	spin_lock_bh(&head->lock);
+	skb_queue_splice_tail(list, head);
+	spin_unlock_bh(&head->lock);
+}
+
+/* tipc_skb_queue_splice_tail_init - merge two lock protected skb lists
+ * @list: the new list to add. Lock protected. Will be reinitialized
+ * @head: target list. Lock protected.
+ */
+static inline void tipc_skb_queue_splice_tail_init(struct sk_buff_head *list,
+						   struct sk_buff_head *head)
+{
+	struct sk_buff_head tmp;
+
+	__skb_queue_head_init(&tmp);
+
+	spin_lock_bh(&list->lock);
+	skb_queue_splice_tail_init(list, &tmp);
+	spin_unlock_bh(&list->lock);
+	tipc_skb_queue_splice_tail(&tmp, head);
 }
 
 #endif

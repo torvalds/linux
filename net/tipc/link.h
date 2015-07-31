@@ -49,13 +49,17 @@
  */
 #define INVALID_LINK_SEQ 0x10000
 
-
-/* Link endpoint receive states
+/* Link FSM events:
  */
 enum {
-	TIPC_LINK_OPEN,
-	TIPC_LINK_BLOCKED,
-	TIPC_LINK_TUNNEL
+	LINK_ESTABLISH_EVT       = 0xec1ab1e,
+	LINK_PEER_RESET_EVT      = 0x9eed0e,
+	LINK_FAILURE_EVT         = 0xfa110e,
+	LINK_RESET_EVT           = 0x10ca1d0e,
+	LINK_FAILOVER_BEGIN_EVT  = 0xfa110bee,
+	LINK_FAILOVER_END_EVT    = 0xfa110ede,
+	LINK_SYNCH_BEGIN_EVT     = 0xc1ccbee,
+	LINK_SYNCH_END_EVT       = 0xc1ccede
 };
 
 /* Events returned from link at packet reception or at timeout
@@ -120,7 +124,6 @@ struct tipc_stats {
  * @pmsg: convenience pointer to "proto_msg" field
  * @priority: current link priority
  * @net_plane: current link network plane ('A' through 'H')
- * @exec_mode: transmit/receive mode for link endpoint instance
  * @backlog_limit: backlog queue congestion thresholds (indexed by importance)
  * @exp_msg_count: # of tunnelled messages expected during link changeover
  * @reset_rcv_checkpt: seq # of last acknowledged message at time of link reset
@@ -145,7 +148,7 @@ struct tipc_stats {
 struct tipc_link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
-	struct tipc_media_addr media_addr;
+	struct tipc_media_addr *media_addr;
 	struct tipc_node *owner;
 
 	/* Management and link supervision data */
@@ -155,7 +158,7 @@ struct tipc_link {
 	u32 tolerance;
 	unsigned long keepalive_intv;
 	u32 abort_limit;
-	int state;
+	u32 state;
 	u32 silent_intv_cnt;
 	struct {
 		unchar hdr[INT_H_SIZE];
@@ -164,13 +167,10 @@ struct tipc_link {
 	struct tipc_msg *pmsg;
 	u32 priority;
 	char net_plane;
-	u8 exec_mode;
-	u16 synch_point;
 
-	/* Failover */
-	u16 failover_pkts;
-	u16 failover_checkpt;
-	struct sk_buff *failover_skb;
+	/* Failover/synch */
+	u16 drop_point;
+	struct sk_buff *failover_reasm_skb;
 
 	/* Max packet negotiation */
 	u16 mtu;
@@ -205,25 +205,25 @@ struct tipc_link {
 	struct tipc_stats stats;
 };
 
-struct tipc_port;
-
-struct tipc_link *tipc_link_create(struct tipc_node *n,
-				   struct tipc_bearer *b,
-				   const struct tipc_media_addr *maddr,
-				   struct sk_buff_head *inputq,
-				   struct sk_buff_head *namedq);
-void tipc_link_delete(struct tipc_link *link);
-void tipc_link_delete_list(struct net *net, unsigned int bearer_id);
-void tipc_link_failover_send_queue(struct tipc_link *l_ptr);
-void tipc_link_dup_queue_xmit(struct tipc_link *l_ptr, struct tipc_link *dest);
+bool tipc_link_create(struct tipc_node *n, struct tipc_bearer *b, u32 session,
+		      u32 ownnode, u32 peer, struct tipc_media_addr *maddr,
+		      struct sk_buff_head *inputq, struct sk_buff_head *namedq,
+		      struct tipc_link **link);
+void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
+			   int mtyp, struct sk_buff_head *xmitq);
+void tipc_link_build_bcast_sync_msg(struct tipc_link *l,
+				    struct sk_buff_head *xmitq);
+int tipc_link_fsm_evt(struct tipc_link *l, int evt);
 void tipc_link_reset_fragments(struct tipc_link *l_ptr);
-int tipc_link_is_up(struct tipc_link *l_ptr);
+bool tipc_link_is_up(struct tipc_link *l);
+bool tipc_link_is_reset(struct tipc_link *l);
+bool tipc_link_is_synching(struct tipc_link *l);
+bool tipc_link_is_failingover(struct tipc_link *l);
+bool tipc_link_is_blocked(struct tipc_link *l);
 int tipc_link_is_active(struct tipc_link *l_ptr);
 void tipc_link_purge_queues(struct tipc_link *l_ptr);
 void tipc_link_purge_backlog(struct tipc_link *l);
-void tipc_link_reset_all(struct tipc_node *node);
 void tipc_link_reset(struct tipc_link *l_ptr);
-void tipc_link_activate(struct tipc_link *link);
 int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		     struct sk_buff_head *list);
 int tipc_link_xmit(struct tipc_link *link,	struct sk_buff_head *list,
@@ -243,13 +243,8 @@ int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
-void link_prepare_wakeup(struct tipc_link *l);
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq);
 int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		  struct sk_buff_head *xmitq);
-static inline u32 link_own_addr(struct tipc_link *l)
-{
-	return msg_prevnode(l->pmsg);
-}
 
 #endif

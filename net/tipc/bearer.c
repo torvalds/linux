@@ -343,7 +343,7 @@ restart:
 static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b_ptr)
 {
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
-	tipc_link_delete_list(net, b_ptr->identity);
+	tipc_node_delete_links(net, b_ptr->identity);
 	tipc_disc_reset(net, b_ptr);
 	return 0;
 }
@@ -361,7 +361,7 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b_ptr)
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	b_ptr->media->disable_media(b_ptr);
 
-	tipc_link_delete_list(net, b_ptr->identity);
+	tipc_node_delete_links(net, b_ptr->identity);
 	if (b_ptr->link_req)
 		tipc_disc_delete(b_ptr->link_req);
 
