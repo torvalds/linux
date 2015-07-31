@@ -128,7 +128,7 @@ unsigned long divider_recalc_rate(struct clk_hw *hw, unsigned long parent_rate,
 	if (!div) {
 		WARN(!(flags & CLK_DIVIDER_ALLOW_ZERO),
 			"%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
-			__clk_get_name(hw->clk));
+			clk_hw_get_name(hw));
 		return parent_rate;
 	}
 
@@ -316,7 +316,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 			*best_parent_rate = parent_rate_saved;
 			return i;
 		}
-		parent_rate = __clk_round_rate(__clk_get_parent(hw->clk),
+		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 					       rate * i);
 		now = DIV_ROUND_UP(parent_rate, i);
 		if (_is_best_div(rate, now, best, flags)) {
@@ -328,7 +328,7 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 
 	if (!bestdiv) {
 		bestdiv = _get_maxdiv(table, width, flags);
-		*best_parent_rate = __clk_round_rate(__clk_get_parent(hw->clk), 1);
+		*best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), 1);
 	}
 
 	return bestdiv;
