@@ -134,7 +134,7 @@ void cfs_get_random_bytes(void *buf, int size);
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)
 {
-	if (unlikely(IS_ERR(ptr) || ptr == NULL))
+	if (IS_ERR_OR_NULL(ptr))
 		return ptr;
 	return (char *)ptr - shift;
 }
