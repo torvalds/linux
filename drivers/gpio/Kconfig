@@ -171,6 +171,7 @@ config GPIO_ETRAXFS
 	depends on CRIS || COMPILE_TEST
 	depends on OF
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the GPIO controller on Axis ETRAX FS SoCs.
 
