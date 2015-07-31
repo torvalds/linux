@@ -13,6 +13,7 @@
 
 #include <linux/phy.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
@@ -47,6 +48,9 @@ struct dsa_slave_priv {
 	int			old_duplex;
 
 	struct net_device	*bridge_dev;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll		*netpoll;
+#endif
 };
 
 /* dsa.c */
