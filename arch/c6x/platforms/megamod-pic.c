@@ -93,10 +93,11 @@ static struct irq_chip megamod_chip = {
 	.irq_unmask	= unmask_megamod,
 };
 
-static void megamod_irq_cascade(unsigned int irq, struct irq_desc *desc)
+static void megamod_irq_cascade(unsigned int __irq, struct irq_desc *desc)
 {
 	struct megamod_cascade_data *cascade;
 	struct megamod_pic *pic;
+	unsigned int irq;
 	u32 events;
 	int n, idx;
 
