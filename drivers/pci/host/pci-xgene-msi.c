@@ -368,10 +368,8 @@ static int xgene_msi_remove(struct platform_device *pdev)
 
 	for (i = 0; i < NR_HW_IRQS; i++) {
 		virq = msi->msi_groups[i].gic_irq;
-		if (virq != 0) {
-			irq_set_chained_handler(virq, NULL);
-			irq_set_handler_data(virq, NULL);
-		}
+		if (virq != 0)
+			irq_set_chained_handler_and_data(virq, NULL, NULL);
 	}
 	kfree(msi->msi_groups);
 
@@ -421,8 +419,8 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 		}
 
 		if (err) {
-			irq_set_chained_handler(msi_group->gic_irq, NULL);
-			irq_set_handler_data(msi_group->gic_irq, NULL);
+			irq_set_chained_handler_and_data(msi_group->gic_irq,
+							 NULL, NULL);
 			return err;
 		}
 	}
@@ -441,8 +439,8 @@ static void xgene_msi_hwirq_free(unsigned int cpu)
 		if (!msi_group->gic_irq)
 			continue;
 
-		irq_set_chained_handler(msi_group->gic_irq, NULL);
-		irq_set_handler_data(msi_group->gic_irq, NULL);
+		irq_set_chained_handler_and_data(msi_group->gic_irq, NULL,
+						 NULL);
 	}
 }
 
