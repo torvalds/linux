@@ -45,16 +45,6 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 
-/* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
-#include <linux/elf-em.h>
-#define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
-#define __AUDIT_ARCH_LE		0x40000000
-
-#ifndef CONFIG_AUDITSYSCALL
-# define sysenter_audit		syscall_trace_entry
-# define sysexit_audit		syscall_exit_work
-#endif
-
 	.section .entry.text, "ax"
 
 /*
@@ -339,7 +329,7 @@ sysenter_past_esp:
 	GET_THREAD_INFO(%ebp)
 
 	testl	$_TIF_WORK_SYSCALL_ENTRY, TI_flags(%ebp)
-	jnz	sysenter_audit
+	jnz	syscall_trace_entry
 sysenter_do_call:
 	cmpl	$(NR_syscalls), %eax
 	jae	sysenter_badsys
@@ -351,7 +341,7 @@ sysenter_after_call:
 	TRACE_IRQS_OFF
 	movl	TI_flags(%ebp), %ecx
 	testl	$_TIF_ALLWORK_MASK, %ecx
-	jnz	sysexit_audit
+	jnz	syscall_exit_work
 sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
 	movl	PT_EIP(%esp), %edx
@@ -361,40 +351,6 @@ sysenter_exit:
 1:	mov	PT_FS(%esp), %fs
 	PTGS_TO_GS
 	ENABLE_INTERRUPTS_SYSEXIT
-
-#ifdef CONFIG_AUDITSYSCALL
-sysenter_audit:
-	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), TI_flags(%ebp)
-	jnz	syscall_trace_entry
-	/* movl	PT_EAX(%esp), %eax already set, syscall number: 1st arg to audit */
-	movl	PT_EBX(%esp), %edx		/* ebx/a0: 2nd arg to audit */
-	/* movl	PT_ECX(%esp), %ecx already set, a1: 3nd arg to audit */
-	pushl	PT_ESI(%esp)			/* a3: 5th arg */
-	pushl	PT_EDX+4(%esp)			/* a2: 4th arg */
-	call	__audit_syscall_entry
-	popl	%ecx				/* get that remapped edx off the stack */
-	popl	%ecx				/* get that remapped esi off the stack */
-	movl	PT_EAX(%esp), %eax		/* reload syscall number */
-	jmp	sysenter_do_call
-
-sysexit_audit:
-	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jnz	syscall_exit_work
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)
-	movl	%eax, %edx			/* second arg, syscall return value */
-	cmpl	$-MAX_ERRNO, %eax		/* is it an error ? */
-	setbe %al				/* 1 if so, 0 if not */
-	movzbl %al, %eax			/* zero-extend that */
-	call	__audit_syscall_exit
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jnz	syscall_exit_work
-	movl	PT_EAX(%esp), %eax		/* reload syscall return value */
-	jmp	sysenter_exit
-#endif
 
 .pushsection .fixup, "ax"
 2:	movl	$0, PT_FS(%esp)
