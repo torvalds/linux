@@ -208,7 +208,6 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 	entity->context_id = context_id;
 	atomic64_set(&entity->last_emitted_v_seq, seq_ring);
 	atomic64_set(&entity->last_queued_v_seq, seq_ring);
-	atomic64_set(&entity->last_signaled_v_seq, seq_ring);
 
 	/* Add the entity to the run queue */
 	mutex_lock(&rq->lock);
@@ -317,20 +316,7 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 }
 
 /**
- * Check the virtual sequence number for specified context
- *
- * @seq		The virtual sequence number to check
- * @c_entity	The pointer to a valid amd_context_entity
- *
- * return 0 if signaled, -1 else.
-*/
-int amd_sched_check_ts(struct amd_context_entity *c_entity, uint64_t seq)
-{
-	return (seq <= atomic64_read(&c_entity->last_signaled_v_seq)) ? 0 : -1;
-}
-
-/**
- * Wait for a virtual sequence number to be signaled or timeout
+ * Wait for a virtual sequence number to be emitted.
  *
  * @c_entity	The pointer to a valid context entity
  * @seq         The virtual sequence number to wait
@@ -340,16 +326,13 @@ int amd_sched_check_ts(struct amd_context_entity *c_entity, uint64_t seq)
  *
  * return =0 signaled ,  <0 failed
 */
-static int amd_sched_wait(struct amd_context_entity *c_entity,
-			  uint64_t seq,
-			  bool intr,
-			  long timeout,
-			  bool emit)
+int amd_sched_wait_emit(struct amd_context_entity *c_entity,
+			uint64_t seq,
+			bool intr,
+			long timeout)
 {
-	atomic64_t *v_seq = emit ? &c_entity->last_emitted_v_seq :
-		&c_entity->last_signaled_v_seq;
-	wait_queue_head_t *wait_queue = emit ? &c_entity->wait_emit :
-		&c_entity->wait_queue;
+	atomic64_t *v_seq = &c_entity->last_emitted_v_seq;
+	wait_queue_head_t *wait_queue = &c_entity->wait_emit;
 
 	if (intr && (timeout < 0)) {
 		wait_event_interruptible(
@@ -377,22 +360,6 @@ static int amd_sched_wait(struct amd_context_entity *c_entity,
 			0 : -1;
 	}
 	return 0;
-}
-
-int amd_sched_wait_signal(struct amd_context_entity *c_entity,
-			  uint64_t seq,
-			  bool intr,
-			  long timeout)
-{
-	return amd_sched_wait(c_entity, seq, intr, timeout, false);
-}
-
-int amd_sched_wait_emit(struct amd_context_entity *c_entity,
-			uint64_t seq,
-			bool intr,
-			long timeout)
-{
-	return amd_sched_wait(c_entity, seq, intr, timeout, true);
 }
 
 static int amd_sched_main(void *param)

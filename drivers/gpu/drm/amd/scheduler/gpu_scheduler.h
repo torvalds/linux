@@ -74,7 +74,6 @@ struct amd_context_entity {
 	/* the virtual_seq is unique per context per ring */
 	atomic64_t			last_queued_v_seq;
 	atomic64_t			last_emitted_v_seq;
-	atomic64_t			last_signaled_v_seq;
 	pid_t				tgid;
 	uint32_t			context_id;
 	/* the job_queue maintains the jobs submitted by clients */
@@ -134,10 +133,6 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       struct amd_context_entity *c_entity,
 		       void *job);
 
-int amd_sched_check_ts(struct amd_context_entity *c_entity, uint64_t seq);
-
-int amd_sched_wait_signal(struct amd_context_entity *c_entity,
-			  uint64_t seq, bool intr, long timeout);
 int amd_sched_wait_emit(struct amd_context_entity *c_entity,
 			uint64_t seq,
 			bool intr,

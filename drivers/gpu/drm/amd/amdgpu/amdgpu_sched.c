@@ -90,12 +90,6 @@ static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched, void *job)
 	ring = fence->ring;
 	adev = ring->adev;
 
-	if (sched_job->ctx) {
-		c_entity = &sched_job->ctx->rings[ring->idx].c_entity;
-		atomic64_set(&c_entity->last_signaled_v_seq,
-			     sched_job->ibs[sched_job->num_ibs - 1].sequence);
-	}
-
 	/* wake up users waiting for time stamp */
 	wake_up_all(&c_entity->wait_queue);
 
