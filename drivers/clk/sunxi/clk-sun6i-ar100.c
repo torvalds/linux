@@ -56,12 +56,12 @@ static int ar100_determine_rate(struct clk_hw *hw,
 	for (i = 0; i < nparents; i++) {
 		unsigned long parent_rate;
 		unsigned long tmp_rate;
-		struct clk *parent;
+		struct clk_hw *parent;
 		unsigned long div;
 		int shift;
 
-		parent = clk_get_parent_by_index(hw->clk, i);
-		parent_rate = __clk_get_rate(parent);
+		parent = clk_hw_get_parent_by_index(hw, i);
+		parent_rate = clk_hw_get_rate(parent);
 		div = DIV_ROUND_UP(parent_rate, req->rate);
 
 		/*
@@ -99,7 +99,7 @@ static int ar100_determine_rate(struct clk_hw *hw,
 
 		tmp_rate = (parent_rate >> shift) / div;
 		if (!req->best_parent_hw || tmp_rate > best_rate) {
-			req->best_parent_hw = __clk_get_hw(parent);
+			req->best_parent_hw = parent;
 			req->best_parent_rate = parent_rate;
 			best_rate = tmp_rate;
 		}

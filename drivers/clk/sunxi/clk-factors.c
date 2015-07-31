@@ -82,20 +82,20 @@ static long clk_factors_round_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_factors_determine_rate(struct clk_hw *hw,
 				      struct clk_rate_request *req)
 {
-	struct clk *clk = hw->clk, *parent, *best_parent = NULL;
+	struct clk_hw *parent, *best_parent = NULL;
 	int i, num_parents;
 	unsigned long parent_rate, best = 0, child_rate, best_child_rate = 0;
 
 	/* find the parent that can help provide the fastest rate <= rate */
 	num_parents = clk_hw_get_num_parents(hw);
 	for (i = 0; i < num_parents; i++) {
-		parent = clk_get_parent_by_index(clk, i);
+		parent = clk_hw_get_parent_by_index(hw, i);
 		if (!parent)
 			continue;
 		if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)
-			parent_rate = __clk_round_rate(parent, req->rate);
+			parent_rate = clk_hw_round_rate(parent, req->rate);
 		else
-			parent_rate = __clk_get_rate(parent);
+			parent_rate = clk_hw_get_rate(parent);
 
 		child_rate = clk_factors_round_rate(hw, req->rate,
 						    &parent_rate);
@@ -110,7 +110,7 @@ static int clk_factors_determine_rate(struct clk_hw *hw,
 	if (!best_parent)
 		return -EINVAL;
 
-	req->best_parent_hw = __clk_get_hw(best_parent);
+	req->best_parent_hw = best_parent;
 	req->best_parent_rate = best;
 	req->rate = best_child_rate;
 
