@@ -82,8 +82,12 @@ static int test__checkevent_symbolic_name_config(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong config",
 			PERF_COUNT_HW_CPU_CYCLES == evsel->attr.config);
+	/*
+	 * The period value gets configured within perf_evlist__config,
+	 * while this test executes only parse events method.
+	 */
 	TEST_ASSERT_VAL("wrong period",
-			100000 == evsel->attr.sample_period);
+			0 == evsel->attr.sample_period);
 	TEST_ASSERT_VAL("wrong config1",
 			0 == evsel->attr.config1);
 	TEST_ASSERT_VAL("wrong config2",
@@ -406,7 +410,11 @@ static int test__checkevent_pmu(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong config",    10 == evsel->attr.config);
 	TEST_ASSERT_VAL("wrong config1",    1 == evsel->attr.config1);
 	TEST_ASSERT_VAL("wrong config2",    3 == evsel->attr.config2);
-	TEST_ASSERT_VAL("wrong period",  1000 == evsel->attr.sample_period);
+	/*
+	 * The period value gets configured within perf_evlist__config,
+	 * while this test executes only parse events method.
+	 */
+	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
 
 	return 0;
 }

@@ -762,12 +762,14 @@ static void callchain_debug(void)
 			 callchain_param.dump_size);
 }
 
-int record_parse_callchain_opt(const struct option *opt __maybe_unused,
+int record_parse_callchain_opt(const struct option *opt,
 			       const char *arg,
 			       int unset)
 {
 	int ret;
+	struct record_opts *record = (struct record_opts *)opt->value;
 
+	record->callgraph_set = true;
 	callchain_param.enabled = !unset;
 
 	/* --no-call-graph */
@@ -784,10 +786,13 @@ int record_parse_callchain_opt(const struct option *opt __maybe_unused,
 	return ret;
 }
 
-int record_callchain_opt(const struct option *opt __maybe_unused,
+int record_callchain_opt(const struct option *opt,
 			 const char *arg __maybe_unused,
 			 int unset __maybe_unused)
 {
+	struct record_opts *record = (struct record_opts *)opt->value;
+
+	record->callgraph_set = true;
 	callchain_param.enabled = true;
 
 	if (callchain_param.record_mode == CALLCHAIN_NONE)

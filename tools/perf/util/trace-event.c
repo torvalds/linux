@@ -50,14 +50,13 @@ static int trace_event__init2(void)
 	return 0;
 }
 
-int trace_event__register_resolver(struct machine *machine)
+int trace_event__register_resolver(struct machine *machine,
+				   pevent_func_resolver_t *func)
 {
 	if (!tevent_initialized && trace_event__init2())
 		return -1;
 
-	return pevent_set_function_resolver(tevent.pevent,
-					    machine__resolve_kernel_addr,
-					    machine);
+	return pevent_set_function_resolver(tevent.pevent, func, machine);
 }
 
 void trace_event__cleanup(struct trace_event *t)

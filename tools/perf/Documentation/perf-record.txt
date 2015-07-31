@@ -46,7 +46,7 @@ OPTIONS
           /sys/bus/event_sources/devices/<pmu>/format/*
 
 	  There are also some params which are not defined in .../<pmu>/format/*.
-	  These params can be used to set event defaults.
+	  These params can be used to overload default config values per event.
 	  Here is a list of the params.
 	  - 'period': Set event sampling period
 

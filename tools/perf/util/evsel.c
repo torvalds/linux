@@ -207,6 +207,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->unit	   = "";
 	evsel->scale	   = 1.0;
 	INIT_LIST_HEAD(&evsel->node);
+	INIT_LIST_HEAD(&evsel->config_terms);
 	perf_evsel__object.init(evsel);
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
 	perf_evsel__calc_id_pos(evsel);
@@ -586,6 +587,21 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 	}
 }
 
+static void apply_config_terms(struct perf_event_attr *attr __maybe_unused,
+			       struct list_head *config_terms)
+{
+	struct perf_evsel_config_term *term;
+
+	list_for_each_entry(term, config_terms, list) {
+		switch (term->type) {
+		case PERF_EVSEL__CONFIG_TERM_PERIOD:
+			attr->sample_period = term->val.period;
+		default:
+			break;
+		}
+	}
+}
+
 /*
  * The enable_on_exec/disabled value strategy:
  *
@@ -777,6 +793,12 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 		attr->use_clockid = 1;
 		attr->clockid = opts->clockid;
 	}
+
+	/*
+	 * Apply event specific term settings,
+	 * it overloads any global configuration.
+	 */
+	apply_config_terms(attr, &evsel->config_terms);
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -900,6 +922,16 @@ static void perf_evsel__free_id(struct perf_evsel *evsel)
 	zfree(&evsel->id);
 }
 
+static void perf_evsel__free_config_terms(struct perf_evsel *evsel)
+{
+	struct perf_evsel_config_term *term, *h;
+
+	list_for_each_entry_safe(term, h, &evsel->config_terms, list) {
+		list_del(&term->list);
+		free(term);
+	}
+}
+
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;
@@ -919,6 +951,7 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	assert(list_empty(&evsel->node));
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
+	perf_evsel__free_config_terms(evsel);
 	close_cgroup(evsel->cgrp);
 	cpu_map__put(evsel->cpus);
 	thread_map__put(evsel->threads);
