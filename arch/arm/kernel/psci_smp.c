@@ -51,7 +51,7 @@ static int psci_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	if (psci_ops.cpu_on)
 		return psci_ops.cpu_on(cpu_logical_map(cpu),
-				       __pa(secondary_startup));
+					virt_to_idmap(&secondary_startup));
 	return -ENODEV;
 }
 
