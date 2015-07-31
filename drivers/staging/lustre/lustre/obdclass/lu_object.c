@@ -674,7 +674,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	cfs_hash_bd_lock(hs, &bd, 1);
 
 	shadow = htable_lookup(s, &bd, f, waiter, &version);
-	if (likely(IS_ERR(shadow) && PTR_ERR(shadow) == -ENOENT)) {
+	if (likely(PTR_ERR(shadow) == -ENOENT)) {
 		struct lu_site_bkt_data *bkt;
 
 		bkt = cfs_hash_bd_extra_get(hs, &bd);
