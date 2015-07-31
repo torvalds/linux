@@ -112,7 +112,7 @@ static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
 	if (!skb)
 		return;
 
-	ieee80211_rx_ni(dev->hw, skb);
+	ieee80211_rx(dev->hw, skb);
 }
 
 static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
