@@ -61,11 +61,16 @@
 #define MAX_IOMUXC_GPR			23
 #define MAX_UART_IO			4
 #define MAX_CCM_LPCG			167
+#define MAX_GPT				3
 
 #define UART_RX_IO	0x128
 #define UART_RX_PAD	0x398
 #define UART_TX_IO	0x12c
 #define UART_TX_PAD	0x39c
+
+#define GPT_CR		0x0
+#define GPT_PR		0x4
+#define GPT_IR		0xc
 
 #define CCM_LPCG_START		0x4040
 #define CCM_LPCG_STEP		0x10
@@ -111,6 +116,7 @@ static void __iomem *lpsr_base;
 static void __iomem *console_base;
 static void __iomem *suspend_ocram_base;
 static void __iomem *iomuxc_base;
+static void __iomem *gpt1_base;
 static void (*imx7_suspend_in_ocram_fn)(void __iomem *ocram_vbase);
 struct imx7_cpu_pm_info *pm_info;
 static bool lpsr_enabled;
@@ -139,6 +145,7 @@ static u32 ccm_root[][2] = {
 };
 static u32 pfd_a, pfd_b;
 static u32 pll[15];
+static u32 gpt1_regs[MAX_GPT];
 /*
  * suspend ocram space layout:
  * ======================== high address ======================
@@ -473,6 +480,20 @@ static void imx7_ccm_restore(void)
 	writel_relaxed(pfd_b, pm_info->anatop_base.vbase + PFD_B_OFFSET);
 }
 
+static void imx7_gpt_save(void)
+{
+	gpt1_regs[0] = readl_relaxed(gpt1_base + GPT_CR);
+	gpt1_regs[1] = readl_relaxed(gpt1_base + GPT_PR);
+	gpt1_regs[2] = readl_relaxed(gpt1_base + GPT_IR);
+}
+
+static void imx7_gpt_restore(void)
+{
+	writel_relaxed(gpt1_regs[0], gpt1_base + GPT_CR);
+	writel_relaxed(gpt1_regs[1], gpt1_base + GPT_PR);
+	writel_relaxed(gpt1_regs[2], gpt1_base + GPT_IR);
+}
+
 static void imx7_iomuxc_gpr_save(void)
 {
 	u32 i;
@@ -604,6 +625,7 @@ static int imx7_pm_enter(suspend_state_t state)
 					lpm_ocram_size);
 				imx7_iomuxc_gpr_save();
 				imx7_ccm_save();
+				imx7_gpt_save();
 			}
 		}
 
@@ -616,6 +638,7 @@ static int imx7_pm_enter(suspend_state_t state)
 				lpm_ocram_size);
 			imx7_iomuxc_gpr_restore();
 			imx7_ccm_restore();
+			imx7_gpt_restore();
 		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
@@ -910,6 +933,12 @@ void __init imx7d_pm_init(void)
 		if (np)
 			iomuxc_base = of_iomap(np, 0);
 		WARN_ON(!iomuxc_base);
+
+		np = of_find_node_by_path(
+			"/soc/aips-bus@30000000/gpt@302d0000");
+		if (np)
+			gpt1_base = of_iomap(np, 0);
+		WARN_ON(!gpt1_base);
 	}
 
 	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
