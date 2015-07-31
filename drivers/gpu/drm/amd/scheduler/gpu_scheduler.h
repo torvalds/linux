@@ -129,7 +129,7 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 
 int amd_sched_destroy(struct amd_gpu_scheduler *sched);
 
-int amd_sched_push_job(struct amd_gpu_scheduler *sched,
+uint64_t amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       struct amd_context_entity *c_entity,
 		       void *job);
 

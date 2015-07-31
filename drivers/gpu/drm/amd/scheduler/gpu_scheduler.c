@@ -293,12 +293,9 @@ int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
  * @sched	The pointer to the scheduler
  * @c_entity    The pointer to amd_context_entity
  * @job		The pointer to job required to submit
- * return 0 if succeed. -1 if failed.
- *        -2 indicate queue is full for this client, client should wait untill
- *	     scheduler consum some queued command.
- *	  -1 other fail.
+ * return the virtual sequence number
 */
-int amd_sched_push_job(struct amd_gpu_scheduler *sched,
+uint64_t amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       struct amd_context_entity *c_entity,
 		       void *job)
 {
@@ -312,7 +309,8 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 	}
 
 	wake_up_interruptible(&sched->wait_queue);
-	return 0;
+
+	return atomic64_inc_return(&c_entity->last_queued_v_seq);
 }
 
 /**

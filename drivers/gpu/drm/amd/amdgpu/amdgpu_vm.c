@@ -371,7 +371,6 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	if (amdgpu_enable_scheduler) {
 		int r;
-		uint64_t v_seq;
 		sched_job = amdgpu_cs_parser_create(adev, AMDGPU_FENCE_OWNER_VM,
 						    adev->kernel_ctx, ib, 1);
 		if(!sched_job)
@@ -379,15 +378,11 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		sched_job->job_param.vm.bo = bo;
 		sched_job->run_job = amdgpu_vm_run_job;
 		sched_job->free_job = amdgpu_vm_free_job;
-		v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
-		ib->sequence = v_seq;
-		amd_sched_push_job(ring->scheduler,
+		ib->sequence = amd_sched_push_job(ring->scheduler,
 				   &adev->kernel_ctx->rings[ring->idx].c_entity,
 				   sched_job);
 		r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
-					v_seq,
-					false,
-					-1);
+					ib->sequence, false, -1);
 		if (r)
 			DRM_ERROR("emit timeout\n");
 
@@ -521,7 +516,6 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 
 		if (amdgpu_enable_scheduler) {
 			int r;
-			uint64_t v_seq;
 			sched_job = amdgpu_cs_parser_create(adev, AMDGPU_FENCE_OWNER_VM,
 							    adev->kernel_ctx,
 							    ib, 1);
@@ -530,15 +524,11 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 			sched_job->job_param.vm.bo = pd;
 			sched_job->run_job = amdgpu_vm_run_job;
 			sched_job->free_job = amdgpu_vm_free_job;
-			v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
-			ib->sequence = v_seq;
-			amd_sched_push_job(ring->scheduler,
+			ib->sequence = amd_sched_push_job(ring->scheduler,
 					   &adev->kernel_ctx->rings[ring->idx].c_entity,
 					   sched_job);
 			r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
-						v_seq,
-						false,
-						-1);
+						ib->sequence, false, -1);
 			if (r)
 				DRM_ERROR("emit timeout\n");
 		} else {
@@ -872,7 +862,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	if (amdgpu_enable_scheduler) {
 		int r;
-		uint64_t v_seq;
 		sched_job = amdgpu_cs_parser_create(adev, AMDGPU_FENCE_OWNER_VM,
 						    adev->kernel_ctx, ib, 1);
 		if(!sched_job)
@@ -883,15 +872,11 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		sched_job->job_param.vm_mapping.fence = fence;
 		sched_job->run_job = amdgpu_vm_bo_update_mapping_run_job;
 		sched_job->free_job = amdgpu_vm_free_job;
-		v_seq = atomic64_inc_return(&adev->kernel_ctx->rings[ring->idx].c_entity.last_queued_v_seq);
-		ib->sequence = v_seq;
-		amd_sched_push_job(ring->scheduler,
+		ib->sequence = amd_sched_push_job(ring->scheduler,
 				   &adev->kernel_ctx->rings[ring->idx].c_entity,
 				   sched_job);
 		r = amd_sched_wait_emit(&adev->kernel_ctx->rings[ring->idx].c_entity,
-					v_seq,
-					false,
-					-1);
+					ib->sequence, false, -1);
 		if (r)
 			DRM_ERROR("emit timeout\n");
 	} else {
