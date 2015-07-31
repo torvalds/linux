@@ -69,11 +69,6 @@
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
 /* inode_dio_done(i) use as-is for read unlock */
 
-#define ll_pagevec_init(pv, cold)       do {} while (0)
-#define ll_pagevec_add(pv, pg)	  (0)
-#define ll_pagevec_lru_add_file(pv)     do {} while (0)
-
-
 #ifndef QUOTA_OK
 # define QUOTA_OK 0
 #endif
