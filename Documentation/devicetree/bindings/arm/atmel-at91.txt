@@ -62,7 +62,7 @@ TC/TCLIB Timer required properties:
   Note that you can specify several interrupt cells if the TC
   block has one interrupt per channel.
 - clock-names: tuple listing input clock names.
-	Required elements: "t0_clk"
+	Required elements: "t0_clk", "slow_clk"
 	Optional elements: "t1_clk", "t2_clk"
 - clocks: phandles to input clocks.
 
