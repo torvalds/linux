@@ -823,7 +823,7 @@ static int lpc18xx_pconf_set_i2c0(struct pinctrl_dev *pctldev,
 		break;
 
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-		if (param)
+		if (param_val)
 			*reg &= ~(LPC18XX_SCU_I2C0_ZIF << shift);
 		else
 			*reg |= (LPC18XX_SCU_I2C0_ZIF << shift);
@@ -876,7 +876,7 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev,
 		break;
 
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-		if (param)
+		if (param_val)
 			*reg &= ~LPC18XX_SCU_PIN_ZIF;
 		else
 			*reg |= LPC18XX_SCU_PIN_ZIF;

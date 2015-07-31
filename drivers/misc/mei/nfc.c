@@ -402,11 +402,12 @@ void mei_nfc_host_exit(struct mei_device *dev)
 
 	cldev->priv_data = NULL;
 
-	mutex_lock(&dev->device_lock);
 	/* Need to remove the device here
 	 * since mei_nfc_free will unlink the clients
 	 */
 	mei_cl_remove_device(cldev);
+
+	mutex_lock(&dev->device_lock);
 	mei_nfc_free(ndev);
 	mutex_unlock(&dev->device_lock);
 }

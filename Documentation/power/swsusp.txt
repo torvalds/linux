@@ -410,8 +410,17 @@ Documentation/usb/persist.txt.
 
 Q: Can I suspend-to-disk using a swap partition under LVM?
 
-A: No. You can suspend successfully, but you'll not be able to
-resume. uswsusp should be able to work with LVM. See suspend.sf.net.
+A: Yes and No.  You can suspend successfully, but the kernel will not be able
+to resume on its own.  You need an initramfs that can recognize the resume
+situation, activate the logical volume containing the swap volume (but not
+touch any filesystems!), and eventually call
+
+echo -n "$major:$minor" > /sys/power/resume
+
+where $major and $minor are the respective major and minor device numbers of
+the swap volume.
+
+uswsusp works with LVM, too.  See http://suspend.sourceforge.net/
 
 Q: I upgraded the kernel from 2.6.15 to 2.6.16. Both kernels were
 compiled with the similar configuration files. Anyway I found that

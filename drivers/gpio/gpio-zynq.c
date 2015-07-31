@@ -757,6 +757,7 @@ static int zynq_gpio_remove(struct platform_device *pdev)
 	gpiochip_remove(&gpio->chip);
 	clk_disable_unprepare(gpio->clk);
 	device_set_wakeup_capable(&pdev->dev, 0);
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 

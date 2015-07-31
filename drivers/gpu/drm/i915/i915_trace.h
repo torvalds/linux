@@ -727,7 +727,7 @@ DECLARE_EVENT_CLASS(i915_context,
 	TP_fast_assign(
 			__entry->ctx = ctx;
 			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->base : NULL;
-			__entry->dev = ctx->file_priv->dev_priv->dev->primary->index;
+			__entry->dev = ctx->i915->dev->primary->index;
 	),
 
 	TP_printk("dev=%u, ctx=%p, ctx_vm=%p",

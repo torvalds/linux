@@ -1863,10 +1863,6 @@ void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata)
 	ieee80211_teardown_sdata(sdata);
 }
 
-/*
- * Remove all interfaces, may only be called at hardware unregistration
- * time because it doesn't do RCU-safe list removals.
- */
 void ieee80211_remove_interfaces(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata, *tmp;
@@ -1875,14 +1871,21 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 
 	ASSERT_RTNL();
 
-	/*
-	 * Close all AP_VLAN interfaces first, as otherwise they
-	 * might be closed while the AP interface they belong to
-	 * is closed, causing unregister_netdevice_many() to crash.
+	/* Before destroying the interfaces, make sure they're all stopped so
+	 * that the hardware is stopped. Otherwise, the driver might still be
+	 * iterating the interfaces during the shutdown, e.g. from a worker
+	 * or from RX processing or similar, and if it does so (using atomic
+	 * iteration) while we're manipulating the list, the iteration will
+	 * crash.
+	 *
+	 * After this, the hardware should be stopped and the driver should
+	 * have stopped all of its activities, so that we can do RCU-unaware
+	 * manipulations of the interface list below.
 	 */
-	list_for_each_entry(sdata, &local->interfaces, list)
-		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-			dev_close(sdata->dev);
+	cfg80211_shutdown_all_interfaces(local->hw.wiphy);
+
+	WARN(local->open_count, "%s: open count remains %d\n",
+	     wiphy_name(local->hw.wiphy), local->open_count);
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {

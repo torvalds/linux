@@ -116,8 +116,10 @@ void __init of_sama5d4_clk_h32mx_setup(struct device_node *np,
 	h32mxclk->pmc = pmc;
 
 	clk = clk_register(NULL, &h32mxclk->hw);
-	if (!clk)
+	if (!clk) {
+		kfree(h32mxclk);
 		return;
+	}
 
 	of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }

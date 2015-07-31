@@ -352,7 +352,7 @@ unsigned long amdgpu_gem_timeout(uint64_t timeout_ns)
 	if (((int64_t)timeout_ns) < 0)
 		return MAX_SCHEDULE_TIMEOUT;
 
-	timeout = ktime_sub_ns(ktime_get(), timeout_ns);
+	timeout = ktime_sub(ns_to_ktime(timeout_ns), ktime_get());
 	if (ktime_to_ns(timeout) < 0)
 		return 0;
 

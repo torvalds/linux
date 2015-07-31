@@ -419,6 +419,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
 		dev_err(&pdev->dev, "Adapter registeration failed\n");
+		mbox_free_channel(ctx->mbox_chan);
 		return rc;
 	}
 

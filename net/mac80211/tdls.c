@@ -60,6 +60,7 @@ ieee80211_tdls_add_subband(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_channel *ch;
 	struct cfg80211_chan_def chandef;
 	int i, subband_start;
+	struct wiphy *wiphy = sdata->local->hw.wiphy;
 
 	for (i = start; i <= end; i += spacing) {
 		if (!ch_cnt)
@@ -70,9 +71,8 @@ ieee80211_tdls_add_subband(struct ieee80211_sub_if_data *sdata,
 			/* we will be active on the channel */
 			cfg80211_chandef_create(&chandef, ch,
 						NL80211_CHAN_NO_HT);
-			if (cfg80211_reg_can_beacon(sdata->local->hw.wiphy,
-						    &chandef,
-						    sdata->wdev.iftype)) {
+			if (cfg80211_reg_can_beacon_relax(wiphy, &chandef,
+							  sdata->wdev.iftype)) {
 				ch_cnt++;
 				/*
 				 * check if the next channel is also part of

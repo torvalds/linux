@@ -450,7 +450,7 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 		pdata->control_flags  |= MAX8973_CONTROL_FREQ_SHIFT_9PER_ENABLE;
 
 	if (of_property_read_bool(np, "maxim,enable-bias-control"))
-		pdata->control_flags  |= MAX8973_BIAS_ENABLE;
+		pdata->control_flags  |= MAX8973_CONTROL_BIAS_ENABLE;
 
 	return pdata;
 }
