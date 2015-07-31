@@ -87,7 +87,7 @@ static long clk_pll_round_rate_index(struct clk_hw *hw, unsigned long drate,
 	struct clk_pll *pll = to_clk_pll(hw);
 	unsigned long prev_rate, vco_prev_rate, rate = 0;
 	unsigned long vco_parent_rate =
-		__clk_get_rate(__clk_get_parent(__clk_get_parent(hw->clk)));
+		clk_hw_get_rate(clk_hw_get_parent(clk_hw_get_parent(hw)));
 
 	if (!prate) {
 		pr_err("%s: prate is must for pll clk\n", __func__);
