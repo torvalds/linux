@@ -238,7 +238,7 @@ static void etm_set_default(struct etm_drvdata *drvdata)
 	drvdata->seq_curr_state = 0x0;
 	drvdata->ctxid_idx = 0x0;
 	for (i = 0; i < drvdata->nr_ctxid_cmp; i++)
-		drvdata->ctxid_val[i] = 0x0;
+		drvdata->ctxid_pid[i] = 0x0;
 	drvdata->ctxid_mask = 0x0;
 }
 
@@ -289,7 +289,7 @@ static void etm_enable_hw(void *info)
 	for (i = 0; i < drvdata->nr_ext_out; i++)
 		etm_writel(drvdata, ETM_DEFAULT_EVENT_VAL, ETMEXTOUTEVRn(i));
 	for (i = 0; i < drvdata->nr_ctxid_cmp; i++)
-		etm_writel(drvdata, drvdata->ctxid_val[i], ETMCIDCVRn(i));
+		etm_writel(drvdata, drvdata->ctxid_pid[i], ETMCIDCVRn(i));
 	etm_writel(drvdata, drvdata->ctxid_mask, ETMCIDCMR);
 	etm_writel(drvdata, drvdata->sync_freq, ETMSYNCFR);
 	/* No external input selected */
@@ -1386,20 +1386,20 @@ static ssize_t ctxid_idx_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(ctxid_idx);
 
-static ssize_t ctxid_val_show(struct device *dev,
+static ssize_t ctxid_pid_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	unsigned long val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	spin_lock(&drvdata->spinlock);
-	val = drvdata->ctxid_val[drvdata->ctxid_idx];
+	val = drvdata->ctxid_pid[drvdata->ctxid_idx];
 	spin_unlock(&drvdata->spinlock);
 
 	return sprintf(buf, "%#lx\n", val);
 }
 
-static ssize_t ctxid_val_store(struct device *dev,
+static ssize_t ctxid_pid_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t size)
 {
@@ -1412,12 +1412,12 @@ static ssize_t ctxid_val_store(struct device *dev,
 		return ret;
 
 	spin_lock(&drvdata->spinlock);
-	drvdata->ctxid_val[drvdata->ctxid_idx] = val;
+	drvdata->ctxid_pid[drvdata->ctxid_idx] = val;
 	spin_unlock(&drvdata->spinlock);
 
 	return size;
 }
-static DEVICE_ATTR_RW(ctxid_val);
+static DEVICE_ATTR_RW(ctxid_pid);
 
 static ssize_t ctxid_mask_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -1609,7 +1609,7 @@ static struct attribute *coresight_etm_attrs[] = {
 	&dev_attr_seq_13_event.attr,
 	&dev_attr_seq_curr_state.attr,
 	&dev_attr_ctxid_idx.attr,
-	&dev_attr_ctxid_val.attr,
+	&dev_attr_ctxid_pid.attr,
 	&dev_attr_ctxid_mask.attr,
 	&dev_attr_sync_freq.attr,
 	&dev_attr_timestamp_event.attr,
