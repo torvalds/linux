@@ -1010,6 +1010,14 @@ static int si476x_radio_s_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		break;
 
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->val)
+			retval = regmap_write(radio->core->regmap,
+					      SI476X_PROP_AUDIO_MUTE, 3);
+		else
+			retval = regmap_write(radio->core->regmap,
+					      SI476X_PROP_AUDIO_MUTE, 0);
+		break;
 	default:
 		retval = -EINVAL;
 		break;
@@ -1525,6 +1533,16 @@ static int si476x_radio_probe(struct platform_device *pdev)
 	rval = radio->ctrl_handler.error;
 	if (ctrl == NULL && rval) {
 		dev_err(&pdev->dev, "Could not initialize V4L2_CID_RDS_RECEPTION control %d\n",
+			rval);
+		goto exit;
+	}
+
+	ctrl = v4l2_ctrl_new_std(&radio->ctrl_handler, &si476x_ctrl_ops,
+				 V4L2_CID_AUDIO_MUTE,
+				 0, 1, 1, 0);
+	rval = radio->ctrl_handler.error;
+	if (ctrl == NULL && rval) {
+		dev_err(&pdev->dev, "Could not initialize V4L2_CID_AUDIO_MUTE control %d\n",
 			rval);
 		goto exit;
 	}
