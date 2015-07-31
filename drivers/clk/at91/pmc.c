@@ -377,6 +377,12 @@ static const struct of_device_id pmc_clk_ids[] __initconst = {
 		.data = of_sama5d4_clk_h32mx_setup,
 	},
 #endif
+#if defined(CONFIG_HAVE_AT91_GENERATED_CLK)
+	{
+		.compatible = "atmel,sama5d2-clk-generated",
+		.data = of_sama5d2_clk_generated_setup,
+	},
+#endif
 	{ /*sentinel*/ }
 };
 

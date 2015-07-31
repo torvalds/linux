@@ -184,10 +184,17 @@ extern void __iomem *at91_pmc_base;
 
 #define AT91_PMC_PCR		0x10c			/* Peripheral Control Register [some SAM9 and SAMA5] */
 #define		AT91_PMC_PCR_PID_MASK		0x3f
+#define		AT91_PMC_PCR_GCKCSS_OFFSET	8
+#define		AT91_PMC_PCR_GCKCSS_MASK	(0x7  << AT91_PMC_PCR_GCKCSS_OFFSET)
+#define		AT91_PMC_PCR_GCKCSS(n)		((n)  << AT91_PMC_PCR_GCKCSS_OFFSET)	/* GCK Clock Source Selection */
 #define		AT91_PMC_PCR_CMD		(0x1  <<  12)				/* Command (read=0, write=1) */
 #define		AT91_PMC_PCR_DIV_OFFSET		16
 #define		AT91_PMC_PCR_DIV_MASK		(0x3  << AT91_PMC_PCR_DIV_OFFSET)
 #define		AT91_PMC_PCR_DIV(n)		((n)  << AT91_PMC_PCR_DIV_OFFSET)	/* Divisor Value */
+#define		AT91_PMC_PCR_GCKDIV_OFFSET	20
+#define		AT91_PMC_PCR_GCKDIV_MASK	(0xff  << AT91_PMC_PCR_GCKDIV_OFFSET)
+#define		AT91_PMC_PCR_GCKDIV(n)		((n)  << AT91_PMC_PCR_GCKDIV_OFFSET)	/* Generated Clock Divisor Value */
 #define		AT91_PMC_PCR_EN			(0x1  <<  28)				/* Enable */
+#define		AT91_PMC_PCR_GCKEN		(0x1  <<  29)				/* GCK Enable */
 
 #endif
