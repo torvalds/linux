@@ -1404,6 +1404,17 @@ net2272_usb_reinit(struct net2272 *dev)
 		else
 			ep->fifo_size = 64;
 		net2272_ep_reset(ep);
+
+		if (i == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 	}
 	usb_ep_set_maxpacket_limit(&dev->ep[0].ep, 64);
 
