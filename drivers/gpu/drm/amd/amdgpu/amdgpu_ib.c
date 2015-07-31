@@ -180,16 +180,16 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	if (vm) {
 		/* do context switch */
 		amdgpu_vm_flush(ring, vm, ib->sync.last_vm_update);
+
+		if (ring->funcs->emit_gds_switch)
+			amdgpu_ring_emit_gds_switch(ring, ib->vm->ids[ring->idx].id,
+						    ib->gds_base, ib->gds_size,
+						    ib->gws_base, ib->gws_size,
+						    ib->oa_base, ib->oa_size);
+
+		if (ring->funcs->emit_hdp_flush)
+			amdgpu_ring_emit_hdp_flush(ring);
 	}
-
-	if (vm && ring->funcs->emit_gds_switch)
-		amdgpu_ring_emit_gds_switch(ring, ib->vm->ids[ring->idx].id,
-					    ib->gds_base, ib->gds_size,
-					    ib->gws_base, ib->gws_size,
-					    ib->oa_base, ib->oa_size);
-
-	if (ring->funcs->emit_hdp_flush)
-		amdgpu_ring_emit_hdp_flush(ring);
 
 	old_ctx = ring->current_ctx;
 	for (i = 0; i < num_ibs; ++i) {

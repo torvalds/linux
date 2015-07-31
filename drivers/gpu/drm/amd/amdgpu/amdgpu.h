@@ -1866,6 +1866,12 @@ typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
 
+struct amdgpu_ip_block_status {
+	bool valid;
+	bool sw;
+	bool hw;
+};
+
 struct amdgpu_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
@@ -2008,7 +2014,7 @@ struct amdgpu_device {
 
 	const struct amdgpu_ip_block_version *ip_blocks;
 	int				num_ip_blocks;
-	bool				*ip_block_enabled;
+	struct amdgpu_ip_block_status	*ip_block_status;
 	struct mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);
 
