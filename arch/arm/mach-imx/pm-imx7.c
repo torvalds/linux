@@ -60,11 +60,42 @@
 
 #define MAX_IOMUXC_GPR			23
 #define MAX_UART_IO			4
+#define MAX_CCM_LPCG			167
 
 #define UART_RX_IO	0x128
 #define UART_RX_PAD	0x398
 #define UART_TX_IO	0x12c
 #define UART_TX_PAD	0x39c
+
+#define CCM_LPCG_START		0x4040
+#define CCM_LPCG_STEP		0x10
+
+#define BM_CCM_ROOT_POST_PODF	0x3f
+#define BM_CCM_ROOT_PRE_PODF	0x70000
+#define BM_CCM_ROOT_MUX		0x7000000
+#define BM_CCM_ROOT_ENABLE	0x10000000
+
+#define PFD_A_OFFSET		0xc0
+#define PFD_B_OFFSET		0xd0
+
+#define PLL_ARM_OFFSET		0x60
+#define PLL_DDR_OFFSET		0x70
+#define PLL_DDR_SS_OFFSET	0x80
+#define PLL_DDR_NUM_OFFSET	0x90
+#define PLL_DDR_DENOM_OFFSET	0xa0
+#define PLL_480_OFFSET		0xb0
+#define PLL_ENET_OFFSET		0xe0
+#define PLL_AUDIO_OFFSET	0xf0
+#define PLL_AUDIO_SS_OFFSET	0x100
+#define PLL_AUDIO_NUM_OFFSET	0x110
+#define PLL_AUDIO_DENOM_OFFSET	0x120
+#define PLL_VIDEO_OFFSET	0x130
+#define PLL_VIDEO_SS_OFFSET	0x140
+#define PLL_VIDEO_NUM_OFFSET	0x150
+#define PLL_VIDEO_DENOM_OFFSET	0x160
+
+#define REG_SET			0x4
+#define REG_CLR			0x8
 
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
@@ -85,6 +116,29 @@ struct imx7_cpu_pm_info *pm_info;
 static bool lpsr_enabled;
 static u32 iomuxc_gpr[MAX_IOMUXC_GPR];
 static u32 uart1_io[MAX_UART_IO];
+static u32 ccm_lpcg[MAX_CCM_LPCG];
+static u32 ccm_root[][2] = {
+	{0x8000, 0}, {0x8080, 0}, {0x8100, 0}, {0x8800, 0},
+	{0x8880, 0}, {0x8900, 0}, {0x8980, 0}, {0x9000, 0},
+	{0x9800, 0}, {0x9880, 0}, {0xa000, 0}, {0xa080, 0},
+	{0xa100, 0}, {0xa180, 0}, {0xa200, 0}, {0xa280, 0},
+	{0xa300, 0}, {0xa380, 0}, {0xa400, 0}, {0xa480, 0},
+	{0xa500, 0}, {0xa580, 0}, {0xa600, 0}, {0xa680, 0},
+	{0xa700, 0}, {0xa780, 0}, {0xa800, 0}, {0xa880, 0},
+	{0xa900, 0}, {0xa980, 0}, {0xaa00, 0}, {0xaa80, 0},
+	{0xab00, 0}, {0xab80, 0}, {0xac00, 0}, {0xac80, 0},
+	{0xad00, 0}, {0xad80, 0}, {0xae00, 0}, {0xae80, 0},
+	{0xaf00, 0}, {0xaf80, 0}, {0xb000, 0}, {0xb080, 0},
+	{0xb100, 0}, {0xb180, 0}, {0xb200, 0}, {0xb280, 0},
+	{0xb300, 0}, {0xb380, 0}, {0xb400, 0}, {0xb480, 0},
+	{0xb500, 0}, {0xb580, 0}, {0xb600, 0}, {0xb680, 0},
+	{0xb700, 0}, {0xb780, 0}, {0xb800, 0}, {0xb880, 0},
+	{0xb900, 0}, {0xb980, 0}, {0xba00, 0}, {0xba80, 0},
+	{0xbb00, 0}, {0xbb80, 0}, {0xbc00, 0}, {0xbc80, 0},
+	{0xbd00, 0}, {0xbd80, 0}, {0xbe00, 0},
+};
+static u32 pfd_a, pfd_b;
+static u32 pll[15];
 /*
  * suspend ocram space layout:
  * ======================== high address ======================
@@ -276,6 +330,149 @@ static const char * const low_power_ocram_match[] __initconst = {
 	NULL
 };
 
+static void imx7_ccm_save(void)
+{
+	u32 i;
+
+	for (i = 0; i < MAX_CCM_LPCG; i++)
+		ccm_lpcg[i] = readl_relaxed(pm_info->ccm_base.vbase +
+			i * CCM_LPCG_STEP + CCM_LPCG_START);
+	pfd_a = readl_relaxed(pm_info->anatop_base.vbase + PFD_A_OFFSET);
+	pfd_b = readl_relaxed(pm_info->anatop_base.vbase + PFD_B_OFFSET);
+
+	pll[0] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_ARM_OFFSET);
+	pll[1] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_DDR_OFFSET);
+	pll[2] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_DDR_SS_OFFSET);
+	pll[3] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_DDR_NUM_OFFSET);
+	pll[4] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_DDR_DENOM_OFFSET);
+	pll[5] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_480_OFFSET);
+	pll[6] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_ENET_OFFSET);
+	pll[7] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_AUDIO_OFFSET);
+	pll[8] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_AUDIO_SS_OFFSET);
+	pll[9] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_AUDIO_NUM_OFFSET);
+	pll[10] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_AUDIO_DENOM_OFFSET);
+	pll[11] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_VIDEO_OFFSET);
+	pll[12] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_VIDEO_SS_OFFSET);
+	pll[13] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_VIDEO_NUM_OFFSET);
+	pll[14] = readl_relaxed(pm_info->anatop_base.vbase +
+		PLL_VIDEO_DENOM_OFFSET);
+
+	/* enable all PLLs/PFDs for saving CCM root */
+	writel_relaxed(0x1c000070, pm_info->anatop_base.vbase +
+		PLL_480_OFFSET + 0x8);
+	writel_relaxed(0x80808080, pm_info->anatop_base.vbase +
+		PFD_A_OFFSET + 0x8);
+	writel_relaxed(0x80808080, pm_info->anatop_base.vbase +
+		PFD_B_OFFSET + 0x8);
+	writel_relaxed(0x1fc0, pm_info->anatop_base.vbase +
+		PLL_ENET_OFFSET + 0x4);
+	writel_relaxed(0x12000, pm_info->anatop_base.vbase +
+		PLL_AUDIO_OFFSET);
+	writel_relaxed(0x12000, pm_info->anatop_base.vbase +
+		PLL_VIDEO_OFFSET);
+
+	for (i = 0; i < sizeof(ccm_root) / 8; i++)
+		ccm_root[i][1] = readl_relaxed(
+			pm_info->ccm_base.vbase + ccm_root[i][0]);
+}
+
+static void imx7_ccm_restore(void)
+{
+	u32 i, val;
+
+	/* enable all PLLs/PFDs for restoring CCM root */
+	writel_relaxed(0x1c000070, pm_info->anatop_base.vbase +
+		PLL_480_OFFSET + REG_CLR);
+	writel_relaxed(0x80808080, pm_info->anatop_base.vbase +
+		PFD_A_OFFSET + REG_CLR);
+	writel_relaxed(0x80808080, pm_info->anatop_base.vbase +
+		PFD_B_OFFSET + REG_CLR);
+	writel_relaxed(0x1fc0, pm_info->anatop_base.vbase +
+		PLL_ENET_OFFSET + REG_SET);
+	writel_relaxed(0x12000, pm_info->anatop_base.vbase +
+		PLL_AUDIO_OFFSET);
+	writel_relaxed(0x12000, pm_info->anatop_base.vbase +
+		PLL_VIDEO_OFFSET);
+
+	for (i = 0; i < sizeof(ccm_root) / 8; i++) {
+		val = readl_relaxed(pm_info->ccm_base.vbase + ccm_root[i][0]);
+		/* restore post podf */
+		val &= ~BM_CCM_ROOT_POST_PODF;
+		val |= ccm_root[i][1] & BM_CCM_ROOT_POST_PODF;
+		writel_relaxed(val, pm_info->ccm_base.vbase + ccm_root[i][0]);
+		/* resotre pre podf */
+		val &= ~BM_CCM_ROOT_PRE_PODF;
+		val |= ccm_root[i][1] & BM_CCM_ROOT_PRE_PODF;
+		writel_relaxed(val, pm_info->ccm_base.vbase + ccm_root[i][0]);
+		/* restore mux */
+		val &= ~BM_CCM_ROOT_MUX;
+		val |= ccm_root[i][1] & BM_CCM_ROOT_MUX;
+		writel_relaxed(val, pm_info->ccm_base.vbase + ccm_root[i][0]);
+		/* restore enable */
+		val &= ~BM_CCM_ROOT_ENABLE;
+		val |= ccm_root[i][1] & BM_CCM_ROOT_ENABLE;
+		writel_relaxed(val, pm_info->ccm_base.vbase + ccm_root[i][0]);
+	}
+
+	/* restore PLLs */
+	writel_relaxed(pll[0], pm_info->anatop_base.vbase +
+		PLL_ARM_OFFSET);
+	writel_relaxed(pll[1], pm_info->anatop_base.vbase +
+		PLL_DDR_OFFSET);
+	writel_relaxed(pll[2], pm_info->anatop_base.vbase +
+		PLL_DDR_SS_OFFSET);
+	writel_relaxed(pll[3], pm_info->anatop_base.vbase +
+		PLL_DDR_NUM_OFFSET);
+	writel_relaxed(pll[4], pm_info->anatop_base.vbase +
+		PLL_DDR_DENOM_OFFSET);
+	writel_relaxed(pll[5], pm_info->anatop_base.vbase +
+		PLL_480_OFFSET);
+	writel_relaxed(pll[6], pm_info->anatop_base.vbase +
+		PLL_ENET_OFFSET);
+	writel_relaxed(pll[7], pm_info->anatop_base.vbase +
+		PLL_AUDIO_OFFSET);
+	writel_relaxed(pll[8], pm_info->anatop_base.vbase +
+		PLL_AUDIO_SS_OFFSET);
+	writel_relaxed(pll[9], pm_info->anatop_base.vbase +
+		PLL_AUDIO_NUM_OFFSET);
+	writel_relaxed(pll[10], pm_info->anatop_base.vbase +
+		PLL_AUDIO_DENOM_OFFSET);
+	writel_relaxed(pll[11], pm_info->anatop_base.vbase +
+		PLL_VIDEO_OFFSET);
+	writel_relaxed(pll[12], pm_info->anatop_base.vbase +
+		PLL_VIDEO_SS_OFFSET);
+	writel_relaxed(pll[13], pm_info->anatop_base.vbase +
+		PLL_VIDEO_NUM_OFFSET);
+	writel_relaxed(pll[14], pm_info->anatop_base.vbase +
+		PLL_VIDEO_DENOM_OFFSET);
+
+	for (i = 0; i < MAX_CCM_LPCG; i++)
+		writel_relaxed(ccm_lpcg[i], pm_info->ccm_base.vbase +
+			i * CCM_LPCG_STEP + CCM_LPCG_START);
+	/* restore PFDs */
+	writel_relaxed(pfd_a & 0x80808080,
+		pm_info->anatop_base.vbase + PFD_A_OFFSET + REG_SET);
+	writel_relaxed(pfd_a, pm_info->anatop_base.vbase + PFD_A_OFFSET);
+
+	writel_relaxed(pfd_b & 0x80808080,
+		pm_info->anatop_base.vbase + PFD_B_OFFSET + REG_SET);
+	writel_relaxed(pfd_b, pm_info->anatop_base.vbase + PFD_B_OFFSET);
+}
+
 static void imx7_iomuxc_gpr_save(void)
 {
 	u32 i;
@@ -406,6 +603,7 @@ static int imx7_pm_enter(suspend_state_t state)
 				memcpy(lpm_ocram_saved_in_ddr, lpm_ocram_base,
 					lpm_ocram_size);
 				imx7_iomuxc_gpr_save();
+				imx7_ccm_save();
 			}
 		}
 
@@ -417,6 +615,7 @@ static int imx7_pm_enter(suspend_state_t state)
 			memcpy(lpm_ocram_base, lpm_ocram_saved_in_ddr,
 				lpm_ocram_size);
 			imx7_iomuxc_gpr_restore();
+			imx7_ccm_restore();
 		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
