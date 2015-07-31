@@ -141,8 +141,9 @@ enum {
 /**
  * struct mt7601u_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
+ * @mac_lock:		locks out mac80211's tx status and rx paths.
  * @tx_lock:		protects @tx_q and changes of MT7601U_STATE_*_STATS
-			flags in @state.
+ *			flags in @state.
  * @rx_lock:		protects @rx_q.
  * @con_mon_lock:	protects @ap_bssid, @bcn_*, @avg_rssi.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
@@ -177,6 +178,7 @@ struct mt7601u_dev {
 	struct mt76_wcid __rcu *wcid[N_WCIDS];
 
 	spinlock_t lock;
+	spinlock_t mac_lock;
 
 	const u16 *beacon_offsets;
 
