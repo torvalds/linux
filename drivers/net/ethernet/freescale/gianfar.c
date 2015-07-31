@@ -565,6 +565,7 @@ static void gfar_ints_enable(struct gfar_private *priv)
 	}
 }
 
+#ifdef CONFIG_PM
 static void lock_tx_qs(struct gfar_private *priv)
 {
 	int i;
@@ -580,6 +581,7 @@ static void unlock_tx_qs(struct gfar_private *priv)
 	for (i = 0; i < priv->num_tx_queues; i++)
 		spin_unlock(&priv->tx_queue[i]->txlock);
 }
+#endif
 
 static int gfar_alloc_tx_queues(struct gfar_private *priv)
 {
