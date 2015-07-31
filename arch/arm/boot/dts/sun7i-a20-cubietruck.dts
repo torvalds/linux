@@ -88,15 +88,11 @@
 		};
 	};
 
-	reg_vmmc3: vmmc3 {
-		compatible = "regulator-fixed";
+	mmc3_pwrseq: mmc3_pwrseq {
+		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
-		pinctrl-0 = <&vmmc3_pin_cubietruck>;
-		regulator-name = "vmmc3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpio = <&pio 7 9 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&mmc3_pwrseq_pin_cubietruck>;
+		reset-gpios = <&pio 7 9 GPIO_ACTIVE_LOW>; /* PH9 WIFI_EN */
 	};
 };
 
@@ -172,7 +168,8 @@
 &mmc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc3_pins_a>;
-	vmmc-supply = <&reg_vmmc3>;
+	vmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&mmc3_pwrseq>;
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
@@ -204,13 +201,6 @@
 };
 
 &pio {
-	vmmc3_pin_cubietruck: vmmc3_pin@0 {
-		allwinner,pins = "PH9";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
 	ahci_pwr_pin_cubietruck: ahci_pwr_pin@1 {
 		allwinner,pins = "PH12";
 		allwinner,function = "gpio_out";
@@ -220,6 +210,13 @@
 
 	led_pins_cubietruck: led_pins@0 {
 		allwinner,pins = "PH7", "PH11", "PH20", "PH21";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	mmc3_pwrseq_pin_cubietruck: mmc3_pwrseq_pin@0 {
+		allwinner,pins = "PH9";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
