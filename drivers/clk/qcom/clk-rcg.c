@@ -59,7 +59,7 @@ static u8 clk_rcg_get_parent(struct clk_hw *hw)
 
 err:
 	pr_debug("%s: Clock %s has invalid parent, using default.\n",
-		 __func__, __clk_get_name(hw->clk));
+		 __func__, clk_hw_get_name(hw));
 	return 0;
 }
 
@@ -95,7 +95,7 @@ static u8 clk_dyn_rcg_get_parent(struct clk_hw *hw)
 
 err:
 	pr_debug("%s: Clock %s has invalid parent, using default.\n",
-		 __func__, __clk_get_name(hw->clk));
+		 __func__, clk_hw_get_name(hw));
 	return 0;
 }
 
@@ -409,7 +409,7 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 		const struct parent_map *parent_map)
 {
 	unsigned long clk_flags, rate = req->rate;
-	struct clk *p;
+	struct clk_hw *p;
 	int index;
 
 	f = qcom_find_freq(f, rate);
@@ -421,7 +421,7 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 		return index;
 
 	clk_flags = clk_hw_get_flags(hw);
-	p = clk_get_parent_by_index(hw->clk, index);
+	p = clk_hw_get_parent_by_index(hw, index);
 	if (clk_flags & CLK_SET_RATE_PARENT) {
 		rate = rate * f->pre_div;
 		if (f->n) {
@@ -431,9 +431,9 @@ static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
 			rate = tmp;
 		}
 	} else {
-		rate =  __clk_get_rate(p);
+		rate =  clk_hw_get_rate(p);
 	}
-	req->best_parent_hw = __clk_get_hw(p);
+	req->best_parent_hw = p;
 	req->best_parent_rate = rate;
 	req->rate = f->freq;
 
@@ -469,12 +469,11 @@ static int clk_rcg_bypass_determine_rate(struct clk_hw *hw,
 {
 	struct clk_rcg *rcg = to_clk_rcg(hw);
 	const struct freq_tbl *f = rcg->freq_tbl;
-	struct clk *p;
+	struct clk_hw *p;
 	int index = qcom_find_src_index(hw, rcg->s.parent_map, f->src);
 
-	p = clk_get_parent_by_index(hw->clk, index);
-	req->best_parent_hw = __clk_get_hw(p);
-	req->best_parent_rate = __clk_round_rate(p, req->rate);
+	req->best_parent_hw = p = clk_hw_get_parent_by_index(hw, index);
+	req->best_parent_rate = clk_hw_round_rate(p, req->rate);
 	req->rate = req->best_parent_rate;
 
 	return 0;

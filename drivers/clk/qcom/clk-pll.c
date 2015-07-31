@@ -138,12 +138,8 @@ struct pll_freq_tbl *find_freq(const struct pll_freq_tbl *f, unsigned long rate)
 static int
 clk_pll_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 {
-	struct clk *parent = __clk_get_parent(hw->clk);
 	struct clk_pll *pll = to_clk_pll(hw);
 	const struct pll_freq_tbl *f;
-
-	req->best_parent_hw = __clk_get_hw(parent);
-	req->best_parent_rate = __clk_get_rate(parent);
 
 	f = find_freq(pll->freq_tbl, req->rate);
 	if (!f)
@@ -198,7 +194,7 @@ static int wait_for_pll(struct clk_pll *pll)
 	u32 val;
 	int count;
 	int ret;
-	const char *name = __clk_get_name(pll->clkr.hw.clk);
+	const char *name = clk_hw_get_name(&pll->clkr.hw);
 
 	/* Wait for pll to enable. */
 	for (count = 200; count > 0; count--) {
@@ -217,7 +213,7 @@ static int wait_for_pll(struct clk_pll *pll)
 static int clk_pll_vote_enable(struct clk_hw *hw)
 {
 	int ret;
-	struct clk_pll *p = to_clk_pll(__clk_get_hw(__clk_get_parent(hw->clk)));
+	struct clk_pll *p = to_clk_pll(clk_hw_get_parent(hw));
 
 	ret = clk_enable_regmap(hw);
 	if (ret)

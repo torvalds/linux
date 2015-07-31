@@ -509,7 +509,6 @@ static int pix_rdi_set_parent(struct clk_hw *hw, u8 index)
 	int ret = 0;
 	u32 val;
 	struct clk_pix_rdi *rdi = to_clk_pix_rdi(hw);
-	struct clk *clk = hw->clk;
 	int num_parents = clk_hw_get_num_parents(hw);
 
 	/*
@@ -521,7 +520,8 @@ static int pix_rdi_set_parent(struct clk_hw *hw, u8 index)
 	 * needs to be on at what time.
 	 */
 	for (i = 0; i < num_parents; i++) {
-		ret = clk_prepare_enable(clk_get_parent_by_index(clk, i));
+		struct clk_hw *p = clk_hw_get_parent_by_index(hw, i);
+		ret = clk_prepare_enable(p->clk);
 		if (ret)
 			goto err;
 	}
@@ -549,8 +549,10 @@ static int pix_rdi_set_parent(struct clk_hw *hw, u8 index)
 	udelay(1);
 
 err:
-	for (i--; i >= 0; i--)
-		clk_disable_unprepare(clk_get_parent_by_index(clk, i));
+	for (i--; i >= 0; i--) {
+		struct clk_hw *p = clk_hw_get_parent_by_index(hw, i);
+		clk_disable_unprepare(p->clk);
+	}
 
 	return ret;
 }
