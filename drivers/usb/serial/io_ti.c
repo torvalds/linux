@@ -210,6 +210,10 @@ static int edge_create_sysfs_attrs(struct usb_serial_port *port);
 static int edge_remove_sysfs_attrs(struct usb_serial_port *port);
 
 
+/* Timeouts in msecs: firmware downloads take longer */
+#define TI_VSEND_TIMEOUT_DEFAULT 1000
+#define TI_VSEND_TIMEOUT_FW_DOWNLOAD 10000
+
 static int ti_vread_sync(struct usb_device *dev, __u8 request,
 				__u16 value, __u16 index, u8 *data, int size)
 {
@@ -228,14 +232,14 @@ static int ti_vread_sync(struct usb_device *dev, __u8 request,
 	return 0;
 }
 
-static int ti_vsend_sync(struct usb_device *dev, __u8 request,
-				__u16 value, __u16 index, u8 *data, int size)
+static int ti_vsend_sync(struct usb_device *dev, u8 request, u16 value,
+		u16 index, u8 *data, int size, int timeout)
 {
 	int status;
 
 	status = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), request,
 			(USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT),
-			value, index, data, size, 1000);
+			value, index, data, size, timeout);
 	if (status < 0)
 		return status;
 	if (status != size) {
@@ -250,7 +254,8 @@ static int send_cmd(struct usb_device *dev, __u8 command,
 				__u8 moduleid, __u16 value, u8 *data,
 				int size)
 {
-	return ti_vsend_sync(dev, command, value, moduleid, data, size);
+	return ti_vsend_sync(dev, command, value, moduleid, data, size,
+			TI_VSEND_TIMEOUT_DEFAULT);
 }
 
 /* clear tx/rx buffers and fifo in TI UMP */
@@ -378,9 +383,9 @@ static int write_boot_mem(struct edgeport_serial *serial,
 	}
 
 	for (i = 0; i < length; ++i) {
-		status = ti_vsend_sync(serial->serial->dev,
-				UMPC_MEMORY_WRITE, buffer[i],
-				(__u16)(i + start_address), NULL, 0);
+		status = ti_vsend_sync(serial->serial->dev, UMPC_MEMORY_WRITE,
+				buffer[i], (u16)(i + start_address), NULL,
+				0, TI_VSEND_TIMEOUT_DEFAULT);
 		if (status)
 			return status;
 	}
@@ -421,10 +426,9 @@ static int write_i2c_mem(struct edgeport_serial *serial,
 	 *       regardless of host byte order.
 	 */
 	be_start_address = swab16((u16)start_address);
-	status = ti_vsend_sync(serial->serial->dev,
-				UMPC_MEMORY_WRITE, (__u16)address_type,
-				be_start_address,
-				buffer,	write_length);
+	status = ti_vsend_sync(serial->serial->dev, UMPC_MEMORY_WRITE,
+				(u16)address_type, be_start_address,
+				buffer,	write_length, TI_VSEND_TIMEOUT_DEFAULT);
 	if (status) {
 		dev_dbg(dev, "%s - ERROR %d\n", __func__, status);
 		return status;
@@ -454,9 +458,8 @@ static int write_i2c_mem(struct edgeport_serial *serial,
 		 */
 		be_start_address = swab16((u16)start_address);
 		status = ti_vsend_sync(serial->serial->dev, UMPC_MEMORY_WRITE,
-				(__u16)address_type,
-				be_start_address,
-				buffer, write_length);
+				(u16)address_type, be_start_address, buffer,
+				write_length, TI_VSEND_TIMEOUT_DEFAULT);
 		if (status) {
 			dev_err(dev, "%s - ERROR %d\n", __func__, status);
 			return status;
@@ -1129,7 +1132,8 @@ static int download_fw(struct edgeport_serial *serial)
 				/* Reset UMP -- Back to BOOT MODE */
 				status = ti_vsend_sync(serial->serial->dev,
 						UMPC_HARDWARE_RESET,
-						0, 0, NULL, 0);
+						0, 0, NULL, 0,
+						TI_VSEND_TIMEOUT_DEFAULT);
 
 				dev_dbg(dev, "%s - HARDWARE RESET return %d\n", __func__, status);
 
@@ -1229,7 +1233,9 @@ static int download_fw(struct edgeport_serial *serial)
 
 			/* Tell firmware to copy download image into I2C */
 			status = ti_vsend_sync(serial->serial->dev,
-					UMPC_COPY_DNLD_TO_I2C, 0, 0, NULL, 0);
+					UMPC_COPY_DNLD_TO_I2C,
+					0, 0, NULL, 0,
+					TI_VSEND_TIMEOUT_FW_DOWNLOAD);
 
 		  	dev_dbg(dev, "%s - Update complete 0x%x\n", __func__, status);
 			if (status) {
