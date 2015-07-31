@@ -20,10 +20,11 @@
 static DEFINE_SPINLOCK(limit_lock);
 
 struct nft_limit {
+	u64		last;
 	u64		tokens;
+	u64		tokens_max;
 	u64		rate;
-	u64		unit;
-	unsigned long	stamp;
+	u64		nsecs;
 };
 
 static void nft_limit_pkts_eval(const struct nft_expr *expr,
@@ -31,18 +32,23 @@ static void nft_limit_pkts_eval(const struct nft_expr *expr,
 				const struct nft_pktinfo *pkt)
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
+	u64 now, tokens, cost = div_u64(priv->nsecs, priv->rate);
+	s64 delta;
 
 	spin_lock_bh(&limit_lock);
-	if (time_after_eq(jiffies, priv->stamp)) {
-		priv->tokens = priv->rate;
-		priv->stamp = jiffies + priv->unit * HZ;
-	}
+	now = ktime_get_ns();
+	tokens = priv->tokens + now - priv->last;
+	if (tokens > priv->tokens_max)
+		tokens = priv->tokens_max;
 
-	if (priv->tokens >= 1) {
-		priv->tokens--;
+	priv->last = now;
+	delta = tokens - cost;
+	if (delta >= 0) {
+		priv->tokens = delta;
 		spin_unlock_bh(&limit_lock);
 		return;
 	}
+	priv->tokens = tokens;
 	spin_unlock_bh(&limit_lock);
 
 	regs->verdict.code = NFT_BREAK;
@@ -58,25 +64,29 @@ static int nft_limit_init(const struct nft_ctx *ctx,
 			  const struct nlattr * const tb[])
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
+	u64 unit;
 
 	if (tb[NFTA_LIMIT_RATE] == NULL ||
 	    tb[NFTA_LIMIT_UNIT] == NULL)
 		return -EINVAL;
 
-	priv->rate   = be64_to_cpu(nla_get_be64(tb[NFTA_LIMIT_RATE]));
-	priv->unit   = be64_to_cpu(nla_get_be64(tb[NFTA_LIMIT_UNIT]));
-	priv->stamp  = jiffies + priv->unit * HZ;
-	priv->tokens = priv->rate;
+	priv->rate = be64_to_cpu(nla_get_be64(tb[NFTA_LIMIT_RATE]));
+	unit = be64_to_cpu(nla_get_be64(tb[NFTA_LIMIT_UNIT]));
+	priv->nsecs = unit * NSEC_PER_SEC;
+	if (priv->rate == 0 || priv->nsecs < unit)
+		return -EOVERFLOW;
+	priv->tokens = priv->tokens_max = priv->nsecs;
+	priv->last = ktime_get_ns();
 	return 0;
 }
 
 static int nft_limit_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_limit *priv = nft_expr_priv(expr);
+	u64 secs = div_u64(priv->nsecs, NSEC_PER_SEC);
 
-	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(priv->rate)))
-		goto nla_put_failure;
-	if (nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(priv->unit)))
+	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(priv->rate)) ||
+	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs)))
 		goto nla_put_failure;
 	return 0;
 
