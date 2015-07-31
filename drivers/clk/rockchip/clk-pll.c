@@ -136,7 +136,7 @@ static unsigned long rockchip_rk3066_pll_recalc_rate(struct clk_hw *hw,
 	pllcon = readl_relaxed(pll->reg_base + RK3066_PLLCON(3));
 	if (pllcon & RK3066_PLLCON3_BYPASS) {
 		pr_debug("%s: pll %s is bypassed\n", __func__,
-			__clk_get_name(hw->clk));
+			clk_hw_get_name(hw));
 		return prate;
 	}
 
@@ -174,13 +174,13 @@ static int rockchip_rk3066_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	}
 
 	pr_debug("%s: changing %s from %lu to %lu with a parent rate of %lu\n",
-		 __func__, __clk_get_name(hw->clk), old_rate, drate, prate);
+		 __func__, clk_hw_get_name(hw), old_rate, drate, prate);
 
 	/* Get required rate settings from table */
 	rate = rockchip_get_pll_settings(pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,
-			drate, __clk_get_name(hw->clk));
+			drate, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -268,7 +268,7 @@ static void rockchip_rk3066_pll_init(struct clk_hw *hw)
 	if (!(pll->flags & ROCKCHIP_PLL_SYNC_RATE))
 		return;
 
-	drate = __clk_get_rate(hw->clk);
+	drate = clk_hw_get_rate(hw);
 	rate = rockchip_get_pll_settings(pll, drate);
 
 	/* when no rate setting for the current rate, rely on clk_set_rate */
@@ -286,22 +286,22 @@ static void rockchip_rk3066_pll_init(struct clk_hw *hw)
 	nb = ((pllcon >> RK3066_PLLCON2_NB_SHIFT) & RK3066_PLLCON2_NB_MASK) + 1;
 
 	pr_debug("%s: pll %s@%lu: nr (%d:%d); no (%d:%d); nf(%d:%d), nb(%d:%d)\n",
-		 __func__, __clk_get_name(hw->clk), drate, rate->nr, nr,
+		 __func__, clk_hw_get_name(hw), drate, rate->nr, nr,
 		rate->no, no, rate->nf, nf, rate->nb, nb);
 	if (rate->nr != nr || rate->no != no || rate->nf != nf
 					     || rate->nb != nb) {
-		struct clk *parent = __clk_get_parent(hw->clk);
+		struct clk_hw *parent = clk_hw_get_parent(hw);
 		unsigned long prate;
 
 		if (!parent) {
 			pr_warn("%s: parent of %s not available\n",
-				__func__, __clk_get_name(hw->clk));
+				__func__, clk_hw_get_name(hw));
 			return;
 		}
 
 		pr_debug("%s: pll %s: rate params do not match rate table, adjusting\n",
-			 __func__, __clk_get_name(hw->clk));
-		prate = __clk_get_rate(parent);
+			 __func__, clk_hw_get_name(hw));
+		prate = clk_hw_get_rate(parent);
 		rockchip_rk3066_pll_set_rate(hw, drate, prate);
 	}
 }
