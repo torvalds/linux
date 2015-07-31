@@ -201,6 +201,8 @@ bool visorchannel_signalremove(struct visorchannel *channel, u32 queue,
 			       void *msg);
 bool visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
 			       void *msg);
+bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
+
 int visorchannel_signalqueue_slots_avail(struct visorchannel *channel,
 					 u32 queue);
 int visorchannel_signalqueue_max_slots(struct visorchannel *channel, u32 queue);

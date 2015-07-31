@@ -430,6 +430,27 @@ visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
 
+bool
+visorchannel_signalempty(struct visorchannel *channel, u32 queue)
+{
+	unsigned long flags = 0;
+	struct signal_queue_header sig_hdr;
+	bool rc = false;
+
+	if (channel->needs_lock)
+		spin_lock_irqsave(&channel->remove_lock, flags);
+
+	if (!sig_read_header(channel, queue, &sig_hdr))
+		rc = true;
+	if (sig_hdr.head == sig_hdr.tail)
+		rc = true;
+	if (channel->needs_lock)
+		spin_unlock_irqrestore(&channel->remove_lock, flags);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(visorchannel_signalempty);
+
 static bool
 signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 {
