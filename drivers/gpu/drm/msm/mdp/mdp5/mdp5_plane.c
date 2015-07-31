@@ -66,6 +66,26 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 	kfree(mdp5_plane);
 }
 
+static void mdp5_plane_install_rotation_property(struct drm_device *dev,
+		struct drm_plane *plane)
+{
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+
+	if (!(mdp5_plane->caps & MDP_PIPE_CAP_HFLIP) &&
+		!(mdp5_plane->caps & MDP_PIPE_CAP_VFLIP))
+		return;
+
+	if (!dev->mode_config.rotation_property)
+		dev->mode_config.rotation_property =
+			drm_mode_create_rotation_property(dev,
+			BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y));
+
+	if (dev->mode_config.rotation_property)
+		drm_object_attach_property(&plane->base,
+			dev->mode_config.rotation_property,
+			0);
+}
+
 /* helper to install properties which are common to planes and crtcs */
 static void mdp5_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj)
@@ -101,6 +121,8 @@ static void mdp5_plane_install_properties(struct drm_plane *plane,
 
 	INSTALL_RANGE_PROPERTY(zpos, ZPOS, 1, 255, 1);
 
+	mdp5_plane_install_rotation_property(dev, plane);
+
 #undef INSTALL_RANGE_PROPERTY
 #undef INSTALL_ENUM_PROPERTY
 #undef INSTALL_PROPERTY
@@ -132,13 +154,6 @@ static int mdp5_plane_atomic_set_property(struct drm_plane *plane,
 done:
 	return ret;
 #undef SET_PROPERTY
-}
-
-static int mdp5_plane_set_property(struct drm_plane *plane,
-		struct drm_property *property, uint64_t val)
-{
-	return mdp5_plane_atomic_set_property(plane, plane->state, property,
-		val);
 }
 
 static int mdp5_plane_atomic_get_property(struct drm_plane *plane,
@@ -226,7 +241,7 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp5_plane_destroy,
-		.set_property = mdp5_plane_set_property,
+		.set_property = drm_atomic_helper_plane_set_property,
 		.atomic_set_property = mdp5_plane_atomic_set_property,
 		.atomic_get_property = mdp5_plane_atomic_get_property,
 		.reset = mdp5_plane_reset,
@@ -262,6 +277,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *old_state = plane->state;
 	const struct mdp_format *format;
+	bool vflip, hflip;
 
 	DBG("%s: check (%d -> %d)", mdp5_plane->name,
 			plane_enabled(old_state), plane_enabled(state));
@@ -283,6 +299,16 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 				"Pipe doesn't support scaling (%dx%d -> %dx%d)\n",
 				state->src_w >> 16, state->src_h >> 16,
 				state->crtc_w, state->crtc_h);
+
+			return -EINVAL;
+		}
+
+		hflip = !!(state->rotation & BIT(DRM_REFLECT_X));
+		vflip = !!(state->rotation & BIT(DRM_REFLECT_Y));
+		if ((vflip && !(mdp5_plane->caps & MDP_PIPE_CAP_VFLIP)) ||
+			(hflip && !(mdp5_plane->caps & MDP_PIPE_CAP_HFLIP))) {
+			dev_err(plane->dev->dev,
+				"Pipe doesn't support flip\n");
 
 			return -EINVAL;
 		}
@@ -556,6 +582,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		uint32_t src_w, uint32_t src_h)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+	struct drm_plane_state *pstate = plane->state;
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	enum mdp5_pipe pipe = mdp5_plane->pipe;
 	const struct mdp_format *format;
@@ -564,6 +591,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t phasex_step[2] = {0,}, phasey_step[2] = {0,};
 	uint32_t hdecm = 0, vdecm = 0;
 	uint32_t pix_format;
+	bool vflip, hflip;
 	unsigned long flags;
 	int ret;
 
@@ -615,6 +643,9 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	config |= get_scale_config(format->chroma_sample, src_h, crtc_h, false);
 	DBG("scale config = %x", config);
 
+	hflip = !!(pstate->rotation & BIT(DRM_REFLECT_X));
+	vflip = !!(pstate->rotation & BIT(DRM_REFLECT_Y));
+
 	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_IMG_SIZE(pipe),
@@ -656,6 +687,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 			MDP5_PIPE_SRC_UNPACK_ELEM3(format->unpack[3]));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_OP_MODE(pipe),
+			(hflip ? MDP5_PIPE_SRC_OP_MODE_FLIP_LR : 0) |
+			(vflip ? MDP5_PIPE_SRC_OP_MODE_FLIP_UD : 0) |
 			MDP5_PIPE_SRC_OP_MODE_BWC(BWC_LOSSLESS));
 
 	/* not using secure mode: */
