@@ -1356,11 +1356,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	if (!op_data)
 		return -ENOMEM;
 
-	if (!S_ISDIR(inode->i_mode)) {
-		if (attr->ia_valid & ATTR_SIZE)
-			inode_dio_write_done(inode);
+	if (!S_ISDIR(inode->i_mode))
 		mutex_unlock(&inode->i_mutex);
-	}
 
 	memcpy(&op_data->op_attr, attr, sizeof(*attr));
 

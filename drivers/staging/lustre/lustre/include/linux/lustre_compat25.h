@@ -64,11 +64,6 @@
 
 #define LTIME_S(time)		   (time.tv_sec)
 
-/* inode_dio_wait(i) use as-is for write lock */
-# define inode_dio_write_done(i)	do {} while (0) /* for write unlock */
-# define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
-/* inode_dio_done(i) use as-is for read unlock */
-
 #ifndef QUOTA_OK
 # define QUOTA_OK 0
 #endif
