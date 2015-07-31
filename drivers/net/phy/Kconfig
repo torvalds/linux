@@ -14,6 +14,11 @@ if PHYLIB
 
 comment "MII PHY device drivers"
 
+config AQUANTIA_PHY
+        tristate "Drivers for the Aquantia PHYs"
+        ---help---
+          Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
+
 config AT803X_PHY
 	tristate "Drivers for Atheros AT803X PHYs"
 	---help---
