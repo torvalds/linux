@@ -3074,9 +3074,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			cache-to-cache transfer latencies.
 
 	rcutree.rcu_fanout_leaf= [KNL]
-			Increase the number of CPUs assigned to each
-			leaf rcu_node structure.  Useful for very large
-			systems.
+			Change the number of CPUs assigned to each
+			leaf rcu_node structure.  Useful for very
+			large systems, which will choose the value 64,
+			and for NUMA systems with large remote-access
+			latencies, which will choose a value aligned
+			with the appropriate hardware boundaries.
 
 	rcutree.jiffies_till_sched_qs= [KNL]
 			Set required age in jiffies for a

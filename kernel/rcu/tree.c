@@ -4230,13 +4230,12 @@ static void __init rcu_init_geometry(void)
 		rcu_fanout_leaf, nr_cpu_ids);
 
 	/*
-	 * The boot-time rcu_fanout_leaf parameter is only permitted
-	 * to increase the leaf-level fanout, not decrease it.  Of course,
-	 * the leaf-level fanout cannot exceed the number of bits in
-	 * the rcu_node masks.  Complain and fall back to the compile-
-	 * time values if these limits are exceeded.
+	 * The boot-time rcu_fanout_leaf parameter must be at least two
+	 * and cannot exceed the number of bits in the rcu_node masks.
+	 * Complain and fall back to the compile-time values if this
+	 * limit is exceeded.
 	 */
-	if (rcu_fanout_leaf < RCU_FANOUT_LEAF ||
+	if (rcu_fanout_leaf < 2 ||
 	    rcu_fanout_leaf > sizeof(unsigned long) * 8) {
 		rcu_fanout_leaf = RCU_FANOUT_LEAF;
 		WARN_ON(1);
@@ -4253,10 +4252,13 @@ static void __init rcu_init_geometry(void)
 
 	/*
 	 * The tree must be able to accommodate the configured number of CPUs.
-	 * If this limit is exceeded than we have a serious problem elsewhere.
+	 * If this limit is exceeded, fall back to the compile-time values.
 	 */
-	if (nr_cpu_ids > rcu_capacity[RCU_NUM_LVLS - 1])
-		panic("rcu_init_geometry: rcu_capacity[] is too small");
+	if (nr_cpu_ids > rcu_capacity[RCU_NUM_LVLS - 1]) {
+		rcu_fanout_leaf = RCU_FANOUT_LEAF;
+		WARN_ON(1);
+		return;
+	}
 
 	/* Calculate the number of levels in the tree. */
 	for (i = 0; nr_cpu_ids > rcu_capacity[i]; i++) {
