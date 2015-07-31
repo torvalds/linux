@@ -69,7 +69,7 @@ static int _omap3_wait_dpll_status(struct clk_hw_omap *clk, u8 state)
 	const char *clk_name;
 
 	dd = clk->dpll_data;
-	clk_name = __clk_get_name(clk->hw.clk);
+	clk_name = clk_hw_get_name(&clk->hw);
 
 	state <<= __ffs(dd->idlest_mask);
 
@@ -98,7 +98,7 @@ static u16 _omap3_dpll_compute_freqsel(struct clk_hw_omap *clk, u8 n)
 	unsigned long fint;
 	u16 f = 0;
 
-	fint = __clk_get_rate(clk->dpll_data->clk_ref) / n;
+	fint = clk_get_rate(clk->dpll_data->clk_ref) / n;
 
 	pr_debug("clock: fint is %lu\n", fint);
 
@@ -145,7 +145,7 @@ static int _omap3_noncore_dpll_lock(struct clk_hw_omap *clk)
 	u8 state = 1;
 	int r = 0;
 
-	pr_debug("clock: locking DPLL %s\n", __clk_get_name(clk->hw.clk));
+	pr_debug("clock: locking DPLL %s\n", clk_hw_get_name(&clk->hw));
 
 	dd = clk->dpll_data;
 	state <<= __ffs(dd->idlest_mask);
@@ -193,7 +193,7 @@ static int _omap3_noncore_dpll_bypass(struct clk_hw_omap *clk)
 		return -EINVAL;
 
 	pr_debug("clock: configuring DPLL %s for low-power bypass\n",
-		 __clk_get_name(clk->hw.clk));
+		 clk_hw_get_name(&clk->hw));
 
 	ai = omap3_dpll_autoidle_read(clk);
 
@@ -223,7 +223,7 @@ static int _omap3_noncore_dpll_stop(struct clk_hw_omap *clk)
 	if (!(clk->dpll_data->modes & (1 << DPLL_LOW_POWER_STOP)))
 		return -EINVAL;
 
-	pr_debug("clock: stopping DPLL %s\n", __clk_get_name(clk->hw.clk));
+	pr_debug("clock: stopping DPLL %s\n", clk_hw_get_name(&clk->hw));
 
 	ai = omap3_dpll_autoidle_read(clk);
 
@@ -251,7 +251,7 @@ static void _lookup_dco(struct clk_hw_omap *clk, u8 *dco, u16 m, u8 n)
 {
 	unsigned long fint, clkinp; /* watch out for overflow */
 
-	clkinp = __clk_get_rate(__clk_get_parent(clk->hw.clk));
+	clkinp = clk_hw_get_rate(clk_hw_get_parent(&clk->hw));
 	fint = (clkinp / n) * m;
 
 	if (fint < 1000000000)
@@ -277,7 +277,7 @@ static void _lookup_sddiv(struct clk_hw_omap *clk, u8 *sd_div, u16 m, u8 n)
 	unsigned long clkinp, sd; /* watch out for overflow */
 	int mod1, mod2;
 
-	clkinp = __clk_get_rate(__clk_get_parent(clk->hw.clk));
+	clkinp = clk_hw_get_rate(clk_hw_get_parent(&clk->hw));
 
 	/*
 	 * target sigma-delta to near 250MHz
@@ -429,15 +429,15 @@ int omap3_noncore_dpll_enable(struct clk_hw *hw)
 		if (r) {
 			WARN(1,
 			     "%s: could not enable %s's clockdomain %s: %d\n",
-			     __func__, __clk_get_name(hw->clk),
+			     __func__, clk_hw_get_name(hw),
 			     clk->clkdm_name, r);
 			return r;
 		}
 	}
 
-	parent = __clk_get_hw(__clk_get_parent(hw->clk));
+	parent = clk_hw_get_parent(hw);
 
-	if (__clk_get_rate(hw->clk) == __clk_get_rate(dd->clk_bypass)) {
+	if (clk_hw_get_rate(hw) == clk_get_rate(dd->clk_bypass)) {
 		WARN_ON(parent != __clk_get_hw(dd->clk_bypass));
 		r = _omap3_noncore_dpll_bypass(clk);
 	} else {
@@ -489,7 +489,7 @@ int omap3_noncore_dpll_determine_rate(struct clk_hw *hw,
 	if (!dd)
 		return -EINVAL;
 
-	if (__clk_get_rate(dd->clk_bypass) == req->rate &&
+	if (clk_get_rate(dd->clk_bypass) == req->rate &&
 	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
 		req->best_parent_hw = __clk_get_hw(dd->clk_bypass);
 	} else {
@@ -553,8 +553,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!dd)
 		return -EINVAL;
 
-	if (__clk_get_hw(__clk_get_parent(hw->clk)) !=
-	    __clk_get_hw(dd->clk_ref))
+	if (clk_hw_get_parent(hw) != __clk_get_hw(dd->clk_ref))
 		return -EINVAL;
 
 	if (dd->last_rounded_rate == 0)
@@ -567,7 +566,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	pr_debug("%s: %s: set rate: locking rate to %lu.\n", __func__,
-		 __clk_get_name(hw->clk), rate);
+		 clk_hw_get_name(hw), rate);
 
 	ret = omap3_noncore_dpll_program(clk, freqsel);
 
@@ -704,13 +703,11 @@ static void omap3_dpll_deny_idle(struct clk_hw_omap *clk)
 static struct clk_hw_omap *omap3_find_clkoutx2_dpll(struct clk_hw *hw)
 {
 	struct clk_hw_omap *pclk = NULL;
-	struct clk *parent;
 
 	/* Walk up the parents of clk, looking for a DPLL */
 	do {
 		do {
-			parent = __clk_get_parent(hw->clk);
-			hw = __clk_get_hw(parent);
+			hw = clk_hw_get_parent(hw);
 		} while (hw && (clk_hw_get_flags(hw) & CLK_IS_BASIC));
 		if (!hw)
 			break;

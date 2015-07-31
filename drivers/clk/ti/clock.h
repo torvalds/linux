@@ -204,7 +204,7 @@ int ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
 		      ti_of_clk_init_cb_t func);
 int ti_clk_add_component(struct device_node *node, struct clk_hw *hw, int type);
 
-void omap2_init_clk_hw_omap_clocks(struct clk *clk);
+void omap2_init_clk_hw_omap_clocks(struct clk_hw *hw);
 int of_ti_clk_autoidle_setup(struct device_node *node);
 void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks);
 

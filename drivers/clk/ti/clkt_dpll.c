@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/clk/ti.h>
@@ -75,7 +76,7 @@ static int _dpll_test_fint(struct clk_hw_omap *clk, unsigned int n)
 	dd = clk->dpll_data;
 
 	/* DPLL divider must result in a valid jitter correction val */
-	fint = __clk_get_rate(__clk_get_parent(clk->hw.clk)) / n;
+	fint = clk_hw_get_rate(clk_hw_get_parent(&clk->hw)) / n;
 
 	if (dd->flags & DPLL_J_TYPE) {
 		fint_min = OMAP3PLUS_DPLL_FINT_JTYPE_MIN;
@@ -253,7 +254,7 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 	v >>= __ffs(dd->enable_mask);
 
 	if (_omap2_dpll_is_in_bypass(v))
-		return __clk_get_rate(dd->clk_bypass);
+		return clk_get_rate(dd->clk_bypass);
 
 	v = ti_clk_ll_ops->clk_readl(dd->mult_div1_reg);
 	dpll_mult = v & dd->mult_mask;
@@ -261,7 +262,7 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk)
 	dpll_div = v & dd->div1_mask;
 	dpll_div >>= __ffs(dd->div1_mask);
 
-	dpll_clk = (long long)__clk_get_rate(dd->clk_ref) * dpll_mult;
+	dpll_clk = (long long)clk_get_rate(dd->clk_ref) * dpll_mult;
 	do_div(dpll_clk, dpll_div + 1);
 
 	return dpll_clk;
@@ -300,8 +301,8 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 
 	dd = clk->dpll_data;
 
-	ref_rate = __clk_get_rate(dd->clk_ref);
-	clk_name = __clk_get_name(hw->clk);
+	ref_rate = clk_get_rate(dd->clk_ref);
+	clk_name = clk_hw_get_name(hw);
 	pr_debug("clock: %s: starting DPLL round_rate, target rate %lu\n",
 		 clk_name, target_rate);
 

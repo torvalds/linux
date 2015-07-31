@@ -169,21 +169,21 @@ int __init of_ti_clk_autoidle_setup(struct device_node *node)
 
 /**
  * omap2_init_clk_hw_omap_clocks - initialize an OMAP clock
- * @clk: struct clk * to initialize
+ * @hw: struct clk_hw * to initialize
  *
  * Add an OMAP clock @clk to the internal list of OMAP clocks.  Used
  * temporarily for autoidle handling, until this support can be
  * integrated into the common clock framework code in some way.  No
  * return value.
  */
-void omap2_init_clk_hw_omap_clocks(struct clk *clk)
+void omap2_init_clk_hw_omap_clocks(struct clk_hw *hw)
 {
 	struct clk_hw_omap *c;
 
-	if (__clk_get_flags(clk) & CLK_IS_BASIC)
+	if (clk_hw_get_flags(hw) & CLK_IS_BASIC)
 		return;
 
-	c = to_clk_hw_omap(__clk_get_hw(clk));
+	c = to_clk_hw_omap(hw);
 	list_add(&c->node, &clk_hw_omap_clocks);
 }
 
