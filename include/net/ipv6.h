@@ -708,12 +708,13 @@ static inline void iph_to_flow_copy_v6addrs(struct flow_keys *flow,
 
 #if IS_ENABLED(CONFIG_IPV6)
 static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
-					__be32 flowlabel, bool autolabel)
+					__be32 flowlabel, bool autolabel,
+					struct flowi6 *fl6)
 {
 	if (!flowlabel && (autolabel || net->ipv6.sysctl.auto_flowlabels)) {
 		u32 hash;
 
-		hash = skb_get_hash(skb);
+		hash = skb_get_hash_flowi6(skb, fl6);
 
 		/* Since this is being sent on the wire obfuscate hash a bit
 		 * to minimize possbility that any useful information to an
