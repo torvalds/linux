@@ -171,16 +171,21 @@ struct rcu_node {
 				/*  an rcu_data structure, otherwise, each */
 				/*  bit corresponds to a child rcu_node */
 				/*  structure. */
-	unsigned long expmask;	/* Groups that have ->blkd_tasks */
-				/*  elements that need to drain to allow the */
-				/*  current expedited grace period to */
-				/*  complete (only for PREEMPT_RCU). */
 	unsigned long qsmaskinit;
-				/* Per-GP initial value for qsmask & expmask. */
+				/* Per-GP initial value for qsmask. */
 				/*  Initialized from ->qsmaskinitnext at the */
 				/*  beginning of each grace period. */
 	unsigned long qsmaskinitnext;
 				/* Online CPUs for next grace period. */
+	unsigned long expmask;	/* CPUs or groups that need to check in */
+				/*  to allow the current expedited GP */
+				/*  to complete. */
+	unsigned long expmaskinit;
+				/* Per-GP initial values for expmask. */
+				/*  Initialized from ->expmaskinitnext at the */
+				/*  beginning of each expedited GP. */
+	unsigned long expmaskinitnext;
+				/* Online CPUs for next expedited GP. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
@@ -466,6 +471,7 @@ struct rcu_state {
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
 	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
 		     void (*func)(struct rcu_head *head));
+	int ncpus;				/* # CPUs seen so far. */
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
@@ -508,6 +514,7 @@ struct rcu_state {
 	atomic_long_t expedited_normal;		/* # fallbacks to normal. */
 	atomic_t expedited_need_qs;		/* # CPUs left to check in. */
 	wait_queue_head_t expedited_wq;		/* Wait for check-ins. */
+	int ncpus_snap;				/* # CPUs seen last time. */
 
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
 						/*  force_quiescent_state(). */

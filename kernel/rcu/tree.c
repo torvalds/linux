@@ -3380,6 +3380,87 @@ static bool rcu_exp_gp_seq_done(struct rcu_state *rsp, unsigned long s)
 }
 
 /*
+ * Reset the ->expmaskinit values in the rcu_node tree to reflect any
+ * recent CPU-online activity.  Note that these masks are not cleared
+ * when CPUs go offline, so they reflect the union of all CPUs that have
+ * ever been online.  This means that this function normally takes its
+ * no-work-to-do fastpath.
+ */
+static void sync_exp_reset_tree_hotplug(struct rcu_state *rsp)
+{
+	bool done;
+	unsigned long flags;
+	unsigned long mask;
+	unsigned long oldmask;
+	int ncpus = READ_ONCE(rsp->ncpus);
+	struct rcu_node *rnp;
+	struct rcu_node *rnp_up;
+
+	/* If no new CPUs onlined since last time, nothing to do. */
+	if (likely(ncpus == rsp->ncpus_snap))
+		return;
+	rsp->ncpus_snap = ncpus;
+
+	/*
+	 * Each pass through the following loop propagates newly onlined
+	 * CPUs for the current rcu_node structure up the rcu_node tree.
+	 */
+	rcu_for_each_leaf_node(rsp, rnp) {
+		raw_spin_lock_irqsave(&rnp->lock, flags);
+		smp_mb__after_unlock_lock();
+		if (rnp->expmaskinit == rnp->expmaskinitnext) {
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
+			continue;  /* No new CPUs, nothing to do. */
+		}
+
+		/* Update this node's mask, track old value for propagation. */
+		oldmask = rnp->expmaskinit;
+		rnp->expmaskinit = rnp->expmaskinitnext;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+
+		/* If was already nonzero, nothing to propagate. */
+		if (oldmask)
+			continue;
+
+		/* Propagate the new CPU up the tree. */
+		mask = rnp->grpmask;
+		rnp_up = rnp->parent;
+		done = false;
+		while (rnp_up) {
+			raw_spin_lock_irqsave(&rnp_up->lock, flags);
+			smp_mb__after_unlock_lock();
+			if (rnp_up->expmaskinit)
+				done = true;
+			rnp_up->expmaskinit |= mask;
+			raw_spin_unlock_irqrestore(&rnp_up->lock, flags);
+			if (done)
+				break;
+			mask = rnp_up->grpmask;
+			rnp_up = rnp_up->parent;
+		}
+	}
+}
+
+/*
+ * Reset the ->expmask values in the rcu_node tree in preparation for
+ * a new expedited grace period.
+ */
+static void __maybe_unused sync_exp_reset_tree(struct rcu_state *rsp)
+{
+	unsigned long flags;
+	struct rcu_node *rnp;
+
+	sync_exp_reset_tree_hotplug(rsp);
+	rcu_for_each_node_breadth_first(rsp, rnp) {
+		raw_spin_lock_irqsave(&rnp->lock, flags);
+		smp_mb__after_unlock_lock();
+		WARN_ON_ONCE(rnp->expmask);
+		rnp->expmask = rnp->expmaskinit;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	}
+}
+
+/*
  * Return non-zero if there are any tasks in RCU read-side critical
  * sections blocking the current preemptible-RCU expedited grace period.
  * If there is no preemptible-RCU expedited grace period currently in
@@ -3971,7 +4052,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 
 	/* Set up local state, ensuring consistent view of global state. */
 	raw_spin_lock_irqsave(&rnp->lock, flags);
-	rdp->beenonline = 1;	 /* We have now been online. */
 	rdp->qlen_last_fqs_check = 0;
 	rdp->n_force_qs_snap = rsp->n_force_qs;
 	rdp->blimit = blimit;
@@ -3993,6 +4073,10 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	raw_spin_lock(&rnp->lock);		/* irqs already disabled. */
 	smp_mb__after_unlock_lock();
 	rnp->qsmaskinitnext |= mask;
+	rnp->expmaskinitnext |= mask;
+	if (!rdp->beenonline)
+		WRITE_ONCE(rsp->ncpus, READ_ONCE(rsp->ncpus) + 1);
+	rdp->beenonline = true;	 /* We have now been online. */
 	rdp->gpnum = rnp->completed; /* Make CPU later note any new GP. */
 	rdp->completed = rnp->completed;
 	rdp->passed_quiesce = false;
