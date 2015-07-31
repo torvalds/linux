@@ -18,7 +18,7 @@
     wireless-wlan {
         compatible = "wlan-platdata";
 
-        wifi_chip_type = "";
+        wifi_chip_type = "ap6210";
         sdio_vref = <1800>; //1800mv or 3300mv
 
         //power_ctrl_by_pmu;
@@ -610,7 +610,7 @@
 };
 
 &pwm1 {
-	status = "disabled";
+	status = "okay";
 };
 
 
