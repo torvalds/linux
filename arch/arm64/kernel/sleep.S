@@ -158,7 +158,6 @@ ENTRY(cpu_resume)
 	ldp	w5, w6, [x8, #(MPIDR_HASH_SHIFTS + 8)]
 	compute_mpidr_hash x7, x3, x4, x5, x6, x1, x2
         /* x7 contains hash index, let's use it to grab context pointer */
-	mov	x7, xzr
 	ldr_l	x0, sleep_save_sp + SLEEP_SAVE_SP_PHYS
 	ldr	x0, [x0, x7, lsl #3]
 	/* load sp from context */
