@@ -178,8 +178,7 @@ static long clk_apb_mul_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		unsigned long best_parent = rate / mult;
 
-		*prate =
-		    __clk_round_rate(__clk_get_parent(hw->clk), best_parent);
+		*prate = clk_hw_round_rate(clk_hw_get_parent(hw), best_parent);
 	}
 
 	return *prate * mult;
