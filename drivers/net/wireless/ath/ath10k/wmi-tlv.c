@@ -377,12 +377,34 @@ static int ath10k_wmi_tlv_event_tx_pause(struct ath10k *ar,
 		   "wmi tlv tx pause pause_id %u action %u vdev_map 0x%08x peer_id %u tid_map 0x%08x\n",
 		   pause_id, action, vdev_map, peer_id, tid_map);
 
-	for (vdev_id = 0; vdev_map; vdev_id++) {
-		if (!(vdev_map & BIT(vdev_id)))
-			continue;
+	switch (pause_id) {
+	case WMI_TLV_TX_PAUSE_ID_MCC:
+	case WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA:
+	case WMI_TLV_TX_PAUSE_ID_P2P_GO_PS:
+	case WMI_TLV_TX_PAUSE_ID_AP_PS:
+	case WMI_TLV_TX_PAUSE_ID_IBSS_PS:
+		for (vdev_id = 0; vdev_map; vdev_id++) {
+			if (!(vdev_map & BIT(vdev_id)))
+				continue;
 
-		vdev_map &= ~BIT(vdev_id);
-		ath10k_mac_handle_tx_pause(ar, vdev_id, pause_id, action);
+			vdev_map &= ~BIT(vdev_id);
+			ath10k_mac_handle_tx_pause_vdev(ar, vdev_id, pause_id,
+							action);
+		}
+		break;
+	case WMI_TLV_TX_PAUSE_ID_AP_PEER_PS:
+	case WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD:
+	case WMI_TLV_TX_PAUSE_ID_STA_ADD_BA:
+	case WMI_TLV_TX_PAUSE_ID_HOST:
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac ignoring unsupported tx pause id %d\n",
+			   pause_id);
+		break;
+	default:
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac ignoring unknown tx pause vdev %d\n",
+			   pause_id);
+		break;
 	}
 
 	kfree(tb);
@@ -709,6 +731,8 @@ static int ath10k_wmi_tlv_swba_tim_parse(struct ath10k *ar, u16 tag, u16 len,
 					 const void *ptr, void *data)
 {
 	struct wmi_tlv_swba_parse *swba = data;
+	struct wmi_tim_info_arg *tim_info_arg;
+	const struct wmi_tim_info *tim_info_ev = ptr;
 
 	if (tag != WMI_TLV_TAG_STRUCT_TIM_INFO)
 		return -EPROTO;
@@ -716,7 +740,21 @@ static int ath10k_wmi_tlv_swba_tim_parse(struct ath10k *ar, u16 tag, u16 len,
 	if (swba->n_tim >= ARRAY_SIZE(swba->arg->tim_info))
 		return -ENOBUFS;
 
-	swba->arg->tim_info[swba->n_tim++] = ptr;
+	if (__le32_to_cpu(tim_info_ev->tim_len) >
+	     sizeof(tim_info_ev->tim_bitmap)) {
+		ath10k_warn(ar, "refusing to parse invalid swba structure\n");
+		return -EPROTO;
+	}
+
+	tim_info_arg = &swba->arg->tim_info[swba->n_tim];
+	tim_info_arg->tim_len = tim_info_ev->tim_len;
+	tim_info_arg->tim_mcast = tim_info_ev->tim_mcast;
+	tim_info_arg->tim_bitmap = tim_info_ev->tim_bitmap;
+	tim_info_arg->tim_changed = tim_info_ev->tim_changed;
+	tim_info_arg->tim_num_ps_pending = tim_info_ev->tim_num_ps_pending;
+
+	swba->n_tim++;
+
 	return 0;
 }
 
@@ -3151,6 +3189,38 @@ static struct wmi_cmd_map wmi_tlv_cmd_map = {
 	.tdls_set_state_cmdid = WMI_TLV_TDLS_SET_STATE_CMDID,
 	.tdls_peer_update_cmdid = WMI_TLV_TDLS_PEER_UPDATE_CMDID,
 	.adaptive_qcs_cmdid = WMI_TLV_RESMGR_ADAPTIVE_OCS_CMDID,
+	.scan_update_request_cmdid = WMI_CMD_UNSUPPORTED,
+	.vdev_standby_response_cmdid = WMI_CMD_UNSUPPORTED,
+	.vdev_resume_response_cmdid = WMI_CMD_UNSUPPORTED,
+	.wlan_peer_caching_add_peer_cmdid = WMI_CMD_UNSUPPORTED,
+	.wlan_peer_caching_evict_peer_cmdid = WMI_CMD_UNSUPPORTED,
+	.wlan_peer_caching_restore_peer_cmdid = WMI_CMD_UNSUPPORTED,
+	.wlan_peer_caching_print_all_peers_info_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_update_wds_entry_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_add_proxy_sta_entry_cmdid = WMI_CMD_UNSUPPORTED,
+	.rtt_keepalive_cmdid = WMI_CMD_UNSUPPORTED,
+	.oem_req_cmdid = WMI_CMD_UNSUPPORTED,
+	.nan_cmdid = WMI_CMD_UNSUPPORTED,
+	.vdev_ratemask_cmdid = WMI_CMD_UNSUPPORTED,
+	.qboost_cfg_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_smart_ant_enable_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_smart_ant_set_rx_antenna_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_smart_ant_set_tx_antenna_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_smart_ant_set_train_info_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_smart_ant_set_node_config_ops_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_set_antenna_switch_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_set_ctl_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_set_mimogain_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_ratepwr_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_ratepwr_chainmsk_table_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_fips_cmdid = WMI_CMD_UNSUPPORTED,
+	.tt_set_conf_cmdid = WMI_CMD_UNSUPPORTED,
+	.fwtest_cmdid = WMI_CMD_UNSUPPORTED,
+	.vdev_atf_request_cmdid = WMI_CMD_UNSUPPORTED,
+	.peer_atf_request_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_get_ani_cck_config_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_get_ani_ofdm_config_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_reserve_ast_entry_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 static struct wmi_pdev_param_map wmi_tlv_pdev_param_map = {
@@ -3204,6 +3274,48 @@ static struct wmi_pdev_param_map wmi_tlv_pdev_param_map = {
 	.burst_dur = WMI_TLV_PDEV_PARAM_BURST_DUR,
 	.burst_enable = WMI_TLV_PDEV_PARAM_BURST_ENABLE,
 	.cal_period = WMI_PDEV_PARAM_UNSUPPORTED,
+	.aggr_burst = WMI_PDEV_PARAM_UNSUPPORTED,
+	.rx_decap_mode = WMI_PDEV_PARAM_UNSUPPORTED,
+	.smart_antenna_default_antenna = WMI_PDEV_PARAM_UNSUPPORTED,
+	.igmpmld_override = WMI_PDEV_PARAM_UNSUPPORTED,
+	.igmpmld_tid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.antenna_gain = WMI_PDEV_PARAM_UNSUPPORTED,
+	.rx_filter = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_mcast_to_ucast_tid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.proxy_sta_mode = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_mcast2ucast_mode = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_mcast2ucast_buffer = WMI_PDEV_PARAM_UNSUPPORTED,
+	.remove_mcast2ucast_buffer = WMI_PDEV_PARAM_UNSUPPORTED,
+	.peer_sta_ps_statechg_enable = WMI_PDEV_PARAM_UNSUPPORTED,
+	.igmpmld_ac_override = WMI_PDEV_PARAM_UNSUPPORTED,
+	.block_interbss = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_disable_reset_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_msdu_ttl_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_ppdu_duration_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.txbf_sound_period_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_promisc_mode_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_burst_mode_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
+	.en_stats = WMI_PDEV_PARAM_UNSUPPORTED,
+	.mu_group_policy = WMI_PDEV_PARAM_UNSUPPORTED,
+	.noise_detection = WMI_PDEV_PARAM_UNSUPPORTED,
+	.noise_threshold = WMI_PDEV_PARAM_UNSUPPORTED,
+	.dpd_enable = WMI_PDEV_PARAM_UNSUPPORTED,
+	.set_mcast_bcast_echo = WMI_PDEV_PARAM_UNSUPPORTED,
+	.atf_strict_sch = WMI_PDEV_PARAM_UNSUPPORTED,
+	.atf_sched_duration = WMI_PDEV_PARAM_UNSUPPORTED,
+	.ant_plzn = WMI_PDEV_PARAM_UNSUPPORTED,
+	.mgmt_retry_limit = WMI_PDEV_PARAM_UNSUPPORTED,
+	.sensitivity_level = WMI_PDEV_PARAM_UNSUPPORTED,
+	.signed_txpower_2g = WMI_PDEV_PARAM_UNSUPPORTED,
+	.signed_txpower_5g = WMI_PDEV_PARAM_UNSUPPORTED,
+	.enable_per_tid_amsdu = WMI_PDEV_PARAM_UNSUPPORTED,
+	.enable_per_tid_ampdu = WMI_PDEV_PARAM_UNSUPPORTED,
+	.cca_threshold = WMI_PDEV_PARAM_UNSUPPORTED,
+	.rts_fixed_rate = WMI_PDEV_PARAM_UNSUPPORTED,
+	.pdev_reset = WMI_PDEV_PARAM_UNSUPPORTED,
+	.wapi_mbssid_offset = WMI_PDEV_PARAM_UNSUPPORTED,
+	.arp_srcaddr = WMI_PDEV_PARAM_UNSUPPORTED,
+	.arp_dstaddr = WMI_PDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {
@@ -3262,6 +3374,22 @@ static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {
 	.tx_encap_type = WMI_TLV_VDEV_PARAM_TX_ENCAP_TYPE,
 	.ap_detect_out_of_sync_sleeping_sta_time_secs =
 					WMI_TLV_VDEV_PARAM_UNSUPPORTED,
+	.rc_num_retries = WMI_VDEV_PARAM_UNSUPPORTED,
+	.cabq_maxdur = WMI_VDEV_PARAM_UNSUPPORTED,
+	.mfptest_set = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rts_fixed_rate = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht_sgimask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.vht80_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_enable = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_tgt_bmiss_num = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_bmiss_sample_cycle = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_slop_step = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_init_slop = WMI_VDEV_PARAM_UNSUPPORTED,
+	.early_rx_adjust_pause = WMI_VDEV_PARAM_UNSUPPORTED,
+	.proxy_sta = WMI_VDEV_PARAM_UNSUPPORTED,
+	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
+	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static const struct wmi_ops wmi_tlv_ops = {

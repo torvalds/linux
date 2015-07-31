@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 
 MODULE_DESCRIPTION("Broadcom's specific AMBA driver");
 MODULE_LICENSE("GPL");
@@ -407,6 +408,17 @@ int bcma_bus_register(struct bcma_bus *bus)
 	if (core) {
 		bus->drv_pci[0].core = core;
 		bcma_core_pci_early_init(&bus->drv_pci[0]);
+	}
+
+	/* TODO: remove check for IS_BUILTIN(CONFIG_BCMA) check when
+	 * of_default_bus_match_table is exported or in some other way
+	 * accessible. This is just a temporary workaround.
+	 */
+	if (IS_BUILTIN(CONFIG_BCMA) && bus->host_pdev) {
+		struct device *dev = &bus->host_pdev->dev;
+
+		of_platform_populate(dev->of_node, of_default_bus_match_table,
+				     NULL, dev);
 	}
 
 	/* Cores providing flash access go before SPROM init */

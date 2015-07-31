@@ -491,10 +491,9 @@ bool ath_stoprecv(struct ath_softc *sc)
 
 	if (!(ah->ah_flags & AH_UNPLUGGED) &&
 	    unlikely(!stopped)) {
-		ath_err(ath9k_hw_common(sc->sc_ah),
-			"Could not stop RX, we could be "
-			"confusing the DMA engine when we start RX up\n");
-		ATH_DBG_WARN_ON_ONCE(!stopped);
+		ath_dbg(ath9k_hw_common(sc->sc_ah), RESET,
+			"Failed to stop Rx DMA\n");
+		RESET_STAT_INC(sc, RESET_RX_DMA_ERROR);
 	}
 	return stopped && !reset;
 }

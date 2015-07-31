@@ -54,6 +54,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->media_connected = false;
 
 	priv->scan_block = false;
+	priv->port_open = false;
 
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
 	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info)) {
@@ -153,6 +154,7 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 	struct mwifiex_sta_node *sta_ptr;
 	struct mwifiex_tdls_generic_event *tdls_evt =
 			(void *)event_skb->data + sizeof(adapter->event_cause);
+	u8 *mac = tdls_evt->peer_mac;
 
 	/* reserved 2 bytes are not mandatory in tdls event */
 	if (event_skb->len < (sizeof(struct mwifiex_tdls_generic_event) -
@@ -175,11 +177,203 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 					   le16_to_cpu(tdls_evt->u.reason_code),
 					   GFP_KERNEL);
 		break;
+	case TDLS_EVENT_CHAN_SWITCH_RESULT:
+		mwifiex_dbg(adapter, EVENT, "tdls channel switch result :\n");
+		mwifiex_dbg(adapter, EVENT,
+			    "status=0x%x, reason=0x%x cur_chan=%d\n",
+			    tdls_evt->u.switch_result.status,
+			    tdls_evt->u.switch_result.reason,
+			    tdls_evt->u.switch_result.cur_chan);
+
+		/* tdls channel switch failed */
+		if (tdls_evt->u.switch_result.status != 0) {
+			switch (tdls_evt->u.switch_result.cur_chan) {
+			case TDLS_BASE_CHANNEL:
+				sta_ptr->tdls_status = TDLS_IN_BASE_CHAN;
+				break;
+			case TDLS_OFF_CHANNEL:
+				sta_ptr->tdls_status = TDLS_IN_OFF_CHAN;
+				break;
+			default:
+				break;
+			}
+			return ret;
+		}
+
+		/* tdls channel switch success */
+		switch (tdls_evt->u.switch_result.cur_chan) {
+		case TDLS_BASE_CHANNEL:
+			if (sta_ptr->tdls_status == TDLS_IN_BASE_CHAN)
+				break;
+			mwifiex_update_ralist_tx_pause_in_tdls_cs(priv, mac,
+								  false);
+			sta_ptr->tdls_status = TDLS_IN_BASE_CHAN;
+			break;
+		case TDLS_OFF_CHANNEL:
+			if (sta_ptr->tdls_status == TDLS_IN_OFF_CHAN)
+				break;
+			mwifiex_update_ralist_tx_pause_in_tdls_cs(priv, mac,
+								  true);
+			sta_ptr->tdls_status = TDLS_IN_OFF_CHAN;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case TDLS_EVENT_START_CHAN_SWITCH:
+		mwifiex_dbg(adapter, EVENT, "tdls start channel switch...\n");
+		sta_ptr->tdls_status = TDLS_CHAN_SWITCHING;
+		break;
+	case TDLS_EVENT_CHAN_SWITCH_STOPPED:
+		mwifiex_dbg(adapter, EVENT,
+			    "tdls chan switch stopped, reason=%d\n",
+			    tdls_evt->u.cs_stop_reason);
+		break;
 	default:
 		break;
 	}
 
 	return ret;
+}
+
+static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
+					 struct mwifiex_ie_types_header *tlv)
+{
+	struct mwifiex_tx_pause_tlv *tp;
+	struct mwifiex_sta_node *sta_ptr;
+	unsigned long flags;
+
+	tp = (void *)tlv;
+	mwifiex_dbg(priv->adapter, EVENT,
+		    "uap tx_pause: %pM pause=%d, pkts=%d\n",
+		    tp->peermac, tp->tx_pause,
+		    tp->pkt_cnt);
+
+	if (ether_addr_equal(tp->peermac, priv->netdev->dev_addr)) {
+		if (tp->tx_pause)
+			priv->port_open = false;
+		else
+			priv->port_open = true;
+	} else if (is_multicast_ether_addr(tp->peermac)) {
+		mwifiex_update_ralist_tx_pause(priv, tp->peermac, tp->tx_pause);
+	} else {
+		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+
+		if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
+			sta_ptr->tx_pause = tp->tx_pause;
+			mwifiex_update_ralist_tx_pause(priv, tp->peermac,
+						       tp->tx_pause);
+		}
+	}
+}
+
+static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
+					 struct mwifiex_ie_types_header *tlv)
+{
+	struct mwifiex_tx_pause_tlv *tp;
+	struct mwifiex_sta_node *sta_ptr;
+	int status;
+	unsigned long flags;
+
+	tp = (void *)tlv;
+	mwifiex_dbg(priv->adapter, EVENT,
+		    "sta tx_pause: %pM pause=%d, pkts=%d\n",
+		    tp->peermac, tp->tx_pause,
+		    tp->pkt_cnt);
+
+	if (ether_addr_equal(tp->peermac, priv->cfg_bssid)) {
+		if (tp->tx_pause)
+			priv->port_open = false;
+		else
+			priv->port_open = true;
+	} else {
+		if (!ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+			return;
+
+		status = mwifiex_get_tdls_link_status(priv, tp->peermac);
+		if (mwifiex_is_tdls_link_setup(status)) {
+			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+			sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
+			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+
+			if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
+				sta_ptr->tx_pause = tp->tx_pause;
+				mwifiex_update_ralist_tx_pause(priv,
+							       tp->peermac,
+							       tp->tx_pause);
+			}
+		}
+	}
+}
+
+void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
+				      struct sk_buff *event_skb)
+{
+	struct mwifiex_ie_types_multi_chan_info *chan_info;
+	u16 status;
+
+	chan_info = (void *)event_skb->data + sizeof(u32);
+
+	if (le16_to_cpu(chan_info->header.type) != TLV_TYPE_MULTI_CHAN_INFO) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "unknown TLV in chan_info event\n");
+		return;
+	}
+
+	status = le16_to_cpu(chan_info->status);
+
+	if (status) {
+		mwifiex_dbg(priv->adapter, EVENT,
+			    "multi-channel operation started\n");
+	} else {
+		mwifiex_dbg(priv->adapter, EVENT,
+			    "multi-channel operation over\n");
+	}
+}
+
+void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
+				    struct sk_buff *event_skb)
+{
+	struct mwifiex_ie_types_header *tlv;
+	u16 tlv_type, tlv_len;
+	int tlv_buf_left;
+
+	if (!priv->media_connected) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "tx_pause event while disconnected; bss_role=%d\n",
+			    priv->bss_role);
+		return;
+	}
+
+	tlv_buf_left = event_skb->len - sizeof(u32);
+	tlv = (void *)event_skb->data + sizeof(u32);
+
+	while (tlv_buf_left >= (int)sizeof(struct mwifiex_ie_types_header)) {
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_len  = le16_to_cpu(tlv->len);
+		if ((sizeof(struct mwifiex_ie_types_header) + tlv_len) >
+		    tlv_buf_left) {
+			mwifiex_dbg(priv->adapter, ERROR,
+				    "wrong tlv: tlvLen=%d, tlvBufLeft=%d\n",
+				    tlv_len, tlv_buf_left);
+			break;
+		}
+		if (tlv_type == TLV_TYPE_TX_PAUSE) {
+			if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
+				mwifiex_process_sta_tx_pause(priv, tlv);
+			else
+				mwifiex_process_uap_tx_pause(priv, tlv);
+		}
+
+		tlv_buf_left -= sizeof(struct mwifiex_ie_types_header) +
+				tlv_len;
+		tlv = (void *)((u8 *)tlv + tlv_len +
+			       sizeof(struct mwifiex_ie_types_header));
+	}
+
 }
 
 /*
@@ -359,7 +553,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_PS_AWAKE:
 		mwifiex_dbg(adapter, EVENT, "info: EVENT: AWAKE\n");
-		if (!adapter->pps_uapsd_mode &&
+		if (!adapter->pps_uapsd_mode && priv->port_open &&
 		    priv->media_connected && adapter->sleep_period.period) {
 				adapter->pps_uapsd_mode = true;
 				mwifiex_dbg(adapter, EVENT,
@@ -438,6 +632,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_PORT_RELEASE:
 		mwifiex_dbg(adapter, EVENT, "event: PORT RELEASE\n");
+		priv->port_open = true;
 		break;
 
 	case EVENT_EXT_SCAN_REPORT:
@@ -571,6 +766,16 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_TDLS_GENERIC_EVENT:
 		ret = mwifiex_parse_tdls_event(priv, adapter->event_skb);
+		break;
+
+	case EVENT_TX_DATA_PAUSE:
+		mwifiex_dbg(adapter, EVENT, "event: TX DATA PAUSE\n");
+		mwifiex_process_tx_pause_event(priv, adapter->event_skb);
+		break;
+
+	case EVENT_MULTI_CHAN_INFO:
+		mwifiex_dbg(adapter, EVENT, "event: multi-chan info\n");
+		mwifiex_process_multi_chan_event(priv, adapter->event_skb);
 		break;
 
 	case EVENT_TX_STATUS_REPORT:

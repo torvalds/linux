@@ -599,6 +599,7 @@ static int mwifiex_ret_802_11_key_material_v1(struct mwifiex_private *priv,
 				    "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;
+			priv->port_open = true;
 		}
 	}
 
@@ -629,6 +630,7 @@ static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
 			mwifiex_dbg(priv->adapter, INFO, "info: key: GTK is set\n");
 			priv->wpa_is_gtk_set = true;
 			priv->scan_block = false;
+			priv->port_open = true;
 		}
 	}
 
@@ -1191,11 +1193,14 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_ret_tdls_oper(priv, resp);
+	case HostCmd_CMD_MC_POLICY:
 		break;
 	case HostCmd_CMD_CHAN_REPORT_REQUEST:
 		break;
 	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
 		ret = mwifiex_ret_sdio_rx_aggr_cfg(priv, resp);
+		break;
+	case HostCmd_CMD_TDLS_CONFIG:
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,

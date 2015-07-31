@@ -49,7 +49,7 @@ static void mwifiex_restore_tdls_packets(struct mwifiex_private *priv,
 		tid = skb->priority;
 		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
 
-		if (status == TDLS_SETUP_COMPLETE) {
+		if (mwifiex_is_tdls_link_setup(status)) {
 			ra_list = mwifiex_wmm_get_queue_raptr(priv, tid, mac);
 			ra_list->tdls_link = true;
 			tx_info->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
@@ -355,6 +355,7 @@ static void mwifiex_tdls_add_ext_capab(struct mwifiex_private *priv,
 	extcap->ieee_hdr.len = 8;
 	memset(extcap->ext_capab, 0, 8);
 	extcap->ext_capab[4] |= WLAN_EXT_CAPA5_TDLS_ENABLED;
+	extcap->ext_capab[3] |= WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH;
 
 	if (priv->adapter->is_hw_11ac_capable)
 		extcap->ext_capab[7] |= WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED;
@@ -1071,6 +1072,11 @@ mwifiex_tdls_process_enable_link(struct mwifiex_private *priv, const u8 *peer)
 			for (i = 0; i < MAX_NUM_TID; i++)
 				sta_ptr->ampdu_sta[i] = BA_STREAM_NOT_ALLOWED;
 		}
+		if (sta_ptr->tdls_cap.extcap.ext_capab[3] &
+		    WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH) {
+			mwifiex_config_tdls_enable(priv);
+			mwifiex_config_tdls_cs_params(priv);
+		}
 
 		memset(sta_ptr->rx_seq, 0xff, sizeof(sta_ptr->rx_seq));
 		mwifiex_restore_tdls_packets(priv, peer, TDLS_SETUP_COMPLETE);
@@ -1141,7 +1147,7 @@ int mwifiex_get_tdls_list(struct mwifiex_private *priv,
 
 	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 	list_for_each_entry(sta_ptr, &priv->sta_list, list) {
-		if (sta_ptr->tdls_status == TDLS_SETUP_COMPLETE) {
+		if (mwifiex_is_tdls_link_setup(sta_ptr->tdls_status)) {
 			ether_addr_copy(peer->peer_addr, sta_ptr->mac_addr);
 			peer++;
 			count++;
@@ -1295,7 +1301,7 @@ void mwifiex_auto_tdls_update_peer_status(struct mwifiex_private *priv,
 			if ((link_status == TDLS_NOT_SETUP) &&
 			    (peer->tdls_status == TDLS_SETUP_INPROGRESS))
 				peer->failure_count++;
-			else if (link_status == TDLS_SETUP_COMPLETE)
+			else if (mwifiex_is_tdls_link_setup(link_status))
 				peer->failure_count = 0;
 
 			peer->tdls_status = link_status;
@@ -1367,7 +1373,7 @@ void mwifiex_check_auto_tdls(unsigned long context)
 
 		if (((tdls_peer->rssi >= MWIFIEX_TDLS_RSSI_LOW) ||
 		     !tdls_peer->rssi) &&
-		    tdls_peer->tdls_status == TDLS_SETUP_COMPLETE) {
+		    mwifiex_is_tdls_link_setup(tdls_peer->tdls_status)) {
 			tdls_peer->tdls_status = TDLS_LINK_TEARDOWN;
 			mwifiex_dbg(priv->adapter, MSG,
 				    "teardown TDLS link,peer=%pM rssi=%d\n",
@@ -1415,4 +1421,68 @@ void mwifiex_clean_auto_tdls(struct mwifiex_private *priv)
 		del_timer(&priv->auto_tdls_timer);
 		mwifiex_flush_auto_tdls_list(priv);
 	}
+}
+
+static int mwifiex_config_tdls(struct mwifiex_private *priv, u8 enable)
+{
+	struct mwifiex_tdls_config config;
+
+	config.enable = cpu_to_le16(enable);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_ENABLE_CONFIG, 0, &config, true);
+}
+
+int mwifiex_config_tdls_enable(struct mwifiex_private *priv)
+{
+	return mwifiex_config_tdls(priv, true);
+}
+
+int mwifiex_config_tdls_disable(struct mwifiex_private *priv)
+{
+	return mwifiex_config_tdls(priv, false);
+}
+
+int mwifiex_config_tdls_cs_params(struct mwifiex_private *priv)
+{
+	struct mwifiex_tdls_config_cs_params config_tdls_cs_params;
+
+	config_tdls_cs_params.unit_time = MWIFIEX_DEF_CS_UNIT_TIME;
+	config_tdls_cs_params.thr_otherlink = MWIFIEX_DEF_CS_THR_OTHERLINK;
+	config_tdls_cs_params.thr_directlink = MWIFIEX_DEF_THR_DIRECTLINK;
+
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_PARAMS, 0,
+				&config_tdls_cs_params, true);
+}
+
+int mwifiex_stop_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac)
+{
+	struct mwifiex_tdls_stop_cs_params stop_tdls_cs_params;
+
+	ether_addr_copy(stop_tdls_cs_params.peer_mac, peer_mac);
+
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_STOP, 0,
+				&stop_tdls_cs_params, true);
+}
+
+int mwifiex_start_tdls_cs(struct mwifiex_private *priv, const u8 *peer_mac,
+			  u8 primary_chan, u8 second_chan_offset, u8 band)
+{
+	struct mwifiex_tdls_init_cs_params start_tdls_cs_params;
+
+	ether_addr_copy(start_tdls_cs_params.peer_mac, peer_mac);
+	start_tdls_cs_params.primary_chan = primary_chan;
+	start_tdls_cs_params.second_chan_offset = second_chan_offset;
+	start_tdls_cs_params.band = band;
+
+	start_tdls_cs_params.switch_time = cpu_to_le16(MWIFIEX_DEF_CS_TIME);
+	start_tdls_cs_params.switch_timeout =
+					cpu_to_le16(MWIFIEX_DEF_CS_TIMEOUT);
+	start_tdls_cs_params.reg_class = MWIFIEX_DEF_CS_REG_CLASS;
+	start_tdls_cs_params.periodicity = MWIFIEX_DEF_CS_PERIODICITY;
+
+	return mwifiex_send_cmd(priv, HostCmd_CMD_TDLS_CONFIG,
+				ACT_TDLS_CS_INIT, 0,
+				&start_tdls_cs_params, true);
 }

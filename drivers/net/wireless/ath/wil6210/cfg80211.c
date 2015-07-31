@@ -736,6 +736,92 @@ static int wil_fix_bcon(struct wil6210_priv *wil,
 	return rc;
 }
 
+/* internal functions for device reset and starting AP */
+static int _wil_cfg80211_set_ies(struct wiphy *wiphy,
+				 size_t probe_ies_len, const u8 *probe_ies,
+				 size_t assoc_ies_len, const u8 *assoc_ies)
+
+{
+	int rc;
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	/* FW do not form regular beacon, so bcon IE's are not set
+	 * For the DMG bcon, when it will be supported, bcon IE's will
+	 * be reused; add something like:
+	 * wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
+	 * bcon->beacon_ies);
+	 */
+	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, probe_ies_len, probe_ies);
+	if (rc) {
+		wil_err(wil, "set_ie(PROBE_RESP) failed\n");
+		return rc;
+	}
+
+	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, assoc_ies_len, assoc_ies);
+	if (rc) {
+		wil_err(wil, "set_ie(ASSOC_RESP) failed\n");
+		return rc;
+	}
+
+	return 0;
+}
+
+static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
+				  struct net_device *ndev,
+				  const u8 *ssid, size_t ssid_len, u32 privacy,
+				  int bi, u8 chan,
+				  size_t probe_ies_len, const u8 *probe_ies,
+				  size_t assoc_ies_len, const u8 *assoc_ies,
+				  u8 hidden_ssid)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	u8 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
+
+	wil_set_recovery_state(wil, fw_recovery_idle);
+
+	mutex_lock(&wil->mutex);
+
+	__wil_down(wil);
+	rc = __wil_up(wil);
+	if (rc)
+		goto out;
+
+	rc = wmi_set_ssid(wil, ssid_len, ssid);
+	if (rc)
+		goto out;
+
+	rc = _wil_cfg80211_set_ies(wiphy, probe_ies_len, probe_ies,
+				   assoc_ies_len, assoc_ies);
+	if (rc)
+		goto out;
+
+	wil->privacy = privacy;
+	wil->channel = chan;
+	wil->hidden_ssid = hidden_ssid;
+
+	netif_carrier_on(ndev);
+
+	rc = wmi_pcp_start(wil, bi, wmi_nettype, chan, hidden_ssid);
+	if (rc)
+		goto err_pcp_start;
+
+	rc = wil_bcast_init(wil);
+	if (rc)
+		goto err_bcast;
+
+	goto out; /* success */
+
+err_bcast:
+	wmi_pcp_stop(wil);
+err_pcp_start:
+	netif_carrier_off(ndev);
+out:
+	mutex_unlock(&wil->mutex);
+	return rc;
+}
+
 static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 				      struct net_device *ndev,
 				      struct cfg80211_beacon_data *bcon)
@@ -746,6 +832,7 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 	const u8 *pr_ies = NULL;
 	size_t pr_ies_len = 0;
 	int rc;
+	u32 privacy = 0;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 	wil_print_bcon_data(bcon);
@@ -760,40 +847,41 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 		wil_print_bcon_data(bcon);
 	}
 
-	/* FW do not form regular beacon, so bcon IE's are not set
-	 * For the DMG bcon, when it will be supported, bcon IE's will
-	 * be reused; add something like:
-	 * wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
-	 * bcon->beacon_ies);
-	 */
-	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, pr_ies_len, pr_ies);
-	if (rc) {
-		wil_err(wil, "set_ie(PROBE_RESP) failed\n");
-		return rc;
+	if (pr_ies && cfg80211_find_ie(WLAN_EID_RSN, pr_ies, pr_ies_len))
+		privacy = 1;
+
+	/* in case privacy has changed, need to restart the AP */
+	if (wil->privacy != privacy) {
+		struct wireless_dev *wdev = ndev->ieee80211_ptr;
+
+		wil_dbg_misc(wil, "privacy changed %d=>%d. Restarting AP\n",
+			     wil->privacy, privacy);
+
+		rc = _wil_cfg80211_start_ap(wiphy, ndev, wdev->ssid,
+					    wdev->ssid_len, privacy,
+					    wdev->beacon_interval,
+					    wil->channel, pr_ies_len, pr_ies,
+					    bcon->assocresp_ies_len,
+					    bcon->assocresp_ies,
+					    wil->hidden_ssid);
+	} else {
+		rc = _wil_cfg80211_set_ies(wiphy, pr_ies_len, pr_ies,
+					   bcon->assocresp_ies_len,
+					   bcon->assocresp_ies);
 	}
 
-	rc = wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP,
-			bcon->assocresp_ies_len,
-			bcon->assocresp_ies);
-	if (rc) {
-		wil_err(wil, "set_ie(ASSOC_RESP) failed\n");
-		return rc;
-	}
-
-	return 0;
+	return rc;
 }
 
 static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 				 struct net_device *ndev,
 				 struct cfg80211_ap_settings *info)
 {
-	int rc = 0;
+	int rc;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	struct ieee80211_channel *channel = info->chandef.chan;
 	struct cfg80211_beacon_data *bcon = &info->beacon;
 	struct cfg80211_crypto_settings *crypto = &info->crypto;
-	u8 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
 	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
 	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
 	const u8 *pr_ies = NULL;
@@ -807,6 +895,23 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	switch (info->hidden_ssid) {
+	case NL80211_HIDDEN_SSID_NOT_IN_USE:
+		hidden_ssid = WMI_HIDDEN_SSID_DISABLED;
+		break;
+
+	case NL80211_HIDDEN_SSID_ZERO_LEN:
+		hidden_ssid = WMI_HIDDEN_SSID_SEND_EMPTY;
+		break;
+
+	case NL80211_HIDDEN_SSID_ZERO_CONTENTS:
+		hidden_ssid = WMI_HIDDEN_SSID_CLEAR;
+		break;
+
+	default:
+		wil_err(wil, "AP: Invalid hidden SSID %d\n", info->hidden_ssid);
+		return -EOPNOTSUPP;
+	}
 	wil_dbg_misc(wil, "AP on Channel %d %d MHz, %s\n", channel->hw_value,
 		     channel->center_freq, info->privacy ? "secure" : "open");
 	wil_dbg_misc(wil, "Privacy: %d auth_type %d\n",
@@ -830,70 +935,14 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		wil_print_bcon_data(bcon);
 	}
 
-	wil_set_recovery_state(wil, fw_recovery_idle);
+	rc = _wil_cfg80211_start_ap(wiphy, ndev,
+				    info->ssid, info->ssid_len, info->privacy,
+				    info->beacon_interval, channel->hw_value,
+				    pr_ies_len, pr_ies,
+				    bcon->assocresp_ies_len,
+				    bcon->assocresp_ies,
+				    hidden_ssid);
 
-	mutex_lock(&wil->mutex);
-
-	__wil_down(wil);
-	rc = __wil_up(wil);
-	if (rc)
-		goto out;
-
-	rc = wmi_set_ssid(wil, info->ssid_len, info->ssid);
-	if (rc)
-		goto out;
-
-	/* IE's */
-	/* bcon 'head IE's are not relevant for 60g band */
-	/*
-	 * FW do not form regular beacon, so bcon IE's are not set
-	 * For the DMG bcon, when it will be supported, bcon IE's will
-	 * be reused; add something like:
-	 * wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
-	 * bcon->beacon_ies);
-	 */
-	wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, pr_ies_len, pr_ies);
-	wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
-		   bcon->assocresp_ies);
-
-	wil->privacy = info->privacy;
-
-	switch (info->hidden_ssid) {
-	case NL80211_HIDDEN_SSID_NOT_IN_USE:
-		hidden_ssid = WMI_HIDDEN_SSID_DISABLED;
-		break;
-
-	case NL80211_HIDDEN_SSID_ZERO_LEN:
-		hidden_ssid = WMI_HIDDEN_SSID_SEND_EMPTY;
-		break;
-
-	case NL80211_HIDDEN_SSID_ZERO_CONTENTS:
-		hidden_ssid = WMI_HIDDEN_SSID_CLEAR;
-		break;
-
-	default:
-		rc = -EOPNOTSUPP;
-		goto out;
-	}
-
-	netif_carrier_on(ndev);
-
-	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
-			   channel->hw_value, hidden_ssid);
-	if (rc)
-		goto err_pcp_start;
-
-	rc = wil_bcast_init(wil);
-	if (rc)
-		goto err_bcast;
-
-	goto out; /* success */
-err_bcast:
-	wmi_pcp_stop(wil);
-err_pcp_start:
-	netif_carrier_off(ndev);
-out:
-	mutex_unlock(&wil->mutex);
 	return rc;
 }
 

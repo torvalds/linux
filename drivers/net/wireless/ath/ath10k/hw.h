@@ -72,6 +72,18 @@ enum qca6174_chip_id_rev {
 #define QCA6174_HW_3_0_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_3_0_PATCH_LOAD_ADDR	0x1234
 
+/* QCA99X0 1.0 definitions (unsupported) */
+#define QCA99X0_HW_1_0_CHIP_ID_REV     0x0
+
+/* QCA99X0 2.0 definitions */
+#define QCA99X0_HW_2_0_DEV_VERSION     0x01000000
+#define QCA99X0_HW_2_0_CHIP_ID_REV     0x1
+#define QCA99X0_HW_2_0_FW_DIR          ATH10K_FW_DIR "/QCA99X0/hw2.0"
+#define QCA99X0_HW_2_0_FW_FILE         "firmware.bin"
+#define QCA99X0_HW_2_0_OTP_FILE        "otp.bin"
+#define QCA99X0_HW_2_0_BOARD_DATA_FILE "board.bin"
+#define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
+
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
@@ -112,6 +124,9 @@ enum ath10k_fw_ie_type {
 	 * FW API 5 and above.
 	 */
 	ATH10K_FW_IE_HTT_OP_VERSION = 6,
+
+	/* Code swap image for firmware binary */
+	ATH10K_FW_IE_FW_CODE_SWAP_IMAGE = 7,
 };
 
 enum ath10k_fw_wmi_op_version {
@@ -122,6 +137,7 @@ enum ath10k_fw_wmi_op_version {
 	ATH10K_FW_WMI_OP_VERSION_10_2 = 3,
 	ATH10K_FW_WMI_OP_VERSION_TLV = 4,
 	ATH10K_FW_WMI_OP_VERSION_10_2_4 = 5,
+	ATH10K_FW_WMI_OP_VERSION_10_4 = 6,
 
 	/* keep last */
 	ATH10K_FW_WMI_OP_VERSION_MAX,
@@ -137,6 +153,8 @@ enum ath10k_fw_htt_op_version {
 
 	ATH10K_FW_HTT_OP_VERSION_TLV = 3,
 
+	ATH10K_FW_HTT_OP_VERSION_10_4 = 4,
+
 	/* keep last */
 	ATH10K_FW_HTT_OP_VERSION_MAX,
 };
@@ -144,6 +162,7 @@ enum ath10k_fw_htt_op_version {
 enum ath10k_hw_rev {
 	ATH10K_HW_QCA988X,
 	ATH10K_HW_QCA6174,
+	ATH10K_HW_QCA99X0,
 };
 
 struct ath10k_hw_regs {
@@ -164,16 +183,38 @@ struct ath10k_hw_regs {
 	u32 soc_reset_control_ce_rst_mask;
 	u32 soc_chip_id_address;
 	u32 scratch_3_address;
+	u32 fw_indicator_address;
+	u32 pcie_local_base_address;
+	u32 ce_wrap_intr_sum_host_msi_lsb;
+	u32 ce_wrap_intr_sum_host_msi_mask;
+	u32 pcie_intr_fw_mask;
+	u32 pcie_intr_ce_mask_all;
+	u32 pcie_intr_clr_address;
 };
 
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
+extern const struct ath10k_hw_regs qca99x0_regs;
+
+struct ath10k_hw_values {
+	u32 rtc_state_val_on;
+	u8 ce_count;
+	u8 msi_assign_ce_max;
+	u8 num_target_ce_config_wlan;
+	u16 ce_desc_meta_data_mask;
+	u8 ce_desc_meta_data_lsb;
+};
+
+extern const struct ath10k_hw_values qca988x_values;
+extern const struct ath10k_hw_values qca6174_values;
+extern const struct ath10k_hw_values qca99x0_values;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
 
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
+#define QCA_REV_99X0(ar) ((ar)->hw_rev == ATH10K_HW_QCA99X0)
 
 /* Known pecularities:
  *  - current FW doesn't support raw rx mode (last tested v599)
@@ -310,8 +351,73 @@ enum ath10k_hw_rate_cck {
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
 #define TARGET_TLV_NUM_WOW_PATTERNS		22
 
+/* Diagnostic Window */
+#define CE_DIAG_PIPE	7
+
+#define NUM_TARGET_CE_CONFIG_WLAN ar->hw_values->num_target_ce_config_wlan
+
+/* Target specific defines for 10.4 firmware */
+#define TARGET_10_4_NUM_VDEVS			16
+#define TARGET_10_4_NUM_STATIONS		32
+#define TARGET_10_4_NUM_PEERS			((TARGET_10_4_NUM_STATIONS) + \
+						 (TARGET_10_4_NUM_VDEVS))
+#define TARGET_10_4_ACTIVE_PEERS		0
+
+/* TODO: increase qcache max client limit to 512 after
+ * testing with 512 client.
+ */
+#define TARGET_10_4_NUM_QCACHE_PEERS_MAX	256
+#define TARGET_10_4_QCACHE_ACTIVE_PEERS		50
+#define TARGET_10_4_NUM_OFFLOAD_PEERS		0
+#define TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS	0
+#define TARGET_10_4_NUM_PEER_KEYS		2
+#define TARGET_10_4_TGT_NUM_TIDS		((TARGET_10_4_NUM_PEERS) * 2)
+#define TARGET_10_4_AST_SKID_LIMIT		32
+#define TARGET_10_4_TX_CHAIN_MASK		(BIT(0) | BIT(1) | \
+						 BIT(2) | BIT(3))
+#define TARGET_10_4_RX_CHAIN_MASK		(BIT(0) | BIT(1) | \
+						 BIT(2) | BIT(3))
+
+/* 100 ms for video, best-effort, and background */
+#define TARGET_10_4_RX_TIMEOUT_LO_PRI		100
+
+/* 40 ms for voice */
+#define TARGET_10_4_RX_TIMEOUT_HI_PRI		40
+
+#define TARGET_10_4_RX_DECAP_MODE		ATH10K_HW_TXRX_NATIVE_WIFI
+#define TARGET_10_4_SCAN_MAX_REQS		4
+#define TARGET_10_4_BMISS_OFFLOAD_MAX_VDEV	3
+#define TARGET_10_4_ROAM_OFFLOAD_MAX_VDEV	3
+#define TARGET_10_4_ROAM_OFFLOAD_MAX_PROFILES   8
+
+/* Note: mcast to ucast is disabled by default */
+#define TARGET_10_4_NUM_MCAST_GROUPS		0
+#define TARGET_10_4_NUM_MCAST_TABLE_ELEMS	0
+#define TARGET_10_4_MCAST2UCAST_MODE		0
+
+#define TARGET_10_4_TX_DBG_LOG_SIZE		1024
+#define TARGET_10_4_NUM_WDS_ENTRIES		32
+#define TARGET_10_4_DMA_BURST_SIZE		1
+#define TARGET_10_4_MAC_AGGR_DELIM		0
+#define TARGET_10_4_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK 1
+#define TARGET_10_4_VOW_CONFIG			0
+#define TARGET_10_4_GTK_OFFLOAD_MAX_VDEV	3
+#define TARGET_10_4_NUM_MSDU_DESC		(1024 + 400)
+#define TARGET_10_4_11AC_TX_MAX_FRAGS		2
+#define TARGET_10_4_MAX_PEER_EXT_STATS		16
+#define TARGET_10_4_SMART_ANT_CAP		0
+#define TARGET_10_4_BK_MIN_FREE			0
+#define TARGET_10_4_BE_MIN_FREE			0
+#define TARGET_10_4_VI_MIN_FREE			0
+#define TARGET_10_4_VO_MIN_FREE			0
+#define TARGET_10_4_RX_BATCH_MODE		1
+#define TARGET_10_4_THERMAL_THROTTLING_CONFIG	0
+#define TARGET_10_4_ATF_CONFIG			0
+#define TARGET_10_4_IPHDR_PAD_CONFIG		1
+#define TARGET_10_4_QWRAP_CONFIG		0
+
 /* Number of Copy Engines supported */
-#define CE_COUNT 8
+#define CE_COUNT ar->hw_values->ce_count
 
 /*
  * Total number of PCIe MSI interrupts requested for all interrupt sources.
@@ -335,10 +441,10 @@ enum ath10k_hw_rate_cck {
 
 /* MSIs for Copy Engines */
 #define MSI_ASSIGN_CE_INITIAL	1
-#define MSI_ASSIGN_CE_MAX	7
+#define MSI_ASSIGN_CE_MAX	ar->hw_values->msi_assign_ce_max
 
 /* as of IP3.7.1 */
-#define RTC_STATE_V_ON				3
+#define RTC_STATE_V_ON				ar->hw_values->rtc_state_val_on
 
 #define RTC_STATE_COLD_RESET_MASK		ar->regs->rtc_state_cold_reset_mask
 #define RTC_STATE_V_LSB				0
@@ -374,7 +480,7 @@ enum ath10k_hw_rate_cck {
 #define CE7_BASE_ADDRESS			ar->regs->ce7_base_address
 #define DBI_BASE_ADDRESS			0x00060000
 #define WLAN_ANALOG_INTF_PCIE_BASE_ADDRESS	0x0006c000
-#define PCIE_LOCAL_BASE_ADDRESS			0x00080000
+#define PCIE_LOCAL_BASE_ADDRESS		ar->regs->pcie_local_base_address
 
 #define SOC_RESET_CONTROL_ADDRESS		0x00000000
 #define SOC_RESET_CONTROL_OFFSET		0x00000000
@@ -448,7 +554,7 @@ enum ath10k_hw_rate_cck {
 #define CORE_CTRL_ADDRESS			0x0000
 #define PCIE_INTR_ENABLE_ADDRESS		0x0008
 #define PCIE_INTR_CAUSE_ADDRESS			0x000c
-#define PCIE_INTR_CLR_ADDRESS			0x0014
+#define PCIE_INTR_CLR_ADDRESS			ar->regs->pcie_intr_clr_address
 #define SCRATCH_3_ADDRESS			ar->regs->scratch_3_address
 #define CPU_INTR_ADDRESS			0x0010
 
@@ -456,15 +562,17 @@ enum ath10k_hw_rate_cck {
 #define CCNT_TO_MSEC(x) ((x) / 88000)
 
 /* Firmware indications to the Host via SCRATCH_3 register. */
-#define FW_INDICATOR_ADDRESS	(SOC_CORE_BASE_ADDRESS + SCRATCH_3_ADDRESS)
+#define FW_INDICATOR_ADDRESS			ar->regs->fw_indicator_address
 #define FW_IND_EVENT_PENDING			1
 #define FW_IND_INITIALIZED			2
 
 /* HOST_REG interrupt from firmware */
-#define PCIE_INTR_FIRMWARE_MASK			0x00000400
-#define PCIE_INTR_CE_MASK_ALL			0x0007f800
+#define PCIE_INTR_FIRMWARE_MASK			ar->regs->pcie_intr_fw_mask
+#define PCIE_INTR_CE_MASK_ALL			ar->regs->pcie_intr_ce_mask_all
 
 #define DRAM_BASE_ADDRESS			0x00400000
+
+#define PCIE_BAR_REG_ADDRESS			0x40030
 
 #define MISSING 0
 
