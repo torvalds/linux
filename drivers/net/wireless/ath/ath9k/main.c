@@ -739,8 +739,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ath9k_ps_restore(sc);
 
-	ath9k_rng_register(sc);
-
 	return 0;
 }
 
@@ -829,8 +827,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	bool prev_idle;
 
 	ath9k_deinit_channel_context(sc);
-
-	ath9k_rng_unregister(sc);
 
 	mutex_lock(&sc->mutex);
 
