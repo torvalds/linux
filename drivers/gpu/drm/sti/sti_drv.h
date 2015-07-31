@@ -4,8 +4,8 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
-#ifndef _STI_DRM_DRV_H_
-#define _STI_DRM_DRV_H_
+#ifndef _STI_DRV_H_
+#define _STI_DRV_H_
 
 #include <drm/drmP.h>
 
@@ -20,7 +20,7 @@ struct sti_tvout;
  * @plane_zorder_property: z-order property for CRTC planes
  * @drm_dev:               drm device
  */
-struct sti_drm_private {
+struct sti_private {
 	struct sti_compositor *compo;
 	struct drm_property *plane_zorder_property;
 	struct drm_device *drm_dev;

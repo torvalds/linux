@@ -8,7 +8,7 @@
 #include <drm/drmP.h>
 
 #include "sti_cursor.h"
-#include "sti_drm_plane.h"
+#include "sti_plane.h"
 #include "sti_vtg.h"
 
 /* Registers */

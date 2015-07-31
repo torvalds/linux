@@ -12,8 +12,8 @@
 #include <linux/clk.h>
 #include <linux/kernel.h>
 
-#include "sti_drm_plane.h"
 #include "sti_mixer.h"
+#include "sti_plane.h"
 
 #define WAIT_NEXT_VSYNC_MS      50 /*ms*/
 

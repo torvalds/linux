@@ -13,8 +13,8 @@
 
 #include <drm/drmP.h>
 
-#include "sti_drm_plane.h"
 #include "sti_hqvdp_lut.h"
+#include "sti_plane.h"
 #include "sti_vtg.h"
 
 /* Firmware name */
@@ -967,8 +967,8 @@ int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
 	/* Create HQVDP plane once xp70 is initialized */
 	plane = sti_hqvdp_create(hqvdp->dev, STI_HQVDP_0);
 	if (plane)
-		sti_drm_plane_init(hqvdp->drm_dev, plane, 1,
-				   DRM_PLANE_TYPE_OVERLAY);
+		sti_plane_init(hqvdp->drm_dev, plane, 1,
+			       DRM_PLANE_TYPE_OVERLAY);
 	else
 		DRM_ERROR("Can't create HQVDP plane\n");
 

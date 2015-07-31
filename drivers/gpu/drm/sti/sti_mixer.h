@@ -11,7 +11,7 @@
 
 #include <drm/drmP.h>
 
-#include "sti_drm_plane.h"
+#include "sti_plane.h"
 
 #define to_sti_mixer(x) container_of(x, struct sti_mixer, drm_crtc)
 

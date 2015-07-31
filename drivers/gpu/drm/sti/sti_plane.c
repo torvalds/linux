@@ -13,8 +13,8 @@
 #include <drm/drm_plane_helper.h>
 
 #include "sti_compositor.h"
-#include "sti_drm_drv.h"
-#include "sti_drm_plane.h"
+#include "sti_drv.h"
+#include "sti_plane.h"
 #include "sti_vtg.h"
 
 /* (Background) < GDP0 < GDP1 < HQVDP0 < GDP2 < GDP3 < (ForeGround) */
@@ -156,7 +156,7 @@ static int sti_plane_disable(struct sti_plane *plane)
 	return 0;
 }
 
-static void sti_drm_plane_destroy(struct drm_plane *drm_plane)
+static void sti_plane_destroy(struct drm_plane *drm_plane)
 {
 	DRM_DEBUG_DRIVER("\n");
 
@@ -164,12 +164,12 @@ static void sti_drm_plane_destroy(struct drm_plane *drm_plane)
 	drm_plane_cleanup(drm_plane);
 }
 
-static int sti_drm_plane_set_property(struct drm_plane *drm_plane,
-				      struct drm_property *property,
-				      uint64_t val)
+static int sti_plane_set_property(struct drm_plane *drm_plane,
+				  struct drm_property *property,
+				  uint64_t val)
 {
 	struct drm_device *dev = drm_plane->dev;
-	struct sti_drm_private *private = dev->dev_private;
+	struct sti_private *private = dev->dev_private;
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	DRM_DEBUG_DRIVER("\n");
@@ -182,24 +182,24 @@ static int sti_drm_plane_set_property(struct drm_plane *drm_plane,
 	return -EINVAL;
 }
 
-static struct drm_plane_funcs sti_drm_plane_funcs = {
+static struct drm_plane_funcs sti_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = sti_drm_plane_destroy,
-	.set_property = sti_drm_plane_set_property,
+	.destroy = sti_plane_destroy,
+	.set_property = sti_plane_set_property,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
-static int sti_drm_plane_atomic_check(struct drm_plane *drm_plane,
-				      struct drm_plane_state *state)
+static int sti_plane_atomic_check(struct drm_plane *drm_plane,
+				  struct drm_plane_state *state)
 {
 	return 0;
 }
 
-static void sti_drm_plane_atomic_update(struct drm_plane *drm_plane,
-					struct drm_plane_state *oldstate)
+static void sti_plane_atomic_update(struct drm_plane *drm_plane,
+				    struct drm_plane_state *oldstate)
 {
 	struct drm_plane_state *state = drm_plane->state;
 	struct sti_plane *plane = to_sti_plane(drm_plane);
@@ -244,8 +244,8 @@ static void sti_drm_plane_atomic_update(struct drm_plane *drm_plane,
 	}
 }
 
-static void sti_drm_plane_atomic_disable(struct drm_plane *drm_plane,
-					 struct drm_plane_state *oldstate)
+static void sti_plane_atomic_disable(struct drm_plane *drm_plane,
+				     struct drm_plane_state *oldstate)
 {
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_mixer *mixer = to_sti_mixer(drm_plane->crtc);
@@ -279,16 +279,16 @@ static void sti_drm_plane_atomic_disable(struct drm_plane *drm_plane,
 	}
 }
 
-static const struct drm_plane_helper_funcs sti_drm_plane_helpers_funcs = {
-	.atomic_check = sti_drm_plane_atomic_check,
-	.atomic_update = sti_drm_plane_atomic_update,
-	.atomic_disable = sti_drm_plane_atomic_disable,
+static const struct drm_plane_helper_funcs sti_plane_helpers_funcs = {
+	.atomic_check = sti_plane_atomic_check,
+	.atomic_update = sti_plane_atomic_update,
+	.atomic_disable = sti_plane_atomic_disable,
 };
 
-static void sti_drm_plane_attach_zorder_property(struct drm_plane *drm_plane)
+static void sti_plane_attach_zorder_property(struct drm_plane *drm_plane)
 {
 	struct drm_device *dev = drm_plane->dev;
-	struct sti_drm_private *private = dev->dev_private;
+	struct sti_private *private = dev->dev_private;
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct drm_property *prop;
 
@@ -305,7 +305,7 @@ static void sti_drm_plane_attach_zorder_property(struct drm_plane *drm_plane)
 	drm_object_attach_property(&drm_plane->base, prop, plane->zorder);
 }
 
-struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
+struct drm_plane *sti_plane_init(struct drm_device *dev,
 				 struct sti_plane *plane,
 				 unsigned int possible_crtcs,
 				 enum drm_plane_type type)
@@ -314,7 +314,7 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 
 	err = drm_universal_plane_init(dev, &plane->drm_plane,
 				       possible_crtcs,
-				       &sti_drm_plane_funcs,
+				       &sti_plane_funcs,
 				       plane->ops->get_formats(plane),
 				       plane->ops->get_nb_formats(plane),
 				       type);
@@ -323,8 +323,7 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 		return NULL;
 	}
 
-	drm_plane_helper_add(&plane->drm_plane,
-			     &sti_drm_plane_helpers_funcs);
+	drm_plane_helper_add(&plane->drm_plane, &sti_plane_helpers_funcs);
 
 	for (i = 0; i < ARRAY_SIZE(sti_plane_default_zorder); i++)
 		if (sti_plane_default_zorder[i] == plane->desc)
@@ -333,7 +332,7 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 	plane->zorder = i + 1;
 
 	if (type == DRM_PLANE_TYPE_OVERLAY)
-		sti_drm_plane_attach_zorder_property(&plane->drm_plane);
+		sti_plane_attach_zorder_property(&plane->drm_plane);
 
 	DRM_DEBUG_DRIVER("drm plane:%d mapped to %s with zorder:%d\n",
 			 plane->drm_plane.base.id,
@@ -341,4 +340,4 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 
 	return &plane->drm_plane;
 }
-EXPORT_SYMBOL(sti_drm_plane_init);
+EXPORT_SYMBOL(sti_plane_init);

@@ -14,11 +14,11 @@
 #include <drm/drmP.h>
 
 #include "sti_compositor.h"
+#include "sti_crtc.h"
 #include "sti_cursor.h"
-#include "sti_drm_crtc.h"
-#include "sti_drm_drv.h"
-#include "sti_drm_plane.h"
+#include "sti_drv.h"
 #include "sti_gdp.h"
+#include "sti_plane.h"
 #include "sti_vid.h"
 #include "sti_vtg.h"
 
@@ -62,7 +62,7 @@ static int sti_compositor_bind(struct device *dev,
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	unsigned int i, mixer_id = 0, vid_id = 0, crtc_id = 0, plane_id = 0;
-	struct sti_drm_private *dev_priv = drm_dev->dev_private;
+	struct sti_private *dev_priv = drm_dev->dev_private;
 	struct drm_plane *cursor = NULL;
 	struct drm_plane *primary = NULL;
 	struct sti_compositor_subdev_descriptor *desc = compo->data.subdev_desc;
@@ -116,8 +116,8 @@ static int sti_compositor_bind(struct device *dev,
 				DRM_ERROR("Can't create CURSOR plane\n");
 				break;
 			}
-			cursor = sti_drm_plane_init(drm_dev, plane, 1,
-						    DRM_PLANE_TYPE_CURSOR);
+			cursor = sti_plane_init(drm_dev, plane, 1,
+						DRM_PLANE_TYPE_CURSOR);
 			plane_id++;
 			break;
 		case STI_GPD_SUBDEV:
@@ -127,9 +127,9 @@ static int sti_compositor_bind(struct device *dev,
 				DRM_ERROR("Can't create GDP plane\n");
 				break;
 			}
-			primary = sti_drm_plane_init(drm_dev, plane,
-						     (1 << mixer_id) - 1,
-						     plane_type);
+			primary = sti_plane_init(drm_dev, plane,
+						 (1 << mixer_id) - 1,
+						 plane_type);
 			plane_id++;
 			break;
 		default:
@@ -139,8 +139,8 @@ static int sti_compositor_bind(struct device *dev,
 
 		/* The first planes are reserved for primary planes*/
 		if (crtc_id < mixer_id && primary) {
-			sti_drm_crtc_init(drm_dev, compo->mixer[crtc_id],
-					  primary, cursor);
+			sti_crtc_init(drm_dev, compo->mixer[crtc_id],
+				      primary, cursor);
 			crtc_id++;
 			cursor = NULL;
 			primary = NULL;
@@ -196,7 +196,7 @@ static int sti_compositor_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	compo->dev = dev;
-	compo->vtg_vblank_nb.notifier_call = sti_drm_crtc_vblank_cb;
+	compo->vtg_vblank_nb.notifier_call = sti_crtc_vblank_cb;
 
 	/* populate data structure depending on compatibility */
 	BUG_ON(!of_match_node(compositor_of_match, np)->data);

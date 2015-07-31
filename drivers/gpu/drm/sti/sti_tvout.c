@@ -16,7 +16,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
-#include "sti_drm_crtc.h"
+#include "sti_crtc.h"
 
 /* glue registers */
 #define TVO_CSC_MAIN_M0                  0x000
@@ -473,7 +473,7 @@ static void sti_dvo_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_dvo_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
+	tvout_dvo_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
 
 static void sti_dvo_encoder_disable(struct drm_encoder *encoder)
@@ -523,7 +523,7 @@ static void sti_hda_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_hda_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
+	tvout_hda_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
 
 static void sti_hda_encoder_disable(struct drm_encoder *encoder)
@@ -575,7 +575,7 @@ static void sti_hdmi_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_hdmi_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
+	tvout_hdmi_start(tvout, sti_crtc_is_main(encoder->crtc));
 }
 
 static void sti_hdmi_encoder_disable(struct drm_encoder *encoder)

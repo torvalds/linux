@@ -10,8 +10,8 @@
 #include <linux/dma-mapping.h>
 
 #include "sti_compositor.h"
-#include "sti_drm_plane.h"
 #include "sti_gdp.h"
+#include "sti_plane.h"
 #include "sti_vtg.h"
 
 #define ALPHASWITCH     BIT(6)

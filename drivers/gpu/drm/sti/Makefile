@@ -4,8 +4,8 @@ sticompositor-y := \
 	sti_vid.o \
 	sti_cursor.o \
 	sti_compositor.o \
-	sti_drm_crtc.o \
-	sti_drm_plane.o
+	sti_crtc.o \
+	sti_plane.o
 
 stihdmi-y := sti_hdmi.o \
 	sti_hdmi_tx3g0c55phy.o \
@@ -23,4 +23,4 @@ obj-$(CONFIG_DRM_STI) = \
 	sticompositor.o \
 	sti_hqvdp.o \
 	stidvo.o \
-	sti_drm_drv.o
+	sti_drv.o

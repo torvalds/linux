@@ -4,8 +4,8 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
-#ifndef _STI_DRM_PLANE_H_
-#define _STI_DRM_PLANE_H_
+#ifndef _STI_PLANE_H_
+#define _STI_PLANE_H_
 
 #include <drm/drmP.h>
 
@@ -96,10 +96,10 @@ struct sti_plane_funcs {
 	int (*disable)(struct sti_plane *plane);
 };
 
-struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
-		struct sti_plane *sti_plane,
-		unsigned int possible_crtcs,
-		enum drm_plane_type type);
+struct drm_plane *sti_plane_init(struct drm_device *dev,
+				 struct sti_plane *sti_plane,
+				 unsigned int possible_crtcs,
+				 enum drm_plane_type type);
 const char *sti_plane_to_str(struct sti_plane *plane);
 
 #endif
