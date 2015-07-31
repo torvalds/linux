@@ -53,7 +53,7 @@ ep_matches (
 	int		num_req_streams = 0;
 
 	/* endpoint already claimed? */
-	if (NULL != ep->driver_data)
+	if (ep->claimed)
 		return 0;
 
 	/* only support ep0 for portable CONTROL traffic */
@@ -240,7 +240,7 @@ find_ep (struct usb_gadget *gadget, const char *name)
  * updated with the assigned number of streams if it is
  * different from the original value. To prevent the endpoint
  * from being returned by a later autoconfig call, claim it by
- * assigning ep->driver_data to some non-null value.
+ * assigning ep->claimed to true.
  *
  * On failure, this returns a null endpoint descriptor.
  */
@@ -323,6 +323,7 @@ struct usb_ep *usb_ep_autoconfig_ss(
 found_ep:
 	ep->desc = NULL;
 	ep->comp_desc = NULL;
+	ep->claimed = true;
 	return ep;
 }
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
@@ -354,7 +355,7 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
  * descriptor bEndpointAddress.  For bulk endpoints, the wMaxPacket value
  * is initialized as if the endpoint were used at full speed.  To prevent
  * the endpoint from being returned by a later autoconfig call, claim it
- * by assigning ep->driver_data to some non-null value.
+ * by assigning ep->claimed to true.
  *
  * On failure, this returns a null endpoint descriptor.
  */
@@ -373,7 +374,7 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig);
  *
  * Use this for devices where one configuration may need to assign
  * endpoint resources very differently from the next one.  It clears
- * state such as ep->driver_data and the record of assigned endpoints
+ * state such as ep->claimed and the record of assigned endpoints
  * used by usb_ep_autoconfig().
  */
 void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
@@ -381,7 +382,7 @@ void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 	struct usb_ep	*ep;
 
 	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
-		ep->driver_data = NULL;
+		ep->claimed = false;
 	}
 	gadget->in_epnum = 0;
 	gadget->out_epnum = 0;
