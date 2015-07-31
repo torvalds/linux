@@ -237,9 +237,7 @@ Testing the LOOPBACK function
 -----------------------------
 
 device: run the gadget
-host: test-usb
-
-http://www.linux-usb.org/usbtest/testusb.c
+host: test-usb (tools/usb/testusb.c)
 
 8. MASS STORAGE function
 ========================
@@ -588,9 +586,8 @@ Testing the SOURCESINK function
 -------------------------------
 
 device: run the gadget
-host: test-usb
+host: test-usb (tools/usb/testusb.c)
 
-http://www.linux-usb.org/usbtest/testusb.c
 
 16. UAC1 function
 =================
