@@ -101,61 +101,57 @@ static void sti_mixer_set_background_area(struct sti_mixer *mixer,
 	sti_mixer_reg_write(mixer, GAM_MIXER_BCS, yds << 16 | xds);
 }
 
-int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer)
+int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 {
-	int layer_id, depth = layer->zorder;
+	int plane_id, depth = plane->zorder;
 	unsigned int i;
 	u32 mask, val;
 
 	if ((depth < 1) || (depth > GAM_MIXER_NB_DEPTH_LEVEL))
 		return 1;
 
-	switch (layer->desc) {
+	switch (plane->desc) {
 	case STI_GDP_0:
-		layer_id = GAM_DEPTH_GDP0_ID;
+		plane_id = GAM_DEPTH_GDP0_ID;
 		break;
 	case STI_GDP_1:
-		layer_id = GAM_DEPTH_GDP1_ID;
+		plane_id = GAM_DEPTH_GDP1_ID;
 		break;
 	case STI_GDP_2:
-		layer_id = GAM_DEPTH_GDP2_ID;
+		plane_id = GAM_DEPTH_GDP2_ID;
 		break;
 	case STI_GDP_3:
-		layer_id = GAM_DEPTH_GDP3_ID;
+		plane_id = GAM_DEPTH_GDP3_ID;
 		break;
-	case STI_VID_0:
 	case STI_HQVDP_0:
-		layer_id = GAM_DEPTH_VID0_ID;
-		break;
-	case STI_VID_1:
-		layer_id = GAM_DEPTH_VID1_ID;
+		plane_id = GAM_DEPTH_VID0_ID;
 		break;
 	case STI_CURSOR:
 		/* no need to set depth for cursor */
 		return 0;
 	default:
-		DRM_ERROR("Unknown layer %d\n", layer->desc);
+		DRM_ERROR("Unknown plane %d\n", plane->desc);
 		return 1;
 	}
 
-	/* Search if a previous depth was already assigned to the layer */
+	/* Search if a previous depth was already assigned to the plane */
 	val = sti_mixer_reg_read(mixer, GAM_MIXER_CRB);
 	for (i = 0; i < GAM_MIXER_NB_DEPTH_LEVEL; i++) {
 		mask = GAM_DEPTH_MASK_ID << (3 * i);
-		if ((val & mask) == layer_id << (3 * i))
+		if ((val & mask) == plane_id << (3 * i))
 			break;
 	}
 
 	mask |= GAM_DEPTH_MASK_ID << (3 * (depth - 1));
-	layer_id = layer_id << (3 * (depth - 1));
+	plane_id = plane_id << (3 * (depth - 1));
 
 	DRM_DEBUG_DRIVER("%s %s depth=%d\n", sti_mixer_to_str(mixer),
-			 sti_layer_to_str(layer), depth);
+			 sti_plane_to_str(plane), depth);
 	dev_dbg(mixer->dev, "GAM_MIXER_CRB val 0x%x mask 0x%x\n",
-		layer_id, mask);
+		plane_id, mask);
 
 	val &= ~mask;
-	val |= layer_id;
+	val |= plane_id;
 	sti_mixer_reg_write(mixer, GAM_MIXER_CRB, val);
 
 	dev_dbg(mixer->dev, "Read GAM_MIXER_CRB 0x%x\n",
@@ -185,9 +181,9 @@ int sti_mixer_active_video_area(struct sti_mixer *mixer,
 	return 0;
 }
 
-static u32 sti_mixer_get_layer_mask(struct sti_layer *layer)
+static u32 sti_mixer_get_plane_mask(struct sti_plane *plane)
 {
-	switch (layer->desc) {
+	switch (plane->desc) {
 	case STI_BACK:
 		return GAM_CTL_BACK_MASK;
 	case STI_GDP_0:
@@ -198,11 +194,8 @@ static u32 sti_mixer_get_layer_mask(struct sti_layer *layer)
 		return GAM_CTL_GDP2_MASK;
 	case STI_GDP_3:
 		return GAM_CTL_GDP3_MASK;
-	case STI_VID_0:
 	case STI_HQVDP_0:
 		return GAM_CTL_VID0_MASK;
-	case STI_VID_1:
-		return GAM_CTL_VID1_MASK;
 	case STI_CURSOR:
 		return GAM_CTL_CURSOR_MASK;
 	default:
@@ -210,17 +203,17 @@ static u32 sti_mixer_get_layer_mask(struct sti_layer *layer)
 	}
 }
 
-int sti_mixer_set_layer_status(struct sti_mixer *mixer,
-			       struct sti_layer *layer, bool status)
+int sti_mixer_set_plane_status(struct sti_mixer *mixer,
+			       struct sti_plane *plane, bool status)
 {
 	u32 mask, val;
 
 	DRM_DEBUG_DRIVER("%s %s %s\n", status ? "enable" : "disable",
-			 sti_mixer_to_str(mixer), sti_layer_to_str(layer));
+			 sti_mixer_to_str(mixer), sti_plane_to_str(plane));
 
-	mask = sti_mixer_get_layer_mask(layer);
+	mask = sti_mixer_get_plane_mask(plane);
 	if (!mask) {
-		DRM_ERROR("Can not find layer mask\n");
+		DRM_ERROR("Can't find layer mask\n");
 		return -EINVAL;
 	}
 
@@ -232,11 +225,11 @@ int sti_mixer_set_layer_status(struct sti_mixer *mixer,
 	return 0;
 }
 
-void sti_mixer_clear_all_layers(struct sti_mixer *mixer)
+void sti_mixer_clear_all_planes(struct sti_mixer *mixer)
 {
 	u32 val;
 
-	DRM_DEBUG_DRIVER("%s clear all layer\n", sti_mixer_to_str(mixer));
+	DRM_DEBUG_DRIVER("%s clear all planes\n", sti_mixer_to_str(mixer));
 	val = sti_mixer_reg_read(mixer, GAM_MIXER_CTL) & 0xFFFF0000;
 	sti_mixer_reg_write(mixer, GAM_MIXER_CTL, val);
 }

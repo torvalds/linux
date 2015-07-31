@@ -7,6 +7,7 @@
 #ifndef _STI_CURSOR_H_
 #define _STI_CURSOR_H_
 
-struct sti_layer *sti_cursor_create(struct device *dev);
+struct sti_plane *sti_cursor_create(struct device *dev, int desc,
+				    void __iomem *baseaddr);
 
 #endif

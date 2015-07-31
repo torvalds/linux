@@ -41,7 +41,7 @@ static void sti_drm_crtc_prepare(struct drm_crtc *crtc)
 			DRM_INFO("Failed to prepare/enable compo_aux clk\n");
 	}
 
-	sti_mixer_clear_all_layers(mixer);
+	sti_mixer_clear_all_planes(mixer);
 }
 
 static void sti_drm_crtc_commit(struct drm_crtc *crtc)
@@ -49,23 +49,21 @@ static void sti_drm_crtc_commit(struct drm_crtc *crtc)
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 	struct device *dev = mixer->dev;
 	struct sti_compositor *compo = dev_get_drvdata(dev);
-	struct sti_layer *layer;
+	struct sti_plane *plane;
 
 	if ((!mixer || !compo)) {
-		DRM_ERROR("Can not find mixer or compositor)\n");
+		DRM_ERROR("Can't find mixer or compositor)\n");
 		return;
 	}
 
 	/* get GDP which is reserved to the CRTC FB */
-	layer = to_sti_layer(crtc->primary);
-	if (layer)
-		sti_layer_commit(layer);
-	else
-		DRM_ERROR("Can not find CRTC dedicated plane (GDP0)\n");
+	plane = to_sti_plane(crtc->primary);
+	if (!plane)
+		DRM_ERROR("Can't find CRTC dedicated plane (GDP0)\n");
 
-	/* Enable layer on mixer */
-	if (sti_mixer_set_layer_status(mixer, layer, true))
-		DRM_ERROR("Can not enable layer at mixer\n");
+	/* Enable plane on mixer */
+	if (sti_mixer_set_plane_status(mixer, plane, true))
+		DRM_ERROR("Cannot enable plane at mixer\n");
 
 	drm_crtc_vblank_on(crtc);
 }
@@ -122,7 +120,7 @@ sti_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 	res = sti_mixer_active_video_area(mixer, &crtc->mode);
 	if (res) {
-		DRM_ERROR("Can not set active video area\n");
+		DRM_ERROR("Can't set active video area\n");
 		return -EINVAL;
 	}
 
@@ -164,7 +162,7 @@ sti_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	sti_drm_crtc_mode_set(crtc, &crtc->state->adjusted_mode);
 }
 
-static void sti_drm_atomic_begin(struct drm_crtc *crtc)
+static void sti_drm_crtc_atomic_begin(struct drm_crtc *crtc)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -178,7 +176,7 @@ static void sti_drm_atomic_begin(struct drm_crtc *crtc)
 	}
 }
 
-static void sti_drm_atomic_flush(struct drm_crtc *crtc)
+static void sti_drm_crtc_atomic_flush(struct drm_crtc *crtc)
 {
 }
 
@@ -191,8 +189,8 @@ static struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
 	.mode_set_nofb = sti_drm_crtc_mode_set_nofb,
 	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.disable = sti_drm_crtc_disable,
-	.atomic_begin = sti_drm_atomic_begin,
-	.atomic_flush = sti_drm_atomic_flush,
+	.atomic_begin = sti_drm_crtc_atomic_begin,
+	.atomic_flush = sti_drm_crtc_atomic_flush,
 };
 
 static void sti_drm_crtc_destroy(struct drm_crtc *crtc)
@@ -247,6 +245,8 @@ int sti_drm_crtc_enable_vblank(struct drm_device *dev, int crtc)
 	struct sti_drm_private *dev_priv = dev->dev_private;
 	struct sti_compositor *compo = dev_priv->compo;
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
+
+	DRM_DEBUG_DRIVER("\n");
 
 	if (sti_vtg_register_client(crtc == STI_MIXER_MAIN ?
 			compo->vtg_main : compo->vtg_aux,
@@ -309,7 +309,7 @@ int sti_drm_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
 	res = drm_crtc_init_with_planes(drm_dev, crtc, primary, cursor,
 			&sti_crtc_funcs);
 	if (res) {
-		DRM_ERROR("Can not initialze CRTC\n");
+		DRM_ERROR("Can't initialze CRTC\n");
 		return -EINVAL;
 	}
 

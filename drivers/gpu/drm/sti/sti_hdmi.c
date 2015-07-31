@@ -588,7 +588,7 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	return count;
 
 fail:
-	DRM_ERROR("Can not read HDMI EDID\n");
+	DRM_ERROR("Can't read HDMI EDID\n");
 	return 0;
 }
 

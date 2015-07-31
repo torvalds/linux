@@ -1,5 +1,4 @@
 sticompositor-y := \
-	sti_layer.o \
 	sti_mixer.o \
 	sti_gdp.o \
 	sti_vid.o \

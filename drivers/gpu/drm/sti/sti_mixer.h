@@ -11,7 +11,7 @@
 
 #include <drm/drmP.h>
 
-#include "sti_layer.h"
+#include "sti_drm_plane.h"
 
 #define to_sti_mixer(x) container_of(x, struct sti_mixer, drm_crtc)
 
@@ -29,7 +29,7 @@ struct sti_mixer {
 	struct device *dev;
 	void __iomem *regs;
 	int id;
-	struct drm_crtc	drm_crtc;
+	struct drm_crtc drm_crtc;
 	struct drm_pending_vblank_event *pending_event;
 	bool enabled;
 };
@@ -37,14 +37,14 @@ struct sti_mixer {
 const char *sti_mixer_to_str(struct sti_mixer *mixer);
 
 struct sti_mixer *sti_mixer_create(struct device *dev, int id,
-		void __iomem *baseaddr);
+				   void __iomem *baseaddr);
 
-int sti_mixer_set_layer_status(struct sti_mixer *mixer,
-		struct sti_layer *layer, bool status);
-void sti_mixer_clear_all_layers(struct sti_mixer *mixer);
-int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer);
+int sti_mixer_set_plane_status(struct sti_mixer *mixer,
+			       struct sti_plane *plane, bool status);
+void sti_mixer_clear_all_planes(struct sti_mixer *mixer);
+int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane);
 int sti_mixer_active_video_area(struct sti_mixer *mixer,
-		struct drm_display_mode *mode);
+				struct drm_display_mode *mode);
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable);
 

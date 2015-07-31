@@ -14,9 +14,7 @@
 #include <drm/drmP.h>
 
 #include "sti_drm_plane.h"
-#include "sti_hqvdp.h"
 #include "sti_hqvdp_lut.h"
-#include "sti_layer.h"
 #include "sti_vtg.h"
 
 /* Firmware name */
@@ -322,8 +320,7 @@ struct sti_hqvdp_cmd {
  * @dev:               driver device
  * @drm_dev:           the drm device
  * @regs:              registers
- * @layer:             layer structure for hqvdp it self
- * @vid_plane:         VID plug used as link with compositor IP
+ * @plane:             plane structure for hqvdp it self
  * @clk:               IP clock
  * @clk_pix_main:      pix main clock
  * @reset:             reset control
@@ -334,13 +331,13 @@ struct sti_hqvdp_cmd {
  * @hqvdp_cmd:         buffer of commands
  * @hqvdp_cmd_paddr:   physical address of hqvdp_cmd
  * @vtg:               vtg for main data path
+ * @xp70_initialized:  true if xp70 is already initialized
  */
 struct sti_hqvdp {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	void __iomem *regs;
-	struct sti_layer layer;
-	struct drm_plane *vid_plane;
+	struct sti_plane plane;
 	struct clk *clk;
 	struct clk *clk_pix_main;
 	struct reset_control *reset;
@@ -351,20 +348,21 @@ struct sti_hqvdp {
 	void *hqvdp_cmd;
 	dma_addr_t hqvdp_cmd_paddr;
 	struct sti_vtg *vtg;
+	bool xp70_initialized;
 };
 
-#define to_sti_hqvdp(x) container_of(x, struct sti_hqvdp, layer)
+#define to_sti_hqvdp(x) container_of(x, struct sti_hqvdp, plane)
 
 static const uint32_t hqvdp_supported_formats[] = {
 	DRM_FORMAT_NV12,
 };
 
-static const uint32_t *sti_hqvdp_get_formats(struct sti_layer *layer)
+static const uint32_t *sti_hqvdp_get_formats(struct sti_plane *plane)
 {
 	return hqvdp_supported_formats;
 }
 
-static unsigned int sti_hqvdp_get_nb_formats(struct sti_layer *layer)
+static unsigned int sti_hqvdp_get_nb_formats(struct sti_plane *plane)
 {
 	return ARRAY_SIZE(hqvdp_supported_formats);
 }
@@ -484,7 +482,7 @@ static void sti_hqvdp_update_hvsrc(enum sti_hvsrc_orient orient, int scale,
 
 /**
  * sti_hqvdp_check_hw_scaling
- * @layer: hqvdp layer
+ * @plane: hqvdp plane
  *
  * Check if the HW is able to perform the scaling request
  * The firmware scaling limitation is "CEIL(1/Zy) <= FLOOR(LFW)" where:
@@ -498,23 +496,23 @@ static void sti_hqvdp_update_hvsrc(enum sti_hvsrc_orient orient, int scale,
  * RETURNS:
  * True if the HW can scale.
  */
-static bool sti_hqvdp_check_hw_scaling(struct sti_layer *layer)
+static bool sti_hqvdp_check_hw_scaling(struct sti_plane *plane)
 {
-	struct sti_hqvdp *hqvdp = to_sti_hqvdp(layer);
+	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
 	unsigned long lfw;
 	unsigned int inv_zy;
 
-	lfw = layer->mode->htotal * (clk_get_rate(hqvdp->clk) / 1000000);
-	lfw /= max(layer->src_w, layer->dst_w) * layer->mode->clock / 1000;
+	lfw = plane->mode->htotal * (clk_get_rate(hqvdp->clk) / 1000000);
+	lfw /= max(plane->src_w, plane->dst_w) * plane->mode->clock / 1000;
 
-	inv_zy = DIV_ROUND_UP(layer->src_h, layer->dst_h);
+	inv_zy = DIV_ROUND_UP(plane->src_h, plane->dst_h);
 
 	return (inv_zy <= lfw) ? true : false;
 }
 
 /**
- * sti_hqvdp_prepare_layer
- * @layer: hqvdp layer
+ * sti_hqvdp_prepare
+ * @plane: hqvdp plane
  * @first_prepare: true if it is the first time this function is called
  *
  * Prepares a command for the firmware
@@ -522,22 +520,14 @@ static bool sti_hqvdp_check_hw_scaling(struct sti_layer *layer)
  * RETURNS:
  * 0 on success.
  */
-static int sti_hqvdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
+static int sti_hqvdp_prepare(struct sti_plane *plane, bool first_prepare)
 {
-	struct sti_hqvdp *hqvdp = to_sti_hqvdp(layer);
+	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
 	struct sti_hqvdp_cmd *cmd;
 	int scale_h, scale_v;
 	int cmd_offset;
 
-	dev_dbg(hqvdp->dev, "%s %s\n", __func__, sti_layer_to_str(layer));
-
-	/* prepare and commit VID plane */
-	hqvdp->vid_plane->funcs->update_plane(hqvdp->vid_plane,
-					layer->crtc, layer->fb,
-					layer->dst_x, layer->dst_y,
-					layer->dst_w, layer->dst_h,
-					layer->src_x, layer->src_y,
-					layer->src_w, layer->src_h);
+	dev_dbg(hqvdp->dev, "%s %s\n", __func__, sti_plane_to_str(plane));
 
 	cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 	if (cmd_offset == -1) {
@@ -546,7 +536,7 @@ static int sti_hqvdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	}
 	cmd = hqvdp->hqvdp_cmd + cmd_offset;
 
-	if (!sti_hqvdp_check_hw_scaling(layer)) {
+	if (!sti_hqvdp_check_hw_scaling(plane)) {
 		DRM_ERROR("Scaling beyond HW capabilities\n");
 		return -EINVAL;
 	}
@@ -565,42 +555,42 @@ static int sti_hqvdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	cmd->iqi.pxf_conf = IQI_PXF_CONF_DFLT;
 
 	/* Buffer planes address */
-	cmd->top.current_luma = (u32) layer->paddr + layer->offsets[0];
-	cmd->top.current_chroma = (u32) layer->paddr + layer->offsets[1];
+	cmd->top.current_luma = (u32)plane->paddr + plane->offsets[0];
+	cmd->top.current_chroma = (u32)plane->paddr + plane->offsets[1];
 
 	/* Pitches */
 	cmd->top.luma_processed_pitch = cmd->top.luma_src_pitch =
-			layer->pitches[0];
+			plane->pitches[0];
 	cmd->top.chroma_processed_pitch = cmd->top.chroma_src_pitch =
-			layer->pitches[1];
+			plane->pitches[1];
 
 	/* Input / output size
 	 * Align to upper even value */
-	layer->dst_w = ALIGN(layer->dst_w, 2);
-	layer->dst_h = ALIGN(layer->dst_h, 2);
+	plane->dst_w = ALIGN(plane->dst_w, 2);
+	plane->dst_h = ALIGN(plane->dst_h, 2);
 
-	if ((layer->src_w > MAX_WIDTH) || (layer->src_w < MIN_WIDTH) ||
-	    (layer->src_h > MAX_HEIGHT) || (layer->src_h < MIN_HEIGHT) ||
-	    (layer->dst_w > MAX_WIDTH) || (layer->dst_w < MIN_WIDTH) ||
-	    (layer->dst_h > MAX_HEIGHT) || (layer->dst_h < MIN_HEIGHT)) {
+	if ((plane->src_w > MAX_WIDTH) || (plane->src_w < MIN_WIDTH) ||
+	    (plane->src_h > MAX_HEIGHT) || (plane->src_h < MIN_HEIGHT) ||
+	    (plane->dst_w > MAX_WIDTH) || (plane->dst_w < MIN_WIDTH) ||
+	    (plane->dst_h > MAX_HEIGHT) || (plane->dst_h < MIN_HEIGHT)) {
 		DRM_ERROR("Invalid in/out size %dx%d -> %dx%d\n",
-				layer->src_w, layer->src_h,
-				layer->dst_w, layer->dst_h);
+				plane->src_w, plane->src_h,
+				plane->dst_w, plane->dst_h);
 		return -EINVAL;
 	}
 	cmd->top.input_viewport_size = cmd->top.input_frame_size =
-			layer->src_h << 16 | layer->src_w;
-	cmd->hvsrc.output_picture_size = layer->dst_h << 16 | layer->dst_w;
-	cmd->top.input_viewport_ori = layer->src_y << 16 | layer->src_x;
+			plane->src_h << 16 | plane->src_w;
+	cmd->hvsrc.output_picture_size = plane->dst_h << 16 | plane->dst_w;
+	cmd->top.input_viewport_ori = plane->src_y << 16 | plane->src_x;
 
 	/* Handle interlaced */
-	if (layer->fb->flags & DRM_MODE_FB_INTERLACED) {
+	if (plane->fb->flags & DRM_MODE_FB_INTERLACED) {
 		/* Top field to display */
 		cmd->top.config = TOP_CONFIG_INTER_TOP;
 
 		/* Update pitches and vert size */
-		cmd->top.input_frame_size = (layer->src_h / 2) << 16 |
-					     layer->src_w;
+		cmd->top.input_frame_size = (plane->src_h / 2) << 16 |
+					     plane->src_w;
 		cmd->top.luma_processed_pitch *= 2;
 		cmd->top.luma_src_pitch *= 2;
 		cmd->top.chroma_processed_pitch *= 2;
@@ -613,10 +603,10 @@ static int sti_hqvdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	}
 
 	/* Update hvsrc lut coef */
-	scale_h = SCALE_FACTOR * layer->dst_w / layer->src_w;
+	scale_h = SCALE_FACTOR * plane->dst_w / plane->src_w;
 	sti_hqvdp_update_hvsrc(HVSRC_HORI, scale_h, &cmd->hvsrc);
 
-	scale_v = SCALE_FACTOR * layer->dst_h / layer->src_h;
+	scale_v = SCALE_FACTOR * plane->dst_h / plane->src_h;
 	sti_hqvdp_update_hvsrc(HVSRC_VERT, scale_v, &cmd->hvsrc);
 
 	if (first_prepare) {
@@ -627,9 +617,9 @@ static int sti_hqvdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 		}
 
 		/* Register VTG Vsync callback to handle bottom fields */
-		if ((layer->fb->flags & DRM_MODE_FB_INTERLACED) &&
-				sti_vtg_register_client(hqvdp->vtg,
-					&hqvdp->vtg_nb, layer->mixer_id)) {
+		if ((plane->fb->flags & DRM_MODE_FB_INTERLACED) &&
+		    sti_vtg_register_client(hqvdp->vtg, &hqvdp->vtg_nb,
+					    plane->mixer_id)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
 			return -ENXIO;
 		}
@@ -638,12 +628,21 @@ static int sti_hqvdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	return 0;
 }
 
-static int sti_hqvdp_commit_layer(struct sti_layer *layer)
+/**
+ * sti_hqvdp_commit
+ * @plane: hqvdp plane
+ *
+ * Enables the HQVDP plane
+ *
+ * RETURNS:
+ * 0 on success.
+ */
+static int sti_hqvdp_commit(struct sti_plane *plane)
 {
-	struct sti_hqvdp *hqvdp = to_sti_hqvdp(layer);
+	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
 	int cmd_offset;
 
-	dev_dbg(hqvdp->dev, "%s %s\n", __func__, sti_layer_to_str(layer));
+	dev_dbg(hqvdp->dev, "%s %s\n", __func__, sti_plane_to_str(plane));
 
 	cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 	if (cmd_offset == -1) {
@@ -657,7 +656,7 @@ static int sti_hqvdp_commit_layer(struct sti_layer *layer)
 	hqvdp->curr_field_count++;
 
 	/* Interlaced : get ready to display the bottom field at next Vsync */
-	if (layer->fb->flags & DRM_MODE_FB_INTERLACED)
+	if (plane->fb->flags & DRM_MODE_FB_INTERLACED)
 		hqvdp->btm_field_pending = true;
 
 	dev_dbg(hqvdp->dev, "%s Posted command:0x%x\n",
@@ -666,16 +665,25 @@ static int sti_hqvdp_commit_layer(struct sti_layer *layer)
 	return 0;
 }
 
-static int sti_hqvdp_disable_layer(struct sti_layer *layer)
+/**
+ * sti_hqvdp_disable
+ * @plane: hqvdp plane
+ *
+ * Disables the HQVDP plane
+ *
+ * RETURNS:
+ * 0 on success.
+ */
+static int sti_hqvdp_disable(struct sti_plane *plane)
 {
-	struct sti_hqvdp *hqvdp = to_sti_hqvdp(layer);
+	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
 	int i;
 
-	DRM_DEBUG_DRIVER("%s\n", sti_layer_to_str(layer));
+	DRM_DEBUG_DRIVER("%s\n", sti_plane_to_str(plane));
 
 	/* Unregister VTG Vsync callback */
-	if ((layer->fb->flags & DRM_MODE_FB_INTERLACED) &&
-		sti_vtg_unregister_client(hqvdp->vtg, &hqvdp->vtg_nb))
+	if ((plane->fb->flags & DRM_MODE_FB_INTERLACED) &&
+	    sti_vtg_unregister_client(hqvdp->vtg, &hqvdp->vtg_nb))
 		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	/* Set next cmd to NULL */
@@ -695,9 +703,6 @@ static int sti_hqvdp_disable_layer(struct sti_layer *layer)
 		DRM_ERROR("XP70 could not revert to idle\n");
 		return -ENXIO;
 	}
-
-	/* disable VID plane */
-	hqvdp->vid_plane->funcs->disable_plane(hqvdp->vid_plane);
 
 	return 0;
 }
@@ -758,31 +763,9 @@ int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *data)
 	return 0;
 }
 
-static struct drm_plane *sti_hqvdp_find_vid(struct drm_device *dev, int id)
+static void sti_hqvdp_init(struct sti_hqvdp *hqvdp)
 {
-	struct drm_plane *plane;
-
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		struct sti_layer *layer = to_sti_layer(plane);
-
-		if (layer->desc == id)
-			return plane;
-	}
-
-	return NULL;
-}
-
-static void sti_hqvd_init(struct sti_layer *layer)
-{
-	struct sti_hqvdp *hqvdp = to_sti_hqvdp(layer);
 	int size;
-
-	/* find the plane macthing with vid 0 */
-	hqvdp->vid_plane = sti_hqvdp_find_vid(hqvdp->drm_dev, STI_VID_0);
-	if (!hqvdp->vid_plane) {
-		DRM_ERROR("Cannot find Main video layer\n");
-		return;
-	}
 
 	hqvdp->vtg_nb.notifier_call = sti_hqvdp_vtg_cb;
 
@@ -799,24 +782,25 @@ static void sti_hqvd_init(struct sti_layer *layer)
 	memset(hqvdp->hqvdp_cmd, 0, size);
 }
 
-static const struct sti_layer_funcs hqvdp_ops = {
+static const struct sti_plane_funcs hqvdp_plane_ops = {
 	.get_formats = sti_hqvdp_get_formats,
 	.get_nb_formats = sti_hqvdp_get_nb_formats,
-	.init = sti_hqvd_init,
-	.prepare = sti_hqvdp_prepare_layer,
-	.commit = sti_hqvdp_commit_layer,
-	.disable = sti_hqvdp_disable_layer,
+	.prepare = sti_hqvdp_prepare,
+	.commit = sti_hqvdp_commit,
+	.disable = sti_hqvdp_disable,
 };
 
-struct sti_layer *sti_hqvdp_create(struct device *dev)
+struct sti_plane *sti_hqvdp_create(struct device *dev, int desc)
 {
 	struct sti_hqvdp *hqvdp = dev_get_drvdata(dev);
 
-	hqvdp->layer.ops = &hqvdp_ops;
+	hqvdp->plane.desc = desc;
+	hqvdp->plane.ops = &hqvdp_plane_ops;
 
-	return &hqvdp->layer;
+	sti_hqvdp_init(hqvdp);
+
+	return &hqvdp->plane;
 }
-EXPORT_SYMBOL(sti_hqvdp_create);
 
 static void sti_hqvdp_init_plugs(struct sti_hqvdp *hqvdp)
 {
@@ -859,6 +843,12 @@ static void sti_hqvdp_start_xp70(const struct firmware *firmware, void *ctxt)
 	} *header;
 
 	DRM_DEBUG_DRIVER("\n");
+
+	if (hqvdp->xp70_initialized) {
+		DRM_INFO("HQVDP XP70 already initialized\n");
+		return;
+	}
+
 	/* Check firmware parts */
 	if (!firmware) {
 		DRM_ERROR("Firmware not available\n");
@@ -946,7 +936,10 @@ static void sti_hqvdp_start_xp70(const struct firmware *firmware, void *ctxt)
 	/* Launch Vsync */
 	writel(SOFT_VSYNC_HW, hqvdp->regs + HQVDP_MBX_SOFT_VSYNC);
 
-	DRM_INFO("HQVDP XP70 started\n");
+	DRM_INFO("HQVDP XP70 initialized\n");
+
+	hqvdp->xp70_initialized = true;
+
 out:
 	release_firmware(firmware);
 }
@@ -955,7 +948,7 @@ int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct sti_hqvdp *hqvdp = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct sti_layer *layer;
+	struct sti_plane *plane;
 	int err;
 
 	DRM_DEBUG_DRIVER("\n");
@@ -971,13 +964,13 @@ int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
 		return err;
 	}
 
-	layer = sti_layer_create(hqvdp->dev, STI_HQVDP_0, hqvdp->regs);
-	if (!layer) {
+	/* Create HQVDP plane once xp70 is initialized */
+	plane = sti_hqvdp_create(hqvdp->dev, STI_HQVDP_0);
+	if (plane)
+		sti_drm_plane_init(hqvdp->drm_dev, plane, 1,
+				   DRM_PLANE_TYPE_OVERLAY);
+	else
 		DRM_ERROR("Can't create HQVDP plane\n");
-		return -ENOMEM;
-	}
-
-	sti_drm_plane_init(drm_dev, layer, 1, DRM_PLANE_TYPE_OVERLAY);
 
 	return 0;
 }

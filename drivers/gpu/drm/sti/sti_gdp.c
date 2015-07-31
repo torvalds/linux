@@ -10,8 +10,8 @@
 #include <linux/dma-mapping.h>
 
 #include "sti_compositor.h"
+#include "sti_drm_plane.h"
 #include "sti_gdp.h"
-#include "sti_layer.h"
 #include "sti_vtg.h"
 
 #define ALPHASWITCH     BIT(6)
@@ -85,16 +85,20 @@ struct sti_gdp_node_list {
 /**
  * STI GDP structure
  *
- * @layer:		layer structure
+ * @sti_plane:          sti_plane structure
+ * @dev:                driver device
+ * @regs:               gdp registers
  * @clk_pix:            pixel clock for the current gdp
  * @clk_main_parent:    gdp parent clock if main path used
  * @clk_aux_parent:     gdp parent clock if aux path used
  * @vtg_field_nb:       callback for VTG FIELD (top or bottom) notification
  * @is_curr_top:        true if the current node processed is the top field
- * @node_list:		array of node list
+ * @node_list:          array of node list
  */
 struct sti_gdp {
-	struct sti_layer layer;
+	struct sti_plane plane;
+	struct device *dev;
+	void __iomem *regs;
 	struct clk *clk_pix;
 	struct clk *clk_main_parent;
 	struct clk *clk_aux_parent;
@@ -103,7 +107,7 @@ struct sti_gdp {
 	struct sti_gdp_node_list node_list[GDP_NODE_NB_BANK];
 };
 
-#define to_sti_gdp(x) container_of(x, struct sti_gdp, layer)
+#define to_sti_gdp(x) container_of(x, struct sti_gdp, plane)
 
 static const uint32_t gdp_supported_formats[] = {
 	DRM_FORMAT_XRGB8888,
@@ -120,12 +124,12 @@ static const uint32_t gdp_supported_formats[] = {
 	DRM_FORMAT_C8,
 };
 
-static const uint32_t *sti_gdp_get_formats(struct sti_layer *layer)
+static const uint32_t *sti_gdp_get_formats(struct sti_plane *plane)
 {
 	return gdp_supported_formats;
 }
 
-static unsigned int sti_gdp_get_nb_formats(struct sti_layer *layer)
+static unsigned int sti_gdp_get_nb_formats(struct sti_plane *plane)
 {
 	return ARRAY_SIZE(gdp_supported_formats);
 }
@@ -175,20 +179,20 @@ static int sti_gdp_get_alpharange(int format)
 
 /**
  * sti_gdp_get_free_nodes
- * @layer: gdp layer
+ * @plane: gdp plane
  *
  * Look for a GDP node list that is not currently read by the HW.
  *
  * RETURNS:
  * Pointer to the free GDP node list
  */
-static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_layer *layer)
+static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_plane *plane)
 {
 	int hw_nvn;
-	struct sti_gdp *gdp = to_sti_gdp(layer);
+	struct sti_gdp *gdp = to_sti_gdp(plane);
 	unsigned int i;
 
-	hw_nvn = readl(layer->regs + GAM_GDP_NVN_OFFSET);
+	hw_nvn = readl(gdp->regs + GAM_GDP_NVN_OFFSET);
 	if (!hw_nvn)
 		goto end;
 
@@ -199,7 +203,7 @@ static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_layer *layer)
 
 	/* in hazardious cases restart with the first node */
 	DRM_ERROR("inconsistent NVN for %s: 0x%08X\n",
-			sti_layer_to_str(layer), hw_nvn);
+			sti_plane_to_str(plane), hw_nvn);
 
 end:
 	return &gdp->node_list[0];
@@ -207,7 +211,7 @@ end:
 
 /**
  * sti_gdp_get_current_nodes
- * @layer: GDP layer
+ * @plane: GDP plane
  *
  * Look for GDP nodes that are currently read by the HW.
  *
@@ -215,13 +219,13 @@ end:
  * Pointer to the current GDP node list
  */
 static
-struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_layer *layer)
+struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_plane *plane)
 {
 	int hw_nvn;
-	struct sti_gdp *gdp = to_sti_gdp(layer);
+	struct sti_gdp *gdp = to_sti_gdp(plane);
 	unsigned int i;
 
-	hw_nvn = readl(layer->regs + GAM_GDP_NVN_OFFSET);
+	hw_nvn = readl(gdp->regs + GAM_GDP_NVN_OFFSET);
 	if (!hw_nvn)
 		goto end;
 
@@ -232,28 +236,28 @@ struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_layer *layer)
 
 end:
 	DRM_DEBUG_DRIVER("Warning, NVN 0x%08X for %s does not match any node\n",
-				hw_nvn, sti_layer_to_str(layer));
+				hw_nvn, sti_plane_to_str(plane));
 
 	return NULL;
 }
 
 /**
- * sti_gdp_prepare_layer
- * @lay: gdp layer
+ * sti_gdp_prepare
+ * @plane: gdp plane
  * @first_prepare: true if it is the first time this function is called
  *
- * Update the free GDP node list according to the layer properties.
+ * Update the free GDP node list according to the plane properties.
  *
  * RETURNS:
  * 0 on success.
  */
-static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
+static int sti_gdp_prepare(struct sti_plane *plane, bool first_prepare)
 {
 	struct sti_gdp_node_list *list;
 	struct sti_gdp_node *top_field, *btm_field;
-	struct drm_display_mode *mode = layer->mode;
-	struct device *dev = layer->dev;
-	struct sti_gdp *gdp = to_sti_gdp(layer);
+	struct drm_display_mode *mode = plane->mode;
+	struct sti_gdp *gdp = to_sti_gdp(plane);
+	struct device *dev = gdp->dev;
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 	int format;
 	unsigned int depth, bpp;
@@ -261,20 +265,20 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	int res;
 	u32 ydo, xdo, yds, xds;
 
-	list = sti_gdp_get_free_nodes(layer);
+	list = sti_gdp_get_free_nodes(plane);
 	top_field = list->top_field;
 	btm_field = list->btm_field;
 
 	dev_dbg(dev, "%s %s top_node:0x%p btm_node:0x%p\n", __func__,
-			sti_layer_to_str(layer), top_field, btm_field);
+			sti_plane_to_str(plane), top_field, btm_field);
 
-	/* Build the top field from layer params */
+	/* Build the top field from plane params */
 	top_field->gam_gdp_agc = GAM_GDP_AGC_FULL_RANGE;
 	top_field->gam_gdp_ctl = WAIT_NEXT_VSYNC;
-	format = sti_gdp_fourcc2format(layer->format);
+	format = sti_gdp_fourcc2format(plane->format);
 	if (format == -1) {
 		DRM_ERROR("Format not supported by GDP %.4s\n",
-			  (char *)&layer->format);
+			  (char *)&plane->format);
 		return 1;
 	}
 	top_field->gam_gdp_ctl |= format;
@@ -282,22 +286,22 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	top_field->gam_gdp_ppt &= ~GAM_GDP_PPT_IGNORE;
 
 	/* pixel memory location */
-	drm_fb_get_bpp_depth(layer->format, &depth, &bpp);
-	top_field->gam_gdp_pml = (u32) layer->paddr + layer->offsets[0];
-	top_field->gam_gdp_pml += layer->src_x * (bpp >> 3);
-	top_field->gam_gdp_pml += layer->src_y * layer->pitches[0];
+	drm_fb_get_bpp_depth(plane->format, &depth, &bpp);
+	top_field->gam_gdp_pml = (u32)plane->paddr + plane->offsets[0];
+	top_field->gam_gdp_pml += plane->src_x * (bpp >> 3);
+	top_field->gam_gdp_pml += plane->src_y * plane->pitches[0];
 
 	/* input parameters */
-	top_field->gam_gdp_pmp = layer->pitches[0];
+	top_field->gam_gdp_pmp = plane->pitches[0];
 	top_field->gam_gdp_size =
-	    clamp_val(layer->src_h, 0, GAM_GDP_SIZE_MAX) << 16 |
-	    clamp_val(layer->src_w, 0, GAM_GDP_SIZE_MAX);
+	    clamp_val(plane->src_h, 0, GAM_GDP_SIZE_MAX) << 16 |
+	    clamp_val(plane->src_w, 0, GAM_GDP_SIZE_MAX);
 
 	/* output parameters */
-	ydo = sti_vtg_get_line_number(*mode, layer->dst_y);
-	yds = sti_vtg_get_line_number(*mode, layer->dst_y + layer->dst_h - 1);
-	xdo = sti_vtg_get_pixel_number(*mode, layer->dst_x);
-	xds = sti_vtg_get_pixel_number(*mode, layer->dst_x + layer->dst_w - 1);
+	ydo = sti_vtg_get_line_number(*mode, plane->dst_y);
+	yds = sti_vtg_get_line_number(*mode, plane->dst_y + plane->dst_h - 1);
+	xdo = sti_vtg_get_pixel_number(*mode, plane->dst_x);
+	xds = sti_vtg_get_pixel_number(*mode, plane->dst_x + plane->dst_w - 1);
 	top_field->gam_gdp_vpo = (ydo << 16) | xdo;
 	top_field->gam_gdp_vps = (yds << 16) | xds;
 
@@ -307,15 +311,15 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	btm_field->gam_gdp_nvn = list->top_field_paddr;
 
 	/* Interlaced mode */
-	if (layer->mode->flags & DRM_MODE_FLAG_INTERLACE)
+	if (plane->mode->flags & DRM_MODE_FLAG_INTERLACE)
 		btm_field->gam_gdp_pml = top_field->gam_gdp_pml +
-		    layer->pitches[0];
+		    plane->pitches[0];
 
 	if (first_prepare) {
 		/* Register gdp callback */
-		if (sti_vtg_register_client(layer->mixer_id == STI_MIXER_MAIN ?
+		if (sti_vtg_register_client(plane->mixer_id == STI_MIXER_MAIN ?
 				compo->vtg_main : compo->vtg_aux,
-				&gdp->vtg_field_nb, layer->mixer_id)) {
+				&gdp->vtg_field_nb, plane->mixer_id)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
 			return 1;
 		}
@@ -325,7 +329,7 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 			struct clk *clkp;
 			/* According to the mixer used, the gdp pixel clock
 			 * should have a different parent clock. */
-			if (layer->mixer_id == STI_MIXER_MAIN)
+			if (plane->mixer_id == STI_MIXER_MAIN)
 				clkp = gdp->clk_main_parent;
 			else
 				clkp = gdp->clk_aux_parent;
@@ -351,8 +355,8 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 }
 
 /**
- * sti_gdp_commit_layer
- * @lay: gdp layer
+ * sti_gdp_commit
+ * @plane: gdp plane
  *
  * Update the NVN field of the 'right' field of the current GDP node (being
  * used by the HW) with the address of the updated ('free') top field GDP node.
@@ -365,38 +369,38 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
  * RETURNS:
  * 0 on success.
  */
-static int sti_gdp_commit_layer(struct sti_layer *layer)
+static int sti_gdp_commit(struct sti_plane *plane)
 {
-	struct sti_gdp_node_list *updated_list = sti_gdp_get_free_nodes(layer);
+	struct sti_gdp_node_list *updated_list = sti_gdp_get_free_nodes(plane);
 	struct sti_gdp_node *updated_top_node = updated_list->top_field;
 	struct sti_gdp_node *updated_btm_node = updated_list->btm_field;
-	struct sti_gdp *gdp = to_sti_gdp(layer);
+	struct sti_gdp *gdp = to_sti_gdp(plane);
 	u32 dma_updated_top = updated_list->top_field_paddr;
 	u32 dma_updated_btm = updated_list->btm_field_paddr;
-	struct sti_gdp_node_list *curr_list = sti_gdp_get_current_nodes(layer);
+	struct sti_gdp_node_list *curr_list = sti_gdp_get_current_nodes(plane);
 
-	dev_dbg(layer->dev, "%s %s top/btm_node:0x%p/0x%p\n", __func__,
-			sti_layer_to_str(layer),
-			updated_top_node, updated_btm_node);
-	dev_dbg(layer->dev, "Current NVN:0x%X\n",
-		readl(layer->regs + GAM_GDP_NVN_OFFSET));
-	dev_dbg(layer->dev, "Posted buff: %lx current buff: %x\n",
-		(unsigned long)layer->paddr,
-		readl(layer->regs + GAM_GDP_PML_OFFSET));
+	dev_dbg(gdp->dev, "%s %s top/btm_node:0x%p/0x%p\n", __func__,
+		sti_plane_to_str(plane),
+		updated_top_node, updated_btm_node);
+	dev_dbg(gdp->dev, "Current NVN:0x%X\n",
+		readl(gdp->regs + GAM_GDP_NVN_OFFSET));
+	dev_dbg(gdp->dev, "Posted buff: %lx current buff: %x\n",
+		(unsigned long)plane->paddr,
+		readl(gdp->regs + GAM_GDP_PML_OFFSET));
 
 	if (curr_list == NULL) {
 		/* First update or invalid node should directly write in the
 		 * hw register */
 		DRM_DEBUG_DRIVER("%s first update (or invalid node)",
-				sti_layer_to_str(layer));
+				sti_plane_to_str(plane));
 
 		writel(gdp->is_curr_top == true ?
 				dma_updated_btm : dma_updated_top,
-				layer->regs + GAM_GDP_NVN_OFFSET);
+				gdp->regs + GAM_GDP_NVN_OFFSET);
 		return 0;
 	}
 
-	if (layer->mode->flags & DRM_MODE_FLAG_INTERLACE) {
+	if (plane->mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		if (gdp->is_curr_top == true) {
 			/* Do not update in the middle of the frame, but
 			 * postpone the update after the bottom field has
@@ -405,32 +409,32 @@ static int sti_gdp_commit_layer(struct sti_layer *layer)
 		} else {
 			/* Direct update to avoid one frame delay */
 			writel(dma_updated_top,
-				layer->regs + GAM_GDP_NVN_OFFSET);
+				gdp->regs + GAM_GDP_NVN_OFFSET);
 		}
 	} else {
 		/* Direct update for progressive to avoid one frame delay */
-		writel(dma_updated_top, layer->regs + GAM_GDP_NVN_OFFSET);
+		writel(dma_updated_top, gdp->regs + GAM_GDP_NVN_OFFSET);
 	}
 
 	return 0;
 }
 
 /**
- * sti_gdp_disable_layer
- * @lay: gdp layer
+ * sti_gdp_disable
+ * @plane: gdp plane
  *
  * Disable a GDP.
  *
  * RETURNS:
  * 0 on success.
  */
-static int sti_gdp_disable_layer(struct sti_layer *layer)
+static int sti_gdp_disable(struct sti_plane *plane)
 {
 	unsigned int i;
-	struct sti_gdp *gdp = to_sti_gdp(layer);
-	struct sti_compositor *compo = dev_get_drvdata(layer->dev);
+	struct sti_gdp *gdp = to_sti_gdp(plane);
+	struct sti_compositor *compo = dev_get_drvdata(gdp->dev);
 
-	DRM_DEBUG_DRIVER("%s\n", sti_layer_to_str(layer));
+	DRM_DEBUG_DRIVER("%s\n", sti_plane_to_str(plane));
 
 	/* Set the nodes as 'to be ignored on mixer' */
 	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
@@ -438,7 +442,7 @@ static int sti_gdp_disable_layer(struct sti_layer *layer)
 		gdp->node_list[i].btm_field->gam_gdp_ppt |= GAM_GDP_PPT_IGNORE;
 	}
 
-	if (sti_vtg_unregister_client(layer->mixer_id == STI_MIXER_MAIN ?
+	if (sti_vtg_unregister_client(plane->mixer_id == STI_MIXER_MAIN ?
 			compo->vtg_main : compo->vtg_aux, &gdp->vtg_field_nb))
 		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
@@ -479,10 +483,9 @@ int sti_gdp_field_cb(struct notifier_block *nb,
 	return 0;
 }
 
-static void sti_gdp_init(struct sti_layer *layer)
+static void sti_gdp_init(struct sti_gdp *gdp)
 {
-	struct sti_gdp *gdp = to_sti_gdp(layer);
-	struct device_node *np = layer->dev->of_node;
+	struct device_node *np = gdp->dev->of_node;
 	dma_addr_t dma_addr;
 	void *base;
 	unsigned int i, size;
@@ -490,8 +493,8 @@ static void sti_gdp_init(struct sti_layer *layer)
 	/* Allocate all the nodes within a single memory page */
 	size = sizeof(struct sti_gdp_node) *
 	    GDP_NODE_PER_FIELD * GDP_NODE_NB_BANK;
-	base = dma_alloc_writecombine(layer->dev,
-			size, &dma_addr, GFP_KERNEL | GFP_DMA);
+	base = dma_alloc_writecombine(gdp->dev,
+				      size, &dma_addr, GFP_KERNEL | GFP_DMA);
 
 	if (!base) {
 		DRM_ERROR("Failed to allocate memory for GDP node\n");
@@ -526,7 +529,7 @@ static void sti_gdp_init(struct sti_layer *layer)
 		/* GDP of STiH407 chip have its own pixel clock */
 		char *clk_name;
 
-		switch (layer->desc) {
+		switch (gdp->plane.desc) {
 		case STI_GDP_0:
 			clk_name = "pix_gdp1";
 			break;
@@ -544,30 +547,30 @@ static void sti_gdp_init(struct sti_layer *layer)
 			return;
 		}
 
-		gdp->clk_pix = devm_clk_get(layer->dev, clk_name);
+		gdp->clk_pix = devm_clk_get(gdp->dev, clk_name);
 		if (IS_ERR(gdp->clk_pix))
 			DRM_ERROR("Cannot get %s clock\n", clk_name);
 
-		gdp->clk_main_parent = devm_clk_get(layer->dev, "main_parent");
+		gdp->clk_main_parent = devm_clk_get(gdp->dev, "main_parent");
 		if (IS_ERR(gdp->clk_main_parent))
 			DRM_ERROR("Cannot get main_parent clock\n");
 
-		gdp->clk_aux_parent = devm_clk_get(layer->dev, "aux_parent");
+		gdp->clk_aux_parent = devm_clk_get(gdp->dev, "aux_parent");
 		if (IS_ERR(gdp->clk_aux_parent))
 			DRM_ERROR("Cannot get aux_parent clock\n");
 	}
 }
 
-static const struct sti_layer_funcs gdp_ops = {
+static const struct sti_plane_funcs gdp_plane_ops = {
 	.get_formats = sti_gdp_get_formats,
 	.get_nb_formats = sti_gdp_get_nb_formats,
-	.init = sti_gdp_init,
-	.prepare = sti_gdp_prepare_layer,
-	.commit = sti_gdp_commit_layer,
-	.disable = sti_gdp_disable_layer,
+	.prepare = sti_gdp_prepare,
+	.commit = sti_gdp_commit,
+	.disable = sti_gdp_disable,
 };
 
-struct sti_layer *sti_gdp_create(struct device *dev, int id)
+struct sti_plane *sti_gdp_create(struct device *dev, int desc,
+				 void __iomem *baseaddr)
 {
 	struct sti_gdp *gdp;
 
@@ -577,8 +580,14 @@ struct sti_layer *sti_gdp_create(struct device *dev, int id)
 		return NULL;
 	}
 
-	gdp->layer.ops = &gdp_ops;
+	gdp->dev = dev;
+	gdp->regs = baseaddr;
+	gdp->plane.desc = desc;
+	gdp->plane.ops = &gdp_plane_ops;
+
 	gdp->vtg_field_nb.notifier_call = sti_gdp_field_cb;
 
-	return (struct sti_layer *)gdp;
+	sti_gdp_init(gdp);
+
+	return &gdp->plane;
 }

@@ -8,7 +8,7 @@
 #include <drm/drmP.h>
 
 #include "sti_cursor.h"
-#include "sti_layer.h"
+#include "sti_drm_plane.h"
 #include "sti_vtg.h"
 
 /* Registers */
@@ -42,7 +42,9 @@ struct dma_pixmap {
 /**
  * STI Cursor structure
  *
- * @layer:      layer structure
+ * @sti_plane:  sti_plane structure
+ * @dev:        driver device
+ * @regs:       cursor registers
  * @width:      cursor width
  * @height:     cursor height
  * @clut:       color look up table
@@ -50,7 +52,9 @@ struct dma_pixmap {
  * @pixmap:     pixmap dma buffer (clut8-format cursor)
  */
 struct sti_cursor {
-	struct sti_layer layer;
+	struct sti_plane plane;
+	struct device *dev;
+	void __iomem *regs;
 	unsigned int width;
 	unsigned int height;
 	unsigned short *clut;
@@ -62,22 +66,22 @@ static const uint32_t cursor_supported_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-#define to_sti_cursor(x) container_of(x, struct sti_cursor, layer)
+#define to_sti_cursor(x) container_of(x, struct sti_cursor, plane)
 
-static const uint32_t *sti_cursor_get_formats(struct sti_layer *layer)
+static const uint32_t *sti_cursor_get_formats(struct sti_plane *plane)
 {
 	return cursor_supported_formats;
 }
 
-static unsigned int sti_cursor_get_nb_formats(struct sti_layer *layer)
+static unsigned int sti_cursor_get_nb_formats(struct sti_plane *plane)
 {
 	return ARRAY_SIZE(cursor_supported_formats);
 }
 
-static void sti_cursor_argb8888_to_clut8(struct sti_layer *layer)
+static void sti_cursor_argb8888_to_clut8(struct sti_plane *plane)
 {
-	struct sti_cursor *cursor = to_sti_cursor(layer);
-	u32 *src = layer->vaddr;
+	struct sti_cursor *cursor = to_sti_cursor(plane);
+	u32 *src = plane->vaddr;
 	u8  *dst = cursor->pixmap.base;
 	unsigned int i, j;
 	u32 a, r, g, b;
@@ -96,42 +100,42 @@ static void sti_cursor_argb8888_to_clut8(struct sti_layer *layer)
 	}
 }
 
-static int sti_cursor_prepare_layer(struct sti_layer *layer, bool first_prepare)
+static int sti_cursor_prepare_plane(struct sti_plane *plane, bool first_prepare)
 {
-	struct sti_cursor *cursor = to_sti_cursor(layer);
-	struct drm_display_mode *mode = layer->mode;
+	struct sti_cursor *cursor = to_sti_cursor(plane);
+	struct drm_display_mode *mode = plane->mode;
 	u32 y, x;
 	u32 val;
 
 	DRM_DEBUG_DRIVER("\n");
 
-	dev_dbg(layer->dev, "%s %s\n", __func__, sti_layer_to_str(layer));
+	dev_dbg(cursor->dev, "%s %s\n", __func__, sti_plane_to_str(plane));
 
-	if (layer->src_w < STI_CURS_MIN_SIZE ||
-	    layer->src_h < STI_CURS_MIN_SIZE ||
-	    layer->src_w > STI_CURS_MAX_SIZE ||
-	    layer->src_h > STI_CURS_MAX_SIZE) {
+	if (plane->src_w < STI_CURS_MIN_SIZE ||
+	    plane->src_h < STI_CURS_MIN_SIZE ||
+	    plane->src_w > STI_CURS_MAX_SIZE ||
+	    plane->src_h > STI_CURS_MAX_SIZE) {
 		DRM_ERROR("Invalid cursor size (%dx%d)\n",
-				layer->src_w, layer->src_h);
+				plane->src_w, plane->src_h);
 		return -EINVAL;
 	}
 
 	/* If the cursor size has changed, re-allocated the pixmap */
 	if (!cursor->pixmap.base ||
-	    (cursor->width != layer->src_w) ||
-	    (cursor->height != layer->src_h)) {
-		cursor->width = layer->src_w;
-		cursor->height = layer->src_h;
+	    (cursor->width != plane->src_w) ||
+	    (cursor->height != plane->src_h)) {
+		cursor->width = plane->src_w;
+		cursor->height = plane->src_h;
 
 		if (cursor->pixmap.base)
-			dma_free_writecombine(layer->dev,
+			dma_free_writecombine(cursor->dev,
 					      cursor->pixmap.size,
 					      cursor->pixmap.base,
 					      cursor->pixmap.paddr);
 
 		cursor->pixmap.size = cursor->width * cursor->height;
 
-		cursor->pixmap.base = dma_alloc_writecombine(layer->dev,
+		cursor->pixmap.base = dma_alloc_writecombine(cursor->dev,
 							cursor->pixmap.size,
 							&cursor->pixmap.paddr,
 							GFP_KERNEL | GFP_DMA);
@@ -142,55 +146,54 @@ static int sti_cursor_prepare_layer(struct sti_layer *layer, bool first_prepare)
 	}
 
 	/* Convert ARGB8888 to CLUT8 */
-	sti_cursor_argb8888_to_clut8(layer);
+	sti_cursor_argb8888_to_clut8(plane);
 
 	/* AWS and AWE depend on the mode */
 	y = sti_vtg_get_line_number(*mode, 0);
 	x = sti_vtg_get_pixel_number(*mode, 0);
 	val = y << 16 | x;
-	writel(val, layer->regs + CUR_AWS);
+	writel(val, cursor->regs + CUR_AWS);
 	y = sti_vtg_get_line_number(*mode, mode->vdisplay - 1);
 	x = sti_vtg_get_pixel_number(*mode, mode->hdisplay - 1);
 	val = y << 16 | x;
-	writel(val, layer->regs + CUR_AWE);
+	writel(val, cursor->regs + CUR_AWE);
 
 	if (first_prepare) {
 		/* Set and fetch CLUT */
-		writel(cursor->clut_paddr, layer->regs + CUR_CML);
-		writel(CUR_CTL_CLUT_UPDATE, layer->regs + CUR_CTL);
+		writel(cursor->clut_paddr, cursor->regs + CUR_CML);
+		writel(CUR_CTL_CLUT_UPDATE, cursor->regs + CUR_CTL);
 	}
 
 	return 0;
 }
 
-static int sti_cursor_commit_layer(struct sti_layer *layer)
+static int sti_cursor_commit_plane(struct sti_plane *plane)
 {
-	struct sti_cursor *cursor = to_sti_cursor(layer);
-	struct drm_display_mode *mode = layer->mode;
+	struct sti_cursor *cursor = to_sti_cursor(plane);
+	struct drm_display_mode *mode = plane->mode;
 	u32 ydo, xdo;
 
-	dev_dbg(layer->dev, "%s %s\n", __func__, sti_layer_to_str(layer));
+	dev_dbg(cursor->dev, "%s %s\n", __func__, sti_plane_to_str(plane));
 
 	/* Set memory location, size, and position */
-	writel(cursor->pixmap.paddr, layer->regs + CUR_PML);
-	writel(cursor->width, layer->regs + CUR_PMP);
-	writel(cursor->height << 16 | cursor->width, layer->regs + CUR_SIZE);
+	writel(cursor->pixmap.paddr, cursor->regs + CUR_PML);
+	writel(cursor->width, cursor->regs + CUR_PMP);
+	writel(cursor->height << 16 | cursor->width, cursor->regs + CUR_SIZE);
 
-	ydo = sti_vtg_get_line_number(*mode, layer->dst_y);
-	xdo = sti_vtg_get_pixel_number(*mode, layer->dst_y);
-	writel((ydo << 16) | xdo, layer->regs + CUR_VPO);
+	ydo = sti_vtg_get_line_number(*mode, plane->dst_y);
+	xdo = sti_vtg_get_pixel_number(*mode, plane->dst_y);
+	writel((ydo << 16) | xdo, cursor->regs + CUR_VPO);
 
 	return 0;
 }
 
-static int sti_cursor_disable_layer(struct sti_layer *layer)
+static int sti_cursor_disable_plane(struct sti_plane *plane)
 {
 	return 0;
 }
 
-static void sti_cursor_init(struct sti_layer *layer)
+static void sti_cursor_init(struct sti_cursor *cursor)
 {
-	struct sti_cursor *cursor = to_sti_cursor(layer);
 	unsigned short *base = cursor->clut;
 	unsigned int a, r, g, b;
 
@@ -205,16 +208,16 @@ static void sti_cursor_init(struct sti_layer *layer)
 						  (b * 5);
 }
 
-static const struct sti_layer_funcs cursor_ops = {
+static const struct sti_plane_funcs cursor_plane_ops = {
 	.get_formats = sti_cursor_get_formats,
 	.get_nb_formats = sti_cursor_get_nb_formats,
-	.init = sti_cursor_init,
-	.prepare = sti_cursor_prepare_layer,
-	.commit = sti_cursor_commit_layer,
-	.disable = sti_cursor_disable_layer,
+	.prepare = sti_cursor_prepare_plane,
+	.commit = sti_cursor_commit_plane,
+	.disable = sti_cursor_disable_plane,
 };
 
-struct sti_layer *sti_cursor_create(struct device *dev)
+struct sti_plane *sti_cursor_create(struct device *dev, int desc,
+				    void __iomem *baseaddr)
 {
 	struct sti_cursor *cursor;
 
@@ -236,7 +239,12 @@ struct sti_layer *sti_cursor_create(struct device *dev)
 		return NULL;
 	}
 
-	cursor->layer.ops = &cursor_ops;
+	cursor->dev = dev;
+	cursor->regs = baseaddr;
+	cursor->plane.desc = desc;
+	cursor->plane.ops = &cursor_plane_ops;
 
-	return (struct sti_layer *)cursor;
+	sti_cursor_init(cursor);
+
+	return &cursor->plane;
 }
