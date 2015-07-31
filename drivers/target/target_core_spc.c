@@ -477,8 +477,8 @@ static sense_reason_t
 spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
-	int have_tp = 0;
-	int opt, min;
+	u32 mtl = 0;
+	int have_tp = 0, opt, min;
 
 	/*
 	 * Following spc3r22 section 6.5.3 Block Limits VPD page, when
@@ -509,8 +509,15 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
+	 *
+	 * XXX: Currently assumes single PAGE_SIZE per scatterlist for fabrics
+	 * enforcing maximum HW scatter-gather-list entry limit
 	 */
-	put_unaligned_be32(dev->dev_attrib.hw_max_sectors, &buf[8]);
+	if (cmd->se_tfo->max_data_sg_nents) {
+		mtl = (cmd->se_tfo->max_data_sg_nents * PAGE_SIZE) /
+		       dev->dev_attrib.block_size;
+	}
+	put_unaligned_be32(min_not_zero(mtl, dev->dev_attrib.hw_max_sectors), &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH

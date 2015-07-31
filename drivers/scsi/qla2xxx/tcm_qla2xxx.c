@@ -1808,6 +1808,11 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.module				= THIS_MODULE,
 	.name				= "qla2xxx",
 	.node_acl_size			= sizeof(struct tcm_qla2xxx_nacl),
+	/*
+	 * XXX: Limit assumes single page per scatter-gather-list entry.
+	 * Current maximum is ~4.9 MB per se_cmd->t_data_sg with PAGE_SIZE=4096
+	 */
+	.max_data_sg_nents		= 1200,
 	.get_fabric_name		= tcm_qla2xxx_get_fabric_name,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,

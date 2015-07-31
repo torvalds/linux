@@ -5,6 +5,19 @@ struct target_core_fabric_ops {
 	struct module *module;
 	const char *name;
 	size_t node_acl_size;
+	/*
+	 * Limits number of scatterlist entries per SCF_SCSI_DATA_CDB payload.
+	 * Setting this value tells target-core to enforce this limit, and
+	 * report as INQUIRY EVPD=b0 MAXIMUM TRANSFER LENGTH.
+	 *
+	 * target-core will currently reset se_cmd->data_length to this
+	 * maximum size, and set UNDERFLOW residual count if length exceeds
+	 * this limit.
+	 *
+	 * XXX: Not all initiator hosts honor this block-limit EVPD
+	 * XXX: Currently assumes single PAGE_SIZE per scatterlist entry
+	 */
+	u32 max_data_sg_nents;
 	char *(*get_fabric_name)(void);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
 	u16 (*tpg_get_tag)(struct se_portal_group *);

@@ -1075,6 +1075,55 @@ transport_set_vpd_ident(struct t10_vpd *vpd, unsigned char *page_83)
 }
 EXPORT_SYMBOL(transport_set_vpd_ident);
 
+static sense_reason_t
+target_check_max_data_sg_nents(struct se_cmd *cmd, struct se_device *dev,
+			       unsigned int size)
+{
+	u32 mtl;
+
+	if (!cmd->se_tfo->max_data_sg_nents)
+		return TCM_NO_SENSE;
+	/*
+	 * Check if fabric enforced maximum SGL entries per I/O descriptor
+	 * exceeds se_cmd->data_length.  If true, set SCF_UNDERFLOW_BIT +
+	 * residual_count and reduce original cmd->data_length to maximum
+	 * length based on single PAGE_SIZE entry scatter-lists.
+	 */
+	mtl = (cmd->se_tfo->max_data_sg_nents * PAGE_SIZE);
+	if (cmd->data_length > mtl) {
+		/*
+		 * If an existing CDB overflow is present, calculate new residual
+		 * based on CDB size minus fabric maximum transfer length.
+		 *
+		 * If an existing CDB underflow is present, calculate new residual
+		 * based on original cmd->data_length minus fabric maximum transfer
+		 * length.
+		 *
+		 * Otherwise, set the underflow residual based on cmd->data_length
+		 * minus fabric maximum transfer length.
+		 */
+		if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
+			cmd->residual_count = (size - mtl);
+		} else if (cmd->se_cmd_flags & SCF_UNDERFLOW_BIT) {
+			u32 orig_dl = size + cmd->residual_count;
+			cmd->residual_count = (orig_dl - mtl);
+		} else {
+			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
+			cmd->residual_count = (cmd->data_length - mtl);
+		}
+		cmd->data_length = mtl;
+		/*
+		 * Reset sbc_check_prot() calculated protection payload
+		 * length based upon the new smaller MTL.
+		 */
+		if (cmd->prot_length) {
+			u32 sectors = (mtl / dev->dev_attrib.block_size);
+			cmd->prot_length = dev->prot_length * sectors;
+		}
+	}
+	return TCM_NO_SENSE;
+}
+
 sense_reason_t
 target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 {
@@ -1120,7 +1169,7 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 		}
 	}
 
-	return 0;
+	return target_check_max_data_sg_nents(cmd, dev, size);
 
 }
 
