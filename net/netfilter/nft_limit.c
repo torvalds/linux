@@ -26,9 +26,9 @@ struct nft_limit {
 	unsigned long	stamp;
 };
 
-static void nft_limit_eval(const struct nft_expr *expr,
-			   struct nft_regs *regs,
-			   const struct nft_pktinfo *pkt)
+static void nft_limit_pkts_eval(const struct nft_expr *expr,
+				struct nft_regs *regs,
+				const struct nft_pktinfo *pkt)
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
 
@@ -85,17 +85,17 @@ nla_put_failure:
 }
 
 static struct nft_expr_type nft_limit_type;
-static const struct nft_expr_ops nft_limit_ops = {
+static const struct nft_expr_ops nft_limit_pkts_ops = {
 	.type		= &nft_limit_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_limit)),
-	.eval		= nft_limit_eval,
+	.eval		= nft_limit_pkts_eval,
 	.init		= nft_limit_init,
 	.dump		= nft_limit_dump,
 };
 
 static struct nft_expr_type nft_limit_type __read_mostly = {
 	.name		= "limit",
-	.ops		= &nft_limit_ops,
+	.ops		= &nft_limit_pkts_ops,
 	.policy		= nft_limit_policy,
 	.maxattr	= NFTA_LIMIT_MAX,
 	.flags		= NFT_EXPR_STATEFUL,
