@@ -698,6 +698,7 @@ static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 6, 0x4f},
 	{ X86_VENDOR_INTEL, 6, 0x56},
 	{ X86_VENDOR_INTEL, 6, 0x57},
+	{ X86_VENDOR_INTEL, 6, 0x5e},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
