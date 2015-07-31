@@ -74,18 +74,57 @@ static const char driver_desc[] = DRIVER_DESC;
 
 static const u32 ep_bit[9] = { 0, 17, 2, 19, 4, 1, 18, 3, 20 };
 static const char ep0name[] = "ep0";
-static const char *const ep_name[] = {
-	ep0name,
-	"ep-a", "ep-b", "ep-c", "ep-d",
-	"ep-e", "ep-f", "ep-g", "ep-h",
+
+#define EP_INFO(_name, _caps) \
+	{ \
+		.name = _name, \
+		.caps = _caps, \
+	}
+
+static const struct {
+	const char *name;
+	const struct usb_ep_caps caps;
+} ep_info_dft[] = { /* Default endpoint configuration */
+	EP_INFO(ep0name,
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-a",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-b",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-c",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-d",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-e",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-f",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-g",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep-h",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_ALL)),
+}, ep_info_adv[] = { /* Endpoints for usb3380 advance mode */
+	EP_INFO(ep0name,
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep1in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep2out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep3in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep4out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep1out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep2in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep3out",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_OUT)),
+	EP_INFO("ep4in",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ALL, USB_EP_CAPS_DIR_IN)),
 };
 
-/* Endpoint names for usb3380 advance mode */
-static const char *const ep_name_adv[] = {
-	ep0name,
-	"ep1in", "ep2out", "ep3in", "ep4out",
-	"ep1out", "ep2in", "ep3out", "ep4in",
-};
+#undef EP_INFO
 
 /* mode 0 == ep-{a,b,c,d} 1K fifo each
  * mode 1 == ep-{a,b} 2K fifo each, ep-{c,d} unavailable
@@ -2055,7 +2094,8 @@ static void usb_reinit_228x(struct net2280 *dev)
 	for (tmp = 0; tmp < 7; tmp++) {
 		struct net2280_ep	*ep = &dev->ep[tmp];
 
-		ep->ep.name = ep_name[tmp];
+		ep->ep.name = ep_info_dft[tmp].name;
+		ep->ep.caps = ep_info_dft[tmp].caps;
 		ep->dev = dev;
 		ep->num = tmp;
 
@@ -2095,7 +2135,10 @@ static void usb_reinit_338x(struct net2280 *dev)
 	for (i = 0; i < dev->n_ep; i++) {
 		struct net2280_ep *ep = &dev->ep[i];
 
-		ep->ep.name = dev->enhanced_mode ? ep_name_adv[i] : ep_name[i];
+		ep->ep.name = dev->enhanced_mode ? ep_info_adv[i].name :
+						   ep_info_dft[i].name;
+		ep->ep.caps = dev->enhanced_mode ? ep_info_adv[i].caps :
+						   ep_info_dft[i].caps;
 		ep->dev = dev;
 		ep->num = i;
 
