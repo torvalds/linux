@@ -154,7 +154,8 @@
 #define OPAL_FLASH_WRITE			111
 #define OPAL_FLASH_ERASE			112
 #define OPAL_PRD_MSG				113
-#define OPAL_LAST				113
+#define OPAL_CEC_REBOOT2			116
+#define OPAL_LAST				116
 
 /* Device tree flags */
 
@@ -855,6 +856,12 @@ enum OpalSysTemp {
 /* Cooling EPOW */
 enum OpalSysCooling {
 	OPAL_SYSCOOL_INSF	= 0x0001, /* System insufficient cooling */
+};
+
+/* Argument to OPAL_CEC_REBOOT2() */
+enum {
+	OPAL_REBOOT_NORMAL		= 0,
+	OPAL_REBOOT_PLATFORM_ERROR	= 1,
 };
 
 #endif /* __ASSEMBLY__ */

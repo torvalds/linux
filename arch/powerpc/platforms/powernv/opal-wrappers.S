@@ -202,6 +202,7 @@ OPAL_CALL(opal_rtc_read,			OPAL_RTC_READ);
 OPAL_CALL(opal_rtc_write,			OPAL_RTC_WRITE);
 OPAL_CALL(opal_cec_power_down,			OPAL_CEC_POWER_DOWN);
 OPAL_CALL(opal_cec_reboot,			OPAL_CEC_REBOOT);
+OPAL_CALL(opal_cec_reboot2,			OPAL_CEC_REBOOT2);
 OPAL_CALL(opal_read_nvram,			OPAL_READ_NVRAM);
 OPAL_CALL(opal_write_nvram,			OPAL_WRITE_NVRAM);
 OPAL_CALL(opal_handle_interrupt,		OPAL_HANDLE_INTERRUPT);
