@@ -69,15 +69,6 @@
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
 /* inode_dio_done(i) use as-is for read unlock */
 
-#define ll_d_hlist_node hlist_node
-#define ll_d_hlist_empty(list) hlist_empty(list)
-#define ll_d_hlist_entry(ptr, type, name) hlist_entry(ptr.first, type, name)
-#define ll_d_hlist_for_each(tmp, i_dentry) hlist_for_each(tmp, i_dentry)
-#define ll_d_hlist_for_each_entry(dentry, p, i_dentry, alias) \
-	p = NULL; hlist_for_each_entry(dentry, i_dentry, alias)
-
-
-
 #define ll_pagevec_init(pv, cold)       do {} while (0)
 #define ll_pagevec_add(pv, pg)	  (0)
 #define ll_pagevec_lru_add_file(pv)     do {} while (0)

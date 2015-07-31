@@ -250,7 +250,6 @@ void ll_intent_release(struct lookup_intent *it)
 void ll_invalidate_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
-	struct ll_d_hlist_node *p;
 
 	LASSERT(inode != NULL);
 
@@ -258,7 +257,7 @@ void ll_invalidate_aliases(struct inode *inode)
 	       inode->i_ino, inode->i_generation, inode);
 
 	ll_lock_dcache(inode);
-	ll_d_hlist_for_each_entry(dentry, p, &inode->i_dentry, d_u.d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		CDEBUG(D_DENTRY, "dentry in drop %pd (%p) parent %p inode %p flags %d\n",
 		       dentry, dentry, dentry->d_parent,
 		       d_inode(dentry), dentry->d_flags);
