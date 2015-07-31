@@ -120,7 +120,9 @@ struct edgeport_serial {
 	struct mutex es_lock;
 	int num_ports_open;
 	struct usb_serial *serial;
+	struct delayed_work heartbeat_work;
 	int fw_version;
+	bool use_heartbeat;
 };
 
 
@@ -225,6 +227,22 @@ static void edge_send(struct usb_serial_port *port, struct tty_struct *tty);
 static int edge_create_sysfs_attrs(struct usb_serial_port *port);
 static int edge_remove_sysfs_attrs(struct usb_serial_port *port);
 
+/*
+ * Some release of Edgeport firmware "down3.bin" after version 4.80
+ * introduced code to automatically disconnect idle devices on some
+ * Edgeport models after periods of inactivity, typically ~60 seconds.
+ * This occurs without regard to whether ports on the device are open
+ * or not.  Digi International Tech Support suggested:
+ *
+ * 1.  Adding driver "heartbeat" code to reset the firmware timer by
+ *     requesting a descriptor record every 15 seconds, which should be
+ *     effective with newer firmware versions that require it, and benign
+ *     with older versions that do not. In practice 40 seconds seems often
+ *     enough.
+ * 2.  The heartbeat code is currently required only on Edgeport/416 models.
+ */
+#define FW_HEARTBEAT_VERSION_CUTOFF ((4 << 8) + 80)
+#define FW_HEARTBEAT_SECS 40
 
 /* Timeouts in msecs: firmware downloads take longer */
 #define TI_VSEND_TIMEOUT_DEFAULT 1000
@@ -2415,6 +2433,36 @@ static void edge_break(struct tty_struct *tty, int break_state)
 			__func__, status);
 }
 
+static void edge_heartbeat_schedule(struct edgeport_serial *edge_serial)
+{
+	if (!edge_serial->use_heartbeat)
+		return;
+
+	schedule_delayed_work(&edge_serial->heartbeat_work,
+			FW_HEARTBEAT_SECS * HZ);
+}
+
+static void edge_heartbeat_work(struct work_struct *work)
+{
+	struct edgeport_serial *serial;
+	struct ti_i2c_desc *rom_desc;
+
+	serial = container_of(work, struct edgeport_serial,
+			heartbeat_work.work);
+
+	rom_desc = kmalloc(sizeof(*rom_desc), GFP_KERNEL);
+
+	/* Descriptor address request is enough to reset the firmware timer */
+	if (!rom_desc || !get_descriptor_addr(serial, I2C_DESC_TYPE_ION,
+			rom_desc)) {
+		dev_err(&serial->serial->interface->dev,
+				"%s - Incomplete heartbeat\n", __func__);
+	}
+	kfree(rom_desc);
+
+	edge_heartbeat_schedule(serial);
+}
+
 static int edge_startup(struct usb_serial *serial)
 {
 	struct edgeport_serial *edge_serial;
@@ -2422,6 +2470,7 @@ static int edge_startup(struct usb_serial *serial)
 	const struct firmware *fw;
 	const char *fw_name = "edgeport/down3.bin";
 	struct device *dev = &serial->interface->dev;
+	u16 product_id;
 
 	/* create our private serial structure */
 	edge_serial = kzalloc(sizeof(struct edgeport_serial), GFP_KERNEL);
@@ -2447,6 +2496,20 @@ static int edge_startup(struct usb_serial *serial)
 		return status;
 	}
 
+	product_id = le16_to_cpu(
+			edge_serial->serial->dev->descriptor.idProduct);
+
+	/* Currently only the EP/416 models require heartbeat support */
+	if (edge_serial->fw_version > FW_HEARTBEAT_VERSION_CUTOFF) {
+		if (product_id == ION_DEVICE_ID_TI_EDGEPORT_416 ||
+			product_id == ION_DEVICE_ID_TI_EDGEPORT_416B) {
+			edge_serial->use_heartbeat = true;
+		}
+	}
+
+	INIT_DELAYED_WORK(&edge_serial->heartbeat_work, edge_heartbeat_work);
+	edge_heartbeat_schedule(edge_serial);
+
 	return 0;
 }
 
@@ -2456,7 +2519,10 @@ static void edge_disconnect(struct usb_serial *serial)
 
 static void edge_release(struct usb_serial *serial)
 {
-	kfree(usb_get_serial_data(serial));
+	struct edgeport_serial *edge_serial = usb_get_serial_data(serial);
+
+	cancel_delayed_work_sync(&edge_serial->heartbeat_work);
+	kfree(edge_serial);
 }
 
 static int edge_port_probe(struct usb_serial_port *port)
@@ -2560,6 +2626,25 @@ static int edge_remove_sysfs_attrs(struct usb_serial_port *port)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int edge_suspend(struct usb_serial *serial, pm_message_t message)
+{
+	struct edgeport_serial *edge_serial = usb_get_serial_data(serial);
+
+	cancel_delayed_work_sync(&edge_serial->heartbeat_work);
+
+	return 0;
+}
+
+static int edge_resume(struct usb_serial *serial)
+{
+	struct edgeport_serial *edge_serial = usb_get_serial_data(serial);
+
+	edge_heartbeat_schedule(edge_serial);
+
+	return 0;
+}
+#endif
 
 static struct usb_serial_driver edgeport_1port_device = {
 	.driver = {
@@ -2592,6 +2677,10 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.read_int_callback	= edge_interrupt_callback,
 	.read_bulk_callback	= edge_bulk_in_callback,
 	.write_bulk_callback	= edge_bulk_out_callback,
+#ifdef CONFIG_PM
+	.suspend		= edge_suspend,
+	.resume			= edge_resume,
+#endif
 };
 
 static struct usb_serial_driver edgeport_2port_device = {
@@ -2625,6 +2714,10 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.read_int_callback	= edge_interrupt_callback,
 	.read_bulk_callback	= edge_bulk_in_callback,
 	.write_bulk_callback	= edge_bulk_out_callback,
+#ifdef CONFIG_PM
+	.suspend		= edge_suspend,
+	.resume			= edge_resume,
+#endif
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
