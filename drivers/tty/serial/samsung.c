@@ -341,7 +341,8 @@ static void s3c24xx_serial_start_next_tx(struct s3c24xx_uart_port *ourport)
 		return;
 	}
 
-	if (!ourport->dma || !ourport->dma->tx_chan || count < port->fifosize)
+	if (!ourport->dma || !ourport->dma->tx_chan ||
+	    count < ourport->min_dma_size)
 		s3c24xx_serial_start_tx_pio(ourport);
 	else
 		s3c24xx_serial_start_tx_dma(ourport, count);
@@ -741,7 +742,8 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 
 	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
-	if (ourport->dma && ourport->dma->tx_chan && count >= port->fifosize) {
+	if (ourport->dma && ourport->dma->tx_chan &&
+	    count >= ourport->min_dma_size) {
 		s3c24xx_serial_start_tx_dma(ourport, count);
 		goto out;
 	}
@@ -1836,6 +1838,13 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		ourport->port.fifosize = ourport->drv_data->fifosize[index];
 	else if (ourport->info->fifosize)
 		ourport->port.fifosize = ourport->info->fifosize;
+
+	/*
+	 * DMA transfers must be aligned at least to cache line size,
+	 * so find minimal transfer size suitable for DMA mode
+	 */
+	ourport->min_dma_size = max_t(int, ourport->port.fifosize,
+				    dma_get_cache_alignment());
 
 	probe_index++;
 
