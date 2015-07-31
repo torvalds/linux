@@ -148,7 +148,6 @@ static __init int exynos4_pm_init_power_domain(void)
 			pr_warn("%s: failed to map memory\n", __func__);
 			kfree_const(pd->pd.name);
 			kfree(pd);
-			of_node_put(np);
 			continue;
 		}
 
