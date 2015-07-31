@@ -1228,7 +1228,7 @@ auto_flowlabels - INTEGER
 	   per socket basis using the IPV6_AUTOFLOWLABEL socket option
 	3: automatic flow labels are enabled and enforced, they cannot
 	   be disabled by the socket option
-	Default: 0
+	Default: 1
 
 flowlabel_state_ranges - BOOLEAN
 	Split the flow label number space into two ranges. 0-0x7FFFF is
