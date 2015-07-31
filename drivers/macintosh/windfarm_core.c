@@ -72,7 +72,7 @@ static inline void wf_notify(int event, void *param)
 	blocking_notifier_call_chain(&wf_client_list, event, param);
 }
 
-int wf_critical_overtemp(void)
+static int wf_critical_overtemp(void)
 {
 	static char * critical_overtemp_path = "/sbin/critical_overtemp";
 	char *argv[] = { critical_overtemp_path, NULL };
@@ -84,7 +84,6 @@ int wf_critical_overtemp(void)
 	return call_usermodehelper(critical_overtemp_path,
 				   argv, envp, UMH_WAIT_EXEC);
 }
-EXPORT_SYMBOL_GPL(wf_critical_overtemp);
 
 static int wf_thread_func(void *data)
 {
