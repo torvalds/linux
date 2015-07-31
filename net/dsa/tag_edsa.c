@@ -16,13 +16,10 @@
 #define DSA_HLEN	4
 #define EDSA_HLEN	8
 
-static netdev_tx_t edsa_xmit(struct sk_buff *skb, struct net_device *dev)
+static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	u8 *edsa_header;
-
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 
 	/*
 	 * Convert the outermost 802.1q tag to a DSA tag and prepend
@@ -76,14 +73,11 @@ static netdev_tx_t edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[7] = 0x00;
 	}
 
-	skb->dev = p->parent->dst->master_netdev;
-	dev_queue_xmit(skb);
-
-	return NETDEV_TX_OK;
+	return skb;
 
 out_free:
 	kfree_skb(skb);
-	return NETDEV_TX_OK;
+	return NULL;
 }
 
 static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
