@@ -410,7 +410,7 @@ dev_t dm_get_dev_t(const char *path)
 	dev_t dev;
 	struct block_device *bdev;
 
-	bdev = lookup_bdev(path);
+	bdev = lookup_bdev(path, 0);
 	if (IS_ERR(bdev))
 		dev = name_to_dev_t(path);
 	else {
