@@ -199,7 +199,9 @@ struct mt7601u_dev {
 
 	/* TX */
 	spinlock_t tx_lock;
+	struct tasklet_struct tx_tasklet;
 	struct mt7601u_tx_queue *tx_q;
+	struct sk_buff_head tx_skb_done;
 
 	atomic_t avg_ampdu_len;
 

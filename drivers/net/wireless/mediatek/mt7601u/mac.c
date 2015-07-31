@@ -181,7 +181,11 @@ void mt76_send_tx_status(struct mt7601u_dev *dev, struct mt76_tx_status *stat)
 	}
 
 	mt76_mac_fill_tx_status(dev, &info, stat);
+
+	local_bh_disable();
 	ieee80211_tx_status_noskb(dev->hw, sta, &info);
+	local_bh_enable();
+
 	rcu_read_unlock();
 }
 
