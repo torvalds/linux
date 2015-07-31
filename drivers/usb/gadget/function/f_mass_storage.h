@@ -141,10 +141,6 @@ void fsg_common_remove_lun(struct fsg_lun *lun);
 
 void fsg_common_remove_luns(struct fsg_common *common);
 
-void fsg_common_free_luns(struct fsg_common *common);
-
-int fsg_common_set_nluns(struct fsg_common *common, int nluns);
-
 void fsg_common_set_ops(struct fsg_common *common,
 			const struct fsg_operations *ops);
 

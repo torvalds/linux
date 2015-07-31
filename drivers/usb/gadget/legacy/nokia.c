@@ -339,19 +339,15 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 	if (status)
 		goto err_msg_inst;
 
-	status = fsg_common_set_nluns(fsg_opts->common, fsg_config.nluns);
-	if (status)
-		goto err_msg_buf;
-
 	status = fsg_common_set_cdev(fsg_opts->common, cdev, fsg_config.can_stall);
 	if (status)
-		goto err_msg_set_nluns;
+		goto err_msg_buf;
 
 	fsg_common_set_sysfs(fsg_opts->common, true);
 
 	status = fsg_common_create_luns(fsg_opts->common, &fsg_config);
 	if (status)
-		goto err_msg_set_nluns;
+		goto err_msg_buf;
 
 	fsg_common_set_inquiry_string(fsg_opts->common, fsg_config.vendor_name,
 				      fsg_config.product_name);
@@ -360,7 +356,7 @@ static int nokia_bind(struct usb_composite_dev *cdev)
 	status = usb_add_config(cdev, &nokia_config_500ma_driver,
 			nokia_bind_config);
 	if (status < 0)
-		goto err_msg_set_cdev;
+		goto err_msg_luns;
 
 	status = usb_add_config(cdev, &nokia_config_100ma_driver,
 			nokia_bind_config);
@@ -381,10 +377,8 @@ err_put_cfg1:
 	if (!IS_ERR_OR_NULL(f_phonet_cfg1))
 		usb_put_function(f_phonet_cfg1);
 	usb_put_function(f_ecm_cfg1);
-err_msg_set_cdev:
+err_msg_luns:
 	fsg_common_remove_luns(fsg_opts->common);
-err_msg_set_nluns:
-	fsg_common_free_luns(fsg_opts->common);
 err_msg_buf:
 	fsg_common_free_buffers(fsg_opts->common);
 err_msg_inst:

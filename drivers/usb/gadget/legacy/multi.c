@@ -393,10 +393,6 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	if (status)
 		goto fail2;
 
-	status = fsg_common_set_nluns(fsg_opts->common, config.nluns);
-	if (status)
-		goto fail_set_nluns;
-
 	status = fsg_common_set_cdev(fsg_opts->common, cdev, config.can_stall);
 	if (status)
 		goto fail_set_cdev;
@@ -448,8 +444,6 @@ fail_otg_desc:
 fail_string_ids:
 	fsg_common_remove_luns(fsg_opts->common);
 fail_set_cdev:
-	fsg_common_free_luns(fsg_opts->common);
-fail_set_nluns:
 	fsg_common_free_buffers(fsg_opts->common);
 fail2:
 	usb_put_function_instance(fi_msg);
