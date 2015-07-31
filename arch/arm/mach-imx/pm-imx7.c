@@ -62,6 +62,8 @@
 #define MAX_UART_IO			4
 #define MAX_CCM_LPCG			167
 #define MAX_GPT				3
+#define MAX_GPIO_ROW			7
+#define MAX_GPIO_COL			8
 
 #define UART_RX_IO	0x128
 #define UART_RX_PAD	0x398
@@ -102,6 +104,13 @@
 #define REG_SET			0x4
 #define REG_CLR			0x8
 
+#define GPIO_DR			0x0
+#define GPIO_GDIR		0x4
+#define GPIO_ICR1		0xc
+#define GPIO_ICR2		0x10
+#define GPIO_IMR		0x14
+#define GPIO_EDGE		0x1c
+
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
 
@@ -119,6 +128,7 @@ static void __iomem *iomuxc_base;
 static void __iomem *gpt1_base;
 static void __iomem *system_counter_ctrl_base;
 static void __iomem *system_counter_cmp_base;
+static void __iomem *gpio1_base;
 static void (*imx7_suspend_in_ocram_fn)(void __iomem *ocram_vbase);
 struct imx7_cpu_pm_info *pm_info;
 static bool lpsr_enabled;
@@ -149,6 +159,7 @@ static u32 pfd_a, pfd_b;
 static u32 pll[15];
 static u32 gpt1_regs[MAX_GPT];
 static u32 sys_ctrl_reg, sys_cmp_reg;
+static u32 gpio_reg[MAX_GPIO_ROW][MAX_GPIO_COL];
 /*
  * suspend ocram space layout:
  * ======================== high address ======================
@@ -339,6 +350,48 @@ static const char * const low_power_ocram_match[] __initconst = {
 	"fsl,lpm-sram",
 	NULL
 };
+
+static void imx7_gpio_save(void)
+{
+	u32 i;
+
+	for (i = 0; i < 7; i++) {
+		gpio_reg[i][0] = readl_relaxed(gpio1_base +
+			(i << 16) + GPIO_DR);
+		gpio_reg[i][1] = readl_relaxed(gpio1_base +
+			(i << 16) + GPIO_GDIR);
+		gpio_reg[i][3] = readl_relaxed(gpio1_base +
+			(i << 16) + GPIO_ICR1);
+		gpio_reg[i][4] = readl_relaxed(gpio1_base +
+			(i << 16) + GPIO_ICR2);
+		gpio_reg[i][5] = readl_relaxed(gpio1_base +
+			(i << 16) + GPIO_IMR);
+		gpio_reg[i][7] = readl_relaxed(gpio1_base +
+			(i << 16) + GPIO_EDGE);
+	}
+}
+
+static void imx7_gpio_restore(void)
+{
+	u32 i, val;
+
+	for (i = 0; i < 7; i++) {
+		writel_relaxed(gpio_reg[i][1], gpio1_base +
+			(i << 16) + GPIO_GDIR);
+		writel_relaxed(gpio_reg[i][3], gpio1_base +
+			(i << 16) + GPIO_ICR1);
+		writel_relaxed(gpio_reg[i][4], gpio1_base +
+			(i << 16) + GPIO_ICR2);
+		writel_relaxed(gpio_reg[i][5], gpio1_base +
+			(i << 16) + GPIO_IMR);
+		writel_relaxed(gpio_reg[i][7], gpio1_base +
+			(i << 16) + GPIO_EDGE);
+		/* only restore output gpio value */
+		val = readl_relaxed(gpio1_base + (i << 16) + GPIO_DR) |
+		     (gpio_reg[i][0] & gpio_reg[i][1]);
+		writel_relaxed(val, gpio1_base + (i << 16) + GPIO_DR);
+	}
+}
 
 static void imx7_ccm_save(void)
 {
@@ -642,6 +695,7 @@ static int imx7_pm_enter(suspend_state_t state)
 				imx7_ccm_save();
 				imx7_gpt_save();
 				imx7_sys_counter_save();
+				imx7_gpio_save();
 			}
 		}
 
@@ -656,6 +710,7 @@ static int imx7_pm_enter(suspend_state_t state)
 			imx7_ccm_restore();
 			imx7_gpt_restore();
 			imx7_sys_counter_restore();
+			imx7_gpio_restore();
 		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
@@ -968,6 +1023,12 @@ void __init imx7d_pm_init(void)
 		if (np)
 			system_counter_ctrl_base = of_iomap(np, 0);
 		WARN_ON(!system_counter_ctrl_base);
+
+		np = of_find_node_by_path(
+			"/soc/aips-bus@30000000/gpio@30200000");
+		if (np)
+			gpio1_base = of_iomap(np, 0);
+		WARN_ON(!gpio1_base);
 	}
 
 	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
