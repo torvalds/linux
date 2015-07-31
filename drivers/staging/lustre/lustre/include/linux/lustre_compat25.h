@@ -90,10 +90,6 @@
 # define NO_QUOTA (-EDQUOT)
 #endif
 
-#ifndef FMODE_UNSIGNED_OFFSET
-#define FMODE_UNSIGNED_OFFSET	((__force fmode_t)0x2000)
-#endif
-
 #if !defined(_ASM_GENERIC_BITOPS_EXT2_NON_ATOMIC_H_) && !defined(ext2_set_bit)
 # define ext2_set_bit	     __test_and_set_bit_le
 # define ext2_clear_bit	   __test_and_clear_bit_le
