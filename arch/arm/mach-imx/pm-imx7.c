@@ -64,7 +64,11 @@ extern unsigned long iram_tlb_phys_addr;
 static unsigned int *ocram_saved_in_ddr;
 static void __iomem *ocram_base;
 static unsigned int ocram_size;
+static unsigned int *lpm_ocram_saved_in_ddr;
+static void __iomem *lpm_ocram_base;
+static unsigned int lpm_ocram_size;
 static void __iomem *ccm_base;
+static void __iomem *lpsr_base;
 static void __iomem *console_base;
 static void __iomem *suspend_ocram_base;
 static void (*imx7_suspend_in_ocram_fn)(void __iomem *ocram_vbase);
@@ -316,6 +320,11 @@ static void imx7_pm_set_lpsr_resume_addr(unsigned long addr)
 	writel_relaxed(addr, pm_info->lpsr_base.vbase);
 }
 
+static int imx7_pm_is_resume_from_lpsr(void)
+{
+	return readl_relaxed(lpsr_base);
+}
+
 static int imx7_pm_enter(suspend_state_t state)
 {
 	unsigned int console_saved_reg[10] = {0};
@@ -344,14 +353,21 @@ static int imx7_pm_enter(suspend_state_t state)
 		if (imx_gpcv2_is_mf_mix_off()) {
 			imx7_console_save(console_saved_reg);
 			memcpy(ocram_saved_in_ddr, ocram_base, ocram_size);
-			if (lpsr_enabled)
+			if (lpsr_enabled) {
 				imx7_pm_set_lpsr_resume_addr(pm_info->resume_addr);
+				memcpy(lpm_ocram_saved_in_ddr, lpm_ocram_base,
+					lpm_ocram_size);
+			}
 		}
 
 		/* Zzz ... */
 		cpu_suspend(0, imx7_suspend_finish);
 
-		if (imx_gpcv2_is_mf_mix_off()) {
+		if (imx7_pm_is_resume_from_lpsr())
+			memcpy(lpm_ocram_base, lpm_ocram_saved_in_ddr,
+				lpm_ocram_size);
+		if (imx_gpcv2_is_mf_mix_off() ||
+			imx7_pm_is_resume_from_lpsr()) {
 			memcpy(ocram_base, ocram_saved_in_ddr, ocram_size);
 			imx7_console_restore(console_saved_reg);
 		}
@@ -551,7 +567,7 @@ static int __init imx7_suspend_init(const struct imx7_pm_socdata *socdata)
 				IMX_IO_P2V(MX7D_SNVS_BASE_ADDR);
 
 	pm_info->lpsr_base.pbase = MX7D_LPSR_BASE_ADDR;
-	pm_info->lpsr_base.vbase = (void __iomem *)
+	lpsr_base = pm_info->lpsr_base.vbase = (void __iomem *)
 				IMX_IO_P2V(MX7D_LPSR_BASE_ADDR);
 
 	pm_info->ddrc_num = socdata->ddrc_num;
@@ -629,8 +645,15 @@ void __init imx7d_pm_init(void)
 	if (of_get_property(np, "fsl,enable-lpsr", NULL))
 		lpsr_enabled = true;
 
-	if (lpsr_enabled)
+	if (lpsr_enabled) {
 		pr_info("LPSR mode enabled, DSM will go into LPSR mode!\n");
+		lpm_ocram_base = of_iomap(np, 0);
+		WARN_ON(!lpm_ocram_base);
+		WARN_ON(of_address_to_resource(np, 0, &res));
+		lpm_ocram_size = resource_size(&res);
+		lpm_ocram_saved_in_ddr = kzalloc(lpm_ocram_size, GFP_KERNEL);
+		WARN_ON(!lpm_ocram_saved_in_ddr);
+	}
 
 	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
 		|| imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
