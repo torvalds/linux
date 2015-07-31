@@ -328,7 +328,8 @@ static int sun4i_usb_phy_power_on(struct phy *_phy)
 		return 0;
 
 	/* For phy0 only turn on Vbus if we don't have an ext. Vbus */
-	if (phy->index == 0 && data->vbus_det)
+	if (phy->index == 0 && sun4i_usb_phy0_have_vbus_det(data) &&
+				data->vbus_det)
 		return 0;
 
 	ret = regulator_enable(phy->vbus);
