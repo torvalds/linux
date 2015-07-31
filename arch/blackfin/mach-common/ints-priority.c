@@ -825,9 +825,9 @@ static void bfin_demux_gpio_block(unsigned int irq)
 	}
 }
 
-void bfin_demux_gpio_irq(unsigned int inta_irq,
-			struct irq_desc *desc)
+void bfin_demux_gpio_irq(unsigned int __inta_irq, struct irq_desc *desc)
 {
+	unsigned int inta_irq = irq_desc_get_irq(desc);
 	unsigned int irq;
 
 	switch (inta_irq) {
