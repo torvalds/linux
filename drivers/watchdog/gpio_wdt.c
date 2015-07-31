@@ -50,12 +50,41 @@ static void gpio_wdt_disable(struct gpio_wdt_priv *priv)
 		gpio_direction_input(priv->gpio);
 }
 
+static void gpio_wdt_hwping(unsigned long data)
+{
+	struct watchdog_device *wdd = (struct watchdog_device *)data;
+	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
+
+	if (priv->armed && time_after(jiffies, priv->last_jiffies +
+				      msecs_to_jiffies(wdd->timeout * 1000))) {
+		dev_crit(wdd->dev, "Timer expired. System will reboot soon!\n");
+		return;
+	}
+
+	/* Restart timer */
+	mod_timer(&priv->timer, jiffies + priv->hw_margin);
+
+	switch (priv->hw_algo) {
+	case HW_ALGO_TOGGLE:
+		/* Toggle output pin */
+		priv->state = !priv->state;
+		gpio_set_value_cansleep(priv->gpio, priv->state);
+		break;
+	case HW_ALGO_LEVEL:
+		/* Pulse */
+		gpio_set_value_cansleep(priv->gpio, !priv->active_low);
+		udelay(1);
+		gpio_set_value_cansleep(priv->gpio, priv->active_low);
+		break;
+	}
+}
+
 static void gpio_wdt_start_impl(struct gpio_wdt_priv *priv)
 {
 	priv->state = priv->active_low;
 	gpio_direction_output(priv->gpio, priv->state);
 	priv->last_jiffies = jiffies;
-	mod_timer(&priv->timer, priv->last_jiffies + priv->hw_margin);
+	gpio_wdt_hwping((unsigned long)&priv->wdd);
 }
 
 static int gpio_wdt_start(struct watchdog_device *wdd)
@@ -95,35 +124,6 @@ static int gpio_wdt_set_timeout(struct watchdog_device *wdd, unsigned int t)
 	wdd->timeout = t;
 
 	return gpio_wdt_ping(wdd);
-}
-
-static void gpio_wdt_hwping(unsigned long data)
-{
-	struct watchdog_device *wdd = (struct watchdog_device *)data;
-	struct gpio_wdt_priv *priv = watchdog_get_drvdata(wdd);
-
-	if (priv->armed && time_after(jiffies, priv->last_jiffies +
-				      msecs_to_jiffies(wdd->timeout * 1000))) {
-		dev_crit(wdd->dev, "Timer expired. System will reboot soon!\n");
-		return;
-	}
-
-	/* Restart timer */
-	mod_timer(&priv->timer, jiffies + priv->hw_margin);
-
-	switch (priv->hw_algo) {
-	case HW_ALGO_TOGGLE:
-		/* Toggle output pin */
-		priv->state = !priv->state;
-		gpio_set_value_cansleep(priv->gpio, priv->state);
-		break;
-	case HW_ALGO_LEVEL:
-		/* Pulse */
-		gpio_set_value_cansleep(priv->gpio, !priv->active_low);
-		udelay(1);
-		gpio_set_value_cansleep(priv->gpio, priv->active_low);
-		break;
-	}
 }
 
 static int gpio_wdt_notify_sys(struct notifier_block *nb, unsigned long code,
