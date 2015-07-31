@@ -69,37 +69,6 @@
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
 /* inode_dio_done(i) use as-is for read unlock */
 
-static inline int
-ll_quota_on(struct super_block *sb, int off, int ver, char *name, int remount)
-{
-	int rc;
-
-	if (sb->s_qcop->quota_on) {
-		struct path path;
-
-		rc = kern_path(name, LOOKUP_FOLLOW, &path);
-		if (!rc)
-			return rc;
-		rc = sb->s_qcop->quota_on(sb, off, ver
-					    , &path
-					   );
-		path_put(&path);
-		return rc;
-	} else
-		return -ENOSYS;
-}
-
-static inline int ll_quota_off(struct super_block *sb, int off, int remount)
-{
-	if (sb->s_qcop->quota_off) {
-		return sb->s_qcop->quota_off(sb, off
-					    );
-	} else
-		return -ENOSYS;
-}
-
-
-
 #define ll_d_hlist_node hlist_node
 #define ll_d_hlist_empty(list) hlist_empty(list)
 #define ll_d_hlist_entry(ptr, type, name) hlist_entry(ptr.first, type, name)
