@@ -311,7 +311,7 @@ static struct net_dev_context *get_net_dev_context(
 		}
 	}
 	spin_unlock(&list_lock);
-	return 0;
+	return NULL;
 }
 
 static int aim_probe_channel(struct most_interface *iface, int channel_idx,
