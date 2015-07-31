@@ -20,6 +20,7 @@
 #include <linux/of_irq.h>
 #include <linux/types.h>
 
+#include "common.h"
 #include "clk.h"
 
 #define BM_CCM_CCDR_MMDC_CH0_MASK	(0x2 << 16)
@@ -217,6 +218,8 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	np = ccm_node;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
+
+	imx6q_pm_set_ccm_base(base);
 
 	clks[IMX6UL_CA7_SECONDARY_SEL]	  = imx_clk_mux("ca7_secondary_sel", base + 0xc, 3, 1, ca7_secondary_sels, ARRAY_SIZE(ca7_secondary_sels));
 	clks[IMX6UL_CLK_STEP] 	 	  = imx_clk_mux("step", base + 0x0c, 8, 1, step_sels, ARRAY_SIZE(step_sels));

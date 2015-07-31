@@ -22,13 +22,21 @@ static void __init imx6ul_init_machine(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	imx_anatop_init();
+	imx6ul_pm_init();
 }
 
 static void __init imx6ul_init_irq(void)
 {
+	imx_gpc_check_dt();
 	imx_init_revision_from_anatop();
 	imx_src_init();
 	irqchip_init();
+}
+
+static void __init imx6ul_map_io(void)
+{
+	debug_ll_io_init();
+	imx6_pm_map_io();
 }
 
 static const char *imx6ul_dt_compat[] __initconst = {
@@ -37,6 +45,7 @@ static const char *imx6ul_dt_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX6UL, "Freescale i.MX6 Ultralite (Device Tree)")
+	.map_io		= imx6ul_map_io,
 	.init_irq	= imx6ul_init_irq,
 	.init_machine	= imx6ul_init_machine,
 	.dt_compat	= imx6ul_dt_compat,

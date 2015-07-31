@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Freescale Semiconductor, Inc.
+ * Copyright 2014-2015 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -59,8 +59,11 @@
 #define PM_INFO_MX6Q_GPC_V_OFFSET		0x34
 #define PM_INFO_MX6Q_L2_P_OFFSET		0x38
 #define PM_INFO_MX6Q_L2_V_OFFSET		0x3C
-#define PM_INFO_MMDC_IO_NUM_OFFSET		0x40
-#define PM_INFO_MMDC_IO_VAL_OFFSET		0x44
+#define PM_INFO_MX6Q_ANATOP_P_OFFSET		0x40
+#define PM_INFO_MX6Q_ANATOP_V_OFFSET		0x44
+#define	PM_INFO_MX6Q_TTBR1_V_OFFSET		0x48
+#define PM_INFO_MMDC_IO_NUM_OFFSET		0x4c
+#define PM_INFO_MMDC_IO_VAL_OFFSET		0x50
 
 #define MX6Q_SRC_GPR1	0x20
 #define MX6Q_SRC_GPR2	0x24
@@ -73,6 +76,45 @@
 #define MX6Q_CCM_CCR	0x0
 
 	.align 3
+
+       /* Check if the cpu is cortex-a7 */
+       .macro is_cortex_a7
+
+       /* Read the primary cpu number is MPIDR */
+       mrc     p15, 0, r5, c0, c0, 0
+       ldr     r6, =0xfff0
+       and     r5, r5, r6
+       ldr     r6, =0xc070
+       cmp     r5, r6
+
+       .endm
+
+       .macro  disable_l1_cache
+
+       /*
+        * Flush all data from the L1 data cache before disabling
+        * SCTLR.C bit.
+        */
+       push    {r0 - r10, lr}
+       ldr     r7, =v7_flush_dcache_all
+       mov     lr, pc
+       mov     pc, r7
+       pop     {r0 - r10, lr}
+
+       /* disable d-cache */
+       mrc     p15, 0, r7, c1, c0, 0
+       bic     r7, r7, #(1 << 2)
+       mcr     p15, 0, r7, c1, c0, 0
+       dsb
+       isb
+
+       push    {r0 -r10, lr}
+       ldr     r7, = v7_flush_dcache_all
+       mov     lr, pc
+       mov     pc , r7
+       pop     {r0 -r10, lr}
+
+       .endm
 
 	.macro  sync_l2_cache
 
@@ -148,6 +190,111 @@
 
 	.endm
 
+	.macro store_ttbr1
+
+	/* Store TTBR1 to pm_info->ttbr1 */
+	mrc	p15, 0, r7, c2, c0, 1
+	str	r7, [r0, #PM_INFO_MX6Q_TTBR1_V_OFFSET]
+
+	/* Disable Branch Prediction, Z bit in SCTLR. */
+	mrc	p15, 0, r6, c1, c0, 0
+	bic	r6, r6, #0x800
+	mcr	p15, 0, r6, c1, c0, 0
+
+	/* Flush the BTAC. */
+	ldr	r6, =0x0
+	mcr	p15, 0, r6, c7, c1, 6
+
+	ldr	r6, =iram_tlb_phys_addr
+	ldr	r6, [r6]
+	dsb
+	isb
+
+	/* Store the IRAM table in TTBR1 */
+	mcr	p15, 0, r6, c2, c0, 1
+	/* Read TTBCR and set PD0=1, N = 1 */
+	mrc	p15, 0, r6, c2, c0, 2
+	orr	r6, r6, #0x11
+	mcr	p15, 0, r6, c2, c0, 2
+
+	dsb
+	isb
+
+	/* flush the TLB */
+	ldr	r6, =0x0
+	mcr	p15, 0, r6, c8, c3, 0
+
+	/* Disable L1 data cache. */
+	mrc	p15, 0, r6, c1, c0, 0
+	bic	r6, r6, #0x4
+	mcr	p15, 0, r6, c1, c0, 0
+
+	dsb
+	isb
+
+	is_cortex_a7
+	beq	14f
+
+#ifdef CONFIG_CACHE_L2X0
+	ldr	r8, [r0, #PM_INFO_MX6Q_L2_V_OFFSET]
+	mov	r6, #0x0
+	str	r6, [r8, #0x100]
+
+	dsb
+	isb
+#endif
+14:
+	.endm
+
+	.macro restore_ttbr1
+
+	is_cortex_a7
+	beq	15f
+
+#ifdef CONFIG_CACHE_L2X0
+	/* Enable L2. */
+	ldr	r8, [r0, #PM_INFO_MX6Q_L2_V_OFFSET]
+	ldr	r7, =0x1
+	str	r7, [r8, #0x100]
+#endif
+
+15:
+	/* Enable L1 data cache. */
+	mrc	p15, 0, r6, c1, c0, 0
+	orr	r6, r6, #0x4
+	mcr	p15, 0, r6, c1, c0, 0
+
+	dsb
+	isb
+
+	/* Restore TTBCR */
+	/* Read TTBCR and set PD0=0, N = 0 */
+	mrc	p15, 0, r6, c2, c0, 2
+	bic	r6, r6, #0x11
+	mcr	p15, 0, r6, c2, c0, 2
+	dsb
+	isb
+
+	/* flush the TLB */
+	ldr	r6, =0x0
+	mcr	p15, 0, r6, c8, c3, 0
+
+	/* Enable Branch Prediction, Z bit in SCTLR. */
+	mrc	p15, 0, r6, c1, c0, 0
+	orr	r6, r6, #0x800
+	mcr	p15, 0, r6, c1, c0, 0
+
+	/* Flush the Branch Target Address Cache (BTAC) */
+	ldr	r6, =0x0
+	mcr	p15, 0, r6, c7, c1, 6
+
+	/* Restore TTBR1, get the origin ttbr1 from pm info */
+	ldr	r7, [r0, #PM_INFO_MX6Q_TTBR1_V_OFFSET]
+	mcr	p15, 0, r7, c2, c0, 1
+
+	.endm
+
+
 ENTRY(imx6_suspend)
 	ldr	r1, [r0, #PM_INFO_PBASE_OFFSET]
 	ldr	r2, [r0, #PM_INFO_RESUME_ADDR_OFFSET]
@@ -182,8 +329,22 @@ ENTRY(imx6_suspend)
 	str	r9, [r11, #MX6Q_SRC_GPR1]
 	str	r1, [r11, #MX6Q_SRC_GPR2]
 
+	/*
+	 * Check if the cpu is Cortex-A7, for Cortex-A7
+	 * the cache implementation is not the same as
+	 * Cortex-A9, so the cache maintenance operation
+	 * is different.
+	 */
+	is_cortex_a7
+	beq	a7_dache_flush
+
 	/* need to sync L2 cache before DSM. */
 	sync_l2_cache
+	b	ttbr_store
+a7_dache_flush:
+	disable_l1_cache
+ttbr_store:
+	store_ttbr1
 
 	ldr	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
 	/*
@@ -302,6 +463,7 @@ rbc_loop:
 	 */
 	mov	r5, #0x0
 	resume_mmdc
+	restore_ttbr1
 
 	/* return to suspend finish */
 	ret	lr
@@ -339,8 +501,11 @@ ENDPROC(imx6_suspend)
 
 ENTRY(v7_cpu_resume)
 	bl	v7_invalidate_l1
+	is_cortex_a7
+	beq	done
 #ifdef CONFIG_CACHE_L2X0
 	bl	l2c310_early_resume
 #endif
+done:
 	b	cpu_resume
 ENDPROC(v7_cpu_resume)
