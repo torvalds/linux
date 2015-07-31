@@ -290,6 +290,7 @@ struct __sk_buff {
 	__u32 ifindex;
 	__u32 tc_index;
 	__u32 cb[5];
+	__u32 hash;
 };
 
 struct bpf_tunnel_key {
