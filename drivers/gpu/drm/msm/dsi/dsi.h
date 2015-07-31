@@ -54,12 +54,20 @@ struct msm_dsi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
 
+	/* connector managed by us when we're connected to a drm_panel */
 	struct drm_connector *connector;
+	/* internal dsi bridge attached to MDP interface */
 	struct drm_bridge *bridge;
 
 	struct mipi_dsi_host *host;
 	struct msm_dsi_phy *phy;
+
+	/*
+	 * panel/external_bridge connected to dsi bridge output, only one of the
+	 * two can be valid at a time
+	 */
 	struct drm_panel *panel;
+	struct drm_bridge *external_bridge;
 	unsigned long device_flags;
 
 	struct device *phy_dev;
@@ -75,6 +83,7 @@ struct msm_dsi {
 struct drm_bridge *msm_dsi_manager_bridge_init(u8 id);
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge);
 struct drm_connector *msm_dsi_manager_connector_init(u8 id);
+struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id);
 int msm_dsi_manager_phy_enable(int id,
 		const unsigned long bit_rate, const unsigned long esc_rate,
 		u32 *clk_pre, u32 *clk_post);
@@ -87,7 +96,7 @@ void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 /* msm dsi */
 static inline bool msm_dsi_device_connected(struct msm_dsi *msm_dsi)
 {
-	return msm_dsi->panel;
+	return msm_dsi->panel || msm_dsi->external_bridge;
 }
 
 struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi);
@@ -143,6 +152,7 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 					struct drm_display_mode *mode);
 struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host,
 					unsigned long *panel_flags);
+struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host);
 int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer);
 void msm_dsi_host_unregister(struct mipi_dsi_host *host);
 int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,

@@ -517,7 +517,7 @@ static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
 	.mode_set = dsi_mgr_bridge_mode_set,
 };
 
-/* initialize connector */
+/* initialize connector when we're connected to a drm_panel */
 struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -600,6 +600,53 @@ fail:
 		msm_dsi_manager_bridge_destroy(bridge);
 
 	return ERR_PTR(ret);
+}
+
+struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct drm_device *dev = msm_dsi->dev;
+	struct drm_encoder *encoder;
+	struct drm_bridge *int_bridge, *ext_bridge;
+	struct drm_connector *connector;
+	struct list_head *connector_list;
+
+	int_bridge = msm_dsi->bridge;
+	ext_bridge = msm_dsi->external_bridge =
+			msm_dsi_host_get_bridge(msm_dsi->host);
+
+	/*
+	 * HACK: we may not know the external DSI bridge device's mode
+	 * flags here. We'll get to know them only when the device
+	 * attaches to the dsi host. For now, assume the bridge supports
+	 * DSI video mode
+	 */
+	encoder = msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID];
+
+	/* link the internal dsi bridge to the external bridge */
+	int_bridge->next = ext_bridge;
+	/* set the external bridge's encoder as dsi's encoder */
+	ext_bridge->encoder = encoder;
+
+	drm_bridge_attach(dev, ext_bridge);
+
+	/*
+	 * we need the drm_connector created by the external bridge
+	 * driver (or someone else) to feed it to our driver's
+	 * priv->connector[] list, mainly for msm_fbdev_init()
+	 */
+	connector_list = &dev->mode_config.connector_list;
+
+	list_for_each_entry(connector, connector_list, head) {
+		int i;
+
+		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+			if (connector->encoder_ids[i] == encoder->base.id)
+				return connector;
+		}
+	}
+
+	return ERR_PTR(-ENODEV);
 }
 
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)

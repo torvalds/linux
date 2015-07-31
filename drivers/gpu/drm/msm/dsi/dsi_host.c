@@ -1646,7 +1646,8 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 		 */
 		if (check_defer && msm_host->device_node) {
 			if (!of_drm_find_panel(msm_host->device_node))
-				return -EPROBE_DEFER;
+				if (!of_drm_find_bridge(msm_host->device_node))
+					return -EPROBE_DEFER;
 		}
 	}
 
@@ -2073,3 +2074,9 @@ struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host,
 	return panel;
 }
 
+struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+
+	return of_drm_find_bridge(msm_host->device_node);
+}
