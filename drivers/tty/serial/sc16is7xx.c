@@ -322,7 +322,7 @@ struct sc16is7xx_one {
 };
 
 struct sc16is7xx_port {
-	struct sc16is7xx_devtype	*devtype;
+	const struct sc16is7xx_devtype	*devtype;
 	struct regmap			*regmap;
 	struct clk			*clk;
 #ifdef CONFIG_GPIOLIB
@@ -1131,7 +1131,7 @@ static int sc16is7xx_gpio_direction_output(struct gpio_chip *chip,
 #endif
 
 static int sc16is7xx_probe(struct device *dev,
-			   struct sc16is7xx_devtype *devtype,
+			   const struct sc16is7xx_devtype *devtype,
 			   struct regmap *regmap, int irq, unsigned long flags)
 {
 	struct sched_param sched_param = { .sched_priority = MAX_RT_PRIO / 2 };
@@ -1303,7 +1303,7 @@ static struct regmap_config regcfg = {
 #ifdef CONFIG_SERIAL_SC16IS7XX_SPI
 static int sc16is7xx_spi_probe(struct spi_device *spi)
 {
-	struct sc16is7xx_devtype *devtype;
+	const struct sc16is7xx_devtype *devtype;
 	unsigned long flags = 0;
 	struct regmap *regmap;
 	int ret;
@@ -1372,7 +1372,7 @@ MODULE_ALIAS("spi:sc16is7xx");
 static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 			       const struct i2c_device_id *id)
 {
-	struct sc16is7xx_devtype *devtype;
+	const struct sc16is7xx_devtype *devtype;
 	unsigned long flags = 0;
 	struct regmap *regmap;
 
