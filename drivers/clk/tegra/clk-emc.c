@@ -103,7 +103,7 @@ static unsigned long emc_recalc_rate(struct clk_hw *hw,
 	 * CCF wrongly assumes that the parent won't change during set_rate,
 	 * so get the parent rate explicitly.
 	 */
-	parent_rate = __clk_get_rate(__clk_get_parent(hw->clk));
+	parent_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 
 	val = readl(tegra->clk_regs + CLK_SOURCE_EMC);
 	div = val & CLK_SOURCE_EMC_EMC_2X_CLK_DIVISOR_MASK;
@@ -151,7 +151,7 @@ static int emc_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 		return 0;
 	}
 
-	req->rate = __clk_get_rate(hw->clk);
+	req->rate = clk_hw_get_rate(hw);
 	return 0;
 }
 
@@ -314,7 +314,7 @@ static int emc_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	tegra = container_of(hw, struct tegra_clk_emc, hw);
 
-	if (__clk_get_rate(hw->clk) == rate)
+	if (clk_hw_get_rate(hw) == rate)
 		return 0;
 
 	/*
@@ -527,8 +527,8 @@ struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
 	if (IS_ERR(clk))
 		return clk;
 
-	tegra->prev_parent = clk_get_parent_by_index(
-		tegra->hw.clk, emc_get_parent(&tegra->hw));
+	tegra->prev_parent = clk_hw_get_parent_by_index(
+		&tegra->hw, emc_get_parent(&tegra->hw))->clk;
 	tegra->changing_timing = false;
 
 	/* Allow debugging tools to see the EMC clock */
