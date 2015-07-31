@@ -254,24 +254,6 @@ void wf_unregister_control(struct wf_control *ct)
 }
 EXPORT_SYMBOL_GPL(wf_unregister_control);
 
-struct wf_control * wf_find_control(const char *name)
-{
-	struct wf_control *ct;
-
-	mutex_lock(&wf_lock);
-	list_for_each_entry(ct, &wf_controls, link) {
-		if (!strcmp(ct->name, name)) {
-			if (wf_get_control(ct))
-				ct = NULL;
-			mutex_unlock(&wf_lock);
-			return ct;
-		}
-	}
-	mutex_unlock(&wf_lock);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(wf_find_control);
-
 int wf_get_control(struct wf_control *ct)
 {
 	if (!try_module_get(ct->ops->owner))
@@ -367,24 +349,6 @@ void wf_unregister_sensor(struct wf_sensor *sr)
 }
 EXPORT_SYMBOL_GPL(wf_unregister_sensor);
 
-struct wf_sensor * wf_find_sensor(const char *name)
-{
-	struct wf_sensor *sr;
-
-	mutex_lock(&wf_lock);
-	list_for_each_entry(sr, &wf_sensors, link) {
-		if (!strcmp(sr->name, name)) {
-			if (wf_get_sensor(sr))
-				sr = NULL;
-			mutex_unlock(&wf_lock);
-			return sr;
-		}
-	}
-	mutex_unlock(&wf_lock);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(wf_find_sensor);
-
 int wf_get_sensor(struct wf_sensor *sr)
 {
 	if (!try_module_get(sr->ops->owner))
@@ -472,12 +436,6 @@ void wf_clear_overtemp(void)
 	mutex_unlock(&wf_lock);
 }
 EXPORT_SYMBOL_GPL(wf_clear_overtemp);
-
-int wf_is_overtemp(void)
-{
-	return (wf_overtemp != 0);
-}
-EXPORT_SYMBOL_GPL(wf_is_overtemp);
 
 static int __init windfarm_core_init(void)
 {
