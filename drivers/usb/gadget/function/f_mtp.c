@@ -1426,8 +1426,24 @@ struct usb_function *function_alloc_mtp_ptp(struct usb_function_instance *fi,
 					bool mtp_config)
 {
 	struct mtp_instance *fi_mtp = to_fi_mtp(fi);
-	struct mtp_dev *dev = fi_mtp->dev;
+	struct mtp_dev *dev;
 
+	/*
+	 * PTP piggybacks on MTP function so make sure we have
+	 * created MTP function before we associate this PTP
+	 * function with a gadget configuration.
+	 */
+	if (fi_mtp->dev == NULL) {
+		pr_err("Error: Create MTP function before linking"
+				" PTP function with a gadget configuration\n");
+		pr_err("\t1: Delete existing PTP function if any\n");
+		pr_err("\t2: Create MTP function\n");
+		pr_err("\t3: Create and symlink PTP function"
+				" with a gadget configuration\n");
+		return NULL;
+	}
+
+	dev = fi_mtp->dev;
 	dev->function.name = DRIVER_NAME;
 	dev->function.strings = mtp_strings;
 	if (mtp_config) {
