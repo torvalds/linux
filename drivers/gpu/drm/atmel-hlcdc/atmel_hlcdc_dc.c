@@ -486,7 +486,8 @@ static const struct file_operations fops = {
 
 static struct drm_driver atmel_hlcdc_dc_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
-			   DRIVER_MODESET | DRIVER_PRIME,
+			   DRIVER_MODESET | DRIVER_PRIME |
+			   DRIVER_ATOMIC,
 	.preclose = atmel_hlcdc_dc_preclose,
 	.lastclose = atmel_hlcdc_dc_lastclose,
 	.irq_handler = atmel_hlcdc_dc_irq_handler,
