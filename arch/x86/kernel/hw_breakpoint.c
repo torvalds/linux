@@ -291,8 +291,18 @@ static int arch_build_bp_info(struct perf_event *bp)
 		break;
 #endif
 	default:
+		/* AMD range breakpoint */
 		if (!is_power_of_2(bp->attr.bp_len))
 			return -EINVAL;
+		if (bp->attr.bp_addr & (bp->attr.bp_len - 1))
+			return -EINVAL;
+		/*
+		 * It's impossible to use a range breakpoint to fake out
+		 * user vs kernel detection because bp_len - 1 can't
+		 * have the high bit set.  If we ever allow range instruction
+		 * breakpoints, then we'll have to check for kprobe-blacklisted
+		 * addresses anywhere in the range.
+		 */
 		if (!cpu_has_bpext)
 			return -EOPNOTSUPP;
 		info->mask = bp->attr.bp_len - 1;
