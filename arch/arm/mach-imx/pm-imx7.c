@@ -59,6 +59,12 @@
 #define UART_UTS	0xb4
 
 #define MAX_IOMUXC_GPR			23
+#define MAX_UART_IO			4
+
+#define UART_RX_IO	0x128
+#define UART_RX_PAD	0x398
+#define UART_TX_IO	0x12c
+#define UART_TX_PAD	0x39c
 
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
@@ -73,10 +79,12 @@ static void __iomem *ccm_base;
 static void __iomem *lpsr_base;
 static void __iomem *console_base;
 static void __iomem *suspend_ocram_base;
+static void __iomem *iomuxc_base;
 static void (*imx7_suspend_in_ocram_fn)(void __iomem *ocram_vbase);
 struct imx7_cpu_pm_info *pm_info;
 static bool lpsr_enabled;
 static u32 iomuxc_gpr[MAX_IOMUXC_GPR];
+static u32 uart1_io[MAX_UART_IO];
 /*
  * suspend ocram space layout:
  * ======================== high address ======================
@@ -303,6 +311,15 @@ static void imx7_console_save(unsigned int *regs)
 	regs[9] = readl_relaxed(console_base + UART_UTS);
 }
 
+static void imx7_console_io_save(void)
+{
+	/* save uart1 io, driver resume is too late */
+	uart1_io[0] = readl_relaxed(iomuxc_base + UART_RX_IO);
+	uart1_io[1] = readl_relaxed(iomuxc_base + UART_RX_PAD);
+	uart1_io[2] = readl_relaxed(iomuxc_base + UART_TX_IO);
+	uart1_io[3] = readl_relaxed(iomuxc_base + UART_TX_PAD);
+}
+
 static void imx7_console_restore(unsigned int *regs)
 {
 	if (!console_base)
@@ -318,6 +335,15 @@ static void imx7_console_restore(unsigned int *regs)
 	writel_relaxed(regs[1] | 0x1, console_base + UART_UCR2);
 	writel_relaxed(regs[2], console_base + UART_UCR3);
 	writel_relaxed(regs[3], console_base + UART_UCR4);
+}
+
+static void imx7_console_io_restore(void)
+{
+	/* restore uart1 io */
+	writel_relaxed(uart1_io[0], iomuxc_base + UART_RX_IO);
+	writel_relaxed(uart1_io[1], iomuxc_base + UART_RX_PAD);
+	writel_relaxed(uart1_io[2], iomuxc_base + UART_TX_IO);
+	writel_relaxed(uart1_io[3], iomuxc_base + UART_TX_PAD);
 }
 
 static int imx7_suspend_finish(unsigned long val)
@@ -376,6 +402,7 @@ static int imx7_pm_enter(suspend_state_t state)
 			memcpy(ocram_saved_in_ddr, ocram_base, ocram_size);
 			if (lpsr_enabled) {
 				imx7_pm_set_lpsr_resume_addr(pm_info->resume_addr);
+				imx7_console_io_save();
 				memcpy(lpm_ocram_saved_in_ddr, lpm_ocram_base,
 					lpm_ocram_size);
 				imx7_iomuxc_gpr_save();
@@ -386,6 +413,7 @@ static int imx7_pm_enter(suspend_state_t state)
 		cpu_suspend(0, imx7_suspend_finish);
 
 		if (imx7_pm_is_resume_from_lpsr()) {
+			imx7_console_io_restore();
 			memcpy(lpm_ocram_base, lpm_ocram_saved_in_ddr,
 				lpm_ocram_size);
 			imx7_iomuxc_gpr_restore();
@@ -677,6 +705,12 @@ void __init imx7d_pm_init(void)
 		lpm_ocram_size = resource_size(&res);
 		lpm_ocram_saved_in_ddr = kzalloc(lpm_ocram_size, GFP_KERNEL);
 		WARN_ON(!lpm_ocram_saved_in_ddr);
+
+		np = of_find_node_by_path(
+			"/soc/aips-bus@30000000/iomuxc@30330000");
+		if (np)
+			iomuxc_base = of_iomap(np, 0);
+		WARN_ON(!iomuxc_base);
 	}
 
 	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
