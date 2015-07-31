@@ -180,7 +180,11 @@ int arch_check_bp_in_kernelspace(struct perf_event *bp)
 	va = info->address;
 	len = bp->attr.bp_len;
 
-	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
+	/*
+	 * We don't need to worry about va + len - 1 overflowing:
+	 * we already require that va is aligned to a multiple of len.
+	 */
+	return (va >= TASK_SIZE_MAX) || ((va + len - 1) >= TASK_SIZE_MAX);
 }
 
 int arch_bp_generic_fields(int x86_len, int x86_type,
