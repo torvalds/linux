@@ -2463,6 +2463,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_L2MISS]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_L3MISS]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_FLOWBASED]	= { .type = NLA_U8 },
+	[IFLA_VXLAN_COLLECT_METADATA]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_PORT]	= { .type = NLA_U16 },
 	[IFLA_VXLAN_UDP_CSUM]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_UDP_ZERO_CSUM6_TX]	= { .type = NLA_U8 },
@@ -2816,6 +2817,10 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (data[IFLA_VXLAN_FLOWBASED] &&
 	    nla_get_u8(data[IFLA_VXLAN_FLOWBASED]))
 		conf.flags |= VXLAN_F_FLOW_BASED;
+
+	if (data[IFLA_VXLAN_COLLECT_METADATA] &&
+	    nla_get_u8(data[IFLA_VXLAN_COLLECT_METADATA]))
+		conf.flags |= VXLAN_F_COLLECT_METADATA;
 
 	if (data[IFLA_VXLAN_PORT_RANGE]) {
 		const struct ifla_vxlan_port_range *p
