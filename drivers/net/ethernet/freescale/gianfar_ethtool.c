@@ -653,7 +653,6 @@ static void gfar_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	unsigned long flags;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
 	    wol->wolopts != 0)
@@ -664,9 +663,7 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	device_set_wakeup_enable(&dev->dev, wol->wolopts & WAKE_MAGIC);
 
-	spin_lock_irqsave(&priv->bflock, flags);
-	priv->wol_en =  !!device_may_wakeup(&dev->dev);
-	spin_unlock_irqrestore(&priv->bflock, flags);
+	priv->wol_en = !!device_may_wakeup(&dev->dev);
 
 	return 0;
 }

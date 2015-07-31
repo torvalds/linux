@@ -1360,7 +1360,6 @@ static int gfar_probe(struct platform_device *ofdev)
 	priv->dev = &ofdev->dev;
 	SET_NETDEV_DEV(dev, &ofdev->dev);
 
-	spin_lock_init(&priv->bflock);
 	INIT_WORK(&priv->reset_task, gfar_reset_task);
 
 	platform_set_drvdata(ofdev, priv);
@@ -1454,9 +1453,8 @@ static int gfar_probe(struct platform_device *ofdev)
 		goto register_fail;
 	}
 
-	device_init_wakeup(&dev->dev,
-			   priv->device_flags &
-			   FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+	device_set_wakeup_capable(&dev->dev, priv->device_flags &
+				  FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
 	/* fill out IRQ number and name fields */
 	for (i = 0; i < priv->num_grps; i++) {
@@ -2132,8 +2130,6 @@ static int gfar_enet_open(struct net_device *dev)
 	err = startup_gfar(dev);
 	if (err)
 		return err;
-
-	device_set_wakeup_enable(&dev->dev, priv->wol_en);
 
 	return err;
 }
