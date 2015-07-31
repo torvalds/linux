@@ -152,6 +152,20 @@ ssize_t drm_fb_helper_sys_read(struct fb_info *info, char __user *buf,
 ssize_t drm_fb_helper_sys_write(struct fb_info *info, const char __user *buf,
 				size_t count, loff_t *ppos);
 
+void drm_fb_helper_sys_fillrect(struct fb_info *info,
+				const struct fb_fillrect *rect);
+void drm_fb_helper_sys_copyarea(struct fb_info *info,
+				const struct fb_copyarea *area);
+void drm_fb_helper_sys_imageblit(struct fb_info *info,
+				 const struct fb_image *image);
+
+void drm_fb_helper_cfb_fillrect(struct fb_info *info,
+				const struct fb_fillrect *rect);
+void drm_fb_helper_cfb_copyarea(struct fb_info *info,
+				const struct fb_copyarea *area);
+void drm_fb_helper_cfb_imageblit(struct fb_info *info,
+				 const struct fb_image *image);
+
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
