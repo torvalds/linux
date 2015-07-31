@@ -1047,6 +1047,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_netpoll_cleanup	= macvlan_dev_netpoll_cleanup,
 #endif
 	.ndo_get_iflink		= macvlan_dev_get_iflink,
+	.ndo_features_check	= passthru_features_check,
 };
 
 void macvlan_common_setup(struct net_device *dev)
