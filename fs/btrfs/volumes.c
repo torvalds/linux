@@ -1068,7 +1068,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		if (device->bdev) {
 			struct block_device *path_bdev;
 
-			path_bdev = lookup_bdev(path);
+			path_bdev = lookup_bdev(path, 0);
 			if (IS_ERR(path_bdev)) {
 				mutex_unlock(&fs_devices->device_list_mutex);
 				return ERR_CAST(path_bdev);
