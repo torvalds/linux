@@ -1041,6 +1041,12 @@ static int efx_ef10_reset(struct efx_nic *efx, enum reset_type reset_type)
 {
 	int rc = efx_mcdi_reset(efx, reset_type);
 
+	/* Unprivileged functions return -EPERM, but need to return success
+	 * here so that the datapath is brought back up.
+	 */
+	if (reset_type == RESET_TYPE_WORLD && rc == -EPERM)
+		rc = 0;
+
 	/* If it was a port reset, trigger reallocation of MC resources.
 	 * Note that on an MC reset nothing needs to be done now because we'll
 	 * detect the MC reset later and handle it then.
@@ -4324,6 +4330,8 @@ efx_ef10_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 	rc = efx_mcdi_reset(efx, RESET_TYPE_WORLD);
 
 out:
+	if (rc == -EPERM)
+		rc = 0;
 	rc2 = efx_reset_up(efx, RESET_TYPE_WORLD, rc == 0);
 	return rc ? rc : rc2;
 }
