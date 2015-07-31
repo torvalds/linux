@@ -117,6 +117,8 @@ static void __iomem *console_base;
 static void __iomem *suspend_ocram_base;
 static void __iomem *iomuxc_base;
 static void __iomem *gpt1_base;
+static void __iomem *system_counter_ctrl_base;
+static void __iomem *system_counter_cmp_base;
 static void (*imx7_suspend_in_ocram_fn)(void __iomem *ocram_vbase);
 struct imx7_cpu_pm_info *pm_info;
 static bool lpsr_enabled;
@@ -146,6 +148,7 @@ static u32 ccm_root[][2] = {
 static u32 pfd_a, pfd_b;
 static u32 pll[15];
 static u32 gpt1_regs[MAX_GPT];
+static u32 sys_ctrl_reg, sys_cmp_reg;
 /*
  * suspend ocram space layout:
  * ======================== high address ======================
@@ -480,6 +483,18 @@ static void imx7_ccm_restore(void)
 	writel_relaxed(pfd_b, pm_info->anatop_base.vbase + PFD_B_OFFSET);
 }
 
+static void imx7_sys_counter_save(void)
+{
+	sys_ctrl_reg = readl_relaxed(system_counter_ctrl_base);
+	sys_cmp_reg = readl_relaxed(system_counter_cmp_base);
+}
+
+static void imx7_sys_counter_restore(void)
+{
+	writel_relaxed(sys_ctrl_reg, system_counter_ctrl_base);
+	writel_relaxed(sys_cmp_reg, system_counter_cmp_base);
+}
+
 static void imx7_gpt_save(void)
 {
 	gpt1_regs[0] = readl_relaxed(gpt1_base + GPT_CR);
@@ -626,6 +641,7 @@ static int imx7_pm_enter(suspend_state_t state)
 				imx7_iomuxc_gpr_save();
 				imx7_ccm_save();
 				imx7_gpt_save();
+				imx7_sys_counter_save();
 			}
 		}
 
@@ -639,6 +655,7 @@ static int imx7_pm_enter(suspend_state_t state)
 			imx7_iomuxc_gpr_restore();
 			imx7_ccm_restore();
 			imx7_gpt_restore();
+			imx7_sys_counter_restore();
 		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
@@ -939,6 +956,18 @@ void __init imx7d_pm_init(void)
 		if (np)
 			gpt1_base = of_iomap(np, 0);
 		WARN_ON(!gpt1_base);
+
+		np = of_find_node_by_path(
+			"/soc/aips-bus@30400000/system-counter-cmp@306b0000");
+		if (np)
+			system_counter_cmp_base = of_iomap(np, 0);
+		WARN_ON(!system_counter_cmp_base);
+
+		np = of_find_node_by_path(
+			"/soc/aips-bus@30400000/system-counter-ctrl@306c0000");
+		if (np)
+			system_counter_ctrl_base = of_iomap(np, 0);
+		WARN_ON(!system_counter_ctrl_base);
 	}
 
 	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
