@@ -402,19 +402,26 @@ static void gic_cpu_init(struct gic_chip_data *gic)
 	int i;
 
 	/*
-	 * Get what the GIC says our CPU mask is.
+	 * Setting up the CPU map is only relevant for the primary GIC
+	 * because any nested/secondary GICs do not directly interface
+	 * with the CPU(s).
 	 */
-	BUG_ON(cpu >= NR_GIC_CPU_IF);
-	cpu_mask = gic_get_cpumask(gic);
-	gic_cpu_map[cpu] = cpu_mask;
+	if (gic == &gic_data[0]) {
+		/*
+		 * Get what the GIC says our CPU mask is.
+		 */
+		BUG_ON(cpu >= NR_GIC_CPU_IF);
+		cpu_mask = gic_get_cpumask(gic);
+		gic_cpu_map[cpu] = cpu_mask;
 
-	/*
-	 * Clear our mask from the other map entries in case they're
-	 * still undefined.
-	 */
-	for (i = 0; i < NR_GIC_CPU_IF; i++)
-		if (i != cpu)
-			gic_cpu_map[i] &= ~cpu_mask;
+		/*
+		 * Clear our mask from the other map entries in case they're
+		 * still undefined.
+		 */
+		for (i = 0; i < NR_GIC_CPU_IF; i++)
+			if (i != cpu)
+				gic_cpu_map[i] &= ~cpu_mask;
+	}
 
 	gic_cpu_config(dist_base, NULL);
 
@@ -926,13 +933,6 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	}
 
 	/*
-	 * Initialize the CPU interface map to all CPUs.
-	 * It will be refined as each CPU probes its ID.
-	 */
-	for (i = 0; i < NR_GIC_CPU_IF; i++)
-		gic_cpu_map[i] = 0xff;
-
-	/*
 	 * Find out how many interrupts are supported.
 	 * The GIC only supports up to 1020 interrupt sources.
 	 */
@@ -977,6 +977,13 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 		return;
 
 	if (gic_nr == 0) {
+		/*
+		 * Initialize the CPU interface map to all CPUs.
+		 * It will be refined as each CPU probes its ID.
+		 * This is only necessary for the primary GIC.
+		 */
+		for (i = 0; i < NR_GIC_CPU_IF; i++)
+			gic_cpu_map[i] = 0xff;
 #ifdef CONFIG_SMP
 		set_smp_cross_call(gic_raise_softirq);
 		register_cpu_notifier(&gic_cpu_notifier);
