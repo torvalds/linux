@@ -83,6 +83,17 @@ static inline void dra7xx_pcie_writel(struct dra7xx_pcie *pcie, u32 offset,
 	writel(value, pcie->base + offset);
 }
 
+static inline u32 dra7xx_pcie_readl_rc(struct pcie_port *pp, u32 offset)
+{
+	return readl(pp->dbi_base + offset);
+}
+
+static inline void dra7xx_pcie_writel_rc(struct pcie_port *pp, u32 offset,
+					 u32 value)
+{
+	writel(value, pp->dbi_base + offset);
+}
+
 static int dra7xx_pcie_link_up(struct pcie_port *pp)
 {
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pp);
@@ -434,6 +445,34 @@ static int __exit dra7xx_pcie_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static int dra7xx_pcie_suspend(struct device *dev)
+{
+	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
+	struct pcie_port *pp = &dra7xx->pp;
+	u32 val;
+
+	/* clear MSE */
+	val = dra7xx_pcie_readl_rc(pp, PCI_COMMAND);
+	val &= ~PCI_COMMAND_MEMORY;
+	dra7xx_pcie_writel_rc(pp, PCI_COMMAND, val);
+
+	return 0;
+}
+
+static int dra7xx_pcie_resume(struct device *dev)
+{
+	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
+	struct pcie_port *pp = &dra7xx->pp;
+	u32 val;
+
+	/* set MSE */
+	val = dra7xx_pcie_readl_rc(pp, PCI_COMMAND);
+	val |= PCI_COMMAND_MEMORY;
+	dra7xx_pcie_writel_rc(pp, PCI_COMMAND, val);
+
+	return 0;
+}
+
 static int dra7xx_pcie_suspend_noirq(struct device *dev)
 {
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
@@ -479,6 +518,7 @@ err_phy:
 #endif
 
 static const struct dev_pm_ops dra7xx_pcie_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend, dra7xx_pcie_resume)
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_noirq,
 				      dra7xx_pcie_resume_noirq)
 };
