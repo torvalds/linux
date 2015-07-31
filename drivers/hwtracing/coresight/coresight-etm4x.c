@@ -506,8 +506,11 @@ static ssize_t reset_store(struct device *dev,
 	}
 
 	drvdata->ctxid_idx = 0x0;
-	for (i = 0; i < drvdata->numcidc; i++)
+	for (i = 0; i < drvdata->numcidc; i++) {
 		drvdata->ctxid_pid[i] = 0x0;
+		drvdata->ctxid_vpid[i] = 0x0;
+	}
+
 	drvdata->ctxid_mask0 = 0x0;
 	drvdata->ctxid_mask1 = 0x0;
 
@@ -1825,7 +1828,7 @@ static ssize_t ctxid_pid_show(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = drvdata->ctxid_idx;
-	val = (unsigned long)drvdata->ctxid_pid[idx];
+	val = (unsigned long)drvdata->ctxid_vpid[idx];
 	spin_unlock(&drvdata->spinlock);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
@@ -1835,7 +1838,7 @@ static ssize_t ctxid_pid_store(struct device *dev,
 			       const char *buf, size_t size)
 {
 	u8 idx;
-	unsigned long val;
+	unsigned long vpid, pid;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	/*
@@ -1845,12 +1848,15 @@ static ssize_t ctxid_pid_store(struct device *dev,
 	 */
 	if (!drvdata->ctxid_size || !drvdata->numcidc)
 		return -EINVAL;
-	if (kstrtoul(buf, 16, &val))
+	if (kstrtoul(buf, 16, &vpid))
 		return -EINVAL;
+
+	pid = coresight_vpid_to_pid(vpid);
 
 	spin_lock(&drvdata->spinlock);
 	idx = drvdata->ctxid_idx;
-	drvdata->ctxid_pid[idx] = (u64)val;
+	drvdata->ctxid_pid[idx] = (u64)pid;
+	drvdata->ctxid_vpid[idx] = (u64)vpid;
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -2513,8 +2519,11 @@ static void etm4_init_default_data(struct etmv4_drvdata *drvdata)
 		drvdata->addr_type[1] = ETM_ADDR_TYPE_RANGE;
 	}
 
-	for (i = 0; i < drvdata->numcidc; i++)
+	for (i = 0; i < drvdata->numcidc; i++) {
 		drvdata->ctxid_pid[i] = 0x0;
+		drvdata->ctxid_vpid[i] = 0x0;
+	}
+
 	drvdata->ctxid_mask0 = 0x0;
 	drvdata->ctxid_mask1 = 0x0;
 
