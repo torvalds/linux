@@ -3379,6 +3379,72 @@ static bool rcu_exp_gp_seq_done(struct rcu_state *rsp, unsigned long s)
 	return rcu_seq_done(&rsp->expedited_sequence, s);
 }
 
+/*
+ * Return non-zero if there are any tasks in RCU read-side critical
+ * sections blocking the current preemptible-RCU expedited grace period.
+ * If there is no preemptible-RCU expedited grace period currently in
+ * progress, returns zero unconditionally.
+ */
+static int rcu_preempted_readers_exp(struct rcu_node *rnp)
+{
+	return rnp->exp_tasks != NULL;
+}
+
+/*
+ * return non-zero if there is no RCU expedited grace period in progress
+ * for the specified rcu_node structure, in other words, if all CPUs and
+ * tasks covered by the specified rcu_node structure have done their bit
+ * for the current expedited grace period.  Works only for preemptible
+ * RCU -- other RCU implementation use other means.
+ *
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
+ */
+static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
+{
+	return !rcu_preempted_readers_exp(rnp) &&
+	       READ_ONCE(rnp->expmask) == 0;
+}
+
+/*
+ * Report the exit from RCU read-side critical section for the last task
+ * that queued itself during or before the current expedited preemptible-RCU
+ * grace period.  This event is reported either to the rcu_node structure on
+ * which the task was queued or to one of that rcu_node structure's ancestors,
+ * recursively up the tree.  (Calm down, calm down, we do the recursion
+ * iteratively!)
+ *
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
+ */
+static void __maybe_unused rcu_report_exp_rnp(struct rcu_state *rsp,
+					      struct rcu_node *rnp, bool wake)
+{
+	unsigned long flags;
+	unsigned long mask;
+
+	raw_spin_lock_irqsave(&rnp->lock, flags);
+	smp_mb__after_unlock_lock();
+	for (;;) {
+		if (!sync_rcu_preempt_exp_done(rnp)) {
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
+			break;
+		}
+		if (rnp->parent == NULL) {
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
+			if (wake) {
+				smp_mb(); /* EGP done before wake_up(). */
+				wake_up(&rsp->expedited_wq);
+			}
+			break;
+		}
+		mask = rnp->grpmask;
+		raw_spin_unlock(&rnp->lock); /* irqs remain disabled */
+		rnp = rnp->parent;
+		raw_spin_lock(&rnp->lock); /* irqs already disabled */
+		smp_mb__after_unlock_lock();
+		rnp->expmask &= ~mask;
+	}
+}
+
 /* Common code for synchronize_{rcu,sched}_expedited() work-done checking. */
 static bool sync_exp_work_done(struct rcu_state *rsp, struct rcu_node *rnp,
 			       struct rcu_data *rdp,
