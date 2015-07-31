@@ -58,6 +58,8 @@
 #define UART_UBRC	0xac
 #define UART_UTS	0xb4
 
+#define MAX_IOMUXC_GPR			23
+
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
 
@@ -74,6 +76,7 @@ static void __iomem *suspend_ocram_base;
 static void (*imx7_suspend_in_ocram_fn)(void __iomem *ocram_vbase);
 struct imx7_cpu_pm_info *pm_info;
 static bool lpsr_enabled;
+static u32 iomuxc_gpr[MAX_IOMUXC_GPR];
 /*
  * suspend ocram space layout:
  * ======================== high address ======================
@@ -265,6 +268,24 @@ static const char * const low_power_ocram_match[] __initconst = {
 	NULL
 };
 
+static void imx7_iomuxc_gpr_save(void)
+{
+	u32 i;
+
+	for (i = 0; i < MAX_IOMUXC_GPR; i++)
+		iomuxc_gpr[i] = readl_relaxed(
+			pm_info->iomuxc_gpr_base.vbase + i * 4);
+}
+
+static void imx7_iomuxc_gpr_restore(void)
+{
+	u32 i;
+
+	for (i = 0; i < MAX_IOMUXC_GPR; i++)
+		writel_relaxed(iomuxc_gpr[i],
+			pm_info->iomuxc_gpr_base.vbase + i * 4);
+}
+
 static void imx7_console_save(unsigned int *regs)
 {
 	if (!console_base)
@@ -357,15 +378,18 @@ static int imx7_pm_enter(suspend_state_t state)
 				imx7_pm_set_lpsr_resume_addr(pm_info->resume_addr);
 				memcpy(lpm_ocram_saved_in_ddr, lpm_ocram_base,
 					lpm_ocram_size);
+				imx7_iomuxc_gpr_save();
 			}
 		}
 
 		/* Zzz ... */
 		cpu_suspend(0, imx7_suspend_finish);
 
-		if (imx7_pm_is_resume_from_lpsr())
+		if (imx7_pm_is_resume_from_lpsr()) {
 			memcpy(lpm_ocram_base, lpm_ocram_saved_in_ddr,
 				lpm_ocram_size);
+			imx7_iomuxc_gpr_restore();
+		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
 			memcpy(ocram_base, ocram_saved_in_ddr, ocram_size);
