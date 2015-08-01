@@ -347,6 +347,7 @@ enum {
 	IDE = 0,
 	SCSI,
 	NIC,
+	ND_NIC,
 	MAX_PERF_CHN,
 };
 
