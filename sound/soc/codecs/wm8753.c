@@ -138,11 +138,6 @@ static bool wm8753_volatile(struct device *dev, unsigned int reg)
 	return reg == WM8753_RESET;
 }
 
-static bool wm8753_writeable(struct device *dev, unsigned int reg)
-{
-	return reg <= WM8753_ADCTL2;
-}
-
 /* codec private data */
 struct wm8753_priv {
 	struct regmap *regmap;
@@ -1510,7 +1505,6 @@ static const struct regmap_config wm8753_regmap = {
 	.val_bits = 9,
 
 	.max_register = WM8753_ADCTL2,
-	.writeable_reg = wm8753_writeable,
 	.volatile_reg = wm8753_volatile,
 
 	.cache_type = REGCACHE_RBTREE,
