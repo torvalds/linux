@@ -1152,9 +1152,6 @@ struct gfar_private {
 	int oldduplex;
 	int oldlink;
 
-	/* Bitfield update lock */
-	spinlock_t bflock;
-
 	uint32_t msg_enable;
 
 	struct work_struct reset_task;

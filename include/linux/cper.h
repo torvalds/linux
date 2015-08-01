@@ -340,7 +340,27 @@ struct cper_ia_proc_ctx {
 	__u64	mm_reg_addr;
 };
 
-/* Memory Error Section */
+/* Old Memory Error Section UEFI 2.1, 2.2 */
+struct cper_sec_mem_err_old {
+	__u64	validation_bits;
+	__u64	error_status;
+	__u64	physical_addr;
+	__u64	physical_addr_mask;
+	__u16	node;
+	__u16	card;
+	__u16	module;
+	__u16	bank;
+	__u16	device;
+	__u16	row;
+	__u16	column;
+	__u16	bit_pos;
+	__u64	requestor_id;
+	__u64	responder_id;
+	__u64	target_id;
+	__u8	error_type;
+};
+
+/* Memory Error Section UEFI >= 2.3 */
 struct cper_sec_mem_err {
 	__u64	validation_bits;
 	__u64	error_status;

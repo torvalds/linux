@@ -979,7 +979,7 @@ nv50_crtc_cursor_show_hide(struct nouveau_crtc *nv_crtc, bool show, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
 
-	if (show && nv_crtc->cursor.nvbo)
+	if (show && nv_crtc->cursor.nvbo && nv_crtc->base.enabled)
 		nv50_crtc_cursor_show(nv_crtc);
 	else
 		nv50_crtc_cursor_hide(nv_crtc);

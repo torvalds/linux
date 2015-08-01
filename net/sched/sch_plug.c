@@ -216,6 +216,7 @@ static struct Qdisc_ops plug_qdisc_ops __read_mostly = {
 	.peek        =       qdisc_peek_head,
 	.init        =       plug_init,
 	.change      =       plug_change,
+	.reset       =	     qdisc_reset_queue,
 	.owner       =       THIS_MODULE,
 };
 

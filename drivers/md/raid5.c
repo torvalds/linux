@@ -2162,6 +2162,9 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	if (!sc)
 		return -ENOMEM;
 
+	/* Need to ensure auto-resizing doesn't interfere */
+	mutex_lock(&conf->cache_size_mutex);
+
 	for (i = conf->max_nr_stripes; i; i--) {
 		nsh = alloc_stripe(sc, GFP_KERNEL);
 		if (!nsh)
@@ -2178,6 +2181,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 			kmem_cache_free(sc, nsh);
 		}
 		kmem_cache_destroy(sc);
+		mutex_unlock(&conf->cache_size_mutex);
 		return -ENOMEM;
 	}
 	/* Step 2 - Must use GFP_NOIO now.
@@ -2224,6 +2228,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	} else
 		err = -ENOMEM;
 
+	mutex_unlock(&conf->cache_size_mutex);
 	/* Step 4, return new stripes to service */
 	while(!list_empty(&newstripes)) {
 		nsh = list_entry(newstripes.next, struct stripe_head, lru);
@@ -4061,8 +4066,10 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 				 &first_bad, &bad_sectors))
 			set_bit(R5_ReadRepl, &dev->flags);
 		else {
-			if (rdev)
+			if (rdev && !test_bit(Faulty, &rdev->flags))
 				set_bit(R5_NeedReplace, &dev->flags);
+			else
+				clear_bit(R5_NeedReplace, &dev->flags);
 			rdev = rcu_dereference(conf->disks[i].rdev);
 			clear_bit(R5_ReadRepl, &dev->flags);
 		}
@@ -5857,12 +5864,14 @@ static void raid5d(struct md_thread *thread)
 	pr_debug("%d stripes handled\n", handled);
 
 	spin_unlock_irq(&conf->device_lock);
-	if (test_and_clear_bit(R5_ALLOC_MORE, &conf->cache_state)) {
+	if (test_and_clear_bit(R5_ALLOC_MORE, &conf->cache_state) &&
+	    mutex_trylock(&conf->cache_size_mutex)) {
 		grow_one_stripe(conf, __GFP_NOWARN);
 		/* Set flag even if allocation failed.  This helps
 		 * slow down allocation requests when mem is short
 		 */
 		set_bit(R5_DID_ALLOC, &conf->cache_state);
+		mutex_unlock(&conf->cache_size_mutex);
 	}
 
 	async_tx_issue_pending_all();
@@ -5894,18 +5903,22 @@ raid5_set_cache_size(struct mddev *mddev, int size)
 		return -EINVAL;
 
 	conf->min_nr_stripes = size;
+	mutex_lock(&conf->cache_size_mutex);
 	while (size < conf->max_nr_stripes &&
 	       drop_one_stripe(conf))
 		;
+	mutex_unlock(&conf->cache_size_mutex);
 
 
 	err = md_allow_write(mddev);
 	if (err)
 		return err;
 
+	mutex_lock(&conf->cache_size_mutex);
 	while (size > conf->max_nr_stripes)
 		if (!grow_one_stripe(conf, GFP_KERNEL))
 			break;
+	mutex_unlock(&conf->cache_size_mutex);
 
 	return 0;
 }
@@ -6371,11 +6384,18 @@ static unsigned long raid5_cache_scan(struct shrinker *shrink,
 				      struct shrink_control *sc)
 {
 	struct r5conf *conf = container_of(shrink, struct r5conf, shrinker);
-	int ret = 0;
-	while (ret < sc->nr_to_scan) {
-		if (drop_one_stripe(conf) == 0)
-			return SHRINK_STOP;
-		ret++;
+	unsigned long ret = SHRINK_STOP;
+
+	if (mutex_trylock(&conf->cache_size_mutex)) {
+		ret= 0;
+		while (ret < sc->nr_to_scan) {
+			if (drop_one_stripe(conf) == 0) {
+				ret = SHRINK_STOP;
+				break;
+			}
+			ret++;
+		}
+		mutex_unlock(&conf->cache_size_mutex);
 	}
 	return ret;
 }
@@ -6444,6 +6464,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		goto abort;
 	spin_lock_init(&conf->device_lock);
 	seqcount_init(&conf->gen_lock);
+	mutex_init(&conf->cache_size_mutex);
 	init_waitqueue_head(&conf->wait_for_quiescent);
 	for (i = 0; i < NR_STRIPE_HASH_LOCKS; i++) {
 		init_waitqueue_head(&conf->wait_for_stripe[i]);
