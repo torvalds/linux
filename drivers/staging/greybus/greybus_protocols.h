@@ -678,7 +678,7 @@ struct gb_uart_recv_data_request {
 	__le16	size;
 	__u8	flags;
 	__u8	data[0];
-};
+} __packed;
 
 struct gb_uart_set_line_coding_request {
 	__le32	rate;
@@ -695,7 +695,7 @@ struct gb_uart_set_line_coding_request {
 #define GB_SERIAL_SPACE_PARITY			4
 
 	__u8	data_bits;
-};
+} __packed;
 
 /* output control lines */
 #define GB_UART_CTRL_DTR			0x01
