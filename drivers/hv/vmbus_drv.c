@@ -1120,6 +1120,7 @@ static void __exit vmbus_exit(void)
 		tasklet_kill(hv_context.event_dpc[cpu]);
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
 	}
+	hv_synic_free();
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
 	hv_cpu_hotplug_quirk(false);
 }
