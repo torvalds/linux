@@ -845,7 +845,7 @@ struct gb_sdio_set_ios_request {
 #define GB_SDIO_SET_DRIVER_TYPE_A	0x01
 #define GB_SDIO_SET_DRIVER_TYPE_C	0x02
 #define GB_SDIO_SET_DRIVER_TYPE_D	0x03
-};
+} __packed;
 
 /* command request */
 struct gb_sdio_command_request {
@@ -865,7 +865,7 @@ struct gb_sdio_command_request {
 #define GB_SDIO_CMD_BC		0x03
 
 	__le32	cmd_arg;
-};
+} __packed;
 
 struct gb_sdio_command_response {
 	__le32	resp[4];
@@ -881,7 +881,7 @@ struct gb_sdio_transfer_request {
 	__le16	data_blocks;
 	__le16	data_blksz;
 	__u8	data[0];
-};
+} __packed;
 
 struct gb_sdio_transfer_response {
 	__le16	data_blocks;
