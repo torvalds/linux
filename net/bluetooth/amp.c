@@ -379,7 +379,7 @@ static bool amp_write_rem_assoc_frag(struct hci_dev *hdev,
 	amp_ctrl_put(ctrl);
 
 	hci_req_init(&req, hdev);
-	hci_req_add(&req, HCI_OP_WRITE_REMOTE_AMP_ASSOC, sizeof(cp), &cp);
+	hci_req_add(&req, HCI_OP_WRITE_REMOTE_AMP_ASSOC, len, cp);
 	hci_req_run_skb(&req, write_remote_amp_assoc_complete);
 
 	kfree(cp);
