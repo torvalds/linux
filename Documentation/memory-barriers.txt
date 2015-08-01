@@ -1789,7 +1789,6 @@ The Linux kernel has a number of locking constructs:
  (*) mutexes
  (*) semaphores
  (*) R/W semaphores
- (*) RCU
 
 In all cases there are variants on "ACQUIRE" operations and "RELEASE" operations
 for each construct.  These operations all imply certain barriers:
