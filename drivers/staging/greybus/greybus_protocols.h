@@ -571,7 +571,7 @@ struct gb_spi_transfer_request {
 	__u8			chip_select;	/* of the spi device */
 	__u8			mode;		/* of the spi device */
 	__le16			count;
-	struct gb_spi_transfer	transfers[0];	/* trnasfer_count of these */
+	struct gb_spi_transfer	transfers[0];	/* count of these */
 };
 
 struct gb_spi_transfer_response {
