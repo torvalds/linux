@@ -549,8 +549,6 @@ exit_nofree:
 	return entry;
 
 exit_free:
-	if (entry->rule.watch)
-		audit_put_watch(entry->rule.watch); /* matches initial get */
 	if (entry->rule.tree)
 		audit_put_tree(entry->rule.tree); /* that's the temporary one */
 	audit_free_rule(entry);
@@ -881,7 +879,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 		/* normally audit_add_tree_rule() will free it on failure */
 		if (tree)
 			audit_put_tree(tree);
-		goto error;
+		return err;
 	}
 
 	if (watch) {
@@ -895,14 +893,14 @@ static inline int audit_add_rule(struct audit_entry *entry)
 			 */
 			if (tree)
 				audit_put_tree(tree);
-			goto error;
+			return err;
 		}
 	}
 	if (tree) {
 		err = audit_add_tree_rule(&entry->rule);
 		if (err) {
 			mutex_unlock(&audit_filter_mutex);
-			goto error;
+			return err;
 		}
 	}
 
@@ -933,11 +931,6 @@ static inline int audit_add_rule(struct audit_entry *entry)
 #endif
 	mutex_unlock(&audit_filter_mutex);
 
- 	return 0;
-
-error:
-	if (watch)
-		audit_put_watch(watch); /* tmp watch, matches initial get */
 	return err;
 }
 
@@ -945,7 +938,6 @@ error:
 static inline int audit_del_rule(struct audit_entry *entry)
 {
 	struct audit_entry  *e;
-	struct audit_watch *watch = entry->rule.watch;
 	struct audit_tree *tree = entry->rule.tree;
 	struct list_head *list;
 	int ret = 0;
@@ -986,8 +978,6 @@ static inline int audit_del_rule(struct audit_entry *entry)
 	mutex_unlock(&audit_filter_mutex);
 
 out:
-	if (watch)
-		audit_put_watch(watch); /* match initial get */
 	if (tree)
 		audit_put_tree(tree);	/* that's the temporary one */
 
