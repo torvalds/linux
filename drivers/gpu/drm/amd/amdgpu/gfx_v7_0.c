@@ -5122,7 +5122,7 @@ static void gfx_v7_0_print_status(void *handle)
 		dev_info(adev->dev, "  CP_HPD_EOP_CONTROL=0x%08X\n",
 			 RREG32(mmCP_HPD_EOP_CONTROL));
 
-		for (queue = 0; queue < 8; i++) {
+		for (queue = 0; queue < 8; queue++) {
 			cik_srbm_select(adev, me, pipe, queue, 0);
 			dev_info(adev->dev, "  queue: %d\n", queue);
 			dev_info(adev->dev, "  CP_PQ_WPTR_POLL_CNTL=0x%08X\n",
