@@ -486,6 +486,26 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
                              Device Matching
    -------------------------------------------------------------------------- */
 
+static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
+						      const struct device *dev)
+{
+	struct mutex *physical_node_lock = &adev->physical_node_lock;
+
+	mutex_lock(physical_node_lock);
+	if (list_empty(&adev->physical_node_list)) {
+		adev = NULL;
+	} else {
+		const struct acpi_device_physical_node *node;
+
+		node = list_first_entry(&adev->physical_node_list,
+					struct acpi_device_physical_node, node);
+		if (node->dev != dev)
+			adev = NULL;
+	}
+	mutex_unlock(physical_node_lock);
+	return adev;
+}
+
 /**
  * acpi_device_is_first_physical_node - Is given dev first physical node
  * @adev: ACPI companion device
@@ -500,19 +520,7 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 bool acpi_device_is_first_physical_node(struct acpi_device *adev,
 					const struct device *dev)
 {
-	bool ret = false;
-
-	mutex_lock(&adev->physical_node_lock);
-	if (!list_empty(&adev->physical_node_list)) {
-		const struct acpi_device_physical_node *node;
-
-		node = list_first_entry(&adev->physical_node_list,
-					struct acpi_device_physical_node, node);
-		ret = node->dev == dev;
-	}
-	mutex_unlock(&adev->physical_node_lock);
-
-	return ret;
+	return !!acpi_primary_dev_companion(adev, dev);
 }
 
 /*
@@ -539,7 +547,6 @@ bool acpi_device_is_first_physical_node(struct acpi_device *adev,
 struct acpi_device *acpi_companion_match(const struct device *dev)
 {
 	struct acpi_device *adev;
-	struct mutex *physical_node_lock;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
@@ -548,21 +555,7 @@ struct acpi_device *acpi_companion_match(const struct device *dev)
 	if (list_empty(&adev->pnp.ids))
 		return NULL;
 
-	physical_node_lock = &adev->physical_node_lock;
-	mutex_lock(physical_node_lock);
-	if (list_empty(&adev->physical_node_list)) {
-		adev = NULL;
-	} else {
-		const struct acpi_device_physical_node *node;
-
-		node = list_first_entry(&adev->physical_node_list,
-					struct acpi_device_physical_node, node);
-		if (node->dev != dev)
-			adev = NULL;
-	}
-	mutex_unlock(physical_node_lock);
-
-	return adev;
+	return acpi_primary_dev_companion(adev, dev);
 }
 
 /**
