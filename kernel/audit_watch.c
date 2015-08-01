@@ -391,11 +391,12 @@ static void audit_add_to_parent(struct audit_krule *krule,
 
 		audit_get_watch(w);
 		krule->watch = watch = w;
+
+		audit_put_parent(parent);
 		break;
 	}
 
 	if (!watch_found) {
-		audit_get_parent(parent);
 		watch->parent = parent;
 
 		audit_get_watch(watch);
@@ -435,9 +436,6 @@ int audit_add_watch(struct audit_krule *krule, struct list_head **list)
 	}
 
 	audit_add_to_parent(krule, parent);
-
-	/* match get in audit_find_parent or audit_init_parent */
-	audit_put_parent(parent);
 
 	h = audit_hash_ino((u32)watch->ino);
 	*list = &audit_inode_hash[h];
