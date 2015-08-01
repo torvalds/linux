@@ -635,6 +635,13 @@ config TRACE_ENUM_MAP_FILE
 
 	If unsure, say N
 
+config TRACING_EVENTS_GPIO
+	bool "Trace gpio events"
+	depends on GPIOLIB
+	default y
+	help
+	  Enable tracing events for gpio subsystem
+
 endif # FTRACE
 
 endif # TRACING_SUPPORT
