@@ -558,6 +558,17 @@ config DIGICOLOR_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called digicolor_wdt.
 
+config LPC18XX_WATCHDOG
+	tristate "LPC18xx/43xx Watchdog"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in NXP LPC SoCs family, which includes LPC18xx/LPC43xx
+	  processors.
+	  To compile this driver as a module, choose M here: the
+	  module will be called lpc18xx_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
