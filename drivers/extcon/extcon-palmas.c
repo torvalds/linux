@@ -200,7 +200,6 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);
 	if (status) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
-		kfree(palmas_usb->edev->name);
 		return status;
 	}
 
@@ -214,7 +213,6 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->id_irq, status);
-			kfree(palmas_usb->edev->name);
 			return status;
 		}
 	}
@@ -229,22 +227,12 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		if (status < 0) {
 			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->vbus_irq, status);
-			kfree(palmas_usb->edev->name);
 			return status;
 		}
 	}
 
 	palmas_enable_irq(palmas_usb);
 	device_set_wakeup_capable(&pdev->dev, true);
-	return 0;
-}
-
-static int palmas_usb_remove(struct platform_device *pdev)
-{
-	struct palmas_usb *palmas_usb = platform_get_drvdata(pdev);
-
-	kfree(palmas_usb->edev->name);
-
 	return 0;
 }
 
@@ -288,7 +276,6 @@ static const struct of_device_id of_palmas_match_tbl[] = {
 
 static struct platform_driver palmas_usb_driver = {
 	.probe = palmas_usb_probe,
-	.remove = palmas_usb_remove,
 	.driver = {
 		.name = "palmas-usb",
 		.of_match_table = of_palmas_match_tbl,
