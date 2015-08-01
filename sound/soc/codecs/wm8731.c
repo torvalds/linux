@@ -79,11 +79,6 @@ static bool wm8731_volatile(struct device *dev, unsigned int reg)
 	return reg == WM8731_RESET;
 }
 
-static bool wm8731_writeable(struct device *dev, unsigned int reg)
-{
-	return reg <= WM8731_RESET;
-}
-
 #define wm8731_reset(m)	regmap_write(m, WM8731_RESET, 0)
 
 static const char *wm8731_input_select[] = {"Line In", "Mic"};
@@ -655,7 +650,6 @@ static const struct regmap_config wm8731_regmap = {
 
 	.max_register = WM8731_RESET,
 	.volatile_reg = wm8731_volatile,
-	.writeable_reg = wm8731_writeable,
 
 	.cache_type = REGCACHE_RBTREE,
 	.reg_defaults = wm8731_reg_defaults,
