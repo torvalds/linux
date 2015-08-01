@@ -266,7 +266,7 @@ int ipu_irq_unmap(unsigned int source)
 }
 
 /* Chained IRQ handler for IPU error interrupt */
-static void ipu_irq_err(unsigned int irq, struct irq_desc *desc)
+static void ipu_irq_err(unsigned int __irq, struct irq_desc *desc)
 {
 	struct ipu *ipu = irq_desc_get_handler_data(desc);
 	u32 status;
@@ -286,6 +286,7 @@ static void ipu_irq_err(unsigned int irq, struct irq_desc *desc)
 		raw_spin_unlock(&bank_lock);
 		while ((line = ffs(status))) {
 			struct ipu_irq_map *map;
+			unsigned int irq;
 
 			line--;
 			status &= ~(1UL << line);
@@ -307,7 +308,7 @@ static void ipu_irq_err(unsigned int irq, struct irq_desc *desc)
 }
 
 /* Chained IRQ handler for IPU function interrupt */
-static void ipu_irq_fn(unsigned int irq, struct irq_desc *desc)
+static void ipu_irq_fn(unsigned int __irq, struct irq_desc *desc)
 {
 	struct ipu *ipu = irq_desc_get_handler_data(desc);
 	u32 status;
@@ -323,6 +324,7 @@ static void ipu_irq_fn(unsigned int irq, struct irq_desc *desc)
 		raw_spin_unlock(&bank_lock);
 		while ((line = ffs(status))) {
 			struct ipu_irq_map *map;
+			unsigned int irq;
 
 			line--;
 			status &= ~(1UL << line);
