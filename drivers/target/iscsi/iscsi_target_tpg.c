@@ -226,6 +226,7 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->default_erl = TA_DEFAULT_ERL;
 	a->t10_pi = TA_DEFAULT_T10_PI;
 	a->fabric_prot_type = TA_DEFAULT_FABRIC_PROT_TYPE;
+	a->tpg_enabled_sendtargets = TA_DEFAULT_TPG_ENABLED_SENDTARGETS;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -889,6 +890,24 @@ int iscsit_ta_fabric_prot_type(
 	a->fabric_prot_type = prot_type;
 	pr_debug("iSCSI_TPG[%hu] - T10 Fabric Protection Type: %u\n",
 		 tpg->tpgt, prot_type);
+
+	return 0;
+}
+
+int iscsit_ta_tpg_enabled_sendtargets(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->tpg_enabled_sendtargets = flag;
+	pr_debug("iSCSI_TPG[%hu] - TPG enabled bit required for SendTargets:"
+		" %s\n", tpg->tpgt, (a->tpg_enabled_sendtargets) ? "ON" : "OFF");
 
 	return 0;
 }

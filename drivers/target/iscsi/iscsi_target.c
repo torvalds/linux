@@ -3398,6 +3398,7 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 	int target_name_printed;
 	unsigned char buf[ISCSI_IQN_LEN+12]; /* iqn + "TargetName=" + \0 */
 	unsigned char *text_in = cmd->text_in_ptr, *text_ptr = NULL;
+	bool active;
 
 	buffer_len = min(conn->conn_ops->MaxRecvDataSegmentLength,
 			 SENDTARGETS_BUF_LIMIT);
@@ -3451,12 +3452,11 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 			}
 
 			spin_lock(&tpg->tpg_state_lock);
-			if ((tpg->tpg_state == TPG_STATE_FREE) ||
-			    (tpg->tpg_state == TPG_STATE_INACTIVE)) {
-				spin_unlock(&tpg->tpg_state_lock);
-				continue;
-			}
+			active = (tpg->tpg_state == TPG_STATE_ACTIVE);
 			spin_unlock(&tpg->tpg_state_lock);
+
+			if (!active && tpg->tpg_attrib.tpg_enabled_sendtargets)
+				continue;
 
 			spin_lock(&tpg->tpg_np_lock);
 			list_for_each_entry(tpg_np, &tpg->tpg_gnp_list,
