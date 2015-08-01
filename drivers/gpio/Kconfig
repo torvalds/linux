@@ -130,6 +130,7 @@ config GPIO_BRCMSTB
 	default y if ARCH_BRCMSTB
 	depends on OF_GPIO && (ARCH_BRCMSTB || COMPILE_TEST)
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
 
