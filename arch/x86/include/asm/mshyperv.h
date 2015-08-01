@@ -7,6 +7,7 @@
 
 struct ms_hyperv_info {
 	u32 features;
+	u32 misc_features;
 	u32 hints;
 };
 
