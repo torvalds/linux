@@ -123,6 +123,21 @@ struct skl_cpr_cfg {
 	struct skl_cpr_gtw_cfg gtw_cfg;
 } __packed;
 
+
+struct skl_src_module_cfg {
+	struct skl_base_cfg base_cfg;
+	enum skl_s_freq src_cfg;
+} __packed;
+
+struct skl_up_down_mixer_cfg {
+	struct skl_base_cfg base_cfg;
+	enum skl_ch_cfg out_ch_cfg;
+	/* This should be set to 1 if user coefficients are required */
+	u32 coeff_sel;
+	/* Pass the user coeff in this array */
+	s32 coeff[UP_DOWN_MIXER_MAX_COEFF];
+} __packed;
+
 enum skl_dma_type {
 	SKL_DMA_HDA_HOST_OUTPUT_CLASS = 0,
 	SKL_DMA_HDA_HOST_INPUT_CLASS = 1,
@@ -247,5 +262,6 @@ struct skl_module_cfg {
 	struct skl_pipe *pipe;
 	struct skl_specific_cfg formats_config;
 };
+
 enum skl_bitdepth skl_get_bit_depth(int params);
 #endif

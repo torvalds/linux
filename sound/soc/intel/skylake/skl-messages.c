@@ -381,6 +381,47 @@ static void skl_setup_out_format(struct skl_sst *ctx,
 }
 
 /*
+ * DSP needs SRC module for frequency conversion, SRC takes base module
+ * configuration and the target frequency as extra parameter passed as src
+ * config
+ */
+static void skl_set_src_format(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig,
+			struct skl_src_module_cfg *src_mconfig)
+{
+	struct skl_module_fmt *fmt = &mconfig->out_fmt;
+
+	skl_set_base_module_format(ctx, mconfig,
+		(struct skl_base_cfg *)src_mconfig);
+
+	src_mconfig->src_cfg = fmt->s_freq;
+}
+
+/*
+ * DSP needs updown module to do channel conversion. updown module take base
+ * module configuration and channel configuration
+ * It also take coefficients and now we have defaults applied here
+ */
+static void skl_set_updown_mixer_format(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig,
+			struct skl_up_down_mixer_cfg *mixer_mconfig)
+{
+	struct skl_module_fmt *fmt = &mconfig->out_fmt;
+	int i = 0;
+
+	skl_set_base_module_format(ctx,	mconfig,
+		(struct skl_base_cfg *)mixer_mconfig);
+	mixer_mconfig->out_ch_cfg = fmt->ch_cfg;
+
+	/* Select F/W default coefficient */
+	mixer_mconfig->coeff_sel = 0x0;
+
+	/* User coeff, don't care since we are selecting F/W defaults */
+	for (i = 0; i < UP_DOWN_MIXER_MAX_COEFF; i++)
+		mixer_mconfig->coeff[i] = 0xDEADBEEF;
+}
+
+/*
  * 'copier' is DSP internal module which copies data from Host DMA (HDA host
  * dma) or link (hda link, SSP, PDM)
  * Here we calculate the copier module parameters, like PCM format, output
@@ -411,6 +452,12 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 		param_size += mconfig->formats_config.caps_size;
 		return param_size;
 
+	case SKL_MODULE_TYPE_SRCINT:
+		return sizeof(struct skl_src_module_cfg);
+
+	case SKL_MODULE_TYPE_UPDWMIX:
+		return sizeof(struct skl_up_down_mixer_cfg);
+
 	default:
 		/*
 		 * return only base cfg when no specific module type is
@@ -423,11 +470,12 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 }
 
 /*
- * DSP firmware supports various modules like copier etc. These modules
- * required various parameters to be calculated and sent for the module
- * initialization to DSP. By default a generic module needs only base module
- * format configuration
+ * DSP firmware supports various modules like copier, SRC, updown etc.
+ * These modules required various parameters to be calculated and sent for
+ * the module initialization to DSP. By default a generic module needs only
+ * base module format configuration
  */
+
 static int skl_set_module_format(struct skl_sst *ctx,
 			struct skl_module_cfg *module_config,
 			u16 *module_config_size,
@@ -446,6 +494,14 @@ static int skl_set_module_format(struct skl_sst *ctx,
 	switch (module_config->m_type) {
 	case SKL_MODULE_TYPE_COPIER:
 		skl_set_copier_format(ctx, module_config, *param_data);
+		break;
+
+	case SKL_MODULE_TYPE_SRCINT:
+		skl_set_src_format(ctx, module_config, *param_data);
+		break;
+
+	case SKL_MODULE_TYPE_UPDWMIX:
+		skl_set_updown_mixer_format(ctx, module_config, *param_data);
 		break;
 
 	default:
