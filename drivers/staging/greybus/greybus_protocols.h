@@ -599,7 +599,7 @@ struct gb_spi_transfer_response {
 struct gb_svc_hello_request {
 	__le16			endo_id;
 	__u8			interface_id;
-};
+} __packed;
 /* hello response has no payload */
 
 struct gb_svc_intf_device_id_request {
@@ -616,7 +616,7 @@ struct gb_svc_intf_hotplug_request {
 		__le32	ara_vend_id;
 		__le32	ara_prod_id;
 	} data;
-};
+} __packed;
 /* hotplug response has no payload */
 
 struct gb_svc_intf_hot_unplug_request {
@@ -634,7 +634,7 @@ struct gb_svc_conn_create_request {
 	__u16	cport1_id;
 	__u8	intf2_id;
 	__u16	cport2_id;
-};
+} __packed;
 /* connection create response has no payload */
 
 struct gb_svc_conn_destroy_request {
@@ -642,7 +642,7 @@ struct gb_svc_conn_destroy_request {
 	__u16	cport1_id;
 	__u8	intf2_id;
 	__u16	cport2_id;
-};
+} __packed;
 /* connection destroy response has no payload */
 
 /* UART */
