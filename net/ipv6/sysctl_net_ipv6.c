@@ -17,6 +17,9 @@
 #include <net/inet_frag.h>
 
 static int one = 1;
+static int auto_flowlabels_min;
+static int auto_flowlabels_max = IP6_AUTO_FLOW_LABEL_MAX;
+
 
 static struct ctl_table ipv6_table_template[] = {
 	{
@@ -45,7 +48,9 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.auto_flowlabels,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &auto_flowlabels_min,
+		.extra2		= &auto_flowlabels_max
 	},
 	{
 		.procname	= "fwmark_reflect",
