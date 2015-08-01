@@ -277,8 +277,8 @@ struct gb_gpio_set_value_request {
 
 struct gb_gpio_set_debounce_request {
 	__u8	which;
-	__le16	usec __packed;
-};
+	__le16	usec;
+} __packed;
 /* debounce response has no payload */
 
 struct gb_gpio_irq_type_request {
@@ -336,9 +336,9 @@ struct gb_pwm_deactivate_request {
 
 struct gb_pwm_config_request {
 	__u8	which;
-	__le32	duty __packed;
-	__le32	period __packed;
-};
+	__le32	duty;
+	__le32	period;
+} __packed;
 
 struct gb_pwm_polarity_request {
 	__u8	which;
