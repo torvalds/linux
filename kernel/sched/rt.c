@@ -1524,7 +1524,7 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 }
 
 static struct task_struct *
-pick_next_task_rt(struct rq *rq, struct task_struct *prev)
+pick_next_task_rt(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
 {
 	struct task_struct *p;
 	struct rt_rq *rt_rq = &rq->rt;
@@ -1536,9 +1536,9 @@ pick_next_task_rt(struct rq *rq, struct task_struct *prev)
 		 * disabled avoiding further scheduler activity on it and we're
 		 * being very careful to re-start the picking loop.
 		 */
-		lockdep_unpin_lock(&rq->lock);
+		lockdep_unpin_lock(&rq->lock, cookie);
 		pull_rt_task(rq);
-		lockdep_pin_lock(&rq->lock);
+		lockdep_repin_lock(&rq->lock, cookie);
 		/*
 		 * pull_rt_task() can drop (and re-acquire) rq->lock; this
 		 * means a dl or stop task can slip in, in which case we need

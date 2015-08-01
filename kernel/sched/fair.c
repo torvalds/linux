@@ -5542,7 +5542,7 @@ preempt:
 }
 
 static struct task_struct *
-pick_next_task_fair(struct rq *rq, struct task_struct *prev)
+pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
 {
 	struct cfs_rq *cfs_rq = &rq->cfs;
 	struct sched_entity *se;
@@ -5655,9 +5655,9 @@ idle:
 	 * further scheduler activity on it and we're being very careful to
 	 * re-start the picking loop.
 	 */
-	lockdep_unpin_lock(&rq->lock);
+	lockdep_unpin_lock(&rq->lock, cookie);
 	new_tasks = idle_balance(rq);
-	lockdep_pin_lock(&rq->lock);
+	lockdep_repin_lock(&rq->lock, cookie);
 	/*
 	 * Because idle_balance() releases (and re-acquires) rq->lock, it is
 	 * possible for any higher priority task to appear. In that case we
