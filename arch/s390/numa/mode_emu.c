@@ -51,6 +51,11 @@ enum {TOPTREE_ID_PHYS, TOPTREE_ID_NUMA};
 static int emu_nodes = 1;
 /* NUMA stripe size */
 static unsigned long emu_size;
+
+/*
+ * Node to core pinning information updates are protected by
+ * "sched_domains_mutex".
+ */
 /* Pinned core to node mapping */
 static int cores_to_node_id[CONFIG_NR_CPUS];
 /* Total number of pinned cores */
@@ -393,7 +398,7 @@ static void print_node_to_core_map(void)
  * Transfer physical topology into a NUMA topology and modify CPU masks
  * according to the NUMA topology.
  *
- * This function is called under the CPU hotplug lock.
+ * Must be called with "sched_domains_mutex" lock held.
  */
 static void emu_update_cpu_topology(void)
 {

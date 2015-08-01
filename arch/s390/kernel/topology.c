@@ -40,8 +40,10 @@ static struct sysinfo_15_1_x *tl_info;
 static int topology_enabled = 1;
 static DECLARE_WORK(topology_work, topology_work_fn);
 
-/* topology_lock protects the socket and book linked lists */
-static DEFINE_SPINLOCK(topology_lock);
+/*
+ * Socket/Book linked lists and per_cpu(cpu_topology) updates are
+ * protected by "sched_domains_mutex".
+ */
 static struct mask_info socket_info;
 static struct mask_info book_info;
 
@@ -191,7 +193,6 @@ static void tl_to_masks(struct sysinfo_15_1_x *info)
 {
 	struct cpuid cpu_id;
 
-	spin_lock_irq(&topology_lock);
 	get_cpu_id(&cpu_id);
 	clear_masks();
 	switch (cpu_id.machine) {
@@ -202,7 +203,6 @@ static void tl_to_masks(struct sysinfo_15_1_x *info)
 	default:
 		__tl_to_masks_generic(info);
 	}
-	spin_unlock_irq(&topology_lock);
 }
 
 static void topology_update_polarization_simple(void)
@@ -247,10 +247,8 @@ int topology_set_cpu_management(int fc)
 
 static void update_cpu_masks(void)
 {
-	unsigned long flags;
 	int cpu;
 
-	spin_lock_irqsave(&topology_lock, flags);
 	for_each_possible_cpu(cpu) {
 		per_cpu(cpu_topology, cpu).thread_mask = cpu_thread_map(cpu);
 		per_cpu(cpu_topology, cpu).core_mask = cpu_group_map(&socket_info, cpu);
@@ -262,7 +260,6 @@ static void update_cpu_masks(void)
 			per_cpu(cpu_topology, cpu).book_id = cpu;
 		}
 	}
-	spin_unlock_irqrestore(&topology_lock, flags);
 	numa_update_cpu_topology();
 }
 
