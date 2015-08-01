@@ -76,6 +76,7 @@ config ND_PFN
 config NVDIMM_PFN
 	bool "PFN: Map persistent (device) memory"
 	default LIBNVDIMM
+	depends on ZONE_DEVICE
 	select ND_CLAIM
 	help
 	  Map persistent memory, i.e. advertise it to the memory

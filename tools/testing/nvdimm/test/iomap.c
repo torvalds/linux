@@ -108,6 +108,19 @@ void *__wrap_memremap(resource_size_t offset, size_t size,
 }
 EXPORT_SYMBOL(__wrap_memremap);
 
+void __wrap_devm_memunmap(struct device *dev, void *addr)
+{
+	struct nfit_test_resource *nfit_res;
+
+	rcu_read_lock();
+	nfit_res = get_nfit_res((unsigned long) addr);
+	rcu_read_unlock();
+	if (nfit_res)
+		return;
+	return devm_memunmap(dev, addr);
+}
+EXPORT_SYMBOL(__wrap_devm_memunmap);
+
 void __iomem *__wrap_ioremap_nocache(resource_size_t offset, unsigned long size)
 {
 	return __nfit_test_ioremap(offset, size, ioremap_nocache);

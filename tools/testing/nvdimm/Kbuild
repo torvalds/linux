@@ -2,6 +2,7 @@ ldflags-y += --wrap=ioremap_wc
 ldflags-y += --wrap=memremap
 ldflags-y += --wrap=devm_ioremap_nocache
 ldflags-y += --wrap=devm_memremap
+ldflags-y += --wrap=devm_memunmap
 ldflags-y += --wrap=ioremap_nocache
 ldflags-y += --wrap=iounmap
 ldflags-y += --wrap=memunmap

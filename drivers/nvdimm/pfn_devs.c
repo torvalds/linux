@@ -228,7 +228,7 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 	return dev;
 }
 
-static int nd_pfn_validate(struct nd_pfn *nd_pfn)
+int nd_pfn_validate(struct nd_pfn *nd_pfn)
 {
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
@@ -286,10 +286,10 @@ static int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	 */
 	offset = le64_to_cpu(pfn_sb->dataoff);
 	nsio = to_nd_namespace_io(&ndns->dev);
-	if ((nsio->res.start + offset) & (ND_PFN_ALIGN - 1)) {
+	if (nsio->res.start & ND_PFN_MASK) {
 		dev_err(&nd_pfn->dev,
-				"init failed: %s with offset %#llx not section aligned\n",
-				dev_name(&ndns->dev), offset);
+				"init failed: %s not section aligned\n",
+				dev_name(&ndns->dev));
 		return -EBUSY;
 	} else if (offset >= resource_size(&nsio->res)) {
 		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
@@ -299,6 +299,7 @@ static int nd_pfn_validate(struct nd_pfn *nd_pfn)
 
 	return 0;
 }
+EXPORT_SYMBOL(nd_pfn_validate);
 
 int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
 {
