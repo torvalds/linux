@@ -756,3 +756,129 @@ int skl_bind_modules(struct skl_sst *ctx,
 
 	return ret;
 }
+
+static int skl_set_pipe_state(struct skl_sst *ctx, struct skl_pipe *pipe,
+	enum skl_ipc_pipeline_state state)
+{
+	dev_dbg(ctx->dev, "%s: pipe_satate = %d\n", __func__, state);
+
+	return skl_ipc_set_pipeline_state(&ctx->ipc, pipe->ppl_id, state);
+}
+
+/*
+ * A pipeline is a collection of modules. Before a module in instantiated a
+ * pipeline needs to be created for it.
+ * This function creates pipeline, by sending create pipeline IPC messages
+ * to FW
+ */
+int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe)
+{
+	int ret;
+
+	dev_dbg(ctx->dev, "%s: pipe_id = %d\n", __func__, pipe->ppl_id);
+
+	ret = skl_ipc_create_pipeline(&ctx->ipc, pipe->memory_pages,
+				pipe->pipe_priority, pipe->ppl_id);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to create pipeline\n");
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_CREATED;
+
+	return 0;
+}
+
+/*
+ * A pipeline needs to be deleted on cleanup. If a pipeline is running, then
+ * pause the pipeline first and then delete it
+ * The pipe delete is done by sending delete pipeline IPC. DSP will stop the
+ * DMA engines and releases resources
+ */
+int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
+{
+	int ret;
+
+	dev_dbg(ctx->dev, "%s: pipe = %d\n", __func__, pipe->ppl_id);
+
+	/* If pipe is not started, do not try to stop the pipe in FW. */
+	if (pipe->state > SKL_PIPE_STARTED) {
+		ret = skl_set_pipe_state(ctx, pipe, PPL_PAUSED);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Failed to stop pipeline\n");
+			return ret;
+		}
+
+		pipe->state = SKL_PIPE_PAUSED;
+	} else {
+		/* If pipe was not created in FW, do not try to delete it */
+		if (pipe->state < SKL_PIPE_CREATED)
+			return 0;
+
+		ret = skl_ipc_delete_pipeline(&ctx->ipc, pipe->ppl_id);
+		if (ret < 0)
+			dev_err(ctx->dev, "Failed to delete pipeline\n");
+	}
+
+	return ret;
+}
+
+/*
+ * A pipeline is also a scheduling entity in DSP which can be run, stopped
+ * For processing data the pipe need to be run by sending IPC set pipe state
+ * to DSP
+ */
+int skl_run_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
+{
+	int ret;
+
+	dev_dbg(ctx->dev, "%s: pipe = %d\n", __func__, pipe->ppl_id);
+
+	/* If pipe was not created in FW, do not try to pause or delete */
+	if (pipe->state < SKL_PIPE_CREATED)
+		return 0;
+
+	/* Pipe has to be paused before it is started */
+	ret = skl_set_pipe_state(ctx, pipe, PPL_PAUSED);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to pause pipe\n");
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_PAUSED;
+
+	ret = skl_set_pipe_state(ctx, pipe, PPL_RUNNING);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to start pipe\n");
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_STARTED;
+
+	return 0;
+}
+
+/*
+ * Stop the pipeline by sending set pipe state IPC
+ * DSP doesnt implement stop so we always send pause message
+ */
+int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
+{
+	int ret;
+
+	dev_dbg(ctx->dev, "In %s pipe=%d\n", __func__, pipe->ppl_id);
+
+	/* If pipe was not created in FW, do not try to pause or delete */
+	if (pipe->state < SKL_PIPE_PAUSED)
+		return 0;
+
+	ret = skl_set_pipe_state(ctx, pipe, PPL_PAUSED);
+	if (ret < 0) {
+		dev_dbg(ctx->dev, "Failed to stop pipe\n");
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_CREATED;
+
+	return 0;
+}

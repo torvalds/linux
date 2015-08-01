@@ -263,6 +263,16 @@ struct skl_module_cfg {
 	struct skl_specific_cfg formats_config;
 };
 
+int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe);
+
+int skl_run_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+
+int skl_pause_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+
+int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+
+int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+
 int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config,
 	char *param);
 
