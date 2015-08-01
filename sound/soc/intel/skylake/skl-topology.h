@@ -263,5 +263,14 @@ struct skl_module_cfg {
 	struct skl_specific_cfg formats_config;
 };
 
+int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config,
+	char *param);
+
+int skl_bind_modules(struct skl_sst *ctx, struct skl_module_cfg
+	*src_module, struct skl_module_cfg *dst_module);
+
+int skl_unbind_modules(struct skl_sst *ctx, struct skl_module_cfg
+	*src_module, struct skl_module_cfg *dst_module);
+
 enum skl_bitdepth skl_get_bit_depth(int params);
 #endif

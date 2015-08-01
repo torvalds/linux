@@ -573,3 +573,186 @@ static void skl_free_queue(struct skl_module_pin *mpin, int q_index)
 		mpin[q_index].id.instance_id = 0;
 	}
 }
+
+/*
+ * A module needs to be instanataited in DSP. A mdoule is present in a
+ * collection of module referred as a PIPE.
+ * We first calculate the module format, based on module type and then
+ * invoke the DSP by sending IPC INIT_INSTANCE using ipc helper
+ */
+int skl_init_module(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig, char *param)
+{
+	u16 module_config_size = 0;
+	void *param_data = NULL;
+	int ret;
+	struct skl_ipc_init_instance_msg msg;
+
+	dev_dbg(ctx->dev, "%s: module_id = %d instance=%d\n", __func__,
+		 mconfig->id.module_id, mconfig->id.instance_id);
+
+	if (mconfig->pipe->state != SKL_PIPE_CREATED) {
+		dev_err(ctx->dev, "Pipe not created state= %d pipe_id= %d\n",
+				 mconfig->pipe->state, mconfig->pipe->ppl_id);
+		return -EIO;
+	}
+
+	ret = skl_set_module_format(ctx, mconfig,
+			&module_config_size, &param_data);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to set module format ret=%d\n", ret);
+		return ret;
+	}
+
+	msg.module_id = mconfig->id.module_id;
+	msg.instance_id = mconfig->id.instance_id;
+	msg.ppl_instance_id = mconfig->pipe->ppl_id;
+	msg.param_data_size = module_config_size;
+	msg.core_id = mconfig->core_id;
+
+	ret = skl_ipc_init_instance(&ctx->ipc, &msg, param_data);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to init instance ret=%d\n", ret);
+		kfree(param_data);
+		return ret;
+	}
+	mconfig->m_state = SKL_MODULE_INIT_DONE;
+
+	return ret;
+}
+
+static void skl_dump_bind_info(struct skl_sst *ctx, struct skl_module_cfg
+	*src_module, struct skl_module_cfg *dst_module)
+{
+	dev_dbg(ctx->dev, "%s: src module_id = %d  src_instance=%d\n",
+		__func__, src_module->id.module_id, src_module->id.instance_id);
+	dev_dbg(ctx->dev, "%s: dst_module=%d dst_instacne=%d\n", __func__,
+		 dst_module->id.module_id, dst_module->id.instance_id);
+
+	dev_dbg(ctx->dev, "src_module state = %d dst module state = %d\n",
+		src_module->m_state, dst_module->m_state);
+}
+
+/*
+ * On module freeup, we need to unbind the module with modules
+ * it is already bind.
+ * Find the pin allocated and unbind then using bind_unbind IPC
+ */
+int skl_unbind_modules(struct skl_sst *ctx,
+			struct skl_module_cfg *src_mcfg,
+			struct skl_module_cfg *dst_mcfg)
+{
+	int ret;
+	struct skl_ipc_bind_unbind_msg msg;
+	struct skl_module_inst_id src_id = src_mcfg->id;
+	struct skl_module_inst_id dst_id = dst_mcfg->id;
+	int in_max = dst_mcfg->max_in_queue;
+	int out_max = src_mcfg->max_out_queue;
+	int src_index, dst_index;
+
+	skl_dump_bind_info(ctx, src_mcfg, dst_mcfg);
+
+	if (src_mcfg->m_state != SKL_MODULE_BIND_DONE)
+		return 0;
+
+	/*
+	 * if intra module unbind, check if both modules are BIND,
+	 * then send unbind
+	 */
+	if ((src_mcfg->pipe->ppl_id != dst_mcfg->pipe->ppl_id) &&
+				dst_mcfg->m_state != SKL_MODULE_BIND_DONE)
+		return 0;
+	else if (src_mcfg->m_state < SKL_MODULE_INIT_DONE &&
+				 dst_mcfg->m_state < SKL_MODULE_INIT_DONE)
+		return 0;
+
+	/* get src queue index */
+	src_index = skl_get_queue_index(src_mcfg->m_out_pin, dst_id, out_max);
+	if (src_index < 0)
+		return -EINVAL;
+
+	msg.src_queue = src_mcfg->m_out_pin[src_index].pin_index;
+
+	/* get dst queue index */
+	dst_index  = skl_get_queue_index(dst_mcfg->m_in_pin, src_id, in_max);
+	if (dst_index < 0)
+		return -EINVAL;
+
+	msg.dst_queue = dst_mcfg->m_in_pin[dst_index].pin_index;
+
+	msg.module_id = src_mcfg->id.module_id;
+	msg.instance_id = src_mcfg->id.instance_id;
+	msg.dst_module_id = dst_mcfg->id.module_id;
+	msg.dst_instance_id = dst_mcfg->id.instance_id;
+	msg.bind = false;
+
+	ret = skl_ipc_bind_unbind(&ctx->ipc, &msg);
+	if (!ret) {
+		src_mcfg->m_state = SKL_MODULE_UNINIT;
+		/* free queue only if unbind is success */
+		skl_free_queue(src_mcfg->m_out_pin, src_index);
+		skl_free_queue(dst_mcfg->m_in_pin, dst_index);
+	}
+
+	return ret;
+}
+
+/*
+ * Once a module is instantiated it need to be 'bind' with other modules in
+ * the pipeline. For binding we need to find the module pins which are bind
+ * together
+ * This function finds the pins and then sends bund_unbind IPC message to
+ * DSP using IPC helper
+ */
+int skl_bind_modules(struct skl_sst *ctx,
+			struct skl_module_cfg *src_mcfg,
+			struct skl_module_cfg *dst_mcfg)
+{
+	int ret;
+	struct skl_ipc_bind_unbind_msg msg;
+	struct skl_module_inst_id src_id = src_mcfg->id;
+	struct skl_module_inst_id dst_id = dst_mcfg->id;
+	int in_max = dst_mcfg->max_in_queue;
+	int out_max = src_mcfg->max_out_queue;
+	int src_index, dst_index;
+
+	skl_dump_bind_info(ctx, src_mcfg, dst_mcfg);
+
+	if (src_mcfg->m_state < SKL_MODULE_INIT_DONE &&
+		dst_mcfg->m_state < SKL_MODULE_INIT_DONE)
+		return 0;
+
+	src_index = skl_alloc_queue(src_mcfg->m_out_pin, dst_id, out_max);
+	if (src_index < 0)
+		return -EINVAL;
+
+	msg.src_queue = src_mcfg->m_out_pin[src_index].pin_index;
+	dst_index = skl_alloc_queue(dst_mcfg->m_in_pin, src_id, in_max);
+	if (dst_index < 0) {
+		skl_free_queue(src_mcfg->m_out_pin, src_index);
+		return -EINVAL;
+	}
+
+	msg.dst_queue = dst_mcfg->m_in_pin[dst_index].pin_index;
+
+	dev_dbg(ctx->dev, "src queue = %d dst queue =%d\n",
+			 msg.src_queue, msg.dst_queue);
+
+	msg.module_id = src_mcfg->id.module_id;
+	msg.instance_id = src_mcfg->id.instance_id;
+	msg.dst_module_id = dst_mcfg->id.module_id;
+	msg.dst_instance_id = dst_mcfg->id.instance_id;
+	msg.bind = true;
+
+	ret = skl_ipc_bind_unbind(&ctx->ipc, &msg);
+
+	if (!ret) {
+		src_mcfg->m_state = SKL_MODULE_BIND_DONE;
+	} else {
+		/* error case , if IPC fails, clear the queue index */
+		skl_free_queue(src_mcfg->m_out_pin, src_index);
+		skl_free_queue(dst_mcfg->m_in_pin, dst_index);
+	}
+
+	return ret;
+}
