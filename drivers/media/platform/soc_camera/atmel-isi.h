@@ -116,7 +116,6 @@ struct v4l2_async_subdev;
 
 struct isi_platform_data {
 	u8 has_emb_sync;
-	u8 emb_crc_sync;
 	u8 hsync_act_low;
 	u8 vsync_act_low;
 	u8 pclk_act_falling;
@@ -124,10 +123,6 @@ struct isi_platform_data {
 	u32 data_width_flags;
 	/* Using for ISI_CFG1 */
 	u32 frate;
-	/* Using for ISI_MCK */
-	u32 mck_hz;
-	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
-	int *asd_sizes;		/* 0-terminated array of asd group sizes */
 };
 
 #endif /* __ATMEL_ISI_H__ */

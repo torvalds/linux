@@ -1007,11 +1007,6 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
-	if (isi->pdata.asd_sizes) {
-		soc_host->asd = isi->pdata.asd;
-		soc_host->asd_sizes = isi->pdata.asd_sizes;
-	}
-
 	ret = soc_camera_host_register(soc_host);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to register soc camera host\n");
