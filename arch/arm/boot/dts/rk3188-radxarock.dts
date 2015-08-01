@@ -359,6 +359,10 @@
 	status = "okay";
 };
 
+&usbphy {
+	status = "okay";
+};
+
 &usb_host {
 	status = "okay";
 };
