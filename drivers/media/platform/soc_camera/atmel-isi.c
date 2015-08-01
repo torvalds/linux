@@ -23,11 +23,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-#include <media/atmel-isi.h>
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 #include <media/v4l2-of.h>
 #include <media/videobuf2-dma-contig.h>
+
+#include "atmel-isi.h"
 
 #define MAX_BUFFER_NUM			32
 #define MAX_SUPPORT_WIDTH		2048
@@ -881,7 +882,7 @@ static int atmel_isi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int atmel_isi_probe_dt(struct atmel_isi *isi,
+static int atmel_isi_parse_dt(struct atmel_isi *isi,
 			struct platform_device *pdev)
 {
 	struct device_node *np= pdev->dev.of_node;
@@ -928,16 +929,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	struct atmel_isi *isi;
 	struct resource *regs;
 	int ret, i;
-	struct device *dev = &pdev->dev;
 	struct soc_camera_host *soc_host;
-	struct isi_platform_data *pdata;
-
-	pdata = dev->platform_data;
-	if ((!pdata || !pdata->data_width_flags) && !pdev->dev.of_node) {
-		dev_err(&pdev->dev,
-			"No config available for Atmel ISI\n");
-		return -EINVAL;
-	}
 
 	isi = devm_kzalloc(&pdev->dev, sizeof(struct atmel_isi), GFP_KERNEL);
 	if (!isi) {
@@ -949,13 +941,9 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	if (IS_ERR(isi->pclk))
 		return PTR_ERR(isi->pclk);
 
-	if (pdata) {
-		memcpy(&isi->pdata, pdata, sizeof(isi->pdata));
-	} else {
-		ret = atmel_isi_probe_dt(isi, pdev);
-		if (ret)
-			return ret;
-	}
+	ret = atmel_isi_parse_dt(isi, pdev);
+	if (ret)
+		return ret;
 
 	isi->active = NULL;
 	spin_lock_init(&isi->lock);
