@@ -20,17 +20,7 @@
 #ifndef __SKL_NHLT_H__
 #define __SKL_NHLT_H__
 
-struct acpi_desc_header {
-	u32  signature;
-	u32  length;
-	u8   revision;
-	u8   checksum;
-	u8   oem_id[6];
-	u64  oem_table_id;
-	u32  oem_revision;
-	u32  creator_id;
-	u32  creator_revision;
-} __packed;
+#include <linux/acpi.h>
 
 struct wav_fmt {
 	u16 fmt_tag;
@@ -98,7 +88,7 @@ struct nhlt_endpoint {
 } __packed;
 
 struct nhlt_acpi_table {
-	struct acpi_desc_header header;
+	struct acpi_table_header header;
 	u8 endpoint_count;
 	struct nhlt_endpoint desc[0];
 } __packed;

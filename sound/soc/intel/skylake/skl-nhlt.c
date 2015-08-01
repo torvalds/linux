@@ -17,7 +17,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  */
-#include <linux/acpi.h>
 #include "skl.h"
 
 /* Unique identification for getting NHLT blobs */
