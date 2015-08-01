@@ -472,6 +472,13 @@ config CHARGER_RT9455
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
 
+config AXP20X_POWER
+	tristate "AXP20x power supply driver"
+	depends on MFD_AXP20X
+	help
+	  This driver provides support for the power supply features of
+	  AXP20x PMIC.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY
