@@ -56,7 +56,7 @@ void skl_nhlt_free(void __iomem *addr)
 
 static struct nhlt_specific_cfg *skl_get_specific_cfg(
 		struct device *dev, struct nhlt_fmt *fmt,
-		u8 no_ch, u8 rate, u16 bps)
+		u8 no_ch, u32 rate, u16 bps)
 {
 	struct nhlt_specific_cfg *sp_config;
 	struct wav_fmt *wfmt;
