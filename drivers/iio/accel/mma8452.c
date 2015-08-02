@@ -343,7 +343,7 @@ static int mma8452_set_hp_filter_frequency(struct mma8452_data *data,
 
 	i = mma8452_get_hp_filter_index(data, val, val2);
 	if (i < 0)
-		return -EINVAL;
+		return i;
 
 	reg = i2c_smbus_read_byte_data(data->client,
 				       MMA8452_HP_FILTER_CUTOFF);
@@ -369,7 +369,7 @@ static int mma8452_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		i = mma8452_get_samp_freq_index(data, val, val2);
 		if (i < 0)
-			return -EINVAL;
+			return i;
 
 		data->ctrl_reg1 &= ~MMA8452_CTRL_DR_MASK;
 		data->ctrl_reg1 |= i << MMA8452_CTRL_DR_SHIFT;
@@ -378,7 +378,7 @@ static int mma8452_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		i = mma8452_get_scale_index(data, val, val2);
 		if (i < 0)
-			return -EINVAL;
+			return i;
 		data->data_cfg &= ~MMA8452_DATA_CFG_FS_MASK;
 		data->data_cfg |= i;
 		return mma8452_change_config(data, MMA8452_DATA_CFG,
