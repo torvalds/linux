@@ -63,8 +63,7 @@ static int max9768_set_gpio(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const unsigned int volume_tlv[] = {
-	TLV_DB_RANGE_HEAD(43),
+static const DECLARE_TLV_DB_RANGE(volume_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(-16150, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(-9280, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(-9030, 0, 0),
@@ -107,8 +106,8 @@ static const unsigned int volume_tlv[] = {
 	51, 57, TLV_DB_SCALE_ITEM(290, 50, 0),
 	58, 58, TLV_DB_SCALE_ITEM(650, 0, 0),
 	59, 62, TLV_DB_SCALE_ITEM(700, 60, 0),
-	63, 63, TLV_DB_SCALE_ITEM(950, 0, 0),
-};
+	63, 63, TLV_DB_SCALE_ITEM(950, 0, 0)
+);
 
 static const struct snd_kcontrol_new max9768_volume[] = {
 	SOC_SINGLE_TLV("Playback Volume", MAX9768_VOL, 0, 63, 0, volume_tlv),
