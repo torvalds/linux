@@ -899,8 +899,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (amdgpu_enable_scheduler && parser->num_ibs) {
 		struct amdgpu_ring * ring =
 			amdgpu_cs_parser_get_ring(adev, parser);
-		parser->ibs[parser->num_ibs - 1].sequence = atomic64_inc_return(
-			&parser->ctx->rings[ring->idx].entity.last_queued_v_seq);
 		if (ring->is_pte_ring || (parser->bo_list && parser->bo_list->has_userptr)) {
 			r = amdgpu_cs_parser_prepare_job(parser);
 			if (r)
@@ -910,10 +908,21 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		parser->ring = ring;
 		parser->run_job = amdgpu_cs_parser_run_job;
 		parser->free_job = amdgpu_cs_parser_free_job;
-		amd_sched_push_job(ring->scheduler,
-				   &parser->ctx->rings[ring->idx].entity,
-				   parser);
-		cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
+		mutex_lock(&parser->job_lock);
+		r = amd_sched_push_job(ring->scheduler,
+				       &parser->ctx->rings[ring->idx].entity,
+				       parser,
+				       &parser->s_fence);
+		if (r) {
+			mutex_unlock(&parser->job_lock);
+			goto out;
+		}
+		parser->ibs[parser->num_ibs - 1].sequence =
+			amdgpu_ctx_add_fence(parser->ctx, ring,
+					     &parser->s_fence->base,
+					     parser->s_fence->v_seq);
+		cs->out.handle = parser->s_fence->v_seq;
+		mutex_unlock(&parser->job_lock);
 		up_read(&adev->exclusive_lock);
 		return 0;
 	}

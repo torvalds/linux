@@ -45,6 +45,7 @@ struct amd_sched_entity {
 	/* the virtual_seq is unique per context per ring */
 	atomic64_t			last_queued_v_seq;
 	atomic64_t			last_emitted_v_seq;
+	atomic64_t			last_signaled_v_seq;
 	/* the job_queue maintains the jobs submitted by clients */
 	struct kfifo                    job_queue;
 	spinlock_t			queue_lock;
@@ -52,6 +53,9 @@ struct amd_sched_entity {
 	wait_queue_head_t		wait_queue;
 	wait_queue_head_t		wait_emit;
 	bool                            is_pending;
+	uint64_t                        fence_context;
+	struct list_head		fence_list;
+	char                            name[20];
 };
 
 /**
@@ -72,13 +76,34 @@ struct amd_run_queue {
 	int (*check_entity_status)(struct amd_sched_entity *entity);
 };
 
+struct amd_sched_fence {
+	struct fence                    base;
+	struct fence_cb                 cb;
+	struct list_head		list;
+	struct amd_sched_entity	        *entity;
+	uint64_t			v_seq;
+	spinlock_t			lock;
+};
+
 struct amd_sched_job {
 	struct list_head		list;
 	struct fence_cb                 cb;
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	void                            *data;
+	struct amd_sched_fence          *s_fence;
 };
+
+extern const struct fence_ops amd_sched_fence_ops;
+static inline struct amd_sched_fence *to_amd_sched_fence(struct fence *f)
+{
+	struct amd_sched_fence *__f = container_of(f, struct amd_sched_fence, base);
+
+	if (__f->base.ops == &amd_sched_fence_ops)
+		return __f;
+
+	return NULL;
+}
 
 /**
  * Define the backend operations called by the scheduler,
@@ -126,7 +151,8 @@ int amd_sched_destroy(struct amd_gpu_scheduler *sched);
 
 int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *c_entity,
-		       void *data);
+		       void *data,
+		       struct amd_sched_fence **fence);
 
 int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
 			uint64_t seq,
@@ -145,5 +171,10 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 void amd_sched_emit(struct amd_sched_entity *c_entity, uint64_t seq);
 
 uint64_t amd_sched_next_queued_seq(struct amd_sched_entity *c_entity);
+
+struct amd_sched_fence *amd_sched_fence_create(
+	struct amd_sched_entity *s_entity);
+void amd_sched_fence_signal(struct amd_sched_fence *fence);
+
 
 #endif

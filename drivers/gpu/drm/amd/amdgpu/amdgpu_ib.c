@@ -218,7 +218,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 
 	sequence = amdgpu_enable_scheduler ? ib->sequence : 0;
 
-	if (ib->ctx)
+	if (!amdgpu_enable_scheduler && ib->ctx)
 		ib->sequence = amdgpu_ctx_add_fence(ib->ctx, ring,
 						    &ib->fence->base,
 						    sequence);

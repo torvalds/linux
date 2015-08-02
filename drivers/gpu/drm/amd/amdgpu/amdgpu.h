@@ -1261,6 +1261,7 @@ struct amdgpu_cs_parser {
 	int (*prepare_job)(struct amdgpu_cs_parser *sched_job);
 	int (*run_job)(struct amdgpu_cs_parser *sched_job);
 	int (*free_job)(struct amdgpu_cs_parser *sched_job);
+	struct amd_sched_fence *s_fence;
 };
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)

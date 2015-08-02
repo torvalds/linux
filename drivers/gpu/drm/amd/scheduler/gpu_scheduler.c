@@ -180,6 +180,7 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  uint32_t jobs)
 {
 	uint64_t seq_ring = 0;
+	char name[20];
 
 	if (!(sched && entity && rq))
 		return -EINVAL;
@@ -191,6 +192,10 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	entity->scheduler = sched;
 	init_waitqueue_head(&entity->wait_queue);
 	init_waitqueue_head(&entity->wait_emit);
+	entity->fence_context = fence_context_alloc(1);
+	snprintf(name, sizeof(name), "c_entity[%llu]", entity->fence_context);
+	memcpy(entity->name, name, 20);
+	INIT_LIST_HEAD(&entity->fence_list);
 	if(kfifo_alloc(&entity->job_queue,
 		       jobs * sizeof(void *),
 		       GFP_KERNEL))
@@ -199,6 +204,7 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	spin_lock_init(&entity->queue_lock);
 	atomic64_set(&entity->last_emitted_v_seq, seq_ring);
 	atomic64_set(&entity->last_queued_v_seq, seq_ring);
+	atomic64_set(&entity->last_signaled_v_seq, seq_ring);
 
 	/* Add the entity to the run queue */
 	mutex_lock(&rq->lock);
@@ -291,15 +297,25 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 */
 int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *c_entity,
-		       void *data)
+		       void *data,
+		       struct amd_sched_fence **fence)
 {
-	struct amd_sched_job *job = kzalloc(sizeof(struct amd_sched_job),
-					    GFP_KERNEL);
+	struct amd_sched_job *job;
+
+	if (!fence)
+		return -EINVAL;
+	job = kzalloc(sizeof(struct amd_sched_job), GFP_KERNEL);
 	if (!job)
 		return -ENOMEM;
 	job->sched = sched;
 	job->s_entity = c_entity;
 	job->data = data;
+	*fence = amd_sched_fence_create(c_entity);
+	if ((*fence) == NULL) {
+		kfree(job);
+		return -EINVAL;
+	}
+	job->s_fence = *fence;
 	while (kfifo_in_spinlocked(&c_entity->job_queue, &job, sizeof(void *),
 				   &c_entity->queue_lock) != sizeof(void *)) {
 		/**
@@ -368,12 +384,16 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	unsigned long flags;
 
 	sched = sched_job->sched;
+	atomic64_set(&sched_job->s_entity->last_signaled_v_seq,
+		     sched_job->s_fence->v_seq);
+	amd_sched_fence_signal(sched_job->s_fence);
 	spin_lock_irqsave(&sched->queue_lock, flags);
 	list_del(&sched_job->list);
 	atomic64_dec(&sched->hw_rq_count);
 	spin_unlock_irqrestore(&sched->queue_lock, flags);
 
 	sched->ops->process_job(sched, sched_job);
+	fence_put(&sched_job->s_fence->base);
 	kfree(sched_job);
 	wake_up_interruptible(&sched->wait_queue);
 }
