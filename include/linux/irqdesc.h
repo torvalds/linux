@@ -166,10 +166,14 @@ static inline int handle_domain_irq(struct irq_domain *domain,
 #endif
 
 /* Test to see if a driver has successfully requested an irq */
+static inline int irq_desc_has_action(struct irq_desc *desc)
+{
+	return desc->action != NULL;
+}
+
 static inline int irq_has_action(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	return desc->action != NULL;
+	return irq_desc_has_action(irq_to_desc(irq));
 }
 
 /* caller has locked the irq_desc and both params are valid */
