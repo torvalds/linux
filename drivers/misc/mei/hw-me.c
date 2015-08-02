@@ -213,12 +213,17 @@ static void mei_me_hw_config(struct mei_device *dev)
 	hcsr = mei_hcsr_read(dev);
 	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
 
-	hw->pg_state = MEI_PG_OFF;
-
 	reg = 0;
 	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
 	hw->d0i3_supported =
 		((reg & PCI_CFG_HFS_1_D0I3_MSK) == PCI_CFG_HFS_1_D0I3_MSK);
+
+	hw->pg_state = MEI_PG_OFF;
+	if (hw->d0i3_supported) {
+		reg = mei_me_d0i3c_read(dev);
+		if (reg & H_D0I3C_I3)
+			hw->pg_state = MEI_PG_ON;
+	}
 }
 
 /**
@@ -1037,12 +1042,24 @@ int mei_me_pg_exit_sync(struct mei_device *dev)
  * @dev: the device structure
  * @intr_enable: if interrupt should be enabled after reset.
  *
- * Return: always 0
+ * Return: 0 on success an error code otherwise
  */
 static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 {
-	u32 hcsr = mei_hcsr_read(dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	int ret;
+	u32 hcsr;
 
+	if (intr_enable) {
+		mei_me_intr_enable(dev);
+		if (hw->d0i3_supported) {
+			ret = mei_me_d0i3_exit_sync(dev);
+			if (ret)
+				return ret;
+		}
+	}
+
+	hcsr = mei_hcsr_read(dev);
 	/* H_RST may be found lit before reset is started,
 	 * for example if preceding reset flow hasn't completed.
 	 * In that case asserting H_RST will be ignored, therefore
@@ -1057,9 +1074,7 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 
 	hcsr |= H_RST | H_IG | H_CSR_IS_MASK;
 
-	if (intr_enable)
-		hcsr |= H_CSR_IE_MASK;
-	else
+	if (!intr_enable)
 		hcsr &= ~H_CSR_IE_MASK;
 
 	dev->recvd_hw_ready = false;
@@ -1077,9 +1092,14 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	if ((hcsr & H_RDY) == H_RDY)
 		dev_warn(dev->dev, "H_RDY is not cleared 0x%08X", hcsr);
 
-	if (intr_enable == false)
+	if (!intr_enable) {
 		mei_me_hw_reset_release(dev);
-
+		if (hw->d0i3_supported) {
+			ret = mei_me_d0i3_enter(dev);
+			if (ret)
+				return ret;
+		}
+	}
 	return 0;
 }
 
