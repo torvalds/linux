@@ -229,7 +229,7 @@ static int mma8452_get_hp_filter_index(struct mma8452_data *data,
 	int i = mma8452_get_odr_index(data);
 
 	return mma8452_get_int_plus_micros_index(mma8452_hp_filter_cutoff[i],
-		ARRAY_SIZE(mma8452_scales[0]), val, val2);
+		ARRAY_SIZE(mma8452_hp_filter_cutoff[0]), val, val2);
 }
 
 static int mma8452_read_hp_filter(struct mma8452_data *data, int *hz, int *uHz)
