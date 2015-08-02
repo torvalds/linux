@@ -4157,8 +4157,11 @@ static netdev_tx_t rocker_port_xmit(struct sk_buff *skb, struct net_device *dev)
 					  skb->data, skb_headlen(skb));
 	if (err)
 		goto nest_cancel;
-	if (skb_shinfo(skb)->nr_frags > ROCKER_TX_FRAGS_MAX)
-		goto nest_cancel;
+	if (skb_shinfo(skb)->nr_frags > ROCKER_TX_FRAGS_MAX) {
+		err = skb_linearize(skb);
+		if (err)
+			goto unmap_frags;
+	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
