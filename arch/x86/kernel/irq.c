@@ -401,8 +401,8 @@ int check_irq_vectors_for_cpu_disable(void)
 		for (vector = FIRST_EXTERNAL_VECTOR;
 		     vector < first_system_vector; vector++) {
 			if (!test_bit(vector, used_vectors) &&
-			    per_cpu(vector_irq, cpu)[vector] < 0)
-					count++;
+			    per_cpu(vector_irq, cpu)[vector] <= VECTOR_UNDEFINED)
+				count++;
 		}
 	}
 
