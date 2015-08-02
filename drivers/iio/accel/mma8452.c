@@ -471,15 +471,17 @@ static int mma8452_write_thresh(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
-		return mma8452_change_config(data, MMA8452_TRANSIENT_THS,
-					     val & MMA8452_TRANSIENT_THS_MASK);
+		if (val < 0 || val > MMA8452_TRANSIENT_THS_MASK)
+			return -EINVAL;
+
+		return mma8452_change_config(data, MMA8452_TRANSIENT_THS, val);
 
 	case IIO_EV_INFO_PERIOD:
 		steps = (val * USEC_PER_SEC + val2) /
 				mma8452_transient_time_step_us[
 					mma8452_get_odr_index(data)];
 
-		if (steps > 0xff)
+		if (steps < 0 || steps > 0xff)
 			return -EINVAL;
 
 		return mma8452_change_config(data, MMA8452_TRANSIENT_COUNT,
