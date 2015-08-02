@@ -182,7 +182,7 @@ extern char irq_entries_start[];
 #define trace_irq_entries_start irq_entries_start
 #endif
 
-#define VECTOR_UNDEFINED	(-1)
+#define VECTOR_UNUSED		(-1)
 #define VECTOR_RETRIGGERED	(-2)
 
 typedef int vector_irq_t[NR_VECTORS];

@@ -169,8 +169,7 @@ next:
 			goto next;
 
 		for_each_cpu_and(new_cpu, vector_cpumask, cpu_online_mask) {
-			if (per_cpu(vector_irq, new_cpu)[vector] >
-			    VECTOR_UNDEFINED)
+			if (per_cpu(vector_irq, new_cpu)[vector] > VECTOR_UNUSED)
 				goto next;
 		}
 		/* Found one! */
@@ -232,7 +231,7 @@ static void clear_irq_vector(int irq, struct apic_chip_data *data)
 
 	vector = data->cfg.vector;
 	for_each_cpu_and(cpu, data->domain, cpu_online_mask)
-		per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
+		per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
 
 	data->cfg.vector = 0;
 	cpumask_clear(data->domain);
@@ -247,7 +246,7 @@ static void clear_irq_vector(int irq, struct apic_chip_data *data)
 		     vector++) {
 			if (per_cpu(vector_irq, cpu)[vector] != irq)
 				continue;
-			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
+			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
 			break;
 		}
 	}
@@ -423,12 +422,12 @@ static void __setup_vector_irq(int cpu)
 	/* Mark the free vectors */
 	for (vector = 0; vector < NR_VECTORS; ++vector) {
 		irq = per_cpu(vector_irq, cpu)[vector];
-		if (irq <= VECTOR_UNDEFINED)
+		if (irq <= VECTOR_UNUSED)
 			continue;
 
 		data = apic_chip_data(irq_get_irq_data(irq));
 		if (!cpumask_test_cpu(cpu, data->domain))
-			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNDEFINED;
+			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
 	}
 }
 
@@ -552,7 +551,7 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 	retry:
 		irq = __this_cpu_read(vector_irq[vector]);
 
-		if (irq <= VECTOR_UNDEFINED)
+		if (irq <= VECTOR_UNUSED)
 			continue;
 
 		desc = irq_to_desc(irq);
@@ -592,7 +591,7 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 			apic->send_IPI_self(IRQ_MOVE_CLEANUP_VECTOR);
 			goto unlock;
 		}
-		__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
+		__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 unlock:
 		raw_spin_unlock(&desc->lock);
 	}

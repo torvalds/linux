@@ -228,7 +228,7 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 					     __func__, smp_processor_id(),
 					     vector, irq);
 		} else {
-			__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
+			__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 		}
 	}
 
@@ -401,7 +401,7 @@ int check_irq_vectors_for_cpu_disable(void)
 		for (vector = FIRST_EXTERNAL_VECTOR;
 		     vector < first_system_vector; vector++) {
 			if (!test_bit(vector, used_vectors) &&
-			    per_cpu(vector_irq, cpu)[vector] <= VECTOR_UNDEFINED)
+			    per_cpu(vector_irq, cpu)[vector] <= VECTOR_UNUSED)
 				count++;
 		}
 	}
@@ -506,7 +506,7 @@ void fixup_irqs(void)
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		unsigned int irr;
 
-		if (__this_cpu_read(vector_irq[vector]) <= VECTOR_UNDEFINED)
+		if (__this_cpu_read(vector_irq[vector]) <= VECTOR_UNUSED)
 			continue;
 
 		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
@@ -524,7 +524,7 @@ void fixup_irqs(void)
 			raw_spin_unlock(&desc->lock);
 		}
 		if (__this_cpu_read(vector_irq[vector]) != VECTOR_RETRIGGERED)
-			__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
+			__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 	}
 }
 #endif
