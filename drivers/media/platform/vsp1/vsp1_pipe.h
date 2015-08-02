@@ -29,9 +29,23 @@ enum vsp1_pipeline_state {
 
 /*
  * struct vsp1_pipeline - A VSP1 hardware pipeline
- * @media: the media pipeline
+ * @pipe: the media pipeline
  * @irqlock: protects the pipeline state
+ * @state: current state
+ * @wq: work queue to wait for state change completion
+ * @frame_end: frame end interrupt handler
  * @lock: protects the pipeline use count and stream count
+ * @use_count: number of video nodes using the pipeline
+ * @stream_count: number of streaming video nodes
+ * @buffers_ready: bitmask of RPFs and WPFs with at least one buffer available
+ * @num_inputs: number of RPFs
+ * @inputs: array of RPFs in the pipeline
+ * @output: WPF at the output of the pipeline
+ * @bru: BRU entity, if present
+ * @lif: LIF entity, if present
+ * @uds: UDS entity, if present
+ * @uds_input: entity at the input of the UDS, if the UDS is present
+ * @entities: list of entities in the pipeline
  */
 struct vsp1_pipeline {
 	struct media_pipeline pipe;
