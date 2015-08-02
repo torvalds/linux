@@ -116,11 +116,10 @@ SOC_ENUM_SINGLE_VIRT(2, wm9713_micb_select), /* mic selection 19 */
 static const DECLARE_TLV_DB_SCALE(out_tlv, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(main_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(misc_tlv, -1500, 300, 0);
-static unsigned int mic_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const  DECLARE_TLV_DB_RANGE(mic_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(1200, 600, 0),
-	3, 3, TLV_DB_SCALE_ITEM(3000, 0, 0),
-};
+	3, 3, TLV_DB_SCALE_ITEM(3000, 0, 0)
+);
 
 static const struct snd_kcontrol_new wm9713_snd_ac97_controls[] = {
 SOC_DOUBLE_TLV("Speaker Playback Volume", AC97_MASTER, 8, 0, 31, 1, out_tlv),
