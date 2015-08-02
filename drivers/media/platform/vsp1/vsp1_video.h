@@ -15,14 +15,11 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/wait.h>
 
-#include <media/media-entity.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
-
-struct vsp1_video;
 
 /*
  * struct vsp1_format_info - VSP1 video format description
@@ -50,51 +47,6 @@ struct vsp1_format_info {
 	unsigned int vsub;
 	bool alpha;
 };
-
-enum vsp1_pipeline_state {
-	VSP1_PIPELINE_STOPPED,
-	VSP1_PIPELINE_RUNNING,
-	VSP1_PIPELINE_STOPPING,
-};
-
-/*
- * struct vsp1_pipeline - A VSP1 hardware pipeline
- * @media: the media pipeline
- * @irqlock: protects the pipeline state
- * @lock: protects the pipeline use count and stream count
- */
-struct vsp1_pipeline {
-	struct media_pipeline pipe;
-
-	spinlock_t irqlock;
-	enum vsp1_pipeline_state state;
-	wait_queue_head_t wq;
-
-	void (*frame_end)(struct vsp1_pipeline *pipe);
-
-	struct mutex lock;
-	unsigned int use_count;
-	unsigned int stream_count;
-	unsigned int buffers_ready;
-
-	unsigned int num_inputs;
-	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
-	struct vsp1_rwpf *output;
-	struct vsp1_entity *bru;
-	struct vsp1_entity *lif;
-	struct vsp1_entity *uds;
-	struct vsp1_entity *uds_input;
-
-	struct list_head entities;
-};
-
-static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)
-{
-	if (likely(e->pipe))
-		return container_of(e->pipe, struct vsp1_pipeline, pipe);
-	else
-		return NULL;
-}
 
 struct vsp1_vb2_buffer {
 	struct vb2_v4l2_buffer buf;
@@ -137,14 +89,5 @@ static inline struct vsp1_video *to_vsp1_video(struct video_device *vdev)
 struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 				     struct vsp1_rwpf *rwpf);
 void vsp1_video_cleanup(struct vsp1_video *video);
-
-void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
-
-void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
-				   struct vsp1_entity *input,
-				   unsigned int alpha);
-
-void vsp1_pipelines_suspend(struct vsp1_device *vsp1);
-void vsp1_pipelines_resume(struct vsp1_device *vsp1);
 
 #endif /* __VSP1_VIDEO_H__ */
