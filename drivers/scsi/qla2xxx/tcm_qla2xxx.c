@@ -1956,7 +1956,7 @@ static void __exit tcm_qla2xxx_exit(void)
 	tcm_qla2xxx_deregister_configfs();
 }
 
-MODULE_DESCRIPTION("TCM QLA2XXX series NPIV enabled fabric driver");
+MODULE_DESCRIPTION("TCM QLA24XX+ series NPIV enabled fabric driver");
 MODULE_LICENSE("GPL");
 module_init(tcm_qla2xxx_init);
 module_exit(tcm_qla2xxx_exit);
