@@ -843,6 +843,7 @@ static struct irq_chip lguest_irq_controller = {
  */
 static int lguest_setup_irq(unsigned int irq)
 {
+	struct irq_desc *desc;
 	int err;
 
 	/* Returns -ve error or vector number. */
@@ -858,7 +859,8 @@ static int lguest_setup_irq(unsigned int irq)
 				      handle_level_irq, "level");
 
 	/* Some systems map "vectors" to interrupts weirdly.  Not us! */
-	__this_cpu_write(vector_irq[FIRST_EXTERNAL_VECTOR + irq], irq);
+	desc = irq_to_desc(irq);
+	__this_cpu_write(vector_irq[FIRST_EXTERNAL_VECTOR + irq], desc);
 	return 0;
 }
 

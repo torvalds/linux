@@ -169,7 +169,7 @@ next:
 			goto next;
 
 		for_each_cpu_and(new_cpu, vector_cpumask, cpu_online_mask) {
-			if (per_cpu(vector_irq, new_cpu)[vector] > VECTOR_UNUSED)
+			if (!IS_ERR_OR_NULL(per_cpu(vector_irq, new_cpu)[vector]))
 				goto next;
 		}
 		/* Found one! */
@@ -181,7 +181,7 @@ next:
 			   cpumask_intersects(d->old_domain, cpu_online_mask);
 		}
 		for_each_cpu_and(new_cpu, vector_cpumask, cpu_online_mask)
-			per_cpu(vector_irq, new_cpu)[vector] = irq;
+			per_cpu(vector_irq, new_cpu)[vector] = irq_to_desc(irq);
 		d->cfg.vector = vector;
 		cpumask_copy(d->domain, vector_cpumask);
 		err = 0;
@@ -223,8 +223,9 @@ static int assign_irq_vector_policy(int irq, int node,
 
 static void clear_irq_vector(int irq, struct apic_chip_data *data)
 {
-	int cpu, vector;
+	struct irq_desc *desc;
 	unsigned long flags;
+	int cpu, vector;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	BUG_ON(!data->cfg.vector);
@@ -241,10 +242,11 @@ static void clear_irq_vector(int irq, struct apic_chip_data *data)
 		return;
 	}
 
+	desc = irq_to_desc(irq);
 	for_each_cpu_and(cpu, data->old_domain, cpu_online_mask) {
 		for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS;
 		     vector++) {
-			if (per_cpu(vector_irq, cpu)[vector] != irq)
+			if (per_cpu(vector_irq, cpu)[vector] != desc)
 				continue;
 			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
 			break;
@@ -402,30 +404,30 @@ int __init arch_early_irq_init(void)
 	return arch_early_ioapic_init();
 }
 
+/* Initialize vector_irq on a new cpu */
 static void __setup_vector_irq(int cpu)
 {
-	/* Initialize vector_irq on a new cpu */
-	int irq, vector;
 	struct apic_chip_data *data;
+	struct irq_desc *desc;
+	int irq, vector;
 
 	/* Mark the inuse vectors */
-	for_each_active_irq(irq) {
-		data = apic_chip_data(irq_get_irq_data(irq));
-		if (!data)
-			continue;
+	for_each_irq_desc(irq, desc) {
+		struct irq_data *idata = irq_desc_get_irq_data(desc);
 
-		if (!cpumask_test_cpu(cpu, data->domain))
+		data = apic_chip_data(idata);
+		if (!data || !cpumask_test_cpu(cpu, data->domain))
 			continue;
 		vector = data->cfg.vector;
-		per_cpu(vector_irq, cpu)[vector] = irq;
+		per_cpu(vector_irq, cpu)[vector] = desc;
 	}
 	/* Mark the free vectors */
 	for (vector = 0; vector < NR_VECTORS; ++vector) {
-		irq = per_cpu(vector_irq, cpu)[vector];
-		if (irq <= VECTOR_UNUSED)
+		desc = per_cpu(vector_irq, cpu)[vector];
+		if (IS_ERR_OR_NULL(desc))
 			continue;
 
-		data = apic_chip_data(irq_get_irq_data(irq));
+		data = apic_chip_data(irq_desc_get_irq_data(desc));
 		if (!cpumask_test_cpu(cpu, data->domain))
 			per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
 	}
@@ -447,7 +449,7 @@ void setup_vector_irq(int cpu)
 	 * legacy vector to irq mapping:
 	 */
 	for (irq = 0; irq < nr_legacy_irqs(); irq++)
-		per_cpu(vector_irq, cpu)[ISA_IRQ_VECTOR(irq)] = irq;
+		per_cpu(vector_irq, cpu)[ISA_IRQ_VECTOR(irq)] = irq_to_desc(irq);
 
 	__setup_vector_irq(cpu);
 }
@@ -543,19 +545,13 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 
 	me = smp_processor_id();
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		int irq;
-		unsigned int irr;
-		struct irq_desc *desc;
 		struct apic_chip_data *data;
+		struct irq_desc *desc;
+		unsigned int irr;
 
 	retry:
-		irq = __this_cpu_read(vector_irq[vector]);
-
-		if (irq <= VECTOR_UNUSED)
-			continue;
-
-		desc = irq_to_desc(irq);
-		if (!desc)
+		desc = __this_cpu_read(vector_irq[vector]);
+		if (IS_ERR_OR_NULL(desc))
 			continue;
 
 		if (!raw_spin_trylock(&desc->lock)) {
@@ -565,9 +561,10 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 			goto retry;
 		}
 
-		data = apic_chip_data(&desc->irq_data);
+		data = apic_chip_data(irq_desc_get_irq_data(desc));
 		if (!data)
 			goto unlock;
+
 		/*
 		 * Check if the irq migration is in progress. If so, we
 		 * haven't received the cleanup request yet for this irq.
