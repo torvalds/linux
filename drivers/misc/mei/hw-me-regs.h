@@ -166,6 +166,10 @@
 /* Host D0I3 Interrupt Status */
 #define H_D0I3C_IS        0x00000040
 
+/* H_CSR masks */
+#define H_CSR_IE_MASK     (H_IE | H_D0I3C_IE)
+#define H_CSR_IS_MASK     (H_IS | H_D0I3C_IS)
+
 /* register bits of ME_CSR_HA (ME Control Status Host Access register) */
 /* ME CB (Circular Buffer) Depth HRA (Host Read Access) - host read only
 access to ME_CBD */

@@ -134,7 +134,7 @@ static inline void mei_hcsr_write(struct mei_device *dev, u32 reg)
  */
 static inline void mei_hcsr_set(struct mei_device *dev, u32 reg)
 {
-	reg &= ~H_IS;
+	reg &= ~H_CSR_IS_MASK;
 	mei_hcsr_write(dev, reg);
 }
 
@@ -216,7 +216,7 @@ static void mei_me_intr_clear(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 
-	if ((hcsr & H_IS) == H_IS)
+	if (hcsr & H_CSR_IS_MASK)
 		mei_hcsr_write(dev, hcsr);
 }
 /**
@@ -228,7 +228,7 @@ static void mei_me_intr_enable(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 
-	hcsr |= H_IE;
+	hcsr |= H_CSR_IE_MASK;
 	mei_hcsr_set(dev, hcsr);
 }
 
@@ -241,7 +241,7 @@ static void mei_me_intr_disable(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 
-	hcsr  &= ~H_IE;
+	hcsr  &= ~H_CSR_IE_MASK;
 	mei_hcsr_set(dev, hcsr);
 }
 
@@ -285,12 +285,12 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 		hcsr = mei_hcsr_read(dev);
 	}
 
-	hcsr |= H_RST | H_IG | H_IS;
+	hcsr |= H_RST | H_IG | H_CSR_IS_MASK;
 
 	if (intr_enable)
-		hcsr |= H_IE;
+		hcsr |= H_CSR_IE_MASK;
 	else
-		hcsr &= ~H_IE;
+		hcsr &= ~H_CSR_IE_MASK;
 
 	dev->recvd_hw_ready = false;
 	mei_hcsr_write(dev, hcsr);
@@ -322,7 +322,7 @@ static void mei_me_host_set_ready(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 
-	hcsr |= H_IE | H_IG | H_RDY;
+	hcsr |= H_CSR_IE_MASK | H_IG | H_RDY;
 	mei_hcsr_set(dev, hcsr);
 }
 
@@ -767,16 +767,20 @@ static void mei_me_pg_intr(struct mei_device *dev)
  *
  * Return: irqreturn_t
  */
-
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
 {
-	struct mei_device *dev = (struct mei_device *) dev_id;
-	u32 hcsr = mei_hcsr_read(dev);
+	struct mei_device *dev = (struct mei_device *)dev_id;
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr;
 
-	if ((hcsr & H_IS) != H_IS)
+	hcsr = mei_hcsr_read(dev);
+	if (!(hcsr & H_CSR_IS_MASK))
 		return IRQ_NONE;
 
-	/* clear H_IS bit in H_CSR */
+	hw->intr_source = hcsr & H_CSR_IS_MASK;
+	dev_dbg(dev->dev, "interrupt source 0x%08X.\n", hw->intr_source);
+
+	/* clear H_IS and H_D0I3C_IS bits in H_CSR to clear the interrupts */
 	mei_hcsr_write(dev, hcsr);
 
 	return IRQ_WAKE_THREAD;
@@ -803,11 +807,6 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	/* initialize our complete list */
 	mutex_lock(&dev->device_lock);
 	mei_io_list_init(&complete_list);
-
-	/* Ack the interrupt here
-	 * In case of MSI we don't go through the quick handler */
-	if (pci_dev_msi_enabled(to_pci_dev(dev->dev)))
-		mei_clear_interrupts(dev);
 
 	/* check if ME wants a reset */
 	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
