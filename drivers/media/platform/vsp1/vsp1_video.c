@@ -403,7 +403,6 @@ static void __vsp1_pipeline_cleanup(struct vsp1_pipeline *pipe)
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;
 	pipe->buffers_ready = 0;
-	pipe->num_video = 0;
 	pipe->num_inputs = 0;
 	pipe->output = NULL;
 	pipe->bru = NULL;
@@ -436,10 +435,8 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 		struct vsp1_rwpf *rwpf;
 		struct vsp1_entity *e;
 
-		if (is_media_entity_v4l2_io(entity)) {
-			pipe->num_video++;
+		if (is_media_entity_v4l2_io(entity))
 			continue;
-		}
 
 		subdev = media_entity_to_v4l2_subdev(entity);
 		e = to_vsp1_entity(subdev);
@@ -907,7 +904,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 	int ret;
 
 	mutex_lock(&pipe->lock);
-	if (pipe->stream_count == pipe->num_video - 1) {
+	if (pipe->stream_count == pipe->num_inputs) {
 		if (pipe->uds) {
 			struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
 

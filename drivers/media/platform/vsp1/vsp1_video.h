@@ -75,7 +75,6 @@ struct vsp1_pipeline {
 	unsigned int stream_count;
 	unsigned int buffers_ready;
 
-	unsigned int num_video;
 	unsigned int num_inputs;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
 	struct vsp1_rwpf *output;
