@@ -144,7 +144,8 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 
 	/* Turn On CPU */
 	read_nic_dword(dev, CPU_GEN, &CPU_status);
-	write_nic_byte(dev, CPU_GEN, (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
+	write_nic_byte(dev, CPU_GEN,
+		       (u8)((CPU_status | CPU_GEN_PWR_STB_CPU) & 0xff));
 	mdelay(1000);
 
 	/* Check whether CPU boot OK */
