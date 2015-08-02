@@ -702,7 +702,7 @@ static int mtk_pmx_set_mux(struct pinctrl_dev *pctldev,
 
 	ret = mtk_pctrl_is_function_valid(pctl, g->pin, function);
 	if (!ret) {
-		dev_err(pctl->dev, "invaild function %d on group %d .\n",
+		dev_err(pctl->dev, "invalid function %d on group %d .\n",
 				function, group);
 		return -EINVAL;
 	}
