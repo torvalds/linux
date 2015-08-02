@@ -25,6 +25,7 @@ struct nft_limit {
 	u64		tokens_max;
 	u64		rate;
 	u64		nsecs;
+	u32		burst;
 };
 
 static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
@@ -65,6 +66,18 @@ static int nft_limit_init(struct nft_limit *limit,
 	if (limit->rate == 0 || limit->nsecs < unit)
 		return -EOVERFLOW;
 	limit->tokens = limit->tokens_max = limit->nsecs;
+
+	if (tb[NFTA_LIMIT_BURST]) {
+		u64 rate;
+
+		limit->burst = ntohl(nla_get_be32(tb[NFTA_LIMIT_BURST]));
+
+		rate = limit->rate + limit->burst;
+		if (rate < limit->rate)
+			return -EOVERFLOW;
+
+		limit->rate = rate;
+	}
 	limit->last = ktime_get_ns();
 
 	return 0;
@@ -73,9 +86,11 @@ static int nft_limit_init(struct nft_limit *limit,
 static int nft_limit_dump(struct sk_buff *skb, const struct nft_limit *limit)
 {
 	u64 secs = div_u64(limit->nsecs, NSEC_PER_SEC);
+	u64 rate = limit->rate - limit->burst;
 
-	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(limit->rate)) ||
-	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs)))
+	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(rate)) ||
+	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs)) ||
+	    nla_put_be32(skb, NFTA_LIMIT_BURST, htonl(limit->burst)))
 		goto nla_put_failure;
 	return 0;
 
@@ -96,6 +111,7 @@ static void nft_limit_pkts_eval(const struct nft_expr *expr,
 static const struct nla_policy nft_limit_policy[NFTA_LIMIT_MAX + 1] = {
 	[NFTA_LIMIT_RATE]	= { .type = NLA_U64 },
 	[NFTA_LIMIT_UNIT]	= { .type = NLA_U64 },
+	[NFTA_LIMIT_BURST]	= { .type = NLA_U32 },
 };
 
 static int nft_limit_pkts_init(const struct nft_ctx *ctx,
