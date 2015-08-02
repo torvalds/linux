@@ -69,7 +69,7 @@ LIST_HEAD(ptlrpc_all_services);
 /** Used to protect the \e ptlrpc_all_services list */
 struct mutex ptlrpc_all_services_mutex;
 
-struct ptlrpc_request_buffer_desc *
+static struct ptlrpc_request_buffer_desc *
 ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_service *svc = svcpt->scp_service;
@@ -101,7 +101,7 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 	return rqbd;
 }
 
-void
+static void
 ptlrpc_free_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 {
 	struct ptlrpc_service_part *svcpt = rqbd->rqbd_svcpt;
@@ -118,7 +118,7 @@ ptlrpc_free_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	kfree(rqbd);
 }
 
-int
+static int
 ptlrpc_grow_req_bufs(struct ptlrpc_service_part *svcpt, int post)
 {
 	struct ptlrpc_service *svc = svcpt->scp_service;
@@ -3052,7 +3052,7 @@ EXPORT_SYMBOL(ptlrpc_unregister_service);
  * Right now, it just checks to make sure that requests aren't languishing
  * in the queue.  We'll use this health check to govern whether a node needs
  * to be shot, so it's intentionally non-aggressive. */
-int ptlrpc_svcpt_health_check(struct ptlrpc_service_part *svcpt)
+static int ptlrpc_svcpt_health_check(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_request *request = NULL;
 	struct timeval right_now;
