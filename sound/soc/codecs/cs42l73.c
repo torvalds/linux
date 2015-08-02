@@ -253,11 +253,10 @@ static bool cs42l73_readable_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static const unsigned int hpaloa_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(hpaloa_tlv,
 	0, 13, TLV_DB_SCALE_ITEM(-7600, 200, 0),
-	14, 75, TLV_DB_SCALE_ITEM(-4900, 100, 0),
-};
+	14, 75, TLV_DB_SCALE_ITEM(-4900, 100, 0)
+);
 
 static DECLARE_TLV_DB_SCALE(adc_boost_tlv, 0, 2500, 0);
 
@@ -267,11 +266,10 @@ static DECLARE_TLV_DB_SCALE(ipd_tlv, -9600, 100, 0);
 
 static DECLARE_TLV_DB_SCALE(micpga_tlv, -600, 50, 0);
 
-static const unsigned int limiter_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(limiter_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(-3000, 600, 0),
-	3, 7, TLV_DB_SCALE_ITEM(-1200, 300, 0),
-};
+	3, 7, TLV_DB_SCALE_ITEM(-1200, 300, 0)
+);
 
 static const DECLARE_TLV_DB_SCALE(attn_tlv, -6300, 100, 1);
 
