@@ -30,19 +30,17 @@ static struct reg_default max9877_regs[] = {
 	{ 4, 0x49 },
 };
 
-static const unsigned int max9877_pgain_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(max9877_pgain_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(0, 900, 0),
-	2, 2, TLV_DB_SCALE_ITEM(2000, 0, 0),
-};
+	2, 2, TLV_DB_SCALE_ITEM(2000, 0, 0)
+);
 
-static const unsigned int max9877_output_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(max9877_output_tlv,
 	0, 7, TLV_DB_SCALE_ITEM(-7900, 400, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-4700, 300, 0),
 	16, 23, TLV_DB_SCALE_ITEM(-2300, 200, 0),
-	24, 31, TLV_DB_SCALE_ITEM(-700, 100, 0),
-};
+	24, 31, TLV_DB_SCALE_ITEM(-700, 100, 0)
+);
 
 static const char *max9877_out_mode[] = {
 	"INA -> SPK",
