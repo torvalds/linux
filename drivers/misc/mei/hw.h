@@ -38,8 +38,8 @@
 /*
  * MEI Version
  */
-#define HBM_MINOR_VERSION                   1
-#define HBM_MAJOR_VERSION                   1
+#define HBM_MINOR_VERSION                   0
+#define HBM_MAJOR_VERSION                   2
 
 /*
  * MEI version with PGI support
