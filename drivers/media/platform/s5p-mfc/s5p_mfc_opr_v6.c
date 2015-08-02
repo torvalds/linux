@@ -522,7 +522,7 @@ static int s5p_mfc_set_enc_stream_buffer_v6(struct s5p_mfc_ctx *ctx,
 	writel(addr, mfc_regs->e_stream_buffer_addr); /* 16B align */
 	writel(size, mfc_regs->e_stream_buffer_size);
 
-	mfc_debug(2, "stream buf addr: 0x%08lx, size: 0x%d\n",
+	mfc_debug(2, "stream buf addr: 0x%08lx, size: 0x%x\n",
 		  addr, size);
 
 	return 0;
