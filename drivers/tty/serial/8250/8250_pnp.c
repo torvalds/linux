@@ -41,6 +41,12 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"AEI1240",		0	},
 	/* Rockwell 56K ACF II Fax+Data+Voice Modem */
 	{	"AKY1021",		0 /*SPCI_FL_NO_SHIRQ*/	},
+	/*
+	 * ALi Fast Infrared Controller
+	 * Native driver (ali-ircc) is broken so at least
+	 * it can be used with irtty-sir.
+	 */
+	{	"ALI5123",		0	},
 	/* AZT3005 PnP SOUND DEVICE */
 	{	"AZT4001",		0	},
 	/* Best Data Products Inc. Smart One 336F PnP Modem */

@@ -153,6 +153,7 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"AEI0250"},		/* PROLiNK 1456VH ISA PnP K56flex Fax Modem */
 	{"AEI1240"},		/* Actiontec ISA PNP 56K X2 Fax Modem */
 	{"AKY1021"},		/* Rockwell 56K ACF II Fax+Data+Voice Modem */
+	{"ALI5123"},		/* ALi Fast Infrared Controller */
 	{"AZT4001"},		/* AZT3005 PnP SOUND DEVICE */
 	{"BDP3336"},		/* Best Data Products Inc. Smart One 336F PnP Modem */
 	{"BRI0A49"},		/* Boca Complete Ofc Communicator 14.4 Data-FAX */
