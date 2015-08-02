@@ -4587,6 +4587,7 @@ static void rocker_remove_ports(struct rocker *rocker)
 		rocker_port = rocker->ports[i];
 		rocker_port_ig_tbl(rocker_port, ROCKER_OP_FLAG_REMOVE);
 		unregister_netdev(rocker_port->dev);
+		free_netdev(rocker_port->dev);
 	}
 	kfree(rocker->ports);
 }
