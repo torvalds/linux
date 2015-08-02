@@ -429,7 +429,7 @@ static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
 			rwpf->video->pipe_index = pipe->num_inputs;
 		} else if (e->type == VSP1_ENTITY_WPF) {
 			rwpf = to_rwpf(subdev);
-			pipe->output = to_rwpf(subdev);
+			pipe->output = rwpf;
 			rwpf->video->pipe_index = 0;
 		} else if (e->type == VSP1_ENTITY_LIF) {
 			pipe->lif = e;
