@@ -1,5 +1,5 @@
-#include <linux/spinlock_types.h>
 #include <linux/types.h>
+#include <linux/spinlock_types.h>
 #include <linux/slab.h>
 #include <linux/ioctl.h>
 
