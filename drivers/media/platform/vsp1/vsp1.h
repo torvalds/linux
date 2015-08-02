@@ -26,6 +26,7 @@
 struct clk;
 struct device;
 
+struct vsp1_drm;
 struct vsp1_platform_data;
 struct vsp1_bru;
 struct vsp1_hsit;
@@ -78,8 +79,8 @@ struct vsp1_device {
 
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
-
 	struct media_entity_operations media_ops;
+	struct vsp1_drm *drm;
 };
 
 int vsp1_device_get(struct vsp1_device *vsp1);
