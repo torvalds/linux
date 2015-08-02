@@ -82,12 +82,11 @@ static int amp_mixer_event(struct snd_soc_dapm_widget *w,
 static const DECLARE_TLV_DB_SCALE(vol_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(hp_tlv, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(adc_rec_tlv, -1650, 150, 0);
-static const unsigned int boost_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static const DECLARE_TLV_DB_RANGE(boost_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(2000, 0, 0),
-	2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0),
-};
+	2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(dig_tlv, 0, 600, 0);
 
 static const struct snd_kcontrol_new alc5621_vol_snd_controls[] = {
