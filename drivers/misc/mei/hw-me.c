@@ -176,12 +176,20 @@ static int mei_me_fw_status(struct mei_device *dev,
  */
 static void mei_me_hw_config(struct mei_device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct mei_me_hw *hw = to_me_hw(dev);
-	u32 hcsr = mei_hcsr_read(dev);
+	u32 hcsr, reg;
+
 	/* Doesn't change in runtime */
+	hcsr = mei_hcsr_read(dev);
 	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
 
 	hw->pg_state = MEI_PG_OFF;
+
+	reg = 0;
+	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
+	hw->d0i3_supported =
+		((reg & PCI_CFG_HFS_1_D0I3_MSK) == PCI_CFG_HFS_1_D0I3_MSK);
 }
 
 /**
