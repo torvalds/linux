@@ -267,33 +267,29 @@ enum clk_src {
  *
  * Reserved area are considered as "mute".
  */
-static const unsigned int hp_out_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(hp_out_tlv,
 	0x0, 0x10, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* -54 dB to +15 dB */
-	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0),
-};
+	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0)
+);
 
-static const unsigned int lineout_vol_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(lineout_vol_tlv,
 	0x0, 0x10, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* -54dB to 15dB */
 	0x11, 0x3f, TLV_DB_SCALE_ITEM(-5400, 150, 0)
-};
+);
 
-static const unsigned int mono_vol_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(mono_vol_tlv,
 	0x0, 0x2, TLV_DB_SCALE_ITEM(-1800, 0, 1),
 	/* -18dB to 6dB */
 	0x3, 0x7, TLV_DB_SCALE_ITEM(-1800, 600, 0)
-};
+);
 
-static const unsigned int aux1_vol_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(aux1_vol_tlv,
 	0x0, 0x10, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	/* -48dB to 21dB */
 	0x11, 0x3f, TLV_DB_SCALE_ITEM(-4800, 150, 0)
-};
+);
 
 static const DECLARE_TLV_DB_SCALE(eq_gain_tlv, -1050, 150, 0);
 static const DECLARE_TLV_DB_SCALE(adc_eq_master_gain_tlv, -1800, 600, 1);
