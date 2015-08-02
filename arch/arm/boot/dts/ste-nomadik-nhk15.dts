@@ -17,6 +17,7 @@
 	};
 
 	aliases {
+		serial1 = &uart1;
 		stmpe-i2c0 = &stmpe0;
 		stmpe-i2c1 = &stmpe1;
 	};
