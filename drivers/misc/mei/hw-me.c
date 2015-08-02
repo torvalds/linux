@@ -139,6 +139,35 @@ static inline void mei_hcsr_set(struct mei_device *dev, u32 reg)
 }
 
 /**
+ * mei_me_d0i3c_read - Reads 32bit data from the D0I3C register
+ *
+ * @dev: the device structure
+ *
+ * Return: H_D0I3C register value (u32)
+ */
+static inline u32 mei_me_d0i3c_read(const struct mei_device *dev)
+{
+	u32 reg;
+
+	reg = mei_me_reg_read(to_me_hw(dev), H_D0I3C);
+	trace_mei_reg_read(dev->dev, "H_D0I3C", H_CSR, reg);
+
+	return reg;
+}
+
+/**
+ * mei_me_d0i3c_write - writes H_D0I3C register to device
+ *
+ * @dev: the device structure
+ * @reg: new register value
+ */
+static inline void mei_me_d0i3c_write(struct mei_device *dev, u32 reg)
+{
+	trace_mei_reg_write(dev->dev, "H_D0I3C", H_CSR, reg);
+	mei_me_reg_write(to_me_hw(dev), H_D0I3C, reg);
+}
+
+/**
  * mei_me_fw_status - read fw status register from pci config space
  *
  * @dev: mei device
@@ -609,13 +638,13 @@ static void mei_me_pg_unset(struct mei_device *dev)
 }
 
 /**
- * mei_me_pg_enter_sync - perform pg entry procedure
+ * mei_me_pg_legacy_enter_sync - perform legacy pg entry procedure
  *
  * @dev: the device structure
  *
  * Return: 0 on success an error code otherwise
  */
-int mei_me_pg_enter_sync(struct mei_device *dev)
+static int mei_me_pg_legacy_enter_sync(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
@@ -646,13 +675,13 @@ int mei_me_pg_enter_sync(struct mei_device *dev)
 }
 
 /**
- * mei_me_pg_exit_sync - perform pg exit procedure
+ * mei_me_pg_legacy_exit_sync - perform legacy pg exit procedure
  *
  * @dev: the device structure
  *
  * Return: 0 on success an error code otherwise
  */
-int mei_me_pg_exit_sync(struct mei_device *dev)
+static int mei_me_pg_legacy_exit_sync(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
@@ -720,7 +749,11 @@ static bool mei_me_pg_in_transition(struct mei_device *dev)
  */
 static bool mei_me_pg_is_enabled(struct mei_device *dev)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 reg = mei_me_mecsr_read(dev);
+
+	if (hw->d0i3_supported)
+		return true;
 
 	if ((reg & ME_PGIC_HRA) == 0)
 		goto notsupported;
@@ -731,7 +764,8 @@ static bool mei_me_pg_is_enabled(struct mei_device *dev)
 	return true;
 
 notsupported:
-	dev_dbg(dev->dev, "pg: not supported: HGP = %d hbm version %d.%d ?= %d.%d\n",
+	dev_dbg(dev->dev, "pg: not supported: d0i3 = %d HGP = %d hbm version %d.%d ?= %d.%d\n",
+		hw->d0i3_supported,
 		!!(reg & ME_PGIC_HRA),
 		dev->version.major_version,
 		dev->version.minor_version,
@@ -739,6 +773,264 @@ notsupported:
 		HBM_MINOR_VERSION_PGI);
 
 	return false;
+}
+
+/**
+ * mei_me_d0i3_set - write d0i3 register bit on mei device.
+ *
+ * @dev: the device structure
+ * @intr: ask for interrupt
+ *
+ * Return: D0I3C register value
+ */
+static u32 mei_me_d0i3_set(struct mei_device *dev, bool intr)
+{
+	u32 reg = mei_me_d0i3c_read(dev);
+
+	reg |= H_D0I3C_I3;
+	if (intr)
+		reg |= H_D0I3C_IR;
+	else
+		reg &= ~H_D0I3C_IR;
+	mei_me_d0i3c_write(dev, reg);
+	/* read it to ensure HW consistency */
+	reg = mei_me_d0i3c_read(dev);
+	return reg;
+}
+
+/**
+ * mei_me_d0i3_unset - clean d0i3 register bit on mei device.
+ *
+ * @dev: the device structure
+ *
+ * Return: D0I3C register value
+ */
+static u32 mei_me_d0i3_unset(struct mei_device *dev)
+{
+	u32 reg = mei_me_d0i3c_read(dev);
+
+	reg &= ~H_D0I3C_I3;
+	reg |= H_D0I3C_IR;
+	mei_me_d0i3c_write(dev, reg);
+	/* read it to ensure HW consistency */
+	reg = mei_me_d0i3c_read(dev);
+	return reg;
+}
+
+/**
+ * mei_me_d0i3_enter_sync - perform d0i3 entry procedure
+ *
+ * @dev: the device structure
+ *
+ * Return: 0 on success an error code otherwise
+ */
+static int mei_me_d0i3_enter_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	unsigned long d0i3_timeout = mei_secs_to_jiffies(MEI_D0I3_TIMEOUT);
+	unsigned long pgi_timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
+	int ret;
+	u32 reg;
+
+	reg = mei_me_d0i3c_read(dev);
+	if (reg & H_D0I3C_I3) {
+		/* we are in d0i3, nothing to do */
+		dev_dbg(dev->dev, "d0i3 set not needed\n");
+		ret = 0;
+		goto on;
+	}
+
+	/* PGI entry procedure */
+	dev->pg_event = MEI_PG_EVENT_WAIT;
+
+	ret = mei_hbm_pg(dev, MEI_PG_ISOLATION_ENTRY_REQ_CMD);
+	if (ret)
+		/* FIXME: should we reset here? */
+		goto out;
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_RECEIVED, pgi_timeout);
+	mutex_lock(&dev->device_lock);
+
+	if (dev->pg_event != MEI_PG_EVENT_RECEIVED) {
+		ret = -ETIME;
+		goto out;
+	}
+	/* end PGI entry procedure */
+
+	dev->pg_event = MEI_PG_EVENT_INTR_WAIT;
+
+	reg = mei_me_d0i3_set(dev, true);
+	if (!(reg & H_D0I3C_CIP)) {
+		dev_dbg(dev->dev, "d0i3 enter wait not needed\n");
+		ret = 0;
+		goto on;
+	}
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_INTR_RECEIVED, d0i3_timeout);
+	mutex_lock(&dev->device_lock);
+
+	if (dev->pg_event != MEI_PG_EVENT_INTR_RECEIVED) {
+		reg = mei_me_d0i3c_read(dev);
+		if (!(reg & H_D0I3C_I3)) {
+			ret = -ETIME;
+			goto out;
+		}
+	}
+
+	ret = 0;
+on:
+	hw->pg_state = MEI_PG_ON;
+out:
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+	dev_dbg(dev->dev, "d0i3 enter ret = %d\n", ret);
+	return ret;
+}
+
+/**
+ * mei_me_d0i3_enter - perform d0i3 entry procedure
+ *   no hbm PG handshake
+ *   no waiting for confirmation; runs with interrupts
+ *   disabled
+ *
+ * @dev: the device structure
+ *
+ * Return: 0 on success an error code otherwise
+ */
+static int mei_me_d0i3_enter(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 reg;
+
+	reg = mei_me_d0i3c_read(dev);
+	if (reg & H_D0I3C_I3) {
+		/* we are in d0i3, nothing to do */
+		dev_dbg(dev->dev, "already d0i3 : set not needed\n");
+		goto on;
+	}
+
+	mei_me_d0i3_set(dev, false);
+on:
+	hw->pg_state = MEI_PG_ON;
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+	dev_dbg(dev->dev, "d0i3 enter\n");
+	return 0;
+}
+
+/**
+ * mei_me_d0i3_exit_sync - perform d0i3 exit procedure
+ *
+ * @dev: the device structure
+ *
+ * Return: 0 on success an error code otherwise
+ */
+static int mei_me_d0i3_exit_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	unsigned long timeout = mei_secs_to_jiffies(MEI_D0I3_TIMEOUT);
+	int ret;
+	u32 reg;
+
+	dev->pg_event = MEI_PG_EVENT_INTR_WAIT;
+
+	reg = mei_me_d0i3c_read(dev);
+	if (!(reg & H_D0I3C_I3)) {
+		/* we are not in d0i3, nothing to do */
+		dev_dbg(dev->dev, "d0i3 exit not needed\n");
+		ret = 0;
+		goto off;
+	}
+
+	reg = mei_me_d0i3_unset(dev);
+	if (!(reg & H_D0I3C_CIP)) {
+		dev_dbg(dev->dev, "d0i3 exit wait not needed\n");
+		ret = 0;
+		goto off;
+	}
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_INTR_RECEIVED, timeout);
+	mutex_lock(&dev->device_lock);
+
+	if (dev->pg_event != MEI_PG_EVENT_INTR_RECEIVED) {
+		reg = mei_me_d0i3c_read(dev);
+		if (reg & H_D0I3C_I3) {
+			ret = -ETIME;
+			goto out;
+		}
+	}
+
+	ret = 0;
+off:
+	hw->pg_state = MEI_PG_OFF;
+out:
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+
+	dev_dbg(dev->dev, "d0i3 exit ret = %d\n", ret);
+	return ret;
+}
+
+/**
+ * mei_me_pg_legacy_intr - perform legacy pg processing
+ *			   in interrupt thread handler
+ *
+ * @dev: the device structure
+ */
+static void mei_me_pg_legacy_intr(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	if (dev->pg_event != MEI_PG_EVENT_INTR_WAIT)
+		return;
+
+	dev->pg_event = MEI_PG_EVENT_INTR_RECEIVED;
+	hw->pg_state = MEI_PG_OFF;
+	if (waitqueue_active(&dev->wait_pg))
+		wake_up(&dev->wait_pg);
+}
+
+/**
+ * mei_me_d0i3_intr - perform d0i3 processing in interrupt thread handler
+ *
+ * @dev: the device structure
+ */
+static void mei_me_d0i3_intr(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	if (dev->pg_event == MEI_PG_EVENT_INTR_WAIT &&
+	    (hw->intr_source & H_D0I3C_IS)) {
+		dev->pg_event = MEI_PG_EVENT_INTR_RECEIVED;
+		if (hw->pg_state == MEI_PG_ON) {
+			hw->pg_state = MEI_PG_OFF;
+			if (dev->hbm_state != MEI_HBM_IDLE) {
+				/*
+				 * force H_RDY because it could be
+				 * wiped off during PG
+				 */
+				dev_dbg(dev->dev, "d0i3 set host ready\n");
+				mei_me_host_set_ready(dev);
+			}
+		} else {
+			hw->pg_state = MEI_PG_ON;
+		}
+
+		wake_up(&dev->wait_pg);
+	}
+
+	if (hw->pg_state == MEI_PG_ON && (hw->intr_source & H_IS)) {
+		/*
+		 * HW sent some data and we are in D0i3, so
+		 * we got here because of HW initiated exit from D0i3.
+		 * Start runtime pm resume sequence to exit low power state.
+		 */
+		dev_dbg(dev->dev, "d0i3 want resume\n");
+		mei_hbm_pg_resume(dev);
+	}
 }
 
 /**
@@ -750,13 +1042,44 @@ static void mei_me_pg_intr(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 
-	if (dev->pg_event != MEI_PG_EVENT_INTR_WAIT)
-		return;
+	if (hw->d0i3_supported)
+		mei_me_d0i3_intr(dev);
+	else
+		mei_me_pg_legacy_intr(dev);
+}
 
-	dev->pg_event = MEI_PG_EVENT_INTR_RECEIVED;
-	hw->pg_state = MEI_PG_OFF;
-	if (waitqueue_active(&dev->wait_pg))
-		wake_up(&dev->wait_pg);
+/**
+ * mei_me_pg_enter_sync - perform runtime pm entry procedure
+ *
+ * @dev: the device structure
+ *
+ * Return: 0 on success an error code otherwise
+ */
+int mei_me_pg_enter_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	if (hw->d0i3_supported)
+		return mei_me_d0i3_enter_sync(dev);
+	else
+		return mei_me_pg_legacy_enter_sync(dev);
+}
+
+/**
+ * mei_me_pg_exit_sync - perform runtime pm exit procedure
+ *
+ * @dev: the device structure
+ *
+ * Return: 0 on success an error code otherwise
+ */
+int mei_me_pg_exit_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	if (hw->d0i3_supported)
+		return mei_me_d0i3_exit_sync(dev);
+	else
+		return mei_me_pg_legacy_exit_sync(dev);
 }
 
 /**

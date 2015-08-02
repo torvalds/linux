@@ -902,6 +902,17 @@ static int mei_hbm_pg_enter_res(struct mei_device *dev)
 }
 
 /**
+ * mei_hbm_pg_resume - process with PG resume
+ *
+ * @dev: the device structure.
+ */
+void mei_hbm_pg_resume(struct mei_device *dev)
+{
+	pm_request_resume(dev->dev);
+}
+EXPORT_SYMBOL_GPL(mei_hbm_pg_resume);
+
+/**
  * mei_hbm_pg_exit_res - PG exit response received
  *
  * @dev: the device structure.
@@ -930,7 +941,7 @@ static int mei_hbm_pg_exit_res(struct mei_device *dev)
 		* Start runtime pm resume sequence to exit from PG.
 		*/
 		dev->pg_event = MEI_PG_EVENT_RECEIVED;
-		pm_request_resume(dev->dev);
+		mei_hbm_pg_resume(dev);
 		break;
 	default:
 		WARN(1, "hbm: pg exit response: unexpected pg event = %d\n",
