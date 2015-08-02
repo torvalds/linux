@@ -276,12 +276,11 @@ static const DECLARE_TLV_DB_SCALE(rec_mix_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(mic_preamp_tlv, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -9750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(dac_tlv, -12750, 50, 1);
-static const unsigned int out_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(out_tlv,
 	/* 0000000 - 0101111 = "Analogue mute" */
 	0, 48, TLV_DB_SCALE_ITEM(-25500, 0, 0),
-	48, 127, TLV_DB_SCALE_ITEM(-7300, 100, 0),
-};
+	48, 127, TLV_DB_SCALE_ITEM(-7300, 100, 0)
+);
 static const DECLARE_TLV_DB_SCALE(mix_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(voice_mix_tlv, -1200, 300, 0);
 static const DECLARE_TLV_DB_SCALE(pga_tlv, -1725, 75, 0);
