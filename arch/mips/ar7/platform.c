@@ -39,7 +39,6 @@
 
 #include <asm/addrspace.h>
 #include <asm/mach-ar7/ar7.h>
-#include <asm/mach-ar7/gpio.h>
 #include <asm/mach-ar7/prom.h>
 
 /*****************************************************************************

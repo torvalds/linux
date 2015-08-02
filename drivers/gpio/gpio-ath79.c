@@ -202,35 +202,3 @@ static struct platform_driver ath79_gpio_driver = {
 };
 
 module_platform_driver(ath79_gpio_driver);
-
-int gpio_get_value(unsigned gpio)
-{
-	if (gpio < ath79_gpio_count)
-		return __ath79_gpio_get_value(gpio);
-
-	return __gpio_get_value(gpio);
-}
-EXPORT_SYMBOL(gpio_get_value);
-
-void gpio_set_value(unsigned gpio, int value)
-{
-	if (gpio < ath79_gpio_count)
-		__ath79_gpio_set_value(gpio, value);
-	else
-		__gpio_set_value(gpio, value);
-}
-EXPORT_SYMBOL(gpio_set_value);
-
-int gpio_to_irq(unsigned gpio)
-{
-	/* FIXME */
-	return -EINVAL;
-}
-EXPORT_SYMBOL(gpio_to_irq);
-
-int irq_to_gpio(unsigned irq)
-{
-	/* FIXME */
-	return -EINVAL;
-}
-EXPORT_SYMBOL(irq_to_gpio);
