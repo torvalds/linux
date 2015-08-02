@@ -24,6 +24,7 @@
 #define RWPF_PAD_SOURCE				1
 
 struct vsp1_rwpf;
+struct vsp1_video;
 
 struct vsp1_rwpf_memory {
 	unsigned int num_planes;
@@ -39,6 +40,8 @@ struct vsp1_rwpf_operations {
 struct vsp1_rwpf {
 	struct vsp1_entity entity;
 	struct v4l2_ctrl_handler ctrls;
+
+	struct vsp1_video *video;
 
 	const struct vsp1_rwpf_operations *ops;
 

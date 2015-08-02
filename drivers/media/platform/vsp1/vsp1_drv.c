@@ -89,8 +89,8 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 		/* RPFs have no source entities, just connect their source pad
 		 * to their video device.
 		 */
-		return media_create_pad_link(&rpf->entity.video->video.entity,
-					     0, &rpf->entity.subdev.entity,
+		return media_create_pad_link(&rpf->video->video.entity, 0,
+					     &rpf->entity.subdev.entity,
 					     RWPF_PAD_SINK,
 					     MEDIA_LNK_FL_ENABLED |
 					     MEDIA_LNK_FL_IMMUTABLE);
@@ -139,7 +139,7 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 
 		return media_create_pad_link(&wpf->entity.subdev.entity,
 					     RWPF_PAD_SOURCE,
-					     &wpf->entity.video->video.entity,
+					     &wpf->video->video.entity,
 					     0, flags);
 	}
 

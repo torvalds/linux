@@ -448,11 +448,11 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 		if (e->type == VSP1_ENTITY_RPF) {
 			rwpf = to_rwpf(subdev);
 			pipe->inputs[pipe->num_inputs++] = rwpf;
-			rwpf->entity.video->pipe_index = pipe->num_inputs;
+			rwpf->video->pipe_index = pipe->num_inputs;
 		} else if (e->type == VSP1_ENTITY_WPF) {
 			rwpf = to_rwpf(subdev);
 			pipe->output = to_rwpf(subdev);
-			rwpf->entity.video->pipe_index = 0;
+			rwpf->video->pipe_index = 0;
 		} else if (e->type == VSP1_ENTITY_LIF) {
 			pipe->lif = e;
 		} else if (e->type == VSP1_ENTITY_BRU) {
@@ -664,10 +664,10 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 
 	/* Complete buffers on all video nodes. */
 	for (i = 0; i < pipe->num_inputs; ++i)
-		vsp1_video_frame_end(pipe, pipe->inputs[i]->entity.video);
+		vsp1_video_frame_end(pipe, pipe->inputs[i]->video);
 
 	if (!pipe->lif)
-		vsp1_video_frame_end(pipe, pipe->output->entity.video);
+		vsp1_video_frame_end(pipe, pipe->output->video);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
@@ -1217,7 +1217,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	if (!video)
 		return ERR_PTR(-ENOMEM);
 
-	rwpf->entity.video = video;
+	rwpf->video = video;
 
 	video->vsp1 = vsp1;
 	video->rwpf = rwpf;
