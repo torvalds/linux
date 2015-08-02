@@ -880,6 +880,68 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 }
 
 /**
+ * mei_hbm_pg_enter_res - PG enter response received
+ *
+ * @dev: the device structure.
+ *
+ * Return: 0 on success, -EPROTO on state mismatch
+ */
+static int mei_hbm_pg_enter_res(struct mei_device *dev)
+{
+	if (mei_pg_state(dev) != MEI_PG_OFF ||
+	    dev->pg_event != MEI_PG_EVENT_WAIT) {
+		dev_err(dev->dev, "hbm: pg entry response: state mismatch [%s, %d]\n",
+			mei_pg_state_str(mei_pg_state(dev)), dev->pg_event);
+		return -EPROTO;
+	}
+
+	dev->pg_event = MEI_PG_EVENT_RECEIVED;
+	wake_up(&dev->wait_pg);
+
+	return 0;
+}
+
+/**
+ * mei_hbm_pg_exit_res - PG exit response received
+ *
+ * @dev: the device structure.
+ *
+ * Return: 0 on success, -EPROTO on state mismatch
+ */
+static int mei_hbm_pg_exit_res(struct mei_device *dev)
+{
+	if (mei_pg_state(dev) != MEI_PG_ON ||
+	    (dev->pg_event != MEI_PG_EVENT_WAIT &&
+	     dev->pg_event != MEI_PG_EVENT_IDLE)) {
+		dev_err(dev->dev, "hbm: pg exit response: state mismatch [%s, %d]\n",
+			mei_pg_state_str(mei_pg_state(dev)), dev->pg_event);
+		return -EPROTO;
+	}
+
+	switch (dev->pg_event) {
+	case MEI_PG_EVENT_WAIT:
+		dev->pg_event = MEI_PG_EVENT_RECEIVED;
+		wake_up(&dev->wait_pg);
+		break;
+	case MEI_PG_EVENT_IDLE:
+		/*
+		* If the driver is not waiting on this then
+		* this is HW initiated exit from PG.
+		* Start runtime pm resume sequence to exit from PG.
+		*/
+		dev->pg_event = MEI_PG_EVENT_RECEIVED;
+		pm_request_resume(dev->dev);
+		break;
+	default:
+		WARN(1, "hbm: pg exit response: unexpected pg event = %d\n",
+		     dev->pg_event);
+		return -EPROTO;
+	}
+
+	return 0;
+}
+
+/**
  * mei_hbm_config_features - check what hbm features and commands
  *        are supported by the fw
  *
@@ -1027,24 +1089,17 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case MEI_PG_ISOLATION_ENTRY_RES_CMD:
-		dev_dbg(dev->dev, "power gate isolation entry response received\n");
-		dev->pg_event = MEI_PG_EVENT_RECEIVED;
-		if (waitqueue_active(&dev->wait_pg))
-			wake_up(&dev->wait_pg);
+		dev_dbg(dev->dev, "hbm: power gate isolation entry response received\n");
+		ret = mei_hbm_pg_enter_res(dev);
+		if (ret)
+			return ret;
 		break;
 
 	case MEI_PG_ISOLATION_EXIT_REQ_CMD:
-		dev_dbg(dev->dev, "power gate isolation exit request received\n");
-		dev->pg_event = MEI_PG_EVENT_RECEIVED;
-		if (waitqueue_active(&dev->wait_pg))
-			wake_up(&dev->wait_pg);
-		else
-			/*
-			* If the driver is not waiting on this then
-			* this is HW initiated exit from PG.
-			* Start runtime pm resume sequence to exit from PG.
-			*/
-			pm_request_resume(dev->dev);
+		dev_dbg(dev->dev, "hbm: power gate isolation exit request received\n");
+		ret = mei_hbm_pg_exit_res(dev);
+		if (ret)
+			return ret;
 		break;
 
 	case HOST_CLIENT_PROPERTIES_RES_CMD:
