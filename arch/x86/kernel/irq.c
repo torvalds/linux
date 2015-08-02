@@ -342,47 +342,45 @@ int check_irq_vectors_for_cpu_disable(void)
 	this_count = 0;
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		irq = __this_cpu_read(vector_irq[vector]);
-		if (irq >= 0) {
-			desc = irq_to_desc(irq);
-			if (!desc)
-				continue;
+		if (irq < 0)
+			continue;
+		desc = irq_to_desc(irq);
+		if (!desc)
+			continue;
 
-			/*
-			 * Protect against concurrent action removal,
-			 * affinity changes etc.
-			 */
-			raw_spin_lock(&desc->lock);
-			data = irq_desc_get_irq_data(desc);
-			cpumask_copy(&affinity_new,
-				     irq_data_get_affinity_mask(data));
-			cpumask_clear_cpu(this_cpu, &affinity_new);
+		/*
+		 * Protect against concurrent action removal, affinity
+		 * changes etc.
+		 */
+		raw_spin_lock(&desc->lock);
+		data = irq_desc_get_irq_data(desc);
+		cpumask_copy(&affinity_new, irq_data_get_affinity_mask(data));
+		cpumask_clear_cpu(this_cpu, &affinity_new);
 
-			/* Do not count inactive or per-cpu irqs. */
-			if (!irq_has_action(irq) || irqd_is_per_cpu(data)) {
-				raw_spin_unlock(&desc->lock);
-				continue;
-			}
-
+		/* Do not count inactive or per-cpu irqs. */
+		if (!irq_has_action(irq) || irqd_is_per_cpu(data)) {
 			raw_spin_unlock(&desc->lock);
-			/*
-			 * A single irq may be mapped to multiple
-			 * cpu's vector_irq[] (for example IOAPIC cluster
-			 * mode).  In this case we have two
-			 * possibilities:
-			 *
-			 * 1) the resulting affinity mask is empty; that is
-			 * this the down'd cpu is the last cpu in the irq's
-			 * affinity mask, or
-			 *
-			 * 2) the resulting affinity mask is no longer
-			 * a subset of the online cpus but the affinity
-			 * mask is not zero; that is the down'd cpu is the
-			 * last online cpu in a user set affinity mask.
-			 */
-			if (cpumask_empty(&affinity_new) ||
-			    !cpumask_subset(&affinity_new, &online_new))
-				this_count++;
+			continue;
 		}
+
+		raw_spin_unlock(&desc->lock);
+		/*
+		 * A single irq may be mapped to multiple cpu's
+		 * vector_irq[] (for example IOAPIC cluster mode).  In
+		 * this case we have two possibilities:
+		 *
+		 * 1) the resulting affinity mask is empty; that is
+		 * this the down'd cpu is the last cpu in the irq's
+		 * affinity mask, or
+		 *
+		 * 2) the resulting affinity mask is no longer a
+		 * subset of the online cpus but the affinity mask is
+		 * not zero; that is the down'd cpu is the last online
+		 * cpu in a user set affinity mask.
+		 */
+		if (cpumask_empty(&affinity_new) ||
+		    !cpumask_subset(&affinity_new, &online_new))
+			this_count++;
 	}
 
 	count = 0;
