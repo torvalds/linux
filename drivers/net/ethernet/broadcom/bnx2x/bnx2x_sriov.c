@@ -2528,7 +2528,7 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
 	DP(BNX2X_MSG_IOV, "configuring vlan for VFs from sp-task\n");
 	for_each_vf(bp, vfidx) {
 		bulletin = BP_VF_BULLETIN(bp, vfidx);
-		if (bulletin->valid_bitmap & VLAN_VALID)
+		if (bulletin->valid_bitmap & (1 << VLAN_VALID))
 			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0);
 	}
 }
