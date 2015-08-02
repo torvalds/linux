@@ -539,6 +539,9 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 
 	entering_ack_irq();
 
+	/* Prevent vectors vanishing under us */
+	raw_spin_lock(&vector_lock);
+
 	me = smp_processor_id();
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		int irq;
@@ -546,6 +549,7 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 		struct irq_desc *desc;
 		struct apic_chip_data *data;
 
+	retry:
 		irq = __this_cpu_read(vector_irq[vector]);
 
 		if (irq <= VECTOR_UNDEFINED)
@@ -555,12 +559,16 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 		if (!desc)
 			continue;
 
+		if (!raw_spin_trylock(&desc->lock)) {
+			raw_spin_unlock(&vector_lock);
+			cpu_relax();
+			raw_spin_lock(&vector_lock);
+			goto retry;
+		}
+
 		data = apic_chip_data(&desc->irq_data);
 		if (!data)
-			continue;
-
-		raw_spin_lock(&desc->lock);
-
+			goto unlock;
 		/*
 		 * Check if the irq migration is in progress. If so, we
 		 * haven't received the cleanup request yet for this irq.
@@ -588,6 +596,8 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 unlock:
 		raw_spin_unlock(&desc->lock);
 	}
+
+	raw_spin_unlock(&vector_lock);
 
 	exiting_irq();
 }
