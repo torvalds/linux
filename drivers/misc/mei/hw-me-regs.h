@@ -140,7 +140,8 @@
 #define ME_CSR_HA  0xC
 /* H_HGC_CSR - PGI register */
 #define H_HPG_CSR  0x10
-
+/* H_D0I3C - D0I3 Control  */
+#define H_D0I3C    0x800
 
 /* register bits of H_CSR (Host Control Status register) */
 /* Host Circular Buffer Depth - maximum number of 32-bit entries in CB */
@@ -159,7 +160,10 @@
 #define H_IS              0x00000002
 /* Host Interrupt Enable */
 #define H_IE              0x00000001
-
+/* Host D0I3 Interrupt Enable */
+#define H_D0I3C_IE        0x00000020
+/* Host D0I3 Interrupt Status */
+#define H_D0I3C_IS        0x00000040
 
 /* register bits of ME_CSR_HA (ME Control Status Host Access register) */
 /* ME CB (Circular Buffer) Depth HRA (Host Read Access) - host read only
@@ -183,8 +187,14 @@ access to ME_CBD */
 #define ME_IE_HRA         0x00000001
 
 
-/* register bits - H_HPG_CSR */
-#define H_HPG_CSR_PGIHEXR       0x00000001
-#define H_HPG_CSR_PGI           0x00000002
+/* H_HPG_CSR register bits */
+#define H_HPG_CSR_PGIHEXR 0x00000001
+#define H_HPG_CSR_PGI     0x00000002
+
+/* H_D0I3C register bits */
+#define H_D0I3C_CIP      0x00000001
+#define H_D0I3C_IR       0x00000002
+#define H_D0I3C_I3       0x00000004
+#define H_D0I3C_RR       0x00000008
 
 #endif /* _MEI_HW_MEI_REGS_H_ */
