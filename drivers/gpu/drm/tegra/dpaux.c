@@ -691,21 +691,26 @@ int drm_dp_aux_attach(struct drm_dp_aux *aux, struct tegra_output *output)
 	if (err < 0)
 		return err;
 
-	timeout = jiffies + msecs_to_jiffies(250);
-
-	while (time_before(jiffies, timeout)) {
+	if (output->panel) {
 		enum drm_connector_status status;
 
-		status = drm_dp_aux_detect(aux);
-		if (status == connector_status_connected) {
-			enable_irq(dpaux->irq);
-			return 0;
+		timeout = jiffies + msecs_to_jiffies(250);
+
+		while (time_before(jiffies, timeout)) {
+			status = drm_dp_aux_detect(aux);
+
+			if (status == connector_status_connected)
+				break;
+
+			usleep_range(1000, 2000);
 		}
 
-		usleep_range(1000, 2000);
+		if (status != connector_status_connected)
+			return -ETIMEDOUT;
 	}
 
-	return -ETIMEDOUT;
+	enable_irq(dpaux->irq);
+	return 0;
 }
 
 int drm_dp_aux_detach(struct drm_dp_aux *aux)
@@ -720,21 +725,27 @@ int drm_dp_aux_detach(struct drm_dp_aux *aux)
 	if (err < 0)
 		return err;
 
-	timeout = jiffies + msecs_to_jiffies(250);
-
-	while (time_before(jiffies, timeout)) {
+	if (dpaux->output->panel) {
 		enum drm_connector_status status;
 
-		status = drm_dp_aux_detect(aux);
-		if (status == connector_status_disconnected) {
-			dpaux->output = NULL;
-			return 0;
+		timeout = jiffies + msecs_to_jiffies(250);
+
+		while (time_before(jiffies, timeout)) {
+			status = drm_dp_aux_detect(aux);
+
+			if (status == connector_status_disconnected)
+				break;
+
+			usleep_range(1000, 2000);
 		}
 
-		usleep_range(1000, 2000);
+		if (status != connector_status_disconnected)
+			return -ETIMEDOUT;
+
+		dpaux->output = NULL;
 	}
 
-	return -ETIMEDOUT;
+	return 0;
 }
 
 enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux)
