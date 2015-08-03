@@ -1881,6 +1881,7 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 int mv88e6xxx_setup_global(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
 	int i;
 
 	/* Set the default address aging time to 5 minutes, and
@@ -1979,9 +1980,11 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 	REG_WRITE(REG_GLOBAL, GLOBAL_STATS_OP, GLOBAL_STATS_OP_FLUSH_ALL);
 
 	/* Wait for the flush to complete. */
-	_mv88e6xxx_stats_wait(ds);
+	mutex_lock(&ps->smi_mutex);
+	ret = _mv88e6xxx_stats_wait(ds);
+	mutex_unlock(&ps->smi_mutex);
 
-	return 0;
+	return ret;
 }
 
 int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active)
