@@ -27,7 +27,7 @@ struct gb_loopback_stats {
 	u32 max;
 	u64 avg;
 	u64 sum;
-	u64 count;
+	u32 count;
 };
 
 struct gb_loopback {
