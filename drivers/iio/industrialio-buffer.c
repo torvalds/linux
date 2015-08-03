@@ -151,7 +151,7 @@ unsigned int iio_buffer_poll(struct file *filp,
 	struct iio_buffer *rb = indio_dev->buffer;
 
 	if (!indio_dev->info)
-		return -ENODEV;
+		return 0;
 
 	poll_wait(filp, &rb->pollq, wait);
 	if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
