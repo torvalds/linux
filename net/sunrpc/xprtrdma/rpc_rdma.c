@@ -71,6 +71,31 @@ static const char transfertypes[][12] = {
 };
 #endif
 
+/* The client can send a request inline as long as the RPCRDMA header
+ * plus the RPC call fit under the transport's inline limit. If the
+ * combined call message size exceeds that limit, the client must use
+ * the read chunk list for this operation.
+ */
+static bool rpcrdma_args_inline(struct rpc_rqst *rqst)
+{
+	unsigned int callsize = RPCRDMA_HDRLEN_MIN + rqst->rq_snd_buf.len;
+
+	return callsize <= RPCRDMA_INLINE_WRITE_THRESHOLD(rqst);
+}
+
+/* The client can't know how large the actual reply will be. Thus it
+ * plans for the largest possible reply for that particular ULP
+ * operation. If the maximum combined reply message size exceeds that
+ * limit, the client must provide a write list or a reply chunk for
+ * this request.
+ */
+static bool rpcrdma_results_inline(struct rpc_rqst *rqst)
+{
+	unsigned int repsize = RPCRDMA_HDRLEN_MIN + rqst->rq_rcv_buf.buflen;
+
+	return repsize <= RPCRDMA_INLINE_READ_THRESHOLD(rqst);
+}
+
 /*
  * Chunk assembly from upper layer xdr_buf.
  *
@@ -409,7 +434,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * a READ, then use write chunks to separate the file data
 	 * into pages; otherwise use reply chunks.
 	 */
-	if (rqst->rq_rcv_buf.buflen <= RPCRDMA_INLINE_READ_THRESHOLD(rqst))
+	if (rpcrdma_results_inline(rqst))
 		wtype = rpcrdma_noch;
 	else if (rqst->rq_rcv_buf.page_len == 0)
 		wtype = rpcrdma_replych;
@@ -432,7 +457,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * implies the op is a write.
 	 * TBD check NFSv4 setacl
 	 */
-	if (rqst->rq_snd_buf.len <= RPCRDMA_INLINE_WRITE_THRESHOLD(rqst))
+	if (rpcrdma_args_inline(rqst))
 		rtype = rpcrdma_noch;
 	else if (rqst->rq_snd_buf.page_len == 0)
 		rtype = rpcrdma_areadch;
