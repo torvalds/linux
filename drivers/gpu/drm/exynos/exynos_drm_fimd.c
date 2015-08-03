@@ -479,9 +479,9 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 }
 
 
-static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
+static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
+				struct drm_framebuffer *fb)
 {
-	struct exynos_drm_plane *plane = &ctx->planes[win];
 	unsigned long val;
 
 	val = WINCONx_ENWIN;
@@ -491,11 +491,11 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 	 * So the request format is ARGB8888 then change it to XRGB8888.
 	 */
 	if (ctx->driver_data->has_limited_fmt && !win) {
-		if (plane->pixel_format == DRM_FORMAT_ARGB8888)
-			plane->pixel_format = DRM_FORMAT_XRGB8888;
+		if (fb->pixel_format == DRM_FORMAT_ARGB8888)
+			fb->pixel_format = DRM_FORMAT_XRGB8888;
 	}
 
-	switch (plane->pixel_format) {
+	switch (fb->pixel_format) {
 	case DRM_FORMAT_C8:
 		val |= WINCON0_BPPMODE_8BPP_PALETTE;
 		val |= WINCONx_BURSTLEN_8WORD;
@@ -531,7 +531,7 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", plane->bpp);
+	DRM_DEBUG_KMS("bpp = %d\n", fb->bits_per_pixel);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -541,7 +541,7 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
 
-	if (plane->fb_width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+	if (fb->width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_4WORD;
 	}
@@ -611,10 +611,13 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	struct drm_plane_state *state = plane->base.state;
 	dma_addr_t dma_addr;
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
 	unsigned int win = plane->zpos;
+	unsigned int bpp = state->fb->bits_per_pixel >> 3;
+	unsigned int pitch = state->fb->pitches[0];
 
 	if (ctx->suspended)
 		return;
@@ -633,8 +636,8 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	fimd_shadow_protect_win(ctx, win, true);
 
 
-	offset = plane->src_x * (plane->bpp >> 3);
-	offset += plane->src_y * plane->pitch;
+	offset = plane->src_x * bpp;
+	offset += plane->src_y * pitch;
 
 	/* buffer start address */
 	dma_addr = plane->dma_addr[0] + offset;
@@ -642,7 +645,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
-	size = plane->pitch * plane->crtc_height;
+	size = pitch * plane->crtc_height;
 	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
@@ -652,8 +655,8 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 			plane->crtc_width, plane->crtc_height);
 
 	/* buffer size */
-	buf_offsize = plane->pitch - (plane->crtc_width * (plane->bpp >> 3));
-	line_size = plane->crtc_width * (plane->bpp >> 3);
+	buf_offsize = pitch - (plane->crtc_width * bpp);
+	line_size = plane->crtc_width * bpp;
 	val = VIDW_BUF_SIZE_OFFSET(buf_offsize) |
 		VIDW_BUF_SIZE_PAGEWIDTH(line_size) |
 		VIDW_BUF_SIZE_OFFSET_E(buf_offsize) |
@@ -693,7 +696,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win);
+	fimd_win_set_pixfmt(ctx, win, state->fb);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)

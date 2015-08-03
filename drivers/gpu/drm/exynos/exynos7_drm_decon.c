@@ -272,16 +272,16 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 	}
 }
 
-static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
+static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
+				 struct drm_framebuffer *fb)
 {
-	struct exynos_drm_plane *plane = &ctx->planes[win];
 	unsigned long val;
 	int padding;
 
 	val = readl(ctx->regs + WINCON(win));
 	val &= ~WINCONx_BPPMODE_MASK;
 
-	switch (plane->pixel_format) {
+	switch (fb->pixel_format) {
 	case DRM_FORMAT_RGB565:
 		val |= WINCONx_BPPMODE_16BPP_565;
 		val |= WINCONx_BURSTLEN_16WORD;
@@ -330,7 +330,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
 		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", plane->bpp);
+	DRM_DEBUG_KMS("bpp = %d\n", fb->bits_per_pixel);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -340,8 +340,8 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
 
-	padding = (plane->pitch / (plane->bpp >> 3)) - plane->fb_width;
-	if (plane->fb_width + padding < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+	padding = (fb->pitches[0] / (fb->bits_per_pixel >> 3)) - fb->width;
+	if (fb->width + padding < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_8WORD;
 	}
@@ -388,11 +388,14 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
+	struct drm_plane_state *state = plane->base.state;
 	int padding;
 	unsigned long val, alpha;
 	unsigned int last_x;
 	unsigned int last_y;
 	unsigned int win = plane->zpos;
+	unsigned int bpp = state->fb->bits_per_pixel >> 3;
+	unsigned int pitch = state->fb->pitches[0];
 
 	if (ctx->suspended)
 		return;
@@ -414,11 +417,11 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	val = (unsigned long)plane->dma_addr[0];
 	writel(val, ctx->regs + VIDW_BUF_START(win));
 
-	padding = (plane->pitch / (plane->bpp >> 3)) - plane->fb_width;
+	padding = (pitch / bpp) - state->fb->width;
 
 	/* buffer size */
-	writel(plane->fb_width + padding, ctx->regs + VIDW_WHOLE_X(win));
-	writel(plane->fb_height, ctx->regs + VIDW_WHOLE_Y(win));
+	writel(state->fb->width + padding, ctx->regs + VIDW_WHOLE_X(win));
+	writel(state->fb->height, ctx->regs + VIDW_WHOLE_Y(win));
 
 	/* offset from the start of the buffer to read */
 	writel(plane->src_x, ctx->regs + VIDW_OFFSET_X(win));
@@ -469,7 +472,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(alpha, ctx->regs + VIDOSD_D(win));
 
-	decon_win_set_pixfmt(ctx, win);
+	decon_win_set_pixfmt(ctx, win, state->fb);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)

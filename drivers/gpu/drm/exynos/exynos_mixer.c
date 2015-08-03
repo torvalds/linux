@@ -383,19 +383,20 @@ static void mixer_stop(struct mixer_context *ctx)
 		usleep_range(10000, 12000);
 }
 
-static void vp_video_buffer(struct mixer_context *ctx, unsigned int win)
+static void vp_video_buffer(struct mixer_context *ctx,
+			    struct exynos_drm_plane *plane)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
+	struct drm_plane_state *state = plane->base.state;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_display_mode *mode = &state->crtc->mode;
 	unsigned long flags;
-	struct exynos_drm_plane *plane;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool tiled_mode = false;
 	bool crcb_mode = false;
 	u32 val;
 
-	plane = &ctx->planes[win];
-
-	switch (plane->pixel_format) {
+	switch (fb->pixel_format) {
 	case DRM_FORMAT_NV12:
 		crcb_mode = false;
 		break;
@@ -404,21 +405,21 @@ static void vp_video_buffer(struct mixer_context *ctx, unsigned int win)
 		break;
 	default:
 		DRM_ERROR("pixel format for vp is wrong [%d].\n",
-				plane->pixel_format);
+				fb->pixel_format);
 		return;
 	}
 
 	luma_addr[0] = plane->dma_addr[0];
 	chroma_addr[0] = plane->dma_addr[1];
 
-	if (plane->scan_flag & DRM_MODE_FLAG_INTERLACE) {
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		ctx->interlace = true;
 		if (tiled_mode) {
 			luma_addr[1] = luma_addr[0] + 0x40;
 			chroma_addr[1] = chroma_addr[0] + 0x40;
 		} else {
-			luma_addr[1] = luma_addr[0] + plane->pitch;
-			chroma_addr[1] = chroma_addr[0] + plane->pitch;
+			luma_addr[1] = luma_addr[0] + fb->pitches[0];
+			chroma_addr[1] = chroma_addr[0] + fb->pitches[0];
 		}
 	} else {
 		ctx->interlace = false;
@@ -439,11 +440,11 @@ static void vp_video_buffer(struct mixer_context *ctx, unsigned int win)
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_FMT_MASK);
 
 	/* setting size of input image */
-	vp_reg_write(res, VP_IMG_SIZE_Y, VP_IMG_HSIZE(plane->pitch) |
-		VP_IMG_VSIZE(plane->fb_height));
+	vp_reg_write(res, VP_IMG_SIZE_Y, VP_IMG_HSIZE(fb->pitches[0]) |
+		VP_IMG_VSIZE(fb->height));
 	/* chroma height has to reduced by 2 to avoid chroma distorions */
-	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(plane->pitch) |
-		VP_IMG_VSIZE(plane->fb_height / 2));
+	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
+		VP_IMG_VSIZE(fb->height / 2));
 
 	vp_reg_write(res, VP_SRC_WIDTH, plane->src_width);
 	vp_reg_write(res, VP_SRC_HEIGHT, plane->src_height);
@@ -472,9 +473,9 @@ static void vp_video_buffer(struct mixer_context *ctx, unsigned int win)
 	vp_reg_write(res, VP_TOP_C_PTR, chroma_addr[0]);
 	vp_reg_write(res, VP_BOT_C_PTR, chroma_addr[1]);
 
-	mixer_cfg_scan(ctx, plane->mode_height);
-	mixer_cfg_rgb_fmt(ctx, plane->mode_height);
-	mixer_cfg_layer(ctx, win, true);
+	mixer_cfg_scan(ctx, mode->vdisplay);
+	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
+	mixer_cfg_layer(ctx, plane->zpos, true);
 	mixer_run(ctx);
 
 	mixer_vsync_set_update(ctx, true);
@@ -515,20 +516,22 @@ fail:
 	return -ENOTSUPP;
 }
 
-static void mixer_graph_buffer(struct mixer_context *ctx, unsigned int win)
+static void mixer_graph_buffer(struct mixer_context *ctx,
+			       struct exynos_drm_plane *plane)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
+	struct drm_plane_state *state = plane->base.state;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_display_mode *mode = &state->crtc->mode;
 	unsigned long flags;
-	struct exynos_drm_plane *plane;
+	unsigned int win = plane->zpos;
 	unsigned int x_ratio = 0, y_ratio = 0;
 	unsigned int src_x_offset, src_y_offset, dst_x_offset, dst_y_offset;
 	dma_addr_t dma_addr;
 	unsigned int fmt;
 	u32 val;
 
-	plane = &ctx->planes[win];
-
-	switch (plane->pixel_format) {
+	switch (fb->pixel_format) {
 	case DRM_FORMAT_XRGB4444:
 		fmt = MXR_FORMAT_ARGB4444;
 		break;
@@ -560,12 +563,12 @@ static void mixer_graph_buffer(struct mixer_context *ctx, unsigned int win)
 
 	/* converting dma address base and source offset */
 	dma_addr = plane->dma_addr[0]
-		+ (plane->src_x * plane->bpp >> 3)
-		+ (plane->src_y * plane->pitch);
+		+ (plane->src_x * fb->bits_per_pixel >> 3)
+		+ (plane->src_y * fb->pitches[0]);
 	src_x_offset = 0;
 	src_y_offset = 0;
 
-	if (plane->scan_flag & DRM_MODE_FLAG_INTERLACE)
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		ctx->interlace = true;
 	else
 		ctx->interlace = false;
@@ -579,13 +582,13 @@ static void mixer_graph_buffer(struct mixer_context *ctx, unsigned int win)
 
 	/* setup geometry */
 	mixer_reg_write(res, MXR_GRAPHIC_SPAN(win),
-			plane->pitch / (plane->bpp >> 3));
+			fb->pitches[0] / (fb->bits_per_pixel >> 3));
 
 	/* setup display size */
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184 &&
 		win == MIXER_DEFAULT_WIN) {
-		val  = MXR_MXR_RES_HEIGHT(plane->mode_height);
-		val |= MXR_MXR_RES_WIDTH(plane->mode_width);
+		val  = MXR_MXR_RES_HEIGHT(mode->vdisplay);
+		val |= MXR_MXR_RES_WIDTH(mode->hdisplay);
 		mixer_reg_write(res, MXR_RESOLUTION, val);
 	}
 
@@ -608,8 +611,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx, unsigned int win)
 	/* set buffer address to mixer */
 	mixer_reg_write(res, MXR_GRAPHIC_BASE(win), dma_addr);
 
-	mixer_cfg_scan(ctx, plane->mode_height);
-	mixer_cfg_rgb_fmt(ctx, plane->mode_height);
+	mixer_cfg_scan(ctx, mode->vdisplay);
+	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_cfg_layer(ctx, win, true);
 
 	/* layer update mandatory for mixer 16.0.33.0 */
@@ -938,9 +941,9 @@ static void mixer_update_plane(struct exynos_drm_crtc *crtc,
 		return;
 
 	if (plane->zpos > 1 && mixer_ctx->vp_enabled)
-		vp_video_buffer(mixer_ctx, plane->zpos);
+		vp_video_buffer(mixer_ctx, plane);
 	else
-		mixer_graph_buffer(mixer_ctx, plane->zpos);
+		mixer_graph_buffer(mixer_ctx, plane);
 }
 
 static void mixer_disable_plane(struct exynos_drm_crtc *crtc,

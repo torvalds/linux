@@ -152,15 +152,15 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 #define OFFSIZE(x)		(((x) & 0x3fff) << 14)
 #define PAGEWIDTH(x)		((x) & 0x3fff)
 
-static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
+static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
+				 struct drm_framebuffer *fb)
 {
-	struct exynos_drm_plane *plane = &ctx->planes[win];
 	unsigned long val;
 
 	val = readl(ctx->addr + DECON_WINCONx(win));
 	val &= ~WINCONx_BPPMODE_MASK;
 
-	switch (plane->pixel_format) {
+	switch (fb->pixel_format) {
 	case DRM_FORMAT_XRGB1555:
 		val |= WINCONx_BPPMODE_16BPP_I1555;
 		val |= WINCONx_HAWSWP_F;
@@ -186,7 +186,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
 		return;
 	}
 
-	DRM_DEBUG_KMS("bpp = %u\n", plane->bpp);
+	DRM_DEBUG_KMS("bpp = %u\n", fb->bits_per_pixel);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -196,7 +196,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win)
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
 
-	if (plane->fb_width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
+	if (fb->width < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_8WORD;
 	}
@@ -223,7 +223,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
 	struct decon_context *ctx = crtc->ctx;
+	struct drm_plane_state *state = plane->base.state;
 	unsigned int win = plane->zpos;
+	unsigned int bpp = state->fb->bits_per_pixel >> 3;
+	unsigned int pitch = state->fb->pitches[0];
 	u32 val;
 
 	if (ctx->suspended)
@@ -248,14 +251,14 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(plane->dma_addr[0], ctx->addr + DECON_VIDW0xADD0B0(win));
 
-	val = plane->dma_addr[0] + plane->pitch * plane->crtc_height;
+	val = plane->dma_addr[0] + pitch * plane->crtc_height;
 	writel(val, ctx->addr + DECON_VIDW0xADD1B0(win));
 
-	val = OFFSIZE(plane->pitch - plane->crtc_width * (plane->bpp >> 3))
-		| PAGEWIDTH(plane->crtc_width * (plane->bpp >> 3));
+	val = OFFSIZE(pitch - plane->crtc_width * bpp)
+		| PAGEWIDTH(plane->crtc_width * bpp);
 	writel(val, ctx->addr + DECON_VIDW0xADD2(win));
 
-	decon_win_set_pixfmt(ctx, win);
+	decon_win_set_pixfmt(ctx, win, state->fb);
 
 	/* window enable */
 	val = readl(ctx->addr + DECON_WINCONx(win));
