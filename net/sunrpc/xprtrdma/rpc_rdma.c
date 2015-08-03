@@ -489,6 +489,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	} else if (rqst->rq_snd_buf.flags & XDRBUF_WRITE) {
 		rtype = rpcrdma_readch;
 	} else {
+		r_xprt->rx_stats.nomsg_call_count++;
 		headerp->rm_type = htonl(RDMA_NOMSG);
 		rtype = rpcrdma_areadch;
 		rpclen = 0;
