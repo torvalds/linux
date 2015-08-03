@@ -310,7 +310,7 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 
 	spin_lock(&ctx->ring_lock);
 	if (amdgpu_enable_scheduler)
-		queued_seq = atomic64_read(&cring->c_entity.last_queued_v_seq) + 1;
+		queued_seq = amd_sched_next_queued_seq(&cring->c_entity);
 	else
 		queued_seq = cring->sequence;
 

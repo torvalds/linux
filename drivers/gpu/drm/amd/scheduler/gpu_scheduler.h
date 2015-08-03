@@ -153,4 +153,6 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 
 void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq);
 
+uint64_t amd_sched_next_queued_seq(struct amd_context_entity *c_entity);
+
 #endif

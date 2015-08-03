@@ -507,3 +507,15 @@ void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq)
 	atomic64_set(&c_entity->last_emitted_v_seq, seq);
 	wake_up_all(&c_entity->wait_emit);
 }
+
+/**
+ * Get next queued sequence number
+ *
+ * @entity The context entity
+ *
+ * return the next queued sequence number
+*/
+uint64_t amd_sched_next_queued_seq(struct amd_context_entity *c_entity)
+{
+	return atomic64_read(&c_entity->last_queued_v_seq) + 1;
+}
