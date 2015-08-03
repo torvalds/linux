@@ -45,10 +45,13 @@
 
 /*
  * Define a buffer size for the initial command that detects the flash device:
- * STATUS, READID and PARAM. The largest of these is the PARAM command,
- * needing 256 bytes.
+ * STATUS, READID and PARAM.
+ * ONFI param page is 256 bytes, and there are three redundant copies
+ * to be read. JEDEC param page is 512 bytes, and there are also three
+ * redundant copies to be read.
+ * Hence this buffer should be at least 512 x 3. Let's pick 2048.
  */
-#define INIT_BUFFER_SIZE	256
+#define INIT_BUFFER_SIZE	2048
 
 /* registers and bit definitions */
 #define NDCR		(0x00) /* Control register */
@@ -899,14 +902,14 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 		break;
 
 	case NAND_CMD_PARAM:
-		info->buf_count = 256;
+		info->buf_count = INIT_BUFFER_SIZE;
 		info->ndcb0 |= NDCB0_CMD_TYPE(0)
 				| NDCB0_ADDR_CYC(1)
 				| NDCB0_LEN_OVRD
 				| command;
 		info->ndcb1 = (column & 0xFF);
-		info->ndcb3 = 256;
-		info->data_size = 256;
+		info->ndcb3 = INIT_BUFFER_SIZE;
+		info->data_size = INIT_BUFFER_SIZE;
 		break;
 
 	case NAND_CMD_READID:
