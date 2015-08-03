@@ -1693,6 +1693,10 @@
 #define RT5645_GP6_PIN_SFT			6
 #define RT5645_GP6_PIN_GPIO6			(0x0 << 6)
 #define RT5645_GP6_PIN_DMIC2_SDA		(0x1 << 6)
+#define RT5645_I2S2_DAC_PIN_MASK		(0x1 << 4)
+#define RT5645_I2S2_DAC_PIN_SFT			4
+#define RT5645_I2S2_DAC_PIN_I2S			(0x0 << 4)
+#define RT5645_I2S2_DAC_PIN_GPIO		(0x1 << 4)
 #define RT5645_GP8_PIN_MASK			(0x1 << 3)
 #define RT5645_GP8_PIN_SFT			3
 #define RT5645_GP8_PIN_GPIO8			(0x0 << 3)
