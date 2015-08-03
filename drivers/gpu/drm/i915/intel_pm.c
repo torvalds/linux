@@ -102,6 +102,12 @@ static void skl_init_clock_gating(struct drm_device *dev)
 		/* WaDisableLSQCROPERFforOCL:skl */
 		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
 			   GEN8_LQSC_RO_PERF_DIS);
+
+	/* WaEnableGapsTsvCreditFix:skl */
+	if (IS_SKYLAKE(dev) && (INTEL_REVID(dev) >= SKL_REVID_C0)) {
+		I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
+					   GEN9_GAPS_TSV_CREDIT_DISABLE));
+	}
 }
 
 static void bxt_init_clock_gating(struct drm_device *dev)

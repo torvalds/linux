@@ -6851,6 +6851,9 @@ enum skl_disp_power_wells {
 #define GEN7_MISCCPCTL			(0x9424)
 #define   GEN7_DOP_CLOCK_GATE_ENABLE	(1<<0)
 
+#define GEN8_GARBCNTL                   0xB004
+#define   GEN9_GAPS_TSV_CREDIT_DISABLE  (1<<7)
+
 /* IVYBRIDGE DPF */
 #define GEN7_L3CDERRST1			0xB008 /* L3CD Error Status 1 */
 #define HSW_L3CDERRST11			0xB208 /* L3CD Error Status register 1 slice 1 */
