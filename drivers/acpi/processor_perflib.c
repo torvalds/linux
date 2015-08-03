@@ -87,7 +87,7 @@ static int acpi_processor_ppc_notifier(struct notifier_block *nb,
 	if (ignore_ppc)
 		return 0;
 
-	if (event != CPUFREQ_INCOMPATIBLE)
+	if (event != CPUFREQ_ADJUST)
 		return 0;
 
 	mutex_lock(&performance_mutex);
