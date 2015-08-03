@@ -15,7 +15,7 @@
 
 struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 {
-	if (!msm_dsi || !msm_dsi->panel)
+	if (!msm_dsi || !msm_dsi_device_connected(msm_dsi))
 		return NULL;
 
 	return (msm_dsi->device_flags & MIPI_DSI_MODE_VIDEO) ?

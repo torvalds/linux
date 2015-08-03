@@ -344,7 +344,8 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	int ret;
 
 	DBG("id=%d", id);
-	if (!panel || (is_dual_dsi && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi) ||
+			(is_dual_dsi && (DSI_1 == id)))
 		return;
 
 	ret = msm_dsi_host_power_on(host);
@@ -431,7 +432,8 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 
 	DBG("id=%d", id);
 
-	if (!panel || (is_dual_dsi && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi) ||
+			(is_dual_dsi && (DSI_1 == id)))
 		return;
 
 	ret = drm_panel_disable(panel);
