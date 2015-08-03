@@ -671,11 +671,7 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 		return -EINVAL;
 
 	ret = cpufreq_set_policy(policy, &new_policy);
-	if (ret)
-		return ret;
-
-	policy->user_policy.policy = policy->policy;
-	return count;
+	return ret ? ret : count;
 }
 
 /**
@@ -1321,9 +1317,6 @@ static int cpufreq_online(unsigned int cpu)
 		new_policy = false;
 		goto out_exit_policy;
 	}
-
-	if (new_policy)
-		policy->user_policy.policy = policy->policy;
 
 	up_write(&policy->rwsem);
 
@@ -2302,7 +2295,6 @@ int cpufreq_update_policy(unsigned int cpu)
 	memcpy(&new_policy, policy, sizeof(*policy));
 	new_policy.min = policy->user_policy.min;
 	new_policy.max = policy->user_policy.max;
-	new_policy.policy = policy->user_policy.policy;
 
 	/*
 	 * BIOS might change freq behind our back

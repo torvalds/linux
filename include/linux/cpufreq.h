@@ -54,7 +54,6 @@ struct cpufreq_cpuinfo {
 struct cpufreq_real_policy {
 	unsigned int		min;    /* in kHz */
 	unsigned int		max;    /* in kHz */
-	unsigned int		policy; /* see above */
 };
 
 struct cpufreq_policy {
