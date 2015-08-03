@@ -244,17 +244,19 @@ static int amdgpu_test_create_and_emit_fence(struct amdgpu_device *adev,
 	int r;
 
 	if (ring == &adev->uvd.ring) {
+		struct fence *f = NULL;
 		r = amdgpu_uvd_get_create_msg(ring, handle, NULL);
 		if (r) {
 			DRM_ERROR("Failed to get dummy create msg\n");
 			return r;
 		}
 
-		r = amdgpu_uvd_get_destroy_msg(ring, handle, fence);
+		r = amdgpu_uvd_get_destroy_msg(ring, handle, &f);
 		if (r) {
 			DRM_ERROR("Failed to get dummy destroy msg\n");
 			return r;
 		}
+		*fence = to_amdgpu_fence(f);
 
 	} else if (ring == &adev->vce.ring[0] ||
 		   ring == &adev->vce.ring[1]) {

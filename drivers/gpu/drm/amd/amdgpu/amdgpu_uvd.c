@@ -288,7 +288,7 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
 		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
 		if (handle != 0 && adev->uvd.filp[i] == filp) {
-			struct amdgpu_fence *fence;
+			struct fence *fence;
 
 			amdgpu_uvd_note_usage(adev);
 
@@ -298,8 +298,8 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 				continue;
 			}
 
-			amdgpu_fence_wait(fence, false);
-			amdgpu_fence_unref(&fence);
+			fence_wait(fence, false);
+			fence_put(fence);
 
 			adev->uvd.filp[i] = NULL;
 			atomic_set(&adev->uvd.handles[i], 0);
@@ -819,7 +819,7 @@ static int amdgpu_uvd_free_job(
 
 static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
-			       struct amdgpu_fence **fence)
+			       struct fence **fence)
 {
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
@@ -876,7 +876,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	ttm_eu_fence_buffer_objects(&ticket, &head, &ib->fence->base);
 
 	if (fence)
-		*fence = amdgpu_fence_ref(ib->fence);
+		*fence = fence_get(&ib->fence->base);
 	amdgpu_bo_unref(&bo);
 
 	if (amdgpu_enable_scheduler)
@@ -898,7 +898,7 @@ err:
    crash the vcpu so just try to emmit a dummy create/destroy msg to
    avoid this */
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct amdgpu_fence **fence)
+			      struct fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_bo *bo;
@@ -945,7 +945,7 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 }
 
 int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct amdgpu_fence **fence)
+			       struct fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_bo *bo;
