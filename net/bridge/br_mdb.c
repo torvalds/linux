@@ -490,7 +490,7 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 
 	pv = nbp_get_vlan_info(p);
-	if (br->vlan_enabled && pv && entry->vid == 0) {
+	if (br_vlan_enabled(br) && pv && entry->vid == 0) {
 		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			entry->vid = vid;
 			err = __br_mdb_add(net, br, entry);
@@ -592,7 +592,7 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 
 	pv = nbp_get_vlan_info(p);
-	if (br->vlan_enabled && pv && entry->vid == 0) {
+	if (br_vlan_enabled(br) && pv && entry->vid == 0) {
 		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			entry->vid = vid;
 			err = __br_mdb_del(br, entry);
