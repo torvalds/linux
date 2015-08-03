@@ -5,6 +5,12 @@ config ARCH_BCM_IPROC
 	help
 	  This enables support for Broadcom iProc based SoCs
 
+config ARCH_BERLIN
+	bool "Marvell Berlin SoC Family"
+	select DW_APB_ICTL
+	help
+	  This enables support for Marvell Berlin SoC Family
+
 config ARCH_EXYNOS
 	bool
 	help
