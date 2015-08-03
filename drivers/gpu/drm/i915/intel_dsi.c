@@ -1036,17 +1036,16 @@ void intel_dsi_init(struct drm_device *dev)
 	intel_connector->unregister = intel_connector_unregister;
 
 	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
-	if (dev_priv->vbt.dsi.config->dual_link) {
-		/* XXX: does dual link work on either pipe? */
-		intel_encoder->crtc_mask = (1 << PIPE_A);
-		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
-	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
+	if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
 		intel_encoder->crtc_mask = (1 << PIPE_A);
 		intel_dsi->ports = (1 << PORT_A);
 	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIC) {
 		intel_encoder->crtc_mask = (1 << PIPE_B);
 		intel_dsi->ports = (1 << PORT_C);
 	}
+
+	if (dev_priv->vbt.dsi.config->dual_link)
+		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {
