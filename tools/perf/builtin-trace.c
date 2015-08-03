@@ -2394,9 +2394,10 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		err = trace__set_ev_qualifier_filter(trace);
 		if (err < 0)
 			goto out_errno;
-	}
 
-	pr_debug("%s\n", trace->syscalls.events.sys_exit->filter);
+		pr_debug("event qualifier tracepoint filter: %s\n",
+			 trace->syscalls.events.sys_exit->filter);
+	}
 
 	err = perf_evlist__apply_filters(evlist, &evsel);
 	if (err < 0)
