@@ -25,7 +25,6 @@
 struct gb_loopback_stats {
 	u32 min;
 	u32 max;
-	u64 avg;
 	u64 sum;
 	u32 count;
 };
@@ -107,7 +106,11 @@ static ssize_t name##_avg_show(struct device *dev,			\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
 	struct gb_loopback *gb = connection->private;			\
-	return sprintf(buf, "%llu\n", gb->name.avg);			\
+	struct gb_loopback_stats *stats = &gb->name;			\
+	u32 count = stats->count ? stats->count : 1;			\
+	u64 avg = stats->sum + count / 2;	/* round closest */	\
+	u32 rem = do_div(avg, count);					\
+	return sprintf(buf, "%llu.%06u\n", avg, 1000000 * rem / count);	\
 }									\
 static DEVICE_ATTR_RO(name##_avg)
 
@@ -367,8 +370,6 @@ static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
 		stats->max = val;
 	stats->sum += val;
 	stats->count++;
-	stats->avg = stats->sum;
-	do_div(stats->avg, stats->count);
 }
 
 static void gb_loopback_requests_update(struct gb_loopback *gb, u32 latency)
