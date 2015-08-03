@@ -1229,75 +1229,6 @@ rpcrdma_mapping_error(struct rpcrdma_mr_seg *seg)
 		(unsigned long long)seg->mr_dma, seg->mr_dmalen);
 }
 
-static int
-rpcrdma_register_internal(struct rpcrdma_ia *ia, void *va, int len,
-				struct ib_mr **mrp, struct ib_sge *iov)
-{
-	struct ib_phys_buf ipb;
-	struct ib_mr *mr;
-	int rc;
-
-	/*
-	 * All memory passed here was kmalloc'ed, therefore phys-contiguous.
-	 */
-	iov->addr = ib_dma_map_single(ia->ri_device,
-			va, len, DMA_BIDIRECTIONAL);
-	if (ib_dma_mapping_error(ia->ri_device, iov->addr))
-		return -ENOMEM;
-
-	iov->length = len;
-
-	if (ia->ri_have_dma_lkey) {
-		*mrp = NULL;
-		iov->lkey = ia->ri_dma_lkey;
-		return 0;
-	} else if (ia->ri_bind_mem != NULL) {
-		*mrp = NULL;
-		iov->lkey = ia->ri_bind_mem->lkey;
-		return 0;
-	}
-
-	ipb.addr = iov->addr;
-	ipb.size = iov->length;
-	mr = ib_reg_phys_mr(ia->ri_pd, &ipb, 1,
-			IB_ACCESS_LOCAL_WRITE, &iov->addr);
-
-	dprintk("RPC:       %s: phys convert: 0x%llx "
-			"registered 0x%llx length %d\n",
-			__func__, (unsigned long long)ipb.addr,
-			(unsigned long long)iov->addr, len);
-
-	if (IS_ERR(mr)) {
-		*mrp = NULL;
-		rc = PTR_ERR(mr);
-		dprintk("RPC:       %s: failed with %i\n", __func__, rc);
-	} else {
-		*mrp = mr;
-		iov->lkey = mr->lkey;
-		rc = 0;
-	}
-
-	return rc;
-}
-
-static int
-rpcrdma_deregister_internal(struct rpcrdma_ia *ia,
-				struct ib_mr *mr, struct ib_sge *iov)
-{
-	int rc;
-
-	ib_dma_unmap_single(ia->ri_device,
-			    iov->addr, iov->length, DMA_BIDIRECTIONAL);
-
-	if (NULL == mr)
-		return 0;
-
-	rc = ib_dereg_mr(mr);
-	if (rc)
-		dprintk("RPC:       %s: ib_dereg_mr failed %i\n", __func__, rc);
-	return rc;
-}
-
 /**
  * rpcrdma_alloc_regbuf - kmalloc and register memory for SEND/RECV buffers
  * @ia: controlling rpcrdma_ia
@@ -1317,26 +1248,30 @@ struct rpcrdma_regbuf *
 rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
 {
 	struct rpcrdma_regbuf *rb;
-	int rc;
+	struct ib_sge *iov;
 
-	rc = -ENOMEM;
 	rb = kmalloc(sizeof(*rb) + size, flags);
 	if (rb == NULL)
 		goto out;
 
-	rb->rg_size = size;
-	rb->rg_owner = NULL;
-	rc = rpcrdma_register_internal(ia, rb->rg_base, size,
-				       &rb->rg_mr, &rb->rg_iov);
-	if (rc)
+	iov = &rb->rg_iov;
+	iov->addr = ib_dma_map_single(ia->ri_device,
+				      (void *)rb->rg_base, size,
+				      DMA_BIDIRECTIONAL);
+	if (ib_dma_mapping_error(ia->ri_device, iov->addr))
 		goto out_free;
 
+	iov->length = size;
+	iov->lkey = ia->ri_have_dma_lkey ?
+				ia->ri_dma_lkey : ia->ri_bind_mem->lkey;
+	rb->rg_size = size;
+	rb->rg_owner = NULL;
 	return rb;
 
 out_free:
 	kfree(rb);
 out:
-	return ERR_PTR(rc);
+	return ERR_PTR(-ENOMEM);
 }
 
 /**
@@ -1347,10 +1282,15 @@ out:
 void
 rpcrdma_free_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 {
-	if (rb) {
-		rpcrdma_deregister_internal(ia, rb->rg_mr, &rb->rg_iov);
-		kfree(rb);
-	}
+	struct ib_sge *iov;
+
+	if (!rb)
+		return;
+
+	iov = &rb->rg_iov;
+	ib_dma_unmap_single(ia->ri_device,
+			    iov->addr, iov->length, DMA_BIDIRECTIONAL);
+	kfree(rb);
 }
 
 /*
