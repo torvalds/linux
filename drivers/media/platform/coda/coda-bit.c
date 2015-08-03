@@ -256,6 +256,13 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 			continue;
 		}
 
+		/* Dump empty buffers */
+		if (!vb2_get_plane_payload(src_buf, 0)) {
+			src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+			continue;
+		}
+
 		/* Buffer start position */
 		start = ctx->bitstream_fifo.kfifo.in &
 			ctx->bitstream_fifo.kfifo.mask;
