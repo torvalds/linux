@@ -1169,9 +1169,12 @@ static int chv_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
 	int pin = chv_gpio_offset_to_pin(pctrl, offset);
+	unsigned long flags;
 	u32 ctrl0, cfg;
 
+	spin_lock_irqsave(&pctrl->lock, flags);
 	ctrl0 = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
+	spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	cfg = ctrl0 & CHV_PADCTRL0_GPIOCFG_MASK;
 	cfg >>= CHV_PADCTRL0_GPIOCFG_SHIFT;
@@ -1209,8 +1212,11 @@ static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
 	unsigned pin = chv_gpio_offset_to_pin(pctrl, offset);
 	u32 ctrl0, direction;
+	unsigned long flags;
 
+	spin_lock_irqsave(&pctrl->lock, flags);
 	ctrl0 = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
+	spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	direction = ctrl0 & CHV_PADCTRL0_GPIOCFG_MASK;
 	direction >>= CHV_PADCTRL0_GPIOCFG_SHIFT;
@@ -1313,6 +1319,7 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 		unsigned long flags;
 		u32 intsel, value;
 
+		spin_lock_irqsave(&pctrl->lock, flags);
 		intsel = readl(chv_padreg(pctrl, pin, CHV_PADCTRL0));
 		intsel &= CHV_PADCTRL0_INTSEL_MASK;
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
@@ -1323,7 +1330,6 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 		else
 			handler = handle_edge_irq;
 
-		spin_lock_irqsave(&pctrl->lock, flags);
 		if (!pctrl->intr_lines[intsel]) {
 			irq_set_handler_locked(d, handler);
 			pctrl->intr_lines[intsel] = offset;
