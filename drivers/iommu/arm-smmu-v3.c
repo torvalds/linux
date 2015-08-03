@@ -2550,12 +2550,12 @@ static int arm_smmu_device_probe(struct arm_smmu_device *smmu)
 	case IDR5_OAS_44_BIT:
 		smmu->oas = 44;
 		break;
+	default:
+		dev_info(smmu->dev,
+			"unknown output address size. Truncating to 48-bit\n");
+		/* Fallthrough */
 	case IDR5_OAS_48_BIT:
 		smmu->oas = 48;
-		break;
-	default:
-		dev_err(smmu->dev, "unknown output address size!\n");
-		return -ENXIO;
 	}
 
 	/* Set the DMA mask for our table walker */
