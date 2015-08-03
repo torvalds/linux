@@ -18,9 +18,13 @@
 #include <linux/atomic.h>
 #include <linux/rcupdate.h>
 #include <linux/uidgid.h>
+#include <linux/utsname.h>
 
-/* size of the nodename buffer */
-#define UNX_MAXNODENAME	32
+/*
+ * Size of the nodename buffer. RFC1831 specifies a hard limit of 255 bytes,
+ * but Linux hostnames are actually limited to __NEW_UTS_LEN bytes.
+ */
+#define UNX_MAXNODENAME	__NEW_UTS_LEN
 
 struct rpcsec_gss_info;
 
