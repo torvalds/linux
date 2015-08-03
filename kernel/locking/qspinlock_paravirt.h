@@ -4,6 +4,7 @@
 
 #include <linux/hash.h>
 #include <linux/bootmem.h>
+#include <linux/debug_locks.h>
 
 /*
  * Implement paravirt qspinlocks; the general idea is to halt the vcpus instead
@@ -286,14 +287,22 @@ __visible void __pv_queued_spin_unlock(struct qspinlock *lock)
 {
 	struct __qspinlock *l = (void *)lock;
 	struct pv_node *node;
+	u8 lockval = cmpxchg(&l->locked, _Q_LOCKED_VAL, 0);
 
 	/*
 	 * We must not unlock if SLOW, because in that case we must first
 	 * unhash. Otherwise it would be possible to have multiple @lock
 	 * entries, which would be BAD.
 	 */
-	if (likely(cmpxchg(&l->locked, _Q_LOCKED_VAL, 0) == _Q_LOCKED_VAL))
+	if (likely(lockval == _Q_LOCKED_VAL))
 		return;
+
+	if (unlikely(lockval != _Q_SLOW_VAL)) {
+		if (debug_locks_silent)
+			return;
+		WARN(1, "pvqspinlock: lock %p has corrupted value 0x%x!\n", lock, atomic_read(&lock->val));
+		return;
+	}
 
 	/*
 	 * Since the above failed to release, this must be the SLOW path.

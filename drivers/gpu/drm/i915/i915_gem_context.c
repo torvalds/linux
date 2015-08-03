@@ -135,8 +135,7 @@ static int get_context_size(struct drm_device *dev)
 
 void i915_gem_context_free(struct kref *ctx_ref)
 {
-	struct intel_context *ctx = container_of(ctx_ref,
-						 typeof(*ctx), ref);
+	struct intel_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
 
 	trace_i915_context_free(ctx);
 
@@ -157,9 +156,7 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	obj = i915_gem_object_create_stolen(dev, size);
-	if (obj == NULL)
-		obj = i915_gem_alloc_object(dev, size);
+	obj = i915_gem_alloc_object(dev, size);
 	if (obj == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -197,6 +194,7 @@ __create_hw_context(struct drm_device *dev,
 
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
+	ctx->i915 = dev_priv;
 
 	if (dev_priv->hw_context_size) {
 		struct drm_i915_gem_object *obj =

@@ -245,6 +245,28 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 static void radeon_audio_enable(struct radeon_device *rdev,
 				struct r600_audio_pin *pin, u8 enable_mask)
 {
+	struct drm_encoder *encoder;
+	struct radeon_encoder *radeon_encoder;
+	struct radeon_encoder_atom_dig *dig;
+	int pin_count = 0;
+
+	if (!pin)
+		return;
+
+	if (rdev->mode_info.mode_config_initialized) {
+		list_for_each_entry(encoder, &rdev->ddev->mode_config.encoder_list, head) {
+			if (radeon_encoder_is_digital(encoder)) {
+				radeon_encoder = to_radeon_encoder(encoder);
+				dig = radeon_encoder->enc_priv;
+				if (dig->pin == pin)
+					pin_count++;
+			}
+		}
+
+		if ((pin_count > 1) && (enable_mask == 0))
+			return;
+	}
+
 	if (rdev->audio.funcs->enable)
 		rdev->audio.funcs->enable(rdev, pin, enable_mask);
 }
@@ -336,24 +358,13 @@ void radeon_audio_endpoint_wreg(struct radeon_device *rdev, u32 offset,
 
 static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 {
-	struct radeon_encoder *radeon_encoder;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct cea_sad *sads;
 	int sad_count;
 
-	list_for_each_entry(connector,
-		&encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
+	if (!connector)
 		return;
-	}
 
 	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
 	if (sad_count <= 0) {
@@ -361,8 +372,6 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 		return;
 	}
 	BUG_ON(!sads);
-
-	radeon_encoder = to_radeon_encoder(encoder);
 
 	if (radeon_encoder->audio && radeon_encoder->audio->write_sad_regs)
 		radeon_encoder->audio->write_sad_regs(encoder, sads, sad_count);
@@ -372,27 +381,16 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 
 static void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 {
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
 	u8 *sadb = NULL;
 	int sad_count;
 
-	list_for_each_entry(connector,
-			    &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
+	if (!connector)
 		return;
-	}
 
-	sad_count = drm_edid_to_speaker_allocation(
-		radeon_connector_edid(connector), &sadb);
+	sad_count = drm_edid_to_speaker_allocation(radeon_connector_edid(connector),
+						   &sadb);
 	if (sad_count < 0) {
 		DRM_DEBUG("Couldn't read Speaker Allocation Data Block: %d\n",
 			  sad_count);
@@ -406,26 +404,13 @@ static void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 }
 
 static void radeon_audio_write_latency_fields(struct drm_encoder *encoder,
-	struct drm_display_mode *mode)
+					      struct drm_display_mode *mode)
 {
-	struct radeon_encoder *radeon_encoder;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = 0;
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
-	list_for_each_entry(connector,
-		&encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
+	if (!connector)
 		return;
-	}
-
-	radeon_encoder = to_radeon_encoder(encoder);
 
 	if (radeon_encoder->audio && radeon_encoder->audio->write_latency_fields)
 		radeon_encoder->audio->write_latency_fields(encoder, connector, mode);
@@ -451,29 +436,23 @@ static void radeon_audio_select_pin(struct drm_encoder *encoder)
 }
 
 void radeon_audio_detect(struct drm_connector *connector,
+			 struct drm_encoder *encoder,
 			 enum drm_connector_status status)
 {
-	struct radeon_device *rdev;
-	struct radeon_encoder *radeon_encoder;
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig;
-
-	if (!connector || !connector->encoder)
-		return;
-
-	rdev = connector->encoder->dev->dev_private;
 
 	if (!radeon_audio_chipset_supported(rdev))
 		return;
 
-	radeon_encoder = to_radeon_encoder(connector->encoder);
+	if (!radeon_encoder_is_digital(encoder))
+		return;
+
 	dig = radeon_encoder->enc_priv;
 
 	if (status == connector_status_connected) {
-		if (!drm_detect_monitor_audio(radeon_connector_edid(connector))) {
-			radeon_encoder->audio = NULL;
-			return;
-		}
-
 		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
 			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
@@ -486,11 +465,17 @@ void radeon_audio_detect(struct drm_connector *connector,
 			radeon_encoder->audio = rdev->audio.hdmi_funcs;
 		}
 
-		dig->afmt->pin = radeon_audio_get_pin(connector->encoder);
-		radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
+		if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+			if (!dig->pin)
+				dig->pin = radeon_audio_get_pin(encoder);
+			radeon_audio_enable(rdev, dig->pin, 0xf);
+		} else {
+			radeon_audio_enable(rdev, dig->pin, 0);
+			dig->pin = NULL;
+		}
 	} else {
-		radeon_audio_enable(rdev, dig->afmt->pin, 0);
-		dig->afmt->pin = NULL;
+		radeon_audio_enable(rdev, dig->pin, 0);
+		dig->pin = NULL;
 	}
 }
 
@@ -518,29 +503,18 @@ static void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock
 }
 
 static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
-	struct drm_display_mode *mode)
+				       struct drm_display_mode *mode)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
 	struct hdmi_avi_infoframe frame;
 	int err;
 
-	list_for_each_entry(connector,
-		&encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
-		return -ENOENT;
-	}
+	if (!connector)
+		return -EINVAL;
 
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {
@@ -563,8 +537,8 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 		return err;
 	}
 
-	if (dig && dig->afmt &&
-		radeon_encoder->audio && radeon_encoder->audio->set_avi_packet)
+	if (dig && dig->afmt && radeon_encoder->audio &&
+	    radeon_encoder->audio->set_avi_packet)
 		radeon_encoder->audio->set_avi_packet(rdev, dig->afmt->offset,
 			buffer, sizeof(buffer));
 
@@ -722,30 +696,41 @@ static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
 	if (!dig || !dig->afmt)
 		return;
 
-	radeon_audio_set_mute(encoder, true);
-
-	radeon_audio_write_speaker_allocation(encoder);
-	radeon_audio_write_sad_regs(encoder);
-	radeon_audio_write_latency_fields(encoder, mode);
-	radeon_audio_set_dto(encoder, mode->clock);
-	radeon_audio_set_vbi_packet(encoder);
-	radeon_hdmi_set_color_depth(encoder);
-	radeon_audio_update_acr(encoder, mode->clock);
-	radeon_audio_set_audio_packet(encoder);
-	radeon_audio_select_pin(encoder);
-
-	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
+	if (!connector)
 		return;
 
-	radeon_audio_set_mute(encoder, false);
+	if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+		radeon_audio_set_mute(encoder, true);
+
+		radeon_audio_write_speaker_allocation(encoder);
+		radeon_audio_write_sad_regs(encoder);
+		radeon_audio_write_latency_fields(encoder, mode);
+		radeon_audio_set_dto(encoder, mode->clock);
+		radeon_audio_set_vbi_packet(encoder);
+		radeon_hdmi_set_color_depth(encoder);
+		radeon_audio_update_acr(encoder, mode->clock);
+		radeon_audio_set_audio_packet(encoder);
+		radeon_audio_select_pin(encoder);
+
+		if (radeon_audio_set_avi_packet(encoder, mode) < 0)
+			return;
+
+		radeon_audio_set_mute(encoder, false);
+	} else {
+		radeon_hdmi_set_color_depth(encoder);
+
+		if (radeon_audio_set_avi_packet(encoder, mode) < 0)
+			return;
+	}
 }
 
 static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
-	struct drm_display_mode *mode)
+				     struct drm_display_mode *mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -759,22 +744,27 @@ static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 	if (!dig || !dig->afmt)
 		return;
 
-	radeon_audio_write_speaker_allocation(encoder);
-	radeon_audio_write_sad_regs(encoder);
-	radeon_audio_write_latency_fields(encoder, mode);
-	if (rdev->clock.dp_extclk || ASIC_IS_DCE5(rdev))
-		radeon_audio_set_dto(encoder, rdev->clock.default_dispclk * 10);
-	else
-		radeon_audio_set_dto(encoder, dig_connector->dp_clock);
-	radeon_audio_set_audio_packet(encoder);
-	radeon_audio_select_pin(encoder);
-
-	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
+	if (!connector)
 		return;
+
+	if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+		radeon_audio_write_speaker_allocation(encoder);
+		radeon_audio_write_sad_regs(encoder);
+		radeon_audio_write_latency_fields(encoder, mode);
+		if (rdev->clock.dp_extclk || ASIC_IS_DCE5(rdev))
+			radeon_audio_set_dto(encoder, rdev->clock.default_dispclk * 10);
+		else
+			radeon_audio_set_dto(encoder, dig_connector->dp_clock);
+		radeon_audio_set_audio_packet(encoder);
+		radeon_audio_select_pin(encoder);
+
+		if (radeon_audio_set_avi_packet(encoder, mode) < 0)
+			return;
+	}
 }
 
 void radeon_audio_mode_set(struct drm_encoder *encoder,
-	struct drm_display_mode *mode)
+			   struct drm_display_mode *mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 

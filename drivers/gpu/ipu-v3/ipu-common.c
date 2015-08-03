@@ -1107,6 +1107,9 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 		return ret;
 	}
 
+	for (i = 0; i < IPU_NUM_IRQS; i += 32)
+		ipu_cm_write(ipu, 0, IPU_INT_CTRL(i / 32));
+
 	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
 		gc = irq_get_domain_generic_chip(ipu->domain, i);
 		gc->reg_base = ipu->cm_reg;

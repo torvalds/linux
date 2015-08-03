@@ -17,6 +17,7 @@
  ******************************************************************************/
 
 #include <linux/ctype.h>
+#include <linux/kthread.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
@@ -361,10 +362,24 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 		ntohl(login_rsp->statsn), login->rsp_length);
 
 	padding = ((-login->rsp_length) & 3);
+	/*
+	 * Before sending the last login response containing the transition
+	 * bit for full-feature-phase, go ahead and start up TX/RX threads
+	 * now to avoid potential resource allocation failures after the
+	 * final login response has been sent.
+	 */
+	if (login->login_complete) {
+		int rc = iscsit_start_kthreads(conn);
+		if (rc) {
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+					    ISCSI_LOGIN_STATUS_NO_RESOURCES);
+			return -1;
+		}
+	}
 
 	if (conn->conn_transport->iscsit_put_login_tx(conn, login,
 					login->rsp_length + padding) < 0)
-		return -1;
+		goto err;
 
 	login->rsp_length		= 0;
 	mutex_lock(&sess->cmdsn_mutex);
@@ -373,6 +388,23 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 	mutex_unlock(&sess->cmdsn_mutex);
 
 	return 0;
+
+err:
+	if (login->login_complete) {
+		if (conn->rx_thread && conn->rx_thread_active) {
+			send_sig(SIGINT, conn->rx_thread, 1);
+			kthread_stop(conn->rx_thread);
+		}
+		if (conn->tx_thread && conn->tx_thread_active) {
+			send_sig(SIGINT, conn->tx_thread, 1);
+			kthread_stop(conn->tx_thread);
+		}
+		spin_lock(&iscsit_global->ts_bitmap_lock);
+		bitmap_release_region(iscsit_global->ts_bitmap, conn->bitmap_id,
+				      get_order(1));
+		spin_unlock(&iscsit_global->ts_bitmap_lock);
+	}
+	return -1;
 }
 
 static void iscsi_target_sk_data_ready(struct sock *sk)

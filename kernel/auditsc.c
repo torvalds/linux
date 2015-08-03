@@ -1021,8 +1021,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 	 * for strings that are too long, we should not have created
 	 * any.
 	 */
-	if (unlikely((len == 0) || len > MAX_ARG_STRLEN - 1)) {
-		WARN_ON(1);
+	if (WARN_ON_ONCE(len < 0 || len > MAX_ARG_STRLEN - 1)) {
 		send_sig(SIGKILL, current, 0);
 		return -1;
 	}

@@ -122,6 +122,32 @@ static void vi_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 }
 
+/* smu_8_0_d.h */
+#define mmMP0PUB_IND_INDEX                                                      0x180
+#define mmMP0PUB_IND_DATA                                                       0x181
+
+static u32 cz_smc_rreg(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	WREG32(mmMP0PUB_IND_INDEX, (reg));
+	r = RREG32(mmMP0PUB_IND_DATA);
+	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+	return r;
+}
+
+static void cz_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	WREG32(mmMP0PUB_IND_INDEX, (reg));
+	WREG32(mmMP0PUB_IND_DATA, (v));
+	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+}
+
 static u32 vi_uvd_ctx_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags;
@@ -1222,8 +1248,13 @@ static int vi_common_early_init(void *handle)
 	bool smc_enabled = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->smc_rreg = &vi_smc_rreg;
-	adev->smc_wreg = &vi_smc_wreg;
+	if (adev->flags & AMDGPU_IS_APU) {
+		adev->smc_rreg = &cz_smc_rreg;
+		adev->smc_wreg = &cz_smc_wreg;
+	} else {
+		adev->smc_rreg = &vi_smc_rreg;
+		adev->smc_wreg = &vi_smc_wreg;
+	}
 	adev->pcie_rreg = &vi_pcie_rreg;
 	adev->pcie_wreg = &vi_pcie_wreg;
 	adev->uvd_ctx_rreg = &vi_uvd_ctx_rreg;

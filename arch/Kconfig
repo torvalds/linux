@@ -221,6 +221,10 @@ config ARCH_TASK_STRUCT_ALLOCATOR
 config ARCH_THREAD_INFO_ALLOCATOR
 	bool
 
+# Select if arch wants to size task_struct dynamically via arch_task_struct_size:
+config ARCH_WANTS_DYNAMIC_TASK_STRUCT
+	bool
+
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
 	help

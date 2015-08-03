@@ -115,6 +115,7 @@ if ISA_ARCOMPACT
 
 config ARC_CPU_750D
 	bool "ARC750D"
+	select ARC_CANT_LLSC
 	help
 	  Support for ARC750 core
 
@@ -362,7 +363,7 @@ config ARC_CANT_LLSC
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
-	depends on !ARC_CPU_750D && !ARC_CANT_LLSC
+	depends on !ARC_CANT_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"

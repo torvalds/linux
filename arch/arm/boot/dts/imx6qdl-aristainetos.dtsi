@@ -173,7 +173,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	vmmc-supply = <&reg_3p3v>;
-	cd-gpios = <&gpio4 7 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -181,7 +181,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	vmmc-supply = <&reg_3p3v>;
-	cd-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio4 8 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

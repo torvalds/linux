@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/dmi.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
@@ -34,6 +35,7 @@ struct goodix_ts_data {
 	int abs_y_max;
 	unsigned int max_touch_num;
 	unsigned int int_trigger_type;
+	bool rotated_screen;
 };
 
 #define GOODIX_MAX_HEIGHT		4096
@@ -58,6 +60,30 @@ static const unsigned long goodix_irq_flags[] = {
 	IRQ_TYPE_EDGE_FALLING,
 	IRQ_TYPE_LEVEL_LOW,
 	IRQ_TYPE_LEVEL_HIGH,
+};
+
+/*
+ * Those tablets have their coordinates origin at the bottom right
+ * of the tablet, as if rotated 180 degrees
+ */
+static const struct dmi_system_id rotated_screen[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_X86)
+	{
+		.ident = "WinBook TW100",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "WinBook"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TW100")
+		}
+	},
+	{
+		.ident = "WinBook TW700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "WinBook"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TW700")
+		},
+	},
+#endif
+	{}
 };
 
 /**
@@ -128,6 +154,11 @@ static void goodix_ts_report_touch(struct goodix_ts_data *ts, u8 *coor_data)
 	int input_x = get_unaligned_le16(&coor_data[1]);
 	int input_y = get_unaligned_le16(&coor_data[3]);
 	int input_w = get_unaligned_le16(&coor_data[5]);
+
+	if (ts->rotated_screen) {
+		input_x = ts->abs_x_max - input_x;
+		input_y = ts->abs_y_max - input_y;
+	}
 
 	input_mt_slot(ts->input_dev, id);
 	input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
@@ -223,6 +254,11 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 		ts->abs_y_max = GOODIX_MAX_HEIGHT;
 		ts->max_touch_num = GOODIX_MAX_CONTACTS;
 	}
+
+	ts->rotated_screen = dmi_check_system(rotated_screen);
+	if (ts->rotated_screen)
+		dev_dbg(&ts->client->dev,
+			 "Applying '180 degrees rotated screen' quirk\n");
 }
 
 /**

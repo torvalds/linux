@@ -224,7 +224,7 @@ struct sh_pfc_soc_info {
 
 /* PINMUX_GPIO_GP_ALL - Expand to a list of sh_pfc_pin entries */
 #define _GP_GPIO(bank, _pin, _name, sfx)				\
-	[(bank * 32) + _pin] = {					\
+	{								\
 		.pin = (bank * 32) + _pin,				\
 		.name = __stringify(_name),				\
 		.enum_id = _name##_DATA,				\

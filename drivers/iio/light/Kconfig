@@ -188,6 +188,7 @@ config SENSORS_LM3533
 config LTR501
 	tristate "LTR-501ALS-01 light sensor"
 	depends on I2C
+	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -201,6 +202,7 @@ config LTR501
 config STK3310
 	tristate "STK3310 ALS and proximity sensor"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	 Say yes here to get support for the Sensortek STK3310 ambient light
 	 and proximity sensor. The STK3311 model is also supported by this

@@ -457,6 +457,8 @@ static int br_afspec(struct net_bridge *br,
 		if (nla_len(attr) != sizeof(struct bridge_vlan_info))
 			return -EINVAL;
 		vinfo = nla_data(attr);
+		if (!vinfo->vid || vinfo->vid >= VLAN_VID_MASK)
+			return -EINVAL;
 		if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
 			if (vinfo_start)
 				return -EINVAL;
@@ -691,9 +693,17 @@ static int br_port_slave_changelink(struct net_device *brdev,
 				    struct nlattr *tb[],
 				    struct nlattr *data[])
 {
+	struct net_bridge *br = netdev_priv(brdev);
+	int ret;
+
 	if (!data)
 		return 0;
-	return br_setport(br_port_get_rtnl(dev), data);
+
+	spin_lock_bh(&br->lock);
+	ret = br_setport(br_port_get_rtnl(dev), data);
+	spin_unlock_bh(&br->lock);
+
+	return ret;
 }
 
 static int br_port_fill_slave_info(struct sk_buff *skb,

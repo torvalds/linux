@@ -2162,18 +2162,20 @@ static int cayman_startup(struct radeon_device *rdev)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 	}
 
-	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
-	if (ring->ring_size)
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0, 0x0);
+	if (rdev->family == CHIP_ARUBA) {
+		ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+		if (ring->ring_size)
+			r = radeon_ring_init(rdev, ring, ring->ring_size, 0, 0x0);
 
-	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
-	if (ring->ring_size)
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0, 0x0);
+		ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+		if (ring->ring_size)
+			r = radeon_ring_init(rdev, ring, ring->ring_size, 0, 0x0);
 
-	if (!r)
-		r = vce_v1_0_init(rdev);
-	else if (r != -ENOENT)
-		DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
+		if (!r)
+			r = vce_v1_0_init(rdev);
+		if (r)
+			DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
+	}
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -2396,7 +2398,8 @@ void cayman_fini(struct radeon_device *rdev)
 	radeon_irq_kms_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
-	radeon_vce_fini(rdev);
+	if (rdev->family == CHIP_ARUBA)
+		radeon_vce_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
