@@ -581,7 +581,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 			if (r)
 				return r;
 
-			f = &bo_va->last_pt_update->base;
+			f = bo_va->last_pt_update;
 			r = amdgpu_sync_fence(adev, &p->ibs[0].sync, f);
 			if (r)
 				return r;

@@ -737,7 +737,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_device *adev,
  */
 static void amdgpu_vm_fence_pts(struct amdgpu_vm *vm,
 				uint64_t start, uint64_t end,
-				struct amdgpu_fence *fence)
+				struct fence *fence)
 {
 	unsigned i;
 
@@ -745,20 +745,20 @@ static void amdgpu_vm_fence_pts(struct amdgpu_vm *vm,
 	end >>= amdgpu_vm_block_size;
 
 	for (i = start; i <= end; ++i)
-		amdgpu_bo_fence(vm->page_tables[i].bo, &fence->base, true);
+		amdgpu_bo_fence(vm->page_tables[i].bo, fence, true);
 }
 
 static int amdgpu_vm_bo_update_mapping_run_job(
 	struct amdgpu_cs_parser *sched_job)
 {
-	struct amdgpu_fence **fence = sched_job->job_param.vm_mapping.fence;
+	struct fence **fence = sched_job->job_param.vm_mapping.fence;
 	amdgpu_vm_fence_pts(sched_job->job_param.vm_mapping.vm,
 			    sched_job->job_param.vm_mapping.start,
 			    sched_job->job_param.vm_mapping.last + 1,
-			    sched_job->ibs[sched_job->num_ibs -1].fence);
+			    &sched_job->ibs[sched_job->num_ibs -1].fence->base);
 	if (fence) {
-		amdgpu_fence_unref(fence);
-		*fence = amdgpu_fence_ref(sched_job->ibs[sched_job->num_ibs -1].fence);
+		fence_put(*fence);
+		*fence = fence_get(&sched_job->ibs[sched_job->num_ibs -1].fence->base);
 	}
 	return 0;
 }
@@ -781,7 +781,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				       struct amdgpu_vm *vm,
 				       struct amdgpu_bo_va_mapping *mapping,
 				       uint64_t addr, uint32_t gtt_flags,
-				       struct amdgpu_fence **fence)
+				       struct fence **fence)
 {
 	struct amdgpu_ring *ring = adev->vm_manager.vm_pte_funcs_ring;
 	unsigned nptes, ncmds, ndw;
@@ -902,10 +902,10 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		}
 
 		amdgpu_vm_fence_pts(vm, mapping->it.start,
-				    mapping->it.last + 1, ib->fence);
+				    mapping->it.last + 1, &ib->fence->base);
 		if (fence) {
-			amdgpu_fence_unref(fence);
-			*fence = amdgpu_fence_ref(ib->fence);
+			fence_put(*fence);
+			*fence = fence_get(&ib->fence->base);
 		}
 
 		amdgpu_ib_free(adev, ib);
@@ -1038,7 +1038,7 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
 	spin_unlock(&vm->status_lock);
 
 	if (bo_va)
-		r = amdgpu_sync_fence(adev, sync, &bo_va->last_pt_update->base);
+		r = amdgpu_sync_fence(adev, sync, bo_va->last_pt_update);
 
 	return r;
 }
@@ -1318,7 +1318,7 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		kfree(mapping);
 	}
 
-	amdgpu_fence_unref(&bo_va->last_pt_update);
+	fence_put(bo_va->last_pt_update);
 	kfree(bo_va);
 
 	mutex_unlock(&vm->mutex);

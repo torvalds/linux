@@ -539,7 +539,7 @@ struct amdgpu_bo_va_mapping {
 struct amdgpu_bo_va {
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
-	struct amdgpu_fence		*last_pt_update;
+	struct fence		        *last_pt_update;
 	unsigned			ref_count;
 
 	/* protected by vm mutex and spinlock */
@@ -1241,7 +1241,7 @@ union amdgpu_sched_job_param {
 		struct amdgpu_vm *vm;
 		uint64_t start;
 		uint64_t last;
-		struct amdgpu_fence **fence;
+		struct fence **fence;
 
 	} vm_mapping;
 	struct {
