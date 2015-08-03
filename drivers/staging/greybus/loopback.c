@@ -78,14 +78,14 @@ module_param(kfifo_depth, uint, 0444);
 define_get_version(gb_loopback, LOOPBACK);
 
 /* interface sysfs attributes */
-#define gb_loopback_ro_attr(field, type)				\
+#define gb_loopback_ro_attr(field)					\
 static ssize_t field##_show(struct device *dev,				\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
 	struct gb_loopback *gb = connection->private;			\
-	return sprintf(buf, "%"#type"\n", gb->field);			\
+	return sprintf(buf, "%u\n", gb->field);				\
 }									\
 static DEVICE_ATTR_RO(field)
 
@@ -171,9 +171,9 @@ gb_loopback_stats_attrs(requests_per_second);
 /* Quantity of data sent and received on this cport */
 gb_loopback_stats_attrs(throughput);
 /* Number of errors encountered during loop */
-gb_loopback_ro_attr(error, u);
+gb_loopback_ro_attr(error);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
-gb_loopback_ro_attr(iteration_count, u);
+gb_loopback_ro_attr(iteration_count);
 
 /*
  * Type of loopback message to send based on protocol type definitions
