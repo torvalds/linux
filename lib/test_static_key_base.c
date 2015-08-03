@@ -1,5 +1,5 @@
 /*
- * Kernel module for testing jump labels.
+ * Kernel module for testing static keys.
  *
  * Copyright 2015 Akamai Technologies Inc. All Rights Reserved
  *
@@ -47,7 +47,7 @@ static void invert_key(struct static_key *key)
 		static_key_enable(key);
 }
 
-static int __init test_jump_label_base_init(void)
+static int __init test_static_key_base_init(void)
 {
 	invert_key(&base_inv_old_true_key);
 	invert_key(&base_inv_old_false_key);
@@ -57,12 +57,12 @@ static int __init test_jump_label_base_init(void)
 	return 0;
 }
 
-static void __exit test_jump_label_base_exit(void)
+static void __exit test_static_key_base_exit(void)
 {
 }
 
-module_init(test_jump_label_base_init);
-module_exit(test_jump_label_base_exit);
+module_init(test_static_key_base_init);
+module_exit(test_static_key_base_exit);
 
 MODULE_AUTHOR("Jason Baron <jbaron@akamai.com>");
 MODULE_LICENSE("GPL");

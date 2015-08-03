@@ -1,8 +1,8 @@
-# Makefile for jump label selftests
+# Makefile for static keys selftests
 
 # No binaries, but make sure arg-less "make" doesn't trigger "run_tests"
 all:
 
-TEST_PROGS := test_jump_label.sh
+TEST_PROGS := test_static_keys.sh
 
 include ../lib.mk

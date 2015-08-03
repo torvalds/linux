@@ -1841,12 +1841,12 @@ config MEMTEST
 	        memtest=17, mean do 17 test patterns.
 	  If you are unsure how to answer this question, answer N.
 
-config TEST_JUMP_LABEL
-	tristate "Test jump label"
+config TEST_STATIC_KEYS
+	tristate "Test static keys"
 	default n
 	depends on m
 	help
-	  Test jump labels.
+	  Test the static key interfaces.
 
 	  If unsure, say N.
 
