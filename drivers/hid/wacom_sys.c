@@ -457,7 +457,6 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 			features->device_type = WACOM_DEVICETYPE_NONE;
 		} else if (intf->cur_altsetting->desc.bInterfaceNumber == 2) {
 			features->device_type |= WACOM_DEVICETYPE_TOUCH;
-			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 		}
 	}
 
