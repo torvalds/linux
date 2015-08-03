@@ -348,7 +348,7 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	       sizeof(struct gb_loopback_stats));
 }
 
-static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u64 val)
+static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
 {
 	if (stats->min > val)
 		stats->min = val;
