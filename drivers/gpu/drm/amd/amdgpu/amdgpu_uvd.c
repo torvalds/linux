@@ -825,6 +825,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	struct ww_acquire_ctx ticket;
 	struct list_head head;
 	struct amdgpu_ib *ib = NULL;
+	struct fence *f = NULL;
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t addr;
 	int i, r;
@@ -869,14 +870,15 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_uvd_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED);
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
 	if (r)
 		goto err2;
 
-	ttm_eu_fence_buffer_objects(&ticket, &head, &ib->fence->base);
+	ttm_eu_fence_buffer_objects(&ticket, &head, f);
 
 	if (fence)
-		*fence = fence_get(&ib->fence->base);
+		*fence = fence_get(f);
 	amdgpu_bo_unref(&bo);
 
 	if (amdgpu_enable_scheduler)

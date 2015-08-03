@@ -2648,6 +2648,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
+	struct fence *f = NULL;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -2670,11 +2671,12 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	ib.length_dw = 3;
 
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
-						 AMDGPU_FENCE_OWNER_UNDEFINED);
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
 	if (r)
 		goto err2;
 
-	r = fence_wait(&ib.fence->base, false);
+	r = fence_wait(f, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 		goto err2;

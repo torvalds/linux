@@ -107,7 +107,8 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 					 struct amdgpu_ib *ibs,
 					 unsigned num_ibs,
 					 int (*free_job)(struct amdgpu_cs_parser *),
-					 void *owner)
+					 void *owner,
+					 struct fence **f)
 {
 	int r = 0;
 	if (amdgpu_enable_scheduler) {
@@ -135,5 +136,8 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			WARN(true, "emit timeout\n");
 	} else
 		r = amdgpu_ib_schedule(adev, 1, ibs, owner);
-	return r;
+	if (r)
+		return r;
+	*f = &ibs[num_ibs - 1].fence->base;
+	return 0;
 }

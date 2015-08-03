@@ -872,7 +872,8 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 					 struct amdgpu_ib *ibs,
 					 unsigned num_ibs,
 					 int (*free_job)(struct amdgpu_cs_parser *),
-					 void *owner);
+					 void *owner,
+					 struct fence **fence);
 
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;

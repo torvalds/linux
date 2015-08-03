@@ -362,6 +362,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_ib *ib = NULL;
+	struct fence *f = NULL;
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
@@ -408,11 +409,12 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_vce_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED);
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
 	if (r)
 		goto err;
 	if (fence)
-		*fence = fence_get(&ib->fence->base);
+		*fence = fence_get(f);
 	if (amdgpu_enable_scheduler)
 		return 0;
 err:
@@ -436,6 +438,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_ib *ib = NULL;
+	struct fence *f = NULL;
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
@@ -472,11 +475,12 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
 						 &amdgpu_vce_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED);
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
 	if (r)
 		goto err;
 	if (fence)
-		*fence = fence_get(&ib->fence->base);
+		*fence = fence_get(f);
 	if (amdgpu_enable_scheduler)
 		return 0;
 err:

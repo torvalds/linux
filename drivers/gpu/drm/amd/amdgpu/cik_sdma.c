@@ -614,6 +614,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
+	struct fence *f = NULL;
 	unsigned i;
 	unsigned index;
 	int r;
@@ -642,11 +643,12 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[4] = 0xDEADBEEF;
 	ib.length_dw = 5;
 	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
-						 AMDGPU_FENCE_OWNER_UNDEFINED);
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
 	if (r)
 		goto err1;
 
-	r = fence_wait(&ib.fence->base, false);
+	r = fence_wait(f, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 		goto err1;
