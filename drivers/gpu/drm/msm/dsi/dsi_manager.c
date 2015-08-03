@@ -156,7 +156,7 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 	DBG("id=%d", id);
 	if (!msm_dsi->panel) {
 		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host,
-						&msm_dsi->panel_flags);
+						&msm_dsi->device_flags);
 
 		/* There is only 1 panel in the global panel list
 		 * for dual DSI mode. Therefore slave dsi should get
@@ -177,7 +177,7 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 		 */
 		if (msm_dsi->panel && IS_DUAL_DSI() &&
 			other_dsi && other_dsi->panel) {
-			bool cmd_mode = !(msm_dsi->panel_flags &
+			bool cmd_mode = !(msm_dsi->device_flags &
 						MIPI_DSI_MODE_VIDEO);
 			struct drm_encoder *encoder = msm_dsi_get_encoder(
 					dsi_mgr_get_dsi(DSI_ENCODER_MASTER));

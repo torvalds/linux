@@ -60,7 +60,7 @@ struct msm_dsi {
 	struct mipi_dsi_host *host;
 	struct msm_dsi_phy *phy;
 	struct drm_panel *panel;
-	unsigned long panel_flags;
+	unsigned long device_flags;
 
 	struct device *phy_dev;
 	bool phy_enabled;

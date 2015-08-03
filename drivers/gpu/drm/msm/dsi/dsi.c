@@ -18,7 +18,7 @@ struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 	if (!msm_dsi || !msm_dsi->panel)
 		return NULL;
 
-	return (msm_dsi->panel_flags & MIPI_DSI_MODE_VIDEO) ?
+	return (msm_dsi->device_flags & MIPI_DSI_MODE_VIDEO) ?
 		msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID] :
 		msm_dsi->encoders[MSM_DSI_CMD_ENCODER_ID];
 }
