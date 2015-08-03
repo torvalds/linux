@@ -75,65 +75,43 @@ struct rx8025_data {
 	u8 ctrl1;
 };
 
-static int rx8025_read_reg(struct i2c_client *client, int number, u8 *value)
+static s32 rx8025_read_reg(const struct i2c_client *client, u8 number)
 {
-	int ret = i2c_smbus_read_byte_data(client, number << 4);
-
-	if (ret < 0) {
-		dev_err(&client->dev, "Unable to read register #%d\n", number);
-		return ret;
-	}
-
-	*value = ret;
-	return 0;
+	return i2c_smbus_read_byte_data(client, number << 4);
 }
 
-static int rx8025_read_regs(struct i2c_client *client,
-			    int number, u8 length, u8 *values)
+static int rx8025_read_regs(const struct i2c_client *client,
+			    u8 number, u8 length, u8 *values)
 {
-	int ret = i2c_smbus_read_i2c_block_data(client, number << 4,
-						length, values);
-
-	if (ret != length) {
-		dev_err(&client->dev, "Unable to read registers #%d..#%d\n",
-			number, number + length - 1);
+	int ret = i2c_smbus_read_i2c_block_data(client, number << 4, length,
+						values);
+	if (ret != length)
 		return ret < 0 ? ret : -EIO;
-	}
 
 	return 0;
 }
 
-static int rx8025_write_reg(struct i2c_client *client, int number, u8 value)
+static s32 rx8025_write_reg(const struct i2c_client *client, u8 number,
+			    u8 value)
 {
-	int ret = i2c_smbus_write_byte_data(client, number << 4, value);
-
-	if (ret)
-		dev_err(&client->dev, "Unable to write register #%d\n",
-			number);
-
-	return ret;
+	return i2c_smbus_write_byte_data(client, number << 4, value);
 }
 
-static int rx8025_write_regs(struct i2c_client *client,
-			     int number, u8 length, u8 *values)
+static s32 rx8025_write_regs(const struct i2c_client *client,
+			     u8 number, u8 length, const u8 *values)
 {
-	int ret = i2c_smbus_write_i2c_block_data(client, number << 4,
-						 length, values);
-
-	if (ret)
-		dev_err(&client->dev, "Unable to write registers #%d..#%d\n",
-			number, number + length - 1);
-
-	return ret;
+	return i2c_smbus_write_i2c_block_data(client, number << 4,
+					      length, values);
 }
 
 static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
-	u8 status;
+	int status;
 
-	if (rx8025_read_reg(client, RX8025_REG_CTRL2, &status))
+	status = rx8025_read_reg(client, RX8025_REG_CTRL2);
+	if (status < 0)
 		goto out;
 
 	if (!(status & RX8025_BIT_CTRL2_XST))
@@ -166,12 +144,12 @@ out:
 static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 {
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
-	u8 date[7], ctrl;
-	int err;
+	u8 date[7];
+	int ctrl, err;
 
-	err = rx8025_read_reg(rx8025->client, RX8025_REG_CTRL2, &ctrl);
-	if (err)
-		return err;
+	ctrl = rx8025_read_reg(rx8025->client, RX8025_REG_CTRL2);
+	if (ctrl < 0)
+		return ctrl;
 
 	if (ctrl & RX8025_BIT_CTRL2_PON) {
 		dev_warn(dev, "power-on reset detected, date is invalid\n");
@@ -302,8 +280,8 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	struct i2c_client *client = rx8025->client;
-	u8 ctrl2, ald[2];
-	int err;
+	u8 ald[2];
+	int ctrl2, err;
 
 	if (client->irq <= 0)
 		return -EINVAL;
@@ -312,9 +290,9 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	if (err)
 		return err;
 
-	err = rx8025_read_reg(client, RX8025_REG_CTRL2, &ctrl2);
-	if (err)
-		return err;
+	ctrl2 = rx8025_read_reg(client, RX8025_REG_CTRL2);
+	if (ctrl2 < 0)
+		return ctrl2;
 
 	dev_dbg(dev, "%s: read alarm 0x%02x 0x%02x ctrl2 %02x\n",
 		__func__, ald[0], ald[1], ctrl2);
@@ -435,12 +413,11 @@ static struct rtc_class_ops rx8025_rtc_ops = {
 static int rx8025_get_clock_adjust(struct device *dev, int *adj)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	u8 digoff;
-	int err;
+	int digoff;
 
-	err = rx8025_read_reg(client, RX8025_REG_DIGOFF, &digoff);
-	if (err)
-		return err;
+	digoff = rx8025_read_reg(client, RX8025_REG_DIGOFF);
+	if (digoff < 0)
+		return digoff;
 
 	*adj = digoff >= 64 ? digoff - 128 : digoff;
 	if (*adj > 0)
