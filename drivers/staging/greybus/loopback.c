@@ -171,7 +171,7 @@ gb_loopback_stats_attrs(requests_per_second);
 /* Quantity of data sent and received on this cport */
 gb_loopback_stats_attrs(throughput);
 /* Number of errors encountered during loop */
-gb_loopback_ro_attr(error, d);
+gb_loopback_ro_attr(error, u);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
 gb_loopback_ro_attr(iteration_count, u);
 
