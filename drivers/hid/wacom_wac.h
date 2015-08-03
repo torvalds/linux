@@ -68,7 +68,6 @@
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
-#define WACOM_QUIRK_NO_INPUT		0x0002
 #define WACOM_QUIRK_BATTERY		0x0008
 
 /* device types */

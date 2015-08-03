@@ -453,11 +453,11 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 	 * interface number.
 	 */
 	if (features->type == WIRELESS) {
-		if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
+		if (intf->cur_altsetting->desc.bInterfaceNumber == 0)
 			features->device_type = WACOM_DEVICETYPE_WL_MONITOR;
-		} else if (intf->cur_altsetting->desc.bInterfaceNumber == 2) {
-			features->device_type |= WACOM_DEVICETYPE_TOUCH;
-		}
+		else
+			features->device_type = WACOM_DEVICETYPE_NONE;
+		return;
 	}
 
 	wacom_parse_hid(hdev, features);
@@ -1531,11 +1531,9 @@ static int wacom_probe(struct hid_device *hdev,
 	mutex_init(&wacom->lock);
 	INIT_WORK(&wacom->work, wacom_wireless_work);
 
-	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
-		error = wacom_allocate_inputs(wacom);
-		if (error)
-			goto fail_allocate_inputs;
-	}
+	error = wacom_allocate_inputs(wacom);
+	if (error)
+		goto fail_allocate_inputs;
 
 	/*
 	 * Bamboo Pad has a generic hid handling for the Pen, and we switch it
@@ -1588,11 +1586,9 @@ static int wacom_probe(struct hid_device *hdev,
 			goto fail_battery;
 	}
 
-	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
-		error = wacom_register_inputs(wacom);
-		if (error)
-			goto fail_register_inputs;
-	}
+	error = wacom_register_inputs(wacom);
+	if (error)
+		goto fail_register_inputs;
 
 	if (hdev->bus == BUS_BLUETOOTH) {
 		error = device_create_file(&hdev->dev, &dev_attr_speed);

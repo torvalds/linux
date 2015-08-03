@@ -2326,10 +2326,6 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	}
 
 	if (features->type == WIRELESS) {
-
-		/* monitor never has input and pen/touch have delayed create */
-		features->quirks |= WACOM_QUIRK_NO_INPUT;
-
 		if (features->device_type == WACOM_DEVICETYPE_WL_MONITOR) {
 			features->quirks |= WACOM_QUIRK_BATTERY;
 		}
