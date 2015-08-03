@@ -222,6 +222,25 @@ enum rf_tx_num {
 #define	WOL_REASON_REALWOW_V2_WAKEUPPKT	BIT(9)
 #define	WOL_REASON_REALWOW_V2_ACKLOST	BIT(10)
 
+struct rtlwifi_firmware_header {
+	__le16 signature;
+	u8 category;
+	u8 function;
+	__le16 version;
+	u8 subversion;
+	u8 rsvd1;
+	u8 month;
+	u8 date;
+	u8 hour;
+	u8 minute;
+	__le16 ramcodeSize;
+	__le16 rsvd2;
+	__le32 svnindex;
+	__le32 rsvd3;
+	__le32 rsvd4;
+	__le32 rsvd5;
+};
+
 struct txpower_info_2g {
 	u8 index_cck_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
 	u8 index_bw40_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
@@ -2063,8 +2082,6 @@ struct rtl_tcb_desc {
 	u32 empkt_len[10];
 	bool tx_enable_sw_calc_duration;
 };
-
-struct rtl92c_firmware_header;
 
 struct rtl_wow_pattern {
 	u8 type;
