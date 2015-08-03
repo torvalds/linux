@@ -39,6 +39,7 @@
 #define BT_RSSI_STATE_SPECIAL_LOW	BIT_OFFSET_LEN_MASK_32(2, 1)
 #define BT_RSSI_STATE_BG_EDCA_LOW	BIT_OFFSET_LEN_MASK_32(3, 1)
 #define BT_RSSI_STATE_TXPOWER_LOW	BIT_OFFSET_LEN_MASK_32(4, 1)
+#define BT_MASK				0x00ffffff
 
 #define RTLPRIV			(struct rtl_priv *)
 #define GET_UNDECORATED_AVERAGE_RSSI(_priv)	\
@@ -1536,13 +1537,11 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 		return false;
 
 	bt_state = rtl_read_byte(rtlpriv, 0x4fd);
-	bt_tx = rtl_read_dword(rtlpriv, 0x488);
-	bt_tx = bt_tx & 0x00ffffff;
-	bt_pri = rtl_read_dword(rtlpriv, 0x48c);
-	bt_pri = bt_pri & 0x00ffffff;
+	bt_tx = rtl_read_dword(rtlpriv, 0x488) & BT_MASK;
+	bt_pri = rtl_read_dword(rtlpriv, 0x48c) & BT_MASK;
 	polling = rtl_read_dword(rtlpriv, 0x490);
 
-	if (bt_tx == 0xffffffff && bt_pri == 0xffffffff &&
+	if (bt_tx == BT_MASK && bt_pri == BT_MASK &&
 	    polling == 0xffffffff && bt_state == 0xff)
 		return false;
 
