@@ -464,8 +464,11 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
+	unsigned short vid = VLAN_N_VID;
+	struct net_device *dev, *pdev;
 	struct br_mdb_entry *entry;
-	struct net_device *dev;
+	struct net_bridge_port *p;
+	struct net_port_vlans *pv;
 	struct net_bridge *br;
 	int err;
 
@@ -475,9 +478,32 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	br = netdev_priv(dev);
 
-	err = __br_mdb_add(net, br, entry);
-	if (!err)
-		__br_mdb_notify(dev, entry, RTM_NEWMDB);
+	/* If vlan filtering is enabled and VLAN is not specified
+	 * install mdb entry on all vlans configured on the port.
+	 */
+	pdev = __dev_get_by_index(net, entry->ifindex);
+	if (!pdev)
+		return -ENODEV;
+
+	p = br_port_get_rtnl(pdev);
+	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
+		return -EINVAL;
+
+	pv = nbp_get_vlan_info(p);
+	if (br->vlan_enabled && pv && entry->vid == 0) {
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+			entry->vid = vid;
+			err = __br_mdb_add(net, br, entry);
+			if (err)
+				break;
+			__br_mdb_notify(dev, entry, RTM_NEWMDB);
+		}
+	} else {
+		err = __br_mdb_add(net, br, entry);
+		if (!err)
+			__br_mdb_notify(dev, entry, RTM_NEWMDB);
+	}
+
 	return err;
 }
 
@@ -539,8 +565,12 @@ unlock:
 
 static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	struct net_device *dev;
+	struct net *net = sock_net(skb->sk);
+	unsigned short vid = VLAN_N_VID;
+	struct net_device *dev, *pdev;
 	struct br_mdb_entry *entry;
+	struct net_bridge_port *p;
+	struct net_port_vlans *pv;
 	struct net_bridge *br;
 	int err;
 
@@ -550,9 +580,31 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	br = netdev_priv(dev);
 
-	err = __br_mdb_del(br, entry);
-	if (!err)
-		__br_mdb_notify(dev, entry, RTM_DELMDB);
+	/* If vlan filtering is enabled and VLAN is not specified
+	 * delete mdb entry on all vlans configured on the port.
+	 */
+	pdev = __dev_get_by_index(net, entry->ifindex);
+	if (!pdev)
+		return -ENODEV;
+
+	p = br_port_get_rtnl(pdev);
+	if (!p || p->br != br || p->state == BR_STATE_DISABLED)
+		return -EINVAL;
+
+	pv = nbp_get_vlan_info(p);
+	if (br->vlan_enabled && pv && entry->vid == 0) {
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+			entry->vid = vid;
+			err = __br_mdb_del(br, entry);
+			if (!err)
+				__br_mdb_notify(dev, entry, RTM_DELMDB);
+		}
+	} else {
+		err = __br_mdb_del(br, entry);
+		if (!err)
+			__br_mdb_notify(dev, entry, RTM_DELMDB);
+	}
+
 	return err;
 }
 
