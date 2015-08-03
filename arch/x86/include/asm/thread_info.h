@@ -27,14 +27,17 @@
  * Without this offset, that can result in a page fault.  (We are
  * careful that, in this case, the value we read doesn't matter.)
  *
- * In vm86 mode, the hardware frame is much longer still, but we neither
- * access the extra members from NMI context, nor do we write such a
- * frame at sp0 at all.
+ * In vm86 mode, the hardware frame is much longer still, so add 16
+ * bytes to make room for the real-mode segments.
  *
  * x86_64 has a fixed-length stack frame.
  */
 #ifdef CONFIG_X86_32
-# define TOP_OF_KERNEL_STACK_PADDING 8
+# ifdef CONFIG_VM86
+#  define TOP_OF_KERNEL_STACK_PADDING 16
+# else
+#  define TOP_OF_KERNEL_STACK_PADDING 8
+# endif
 #else
 # define TOP_OF_KERNEL_STACK_PADDING 0
 #endif

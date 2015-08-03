@@ -2236,7 +2236,7 @@ static u64 guest_read_tsc(void)
 {
 	u64 host_tsc, tsc_offset;
 
-	rdtscll(host_tsc);
+	host_tsc = rdtsc();
 	tsc_offset = vmcs_read64(TSC_OFFSET);
 	return host_tsc + tsc_offset;
 }
@@ -2317,7 +2317,7 @@ static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 
 static u64 vmx_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 {
-	return target_tsc - native_read_tsc();
+	return target_tsc - rdtsc();
 }
 
 static bool guest_cpuid_has_vmx(struct kvm_vcpu *vcpu)

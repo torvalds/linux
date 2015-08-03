@@ -125,7 +125,7 @@ void mce_setup(struct mce *m)
 {
 	memset(m, 0, sizeof(struct mce));
 	m->cpu = m->extcpu = smp_processor_id();
-	rdtscll(m->tsc);
+	m->tsc = rdtsc();
 	/* We hope get_seconds stays lockless */
 	m->time = get_seconds();
 	m->cpuvendor = boot_cpu_data.x86_vendor;
@@ -1029,7 +1029,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 {
 	struct mca_config *cfg = &mca_cfg;
 	struct mce m, *final;
-	enum ctx_state prev_state;
 	int i;
 	int worst = 0;
 	int severity;
@@ -1055,7 +1054,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	int flags = MF_ACTION_REQUIRED;
 	int lmce = 0;
 
-	prev_state = ist_enter(regs);
+	ist_enter(regs);
 
 	this_cpu_inc(mce_exception_count);
 
@@ -1227,7 +1226,7 @@ out:
 	local_irq_disable();
 	ist_end_non_atomic();
 done:
-	ist_exit(regs, prev_state);
+	ist_exit(regs);
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
 
@@ -1784,7 +1783,7 @@ static void collect_tscs(void *data)
 {
 	unsigned long *cpu_tsc = (unsigned long *)data;
 
-	rdtscll(cpu_tsc[smp_processor_id()]);
+	cpu_tsc[smp_processor_id()] = rdtsc();
 }
 
 static int mce_apei_read_done;

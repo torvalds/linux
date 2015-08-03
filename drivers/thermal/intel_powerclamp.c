@@ -340,7 +340,7 @@ static bool powerclamp_adjust_controls(unsigned int target_ratio,
 
 	/* check result for the last window */
 	msr_now = pkg_state_counter();
-	rdtscll(tsc_now);
+	tsc_now = rdtsc();
 
 	/* calculate pkg cstate vs tsc ratio */
 	if (!msr_last || !tsc_last)
@@ -482,7 +482,7 @@ static void poll_pkg_cstate(struct work_struct *dummy)
 	u64 val64;
 
 	msr_now = pkg_state_counter();
-	rdtscll(tsc_now);
+	tsc_now = rdtsc();
 	jiffies_now = jiffies;
 
 	/* calculate pkg cstate vs tsc ratio */

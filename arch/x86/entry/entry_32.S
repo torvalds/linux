@@ -525,34 +525,12 @@ work_resched:
 
 work_notifysig:					# deal with pending signals and
 						# notify-resume requests
-#ifdef CONFIG_VM86
-	testl	$X86_EFLAGS_VM, PT_EFLAGS(%esp)
-	movl	%esp, %eax
-	jnz	work_notifysig_v86		# returning to kernel-space or
-						# vm86-space
-1:
-#else
-	movl	%esp, %eax
-#endif
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	movb	PT_CS(%esp), %bl
-	andb	$SEGMENT_RPL_MASK, %bl
-	cmpb	$USER_RPL, %bl
-	jb	resume_kernel
+	movl	%esp, %eax
 	xorl	%edx, %edx
 	call	do_notify_resume
 	jmp	resume_userspace
-
-#ifdef CONFIG_VM86
-	ALIGN
-work_notifysig_v86:
-	pushl	%ecx				# save ti_flags for do_notify_resume
-	call	save_v86_state			# %eax contains pt_regs pointer
-	popl	%ecx
-	movl	%eax, %esp
-	jmp	1b
-#endif
 END(work_pending)
 
 	# perform syscall exit tracing

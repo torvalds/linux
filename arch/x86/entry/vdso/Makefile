@@ -8,7 +8,7 @@ KASAN_SANITIZE := n
 VDSO64-$(CONFIG_X86_64)		:= y
 VDSOX32-$(CONFIG_X86_X32_ABI)	:= y
 VDSO32-$(CONFIG_X86_32)		:= y
-VDSO32-$(CONFIG_COMPAT)		:= y
+VDSO32-$(CONFIG_IA32_EMULATION)	:= y
 
 # files to link into the vdso
 vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o
@@ -20,7 +20,7 @@ obj-y				+= vma.o
 vdso_img-$(VDSO64-y)		+= 64
 vdso_img-$(VDSOX32-y)		+= x32
 vdso_img-$(VDSO32-y)		+= 32-int80
-vdso_img-$(CONFIG_COMPAT)	+= 32-syscall
+vdso_img-$(CONFIG_IA32_EMULATION)	+= 32-syscall
 vdso_img-$(VDSO32-y)		+= 32-sysenter
 
 obj-$(VDSO32-y)			+= vdso32-setup.o
@@ -126,7 +126,7 @@ $(obj)/vdsox32.so.dbg: $(src)/vdsox32.lds $(vobjx32s) FORCE
 # Build multiple 32-bit vDSO images to choose from at boot time.
 #
 vdso32.so-$(VDSO32-y)		+= int80
-vdso32.so-$(CONFIG_COMPAT)	+= syscall
+vdso32.so-$(CONFIG_IA32_EMULATION)	+= syscall
 vdso32.so-$(VDSO32-y)		+= sysenter
 
 vdso32-images			= $(vdso32.so-y:%=vdso32-%.so)

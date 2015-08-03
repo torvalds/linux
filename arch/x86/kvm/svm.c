@@ -1139,7 +1139,7 @@ static u64 svm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 {
 	u64 tsc;
 
-	tsc = svm_scale_tsc(vcpu, native_read_tsc());
+	tsc = svm_scale_tsc(vcpu, rdtsc());
 
 	return target_tsc - tsc;
 }
@@ -3172,7 +3172,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	switch (msr_info->index) {
 	case MSR_IA32_TSC: {
 		msr_info->data = svm->vmcb->control.tsc_offset +
-			svm_scale_tsc(vcpu, native_read_tsc());
+			svm_scale_tsc(vcpu, rdtsc());
 
 		break;
 	}
