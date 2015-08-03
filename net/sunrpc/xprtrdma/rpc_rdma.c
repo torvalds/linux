@@ -420,7 +420,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 *
 	 * o Read ops return data as write chunk(s), header as inline.
 	 * o If the expected result is under the inline threshold, all ops
-	 *   return as inline (but see later).
+	 *   return as inline.
 	 * o Large non-read ops return as a single reply chunk.
 	 */
 	if (rqst->rq_rcv_buf.flags & XDRBUF_READ)
@@ -476,17 +476,6 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 		headerp->rm_body.rm_nochunks.rm_empty[2] = xdr_zero;
 		/* new length after pullup */
 		rpclen = rqst->rq_svec[0].iov_len;
-		/* Currently we try to not actually use read inline.
-		 * Reply chunks have the desirable property that
-		 * they land, packed, directly in the target buffers
-		 * without headers, so they require no fixup. The
-		 * additional RDMA Write op sends the same amount
-		 * of data, streams on-the-wire and adds no overhead
-		 * on receive. Therefore, we request a reply chunk
-		 * for non-writes wherever feasible and efficient.
-		 */
-		if (wtype == rpcrdma_noch)
-			wtype = rpcrdma_replych;
 	}
 
 	if (rtype != rpcrdma_noch) {
