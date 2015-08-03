@@ -944,7 +944,7 @@ rk818,support_dc_chg = <1>;/*1:dc chg; 0:usb chg*/
 		};
 
 		rk818_ldo2_reg: regulator@5 {
-			regulator-name= "rk818_ldo2";
+			regulator-name= "vcc_tp";
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 			regulator-initial-state = <3>;
