@@ -1124,15 +1124,26 @@ int vivid_vid_out_s_std(struct file *file, void *priv, v4l2_std_id id)
 	return 0;
 }
 
+static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
+{
+	struct v4l2_bt_timings *bt = &timings->bt;
+
+	if ((bt->standards & (V4L2_DV_BT_STD_CVT | V4L2_DV_BT_STD_GTF)) &&
+	    v4l2_valid_dv_timings(timings, &vivid_dv_timings_cap, NULL, NULL))
+		return true;
+
+	return false;
+}
+
 int vivid_vid_out_s_dv_timings(struct file *file, void *_fh,
 				    struct v4l2_dv_timings *timings)
 {
 	struct vivid_dev *dev = video_drvdata(file);
-
 	if (!vivid_is_hdmi_out(dev))
 		return -ENODATA;
 	if (!v4l2_find_dv_timings_cap(timings, &vivid_dv_timings_cap,
-				0, NULL, NULL))
+				0, NULL, NULL) &&
+	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
 	if (v4l2_match_dv_timings(timings, &dev->dv_timings_out, 0))
 		return 0;
