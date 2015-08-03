@@ -358,7 +358,7 @@ static int amdgpu_vce_free_job(
  * Open up a stream for HW test
  */
 int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct amdgpu_fence **fence)
+			      struct fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_ib *ib = NULL;
@@ -412,7 +412,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	if (r)
 		goto err;
 	if (fence)
-		*fence = amdgpu_fence_ref(ib->fence);
+		*fence = fence_get(&ib->fence->base);
 	if (amdgpu_enable_scheduler)
 		return 0;
 err:
@@ -432,7 +432,7 @@ err:
  * Close up a stream for HW test or if userspace failed to do so
  */
 int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct amdgpu_fence **fence)
+			       struct fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_ib *ib = NULL;
@@ -476,7 +476,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	if (r)
 		goto err;
 	if (fence)
-		*fence = amdgpu_fence_ref(ib->fence);
+		*fence = fence_get(&ib->fence->base);
 	if (amdgpu_enable_scheduler)
 		return 0;
 err:
@@ -827,7 +827,7 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
  */
 int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
 {
-	struct amdgpu_fence *fence = NULL;
+	struct fence *fence = NULL;
 	int r;
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);
@@ -842,13 +842,13 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
 		goto error;
 	}
 
-	r = amdgpu_fence_wait(fence, false);
+	r = fence_wait(fence, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 	} else {
 		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
 	}
 error:
-	amdgpu_fence_unref(&fence);
+	fence_put(fence);
 	return r;
 }
