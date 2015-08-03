@@ -88,9 +88,17 @@ typedef uint64_t gen8_pde_t;
  * PDPE  |  PDE  |  PTE  | offset
  * The difference as compared to normal x86 3 level page table is the PDPEs are
  * programmed via register.
+ *
+ * GEN8 48b legacy style address is defined as a 4 level page table:
+ * 47:39 | 38:30 | 29:21 | 20:12 |  11:0
+ * PML4E | PDPE  |  PDE  |  PTE  | offset
  */
+#define GEN8_PML4ES_PER_PML4		512
+#define GEN8_PML4E_SHIFT		39
 #define GEN8_PDPE_SHIFT			30
-#define GEN8_PDPE_MASK			0x3
+/* NB: GEN8_PDPE_MASK is untrue for 32b platforms, but it has no impact on 32b page
+ * tables */
+#define GEN8_PDPE_MASK			0x1ff
 #define GEN8_PDE_SHIFT			21
 #define GEN8_PDE_MASK			0x1ff
 #define GEN8_PTE_SHIFT			12
@@ -98,8 +106,8 @@ typedef uint64_t gen8_pde_t;
 #define GEN8_LEGACY_PDPES		4
 #define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
-/* FIXME: Next patch will use dev */
-#define I915_PDPES_PER_PDP(dev)		GEN8_LEGACY_PDPES
+#define I915_PDPES_PER_PDP(dev) (USES_FULL_48BIT_PPGTT(dev) ?\
+				 GEN8_PML4ES_PER_PML4 : GEN8_LEGACY_PDPES)
 
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
@@ -250,6 +258,13 @@ struct i915_page_directory_pointer {
 	struct i915_page_directory **page_directory;
 };
 
+struct i915_pml4 {
+	struct i915_page_dma base;
+
+	DECLARE_BITMAP(used_pml4es, GEN8_PML4ES_PER_PML4);
+	struct i915_page_directory_pointer *pdps[GEN8_PML4ES_PER_PML4];
+};
+
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_device *dev;
@@ -345,8 +360,9 @@ struct i915_hw_ppgtt {
 	struct drm_mm_node node;
 	unsigned long pd_dirty_rings;
 	union {
-		struct i915_page_directory_pointer pdp;
-		struct i915_page_directory pd;
+		struct i915_pml4 pml4;		/* GEN8+ & 48b PPGTT */
+		struct i915_page_directory_pointer pdp;	/* GEN8+ */
+		struct i915_page_directory pd;		/* GEN6-7 */
 	};
 
 	struct drm_i915_file_private *file_priv;

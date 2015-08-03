@@ -1105,14 +1105,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		return ret;
 
 	ppgtt->base.start = 0;
-	ppgtt->base.total = 1ULL << 32;
-	if (IS_ENABLED(CONFIG_X86_32))
-		/* While we have a proliferation of size_t variables
-		 * we cannot represent the full ppgtt size on 32bit,
-		 * so limit it to the same size as the GGTT (currently
-		 * 2GiB).
-		 */
-		ppgtt->base.total = to_i915(ppgtt->base.dev)->gtt.base.total;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.allocate_va_range = gen8_alloc_va_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
@@ -1122,10 +1114,25 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->switch_mm = gen8_mm_switch;
 
-	ret = __pdp_init(false, &ppgtt->pdp);
+	if (!USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
+		ret = __pdp_init(false, &ppgtt->pdp);
 
-	if (ret)
+		if (ret)
+			goto free_scratch;
+
+		ppgtt->base.total = 1ULL << 32;
+		if (IS_ENABLED(CONFIG_X86_32))
+			/* While we have a proliferation of size_t variables
+			 * we cannot represent the full ppgtt size on 32bit,
+			 * so limit it to the same size as the GGTT (currently
+			 * 2GiB).
+			 */
+			ppgtt->base.total = to_i915(ppgtt->base.dev)->gtt.base.total;
+	} else {
+		ppgtt->base.total = 1ULL << 48;
+		ret = -EPERM; /* Not yet implemented */
 		goto free_scratch;
+	}
 
 	return 0;
 

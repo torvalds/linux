@@ -2510,7 +2510,8 @@ struct drm_i915_cmd_table {
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_LOGICAL_RING_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 8)
 #define USES_PPGTT(dev)		(i915.enable_ppgtt)
-#define USES_FULL_PPGTT(dev)	(i915.enable_ppgtt == 2)
+#define USES_FULL_PPGTT(dev)	(i915.enable_ppgtt >= 2)
+#define USES_FULL_48BIT_PPGTT(dev)	(i915.enable_ppgtt == 3)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
