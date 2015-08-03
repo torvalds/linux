@@ -678,20 +678,6 @@ static int ath10k_mac_set_rts(struct ath10k_vif *arvif, u32 value)
 	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param, value);
 }
 
-static int ath10k_mac_set_frag(struct ath10k_vif *arvif, u32 value)
-{
-	struct ath10k *ar = arvif->ar;
-	u32 vdev_param;
-
-	if (value != 0xFFFFFFFF)
-		value = clamp_t(u32, arvif->ar->hw->wiphy->frag_threshold,
-				ATH10K_FRAGMT_THRESHOLD_MIN,
-				ATH10K_FRAGMT_THRESHOLD_MAX);
-
-	vdev_param = ar->wmi.vdev_param->fragmentation_threshold;
-	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param, value);
-}
-
 static int ath10k_peer_delete(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 {
 	int ret;
@@ -4272,13 +4258,6 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	ret = ath10k_mac_set_rts(arvif, ar->hw->wiphy->rts_threshold);
 	if (ret) {
 		ath10k_warn(ar, "failed to set rts threshold for vdev %d: %d\n",
-			    arvif->vdev_id, ret);
-		goto err_peer_delete;
-	}
-
-	ret = ath10k_mac_set_frag(arvif, ar->hw->wiphy->frag_threshold);
-	if (ret) {
-		ath10k_warn(ar, "failed to set frag threshold for vdev %d: %d\n",
 			    arvif->vdev_id, ret);
 		goto err_peer_delete;
 	}
