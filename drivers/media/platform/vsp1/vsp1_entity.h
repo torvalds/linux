@@ -32,6 +32,8 @@ enum vsp1_entity_type {
 	VSP1_ENTITY_WPF,
 };
 
+#define VSP1_ENTITY_MAX_INPUTS		5	/* For the BRU */
+
 /*
  * struct vsp1_route - Entity routing configuration
  * @type: Entity type this routing entry is associated with
@@ -48,7 +50,7 @@ struct vsp1_route {
 	enum vsp1_entity_type type;
 	unsigned int index;
 	unsigned int reg;
-	unsigned int inputs[4];
+	unsigned int inputs[VSP1_ENTITY_MAX_INPUTS];
 };
 
 struct vsp1_entity {

@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 
@@ -539,6 +540,8 @@ static int vsp1_parse_dt(struct vsp1_device *vsp1)
 			pdata->wpf_count);
 		return -EINVAL;
 	}
+
+	pdata->num_bru_inputs = 4;
 
 	return 0;
 }
