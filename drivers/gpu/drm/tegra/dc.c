@@ -1063,91 +1063,6 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.atomic_destroy_state = tegra_crtc_atomic_destroy_state,
 };
 
-static void tegra_dc_stop(struct tegra_dc *dc)
-{
-	u32 value;
-
-	/* stop the display controller */
-	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
-	value &= ~DISP_CTRL_MODE_MASK;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
-
-	tegra_dc_commit(dc);
-}
-
-static bool tegra_dc_idle(struct tegra_dc *dc)
-{
-	u32 value;
-
-	value = tegra_dc_readl_active(dc, DC_CMD_DISPLAY_COMMAND);
-
-	return (value & DISP_CTRL_MODE_MASK) == 0;
-}
-
-static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
-{
-	timeout = jiffies + msecs_to_jiffies(timeout);
-
-	while (time_before(jiffies, timeout)) {
-		if (tegra_dc_idle(dc))
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	dev_dbg(dc->dev, "timeout waiting for DC to become idle\n");
-	return -ETIMEDOUT;
-}
-
-static void tegra_crtc_disable(struct drm_crtc *crtc)
-{
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	u32 value;
-
-	if (!tegra_dc_idle(dc)) {
-		tegra_dc_stop(dc);
-
-		/*
-		 * Ignore the return value, there isn't anything useful to do
-		 * in case this fails.
-		 */
-		tegra_dc_wait_idle(dc, 100);
-	}
-
-	/*
-	 * This should really be part of the RGB encoder driver, but clearing
-	 * these bits has the side-effect of stopping the display controller.
-	 * When that happens no VBLANK interrupts will be raised. At the same
-	 * time the encoder is disabled before the display controller, so the
-	 * above code is always going to timeout waiting for the controller
-	 * to go idle.
-	 *
-	 * Given the close coupling between the RGB encoder and the display
-	 * controller doing it here is still kind of okay. None of the other
-	 * encoder drivers require these bits to be cleared.
-	 *
-	 * XXX: Perhaps given that the display controller is switched off at
-	 * this point anyway maybe clearing these bits isn't even useful for
-	 * the RGB encoder?
-	 */
-	if (dc->rgb) {
-		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
-		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
-		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-	}
-
-	tegra_dc_stats_reset(&dc->stats);
-	drm_crtc_vblank_off(crtc);
-}
-
-static bool tegra_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted)
-{
-	return true;
-}
-
 static int tegra_dc_set_timings(struct tegra_dc *dc,
 				struct drm_display_mode *mode)
 {
@@ -1241,7 +1156,85 @@ static void tegra_dc_commit_state(struct tegra_dc *dc,
 	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
 }
 
-static void tegra_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void tegra_dc_stop(struct tegra_dc *dc)
+{
+	u32 value;
+
+	/* stop the display controller */
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	tegra_dc_commit(dc);
+}
+
+static bool tegra_dc_idle(struct tegra_dc *dc)
+{
+	u32 value;
+
+	value = tegra_dc_readl_active(dc, DC_CMD_DISPLAY_COMMAND);
+
+	return (value & DISP_CTRL_MODE_MASK) == 0;
+}
+
+static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
+{
+	timeout = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_before(jiffies, timeout)) {
+		if (tegra_dc_idle(dc))
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	dev_dbg(dc->dev, "timeout waiting for DC to become idle\n");
+	return -ETIMEDOUT;
+}
+
+static void tegra_crtc_disable(struct drm_crtc *crtc)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	u32 value;
+
+	if (!tegra_dc_idle(dc)) {
+		tegra_dc_stop(dc);
+
+		/*
+		 * Ignore the return value, there isn't anything useful to do
+		 * in case this fails.
+		 */
+		tegra_dc_wait_idle(dc, 100);
+	}
+
+	/*
+	 * This should really be part of the RGB encoder driver, but clearing
+	 * these bits has the side-effect of stopping the display controller.
+	 * When that happens no VBLANK interrupts will be raised. At the same
+	 * time the encoder is disabled before the display controller, so the
+	 * above code is always going to timeout waiting for the controller
+	 * to go idle.
+	 *
+	 * Given the close coupling between the RGB encoder and the display
+	 * controller doing it here is still kind of okay. None of the other
+	 * encoder drivers require these bits to be cleared.
+	 *
+	 * XXX: Perhaps given that the display controller is switched off at
+	 * this point anyway maybe clearing these bits isn't even useful for
+	 * the RGB encoder?
+	 */
+	if (dc->rgb) {
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+	}
+
+	tegra_dc_stats_reset(&dc->stats);
+	drm_crtc_vblank_off(crtc);
+}
+
+static void tegra_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
@@ -1271,15 +1264,7 @@ static void tegra_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
 	tegra_dc_commit(dc);
-}
 
-static void tegra_crtc_prepare(struct drm_crtc *crtc)
-{
-	drm_crtc_vblank_off(crtc);
-}
-
-static void tegra_crtc_commit(struct drm_crtc *crtc)
-{
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -1314,10 +1299,7 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc)
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.disable = tegra_crtc_disable,
-	.mode_fixup = tegra_crtc_mode_fixup,
-	.mode_set_nofb = tegra_crtc_mode_set_nofb,
-	.prepare = tegra_crtc_prepare,
-	.commit = tegra_crtc_commit,
+	.enable = tegra_crtc_enable,
 	.atomic_check = tegra_crtc_atomic_check,
 	.atomic_begin = tegra_crtc_atomic_begin,
 	.atomic_flush = tegra_crtc_atomic_flush,
@@ -1368,6 +1350,14 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_dc *dc = node->info_ent->data;
+	int err = 0;
+
+	drm_modeset_lock_crtc(&dc->base, NULL);
+
+	if (!dc->base.state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 #define DUMP_REG(name)						\
 	seq_printf(s, "%-40s %#05x %08x\n", #name, name,	\
@@ -1588,14 +1578,24 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 
 #undef DUMP_REG
 
-	return 0;
+unlock:
+	drm_modeset_unlock_crtc(&dc->base);
+	return err;
 }
 
 static int tegra_dc_show_crc(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_dc *dc = node->info_ent->data;
+	int err = 0;
 	u32 value;
+
+	drm_modeset_lock_crtc(&dc->base, NULL);
+
+	if (!dc->base.state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	value = DC_COM_CRC_CONTROL_ACTIVE_DATA | DC_COM_CRC_CONTROL_ENABLE;
 	tegra_dc_writel(dc, value, DC_COM_CRC_CONTROL);
@@ -1609,7 +1609,9 @@ static int tegra_dc_show_crc(struct seq_file *s, void *data)
 
 	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
 
-	return 0;
+unlock:
+	drm_modeset_unlock_crtc(&dc->base);
+	return err;
 }
 
 static int tegra_dc_show_stats(struct seq_file *s, void *data)
