@@ -34,7 +34,7 @@ static const struct regmap_config mt6311_regmap_config = {
 
 /* Default limits measured in millivolts and milliamps */
 #define MT6311_MIN_UV		600000
-#define MT6311_MAX_UV		1400000
+#define MT6311_MAX_UV		1393750
 #define MT6311_STEP_UV		6250
 
 static const struct regulator_linear_range buck_volt_range[] = {
