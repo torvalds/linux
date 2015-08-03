@@ -246,11 +246,10 @@ RTY_SEND_CMD:
 				}
 			}
 #ifdef SUPPORT_SD_LOCK
-			if (ptr[1] & 0x7D)
+			if (ptr[1] & 0x7D) {
 #else
-			if (ptr[1] & 0x7F)
+			if (ptr[1] & 0x7F) {
 #endif
-			{
 				dev_dbg(rtsx_dev(chip), "ptr[1]: 0x%02x\n",
 					ptr[1]);
 				rtsx_trace(chip);
@@ -4148,11 +4147,10 @@ RTY_SEND_CMD:
 			}
 		}
 #ifdef SUPPORT_SD_LOCK
-		if (ptr[1] & 0x7D)
+		if (ptr[1] & 0x7D) {
 #else
-		if (ptr[1] & 0x7F)
+		if (ptr[1] & 0x7F) {
 #endif
-		{
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
