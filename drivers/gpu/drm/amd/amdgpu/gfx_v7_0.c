@@ -2674,7 +2674,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	if (r)
 		goto err2;
 
-	r = amdgpu_fence_wait(ib.fence, false);
+	r = fence_wait(&ib.fence->base, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 		goto err2;
