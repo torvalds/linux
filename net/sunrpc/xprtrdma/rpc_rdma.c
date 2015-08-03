@@ -96,6 +96,42 @@ static bool rpcrdma_results_inline(struct rpc_rqst *rqst)
 	return repsize <= RPCRDMA_INLINE_READ_THRESHOLD(rqst);
 }
 
+static int
+rpcrdma_tail_pullup(struct xdr_buf *buf)
+{
+	size_t tlen = buf->tail[0].iov_len;
+	size_t skip = tlen & 3;
+
+	/* Do not include the tail if it is only an XDR pad */
+	if (tlen < 4)
+		return 0;
+
+	/* xdr_write_pages() adds a pad at the beginning of the tail
+	 * if the content in "buf->pages" is unaligned. Force the
+	 * tail's actual content to land at the next XDR position
+	 * after the head instead.
+	 */
+	if (skip) {
+		unsigned char *src, *dst;
+		unsigned int count;
+
+		src = buf->tail[0].iov_base;
+		dst = buf->head[0].iov_base;
+		dst += buf->head[0].iov_len;
+
+		src += skip;
+		tlen -= skip;
+
+		dprintk("RPC:       %s: skip=%zu, memmove(%p, %p, %zu)\n",
+			__func__, skip, dst, src, tlen);
+
+		for (count = tlen; count; count--)
+			*dst++ = *src++;
+	}
+
+	return tlen;
+}
+
 /*
  * Chunk assembly from upper layer xdr_buf.
  *
@@ -146,6 +182,10 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 	/* Message overflows the seg array */
 	if (len && n == nsegs)
 		return -EIO;
+
+	/* When encoding the read list, the tail is always sent inline */
+	if (type == rpcrdma_readch)
+		return n;
 
 	if (xdrbuf->tail[0].iov_len) {
 		/* the rpcrdma protocol allows us to omit any trailing
@@ -476,8 +516,8 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 		headerp->rm_body.rm_nochunks.rm_empty[2] = xdr_zero;
 		/* new length after pullup */
 		rpclen = rqst->rq_svec[0].iov_len;
-	}
-
+	} else if (rtype == rpcrdma_readch)
+		rpclen += rpcrdma_tail_pullup(&rqst->rq_snd_buf);
 	if (rtype != rpcrdma_noch) {
 		hdrlen = rpcrdma_create_chunks(rqst, &rqst->rq_snd_buf,
 					       headerp, rtype);
