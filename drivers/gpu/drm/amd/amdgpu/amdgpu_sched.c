@@ -79,7 +79,6 @@ static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched, void *job)
 	struct amdgpu_fence *fence = NULL;
 	struct amdgpu_ring *ring = NULL;
 	struct amdgpu_device *adev = NULL;
-	struct amd_context_entity *c_entity = NULL;
 
 	if (!job)
 		return;
@@ -89,9 +88,6 @@ static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched, void *job)
 		return;
 	ring = fence->ring;
 	adev = ring->adev;
-
-	/* wake up users waiting for time stamp */
-	wake_up_all(&c_entity->wait_queue);
 
 	schedule_work(&sched_job->job_work);
 }
