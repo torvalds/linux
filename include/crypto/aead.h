@@ -45,6 +45,30 @@
  * a breach in the integrity of the message. In essence, that -EBADMSG error
  * code is the key bonus an AEAD cipher has over "standard" block chaining
  * modes.
+ *
+ * Memory Structure:
+ *
+ * To support the needs of the most prominent user of AEAD ciphers, namely
+ * IPSEC, the AEAD ciphers have a special memory layout the caller must adhere
+ * to.
+ *
+ * The scatter list pointing to the input data must contain:
+ *
+ * * for RFC4106 ciphers, the concatenation of
+ * associated authentication data || IV || plaintext or ciphertext. Note, the
+ * same IV (buffer) is also set with the aead_request_set_crypt call. Note,
+ * the API call of aead_request_set_ad must provide the length of the AAD and
+ * the IV. The API call of aead_request_set_crypt only points to the size of
+ * the input plaintext or ciphertext.
+ *
+ * * for "normal" AEAD ciphers, the concatenation of
+ * associated authentication data || plaintext or ciphertext.
+ *
+ * It is important to note that if multiple scatter gather list entries form
+ * the input data mentioned above, the first entry must not point to a NULL
+ * buffer. If there is any potential where the AAD buffer can be NULL, the
+ * calling code must contain a precaution to ensure that this does not result
+ * in the first scatter gather list entry pointing to a NULL buffer.
  */
 
 /**
