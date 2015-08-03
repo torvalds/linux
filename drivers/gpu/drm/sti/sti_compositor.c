@@ -61,14 +61,12 @@ static int sti_compositor_bind(struct device *dev,
 {
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	unsigned int i, mixer_id = 0, vid_id = 0, crtc_id = 0, plane_id = 0;
+	unsigned int i, mixer_id = 0, vid_id = 0, crtc_id = 0;
 	struct sti_private *dev_priv = drm_dev->dev_private;
 	struct drm_plane *cursor = NULL;
 	struct drm_plane *primary = NULL;
 	struct sti_compositor_subdev_descriptor *desc = compo->data.subdev_desc;
 	unsigned int array_size = compo->data.nb_subdev;
-
-	struct sti_plane *plane;
 
 	dev_priv->compo = compo;
 
@@ -110,27 +108,25 @@ static int sti_compositor_bind(struct device *dev,
 			/* Nothing to do, already done at the first round */
 			break;
 		case STI_CURSOR_SUBDEV:
-			plane = sti_cursor_create(compo->dev, desc[i].id,
-						  compo->regs + desc[i].offset);
-			if (!plane) {
+			cursor = sti_cursor_create(drm_dev, compo->dev,
+						   desc[i].id,
+						   compo->regs + desc[i].offset,
+						   1);
+			if (!cursor) {
 				DRM_ERROR("Can't create CURSOR plane\n");
 				break;
 			}
-			cursor = sti_plane_init(drm_dev, plane, 1,
-						DRM_PLANE_TYPE_CURSOR);
-			plane_id++;
 			break;
 		case STI_GPD_SUBDEV:
-			plane = sti_gdp_create(compo->dev, desc[i].id,
-					       compo->regs + desc[i].offset);
-			if (!plane) {
+			primary = sti_gdp_create(drm_dev, compo->dev,
+						 desc[i].id,
+						 compo->regs + desc[i].offset,
+						 (1 << mixer_id) - 1,
+						 plane_type);
+			if (!primary) {
 				DRM_ERROR("Can't create GDP plane\n");
 				break;
 			}
-			primary = sti_plane_init(drm_dev, plane,
-						 (1 << mixer_id) - 1,
-						 plane_type);
-			plane_id++;
 			break;
 		default:
 			DRM_ERROR("Unknown subdev compoment type\n");
@@ -150,10 +146,6 @@ static int sti_compositor_bind(struct device *dev,
 	drm_vblank_init(drm_dev, crtc_id);
 	/* Allow usage of vblank without having to call drm_irq_install */
 	drm_dev->irq_enabled = 1;
-
-	DRM_DEBUG_DRIVER("Initialized %d DRM CRTC(s) and %d DRM plane(s)\n",
-			 crtc_id, plane_id);
-	DRM_DEBUG_DRIVER("DRM plane(s) for VID/VDP not created yet\n");
 
 	return 0;
 }

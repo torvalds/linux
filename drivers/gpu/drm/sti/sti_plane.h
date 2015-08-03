@@ -8,6 +8,10 @@
 #define _STI_PLANE_H_
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
+
+extern struct drm_plane_funcs sti_plane_helpers_funcs;
 
 #define to_sti_plane(x) container_of(x, struct sti_plane, drm_plane)
 
@@ -38,68 +42,30 @@ enum sti_plane_desc {
 	STI_BACK        = STI_BCK
 };
 
+enum sti_plane_status {
+	STI_PLANE_READY,
+	STI_PLANE_UPDATED,
+	STI_PLANE_DISABLING,
+	STI_PLANE_FLUSHING,
+	STI_PLANE_DISABLED,
+};
+
 /**
  * STI plane structure
  *
  * @plane:              drm plane it is bound to (if any)
- * @fb:                 drm fb it is bound to
- * @mode:               display mode
  * @desc:               plane type & id
- * @ops:                plane functions
+ * @status:             to know the status of the plane
  * @zorder:             plane z-order
- * @mixer_id:           id of the mixer used to display the plane
- * @enabled:            to know if the plane is active or not
- * @src_x src_y:        coordinates of the input (fb) area
- * @src_w src_h:        size of the input (fb) area
- * @dst_x dst_y:        coordinates of the output (crtc) area
- * @dst_w dst_h:        size of the output (crtc) area
- * @format:             format
- * @pitches:            pitch of 'planes' (eg: Y, U, V)
- * @offsets:            offset of 'planes'
- * @vaddr:              virtual address of the input buffer
- * @paddr:              physical address of the input buffer
  */
 struct sti_plane {
 	struct drm_plane drm_plane;
-	struct drm_framebuffer *fb;
-	struct drm_display_mode *mode;
 	enum sti_plane_desc desc;
-	const struct sti_plane_funcs *ops;
+	enum sti_plane_status status;
 	int zorder;
-	int mixer_id;
-	bool enabled;
-	int src_x, src_y;
-	int src_w, src_h;
-	int dst_x, dst_y;
-	int dst_w, dst_h;
-	uint32_t format;
-	unsigned int pitches[4];
-	unsigned int offsets[4];
-	void *vaddr;
-	dma_addr_t paddr;
 };
 
-/**
- * STI plane functions structure
- *
- * @get_formats:     get plane supported formats
- * @get_nb_formats:  get number of format supported
- * @prepare:         prepare plane before rendering
- * @commit:          set plane for rendering
- * @disable:         disable plane
- */
-struct sti_plane_funcs {
-	const uint32_t* (*get_formats)(struct sti_plane *plane);
-	unsigned int (*get_nb_formats)(struct sti_plane *plane);
-	int (*prepare)(struct sti_plane *plane, bool first_prepare);
-	int (*commit)(struct sti_plane *plane);
-	int (*disable)(struct sti_plane *plane);
-};
-
-struct drm_plane *sti_plane_init(struct drm_device *dev,
-				 struct sti_plane *sti_plane,
-				 unsigned int possible_crtcs,
-				 enum drm_plane_type type);
 const char *sti_plane_to_str(struct sti_plane *plane);
-
+void sti_plane_init_property(struct sti_plane *plane,
+			     enum drm_plane_type type);
 #endif

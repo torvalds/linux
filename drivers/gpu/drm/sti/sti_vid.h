@@ -20,8 +20,9 @@ struct sti_vid {
 	int id;
 };
 
-int sti_vid_commit(struct sti_vid *vid, struct sti_plane *plane);
-int sti_vid_disable(struct sti_vid *vid);
+void sti_vid_commit(struct sti_vid *vid,
+		    struct drm_plane_state *state);
+void sti_vid_disable(struct sti_vid *vid);
 struct sti_vid *sti_vid_create(struct device *dev, int id,
 			       void __iomem *baseaddr);
 

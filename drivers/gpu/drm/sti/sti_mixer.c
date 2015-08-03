@@ -58,6 +58,7 @@ const char *sti_mixer_to_str(struct sti_mixer *mixer)
 		return "<UNKNOWN MIXER>";
 	}
 }
+EXPORT_SYMBOL(sti_mixer_to_str);
 
 static inline u32 sti_mixer_reg_read(struct sti_mixer *mixer, u32 reg_id)
 {
@@ -223,15 +224,6 @@ int sti_mixer_set_plane_status(struct sti_mixer *mixer,
 	sti_mixer_reg_write(mixer, GAM_MIXER_CTL, val);
 
 	return 0;
-}
-
-void sti_mixer_clear_all_planes(struct sti_mixer *mixer)
-{
-	u32 val;
-
-	DRM_DEBUG_DRIVER("%s clear all planes\n", sti_mixer_to_str(mixer));
-	val = sti_mixer_reg_read(mixer, GAM_MIXER_CTL) & 0xFFFF0000;
-	sti_mixer_reg_write(mixer, GAM_MIXER_CTL, val);
 }
 
 void sti_mixer_set_matrix(struct sti_mixer *mixer)

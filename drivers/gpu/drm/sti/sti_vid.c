@@ -43,28 +43,37 @@
 #define VID_MPR2_BT709          0x07150545
 #define VID_MPR3_BT709          0x00000AE8
 
-int sti_vid_commit(struct sti_vid *vid, struct sti_plane *plane)
+void sti_vid_commit(struct sti_vid *vid,
+		    struct drm_plane_state *state)
 {
-	struct drm_display_mode *mode = plane->mode;
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_display_mode *mode = &crtc->mode;
+	int dst_x = state->crtc_x;
+	int dst_y = state->crtc_y;
+	int dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
+	int dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
 	u32 val, ydo, xdo, yds, xds;
+
+	/* Input / output size
+	 * Align to upper even value */
+	dst_w = ALIGN(dst_w, 2);
+	dst_h = ALIGN(dst_h, 2);
 
 	/* Unmask */
 	val = readl(vid->regs + VID_CTL);
 	val &= ~VID_CTL_IGNORE;
 	writel(val, vid->regs + VID_CTL);
 
-	ydo = sti_vtg_get_line_number(*mode, plane->dst_y);
-	yds = sti_vtg_get_line_number(*mode, plane->dst_y + plane->dst_h - 1);
-	xdo = sti_vtg_get_pixel_number(*mode, plane->dst_x);
-	xds = sti_vtg_get_pixel_number(*mode, plane->dst_x + plane->dst_w - 1);
+	ydo = sti_vtg_get_line_number(*mode, dst_y);
+	yds = sti_vtg_get_line_number(*mode, dst_y + dst_h - 1);
+	xdo = sti_vtg_get_pixel_number(*mode, dst_x);
+	xds = sti_vtg_get_pixel_number(*mode, dst_x + dst_w - 1);
 
 	writel((ydo << 16) | xdo, vid->regs + VID_VPO);
 	writel((yds << 16) | xds, vid->regs + VID_VPS);
-
-	return 0;
 }
 
-int sti_vid_disable(struct sti_vid *vid)
+void sti_vid_disable(struct sti_vid *vid)
 {
 	u32 val;
 
@@ -72,8 +81,6 @@ int sti_vid_disable(struct sti_vid *vid)
 	val = readl(vid->regs + VID_CTL);
 	val |= VID_CTL_IGNORE;
 	writel(val, vid->regs + VID_CTL);
-
-	return 0;
 }
 
 static void sti_vid_init(struct sti_vid *vid)
