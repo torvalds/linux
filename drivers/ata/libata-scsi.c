@@ -270,11 +270,8 @@ DEVICE_ATTR(unload_heads, S_IRUGO | S_IWUSR,
 	    ata_scsi_park_show, ata_scsi_park_store);
 EXPORT_SYMBOL_GPL(dev_attr_unload_heads);
 
-void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
+static void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
 {
-	if (!cmd)
-		return;
-
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
 	scsi_build_sense_buffer(0, cmd->sense_buffer, sk, asc, ascq);
@@ -1780,9 +1777,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	    ((cdb[2] & 0x20) || need_sense)) {
 		ata_gen_passthru_sense(qc);
 	} else {
-		if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
-			cmd->result = SAM_STAT_CHECK_CONDITION;
-		} else if (!need_sense) {
+		if (!need_sense) {
 			cmd->result = SAM_STAT_GOOD;
 		} else {
 			/* TODO: decide which descriptor format to use
