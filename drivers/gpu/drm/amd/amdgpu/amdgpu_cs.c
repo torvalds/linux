@@ -41,11 +41,6 @@ struct amdgpu_cs_buckets {
 	struct list_head bucket[AMDGPU_CS_NUM_BUCKETS];
 };
 
-static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser,
-				  int error, bool backoff);
-static void amdgpu_cs_parser_fini_early(struct amdgpu_cs_parser *parser, int error, bool backoff);
-static void amdgpu_cs_parser_fini_late(struct amdgpu_cs_parser *parser);
-
 static void amdgpu_cs_buckets_init(struct amdgpu_cs_buckets *b)
 {
 	unsigned i;
@@ -470,34 +465,6 @@ static int cmp_size_smaller_first(void *priv, struct list_head *a,
 	return (int)la->robj->tbo.num_pages - (int)lb->robj->tbo.num_pages;
 }
 
-/**
- * cs_parser_fini() - clean parser states
- * @parser:	parser structure holding parsing context.
- * @error:	error number
- *
- * If error is set than unvalidate buffer, otherwise just free memory
- * used by parsing context.
- **/
-static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bool backoff)
-{
-       amdgpu_cs_parser_fini_early(parser, error, backoff);
-       amdgpu_cs_parser_fini_late(parser);
-}
-
-static int amdgpu_cs_parser_run_job(
-	struct amdgpu_cs_parser *sched_job)
-{
-       amdgpu_cs_parser_fini_early(sched_job, 0, true);
-       return 0;
-}
-
-static int amdgpu_cs_parser_free_job(
-	struct amdgpu_cs_parser *sched_job)
-{
-       amdgpu_cs_parser_fini_late(sched_job);
-       return 0;
-}
-
 static void amdgpu_cs_parser_fini_early(struct amdgpu_cs_parser *parser, int error, bool backoff)
 {
 	if (!error) {
@@ -546,6 +513,34 @@ static void amdgpu_cs_parser_fini_late(struct amdgpu_cs_parser *parser)
 
 	if (!amdgpu_enable_scheduler)
 		kfree(parser);
+}
+
+/**
+ * cs_parser_fini() - clean parser states
+ * @parser:	parser structure holding parsing context.
+ * @error:	error number
+ *
+ * If error is set than unvalidate buffer, otherwise just free memory
+ * used by parsing context.
+ **/
+static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bool backoff)
+{
+       amdgpu_cs_parser_fini_early(parser, error, backoff);
+       amdgpu_cs_parser_fini_late(parser);
+}
+
+static int amdgpu_cs_parser_run_job(
+	struct amdgpu_cs_parser *sched_job)
+{
+       amdgpu_cs_parser_fini_early(sched_job, 0, true);
+       return 0;
+}
+
+static int amdgpu_cs_parser_free_job(
+	struct amdgpu_cs_parser *sched_job)
+{
+       amdgpu_cs_parser_fini_late(sched_job);
+       return 0;
 }
 
 static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
