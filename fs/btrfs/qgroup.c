@@ -1651,6 +1651,11 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 				/* Exclusive -> exclusive, nothing changed */
 			}
 		}
+
+		/* For exclusive extent, free its reserved bytes too */
+		if (nr_old_roots == 0 && nr_new_roots == 1 &&
+		    cur_new_count == nr_new_roots)
+			qg->reserved -= num_bytes;
 		if (dirty)
 			qgroup_dirty(fs_info, qg);
 	}
