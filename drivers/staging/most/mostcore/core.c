@@ -1260,7 +1260,7 @@ int arm_mbo_chain(struct most_c_obj *c, int dir, void (*compl)(struct mbo *))
 	unsigned int i;
 	int retval;
 	struct mbo *mbo;
-	u16 coherent_buf_size = c->cfg.buffer_size + c->cfg.extra_len;
+	u32 coherent_buf_size = c->cfg.buffer_size + c->cfg.extra_len;
 
 	atomic_set(&c->mbo_nq_level, 0);
 
