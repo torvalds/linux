@@ -23,8 +23,8 @@
 #include "greybus.h"
 
 struct gb_loopback_stats {
-	u64 min;
-	u64 max;
+	u32 min;
+	u32 max;
 	u64 avg;
 	u64 sum;
 	u64 count;
@@ -101,8 +101,8 @@ static ssize_t name##_##field##_show(struct device *dev,		\
 static DEVICE_ATTR_RO(name##_##field)
 
 #define gb_loopback_stats_attrs(field)					\
-	gb_loopback_ro_stats_attr(field, min, llu);			\
-	gb_loopback_ro_stats_attr(field, max, llu);			\
+	gb_loopback_ro_stats_attr(field, min, u);			\
+	gb_loopback_ro_stats_attr(field, max, u);			\
 	gb_loopback_ro_stats_attr(field, avg, llu);
 
 #define gb_loopback_attr(field, type)					\
@@ -340,7 +340,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 static void gb_loopback_reset_stats(struct gb_loopback *gb)
 {
 	struct gb_loopback_stats reset = {
-		.min = U64_MAX,
+		.min = U32_MAX,
 	};
 	memcpy(&gb->latency, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb->throughput, &reset, sizeof(struct gb_loopback_stats));
