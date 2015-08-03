@@ -1994,6 +1994,10 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
+	if (!dc->syncpt)
+		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
+
 	INIT_LIST_HEAD(&dc->client.list);
 	dc->client.ops = &dc_client_ops;
 	dc->client.dev = &pdev->dev;
@@ -2010,10 +2014,6 @@ static int tegra_dc_probe(struct platform_device *pdev)
 			err);
 		return err;
 	}
-
-	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
-	if (!dc->syncpt)
-		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
 
 	platform_set_drvdata(pdev, dc);
 
