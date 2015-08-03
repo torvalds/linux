@@ -490,19 +490,19 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
 	if (minor < 0) {
 		retval = minor;
-		goto out_free;
+		goto out_sysfs;
 	}
 
 	/* Check the version */
 	retval = get_version(gb);
 	if (retval)
-		goto out_get_ver;
+		goto out_minor;
 
 	/* Calculate maximum payload */
 	gb->size_max = gb_operation_get_payload_size_max(connection);
 	if (gb->size_max <= sizeof(struct gb_loopback_transfer_request)) {
 		retval = -EINVAL;
-		goto out_get_ver;
+		goto out_minor;
 	}
 	gb->size_max -= sizeof(struct gb_loopback_transfer_request);
 
@@ -510,7 +510,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	if (kfifo_alloc(&gb->kfifo, kfifo_depth * sizeof(u32),
 			  GFP_KERNEL)) {
 		retval = -ENOMEM;
-		goto out_get_ver;
+		goto out_minor;
 	}
 
 	/* Create device entry */
@@ -518,13 +518,13 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	cdev_init(&gb->cdev, &loopback_fops);
 	retval = cdev_add(&gb->cdev, gb->dev, 1);
 	if (retval)
-		goto out_cdev;
+		goto out_kfifo;
 
 	gb->device = device_create(loopback_class, &connection->dev, gb->dev,
 				   gb, "gb!loopback%d", minor);
 	if (IS_ERR(gb->device)) {
 		retval = PTR_ERR(gb->device);
-		goto out_device;
+		goto out_cdev;
 	}
 
 	/* Fork worker thread */
@@ -533,21 +533,25 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
-		goto out_kfifo;
+		goto out_device;
 	}
 
 	return 0;
 
 out_device:
-	cdev_del(&gb->cdev);
+	device_del(gb->device);
 out_cdev:
-	ida_simple_remove(&minors, minor);
+	cdev_del(&gb->cdev);
 out_kfifo:
 	kfifo_free(&gb->kfifo);
-out_get_ver:
+out_minor:
+	ida_simple_remove(&minors, minor);
+out_sysfs:
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 out_free:
+	connection->private = NULL;
 	kfree(gb);
+
 	return retval;
 }
 
@@ -555,13 +559,14 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 {
 	struct gb_loopback *gb = connection->private;
 
+	connection->private = NULL;
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
 
-	cdev_del(&gb->cdev);
-	ida_simple_remove(&minors, MINOR(gb->dev));
 	device_del(gb->device);
+	cdev_del(&gb->cdev);
 	kfifo_free(&gb->kfifo);
+	ida_simple_remove(&minors, MINOR(gb->dev));
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 	kfree(gb);
 }
