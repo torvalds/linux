@@ -1028,7 +1028,6 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 		spin_unlock_bh(list_lock);
 	}
 
-	batadv_gw_node_purge(bat_priv);
 	batadv_gw_election(bat_priv);
 }
 
