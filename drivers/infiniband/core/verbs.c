@@ -73,7 +73,7 @@ static const char * const ib_events[] = {
 	[IB_EVENT_GID_CHANGE]		= "GID changed",
 };
 
-const char *ib_event_msg(enum ib_event_type event)
+const char *__attribute_const__ ib_event_msg(enum ib_event_type event)
 {
 	size_t index = event;
 
@@ -107,7 +107,7 @@ static const char * const wc_statuses[] = {
 	[IB_WC_GENERAL_ERR]		= "general error",
 };
 
-const char *ib_wc_status_msg(enum ib_wc_status status)
+const char *__attribute_const__ ib_wc_status_msg(enum ib_wc_status status)
 {
 	size_t index = status;
 

@@ -62,7 +62,7 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_TIMEWAIT_EXIT
 };
 
-__attribute_const__ const char *rdma_event_msg(enum rdma_cm_event_type event);
+const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
 
 enum rdma_port_space {
 	RDMA_PS_SDP   = 0x0001,
