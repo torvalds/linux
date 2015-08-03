@@ -59,7 +59,6 @@ extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
 				   u64 * info_out);
 
 extern void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq);
-extern void scsi_set_sense_information(u8 *buf, u64 info);
 
 extern int scsi_ioctl_reset(struct scsi_device *, int __user *);
 
