@@ -375,11 +375,11 @@ int mali_module_init(void)
 	MALI_DEBUG_PRINT(2, ("Compiled: %s, time: %s.\n", __DATE__, __TIME__));
 	MALI_DEBUG_PRINT(2, ("Driver revision: %s\n", SVN_REV_STRING));
     
-    I("arm_release_ver of this mali_ko is '%s', rk_ko_ver is '%d', built at '%s', on '%s'.",
-        SVN_REV_STRING,
-        RK_KO_VER,
-        __TIME__,
-        __DATE__);
+        I("svn_rev_string_from_arm of this mali_ko is '%s', rk_ko_ver is '%d', built at '%s', on '%s'.",
+                SVN_REV_STRING,
+                RK_KO_VER,
+                __TIME__,
+                __DATE__);
 
 #if MALI_ENABLE_CPU_CYCLES
 	mali_init_cpu_time_counters_on_all_cpus(0);
