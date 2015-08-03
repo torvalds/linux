@@ -297,8 +297,7 @@ out:
  * pre-registered memory buffer for this request. For small amounts
  * of data, this is efficient. The cutoff value is tunable.
  */
-static int
-rpcrdma_inline_pullup(struct rpc_rqst *rqst, int pad)
+static void rpcrdma_inline_pullup(struct rpc_rqst *rqst)
 {
 	int i, npages, curlen;
 	int copy_len;
@@ -310,16 +309,9 @@ rpcrdma_inline_pullup(struct rpc_rqst *rqst, int pad)
 	destp = rqst->rq_svec[0].iov_base;
 	curlen = rqst->rq_svec[0].iov_len;
 	destp += curlen;
-	/*
-	 * Do optional padding where it makes sense. Alignment of write
-	 * payload can help the server, if our setting is accurate.
-	 */
-	pad -= (curlen + 36/*sizeof(struct rpcrdma_msg_padded)*/);
-	if (pad < 0 || rqst->rq_slen - curlen < RPCRDMA_INLINE_PAD_THRESH)
-		pad = 0;	/* don't pad this request */
 
-	dprintk("RPC:       %s: pad %d destp 0x%p len %d hdrlen %d\n",
-		__func__, pad, destp, rqst->rq_slen, curlen);
+	dprintk("RPC:       %s: destp 0x%p len %d hdrlen %d\n",
+		__func__, destp, rqst->rq_slen, curlen);
 
 	copy_len = rqst->rq_snd_buf.page_len;
 
@@ -355,7 +347,6 @@ rpcrdma_inline_pullup(struct rpc_rqst *rqst, int pad)
 		page_base = 0;
 	}
 	/* header now contains entire send message */
-	return pad;
 }
 
 /*
@@ -380,7 +371,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	char *base;
-	size_t rpclen, padlen;
+	size_t rpclen;
 	ssize_t hdrlen;
 	enum rpcrdma_chunktype rtype, wtype;
 	struct rpcrdma_msg *headerp;
@@ -458,7 +449,6 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	}
 
 	hdrlen = RPCRDMA_HDRLEN_MIN;
-	padlen = 0;
 
 	/*
 	 * Pull up any extra send data into the preregistered buffer.
@@ -467,43 +457,24 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 */
 	if (rtype == rpcrdma_noch) {
 
-		padlen = rpcrdma_inline_pullup(rqst,
-						RPCRDMA_INLINE_PAD_VALUE(rqst));
+		rpcrdma_inline_pullup(rqst);
 
-		if (padlen) {
-			headerp->rm_type = rdma_msgp;
-			headerp->rm_body.rm_padded.rm_align =
-				cpu_to_be32(RPCRDMA_INLINE_PAD_VALUE(rqst));
-			headerp->rm_body.rm_padded.rm_thresh =
-				cpu_to_be32(RPCRDMA_INLINE_PAD_THRESH);
-			headerp->rm_body.rm_padded.rm_pempty[0] = xdr_zero;
-			headerp->rm_body.rm_padded.rm_pempty[1] = xdr_zero;
-			headerp->rm_body.rm_padded.rm_pempty[2] = xdr_zero;
-			hdrlen += 2 * sizeof(u32); /* extra words in padhdr */
-			if (wtype != rpcrdma_noch) {
-				dprintk("RPC:       %s: invalid chunk list\n",
-					__func__);
-				return -EIO;
-			}
-		} else {
-			headerp->rm_body.rm_nochunks.rm_empty[0] = xdr_zero;
-			headerp->rm_body.rm_nochunks.rm_empty[1] = xdr_zero;
-			headerp->rm_body.rm_nochunks.rm_empty[2] = xdr_zero;
-			/* new length after pullup */
-			rpclen = rqst->rq_svec[0].iov_len;
-			/*
-			 * Currently we try to not actually use read inline.
-			 * Reply chunks have the desirable property that
-			 * they land, packed, directly in the target buffers
-			 * without headers, so they require no fixup. The
-			 * additional RDMA Write op sends the same amount
-			 * of data, streams on-the-wire and adds no overhead
-			 * on receive. Therefore, we request a reply chunk
-			 * for non-writes wherever feasible and efficient.
-			 */
-			if (wtype == rpcrdma_noch)
-				wtype = rpcrdma_replych;
-		}
+		headerp->rm_body.rm_nochunks.rm_empty[0] = xdr_zero;
+		headerp->rm_body.rm_nochunks.rm_empty[1] = xdr_zero;
+		headerp->rm_body.rm_nochunks.rm_empty[2] = xdr_zero;
+		/* new length after pullup */
+		rpclen = rqst->rq_svec[0].iov_len;
+		/* Currently we try to not actually use read inline.
+		 * Reply chunks have the desirable property that
+		 * they land, packed, directly in the target buffers
+		 * without headers, so they require no fixup. The
+		 * additional RDMA Write op sends the same amount
+		 * of data, streams on-the-wire and adds no overhead
+		 * on receive. Therefore, we request a reply chunk
+		 * for non-writes wherever feasible and efficient.
+		 */
+		if (wtype == rpcrdma_noch)
+			wtype = rpcrdma_replych;
 	}
 
 	if (rtype != rpcrdma_noch) {
@@ -518,9 +489,9 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	if (hdrlen < 0)
 		return hdrlen;
 
-	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd"
+	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd"
 		" headerp 0x%p base 0x%p lkey 0x%x\n",
-		__func__, transfertypes[wtype], hdrlen, rpclen, padlen,
+		__func__, transfertypes[wtype], hdrlen, rpclen,
 		headerp, base, rdmab_lkey(req->rl_rdmabuf));
 
 	/*
@@ -539,21 +510,6 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	req->rl_send_iov[1].lkey = rdmab_lkey(req->rl_sendbuf);
 
 	req->rl_niovs = 2;
-
-	if (padlen) {
-		struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-
-		req->rl_send_iov[2].addr = rdmab_addr(ep->rep_padbuf);
-		req->rl_send_iov[2].length = padlen;
-		req->rl_send_iov[2].lkey = rdmab_lkey(ep->rep_padbuf);
-
-		req->rl_send_iov[3].addr = req->rl_send_iov[1].addr + rpclen;
-		req->rl_send_iov[3].length = rqst->rq_slen - rpclen;
-		req->rl_send_iov[3].lkey = rdmab_lkey(req->rl_sendbuf);
-
-		req->rl_niovs = 4;
-	}
-
 	return 0;
 }
 

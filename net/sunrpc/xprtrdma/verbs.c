@@ -605,6 +605,12 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	struct ib_cq_init_attr cq_attr = {};
 	int rc, err;
 
+	if (devattr->max_sge < RPCRDMA_MAX_IOVS) {
+		dprintk("RPC:       %s: insufficient sge's available\n",
+			__func__);
+		return -ENOMEM;
+	}
+
 	/* check provider's send/recv wr limits */
 	if (cdata->max_requests > devattr->max_qp_wr)
 		cdata->max_requests = devattr->max_qp_wr;
@@ -617,22 +623,12 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	if (rc)
 		return rc;
 	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
-	ep->rep_attr.cap.max_send_sge = (cdata->padding ? 4 : 2);
+	ep->rep_attr.cap.max_send_sge = RPCRDMA_MAX_IOVS;
 	ep->rep_attr.cap.max_recv_sge = 1;
 	ep->rep_attr.cap.max_inline_data = 0;
 	ep->rep_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	ep->rep_attr.qp_type = IB_QPT_RC;
 	ep->rep_attr.port_num = ~0;
-
-	if (cdata->padding) {
-		ep->rep_padbuf = rpcrdma_alloc_regbuf(ia, cdata->padding,
-						      GFP_KERNEL);
-		if (IS_ERR(ep->rep_padbuf)) {
-			rc = PTR_ERR(ep->rep_padbuf);
-			goto out0;
-		}
-	} else
-		ep->rep_padbuf = NULL;
 
 	dprintk("RPC:       %s: requested max: dtos: send %d recv %d; "
 		"iovs: send %d recv %d\n",
@@ -716,8 +712,6 @@ out2:
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, err);
 out1:
-	rpcrdma_free_regbuf(ia, ep->rep_padbuf);
-out0:
 	if (ia->ri_dma_mr)
 		ib_dereg_mr(ia->ri_dma_mr);
 	return rc;
@@ -745,8 +739,6 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 		rdma_destroy_qp(ia->ri_id);
 		ia->ri_id->qp = NULL;
 	}
-
-	rpcrdma_free_regbuf(ia, ep->rep_padbuf);
 
 	rpcrdma_clean_cq(ep->rep_attr.recv_cq);
 	rc = ib_destroy_cq(ep->rep_attr.recv_cq);
@@ -1279,9 +1271,11 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_ep *ep,
 		struct rpcrdma_req *req)
 {
+	struct ib_device *device = ia->ri_device;
 	struct ib_send_wr send_wr, *send_wr_fail;
 	struct rpcrdma_rep *rep = req->rl_reply;
-	int rc;
+	struct ib_sge *iov = req->rl_send_iov;
+	int i, rc;
 
 	if (rep) {
 		rc = rpcrdma_ep_post_recv(ia, ep, rep);
@@ -1292,22 +1286,15 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 
 	send_wr.next = NULL;
 	send_wr.wr_id = RPCRDMA_IGNORE_COMPLETION;
-	send_wr.sg_list = req->rl_send_iov;
+	send_wr.sg_list = iov;
 	send_wr.num_sge = req->rl_niovs;
 	send_wr.opcode = IB_WR_SEND;
-	if (send_wr.num_sge == 4)	/* no need to sync any pad (constant) */
-		ib_dma_sync_single_for_device(ia->ri_device,
-					      req->rl_send_iov[3].addr,
-					      req->rl_send_iov[3].length,
-					      DMA_TO_DEVICE);
-	ib_dma_sync_single_for_device(ia->ri_device,
-				      req->rl_send_iov[1].addr,
-				      req->rl_send_iov[1].length,
-				      DMA_TO_DEVICE);
-	ib_dma_sync_single_for_device(ia->ri_device,
-				      req->rl_send_iov[0].addr,
-				      req->rl_send_iov[0].length,
-				      DMA_TO_DEVICE);
+
+	for (i = 0; i < send_wr.num_sge; i++)
+		ib_dma_sync_single_for_device(device, iov[i].addr,
+					      iov[i].length, DMA_TO_DEVICE);
+	dprintk("RPC:       %s: posting %d s/g entries\n",
+		__func__, send_wr.num_sge);
 
 	if (DECR_CQCOUNT(ep) > 0)
 		send_wr.send_flags = 0;
