@@ -37,8 +37,6 @@ struct driver_data {
 	struct pxa2xx_spi_master *master_info;
 
 	/* PXA private DMA setup stuff */
-	int rx_channel;
-	int tx_channel;
 	u32 *null_dma_buf;
 
 	/* SSP register addresses */
