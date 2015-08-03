@@ -47,6 +47,7 @@ static void read_arc_build_cfg_regs(void)
 	struct bcr_perip uncached_space;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
+	unsigned long perip_space;
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
@@ -56,7 +57,12 @@ static void read_arc_build_cfg_regs(void)
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-	BUG_ON((uncached_space.start << 24) != ARC_UNCACHED_ADDR_SPACE);
+        if (uncached_space.ver < 3)
+		perip_space = uncached_space.start << 24;
+	else
+		perip_space = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
+
+	BUG_ON(perip_space != ARC_UNCACHED_ADDR_SPACE);
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
