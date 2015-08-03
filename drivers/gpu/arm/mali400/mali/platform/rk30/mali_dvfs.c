@@ -33,7 +33,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 	// dev_dbg(drv_data->dev, "utilisation percent = %d\n", utilisation);
 
 	if (utilisation > threshold->max &&
-	    level < drv_data->fv_info_length - 1 - 1)
+	    level < drv_data->fv_info_length - 1 )
 		level += 1;
 	else if (level > 0 && utilisation < threshold->min)
 		level -= 1;
