@@ -278,7 +278,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	struct tc_act_bpf *parm;
 	struct tcf_bpf *prog;
 	bool is_bpf, is_ebpf;
-	int ret;
+	int ret, res = 0;
 
 	if (!nla)
 		return -EINVAL;
@@ -287,40 +287,42 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	if (ret < 0)
 		return ret;
 
-	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];
-	is_ebpf = tb[TCA_ACT_BPF_FD];
-
-	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf) ||
-	    !tb[TCA_ACT_BPF_PARMS])
+	if (!tb[TCA_ACT_BPF_PARMS])
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_ACT_BPF_PARMS]);
+
+	if (!tcf_hash_check(parm->index, act, bind)) {
+		ret = tcf_hash_create(parm->index, est, act,
+				      sizeof(*prog), bind, false);
+		if (ret < 0)
+			return ret;
+
+		res = ACT_P_CREATED;
+	} else {
+		/* Don't override defaults. */
+		if (bind)
+			return 0;
+
+		tcf_hash_release(act, bind);
+		if (!replace)
+			return -EEXIST;
+	}
+
+	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];
+	is_ebpf = tb[TCA_ACT_BPF_FD];
+
+	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	memset(&cfg, 0, sizeof(cfg));
 
 	ret = is_bpf ? tcf_bpf_init_from_ops(tb, &cfg) :
 		       tcf_bpf_init_from_efd(tb, &cfg);
 	if (ret < 0)
-		return ret;
-
-	if (!tcf_hash_check(parm->index, act, bind)) {
-		ret = tcf_hash_create(parm->index, est, act,
-				      sizeof(*prog), bind, false);
-		if (ret < 0)
-			goto destroy_fp;
-
-		ret = ACT_P_CREATED;
-	} else {
-		/* Don't override defaults. */
-		if (bind)
-			goto destroy_fp;
-
-		tcf_hash_release(act, bind);
-		if (!replace) {
-			ret = -EEXIST;
-			goto destroy_fp;
-		}
-	}
+		goto out;
 
 	prog = to_bpf(act);
 	spin_lock_bh(&prog->tcf_lock);
@@ -341,15 +343,16 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	spin_unlock_bh(&prog->tcf_lock);
 
-	if (ret == ACT_P_CREATED)
+	if (res == ACT_P_CREATED)
 		tcf_hash_insert(act);
 	else
 		tcf_bpf_cfg_cleanup(&old);
 
-	return ret;
+	return res;
+out:
+	if (res == ACT_P_CREATED)
+		tcf_hash_cleanup(act, est);
 
-destroy_fp:
-	tcf_bpf_cfg_cleanup(&cfg);
 	return ret;
 }
 
