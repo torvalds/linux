@@ -52,12 +52,7 @@ struct talitos_ptr {
 	__be32 ptr;     /* address */
 };
 
-static const struct talitos_ptr zero_entry = {
-	.len = 0,
-	.j_extent = 0,
-	.eptr = 0,
-	.ptr = 0
-};
+static const struct talitos_ptr zero_entry;
 
 /* descriptor */
 struct talitos_desc {
