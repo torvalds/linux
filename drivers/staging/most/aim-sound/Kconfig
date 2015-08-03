@@ -5,6 +5,7 @@
 config AIM_SOUND
 	tristate "ALSA AIM"
 	depends on SND
+	select SND_PCM
 	---help---
 	  Say Y here if you want to commumicate via ALSA/sound devices.
 
