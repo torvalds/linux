@@ -70,7 +70,7 @@ static void invert_keys(struct test_key *keys, int size)
 	}
 }
 
-int verify_keys(struct test_key *keys, int size, bool invert)
+static int verify_keys(struct test_key *keys, int size, bool invert)
 {
 	int i;
 	bool ret, init;
