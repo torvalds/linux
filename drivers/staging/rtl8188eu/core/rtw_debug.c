@@ -919,7 +919,7 @@ int proc_get_best_channel(char *page, char **start,
 		/*  5G */
 		if (pmlmeext->channel_set[i].ChannelNum >= 36 &&
 		    pmlmeext->channel_set[i].ChannelNum < 140) {
-			 /*  Find primary channel */
+			/*  Find primary channel */
 			if (((pmlmeext->channel_set[i].ChannelNum - 36) % 8 == 0) &&
 			    (pmlmeext->channel_set[i].rx_count < pmlmeext->channel_set[index_5G].rx_count)) {
 				index_5G = i;
@@ -929,7 +929,7 @@ int proc_get_best_channel(char *page, char **start,
 
 		if (pmlmeext->channel_set[i].ChannelNum >= 149 &&
 		    pmlmeext->channel_set[i].ChannelNum < 165) {
-			 /*  find primary channel */
+			/*  find primary channel */
 			if (((pmlmeext->channel_set[i].ChannelNum - 149) % 8 == 0) &&
 			    (pmlmeext->channel_set[i].rx_count < pmlmeext->channel_set[index_5G].rx_count)) {
 				index_5G = i;
