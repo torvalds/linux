@@ -520,9 +520,6 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 {
 	int err = -EINVAL;
 
-	if (!cpufreq_driver)
-		goto out;
-
 	if (cpufreq_driver->setpolicy) {
 		if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
 			*policy = CPUFREQ_POLICY_PERFORMANCE;
@@ -557,7 +554,6 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 
 		mutex_unlock(&cpufreq_governor_mutex);
 	}
-out:
 	return err;
 }
 
