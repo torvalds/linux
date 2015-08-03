@@ -710,7 +710,7 @@ static int sdma_v2_4_ring_test_ib(struct amdgpu_ring *ring)
 	if (r)
 		goto err1;
 
-	r = amdgpu_fence_wait(ib.fence, false);
+	r = fence_wait(&ib.fence->base, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 		goto err1;
