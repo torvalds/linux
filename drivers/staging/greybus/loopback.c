@@ -340,7 +340,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 static void gb_loopback_reset_stats(struct gb_loopback *gb)
 {
 	struct gb_loopback_stats reset = {
-		.min = 0xffffffff,
+		.min = U64_MAX,
 	};
 	memcpy(&gb->latency, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb->throughput, &reset, sizeof(struct gb_loopback_stats));
