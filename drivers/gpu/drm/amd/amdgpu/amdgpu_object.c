@@ -658,13 +658,13 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
  * @shared: true if fence should be added shared
  *
  */
-void amdgpu_bo_fence(struct amdgpu_bo *bo, struct amdgpu_fence *fence,
+void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
 		     bool shared)
 {
 	struct reservation_object *resv = bo->tbo.resv;
 
 	if (shared)
-		reservation_object_add_shared_fence(resv, &fence->base);
+		reservation_object_add_shared_fence(resv, fence);
 	else
-		reservation_object_add_excl_fence(resv, &fence->base);
+		reservation_object_add_excl_fence(resv, fence);
 }

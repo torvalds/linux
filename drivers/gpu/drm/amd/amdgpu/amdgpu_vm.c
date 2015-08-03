@@ -320,7 +320,7 @@ static int amdgpu_vm_run_job(
 	struct amdgpu_cs_parser *sched_job)
 {
 	amdgpu_bo_fence(sched_job->job_param.vm.bo,
-			sched_job->ibs[sched_job->num_ibs -1].fence, true);
+			&sched_job->ibs[sched_job->num_ibs -1].fence->base, true);
 	return 0;
 }
 
@@ -397,7 +397,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		r = amdgpu_ib_schedule(adev, 1, ib, AMDGPU_FENCE_OWNER_VM);
 		if (r)
 			goto error_free;
-		amdgpu_bo_fence(bo, ib->fence, true);
+		amdgpu_bo_fence(bo, &ib->fence->base, true);
 	}
 
 error_free:
@@ -547,7 +547,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				amdgpu_ib_free(adev, ib);
 				return r;
 			}
-			amdgpu_bo_fence(pd, ib->fence, true);
+			amdgpu_bo_fence(pd, &ib->fence->base, true);
 		}
 	}
 
@@ -745,7 +745,7 @@ static void amdgpu_vm_fence_pts(struct amdgpu_vm *vm,
 	end >>= amdgpu_vm_block_size;
 
 	for (i = start; i <= end; ++i)
-		amdgpu_bo_fence(vm->page_tables[i].bo, fence, true);
+		amdgpu_bo_fence(vm->page_tables[i].bo, &fence->base, true);
 }
 
 static int amdgpu_vm_bo_update_mapping_run_job(
