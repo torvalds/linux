@@ -183,7 +183,7 @@ gb_loopback_ro_attr(iteration_count, u);
  * Type of loopback message to send based on protocol type definitions
  * 0 => Don't send message
  * 2 => Send ping message continuously (message without payload)
- * 3 => Send transer message continuously (message with payload,
+ * 3 => Send transfer message continuously (message with payload,
  *					   payload returned in response)
  * 4 => Send a sink message (message with payload, no payload in response)
  */
@@ -410,7 +410,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	do_div(tmp, NSEC_PER_USEC);
 	lat = tmp;
 
-	/* Log latency stastic */
+	/* Log latency statistic */
 	gb_loopback_update_stats(&gb->latency, lat);
 	kfifo_in(&gb->kfifo, (unsigned char *)&lat, sizeof(lat));
 
@@ -584,7 +584,7 @@ static ssize_t loopback_read(struct file *file, char __user *buf, size_t count,
 	size_t fifo_len;
 	int retval;
 
-	if (!count || count%sizeof(u32))
+	if (!count || count % sizeof(u32))
 		return -EINVAL;
 
 	mutex_lock(&gb->mutex);
