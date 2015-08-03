@@ -100,10 +100,21 @@ static ssize_t name##_##field##_show(struct device *dev,		\
 }									\
 static DEVICE_ATTR_RO(name##_##field)
 
+#define gb_loopback_ro_avg_attr(name)					\
+static ssize_t name##_avg_show(struct device *dev,			\
+			    struct device_attribute *attr,		\
+			    char *buf)					\
+{									\
+	struct gb_connection *connection = to_gb_connection(dev);	\
+	struct gb_loopback *gb = connection->private;			\
+	return sprintf(buf, "%llu\n", gb->name.avg);			\
+}									\
+static DEVICE_ATTR_RO(name##_avg)
+
 #define gb_loopback_stats_attrs(field)					\
 	gb_loopback_ro_stats_attr(field, min, u);			\
 	gb_loopback_ro_stats_attr(field, max, u);			\
-	gb_loopback_ro_stats_attr(field, avg, llu);
+	gb_loopback_ro_avg_attr(field);
 
 #define gb_loopback_attr(field, type)					\
 static ssize_t field##_show(struct device *dev,				\
