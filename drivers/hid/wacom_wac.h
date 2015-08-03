@@ -69,7 +69,6 @@
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
 #define WACOM_QUIRK_NO_INPUT		0x0002
-#define WACOM_QUIRK_MONITOR		0x0004
 #define WACOM_QUIRK_BATTERY		0x0008
 
 /* device types */
@@ -77,6 +76,7 @@
 #define WACOM_DEVICETYPE_PEN            0x0001
 #define WACOM_DEVICETYPE_TOUCH          0x0002
 #define WACOM_DEVICETYPE_PAD            0x0004
+#define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 
 #define WACOM_VENDORDEFINED_PEN		0xff0d0001
 

@@ -454,7 +454,7 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 	 */
 	if (features->type == WIRELESS) {
 		if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
-			features->device_type = WACOM_DEVICETYPE_NONE;
+			features->device_type = WACOM_DEVICETYPE_WL_MONITOR;
 		} else if (intf->cur_altsetting->desc.bInterfaceNumber == 2) {
 			features->device_type |= WACOM_DEVICETYPE_TOUCH;
 		}
@@ -1581,7 +1581,7 @@ static int wacom_probe(struct hid_device *hdev,
 	if (error)
 		goto fail_shared_data;
 
-	if (!(features->quirks & WACOM_QUIRK_MONITOR) &&
+	if (!(features->device_type & WACOM_DEVICETYPE_WL_MONITOR) &&
 	     (features->quirks & WACOM_QUIRK_BATTERY)) {
 		error = wacom_initialize_battery(wacom);
 		if (error)
@@ -1615,7 +1615,7 @@ static int wacom_probe(struct hid_device *hdev,
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(hdev, features);
 
-	if (features->quirks & WACOM_QUIRK_MONITOR)
+	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
 		error = hid_hw_open(hdev);
 
 	if (wacom_wac->features.type == INTUOSHT && 

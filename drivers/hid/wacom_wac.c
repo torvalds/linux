@@ -2330,9 +2330,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 		/* monitor never has input and pen/touch have delayed create */
 		features->quirks |= WACOM_QUIRK_NO_INPUT;
 
-		/* must be monitor interface if no device_type set */
-		if (features->device_type == WACOM_DEVICETYPE_NONE) {
-			features->quirks |= WACOM_QUIRK_MONITOR;
+		if (features->device_type == WACOM_DEVICETYPE_WL_MONITOR) {
 			features->quirks |= WACOM_QUIRK_BATTERY;
 		}
 	}
