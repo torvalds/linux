@@ -290,6 +290,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_poll_controller	= veth_poll_controller,
 #endif
 	.ndo_get_iflink		= veth_get_iflink,
+	.ndo_features_check	= passthru_features_check,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |    \

@@ -339,6 +339,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_bridge_getlink	 = br_getlink,
 	.ndo_bridge_setlink	 = br_setlink,
 	.ndo_bridge_dellink	 = br_dellink,
+	.ndo_features_check	 = passthru_features_check,
 };
 
 static void br_dev_free(struct net_device *dev)
