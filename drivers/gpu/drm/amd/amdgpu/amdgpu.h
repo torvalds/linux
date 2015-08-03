@@ -1235,19 +1235,6 @@ struct amdgpu_cs_chunk {
 	void __user		*user_ptr;
 };
 
-union amdgpu_sched_job_param {
-	struct {
-		struct amdgpu_vm *vm;
-		uint64_t start;
-		uint64_t last;
-		struct fence **fence;
-
-	} vm_mapping;
-	struct {
-		struct amdgpu_bo *bo;
-	} vm;
-};
-
 struct amdgpu_cs_parser {
 	struct amdgpu_device	*adev;
 	struct drm_file		*filp;
@@ -1272,7 +1259,6 @@ struct amdgpu_cs_parser {
 	struct mutex job_lock;
 	struct work_struct job_work;
 	int (*prepare_job)(struct amdgpu_cs_parser *sched_job);
-	union amdgpu_sched_job_param job_param;
 	int (*run_job)(struct amdgpu_cs_parser *sched_job);
 	int (*free_job)(struct amdgpu_cs_parser *sched_job);
 };

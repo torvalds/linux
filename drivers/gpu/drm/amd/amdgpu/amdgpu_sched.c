@@ -121,7 +121,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 		uint64_t v_seq;
 		struct amdgpu_cs_parser *sched_job =
 			amdgpu_cs_parser_create(adev, owner, &adev->kernel_ctx,
-						ibs, 1);
+						ibs, num_ibs);
 		if(!sched_job) {
 			return -ENOMEM;
 		}
@@ -139,7 +139,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 		if (r)
 			WARN(true, "emit timeout\n");
 	} else
-		r = amdgpu_ib_schedule(adev, 1, ibs, owner);
+		r = amdgpu_ib_schedule(adev, num_ibs, ibs, owner);
 	if (r)
 		return r;
 	*f = &ibs[num_ibs - 1].fence->base;
