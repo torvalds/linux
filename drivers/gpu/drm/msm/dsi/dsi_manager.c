@@ -366,10 +366,13 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	/* Always call panel functions once, because even for dual panels,
 	 * there is only one drm_panel instance.
 	 */
-	ret = drm_panel_prepare(panel);
-	if (ret) {
-		pr_err("%s: prepare panel %d failed, %d\n", __func__, id, ret);
-		goto panel_prep_fail;
+	if (panel) {
+		ret = drm_panel_prepare(panel);
+		if (ret) {
+			pr_err("%s: prepare panel %d failed, %d\n", __func__,
+								id, ret);
+			goto panel_prep_fail;
+		}
 	}
 
 	ret = msm_dsi_host_enable(host);
@@ -386,10 +389,13 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		}
 	}
 
-	ret = drm_panel_enable(panel);
-	if (ret) {
-		pr_err("%s: enable panel %d failed, %d\n", __func__, id, ret);
-		goto panel_en_fail;
+	if (panel) {
+		ret = drm_panel_enable(panel);
+		if (ret) {
+			pr_err("%s: enable panel %d failed, %d\n", __func__, id,
+									ret);
+			goto panel_en_fail;
+		}
 	}
 
 	return;
@@ -400,7 +406,8 @@ panel_en_fail:
 host1_en_fail:
 	msm_dsi_host_disable(host);
 host_en_fail:
-	drm_panel_unprepare(panel);
+	if (panel)
+		drm_panel_unprepare(panel);
 panel_prep_fail:
 	if (is_dual_dsi && msm_dsi1)
 		msm_dsi_host_power_off(msm_dsi1->host);
@@ -436,9 +443,12 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 			(is_dual_dsi && (DSI_1 == id)))
 		return;
 
-	ret = drm_panel_disable(panel);
-	if (ret)
-		pr_err("%s: Panel %d OFF failed, %d\n", __func__, id, ret);
+	if (panel) {
+		ret = drm_panel_disable(panel);
+		if (ret)
+			pr_err("%s: Panel %d OFF failed, %d\n", __func__, id,
+									ret);
+	}
 
 	ret = msm_dsi_host_disable(host);
 	if (ret)
@@ -450,9 +460,12 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 			pr_err("%s: host1 disable failed, %d\n", __func__, ret);
 	}
 
-	ret = drm_panel_unprepare(panel);
-	if (ret)
-		pr_err("%s: Panel %d unprepare failed,%d\n", __func__, id, ret);
+	if (panel) {
+		ret = drm_panel_unprepare(panel);
+		if (ret)
+			pr_err("%s: Panel %d unprepare failed,%d\n", __func__,
+								id, ret);
+	}
 
 	ret = msm_dsi_host_power_off(host);
 	if (ret)
