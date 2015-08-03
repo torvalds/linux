@@ -84,8 +84,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
+	struct gb_loopback *gb = connection->private;			\
 	return sprintf(buf, "%"#type"\n", gb->field);			\
 }									\
 static DEVICE_ATTR_RO(field)
@@ -96,8 +95,7 @@ static ssize_t name##_##field##_show(struct device *dev,		\
 			    char *buf)					\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
+	struct gb_loopback *gb = connection->private;			\
 	return sprintf(buf, "%"#type"\n", gb->name.field);		\
 }									\
 static DEVICE_ATTR_RO(name##_##field)
@@ -113,8 +111,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
+	struct gb_loopback *gb = connection->private;			\
 	return sprintf(buf, "%"#type"\n", gb->field);			\
 }									\
 static ssize_t field##_store(struct device *dev,			\
@@ -124,8 +121,7 @@ static ssize_t field##_store(struct device *dev,			\
 {									\
 	int ret;							\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
+	struct gb_loopback *gb = connection->private;			\
 	mutex_lock(&gb->mutex);						\
 	ret = sscanf(buf, "%"#type, &gb->field);			\
 	if (ret != 1)							\
@@ -423,7 +419,7 @@ static int gb_loopback_fn(void *data)
 {
 	int error = 0;
 	int ms_wait;
-	struct gb_loopback *gb = (struct gb_loopback *)data;
+	struct gb_loopback *gb = data;
 
 	while (1) {
 		if (!gb->type)
