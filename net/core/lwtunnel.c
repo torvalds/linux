@@ -215,8 +215,12 @@ int lwtunnel_output6(struct sock *sk, struct sk_buff *skb)
 	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
 	struct lwtunnel_state *lwtstate = NULL;
 
-	if (rt)
+	if (rt) {
 		lwtstate = rt->rt6i_lwtstate;
+		skb->dev = rt->dst.dev;
+	}
+
+	skb->protocol = htons(ETH_P_IPV6);
 
 	return __lwtunnel_output(sk, skb, lwtstate);
 }
@@ -227,8 +231,12 @@ int lwtunnel_output(struct sock *sk, struct sk_buff *skb)
 	struct rtable *rt = (struct rtable *)skb_dst(skb);
 	struct lwtunnel_state *lwtstate = NULL;
 
-	if (rt)
+	if (rt) {
 		lwtstate = rt->rt_lwtstate;
+		skb->dev = rt->dst.dev;
+	}
+
+	skb->protocol = htons(ETH_P_IP);
 
 	return __lwtunnel_output(sk, skb, lwtstate);
 }
