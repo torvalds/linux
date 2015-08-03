@@ -118,18 +118,13 @@ static void vidi_disable_vblank(struct exynos_drm_crtc *crtc)
 		ctx->vblank_on = false;
 }
 
-static void vidi_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
+static void vidi_update_plane(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane)
 {
 	struct vidi_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
 
 	if (ctx->suspended)
 		return;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	plane = &ctx->planes[win];
 
 	DRM_DEBUG_KMS("dma_addr = %pad\n", plane->dma_addr);
 

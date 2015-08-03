@@ -607,21 +607,17 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
-static void fimd_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
+static void fimd_update_plane(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
 	dma_addr_t dma_addr;
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
+	unsigned int win = plane->zpos;
 
 	if (ctx->suspended)
 		return;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	plane = &ctx->planes[win];
 
 	/*
 	 * SHADOWCON/PRTCON register is used for enabling timing.
@@ -715,15 +711,11 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 		atomic_set(&ctx->win_updated, 1);
 }
 
-static void fimd_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
+static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
+			       struct exynos_drm_plane *plane)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	plane = &ctx->planes[win];
+	unsigned int win = plane->zpos;
 
 	if (ctx->suspended)
 		return;
@@ -785,7 +777,7 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 	 * a destroyed buffer later.
 	 */
 	for (i = 0; i < WINDOWS_NR; i++)
-		fimd_disable_plane(crtc, i);
+		fimd_disable_plane(crtc, &ctx->planes[i]);
 
 	fimd_enable_vblank(crtc);
 	fimd_wait_for_vblank(crtc);

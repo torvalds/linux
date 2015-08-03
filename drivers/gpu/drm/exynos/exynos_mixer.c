@@ -927,28 +927,30 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	mixer_reg_writemask(res, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
 }
 
-static void mixer_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
+static void mixer_update_plane(struct exynos_drm_crtc *crtc,
+			       struct exynos_drm_plane *plane)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
-	DRM_DEBUG_KMS("win: %d\n", win);
+	DRM_DEBUG_KMS("win: %d\n", plane->zpos);
 
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
 
-	if (win > 1 && mixer_ctx->vp_enabled)
-		vp_video_buffer(mixer_ctx, win);
+	if (plane->zpos > 1 && mixer_ctx->vp_enabled)
+		vp_video_buffer(mixer_ctx, plane->zpos);
 	else
-		mixer_graph_buffer(mixer_ctx, win);
+		mixer_graph_buffer(mixer_ctx, plane->zpos);
 }
 
-static void mixer_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
+static void mixer_disable_plane(struct exynos_drm_crtc *crtc,
+				struct exynos_drm_plane *plane)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 	unsigned long flags;
 
-	DRM_DEBUG_KMS("win: %d\n", win);
+	DRM_DEBUG_KMS("win: %d\n", plane->zpos);
 
 	if (!test_bit(MXR_BIT_POWERED, &mixer_ctx->flags))
 		return;
@@ -956,7 +958,7 @@ static void mixer_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 	spin_lock_irqsave(&res->reg_slock, flags);
 	mixer_vsync_set_update(mixer_ctx, false);
 
-	mixer_cfg_layer(mixer_ctx, win, false);
+	mixer_cfg_layer(mixer_ctx, plane->zpos, false);
 
 	mixer_vsync_set_update(mixer_ctx, true);
 	spin_unlock_irqrestore(&res->reg_slock, flags);
@@ -1053,7 +1055,7 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 	mixer_regs_dump(ctx);
 
 	for (i = 0; i < MIXER_WIN_NR; i++)
-		mixer_disable_plane(crtc, i);
+		mixer_disable_plane(crtc, &ctx->planes[i]);
 
 	clear_bit(MXR_BIT_POWERED, &ctx->flags);
 

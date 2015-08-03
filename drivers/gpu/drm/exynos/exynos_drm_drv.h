@@ -173,8 +173,10 @@ struct exynos_drm_crtc_ops {
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
-	void (*update_plane)(struct exynos_drm_crtc *crtc, unsigned int zpos);
-	void (*disable_plane)(struct exynos_drm_crtc *crtc, unsigned int zpos);
+	void (*update_plane)(struct exynos_drm_crtc *crtc,
+			     struct exynos_drm_plane *plane);
+	void (*disable_plane)(struct exynos_drm_crtc *crtc,
+			      struct exynos_drm_plane *plane);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
 };

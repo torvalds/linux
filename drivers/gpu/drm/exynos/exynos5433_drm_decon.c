@@ -219,16 +219,12 @@ static void decon_shadow_protect_win(struct decon_context *ctx, int win,
 	writel(val, ctx->addr + DECON_SHADOWCON);
 }
 
-static void decon_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
+static void decon_update_plane(struct exynos_drm_crtc *crtc,
+			       struct exynos_drm_plane *plane)
 {
 	struct decon_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
+	unsigned int win = plane->zpos;
 	u32 val;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	plane = &ctx->planes[win];
 
 	if (ctx->suspended)
 		return;
@@ -277,16 +273,12 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 		atomic_set(&ctx->win_updated, 1);
 }
 
-static void decon_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
+static void decon_disable_plane(struct exynos_drm_crtc *crtc,
+				struct exynos_drm_plane *plane)
 {
 	struct decon_context *ctx = crtc->ctx;
-	struct exynos_drm_plane *plane;
+	unsigned int win = plane->zpos;
 	u32 val;
-
-	if (win < 0 || win >= WINDOWS_NR)
-		return;
-
-	plane = &ctx->planes[win];
 
 	if (ctx->suspended)
 		return;
@@ -378,7 +370,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	 * a destroyed buffer later.
 	 */
 	for (i = 0; i < WINDOWS_NR; i++)
-		decon_disable_plane(crtc, i);
+		decon_disable_plane(crtc, &ctx->planes[i]);
 
 	decon_swreset(ctx);
 

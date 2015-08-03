@@ -180,7 +180,7 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 			      state->src_w >> 16, state->src_h >> 16);
 
 	if (exynos_crtc->ops->update_plane)
-		exynos_crtc->ops->update_plane(exynos_crtc, exynos_plane->zpos);
+		exynos_crtc->ops->update_plane(exynos_crtc, exynos_plane);
 }
 
 static void exynos_plane_atomic_disable(struct drm_plane *plane,
@@ -194,7 +194,7 @@ static void exynos_plane_atomic_disable(struct drm_plane *plane,
 
 	if (exynos_crtc->ops->disable_plane)
 		exynos_crtc->ops->disable_plane(exynos_crtc,
-						exynos_plane->zpos);
+						exynos_plane);
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
