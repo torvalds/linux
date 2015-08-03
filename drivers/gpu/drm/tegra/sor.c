@@ -718,6 +718,83 @@ static void tegra_sor_apply_config(struct tegra_sor *sor,
 	tegra_sor_writel(sor, value, SOR_DP_AUDIO_VBLANK_SYMBOLS);
 }
 
+static void tegra_sor_mode_set(struct tegra_sor *sor,
+			       const struct drm_display_mode *mode,
+			       const struct drm_display_info *info)
+{
+	struct tegra_dc *dc = to_tegra_dc(sor->output.encoder.crtc);
+	unsigned int vbe, vse, hbe, hse, vbs, hbs;
+	u32 value;
+
+	value = tegra_sor_readl(sor, SOR_STATE1);
+	value &= ~SOR_STATE_ASY_PIXELDEPTH_MASK;
+	value &= ~SOR_STATE_ASY_CRC_MODE_MASK;
+	value &= ~SOR_STATE_ASY_OWNER_MASK;
+
+	value |= SOR_STATE_ASY_CRC_MODE_COMPLETE |
+		 SOR_STATE_ASY_OWNER(dc->pipe + 1);
+
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
+		value &= ~SOR_STATE_ASY_HSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		value |= SOR_STATE_ASY_HSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+		value &= ~SOR_STATE_ASY_VSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		value |= SOR_STATE_ASY_VSYNCPOL;
+
+	switch (info->bpc) {
+	case 8:
+		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_24_444;
+		break;
+
+	case 6:
+		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_18_444;
+		break;
+
+	default:
+		BUG();
+		break;
+	}
+
+	tegra_sor_writel(sor, value, SOR_STATE1);
+
+	/*
+	 * TODO: The video timing programming below doesn't seem to match the
+	 * register definitions.
+	 */
+
+	value = ((mode->vtotal & 0x7fff) << 16) | (mode->htotal & 0x7fff);
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE1(dc->pipe));
+
+	/* sync end = sync width - 1 */
+	vse = mode->vsync_end - mode->vsync_start - 1;
+	hse = mode->hsync_end - mode->hsync_start - 1;
+
+	value = ((vse & 0x7fff) << 16) | (hse & 0x7fff);
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE2(dc->pipe));
+
+	/* blank end = sync end + back porch */
+	vbe = vse + (mode->vtotal - mode->vsync_end);
+	hbe = hse + (mode->htotal - mode->hsync_end);
+
+	value = ((vbe & 0x7fff) << 16) | (hbe & 0x7fff);
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE3(dc->pipe));
+
+	/* blank start = blank end + active */
+	vbs = vbe + mode->vdisplay;
+	hbs = hbe + mode->hdisplay;
+
+	value = ((vbs & 0x7fff) << 16) | (hbs & 0x7fff);
+	tegra_sor_writel(sor, value, SOR_HEAD_STATE4(dc->pipe));
+
+	/* XXX interlacing support */
+	tegra_sor_writel(sor, 0x001, SOR_HEAD_STATE5(dc->pipe));
+}
+
 static int tegra_sor_detach(struct tegra_sor *sor)
 {
 	unsigned long value, timeout;
@@ -1250,13 +1327,16 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct tegra_output *output = encoder_to_output(encoder);
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
-	unsigned int vbe, vse, hbe, hse, vbs, hbs, i;
 	struct tegra_sor *sor = to_sor(output);
 	struct tegra_sor_config config;
+	struct drm_display_info *info;
 	struct drm_dp_link link;
 	u8 rate, lanes;
+	unsigned int i;
 	int err = 0;
 	u32 value;
+
+	info = &output->connector.display_info;
 
 	err = clk_prepare_enable(sor->clk);
 	if (err < 0)
@@ -1505,74 +1585,18 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	if (err < 0)
 		dev_err(sor->dev, "failed to power up SOR: %d\n", err);
 
-	/*
-	 * configure panel (24bpp, vsync-, hsync-, DP-A protocol, complete
-	 * raster, associate with display controller)
-	 */
-	value = SOR_STATE_ASY_PROTOCOL_DP_A |
-		SOR_STATE_ASY_CRC_MODE_COMPLETE |
-		SOR_STATE_ASY_OWNER(dc->pipe + 1);
-
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		value &= ~SOR_STATE_ASY_HSYNCPOL;
-
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		value |= SOR_STATE_ASY_HSYNCPOL;
-
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		value &= ~SOR_STATE_ASY_VSYNCPOL;
-
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		value |= SOR_STATE_ASY_VSYNCPOL;
-
-	switch (config.bits_per_pixel) {
-	case 24:
-		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_24_444;
-		break;
-
-	case 18:
-		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_18_444;
-		break;
-
-	default:
-		BUG();
-		break;
-	}
-
-	tegra_sor_writel(sor, value, SOR_STATE1);
-
-	/*
-	 * TODO: The video timing programming below doesn't seem to match the
-	 * register definitions.
-	 */
-
-	value = ((mode->vtotal & 0x7fff) << 16) | (mode->htotal & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE1(dc->pipe));
-
-	vse = mode->vsync_end - mode->vsync_start - 1;
-	hse = mode->hsync_end - mode->hsync_start - 1;
-
-	value = ((vse & 0x7fff) << 16) | (hse & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE2(dc->pipe));
-
-	vbe = vse + (mode->vsync_start - mode->vdisplay);
-	hbe = hse + (mode->hsync_start - mode->hdisplay);
-
-	value = ((vbe & 0x7fff) << 16) | (hbe & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE3(dc->pipe));
-
-	vbs = vbe + mode->vdisplay;
-	hbs = hbe + mode->hdisplay;
-
-	value = ((vbs & 0x7fff) << 16) | (hbs & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE4(dc->pipe));
-
-	tegra_sor_writel(sor, 0x1, SOR_HEAD_STATE5(dc->pipe));
-
 	/* CSTM (LVDS, link A/B, upper) */
 	value = SOR_CSTM_LVDS | SOR_CSTM_LINK_ACT_A | SOR_CSTM_LINK_ACT_B |
 		SOR_CSTM_UPPER;
 	tegra_sor_writel(sor, value, SOR_CSTM);
+
+	/* use DP-A protocol */
+	value = tegra_sor_readl(sor, SOR_STATE1);
+	value &= ~SOR_STATE_ASY_PROTOCOL_MASK;
+	value |= SOR_STATE_ASY_PROTOCOL_DP_A;
+	tegra_sor_writel(sor, value, SOR_STATE1);
+
+	tegra_sor_mode_set(sor, mode, info);
 
 	/* PWM setup */
 	err = tegra_sor_setup_pwm(sor, 250);
@@ -1789,11 +1813,11 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	struct tegra_output *output = encoder_to_output(encoder);
 	unsigned int h_ref_to_sync = 1, pulse_start, max_ac;
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
-	unsigned int vbe, vse, hbe, hse, vbs, hbs, div;
 	struct tegra_sor_hdmi_settings *settings;
 	struct tegra_sor *sor = to_sor(output);
 	struct drm_display_mode *mode;
 	struct drm_display_info *info;
+	unsigned int div;
 	u32 value;
 	int err;
 
@@ -2051,83 +2075,19 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	if (err < 0)
 		dev_err(sor->dev, "failed to power up SOR: %d\n", err);
 
-	/* configure mode */
-	value = tegra_sor_readl(sor, SOR_STATE1);
-	value &= ~SOR_STATE_ASY_PIXELDEPTH_MASK;
-	value &= ~SOR_STATE_ASY_CRC_MODE_MASK;
-	value &= ~SOR_STATE_ASY_OWNER_MASK;
-
-	value |= SOR_STATE_ASY_CRC_MODE_COMPLETE |
-		 SOR_STATE_ASY_OWNER(dc->pipe + 1);
-
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		value &= ~SOR_STATE_ASY_HSYNCPOL;
-
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		value |= SOR_STATE_ASY_HSYNCPOL;
-
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		value &= ~SOR_STATE_ASY_VSYNCPOL;
-
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		value |= SOR_STATE_ASY_VSYNCPOL;
-
-	switch (info->bpc) {
-	case 8:
-		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_24_444;
-		break;
-
-	case 6:
-		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_18_444;
-		break;
-
-	default:
-		BUG();
-		break;
-	}
-
-	tegra_sor_writel(sor, value, SOR_STATE1);
-
+	/* configure dynamic range of output */
 	value = tegra_sor_readl(sor, SOR_HEAD_STATE0(dc->pipe));
 	value &= ~SOR_HEAD_STATE_RANGECOMPRESS_MASK;
 	value &= ~SOR_HEAD_STATE_DYNRANGE_MASK;
 	tegra_sor_writel(sor, value, SOR_HEAD_STATE0(dc->pipe));
 
+	/* configure colorspace */
 	value = tegra_sor_readl(sor, SOR_HEAD_STATE0(dc->pipe));
 	value &= ~SOR_HEAD_STATE_COLORSPACE_MASK;
 	value |= SOR_HEAD_STATE_COLORSPACE_RGB;
 	tegra_sor_writel(sor, value, SOR_HEAD_STATE0(dc->pipe));
 
-	/*
-	 * TODO: The video timing programming below doesn't seem to match the
-	 * register definitions.
-	 */
-
-	value = ((mode->vtotal & 0x7fff) << 16) | (mode->htotal & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE1(dc->pipe));
-
-	/* sync end = sync width - 1 */
-	vse = mode->vsync_end - mode->vsync_start - 1;
-	hse = mode->hsync_end - mode->hsync_start - 1;
-
-	value = ((vse & 0x7fff) << 16) | (hse & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE2(dc->pipe));
-
-	/* blank end = sync end + back porch */
-	vbe = vse + (mode->vtotal - mode->vsync_end);
-	hbe = hse + (mode->htotal - mode->hsync_end);
-
-	value = ((vbe & 0x7fff) << 16) | (hbe & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE3(dc->pipe));
-
-	/* blank start = blank end + active */
-	vbs = vbe + mode->vdisplay;
-	hbs = hbe + mode->hdisplay;
-
-	value = ((vbs & 0x7fff) << 16) | (hbs & 0x7fff);
-	tegra_sor_writel(sor, value, SOR_HEAD_STATE4(dc->pipe));
-
-	tegra_sor_writel(sor, 0x1, SOR_HEAD_STATE5(dc->pipe));
+	tegra_sor_mode_set(sor, mode, info);
 
 	tegra_sor_update(sor);
 
