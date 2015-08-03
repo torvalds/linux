@@ -65,9 +65,8 @@ struct rpcrdma_ia {
 	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
-	struct ib_mr		*ri_bind_mem;
+	struct ib_mr		*ri_dma_mr;
 	u32			ri_dma_lkey;
-	int			ri_have_dma_lkey;
 	struct completion	ri_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_frmr_depth;

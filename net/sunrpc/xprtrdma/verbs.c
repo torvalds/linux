@@ -493,9 +493,11 @@ rpcrdma_clean_cq(struct ib_cq *cq)
 int
 rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 {
-	int rc, mem_priv;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct ib_device_attr *devattr = &ia->ri_devattr;
+	int rc;
+
+	ia->ri_dma_mr = NULL;
 
 	ia->ri_id = rpcrdma_create_id(xprt, ia, addr);
 	if (IS_ERR(ia->ri_id)) {
@@ -519,11 +521,6 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		goto out3;
 	}
 
-	if (devattr->device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY) {
-		ia->ri_have_dma_lkey = 1;
-		ia->ri_dma_lkey = ia->ri_device->local_dma_lkey;
-	}
-
 	if (memreg == RPCRDMA_FRMR) {
 		/* Requires both frmr reg and local dma lkey */
 		if (((devattr->device_cap_flags &
@@ -543,38 +540,15 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		}
 	}
 
-	/*
-	 * Optionally obtain an underlying physical identity mapping in
-	 * order to do a memory window-based bind. This base registration
-	 * is protected from remote access - that is enabled only by binding
-	 * for the specific bytes targeted during each RPC operation, and
-	 * revoked after the corresponding completion similar to a storage
-	 * adapter.
-	 */
 	switch (memreg) {
 	case RPCRDMA_FRMR:
 		ia->ri_ops = &rpcrdma_frwr_memreg_ops;
 		break;
 	case RPCRDMA_ALLPHYSICAL:
 		ia->ri_ops = &rpcrdma_physical_memreg_ops;
-		mem_priv = IB_ACCESS_LOCAL_WRITE |
-				IB_ACCESS_REMOTE_WRITE |
-				IB_ACCESS_REMOTE_READ;
-		goto register_setup;
+		break;
 	case RPCRDMA_MTHCAFMR:
 		ia->ri_ops = &rpcrdma_fmr_memreg_ops;
-		if (ia->ri_have_dma_lkey)
-			break;
-		mem_priv = IB_ACCESS_LOCAL_WRITE;
-	register_setup:
-		ia->ri_bind_mem = ib_get_dma_mr(ia->ri_pd, mem_priv);
-		if (IS_ERR(ia->ri_bind_mem)) {
-			printk(KERN_ALERT "%s: ib_get_dma_mr for "
-				"phys register failed with %lX\n",
-				__func__, PTR_ERR(ia->ri_bind_mem));
-			rc = -ENOMEM;
-			goto out3;
-		}
 		break;
 	default:
 		printk(KERN_ERR "RPC: Unsupported memory "
@@ -606,15 +580,7 @@ out1:
 void
 rpcrdma_ia_close(struct rpcrdma_ia *ia)
 {
-	int rc;
-
 	dprintk("RPC:       %s: entering\n", __func__);
-	if (ia->ri_bind_mem != NULL) {
-		rc = ib_dereg_mr(ia->ri_bind_mem);
-		dprintk("RPC:       %s: ib_dereg_mr returned %i\n",
-			__func__, rc);
-	}
-
 	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id)) {
 		if (ia->ri_id->qp)
 			rdma_destroy_qp(ia->ri_id);
@@ -661,8 +627,10 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	if (cdata->padding) {
 		ep->rep_padbuf = rpcrdma_alloc_regbuf(ia, cdata->padding,
 						      GFP_KERNEL);
-		if (IS_ERR(ep->rep_padbuf))
-			return PTR_ERR(ep->rep_padbuf);
+		if (IS_ERR(ep->rep_padbuf)) {
+			rc = PTR_ERR(ep->rep_padbuf);
+			goto out0;
+		}
 	} else
 		ep->rep_padbuf = NULL;
 
@@ -749,6 +717,9 @@ out2:
 			__func__, err);
 out1:
 	rpcrdma_free_regbuf(ia, ep->rep_padbuf);
+out0:
+	if (ia->ri_dma_mr)
+		ib_dereg_mr(ia->ri_dma_mr);
 	return rc;
 }
 
@@ -788,6 +759,12 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	if (rc)
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, rc);
+
+	if (ia->ri_dma_mr) {
+		rc = ib_dereg_mr(ia->ri_dma_mr);
+		dprintk("RPC:       %s: ib_dereg_mr returned %i\n",
+			__func__, rc);
+	}
 }
 
 /*
@@ -1262,8 +1239,7 @@ rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
 		goto out_free;
 
 	iov->length = size;
-	iov->lkey = ia->ri_have_dma_lkey ?
-				ia->ri_dma_lkey : ia->ri_bind_mem->lkey;
+	iov->lkey = ia->ri_dma_lkey;
 	rb->rg_size = size;
 	rb->rg_owner = NULL;
 	return rb;

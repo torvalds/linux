@@ -189,6 +189,11 @@ frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	struct ib_device_attr *devattr = &ia->ri_devattr;
 	int depth, delta;
 
+	/* Obtain an lkey to use for the regbufs, which are
+	 * protected from remote access.
+	 */
+	ia->ri_dma_lkey = ia->ri_device->local_dma_lkey;
+
 	ia->ri_max_frmr_depth =
 			min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
 			      devattr->max_fast_reg_page_list_len);
