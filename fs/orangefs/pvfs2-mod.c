@@ -65,7 +65,7 @@ static struct file_system_type pvfs2_fs_type = {
 };
 
 module_param(hash_table_size, int, 0);
-module_param(module_parm_debug_mask, ulong, 0755);
+module_param(module_parm_debug_mask, ulong, 0644);
 module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
 
