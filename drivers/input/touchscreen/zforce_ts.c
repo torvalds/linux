@@ -510,7 +510,16 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 	if (!ts->suspending && device_may_wakeup(&client->dev))
 		pm_stay_awake(&client->dev);
 
-	while (gpiod_get_value_cansleep(ts->gpio_int)) {
+	/*
+	 * Run at least once and exit the loop if
+	 * - the optional interrupt GPIO isn't specified
+	 *   (there is only one packet read per ISR invocation, then)
+	 * or
+	 * - the GPIO isn't active any more
+	 *   (packet read until the level GPIO indicates that there is
+	 *    no IRQ any more)
+	 */
+	do {
 		ret = zforce_read_packet(ts, payload_buffer);
 		if (ret < 0) {
 			dev_err(&client->dev,
@@ -577,7 +586,7 @@ static irqreturn_t zforce_irq_thread(int irq, void *dev_id)
 				payload[RESPONSE_ID]);
 			break;
 		}
-	}
+	} while (gpiod_get_value_cansleep(ts->gpio_int));
 
 	if (!ts->suspending && device_may_wakeup(&client->dev))
 		pm_relax(&client->dev);
@@ -754,23 +763,49 @@ static int zforce_probe(struct i2c_client *client,
 	if (!ts)
 		return -ENOMEM;
 
-	/* INT GPIO */
-	ts->gpio_int = devm_gpiod_get_index(&client->dev, NULL, 0, GPIOD_IN);
-	if (IS_ERR(ts->gpio_int)) {
-		ret = PTR_ERR(ts->gpio_int);
-		dev_err(&client->dev,
-			"failed to request interrupt GPIO: %d\n", ret);
-		return ret;
-	}
-
-	/* RST GPIO */
-	ts->gpio_rst = devm_gpiod_get_index(&client->dev, NULL, 1,
-					    GPIOD_OUT_HIGH);
+	ts->gpio_rst = devm_gpiod_get_optional(&client->dev, "reset",
+					       GPIOD_OUT_HIGH);
 	if (IS_ERR(ts->gpio_rst)) {
 		ret = PTR_ERR(ts->gpio_rst);
 		dev_err(&client->dev,
 			"failed to request reset GPIO: %d\n", ret);
 		return ret;
+	}
+
+	if (ts->gpio_rst) {
+		ts->gpio_int = devm_gpiod_get_optional(&client->dev, "irq",
+						       GPIOD_IN);
+		if (IS_ERR(ts->gpio_int)) {
+			ret = PTR_ERR(ts->gpio_int);
+			dev_err(&client->dev,
+				"failed to request interrupt GPIO: %d\n", ret);
+			return ret;
+		}
+	} else {
+		/*
+		 * Deprecated GPIO handling for compatibility
+		 * with legacy binding.
+		 */
+
+		/* INT GPIO */
+		ts->gpio_int = devm_gpiod_get_index(&client->dev, NULL, 0,
+						    GPIOD_IN);
+		if (IS_ERR(ts->gpio_int)) {
+			ret = PTR_ERR(ts->gpio_int);
+			dev_err(&client->dev,
+				"failed to request interrupt GPIO: %d\n", ret);
+			return ret;
+		}
+
+		/* RST GPIO */
+		ts->gpio_rst = devm_gpiod_get_index(&client->dev, NULL, 1,
+					    GPIOD_OUT_HIGH);
+		if (IS_ERR(ts->gpio_rst)) {
+			ret = PTR_ERR(ts->gpio_rst);
+			dev_err(&client->dev,
+				"failed to request reset GPIO: %d\n", ret);
+			return ret;
+		}
 	}
 
 	ts->reg_vdd = devm_regulator_get_optional(&client->dev, "vdd");
