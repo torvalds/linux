@@ -214,7 +214,7 @@ if [ -n "$DEBEMAIL" ]; then
 elif [ -n "$EMAIL" ]; then
        email=$EMAIL
 else
-       email=$(id -nu)@$(hostname -f)
+       email=$(id -nu)@$(hostname -f 2>/dev/null || hostname)
 fi
 if [ -n "$DEBFULLNAME" ]; then
        name=$DEBFULLNAME
