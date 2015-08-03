@@ -2089,8 +2089,6 @@ struct rtl_wow_pattern {
 	u32 mask[4];
 };
 
-struct rtl8723e_firmware_header;
-
 struct rtl_hal_ops {
 	int (*init_sw_vars) (struct ieee80211_hw *hw);
 	void (*deinit_sw_vars) (struct ieee80211_hw *hw);
@@ -2194,7 +2192,7 @@ struct rtl_hal_ops {
 	void (*fill_h2c_cmd) (struct ieee80211_hw *hw, u8 element_id,
 			      u32 cmd_len, u8 *p_cmdbuffer);
 	bool (*get_btc_status) (void);
-	bool (*is_fw_header)(struct rtl8723e_firmware_header *hdr);
+	bool (*is_fw_header)(struct rtlwifi_firmware_header *hdr);
 	u32 (*rx_command_packet)(struct ieee80211_hw *hw,
 				 struct rtl_stats status, struct sk_buff *skb);
 	void (*add_wowlan_pattern)(struct ieee80211_hw *hw,

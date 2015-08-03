@@ -253,7 +253,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct rtl8723e_firmware_header *pfwheader;
+	struct rtlwifi_firmware_header *pfwheader;
 	u8 *pfwdata;
 	u32 fwsize;
 	int err;
@@ -263,7 +263,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 	if (!rtlhal->pfirmware)
 		return 1;
 
-	pfwheader = (struct rtl8723e_firmware_header *)rtlhal->pfirmware;
+	pfwheader = (struct rtlwifi_firmware_header *)rtlhal->pfirmware;
 	pfwdata = rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
 
@@ -275,10 +275,10 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
 			 "Firmware Version(%d), Signature(%#x), Size(%d)\n",
 			 pfwheader->version, pfwheader->signature,
-			 (int)sizeof(struct rtl8723e_firmware_header));
+			 (int)sizeof(struct rtlwifi_firmware_header));
 
-		pfwdata = pfwdata + sizeof(struct rtl8723e_firmware_header);
-		fwsize = fwsize - sizeof(struct rtl8723e_firmware_header);
+		pfwdata = pfwdata + sizeof(struct rtlwifi_firmware_header);
+		fwsize = fwsize - sizeof(struct rtlwifi_firmware_header);
 	}
 
 	if (rtl_read_byte(rtlpriv, REG_MCUFWDL)&BIT(7)) {
