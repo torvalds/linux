@@ -293,7 +293,7 @@ static void mpls_notify_route(struct net *net, unsigned index,
 	struct mpls_route *rt = new ? new : old;
 	unsigned nlm_flags = (old && new) ? NLM_F_REPLACE : 0;
 	/* Ignore reserved labels for now */
-	if (rt && (index >= 16))
+	if (rt && (index >= MPLS_LABEL_FIRST_UNRESERVED))
 		rtmsg_lfib(event, index, rt, nlh, net, portid, nlm_flags);
 }
 
@@ -327,7 +327,8 @@ static unsigned find_free_label(struct net *net)
 
 	platform_label = rtnl_dereference(net->mpls.platform_label);
 	platform_labels = net->mpls.platform_labels;
-	for (index = 16; index < platform_labels; index++) {
+	for (index = MPLS_LABEL_FIRST_UNRESERVED; index < platform_labels;
+	     index++) {
 		if (!rtnl_dereference(platform_label[index]))
 			return index;
 	}
@@ -436,8 +437,8 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		index = find_free_label(net);
 	}
 
-	/* The first 16 labels are reserved, and may not be set */
-	if (index < 16)
+	/* Reserved labels may not be set */
+	if (index < MPLS_LABEL_FIRST_UNRESERVED)
 		goto errout;
 
 	/* The full 20 bit range may not be supported. */
@@ -516,8 +517,8 @@ static int mpls_route_del(struct mpls_route_config *cfg)
 
 	index = cfg->rc_label;
 
-	/* The first 16 labels are reserved, and may not be removed */
-	if (index < 16)
+	/* Reserved labels may not be removed */
+	if (index < MPLS_LABEL_FIRST_UNRESERVED)
 		goto errout;
 
 	/* The full 20 bit range may not be supported */
@@ -835,8 +836,8 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 					   &cfg->rc_label))
 				goto errout;
 
-			/* The first 16 labels are reserved, and may not be set */
-			if (cfg->rc_label < 16)
+			/* Reserved labels may not be set */
+			if (cfg->rc_label < MPLS_LABEL_FIRST_UNRESERVED)
 				goto errout;
 
 			break;
@@ -961,8 +962,8 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	ASSERT_RTNL();
 
 	index = cb->args[0];
-	if (index < 16)
-		index = 16;
+	if (index < MPLS_LABEL_FIRST_UNRESERVED)
+		index = MPLS_LABEL_FIRST_UNRESERVED;
 
 	platform_label = rtnl_dereference(net->mpls.platform_label);
 	platform_labels = net->mpls.platform_labels;
