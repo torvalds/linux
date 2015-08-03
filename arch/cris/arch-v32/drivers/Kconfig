@@ -149,24 +149,6 @@ config ETRAX_NANDBOOT
 	  Say Y if your boot code, kernel and root file system is in
 	  NAND flash. Say N if they are in NOR flash.
 
-config ETRAX_I2C
-	bool "I2C driver"
-	depends on ETRAX_ARCH_V32
-	help
-	  This option enables the I2C driver used by e.g. the RTC driver.
-
-config ETRAX_V32_I2C_DATA_PORT
-	string "I2C data pin"
-	depends on ETRAX_I2C
-	help
-	  The pin to use for I2C data.
-
-config ETRAX_V32_I2C_CLK_PORT
-	string "I2C clock pin"
-	depends on ETRAX_I2C
-	help
-	  The pin to use for I2C clock.
-
 config ETRAX_GPIO
 	bool "GPIO support"
 	depends on ETRAX_ARCH_V32
