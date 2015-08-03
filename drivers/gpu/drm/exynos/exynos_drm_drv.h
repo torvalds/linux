@@ -153,8 +153,8 @@ struct exynos_drm_display {
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @wait_for_vblank: wait for vblank interrupt to make sure that
  *	hardware overlay is updated.
- * @win_commit: apply hardware specific overlay data to registers.
- * @win_disable: disable hardware specific overlay.
+ * @update_plane: apply hardware specific overlay data to registers.
+ * @disable_plane: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
  *	synchronization signal if there is a page flip request.
  * @clock_enable: optional function enabling/disabling display domain clock,
@@ -173,8 +173,8 @@ struct exynos_drm_crtc_ops {
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
-	void (*win_commit)(struct exynos_drm_crtc *crtc, unsigned int zpos);
-	void (*win_disable)(struct exynos_drm_crtc *crtc, unsigned int zpos);
+	void (*update_plane)(struct exynos_drm_crtc *crtc, unsigned int zpos);
+	void (*disable_plane)(struct exynos_drm_crtc *crtc, unsigned int zpos);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 	void (*clock_enable)(struct exynos_drm_crtc *crtc, bool enable);
 };

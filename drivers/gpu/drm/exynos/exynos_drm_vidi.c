@@ -100,7 +100,7 @@ static int vidi_enable_vblank(struct exynos_drm_crtc *crtc)
 	/*
 	 * in case of page flip request, vidi_finish_pageflip function
 	 * will not be called because direct_vblank is true and then
-	 * that function will be called by crtc_ops->win_commit callback
+	 * that function will be called by crtc_ops->update_plane callback
 	 */
 	schedule_work(&ctx->work);
 
@@ -118,7 +118,7 @@ static void vidi_disable_vblank(struct exynos_drm_crtc *crtc)
 		ctx->vblank_on = false;
 }
 
-static void vidi_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
+static void vidi_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct vidi_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
@@ -179,7 +179,7 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.disable = vidi_disable,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
-	.win_commit = vidi_win_commit,
+	.update_plane = vidi_update_plane,
 };
 
 static void vidi_fake_vblank_handler(struct work_struct *work)

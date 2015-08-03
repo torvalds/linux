@@ -607,7 +607,7 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
-static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
+static void fimd_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
@@ -715,7 +715,7 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 		atomic_set(&ctx->win_updated, 1);
 }
 
-static void fimd_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
+static void fimd_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
@@ -785,7 +785,7 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 	 * a destroyed buffer later.
 	 */
 	for (i = 0; i < WINDOWS_NR; i++)
-		fimd_win_disable(crtc, i);
+		fimd_disable_plane(crtc, i);
 
 	fimd_enable_vblank(crtc);
 	fimd_wait_for_vblank(crtc);
@@ -880,8 +880,8 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
 	.wait_for_vblank = fimd_wait_for_vblank,
-	.win_commit = fimd_win_commit,
-	.win_disable = fimd_win_disable,
+	.update_plane = fimd_update_plane,
+	.disable_plane = fimd_disable_plane,
 	.te_handler = fimd_te_handler,
 	.clock_enable = fimd_dp_clock_enable,
 };

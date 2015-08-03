@@ -383,7 +383,7 @@ static void decon_shadow_protect_win(struct decon_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
+static void decon_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
@@ -493,7 +493,7 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 	writel(val, ctx->regs + DECON_UPDATE);
 }
 
-static void decon_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
+static void decon_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
@@ -599,7 +599,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	 * a destroyed buffer later.
 	 */
 	for (i = 0; i < WINDOWS_NR; i++)
-		decon_win_disable(crtc, i);
+		decon_disable_plane(crtc, i);
 
 	clk_disable_unprepare(ctx->vclk);
 	clk_disable_unprepare(ctx->eclk);
@@ -619,8 +619,8 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.wait_for_vblank = decon_wait_for_vblank,
-	.win_commit = decon_win_commit,
-	.win_disable = decon_win_disable,
+	.update_plane = decon_update_plane,
+	.disable_plane = decon_disable_plane,
 };
 
 

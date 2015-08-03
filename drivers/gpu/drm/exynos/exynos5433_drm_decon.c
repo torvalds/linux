@@ -219,7 +219,7 @@ static void decon_shadow_protect_win(struct decon_context *ctx, int win,
 	writel(val, ctx->addr + DECON_SHADOWCON);
 }
 
-static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
+static void decon_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
@@ -277,7 +277,7 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 		atomic_set(&ctx->win_updated, 1);
 }
 
-static void decon_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
+static void decon_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
@@ -378,7 +378,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	 * a destroyed buffer later.
 	 */
 	for (i = 0; i < WINDOWS_NR; i++)
-		decon_win_disable(crtc, i);
+		decon_disable_plane(crtc, i);
 
 	decon_swreset(ctx);
 
@@ -460,8 +460,8 @@ static struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank		= decon_enable_vblank,
 	.disable_vblank		= decon_disable_vblank,
 	.commit			= decon_commit,
-	.win_commit		= decon_win_commit,
-	.win_disable		= decon_win_disable,
+	.update_plane		= decon_update_plane,
+	.disable_plane		= decon_disable_plane,
 	.te_handler		= decon_te_irq_handler,
 };
 

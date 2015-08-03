@@ -927,7 +927,7 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	mixer_reg_writemask(res, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
 }
 
-static void mixer_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
+static void mixer_update_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 
@@ -942,7 +942,7 @@ static void mixer_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 		mixer_graph_buffer(mixer_ctx, win);
 }
 
-static void mixer_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
+static void mixer_disable_plane(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
@@ -1053,7 +1053,7 @@ static void mixer_disable(struct exynos_drm_crtc *crtc)
 	mixer_regs_dump(ctx);
 
 	for (i = 0; i < MIXER_WIN_NR; i++)
-		mixer_win_disable(crtc, i);
+		mixer_disable_plane(crtc, i);
 
 	clear_bit(MXR_BIT_POWERED, &ctx->flags);
 
@@ -1094,8 +1094,8 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
 	.wait_for_vblank	= mixer_wait_for_vblank,
-	.win_commit		= mixer_win_commit,
-	.win_disable		= mixer_win_disable,
+	.update_plane		= mixer_update_plane,
+	.disable_plane		= mixer_disable_plane,
 };
 
 static struct mixer_drv_data exynos5420_mxr_drv_data = {
