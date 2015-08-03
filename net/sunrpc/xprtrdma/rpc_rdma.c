@@ -475,21 +475,24 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 *
 	 * o If the total request is under the inline threshold, all ops
 	 *   are sent as inline.
-	 * o Large non-write ops are sent with the entire message as a
-	 *   single read chunk (protocol 0-position special case).
 	 * o Large write ops transmit data as read chunk(s), header as
 	 *   inline.
+	 * o Large non-write ops are sent with the entire message as a
+	 *   single read chunk (protocol 0-position special case).
 	 *
-	 * Note: the NFS code sending down multiple argument segments
-	 * implies the op is a write.
-	 * TBD check NFSv4 setacl
+	 * This assumes that the upper layer does not present a request
+	 * that both has a data payload, and whose non-data arguments
+	 * by themselves are larger than the inline threshold.
 	 */
-	if (rpcrdma_args_inline(rqst))
+	if (rpcrdma_args_inline(rqst)) {
 		rtype = rpcrdma_noch;
-	else if (rqst->rq_snd_buf.page_len == 0)
-		rtype = rpcrdma_areadch;
-	else
+	} else if (rqst->rq_snd_buf.flags & XDRBUF_WRITE) {
 		rtype = rpcrdma_readch;
+	} else {
+		headerp->rm_type = htonl(RDMA_NOMSG);
+		rtype = rpcrdma_areadch;
+		rpclen = 0;
+	}
 
 	/* The following simplification is not true forever */
 	if (rtype != rpcrdma_noch && wtype == rpcrdma_replych)
@@ -545,6 +548,10 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	req->rl_send_iov[0].addr = rdmab_addr(req->rl_rdmabuf);
 	req->rl_send_iov[0].length = hdrlen;
 	req->rl_send_iov[0].lkey = rdmab_lkey(req->rl_rdmabuf);
+
+	req->rl_niovs = 1;
+	if (rtype == rpcrdma_areadch)
+		return 0;
 
 	req->rl_send_iov[1].addr = rdmab_addr(req->rl_sendbuf);
 	req->rl_send_iov[1].length = rpclen;
