@@ -229,6 +229,19 @@ config SND_SOC_EUKREA_TLV320
 	  Enable I2S based access to the TLV320AIC23B codec attached
 	  to the SSI interface
 
+config SND_SOC_IMX_WM8960
+	tristate "SoC Audio support for i.MX boards with wm8960"
+	depends on OF && I2C
+	select SND_SOC_WM8960
+	select SND_SOC_IMX_PCM_DMA
+	select SND_SOC_FSL_SAI
+	select SND_SOC_FSL_UTILS
+	select SND_KCTL_JACK
+	help
+	  SoC Audio support for i.MX boards with WM8960
+	  Say Y if you want to add support for SoC audio on an i.MX board with
+	  a wm8960 codec.
+
 config SND_SOC_IMX_WM8962
 	tristate "SoC Audio support for i.MX boards with wm8962"
 	depends on OF && I2C && INPUT
