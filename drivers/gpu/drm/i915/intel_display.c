@@ -1936,7 +1936,9 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
 	/* PCH only available on ILK+ */
-	BUG_ON(INTEL_INFO(dev)->gen < 5);
+	if (INTEL_INFO(dev)->gen < 5)
+		return;
+
 	if (pll == NULL)
 		return;
 
