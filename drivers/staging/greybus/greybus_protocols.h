@@ -69,8 +69,37 @@
 #define GB_CONTROL_CPORT_ID			0
 
 
-/* Control Protocol */
+/*
+ * All operation messages (both requests and responses) begin with
+ * a header that encodes the size of the message (header included).
+ * This header also contains a unique identifier, that associates a
+ * response message with its operation.  The header contains an
+ * operation type field, whose interpretation is dependent on what
+ * type of protocol is used over the connection.  The high bit
+ * (0x80) of the operation type field is used to indicate whether
+ * the message is a request (clear) or a response (set).
+ *
+ * Response messages include an additional result byte, which
+ * communicates the result of the corresponding request.  A zero
+ * result value means the operation completed successfully.  Any
+ * other value indicates an error; in this case, the payload of the
+ * response message (if any) is ignored.  The result byte must be
+ * zero in the header for a request message.
+ *
+ * The wire format for all numeric fields in the header is little
+ * endian.  Any operation-specific data begins immediately after the
+ * header.
+ */
+struct gb_operation_msg_hdr {
+	__le16	size;		/* Size in bytes of header + payload */
+	__le16	operation_id;	/* Operation unique id */
+	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
+	__u8	result;		/* Result of request (in responses only) */
+	__u8	pad[2];		/* must be zero (ignore when read) */
+};
 
+
+/* Control Protocol */
 
 /* version request has no payload */
 struct gb_protocol_version_response {
@@ -248,8 +277,8 @@ struct gb_gpio_set_value_request {
 
 struct gb_gpio_set_debounce_request {
 	__u8	which;
-	__le16	usec __packed;
-};
+	__le16	usec;
+} __packed;
 /* debounce response has no payload */
 
 struct gb_gpio_irq_type_request {
@@ -307,9 +336,9 @@ struct gb_pwm_deactivate_request {
 
 struct gb_pwm_config_request {
 	__u8	which;
-	__le32	duty __packed;
-	__le32	period __packed;
-};
+	__le32	duty;
+	__le32	period;
+} __packed;
 
 struct gb_pwm_polarity_request {
 	__u8	which;
@@ -542,7 +571,7 @@ struct gb_spi_transfer_request {
 	__u8			chip_select;	/* of the spi device */
 	__u8			mode;		/* of the spi device */
 	__le16			count;
-	struct gb_spi_transfer	transfers[0];	/* trnasfer_count of these */
+	struct gb_spi_transfer	transfers[0];	/* count of these */
 };
 
 struct gb_spi_transfer_response {
@@ -571,7 +600,7 @@ struct gb_spi_transfer_response {
 struct gb_svc_hello_request {
 	__le16			endo_id;
 	__u8			interface_id;
-};
+} __packed;
 /* hello response has no payload */
 
 struct gb_svc_intf_device_id_request {
@@ -588,7 +617,7 @@ struct gb_svc_intf_hotplug_request {
 		__le32	ara_vend_id;
 		__le32	ara_prod_id;
 	} data;
-};
+} __packed;
 /* hotplug response has no payload */
 
 struct gb_svc_intf_hot_unplug_request {
@@ -608,7 +637,7 @@ struct gb_svc_conn_create_request {
 	__u16	cport2_id;
 	__u8	tc;
 	__u8	flags;
-};
+} __packed;
 /* connection create response has no payload */
 
 struct gb_svc_conn_destroy_request {
@@ -616,7 +645,7 @@ struct gb_svc_conn_destroy_request {
 	__u16	cport1_id;
 	__u8	intf2_id;
 	__u16	cport2_id;
-};
+} __packed;
 /* connection destroy response has no payload */
 
 struct gb_svc_route_create_request {
@@ -659,7 +688,7 @@ struct gb_uart_recv_data_request {
 	__le16	size;
 	__u8	flags;
 	__u8	data[0];
-};
+} __packed;
 
 struct gb_uart_set_line_coding_request {
 	__le32	rate;
@@ -676,7 +705,7 @@ struct gb_uart_set_line_coding_request {
 #define GB_SERIAL_SPACE_PARITY			4
 
 	__u8	data_bits;
-};
+} __packed;
 
 /* output control lines */
 #define GB_UART_CTRL_DTR			0x01
@@ -826,7 +855,7 @@ struct gb_sdio_set_ios_request {
 #define GB_SDIO_SET_DRIVER_TYPE_A	0x01
 #define GB_SDIO_SET_DRIVER_TYPE_C	0x02
 #define GB_SDIO_SET_DRIVER_TYPE_D	0x03
-};
+} __packed;
 
 /* command request */
 struct gb_sdio_command_request {
@@ -846,7 +875,7 @@ struct gb_sdio_command_request {
 #define GB_SDIO_CMD_BC		0x03
 
 	__le32	cmd_arg;
-};
+} __packed;
 
 struct gb_sdio_command_response {
 	__le32	resp[4];
@@ -862,7 +891,7 @@ struct gb_sdio_transfer_request {
 	__le16	data_blocks;
 	__le16	data_blksz;
 	__u8	data[0];
-};
+} __packed;
 
 struct gb_sdio_transfer_response {
 	__le16	data_blocks;
