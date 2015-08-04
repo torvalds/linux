@@ -19,6 +19,14 @@
 		reg = <0x80000000 0x80000000>;
 	};
 
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		status = "okay";
+	};
+
 	spi4 {
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
@@ -309,6 +317,12 @@
 			>;
 		};
 
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO01__PWM1_OUT	0x110b0
+			>;
+		};
+
 		pinctrl_spi1: spi1grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
@@ -372,6 +386,12 @@
 			};
 		};
 	};
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
 };
 
 &uart1 {
