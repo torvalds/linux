@@ -261,6 +261,7 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
  * Function GPIOs
  */
 
+#ifdef CONFIG_SUPERH
 static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 {
 	static bool __print_once;
@@ -300,6 +301,7 @@ static int gpio_function_setup(struct sh_pfc_chip *chip)
 
 	return 0;
 }
+#endif
 
 /* -----------------------------------------------------------------------------
  * Register/unregister
@@ -399,6 +401,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 		}
 	}
 
+#ifdef CONFIG_SUPERH
 	/* Register the function GPIOs chip. */
 	if (pfc->info->nr_func_gpios == 0)
 		return 0;
@@ -408,6 +411,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 		return PTR_ERR(chip);
 
 	pfc->func = chip;
+#endif /* CONFIG_SUPERH */
 
 	return 0;
 }
@@ -415,7 +419,8 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc)
 {
 	gpiochip_remove(&pfc->gpio->gpio_chip);
+#ifdef CONFIG_SUPERH
 	gpiochip_remove(&pfc->func->gpio_chip);
-
+#endif
 	return 0;
 }
