@@ -132,6 +132,7 @@ static int __apply_alternatives_multi_stop(void *unused)
 	if (smp_processor_id()) {
 		while (!READ_ONCE(patched))
 			cpu_relax();
+		isb();
 	} else {
 		BUG_ON(patched);
 		__apply_alternatives(&region);
