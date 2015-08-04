@@ -338,14 +338,14 @@ static unsigned find_free_label(struct net *net)
 #if IS_ENABLED(CONFIG_INET)
 static struct net_device *inet_fib_lookup_dev(struct net *net, void *addr)
 {
-	struct net_device *dev = NULL;
+	struct net_device *dev;
 	struct rtable *rt;
 	struct in_addr daddr;
 
 	memcpy(&daddr, addr, sizeof(struct in_addr));
 	rt = ip_route_output(net, daddr.s_addr, 0, 0, 0);
 	if (IS_ERR(rt))
-		goto errout;
+		return ERR_CAST(rt);
 
 	dev = rt->dst.dev;
 	dev_hold(dev);
@@ -353,8 +353,6 @@ static struct net_device *inet_fib_lookup_dev(struct net *net, void *addr)
 	ip_rt_put(rt);
 
 	return dev;
-errout:
-	return ERR_PTR(-ENODEV);
 }
 #else
 static struct net_device *inet_fib_lookup_dev(struct net *net, void *addr)
@@ -366,7 +364,7 @@ static struct net_device *inet_fib_lookup_dev(struct net *net, void *addr)
 #if IS_ENABLED(CONFIG_IPV6)
 static struct net_device *inet6_fib_lookup_dev(struct net *net, void *addr)
 {
-	struct net_device *dev = NULL;
+	struct net_device *dev;
 	struct dst_entry *dst;
 	struct flowi6 fl6;
 	int err;
@@ -378,16 +376,13 @@ static struct net_device *inet6_fib_lookup_dev(struct net *net, void *addr)
 	memcpy(&fl6.daddr, addr, sizeof(struct in6_addr));
 	err = ipv6_stub->ipv6_dst_lookup(net, NULL, &dst, &fl6);
 	if (err)
-		goto errout;
+		return ERR_PTR(err);
 
 	dev = dst->dev;
 	dev_hold(dev);
 	dst_release(dst);
 
 	return dev;
-
-errout:
-	return ERR_PTR(err);
 }
 #else
 static struct net_device *inet6_fib_lookup_dev(struct net *net, void *addr)
