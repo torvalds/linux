@@ -853,9 +853,6 @@ static int __mei_cl_disconnect(struct mei_cl *cl)
 
 	dev = cl->dev;
 
-	if (WARN_ON(!pm_runtime_active(dev->dev)))
-		return -EFAULT;
-
 	cl->state = MEI_FILE_DISCONNECTING;
 
 	cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT, NULL);
