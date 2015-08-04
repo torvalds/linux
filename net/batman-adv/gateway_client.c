@@ -27,7 +27,6 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
@@ -565,7 +564,6 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 	spin_lock_bh(&bat_priv->gw.list_lock);
 	hlist_for_each_entry_safe(gw_node, node_tmp,
 				  &bat_priv->gw.list, list) {
-
 		hlist_del_init_rcu(&gw_node->list);
 		batadv_gw_node_free_ref(gw_node);
 	}
