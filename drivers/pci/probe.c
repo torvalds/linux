@@ -2096,8 +2096,9 @@ void pci_bus_release_busn_res(struct pci_bus *b)
 			res, ret ? "can not be" : "is");
 }
 
-struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
-		struct pci_ops *ops, void *sysdata, struct list_head *resources)
+struct pci_bus *pci_scan_root_bus_msi(struct device *parent, int bus,
+		struct pci_ops *ops, void *sysdata,
+		struct list_head *resources, struct msi_controller *msi)
 {
 	struct resource_entry *window;
 	bool found = false;
@@ -2114,6 +2115,8 @@ struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
 	if (!b)
 		return NULL;
 
+	b->msi = msi;
+
 	if (!found) {
 		dev_info(&b->dev,
 		 "No busn resource found for root bus, will use [bus %02x-ff]\n",
@@ -2127,6 +2130,13 @@ struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
 		pci_bus_update_busn_res_end(b, max);
 
 	return b;
+}
+
+struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
+		struct pci_ops *ops, void *sysdata, struct list_head *resources)
+{
+	return pci_scan_root_bus_msi(parent, bus, ops, sysdata, resources,
+				     NULL);
 }
 EXPORT_SYMBOL(pci_scan_root_bus);
 
