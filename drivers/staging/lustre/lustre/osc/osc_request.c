@@ -2665,7 +2665,7 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		buf = NULL;
 		len = 0;
-		if (obd_ioctl_getdata(&buf, &len, (void *)uarg)) {
+		if (obd_ioctl_getdata(&buf, &len, uarg)) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -2695,7 +2695,7 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		memcpy(data->ioc_inlbuf2, &obd->obd_uuid, sizeof(uuid));
 
-		err = copy_to_user((void *)uarg, buf, len);
+		err = copy_to_user(uarg, buf, len);
 		if (err)
 			err = -EFAULT;
 		obd_ioctl_freedata(buf, len);
