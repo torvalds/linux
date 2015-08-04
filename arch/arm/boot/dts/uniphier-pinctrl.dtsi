@@ -43,6 +43,26 @@
  */
 
 &pinctrl {
+	pinctrl_i2c0: i2c0_grp {
+		groups = "i2c0";
+		function = "i2c0";
+	};
+
+	pinctrl_i2c1: i2c1_grp {
+		groups = "i2c1";
+		function = "i2c1";
+	};
+
+	pinctrl_i2c2: i2c2_grp {
+		groups = "i2c2";
+		function = "i2c2";
+	};
+
+	pinctrl_i2c3: i2c3_grp {
+		groups = "i2c3";
+		function = "i2c3";
+	};
+
 	pinctrl_uart0: uart0_grp {
 		groups = "uart0";
 		function = "uart0";

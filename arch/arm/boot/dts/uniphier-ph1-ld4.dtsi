@@ -70,6 +70,12 @@
 			compatible = "fixed-clock";
 			clock-frequency = <36864000>;
 		};
+
+		iobus_clk: iobus_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <100000000>;
+		};
 	};
 
 	soc {
@@ -127,6 +133,58 @@
 			interrupts = <0 29 4>;
 			clocks = <&uart_clk>;
 			fifo-size = <64>;
+		};
+
+		i2c0: i2c@58400000 {
+			compatible = "socionext,uniphier-i2c";
+			status = "disabled";
+			reg = <0x58400000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c0>;
+			interrupts = <0 41 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <100000>;
+		};
+
+		i2c1: i2c@58480000 {
+			compatible = "socionext,uniphier-i2c";
+			status = "disabled";
+			reg = <0x58480000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c1>;
+			interrupts = <0 42 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <100000>;
+		};
+
+		/* chip-internal connection for DMD */
+		i2c2: i2c@58500000 {
+			compatible = "socionext,uniphier-i2c";
+			reg = <0x58500000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c2>;
+			interrupts = <0 43 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <400000>;
+		};
+
+		i2c3: i2c@58580000 {
+			compatible = "socionext,uniphier-i2c";
+			status = "disabled";
+			reg = <0x58580000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c3>;
+			interrupts = <0 44 1>;
+			clocks = <&iobus_clk>;
+			clock-frequency = <100000>;
 		};
 
 		system-bus-controller-misc@59800000 {

@@ -65,6 +65,11 @@
 		serial0 = &serial0;
 		serial1 = &serial1;
 		serial2 = &serial2;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
 	};
 };
 
@@ -90,6 +95,10 @@
 };
 
 &serial2 {
+	status = "okay";
+};
+
+&i2c0 {
 	status = "okay";
 };
 
