@@ -397,14 +397,8 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	/* Erase a sector */
 	lut_base = SEQID_SE * 4;
 
-	if (q->nor_size <= SZ_16M) {
-		cmd = SPINOR_OP_SE;
-		addrlen = ADDR24BIT;
-	} else {
-		/* use the 4-byte address */
-		cmd = SPINOR_OP_SE;
-		addrlen = ADDR32BIT;
-	}
+	cmd = q->nor[0].erase_opcode;
+	addrlen = q->nor_size <= SZ_16M ? ADDR24BIT : ADDR32BIT;
 
 	writel(LUT0(CMD, PAD1, cmd) | LUT1(ADDR, PAD1, addrlen),
 			base + QUADSPI_LUT(lut_base));
@@ -473,6 +467,8 @@ static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 	case SPINOR_OP_BRWR:
 		return SEQID_BRWR;
 	default:
+		if (cmd == q->nor[0].erase_opcode)
+			return SEQID_SE;
 		dev_err(q->dev, "Unsupported cmd 0x%.2x\n", cmd);
 		break;
 	}
