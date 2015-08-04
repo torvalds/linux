@@ -1436,6 +1436,8 @@ static int pnfs_layoutget_retry_bit_wait(struct wait_bit_key *key)
 
 static bool pnfs_prepare_to_retry_layoutget(struct pnfs_layout_hdr *lo)
 {
+	if (!pnfs_should_retry_layoutget(lo))
+		return false;
 	/*
 	 * send layoutcommit as it can hold up layoutreturn due to lseg
 	 * reference
@@ -1531,8 +1533,7 @@ lookup_again:
 	 * Because we free lsegs before sending LAYOUTRETURN, we need to wait
 	 * for LAYOUTRETURN even if first is true.
 	 */
-	if (!lseg && pnfs_should_retry_layoutget(lo) &&
-	    test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags)) {
+	if (test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags)) {
 		spin_unlock(&ino->i_lock);
 		dprintk("%s wait for layoutreturn\n", __func__);
 		if (pnfs_prepare_to_retry_layoutget(lo)) {
