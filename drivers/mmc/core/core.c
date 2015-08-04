@@ -2229,9 +2229,8 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	 * and call mmc_do_erase() twice if necessary. This special case is
 	 * identified by the card->eg_boundary flag.
 	 */
-	if ((arg & MMC_TRIM_ARGS) && (card->eg_boundary) &&
-	    (from % card->erase_size)) {
-		rem = card->erase_size - (from % card->erase_size);
+	rem = card->erase_size - (from % card->erase_size);
+	if ((arg & MMC_TRIM_ARGS) && (card->eg_boundary) && (nr > rem)) {
 		err = mmc_do_erase(card, from, from + rem - 1, arg);
 		from += rem;
 		if ((err) || (to <= from))
