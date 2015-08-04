@@ -1135,20 +1135,22 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 			vha->fcoe_vn_port_mac[0] = mcp->mb[13] & 0xff;
 		}
 		/* If FA-WWN supported */
-		if (mcp->mb[7] & BIT_14) {
-			vha->port_name[0] = MSB(mcp->mb[16]);
-			vha->port_name[1] = LSB(mcp->mb[16]);
-			vha->port_name[2] = MSB(mcp->mb[17]);
-			vha->port_name[3] = LSB(mcp->mb[17]);
-			vha->port_name[4] = MSB(mcp->mb[18]);
-			vha->port_name[5] = LSB(mcp->mb[18]);
-			vha->port_name[6] = MSB(mcp->mb[19]);
-			vha->port_name[7] = LSB(mcp->mb[19]);
-			fc_host_port_name(vha->host) =
-			    wwn_to_u64(vha->port_name);
-			ql_dbg(ql_dbg_mbx, vha, 0x10ca,
-			    "FA-WWN acquired %016llx\n",
-			    wwn_to_u64(vha->port_name));
+		if (IS_FAWWN_CAPABLE(vha->hw)) {
+			if (mcp->mb[7] & BIT_14) {
+				vha->port_name[0] = MSB(mcp->mb[16]);
+				vha->port_name[1] = LSB(mcp->mb[16]);
+				vha->port_name[2] = MSB(mcp->mb[17]);
+				vha->port_name[3] = LSB(mcp->mb[17]);
+				vha->port_name[4] = MSB(mcp->mb[18]);
+				vha->port_name[5] = LSB(mcp->mb[18]);
+				vha->port_name[6] = MSB(mcp->mb[19]);
+				vha->port_name[7] = LSB(mcp->mb[19]);
+				fc_host_port_name(vha->host) =
+				    wwn_to_u64(vha->port_name);
+				ql_dbg(ql_dbg_mbx, vha, 0x10ca,
+				    "FA-WWN acquired %016llx\n",
+				    wwn_to_u64(vha->port_name));
+			}
 		}
 	}
 
