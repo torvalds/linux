@@ -23,10 +23,13 @@ CONTENTS
 5. Other Changes
   5-1. [Un]populated Notification
   5-2. Other Core Changes
-  5-3. Per-Controller Changes
-    5-3-1. blkio
-    5-3-2. cpuset
-    5-3-3. memory
+  5-3. Controller File Conventions
+    5-3-1. Format
+    5-3-2. Control Knobs
+  5-4. Per-Controller Changes
+    5-4-1. blkio
+    5-4-2. cpuset
+    5-4-3. memory
 6. Planned Changes
   6-1. CAP for resource control
 
@@ -372,14 +375,75 @@ supported and the interface files "release_agent" and
 - The "cgroup.clone_children" file is removed.
 
 
-5-3. Per-Controller Changes
+5-3. Controller File Conventions
 
-5-3-1. blkio
+5-3-1. Format
+
+In general, all controller files should be in one of the following
+formats whenever possible.
+
+- Values only files
+
+  VAL0 VAL1...\n
+
+- Flat keyed files
+
+  KEY0 VAL0\n
+  KEY1 VAL1\n
+  ...
+
+- Nested keyed files
+
+  KEY0 SUB_KEY0=VAL00 SUB_KEY1=VAL01...
+  KEY1 SUB_KEY0=VAL10 SUB_KEY1=VAL11...
+  ...
+
+For a writeable file, the format for writing should generally match
+reading; however, controllers may allow omitting later fields or
+implement restricted shortcuts for most common use cases.
+
+For both flat and nested keyed files, only the values for a single key
+can be written at a time.  For nested keyed files, the sub key pairs
+may be specified in any order and not all pairs have to be specified.
+
+
+5-3-2. Control Knobs
+
+- Settings for a single feature should generally be implemented in a
+  single file.
+
+- In general, the root cgroup should be exempt from resource control
+  and thus shouldn't have resource control knobs.
+
+- If a controller implements ratio based resource distribution, the
+  control knob should be named "weight" and have the range [1, 10000]
+  and 100 should be the default value.  The values are chosen to allow
+  enough and symmetric bias in both directions while keeping it
+  intuitive (the default is 100%).
+
+- If a controller implements an absolute resource guarantee and/or
+  limit, the control knobs should be named "min" and "max"
+  respectively.  If a controller implements best effort resource
+  gurantee and/or limit, the control knobs should be named "low" and
+  "high" respectively.
+
+  In the above four control files, the special token "max" should be
+  used to represent upward infinity for both reading and writing.
+
+- If a setting has configurable default value and specific overrides,
+  the default settings should be keyed with "default" and appear as
+  the first entry in the file.  Specific entries can use "default" as
+  its value to indicate inheritance of the default value.
+
+
+5-4. Per-Controller Changes
+
+5-4-1. blkio
 
 - blk-throttle becomes properly hierarchical.
 
 
-5-3-2. cpuset
+5-4-2. cpuset
 
 - Tasks are kept in empty cpusets after hotplug and take on the masks
   of the nearest non-empty ancestor, instead of being moved to it.
@@ -388,7 +452,7 @@ supported and the interface files "release_agent" and
   masks of the nearest non-empty ancestor.
 
 
-5-3-3. memory
+5-4-3. memory
 
 - use_hierarchy is on by default and the cgroup file for the flag is
   not created.
