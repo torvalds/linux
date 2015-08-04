@@ -57,6 +57,14 @@
 #define U16_MAX	((u16)(~0U))
 #endif /* !U16_MAX */
 
+#ifndef U32_MAX
+#define U32_MAX	((u32)(~0U))
+#endif /* !U32_MAX */
+
+#ifndef U64_MAX
+#define U64_MAX	((u64)(~0U))
+#endif /* !U64_MAX */
+
 /*
  * The GPIO api sucks rocks in places, like removal, so work around their
  * explicit requirements of catching the return value for kernels older than
