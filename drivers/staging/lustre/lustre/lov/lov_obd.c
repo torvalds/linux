@@ -1440,7 +1440,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		__u32 *genp;
 
 		len = 0;
-		if (obd_ioctl_getdata(&buf, &len, (void *)uarg))
+		if (obd_ioctl_getdata(&buf, &len, uarg))
 			return -EINVAL;
 
 		data = (struct obd_ioctl_data *)buf;
@@ -1473,7 +1473,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			*genp = lov->lov_tgts[i]->ltd_gen;
 		}
 
-		if (copy_to_user((void *)uarg, buf, len))
+		if (copy_to_user(uarg, buf, len))
 			rc = -EFAULT;
 		obd_ioctl_freedata(buf, len);
 		break;
