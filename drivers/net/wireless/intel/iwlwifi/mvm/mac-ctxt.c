@@ -540,6 +540,12 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	case NL80211_IFTYPE_AP:
 		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
 				    IWL_MAX_TID_COUNT, 0);
+
+		if (iwl_mvm_is_dqa_supported(mvm))
+			iwl_mvm_disable_txq(mvm,
+					    IWL_MVM_DQA_AP_PROBE_RESP_QUEUE,
+					    vif->hw_queue[0], IWL_MAX_TID_COUNT,
+					    0);
 		/* fall through */
 	default:
 		/*

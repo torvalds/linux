@@ -475,6 +475,17 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 	return dev_cmd;
 }
 
+static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
+				      struct ieee80211_tx_info *info, __le16 fc)
+{
+	if (iwl_mvm_is_dqa_supported(mvm) &&
+	    info->control.vif->type == NL80211_IFTYPE_AP &&
+	    ieee80211_is_probe_resp(fc))
+		return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+
+	return info->hw_queue;
+}
+
 int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -484,6 +495,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	struct iwl_tx_cmd *tx_cmd;
 	u8 sta_id;
 	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	int queue;
 
 	memcpy(&info, skb->cb, sizeof(info));
 
@@ -508,6 +520,8 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	    info.control.vif->type == NL80211_IFTYPE_STATION)
 		IEEE80211_SKB_CB(skb)->hw_queue = mvm->aux_queue;
 
+	queue = info.hw_queue;
+
 	/*
 	 * If the interface on which the frame is sent is the P2P_DEVICE
 	 * or an AP/GO interface use the broadcast station associated
@@ -523,10 +537,12 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			iwl_mvm_vif_from_mac80211(info.control.vif);
 
 		if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
-		    info.control.vif->type == NL80211_IFTYPE_AP)
+		    info.control.vif->type == NL80211_IFTYPE_AP) {
 			sta_id = mvmvif->bcast_sta.sta_id;
-		else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
-			 is_multicast_ether_addr(hdr->addr1)) {
+			queue = iwl_mvm_get_ctrl_vif_queue(mvm, &info,
+							   hdr->frame_control);
+		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
+			   is_multicast_ether_addr(hdr->addr1)) {
 			u8 ap_sta_id = ACCESS_ONCE(mvmvif->ap_sta_id);
 
 			if (ap_sta_id != IWL_MVM_STATION_COUNT)
@@ -534,7 +550,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		}
 	}
 
-	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, info.hw_queue);
+	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, queue);
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, &info, hdrlen, NULL, sta_id);
 	if (!dev_cmd)
@@ -545,7 +561,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdrlen);
 
-	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, info.hw_queue)) {
+	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, queue)) {
 		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 		return -1;
 	}

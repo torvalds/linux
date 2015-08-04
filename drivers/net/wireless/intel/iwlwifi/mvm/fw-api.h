@@ -97,6 +97,8 @@ enum {
  *	Each MGMT queue is mapped to a single STA
  *	MGMT frames are frames that return true on ieee80211_is_mgmt()
  * @IWL_MVM_DQA_MAX_MGMT_QUEUE: last TXQ in pool for MGMT frames
+ * @IWL_MVM_DQA_AP_PROBE_RESP_QUEUE: a queue reserved for P2P GO/SoftAP probe
+ *	responses
  * @IWL_MVM_DQA_MIN_DATA_QUEUE: first TXQ in pool for DATA frames.
  *	DATA frames are intended for !ieee80211_is_mgmt() frames, but if
  *	the MGMT TXQ pool is exhausted, mgmt frames can be sent on DATA queues
@@ -109,6 +111,7 @@ enum iwl_mvm_dqa_txq {
 	IWL_MVM_DQA_BSS_CLIENT_QUEUE = 4,
 	IWL_MVM_DQA_MIN_MGMT_QUEUE = 5,
 	IWL_MVM_DQA_MAX_MGMT_QUEUE = 8,
+	IWL_MVM_DQA_AP_PROBE_RESP_QUEUE = 9,
 	IWL_MVM_DQA_MIN_DATA_QUEUE = 10,
 	IWL_MVM_DQA_MAX_DATA_QUEUE = 31,
 };

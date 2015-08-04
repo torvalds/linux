@@ -1000,6 +1000,29 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		struct iwl_trans_txq_scd_cfg cfg = {
+			.fifo = IWL_MVM_TX_FIFO_VO,
+			.sta_id = mvmvif->bcast_sta.sta_id,
+			.tid = IWL_MAX_TID_COUNT,
+			.aggregate = false,
+			.frame_limit = IWL_FRAME_LIMIT,
+		};
+		unsigned int wdg_timeout =
+			iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+		int queue;
+
+		if ((vif->type == NL80211_IFTYPE_AP) &&
+		    (mvmvif->bcast_sta.tfd_queue_msk &
+		     BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE)))
+			queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+		else if (WARN(1, "Missed required TXQ for adding bcast STA\n"))
+			return -EINVAL;
+
+		iwl_mvm_enable_txq(mvm, queue, vif->hw_queue[0], 0, &cfg,
+				   wdg_timeout);
+	}
+
 	if (vif->type == NL80211_IFTYPE_ADHOC)
 		baddr = vif->bss_conf.bssid;
 
@@ -1028,19 +1051,24 @@ int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	u32 qmask;
+	u32 qmask = 0;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	qmask = iwl_mvm_mac_get_queues_mask(vif);
+	if (!iwl_mvm_is_dqa_supported(mvm))
+		qmask = iwl_mvm_mac_get_queues_mask(vif);
 
-	/*
-	 * The firmware defines the TFD queue mask to only be relevant
-	 * for *unicast* queues, so the multicast (CAB) queue shouldn't
-	 * be included.
-	 */
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP) {
+		/*
+		 * The firmware defines the TFD queue mask to only be relevant
+		 * for *unicast* queues, so the multicast (CAB) queue shouldn't
+		 * be included.
+		 */
 		qmask &= ~BIT(vif->cab_queue);
+
+		if (iwl_mvm_is_dqa_supported(mvm))
+			qmask |= BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE);
+	}
 
 	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta, qmask,
 					ieee80211_vif_type_p2p(vif));
