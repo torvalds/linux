@@ -82,10 +82,8 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU lockdep checking is enabled.\n");
 	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_RUNNABLE))
 		pr_info("\tRCU torture testing starts during boot.\n");
-	if (IS_ENABLED(CONFIG_RCU_CPU_STALL_INFO))
-		pr_info("\tAdditional per-CPU info printed with stalls.\n");
-	if (NUM_RCU_LVL_4 != 0)
-		pr_info("\tFour-level hierarchy is enabled.\n");
+	if (RCU_NUM_LVLS >= 4)
+		pr_info("\tFour(or more)-level hierarchy is enabled.\n");
 	if (RCU_FANOUT_LEAF != 16)
 		pr_info("\tBuild-time adjustment of leaf fanout to %d.\n",
 			RCU_FANOUT_LEAF);
@@ -418,8 +416,6 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
 		rcu_print_detail_task_stall_rnp(rnp);
 }
 
-#ifdef CONFIG_RCU_CPU_STALL_INFO
-
 static void rcu_print_task_stall_begin(struct rcu_node *rnp)
 {
 	pr_err("\tTasks blocked on level-%d rcu_node (CPUs %d-%d):",
@@ -430,18 +426,6 @@ static void rcu_print_task_stall_end(void)
 {
 	pr_cont("\n");
 }
-
-#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
-
-static void rcu_print_task_stall_begin(struct rcu_node *rnp)
-{
-}
-
-static void rcu_print_task_stall_end(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 /*
  * Scan the current list of tasks blocked within RCU read-side critical
@@ -552,8 +536,6 @@ void synchronize_rcu(void)
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
 static DECLARE_WAIT_QUEUE_HEAD(sync_rcu_preempt_exp_wq);
-static unsigned long sync_rcu_preempt_exp_count;
-static DEFINE_MUTEX(sync_rcu_preempt_exp_mutex);
 
 /*
  * Return non-zero if there are any tasks in RCU read-side critical
@@ -573,7 +555,7 @@ static int rcu_preempted_readers_exp(struct rcu_node *rnp)
  * for the current expedited grace period.  Works only for preemptible
  * RCU -- other RCU implementation use other means.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
 {
@@ -589,7 +571,7 @@ static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
  * recursively up the tree.  (Calm down, calm down, we do the recursion
  * iteratively!)
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake)
@@ -628,7 +610,7 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
  * set the ->expmask bits on the leaf rcu_node structures to tell phase 2
  * that work is needed here.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static void
 sync_rcu_preempt_exp_init1(struct rcu_state *rsp, struct rcu_node *rnp)
@@ -671,7 +653,7 @@ sync_rcu_preempt_exp_init1(struct rcu_state *rsp, struct rcu_node *rnp)
  * invoke rcu_report_exp_rnp() to clear out the upper-level ->expmask bits,
  * enabling rcu_read_unlock_special() to do the bit-clearing.
  *
- * Caller must hold sync_rcu_preempt_exp_mutex.
+ * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
 static void
 sync_rcu_preempt_exp_init2(struct rcu_state *rsp, struct rcu_node *rnp)
@@ -719,51 +701,17 @@ sync_rcu_preempt_exp_init2(struct rcu_state *rsp, struct rcu_node *rnp)
 void synchronize_rcu_expedited(void)
 {
 	struct rcu_node *rnp;
+	struct rcu_node *rnp_unlock;
 	struct rcu_state *rsp = rcu_state_p;
-	unsigned long snap;
-	int trycount = 0;
+	unsigned long s;
 
-	smp_mb(); /* Caller's modifications seen first by other CPUs. */
-	snap = READ_ONCE(sync_rcu_preempt_exp_count) + 1;
-	smp_mb(); /* Above access cannot bleed into critical section. */
+	s = rcu_exp_gp_seq_snap(rsp);
 
-	/*
-	 * Block CPU-hotplug operations.  This means that any CPU-hotplug
-	 * operation that finds an rcu_node structure with tasks in the
-	 * process of being boosted will know that all tasks blocking
-	 * this expedited grace period will already be in the process of
-	 * being boosted.  This simplifies the process of moving tasks
-	 * from leaf to root rcu_node structures.
-	 */
-	if (!try_get_online_cpus()) {
-		/* CPU-hotplug operation in flight, fall back to normal GP. */
-		wait_rcu_gp(call_rcu);
-		return;
-	}
+	rnp_unlock = exp_funnel_lock(rsp, s);
+	if (rnp_unlock == NULL)
+		return;  /* Someone else did our work for us. */
 
-	/*
-	 * Acquire lock, falling back to synchronize_rcu() if too many
-	 * lock-acquisition failures.  Of course, if someone does the
-	 * expedited grace period for us, just leave.
-	 */
-	while (!mutex_trylock(&sync_rcu_preempt_exp_mutex)) {
-		if (ULONG_CMP_LT(snap,
-		    READ_ONCE(sync_rcu_preempt_exp_count))) {
-			put_online_cpus();
-			goto mb_ret; /* Others did our work for us. */
-		}
-		if (trycount++ < 10) {
-			udelay(trycount * num_online_cpus());
-		} else {
-			put_online_cpus();
-			wait_rcu_gp(call_rcu);
-			return;
-		}
-	}
-	if (ULONG_CMP_LT(snap, READ_ONCE(sync_rcu_preempt_exp_count))) {
-		put_online_cpus();
-		goto unlock_mb_ret; /* Others did our work for us. */
-	}
+	rcu_exp_gp_seq_start(rsp);
 
 	/* force all RCU readers onto ->blkd_tasks lists. */
 	synchronize_sched_expedited();
@@ -779,20 +727,14 @@ void synchronize_rcu_expedited(void)
 	rcu_for_each_leaf_node(rsp, rnp)
 		sync_rcu_preempt_exp_init2(rsp, rnp);
 
-	put_online_cpus();
-
 	/* Wait for snapshotted ->blkd_tasks lists to drain. */
 	rnp = rcu_get_root(rsp);
 	wait_event(sync_rcu_preempt_exp_wq,
 		   sync_rcu_preempt_exp_done(rnp));
 
 	/* Clean up and exit. */
-	smp_mb(); /* ensure expedited GP seen before counter increment. */
-	WRITE_ONCE(sync_rcu_preempt_exp_count, sync_rcu_preempt_exp_count + 1);
-unlock_mb_ret:
-	mutex_unlock(&sync_rcu_preempt_exp_mutex);
-mb_ret:
-	smp_mb(); /* ensure subsequent action seen after grace period. */
+	rcu_exp_gp_seq_end(rsp);
+	mutex_unlock(&rnp_unlock->exp_funnel_mutex);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
@@ -1703,8 +1645,6 @@ early_initcall(rcu_register_oom_notifier);
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
-#ifdef CONFIG_RCU_CPU_STALL_INFO
-
 #ifdef CONFIG_RCU_FAST_NO_HZ
 
 static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
@@ -1792,33 +1732,6 @@ static void increment_cpu_stall_ticks(void)
 	for_each_rcu_flavor(rsp)
 		raw_cpu_inc(rsp->rda->ticks_this_gp);
 }
-
-#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
-
-static void print_cpu_stall_info_begin(void)
-{
-	pr_cont(" {");
-}
-
-static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
-{
-	pr_cont(" %d", cpu);
-}
-
-static void print_cpu_stall_info_end(void)
-{
-	pr_cont("} ");
-}
-
-static void zero_cpu_stall_ticks(struct rcu_data *rdp)
-{
-}
-
-static void increment_cpu_stall_ticks(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 #ifdef CONFIG_RCU_NOCB_CPU
 
