@@ -539,6 +539,7 @@ static struct batadv_hardif_neigh_node *
 batadv_hardif_neigh_create(struct batadv_hard_iface *hard_iface,
 			   const u8 *neigh_addr)
 {
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batadv_hardif_neigh_node *hardif_neigh = NULL;
 
 	spin_lock_bh(&hard_iface->neigh_list_lock);
@@ -563,6 +564,9 @@ batadv_hardif_neigh_create(struct batadv_hard_iface *hard_iface,
 	hardif_neigh->last_seen = jiffies;
 
 	atomic_set(&hardif_neigh->refcount, 1);
+
+	if (bat_priv->bat_algo_ops->bat_hardif_neigh_init)
+		bat_priv->bat_algo_ops->bat_hardif_neigh_init(hardif_neigh);
 
 	hlist_add_head(&hardif_neigh->list, &hard_iface->neigh_list);
 
