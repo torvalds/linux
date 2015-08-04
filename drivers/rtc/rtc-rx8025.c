@@ -263,7 +263,7 @@ static int rx8025_init_client(struct i2c_client *client)
 		need_clear = 1;
 
 	if (need_clear) {
-		ctrl2 = ctrl[0];
+		ctrl2 = ctrl[1];
 		ctrl2 &= ~(RX8025_BIT_CTRL2_PON | RX8025_BIT_CTRL2_VDET |
 			   RX8025_BIT_CTRL2_CTFG | RX8025_BIT_CTRL2_WAFG |
 			   RX8025_BIT_CTRL2_DAFG);
