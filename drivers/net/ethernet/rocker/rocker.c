@@ -5008,6 +5008,7 @@ err_untagged_vlan:
 	rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE,
 			   ROCKER_OP_FLAG_REMOVE);
 err_port_ig_tbl:
+	rocker->ports[port_number] = NULL;
 	unregister_netdev(dev);
 err_register_netdev:
 	free_netdev(dev);
