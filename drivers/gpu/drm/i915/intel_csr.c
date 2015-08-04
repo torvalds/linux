@@ -183,11 +183,19 @@ static const struct stepping_info skl_stepping_info[] = {
 		{'G', '0'}, {'H', '0'}, {'I', '0'}
 };
 
+static struct stepping_info bxt_stepping_info[] = {
+	{'A', '0'}, {'A', '1'}, {'A', '2'},
+	{'B', '0'}, {'B', '1'}, {'B', '2'}
+};
+
 static char intel_get_stepping(struct drm_device *dev)
 {
 	if (IS_SKYLAKE(dev) && (dev->pdev->revision <
 			ARRAY_SIZE(skl_stepping_info)))
 		return skl_stepping_info[dev->pdev->revision].stepping;
+	else if (IS_BROXTON(dev) && (dev->pdev->revision <
+				ARRAY_SIZE(bxt_stepping_info)))
+		return bxt_stepping_info[dev->pdev->revision].stepping;
 	else
 		return -ENODATA;
 }
@@ -197,6 +205,9 @@ static char intel_get_substepping(struct drm_device *dev)
 	if (IS_SKYLAKE(dev) && (dev->pdev->revision <
 			ARRAY_SIZE(skl_stepping_info)))
 		return skl_stepping_info[dev->pdev->revision].substepping;
+	else if (IS_BROXTON(dev) && (dev->pdev->revision <
+			ARRAY_SIZE(bxt_stepping_info)))
+		return bxt_stepping_info[dev->pdev->revision].substepping;
 	else
 		return -ENODATA;
 }
