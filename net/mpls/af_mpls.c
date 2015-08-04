@@ -411,6 +411,9 @@ static struct net_device *find_outdev(struct net *net,
 		dev = dev_get_by_index(net, cfg->rc_ifindex);
 	}
 
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
 	return dev;
 }
 
