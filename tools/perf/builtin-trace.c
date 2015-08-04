@@ -1312,6 +1312,7 @@ struct trace {
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			force;
+	bool			vfs_getname;
 	int			trace_pgfaults;
 };
 
@@ -2188,19 +2189,20 @@ static int trace__record(struct trace *trace, int argc, const char **argv)
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 
-static void perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
+static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
 	if (evsel == NULL)
-		return;
+		return false;
 
 	if (perf_evsel__field(evsel, "pathname") == NULL) {
 		perf_evsel__delete(evsel);
-		return;
+		return false;
 	}
 
 	evsel->handler = trace__vfs_getname;
 	perf_evlist__add(evlist, evsel);
+	return true;
 }
 
 static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
@@ -2330,7 +2332,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_error_raw_syscalls;
 
 	if (trace->trace_syscalls)
-		perf_evlist__add_vfs_getname(evlist);
+		trace->vfs_getname = perf_evlist__add_vfs_getname(evlist);
 
 	if ((trace->trace_pgfaults & TRACE_PFMAJ) &&
 	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MAJ)) {
