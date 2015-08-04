@@ -25,32 +25,11 @@
  */
 #define TOPA_PMI_MARGIN 512
 
-/*
- * Table of Physical Addresses bits
- */
-enum topa_sz {
-	TOPA_4K	= 0,
-	TOPA_8K,
-	TOPA_16K,
-	TOPA_32K,
-	TOPA_64K,
-	TOPA_128K,
-	TOPA_256K,
-	TOPA_512K,
-	TOPA_1MB,
-	TOPA_2MB,
-	TOPA_4MB,
-	TOPA_8MB,
-	TOPA_16MB,
-	TOPA_32MB,
-	TOPA_64MB,
-	TOPA_128MB,
-	TOPA_SZ_END,
-};
+#define TOPA_SHIFT 12
 
-static inline unsigned int sizes(enum topa_sz tsz)
+static inline unsigned int sizes(unsigned int tsz)
 {
-	return 1 << (tsz + 12);
+	return 1 << (tsz + TOPA_SHIFT);
 };
 
 struct topa_entry {
@@ -66,8 +45,8 @@ struct topa_entry {
 	u64	rsvd4	: 16;
 };
 
-#define TOPA_SHIFT 12
-#define PT_CPUID_LEAVES 2
+#define PT_CPUID_LEAVES		2
+#define PT_CPUID_REGS_NUM	4 /* number of regsters (eax, ebx, ecx, edx) */
 
 enum pt_capabilities {
 	PT_CAP_max_subleaf = 0,
@@ -85,7 +64,7 @@ enum pt_capabilities {
 
 struct pt_pmu {
 	struct pmu		pmu;
-	u32			caps[4 * PT_CPUID_LEAVES];
+	u32			caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 };
 
 /**

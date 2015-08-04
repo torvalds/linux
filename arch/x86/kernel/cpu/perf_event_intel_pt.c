@@ -79,7 +79,7 @@ static struct pt_cap_desc {
 static u32 pt_cap_get(enum pt_capabilities cap)
 {
 	struct pt_cap_desc *cd = &pt_caps[cap];
-	u32 c = pt_pmu.caps[cd->leaf * 4 + cd->reg];
+	u32 c = pt_pmu.caps[cd->leaf * PT_CPUID_REGS_NUM + cd->reg];
 	unsigned int shift = __ffs(cd->mask);
 
 	return (c & cd->mask) >> shift;
@@ -145,10 +145,10 @@ static int __init pt_pmu_hw_init(void)
 
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
-			    &pt_pmu.caps[CR_EAX + i*4],
-			    &pt_pmu.caps[CR_EBX + i*4],
-			    &pt_pmu.caps[CR_ECX + i*4],
-			    &pt_pmu.caps[CR_EDX + i*4]);
+			    &pt_pmu.caps[CR_EAX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CR_EBX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CR_ECX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CR_EDX + i*PT_CPUID_REGS_NUM]);
 	}
 
 	ret = -ENOMEM;
