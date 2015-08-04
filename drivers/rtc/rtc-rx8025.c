@@ -547,7 +547,6 @@ static int rx8025_probe(struct i2c_client *client,
 		}
 	}
 
-	rx8025->rtc->irq_freq = 1;
 	rx8025->rtc->max_user_freq = 1;
 
 	err = rx8025_sysfs_register(&client->dev);
