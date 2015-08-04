@@ -528,6 +528,8 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 	batadv_purge_outstanding_packets(bat_priv, hard_iface);
 	dev_put(hard_iface->soft_iface);
 
+	netdev_upper_dev_unlink(hard_iface->net_dev, hard_iface->soft_iface);
+
 	/* nobody uses this interface anymore */
 	if (!bat_priv->num_ifaces) {
 		batadv_gw_check_client_stop(bat_priv);
@@ -536,7 +538,6 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 			batadv_softif_destroy_sysfs(hard_iface->soft_iface);
 	}
 
-	netdev_upper_dev_unlink(hard_iface->net_dev, hard_iface->soft_iface);
 	hard_iface->soft_iface = NULL;
 	batadv_hardif_free_ref(hard_iface);
 
