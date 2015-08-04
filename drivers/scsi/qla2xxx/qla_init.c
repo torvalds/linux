@@ -1282,6 +1282,9 @@ qla25xx_manipulate_risc_semaphore(scsi_qla_host_t *vha)
 	    vha->hw->pdev->subsystem_device != 0x0240)
 		return;
 
+	WRT_REG_DWORD(&vha->hw->iobase->isp24.hccr, HCCRX_SET_RISC_PAUSE);
+	udelay(100);
+
 attempt:
 	timeout_msec = TIMEOUT_SEMAPHORE;
 	n = timeout_msec / delta_msec;
