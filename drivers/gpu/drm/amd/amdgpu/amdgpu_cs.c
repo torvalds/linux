@@ -186,11 +186,10 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	}
 	bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
 	if (bo_list && !bo_list->has_userptr) {
-		p->bo_list = kzalloc(sizeof(struct amdgpu_bo_list), GFP_KERNEL);
+		p->bo_list = amdgpu_bo_list_clone(bo_list);
+		amdgpu_bo_list_put(bo_list);
 		if (!p->bo_list)
 			return -ENOMEM;
-		amdgpu_bo_list_copy(p->adev, p->bo_list, bo_list);
-		amdgpu_bo_list_put(bo_list);
 	} else if (bo_list && bo_list->has_userptr)
 		p->bo_list = bo_list;
 	else
