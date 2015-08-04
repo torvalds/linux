@@ -51,6 +51,7 @@ config ARCH_EMEV2
 
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
+	select PM_GENERIC_DOMAINS if PM
 	select SYS_SUPPORTS_SH_MTU2
 
 config ARCH_R8A73A4
