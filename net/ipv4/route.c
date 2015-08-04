@@ -2022,6 +2022,8 @@ add:
 	}
 
 	rt_set_nexthop(rth, fl4->daddr, res, fnhe, fi, type, 0);
+	if (lwtunnel_output_redirect(rth->rt_lwtstate))
+		rth->dst.output = lwtunnel_output;
 
 	return rth;
 }
