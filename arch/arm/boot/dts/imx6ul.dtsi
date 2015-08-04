@@ -630,6 +630,11 @@
 				status = "disabled";
 			};
 
+			mmdc: mmdc@021b0000 {
+				compatible = "fsl,imx6ul-mmdc", "fsl,imx6q-mmdc";
+				reg = <0x021b0000 0x4000>;
+			};
+
 			qspi: qspi@021e0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
