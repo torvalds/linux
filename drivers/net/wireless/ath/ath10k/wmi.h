@@ -6008,6 +6008,12 @@ struct wmi_tdls_peer_capab_arg {
 	u32 pref_offchan_bw;
 };
 
+enum wmi_txbf_conf {
+	WMI_TXBF_CONF_UNSUPPORTED,
+	WMI_TXBF_CONF_BEFORE_ASSOC,
+	WMI_TXBF_CONF_AFTER_ASSOC,
+};
+
 struct ath10k;
 struct ath10k_vif;
 struct ath10k_fw_stats_pdev;

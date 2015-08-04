@@ -49,6 +49,7 @@ struct wmi_ops {
 			    struct wmi_roam_ev_arg *arg);
 	int (*pull_wow_event)(struct ath10k *ar, struct sk_buff *skb,
 			      struct wmi_wow_ev_arg *arg);
+	enum wmi_txbf_conf (*get_txbf_conf_scheme)(struct ath10k *ar);
 
 	struct sk_buff *(*gen_pdev_suspend)(struct ath10k *ar, u32 suspend_opt);
 	struct sk_buff *(*gen_pdev_resume)(struct ath10k *ar);
@@ -317,6 +318,15 @@ ath10k_wmi_pull_wow_event(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_wow_event(ar, skb, arg);
+}
+
+static inline enum wmi_txbf_conf
+ath10k_wmi_get_txbf_conf_scheme(struct ath10k *ar)
+{
+	if (!ar->wmi.ops->get_txbf_conf_scheme)
+		return WMI_TXBF_CONF_UNSUPPORTED;
+
+	return ar->wmi.ops->get_txbf_conf_scheme(ar);
 }
 
 static inline int

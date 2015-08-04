@@ -2495,6 +2495,9 @@ static int ath10k_mac_vif_recalc_txbf(struct ath10k *ar,
 	u32 param;
 	u32 value;
 
+	if (ath10k_wmi_get_txbf_conf_scheme(ar) != WMI_TXBF_CONF_AFTER_ASSOC)
+		return 0;
+
 	if (!(ar->vht_cap_info &
 	      (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
 	       IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE |
