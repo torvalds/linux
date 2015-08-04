@@ -112,7 +112,7 @@ u8 u8P2P_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 u8 u8P2Plocalrandom = 0x01;
 u8 u8P2Precvrandom = 0x00;
 u8 u8P2P_vendorspec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
-bool bWilc_ie = false;
+bool bWilc_ie;
 #endif
 
 static struct ieee80211_supported_band WILC_WFI_band_2ghz = {
@@ -135,9 +135,9 @@ struct add_key_params g_add_ptk_key_params;
 struct wilc_wfi_key g_key_ptk_params;
 struct wilc_wfi_wep_key g_key_wep_params;
 u8 g_flushing_in_progress;
-bool g_ptk_keys_saved = false;
-bool g_gtk_keys_saved = false;
-bool g_wep_keys_saved = false;
+bool g_ptk_keys_saved;
+bool g_gtk_keys_saved;
+bool g_wep_keys_saved;
 
 #define AGING_TIME	(9 * 1000)
 #define duringIP_TIME 15000
