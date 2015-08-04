@@ -104,6 +104,19 @@ static s32 rx8025_write_regs(const struct i2c_client *client,
 					      length, values);
 }
 
+static int rx8025_reset_validity(struct i2c_client *client)
+{
+	int ctrl2 = rx8025_read_reg(client, RX8025_REG_CTRL2);
+
+	if (ctrl2 < 0)
+		return ctrl2;
+
+	ctrl2 &= ~(RX8025_BIT_CTRL2_PON | RX8025_BIT_CTRL2_VDET);
+
+	return rx8025_write_reg(client, RX8025_REG_CTRL2,
+				ctrl2 | RX8025_BIT_CTRL2_XST);
+}
+
 static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
@@ -132,10 +145,6 @@ static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 			goto out;
 		rtc_update_irq(rx8025->rtc, 1, RTC_AF | RTC_IRQF);
 	}
-
-	/* acknowledge IRQ */
-	rx8025_write_reg(client, RX8025_REG_CTRL2,
-			 status | RX8025_BIT_CTRL2_XST);
 
 out:
 	return IRQ_HANDLED;
@@ -193,6 +202,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 {
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 date[7];
+	int ret;
 
 	if ((dt->tm_year < 100) || (dt->tm_year > 199))
 		return -EINVAL;
@@ -219,7 +229,11 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 		__func__,
 		date[0], date[1], date[2], date[3], date[4], date[5], date[6]);
 
-	return rx8025_write_regs(rx8025->client, RX8025_REG_SEC, 7, date);
+	ret = rx8025_write_regs(rx8025->client, RX8025_REG_SEC, 7, date);
+	if (ret < 0)
+		return ret;
+
+	return rx8025_reset_validity(rx8025->client);
 }
 
 static int rx8025_init_client(struct i2c_client *client)
@@ -239,19 +253,16 @@ static int rx8025_init_client(struct i2c_client *client)
 	if (ctrl[1] & RX8025_BIT_CTRL2_PON) {
 		dev_warn(&client->dev, "power-on reset was detected, "
 			 "you may have to readjust the clock\n");
-		need_clear = 1;
 	}
 
 	if (ctrl[1] & RX8025_BIT_CTRL2_VDET) {
 		dev_warn(&client->dev, "a power voltage drop was detected, "
 			 "you may have to readjust the clock\n");
-		need_clear = 1;
 	}
 
 	if (!(ctrl[1] & RX8025_BIT_CTRL2_XST)) {
 		dev_warn(&client->dev, "Oscillation stop was detected,"
 			 "you may have to readjust the clock\n");
-		need_clear = 1;
 	}
 
 	if (ctrl[1] & (RX8025_BIT_CTRL2_DAFG | RX8025_BIT_CTRL2_WAFG)) {
@@ -264,10 +275,8 @@ static int rx8025_init_client(struct i2c_client *client)
 
 	if (need_clear) {
 		ctrl2 = ctrl[1];
-		ctrl2 &= ~(RX8025_BIT_CTRL2_PON | RX8025_BIT_CTRL2_VDET |
-			   RX8025_BIT_CTRL2_CTFG | RX8025_BIT_CTRL2_WAFG |
+		ctrl2 &= ~(RX8025_BIT_CTRL2_CTFG | RX8025_BIT_CTRL2_WAFG |
 			   RX8025_BIT_CTRL2_DAFG);
-		ctrl2 |= RX8025_BIT_CTRL2_XST;
 
 		err = rx8025_write_reg(client, RX8025_REG_CTRL2, ctrl2);
 	}
