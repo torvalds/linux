@@ -835,6 +835,26 @@ static struct irq_chip lguest_irq_controller = {
 	.irq_unmask	= enable_lguest_irq,
 };
 
+/*
+ * Interrupt descriptors are allocated as-needed, but low-numbered ones are
+ * reserved by the generic x86 code.  So we ignore irq_alloc_desc_at if it
+ * tells us the irq is already used: other errors (ie. ENOMEM) we take
+ * seriously.
+ */
+static int lguest_setup_irq(unsigned int irq)
+{
+	int err;
+
+	/* Returns -ve error or vector number. */
+	err = irq_alloc_desc_at(irq, 0);
+	if (err < 0 && err != -EEXIST)
+		return err;
+
+	irq_set_chip_and_handler_name(irq, &lguest_irq_controller,
+				      handle_level_irq, "level");
+	return 0;
+}
+
 static int lguest_enable_irq(struct pci_dev *dev)
 {
 	u8 line = 0;
@@ -876,26 +896,6 @@ static void __init lguest_init_IRQ(void)
 	 * separate stacks for hard and soft interrupts.
 	 */
 	irq_ctx_init(smp_processor_id());
-}
-
-/*
- * Interrupt descriptors are allocated as-needed, but low-numbered ones are
- * reserved by the generic x86 code.  So we ignore irq_alloc_desc_at if it
- * tells us the irq is already used: other errors (ie. ENOMEM) we take
- * seriously.
- */
-int lguest_setup_irq(unsigned int irq)
-{
-	int err;
-
-	/* Returns -ve error or vector number. */
-	err = irq_alloc_desc_at(irq, 0);
-	if (err < 0 && err != -EEXIST)
-		return err;
-
-	irq_set_chip_and_handler_name(irq, &lguest_irq_controller,
-				      handle_level_irq, "level");
-	return 0;
 }
 
 /*
@@ -1040,7 +1040,8 @@ static void lguest_time_irq(unsigned int irq, struct irq_desc *desc)
 static void lguest_time_init(void)
 {
 	/* Set up the timer interrupt (0) to go to our simple timer routine */
-	lguest_setup_irq(0);
+	if (lguest_setup_irq(0) != 0)
+		panic("Could not set up timer irq");
 	irq_set_handler(0, lguest_time_irq);
 
 	clocksource_register_hz(&lguest_clock, NSEC_PER_SEC);
