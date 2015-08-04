@@ -358,6 +358,7 @@ static unsigned long pll_clk_recalc_rate(struct clk_hw *hw,
 	if (regctrl0 & SIRFSOC_ABPLL_CTRL0_SSEN) {
 		rate = fin;
 		rate *= 1 << 24;
+		do_div(rate, nr);
 		do_div(rate, (256 * ((ssdiv >> ssdepth) << ssdepth)
 			+ (ssmod << ssdepth)));
 	} else {
