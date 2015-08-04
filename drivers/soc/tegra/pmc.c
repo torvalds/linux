@@ -459,7 +459,6 @@ static int tegra_io_rail_prepare(int id, unsigned long *request,
 				 unsigned long *status, unsigned int *bit)
 {
 	unsigned long rate, value;
-	struct clk *clk;
 
 	*bit = id % 32;
 
@@ -478,12 +477,7 @@ static int tegra_io_rail_prepare(int id, unsigned long *request,
 		*request = IO_DPD2_REQ;
 	}
 
-	clk = clk_get_sys(NULL, "pclk");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	rate = clk_get_rate(clk);
-	clk_put(clk);
+	rate = clk_get_rate(pmc->clk);
 
 	tegra_pmc_writel(DPD_SAMPLE_ENABLE, DPD_SAMPLE);
 
@@ -537,8 +531,10 @@ int tegra_io_rail_power_on(int id)
 	tegra_pmc_writel(value, request);
 
 	err = tegra_io_rail_poll(status, mask, 0, 250);
-	if (err < 0)
+	if (err < 0) {
+		pr_info("tegra_io_rail_poll() failed: %d\n", err);
 		return err;
+	}
 
 	tegra_io_rail_unprepare();
 
@@ -553,8 +549,10 @@ int tegra_io_rail_power_off(int id)
 	int err;
 
 	err = tegra_io_rail_prepare(id, &request, &status, &bit);
-	if (err < 0)
+	if (err < 0) {
+		pr_info("tegra_io_rail_prepare() failed: %d\n", err);
 		return err;
+	}
 
 	mask = 1 << bit;
 
