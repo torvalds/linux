@@ -534,7 +534,7 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 			k->put = bops[i].put;
 		if (k->get == NULL && bops[i].id == hdr->ops.get)
 			k->get = bops[i].get;
-		if (k->info == NULL && ops[i].id == hdr->ops.info)
+		if (k->info == NULL && bops[i].id == hdr->ops.info)
 			k->info = bops[i].info;
 	}
 
