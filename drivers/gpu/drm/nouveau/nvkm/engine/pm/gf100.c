@@ -62,10 +62,6 @@ gf100_tex_sources[] = {
 			{ 0x7, 8, "sel1", true },
 			{}
 		}, "pgraph_gpc0_tpc0_tex_pm_mux_c_d" },
-	{ 0x5042c8, (const struct nvkm_specmux[]) {
-			{ 0x1f, 0, "sel", true },
-			{}
-		}, "pgraph_gpc0_tpc0_tex_pm_unkc8" },
 	{}
 };
 
