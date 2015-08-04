@@ -197,4 +197,4 @@ int vnt_beacon_make(struct vnt_private *, struct ieee80211_vif *);
 int vnt_beacon_enable(struct vnt_private *, struct ieee80211_vif *,
 		      struct ieee80211_bss_conf *);
 
-#endif // __RXTX_H__
+#endif /* __RXTX_H__ */
