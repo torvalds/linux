@@ -67,6 +67,7 @@ static int __color_vsnprintf(char *bf, size_t size, const char *color,
 	return r;
 }
 
+/* Colors are not included in return value */
 static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 		va_list args)
 {
@@ -83,10 +84,10 @@ static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 	}
 
 	if (perf_use_color_default && *color)
-		r += fprintf(fp, "%s", color);
+		fprintf(fp, "%s", color);
 	r += vfprintf(fp, fmt, args);
 	if (perf_use_color_default && *color)
-		r += fprintf(fp, "%s", PERF_COLOR_RESET);
+		fprintf(fp, "%s", PERF_COLOR_RESET);
 	return r;
 }
 
