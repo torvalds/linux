@@ -171,7 +171,7 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return NUM_VPORT_COUNTERS +
+		return NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS +
 		       priv->params.num_channels * NUM_RQ_STATS +
 		       priv->params.num_channels * priv->params.num_tc *
 						   NUM_SQ_STATS;
@@ -199,6 +199,11 @@ static void mlx5e_get_strings(struct net_device *dev,
 		for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 			strcpy(data + (idx++) * ETH_GSTRING_LEN,
 			       vport_strings[i]);
+
+		/* PPORT counters */
+		for (i = 0; i < NUM_PPORT_COUNTERS; i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       pport_strings[i]);
 
 		/* per channel counters */
 		for (i = 0; i < priv->params.num_channels; i++)
@@ -233,6 +238,9 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 
 	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 		data[idx++] = ((u64 *)&priv->stats.vport)[i];
+
+	for (i = 0; i < NUM_PPORT_COUNTERS; i++)
+		data[idx++] = be64_to_cpu(((__be64 *)&priv->stats.pport)[i]);
 
 	/* per channel counters */
 	for (i = 0; i < priv->params.num_channels; i++)

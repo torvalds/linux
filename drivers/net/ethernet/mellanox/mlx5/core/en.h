@@ -138,6 +138,80 @@ struct mlx5e_vport_stats {
 #define NUM_VPORT_COUNTERS     31
 };
 
+static const char pport_strings[][ETH_GSTRING_LEN] = {
+	/* IEEE802.3 counters */
+	"frames_tx",
+	"frames_rx",
+	"check_seq_err",
+	"alignment_err",
+	"octets_tx",
+	"octets_received",
+	"multicast_xmitted",
+	"broadcast_xmitted",
+	"multicast_rx",
+	"broadcast_rx",
+	"in_range_len_errors",
+	"out_of_range_len",
+	"too_long_errors",
+	"symbol_err",
+	"mac_control_tx",
+	"mac_control_rx",
+	"unsupported_op_rx",
+	"pause_ctrl_rx",
+	"pause_ctrl_tx",
+
+	/* RFC2863 counters */
+	"in_octets",
+	"in_ucast_pkts",
+	"in_discards",
+	"in_errors",
+	"in_unknown_protos",
+	"out_octets",
+	"out_ucast_pkts",
+	"out_discards",
+	"out_errors",
+	"in_multicast_pkts",
+	"in_broadcast_pkts",
+	"out_multicast_pkts",
+	"out_broadcast_pkts",
+
+	/* RFC2819 counters */
+	"drop_events",
+	"octets",
+	"pkts",
+	"broadcast_pkts",
+	"multicast_pkts",
+	"crc_align_errors",
+	"undersize_pkts",
+	"oversize_pkts",
+	"fragments",
+	"jabbers",
+	"collisions",
+	"p64octets",
+	"p65to127octets",
+	"p128to255octets",
+	"p256to511octets",
+	"p512to1023octets",
+	"p1024to1518octets",
+	"p1519to2047octets",
+	"p2048to4095octets",
+	"p4096to8191octets",
+	"p8192to10239octets",
+};
+
+#define NUM_IEEE_802_3_COUNTERS		19
+#define NUM_RFC_2863_COUNTERS		13
+#define NUM_RFC_2819_COUNTERS		21
+#define NUM_PPORT_COUNTERS		(NUM_IEEE_802_3_COUNTERS + \
+					 NUM_RFC_2863_COUNTERS + \
+					 NUM_RFC_2819_COUNTERS)
+
+struct mlx5e_pport_stats {
+	__be64 IEEE_802_3_counters[NUM_IEEE_802_3_COUNTERS];
+	__be64 RFC_2863_counters[NUM_RFC_2863_COUNTERS];
+	__be64 RFC_2819_counters[NUM_RFC_2819_COUNTERS];
+};
+
 static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
 	"csum_none",
@@ -180,6 +254,7 @@ struct mlx5e_sq_stats {
 
 struct mlx5e_stats {
 	struct mlx5e_vport_stats   vport;
+	struct mlx5e_pport_stats   pport;
 };
 
 struct mlx5e_params {
