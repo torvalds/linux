@@ -623,14 +623,20 @@ static int rockchip_configure_from_dt(struct device *dev,
 				      struct rockchip_thermal_data *thermal)
 {
 	u32 shut_temp, tshut_mode, tshut_polarity;
-	u32 rate;
+	u32 rate, cycle;
 
-	if(of_property_read_u32(np, "clock-frequency", &rate)) 
-	{
+	if(of_property_read_u32(np, "clock-frequency", &rate)) {
 		dev_err(dev, "Missing clock-frequency property in the DT.\n");
 		return -EINVAL;
 	}
 	clk_set_rate(thermal->clk, rate);
+	if (thermal->chip->mode == TSHUT_USER_MODE) {
+		cycle = DIV_ROUND_UP(1000000000, rate) / 1000;
+		if (scpi_thermal_set_clk_cycle(cycle)) {
+			dev_err(dev, "scpi_thermal_set_clk_cycle error.\n");
+			return -EINVAL;
+		}
+	}
 
 	if (of_property_read_u32(np, "hw-shut-temp", &shut_temp)) {
 		dev_warn(dev,
@@ -740,23 +746,25 @@ int rockchip_tsadc_get_temp(int chn, int voltage)
 		return temp;
 	}
 
-	if (thermal->chip->mode == TSADC_AUTO_MODE)
-	{
+	if (thermal->chip->mode == TSADC_AUTO_MODE) {
 		thermal->chip->get_temp(chn, thermal->regs, &out_temp);
 		temp = (int)out_temp/1000;
-	}
-	else {
+	} else {
 		tsadc_data = scpi_thermal_get_temperature();
 		code_temp = (tsadc_data * voltage + 500000) / 1000000;
 		temp = rk_tsadcv3_code_to_temp(code_temp) / 1000;
 		temp = temp - thermal->cpu_temp_adjust;
 		thermal->cpu_temp = temp;
 		if(thermal->logout)
-			printk("cpu temp:[%d], voltage: %d\n"
-				, temp, voltage);
+			printk("cpu code temp:[%d, %d], voltage: %d\n"
+				, tsadc_data, temp, voltage);
 
-		if (temp > thermal->hw_shut_temp / 1000)
+		if (temp > thermal->hw_shut_temp / 1000) {
 			thermal->shuttemp_count++;
+			dev_err(&thermal->pdev->dev,
+				"cpu code temp:[%d, %d], voltage: %d\n",
+				 tsadc_data, temp, voltage);
+		}
 		else
 			thermal->shuttemp_count = 0;
 		if (thermal->shuttemp_count >= TSADC_MAX_HW_SHUT_TEMP_COUNT) {
