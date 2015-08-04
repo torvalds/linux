@@ -4931,6 +4931,164 @@ static struct bpf_test tests[] = {
 		},
 		{ {0x40, 0x88ee99ff } },
 	},
+	/*
+	 * verify that the interpreter or JIT correctly sets A and X
+	 * to 0.
+	 */
+	{
+		"ADD default X",
+		.u.insns = {
+			/*
+			 * A = 0x42
+			 * A = A + X
+			 * ret A
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x42),
+			BPF_STMT(BPF_ALU | BPF_ADD | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
+	{
+		"ADD default A",
+		.u.insns = {
+			/*
+			 * A = A + 0x42
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0x42),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
+	{
+		"SUB default X",
+		.u.insns = {
+			/*
+			 * A = 0x66
+			 * A = A - X
+			 * ret A
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x66),
+			BPF_STMT(BPF_ALU | BPF_SUB | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x66 } },
+	},
+	{
+		"SUB default A",
+		.u.insns = {
+			/*
+			 * A = A - -0x66
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_SUB | BPF_K, -0x66),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x66 } },
+	},
+	{
+		"MUL default X",
+		.u.insns = {
+			/*
+			 * A = 0x42
+			 * A = A * X
+			 * ret A
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x42),
+			BPF_STMT(BPF_ALU | BPF_MUL | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"MUL default A",
+		.u.insns = {
+			/*
+			 * A = A * 0x66
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_MUL | BPF_K, 0x66),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"DIV default X",
+		.u.insns = {
+			/*
+			 * A = 0x42
+			 * A = A / X ; this halt the filter execution if X is 0
+			 * ret 0x42
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x42),
+			BPF_STMT(BPF_ALU | BPF_DIV | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_K, 0x42),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"DIV default A",
+		.u.insns = {
+			/*
+			 * A = A / 1
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_DIV | BPF_K, 0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"JMP EQ default A",
+		.u.insns = {
+			/*
+			 * cmp A, 0x0, 0, 1
+			 * ret 0x42
+			 * ret 0x66
+			 */
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0x0, 0, 1),
+			BPF_STMT(BPF_RET | BPF_K, 0x42),
+			BPF_STMT(BPF_RET | BPF_K, 0x66),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
+	{
+		"JMP EQ default X",
+		.u.insns = {
+			/*
+			 * A = 0x0
+			 * cmp A, X, 0, 1
+			 * ret 0x42
+			 * ret 0x66
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x0),
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_X, 0x0, 0, 1),
+			BPF_STMT(BPF_RET | BPF_K, 0x42),
+			BPF_STMT(BPF_RET | BPF_K, 0x66),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
 };
 
 static struct net_device dev;
