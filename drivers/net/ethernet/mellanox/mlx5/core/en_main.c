@@ -307,6 +307,7 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 	rq->netdev  = c->netdev;
 	rq->channel = c;
 	rq->ix      = c->ix;
+	rq->priv    = c->priv;
 
 	return 0;
 
@@ -324,8 +325,7 @@ static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 
 static int mlx5e_enable_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 {
-	struct mlx5e_channel *c = rq->channel;
-	struct mlx5e_priv *priv = c->priv;
+	struct mlx5e_priv *priv = rq->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	void *in;
@@ -392,11 +392,7 @@ static int mlx5e_modify_rq(struct mlx5e_rq *rq, int curr_state, int next_state)
 
 static void mlx5e_disable_rq(struct mlx5e_rq *rq)
 {
-	struct mlx5e_channel *c = rq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_core_dev *mdev = priv->mdev;
-
-	mlx5_core_destroy_rq(mdev, rq->rqn);
+	mlx5_core_destroy_rq(rq->priv->mdev, rq->rqn);
 }
 
 static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq)
@@ -740,6 +736,7 @@ static int mlx5e_create_cq(struct mlx5e_channel *c,
 	}
 
 	cq->channel = c;
+	cq->priv = priv;
 
 	return 0;
 }
@@ -751,8 +748,7 @@ static void mlx5e_destroy_cq(struct mlx5e_cq *cq)
 
 static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 {
-	struct mlx5e_channel *c = cq->channel;
-	struct mlx5e_priv *priv = c->priv;
+	struct mlx5e_priv *priv = cq->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 
@@ -798,8 +794,7 @@ static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 
 static void mlx5e_disable_cq(struct mlx5e_cq *cq)
 {
-	struct mlx5e_channel *c = cq->channel;
-	struct mlx5e_priv *priv = c->priv;
+	struct mlx5e_priv *priv = cq->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	mlx5_core_destroy_cq(mdev, &cq->mcq);
@@ -1117,6 +1112,111 @@ static void mlx5e_close_channels(struct mlx5e_priv *priv)
 
 	kfree(priv->txq_to_sq_map);
 	kfree(priv->channel);
+}
+
+static int mlx5e_create_drop_rq(struct mlx5e_priv *priv,
+				struct mlx5e_rq *rq,
+				struct mlx5e_rq_param *param)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	void *rqc = param->rqc;
+	void *rqc_wq = MLX5_ADDR_OF(rqc, rqc, wq);
+	int err;
+
+	param->wq.db_numa_node = param->wq.buf_numa_node;
+
+	err = mlx5_wq_ll_create(mdev, &param->wq, rqc_wq, &rq->wq,
+				&rq->wq_ctrl);
+	if (err)
+		return err;
+
+	rq->priv = priv;
+
+	return 0;
+}
+
+static int mlx5e_create_drop_cq(struct mlx5e_priv *priv,
+				struct mlx5e_cq *cq,
+				struct mlx5e_cq_param *param)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5_core_cq *mcq = &cq->mcq;
+	int eqn_not_used;
+	int irqn;
+	int err;
+
+	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
+			       &cq->wq_ctrl);
+	if (err)
+		return err;
+
+	mlx5_vector2eqn(mdev, param->eq_ix, &eqn_not_used, &irqn);
+
+	mcq->cqe_sz     = 64;
+	mcq->set_ci_db  = cq->wq_ctrl.db.db;
+	mcq->arm_db     = cq->wq_ctrl.db.db + 1;
+	*mcq->set_ci_db = 0;
+	*mcq->arm_db    = 0;
+	mcq->vector     = param->eq_ix;
+	mcq->comp       = mlx5e_completion_event;
+	mcq->event      = mlx5e_cq_error_event;
+	mcq->irqn       = irqn;
+	mcq->uar        = &priv->cq_uar;
+
+	cq->priv = priv;
+
+	return 0;
+}
+
+static int mlx5e_open_drop_rq(struct mlx5e_priv *priv)
+{
+	struct mlx5e_cq_param cq_param;
+	struct mlx5e_rq_param rq_param;
+	struct mlx5e_rq *rq = &priv->drop_rq;
+	struct mlx5e_cq *cq = &priv->drop_rq.cq;
+	int err;
+
+	memset(&cq_param, 0, sizeof(cq_param));
+	memset(&rq_param, 0, sizeof(rq_param));
+	mlx5e_build_rx_cq_param(priv, &cq_param);
+	mlx5e_build_rq_param(priv, &rq_param);
+
+	err = mlx5e_create_drop_cq(priv, cq, &cq_param);
+	if (err)
+		return err;
+
+	err = mlx5e_enable_cq(cq, &cq_param);
+	if (err)
+		goto err_destroy_cq;
+
+	err = mlx5e_create_drop_rq(priv, rq, &rq_param);
+	if (err)
+		goto err_disable_cq;
+
+	err = mlx5e_enable_rq(rq, &rq_param);
+	if (err)
+		goto err_destroy_rq;
+
+	return 0;
+
+err_destroy_rq:
+	mlx5e_destroy_rq(&priv->drop_rq);
+
+err_disable_cq:
+	mlx5e_disable_cq(&priv->drop_rq.cq);
+
+err_destroy_cq:
+	mlx5e_destroy_cq(&priv->drop_rq.cq);
+
+	return err;
+}
+
+static void mlx5e_close_drop_rq(struct mlx5e_priv *priv)
+{
+	mlx5e_disable_rq(&priv->drop_rq);
+	mlx5e_destroy_rq(&priv->drop_rq);
+	mlx5e_disable_cq(&priv->drop_rq.cq);
+	mlx5e_destroy_cq(&priv->drop_rq.cq);
 }
 
 static int mlx5e_open_tis(struct mlx5e_priv *priv, int tc)

@@ -217,6 +217,7 @@ struct mlx5e_cq {
 	struct napi_struct        *napi;
 	struct mlx5_core_cq        mcq;
 	struct mlx5e_channel      *channel;
+	struct mlx5e_priv         *priv;
 
 	/* control */
 	struct mlx5_wq_ctrl        wq_ctrl;
@@ -240,6 +241,7 @@ struct mlx5e_rq {
 	struct mlx5_wq_ctrl    wq_ctrl;
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
+	struct mlx5e_priv     *priv;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_tx_skb_cb {
@@ -399,6 +401,7 @@ struct mlx5e_priv {
 	u32                        pdn;
 	u32                        tdn;
 	struct mlx5_core_mr        mr;
+	struct mlx5e_rq            drop_rq;
 
 	struct mlx5e_channel     **channel;
 	u32                        tisn[MLX5E_MAX_NUM_TC];
