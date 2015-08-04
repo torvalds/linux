@@ -379,22 +379,29 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 
 	pfc->gpio = chip;
 
-	/* Register the GPIO to pin mappings. As pins with GPIO ports must come
-	 * first in the ranges, skip the pins without GPIO ports by stopping at
-	 * the first range that contains such a pin.
-	 */
-	for (i = 0; i < pfc->nr_ranges; ++i) {
-		const struct sh_pfc_pin_range *range = &pfc->ranges[i];
+	if (IS_ENABLED(CONFIG_OF) && pfc->dev->of_node)
+		return 0;
 
-		if (range->start >= pfc->nr_gpio_pins)
-			break;
+	if (IS_ENABLED(CONFIG_SUPERH) ||
+	    IS_ENABLED(CONFIG_ARCH_SHMOBILE_LEGACY)) {
+		/*
+		 * Register the GPIO to pin mappings. As pins with GPIO ports
+		 * must come first in the ranges, skip the pins without GPIO
+		 * ports by stopping at the first range that contains such a
+		 * pin.
+		 */
+		for (i = 0; i < pfc->nr_ranges; ++i) {
+			const struct sh_pfc_pin_range *range = &pfc->ranges[i];
 
-		ret = gpiochip_add_pin_range(&chip->gpio_chip,
-					     dev_name(pfc->dev),
-					     range->start, range->start,
-					     range->end - range->start + 1);
-		if (ret < 0)
-			return ret;
+			if (range->start >= pfc->nr_gpio_pins)
+				break;
+
+			ret = gpiochip_add_pin_range(&chip->gpio_chip,
+				dev_name(pfc->dev), range->start, range->start,
+				range->end - range->start + 1);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	/* Register the function GPIOs chip. */
