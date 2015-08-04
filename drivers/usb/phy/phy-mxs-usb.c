@@ -506,11 +506,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	device_set_wakeup_capable(&pdev->dev, true);
 
-	ret = usb_add_phy_dev(&mxs_phy->phy);
-	if (ret)
-		return ret;
-
-	return 0;
+	return usb_add_phy_dev(&mxs_phy->phy);
 }
 
 static int mxs_phy_remove(struct platform_device *pdev)
