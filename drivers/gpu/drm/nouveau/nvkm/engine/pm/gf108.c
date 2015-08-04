@@ -23,23 +23,6 @@
  */
 #include "gf100.h"
 
-static const struct nvkm_specsrc
-gf108_pbfb_sources[] = {
-	{ 0x110100, (const struct nvkm_specmux[]) {
-			{ 0x1, 0, "unk0" },
-			{ 0xf, 4, "unk4" },
-			{ 0x3, 8, "unk8" },
-			{}
-		}, "pbfb0_pm_unk100" },
-	{ 0x111100, (const struct nvkm_specmux[]) {
-			{ 0x1, 0, "unk0" },
-			{ 0xf, 4, "unk4" },
-			{ 0x3, 8, "unk8" },
-			{}
-		}, "pbfb1_pm_unk100" },
-	{}
-};
-
 static const struct nvkm_specdom
 gf108_pm_hub[] = {
 	{}
@@ -48,10 +31,10 @@ gf108_pm_hub[] = {
 static const struct nvkm_specdom
 gf108_pm_part[] = {
 	{ 0xe0, (const struct nvkm_specsig[]) {
-			{ 0x14, "part00_pbfb_00", gf108_pbfb_sources },
-			{ 0x15, "part00_pbfb_01", gf108_pbfb_sources },
-			{ 0x20, "part00_pbfb_02", gf108_pbfb_sources },
-			{ 0x21, "part00_pbfb_03", gf108_pbfb_sources },
+			{ 0x14, "part00_pbfb_00", gf100_pbfb_sources },
+			{ 0x15, "part00_pbfb_01", gf100_pbfb_sources },
+			{ 0x20, "part00_pbfb_02", gf100_pbfb_sources },
+			{ 0x21, "part00_pbfb_03", gf100_pbfb_sources },
 			{ 0x01, "part00_pmfb_00", gf100_pmfb_sources },
 			{ 0x04, "part00_pmfb_01", gf100_pmfb_sources },
 			{ 0x05, "part00_pmfb_02", gf100_pmfb_sources},

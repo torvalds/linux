@@ -24,6 +24,16 @@
 #include "gf100.h"
 
 const struct nvkm_specsrc
+gf100_pbfb_sources[] = {
+	{ 0x10f100, (const struct nvkm_specmux[]) {
+			{ 0x1, 0, "unk0" },
+			{ 0x3f, 4, "unk4" },
+			{}
+		}, "pbfb_broadcast_pm_unk100" },
+	{}
+};
+
+const struct nvkm_specsrc
 gf100_pmfb_sources[] = {
 	{ 0x140028, (const struct nvkm_specmux[]) {
 			{ 0x3fff, 0, "unk0" },
@@ -41,17 +51,6 @@ gf100_l1_sources[] = {
 			{ 0x3f, 0, "sel", true },
 			{}
 		}, "pgraph_gpc0_tpc0_l1_pm_mux" },
-	{}
-};
-
-static const struct nvkm_specsrc
-gf100_pbfb_sources[] = {
-	{ 0x10f100, (const struct nvkm_specmux[]) {
-			{ 0x1, 0, "unk0" },
-			{ 0xf, 4, "unk4" },
-			{ 0x3, 8, "unk8" },
-			{}
-		}, "pbfb_broadcast_pm_unk100" },
 	{}
 };
 

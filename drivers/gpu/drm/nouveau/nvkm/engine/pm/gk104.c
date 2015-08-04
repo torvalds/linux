@@ -145,8 +145,8 @@ gk104_pm_gpc[] = {
 static const struct nvkm_specdom
 gk104_pm_part[] = {
 	{ 0x60, (const struct nvkm_specsig[]) {
-			{ 0x00, "part00_pbfb_00", gf117_pbfb_sources },
-			{ 0x01, "part00_pbfb_01", gf117_pbfb_sources },
+			{ 0x00, "part00_pbfb_00", gf100_pbfb_sources },
+			{ 0x01, "part00_pbfb_01", gf100_pbfb_sources },
 			{ 0x0c, "part00_pmfb_00", gk104_pmfb_sources },
 			{ 0x0d, "part00_pmfb_01", gk104_pmfb_sources },
 			{ 0x0e, "part00_pmfb_02", gk104_pmfb_sources },
