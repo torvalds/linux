@@ -163,6 +163,18 @@ int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen,
 	return err;
 }
 
+int mlx5_core_modify_tir(struct mlx5_core_dev *dev, u32 tirn, u32 *in,
+			 int inlen)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_tir_out)];
+
+	MLX5_SET(modify_tir_in, in, tirn, tirn);
+	MLX5_SET(modify_tir_in, in, opcode, MLX5_CMD_OP_MODIFY_TIR);
+
+	memset(out, 0, sizeof(out));
+	return mlx5_cmd_exec_check_status(dev, in, inlen, out, sizeof(out));
+}
+
 void mlx5_core_destroy_tir(struct mlx5_core_dev *dev, u32 tirn)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_tir_out)];
