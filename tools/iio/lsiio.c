@@ -69,7 +69,7 @@ static int dump_one_device(const char *dev_dir_name)
 		return -EINVAL;
 
 	ret = read_sysfs_string("name", dev_dir_name, name);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	printf("Device %03d: %s\n", dev_idx, name);
@@ -92,7 +92,7 @@ static int dump_one_trigger(const char *dev_dir_name)
 		return -EINVAL;
 
 	ret = read_sysfs_string("name", dev_dir_name, name);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	printf("Trigger %03d: %s\n", dev_idx, name);
