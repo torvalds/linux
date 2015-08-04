@@ -7,6 +7,8 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
+
 #include "omap34xx.dtsi"
 / {
 	model = "TimLL OMAP3 Devkit8000";
@@ -53,6 +55,17 @@
 			"Ext Spk", "PREDRIVER",
 			"MAINMIC", "Main Mic",
 			"Main Mic", "Mic Bias 1";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		user {
+			label = "user";
+			gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
+			linux,code = <BTN_EXTRA>;
+			gpio-key,wakeup;
+		};
 	};
 };
 
