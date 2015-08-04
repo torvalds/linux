@@ -3287,6 +3287,7 @@ struct qla_hw_data {
 	uint8_t		mpi_version[3];
 	uint32_t	mpi_capabilities;
 	uint8_t		phy_version[3];
+	uint8_t		pep_version[3];
 
 	/* Firmware dump template */
 	void		*fw_dump_template;
