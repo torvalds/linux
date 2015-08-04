@@ -1862,6 +1862,58 @@ next:
 }
 
 /**
+ * batadv_iv_hardif_neigh_print - print a single hop neighbour node
+ * @seq: neighbour table seq_file struct
+ * @hardif_neigh: hardif neighbour information
+ */
+static void
+batadv_iv_hardif_neigh_print(struct seq_file *seq,
+			     struct batadv_hardif_neigh_node *hardif_neigh)
+{
+	int last_secs, last_msecs;
+
+	last_secs = jiffies_to_msecs(jiffies - hardif_neigh->last_seen) / 1000;
+	last_msecs = jiffies_to_msecs(jiffies - hardif_neigh->last_seen) % 1000;
+
+	seq_printf(seq, "   %10s   %pM %4i.%03is\n",
+		   hardif_neigh->if_incoming->net_dev->name,
+		   hardif_neigh->addr, last_secs, last_msecs);
+}
+
+/**
+ * batadv_iv_ogm_neigh_print - print the single hop neighbour list
+ * @bat_priv: the bat priv with all the soft interface information
+ * @seq: neighbour table seq_file struct
+ */
+static void batadv_iv_neigh_print(struct batadv_priv *bat_priv,
+				  struct seq_file *seq)
+{
+	struct net_device *net_dev = (struct net_device *)seq->private;
+	struct batadv_hardif_neigh_node *hardif_neigh;
+	struct batadv_hard_iface *hard_iface;
+	int batman_count = 0;
+
+	seq_printf(seq, "   %10s        %-13s %s\n",
+		   "IF", "Neighbor", "last-seen");
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
+		if (hard_iface->soft_iface != net_dev)
+			continue;
+
+		hlist_for_each_entry_rcu(hardif_neigh,
+					 &hard_iface->neigh_list, list) {
+			batadv_iv_hardif_neigh_print(seq, hardif_neigh);
+			batman_count++;
+		}
+	}
+	rcu_read_unlock();
+
+	if (batman_count == 0)
+		seq_puts(seq, "No batman nodes in range ...\n");
+}
+
+/**
  * batadv_iv_ogm_neigh_cmp - compare the metrics of two neighbors
  * @neigh1: the first neighbor object of the comparison
  * @if_outgoing1: outgoing interface for the first neighbor
@@ -1954,6 +2006,7 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.bat_ogm_emit = batadv_iv_ogm_emit,
 	.bat_neigh_cmp = batadv_iv_ogm_neigh_cmp,
 	.bat_neigh_is_equiv_or_better = batadv_iv_ogm_neigh_is_eob,
+	.bat_neigh_print = batadv_iv_neigh_print,
 	.bat_orig_print = batadv_iv_ogm_orig_print,
 	.bat_orig_free = batadv_iv_ogm_orig_free,
 	.bat_orig_add_if = batadv_iv_ogm_orig_add_if,
