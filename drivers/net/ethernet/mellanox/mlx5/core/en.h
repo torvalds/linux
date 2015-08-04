@@ -344,10 +344,10 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_TT,
 };
 
-enum {
-	MLX5E_RQT_SPREADING  = 0,
-	MLX5E_RQT_DEFAULT_RQ = 1,
-	MLX5E_NUM_RQT        = 2,
+enum mlx5e_rqt_ix {
+	MLX5E_INDIRECTION_RQT,
+	MLX5E_SINGLE_RQ_RQT,
+	MLX5E_NUM_RQT,
 };
 
 struct mlx5e_eth_addr_info {
@@ -402,7 +402,7 @@ struct mlx5e_priv {
 
 	struct mlx5e_channel     **channel;
 	u32                        tisn[MLX5E_MAX_NUM_TC];
-	u32                        rqtn;
+	u32                        rqtn[MLX5E_NUM_RQT];
 	u32                        tirn[MLX5E_NUM_TT];
 
 	struct mlx5e_flow_table    ft;

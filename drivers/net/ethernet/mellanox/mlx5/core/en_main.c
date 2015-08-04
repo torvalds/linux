@@ -1184,16 +1184,49 @@ static int mlx5e_bits_invert(unsigned long a, int size)
 	return inv;
 }
 
-static int mlx5e_open_rqt(struct mlx5e_priv *priv)
+static void mlx5e_fill_rqt_rqns(struct mlx5e_priv *priv, void *rqtc,
+				enum mlx5e_rqt_ix rqt_ix)
+{
+	int i;
+	int log_sz;
+
+	switch (rqt_ix) {
+	case MLX5E_INDIRECTION_RQT:
+		log_sz = priv->params.rx_hash_log_tbl_sz;
+		for (i = 0; i < (1 << log_sz); i++) {
+			int ix = i;
+
+			if (priv->params.rss_hfunc == ETH_RSS_HASH_XOR)
+				ix = mlx5e_bits_invert(i, log_sz);
+
+			ix = ix % priv->params.num_channels;
+			MLX5_SET(rqtc, rqtc, rq_num[i],
+				 priv->channel[ix]->rq.rqn);
+		}
+
+		break;
+
+	default: /* MLX5E_SINGLE_RQ_RQT */
+		MLX5_SET(rqtc, rqtc, rq_num[0],
+			 priv->channel[0]->rq.rqn);
+
+		break;
+	}
+}
+
+static int mlx5e_open_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 *in;
 	void *rqtc;
 	int inlen;
+	int log_sz;
+	int sz;
 	int err;
-	int log_tbl_sz = priv->params.rx_hash_log_tbl_sz;
-	int sz = 1 << log_tbl_sz;
-	int i;
+
+	log_sz = (rqt_ix == MLX5E_SINGLE_RQ_RQT) ? 0 :
+		  priv->params.rx_hash_log_tbl_sz;
+	sz = 1 << log_sz;
 
 	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * sz;
 	in = mlx5_vzalloc(inlen);
@@ -1205,26 +1238,18 @@ static int mlx5e_open_rqt(struct mlx5e_priv *priv)
 	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
 	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
 
-	for (i = 0; i < sz; i++) {
-		int ix = i;
+	mlx5e_fill_rqt_rqns(priv, rqtc, rqt_ix);
 
-		if (priv->params.rss_hfunc == ETH_RSS_HASH_XOR)
-			ix = mlx5e_bits_invert(i, log_tbl_sz);
-
-		ix = ix % priv->params.num_channels;
-		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix]->rq.rqn);
-	}
-
-	err = mlx5_core_create_rqt(mdev, in, inlen, &priv->rqtn);
+	err = mlx5_core_create_rqt(mdev, in, inlen, &priv->rqtn[rqt_ix]);
 
 	kvfree(in);
 
 	return err;
 }
 
-static void mlx5e_close_rqt(struct mlx5e_priv *priv)
+static void mlx5e_close_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix)
 {
-	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn);
+	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn[rqt_ix]);
 }
 
 static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
@@ -1259,18 +1284,17 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 				      lro_timer_supported_periods[3]));
 	}
 
+	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
+
 	switch (tt) {
 	case MLX5E_TT_ANY:
-		MLX5_SET(tirc, tirc, disp_type,
-			 MLX5_TIRC_DISP_TYPE_DIRECT);
-		MLX5_SET(tirc, tirc, inline_rqn,
-			 priv->channel[0]->rq.rqn);
+		MLX5_SET(tirc, tirc, indirect_table,
+			 priv->rqtn[MLX5E_SINGLE_RQ_RQT]);
+		MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
 		break;
 	default:
-		MLX5_SET(tirc, tirc, disp_type,
-			 MLX5_TIRC_DISP_TYPE_INDIRECT);
 		MLX5_SET(tirc, tirc, indirect_table,
-			 priv->rqtn);
+			 priv->rqtn[MLX5E_INDIRECTION_RQT]);
 		MLX5_SET(tirc, tirc, rx_hash_fn,
 			 mlx5e_rx_hash_fn(priv->params.rss_hfunc));
 		if (priv->params.rss_hfunc == ETH_RSS_HASH_TOP) {
@@ -1472,18 +1496,25 @@ int mlx5e_open_locked(struct net_device *netdev)
 		goto err_close_tises;
 	}
 
-	err = mlx5e_open_rqt(priv);
+	err = mlx5e_open_rqt(priv, MLX5E_INDIRECTION_RQT);
 	if (err) {
-		netdev_err(netdev, "%s: mlx5e_open_rqt failed, %d\n",
+		netdev_err(netdev, "%s: mlx5e_open_rqt(INDIR) failed, %d\n",
 			   __func__, err);
 		goto err_close_channels;
+	}
+
+	err = mlx5e_open_rqt(priv, MLX5E_SINGLE_RQ_RQT);
+	if (err) {
+		netdev_err(netdev, "%s: mlx5e_open_rqt(SINGLE) failed, %d\n",
+			   __func__, err);
+		goto err_close_rqt_indir;
 	}
 
 	err = mlx5e_open_tirs(priv);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5e_open_tir failed, %d\n",
 			   __func__, err);
-		goto err_close_rqls;
+		goto err_close_rqt_single;
 	}
 
 	err = mlx5e_open_flow_table(priv);
@@ -1516,8 +1547,11 @@ err_close_flow_table:
 err_close_tirs:
 	mlx5e_close_tirs(priv);
 
-err_close_rqls:
-	mlx5e_close_rqt(priv);
+err_close_rqt_single:
+	mlx5e_close_rqt(priv, MLX5E_SINGLE_RQ_RQT);
+
+err_close_rqt_indir:
+	mlx5e_close_rqt(priv, MLX5E_INDIRECTION_RQT);
 
 err_close_channels:
 	mlx5e_close_channels(priv);
@@ -1551,7 +1585,8 @@ int mlx5e_close_locked(struct net_device *netdev)
 	netif_carrier_off(priv->netdev);
 	mlx5e_close_flow_table(priv);
 	mlx5e_close_tirs(priv);
-	mlx5e_close_rqt(priv);
+	mlx5e_close_rqt(priv, MLX5E_SINGLE_RQ_RQT);
+	mlx5e_close_rqt(priv, MLX5E_INDIRECTION_RQT);
 	mlx5e_close_channels(priv);
 	mlx5e_close_tises(priv);
 
