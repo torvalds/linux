@@ -352,8 +352,8 @@
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
 #define   MI_LRI_FORCE_POSTED		(1<<12)
-#define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*(x)-1)
-#define MI_STORE_REGISTER_MEM_GEN8(x) MI_INSTR(0x24, 3*(x)-1)
+#define MI_STORE_REGISTER_MEM        MI_INSTR(0x24, 1)
+#define MI_STORE_REGISTER_MEM_GEN8   MI_INSTR(0x24, 2)
 #define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
@@ -364,8 +364,8 @@
 #define   MI_INVALIDATE_BSD		(1<<7)
 #define   MI_FLUSH_DW_USE_GTT		(1<<2)
 #define   MI_FLUSH_DW_USE_PPGTT		(0<<2)
-#define MI_LOAD_REGISTER_MEM(x) MI_INSTR(0x29, 2*(x)-1)
-#define MI_LOAD_REGISTER_MEM_GEN8(x) MI_INSTR(0x29, 3*(x)-1)
+#define MI_LOAD_REGISTER_MEM	   MI_INSTR(0x29, 1)
+#define MI_LOAD_REGISTER_MEM_GEN8  MI_INSTR(0x29, 2)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */

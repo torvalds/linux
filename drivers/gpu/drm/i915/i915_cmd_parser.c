@@ -94,7 +94,7 @@
 #define CMD(op, opm, f, lm, fl, ...)				\
 	{							\
 		.flags = (fl) | ((f) ? CMD_DESC_FIXED : 0),	\
-		.cmd = { (op), (opm) }, 			\
+		.cmd = { (op), (opm) },				\
 		.length = { (lm) },				\
 		__VA_ARGS__					\
 	}
@@ -124,14 +124,14 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   W,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC, .step = 2 }    ),
-	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   W | B,
+	CMD(  MI_STORE_REGISTER_MEM,            SMI,    F,  1,     W | B,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC },
 	      .bits = {{
 			.offset = 0,
 			.mask = MI_GLOBAL_GTT,
 			.expected = 0,
 	      }},						       ),
-	CMD(  MI_LOAD_REGISTER_MEM(1),             SMI,   !F,  0xFF,   W | B,
+	CMD(  MI_LOAD_REGISTER_MEM,             SMI,    F,  1,     W | B,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC },
 	      .bits = {{
 			.offset = 0,
@@ -1021,7 +1021,7 @@ static bool check_cmd(const struct intel_engine_cs *ring,
 			 * only MI_LOAD_REGISTER_IMM commands.
 			 */
 			if (reg_addr == OACONTROL) {
-				if (desc->cmd.value == MI_LOAD_REGISTER_MEM(1)) {
+				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
 					DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
 					return false;
 				}
@@ -1035,7 +1035,7 @@ static bool check_cmd(const struct intel_engine_cs *ring,
 			 * allowed mask/value pair given in the whitelist entry.
 			 */
 			if (reg->mask) {
-				if (desc->cmd.value == MI_LOAD_REGISTER_MEM(1)) {
+				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
 					DRM_DEBUG_DRIVER("CMD: Rejected LRM to masked register 0x%08X\n",
 							 reg_addr);
 					return false;

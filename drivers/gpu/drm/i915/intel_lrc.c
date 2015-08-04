@@ -1130,7 +1130,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *ring,
 	if (IS_SKYLAKE(ring->dev) && INTEL_REVID(ring->dev) <= SKL_REVID_E0)
 		l3sqc4_flush |= GEN8_LQSC_RO_PERF_DIS;
 
-	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8(1) |
+	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit(batch, index, GEN8_L3SQCREG4);
 	wa_ctx_emit(batch, index, ring->scratch.gtt_offset + 256);
@@ -1148,7 +1148,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *ring,
 	wa_ctx_emit(batch, index, 0);
 	wa_ctx_emit(batch, index, 0);
 
-	wa_ctx_emit(batch, index, (MI_LOAD_REGISTER_MEM_GEN8(1) |
+	wa_ctx_emit(batch, index, (MI_LOAD_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit(batch, index, GEN8_L3SQCREG4);
 	wa_ctx_emit(batch, index, ring->scratch.gtt_offset + 256);
