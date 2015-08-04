@@ -383,6 +383,31 @@ bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
 
+static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_crtc *crtc;
+	int bound = 0, crtcs_bound = 0;
+
+	/* Sometimes user space wants everything disabled, so don't steal the
+	 * display if there's a master. */
+	if (dev->primary->master)
+		return false;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->primary->fb)
+			crtcs_bound++;
+		if (crtc->primary->fb == fb_helper->fb)
+			bound++;
+	}
+
+	if (bound < crtcs_bound)
+		return false;
+
+	return true;
+}
+
+#ifdef CONFIG_MAGIC_SYSRQ
 /*
  * restore fbcon display for all kms driver's using this helper, used for sysrq
  * and panic handling.
@@ -410,31 +435,6 @@ static bool drm_fb_helper_force_kernel_mode(void)
 	return error;
 }
 
-static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
-{
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_crtc *crtc;
-	int bound = 0, crtcs_bound = 0;
-
-	/* Sometimes user space wants everything disabled, so don't steal the
-	 * display if there's a master. */
-	if (dev->primary->master)
-		return false;
-
-	drm_for_each_crtc(crtc, dev) {
-		if (crtc->primary->fb)
-			crtcs_bound++;
-		if (crtc->primary->fb == fb_helper->fb)
-			bound++;
-	}
-
-	if (bound < crtcs_bound)
-		return false;
-
-	return true;
-}
-
-#ifdef CONFIG_MAGIC_SYSRQ
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
 	bool ret;
