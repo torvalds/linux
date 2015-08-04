@@ -2455,6 +2455,10 @@ source "drivers/video/fbdev/omap2/Kconfig"
 source "drivers/video/fbdev/exynos/Kconfig"
 source "drivers/video/fbdev/mmp/Kconfig"
 
+if ARCH_MXC
+source "drivers/video/fbdev/mxc/Kconfig"
+endif
+
 config FB_SH_MOBILE_MERAM
 	tristate "SuperH Mobile MERAM read ahead support"
 	depends on (SUPERH || ARCH_SHMOBILE)

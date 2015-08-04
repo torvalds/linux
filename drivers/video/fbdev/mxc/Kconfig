@@ -1,0 +1,19 @@
+config FB_MXC
+        tristate "MXC Framebuffer support"
+        depends on FB
+        select FB_CFB_FILLRECT
+        select FB_CFB_COPYAREA
+        select FB_CFB_IMAGEBLIT
+        select FB_MODE_HELPERS
+        default y
+        help
+          This is a framebuffer device for the MXC LCD Controller.
+          See <http://www.linux-fbdev.org/> for information on framebuffer
+          devices.
+
+          If you plan to use the LCD display with your MXC system, say
+          Y here.
+
+config FB_MXC_SYNC_PANEL
+        depends on FB_MXC
+        tristate "Synchronous Panel Framebuffer"
