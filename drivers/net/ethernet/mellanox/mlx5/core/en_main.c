@@ -2138,6 +2138,8 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	struct mlx5e_priv *priv = vpriv;
 	struct net_device *netdev = priv->netdev;
 
+	mlx5e_disable_async_events(priv);
+	flush_scheduled_work();
 	unregister_netdev(netdev);
 	mlx5e_destroy_flow_tables(priv);
 	mlx5e_destroy_tirs(priv);
@@ -2149,8 +2151,6 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5_dealloc_transport_domain(priv->mdev, priv->tdn);
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
-	mlx5e_disable_async_events(priv);
-	flush_scheduled_work();
 	free_netdev(netdev);
 }
 
