@@ -619,7 +619,8 @@ int t4vf_get_sge_params(struct adapter *adapter)
 		 */
 		whoami = t4_read_reg(adapter,
 				     T4VF_PL_BASE_ADDR + PL_VF_WHOAMI_A);
-		pf = SOURCEPF_G(whoami);
+		pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 		s_hps = (HOSTPAGESIZEPF0_S +
 			 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * pf);

@@ -3529,7 +3529,9 @@ int t4_slow_intr_handler(struct adapter *adapter)
 void t4_intr_enable(struct adapter *adapter)
 {
 	u32 val = 0;
-	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
+	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
 		val = ERR_DROPPED_DB_F | ERR_EGR_CTXT_PRIO_F | DBFIFO_HP_INT_F;
@@ -3554,7 +3556,9 @@ void t4_intr_enable(struct adapter *adapter)
  */
 void t4_intr_disable(struct adapter *adapter)
 {
-	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
+	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), 0);
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);

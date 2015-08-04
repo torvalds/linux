@@ -2588,6 +2588,10 @@
 #define SOURCEPF_M    0x7U
 #define SOURCEPF_G(x) (((x) >> SOURCEPF_S) & SOURCEPF_M)
 
+#define T6_SOURCEPF_S    9
+#define T6_SOURCEPF_M    0x7U
+#define T6_SOURCEPF_G(x) (((x) >> T6_SOURCEPF_S) & T6_SOURCEPF_M)
+
 #define PL_INT_CAUSE_A 0x1940c
 
 #define ULP_TX_S    27

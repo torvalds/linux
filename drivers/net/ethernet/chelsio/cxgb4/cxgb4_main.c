@@ -4551,6 +4551,32 @@ static void free_some_resources(struct adapter *adapter)
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 #define SEGMENT_SIZE 128
 
+static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
+{
+	int ver, chip;
+	u16 device_id;
+
+	/* Retrieve adapter's device ID */
+	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
+	ver = device_id >> 12;
+	switch (ver) {
+	case CHELSIO_T4:
+		chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
+		break;
+	case CHELSIO_T5:
+		chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
+		break;
+	case CHELSIO_T6:
+		chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
+		break;
+	default:
+		dev_err(&pdev->dev, "Device %d is not supported\n",
+			device_id);
+		return -EINVAL;
+	}
+	return chip;
+}
+
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int func, i, err, s_qpp, qpp, num_seg;
@@ -4558,6 +4584,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bool highdma = false;
 	struct adapter *adapter = NULL;
 	void __iomem *regs;
+	u32 whoami, pl_rev;
+	enum chip_type chip;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -4586,7 +4614,11 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_unmap_bar0;
 
 	/* We control everything through one PF */
-	func = SOURCEPF_G(readl(regs + PL_WHOAMI_A));
+	whoami = readl(regs + PL_WHOAMI_A);
+	pl_rev = REV_G(readl(regs + PL_REV_A));
+	chip = get_chip_type(pdev, pl_rev);
+	func = CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5 ?
+		SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 	if (func != ent->driver_data) {
 		iounmap(regs);
 		pci_disable_device(pdev);
