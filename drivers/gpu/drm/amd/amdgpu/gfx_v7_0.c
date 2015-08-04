@@ -3080,6 +3080,8 @@ static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 	mec_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
 	amdgpu_ucode_print_gfx_hdr(&mec_hdr->header);
 	adev->gfx.mec_fw_version = le32_to_cpu(mec_hdr->header.ucode_version);
+	adev->gfx.mec_feature_version = le32_to_cpu(
+					mec_hdr->ucode_feature_version);
 
 	gfx_v7_0_cp_compute_enable(adev, false);
 
@@ -3102,6 +3104,8 @@ static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 		mec2_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec2_fw->data;
 		amdgpu_ucode_print_gfx_hdr(&mec2_hdr->header);
 		adev->gfx.mec2_fw_version = le32_to_cpu(mec2_hdr->header.ucode_version);
+		adev->gfx.mec2_feature_version = le32_to_cpu(
+				mec2_hdr->ucode_feature_version);
 
 		/* MEC2 */
 		fw_data = (const __le32 *)
@@ -4066,6 +4070,8 @@ static int gfx_v7_0_rlc_resume(struct amdgpu_device *adev)
 	hdr = (const struct rlc_firmware_header_v1_0 *)adev->gfx.rlc_fw->data;
 	amdgpu_ucode_print_rlc_hdr(&hdr->header);
 	adev->gfx.rlc_fw_version = le32_to_cpu(hdr->header.ucode_version);
+	adev->gfx.rlc_feature_version = le32_to_cpu(
+					hdr->ucode_feature_version);
 
 	gfx_v7_0_rlc_stop(adev);
 

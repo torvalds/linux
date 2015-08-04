@@ -1130,6 +1130,9 @@ struct amdgpu_gfx {
 	uint32_t			me_feature_version;
 	uint32_t			ce_feature_version;
 	uint32_t			pfp_feature_version;
+	uint32_t			rlc_feature_version;
+	uint32_t			mec_feature_version;
+	uint32_t			mec2_feature_version;
 	struct amdgpu_ring		gfx_ring[AMDGPU_MAX_GFX_RINGS];
 	unsigned			num_gfx_rings;
 	struct amdgpu_ring		compute_ring[AMDGPU_MAX_COMPUTE_RINGS];
