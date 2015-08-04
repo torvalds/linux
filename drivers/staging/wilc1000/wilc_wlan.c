@@ -291,13 +291,13 @@ uint32_t Statisitcs_totalAcks = 0, Statisitcs_DroppedAcks = 0;
 
 #ifdef	TCP_ACK_FILTER
 struct Ack_session_info;
-typedef struct Ack_session_info {
+struct Ack_session_info {
 	uint32_t Ack_seq_num;
 	uint32_t Bigger_Ack_num;
 	uint16_t src_port;
 	uint16_t dst_port;
 	uint16_t status;
-} Ack_session_info_t;
+};
 
 typedef struct {
 	uint32_t ack_num;
@@ -318,7 +318,7 @@ struct Ack_session_info *Alloc_head;
 
 #define MAX_TCP_SESSION		25
 #define MAX_PENDING_ACKS		256
-Ack_session_info_t Acks_keep_track_info[2 * MAX_TCP_SESSION];
+struct Ack_session_info Acks_keep_track_info[2 * MAX_TCP_SESSION];
 Pending_Acks_info_t Pending_Acks_info[MAX_PENDING_ACKS];
 
 uint32_t PendingAcks_arrBase;
