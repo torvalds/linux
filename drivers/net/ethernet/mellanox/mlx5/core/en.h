@@ -374,10 +374,10 @@ struct mlx5e_eth_addr_db {
 enum {
 	MLX5E_STATE_ASYNC_EVENTS_ENABLE,
 	MLX5E_STATE_OPENED,
+	MLX5E_STATE_DESTROYING,
 };
 
 struct mlx5e_vlan_db {
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u32           active_vlans_ft_ix[VLAN_N_VID];
 	u32           untagged_rule_ft_ix;
 	u32           any_vlan_rule_ft_ix;
@@ -485,7 +485,6 @@ void mlx5e_update_stats(struct mlx5e_priv *priv);
 int mlx5e_create_flow_tables(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv);
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv);
-void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
@@ -494,8 +493,6 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
-int mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
-void mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
