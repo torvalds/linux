@@ -67,6 +67,7 @@ static void __init imx6ul_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	imx6ul_enet_init();
 	imx_anatop_init();
+	imx6ul_pm_init();
 }
 
 static void __init imx6ul_init_irq(void)
@@ -74,6 +75,7 @@ static void __init imx6ul_init_irq(void)
 	imx_init_revision_from_anatop();
 	imx_src_init();
 	irqchip_init();
+	imx6_pm_ccm_init("fsl,imx6ul-ccm");
 }
 
 static const char *imx6ul_dt_compat[] __initconst = {
