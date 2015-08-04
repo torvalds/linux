@@ -112,6 +112,7 @@ intel	Intel Corporation
 intercontrol	Inter Control Group
 isee	ISEE 2007 S.L.
 isil	Intersil
+jedec	JEDEC Solid State Technology Association
 karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
 kinetic Kinetic Technologies
