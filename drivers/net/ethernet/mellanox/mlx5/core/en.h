@@ -482,8 +482,8 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 
-int mlx5e_open_flow_table(struct mlx5e_priv *priv);
-void mlx5e_close_flow_table(struct mlx5e_priv *priv);
+int mlx5e_create_flow_tables(struct mlx5e_priv *priv);
+void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv);
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv);
 void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
