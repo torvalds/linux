@@ -902,7 +902,7 @@ static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 }
 
 static enum power_supply_property bq24190_charger_properties[] = {
-	POWER_SUPPLY_PROP_TYPE,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
