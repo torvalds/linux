@@ -50,8 +50,7 @@ static void amdgpu_ctx_do_release(struct kref *ref)
 
 static void amdgpu_ctx_init(struct amdgpu_device *adev,
 			    struct amdgpu_fpriv *fpriv,
-			    struct amdgpu_ctx *ctx,
-			    uint32_t id)
+			    struct amdgpu_ctx *ctx)
 {
 	int i;
 	memset(ctx, 0, sizeof(*ctx));
@@ -81,7 +80,7 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 			return r;
 		}
 		*id = (uint32_t)r;
-		amdgpu_ctx_init(adev, fpriv, ctx, *id);
+		amdgpu_ctx_init(adev, fpriv, ctx);
 		mutex_unlock(&mgr->lock);
 	} else {
 		if (adev->kernel_ctx) {
@@ -89,8 +88,7 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 			kfree(ctx);
 			return 0;
 		}
-		*id = AMD_KERNEL_CONTEXT_ID;
-		amdgpu_ctx_init(adev, fpriv, ctx, *id);
+		amdgpu_ctx_init(adev, fpriv, ctx);
 
 		adev->kernel_ctx = ctx;
 	}
@@ -105,8 +103,7 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 				rq = &adev->rings[i]->scheduler->kernel_rq;
 			r = amd_context_entity_init(adev->rings[i]->scheduler,
 						    &ctx->rings[i].c_entity,
-						    NULL, rq, *id,
-						    amdgpu_sched_jobs);
+						    NULL, rq, amdgpu_sched_jobs);
 			if (r)
 				break;
 		}

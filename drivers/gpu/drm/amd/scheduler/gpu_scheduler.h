@@ -26,9 +26,6 @@
 
 #include <linux/kfifo.h>
 
-#define AMD_KERNEL_CONTEXT_ID			0
-#define AMD_KERNEL_PROCESS_ID			0
-
 #define AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS		3000
 
 struct amd_gpu_scheduler;
@@ -74,8 +71,6 @@ struct amd_context_entity {
 	/* the virtual_seq is unique per context per ring */
 	atomic64_t			last_queued_v_seq;
 	atomic64_t			last_emitted_v_seq;
-	pid_t				tgid;
-	uint32_t			context_id;
 	/* the job_queue maintains the jobs submitted by clients */
 	struct kfifo                    job_queue;
 	spinlock_t			queue_lock;
@@ -148,7 +143,6 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 			    struct amd_context_entity *entity,
 			    struct amd_sched_entity *parent,
 			    struct amd_run_queue *rq,
-			    uint32_t context_id,
 			    uint32_t jobs);
 
 void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq);

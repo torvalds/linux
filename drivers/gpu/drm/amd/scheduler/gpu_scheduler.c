@@ -172,7 +172,7 @@ exit:
  * @entity	The pointer to a valid amd_context_entity
  * @parent	The parent entity of this amd_context_entity
  * @rq		The run queue this entity belongs
- * @context_id	The context id for this entity
+ * @kernel	If this is an entity for the kernel
  * @jobs	The max number of jobs in the job queue
  *
  * return 0 if succeed. negative error code on failure
@@ -181,7 +181,6 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 			    struct amd_context_entity *entity,
 			    struct amd_sched_entity *parent,
 			    struct amd_run_queue *rq,
-			    uint32_t context_id,
 			    uint32_t jobs)
 {
 	uint64_t seq_ring = 0;
@@ -203,9 +202,6 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 		return -EINVAL;
 
 	spin_lock_init(&entity->queue_lock);
-	entity->tgid = (context_id == AMD_KERNEL_CONTEXT_ID) ?
-		AMD_KERNEL_PROCESS_ID : current->tgid;
-	entity->context_id = context_id;
 	atomic64_set(&entity->last_emitted_v_seq, seq_ring);
 	atomic64_set(&entity->last_queued_v_seq, seq_ring);
 
@@ -275,9 +271,9 @@ int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
 
 	if (r) {
 		if (entity->is_pending)
-			DRM_INFO("Entity %u is in waiting state during fini,\
+			DRM_INFO("Entity %p is in waiting state during fini,\
 				all pending ibs will be canceled.\n",
-				 entity->context_id);
+				 entity);
 	}
 
 	mutex_lock(&rq->lock);
