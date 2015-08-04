@@ -65,6 +65,7 @@ enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 	case DRM_FORMAT_BGR565:
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_ARGB4444:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_RGBX8888:

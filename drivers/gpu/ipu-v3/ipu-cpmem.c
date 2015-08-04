@@ -524,6 +524,14 @@ static const struct ipu_rgb def_argb_16 = {
 	.bits_per_pixel = 16,
 };
 
+static const struct ipu_rgb def_argb_16_4444 = {
+	.red	= { .offset =  8, .length = 4, },
+	.green	= { .offset =  4, .length = 4, },
+	.blue	= { .offset =  0, .length = 4, },
+	.transp = { .offset = 12, .length = 4, },
+	.bits_per_pixel = 16,
+};
+
 static const struct ipu_rgb def_abgr_16 = {
 	.red	= { .offset =  0, .length = 5, },
 	.green	= { .offset =  5, .length = 5, },
@@ -648,6 +656,9 @@ int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc)
 		break;
 	case DRM_FORMAT_BGRA5551:
 		ipu_cpmem_set_format_rgb(ch, &def_bgra_16);
+		break;
+	case DRM_FORMAT_ARGB4444:
+		ipu_cpmem_set_format_rgb(ch, &def_argb_16_4444);
 		break;
 	default:
 		return -EINVAL;
