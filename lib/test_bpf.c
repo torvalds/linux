@@ -4871,9 +4871,72 @@ static int run_one(const struct bpf_prog *fp, struct bpf_test *test)
 	return err_cnt;
 }
 
+static char test_name[64];
+module_param_string(test_name, test_name, sizeof(test_name), 0);
+
+static int test_id = -1;
+module_param(test_id, int, 0);
+
+static int test_range[2] = { 0, ARRAY_SIZE(tests) - 1 };
+module_param_array(test_range, int, NULL, 0);
+
+static __init int find_test_index(const char *test_name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		if (!strcmp(tests[i].descr, test_name))
+			return i;
+	}
+	return -1;
+}
+
 static __init int prepare_bpf_tests(void)
 {
 	int i;
+
+	if (test_id >= 0) {
+		/*
+		 * if a test_id was specified, use test_range to
+		 * cover only that test.
+		 */
+		if (test_id >= ARRAY_SIZE(tests)) {
+			pr_err("test_bpf: invalid test_id specified.\n");
+			return -EINVAL;
+		}
+
+		test_range[0] = test_id;
+		test_range[1] = test_id;
+	} else if (*test_name) {
+		/*
+		 * if a test_name was specified, find it and setup
+		 * test_range to cover only that test.
+		 */
+		int idx = find_test_index(test_name);
+
+		if (idx < 0) {
+			pr_err("test_bpf: no test named '%s' found.\n",
+			       test_name);
+			return -EINVAL;
+		}
+		test_range[0] = idx;
+		test_range[1] = idx;
+	} else {
+		/*
+		 * check that the supplied test_range is valid.
+		 */
+		if (test_range[0] >= ARRAY_SIZE(tests) ||
+		    test_range[1] >= ARRAY_SIZE(tests) ||
+		    test_range[0] < 0 || test_range[1] < 0) {
+			pr_err("test_bpf: test_range is out of bound.\n");
+			return -EINVAL;
+		}
+
+		if (test_range[1] < test_range[0]) {
+			pr_err("test_bpf: test_range is ending before it starts.\n");
+			return -EINVAL;
+		}
+	}
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		if (tests[i].fill_helper &&
@@ -4894,6 +4957,11 @@ static __init void destroy_bpf_tests(void)
 	}
 }
 
+static bool exclude_test(int test_id)
+{
+	return test_id < test_range[0] || test_id > test_range[1];
+}
+
 static __init int test_bpf(void)
 {
 	int i, err_cnt = 0, pass_cnt = 0;
@@ -4902,6 +4970,9 @@ static __init int test_bpf(void)
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_prog *fp;
 		int err;
+
+		if (exclude_test(i))
+			continue;
 
 		pr_info("#%d %s ", i, tests[i].descr);
 
