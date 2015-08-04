@@ -5445,6 +5445,23 @@ static void cnic_free_dev(struct cnic_dev *dev)
 	kfree(dev);
 }
 
+static int cnic_get_fc_npiv_tbl(struct cnic_dev *dev,
+				struct cnic_fc_npiv_tbl *npiv_tbl)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct bnx2x *bp = netdev_priv(dev->netdev);
+	int ret;
+
+	if (!test_bit(CNIC_F_CNIC_UP, &dev->flags))
+		return -EAGAIN;     /* bnx2x is down */
+
+	if (!BNX2X_CHIP_IS_E2_PLUS(bp))
+		return -EINVAL;
+
+	ret = cp->ethdev->drv_get_fc_npiv_tbl(dev->netdev, npiv_tbl);
+	return ret;
+}
+
 static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 				       struct pci_dev *pdev)
 {
@@ -5463,6 +5480,7 @@ static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 	cdev->register_device = cnic_register_device;
 	cdev->unregister_device = cnic_unregister_device;
 	cdev->iscsi_nl_msg_recv = cnic_iscsi_nl_msg_recv;
+	cdev->get_fc_npiv_tbl = cnic_get_fc_npiv_tbl;
 
 	cp = cdev->cnic_priv;
 	cp->dev = cdev;

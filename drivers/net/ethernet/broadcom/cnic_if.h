@@ -15,8 +15,8 @@
 
 #include "bnx2x/bnx2x_mfw_req.h"
 
-#define CNIC_MODULE_VERSION	"2.5.21"
-#define CNIC_MODULE_RELDATE	"January 29, 2015"
+#define CNIC_MODULE_VERSION	"2.5.22"
+#define CNIC_MODULE_RELDATE	"July 20, 2015"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -166,6 +166,15 @@ struct drv_ctl_info {
 	} data;
 };
 
+#define MAX_NPIV_ENTRIES 64
+#define FC_NPIV_WWN_SIZE 8
+
+struct cnic_fc_npiv_tbl {
+	u8 wwpn[MAX_NPIV_ENTRIES][FC_NPIV_WWN_SIZE];
+	u8 wwnn[MAX_NPIV_ENTRIES][FC_NPIV_WWN_SIZE];
+	u32 count;
+};
+
 struct cnic_ops {
 	struct module	*cnic_owner;
 	/* Calls to these functions are protected by RCU.  When
@@ -231,6 +240,8 @@ struct cnic_eth_dev {
 	int		(*drv_submit_kwqes_16)(struct net_device *,
 					       struct kwqe_16 *[], u32);
 	int		(*drv_ctl)(struct net_device *, struct drv_ctl_info *);
+	int		(*drv_get_fc_npiv_tbl)(struct net_device *,
+					       struct cnic_fc_npiv_tbl *);
 	unsigned long	reserved1[2];
 	union drv_info_to_mcp	*addr_drv_info_to_mcp;
 };
@@ -319,6 +330,7 @@ struct cnic_dev {
 	struct cnic_dev *(*cm_select_dev)(struct sockaddr_in *, int ulp_type);
 	int (*iscsi_nl_msg_recv)(struct cnic_dev *dev, u32 msg_type,
 				 char *data, u16 data_size);
+	int (*get_fc_npiv_tbl)(struct cnic_dev *, struct cnic_fc_npiv_tbl *);
 	unsigned long	flags;
 #define CNIC_F_CNIC_UP		1
 #define CNIC_F_BNX2_CLASS	3
