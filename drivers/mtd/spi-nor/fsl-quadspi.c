@@ -27,6 +27,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/spi-nor.h>
 #include <linux/mutex.h>
+#include <linux/pm_qos.h>
 
 /* Controller needs driver to swap endian */
 #define QUADSPI_QUIRK_SWAP_ENDIAN	(1 << 0)
@@ -39,6 +40,8 @@
  * trigger data transfer even though extern data will not transferred.
  */
 #define QUADSPI_QUIRK_TKT253890		(1 << 2)
+/* Controller cannot wake up from wait mode, TKT245618 */
+#define QUADSPI_QUIRK_TKT245618         (1 << 3)
 
 /* The registers */
 #define QUADSPI_MCR			0x00
@@ -238,7 +241,8 @@ static struct fsl_qspi_devtype_data imx6sx_data = {
 	.txfifo = 512,
 	.ahb_buf_size = 1024,
 	.driver_data = QUADSPI_QUIRK_4X_INT_CLK
-		| QUADSPI_QUIRK_DDR_DELAY,
+		| QUADSPI_QUIRK_DDR_DELAY
+		| QUADSPI_QUIRK_TKT245618,
 };
 
 static struct fsl_qspi_devtype_data imx7d_data = {
@@ -278,6 +282,7 @@ struct fsl_qspi {
 	unsigned int chip_base_addr; /* We may support two chips. */
 	bool has_second_chip;
 	struct mutex lock;
+	struct pm_qos_request pm_qos_req;
 };
 
 static inline int needs_swap_endian(struct fsl_qspi *q)
@@ -298,6 +303,11 @@ static inline int needs_4x_clock(struct fsl_qspi *q)
 static inline int needs_fill_txfifo(struct fsl_qspi *q)
 {
 	return q->devtype_data->driver_data & QUADSPI_QUIRK_TKT253890;
+}
+
+static inline int needs_wakeup_wait_mode(struct fsl_qspi *q)
+{
+	return q->devtype_data->driver_data & QUADSPI_QUIRK_TKT245618;
 }
 
 /*
@@ -719,12 +729,18 @@ static int fsl_qspi_clk_prep_enable(struct fsl_qspi *q)
 		return ret;
 	}
 
+	if (needs_wakeup_wait_mode(q))
+		pm_qos_add_request(&q->pm_qos_req, PM_QOS_CPU_DMA_LATENCY, 0);
+
 	return 0;
 }
 
 /* This function was used to disable and unprepare QSPI clock */
 static void fsl_qspi_clk_disable_unprep(struct fsl_qspi *q)
 {
+	if (needs_wakeup_wait_mode(q))
+		pm_qos_remove_request(&q->pm_qos_req);
+
 	clk_disable_unprepare(q->clk);
 	clk_disable_unprepare(q->clk_en);
 
@@ -975,6 +991,10 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	if (!q->nor_num || q->nor_num > FSL_QSPI_MAX_CHIP)
 		return -ENODEV;
 
+	q->dev = dev;
+	q->devtype_data = (struct fsl_qspi_devtype_data *)of_id->data;
+	platform_set_drvdata(pdev, q);
+
 	/* find the resources */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "QuadSPI");
 	q->iobase = devm_ioremap_resource(dev, res);
@@ -1019,10 +1039,6 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request irq: %d\n", ret);
 		goto irq_failed;
 	}
-
-	q->dev = dev;
-	q->devtype_data = (struct fsl_qspi_devtype_data *)of_id->data;
-	platform_set_drvdata(pdev, q);
 
 	ret = fsl_qspi_nor_setup(q);
 	if (ret)
