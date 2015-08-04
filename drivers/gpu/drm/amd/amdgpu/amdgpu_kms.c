@@ -337,7 +337,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			if (info->query_fw.index >= 2)
 				return -EINVAL;
 			fw_info.ver = adev->sdma[info->query_fw.index].fw_version;
-			fw_info.feature = 0;
+			fw_info.feature = adev->sdma[info->query_fw.index].feature_version;
 			break;
 		default:
 			return -EINVAL;

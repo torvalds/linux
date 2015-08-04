@@ -1642,6 +1642,7 @@ struct amdgpu_sdma {
 	/* SDMA firmware */
 	const struct firmware	*fw;
 	uint32_t		fw_version;
+	uint32_t		feature_version;
 
 	struct amdgpu_ring	ring;
 };
