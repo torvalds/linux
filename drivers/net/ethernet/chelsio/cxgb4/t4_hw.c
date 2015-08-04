@@ -345,6 +345,43 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 				       FW_CMD_MAX_TIMEOUT);
 }
 
+static int t4_edc_err_read(struct adapter *adap, int idx)
+{
+	u32 edc_ecc_err_addr_reg;
+	u32 rdata_reg;
+
+	if (is_t4(adap->params.chip)) {
+		CH_WARN(adap, "%s: T4 NOT supported.\n", __func__);
+		return 0;
+	}
+	if (idx != 0 && idx != 1) {
+		CH_WARN(adap, "%s: idx %d NOT supported.\n", __func__, idx);
+		return 0;
+	}
+
+	edc_ecc_err_addr_reg = EDC_T5_REG(EDC_H_ECC_ERR_ADDR_A, idx);
+	rdata_reg = EDC_T5_REG(EDC_H_BIST_STATUS_RDATA_A, idx);
+
+	CH_WARN(adap,
+		"edc%d err addr 0x%x: 0x%x.\n",
+		idx, edc_ecc_err_addr_reg,
+		t4_read_reg(adap, edc_ecc_err_addr_reg));
+	CH_WARN(adap,
+		"bist: 0x%x, status %llx %llx %llx %llx %llx %llx %llx %llx %llx.\n",
+		rdata_reg,
+		(unsigned long long)t4_read_reg64(adap, rdata_reg),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 8),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 16),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 24),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 32),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 40),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 48),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 56),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 64));
+
+	return 0;
+}
+
 /**
  *	t4_memory_rw - read/write EDC 0, EDC 1 or MC via PCIE memory window
  *	@adap: the adapter
@@ -3282,6 +3319,8 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
 			  name[idx]);
 	if (v & ECC_CE_INT_CAUSE_F) {
 		u32 cnt = ECC_CECNT_G(t4_read_reg(adapter, cnt_addr));
+
+		t4_edc_err_read(adapter, idx);
 
 		t4_write_reg(adapter, cnt_addr, ECC_CECNT_V(ECC_CECNT_M));
 		if (printk_ratelimit())
