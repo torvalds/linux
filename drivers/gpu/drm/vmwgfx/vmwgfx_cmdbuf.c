@@ -293,8 +293,12 @@ static int vmw_cmdbuf_header_submit(struct vmw_cmdbuf_header *header)
 	struct vmw_cmdbuf_man *man = header->man;
 	u32 val;
 
-	val = (header->handle >> 32);
+	if (sizeof(header->handle) > 4)
+		val = (header->handle >> 32);
+	else
+		val = 0;
 	vmw_write(man->dev_priv, SVGA_REG_COMMAND_HIGH, val);
+
 	val = (header->handle & 0xFFFFFFFFULL);
 	val |= header->cb_context & SVGA_CB_CONTEXT_MASK;
 	vmw_write(man->dev_priv, SVGA_REG_COMMAND_LOW, val);
