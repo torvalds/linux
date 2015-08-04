@@ -829,12 +829,10 @@ pnfs_layout_returning(const struct pnfs_layout_hdr *lo,
 /* lget is set to 1 if called from inside send_layoutget call chain */
 static bool
 pnfs_layoutgets_blocked(const struct pnfs_layout_hdr *lo,
-			struct pnfs_layout_range *range, int lget)
+			struct pnfs_layout_range *range)
 {
 	return lo->plh_block_lgets ||
 		test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
-		(list_empty(&lo->plh_segs) &&
-		 (atomic_read(&lo->plh_outstanding) > lget)) ||
 		pnfs_layout_returning(lo, range);
 }
 
@@ -847,7 +845,7 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 
 	dprintk("--> %s\n", __func__);
 	spin_lock(&lo->plh_inode->i_lock);
-	if (pnfs_layoutgets_blocked(lo, range, 1)) {
+	if (pnfs_layoutgets_blocked(lo, range)) {
 		status = -EAGAIN;
 	} else if (!nfs4_valid_open_stateid(open_state)) {
 		status = -EBADF;
@@ -1547,7 +1545,7 @@ lookup_again:
 		goto out_put_layout_hdr;
 	}
 
-	if (pnfs_layoutgets_blocked(lo, &arg, 0))
+	if (pnfs_layoutgets_blocked(lo, &arg))
 		goto out_unlock;
 	atomic_inc(&lo->plh_outstanding);
 	spin_unlock(&ino->i_lock);
@@ -1624,7 +1622,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out_forget_reply;
 	}
 
-	if (pnfs_layoutgets_blocked(lo, &lgp->args.range, 1)) {
+	if (pnfs_layoutgets_blocked(lo, &lgp->args.range)) {
 		dprintk("%s forget reply due to state\n", __func__);
 		goto out_forget_reply;
 	}
