@@ -270,7 +270,7 @@ static int rx8025_init_client(struct i2c_client *client)
 		need_clear = 1;
 	}
 
-	if (!(ctrl[1] & RX8025_BIT_CTRL2_CTFG))
+	if (ctrl[1] & RX8025_BIT_CTRL2_CTFG)
 		need_clear = 1;
 
 	if (need_clear) {
