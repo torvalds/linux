@@ -1300,6 +1300,7 @@ static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
 	/* SPT-H */
 	{ PCI_VDEVICE(INTEL, 0xa129), LPSS_SPT_SSP },
 	{ PCI_VDEVICE(INTEL, 0xa12a), LPSS_SPT_SSP },
+	{ },
 };
 
 static bool pxa2xx_spi_idma_filter(struct dma_chan *chan, void *param)
