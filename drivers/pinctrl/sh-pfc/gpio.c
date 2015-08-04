@@ -286,17 +286,12 @@ static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 	return ret;
 }
 
-static void gpio_function_free(struct gpio_chip *gc, unsigned offset)
-{
-}
-
 static int gpio_function_setup(struct sh_pfc_chip *chip)
 {
 	struct sh_pfc *pfc = chip->pfc;
 	struct gpio_chip *gc = &chip->gpio_chip;
 
 	gc->request = gpio_function_request;
-	gc->free = gpio_function_free;
 
 	gc->label = pfc->info->name;
 	gc->owner = THIS_MODULE;
