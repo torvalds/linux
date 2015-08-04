@@ -351,10 +351,10 @@ static void ib_cache_setup_one(struct ib_device *device)
 	rwlock_init(&device->cache.lock);
 
 	device->cache.pkey_cache =
-		kmalloc(sizeof *device->cache.pkey_cache *
+		kzalloc(sizeof *device->cache.pkey_cache *
 			(rdma_end_port(device) - rdma_start_port(device) + 1), GFP_KERNEL);
 	device->cache.gid_cache =
-		kmalloc(sizeof *device->cache.gid_cache *
+		kzalloc(sizeof *device->cache.gid_cache *
 			(rdma_end_port(device) - rdma_start_port(device) + 1), GFP_KERNEL);
 
 	device->cache.lmc_cache = kmalloc(sizeof *device->cache.lmc_cache *
@@ -369,11 +369,8 @@ static void ib_cache_setup_one(struct ib_device *device)
 		goto err;
 	}
 
-	for (p = 0; p <= rdma_end_port(device) - rdma_start_port(device); ++p) {
-		device->cache.pkey_cache[p] = NULL;
-		device->cache.gid_cache [p] = NULL;
+	for (p = 0; p <= rdma_end_port(device) - rdma_start_port(device); ++p)
 		ib_cache_update(device, p + rdma_start_port(device));
-	}
 
 	INIT_IB_EVENT_HANDLER(&device->cache.event_handler,
 			      device, ib_cache_event);

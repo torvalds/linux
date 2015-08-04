@@ -165,6 +165,35 @@ static int alloc_name(char *name)
 	return 0;
 }
 
+static void ib_device_release(struct device *device)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	kfree(dev->port_immutable);
+	kfree(dev);
+}
+
+static int ib_device_uevent(struct device *device,
+			    struct kobj_uevent_env *env)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	if (add_uevent_var(env, "NAME=%s", dev->name))
+		return -ENOMEM;
+
+	/*
+	 * It would be nice to pass the node GUID with the event...
+	 */
+
+	return 0;
+}
+
+static struct class ib_class = {
+	.name    = "infiniband",
+	.dev_release = ib_device_release,
+	.dev_uevent = ib_device_uevent,
+};
+
 /**
  * ib_alloc_device - allocate an IB device struct
  * @size:size of structure to allocate
@@ -177,9 +206,27 @@ static int alloc_name(char *name)
  */
 struct ib_device *ib_alloc_device(size_t size)
 {
-	BUG_ON(size < sizeof (struct ib_device));
+	struct ib_device *device;
 
-	return kzalloc(size, GFP_KERNEL);
+	if (WARN_ON(size < sizeof(struct ib_device)))
+		return NULL;
+
+	device = kzalloc(size, GFP_KERNEL);
+	if (!device)
+		return NULL;
+
+	device->dev.class = &ib_class;
+	device_initialize(&device->dev);
+
+	dev_set_drvdata(&device->dev, device);
+
+	INIT_LIST_HEAD(&device->event_handler_list);
+	spin_lock_init(&device->event_handler_lock);
+	spin_lock_init(&device->client_data_lock);
+	INIT_LIST_HEAD(&device->client_data_list);
+	INIT_LIST_HEAD(&device->port_list);
+
+	return device;
 }
 EXPORT_SYMBOL(ib_alloc_device);
 
@@ -191,13 +238,8 @@ EXPORT_SYMBOL(ib_alloc_device);
  */
 void ib_dealloc_device(struct ib_device *device)
 {
-	if (device->reg_state == IB_DEV_UNINITIALIZED) {
-		kfree(device);
-		return;
-	}
-
-	BUG_ON(device->reg_state != IB_DEV_UNREGISTERED);
-
+	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
+		device->reg_state != IB_DEV_UNINITIALIZED);
 	kobject_put(&device->dev.kobj);
 }
 EXPORT_SYMBOL(ib_dealloc_device);
@@ -235,7 +277,7 @@ static int verify_immutable(const struct ib_device *dev, u8 port)
 
 static int read_port_immutable(struct ib_device *device)
 {
-	int ret = -ENOMEM;
+	int ret;
 	u8 start_port = rdma_start_port(device);
 	u8 end_port = rdma_end_port(device);
 	u8 port;
@@ -251,26 +293,18 @@ static int read_port_immutable(struct ib_device *device)
 					 * (end_port + 1),
 					 GFP_KERNEL);
 	if (!device->port_immutable)
-		goto err;
+		return -ENOMEM;
 
 	for (port = start_port; port <= end_port; ++port) {
 		ret = device->get_port_immutable(device, port,
 						 &device->port_immutable[port]);
 		if (ret)
-			goto err;
+			return ret;
 
-		if (verify_immutable(device, port)) {
-			ret = -EINVAL;
-			goto err;
-		}
+		if (verify_immutable(device, port))
+			return -EINVAL;
 	}
-
-	ret = 0;
-	goto out;
-err:
-	kfree(device->port_immutable);
-out:
-	return ret;
+	return 0;
 }
 
 /**
@@ -301,11 +335,6 @@ int ib_register_device(struct ib_device *device,
 		goto out;
 	}
 
-	INIT_LIST_HEAD(&device->event_handler_list);
-	INIT_LIST_HEAD(&device->client_data_list);
-	spin_lock_init(&device->event_handler_lock);
-	spin_lock_init(&device->client_data_lock);
-
 	ret = read_port_immutable(device);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't create per port immutable data %s\n",
@@ -317,7 +346,6 @@ int ib_register_device(struct ib_device *device,
 	if (ret) {
 		printk(KERN_WARNING "Couldn't register device %s with driver model\n",
 		       device->name);
-		kfree(device->port_immutable);
 		goto out;
 	}
 
@@ -834,7 +862,7 @@ static int __init ib_core_init(void)
 	if (!ib_wq)
 		return -ENOMEM;
 
-	ret = ib_sysfs_setup();
+	ret = class_register(&ib_class);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't create InfiniBand device class\n");
 		goto err;
@@ -858,7 +886,7 @@ err_nl:
 	ibnl_cleanup();
 
 err_sysfs:
-	ib_sysfs_cleanup();
+	class_unregister(&ib_class);
 
 err:
 	destroy_workqueue(ib_wq);
@@ -869,7 +897,7 @@ static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
 	ibnl_cleanup();
-	ib_sysfs_cleanup();
+	class_unregister(&ib_class);
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);
 }

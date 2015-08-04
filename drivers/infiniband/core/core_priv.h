@@ -43,9 +43,6 @@ int  ib_device_register_sysfs(struct ib_device *device,
 						   u8, struct kobject *));
 void ib_device_unregister_sysfs(struct ib_device *device);
 
-int  ib_sysfs_setup(void);
-void ib_sysfs_cleanup(void);
-
 int  ib_cache_setup(void);
 void ib_cache_cleanup(void);
 
