@@ -1858,6 +1858,8 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	if (pdata->t19_num_keys) {
 		mxt_set_up_as_touchpad(input_dev, data);
 		mt_flags |= INPUT_MT_POINTER;
+	} else {
+		mt_flags |= INPUT_MT_DIRECT;
 	}
 
 	/* For multi touch */
