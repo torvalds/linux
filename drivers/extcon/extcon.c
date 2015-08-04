@@ -126,7 +126,7 @@ static int find_cable_index_by_id(struct extcon_dev *edev, const unsigned int id
 
 static int find_cable_id_by_name(struct extcon_dev *edev, const char *name)
 {
-	unsigned int id = -EINVAL;
+	int id = -EINVAL;
 	int i = 0;
 
 	/* Find the id of extcon cable */
@@ -143,7 +143,7 @@ static int find_cable_id_by_name(struct extcon_dev *edev, const char *name)
 
 static int find_cable_index_by_name(struct extcon_dev *edev, const char *name)
 {
-	unsigned int id;
+	int id;
 
 	if (edev->max_supported == 0)
 		return -EINVAL;
@@ -379,7 +379,7 @@ EXPORT_SYMBOL_GPL(extcon_get_cable_state_);
  */
 int extcon_get_cable_state(struct extcon_dev *edev, const char *cable_name)
 {
-	unsigned int id;
+	int id;
 
 	id = find_cable_id_by_name(edev, cable_name);
 	if (id < 0)
@@ -430,7 +430,7 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 int extcon_set_cable_state(struct extcon_dev *edev,
 			const char *cable_name, bool cable_state)
 {
-	unsigned int id;
+	int id;
 
 	id = find_cable_id_by_name(edev, cable_name);
 	if (id < 0)
