@@ -685,7 +685,8 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 	 */
 	hdmi_writel(hdmi_dev, FC_EXCTRLSPAC,
 		    (hdmi_dev->tmdsclk/1000) * 50 / (256 * 512));
-
+	hdmi_msk_reg(hdmi_dev, MC_SWRSTZREQ,
+		     m_TMDS_SWRST, v_TMDS_SWRST(0));
 #if 0
 	/*Set PreambleFilter*/
 	for (i = 0; i < 3; i++) {
