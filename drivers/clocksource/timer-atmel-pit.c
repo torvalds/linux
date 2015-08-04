@@ -202,8 +202,8 @@ static void __init at91sam926x_pit_common_init(struct pit_data *data)
 	data->clksrc.mask = CLOCKSOURCE_MASK(bits);
 	data->clksrc.name = "pit";
 	data->clksrc.rating = 175;
-	data->clksrc.read = read_pit_clk,
-	data->clksrc.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+	data->clksrc.read = read_pit_clk;
+	data->clksrc.flags = CLOCK_SOURCE_IS_CONTINUOUS;
 	clocksource_register_hz(&data->clksrc, pit_rate);
 
 	/* Set up irq handler */
