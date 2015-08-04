@@ -29,6 +29,7 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_XBGR1555,
 	DRM_FORMAT_RGBA5551,
 	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ABGR8888,
@@ -187,6 +188,7 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		case DRM_FORMAT_ABGR1555:
 		case DRM_FORMAT_RGBA5551:
 		case DRM_FORMAT_BGRA5551:
+		case DRM_FORMAT_ARGB4444:
 		case DRM_FORMAT_ARGB8888:
 		case DRM_FORMAT_ABGR8888:
 		case DRM_FORMAT_RGBA8888:
