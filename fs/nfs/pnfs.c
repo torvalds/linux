@@ -368,7 +368,6 @@ pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
 	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return false;
 	lo->plh_return_iomode = 0;
-	lo->plh_block_lgets++;
 	pnfs_get_layout_hdr(lo);
 	clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE, &lo->plh_flags);
 	return true;
@@ -954,7 +953,6 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 	if (unlikely(lrp == NULL)) {
 		status = -ENOMEM;
 		spin_lock(&ino->i_lock);
-		lo->plh_block_lgets--;
 		pnfs_clear_layoutreturn_waitbit(lo);
 		rpc_wake_up(&NFS_SERVER(ino)->roc_rpcwaitq);
 		spin_unlock(&ino->i_lock);
