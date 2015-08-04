@@ -4,6 +4,7 @@ config ARCH_SHMOBILE
 
 config PM_RCAR
 	bool
+	select PM_GENERIC_DOMAINS if PM
 
 config PM_RMOBILE
 	bool
