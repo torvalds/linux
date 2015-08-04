@@ -99,6 +99,7 @@ enum scpi_std_cmd {
 
 enum scpi_thermal_cmd {
 	SCPI_THERMAL_GET_TSADC_DATA,
+	SCPI_THERMAL_SET_TSADC_CYCLE,
 	SCPI_THERMAL_COUNT
 };
 

@@ -597,6 +597,26 @@ int scpi_thermal_get_temperature(void)
 }
 EXPORT_SYMBOL_GPL(scpi_thermal_get_temperature);
 
+int scpi_thermal_set_clk_cycle(u32 cycle)
+{
+	struct scpi_data_buf sdata;
+	struct rockchip_mbox_msg mdata;
+	struct __packed1 {
+		u32 clk_cycle;
+	} tx_buf;
+
+	struct __packed2 {
+		u32 status;
+	} rx_buf;
+
+	tx_buf.clk_cycle = cycle;
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_THERMAL,
+			SCPI_THERMAL_SET_TSADC_CYCLE, tx_buf, rx_buf);
+
+	return scpi_execute_cmd(&sdata);
+}
+EXPORT_SYMBOL_GPL(scpi_thermal_set_clk_cycle);
+
 static struct of_device_id mobx_scpi_of_match[] = {
 	{ .compatible = "rockchip,mbox-scpi"},
 	{ },
