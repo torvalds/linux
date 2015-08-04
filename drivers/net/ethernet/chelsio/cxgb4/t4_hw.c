@@ -345,6 +345,43 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 				       FW_CMD_MAX_TIMEOUT);
 }
 
+static int t4_edc_err_read(struct adapter *adap, int idx)
+{
+	u32 edc_ecc_err_addr_reg;
+	u32 rdata_reg;
+
+	if (is_t4(adap->params.chip)) {
+		CH_WARN(adap, "%s: T4 NOT supported.\n", __func__);
+		return 0;
+	}
+	if (idx != 0 && idx != 1) {
+		CH_WARN(adap, "%s: idx %d NOT supported.\n", __func__, idx);
+		return 0;
+	}
+
+	edc_ecc_err_addr_reg = EDC_T5_REG(EDC_H_ECC_ERR_ADDR_A, idx);
+	rdata_reg = EDC_T5_REG(EDC_H_BIST_STATUS_RDATA_A, idx);
+
+	CH_WARN(adap,
+		"edc%d err addr 0x%x: 0x%x.\n",
+		idx, edc_ecc_err_addr_reg,
+		t4_read_reg(adap, edc_ecc_err_addr_reg));
+	CH_WARN(adap,
+		"bist: 0x%x, status %llx %llx %llx %llx %llx %llx %llx %llx %llx.\n",
+		rdata_reg,
+		(unsigned long long)t4_read_reg64(adap, rdata_reg),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 8),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 16),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 24),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 32),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 40),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 48),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 56),
+		(unsigned long long)t4_read_reg64(adap, rdata_reg + 64));
+
+	return 0;
+}
+
 /**
  *	t4_memory_rw - read/write EDC 0, EDC 1 or MC via PCIE memory window
  *	@adap: the adapter
@@ -1322,9 +1359,10 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 	};
 
 	static const unsigned int t6_reg_ranges[] = {
-		0x1008, 0x114c,
+		0x1008, 0x1124,
+		0x1138, 0x114c,
 		0x1180, 0x11b4,
-		0x11fc, 0x1250,
+		0x11fc, 0x1254,
 		0x1280, 0x133c,
 		0x1800, 0x18fc,
 		0x3000, 0x302c,
@@ -1347,16 +1385,16 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x5c10, 0x5ec0,
 		0x5ec8, 0x5ecc,
 		0x6000, 0x6040,
-		0x6058, 0x615c,
+		0x6058, 0x619c,
 		0x7700, 0x7798,
 		0x77c0, 0x7880,
 		0x78cc, 0x78fc,
 		0x7b00, 0x7c54,
 		0x7d00, 0x7efc,
-		0x8dc0, 0x8de0,
+		0x8dc0, 0x8de4,
 		0x8df8, 0x8e84,
 		0x8ea0, 0x8f88,
-		0x8fb8, 0x911c,
+		0x8fb8, 0x9124,
 		0x9400, 0x9470,
 		0x9600, 0x971c,
 		0x9800, 0x9808,
@@ -1376,9 +1414,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0xdfc0, 0xdfe0,
 		0xe000, 0xf008,
 		0x11000, 0x11014,
-		0x11048, 0x11110,
-		0x11118, 0x1117c,
-		0x11190, 0x11264,
+		0x11048, 0x1117c,
+		0x11190, 0x11270,
 		0x11300, 0x1130c,
 		0x12000, 0x1206c,
 		0x19040, 0x1906c,
@@ -1463,9 +1500,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
 		0x30000, 0x30070,
-		0x30100, 0x3015c,
-		0x30190, 0x301d0,
-		0x30200, 0x30318,
+		0x30100, 0x301d0,
+		0x30200, 0x30320,
 		0x30400, 0x3052c,
 		0x30540, 0x3061c,
 		0x30800, 0x30890,
@@ -1541,9 +1577,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x33c24, 0x33c50,
 		0x33cf0, 0x33cfc,
 		0x34000, 0x34070,
-		0x34100, 0x3415c,
-		0x34190, 0x341d0,
-		0x34200, 0x34318,
+		0x34100, 0x341d0,
+		0x34200, 0x34320,
 		0x34400, 0x3452c,
 		0x34540, 0x3461c,
 		0x34800, 0x34890,
@@ -3283,6 +3318,8 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
 	if (v & ECC_CE_INT_CAUSE_F) {
 		u32 cnt = ECC_CECNT_G(t4_read_reg(adapter, cnt_addr));
 
+		t4_edc_err_read(adapter, idx);
+
 		t4_write_reg(adapter, cnt_addr, ECC_CECNT_V(ECC_CECNT_M));
 		if (printk_ratelimit())
 			dev_warn(adapter->pdev_dev,
@@ -3490,7 +3527,9 @@ int t4_slow_intr_handler(struct adapter *adapter)
 void t4_intr_enable(struct adapter *adapter)
 {
 	u32 val = 0;
-	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
+	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
 		val = ERR_DROPPED_DB_F | ERR_EGR_CTXT_PRIO_F | DBFIFO_HP_INT_F;
@@ -3515,7 +3554,9 @@ void t4_intr_enable(struct adapter *adapter)
  */
 void t4_intr_disable(struct adapter *adapter)
 {
-	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
+	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), 0);
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);

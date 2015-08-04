@@ -136,6 +136,20 @@
 #define  INGPACKBOUNDARY_G(x)	(((x) >> INGPACKBOUNDARY_S) \
 				 & INGPACKBOUNDARY_M)
 
+#define VFIFO_ENABLE_S    10
+#define VFIFO_ENABLE_V(x) ((x) << VFIFO_ENABLE_S)
+#define VFIFO_ENABLE_F    VFIFO_ENABLE_V(1U)
+
+#define SGE_DBVFIFO_BADDR_A 0x1138
+
+#define DBVFIFO_SIZE_S    6
+#define DBVFIFO_SIZE_M    0xfffU
+#define DBVFIFO_SIZE_G(x) (((x) >> DBVFIFO_SIZE_S) & DBVFIFO_SIZE_M)
+
+#define T6_DBVFIFO_SIZE_S    0
+#define T6_DBVFIFO_SIZE_M    0x1fffU
+#define T6_DBVFIFO_SIZE_G(x) (((x) >> T6_DBVFIFO_SIZE_S) & T6_DBVFIFO_SIZE_M)
+
 #define GLOBALENABLE_S    0
 #define GLOBALENABLE_V(x) ((x) << GLOBALENABLE_S)
 #define GLOBALENABLE_F    GLOBALENABLE_V(1U)
@@ -303,6 +317,8 @@
 #define SGE_FL_BUFFER_SIZE7_A 0x1060
 #define SGE_FL_BUFFER_SIZE8_A 0x1064
 
+#define SGE_IMSG_CTXT_BADDR_A 0x1088
+#define SGE_FLM_CACHE_BADDR_A 0x108c
 #define SGE_INGRESS_RX_THRESHOLD_A 0x10a0
 
 #define THRESHOLD_0_S    24
@@ -357,6 +373,7 @@
 #define TSVAL_G(x) (((x) >> TSVAL_S) & TSVAL_M)
 
 #define SGE_DBFIFO_STATUS_A 0x10a4
+#define SGE_DBVFIFO_SIZE_A 0x113c
 
 #define HP_INT_THRESH_S    28
 #define HP_INT_THRESH_M    0xfU
@@ -869,12 +886,20 @@
 /* registers for module MA */
 #define MA_EDRAM0_BAR_A 0x77c0
 
+#define EDRAM0_BASE_S    16
+#define EDRAM0_BASE_M    0xfffU
+#define EDRAM0_BASE_G(x) (((x) >> EDRAM0_BASE_S) & EDRAM0_BASE_M)
+
 #define EDRAM0_SIZE_S    0
 #define EDRAM0_SIZE_M    0xfffU
 #define EDRAM0_SIZE_V(x) ((x) << EDRAM0_SIZE_S)
 #define EDRAM0_SIZE_G(x) (((x) >> EDRAM0_SIZE_S) & EDRAM0_SIZE_M)
 
 #define MA_EDRAM1_BAR_A 0x77c4
+
+#define EDRAM1_BASE_S    16
+#define EDRAM1_BASE_M    0xfffU
+#define EDRAM1_BASE_G(x) (((x) >> EDRAM1_BASE_S) & EDRAM1_BASE_M)
 
 #define EDRAM1_SIZE_S    0
 #define EDRAM1_SIZE_M    0xfffU
@@ -883,6 +908,11 @@
 
 #define MA_EXT_MEMORY_BAR_A 0x77c8
 
+#define EXT_MEM_BASE_S    16
+#define EXT_MEM_BASE_M    0xfffU
+#define EXT_MEM_BASE_V(x) ((x) << EXT_MEM_BASE_S)
+#define EXT_MEM_BASE_G(x) (((x) >> EXT_MEM_BASE_S) & EXT_MEM_BASE_M)
+
 #define EXT_MEM_SIZE_S    0
 #define EXT_MEM_SIZE_M    0xfffU
 #define EXT_MEM_SIZE_V(x) ((x) << EXT_MEM_SIZE_S)
@@ -890,12 +920,20 @@
 
 #define MA_EXT_MEMORY1_BAR_A 0x7808
 
+#define EXT_MEM1_BASE_S    16
+#define EXT_MEM1_BASE_M    0xfffU
+#define EXT_MEM1_BASE_G(x) (((x) >> EXT_MEM1_BASE_S) & EXT_MEM1_BASE_M)
+
 #define EXT_MEM1_SIZE_S    0
 #define EXT_MEM1_SIZE_M    0xfffU
 #define EXT_MEM1_SIZE_V(x) ((x) << EXT_MEM1_SIZE_S)
 #define EXT_MEM1_SIZE_G(x) (((x) >> EXT_MEM1_SIZE_S) & EXT_MEM1_SIZE_M)
 
 #define MA_EXT_MEMORY0_BAR_A 0x77c8
+
+#define EXT_MEM0_BASE_S    16
+#define EXT_MEM0_BASE_M    0xfffU
+#define EXT_MEM0_BASE_G(x) (((x) >> EXT_MEM0_BASE_S) & EXT_MEM0_BASE_M)
 
 #define EXT_MEM0_SIZE_S    0
 #define EXT_MEM0_SIZE_M    0xfffU
@@ -978,6 +1016,10 @@
 
 /* registers for module CIM */
 #define CIM_BOOT_CFG_A 0x7b00
+#define CIM_SDRAM_BASE_ADDR_A 0x7b14
+#define CIM_SDRAM_ADDR_SIZE_A 0x7b18
+#define CIM_EXTMEM2_BASE_ADDR_A 0x7b1c
+#define CIM_EXTMEM2_ADDR_SIZE_A 0x7b20
 #define CIM_PF_MAILBOX_CTRL_SHADOW_COPY_A 0x290
 
 #define  BOOTADDR_M	0xffffff00U
@@ -1236,6 +1278,33 @@
 #define TP_OUT_CONFIG_A		0x7d04
 #define TP_GLOBAL_CONFIG_A	0x7d08
 
+#define TP_CMM_TCB_BASE_A 0x7d10
+#define TP_CMM_MM_BASE_A 0x7d14
+#define TP_CMM_TIMER_BASE_A 0x7d18
+#define TP_PMM_TX_BASE_A 0x7d20
+#define TP_PMM_RX_BASE_A 0x7d28
+#define TP_PMM_RX_PAGE_SIZE_A 0x7d2c
+#define TP_PMM_RX_MAX_PAGE_A 0x7d30
+#define TP_PMM_TX_PAGE_SIZE_A 0x7d34
+#define TP_PMM_TX_MAX_PAGE_A 0x7d38
+#define TP_CMM_MM_MAX_PSTRUCT_A 0x7e6c
+
+#define PMRXNUMCHN_S    31
+#define PMRXNUMCHN_V(x) ((x) << PMRXNUMCHN_S)
+#define PMRXNUMCHN_F    PMRXNUMCHN_V(1U)
+
+#define PMTXNUMCHN_S    30
+#define PMTXNUMCHN_M    0x3U
+#define PMTXNUMCHN_G(x) (((x) >> PMTXNUMCHN_S) & PMTXNUMCHN_M)
+
+#define PMTXMAXPAGE_S    0
+#define PMTXMAXPAGE_M    0x1fffffU
+#define PMTXMAXPAGE_G(x) (((x) >> PMTXMAXPAGE_S) & PMTXMAXPAGE_M)
+
+#define PMRXMAXPAGE_S    0
+#define PMRXMAXPAGE_M    0x1fffffU
+#define PMRXMAXPAGE_G(x) (((x) >> PMRXMAXPAGE_S) & PMRXMAXPAGE_M)
+
 #define DBGLAMODE_S	14
 #define DBGLAMODE_M	0x3U
 #define DBGLAMODE_G(x)	(((x) >> DBGLAMODE_S) & DBGLAMODE_M)
@@ -1343,6 +1412,9 @@
 #define MTUVALUE_G(x) (((x) >> MTUVALUE_S) & MTUVALUE_M)
 
 #define TP_RSS_LKP_TABLE_A	0x7dec
+#define TP_CMM_MM_RX_FLST_BASE_A 0x7e60
+#define TP_CMM_MM_TX_FLST_BASE_A 0x7e64
+#define TP_CMM_MM_PS_FLST_BASE_A 0x7e68
 
 #define LKPTBLROWVLD_S    31
 #define LKPTBLROWVLD_V(x) ((x) << LKPTBLROWVLD_S)
@@ -1488,6 +1560,11 @@
 #define TP_MIB_RQE_DFR_PKT_A	0x64
 
 #define ULP_TX_INT_CAUSE_A	0x8dcc
+#define ULP_TX_TPT_LLIMIT_A	0x8dd4
+#define ULP_TX_TPT_ULIMIT_A	0x8dd8
+#define ULP_TX_PBL_LLIMIT_A	0x8ddc
+#define ULP_TX_PBL_ULIMIT_A	0x8de0
+#define ULP_TX_ERR_TABLE_BASE_A 0x8e04
 
 #define PBL_BOUND_ERR_CH3_S    31
 #define PBL_BOUND_ERR_CH3_V(x) ((x) << PBL_BOUND_ERR_CH3_S)
@@ -2252,11 +2329,31 @@
 #define MATCHSRAM_V(x) ((x) << MATCHSRAM_S)
 #define MATCHSRAM_F    MATCHSRAM_V(1U)
 
+#define MPS_RX_PG_RSV0_A 0x11010
+#define MPS_RX_PG_RSV4_A 0x11020
 #define MPS_RX_PERR_INT_CAUSE_A 0x11074
+#define MPS_RX_MAC_BG_PG_CNT0_A 0x11208
+#define MPS_RX_LPBK_BG_PG_CNT0_A 0x11218
 
 #define MPS_CLS_TCAM_Y_L_A 0xf000
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
+
+#define USED_S    16
+#define USED_M    0x7ffU
+#define USED_G(x) (((x) >> USED_S) & USED_M)
+
+#define ALLOC_S    0
+#define ALLOC_M    0x7ffU
+#define ALLOC_G(x) (((x) >> ALLOC_S) & ALLOC_M)
+
+#define T5_USED_S    16
+#define T5_USED_M    0xfffU
+#define T5_USED_G(x) (((x) >> T5_USED_S) & T5_USED_M)
+
+#define T5_ALLOC_S    0
+#define T5_ALLOC_M    0xfffU
+#define T5_ALLOC_G(x) (((x) >> T5_ALLOC_S) & T5_ALLOC_M)
 
 #define DMACH_S    0
 #define DMACH_M    0xffffU
@@ -2415,8 +2512,21 @@
 #define SLVFIFOPARINT_F    SLVFIFOPARINT_V(1U)
 
 #define ULP_RX_INT_CAUSE_A 0x19158
+#define ULP_RX_ISCSI_LLIMIT_A 0x1915c
+#define ULP_RX_ISCSI_ULIMIT_A 0x19160
 #define ULP_RX_ISCSI_TAGMASK_A 0x19164
 #define ULP_RX_ISCSI_PSZ_A 0x19168
+#define ULP_RX_TDDP_LLIMIT_A 0x1916c
+#define ULP_RX_TDDP_ULIMIT_A 0x19170
+#define ULP_RX_STAG_LLIMIT_A 0x1917c
+#define ULP_RX_STAG_ULIMIT_A 0x19180
+#define ULP_RX_RQ_LLIMIT_A 0x19184
+#define ULP_RX_RQ_ULIMIT_A 0x19188
+#define ULP_RX_PBL_LLIMIT_A 0x1918c
+#define ULP_RX_PBL_ULIMIT_A 0x19190
+#define ULP_RX_CTX_BASE_A 0x19194
+#define ULP_RX_RQUDP_LLIMIT_A 0x191a4
+#define ULP_RX_RQUDP_ULIMIT_A 0x191a8
 #define ULP_RX_LA_CTL_A 0x1923c
 #define ULP_RX_LA_RDPTR_A 0x19240
 #define ULP_RX_LA_RDDATA_A 0x19244
@@ -2477,6 +2587,10 @@
 #define SOURCEPF_S    8
 #define SOURCEPF_M    0x7U
 #define SOURCEPF_G(x) (((x) >> SOURCEPF_S) & SOURCEPF_M)
+
+#define T6_SOURCEPF_S    9
+#define T6_SOURCEPF_M    0x7U
+#define T6_SOURCEPF_G(x) (((x) >> T6_SOURCEPF_S) & T6_SOURCEPF_M)
 
 #define PL_INT_CAUSE_A 0x1940c
 
@@ -2617,7 +2731,15 @@
 #define T6_LIPMISS_V(x) ((x) << T6_LIPMISS_S)
 #define T6_LIPMISS_F    T6_LIPMISS_V(1U)
 
+#define LE_DB_CONFIG_A 0x19c04
+#define LE_DB_HASH_TID_BASE_A 0x19c30
+#define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30
 #define LE_DB_INT_CAUSE_A 0x19c3c
+#define LE_DB_TID_HASHBASE_A 0x19df8
+
+#define HASHEN_S    20
+#define HASHEN_V(x) ((x) << HASHEN_S)
+#define HASHEN_F    HASHEN_V(1U)
 
 #define REQQPARERR_S    16
 #define REQQPARERR_V(x) ((x) << REQQPARERR_S)
@@ -2638,6 +2760,10 @@
 #define LIP0_S    4
 #define LIP0_V(x) ((x) << LIP0_S)
 #define LIP0_F    LIP0_V(1U)
+
+#define BASEADDR_S    3
+#define BASEADDR_M    0x1fffffffU
+#define BASEADDR_G(x) (((x) >> BASEADDR_S) & BASEADDR_M)
 
 #define TCAMINTPERR_S    13
 #define TCAMINTPERR_V(x) ((x) << TCAMINTPERR_S)
@@ -2745,10 +2871,11 @@
 #define EDC_H_BIST_DATA_PATTERN_A	0x50010
 #define EDC_H_BIST_STATUS_RDATA_A	0x50028
 
+#define EDC_H_ECC_ERR_ADDR_A		0x50084
 #define EDC_T51_BASE_ADDR		0x50800
 
-#define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
-#define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
+#define EDC_T5_STRIDE (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
+#define EDC_T5_REG(reg, idx) (reg + EDC_T5_STRIDE * idx)
 
 #define PL_VF_REV_A 0x4
 #define PL_VF_WHOAMI_A 0x0
