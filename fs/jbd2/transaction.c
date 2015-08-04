@@ -204,6 +204,20 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 		 * attach this handle to a new transaction.
 		 */
 		atomic_sub(total, &t->t_outstanding_credits);
+
+		/*
+		 * Is the number of reserved credits in the current transaction too
+		 * big to fit this handle? Wait until reserved credits are freed.
+		 */
+		if (atomic_read(&journal->j_reserved_credits) + total >
+		    journal->j_max_transaction_buffers) {
+			read_unlock(&journal->j_state_lock);
+			wait_event(journal->j_wait_reserved,
+				   atomic_read(&journal->j_reserved_credits) + total <=
+				   journal->j_max_transaction_buffers);
+			return 1;
+		}
+
 		wait_transaction_locked(journal);
 		return 1;
 	}
@@ -262,19 +276,23 @@ static int start_this_handle(journal_t *journal, handle_t *handle,
 	int		rsv_blocks = 0;
 	unsigned long ts = jiffies;
 
-	/*
-	 * 1/2 of transaction can be reserved so we can practically handle
-	 * only 1/2 of maximum transaction size per operation
-	 */
-	if (WARN_ON(blocks > journal->j_max_transaction_buffers / 2)) {
-		printk(KERN_ERR "JBD2: %s wants too many credits (%d > %d)\n",
-		       current->comm, blocks,
-		       journal->j_max_transaction_buffers / 2);
-		return -ENOSPC;
-	}
-
 	if (handle->h_rsv_handle)
 		rsv_blocks = handle->h_rsv_handle->h_buffer_credits;
+
+	/*
+	 * Limit the number of reserved credits to 1/2 of maximum transaction
+	 * size and limit the number of total credits to not exceed maximum
+	 * transaction size per operation.
+	 */
+	if ((rsv_blocks > journal->j_max_transaction_buffers / 2) ||
+	    (rsv_blocks + blocks > journal->j_max_transaction_buffers)) {
+		printk(KERN_ERR "JBD2: %s wants too many credits "
+		       "credits:%d rsv_credits:%d max:%d\n",
+		       current->comm, blocks, rsv_blocks,
+		       journal->j_max_transaction_buffers);
+		WARN_ON(1);
+		return -ENOSPC;
+	}
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
