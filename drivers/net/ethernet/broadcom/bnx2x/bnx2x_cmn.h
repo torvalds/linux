@@ -1386,4 +1386,16 @@ void bnx2x_schedule_sp_rtnl(struct bnx2x*, enum sp_rtnl_flag,
  * @state:	OS_DRIVER_STATE_* value reflecting current driver state
  */
 void bnx2x_set_os_driver_state(struct bnx2x *bp, u32 state);
+
+/**
+ * bnx2x_nvram_read - reads data from nvram [might sleep]
+ *
+ * @bp:		driver handle
+ * @offset:	byte offset in nvram
+ * @ret_buf:	pointer to buffer where data is to be stored
+ * @buf_size:   Length of 'ret_buf' in bytes
+ */
+int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
+		     int buf_size);
+
 #endif /* BNX2X_CMN_H */

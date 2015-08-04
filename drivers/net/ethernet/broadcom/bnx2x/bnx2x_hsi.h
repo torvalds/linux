@@ -2075,6 +2075,25 @@ enum curr_cfg_method_e {
 	CURR_CFG_MET_VENDOR_SPEC = 2,/* e.g. Option ROM, NPAR, O/S Cfg Utils */
 };
 
+#define FC_NPIV_WWPN_SIZE 8
+#define FC_NPIV_WWNN_SIZE 8
+struct bdn_npiv_settings {
+	u8 npiv_wwpn[FC_NPIV_WWPN_SIZE];
+	u8 npiv_wwnn[FC_NPIV_WWNN_SIZE];
+};
+
+struct bdn_fc_npiv_cfg {
+	/* hdr used internally by the MFW */
+	u32 hdr;
+	u32 num_of_npiv;
+};
+
+#define MAX_NUMBER_NPIV 64
+struct bdn_fc_npiv_tbl {
+	struct bdn_fc_npiv_cfg fc_npiv_cfg;
+	struct bdn_npiv_settings settings[MAX_NUMBER_NPIV];
+};
+
 struct mdump_driver_info {
 	u32 epoc;
 	u32 drv_ver;

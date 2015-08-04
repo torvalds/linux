@@ -1348,8 +1348,8 @@ static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, __be32 *ret_val,
 	return rc;
 }
 
-static int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
-			    int buf_size)
+int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
+		     int buf_size)
 {
 	int rc;
 	u32 cmd_flags;
