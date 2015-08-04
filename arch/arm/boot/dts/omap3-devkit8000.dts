@@ -41,8 +41,12 @@
 			gpios = <&gpio6 4 GPIO_ACTIVE_HIGH>;	/* 164 -> LED3 */
 			default-state = "on";
 			linux,default-trigger = "usr";
-                };
+		};
 
+		pmu_stat {
+			label = "devkit8000::pmu_stat";
+			gpios = <&twl_gpio 19 GPIO_ACTIVE_HIGH>; /* LEDB */
+		};
 	};
 
 	sound {
@@ -107,6 +111,16 @@
 
 &mmc3 {
 	status = "disabled";
+};
+
+&twl_gpio {
+	ti,use-leds;
+	/*
+	 * pulldowns:
+	 * BIT(1), BIT(2), BIT(6), BIT(7), BIT(8), BIT(13)
+	 * BIT(15), BIT(16), BIT(17)
+	 */
+	ti,pulldowns = <0x03a1c6>;
 };
 
 &wdt2 {
