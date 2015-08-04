@@ -3,7 +3,7 @@
 #
 
 # Common objects
-obj-y				:= timer.o console.o
+obj-y				:= timer.o
 
 # CPU objects
 obj-$(CONFIG_ARCH_SH73A0)	+= setup-sh73a0.o
