@@ -1525,13 +1525,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
-	if (!adev->kernel_ctx) {
-		uint32_t id = 0;
-		r = amdgpu_ctx_alloc(adev, NULL, &id);
-		if (r) {
-			dev_err(adev->dev, "failed to create kernel context (%d).\n", r);
-			return r;
-		}
+	r = amdgpu_ctx_init(adev, true, &adev->kernel_ctx);
+	if (r) {
+		dev_err(adev->dev, "failed to create kernel context (%d).\n", r);
+		return r;
 	}
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
@@ -1594,7 +1591,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->shutdown = true;
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
-	amdgpu_ctx_free(adev, NULL, 0);
+	amdgpu_ctx_fini(&adev->kernel_ctx);
 	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);

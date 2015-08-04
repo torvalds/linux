@@ -1033,10 +1033,9 @@ struct amdgpu_ctx_mgr {
 	struct idr		ctx_handles;
 };
 
-int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
-		     uint32_t *id);
-int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
-		    uint32_t id);
+int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
+		    struct amdgpu_ctx *ctx);
+void amdgpu_ctx_fini(struct amdgpu_ctx *ctx);
 
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
@@ -2095,7 +2094,7 @@ struct amdgpu_device {
 	struct kfd_dev          *kfd;
 
 	/* kernel conext for IB submission */
-	struct amdgpu_ctx *kernel_ctx;
+	struct amdgpu_ctx	kernel_ctx;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);

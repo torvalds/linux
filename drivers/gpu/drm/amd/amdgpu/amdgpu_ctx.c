@@ -25,82 +25,27 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 
-static void amdgpu_ctx_do_release(struct kref *ref)
+int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
+		    struct amdgpu_ctx *ctx)
 {
-	struct amdgpu_ctx *ctx;
-	struct amdgpu_device *adev;
 	unsigned i, j;
+	int r;
 
-	ctx = container_of(ref, struct amdgpu_ctx, refcount);
-	adev = ctx->adev;
-
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		for (j = 0; j < AMDGPU_CTX_MAX_CS_PENDING; ++j)
-			fence_put(ctx->rings[i].fences[j]);
-
-	if (amdgpu_enable_scheduler) {
-		for (i = 0; i < adev->num_rings; i++)
-			amd_context_entity_fini(adev->rings[i]->scheduler,
-						&ctx->rings[i].c_entity);
-	}
-
-	kfree(ctx);
-}
-
-static void amdgpu_ctx_init(struct amdgpu_device *adev,
-			    struct amdgpu_fpriv *fpriv,
-			    struct amdgpu_ctx *ctx)
-{
-	int i;
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->adev = adev;
 	kref_init(&ctx->refcount);
 	spin_lock_init(&ctx->ring_lock);
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		ctx->rings[i].sequence = 1;
-}
-
-int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
-		     uint32_t *id)
-{
-	struct amdgpu_ctx *ctx;
-	int i, j, r;
-
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-	if (fpriv) {
-		struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
-		mutex_lock(&mgr->lock);
-		r = idr_alloc(&mgr->ctx_handles, ctx, 1, 0, GFP_KERNEL);
-		if (r < 0) {
-			mutex_unlock(&mgr->lock);
-			kfree(ctx);
-			return r;
-		}
-		*id = (uint32_t)r;
-		amdgpu_ctx_init(adev, fpriv, ctx);
-		mutex_unlock(&mgr->lock);
-	} else {
-		if (adev->kernel_ctx) {
-			DRM_ERROR("kernel cnotext has been created.\n");
-			kfree(ctx);
-			return 0;
-		}
-		amdgpu_ctx_init(adev, fpriv, ctx);
-
-		adev->kernel_ctx = ctx;
-	}
 
 	if (amdgpu_enable_scheduler) {
 		/* create context entity for each ring */
 		for (i = 0; i < adev->num_rings; i++) {
 			struct amd_run_queue *rq;
-			if (fpriv)
-				rq = &adev->rings[i]->scheduler->sched_rq;
-			else
+			if (kernel)
 				rq = &adev->rings[i]->scheduler->kernel_rq;
+			else
+				rq = &adev->rings[i]->scheduler->sched_rq;
 			r = amd_context_entity_init(adev->rings[i]->scheduler,
 						    &ctx->rings[i].c_entity,
 						    NULL, rq, amdgpu_sched_jobs);
@@ -113,33 +58,79 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 				amd_context_entity_fini(adev->rings[j]->scheduler,
 							&ctx->rings[j].c_entity);
 			kfree(ctx);
-			return -EINVAL;
+			return r;
 		}
 	}
-
 	return 0;
 }
 
-int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint32_t id)
+void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
+{
+	struct amdgpu_device *adev = ctx->adev;
+	unsigned i, j;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
+		for (j = 0; j < AMDGPU_CTX_MAX_CS_PENDING; ++j)
+			fence_put(ctx->rings[i].fences[j]);
+
+	if (amdgpu_enable_scheduler) {
+		for (i = 0; i < adev->num_rings; i++)
+			amd_context_entity_fini(adev->rings[i]->scheduler,
+						&ctx->rings[i].c_entity);
+	}
+}
+
+static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
+			    struct amdgpu_fpriv *fpriv,
+			    uint32_t *id)
+{
+	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
+	struct amdgpu_ctx *ctx;
+	int r;
+
+	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	mutex_lock(&mgr->lock);
+	r = idr_alloc(&mgr->ctx_handles, ctx, 1, 0, GFP_KERNEL);
+	if (r < 0) {
+		mutex_unlock(&mgr->lock);
+		kfree(ctx);
+		return r;
+	}
+	*id = (uint32_t)r;
+	r = amdgpu_ctx_init(adev, false, ctx);
+	mutex_unlock(&mgr->lock);
+
+	return r;
+}
+
+static void amdgpu_ctx_do_release(struct kref *ref)
 {
 	struct amdgpu_ctx *ctx;
 
-	if (fpriv) {
-		struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
-		mutex_lock(&mgr->lock);
-		ctx = idr_find(&mgr->ctx_handles, id);
-		if (ctx) {
-			idr_remove(&mgr->ctx_handles, id);
-			kref_put(&ctx->refcount, amdgpu_ctx_do_release);
-			mutex_unlock(&mgr->lock);
-			return 0;
-		}
-		mutex_unlock(&mgr->lock);
-	} else {
-		ctx = adev->kernel_ctx;
+	ctx = container_of(ref, struct amdgpu_ctx, refcount);
+
+	amdgpu_ctx_fini(ctx);
+
+	kfree(ctx);
+}
+
+static int amdgpu_ctx_free(struct amdgpu_fpriv *fpriv, uint32_t id)
+{
+	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
+	struct amdgpu_ctx *ctx;
+
+	mutex_lock(&mgr->lock);
+	ctx = idr_find(&mgr->ctx_handles, id);
+	if (ctx) {
+		idr_remove(&mgr->ctx_handles, id);
 		kref_put(&ctx->refcount, amdgpu_ctx_do_release);
+		mutex_unlock(&mgr->lock);
 		return 0;
 	}
+	mutex_unlock(&mgr->lock);
 	return -EINVAL;
 }
 
@@ -198,7 +189,7 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 			args->out.alloc.ctx_id = id;
 			break;
 		case AMDGPU_CTX_OP_FREE_CTX:
-			r = amdgpu_ctx_free(adev, fpriv, id);
+			r = amdgpu_ctx_free(fpriv, id);
 			break;
 		case AMDGPU_CTX_OP_QUERY_STATE:
 			r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
