@@ -850,21 +850,29 @@ static int lguest_setup_irq(unsigned int irq)
 	if (err < 0 && err != -EEXIST)
 		return err;
 
+	/*
+	 * Tell the Linux infrastructure that the interrupt is
+	 * controlled by our level-based lguest interrupt controller.
+	 */
 	irq_set_chip_and_handler_name(irq, &lguest_irq_controller,
 				      handle_level_irq, "level");
+
+	/* Some systems map "vectors" to interrupts weirdly.  Not us! */
+	__this_cpu_write(vector_irq[FIRST_EXTERNAL_VECTOR + irq], irq);
 	return 0;
 }
 
 static int lguest_enable_irq(struct pci_dev *dev)
 {
+	int err;
 	u8 line = 0;
 
 	/* We literally use the PCI interrupt line as the irq number. */
 	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &line);
-	irq_set_chip_and_handler_name(line, &lguest_irq_controller,
-				      handle_level_irq, "level");
-	dev->irq = line;
-	return 0;
+	err = lguest_setup_irq(line);
+	if (!err)
+		dev->irq = line;
+	return err;
 }
 
 /* We don't do hotplug PCI, so this shouldn't be called. */
@@ -875,17 +883,13 @@ static void lguest_disable_irq(struct pci_dev *dev)
 
 /*
  * This sets up the Interrupt Descriptor Table (IDT) entry for each hardware
- * interrupt (except 128, which is used for system calls), and then tells the
- * Linux infrastructure that each interrupt is controlled by our level-based
- * lguest interrupt controller.
+ * interrupt (except 128, which is used for system calls).
  */
 static void __init lguest_init_IRQ(void)
 {
 	unsigned int i;
 
 	for (i = FIRST_EXTERNAL_VECTOR; i < FIRST_SYSTEM_VECTOR; i++) {
-		/* Some systems map "vectors" to interrupts weirdly.  Not us! */
-		__this_cpu_write(vector_irq[i], i - FIRST_EXTERNAL_VECTOR);
 		if (i != IA32_SYSCALL_VECTOR)
 			set_intr_gate(i, irq_entries_start +
 					8 * (i - FIRST_EXTERNAL_VECTOR));
