@@ -204,7 +204,7 @@ static void zfcp_fsf_status_read_link_down(struct zfcp_fsf_req *req)
 		break;
 	case FSF_STATUS_READ_SUB_FIRMWARE_UPDATE:
 		zfcp_fsf_link_down_info_eval(req, NULL);
-	};
+	}
 }
 
 static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
