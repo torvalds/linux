@@ -1383,12 +1383,12 @@ put_next:
 	f2fs_put_dnode(&dn);
 	f2fs_unlock_op(sbi);
 
+	f2fs_wait_on_page_writeback(page, DATA);
+
 	if (len == PAGE_CACHE_SIZE)
 		goto out_update;
 	if (PageUptodate(page))
 		goto out_clear;
-
-	f2fs_wait_on_page_writeback(page, DATA);
 
 	if ((pos & PAGE_CACHE_MASK) >= i_size_read(inode)) {
 		unsigned start = pos & (PAGE_CACHE_SIZE - 1);
