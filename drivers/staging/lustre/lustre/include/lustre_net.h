@@ -2183,7 +2183,7 @@ struct ptlrpcd_ctl {
 	 */
 	struct ptlrpc_request_set  *pc_set;
 	/**
-	 * Thread name used in cfs_daemonize()
+	 * Thread name used in kthread_run()
 	 */
 	char			pc_name[16];
 	/**
