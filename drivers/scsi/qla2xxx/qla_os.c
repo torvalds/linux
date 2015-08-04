@@ -981,12 +981,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	/*
-	 * Clear the slot in the oustanding_cmds array if we can't find the
-	 * command to reclaim the resources.
-	 */
-	if (rval == QLA_FUNCTION_PARAMETER_ERROR)
-		vha->req->outstanding_cmds[sp->handle] = NULL;
 	sp->done(ha, sp, 0);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
