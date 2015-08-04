@@ -519,7 +519,7 @@ static unsigned long dto_clk_recalc_rate(struct clk_hw *hw,
 static long dto_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long *parent_rate)
 {
-	u64 dividend = rate * (1 << 29);
+	u64 dividend = (u64)rate * (1 << 29);
 
 	do_div(dividend, *parent_rate);
 	dividend *= *parent_rate;
@@ -531,7 +531,7 @@ static long dto_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 static int dto_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long parent_rate)
 {
-	u64 dividend = rate * (1 << 29);
+	u64 dividend = (u64)rate * (1 << 29);
 	struct clk_dto *clk = to_dtoclk(hw);
 
 	do_div(dividend, parent_rate);
