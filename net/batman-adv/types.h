@@ -100,6 +100,8 @@ struct batadv_hard_iface_bat_iv {
  * @bat_iv: BATMAN IV specific per hard interface data
  * @cleanup_work: work queue callback item for hard interface deinit
  * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
+ * @neigh_list: list of unique single hop neighbors via this interface
+ * @neigh_list_lock: lock protecting neigh_list
  */
 struct batadv_hard_iface {
 	struct list_head list;
@@ -115,6 +117,9 @@ struct batadv_hard_iface {
 	struct batadv_hard_iface_bat_iv bat_iv;
 	struct work_struct cleanup_work;
 	struct dentry *debug_dir;
+	struct hlist_head neigh_list;
+	/* neigh_list_lock protects: neigh_list */
+	spinlock_t neigh_list_lock;
 };
 
 /**
@@ -336,6 +341,23 @@ struct batadv_gw_node {
 	struct batadv_orig_node *orig_node;
 	u32 bandwidth_down;
 	u32 bandwidth_up;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/**
+ * batadv_hardif_neigh_node - unique neighbor per hard interface
+ * @list: list node for batadv_hard_iface::neigh_list
+ * @addr: the MAC address of the neighboring interface
+ * @if_incoming: pointer to incoming hard interface
+ * @refcount: number of contexts the object is used
+ * @rcu: struct used for freeing in a RCU-safe manner
+ */
+struct batadv_hardif_neigh_node {
+	struct hlist_node list;
+	u8 addr[ETH_ALEN];
+	struct batadv_hard_iface *if_incoming;
+	unsigned long last_seen;
 	atomic_t refcount;
 	struct rcu_head rcu;
 };
