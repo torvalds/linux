@@ -176,14 +176,12 @@ void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a)
 
 /**
  * cpuidle_state_is_coupled - check if a state is part of a coupled set
- * @dev: struct cpuidle_device for the current cpu
  * @drv: struct cpuidle_driver for the platform
  * @state: index of the target state in drv->states
  *
  * Returns true if the target state is coupled with cpus besides this one
  */
-bool cpuidle_state_is_coupled(struct cpuidle_device *dev,
-	struct cpuidle_driver *drv, int state)
+bool cpuidle_state_is_coupled(struct cpuidle_driver *drv, int state)
 {
 	return drv->states[state].flags & CPUIDLE_FLAG_COUPLED;
 }
