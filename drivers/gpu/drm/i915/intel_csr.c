@@ -42,8 +42,10 @@
  */
 
 #define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
+#define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
 
 MODULE_FIRMWARE(I915_CSR_SKL);
+MODULE_FIRMWARE(I915_CSR_BXT);
 
 /*
 * SKL CSR registers for DC5 and DC6
@@ -409,6 +411,8 @@ void intel_csr_ucode_init(struct drm_device *dev)
 
 	if (IS_SKYLAKE(dev))
 		csr->fw_path = I915_CSR_SKL;
+	else if (IS_BROXTON(dev_priv))
+		csr->fw_path = I915_CSR_BXT;
 	else {
 		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
 		intel_csr_load_status_set(dev_priv, FW_FAILED);
