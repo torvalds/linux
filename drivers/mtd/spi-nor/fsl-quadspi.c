@@ -34,7 +34,11 @@
 #define QUADSPI_QUIRK_4X_INT_CLK	(1 << 1)
 /* Controller needs DDR delay */
 #define QUADSPI_QUIRK_DDR_DELAY		(1 << 2)
-
+/*
+ * TKT253890, Controller needs driver to fill txfifo till 16 byte to
+ * trigger data transfer even though extern data will not transferred.
+ */
+#define QUADSPI_QUIRK_TKT253890		(1 << 2)
 
 /* The registers */
 #define QUADSPI_MCR			0x00
@@ -208,6 +212,7 @@
 enum fsl_qspi_devtype {
 	FSL_QUADSPI_VYBRID,
 	FSL_QUADSPI_IMX6SX,
+	FSL_QUADSPI_IMX7D,
 };
 
 struct fsl_qspi_devtype_data {
@@ -233,6 +238,15 @@ static struct fsl_qspi_devtype_data imx6sx_data = {
 	.ahb_buf_size = 1024,
 	.driver_data = QUADSPI_QUIRK_4X_INT_CLK
 		| QUADSPI_QUIRK_DDR_DELAY,
+};
+
+static struct fsl_qspi_devtype_data imx7d_data = {
+	.devtype = FSL_QUADSPI_IMX7D,
+	.rxfifo = 512,
+	.txfifo = 512,
+	.ahb_buf_size = 1024,
+	.driver_data = QUADSPI_QUIRK_TKT253890
+		       | QUADSPI_QUIRK_4X_INT_CLK,
 };
 
 #define FSL_QSPI_MAX_CHIP	4
@@ -269,6 +283,11 @@ static inline int needs_ddr_delay(struct fsl_qspi *q)
 static inline int needs_4x_clock(struct fsl_qspi *q)
 {
 	return q->devtype_data->driver_data & QUADSPI_QUIRK_4X_INT_CLK;
+}
+
+static inline int needs_fill_txfifo(struct fsl_qspi *q)
+{
+	return q->devtype_data->driver_data & QUADSPI_QUIRK_TKT253890;
 }
 
 /*
@@ -587,6 +606,11 @@ static int fsl_qspi_nor_write(struct fsl_qspi *q, struct spi_nor *nor,
 		txbuf++;
 	}
 
+	/* fill the TXFIFO upto 16 bytes for i.MX7d */
+	if (needs_fill_txfifo(q))
+		for (; i < 4; i++)
+			writel(tmp, q->iobase + QUADSPI_TBDR);
+
 	/* Trigger it */
 	ret = fsl_qspi_runcmd(q, opcode, to, count);
 
@@ -730,6 +754,7 @@ static int fsl_qspi_nor_setup_last(struct fsl_qspi *q)
 static const struct of_device_id fsl_qspi_dt_ids[] = {
 	{ .compatible = "fsl,vf610-qspi", .data = (void *)&vybrid_data, },
 	{ .compatible = "fsl,imx6sx-qspi", .data = (void *)&imx6sx_data, },
+	{ .compatible = "fsl,imx7d-qspi", .data = (void *)&imx7d_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_qspi_dt_ids);
