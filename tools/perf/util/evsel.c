@@ -587,15 +587,23 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 	}
 }
 
-static void apply_config_terms(struct perf_event_attr *attr __maybe_unused,
-			       struct list_head *config_terms)
+static void apply_config_terms(struct perf_evsel *evsel)
 {
 	struct perf_evsel_config_term *term;
+	struct list_head *config_terms = &evsel->config_terms;
+	struct perf_event_attr *attr = &evsel->attr;
 
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
 		case PERF_EVSEL__CONFIG_TERM_PERIOD:
 			attr->sample_period = term->val.period;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_TIME:
+			if (term->val.time)
+				perf_evsel__set_sample_bit(evsel, TIME);
+			else
+				perf_evsel__reset_sample_bit(evsel, TIME);
+			break;
 		default:
 			break;
 		}
@@ -798,7 +806,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	 * Apply event specific term settings,
 	 * it overloads any global configuration.
 	 */
-	apply_config_terms(attr, &evsel->config_terms);
+	apply_config_terms(evsel);
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
