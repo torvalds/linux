@@ -134,7 +134,7 @@ nvkm_perfsrc_enable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 	u32 mask, value;
 	int i, j;
 
-	for (i = 0; i < 4 && ctr->signal[i]; i++) {
+	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 8 && ctr->source[i][j]; j++) {
 			sig = nvkm_perfsig_find(ppm, ctr->domain,
 						ctr->signal[i], &dom);
@@ -170,7 +170,7 @@ nvkm_perfsrc_disable(struct nvkm_pm *ppm, struct nvkm_perfctr *ctr)
 	u32 mask;
 	int i, j;
 
-	for (i = 0; i < 4 && ctr->signal[i]; i++) {
+	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 8 && ctr->source[i][j]; j++) {
 			sig = nvkm_perfsig_find(ppm, ctr->domain,
 						ctr->signal[i], &dom);
