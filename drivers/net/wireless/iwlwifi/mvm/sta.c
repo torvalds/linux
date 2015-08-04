@@ -1414,6 +1414,7 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
 	u8 sta_id;
 	int ret;
+	static const u8 __maybe_unused zero_addr[ETH_ALEN] = {0};
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1480,7 +1481,7 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 end:
 	IWL_DEBUG_WEP(mvm, "key: cipher=%x len=%d idx=%d sta=%pM ret=%d\n",
 		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
-		      sta->addr, ret);
+		      sta ? sta->addr : zero_addr, ret);
 	return ret;
 }
 

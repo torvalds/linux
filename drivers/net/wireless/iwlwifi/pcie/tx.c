@@ -1948,8 +1948,19 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr) {
-		if (txq->wd_timeout)
-			mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
+		if (txq->wd_timeout) {
+			/*
+			 * If the TXQ is active, then set the timer, if not,
+			 * set the timer in remainder so that the timer will
+			 * be armed with the right value when the station will
+			 * wake up.
+			 */
+			if (!txq->frozen)
+				mod_timer(&txq->stuck_timer,
+					  jiffies + txq->wd_timeout);
+			else
+				txq->frozen_expiry_remainder = txq->wd_timeout;
+		}
 		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", q->id);
 		iwl_trans_pcie_ref(trans);
 	}
