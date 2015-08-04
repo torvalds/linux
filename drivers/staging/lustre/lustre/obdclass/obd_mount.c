@@ -247,13 +247,13 @@ int lustre_start_mgc(struct super_block *sb)
 	mutex_lock(&mgc_start_lock);
 
 	len = strlen(LUSTRE_MGC_OBDNAME) + strlen(libcfs_nid2str(nid)) + 1;
-	mgcname = kzalloc(len, GFP_NOFS);
-	niduuid = kzalloc(len + 2, GFP_NOFS);
+	mgcname = kasprintf(GFP_NOFS,
+			    "%s%s", LUSTRE_MGC_OBDNAME, libcfs_nid2str(nid));
+	niduuid = kasprintf(GFP_NOFS, "%s_%x", mgcname, i);
 	if (!mgcname || !niduuid) {
 		rc = -ENOMEM;
 		goto out_free;
 	}
-	sprintf(mgcname, "%s%s", LUSTRE_MGC_OBDNAME, libcfs_nid2str(nid));
 
 	mgssec = lsi->lsi_lmd->lmd_mgssec ? lsi->lsi_lmd->lmd_mgssec : "";
 
@@ -326,7 +326,6 @@ int lustre_start_mgc(struct super_block *sb)
 
 	/* Add the primary nids for the MGS */
 	i = 0;
-	sprintf(niduuid, "%s_%x", mgcname, i);
 	if (IS_SERVER(lsi)) {
 		ptr = lsi->lsi_lmd->lmd_mgs;
 		if (IS_MGS(lsi)) {
@@ -1120,10 +1119,9 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 		/* Remove leading /s from fsname */
 		while (*++s1 == '/') ;
 		/* Freed in lustre_free_lsi */
-		lmd->lmd_profile = kzalloc(strlen(s1) + 8, GFP_NOFS);
+		lmd->lmd_profile = kasprintf(GFP_NOFS, "%s-client", s1);
 		if (!lmd->lmd_profile)
 			return -ENOMEM;
-		sprintf(lmd->lmd_profile, "%s-client", s1);
 	}
 
 	/* Freed in lustre_free_lsi */
