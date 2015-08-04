@@ -2578,7 +2578,7 @@ struct drm_i915_cmd_table {
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
 
-#define HAS_CSR(dev)	(IS_SKYLAKE(dev))
+#define HAS_CSR(dev)	(IS_GEN9(dev))
 
 #define HAS_GUC_UCODE(dev)	(IS_GEN9(dev))
 #define HAS_GUC_SCHED(dev)	(IS_GEN9(dev))
