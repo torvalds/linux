@@ -465,6 +465,9 @@ static struct clk_pll clk_sys3pll = {
  *  double resolution mode:fout = fin * finc / 2^29
  *  normal mode:fout = fin * finc / 2^28
  */
+#define DTO_RESL_DOUBLE	(1ULL << 29)
+#define DTO_RESL_NORMAL	(1ULL << 28)
+
 static int dto_clk_is_enabled(struct clk_hw *hw)
 {
 	struct clk_dto *clk = to_dtoclk(hw);
@@ -509,9 +512,9 @@ static unsigned long dto_clk_recalc_rate(struct clk_hw *hw,
 	rate *= finc;
 	if (droff & BIT(0))
 		/* Double resolution off */
-		do_div(rate, 1 << 28);
+		do_div(rate, DTO_RESL_NORMAL);
 	else
-		do_div(rate, 1 << 29);
+		do_div(rate, DTO_RESL_DOUBLE);
 
 	return rate;
 }
@@ -519,11 +522,11 @@ static unsigned long dto_clk_recalc_rate(struct clk_hw *hw,
 static long dto_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long *parent_rate)
 {
-	u64 dividend = (u64)rate * (1 << 29);
+	u64 dividend = rate * DTO_RESL_DOUBLE;
 
 	do_div(dividend, *parent_rate);
 	dividend *= *parent_rate;
-	do_div(dividend, 1 << 29);
+	do_div(dividend, DTO_RESL_DOUBLE);
 
 	return dividend;
 }
@@ -531,7 +534,7 @@ static long dto_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 static int dto_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long parent_rate)
 {
-	u64 dividend = (u64)rate * (1 << 29);
+	u64 dividend = rate * DTO_RESL_DOUBLE;
 	struct clk_dto *clk = to_dtoclk(hw);
 
 	do_div(dividend, parent_rate);
