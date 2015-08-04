@@ -56,8 +56,8 @@ static LIST_HEAD(kernel_fb_helper_list);
  * Teardown is done with drm_fb_helper_fini().
  *
  * At runtime drivers should restore the fbdev console by calling
- * drm_fb_helper_restore_fbdev_mode() from their ->lastclose callback. They
- * should also notify the fb helper code from updates to the output
+ * drm_fb_helper_restore_fbdev_mode_unlocked() from their ->lastclose callback.
+ * They should also notify the fb helper code from updates to the output
  * configuration by calling drm_fb_helper_hotplug_event(). For easier
  * integration with the output polling code in drm_crtc_helper.c the modeset
  * code provides a ->output_poll_changed callback.
@@ -354,21 +354,6 @@ static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	}
 	return error;
 }
-/**
- * drm_fb_helper_restore_fbdev_mode - restore fbdev configuration
- * @fb_helper: fbcon to restore
- *
- * This should be called from driver's drm ->lastclose callback
- * when implementing an fbcon on top of kms using this helper. This ensures that
- * the user isn't greeted with a black screen when e.g. X dies.
- *
- * Use this variant if you need to bypass locking (panic), or already
- * hold all modeset locks.  Otherwise use drm_fb_helper_restore_fbdev_mode_unlocked()
- */
-static bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
-{
-	return restore_fbdev_mode(fb_helper);
-}
 
 /**
  * drm_fb_helper_restore_fbdev_mode_unlocked - restore fbdev configuration
@@ -417,7 +402,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 			continue;
 
 		drm_modeset_lock_all(dev);
-		ret = drm_fb_helper_restore_fbdev_mode(helper);
+		ret = restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
 		drm_modeset_unlock_all(dev);
