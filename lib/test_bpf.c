@@ -4672,6 +4672,11 @@ static int run_one(const struct bpf_prog *fp, struct bpf_test *test)
 			break;
 
 		data = generate_test_data(test, i);
+		if (!data && !(test->aux & FLAG_NO_DATA)) {
+			pr_cont("data generation failed ");
+			err_cnt++;
+			break;
+		}
 		ret = __run_one(fp, data, runs, &duration);
 		release_test_data(test, data);
 
