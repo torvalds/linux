@@ -1105,7 +1105,9 @@ bool pnfs_roc(struct inode *ino)
 		}
 	if (!found)
 		goto out_noroc;
-	lo->plh_block_lgets++;
+	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
+		goto out_noroc;
+	lo->plh_return_iomode = IOMODE_ANY;
 	pnfs_get_layout_hdr(lo); /* matched in pnfs_roc_release */
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
@@ -1133,7 +1135,7 @@ void pnfs_roc_release(struct inode *ino)
 
 	spin_lock(&ino->i_lock);
 	lo = NFS_I(ino)->layout;
-	lo->plh_block_lgets--;
+	pnfs_clear_layoutreturn_waitbit(lo);
 	if (atomic_dec_and_test(&lo->plh_refcount)) {
 		pnfs_detach_layout_hdr(lo);
 		spin_unlock(&ino->i_lock);
