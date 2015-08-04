@@ -870,8 +870,10 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 	/* Allocate memory for transmit */
 	fwdata = kzalloc(FW_DNLD_TX_BUF_SIZE, GFP_KERNEL);
-	if (!fwdata)
+	if (!fwdata) {
+		ret = -ENOMEM;
 		goto fw_exit;
+	}
 
 	/* Allocate memory for receive */
 	recv_buff = kzalloc(FW_DNLD_RX_BUF_SIZE, GFP_KERNEL);
