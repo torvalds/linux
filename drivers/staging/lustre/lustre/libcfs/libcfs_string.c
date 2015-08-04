@@ -400,7 +400,7 @@ cfs_expr_list_free(struct cfs_expr_list *expr_list)
 		struct cfs_range_expr *expr;
 
 		expr = list_entry(expr_list->el_exprs.next,
-				      struct cfs_range_expr, re_link),
+				      struct cfs_range_expr, re_link);
 		list_del(&expr->re_link);
 		LIBCFS_FREE(expr, sizeof(*expr));
 	}
