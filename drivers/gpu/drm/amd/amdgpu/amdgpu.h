@@ -404,7 +404,7 @@ struct amdgpu_fence_driver {
 
 struct amdgpu_fence {
 	struct fence base;
-
+	struct fence_cb cb;
 	/* RB, DMA, etc. */
 	struct amdgpu_ring		*ring;
 	uint64_t			seq;

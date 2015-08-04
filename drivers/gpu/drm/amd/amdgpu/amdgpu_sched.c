@@ -43,12 +43,20 @@ static int amdgpu_sched_prepare_job(struct amd_gpu_scheduler *sched,
 	return r;
 }
 
+static void amdgpu_fence_sched_cb(struct fence *f, struct fence_cb *cb)
+{
+	struct amdgpu_fence *fence =
+		container_of(cb, struct amdgpu_fence, cb);
+	amd_sched_isr(fence->ring->scheduler);
+}
+
 static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 				 struct amd_context_entity *c_entity,
 				 void *job)
 {
 	int r = 0;
 	struct amdgpu_cs_parser *sched_job = (struct amdgpu_cs_parser *)job;
+	struct amdgpu_fence *fence;
 
 	mutex_lock(&sched_job->job_lock);
 	r = amdgpu_ib_schedule(sched_job->adev,
@@ -57,6 +65,11 @@ static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 			       sched_job->filp);
 	if (r)
 		goto err;
+	fence = sched_job->ibs[sched_job->num_ibs - 1].fence;
+	if (fence_add_callback(&fence->base,
+			       &fence->cb, amdgpu_fence_sched_cb))
+		goto err;
+
 	if (sched_job->run_job) {
 		r = sched_job->run_job(sched_job);
 		if (r)
