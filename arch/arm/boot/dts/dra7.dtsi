@@ -149,6 +149,11 @@
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x3fffffff>;
 				};
+
+				scm_conf1: scm_conf@1c04 {
+					compatible = "syscon";
+					reg = <0x1c04 0x0020>;
+				};
 			};
 
 			cm_core_aon: cm_core_aon@5000 {
