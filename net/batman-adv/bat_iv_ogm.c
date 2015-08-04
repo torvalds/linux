@@ -1379,6 +1379,7 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 				struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_hardif_neigh_node *hardif_neigh = NULL;
 	struct batadv_neigh_node *router = NULL;
 	struct batadv_neigh_node *router_router = NULL;
 	struct batadv_orig_node *orig_neigh_node;
@@ -1421,6 +1422,13 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: originator packet with tq equal 0\n");
 		goto out;
+	}
+
+	if (is_single_hop_neigh) {
+		hardif_neigh = batadv_hardif_neigh_get(if_incoming,
+						       ethhdr->h_source);
+		if (hardif_neigh)
+			hardif_neigh->last_seen = jiffies;
 	}
 
 	router = batadv_orig_router_get(orig_node, if_outgoing);
@@ -1557,6 +1565,8 @@ out:
 		batadv_neigh_node_free_ref(router_router);
 	if (orig_neigh_router)
 		batadv_neigh_node_free_ref(orig_neigh_router);
+	if (hardif_neigh)
+		batadv_hardif_neigh_free_ref(hardif_neigh);
 
 	kfree_skb(skb_priv);
 }
