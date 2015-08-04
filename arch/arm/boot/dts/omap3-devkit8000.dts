@@ -71,6 +71,17 @@
 			gpio-key,wakeup;
 		};
 	};
+
+	tv0: connector@1 {
+		compatible = "svideo-connector";
+		label = "tv";
+
+		port {
+			tv_connector_in: endpoint {
+				remote-endpoint = <&venc_out>;
+			};
+		};
+	};
 };
 
 &i2c1 {
@@ -244,5 +255,18 @@
 		gpmc,clk-activation-ns = <0>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 		gpmc,wr-access-ns = <0>;
+	};
+};
+
+&venc {
+	status = "ok";
+
+	vdda-supply = <&vdac>;
+
+	port {
+		venc_out: endpoint {
+			remote-endpoint = <&tv_connector_in>;
+			ti,channels = <2>;
+		};
 	};
 };
