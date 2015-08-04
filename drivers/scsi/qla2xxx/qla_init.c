@@ -1272,14 +1272,14 @@ qla25xx_write_risc_sema_reg(scsi_qla_host_t *vha, uint32_t data)
 static void
 qla25xx_manipulate_risc_semaphore(scsi_qla_host_t *vha)
 {
-	struct qla_hw_data *ha = vha->hw;
 	uint32_t wd32 = 0;
 	uint delta_msec = 100;
 	uint elapsed_msec = 0;
 	uint timeout_msec;
 	ulong n;
 
-	if (!IS_QLA25XX(ha) && !IS_QLA2031(ha))
+	if (vha->hw->pdev->subsystem_device != 0x0175 &&
+	    vha->hw->pdev->subsystem_device != 0x0240)
 		return;
 
 attempt:
