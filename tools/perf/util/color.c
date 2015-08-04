@@ -68,7 +68,7 @@ static int __color_vsnprintf(char *bf, size_t size, const char *color,
 }
 
 static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
-		va_list args, const char *trail)
+		va_list args)
 {
 	int r = 0;
 
@@ -87,8 +87,6 @@ static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 	r += vfprintf(fp, fmt, args);
 	if (perf_use_color_default && *color)
 		r += fprintf(fp, "%s", PERF_COLOR_RESET);
-	if (trail)
-		r += fprintf(fp, "%s", trail);
 	return r;
 }
 
@@ -100,7 +98,7 @@ int color_vsnprintf(char *bf, size_t size, const char *color,
 
 int color_vfprintf(FILE *fp, const char *color, const char *fmt, va_list args)
 {
-	return __color_vfprintf(fp, color, fmt, args, NULL);
+	return __color_vfprintf(fp, color, fmt, args);
 }
 
 int color_snprintf(char *bf, size_t size, const char *color,
@@ -122,16 +120,6 @@ int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
 
 	va_start(args, fmt);
 	r = color_vfprintf(fp, color, fmt, args);
-	va_end(args);
-	return r;
-}
-
-int color_fprintf_ln(FILE *fp, const char *color, const char *fmt, ...)
-{
-	va_list args;
-	int r;
-	va_start(args, fmt);
-	r = __color_vfprintf(fp, color, fmt, args, "\n");
 	va_end(args);
 	return r;
 }
