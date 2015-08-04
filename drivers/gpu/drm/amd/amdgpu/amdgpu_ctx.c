@@ -182,23 +182,6 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv)
-{
-	struct idr *idp;
-	struct amdgpu_ctx *ctx;
-	uint32_t id;
-	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
-	idp = &mgr->ctx_handles;
-
-	idr_for_each_entry(idp,ctx,id) {
-		if (kref_put(&ctx->refcount, amdgpu_ctx_do_release) != 1)
-			DRM_ERROR("ctx %p is still alive\n", ctx);
-	}
-
-	idr_destroy(&mgr->ctx_handles);
-	mutex_destroy(&mgr->lock);
-}
-
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp)
 {
@@ -329,4 +312,27 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 	spin_unlock(&ctx->ring_lock);
 
 	return fence;
+}
+
+void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
+{
+	mutex_init(&mgr->lock);
+	idr_init(&mgr->ctx_handles);
+}
+
+void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr)
+{
+	struct amdgpu_ctx *ctx;
+	struct idr *idp;
+	uint32_t id;
+
+	idp = &mgr->ctx_handles;
+
+	idr_for_each_entry(idp, ctx, id) {
+		if (kref_put(&ctx->refcount, amdgpu_ctx_do_release) != 1)
+			DRM_ERROR("ctx %p is still alive\n", ctx);
+	}
+
+	idr_destroy(&mgr->ctx_handles);
+	mutex_destroy(&mgr->lock);
 }

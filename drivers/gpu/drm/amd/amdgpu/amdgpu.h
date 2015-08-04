@@ -1038,8 +1038,6 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 		    uint32_t id);
 
-void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv);
-
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
@@ -1051,6 +1049,8 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp);
 
+void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
+void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
 
 /*
  * file private structure

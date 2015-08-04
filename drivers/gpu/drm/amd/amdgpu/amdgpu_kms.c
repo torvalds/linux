@@ -527,10 +527,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	mutex_init(&fpriv->bo_list_lock);
 	idr_init(&fpriv->bo_list_handles);
 
-	/* init context manager */
-	mutex_init(&fpriv->ctx_mgr.lock);
-	idr_init(&fpriv->ctx_mgr.ctx_handles);
-	fpriv->ctx_mgr.adev = adev;
+	amdgpu_ctx_mgr_init(&fpriv->ctx_mgr);
 
 	file_priv->driver_priv = fpriv;
 
@@ -571,8 +568,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	idr_destroy(&fpriv->bo_list_handles);
 	mutex_destroy(&fpriv->bo_list_lock);
 
-	/* release context */
-	amdgpu_ctx_fini(fpriv);
+	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;
