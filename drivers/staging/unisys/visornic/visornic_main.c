@@ -89,11 +89,6 @@ static struct visor_driver visornic_driver = {
 	.channel_interrupt = NULL,
 };
 
-struct visor_thread_info {
-	struct task_struct *task;
-	int id;
-};
-
 struct chanstat {
 	unsigned long got_rcv;
 	unsigned long got_enbdisack;
@@ -110,7 +105,6 @@ struct chanstat {
 
 struct visornic_devdata {
 	int devnum;
-	int thread_wait_ms;
 	unsigned short enabled;		/* 0 disabled 1 enabled to receive */
 	unsigned short enab_dis_acked;	/* NET_RCV_ENABLE/DISABLE acked by
 					 * IOPART
@@ -162,7 +156,6 @@ struct visornic_devdata {
 	bool server_change_state;	 /* Processing SERVER_CHANGESTATE msg */
 	bool going_away;		 /* device is being torn down */
 	struct dentry *eth_debugfs_dir;
-	struct visor_thread_info threadinfo;
 	u64 interrupts_rcvd;
 	u64 interrupts_notme;
 	u64 interrupts_disabled;
@@ -194,6 +187,9 @@ struct visornic_devdata {
 
 	int queuefullmsg_logged;
 	struct chanstat chstat;
+	struct timer_list irq_poll_timer;
+	struct napi_struct napi;
+	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
 
 
@@ -202,6 +198,8 @@ struct visornic_devdata {
  */
 static LIST_HEAD(list_all_devices);
 static DEFINE_SPINLOCK(lock_all_devices);
+static int visornic_poll(struct napi_struct *napi, int budget);
+static void poll_for_irq(unsigned long v);
 
 /**
  *	visor_copy_fragsinfo_from_skb(
@@ -301,49 +299,6 @@ visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 	return count;
 }
 
-/**
- *	visort_thread_start - starts thread for the device
- *	@thrinfo: The thread to start
- *	@threadfn: Function the thread starts
- *	@thrcontext: Context to pass to the thread, i.e. devdata
- *	@name:	string describing name of thread
- *
- *	Starts a thread for the device, currently only thread is
- *	process_incoming_rsps
- *	Returns 0 on success;
- */
-static int visor_thread_start(struct visor_thread_info *thrinfo,
-			      int (*threadfn)(void *),
-			      void *thrcontext, char *name)
-{
-	/* used to stop the thread */
-	thrinfo->task = kthread_run(threadfn, thrcontext, "%s", name);
-	if (IS_ERR(thrinfo->task)) {
-		pr_debug("%s failed (%ld)\n",
-			 __func__, PTR_ERR(thrinfo->task));
-		thrinfo->id = 0;
-		return -EINVAL;
-	}
-	thrinfo->id = thrinfo->task->pid;
-	return 0;
-}
-
-/**
- *	visor_thread_stop - stop a thread for the device
- *	@thrinfo: The thread to stop
- *
- *	Stop the thread and wait for completion for a minute
- *	Returns void.
- */
-static void visor_thread_stop(struct visor_thread_info *thrinfo)
-{
-	if (!thrinfo->id)
-		return;	/* thread not running */
-
-	BUG_ON(kthread_stop(thrinfo->task));
-	thrinfo->id = 0;
-}
-
 static ssize_t enable_ints_write(struct file *file,
 				 const char __user *buffer,
 				 size_t count, loff_t *ppos)
@@ -373,8 +328,8 @@ visornic_serverdown_complete(struct visornic_devdata *devdata)
 
 	netdev = devdata->netdev;
 
-	/* Stop using datachan */
-	visor_thread_stop(&devdata->threadinfo);
+	/* Stop polling for interrupts */
+	del_timer_sync(&devdata->irq_poll_timer);
 
 	rtnl_lock();
 	dev_close(netdev);
@@ -538,9 +493,6 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 	unsigned long flags;
 	int wait = 0;
 
-	/* stop the transmit queue so nothing more can be transmitted */
-	netif_stop_queue(netdev);
-
 	/* send a msg telling the other end we are stopping incoming pkts */
 	spin_lock_irqsave(&devdata->priv_lock, flags);
 	devdata->enabled = 0;
@@ -586,9 +538,13 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 				break;
 		}
 	}
-
 	/* we've set enabled to 0, so we can give up the lock. */
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+
+	/* stop the transmit queue so nothing more can be transmitted */
+	netif_stop_queue(netdev);
+
+	napi_disable(&devdata->napi);
 
 	skb_queue_purge(&devdata->xmitbufhead);
 
@@ -692,6 +648,7 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 	/* send enable and wait for ack -- don't hold lock when sending enable
 	 * because if the queue is full, insert might sleep.
 	 */
+	napi_enable(&devdata->napi);
 	send_enbdis(netdev, 1, devdata);
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
@@ -719,6 +676,7 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 	}
 
 	netif_start_queue(netdev);
+
 	return 0;
 }
 
@@ -1198,15 +1156,16 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
  *	it up the stack.
  *	Returns void
  */
-static void
+static int
 visornic_rx(struct uiscmdrsp *cmdrsp)
 {
 	struct visornic_devdata *devdata;
 	struct sk_buff *skb, *prev, *curr;
 	struct net_device *netdev;
-	int cc, currsize, off, status;
+	int cc, currsize, off;
 	struct ethhdr *eth;
 	unsigned long flags;
+	int rx_count = 0;
 
 	/* post new rcv buf to the other end using the cmdrsp we have at hand
 	 * post it without holding lock - but we'll use the signal lock to
@@ -1238,7 +1197,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		 */
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return;
+		return rx_count;
 	}
 
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
@@ -1257,7 +1216,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return;
+			return rx_count;
 		}
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
 		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
@@ -1272,7 +1231,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return;
+			return rx_count;
 		}
 		skb->tail += skb->len;
 		skb->data_len = 0;	/* nothing rcvd in frag_list */
@@ -1291,7 +1250,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	if (cmdrsp->net.rcv.rcvbuf[0] != skb) {
 		if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 			dev_err(&devdata->netdev->dev, "repost_return failed");
-		return;
+		return rx_count;
 	}
 
 	if (cmdrsp->net.rcv.numrcvbufs > 1) {
@@ -1374,10 +1333,11 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		/* drop packet - don't forward it up to OS */
 		devdata->n_rcv_packets_not_accepted++;
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return;
+		return rx_count;
 	} while (0);
 
-	status = netif_rx(skb);
+	rx_count++;
+	netif_receive_skb(skb);
 	/* netif_rx returns various values, but "in practice most drivers
 	 * ignore the return value
 	 */
@@ -1389,6 +1349,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	 * new rcv buffer.
 	 */
 	repost_return(cmdrsp, devdata, skb, netdev);
+	return rx_count;
 }
 
 /**
@@ -1594,9 +1555,6 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				     " flow_control_lower_hits = %llu\n",
 				     devdata->flow_control_lower_hits);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " thread_wait_ms = %d\n",
-				     devdata->thread_wait_ms);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				     " netif_queue = %s\n",
 				     netif_queue_stopped(devdata->netdev) ?
 				     "stopped" : "running");
@@ -1663,7 +1621,8 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
  *	Returns when response queue is empty or when the threadd stops.
  */
 static void
-drain_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
+service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
+		   int *rx_work_done)
 {
 	unsigned long flags;
 	struct net_device *netdev;
@@ -1680,7 +1639,7 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 		case NET_RCV:
 			devdata->chstat.got_rcv++;
 			/* process incoming packet */
-			visornic_rx(cmdrsp);
+			*rx_work_done += visornic_rx(cmdrsp);
 			break;
 		case NET_XMIT_DONE:
 			spin_lock_irqsave(&devdata->priv_lock, flags);
@@ -1717,8 +1676,6 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 			devdata->enab_dis_acked = 1;
 			spin_unlock_irqrestore(&devdata->priv_lock, flags);
 
-			if (kthread_should_stop())
-				break;
 			if (devdata->server_down &&
 			    devdata->server_change_state) {
 				/* Inform Linux that the link is up */
@@ -1753,42 +1710,48 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 	}
 }
 
+static int visornic_poll(struct napi_struct *napi, int budget)
+{
+	struct visornic_devdata *devdata = container_of(napi,
+							struct visornic_devdata,
+							napi);
+	int rx_count = 0;
+
+	send_rcv_posts_if_needed(devdata);
+	service_resp_queue(devdata->cmdrsp, devdata, &rx_count);
+
+	/*
+	 * If there aren't any more packets to receive
+	 * stop the poll
+	 */
+	if (rx_count < budget)
+		napi_complete(napi);
+
+	return rx_count;
+}
+
 /**
- *	process_incoming_rsps	- Checks the status of the response queue.
+ *	poll_for_irq	- Checks the status of the response queue.
  *	@v: void pointer to the visronic devdata
  *
  *	Main function of the vnic_incoming thread. Peridocially check the
  *	response queue and drain it if needed.
  *	Returns when thread has stopped.
  */
-static int
-process_incoming_rsps(void *v)
+static void
+poll_for_irq(unsigned long v)
 {
-	struct visornic_devdata *devdata = v;
-	struct uiscmdrsp *cmdrsp = NULL;
-	const int SZ = SIZEOF_CMDRSP;
+	struct visornic_devdata *devdata = (struct visornic_devdata *)v;
 
-	cmdrsp = kmalloc(SZ, GFP_ATOMIC);
-	if (!cmdrsp)
-		return 0;
+	if (!visorchannel_signalempty(
+				   devdata->dev->visorchannel,
+				   IOCHAN_FROM_IOPART))
+		napi_schedule(&devdata->napi);
 
-	while (!kthread_should_stop()) {
-		wait_event_interruptible_timeout(
-			devdata->rsp_queue, (atomic_read(
-					     &devdata->interrupt_rcvd) == 1),
-				msecs_to_jiffies(devdata->thread_wait_ms));
+	atomic_set(&devdata->interrupt_rcvd, 0);
 
-		/* periodically check to see if there are any rcf bufs which
-		 * need to get sent to the IOSP. This can only happen if
-		 * we run out of memory when trying to allocate skbs.
-		 */
-		atomic_set(&devdata->interrupt_rcvd, 0);
-		send_rcv_posts_if_needed(devdata);
-		drain_queue(cmdrsp, devdata);
-	}
+	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
 
-	kfree(cmdrsp);
-	return 0;
 }
 
 /**
@@ -1907,6 +1870,17 @@ static int visornic_probe(struct visor_device *dev)
 
 	/* TODO: Setup Interrupt information */
 	/* Let's start our threads to get responses */
+	netif_napi_add(netdev, &devdata->napi, visornic_poll, 64);
+
+	setup_timer(&devdata->irq_poll_timer, poll_for_irq,
+		    (unsigned long)devdata);
+	/*
+	 * Note: This time has to start running before the while
+	 * loop below because the napi routine is responsible for
+	 * setting enab_dis_acked
+	 */
+	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
+
 	channel_offset = offsetof(struct spar_io_channel_protocol,
 				  channel_header.features);
 	err = visorbus_read_channel(dev, channel_offset, &features, 8);
@@ -1914,7 +1888,7 @@ static int visornic_probe(struct visor_device *dev)
 		dev_err(&dev->device,
 			"%s failed to get features from chan (%d)\n",
 			__func__, err);
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_napi_add;
 	}
 
 	features |= ULTRA_IO_CHANNEL_IS_POLLING;
@@ -1923,14 +1897,14 @@ static int visornic_probe(struct visor_device *dev)
 		dev_err(&dev->device,
 			"%s failed to set features in chan (%d)\n",
 			__func__, err);
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_napi_add;
 	}
 
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&dev->device,
 			"%s register_netdev failed (%d)\n", __func__, err);
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_napi_add;
 	}
 
 	/* create debgug/sysfs directories */
@@ -1944,13 +1918,13 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_xmit_cmdrsp;
 	}
 
-	devdata->thread_wait_ms = 2;
-	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
-			   devdata, "vnic_incoming");
-
 	dev_info(&dev->device, "%s success netdev=%s\n",
 		 __func__, netdev->name);
 	return 0;
+
+cleanup_napi_add:
+	del_timer_sync(&devdata->irq_poll_timer);
+	netif_napi_del(&devdata->napi);
 
 cleanup_xmit_cmdrsp:
 	kfree(devdata->xmit_cmdrsp);
@@ -2021,18 +1995,8 @@ static void visornic_remove(struct visor_device *dev)
 
 	unregister_netdev(netdev);  /* this will call visornic_close() */
 
-	/* this had to wait until last because visornic_close() /
-	 * visornic_disable_with_timeout() polls waiting for state that is
-	 * only updated by the thread
-	 */
-	if (devdata->threadinfo.id) {
-		visor_thread_stop(&devdata->threadinfo);
-		if (devdata->threadinfo.id) {
-			dev_err(&dev->device, "%s cannot stop worker thread\n",
-				__func__);
-			return;
-		}
-	}
+	del_timer_sync(&devdata->irq_poll_timer);
+	netif_napi_del(&devdata->napi);
 
 	dev_set_drvdata(&dev->device, NULL);
 	host_side_disappeared(devdata);
@@ -2102,16 +2066,14 @@ static int visornic_resume(struct visor_device *dev,
 	}
 	devdata->server_change_state = true;
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+
 	/* Must transition channel to ATTACHED state BEFORE
 	 * we can start using the device again.
 	 * TODO: State transitions
 	 */
-	if (!devdata->threadinfo.id)
-		visor_thread_start(&devdata->threadinfo,
-				   process_incoming_rsps,
-				   devdata, "vnic_incoming");
-	else
-		pr_warn("vnic_incoming already running!\n");
+	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
+
+	init_rcv_bufs(netdev, devdata);
 
 	rtnl_lock();
 	dev_open(netdev);
