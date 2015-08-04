@@ -149,9 +149,6 @@
 #define FLEXCAN_IFLAG_RX_FIFO_OVERFLOW	BIT(7)
 #define FLEXCAN_IFLAG_RX_FIFO_WARN	BIT(6)
 #define FLEXCAN_IFLAG_RX_FIFO_AVAILABLE	BIT(5)
-#define FLEXCAN_IFLAG_DEFAULT \
-	(FLEXCAN_IFLAG_RX_FIFO_OVERFLOW | FLEXCAN_IFLAG_RX_FIFO_AVAILABLE | \
-	 FLEXCAN_IFLAG_BUF(FLEXCAN_TX_BUF_ID))
 
 /* FLEXCAN message buffers */
 #define FLEXCAN_MB_CODE_RX_INACTIVE	(0x0 << 24)
@@ -261,6 +258,7 @@ struct flexcan_priv {
 	struct flexcan_regs __iomem *regs;
 	u32 reg_esr;
 	u32 reg_ctrl_default;
+	u32 reg_imask1_default;
 
 	struct clk *clk_ipg;
 	struct clk *clk_per;
@@ -704,7 +702,7 @@ static int flexcan_poll(struct napi_struct *napi, int quota)
 	if (work_done < quota) {
 		napi_complete_done(napi, work_done);
 		/* enable IRQs */
-		flexcan_write(FLEXCAN_IFLAG_DEFAULT, &regs->imask1);
+		flexcan_write(priv->reg_imask1_default, &regs->imask1);
 		flexcan_write(priv->reg_ctrl_default, &regs->ctrl);
 	}
 
@@ -736,7 +734,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		 * save them for later use.
 		 */
 		priv->reg_esr = reg_esr & FLEXCAN_ESR_ERR_BUS;
-		flexcan_write(FLEXCAN_IFLAG_DEFAULT &
+		flexcan_write(priv->reg_imask1_default &
 			      ~FLEXCAN_IFLAG_RX_FIFO_AVAILABLE, &regs->imask1);
 		flexcan_write(priv->reg_ctrl_default & ~FLEXCAN_CTRL_ERR_ALL,
 			      &regs->ctrl);
@@ -947,7 +945,7 @@ static int flexcan_chip_start(struct net_device *dev)
 	/* enable interrupts atomically */
 	disable_irq(dev->irq);
 	flexcan_write(priv->reg_ctrl_default, &regs->ctrl);
-	flexcan_write(FLEXCAN_IFLAG_DEFAULT, &regs->imask1);
+	flexcan_write(priv->reg_imask1_default, &regs->imask1);
 	enable_irq(dev->irq);
 
 	/* print chip status */
@@ -1230,6 +1228,10 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->clk_per = clk_per;
 	priv->devtype_data = devtype_data;
 	priv->reg_xceiver = reg_xceiver;
+
+	priv->reg_imask1_default = FLEXCAN_IFLAG_RX_FIFO_OVERFLOW |
+		FLEXCAN_IFLAG_RX_FIFO_AVAILABLE |
+		FLEXCAN_IFLAG_BUF(FLEXCAN_TX_BUF_ID);
 
 	netif_napi_add(dev, &priv->napi, flexcan_poll, FLEXCAN_NAPI_WEIGHT);
 
