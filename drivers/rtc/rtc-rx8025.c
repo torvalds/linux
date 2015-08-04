@@ -104,6 +104,31 @@ static s32 rx8025_write_regs(const struct i2c_client *client,
 					      length, values);
 }
 
+static int rx8025_check_validity(struct device *dev)
+{
+	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
+	int ctrl2;
+
+	ctrl2 = rx8025_read_reg(rx8025->client, RX8025_REG_CTRL2);
+	if (ctrl2 < 0)
+		return ctrl2;
+
+	if (ctrl2 & RX8025_BIT_CTRL2_VDET)
+		dev_warn(dev, "power voltage drop detected\n");
+
+	if (ctrl2 & RX8025_BIT_CTRL2_PON) {
+		dev_warn(dev, "power-on reset detected, date is invalid\n");
+		return -EINVAL;
+	}
+
+	if (!(ctrl2 & RX8025_BIT_CTRL2_XST)) {
+		dev_warn(dev, "crystal stopped, date is invalid\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rx8025_reset_validity(struct i2c_client *client)
 {
 	int ctrl2 = rx8025_read_reg(client, RX8025_REG_CTRL2);
@@ -154,21 +179,11 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 {
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 date[7];
-	int ctrl, err;
+	int err;
 
-	ctrl = rx8025_read_reg(rx8025->client, RX8025_REG_CTRL2);
-	if (ctrl < 0)
-		return ctrl;
-
-	if (ctrl & RX8025_BIT_CTRL2_PON) {
-		dev_warn(dev, "power-on reset detected, date is invalid\n");
-		return -EINVAL;
-	}
-
-	if (!(ctrl & RX8025_BIT_CTRL2_XST)) {
-		dev_warn(dev, "crystal stopped, date is invalid\n");
-		return -EINVAL;
-	}
+	err = rx8025_check_validity(dev);
+	if (err)
+		return err;
 
 	err = rx8025_read_regs(rx8025->client, RX8025_REG_SEC, 7, date);
 	if (err)
@@ -249,21 +264,6 @@ static int rx8025_init_client(struct i2c_client *client)
 
 	/* Keep test bit zero ! */
 	rx8025->ctrl1 = ctrl[0] & ~RX8025_BIT_CTRL1_TEST;
-
-	if (ctrl[1] & RX8025_BIT_CTRL2_PON) {
-		dev_warn(&client->dev, "power-on reset was detected, "
-			 "you may have to readjust the clock\n");
-	}
-
-	if (ctrl[1] & RX8025_BIT_CTRL2_VDET) {
-		dev_warn(&client->dev, "a power voltage drop was detected, "
-			 "you may have to readjust the clock\n");
-	}
-
-	if (!(ctrl[1] & RX8025_BIT_CTRL2_XST)) {
-		dev_warn(&client->dev, "Oscillation stop was detected,"
-			 "you may have to readjust the clock\n");
-	}
 
 	if (ctrl[1] & (RX8025_BIT_CTRL2_DAFG | RX8025_BIT_CTRL2_WAFG)) {
 		dev_warn(&client->dev, "Alarm was detected\n");
