@@ -281,6 +281,44 @@
 			>;
 		};
 
+		pinctrl_lcdif_dat: lcdifdatgrp {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA00__LCD_DATA0  0x4001b0b0
+				MX7D_PAD_EPDC_DATA01__LCD_DATA1  0x4001b0b0
+				MX7D_PAD_EPDC_DATA02__LCD_DATA2  0x4001b0b0
+				MX7D_PAD_EPDC_DATA03__LCD_DATA3  0x4001b0b0
+				MX7D_PAD_EPDC_DATA04__LCD_DATA4  0x4001b0b0
+				MX7D_PAD_EPDC_DATA05__LCD_DATA5  0x4001b0b0
+				MX7D_PAD_EPDC_DATA06__LCD_DATA6  0x4001b0b0
+				MX7D_PAD_EPDC_DATA07__LCD_DATA7  0x4001b0b0
+				MX7D_PAD_EPDC_DATA08__LCD_DATA8  0x4001b0b0
+				MX7D_PAD_EPDC_DATA09__LCD_DATA9  0x4001b0b0
+				MX7D_PAD_EPDC_DATA10__LCD_DATA10 0x4001b0b0
+				MX7D_PAD_EPDC_DATA11__LCD_DATA11 0x4001b0b0
+				MX7D_PAD_EPDC_DATA12__LCD_DATA12 0x4001b0b0
+				MX7D_PAD_EPDC_DATA13__LCD_DATA13 0x4001b0b0
+				MX7D_PAD_EPDC_DATA14__LCD_DATA14 0x4001b0b0
+				MX7D_PAD_EPDC_DATA15__LCD_DATA15 0x4001b0b0
+				MX7D_PAD_EPDC_SDLE__LCD_DATA16   0x4001b0b0
+				MX7D_PAD_EPDC_SDOE__LCD_DATA17   0x4001b0b0
+				MX7D_PAD_EPDC_SDSHR__LCD_DATA18  0x4001b0b0
+				MX7D_PAD_EPDC_SDCE0__LCD_DATA19  0x4001b0b0
+				MX7D_PAD_EPDC_SDCE1__LCD_DATA20  0x4001b0b0
+				MX7D_PAD_EPDC_SDCE2__LCD_DATA21  0x4001b0b0
+				MX7D_PAD_EPDC_SDCE3__LCD_DATA22  0x4001b0b0
+				MX7D_PAD_EPDC_GDCLK__LCD_DATA23  0x4001b0b0
+			>;
+		};
+
+		pinctrl_lcdif_ctrl: lcdifctrlgrp {
+			fsl,pins = <
+				MX7D_PAD_EPDC_SDCLK__LCD_CLK 		0x4001b0b0
+				MX7D_PAD_EPDC_BDR1__LCD_ENABLE 		0x4001b0b0
+				MX7D_PAD_EPDC_PWR_STAT__LCD_VSYNC 	0x4001b0b0
+				MX7D_PAD_EPDC_PWR_COM__LCD_HSYNC 	0x4001b0b0
+			>;
+		};
+
 		pinctrl_uart1_1: uart1grp-1 {
 			fsl,pins = <
 				MX7D_PAD_UART1_TX_DATA__UART1_DCE_TX 0x79
@@ -345,6 +383,38 @@
 				MX7D_PAD_SD3_DATA6__SD3_DATA6 0x17059
 				MX7D_PAD_SD3_DATA7__SD3_DATA7 0x17059
 			>;
+		};
+	};
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lcdif_dat
+		     &pinctrl_lcdif_ctrl>;
+	display = <&display0>;
+	status = "okay";
+
+	display0: display {
+		bits-per-pixel = <16>;
+		bus-width = <24>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <33500000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <89>;
+				hfront-porch = <164>;
+				vback-porch = <23>;
+				vfront-porch = <10>;
+				hsync-len = <10>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
 		};
 	};
 };
