@@ -1321,10 +1321,10 @@ static ssize_t ucma_leave_multicast(struct ucma_file *file,
 		mc = ERR_PTR(-ENOENT);
 	else if (mc->ctx->file != file)
 		mc = ERR_PTR(-EINVAL);
-	else {
+	else if (!atomic_inc_not_zero(&mc->ctx->ref))
+		mc = ERR_PTR(-ENXIO);
+	else
 		idr_remove(&multicast_idr, mc->id);
-		atomic_inc(&mc->ctx->ref);
-	}
 	mutex_unlock(&mut);
 
 	if (IS_ERR(mc)) {
