@@ -507,7 +507,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 	struct vmw_cmdbuf_man *man =
 		container_of(work, struct vmw_cmdbuf_man, work);
 	struct vmw_cmdbuf_header *entry, *next;
-	bool restart;
+	bool restart = false;
 
 	spin_lock_bh(&man->lock);
 	list_for_each_entry_safe(entry, next, &man->error, list) {
