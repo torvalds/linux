@@ -1276,8 +1276,12 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 static void me4000_detach(struct comedi_device *dev)
 {
-	if (dev->iobase)
-		me4000_reset(dev);
+	if (dev->irq) {
+		struct me4000_private *devpriv = dev->private;
+
+		/* Disable interrupts on the PLX */
+		outl(0, devpriv->plx_regbase + PLX9052_INTCSR);
+	}
 	comedi_pci_detach(dev);
 }
 
