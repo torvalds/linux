@@ -452,15 +452,14 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int rang = CR_RANGE(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
-	unsigned int entry = 0;
+	unsigned int entry;
 	unsigned int tmp;
 	int ret;
 	int i;
 
-	entry |= ME4000_AI_LIST_RANGE(rang);
-	entry |= chan;
+	entry = chan | ME4000_AI_LIST_RANGE(range);
 	if (aref == AREF_DIFF) {
 		if (!(s->subdev_flags && SDF_DIFF)) {
 			dev_err(dev->class_dev,
@@ -468,7 +467,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			return -EINVAL;
 		}
 
-		if (rang == 0 || rang == 1) {
+		if (!comedi_range_is_bipolar(s, range)) {
 			dev_err(dev->class_dev,
 				"Range must be bipolar when aref = diff\n");
 			return -EINVAL;
