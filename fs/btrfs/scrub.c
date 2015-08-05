@@ -332,17 +332,26 @@ static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 	}
 }
 
-static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
+static void scrub_pause_on(struct btrfs_fs_info *fs_info)
 {
 	atomic_inc(&fs_info->scrubs_paused);
 	wake_up(&fs_info->scrub_pause_wait);
+}
 
+static void scrub_pause_off(struct btrfs_fs_info *fs_info)
+{
 	mutex_lock(&fs_info->scrub_lock);
 	__scrub_blocked_if_needed(fs_info);
 	atomic_dec(&fs_info->scrubs_paused);
 	mutex_unlock(&fs_info->scrub_lock);
 
 	wake_up(&fs_info->scrub_pause_wait);
+}
+
+static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
+{
+	scrub_pause_on(fs_info);
+	scrub_pause_off(fs_info);
 }
 
 /*
