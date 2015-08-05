@@ -121,6 +121,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 {
 	int r = 0;
 	if (amdgpu_enable_scheduler) {
+		uint64_t v_seq;
 		struct amdgpu_cs_parser *sched_job =
 			amdgpu_cs_parser_create(adev, owner, &adev->kernel_ctx,
 						ibs, 1);
@@ -128,12 +129,16 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			return -ENOMEM;
 		}
 		sched_job->free_job = free_job;
-		ibs[num_ibs - 1].sequence = amd_sched_push_job(ring->scheduler,
+		v_seq = atomic64_inc_return(&adev->kernel_ctx.rings[ring->idx].c_entity.last_queued_v_seq);
+		ibs[num_ibs - 1].sequence = v_seq;
+		amd_sched_push_job(ring->scheduler,
 				   &adev->kernel_ctx.rings[ring->idx].c_entity,
 				   sched_job);
 		r = amd_sched_wait_emit(
 			&adev->kernel_ctx.rings[ring->idx].c_entity,
-			ibs[num_ibs - 1].sequence, false, -1);
+			v_seq,
+			false,
+			-1);
 		if (r)
 			WARN(true, "emit timeout\n");
 	} else
