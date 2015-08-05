@@ -80,7 +80,8 @@ obj-$(CONFIG_ACPI_CUSTOM_METHOD)+= custom_method.o
 obj-$(CONFIG_ACPI_BGRT)		+= bgrt.o
 
 # processor has its own "processor." module_param namespace
-processor-y			:= processor_driver.o processor_idle.o
+processor-y			:= processor_driver.o
+processor-$(CONFIG_ACPI_PROCESSOR_IDLE) += processor_idle.o
 processor-$(CONFIG_ACPI_CPU_FREQ_PSS)	+= processor_throttling.o	\
 	processor_thermal.o
 processor-$(CONFIG_CPU_FREQ)	+= processor_perflib.o

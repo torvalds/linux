@@ -193,10 +193,14 @@ config ACPI_CPU_FREQ_PSS
 	bool
 	select THERMAL
 
+config ACPI_PROCESSOR_IDLE
+	bool
+	select CPU_IDLE
+
 config ACPI_PROCESSOR
 	tristate "Processor"
 	depends on X86 || IA64
-	select CPU_IDLE
+	select ACPI_PROCESSOR_IDLE
 	select ACPI_CPU_FREQ_PSS
 	default y
 	help
