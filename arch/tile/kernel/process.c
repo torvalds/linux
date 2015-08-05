@@ -446,26 +446,18 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	hardwall_switch_tasks(prev, next);
 #endif
 
-	/*
-	 * Switch kernel SP, PC, and callee-saved registers.
-	 * Pass the value to use for SYSTEM_SAVE_K_0 when we reset our sp.
-	 * Once we return from this function we will have changed stacks
-	 * and be running with current == next.
-	 */
-	__switch_to(prev, next, next_current_ksp0(next));
-
-	/* Notify the simulator of task switch and task exit. */
+	/* Notify the simulator of task exit. */
 	if (unlikely(prev->state == TASK_DEAD))
 		__insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_OS_EXIT |
 			     (prev->pid << _SIM_CONTROL_OPERATOR_BITS));
-	__insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_OS_SWITCH |
-		(next->pid << _SIM_CONTROL_OPERATOR_BITS));
 
 	/*
+	 * Switch kernel SP, PC, and callee-saved registers.
 	 * In the context of the new task, return the old task pointer
 	 * (i.e. the task that actually called __switch_to).
+	 * Pass the value to use for SYSTEM_SAVE_K_0 when we reset our sp.
 	 */
-	return prev;
+	return __switch_to(prev, next, next_current_ksp0(next));
 }
 
 /*
