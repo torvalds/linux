@@ -145,6 +145,7 @@ static const char *cgroup_subsys_name[] = {
  * part of that cgroup.
  */
 struct cgroup_root cgrp_dfl_root;
+EXPORT_SYMBOL_GPL(cgrp_dfl_root);
 
 /*
  * The default hierarchy always exists but is hidden until mounted for the
