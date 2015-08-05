@@ -953,7 +953,6 @@ static inline int audit_del_rule(struct audit_entry *entry)
 	mutex_lock(&audit_filter_mutex);
 	e = audit_find_rule(entry, &list);
 	if (!e) {
-		mutex_unlock(&audit_filter_mutex);
 		ret = -ENOENT;
 		goto out;
 	}
@@ -964,10 +963,6 @@ static inline int audit_del_rule(struct audit_entry *entry)
 	if (e->rule.tree)
 		audit_remove_tree_rule(&e->rule);
 
-	list_del_rcu(&e->list);
-	list_del(&e->rule.list);
-	call_rcu(&e->rcu, audit_free_rule_rcu);
-
 #ifdef CONFIG_AUDITSYSCALL
 	if (!dont_count)
 		audit_n_rules--;
@@ -975,9 +970,14 @@ static inline int audit_del_rule(struct audit_entry *entry)
 	if (!audit_match_signal(entry))
 		audit_signals--;
 #endif
-	mutex_unlock(&audit_filter_mutex);
+
+	list_del_rcu(&e->list);
+	list_del(&e->rule.list);
+	call_rcu(&e->rcu, audit_free_rule_rcu);
 
 out:
+	mutex_unlock(&audit_filter_mutex);
+
 	if (tree)
 		audit_put_tree(tree);	/* that's the temporary one */
 
