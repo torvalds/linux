@@ -4960,6 +4960,94 @@ next_dir_inode:
 	return ret;
 }
 
+static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
+				 struct inode *inode,
+				 struct btrfs_log_ctx *ctx)
+{
+	int ret;
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	const u64 ino = btrfs_ino(inode);
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	path->skip_locking = 1;
+	path->search_commit_root = 1;
+
+	key.objectid = ino;
+	key.type = BTRFS_INODE_REF_KEY;
+	key.offset = 0;
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	while (true) {
+		struct extent_buffer *leaf = path->nodes[0];
+		int slot = path->slots[0];
+		u32 cur_offset = 0;
+		u32 item_size;
+		unsigned long ptr;
+
+		if (slot >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0)
+				break;
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		/* BTRFS_INODE_EXTREF_KEY is BTRFS_INODE_REF_KEY + 1 */
+		if (key.objectid != ino || key.type > BTRFS_INODE_EXTREF_KEY)
+			break;
+
+		item_size = btrfs_item_size_nr(leaf, slot);
+		ptr = btrfs_item_ptr_offset(leaf, slot);
+		while (cur_offset < item_size) {
+			struct btrfs_key inode_key;
+			struct inode *dir_inode;
+
+			inode_key.type = BTRFS_INODE_ITEM_KEY;
+			inode_key.offset = 0;
+
+			if (key.type == BTRFS_INODE_EXTREF_KEY) {
+				struct btrfs_inode_extref *extref;
+
+				extref = (struct btrfs_inode_extref *)
+					(ptr + cur_offset);
+				inode_key.objectid = btrfs_inode_extref_parent(
+					leaf, extref);
+				cur_offset += sizeof(*extref);
+				cur_offset += btrfs_inode_extref_name_len(leaf,
+					extref);
+			} else {
+				inode_key.objectid = key.offset;
+				cur_offset = item_size;
+			}
+
+			dir_inode = btrfs_iget(root->fs_info->sb, &inode_key,
+					       root, NULL);
+			/* If parent inode was deleted, skip it. */
+			if (IS_ERR(dir_inode))
+				continue;
+
+			ret = btrfs_log_inode(trans, root, dir_inode,
+					      LOG_INODE_ALL, 0, LLONG_MAX, ctx);
+			iput(dir_inode);
+			if (ret)
+				goto out;
+		}
+		path->slots[0]++;
+	}
+	ret = 0;
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 /*
  * helper function around btrfs_log_inode to make sure newly created
  * parent directories also end up in the log.  A minimal inode and backref
@@ -4979,9 +5067,6 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	struct dentry *old_parent = NULL;
 	int ret = 0;
 	u64 last_committed = root->fs_info->last_trans_committed;
-	const struct dentry * const first_parent = parent;
-	const bool did_unlink = (BTRFS_I(inode)->last_unlink_trans >
-				 last_committed);
 	bool log_dentries = false;
 	struct inode *orig_inode = inode;
 
@@ -5042,6 +5127,53 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (S_ISDIR(inode->i_mode) && ctx && ctx->log_new_dentries)
 		log_dentries = true;
 
+	/*
+	 * On unlink we must make sure all our current and old parent directores
+	 * inodes are fully logged. This is to prevent leaving dangling
+	 * directory index entries in directories that were our parents but are
+	 * not anymore. Not doing this results in old parent directory being
+	 * impossible to delete after log replay (rmdir will always fail with
+	 * error -ENOTEMPTY).
+	 *
+	 * Example 1:
+	 *
+	 * mkdir testdir
+	 * touch testdir/foo
+	 * ln testdir/foo testdir/bar
+	 * sync
+	 * unlink testdir/bar
+	 * xfs_io -c fsync testdir/foo
+	 * <power failure>
+	 * mount fs, triggers log replay
+	 *
+	 * If we don't log the parent directory (testdir), after log replay the
+	 * directory still has an entry pointing to the file inode using the bar
+	 * name, but a matching BTRFS_INODE_[REF|EXTREF]_KEY does not exist and
+	 * the file inode has a link count of 1.
+	 *
+	 * Example 2:
+	 *
+	 * mkdir testdir
+	 * touch foo
+	 * ln foo testdir/foo2
+	 * ln foo testdir/foo3
+	 * sync
+	 * unlink testdir/foo3
+	 * xfs_io -c fsync foo
+	 * <power failure>
+	 * mount fs, triggers log replay
+	 *
+	 * Similar as the first example, after log replay the parent directory
+	 * testdir still has an entry pointing to the inode file with name foo3
+	 * but the file inode does not have a matching BTRFS_INODE_REF_KEY item
+	 * and has a link count of 2.
+	 */
+	if (BTRFS_I(inode)->last_unlink_trans > last_committed) {
+		ret = btrfs_log_all_parents(trans, orig_inode, ctx);
+		if (ret)
+			goto end_trans;
+	}
+
 	while (1) {
 		if (!parent || d_really_is_negative(parent) || sb != d_inode(parent)->i_sb)
 			break;
@@ -5050,23 +5182,9 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		if (root != BTRFS_I(inode)->root)
 			break;
 
-		/*
-		 * On unlink we must make sure our immediate parent directory
-		 * inode is fully logged. This is to prevent leaving dangling
-		 * directory index entries and a wrong directory inode's i_size.
-		 * Not doing so can result in a directory being impossible to
-		 * delete after log replay (rmdir will always fail with error
-		 * -ENOTEMPTY).
-		 */
-		if (did_unlink && parent == first_parent)
-			inode_only = LOG_INODE_ALL;
-		else
-			inode_only = LOG_INODE_EXISTS;
-
-		if (BTRFS_I(inode)->generation >
-		    root->fs_info->last_trans_committed ||
-		    inode_only == LOG_INODE_ALL) {
-			ret = btrfs_log_inode(trans, root, inode, inode_only,
+		if (BTRFS_I(inode)->generation > last_committed) {
+			ret = btrfs_log_inode(trans, root, inode,
+					      LOG_INODE_EXISTS,
 					      0, LLONG_MAX, ctx);
 			if (ret)
 				goto end_trans;
