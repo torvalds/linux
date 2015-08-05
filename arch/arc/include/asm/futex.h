@@ -20,6 +20,7 @@
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)\
 							\
+	smp_mb();					\
 	__asm__ __volatile__(				\
 	"1:	llock	%1, [%2]		\n"	\
 		insn				"\n"	\
@@ -40,12 +41,14 @@
 							\
 	: "=&r" (ret), "=&r" (oldval)			\
 	: "r" (uaddr), "r" (oparg), "ir" (-EFAULT)	\
-	: "cc", "memory")
+	: "cc", "memory");				\
+	smp_mb()					\
 
 #else	/* !CONFIG_ARC_HAS_LLSC */
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)\
 							\
+	smp_mb();					\
 	__asm__ __volatile__(				\
 	"1:	ld	%1, [%2]		\n"	\
 		insn				"\n"	\
@@ -65,7 +68,8 @@
 							\
 	: "=&r" (ret), "=&r" (oldval)			\
 	: "r" (uaddr), "r" (oparg), "ir" (-EFAULT)	\
-	: "cc", "memory")
+	: "cc", "memory");				\
+	smp_mb()					\
 
 #endif
 
@@ -134,13 +138,8 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	return ret;
 }
 
-/* Compare-xchg with pagefaults disabled.
- *  Notes:
- *      -Best-Effort: Exchg happens only if compare succeeds.
- *          If compare fails, returns; leaving retry/looping to upper layers
- *      -successful cmp-xchg: return orig value in @addr (same as cmp val)
- *      -Compare fails: return orig value in @addr
- *      -user access r/w fails: return -EFAULT
+/*
+ * cmpxchg of futex (pagefaults disabled by caller)
  */
 static inline int
 futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
@@ -151,7 +150,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	pagefault_disable();
+	smp_mb();
 
 	__asm__ __volatile__(
 #ifdef CONFIG_ARC_HAS_LLSC
@@ -178,7 +177,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
 	: "r"(oldval), "r"(newval), "r"(uaddr), "ir"(-EFAULT)
 	: "cc", "memory");
 
-	pagefault_enable();
+	smp_mb();
 
 	*uval = val;
 	return val;
