@@ -100,14 +100,14 @@ broken.
 #define ME4000_AI_CTRL_BIT_SC_IRQ		(1 << 19)
 #define ME4000_AI_CTRL_BIT_SC_IRQ_RESET		(1 << 20)
 #define ME4000_AI_CTRL_BIT_SC_RELOAD		(1 << 21)
-#define ME4000_AI_STATUS_BIT_EF_CHANNEL		(1 << 22)
-#define ME4000_AI_STATUS_BIT_HF_CHANNEL		(1 << 23)
-#define ME4000_AI_STATUS_BIT_FF_CHANNEL		(1 << 24)
-#define ME4000_AI_STATUS_BIT_EF_DATA		(1 << 25)
-#define ME4000_AI_STATUS_BIT_HF_DATA		(1 << 26)
-#define ME4000_AI_STATUS_BIT_FF_DATA		(1 << 27)
-#define ME4000_AI_STATUS_BIT_LE			(1 << 28)
-#define ME4000_AI_STATUS_BIT_FSM		(1 << 29)
+#define ME4000_AI_STATUS_EF_CHANNEL		BIT(22)
+#define ME4000_AI_STATUS_HF_CHANNEL		BIT(23)
+#define ME4000_AI_STATUS_FF_CHANNEL		BIT(24)
+#define ME4000_AI_STATUS_EF_DATA		BIT(25)
+#define ME4000_AI_STATUS_HF_DATA		BIT(26)
+#define ME4000_AI_STATUS_FF_DATA		BIT(27)
+#define ME4000_AI_STATUS_LE			BIT(28)
+#define ME4000_AI_STATUS_FSM			BIT(29)
 #define ME4000_AI_CTRL_BIT_EX_TRIG_BOTH		(1 << 31)
 #define ME4000_AI_CHANNEL_LIST_REG		0x78
 #define ME4000_AI_LIST_INPUT_DIFFERENTIAL	BIT(5)
@@ -441,7 +441,7 @@ static int me4000_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = inl(dev->iobase + ME4000_AI_STATUS_REG);
-	if (status & ME4000_AI_STATUS_BIT_EF_DATA)
+	if (status & ME4000_AI_STATUS_EF_DATA)
 		return 0;
 	return -EBUSY;
 }
@@ -998,11 +998,11 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
 		/* Read status register to find out what happened */
-		tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
+		tmp = inl(dev->iobase + ME4000_AI_STATUS_REG);
 
-		if (!(tmp & ME4000_AI_STATUS_BIT_FF_DATA) &&
-		    !(tmp & ME4000_AI_STATUS_BIT_HF_DATA) &&
-		    (tmp & ME4000_AI_STATUS_BIT_EF_DATA)) {
+		if (!(tmp & ME4000_AI_STATUS_FF_DATA) &&
+		    !(tmp & ME4000_AI_STATUS_HF_DATA) &&
+		    (tmp & ME4000_AI_STATUS_EF_DATA)) {
 			c = ME4000_AI_FIFO_COUNT;
 
 			/*
@@ -1017,9 +1017,9 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			s->async->events |= COMEDI_CB_ERROR;
 
 			dev_err(dev->class_dev, "FIFO overflow\n");
-		} else if ((tmp & ME4000_AI_STATUS_BIT_FF_DATA)
-			   && !(tmp & ME4000_AI_STATUS_BIT_HF_DATA)
-			   && (tmp & ME4000_AI_STATUS_BIT_EF_DATA)) {
+		} else if ((tmp & ME4000_AI_STATUS_FF_DATA) &&
+			   !(tmp & ME4000_AI_STATUS_HF_DATA) &&
+			   (tmp & ME4000_AI_STATUS_EF_DATA)) {
 			c = ME4000_AI_FIFO_COUNT / 2;
 		} else {
 			dev_err(dev->class_dev,
@@ -1079,8 +1079,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 		/* Poll data until fifo empty */
-		while (inl(dev->iobase + ME4000_AI_CTRL_REG) &
-		       ME4000_AI_STATUS_BIT_EF_DATA) {
+		while (inl(dev->iobase + ME4000_AI_STATUS_REG) &
+		       ME4000_AI_STATUS_EF_DATA) {
 			/* Read value from data fifo */
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
