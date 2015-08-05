@@ -721,7 +721,7 @@ kiblnd_nid2peerlist(lnet_nid_t nid)
 	unsigned int hash =
 		((unsigned int)nid) % kiblnd_data.kib_peer_hash_size;
 
-	return (&kiblnd_data.kib_peers [hash]);
+	return (&kiblnd_data.kib_peers[hash]);
 }
 
 static inline int
