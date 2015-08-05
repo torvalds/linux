@@ -477,11 +477,6 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	switch (aref) {
 	case AREF_GROUND:
 	case AREF_COMMON:
-		if (chan >= board->ai_nchan) {
-			dev_err(dev->class_dev,
-				"Analog input is not available\n");
-			return -EINVAL;
-		}
 		entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED | chan;
 		break;
 
