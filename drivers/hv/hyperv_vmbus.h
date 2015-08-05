@@ -551,6 +551,11 @@ struct hv_context {
 	 * Support PV clockevent device.
 	 */
 	struct clock_event_device *clk_evt[NR_CPUS];
+	/*
+	 * To manage allocations in a NUMA node.
+	 * Array indexed by numa node ID.
+	 */
+	struct cpumask *hv_numa_map;
 };
 
 extern struct hv_context hv_context;

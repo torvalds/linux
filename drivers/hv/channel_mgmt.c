@@ -392,6 +392,7 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 	struct vmbus_channel *primary = channel->primary_channel;
 	int next_node;
 	struct cpumask available_mask;
+	struct cpumask *alloced_mask;
 
 	for (i = IDE; i < MAX_PERF_CHN; i++) {
 		if (!memcmp(type_guid->b, hp_devs[i].guid,
@@ -409,7 +410,6 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		 * channel, bind it to cpu 0.
 		 */
 		channel->numa_node = 0;
-		cpumask_set_cpu(0, &channel->alloced_cpus_in_node);
 		channel->target_cpu = 0;
 		channel->target_vp = hv_context.vp_index[0];
 		return;
@@ -434,21 +434,22 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		channel->numa_node = next_node;
 		primary = channel;
 	}
+	alloced_mask = &hv_context.hv_numa_map[primary->numa_node];
 
-	if (cpumask_weight(&primary->alloced_cpus_in_node) ==
+	if (cpumask_weight(alloced_mask) ==
 	    cpumask_weight(cpumask_of_node(primary->numa_node))) {
 		/*
 		 * We have cycled through all the CPUs in the node;
 		 * reset the alloced map.
 		 */
-		cpumask_clear(&primary->alloced_cpus_in_node);
+		cpumask_clear(alloced_mask);
 	}
 
-	cpumask_xor(&available_mask, &primary->alloced_cpus_in_node,
+	cpumask_xor(&available_mask, alloced_mask,
 		    cpumask_of_node(primary->numa_node));
 
 	cur_cpu = cpumask_next(-1, &available_mask);
-	cpumask_set_cpu(cur_cpu, &primary->alloced_cpus_in_node);
+	cpumask_set_cpu(cur_cpu, alloced_mask);
 
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_context.vp_index[cur_cpu];
