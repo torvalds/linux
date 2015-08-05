@@ -24,12 +24,16 @@ static const unsigned char asn1_op_lengths[ASN1_OP__NR] = {
 	[ASN1_OP_MATCH_JUMP]			= 1 + 1 + 1,
 	[ASN1_OP_MATCH_JUMP_OR_SKIP]		= 1 + 1 + 1,
 	[ASN1_OP_MATCH_ANY]			= 1,
+	[ASN1_OP_MATCH_ANY_OR_SKIP]		= 1,
 	[ASN1_OP_MATCH_ANY_ACT]			= 1         + 1,
+	[ASN1_OP_MATCH_ANY_ACT_OR_SKIP]		= 1         + 1,
 	[ASN1_OP_COND_MATCH_OR_SKIP]		= 1 + 1,
 	[ASN1_OP_COND_MATCH_ACT_OR_SKIP]	= 1 + 1     + 1,
 	[ASN1_OP_COND_MATCH_JUMP_OR_SKIP]	= 1 + 1 + 1,
 	[ASN1_OP_COND_MATCH_ANY]		= 1,
+	[ASN1_OP_COND_MATCH_ANY_OR_SKIP]	= 1,
 	[ASN1_OP_COND_MATCH_ANY_ACT]		= 1         + 1,
+	[ASN1_OP_COND_MATCH_ANY_ACT_OR_SKIP]	= 1         + 1,
 	[ASN1_OP_COND_FAIL]			= 1,
 	[ASN1_OP_COMPLETE]			= 1,
 	[ASN1_OP_ACT]				= 1         + 1,
@@ -304,7 +308,9 @@ next_op:
 	/* Decide how to handle the operation */
 	switch (op) {
 	case ASN1_OP_MATCH_ANY_ACT:
+	case ASN1_OP_MATCH_ANY_ACT_OR_SKIP:
 	case ASN1_OP_COND_MATCH_ANY_ACT:
+	case ASN1_OP_COND_MATCH_ANY_ACT_OR_SKIP:
 		ret = actions[machine[pc + 1]](context, hdr, tag, data + dp, len);
 		if (ret < 0)
 			return ret;
@@ -321,8 +327,10 @@ next_op:
 	case ASN1_OP_MATCH:
 	case ASN1_OP_MATCH_OR_SKIP:
 	case ASN1_OP_MATCH_ANY:
+	case ASN1_OP_MATCH_ANY_OR_SKIP:
 	case ASN1_OP_COND_MATCH_OR_SKIP:
 	case ASN1_OP_COND_MATCH_ANY:
+	case ASN1_OP_COND_MATCH_ANY_OR_SKIP:
 	skip_data:
 		if (!(flags & FLAG_CONS)) {
 			if (flags & FLAG_INDEFINITE_LENGTH) {

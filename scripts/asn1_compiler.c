@@ -1401,7 +1401,8 @@ static void render_element(FILE *out, struct element *e, struct element *tag)
 	act = e->action ? "_ACT" : "";
 	switch (e->compound) {
 	case ANY:
-		render_opcode(out, "ASN1_OP_%sMATCH_ANY%s,", cond, act);
+		render_opcode(out, "ASN1_OP_%sMATCH_ANY%s%s,",
+			      cond, act, skippable ? "_OR_SKIP" : "");
 		if (e->name)
 			render_more(out, "\t\t// %*.*s",
 				    (int)e->name->size, (int)e->name->size,
