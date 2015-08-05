@@ -1044,13 +1044,7 @@ void pcibios_set_master(struct pci_dev *dev)
 
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
-	/* When called from the generic PCI probe, read PCI<->PCI bridge
-	 * bases. This is -not- called when generating the PCI tree from
-	 * the OF device-tree.
-	 */
-	pci_read_bridge_bases(bus);
-
-	/* Now fixup the bus bus */
+	/* Fixup the bus */
 	pcibios_setup_bus_self(bus);
 
 	/* Now fixup devices on that bus */

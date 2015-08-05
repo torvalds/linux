@@ -388,18 +388,31 @@ static int __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 	return error;
 }
 
+int __weak pcibios_alloc_irq(struct pci_dev *dev)
+{
+	return 0;
+}
+
+void __weak pcibios_free_irq(struct pci_dev *dev)
+{
+}
+
 static int pci_device_probe(struct device *dev)
 {
-	int error = 0;
-	struct pci_driver *drv;
-	struct pci_dev *pci_dev;
+	int error;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = to_pci_driver(dev->driver);
 
-	drv = to_pci_driver(dev->driver);
-	pci_dev = to_pci_dev(dev);
+	error = pcibios_alloc_irq(pci_dev);
+	if (error < 0)
+		return error;
+
 	pci_dev_get(pci_dev);
 	error = __pci_device_probe(drv, pci_dev);
-	if (error)
+	if (error) {
+		pcibios_free_irq(pci_dev);
 		pci_dev_put(pci_dev);
+	}
 
 	return error;
 }
@@ -415,6 +428,7 @@ static int pci_device_remove(struct device *dev)
 			drv->remove(pci_dev);
 			pm_runtime_put_noidle(dev);
 		}
+		pcibios_free_irq(pci_dev);
 		pci_dev->driver = NULL;
 	}
 
