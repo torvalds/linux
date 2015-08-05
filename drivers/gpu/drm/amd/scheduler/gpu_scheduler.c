@@ -177,7 +177,6 @@ exit:
  *
  * @sched	The pointer to the scheduler
  * @entity	The pointer to a valid amd_context_entity
- * @parent	The parent entity of this amd_context_entity
  * @rq		The run queue this entity belongs
  * @kernel	If this is an entity for the kernel
  * @jobs	The max number of jobs in the job queue
@@ -186,7 +185,6 @@ exit:
 */
 int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 			    struct amd_context_entity *entity,
-			    struct amd_sched_entity *parent,
 			    struct amd_run_queue *rq,
 			    uint32_t jobs)
 {
@@ -199,7 +197,6 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 	seq_ring = ((uint64_t)sched->ring_id) << 60;
 	spin_lock_init(&entity->lock);
 	entity->generic_entity.belongto_rq = rq;
-	entity->generic_entity.parent = parent;
 	entity->scheduler = sched;
 	init_waitqueue_head(&entity->wait_queue);
 	init_waitqueue_head(&entity->wait_emit);

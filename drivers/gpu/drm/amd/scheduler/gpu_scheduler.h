@@ -41,7 +41,6 @@ struct amd_run_queue;
 struct amd_sched_entity {
 	struct list_head		list;
 	struct amd_run_queue		*belongto_rq;
-	struct amd_sched_entity	        *parent;
 };
 
 /**
@@ -149,7 +148,6 @@ int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
 
 int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 			    struct amd_context_entity *entity,
-			    struct amd_sched_entity *parent,
 			    struct amd_run_queue *rq,
 			    uint32_t jobs);
 

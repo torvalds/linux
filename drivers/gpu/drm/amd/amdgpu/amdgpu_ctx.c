@@ -48,7 +48,7 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
 				rq = &adev->rings[i]->scheduler->sched_rq;
 			r = amd_context_entity_init(adev->rings[i]->scheduler,
 						    &ctx->rings[i].c_entity,
-						    NULL, rq, amdgpu_sched_jobs);
+						    rq, amdgpu_sched_jobs);
 			if (r)
 				break;
 		}
