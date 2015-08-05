@@ -1563,7 +1563,7 @@ out:
 
 static void push_dl_tasks(struct rq *rq)
 {
-	/* Terminates as it moves a -deadline task */
+	/* push_dl_task() will return true if it moved a -deadline task */
 	while (push_dl_task(rq))
 		;
 }
