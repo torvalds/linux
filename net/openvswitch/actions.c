@@ -669,9 +669,12 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
 		 a = nla_next(a, &rem)) {
+		u32 probability;
+
 		switch (nla_type(a)) {
 		case OVS_SAMPLE_ATTR_PROBABILITY:
-			if (prandom_u32() >= nla_get_u32(a))
+			probability = nla_get_u32(a);
+			if (!probability || prandom_u32() > probability)
 				return 0;
 			break;
 
