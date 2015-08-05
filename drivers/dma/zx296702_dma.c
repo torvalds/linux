@@ -144,6 +144,7 @@ static void zx_dma_terminate_chan(struct zx_dma_phy *phy, struct zx_dma_dev *d)
 
 	val = readl_relaxed(phy->base + REG_ZX_CTRL);
 	val &= ~ZX_CH_ENABLE;
+	val |= ZX_FORCE_CLOSE;
 	writel_relaxed(val, phy->base + REG_ZX_CTRL);
 
 	val = 0x1 << phy->idx;
