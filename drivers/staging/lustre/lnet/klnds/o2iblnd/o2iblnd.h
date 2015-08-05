@@ -721,14 +721,14 @@ kiblnd_nid2peerlist(lnet_nid_t nid)
 	unsigned int hash =
 		((unsigned int)nid) % kiblnd_data.kib_peer_hash_size;
 
-	return (&kiblnd_data.kib_peers[hash]);
+	return &kiblnd_data.kib_peers[hash];
 }
 
 static inline int
 kiblnd_peer_active(kib_peer_t *peer)
 {
 	/* Am I in the peer hash table? */
-	return (!list_empty(&peer->ibp_list));
+	return !list_empty(&peer->ibp_list);
 }
 
 static inline kib_conn_t *
@@ -833,7 +833,7 @@ kiblnd_wreqid2ptr(__u64 wreqid)
 static inline int
 kiblnd_wreqid2type(__u64 wreqid)
 {
-	return (wreqid & IBLND_WID_MASK);
+	return wreqid & IBLND_WID_MASK;
 }
 
 static inline void
