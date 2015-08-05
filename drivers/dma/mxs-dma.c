@@ -724,12 +724,12 @@ static int mxs_dma_init(struct mxs_dma_engine *mxs_dma)
 	if (mxs_dma->dev_id == IMX7D_DMA) {
 		ret = clk_prepare_enable(mxs_dma->clk_io);
 		if (ret)
-			goto err_out;
+			goto err_clk_bch;
 	}
 
 	ret = stmp_reset_block(mxs_dma->base);
 	if (ret)
-		goto err_out;
+		goto err_clk_io;
 
 	/* enable apbh burst */
 	if (dma_is_apbh(mxs_dma)) {
@@ -743,7 +743,10 @@ static int mxs_dma_init(struct mxs_dma_engine *mxs_dma)
 	writel(MXS_DMA_CHANNELS_MASK << MXS_DMA_CHANNELS,
 		mxs_dma->base + HW_APBHX_CTRL1 + STMP_OFFSET_REG_SET);
 
-err_out:
+err_clk_io:
+	if (mxs_dma->dev_id == IMX7D_DMA)
+		clk_disable_unprepare(mxs_dma->clk_io);
+err_clk_bch:
 	clk_disable_unprepare(mxs_dma->clk);
 	return ret;
 }
