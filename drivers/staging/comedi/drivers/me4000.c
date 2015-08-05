@@ -194,7 +194,6 @@ struct me4000_board {
 	int ai_diff_nchan;
 	int ai_sh_nchan;
 	int ex_trig_analog;
-	int dio_nchan;
 	int has_counter;
 };
 
@@ -202,20 +201,17 @@ static const struct me4000_board me4000_boards[] = {
 	[BOARD_ME4650] = {
 		.name		= "ME-4650",
 		.ai_nchan	= 16,
-		.dio_nchan	= 32,
 	},
 	[BOARD_ME4660] = {
 		.name		= "ME-4660",
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4660I] = {
 		.name		= "ME-4660i",
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4660S] = {
@@ -223,7 +219,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4660IS] = {
@@ -231,7 +226,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670] = {
@@ -240,7 +234,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670I] = {
@@ -249,7 +242,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670S] = {
@@ -259,7 +251,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670IS] = {
@@ -269,7 +260,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680] = {
@@ -279,7 +269,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680I] = {
@@ -289,7 +278,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680S] = {
@@ -300,7 +288,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680IS] = {
@@ -311,7 +298,6 @@ static const struct me4000_board me4000_boards[] = {
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
 		.ex_trig_analog	= 1,
-		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 };
@@ -1343,23 +1329,15 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-    /*=========================================================================
-      Digital I/O subdevice
-      ========================================================================*/
-
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-
-	if (board->dio_nchan) {
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = board->dio_nchan;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = me4000_dio_insn_bits;
-		s->insn_config = me4000_dio_insn_config;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 32;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= me4000_dio_insn_bits;
+	s->insn_config	= me4000_dio_insn_config;
 
 	/*
 	 * Check for optoisolated ME-4000 version. If one the first
