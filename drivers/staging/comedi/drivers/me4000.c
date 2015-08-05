@@ -23,7 +23,7 @@
  *	    ME-4680is
  * Author: gg (Guenter Gebhardt <g.gebhardt@meilhaus.com>)
  * Updated: Mon, 18 Mar 2002 15:34:01 -0800
- * Status: broken (no support for loading firmware)
+ * Status: untested
  *
  * Supports:
  *	- Analog Input
@@ -35,9 +35,7 @@
  *
  * The firmware required by these boards is available in the
  * comedi_nonfree_firmware tarball available from
- * http://www.comedi.org.  However, the driver's support for
- * loading the firmware through comedi_config is currently
- * broken.
+ * http://www.comedi.org.
  */
 
 #include <linux/module.h>
