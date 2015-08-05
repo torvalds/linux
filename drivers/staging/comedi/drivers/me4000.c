@@ -433,9 +433,18 @@ static void me4000_reset(struct comedi_device *dev)
 		outl(0x1, dev->iobase + ME4000_DIO_CTRL_REG);
 }
 
-/*=============================================================================
-  Analog input section
-  ===========================================================================*/
+static int me4000_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inl(dev->iobase + ME4000_AI_STATUS_REG);
+	if (status & ME4000_AI_STATUS_BIT_EF_DATA)
+		return 0;
+	return -EBUSY;
+}
 
 static int me4000_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
@@ -445,10 +454,10 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
-
 	unsigned int entry = 0;
 	unsigned int tmp;
 	unsigned int lval;
+	int ret;
 
 	if (insn->n == 0) {
 		return 0;
@@ -509,13 +518,9 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	/* Start conversion by dummy read */
 	inl(dev->iobase + ME4000_AI_START_REG);
 
-	/* Wait until ready */
-	udelay(10);
-	if (!(inl(dev->iobase + ME4000_AI_STATUS_REG) &
-	     ME4000_AI_STATUS_BIT_EF_DATA)) {
-		dev_err(dev->class_dev, "Value not available after wait\n");
-		return -EIO;
-	}
+	ret = comedi_timeout(dev, s, insn, me4000_ai_eoc, 0);
+	if (ret)
+		return ret;
 
 	/* Read value from data fifo */
 	lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
