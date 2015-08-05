@@ -5759,73 +5759,9 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
 }
 
-static u64 ept_rsvd_mask(u64 spte, int level)
-{
-	int i;
-	u64 mask = 0;
-
-	for (i = 51; i > boot_cpu_data.x86_phys_bits; i--)
-		mask |= (1ULL << i);
-
-	if (level == 4)
-		/* bits 7:3 reserved */
-		mask |= 0xf8;
-	else if (spte & (1ULL << 7))
-		/*
-		 * 1GB/2MB page, bits 29:12 or 20:12 reserved respectively,
-		 * level == 1 if the hypervisor is using the ignored bit 7.
-		 */
-		mask |= (PAGE_SIZE << ((level - 1) * 9)) - PAGE_SIZE;
-	else if (level > 1)
-		/* bits 6:3 reserved */
-		mask |= 0x78;
-
-	return mask;
-}
-
-static void ept_misconfig_inspect_spte(struct kvm_vcpu *vcpu, u64 spte,
-				       int level)
-{
-	printk(KERN_ERR "%s: spte 0x%llx level %d\n", __func__, spte, level);
-
-	/* 010b (write-only) */
-	WARN_ON((spte & 0x7) == 0x2);
-
-	/* 110b (write/execute) */
-	WARN_ON((spte & 0x7) == 0x6);
-
-	/* 100b (execute-only) and value not supported by logical processor */
-	if (!cpu_has_vmx_ept_execute_only())
-		WARN_ON((spte & 0x7) == 0x4);
-
-	/* not 000b */
-	if ((spte & 0x7)) {
-		u64 rsvd_bits = spte & ept_rsvd_mask(spte, level);
-
-		if (rsvd_bits != 0) {
-			printk(KERN_ERR "%s: rsvd_bits = 0x%llx\n",
-					 __func__, rsvd_bits);
-			WARN_ON(1);
-		}
-
-		/* bits 5:3 are _not_ reserved for large page or leaf page */
-		if ((rsvd_bits & 0x38) == 0) {
-			u64 ept_mem_type = (spte & 0x38) >> 3;
-
-			if (ept_mem_type == 2 || ept_mem_type == 3 ||
-			    ept_mem_type == 7) {
-				printk(KERN_ERR "%s: ept_mem_type=0x%llx\n",
-						__func__, ept_mem_type);
-				WARN_ON(1);
-			}
-		}
-	}
-}
-
 static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
-	u64 sptes[4];
-	int nr_sptes, i, ret;
+	int ret;
 	gpa_t gpa;
 
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
@@ -5846,13 +5782,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 		return 1;
 
 	/* It is the real ept misconfig */
-	printk(KERN_ERR "EPT: Misconfiguration.\n");
-	printk(KERN_ERR "EPT: GPA: 0x%llx\n", gpa);
-
-	nr_sptes = kvm_mmu_get_spte_hierarchy(vcpu, gpa, sptes);
-
-	for (i = PT64_ROOT_LEVEL; i > PT64_ROOT_LEVEL - nr_sptes; --i)
-		ept_misconfig_inspect_spte(vcpu, sptes[i-1], i);
+	WARN_ON(1);
 
 	vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
 	vcpu->run->hw.hardware_exit_reason = EXIT_REASON_EPT_MISCONFIG;
