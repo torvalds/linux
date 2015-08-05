@@ -104,6 +104,57 @@ static void *macb_rx_buffer(struct macb *bp, unsigned int index)
 	return bp->rx_buffers + bp->rx_buffer_size * macb_rx_ring_wrap(index);
 }
 
+/* I/O accessors */
+static u32 hw_readl_native(struct macb *bp, int offset)
+{
+	return __raw_readl(bp->regs + offset);
+}
+
+static void hw_writel_native(struct macb *bp, int offset, u32 value)
+{
+	__raw_writel(value, bp->regs + offset);
+}
+
+static u32 hw_readl(struct macb *bp, int offset)
+{
+	return readl_relaxed(bp->regs + offset);
+}
+
+static void hw_writel(struct macb *bp, int offset, u32 value)
+{
+	writel_relaxed(value, bp->regs + offset);
+}
+
+/*
+ * Find the CPU endianness by using the loopback bit of NCR register. When the
+ * CPU is in big endian we need to program swaped mode for management
+ * descriptor access.
+ */
+static bool hw_is_native_io(void __iomem *addr)
+{
+	u32 value = MACB_BIT(LLB);
+
+	__raw_writel(value, addr + MACB_NCR);
+	value = __raw_readl(addr + MACB_NCR);
+
+	/* Write 0 back to disable everything */
+	__raw_writel(0, addr + MACB_NCR);
+
+	return value == MACB_BIT(LLB);
+}
+
+static bool hw_is_gem(void __iomem *addr, bool native_io)
+{
+	u32 id;
+
+	if (native_io)
+		id = __raw_readl(addr + MACB_MID);
+	else
+		id = readl_relaxed(addr + MACB_MID);
+
+	return MACB_BFEXT(IDNUM, id) >= 0x2;
+}
+
 static void macb_set_hwaddr(struct macb *bp)
 {
 	u32 bottom;
@@ -160,7 +211,7 @@ static void macb_get_hwaddr(struct macb *bp)
 		}
 	}
 
-	netdev_info(bp->dev, "invalid hw address, using random\n");
+	dev_info(&bp->pdev->dev, "invalid hw address, using random\n");
 	eth_hw_addr_random(bp->dev);
 }
 
@@ -252,7 +303,6 @@ static void macb_handle_link_change(struct net_device *dev)
 	struct macb *bp = netdev_priv(dev);
 	struct phy_device *phydev = bp->phy_dev;
 	unsigned long flags;
-
 	int status_change = 0;
 
 	spin_lock_irqsave(&bp->lock, flags);
@@ -449,14 +499,14 @@ err_out:
 
 static void macb_update_stats(struct macb *bp)
 {
-	u32 __iomem *reg = bp->regs + MACB_PFR;
 	u32 *p = &bp->hw_stats.macb.rx_pause_frames;
 	u32 *end = &bp->hw_stats.macb.tx_pause_frames + 1;
+	int offset = MACB_PFR;
 
 	WARN_ON((unsigned long)(end - p - 1) != (MACB_TPF - MACB_PFR) / 4);
 
-	for(; p < end; p++, reg++)
-		*p += readl_relaxed(reg);
+	for(; p < end; p++, offset += 4)
+		*p += bp->macb_reg_readl(bp, offset);
 }
 
 static int macb_halt_tx(struct macb *bp)
@@ -1107,12 +1157,6 @@ static void macb_poll_controller(struct net_device *dev)
 }
 #endif
 
-static inline unsigned int macb_count_tx_descriptors(struct macb *bp,
-						     unsigned int len)
-{
-	return (len + bp->max_tx_length - 1) / bp->max_tx_length;
-}
-
 static unsigned int macb_tx_map(struct macb *bp,
 				struct macb_queue *queue,
 				struct sk_buff *skb)
@@ -1263,11 +1307,11 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * socket buffer: skb fragments of jumbo frames may need to be
 	 * splitted into many buffer descriptors.
 	 */
-	count = macb_count_tx_descriptors(bp, skb_headlen(skb));
+	count = DIV_ROUND_UP(skb_headlen(skb), bp->max_tx_length);
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	for (f = 0; f < nr_frags; f++) {
 		frag_size = skb_frag_size(&skb_shinfo(skb)->frags[f]);
-		count += macb_count_tx_descriptors(bp, frag_size);
+		count += DIV_ROUND_UP(frag_size, bp->max_tx_length);
 	}
 
 	spin_lock_irqsave(&bp->lock, flags);
@@ -1603,7 +1647,6 @@ static u32 macb_dbw(struct macb *bp)
 static void macb_configure_dma(struct macb *bp)
 {
 	u32 dmacfg;
-	u32 tmp, ncr;
 
 	if (macb_is_gem(bp)) {
 		dmacfg = gem_readl(bp, DMACFG) & ~GEM_BF(RXBS, -1L);
@@ -1613,21 +1656,10 @@ static void macb_configure_dma(struct macb *bp)
 		dmacfg |= GEM_BIT(TXPBMS) | GEM_BF(RXBMS, -1L);
 		dmacfg &= ~GEM_BIT(ENDIA_PKT);
 
-		/* Find the CPU endianness by using the loopback bit of net_ctrl
-		 * register. save it first. When the CPU is in big endian we
-		 * need to program swaped mode for management descriptor access.
-		 */
-		ncr = macb_readl(bp, NCR);
-		__raw_writel(MACB_BIT(LLB), bp->regs + MACB_NCR);
-		tmp =  __raw_readl(bp->regs + MACB_NCR);
-
-		if (tmp == MACB_BIT(LLB))
+		if (bp->native_io)
 			dmacfg &= ~GEM_BIT(ENDIA_DESC);
 		else
 			dmacfg |= GEM_BIT(ENDIA_DESC); /* CPU in big endian */
-
-		/* Restore net_ctrl */
-		macb_writel(bp, NCR, ncr);
 
 		if (bp->dev->features & NETIF_F_HW_CSUM)
 			dmacfg |= GEM_BIT(TXCOEN);
@@ -1897,19 +1929,19 @@ static int macb_change_mtu(struct net_device *dev, int new_mtu)
 
 static void gem_update_stats(struct macb *bp)
 {
-	int i;
+	unsigned int i;
 	u32 *p = &bp->hw_stats.gem.tx_octets_31_0;
 
 	for (i = 0; i < GEM_STATS_LEN; ++i, ++p) {
 		u32 offset = gem_statistics[i].offset;
-		u64 val = readl_relaxed(bp->regs + offset);
+		u64 val = bp->macb_reg_readl(bp, offset);
 
 		bp->ethtool_stats[i] += val;
 		*p += val;
 
 		if (offset == GEM_OCTTXL || offset == GEM_OCTRXL) {
 			/* Add GEM_OCTTXH, GEM_OCTRXH */
-			val = readl_relaxed(bp->regs + offset + 4);
+			val = bp->macb_reg_readl(bp, offset + 4);
 			bp->ethtool_stats[i] += ((u64)val) << 32;
 			*(++p) += val;
 		}
@@ -1976,7 +2008,7 @@ static int gem_get_sset_count(struct net_device *dev, int sset)
 
 static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
 {
-	int i;
+	unsigned int i;
 
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -2190,7 +2222,7 @@ static void macb_configure_caps(struct macb *bp, const struct macb_config *dt_co
 	if (dt_conf)
 		bp->caps = dt_conf->caps;
 
-	if (macb_is_gem_hw(bp->regs)) {
+	if (hw_is_gem(bp->regs, bp->native_io)) {
 		bp->caps |= MACB_CAPS_MACB_IS_GEM;
 
 		dcfg = gem_readl(bp, DCFG1);
@@ -2201,10 +2233,11 @@ static void macb_configure_caps(struct macb *bp, const struct macb_config *dt_co
 			bp->caps |= MACB_CAPS_FIFO_MODE;
 	}
 
-	netdev_dbg(bp->dev, "Cadence caps 0x%08x\n", bp->caps);
+	dev_dbg(&bp->pdev->dev, "Cadence caps 0x%08x\n", bp->caps);
 }
 
 static void macb_probe_queues(void __iomem *mem,
+			      bool native_io,
 			      unsigned int *queue_mask,
 			      unsigned int *num_queues)
 {
@@ -2219,7 +2252,7 @@ static void macb_probe_queues(void __iomem *mem,
 	 * we are early in the probe process and don't have the
 	 * MACB_CAPS_MACB_IS_GEM flag positioned
 	 */
-	if (!macb_is_gem_hw(mem))
+	if (!hw_is_gem(mem, native_io))
 		return;
 
 	/* bit 0 is never set but queue 0 always exists */
@@ -2786,6 +2819,7 @@ static int macb_probe(struct platform_device *pdev)
 	struct clk *pclk, *hclk, *tx_clk;
 	unsigned int queue_mask, num_queues;
 	struct macb_platform_data *pdata;
+	bool native_io;
 	struct phy_device *phydev;
 	struct net_device *dev;
 	struct resource *regs;
@@ -2793,6 +2827,11 @@ static int macb_probe(struct platform_device *pdev)
 	const char *mac;
 	struct macb *bp;
 	int err;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mem = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
 
 	if (np) {
 		const struct of_device_id *match;
@@ -2809,14 +2848,9 @@ static int macb_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mem = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(mem)) {
-		err = PTR_ERR(mem);
-		goto err_disable_clocks;
-	}
+	native_io = hw_is_native_io(mem);
 
-	macb_probe_queues(mem, &queue_mask, &num_queues);
+	macb_probe_queues(mem, native_io, &queue_mask, &num_queues);
 	dev = alloc_etherdev_mq(sizeof(*bp), num_queues);
 	if (!dev) {
 		err = -ENOMEM;
@@ -2831,6 +2865,14 @@ static int macb_probe(struct platform_device *pdev)
 	bp->pdev = pdev;
 	bp->dev = dev;
 	bp->regs = mem;
+	bp->native_io = native_io;
+	if (native_io) {
+		bp->macb_reg_readl = hw_readl_native;
+		bp->macb_reg_writel = hw_writel_native;
+	} else {
+		bp->macb_reg_readl = hw_readl;
+		bp->macb_reg_writel = hw_writel;
+	}
 	bp->num_queues = num_queues;
 	bp->queue_mask = queue_mask;
 	if (macb_config)
@@ -2838,9 +2880,8 @@ static int macb_probe(struct platform_device *pdev)
 	bp->pclk = pclk;
 	bp->hclk = hclk;
 	bp->tx_clk = tx_clk;
-	if (macb_config->jumbo_max_len) {
+	if (macb_config)
 		bp->jumbo_max_len = macb_config->jumbo_max_len;
-	}
 
 	spin_lock_init(&bp->lock);
 

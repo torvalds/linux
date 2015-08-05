@@ -189,7 +189,6 @@ static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
 struct ceph_cap_flush {
 	u64 tid;
 	int caps;
-	bool kick;
 	struct rb_node g_node; // global
 	union {
 		struct rb_node i_node; // inode

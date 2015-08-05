@@ -62,7 +62,7 @@
 #define SND_QUEUE_CNT		8
 #define CMP_QUEUE_CNT		8 /* Max of RCV and SND qcount */
 
-#define SND_QSIZE		SND_QUEUE_SIZE4
+#define SND_QSIZE		SND_QUEUE_SIZE2
 #define SND_QUEUE_LEN		(1ULL << (SND_QSIZE + 10))
 #define MAX_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE6 + 10))
 #define SND_QUEUE_THRESH	2ULL
@@ -70,7 +70,10 @@
 /* Since timestamp not enabled, otherwise 2 */
 #define MAX_CQE_PER_PKT_XMIT		1
 
-#define CMP_QSIZE		CMP_QUEUE_SIZE4
+/* Keep CQ and SQ sizes same, if timestamping
+ * is enabled this equation will change.
+ */
+#define CMP_QSIZE		CMP_QUEUE_SIZE2
 #define CMP_QUEUE_LEN		(1ULL << (CMP_QSIZE + 10))
 #define CMP_QUEUE_CQE_THRESH	0
 #define CMP_QUEUE_TIMER_THRESH	220 /* 10usec */
@@ -87,7 +90,12 @@
 
 #define MAX_CQES_FOR_TX		((SND_QUEUE_LEN / MIN_SQ_DESC_PER_PKT_XMIT) * \
 				 MAX_CQE_PER_PKT_XMIT)
-#define RQ_CQ_DROP		((CMP_QUEUE_LEN - MAX_CQES_FOR_TX) / 256)
+/* Calculate number of CQEs to reserve for all SQEs.
+ * Its 1/256th level of CQ size.
+ * '+ 1' to account for pipelining
+ */
+#define RQ_CQ_DROP		((256 / (CMP_QUEUE_LEN / \
+				 (CMP_QUEUE_LEN - MAX_CQES_FOR_TX))) + 1)
 
 /* Descriptor size in bytes */
 #define SND_QUEUE_DESC_SIZE	16
