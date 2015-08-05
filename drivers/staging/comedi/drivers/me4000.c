@@ -652,24 +652,25 @@ static void ai_write_timer(struct comedi_device *dev,
 	outl(chan_ticks - 1, dev->iobase + ME4000_AI_CHAN_TIMER_REG);
 }
 
-static int ai_write_chanlist(struct comedi_device *dev,
-			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
+static int me4000_ai_write_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
 {
-	unsigned int entry;
-	unsigned int chan;
-	unsigned int rang;
-	unsigned int aref;
 	int i;
 
 	for (i = 0; i < cmd->chanlist_len; i++) {
-		chan = CR_CHAN(cmd->chanlist[i]);
-		rang = CR_RANGE(cmd->chanlist[i]);
-		aref = CR_AREF(cmd->chanlist[i]);
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+		unsigned int entry;
 
-		entry = chan | ME4000_AI_LIST_RANGE(rang);
+		entry = chan | ME4000_AI_LIST_RANGE(range);
 
 		if (aref == AREF_DIFF)
 			entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
+
+		if (i == (cmd->chanlist_len - 1))
+			entry |= ME4000_AI_LIST_LAST_ENTRY;
 
 		outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
 	}
@@ -738,7 +739,7 @@ static int ai_prepare(struct comedi_device *dev,
 	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Write the channel list */
-	ai_write_chanlist(dev, s, cmd);
+	me4000_ai_write_chanlist(dev, s, cmd);
 
 	return 0;
 }
