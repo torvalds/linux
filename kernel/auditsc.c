@@ -466,6 +466,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 				result = audit_comparator(ctx->ppid, f->op, f->val);
 			}
 			break;
+		case AUDIT_EXE:
+			result = audit_exe_compare(tsk, rule->exe);
+			break;
 		case AUDIT_UID:
 			result = audit_uid_comparator(cred->uid, f->op, f->uid);
 			break;

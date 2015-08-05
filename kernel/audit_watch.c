@@ -312,6 +312,8 @@ static void audit_update_watch(struct audit_parent *parent,
 				list_replace(&oentry->rule.list,
 					     &nentry->rule.list);
 			}
+			if (oentry->rule.exe)
+				audit_remove_mark(oentry->rule.exe);
 
 			audit_watch_log_rule_change(r, owatch, "updated_rules");
 
@@ -342,6 +344,8 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 		list_for_each_entry_safe(r, nextr, &w->rules, rlist) {
 			e = container_of(r, struct audit_entry, rule);
 			audit_watch_log_rule_change(r, w, "remove_rule");
+			if (e->rule.exe)
+				audit_remove_mark(e->rule.exe);
 			list_del(&r->rlist);
 			list_del(&r->list);
 			list_del_rcu(&e->list);
@@ -514,3 +518,30 @@ static int __init audit_watch_init(void)
 	return 0;
 }
 device_initcall(audit_watch_init);
+
+int audit_dupe_exe(struct audit_krule *new, struct audit_krule *old)
+{
+	struct audit_fsnotify_mark *audit_mark;
+	char *pathname;
+
+	pathname = kstrdup(audit_mark_path(old->exe), GFP_KERNEL);
+	if (!pathname)
+		return -ENOMEM;
+
+	audit_mark = audit_alloc_mark(new, pathname, strlen(pathname));
+	if (IS_ERR(audit_mark)) {
+		kfree(pathname);
+		return PTR_ERR(audit_mark);
+	}
+	new->exe = audit_mark;
+
+	return 0;
+}
+
+int audit_exe_compare(struct task_struct *tsk, struct audit_fsnotify_mark *mark)
+{
+	unsigned long ino = tsk->mm->exe_file->f_inode->i_ino;
+	dev_t dev = tsk->mm->exe_file->f_inode->i_sb->s_dev;
+
+	return audit_mark_compare(mark, ino, dev);
+}
