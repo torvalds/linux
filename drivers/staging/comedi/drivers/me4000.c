@@ -57,17 +57,16 @@ broken.
 #define ME4000_AO_CHAN(x)			((x) * 0x18)
 
 #define ME4000_AO_CTRL_REG(x)			(0x00 + ME4000_AO_CHAN(x))
-#define ME4000_AO_CTRL_BIT_MODE_0		(1 << 0)
-#define ME4000_AO_CTRL_BIT_MODE_1		(1 << 1)
-#define ME4000_AO_CTRL_MASK_MODE		(3 << 0)
-#define ME4000_AO_CTRL_BIT_STOP			(1 << 2)
-#define ME4000_AO_CTRL_BIT_ENABLE_FIFO		(1 << 3)
-#define ME4000_AO_CTRL_BIT_ENABLE_EX_TRIG	(1 << 4)
-#define ME4000_AO_CTRL_BIT_EX_TRIG_EDGE		(1 << 5)
-#define ME4000_AO_CTRL_BIT_IMMEDIATE_STOP	(1 << 7)
-#define ME4000_AO_CTRL_BIT_ENABLE_DO		(1 << 8)
-#define ME4000_AO_CTRL_BIT_ENABLE_IRQ		(1 << 9)
-#define ME4000_AO_CTRL_BIT_RESET_IRQ		(1 << 10)
+#define ME4000_AO_CTRL_MODE_0			BIT(0)
+#define ME4000_AO_CTRL_MODE_1			BIT(1)
+#define ME4000_AO_CTRL_STOP			BIT(2)
+#define ME4000_AO_CTRL_ENABLE_FIFO		BIT(3)
+#define ME4000_AO_CTRL_ENABLE_EX_TRIG		BIT(4)
+#define ME4000_AO_CTRL_EX_TRIG_EDGE		BIT(5)
+#define ME4000_AO_CTRL_IMMEDIATE_STOP		BIT(7)
+#define ME4000_AO_CTRL_ENABLE_DO		BIT(8)
+#define ME4000_AO_CTRL_ENABLE_IRQ		BIT(9)
+#define ME4000_AO_CTRL_RESET_IRQ		BIT(10)
 #define ME4000_AO_STATUS_REG(x)			(0x04 + ME4000_AO_CHAN(x))
 #define ME4000_AO_STATUS_FSM			BIT(0)
 #define ME4000_AO_STATUS_FF			BIT(1)
@@ -412,7 +411,7 @@ static void me4000_reset(struct comedi_device *dev)
 	     dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Set both stop bits in the analog output control register */
-	val = ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP;
+	val = ME4000_AO_CTRL_IMMEDIATE_STOP | ME4000_AO_CTRL_STOP;
 	for (chan = 0; chan < 4; chan++)
 		outl(val, dev->iobase + ME4000_AO_CTRL_REG(chan));
 
@@ -1110,7 +1109,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 
 	/* Stop any running conversion */
 	tmp = inl(dev->iobase + ME4000_AO_CTRL_REG(chan));
-	tmp |= ME4000_AO_CTRL_BIT_IMMEDIATE_STOP;
+	tmp |= ME4000_AO_CTRL_IMMEDIATE_STOP;
 	outl(tmp, dev->iobase + ME4000_AO_CTRL_REG(chan));
 
 	/* Clear control register and set to single mode */
