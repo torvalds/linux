@@ -153,6 +153,8 @@ struct amdtp_stream {
 
 	/* quirk: fixed interval of dbc between previos/current packets. */
 	unsigned int tx_dbc_interval;
+	/* quirk: indicate the value of dbc field in a first packet. */
+	unsigned int tx_first_dbc;
 
 	bool callbacked;
 	wait_queue_head_t callback_wait;
