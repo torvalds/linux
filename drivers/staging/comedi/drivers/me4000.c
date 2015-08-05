@@ -166,7 +166,7 @@ broken.
 
 #define ME4000_AI_CHANNEL_LIST_COUNT		1024
 
-struct me4000_info {
+struct me4000_private {
 	unsigned long plx_regbase;
 };
 
@@ -316,7 +316,7 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 				  unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct me4000_info *info = dev->private;
+	struct me4000_private *devpriv = dev->private;
 	unsigned long xilinx_iobase = pci_resource_start(pcidev, 5);
 	unsigned int file_length;
 	unsigned int val;
@@ -329,28 +329,28 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	 * Set PLX local interrupt 2 polarity to high.
 	 * Interrupt is thrown by init pin of xilinx.
 	 */
-	outl(PLX9052_INTCSR_LI2POL, info->plx_regbase + PLX9052_INTCSR);
+	outl(PLX9052_INTCSR_LI2POL, devpriv->plx_regbase + PLX9052_INTCSR);
 
 	/* Set /CS and /WRITE of the Xilinx */
-	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	val |= PLX9052_CNTRL_UIO2_DATA;
-	outl(val, info->plx_regbase + PLX9052_CNTRL);
+	outl(val, devpriv->plx_regbase + PLX9052_CNTRL);
 
 	/* Init Xilinx with CS1 */
 	inb(xilinx_iobase + 0xC8);
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
-	val = inl(info->plx_regbase + PLX9052_INTCSR);
+	val = inl(devpriv->plx_regbase + PLX9052_INTCSR);
 	if (!(val & PLX9052_INTCSR_LI2STAT)) {
 		dev_err(dev->class_dev, "Can't init Xilinx\n");
 		return -EIO;
 	}
 
 	/* Reset /CS and /WRITE of the Xilinx */
-	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	val &= ~PLX9052_CNTRL_UIO2_DATA;
-	outl(val, info->plx_regbase + PLX9052_CNTRL);
+	outl(val, devpriv->plx_regbase + PLX9052_CNTRL);
 
 	/* Download Xilinx firmware */
 	file_length = (((unsigned int)data[0] & 0xff) << 24) +
@@ -364,7 +364,7 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 		udelay(10);
 
 		/* Check if BUSY flag is low */
-		val = inl(info->plx_regbase + PLX9052_CNTRL);
+		val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 		if (val & PLX9052_CNTRL_UIO1_DATA) {
 			dev_err(dev->class_dev,
 				"Xilinx is still busy (i = %d)\n", i);
@@ -373,7 +373,7 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	}
 
 	/* If done flag is high download was successful */
-	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	if (!(val & PLX9052_CNTRL_UIO0_DATA)) {
 		dev_err(dev->class_dev, "DONE flag is not set\n");
 		dev_err(dev->class_dev, "Download not successful\n");
@@ -381,25 +381,25 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	}
 
 	/* Set /CS and /WRITE */
-	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	val |= PLX9052_CNTRL_UIO2_DATA;
-	outl(val, info->plx_regbase + PLX9052_CNTRL);
+	outl(val, devpriv->plx_regbase + PLX9052_CNTRL);
 
 	return 0;
 }
 
 static void me4000_reset(struct comedi_device *dev)
 {
-	struct me4000_info *info = dev->private;
+	struct me4000_private *devpriv = dev->private;
 	unsigned int val;
 	int chan;
 
 	/* Make a hardware reset */
-	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	val |= PLX9052_CNTRL_PCI_RESET;
-	outl(val, info->plx_regbase + PLX9052_CNTRL);
+	outl(val, devpriv->plx_regbase + PLX9052_CNTRL);
 	val &= ~PLX9052_CNTRL_PCI_RESET;
-	outl(val, info->plx_regbase + PLX9052_CNTRL);
+	outl(val, devpriv->plx_regbase + PLX9052_CNTRL);
 
 	/* 0x8000 to the DACs means an output voltage of 0V */
 	for (chan = 0; chan < 4; chan++)
@@ -417,7 +417,7 @@ static void me4000_reset(struct comedi_device *dev)
 	/* Enable interrupts on the PLX */
 	outl(PLX9052_INTCSR_LI1ENAB |
 	     PLX9052_INTCSR_LI1POL |
-	     PLX9052_INTCSR_PCIENAB, info->plx_regbase + PLX9052_INTCSR);
+	     PLX9052_INTCSR_PCIENAB, devpriv->plx_regbase + PLX9052_INTCSR);
 
 	/* Set the adustment register for AO demux */
 	outl(ME4000_AO_DEMUX_ADJUST_VALUE,
@@ -1244,7 +1244,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct me4000_board *board = NULL;
-	struct me4000_info *info;
+	struct me4000_private *devpriv;
 	struct comedi_subdevice *s;
 	int result;
 
@@ -1255,17 +1255,17 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	info = comedi_alloc_devpriv(dev, sizeof(*info));
-	if (!info)
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
 		return -ENOMEM;
 
 	result = comedi_pci_enable(dev);
 	if (result)
 		return result;
 
-	info->plx_regbase = pci_resource_start(pcidev, 1);
+	devpriv->plx_regbase = pci_resource_start(pcidev, 1);
 	dev->iobase = pci_resource_start(pcidev, 2);
-	if (!info->plx_regbase || !dev->iobase)
+	if (!devpriv->plx_regbase || !dev->iobase)
 		return -ENODEV;
 
 	result = comedi_load_firmware(dev, &pcidev->dev, ME4000_FIRMWARE,
