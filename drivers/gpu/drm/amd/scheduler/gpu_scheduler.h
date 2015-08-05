@@ -25,6 +25,7 @@
 #define _GPU_SCHEDULER_H_
 
 #include <linux/kfifo.h>
+#include <linux/fence.h>
 
 #define AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS		3000
 
@@ -80,6 +81,13 @@ struct amd_context_entity {
 	bool                            is_pending;
 };
 
+struct amd_sched_job {
+	struct list_head		list;
+	struct fence_cb                 cb;
+	struct amd_gpu_scheduler        *sched;
+	void                            *job;
+};
+
 /**
  * Define the backend operations called by the scheduler,
  * these functions should be implemented in driver side
@@ -90,7 +98,7 @@ struct amd_sched_backend_ops {
 			   void *job);
 	void (*run_job)(struct amd_gpu_scheduler *sched,
 			struct amd_context_entity *c_entity,
-			void *job);
+			struct amd_sched_job *job);
 	void (*process_job)(struct amd_gpu_scheduler *sched, void *job);
 };
 
@@ -102,18 +110,18 @@ struct amd_gpu_scheduler {
 	struct task_struct		*thread;
 	struct amd_run_queue		sched_rq;
 	struct amd_run_queue		kernel_rq;
-	struct kfifo                    active_hw_rq;
+	struct list_head		active_hw_rq;
+	atomic64_t			hw_rq_count;
 	struct amd_sched_backend_ops	*ops;
 	uint32_t			ring_id;
 	uint32_t			granularity; /* in ms unit */
 	uint32_t			preemption;
-	atomic64_t			last_handled_seq;
 	wait_queue_head_t		wait_queue;
 	struct amd_context_entity	*current_entity;
 	struct mutex			sched_lock;
 	spinlock_t			queue_lock;
+	uint32_t                        hw_submission_limit;
 };
-
 
 struct amd_gpu_scheduler *amd_sched_create(void *device,
 				struct amd_sched_backend_ops *ops,
@@ -133,7 +141,7 @@ int amd_sched_wait_emit(struct amd_context_entity *c_entity,
 			bool intr,
 			long timeout);
 
-void amd_sched_isr(struct amd_gpu_scheduler *sched);
+void amd_sched_process_job(struct amd_sched_job *sched_job);
 uint64_t amd_sched_get_handled_seq(struct amd_gpu_scheduler *sched);
 
 int amd_context_entity_fini(struct amd_gpu_scheduler *sched,

@@ -45,19 +45,24 @@ static int amdgpu_sched_prepare_job(struct amd_gpu_scheduler *sched,
 
 static void amdgpu_fence_sched_cb(struct fence *f, struct fence_cb *cb)
 {
-	struct amdgpu_fence *fence =
-		container_of(cb, struct amdgpu_fence, cb);
-	amd_sched_isr(fence->ring->scheduler);
+	struct amd_sched_job *sched_job =
+		container_of(cb, struct amd_sched_job, cb);
+	amd_sched_process_job(sched_job);
 }
 
 static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 				 struct amd_context_entity *c_entity,
-				 void *job)
+				 struct amd_sched_job *job)
 {
 	int r = 0;
-	struct amdgpu_cs_parser *sched_job = (struct amdgpu_cs_parser *)job;
+	struct amdgpu_cs_parser *sched_job;
 	struct amdgpu_fence *fence;
 
+	if (!job || !job->job) {
+		DRM_ERROR("job is null\n");
+		return;
+	}
+	sched_job = (struct amdgpu_cs_parser *)job->job;
 	mutex_lock(&sched_job->job_lock);
 	r = amdgpu_ib_schedule(sched_job->adev,
 			       sched_job->num_ibs,
@@ -67,8 +72,10 @@ static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 		goto err;
 	fence = sched_job->ibs[sched_job->num_ibs - 1].fence;
 	if (fence_add_callback(&fence->base,
-			       &fence->cb, amdgpu_fence_sched_cb))
+			       &job->cb, amdgpu_fence_sched_cb)) {
+		DRM_ERROR("fence add callback failed\n");
 		goto err;
+	}
 
 	if (sched_job->run_job) {
 		r = sched_job->run_job(sched_job);

@@ -107,7 +107,14 @@ static int gpu_entity_check_status(struct amd_sched_entity *entity)
 */
 static bool is_scheduler_ready(struct amd_gpu_scheduler *sched)
 {
-	return !kfifo_is_full(&sched->active_hw_rq);
+	unsigned long flags;
+	bool full;
+	spin_lock_irqsave(&sched->queue_lock, flags);
+	full = atomic64_read(&sched->hw_rq_count) <
+		sched->hw_submission_limit ? true : false;
+	spin_unlock_irqrestore(&sched->queue_lock, flags);
+
+	return full;
 }
 
 /**
@@ -369,6 +376,7 @@ static int amd_sched_main(void *param)
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
 	while (!kthread_should_stop()) {
+		struct amd_sched_job *sched_job = NULL;
 		wait_event_interruptible(sched->wait_queue,
 					 is_scheduler_ready(sched) &&
 					 (c_entity = select_context(sched)));
@@ -376,22 +384,26 @@ static int amd_sched_main(void *param)
 		if (r != sizeof(void *))
 			continue;
 		r = sched->ops->prepare_job(sched, c_entity, job);
-		if (!r)
-			WARN_ON(kfifo_in_spinlocked(
-					&sched->active_hw_rq,
-					&job,
-					sizeof(void *),
-					&sched->queue_lock) != sizeof(void *));
+		if (!r) {
+			unsigned long flags;
+			sched_job = kzalloc(sizeof(struct amd_sched_job),
+					    GFP_KERNEL);
+			if (!sched_job) {
+				WARN(true, "No memory to allocate\n");
+				continue;
+			}
+			sched_job->job = job;
+			sched_job->sched = sched;
+			spin_lock_irqsave(&sched->queue_lock, flags);
+			list_add_tail(&sched_job->list, &sched->active_hw_rq);
+			atomic64_inc(&sched->hw_rq_count);
+			spin_unlock_irqrestore(&sched->queue_lock, flags);
+		}
 		mutex_lock(&sched->sched_lock);
-		sched->ops->run_job(sched, c_entity, job);
+		sched->ops->run_job(sched, c_entity, sched_job);
 		mutex_unlock(&sched->sched_lock);
 	}
 	return 0;
-}
-
-uint64_t amd_sched_get_handled_seq(struct amd_gpu_scheduler *sched)
-{
-	return atomic64_read(&sched->last_handled_seq);
 }
 
 /**
@@ -400,19 +412,20 @@ uint64_t amd_sched_get_handled_seq(struct amd_gpu_scheduler *sched)
  * @sched: gpu scheduler
  *
 */
-void amd_sched_isr(struct amd_gpu_scheduler *sched)
+void amd_sched_process_job(struct amd_sched_job *sched_job)
 {
-	int r;
-	void *job;
-	r = kfifo_out_spinlocked(&sched->active_hw_rq,
-				 &job, sizeof(void *),
-				 &sched->queue_lock);
+	unsigned long flags;
+	struct amd_gpu_scheduler *sched;
+	if (!sched_job)
+		return;
+	sched = sched_job->sched;
+	spin_lock_irqsave(&sched->queue_lock, flags);
+	list_del(&sched_job->list);
+	atomic64_dec(&sched->hw_rq_count);
+	spin_unlock_irqrestore(&sched->queue_lock, flags);
 
-	if (r != sizeof(void *))
-		job = NULL;
-
-	sched->ops->process_job(sched, job);
-	atomic64_inc(&sched->last_handled_seq);
+	sched->ops->process_job(sched, sched_job->job);
+	kfree(sched_job);
 	wake_up_interruptible(&sched->wait_queue);
 }
 
@@ -446,8 +459,7 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	sched->granularity = granularity;
 	sched->ring_id = ring;
 	sched->preemption = preemption;
-	atomic64_set(&sched->last_handled_seq, 0);
-
+	sched->hw_submission_limit = hw_submission;
 	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
 	mutex_init(&sched->sched_lock);
 	spin_lock_init(&sched->queue_lock);
@@ -458,13 +470,8 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	sched->kernel_rq.check_entity_status = gpu_entity_check_status;
 
 	init_waitqueue_head(&sched->wait_queue);
-	if(kfifo_alloc(&sched->active_hw_rq,
-		       hw_submission * sizeof(void *),
-		       GFP_KERNEL)) {
-		kfree(sched);
-		return NULL;
-	}
-
+	INIT_LIST_HEAD(&sched->active_hw_rq);
+	atomic64_set(&sched->hw_rq_count, 0);
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_create(amd_sched_main, sched, name);
 	if (sched->thread) {
@@ -473,7 +480,6 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	}
 
 	DRM_ERROR("Failed to create scheduler for id %d.\n", ring);
-	kfifo_free(&sched->active_hw_rq);
 	kfree(sched);
 	return NULL;
 }
@@ -488,7 +494,6 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 int amd_sched_destroy(struct amd_gpu_scheduler *sched)
 {
 	kthread_stop(sched->thread);
-	kfifo_free(&sched->active_hw_rq);
 	kfree(sched);
 	return  0;
 }
