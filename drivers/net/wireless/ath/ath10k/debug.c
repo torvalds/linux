@@ -124,7 +124,7 @@ EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_print_driver_info(struct ath10k *ar)
 {
-	char fw_features[128];
+	char fw_features[128] = {};
 
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
 
