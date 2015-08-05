@@ -26,6 +26,7 @@ void __delay(unsigned long loops)
          */
 	asm volatile("0: brct %0,0b" : : "d" ((loops/2) + 1));
 }
+EXPORT_SYMBOL(__delay);
 
 static void __udelay_disabled(unsigned long long usecs)
 {
