@@ -665,12 +665,6 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 	struct me4000_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int ctrl;
-	int err;
-
-	/* Reset the analog input */
-	err = me4000_ai_cancel(dev, s);
-	if (err)
-		return err;
 
 	/* Write timer arguments */
 	outl(devpriv->ai_init_ticks - 1,
