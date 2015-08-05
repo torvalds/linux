@@ -1070,7 +1070,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 	struct snd_soc_tplg_mixer_control *mc;
 	int i, err;
 
-	kc = kzalloc(sizeof(*kc) * num_kcontrols, GFP_KERNEL);
+	kc = kcalloc(num_kcontrols, sizeof(*kc), GFP_KERNEL);
 	if (kc == NULL)
 		return NULL;
 
@@ -1251,7 +1251,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 	struct snd_kcontrol_new *kc;
 	int i, err;
 
-	kc = kzalloc(sizeof(*kc) * count, GFP_KERNEL);
+	kc = kcalloc(count, sizeof(*kc), GFP_KERNEL);
 	if (!kc)
 		return NULL;
 
@@ -1274,7 +1274,6 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 			"ASoC: adding bytes kcontrol %s with access 0x%x\n",
 			be->hdr.name, be->hdr.access);
 
-		memset(kc, 0, sizeof(*kc));
 		kc[i].name = be->hdr.name;
 		kc[i].private_value = (long)sbe;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
