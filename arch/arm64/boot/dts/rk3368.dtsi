@@ -1037,6 +1037,7 @@
 						1008000 1200000
 						>;
 					status = "okay";
+					cluster = <0>;
 					temp-limit-enable = <1>;
 					target-temp = <80>;
 					min_temp_limit = <216000>;
@@ -1059,6 +1060,7 @@
 						/*lkg(mA)  volt(uV)*/
 						0         25000
 						>;
+					pvtm_min_temp = <25>;
 				};
 				clk_core_l_dvfs_table: clk_core_l {
 					operating-points = <
@@ -1069,6 +1071,7 @@
 						1008000 1200000
 						>;
 					status = "okay";
+					cluster = <1>;
 					temp-limit-enable = <1>;
 					target-temp = <80>;
 					min_temp_limit = <216000>;
@@ -1091,6 +1094,7 @@
 						/*lkg(mA)  volt(uV)*/
 						0         25000
 						>;
+					pvtm_min_temp = <25>;
 				};
 			};
 		};
