@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -311,9 +312,11 @@ struct token {
 
 static struct token *token_list;
 static unsigned nr_tokens;
-static _Bool verbose;
+static bool verbose_opt;
+static bool debug_opt;
 
-#define debug(fmt, ...) do { if (verbose) printf(fmt, ## __VA_ARGS__); } while (0)
+#define verbose(fmt, ...) do { if (verbose_opt) printf(fmt, ## __VA_ARGS__); } while (0)
+#define debug(fmt, ...) do { if (debug_opt) printf(fmt, ## __VA_ARGS__); } while (0)
 
 static int directive_compare(const void *_key, const void *_pdir)
 {
@@ -518,7 +521,7 @@ static void tokenise(char *buffer, char *end)
 	}
 
 	nr_tokens = tix;
-	debug("Extracted %u tokens\n", nr_tokens);
+	verbose("Extracted %u tokens\n", nr_tokens);
 
 #if 0
 	{
@@ -534,6 +537,7 @@ static void tokenise(char *buffer, char *end)
 
 static void build_type_list(void);
 static void parse(void);
+static void dump_elements(void);
 static void render(FILE *out, FILE *hdr);
 
 /*
@@ -548,15 +552,26 @@ int main(int argc, char **argv)
 	char *kbuild_verbose;
 	int fd;
 
+	kbuild_verbose = getenv("KBUILD_VERBOSE");
+	if (kbuild_verbose)
+		verbose_opt = atoi(kbuild_verbose);
+
+	while (argc > 4) {
+		if (strcmp(argv[1], "-v") == 0)
+			verbose_opt = true;
+		else if (strcmp(argv[1], "-d") == 0)
+			debug_opt = true;
+		else
+			break;
+		memmove(&argv[1], &argv[2], (argc - 2) * sizeof(char *));
+		argc--;
+	}
+
 	if (argc != 4) {
-		fprintf(stderr, "Format: %s <grammar-file> <c-file> <hdr-file>\n",
+		fprintf(stderr, "Format: %s [-v] [-d] <grammar-file> <c-file> <hdr-file>\n",
 			argv[0]);
 		exit(2);
 	}
-
-	kbuild_verbose = getenv("KBUILD_VERBOSE");
-	if (kbuild_verbose)
-		verbose = atoi(kbuild_verbose);
 
 	filename = argv[1];
 	outputname = argv[2];
@@ -608,6 +623,7 @@ int main(int argc, char **argv)
 	tokenise(buffer, buffer + readlen);
 	build_type_list();
 	parse();
+	dump_elements();
 
 	out = fopen(outputname, "w");
 	if (!out) {
@@ -756,7 +772,7 @@ static void build_type_list(void)
 
 	qsort(type_index, nr, sizeof(type_index[0]), type_index_compare);
 
-	debug("Extracted %u types\n", nr_types);
+	verbose("Extracted %u types\n", nr_types);
 #if 0
 	for (n = 0; n < nr_types; n++) {
 		struct type *type = type_index[n];
@@ -801,7 +817,7 @@ static void parse(void)
 
 	} while (type++, !(type->flags & TYPE_STOP_MARKER));
 
-	debug("Extracted %u actions\n", nr_actions);
+	verbose("Extracted %u actions\n", nr_actions);
 }
 
 static struct element *element_list;
@@ -1192,6 +1208,54 @@ overrun_error:
 	exit(1);
 }
 
+static void dump_element(const struct element *e, int level)
+{
+	const struct element *c;
+	const struct type *t = e->type_def;
+	const char *name = e->name ? e->name->value : ".";
+	int nsize = e->name ? e->name->size : 1;
+	const char *tname = t && t->name ? t->name->value : ".";
+	int tnsize = t && t->name ? t->name->size : 1;
+	char tag[32];
+
+	if (e->class == 0 && e->method == 0 && e->tag == 0)
+		strcpy(tag, "<...>");
+	else if (e->class == ASN1_UNIV)
+		sprintf(tag, "%s %s %s",
+			asn1_classes[e->class],
+			asn1_methods[e->method],
+			asn1_universal_tags[e->tag]);
+	else
+		sprintf(tag, "%s %s %u",
+			asn1_classes[e->class],
+			asn1_methods[e->method],
+			e->tag);
+
+	printf("%c%c%c%c%c %c %*s[*] \e[33m%s\e[m %*.*s %*.*s \e[35m%s\e[m\n",
+	       e->flags & ELEMENT_IMPLICIT ? 'I' : '-',
+	       e->flags & ELEMENT_EXPLICIT ? 'E' : '-',
+	       e->flags & ELEMENT_TAG_SPECIFIED ? 'T' : '-',
+	       e->flags & ELEMENT_SKIPPABLE ? 'S' : '-',
+	       e->flags & ELEMENT_CONDITIONAL ? 'C' : '-',
+	       "-tTqQcaro"[e->compound],
+	       level, "",
+	       tag,
+	       tnsize, tnsize, tname,
+	       nsize, nsize, name,
+	       e->action ? e->action->name : "");
+	if (e->compound == TYPE_REF)
+		dump_element(e->type->type->element, level + 3);
+	else
+		for (c = e->children; c; c = c->next)
+			dump_element(c, level + 3);
+}
+
+static void dump_elements(void)
+{
+	if (debug_opt)
+		dump_element(type_list[0].element, 0);
+}
+
 static void render_element(FILE *out, struct element *e, struct element *tag);
 static void render_out_of_line_list(FILE *out);
 
@@ -1293,7 +1357,7 @@ static void render(FILE *out, FILE *hdr)
 	}
 
 	/* We do two passes - the first one calculates all the offsets */
-	debug("Pass 1\n");
+	verbose("Pass 1\n");
 	nr_entries = 0;
 	root = &type_list[0];
 	render_element(NULL, root->element, NULL);
@@ -1304,7 +1368,7 @@ static void render(FILE *out, FILE *hdr)
 		e->flags &= ~ELEMENT_RENDERED;
 
 	/* And then we actually render */
-	debug("Pass 2\n");
+	verbose("Pass 2\n");
 	fprintf(out, "\n");
 	fprintf(out, "static const unsigned char %s_machine[] = {\n",
 		grammar_name);
