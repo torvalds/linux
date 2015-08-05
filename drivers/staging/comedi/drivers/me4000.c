@@ -688,9 +688,6 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 	outl(devpriv->ai_chan_ticks - 1,
 	     dev->iobase + ME4000_AI_CHAN_TIMER_REG);
 
-	/* Reset control register */
-	outl(0, dev->iobase + ME4000_AI_CTRL_REG);
-
 	/* Start sources */
 	ctrl = devpriv->ai_ctrl_mode |
 	       ME4000_AI_CTRL_CHANNEL_FIFO |
