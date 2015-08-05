@@ -28,6 +28,7 @@
 #include <linux/mtd/nand_bch.h>
 #include <linux/platform_data/elm.h>
 
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
 
 #define	DRIVER_NAME	"omap2-nand"
@@ -168,7 +169,9 @@ struct omap_nand_info {
 	} iomode;
 	u_char				*buf;
 	int					buf_len;
+	/* Interface to GPMC */
 	struct gpmc_nand_regs		reg;
+	struct gpmc_nand_ops		*ops;
 	/* generated at runtime depending on ECC algorithm and layout selected */
 	struct nand_ecclayout		oobinfo;
 	/* fields specific for BCHx_HW ECC scheme */
@@ -1665,9 +1668,13 @@ static int omap_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
+	info->ops = gpmc_omap_get_nand_ops(&info->reg, info->gpmc_cs);
+	if (!info->ops) {
+		dev_err(&pdev->dev, "Failed to get GPMC->NAND interface\n");
+		return -ENODEV;
+	}
 	info->pdev		= pdev;
 	info->gpmc_cs		= pdata->cs;
-	info->reg		= pdata->reg;
 	info->of_node		= pdata->of_node;
 	info->ecc_opt		= pdata->ecc_opt;
 	nand_chip		= &info->nand;
