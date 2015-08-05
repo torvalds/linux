@@ -476,15 +476,16 @@ static int zx_pre_config(struct zx_dma_chan *c, enum dma_transfer_direction dir)
 		c->dev_addr = cfg->dst_addr;
 		/* dst len is calculated from src width, len and dst width.
 		 * We need make sure dst len not exceed MAX LEN.
+		 * Trailing single transaction that does not fill a full
+		 * burst also require identical src/dst data width.
 		 */
 		dst_width = zx_dma_burst_width(cfg->dst_addr_width);
-		maxburst = cfg->dst_maxburst * cfg->dst_addr_width
-				/ DMA_SLAVE_BUSWIDTH_8_BYTES;
+		maxburst = cfg->dst_maxburst;
 		maxburst = maxburst < ZX_MAX_BURST_LEN ?
 				maxburst : ZX_MAX_BURST_LEN;
 		c->ccfg = ZX_DST_FIFO_MODE | ZX_CH_ENABLE
 			| ZX_SRC_BURST_LEN(maxburst - 1)
-			| ZX_SRC_BURST_WIDTH(ZX_DMA_WIDTH_64BIT)
+			| ZX_SRC_BURST_WIDTH(dst_width)
 			| ZX_DST_BURST_WIDTH(dst_width);
 		break;
 	case DMA_DEV_TO_MEM:
@@ -496,7 +497,7 @@ static int zx_pre_config(struct zx_dma_chan *c, enum dma_transfer_direction dir)
 		c->ccfg = ZX_SRC_FIFO_MODE | ZX_CH_ENABLE
 			| ZX_SRC_BURST_LEN(maxburst - 1)
 			| ZX_SRC_BURST_WIDTH(src_width)
-			| ZX_DST_BURST_WIDTH(ZX_DMA_WIDTH_64BIT);
+			| ZX_DST_BURST_WIDTH(src_width);
 		break;
 	default:
 		return -EINVAL;
