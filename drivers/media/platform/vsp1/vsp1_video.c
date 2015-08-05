@@ -298,8 +298,8 @@ static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
 
 		if (e->type == VSP1_ENTITY_RPF) {
 			rwpf = to_rwpf(subdev);
-			pipe->inputs[pipe->num_inputs++] = rwpf;
-			rwpf->video->pipe_index = pipe->num_inputs;
+			pipe->inputs[rwpf->entity.index] = rwpf;
+			rwpf->video->pipe_index = ++pipe->num_inputs;
 		} else if (e->type == VSP1_ENTITY_WPF) {
 			rwpf = to_rwpf(subdev);
 			pipe->output = rwpf;
@@ -324,7 +324,10 @@ static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
 	/* Follow links downstream for each input and make sure the graph
 	 * contains no loop and that all branches end at the output WPF.
 	 */
-	for (i = 0; i < pipe->num_inputs; ++i) {
+	for (i = 0; i < video->vsp1->pdata.rpf_count; ++i) {
+		if (!pipe->inputs[i])
+			continue;
+
 		ret = vsp1_video_pipeline_validate_branch(pipe, pipe->inputs[i],
 							  pipe->output);
 		if (ret < 0)
@@ -449,11 +452,16 @@ static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 
 static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	unsigned int i;
 
 	/* Complete buffers on all video nodes. */
-	for (i = 0; i < pipe->num_inputs; ++i)
+	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
+		if (!pipe->inputs[i])
+			continue;
+
 		vsp1_video_frame_end(pipe, pipe->inputs[i]);
+	}
 
 	if (!pipe->lif)
 		vsp1_video_frame_end(pipe, pipe->output);

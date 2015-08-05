@@ -161,13 +161,17 @@ const struct vsp1_format_info *vsp1_get_format_info(u32 fourcc)
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 {
+	unsigned int i;
+
 	if (pipe->bru) {
 		struct vsp1_bru *bru = to_bru(&pipe->bru->subdev);
-		unsigned int i;
 
 		for (i = 0; i < ARRAY_SIZE(bru->inputs); ++i)
 			bru->inputs[i].rpf = NULL;
 	}
+
+	for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i)
+		pipe->inputs[i] = NULL;
 
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;

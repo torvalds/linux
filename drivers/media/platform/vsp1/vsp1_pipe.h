@@ -66,7 +66,7 @@ enum vsp1_pipeline_state {
  * @stream_count: number of streaming video nodes
  * @buffers_ready: bitmask of RPFs and WPFs with at least one buffer available
  * @num_inputs: number of RPFs
- * @inputs: array of RPFs in the pipeline
+ * @inputs: array of RPFs in the pipeline (indexed by RPF index)
  * @output: WPF at the output of the pipeline
  * @bru: BRU entity, if present
  * @lif: LIF entity, if present
