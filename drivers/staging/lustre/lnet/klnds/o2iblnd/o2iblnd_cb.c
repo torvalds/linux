@@ -3133,8 +3133,7 @@ kiblnd_connd(void *arg)
 		dropped_lock = 0;
 
 		if (!list_empty(&kiblnd_data.kib_connd_zombies)) {
-			conn = list_entry(kiblnd_data. \
-					      kib_connd_zombies.next,
+			conn = list_entry(kiblnd_data.kib_connd_zombies.next,
 					      kib_conn_t, ibc_list);
 			list_del(&conn->ibc_list);
 
