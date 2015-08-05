@@ -263,6 +263,19 @@ int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
 	return err;
 }
 
+int f2fs_get_block(struct dnode_of_data *dn, pgoff_t index)
+{
+	struct extent_info ei;
+	struct inode *inode = dn->inode;
+
+	if (f2fs_lookup_extent_cache(inode, index, &ei)) {
+		dn->data_blkaddr = ei.blk + index - ei.fofs;
+		return 0;
+	}
+
+	return f2fs_reserve_block(dn, index);
+}
+
 struct page *get_read_data_page(struct inode *inode, pgoff_t index, int rw)
 {
 	struct address_space *mapping = inode->i_mapping;
@@ -1383,7 +1396,8 @@ repeat:
 		if (err)
 			goto put_fail;
 	}
-	err = f2fs_reserve_block(&dn, index);
+
+	err = f2fs_get_block(&dn, index);
 	if (err)
 		goto put_fail;
 put_next:
