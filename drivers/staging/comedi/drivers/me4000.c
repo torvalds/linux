@@ -436,10 +436,10 @@ static void me4000_reset(struct comedi_device *dev)
   ===========================================================================*/
 
 static int me4000_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *subdevice,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	const struct me4000_board *board = dev->board_ptr;
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
@@ -481,13 +481,19 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 		break;
 
 	case AREF_DIFF:
+		if (!(s->subdev_flags && SDF_DIFF)) {
+			dev_err(dev->class_dev,
+				"Differential inputs are not available\n");
+			return -EINVAL;
+		}
+
 		if (rang == 0 || rang == 1) {
 			dev_err(dev->class_dev,
 				"Range must be bipolar when aref = diff\n");
 			return -EINVAL;
 		}
 
-		if (chan >= board->ai_diff_nchan) {
+		if (chan >= (s->n_chan / 2)) {
 			dev_err(dev->class_dev,
 				"Analog input is not available\n");
 			return -EINVAL;
