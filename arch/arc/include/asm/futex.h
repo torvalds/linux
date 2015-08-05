@@ -94,6 +94,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 		__futex_atomic_op("mov %0, %3", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ADD:
+		/* oldval = *uaddr; *uaddr += oparg ; ret = *uaddr */
 		__futex_atomic_op("add %0, %1, %3", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
@@ -142,12 +143,12 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
  * cmpxchg of futex (pagefaults disabled by caller)
  */
 static inline int
-futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
-					u32 newval)
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
+			      u32 newval)
 {
-	u32 val;
+	u32 existval;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	smp_mb();
@@ -173,14 +174,14 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
 	"	.word   1b, 4b	\n"
 	"	.word   2b, 4b	\n"
 	"	.previous\n"
-	: "=&r"(val)
-	: "r"(oldval), "r"(newval), "r"(uaddr), "ir"(-EFAULT)
+	: "=&r"(existval)
+	: "r"(expval), "r"(newval), "r"(uaddr), "ir"(-EFAULT)
 	: "cc", "memory");
 
 	smp_mb();
 
-	*uval = val;
-	return val;
+	*uval = existval;
+	return existval;
 }
 
 #endif
