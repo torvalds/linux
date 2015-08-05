@@ -16,6 +16,24 @@
 #include "error.h"
 
 /*
+ * ARM targets tend to have clock control subsystems that can
+ * enable/disable clocking to our device.
+ */
+#ifdef CONFIG_ARM
+static inline struct clk *caam_drv_identify_clk(struct device *dev,
+						char *clk_name)
+{
+	return devm_clk_get(dev, clk_name);
+}
+#else
+static inline struct clk *caam_drv_identify_clk(struct device *dev,
+						char *clk_name)
+{
+	return NULL;
+}
+#endif
+
+/*
  * Descriptor to instantiate RNG State Handle 0 in normal mode and
  * load the JDKEK, TDKEK and TDSK registers
  */
@@ -304,6 +322,12 @@ static int caam_remove(struct platform_device *pdev)
 	/* Unmap controller region */
 	iounmap(ctrl);
 
+	/* shut clocks off before finalizing shutdown */
+	clk_disable_unprepare(ctrlpriv->caam_ipg);
+	clk_disable_unprepare(ctrlpriv->caam_mem);
+	clk_disable_unprepare(ctrlpriv->caam_aclk);
+	clk_disable_unprepare(ctrlpriv->caam_emi_slow);
+
 	return ret;
 }
 
@@ -391,6 +415,7 @@ static int caam_probe(struct platform_device *pdev)
 	struct device_node *nprop, *np;
 	struct caam_ctrl __iomem *ctrl;
 	struct caam_drv_private *ctrlpriv;
+	struct clk *clk;
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
 #endif
@@ -408,6 +433,69 @@ static int caam_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, ctrlpriv);
 	ctrlpriv->pdev = pdev;
 	nprop = pdev->dev.of_node;
+
+	/* Enable clocking */
+	clk = caam_drv_identify_clk(&pdev->dev, "ipg");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		dev_err(&pdev->dev,
+			"can't identify CAAM ipg clk: %d\n", ret);
+		return -ENODEV;
+	}
+	ctrlpriv->caam_ipg = clk;
+
+	clk = caam_drv_identify_clk(&pdev->dev, "mem");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		dev_err(&pdev->dev,
+			"can't identify CAAM mem clk: %d\n", ret);
+		return -ENODEV;
+	}
+	ctrlpriv->caam_mem = clk;
+
+	clk = caam_drv_identify_clk(&pdev->dev, "aclk");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		dev_err(&pdev->dev,
+			"can't identify CAAM aclk clk: %d\n", ret);
+		return -ENODEV;
+	}
+	ctrlpriv->caam_aclk = clk;
+
+	clk = caam_drv_identify_clk(&pdev->dev, "emi_slow");
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		dev_err(&pdev->dev,
+			"can't identify CAAM emi_slow clk: %d\n", ret);
+		return -ENODEV;
+	}
+	ctrlpriv->caam_emi_slow = clk;
+
+	ret = clk_prepare_enable(ctrlpriv->caam_ipg);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can't enable CAAM ipg clock: %d\n", ret);
+		return -ENODEV;
+	}
+
+	ret = clk_prepare_enable(ctrlpriv->caam_mem);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can't enable CAAM secure mem clock: %d\n",
+			ret);
+		return -ENODEV;
+	}
+
+	ret = clk_prepare_enable(ctrlpriv->caam_aclk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can't enable CAAM aclk clock: %d\n", ret);
+		return -ENODEV;
+	}
+
+	ret = clk_prepare_enable(ctrlpriv->caam_emi_slow);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can't enable CAAM emi slow clock: %d\n",
+			ret);
+		return -ENODEV;
+	}
 
 	/* Get configuration properties from device tree */
 	/* First, get register page */
