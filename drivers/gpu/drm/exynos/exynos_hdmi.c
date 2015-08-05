@@ -44,6 +44,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_encoder.h"
 #include "exynos_mixer.h"
 
 #include <linux/gpio.h>
@@ -1783,7 +1784,6 @@ static void hdmi_disable(struct exynos_drm_encoder *encoder)
 }
 
 static struct exynos_drm_encoder_ops hdmi_encoder_ops = {
-	.create_connector = hdmi_create_connector,
 	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
 	.enable		= hdmi_enable,
@@ -1917,11 +1917,26 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm_dev = data;
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
+	struct exynos_drm_encoder *exynos_encoder = &hdata->encoder;
+	int ret;
 
 	hdata->drm_dev = drm_dev;
 
-	return exynos_drm_create_enc_conn(drm_dev, &hdata->encoder,
-					  EXYNOS_DISPLAY_TYPE_HDMI);
+	ret = exynos_drm_encoder_create(drm_dev, exynos_encoder,
+					EXYNOS_DISPLAY_TYPE_HDMI);
+	if (ret) {
+		DRM_ERROR("failed to create encoder\n");
+		return ret;
+	}
+
+	ret = hdmi_create_connector(exynos_encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		drm_encoder_cleanup(&exynos_encoder->base);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void hdmi_unbind(struct device *dev, struct device *master, void *data)

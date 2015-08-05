@@ -946,8 +946,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(ctx->crtc);
 
 	if (ctx->encoder)
-		exynos_drm_create_enc_conn(drm_dev, ctx->encoder,
-					   EXYNOS_DISPLAY_TYPE_LCD);
+		exynos_dpi_bind(drm_dev, ctx->encoder);
 
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);

@@ -30,6 +30,7 @@
 #include <video/videomode.h>
 
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_encoder.h"
 #include "exynos_drm_drv.h"
 
 /* returns true iff both arguments logically differs */
@@ -1678,7 +1679,6 @@ static void exynos_dsi_mode_set(struct exynos_drm_encoder *encoder,
 }
 
 static struct exynos_drm_encoder_ops exynos_dsi_encoder_ops = {
-	.create_connector = exynos_dsi_create_connector,
 	.mode_set = exynos_dsi_mode_set,
 	.enable = exynos_dsi_enable,
 	.disable = exynos_dsi_disable,
@@ -1804,17 +1804,23 @@ end:
 static int exynos_dsi_bind(struct device *dev, struct device *master,
 				void *data)
 {
-	struct exynos_drm_encoder *encoder = dev_get_drvdata(dev);
-	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
+	struct exynos_drm_encoder *exynos_encoder = dev_get_drvdata(dev);
+	struct exynos_dsi *dsi = encoder_to_dsi(exynos_encoder);
 	struct drm_device *drm_dev = data;
 	struct drm_bridge *bridge;
 	int ret;
 
-	ret = exynos_drm_create_enc_conn(drm_dev, encoder,
-					 EXYNOS_DISPLAY_TYPE_LCD);
+	ret = exynos_drm_encoder_create(drm_dev, exynos_encoder,
+					EXYNOS_DISPLAY_TYPE_LCD);
 	if (ret) {
-		DRM_ERROR("Encoder create [%d] failed with %d\n",
-			  EXYNOS_DISPLAY_TYPE_LCD, ret);
+		DRM_ERROR("failed to create encoder\n");
+		return ret;
+	}
+
+	ret = exynos_dsi_create_connector(exynos_encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		drm_encoder_cleanup(&exynos_encoder->base);
 		return ret;
 	}
 

@@ -389,15 +389,11 @@ static int vidi_create_connector(struct exynos_drm_encoder *exynos_encoder)
 	return 0;
 }
 
-
-static struct exynos_drm_encoder_ops vidi_encoder_ops = {
-	.create_connector = vidi_create_connector,
-};
-
 static int vidi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct vidi_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
+	struct exynos_drm_encoder *exynos_encoder = &ctx->encoder;
 	struct exynos_drm_plane *exynos_plane;
 	enum drm_plane_type type;
 	unsigned int zpos;
@@ -423,10 +419,17 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(ctx->crtc);
 	}
 
-	ret = exynos_drm_create_enc_conn(drm_dev, &ctx->encoder,
-					 EXYNOS_DISPLAY_TYPE_VIDI);
+	ret = exynos_drm_encoder_create(drm_dev, exynos_encoder,
+					EXYNOS_DISPLAY_TYPE_VIDI);
 	if (ret) {
-		ctx->crtc->base.funcs->destroy(&ctx->crtc->base);
+		DRM_ERROR("failed to create encoder\n");
+		return ret;
+	}
+
+	ret = vidi_create_connector(exynos_encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		drm_encoder_cleanup(&exynos_encoder->base);
 		return ret;
 	}
 
@@ -452,7 +455,6 @@ static int vidi_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->encoder.ops = &vidi_encoder_ops;
 	ctx->default_win = 0;
 	ctx->pdev = pdev;
 

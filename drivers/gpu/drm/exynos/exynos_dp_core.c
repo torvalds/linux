@@ -32,6 +32,7 @@
 #include <drm/drm_panel.h>
 
 #include "exynos_dp_core.h"
+#include "exynos_drm_encoder.h"
 
 #define ctx_from_connector(c)	container_of(c, struct exynos_dp_device, \
 					connector)
@@ -1111,7 +1112,6 @@ static void exynos_dp_disable(struct exynos_drm_encoder *encoder)
 }
 
 static struct exynos_drm_encoder_ops exynos_dp_encoder_ops = {
-	.create_connector = exynos_dp_create_connector,
 	.enable = exynos_dp_enable,
 	.disable = exynos_dp_disable,
 };
@@ -1192,6 +1192,7 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm_dev = data;
+	struct exynos_drm_encoder *exynos_encoder = &dp->encoder;
 	struct resource *res;
 	unsigned int irq_flags;
 	int ret = 0;
@@ -1284,8 +1285,21 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 
 	dp->drm_dev = drm_dev;
 
-	return exynos_drm_create_enc_conn(drm_dev, &dp->encoder,
-					  EXYNOS_DISPLAY_TYPE_LCD);
+	ret = exynos_drm_encoder_create(drm_dev, exynos_encoder,
+					EXYNOS_DISPLAY_TYPE_LCD);
+	if (ret) {
+		DRM_ERROR("failed to create encoder\n");
+		return ret;
+	}
+
+	ret = exynos_dp_create_connector(exynos_encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		drm_encoder_cleanup(&exynos_encoder->base);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void exynos_dp_unbind(struct device *dev, struct device *master,

@@ -17,6 +17,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
+#include "exynos_drm_crtc.h"
 
 static bool
 exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -92,15 +93,17 @@ void exynos_drm_encoder_setup(struct drm_device *dev)
 
 int exynos_drm_encoder_create(struct drm_device *dev,
 			      struct exynos_drm_encoder *exynos_encoder,
-			      unsigned long possible_crtcs)
+			      enum exynos_drm_output_type type)
 {
 	struct drm_encoder *encoder;
+	int pipe;
 
-	if (!possible_crtcs)
-		return -EINVAL;
+	pipe = exynos_drm_crtc_get_pipe_from_type(dev, type);
+	if (pipe < 0)
+		return pipe;
 
 	encoder = &exynos_encoder->base;
-	encoder->possible_crtcs = possible_crtcs;
+	encoder->possible_crtcs = 1 << pipe;
 
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 

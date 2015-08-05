@@ -682,8 +682,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	if (ctx->encoder)
-		exynos_drm_create_enc_conn(drm_dev, ctx->encoder,
-					   EXYNOS_DISPLAY_TYPE_LCD);
+		exynos_dpi_bind(drm_dev, ctx->encoder);
 
 	return 0;
 

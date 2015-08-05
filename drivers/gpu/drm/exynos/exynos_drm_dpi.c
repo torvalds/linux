@@ -20,7 +20,8 @@
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
-#include "exynos_drm_drv.h"
+#include "exynos_drm_encoder.h"
+#include "exynos_drm_crtc.h"
 
 struct exynos_dpi {
 	struct exynos_drm_encoder encoder;
@@ -151,7 +152,6 @@ static void exynos_dpi_disable(struct exynos_drm_encoder *encoder)
 }
 
 static struct exynos_drm_encoder_ops exynos_dpi_encoder_ops = {
-	.create_connector = exynos_dpi_create_connector,
 	.enable = exynos_dpi_enable,
 	.disable = exynos_dpi_disable,
 };
@@ -276,6 +276,28 @@ static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 
 	if (!ctx->panel_node)
 		return -EINVAL;
+
+	return 0;
+}
+
+int exynos_dpi_bind(struct drm_device *dev,
+		    struct exynos_drm_encoder *exynos_encoder)
+{
+	int ret;
+
+	ret = exynos_drm_encoder_create(dev, exynos_encoder,
+					EXYNOS_DISPLAY_TYPE_LCD);
+	if (ret) {
+		DRM_ERROR("failed to create encoder\n");
+		return ret;
+	}
+
+	ret = exynos_dpi_create_connector(exynos_encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		drm_encoder_cleanup(&exynos_encoder->base);
+		return ret;
+	}
 
 	return 0;
 }

@@ -81,7 +81,6 @@ struct exynos_drm_plane {
  * Exynos DRM Encoder Structure.
  *	- this structure is common to analog tv, digital tv and lcd panel.
  *
- * @create_connector: initialize and register a new connector
  * @mode_fixup: fix mode data comparing to hw specific display mode.
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
@@ -90,7 +89,6 @@ struct exynos_drm_plane {
  */
 struct exynos_drm_encoder;
 struct exynos_drm_encoder_ops {
-	int (*create_connector)(struct exynos_drm_encoder *encoder);
 	void (*mode_fixup)(struct exynos_drm_encoder *encoder,
 				struct drm_connector *connector,
 				const struct drm_display_mode *mode,
@@ -259,6 +257,7 @@ void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct exynos_drm_encoder *exynos_dpi_probe(struct device *dev);
 int exynos_dpi_remove(struct exynos_drm_encoder *encoder);
+int exynos_dpi_bind(struct drm_device *dev, struct exynos_drm_encoder *encoder);
 #else
 static inline struct exynos_drm_encoder *
 exynos_dpi_probe(struct device *dev) { return NULL; }
@@ -266,12 +265,13 @@ static inline int exynos_dpi_remove(struct exynos_drm_encoder *encoder)
 {
 	return 0;
 }
+static inline int exynos_dpi_bind(struct drm_device *dev,
+				  struct exynos_drm_encoder *encoder)
+{
+	return 0;
+}
 #endif
 
-/* This function creates a encoder and a connector, and initializes them. */
-int exynos_drm_create_enc_conn(struct drm_device *dev,
-			       struct exynos_drm_encoder *encoder,
-			       enum exynos_drm_output_type type);
 
 extern struct platform_driver fimd_driver;
 extern struct platform_driver exynos5433_decon_driver;
