@@ -1193,21 +1193,12 @@
 				compatible = "atmel,at91sam9x5-adc";
 				reg = <0xfc034000 0x100>;
 				interrupts = <44 IRQ_TYPE_LEVEL_HIGH 5>;
-				pinctrl-names = "default";
-				pinctrl-0 = <
-					/* external trigger is conflict with USBA_VBUS */
-					&pinctrl_adc0_ad0
-					&pinctrl_adc0_ad1
-					&pinctrl_adc0_ad2
-					&pinctrl_adc0_ad3
-					&pinctrl_adc0_ad4
-					>;
 				clocks = <&adc_clk>,
 					 <&adc_op_clk>;
 				clock-names = "adc_clk", "adc_op_clk";
 				atmel,adc-channels-used = <0x01f>;
 				atmel,adc-startup-time = <40>;
-				atmel,adc-use-external;
+				atmel,adc-use-external-triggers;
 				atmel,adc-vref = <3000>;
 				atmel,adc-res = <8 10>;
 				atmel,adc-sample-hold-time = <11>;
@@ -1277,7 +1268,7 @@
 			};
 
 			rstc@fc068600 {
-				compatible = "atmel,at91sam9g45-rstc";
+				compatible = "atmel,sama5d3-rstc", "atmel,at91sam9g45-rstc";
 				reg = <0xfc068600 0x10>;
 			};
 
