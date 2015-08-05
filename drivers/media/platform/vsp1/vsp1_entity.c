@@ -131,9 +131,9 @@ const struct v4l2_subdev_internal_ops vsp1_subdev_internal_ops = {
  * Media Operations
  */
 
-static int vsp1_entity_link_setup(struct media_entity *entity,
-				  const struct media_pad *local,
-				  const struct media_pad *remote, u32 flags)
+int vsp1_entity_link_setup(struct media_entity *entity,
+			   const struct media_pad *local,
+			   const struct media_pad *remote, u32 flags)
 {
 	struct vsp1_entity *source;
 
@@ -157,11 +157,6 @@ static int vsp1_entity_link_setup(struct media_entity *entity,
 
 	return 0;
 }
-
-const struct media_entity_operations vsp1_media_ops = {
-	.link_setup = vsp1_entity_link_setup,
-	.link_validate = v4l2_subdev_link_validate,
-};
 
 /* -----------------------------------------------------------------------------
  * Initialization
