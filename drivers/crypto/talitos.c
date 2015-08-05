@@ -766,6 +766,7 @@ static int talitos_rng_init(struct hwrng *rng)
 static int talitos_register_rng(struct device *dev)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
+	int err;
 
 	priv->rng.name		= dev_driver_string(dev),
 	priv->rng.init		= talitos_rng_init,
@@ -773,14 +774,22 @@ static int talitos_register_rng(struct device *dev)
 	priv->rng.data_read	= talitos_rng_data_read,
 	priv->rng.priv		= (unsigned long)dev;
 
-	return hwrng_register(&priv->rng);
+	err = hwrng_register(&priv->rng);
+	if (!err)
+		priv->rng_registered = true;
+
+	return err;
 }
 
 static void talitos_unregister_rng(struct device *dev)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 
+	if (!priv->rng_registered)
+		return;
+
 	hwrng_unregister(&priv->rng);
+	priv->rng_registered = false;
 }
 
 /*
@@ -2673,7 +2682,7 @@ static int talitos_remove(struct platform_device *ofdev)
 	if (hw_supports(dev, DESC_HDR_SEL0_RNG))
 		talitos_unregister_rng(dev);
 
-	for (i = 0; i < priv->num_channels; i++)
+	for (i = 0; priv->chan && i < priv->num_channels; i++)
 		kfree(priv->chan[i].fifo);
 
 	kfree(priv->chan);

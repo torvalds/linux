@@ -149,6 +149,7 @@ struct talitos_private {
 
 	/* hwrng device */
 	struct hwrng rng;
+	bool rng_registered;
 };
 
 extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
