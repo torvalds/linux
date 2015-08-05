@@ -147,8 +147,8 @@
 &esdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc3>;
-	cd-gpios = <&gpio3 11 0>;
-	wp-gpios = <&gpio3 12 0>;
+	cd-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio3 12 GPIO_ACTIVE_HIGH>;
 	bus-width = <8>;
 	status = "okay";
 };
@@ -295,9 +295,10 @@
 &tve {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_vga_sync>;
+	ddc-i2c-bus = <&i2c2>;
 	fsl,tve-mode = "vga";
-	fsl,hsync-pin = <4>;
-	fsl,vsync-pin = <6>;
+	fsl,hsync-pin = <7>;	/* IPU DI1 PIN7 via EIM_OE */
+	fsl,vsync-pin = <8>;	/* IPU DI1 PIN8 via EIM_RW */
 	status = "okay";
 };
 

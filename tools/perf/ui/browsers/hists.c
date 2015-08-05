@@ -48,7 +48,7 @@ static struct rb_node *hists__filter_entries(struct rb_node *nd,
 
 static bool hist_browser__has_filter(struct hist_browser *hb)
 {
-	return hists__has_filter(hb->hists) || hb->min_pcnt;
+	return hists__has_filter(hb->hists) || hb->min_pcnt || symbol_conf.has_filter;
 }
 
 static int hist_browser__get_folding(struct hist_browser *browser)

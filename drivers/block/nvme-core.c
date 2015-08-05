@@ -2108,8 +2108,17 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 		goto out_free_disk;
 
 	add_disk(ns->disk);
-	if (ns->ms)
-		revalidate_disk(ns->disk);
+	if (ns->ms) {
+		struct block_device *bd = bdget_disk(ns->disk, 0);
+		if (!bd)
+			return;
+		if (blkdev_get(bd, FMODE_READ, NULL)) {
+			bdput(bd);
+			return;
+		}
+		blkdev_reread_part(bd);
+		blkdev_put(bd, FMODE_READ);
+	}
 	return;
  out_free_disk:
 	kfree(disk);

@@ -12,7 +12,6 @@
 #include <linux/of.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip.h>
-#include "../../drivers/irqchip/irqchip.h"
 #include <asm/irq.h>
 
 /*

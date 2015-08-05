@@ -1234,10 +1234,8 @@ Description:
 		object is near the sensor, usually be observing
 		reflectivity of infrared or ultrasound emitted.
 		Often these sensors are unit less and as such conversion
-		to SI units is not possible.  Where it is, the units should
-		be meters.  If such a conversion is not possible, the reported
-		values should behave in the same way as a distance, i.e. lower
-		values indicate something is closer to the sensor.
+		to SI units is not possible. Higher proximity measurements
+		indicate closer objects, and vice versa.
 
 What:		/sys/.../iio:deviceX/in_illuminance_input
 What:		/sys/.../iio:deviceX/in_illuminance_raw

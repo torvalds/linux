@@ -1271,11 +1271,13 @@ fail_leds:
 	pad_input_dev = NULL;
 	wacom_wac->pad_registered = false;
 fail_register_pad_input:
-	input_unregister_device(touch_input_dev);
+	if (touch_input_dev)
+		input_unregister_device(touch_input_dev);
 	wacom_wac->touch_input = NULL;
 	wacom_wac->touch_registered = false;
 fail_register_touch_input:
-	input_unregister_device(pen_input_dev);
+	if (pen_input_dev)
+		input_unregister_device(pen_input_dev);
 	wacom_wac->pen_input = NULL;
 	wacom_wac->pen_registered = false;
 fail_register_pen_input:
