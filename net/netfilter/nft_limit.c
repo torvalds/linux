@@ -83,14 +83,16 @@ static int nft_limit_init(struct nft_limit *limit,
 	return 0;
 }
 
-static int nft_limit_dump(struct sk_buff *skb, const struct nft_limit *limit)
+static int nft_limit_dump(struct sk_buff *skb, const struct nft_limit *limit,
+			  enum nft_limit_type type)
 {
 	u64 secs = div_u64(limit->nsecs, NSEC_PER_SEC);
 	u64 rate = limit->rate - limit->burst;
 
 	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(rate)) ||
 	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs)) ||
-	    nla_put_be32(skb, NFTA_LIMIT_BURST, htonl(limit->burst)))
+	    nla_put_be32(skb, NFTA_LIMIT_BURST, htonl(limit->burst)) ||
+	    nla_put_be32(skb, NFTA_LIMIT_TYPE, htonl(type)))
 		goto nla_put_failure;
 	return 0;
 
@@ -117,6 +119,7 @@ static const struct nla_policy nft_limit_policy[NFTA_LIMIT_MAX + 1] = {
 	[NFTA_LIMIT_RATE]	= { .type = NLA_U64 },
 	[NFTA_LIMIT_UNIT]	= { .type = NLA_U64 },
 	[NFTA_LIMIT_BURST]	= { .type = NLA_U32 },
+	[NFTA_LIMIT_TYPE]	= { .type = NLA_U32 },
 };
 
 static int nft_limit_pkts_init(const struct nft_ctx *ctx,
@@ -138,7 +141,7 @@ static int nft_limit_pkts_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_limit_pkts *priv = nft_expr_priv(expr);
 
-	return nft_limit_dump(skb, &priv->limit);
+	return nft_limit_dump(skb, &priv->limit, NFT_LIMIT_PKTS);
 }
 
 static struct nft_expr_type nft_limit_type;
@@ -150,9 +153,61 @@ static const struct nft_expr_ops nft_limit_pkts_ops = {
 	.dump		= nft_limit_pkts_dump,
 };
 
+static void nft_limit_pkt_bytes_eval(const struct nft_expr *expr,
+				     struct nft_regs *regs,
+				     const struct nft_pktinfo *pkt)
+{
+	struct nft_limit *priv = nft_expr_priv(expr);
+	u64 cost = div_u64(priv->nsecs * pkt->skb->len, priv->rate);
+
+	if (nft_limit_eval(priv, cost))
+		regs->verdict.code = NFT_BREAK;
+}
+
+static int nft_limit_pkt_bytes_init(const struct nft_ctx *ctx,
+				    const struct nft_expr *expr,
+				    const struct nlattr * const tb[])
+{
+	struct nft_limit *priv = nft_expr_priv(expr);
+
+	return nft_limit_init(priv, tb);
+}
+
+static int nft_limit_pkt_bytes_dump(struct sk_buff *skb,
+				    const struct nft_expr *expr)
+{
+	const struct nft_limit *priv = nft_expr_priv(expr);
+
+	return nft_limit_dump(skb, priv, NFT_LIMIT_PKT_BYTES);
+}
+
+static const struct nft_expr_ops nft_limit_pkt_bytes_ops = {
+	.type		= &nft_limit_type,
+	.size		= NFT_EXPR_SIZE(sizeof(struct nft_limit)),
+	.eval		= nft_limit_pkt_bytes_eval,
+	.init		= nft_limit_pkt_bytes_init,
+	.dump		= nft_limit_pkt_bytes_dump,
+};
+
+static const struct nft_expr_ops *
+nft_limit_select_ops(const struct nft_ctx *ctx,
+		     const struct nlattr * const tb[])
+{
+	if (tb[NFTA_LIMIT_TYPE] == NULL)
+		return &nft_limit_pkts_ops;
+
+	switch (ntohl(nla_get_be32(tb[NFTA_LIMIT_TYPE]))) {
+	case NFT_LIMIT_PKTS:
+		return &nft_limit_pkts_ops;
+	case NFT_LIMIT_PKT_BYTES:
+		return &nft_limit_pkt_bytes_ops;
+	}
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
 static struct nft_expr_type nft_limit_type __read_mostly = {
 	.name		= "limit",
-	.ops		= &nft_limit_pkts_ops,
+	.select_ops	= nft_limit_select_ops,
 	.policy		= nft_limit_policy,
 	.maxattr	= NFTA_LIMIT_MAX,
 	.flags		= NFT_EXPR_STATEFUL,
