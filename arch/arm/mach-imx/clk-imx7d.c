@@ -759,6 +759,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_WRCLK_ROOT_DIV] = imx_clk_divider("wrclk_post_div", "wrclk_pre_div", base + 0xbd00, 0, 6);
 	clks[IMX7D_CLKO1_ROOT_DIV] = imx_clk_divider("clko1_post_div", "clko1_pre_div", base + 0xbd80, 0, 6);
 	clks[IMX7D_CLKO2_ROOT_DIV] = imx_clk_divider("clko2_post_div", "clko2_pre_div", base + 0xbe00, 0, 6);
+	clks[IMX7D_IPG_ROOT_CLK] = imx_clk_divider("ipg_root_clk", "ahb_root_clk", base + 0x9080, 0, 2);
 
 	clks[IMX7D_ARM_A7_ROOT_CLK] = imx_clk_gate2("arm_a7_root_clk", "arm_a7_div", base + 0x4000, 0);
 	clks[IMX7D_ARM_M4_ROOT_CLK] = imx_clk_gate2("arm_m4_root_clk", "arm_m4_div", base + 0x4010, 0);
@@ -774,6 +775,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_DRAM_PHYM_ROOT_CLK] = imx_clk_gate2("dram_phym_root_clk", "dram_phym_cg", base + 0x4130, 0);
 	clks[IMX7D_DRAM_PHYM_ALT_ROOT_CLK] = imx_clk_gate2("dram_phym_alt_root_clk", "dram_phym_alt_post_div", base + 0x4130, 0);
 	clks[IMX7D_DRAM_ALT_ROOT_CLK] = imx_clk_gate2("dram_alt_root_clk", "dram_alt_post_div", base + 0x4130, 0);
+	clks[IMX7D_MU_ROOT_CLK] = imx_clk_gate2("mu_root_clk", "ipg_root_clk", base + 0x4270, 0);
 	clks[IMX7D_USB_HSIC_ROOT_CLK] = imx_clk_gate2("usb_hsic_root_clk", "usb_hsic_post_div", base + 0x4420, 0);
 	clks[IMX7D_PCIE_CTRL_ROOT_CLK] = imx_clk_gate2("pcie_ctrl_root_clk", "pcie_ctrl_post_div", base + 0x4600, 0);
 	clks[IMX7D_PCIE_PHY_ROOT_CLK] = imx_clk_gate2("pcie_phy_root_clk", "pcie_phy_post_div", base + 0x4600, 0);

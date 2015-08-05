@@ -59,6 +59,9 @@ config HAVE_IMX_MMDC
 config HAVE_IMX_DDRC
 	bool
 
+config HAVE_IMX_RPMSG
+	bool
+
 config HAVE_IMX_SRC
 	def_bool y if SMP
 	select ARCH_HAS_RESET_CONTROLLER
@@ -581,6 +584,8 @@ config SOC_IMX6SX
 	bool "i.MX6 SoloX support"
 	select PINCTRL_IMX6SX
 	select SOC_IMX6
+	select HAVE_IMX_RPMSG
+	select RPMSG
 
 	help
 	  This enables support for Freescale i.MX6 SoloX processor.
@@ -604,6 +609,8 @@ config SOC_IMX7D
 	bool "i.MX7 Dual support"
 	select SOC_IMX7
 	select PINCTRL_IMX7D
+	select HAVE_IMX_RPMSG
+	select RPMSG
 
 	help
 	  This enables support for Freescale i.MX7 Dual processor.
