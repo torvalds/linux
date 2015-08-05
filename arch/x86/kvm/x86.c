@@ -525,7 +525,8 @@ int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3)
 	}
 	for (i = 0; i < ARRAY_SIZE(pdpte); ++i) {
 		if (is_present_gpte(pdpte[i]) &&
-		    (pdpte[i] & vcpu->arch.mmu.rsvd_bits_mask[0][2])) {
+		    (pdpte[i] &
+		     vcpu->arch.mmu.guest_rsvd_check.rsvd_bits_mask[0][2])) {
 			ret = 0;
 			goto out;
 		}

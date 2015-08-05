@@ -252,6 +252,11 @@ struct kvm_pio_request {
 	int size;
 };
 
+struct rsvd_bits_validate {
+	u64 rsvd_bits_mask[2][4];
+	u64 bad_mt_xwr;
+};
+
 /*
  * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
  * 32-bit).  The kvm_mmu structure abstracts the details of the current mmu
@@ -289,8 +294,7 @@ struct kvm_mmu {
 
 	u64 *pae_root;
 	u64 *lm_root;
-	u64 rsvd_bits_mask[2][4];
-	u64 bad_mt_xwr;
+	struct rsvd_bits_validate guest_rsvd_check;
 
 	/*
 	 * Bitmap: bit set = last pte in walk
