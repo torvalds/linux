@@ -580,11 +580,12 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 	return 0;
 }
 
-static int ai_round_cmd_args(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd,
-			     unsigned int *init_ticks,
-			     unsigned int *scan_ticks, unsigned int *chan_ticks)
+static void me4000_ai_round_cmd_args(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd,
+				     unsigned int *init_ticks,
+				     unsigned int *scan_ticks,
+				     unsigned int *chan_ticks)
 {
 	int rest;
 
@@ -630,8 +631,6 @@ static int ai_round_cmd_args(struct comedi_device *dev,
 				(*chan_ticks)++;
 		}
 	}
-
-	return 0;
 }
 
 static void ai_write_timer(struct comedi_device *dev,
@@ -757,10 +756,8 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 		return err;
 
 	/* Round the timer arguments */
-	err = ai_round_cmd_args(dev,
-				s, cmd, &init_ticks, &scan_ticks, &chan_ticks);
-	if (err)
-		return err;
+	me4000_ai_round_cmd_args(dev, s, cmd,
+				 &init_ticks, &scan_ticks, &chan_ticks);
 
 	/* Prepare the AI for acquisition */
 	err = ai_prepare(dev, s, cmd, init_ticks, scan_ticks, chan_ticks);
@@ -781,9 +778,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	unsigned int chan_ticks;
 	unsigned int scan_ticks;
 	int err = 0;
-
-	/* Round the timer arguments */
-	ai_round_cmd_args(dev, s, cmd, &init_ticks, &scan_ticks, &chan_ticks);
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -842,6 +836,11 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		cmd->chanlist_len = 1;
 		err |= -EINVAL;
 	}
+
+	/* Round the timer arguments */
+	me4000_ai_round_cmd_args(dev, s, cmd,
+				 &init_ticks, &scan_ticks, &chan_ticks);
+
 	if (init_ticks < 66) {
 		cmd->start_arg = 2000;
 		err |= -EINVAL;
