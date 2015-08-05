@@ -136,20 +136,20 @@ broken.
 #define ME4000_DIO_DIR_REG			0xb0
 #define ME4000_AO_LOADSETREG_XX			0xb4
 #define ME4000_DIO_CTRL_REG			0xb8
-#define ME4000_DIO_CTRL_BIT_MODE_0		(1 << 0)
-#define ME4000_DIO_CTRL_BIT_MODE_1		(1 << 1)
-#define ME4000_DIO_CTRL_BIT_MODE_2		(1 << 2)
-#define ME4000_DIO_CTRL_BIT_MODE_3		(1 << 3)
-#define ME4000_DIO_CTRL_BIT_MODE_4		(1 << 4)
-#define ME4000_DIO_CTRL_BIT_MODE_5		(1 << 5)
-#define ME4000_DIO_CTRL_BIT_MODE_6		(1 << 6)
-#define ME4000_DIO_CTRL_BIT_MODE_7		(1 << 7)
-#define ME4000_DIO_CTRL_BIT_FUNCTION_0		(1 << 8)
-#define ME4000_DIO_CTRL_BIT_FUNCTION_1		(1 << 9)
-#define ME4000_DIO_CTRL_BIT_FIFO_HIGH_0		(1 << 10)
-#define ME4000_DIO_CTRL_BIT_FIFO_HIGH_1		(1 << 11)
-#define ME4000_DIO_CTRL_BIT_FIFO_HIGH_2		(1 << 12)
-#define ME4000_DIO_CTRL_BIT_FIFO_HIGH_3		(1 << 13)
+#define ME4000_DIO_CTRL_MODE_0			BIT(0)
+#define ME4000_DIO_CTRL_MODE_1			BIT(1)
+#define ME4000_DIO_CTRL_MODE_2			BIT(2)
+#define ME4000_DIO_CTRL_MODE_3			BIT(3)
+#define ME4000_DIO_CTRL_MODE_4			BIT(4)
+#define ME4000_DIO_CTRL_MODE_5			BIT(5)
+#define ME4000_DIO_CTRL_MODE_6			BIT(6)
+#define ME4000_DIO_CTRL_MODE_7			BIT(7)
+#define ME4000_DIO_CTRL_FUNCTION_0		BIT(8)
+#define ME4000_DIO_CTRL_FUNCTION_1		BIT(9)
+#define ME4000_DIO_CTRL_FIFO_HIGH_0		BIT(10)
+#define ME4000_DIO_CTRL_FIFO_HIGH_1		BIT(11)
+#define ME4000_DIO_CTRL_FIFO_HIGH_2		BIT(12)
+#define ME4000_DIO_CTRL_FIFO_HIGH_3		BIT(13)
 #define ME4000_AO_DEMUX_ADJUST_REG		0xbc
 #define ME4000_AO_DEMUX_ADJUST_VALUE		0x4c
 #define ME4000_AI_SAMPLE_COUNTER_REG		0xc0
@@ -1172,18 +1172,18 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 		return ret;
 
 	tmp = inl(dev->iobase + ME4000_DIO_CTRL_REG);
-	tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_0 | ME4000_DIO_CTRL_BIT_MODE_1 |
-		 ME4000_DIO_CTRL_BIT_MODE_2 | ME4000_DIO_CTRL_BIT_MODE_3 |
-		 ME4000_DIO_CTRL_BIT_MODE_4 | ME4000_DIO_CTRL_BIT_MODE_5 |
-		 ME4000_DIO_CTRL_BIT_MODE_6 | ME4000_DIO_CTRL_BIT_MODE_7);
+	tmp &= ~(ME4000_DIO_CTRL_MODE_0 | ME4000_DIO_CTRL_MODE_1 |
+		 ME4000_DIO_CTRL_MODE_2 | ME4000_DIO_CTRL_MODE_3 |
+		 ME4000_DIO_CTRL_MODE_4 | ME4000_DIO_CTRL_MODE_5 |
+		 ME4000_DIO_CTRL_MODE_6 | ME4000_DIO_CTRL_MODE_7);
 	if (s->io_bits & 0x000000ff)
-		tmp |= ME4000_DIO_CTRL_BIT_MODE_0;
+		tmp |= ME4000_DIO_CTRL_MODE_0;
 	if (s->io_bits & 0x0000ff00)
-		tmp |= ME4000_DIO_CTRL_BIT_MODE_2;
+		tmp |= ME4000_DIO_CTRL_MODE_2;
 	if (s->io_bits & 0x00ff0000)
-		tmp |= ME4000_DIO_CTRL_BIT_MODE_4;
+		tmp |= ME4000_DIO_CTRL_MODE_4;
 	if (s->io_bits & 0xff000000)
-		tmp |= ME4000_DIO_CTRL_BIT_MODE_6;
+		tmp |= ME4000_DIO_CTRL_MODE_6;
 
 	/*
 	 * Check for optoisolated ME-4000 version.
@@ -1193,9 +1193,8 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 	if (inl(dev->iobase + ME4000_DIO_DIR_REG)) {
 		s->io_bits |= 0x000000ff;
 		s->io_bits &= ~0x0000ff00;
-		tmp |= ME4000_DIO_CTRL_BIT_MODE_0;
-		tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_2 |
-			 ME4000_DIO_CTRL_BIT_MODE_3);
+		tmp |= ME4000_DIO_CTRL_MODE_0;
+		tmp &= ~(ME4000_DIO_CTRL_MODE_2 | ME4000_DIO_CTRL_MODE_3);
 	}
 
 	outl(tmp, dev->iobase + ME4000_DIO_CTRL_REG);
@@ -1307,7 +1306,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	 */
 	if (!inl(dev->iobase + ME4000_DIO_DIR_REG)) {
 		s->io_bits |= 0xFF;
-		outl(ME4000_DIO_CTRL_BIT_MODE_0,
+		outl(ME4000_DIO_CTRL_MODE_0,
 		     dev->iobase + ME4000_DIO_DIR_REG);
 	}
 
