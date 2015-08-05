@@ -184,6 +184,8 @@ struct dma_interleaved_template {
  *  operation it continues the calculation with new sources
  * @DMA_PREP_FENCE - tell the driver that subsequent operations depend
  *  on the result of this operation
+ * @DMA_CTRL_REUSE: client can reuse the descriptor and submit again till
+ *  cleared or freed
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
@@ -192,6 +194,7 @@ enum dma_ctrl_flags {
 	DMA_PREP_PQ_DISABLE_Q = (1 << 3),
 	DMA_PREP_CONTINUE = (1 << 4),
 	DMA_PREP_FENCE = (1 << 5),
+	DMA_CTRL_REUSE = (1 << 6),
 };
 
 /**
@@ -401,6 +404,8 @@ enum dma_residue_granularity {
  * @cmd_pause: true, if pause and thereby resume is supported
  * @cmd_terminate: true, if terminate cmd is supported
  * @residue_granularity: granularity of the reported transfer residue
+ * @descriptor_reuse: if a descriptor can be reused by client and
+ * resubmitted multiple times
  */
 struct dma_slave_caps {
 	u32 src_addr_widths;
@@ -409,6 +414,7 @@ struct dma_slave_caps {
 	bool cmd_pause;
 	bool cmd_terminate;
 	enum dma_residue_granularity residue_granularity;
+	bool descriptor_reuse;
 };
 
 static inline const char *dma_chan_name(struct dma_chan *chan)
@@ -468,6 +474,7 @@ struct dma_async_tx_descriptor {
 	dma_addr_t phys;
 	struct dma_chan *chan;
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
+	int (*desc_free)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;
 	void *callback_param;
 	struct dmaengine_unmap_data *unmap;
@@ -1174,6 +1181,39 @@ static inline int dma_get_slave_caps(struct dma_chan *chan,
 	return -ENXIO;
 }
 #endif
+
+static inline int dmaengine_desc_set_reuse(struct dma_async_tx_descriptor *tx)
+{
+	struct dma_slave_caps caps;
+
+	dma_get_slave_caps(tx->chan, &caps);
+
+	if (caps.descriptor_reuse) {
+		tx->flags |= DMA_CTRL_REUSE;
+		return 0;
+	} else {
+		return -EPERM;
+	}
+}
+
+static inline void dmaengine_desc_clear_reuse(struct dma_async_tx_descriptor *tx)
+{
+	tx->flags &= ~DMA_CTRL_REUSE;
+}
+
+static inline bool dmaengine_desc_test_reuse(struct dma_async_tx_descriptor *tx)
+{
+	return (tx->flags & DMA_CTRL_REUSE) == DMA_CTRL_REUSE;
+}
+
+static inline int dmaengine_desc_free(struct dma_async_tx_descriptor *desc)
+{
+	/* this is supported for reusable desc, so check that */
+	if (dmaengine_desc_test_reuse(desc))
+		return desc->desc_free(desc);
+	else
+		return -EPERM;
+}
 
 /* --- DMA device --- */
 
