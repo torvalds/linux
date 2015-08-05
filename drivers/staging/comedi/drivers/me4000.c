@@ -681,12 +681,18 @@ static int me4000_ai_write_chanlist(struct comedi_device *dev,
 	return 0;
 }
 
-static int ai_prepare(struct comedi_device *dev,
-		      struct comedi_subdevice *s,
-		      struct comedi_cmd *cmd)
+static int me4000_ai_do_cmd(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
 {
 	struct me4000_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int ctrl;
+	int err;
+
+	/* Reset the analog input */
+	err = me4000_ai_cancel(dev, s);
+	if (err)
+		return err;
 
 	/* Write timer arguments */
 	ai_write_timer(dev);
@@ -717,25 +723,6 @@ static int ai_prepare(struct comedi_device *dev,
 
 	/* Write the channel list */
 	me4000_ai_write_chanlist(dev, s, cmd);
-
-	return 0;
-}
-
-static int me4000_ai_do_cmd(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
-{
-	int err;
-	struct comedi_cmd *cmd = &s->async->cmd;
-
-	/* Reset the analog input */
-	err = me4000_ai_cancel(dev, s);
-	if (err)
-		return err;
-
-	/* Prepare the AI for acquisition */
-	err = ai_prepare(dev, s, cmd);
-	if (err)
-		return err;
 
 	/* Start acquistion by dummy read */
 	inl(dev->iobase + ME4000_AI_START_REG);
