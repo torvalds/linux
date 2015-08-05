@@ -2755,9 +2755,7 @@ out:
 	return ret;
 }
 
-static int btrfs_relocate_chunk(struct btrfs_root *root,
-				u64 chunk_objectid,
-				u64 chunk_offset)
+static int btrfs_relocate_chunk(struct btrfs_root *root, u64 chunk_offset)
 {
 	struct btrfs_root *extent_root;
 	struct btrfs_trans_handle *trans;
@@ -2857,7 +2855,6 @@ again:
 
 		if (chunk_type & BTRFS_BLOCK_GROUP_SYSTEM) {
 			ret = btrfs_relocate_chunk(chunk_root,
-						   found_key.objectid,
 						   found_key.offset);
 			if (ret == -ENOSPC)
 				failed++;
@@ -3377,7 +3374,6 @@ again:
 		}
 
 		ret = btrfs_relocate_chunk(chunk_root,
-					   found_key.objectid,
 					   found_key.offset);
 		mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 		if (ret && ret != -ENOSPC)
@@ -4079,7 +4075,6 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	struct btrfs_dev_extent *dev_extent = NULL;
 	struct btrfs_path *path;
 	u64 length;
-	u64 chunk_objectid;
 	u64 chunk_offset;
 	int ret;
 	int slot;
@@ -4156,11 +4151,10 @@ again:
 			break;
 		}
 
-		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
 		chunk_offset = btrfs_dev_extent_chunk_offset(l, dev_extent);
 		btrfs_release_path(path);
 
-		ret = btrfs_relocate_chunk(root, chunk_objectid, chunk_offset);
+		ret = btrfs_relocate_chunk(root, chunk_offset);
 		mutex_unlock(&root->fs_info->delete_unused_bgs_mutex);
 		if (ret && ret != -ENOSPC)
 			goto done;
