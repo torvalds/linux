@@ -568,8 +568,6 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_cmd *cmd)
 {
-	const struct me4000_board *board = dev->board_ptr;
-	unsigned int max_diff_chan = board->ai_diff_nchan;
 	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
 	int i;
 
@@ -585,7 +583,13 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 		}
 
 		if (aref == AREF_DIFF) {
-			if (chan >= max_diff_chan) {
+			if (!(s->subdev_flags && SDF_DIFF)) {
+				dev_err(dev->class_dev,
+					"Differential inputs are not available\n");
+				return -EINVAL;
+			}
+
+			if (chan >= (s->n_chan / 2)) {
 				dev_dbg(dev->class_dev,
 					"Channel number to high\n");
 				return -EINVAL;
