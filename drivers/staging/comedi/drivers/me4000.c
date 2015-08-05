@@ -635,26 +635,6 @@ static void me4000_ai_round_cmd_args(struct comedi_device *dev,
 	}
 }
 
-static void ai_write_timer(struct comedi_device *dev)
-{
-	struct me4000_private *devpriv = dev->private;
-
-	outl(devpriv->ai_init_ticks - 1,
-	     dev->iobase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG);
-	outl(0x0, dev->iobase + ME4000_AI_SCAN_PRE_TIMER_HIGH_REG);
-
-	if (devpriv->ai_scan_ticks) {
-		outl(devpriv->ai_scan_ticks - 1,
-		     dev->iobase + ME4000_AI_SCAN_TIMER_LOW_REG);
-		outl(0x0, dev->iobase + ME4000_AI_SCAN_TIMER_HIGH_REG);
-	}
-
-	outl(devpriv->ai_chan_ticks - 1,
-	     dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG);
-	outl(devpriv->ai_chan_ticks - 1,
-	     dev->iobase + ME4000_AI_CHAN_TIMER_REG);
-}
-
 static int me4000_ai_write_chanlist(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_cmd *cmd)
@@ -695,7 +675,20 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 		return err;
 
 	/* Write timer arguments */
-	ai_write_timer(dev);
+	outl(devpriv->ai_init_ticks - 1,
+	     dev->iobase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG);
+	outl(0x0, dev->iobase + ME4000_AI_SCAN_PRE_TIMER_HIGH_REG);
+
+	if (devpriv->ai_scan_ticks) {
+		outl(devpriv->ai_scan_ticks - 1,
+		     dev->iobase + ME4000_AI_SCAN_TIMER_LOW_REG);
+		outl(0x0, dev->iobase + ME4000_AI_SCAN_TIMER_HIGH_REG);
+	}
+
+	outl(devpriv->ai_chan_ticks - 1,
+	     dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG);
+	outl(devpriv->ai_chan_ticks - 1,
+	     dev->iobase + ME4000_AI_CHAN_TIMER_REG);
 
 	/* Reset control register */
 	outl(0, dev->iobase + ME4000_AI_CTRL_REG);
