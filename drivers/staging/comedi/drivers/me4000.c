@@ -193,8 +193,8 @@ struct me4000_board {
 	int ai_nchan;
 	int ai_diff_nchan;
 	int ai_sh_nchan;
-	int ex_trig_analog;
-	int has_counter;
+	unsigned int ex_trig_analog:1;
+	unsigned int has_counter:1;
 };
 
 static const struct me4000_board me4000_boards[] = {
