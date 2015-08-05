@@ -217,6 +217,7 @@ static struct map_desc imx6_pm_io_desc[] __initdata = {
 	imx_map_entry(MX6Q, CCM, MT_DEVICE),
 	imx_map_entry(MX6Q, ANATOP, MT_DEVICE),
 	imx_map_entry(MX6Q, GPC, MT_DEVICE),
+	imx_map_entry(MX6Q, L2,	MT_DEVICE),
 };
 
 static const char * const low_power_ocram_match[] __initconst = {
@@ -479,8 +480,6 @@ static int __init imx6_dt_find_lpsram(unsigned long node, const char *uname,
 void __init imx6_pm_map_io(void)
 {
 	unsigned long i;
-
-	pr_info("pm_map_io init\n\n");
 
 	iotable_init(imx6_pm_io_desc, ARRAY_SIZE(imx6_pm_io_desc));
 
