@@ -23,6 +23,7 @@
 #include <linux/memblock.h>
 #include <linux/node.h>
 #include <linux/memory.h>
+#include <linux/slab.h>
 #include <asm/smp.h>
 #include <asm/topology.h>
 #include "numa_mode.h"
@@ -56,26 +57,24 @@ static unsigned long emu_size;
  * Node to core pinning information updates are protected by
  * "sched_domains_mutex".
  */
-/* Pinned core to node mapping */
-static int cores_to_node_id[CONFIG_NR_CPUS];
-/* Total number of pinned cores */
-static int cores_total;
-/* Number of cores per node without extra cores */
-static int cores_per_node_target;
-/* Number of cores pinned to node */
-static int cores_per_node[MAX_NUMNODES];
+static struct {
+	s32 to_node_id[CONFIG_NR_CPUS];	/* Pinned core to node mapping */
+	int total;			/* Total number of pinned cores */
+	int per_node_target;		/* Cores per node without extra cores */
+	int per_node[MAX_NUMNODES];	/* Number of cores pinned to node */
+} *emu_cores;
 
 /*
  * Pin a core to a node
  */
 static void pin_core_to_node(int core_id, int node_id)
 {
-	if (cores_to_node_id[core_id] == NODE_ID_FREE) {
-		cores_per_node[node_id]++;
-		cores_to_node_id[core_id] = node_id;
-		cores_total++;
+	if (emu_cores->to_node_id[core_id] == NODE_ID_FREE) {
+		emu_cores->per_node[node_id]++;
+		emu_cores->to_node_id[core_id] = node_id;
+		emu_cores->total++;
 	} else {
-		WARN_ON(cores_to_node_id[core_id] != node_id);
+		WARN_ON(emu_cores->to_node_id[core_id] != node_id);
 	}
 }
 
@@ -84,7 +83,7 @@ static void pin_core_to_node(int core_id, int node_id)
  */
 static int cores_pinned(struct toptree *node)
 {
-	return cores_per_node[node->id];
+	return emu_cores->per_node[node->id];
 }
 
 /*
@@ -92,7 +91,7 @@ static int cores_pinned(struct toptree *node)
  */
 static int core_pinned_to_node_id(struct toptree *core)
 {
-	return cores_to_node_id[core->id];
+	return emu_cores->to_node_id[core->id];
 }
 
 /*
@@ -174,14 +173,15 @@ static void toptree_unify_tree(struct toptree *tree)
 
 /*
  * Find the best/nearest node for a given core and ensure that no node
- * gets more than "cores_per_node_target + extra" cores.
+ * gets more than "emu_cores->per_node_target + extra" cores.
  */
 static struct toptree *node_for_core(struct toptree *numa, struct toptree *core,
 				     int extra)
 {
 	struct toptree *node, *node_best = NULL;
-	int dist_cur, dist_best;
+	int dist_cur, dist_best, cores_target;
 
+	cores_target = emu_cores->per_node_target + extra;
 	dist_best = DIST_MAX;
 	node_best = NULL;
 	toptree_for_each(node, numa, NODE) {
@@ -191,7 +191,7 @@ static struct toptree *node_for_core(struct toptree *numa, struct toptree *core,
 			break;
 		}
 		/* Skip nodes that already have enough cores */
-		if (cores_pinned(node) >= cores_per_node_target + extra)
+		if (cores_pinned(node) >= cores_target)
 			continue;
 		dist_cur = dist_node_to_core(node, core);
 		if (dist_cur < dist_best) {
@@ -225,11 +225,11 @@ static void toptree_to_numa_single(struct toptree *numa, struct toptree *phys,
 static void move_level_to_numa_node(struct toptree *node, struct toptree *phys,
 				    enum toptree_level level, bool perfect)
 {
+	int cores_free, cores_target = emu_cores->per_node_target;
 	struct toptree *cur, *tmp;
-	int cores_free;
 
 	toptree_for_each_safe(cur, tmp, phys, level) {
-		cores_free = cores_per_node_target - toptree_count(node, CORE);
+		cores_free = cores_target - toptree_count(node, CORE);
 		if (perfect) {
 			if (cores_free == toptree_count(cur, CORE))
 				toptree_move(cur, node);
@@ -292,6 +292,20 @@ fail:
 }
 
 /*
+ * Allocate and initialize core to node mapping
+ */
+static void create_core_to_node_map(void)
+{
+	int i;
+
+	emu_cores = kzalloc(sizeof(*emu_cores), GFP_KERNEL);
+	if (emu_cores == NULL)
+		panic("Could not allocate cores to node memory");
+	for (i = 0; i < ARRAY_SIZE(emu_cores->to_node_id); i++)
+		emu_cores->to_node_id[i] = NODE_ID_FREE;
+}
+
+/*
  * Move cores from physical topology into NUMA target topology
  * and try to keep as much of the physical topology as possible.
  */
@@ -299,8 +313,10 @@ static struct toptree *toptree_to_numa(struct toptree *phys)
 {
 	static int first = 1;
 	struct toptree *numa;
+	int cores_total;
 
-	cores_per_node_target = (cores_total + cores_free(phys)) / emu_nodes;
+	cores_total = emu_cores->total + cores_free(phys);
+	emu_cores->per_node_target = cores_total / emu_nodes;
 	numa = toptree_new(TOPTREE_ID_NUMA, emu_nodes);
 	if (first) {
 		toptree_to_numa_first(numa, phys);
@@ -386,8 +402,8 @@ static void print_node_to_core_map(void)
 	printk(KERN_DEBUG "NUMA node to core mapping\n");
 	for (nid = 0; nid < emu_nodes; nid++) {
 		printk(KERN_DEBUG "  node %3d: ", nid);
-		for (cid = 0; cid < ARRAY_SIZE(cores_to_node_id); cid++) {
-			if (cores_to_node_id[cid] == nid)
+		for (cid = 0; cid < ARRAY_SIZE(emu_cores->to_node_id); cid++) {
+			if (emu_cores->to_node_id[cid] == nid)
 				printk(KERN_CONT "%d ", cid);
 		}
 		printk(KERN_CONT "\n");
@@ -404,6 +420,8 @@ static void emu_update_cpu_topology(void)
 {
 	struct toptree *phys, *numa;
 
+	if (emu_cores == NULL)
+		create_core_to_node_map();
 	phys = toptree_from_topology();
 	numa = toptree_to_numa(phys);
 	toptree_free(phys);
@@ -443,12 +461,8 @@ static int emu_setup_nodes_adjust(int nodes)
  */
 static void emu_setup(void)
 {
-	int i;
-
 	emu_size = emu_setup_size_adjust(emu_size);
 	emu_nodes = emu_setup_nodes_adjust(emu_nodes);
-	for (i = 0; i < ARRAY_SIZE(cores_to_node_id); i++)
-		cores_to_node_id[i] = NODE_ID_FREE;
 	pr_info("Creating %d nodes with memory stripe size %ld MB\n",
 		emu_nodes, emu_size >> 20);
 }
