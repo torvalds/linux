@@ -517,6 +517,7 @@ struct hv_context {
 	u64 guestid;
 
 	void *hypercall_page;
+	void *tsc_page;
 
 	bool synic_initialized;
 
@@ -559,6 +560,14 @@ struct hv_context {
 };
 
 extern struct hv_context hv_context;
+
+struct ms_hyperv_tsc_page {
+	volatile u32 tsc_sequence;
+	u32 reserved1;
+	volatile u64 tsc_scale;
+	volatile s64 tsc_offset;
+	u64 reserved2[509];
+};
 
 struct hv_ring_buffer_debug_info {
 	u32 current_interrupt_mask;
