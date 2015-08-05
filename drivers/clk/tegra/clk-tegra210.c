@@ -1935,8 +1935,9 @@ static struct tegra_clk_pll_params pll_d2_params = {
 	.sdm_din_mask = PLLA_SDM_DIN_MASK,
 	.sdm_ctrl_reg = PLLD2_MISC1,
 	.sdm_ctrl_en_mask = PLLD2_SDM_EN_MASK,
-	.ssc_ctrl_reg = PLLD2_MISC1,
-	.ssc_ctrl_en_mask = PLLD2_SSC_EN_MASK,
+	/* disable spread-spectrum for pll_d2 */
+	.ssc_ctrl_reg = 0,
+	.ssc_ctrl_en_mask = 0,
 	.round_p_to_pdiv = pll_qlin_p_to_pdiv,
 	.pdiv_tohw = pll_qlin_pdiv_to_hw,
 	.div_nmp = &pllss_nmp,
