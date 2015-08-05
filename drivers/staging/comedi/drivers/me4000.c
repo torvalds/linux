@@ -414,6 +414,9 @@ static void me4000_reset(struct comedi_device *dev)
 	outl(ME4000_AI_CTRL_IMMEDIATE_STOP | ME4000_AI_CTRL_STOP,
 	     dev->iobase + ME4000_AI_CTRL_REG);
 
+	/* Clear the analog input control register */
+	outl(0x0, dev->iobase + ME4000_AI_CTRL_REG);
+
 	/* Set both stop bits in the analog output control register */
 	val = ME4000_AO_CTRL_IMMEDIATE_STOP | ME4000_AO_CTRL_STOP;
 	for (chan = 0; chan < 4; chan++)
