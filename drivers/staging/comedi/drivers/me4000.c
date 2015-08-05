@@ -635,9 +635,9 @@ static void me4000_ai_round_cmd_args(struct comedi_device *dev,
 	}
 }
 
-static int me4000_ai_write_chanlist(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_cmd *cmd)
+static void me4000_ai_write_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
 {
 	int i;
 
@@ -657,8 +657,6 @@ static int me4000_ai_write_chanlist(struct comedi_device *dev,
 
 		outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
 	}
-
-	return 0;
 }
 
 static int me4000_ai_do_cmd(struct comedi_device *dev,
