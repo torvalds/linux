@@ -6273,89 +6273,12 @@ free:
 	return ret;
 }
 
-/* Master function to enable/disable CRTC and corresponding power wells */
-int intel_crtc_control(struct drm_crtc *crtc, bool enable)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_modeset_acquire_ctx *ctx = config->acquire_ctx;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *pipe_config;
-	struct drm_atomic_state *state;
-	int ret;
-
-	if (enable == intel_crtc->active)
-		return 0;
-
-	if (enable && !crtc->state->enable)
-		return 0;
-
-	/* this function should be called with drm_modeset_lock_all for now */
-	if (WARN_ON(!ctx))
-		return -EIO;
-	lockdep_assert_held(&ctx->ww_ctx);
-
-	state = drm_atomic_state_alloc(dev);
-	if (WARN_ON(!state))
-		return -ENOMEM;
-
-	state->acquire_ctx = ctx;
-	state->allow_modeset = true;
-
-	pipe_config = intel_atomic_get_crtc_state(state, intel_crtc);
-	if (IS_ERR(pipe_config)) {
-		ret = PTR_ERR(pipe_config);
-		goto err;
-	}
-	pipe_config->base.active = enable;
-
-	ret = drm_atomic_commit(state);
-	if (!ret)
-		return ret;
-
-err:
-	DRM_ERROR("Updating crtc active failed with %i\n", ret);
-	drm_atomic_state_free(state);
-	return ret;
-}
-
-/**
- * Sets the power management mode of the pipe and plane.
- */
-void intel_crtc_update_dpms(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *intel_encoder;
-	bool enable = false;
-
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
-		enable |= intel_encoder->connectors_active;
-
-	intel_crtc_control(crtc, enable);
-}
-
 void intel_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
 	drm_encoder_cleanup(encoder);
 	kfree(intel_encoder);
-}
-
-/* Simple dpms helper for encoders with just one connector, no cloning and only
- * one kind of off state. It clamps all !ON modes to fully OFF and changes the
- * state of the entire output pipe. */
-static void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
-{
-	if (mode == DRM_MODE_DPMS_ON) {
-		encoder->connectors_active = true;
-
-		intel_crtc_update_dpms(encoder->base.crtc);
-	} else {
-		encoder->connectors_active = false;
-
-		intel_crtc_update_dpms(encoder->base.crtc);
-	}
 }
 
 /* Cross check the actual hw state with our own modeset state tracking (and it's
@@ -6390,6 +6313,8 @@ static void intel_connector_check_state(struct intel_connector *connector)
 		I915_STATE_WARN(conn_state->crtc != encoder->crtc,
 			"attached encoder crtc differs from connector crtc\n");
 	} else {
+		I915_STATE_WARN(crtc && crtc->state->active,
+			"attached crtc is active, but connector isn't\n");
 		I915_STATE_WARN(!crtc && connector->base.state->best_encoder,
 			"best encoder set without crtc!\n");
 	}
@@ -6421,26 +6346,6 @@ struct intel_connector *intel_connector_alloc(void)
 	}
 
 	return connector;
-}
-
-/* Even simpler default implementation, if there's really no special case to
- * consider. */
-int intel_connector_dpms(struct drm_connector *connector, int mode)
-{
-	/* All the simple cases only support two dpms states. */
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
-
-	if (mode == connector->dpms)
-		return 0;
-
-	connector->dpms = mode;
-
-	/* Only need to change hw state when actually enabled */
-	if (connector->encoder)
-		intel_encoder_dpms(to_intel_encoder(connector->encoder), mode);
-
-	return 0;
 }
 
 /* Simple connector->get_hw_state implementation for encoders that support only
