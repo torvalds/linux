@@ -451,9 +451,9 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
-	int rang = CR_RANGE(insn->chanspec);
-	int aref = CR_AREF(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int rang = CR_RANGE(insn->chanspec);
+	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned int entry = 0;
 	unsigned int tmp;
 	int ret;
@@ -1107,7 +1107,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int tmp;
 
 	/* Stop any running conversion */
