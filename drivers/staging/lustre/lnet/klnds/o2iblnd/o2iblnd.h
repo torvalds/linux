@@ -48,7 +48,7 @@
 #include <linux/uio.h>
 #include <linux/uaccess.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <linux/fs.h>
 #include <linux/file.h>
