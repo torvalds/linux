@@ -445,6 +445,16 @@ static void me4000_reset(struct comedi_device *dev)
 		outl(0x1, dev->iobase + ME4000_DIO_CTRL_REG);
 }
 
+static unsigned int me4000_ai_get_sample(struct comedi_device *dev,
+					 struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	/* read two's complement value and munge to offset binary */
+	val = inl(dev->iobase + ME4000_AI_DATA_REG);
+	return comedi_offset_munge(s, val);
+}
+
 static int me4000_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -515,8 +525,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			break;
 
-		/* read two's complement value and munge to offset binary */
-		val = inl(dev->iobase + ME4000_AI_DATA_REG);
+		val = me4000_ai_get_sample(dev, s);
 		data[i] = comedi_offset_munge(s, val);
 	}
 
@@ -953,10 +962,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		}
 
 		for (i = 0; i < c; i++) {
-			/* Read value from data fifo */
-			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
-			lval ^= 0x8000;
-
+			lval = me4000_ai_get_sample(dev, s);
 			if (!comedi_buf_write_samples(s, &lval, 1))
 				break;
 		}
@@ -976,10 +982,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		/* Poll data until fifo empty */
 		while (inl(dev->iobase + ME4000_AI_STATUS_REG) &
 		       ME4000_AI_STATUS_EF_DATA) {
-			/* Read value from data fifo */
-			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
-			lval ^= 0x8000;
-
+			lval = me4000_ai_get_sample(dev, s);
 			if (!comedi_buf_write_samples(s, &lval, 1))
 				break;
 		}
