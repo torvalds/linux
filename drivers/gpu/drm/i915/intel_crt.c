@@ -280,8 +280,6 @@ static int intel_crt_dpms(struct drm_connector *connector, int mode)
 		intel_crtc_update_dpms(crtc);
 	}
 
-	intel_modeset_check_state(connector->dev);
-
 	return 0;
 }
 

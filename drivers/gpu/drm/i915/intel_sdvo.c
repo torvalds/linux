@@ -1550,8 +1550,6 @@ static int intel_sdvo_dpms(struct drm_connector *connector, int mode)
 		intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
 	}
 
-	intel_modeset_check_state(connector->dev);
-
 	return 0;
 }
 
