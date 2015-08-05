@@ -1233,7 +1233,7 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 
 void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
-extern struct resource hyperv_mmio;
+extern struct resource *hyperv_mmio;
 
 /*
  * Negotiated version with the Host.
