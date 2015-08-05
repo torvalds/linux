@@ -162,12 +162,11 @@ static int copy_attributes_to_inode(struct inode *inode,
 		}
 		/*FALLTHRU*/
 	default:
-		pvfs2_lock_inode(inode);
-		inode->i_bytes = (unsigned short)PAGE_CACHE_SIZE;
-		inode->i_blocks = (unsigned long)(PAGE_CACHE_SIZE / 512);
-		pvfs2_unlock_inode(inode);
-
 		inode->i_size = PAGE_CACHE_SIZE;
+
+		pvfs2_lock_inode(inode);
+		inode_set_bytes(inode, inode->i_size);
+		pvfs2_unlock_inode(inode);
 		break;
 	}
 
