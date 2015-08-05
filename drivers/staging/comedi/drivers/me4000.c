@@ -412,7 +412,10 @@ static void me4000_reset(struct comedi_device *dev)
 	unsigned int val;
 	int chan;
 
-	/* Make a hardware reset */
+	/* Disable interrupts on the PLX */
+	outl(0, devpriv->plx_regbase + PLX9052_INTCSR);
+
+	/* Software reset the PLX */
 	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	val |= PLX9052_CNTRL_PCI_RESET;
 	outl(val, devpriv->plx_regbase + PLX9052_CNTRL);
@@ -429,11 +432,6 @@ static void me4000_reset(struct comedi_device *dev)
 	val = ME4000_AO_CTRL_IMMEDIATE_STOP | ME4000_AO_CTRL_STOP;
 	for (chan = 0; chan < 4; chan++)
 		outl(val, dev->iobase + ME4000_AO_CTRL_REG(chan));
-
-	/* Enable interrupts on the PLX */
-	outl(PLX9052_INTCSR_LI1ENAB |
-	     PLX9052_INTCSR_LI1POL |
-	     PLX9052_INTCSR_PCIENAB, devpriv->plx_regbase + PLX9052_INTCSR);
 
 	/* Set the adustment register for AO demux */
 	outl(ME4000_AO_DEMUX_ADJUST_VALUE,
@@ -1181,8 +1179,14 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	if (pcidev->irq > 0) {
 		result = request_irq(pcidev->irq, me4000_ai_isr, IRQF_SHARED,
 				     dev->board_name, dev);
-		if (result == 0)
+		if (result == 0) {
 			dev->irq = pcidev->irq;
+
+			/* Enable interrupts on the PLX */
+			outl(PLX9052_INTCSR_LI1ENAB | PLX9052_INTCSR_LI1POL |
+			     PLX9052_INTCSR_PCIENAB,
+			     devpriv->plx_regbase + PLX9052_INTCSR);
+		}
 	}
 
 	result = comedi_alloc_subdevices(dev, 4);
