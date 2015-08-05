@@ -188,12 +188,12 @@ enum me4000_boardid {
 
 struct me4000_board {
 	const char *name;
-	int ao_nchan;
 	int ao_fifo;
 	int ai_nchan;
 	int ai_sh_nchan;
 	unsigned int can_do_diff_ai:1;
 	unsigned int ex_trig_analog:1;
+	unsigned int has_ao:1;
 	unsigned int has_counter:1;
 };
 
@@ -230,74 +230,74 @@ static const struct me4000_board me4000_boards[] = {
 	},
 	[BOARD_ME4670] = {
 		.name		= "ME-4670",
-		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670I] = {
 		.name		= "ME-4670i",
-		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670S] = {
 		.name		= "ME-4670s",
-		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670IS] = {
 		.name		= "ME-4670is",
-		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680] = {
 		.name		= "ME-4680",
-		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680I] = {
 		.name		= "ME-4680i",
-		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680S] = {
 		.name		= "ME-4680s",
-		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4680IS] = {
 		.name		= "ME-4680is",
-		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
+		.has_ao		= 1,
 		.has_counter	= 1,
 	},
 };
@@ -1312,10 +1312,10 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 
-	if (board->ao_nchan) {
+	if (board->has_ao) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_COMMON | SDF_GROUND;
-		s->n_chan = board->ao_nchan;
+		s->n_chan = 4;
 		s->maxdata = 0xFFFF;	/*  16 bit DAC */
 		s->range_table = &range_bipolar10;
 		s->insn_write = me4000_ao_insn_write;
