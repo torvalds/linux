@@ -12159,6 +12159,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	struct intel_dpll_hw_state dpll_hw_state;
 	enum intel_dpll_id shared_dpll;
 	uint32_t ddi_pll_sel;
+	bool force_thru;
 
 	/* FIXME: before the switch to atomic started, a new pipe_config was
 	 * kzalloc'd. Code that depends on any field being zero should be
@@ -12170,6 +12171,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	shared_dpll = crtc_state->shared_dpll;
 	dpll_hw_state = crtc_state->dpll_hw_state;
 	ddi_pll_sel = crtc_state->ddi_pll_sel;
+	force_thru = crtc_state->pch_pfit.force_thru;
 
 	memset(crtc_state, 0, sizeof *crtc_state);
 
@@ -12178,6 +12180,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	crtc_state->shared_dpll = shared_dpll;
 	crtc_state->dpll_hw_state = dpll_hw_state;
 	crtc_state->ddi_pll_sel = ddi_pll_sel;
+	crtc_state->pch_pfit.force_thru = force_thru;
 }
 
 static int
