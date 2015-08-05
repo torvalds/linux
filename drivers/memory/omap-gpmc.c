@@ -1118,6 +1118,27 @@ void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 	}
 }
 
+static struct gpmc_nand_ops nand_ops;
+
+/**
+ * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
+ * @regs: the GPMC NAND register map exclusive for NAND use.
+ * @cs: GPMC chip select number on which the NAND sits. The
+ *      register map returned will be specific to this chip select.
+ *
+ * Returns NULL on error e.g. invalid cs.
+ */
+struct gpmc_nand_ops *gpmc_omap_get_nand_ops(struct gpmc_nand_regs *reg, int cs)
+{
+	if (cs >= gpmc_cs_num)
+		return NULL;
+
+	gpmc_update_nand_reg(reg, cs);
+
+	return &nand_ops;
+}
+EXPORT_SYMBOL_GPL(gpmc_omap_get_nand_ops);
+
 int gpmc_get_client_irq(unsigned irq_config)
 {
 	int i;
