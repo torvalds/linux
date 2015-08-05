@@ -828,38 +828,6 @@ static void vmbus_isr(void)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static int hyperv_cpu_disable(void)
-{
-	return -ENOSYS;
-}
-
-static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
-{
-	static void *previous_cpu_disable;
-
-	/*
-	 * Offlining a CPU when running on newer hypervisors (WS2012R2, Win8,
-	 * ...) is not supported at this moment as channel interrupts are
-	 * distributed across all of them.
-	 */
-
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-	    (vmbus_proto_version == VERSION_WIN7))
-		return;
-
-	if (vmbus_loaded) {
-		previous_cpu_disable = smp_ops.cpu_disable;
-		smp_ops.cpu_disable = hyperv_cpu_disable;
-		pr_notice("CPU offlining is not supported by hypervisor\n");
-	} else if (previous_cpu_disable)
-		smp_ops.cpu_disable = previous_cpu_disable;
-}
-#else
-static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
-{
-}
-#endif
 
 /*
  * vmbus_bus_init -Main vmbus driver initialization routine.
@@ -901,7 +869,8 @@ static int vmbus_bus_init(int irq)
 	if (ret)
 		goto err_alloc;
 
-	hv_cpu_hotplug_quirk(true);
+	if (vmbus_proto_version > VERSION_WIN7)
+		cpu_hotplug_disable();
 
 	/*
 	 * Only register if the crash MSRs are available
@@ -1364,7 +1333,8 @@ static void __exit vmbus_exit(void)
 	}
 	hv_synic_free();
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-	hv_cpu_hotplug_quirk(false);
+	if (vmbus_proto_version > VERSION_WIN7)
+		cpu_hotplug_enable();
 }
 
 
