@@ -3316,7 +3316,7 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 	case NL80211_IFTYPE_OCB:
 		if (!bssid)
 			return false;
-		if (ieee80211_is_beacon(hdr->frame_control))
+		if (!ieee80211_is_data_present(hdr->frame_control))
 			return false;
 		if (!is_broadcast_ether_addr(bssid))
 			return false;
