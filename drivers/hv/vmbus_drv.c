@@ -39,6 +39,7 @@
 #include <asm/mshyperv.h>
 #include <linux/notifier.h>
 #include <linux/ptrace.h>
+#include <linux/screen_info.h>
 #include <linux/kdebug.h>
 #include "hyperv_vmbus.h"
 
@@ -103,7 +104,6 @@ static struct notifier_block hyperv_panic_block = {
 };
 
 struct resource *hyperv_mmio;
-EXPORT_SYMBOL_GPL(hyperv_mmio);
 
 static int vmbus_exists(void)
 {
@@ -891,8 +891,8 @@ err_cleanup:
 }
 
 /**
- * __vmbus_child_driver_register - Register a vmbus's driver
- * @drv: Pointer to driver structure you want to register
+ * __vmbus_child_driver_register() - Register a vmbus's driver
+ * @hv_driver: Pointer to driver structure you want to register
  * @owner: owner module of the drv
  * @mod_name: module name string
  *
@@ -924,7 +924,8 @@ EXPORT_SYMBOL_GPL(__vmbus_driver_register);
 
 /**
  * vmbus_driver_unregister() - Unregister a vmbus's driver
- * @drv: Pointer to driver structure you want to un-register
+ * @hv_driver: Pointer to driver structure you want to
+ *             un-register
  *
  * Un-register the given driver that was previous registered with a call to
  * vmbus_driver_register()
@@ -1103,6 +1104,85 @@ static int vmbus_acpi_remove(struct acpi_device *device)
 
 	return 0;
 }
+
+/**
+ * vmbus_allocate_mmio() - Pick a memory-mapped I/O range.
+ * @new:		If successful, supplied a pointer to the
+ *			allocated MMIO space.
+ * @device_obj:		Identifies the caller
+ * @min:		Minimum guest physical address of the
+ *			allocation
+ * @max:		Maximum guest physical address
+ * @size:		Size of the range to be allocated
+ * @align:		Alignment of the range to be allocated
+ * @fb_overlap_ok:	Whether this allocation can be allowed
+ *			to overlap the video frame buffer.
+ *
+ * This function walks the resources granted to VMBus by the
+ * _CRS object in the ACPI namespace underneath the parent
+ * "bridge" whether that's a root PCI bus in the Generation 1
+ * case or a Module Device in the Generation 2 case.  It then
+ * attempts to allocate from the global MMIO pool in a way that
+ * matches the constraints supplied in these parameters and by
+ * that _CRS.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
+			resource_size_t min, resource_size_t max,
+			resource_size_t size, resource_size_t align,
+			bool fb_overlap_ok)
+{
+	struct resource *iter;
+	resource_size_t range_min, range_max, start, local_min, local_max;
+	const char *dev_n = dev_name(&device_obj->device);
+	u32 fb_end = screen_info.lfb_base + (screen_info.lfb_size << 1);
+	int i;
+
+	for (iter = hyperv_mmio; iter; iter = iter->sibling) {
+		if ((iter->start >= max) || (iter->end <= min))
+			continue;
+
+		range_min = iter->start;
+		range_max = iter->end;
+
+		/* If this range overlaps the frame buffer, split it into
+		   two tries. */
+		for (i = 0; i < 2; i++) {
+			local_min = range_min;
+			local_max = range_max;
+			if (fb_overlap_ok || (range_min >= fb_end) ||
+			    (range_max <= screen_info.lfb_base)) {
+				i++;
+			} else {
+				if ((range_min <= screen_info.lfb_base) &&
+				    (range_max >= screen_info.lfb_base)) {
+					/*
+					 * The frame buffer is in this window,
+					 * so trim this into the part that
+					 * preceeds the frame buffer.
+					 */
+					local_max = screen_info.lfb_base - 1;
+					range_min = fb_end;
+				} else {
+					range_min = fb_end;
+					continue;
+				}
+			}
+
+			start = (local_min + align - 1) & ~(align - 1);
+			for (; start + size - 1 <= local_max; start += align) {
+				*new = request_mem_region_exclusive(start, size,
+								    dev_n);
+				if (*new)
+					return 0;
+			}
+		}
+	}
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
 
 static int vmbus_acpi_add(struct acpi_device *device)
 {
