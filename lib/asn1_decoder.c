@@ -33,6 +33,7 @@ static const unsigned char asn1_op_lengths[ASN1_OP__NR] = {
 	[ASN1_OP_COND_FAIL]			= 1,
 	[ASN1_OP_COMPLETE]			= 1,
 	[ASN1_OP_ACT]				= 1         + 1,
+	[ASN1_OP_MAYBE_ACT]			= 1         + 1,
 	[ASN1_OP_RETURN]			= 1,
 	[ASN1_OP_END_SEQ]			= 1,
 	[ASN1_OP_END_SEQ_OF]			= 1     + 1,
@@ -177,6 +178,7 @@ int asn1_ber_decoder(const struct asn1_decoder *decoder,
 	unsigned char flags = 0;
 #define FLAG_INDEFINITE_LENGTH	0x01
 #define FLAG_MATCHED		0x02
+#define FLAG_LAST_MATCHED	0x04 /* Last tag matched */
 #define FLAG_CONS		0x20 /* Corresponds to CONS bit in the opcode tag
 				      * - ie. whether or not we are going to parse
 				      *   a compound type.
@@ -211,6 +213,7 @@ next_op:
 		if ((op & ASN1_OP_MATCH__COND &&
 		     flags & FLAG_MATCHED) ||
 		    dp == datalen) {
+			flags &= ~FLAG_LAST_MATCHED;
 			pc += asn1_op_lengths[op];
 			goto next_op;
 		}
@@ -422,8 +425,15 @@ next_op:
 		pc += asn1_op_lengths[op];
 		goto next_op;
 
+	case ASN1_OP_MAYBE_ACT:
+		if (!(flags & FLAG_LAST_MATCHED)) {
+			pc += asn1_op_lengths[op];
+			goto next_op;
+		}
 	case ASN1_OP_ACT:
 		ret = actions[machine[pc + 1]](context, hdr, tag, data + tdp, len);
+		if (ret < 0)
+			return ret;
 		pc += asn1_op_lengths[op];
 		goto next_op;
 
@@ -431,6 +441,7 @@ next_op:
 		if (unlikely(jsp <= 0))
 			goto jump_stack_underflow;
 		pc = jump_stack[--jsp];
+		flags |= FLAG_MATCHED | FLAG_LAST_MATCHED;
 		goto next_op;
 
 	default:
@@ -438,7 +449,8 @@ next_op:
 	}
 
 	/* Shouldn't reach here */
-	pr_err("ASN.1 decoder error: Found reserved opcode (%u)\n", op);
+	pr_err("ASN.1 decoder error: Found reserved opcode (%u) pc=%zu\n",
+	       op, pc);
 	return -EBADMSG;
 
 data_overrun_error:
