@@ -2451,10 +2451,24 @@ static void be_eq_clean(struct be_eq_obj *eqo)
 	be_eq_notify(eqo->adapter, eqo->q.id, false, true, num, 0);
 }
 
+/* Free posted rx buffers that were not used */
+static void be_rxq_clean(struct be_rx_obj *rxo)
+{
+	struct be_queue_info *rxq = &rxo->q;
+	struct be_rx_page_info *page_info;
+
+	while (atomic_read(&rxq->used) > 0) {
+		page_info = get_rx_page_info(rxo);
+		put_page(page_info->page);
+		memset(page_info, 0, sizeof(*page_info));
+	}
+	BUG_ON(atomic_read(&rxq->used));
+	rxq->tail = 0;
+	rxq->head = 0;
+}
+
 static void be_rx_cq_clean(struct be_rx_obj *rxo)
 {
-	struct be_rx_page_info *page_info;
-	struct be_queue_info *rxq = &rxo->q;
 	struct be_queue_info *rx_cq = &rxo->cq;
 	struct be_rx_compl_info *rxcp;
 	struct be_adapter *adapter = rxo->adapter;
@@ -2491,16 +2505,6 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 
 	/* After cleanup, leave the CQ in unarmed state */
 	be_cq_notify(adapter, rx_cq->id, false, 0);
-
-	/* Then free posted rx buffers that were not used */
-	while (atomic_read(&rxq->used) > 0) {
-		page_info = get_rx_page_info(rxo);
-		put_page(page_info->page);
-		memset(page_info, 0, sizeof(*page_info));
-	}
-	BUG_ON(atomic_read(&rxq->used));
-	rxq->tail = 0;
-	rxq->head = 0;
 }
 
 static void be_tx_compl_clean(struct be_adapter *adapter)
@@ -3358,8 +3362,22 @@ static void be_rx_qs_destroy(struct be_adapter *adapter)
 	for_all_rx_queues(adapter, rxo, i) {
 		q = &rxo->q;
 		if (q->created) {
+			/* If RXQs are destroyed while in an "out of buffer"
+			 * state, there is a possibility of an HW stall on
+			 * Lancer. So, post 64 buffers to each queue to relieve
+			 * the "out of buffer" condition.
+			 * Make sure there's space in the RXQ before posting.
+			 */
+			if (lancer_chip(adapter)) {
+				be_rx_cq_clean(rxo);
+				if (atomic_read(&q->used) == 0)
+					be_post_rx_frags(rxo, GFP_KERNEL,
+							 MAX_RX_POST);
+			}
+
 			be_cmd_rxq_destroy(adapter, q);
 			be_rx_cq_clean(rxo);
+			be_rxq_clean(rxo);
 		}
 		be_queue_free(adapter, q);
 	}
