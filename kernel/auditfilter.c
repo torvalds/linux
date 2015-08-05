@@ -935,7 +935,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 }
 
 /* Remove an existing rule from filterlist. */
-static inline int audit_del_rule(struct audit_entry *entry)
+int audit_del_rule(struct audit_entry *entry)
 {
 	struct audit_entry  *e;
 	struct audit_tree *tree = entry->rule.tree;
