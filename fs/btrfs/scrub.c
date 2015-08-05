@@ -3407,7 +3407,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	u64 chunk_tree;
 	u64 chunk_objectid;
 	u64 chunk_offset;
-	int ret;
+	int ret = 0;
 	int slot;
 	struct extent_buffer *l;
 	struct btrfs_key key;
@@ -3435,8 +3435,14 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			if (path->slots[0] >=
 			    btrfs_header_nritems(path->nodes[0])) {
 				ret = btrfs_next_leaf(root, path);
-				if (ret)
+				if (ret < 0)
 					break;
+				if (ret > 0) {
+					ret = 0;
+					break;
+				}
+			} else {
+				ret = 0;
 			}
 		}
 
@@ -3478,6 +3484,22 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		if (!cache)
 			goto skip;
 
+		/*
+		 * we need call btrfs_inc_block_group_ro() with scrubs_paused,
+		 * to avoid deadlock caused by:
+		 * btrfs_inc_block_group_ro()
+		 * -> btrfs_wait_for_commit()
+		 * -> btrfs_commit_transaction()
+		 * -> btrfs_scrub_pause()
+		 */
+		scrub_pause_on(fs_info);
+		ret = btrfs_inc_block_group_ro(root, cache);
+		scrub_pause_off(fs_info);
+		if (ret) {
+			btrfs_put_block_group(cache);
+			break;
+		}
+
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
@@ -3517,6 +3539,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 
+		btrfs_dec_block_group_ro(root, cache);
+
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;
@@ -3539,11 +3563,7 @@ skip:
 
 	btrfs_free_path(path);
 
-	/*
-	 * ret can still be 1 from search_slot or next_leaf,
-	 * that's not an error
-	 */
-	return ret < 0 ? ret : 0;
+	return ret;
 }
 
 static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,

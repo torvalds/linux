@@ -2785,7 +2785,9 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 		return -ENOSPC;
 
 	/* step one, relocate all the extents inside this chunk */
+	btrfs_scrub_pause(root);
 	ret = btrfs_relocate_block_group(extent_root, chunk_offset);
+	btrfs_scrub_continue(root);
 	if (ret)
 		return ret;
 
