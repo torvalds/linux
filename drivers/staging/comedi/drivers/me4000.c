@@ -456,16 +456,8 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	int aref = CR_AREF(insn->chanspec);
 	unsigned int entry = 0;
 	unsigned int tmp;
-	unsigned int lval;
 	int ret;
-
-	if (insn->n == 0) {
-		return 0;
-	} else if (insn->n > 1) {
-		dev_err(dev->class_dev, "Invalid instruction length %d\n",
-			insn->n);
-		return -EINVAL;
-	}
+	int i;
 
 	entry |= ME4000_AI_LIST_RANGE(rang);
 	entry |= chan;
@@ -515,18 +507,22 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	outl(ME4000_AI_MIN_TICKS, dev->iobase + ME4000_AI_CHAN_TIMER_REG);
 	outl(ME4000_AI_MIN_TICKS, dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG);
 
-	/* Start conversion by dummy read */
-	inl(dev->iobase + ME4000_AI_START_REG);
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val;
 
-	ret = comedi_timeout(dev, s, insn, me4000_ai_eoc, 0);
-	if (ret)
-		return ret;
+		/* start conversion by dummy read */
+		inl(dev->iobase + ME4000_AI_START_REG);
 
-	/* Read value from data fifo */
-	lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
-	data[0] = lval ^ 0x8000;
+		ret = comedi_timeout(dev, s, insn, me4000_ai_eoc, 0);
+		if (ret)
+			return ret;
 
-	return 1;
+		/* read two's complement value and munge to offset binary */
+		val = inl(dev->iobase + ME4000_AI_DATA_REG);
+		data[i] = comedi_offset_munge(s, val);
+	}
+
+	return insn->n;
 }
 
 static int me4000_ai_cancel(struct comedi_device *dev,
