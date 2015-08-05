@@ -1711,16 +1711,6 @@ static void hdmi_mode_set(struct exynos_drm_encoder *encoder,
 	hdata->cea_video_id = drm_match_cea_mode(mode);
 }
 
-static void hdmi_commit(struct exynos_drm_encoder *encoder)
-{
-	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
-
-	if (!hdata->powered)
-		return;
-
-	hdmi_conf_apply(hdata);
-}
-
 static void hdmi_enable(struct exynos_drm_encoder *encoder)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
@@ -1744,7 +1734,7 @@ static void hdmi_enable(struct exynos_drm_encoder *encoder)
 	clk_prepare_enable(res->sclk_hdmi);
 
 	hdmiphy_poweron(hdata);
-	hdmi_commit(encoder);
+	hdmi_conf_apply(hdata);
 }
 
 static void hdmi_disable(struct exynos_drm_encoder *encoder)
@@ -1798,7 +1788,6 @@ static struct exynos_drm_encoder_ops hdmi_encoder_ops = {
 	.mode_set	= hdmi_mode_set,
 	.enable		= hdmi_enable,
 	.disable	= hdmi_disable,
-	.commit		= hdmi_commit,
 };
 
 static void hdmi_hotplug_work_func(struct work_struct *work)
