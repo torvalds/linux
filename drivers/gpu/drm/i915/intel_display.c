@@ -2397,7 +2397,18 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 	 * a fence as the cost is not that onerous.
 	 */
 	ret = i915_gem_object_get_fence(obj);
-	if (ret)
+	if (ret == -EDEADLK) {
+		/*
+		 * -EDEADLK means there are no free fences
+		 * no pending flips.
+		 *
+		 * This is propagated to atomic, but it uses
+		 * -EDEADLK to force a locking recovery, so
+		 * change the returned error to -EBUSY.
+		 */
+		ret = -EBUSY;
+		goto err_unpin;
+	} else if (ret)
 		goto err_unpin;
 
 	i915_gem_object_pin_fence(obj);
