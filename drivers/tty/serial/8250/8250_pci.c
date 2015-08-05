@@ -1705,7 +1705,9 @@ static int pci_fintek_rs485_config(struct uart_port *port,
 
 	pci_read_config_byte(pci_dev, 0x40 + 8 * *index + 7, &setting);
 
-	if (rs485->flags & SER_RS485_ENABLED)
+	if (!rs485)
+		rs485 = &port->rs485;
+	else if (rs485->flags & SER_RS485_ENABLED)
 		memset(rs485->padding, 0, sizeof(rs485->padding));
 	else
 		memset(rs485, 0, sizeof(*rs485));
@@ -1733,7 +1735,10 @@ static int pci_fintek_rs485_config(struct uart_port *port,
 	}
 
 	pci_write_config_byte(pci_dev, 0x40 + 8 * *index + 7, setting);
-	port->rs485 = *rs485;
+
+	if (rs485 != &port->rs485)
+		port->rs485 = *rs485;
+
 	return 0;
 }
 
@@ -1774,6 +1779,8 @@ static int pci_fintek_init(struct pci_dev *dev)
 	u32 max_port, i;
 	u32 bar_data[3];
 	u8 config_base;
+	struct serial_private *priv = pci_get_drvdata(dev);
+	struct uart_8250_port *port;
 
 	switch (dev->device) {
 	case 0x1104: /* 4 ports */
@@ -1815,8 +1822,18 @@ static int pci_fintek_init(struct pci_dev *dev)
 
 		pci_write_config_byte(dev, config_base + 0x06, dev->irq);
 
-		/* force init to RS232 Mode */
-		pci_write_config_byte(dev, config_base + 0x07, 0x01);
+		if (priv) {
+			/* re-apply RS232/485 mode when
+			 * pciserial_resume_ports()
+			 */
+			port = serial8250_get_port(priv->line[i]);
+			pci_fintek_rs485_config(&port->port, NULL);
+		} else {
+			/* First init without port data
+			 * force init to RS232 Mode
+			 */
+			pci_write_config_byte(dev, config_base + 0x07, 0x01);
+		}
 	}
 
 	return max_port;
