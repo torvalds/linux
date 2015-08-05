@@ -189,8 +189,8 @@ enum me4000_boardid {
 struct me4000_board {
 	const char *name;
 	int ai_nchan;
-	int ai_sh_nchan;
 	unsigned int can_do_diff_ai:1;
+	unsigned int can_do_sh_ai:1;	/* sample & hold (8 channels) */
 	unsigned int ex_trig_analog:1;
 	unsigned int has_ao:1;
 	unsigned int has_ao_fifo:1;
@@ -217,15 +217,15 @@ static const struct me4000_board me4000_boards[] = {
 	[BOARD_ME4660S] = {
 		.name		= "ME-4660s",
 		.ai_nchan	= 32,
-		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
+		.can_do_sh_ai	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4660IS] = {
 		.name		= "ME-4660is",
 		.ai_nchan	= 32,
-		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
+		.can_do_sh_ai	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670] = {
@@ -247,8 +247,8 @@ static const struct me4000_board me4000_boards[] = {
 	[BOARD_ME4670S] = {
 		.name		= "ME-4670s",
 		.ai_nchan	= 32,
-		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
+		.can_do_sh_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_ao		= 1,
 		.has_counter	= 1,
@@ -256,8 +256,8 @@ static const struct me4000_board me4000_boards[] = {
 	[BOARD_ME4670IS] = {
 		.name		= "ME-4670is",
 		.ai_nchan	= 32,
-		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
+		.can_do_sh_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_ao		= 1,
 		.has_counter	= 1,
@@ -283,8 +283,8 @@ static const struct me4000_board me4000_boards[] = {
 	[BOARD_ME4680S] = {
 		.name		= "ME-4680s",
 		.ai_nchan	= 32,
-		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
+		.can_do_sh_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_ao		= 1,
 		.has_ao_fifo	= 1,
@@ -293,8 +293,8 @@ static const struct me4000_board me4000_boards[] = {
 	[BOARD_ME4680IS] = {
 		.name		= "ME-4680is",
 		.ai_nchan	= 32,
-		.ai_sh_nchan	= 8,
 		.can_do_diff_ai	= 1,
+		.can_do_sh_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_ao		= 1,
 		.has_ao_fifo	= 1,
