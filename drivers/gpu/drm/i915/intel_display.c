@@ -12731,9 +12731,6 @@ check_encoder_state(struct drm_device *dev)
 			      encoder->base.base.id,
 			      encoder->base.name);
 
-		I915_STATE_WARN(encoder->connectors_active && !encoder->base.crtc,
-		     "encoder's active_connectors set, but no crtc\n");
-
 		for_each_intel_connector(dev, connector) {
 			if (connector->base.encoder != &encoder->base)
 				continue;
@@ -12753,18 +12750,20 @@ check_encoder_state(struct drm_device *dev)
 		I915_STATE_WARN(active && !encoder->base.crtc,
 		     "active encoder with no crtc\n");
 
-		I915_STATE_WARN(encoder->connectors_active != active,
-		     "encoder's computed active state doesn't match tracked active state "
-		     "(expected %i, found %i)\n", active, encoder->connectors_active);
-
 		active = encoder->get_hw_state(encoder, &pipe);
-		I915_STATE_WARN(active != encoder->connectors_active,
+
+		if (!encoder->base.crtc) {
+			I915_STATE_WARN(active,
+			     "encoder detached but not turned off.\n");
+
+			continue;
+		}
+
+		I915_STATE_WARN(active != encoder->base.crtc->state->active,
 		     "encoder's hw state doesn't match sw tracking "
 		     "(expected %i, found %i)\n",
-		     encoder->connectors_active, active);
+		     encoder->base.crtc->state->active, active);
 
-		if (!encoder->base.crtc)
-			continue;
 
 		tracked_pipe = to_intel_crtc(encoder->base.crtc)->pipe;
 		I915_STATE_WARN(active && pipe != tracked_pipe,
