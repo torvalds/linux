@@ -60,9 +60,9 @@
 	};
 
 	soc {
-		ocram: sram@00900000 {
+		ocram: sram@00905000 {
 			compatible = "mmio-sram";
-			reg = <0x00900000 0x20000>;
+			reg = <0x00905000 0x1B000>;
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 

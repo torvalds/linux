@@ -141,8 +141,26 @@
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		ocram: sram@00900000 {
+		ocrams: sram@008f8000 {
+			compatible = "fsl,lpm-sram";
+			reg = <0x008f8000 0x4000>;
+			clocks = <&clks IMX6SX_CLK_OCRAM_S>;
+		};
+
+		ocrams_ddr: sram@00900000 {
+			compatible = "fsl,ddr-lpm-sram";
+			reg = <0x00900000 0x1000>;
+			clocks = <&clks IMX6SX_CLK_OCRAM>;
+		};
+
+		ocram: sram@00901000 {
 			compatible = "mmio-sram";
+			reg = <0x00901000 0x1F000>;
+			clocks = <&clks IMX6SX_CLK_OCRAM>;
+		};
+
+		ocram_mf: sram-mf@00900000 {
+			compatible = "fsl,mega-fast-sram";
 			reg = <0x00900000 0x20000>;
 			clocks = <&clks IMX6SX_CLK_OCRAM>;
 		};

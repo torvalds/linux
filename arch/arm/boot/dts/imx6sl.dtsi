@@ -99,9 +99,21 @@
 		interrupt-parent = <&gpc>;
 		ranges;
 
-		ocram: sram@00900000 {
+		ocrams: sram@00900000 {
+			compatible = "fsl,lpm-sram";
+			reg = <0x00900000 0x4000>;
+			clocks = <&clks IMX6SL_CLK_OCRAM>;
+		};
+
+		ocrams_ddr: sram@00904000 {
+			compatible = "fsl,ddr-lpm-sram";
+			reg = <0x00904000 0x1000>;
+			clocks = <&clks IMX6SL_CLK_OCRAM>;
+		};
+
+		ocram: sram@00905000 {
 			compatible = "mmio-sram";
-			reg = <0x00900000 0x20000>;
+			reg = <0x00905000 0x1B000>;
 			clocks = <&clks IMX6SL_CLK_OCRAM>;
 		};
 

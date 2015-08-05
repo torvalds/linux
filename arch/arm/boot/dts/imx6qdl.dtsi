@@ -119,6 +119,18 @@
 			status = "disabled";
 		};
 
+		ocrams: sram@00900000 {
+			compatible = "fsl,lpm-sram";
+			reg = <0x00900000 0x4000>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
+		};
+
+		ocrams_ddr: sram@00904000 {
+			compatible = "fsl,ddr-lpm-sram";
+			reg = <0x00904000 0x1000>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
+		};
+
 		timer@00a00600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
