@@ -510,7 +510,8 @@ nfs4_ff_layout_stat_io_start_read(struct nfs4_ff_layout_mirror *mirror,
 	spin_unlock(&mirror->lock);
 
 	if (report)
-		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode);
+		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode,
+				GFP_KERNEL);
 }
 
 static void
@@ -538,7 +539,8 @@ nfs4_ff_layout_stat_io_start_write(struct nfs4_ff_layout_mirror *mirror,
 	spin_unlock(&mirror->lock);
 
 	if (report)
-		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode);
+		pnfs_report_layoutstat(mirror->lseg->pls_layout->plh_inode,
+				GFP_NOIO);
 }
 
 static void

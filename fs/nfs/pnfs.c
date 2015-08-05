@@ -2267,7 +2267,7 @@ struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 
 #if IS_ENABLED(CONFIG_NFS_V4_2)
 int
-pnfs_report_layoutstat(struct inode *inode)
+pnfs_report_layoutstat(struct inode *inode, gfp_t gfp_flags)
 {
 	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -2294,7 +2294,7 @@ pnfs_report_layoutstat(struct inode *inode)
 	pnfs_get_layout_hdr(hdr);
 	spin_unlock(&inode->i_lock);
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), gfp_flags);
 	if (!data) {
 		status = -ENOMEM;
 		goto out_put;

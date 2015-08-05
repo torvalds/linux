@@ -691,10 +691,10 @@ static inline void nfs4_pnfs_v3_ds_connect_unload(void)
 #endif /* CONFIG_NFS_V4_1 */
 
 #if IS_ENABLED(CONFIG_NFS_V4_2)
-int pnfs_report_layoutstat(struct inode *inode);
+int pnfs_report_layoutstat(struct inode *inode, gfp_t gfp_flags);
 #else
 static inline int
-pnfs_report_layoutstat(struct inode *inode)
+pnfs_report_layoutstat(struct inode *inode, gfp_t gfp_flags)
 {
 	return 0;
 }
