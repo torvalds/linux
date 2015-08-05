@@ -441,6 +441,43 @@ static ssize_t in_write_bytes_avail_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(in_write_bytes_avail);
 
+static ssize_t channel_vp_mapping_show(struct device *dev,
+				       struct device_attribute *dev_attr,
+				       char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+	struct vmbus_channel *channel = hv_dev->channel, *cur_sc;
+	unsigned long flags;
+	int buf_size = PAGE_SIZE, n_written, tot_written;
+	struct list_head *cur;
+
+	if (!channel)
+		return -ENODEV;
+
+	tot_written = snprintf(buf, buf_size, "%u:%u\n",
+		channel->offermsg.child_relid, channel->target_cpu);
+
+	spin_lock_irqsave(&channel->lock, flags);
+
+	list_for_each(cur, &channel->sc_list) {
+		if (tot_written >= buf_size - 1)
+			break;
+
+		cur_sc = list_entry(cur, struct vmbus_channel, sc_list);
+		n_written = scnprintf(buf + tot_written,
+				     buf_size - tot_written,
+				     "%u:%u\n",
+				     cur_sc->offermsg.child_relid,
+				     cur_sc->target_cpu);
+		tot_written += n_written;
+	}
+
+	spin_unlock_irqrestore(&channel->lock, flags);
+
+	return tot_written;
+}
+static DEVICE_ATTR_RO(channel_vp_mapping);
+
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct attribute *vmbus_attrs[] = {
 	&dev_attr_id.attr,
@@ -465,6 +502,7 @@ static struct attribute *vmbus_attrs[] = {
 	&dev_attr_in_write_index.attr,
 	&dev_attr_in_read_bytes_avail.attr,
 	&dev_attr_in_write_bytes_avail.attr,
+	&dev_attr_channel_vp_mapping.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vmbus);
