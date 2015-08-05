@@ -2196,11 +2196,7 @@ int ib_find_pkey(struct ib_device *device,
 
 struct ib_pd *ib_alloc_pd(struct ib_device *device);
 
-/**
- * ib_dealloc_pd - Deallocates a protection domain.
- * @pd: The protection domain to deallocate.
- */
-int ib_dealloc_pd(struct ib_pd *pd);
+void ib_dealloc_pd(struct ib_pd *pd);
 
 /**
  * ib_create_ah - Creates an address handle for the given address vector.

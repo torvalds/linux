@@ -280,9 +280,7 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 		priv->wq = NULL;
 	}
 
-	if (ib_dealloc_pd(priv->pd))
-		ipoib_warn(priv, "ib_dealloc_pd failed\n");
-
+	ib_dealloc_pd(priv->pd);
 }
 
 void ipoib_event(struct ib_event_handler *handler,

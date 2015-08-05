@@ -606,6 +606,7 @@ ssize_t ib_uverbs_dealloc_pd(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_dealloc_pd cmd;
 	struct ib_uobject          *uobj;
+	struct ib_pd		   *pd;
 	int                         ret;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -614,15 +615,20 @@ ssize_t ib_uverbs_dealloc_pd(struct ib_uverbs_file *file,
 	uobj = idr_write_uobj(&ib_uverbs_pd_idr, cmd.pd_handle, file->ucontext);
 	if (!uobj)
 		return -EINVAL;
+	pd = uobj->object;
 
-	ret = ib_dealloc_pd(uobj->object);
-	if (!ret)
-		uobj->live = 0;
+	if (atomic_read(&pd->usecnt)) {
+		ret = -EBUSY;
+		goto err_put;
+	}
 
-	put_uobj_write(uobj);
-
+	ret = pd->device->dealloc_pd(uobj->object);
+	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
 	if (ret)
-		return ret;
+		goto err_put;
+
+	uobj->live = 0;
+	put_uobj_write(uobj);
 
 	idr_remove_uobj(&ib_uverbs_pd_idr, uobj);
 
@@ -633,6 +639,10 @@ ssize_t ib_uverbs_dealloc_pd(struct ib_uverbs_file *file,
 	put_uobj(uobj);
 
 	return in_len;
+
+err_put:
+	put_uobj_write(uobj);
+	return ret;
 }
 
 struct xrcd_table_entry {

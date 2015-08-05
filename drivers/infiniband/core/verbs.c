@@ -260,18 +260,32 @@ struct ib_pd *ib_alloc_pd(struct ib_device *device)
 }
 EXPORT_SYMBOL(ib_alloc_pd);
 
-int ib_dealloc_pd(struct ib_pd *pd)
+/**
+ * ib_dealloc_pd - Deallocates a protection domain.
+ * @pd: The protection domain to deallocate.
+ *
+ * It is an error to call this function while any resources in the pd still
+ * exist.  The caller is responsible to synchronously destroy them and
+ * guarantee no new allocations will happen.
+ */
+void ib_dealloc_pd(struct ib_pd *pd)
 {
+	int ret;
+
 	if (pd->local_mr) {
-		if (ib_dereg_mr(pd->local_mr))
-			return -EBUSY;
+		ret = ib_dereg_mr(pd->local_mr);
+		WARN_ON(ret);
 		pd->local_mr = NULL;
 	}
 
-	if (atomic_read(&pd->usecnt))
-		return -EBUSY;
+	/* uverbs manipulates usecnt with proper locking, while the kabi
+	   requires the caller to guarantee we can't race here. */
+	WARN_ON(atomic_read(&pd->usecnt));
 
-	return pd->device->dealloc_pd(pd);
+	/* Making delalloc_pd a void return is a WIP, no driver should return
+	   an error here. */
+	ret = pd->device->dealloc_pd(pd);
+	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
 }
 EXPORT_SYMBOL(ib_dealloc_pd);
 
