@@ -105,8 +105,9 @@ static inline unsigned long zeus_irq_pending(void)
 	return __raw_readw(ZEUS_CPLD_ISA_IRQ) & zeus_irq_enabled_mask;
 }
 
-static void zeus_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void zeus_irq_handler(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq;
 	unsigned long pending;
 
 	pending = zeus_irq_pending();
