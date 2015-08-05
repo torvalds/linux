@@ -202,7 +202,7 @@ void printk_later(const char *format, ...)
 
 }
 
-void dump_logs()
+void dump_logs(void)
 {
 	if (DebugBuffer[0]) {
 		DebugBuffer[DEGUG_BUFFER_LENGTH] = 0;
@@ -216,7 +216,7 @@ void dump_logs()
 	}
 }
 
-void Reset_WatchDogdebugger()
+void Reset_WatchDogdebugger(void)
 {
 	WatchDogdebuggerCounter = 0;
 }

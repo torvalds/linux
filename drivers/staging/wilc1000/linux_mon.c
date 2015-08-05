@@ -558,7 +558,7 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_devi
  *  @date	12 JUL 2012
  *  @version	1.0
  */
-int WILC_WFI_deinit_mon_interface()
+int WILC_WFI_deinit_mon_interface(void)
 {
 	bool rollback_lock = false;
 
