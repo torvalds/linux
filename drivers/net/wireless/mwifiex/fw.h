@@ -685,6 +685,7 @@ struct mwifiex_fw_chan_stats {
 enum mwifiex_chan_scan_mode_bitmasks {
 	MWIFIEX_PASSIVE_SCAN = BIT(0),
 	MWIFIEX_DISABLE_CHAN_FILT = BIT(1),
+	MWIFIEX_HIDDEN_SSID_REPORT = BIT(4),
 };
 
 struct mwifiex_chan_scan_param_set {
