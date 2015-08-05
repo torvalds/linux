@@ -582,7 +582,6 @@ error:
 static struct platform_driver xgene_msi_driver = {
 	.driver = {
 		.name = "xgene-msi",
-		.owner = THIS_MODULE,
 		.of_match_table = xgene_msi_match_table,
 	},
 	.probe = xgene_msi_probe,
