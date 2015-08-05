@@ -1608,6 +1608,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev *pdev;
+	u8 saw_chan_mask = 0;
 	int i;
 
 	for (i = 0; i < sbridge_dev->n_devs; i++) {
@@ -1641,6 +1642,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 		{
 			int id = pdev->device - PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0;
 			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
 		}
 			break;
 		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO:
@@ -1661,10 +1663,8 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 	    !pvt-> pci_tad || !pvt->pci_ras  || !pvt->pci_ta)
 		goto enodev;
 
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		if (!pvt->pci_tad[i])
-			goto enodev;
-	}
+	if (saw_chan_mask != 0x0f)
+		goto enodev;
 	return 0;
 
 enodev:
