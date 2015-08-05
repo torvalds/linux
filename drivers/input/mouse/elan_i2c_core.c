@@ -1185,6 +1185,7 @@ static struct i2c_driver elan_driver = {
 		.pm	= &elan_pm_ops,
 		.acpi_match_table = ACPI_PTR(elan_acpi_id),
 		.of_match_table = of_match_ptr(elan_of_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= elan_probe,
 	.id_table	= elan_id,
