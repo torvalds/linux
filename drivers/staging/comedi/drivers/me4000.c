@@ -939,41 +939,17 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		if (!(tmp & ME4000_AI_STATUS_FF_DATA) &&
 		    !(tmp & ME4000_AI_STATUS_HF_DATA) &&
 		    (tmp & ME4000_AI_STATUS_EF_DATA)) {
-			c = ME4000_AI_FIFO_COUNT;
-
-			/*
-			 * FIFO overflow, so stop conversion
-			 * and disable all interrupts
-			 */
-			tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
-			tmp &= ~(ME4000_AI_CTRL_HF_IRQ |
-				 ME4000_AI_CTRL_SC_IRQ);
-			outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-
-			s->async->events |= COMEDI_CB_ERROR;
-
 			dev_err(dev->class_dev, "FIFO overflow\n");
+			s->async->events |= COMEDI_CB_ERROR;
+			c = ME4000_AI_FIFO_COUNT;
 		} else if ((tmp & ME4000_AI_STATUS_FF_DATA) &&
 			   !(tmp & ME4000_AI_STATUS_HF_DATA) &&
 			   (tmp & ME4000_AI_STATUS_EF_DATA)) {
 			c = ME4000_AI_FIFO_COUNT / 2;
 		} else {
-			dev_err(dev->class_dev,
-				"Can't determine state of fifo\n");
-			c = 0;
-
-			/*
-			 * Undefined state, so stop conversion
-			 * and disable all interrupts
-			 */
-			tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
-			tmp &= ~(ME4000_AI_CTRL_HF_IRQ |
-				 ME4000_AI_CTRL_SC_IRQ);
-			outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-
-			s->async->events |= COMEDI_CB_ERROR;
-
 			dev_err(dev->class_dev, "Undefined FIFO state\n");
+			s->async->events |= COMEDI_CB_ERROR;
+			c = 0;
 		}
 
 		for (i = 0; i < c; i++) {
@@ -981,17 +957,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_write_samples(s, &lval, 1)) {
-				/*
-				 * Buffer overflow, so stop conversion
-				 * and disable all interrupts
-				 */
-				tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
-				tmp &= ~(ME4000_AI_CTRL_HF_IRQ |
-					 ME4000_AI_CTRL_SC_IRQ);
-				outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
+			if (!comedi_buf_write_samples(s, &lval, 1))
 				break;
-			}
 		}
 
 		/* Work is done, so reset the interrupt */
@@ -1003,16 +970,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_SC) {
+		/* Acquisition is complete */
 		s->async->events |= COMEDI_CB_EOA;
-
-		/*
-		 * Acquisition is complete, so stop
-		 * conversion and disable all interrupts
-		 */
-		tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
-		tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
-		tmp &= ~(ME4000_AI_CTRL_HF_IRQ | ME4000_AI_CTRL_SC_IRQ);
-		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 		/* Poll data until fifo empty */
 		while (inl(dev->iobase + ME4000_AI_STATUS_REG) &
@@ -1026,6 +985,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		}
 
 		/* Work is done, so reset the interrupt */
+		tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
 		tmp |= ME4000_AI_CTRL_SC_IRQ_RESET;
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 		tmp &= ~ME4000_AI_CTRL_SC_IRQ_RESET;
