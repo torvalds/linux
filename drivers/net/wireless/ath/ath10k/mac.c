@@ -598,11 +598,19 @@ ath10k_mac_get_any_chandef_iter(struct ieee80211_hw *hw,
 static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr,
 			      enum wmi_peer_type peer_type)
 {
+	struct ath10k_vif *arvif;
+	int num_peers = 0;
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	if (ar->num_peers >= ar->max_num_peers)
+	num_peers = ar->num_peers;
+
+	/* Each vdev consumes a peer entry as well */
+	list_for_each_entry(arvif, &ar->arvifs, list)
+		num_peers++;
+
+	if (num_peers >= ar->max_num_peers)
 		return -ENOBUFS;
 
 	ret = ath10k_wmi_peer_create(ar, vdev_id, addr, peer_type);
@@ -4110,6 +4118,11 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		       sizeof(arvif->bitrate_mask.control[i].ht_mcs));
 		memset(arvif->bitrate_mask.control[i].vht_mcs, 0xff,
 		       sizeof(arvif->bitrate_mask.control[i].vht_mcs));
+	}
+
+	if (ar->num_peers >= ar->max_num_peers) {
+		ath10k_warn(ar, "refusing vdev creation due to insufficient peer entry resources in firmware\n");
+		return -ENOBUFS;
 	}
 
 	if (ar->free_vdev_map == 0) {
