@@ -12784,8 +12784,7 @@ check_crtc_state(struct drm_device *dev)
 	struct intel_crtc_state pipe_config;
 
 	for_each_intel_crtc(dev, crtc) {
-		bool enabled = false;
-		bool active = false;
+		bool active;
 
 		memset(&pipe_config, 0, sizeof(pipe_config));
 
@@ -12794,22 +12793,6 @@ check_crtc_state(struct drm_device *dev)
 
 		I915_STATE_WARN(crtc->active && !crtc->base.state->enable,
 		     "active crtc, but not enabled in sw tracking\n");
-
-		for_each_intel_encoder(dev, encoder) {
-			if (encoder->base.crtc != &crtc->base)
-				continue;
-			enabled = true;
-			if (encoder->connectors_active)
-				active = true;
-		}
-
-		I915_STATE_WARN(active != crtc->active,
-		     "crtc's computed active state doesn't match tracked active state "
-		     "(expected %i, found %i)\n", active, crtc->active);
-		I915_STATE_WARN(enabled != crtc->base.state->enable,
-		     "crtc's computed enabled state doesn't match tracked enabled state "
-		     "(expected %i, found %i)\n", enabled,
-				crtc->base.state->enable);
 
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
