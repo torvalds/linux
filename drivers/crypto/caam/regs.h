@@ -65,9 +65,31 @@
  *
  */
 
+#ifdef CONFIG_ARM
+/* These are common macros for Power, put here for ARM */
+#define setbits32(_addr, _v) writel((readl(_addr) | (_v)), (_addr))
+#define clrbits32(_addr, _v) writel((readl(_addr) & ~(_v)), (_addr))
+
+#define out_arch(type, endian, a, v)	__raw_write##type(cpu_to_##endian(v), a)
+#define in_arch(type, endian, a)	endian##_to_cpu(__raw_read##type(a))
+
+#define out_le32(a, v)	out_arch(l, le32, a, v)
+#define in_le32(a)	in_arch(l, le32, a)
+
+#define out_be32(a, v)	out_arch(l, be32, a, v)
+#define in_be32(a)	in_arch(l, be32, a)
+
+#define clrsetbits(type, addr, clear, set) \
+	out_##type((addr), (in_##type(addr) & ~(clear)) | (set))
+
+#define clrsetbits_be32(addr, clear, set) clrsetbits(be32, addr, clear, set)
+#define clrsetbits_le32(addr, clear, set) clrsetbits(le32, addr, clear, set)
+#endif
+
 #ifdef __BIG_ENDIAN
 #define wr_reg32(reg, data) out_be32(reg, data)
 #define rd_reg32(reg) in_be32(reg)
+#define clrsetbits_32(addr, clear, set) clrsetbits_be32(addr, clear, set)
 #ifdef CONFIG_64BIT
 #define wr_reg64(reg, data) out_be64(reg, data)
 #define rd_reg64(reg) in_be64(reg)
@@ -76,6 +98,7 @@
 #ifdef __LITTLE_ENDIAN
 #define wr_reg32(reg, data) __raw_writel(data, reg)
 #define rd_reg32(reg) __raw_readl(reg)
+#define clrsetbits_32(addr, clear, set) clrsetbits_le32(addr, clear, set)
 #ifdef CONFIG_64BIT
 #define wr_reg64(reg, data) __raw_writeq(data, reg)
 #define rd_reg64(reg) __raw_readq(reg)
