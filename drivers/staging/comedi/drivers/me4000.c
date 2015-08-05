@@ -111,10 +111,7 @@ broken.
 #define ME4000_AI_CTRL_BIT_EX_TRIG_BOTH		(1 << 31)
 #define ME4000_AI_CHANNEL_LIST_REG		0x78
 #define ME4000_AI_LIST_INPUT_DIFFERENTIAL	(1 << 5)
-#define ME4000_AI_LIST_RANGE_BIPOLAR_10		(0 << 6)
-#define ME4000_AI_LIST_RANGE_BIPOLAR_2_5	(1 << 6)
-#define ME4000_AI_LIST_RANGE_UNIPOLAR_10	(2 << 6)
-#define ME4000_AI_LIST_RANGE_UNIPOLAR_2_5	(3 << 6)
+#define ME4000_AI_LIST_RANGE(x)			((3 - ((x) & 3)) << 6)
 #define ME4000_AI_LIST_LAST_ENTRY		(1 << 8)
 #define ME4000_AI_DATA_REG			0x7c
 #define ME4000_AI_CHAN_TIMER_REG		0x80
@@ -301,6 +298,12 @@ static const struct me4000_board me4000_boards[] = {
 	},
 };
 
+/*
+ * NOTE: the ranges here are inverted compared to the values
+ * written to the ME4000_AI_CHANNEL_LIST_REG,
+ *
+ * The ME4000_AI_LIST_RANGE() macro handles the inversion.
+ */
 static const struct comedi_lrange me4000_ai_range = {
 	4, {
 		UNI_RANGE(2.5),
@@ -455,24 +458,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	switch (rang) {
-	case 0:
-		entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_2_5;
-		break;
-	case 1:
-		entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_10;
-		break;
-	case 2:
-		entry |= ME4000_AI_LIST_RANGE_BIPOLAR_2_5;
-		break;
-	case 3:
-		entry |= ME4000_AI_LIST_RANGE_BIPOLAR_10;
-		break;
-	default:
-		dev_err(dev->class_dev, "Invalid range specified\n");
-		return -EINVAL;
-	}
-
+	entry |= ME4000_AI_LIST_RANGE(rang);
 	entry |= chan;
 	if (aref == AREF_DIFF) {
 		if (!(s->subdev_flags && SDF_DIFF)) {
@@ -680,16 +666,7 @@ static int ai_write_chanlist(struct comedi_device *dev,
 		rang = CR_RANGE(cmd->chanlist[i]);
 		aref = CR_AREF(cmd->chanlist[i]);
 
-		entry = chan;
-
-		if (rang == 0)
-			entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_2_5;
-		else if (rang == 1)
-			entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_10;
-		else if (rang == 2)
-			entry |= ME4000_AI_LIST_RANGE_BIPOLAR_2_5;
-		else
-			entry |= ME4000_AI_LIST_RANGE_BIPOLAR_10;
+		entry = chan | ME4000_AI_LIST_RANGE(rang);
 
 		if (aref == AREF_DIFF)
 			entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
