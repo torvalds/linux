@@ -81,11 +81,9 @@ struct exynos_drm_plane {
  *	- this structure is common to analog tv, digital tv and lcd panel.
  *
  * @create_connector: initialize and register a new connector
- * @remove: cleans up the display for removal
  * @mode_fixup: fix mode data comparing to hw specific display mode.
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
- * @check_mode: check if mode is valid or not.
  * @enable: display device on.
  * @disable: display device off.
  * @commit: apply changes to hw
@@ -94,14 +92,11 @@ struct exynos_drm_display;
 struct exynos_drm_display_ops {
 	int (*create_connector)(struct exynos_drm_display *display,
 				struct drm_encoder *encoder);
-	void (*remove)(struct exynos_drm_display *display);
 	void (*mode_fixup)(struct exynos_drm_display *display,
 				struct drm_connector *connector,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
 	void (*mode_set)(struct exynos_drm_display *display,
-				struct drm_display_mode *mode);
-	int (*check_mode)(struct exynos_drm_display *display,
 				struct drm_display_mode *mode);
 	void (*enable)(struct exynos_drm_display *display);
 	void (*disable)(struct exynos_drm_display *display);
