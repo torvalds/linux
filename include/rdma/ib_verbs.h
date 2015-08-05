@@ -1257,9 +1257,11 @@ struct ib_udata {
 };
 
 struct ib_pd {
+	u32			local_dma_lkey;
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
 	atomic_t          	usecnt; /* count all resources */
+	struct ib_mr	       *local_mr;
 };
 
 struct ib_xrcd {
@@ -2192,13 +2194,6 @@ int ib_find_gid(struct ib_device *device, union ib_gid *gid,
 int ib_find_pkey(struct ib_device *device,
 		 u8 port_num, u16 pkey, u16 *index);
 
-/**
- * ib_alloc_pd - Allocates an unused protection domain.
- * @device: The device on which to allocate the protection domain.
- *
- * A protection domain object provides an association between QPs, shared
- * receive queues, address handles, memory regions, and memory windows.
- */
 struct ib_pd *ib_alloc_pd(struct ib_device *device);
 
 /**
