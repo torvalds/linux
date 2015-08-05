@@ -46,6 +46,7 @@
 #include <linux/of_platform.h>
 #include <linux/efi.h>
 #include <linux/personality.h>
+#include <linux/psci.h>
 
 #include <asm/acpi.h>
 #include <asm/fixmap.h>
@@ -61,7 +62,6 @@
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
 #include <asm/memblock.h>
-#include <asm/psci.h>
 #include <asm/efi.h>
 #include <asm/xen/hypervisor.h>
 
