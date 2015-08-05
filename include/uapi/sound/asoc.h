@@ -163,9 +163,11 @@ struct snd_soc_tplg_channel {
 } __attribute__((packed));
 
 /*
- * Kcontrol Operations IDs
+ * Genericl Operations IDs, for binding Kcontrol or Bytes ext ops
+ * Kcontrol ops need get/put/info.
+ * Bytes ext ops need get/put.
  */
-struct snd_soc_tplg_kcontrol_ops_id {
+struct snd_soc_tplg_io_ops {
 	__le32 get;
 	__le32 put;
 	__le32 info;
@@ -179,7 +181,7 @@ struct snd_soc_tplg_ctl_hdr {
 	__le32 type;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	__le32 access;
-	struct snd_soc_tplg_kcontrol_ops_id ops;
+	struct snd_soc_tplg_io_ops ops;
 	struct snd_soc_tplg_ctl_tlv tlv;
 } __attribute__((packed));
 
@@ -311,6 +313,7 @@ struct snd_soc_tplg_bytes_control {
 	__le32 mask;
 	__le32 base;
 	__le32 num_regs;
+	struct snd_soc_tplg_io_ops ext_ops;
 	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
