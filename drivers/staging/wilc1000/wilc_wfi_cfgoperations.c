@@ -1676,7 +1676,7 @@ static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
 		 * kernel version 3.0.0
 		 */
 		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL) |
-						BIT( NL80211_STA_INFO_RX_PACKETS) |
+						BIT(NL80211_STA_INFO_RX_PACKETS) |
 						BIT(NL80211_STA_INFO_TX_PACKETS) |
 						BIT(NL80211_STA_INFO_TX_FAILED) |
 						BIT(NL80211_STA_INFO_TX_BITRATE);
