@@ -3335,6 +3335,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 	int vdev_id;
 	int ret;
 	unsigned long time_left;
+	bool tmp_peer_created = false;
 
 	/* FW requirement: We must create a peer before FW will send out
 	 * an offchannel frame. Otherwise the frame will be stuck and
@@ -3372,6 +3373,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 			if (ret)
 				ath10k_warn(ar, "failed to create peer %pM on vdev %d: %d\n",
 					    peer_addr, vdev_id, ret);
+			tmp_peer_created = (ret == 0);
 		}
 
 		spin_lock_bh(&ar->data_lock);
@@ -3387,7 +3389,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 			ath10k_warn(ar, "timed out waiting for offchannel skb %p\n",
 				    skb);
 
-		if (!peer) {
+		if (!peer && tmp_peer_created) {
 			ret = ath10k_peer_delete(ar, vdev_id, peer_addr);
 			if (ret)
 				ath10k_warn(ar, "failed to delete peer %pM on vdev %d: %d\n",
