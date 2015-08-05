@@ -352,7 +352,7 @@ char internal_stack[INTERNAL_STACK_SIZE];
    breakpoint to be handled. A static breakpoint uses the content of register
    BRP as it is whereas a dynamic breakpoint requires subtraction with 2
    in order to execute the instruction. The first breakpoint is static. */
-static unsigned char is_dyn_brkp = 0;
+static unsigned char __used is_dyn_brkp;
 
 /********************************* String library ****************************/
 /* Single-step over library functions creates trap loops. */
