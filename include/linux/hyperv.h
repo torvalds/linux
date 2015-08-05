@@ -699,6 +699,7 @@ struct vmbus_channel {
 	/*
 	 * State to manage the CPU affiliation of channels.
 	 */
+	struct cpumask alloced_cpus_in_node;
 	int numa_node;
 	/*
 	 * Support for sub-channels. For high performance devices,

@@ -448,8 +448,24 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 	cpumask_xor(&available_mask, alloced_mask,
 		    cpumask_of_node(primary->numa_node));
 
-	cur_cpu = cpumask_next(-1, &available_mask);
-	cpumask_set_cpu(cur_cpu, alloced_mask);
+	cur_cpu = -1;
+	while (true) {
+		cur_cpu = cpumask_next(cur_cpu, &available_mask);
+		if (cur_cpu >= nr_cpu_ids) {
+			cur_cpu = -1;
+			cpumask_copy(&available_mask,
+				     cpumask_of_node(primary->numa_node));
+			continue;
+		}
+
+		if (!cpumask_test_cpu(cur_cpu,
+				&primary->alloced_cpus_in_node)) {
+			cpumask_set_cpu(cur_cpu,
+					&primary->alloced_cpus_in_node);
+			cpumask_set_cpu(cur_cpu, alloced_mask);
+			break;
+		}
+	}
 
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_context.vp_index[cur_cpu];
