@@ -1013,9 +1013,9 @@ struct amdgpu_vm_manager {
 #define AMDGPU_CTX_MAX_CS_PENDING	16
 
 struct amdgpu_ctx_ring {
-	uint64_t	sequence;
-	struct fence	*fences[AMDGPU_CTX_MAX_CS_PENDING];
-	struct amd_context_entity c_entity;
+	uint64_t		sequence;
+	struct fence		*fences[AMDGPU_CTX_MAX_CS_PENDING];
+	struct amd_sched_entity	entity;
 };
 
 struct amdgpu_ctx {

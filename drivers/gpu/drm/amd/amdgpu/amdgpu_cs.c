@@ -900,7 +900,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		struct amdgpu_ring * ring =
 			amdgpu_cs_parser_get_ring(adev, parser);
 		parser->ibs[parser->num_ibs - 1].sequence = atomic64_inc_return(
-			&parser->ctx->rings[ring->idx].c_entity.last_queued_v_seq);
+			&parser->ctx->rings[ring->idx].entity.last_queued_v_seq);
 		if (ring->is_pte_ring || (parser->bo_list && parser->bo_list->has_userptr)) {
 			r = amdgpu_cs_parser_prepare_job(parser);
 			if (r)
@@ -911,7 +911,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		parser->run_job = amdgpu_cs_parser_run_job;
 		parser->free_job = amdgpu_cs_parser_free_job;
 		amd_sched_push_job(ring->scheduler,
-				   &parser->ctx->rings[ring->idx].c_entity,
+				   &parser->ctx->rings[ring->idx].entity,
 				   parser);
 		cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
 		up_read(&adev->exclusive_lock);

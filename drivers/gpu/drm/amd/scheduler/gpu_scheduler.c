@@ -76,7 +76,7 @@ static struct amd_sched_entity *rq_select_entity(struct amd_run_queue *rq)
 	return i ? p : NULL;
 }
 
-static bool context_entity_is_waiting(struct amd_context_entity *entity)
+static bool context_entity_is_waiting(struct amd_sched_entity *entity)
 {
 	/* TODO: sync obj for multi-ring synchronization */
 	return false;
@@ -84,14 +84,11 @@ static bool context_entity_is_waiting(struct amd_context_entity *entity)
 
 static int gpu_entity_check_status(struct amd_sched_entity *entity)
 {
-	struct amd_context_entity *tmp;
-
 	if (entity == &entity->belongto_rq->head)
 		return -1;
 
-	tmp = container_of(entity, typeof(*tmp), generic_entity);
-	if (kfifo_is_empty(&tmp->job_queue) ||
-	    context_entity_is_waiting(tmp))
+	if (kfifo_is_empty(&entity->job_queue) ||
+	    context_entity_is_waiting(entity))
 		return -1;
 
 	return 0;
@@ -123,31 +120,26 @@ static bool is_scheduler_ready(struct amd_gpu_scheduler *sched)
  * Select next entity from the kernel run queue, if not available,
  * return null.
 */
-static struct amd_context_entity *
+static struct amd_sched_entity *
 kernel_rq_select_context(struct amd_gpu_scheduler *sched)
 {
 	struct amd_sched_entity *sched_entity;
-	struct amd_context_entity *tmp = NULL;
 	struct amd_run_queue *rq = &sched->kernel_rq;
 
 	mutex_lock(&rq->lock);
 	sched_entity = rq_select_entity(rq);
-	if (sched_entity)
-		tmp = container_of(sched_entity,
-				   typeof(*tmp),
-				   generic_entity);
 	mutex_unlock(&rq->lock);
-	return tmp;
+	return sched_entity;
 }
 
 /**
  * Select next entity containing real IB submissions
 */
-static struct amd_context_entity *
+static struct amd_sched_entity *
 select_context(struct amd_gpu_scheduler *sched)
 {
-	struct amd_context_entity *wake_entity = NULL;
-	struct amd_context_entity *tmp;
+	struct amd_sched_entity *wake_entity = NULL;
+	struct amd_sched_entity *tmp;
 	struct amd_run_queue *rq;
 
 	if (!is_scheduler_ready(sched))
@@ -158,12 +150,9 @@ select_context(struct amd_gpu_scheduler *sched)
 	if (tmp != NULL)
 		goto exit;
 
-	WARN_ON(offsetof(struct amd_context_entity, generic_entity) != 0);
-
 	rq = &sched->sched_rq;
 	mutex_lock(&rq->lock);
-	tmp = container_of(rq_select_entity(rq),
-			   typeof(*tmp), generic_entity);
+	tmp = rq_select_entity(rq);
 	mutex_unlock(&rq->lock);
 exit:
 	if (sched->current_entity && (sched->current_entity != tmp))
@@ -178,15 +167,15 @@ exit:
  * Init a context entity used by scheduler when submit to HW ring.
  *
  * @sched	The pointer to the scheduler
- * @entity	The pointer to a valid amd_context_entity
+ * @entity	The pointer to a valid amd_sched_entity
  * @rq		The run queue this entity belongs
  * @kernel	If this is an entity for the kernel
  * @jobs	The max number of jobs in the job queue
  *
  * return 0 if succeed. negative error code on failure
 */
-int amd_context_entity_init(struct amd_gpu_scheduler *sched,
-			    struct amd_context_entity *entity,
+int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
+			    struct amd_sched_entity *entity,
 			    struct amd_run_queue *rq,
 			    uint32_t jobs)
 {
@@ -195,10 +184,10 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 	if (!(sched && entity && rq))
 		return -EINVAL;
 
-	memset(entity, 0, sizeof(struct amd_context_entity));
+	memset(entity, 0, sizeof(struct amd_sched_entity));
 	seq_ring = ((uint64_t)sched->ring_id) << 60;
 	spin_lock_init(&entity->lock);
-	entity->generic_entity.belongto_rq = rq;
+	entity->belongto_rq = rq;
 	entity->scheduler = sched;
 	init_waitqueue_head(&entity->wait_queue);
 	init_waitqueue_head(&entity->wait_emit);
@@ -213,7 +202,7 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
 
 	/* Add the entity to the run queue */
 	mutex_lock(&rq->lock);
-	rq_add_entity(rq, &entity->generic_entity);
+	rq_add_entity(rq, entity);
 	mutex_unlock(&rq->lock);
 	return 0;
 }
@@ -227,14 +216,14 @@ int amd_context_entity_init(struct amd_gpu_scheduler *sched,
  * return true if entity is initialized, false otherwise
 */
 static bool is_context_entity_initialized(struct amd_gpu_scheduler *sched,
-					  struct amd_context_entity *entity)
+					  struct amd_sched_entity *entity)
 {
 	return entity->scheduler == sched &&
-		entity->generic_entity.belongto_rq != NULL;
+		entity->belongto_rq != NULL;
 }
 
 static bool is_context_entity_idle(struct amd_gpu_scheduler *sched,
-				   struct amd_context_entity *entity)
+				   struct amd_sched_entity *entity)
 {
 	/**
 	 * Idle means no pending IBs, and the entity is not
@@ -256,11 +245,11 @@ static bool is_context_entity_idle(struct amd_gpu_scheduler *sched,
  *
  * return 0 if succeed. negative error code on failure
  */
-int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
-			    struct amd_context_entity *entity)
+int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
+			    struct amd_sched_entity *entity)
 {
 	int r = 0;
-	struct amd_run_queue *rq = entity->generic_entity.belongto_rq;
+	struct amd_run_queue *rq = entity->belongto_rq;
 
 	if (!is_context_entity_initialized(sched, entity))
 		return 0;
@@ -283,7 +272,7 @@ int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
 	}
 
 	mutex_lock(&rq->lock);
-	rq_remove_entity(rq, &entity->generic_entity);
+	rq_remove_entity(rq, entity);
 	mutex_unlock(&rq->lock);
 	kfifo_free(&entity->job_queue);
 	return r;
@@ -293,7 +282,7 @@ int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
  * Submit a normal job to the job queue
  *
  * @sched	The pointer to the scheduler
- * @c_entity    The pointer to amd_context_entity
+ * @c_entity    The pointer to amd_sched_entity
  * @job		The pointer to job required to submit
  * return 0 if succeed. -1 if failed.
  *        -2 indicate queue is full for this client, client should wait untill
@@ -301,7 +290,7 @@ int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
  *	  -1 other fail.
 */
 int amd_sched_push_job(struct amd_gpu_scheduler *sched,
-		       struct amd_context_entity *c_entity,
+		       struct amd_sched_entity *c_entity,
 		       void *job)
 {
 	while (kfifo_in_spinlocked(&c_entity->job_queue, &job, sizeof(void *),
@@ -328,7 +317,7 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
  *
  * return =0 signaled ,  <0 failed
 */
-int amd_sched_wait_emit(struct amd_context_entity *c_entity,
+int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
 			uint64_t seq,
 			bool intr,
 			long timeout)
@@ -369,7 +358,7 @@ static int amd_sched_main(void *param)
 	int r;
 	void *job;
 	struct sched_param sparam = {.sched_priority = 1};
-	struct amd_context_entity *c_entity = NULL;
+	struct amd_sched_entity *c_entity = NULL;
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
 
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
@@ -505,7 +494,7 @@ int amd_sched_destroy(struct amd_gpu_scheduler *sched)
  * @entity The context entity
  * @seq The sequence number for the latest emitted job
 */
-void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq)
+void amd_sched_emit(struct amd_sched_entity *c_entity, uint64_t seq)
 {
 	atomic64_set(&c_entity->last_emitted_v_seq, seq);
 	wake_up_all(&c_entity->wait_emit);
@@ -518,7 +507,7 @@ void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq)
  *
  * return the next queued sequence number
 */
-uint64_t amd_sched_next_queued_seq(struct amd_context_entity *c_entity)
+uint64_t amd_sched_next_queued_seq(struct amd_sched_entity *c_entity)
 {
 	return atomic64_read(&c_entity->last_queued_v_seq) + 1;
 }

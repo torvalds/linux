@@ -41,6 +41,17 @@ struct amd_run_queue;
 struct amd_sched_entity {
 	struct list_head		list;
 	struct amd_run_queue		*belongto_rq;
+	spinlock_t			lock;
+	/* the virtual_seq is unique per context per ring */
+	atomic64_t			last_queued_v_seq;
+	atomic64_t			last_emitted_v_seq;
+	/* the job_queue maintains the jobs submitted by clients */
+	struct kfifo                    job_queue;
+	spinlock_t			queue_lock;
+	struct amd_gpu_scheduler	*scheduler;
+	wait_queue_head_t		wait_queue;
+	wait_queue_head_t		wait_emit;
+	bool                            is_pending;
 };
 
 /**
@@ -61,25 +72,6 @@ struct amd_run_queue {
 	int (*check_entity_status)(struct amd_sched_entity *entity);
 };
 
-/**
- * Context based scheduler entity, there can be multiple entities for
- * each context, and one entity per ring
-*/
-struct amd_context_entity {
-	struct amd_sched_entity	        generic_entity;
-	spinlock_t			lock;
-	/* the virtual_seq is unique per context per ring */
-	atomic64_t			last_queued_v_seq;
-	atomic64_t			last_emitted_v_seq;
-	/* the job_queue maintains the jobs submitted by clients */
-	struct kfifo                    job_queue;
-	spinlock_t			queue_lock;
-	struct amd_gpu_scheduler	*scheduler;
-	wait_queue_head_t		wait_queue;
-	wait_queue_head_t		wait_emit;
-	bool                            is_pending;
-};
-
 struct amd_sched_job {
 	struct list_head		list;
 	struct fence_cb                 cb;
@@ -93,10 +85,10 @@ struct amd_sched_job {
 */
 struct amd_sched_backend_ops {
 	int (*prepare_job)(struct amd_gpu_scheduler *sched,
-			   struct amd_context_entity *c_entity,
+			   struct amd_sched_entity *c_entity,
 			   void *job);
 	void (*run_job)(struct amd_gpu_scheduler *sched,
-			struct amd_context_entity *c_entity,
+			struct amd_sched_entity *c_entity,
 			struct amd_sched_job *job);
 	void (*process_job)(struct amd_gpu_scheduler *sched, void *job);
 };
@@ -116,7 +108,7 @@ struct amd_gpu_scheduler {
 	uint32_t			granularity; /* in ms unit */
 	uint32_t			preemption;
 	wait_queue_head_t		wait_queue;
-	struct amd_context_entity	*current_entity;
+	struct amd_sched_entity	*current_entity;
 	struct mutex			sched_lock;
 	spinlock_t			queue_lock;
 	uint32_t                        hw_submission_limit;
@@ -132,10 +124,10 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 int amd_sched_destroy(struct amd_gpu_scheduler *sched);
 
 int amd_sched_push_job(struct amd_gpu_scheduler *sched,
-		       struct amd_context_entity *c_entity,
+		       struct amd_sched_entity *c_entity,
 		       void *job);
 
-int amd_sched_wait_emit(struct amd_context_entity *c_entity,
+int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
 			uint64_t seq,
 			bool intr,
 			long timeout);
@@ -143,16 +135,15 @@ int amd_sched_wait_emit(struct amd_context_entity *c_entity,
 void amd_sched_process_job(struct amd_sched_job *sched_job);
 uint64_t amd_sched_get_handled_seq(struct amd_gpu_scheduler *sched);
 
-int amd_context_entity_fini(struct amd_gpu_scheduler *sched,
-			    struct amd_context_entity *entity);
+int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
+			  struct amd_sched_entity *entity,
+			  struct amd_run_queue *rq,
+			  uint32_t jobs);
+int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
+			  struct amd_sched_entity *entity);
 
-int amd_context_entity_init(struct amd_gpu_scheduler *sched,
-			    struct amd_context_entity *entity,
-			    struct amd_run_queue *rq,
-			    uint32_t jobs);
+void amd_sched_emit(struct amd_sched_entity *c_entity, uint64_t seq);
 
-void amd_sched_emit(struct amd_context_entity *c_entity, uint64_t seq);
-
-uint64_t amd_sched_next_queued_seq(struct amd_context_entity *c_entity);
+uint64_t amd_sched_next_queued_seq(struct amd_sched_entity *c_entity);
 
 #endif

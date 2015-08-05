@@ -28,7 +28,7 @@
 #include "amdgpu.h"
 
 static int amdgpu_sched_prepare_job(struct amd_gpu_scheduler *sched,
-				    struct amd_context_entity *c_entity,
+				    struct amd_sched_entity *entity,
 				    void *job)
 {
 	int r = 0;
@@ -51,7 +51,7 @@ static void amdgpu_fence_sched_cb(struct fence *f, struct fence_cb *cb)
 }
 
 static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
-				 struct amd_context_entity *c_entity,
+				 struct amd_sched_entity *entity,
 				 struct amd_sched_job *job)
 {
 	int r = 0;
@@ -83,7 +83,7 @@ static void amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 			goto err;
 	}
 
-	amd_sched_emit(c_entity, sched_job->ibs[sched_job->num_ibs - 1].sequence);
+	amd_sched_emit(entity, sched_job->ibs[sched_job->num_ibs - 1].sequence);
 
 	mutex_unlock(&sched_job->job_lock);
 	return;
@@ -136,13 +136,13 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			return -ENOMEM;
 		}
 		sched_job->free_job = free_job;
-		v_seq = atomic64_inc_return(&adev->kernel_ctx.rings[ring->idx].c_entity.last_queued_v_seq);
+		v_seq = atomic64_inc_return(&adev->kernel_ctx.rings[ring->idx].entity.last_queued_v_seq);
 		ibs[num_ibs - 1].sequence = v_seq;
 		amd_sched_push_job(ring->scheduler,
-				   &adev->kernel_ctx.rings[ring->idx].c_entity,
+				   &adev->kernel_ctx.rings[ring->idx].entity,
 				   sched_job);
 		r = amd_sched_wait_emit(
-			&adev->kernel_ctx.rings[ring->idx].c_entity,
+			&adev->kernel_ctx.rings[ring->idx].entity,
 			v_seq,
 			false,
 			-1);

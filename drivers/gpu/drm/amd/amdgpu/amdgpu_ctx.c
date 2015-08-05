@@ -46,17 +46,17 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
 				rq = &adev->rings[i]->scheduler->kernel_rq;
 			else
 				rq = &adev->rings[i]->scheduler->sched_rq;
-			r = amd_context_entity_init(adev->rings[i]->scheduler,
-						    &ctx->rings[i].c_entity,
-						    rq, amdgpu_sched_jobs);
+			r = amd_sched_entity_init(adev->rings[i]->scheduler,
+						  &ctx->rings[i].entity,
+						  rq, amdgpu_sched_jobs);
 			if (r)
 				break;
 		}
 
 		if (i < adev->num_rings) {
 			for (j = 0; j < i; j++)
-				amd_context_entity_fini(adev->rings[j]->scheduler,
-							&ctx->rings[j].c_entity);
+				amd_sched_entity_fini(adev->rings[j]->scheduler,
+						      &ctx->rings[j].entity);
 			kfree(ctx);
 			return r;
 		}
@@ -75,8 +75,8 @@ void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 
 	if (amdgpu_enable_scheduler) {
 		for (i = 0; i < adev->num_rings; i++)
-			amd_context_entity_fini(adev->rings[i]->scheduler,
-						&ctx->rings[i].c_entity);
+			amd_sched_entity_fini(adev->rings[i]->scheduler,
+					      &ctx->rings[i].entity);
 	}
 }
 
@@ -271,7 +271,7 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 	int r;
 
 	if (amdgpu_enable_scheduler) {
-		r = amd_sched_wait_emit(&cring->c_entity,
+		r = amd_sched_wait_emit(&cring->entity,
 					seq,
 					false,
 					-1);
@@ -281,7 +281,7 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 
 	spin_lock(&ctx->ring_lock);
 	if (amdgpu_enable_scheduler)
-		queued_seq = amd_sched_next_queued_seq(&cring->c_entity);
+		queued_seq = amd_sched_next_queued_seq(&cring->entity);
 	else
 		queued_seq = cring->sequence;
 
