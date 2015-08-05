@@ -829,7 +829,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 		state->buf_dma = try_buf_map_to_sec4_sg(jrdev,
 							edesc->sec4_sg + 1,
 							buf, state->buf_dma,
-							*buflen, last_buflen);
+							*next_buflen, *buflen);
 
 		if (src_nents) {
 			src_map_to_sec4_sg(jrdev, req->src, src_nents,
