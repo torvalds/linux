@@ -1390,7 +1390,7 @@ static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
 		.max_pages_per_fmr = LNET_MAX_PAYLOAD/PAGE_SIZE,
 		.page_shift        = PAGE_SHIFT,
 		.access            = (IB_ACCESS_LOCAL_WRITE |
-		                      IB_ACCESS_REMOTE_WRITE),
+				      IB_ACCESS_REMOTE_WRITE),
 		.pool_size         = fps->fps_pool_size,
 		.dirty_watermark   = fps->fps_flush_trigger,
 		.flush_function    = NULL,
