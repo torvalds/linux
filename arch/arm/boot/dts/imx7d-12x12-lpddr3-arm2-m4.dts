@@ -1,0 +1,64 @@
+
+#include "imx7d-12x12-lpddr3-arm2.dts"
+
+/ {
+	memory {
+		linux,usable-memory = <0x80000000 0x3ff00000>;
+	};
+};
+
+&adc1 {
+	status = "disabled";
+};
+
+&adc2 {
+	status = "disabled";
+};
+
+
+&i2c1 {
+	status = "disabled";
+};
+
+&flexcan1 {
+	status = "disabled";
+};
+
+&flexcan2 {
+	status = "disabled";
+};
+
+&iomuxc {
+	imx7d-12x12-lpddr3-arm2 {
+		pinctrl_uart2_1: uart2grp-1 {
+			fsl,pins = <
+				MX7D_PAD_UART2_RX_DATA__UART2_DCE_RX 	0x79
+				MX7D_PAD_UART2_TX_DATA__UART2_DCE_TX 	0x79
+			>;
+		};
+	};
+};
+
+&gpt3 {
+	status = "disabled";
+};
+
+&gpt4 {
+	status = "disabled";
+};
+
+&rpmsg{
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_1>;
+	assigned-clocks = <&clks IMX7D_UART2_ROOT_SRC>;
+	assigned-clock-parents = <&clks IMX7D_OSC_24M_CLK>;
+	status = "okay";
+};
+
+&wdog3{
+	status = "disabled";
+};

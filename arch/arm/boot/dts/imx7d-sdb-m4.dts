@@ -1,0 +1,71 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx7d-sdb.dts"
+
+/ {
+	memory {
+		linux,usable-memory = <0x80000000 0x3ff00000>;
+		reg = <0x80000000 0x80000000>;
+	};
+};
+
+&adc1 {
+	status = "disabled";
+};
+
+&adc2 {
+	status = "disabled";
+};
+
+&flexcan1 {
+	status = "disabled";
+};
+
+&flexcan2 {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&iomuxc {
+	imx7d-sdb {
+		pinctrl_uart2_1: uart2grp-1 {
+			fsl,pins = <
+				MX7D_PAD_UART2_RX_DATA__UART2_DCE_RX    0x79
+				MX7D_PAD_UART2_TX_DATA__UART2_DCE_TX    0x79
+			>;
+		};
+	};
+};
+
+&gpt3 {
+	status = "disabled";
+};
+
+&gpt4 {
+	status = "disabled";
+};
+
+&rpmsg{
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_1>;
+	assigned-clocks = <&clks IMX7D_UART2_ROOT_SRC>;
+	assigned-clock-parents = <&clks IMX7D_OSC_24M_CLK>;
+	status = "okay";
+};
+
+&wdog3{
+	status = "disabled";
+};
