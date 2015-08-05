@@ -64,6 +64,7 @@ static struct amd_sched_entity *rq_select_entity(struct amd_run_queue *rq)
 {
 	struct amd_sched_entity *p = rq->current_entity;
 	int i = atomic_read(&rq->nr_entity) + 1; /*real count + dummy head*/
+
 	while (i) {
 		p = list_entry(p->list.next, typeof(*p), list);
 		if (!rq->check_entity_status(p)) {
@@ -83,7 +84,7 @@ static bool context_entity_is_waiting(struct amd_context_entity *entity)
 
 static int gpu_entity_check_status(struct amd_sched_entity *entity)
 {
-	struct amd_context_entity *tmp = NULL;
+	struct amd_context_entity *tmp;
 
 	if (entity == &entity->belongto_rq->head)
 		return -1;
@@ -109,6 +110,7 @@ static bool is_scheduler_ready(struct amd_gpu_scheduler *sched)
 {
 	unsigned long flags;
 	bool full;
+
 	spin_lock_irqsave(&sched->queue_lock, flags);
 	full = atomic64_read(&sched->hw_rq_count) <
 		sched->hw_submission_limit ? true : false;
@@ -121,10 +123,10 @@ static bool is_scheduler_ready(struct amd_gpu_scheduler *sched)
  * Select next entity from the kernel run queue, if not available,
  * return null.
 */
-static struct amd_context_entity *kernel_rq_select_context(
-	struct amd_gpu_scheduler *sched)
+static struct amd_context_entity *
+kernel_rq_select_context(struct amd_gpu_scheduler *sched)
 {
-	struct amd_sched_entity *sched_entity = NULL;
+	struct amd_sched_entity *sched_entity;
 	struct amd_context_entity *tmp = NULL;
 	struct amd_run_queue *rq = &sched->kernel_rq;
 
@@ -141,8 +143,8 @@ static struct amd_context_entity *kernel_rq_select_context(
 /**
  * Select next entity containing real IB submissions
 */
-static struct amd_context_entity *select_context(
-	struct amd_gpu_scheduler *sched)
+static struct amd_context_entity *
+select_context(struct amd_gpu_scheduler *sched)
 {
 	struct amd_context_entity *wake_entity = NULL;
 	struct amd_context_entity *tmp;
@@ -413,6 +415,7 @@ void amd_sched_process_job(struct amd_sched_job *sched_job)
 {
 	unsigned long flags;
 	struct amd_gpu_scheduler *sched;
+
 	if (!sched_job)
 		return;
 	sched = sched_job->sched;
@@ -445,7 +448,7 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 					   unsigned hw_submission)
 {
 	struct amd_gpu_scheduler *sched;
-	char name[20] = "gpu_sched[0]";
+	char name[20];
 
 	sched = kzalloc(sizeof(struct amd_gpu_scheduler), GFP_KERNEL);
 	if (!sched)

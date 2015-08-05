@@ -528,15 +528,13 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
        amdgpu_cs_parser_fini_late(parser);
 }
 
-static int amdgpu_cs_parser_run_job(
-	struct amdgpu_cs_parser *sched_job)
+static int amdgpu_cs_parser_run_job(struct amdgpu_cs_parser *sched_job)
 {
        amdgpu_cs_parser_fini_early(sched_job, 0, true);
        return 0;
 }
 
-static int amdgpu_cs_parser_free_job(
-	struct amdgpu_cs_parser *sched_job)
+static int amdgpu_cs_parser_free_job(struct amdgpu_cs_parser *sched_job)
 {
        amdgpu_cs_parser_fini_late(sched_job);
        return 0;
