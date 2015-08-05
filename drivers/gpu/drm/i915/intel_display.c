@@ -12198,26 +12198,11 @@ static bool intel_crtc_in_use(struct drm_crtc *crtc)
 static void
 intel_modeset_update_state(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
-	struct intel_encoder *intel_encoder;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_connector *connector;
 	int i;
 
 	intel_shared_dpll_commit(state);
-
-	for_each_intel_encoder(dev, intel_encoder) {
-		if (!intel_encoder->base.crtc)
-			continue;
-
-		crtc = intel_encoder->base.crtc;
-		crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
-		if (!crtc_state || !needs_modeset(crtc->state))
-			continue;
-
-		intel_encoder->connectors_active = false;
-	}
 
 	drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
@@ -12232,21 +12217,6 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 			crtc->hwmode = crtc->state->adjusted_mode;
 		else
 			crtc->hwmode.crtc_clock = 0;
-	}
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder || !connector->encoder->crtc)
-			continue;
-
-		crtc = connector->encoder->crtc;
-		crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
-		if (!crtc_state || !needs_modeset(crtc->state))
-			continue;
-
-		if (crtc->state->active) {
-			intel_encoder = to_intel_encoder(connector->encoder);
-			intel_encoder->connectors_active = true;
-		}
 	}
 }
 
@@ -14968,10 +14938,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 *  actually up, hence no need to break them. */
 		WARN_ON(crtc->active);
 
-		for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
-			WARN_ON(encoder->connectors_active);
+		for_each_encoder_on_crtc(dev, &crtc->base, encoder)
 			encoder->base.crtc = NULL;
-		}
 	}
 
 	if (crtc->active || HAS_GMCH_DISPLAY(dev)) {
@@ -15030,7 +14998,6 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 				encoder->post_disable(encoder);
 		}
 		encoder->base.crtc = NULL;
-		encoder->connectors_active = false;
 
 		/* Inconsistent output/port/pipe state happens presumably due to
 		 * a bug in one of the get_hw_state functions. Or someplace else
@@ -15192,7 +15159,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			encoder->base.crtc = NULL;
 		}
 
-		encoder->connectors_active = false;
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] hw state readout: %s, pipe %c\n",
 			      encoder->base.base.id,
 			      encoder->base.name,
@@ -15203,7 +15169,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	for_each_intel_connector(dev, connector) {
 		if (connector->get_hw_state(connector)) {
 			connector->base.dpms = DRM_MODE_DPMS_ON;
-			connector->encoder->connectors_active = true;
 			connector->base.encoder = &connector->encoder->base;
 		} else {
 			connector->base.dpms = DRM_MODE_DPMS_OFF;

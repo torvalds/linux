@@ -133,7 +133,6 @@ struct intel_encoder {
 
 	enum intel_output_type type;
 	unsigned int cloneable;
-	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
 	bool (*compute_config)(struct intel_encoder *,
 			       struct intel_crtc_state *);
