@@ -744,6 +744,11 @@ static size_t syscall_arg__scnprintf_access_mode(char *bf, size_t size,
 
 #define SCA_ACCMODE syscall_arg__scnprintf_access_mode
 
+static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
+					      struct syscall_arg *arg);
+
+#define SCA_FILENAME syscall_arg__scnprintf_filename
+
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 					       struct syscall_arg *arg)
 {
@@ -1088,7 +1093,8 @@ static struct syscall_fmt {
 	{ .name	    = "newfstatat", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */ }, },
 	{ .name	    = "open",	    .errmsg = true,
-	  .arg_scnprintf = { [1] = SCA_OPEN_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FILENAME,   /* filename */
+			     [1] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "open_by_handle_at", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* dfd */
 			     [2] = SCA_OPEN_FLAGS, /* flags */ }, },
@@ -1208,6 +1214,11 @@ static size_t fprintf_duration(unsigned long t, FILE *fp)
 	return printed + fprintf(fp, "): ");
 }
 
+/**
+ * filename.ptr: The filename char pointer that will be vfs_getname'd
+ * filename.entry_str_pos: Where to insert the string translated from
+ *                         filename.ptr by the vfs_getname tracepoint/kprobe.
+ */
 struct thread_trace {
 	u64		  entry_time;
 	u64		  exit_time;
@@ -1216,6 +1227,10 @@ struct thread_trace {
 	unsigned long	  pfmaj, pfmin;
 	char		  *entry_str;
 	double		  runtime_ms;
+        struct {
+		unsigned long ptr;
+		int           entry_str_pos;
+	} filename;
 	struct {
 		int	  max;
 		char	  **table;
@@ -1416,6 +1431,27 @@ static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 		zfree(&ttrace->paths.table[fd]);
 
 	return printed;
+}
+
+static void thread__set_filename_pos(struct thread *thread, const char *bf,
+				     unsigned long ptr)
+{
+	struct thread_trace *ttrace = thread__priv(thread);
+
+	ttrace->filename.ptr = ptr;
+	ttrace->filename.entry_str_pos = bf - ttrace->entry_str;
+}
+
+static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
+					      struct syscall_arg *arg)
+{
+	unsigned long ptr = arg->val;
+
+	if (!arg->trace->vfs_getname)
+		return scnprintf(bf, size, "%#x", ptr);
+
+	thread__set_filename_pos(arg->thread, bf, ptr);
+	return 0;
 }
 
 static bool trace__filter_duration(struct trace *trace, double t)
@@ -1938,7 +1974,45 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample)
 {
+	struct thread *thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
+	struct thread_trace *ttrace;
+	size_t filename_len, entry_str_len, to_move;
+	ssize_t remaining_space;
+	char *pos;
+	const char *filename;
+
 	trace->last_vfs_getname = perf_evsel__rawptr(evsel, sample, "pathname");
+
+	if (!thread)
+		goto out;
+
+	ttrace = thread__priv(thread);
+	if (!ttrace)
+		goto out;
+
+	if (!ttrace->filename.ptr)
+		goto out;
+
+	entry_str_len = strlen(ttrace->entry_str);
+	remaining_space = trace__entry_str_size - entry_str_len - 1; /* \0 */
+	if (remaining_space <= 0)
+		goto out;
+
+	filename = trace->last_vfs_getname;
+	filename_len = strlen(filename);
+	if (filename_len > (size_t)remaining_space) {
+		filename += filename_len - remaining_space;
+		filename_len = remaining_space;
+	}
+
+	to_move = entry_str_len - ttrace->filename.entry_str_pos + 1; /* \0 */
+	pos = ttrace->entry_str + ttrace->filename.entry_str_pos;
+	memmove(pos + filename_len, pos, to_move);
+	memcpy(pos, filename, filename_len);
+
+	ttrace->filename.ptr = 0;
+	ttrace->filename.entry_str_pos = 0;
+out:
 	return 0;
 }
 
