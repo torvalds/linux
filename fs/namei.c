@@ -879,7 +879,7 @@ static inline int may_follow_link(struct nameidata *nd)
 		return 0;
 
 	/* Allowed if parent directory not sticky and world-writable. */
-	parent = nd->path.dentry->d_inode;
+	parent = nd->inode;
 	if ((parent->i_mode & (S_ISVTX|S_IWOTH)) != (S_ISVTX|S_IWOTH))
 		return 0;
 
