@@ -87,9 +87,9 @@ struct amd_sched_backend_ops {
 	int (*prepare_job)(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *c_entity,
 			   void *job);
-	void (*run_job)(struct amd_gpu_scheduler *sched,
-			struct amd_sched_entity *c_entity,
-			struct amd_sched_job *job);
+	struct fence *(*run_job)(struct amd_gpu_scheduler *sched,
+				 struct amd_sched_entity *c_entity,
+				 struct amd_sched_job *job);
 	void (*process_job)(struct amd_gpu_scheduler *sched, void *job);
 };
 
@@ -132,7 +132,6 @@ int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
 			bool intr,
 			long timeout);
 
-void amd_sched_process_job(struct amd_sched_job *sched_job);
 uint64_t amd_sched_get_handled_seq(struct amd_gpu_scheduler *sched);
 
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,

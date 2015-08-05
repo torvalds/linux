@@ -175,9 +175,9 @@ exit:
  * return 0 if succeed. negative error code on failure
 */
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
-			    struct amd_sched_entity *entity,
-			    struct amd_run_queue *rq,
-			    uint32_t jobs)
+			  struct amd_sched_entity *entity,
+			  struct amd_run_queue *rq,
+			  uint32_t jobs)
 {
 	uint64_t seq_ring = 0;
 
@@ -353,6 +353,24 @@ int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
 	return 0;
 }
 
+static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
+{
+	struct amd_sched_job *sched_job =
+		container_of(cb, struct amd_sched_job, cb);
+	struct amd_gpu_scheduler *sched;
+	unsigned long flags;
+
+	sched = sched_job->sched;
+	spin_lock_irqsave(&sched->queue_lock, flags);
+	list_del(&sched_job->list);
+	atomic64_dec(&sched->hw_rq_count);
+	spin_unlock_irqrestore(&sched->queue_lock, flags);
+
+	sched->ops->process_job(sched, sched_job->job);
+	kfree(sched_job);
+	wake_up_interruptible(&sched->wait_queue);
+}
+
 static int amd_sched_main(void *param)
 {
 	int r;
@@ -365,6 +383,8 @@ static int amd_sched_main(void *param)
 
 	while (!kthread_should_stop()) {
 		struct amd_sched_job *sched_job = NULL;
+		struct fence *fence;
+
 		wait_event_interruptible(sched->wait_queue,
 					 is_scheduler_ready(sched) &&
 					 (c_entity = select_context(sched)));
@@ -388,34 +408,19 @@ static int amd_sched_main(void *param)
 			spin_unlock_irqrestore(&sched->queue_lock, flags);
 		}
 		mutex_lock(&sched->sched_lock);
-		sched->ops->run_job(sched, c_entity, sched_job);
+		fence = sched->ops->run_job(sched, c_entity, sched_job);
+		if (fence) {
+			r = fence_add_callback(fence, &sched_job->cb,
+					       amd_sched_process_job);
+			if (r == -ENOENT)
+				amd_sched_process_job(fence, &sched_job->cb);
+			else if (r)
+				DRM_ERROR("fence add callback failed (%d)\n", r);
+			fence_put(fence);
+		}
 		mutex_unlock(&sched->sched_lock);
 	}
 	return 0;
-}
-
-/**
- * ISR to handle EOP inetrrupts
- *
- * @sched: gpu scheduler
- *
-*/
-void amd_sched_process_job(struct amd_sched_job *sched_job)
-{
-	unsigned long flags;
-	struct amd_gpu_scheduler *sched;
-
-	if (!sched_job)
-		return;
-	sched = sched_job->sched;
-	spin_lock_irqsave(&sched->queue_lock, flags);
-	list_del(&sched_job->list);
-	atomic64_dec(&sched->hw_rq_count);
-	spin_unlock_irqrestore(&sched->queue_lock, flags);
-
-	sched->ops->process_job(sched, sched_job->job);
-	kfree(sched_job);
-	wake_up_interruptible(&sched->wait_queue);
 }
 
 /**
