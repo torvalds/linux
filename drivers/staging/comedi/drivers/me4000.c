@@ -122,14 +122,14 @@ broken.
 #define ME4000_AI_SCAN_PRE_TIMER_HIGH_REG	0x94
 #define ME4000_AI_START_REG			0x98
 #define ME4000_IRQ_STATUS_REG			0x9c
-#define ME4000_IRQ_STATUS_BIT_EX		(1 << 0)
-#define ME4000_IRQ_STATUS_BIT_LE		(1 << 1)
-#define ME4000_IRQ_STATUS_BIT_AI_HF		(1 << 2)
-#define ME4000_IRQ_STATUS_BIT_AO_0_HF		(1 << 3)
-#define ME4000_IRQ_STATUS_BIT_AO_1_HF		(1 << 4)
-#define ME4000_IRQ_STATUS_BIT_AO_2_HF		(1 << 5)
-#define ME4000_IRQ_STATUS_BIT_AO_3_HF		(1 << 6)
-#define ME4000_IRQ_STATUS_BIT_SC		(1 << 7)
+#define ME4000_IRQ_STATUS_EX			BIT(0)
+#define ME4000_IRQ_STATUS_LE			BIT(1)
+#define ME4000_IRQ_STATUS_AI_HF			BIT(2)
+#define ME4000_IRQ_STATUS_AO_0_HF		BIT(3)
+#define ME4000_IRQ_STATUS_AO_1_HF		BIT(4)
+#define ME4000_IRQ_STATUS_AO_2_HF		BIT(5)
+#define ME4000_IRQ_STATUS_AO_3_HF		BIT(6)
+#define ME4000_IRQ_STATUS_SC			BIT(7)
 #define ME4000_DIO_PORT_0_REG			0xa0
 #define ME4000_DIO_PORT_1_REG			0xa4
 #define ME4000_DIO_PORT_2_REG			0xa8
@@ -995,7 +995,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
-	    ME4000_IRQ_STATUS_BIT_AI_HF) {
+	    ME4000_IRQ_STATUS_AI_HF) {
 		/* Read status register to find out what happened */
 		tmp = inl(dev->iobase + ME4000_AI_STATUS_REG);
 
@@ -1065,7 +1065,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	}
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
-	    ME4000_IRQ_STATUS_BIT_SC) {
+	    ME4000_IRQ_STATUS_SC) {
 		s->async->events |= COMEDI_CB_EOA;
 
 		/*
