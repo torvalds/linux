@@ -1023,7 +1023,8 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	if (rs->rs_conn && rs->rs_conn->c_faddr == daddr)
 		conn = rs->rs_conn;
 	else {
-		conn = rds_conn_create_outgoing(rs->rs_bound_addr, daddr,
+		conn = rds_conn_create_outgoing(sock_net(sock->sk),
+						rs->rs_bound_addr, daddr,
 					rs->rs_transport,
 					sock->sk->sk_allocation);
 		if (IS_ERR(conn)) {

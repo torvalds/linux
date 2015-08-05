@@ -79,7 +79,8 @@ int rds_tcp_conn_connect(struct rds_connection *conn)
 	struct sockaddr_in src, dest;
 	int ret;
 
-	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	ret = sock_create_kern(rds_conn_net(conn), PF_INET,
+			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret < 0)
 		goto out;
 

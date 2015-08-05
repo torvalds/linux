@@ -218,7 +218,7 @@ static void rds_iw_ic_info(struct socket *sock, unsigned int len,
  * allowed to influence which paths have priority.  We could call userspace
  * asserting this policy "routing".
  */
-static int rds_iw_laddr_check(__be32 addr)
+static int rds_iw_laddr_check(struct net *net, __be32 addr)
 {
 	int ret;
 	struct rdma_cm_id *cm_id;

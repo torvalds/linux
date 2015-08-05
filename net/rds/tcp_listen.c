@@ -85,8 +85,9 @@ static int rds_tcp_accept_one(struct socket *sock)
 	struct inet_sock *inet;
 	struct rds_tcp_connection *rs_tcp;
 
-	ret = sock_create_lite(sock->sk->sk_family, sock->sk->sk_type,
-			       sock->sk->sk_protocol, &new_sock);
+	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
+			       sock->sk->sk_type, sock->sk->sk_protocol,
+			       &new_sock);
 	if (ret)
 		goto out;
 
@@ -108,7 +109,8 @@ static int rds_tcp_accept_one(struct socket *sock)
 		 &inet->inet_saddr, ntohs(inet->inet_sport),
 		 &inet->inet_daddr, ntohs(inet->inet_dport));
 
-	conn = rds_conn_create(inet->inet_saddr, inet->inet_daddr,
+	conn = rds_conn_create(sock_net(sock->sk),
+			       inet->inet_saddr, inet->inet_daddr,
 			       &rds_tcp_transport, GFP_KERNEL);
 	if (IS_ERR(conn)) {
 		ret = PTR_ERR(conn);
@@ -187,7 +189,13 @@ int rds_tcp_listen_init(void)
 	struct socket *sock = NULL;
 	int ret;
 
-	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	/* MUST call sock_create_kern directly so that we avoid get_net()
+	 * in sk_alloc(). Doing a get_net() will result in cleanup_net()
+	 * never getting invoked, which will leave sock and other things
+	 * in limbo.
+	 */
+	ret = sock_create_kern(current->nsproxy->net_ns, PF_INET,
+			       SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret < 0)
 		goto out;
 

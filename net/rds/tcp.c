@@ -189,9 +189,9 @@ out:
 	spin_unlock_irqrestore(&rds_tcp_tc_list_lock, flags);
 }
 
-static int rds_tcp_laddr_check(__be32 addr)
+static int rds_tcp_laddr_check(struct net *net, __be32 addr)
 {
-	if (inet_addr_type(&init_net, addr) == RTN_LOCAL)
+	if (inet_addr_type(net, addr) == RTN_LOCAL)
 		return 0;
 	return -EADDRNOTAVAIL;
 }

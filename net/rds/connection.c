@@ -117,7 +117,8 @@ static void rds_conn_reset(struct rds_connection *conn)
  * For now they are not garbage collected once they're created.  They
  * are torn down as the module is removed, if ever.
  */
-static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
+static struct rds_connection *__rds_conn_create(struct net *net,
+						__be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp,
 				       int is_outgoing)
 {
@@ -157,6 +158,7 @@ new_conn:
 	conn->c_faddr = faddr;
 	spin_lock_init(&conn->c_lock);
 	conn->c_next_tx_seq = 1;
+	rds_conn_net_set(conn, net);
 
 	init_waitqueue_head(&conn->c_waitq);
 	INIT_LIST_HEAD(&conn->c_send_queue);
@@ -174,7 +176,7 @@ new_conn:
 	 * can bind to the destination address then we'd rather the messages
 	 * flow through loopback rather than either transport.
 	 */
-	loop_trans = rds_trans_get_preferred(faddr);
+	loop_trans = rds_trans_get_preferred(net, faddr);
 	if (loop_trans) {
 		rds_trans_put(loop_trans);
 		conn->c_loopback = 1;
@@ -260,17 +262,19 @@ out:
 	return conn;
 }
 
-struct rds_connection *rds_conn_create(__be32 laddr, __be32 faddr,
+struct rds_connection *rds_conn_create(struct net *net,
+				       __be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp)
 {
-	return __rds_conn_create(laddr, faddr, trans, gfp, 0);
+	return __rds_conn_create(net, laddr, faddr, trans, gfp, 0);
 }
 EXPORT_SYMBOL_GPL(rds_conn_create);
 
-struct rds_connection *rds_conn_create_outgoing(__be32 laddr, __be32 faddr,
+struct rds_connection *rds_conn_create_outgoing(struct net *net,
+						__be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp)
 {
-	return __rds_conn_create(laddr, faddr, trans, gfp, 1);
+	return __rds_conn_create(net, laddr, faddr, trans, gfp, 1);
 }
 EXPORT_SYMBOL_GPL(rds_conn_create_outgoing);
 
