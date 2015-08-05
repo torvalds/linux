@@ -156,7 +156,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	 */
 	if (vsp1->pdata.uapi)
 		mutex_lock(wpf->ctrls.lock);
-	outfmt |= vsp1_wpf_read(wpf, VI6_WPF_OUTFMT) & VI6_WPF_OUTFMT_PDV_MASK;
+	outfmt |= wpf->alpha->cur.val << VI6_WPF_OUTFMT_PDV_SHIFT;
 	vsp1_wpf_write(wpf, VI6_WPF_OUTFMT, outfmt);
 	if (vsp1->pdata.uapi)
 		mutex_unlock(wpf->ctrls.lock);
@@ -254,8 +254,9 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&wpf->ctrls, 1);
-	v4l2_ctrl_new_std(&wpf->ctrls, &wpf_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
-			  0, 255, 1, 255);
+	wpf->alpha = v4l2_ctrl_new_std(&wpf->ctrls, &wpf_ctrl_ops,
+				       V4L2_CID_ALPHA_COMPONENT,
+				       0, 255, 1, 255);
 
 	wpf->entity.subdev.ctrl_handler = &wpf->ctrls;
 

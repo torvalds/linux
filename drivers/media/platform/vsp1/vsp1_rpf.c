@@ -68,7 +68,9 @@ static const struct v4l2_ctrl_ops rpf_ctrl_ops = {
 
 static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 {
+	struct vsp1_pipeline *pipe = to_vsp1_pipeline(&subdev->entity);
 	struct vsp1_rwpf *rpf = to_rwpf(subdev);
+	struct vsp1_device *vsp1 = rpf->entity.vsp1;
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
 	const struct v4l2_pix_format_mplane *format = &rpf->format;
 	const struct v4l2_rect *crop = &rpf->crop;
@@ -148,6 +150,15 @@ static int rpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	vsp1_rpf_write(rpf, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
+
+	if (vsp1->pdata.uapi)
+		mutex_lock(rpf->ctrls.lock);
+	vsp1_rpf_write(rpf, VI6_RPF_VRTCOL_SET,
+		       rpf->alpha->cur.val << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
+	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, rpf->alpha->cur.val);
+	if (vsp1->pdata.uapi)
+		mutex_unlock(rpf->ctrls.lock);
+
 	vsp1_rpf_write(rpf, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, VI6_RPF_CKEY_CTRL, 0);
 
@@ -245,8 +256,9 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&rpf->ctrls, 1);
-	v4l2_ctrl_new_std(&rpf->ctrls, &rpf_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
-			  0, 255, 1, 255);
+	rpf->alpha = v4l2_ctrl_new_std(&rpf->ctrls, &rpf_ctrl_ops,
+				       V4L2_CID_ALPHA_COMPONENT,
+				       0, 255, 1, 255);
 
 	rpf->entity.subdev.ctrl_handler = &rpf->ctrls;
 
