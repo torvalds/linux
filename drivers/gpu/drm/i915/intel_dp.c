@@ -2627,7 +2627,7 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 		DRM_DEBUG_KMS("stealing pipe %c power sequencer from port %c\n",
 			      pipe_name(pipe), port_name(port));
 
-		WARN(encoder->connectors_active,
+		WARN(encoder->base.crtc,
 		     "stealing pipe %c power sequencer from active eDP port %c\n",
 		     pipe_name(pipe), port_name(port));
 
@@ -4255,10 +4255,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	if (!intel_encoder->connectors_active)
-		return;
-
-	if (WARN_ON(!intel_encoder->base.crtc))
+	if (!intel_encoder->base.crtc)
 		return;
 
 	if (!to_intel_crtc(intel_encoder->base.crtc)->active)
