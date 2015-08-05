@@ -1141,7 +1141,7 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 	union vxlan_addr *remote_ip;
 
 	/* For flow based devices, map all packets to VNI 0 */
-	if (vs->flags & VXLAN_F_FLOW_BASED)
+	if (vs->flags & VXLAN_F_COLLECT_METADATA)
 		vni = 0;
 
 	/* Is this VNI defined? */
@@ -1183,7 +1183,7 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 
 	skb_reset_network_header(skb);
 	/* In flow-based mode, GBP is carried in dst_metadata */
-	if (!(vs->flags & VXLAN_F_FLOW_BASED))
+	if (!(vs->flags & VXLAN_F_COLLECT_METADATA))
 		skb->mark = md->gbp;
 
 	if (oip6)
@@ -2129,7 +2129,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	}
 
-	if (vxlan->flags & VXLAN_F_FLOW_BASED &&
+	if (vxlan->flags & VXLAN_F_COLLECT_METADATA &&
 	    info && info->mode == IP_TUNNEL_INFO_TX) {
 		vxlan_xmit_one(skb, dev, NULL, false);
 		return NETDEV_TX_OK;
@@ -2462,7 +2462,6 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_RSC]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_L2MISS]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_L3MISS]	= { .type = NLA_U8 },
-	[IFLA_VXLAN_FLOWBASED]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_COLLECT_METADATA]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_PORT]	= { .type = NLA_U16 },
 	[IFLA_VXLAN_UDP_CSUM]	= { .type = NLA_U8 },
@@ -2814,10 +2813,6 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (data[IFLA_VXLAN_LIMIT])
 		conf.addrmax = nla_get_u32(data[IFLA_VXLAN_LIMIT]);
 
-	if (data[IFLA_VXLAN_FLOWBASED] &&
-	    nla_get_u8(data[IFLA_VXLAN_FLOWBASED]))
-		conf.flags |= VXLAN_F_FLOW_BASED;
-
 	if (data[IFLA_VXLAN_COLLECT_METADATA] &&
 	    nla_get_u8(data[IFLA_VXLAN_COLLECT_METADATA]))
 		conf.flags |= VXLAN_F_COLLECT_METADATA;
@@ -2903,7 +2898,7 @@ static size_t vxlan_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_RSC */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_L2MISS */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_L3MISS */
-		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_FLOWBASED */
+		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_COLLECT_METADATA */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_AGEING */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_LIMIT */
 		nla_total_size(sizeof(struct ifla_vxlan_port_range)) +
@@ -2970,8 +2965,8 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			!!(vxlan->flags & VXLAN_F_L2MISS)) ||
 	    nla_put_u8(skb, IFLA_VXLAN_L3MISS,
 			!!(vxlan->flags & VXLAN_F_L3MISS)) ||
-	    nla_put_u8(skb, IFLA_VXLAN_FLOWBASED,
-		       !!(vxlan->flags & VXLAN_F_FLOW_BASED)) ||
+	    nla_put_u8(skb, IFLA_VXLAN_COLLECT_METADATA,
+		       !!(vxlan->flags & VXLAN_F_COLLECT_METADATA)) ||
 	    nla_put_u32(skb, IFLA_VXLAN_AGEING, vxlan->cfg.age_interval) ||
 	    nla_put_u32(skb, IFLA_VXLAN_LIMIT, vxlan->cfg.addrmax) ||
 	    nla_put_be16(skb, IFLA_VXLAN_PORT, vxlan->cfg.dst_port) ||
