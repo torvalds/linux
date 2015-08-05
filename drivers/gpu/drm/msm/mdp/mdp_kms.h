@@ -30,7 +30,8 @@ struct mdp_kms;
 
 struct mdp_kms_funcs {
 	struct msm_kms_funcs base;
-	void (*set_irqmask)(struct mdp_kms *mdp_kms, uint32_t irqmask);
+	void (*set_irqmask)(struct mdp_kms *mdp_kms, uint32_t irqmask,
+		uint32_t old_irqmask);
 };
 
 struct mdp_kms {
@@ -42,6 +43,7 @@ struct mdp_kms {
 	bool in_irq;
 	struct list_head irq_list;    /* list of mdp4_irq */
 	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
+	uint32_t cur_irq_mask;        /* current irq mask */
 };
 #define to_mdp_kms(x) container_of(x, struct mdp_kms, base)
 

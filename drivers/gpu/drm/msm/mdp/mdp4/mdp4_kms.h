@@ -167,7 +167,8 @@ static inline uint32_t mixercfg(uint32_t mixer_cfg, int mixer,
 int mdp4_disable(struct mdp4_kms *mdp4_kms);
 int mdp4_enable(struct mdp4_kms *mdp4_kms);
 
-void mdp4_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask);
+void mdp4_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
+		uint32_t old_irqmask);
 void mdp4_irq_preinstall(struct msm_kms *kms);
 int mdp4_irq_postinstall(struct msm_kms *kms);
 void mdp4_irq_uninstall(struct msm_kms *kms);

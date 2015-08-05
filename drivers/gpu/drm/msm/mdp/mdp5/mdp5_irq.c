@@ -21,8 +21,11 @@
 #include "msm_drv.h"
 #include "mdp5_kms.h"
 
-void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask)
+void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
+		uint32_t old_irqmask)
 {
+	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_MDP_INTR_CLEAR(0),
+		irqmask ^ (irqmask & old_irqmask));
 	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_MDP_INTR_EN(0), irqmask);
 }
 
@@ -71,9 +74,10 @@ static void mdp5_irq_mdp(struct mdp_kms *mdp_kms)
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	unsigned int id;
-	uint32_t status;
+	uint32_t status, enable;
 
-	status = mdp5_read(mdp5_kms, REG_MDP5_MDP_INTR_STATUS(0));
+	enable = mdp5_read(mdp5_kms, REG_MDP5_MDP_INTR_EN(0));
+	status = mdp5_read(mdp5_kms, REG_MDP5_MDP_INTR_STATUS(0)) & enable;
 	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_CLEAR(0), status);
 
 	VERB("status=%08x", status);
