@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2013, 2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,7 +21,7 @@
 #define _KBASE_CPU_VEXPRESS_H_
 
 /**
- * Versatile Express implementation of @ref kbase_cpuprops_clock_speed_function.
+ * Versatile Express implementation of @ref kbase_cpu_clk_speed_func.
  */
 int kbase_get_vexpress_cpu_clock_speed(u32 *cpu_clock);
 

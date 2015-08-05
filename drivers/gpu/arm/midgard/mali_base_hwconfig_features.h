@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -16,10 +16,9 @@
 
 
 /* AUTOMATICALLY GENERATED FILE. If you want to amend the issues/features,
- * please update user/midgard/mali_base_hwconfig_{issues,features}.h and
- * re-run hwconfig_header_generator instead. This tool is available in
- * progs_install directory for host builds. More information is available in
- * base/tools/hwconfig_header_generator/README */
+ * please update base/tools/hwconfig_generator/hwc_{issues,features}.py
+ * For more information see base/tools/hwconfig_generator/README
+ */
 
 #ifndef _BASE_HWCONFIG_FEATURES_H_
 #define _BASE_HWCONFIG_FEATURES_H_
@@ -46,6 +45,8 @@ enum base_hw_feature {
 	BASE_HW_FEATURE_NEXT_INSTRUCTION_TYPE,
 	BASE_HW_FEATURE_BRNDOUT_KILL,
 	BASE_HW_FEATURE_WARPING,
+	BASE_HW_FEATURE_FLUSH_REDUCTION,
+	BASE_HW_FEATURE_V4,
 	BASE_HW_FEATURE_END
 };
 
@@ -56,6 +57,7 @@ static const enum base_hw_feature base_hw_features_generic[] = {
 static const enum base_hw_feature base_hw_features_t60x[] = {
 	BASE_HW_FEATURE_LD_ST_LEA_TEX,
 	BASE_HW_FEATURE_LINEAR_FILTER_FLOAT,
+	BASE_HW_FEATURE_V4,
 	BASE_HW_FEATURE_END
 };
 
@@ -63,6 +65,7 @@ static const enum base_hw_feature base_hw_features_t62x[] = {
 	BASE_HW_FEATURE_LD_ST_LEA_TEX,
 	BASE_HW_FEATURE_LINEAR_FILTER_FLOAT,
 	BASE_HW_FEATURE_ATTR_AUTO_TYPE_INFERRAL,
+	BASE_HW_FEATURE_V4,
 	BASE_HW_FEATURE_END
 };
 
@@ -75,6 +78,7 @@ static const enum base_hw_feature base_hw_features_t72x[] = {
 	BASE_HW_FEATURE_T7XX_PAIRING_RULES,
 	BASE_HW_FEATURE_WORKGROUP_ROUND_MULTIPLE_OF_4,
 	BASE_HW_FEATURE_WARPING,
+	BASE_HW_FEATURE_V4,
 	BASE_HW_FEATURE_END
 };
 
@@ -107,6 +111,48 @@ static const enum base_hw_feature base_hw_features_tFxx[] = {
 	BASE_HW_FEATURE_LINEAR_FILTER_FLOAT,
 	BASE_HW_FEATURE_MRT,
 	BASE_HW_FEATURE_MSAA_16X,
+	BASE_HW_FEATURE_NEXT_INSTRUCTION_TYPE,
+	BASE_HW_FEATURE_OUT_OF_ORDER_EXEC,
+	BASE_HW_FEATURE_T7XX_PAIRING_RULES,
+	BASE_HW_FEATURE_TEST4_DATUM_MODE,
+	BASE_HW_FEATURE_END
+};
+
+static const enum base_hw_feature base_hw_features_t83x[] = {
+	BASE_HW_FEATURE_33BIT_VA,
+	BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION,
+	BASE_HW_FEATURE_PWRON_DURING_PWROFF_TRANS,
+	BASE_HW_FEATURE_WARPING,
+	BASE_HW_FEATURE_INTERPIPE_REG_ALIASING,
+	BASE_HW_FEATURE_32_BIT_UNIFORM_ADDRESS,
+	BASE_HW_FEATURE_ATTR_AUTO_TYPE_INFERRAL,
+	BASE_HW_FEATURE_BRNDOUT_CC,
+	BASE_HW_FEATURE_BRNDOUT_KILL,
+	BASE_HW_FEATURE_LD_ST_LEA_TEX,
+	BASE_HW_FEATURE_LD_ST_TILEBUFFER,
+	BASE_HW_FEATURE_LINEAR_FILTER_FLOAT,
+	BASE_HW_FEATURE_MRT,
+	BASE_HW_FEATURE_NEXT_INSTRUCTION_TYPE,
+	BASE_HW_FEATURE_OUT_OF_ORDER_EXEC,
+	BASE_HW_FEATURE_T7XX_PAIRING_RULES,
+	BASE_HW_FEATURE_TEST4_DATUM_MODE,
+	BASE_HW_FEATURE_END
+};
+
+static const enum base_hw_feature base_hw_features_t82x[] = {
+	BASE_HW_FEATURE_33BIT_VA,
+	BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION,
+	BASE_HW_FEATURE_PWRON_DURING_PWROFF_TRANS,
+	BASE_HW_FEATURE_WARPING,
+	BASE_HW_FEATURE_INTERPIPE_REG_ALIASING,
+	BASE_HW_FEATURE_32_BIT_UNIFORM_ADDRESS,
+	BASE_HW_FEATURE_ATTR_AUTO_TYPE_INFERRAL,
+	BASE_HW_FEATURE_BRNDOUT_CC,
+	BASE_HW_FEATURE_BRNDOUT_KILL,
+	BASE_HW_FEATURE_LD_ST_LEA_TEX,
+	BASE_HW_FEATURE_LD_ST_TILEBUFFER,
+	BASE_HW_FEATURE_LINEAR_FILTER_FLOAT,
+	BASE_HW_FEATURE_MRT,
 	BASE_HW_FEATURE_NEXT_INSTRUCTION_TYPE,
 	BASE_HW_FEATURE_OUT_OF_ORDER_EXEC,
 	BASE_HW_FEATURE_T7XX_PAIRING_RULES,

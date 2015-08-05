@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -15,17 +15,12 @@
 
 
 
-
-
-/**
- * @file mali_kbase_sync.c
- *
- */
-
 #ifdef CONFIG_SYNC
 
+#include <linux/seq_file.h>
 #include "sync.h"
 #include <mali_kbase.h>
+#include <mali_kbase_sync.h>
 
 struct mali_sync_timeline {
 	struct sync_timeline timeline;
@@ -53,7 +48,7 @@ static struct sync_pt *timeline_dup(struct sync_pt *pt)
 {
 	struct mali_sync_pt *mpt = to_mali_sync_pt(pt);
 	struct mali_sync_pt *new_mpt;
-	struct sync_pt *new_pt = sync_pt_create(pt->parent, sizeof(struct mali_sync_pt));
+	struct sync_pt *new_pt = sync_pt_create(sync_pt_parent(pt), sizeof(struct mali_sync_pt));
 
 	if (!new_pt)
 		return NULL;
@@ -68,15 +63,15 @@ static struct sync_pt *timeline_dup(struct sync_pt *pt)
 static int timeline_has_signaled(struct sync_pt *pt)
 {
 	struct mali_sync_pt *mpt = to_mali_sync_pt(pt);
-	struct mali_sync_timeline *mtl = to_mali_sync_timeline(pt->parent);
+	struct mali_sync_timeline *mtl = to_mali_sync_timeline(sync_pt_parent(pt));
 	int result = mpt->result;
 
 	int diff = atomic_read(&mtl->signalled) - mpt->order;
 
 	if (diff >= 0)
-		return result < 0 ?  result : 1;
-	else
-		return 0;
+		return (result < 0) ? result : 1;
+
+	return 0;
 }
 
 static int timeline_compare(struct sync_pt *a, struct sync_pt *b)
@@ -86,12 +81,10 @@ static int timeline_compare(struct sync_pt *a, struct sync_pt *b)
 
 	int diff = ma->order - mb->order;
 
-	if (diff < 0)
-		return -1;
-	else if (diff == 0)
+	if (diff == 0)
 		return 0;
-	else
-		return 1;
+
+	return (diff < 0) ? -1 : 1;
 }
 
 static void timeline_value_str(struct sync_timeline *timeline, char *str,
@@ -159,7 +152,7 @@ struct sync_pt *kbase_sync_pt_alloc(struct sync_timeline *parent)
 void kbase_sync_signal_pt(struct sync_pt *pt, int result)
 {
 	struct mali_sync_pt *mpt = to_mali_sync_pt(pt);
-	struct mali_sync_timeline *mtl = to_mali_sync_timeline(pt->parent);
+	struct mali_sync_timeline *mtl = to_mali_sync_timeline(sync_pt_parent(pt));
 	int signalled;
 	int diff;
 

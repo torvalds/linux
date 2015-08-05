@@ -1,10 +1,10 @@
 /*  --------------------------------------------------------------------------------------------------------
  *  File:   custom_log.h 
  *
- *  Desc:   ChenZhen Æ«ºÃµÄ log Êä³öµÄ¶¨ÖÆÊµÏÖ. 
+ *  Desc:   ChenZhen åå¥½çš„ log è¾“å‡ºçš„å®šåˆ¶å®žçŽ°. 
  *
  *          -----------------------------------------------------------------------------------
- *          < Ï°Óï ºÍ ËõÂÔÓï > : 
+ *          < ä¹ è¯­ å’Œ ç¼©ç•¥è¯­ > : 
  *
  *          -----------------------------------------------------------------------------------
  *  Usage:		
@@ -43,10 +43,10 @@ extern "C" {
  * ---------------------------------------------------------------------------------------------------------
  */
     
-/** ÈôÏÂÁÐ macro ÓÐ±»¶¨Òå, ²Å Ê¹ÄÜ log Êä³ö. */
+/** è‹¥ä¸‹åˆ— macro æœ‰è¢«å®šä¹‰, æ‰ ä½¿èƒ½ log è¾“å‡º. */
 // #define ENABLE_DEBUG_LOG
 
-/** .! : ÈôÐèÒªÈ«¾ÖµØ¹Ø±Õ D log, ¿ÉÒÔÊ¹ÄÜÏÂÃæµÄ´úÂë. */
+/** .! : è‹¥éœ€è¦å…¨å±€åœ°å…³é—­ D log, å¯ä»¥ä½¿èƒ½ä¸‹é¢çš„ä»£ç . */
 /*
 #undef ENABLE_DEBUG_LOG
 #warning "custom debug log is disabled globally!"
@@ -85,22 +85,22 @@ extern "C" {
 
 /*-------------------------------------------------------*/
 
-/** Ê¹ÓÃ D(), ÒÔÊ®½øÖÆµÄÐÎÊ½´òÓ¡±äÁ¿ 'var' µÄ value. */
+/** ä½¿ç”¨ D(), ä»¥åè¿›åˆ¶çš„å½¢å¼æ‰“å°å˜é‡ 'var' çš„ value. */
 #define D_DEC(var)  D(#var " = %d.", var);
 
 #define E_DEC(var)  E(#var " = %d.", var);
 
-/** Ê¹ÓÃ D(), ÒÔÊ®Áù½øÖÆµÄÐÎÊ½´òÓ¡±äÁ¿ 'var' µÄ value. */
+/** ä½¿ç”¨ D(), ä»¥åå…­è¿›åˆ¶çš„å½¢å¼æ‰“å°å˜é‡ 'var' çš„ value. */
 #define D_HEX(var)  D(#var " = 0x%x.", var);
 
 #define E_HEX(var)  E(#var " = 0x%x.", var);
 
-/** Ê¹ÓÃ D(), ÒÔÊ®Áù½øÖÆµÄÐÎÊ½ ´òÓ¡Ö¸ÕëÀàÐÍ±äÁ¿ 'ptr' µÄ value. */
+/** ä½¿ç”¨ D(), ä»¥åå…­è¿›åˆ¶çš„å½¢å¼ æ‰“å°æŒ‡é’ˆç±»åž‹å˜é‡ 'ptr' çš„ value. */
 #define D_PTR(ptr)  D(#ptr " = %p.", ptr);
 
 #define E_PTR(ptr)  E(#ptr " = %p.", ptr);
 
-/** Ê¹ÓÃ D(), ´òÓ¡ char ×Ö´®. */
+/** ä½¿ç”¨ D(), æ‰“å° char å­—ä¸². */
 #define D_STR(pStr) \
 {\
     if ( NULL == pStr )\
@@ -127,7 +127,7 @@ extern "C" {
 
 #ifdef ENABLE_DEBUG_LOG
 /**
- * log ´Ó 'pStart' µØÖ·¿ªÊ¼µÄ 'len' ¸ö×Ö½ÚµÄÊý¾Ý. 
+ * log ä»Ž 'pStart' åœ°å€å¼€å§‹çš„ 'len' ä¸ªå­—èŠ‚çš„æ•°æ®. 
  */
 #define D_MEM(pStart, len) \
     {\
@@ -156,14 +156,14 @@ extern "C" {
 /*-------------------------------------------------------*/
 
 /**
- * µ÷ÓÃº¯Êý, ²¢¼ì²é·µ»ØÖµ, ¸ù¾Ý·µ»ØÖµ¾ö¶¨ÊÇ·ñÌø×ªµ½Ö¸¶¨µÄ´íÎó´¦Àí´úÂë. 
+ * è°ƒç”¨å‡½æ•°, å¹¶æ£€æŸ¥è¿”å›žå€¼, æ ¹æ®è¿”å›žå€¼å†³å®šæ˜¯å¦è·³è½¬åˆ°æŒ‡å®šçš„é”™è¯¯å¤„ç†ä»£ç . 
  * @param functionCall
- *          ¶ÔÌØ¶¨º¯ÊýµÄµ÷ÓÃ, ¸Ãº¯ÊýµÄ·µ»ØÖµ±ØÐëÊÇ ±íÕ÷ ³É¹¦ or err µÄ ÕûÐÍÊý. 
- *          ÕâÀï, ±»µ÷ÓÃº¯Êý "±ØÐë" ÊÇ±»¶¨ÒåÎª "·µ»Ø 0 ±íÊ¾²Ù×÷³É¹¦". 
+ *          å¯¹ç‰¹å®šå‡½æ•°çš„è°ƒç”¨, è¯¥å‡½æ•°çš„è¿”å›žå€¼å¿…é¡»æ˜¯ è¡¨å¾ æˆåŠŸ or err çš„ æ•´åž‹æ•°. 
+ *          è¿™é‡Œ, è¢«è°ƒç”¨å‡½æ•° "å¿…é¡»" æ˜¯è¢«å®šä¹‰ä¸º "è¿”å›ž 0 è¡¨ç¤ºæ“ä½œæˆåŠŸ". 
  * @param result
- *		    ÓÃÓÚ¼ÇÂ¼º¯Êý·µ»ØµÄ error code µÄ ÕûÐÍ±äÁ¿, Í¨³£ÊÇ "ret" or "result" µÈ.
+ *		    ç”¨äºŽè®°å½•å‡½æ•°è¿”å›žçš„ error code çš„ æ•´åž‹å˜é‡, é€šå¸¸æ˜¯ "ret" or "result" ç­‰.
  * @param label
- *		    Èôº¯Êý·µ»Ø´íÎó, ³ÌÐò½«ÒªÌø×ªµ½µÄ ´íÎó´¦Àí´¦µÄ ±êºÅ, Í¨³£¾ÍÊÇ "EXIT". 
+ *		    è‹¥å‡½æ•°è¿”å›žé”™è¯¯, ç¨‹åºå°†è¦è·³è½¬åˆ°çš„ é”™è¯¯å¤„ç†å¤„çš„ æ ‡å·, é€šå¸¸å°±æ˜¯ "EXIT". 
  */
 #define CHECK_FUNC_CALL(functionCall, result, label) \
 {\
@@ -175,19 +175,19 @@ extern "C" {
 }
 
 /**
- * ÔÚÌØ¶¨Ìõ¼þÏÂ, ÅÐ¶¨ error ·¢Éú, ¶Ô±äÁ¿ 'retVar' ÉèÖÃ 'errCode', 
- * Log Êä³ö¶ÔÓ¦µÄ Error Caution, È»ºóÌø×ª 'label' Ö¸¶¨µÄ´úÂë´¦Ö´ÐÐ. 
+ * åœ¨ç‰¹å®šæ¡ä»¶ä¸‹, åˆ¤å®š error å‘ç”Ÿ, å¯¹å˜é‡ 'retVar' è®¾ç½® 'errCode', 
+ * Log è¾“å‡ºå¯¹åº”çš„ Error Caution, ç„¶åŽè·³è½¬ 'label' æŒ‡å®šçš„ä»£ç å¤„æ‰§è¡Œ. 
  * @param msg
- *          ´¿×Ö´®ÐÎÊ½µÄÌáÊ¾ÐÅÏ¢. 
+ *          çº¯å­—ä¸²å½¢å¼çš„æç¤ºä¿¡æ¯. 
  * @param retVar
- *		    ±êÊ¶º¯ÊýÖ´ÐÐ×´Ì¬»òÕß½á¹ûµÄ±äÁ¿, ½«±»ÉèÖÃ¾ßÌåµÄ Error Code. 
- *		    Í¨³£ÊÇ 'ret' or 'result'. 
+ *		    æ ‡è¯†å‡½æ•°æ‰§è¡ŒçŠ¶æ€æˆ–è€…ç»“æžœçš„å˜é‡, å°†è¢«è®¾ç½®å…·ä½“çš„ Error Code. 
+ *		    é€šå¸¸æ˜¯ 'ret' or 'result'. 
  * @param errCode
- *          ±íÕ÷ÌØ¶¨ error µÄ³£Êý±êÊ¶, Í¨³£ÊÇ ºêµÄÐÎÌ¬. 
+ *          è¡¨å¾ç‰¹å®š error çš„å¸¸æ•°æ ‡è¯†, é€šå¸¸æ˜¯ å®çš„å½¢æ€. 
  * @param label
- *          ³ÌÐò½«ÒªÌø×ªµ½µÄ´íÎó´¦Àí´úÂëµÄ±êºÅ, Í¨³£¾ÍÊÇ 'EXIT'. 
+ *          ç¨‹åºå°†è¦è·³è½¬åˆ°çš„é”™è¯¯å¤„ç†ä»£ç çš„æ ‡å·, é€šå¸¸å°±æ˜¯ 'EXIT'. 
  * @param args...
- *          ¶ÔÓ¦ 'msgFmt' Êµ²ÎÖÐ '%s', '%d', ... µÈ ×ª»»ËµÃ÷·û µÄ¾ßÌå¿É±ä³¤Êµ²Î. 
+ *          å¯¹åº” 'msgFmt' å®žå‚ä¸­ '%s', '%d', ... ç­‰ è½¬æ¢è¯´æ˜Žç¬¦ çš„å…·ä½“å¯å˜é•¿å®žå‚. 
  */
 #define SET_ERROR_AND_JUMP(msgFmt, retVar, errCode, label, args...) \
 {\

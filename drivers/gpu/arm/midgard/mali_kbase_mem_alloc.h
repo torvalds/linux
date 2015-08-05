@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,8 +22,7 @@
 #include <linux/slab.h>
 
 /* raw page handling */
-struct kbase_mem_allocator
-{
+struct kbase_mem_allocator {
 	struct kbase_device *kbdev;
 	atomic_t            free_list_size;
 	unsigned int        free_list_max_size;

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010, 2012-2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -42,8 +42,7 @@
  * Internal OS specific data structure associated with each UKK session. Part
  * of a ukk_session object.
  */
-typedef struct ukkp_session
-{
+typedef struct ukkp_session {
 	int dummy;     /**< No internal OS specific data at this time */
 } ukkp_session;
 

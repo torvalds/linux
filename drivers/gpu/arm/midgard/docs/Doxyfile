@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2011-2013 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2011-2013, 2015 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -64,7 +64,7 @@ FILE_PATTERNS          +=
 # The EXCLUDE tag can be used to specify files and/or directories that should
 # excluded from the INPUT source files. This way you can easily exclude a
 # subdirectory from a directory tree whose root is specified with the INPUT tag.
-EXCLUDE                += ../../kernel/drivers/gpu/arm/midgard/malisw/ ../../kernel/drivers/gpu/arm/midgard/platform ../../kernel/drivers/gpu/arm/midgard/platform_dummy ../../kernel/drivers/gpu/arm/midgard/scripts ../../kernel/drivers/gpu/arm/midgard/tests ../../kernel/drivers/gpu/arm/midgard/Makefile ../../kernel/drivers/gpu/arm/midgard/Makefile.kbase ../../kernel/drivers/gpu/arm/midgard/Kbuild ../../kernel/drivers/gpu/arm/midgard/Kconfig ../../kernel/drivers/gpu/arm/midgard/sconscript ../../kernel/drivers/gpu/arm/midgard/docs ../../kernel/drivers/gpu/arm/midgard/pm_test_script.sh ../../kernel/drivers/gpu/arm/midgard/mali_uk.h ../../kernel/drivers/gpu/arm/midgard/Makefile
+EXCLUDE                += ../../kernel/drivers/gpu/arm/midgard/platform ../../kernel/drivers/gpu/arm/midgard/platform_dummy ../../kernel/drivers/gpu/arm/midgard/scripts ../../kernel/drivers/gpu/arm/midgard/tests ../../kernel/drivers/gpu/arm/midgard/Makefile ../../kernel/drivers/gpu/arm/midgard/Makefile.kbase ../../kernel/drivers/gpu/arm/midgard/Kbuild ../../kernel/drivers/gpu/arm/midgard/Kconfig ../../kernel/drivers/gpu/arm/midgard/sconscript ../../kernel/drivers/gpu/arm/midgard/docs ../../kernel/drivers/gpu/arm/midgard/pm_test_script.sh ../../kernel/drivers/gpu/arm/midgard/mali_uk.h ../../kernel/drivers/gpu/arm/midgard/Makefile
 
 
 # If the value of the INPUT tag contains directories, you can use the

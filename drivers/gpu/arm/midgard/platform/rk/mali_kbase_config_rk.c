@@ -13,9 +13,8 @@
  *
  */
 
-
-
-
+// #define ENABLE_DEBUG_LOG
+#include "custom_log.h"
 
 #include <linux/ioport.h>
 #include <mali_kbase.h>
@@ -102,6 +101,7 @@ static kbase_io_resources io_resources = {
 			     .end = 0xFC010000 + (4096 * 5) - 1}
 };
 #endif
+
 int get_cpu_clock_speed(u32 *cpu_clock)
 {
 #if 0
@@ -147,18 +147,21 @@ static int mali_pm_notifier(struct notifier_block *nb,unsigned long event,void* 
 /*
   rk3288 hardware specific initialization
  */
-mali_bool kbase_platform_rk_init(struct kbase_device *kbdev)
+int kbase_platform_rk_init(struct kbase_device *kbdev)
 {
  	if(MALI_ERROR_NONE == kbase_platform_init(kbdev))
  	{
 		if (register_pm_notifier(&mali_pm_nb)) {
-			return MALI_FALSE;
+                        E("fail to register pm_notifier.");
+			return -1;
 		}
 		pr_info("%s,register_reboot_notifier\n",__func__);
 		register_reboot_notifier(&mali_reboot_notifier);
- 		return MALI_TRUE;
+ 		return 0;
  	}
-	return MALI_FALSE;
+        
+        E("fail to init platform.");
+	return -1;
 }
 
 /*
@@ -173,7 +176,8 @@ void kbase_platform_rk_term(struct kbase_device *kbdev)
 	kbase_platform_term(kbdev);
 }
 
-kbase_platform_funcs_conf platform_funcs = {
+struct kbase_platform_funcs_conf platform_funcs = 
+{
 	.platform_init_func = &kbase_platform_rk_init,
 	.platform_term_func = &kbase_platform_rk_term,
 };
@@ -213,7 +217,7 @@ static void pm_callback_power_off(struct kbase_device *kbdev)
 	pm_schedule_suspend(dev, RUNTIME_PM_DELAY_TIME);
 }
 
-mali_error kbase_device_runtime_init(struct kbase_device *kbdev)
+int kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	pm_suspend_ignore_children(kbdev->dev, true);
 	pm_runtime_enable(kbdev->dev);
@@ -286,7 +290,7 @@ static void pm_callback_runtime_off(struct kbase_device *kbdev)
 #endif
 }
 
-static kbase_pm_callback_conf pm_callbacks = {
+struct kbase_pm_callback_conf pm_callbacks = {
 	.power_on_callback = pm_callback_power_on,
 	.power_off_callback = pm_callback_power_off,
 #ifdef CONFIG_PM_RUNTIME
@@ -305,43 +309,6 @@ static kbase_pm_callback_conf pm_callbacks = {
 };
 #endif
 
-
-/* Please keep table config_attributes in sync with config_attributes_hw_issue_8408 */
-static kbase_attribute config_attributes[] = {
-#ifdef CONFIG_UMP
-	{
-	 KBASE_CONFIG_ATTR_UMP_DEVICE,
-	 KBASE_VE_UMP_DEVICE},
-#endif				/* CONFIG_UMP */
-#ifdef CONFIG_MALI_MIDGARD_RT_PM
-	{
-	 KBASE_CONFIG_ATTR_POWER_MANAGEMENT_CALLBACKS,
-	 (uintptr_t)&pm_callbacks},
-#endif
-	{
-	 KBASE_CONFIG_ATTR_PLATFORM_FUNCS,
-	 (uintptr_t) &platform_funcs},
-	
-	{
-	 KBASE_CONFIG_ATTR_JS_RESET_TIMEOUT_MS,
-	 KBASE_VE_JS_RESET_TIMEOUT_MS},
-	{
-	 KBASE_CONFIG_ATTR_END,
-	 0}
-};
-
-static kbase_platform_config rk_platform_config = {
-	.attributes = config_attributes,
-#ifndef CONFIG_OF
-	.io_resources = &io_resources
-#endif
-};
-#if 1
-kbase_platform_config *kbase_get_platform_config(void)
-{
-	return &rk_platform_config;
-}
-#endif
 int kbase_platform_early_init(void)
 {
 	/* Nothing needed at this stage */

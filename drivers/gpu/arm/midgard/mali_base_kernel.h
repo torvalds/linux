@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,7 @@
 /* NB: To support UK6 we also need to support UK7 */
 #define BASE_LEGACY_UK7_SUPPORT 1
 
-typedef mali_addr64 base_mem_handle;
+typedef u64 base_mem_handle;
 
 #include "mali_base_mem_priv.h"
 #include "mali_kbase_profiling_gator_api.h"
@@ -105,7 +105,7 @@ typedef union kbase_pointer {
  * heavily read by the CPU...
  * Other flags are only meaningful to a particular allocator.
  * More flags can be added to this list, as long as they don't clash
- * (see ::BASE_MEM_FLAGS_NR_TOTAL_BITS for the number of the first free bit).
+ * (see ::BASE_MEM_FLAGS_NR_BITS for the number of the first free bit).
  */
 typedef u32 base_mem_alloc_flags;
 
@@ -124,23 +124,22 @@ enum {
 	BASE_MEM_PROT_GPU_EX = (1U << 4),      /**< Execute allowed on the GPU
 						    side */
 
-	/* Note that the HINT flags are obsolete now. If you want the memory
-	 * to be cached on the CPU please use the BASE_MEM_CACHED_CPU flag
+	/* BASE_MEM_HINT flags have been removed, but their values are reserved
+	 * for backwards compatibility with older user-space drivers. The values
+	 * can be re-used once support for r5p0 user-space drivers is removed,
+	 * presumably in r7p0.
+	 *
+	 * RESERVED: (1U << 5)
+	 * RESERVED: (1U << 6)
+	 * RESERVED: (1U << 7)
+	 * RESERVED: (1U << 8)
 	 */
-	BASE_MEM_HINT_CPU_RD = (1U << 5),      /**< Heavily read CPU side
-						    - OBSOLETE */
-	BASE_MEM_HINT_CPU_WR = (1U << 6),      /**< Heavily written CPU side
-						    - OBSOLETE */
-	BASE_MEM_HINT_GPU_RD = (1U << 7),      /**< Heavily read GPU side
-						    - OBSOLETE */
-	BASE_MEM_HINT_GPU_WR = (1U << 8),      /**< Heavily written GPU side
-						    - OBSOLETE */
 
 	BASE_MEM_GROW_ON_GPF = (1U << 9),      /**< Grow backing store on GPU
 						    Page Fault */
 
 	BASE_MEM_COHERENT_SYSTEM = (1U << 10), /**< Page coherence Outer
-						    shareable */
+						    shareable, if available */
 	BASE_MEM_COHERENT_LOCAL = (1U << 11),  /**< Page coherence Inner
 						    shareable */
 	BASE_MEM_CACHED_CPU = (1U << 12),      /**< Should be cached on the
@@ -150,8 +149,14 @@ enum {
 	BASE_MEM_SAME_VA = (1U << 13), /**< Must have same VA on both the GPU
 					    and the CPU */
 /* OUT */
-	BASE_MEM_NEED_MMAP = (1U << 14) /**< Must call mmap to aquire a GPU
+	BASE_MEM_NEED_MMAP = (1U << 14), /**< Must call mmap to aquire a GPU
 					     address for the alloc */
+
+/* IN */
+	BASE_MEM_COHERENT_SYSTEM_REQUIRED = (1U << 15), /**< Page coherence
+							Outer shareable, required. */
+	BASE_MEM_SECURE = (1U << 16)           /**< Secure memory */
+
 };
 
 /**
@@ -159,14 +164,19 @@ enum {
  *
  * Must be kept in sync with the ::base_mem_alloc_flags flags
  */
-#define BASE_MEM_FLAGS_NR_INPUT_BITS  14
-#define BASE_MEM_FLAGS_NR_OUTPUT_BITS 1
-#define BASE_MEM_FLAGS_NR_TOTAL_BITS  ((BASE_MEM_FLAGS_NR_INPUT_BITS) + (BASE_MEM_FLAGS_NR_OUTPUT_BITS))
-#define BASE_MEM_FLAGS_NR_BITS 15
+#define BASE_MEM_FLAGS_NR_BITS 17
 
-#if BASE_MEM_FLAGS_NR_TOTAL_BITS > BASE_MEM_FLAGS_NR_BITS
-#error "Too many flag bits, will require change in cmem"
-#endif
+/**
+  * A mask for all output bits, excluding IN/OUT bits.
+  */
+#define BASE_MEM_FLAGS_OUTPUT_MASK BASE_MEM_NEED_MMAP
+
+/**
+  * A mask for all input bits, including IN/OUT bits.
+  */
+#define BASE_MEM_FLAGS_INPUT_MASK \
+	(((1 << BASE_MEM_FLAGS_NR_BITS) - 1) & ~BASE_MEM_FLAGS_OUTPUT_MASK)
+
 
 /**
  * @brief Memory types supported by @a base_mem_import
@@ -246,7 +256,7 @@ typedef struct base_syncset {
  */
 typedef struct base_import_handle {
 	struct {
-		mali_addr64 handle;
+		u64 handle;
 	} basep;
 } base_import_handle;
 
@@ -325,18 +335,18 @@ struct base_mem_aliasing_info {
 /**
  * @brief Job dependency type.
  *
- * A flags field will be inserted into the atom structure to specify whether a dependency is a data or 
- * ordering dependency (by putting it before/after 'core_req' in the structure it should be possible to add without 
+ * A flags field will be inserted into the atom structure to specify whether a dependency is a data or
+ * ordering dependency (by putting it before/after 'core_req' in the structure it should be possible to add without
  * changing the structure size).
- * When the flag is set for a particular dependency to signal that it is an ordering only dependency then 
+ * When the flag is set for a particular dependency to signal that it is an ordering only dependency then
  * errors will not be propagated.
  */
 typedef u8 base_jd_dep_type;
 
 
-#define BASE_JD_DEP_TYPE_INVALID  (0) 	/**< Invalid dependency */
-#define BASE_JD_DEP_TYPE_DATA     (1U << 0) 	/**< Data dependency */
-#define BASE_JD_DEP_TYPE_ORDER    (1U << 1) 	/**< Order dependency */
+#define BASE_JD_DEP_TYPE_INVALID  (0)       /**< Invalid dependency */
+#define BASE_JD_DEP_TYPE_DATA     (1U << 0) /**< Data dependency */
+#define BASE_JD_DEP_TYPE_ORDER    (1U << 1) /**< Order dependency */
 
 /**
  * @brief Job chain hardware requirements.
@@ -465,7 +475,7 @@ typedef u16 base_jd_core_req;
  *
  * This is only guaranteed to work for BASE_JD_REQ_ONLY_COMPUTE atoms.
  *
- * If the core availability policy is keeping the required core group turned off, then 
+ * If the core availability policy is keeping the required core group turned off, then
  * the job will fail with a BASE_JD_EVENT_PM_EVENT error code.
  */
 #define BASE_JD_REQ_SPECIFIC_COHERENT_GROUP (1U << 11)
@@ -543,6 +553,48 @@ enum kbase_atom_coreref_state {
 	KBASE_ATOM_COREREF_STATE_READY
 };
 
+/*
+ * Base Atom priority
+ *
+ * Only certain priority levels are actually implemented, as specified by the
+ * BASE_JD_PRIO_<...> definitions below. It is undefined to use a priority
+ * level that is not one of those defined below.
+ *
+ * Priority levels only affect scheduling between atoms of the same type within
+ * a base context, and only after the atoms have had dependencies resolved.
+ * Fragment atoms does not affect non-frament atoms with lower priorities, and
+ * the other way around. For example, a low priority atom that has had its
+ * dependencies resolved might run before a higher priority atom that has not
+ * had its dependencies resolved.
+ *
+ * The scheduling between base contexts/processes and between atoms from
+ * different base contexts/processes is unaffected by atom priority.
+ *
+ * The atoms are scheduled as follows with respect to their priorities:
+ * - Let atoms 'X' and 'Y' be for the same job slot who have dependencies
+ *   resolved, and atom 'X' has a higher priority than atom 'Y'
+ * - If atom 'Y' is currently running on the HW, then it is interrupted to
+ *   allow atom 'X' to run soon after
+ * - If instead neither atom 'Y' nor atom 'X' are running, then when choosing
+ *   the next atom to run, atom 'X' will always be chosen instead of atom 'Y'
+ * - Any two atoms that have the same priority could run in any order with
+ *   respect to each other. That is, there is no ordering constraint between
+ *   atoms of the same priority.
+ */
+typedef u8 base_jd_prio;
+
+/* Medium atom priority. This is a priority higher than BASE_JD_PRIO_LOW */
+#define BASE_JD_PRIO_MEDIUM  ((base_jd_prio)0)
+/* High atom priority. This is a priority higher than BASE_JD_PRIO_MEDIUM and
+ * BASE_JD_PRIO_LOW */
+#define BASE_JD_PRIO_HIGH    ((base_jd_prio)1)
+/* Low atom priority. */
+#define BASE_JD_PRIO_LOW     ((base_jd_prio)2)
+
+/* Count of the number of priority levels. This itself is not a valid
+ * base_jd_prio setting */
+#define BASE_JD_NR_PRIO_LEVELS 3
+
 enum kbase_jd_atom_state {
 	/** Atom is not used */
 	KBASE_JD_ATOM_STATE_UNUSED,
@@ -550,6 +602,9 @@ enum kbase_jd_atom_state {
 	KBASE_JD_ATOM_STATE_QUEUED,
 	/** Atom has been given to JS (is runnable/running) */
 	KBASE_JD_ATOM_STATE_IN_JS,
+	/** Atom has been completed, but not yet handed back to job dispatcher
+	 *  for dependency resolution */
+	KBASE_JD_ATOM_STATE_HW_COMPLETED,
 	/** Atom has been completed, but not yet handed back to userspace */
 	KBASE_JD_ATOM_STATE_COMPLETED
 };
@@ -559,10 +614,10 @@ typedef u8 base_atom_id; /**< Type big enough to store an atom number in */
 struct base_dependency {
 	base_atom_id  atom_id;               /**< An atom number */
 	base_jd_dep_type dependency_type;    /**< Dependency type */
-}; 
+};
 
 typedef struct base_jd_atom_v2 {
-	mali_addr64 jc;			    /**< job-chain GPU address */
+	u64 jc;			    /**< job-chain GPU address */
 	struct base_jd_udata udata;		    /**< user data */
 	kbase_pointer extres_list;	    /**< list of external resources */
 	u16 nr_extres;			    /**< nr of external resources */
@@ -570,21 +625,21 @@ typedef struct base_jd_atom_v2 {
 	const struct base_dependency pre_dep[2]; /**< pre-dependencies, one need to use SETTER function to assign this field,
 	this is done in order to reduce possibility of improper assigment of a dependency field */
 	base_atom_id atom_number;	    /**< unique number to identify the atom */
-	s8 prio;			    /**< priority - smaller is higher priority */
+	base_jd_prio prio;                  /**< Atom priority. Refer to @ref base_jd_prio for more details */
 	u8 device_nr;			    /**< coregroup when BASE_JD_REQ_SPECIFIC_COHERENT_GROUP specified */
 	u8 padding[5];
 } base_jd_atom_v2;
 
 #ifdef BASE_LEGACY_UK6_SUPPORT
 struct base_jd_atom_v2_uk6 {
-	mali_addr64 jc;			    /**< job-chain GPU address */
+	u64 jc;			    /**< job-chain GPU address */
 	struct base_jd_udata udata;		    /**< user data */
 	kbase_pointer extres_list;	    /**< list of external resources */
 	u16 nr_extres;			    /**< nr of external resources */
 	base_jd_core_req core_req;	    /**< core requirements */
 	base_atom_id pre_dep[2]; /**< pre-dependencies */
 	base_atom_id atom_number;	    /**< unique number to identify the atom */
-	s8 prio;			    /**< priority - smaller is higher priority */
+	base_jd_prio prio;		    /**< priority - smaller is higher priority */
 	u8 device_nr;			    /**< coregroup when BASE_JD_REQ_SPECIFIC_COHERENT_GROUP specified */
 	u8 padding[7];
 };
@@ -607,16 +662,16 @@ typedef struct base_external_resource {
  * @param     dep_type     The dep_type to be assigned.
  *
  */
-static INLINE void base_jd_atom_dep_set(const struct base_dependency* const_dep, base_atom_id id, base_jd_dep_type dep_type)
+static inline void base_jd_atom_dep_set(const struct base_dependency *const_dep, base_atom_id id, base_jd_dep_type dep_type)
 {
-	struct base_dependency* dep;
-	
+	struct base_dependency *dep;
+
 	LOCAL_ASSERT(const_dep != NULL);
 	/* make sure we don't set not allowed combinations of atom_id/dependency_type */
-	LOCAL_ASSERT( ( id == 0 && dep_type == BASE_JD_DEP_TYPE_INVALID) || 
-				(id > 0 && dep_type != BASE_JD_DEP_TYPE_INVALID) );
+	LOCAL_ASSERT((id == 0 && dep_type == BASE_JD_DEP_TYPE_INVALID) ||
+			(id > 0 && dep_type != BASE_JD_DEP_TYPE_INVALID));
 
-	dep = REINTERPRET_CAST(struct base_dependency*)const_dep;
+	dep = (struct base_dependency *)const_dep;
 
 	dep->atom_id = id;
 	dep->dependency_type = dep_type;
@@ -629,7 +684,7 @@ static INLINE void base_jd_atom_dep_set(const struct base_dependency* const_dep,
  * @param[in]     from         The dependency to make a copy from.
  *
  */
-static INLINE void base_jd_atom_dep_copy(const struct base_dependency* const_dep, const struct base_dependency* from)
+static inline void base_jd_atom_dep_copy(const struct base_dependency *const_dep, const struct base_dependency *from)
 {
 	LOCAL_ASSERT(const_dep != NULL);
 
@@ -654,7 +709,7 @@ static INLINE void base_jd_atom_dep_copy(const struct base_dependency* const_dep
  * @param[out] atom A pre-allocated atom to configure as a fence trigger SW atom
  * @param[in] fence The base fence object to trigger.
  */
-static INLINE void base_jd_fence_trigger_setup_v2(struct base_jd_atom_v2 *atom, struct base_fence *fence)
+static inline void base_jd_fence_trigger_setup_v2(struct base_jd_atom_v2 *atom, struct base_fence *fence)
 {
 	LOCAL_ASSERT(atom);
 	LOCAL_ASSERT(fence);
@@ -683,7 +738,7 @@ static INLINE void base_jd_fence_trigger_setup_v2(struct base_jd_atom_v2 *atom, 
  * @param[out] atom A pre-allocated atom to configure as a fence wait SW atom
  * @param[in] fence The base fence object to wait on
  */
-static INLINE void base_jd_fence_wait_setup_v2(struct base_jd_atom_v2 *atom, struct base_fence *fence)
+static inline void base_jd_fence_wait_setup_v2(struct base_jd_atom_v2 *atom, struct base_fence *fence)
 {
 	LOCAL_ASSERT(atom);
 	LOCAL_ASSERT(fence);
@@ -702,9 +757,10 @@ static INLINE void base_jd_fence_wait_setup_v2(struct base_jd_atom_v2 *atom, str
  * @param     handle  The handle to the imported memory object
  * @param     access  The type of access requested
  */
-static INLINE void base_external_resource_init(struct base_external_resource * res, struct base_import_handle handle, base_external_resource_access access)
+static inline void base_external_resource_init(struct base_external_resource *res, struct base_import_handle handle, base_external_resource_access access)
 {
-	mali_addr64 address;
+	u64 address;
+
 	address = handle.basep.handle;
 
 	LOCAL_ASSERT(res != NULL);
@@ -913,19 +969,20 @@ typedef struct base_dump_cpu_gpu_counters {
  * The following typedefs should be removed when a midg types header is added.
  * See MIDCOM-1657 for details.
  */
-typedef u32 midg_product_id;
-typedef u32 midg_cache_features;
-typedef u32 midg_tiler_features;
-typedef u32 midg_mem_features;
-typedef u32 midg_mmu_features;
-typedef u32 midg_js_features;
-typedef u32 midg_as_present;
-typedef u32 midg_js_present;
+typedef u32 gpu_product_id;
+typedef u32 gpu_cache_features;
+typedef u32 gpu_tiler_features;
+typedef u32 gpu_mem_features;
+typedef u32 gpu_mmu_features;
+typedef u32 gpu_js_features;
+typedef u32 gpu_as_present;
+typedef u32 gpu_js_present;
 
-#define MIDG_MAX_JOB_SLOTS 16
+#define GPU_MAX_JOB_SLOTS 16
 
 #else
-#include <midg/mali_midg.h>
+#include <gpu/mali_gpu_registers.h>
+#include <gpu/mali_gpu_props.h>
 #endif
 
 /**
@@ -939,7 +996,7 @@ typedef u32 midg_js_present;
  *
  * There is a related third module outside of Base, which is owned by the MIDG
  * module:
- * - @ref midg_gpuprops_static "Midgard Compile-time GPU Properties"
+ * - @ref gpu_props_static "Midgard Compile-time GPU Properties"
  *
  * Base only deals with properties that vary between different Midgard
  * implementations - the Dynamic GPU properties and the Platform Config
@@ -988,11 +1045,11 @@ typedef u32 midg_js_present;
  * Dynamic GPU properties are presented in two sets:
  * -# the commonly used properties in @ref base_gpu_props, which have been
  * unpacked from GPU register bitfields.
- * -# The full set of raw, unprocessed properties in @ref midg_raw_gpu_props
+ * -# The full set of raw, unprocessed properties in @ref gpu_raw_gpu_props
  * (also a member of @ref base_gpu_props). All of these are presented in
  * the packed form, as presented by the GPU  registers themselves.
  *
- * @usecase The raw properties in @ref midg_raw_gpu_props are necessary to
+ * @usecase The raw properties in @ref gpu_raw_gpu_props are necessary to
  * allow a user of the Mali Tools (e.g. PAT) to determine "Why is this device
  * behaving differently?". In this case, all information about the
  * configuration is potentially useful, but it <b>does not need to be processed
@@ -1071,20 +1128,20 @@ typedef u32 midg_js_present;
 	   size="6,6"
 
        "mali_base.h";
-	   "midg/midg.h";
+	   "gpu/mali_gpu.h";
 
 	   node [ shape=box ];
 	   {
 	       rank = same; ordering = out;
 
-		   "midg/midg_gpu_props.h";
+		   "gpu/mali_gpu_props.h";
 		   "base/midg_gpus/mali_t600.h";
 		   "base/midg_gpus/other_midg_gpu.h";
 	   }
 	   { rank = same; "plat/plat_config.h"; }
 	   {
 	       rank = same;
-		   "midg/midg.h" [ shape=box ];
+		   "gpu/mali_gpu.h" [ shape=box ];
 		   gpu_chooser [ label="" style="invisible" width=0 height=0 fixedsize=true ];
 		   select_gpu [ label="Mali-T600 | Other\n(select_gpu.h)" shape=polygon,sides=4,distortion=0.25 width=3.3 height=0.99 fixedsize=true ] ;
 	   }
@@ -1092,7 +1149,7 @@ typedef u32 midg_js_present;
 	   { rank = same; "plat/plat_config.h"; }
 	   { rank = same; "mali_base.h"; }
 
-	   "mali_base.h" -> "midg/midg.h" -> "midg/midg_gpu_props.h";
+	   "mali_base.h" -> "gpu/mali_gpu.h" -> "gpu/mali_gpu_props.h";
 	   "mali_base.h" -> "plat/plat_config.h" ;
 	   "mali_base.h" -> select_gpu ;
 
@@ -1122,13 +1179,13 @@ typedef u32 midg_js_present;
  * @section sec_base_user_api_gpuprops_cocalc Coherency Group calculation
  * Creation of the coherent group data is done at device-driver startup, and so
  * is one-time. This will most likely involve a loop with CLZ, shifting, and
- * bit clearing on the L2_PRESENT or L3_PRESENT masks, depending on whether the
- * system is L2 or L2+L3 Coherent. The number of shader cores is done by a
+ * bit clearing on the L2_PRESENT mask, depending on whether the
+ * system is L2 Coherent. The number of shader cores is done by a
  * population count, since faulty cores may be disabled during production,
  * producing a non-contiguous mask.
  *
  * The memory requirements for this algoirthm can be determined either by a u64
- * population count on the L2/L3_PRESENT masks (a LUT helper already is
+ * population count on the L2_PRESENT mask (a LUT helper already is
  * requried for the above), or simple assumption that there can be no more than
  * 16 coherent groups, since core groups are typically 4 cores.
  */
@@ -1151,7 +1208,7 @@ struct mali_base_gpu_core_props {
 	/**
 	 * Product specific value.
 	 */
-	midg_product_id product_id;
+	gpu_product_id product_id;
 
 	/**
 	 * Status of the GPU release.
@@ -1228,28 +1285,22 @@ struct mali_base_gpu_l2_cache_props {
 	u8 padding[5];
 };
 
-struct mali_base_gpu_l3_cache_props {
-	u8 log2_line_size;
-	u8 log2_cache_size;
-	u8 padding[6];
-};
-
 struct mali_base_gpu_tiler_props {
 	u32 bin_size_bytes;	/* Max is 4*2^15 */
 	u32 max_active_levels;	/* Max is 2^15 */
 };
 
 /**
- * GPU threading system details.  
+ * GPU threading system details.
  */
 struct mali_base_gpu_thread_props {
-	u32 max_threads;            /* Max. number of threads per core */ 
+	u32 max_threads;            /* Max. number of threads per core */
 	u32 max_workgroup_size;     /* Max. number of threads per workgroup */
 	u32 max_barrier_size;       /* Max. number of threads that can synchronize on a simple barrier */
-	u16 max_registers;			/* Total size [1..65535] of the register file available per core. */
-	u8  max_task_queue;			/* Max. tasks [1..255] which may be sent to a core before it becomes blocked. */
-	u8  max_thread_group_split;	/* Max. allowed value [1..15] of the Thread Group Split field. */
-	u8  impl_tech;		    	/* 0 = Not specified, 1 = Silicon, 2 = FPGA, 3 = SW Model/Emulation */
+	u16 max_registers;          /* Total size [1..65535] of the register file available per core. */
+	u8  max_task_queue;         /* Max. tasks [1..255] which may be sent to a core before it becomes blocked. */
+	u8  max_thread_group_split; /* Max. allowed value [1..15] of the Thread Group Split field. */
+	u8  impl_tech;              /* 0 = Not specified, 1 = Silicon, 2 = FPGA, 3 = SW Model/Emulation */
 	u8  padding[7];
 };
 
@@ -1260,14 +1311,7 @@ struct mali_base_gpu_thread_props {
  * provides a cached population-count for that mask.
  *
  * @note Whilst all cores are exposed in the mask, not all may be available to
- * the application, depending on the Kernel Job Scheduler policy. Therefore,
- * the application should not further restrict the core mask itself, as it may
- * result in an empty core mask. However, it can guarentee that there will be
- * at least one core available for each core group exposed .
- *
- * @usecase Chains marked at certain user-side priorities (e.g. the Long-running
- * (batch) priority ) can be prevented from running on entire core groups by the
- * Kernel Chain Scheduler policy.
+ * the application, depending on the Kernel Power policy.
  *
  * @note if u64s must be 8-byte aligned, then this structure has 32-bits of wastage.
  */
@@ -1303,10 +1347,10 @@ struct mali_base_gpu_coherent_group_info {
 	u32 num_core_groups;
 
 	/**
-	 * Coherency features of the memory, accessed by @ref midg_mem_features
+	 * Coherency features of the memory, accessed by @ref gpu_mem_features
 	 * methods
 	 */
-	midg_mem_features coherency;
+	gpu_mem_features coherency;
 
 	u32 padding;
 
@@ -1324,7 +1368,7 @@ struct mali_base_gpu_coherent_group_info {
  * the values should be better expressed in an unpacked form in the
  * base_gpu_props structure.
  *
- * @usecase The raw properties in @ref midg_raw_gpu_props are necessary to
+ * @usecase The raw properties in @ref gpu_raw_gpu_props are necessary to
  * allow a user of the Mali Tools (e.g. PAT) to determine "Why is this device
  * behaving differently?". In this case, all information about the
  * configuration is potentially useful, but it <b>does not need to be processed
@@ -1332,32 +1376,32 @@ struct mali_base_gpu_coherent_group_info {
  * Tools software on the host PC.
  *
  */
-struct midg_raw_gpu_props {
+struct gpu_raw_gpu_props {
 	u64 shader_present;
 	u64 tiler_present;
 	u64 l2_present;
-	u64 l3_present;
+	u64 unused_1; /* keep for backward compatibility */
 
-	midg_cache_features l2_features;
-	midg_cache_features l3_features;
-	midg_mem_features mem_features;
-	midg_mmu_features mmu_features;
+	gpu_cache_features l2_features;
+	u32 suspend_size; /* API 8.2+ */
+	gpu_mem_features mem_features;
+	gpu_mmu_features mmu_features;
 
-	midg_as_present as_present;
+	gpu_as_present as_present;
 
 	u32 js_present;
-	midg_js_features js_features[MIDG_MAX_JOB_SLOTS];
-	midg_tiler_features tiler_features;
+	gpu_js_features js_features[GPU_MAX_JOB_SLOTS];
+	gpu_tiler_features tiler_features;
 	u32 texture_features[3];
 
 	u32 gpu_id;
-	
+
 	u32 thread_max_threads;
 	u32 thread_max_workgroup_size;
 	u32 thread_max_barrier_size;
 	u32 thread_features;
 
-	u32 padding;
+	u32 coherency_features;
 };
 
 /**
@@ -1372,12 +1416,12 @@ struct midg_raw_gpu_props {
 typedef struct mali_base_gpu_props {
 	struct mali_base_gpu_core_props core_props;
 	struct mali_base_gpu_l2_cache_props l2_props;
-	struct mali_base_gpu_l3_cache_props l3_props;
+	u64 unused_1; /* keep for backwards compatibility */
 	struct mali_base_gpu_tiler_props tiler_props;
 	struct mali_base_gpu_thread_props thread_props;
 
 	/** This member is large, likely to be 128 bytes */
-	struct midg_raw_gpu_props raw_props;
+	struct gpu_raw_gpu_props raw_props;
 
 	/** This must be last member of the structure */
 	struct mali_base_gpu_coherent_group_info coherency_info;
@@ -1424,10 +1468,10 @@ enum base_context_create_flags {
 	 * Violation of these requirements will cause the Job-Chains to be rejected.
 	 *
 	 * In addition, it is inadvisable for the atom's Job-Chains to contain Jobs
-	 * of the following @ref midg_job_type (whilst it may work now, it may not
+	 * of the following @ref gpu_job_type (whilst it may work now, it may not
 	 * work in future) :
-	 * - @ref MIDG_JOB_VERTEX
-	 * - @ref MIDG_JOB_GEOMETRY
+	 * - @ref GPU_JOB_VERTEX
+	 * - @ref GPU_JOB_GEOMETRY
 	 *
 	 * @note An alternative to using this is to specify the BASE_JD_REQ_ONLY_COMPUTE
 	 * requirement in atoms.
@@ -1497,17 +1541,17 @@ typedef struct base_jd_replay_payload {
 	 * will be replayed in @b reverse order (so that extra ones can be added
 	 * to the head in future soft jobs without affecting this soft job)
 	 */
-	mali_addr64 tiler_jc_list;
+	u64 tiler_jc_list;
 
 	/**
 	 * Pointer to the fragment job chain.
 	 */
-	mali_addr64 fragment_jc;
+	u64 fragment_jc;
 
 	/**
 	 * Pointer to the tiler heap free FBD field to be modified.
 	 */
-	mali_addr64 tiler_heap_free;
+	u64 tiler_heap_free;
 
 	/**
 	 * Hierarchy mask for the replayed fragment jobs. May be zero.
@@ -1547,12 +1591,12 @@ typedef struct base_jd_replay_jc {
 	 * Pointer to next entry in the list. A setting of NULL indicates the
 	 * end of the list.
 	 */
-	mali_addr64 next;
+	u64 next;
 
 	/**
 	 * Pointer to the job chain.
 	 */
-	mali_addr64 jc;
+	u64 jc;
 
 } base_jd_replay_jc;
 

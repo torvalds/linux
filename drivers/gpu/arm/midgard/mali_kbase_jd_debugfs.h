@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,39 +28,10 @@
 #include <mali_kbase.h>
 
 /**
- * @brief Initialize JD debugfs entries
+ * kbasep_jd_debugfs_ctx_add() - Add debugfs entries for JD system
  *
- * This should be called during device probing after the main mali debugfs
- * directory has been created.
- *
- * @param[in] kbdev Pointer to kbase_device
+ * @kctx Pointer to kbase_context
  */
-int kbasep_jd_debugfs_init(struct kbase_device *kbdev);
-
-/**
- * @brief Clean up all JD debugfs entries and related data
- *
- * This should be called during device removal before the main mali debugfs
- * directory will be removed.
- *
- * @param[in] kbdev Pointer to kbase_device
- */
-void kbasep_jd_debugfs_term(struct kbase_device *kbdev);
-
-/**
- * @brief Add new entry to JD debugfs
- *
- * @param[in] kctx Pointer to kbase_context
- *
- * @return 0 on success, failure otherwise
- */
-int kbasep_jd_debugfs_ctx_add(struct kbase_context *kctx);
-
-/**
- * @brief Remove entry from JD debugfs
- *
- * param[in] kctx Pointer to kbase_context
- */
-void kbasep_jd_debugfs_ctx_remove(struct kbase_context *kctx);
+void kbasep_jd_debugfs_ctx_add(struct kbase_context *kctx);
 
 #endif  /*_KBASE_JD_DEBUGFS_H*/

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -17,8 +17,7 @@
 
 
 
-/**
- * @file mali_kbase_device.c
+/*
  * Base kernel device APIs
  */
 
@@ -27,10 +26,12 @@
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_platform.h>
 
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
 #include <mali_kbase_hw.h>
+#include <mali_kbase_config_defaults.h>
 
 #include <mali_kbase_profiling_gator_api.h>
 
@@ -40,14 +41,8 @@
  */
 #define TRACE_BUFFER_HEADER_SPECIAL 0x45435254
 
-#if defined(CONFIG_MALI_PLATFORM_VEXPRESS) || defined(CONFIG_MALI_PLATFORM_VEXPRESS_VIRTEX7_40MHZ)
-#ifdef CONFIG_MALI_PLATFORM_FAKE
-extern struct kbase_attribute config_attributes_hw_issue_8408[];
-#endif				/* CONFIG_MALI_PLATFORM_FAKE */
-#endif				/* CONFIG_MALI_PLATFORM_VEXPRESS || CONFIG_MALI_PLATFORM_VEXPRESS_VIRTEX7_40MHZ */
-
 #if KBASE_TRACE_ENABLE
-STATIC CONST char *kbasep_trace_code_string[] = {
+static const char *kbasep_trace_code_string[] = {
 	/* IMPORTANT: USE OF SPECIAL #INCLUDE OF NON-STANDARD HEADER FILE
 	 * THIS MUST BE USED AT THE START OF THE ARRAY */
 #define KBASE_TRACE_CODE_MAKE_CODE(X) # X
@@ -58,46 +53,114 @@ STATIC CONST char *kbasep_trace_code_string[] = {
 
 #define DEBUG_MESSAGE_SIZE 256
 
-STATIC mali_error kbasep_trace_init(struct kbase_device *kbdev);
-STATIC void kbasep_trace_term(struct kbase_device *kbdev);
-STATIC void kbasep_trace_hook_wrapper(void *param);
-#if KBASE_TRACE_ENABLE
-STATIC void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
-STATIC void kbasep_trace_debugfs_term(struct kbase_device *kbdev);
-#endif
+static int kbasep_trace_init(struct kbase_device *kbdev);
+static void kbasep_trace_term(struct kbase_device *kbdev);
+static void kbasep_trace_hook_wrapper(void *param);
 
 struct kbase_device *kbase_device_alloc(void)
 {
 	return kzalloc(sizeof(struct kbase_device), GFP_KERNEL);
 }
 
-mali_error kbase_device_init(struct kbase_device * const kbdev)
+static int kbase_device_as_init(struct kbase_device *kbdev, int i)
 {
-	int i;			/* i used after the for loop, don't reuse ! */
+	const char format[] = "mali_mmu%d";
+	char name[sizeof(format)];
+	const char poke_format[] = "mali_mmu%d_poker";
+	char poke_name[sizeof(poke_format)];
+
+	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316))
+		snprintf(poke_name, sizeof(poke_name), poke_format, i);
+
+	snprintf(name, sizeof(name), format, i);
+
+	kbdev->as[i].number = i;
+	kbdev->as[i].fault_addr = 0ULL;
+
+	kbdev->as[i].pf_wq = alloc_workqueue(name, 0, 1);
+	if (!kbdev->as[i].pf_wq)
+		return -EINVAL;
+
+	mutex_init(&kbdev->as[i].transaction_mutex);
+	INIT_WORK(&kbdev->as[i].work_pagefault, page_fault_worker);
+	INIT_WORK(&kbdev->as[i].work_busfault, bus_fault_worker);
+
+	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316)) {
+		struct hrtimer *poke_timer = &kbdev->as[i].poke_timer;
+		struct work_struct *poke_work = &kbdev->as[i].poke_work;
+
+		kbdev->as[i].poke_wq = alloc_workqueue(poke_name, 0, 1);
+		if (!kbdev->as[i].poke_wq) {
+			destroy_workqueue(kbdev->as[i].pf_wq);
+			return -EINVAL;
+		}
+		KBASE_DEBUG_ASSERT(!object_is_on_stack(poke_work));
+		INIT_WORK(poke_work, kbasep_as_do_poke);
+
+		hrtimer_init(poke_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+
+		poke_timer->function = kbasep_as_poke_timer_callback;
+
+		kbdev->as[i].poke_refcount = 0;
+		kbdev->as[i].poke_state = 0u;
+	}
+
+	return 0;
+}
+
+static void kbase_device_as_term(struct kbase_device *kbdev, int i)
+{
+	destroy_workqueue(kbdev->as[i].pf_wq);
+	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316))
+		destroy_workqueue(kbdev->as[i].poke_wq);
+}
+
+static int kbase_device_all_as_init(struct kbase_device *kbdev)
+{
+	int i, err;
+
+	for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
+		err = kbase_device_as_init(kbdev, i);
+		if (err)
+			goto free_workqs;
+	}
+
+	return 0;
+
+free_workqs:
+	for (; i > 0; i--)
+		kbase_device_as_term(kbdev, i);
+
+	return err;
+}
+
+static void kbase_device_all_as_term(struct kbase_device *kbdev)
+{
+	int i;
+
+	for (i = 0; i < kbdev->nr_hw_address_spaces; i++)
+		kbase_device_as_term(kbdev, i);
+}
+
+int kbase_device_init(struct kbase_device * const kbdev)
+{
+	int i, err;
 
 	spin_lock_init(&kbdev->mmu_mask_change);
-
-	/* Initialize platform specific context */
-	if (MALI_FALSE == kbasep_platform_device_init(kbdev))
+	/* Get the list of workarounds for issues on the current HW
+	 * (identified by the GPU_ID register)
+	 */
+	err = kbase_hw_set_issues_mask(kbdev);
+	if (err)
 		goto fail;
-
-	/* Ensure we can access the GPU registers */
-	kbase_pm_register_access_enable(kbdev);
-
-	/* Find out GPU properties based on the GPU feature registers */
-	kbase_gpuprops_set(kbdev);
-
-	/* Get the list of workarounds for issues on the current HW (identified by the GPU_ID register) */
-	if (MALI_ERROR_NONE != kbase_hw_set_issues_mask(kbdev)) {
-		kbase_pm_register_access_disable(kbdev);
-		goto free_platform;
-	}
-	/* Set the list of features available on the current HW (identified by the GPU_ID register) */
+	/* Set the list of features available on the current HW
+	 * (identified by the GPU_ID register)
+	 */
 	kbase_hw_set_features_mask(kbdev);
 
 #if defined(CONFIG_ARM64)
 	set_dma_ops(kbdev->dev, &noncoherent_swiotlb_dma_ops);
-#endif
+#endif /* CONFIG_ARM64 */
 
 	/* Workaround a pre-3.13 Linux issue, where dma_mask is NULL when our
 	 * device structure was created by device-tree
@@ -105,103 +168,36 @@ mali_error kbase_device_init(struct kbase_device * const kbdev)
 	if (!kbdev->dev->dma_mask)
 		kbdev->dev->dma_mask = &kbdev->dev->coherent_dma_mask;
 
-	if (dma_set_mask(kbdev->dev,
-			DMA_BIT_MASK(kbdev->gpu_props.mmu.pa_bits)))
+	err = dma_set_mask(kbdev->dev,
+			DMA_BIT_MASK(kbdev->gpu_props.mmu.pa_bits));
+	if (err)
 		goto dma_set_mask_failed;
 
-	if (dma_set_coherent_mask(kbdev->dev,
-			DMA_BIT_MASK(kbdev->gpu_props.mmu.pa_bits)))
+	err = dma_set_coherent_mask(kbdev->dev,
+			DMA_BIT_MASK(kbdev->gpu_props.mmu.pa_bits));
+	if (err)
 		goto dma_set_mask_failed;
 
-	if (kbase_mem_lowlevel_init(kbdev))
+	err = kbase_mem_lowlevel_init(kbdev);
+	if (err)
 		goto mem_lowlevel_init_failed;
 
 	kbdev->nr_hw_address_spaces = kbdev->gpu_props.num_address_spaces;
 
-	/* We're done accessing the GPU registers for now. */
-	kbase_pm_register_access_disable(kbdev);
-
-	for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
-		const char format[] = "mali_mmu%d";
-		char name[sizeof(format)];
-		const char poke_format[] = "mali_mmu%d_poker";	/* BASE_HW_ISSUE_8316 */
-		char poke_name[sizeof(poke_format)];	/* BASE_HW_ISSUE_8316 */
-
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316)) {
-			if (0 > snprintf(poke_name, sizeof(poke_name), poke_format, i))
-				goto free_workqs;
-		}
-
-		if (0 > snprintf(name, sizeof(name), format, i))
-			goto free_workqs;
-
-		kbdev->as[i].number = i;
-		kbdev->as[i].fault_addr = 0ULL;
-
-		kbdev->as[i].pf_wq = alloc_workqueue(name, 0, 1);
-		if (NULL == kbdev->as[i].pf_wq)
-			goto free_workqs;
-
-		mutex_init(&kbdev->as[i].transaction_mutex);
-
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316)) {
-			struct hrtimer *poking_timer = &kbdev->as[i].poke_timer;
-
-			kbdev->as[i].poke_wq = alloc_workqueue(poke_name, 0, 1);
-			if (NULL == kbdev->as[i].poke_wq) {
-				destroy_workqueue(kbdev->as[i].pf_wq);
-				goto free_workqs;
-			}
-			KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&kbdev->as[i].poke_work));
-			INIT_WORK(&kbdev->as[i].poke_work, kbasep_as_do_poke);
-
-			hrtimer_init(poking_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-
-			poking_timer->function = kbasep_as_poke_timer_callback;
-
-			kbdev->as[i].poke_refcount = 0;
-			kbdev->as[i].poke_state = 0u;
-		}
-	}
-	/* don't change i after this point */
+	err = kbase_device_all_as_init(kbdev);
+	if (err)
+		goto term_lowlevel_mem;
 
 	spin_lock_init(&kbdev->hwcnt.lock);
 
-	kbdev->hwcnt.state = KBASE_INSTR_STATE_DISABLED;
-	init_waitqueue_head(&kbdev->reset_wait);
-	init_waitqueue_head(&kbdev->hwcnt.wait);
-	init_waitqueue_head(&kbdev->hwcnt.cache_clean_wait);
-	INIT_WORK(&kbdev->hwcnt.cache_clean_work, kbasep_cache_clean_worker);
-	kbdev->hwcnt.triggered = 0;
-
-	kbdev->hwcnt.cache_clean_wq = alloc_workqueue("Mali cache cleaning workqueue",
-	                                              0, 1);
-	if (NULL == kbdev->hwcnt.cache_clean_wq)
-		goto free_workqs;
-
-#if KBASE_GPU_RESET_EN
-	kbdev->reset_workq = alloc_workqueue("Mali reset workqueue", 0, 1);
-	if (NULL == kbdev->reset_workq)
-		goto free_cache_clean_workq;
-
-	KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&kbdev->reset_work));
-	INIT_WORK(&kbdev->reset_work, kbasep_reset_timeout_worker);
-
-	hrtimer_init(&kbdev->reset_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	kbdev->reset_timer.function = kbasep_reset_timer_callback;
-
-	if (kbasep_trace_init(kbdev) != MALI_ERROR_NONE)
-		goto free_reset_workq;
-#else
-	if (kbasep_trace_init(kbdev) != MALI_ERROR_NONE)
-		goto free_cache_clean_workq;
-#endif /* KBASE_GPU_RESET_EN */
+	err = kbasep_trace_init(kbdev);
+	if (err)
+		goto term_as;
 
 	mutex_init(&kbdev->cacheclean_lock);
-	atomic_set(&kbdev->keep_gpu_powered_count, 0);
 
 #ifdef CONFIG_MALI_TRACE_TIMELINE
-	for (i = 0; i < BASE_JM_SUBMIT_SLOTS; ++i)
+	for (i = 0; i < BASE_JM_MAX_NR_SLOTS; ++i)
 		kbdev->timeline.slot_atoms_submitted[i] = 0;
 
 	for (i = 0; i <= KBASEP_TIMELINE_PM_EVENT_LAST; ++i)
@@ -214,66 +210,46 @@ mali_error kbase_device_init(struct kbase_device * const kbdev)
 
 		kbase_debug_assert_register_hook(&kbasep_trace_hook_wrapper, kbdev);
 
-#if defined(CONFIG_MALI_PLATFORM_VEXPRESS) || defined(CONFIG_MALI_PLATFORM_VEXPRESS_VIRTEX7_40MHZ)
-#ifdef CONFIG_MALI_PLATFORM_FAKE
-	/* BASE_HW_ISSUE_8408 requires a configuration with different timeouts for
-	 * the vexpress platform */
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408))
-		kbdev->config_attributes = config_attributes_hw_issue_8408;
-#endif				/* CONFIG_MALI_PLATFORM_FAKE */
-#endif				/* CONFIG_MALI_PLATFORM_VEXPRESS || CONFIG_MALI_PLATFORM_VEXPRESS_VIRTEX7_40MHZ */
-
 	atomic_set(&kbdev->ctx_num, 0);
 
-	return MALI_ERROR_NONE;
-#if KBASE_GPU_RESET_EN
-free_reset_workq:
-	destroy_workqueue(kbdev->reset_workq);
-#endif /* KBASE_GPU_RESET_EN */
-free_cache_clean_workq:
-	destroy_workqueue(kbdev->hwcnt.cache_clean_wq);
- free_workqs:
-	while (i > 0) {
-		i--;
-		destroy_workqueue(kbdev->as[i].pf_wq);
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316))
-			destroy_workqueue(kbdev->as[i].poke_wq);
-	}
+	err = kbase_instr_backend_init(kbdev);
+	if (err)
+		goto term_trace;
+
+	kbdev->pm.dvfs_period = DEFAULT_PM_DVFS_PERIOD;
+
+	kbdev->reset_timeout_ms = DEFAULT_RESET_TIMEOUT_MS;
+
+	kbdev->mmu_mode = kbase_mmu_mode_get_lpae();
+
+	return 0;
+term_trace:
+	kbasep_trace_term(kbdev);
+term_as:
+	kbase_device_all_as_term(kbdev);
+term_lowlevel_mem:
 	kbase_mem_lowlevel_term(kbdev);
 mem_lowlevel_init_failed:
 dma_set_mask_failed:
-free_platform:
-	kbasep_platform_device_term(kbdev);
 fail:
-	return MALI_ERROR_FUNCTION_FAILED;
+	return err;
 }
 
 void kbase_device_term(struct kbase_device *kbdev)
 {
-	int i;
-
 	KBASE_DEBUG_ASSERT(kbdev);
 
 #if KBASE_TRACE_ENABLE
 	kbase_debug_assert_register_hook(NULL, NULL);
 #endif
 
+	kbase_instr_backend_term(kbdev);
+
 	kbasep_trace_term(kbdev);
 
-#if KBASE_GPU_RESET_EN
-	destroy_workqueue(kbdev->reset_workq);
-#endif
-
-	destroy_workqueue(kbdev->hwcnt.cache_clean_wq);
-
-	for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
-		destroy_workqueue(kbdev->as[i].pf_wq);
-		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316))
-			destroy_workqueue(kbdev->as[i].poke_wq);
-	}
+	kbase_device_all_as_term(kbdev);
 
 	kbase_mem_lowlevel_term(kbdev);
-	kbasep_platform_device_term(kbdev);
 }
 
 void kbase_device_free(struct kbase_device *kbdev)
@@ -284,6 +260,7 @@ void kbase_device_free(struct kbase_device *kbdev)
 void kbase_device_trace_buffer_install(struct kbase_context *kctx, u32 *tb, size_t size)
 {
 	unsigned long flags;
+
 	KBASE_DEBUG_ASSERT(kctx);
 	KBASE_DEBUG_ASSERT(tb);
 
@@ -306,6 +283,7 @@ void kbase_device_trace_buffer_install(struct kbase_context *kctx, u32 *tb, size
 void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx)
 {
 	unsigned long flags;
+
 	KBASE_DEBUG_ASSERT(kctx);
 	spin_lock_irqsave(&kctx->jctx.tb_lock, flags);
 	kctx->jctx.tb = NULL;
@@ -316,6 +294,7 @@ void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx)
 void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_reg_access_type type, u16 reg_offset, u32 reg_value)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&kctx->jctx.tb_lock, flags);
 	if (kctx->jctx.tb) {
 		u16 wrap_count;
@@ -354,137 +333,27 @@ void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_r
 	spin_unlock_irqrestore(&kctx->jctx.tb_lock, flags);
 }
 
-void kbase_reg_write(struct kbase_device *kbdev, u16 offset, u32 value, struct kbase_context *kctx)
-{
-	KBASE_DEBUG_ASSERT(kbdev->pm.gpu_powered);
-	KBASE_DEBUG_ASSERT(kctx == NULL || kctx->as_nr != KBASEP_AS_NR_INVALID);
-	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
-	dev_dbg(kbdev->dev, "w: reg %04x val %08x", offset, value);
-	kbase_os_reg_write(kbdev, offset, value);
-	if (kctx && kctx->jctx.tb)
-		kbase_device_trace_register_access(kctx, REG_WRITE, offset, value);
-}
-
-KBASE_EXPORT_TEST_API(kbase_reg_write)
-
-u32 kbase_reg_read(struct kbase_device *kbdev, u16 offset, struct kbase_context *kctx)
-{
-	u32 val;
-	KBASE_DEBUG_ASSERT(kbdev->pm.gpu_powered);
-	KBASE_DEBUG_ASSERT(kctx == NULL || kctx->as_nr != KBASEP_AS_NR_INVALID);
-	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
-	val = kbase_os_reg_read(kbdev, offset);
-	dev_dbg(kbdev->dev, "r: reg %04x val %08x", offset, val);
-	if (kctx && kctx->jctx.tb)
-		kbase_device_trace_register_access(kctx, REG_READ, offset, val);
-	return val;
-}
-
-KBASE_EXPORT_TEST_API(kbase_reg_read)
-
-#if KBASE_PM_EN
-void kbase_report_gpu_fault(struct kbase_device *kbdev, int multiple)
-{
-	u32 status;
-	u64 address;
-
-	status = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_FAULTSTATUS), NULL);
-	address = (u64) kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_FAULTADDRESS_HI), NULL) << 32;
-	address |= kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_FAULTADDRESS_LO), NULL);
-
-	dev_warn(kbdev->dev, "GPU Fault 0x%08x (%s) at 0x%016llx", status & 0xFF, kbase_exception_name(status), address);
-	kbdev->kbase_group_error++;
-	if (multiple)
-		dev_warn(kbdev->dev, "There were multiple GPU faults - some have not been reported\n");
-}
-
-void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
-{
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_IRQ, NULL, NULL, 0u, val);
-	if (val & GPU_FAULT)
-		kbase_report_gpu_fault(kbdev, val & MULTIPLE_GPU_FAULTS);
-
-	if (val & RESET_COMPLETED)
-		kbase_pm_reset_done(kbdev);
-
-	if (val & PRFCNT_SAMPLE_COMPLETED)
-		kbase_instr_hwcnt_sample_done(kbdev);
-
-	if (val & CLEAN_CACHES_COMPLETED)
-		kbase_clean_caches_done(kbdev);
-
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_IRQ_CLEAR, NULL, NULL, 0u, val);
-	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), val, NULL);
-
-	/* kbase_pm_check_transitions must be called after the IRQ has been cleared. This is because it might trigger
-	 * further power transitions and we don't want to miss the interrupt raised to notify us that these further
-	 * transitions have finished.
-	 */
-	if (val & POWER_CHANGED_ALL) {
-		mali_bool cores_are_available;
-		unsigned long flags;
-
-		KBASE_TIMELINE_PM_CHECKTRANS(kbdev, SW_FLOW_PM_CHECKTRANS_GPU_INTERRUPT_START);
-		spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
-		cores_are_available = kbase_pm_check_transitions_nolock(kbdev);
-		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
-		KBASE_TIMELINE_PM_CHECKTRANS(kbdev, SW_FLOW_PM_CHECKTRANS_GPU_INTERRUPT_END);
-
-		if (cores_are_available) {
-			/* Fast-path Job Scheduling on PM IRQ */
-			int js;
-			/* Log timelining information that a change in state has completed */
-			kbase_timeline_pm_handle_event(kbdev, KBASE_TIMELINE_PM_EVENT_GPU_STATE_CHANGED);
-
-			spin_lock_irqsave(&kbdev->js_data.runpool_irq.lock, flags);
-			/* A simplified check to ensure the last context hasn't exited
-			 * after dropping the PM lock whilst doing a PM IRQ: any bits set
-			 * in 'submit_allowed' indicate that we have a context in the
-			 * runpool (which can't leave whilst we hold this lock). It is
-			 * sometimes zero even when we have a context in the runpool, but
-			 * that's no problem because we'll be unable to submit jobs
-			 * anyway */
-			if (kbdev->js_data.runpool_irq.submit_allowed)
-				for (js = 0; js < kbdev->gpu_props.num_job_slots; ++js) {
-					mali_bool needs_retry;
-					s8 submitted_count = 0;
-					needs_retry = kbasep_js_try_run_next_job_on_slot_irq_nolock(kbdev, js, &submitted_count);
-					/* Don't need to retry outside of IRQ context - this can
-					 * only happen if we submitted too many in one IRQ, such
-					 * that they were completing faster than we could
-					 * submit. In this case, a job IRQ will fire to cause more
-					 * work to be submitted in some way */
-					CSTD_UNUSED(needs_retry);
-				}
-			spin_unlock_irqrestore(&kbdev->js_data.runpool_irq.lock, flags);
-		}
-	}
-	KBASE_TRACE_ADD(kbdev, CORE_GPU_IRQ_DONE, NULL, NULL, 0u, val);
-}
-#endif  /* KBASE_PM_EN */
 /*
  * Device trace functions
  */
 #if KBASE_TRACE_ENABLE
 
-STATIC mali_error kbasep_trace_init(struct kbase_device *kbdev)
+static int kbasep_trace_init(struct kbase_device *kbdev)
 {
-	void *rbuf;
+	struct kbase_trace *rbuf;
 
-	rbuf = kmalloc(sizeof(struct kbase_trace) * KBASE_TRACE_SIZE, GFP_KERNEL);
+	rbuf = kmalloc_array(KBASE_TRACE_SIZE, sizeof(*rbuf), GFP_KERNEL);
 
 	if (!rbuf)
-		return MALI_ERROR_FUNCTION_FAILED;
+		return -EINVAL;
 
 	kbdev->trace_rbuf = rbuf;
 	spin_lock_init(&kbdev->trace_lock);
-	kbasep_trace_debugfs_init(kbdev);
-	return MALI_ERROR_NONE;
+	return 0;
 }
 
-STATIC void kbasep_trace_term(struct kbase_device *kbdev)
+static void kbasep_trace_term(struct kbase_device *kbdev)
 {
-	kbasep_trace_debugfs_term(kbdev);
 	kfree(kbdev->trace_rbuf);
 }
 
@@ -495,28 +364,26 @@ static void kbasep_trace_format_msg(struct kbase_trace *trace_msg, char *buffer,
 	/* Initial part of message */
 	written += MAX(snprintf(buffer + written, MAX(len - written, 0), "%d.%.6d,%d,%d,%s,%p,", (int)trace_msg->timestamp.tv_sec, (int)(trace_msg->timestamp.tv_nsec / 1000), trace_msg->thread_id, trace_msg->cpu, kbasep_trace_code_string[trace_msg->code], trace_msg->ctx), 0);
 
-	if (trace_msg->katom != MALI_FALSE) {
+	if (trace_msg->katom)
 		written += MAX(snprintf(buffer + written, MAX(len - written, 0), "atom %d (ud: 0x%llx 0x%llx)", trace_msg->atom_number, trace_msg->atom_udata[0], trace_msg->atom_udata[1]), 0);
-	}
 
 	written += MAX(snprintf(buffer + written, MAX(len - written, 0), ",%.8llx,", trace_msg->gpu_addr), 0);
 
 	/* NOTE: Could add function callbacks to handle different message types */
 	/* Jobslot present */
-	if ((trace_msg->flags & KBASE_TRACE_FLAG_JOBSLOT) != MALI_FALSE)
+	if (trace_msg->flags & KBASE_TRACE_FLAG_JOBSLOT)
 		written += MAX(snprintf(buffer + written, MAX(len - written, 0), "%d", trace_msg->jobslot), 0);
 
 	written += MAX(snprintf(buffer + written, MAX(len - written, 0), ","), 0);
 
 	/* Refcount present */
-	if ((trace_msg->flags & KBASE_TRACE_FLAG_REFCOUNT) != MALI_FALSE)
+	if (trace_msg->flags & KBASE_TRACE_FLAG_REFCOUNT)
 		written += MAX(snprintf(buffer + written, MAX(len - written, 0), "%d", trace_msg->refcount), 0);
 
 	written += MAX(snprintf(buffer + written, MAX(len - written, 0), ","), 0);
 
 	/* Rest of message */
 	written += MAX(snprintf(buffer + written, MAX(len - written, 0), "0x%.8lx", trace_msg->info_val), 0);
-
 }
 
 static void kbasep_trace_dump_msg(struct kbase_device *kbdev, struct kbase_trace *trace_msg)
@@ -546,9 +413,9 @@ void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, vo
 	trace_msg->ctx = ctx;
 
 	if (NULL == katom) {
-		trace_msg->katom = MALI_FALSE;
+		trace_msg->katom = false;
 	} else {
-		trace_msg->katom = MALI_TRUE;
+		trace_msg->katom = true;
 		trace_msg->atom_number = kbase_jd_atom_id(katom->kctx, katom);
 		trace_msg->atom_udata[0] = katom->udata.blob[0];
 		trace_msg->atom_udata[1] = katom->udata.blob[1];
@@ -573,6 +440,7 @@ void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, vo
 void kbasep_trace_clear(struct kbase_device *kbdev)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&kbdev->trace_lock, flags);
 	kbdev->trace_first_out = kbdev->trace_next_in;
 	spin_unlock_irqrestore(&kbdev->trace_lock, flags);
@@ -591,6 +459,7 @@ void kbasep_trace_dump(struct kbase_device *kbdev)
 
 	while (start != end) {
 		struct kbase_trace *trace_msg = &kbdev->trace_rbuf[start];
+
 		kbasep_trace_dump_msg(kbdev, trace_msg);
 
 		start = (start + 1) & KBASE_TRACE_MASK;
@@ -602,9 +471,10 @@ void kbasep_trace_dump(struct kbase_device *kbdev)
 	KBASE_TRACE_CLEAR(kbdev);
 }
 
-STATIC void kbasep_trace_hook_wrapper(void *param)
+static void kbasep_trace_hook_wrapper(void *param)
 {
 	struct kbase_device *kbdev = (struct kbase_device *)param;
+
 	kbasep_trace_dump(kbdev);
 }
 
@@ -694,62 +564,34 @@ static const struct file_operations kbasep_trace_debugfs_fops = {
 	.release = seq_release_private,
 };
 
-STATIC void kbasep_trace_debugfs_init(struct kbase_device *kbdev)
+void kbasep_trace_debugfs_init(struct kbase_device *kbdev)
 {
-	kbdev->trace_dentry = debugfs_create_file("mali_trace", S_IRUGO,
+	debugfs_create_file("mali_trace", S_IRUGO,
 			kbdev->mali_debugfs_directory, kbdev,
 			&kbasep_trace_debugfs_fops);
 }
 
-STATIC void kbasep_trace_debugfs_term(struct kbase_device *kbdev)
-{
-	debugfs_remove(kbdev->trace_dentry);
-	kbdev->trace_dentry = NULL;
-}
 #else
-STATIC void kbasep_trace_debugfs_init(struct kbase_device *kbdev)
+void kbasep_trace_debugfs_init(struct kbase_device *kbdev)
 {
-
-}
-STATIC void kbasep_trace_debugfs_term(struct kbase_device *kbdev)
-{
-
 }
 #endif				/* CONFIG_DEBUG_FS */
 
 #else				/* KBASE_TRACE_ENABLE  */
-STATIC mali_error kbasep_trace_init(struct kbase_device *kbdev)
+static int kbasep_trace_init(struct kbase_device *kbdev)
 {
 	CSTD_UNUSED(kbdev);
-	return MALI_ERROR_NONE;
+	return 0;
 }
 
-STATIC void kbasep_trace_term(struct kbase_device *kbdev)
+static void kbasep_trace_term(struct kbase_device *kbdev)
 {
 	CSTD_UNUSED(kbdev);
 }
 
-STATIC void kbasep_trace_hook_wrapper(void *param)
+static void kbasep_trace_hook_wrapper(void *param)
 {
 	CSTD_UNUSED(param);
-}
-
-void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, void *ctx, struct kbase_jd_atom *katom, u64 gpu_addr, u8 flags, int refcount, int jobslot, unsigned long info_val)
-{
-	CSTD_UNUSED(kbdev);
-	CSTD_UNUSED(code);
-	CSTD_UNUSED(ctx);
-	CSTD_UNUSED(katom);
-	CSTD_UNUSED(gpu_addr);
-	CSTD_UNUSED(flags);
-	CSTD_UNUSED(refcount);
-	CSTD_UNUSED(jobslot);
-	CSTD_UNUSED(info_val);
-}
-
-void kbasep_trace_clear(struct kbase_device *kbdev)
-{
-	CSTD_UNUSED(kbdev);
 }
 
 void kbasep_trace_dump(struct kbase_device *kbdev)
@@ -810,9 +652,8 @@ void _mali_profiling_control(u32 action, u32 value)
 	/* find the first i.e. call with -1 */
 	kbdev = kbase_find_device(-1);
 
-	if (NULL != kbdev) {
+	if (NULL != kbdev)
 		kbase_set_profiling_control(kbdev, action, value);
-	}
 }
-
 KBASE_EXPORT_SYMBOL(_mali_profiling_control);
+

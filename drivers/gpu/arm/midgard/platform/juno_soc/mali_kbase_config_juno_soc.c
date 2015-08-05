@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -16,11 +16,13 @@
 
 
 #include <linux/ioport.h>
+#ifdef CONFIG_DEVFREQ_THERMAL
+#include <linux/devfreq_cooling.h>
+#endif
+#include <linux/thermal.h>
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
 #include <mali_kbase_config.h>
-
-#include "../mali_kbase_power_actor.h"
 
 /* Versatile Express (VE) Juno Development Platform */
 
@@ -58,32 +60,56 @@ static void pm_callback_power_off(struct kbase_device *kbdev)
 #endif
 }
 
-static struct kbase_pm_callback_conf pm_callbacks = {
+struct kbase_pm_callback_conf pm_callbacks = {
 	.power_on_callback = pm_callback_power_on,
 	.power_off_callback = pm_callback_power_off,
 	.power_suspend_callback  = NULL,
 	.power_resume_callback = NULL
 };
 
-static unsigned long juno_model_static_power(unsigned long voltage, unsigned long temperature)
+#ifdef CONFIG_DEVFREQ_THERMAL
+
+#define FALLBACK_STATIC_TEMPERATURE 55000
+
+static unsigned long juno_model_static_power(unsigned long voltage)
 {
-	/* Calculate power, corrected for voltage.
-	 * Shifts are done to avoid overflow. */
+	struct thermal_zone_device *tz;
+	unsigned long temperature, temp;
+	unsigned long temp_squared, temp_cubed, temp_scaling_factor;
 	const unsigned long coefficient = (410UL << 20) / (729000000UL >> 10);
 	const unsigned long voltage_cubed = (voltage * voltage * voltage) >> 10;
 
+	tz = thermal_zone_get_zone_by_name("gpu");
+	if (IS_ERR(tz)) {
+		pr_warn_ratelimited("Error getting gpu thermal zone (%ld), not yet ready?\n",
+				PTR_ERR(tz));
+		temperature = FALLBACK_STATIC_TEMPERATURE;
+	} else {
+		int ret;
+
+		ret = tz->ops->get_temp(tz, &temperature);
+		if (ret) {
+			pr_warn_ratelimited("Error reading temperature for gpu thermal zone: %d\n",
+					ret);
+			temperature = FALLBACK_STATIC_TEMPERATURE;
+		}
+	}
+
 	/* Calculate the temperature scaling factor. To be applied to the
-	 * voltage scaled power. */
-	const unsigned long temp = temperature / 1000;
-	const unsigned long temp_squared = temp * temp;
-	const unsigned long temp_cubed = temp_squared * temp;
-	const unsigned long temp_scaling_factor =
+	 * voltage scaled power.
+	 */
+	temp = temperature / 1000;
+	temp_squared = temp * temp;
+	temp_cubed = temp_squared * temp;
+	temp_scaling_factor =
 			(2 * temp_cubed)
 			- (80 * temp_squared)
 			+ (4700 * temp)
 			+ 32000;
 
-	return (((coefficient * voltage_cubed) >> 20) * temp_scaling_factor) / 1000000;
+	return (((coefficient * voltage_cubed) >> 20)
+			* temp_scaling_factor)
+				/ 1000000;
 }
 
 static unsigned long juno_model_dynamic_power(unsigned long freq,
@@ -102,21 +128,33 @@ static unsigned long juno_model_dynamic_power(unsigned long freq,
 	return (coefficient * v2 * f_mhz) / 1000000; /* mW */
 }
 
-static struct mali_pa_model_ops juno_model_ops = {
+struct devfreq_cooling_ops juno_model_ops = {
 	.get_static_power = juno_model_static_power,
 	.get_dynamic_power = juno_model_dynamic_power,
 };
 
-static struct kbase_attribute config_attributes[] = {
-	{ KBASE_CONFIG_ATTR_JS_RESET_TIMEOUT_MS, 500 },
-	{ KBASE_CONFIG_ATTR_POWER_MANAGEMENT_CALLBACKS, ((uintptr_t)&pm_callbacks) },
-	{ KBASE_CONFIG_ATTR_POWER_MODEL_CALLBACKS, ((uintptr_t)&juno_model_ops) },
+#endif /* CONFIG_DEVFREQ_THERMAL */
 
-	{ KBASE_CONFIG_ATTR_END, 0 }
+static int juno_secure_mode_enable(struct kbase_device *kbdev)
+{
+	/* TODO: enable secure mode */
+	/*dev_err(kbdev->dev, "SWITCHING TO SECURE\n");*/
+	return 0; /* all ok */
+}
+
+static int juno_secure_mode_disable(struct kbase_device *kbdev)
+{
+	/* TODO: Turn off secure mode and reset GPU */
+	/*dev_err(kbdev->dev, "SWITCHING TO NON-SECURE\n");*/
+	return 0; /* all ok */
+}
+
+struct kbase_secure_ops juno_secure_ops = {
+	.secure_mode_enable = juno_secure_mode_enable,
+	.secure_mode_disable = juno_secure_mode_disable,
 };
 
 static struct kbase_platform_config versatile_platform_config = {
-	.attributes = config_attributes,
 #ifndef CONFIG_OF
 	.io_resources = &io_resources
 #endif

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -16,184 +16,91 @@
 
 
 
-
-/**
- * @file mali_kbase_jm.h
- * Job Manager Low-level APIs.
+/*
+ * Job manager common APIs
  */
 
 #ifndef _KBASE_JM_H_
 #define _KBASE_JM_H_
 
-#include <mali_kbase_hw.h>
-#include <mali_kbase_debug.h>
-#include <linux/atomic.h>
-
 /**
- * @addtogroup base_api
- * @{
- */
-
-/**
- * @addtogroup base_kbase_api
- * @{
- */
-
-/**
- * @addtogroup kbase_jm Job Manager Low-level APIs
- * @{
+ * kbase_jm_kick() - Indicate that there are jobs ready to run.
+ * @kbdev:	Device pointer
+ * @js_mask:	Mask of the job slots that can be pulled from.
  *
- */
-
-static INLINE int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js, struct kbase_context *kctx)
-{
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
-	KBASE_DEBUG_ASSERT(0 <= js && js < kbdev->gpu_props.num_job_slots);
-
-	return !kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT), kctx);
-}
-
-/**
- * This checks that:
- * - there is enough space in the GPU's buffers (JS_NEXT and JS_HEAD registers) to accomodate the job.
- * - there is enough space to track the job in a our Submit Slots. Note that we have to maintain space to
- *   requeue one job in case the next registers on the hardware need to be cleared.
- */
-static INLINE mali_bool kbasep_jm_is_submit_slots_free(struct kbase_device *kbdev, int js, struct kbase_context *kctx)
-{
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
-	KBASE_DEBUG_ASSERT(0 <= js && js < kbdev->gpu_props.num_job_slots);
-
-	if (atomic_read(&kbdev->reset_gpu) != KBASE_RESET_GPU_NOT_PENDING) {
-		/* The GPU is being reset - so prevent submission */
-		return MALI_FALSE;
-	}
-
-	return (mali_bool) (kbasep_jm_is_js_free(kbdev, js, kctx)
-			    && kbdev->jm_slots[js].submitted_nr < (BASE_JM_SUBMIT_SLOTS - 2));
-}
-
-/**
- * Initialize a submit slot
- */
-static INLINE void kbasep_jm_init_submit_slot(struct kbase_jm_slot *slot)
-{
-	slot->submitted_nr = 0;
-	slot->submitted_head = 0;
-}
-
-/**
- * Find the atom at the idx'th element in the queue without removing it, starting at the head with idx==0.
- */
-static INLINE struct kbase_jd_atom *kbasep_jm_peek_idx_submit_slot(struct kbase_jm_slot *slot, u8 idx)
-{
-	u8 pos;
-	struct kbase_jd_atom *katom;
-
-	KBASE_DEBUG_ASSERT(idx < BASE_JM_SUBMIT_SLOTS);
-
-	pos = (slot->submitted_head + idx) & BASE_JM_SUBMIT_SLOTS_MASK;
-	katom = slot->submitted[pos];
-
-	return katom;
-}
-
-/**
- * Pop front of the submitted
- */
-static INLINE struct kbase_jd_atom *kbasep_jm_dequeue_submit_slot(struct kbase_jm_slot *slot)
-{
-	u8 pos;
-	struct kbase_jd_atom *katom;
-
-	pos = slot->submitted_head & BASE_JM_SUBMIT_SLOTS_MASK;
-	katom = slot->submitted[pos];
-	slot->submitted[pos] = NULL;	/* Just to catch bugs... */
-	KBASE_DEBUG_ASSERT(katom);
-
-	/* rotate the buffers */
-	slot->submitted_head = (slot->submitted_head + 1) & BASE_JM_SUBMIT_SLOTS_MASK;
-	slot->submitted_nr--;
-
-	dev_dbg(katom->kctx->kbdev->dev, "katom %p new head %u", (void *)katom, (unsigned int)slot->submitted_head);
-
-	return katom;
-}
-
-/* Pop back of the submitted queue (unsubmit a job)
- */
-static INLINE struct kbase_jd_atom *kbasep_jm_dequeue_tail_submit_slot(struct kbase_jm_slot *slot)
-{
-	u8 pos;
-
-	slot->submitted_nr--;
-
-	pos = (slot->submitted_head + slot->submitted_nr) & BASE_JM_SUBMIT_SLOTS_MASK;
-
-	return slot->submitted[pos];
-}
-
-static INLINE u8 kbasep_jm_nr_jobs_submitted(struct kbase_jm_slot *slot)
-{
-	return slot->submitted_nr;
-}
-
-/**
- * Push back of the submitted
- */
-static INLINE void kbasep_jm_enqueue_submit_slot(struct kbase_jm_slot *slot, struct kbase_jd_atom *katom)
-{
-	u8 nr;
-	u8 pos;
-	nr = slot->submitted_nr++;
-	KBASE_DEBUG_ASSERT(nr < BASE_JM_SUBMIT_SLOTS);
-
-	pos = (slot->submitted_head + nr) & BASE_JM_SUBMIT_SLOTS_MASK;
-	slot->submitted[pos] = katom;
-}
-
-/**
- * @brief Query whether a job peeked/dequeued from the submit slots is a
- * 'dummy' job that is used for hardware workaround purposes.
+ * Caller must hold the runpool_irq lock and schedule_sem semaphore
  *
- * Any time a job is peeked/dequeued from the submit slots, this should be
- * queried on that job.
- *
- * If a \a atom is indicated as being a dummy job, then you <b>must not attempt
- * to use \a atom</b>. This is because its members will not necessarily be
- * initialized, and so could lead to a fault if they were used.
- *
- * @param[in] kbdev kbase device pointer
- * @param[in] atom The atom to query
- *
- * @return    MALI_TRUE if \a atom is for a dummy job, in which case you must not
- *            attempt to use it.
- * @return    MALI_FALSE otherwise, and \a atom is safe to use.
+ * Return: Mask of the job slots that can still be submitted to.
  */
-static INLINE mali_bool kbasep_jm_is_dummy_workaround_job(struct kbase_device *kbdev, struct kbase_jd_atom *atom)
+u32 kbase_jm_kick(struct kbase_device *kbdev, u32 js_mask);
+
+/**
+ * kbase_jm_kick_all() - Indicate that there are jobs ready to run on all job
+ *			 slots.
+ * @kbdev:	Device pointer
+ *
+ * Caller must hold the runpool_irq lock and schedule_sem semaphore
+ *
+ * Return: Mask of the job slots that can still be submitted to.
+ */
+static inline u32 kbase_jm_kick_all(struct kbase_device *kbdev)
 {
-	/* Query the set of workaround jobs here */
-	/* none exists today */
-	return MALI_FALSE;
+	return kbase_jm_kick(kbdev, (1 << kbdev->gpu_props.num_job_slots) - 1);
 }
 
 /**
- * @brief Submit a job to a certain job-slot
+ * kbase_jm_try_kick - Attempt to call kbase_jm_kick
+ * @kbdev:   Device pointer
+ * @js_mask: Mask of the job slots that can be pulled from
+ * Context: Caller must hold runpool_irq lock
  *
- * The caller must check kbasep_jm_is_submit_slots_free() != MALI_FALSE before calling this.
- *
- * The following locking conditions are made on the caller:
- * - it must hold the kbasep_js_device_data::runpoool_irq::lock
+ * If schedule_sem can be immediately obtained then this function will call
+ * kbase_jm_kick() otherwise it will do nothing.
  */
-void kbase_job_submit_nolock(struct kbase_device *kbdev, struct kbase_jd_atom *katom, int js);
+void kbase_jm_try_kick(struct kbase_device *kbdev, u32 js_mask);
 
 /**
- * @brief Complete the head job on a particular job-slot
+ * kbase_jm_try_kick_all() - Attempt to call kbase_jm_kick_all
+ * @kbdev:  Device pointer
+ * Context: Caller must hold runpool_irq lock
+ *
+ * If schedule_sem can be immediately obtained then this function will call
+ * kbase_jm_kick_all() otherwise it will do nothing.
  */
-void kbase_job_done_slot(struct kbase_device *kbdev, int s, u32 completion_code, u64 job_tail, ktime_t *end_timestamp);
+void kbase_jm_try_kick_all(struct kbase_device *kbdev);
 
-	  /** @} *//* end group kbase_jm */
-	  /** @} *//* end group base_kbase_api */
-	  /** @} *//* end group base_api */
+/**
+ * kbase_jm_idle_ctx() - Mark a context as idle.
+ * @kbdev:	Device pointer
+ * @kctx:	Context to mark as idle
+ *
+ * No more atoms will be pulled from this context until it is marked as active
+ * by kbase_js_use_ctx().
+ *
+ * The context should have no atoms currently pulled from it
+ * (kctx->atoms_pulled == 0).
+ *
+ * Caller must hold the runpool_irq lock
+ */
+void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
-#endif				/* _KBASE_JM_H_ */
+/**
+ * kbase_jm_return_atom_to_js() - Return an atom to the job scheduler that has
+ *				  been soft-stopped or will fail due to a
+ *				  dependency
+ * @kbdev:	Device pointer
+ * @katom:	Atom that has been stopped or will be failed
+ */
+void kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
+				struct kbase_jd_atom *katom);
+
+/**
+ * kbase_jm_complete() - Complete an atom
+ * @kbdev:		Device pointer
+ * @katom:		Atom that has completed
+ * @end_timestamp:	Timestamp of atom completion
+ */
+void kbase_jm_complete(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
+			ktime_t *end_timestamp);
+
+#endif /* _KBASE_JM_H_ */

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,10 +40,10 @@
 /** Function type that is called on an KBASE_DEBUG_ASSERT() or KBASE_DEBUG_ASSERT_MSG() */
 typedef void (kbase_debug_assert_hook) (void *);
 
-typedef struct kbasep_debug_assert_cb {
+struct kbasep_debug_assert_cb {
 	kbase_debug_assert_hook *func;
 	void *param;
-} kbasep_debug_assert_cb;
+};
 
 /**
  * @def KBASEP_DEBUG_PRINT_TRACE
@@ -54,7 +54,7 @@ typedef struct kbasep_debug_assert_cb {
 #define KBASEP_DEBUG_PRINT_TRACE \
 		"In file: " __FILE__ " line: " CSTD_STR2(__LINE__)
 #if !KBASE_DEBUG_SKIP_FUNCTION_NAME
-#define KBASEP_DEBUG_PRINT_FUNCTION CSTD_FUNC
+#define KBASEP_DEBUG_PRINT_FUNCTION __func__
 #else
 #define KBASEP_DEBUG_PRINT_FUNCTION ""
 #endif
@@ -77,15 +77,15 @@ typedef struct kbasep_debug_assert_cb {
 			pr_err("Mali<ASSERT>: %s function:%s ", trace, function);\
 			pr_err(__VA_ARGS__);\
 			pr_err("\n");\
-		} while (MALI_FALSE)
+		} while (false)
 #else
 #define KBASEP_DEBUG_ASSERT_OUT(trace, function, ...) CSTD_NOP()
 #endif
 
 #ifdef CONFIG_MALI_DEBUG
-#define KBASE_CALL_ASSERT_HOOK() kbasep_debug_assert_call_hook();
+#define KBASE_CALL_ASSERT_HOOK() kbasep_debug_assert_call_hook()
 #else
-#define KBASE_CALL_ASSERT_HOOK() CSTD_NOP();
+#define KBASE_CALL_ASSERT_HOOK() CSTD_NOP()
 #endif
 
 /**
@@ -118,7 +118,7 @@ typedef struct kbasep_debug_assert_cb {
 				KBASE_CALL_ASSERT_HOOK();\
 				BUG();\
 			} \
-		} while (MALI_FALSE)
+		} while (false)
 #endif				/* KBASE_DEBUG_DISABLE_ASSERTS */
 
 /**

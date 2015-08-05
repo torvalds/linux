@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -44,9 +44,9 @@ enum kbase_security_capability {
  * @param[in]   cap     The capability to check for.
  * @param[in]   flags   Additional configuration information
  *                      Such as whether to write an audit message or not.
- * @return MALI_TRUE if success (capability is allowed), MALI_FALSE otherwise.
+ * @return true if success (capability is allowed), false otherwise.
  */
 
-mali_bool kbase_security_has_capability(struct kbase_context *kctx, enum kbase_security_capability cap, u32 flags);
+bool kbase_security_has_capability(struct kbase_context *kctx, enum kbase_security_capability cap, u32 flags);
 
 #endif				/* _KBASE_SECURITY_H_ */

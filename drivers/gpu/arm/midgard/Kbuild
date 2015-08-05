@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r5p0-06rel0"
+MALI_RELEASE_NAME ?= "r6p0-02rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -83,47 +83,38 @@ SRC := \
 	mali_kbase_cpuprops.c \
 	mali_kbase_gpuprops.c \
 	mali_kbase_js.c \
-	mali_kbase_js_affinity.c \
 	mali_kbase_js_ctx_attr.c \
 	mali_kbase_event.c \
 	mali_kbase_context.c \
 	mali_kbase_pm.c \
-	mali_kbase_pm_driver.c \
-	mali_kbase_pm_metrics.c \
-	mali_kbase_pm_ca.c \
-	mali_kbase_pm_ca_fixed.c \
-	mali_kbase_pm_always_on.c \
-	mali_kbase_pm_coarse_demand.c \
-	mali_kbase_pm_demand.c \
-	mali_kbase_pm_policy.c \
 	mali_kbase_config.c \
 	mali_kbase_security.c \
 	mali_kbase_instr.c \
+	mali_kbase_vinstr.c \
 	mali_kbase_softjobs.c \
 	mali_kbase_10969_workaround.c \
 	mali_kbase_hw.c \
 	mali_kbase_utility.c \
 	mali_kbase_debug.c \
 	mali_kbase_trace_timeline.c \
+	mali_kbase_gpu_memory_debugfs.c \
 	mali_kbase_mem_linux.c \
 	mali_kbase_core_linux.c \
 	mali_kbase_sync.c \
 	mali_kbase_sync_user.c \
 	mali_kbase_replay.c \
 	mali_kbase_mem_profile_debugfs.c \
-	mali_kbase_mmu_hw_direct.c \
+	mali_kbase_mmu_mode_lpae.c \
 	mali_kbase_disjoint_events.c \
-	mali_kbase_gator_api.c
+	mali_kbase_gator_api.c \
+	mali_kbase_debug_mem_view.c \
+	mali_kbase_smc.c
 
-ifeq ($(CONFIG_DEBUG_FS),y)
-	SRC += mali_kbase_gpu_memory_debugfs.c
-endif
-
-ifeq ($(MALI_CUSTOMER_RELEASE),0)
-SRC += \
-	mali_kbase_pm_ca_random.c \
-	mali_kbase_pm_demand_always_powered.c \
-	mali_kbase_pm_fast_start.c
+ifeq ($(CONFIG_MALI_MIPE_ENABLED),y)
+	SRC += mali_kbase_tlstream.c
+	ifeq ($(MALI_UNIT_TEST),1)
+		SRC += mali_kbase_tlstream_test.c
+	endif
 endif
 
 # Job Scheduler Policy: Completely Fair Scheduler
@@ -135,21 +126,7 @@ else
 	SRC += mali_kbase_mem_alloc.c
 endif
 
-# ensure GPL version of malisw gets pulled in
 ccflags-y += -I$(KBASE_PATH)
-
-ifeq ($(CONFIG_MALI_NO_MALI),y)
-	# Dummy model
-	SRC += mali_kbase_model_dummy.c
-	SRC += mali_kbase_model_linux.c
-	# HW error simulation
-	SRC += mali_kbase_model_error_generator.c
-endif
-
-ifeq ($(MALI_MOCK_TEST),1)
-	# Test functionality
-	SRC += tests/internal/src/mock/mali_kbase_pm_driver_mock.c
-endif
 
 # in-tree/out-of-tree logic needs to be slightly different to determine if a file is present
 ifeq ($(KBUILD_EXTMOD),)
@@ -158,13 +135,6 @@ MALI_METRICS_PATH = $(srctree)/drivers/gpu/arm/midgard
 else
 # out-of-tree
 MALI_METRICS_PATH = $(KBUILD_EXTMOD)
-endif
-
-# Use vsync metrics example using PL111 driver, if available
-ifeq ($(wildcard $(MALI_METRICS_PATH)/mali_kbase_pm_metrics_linux.c),)
-	SRC += mali_kbase_pm_metrics_dummy.c
-else
-	SRC += mali_kbase_pm_metrics_linux.c
 endif
 
 ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
@@ -196,31 +166,16 @@ ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
 		ccflags-y += -I$(src)/platform/vexpress_1xv7_a57
 	endif
 
-	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_VIRTEX7_40MHZ),y)
-		SRC += platform/vexpress_virtex7_40mhz/mali_kbase_config_vexpress.c \
-		platform/vexpress_virtex7_40mhz/mali_kbase_cpu_vexpress.c
-		ccflags-y += -I$(src)/platform/vexpress_virtex7_40mhz
-	endif
-
 	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_6XVIRTEX7_10MHZ),y)
 		SRC += platform/vexpress_6xvirtex7_10mhz/mali_kbase_config_vexpress.c \
 		platform/vexpress_6xvirtex7_10mhz/mali_kbase_cpu_vexpress.c
 		ccflags-y += -I$(src)/platform/vexpress_6xvirtex7_10mhz
 	endif
 
-	ifeq ($(CONFIG_MALI_PLATFORM_GOLDFISH),y)
-		SRC += platform/goldfish/mali_kbase_config_goldfish.c
-		ccflags-y += -I$(src)/platform/goldfish
-	endif
-
-	ifeq ($(CONFIG_MALI_PLATFORM_PBX),y)
-		SRC += platform/pbx/mali_kbase_config_pbx.c
-		ccflags-y += -I$(src)/platform/pbx
-	endif
-
-	ifeq ($(CONFIG_MALI_PLATFORM_PANDA),y)
-		SRC += platform/panda/mali_kbase_config_panda.c
-		ccflags-y += -I$(src)/platform/panda
+	ifeq ($(CONFIG_MALI_PLATFORM_A7_KIPLING),y)
+		SRC += platform/a7_kipling/mali_kbase_config_a7_kipling.c \
+		platform/a7_kipling/mali_kbase_cpu_a7_kipling.c
+		ccflags-y += -I$(src)/platform/a7_kipling
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
@@ -248,18 +203,39 @@ obj-$(CONFIG_MALI_MIDGARD) += platform/
 endif
 endif
 
+ifeq ($(CONFIG_MALI_PLATFORM_DEVICETREE),y)
+	SRC += platform/devicetree/mali_kbase_runtime_pm.c
+	SRC += platform/devicetree/mali_kbase_config_devicetree.c
+	ccflags-y += -I$(src)/platform/devicetree
+endif
+
 # Tell the Linux build system from which .o file to create the kernel module
 obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
 
 # Tell the Linux build system to enable building of our .c files
 mali_kbase-y := $(SRC:.c=.o)
 
-mali_kbase-$(CONFIG_MALI_DEVFREQ) += mali_kbase_devfreq.o
-mali_kbase-$(CONFIG_MALI_POWER_ACTOR) += mali_kbase_power_actor.o
-
 ifneq ($(wildcard $(src)/internal/Kbuild),)
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
+# This include may set MALI_BACKEND_PATH and CONFIG_MALI_BACKEND_REAL
 include  $(src)/internal/Kbuild
 mali_kbase-y += $(INTERNAL:.c=.o)
 endif
 endif
+
+MALI_BACKEND_PATH ?= backend
+CONFIG_MALI_BACKEND ?= gpu
+CONFIG_MALI_BACKEND_REAL ?= $(CONFIG_MALI_BACKEND)
+
+ifeq ($(MALI_MOCK_TEST),1)
+ifeq ($(CONFIG_MALI_BACKEND_REAL),gpu)
+# Test functionality
+mali_kbase-y += tests/internal/src/mock/mali_kbase_pm_driver_mock.o
+endif
+endif
+
+include  $(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)/Kbuild
+mali_kbase-y += $(BACKEND:.c=.o)
+
+ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)
+subdir-ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)

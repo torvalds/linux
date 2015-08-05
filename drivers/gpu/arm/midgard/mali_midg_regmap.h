@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,7 +28,8 @@
 #define GPU_CONTROL_REG(r)      (GPU_CONTROL_BASE + (r))
 #define GPU_ID                  0x000	/* (RO) GPU and revision identifier */
 #define L2_FEATURES             0x004	/* (RO) Level 2 cache features */
-#define L3_FEATURES             0x008	/* (RO) Level 3 cache features */
+#define SUSPEND_SIZE            0x008   /* (RO) Fixed-function suspend buffer
+						size */
 #define TILER_FEATURES          0x00C	/* (RO) Tiler Features */
 #define MEM_FEATURES            0x010	/* (RO) Memory system features */
 #define MMU_FEATURES            0x014	/* (RO) MMU features */
@@ -57,8 +58,8 @@
 #define GPU_COMMAND             0x030	/* (WO) */
 #define GPU_STATUS              0x034	/* (RO) */
 
+
 #define GROUPS_L2_COHERENT      (1 << 0)	/* Cores groups are l2 coherent */
-#define GROUPS_L3_COHERENT      (1 << 1)	/* Cores groups are l3 coherent */
 
 #define GPU_FAULTSTATUS         0x03C	/* (RO) GPU exception type and fault status */
 #define GPU_FAULTADDRESS_LO     0x040	/* (RO) GPU exception fault address, low word */
@@ -74,7 +75,6 @@
 #define PRFCNT_JM_EN            0x06C	/* (RW) Performance counter enable flags for Job Manager */
 #define PRFCNT_SHADER_EN        0x070	/* (RW) Performance counter enable flags for shader cores */
 #define PRFCNT_TILER_EN         0x074	/* (RW) Performance counter enable flags for tiler */
-#define PRFCNT_L3_CACHE_EN      0x078	/* (RW) Performance counter enable flags for L3 cache */
 #define PRFCNT_MMU_L2_EN        0x07C	/* (RW) Performance counter enable flags for MMU/L2 cache */
 
 #define CYCLE_COUNT_LO          0x090	/* (RO) Cycle counter, low word */
@@ -121,8 +121,6 @@
 #define L2_PRESENT_LO           0x120	/* (RO) Level 2 cache present bitmap, low word */
 #define L2_PRESENT_HI           0x124	/* (RO) Level 2 cache present bitmap, high word */
 
-#define L3_PRESENT_LO           0x130	/* (RO) Level 3 cache present bitmap, low word */
-#define L3_PRESENT_HI           0x134	/* (RO) Level 3 cache present bitmap, high word */
 
 #define SHADER_READY_LO         0x140	/* (RO) Shader core ready bitmap, low word */
 #define SHADER_READY_HI         0x144	/* (RO) Shader core ready bitmap, high word */
@@ -133,8 +131,6 @@
 #define L2_READY_LO             0x160	/* (RO) Level 2 cache ready bitmap, low word */
 #define L2_READY_HI             0x164	/* (RO) Level 2 cache ready bitmap, high word */
 
-#define L3_READY_LO             0x170	/* (RO) Level 3 cache ready bitmap, low word */
-#define L3_READY_HI             0x174	/* (RO) Level 3 cache ready bitmap, high word */
 
 #define SHADER_PWRON_LO         0x180	/* (WO) Shader core power on bitmap, low word */
 #define SHADER_PWRON_HI         0x184	/* (WO) Shader core power on bitmap, high word */
@@ -145,9 +141,6 @@
 #define L2_PWRON_LO             0x1A0	/* (WO) Level 2 cache power on bitmap, low word */
 #define L2_PWRON_HI             0x1A4	/* (WO) Level 2 cache power on bitmap, high word */
 
-#define L3_PWRON_LO             0x1B0	/* (WO) Level 3 cache power on bitmap, low word */
-#define L3_PWRON_HI             0x1B4	/* (WO) Level 3 cache power on bitmap, high word */
-
 #define SHADER_PWROFF_LO        0x1C0	/* (WO) Shader core power off bitmap, low word */
 #define SHADER_PWROFF_HI        0x1C4	/* (WO) Shader core power off bitmap, high word */
 
@@ -156,9 +149,6 @@
 
 #define L2_PWROFF_LO            0x1E0	/* (WO) Level 2 cache power off bitmap, low word */
 #define L2_PWROFF_HI            0x1E4	/* (WO) Level 2 cache power off bitmap, high word */
-
-#define L3_PWROFF_LO            0x1F0	/* (WO) Level 3 cache power off bitmap, low word */
-#define L3_PWROFF_HI            0x1F4	/* (WO) Level 3 cache power off bitmap, high word */
 
 #define SHADER_PWRTRANS_LO      0x200	/* (RO) Shader core power transition bitmap, low word */
 #define SHADER_PWRTRANS_HI      0x204	/* (RO) Shader core power transition bitmap, high word */
@@ -169,9 +159,6 @@
 #define L2_PWRTRANS_LO          0x220	/* (RO) Level 2 cache power transition bitmap, low word */
 #define L2_PWRTRANS_HI          0x224	/* (RO) Level 2 cache power transition bitmap, high word */
 
-#define L3_PWRTRANS_LO          0x230	/* (RO) Level 3 cache power transition bitmap, low word */
-#define L3_PWRTRANS_HI          0x234	/* (RO) Level 3 cache power transition bitmap, high word */
-
 #define SHADER_PWRACTIVE_LO     0x240	/* (RO) Shader core active bitmap, low word */
 #define SHADER_PWRACTIVE_HI     0x244	/* (RO) Shader core active bitmap, high word */
 
@@ -181,8 +168,6 @@
 #define L2_PWRACTIVE_LO         0x260	/* (RO) Level 2 cache active bitmap, low word */
 #define L2_PWRACTIVE_HI         0x264	/* (RO) Level 2 cache active bitmap, high word */
 
-#define L3_PWRACTIVE_LO         0x270	/* (RO) Level 3 cache active bitmap, low word */
-#define L3_PWRACTIVE_HI         0x274	/* (RO) Level 3 cache active bitmap, high word */
 
 #define SHADER_CONFIG           0xF04	/* (RW) Shader core configuration settings (Implementation specific register) */
 #define TILER_CONFIG            0xF08   /* (RW) Tiler core configuration settings (Implementation specific register) */
@@ -238,6 +223,7 @@
 
 #define JS_COMMAND_NEXT        0x60	/* (RW) Next command register for job slot n */
 
+
 #define MEMORY_MANAGEMENT_BASE  0x2000
 #define MMU_REG(r)              (MEMORY_MANAGEMENT_BASE + (r))
 
@@ -277,6 +263,8 @@
 #define AS_FAULTADDRESS_HI     0x24	/* (RO) Fault Address for address space n, high word */
 #define AS_STATUS              0x28	/* (RO) Status flags for address space n */
 
+
+
 /* End Register Offsets */
 
 /*
@@ -292,26 +280,35 @@
 #define MMU_BUS_ERROR(n)       (1UL << ((n) + MMU_PAGE_FAULT_FLAGS))
 
 /*
- * Begin MMU TRANSTAB register values
+ * Begin LPAE MMU TRANSTAB register values
  */
-#define AS_TRANSTAB_ADDR_SPACE_MASK   0xfffff000
-#define AS_TRANSTAB_ADRMODE_UNMAPPED  (0u << 0)
-#define AS_TRANSTAB_ADRMODE_IDENTITY  (1u << 1)
-#define AS_TRANSTAB_ADRMODE_TABLE     (3u << 0)
-#define AS_TRANSTAB_READ_INNER        (1u << 2)
-#define AS_TRANSTAB_SHARE_OUTER       (1u << 4)
+#define AS_TRANSTAB_LPAE_ADDR_SPACE_MASK   0xfffff000
+#define AS_TRANSTAB_LPAE_ADRMODE_UNMAPPED  (0u << 0)
+#define AS_TRANSTAB_LPAE_ADRMODE_IDENTITY  (1u << 1)
+#define AS_TRANSTAB_LPAE_ADRMODE_TABLE     (3u << 0)
+#define AS_TRANSTAB_LPAE_READ_INNER        (1u << 2)
+#define AS_TRANSTAB_LPAE_SHARE_OUTER       (1u << 4)
 
-#define MMU_TRANSTAB_ADRMODE_MASK      0x00000003
+#define AS_TRANSTAB_LPAE_ADRMODE_MASK      0x00000003
+
 
 /*
  * Begin MMU STATUS register values
  */
 #define AS_STATUS_AS_ACTIVE 0x01
 
-#define AS_FAULTSTATUS_ACCESS_TYPE_MASK    (0x3<<8)
-#define AS_FAULTSTATUS_ACCESS_TYPE_EX      (0x1<<8)
-#define AS_FAULTSTATUS_ACCESS_TYPE_READ    (0x2<<8)
-#define AS_FAULTSTATUS_ACCESS_TYPE_WRITE   (0x3<<8)
+#define AS_FAULTSTATUS_EXCEPTION_CODE_MASK                    (0x7<<3)
+#define AS_FAULTSTATUS_EXCEPTION_CODE_TRANSLATION_FAULT       (0x0<<3)
+#define AS_FAULTSTATUS_EXCEPTION_CODE_PERMISSION_FAULT        (0x1<<3)
+#define AS_FAULTSTATUS_EXCEPTION_CODE_TRANSTAB_BUS_FAULT      (0x2<<3)
+#define AS_FAULTSTATUS_EXCEPTION_CODE_ACCESS_FLAG             (0x3<<3)
+
+
+#define AS_FAULTSTATUS_ACCESS_TYPE_MASK                  (0x3<<8)
+#define AS_FAULTSTATUS_ACCESS_TYPE_EX                    (0x1<<8)
+#define AS_FAULTSTATUS_ACCESS_TYPE_READ                  (0x2<<8)
+#define AS_FAULTSTATUS_ACCESS_TYPE_WRITE                 (0x3<<8)
+
 
 /*
  * Begin Command Values
@@ -414,20 +411,31 @@
 #define PRFCNT_CONFIG_MODE_TILE   2	/* The performance counters are enabled, and are written out each time a tile finishes rendering. */
 
 /* AS<n>_MEMATTR values: */
+
 /* Use GPU implementation-defined  caching policy. */
-#define AS_MEMATTR_IMPL_DEF_CACHE_POLICY 0x48
+#define AS_MEMATTR_LPAE_IMPL_DEF_CACHE_POLICY 0x48ull
 /* The attribute set to force all resources to be cached. */
-#define AS_MEMATTR_FORCE_TO_CACHE_ALL    0x4F
+#define AS_MEMATTR_LPAE_FORCE_TO_CACHE_ALL    0x4Full
 /* Inner write-alloc cache setup, no outer caching */
-#define AS_MEMATTR_WRITE_ALLOC           0x4D
-/* symbol for default MEMATTR to use */
+#define AS_MEMATTR_LPAE_WRITE_ALLOC           0x4Dull
+/* Set to implementation defined, outer caching */
+#define AS_MEMATTR_LPAE_OUTER_IMPL_DEF        0x88ull
+/* Set to write back memory, outer caching */
+#define AS_MEMATTR_LPAE_OUTER_WA              0x8Dull
+
+/* Symbol for default MEMATTR to use */
 #define AS_MEMATTR_INDEX_DEFAULT               0
+
 /* HW implementation defined caching */
 #define AS_MEMATTR_INDEX_IMPL_DEF_CACHE_POLICY 0
 /* Force cache on */
 #define AS_MEMATTR_INDEX_FORCE_TO_CACHE_ALL    1
-/* Write-alloc inner */
+/* Write-alloc */
 #define AS_MEMATTR_INDEX_WRITE_ALLOC           2
+/* Outer coherent, inner implementation defined policy */
+#define AS_MEMATTR_INDEX_OUTER_IMPL_DEF        3
+/* Outer coherent, write alloc inner */
+#define AS_MEMATTR_INDEX_OUTER_WA              4
 
 /* GPU_ID register */
 #define GPU_ID_VERSION_STATUS_SHIFT       0
@@ -444,10 +452,10 @@
 #define GPU_ID_PI_T62X                    0x0620
 #define GPU_ID_PI_T76X                    0x0750
 #define GPU_ID_PI_T72X                    0x0720
-#ifdef MALI_INCLUDE_TFRX
 #define GPU_ID_PI_TFRX                    0x0880
-#endif /* MALI_INCLUDE_TFRX */
 #define GPU_ID_PI_T86X                    0x0860
+#define GPU_ID_PI_T82X                    0x0820
+#define GPU_ID_PI_T83X                    0x0830
 
 /* Values for GPU_ID_VERSION_STATUS field for PRODUCT_ID GPU_ID_PI_T60X */
 #define GPU_ID_S_15DEV0                   0x1
@@ -508,6 +516,13 @@
 
 /* End THREAD_* registers */
 
+/* COHERENCY_* values*/
+#define COHERENCY_ACE_LITE 0
+#define COHERENCY_ACE      1
+#define COHERENCY_NONE     0xFFFF
+#define COHERENCY_FEATURE_BIT(x) (1 << (x))
+/* End COHERENCY_* values */
+
 /* SHADER_CONFIG register */
 
 #define SC_ALT_COUNTERS             (1ul << 3)
@@ -524,4 +539,4 @@
 /* End TILER_CONFIG register */
 
 
-#endif				/* _MIDGARD_REGMAP_H_ */
+#endif /* _MIDGARD_REGMAP_H_ */

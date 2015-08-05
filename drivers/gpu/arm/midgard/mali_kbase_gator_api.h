@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -19,7 +19,7 @@
 #define _KBASE_GATOR_API_H_
 
 /**
- * @brief This file describes the API used by Gator to collect hardware counters data from a Mali device.
+ * @brief This file describes the API used by Gator to fetch hardware counters.
  */
 
 /* This define is used by the gator kernel module compile to select which DDK
@@ -105,8 +105,9 @@
  *
  * 8] Release the dump resources by calling kbase_gator_hwcnt_term().
  *
- * 9] Release the name table resources by calling kbase_gator_hwcnt_term_names().
- *    This function must only be called if init_names() returned a non-NULL value.
+ * 9] Release the name table resources by calling
+ *    kbase_gator_hwcnt_term_names(). This function must only be called if
+ *    init_names() returned a non-NULL value.
  **/
 
 #define MALI_DDK_GATOR_API_VERSION 3
@@ -120,7 +121,6 @@ enum hwc_type {
 };
 
 struct kbase_gator_hwcnt_info {
-
 	/* Passed from Gator to kbase */
 
 	/* the bitmask of enabled hardware counters for each counter block */
@@ -203,11 +203,11 @@ extern uint32_t kbase_gator_instr_hwcnt_dump_irq(struct kbase_gator_hwcnt_handle
 /**
  * @brief This function is used to fetch the names table based on the Mali device in use.
  *
- * @param[out] total_number_of_counters The total number of counters short names in the Mali devices' list.
+ * @param[out] total_counters The total number of counters short names in the Mali devices' list.
  *
- * @return                              Pointer to an array of strings of length *total_number_of_counters.
+ * @return                    Pointer to an array of strings of length *total_counters.
  */
-extern const char * const *kbase_gator_hwcnt_init_names(uint32_t *total_number_of_counters);
+extern const char * const *kbase_gator_hwcnt_init_names(uint32_t *total_counters);
 
 /**
  * @brief This function is used to terminate the use of the names table.

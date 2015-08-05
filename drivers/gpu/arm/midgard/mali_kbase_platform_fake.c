@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -79,7 +79,6 @@ static void kbasep_config_parse_io_resources(const struct kbase_io_resources *io
 int kbase_platform_fake_register(void)
 {
 	struct kbase_platform_config *config;
-	int attribute_count;
 #ifndef CONFIG_OF
 	struct resource resources[PLATFORM_CONFIG_RESOURCE_COUNT];
 #endif
@@ -90,13 +89,6 @@ int kbase_platform_fake_register(void)
 		pr_err("%s: couldn't get platform config\n", __func__);
 		return -ENODEV;
 	}
-
-	attribute_count = kbasep_get_config_attribute_count(config->attributes);
-#ifdef CONFIG_MACH_MANTA
-	err = platform_device_add_data(&exynos5_device_g3d, config->attributes, attribute_count * sizeof(config->attributes[0]));
-	if (err)
-		return err;
-#else
 
 	mali_device = platform_device_alloc("mali", 0);
 	if (mali_device == NULL)
@@ -112,20 +104,12 @@ int kbase_platform_fake_register(void)
 	}
 #endif /* CONFIG_OF */
 
-	err = platform_device_add_data(mali_device, config->attributes, attribute_count * sizeof(config->attributes[0]));
-	if (err) {
-		platform_device_unregister(mali_device);
-		mali_device = NULL;
-		return err;
-	}
-
 	err = platform_device_add(mali_device);
 	if (err) {
 		platform_device_unregister(mali_device);
 		mali_device = NULL;
 		return err;
 	}
-#endif /* CONFIG_CONFIG_MACH_MANTA */
 
 	return 0;
 }

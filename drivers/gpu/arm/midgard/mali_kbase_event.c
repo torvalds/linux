@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,7 +20,11 @@
 #include <mali_kbase.h>
 #include <mali_kbase_debug.h>
 
-STATIC struct base_jd_udata kbase_event_process(struct kbase_context *kctx, struct kbase_jd_atom *katom)
+#if defined(CONFIG_MALI_MIPE_ENABLED)
+#include <mali_kbase_tlstream.h>
+#endif
+
+static struct base_jd_udata kbase_event_process(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
 	struct base_jd_udata data;
 
@@ -31,6 +35,11 @@ STATIC struct base_jd_udata kbase_event_process(struct kbase_context *kctx, stru
 	data = katom->udata;
 
 	KBASE_TIMELINE_ATOMS_IN_FLIGHT(kctx, atomic_sub_return(1, &kctx->timeline.jd_atoms_in_flight));
+
+#if defined(CONFIG_MALI_MIPE_ENABLED)
+	kbase_tlstream_tl_nret_atom_ctx(katom, kctx);
+	kbase_tlstream_tl_del_atom(katom);
+#endif
 
 	mutex_lock(&kctx->jctx.lock);
 	katom->status = KBASE_JD_ATOM_STATE_UNUSED;
@@ -48,13 +57,13 @@ int kbase_event_pending(struct kbase_context *ctx)
 	KBASE_DEBUG_ASSERT(ctx);
 
 	mutex_lock(&ctx->event_mutex);
-	ret = (!list_empty(&ctx->event_list)) || (MALI_TRUE == ctx->event_closed);
+	ret = (!list_empty(&ctx->event_list)) || (true == ctx->event_closed);
 	mutex_unlock(&ctx->event_mutex);
 
 	return ret;
 }
 
-KBASE_EXPORT_TEST_API(kbase_event_pending)
+KBASE_EXPORT_TEST_API(kbase_event_pending);
 
 int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *uevent)
 {
@@ -65,19 +74,19 @@ int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *ueve
 	mutex_lock(&ctx->event_mutex);
 
 	if (list_empty(&ctx->event_list)) {
-		if (ctx->event_closed) {
-			/* generate the BASE_JD_EVENT_DRV_TERMINATED message on the fly */
-			mutex_unlock(&ctx->event_mutex);
-			uevent->event_code = BASE_JD_EVENT_DRV_TERMINATED;
-			memset(&uevent->udata, 0, sizeof(uevent->udata));
-			dev_dbg(ctx->kbdev->dev,
-				"event system closed, returning BASE_JD_EVENT_DRV_TERMINATED(0x%X)\n",
-				BASE_JD_EVENT_DRV_TERMINATED);
-			return 0;
-		} else {
+		if (!ctx->event_closed) {
 			mutex_unlock(&ctx->event_mutex);
 			return -1;
 		}
+
+		/* generate the BASE_JD_EVENT_DRV_TERMINATED message on the fly */
+		mutex_unlock(&ctx->event_mutex);
+		uevent->event_code = BASE_JD_EVENT_DRV_TERMINATED;
+		memset(&uevent->udata, 0, sizeof(uevent->udata));
+		dev_dbg(ctx->kbdev->dev,
+				"event system closed, returning BASE_JD_EVENT_DRV_TERMINATED(0x%X)\n",
+				BASE_JD_EVENT_DRV_TERMINATED);
+		return 0;
 	}
 
 	/* normal event processing */
@@ -94,7 +103,7 @@ int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *ueve
 	return 0;
 }
 
-KBASE_EXPORT_TEST_API(kbase_event_dequeue)
+KBASE_EXPORT_TEST_API(kbase_event_dequeue);
 
 static void kbase_event_post_worker(struct work_struct *data)
 {
@@ -135,32 +144,32 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 	queue_work(ctx->event_workq, &atom->work);
 }
 
-KBASE_EXPORT_TEST_API(kbase_event_post)
+KBASE_EXPORT_TEST_API(kbase_event_post);
 
 void kbase_event_close(struct kbase_context *kctx)
 {
 	mutex_lock(&kctx->event_mutex);
-	kctx->event_closed = MALI_TRUE;
+	kctx->event_closed = true;
 	mutex_unlock(&kctx->event_mutex);
 	kbase_event_wakeup(kctx);
 }
 
-mali_error kbase_event_init(struct kbase_context *kctx)
+int kbase_event_init(struct kbase_context *kctx)
 {
 	KBASE_DEBUG_ASSERT(kctx);
 
 	INIT_LIST_HEAD(&kctx->event_list);
 	mutex_init(&kctx->event_mutex);
-	kctx->event_closed = MALI_FALSE;
+	kctx->event_closed = false;
 	kctx->event_workq = alloc_workqueue("kbase_event", WQ_MEM_RECLAIM, 1);
 
 	if (NULL == kctx->event_workq)
-		return MALI_ERROR_FUNCTION_FAILED;
+		return -EINVAL;
 
-	return MALI_ERROR_NONE;
+	return 0;
 }
 
-KBASE_EXPORT_TEST_API(kbase_event_init)
+KBASE_EXPORT_TEST_API(kbase_event_init);
 
 void kbase_event_cleanup(struct kbase_context *kctx)
 {
@@ -183,4 +192,4 @@ void kbase_event_cleanup(struct kbase_context *kctx)
 	}
 }
 
-KBASE_EXPORT_TEST_API(kbase_event_cleanup)
+KBASE_EXPORT_TEST_API(kbase_event_cleanup);

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -15,8 +15,7 @@
 
 
 
-/**
- * @file mali_kbase_disjoint_events.c
+/*
  * Base kernel disjoint events helper functions
  */
 
@@ -74,4 +73,4 @@ u32 kbase_disjoint_event_get(struct kbase_device *kbdev)
 
 	return atomic_read(&kbdev->disjoint_event.count);
 }
-KBASE_EXPORT_TEST_API(kbase_disjoint_event_get)
+KBASE_EXPORT_TEST_API(kbase_disjoint_event_get);

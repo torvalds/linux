@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -72,13 +72,13 @@ void kbasep_js_ctx_attr_runpool_retain_ctx(struct kbase_device *kbdev, struct kb
  * - runpool_irq spinlock
  * - ctx->is_scheduled is true
  *
- * @return MALI_TRUE indicates a change in ctx attributes state of the runpool.
+ * @return true indicates a change in ctx attributes state of the runpool.
  * In this state, the scheduler might be able to submit more jobs than
  * previously, and so the caller should ensure kbasep_js_try_run_next_job_nolock()
  * or similar is called sometime later.
- * @return MALI_FALSE indicates no change in ctx attributes state of the runpool.
+ * @return false indicates no change in ctx attributes state of the runpool.
  */
-mali_bool kbasep_js_ctx_attr_runpool_release_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
+bool kbasep_js_ctx_attr_runpool_release_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * Retain all attributes of an atom
@@ -102,19 +102,19 @@ void kbasep_js_ctx_attr_ctx_retain_atom(struct kbase_device *kbdev, struct kbase
  *
  * This is a no-op when \a katom_retained_state is invalid.
  *
- * @return MALI_TRUE indicates a change in ctx attributes state of the runpool.
+ * @return true indicates a change in ctx attributes state of the runpool.
  * In this state, the scheduler might be able to submit more jobs than
  * previously, and so the caller should ensure kbasep_js_try_run_next_job_nolock()
  * or similar is called sometime later.
- * @return MALI_FALSE indicates no change in ctx attributes state of the runpool.
+ * @return false indicates no change in ctx attributes state of the runpool.
  */
-mali_bool kbasep_js_ctx_attr_ctx_release_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbasep_js_atom_retained_state *katom_retained_state);
+bool kbasep_js_ctx_attr_ctx_release_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbasep_js_atom_retained_state *katom_retained_state);
 
 /**
  * Requires:
  * - runpool_irq spinlock
  */
-static INLINE s8 kbasep_js_ctx_attr_count_on_runpool(struct kbase_device *kbdev, enum kbasep_js_ctx_attr attribute)
+static inline s8 kbasep_js_ctx_attr_count_on_runpool(struct kbase_device *kbdev, enum kbasep_js_ctx_attr attribute)
 {
 	struct kbasep_js_device_data *js_devdata;
 
@@ -129,17 +129,17 @@ static INLINE s8 kbasep_js_ctx_attr_count_on_runpool(struct kbase_device *kbdev,
  * Requires:
  * - runpool_irq spinlock
  */
-static INLINE mali_bool kbasep_js_ctx_attr_is_attr_on_runpool(struct kbase_device *kbdev, enum kbasep_js_ctx_attr attribute)
+static inline bool kbasep_js_ctx_attr_is_attr_on_runpool(struct kbase_device *kbdev, enum kbasep_js_ctx_attr attribute)
 {
 	/* In general, attributes are 'on' when they have a non-zero refcount (note: the refcount will never be < 0) */
-	return (mali_bool) kbasep_js_ctx_attr_count_on_runpool(kbdev, attribute);
+	return (bool) kbasep_js_ctx_attr_count_on_runpool(kbdev, attribute);
 }
 
 /**
  * Requires:
  * - jsctx mutex
  */
-static INLINE mali_bool kbasep_js_ctx_attr_is_attr_on_ctx(struct kbase_context *kctx, enum kbasep_js_ctx_attr attribute)
+static inline bool kbasep_js_ctx_attr_is_attr_on_ctx(struct kbase_context *kctx, enum kbasep_js_ctx_attr attribute)
 {
 	struct kbasep_js_kctx_info *js_kctx_info;
 
@@ -148,7 +148,7 @@ static INLINE mali_bool kbasep_js_ctx_attr_is_attr_on_ctx(struct kbase_context *
 	js_kctx_info = &kctx->jctx.sched_info;
 
 	/* In general, attributes are 'on' when they have a refcount (which should never be < 0) */
-	return (mali_bool) (js_kctx_info->ctx.ctx_attr_ref_count[attribute]);
+	return (bool) (js_kctx_info->ctx.ctx_attr_ref_count[attribute]);
 }
 
 	  /** @} *//* end group kbase_js */

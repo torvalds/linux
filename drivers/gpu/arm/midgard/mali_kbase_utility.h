@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2013, 2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,9 +29,9 @@
  * @param base      The head of the list to be tested
  * @param entry     The list entry to be tested
  *
- * @return          MALI_TRUE if entry is a member of base
- *                  MALI_FALSE otherwise
+ * @return          true if entry is a member of base
+ *                  false otherwise
  */
-mali_bool kbasep_list_member_of(const struct list_head *base, struct list_head *entry);
+bool kbasep_list_member_of(const struct list_head *base, struct list_head *entry);
 
 #endif				/* _KBASE_UTILITY_H */

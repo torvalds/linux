@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010, 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,8 +29,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif				/* __cplusplus */
-
-#include <malisw/mali_stdtypes.h>
 
 /**
  * @addtogroup base_api
@@ -93,7 +91,7 @@ enum uk_func {
  * identifying the UK function to be called (see uk_func). When the UKK client
  * receives this header and executed the requested UK function, it will use
  * the same header to store the result of the function in the form of a
- * mali_error return code. The size of this structure is such that the
+ * int return code. The size of this structure is such that the
  * first member of the payload following the header can be accessed efficiently
  * on a 32 and 64-bit kernel and the structure has the same size regardless
  * of a 32 or 64-bit kernel. The uk_kernel_size_type type should be defined
@@ -106,10 +104,10 @@ union uk_header {
 	 */
 	u32 id;
 	/**
-	 * The mali_error return code returned by the called UK function.
+	 * The int return code returned by the called UK function.
 	 * See the specification of the particular UK function you are
 	 * calling for the meaning of the error codes returned. All
-	 * UK functions return MALI_ERROR_NONE on success.
+	 * UK functions return 0 on success.
 	 */
 	u32 ret;
 	/*

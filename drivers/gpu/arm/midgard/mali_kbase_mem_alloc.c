@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,6 @@ int kbase_mem_lowlevel_init(struct kbase_device *kbdev)
 
 void kbase_mem_lowlevel_term(struct kbase_device *kbdev)
 {
-	return;
 }
 
 static unsigned long kbase_mem_allocator_count(struct shrinker *s,
@@ -77,7 +76,6 @@ static unsigned long kbase_mem_allocator_scan(struct shrinker *s,
 	}
 	mutex_unlock(&allocator->free_list_lock);
 	return atomic_read(&allocator->free_list_size);
-
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
@@ -86,12 +84,12 @@ static int kbase_mem_allocator_shrink(struct shrinker *s,
 {
 	if (sc->nr_to_scan == 0)
 		return kbase_mem_allocator_count(s, sc);
-	else
-		return kbase_mem_allocator_scan(s, sc);
+
+	return kbase_mem_allocator_scan(s, sc);
 }
 #endif
 
-mali_error kbase_mem_allocator_init(struct kbase_mem_allocator *const allocator,
+int kbase_mem_allocator_init(struct kbase_mem_allocator *const allocator,
 		unsigned int max_size, struct kbase_device *kbdev)
 {
 	KBASE_DEBUG_ASSERT(NULL != allocator);
@@ -122,9 +120,9 @@ mali_error kbase_mem_allocator_init(struct kbase_mem_allocator *const allocator,
 
 	register_shrinker(&allocator->free_list_reclaimer);
 
-	return MALI_ERROR_NONE;
+	return 0;
 }
-KBASE_EXPORT_TEST_API(kbase_mem_allocator_init)
+KBASE_EXPORT_TEST_API(kbase_mem_allocator_init);
 
 void kbase_mem_allocator_term(struct kbase_mem_allocator *allocator)
 {
@@ -148,12 +146,11 @@ void kbase_mem_allocator_term(struct kbase_mem_allocator *allocator)
 	mutex_unlock(&allocator->free_list_lock);
 	mutex_destroy(&allocator->free_list_lock);
 }
-KBASE_EXPORT_TEST_API(kbase_mem_allocator_term)
+KBASE_EXPORT_TEST_API(kbase_mem_allocator_term);
 
-mali_error kbase_mem_allocator_alloc(struct kbase_mem_allocator *allocator, size_t nr_pages, phys_addr_t *pages)
+int kbase_mem_allocator_alloc(struct kbase_mem_allocator *allocator, size_t nr_pages, phys_addr_t *pages)
 {
 	struct page *p;
-	void *mp;
 	int i;
 	int num_from_free_list;
 	struct list_head from_free_list = LIST_HEAD_INIT(from_free_list);
@@ -167,8 +164,7 @@ mali_error kbase_mem_allocator_alloc(struct kbase_mem_allocator *allocator, size
 	mutex_lock(&allocator->free_list_lock);
 	num_from_free_list = MIN(nr_pages, atomic_read(&allocator->free_list_size));
 	atomic_sub(num_from_free_list, &allocator->free_list_size);
-	for (i = 0; i < num_from_free_list; i++)
-	{
+	for (i = 0; i < num_from_free_list; i++) {
 		BUG_ON(list_empty(&allocator->free_list_head));
 		p = list_first_entry(&allocator->free_list_head, struct page, lru);
 		list_move(&p->lru, &from_free_list);
@@ -183,13 +179,13 @@ mali_error kbase_mem_allocator_alloc(struct kbase_mem_allocator *allocator, size
 	}
 
 	if (i == nr_pages)
-		return MALI_ERROR_NONE;
+		return 0;
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_HAVE_DMA_ATTRS) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
 	/* DMA cache sync fails for HIGHMEM before 3.5 on ARM */
-	gfp = GFP_USER;
+	gfp = GFP_USER | __GFP_ZERO;
 #else
-	gfp = GFP_HIGHUSER;
+	gfp = GFP_HIGHUSER | __GFP_ZERO;
 #endif
 
 	if (current->flags & PF_KTHREAD) {
@@ -201,35 +197,27 @@ mali_error kbase_mem_allocator_alloc(struct kbase_mem_allocator *allocator, size
 	/* If not all pages were sourced from the pool, request new ones. */
 	for (; i < nr_pages; i++) {
 		dma_addr_t dma_addr;
+
 		p = alloc_page(gfp);
 		if (NULL == p)
 			goto err_out_roll_back;
-		mp = kmap(p);
-		if (NULL == mp) {
-			__free_page(p);
-			goto err_out_roll_back;
-		}
-		memset(mp, 0x00, PAGE_SIZE); /* instead of __GFP_ZERO, so we can do cache maintenance */
-		kunmap(p);
 
 		dma_addr = dma_map_page(allocator->kbdev->dev, p, 0, PAGE_SIZE,
-				        DMA_BIDIRECTIONAL);
+				DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(allocator->kbdev->dev, dma_addr)) {
 			__free_page(p);
 			goto err_out_roll_back;
 		}
 
-		SetPagePrivate(p);
 		kbase_set_dma_addr(p, dma_addr);
 		pages[i] = PFN_PHYS(page_to_pfn(p));
 		BUG_ON(dma_addr != pages[i]);
 	}
 
-	return MALI_ERROR_NONE;
+	return 0;
 
 err_out_roll_back:
 	while (i--) {
-		struct page *p;
 		p = pfn_to_page(PFN_DOWN(pages[i]));
 		pages[i] = (phys_addr_t)0;
 		dma_unmap_page(allocator->kbdev->dev, kbase_dma_addr(p),
@@ -239,11 +227,11 @@ err_out_roll_back:
 		__free_page(p);
 	}
 
-	return MALI_ERROR_OUT_OF_MEMORY;
+	return -ENOMEM;
 }
-KBASE_EXPORT_TEST_API(kbase_mem_allocator_alloc)
+KBASE_EXPORT_TEST_API(kbase_mem_allocator_alloc);
 
-void kbase_mem_allocator_free(struct kbase_mem_allocator *allocator, size_t nr_pages, phys_addr_t *pages, mali_bool sync_back)
+void kbase_mem_allocator_free(struct kbase_mem_allocator *allocator, size_t nr_pages, phys_addr_t *pages, bool sync_back)
 {
 	int i = 0;
 	int page_count = 0;
@@ -300,5 +288,5 @@ void kbase_mem_allocator_free(struct kbase_mem_allocator *allocator, size_t nr_p
 	atomic_add(page_count, &allocator->free_list_size);
 	mutex_unlock(&allocator->free_list_lock);
 }
-KBASE_EXPORT_TEST_API(kbase_mem_allocator_free)
+KBASE_EXPORT_TEST_API(kbase_mem_allocator_free);
 

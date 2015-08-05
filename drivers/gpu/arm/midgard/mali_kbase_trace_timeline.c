@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -19,6 +19,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_jm.h>
+#include <mali_kbase_hwaccess_jm.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -28,16 +29,25 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-struct kbase_trace_timeline_desc
-{
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_atoms_in_flight);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_atom);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_gpu_slot_active);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_gpu_slot_action);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_gpu_power_active);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_l2_power_active);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_pm_event);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_slot_atom);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_pm_checktrans);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_context_active);
+
+struct kbase_trace_timeline_desc {
 	char *enum_str;
 	char *desc;
 	char *format;
 	char *format_desc;
 };
 
-struct kbase_trace_timeline_desc kbase_trace_timeline_desc_table[] =
-{
+static struct kbase_trace_timeline_desc kbase_trace_timeline_desc_table[] = {
 	#define KBASE_TIMELINE_TRACE_CODE(enum_val, desc, format, format_desc) { #enum_val, desc, format, format_desc }
 	#include "mali_kbase_trace_timeline_defs.h"
 	#undef KBASE_TIMELINE_TRACE_CODE
@@ -45,7 +55,7 @@ struct kbase_trace_timeline_desc kbase_trace_timeline_desc_table[] =
 
 #define KBASE_NR_TRACE_CODES ARRAY_SIZE(kbase_trace_timeline_desc_table)
 
-STATIC void *kbasep_trace_timeline_seq_start(struct seq_file *s, loff_t *pos)
+static void *kbasep_trace_timeline_seq_start(struct seq_file *s, loff_t *pos)
 {
 	if (*pos >= KBASE_NR_TRACE_CODES)
 		return NULL;
@@ -53,11 +63,11 @@ STATIC void *kbasep_trace_timeline_seq_start(struct seq_file *s, loff_t *pos)
 	return &kbase_trace_timeline_desc_table[*pos];
 }
 
-STATIC void kbasep_trace_timeline_seq_stop(struct seq_file *s, void *data)
+static void kbasep_trace_timeline_seq_stop(struct seq_file *s, void *data)
 {
 }
 
-STATIC void *kbasep_trace_timeline_seq_next(struct seq_file *s, void *data, loff_t *pos)
+static void *kbasep_trace_timeline_seq_next(struct seq_file *s, void *data, loff_t *pos)
 {
 	(*pos)++;
 
@@ -67,7 +77,7 @@ STATIC void *kbasep_trace_timeline_seq_next(struct seq_file *s, void *data, loff
 	return &kbase_trace_timeline_desc_table[*pos];
 }
 
-STATIC int kbasep_trace_timeline_seq_show(struct seq_file *s, void *data)
+static int kbasep_trace_timeline_seq_show(struct seq_file *s, void *data)
 {
 	struct kbase_trace_timeline_desc *trace_desc = data;
 
@@ -83,7 +93,7 @@ static const struct seq_operations kbasep_trace_timeline_seq_ops = {
 	.show = kbasep_trace_timeline_seq_show,
 };
 
-STATIC int kbasep_trace_timeline_debugfs_open(struct inode *inode, struct file *file)
+static int kbasep_trace_timeline_debugfs_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &kbasep_trace_timeline_seq_ops);
 }
@@ -95,24 +105,15 @@ static const struct file_operations kbasep_trace_timeline_debugfs_fops = {
 	.release = seq_release_private,
 };
 
-mali_error kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev)
+void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev)
 {
-	kbdev->timeline.dentry = debugfs_create_file("mali_timeline_defs",
+	debugfs_create_file("mali_timeline_defs",
 			S_IRUGO, kbdev->mali_debugfs_directory, NULL,
 			&kbasep_trace_timeline_debugfs_fops);
-	if (IS_ERR(kbdev->timeline.dentry))
-		return MALI_ERROR_FUNCTION_FAILED;
-
-	return MALI_ERROR_NONE;
-}
-
-void kbasep_trace_timeline_debugfs_term(struct kbase_device *kbdev)
-{
-	debugfs_remove(kbdev->timeline.dentry);
 }
 
 void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_context *kctx,
-                                    struct kbase_jd_atom *katom, int js)
+		struct kbase_jd_atom *katom, int js)
 {
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 
@@ -120,6 +121,7 @@ void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_con
 		KBASE_TIMELINE_JOB_START_NEXT(kctx, js, 1);
 	} else {
 		base_atom_id atom_number = kbase_jd_atom_id(kctx, katom);
+
 		KBASE_TIMELINE_JOB_START_HEAD(kctx, js, 1);
 		KBASE_TIMELINE_JOB_START(kctx, js, atom_number);
 	}
@@ -129,8 +131,8 @@ void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_con
 }
 
 void kbase_timeline_job_slot_done(struct kbase_device *kbdev, struct kbase_context *kctx,
-                                  struct kbase_jd_atom *katom, int js,
-                                  kbasep_js_atom_done_code done_code)
+		struct kbase_jd_atom *katom, int js,
+		kbasep_js_atom_done_code done_code)
 {
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 
@@ -139,19 +141,19 @@ void kbase_timeline_job_slot_done(struct kbase_device *kbdev, struct kbase_conte
 	} else {
 		/* Job finished in JS_HEAD */
 		base_atom_id atom_number = kbase_jd_atom_id(kctx, katom);
+
 		KBASE_TIMELINE_JOB_START_HEAD(kctx, js, 0);
 		KBASE_TIMELINE_JOB_STOP(kctx, js, atom_number);
+
 		/* see if we need to trace the job in JS_NEXT moving to JS_HEAD */
-		if (kbdev->timeline.slot_atoms_submitted[js] > 1) {
-			/* Tag events with next_katom's kctx */
-			struct kbase_jm_slot *slot = &kbdev->jm_slots[js];
+		if (kbase_backend_nr_atoms_submitted(kbdev, js)) {
 			struct kbase_jd_atom *next_katom;
 			struct kbase_context *next_kctx;
-			KBASE_DEBUG_ASSERT(kbasep_jm_nr_jobs_submitted(slot) > 0);
 
 			/* Peek the next atom - note that the atom in JS_HEAD will already
 			 * have been dequeued */
-			next_katom = kbasep_jm_peek_idx_submit_slot(slot, 0);
+			next_katom = kbase_backend_inspect_head(kbdev, js);
+			WARN_ON(!next_katom);
 			next_kctx = next_katom->kctx;
 			KBASE_TIMELINE_JOB_START_NEXT(next_kctx, js, 0);
 			KBASE_TIMELINE_JOB_START_HEAD(next_kctx, js, 1);
@@ -213,7 +215,7 @@ void kbase_timeline_pm_l2_transition_start(struct kbase_device *kbdev)
 {
 	lockdep_assert_held(&kbdev->pm.power_change_lock);
 	/* Simply log the start of the transition */
-	kbdev->timeline.l2_transitioning = MALI_TRUE;
+	kbdev->timeline.l2_transitioning = true;
 	KBASE_TIMELINE_POWERING_L2(kbdev);
 }
 
@@ -221,9 +223,8 @@ void kbase_timeline_pm_l2_transition_done(struct kbase_device *kbdev)
 {
 	lockdep_assert_held(&kbdev->pm.power_change_lock);
 	/* Simply log the end of the transition */
-	if (MALI_FALSE != kbdev->timeline.l2_transitioning)
-	{
-		kbdev->timeline.l2_transitioning = MALI_FALSE;
+	if (kbdev->timeline.l2_transitioning) {
+		kbdev->timeline.l2_transitioning = false;
 		KBASE_TIMELINE_POWERED_L2(kbdev);
 	}
 }

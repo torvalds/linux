@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2008-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,17 +21,12 @@
 #define _KBASE_UKU_H_
 
 #include "mali_uk.h"
-#include <malisw/mali_malisw.h>
 #include "mali_base_kernel.h"
 
 /* This file needs to support being included from kernel and userside (which use different defines) */
-#if defined(CONFIG_MALI_ERROR_INJECT)
+#if defined(CONFIG_MALI_ERROR_INJECT) || MALI_ERROR_INJECT_ON
 #define SUPPORT_MALI_ERROR_INJECT
-#elif defined(MALI_ERROR_INJECT)
-#if MALI_ERROR_INJECT
-#define SUPPORT_MALI_ERROR_INJECT
-#endif
-#endif
+#endif /* defined(CONFIG_MALI_ERROR_INJECT) || MALI_ERROR_INJECT_ON */
 #if defined(CONFIG_MALI_NO_MALI)
 #define SUPPORT_MALI_NO_MALI
 #elif defined(MALI_NO_MALI)
@@ -41,12 +36,12 @@
 #endif
 
 #if defined(SUPPORT_MALI_NO_MALI) || defined(SUPPORT_MALI_ERROR_INJECT)
-#include "mali_kbase_model_dummy.h"
+#include "backend/gpu/mali_kbase_model_dummy.h"
 #endif
 
 #include "mali_kbase_gpuprops_types.h"
 
-#define BASE_UK_VERSION_MAJOR 8
+#define BASE_UK_VERSION_MAJOR 9
 #define BASE_UK_VERSION_MINOR 0
 
 struct kbase_uk_mem_alloc {
@@ -66,7 +61,7 @@ struct kbase_uk_mem_alloc {
 struct kbase_uk_mem_free {
 	union uk_header header;
 	/* IN */
-	mali_addr64 gpu_addr;
+	u64 gpu_addr;
 	/* OUT */
 };
 
@@ -92,14 +87,14 @@ struct kbase_uk_mem_import {
 	/* IN/OUT */
 	u64         flags;
 	/* OUT */
-	mali_addr64 gpu_va;
+	u64 gpu_va;
 	u64         va_pages;
 };
 
 struct kbase_uk_mem_flags_change {
 	union uk_header header;
 	/* IN */
-	mali_addr64 gpu_va;
+	u64 gpu_va;
 	u64 flags;
 	u64 mask;
 };
@@ -117,6 +112,10 @@ struct kbase_uk_post_term {
 	union uk_header header;
 };
 
+struct kbase_uk_dump_fault_term {
+	union uk_header header;
+};
+
 struct kbase_uk_sync_now {
 	union uk_header header;
 
@@ -130,11 +129,11 @@ struct kbase_uk_hwcnt_setup {
 	union uk_header header;
 
 	/* IN */
-	mali_addr64 dump_buffer;
+	u64 dump_buffer;
 	u32 jm_bm;
 	u32 shader_bm;
 	u32 tiler_bm;
-	u32 l3_cache_bm;
+	u32 unused_1; /* keep for backwards compatibility */
 	u32 mmu_l2_bm;
 	u32 padding;
 	/* OUT */
@@ -173,7 +172,7 @@ struct kbase_uk_stream_create {
  * is removed. Removal of KBASE_FUNC_CPU_PROPS_REG_DUMP is part of having
  * the function for reading cpu properties moved from base to osu.
  */
-#define BASE_CPU_PROPERTY_FLAG_LITTLE_ENDIAN F_BIT_0
+#define BASE_CPU_PROPERTY_FLAG_LITTLE_ENDIAN ((u32)0x00000001)
 struct base_cpu_id_props {
 	/**
 	 * CPU ID
@@ -307,7 +306,7 @@ struct kbase_uk_gpuprops {
 struct kbase_uk_mem_query {
 	union uk_header header;
 	/* IN */
-	mali_addr64 gpu_addr;
+	u64 gpu_addr;
 #define KBASE_MEM_QUERY_COMMIT_SIZE  1
 #define KBASE_MEM_QUERY_VA_SIZE      2
 #define KBASE_MEM_QUERY_FLAGS        3
@@ -315,11 +314,11 @@ struct kbase_uk_mem_query {
 	/* OUT */
 	u64         value;
 };
-	
+
 struct kbase_uk_mem_commit {
 	union uk_header header;
 	/* IN */
-	mali_addr64 gpu_addr;
+	u64 gpu_addr;
 	u64         pages;
 	/* OUT */
 	u32 result_subcode;
@@ -329,11 +328,11 @@ struct kbase_uk_mem_commit {
 struct kbase_uk_find_cpu_offset {
 	union uk_header header;
 	/* IN */
-	mali_addr64 gpu_addr;
+	u64 gpu_addr;
 	u64 cpu_addr;
 	u64 size;
 	/* OUT */
-	mali_size64 offset;
+	u64 offset;
 };
 
 #define KBASE_GET_VERSION_BUFFER_SIZE 64
@@ -363,14 +362,14 @@ struct kbase_uk_set_flags {
 #if MALI_UNIT_TEST
 #define TEST_ADDR_COUNT 4
 #define KBASE_TEST_BUFFER_SIZE 128
-typedef struct kbase_exported_test_data {
-	mali_addr64 test_addr[TEST_ADDR_COUNT];		/**< memory address */
+struct kbase_exported_test_data {
+	u64 test_addr[TEST_ADDR_COUNT];		/**< memory address */
 	u32 test_addr_pages[TEST_ADDR_COUNT];		/**<  memory size in pages */
 	union kbase_pointer kctx;				/**<  base context created by process */
 	union kbase_pointer mm;				/**< pointer to process address space */
 	u8 buffer1[KBASE_TEST_BUFFER_SIZE];   /**<  unit test defined parameter */
 	u8 buffer2[KBASE_TEST_BUFFER_SIZE];   /**<  unit test defined parameter */
-} kbase_exported_test_data;
+};
 
 struct kbase_uk_set_test_data {
 	union uk_header header;
@@ -406,12 +405,6 @@ struct kbase_uk_ext_buff_kds_data {
 	u32 padding;
 };
 
-struct kbase_uk_keep_gpu_powered {
-	union uk_header header;
-	u32       enabled;
-	u32       padding;
-};
-
 struct kbase_uk_profiling_controls {
 	union uk_header header;
 	u32 profiling_controls[FBDUMP_CONTROL_MAX];
@@ -422,6 +415,83 @@ struct kbase_uk_debugfs_mem_profile_add {
 	u32 len;
 	union kbase_pointer buf;
 };
+
+struct kbase_uk_context_id {
+	union uk_header header;
+	/* OUT */
+	int id;
+};
+
+#if (defined(MALI_KTLSTREAM_ENABLED) && MALI_KTLSTREAM_ENABLED) || \
+	defined(CONFIG_MALI_MIPE_ENABLED)
+/**
+ * struct kbase_uk_tlstream_acquire - User/Kernel space data exchange structure
+ * @header: UK structure header
+ * @fd:     timeline stream file descriptor
+ *
+ * This structure is used used when performing a call to acquire kernel side
+ * timeline stream file descriptor.
+ */
+struct kbase_uk_tlstream_acquire {
+	union uk_header header;
+	/* IN */
+	/* OUT */
+	s32  fd;
+};
+
+/**
+ * struct kbase_uk_tlstream_flush - User/Kernel space data exchange structure
+ * @header: UK structure header
+ *
+ * This structure is used when performing a call to flush kernel side
+ * timeline streams.
+ */
+struct kbase_uk_tlstream_flush {
+	union uk_header header;
+	/* IN */
+	/* OUT */
+};
+
+#if MALI_UNIT_TEST
+/**
+ * struct kbase_uk_tlstream_acquire - User/Kernel space data exchange structure
+ * @header:    UK structure header
+ * @tpw_count: number of trace point writers in each context
+ * @msg_delay: time delay between tracepoints from one writer in milliseconds
+ * @msg_count: number of trace points written by one writer
+ * @aux_msg:   if non-zero aux messages will be included
+ *
+ * This structure is used when performing a call to start timeline stream test
+ * embedded in kernel.
+ */
+struct kbase_uk_tlstream_test {
+	union uk_header header;
+	/* IN */
+	u32 tpw_count;
+	u32 msg_delay;
+	u32 msg_count;
+	u32 aux_msg;
+	/* OUT */
+};
+
+/**
+ * struct kbase_uk_tlstream_acquire - User/Kernel space data exchange structure
+ * @header:          UK structure header
+ * @bytes_collected: number of bytes read by user
+ * @bytes_generated: number of bytes generated by tracepoints
+ *
+ * This structure is used when performing a call to obtain timeline stream
+ * statistics.
+ */
+struct kbase_uk_tlstream_stats {
+	union uk_header header; /**< UK structure header. */
+	/* IN */
+	/* OUT */
+	u32 bytes_collected;
+	u32 bytes_generated;
+};
+#endif /* MALI_UNIT_TEST */
+#endif /* MALI_KTLSTREAM_ENABLED */
 
 enum kbase_uk_function_id {
 	KBASE_FUNC_MEM_ALLOC = (UK_FUNC_ID + 0),
@@ -459,8 +529,6 @@ enum kbase_uk_function_id {
 	KBASE_FUNC_INJECT_ERROR = (UK_FUNC_ID + 20),
 	KBASE_FUNC_MODEL_CONTROL = (UK_FUNC_ID + 21),
 
-	KBASE_FUNC_KEEP_GPU_POWERED = (UK_FUNC_ID + 22),
-
 	KBASE_FUNC_FENCE_VALIDATE = (UK_FUNC_ID + 23),
 	KBASE_FUNC_STREAM_CREATE = (UK_FUNC_ID + 24),
 	KBASE_FUNC_GET_PROFILING_CONTROLS = (UK_FUNC_ID + 25),
@@ -471,8 +539,24 @@ enum kbase_uk_function_id {
 
 	KBASE_FUNC_DEBUGFS_MEM_PROFILE_ADD = (UK_FUNC_ID + 27),
 	KBASE_FUNC_JOB_SUBMIT = (UK_FUNC_ID + 28),
-	KBASE_FUNC_DISJOINT_QUERY = (UK_FUNC_ID + 29)
+	KBASE_FUNC_DISJOINT_QUERY = (UK_FUNC_ID + 29),
 
+	KBASE_FUNC_DUMP_FAULT_TERM = (UK_FUNC_ID + 30),
+
+	KBASE_FUNC_GET_CONTEXT_ID = (UK_FUNC_ID + 31),
+
+#if (defined(MALI_KTLSTREAM_ENABLED) && MALI_KTLSTREAM_ENABLED) || \
+	defined(CONFIG_MALI_MIPE_ENABLED)
+	KBASE_FUNC_TLSTREAM_ACQUIRE = (UK_FUNC_ID + 32),
+#if MALI_UNIT_TEST
+	KBASE_FUNC_TLSTREAM_TEST = (UK_FUNC_ID + 33),
+	KBASE_FUNC_TLSTREAM_STATS = (UK_FUNC_ID + 34),
+#endif /* MALI_UNIT_TEST */
+	KBASE_FUNC_TLSTREAM_FLUSH = (UK_FUNC_ID + 35),
+#endif /* MALI_KTLSTREAM_ENABLED */
+
+	KBASE_FUNC_MAX
 };
 
 #endif				/* _KBASE_UKU_H_ */
+

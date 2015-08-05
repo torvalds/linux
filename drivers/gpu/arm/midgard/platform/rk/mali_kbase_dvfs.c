@@ -302,8 +302,10 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 
 static DECLARE_WORK(mali_dvfs_work, mali_dvfs_event_proc);
 
-int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,
-										  u32 util_gl_share_no_use,u32 util_cl_share_no_use[2])
+int kbase_platform_dvfs_event(struct kbase_device *kbdev,
+				u32 utilisation,
+				u32 util_gl_share_no_use,
+				u32 util_cl_share_no_use[2] )
 {
 	unsigned long flags;
 	struct rk_context *platform;
@@ -314,11 +316,12 @@ int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
 	if (platform->time_tick < MALI_DVFS_UP_TIME_INTERVAL) {
 		platform->time_tick++;
-		platform->time_busy += kbdev->pm.metrics.time_busy;
-		platform->time_idle += kbdev->pm.metrics.time_idle;
+		platform->time_busy += kbdev->pm.backend.metrics.time_busy;
+                
+		platform->time_idle += kbdev->pm.backend.metrics.time_idle;
 	} else {
-		platform->time_busy = kbdev->pm.metrics.time_busy;
-		platform->time_idle = kbdev->pm.metrics.time_idle;
+		platform->time_busy = kbdev->pm.backend.metrics.time_busy;
+		platform->time_idle = kbdev->pm.backend.metrics.time_idle;
 		platform->time_tick = 0;
 	}
 
@@ -354,9 +357,9 @@ int kbase_platform_dvfs_get_enable_status(void)
 	int enable;
 
 	kbdev = mali_dvfs_status_current.kbdev;
-	spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
-	enable = kbdev->pm.metrics.timer_active;
-	spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
+	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
+	enable = kbdev->pm.backend.metrics.timer_active;
+	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
 
 	return enable;
 }
@@ -376,19 +379,19 @@ int kbase_platform_dvfs_enable(bool enable, int freq)
 
 	mutex_lock(&mali_enable_clock_lock);
 
-	if (enable != kbdev->pm.metrics.timer_active) {
+	if (enable != kbdev->pm.backend.metrics.timer_active) {
 		if (enable) {
-			spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
-			kbdev->pm.metrics.timer_active = MALI_TRUE;
-			spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
-			hrtimer_start(&kbdev->pm.metrics.timer,
+			spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
+			kbdev->pm.backend.metrics.timer_active = MALI_TRUE;
+			spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
+			hrtimer_start(&kbdev->pm.backend.metrics.timer,
 					HR_TIMER_DELAY_MSEC(KBASE_PM_DVFS_FREQUENCY),
 					HRTIMER_MODE_REL);
 		} else {
-			spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
-			kbdev->pm.metrics.timer_active = MALI_FALSE;
-			spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
-			hrtimer_cancel(&kbdev->pm.metrics.timer);
+			spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
+			kbdev->pm.backend.metrics.timer_active = MALI_FALSE;
+			spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
+			hrtimer_cancel(&kbdev->pm.backend.metrics.timer);
 		}
 	}
 

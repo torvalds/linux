@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,10 +30,10 @@
 #define KBASE_GPU_SPEED_MHZ    123
 #define KBASE_GPU_PC_SIZE_LOG2 24U
 
-typedef struct kbase_gpuprops_regdump {
+struct kbase_gpuprops_regdump {
 	u32 gpu_id;
 	u32 l2_features;
-	u32 l3_features;
+	u32 suspend_size; /* API 8.2+ */
 	u32 tiler_features;
 	u32 mem_features;
 	u32 mmu_features;
@@ -44,42 +44,37 @@ typedef struct kbase_gpuprops_regdump {
 	u32 thread_max_barrier_size;
 	u32 thread_features;
 	u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
-	u32 js_features[MIDG_MAX_JOB_SLOTS];
+	u32 js_features[GPU_MAX_JOB_SLOTS];
 	u32 shader_present_lo;
 	u32 shader_present_hi;
 	u32 tiler_present_lo;
 	u32 tiler_present_hi;
 	u32 l2_present_lo;
 	u32 l2_present_hi;
-	u32 l3_present_lo;
-	u32 l3_present_hi;
-} kbase_gpuprops_regdump;
+};
 
-typedef struct kbase_gpu_cache_props {
+struct kbase_gpu_cache_props {
 	u8 associativity;
 	u8 external_bus_width;
-} kbase_gpu_cache_props;
+};
 
-typedef struct kbase_gpu_mem_props {
+struct kbase_gpu_mem_props {
 	u8 core_group;
-	u8 supergroup;
-} kbase_gpu_mem_props;
+};
 
-typedef struct kbase_gpu_mmu_props {
+struct kbase_gpu_mmu_props {
 	u8 va_bits;
 	u8 pa_bits;
-} kbase_gpu_mmu_props;
+};
 
-typedef struct mali_kbase_gpu_props {
+struct kbase_gpu_props {
 	/* kernel-only properties */
 	u8 num_cores;
 	u8 num_core_groups;
-	u8 num_supergroups;
 	u8 num_address_spaces;
 	u8 num_job_slots;
 
 	struct kbase_gpu_cache_props l2_props;
-	struct kbase_gpu_cache_props l3_props;
 
 	struct kbase_gpu_mem_props mem;
 	struct kbase_gpu_mmu_props mmu;
@@ -91,6 +86,6 @@ typedef struct mali_kbase_gpu_props {
 
 	/* Properties shared with userspace */
 	base_gpu_props props;
-} kbase_gpu_props;
+};
 
 #endif				/* _KBASE_GPUPROPS_TYPES_H_ */

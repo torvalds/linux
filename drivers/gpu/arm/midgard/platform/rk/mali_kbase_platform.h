@@ -32,6 +32,133 @@ struct rk_context {
 	spinlock_t gpu_in_touch_lock;
 #endif
 };
+
+/*-------------------------------------------------------*/
+
+typedef unsigned long mali_bool;
+
+#ifndef MALI_TRUE
+#define MALI_TRUE               (1)
+#endif
+
+#ifndef MALI_FALSE
+#define MALI_FALSE              (0) 
+#endif
+
+/*-------------------------------------------------------*/
+
+/**
+ * @name Mali error types
+ * @brief The common error type for the mali drivers
+ * The mali_error type, all driver error handling should be of this type unless
+ * it must deal with a specific APIs error type.
+ * @{
+ *
+ * .R : r6p0-02rel0 已经不再 头文件中提供对 mali_error 的定义.
+ */
+typedef enum
+{
+	/**
+	 * @brief Common Mali errors for the entire driver
+	 * MALI_ERROR_NONE is guaranteed to be 0.
+	 * @{
+	 */
+	MALI_ERROR_NONE = 0,
+	MALI_ERROR_OUT_OF_GPU_MEMORY,
+	MALI_ERROR_OUT_OF_MEMORY,
+	MALI_ERROR_FUNCTION_FAILED,
+	/* @} */
+	/**
+	 * @brief Mali errors for Client APIs to pass to EGL when creating EGLImages
+	 * These errors must only be returned to EGL from one of the Client APIs as part of the
+	 * (clientapi)_egl_image_interface.h
+	 * @{
+	 */
+	MALI_ERROR_EGLP_BAD_ACCESS,
+	MALI_ERROR_EGLP_BAD_PARAMETER,
+	/* @} */
+	/**
+	 * @brief Mali errors for the MCL module.
+	 * These errors must only be used within the private components of the OpenCL implementation that report
+	 * directly to API functions for cases where errors cannot be detected in the entrypoints file. They must
+	 * not be passed between driver components.
+	 * These are errors in the mali error space specifically for the MCL module, hence the MCLP prefix.
+	 * @{
+	 */
+	MALI_ERROR_MCLP_DEVICE_NOT_FOUND,
+	MALI_ERROR_MCLP_DEVICE_NOT_AVAILABLE,
+	MALI_ERROR_MCLP_COMPILER_NOT_AVAILABLE,
+	MALI_ERROR_MCLP_MEM_OBJECT_ALLOCATION_FAILURE,
+	MALI_ERROR_MCLP_PROFILING_INFO_NOT_AVAILABLE,
+	MALI_ERROR_MCLP_MEM_COPY_OVERLAP,
+	MALI_ERROR_MCLP_IMAGE_FORMAT_MISMATCH,
+	MALI_ERROR_MCLP_IMAGE_FORMAT_NOT_SUPPORTED,
+	MALI_ERROR_MCLP_BUILD_PROGRAM_FAILURE,
+	MALI_ERROR_MCLP_MAP_FAILURE,
+	MALI_ERROR_MCLP_MISALIGNED_SUB_BUFFER_OFFSET,
+	MALI_ERROR_MCLP_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST,
+	MALI_ERROR_MCLP_INVALID_VALUE,
+	MALI_ERROR_MCLP_INVALID_DEVICE_TYPE,
+	MALI_ERROR_MCLP_INVALID_PLATFORM,
+	MALI_ERROR_MCLP_INVALID_DEVICE,
+	MALI_ERROR_MCLP_INVALID_CONTEXT,
+	MALI_ERROR_MCLP_INVALID_QUEUE_PROPERTIES,
+	MALI_ERROR_MCLP_INVALID_COMMAND_QUEUE,
+	MALI_ERROR_MCLP_INVALID_HOST_PTR,
+	MALI_ERROR_MCLP_INVALID_MEM_OBJECT,
+	MALI_ERROR_MCLP_INVALID_IMAGE_FORMAT_DESCRIPTOR,
+	MALI_ERROR_MCLP_INVALID_IMAGE_SIZE,
+	MALI_ERROR_MCLP_INVALID_SAMPLER,
+	MALI_ERROR_MCLP_INVALID_BINARY,
+	MALI_ERROR_MCLP_INVALID_BUILD_OPTIONS,
+	MALI_ERROR_MCLP_INVALID_PROGRAM,
+	MALI_ERROR_MCLP_INVALID_PROGRAM_EXECUTABLE,
+	MALI_ERROR_MCLP_INVALID_KERNEL_NAME,
+	MALI_ERROR_MCLP_INVALID_KERNEL_DEFINITION,
+	MALI_ERROR_MCLP_INVALID_KERNEL,
+	MALI_ERROR_MCLP_INVALID_ARG_INDEX,
+	MALI_ERROR_MCLP_INVALID_ARG_VALUE,
+	MALI_ERROR_MCLP_INVALID_ARG_SIZE,
+	MALI_ERROR_MCLP_INVALID_KERNEL_ARGS,
+	MALI_ERROR_MCLP_INVALID_WORK_DIMENSION,
+	MALI_ERROR_MCLP_INVALID_WORK_GROUP_SIZE,
+	MALI_ERROR_MCLP_INVALID_WORK_ITEM_SIZE,
+	MALI_ERROR_MCLP_INVALID_GLOBAL_OFFSET,
+	MALI_ERROR_MCLP_INVALID_EVENT_WAIT_LIST,
+	MALI_ERROR_MCLP_INVALID_EVENT,
+	MALI_ERROR_MCLP_INVALID_OPERATION,
+	MALI_ERROR_MCLP_INVALID_GL_OBJECT,
+	MALI_ERROR_MCLP_INVALID_BUFFER_SIZE,
+	MALI_ERROR_MCLP_INVALID_MIP_LEVEL,
+	MALI_ERROR_MCLP_INVALID_GLOBAL_WORK_SIZE,
+	MALI_ERROR_MCLP_INVALID_GL_SHAREGROUP_REFERENCE_KHR,
+	MALI_ERROR_MCLP_INVALID_EGL_OBJECT,
+	/* @} */
+	/**
+	 * @brief Mali errors for the BASE module
+	 * These errors must only be used within the private components of the Base implementation. They will not
+	 * passed to other modules by the base driver.
+	 * These are errors in the mali error space specifically for the BASE module, hence the BASEP prefix.
+	 * @{
+	 */
+	MALI_ERROR_BASEP_INVALID_FUNCTION,
+	/* @} */
+	/** A dependency exists upon a resource that the client application wants to modify, so the driver must either
+	 * create a copy of the resource (if possible) or block until the dependency has been satisfied.
+	 */
+	MALI_ERROR_RESOURCE_IN_USE,
+
+	/**
+	 * @brief A stride value was too big.
+	 *
+	 * A surface descriptor can store strides of up to 2<sup>31</sup>-1 bytes but strides greater than
+	 * 2<sup>28</sup>-1 bytes cannot be expressed in bits without overflow.
+	 */
+	MALI_ERROR_STRIDE_TOO_BIG
+
+} mali_error;
+
+
 int mali_dvfs_clk_set(struct dvfs_node * node,unsigned long rate);
 
 /* All things that are needed for the Linux port. */

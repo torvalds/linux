@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2014 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -41,12 +41,12 @@
  *	- size = the amount of data to be synced, in bytes.
  *	- offset is ignored.
  */
-typedef struct basep_syncset {
+struct basep_syncset {
 	base_mem_handle mem_handle;
 	u64 user_addr;
 	u64 size;
 	u8 type;
 	u8 padding[7];
-} basep_syncset;
+};
 
 #endif
