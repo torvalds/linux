@@ -14938,8 +14938,10 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
 	enable = false;
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-		enable |= encoder->connectors_active;
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
+		enable = true;
+		break;
+	}
 
 	if (!enable)
 		intel_crtc_disable_noatomic(&crtc->base);
@@ -14995,6 +14997,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 {
 	struct intel_connector *connector;
 	struct drm_device *dev = encoder->base.dev;
+	bool active = false;
 
 	/* We need to check both for a crtc link (meaning that the
 	 * encoder is active and trying to read from a pipe) and the
@@ -15002,7 +15005,15 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	bool has_active_crtc = encoder->base.crtc &&
 		to_intel_crtc(encoder->base.crtc)->active;
 
-	if (encoder->connectors_active && !has_active_crtc) {
+	for_each_intel_connector(dev, connector) {
+		if (connector->base.encoder != &encoder->base)
+			continue;
+
+		active = true;
+		break;
+	}
+
+	if (active && !has_active_crtc) {
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] has active connectors but no active pipe!\n",
 			      encoder->base.base.id,
 			      encoder->base.name);
