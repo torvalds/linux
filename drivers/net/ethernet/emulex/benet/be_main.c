@@ -2584,8 +2584,8 @@ static void be_evt_queues_destroy(struct be_adapter *adapter)
 			be_cmd_q_destroy(adapter, &eqo->q, QTYPE_EQ);
 			napi_hash_del(&eqo->napi);
 			netif_napi_del(&eqo->napi);
+			free_cpumask_var(eqo->affinity_mask);
 		}
-		free_cpumask_var(eqo->affinity_mask);
 		be_queue_free(adapter, &eqo->q);
 	}
 }
@@ -2602,13 +2602,7 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 
 	for_all_evt_queues(adapter, eqo, i) {
 		int numa_node = dev_to_node(&adapter->pdev->dev);
-		if (!zalloc_cpumask_var(&eqo->affinity_mask, GFP_KERNEL))
-			return -ENOMEM;
-		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
-				eqo->affinity_mask);
-		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
-			       BE_NAPI_WEIGHT);
-		napi_hash_add(&eqo->napi);
+
 		aic = &adapter->aic_obj[i];
 		eqo->adapter = adapter;
 		eqo->idx = i;
@@ -2624,6 +2618,14 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 		rc = be_cmd_eq_create(adapter, eqo);
 		if (rc)
 			return rc;
+
+		if (!zalloc_cpumask_var(&eqo->affinity_mask, GFP_KERNEL))
+			return -ENOMEM;
+		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+				eqo->affinity_mask);
+		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
+			       BE_NAPI_WEIGHT);
+		napi_hash_add(&eqo->napi);
 	}
 	return 0;
 }
