@@ -1213,25 +1213,21 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		s->do_cmd	= me4000_ai_do_cmd;
 	}
 
-    /*=========================================================================
-      Analog output subdevice
-      ========================================================================*/
-
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-
 	if (board->has_ao) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_COMMON | SDF_GROUND;
-		s->n_chan = 4;
-		s->maxdata = 0xFFFF;	/*  16 bit DAC */
-		s->range_table = &range_bipolar10;
-		s->insn_write = me4000_ao_insn_write;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE | SDF_COMMON | SDF_GROUND;
+		s->n_chan	= 4;
+		s->maxdata	= 0xffff;
+		s->range_table	= &range_bipolar10;
+		s->insn_write	= me4000_ao_insn_write;
 
 		result = comedi_alloc_subdev_readback(s);
 		if (result)
 			return result;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* Digital I/O subdevice */
