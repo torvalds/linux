@@ -345,7 +345,7 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	inb(xilinx_iobase + 0xC8);
 
 	/* Wait until /INIT pin is set */
-	udelay(20);
+	usleep_range(20, 1000);
 	val = inl(devpriv->plx_regbase + PLX9052_INTCSR);
 	if (!(val & PLX9052_INTCSR_LI2STAT)) {
 		dev_err(dev->class_dev, "Can't init Xilinx\n");
@@ -362,11 +362,11 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 		      (((unsigned int)data[1] & 0xff) << 16) +
 		      (((unsigned int)data[2] & 0xff) << 8) +
 		      ((unsigned int)data[3] & 0xff);
-	udelay(10);
+	usleep_range(10, 1000);
 
 	for (i = 0; i < file_length; i++) {
 		outb(data[16 + i], xilinx_iobase);
-		udelay(10);
+		usleep_range(10, 1000);
 
 		/* Check if BUSY flag is low */
 		val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
