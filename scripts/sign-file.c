@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 	bool sign_only = false;
 	unsigned char buf[4096];
 	unsigned long module_size, cms_size;
-	unsigned int use_keyid = 0;
+	unsigned int use_keyid = 0, use_signed_attrs = CMS_NOATTR;
 	const EVP_MD *digest_algo;
 	EVP_PKEY *private_key;
 	CMS_ContentInfo *cms;
@@ -216,7 +216,8 @@ int main(int argc, char **argv)
 	ERR(!cms, "CMS_sign");
 
 	ERR(!CMS_add1_signer(cms, x509, private_key, digest_algo,
-			     CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP | use_keyid),
+			     CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |
+			     use_keyid | use_signed_attrs),
 	    "CMS_sign_add_signer");
 	ERR(CMS_final(cms, bm, NULL, CMS_NOCERTS | CMS_BINARY) < 0,
 	    "CMS_final");
