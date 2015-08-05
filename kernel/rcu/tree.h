@@ -383,7 +383,6 @@ struct rcu_data {
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 	struct mutex exp_funnel_mutex;
-	bool exp_done;			/* Expedited QS for this CPU? */
 
 	/* 7) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU

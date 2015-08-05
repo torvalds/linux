@@ -3642,11 +3642,67 @@ static int synchronize_sched_expedited_cpu_stop(void *data)
 	struct rcu_data *rdp = data;
 	struct rcu_state *rsp = rdp->rsp;
 
-	/* We are here: If we are last, do the wakeup. */
-	rdp->exp_done = true;
-	if (atomic_dec_and_test(&rsp->expedited_need_qs))
-		wake_up(&rsp->expedited_wq);
+	/* Report the quiescent state. */
+	rcu_report_exp_rdp(rsp, rdp, true);
 	return 0;
+}
+
+/*
+ * Select the nodes that the upcoming expedited grace period needs
+ * to wait for.
+ */
+static void sync_sched_exp_select_cpus(struct rcu_state *rsp)
+{
+	int cpu;
+	unsigned long flags;
+	unsigned long mask;
+	unsigned long mask_ofl_test;
+	unsigned long mask_ofl_ipi;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+
+	sync_exp_reset_tree(rsp);
+	rcu_for_each_leaf_node(rsp, rnp) {
+		raw_spin_lock_irqsave(&rnp->lock, flags);
+		smp_mb__after_unlock_lock();
+
+		/* Each pass checks a CPU for identity, offline, and idle. */
+		mask_ofl_test = 0;
+		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++) {
+			struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
+
+			if (raw_smp_processor_id() == cpu ||
+			    cpu_is_offline(cpu) ||
+			    !(atomic_add_return(0, &rdtp->dynticks) & 0x1))
+				mask_ofl_test |= rdp->grpmask;
+		}
+		mask_ofl_ipi = rnp->expmask & ~mask_ofl_test;
+
+		/*
+		 * Need to wait for any blocked tasks as well.  Note that
+		 * additional blocking tasks will also block the expedited
+		 * GP until such time as the ->expmask bits are cleared.
+		 */
+		if (rcu_preempt_has_tasks(rnp))
+			rnp->exp_tasks = rnp->blkd_tasks.next;
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+
+		/* IPI the remaining CPUs for expedited quiescent state. */
+		mask = 1;
+		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
+			if (!(mask_ofl_ipi & mask))
+				continue;
+			rdp = per_cpu_ptr(rsp->rda, cpu);
+			stop_one_cpu_nowait(cpu, synchronize_sched_expedited_cpu_stop,
+					    rdp, &rdp->exp_stop_work);
+			mask_ofl_ipi &= ~mask;
+		}
+		/* Report quiescent states for those that went offline. */
+		mask_ofl_test |= mask_ofl_ipi;
+		if (mask_ofl_test)
+			rcu_report_exp_cpu_mult(rsp, rnp, mask_ofl_test, false);
+	}
 }
 
 static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
@@ -3654,7 +3710,9 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 	int cpu;
 	unsigned long jiffies_stall;
 	unsigned long jiffies_start;
-	struct rcu_data *rdp;
+	unsigned long mask;
+	struct rcu_node *rnp;
+	struct rcu_node *rnp_root = rcu_get_root(rsp);
 	int ret;
 
 	jiffies_stall = rcu_jiffies_till_stall_check();
@@ -3663,33 +3721,36 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 	for (;;) {
 		ret = wait_event_interruptible_timeout(
 				rsp->expedited_wq,
-				!atomic_read(&rsp->expedited_need_qs),
+				sync_rcu_preempt_exp_done(rnp_root),
 				jiffies_stall);
 		if (ret > 0)
 			return;
 		if (ret < 0) {
 			/* Hit a signal, disable CPU stall warnings. */
 			wait_event(rsp->expedited_wq,
-				   !atomic_read(&rsp->expedited_need_qs));
+				   sync_rcu_preempt_exp_done(rnp_root));
 			return;
 		}
 		pr_err("INFO: %s detected expedited stalls on CPUs: {",
 		       rsp->name);
-		for_each_online_cpu(cpu) {
-			rdp = per_cpu_ptr(rsp->rda, cpu);
-
-			if (rdp->exp_done)
-				continue;
-			pr_cont(" %d", cpu);
+		rcu_for_each_leaf_node(rsp, rnp) {
+			mask = 1;
+			for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
+				if (!(rnp->expmask & mask))
+					continue;
+				pr_cont(" %d", cpu);
+			}
+			mask <<= 1;
 		}
 		pr_cont(" } %lu jiffies s: %lu\n",
 			jiffies - jiffies_start, rsp->expedited_sequence);
-		for_each_online_cpu(cpu) {
-			rdp = per_cpu_ptr(rsp->rda, cpu);
-
-			if (rdp->exp_done)
-				continue;
-			dump_cpu_task(cpu);
+		rcu_for_each_leaf_node(rsp, rnp) {
+			mask = 1;
+			for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
+				if (!(rnp->expmask & mask))
+					continue;
+				dump_cpu_task(cpu);
+			}
 		}
 		jiffies_stall = 3 * rcu_jiffies_till_stall_check() + 3;
 	}
@@ -3713,7 +3774,6 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
  */
 void synchronize_sched_expedited(void)
 {
-	int cpu;
 	unsigned long s;
 	struct rcu_node *rnp;
 	struct rcu_state *rsp = &rcu_sched_state;
@@ -3736,27 +3796,8 @@ void synchronize_sched_expedited(void)
 	}
 
 	rcu_exp_gp_seq_start(rsp);
-
-	/* Stop each CPU that is online, non-idle, and not us. */
-	atomic_set(&rsp->expedited_need_qs, 1); /* Extra count avoids race. */
-	for_each_online_cpu(cpu) {
-		struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
-		struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
-
-		rdp->exp_done = false;
-
-		/* Skip our CPU and any idle CPUs. */
-		if (raw_smp_processor_id() == cpu ||
-		    !(atomic_add_return(0, &rdtp->dynticks) & 0x1))
-			continue;
-		atomic_inc(&rsp->expedited_need_qs);
-		stop_one_cpu_nowait(cpu, synchronize_sched_expedited_cpu_stop,
-				    rdp, &rdp->exp_stop_work);
-	}
-
-	/* Remove extra count and, if necessary, wait for CPUs to stop. */
-	if (!atomic_dec_and_test(&rsp->expedited_need_qs))
-		synchronize_sched_expedited_wait(rsp);
+	sync_sched_exp_select_cpus(rsp);
+	synchronize_sched_expedited_wait(rsp);
 
 	rcu_exp_gp_seq_end(rsp);
 	mutex_unlock(&rnp->exp_funnel_mutex);
