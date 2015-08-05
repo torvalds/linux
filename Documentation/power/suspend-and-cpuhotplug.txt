@@ -72,7 +72,7 @@ More details follow:
                                         |
                                         v
                            Disable regular cpu hotplug
-                        by setting cpu_hotplug_disabled=1
+                        by increasing cpu_hotplug_disabled
                                         |
                                         v
                             Release cpu_add_remove_lock
@@ -89,7 +89,7 @@ Resuming back is likewise, with the counterparts being (in the order of
 execution during resume):
 * enable_nonboot_cpus() which involves:
    |  Acquire cpu_add_remove_lock
-   |  Reset cpu_hotplug_disabled to 0, thereby enabling regular cpu hotplug
+   |  Decrease cpu_hotplug_disabled, thereby enabling regular cpu hotplug
    |  Call _cpu_up() [for all those cpus in the frozen_cpus mask, in a loop]
    |  Release cpu_add_remove_lock
    v
@@ -120,7 +120,7 @@ after the entire cycle is complete (i.e., suspend + resume).
                            Acquire cpu_add_remove_lock
                                         |
                                         v
-                          If cpu_hotplug_disabled is 1
+                          If cpu_hotplug_disabled > 0
                                 return gracefully
                                         |
                                         |
