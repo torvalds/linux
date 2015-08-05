@@ -1054,18 +1054,6 @@ static int exynos_dp_create_connector(struct exynos_drm_display *display,
 	return ret;
 }
 
-static void exynos_dp_phy_init(struct exynos_dp_device *dp)
-{
-	if (dp->phy)
-		phy_power_on(dp->phy);
-}
-
-static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
-{
-	if (dp->phy)
-		phy_power_off(dp->phy);
-}
-
 static void exynos_dp_enable(struct exynos_drm_display *display)
 {
 	struct exynos_dp_device *dp = display_to_dp(display);
@@ -1085,7 +1073,7 @@ static void exynos_dp_enable(struct exynos_drm_display *display)
 		crtc->ops->clock_enable(dp_to_crtc(dp), true);
 
 	clk_prepare_enable(dp->clock);
-	exynos_dp_phy_init(dp);
+	phy_power_on(dp->phy);
 	exynos_dp_init_dp(dp);
 	enable_irq(dp->irq);
 	exynos_dp_commit(&dp->display);
@@ -1110,7 +1098,7 @@ static void exynos_dp_disable(struct exynos_drm_display *display)
 
 	disable_irq(dp->irq);
 	flush_work(&dp->hotplug_work);
-	exynos_dp_phy_exit(dp);
+	phy_power_off(dp->phy);
 	clk_disable_unprepare(dp->clock);
 
 	if (crtc->ops->clock_enable)
@@ -1285,7 +1273,7 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 
 	INIT_WORK(&dp->hotplug_work, exynos_dp_hotplug);
 
-	exynos_dp_phy_init(dp);
+	phy_power_on(dp->phy);
 
 	exynos_dp_init_dp(dp);
 
