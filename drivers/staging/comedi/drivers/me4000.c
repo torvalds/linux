@@ -393,6 +393,19 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	return 0;
 }
 
+static void me4000_ai_reset(struct comedi_device *dev)
+{
+	unsigned int ctrl;
+
+	/* Stop any running conversion */
+	ctrl = inl(dev->iobase + ME4000_AI_CTRL_REG);
+	ctrl |= ME4000_AI_CTRL_STOP | ME4000_AI_CTRL_IMMEDIATE_STOP;
+	outl(ctrl, dev->iobase + ME4000_AI_CTRL_REG);
+
+	/* Clear the control register */
+	outl(0x0, dev->iobase + ME4000_AI_CTRL_REG);
+}
+
 static void me4000_reset(struct comedi_device *dev)
 {
 	struct me4000_private *devpriv = dev->private;
@@ -410,12 +423,7 @@ static void me4000_reset(struct comedi_device *dev)
 	for (chan = 0; chan < 4; chan++)
 		outl(0x8000, dev->iobase + ME4000_AO_SINGLE_REG(chan));
 
-	/* Set both stop bits in the analog input control register */
-	outl(ME4000_AI_CTRL_IMMEDIATE_STOP | ME4000_AI_CTRL_STOP,
-	     dev->iobase + ME4000_AI_CTRL_REG);
-
-	/* Clear the analog input control register */
-	outl(0x0, dev->iobase + ME4000_AI_CTRL_REG);
+	me4000_ai_reset(dev);
 
 	/* Set both stop bits in the analog output control register */
 	val = ME4000_AO_CTRL_IMMEDIATE_STOP | ME4000_AO_CTRL_STOP;
@@ -461,8 +469,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned int entry;
-	unsigned int tmp;
-	int ret;
+	int ret = 0;
 	int i;
 
 	entry = chan | ME4000_AI_LIST_RANGE(range);
@@ -489,20 +496,9 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 
 	entry |= ME4000_AI_LIST_LAST_ENTRY;
 
-	/* Clear channel list, data fifo and both stop bits */
-	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
-	tmp &= ~(ME4000_AI_CTRL_CHANNEL_FIFO | ME4000_AI_CTRL_DATA_FIFO |
-		 ME4000_AI_CTRL_STOP | ME4000_AI_CTRL_IMMEDIATE_STOP);
-	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-
-	/* Set the acquisition mode to single */
-	tmp &= ~(ME4000_AI_CTRL_MODE_0 | ME4000_AI_CTRL_MODE_1 |
-		 ME4000_AI_CTRL_MODE_2);
-	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-
-	/* Enable channel list and data fifo */
-	tmp |= ME4000_AI_CTRL_CHANNEL_FIFO | ME4000_AI_CTRL_DATA_FIFO;
-	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
+	/* Enable channel list and data fifo for single acquisition mode */
+	outl(ME4000_AI_CTRL_CHANNEL_FIFO | ME4000_AI_CTRL_DATA_FIFO,
+	     dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Generate channel list entry */
 	outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
@@ -519,28 +515,22 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 
 		ret = comedi_timeout(dev, s, insn, me4000_ai_eoc, 0);
 		if (ret)
-			return ret;
+			break;
 
 		/* read two's complement value and munge to offset binary */
 		val = inl(dev->iobase + ME4000_AI_DATA_REG);
 		data[i] = comedi_offset_munge(s, val);
 	}
 
-	return insn->n;
+	me4000_ai_reset(dev);
+
+	return ret ? ret : insn->n;
 }
 
 static int me4000_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	unsigned int ctrl;
-
-	/* Stop any running conversion */
-	ctrl = inl(dev->iobase + ME4000_AI_CTRL_REG);
-	ctrl |= ME4000_AI_CTRL_STOP | ME4000_AI_CTRL_IMMEDIATE_STOP;
-	outl(ctrl, dev->iobase + ME4000_AI_CTRL_REG);
-
-	/* Clear the control register */
-	outl(0x0, dev->iobase + ME4000_AI_CTRL_REG);
+	me4000_ai_reset(dev);
 
 	return 0;
 }
