@@ -26,9 +26,10 @@
  */
 void device_add_property_set(struct device *dev, struct property_set *pset)
 {
-	if (pset)
-		pset->fwnode.type = FWNODE_PDATA;
+	if (!pset)
+		return;
 
+	pset->fwnode.type = FWNODE_PDATA;
 	set_secondary_fwnode(dev, &pset->fwnode);
 }
 EXPORT_SYMBOL_GPL(device_add_property_set);
