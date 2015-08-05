@@ -1284,7 +1284,9 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND;
+	if (board->ai_diff_nchan)
+		s->subdev_flags	|= SDF_DIFF;
 	s->n_chan	= board->ai_nchan;
 	s->maxdata	= 0xffff;
 	s->len_chanlist	= ME4000_AI_CHANNEL_LIST_COUNT;
