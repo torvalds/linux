@@ -795,9 +795,6 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp)
 	/* Configure video slave mode */
 	exynos_dp_enable_video_master(dp, 0);
 
-	/* Enable video */
-	exynos_dp_start_video(dp);
-
 	timeout_loop = 0;
 
 	for (;;) {
@@ -938,6 +935,9 @@ static void exynos_dp_commit(struct exynos_drm_encoder *encoder)
 		if (drm_panel_enable(dp->panel))
 			DRM_ERROR("failed to enable the panel\n");
 	}
+
+	/* Enable video */
+	exynos_dp_start_video(dp);
 }
 
 static enum drm_connector_status exynos_dp_detect(
@@ -1114,7 +1114,6 @@ static struct exynos_drm_encoder_ops exynos_dp_encoder_ops = {
 	.create_connector = exynos_dp_create_connector,
 	.enable = exynos_dp_enable,
 	.disable = exynos_dp_disable,
-	.commit = exynos_dp_commit,
 };
 
 static struct video_info *exynos_dp_dt_parse_pdata(struct device *dev)
