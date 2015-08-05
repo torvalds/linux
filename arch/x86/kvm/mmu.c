@@ -3568,20 +3568,21 @@ static bool is_rsvd_bits_set(struct kvm_mmu *mmu, u64 gpte, int level)
 #include "paging_tmpl.h"
 #undef PTTYPE
 
-static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
-				  struct kvm_mmu *context)
+static void
+__reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
+			struct rsvd_bits_validate *rsvd_check,
+			int maxphyaddr, int level, bool nx, bool gbpages,
+			bool pse)
 {
-	struct rsvd_bits_validate *rsvd_check = &context->guest_rsvd_check;
-	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 	u64 exb_bit_rsvd = 0;
 	u64 gbpages_bit_rsvd = 0;
 	u64 nonleaf_bit8_rsvd = 0;
 
 	rsvd_check->bad_mt_xwr = 0;
 
-	if (!context->nx)
+	if (!nx)
 		exb_bit_rsvd = rsvd_bits(63, 63);
-	if (!guest_cpuid_has_gbpages(vcpu))
+	if (!gbpages)
 		gbpages_bit_rsvd = rsvd_bits(7, 7);
 
 	/*
@@ -3591,7 +3592,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	if (guest_cpuid_is_amd(vcpu))
 		nonleaf_bit8_rsvd = rsvd_bits(8, 8);
 
-	switch (context->root_level) {
+	switch (level) {
 	case PT32_ROOT_LEVEL:
 		/* no rsvd bits for 2 level 4K page table entries */
 		rsvd_check->rsvd_bits_mask[0][1] = 0;
@@ -3599,7 +3600,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 		rsvd_check->rsvd_bits_mask[1][0] =
 			rsvd_check->rsvd_bits_mask[0][0];
 
-		if (!is_pse(vcpu)) {
+		if (!pse) {
 			rsvd_check->rsvd_bits_mask[1][1] = 0;
 			break;
 		}
@@ -3648,6 +3649,15 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 			rsvd_check->rsvd_bits_mask[0][0];
 		break;
 	}
+}
+
+static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
+				  struct kvm_mmu *context)
+{
+	__reset_rsvds_bits_mask(vcpu, &context->guest_rsvd_check,
+				cpuid_maxphyaddr(vcpu), context->root_level,
+				context->nx, guest_cpuid_has_gbpages(vcpu),
+				is_pse(vcpu));
 }
 
 static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
