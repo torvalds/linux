@@ -102,7 +102,18 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
  * @s: comedi_subdevice struct
  * @n: number of elements in the chanlist
  * @chanlist: the chanlist to validate
-*/
+ *
+ * Each element consists of a channel number, a range index, an analog
+ * reference type and some flags, all packed into an unsigned int.
+ *
+ * This checks that the channel number and range index are supported by
+ * the comedi subdevice.  It does not check whether the analog reference
+ * type and the flags are supported.  Drivers that care should check those
+ * themselves.
+ *
+ * Return: %0 if all @chanlist elements are valid (success),
+ *         %-EINVAL if one or more elements are invalid.
+ */
 int comedi_check_chanlist(struct comedi_subdevice *s, int n,
 			  unsigned int *chanlist)
 {
