@@ -1,0 +1,38 @@
+/*
+ * Author: Anthoine Bourgeois <anthoine.bourgois@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "omap3-devkit8000-common.dtsi"
+/ {
+	aliases {
+		display0 = &lcd0;
+		display1 = &dvi0;
+		display2 = &tv0;
+	};
+
+	lcd0: display@0 {
+		compatible = "panel-dpi";
+		label = "lcd";
+
+		enable-gpios = <&twl_gpio 18 GPIO_ACTIVE_HIGH>;
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&dpi_lcd_out>;
+			};
+		};
+	};
+};
+
+&dss {
+	port {
+		dpi_lcd_out: endpoint@1 {
+			remote-endpoint = <&lcd_in>;
+			data-lines = <24>;
+		};
+	};
+};
