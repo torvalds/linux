@@ -345,12 +345,12 @@ where to put them)
       that abstracts it away.
 
   * DMA_CTRL_ACK
-    - If set, the transfer can be reused after being completed.
-    - There is a guarantee the transfer won't be freed until it is acked
-      by async_tx_ack().
-    - As a consequence, if a device driver wants to skip the dma_map_sg() and
-      dma_unmap_sg() in between 2 transfers, because the DMA'd data wasn't used,
-      it can resubmit the transfer right after its completion.
+    - If clear, the descriptor cannot be reused by provider until the
+      client acknowledges receipt, i.e. has has a chance to establish any
+      dependency chains
+    - This can be acked by invoking async_tx_ack()
+    - If set, does not mean descriptor can be reused
+
 
 General Design Notes
 --------------------
