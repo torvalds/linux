@@ -294,6 +294,14 @@ struct kvm_mmu {
 
 	u64 *pae_root;
 	u64 *lm_root;
+
+	/*
+	 * check zero bits on shadow page table entries, these
+	 * bits include not only hardware reserved bits but also
+	 * the bits spte never used.
+	 */
+	struct rsvd_bits_validate shadow_zero_check;
+
 	struct rsvd_bits_validate guest_rsvd_check;
 
 	/*

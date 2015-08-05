@@ -3699,6 +3699,53 @@ static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
 				    cpuid_maxphyaddr(vcpu), execonly);
 }
 
+/*
+ * the page table on host is the shadow page table for the page
+ * table in guest or amd nested guest, its mmu features completely
+ * follow the features in guest.
+ */
+void
+reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
+{
+	__reset_rsvds_bits_mask(vcpu, &context->shadow_zero_check,
+				boot_cpu_data.x86_phys_bits,
+				context->shadow_root_level, context->nx,
+				guest_cpuid_has_gbpages(vcpu), is_pse(vcpu));
+}
+EXPORT_SYMBOL_GPL(reset_shadow_zero_bits_mask);
+
+/*
+ * the direct page table on host, use as much mmu features as
+ * possible, however, kvm currently does not do execution-protection.
+ */
+static void
+reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
+				struct kvm_mmu *context)
+{
+	if (guest_cpuid_is_amd(vcpu))
+		__reset_rsvds_bits_mask(vcpu, &context->shadow_zero_check,
+					boot_cpu_data.x86_phys_bits,
+					context->shadow_root_level, false,
+					cpu_has_gbpages, true);
+	else
+		__reset_rsvds_bits_mask_ept(&context->shadow_zero_check,
+					    boot_cpu_data.x86_phys_bits,
+					    false);
+
+}
+
+/*
+ * as the comments in reset_shadow_zero_bits_mask() except it
+ * is the shadow page table for intel nested guest.
+ */
+static void
+reset_ept_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
+				struct kvm_mmu *context, bool execonly)
+{
+	__reset_rsvds_bits_mask_ept(&context->shadow_zero_check,
+				    boot_cpu_data.x86_phys_bits, execonly);
+}
+
 static void update_permission_bitmask(struct kvm_vcpu *vcpu,
 				      struct kvm_mmu *mmu, bool ept)
 {
@@ -3877,6 +3924,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 
 	update_permission_bitmask(vcpu, context, false);
 	update_last_pte_bitmap(vcpu, context);
+	reset_tdp_shadow_zero_bits_mask(vcpu, context);
 }
 
 void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
@@ -3904,6 +3952,7 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 	context->base_role.smap_andnot_wp
 		= smap && !is_write_protection(vcpu);
 	context->base_role.smm = is_smm(vcpu);
+	reset_shadow_zero_bits_mask(vcpu, context);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
@@ -3927,6 +3976,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly)
 
 	update_permission_bitmask(vcpu, context, true);
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
+	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_ept_mmu);
 
