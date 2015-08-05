@@ -223,6 +223,7 @@ struct mwifiex_sdio_card_reg {
 	u8 cmd_cfg_1;
 	u8 cmd_cfg_2;
 	u8 cmd_cfg_3;
+	u8 fw_dump_host_ready;
 	u8 fw_dump_ctrl;
 	u8 fw_dump_start;
 	u8 fw_dump_end;
@@ -258,6 +259,7 @@ struct sdio_mmc_card {
 	bool supports_sdio_new_mode;
 	bool has_control_mask;
 	bool can_dump_fw;
+	bool fw_dump_enh;
 	bool can_auto_tdls;
 	bool can_ext_scan;
 
@@ -279,6 +281,7 @@ struct mwifiex_sdio_device {
 	bool supports_sdio_new_mode;
 	bool has_control_mask;
 	bool can_dump_fw;
+	bool fw_dump_enh;
 	bool can_auto_tdls;
 	bool can_ext_scan;
 };
@@ -354,6 +357,7 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
 	.cmd_cfg_1 = 0xb9,
 	.cmd_cfg_2 = 0xba,
 	.cmd_cfg_3 = 0xbb,
+	.fw_dump_host_ready = 0xee,
 	.fw_dump_ctrl = 0xe2,
 	.fw_dump_start = 0xe3,
 	.fw_dump_end = 0xea,
@@ -404,6 +408,10 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8997 = {
 	.cmd_cfg_1 = 0xc5,
 	.cmd_cfg_2 = 0xc6,
 	.cmd_cfg_3 = 0xc7,
+	.fw_dump_host_ready = 0xcc,
+	.fw_dump_ctrl = 0xf0,
+	.fw_dump_start = 0xf1,
+	.fw_dump_end = 0xf8,
 	.func1_dump_reg_start = 0x10,
 	.func1_dump_reg_end = 0x17,
 	.func1_scratch_reg = 0xe8,
@@ -532,7 +540,8 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8997 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
 	.supports_sdio_new_mode = true,
 	.has_control_mask = false,
-	.can_dump_fw = false,
+	.can_dump_fw = true,
+	.fw_dump_enh = true,
 	.can_auto_tdls = false,
 	.can_ext_scan = true,
 };
