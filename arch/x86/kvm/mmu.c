@@ -3660,11 +3660,10 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 				is_pse(vcpu));
 }
 
-static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
-		struct kvm_mmu *context, bool execonly)
+static void
+__reset_rsvds_bits_mask_ept(struct rsvd_bits_validate *rsvd_check,
+			    int maxphyaddr, bool execonly)
 {
-	struct rsvd_bits_validate *rsvd_check = &context->guest_rsvd_check;
-	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 	int pte;
 
 	rsvd_check->rsvd_bits_mask[0][3] =
@@ -3691,6 +3690,13 @@ static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
 				(rwx_bits == 0x4 && !execonly))
 			rsvd_check->bad_mt_xwr |= (1ull << pte);
 	}
+}
+
+static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
+		struct kvm_mmu *context, bool execonly)
+{
+	__reset_rsvds_bits_mask_ept(&context->guest_rsvd_check,
+				    cpuid_maxphyaddr(vcpu), execonly);
 }
 
 static void update_permission_bitmask(struct kvm_vcpu *vcpu,
