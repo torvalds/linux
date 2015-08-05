@@ -87,7 +87,6 @@ struct exynos_drm_plane {
  *	      would be called by encoder->mode_set().
  * @enable: display device on.
  * @disable: display device off.
- * @commit: apply changes to hw
  */
 struct exynos_drm_encoder;
 struct exynos_drm_encoder_ops {
@@ -100,7 +99,6 @@ struct exynos_drm_encoder_ops {
 				struct drm_display_mode *mode);
 	void (*enable)(struct exynos_drm_encoder *encoder);
 	void (*disable)(struct exynos_drm_encoder *encoder);
-	void (*commit)(struct exynos_drm_encoder *encoder);
 };
 
 /*

@@ -56,9 +56,6 @@ static void exynos_drm_encoder_enable(struct drm_encoder *encoder)
 
 	if (exynos_encoder->ops->enable)
 		exynos_encoder->ops->enable(exynos_encoder);
-
-	if (exynos_encoder->ops->commit)
-		exynos_encoder->ops->commit(exynos_encoder);
 }
 
 static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
