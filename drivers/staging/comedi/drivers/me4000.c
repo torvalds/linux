@@ -110,7 +110,6 @@ broken.
 #define ME4000_AI_STATUS_BIT_FSM		(1 << 29)
 #define ME4000_AI_CTRL_BIT_EX_TRIG_BOTH		(1 << 31)
 #define ME4000_AI_CHANNEL_LIST_REG		0x78
-#define ME4000_AI_LIST_INPUT_SINGLE_ENDED	(0 << 5)
 #define ME4000_AI_LIST_INPUT_DIFFERENTIAL	(1 << 5)
 #define ME4000_AI_LIST_RANGE_BIPOLAR_10		(0 << 6)
 #define ME4000_AI_LIST_RANGE_BIPOLAR_2_5	(1 << 6)
@@ -474,13 +473,8 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	switch (aref) {
-	case AREF_GROUND:
-	case AREF_COMMON:
-		entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED | chan;
-		break;
-
-	case AREF_DIFF:
+	entry |= chan;
+	if (aref == AREF_DIFF) {
 		if (!(s->subdev_flags && SDF_DIFF)) {
 			dev_err(dev->class_dev,
 				"Differential inputs are not available\n");
@@ -498,11 +492,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 				"Analog input is not available\n");
 			return -EINVAL;
 		}
-		entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL | chan;
-		break;
-	default:
-		dev_err(dev->class_dev, "Invalid aref specified\n");
-		return -EINVAL;
+		entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
 	}
 
 	entry |= ME4000_AI_LIST_LAST_ENTRY;
@@ -703,8 +693,6 @@ static int ai_write_chanlist(struct comedi_device *dev,
 
 		if (aref == AREF_DIFF)
 			entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
-		else
-			entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED;
 
 		outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
 	}
