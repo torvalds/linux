@@ -163,6 +163,7 @@ broken.
 
 struct me4000_private {
 	unsigned long plx_regbase;
+	unsigned int ai_ctrl_mode;
 	unsigned int ai_init_ticks;
 	unsigned int ai_scan_ticks;
 	unsigned int ai_chan_ticks;
@@ -684,59 +685,35 @@ static int ai_prepare(struct comedi_device *dev,
 		      struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
-	unsigned int tmp = 0;
+	struct me4000_private *devpriv = dev->private;
+	unsigned int ctrl;
 
 	/* Write timer arguments */
 	ai_write_timer(dev);
 
 	/* Reset control register */
-	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
+	outl(0, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Start sources */
-	if ((cmd->start_src == TRIG_EXT &&
-	     cmd->scan_begin_src == TRIG_TIMER &&
-	     cmd->convert_src == TRIG_TIMER) ||
-	    (cmd->start_src == TRIG_EXT &&
-	     cmd->scan_begin_src == TRIG_FOLLOW &&
-	     cmd->convert_src == TRIG_TIMER)) {
-		tmp = ME4000_AI_CTRL_MODE_1 |
-		      ME4000_AI_CTRL_CHANNEL_FIFO |
-		      ME4000_AI_CTRL_DATA_FIFO;
-	} else if (cmd->start_src == TRIG_EXT &&
-		   cmd->scan_begin_src == TRIG_EXT &&
-		   cmd->convert_src == TRIG_TIMER) {
-		tmp = ME4000_AI_CTRL_MODE_2 |
-		      ME4000_AI_CTRL_CHANNEL_FIFO |
-		      ME4000_AI_CTRL_DATA_FIFO;
-	} else if (cmd->start_src == TRIG_EXT &&
-		   cmd->scan_begin_src == TRIG_EXT &&
-		   cmd->convert_src == TRIG_EXT) {
-		tmp = ME4000_AI_CTRL_MODE_0 |
-		      ME4000_AI_CTRL_MODE_1 |
-		      ME4000_AI_CTRL_CHANNEL_FIFO |
-		      ME4000_AI_CTRL_DATA_FIFO;
-	} else {
-		tmp = ME4000_AI_CTRL_MODE_0 |
-		      ME4000_AI_CTRL_CHANNEL_FIFO |
-		      ME4000_AI_CTRL_DATA_FIFO;
-	}
+	ctrl = devpriv->ai_ctrl_mode |
+	       ME4000_AI_CTRL_CHANNEL_FIFO |
+	       ME4000_AI_CTRL_DATA_FIFO;
 
 	/* Stop triggers */
 	if (cmd->stop_src == TRIG_COUNT) {
 		outl(cmd->chanlist_len * cmd->stop_arg,
 		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
-		tmp |= ME4000_AI_CTRL_HF_IRQ | ME4000_AI_CTRL_SC_IRQ;
+		ctrl |= ME4000_AI_CTRL_SC_IRQ;
 	} else if (cmd->stop_src == TRIG_NONE &&
 		   cmd->scan_end_src == TRIG_COUNT) {
 		outl(cmd->scan_end_arg,
 		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
-		tmp |= ME4000_AI_CTRL_HF_IRQ | ME4000_AI_CTRL_SC_IRQ;
-	} else {
-		tmp |= ME4000_AI_CTRL_HF_IRQ;
+		ctrl |= ME4000_AI_CTRL_SC_IRQ;
 	}
+	ctrl |= ME4000_AI_CTRL_HF_IRQ;
 
 	/* Write the setup to the control register */
-	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
+	outl(ctrl, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Write the channel list */
 	me4000_ai_write_chanlist(dev, s, cmd);
@@ -800,21 +777,28 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	if (cmd->start_src == TRIG_NOW &&
 	    cmd->scan_begin_src == TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
+		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_0;
 	} else if (cmd->start_src == TRIG_NOW &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
+		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_0;
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_TIMER &&
 		   cmd->convert_src == TRIG_TIMER) {
+		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_1;
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
+		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_1;
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_TIMER) {
+		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_2;
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_EXT) {
+		devpriv->ai_ctrl_mode = ME4000_AI_CTRL_MODE_0 |
+					ME4000_AI_CTRL_MODE_1;
 	} else {
 		err |= -EINVAL;
 	}
