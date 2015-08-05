@@ -12183,33 +12183,15 @@ fail:
 	return ret;
 }
 
-static bool intel_crtc_in_use(struct drm_crtc *crtc)
-{
-	struct drm_encoder *encoder;
-	struct drm_device *dev = crtc->dev;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		if (encoder->crtc == crtc)
-			return true;
-
-	return false;
-}
-
 static void
-intel_modeset_update_state(struct drm_atomic_state *state)
+intel_modeset_update_crtc_state(struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int i;
 
-	intel_shared_dpll_commit(state);
-
-	drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
-
 	/* Double check state. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		WARN_ON(crtc->state->enable != intel_crtc_in_use(crtc));
-
 		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
 
 		/* Update hwmode for vblank functions */
@@ -13112,12 +13094,14 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	/* Only after disabling all output pipelines that will be changed can we
 	 * update the the output configuration. */
-	intel_modeset_update_state(state);
+	intel_modeset_update_crtc_state(state);
 
-	/* The state has been swaped above, so state actually contains the
-	 * old state now. */
-	if (any_ms)
+	if (any_ms) {
+		intel_shared_dpll_commit(state);
+
+		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 		modeset_update_crtc_power_domains(state);
+	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
