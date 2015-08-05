@@ -861,7 +861,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 	struct audit_watch *watch = entry->rule.watch;
 	struct audit_tree *tree = entry->rule.tree;
 	struct list_head *list;
-	int err;
+	int err = 0;
 #ifdef CONFIG_AUDITSYSCALL
 	int dont_count = 0;
 
