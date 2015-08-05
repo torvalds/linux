@@ -191,8 +191,8 @@ struct me4000_board {
 	int ao_nchan;
 	int ao_fifo;
 	int ai_nchan;
-	int ai_diff_nchan;
 	int ai_sh_nchan;
+	unsigned int can_do_diff_ai:1;
 	unsigned int ex_trig_analog:1;
 	unsigned int has_counter:1;
 };
@@ -205,34 +205,34 @@ static const struct me4000_board me4000_boards[] = {
 	[BOARD_ME4660] = {
 		.name		= "ME-4660",
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
+		.can_do_diff_ai	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4660I] = {
 		.name		= "ME-4660i",
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
+		.can_do_diff_ai	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4660S] = {
 		.name		= "ME-4660s",
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
+		.can_do_diff_ai	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4660IS] = {
 		.name		= "ME-4660is",
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
+		.can_do_diff_ai	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_ME4670] = {
 		.name		= "ME-4670",
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -240,7 +240,7 @@ static const struct me4000_board me4000_boards[] = {
 		.name		= "ME-4670i",
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -248,8 +248,8 @@ static const struct me4000_board me4000_boards[] = {
 		.name		= "ME-4670s",
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -257,8 +257,8 @@ static const struct me4000_board me4000_boards[] = {
 		.name		= "ME-4670is",
 		.ao_nchan	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -267,7 +267,7 @@ static const struct me4000_board me4000_boards[] = {
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -276,7 +276,7 @@ static const struct me4000_board me4000_boards[] = {
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -285,8 +285,8 @@ static const struct me4000_board me4000_boards[] = {
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -295,8 +295,8 @@ static const struct me4000_board me4000_boards[] = {
 		.ao_nchan	= 4,
 		.ao_fifo	= 4,
 		.ai_nchan	= 32,
-		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
+		.can_do_diff_ai	= 1,
 		.ex_trig_analog	= 1,
 		.has_counter	= 1,
 	},
@@ -1290,7 +1290,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND;
-	if (board->ai_diff_nchan)
+	if (board->can_do_diff_ai)
 		s->subdev_flags	|= SDF_DIFF;
 	s->n_chan	= board->ai_nchan;
 	s->maxdata	= 0xffff;
