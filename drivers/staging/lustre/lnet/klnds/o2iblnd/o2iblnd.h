@@ -887,7 +887,7 @@ kiblnd_rd_consume_frag(kib_rdma_desc_t *rd, int index, __u32 nob)
 		rd->rd_frags[index].rf_addr += nob;
 		rd->rd_frags[index].rf_nob  -= nob;
 	} else {
-		index ++;
+		index++;
 	}
 
 	return index;
