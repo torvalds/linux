@@ -163,6 +163,9 @@ broken.
 
 struct me4000_private {
 	unsigned long plx_regbase;
+	unsigned int ai_init_ticks;
+	unsigned int ai_scan_ticks;
+	unsigned int ai_chan_ticks;
 };
 
 enum me4000_boardid {
@@ -582,71 +585,73 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 
 static void me4000_ai_round_cmd_args(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
-				     struct comedi_cmd *cmd,
-				     unsigned int *init_ticks,
-				     unsigned int *scan_ticks,
-				     unsigned int *chan_ticks)
+				     struct comedi_cmd *cmd)
 {
+	struct me4000_private *devpriv = dev->private;
 	int rest;
 
-	*init_ticks = 0;
-	*scan_ticks = 0;
-	*chan_ticks = 0;
+	devpriv->ai_init_ticks = 0;
+	devpriv->ai_scan_ticks = 0;
+	devpriv->ai_chan_ticks = 0;
 
 	if (cmd->start_arg) {
-		*init_ticks = (cmd->start_arg * 33) / 1000;
+		devpriv->ai_init_ticks = (cmd->start_arg * 33) / 1000;
 		rest = (cmd->start_arg * 33) % 1000;
 
 		if ((cmd->flags & CMDF_ROUND_MASK) == CMDF_ROUND_NEAREST) {
 			if (rest > 33)
-				(*init_ticks)++;
+				devpriv->ai_init_ticks++;
 		} else if ((cmd->flags & CMDF_ROUND_MASK) == CMDF_ROUND_UP) {
 			if (rest)
-				(*init_ticks)++;
+				devpriv->ai_init_ticks++;
 		}
 	}
 
 	if (cmd->scan_begin_arg) {
-		*scan_ticks = (cmd->scan_begin_arg * 33) / 1000;
+		devpriv->ai_scan_ticks = (cmd->scan_begin_arg * 33) / 1000;
 		rest = (cmd->scan_begin_arg * 33) % 1000;
 
 		if ((cmd->flags & CMDF_ROUND_MASK) == CMDF_ROUND_NEAREST) {
 			if (rest > 33)
-				(*scan_ticks)++;
+				devpriv->ai_scan_ticks++;
 		} else if ((cmd->flags & CMDF_ROUND_MASK) == CMDF_ROUND_UP) {
 			if (rest)
-				(*scan_ticks)++;
+				devpriv->ai_scan_ticks++;
 		}
 	}
 
 	if (cmd->convert_arg) {
-		*chan_ticks = (cmd->convert_arg * 33) / 1000;
+		devpriv->ai_chan_ticks = (cmd->convert_arg * 33) / 1000;
 		rest = (cmd->convert_arg * 33) % 1000;
 
 		if ((cmd->flags & CMDF_ROUND_MASK) == CMDF_ROUND_NEAREST) {
 			if (rest > 33)
-				(*chan_ticks)++;
+				devpriv->ai_chan_ticks++;
 		} else if ((cmd->flags & CMDF_ROUND_MASK) == CMDF_ROUND_UP) {
 			if (rest)
-				(*chan_ticks)++;
+				devpriv->ai_chan_ticks++;
 		}
 	}
 }
 
-static void ai_write_timer(struct comedi_device *dev,
-			   unsigned int init_ticks,
-			   unsigned int scan_ticks, unsigned int chan_ticks)
+static void ai_write_timer(struct comedi_device *dev)
 {
-	outl(init_ticks - 1, dev->iobase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG);
+	struct me4000_private *devpriv = dev->private;
+
+	outl(devpriv->ai_init_ticks - 1,
+	     dev->iobase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG);
 	outl(0x0, dev->iobase + ME4000_AI_SCAN_PRE_TIMER_HIGH_REG);
 
-	if (scan_ticks) {
-		outl(scan_ticks - 1, dev->iobase + ME4000_AI_SCAN_TIMER_LOW_REG);
+	if (devpriv->ai_scan_ticks) {
+		outl(devpriv->ai_scan_ticks - 1,
+		     dev->iobase + ME4000_AI_SCAN_TIMER_LOW_REG);
 		outl(0x0, dev->iobase + ME4000_AI_SCAN_TIMER_HIGH_REG);
 	}
 
-	outl(chan_ticks - 1, dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG);
-	outl(chan_ticks - 1, dev->iobase + ME4000_AI_CHAN_TIMER_REG);
+	outl(devpriv->ai_chan_ticks - 1,
+	     dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG);
+	outl(devpriv->ai_chan_ticks - 1,
+	     dev->iobase + ME4000_AI_CHAN_TIMER_REG);
 }
 
 static int me4000_ai_write_chanlist(struct comedi_device *dev,
@@ -677,14 +682,12 @@ static int me4000_ai_write_chanlist(struct comedi_device *dev,
 
 static int ai_prepare(struct comedi_device *dev,
 		      struct comedi_subdevice *s,
-		      struct comedi_cmd *cmd,
-		      unsigned int init_ticks,
-		      unsigned int scan_ticks, unsigned int chan_ticks)
+		      struct comedi_cmd *cmd)
 {
 	unsigned int tmp = 0;
 
 	/* Write timer arguments */
-	ai_write_timer(dev, init_ticks, scan_ticks, chan_ticks);
+	ai_write_timer(dev);
 
 	/* Reset control register */
 	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
@@ -745,9 +748,6 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	int err;
-	unsigned int init_ticks = 0;
-	unsigned int scan_ticks = 0;
-	unsigned int chan_ticks = 0;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* Reset the analog input */
@@ -755,12 +755,8 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 	if (err)
 		return err;
 
-	/* Round the timer arguments */
-	me4000_ai_round_cmd_args(dev, s, cmd,
-				 &init_ticks, &scan_ticks, &chan_ticks);
-
 	/* Prepare the AI for acquisition */
-	err = ai_prepare(dev, s, cmd, init_ticks, scan_ticks, chan_ticks);
+	err = ai_prepare(dev, s, cmd);
 	if (err)
 		return err;
 
@@ -774,9 +770,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
-	unsigned int init_ticks;
-	unsigned int chan_ticks;
-	unsigned int scan_ticks;
+	struct me4000_private *devpriv = dev->private;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -838,18 +832,17 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	}
 
 	/* Round the timer arguments */
-	me4000_ai_round_cmd_args(dev, s, cmd,
-				 &init_ticks, &scan_ticks, &chan_ticks);
+	me4000_ai_round_cmd_args(dev, s, cmd);
 
-	if (init_ticks < 66) {
+	if (devpriv->ai_init_ticks < 66) {
 		cmd->start_arg = 2000;
 		err |= -EINVAL;
 	}
-	if (scan_ticks && scan_ticks < 67) {
+	if (devpriv->ai_scan_ticks && devpriv->ai_scan_ticks < 67) {
 		cmd->scan_begin_arg = 2031;
 		err |= -EINVAL;
 	}
-	if (chan_ticks < 66) {
+	if (devpriv->ai_chan_ticks < 66) {
 		cmd->convert_arg = 2000;
 		err |= -EINVAL;
 	}
@@ -869,17 +862,18 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	    cmd->scan_begin_src == TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
 		/* Check timer arguments */
-		if (init_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
-		if (chan_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_chan_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
-		if (scan_ticks <= cmd->chanlist_len * chan_ticks) {
+		if (devpriv->ai_scan_ticks <=
+		    cmd->chanlist_len * devpriv->ai_chan_ticks) {
 			dev_err(dev->class_dev, "Invalid scan end arg\n");
 
 			/*  At least one tick more */
@@ -890,12 +884,12 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
 		/* Check timer arguments */
-		if (init_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
-		if (chan_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_chan_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
@@ -904,17 +898,18 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		   cmd->scan_begin_src == TRIG_TIMER &&
 		   cmd->convert_src == TRIG_TIMER) {
 		/* Check timer arguments */
-		if (init_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
-		if (chan_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_chan_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
-		if (scan_ticks <= cmd->chanlist_len * chan_ticks) {
+		if (devpriv->ai_scan_ticks <=
+		    cmd->chanlist_len * devpriv->ai_chan_ticks) {
 			dev_err(dev->class_dev, "Invalid scan end arg\n");
 
 			/*  At least one tick more */
@@ -925,12 +920,12 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
 		/* Check timer arguments */
-		if (init_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
-		if (chan_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_chan_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
@@ -939,12 +934,12 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_TIMER) {
 		/* Check timer arguments */
-		if (init_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
-		if (chan_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_chan_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
@@ -953,7 +948,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_EXT) {
 		/* Check timer arguments */
-		if (init_ticks < ME4000_AI_MIN_TICKS) {
+		if (devpriv->ai_init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
