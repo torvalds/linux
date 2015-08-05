@@ -1281,31 +1281,22 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-    /*=========================================================================
-      Analog input subdevice
-      ========================================================================*/
-
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
+	s->n_chan	= board->ai_nchan;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= ME4000_AI_CHANNEL_LIST_COUNT;
+	s->range_table	= &me4000_ai_range;
+	s->insn_read	= me4000_ai_insn_read;
 
-	if (board->ai_nchan) {
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags =
-		    SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
-		s->n_chan = board->ai_nchan;
-		s->maxdata = 0xFFFF;	/*  16 bit ADC */
-		s->len_chanlist = ME4000_AI_CHANNEL_LIST_COUNT;
-		s->range_table = &me4000_ai_range;
-		s->insn_read = me4000_ai_insn_read;
-
-		if (dev->irq) {
-			dev->read_subdev = s;
-			s->subdev_flags |= SDF_CMD_READ;
-			s->cancel = me4000_ai_cancel;
-			s->do_cmdtest = me4000_ai_do_cmd_test;
-			s->do_cmd = me4000_ai_do_cmd;
-		}
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->cancel	= me4000_ai_cancel;
+		s->do_cmdtest	= me4000_ai_do_cmd_test;
+		s->do_cmd	= me4000_ai_do_cmd;
 	}
 
     /*=========================================================================
