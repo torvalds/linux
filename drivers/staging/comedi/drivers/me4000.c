@@ -529,12 +529,12 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 static int me4000_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	unsigned int tmp;
+	unsigned int ctrl;
 
 	/* Stop any running conversion */
-	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
-	tmp &= ~(ME4000_AI_CTRL_STOP | ME4000_AI_CTRL_IMMEDIATE_STOP);
-	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
+	ctrl = inl(dev->iobase + ME4000_AI_CTRL_REG);
+	ctrl |= ME4000_AI_CTRL_STOP | ME4000_AI_CTRL_IMMEDIATE_STOP;
+	outl(ctrl, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Clear the control register */
 	outl(0x0, dev->iobase + ME4000_AI_CTRL_REG);
