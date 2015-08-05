@@ -156,18 +156,28 @@ struct jr_outentry {
 #define CHA_NUM_MS_DECONUM_SHIFT	24
 #define CHA_NUM_MS_DECONUM_MASK	(0xfull << CHA_NUM_MS_DECONUM_SHIFT)
 
-/* CHA Version IDs */
+/*
+ * CHA version IDs / instantiation bitfields
+ * Defined for use with the cha_id fields in perfmon, but the same shift/mask
+ * selectors can be used to pull out the number of instantiated blocks within
+ * cha_num fields in perfmon because the locations are the same.
+ */
 #define CHA_ID_LS_AES_SHIFT	0
-#define CHA_ID_LS_AES_MASK		(0xfull << CHA_ID_LS_AES_SHIFT)
+#define CHA_ID_LS_AES_MASK	(0xfull << CHA_ID_LS_AES_SHIFT)
+#define CHA_ID_LS_AES_LP	(0x3ull << CHA_ID_LS_AES_SHIFT)
+#define CHA_ID_LS_AES_HP	(0x4ull << CHA_ID_LS_AES_SHIFT)
 
 #define CHA_ID_LS_DES_SHIFT	4
-#define CHA_ID_LS_DES_MASK		(0xfull << CHA_ID_LS_DES_SHIFT)
+#define CHA_ID_LS_DES_MASK	(0xfull << CHA_ID_LS_DES_SHIFT)
 
 #define CHA_ID_LS_ARC4_SHIFT	8
 #define CHA_ID_LS_ARC4_MASK	(0xfull << CHA_ID_LS_ARC4_SHIFT)
 
 #define CHA_ID_LS_MD_SHIFT	12
 #define CHA_ID_LS_MD_MASK	(0xfull << CHA_ID_LS_MD_SHIFT)
+#define CHA_ID_LS_MD_LP256	(0x0ull << CHA_ID_LS_MD_SHIFT)
+#define CHA_ID_LS_MD_LP512	(0x1ull << CHA_ID_LS_MD_SHIFT)
+#define CHA_ID_LS_MD_HP		(0x2ull << CHA_ID_LS_MD_SHIFT)
 
 #define CHA_ID_LS_RNG_SHIFT	16
 #define CHA_ID_LS_RNG_MASK	(0xfull << CHA_ID_LS_RNG_SHIFT)

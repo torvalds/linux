@@ -1883,8 +1883,10 @@ static int __init caam_algapi_hash_init(void)
 	struct device_node *dev_node;
 	struct platform_device *pdev;
 	struct device *ctrldev;
-	void *priv;
 	int i = 0, err = 0;
+	struct caam_drv_private *priv;
+	unsigned int md_limit = SHA512_DIGEST_SIZE;
+	u32 cha_inst, cha_vid;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node) {
@@ -1910,19 +1912,40 @@ static int __init caam_algapi_hash_init(void)
 	if (!priv)
 		return -ENODEV;
 
+	/*
+	 * Register crypto algorithms the device supports.  First, identify
+	 * presence and attributes of MD block.
+	 */
+	cha_vid = rd_reg32(&priv->ctrl->perfmon.cha_id_ls);
+	cha_inst = rd_reg32(&priv->ctrl->perfmon.cha_num_ls);
+
+	/*
+	 * Skip registration of any hashing algorithms if MD block
+	 * is not present.
+	 */
+	if (!((cha_inst & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT))
+		return -ENODEV;
+
+	/* Limit digest size based on LP256 */
+	if ((cha_vid & CHA_ID_LS_MD_MASK) == CHA_ID_LS_MD_LP256)
+		md_limit = SHA256_DIGEST_SIZE;
+
 	INIT_LIST_HEAD(&hash_list);
 
 	/* register crypto algorithms the device supports */
 	for (i = 0; i < ARRAY_SIZE(driver_hash); i++) {
-		/* TODO: check if h/w supports alg */
 		struct caam_hash_alg *t_alg;
+		struct caam_hash_template *alg = driver_hash + i;
+
+		/* If MD size is not supported by device, skip registration */
+		if (alg->template_ahash.halg.digestsize > md_limit)
+			continue;
 
 		/* register hmac version */
-		t_alg = caam_hash_alloc(&driver_hash[i], true);
+		t_alg = caam_hash_alloc(alg, true);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
-			pr_warn("%s alg allocation failed\n",
-				driver_hash[i].driver_name);
+			pr_warn("%s alg allocation failed\n", alg->driver_name);
 			continue;
 		}
 
@@ -1935,11 +1958,10 @@ static int __init caam_algapi_hash_init(void)
 			list_add_tail(&t_alg->entry, &hash_list);
 
 		/* register unkeyed version */
-		t_alg = caam_hash_alloc(&driver_hash[i], false);
+		t_alg = caam_hash_alloc(alg, false);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
-			pr_warn("%s alg allocation failed\n",
-				driver_hash[i].driver_name);
+			pr_warn("%s alg allocation failed\n", alg->driver_name);
 			continue;
 		}
 
