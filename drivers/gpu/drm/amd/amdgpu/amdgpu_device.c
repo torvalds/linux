@@ -1627,8 +1627,7 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	struct amdgpu_device *adev;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	int i, r;
-	bool force_completion = false;
+	int r;
 
 	if (dev == NULL || dev->dev_private == NULL) {
 		return -ENODEV;
@@ -1667,21 +1666,7 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 
-	/* wait for gpu to finish processing current batch */
-	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		if (!ring)
-			continue;
-
-		r = amdgpu_fence_wait_empty(ring);
-		if (r) {
-			/* delay GPU reset to resume */
-			force_completion = true;
-		}
-	}
-	if (force_completion) {
-		amdgpu_fence_driver_force_completion(adev);
-	}
+	amdgpu_fence_driver_suspend(adev);
 
 	r = amdgpu_suspend(adev);
 
@@ -1738,6 +1723,8 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
 	r = amdgpu_resume(adev);
+
+	amdgpu_fence_driver_resume(adev);
 
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
