@@ -62,31 +62,31 @@ int rl6231_get_pre_div(struct regmap *map, unsigned int reg, int sft)
 EXPORT_SYMBOL_GPL(rl6231_get_pre_div);
 
 /**
- * rl6231_calc_dmic_clk - Calculate the parameter of dmic.
+ * rl6231_calc_dmic_clk - Calculate the frequency divider parameter of dmic.
  *
  * @rate: base clock rate.
  *
- * Choose dmic clock between 1MHz and 3MHz.
- * It is better for clock to approximate 3MHz.
+ * Choose divider parameter that gives the highest possible DMIC frequency in
+ * 1MHz - 3MHz range.
  */
 int rl6231_calc_dmic_clk(int rate)
 {
-	int div[] = {2, 3, 4, 6, 8, 12}, idx = -EINVAL;
-	int i, red, bound, temp;
+	int div[] = {2, 3, 4, 6, 8, 12};
+	int i;
 
-	red = 3000000 * 12;
-	for (i = 0; i < ARRAY_SIZE(div); i++) {
-		bound = div[i] * 3000000;
-		if (rate > bound)
-			continue;
-		temp = bound - rate;
-		if (temp < red) {
-			red = temp;
-			idx = i;
-		}
+	if (rate < 1000000 * div[0]) {
+		pr_warn("Base clock rate %d is too low\n", rate);
+		return -EINVAL;
 	}
 
-	return idx;
+	for (i = 0; i < ARRAY_SIZE(div); i++) {
+		/* find divider that gives DMIC frequency below 3MHz */
+		if (3000000 * div[i] >= rate)
+			return i;
+	}
+
+	pr_warn("Base clock rate %d is too high\n", rate);
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(rl6231_calc_dmic_clk);
 
