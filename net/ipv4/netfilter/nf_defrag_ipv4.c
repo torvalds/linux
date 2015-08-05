@@ -49,12 +49,9 @@ static enum ip_defrag_users nf_ct_defrag_user(unsigned int hooknum,
 	if (skb->nfct)
 		zone = nf_ct_zone((struct nf_conn *)skb->nfct);
 #endif
-
-#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	if (skb->nf_bridge &&
-	    skb->nf_bridge->mask & BRNF_NF_BRIDGE_PREROUTING)
+	if (nf_bridge_in_prerouting(skb))
 		return IP_DEFRAG_CONNTRACK_BRIDGE_IN + zone;
-#endif
+
 	if (hooknum == NF_INET_PRE_ROUTING)
 		return IP_DEFRAG_CONNTRACK_IN + zone;
 	else

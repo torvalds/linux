@@ -174,17 +174,24 @@ struct nf_bridge_info {
 		BRNF_PROTO_8021Q,
 		BRNF_PROTO_PPPOE
 	} orig_proto:8;
-	bool			pkt_otherhost;
+	u8			pkt_otherhost:1;
+	u8			in_prerouting:1;
+	u8			bridged_dnat:1;
 	__u16			frag_max_size;
-	unsigned int		mask;
 	struct net_device	*physindev;
 	union {
-		struct net_device *physoutdev;
-		char neigh_header[8];
-	};
-	union {
+		/* prerouting: detect dnat in orig/reply direction */
 		__be32          ipv4_daddr;
 		struct in6_addr ipv6_daddr;
+
+		/* after prerouting + nat detected: store original source
+		 * mac since neigh resolution overwrites it, only used while
+		 * skb is out in neigh layer.
+		 */
+		char neigh_header[8];
+
+		/* always valid & non-NULL from FORWARD on, for physdev match */
+		struct net_device *physoutdev;
 	};
 };
 #endif

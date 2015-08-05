@@ -67,9 +67,6 @@ static const char *const xt_prefix[NFPROTO_NUMPROTO] = {
 	[NFPROTO_IPV6]   = "ip6",
 };
 
-/* Allow this many total (re)entries. */
-static const unsigned int xt_jumpstack_multiplier = 2;
-
 /* Registration hooks for targets. */
 int xt_register_target(struct xt_target *target)
 {
@@ -688,8 +685,6 @@ void xt_free_table_info(struct xt_table_info *info)
 		kvfree(info->jumpstack);
 	}
 
-	free_percpu(info->stackptr);
-
 	kvfree(info);
 }
 EXPORT_SYMBOL(xt_free_table_info);
@@ -732,14 +727,13 @@ EXPORT_SYMBOL_GPL(xt_compat_unlock);
 DEFINE_PER_CPU(seqcount_t, xt_recseq);
 EXPORT_PER_CPU_SYMBOL_GPL(xt_recseq);
 
+struct static_key xt_tee_enabled __read_mostly;
+EXPORT_SYMBOL_GPL(xt_tee_enabled);
+
 static int xt_jumpstack_alloc(struct xt_table_info *i)
 {
 	unsigned int size;
 	int cpu;
-
-	i->stackptr = alloc_percpu(unsigned int);
-	if (i->stackptr == NULL)
-		return -ENOMEM;
 
 	size = sizeof(void **) * nr_cpu_ids;
 	if (size > PAGE_SIZE)
@@ -749,8 +743,21 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 	if (i->jumpstack == NULL)
 		return -ENOMEM;
 
-	i->stacksize *= xt_jumpstack_multiplier;
-	size = sizeof(void *) * i->stacksize;
+	/* ruleset without jumps -- no stack needed */
+	if (i->stacksize == 0)
+		return 0;
+
+	/* Jumpstack needs to be able to record two full callchains, one
+	 * from the first rule set traversal, plus one table reentrancy
+	 * via -j TEE without clobbering the callchain that brought us to
+	 * TEE target.
+	 *
+	 * This is done by allocating two jumpstacks per cpu, on reentry
+	 * the upper half of the stack is used.
+	 *
+	 * see the jumpstack setup in ipt_do_table() for more details.
+	 */
+	size = sizeof(void *) * i->stacksize * 2u;
 	for_each_possible_cpu(cpu) {
 		if (size > PAGE_SIZE)
 			i->jumpstack[cpu] = vmalloc_node(size,

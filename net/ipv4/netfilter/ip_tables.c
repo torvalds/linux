@@ -276,7 +276,7 @@ static void trace_packet(const struct sk_buff *skb,
 }
 #endif
 
-static inline __pure
+static inline
 struct ipt_entry *ipt_next_entry(const struct ipt_entry *entry)
 {
 	return (void *)entry + entry->next_offset;
@@ -296,12 +296,13 @@ ipt_do_table(struct sk_buff *skb,
 	const char *indev, *outdev;
 	const void *table_base;
 	struct ipt_entry *e, **jumpstack;
-	unsigned int *stackptr, origptr, cpu;
+	unsigned int stackidx, cpu;
 	const struct xt_table_info *private;
 	struct xt_action_param acpar;
 	unsigned int addend;
 
 	/* Initialization */
+	stackidx = 0;
 	ip = ip_hdr(skb);
 	indev = state->in ? state->in->name : nulldevname;
 	outdev = state->out ? state->out->name : nulldevname;
@@ -331,13 +332,21 @@ ipt_do_table(struct sk_buff *skb,
 	smp_read_barrier_depends();
 	table_base = private->entries;
 	jumpstack  = (struct ipt_entry **)private->jumpstack[cpu];
-	stackptr   = per_cpu_ptr(private->stackptr, cpu);
-	origptr    = *stackptr;
+
+	/* Switch to alternate jumpstack if we're being invoked via TEE.
+	 * TEE issues XT_CONTINUE verdict on original skb so we must not
+	 * clobber the jumpstack.
+	 *
+	 * For recursion via REJECT or SYNPROXY the stack will be clobbered
+	 * but it is no problem since absolute verdict is issued by these.
+	 */
+	if (static_key_false(&xt_tee_enabled))
+		jumpstack += private->stacksize * __this_cpu_read(nf_skb_duplicated);
 
 	e = get_entry(table_base, private->hook_entry[hook]);
 
-	pr_debug("Entering %s(hook %u); sp at %u (UF %p)\n",
-		 table->name, hook, origptr,
+	pr_debug("Entering %s(hook %u), UF %p\n",
+		 table->name, hook,
 		 get_entry(table_base, private->underflow[hook]));
 
 	do {
@@ -383,28 +392,24 @@ ipt_do_table(struct sk_buff *skb,
 					verdict = (unsigned int)(-v) - 1;
 					break;
 				}
-				if (*stackptr <= origptr) {
+				if (stackidx == 0) {
 					e = get_entry(table_base,
 					    private->underflow[hook]);
 					pr_debug("Underflow (this is normal) "
 						 "to %p\n", e);
 				} else {
-					e = jumpstack[--*stackptr];
+					e = jumpstack[--stackidx];
 					pr_debug("Pulled %p out from pos %u\n",
-						 e, *stackptr);
+						 e, stackidx);
 					e = ipt_next_entry(e);
 				}
 				continue;
 			}
 			if (table_base + v != ipt_next_entry(e) &&
 			    !(e->ip.flags & IPT_F_GOTO)) {
-				if (*stackptr >= private->stacksize) {
-					verdict = NF_DROP;
-					break;
-				}
-				jumpstack[(*stackptr)++] = e;
+				jumpstack[stackidx++] = e;
 				pr_debug("Pushed %p into pos %u\n",
-					 e, *stackptr - 1);
+					 e, stackidx - 1);
 			}
 
 			e = get_entry(table_base, v);
@@ -423,9 +428,8 @@ ipt_do_table(struct sk_buff *skb,
 			/* Verdict */
 			break;
 	} while (!acpar.hotdrop);
-	pr_debug("Exiting %s; resetting sp from %u to %u\n",
-		 __func__, *stackptr, origptr);
-	*stackptr = origptr;
+	pr_debug("Exiting %s; sp at %u\n", __func__, stackidx);
+
  	xt_write_recseq_end(addend);
  	local_bh_enable();
 
@@ -439,11 +443,15 @@ ipt_do_table(struct sk_buff *skb,
 }
 
 /* Figures out from what hook each rule can be called: returns 0 if
-   there are loops.  Puts hook bitmask in comefrom. */
+ * there are loops.  Puts hook bitmask in comefrom.
+ *
+ * Keeps track of largest call depth seen and stores it in newinfo->stacksize.
+ */
 static int
-mark_source_chains(const struct xt_table_info *newinfo,
+mark_source_chains(struct xt_table_info *newinfo,
 		   unsigned int valid_hooks, void *entry0)
 {
+	unsigned int calldepth, max_calldepth = 0;
 	unsigned int hook;
 
 	/* No recursion; use packet counter to save back ptrs (reset
@@ -457,6 +465,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 
 		/* Set initial back pointer. */
 		e->counters.pcnt = pos;
+		calldepth = 0;
 
 		for (;;) {
 			const struct xt_standard_target *t
@@ -518,6 +527,9 @@ mark_source_chains(const struct xt_table_info *newinfo,
 					(entry0 + pos + size);
 				e->counters.pcnt = pos;
 				pos += size;
+				WARN_ON_ONCE(calldepth == 0);
+				if (calldepth > 0)
+					--calldepth;
 			} else {
 				int newpos = t->verdict;
 
@@ -531,9 +543,14 @@ mark_source_chains(const struct xt_table_info *newinfo,
 								newpos);
 						return 0;
 					}
+					if (entry0 + newpos != ipt_next_entry(e) &&
+					    !(e->ip.flags & IPT_F_GOTO) &&
+					    ++calldepth > max_calldepth)
+						max_calldepth = calldepth;
+
 					/* This a jump; chase it. */
-					duprintf("Jump rule %u -> %u\n",
-						 pos, newpos);
+					duprintf("Jump rule %u -> %u, calldepth %d\n",
+						 pos, newpos, calldepth);
 				} else {
 					/* ... this is a fallthru */
 					newpos = pos + e->next_offset;
@@ -547,6 +564,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 		next:
 		duprintf("Finished chain %u\n", hook);
 	}
+	newinfo->stacksize = max_calldepth;
 	return 1;
 }
 
@@ -826,9 +844,6 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 		if (ret != 0)
 			return ret;
 		++i;
-		if (strcmp(ipt_get_target(iter)->u.user.name,
-		    XT_ERROR_TARGET) == 0)
-			++newinfo->stacksize;
 	}
 
 	if (i != repl->num_entries) {
@@ -1744,9 +1759,6 @@ translate_compat_table(struct net *net,
 		if (ret != 0)
 			break;
 		++i;
-		if (strcmp(ipt_get_target(iter1)->u.user.name,
-		    XT_ERROR_TARGET) == 0)
-			++newinfo->stacksize;
 	}
 	if (ret) {
 		/*

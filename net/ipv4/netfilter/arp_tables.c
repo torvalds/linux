@@ -240,7 +240,7 @@ get_entry(const void *base, unsigned int offset)
 	return (struct arpt_entry *)(base + offset);
 }
 
-static inline __pure
+static inline
 struct arpt_entry *arpt_next_entry(const struct arpt_entry *entry)
 {
 	return (void *)entry + entry->next_offset;
@@ -280,6 +280,9 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	table_base = private->entries;
 	jumpstack  = (struct arpt_entry **)private->jumpstack[cpu];
 
+	/* No TEE support for arptables, so no need to switch to alternate
+	 * stack.  All targets that reenter must return absolute verdicts.
+	 */
 	e = get_entry(table_base, private->hook_entry[hook]);
 
 	acpar.in      = state->in;
@@ -325,11 +328,6 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 			}
 			if (table_base + v
 			    != arpt_next_entry(e)) {
-
-				if (stackidx >= private->stacksize) {
-					verdict = NF_DROP;
-					break;
-				}
 				jumpstack[stackidx++] = e;
 			}
 
@@ -337,9 +335,6 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 			continue;
 		}
 
-		/* Targets which reenter must return
-		 * abs. verdicts
-		 */
 		acpar.target   = t->u.kernel.target;
 		acpar.targinfo = t->data;
 		verdict = t->u.kernel.target->target(skb, &acpar);
@@ -372,10 +367,13 @@ static inline bool unconditional(const struct arpt_arp *arp)
 
 /* Figures out from what hook each rule can be called: returns 0 if
  * there are loops.  Puts hook bitmask in comefrom.
+ *
+ * Keeps track of largest call depth seen and stores it in newinfo->stacksize.
  */
-static int mark_source_chains(const struct xt_table_info *newinfo,
+static int mark_source_chains(struct xt_table_info *newinfo,
 			      unsigned int valid_hooks, void *entry0)
 {
+	unsigned int calldepth, max_calldepth = 0;
 	unsigned int hook;
 
 	/* No recursion; use packet counter to save back ptrs (reset
@@ -391,6 +389,7 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 
 		/* Set initial back pointer. */
 		e->counters.pcnt = pos;
+		calldepth = 0;
 
 		for (;;) {
 			const struct xt_standard_target *t
@@ -445,6 +444,8 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 					(entry0 + pos + size);
 				e->counters.pcnt = pos;
 				pos += size;
+				if (calldepth > 0)
+					--calldepth;
 			} else {
 				int newpos = t->verdict;
 
@@ -458,6 +459,10 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 								newpos);
 						return 0;
 					}
+
+					if (entry0 + newpos != arpt_next_entry(e) &&
+					    ++calldepth > max_calldepth)
+						max_calldepth = calldepth;
 
 					/* This a jump; chase it. */
 					duprintf("Jump rule %u -> %u\n",
@@ -475,6 +480,7 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 		next:
 		duprintf("Finished chain %u\n", hook);
 	}
+	newinfo->stacksize = max_calldepth;
 	return 1;
 }
 
@@ -664,9 +670,6 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 		if (ret != 0)
 			break;
 		++i;
-		if (strcmp(arpt_get_target(iter)->u.user.name,
-		    XT_ERROR_TARGET) == 0)
-			++newinfo->stacksize;
 	}
 	duprintf("translate_table: ARPT_ENTRY_ITERATE gives %d\n", ret);
 	if (ret != 0)
@@ -1439,9 +1442,6 @@ static int translate_compat_table(const char *name,
 			break;
 		}
 		++i;
-		if (strcmp(arpt_get_target(iter1)->u.user.name,
-		    XT_ERROR_TARGET) == 0)
-			++newinfo->stacksize;
 	}
 	if (ret) {
 		/*
