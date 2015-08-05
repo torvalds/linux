@@ -33,6 +33,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/soc-topology.h>
+#include <sound/tlv.h>
 
 /*
  * We make several passes over the data (since it wont necessarily be ordered)
@@ -579,28 +580,51 @@ static int soc_tplg_init_kcontrol(struct soc_tplg *tplg,
 	return 0;
 }
 
-static int soc_tplg_create_tlv(struct soc_tplg *tplg,
-	struct snd_kcontrol_new *kc, struct snd_soc_tplg_ctl_tlv *tplg_tlv)
+
+static int soc_tplg_create_tlv_db_scale(struct soc_tplg *tplg,
+	struct snd_kcontrol_new *kc, struct snd_soc_tplg_tlv_dbscale *scale)
 {
-	struct snd_ctl_tlv *tlv;
-	int size;
+	unsigned int item_len = 2 * sizeof(unsigned int);
+	unsigned int *p;
 
-	if (tplg_tlv->count == 0)
-		return 0;
-
-	size = ((tplg_tlv->count + (sizeof(unsigned int) - 1)) &
-		~(sizeof(unsigned int) - 1));
-	tlv = kzalloc(sizeof(*tlv) + size, GFP_KERNEL);
-	if (tlv == NULL)
+	p = kzalloc(item_len + 2 * sizeof(unsigned int), GFP_KERNEL);
+	if (!p)
 		return -ENOMEM;
 
-	dev_dbg(tplg->dev, " created TLV type %d size %d bytes\n",
-		tplg_tlv->numid, size);
+	p[0] = SNDRV_CTL_TLVT_DB_SCALE;
+	p[1] = item_len;
+	p[2] = scale->min;
+	p[3] = (scale->step & TLV_DB_SCALE_MASK)
+			| (scale->mute ? TLV_DB_SCALE_MUTE : 0);
 
-	tlv->numid = tplg_tlv->numid;
-	tlv->length = size;
-	memcpy(&tlv->tlv[0], tplg_tlv->data, size);
-	kc->tlv.p = (void *)tlv;
+	kc->tlv.p = (void *)p;
+	return 0;
+}
+
+static int soc_tplg_create_tlv(struct soc_tplg *tplg,
+	struct snd_kcontrol_new *kc, struct snd_soc_tplg_ctl_hdr *tc)
+{
+	struct snd_soc_tplg_ctl_tlv *tplg_tlv;
+
+	if (!(tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE))
+		return 0;
+
+	if (tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		kc->tlv.c = snd_soc_bytes_tlv_callback;
+	} else {
+		tplg_tlv = &tc->tlv;
+		switch (tplg_tlv->type) {
+		case SNDRV_CTL_TLVT_DB_SCALE:
+			return soc_tplg_create_tlv_db_scale(tplg, kc,
+					&tplg_tlv->scale);
+
+		/* TODO: add support for other TLV types */
+		default:
+			dev_dbg(tplg->dev, "Unsupported TLV type %d\n",
+					tplg_tlv->type);
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
@@ -772,7 +796,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 		}
 
 		/* create any TLV data */
-		soc_tplg_create_tlv(tplg, &kc, &mc->tlv);
+		soc_tplg_create_tlv(tplg, &kc, &mc->hdr);
 
 		/* register control here */
 		err = soc_tplg_add_kcontrol(tplg, &kc,

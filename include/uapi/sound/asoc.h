@@ -137,11 +137,19 @@ struct snd_soc_tplg_private {
 /*
  * Kcontrol TLV data.
  */
+struct snd_soc_tplg_tlv_dbscale {
+	__le32 min;
+	__le32 step;
+	__le32 mute;
+} __attribute__((packed));
+
 struct snd_soc_tplg_ctl_tlv {
-	__le32 size;	/* in bytes aligned to 4 */
-	__le32 numid;	/* control element numeric identification */
-	__le32 count;	/* number of elem in data array */
-	__le32 data[SND_SOC_TPLG_TLV_SIZE];
+	__le32 size;	/* in bytes of this structure */
+	__le32 type;	/* SNDRV_CTL_TLVT_*, type of TLV */
+	union {
+		__le32 data[SND_SOC_TPLG_TLV_SIZE];
+		struct snd_soc_tplg_tlv_dbscale scale;
+	};
 } __attribute__((packed));
 
 /*
@@ -172,7 +180,7 @@ struct snd_soc_tplg_ctl_hdr {
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	__le32 access;
 	struct snd_soc_tplg_kcontrol_ops_id ops;
-	__le32 tlv_size;	/* non zero means control has TLV data */
+	struct snd_soc_tplg_ctl_tlv tlv;
 } __attribute__((packed));
 
 /*
@@ -260,7 +268,6 @@ struct snd_soc_tplg_mixer_control {
 	__le32 invert;
 	__le32 num_channels;
 	struct snd_soc_tplg_channel channel[SND_SOC_TPLG_MAX_CHAN];
-	struct snd_soc_tplg_ctl_tlv tlv;
 	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
