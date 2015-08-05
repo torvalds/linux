@@ -466,9 +466,12 @@ void mali_l2_cache_invalidate_all_pages(u32 *pages, u32 num_pages)
 
 static void mali_l2_cache_reset(struct mali_l2_cache_core *cache)
 {
+	if (cache && cache->pm_domain && !cache->pm_domain->power_is_on)
+		return;
+		
 	MALI_DEBUG_ASSERT_POINTER(cache);
 	MALI_DEBUG_ASSERT_LOCK_HELD(cache->lock);
-
+	
 	/* Invalidate cache (just to keep it in a known state at startup) */
 	mali_l2_cache_send_command(cache, MALI400_L2_CACHE_REGISTER_COMMAND,
 				   MALI400_L2_CACHE_COMMAND_CLEAR_ALL);

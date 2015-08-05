@@ -97,7 +97,7 @@ static mali_plat_info_t mali_plat_data = {
 		CFG_CLOCK, /* maxclk should be same as cfg_clock */
 	},
 
-	.limit_on = 1,
+	.limit_on = 0,
 	.plat_preheat = mali_plat_preheat,
 };
 
@@ -171,21 +171,6 @@ static u32 get_limit_mali_freq(void)
 	return mali_plat_data.scale_info.maxclk;
 }
 
-static u32 set_limit_pp_num(u32 num)
-{
-	u32 ret = -1;
-	if (mali_plat_data.limit_on == 0)
-		goto quit;
-	if (num > mali_plat_data.cfg_pp ||
-				num < mali_plat_data.scale_info.minpp)
-		goto quit;
-	mali_plat_data.scale_info.maxpp = num;
-	revise_mali_rt();
-	ret = 0;
-quit:
-	return ret;
-}
-
 void mali_gpu_utilization_callback(struct mali_gpu_utilization_data *data);
 int mali_meson_init_start(struct platform_device* ptr_plt_dev)
 {
@@ -253,7 +238,7 @@ static int mali_cri_light_suspend(size_t param)
 		/* Need to notify Mali driver about this event */
 		ret = device->driver->pm->runtime_suspend(device);
 	}
-	mali_pmu_power_down_all(pmu);
+	//mali_pmu_power_down_all(pmu);
 	return ret;
 }
 
@@ -267,7 +252,7 @@ static int mali_cri_light_resume(size_t param)
 	device = (struct device *)param;
 	pmu = mali_pmu_get_global_pmu_core();
 
-	mali_pmu_power_up_all(pmu);
+	//mali_pmu_power_up_all(pmu);
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
 	    NULL != device->driver->pm->runtime_resume)
