@@ -4957,6 +4957,7 @@ F:	drivers/scsi/storvsc_drv.c
 F:	drivers/video/fbdev/hyperv_fb.c
 F:	include/linux/hyperv.h
 F:	tools/hv/
+F:	Documentation/ABI/stable/sysfs-bus-vmbus
 
 I2C OVER PARALLEL PORT
 M:	Jean Delvare <jdelvare@suse.com>
