@@ -1262,6 +1262,8 @@ fail:
 #define TRACE_PFMAJ		(1 << 0)
 #define TRACE_PFMIN		(1 << 1)
 
+static const size_t trace__entry_str_size = 2048;
+
 struct trace {
 	struct perf_tool	tool;
 	struct {
@@ -1822,7 +1824,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
 
 	if (ttrace->entry_str == NULL) {
-		ttrace->entry_str = malloc(1024);
+		ttrace->entry_str = malloc(trace__entry_str_size);
 		if (!ttrace->entry_str)
 			goto out_put;
 	}
@@ -1832,9 +1834,9 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
-	printed += scnprintf(msg + printed, 1024 - printed, "%s(", sc->name);
+	printed += scnprintf(msg + printed, trace__entry_str_size - printed, "%s(", sc->name);
 
-	printed += syscall__scnprintf_args(sc, msg + printed, 1024 - printed,
+	printed += syscall__scnprintf_args(sc, msg + printed, trace__entry_str_size - printed,
 					   args, trace, thread);
 
 	if (sc->is_exit) {
