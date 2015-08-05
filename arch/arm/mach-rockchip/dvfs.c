@@ -907,6 +907,7 @@ static struct pvtm_info rk3288v0_arm_pvtm_info = {
 	.volt_margin_uv = 25000,
 	.min_volt_uv = 850000,
 	.max_volt_uv = 1400000,
+	.cluster = 0,
 };
 
 static struct cpufreq_frequency_table rk3288v1_arm_pvtm_table[] = {
@@ -934,6 +935,7 @@ static struct pvtm_info rk3288v1_arm_pvtm_info = {
 	.volt_margin_uv = 25000,
 	.min_volt_uv = 850000,
 	.max_volt_uv = 1400000,
+	.cluster = 0,
 };
 
 static struct cpufreq_frequency_table rk3288v2_arm_pvtm_table[] = {
@@ -961,12 +963,75 @@ static struct pvtm_info rk3288v2_arm_pvtm_info = {
 	.volt_margin_uv = 25000,
 	.min_volt_uv = 900000,
 	.max_volt_uv = 1400000,
+	.cluster = 0,
 };
+
+static struct cpufreq_frequency_table rk3368v0_arm_b_pvtm_table[] = {
+	{.frequency = 216000,  .index = 9537},
+	{.frequency = 312000,  .index = 9537},
+	{.frequency = 408000,  .index = 9537},
+	{.frequency = 600000,  .index = 9537},
+	{.frequency = 696000,  .index = 9537},
+	{.frequency = 816000,  .index = 10800},
+	{.frequency = 1008000,  .index = 13096},
+	{.frequency = 1200000,  .index = 15700},
+	{.frequency = 1296000,  .index = 17026},
+	{.frequency = 1416000,  .index = 19353},
+	{.frequency = 1512000,  .index = 20527},
+	{.frequency = CPUFREQ_TABLE_END, .index = 1},
+};
+
+static struct pvtm_info rk3368v0_arm_b_pvtm_info = {
+	.compatible = "rockchip,rk3368",
+	.pvtm_table = rk3368v0_arm_b_pvtm_table,
+	.channel = ARM_DVFS_CH,
+	.process_version = 0,
+	.scan_rate_hz = 216000000,
+	.sample_time_us = 1000,
+	.volt_step_uv = 12500,
+	.delta_pvtm_by_volt = 350,
+	.delta_pvtm_by_temp = 11,
+	.volt_margin_uv = 50000,
+	.min_volt_uv = 900000,
+	.max_volt_uv = 1350000,
+	.cluster = 0,
+};
+
+static struct cpufreq_frequency_table rk3368v0_arm_l_pvtm_table[] = {
+	{.frequency = 216000,  .index = 9598},
+	{.frequency = 312000,  .index = 9598},
+	{.frequency = 408000,  .index = 9598},
+	{.frequency = 600000,  .index = 9598},
+	{.frequency = 696000,  .index = 10781},
+	{.frequency = 816000,  .index = 12276},
+	{.frequency = 1008000,  .index = 15100},
+	{.frequency = 1200000,  .index = 17688},
+	{.frequency = CPUFREQ_TABLE_END, .index = 1},
+};
+
+static struct pvtm_info rk3368v0_arm_l_pvtm_info = {
+	.compatible = "rockchip,rk3368",
+	.pvtm_table = rk3368v0_arm_l_pvtm_table,
+	.channel = ARM_DVFS_CH,
+	.process_version = 0,
+	.scan_rate_hz = 216000000,
+	.sample_time_us = 1000,
+	.volt_step_uv = 12500,
+	.delta_pvtm_by_volt = 350,
+	.delta_pvtm_by_temp = 10,
+	.volt_margin_uv = 50000,
+	.min_volt_uv = 900000,
+	.max_volt_uv = 1350000,
+	.cluster = 1,
+};
+
 
 static struct pvtm_info *pvtm_info_table[] = {
 	&rk3288v0_arm_pvtm_info,
 	&rk3288v1_arm_pvtm_info,
-	&rk3288v2_arm_pvtm_info
+	&rk3288v2_arm_pvtm_info,
+	&rk3368v0_arm_b_pvtm_info,
+	&rk3368v0_arm_l_pvtm_info
 };
 
 static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,
@@ -979,6 +1044,7 @@ static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,
 	unsigned int n_voltages = dvfs_node->vd->n_voltages;
 	int *volt_list = dvfs_node->vd->volt_list;
 	int n, temp;
+	int read_back = 0;
 
 	volt_margin = info->volt_margin_uv + pvtm_table[idx].index;
 	n = volt_margin/info->volt_step_uv;
@@ -986,10 +1052,15 @@ static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,
 		n++;
 
 	pvtm_margin = n*info->delta_pvtm_by_volt;
-	if (cpu_is_rk3288())
+	if (cpu_is_rk3288()) {
 		temp = dvfs_get_temp(1);
-	else
-		temp = dvfs_get_temp(0);
+	} else {
+		read_back =
+			dvfs_regulator_get_voltage(dvfs_node->vd->regulator);
+		temp = rockchip_tsadc_get_temp(0, read_back);
+	}
+	if (temp < dvfs_node->pvtm_min_temp)
+		temp = dvfs_node->pvtm_min_temp;
 
 	target_pvtm = min_pvtm+temp * info->delta_pvtm_by_temp + pvtm_margin;
 
@@ -1054,8 +1125,12 @@ static void pvtm_set_dvfs_table(struct dvfs_node *dvfs_node)
 			}
 
 		if (ret) {
+			dvfs_node->max_limit_freq =
+				dvfs_table[i-1].frequency * 1000;
 			DVFS_WARNING("freq: %d can not reach target pvtm\n",
 				     dvfs_table[i].frequency);
+			DVFS_WARNING("max freq: %d\n",
+				     dvfs_node->max_limit_freq);
 			break;
 		}
 
@@ -1518,6 +1593,7 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 		dvfs_table_round_clk_rate(clk_dvfs_node);
 		dvfs_get_rate_range(clk_dvfs_node);
 		clk_dvfs_node->freq_limit_en = 1;
+		clk_dvfs_node->max_limit_freq = clk_dvfs_node->max_rate;
 		if (clk_dvfs_node->lkg_adjust_volt_en)
 			adjust_table_by_leakage(clk_dvfs_node);
 		if (clk_dvfs_node->support_pvtm)
@@ -1654,6 +1730,8 @@ static unsigned long dvfs_get_limit_rate(struct dvfs_node *clk_dvfs_node, unsign
 				limit_rate = clk_dvfs_node->temp_limit_rate;
 			}
 		}
+		if (limit_rate > clk_dvfs_node->max_limit_freq)
+			limit_rate = clk_dvfs_node->max_limit_freq;
 	}
 
 	DVFS_DBG("%s: rate:%ld, limit_rate:%ld,\n", __func__, rate, limit_rate);
@@ -2139,6 +2217,13 @@ static int dvfs_node_parse_dt(struct device_node *np,
 	}
 	dvfs_node->temp_limit_rate = -1;
 
+	dvfs_node->cluster = 0;
+	of_property_read_u32_index(np, "cluster", 0, &dvfs_node->cluster);
+
+	dvfs_node->pvtm_min_temp = 0;
+	of_property_read_u32_index(np, "pvtm_min_temp", 0,
+				   &dvfs_node->pvtm_min_temp);
+
 	ret = of_property_read_u32_index(np, "support-pvtm", 0,
 					 &dvfs_node->support_pvtm);
 	if (!ret) {
@@ -2151,6 +2236,7 @@ static int dvfs_node_parse_dt(struct device_node *np,
 
 			if ((pvtm_info->channel == dvfs_node->channel) &&
 			    (pvtm_info->process_version == process_version) &&
+			    (pvtm_info->cluster == dvfs_node->cluster) &&
 			     of_machine_is_compatible(pvtm_info->compatible)) {
 				dvfs_node->pvtm_info = pvtm_info;
 				break;

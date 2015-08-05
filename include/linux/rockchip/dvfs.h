@@ -93,6 +93,7 @@ struct pvtm_info {
 	int volt_margin_uv;
 	int min_volt_uv;
 	int max_volt_uv;
+	int cluster;
 };
 
 struct lkg_adjust_volt_table {
@@ -154,6 +155,9 @@ struct dvfs_node {
 	struct pvtm_info	*pvtm_info;
 	int                 lkg_adjust_volt_en;
 	struct lkg_info		lkg_info;
+	unsigned int		cluster;
+	unsigned int        max_limit_freq;
+	unsigned int        pvtm_min_temp;
 };
 
 
