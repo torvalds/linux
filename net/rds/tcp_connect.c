@@ -112,10 +112,12 @@ int rds_tcp_conn_connect(struct rds_connection *conn)
 	rdsdebug("connect to address %pI4 returned %d\n", &conn->c_faddr, ret);
 	if (ret == -EINPROGRESS)
 		ret = 0;
-	if (ret == 0)
+	if (ret == 0) {
+		rds_tcp_keepalive(sock);
 		sock = NULL;
-	else
+	} else {
 		rds_tcp_restore_callbacks(sock, conn->c_transport_data);
+	}
 
 out:
 	if (sock)
