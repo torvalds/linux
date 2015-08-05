@@ -250,6 +250,15 @@
 #define DITHER_CONTROL_DISABLE (0 << 8)
 #define DITHER_CONTROL_ORDERED (2 << 8)
 #define DITHER_CONTROL_ERRDIFF (3 << 8)
+#define BASE_COLOR_SIZE_666    (0 << 0)
+#define BASE_COLOR_SIZE_111    (1 << 0)
+#define BASE_COLOR_SIZE_222    (2 << 0)
+#define BASE_COLOR_SIZE_333    (3 << 0)
+#define BASE_COLOR_SIZE_444    (4 << 0)
+#define BASE_COLOR_SIZE_555    (5 << 0)
+#define BASE_COLOR_SIZE_565    (6 << 0)
+#define BASE_COLOR_SIZE_332    (7 << 0)
+#define BASE_COLOR_SIZE_888    (8 << 0)
 
 #define DC_DISP_SHIFT_CLOCK_OPTIONS		0x431
 #define  SC1_H_QUALIFIER_NONE	(1 << 16)
