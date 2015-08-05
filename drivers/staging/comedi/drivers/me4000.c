@@ -78,28 +78,28 @@ broken.
 #define ME4000_AO_TIMER_REG(x)			(0x10 + ME4000_AO_CHAN(x))
 #define ME4000_AI_CTRL_REG			0x74
 #define ME4000_AI_STATUS_REG			0x74
-#define ME4000_AI_CTRL_BIT_MODE_0		(1 << 0)
-#define ME4000_AI_CTRL_BIT_MODE_1		(1 << 1)
-#define ME4000_AI_CTRL_BIT_MODE_2		(1 << 2)
-#define ME4000_AI_CTRL_BIT_SAMPLE_HOLD		(1 << 3)
-#define ME4000_AI_CTRL_BIT_IMMEDIATE_STOP	(1 << 4)
-#define ME4000_AI_CTRL_BIT_STOP			(1 << 5)
-#define ME4000_AI_CTRL_BIT_CHANNEL_FIFO		(1 << 6)
-#define ME4000_AI_CTRL_BIT_DATA_FIFO		(1 << 7)
-#define ME4000_AI_CTRL_BIT_FULLSCALE		(1 << 8)
-#define ME4000_AI_CTRL_BIT_OFFSET		(1 << 9)
-#define ME4000_AI_CTRL_BIT_EX_TRIG_ANALOG	(1 << 10)
-#define ME4000_AI_CTRL_BIT_EX_TRIG		(1 << 11)
-#define ME4000_AI_CTRL_BIT_EX_TRIG_FALLING	(1 << 12)
-#define ME4000_AI_CTRL_BIT_EX_IRQ		(1 << 13)
-#define ME4000_AI_CTRL_BIT_EX_IRQ_RESET		(1 << 14)
-#define ME4000_AI_CTRL_BIT_LE_IRQ		(1 << 15)
-#define ME4000_AI_CTRL_BIT_LE_IRQ_RESET		(1 << 16)
-#define ME4000_AI_CTRL_BIT_HF_IRQ		(1 << 17)
-#define ME4000_AI_CTRL_BIT_HF_IRQ_RESET		(1 << 18)
-#define ME4000_AI_CTRL_BIT_SC_IRQ		(1 << 19)
-#define ME4000_AI_CTRL_BIT_SC_IRQ_RESET		(1 << 20)
-#define ME4000_AI_CTRL_BIT_SC_RELOAD		(1 << 21)
+#define ME4000_AI_CTRL_MODE_0			BIT(0)
+#define ME4000_AI_CTRL_MODE_1			BIT(1)
+#define ME4000_AI_CTRL_MODE_2			BIT(2)
+#define ME4000_AI_CTRL_SAMPLE_HOLD		BIT(3)
+#define ME4000_AI_CTRL_IMMEDIATE_STOP		BIT(4)
+#define ME4000_AI_CTRL_STOP			BIT(5)
+#define ME4000_AI_CTRL_CHANNEL_FIFO		BIT(6)
+#define ME4000_AI_CTRL_DATA_FIFO		BIT(7)
+#define ME4000_AI_CTRL_FULLSCALE		BIT(8)
+#define ME4000_AI_CTRL_OFFSET			BIT(9)
+#define ME4000_AI_CTRL_EX_TRIG_ANALOG		BIT(10)
+#define ME4000_AI_CTRL_EX_TRIG			BIT(11)
+#define ME4000_AI_CTRL_EX_TRIG_FALLING		BIT(12)
+#define ME4000_AI_CTRL_EX_IRQ			BIT(13)
+#define ME4000_AI_CTRL_EX_IRQ_RESET		BIT(14)
+#define ME4000_AI_CTRL_LE_IRQ			BIT(15)
+#define ME4000_AI_CTRL_LE_IRQ_RESET		BIT(16)
+#define ME4000_AI_CTRL_HF_IRQ			BIT(17)
+#define ME4000_AI_CTRL_HF_IRQ_RESET		BIT(18)
+#define ME4000_AI_CTRL_SC_IRQ			BIT(19)
+#define ME4000_AI_CTRL_SC_IRQ_RESET		BIT(20)
+#define ME4000_AI_CTRL_SC_RELOAD		BIT(21)
 #define ME4000_AI_STATUS_EF_CHANNEL		BIT(22)
 #define ME4000_AI_STATUS_HF_CHANNEL		BIT(23)
 #define ME4000_AI_STATUS_FF_CHANNEL		BIT(24)
@@ -108,7 +108,7 @@ broken.
 #define ME4000_AI_STATUS_FF_DATA		BIT(27)
 #define ME4000_AI_STATUS_LE			BIT(28)
 #define ME4000_AI_STATUS_FSM			BIT(29)
-#define ME4000_AI_CTRL_BIT_EX_TRIG_BOTH		(1 << 31)
+#define ME4000_AI_CTRL_EX_TRIG_BOTH		BIT(31)
 #define ME4000_AI_CHANNEL_LIST_REG		0x78
 #define ME4000_AI_LIST_INPUT_DIFFERENTIAL	BIT(5)
 #define ME4000_AI_LIST_RANGE(x)			((3 - ((x) & 3)) << 6)
@@ -408,7 +408,7 @@ static void me4000_reset(struct comedi_device *dev)
 		outl(0x8000, dev->iobase + ME4000_AO_SINGLE_REG(chan));
 
 	/* Set both stop bits in the analog input control register */
-	outl(ME4000_AI_CTRL_BIT_IMMEDIATE_STOP | ME4000_AI_CTRL_BIT_STOP,
+	outl(ME4000_AI_CTRL_IMMEDIATE_STOP | ME4000_AI_CTRL_STOP,
 	     dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Set both stop bits in the analog output control register */
@@ -485,18 +485,17 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 
 	/* Clear channel list, data fifo and both stop bits */
 	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
-	tmp &= ~(ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
-		 ME4000_AI_CTRL_BIT_DATA_FIFO |
-		 ME4000_AI_CTRL_BIT_STOP | ME4000_AI_CTRL_BIT_IMMEDIATE_STOP);
+	tmp &= ~(ME4000_AI_CTRL_CHANNEL_FIFO | ME4000_AI_CTRL_DATA_FIFO |
+		 ME4000_AI_CTRL_STOP | ME4000_AI_CTRL_IMMEDIATE_STOP);
 	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Set the acquisition mode to single */
-	tmp &= ~(ME4000_AI_CTRL_BIT_MODE_0 | ME4000_AI_CTRL_BIT_MODE_1 |
-		 ME4000_AI_CTRL_BIT_MODE_2);
+	tmp &= ~(ME4000_AI_CTRL_MODE_0 | ME4000_AI_CTRL_MODE_1 |
+		 ME4000_AI_CTRL_MODE_2);
 	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Enable channel list and data fifo */
-	tmp |= ME4000_AI_CTRL_BIT_CHANNEL_FIFO | ME4000_AI_CTRL_BIT_DATA_FIFO;
+	tmp |= ME4000_AI_CTRL_CHANNEL_FIFO | ME4000_AI_CTRL_DATA_FIFO;
 	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Generate channel list entry */
@@ -531,7 +530,7 @@ static int me4000_ai_cancel(struct comedi_device *dev,
 
 	/* Stop any running conversion */
 	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
-	tmp &= ~(ME4000_AI_CTRL_BIT_STOP | ME4000_AI_CTRL_BIT_IMMEDIATE_STOP);
+	tmp &= ~(ME4000_AI_CTRL_STOP | ME4000_AI_CTRL_IMMEDIATE_STOP);
 	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Clear the control register */
@@ -699,40 +698,40 @@ static int ai_prepare(struct comedi_device *dev,
 	    (cmd->start_src == TRIG_EXT &&
 	     cmd->scan_begin_src == TRIG_FOLLOW &&
 	     cmd->convert_src == TRIG_TIMER)) {
-		tmp = ME4000_AI_CTRL_BIT_MODE_1 |
-		    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
-		    ME4000_AI_CTRL_BIT_DATA_FIFO;
+		tmp = ME4000_AI_CTRL_MODE_1 |
+		      ME4000_AI_CTRL_CHANNEL_FIFO |
+		      ME4000_AI_CTRL_DATA_FIFO;
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_TIMER) {
-		tmp = ME4000_AI_CTRL_BIT_MODE_2 |
-		    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
-		    ME4000_AI_CTRL_BIT_DATA_FIFO;
+		tmp = ME4000_AI_CTRL_MODE_2 |
+		      ME4000_AI_CTRL_CHANNEL_FIFO |
+		      ME4000_AI_CTRL_DATA_FIFO;
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_EXT) {
-		tmp = ME4000_AI_CTRL_BIT_MODE_0 |
-		    ME4000_AI_CTRL_BIT_MODE_1 |
-		    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
-		    ME4000_AI_CTRL_BIT_DATA_FIFO;
+		tmp = ME4000_AI_CTRL_MODE_0 |
+		      ME4000_AI_CTRL_MODE_1 |
+		      ME4000_AI_CTRL_CHANNEL_FIFO |
+		      ME4000_AI_CTRL_DATA_FIFO;
 	} else {
-		tmp = ME4000_AI_CTRL_BIT_MODE_0 |
-		    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
-		    ME4000_AI_CTRL_BIT_DATA_FIFO;
+		tmp = ME4000_AI_CTRL_MODE_0 |
+		      ME4000_AI_CTRL_CHANNEL_FIFO |
+		      ME4000_AI_CTRL_DATA_FIFO;
 	}
 
 	/* Stop triggers */
 	if (cmd->stop_src == TRIG_COUNT) {
 		outl(cmd->chanlist_len * cmd->stop_arg,
 		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
-		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ;
+		tmp |= ME4000_AI_CTRL_HF_IRQ | ME4000_AI_CTRL_SC_IRQ;
 	} else if (cmd->stop_src == TRIG_NONE &&
 		   cmd->scan_end_src == TRIG_COUNT) {
 		outl(cmd->scan_end_arg,
 		     dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
-		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ;
+		tmp |= ME4000_AI_CTRL_HF_IRQ | ME4000_AI_CTRL_SC_IRQ;
 	} else {
-		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ;
+		tmp |= ME4000_AI_CTRL_HF_IRQ;
 	}
 
 	/* Write the setup to the control register */
@@ -1009,9 +1008,9 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			 * FIFO overflow, so stop conversion
 			 * and disable all interrupts
 			 */
-			tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
-			tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
-				 ME4000_AI_CTRL_BIT_SC_IRQ);
+			tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
+			tmp &= ~(ME4000_AI_CTRL_HF_IRQ |
+				 ME4000_AI_CTRL_SC_IRQ);
 			outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 			s->async->events |= COMEDI_CB_ERROR;
@@ -1030,9 +1029,9 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			 * Undefined state, so stop conversion
 			 * and disable all interrupts
 			 */
-			tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
-			tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
-				 ME4000_AI_CTRL_BIT_SC_IRQ);
+			tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
+			tmp &= ~(ME4000_AI_CTRL_HF_IRQ |
+				 ME4000_AI_CTRL_SC_IRQ);
 			outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 			s->async->events |= COMEDI_CB_ERROR;
@@ -1050,18 +1049,18 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 				 * Buffer overflow, so stop conversion
 				 * and disable all interrupts
 				 */
-				tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
-				tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
-					 ME4000_AI_CTRL_BIT_SC_IRQ);
+				tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
+				tmp &= ~(ME4000_AI_CTRL_HF_IRQ |
+					 ME4000_AI_CTRL_SC_IRQ);
 				outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 				break;
 			}
 		}
 
 		/* Work is done, so reset the interrupt */
-		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
+		tmp |= ME4000_AI_CTRL_HF_IRQ_RESET;
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-		tmp &= ~ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
+		tmp &= ~ME4000_AI_CTRL_HF_IRQ_RESET;
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 	}
 
@@ -1074,8 +1073,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		 * conversion and disable all interrupts
 		 */
 		tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
-		tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
-		tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ);
+		tmp |= ME4000_AI_CTRL_IMMEDIATE_STOP;
+		tmp &= ~(ME4000_AI_CTRL_HF_IRQ | ME4000_AI_CTRL_SC_IRQ);
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 		/* Poll data until fifo empty */
@@ -1090,9 +1089,9 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		}
 
 		/* Work is done, so reset the interrupt */
-		tmp |= ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
+		tmp |= ME4000_AI_CTRL_SC_IRQ_RESET;
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-		tmp &= ~ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
+		tmp &= ~ME4000_AI_CTRL_SC_IRQ_RESET;
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 	}
 
