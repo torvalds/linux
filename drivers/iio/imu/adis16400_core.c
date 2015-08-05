@@ -927,6 +927,7 @@ static int adis16400_remove(struct spi_device *spi)
 
 static const struct spi_device_id adis16400_id[] = {
 	{"adis16300", ADIS16300},
+	{"adis16305", ADIS16300},
 	{"adis16334", ADIS16334},
 	{"adis16350", ADIS16350},
 	{"adis16354", ADIS16350},
