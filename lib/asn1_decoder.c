@@ -210,9 +210,8 @@ next_op:
 		unsigned char tmp;
 
 		/* Skip conditional matches if possible */
-		if ((op & ASN1_OP_MATCH__COND &&
-		     flags & FLAG_MATCHED) ||
-		    dp == datalen) {
+		if ((op & ASN1_OP_MATCH__COND && flags & FLAG_MATCHED) ||
+		    (op & ASN1_OP_MATCH__SKIP && dp == datalen)) {
 			flags &= ~FLAG_LAST_MATCHED;
 			pc += asn1_op_lengths[op];
 			goto next_op;
