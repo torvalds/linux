@@ -780,7 +780,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 		.flags = ADIS16400_HAS_PROD_ID |
 				ADIS16400_HAS_SERIAL_NUMBER |
 				ADIS16400_BURST_DIAG_STAT,
-		.gyro_scale_micro = IIO_DEGREE_TO_RAD(10000), /* 0.01 deg/s */
+		.gyro_scale_micro = IIO_DEGREE_TO_RAD(40000), /* 0.04 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(833), /* 1/1200 g */
 		.temp_scale_nano = 73860000, /* 0.07386 C */
 		.temp_offset = 31000000 / 73860, /* 31 C = 0x00 */
