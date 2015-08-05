@@ -11831,17 +11831,13 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc_state);
 	struct drm_atomic_state *state = crtc_state->state;
-	int ret, idx = crtc->base.id;
+	int ret;
 	bool mode_changed = needs_modeset(crtc_state);
 
 	if (mode_changed && !check_encoder_cloning(state, intel_crtc)) {
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
 		return -EINVAL;
 	}
-
-	I915_STATE_WARN(crtc->state->active != intel_crtc->active,
-		"[CRTC:%i] mismatch between state->active(%i) and crtc->active(%i)\n",
-		idx, crtc->state->active, intel_crtc->active);
 
 	if (mode_changed && !crtc_state->active)
 		intel_crtc->atomic.update_wm_post = true;
@@ -12724,19 +12720,16 @@ check_encoder_state(struct drm_device *dev)
 
 	for_each_intel_encoder(dev, encoder) {
 		bool enabled = false;
-		bool active = false;
-		enum pipe pipe, tracked_pipe;
+		enum pipe pipe;
 
 		DRM_DEBUG_KMS("[ENCODER:%d:%s]\n",
 			      encoder->base.base.id,
 			      encoder->base.name);
 
 		for_each_intel_connector(dev, connector) {
-			if (connector->base.encoder != &encoder->base)
+			if (connector->base.state->best_encoder != &encoder->base)
 				continue;
 			enabled = true;
-			if (connector->base.dpms != DRM_MODE_DPMS_OFF)
-				active = true;
 
 			I915_STATE_WARN(connector->base.state->crtc !=
 					encoder->base.crtc,
@@ -12747,85 +12740,86 @@ check_encoder_state(struct drm_device *dev)
 		     "encoder's enabled state mismatch "
 		     "(expected %i, found %i)\n",
 		     !!encoder->base.crtc, enabled);
-		I915_STATE_WARN(active && !encoder->base.crtc,
-		     "active encoder with no crtc\n");
-
-		active = encoder->get_hw_state(encoder, &pipe);
 
 		if (!encoder->base.crtc) {
+			bool active;
+
+			active = encoder->get_hw_state(encoder, &pipe);
 			I915_STATE_WARN(active,
-			     "encoder detached but not turned off.\n");
-
-			continue;
+			     "encoder detached but still enabled on pipe %c.\n",
+			     pipe_name(pipe));
 		}
-
-		I915_STATE_WARN(active != encoder->base.crtc->state->active,
-		     "encoder's hw state doesn't match sw tracking "
-		     "(expected %i, found %i)\n",
-		     encoder->base.crtc->state->active, active);
-
-
-		tracked_pipe = to_intel_crtc(encoder->base.crtc)->pipe;
-		I915_STATE_WARN(active && pipe != tracked_pipe,
-		     "active encoder's pipe doesn't match"
-		     "(expected %i, found %i)\n",
-		     tracked_pipe, pipe);
-
 	}
 }
 
 static void
-check_crtc_state(struct drm_device *dev)
+check_crtc_state(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
-	struct intel_crtc_state pipe_config;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
 
-	for_each_intel_crtc(dev, crtc) {
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		struct intel_crtc_state *pipe_config, *sw_config;
 		bool active;
 
-		memset(&pipe_config, 0, sizeof(pipe_config));
-
-		DRM_DEBUG_KMS("[CRTC:%d]\n",
-			      crtc->base.base.id);
-
-		I915_STATE_WARN(crtc->active && !crtc->base.state->enable,
-		     "active crtc, but not enabled in sw tracking\n");
-
-		active = dev_priv->display.get_pipe_config(crtc,
-							   &pipe_config);
-
-		/* hw state is inconsistent with the pipe quirk */
-		if ((crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-		    (crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
-			active = crtc->active;
-
-		for_each_intel_encoder(dev, encoder) {
-			enum pipe pipe;
-			if (encoder->base.crtc != &crtc->base)
-				continue;
-			if (encoder->get_hw_state(encoder, &pipe))
-				encoder->get_config(encoder, &pipe_config);
-		}
-
-		I915_STATE_WARN(crtc->active != active,
-		     "crtc active state doesn't match with hw state "
-		     "(expected %i, found %i)\n", crtc->active, active);
-
-		I915_STATE_WARN(crtc->active != crtc->base.state->active,
-		     "transitional active state does not match atomic hw state "
-		     "(expected %i, found %i)\n", crtc->base.state->active, crtc->active);
-
-		if (!active)
+		if (!needs_modeset(crtc->state))
 			continue;
 
-		if (!intel_pipe_config_compare(dev, crtc->config,
-					       &pipe_config, false)) {
+		__drm_atomic_helper_crtc_destroy_state(crtc, old_crtc_state);
+		pipe_config = to_intel_crtc_state(old_crtc_state);
+		memset(pipe_config, 0, sizeof(*pipe_config));
+		pipe_config->base.crtc = crtc;
+		pipe_config->base.state = old_state;
+
+		DRM_DEBUG_KMS("[CRTC:%d]\n",
+			      crtc->base.id);
+
+		active = dev_priv->display.get_pipe_config(intel_crtc,
+							   pipe_config);
+
+		/* hw state is inconsistent with the pipe quirk */
+		if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+		    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+			active = crtc->state->active;
+
+		I915_STATE_WARN(crtc->state->active != active,
+		     "crtc active state doesn't match with hw state "
+		     "(expected %i, found %i)\n", crtc->state->active, active);
+
+		I915_STATE_WARN(intel_crtc->active != crtc->state->active,
+		     "transitional active state does not match atomic hw state "
+		     "(expected %i, found %i)\n", crtc->state->active, intel_crtc->active);
+
+		for_each_encoder_on_crtc(dev, crtc, encoder) {
+			enum pipe pipe;
+
+			active = encoder->get_hw_state(encoder, &pipe);
+			I915_STATE_WARN(active != crtc->state->active,
+				"[ENCODER:%i] active %i with crtc active %i\n",
+				encoder->base.base.id, active, crtc->state->active);
+
+			I915_STATE_WARN(active && intel_crtc->pipe != pipe,
+					"Encoder connected to wrong pipe %c\n",
+					pipe_name(pipe));
+
+			if (active)
+				encoder->get_config(encoder, pipe_config);
+		}
+
+		if (!crtc->state->active)
+			continue;
+
+		sw_config = to_intel_crtc_state(crtc->state);
+		if (!intel_pipe_config_compare(dev, sw_config,
+					       pipe_config, false)) {
 			I915_STATE_WARN(1, "pipe state doesn't match!\n");
-			intel_dump_pipe_config(crtc, &pipe_config,
+			intel_dump_pipe_config(intel_crtc, pipe_config,
 					       "[hw state]");
-			intel_dump_pipe_config(crtc, crtc->config,
+			intel_dump_pipe_config(intel_crtc, sw_config,
 					       "[sw state]");
 		}
 	}
@@ -12887,7 +12881,7 @@ intel_modeset_check_state(struct drm_device *dev,
 	check_wm_state(dev);
 	check_connector_state(dev, old_state);
 	check_encoder_state(dev);
-	check_crtc_state(dev);
+	check_crtc_state(dev, old_state);
 	check_shared_dpll_state(dev);
 }
 
