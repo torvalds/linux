@@ -11,8 +11,55 @@
  */
 
 #include <linux/module.h>
+#include <linux/regmap.h>
 
 #include "rl6231.h"
+
+/**
+ * rl6231_get_pre_div - Return the value of pre divider.
+ *
+ * @map: map for setting.
+ * @reg: register.
+ * @sft: shift.
+ *
+ * Return the value of pre divider from given register value.
+ * Return negative error code for unexpected register value.
+ */
+int rl6231_get_pre_div(struct regmap *map, unsigned int reg, int sft)
+{
+	int pd, val;
+
+	regmap_read(map, reg, &val);
+
+	val = (val >> sft) & 0x7;
+
+	switch (val) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+		pd = val + 1;
+		break;
+	case 4:
+		pd = 6;
+		break;
+	case 5:
+		pd = 8;
+		break;
+	case 6:
+		pd = 12;
+		break;
+	case 7:
+		pd = 16;
+		break;
+	default:
+		pd = -EINVAL;
+		break;
+	}
+
+	return pd;
+}
+EXPORT_SYMBOL_GPL(rl6231_get_pre_div);
 
 /**
  * rl6231_calc_dmic_clk - Calculate the parameter of dmic.
