@@ -953,7 +953,7 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 
 	/*
 	 * Use the scheduling parameters of the top pi-waiter
-	 * task if we have one and its (relative) deadline is
+	 * task if we have one and its (absolute) deadline is
 	 * smaller than our one... OTW we keep our runtime and
 	 * deadline.
 	 */
