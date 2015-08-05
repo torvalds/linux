@@ -3295,31 +3295,62 @@ static bool quickly_check_mmio_pf(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 	return vcpu_match_mmio_gva(vcpu, addr);
 }
 
-static u64 walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr)
+/* return true if reserved bit is detected on spte. */
+static bool
+walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
 	struct kvm_shadow_walk_iterator iterator;
-	u64 spte = 0ull;
+	u64 sptes[PT64_ROOT_LEVEL], spte = 0ull;
+	int root, leaf;
+	bool reserved = false;
 
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
-		return spte;
+		goto exit;
 
 	walk_shadow_page_lockless_begin(vcpu);
-	for_each_shadow_entry_lockless(vcpu, addr, iterator, spte)
+
+	for (shadow_walk_init(&iterator, vcpu, addr), root = iterator.level;
+	     shadow_walk_okay(&iterator);
+	     __shadow_walk_next(&iterator, spte)) {
+		leaf = iterator.level;
+		spte = mmu_spte_get_lockless(iterator.sptep);
+
+		sptes[leaf - 1] = spte;
+
 		if (!is_shadow_present_pte(spte))
 			break;
+
+		reserved |= is_shadow_zero_bits_set(&vcpu->arch.mmu, spte,
+						    leaf);
+	}
+
 	walk_shadow_page_lockless_end(vcpu);
 
-	return spte;
+	if (reserved) {
+		pr_err("%s: detect reserved bits on spte, addr 0x%llx, dump hierarchy:\n",
+		       __func__, addr);
+		while (root >= leaf) {
+			pr_err("------ spte 0x%llx level %d.\n",
+			       sptes[root - 1], root);
+			root--;
+		}
+	}
+exit:
+	*sptep = spte;
+	return reserved;
 }
 
 int handle_mmio_page_fault_common(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 {
 	u64 spte;
+	bool reserved;
 
 	if (quickly_check_mmio_pf(vcpu, addr, direct))
 		return RET_MMIO_PF_EMULATE;
 
-	spte = walk_shadow_page_get_mmio_spte(vcpu, addr);
+	reserved = walk_shadow_page_get_mmio_spte(vcpu, addr, &spte);
+	if (unlikely(reserved))
+		return RET_MMIO_PF_BUG;
 
 	if (is_mmio_spte(spte)) {
 		gfn_t gfn = get_mmio_spte_gfn(spte);
