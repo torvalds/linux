@@ -1,43 +1,43 @@
 /*
-   comedi/drivers/me4000.c
-   Source code for the Meilhaus ME-4000 board family.
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * me4000.c
+ * Source code for the Meilhaus ME-4000 board family.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
+
 /*
-Driver: me4000
-Description: Meilhaus ME-4000 series boards
-Devices: [Meilhaus] ME-4650 (me4000), ME-4670i, ME-4680, ME-4680i, ME-4680is
-Author: gg (Guenter Gebhardt <g.gebhardt@meilhaus.com>)
-Updated: Mon, 18 Mar 2002 15:34:01 -0800
-Status: broken (no support for loading firmware)
-
-Supports:
-
-    - Analog Input
-    - Analog Output
-    - Digital I/O
-    - Counter
-
-Configuration Options: not applicable, uses PCI auto config
-
-The firmware required by these boards is available in the
-comedi_nonfree_firmware tarball available from
-http://www.comedi.org.  However, the driver's support for
-loading the firmware through comedi_config is currently
-broken.
-
+ * Driver: me4000
+ * Description: Meilhaus ME-4000 series boards
+ * Devices: [Meilhaus] ME-4650 (me4000), ME-4670i, ME-4680, ME-4680i,
+ *	    ME-4680is
+ * Author: gg (Guenter Gebhardt <g.gebhardt@meilhaus.com>)
+ * Updated: Mon, 18 Mar 2002 15:34:01 -0800
+ * Status: broken (no support for loading firmware)
+ *
+ * Supports:
+ *	- Analog Input
+ *	- Analog Output
+ *	- Digital I/O
+ *	- Counter
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ *
+ * The firmware required by these boards is available in the
+ * comedi_nonfree_firmware tarball available from
+ * http://www.comedi.org.  However, the driver's support for
+ * loading the firmware through comedi_config is currently
+ * broken.
  */
 
 #include <linux/module.h>
