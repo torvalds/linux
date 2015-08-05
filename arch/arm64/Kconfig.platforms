@@ -66,6 +66,11 @@ config ARCH_SEATTLE
 	help
 	  This enables support for AMD Seattle SOC Family
 
+config ARCH_STRATIX10
+	bool "Altera's Stratix 10 SoCFPGA Family"
+	help
+	  This enables support for Altera's Stratix 10 SoCFPGA Family.
+
 config ARCH_TEGRA
 	bool "NVIDIA Tegra SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
