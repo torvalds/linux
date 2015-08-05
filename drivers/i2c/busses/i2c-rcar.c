@@ -100,6 +100,7 @@
 enum rcar_i2c_type {
 	I2C_RCAR_GEN1,
 	I2C_RCAR_GEN2,
+	I2C_RCAR_GEN3,
 };
 
 struct rcar_i2c_priv {
@@ -176,6 +177,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 		cdf_width = 2;
 		break;
 	case I2C_RCAR_GEN2:
+	case I2C_RCAR_GEN3:
 		cdf_width = 3;
 		break;
 	default:
@@ -573,6 +575,7 @@ static const struct of_device_id rcar_i2c_dt_ids[] = {
 	{ .compatible = "renesas,i2c-r8a7792", .data = (void *)I2C_RCAR_GEN2 },
 	{ .compatible = "renesas,i2c-r8a7793", .data = (void *)I2C_RCAR_GEN2 },
 	{ .compatible = "renesas,i2c-r8a7794", .data = (void *)I2C_RCAR_GEN2 },
+	{ .compatible = "renesas,i2c-r8a7795", .data = (void *)I2C_RCAR_GEN3 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_i2c_dt_ids);
