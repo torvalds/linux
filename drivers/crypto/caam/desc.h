@@ -8,12 +8,29 @@
 #ifndef DESC_H
 #define DESC_H
 
+/*
+ * 16-byte hardware scatter/gather table
+ * An 8-byte table exists in the hardware spec, but has never been
+ * implemented to date. The 8/16 option is selected at RTL-compile-time.
+ * and this selection is visible in the Compile Time Parameters Register
+ */
+
+#define SEC4_SG_LEN_EXT		0x80000000	/* Entry points to table */
+#define SEC4_SG_LEN_FIN		0x40000000	/* Last ent in table */
+#define SEC4_SG_BPID_MASK	0x000000ff
+#define SEC4_SG_BPID_SHIFT	16
+#define SEC4_SG_LEN_MASK	0x3fffffff	/* Excludes EXT and FINAL */
+#define SEC4_SG_OFFS_MASK	0x00001fff
+
 struct sec4_sg_entry {
-	u64 ptr;
-#define SEC4_SG_LEN_FIN 0x40000000
-#define SEC4_SG_LEN_EXT 0x80000000
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	dma_addr_t ptr;
+#else
+	u32 rsvd1;
+	dma_addr_t ptr;
+#endif
 	u32 len;
-	u8 reserved;
+	u8 rsvd2;
 	u8 buf_pool_id;
 	u16 offset;
 };

@@ -15,7 +15,6 @@ static inline void dma_to_sec4_sg_one(struct sec4_sg_entry *sec4_sg_ptr,
 {
 	sec4_sg_ptr->ptr = dma;
 	sec4_sg_ptr->len = len;
-	sec4_sg_ptr->reserved = 0;
 	sec4_sg_ptr->buf_pool_id = 0;
 	sec4_sg_ptr->offset = offset;
 #ifdef DEBUG
