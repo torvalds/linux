@@ -227,7 +227,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	 * do this as a temporary workaround
 	 */
 	if (!(domain & (AMDGPU_GEM_DOMAIN_GDS | AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA))) {
-		if (adev->asic_type >= CHIP_TOPAZ) {
+		if ((adev->asic_type >= CHIP_TOPAZ) && (adev->asic_type != CHIP_FIJI)) {
 			if (byte_align & 0x7fff)
 				byte_align = ALIGN(byte_align, 0x8000);
 			if (size & 0x7fff)
