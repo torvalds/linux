@@ -1271,7 +1271,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 
 	me->ops = &csi2_media_ops;
-	ret = media_entity_init(me, CSI2_PADS_NUM, pads, 0);
+	ret = media_entity_init(me, CSI2_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 

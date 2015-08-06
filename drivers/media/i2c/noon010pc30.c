@@ -780,7 +780,7 @@ static int noon010_probe(struct i2c_client *client,
 
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &info->pad, 0);
+	ret = media_entity_init(&sd->entity, 1, &info->pad);
 	if (ret < 0)
 		goto np_err;
 

@@ -1887,12 +1887,12 @@ int au0828_analog_register(struct au0828_dev *dev,
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	dev->video_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&dev->vdev.entity, 1, &dev->video_pad, 0);
+	ret = media_entity_init(&dev->vdev.entity, 1, &dev->video_pad);
 	if (ret < 0)
 		pr_err("failed to initialize video media entity!\n");
 
 	dev->vbi_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&dev->vbi_dev.entity, 1, &dev->vbi_pad, 0);
+	ret = media_entity_init(&dev->vbi_dev.entity, 1, &dev->vbi_pad);
 	if (ret < 0)
 		pr_err("failed to initialize vbi media entity!\n");
 #endif

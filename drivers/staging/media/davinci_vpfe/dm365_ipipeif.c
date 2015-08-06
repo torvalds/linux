@@ -1026,7 +1026,7 @@ int vpfe_ipipeif_init(struct vpfe_ipipeif_device *ipipeif,
 	ipipeif->output = IPIPEIF_OUTPUT_NONE;
 	me->ops = &ipipeif_media_ops;
 
-	ret = media_entity_init(me, IPIPEIF_NUM_PADS, pads, 0);
+	ret = media_entity_init(me, IPIPEIF_NUM_PADS, pads);
 	if (ret)
 		goto fail;
 

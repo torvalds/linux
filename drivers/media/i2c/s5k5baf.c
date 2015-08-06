@@ -1905,7 +1905,7 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 
 	state->cis_pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, NUM_CIS_PADS, &state->cis_pad, 0);
+	ret = media_entity_init(&sd->entity, NUM_CIS_PADS, &state->cis_pad);
 	if (ret < 0)
 		goto err;
 
@@ -1920,7 +1920,7 @@ static int s5k5baf_configure_subdevs(struct s5k5baf *state,
 	state->pads[PAD_CIS].flags = MEDIA_PAD_FL_SINK;
 	state->pads[PAD_OUT].flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
-	ret = media_entity_init(&sd->entity, NUM_ISP_PADS, state->pads, 0);
+	ret = media_entity_init(&sd->entity, NUM_ISP_PADS, state->pads);
 
 	if (!ret)
 		return 0;

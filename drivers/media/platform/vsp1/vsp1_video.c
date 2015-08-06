@@ -1193,7 +1193,7 @@ int vsp1_video_init(struct vsp1_video *video, struct vsp1_entity *rwpf)
 	video->pipe.state = VSP1_PIPELINE_STOPPED;
 
 	/* Initialize the media entity... */
-	ret = media_entity_init(&video->video.entity, 1, &video->pad, 0);
+	ret = media_entity_init(&video->video.entity, 1, &video->pad);
 	if (ret < 0)
 		return ret;
 

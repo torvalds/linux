@@ -1691,7 +1691,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 
 	ret = media_entity_init(&sd->entity, S5C73M3_NUM_PADS,
-							state->sensor_pads, 0);
+							state->sensor_pads);
 	if (ret < 0)
 		return ret;
 
@@ -1707,7 +1707,7 @@ static int s5c73m3_probe(struct i2c_client *client,
 	oif_sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 
 	ret = media_entity_init(&oif_sd->entity, OIF_NUM_PADS,
-							state->oif_pads, 0);
+							state->oif_pads);
 	if (ret < 0)
 		return ret;
 

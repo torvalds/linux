@@ -220,7 +220,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 	/* Initialize the media entity. */
 	return media_entity_init(&entity->subdev.entity, num_pads,
-				 entity->pads, 0);
+				 entity->pads);
 }
 
 void vsp1_entity_destroy(struct vsp1_entity *entity)

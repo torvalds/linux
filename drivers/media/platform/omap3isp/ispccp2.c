@@ -1071,7 +1071,7 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 	pads[CCP2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ccp2_media_ops;
-	ret = media_entity_init(me, CCP2_PADS_NUM, pads, 0);
+	ret = media_entity_init(me, CCP2_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 

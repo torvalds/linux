@@ -1910,7 +1910,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 	vpfe_rsz->crop_resizer.output2 = RESIZER_CROP_OUTPUT_NONE;
 	vpfe_rsz->crop_resizer.rsz_device = vpfe_rsz;
 	me->ops = &resizer_media_ops;
-	ret = media_entity_init(me, RESIZER_CROP_PADS_NUM, pads, 0);
+	ret = media_entity_init(me, RESIZER_CROP_PADS_NUM, pads);
 	if (ret)
 		return ret;
 
@@ -1932,7 +1932,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 	vpfe_rsz->resizer_a.output = RESIZER_OUTPUT_NONE;
 	vpfe_rsz->resizer_a.rsz_device = vpfe_rsz;
 	me->ops = &resizer_media_ops;
-	ret = media_entity_init(me, RESIZER_PADS_NUM, pads, 0);
+	ret = media_entity_init(me, RESIZER_PADS_NUM, pads);
 	if (ret)
 		return ret;
 
@@ -1954,7 +1954,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 	vpfe_rsz->resizer_b.output = RESIZER_OUTPUT_NONE;
 	vpfe_rsz->resizer_b.rsz_device = vpfe_rsz;
 	me->ops = &resizer_media_ops;
-	ret = media_entity_init(me, RESIZER_PADS_NUM, pads, 0);
+	ret = media_entity_init(me, RESIZER_PADS_NUM, pads);
 	if (ret)
 		return ret;
 

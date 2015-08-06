@@ -30,32 +30,30 @@
  * media_entity_init - Initialize a media entity
  *
  * @num_pads: Total number of sink and source pads.
- * @extra_links: Initial estimate of the number of extra links.
  * @pads: Array of 'num_pads' pads.
  *
  * The total number of pads is an intrinsic property of entities known by the
  * entity driver, while the total number of links depends on hardware design
  * and is an extrinsic property unknown to the entity driver. However, in most
- * use cases the entity driver can guess the number of links which can safely
- * be assumed to be equal to or larger than the number of pads.
+ * use cases the number of links can safely be assumed to be equal to or
+ * larger than the number of pads.
  *
- * For those reasons the links array can be preallocated based on the entity
- * driver guess and will be reallocated later if extra links need to be
- * created.
+ * For those reasons the links array can be preallocated based on the number
+ * of pads and will be reallocated later if extra links need to be created.
  *
  * This function allocates a links array with enough space to hold at least
- * 'num_pads' + 'extra_links' elements. The media_entity::max_links field will
- * be set to the number of allocated elements.
+ * 'num_pads' elements. The media_entity::max_links field will be set to the
+ * number of allocated elements.
  *
  * The pads array is managed by the entity driver and passed to
  * media_entity_init() where its pointer will be stored in the entity structure.
  */
 int
 media_entity_init(struct media_entity *entity, u16 num_pads,
-		  struct media_pad *pads, u16 extra_links)
+		  struct media_pad *pads)
 {
 	struct media_link *links;
-	unsigned int max_links = num_pads + extra_links;
+	unsigned int max_links = num_pads;
 	unsigned int i;
 
 	links = kzalloc(max_links * sizeof(links[0]), GFP_KERNEL);

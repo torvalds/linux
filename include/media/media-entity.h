@@ -134,7 +134,7 @@ struct media_entity_graph {
 };
 
 int media_entity_init(struct media_entity *entity, u16 num_pads,
-		struct media_pad *pads, u16 extra_links);
+		struct media_pad *pads);
 void media_entity_cleanup(struct media_entity *entity);
 
 int media_entity_create_link(struct media_entity *source, u16 source_pad,

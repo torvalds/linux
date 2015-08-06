@@ -1367,7 +1367,7 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	if (IS_ERR(video->alloc_ctx))
 		return PTR_ERR(video->alloc_ctx);
 
-	ret = media_entity_init(&video->video.entity, 1, &video->pad, 0);
+	ret = media_entity_init(&video->video.entity, 1, &video->pad);
 	if (ret < 0) {
 		vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 		return ret;

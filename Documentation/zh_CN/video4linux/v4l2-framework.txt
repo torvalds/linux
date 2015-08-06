@@ -295,7 +295,7 @@ owner 域。若使用 i2c 辅助函数，这些都会帮你处理好。
 	struct media_pad *pads = &my_sd->pads;
 	int err;
 
-	err = media_entity_init(&sd->entity, npads, pads, 0);
+	err = media_entity_init(&sd->entity, npads, pads);
 
 pads 数组必须预先初始化。无须手动设置 media_entity 的 type 和
 name 域，但如有必要，revision 域必须初始化。
@@ -602,7 +602,7 @@ v4l2_file_operations 结构体是 file_operations 的一个子集。其主要
 	struct media_pad *pad = &my_vdev->pad;
 	int err;
 
-	err = media_entity_init(&vdev->entity, 1, pad, 0);
+	err = media_entity_init(&vdev->entity, 1, pad);
 
 pads 数组必须预先初始化。没有必要手动设置 media_entity 的 type 和
 name 域。

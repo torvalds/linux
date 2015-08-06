@@ -104,7 +104,7 @@ although drivers can allocate entities directly.
 Drivers initialize entities by calling
 
 	media_entity_init(struct media_entity *entity, u16 num_pads,
-			  struct media_pad *pads, u16 extra_links);
+			  struct media_pad *pads);
 
 The media_entity name, type, flags, revision and group_id fields can be
 initialized before or after calling media_entity_init. Entities embedded in
@@ -120,9 +120,8 @@ media_entity_init. The function will initialize the other pads fields.
 
 Unlike the number of pads, the total number of links isn't always known in
 advance by the entity driver. As an initial estimate, media_entity_init
-pre-allocates a number of links equal to the number of pads plus an optional
-number of extra links. The links array will be reallocated if it grows beyond
-the initial estimate.
+pre-allocates a number of links equal to the number of pads. The links array
+will be reallocated if it grows beyond the initial estimate.
 
 Drivers register entities with a media device by calling
 

@@ -249,7 +249,7 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 	}
 
 	if (npads)
-		ret = media_entity_init(dvbdev->entity, npads, dvbdev->pads, 0);
+		ret = media_entity_init(dvbdev->entity, npads, dvbdev->pads);
 	if (!ret)
 		ret = media_device_register_entity(dvbdev->adapter->mdev,
 						   dvbdev->entity);

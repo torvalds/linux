@@ -1144,7 +1144,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 		goto err_vd_rel;
 
 	vp->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vfd->entity, 1, &vp->pad, 0);
+	ret = media_entity_init(&vfd->entity, 1, &vp->pad);
 	if (ret)
 		goto err_vd_rel;
 
@@ -1560,7 +1560,7 @@ int s3c_camif_create_subdev(struct camif_dev *camif)
 	camif->pads[CAMIF_SD_PAD_SOURCE_P].flags = MEDIA_PAD_FL_SOURCE;
 
 	ret = media_entity_init(&sd->entity, CAMIF_SD_PADS_NUM,
-				camif->pads, 0);
+				camif->pads);
 	if (ret)
 		return ret;
 

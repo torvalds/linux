@@ -867,7 +867,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	state->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	state->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_init(&state->sd.entity,
-				CSIS_PADS_NUM, state->pads, 0);
+				CSIS_PADS_NUM, state->pads);
 	if (ret < 0)
 		goto e_clkdis;
 

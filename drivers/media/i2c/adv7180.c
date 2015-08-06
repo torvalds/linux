@@ -1214,7 +1214,7 @@ static int adv7180_probe(struct i2c_client *client,
 
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
-	ret = media_entity_init(&sd->entity, 1, &state->pad, 0);
+	ret = media_entity_init(&sd->entity, 1, &state->pad);
 	if (ret)
 		goto err_free_ctrl;
 

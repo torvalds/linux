@@ -677,7 +677,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	dma->pad.flags = type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 		       ? MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
 
-	ret = media_entity_init(&dma->video.entity, 1, &dma->pad, 0);
+	ret = media_entity_init(&dma->video.entity, 1, &dma->pad);
 	if (ret < 0)
 		goto error;
 

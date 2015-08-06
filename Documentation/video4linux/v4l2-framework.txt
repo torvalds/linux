@@ -300,7 +300,7 @@ calling media_entity_init():
 	struct media_pad *pads = &my_sd->pads;
 	int err;
 
-	err = media_entity_init(&sd->entity, npads, pads, 0);
+	err = media_entity_init(&sd->entity, npads, pads);
 
 The pads array must have been previously initialized. There is no need to
 manually set the struct media_entity type and name fields, but the revision
@@ -700,7 +700,7 @@ calling media_entity_init():
 	struct media_pad *pad = &my_vdev->pad;
 	int err;
 
-	err = media_entity_init(&vdev->entity, 1, pad, 0);
+	err = media_entity_init(&vdev->entity, 1, pad);
 
 The pads array must have been previously initialized. There is no need to
 manually set the struct media_entity type and name fields.
