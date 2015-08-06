@@ -74,33 +74,32 @@
 
 #include "iscsi_iser.h"
 
-static struct scsi_host_template iscsi_iser_sht;
-static struct iscsi_transport iscsi_iser_transport;
-static struct scsi_transport_template *iscsi_iser_scsi_transport;
-
-static unsigned int iscsi_max_lun = 512;
-module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
-
-int iser_debug_level = 0;
-bool iser_pi_enable = false;
-int iser_pi_guard = 1;
-
 MODULE_DESCRIPTION("iSER (iSCSI Extensions for RDMA) Datamover");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Alex Nezhinsky, Dan Bar Dov, Or Gerlitz");
 MODULE_VERSION(DRV_VER);
 
-module_param_named(debug_level, iser_debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0 (default:disabled)");
-
-module_param_named(pi_enable, iser_pi_enable, bool, 0644);
-MODULE_PARM_DESC(pi_enable, "Enable T10-PI offload support (default:disabled)");
-
-module_param_named(pi_guard, iser_pi_guard, int, 0644);
-MODULE_PARM_DESC(pi_guard, "T10-PI guard_type [deprecated]");
-
+static struct scsi_host_template iscsi_iser_sht;
+static struct iscsi_transport iscsi_iser_transport;
+static struct scsi_transport_template *iscsi_iser_scsi_transport;
 static struct workqueue_struct *release_wq;
 struct iser_global ig;
+
+int iser_debug_level = 0;
+module_param_named(debug_level, iser_debug_level, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0 (default:disabled)");
+
+static unsigned int iscsi_max_lun = 512;
+module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
+MODULE_PARM_DESC(max_lun, "Max LUNs to allow per session (default:512");
+
+bool iser_pi_enable = false;
+module_param_named(pi_enable, iser_pi_enable, bool, S_IRUGO);
+MODULE_PARM_DESC(pi_enable, "Enable T10-PI offload support (default:disabled)");
+
+int iser_pi_guard;
+module_param_named(pi_guard, iser_pi_guard, int, S_IRUGO);
+MODULE_PARM_DESC(pi_guard, "T10-PI guard_type [deprecated]");
 
 /*
  * iscsi_iser_recv() - Process a successfull recv completion
