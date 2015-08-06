@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for UniPhier PH1-sLD3 Reference Board
+ * Device Tree Source for UniPhier Reference Daughter Board
  *
  * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
  *
@@ -42,79 +42,9 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-/include/ "uniphier-ph1-sld3.dtsi"
-/include/ "uniphier-ref-daughter.dtsi"
-/include/ "uniphier-support-card.dtsi"
-
-/ {
-	model = "UniPhier PH1-sLD3 Reference Board";
-	compatible = "socionext,ph1-sld3-ref", "socionext,ph1-sld3";
-
-	memory {
-		device_type = "memory";
-		reg = <0x80000000 0x20000000
-		       0xc0000000 0x20000000>;
-	};
-
-	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &serial0;
-	};
-
-	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
-		serial2 = &serial2;
-		i2c0 = &i2c0;
-		i2c1 = &i2c1;
-		i2c2 = &i2c2;
-		i2c3 = &i2c3;
-		i2c4 = &i2c4;
-	};
-};
-
-&extbus {
-	ranges = <0 0x00000000 0x0f000000 0x01000000
-		  1 0x00000000 0x00000000 0x08000000>;
-};
-
-&support_card {
-	ranges = <0x00000000 1 0x03f00000 0x00100000>;
-};
-
-&ethsc {
-	interrupts = <0 49 4>;
-};
-
-&serial0 {
-	status = "okay";
-};
-
-&serial1 {
-	status = "okay";
-};
-
-&serial2 {
-	status = "okay";
-};
-
 &i2c0 {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
-};
-
-&usb2 {
-	status = "okay";
-};
-
-&usb3 {
-	status = "okay";
+	eeprom {
+		compatible = "microchip,24lc128";
+		reg = <0x50>;
+	};
 };
