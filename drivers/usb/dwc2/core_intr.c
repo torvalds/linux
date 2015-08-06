@@ -129,7 +129,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 		gotgctl = readl(hsotg->regs + GOTGCTL);
 
 		if (dwc2_is_device_mode(hsotg))
-			s3c_hsotg_disconnect(hsotg);
+			dwc2_hsotg_disconnect(hsotg);
 
 		if (hsotg->op_state == OTG_STATE_B_HOST) {
 			hsotg->op_state = OTG_STATE_B_PERIPHERAL;
@@ -322,7 +322,7 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 	 * Report disconnect if there is any previous session established
 	 */
 	if (dwc2_is_device_mode(hsotg))
-		s3c_hsotg_disconnect(hsotg);
+		dwc2_hsotg_disconnect(hsotg);
 }
 
 /*

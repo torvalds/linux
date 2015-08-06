@@ -57,7 +57,7 @@ static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 		testmode = 0;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-	s3c_hsotg_set_test_mode(hsotg, testmode);
+	dwc2_hsotg_set_test_mode(hsotg, testmode);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return count;
 }
@@ -256,9 +256,9 @@ static const char *decode_direction(int is_in)
  */
 static int ep_show(struct seq_file *seq, void *v)
 {
-	struct s3c_hsotg_ep *ep = seq->private;
+	struct dwc2_hsotg_ep *ep = seq->private;
 	struct dwc2_hsotg *hsotg = ep->parent;
-	struct s3c_hsotg_req *req;
+	struct dwc2_hsotg_req *req;
 	void __iomem *regs = hsotg->regs;
 	int index = ep->index;
 	int show_limit = 15;
@@ -326,7 +326,7 @@ static const struct file_operations ep_fops = {
 };
 
 /**
- * s3c_hsotg_create_debug - create debugfs directory and files
+ * dwc2_hsotg_create_debug - create debugfs directory and files
  * @hsotg: The driver state
  *
  * Create the debugfs files to allow the user to get information
@@ -334,7 +334,7 @@ static const struct file_operations ep_fops = {
  * with the same name as the device itself, in case we end up
  * with multiple blocks in future systems.
  */
-static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
+static void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 {
 	struct dentry *root;
 	struct dentry *file;
@@ -360,7 +360,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 
 	/* Create one file for each out endpoint */
 	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
-		struct s3c_hsotg_ep *ep;
+		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_out[epidx];
 		if (ep) {
@@ -373,7 +373,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 	}
 	/* Create one file for each in endpoint. EP0 is handled with out eps */
 	for (epidx = 1; epidx < hsotg->num_of_eps; epidx++) {
-		struct s3c_hsotg_ep *ep;
+		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_in[epidx];
 		if (ep) {
@@ -386,10 +386,10 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 	}
 }
 #else
-static inline void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg) {}
 #endif
 
-/* s3c_hsotg_delete_debug is removed as cleanup in done in dwc2_debugfs_exit */
+/* dwc2_hsotg_delete_debug is removed as cleanup in done in dwc2_debugfs_exit */
 
 #define dump_register(nm)	\
 {				\
@@ -737,7 +737,7 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	}
 
 	/* Add gadget debugfs nodes */
-	s3c_hsotg_create_debug(hsotg);
+	dwc2_hsotg_create_debug(hsotg);
 
 	hsotg->regset = devm_kzalloc(hsotg->dev, sizeof(*hsotg->regset),
 								GFP_KERNEL);

@@ -58,8 +58,8 @@ static inline void do_write(u32 value, void *addr)
 /* Maximum number of Endpoints/HostChannels */
 #define MAX_EPS_CHANNELS	16
 
-/* s3c-hsotg declarations */
-static const char * const s3c_hsotg_supply_names[] = {
+/* dwc2-hsotg declarations */
+static const char * const dwc2_hsotg_supply_names[] = {
 	"vusb_d",               /* digital USB supply, 1.2V */
 	"vusb_a",               /* analog USB supply, 1.1V */
 };
@@ -85,10 +85,10 @@ static const char * const s3c_hsotg_supply_names[] = {
 #define EP0_MPS_LIMIT   64
 
 struct dwc2_hsotg;
-struct s3c_hsotg_req;
+struct dwc2_hsotg_req;
 
 /**
- * struct s3c_hsotg_ep - driver endpoint definition.
+ * struct dwc2_hsotg_ep - driver endpoint definition.
  * @ep: The gadget layer representation of the endpoint.
  * @name: The driver generated name for the endpoint.
  * @queue: Queue of requests for this endpoint.
@@ -127,11 +127,11 @@ struct s3c_hsotg_req;
  * as in shared-fifo mode periodic in acts like a single-frame packet
  * buffer than a fifo)
  */
-struct s3c_hsotg_ep {
+struct dwc2_hsotg_ep {
 	struct usb_ep           ep;
 	struct list_head        queue;
 	struct dwc2_hsotg       *parent;
-	struct s3c_hsotg_req    *req;
+	struct dwc2_hsotg_req    *req;
 	struct dentry           *debugfs;
 
 	unsigned long           total_data;
@@ -155,12 +155,12 @@ struct s3c_hsotg_ep {
 };
 
 /**
- * struct s3c_hsotg_req - data transfer request
+ * struct dwc2_hsotg_req - data transfer request
  * @req: The USB gadget request
  * @queue: The list of requests for the endpoint this is queued for.
  * @saved_req_buf: variable to save req.buf when bounce buffers are used.
  */
-struct s3c_hsotg_req {
+struct dwc2_hsotg_req {
 	struct usb_request      req;
 	struct list_head        queue;
 	void *saved_req_buf;
@@ -693,7 +693,7 @@ struct dwc2_hsotg {
 
 	struct phy *phy;
 	struct usb_phy *uphy;
-	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
+	struct regulator_bulk_data supplies[ARRAY_SIZE(dwc2_hsotg_supply_names)];
 
 	spinlock_t lock;
 	struct mutex init_mutex;
@@ -796,7 +796,7 @@ struct dwc2_hsotg {
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	/* Gadget structures */
 	struct usb_gadget_driver *driver;
-	struct s3c_hsotg_plat *plat;
+	struct dwc2_hsotg_plat *plat;
 
 	u32 phyif;
 	int fifo_mem;
@@ -815,8 +815,8 @@ struct dwc2_hsotg {
 	unsigned int enabled:1;
 	unsigned int connected:1;
 	unsigned long last_rst;
-	struct s3c_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
-	struct s3c_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
+	struct dwc2_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
+	struct dwc2_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
 	u32 g_using_dma;
 	u32 g_rx_fifo_sz;
 	u32 g_np_g_tx_fifo_sz;
@@ -1104,30 +1104,30 @@ extern u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg);
 
 /* Gadget defines */
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
-extern int s3c_hsotg_remove(struct dwc2_hsotg *hsotg);
-extern int s3c_hsotg_suspend(struct dwc2_hsotg *dwc2);
-extern int s3c_hsotg_resume(struct dwc2_hsotg *dwc2);
+extern int dwc2_hsotg_remove(struct dwc2_hsotg *hsotg);
+extern int dwc2_hsotg_suspend(struct dwc2_hsotg *dwc2);
+extern int dwc2_hsotg_resume(struct dwc2_hsotg *dwc2);
 extern int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq);
-extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+extern void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset);
-extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
-extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
-extern int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
+extern void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg);
+extern void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2);
+extern int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
 #define dwc2_is_device_connected(hsotg) (hsotg->connected)
 #else
-static inline int s3c_hsotg_remove(struct dwc2_hsotg *dwc2)
+static inline int dwc2_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
-static inline int s3c_hsotg_suspend(struct dwc2_hsotg *dwc2)
+static inline int dwc2_hsotg_suspend(struct dwc2_hsotg *dwc2)
 { return 0; }
-static inline int s3c_hsotg_resume(struct dwc2_hsotg *dwc2)
+static inline int dwc2_hsotg_resume(struct dwc2_hsotg *dwc2)
 { return 0; }
 static inline int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
-static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+static inline void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset) {}
-static inline void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
-static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
-static inline int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
+static inline void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
+static inline void dwc2_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
+static inline int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
 							int testmode)
 { return 0; }
 #define dwc2_is_device_connected(hsotg) (0)
