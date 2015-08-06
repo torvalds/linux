@@ -296,7 +296,7 @@ ii) Status
 	underlying device.  When this is enabled when loading the table,
 	it can get disabled if the underlying device doesn't support it.
 
-    ro|rw
+    ro|rw|out_of_data_space
 	If the pool encounters certain types of device failures it will
 	drop into a read-only metadata mode in which no changes to
 	the pool metadata (like allocating new blocks) are permitted.
@@ -313,6 +313,13 @@ ii) Status
 	'no_space_timeout' expires.  The 'no_space_timeout' dm-thin-pool
 	module parameter can be used to change this timeout -- it
 	defaults to 60 seconds but may be disabled using a value of 0.
+
+    needs_check
+	A metadata operation has failed, resulting in the needs_check
+	flag being set in the metadata's superblock.  The metadata
+	device must be deactivated and checked/repaired before the
+	thin-pool can be made fully operational again.  '-' indicates
+	needs_check is not set.
 
 iii) Messages
 

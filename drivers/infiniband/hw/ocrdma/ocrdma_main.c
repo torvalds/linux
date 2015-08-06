@@ -696,6 +696,7 @@ static void __exit ocrdma_exit_module(void)
 	ocrdma_unregister_inet6addr_notifier();
 	ocrdma_unregister_inetaddr_notifier();
 	ocrdma_rem_debugfs();
+	idr_destroy(&ocrdma_dev_id);
 }
 
 module_init(ocrdma_init_module);

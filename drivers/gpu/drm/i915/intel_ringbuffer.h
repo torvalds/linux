@@ -275,6 +275,13 @@ struct  intel_engine_cs {
 	 * Do we have some not yet emitted requests outstanding?
 	 */
 	struct drm_i915_gem_request *outstanding_lazy_request;
+	/**
+	 * Seqno of request most recently submitted to request_list.
+	 * Used exclusively by hang checker to avoid grabbing lock while
+	 * inspecting request list.
+	 */
+	u32 last_submitted_seqno;
+
 	bool gpu_caches_dirty;
 
 	wait_queue_head_t irq_queue;

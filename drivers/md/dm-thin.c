@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/sort.h>
 #include <linux/rbtree.h>
 
@@ -268,7 +269,7 @@ struct pool {
 	process_mapping_fn process_prepared_mapping;
 	process_mapping_fn process_prepared_discard;
 
-	struct dm_bio_prison_cell *cell_sort_array[CELL_SORT_ARRAY_SIZE];
+	struct dm_bio_prison_cell **cell_sort_array;
 };
 
 static enum pool_mode get_pool_mode(struct pool *pool);
@@ -2281,18 +2282,23 @@ static void do_waker(struct work_struct *ws)
 	queue_delayed_work(pool->wq, &pool->waker, COMMIT_PERIOD);
 }
 
+static void notify_of_pool_mode_change_to_oods(struct pool *pool);
+
 /*
  * We're holding onto IO to allow userland time to react.  After the
  * timeout either the pool will have been resized (and thus back in
- * PM_WRITE mode), or we degrade to PM_READ_ONLY and start erroring IO.
+ * PM_WRITE mode), or we degrade to PM_OUT_OF_DATA_SPACE w/ error_if_no_space.
  */
 static void do_no_space_timeout(struct work_struct *ws)
 {
 	struct pool *pool = container_of(to_delayed_work(ws), struct pool,
 					 no_space_timeout);
 
-	if (get_pool_mode(pool) == PM_OUT_OF_DATA_SPACE && !pool->pf.error_if_no_space)
-		set_pool_mode(pool, PM_READ_ONLY);
+	if (get_pool_mode(pool) == PM_OUT_OF_DATA_SPACE && !pool->pf.error_if_no_space) {
+		pool->pf.error_if_no_space = true;
+		notify_of_pool_mode_change_to_oods(pool);
+		error_retry_list(pool);
+	}
 }
 
 /*----------------------------------------------------------------*/
@@ -2368,6 +2374,14 @@ static void notify_of_pool_mode_change(struct pool *pool, const char *new_mode)
 	dm_table_event(pool->ti->table);
 	DMINFO("%s: switching pool to %s mode",
 	       dm_device_name(pool->pool_md), new_mode);
+}
+
+static void notify_of_pool_mode_change_to_oods(struct pool *pool)
+{
+	if (!pool->pf.error_if_no_space)
+		notify_of_pool_mode_change(pool, "out-of-data-space (queue IO)");
+	else
+		notify_of_pool_mode_change(pool, "out-of-data-space (error IO)");
 }
 
 static bool passdown_enabled(struct pool_c *pt)
@@ -2454,7 +2468,7 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 		 * frequently seeing this mode.
 		 */
 		if (old_mode != new_mode)
-			notify_of_pool_mode_change(pool, "out-of-data-space");
+			notify_of_pool_mode_change_to_oods(pool);
 		pool->process_bio = process_bio_read_only;
 		pool->process_discard = process_discard_bio;
 		pool->process_cell = process_cell_read_only;
@@ -2777,6 +2791,7 @@ static void __pool_destroy(struct pool *pool)
 {
 	__pool_table_remove(pool);
 
+	vfree(pool->cell_sort_array);
 	if (dm_pool_metadata_close(pool->pmd) < 0)
 		DMWARN("%s: dm_pool_metadata_close() failed.", __func__);
 
@@ -2889,6 +2904,13 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 		goto bad_mapping_pool;
 	}
 
+	pool->cell_sort_array = vmalloc(sizeof(*pool->cell_sort_array) * CELL_SORT_ARRAY_SIZE);
+	if (!pool->cell_sort_array) {
+		*error = "Error allocating cell sort array";
+		err_p = ERR_PTR(-ENOMEM);
+		goto bad_sort_array;
+	}
+
 	pool->ref_count = 1;
 	pool->last_commit_jiffies = jiffies;
 	pool->pool_md = pool_md;
@@ -2897,6 +2919,8 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 
 	return pool;
 
+bad_sort_array:
+	mempool_destroy(pool->mapping_pool);
 bad_mapping_pool:
 	dm_deferred_set_destroy(pool->all_io_ds);
 bad_all_io_ds:
@@ -3714,6 +3738,7 @@ static void emit_flags(struct pool_features *pf, char *result,
  * Status line is:
  *    <transaction id> <used metadata sectors>/<total metadata sectors>
  *    <used data sectors>/<total data sectors> <held metadata root>
+ *    <pool mode> <discard config> <no space config> <needs_check>
  */
 static void pool_status(struct dm_target *ti, status_type_t type,
 			unsigned status_flags, char *result, unsigned maxlen)
@@ -3814,6 +3839,11 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("error_if_no_space ");
 		else
 			DMEMIT("queue_if_no_space ");
+
+		if (dm_pool_metadata_needs_check(pool->pmd))
+			DMEMIT("needs_check ");
+		else
+			DMEMIT("- ");
 
 		break;
 
@@ -3918,7 +3948,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 15, 0},
+	.version = {1, 16, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -4305,7 +4335,7 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 15, 0},
+	.version = {1, 16, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,
