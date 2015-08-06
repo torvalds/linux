@@ -201,6 +201,7 @@ iser_initialize_task_headers(struct iscsi_task *task,
 		goto out;
 	}
 
+	tx_desc->mapped = true;
 	tx_desc->dma_addr = dma_addr;
 	tx_desc->tx_sg[0].addr   = tx_desc->dma_addr;
 	tx_desc->tx_sg[0].length = ISER_HEADERS_LEN;
@@ -360,16 +361,19 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
-	struct iser_tx_desc    *tx_desc   = &iser_task->desc;
-	struct iser_conn       *iser_conn	  = task->conn->dd_data;
+	struct iser_tx_desc *tx_desc = &iser_task->desc;
+	struct iser_conn *iser_conn = task->conn->dd_data;
 	struct iser_device *device = iser_conn->ib_conn.device;
 
 	/* DEVICE_REMOVAL event might have already released the device */
 	if (!device)
 		return;
 
-	ib_dma_unmap_single(device->ib_device,
-		tx_desc->dma_addr, ISER_HEADERS_LEN, DMA_TO_DEVICE);
+	if (likely(tx_desc->mapped)) {
+		ib_dma_unmap_single(device->ib_device, tx_desc->dma_addr,
+				    ISER_HEADERS_LEN, DMA_TO_DEVICE);
+		tx_desc->mapped = false;
+	}
 
 	/* mgmt tasks do not need special cleanup */
 	if (!task->sc)
