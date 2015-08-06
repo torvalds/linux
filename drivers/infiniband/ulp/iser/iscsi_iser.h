@@ -418,6 +418,33 @@ struct iser_fr_desc {
 };
 
 /**
+ * struct iser_fr_pool: connection fast registration pool
+ *
+ * @lock:                protects fmr/fastreg pool
+ * @union.fmr:
+ *     @pool:            FMR pool for fast registrations
+ *     @page_vec:        fast reg page list to hold mapped commands pages
+ *                       used for registration
+ * @union.fastreg:
+ *     @pool:            Fast registration descriptors pool for fast
+ *                       registrations
+ *     @pool_size:       Size of pool
+ */
+struct iser_fr_pool {
+	spinlock_t		     lock;
+	union {
+		struct {
+			struct ib_fmr_pool              *pool;
+			struct iser_page_vec            *page_vec;
+		} fmr;
+		struct {
+			struct list_head	 pool;
+			int			 pool_size;
+		} fastreg;
+	};
+};
+
+/**
  * struct ib_conn - Infiniband related objects
  *
  * @cma_id:              rdma_cm connection maneger handle
@@ -430,15 +457,7 @@ struct iser_fr_desc {
  * @pi_support:          Indicate device T10-PI support
  * @beacon:              beacon send wr to signal all flush errors were drained
  * @flush_comp:          completes when all connection completions consumed
- * @lock:                protects fmr/fastreg pool
- * @union.fmr:
- *     @pool:            FMR pool for fast registrations
- *     @page_vec:        page vector to hold mapped commands pages
- *                       used for registration
- * @union.fastreg:
- *     @pool:            Fast registration descriptors pool for fast
- *                       registrations
- *     @pool_size:       Size of pool
+ * @fr_pool:             connection fast registration poool
  */
 struct ib_conn {
 	struct rdma_cm_id           *cma_id;
@@ -451,17 +470,7 @@ struct ib_conn {
 	bool			     pi_support;
 	struct ib_send_wr	     beacon;
 	struct completion	     flush_comp;
-	spinlock_t		     lock;
-	union {
-		struct {
-			struct ib_fmr_pool      *pool;
-			struct iser_page_vec	*page_vec;
-		} fmr;
-		struct {
-			struct list_head	 pool;
-			int			 pool_size;
-		} fastreg;
-	};
+	struct iser_fr_pool          fr_pool;
 };
 
 /**
