@@ -513,7 +513,6 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 {
 	struct amdgpu_device *adev = ctx->parser->adev;
 	int32_t *msg, msg_type, handle;
-	struct fence *f;
 	void *ptr;
 
 	int i, r;
@@ -523,13 +522,11 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		return -EINVAL;
 	}
 
-	f = reservation_object_get_excl(bo->tbo.resv);
-	if (f) {
-		r = amdgpu_fence_wait((struct amdgpu_fence *)f, false);
-		if (r) {
-			DRM_ERROR("Failed waiting for UVD message (%d)!\n", r);
-			return r;
-		}
+	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, true, false,
+						MAX_SCHEDULE_TIMEOUT);
+	if (r) {
+		DRM_ERROR("Failed waiting for UVD message (%d)!\n", r);
+		return r;
 	}
 
 	r = amdgpu_bo_kmap(bo, &ptr);
