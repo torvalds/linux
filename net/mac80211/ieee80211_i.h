@@ -901,6 +901,9 @@ struct ieee80211_sub_if_data {
 	bool rc_has_mcs_mask[IEEE80211_NUM_BANDS];
 	u8  rc_rateidx_mcs_mask[IEEE80211_NUM_BANDS][IEEE80211_HT_MCS_MASK_LEN];
 
+	bool rc_has_vht_mcs_mask[IEEE80211_NUM_BANDS];
+	u16 rc_rateidx_vht_mcs_mask[IEEE80211_NUM_BANDS][NL80211_VHT_NSS_MAX];
+
 	union {
 		struct ieee80211_if_ap ap;
 		struct ieee80211_if_wds wds;
@@ -1713,6 +1716,8 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 enum ieee80211_band band, bool nss_only);
 void ieee80211_apply_vhtcap_overrides(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_sta_vht_cap *vht_cap);
+void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
+				     u16 vht_mask[NL80211_VHT_NSS_MAX]);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,

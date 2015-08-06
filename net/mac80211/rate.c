@@ -414,16 +414,77 @@ static bool rate_idx_match_mcs_mask(s8 *rate_idx, u8 *mcs_mask)
 	return false;
 }
 
+static bool rate_idx_match_vht_mcs_mask(s8 *rate_idx, u16 *vht_mask)
+{
+	int i, j;
+	int ridx, rbit;
 
+	ridx = *rate_idx >> 4;
+	rbit = *rate_idx & 0xf;
+
+	if (ridx < 0 || ridx >= NL80211_VHT_NSS_MAX)
+		return false;
+
+	/* See whether the selected rate or anything below it is allowed. */
+	for (i = ridx; i >= 0; i--) {
+		for (j = rbit; j >= 0; j--) {
+			if (vht_mask[i] & BIT(j)) {
+				*rate_idx = (i << 4) | j;
+				return true;
+			}
+		}
+		rbit = 15;
+	}
+
+	/* Try to find a higher rate that would be allowed */
+	ridx = (*rate_idx + 1) >> 4;
+	rbit = (*rate_idx + 1) & 0xf;
+
+	for (i = ridx; i < NL80211_VHT_NSS_MAX; i++) {
+		for (j = rbit; j < 16; j++) {
+			if (vht_mask[i] & BIT(j)) {
+				*rate_idx = (i << 4) | j;
+				return true;
+			}
+		}
+		rbit = 0;
+	}
+	return false;
+}
 
 static void rate_idx_match_mask(s8 *rate_idx, u16 *rate_flags,
 				struct ieee80211_supported_band *sband,
 				enum nl80211_chan_width chan_width,
 				u32 mask,
-				u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN])
+				u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN],
+				u16 vht_mask[NL80211_VHT_NSS_MAX])
 {
-	/* handle HT rates */
-	if (*rate_flags & IEEE80211_TX_RC_MCS) {
+	if (*rate_flags & IEEE80211_TX_RC_VHT_MCS) {
+		/* handle VHT rates */
+		if (rate_idx_match_vht_mcs_mask(rate_idx, vht_mask))
+			return;
+
+		*rate_idx = 0;
+		/* keep protection flags */
+		*rate_flags &= (IEEE80211_TX_RC_USE_RTS_CTS |
+				IEEE80211_TX_RC_USE_CTS_PROTECT |
+				IEEE80211_TX_RC_USE_SHORT_PREAMBLE);
+
+		*rate_flags |= IEEE80211_TX_RC_MCS;
+		if (chan_width == NL80211_CHAN_WIDTH_40)
+			*rate_flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+
+		if (rate_idx_match_mcs_mask(rate_idx, mcs_mask))
+			return;
+
+		/* also try the legacy rates. */
+		*rate_flags &= ~(IEEE80211_TX_RC_MCS |
+				 IEEE80211_TX_RC_40_MHZ_WIDTH);
+		if (rate_idx_match_legacy_mask(rate_idx, sband->n_bitrates,
+					       mask))
+			return;
+	} else if (*rate_flags & IEEE80211_TX_RC_MCS) {
+		/* handle HT rates */
 		if (rate_idx_match_mcs_mask(rate_idx, mcs_mask))
 			return;
 
@@ -436,7 +497,7 @@ static void rate_idx_match_mask(s8 *rate_idx, u16 *rate_flags,
 		if (rate_idx_match_legacy_mask(rate_idx, sband->n_bitrates,
 					       mask))
 			return;
-	} else if (!(*rate_flags & IEEE80211_TX_RC_VHT_MCS)) {
+	} else {
 		/* handle legacy rates */
 		if (rate_idx_match_legacy_mask(rate_idx, sband->n_bitrates,
 					       mask))
@@ -620,7 +681,8 @@ static void rate_control_fill_sta_table(struct ieee80211_sta *sta,
 static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_supported_band *sband,
 				  struct ieee80211_sta *sta, u32 *mask,
-				  u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN])
+				  u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN],
+				  u16 vht_mask[NL80211_VHT_NSS_MAX])
 {
 	u32 i, flags;
 
@@ -632,7 +694,8 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (*mask == (1 << sband->n_bitrates) - 1 &&
-	    !sdata->rc_has_mcs_mask[sband->band])
+	    !sdata->rc_has_mcs_mask[sband->band] &&
+	    !sdata->rc_has_vht_mcs_mask[sband->band])
 		return false;
 
 	if (sdata->rc_has_mcs_mask[sband->band])
@@ -641,11 +704,25 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 	else
 		memset(mcs_mask, 0xff, IEEE80211_HT_MCS_MASK_LEN);
 
+	if (sdata->rc_has_vht_mcs_mask[sband->band])
+		memcpy(vht_mask, sdata->rc_rateidx_vht_mcs_mask[sband->band],
+		       sizeof(u16) * NL80211_VHT_NSS_MAX);
+	else
+		memset(vht_mask, 0xff, sizeof(u16) * NL80211_VHT_NSS_MAX);
+
 	if (sta) {
+		__le16 sta_vht_cap;
+		u16 sta_vht_mask[NL80211_VHT_NSS_MAX];
+
 		/* Filter out rates that the STA does not support */
 		*mask &= sta->supp_rates[sband->band];
 		for (i = 0; i < sizeof(mcs_mask); i++)
 			mcs_mask[i] &= sta->ht_cap.mcs.rx_mask[i];
+
+		sta_vht_cap = sta->vht_cap.vht_mcs.rx_mcs_map;
+		ieee80211_get_vht_mask_from_cap(sta_vht_cap, sta_vht_mask);
+		for (i = 0; i < NL80211_VHT_NSS_MAX; i++)
+			vht_mask[i] &= sta_vht_mask[i];
 	}
 
 	return true;
@@ -659,10 +736,11 @@ rate_control_apply_mask_ratetbl(struct sta_info *sta,
 	int i;
 	u32 mask;
 	u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
+	u16 vht_mask[NL80211_VHT_NSS_MAX];
 	enum nl80211_chan_width chan_width;
 
 	if (!rate_control_cap_mask(sta->sdata, sband, &sta->sta, &mask,
-				   mcs_mask))
+				   mcs_mask, vht_mask))
 		return;
 
 	chan_width = sta->sdata->vif.bss_conf.chandef.width;
@@ -671,7 +749,8 @@ rate_control_apply_mask_ratetbl(struct sta_info *sta,
 			break;
 
 		rate_idx_match_mask(&rates->rate[i].idx, &rates->rate[i].flags,
-				    sband, chan_width, mask, mcs_mask);
+				    sband, chan_width, mask, mcs_mask,
+				    vht_mask);
 	}
 }
 
@@ -684,7 +763,7 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_chan_width chan_width;
 	u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
 	u32 mask;
-	u16 rate_flags;
+	u16 rate_flags, vht_mask[NL80211_VHT_NSS_MAX];
 	int i;
 
 	/*
@@ -692,7 +771,8 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 	 * default mask (allow all rates) is used to save some processing for
 	 * the common case.
 	 */
-	if (!rate_control_cap_mask(sdata, sband, sta, &mask, mcs_mask))
+	if (!rate_control_cap_mask(sdata, sband, sta, &mask, mcs_mask,
+				   vht_mask))
 		return;
 
 	/*
@@ -708,7 +788,7 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 
 		rate_flags = rates[i].flags;
 		rate_idx_match_mask(&rates[i].idx, &rate_flags, sband,
-				    chan_width, mask, mcs_mask);
+				    chan_width, mask, mcs_mask, vht_mask);
 		rates[i].flags = rate_flags;
 	}
 }
