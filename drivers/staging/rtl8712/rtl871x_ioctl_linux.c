@@ -203,14 +203,12 @@ static inline char *translate_scan(struct _adapter *padapter,
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	if ((r8712_is_cckratesonly_included(pnetwork->network.
-	     SupportedRates)) == true) {
+	if (r8712_is_cckratesonly_included(pnetwork->network.rates)) {
 		if (ht_cap == true)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
-	} else if ((r8712_is_cckrates_included(pnetwork->network.
-		    SupportedRates)) == true) {
+	} else if (r8712_is_cckrates_included(pnetwork->network.rates)) {
 		if (ht_cap == true)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
 		else
@@ -270,9 +268,9 @@ static inline char *translate_scan(struct _adapter *padapter,
 	iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = 0;
 	i = 0;
-	while (pnetwork->network.SupportedRates[i] != 0) {
+	while (pnetwork->network.rates[i] != 0) {
 		/* Bit rate given in 500 kb/s units */
-		iwe.u.bitrate.value = (pnetwork->network.SupportedRates[i++] &
+		iwe.u.bitrate.value = (pnetwork->network.rates[i++] &
 				      0x7F) * 500000;
 		current_val = iwe_stream_add_value(info, start, current_val,
 			      stop, &iwe, IW_EV_PARAM_LEN);
@@ -644,7 +642,7 @@ static int r8711_wx_get_name(struct net_device *dev,
 				 &ht_ielen, pcur_bss->IELength - 12);
 		if (p && ht_ielen > 0)
 			ht_cap = true;
-		prates = pcur_bss->SupportedRates;
+		prates = pcur_bss->rates;
 		if (r8712_is_cckratesonly_included(prates) == true) {
 			if (ht_cap == true)
 				snprintf(wrqu->name, IFNAMSIZ,
@@ -1444,9 +1442,9 @@ static int r8711_wx_get_rate(struct net_device *dev,
 				    (IEEE80211_HT_CAP_SGI_20 |
 				    IEEE80211_HT_CAP_SGI_40)) ? 1 : 0;
 		}
-		while ((pcur_bss->SupportedRates[i] != 0) &&
-			(pcur_bss->SupportedRates[i] != 0xFF)) {
-			rate = pcur_bss->SupportedRates[i] & 0x7F;
+		while ((pcur_bss->rates[i] != 0) &&
+			(pcur_bss->rates[i] != 0xFF)) {
+			rate = pcur_bss->rates[i] & 0x7F;
 			if (rate > max_rate)
 				max_rate = rate;
 			wrqu->bitrate.fixed = 0;	/* no auto select */

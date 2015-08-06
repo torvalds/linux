@@ -88,7 +88,7 @@ struct wlan_bssid_ex {
 	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
 	struct NDIS_802_11_CONFIGURATION  Configuration;
 	enum NDIS_802_11_NETWORK_INFRASTRUCTURE  InfrastructureMode;
-	u8 SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
+	u8 rates[NDIS_802_11_LENGTH_RATES_EX];
 	/* number of content bytes in EIs, which varies */
 	u32 IELength;
 	/*(timestamp, beacon interval, and capability information) */
