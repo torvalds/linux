@@ -1443,6 +1443,15 @@ mlxsw_pci_sdq_pick(struct mlxsw_pci *mlxsw_pci,
 	return mlxsw_pci_sdq_get(mlxsw_pci, sdqn);
 }
 
+static bool mlxsw_pci_skb_transmit_busy(void *bus_priv,
+					const struct mlxsw_tx_info *tx_info)
+{
+	struct mlxsw_pci *mlxsw_pci = bus_priv;
+	struct mlxsw_pci_queue *q = mlxsw_pci_sdq_pick(mlxsw_pci, tx_info);
+
+	return !mlxsw_pci_queue_elem_info_producer_get(q);
+}
+
 static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 				  const struct mlxsw_tx_info *tx_info)
 {
@@ -1625,11 +1634,12 @@ err_in_mbox_map:
 }
 
 static const struct mlxsw_bus mlxsw_pci_bus = {
-	.kind		= "pci",
-	.init		= mlxsw_pci_init,
-	.fini		= mlxsw_pci_fini,
-	.skb_transmit	= mlxsw_pci_skb_transmit,
-	.cmd_exec	= mlxsw_pci_cmd_exec,
+	.kind			= "pci",
+	.init			= mlxsw_pci_init,
+	.fini			= mlxsw_pci_fini,
+	.skb_transmit_busy	= mlxsw_pci_skb_transmit_busy,
+	.skb_transmit		= mlxsw_pci_skb_transmit,
+	.cmd_exec		= mlxsw_pci_cmd_exec,
 };
 
 static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci)

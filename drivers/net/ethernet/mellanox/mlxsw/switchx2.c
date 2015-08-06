@@ -300,31 +300,26 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 		.local_port = mlxsw_sx_port->local_port,
 		.is_emad = false,
 	};
-	struct sk_buff *skb_old = NULL;
 	int err;
 
-	if (unlikely(skb_headroom(skb) < MLXSW_TXHDR_LEN)) {
-		struct sk_buff *skb_new;
+	if (mlxsw_core_skb_transmit_busy(mlxsw_sx, &tx_info))
+		return NETDEV_TX_BUSY;
 
-		skb_old = skb;
-		skb_new = skb_realloc_headroom(skb, MLXSW_TXHDR_LEN);
-		if (!skb_new) {
+	if (unlikely(skb_headroom(skb) < MLXSW_TXHDR_LEN)) {
+		struct sk_buff *skb_orig = skb;
+
+		skb = skb_realloc_headroom(skb, MLXSW_TXHDR_LEN);
+		if (!skb) {
 			this_cpu_inc(mlxsw_sx_port->pcpu_stats->tx_dropped);
-			dev_kfree_skb_any(skb_old);
+			dev_kfree_skb_any(skb_orig);
 			return NETDEV_TX_OK;
 		}
-		skb = skb_new;
 	}
 	mlxsw_sx_txhdr_construct(skb, &tx_info);
+	/* Due to a race we might fail here because of a full queue. In that
+	 * unlikely case we simply drop the packet.
+	 */
 	err = mlxsw_core_skb_transmit(mlxsw_sx, skb, &tx_info);
-	if (err == -EAGAIN) {
-		if (skb_old)
-			dev_kfree_skb_any(skb);
-		return NETDEV_TX_BUSY;
-	}
-
-	if (skb_old)
-		dev_kfree_skb_any(skb_old);
 
 	if (!err) {
 		pcpu_stats = this_cpu_ptr(mlxsw_sx_port->pcpu_stats);
