@@ -32,11 +32,6 @@
 #define NDIS_802_11_LENGTH_RATES        8
 #define NDIS_802_11_LENGTH_RATES_EX     16
 
-/* Set of 8 data rates*/
-typedef unsigned char   NDIS_802_11_RATES[NDIS_802_11_LENGTH_RATES];
-/* Set of 16 data rates */
-typedef unsigned char   NDIS_802_11_RATES_EX[NDIS_802_11_LENGTH_RATES_EX];
-
 struct ndis_802_11_ssid {
 	u32 SsidLength;
 	u8  Ssid[32];
@@ -93,7 +88,7 @@ struct wlan_bssid_ex {
 	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
 	struct NDIS_802_11_CONFIGURATION  Configuration;
 	enum NDIS_802_11_NETWORK_INFRASTRUCTURE  InfrastructureMode;
-	NDIS_802_11_RATES_EX  SupportedRates;
+	u8 SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
 	/* number of content bytes in EIs, which varies */
 	u32 IELength;
 	/*(timestamp, beacon interval, and capability information) */

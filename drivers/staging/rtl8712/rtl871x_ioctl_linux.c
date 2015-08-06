@@ -203,13 +203,13 @@ static inline char *translate_scan(struct _adapter *padapter,
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	if ((r8712_is_cckratesonly_included((u8 *)&pnetwork->network.
+	if ((r8712_is_cckratesonly_included(pnetwork->network.
 	     SupportedRates)) == true) {
 		if (ht_cap == true)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bn");
 		else
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11b");
-	} else if ((r8712_is_cckrates_included((u8 *)&pnetwork->network.
+	} else if ((r8712_is_cckrates_included(pnetwork->network.
 		    SupportedRates)) == true) {
 		if (ht_cap == true)
 			snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11bgn");
@@ -635,7 +635,7 @@ static int r8711_wx_get_name(struct net_device *dev,
 	u8 ht_cap = false;
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
-	NDIS_802_11_RATES_EX *prates = NULL;
+	u8 *prates;
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE) ==
 	    true) {
@@ -644,15 +644,15 @@ static int r8711_wx_get_name(struct net_device *dev,
 				 &ht_ielen, pcur_bss->IELength - 12);
 		if (p && ht_ielen > 0)
 			ht_cap = true;
-		prates = &pcur_bss->SupportedRates;
-		if (r8712_is_cckratesonly_included((u8 *)prates) == true) {
+		prates = pcur_bss->SupportedRates;
+		if (r8712_is_cckratesonly_included(prates) == true) {
 			if (ht_cap == true)
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11bn");
 			else
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11b");
-		} else if ((r8712_is_cckrates_included((u8 *)prates)) == true) {
+		} else if ((r8712_is_cckrates_included(prates)) == true) {
 			if (ht_cap == true)
 				snprintf(wrqu->name, IFNAMSIZ,
 					 "IEEE 802.11bgn");
