@@ -174,7 +174,7 @@ static int mp_start_test(struct _adapter *padapter)
 	bssid.InfrastructureMode = Ndis802_11IBSS;
 	bssid.NetworkTypeInUse = Ndis802_11DS;
 	bssid.IELength = 0;
-	length = r8712_get_ndis_wlan_bssid_ex_sz(&bssid);
+	length = r8712_get_wlan_bssid_ex_sz(&bssid);
 	if (length % 4) {
 		/*round up to multiple of 4 bytes.*/
 		bssid.Length = ((length >> 2) + 1) << 2;

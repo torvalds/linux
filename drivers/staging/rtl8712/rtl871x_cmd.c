@@ -456,7 +456,7 @@ u8 r8712_createbss_cmd(struct _adapter *padapter)
 	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = _CreateBss_CMD_;
 	pcmd->parmbuf = (unsigned char *)pdev_network;
-	pcmd->cmdsz = r8712_get_ndis_wlan_bssid_ex_sz(pdev_network);
+	pcmd->cmdsz = r8712_get_wlan_bssid_ex_sz(pdev_network);
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 	/* notes: translate IELength & Length after assign to cmdsz; */
@@ -564,7 +564,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		memcpy(&psecuritypriv->supplicant_ie[1], &psecnetwork->IEs[0],
 			255);
 	/* get cmdsz before endian conversion */
-	pcmd->cmdsz = r8712_get_ndis_wlan_bssid_ex_sz(psecnetwork);
+	pcmd->cmdsz = r8712_get_wlan_bssid_ex_sz(psecnetwork);
 #ifdef __BIG_ENDIAN
 	/* wlan_network endian conversion */
 	psecnetwork->Length = cpu_to_le32(psecnetwork->Length);
@@ -946,11 +946,11 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 		} else
 			list_add_tail(&(pwlan->list),
 					 &pmlmepriv->scanned_queue.queue);
-		pnetwork->Length = r8712_get_ndis_wlan_bssid_ex_sz(pnetwork);
+		pnetwork->Length = r8712_get_wlan_bssid_ex_sz(pnetwork);
 		memcpy(&(pwlan->network), pnetwork, pnetwork->Length);
 		pwlan->fixed = true;
 		memcpy(&tgt_network->network, pnetwork,
-			(r8712_get_ndis_wlan_bssid_ex_sz(pnetwork)));
+			(r8712_get_wlan_bssid_ex_sz(pnetwork)));
 		if (pmlmepriv->fw_state & _FW_UNDER_LINKING)
 			pmlmepriv->fw_state ^= _FW_UNDER_LINKING;
 		/* we will set _FW_LINKED when there is one more sat to
