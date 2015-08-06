@@ -20,6 +20,7 @@
 #include "armada_hw.h"
 
 struct armada_frame_work {
+	struct armada_plane_work work;
 	struct drm_pending_vblank_event *event;
 	struct armada_regs regs[4];
 	struct drm_framebuffer *old_fb;
@@ -190,6 +191,41 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
 	return i;
 }
 
+static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
+	struct armada_plane *plane)
+{
+	struct armada_plane_work *work = xchg(&plane->work, NULL);
+
+	/* Handle any pending frame work. */
+	if (work) {
+		work->fn(dcrtc, plane, work);
+		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+	}
+}
+
+int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
+	struct armada_plane *plane, struct armada_plane_work *work)
+{
+	int ret;
+
+	ret = drm_vblank_get(dcrtc->crtc.dev, dcrtc->num);
+	if (ret) {
+		DRM_ERROR("failed to acquire vblank counter\n");
+		return ret;
+	}
+
+	ret = cmpxchg(&plane->work, NULL, work) ? -EBUSY : 0;
+	if (ret)
+		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+
+	return ret;
+}
+
+int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout)
+{
+	return wait_event_timeout(plane->frame_wait, !plane->work, timeout);
+}
+
 void armada_drm_vbl_event_add(struct armada_crtc *dcrtc,
 	struct armada_vbl_event *evt)
 {
@@ -233,44 +269,31 @@ static void armada_drm_vbl_event_run(struct armada_crtc *dcrtc)
 static int armada_drm_crtc_queue_frame_work(struct armada_crtc *dcrtc,
 	struct armada_frame_work *work)
 {
-	struct drm_device *dev = dcrtc->crtc.dev;
-	int ret;
+	struct armada_plane *plane = drm_to_armada_plane(dcrtc->crtc.primary);
 
-	ret = drm_vblank_get(dev, dcrtc->num);
-	if (ret) {
-		DRM_ERROR("failed to acquire vblank counter\n");
-		return ret;
-	}
-
-	if (cmpxchg(&dcrtc->frame_work, NULL, work)) {
-		drm_vblank_put(dev, dcrtc->num);
-		ret = -EBUSY;
-	}
-
-	return ret;
+	return armada_drm_plane_work_queue(dcrtc, plane, &work->work);
 }
 
 static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
-	struct armada_frame_work *work)
+	struct armada_plane *plane, struct armada_plane_work *work)
 {
+	struct armada_frame_work *fwork = container_of(work, struct armada_frame_work, work);
 	struct drm_device *dev = dcrtc->crtc.dev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	armada_drm_crtc_update_regs(dcrtc, work->regs);
+	armada_drm_crtc_update_regs(dcrtc, fwork->regs);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 
-	if (work->event) {
+	if (fwork->event) {
 		spin_lock_irqsave(&dev->event_lock, flags);
-		drm_send_vblank_event(dev, dcrtc->num, work->event);
+		drm_send_vblank_event(dev, dcrtc->num, fwork->event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
-	drm_vblank_put(dev, dcrtc->num);
-
 	/* Finally, queue the process-half of the cleanup. */
-	__armada_drm_queue_unref_work(dcrtc->crtc.dev, work->old_fb);
-	kfree(work);
+	__armada_drm_queue_unref_work(dcrtc->crtc.dev, fwork->old_fb);
+	kfree(fwork);
 }
 
 static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
@@ -290,6 +313,7 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
 	if (work) {
 		int i = 0;
+		work->work.fn = armada_drm_crtc_complete_frame_work;
 		work->event = NULL;
 		work->old_fb = fb;
 		armada_reg_queue_end(work->regs, i);
@@ -310,18 +334,14 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 
 static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 {
-	struct armada_frame_work *work;
+	struct armada_plane *plane = drm_to_armada_plane(dcrtc->crtc.primary);
 
 	/*
 	 * Tell the DRM core that vblank IRQs aren't going to happen for
 	 * a while.  This cleans up any pending vblank events for us.
 	 */
 	drm_crtc_vblank_off(&dcrtc->crtc);
-
-	/* Handle any pending flip event. */
-	work = xchg(&dcrtc->frame_work, NULL);
-	if (work)
-		armada_drm_crtc_complete_frame_work(dcrtc, work);
+	armada_drm_plane_work_run(dcrtc, plane);
 }
 
 void armada_drm_crtc_gamma_set(struct drm_crtc *crtc, u16 r, u16 g, u16 b,
@@ -450,12 +470,9 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 	spin_unlock(&dcrtc->irq_lock);
 
 	if (stat & GRA_FRAME_IRQ) {
-		struct armada_frame_work *work = xchg(&dcrtc->frame_work, NULL);
-
-		if (work)
-			armada_drm_crtc_complete_frame_work(dcrtc, work);
-
-		wake_up(&drm_to_armada_plane(dcrtc->crtc.primary)->frame_wait);
+		struct armada_plane *plane = drm_to_armada_plane(dcrtc->crtc.primary);
+		armada_drm_plane_work_run(dcrtc, plane);
+		wake_up(&plane->frame_wait);
 	}
 }
 
@@ -571,8 +588,8 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 		adj->crtc_vtotal, tm, bm);
 
 	/* Wait for pending flips to complete */
-	wait_event(drm_to_armada_plane(dcrtc->crtc.primary)->frame_wait,
-		   !dcrtc->frame_work);
+	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
+				   MAX_SCHEDULE_TIMEOUT);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -689,8 +706,8 @@ static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	armada_reg_queue_end(regs, i);
 
 	/* Wait for pending flips to complete */
-	wait_event(drm_to_armada_plane(dcrtc->crtc.primary)->frame_wait,
-		   !dcrtc->frame_work);
+	armada_drm_plane_work_wait(drm_to_armada_plane(dcrtc->crtc.primary),
+				   MAX_SCHEDULE_TIMEOUT);
 
 	/* Take a reference to the new fb as we're using it */
 	drm_framebuffer_reference(crtc->primary->fb);
@@ -1013,6 +1030,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	if (!work)
 		return -ENOMEM;
 
+	work->work.fn = armada_drm_crtc_complete_frame_work;
 	work->event = event;
 	work->old_fb = dcrtc->crtc.primary->fb;
 
@@ -1046,12 +1064,8 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	 * Finally, if the display is blanked, we won't receive an
 	 * interrupt, so complete it now.
 	 */
-	if (dpms_blanked(dcrtc->dpms)) {
-		struct armada_frame_work *work = xchg(&dcrtc->frame_work, NULL);
-
-		if (work)
-			armada_drm_crtc_complete_frame_work(dcrtc, work);
-	}
+	if (dpms_blanked(dcrtc->dpms))
+		armada_drm_plane_work_run(dcrtc, drm_to_armada_plane(dcrtc->crtc.primary));
 
 	return 0;
 }

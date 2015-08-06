@@ -31,16 +31,27 @@ struct armada_regs {
 #define armada_reg_queue_end(_r, _i)		\
 	armada_reg_queue_mod(_r, _i, 0, 0, ~0)
 
-struct armada_frame_work;
+struct armada_crtc;
+struct armada_plane;
 struct armada_variant;
+
+struct armada_plane_work {
+	void			(*fn)(struct armada_crtc *,
+				      struct armada_plane *,
+				      struct armada_plane_work *);
+};
 
 struct armada_plane {
 	struct drm_plane	base;
 	wait_queue_head_t	frame_wait;
+	struct armada_plane_work *work;
 };
 #define drm_to_armada_plane(p) container_of(p, struct armada_plane, base)
 
 int armada_drm_plane_init(struct armada_plane *plane);
+int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
+	struct armada_plane *plane, struct armada_plane_work *work);
+int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
 
 struct armada_crtc {
 	struct drm_crtc		crtc;
@@ -73,8 +84,6 @@ struct armada_crtc {
 	uint32_t		cfg_dumb_ctrl;
 	uint32_t		dumb_ctrl;
 	uint32_t		spu_iopad_ctrl;
-
-	struct armada_frame_work *frame_work;
 
 	spinlock_t		irq_lock;
 	uint32_t		irq_ena;
