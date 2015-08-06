@@ -141,11 +141,13 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 
 /*
  * cmpxchg of futex (pagefaults disabled by caller)
+ * Return 0 for success, -EFAULT otherwise
  */
 static inline int
 futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
 			      u32 newval)
 {
+	int ret = 0;
 	u32 existval;
 
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
@@ -155,18 +157,18 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
 
 	__asm__ __volatile__(
 #ifdef CONFIG_ARC_HAS_LLSC
-	"1:	llock	%0, [%3]		\n"
-	"	brne	%0, %1, 3f		\n"
-	"2:	scond	%2, [%3]		\n"
+	"1:	llock	%1, [%4]		\n"
+	"	brne	%1, %2, 3f		\n"
+	"2:	scond	%3, [%4]		\n"
 	"	bnz	1b			\n"
 #else
-	"1:	ld	%0, [%3]		\n"
-	"	brne	%0, %1, 3f		\n"
-	"2:	st	%2, [%3]		\n"
+	"1:	ld	%1, [%4]		\n"
+	"	brne	%1, %2, 3f		\n"
+	"2:	st	%3, [%4]		\n"
 #endif
 	"3:	\n"
 	"	.section .fixup,\"ax\"	\n"
-	"4:	mov %0, %4	\n"
+	"4:	mov %0, %5	\n"
 	"	b   3b	\n"
 	"	.previous	\n"
 	"	.section __ex_table,\"a\"	\n"
@@ -174,14 +176,14 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
 	"	.word   1b, 4b	\n"
 	"	.word   2b, 4b	\n"
 	"	.previous\n"
-	: "=&r"(existval)
+	: "+&r"(ret), "=&r"(existval)
 	: "r"(expval), "r"(newval), "r"(uaddr), "ir"(-EFAULT)
 	: "cc", "memory");
 
 	smp_mb();
 
 	*uval = existval;
-	return existval;
+	return ret;
 }
 
 #endif
