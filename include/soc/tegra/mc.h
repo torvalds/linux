@@ -61,6 +61,7 @@ struct tegra_smmu_soc {
 	bool supports_round_robin_arbitration;
 	bool supports_request_limit;
 
+	unsigned int num_tlb_lines;
 	unsigned int num_asids;
 };
 
