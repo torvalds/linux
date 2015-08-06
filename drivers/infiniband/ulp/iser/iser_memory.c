@@ -554,6 +554,10 @@ int iser_fast_reg_fmr(struct iscsi_iser_task *iser_task,
 	reg->sge.length = page_vec->data_size;
 	reg->mem_h = fmr;
 
+	iser_dbg("fmr reg: lkey=0x%x, rkey=0x%x, addr=0x%llx,"
+		 " length=0x%x\n", reg->sge.lkey, reg->rkey,
+		 reg->sge.addr, reg->sge.length);
+
 	return 0;
 }
 
@@ -724,7 +728,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	sig_reg->sge.addr = 0;
 	sig_reg->sge.length = scsi_transfer_length(iser_task->sc);
 
-	iser_dbg("sig_sge: lkey: 0x%x, rkey: 0x%x, addr: 0x%llx, length: %u\n",
+	iser_dbg("sig reg: lkey: 0x%x, rkey: 0x%x, addr: 0x%llx, length: %u\n",
 		 sig_reg->sge.lkey, sig_reg->rkey, sig_reg->sge.addr,
 		 sig_reg->sge.length);
 err:
@@ -786,6 +790,10 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 	reg->rkey = mr->rkey;
 	reg->sge.addr = frpl->page_list[0] + offset;
 	reg->sge.length = size;
+
+	iser_dbg("fast reg: lkey=0x%x, rkey=0x%x, addr=0x%llx,"
+		 " length=0x%x\n", reg->sge.lkey, reg->rkey,
+		 reg->sge.addr, reg->sge.length);
 
 	return ret;
 }
