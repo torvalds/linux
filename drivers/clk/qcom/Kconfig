@@ -7,6 +7,7 @@ config COMMON_CLK_QCOM
 
 config APQ_GCC_8084
 	tristate "APQ8084 Global Clock Controller"
+	select QCOM_GDSC
 	depends on COMMON_CLK_QCOM
 	help
 	  Support for the global clock controller on apq8084 devices.
