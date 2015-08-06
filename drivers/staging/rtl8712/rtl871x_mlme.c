@@ -210,17 +210,7 @@ void r8712_generate_random_ibss(u8 *pibss)
 
 uint r8712_get_ndis_wlan_bssid_ex_sz(struct ndis_wlan_bssid_ex *bss)
 {
-	uint t_len;
-
-	t_len = sizeof(u32) + 6 * sizeof(unsigned long) + 2 +
-			sizeof(struct ndis_802_11_ssid) + sizeof(u32) +
-			sizeof(s32) +
-			sizeof(enum NDIS_802_11_NETWORK_TYPE) +
-			sizeof(struct NDIS_802_11_CONFIGURATION) +
-			sizeof(enum NDIS_802_11_NETWORK_INFRASTRUCTURE) +
-			sizeof(NDIS_802_11_RATES_EX) +
-			sizeof(u32) + bss->IELength;
-	return t_len;
+	return sizeof(*bss) + bss->IELength - MAX_IE_SZ;
 }
 
 u8 *r8712_get_capability_from_ie(u8 *ie)
