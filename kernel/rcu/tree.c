@@ -1746,7 +1746,7 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 		trace_rcu_grace_period(rsp->name, rdp->gpnum, TPS("cpustart"));
 		rdp->passed_quiesce = 0;
 		rdp->rcu_qs_ctr_snap = __this_cpu_read(rcu_qs_ctr);
-		rdp->qs_pending = !!(rnp->qsmask & rdp->grpmask);
+		rdp->core_needs_qs = !!(rnp->qsmask & rdp->grpmask);
 		zero_cpu_stall_ticks(rdp);
 		WRITE_ONCE(rdp->gpwrap, false);
 	}
@@ -2357,7 +2357,7 @@ rcu_report_qs_rdp(int cpu, struct rcu_state *rsp, struct rcu_data *rdp)
 	if ((rnp->qsmask & mask) == 0) {
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	} else {
-		rdp->qs_pending = 0;
+		rdp->core_needs_qs = 0;
 
 		/*
 		 * This GP can't end until cpu checks in, so all of our
@@ -2388,7 +2388,7 @@ rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
 	 * Does this CPU still need to do its part for current grace period?
 	 * If no, return and let the other CPUs do their part as well.
 	 */
-	if (!rdp->qs_pending)
+	if (!rdp->core_needs_qs)
 		return;
 
 	/*
@@ -3828,10 +3828,10 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
 	if (rcu_scheduler_fully_active &&
-	    rdp->qs_pending && !rdp->passed_quiesce &&
+	    rdp->core_needs_qs && !rdp->passed_quiesce &&
 	    rdp->rcu_qs_ctr_snap == __this_cpu_read(rcu_qs_ctr)) {
-		rdp->n_rp_qs_pending++;
-	} else if (rdp->qs_pending &&
+		rdp->n_rp_core_needs_qs++;
+	} else if (rdp->core_needs_qs &&
 		   (rdp->passed_quiesce ||
 		    rdp->rcu_qs_ctr_snap != __this_cpu_read(rcu_qs_ctr))) {
 		rdp->n_rp_report_qs++;
@@ -4157,7 +4157,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->completed = rnp->completed;
 	rdp->passed_quiesce = false;
 	rdp->rcu_qs_ctr_snap = per_cpu(rcu_qs_ctr, cpu);
-	rdp->qs_pending = false;
+	rdp->core_needs_qs = false;
 	trace_rcu_grace_period(rsp->name, rdp->gpnum, TPS("cpuonl"));
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }

@@ -123,7 +123,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
 		   rdp->passed_quiesce,
 		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
-		   rdp->qs_pending);
+		   rdp->core_needs_qs);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
 		   atomic_read(&rdp->dynticks->dynticks),
 		   rdp->dynticks->dynticks_nesting,
@@ -361,7 +361,7 @@ static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   rdp->n_rcu_pending);
 	seq_printf(m, "qsp=%ld rpq=%ld cbr=%ld cng=%ld ",
-		   rdp->n_rp_qs_pending,
+		   rdp->n_rp_core_needs_qs,
 		   rdp->n_rp_report_qs,
 		   rdp->n_rp_cb_ready,
 		   rdp->n_rp_cpu_needs_gp);
