@@ -34,6 +34,9 @@
 #define EN_FEW_WAIT_VAL		(0x8 << 16)
 #define CLK_DIS_WAIT_VAL	(0x2 << 12)
 
+#define RETAIN_MEM		BIT(14)
+#define RETAIN_PERIPH		BIT(13)
+
 #define TIMEOUT_US		100
 
 #define domain_to_gdsc(domain) container_of(domain, struct gdsc, pd)
@@ -81,6 +84,24 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	return -ETIMEDOUT;
 }
 
+static inline void gdsc_force_mem_on(struct gdsc *sc)
+{
+	int i;
+	u32 mask = RETAIN_MEM | RETAIN_PERIPH;
+
+	for (i = 0; i < sc->cxc_count; i++)
+		regmap_update_bits(sc->regmap, sc->cxcs[i], mask, mask);
+}
+
+static inline void gdsc_clear_mem_on(struct gdsc *sc)
+{
+	int i;
+	u32 mask = RETAIN_MEM | RETAIN_PERIPH;
+
+	for (i = 0; i < sc->cxc_count; i++)
+		regmap_update_bits(sc->regmap, sc->cxcs[i], mask, 0);
+}
+
 static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
@@ -89,6 +110,10 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	ret = gdsc_toggle_logic(sc, true);
 	if (ret)
 		return ret;
+
+	if (sc->pwrsts & PWRSTS_OFF)
+		gdsc_force_mem_on(sc);
+
 	/*
 	 * If clocks to this power domain were already on, they will take an
 	 * additional 4 clock cycles to re-enable after the power domain is
@@ -104,6 +129,9 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 static int gdsc_disable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
+
+	if (sc->pwrsts & PWRSTS_OFF)
+		gdsc_clear_mem_on(sc);
 
 	return gdsc_toggle_logic(sc, false);
 }
@@ -128,6 +156,11 @@ static int gdsc_init(struct gdsc *sc)
 	on = gdsc_is_enabled(sc);
 	if (on < 0)
 		return on;
+
+	if (on || (sc->pwrsts & PWRSTS_RET))
+		gdsc_force_mem_on(sc);
+	else
+		gdsc_clear_mem_on(sc);
 
 	sc->pd.power_off = gdsc_disable;
 	sc->pd.power_on = gdsc_enable;

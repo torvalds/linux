@@ -19,16 +19,29 @@
 
 struct regmap;
 
+/* Powerdomain allowable state bitfields */
+#define PWRSTS_OFF		BIT(0)
+#define PWRSTS_RET		BIT(1)
+#define PWRSTS_ON		BIT(2)
+#define PWRSTS_OFF_ON		(PWRSTS_OFF | PWRSTS_ON)
+#define PWRSTS_RET_ON		(PWRSTS_RET | PWRSTS_ON)
+
 /**
  * struct gdsc - Globally Distributed Switch Controller
  * @pd: generic power domain
  * @regmap: regmap for MMIO accesses
  * @gdscr: gsdc control register
+ * @cxcs: offsets of branch registers to toggle mem/periph bits in
+ * @cxc_count: number of @cxcs
+ * @pwrsts: Possible powerdomain power states
  */
 struct gdsc {
 	struct generic_pm_domain	pd;
 	struct regmap			*regmap;
 	unsigned int			gdscr;
+	unsigned int			*cxcs;
+	unsigned int			cxc_count;
+	const u8			pwrsts;
 };
 
 #ifdef CONFIG_QCOM_GDSC
