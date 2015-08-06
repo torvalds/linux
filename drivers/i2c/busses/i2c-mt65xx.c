@@ -557,15 +557,22 @@ static irqreturn_t mtk_i2c_irq(int irqno, void *dev_id)
 {
 	struct mtk_i2c *i2c = dev_id;
 	u16 restart_flag = 0;
+	u16 intr_stat;
 
 	if (i2c->dev_comp->auto_restart)
 		restart_flag = I2C_RS_TRANSFER;
 
-	i2c->irq_stat = readw(i2c->base + OFFSET_INTR_STAT);
-	writew(restart_flag | I2C_HS_NACKERR | I2C_ACKERR
-		| I2C_TRANSAC_COMP, i2c->base + OFFSET_INTR_STAT);
+	intr_stat = readw(i2c->base + OFFSET_INTR_STAT);
+	writew(intr_stat, i2c->base + OFFSET_INTR_STAT);
 
-	complete(&i2c->msg_complete);
+	/*
+	 * when occurs ack error, i2c controller generate two interrupts
+	 * first is the ack error interrupt, then the complete interrupt
+	 * i2c->irq_stat need keep the two interrupt value.
+	 */
+	i2c->irq_stat |= intr_stat;
+	if (i2c->irq_stat & (I2C_TRANSAC_COMP | restart_flag))
+		complete(&i2c->msg_complete);
 
 	return IRQ_HANDLED;
 }
