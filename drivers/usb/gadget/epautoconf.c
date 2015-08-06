@@ -22,18 +22,6 @@
 
 #include "gadget_chips.h"
 
-static struct usb_ep *
-find_ep (struct usb_gadget *gadget, const char *name)
-{
-	struct usb_ep	*ep;
-
-	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
-		if (0 == strcmp (ep->name, name))
-			return ep;
-	}
-	return NULL;
-}
-
 /**
  * usb_ep_autoconfig_ss() - choose an endpoint matching the ep
  * descriptor and ep companion descriptor
@@ -103,11 +91,11 @@ struct usb_ep *usb_ep_autoconfig_ss(
 
 		if (type == USB_ENDPOINT_XFER_INT) {
 			/* ep-e, ep-f are PIO with only 64 byte fifos */
-			ep = find_ep(gadget, "ep-e");
+			ep = gadget_find_ep_by_name(gadget, "ep-e");
 			if (ep && usb_gadget_ep_match_desc(gadget,
 					ep, desc, ep_comp))
 				goto found_ep;
-			ep = find_ep(gadget, "ep-f");
+			ep = gadget_find_ep_by_name(gadget, "ep-f");
 			if (ep && usb_gadget_ep_match_desc(gadget,
 					ep, desc, ep_comp))
 				goto found_ep;
@@ -116,20 +104,20 @@ struct usb_ep *usb_ep_autoconfig_ss(
 		/* USB3380: use same address for usb and hardware endpoints */
 		snprintf(name, sizeof(name), "ep%d%s", usb_endpoint_num(desc),
 				usb_endpoint_dir_in(desc) ? "in" : "out");
-		ep = find_ep(gadget, name);
+		ep = gadget_find_ep_by_name(gadget, name);
 		if (ep && usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp))
 			goto found_ep;
 	} else if (gadget_is_goku (gadget)) {
 		if (USB_ENDPOINT_XFER_INT == type) {
 			/* single buffering is enough */
-			ep = find_ep(gadget, "ep3-bulk");
+			ep = gadget_find_ep_by_name(gadget, "ep3-bulk");
 			if (ep && usb_gadget_ep_match_desc(gadget,
 					ep, desc, ep_comp))
 				goto found_ep;
 		} else if (USB_ENDPOINT_XFER_BULK == type
 				&& (USB_DIR_IN & desc->bEndpointAddress)) {
 			/* DMA may be available */
-			ep = find_ep(gadget, "ep2-bulk");
+			ep = gadget_find_ep_by_name(gadget, "ep2-bulk");
 			if (ep && usb_gadget_ep_match_desc(gadget,
 					ep, desc, ep_comp))
 				goto found_ep;
@@ -140,14 +128,14 @@ struct usb_ep *usb_ep_autoconfig_ss(
 		if ((USB_ENDPOINT_XFER_BULK == type) ||
 		    (USB_ENDPOINT_XFER_ISOC == type)) {
 			if (USB_DIR_IN & desc->bEndpointAddress)
-				ep = find_ep (gadget, "ep5in");
+				ep = gadget_find_ep_by_name(gadget, "ep5in");
 			else
-				ep = find_ep (gadget, "ep6out");
+				ep = gadget_find_ep_by_name(gadget, "ep6out");
 		} else if (USB_ENDPOINT_XFER_INT == type) {
 			if (USB_DIR_IN & desc->bEndpointAddress)
-				ep = find_ep(gadget, "ep1in");
+				ep = gadget_find_ep_by_name(gadget, "ep1in");
 			else
-				ep = find_ep(gadget, "ep2out");
+				ep = gadget_find_ep_by_name(gadget, "ep2out");
 		} else
 			ep = NULL;
 		if (ep && usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp))

@@ -639,7 +639,6 @@ static inline struct usb_gadget *dev_to_usb_gadget(struct device *dev)
 #define gadget_for_each_ep(tmp, gadget) \
 	list_for_each_entry(tmp, &(gadget)->ep_list, ep_list)
 
-
 /**
  * usb_ep_align_maybe - returns @len aligned to ep's maxpacketsize if gadget
  *	requires quirk_ep_out_aligned_size, otherwise reguens len.
@@ -1201,6 +1200,13 @@ extern void usb_gadget_udc_reset(struct usb_gadget *gadget,
 
 extern void usb_gadget_giveback_request(struct usb_ep *ep,
 		struct usb_request *req);
+
+/*-------------------------------------------------------------------------*/
+
+/* utility to find endpoint by name */
+
+extern struct usb_ep *gadget_find_ep_by_name(struct usb_gadget *g,
+		const char *name);
 
 /*-------------------------------------------------------------------------*/
 

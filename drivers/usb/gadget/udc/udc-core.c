@@ -131,6 +131,27 @@ EXPORT_SYMBOL_GPL(usb_gadget_giveback_request);
 
 /* ------------------------------------------------------------------------- */
 
+/**
+ * gadget_find_ep_by_name - returns ep whose name is the same as sting passed
+ *	in second parameter or NULL if searched endpoint not found
+ * @g: controller to check for quirk
+ * @name: name of searched endpoint
+ */
+struct usb_ep *gadget_find_ep_by_name(struct usb_gadget *g, const char *name)
+{
+	struct usb_ep *ep;
+
+	gadget_for_each_ep(ep, g) {
+		if (!strcmp(ep->name, name))
+			return ep;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(gadget_find_ep_by_name);
+
+/* ------------------------------------------------------------------------- */
+
 int usb_gadget_ep_match_desc(struct usb_gadget *gadget,
 		struct usb_ep *ep, struct usb_endpoint_descriptor *desc,
 		struct usb_ss_ep_comp_descriptor *ep_comp)
