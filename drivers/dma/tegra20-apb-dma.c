@@ -187,7 +187,7 @@ struct tegra_dma_channel {
 	bool			config_init;
 	int			id;
 	int			irq;
-	unsigned long		chan_base_offset;
+	void __iomem		*chan_addr;
 	spinlock_t		lock;
 	bool			busy;
 	struct tegra_dma	*tdma;
@@ -239,12 +239,12 @@ static inline u32 tdma_read(struct tegra_dma *tdma, u32 reg)
 static inline void tdc_write(struct tegra_dma_channel *tdc,
 		u32 reg, u32 val)
 {
-	writel(val, tdc->tdma->base_addr + tdc->chan_base_offset + reg);
+	writel(val, tdc->chan_addr + reg);
 }
 
 static inline u32 tdc_read(struct tegra_dma_channel *tdc, u32 reg)
 {
-	return readl(tdc->tdma->base_addr + tdc->chan_base_offset + reg);
+	return readl(tdc->chan_addr + reg);
 }
 
 static inline struct tegra_dma_channel *to_tegra_dma_chan(struct dma_chan *dc)
@@ -1373,8 +1373,9 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < cdata->nr_channels; i++) {
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
 
-		tdc->chan_base_offset = TEGRA_APBDMA_CHANNEL_BASE_ADD_OFFSET +
-					i * cdata->channel_reg_size;
+		tdc->chan_addr = tdma->base_addr +
+				 TEGRA_APBDMA_CHANNEL_BASE_ADD_OFFSET +
+				 (i * cdata->channel_reg_size);
 
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		if (!res) {
