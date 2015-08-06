@@ -6372,10 +6372,6 @@ static void intel_connector_check_state(struct intel_connector *connector)
 			      connector->base.base.id,
 			      connector->base.name);
 
-		/* there is no real hw state for MST connectors */
-		if (connector->mst_port)
-			return;
-
 		I915_STATE_WARN(connector->base.dpms == DRM_MODE_DPMS_OFF,
 		     "wrong connector dpms state\n");
 		I915_STATE_WARN(connector->base.encoder != &encoder->base,
@@ -12748,13 +12744,6 @@ check_encoder_state(struct drm_device *dev)
 					encoder->base.crtc,
 			     "connector's crtc doesn't match encoder crtc\n");
 		}
-		/*
-		 * for MST connectors if we unplug the connector is gone
-		 * away but the encoder is still connected to a crtc
-		 * until a modeset happens in response to the hotplug.
-		 */
-		if (!enabled && encoder->base.encoder_type == DRM_MODE_ENCODER_DPMST)
-			continue;
 
 		I915_STATE_WARN(!!encoder->base.crtc != enabled,
 		     "encoder's enabled state mismatch "
