@@ -265,11 +265,11 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp,
  */
 static void rcu_preempt_qs(void)
 {
-	if (!__this_cpu_read(rcu_data_p->passed_quiesce)) {
+	if (__this_cpu_read(rcu_data_p->cpu_no_qs)) {
 		trace_rcu_grace_period(TPS("rcu_preempt"),
 				       __this_cpu_read(rcu_data_p->gpnum),
 				       TPS("cpuqs"));
-		__this_cpu_write(rcu_data_p->passed_quiesce, 1);
+		__this_cpu_write(rcu_data_p->cpu_no_qs, false);
 		barrier(); /* Coordinate with rcu_preempt_check_callbacks(). */
 		current->rcu_read_unlock_special.b.need_qs = false;
 	}
@@ -620,7 +620,7 @@ static void rcu_preempt_check_callbacks(void)
 	}
 	if (t->rcu_read_lock_nesting > 0 &&
 	    __this_cpu_read(rcu_data_p->core_needs_qs) &&
-	    !__this_cpu_read(rcu_data_p->passed_quiesce))
+	    __this_cpu_read(rcu_data_p->cpu_no_qs))
 		t->rcu_read_unlock_special.b.need_qs = true;
 }
 

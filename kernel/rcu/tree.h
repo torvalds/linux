@@ -302,7 +302,7 @@ struct rcu_data {
 					/*  is aware of having started. */
 	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
 					/*  for rcu_all_qs() invocations. */
-	bool		passed_quiesce;	/* User-mode/idle loop etc. */
+	bool		cpu_no_qs;	/* No QS yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
 	bool		gpwrap;		/* Possible gpnum/completed wrap. */
