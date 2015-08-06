@@ -497,6 +497,9 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 		status_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
 				(read_pointer % 6) * 8 + 4);
 
+		if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
+			continue;
+
 		if (status & GEN8_CTX_STATUS_PREEMPTED) {
 			if (status & GEN8_CTX_STATUS_LITE_RESTORE) {
 				if (execlists_check_remove_request(ring, status_id))
