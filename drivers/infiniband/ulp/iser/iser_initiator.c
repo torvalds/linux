@@ -170,13 +170,7 @@ static void iser_create_send_desc(struct iser_conn	*iser_conn,
 
 	memset(&tx_desc->iser_header, 0, sizeof(struct iser_hdr));
 	tx_desc->iser_header.flags = ISER_VER;
-
 	tx_desc->num_sge = 1;
-
-	if (tx_desc->tx_sg[0].lkey != device->mr->lkey) {
-		tx_desc->tx_sg[0].lkey = device->mr->lkey;
-		iser_dbg("sdesc %p lkey mismatch, fixing\n", tx_desc);
-	}
 }
 
 static void iser_free_login_buf(struct iser_conn *iser_conn)
