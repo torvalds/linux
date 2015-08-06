@@ -333,6 +333,8 @@ struct iser_comp {
  * @free_reg_res:      Free registration resources
  * @reg_rdma_mem:      Register memory buffers
  * @unreg_rdma_mem:    Un-register memory buffers
+ * @reg_desc_get:      Get a registration descriptor for pool
+ * @reg_desc_put:      Get a registration descriptor to pool
  */
 struct iser_reg_ops {
 	int            (*alloc_reg_res)(struct ib_conn *ib_conn,
@@ -342,6 +344,9 @@ struct iser_reg_ops {
 				       enum iser_data_dir cmd_dir);
 	void           (*unreg_rdma_mem)(struct iscsi_iser_task *iser_task,
 					 enum iser_data_dir cmd_dir);
+	struct iser_fr_desc * (*reg_desc_get)(struct ib_conn *ib_conn);
+	void           (*reg_desc_put)(struct ib_conn *ib_conn,
+				       struct iser_fr_desc *desc);
 };
 
 /**
@@ -657,8 +662,13 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn);
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector);
 struct iser_fr_desc *
-iser_reg_desc_get(struct ib_conn *ib_conn);
+iser_reg_desc_get_fr(struct ib_conn *ib_conn);
 void
-iser_reg_desc_put(struct ib_conn *ib_conn,
-		  struct iser_fr_desc *desc);
+iser_reg_desc_put_fr(struct ib_conn *ib_conn,
+		     struct iser_fr_desc *desc);
+struct iser_fr_desc *
+iser_reg_desc_get_fmr(struct ib_conn *ib_conn);
+void
+iser_reg_desc_put_fmr(struct ib_conn *ib_conn,
+		      struct iser_fr_desc *desc);
 #endif
