@@ -1267,13 +1267,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	return 0;
 }
 
-static int nfs_ctime_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
-{
-	if (!(fattr->valid & NFS_ATTR_FATTR_CTIME))
-		return 0;
-	return timespec_compare(&fattr->ctime, &inode->i_ctime) > 0;
-}
-
 static atomic_long_t nfs_attr_generation_counter;
 
 static unsigned long nfs_read_attr_generation_counter(void)
@@ -1422,7 +1415,6 @@ static int nfs_inode_attrs_need_update(const struct inode *inode, const struct n
 	const struct nfs_inode *nfsi = NFS_I(inode);
 
 	return ((long)fattr->gencount - (long)nfsi->attr_gencount) > 0 ||
-		nfs_ctime_need_update(inode, fattr) ||
 		((long)nfsi->attr_gencount - (long)nfs_read_attr_generation_counter() > 0);
 }
 
