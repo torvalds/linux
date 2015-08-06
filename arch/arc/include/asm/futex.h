@@ -87,6 +87,9 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_disable();	/* to guarantee atomic r-m-w of futex op */
+#endif
 	pagefault_disable();
 
 	switch (op) {
@@ -111,6 +114,9 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	}
 
 	pagefault_enable();
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_enable();
+#endif
 
 	if (!ret) {
 		switch (cmp) {
@@ -153,6 +159,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_disable();	/* to guarantee atomic r-m-w of futex op */
+#endif
 	smp_mb();
 
 	__asm__ __volatile__(
@@ -182,6 +191,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
 
 	smp_mb();
 
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_enable();
+#endif
 	*uval = existval;
 	return ret;
 }
