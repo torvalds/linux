@@ -201,14 +201,15 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 }
 
 struct iwl_rx_handlers {
-	u8 cmd_id;
+	u16 cmd_id;
 	bool async;
-	int (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-		  struct iwl_device_cmd *cmd);
+	void (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 };
 
 #define RX_HANDLER(_cmd_id, _fn, _async)	\
 	{ .cmd_id = _cmd_id , .fn = _fn , .async = _async }
+#define RX_HANDLER_GRP(_grp, _cmd, _fn, _async)	\
+	{ .cmd_id = WIDE_ID(_grp, _cmd), .fn = _fn, .async = _async }
 
 /*
  * Handlers for fw notifications
@@ -221,7 +222,6 @@ struct iwl_rx_handlers {
  * called from a worker with mvm->mutex held.
  */
 static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
-	RX_HANDLER(REPLY_RX_MPDU_CMD, iwl_mvm_rx_rx_mpdu, false),
 	RX_HANDLER(REPLY_RX_PHY_CMD, iwl_mvm_rx_rx_phy_cmd, false),
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, false),
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, false),
@@ -261,9 +261,11 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(TDLS_CHANNEL_SWITCH_NOTIFICATION, iwl_mvm_rx_tdls_notif,
 		   true),
 	RX_HANDLER(MFUART_LOAD_NOTIFICATION, iwl_mvm_rx_mfuart_notif, false),
+	RX_HANDLER(TOF_NOTIFICATION, iwl_mvm_tof_resp_handler, true),
 
 };
 #undef RX_HANDLER
+#undef RX_HANDLER_GRP
 #define CMD(x) [x] = #x
 
 static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
@@ -470,6 +472,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 	trans_cfg.rx_buf_size_8k = iwlwifi_mod_params.amsdu_size_8K;
+	trans_cfg.wide_cmd_header = fw_has_api(&mvm->fw->ucode_capa,
+					       IWL_UCODE_TLV_API_WIDE_CMD_HDR);
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DW_BC_TABLE)
 		trans_cfg.bc_table_dword = true;
@@ -576,6 +580,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	/* rpm starts with a taken ref. only set the appropriate bit here. */
 	mvm->refs[IWL_MVM_REF_UCODE_DOWN] = 1;
 
+	iwl_mvm_tof_init(mvm);
+
 	return op_mode;
 
  out_unregister:
@@ -623,14 +629,15 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
 
+	iwl_mvm_tof_clean(mvm);
+
 	ieee80211_free_hw(mvm->hw);
 }
 
 struct iwl_async_handler_entry {
 	struct list_head list;
 	struct iwl_rx_cmd_buffer rxb;
-	int (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-		  struct iwl_device_cmd *cmd);
+	void (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 };
 
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm)
@@ -667,9 +674,7 @@ static void iwl_mvm_async_handlers_wk(struct work_struct *wk)
 	spin_unlock_bh(&mvm->async_handlers_lock);
 
 	list_for_each_entry_safe(entry, tmp, &local_list, list) {
-		if (entry->fn(mvm, &entry->rxb, NULL))
-			IWL_WARN(mvm,
-				 "returned value from ASYNC handlers are ignored\n");
+		entry->fn(mvm, &entry->rxb);
 		iwl_free_rxb(&entry->rxb);
 		list_del(&entry->list);
 		kfree(entry);
@@ -698,23 +703,28 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 		if (!cmds_trig->cmds[i].cmd_id)
 			break;
 
-		if (cmds_trig->cmds[i].cmd_id != pkt->hdr.cmd)
+		if (cmds_trig->cmds[i].cmd_id != pkt->hdr.cmd ||
+		    cmds_trig->cmds[i].group_id != pkt->hdr.group_id)
 			continue;
 
 		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-					    "CMD 0x%02x received",
-					    pkt->hdr.cmd);
+					    "CMD 0x%02x.%02x received",
+					    pkt->hdr.group_id, pkt->hdr.cmd);
 		break;
 	}
 }
 
-static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
-			       struct iwl_rx_cmd_buffer *rxb,
-			       struct iwl_device_cmd *cmd)
+static void iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
+				struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u8 i;
+
+	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD)) {
+		iwl_mvm_rx_rx_mpdu(mvm, rxb);
+		return;
+	}
 
 	iwl_mvm_rx_check_trigger(mvm, pkt);
 
@@ -729,16 +739,18 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 		const struct iwl_rx_handlers *rx_h = &iwl_mvm_rx_handlers[i];
 		struct iwl_async_handler_entry *entry;
 
-		if (rx_h->cmd_id != pkt->hdr.cmd)
+		if (rx_h->cmd_id != WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd))
 			continue;
 
-		if (!rx_h->async)
-			return rx_h->fn(mvm, rxb, cmd);
+		if (!rx_h->async) {
+			rx_h->fn(mvm, rxb);
+			return;
+		}
 
 		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 		/* we can't do much... */
 		if (!entry)
-			return 0;
+			return;
 
 		entry->rxb._page = rxb_steal_page(rxb);
 		entry->rxb._offset = rxb->_offset;
@@ -750,8 +762,6 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 		schedule_work(&mvm->async_handlers_wk);
 		break;
 	}
-
-	return 0;
 }
 
 static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)

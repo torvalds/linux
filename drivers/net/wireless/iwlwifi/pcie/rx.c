@@ -583,10 +583,9 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 	while (offset + sizeof(u32) + sizeof(struct iwl_cmd_header) < max_len) {
 		struct iwl_rx_packet *pkt;
-		struct iwl_device_cmd *cmd;
 		u16 sequence;
 		bool reclaim;
-		int index, cmd_index, err, len;
+		int index, cmd_index, len;
 		struct iwl_rx_cmd_buffer rxcb = {
 			._offset = offset,
 			._rx_page_order = trans_pcie->rx_page_order,
@@ -634,12 +633,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		if (reclaim)
-			cmd = txq->entries[cmd_index].cmd;
-		else
-			cmd = NULL;
-
-		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
+		iwl_op_mode_rx(trans->op_mode, &rxcb);
 
 		if (reclaim) {
 			kzfree(txq->entries[cmd_index].free_buf);
@@ -657,7 +651,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (!rxcb._page_stolen)
-				iwl_pcie_hcmd_complete(trans, &rxcb, err);
+				iwl_pcie_hcmd_complete(trans, &rxcb);
 			else
 				IWL_WARN(trans, "Claim null rxb?\n");
 		}
@@ -772,6 +766,7 @@ restart:
 static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int i;
 
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
 	if (trans->cfg->internal_wimax_coex &&
@@ -794,6 +789,9 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	 * before we wake up the command caller, to ensure a proper cleanup. */
 	iwl_trans_fw_error(trans);
 	local_bh_enable();
+
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
+		del_timer(&trans_pcie->txq[i].stuck_timer);
 
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans_pcie->wait_command_queue);
@@ -1003,7 +1001,9 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 		isr_stats->rfkill++;
 
+		mutex_lock(&trans_pcie->mutex);
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
 			set_bit(STATUS_RFKILL, &trans->status);
 			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
@@ -1195,8 +1195,9 @@ void iwl_pcie_reset_ict(struct iwl_trans *trans)
 
 	val = trans_pcie->ict_tbl_dma >> ICT_SHIFT;
 
-	val |= CSR_DRAM_INT_TBL_ENABLE;
-	val |= CSR_DRAM_INIT_TBL_WRAP_CHECK;
+	val |= CSR_DRAM_INT_TBL_ENABLE |
+	       CSR_DRAM_INIT_TBL_WRAP_CHECK |
+	       CSR_DRAM_INIT_TBL_WRITE_POINTER;
 
 	IWL_DEBUG_ISR(trans, "CSR_DRAM_INT_TBL_REG =0x%x\n", val);
 

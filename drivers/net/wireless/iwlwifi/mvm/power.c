@@ -112,11 +112,12 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 static
 void iwl_mvm_beacon_filter_set_cqm_params(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct iwl_beacon_filter_cmd *cmd)
+					  struct iwl_beacon_filter_cmd *cmd,
+					  bool d0i3)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif->bss_conf.cqm_rssi_thold) {
+	if (vif->bss_conf.cqm_rssi_thold && !d0i3) {
 		cmd->bf_energy_delta =
 			cpu_to_le32(vif->bss_conf.cqm_rssi_hyst);
 		/* fw uses an absolute value for this */
@@ -509,9 +510,8 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 		       ETH_ALEN);
 }
 
-int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
-					     struct iwl_rx_cmd_buffer *rxb,
-					     struct iwl_device_cmd *cmd)
+void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_uapsd_misbehaving_ap_notif *notif = (void *)pkt->data;
@@ -520,8 +520,6 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_power_uapsd_misbehav_ap_iterator, &ap_sta_id);
-
-	return 0;
 }
 
 struct iwl_power_vifs {
@@ -810,7 +808,7 @@ static int _iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 	    vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
-	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, cmd);
+	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, cmd, d0i3);
 	if (!d0i3)
 		iwl_mvm_beacon_filter_debugfs_parameters(vif, cmd);
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, cmd, cmd_flags);

@@ -75,6 +75,7 @@
 #include "fw-api-coex.h"
 #include "fw-api-scan.h"
 #include "fw-api-stats.h"
+#include "fw-api-tof.h"
 
 /* Tx queue numbers */
 enum {
@@ -162,6 +163,10 @@ enum {
 	PHY_CONFIGURATION_CMD = 0x6a,
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
 	/* PHY_DB_CMD = 0x6c, */
+
+	/* ToF - 802.11mc FTM */
+	TOF_CMD = 0x10,
+	TOF_NOTIFICATION = 0x11,
 
 	/* Power - legacy power table command */
 	POWER_TABLE_CMD = 0x77,
@@ -1080,10 +1085,33 @@ struct iwl_rx_phy_info {
 	__le16 frame_time;
 } __packed;
 
+/*
+ * TCP offload Rx assist info
+ *
+ * bits 0:3 - reserved
+ * bits 4:7 - MIC CRC length
+ * bits 8:12 - MAC header length
+ * bit 13 - Padding indication
+ * bit 14 - A-AMSDU indication
+ * bit 15 - Offload enabled
+ */
+enum iwl_csum_rx_assist_info {
+	CSUM_RXA_RESERVED_MASK	= 0x000f,
+	CSUM_RXA_MICSIZE_MASK	= 0x00f0,
+	CSUM_RXA_HEADERLEN_MASK	= 0x1f00,
+	CSUM_RXA_PADD		= BIT(13),
+	CSUM_RXA_AMSDU		= BIT(14),
+	CSUM_RXA_ENA		= BIT(15)
+};
+
+/**
+ * struct iwl_rx_mpdu_res_start - phy info
+ * @assist: see CSUM_RX_ASSIST_ above
+ */
 struct iwl_rx_mpdu_res_start {
 	__le16 byte_count;
-	__le16 reserved;
-} __packed;
+	__le16 assist;
+} __packed; /* _RX_MPDU_RES_START_API_S_VER_2 */
 
 /**
  * enum iwl_rx_phy_flags - to parse %iwl_rx_phy_info phy_flags
@@ -1136,6 +1164,8 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP:
  * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT:
  * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
+ * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
+ * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
  * @RX_MPDU_RES_STATUS_HASH_INDEX_MSK:
  * @RX_MPDU_RES_STATUS_STA_ID_MSK:
  * @RX_MPDU_RES_STATUS_RRF_KILL:
@@ -1165,6 +1195,8 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP		= BIT(13),
 	RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT		= BIT(14),
 	RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME		= BIT(15),
+	RX_MPDU_RES_STATUS_CSUM_DONE			= BIT(16),
+	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
 	RX_MPDU_RES_STATUS_HASH_INDEX_MSK		= (0x3F0000),
 	RX_MPDU_RES_STATUS_STA_ID_MSK			= (0x1f000000),
 	RX_MPDU_RES_STATUS_RRF_KILL			= BIT(29),

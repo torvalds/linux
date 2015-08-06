@@ -649,6 +649,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->features |= NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
 	}
 
+	hw->netdev_features |= mvm->cfg->features;
+	if (!iwl_mvm_is_csum_supported(mvm))
+		hw->netdev_features &= ~NETIF_F_RXCSUM;
+
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)
 		iwl_mvm_leds_exit(mvm);
@@ -1433,21 +1437,8 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 
 static void iwl_mvm_resume_complete(struct iwl_mvm *mvm)
 {
-	bool exit_now;
-
 	if (!iwl_mvm_is_d0i3_supported(mvm))
 		return;
-
-	mutex_lock(&mvm->d0i3_suspend_mutex);
-	__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
-	exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
-					&mvm->d0i3_suspend_flags);
-	mutex_unlock(&mvm->d0i3_suspend_mutex);
-
-	if (exit_now) {
-		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
-		_iwl_mvm_exit_d0i3(mvm);
-	}
 
 	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND)
 		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
@@ -1663,6 +1654,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		iwl_mvm_vif_dbgfs_register(mvm, vif);
 		goto out_unlock;
 	}
+
+	mvmvif->features |= hw->netdev_features;
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 	if (ret)
@@ -2880,9 +2873,10 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-		/* fall-through */
-	case WLAN_CIPHER_SUITE_CCMP:
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		WARN_ON_ONCE(!ieee80211_hw_check(hw, MFP_CAPABLE));
@@ -3025,7 +3019,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	int res, time_reg = DEVICE_SYSTEM_TIME_REG;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->hs_time_event_data;
-	static const u8 time_event_response[] = { HOT_SPOT_CMD };
+	static const u16 time_event_response[] = { HOT_SPOT_CMD };
 	struct iwl_notification_wait wait_time_event;
 	struct iwl_hs20_roc_req aux_roc_req = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),

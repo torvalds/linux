@@ -148,8 +148,7 @@ struct iwl_op_mode_ops {
 				     const struct iwl_fw *fw,
 				     struct dentry *dbgfs_dir);
 	void (*stop)(struct iwl_op_mode *op_mode);
-	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
-		  struct iwl_device_cmd *cmd);
+	void (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb);
 	void (*napi_add)(struct iwl_op_mode *op_mode,
 			 struct napi_struct *napi,
 			 struct net_device *napi_dev,
@@ -188,11 +187,10 @@ static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)
 	op_mode->ops->stop(op_mode);
 }
 
-static inline int iwl_op_mode_rx(struct iwl_op_mode *op_mode,
-				  struct iwl_rx_cmd_buffer *rxb,
-				  struct iwl_device_cmd *cmd)
+static inline void iwl_op_mode_rx(struct iwl_op_mode *op_mode,
+				  struct iwl_rx_cmd_buffer *rxb)
 {
-	return op_mode->ops->rx(op_mode, rxb, cmd);
+	return op_mode->ops->rx(op_mode, rxb);
 }
 
 static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode,

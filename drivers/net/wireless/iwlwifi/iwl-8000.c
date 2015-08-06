@@ -75,7 +75,7 @@
 #define IWL8000_UCODE_API_OK	12
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	10
+#define IWL8000_UCODE_API_MIN	12
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
@@ -154,6 +154,7 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,		\
 	.d0i3 = true,							\
+	.features = NETIF_F_RXCSUM,					\
 	.non_shared_ant = ANT_A,					\
 	.dccm_offset = IWL8260_DCCM_OFFSET,				\
 	.dccm_len = IWL8260_DCCM_LEN,					\

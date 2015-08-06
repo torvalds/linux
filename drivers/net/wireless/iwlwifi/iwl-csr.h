@@ -422,6 +422,7 @@ enum {
 
 /* DRAM INT TABLE */
 #define CSR_DRAM_INT_TBL_ENABLE		(1 << 31)
+#define CSR_DRAM_INIT_TBL_WRITE_POINTER	(1 << 28)
 #define CSR_DRAM_INIT_TBL_WRAP_CHECK	(1 << 27)
 
 /*

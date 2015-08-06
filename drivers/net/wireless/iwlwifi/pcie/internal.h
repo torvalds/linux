@@ -264,8 +264,10 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @rx_buf_size_8k: 8 kB RX buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
+ * @wide_cmd_header: true when ucode supports wide command header format
  * @rx_page_order: page order for receive buffer size
  * @reg_lock: protect hw register access
+ * @mutex: to protect stop_device / start_fw / start_hw
  * @cmd_in_flight: true when we have a host command in flight
  * @fw_mon_phys: physical address of the buffer for the firmware monitor
  * @fw_mon_page: points to the first page of the buffer for the firmware monitor
@@ -285,9 +287,11 @@ struct iwl_trans_pcie {
 	dma_addr_t ict_tbl_dma;
 	int ict_index;
 	bool use_ict;
+	bool is_down;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
+	struct mutex mutex;
 	u32 inta_mask;
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;
@@ -314,6 +318,7 @@ struct iwl_trans_pcie {
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
 	bool scd_set_active;
+	bool wide_cmd_header;
 	u32 rx_page_order;
 
 	const char *const *command_names;
@@ -385,7 +390,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
-			    struct iwl_rx_cmd_buffer *rxb, int handler_status);
+			    struct iwl_rx_cmd_buffer *rxb);
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);

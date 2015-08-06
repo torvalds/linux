@@ -253,6 +253,7 @@
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
 #define SCD_GP_CTRL_ENABLE_31_QUEUES		BIT(0)
+#define SCD_GP_CTRL_AUTO_ACTIVE_MODE		BIT(18)
 
 /* Context Data */
 #define SCD_CONTEXT_MEM_LOWER_BOUND	(SCD_MEM_LOWER_BOUND + 0x600)
@@ -290,6 +291,9 @@
 #define SCD_EN_CTRL		(SCD_BASE + 0x254)
 
 /*********************** END TX SCHEDULER *************************************/
+
+/* tcp checksum offload */
+#define RX_EN_CSUM		(0x00a00d88)
 
 /* Oscillator clock */
 #define OSC_CLK				(0xa04068)

@@ -881,6 +881,14 @@ static void iwl_pcie_apply_destination(struct iwl_trans *trans)
 		case PRPH_CLEARBIT:
 			iwl_clear_bits_prph(trans, addr, BIT(val));
 			break;
+		case PRPH_BLOCKBIT:
+			if (iwl_read_prph(trans, addr) & BIT(val)) {
+				IWL_ERR(trans,
+					"BIT(%u) in address 0x%x is 1, stopping FW configuration\n",
+					val, addr);
+				goto monitor;
+			}
+			break;
 		default:
 			IWL_ERR(trans, "FW debug - unknown OP %d\n",
 				dest->reg_ops[i].op);
@@ -888,6 +896,7 @@ static void iwl_pcie_apply_destination(struct iwl_trans *trans)
 		}
 	}
 
+monitor:
 	if (dest->monitor_mode == EXTERNAL_MODE && trans_pcie->fw_mon_size) {
 		iwl_write_prph(trans, le32_to_cpu(dest->base_reg),
 			       trans_pcie->fw_mon_phys >> dest->base_shift);
@@ -982,13 +991,25 @@ static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
 static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 				   const struct fw_img *fw, bool run_in_rfkill)
 {
-	int ret;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill;
+	int ret;
+
+	mutex_lock(&trans_pcie->mutex);
+
+	/* Someone called stop_device, don't try to start_fw */
+	if (trans_pcie->is_down) {
+		IWL_WARN(trans,
+			 "Can't start_fw since the HW hasn't been started\n");
+		ret = EIO;
+		goto out;
+	}
 
 	/* This may fail if AMT took ownership of the device */
 	if (iwl_pcie_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	iwl_enable_rfkill_int(trans);
@@ -1000,15 +1021,17 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	else
 		clear_bit(STATUS_RFKILL, &trans->status);
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
-	if (hw_rfkill && !run_in_rfkill)
-		return -ERFKILL;
+	if (hw_rfkill && !run_in_rfkill) {
+		ret = -ERFKILL;
+		goto out;
+	}
 
 	iwl_write32(trans, CSR_INT, 0xFFFFFFFF);
 
 	ret = iwl_pcie_nic_init(trans);
 	if (ret) {
 		IWL_ERR(trans, "Unable to init nic\n");
-		return ret;
+		goto out;
 	}
 
 	/* make sure rfkill handshake bits are cleared */
@@ -1026,9 +1049,13 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 
 	/* Load the given image to the HW */
 	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-		return iwl_pcie_load_given_ucode_8000(trans, fw);
+		ret = iwl_pcie_load_given_ucode_8000(trans, fw);
 	else
-		return iwl_pcie_load_given_ucode(trans, fw);
+		ret = iwl_pcie_load_given_ucode(trans, fw);
+
+out:
+	mutex_unlock(&trans_pcie->mutex);
+	return ret;
 }
 
 static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
@@ -1037,10 +1064,17 @@ static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	iwl_pcie_tx_start(trans, scd_addr);
 }
 
-static void iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
+static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill, was_hw_rfkill;
+
+	lockdep_assert_held(&trans_pcie->mutex);
+
+	if (trans_pcie->is_down)
+		return;
+
+	trans_pcie->is_down = true;
 
 	was_hw_rfkill = iwl_is_rfkill_set(trans);
 
@@ -1131,14 +1165,36 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	iwl_pcie_prepare_card_hw(trans);
 }
 
+static void iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	mutex_lock(&trans_pcie->mutex);
+	_iwl_trans_pcie_stop_device(trans, low_power);
+	mutex_unlock(&trans_pcie->mutex);
+}
+
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state)
 {
+	struct iwl_trans_pcie __maybe_unused *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	lockdep_assert_held(&trans_pcie->mutex);
+
 	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state))
-		iwl_trans_pcie_stop_device(trans, true);
+		_iwl_trans_pcie_stop_device(trans, true);
 }
 
 static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (trans->wowlan_d0i3) {
+		/* Enable persistence mode to avoid reset */
+		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
+	}
+
 	iwl_disable_interrupts(trans);
 
 	/*
@@ -1150,17 +1206,21 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 
 	iwl_pcie_disable_ict(trans);
 
+	synchronize_irq(trans_pcie->pci_dev->irq);
+
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
-	/*
-	 * reset TX queues -- some of their registers reset during S3
-	 * so if we don't reset everything here the D3 image would try
-	 * to execute some invalid memory upon resume
-	 */
-	iwl_trans_pcie_tx_reset(trans);
+	if (!trans->wowlan_d0i3) {
+		/*
+		 * reset TX queues -- some of their registers reset during S3
+		 * so if we don't reset everything here the D3 image would try
+		 * to execute some invalid memory upon resume
+		 */
+		iwl_trans_pcie_tx_reset(trans);
+	}
 
 	iwl_pcie_set_pwr(trans, true);
 }
@@ -1202,12 +1262,18 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 
 	iwl_pcie_set_pwr(trans, false);
 
-	iwl_trans_pcie_tx_reset(trans);
+	if (trans->wowlan_d0i3) {
+		iwl_clear_bit(trans, CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	} else {
+		iwl_trans_pcie_tx_reset(trans);
 
-	ret = iwl_pcie_rx_init(trans);
-	if (ret) {
-		IWL_ERR(trans, "Failed to resume the device (RX reset)\n");
-		return ret;
+		ret = iwl_pcie_rx_init(trans);
+		if (ret) {
+			IWL_ERR(trans,
+				"Failed to resume the device (RX reset)\n");
+			return ret;
+		}
 	}
 
 	val = iwl_read32(trans, CSR_RESET);
@@ -1219,10 +1285,13 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	return 0;
 }
 
-static int iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
+static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill;
 	int err;
+
+	lockdep_assert_held(&trans_pcie->mutex);
 
 	err = iwl_pcie_prepare_card_hw(trans);
 	if (err) {
@@ -1240,19 +1309,37 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 	/* From now on, the op_mode will be kept updated about RF kill state */
 	iwl_enable_rfkill_int(trans);
 
+	/* Set is_down to false here so that...*/
+	trans_pcie->is_down = false;
+
 	hw_rfkill = iwl_is_rfkill_set(trans);
 	if (hw_rfkill)
 		set_bit(STATUS_RFKILL, &trans->status);
 	else
 		clear_bit(STATUS_RFKILL, &trans->status);
+	/* ... rfkill can call stop_device and set it false if needed */
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 
 	return 0;
 }
 
+static int iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int ret;
+
+	mutex_lock(&trans_pcie->mutex);
+	ret = _iwl_trans_pcie_start_hw(trans, low_power);
+	mutex_unlock(&trans_pcie->mutex);
+
+	return ret;
+}
+
 static void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	mutex_lock(&trans_pcie->mutex);
 
 	/* disable interrupts - don't enable HW RF kill interrupt */
 	spin_lock(&trans_pcie->irq_lock);
@@ -1266,6 +1353,10 @@ static void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans)
 	spin_unlock(&trans_pcie->irq_lock);
 
 	iwl_pcie_disable_ict(trans);
+
+	mutex_unlock(&trans_pcie->mutex);
+
+	synchronize_irq(trans_pcie->pci_dev->irq);
 }
 
 static void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val)
@@ -1326,6 +1417,7 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	else
 		trans_pcie->rx_page_order = get_order(4 * 1024);
 
+	trans_pcie->wide_cmd_header = trans_cfg->wide_cmd_header;
 	trans_pcie->command_names = trans_cfg->command_names;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
@@ -2472,6 +2564,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	spin_lock_init(&trans_pcie->irq_lock);
 	spin_lock_init(&trans_pcie->reg_lock);
 	spin_lock_init(&trans_pcie->ref_lock);
+	mutex_init(&trans_pcie->mutex);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 
 	ret = pci_enable_device(pdev);

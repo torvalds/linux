@@ -219,8 +219,6 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 
 	scd_bc_tbl = trans_pcie->scd_bc_tbls.addr;
 
-	WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX);
-
 	sta_id = tx_cmd->sta_id;
 	sec_ctl = tx_cmd->sec_ctl;
 
@@ -238,6 +236,9 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 
 	if (trans_pcie->bc_table_dword)
 		len = DIV_ROUND_UP(len, 4);
+
+	if (WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX))
+		return;
 
 	bc_ent = cpu_to_le16(len | (sta_id << 12));
 
@@ -915,6 +916,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 		}
 	}
 
+	iwl_set_bits_prph(trans, SCD_GP_CTRL, SCD_GP_CTRL_AUTO_ACTIVE_MODE);
 	if (trans->cfg->base_params->num_of_queues > 20)
 		iwl_set_bits_prph(trans, SCD_GP_CTRL,
 				  SCD_GP_CTRL_ENABLE_31_QUEUES);
@@ -1320,13 +1322,24 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	int idx;
 	u16 copy_size, cmd_size, scratch_size;
 	bool had_nocopy = false;
+	u8 group_id = iwl_cmd_groupid(cmd->id);
 	int i, ret;
 	u32 cmd_pos;
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
 
-	copy_size = sizeof(out_cmd->hdr);
-	cmd_size = sizeof(out_cmd->hdr);
+	if (WARN(!trans_pcie->wide_cmd_header &&
+		 group_id > IWL_ALWAYS_LONG_GROUP,
+		 "unsupported wide command %#x\n", cmd->id))
+		return -EINVAL;
+
+	if (group_id != 0) {
+		copy_size = sizeof(struct iwl_cmd_header_wide);
+		cmd_size = sizeof(struct iwl_cmd_header_wide);
+	} else {
+		copy_size = sizeof(struct iwl_cmd_header);
+		cmd_size = sizeof(struct iwl_cmd_header);
+	}
 
 	/* need one for the header if the first is NOCOPY */
 	BUILD_BUG_ON(IWL_MAX_CMD_TBS_PER_TFD > IWL_NUM_OF_TBS - 1);
@@ -1416,16 +1429,32 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		out_meta->source = cmd;
 
 	/* set up the header */
+	if (group_id != 0) {
+		out_cmd->hdr_wide.cmd = iwl_cmd_opcode(cmd->id);
+		out_cmd->hdr_wide.group_id = group_id;
+		out_cmd->hdr_wide.version = iwl_cmd_version(cmd->id);
+		out_cmd->hdr_wide.length =
+			cpu_to_le16(cmd_size -
+				    sizeof(struct iwl_cmd_header_wide));
+		out_cmd->hdr_wide.reserved = 0;
+		out_cmd->hdr_wide.sequence =
+			cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
+						 INDEX_TO_SEQ(q->write_ptr));
 
-	out_cmd->hdr.cmd = cmd->id;
-	out_cmd->hdr.flags = 0;
-	out_cmd->hdr.sequence =
-		cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
-					 INDEX_TO_SEQ(q->write_ptr));
+		cmd_pos = sizeof(struct iwl_cmd_header_wide);
+		copy_size = sizeof(struct iwl_cmd_header_wide);
+	} else {
+		out_cmd->hdr.cmd = iwl_cmd_opcode(cmd->id);
+		out_cmd->hdr.sequence =
+			cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
+						 INDEX_TO_SEQ(q->write_ptr));
+		out_cmd->hdr.group_id = 0;
+
+		cmd_pos = sizeof(struct iwl_cmd_header);
+		copy_size = sizeof(struct iwl_cmd_header);
+	}
 
 	/* and copy the data that needs to be copied */
-	cmd_pos = offsetof(struct iwl_device_cmd, payload);
-	copy_size = sizeof(out_cmd->hdr);
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		int copy;
 
@@ -1464,9 +1493,10 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	}
 
 	IWL_DEBUG_HC(trans,
-		     "Sending command %s (#%x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
+		     "Sending command %s (%.2x.%.2x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
 		     get_cmd_string(trans_pcie, out_cmd->hdr.cmd),
-		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
+		     group_id, out_cmd->hdr.cmd,
+		     le16_to_cpu(out_cmd->hdr.sequence),
 		     cmd_size, q->write_ptr, idx, trans_pcie->cmd_queue);
 
 	/* start the TFD with the scratchbuf */
@@ -1521,7 +1551,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		kzfree(txq->entries[idx].free_buf);
 	txq->entries[idx].free_buf = dup_buf;
 
-	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr);
+	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr_wide);
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr && txq->wd_timeout)
@@ -1552,15 +1582,13 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 /*
  * iwl_pcie_hcmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
- * @handler_status: return value of the handler of the command
- *	(put in setup_rx_handlers)
  *
  * If an Rx buffer has an async callback associated with it the callback
  * will be executed.  The attached skb (if present) will only be freed
  * if the callback returns 1
  */
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
-			    struct iwl_rx_cmd_buffer *rxb, int handler_status)
+			    struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -1599,7 +1627,6 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		meta->source->resp_pkt = pkt;
 		meta->source->_rx_page_addr = (unsigned long)page_address(p);
 		meta->source->_rx_page_order = trans_pcie->rx_page_order;
-		meta->source->handler_status = handler_status;
 	}
 
 	iwl_pcie_cmdq_reclaim(trans, txq_id, index);

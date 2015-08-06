@@ -5,7 +5,6 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,12 +25,12 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ * Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +41,7 @@
  *    notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
  *    distribution.
  *  * Neither the name Intel Corporation nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -60,80 +60,35 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_notif_wait_h__
-#define __iwl_notif_wait_h__
+#ifndef __tof
+#define __tof_h__
 
-#include <linux/wait.h>
+#include "fw-api-tof.h"
 
-#include "iwl-trans.h"
-
-struct iwl_notif_wait_data {
-	struct list_head notif_waits;
-	spinlock_t notif_wait_lock;
-	wait_queue_head_t notif_waitq;
+struct iwl_mvm_tof_data {
+	struct iwl_tof_config_cmd tof_cfg;
+	struct iwl_tof_range_req_cmd range_req;
+	struct iwl_tof_range_req_ext_cmd range_req_ext;
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	struct iwl_tof_responder_config_cmd responder_cfg;
+#endif
+	struct iwl_tof_range_rsp_ntfy range_resp;
+	u8 last_abort_id;
+	u16 active_range_request;
 };
 
-#define MAX_NOTIF_CMDS	5
-
-/**
- * struct iwl_notification_wait - notification wait entry
- * @list: list head for global list
- * @fn: Function called with the notification. If the function
- *	returns true, the wait is over, if it returns false then
- *	the waiter stays blocked. If no function is given, any
- *	of the listed commands will unblock the waiter.
- * @cmds: command IDs
- * @n_cmds: number of command IDs
- * @triggered: waiter should be woken up
- * @aborted: wait was aborted
- *
- * This structure is not used directly, to wait for a
- * notification declare it on the stack, and call
- * iwlagn_init_notification_wait() with appropriate
- * parameters. Then do whatever will cause the ucode
- * to notify the driver, and to wait for that then
- * call iwlagn_wait_notification().
- *
- * Each notification is one-shot. If at some point we
- * need to support multi-shot notifications (which
- * can't be allocated on the stack) we need to modify
- * the code for them.
- */
-struct iwl_notification_wait {
-	struct list_head list;
-
-	bool (*fn)(struct iwl_notif_wait_data *notif_data,
-		   struct iwl_rx_packet *pkt, void *data);
-	void *fn_data;
-
-	u16 cmds[MAX_NOTIF_CMDS];
-	u8 n_cmds;
-	bool triggered, aborted;
-};
-
-
-/* caller functions */
-void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_data);
-void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_data,
-				  struct iwl_rx_packet *pkt);
-void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_data);
-
-/* user functions */
-void __acquires(wait_entry)
-iwl_init_notification_wait(struct iwl_notif_wait_data *notif_data,
-			   struct iwl_notification_wait *wait_entry,
-			   const u16 *cmds, int n_cmds,
-			   bool (*fn)(struct iwl_notif_wait_data *notif_data,
-				      struct iwl_rx_packet *pkt, void *data),
-			   void *fn_data);
-
-int __must_check __releases(wait_entry)
-iwl_wait_notification(struct iwl_notif_wait_data *notif_data,
-		      struct iwl_notification_wait *wait_entry,
-		      unsigned long timeout);
-
-void __releases(wait_entry)
-iwl_remove_notification(struct iwl_notif_wait_data *notif_data,
-			struct iwl_notification_wait *wait_entry);
-
-#endif /* __iwl_notif_wait_h__ */
+void iwl_mvm_tof_init(struct iwl_mvm *mvm);
+void iwl_mvm_tof_clean(struct iwl_mvm *mvm);
+int iwl_mvm_tof_config_cmd(struct iwl_mvm *mvm);
+int iwl_mvm_tof_range_abort_cmd(struct iwl_mvm *mvm, u8 id);
+int iwl_mvm_tof_range_request_cmd(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif);
+void iwl_mvm_tof_resp_handler(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb);
+int iwl_mvm_tof_range_request_ext_cmd(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif);
+#endif
+#endif /* __tof_h__ */

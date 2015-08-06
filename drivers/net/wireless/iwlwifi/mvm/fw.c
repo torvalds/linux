@@ -213,7 +213,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	const struct fw_img *fw;
 	int ret, i;
 	enum iwl_ucode_type old_type = mvm->cur_ucode;
-	static const u8 alive_cmd[] = { MVM_ALIVE };
+	static const u16 alive_cmd[] = { MVM_ALIVE };
 	struct iwl_sf_region st_fwrd_space;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
@@ -314,7 +314,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 {
 	struct iwl_notification_wait calib_wait;
-	static const u8 init_complete[] = {
+	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 		CALIB_RES_NOTIF_PHY_DB
 	};
@@ -444,12 +444,6 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		return;
 
 	pkt = cmd.resp_pkt;
-	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(mvm, "Bad return from SHARED_MEM_CFG (0x%08X)\n",
-			pkt->hdr.flags);
-		goto exit;
-	}
-
 	mem_cfg = (void *)pkt->data;
 
 	mvm->shared_mem_cfg.shared_mem_addr =
@@ -473,7 +467,6 @@ static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 		le32_to_cpu(mem_cfg->page_buff_size);
 	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
 
-exit:
 	iwl_free_resp(&cmd);
 }
 
@@ -676,8 +669,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 10)
-		iwl_mvm_get_shared_mem_conf(mvm);
+	iwl_mvm_get_shared_mem_conf(mvm);
 
 	ret = iwl_mvm_sf_update(mvm, NULL, false);
 	if (ret)
@@ -760,6 +752,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	if (iwl_mvm_is_csum_supported(mvm) &&
+	    mvm->cfg->features & NETIF_F_RXCSUM)
+		iwl_trans_write_prph(mvm->trans, RX_EN_CSUM, 0x3);
+
 	/* allow FW/transport low power modes if not during restart */
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -815,9 +811,8 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_card_state_notif *card_state_notif = (void *)pkt->data;
@@ -828,13 +823,10 @@ int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & CT_KILL_CARD_DISABLED) ?
 			  "Reached" : "Not reached");
-
-	return 0;
 }
 
-int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mfuart_load_notif *mfuart_notif = (void *)pkt->data;
@@ -845,5 +837,4 @@ int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 		       le32_to_cpu(mfuart_notif->external_ver),
 		       le32_to_cpu(mfuart_notif->status),
 		       le32_to_cpu(mfuart_notif->duration));
-	return 0;
 }
