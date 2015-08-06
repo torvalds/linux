@@ -1091,7 +1091,7 @@ int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
 	ps->bridge_mask[fid] = br_port_mask;
 
 	if (fid != ps->fid[port]) {
-		ps->fid_mask |= 1 << ps->fid[port];
+		clear_bit(ps->fid[port], ps->fid_bitmap);
 		ps->fid[port] = fid;
 		ret = _mv88e6xxx_update_bridge_config(ds, fid);
 	}
@@ -1125,9 +1125,16 @@ int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
 
 	mutex_lock(&ps->smi_mutex);
 
-	newfid = __ffs(ps->fid_mask);
+	newfid = find_next_zero_bit(ps->fid_bitmap, VLAN_N_VID, 1);
+	if (unlikely(newfid > ps->num_ports)) {
+		netdev_err(ds->ports[port], "all first %d FIDs are used\n",
+			   ps->num_ports);
+		ret = -ENOSPC;
+		goto unlock;
+	}
+
 	ps->fid[port] = newfid;
-	ps->fid_mask &= ~(1 << newfid);
+	set_bit(newfid, ps->fid_bitmap);
 	ps->bridge_mask[fid] &= ~(1 << port);
 	ps->bridge_mask[newfid] = 1 << port;
 
@@ -1135,6 +1142,7 @@ int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
 	if (!ret)
 		ret = _mv88e6xxx_update_bridge_config(ds, newfid);
 
+unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
@@ -1552,9 +1560,9 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	 * ports, and allow each of the 'real' ports to only talk to
 	 * the upstream port.
 	 */
-	fid = __ffs(ps->fid_mask);
+	fid = port + 1;
 	ps->fid[port] = fid;
-	ps->fid_mask &= ~(1 << fid);
+	set_bit(fid, ps->fid_bitmap);
 
 	if (!dsa_is_cpu_port(ds, port))
 		ps->bridge_mask[fid] = 1 << port;
@@ -1852,8 +1860,6 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 	mutex_init(&ps->smi_mutex);
 
 	ps->id = REG_READ(REG_PORT(0), PORT_SWITCH_ID) & 0xfff0;
-
-	ps->fid_mask = (1 << DSA_MAX_PORTS) - 1;
 
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
 

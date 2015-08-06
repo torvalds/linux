@@ -11,6 +11,8 @@
 #ifndef __MV88E6XXX_H
 #define __MV88E6XXX_H
 
+#include <linux/if_vlan.h>
+
 #ifndef UINT64_MAX
 #define UINT64_MAX		(u64)(~((u64)0))
 #endif
@@ -347,9 +349,9 @@ struct mv88e6xxx_priv_state {
 
 	/* hw bridging */
 
-	u32 fid_mask;
-	u8 fid[DSA_MAX_PORTS];
-	u16 bridge_mask[DSA_MAX_PORTS];
+	DECLARE_BITMAP(fid_bitmap, VLAN_N_VID);	/* FIDs 1 to 4095 available */
+	u16 fid[DSA_MAX_PORTS];			/* per (non-bridged) port FID */
+	u16 bridge_mask[DSA_MAX_PORTS];		/* br groups (indexed by FID) */
 
 	unsigned long port_state_update_mask;
 	u8 port_state[DSA_MAX_PORTS];
