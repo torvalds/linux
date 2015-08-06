@@ -339,7 +339,8 @@ struct iser_comp {
  */
 struct iser_reg_ops {
 	int            (*alloc_reg_res)(struct ib_conn *ib_conn,
-					unsigned cmds_max);
+					unsigned cmds_max,
+					unsigned int size);
 	void           (*free_reg_res)(struct ib_conn *ib_conn);
 	int            (*reg_mem)(struct iscsi_iser_task *iser_task,
 				  struct iser_data_buf *mem,
@@ -658,9 +659,13 @@ int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
 int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 			      struct iscsi_session *session);
-int iser_alloc_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max);
+int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
+			unsigned cmds_max,
+			unsigned int size);
 void iser_free_fmr_pool(struct ib_conn *ib_conn);
-int iser_alloc_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max);
+int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
+			    unsigned cmds_max,
+			    unsigned int size);
 void iser_free_fastreg_pool(struct ib_conn *ib_conn);
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector);
