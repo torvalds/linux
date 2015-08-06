@@ -155,6 +155,12 @@ MLXSW_ITEM32(pci, cqe, byte_count, 0x04, 0, 14);
  */
 MLXSW_ITEM32(pci, cqe, trap_id, 0x08, 0, 8);
 
+/* pci_cqe_crc
+ * Length include CRC. Indicates the length field includes
+ * the packet's CRC.
+ */
+MLXSW_ITEM32(pci, cqe, crc, 0x0C, 8, 1);
+
 /* pci_cqe_e
  * CQE with Error.
  */
