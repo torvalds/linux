@@ -640,66 +640,57 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 	return IRQ_RETVAL(handled);
 }
 
-static u8 tda998x_cksum(u8 *buf, size_t bytes)
-{
-	int sum = 0;
-
-	while (bytes--)
-		sum -= *buf++;
-	return sum;
-}
-
-#define HB(x) (x)
-#define PB(x) (HB(2) + 1 + (x))
-
 static void
 tda998x_write_if(struct tda998x_priv *priv, u8 bit, u16 addr,
-		 u8 *buf, size_t size)
+		 union hdmi_infoframe *frame)
 {
+	u8 buf[32];
+	ssize_t len;
+
+	len = hdmi_infoframe_pack(frame, buf, sizeof(buf));
+	if (len < 0) {
+		dev_err(&priv->hdmi->dev,
+			"hdmi_infoframe_pack() type=0x%02x failed: %zd\n",
+			frame->any.type, len);
+		return;
+	}
+
 	reg_clear(priv, REG_DIP_IF_FLAGS, bit);
-	reg_write_range(priv, addr, buf, size);
+	reg_write_range(priv, addr, buf, len);
 	reg_set(priv, REG_DIP_IF_FLAGS, bit);
 }
 
 static void
 tda998x_write_aif(struct tda998x_priv *priv, struct tda998x_encoder_params *p)
 {
-	u8 buf[PB(HDMI_AUDIO_INFOFRAME_SIZE) + 1];
+	union hdmi_infoframe frame;
 
-	memset(buf, 0, sizeof(buf));
-	buf[HB(0)] = HDMI_INFOFRAME_TYPE_AUDIO;
-	buf[HB(1)] = 0x01;
-	buf[HB(2)] = HDMI_AUDIO_INFOFRAME_SIZE;
-	buf[PB(1)] = p->audio_frame[1] & 0x07; /* CC */
-	buf[PB(2)] = p->audio_frame[2] & 0x1c; /* SF */
-	buf[PB(4)] = p->audio_frame[4];
-	buf[PB(5)] = p->audio_frame[5] & 0xf8; /* DM_INH + LSV */
+	hdmi_audio_infoframe_init(&frame.audio);
 
-	buf[PB(0)] = tda998x_cksum(buf, sizeof(buf));
+	frame.audio.channels = p->audio_frame[1] & 0x07;
+	frame.audio.channel_allocation = p->audio_frame[4];
+	frame.audio.level_shift_value = (p->audio_frame[5] & 0x78) >> 3;
+	frame.audio.downmix_inhibit = (p->audio_frame[5] & 0x80) >> 7;
 
-	tda998x_write_if(priv, DIP_IF_FLAGS_IF4, REG_IF4_HB0, buf,
-			 sizeof(buf));
+	/*
+	 * L-PCM and IEC61937 compressed audio shall always set sample
+	 * frequency to "refer to stream".  For others, see the HDMI
+	 * specification.
+	 */
+	frame.audio.sample_frequency = (p->audio_frame[2] & 0x1c) >> 2;
+
+	tda998x_write_if(priv, DIP_IF_FLAGS_IF4, REG_IF4_HB0, &frame);
 }
 
 static void
 tda998x_write_avi(struct tda998x_priv *priv, struct drm_display_mode *mode)
 {
-	struct hdmi_avi_infoframe frame;
-	u8 buf[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
-	ssize_t len;
+	union hdmi_infoframe frame;
 
-	drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode);
+	frame.avi.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
 
-	frame.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
-
-	len = hdmi_avi_infoframe_pack(&frame, buf, sizeof(buf));
-	if (len < 0) {
-		dev_err(&priv->hdmi->dev,
-			"hdmi_avi_infoframe_pack() failed: %zd\n", len);
-		return;
-	}
-
-	tda998x_write_if(priv, DIP_IF_FLAGS_IF2, REG_IF2_HB0, buf, len);
+	tda998x_write_if(priv, DIP_IF_FLAGS_IF2, REG_IF2_HB0, &frame);
 }
 
 static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
