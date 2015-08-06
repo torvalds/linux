@@ -150,6 +150,64 @@ static inline void mlxsw_reg_smid_pack(char *payload, u16 mid)
 	mlxsw_reg_smid_port_mask_set(payload, MLXSW_PORT_CPU_PORT, 1);
 }
 
+/* SSPR - Switch System Port Record Register
+ * -----------------------------------------
+ * Configures the system port to local port mapping.
+ */
+#define MLXSW_REG_SSPR_ID 0x2008
+#define MLXSW_REG_SSPR_LEN 0x8
+
+static const struct mlxsw_reg_info mlxsw_reg_sspr = {
+	.id = MLXSW_REG_SSPR_ID,
+	.len = MLXSW_REG_SSPR_LEN,
+};
+
+/* reg_sspr_m
+ * Master - if set, then the record describes the master system port.
+ * This is needed in case a local port is mapped into several system ports
+ * (for multipathing). That number will be reported as the source system
+ * port when packets are forwarded to the CPU. Only one master port is allowed
+ * per local port.
+ *
+ * Note: Must be set for Spectrum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sspr, m, 0x00, 31, 1);
+
+/* reg_sspr_local_port
+ * Local port number.
+ *
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sspr, local_port, 0x00, 16, 8);
+
+/* reg_sspr_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ *
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sspr, sub_port, 0x00, 8, 8);
+
+/* reg_sspr_system_port
+ * Unique identifier within the stacking domain that represents all the ports
+ * that are available in the system (external ports).
+ *
+ * Currently, only single-ASIC configurations are supported, so we default to
+ * 1:1 mapping between system ports and local ports.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sspr, system_port, 0x04, 0, 16);
+
+static inline void mlxsw_reg_sspr_pack(char *payload, u8 local_port)
+{
+	MLXSW_REG_ZERO(sspr, payload);
+	mlxsw_reg_sspr_m_set(payload, 1);
+	mlxsw_reg_sspr_local_port_set(payload, local_port);
+	mlxsw_reg_sspr_sub_port_set(payload, 0);
+	mlxsw_reg_sspr_system_port_set(payload, local_port);
+}
+
 /* SPMS - Switch Port MSTP/RSTP State Register
  * -------------------------------------------
  * Configures the spanning tree state of a physical port.
@@ -1216,6 +1274,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SPAD";
 	case MLXSW_REG_SMID_ID:
 		return "SMID";
+	case MLXSW_REG_SSPR_ID:
+		return "SSPR";
 	case MLXSW_REG_SPMS_ID:
 		return "SPMS";
 	case MLXSW_REG_SFGC_ID:

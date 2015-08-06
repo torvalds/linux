@@ -245,6 +245,16 @@ static int mlxsw_sx_port_swid_set(struct mlxsw_sx_port *mlxsw_sx_port, u8 swid)
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(pspa), pspa_pl);
 }
 
+static int
+mlxsw_sx_port_system_port_mapping_set(struct mlxsw_sx_port *mlxsw_sx_port)
+{
+	struct mlxsw_sx *mlxsw_sx = mlxsw_sx_port->mlxsw_sx;
+	char sspr_pl[MLXSW_REG_SSPR_LEN];
+
+	mlxsw_reg_sspr_pack(sspr_pl, mlxsw_sx_port->local_port);
+	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(sspr), sspr_pl);
+}
+
 static int mlxsw_sx_port_module_check(struct mlxsw_sx_port *mlxsw_sx_port,
 				      bool *p_usable)
 {
@@ -1001,6 +1011,13 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 		goto port_not_usable;
 	}
 
+	err = mlxsw_sx_port_system_port_mapping_set(mlxsw_sx_port);
+	if (err) {
+		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to set system port mapping\n",
+			mlxsw_sx_port->local_port);
+		goto err_port_system_port_mapping_set;
+	}
+
 	err = mlxsw_sx_port_swid_set(mlxsw_sx_port, 0);
 	if (err) {
 		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to set SWID\n",
@@ -1061,6 +1078,7 @@ err_port_stp_state_set:
 err_port_mtu_set:
 err_port_speed_set:
 err_port_swid_set:
+err_port_system_port_mapping_set:
 port_not_usable:
 err_port_module_check:
 err_dev_addr_get:
