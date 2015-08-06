@@ -134,21 +134,14 @@ static inline void queued_read_unlock(struct qrwlock *lock)
 	atomic_sub(_QR_BIAS, &lock->cnts);
 }
 
-#ifndef queued_write_unlock
 /**
  * queued_write_unlock - release write lock of a queue rwlock
  * @lock : Pointer to queue rwlock structure
  */
 static inline void queued_write_unlock(struct qrwlock *lock)
 {
-	/*
-	 * If the writer field is atomic, it can be cleared directly.
-	 * Otherwise, an atomic subtraction will be used to clear it.
-	 */
-	smp_mb__before_atomic();
-	atomic_sub(_QW_LOCKED, &lock->cnts);
+	smp_store_release((u8 *)&lock->cnts, 0);
 }
-#endif
 
 /*
  * Remapping rwlock architecture specific functions to the corresponding
