@@ -318,6 +318,7 @@ config LPC_SCH
 
 config INTEL_SOC_PMIC
 	bool "Support for Intel Atom SoC PMIC"
+	depends on GPIOLIB
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C

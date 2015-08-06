@@ -1866,6 +1866,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct intel_fbdev *ifbdev = NULL;
 	struct intel_framebuffer *fb;
+	struct drm_framebuffer *drm_fb;
 
 #ifdef CONFIG_DRM_I915_FBDEV
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1885,7 +1886,8 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 #endif
 
 	mutex_lock(&dev->mode_config.fb_lock);
-	list_for_each_entry(fb, &dev->mode_config.fb_list, base.head) {
+	drm_for_each_fb(drm_fb, dev) {
+		fb = to_intel_framebuffer(drm_fb);
 		if (ifbdev && &fb->base == ifbdev->helper.fb)
 			continue;
 

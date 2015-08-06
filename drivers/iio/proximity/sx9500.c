@@ -80,6 +80,7 @@
 #define SX9500_COMPSTAT_MASK		GENMASK(3, 0)
 
 #define SX9500_NUM_CHANNELS		4
+#define SX9500_CHAN_MASK		GENMASK(SX9500_NUM_CHANNELS - 1, 0)
 
 struct sx9500_data {
 	struct mutex mutex;
@@ -281,7 +282,7 @@ static int sx9500_read_prox_data(struct sx9500_data *data,
 	if (ret < 0)
 		return ret;
 
-	*val = 32767 - (s16)be16_to_cpu(regval);
+	*val = be16_to_cpu(regval);
 
 	return IIO_VAL_INT;
 }
@@ -329,20 +330,20 @@ static int sx9500_read_proximity(struct sx9500_data *data,
 	else
 		ret = sx9500_wait_for_sample(data);
 
-	if (ret < 0)
-		return ret;
-
 	mutex_lock(&data->mutex);
+
+	if (ret < 0)
+		goto out_dec_data_rdy;
 
 	ret = sx9500_read_prox_data(data, chan, val);
 	if (ret < 0)
-		goto out;
-
-	ret = sx9500_dec_chan_users(data, chan->channel);
-	if (ret < 0)
-		goto out;
+		goto out_dec_data_rdy;
 
 	ret = sx9500_dec_data_rdy_users(data);
+	if (ret < 0)
+		goto out_dec_chan;
+
+	ret = sx9500_dec_chan_users(data, chan->channel);
 	if (ret < 0)
 		goto out;
 
@@ -350,6 +351,8 @@ static int sx9500_read_proximity(struct sx9500_data *data,
 
 	goto out;
 
+out_dec_data_rdy:
+	sx9500_dec_data_rdy_users(data);
 out_dec_chan:
 	sx9500_dec_chan_users(data, chan->channel);
 out:
@@ -679,7 +682,7 @@ out:
 static int sx9500_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct sx9500_data *data = iio_priv(indio_dev);
-	int ret, i;
+	int ret = 0, i;
 
 	mutex_lock(&data->mutex);
 
@@ -703,7 +706,7 @@ static int sx9500_buffer_preenable(struct iio_dev *indio_dev)
 static int sx9500_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct sx9500_data *data = iio_priv(indio_dev);
-	int ret, i;
+	int ret = 0, i;
 
 	iio_triggered_buffer_predisable(indio_dev);
 
@@ -800,8 +803,7 @@ static int sx9500_init_compensation(struct iio_dev *indio_dev)
 	unsigned int val;
 
 	ret = regmap_update_bits(data->regmap, SX9500_REG_PROX_CTRL0,
-				 GENMASK(SX9500_NUM_CHANNELS, 0),
-				 GENMASK(SX9500_NUM_CHANNELS, 0));
+				 SX9500_CHAN_MASK, SX9500_CHAN_MASK);
 	if (ret < 0)
 		return ret;
 
@@ -821,7 +823,7 @@ static int sx9500_init_compensation(struct iio_dev *indio_dev)
 
 out:
 	regmap_update_bits(data->regmap, SX9500_REG_PROX_CTRL0,
-			   GENMASK(SX9500_NUM_CHANNELS, 0), 0);
+			   SX9500_CHAN_MASK, 0);
 	return ret;
 }
 

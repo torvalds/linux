@@ -209,23 +209,11 @@ int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_framebuffer *fb;
-	int ret;
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (ret)
-		return ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret) {
-		mutex_unlock(&dev->mode_config.mutex);
-		return ret;
-	}
-
-	list_for_each_entry(fb, &dev->mode_config.fb_list, head)
+	mutex_lock(&dev->mode_config.fb_lock);
+	drm_for_each_fb(fb, dev)
 		drm_fb_cma_describe(fb, m);
-
-	mutex_unlock(&dev->struct_mutex);
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.fb_lock);
 
 	return 0;
 }

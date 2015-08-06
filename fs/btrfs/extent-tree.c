@@ -2296,8 +2296,21 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 static inline struct btrfs_delayed_ref_node *
 select_delayed_ref(struct btrfs_delayed_ref_head *head)
 {
+	struct btrfs_delayed_ref_node *ref;
+
 	if (list_empty(&head->ref_list))
 		return NULL;
+
+	/*
+	 * Select a delayed ref of type BTRFS_ADD_DELAYED_REF first.
+	 * This is to prevent a ref count from going down to zero, which deletes
+	 * the extent item from the extent tree, when there still are references
+	 * to add, which would fail because they would not find the extent item.
+	 */
+	list_for_each_entry(ref, &head->ref_list, list) {
+		if (ref->action == BTRFS_ADD_DELAYED_REF)
+			return ref;
+	}
 
 	return list_entry(head->ref_list.next, struct btrfs_delayed_ref_node,
 			  list);

@@ -496,7 +496,8 @@ static bool rcar_du_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc)
+static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_crtc_state)
 {
 	struct drm_pending_vblank_event *event = crtc->state->event;
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
@@ -512,7 +513,8 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc)
 	}
 }
 
-static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc)
+static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_crtc_state)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 

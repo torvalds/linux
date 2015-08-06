@@ -866,8 +866,9 @@ static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 	sor->debugfs_files = NULL;
 }
 
-static void tegra_sor_connector_dpms(struct drm_connector *connector, int mode)
+static int tegra_sor_connector_dpms(struct drm_connector *connector, int mode)
 {
+	return 0;
 }
 
 static enum drm_connector_status

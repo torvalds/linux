@@ -102,8 +102,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
-static void intel_begin_crtc_commit(struct drm_crtc *crtc);
-static void intel_finish_crtc_commit(struct drm_crtc *crtc);
+static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
+static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state);
 static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
@@ -413,7 +413,7 @@ static const intel_limit_t intel_limits_bxt = {
 static bool
 needs_modeset(struct drm_crtc_state *state)
 {
-	return state->mode_changed || state->active_changed;
+	return drm_atomic_crtc_needs_modeset(state);
 }
 
 /**
@@ -6431,14 +6431,14 @@ struct intel_connector *intel_connector_alloc(void)
 
 /* Even simpler default implementation, if there's really no special case to
  * consider. */
-void intel_connector_dpms(struct drm_connector *connector, int mode)
+int intel_connector_dpms(struct drm_connector *connector, int mode)
 {
 	/* All the simple cases only support two dpms states. */
 	if (mode != DRM_MODE_DPMS_ON)
 		mode = DRM_MODE_DPMS_OFF;
 
 	if (mode == connector->dpms)
-		return;
+		return 0;
 
 	connector->dpms = mode;
 
@@ -6447,6 +6447,8 @@ void intel_connector_dpms(struct drm_connector *connector, int mode)
 		intel_encoder_dpms(to_intel_encoder(connector->encoder), mode);
 
 	intel_modeset_check_state(connector->dev);
+
+	return 0;
 }
 
 /* Simple connector->get_hw_state implementation for encoders that support only
@@ -12346,16 +12348,9 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 			continue;
 
 		if (crtc->state->active) {
-			struct drm_property *dpms_property =
-				dev->mode_config.dpms_property;
-
-			connector->dpms = DRM_MODE_DPMS_ON;
-			drm_object_property_set_value(&connector->base, dpms_property, DRM_MODE_DPMS_ON);
-
 			intel_encoder = to_intel_encoder(connector->encoder);
 			intel_encoder->connectors_active = true;
-		} else
-			connector->dpms = DRM_MODE_DPMS_OFF;
+		}
 	}
 }
 
@@ -13627,7 +13622,8 @@ intel_disable_primary_plane(struct drm_plane *plane,
 	dev_priv->display.update_primary_plane(crtc, NULL, 0, 0);
 }
 
-static void intel_begin_crtc_commit(struct drm_crtc *crtc)
+static void intel_begin_crtc_commit(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -13643,7 +13639,8 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 		skl_detach_scalers(intel_crtc);
 }
 
-static void intel_finish_crtc_commit(struct drm_crtc *crtc)
+static void intel_finish_crtc_commit(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 

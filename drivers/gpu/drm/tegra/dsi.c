@@ -726,8 +726,9 @@ static void tegra_dsi_soft_reset(struct tegra_dsi *dsi)
 		tegra_dsi_soft_reset(dsi->slave);
 }
 
-static void tegra_dsi_connector_dpms(struct drm_connector *connector, int mode)
+static int tegra_dsi_connector_dpms(struct drm_connector *connector, int mode)
 {
+	return 0;
 }
 
 static void tegra_dsi_connector_reset(struct drm_connector *connector)

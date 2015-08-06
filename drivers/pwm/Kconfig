@@ -111,6 +111,13 @@ config PWM_CLPS711X
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-clps711x.
 
+config PWM_CRC
+	bool "Intel Crystalcove (CRC) PWM support"
+	depends on X86 && INTEL_SOC_PMIC
+	help
+	  Generic PWM framework driver for Crystalcove (CRC) PMIC based PWM
+	  control.
+
 config PWM_EP93XX
 	tristate "Cirrus Logic EP93xx PWM support"
 	depends on ARCH_EP93XX

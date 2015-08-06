@@ -2362,7 +2362,7 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 	p->pri.horiz_pixels = intel_crtc->config->pipe_src_w;
 	p->cur.horiz_pixels = intel_crtc->base.cursor->state->crtc_w;
 
-	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
+	drm_for_each_legacy_plane(plane, dev) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
 
 		if (intel_plane->pipe == pipe) {

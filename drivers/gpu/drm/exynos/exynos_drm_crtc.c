@@ -80,7 +80,8 @@ exynos_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		exynos_crtc->ops->commit(exynos_crtc);
 }
 
-static void exynos_crtc_atomic_begin(struct drm_crtc *crtc)
+static void exynos_crtc_atomic_begin(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_crtc_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
@@ -90,7 +91,8 @@ static void exynos_crtc_atomic_begin(struct drm_crtc *crtc)
 	}
 }
 
-static void exynos_crtc_atomic_flush(struct drm_crtc *crtc)
+static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_crtc_state)
 {
 }
 

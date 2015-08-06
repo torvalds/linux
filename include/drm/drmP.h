@@ -137,17 +137,18 @@ void drm_err(const char *format, ...);
 /*@{*/
 
 /* driver capabilities and requirements mask */
-#define DRIVER_USE_AGP     0x1
-#define DRIVER_PCI_DMA     0x8
-#define DRIVER_SG          0x10
-#define DRIVER_HAVE_DMA    0x20
-#define DRIVER_HAVE_IRQ    0x40
-#define DRIVER_IRQ_SHARED  0x80
-#define DRIVER_GEM         0x1000
-#define DRIVER_MODESET     0x2000
-#define DRIVER_PRIME       0x4000
-#define DRIVER_RENDER      0x8000
-#define DRIVER_ATOMIC      0x10000
+#define DRIVER_USE_AGP			0x1
+#define DRIVER_PCI_DMA			0x8
+#define DRIVER_SG			0x10
+#define DRIVER_HAVE_DMA			0x20
+#define DRIVER_HAVE_IRQ			0x40
+#define DRIVER_IRQ_SHARED		0x80
+#define DRIVER_GEM			0x1000
+#define DRIVER_MODESET			0x2000
+#define DRIVER_PRIME			0x4000
+#define DRIVER_RENDER			0x8000
+#define DRIVER_ATOMIC			0x10000
+#define DRIVER_KMS_LEGACY_CONTEXT	0x20000
 
 /***********************************************************************/
 /** \name Macros to make printk easier */
@@ -675,7 +676,6 @@ struct drm_minor {
 
 	/* currently active master for this node. Protected by master_mutex */
 	struct drm_master *master;
-	struct drm_mode_group mode_group;
 };
 
 

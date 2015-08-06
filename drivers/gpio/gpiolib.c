@@ -1672,6 +1672,19 @@ void gpiod_add_lookup_table(struct gpiod_lookup_table *table)
 	mutex_unlock(&gpio_lookup_lock);
 }
 
+/**
+ * gpiod_remove_lookup_table() - unregister GPIO device consumers
+ * @table: table of consumers to unregister
+ */
+void gpiod_remove_lookup_table(struct gpiod_lookup_table *table)
+{
+	mutex_lock(&gpio_lookup_lock);
+
+	list_del(&table->list);
+
+	mutex_unlock(&gpio_lookup_lock);
+}
+
 static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 				      unsigned int idx,
 				      enum gpio_lookup_flags *flags)

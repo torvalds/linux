@@ -47,6 +47,7 @@ struct blkcg {
 
 	struct blkcg_policy_data	*pd[BLKCG_MAX_POLS];
 
+	struct list_head		all_blkcgs_node;
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct list_head		cgwb_list;
 #endif
@@ -88,18 +89,12 @@ struct blkg_policy_data {
  * Policies that need to keep per-blkcg data which is independent
  * from any request_queue associated to it must specify its size
  * with the cpd_size field of the blkcg_policy structure and
- * embed a blkcg_policy_data in it. blkcg core allocates
- * policy-specific per-blkcg structures lazily the first time
- * they are actually needed, so it handles them together with
- * blkgs. cpd_init() is invoked to let each policy handle
- * per-blkcg data.
+ * embed a blkcg_policy_data in it.  cpd_init() is invoked to let
+ * each policy handle per-blkcg data.
  */
 struct blkcg_policy_data {
 	/* the policy id this per-policy data belongs to */
 	int				plid;
-
-	/* used during policy activation */
-	struct list_head		alloc_node;
 };
 
 /* association between a blk cgroup and a request queue */

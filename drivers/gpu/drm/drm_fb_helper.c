@@ -89,8 +89,9 @@ static LIST_HEAD(kernel_fb_helper_list);
  * connectors to the fbdev, e.g. if some are reserved for special purposes or
  * not adequate to be used for the fbcon.
  *
- * Since this is part of the initial setup before the fbdev is published, no
- * locking is required.
+ * This function is protected against concurrent connector hotadds/removals
+ * using drm_fb_helper_add_one_connector() and
+ * drm_fb_helper_remove_one_connector().
  */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
@@ -98,7 +99,8 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	struct drm_connector *connector;
 	int i;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	mutex_lock(&dev->mode_config.mutex);
+	drm_for_each_connector(connector, dev) {
 		struct drm_fb_helper_connector *fb_helper_connector;
 
 		fb_helper_connector = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
@@ -108,6 +110,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 		fb_helper_connector->connector = connector;
 		fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 fail:
 	for (i = 0; i < fb_helper->connector_count; i++) {
@@ -115,6 +118,8 @@ fail:
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
+	mutex_unlock(&dev->mode_config.mutex);
+
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_add_all_connectors);
@@ -269,7 +274,7 @@ static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_crtc *c;
 
-	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(c, dev) {
 		if (crtc->base.id == c->base.id)
 			return c->primary->fb;
 	}
@@ -321,7 +326,7 @@ static bool restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+	drm_for_each_plane(plane, dev) {
 		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
 			drm_plane_force_disable(plane);
 
@@ -429,24 +434,6 @@ static bool drm_fb_helper_force_kernel_mode(void)
 	return error;
 }
 
-static int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
-			void *panic_str)
-{
-	/*
-	 * It's a waste of time and effort to switch back to text console
-	 * if the kernel should reboot before panic messages can be seen.
-	 */
-	if (panic_timeout < 0)
-		return 0;
-
-	pr_err("panic occurred, switching back to text console\n");
-	return drm_fb_helper_force_kernel_mode();
-}
-
-static struct notifier_block paniced = {
-	.notifier_call = drm_fb_helper_panic,
-};
-
 static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
@@ -458,7 +445,7 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 	if (dev->primary->master)
 		return false;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(crtc, dev) {
 		if (crtc->primary->fb)
 			crtcs_bound++;
 		if (crtc->primary->fb == fb_helper->fb)
@@ -655,7 +642,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 	}
 
 	i = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	drm_for_each_crtc(crtc, dev) {
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
@@ -672,9 +659,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
-			pr_info("drm: unregistered panic notifier\n");
-			atomic_notifier_chain_unregister(&panic_notifier_list,
-							 &paniced);
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 		}
 	}
@@ -1109,12 +1093,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
 			info->node, info->fix.id);
 
-	/* Switch back to kernel console on panic */
-	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		dev_info(fb_helper->dev->dev, "registered panic notifier\n");
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 
