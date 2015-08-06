@@ -71,7 +71,6 @@ struct omap_nand_platform_data {
 	int			cs;
 	struct mtd_partition	*parts;
 	int			nr_parts;
-	bool			dev_ready;
 	bool			flash_bbt;
 	enum nand_io		xfer_type;
 	int			devsize;
@@ -82,5 +81,6 @@ struct omap_nand_platform_data {
 	/* deprecated */
 	struct gpmc_nand_regs	reg;
 	struct device_node	*of_node;
+	bool			dev_ready;
 };
 #endif
