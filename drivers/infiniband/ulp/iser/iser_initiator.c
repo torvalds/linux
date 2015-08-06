@@ -259,7 +259,7 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 	iser_conn->min_posted_rx = iser_conn->qp_max_recv_dtos >> 2;
 
 	if (device->reg_ops->alloc_reg_res(ib_conn, session->scsi_cmds_max,
-					   ISCSI_ISER_SG_TABLESIZE + 1))
+					   iser_conn->scsi_sg_tablesize))
 		goto create_rdma_reg_res_failed;
 
 	if (iser_alloc_login_buf(iser_conn))

@@ -363,7 +363,8 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
  * consecutive SG elements are actually fragments of the same physcial page.
  */
 static int iser_data_buf_aligned_len(struct iser_data_buf *data,
-				      struct ib_device *ibdev)
+				     struct ib_device *ibdev,
+				     unsigned sg_tablesize)
 {
 	struct scatterlist *sg, *sgl, *next_sg = NULL;
 	u64 start_addr, end_addr;
@@ -374,6 +375,14 @@ static int iser_data_buf_aligned_len(struct iser_data_buf *data,
 
 	sgl = data->sg;
 	start_addr  = ib_sg_dma_address(ibdev, sgl);
+
+	if (unlikely(sgl[0].offset &&
+		     data->data_len >= sg_tablesize * PAGE_SIZE)) {
+		iser_dbg("can't register length %lx with offset %x "
+			 "fall to bounce buffer\n", data->data_len,
+			 sgl[0].offset);
+		return 0;
+	}
 
 	for_each_sg(sgl, sg, data->dma_nents, i) {
 		if (start_check && !IS_4K_ALIGNED(start_addr))
@@ -790,7 +799,8 @@ iser_handle_unaligned_buf(struct iscsi_iser_task *task,
 	struct iser_device *device = iser_conn->ib_conn.device;
 	int err, aligned_len;
 
-	aligned_len = iser_data_buf_aligned_len(mem, device->ib_device);
+	aligned_len = iser_data_buf_aligned_len(mem, device->ib_device,
+						iser_conn->scsi_sg_tablesize);
 	if (aligned_len != mem->dma_nents) {
 		err = fall_to_bounce_buf(task, mem, dir);
 		if (err)

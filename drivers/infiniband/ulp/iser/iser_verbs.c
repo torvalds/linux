@@ -756,6 +756,31 @@ static void iser_connect_error(struct rdma_cm_id *cma_id)
 	iser_conn->state = ISER_CONN_TERMINATING;
 }
 
+static void
+iser_calc_scsi_params(struct iser_conn *iser_conn,
+		      unsigned int max_sectors)
+{
+	struct iser_device *device = iser_conn->ib_conn.device;
+	unsigned short sg_tablesize, sup_sg_tablesize;
+
+	sg_tablesize = DIV_ROUND_UP(max_sectors * 512, SIZE_4K);
+	sup_sg_tablesize = min_t(unsigned, ISCSI_ISER_MAX_SG_TABLESIZE,
+				 device->dev_attr.max_fast_reg_page_list_len);
+
+	if (sg_tablesize > sup_sg_tablesize) {
+		sg_tablesize = sup_sg_tablesize;
+		iser_conn->scsi_max_sectors = sg_tablesize * SIZE_4K / 512;
+	} else {
+		iser_conn->scsi_max_sectors = max_sectors;
+	}
+
+	iser_conn->scsi_sg_tablesize = sg_tablesize;
+
+	iser_dbg("iser_conn %p, sg_tablesize %u, max_sectors %u\n",
+		 iser_conn, iser_conn->scsi_sg_tablesize,
+		 iser_conn->scsi_max_sectors);
+}
+
 /**
  * Called with state mutex held
  **/
@@ -793,6 +818,8 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 			ib_conn->pi_support = true;
 		}
 	}
+
+	iser_calc_scsi_params(iser_conn, iser_max_sectors);
 
 	ret = rdma_resolve_route(cma_id, 1000);
 	if (ret) {

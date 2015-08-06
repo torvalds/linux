@@ -98,8 +98,13 @@
 #define SHIFT_4K	12
 #define SIZE_4K	(1ULL << SHIFT_4K)
 #define MASK_4K	(~(SIZE_4K-1))
-					/* support up to 512KB in one RDMA */
-#define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> SHIFT_4K)
+
+/* Default support is 512KB I/O size */
+#define ISER_DEF_MAX_SECTORS		1024
+#define ISCSI_ISER_DEF_SG_TABLESIZE	((ISER_DEF_MAX_SECTORS * 512) >> SHIFT_4K)
+/* Maximum support is 8MB I/O size */
+#define ISCSI_ISER_MAX_SG_TABLESIZE	((16384 * 512) >> SHIFT_4K)
+
 #define ISER_DEF_XMIT_CMDS_DEFAULT		512
 #if ISCSI_DEF_XMIT_CMDS_MAX > ISER_DEF_XMIT_CMDS_DEFAULT
 	#define ISER_DEF_XMIT_CMDS_MAX		ISCSI_DEF_XMIT_CMDS_MAX
@@ -504,6 +509,8 @@ struct ib_conn {
  * @rx_desc_head:     head of rx_descs cyclic buffer
  * @rx_descs:         rx buffers array (cyclic buffer)
  * @num_rx_descs:     number of rx descriptors
+ * @scsi_sg_tablesize: scsi host sg_tablesize
+ * @scsi_max_sectors: scsi host max sectors
  */
 struct iser_conn {
 	struct ib_conn		     ib_conn;
@@ -528,6 +535,8 @@ struct iser_conn {
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
 	u32                          num_rx_descs;
+	unsigned short               scsi_sg_tablesize;
+	unsigned int                 scsi_max_sectors;
 };
 
 /**
@@ -583,6 +592,7 @@ extern struct iser_global ig;
 extern int iser_debug_level;
 extern bool iser_pi_enable;
 extern int iser_pi_guard;
+extern unsigned int iser_max_sectors;
 
 int iser_assign_reg_ops(struct iser_device *device);
 

@@ -93,6 +93,10 @@ static unsigned int iscsi_max_lun = 512;
 module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 MODULE_PARM_DESC(max_lun, "Max LUNs to allow per session (default:512");
 
+unsigned int iser_max_sectors = ISER_DEF_MAX_SECTORS;
+module_param_named(max_sectors, iser_max_sectors, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_sectors, "Max number of sectors in a single scsi command (default:1024");
+
 bool iser_pi_enable = false;
 module_param_named(pi_enable, iser_pi_enable, bool, S_IRUGO);
 MODULE_PARM_DESC(pi_enable, "Enable T10-PI offload support (default:disabled)");
@@ -625,6 +629,8 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	if (ep) {
 		iser_conn = ep->dd_data;
 		max_cmds = iser_conn->max_cmds;
+		shost->sg_tablesize = iser_conn->scsi_sg_tablesize;
+		shost->max_sectors = iser_conn->scsi_max_sectors;
 
 		mutex_lock(&iser_conn->state_mutex);
 		if (iser_conn->state != ISER_CONN_UP) {
@@ -966,8 +972,8 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.name                   = "iSCSI Initiator over iSER",
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= scsi_change_queue_depth,
-	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,
-	.max_sectors		= 1024,
+	.sg_tablesize           = ISCSI_ISER_DEF_SG_TABLESIZE,
+	.max_sectors            = ISER_DEF_MAX_SECTORS,
 	.cmd_per_lun            = ISER_DEF_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
