@@ -219,6 +219,13 @@ struct tegra_dma {
 	void __iomem			*base_addr;
 	const struct tegra_dma_chip_data *chip_data;
 
+	/*
+	 * Counter for managing global pausing of the DMA controller.
+	 * Only applicable for devices that don't support individual
+	 * channel pausing.
+	 */
+	u32				global_pause_count;
+
 	/* Some register need to be cache before suspend */
 	u32				reg_gen;
 
@@ -358,16 +365,32 @@ static void tegra_dma_global_pause(struct tegra_dma_channel *tdc,
 	struct tegra_dma *tdma = tdc->tdma;
 
 	spin_lock(&tdma->global_lock);
-	tdma_write(tdma, TEGRA_APBDMA_GENERAL, 0);
-	if (wait_for_burst_complete)
-		udelay(TEGRA_APBDMA_BURST_COMPLETE_TIME);
+
+	if (tdc->tdma->global_pause_count == 0) {
+		tdma_write(tdma, TEGRA_APBDMA_GENERAL, 0);
+		if (wait_for_burst_complete)
+			udelay(TEGRA_APBDMA_BURST_COMPLETE_TIME);
+	}
+
+	tdc->tdma->global_pause_count++;
+
+	spin_unlock(&tdma->global_lock);
 }
 
 static void tegra_dma_global_resume(struct tegra_dma_channel *tdc)
 {
 	struct tegra_dma *tdma = tdc->tdma;
 
-	tdma_write(tdma, TEGRA_APBDMA_GENERAL, TEGRA_APBDMA_GENERAL_ENABLE);
+	spin_lock(&tdma->global_lock);
+
+	if (WARN_ON(tdc->tdma->global_pause_count == 0))
+		goto out;
+
+	if (--tdc->tdma->global_pause_count == 0)
+		tdma_write(tdma, TEGRA_APBDMA_GENERAL,
+			   TEGRA_APBDMA_GENERAL_ENABLE);
+
+out:
 	spin_unlock(&tdma->global_lock);
 }
 
@@ -1407,6 +1430,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_PRIVATE, tdma->dma_dev.cap_mask);
 	dma_cap_set(DMA_CYCLIC, tdma->dma_dev.cap_mask);
 
+	tdma->global_pause_count = 0;
 	tdma->dma_dev.dev = &pdev->dev;
 	tdma->dma_dev.device_alloc_chan_resources =
 					tegra_dma_alloc_chan_resources;
