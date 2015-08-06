@@ -454,7 +454,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	unsigned long buf_offset;
 	unsigned long data_seg_len;
 	uint32_t itt;
-	int err = 0;
+	int err;
 	struct ib_sge *tx_dsg;
 
 	itt = (__force uint32_t)hdr->itt;
@@ -475,7 +475,9 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	memcpy(&tx_desc->iscsi_header, hdr, sizeof(struct iscsi_hdr));
 
 	/* build the tx desc */
-	iser_initialize_task_headers(task, tx_desc);
+	err = iser_initialize_task_headers(task, tx_desc);
+	if (err)
+		goto send_data_out_error;
 
 	mem_reg = &iser_task->rdma_reg[ISER_DIR_OUT];
 	tx_dsg = &tx_desc->tx_sg[1];
@@ -502,7 +504,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 
 send_data_out_error:
 	kmem_cache_free(ig.desc_cache, tx_desc);
-	iser_err("conn %p failed err %d\n",conn, err);
+	iser_err("conn %p failed err %d\n", conn, err);
 	return err;
 }
 
