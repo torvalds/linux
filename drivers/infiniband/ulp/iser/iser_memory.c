@@ -476,10 +476,10 @@ static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
  * returns: 0 on success, errno code on failure
  */
 static
-int iser_reg_page_vec(struct iscsi_iser_task *iser_task,
+int iser_fast_reg_fmr(struct iscsi_iser_task *iser_task,
 		      struct iser_data_buf *mem,
 		      struct iser_reg_resources *rsc,
-		      struct iser_mem_reg *mem_reg)
+		      struct iser_mem_reg *reg)
 {
 	struct ib_conn *ib_conn = &iser_task->iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
@@ -510,11 +510,11 @@ int iser_reg_page_vec(struct iscsi_iser_task *iser_task,
 		return ret;
 	}
 
-	mem_reg->sge.lkey = fmr->fmr->lkey;
-	mem_reg->rkey = fmr->fmr->rkey;
-	mem_reg->sge.addr = page_vec->pages[0] + page_vec->offset;
-	mem_reg->sge.length = page_vec->data_size;
-	mem_reg->mem_h = fmr;
+	reg->sge.lkey = fmr->fmr->lkey;
+	reg->rkey = fmr->fmr->rkey;
+	reg->sge.addr = page_vec->pages[0] + page_vec->offset;
+	reg->sge.length = page_vec->data_size;
+	reg->mem_h = fmr;
 
 	return 0;
 }
@@ -592,7 +592,7 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 
 		desc = list_first_entry(&fr_pool->list,
 					struct iser_fr_desc, list);
-		err = iser_reg_page_vec(iser_task, mem, &desc->rsc, mem_reg);
+		err = iser_fast_reg_fmr(iser_task, mem, &desc->rsc, mem_reg);
 		if (err && err != -EAGAIN) {
 			iser_data_buf_dump(mem, ibdev);
 			iser_err("mem->dma_nents = %d (dlength = 0x%x)\n",
