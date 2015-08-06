@@ -1079,6 +1079,7 @@ static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 	unregister_netdev(mlxsw_sx_port->dev); /* This calls ndo_stop */
 	mlxsw_sx_port_swid_set(mlxsw_sx_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	free_percpu(mlxsw_sx_port->pcpu_stats);
+	free_netdev(mlxsw_sx_port->dev);
 }
 
 static void mlxsw_sx_ports_remove(struct mlxsw_sx *mlxsw_sx)
