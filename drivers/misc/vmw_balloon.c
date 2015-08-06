@@ -47,7 +47,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.4.0.0-k");
+MODULE_VERSION("1.4.1.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -564,12 +564,14 @@ static void vmballoon_pop(struct vmballoon *b)
 		}
 	}
 
-	if ((b->capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
-		if (b->batch_page)
-			vunmap(b->batch_page);
+	if (b->batch_page) {
+		vunmap(b->batch_page);
+		b->batch_page = NULL;
+	}
 
-		if (b->page)
-			__free_page(b->page);
+	if (b->page) {
+		__free_page(b->page);
+		b->page = NULL;
 	}
 }
 
@@ -1044,7 +1046,7 @@ static void vmballoon_work(struct work_struct *work)
 	if (b->slow_allocation_cycles > 0)
 		b->slow_allocation_cycles--;
 
-	if (vmballoon_send_get_target(b, &target)) {
+	if (!b->reset_required && vmballoon_send_get_target(b, &target)) {
 		/* update target, adjust size */
 		b->target = target;
 
@@ -1076,8 +1078,10 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 	/* format capabilities info */
 	seq_printf(f,
 		   "balloon capabilities:   %#4x\n"
-		   "used capabilities:      %#4lx\n",
-		   VMW_BALLOON_CAPABILITIES, b->capabilities);
+		   "used capabilities:      %#4lx\n"
+		   "is resetting:           %c\n",
+		   VMW_BALLOON_CAPABILITIES, b->capabilities,
+		   b->reset_required ? 'y' : 'n');
 
 	/* format size info */
 	seq_printf(f,
@@ -1196,34 +1200,13 @@ static int __init vmballoon_init(void)
 
 	INIT_DELAYED_WORK(&balloon.dwork, vmballoon_work);
 
-	/*
-	 * Start balloon.
-	 */
-	if (!vmballoon_send_start(&balloon, VMW_BALLOON_CAPABILITIES)) {
-		pr_err("failed to send start command to the host\n");
-		return -EIO;
-	}
-
-	if ((balloon.capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
-		balloon.ops = &vmballoon_batched_ops;
-		balloon.batch_max_pages = VMW_BALLOON_BATCH_MAX_PAGES;
-		if (!vmballoon_init_batching(&balloon)) {
-			pr_err("failed to init batching\n");
-			return -EIO;
-		}
-	} else if ((balloon.capabilities & VMW_BALLOON_BASIC_CMDS) != 0) {
-		balloon.ops = &vmballoon_basic_ops;
-		balloon.batch_max_pages = 1;
-	}
-
-	if (!vmballoon_send_guest_id(&balloon)) {
-		pr_err("failed to send guest ID to the host\n");
-		return -EIO;
-	}
-
 	error = vmballoon_debugfs_init(&balloon);
 	if (error)
 		return error;
+
+	balloon.batch_page = NULL;
+	balloon.page = NULL;
+	balloon.reset_required = true;
 
 	queue_delayed_work(system_freezable_wq, &balloon.dwork, 0);
 
@@ -1242,7 +1225,7 @@ static void __exit vmballoon_exit(void)
 	 * Reset connection before deallocating memory to avoid potential for
 	 * additional spurious resets from guest touching deallocated pages.
 	 */
-	vmballoon_send_start(&balloon, VMW_BALLOON_CAPABILITIES);
+	vmballoon_send_start(&balloon, 0);
 	vmballoon_pop(&balloon);
 }
 module_exit(vmballoon_exit);
