@@ -1116,23 +1116,24 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		   bool signal)
 {
-	int		  ib_ret;
-	struct ib_send_wr send_wr, *send_wr_failed;
+	struct ib_send_wr *bad_wr, *wr = iser_tx_next_wr(tx_desc);
+	int ib_ret;
 
 	ib_dma_sync_single_for_device(ib_conn->device->ib_device,
 				      tx_desc->dma_addr, ISER_HEADERS_LEN,
 				      DMA_TO_DEVICE);
 
-	send_wr.next	   = NULL;
-	send_wr.wr_id	   = (uintptr_t)tx_desc;
-	send_wr.sg_list	   = tx_desc->tx_sg;
-	send_wr.num_sge	   = tx_desc->num_sge;
-	send_wr.opcode	   = IB_WR_SEND;
-	send_wr.send_flags = signal ? IB_SEND_SIGNALED : 0;
+	wr->next = NULL;
+	wr->wr_id = (uintptr_t)tx_desc;
+	wr->sg_list = tx_desc->tx_sg;
+	wr->num_sge = tx_desc->num_sge;
+	wr->opcode = IB_WR_SEND;
+	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
 
-	ib_ret = ib_post_send(ib_conn->qp, &send_wr, &send_wr_failed);
+	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0], &bad_wr);
 	if (ib_ret)
-		iser_err("ib_post_send failed, ret:%d\n", ib_ret);
+		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
+			 ib_ret, bad_wr->opcode);
 
 	return ib_ret;
 }

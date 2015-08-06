@@ -664,10 +664,11 @@ iser_inv_rkey(struct ib_send_wr *inv_wr, struct ib_mr *mr)
 {
 	u32 rkey;
 
-	memset(inv_wr, 0, sizeof(*inv_wr));
 	inv_wr->opcode = IB_WR_LOCAL_INV;
 	inv_wr->wr_id = ISER_FASTREG_LI_WRID;
 	inv_wr->ex.invalidate_rkey = mr->rkey;
+	inv_wr->send_flags = 0;
+	inv_wr->num_sge = 0;
 
 	rkey = ib_inc_rkey(mr->rkey);
 	ib_update_fast_reg_key(mr, rkey);
@@ -680,47 +681,38 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 		struct iser_mem_reg *prot_reg,
 		struct iser_mem_reg *sig_reg)
 {
-	struct ib_conn *ib_conn = &iser_task->iser_conn->ib_conn;
-	struct ib_send_wr sig_wr, inv_wr;
-	struct ib_send_wr *bad_wr, *wr = NULL;
-	struct ib_sig_attrs sig_attrs;
+	struct iser_tx_desc *tx_desc = &iser_task->desc;
+	struct ib_sig_attrs *sig_attrs = &tx_desc->sig_attrs;
+	struct ib_send_wr *wr;
 	int ret;
 
-	memset(&sig_attrs, 0, sizeof(sig_attrs));
-	ret = iser_set_sig_attrs(iser_task->sc, &sig_attrs);
+	memset(sig_attrs, 0, sizeof(*sig_attrs));
+	ret = iser_set_sig_attrs(iser_task->sc, sig_attrs);
 	if (ret)
 		goto err;
 
-	iser_set_prot_checks(iser_task->sc, &sig_attrs.check_mask);
+	iser_set_prot_checks(iser_task->sc, &sig_attrs->check_mask);
 
 	if (!pi_ctx->sig_mr_valid) {
-		iser_inv_rkey(&inv_wr, pi_ctx->sig_mr);
-		wr = &inv_wr;
+		wr = iser_tx_next_wr(tx_desc);
+		iser_inv_rkey(wr, pi_ctx->sig_mr);
 	}
 
-	memset(&sig_wr, 0, sizeof(sig_wr));
-	sig_wr.opcode = IB_WR_REG_SIG_MR;
-	sig_wr.wr_id = ISER_FASTREG_LI_WRID;
-	sig_wr.sg_list = &data_reg->sge;
-	sig_wr.num_sge = 1;
-	sig_wr.wr.sig_handover.sig_attrs = &sig_attrs;
-	sig_wr.wr.sig_handover.sig_mr = pi_ctx->sig_mr;
+	wr = iser_tx_next_wr(tx_desc);
+	wr->opcode = IB_WR_REG_SIG_MR;
+	wr->wr_id = ISER_FASTREG_LI_WRID;
+	wr->sg_list = &data_reg->sge;
+	wr->num_sge = 1;
+	wr->send_flags = 0;
+	wr->wr.sig_handover.sig_attrs = sig_attrs;
+	wr->wr.sig_handover.sig_mr = pi_ctx->sig_mr;
 	if (scsi_prot_sg_count(iser_task->sc))
-		sig_wr.wr.sig_handover.prot = &prot_reg->sge;
-	sig_wr.wr.sig_handover.access_flags = IB_ACCESS_LOCAL_WRITE |
-					      IB_ACCESS_REMOTE_READ |
-					      IB_ACCESS_REMOTE_WRITE;
-
-	if (!wr)
-		wr = &sig_wr;
+		wr->wr.sig_handover.prot = &prot_reg->sge;
 	else
-		wr->next = &sig_wr;
-
-	ret = ib_post_send(ib_conn->qp, wr, &bad_wr);
-	if (ret) {
-		iser_err("reg_sig_mr failed, ret:%d\n", ret);
-		goto err;
-	}
+		wr->wr.sig_handover.prot = NULL;
+	wr->wr.sig_handover.access_flags = IB_ACCESS_LOCAL_WRITE |
+					   IB_ACCESS_REMOTE_READ |
+					   IB_ACCESS_REMOTE_WRITE;
 	pi_ctx->sig_mr_valid = 0;
 
 	sig_reg->sge.lkey = pi_ctx->sig_mr->lkey;
@@ -744,9 +736,9 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 	struct iser_device *device = ib_conn->device;
 	struct ib_mr *mr = rsc->mr;
 	struct ib_fast_reg_page_list *frpl = rsc->frpl;
-	struct ib_send_wr fastreg_wr, inv_wr;
-	struct ib_send_wr *bad_wr, *wr = NULL;
-	int ret, offset, size, plen;
+	struct iser_tx_desc *tx_desc = &iser_task->desc;
+	struct ib_send_wr *wr;
+	int offset, size, plen;
 
 	plen = iser_sg_to_page_vec(mem, device->ib_device, frpl->page_list,
 				   &offset, &size);
@@ -756,34 +748,23 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 	}
 
 	if (!rsc->mr_valid) {
-		iser_inv_rkey(&inv_wr, mr);
-		wr = &inv_wr;
+		wr = iser_tx_next_wr(tx_desc);
+		iser_inv_rkey(wr, mr);
 	}
 
-	/* Prepare FASTREG WR */
-	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
-	fastreg_wr.wr_id = ISER_FASTREG_LI_WRID;
-	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
-	fastreg_wr.wr.fast_reg.iova_start = frpl->page_list[0] + offset;
-	fastreg_wr.wr.fast_reg.page_list = frpl;
-	fastreg_wr.wr.fast_reg.page_list_len = plen;
-	fastreg_wr.wr.fast_reg.page_shift = SHIFT_4K;
-	fastreg_wr.wr.fast_reg.length = size;
-	fastreg_wr.wr.fast_reg.rkey = mr->rkey;
-	fastreg_wr.wr.fast_reg.access_flags = (IB_ACCESS_LOCAL_WRITE  |
-					       IB_ACCESS_REMOTE_WRITE |
-					       IB_ACCESS_REMOTE_READ);
-
-	if (!wr)
-		wr = &fastreg_wr;
-	else
-		wr->next = &fastreg_wr;
-
-	ret = ib_post_send(ib_conn->qp, wr, &bad_wr);
-	if (ret) {
-		iser_err("fast registration failed, ret:%d\n", ret);
-		return ret;
-	}
+	wr = iser_tx_next_wr(tx_desc);
+	wr->opcode = IB_WR_FAST_REG_MR;
+	wr->wr_id = ISER_FASTREG_LI_WRID;
+	wr->send_flags = 0;
+	wr->wr.fast_reg.iova_start = frpl->page_list[0] + offset;
+	wr->wr.fast_reg.page_list = frpl;
+	wr->wr.fast_reg.page_list_len = plen;
+	wr->wr.fast_reg.page_shift = SHIFT_4K;
+	wr->wr.fast_reg.length = size;
+	wr->wr.fast_reg.rkey = mr->rkey;
+	wr->wr.fast_reg.access_flags = (IB_ACCESS_LOCAL_WRITE  |
+					IB_ACCESS_REMOTE_WRITE |
+					IB_ACCESS_REMOTE_READ);
 	rsc->mr_valid = 0;
 
 	reg->sge.lkey = mr->lkey;
@@ -795,7 +776,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		 " length=0x%x\n", reg->sge.lkey, reg->rkey,
 		 reg->sge.addr, reg->sge.length);
 
-	return ret;
+	return 0;
 }
 
 static int
@@ -853,6 +834,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 	struct iser_device *device = ib_conn->device;
 	struct iser_data_buf *mem = &task->data[dir];
 	struct iser_mem_reg *reg = &task->rdma_reg[dir];
+	struct iser_mem_reg *data_reg;
 	struct iser_fr_desc *desc = NULL;
 	int err;
 
@@ -866,27 +848,31 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 		reg->mem_h = desc;
 	}
 
-	err = iser_reg_data_sg(task, mem, desc, reg);
+	if (scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL)
+		data_reg = reg;
+	else
+		data_reg = &task->desc.data_reg;
+
+	err = iser_reg_data_sg(task, mem, desc, data_reg);
 	if (unlikely(err))
 		goto err_reg;
 
 	if (scsi_get_prot_op(task->sc) != SCSI_PROT_NORMAL) {
-		struct iser_mem_reg prot_reg;
+		struct iser_mem_reg *prot_reg = &task->desc.prot_reg;
 
-		memset(&prot_reg, 0, sizeof(prot_reg));
 		if (scsi_prot_sg_count(task->sc)) {
 			mem = &task->prot[dir];
 			err = iser_handle_unaligned_buf(task, mem, dir);
 			if (unlikely(err))
 				goto err_reg;
 
-			err = iser_reg_prot_sg(task, mem, desc, &prot_reg);
+			err = iser_reg_prot_sg(task, mem, desc, prot_reg);
 			if (unlikely(err))
 				goto err_reg;
 		}
 
-		err = iser_reg_sig_mr(task, desc->pi_ctx, reg,
-				      &prot_reg, reg);
+		err = iser_reg_sig_mr(task, desc->pi_ctx, data_reg,
+				      prot_reg, reg);
 		if (unlikely(err))
 			goto err_reg;
 
