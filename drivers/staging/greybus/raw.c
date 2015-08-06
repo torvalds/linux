@@ -121,7 +121,8 @@ static int gb_raw_receive(u8 type, struct gb_operation *op)
 
 	/* Verify size of payload */
 	if (op->request->payload_size < sizeof(*receive)) {
-		dev_err(raw->device, "raw receive request too small\n");
+		dev_err(raw->device, "raw receive request too small (%zu < %zu)\n",
+			op->request->payload_size, sizeof(*receive));
 		return -EINVAL;
 	}
 	receive = op->request->payload;
