@@ -341,17 +341,20 @@ iser_free_pi_ctx(struct iser_pi_context *pi_ctx)
 	kfree(pi_ctx);
 }
 
-static int
+static struct iser_fr_desc *
 iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
-			 bool pi_enable, struct iser_fr_desc *desc)
+			 bool pi_enable)
 {
+	struct iser_fr_desc *desc;
 	int ret;
 
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return ERR_PTR(-ENOMEM);
+
 	ret = iser_alloc_reg_res(ib_device, pd, &desc->rsc);
-	if (ret) {
-		iser_err("failed to allocate reg_resources\n");
-		return ret;
-	}
+	if (ret)
+		goto reg_res_alloc_failure;
 
 	if (pi_enable) {
 		ret = iser_alloc_pi_ctx(ib_device, pd, desc);
@@ -359,12 +362,14 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 			goto pi_ctx_alloc_failure;
 	}
 
-	return 0;
+	return desc;
 
 pi_ctx_alloc_failure:
 	iser_free_reg_res(&desc->rsc);
+reg_res_alloc_failure:
+	kfree(desc);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /**
@@ -381,19 +386,10 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 	INIT_LIST_HEAD(&ib_conn->fastreg.pool);
 	ib_conn->fastreg.pool_size = 0;
 	for (i = 0; i < cmds_max; i++) {
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
-		if (!desc) {
-			iser_err("Failed to allocate a new fast_reg descriptor\n");
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		ret = iser_create_fastreg_desc(device->ib_device, device->pd,
-					       ib_conn->pi_support, desc);
-		if (ret) {
-			iser_err("Failed to create fastreg descriptor err=%d\n",
-				 ret);
-			kfree(desc);
+		desc = iser_create_fastreg_desc(device->ib_device, device->pd,
+						ib_conn->pi_support);
+		if (IS_ERR(desc)) {
+			ret = PTR_ERR(desc);
 			goto err;
 		}
 
