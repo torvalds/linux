@@ -396,13 +396,13 @@ struct iser_pi_context {
 };
 
 /**
- * struct fast_reg_descriptor - Fast registration descriptor
+ * struct iser_fr_desc - Fast registration descriptor
  *
  * @list:           entry in connection fastreg pool
  * @rsc:            data buffer registration resources
  * @pi_ctx:         protection information context
  */
-struct fast_reg_descriptor {
+struct iser_fr_desc {
 	struct list_head		  list;
 	struct iser_reg_resources	  rsc;
 	struct iser_pi_context		 *pi_ctx;
@@ -642,9 +642,9 @@ int iser_create_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max);
 void iser_free_fastreg_pool(struct ib_conn *ib_conn);
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector);
-struct fast_reg_descriptor *
+struct iser_fr_desc *
 iser_reg_desc_get(struct ib_conn *ib_conn);
 void
 iser_reg_desc_put(struct ib_conn *ib_conn,
-		  struct fast_reg_descriptor *desc);
+		  struct iser_fr_desc *desc);
 #endif

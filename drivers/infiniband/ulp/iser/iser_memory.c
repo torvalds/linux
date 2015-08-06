@@ -146,15 +146,15 @@ iser_copy_to_bounce(struct iser_data_buf *data)
 	iser_copy_bounce(data, true);
 }
 
-struct fast_reg_descriptor *
+struct iser_fr_desc *
 iser_reg_desc_get(struct ib_conn *ib_conn)
 {
-	struct fast_reg_descriptor *desc;
+	struct iser_fr_desc *desc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ib_conn->lock, flags);
 	desc = list_first_entry(&ib_conn->fastreg.pool,
-				struct fast_reg_descriptor, list);
+				struct iser_fr_desc, list);
 	list_del(&desc->list);
 	spin_unlock_irqrestore(&ib_conn->lock, flags);
 
@@ -163,7 +163,7 @@ iser_reg_desc_get(struct ib_conn *ib_conn)
 
 void
 iser_reg_desc_put(struct ib_conn *ib_conn,
-		  struct fast_reg_descriptor *desc)
+		  struct iser_fr_desc *desc)
 {
 	unsigned long flags;
 
@@ -787,7 +787,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 	struct ib_device *ibdev = device->ib_device;
 	struct iser_data_buf *mem = &iser_task->data[cmd_dir];
 	struct iser_mem_reg *mem_reg = &iser_task->rdma_reg[cmd_dir];
-	struct fast_reg_descriptor *desc = NULL;
+	struct iser_fr_desc *desc = NULL;
 	int err, aligned_len;
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);

@@ -320,7 +320,7 @@ iser_free_reg_res(struct iser_reg_resources *rsc)
 
 static int
 iser_alloc_pi_ctx(struct ib_device *ib_device, struct ib_pd *pd,
-		  struct fast_reg_descriptor *desc)
+		  struct iser_fr_desc *desc)
 {
 	struct iser_pi_context *pi_ctx = NULL;
 	int ret;
@@ -365,7 +365,7 @@ iser_free_pi_ctx(struct iser_pi_context *pi_ctx)
 
 static int
 iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
-			 bool pi_enable, struct fast_reg_descriptor *desc)
+			 bool pi_enable, struct iser_fr_desc *desc)
 {
 	int ret;
 
@@ -397,7 +397,7 @@ pi_ctx_alloc_failure:
 int iser_create_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 {
 	struct iser_device *device = ib_conn->device;
-	struct fast_reg_descriptor *desc;
+	struct iser_fr_desc *desc;
 	int i, ret;
 
 	INIT_LIST_HEAD(&ib_conn->fastreg.pool);
@@ -435,7 +435,7 @@ err:
  */
 void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 {
-	struct fast_reg_descriptor *desc, *tmp;
+	struct iser_fr_desc *desc, *tmp;
 	int i = 0;
 
 	if (list_empty(&ib_conn->fastreg.pool))
@@ -1252,7 +1252,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
-	struct fast_reg_descriptor *desc = reg->mem_h;
+	struct iser_fr_desc *desc = reg->mem_h;
 	unsigned long sector_size = iser_task->sc->device->sector_size;
 	struct ib_mr_status mr_status;
 	int ret;
