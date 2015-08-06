@@ -110,7 +110,7 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	misc_pdev = of_find_device_by_node(args.np);
 	of_node_put(args.np);
 
-	if (!misc_pdev)
+	if (!misc_pdev || !platform_get_drvdata(misc_pdev))
 		return ERR_PTR(-EPROBE_DEFER);
 
 	data->dev = &misc_pdev->dev;
