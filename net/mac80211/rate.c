@@ -651,6 +651,30 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 	return true;
 }
 
+static void
+rate_control_apply_mask_ratetbl(struct sta_info *sta,
+				struct ieee80211_supported_band *sband,
+				struct ieee80211_sta_rates *rates)
+{
+	int i;
+	u32 mask;
+	u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
+	enum nl80211_chan_width chan_width;
+
+	if (!rate_control_cap_mask(sta->sdata, sband, &sta->sta, &mask,
+				   mcs_mask))
+		return;
+
+	chan_width = sta->sdata->vif.bss_conf.chandef.width;
+	for (i = 0; i < IEEE80211_TX_RATE_TABLE_SIZE; i++) {
+		if (rates->rate[i].idx < 0)
+			break;
+
+		rate_idx_match_mask(&rates->rate[i].idx, &rates->rate[i].flags,
+				    sband, chan_width, mask, mcs_mask);
+	}
+}
+
 static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_sta *sta,
 				    struct ieee80211_supported_band *sband,
@@ -766,7 +790,10 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	struct ieee80211_sta_rates *old;
+	struct ieee80211_supported_band *sband;
 
+	sband = hw->wiphy->bands[ieee80211_get_sdata_band(sta->sdata)];
+	rate_control_apply_mask_ratetbl(sta, sband, rates);
 	/*
 	 * mac80211 guarantees that this function will not be called
 	 * concurrently, so the following RCU access is safe, even without
