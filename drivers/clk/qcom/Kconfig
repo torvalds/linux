@@ -17,6 +17,7 @@ config APQ_GCC_8084
 config APQ_MMCC_8084
 	tristate "APQ8084 Multimedia Clock Controller"
 	select APQ_GCC_8084
+	select QCOM_GDSC
 	depends on COMMON_CLK_QCOM
 	help
 	  Support for the multimedia clock controller on apq8084 devices.
