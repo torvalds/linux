@@ -380,12 +380,20 @@ struct iser_device {
  * struct iser_reg_resources - Fast registration recources
  *
  * @mr:         memory region
- * @frpl:       fast reg page list
+ * @fmr_pool:   pool of fmrs
+ * @frpl:       fast reg page list used by frwrs
+ * @page_vec:   fast reg page list used by fmr pool
  * @mr_valid:   is mr valid indicator
  */
 struct iser_reg_resources {
-	struct ib_mr			 *mr;
-	struct ib_fast_reg_page_list     *frpl;
+	union {
+		struct ib_mr             *mr;
+		struct ib_fmr_pool       *fmr_pool;
+	};
+	union {
+		struct ib_fast_reg_page_list     *frpl;
+		struct iser_page_vec             *page_vec;
+	};
 	u8				  mr_valid:1;
 };
 
@@ -420,28 +428,14 @@ struct iser_fr_desc {
 /**
  * struct iser_fr_pool: connection fast registration pool
  *
+ * @list:                list of fastreg descriptors
  * @lock:                protects fmr/fastreg pool
- * @union.fmr:
- *     @pool:            FMR pool for fast registrations
- *     @page_vec:        fast reg page list to hold mapped commands pages
- *                       used for registration
- * @union.fastreg:
- *     @pool:            Fast registration descriptors pool for fast
- *                       registrations
- *     @pool_size:       Size of pool
+ * @size:                size of the pool
  */
 struct iser_fr_pool {
-	spinlock_t		     lock;
-	union {
-		struct {
-			struct ib_fmr_pool              *pool;
-			struct iser_page_vec            *page_vec;
-		} fmr;
-		struct {
-			struct list_head	 pool;
-			int			 pool_size;
-		} fastreg;
-	};
+	struct list_head        list;
+	spinlock_t              lock;
+	int                     size;
 };
 
 /**

@@ -189,7 +189,7 @@ iser_reg_desc_get(struct ib_conn *ib_conn)
 	unsigned long flags;
 
 	spin_lock_irqsave(&fr_pool->lock, flags);
-	desc = list_first_entry(&fr_pool->fastreg.pool,
+	desc = list_first_entry(&fr_pool->list,
 				struct iser_fr_desc, list);
 	list_del(&desc->list);
 	spin_unlock_irqrestore(&fr_pool->lock, flags);
@@ -205,7 +205,7 @@ iser_reg_desc_put(struct ib_conn *ib_conn,
 	unsigned long flags;
 
 	spin_lock_irqsave(&fr_pool->lock, flags);
-	list_add(&desc->list, &fr_pool->fastreg.pool);
+	list_add(&desc->list, &fr_pool->list);
 	spin_unlock_irqrestore(&fr_pool->lock, flags);
 }
 
@@ -478,12 +478,13 @@ static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
 static
 int iser_reg_page_vec(struct iscsi_iser_task *iser_task,
 		      struct iser_data_buf *mem,
-		      struct iser_page_vec *page_vec,
+		      struct iser_reg_resources *rsc,
 		      struct iser_mem_reg *mem_reg)
 {
 	struct ib_conn *ib_conn = &iser_task->iser_conn->ib_conn;
-	struct iser_fr_pool *fr_pool = &ib_conn->fr_pool;
 	struct iser_device *device = ib_conn->device;
+	struct iser_page_vec *page_vec = rsc->page_vec;
+	struct ib_fmr_pool *fmr_pool = rsc->fmr_pool;
 	struct ib_pool_fmr *fmr;
 	int ret, plen;
 
@@ -499,7 +500,7 @@ int iser_reg_page_vec(struct iscsi_iser_task *iser_task,
 		return -EINVAL;
 	}
 
-	fmr  = ib_fmr_pool_map_phys(fr_pool->fmr.pool,
+	fmr  = ib_fmr_pool_map_phys(fmr_pool,
 				    page_vec->pages,
 				    page_vec->length,
 				    page_vec->pages[0]);
@@ -587,20 +588,23 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 	if (mem->dma_nents == 1) {
 		return iser_reg_dma(device, mem, mem_reg);
 	} else { /* use FMR for multiple dma entries */
-		err = iser_reg_page_vec(iser_task, mem,
-					fr_pool->fmr.page_vec, mem_reg);
+		struct iser_fr_desc *desc;
+
+		desc = list_first_entry(&fr_pool->list,
+					struct iser_fr_desc, list);
+		err = iser_reg_page_vec(iser_task, mem, &desc->rsc, mem_reg);
 		if (err && err != -EAGAIN) {
 			iser_data_buf_dump(mem, ibdev);
 			iser_err("mem->dma_nents = %d (dlength = 0x%x)\n",
 				 mem->dma_nents,
 				 ntoh24(iser_task->desc.iscsi_header.dlength));
 			iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
-				 fr_pool->fmr.page_vec->data_size,
-				 fr_pool->fmr.page_vec->length,
-				 fr_pool->fmr.page_vec->offset);
-			for (i = 0; i < fr_pool->fmr.page_vec->length; i++)
+				 desc->rsc.page_vec->data_size,
+				 desc->rsc.page_vec->length,
+				 desc->rsc.page_vec->offset);
+			for (i = 0; i < desc->rsc.page_vec->length; i++)
 				iser_err("page_vec[%d] = 0x%llx\n", i,
-					 (unsigned long long)fr_pool->fmr.page_vec->pages[i]);
+					 (unsigned long long)desc->rsc.page_vec->pages[i]);
 		}
 		if (err)
 			return err;

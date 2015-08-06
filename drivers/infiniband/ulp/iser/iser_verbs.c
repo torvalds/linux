@@ -204,17 +204,25 @@ int iser_alloc_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 	struct iser_device *device = ib_conn->device;
 	struct iser_fr_pool *fr_pool = &ib_conn->fr_pool;
 	struct iser_page_vec *page_vec;
+	struct iser_fr_desc *desc;
 	struct ib_fmr_pool *fmr_pool;
 	struct ib_fmr_pool_param params;
-	int ret = -ENOMEM;
+	int ret;
 
+	INIT_LIST_HEAD(&fr_pool->list);
 	spin_lock_init(&fr_pool->lock);
+
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
 
 	page_vec = kmalloc(sizeof(*page_vec) +
 			   (sizeof(u64) * (ISCSI_ISER_SG_TABLESIZE + 1)),
 			   GFP_KERNEL);
-	if (!page_vec)
-		return ret;
+	if (!page_vec) {
+		ret = -ENOMEM;
+		goto err_frpl;
+	}
 
 	page_vec->pages = (u64 *)(page_vec + 1);
 
@@ -236,16 +244,20 @@ int iser_alloc_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 	if (IS_ERR(fmr_pool)) {
 		ret = PTR_ERR(fmr_pool);
 		iser_err("FMR allocation failed, err %d\n", ret);
-		goto err;
+		goto err_fmr;
 	}
 
-	fr_pool->fmr.page_vec = page_vec;
-	fr_pool->fmr.pool = fmr_pool;
+	desc->rsc.page_vec = page_vec;
+	desc->rsc.fmr_pool = fmr_pool;
+	list_add(&desc->list, &fr_pool->list);
 
 	return 0;
 
-err:
+err_fmr:
 	kfree(page_vec);
+err_frpl:
+	kfree(desc);
+
 	return ret;
 }
 
@@ -255,14 +267,18 @@ err:
 void iser_free_fmr_pool(struct ib_conn *ib_conn)
 {
 	struct iser_fr_pool *fr_pool = &ib_conn->fr_pool;
+	struct iser_fr_desc *desc;
+
+	desc = list_first_entry(&fr_pool->list,
+				struct iser_fr_desc, list);
+	list_del(&desc->list);
 
 	iser_info("freeing conn %p fmr pool %p\n",
-		  ib_conn, fr_pool->fmr.pool);
+		  ib_conn, desc->rsc.fmr_pool);
 
-	ib_destroy_fmr_pool(fr_pool->fmr.pool);
-	fr_pool->fmr.pool = NULL;
-	kfree(fr_pool->fmr.page_vec);
-	fr_pool->fmr.page_vec = NULL;
+	ib_destroy_fmr_pool(desc->rsc.fmr_pool);
+	kfree(desc->rsc.page_vec);
+	kfree(desc);
 }
 
 static int
@@ -392,9 +408,9 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 	struct iser_fr_desc *desc;
 	int i, ret;
 
-	INIT_LIST_HEAD(&fr_pool->fastreg.pool);
+	INIT_LIST_HEAD(&fr_pool->list);
 	spin_lock_init(&fr_pool->lock);
-	fr_pool->fastreg.pool_size = 0;
+	fr_pool->size = 0;
 	for (i = 0; i < cmds_max; i++) {
 		desc = iser_create_fastreg_desc(device->ib_device, device->pd,
 						ib_conn->pi_support);
@@ -403,8 +419,8 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 			goto err;
 		}
 
-		list_add_tail(&desc->list, &fr_pool->fastreg.pool);
-		fr_pool->fastreg.pool_size++;
+		list_add_tail(&desc->list, &fr_pool->list);
+		fr_pool->size++;
 	}
 
 	return 0;
@@ -423,12 +439,12 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 	struct iser_fr_desc *desc, *tmp;
 	int i = 0;
 
-	if (list_empty(&fr_pool->fastreg.pool))
+	if (list_empty(&fr_pool->list))
 		return;
 
 	iser_info("freeing conn %p fr pool\n", ib_conn);
 
-	list_for_each_entry_safe(desc, tmp, &fr_pool->fastreg.pool, list) {
+	list_for_each_entry_safe(desc, tmp, &fr_pool->list, list) {
 		list_del(&desc->list);
 		iser_free_reg_res(&desc->rsc);
 		if (desc->pi_ctx)
@@ -437,9 +453,9 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 		++i;
 	}
 
-	if (i < fr_pool->fastreg.pool_size)
+	if (i < fr_pool->size)
 		iser_warn("pool still has %d regions registered\n",
-			  fr_pool->fastreg.pool_size - i);
+			  fr_pool->size - i);
 }
 
 /**
