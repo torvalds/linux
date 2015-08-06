@@ -8,6 +8,7 @@
  */
 
 #include "greybus.h"
+#include <linux/workqueue.h>
 
 #define CPORT_FLAGS_E2EFC       (1)
 #define CPORT_FLAGS_CSD_N       (2)
@@ -17,6 +18,12 @@ struct gb_svc {
 	struct gb_connection	*connection;
 	u8			version_major;
 	u8			version_minor;
+};
+
+struct svc_hotplug {
+	struct work_struct work;
+	struct gb_connection *connection;
+	struct gb_svc_intf_hotplug_request data;
 };
 
 static struct ida greybus_svc_device_id_map;
@@ -253,13 +260,19 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
-static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
+/*
+ * 'struct svc_hotplug' should be freed by svc_process_hotplug() before it
+ * returns, irrespective of success or Failure in bringing up the module.
+ */
+static void svc_process_hotplug(struct work_struct *work)
 {
-	struct gb_message *request = op->request;
-	struct gb_svc_intf_hotplug_request *hotplug = request->payload;
-	struct gb_svc *svc = op->connection->private;
-	struct greybus_host_device *hd = op->connection->bundle->intf->hd;
-	struct device *dev = &op->connection->dev;
+	struct svc_hotplug *svc_hotplug = container_of(work, struct svc_hotplug,
+						       work);
+	struct gb_svc_intf_hotplug_request *hotplug = &svc_hotplug->data;
+	struct gb_connection *connection = svc_hotplug->connection;
+	struct gb_svc *svc = connection->private;
+	struct greybus_host_device *hd = connection->bundle->intf->hd;
+	struct device *dev = &connection->dev;
 	struct gb_interface *intf;
 	u8 intf_id, device_id;
 	u32 unipro_mfg_id;
@@ -268,19 +281,8 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	u32 ara_prod_id;
 	int ret;
 
-	if (request->payload_size < sizeof(*hotplug)) {
-		dev_err(dev, "%s: short hotplug request received (%zu < %zu)\n",
-			__func__, request->payload_size, sizeof(*hotplug));
-		return -EINVAL;
-	}
-
 	/*
 	 * Grab the information we need.
-	 *
-	 * XXX I'd really like to acknowledge receipt, and then
-	 * XXX continue processing the request.  There's no need
-	 * XXX for the SVC to wait.  In fact, it might be best to
-	 * XXX have the SVC get acknowledgement before we proceed.
 	 */
 	intf_id = hotplug->intf_id;
 	unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
@@ -293,7 +295,7 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	if (!intf) {
 		dev_err(dev, "%s: Failed to create interface with id %hhu\n",
 			__func__, intf_id);
-		return -EINVAL;
+		goto free_svc_hotplug;
 	}
 
 	/*
@@ -346,7 +348,7 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 		goto svc_id_free;
 	}
 
-	return 0;
+	goto free_svc_hotplug;
 
 svc_id_free:
 	/*
@@ -357,8 +359,43 @@ ida_put:
 	ida_simple_remove(&greybus_svc_device_id_map, device_id);
 destroy_interface:
 	gb_interface_remove(hd, intf_id);
+free_svc_hotplug:
+	kfree(svc_hotplug);
+}
 
-	return ret;
+/*
+ * Bringing up a module can be time consuming, as that may require lots of
+ * initialization on the module side. Over that, we may also need to download
+ * the firmware first and flash that on the module.
+ *
+ * In order to make other hotplug events to not wait for all this to finish,
+ * handle most of module hotplug stuff outside of the hotplug callback, with
+ * help of a workqueue.
+ */
+static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
+{
+	struct gb_message *request = op->request;
+	struct svc_hotplug *svc_hotplug;
+
+	if (request->payload_size < sizeof(svc_hotplug->data)) {
+		dev_err(&op->connection->dev,
+			"%s: short hotplug request received (%zu < %zu)\n",
+			__func__, request->payload_size,
+			sizeof(svc_hotplug->data));
+		return -EINVAL;
+	}
+
+	svc_hotplug = kmalloc(sizeof(*svc_hotplug), GFP_ATOMIC);
+	if (!svc_hotplug)
+		return -ENOMEM;
+
+	svc_hotplug->connection = op->connection;
+	memcpy(&svc_hotplug->data, op->request->payload, sizeof(svc_hotplug->data));
+
+	INIT_WORK(&svc_hotplug->work, svc_process_hotplug);
+	queue_work(system_unbound_wq, &svc_hotplug->work);
+
+	return 0;
 }
 
 static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
