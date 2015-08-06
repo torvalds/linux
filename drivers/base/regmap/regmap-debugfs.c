@@ -599,10 +599,11 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	if (map->max_register || regmap_readable(map, 0)) {
 		umode_t registers_mode;
 
-		if (IS_ENABLED(REGMAP_ALLOW_WRITE_DEBUGFS))
-			registers_mode = 0600;
-		else
-			registers_mode = 0400;
+#if defined(REGMAP_ALLOW_WRITE_DEBUGFS)
+		registers_mode = 0600;
+#else
+		registers_mode = 0400;
+#endif
 
 		debugfs_create_file("registers", registers_mode, map->debugfs,
 				    map, &regmap_map_fops);
