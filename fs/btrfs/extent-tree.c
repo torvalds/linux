@@ -1316,8 +1316,7 @@ static noinline int remove_extent_data_ref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static noinline u32 extent_data_ref_count(struct btrfs_root *root,
-					  struct btrfs_path *path,
+static noinline u32 extent_data_ref_count(struct btrfs_path *path,
 					  struct btrfs_extent_inline_ref *iref)
 {
 	struct btrfs_key key;
@@ -6349,7 +6348,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	} else {
 		if (found_extent) {
 			BUG_ON(is_data && refs_to_drop !=
-			       extent_data_ref_count(root, path, iref));
+			       extent_data_ref_count(path, iref));
 			if (iref) {
 				BUG_ON(path->slots[0] != extent_slot);
 			} else {
