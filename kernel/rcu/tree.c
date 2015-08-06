@@ -161,6 +161,8 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf);
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
 static void invoke_rcu_core(void);
 static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp);
+static void rcu_report_exp_rdp(struct rcu_state *rsp,
+			       struct rcu_data *rdp, bool wake);
 
 /* rcuc/rcub kthread realtime priority */
 #ifdef CONFIG_RCU_KTHREAD_PRIO
@@ -250,6 +252,12 @@ void rcu_sched_qs(void)
 				       __this_cpu_read(rcu_sched_data.gpnum),
 				       TPS("cpuqs"));
 		__this_cpu_write(rcu_sched_data.cpu_no_qs.b.norm, false);
+		if (__this_cpu_read(rcu_sched_data.cpu_no_qs.b.exp)) {
+			__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, false);
+			rcu_report_exp_rdp(&rcu_sched_state,
+					   this_cpu_ptr(&rcu_sched_data),
+					   true);
+		}
 	}
 }
 
@@ -3555,8 +3563,8 @@ static void rcu_report_exp_cpu_mult(struct rcu_state *rsp, struct rcu_node *rnp,
  * Report expedited quiescent state for specified rcu_data (CPU).
  * Caller must hold the root rcu_node's exp_funnel_mutex.
  */
-static void __maybe_unused rcu_report_exp_rdp(struct rcu_state *rsp,
-					      struct rcu_data *rdp, bool wake)
+static void rcu_report_exp_rdp(struct rcu_state *rsp, struct rcu_data *rdp,
+			       bool wake)
 {
 	rcu_report_exp_cpu_mult(rsp, rdp->mynode, rdp->grpmask, wake);
 }
@@ -3637,14 +3645,10 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 }
 
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
-static int synchronize_sched_expedited_cpu_stop(void *data)
+static void synchronize_sched_expedited_cpu_stop(void *data)
 {
-	struct rcu_data *rdp = data;
-	struct rcu_state *rsp = rdp->rsp;
-
-	/* Report the quiescent state. */
-	rcu_report_exp_rdp(rsp, rdp, true);
-	return 0;
+	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, true);
+	resched_cpu(smp_processor_id());
 }
 
 /*
@@ -3659,6 +3663,7 @@ static void sync_sched_exp_select_cpus(struct rcu_state *rsp)
 	unsigned long mask_ofl_test;
 	unsigned long mask_ofl_ipi;
 	struct rcu_data *rdp;
+	int ret;
 	struct rcu_node *rnp;
 
 	sync_exp_reset_tree(rsp);
@@ -3694,9 +3699,9 @@ static void sync_sched_exp_select_cpus(struct rcu_state *rsp)
 			if (!(mask_ofl_ipi & mask))
 				continue;
 			rdp = per_cpu_ptr(rsp->rda, cpu);
-			stop_one_cpu_nowait(cpu, synchronize_sched_expedited_cpu_stop,
-					    rdp, &rdp->exp_stop_work);
-			mask_ofl_ipi &= ~mask;
+			ret = smp_call_function_single(cpu, synchronize_sched_expedited_cpu_stop, NULL, 0);
+			if (!ret)
+				mask_ofl_ipi &= ~mask;
 		}
 		/* Report quiescent states for those that went offline. */
 		mask_ofl_test |= mask_ofl_ipi;
@@ -4201,6 +4206,9 @@ int rcu_cpu_notify(struct notifier_block *self,
 			rcu_cleanup_dying_cpu(rsp);
 		break;
 	case CPU_DYING_IDLE:
+		/* QS for any half-done expedited RCU-sched GP. */
+		rcu_sched_qs();
+
 		for_each_rcu_flavor(rsp) {
 			rcu_cleanup_dying_idle_cpu(cpu, rsp);
 		}

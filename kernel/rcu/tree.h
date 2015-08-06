@@ -324,9 +324,6 @@ struct rcu_data {
 					/*  ticks this CPU has handled */
 					/*  during and after the last grace */
 					/* period it is aware of. */
-	struct cpu_stop_work exp_stop_work;
-					/* Expedited grace-period control */
-					/*  for CPU stopping. */
 
 	/* 2) batch handling */
 	/*
