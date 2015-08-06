@@ -47,7 +47,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.3.3.0-k");
+MODULE_VERSION("1.3.4.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -58,25 +58,12 @@ MODULE_LICENSE("GPL");
  */
 
 /*
- * Rate of allocating memory when there is no memory pressure
- * (driver performs non-sleeping allocations).
- */
-#define VMW_BALLOON_NOSLEEP_ALLOC_MAX	16384U
-
-/*
  * Rates of memory allocaton when guest experiences memory pressure
  * (driver performs sleeping allocations).
  */
 #define VMW_BALLOON_RATE_ALLOC_MIN	512U
 #define VMW_BALLOON_RATE_ALLOC_MAX	2048U
 #define VMW_BALLOON_RATE_ALLOC_INC	16U
-
-/*
- * Rates for releasing pages while deflating balloon.
- */
-#define VMW_BALLOON_RATE_FREE_MIN	512U
-#define VMW_BALLOON_RATE_FREE_MAX	16384U
-#define VMW_BALLOON_RATE_FREE_INC	16U
 
 /*
  * When guest is under memory pressure, use a reduced page allocation
@@ -99,9 +86,6 @@ MODULE_LICENSE("GPL");
  * low-memory pools.
  */
 #define VMW_PAGE_ALLOC_CANSLEEP		(GFP_HIGHUSER)
-
-/* Maximum number of page allocations without yielding processor */
-#define VMW_BALLOON_YIELD_THRESHOLD	1024
 
 /* Maximum number of refused pages we accumulate during inflation cycle */
 #define VMW_BALLOON_MAX_REFUSED		16
@@ -279,7 +263,6 @@ struct vmballoon {
 
 	/* adjustment rates (pages per second) */
 	unsigned int rate_alloc;
-	unsigned int rate_free;
 
 	/* slowdown page allocations for next few cycles */
 	unsigned int slow_allocation_cycles;
@@ -503,18 +486,13 @@ static bool vmballoon_send_batched_unlock(struct vmballoon *b,
 static void vmballoon_pop(struct vmballoon *b)
 {
 	struct page *page, *next;
-	unsigned int count = 0;
 
 	list_for_each_entry_safe(page, next, &b->pages, lru) {
 		list_del(&page->lru);
 		__free_page(page);
 		STATS_INC(b->stats.free);
 		b->size--;
-
-		if (++count >= b->rate_free) {
-			count = 0;
-			cond_resched();
-		}
+		cond_resched();
 	}
 
 	if ((b->capabilities & VMW_BALLOON_BATCHED_CMDS) != 0) {
@@ -716,7 +694,7 @@ static void vmballoon_add_batched_page(struct vmballoon *b, int idx,
  */
 static void vmballoon_inflate(struct vmballoon *b)
 {
-	unsigned int rate;
+	unsigned rate;
 	unsigned int allocations = 0;
 	unsigned int num_pages = 0;
 	int error = 0;
@@ -743,13 +721,13 @@ static void vmballoon_inflate(struct vmballoon *b)
 	 * Start with no sleep allocation rate which may be higher
 	 * than sleeping allocation rate.
 	 */
-	rate = b->slow_allocation_cycles ?
-			b->rate_alloc : VMW_BALLOON_NOSLEEP_ALLOC_MAX;
+	rate = b->slow_allocation_cycles ? b->rate_alloc : UINT_MAX;
 
-	pr_debug("%s - goal: %d, no-sleep rate: %d, sleep rate: %d\n",
+	pr_debug("%s - goal: %d, no-sleep rate: %u, sleep rate: %d\n",
 		 __func__, b->target - b->size, rate, b->rate_alloc);
 
-	while (b->size < b->target && num_pages < b->target - b->size) {
+	while (!b->reset_required &&
+		b->size < b->target && num_pages < b->target - b->size) {
 		struct page *page;
 
 		if (flags == VMW_PAGE_ALLOC_NOSLEEP)
@@ -799,10 +777,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 				break;
 		}
 
-		if (++allocations > VMW_BALLOON_YIELD_THRESHOLD) {
-			cond_resched();
-			allocations = 0;
-		}
+		cond_resched();
 
 		if (allocations >= rate) {
 			/* We allocated enough pages, let's take a break. */
@@ -838,36 +813,29 @@ static void vmballoon_deflate(struct vmballoon *b)
 	unsigned int num_pages = 0;
 	int error;
 
-	pr_debug("%s - size: %d, target %d, rate: %d\n", __func__, b->size,
-						b->target, b->rate_free);
+	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
 
 	/* free pages to reach target */
 	list_for_each_entry_safe(page, next, &b->pages, lru) {
 		list_del(&page->lru);
 		b->ops->add_page(b, num_pages++, page);
 
+
 		if (num_pages == b->batch_max_pages) {
 			error = b->ops->unlock(b, num_pages, &b->target);
 			num_pages = 0;
-			if (error) {
-				/* quickly decrease rate in case of error */
-				b->rate_free = max(b->rate_free / 2,
-						VMW_BALLOON_RATE_FREE_MIN);
+			if (error)
 				return;
-			}
 		}
 
-		if (++i >= b->size - b->target)
+		if (b->reset_required || ++i >= b->size - b->target)
 			break;
+
+		cond_resched();
 	}
 
 	if (num_pages > 0)
 		b->ops->unlock(b, num_pages, &b->target);
-
-	/* slowly increase rate if there were no errors */
-	if (error == 0)
-		b->rate_free = min(b->rate_free + VMW_BALLOON_RATE_FREE_INC,
-				   VMW_BALLOON_RATE_FREE_MAX);
 }
 
 static const struct vmballoon_ops vmballoon_basic_ops = {
@@ -993,11 +961,8 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 
 	/* format rate info */
 	seq_printf(f,
-		   "rateNoSleepAlloc:   %8d pages/sec\n"
-		   "rateSleepAlloc:     %8d pages/sec\n"
-		   "rateFree:           %8d pages/sec\n",
-		   VMW_BALLOON_NOSLEEP_ALLOC_MAX,
-		   b->rate_alloc, b->rate_free);
+		   "rateSleepAlloc:     %8d pages/sec\n",
+		   b->rate_alloc);
 
 	seq_printf(f,
 		   "\n"
@@ -1088,7 +1053,6 @@ static int __init vmballoon_init(void)
 
 	/* initialize rates */
 	balloon.rate_alloc = VMW_BALLOON_RATE_ALLOC_MAX;
-	balloon.rate_free = VMW_BALLOON_RATE_FREE_MAX;
 
 	INIT_DELAYED_WORK(&balloon.dwork, vmballoon_work);
 
