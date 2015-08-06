@@ -1059,6 +1059,13 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 				  HDC_FENCE_DEST_SLM_DISABLE |
 				  HDC_BARRIER_PERFORMANCE_DISABLE);
 
+	/* WaDisableSbeCacheDispatchPortSharing:skl */
+	if (INTEL_REVID(dev) <= SKL_REVID_F0) {
+		WA_SET_BIT_MASKED(
+			GEN7_HALF_SLICE_CHICKEN1,
+			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
+	}
+
 	return skl_tune_iz_hashing(ring);
 }
 
