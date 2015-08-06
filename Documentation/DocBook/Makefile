@@ -60,7 +60,9 @@ mandocs: $(MAN)
 
 installmandocs: mandocs
 	mkdir -p /usr/local/man/man9/
-	install -m 644 $(obj)/man/*.9.gz /usr/local/man/man9/
+	find $(obj)/man -name '*.9.gz' -printf '%h %f\n' | \
+		sort -k 2 -k 1 | uniq -f 1 | sed -e 's: :/:' | \
+		xargs install -m 644 -t /usr/local/man/man9/
 
 ###
 #External programs used
@@ -150,12 +152,12 @@ quiet_cmd_db2html = HTML    $@
             cp $(PNG-$(basename $(notdir $@))) $(patsubst %.html,%,$@); fi
 
 quiet_cmd_db2man = MAN     $@
-      cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man $< ; fi
+      cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man/$(*F) $< ; fi
 %.9 : %.xml
 	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install xmlto ***"; \
 	  exit 1)
-	$(Q)mkdir -p $(obj)/man
+	$(Q)mkdir -p $(obj)/man/$(*F)
 	$(call cmd,db2man)
 	@touch $@
 
