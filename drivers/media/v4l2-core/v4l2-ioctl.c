@@ -28,7 +28,6 @@
 #include <media/v4l2-device.h>
 #include <media/videobuf2-core.h>
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/v4l2.h>
 
 /* Zero out the end of the struct pointed to by p.  Everything after, but
