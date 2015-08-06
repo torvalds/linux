@@ -28,11 +28,11 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		struct desc_struct *desc;
 		unsigned long base;
 
-		seg &= ~7UL;
+		seg >>= 3;
 
 		mutex_lock(&child->mm->context.lock);
 		if (unlikely(!child->mm->context.ldt ||
-			     (seg >> 3) >= child->mm->context.ldt->size))
+			     seg >= child->mm->context.ldt->size))
 			addr = -1L; /* bogus selector, access would fault */
 		else {
 			desc = &child->mm->context.ldt->entries[seg];
