@@ -631,7 +631,6 @@ static void rate_control_fill_sta_table(struct ieee80211_sta *sta,
 static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_sta *sta,
 				    struct ieee80211_supported_band *sband,
-				    struct ieee80211_tx_info *info,
 				    struct ieee80211_tx_rate *rates,
 				    int max_rates)
 {
@@ -647,8 +646,8 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 	 * default mask (allow all rates) is used to save some processing for
 	 * the common case.
 	 */
-	mask = sdata->rc_rateidx_mask[info->band];
-	has_mcs_mask = sdata->rc_has_mcs_mask[info->band];
+	mask = sdata->rc_rateidx_mask[sband->band];
+	has_mcs_mask = sdata->rc_has_mcs_mask[sband->band];
 	rate_flags =
 		ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chandef);
 	for (i = 0; i < sband->n_bitrates; i++)
@@ -659,14 +658,14 @@ static void rate_control_apply_mask(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (has_mcs_mask)
-		memcpy(mcs_mask, sdata->rc_rateidx_mcs_mask[info->band],
+		memcpy(mcs_mask, sdata->rc_rateidx_mcs_mask[sband->band],
 		       sizeof(mcs_mask));
 	else
 		memset(mcs_mask, 0xff, sizeof(mcs_mask));
 
 	if (sta) {
 		/* Filter out rates that the STA does not support */
-		mask &= sta->supp_rates[info->band];
+		mask &= sta->supp_rates[sband->band];
 		for (i = 0; i < sizeof(mcs_mask); i++)
 			mcs_mask[i] &= sta->ht_cap.mcs.rx_mask[i];
 	}
@@ -707,7 +706,7 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 	sband = sdata->local->hw.wiphy->bands[info->band];
 
 	if (ieee80211_is_data(hdr->frame_control))
-		rate_control_apply_mask(sdata, sta, sband, info, dest, max_rates);
+		rate_control_apply_mask(sdata, sta, sband, dest, max_rates);
 
 	if (dest[0].idx < 0)
 		__rate_control_send_low(&sdata->local->hw, sband, sta, info,
