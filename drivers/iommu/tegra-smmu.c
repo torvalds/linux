@@ -26,6 +26,7 @@ struct tegra_smmu {
 	const struct tegra_smmu_soc *soc;
 
 	unsigned long pfn_mask;
+	unsigned long tlb_mask;
 
 	unsigned long *asids;
 	struct mutex lock;
@@ -65,7 +66,8 @@ static inline u32 smmu_readl(struct tegra_smmu *smmu, unsigned long offset)
 #define SMMU_TLB_CONFIG 0x14
 #define  SMMU_TLB_CONFIG_HIT_UNDER_MISS (1 << 29)
 #define  SMMU_TLB_CONFIG_ROUND_ROBIN_ARBITRATION (1 << 28)
-#define  SMMU_TLB_CONFIG_ACTIVE_LINES(x) ((x) & 0x3f)
+#define  SMMU_TLB_CONFIG_ACTIVE_LINES(smmu) \
+	((smmu)->soc->num_tlb_lines & (smmu)->tlb_mask)
 
 #define SMMU_PTC_CONFIG 0x18
 #define  SMMU_PTC_CONFIG_ENABLE (1 << 29)
@@ -716,6 +718,9 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 	smmu->pfn_mask = BIT_MASK(mc->soc->num_address_bits - PAGE_SHIFT) - 1;
 	dev_dbg(dev, "address bits: %u, PFN mask: %#lx\n",
 		mc->soc->num_address_bits, smmu->pfn_mask);
+	smmu->tlb_mask = (smmu->soc->num_tlb_lines << 1) - 1;
+	dev_dbg(dev, "TLB lines: %u, mask: %#lx\n", smmu->soc->num_tlb_lines,
+		smmu->tlb_mask);
 
 	value = SMMU_PTC_CONFIG_ENABLE | SMMU_PTC_CONFIG_INDEX_MAP(0x3f);
 
@@ -725,7 +730,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 	smmu_writel(smmu, value, SMMU_PTC_CONFIG);
 
 	value = SMMU_TLB_CONFIG_HIT_UNDER_MISS |
-		SMMU_TLB_CONFIG_ACTIVE_LINES(0x20);
+		SMMU_TLB_CONFIG_ACTIVE_LINES(smmu);
 
 	if (soc->supports_round_robin_arbitration)
 		value |= SMMU_TLB_CONFIG_ROUND_ROBIN_ARBITRATION;
