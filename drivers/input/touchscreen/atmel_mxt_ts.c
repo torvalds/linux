@@ -3408,27 +3408,25 @@ static void mxt_input_close(struct input_dev *dev)
 static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 {
 	struct mxt_platform_data *pdata;
+	struct device_node *np = client->dev.of_node;
 	u32 *keymap;
 	int proplen, ret;
 
-	if (!client->dev.of_node)
+	if (!np)
 		return ERR_PTR(-ENOENT);
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	pdata->gpio_reset = of_get_named_gpio_flags(client->dev.of_node,
-		"atmel,reset-gpio", 0, NULL);
+	pdata->gpio_reset = of_get_named_gpio_flags(np, "atmel,reset-gpio",
+						    0, NULL);
 
-	of_property_read_string(client->dev.of_node, "atmel,cfg_name",
-				&pdata->cfg_name);
+	of_property_read_string(np, "atmel,cfg_name", &pdata->cfg_name);
 
-	of_property_read_string(client->dev.of_node, "atmel,input_name",
-				&pdata->input_name);
+	of_property_read_string(np, "atmel,input_name", &pdata->input_name);
 
-	if (of_find_property(client->dev.of_node, "linux,gpio-keymap",
-			     &proplen)) {
+	if (of_find_property(np, "linux,gpio-keymap", &proplen)) {
 		pdata->t19_num_keys = proplen / sizeof(u32);
 
 		keymap = devm_kzalloc(&client->dev,
@@ -3437,20 +3435,16 @@ static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 		if (!keymap)
 			return ERR_PTR(-ENOMEM);
 
-		ret = of_property_read_u32_array(client->dev.of_node,
-			"linux,gpio-keymap", keymap, pdata->t19_num_keys);
-		if (ret) {
-			dev_err(&client->dev,
-				"Unable to read device tree key codes: %d\n",
-				 ret);
-			return NULL;
-		}
+		ret = of_property_read_u32_array(np, "linux,gpio-keymap",
+						 keymap, pdata->t19_num_keys);
+		if (ret)
+			dev_warn(&client->dev,
+				 "Couldn't read linux,gpio-keymap: %d\n", ret);
 
 		pdata->t19_keymap = keymap;
 	}
 
-	of_property_read_u32(client->dev.of_node, "atmel,suspend-mode",
-			     &pdata->suspend_mode);
+	of_property_read_u32(np, "atmel,suspend-mode", &pdata->suspend_mode);
 
 	return pdata;
 }
