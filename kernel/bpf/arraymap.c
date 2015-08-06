@@ -273,3 +273,60 @@ static int __init register_prog_array_map(void)
 	return 0;
 }
 late_initcall(register_prog_array_map);
+
+static void perf_event_array_map_free(struct bpf_map *map)
+{
+	bpf_fd_array_map_clear(map);
+	fd_array_map_free(map);
+}
+
+static void *perf_event_fd_array_get_ptr(struct bpf_map *map, int fd)
+{
+	struct perf_event *event;
+	const struct perf_event_attr *attr;
+
+	event = perf_event_get(fd);
+	if (IS_ERR(event))
+		return event;
+
+	attr = perf_event_attrs(event);
+	if (IS_ERR(attr))
+		return (void *)attr;
+
+	if (attr->type != PERF_TYPE_RAW &&
+	    attr->type != PERF_TYPE_HARDWARE) {
+		perf_event_release_kernel(event);
+		return ERR_PTR(-EINVAL);
+	}
+	return event;
+}
+
+static void perf_event_fd_array_put_ptr(void *ptr)
+{
+	struct perf_event *event = ptr;
+
+	perf_event_release_kernel(event);
+}
+
+static const struct bpf_map_ops perf_event_array_ops = {
+	.map_alloc = fd_array_map_alloc,
+	.map_free = perf_event_array_map_free,
+	.map_get_next_key = array_map_get_next_key,
+	.map_lookup_elem = fd_array_map_lookup_elem,
+	.map_update_elem = fd_array_map_update_elem,
+	.map_delete_elem = fd_array_map_delete_elem,
+	.map_fd_get_ptr = perf_event_fd_array_get_ptr,
+	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
+};
+
+static struct bpf_map_type_list perf_event_array_type __read_mostly = {
+	.ops = &perf_event_array_ops,
+	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+};
+
+static int __init register_perf_event_array_map(void)
+{
+	bpf_register_map_type(&perf_event_array_type);
+	return 0;
+}
+late_initcall(register_perf_event_array_map);
