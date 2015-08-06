@@ -143,6 +143,8 @@ config MV_XOR
 	---help---
 	  Enable support for the Marvell XOR engine.
 
+source "drivers/dma/pxp/Kconfig"
+
 config MX3_IPU
 	bool "MX3x Image Processing Unit support"
 	depends on ARCH_MXC

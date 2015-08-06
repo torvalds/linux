@@ -1,0 +1,22 @@
+config MXC_PXP_V2
+	bool "MXC PxP V2 support"
+	depends on ARM
+	select DMA_ENGINE
+	help
+          Support the PxP (Pixel Pipeline) on i.MX6 DualLite and i.MX6 SoloLite.
+	  If unsure, select N.
+
+config MXC_PXP_V3
+	bool "MXC PxP V3 support"
+	depends on ARM
+	select DMA_ENGINE
+	help
+	  Support the PxP V3(Pixel Pipeline) on i.MX7D. The PxP V3 supports
+	  more functions than PxP V2, dithering, reagl/-D and etc.
+	  If unsure, select N.
+
+config MXC_PXP_CLIENT_DEVICE
+	bool "MXC PxP Client Device"
+	default y
+	depends on MXC_PXP_V2 || MXC_PXP_V3
+
