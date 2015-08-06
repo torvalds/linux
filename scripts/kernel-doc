@@ -253,11 +253,20 @@ my %highlights = %highlights_man;
 my $blankline = $blankline_man;
 my $modulename = "Kernel API";
 my $function_only = 0;
+my $show_not_found = 0;
+
+my @build_time;
+if (defined($ENV{'KBUILD_BUILD_TIMESTAMP'}) &&
+    (my $seconds = `date -d"${ENV{'KBUILD_BUILD_TIMESTAMP'}}" +%s`) ne '') {
+    @build_time = gmtime($seconds);
+} else {
+    @build_time = localtime;
+}
+
 my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 		'July', 'August', 'September', 'October',
-		'November', 'December')[(localtime)[4]] .
-  " " . ((localtime)[5]+1900);
-my $show_not_found = 0;
+		'November', 'December')[$build_time[4]] .
+  " " . ($build_time[5]+1900);
 
 # Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
@@ -2587,7 +2596,7 @@ $kernelversion = get_kernel_version();
 
 # generate a sequence of code that will splice in highlighting information
 # using the s// operator.
-foreach my $pattern (keys %highlights) {
+foreach my $pattern (sort keys %highlights) {
 #   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
     $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
 }

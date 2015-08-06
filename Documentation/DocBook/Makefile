@@ -56,7 +56,7 @@ htmldocs: $(HTML)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
-	find $(obj)/man -name '*.9' | xargs gzip -f
+	find $(obj)/man -name '*.9' | xargs gzip -nf
 
 installmandocs: mandocs
 	mkdir -p /usr/local/man/man9/
