@@ -214,6 +214,7 @@
 #include <linux/string.h>
 #include <linux/freezer.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
