@@ -1170,15 +1170,25 @@ static void iwl_mvm_exit_d0i3_iterator(void *_data, u8 *mac,
 	iwl_mvm_update_d0i3_power_mode(mvm, vif, false, flags);
 }
 
-static void iwl_mvm_d0i3_disconnect_iter(void *data, u8 *mac,
-					 struct ieee80211_vif *vif)
+struct iwl_mvm_wakeup_reason_iter_data {
+	struct iwl_mvm *mvm;
+	u32 wakeup_reasons;
+};
+
+static void iwl_mvm_d0i3_wakeup_reason_iter(void *_data, u8 *mac,
+					    struct ieee80211_vif *vif)
 {
-	struct iwl_mvm *mvm = data;
+	struct iwl_mvm_wakeup_reason_iter_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc &&
-	    mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
-		iwl_mvm_connection_loss(mvm, vif, "D0i3");
+	    data->mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id) {
+		if (data->wakeup_reasons &
+		    IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH)
+			iwl_mvm_connection_loss(data->mvm, vif, "D0i3");
+		else
+			ieee80211_beacon_loss(vif);
+	}
 }
 
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
@@ -1246,7 +1256,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	};
 	struct iwl_wowlan_status *status;
 	int ret;
-	u32 disconnection_reasons, wakeup_reasons;
+	u32 handled_reasons, wakeup_reasons;
 	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
@@ -1263,13 +1273,18 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 
 	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
 
-	disconnection_reasons =
-		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
-		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
-	if (wakeup_reasons & disconnection_reasons)
+	handled_reasons = IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
+				IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
+	if (wakeup_reasons & handled_reasons) {
+		struct iwl_mvm_wakeup_reason_iter_data data = {
+			.mvm = mvm,
+			.wakeup_reasons = wakeup_reasons,
+		};
+
 		ieee80211_iterate_active_interfaces(
 			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_d0i3_disconnect_iter, mvm);
+			iwl_mvm_d0i3_wakeup_reason_iter, &data);
+	}
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
 
