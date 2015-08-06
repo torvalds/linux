@@ -847,10 +847,9 @@ failure:
 static int
 iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 {
-	struct iser_conn *iser_conn;
+	struct iser_conn *iser_conn = ep->dd_data;
 	int rc;
 
-	iser_conn = ep->dd_data;
 	rc = wait_for_completion_interruptible_timeout(&iser_conn->up_completion,
 						       msecs_to_jiffies(timeout_ms));
 	/* if conn establishment failed, return error code to iscsi */
@@ -862,7 +861,7 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 		mutex_unlock(&iser_conn->state_mutex);
 	}
 
-	iser_info("ib conn %p rc = %d\n", iser_conn, rc);
+	iser_info("iser conn %p rc = %d\n", iser_conn, rc);
 
 	if (rc > 0)
 		return 1; /* success, this is the equivalent of POLLOUT */
@@ -884,11 +883,9 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 static void
 iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 {
-	struct iser_conn *iser_conn;
+	struct iser_conn *iser_conn = ep->dd_data;
 
-	iser_conn = ep->dd_data;
-	iser_info("ep %p iser conn %p state %d\n",
-		  ep, iser_conn, iser_conn->state);
+	iser_info("ep %p iser conn %p\n", ep, iser_conn);
 
 	mutex_lock(&iser_conn->state_mutex);
 	iser_conn_terminate(iser_conn);
