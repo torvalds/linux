@@ -39,6 +39,7 @@ struct cgroup_sel;
 */
 enum {
 	PERF_EVSEL__CONFIG_TERM_PERIOD,
+	PERF_EVSEL__CONFIG_TERM_TIME,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -47,6 +48,7 @@ struct perf_evsel_config_term {
 	int	type;
 	union {
 		u64	period;
+		bool	time;
 	} val;
 };
 

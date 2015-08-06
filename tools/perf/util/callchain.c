@@ -53,7 +53,7 @@ static int get_stack_size(const char *str, unsigned long *_size)
 }
 #endif /* HAVE_DWARF_UNWIND_SUPPORT */
 
-int parse_callchain_record_opt(const char *arg)
+int parse_callchain_record_opt(const char *arg, struct callchain_param *param)
 {
 	char *tok, *name, *saveptr = NULL;
 	char *buf;
@@ -73,7 +73,7 @@ int parse_callchain_record_opt(const char *arg)
 		/* Framepointer style */
 		if (!strncmp(name, "fp", sizeof("fp"))) {
 			if (!strtok_r(NULL, ",", &saveptr)) {
-				callchain_param.record_mode = CALLCHAIN_FP;
+				param->record_mode = CALLCHAIN_FP;
 				ret = 0;
 			} else
 				pr_err("callchain: No more arguments "
@@ -86,20 +86,20 @@ int parse_callchain_record_opt(const char *arg)
 			const unsigned long default_stack_dump_size = 8192;
 
 			ret = 0;
-			callchain_param.record_mode = CALLCHAIN_DWARF;
-			callchain_param.dump_size = default_stack_dump_size;
+			param->record_mode = CALLCHAIN_DWARF;
+			param->dump_size = default_stack_dump_size;
 
 			tok = strtok_r(NULL, ",", &saveptr);
 			if (tok) {
 				unsigned long size = 0;
 
 				ret = get_stack_size(tok, &size);
-				callchain_param.dump_size = size;
+				param->dump_size = size;
 			}
 #endif /* HAVE_DWARF_UNWIND_SUPPORT */
 		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
 			if (!strtok_r(NULL, ",", &saveptr)) {
-				callchain_param.record_mode = CALLCHAIN_LBR;
+				param->record_mode = CALLCHAIN_LBR;
 				ret = 0;
 			} else
 				pr_err("callchain: No more arguments "
@@ -219,7 +219,7 @@ int perf_callchain_config(const char *var, const char *value)
 	var += sizeof("call-graph.") - 1;
 
 	if (!strcmp(var, "record-mode"))
-		return parse_callchain_record_opt(value);
+		return parse_callchain_record_opt(value, &callchain_param);
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 	if (!strcmp(var, "dump-size")) {
 		unsigned long size = 0;

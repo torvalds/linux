@@ -779,7 +779,7 @@ int record_parse_callchain_opt(const struct option *opt,
 		return 0;
 	}
 
-	ret = parse_callchain_record_opt(arg);
+	ret = parse_callchain_record_opt(arg, &callchain_param);
 	if (!ret)
 		callchain_debug();
 

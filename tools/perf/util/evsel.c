@@ -545,14 +545,15 @@ int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 
 static void
 perf_evsel__config_callgraph(struct perf_evsel *evsel,
-			     struct record_opts *opts)
+			     struct record_opts *opts,
+			     struct callchain_param *param)
 {
 	bool function = perf_evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->attr;
 
 	perf_evsel__set_sample_bit(evsel, CALLCHAIN);
 
-	if (callchain_param.record_mode == CALLCHAIN_LBR) {
+	if (param->record_mode == CALLCHAIN_LBR) {
 		if (!opts->branch_stack) {
 			if (attr->exclude_user) {
 				pr_warning("LBR callstack option is only available "
@@ -568,12 +569,12 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 				    "Falling back to framepointers.\n");
 	}
 
-	if (callchain_param.record_mode == CALLCHAIN_DWARF) {
+	if (param->record_mode == CALLCHAIN_DWARF) {
 		if (!function) {
 			perf_evsel__set_sample_bit(evsel, REGS_USER);
 			perf_evsel__set_sample_bit(evsel, STACK_USER);
 			attr->sample_regs_user = PERF_REGS_MASK;
-			attr->sample_stack_user = callchain_param.dump_size;
+			attr->sample_stack_user = param->dump_size;
 			attr->exclude_callchain_user = 1;
 		} else {
 			pr_info("Cannot use DWARF unwind for function trace event,"
@@ -587,15 +588,23 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 	}
 }
 
-static void apply_config_terms(struct perf_event_attr *attr __maybe_unused,
-			       struct list_head *config_terms)
+static void apply_config_terms(struct perf_evsel *evsel)
 {
 	struct perf_evsel_config_term *term;
+	struct list_head *config_terms = &evsel->config_terms;
+	struct perf_event_attr *attr = &evsel->attr;
 
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
 		case PERF_EVSEL__CONFIG_TERM_PERIOD:
 			attr->sample_period = term->val.period;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_TIME:
+			if (term->val.time)
+				perf_evsel__set_sample_bit(evsel, TIME);
+			else
+				perf_evsel__reset_sample_bit(evsel, TIME);
+			break;
 		default:
 			break;
 		}
@@ -706,7 +715,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 		evsel->attr.exclude_callchain_user = 1;
 
 	if (callchain_param.enabled && !evsel->no_aux_samples)
-		perf_evsel__config_callgraph(evsel, opts);
+		perf_evsel__config_callgraph(evsel, opts, &callchain_param);
 
 	if (opts->sample_intr_regs) {
 		attr->sample_regs_intr = PERF_REGS_MASK;
@@ -798,7 +807,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	 * Apply event specific term settings,
 	 * it overloads any global configuration.
 	 */
-	apply_config_terms(attr, &evsel->config_terms);
+	apply_config_terms(evsel);
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
