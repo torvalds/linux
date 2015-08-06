@@ -472,9 +472,10 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 		flags = of_read_number(&dm[3], 1);
 		/* skip DRC index, pad, assoc. list index, flags */
 		dm += 4;
-		/* skip this block if the reserved bit is set in flags (0x80)
-		   or if the block is not assigned to this partition (0x8) */
-		if ((flags & 0x80) || !(flags & 0x8))
+		/* skip this block if the reserved bit is set in flags
+		   or if the block is not assigned to this partition */
+		if ((flags & DRCONF_MEM_RESERVED) ||
+				!(flags & DRCONF_MEM_ASSIGNED))
 			continue;
 		size = memblock_size;
 		rngs = 1;
