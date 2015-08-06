@@ -158,4 +158,12 @@
 #define SPDM_RM_AXI					141
 #define SPDM_RM_OCMEMNOC				142
 
+/* gdscs */
+#define VENUS0_GDSC					0
+#define MDSS_GDSC					1
+#define CAMSS_JPEG_GDSC					2
+#define CAMSS_VFE_GDSC					3
+#define OXILI_GDSC					4
+#define OXILICX_GDSC					5
+
 #endif
