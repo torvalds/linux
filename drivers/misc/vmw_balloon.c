@@ -47,7 +47,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.3.2.0-k");
+MODULE_VERSION("1.3.3.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -978,6 +978,12 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 {
 	struct vmballoon *b = f->private;
 	struct vmballoon_stats *stats = &b->stats;
+
+	/* format capabilities info */
+	seq_printf(f,
+		   "balloon capabilities:   %#4x\n"
+		   "used capabilities:      %#4lx\n",
+		   VMW_BALLOON_CAPABILITIES, b->capabilities);
 
 	/* format size info */
 	seq_printf(f,
