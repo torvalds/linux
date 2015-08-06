@@ -291,8 +291,15 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 */
 int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *c_entity,
-		       void *job)
+		       void *data)
 {
+	struct amd_sched_job *job = kzalloc(sizeof(struct amd_sched_job),
+					    GFP_KERNEL);
+	if (!job)
+		return -ENOMEM;
+	job->sched = sched;
+	job->s_entity = c_entity;
+	job->data = data;
 	while (kfifo_in_spinlocked(&c_entity->job_queue, &job, sizeof(void *),
 				   &c_entity->queue_lock) != sizeof(void *)) {
 		/**
@@ -366,7 +373,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	atomic64_dec(&sched->hw_rq_count);
 	spin_unlock_irqrestore(&sched->queue_lock, flags);
 
-	sched->ops->process_job(sched, sched_job->job);
+	sched->ops->process_job(sched, sched_job);
 	kfree(sched_job);
 	wake_up_interruptible(&sched->wait_queue);
 }
@@ -374,7 +381,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 static int amd_sched_main(void *param)
 {
 	int r;
-	void *job;
+	struct amd_sched_job *job;
 	struct sched_param sparam = {.sched_priority = 1};
 	struct amd_sched_entity *c_entity = NULL;
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
@@ -382,7 +389,6 @@ static int amd_sched_main(void *param)
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
 	while (!kthread_should_stop()) {
-		struct amd_sched_job *sched_job = NULL;
 		struct fence *fence;
 
 		wait_event_interruptible(sched->wait_queue,
@@ -394,26 +400,18 @@ static int amd_sched_main(void *param)
 		r = sched->ops->prepare_job(sched, c_entity, job);
 		if (!r) {
 			unsigned long flags;
-			sched_job = kzalloc(sizeof(struct amd_sched_job),
-					    GFP_KERNEL);
-			if (!sched_job) {
-				WARN(true, "No memory to allocate\n");
-				continue;
-			}
-			sched_job->job = job;
-			sched_job->sched = sched;
 			spin_lock_irqsave(&sched->queue_lock, flags);
-			list_add_tail(&sched_job->list, &sched->active_hw_rq);
+			list_add_tail(&job->list, &sched->active_hw_rq);
 			atomic64_inc(&sched->hw_rq_count);
 			spin_unlock_irqrestore(&sched->queue_lock, flags);
 		}
 		mutex_lock(&sched->sched_lock);
-		fence = sched->ops->run_job(sched, c_entity, sched_job);
+		fence = sched->ops->run_job(sched, c_entity, job);
 		if (fence) {
-			r = fence_add_callback(fence, &sched_job->cb,
+			r = fence_add_callback(fence, &job->cb,
 					       amd_sched_process_job);
 			if (r == -ENOENT)
-				amd_sched_process_job(fence, &sched_job->cb);
+				amd_sched_process_job(fence, &job->cb);
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n", r);
 			fence_put(fence);

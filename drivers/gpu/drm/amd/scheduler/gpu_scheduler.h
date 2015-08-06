@@ -76,7 +76,8 @@ struct amd_sched_job {
 	struct list_head		list;
 	struct fence_cb                 cb;
 	struct amd_gpu_scheduler        *sched;
-	void                            *job;
+	struct amd_sched_entity         *s_entity;
+	void                            *data;
 };
 
 /**
@@ -86,11 +87,12 @@ struct amd_sched_job {
 struct amd_sched_backend_ops {
 	int (*prepare_job)(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *c_entity,
-			   void *job);
+			   struct amd_sched_job *job);
 	struct fence *(*run_job)(struct amd_gpu_scheduler *sched,
 				 struct amd_sched_entity *c_entity,
 				 struct amd_sched_job *job);
-	void (*process_job)(struct amd_gpu_scheduler *sched, void *job);
+	void (*process_job)(struct amd_gpu_scheduler *sched,
+				    struct amd_sched_job *job);
 };
 
 /**
@@ -120,12 +122,11 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 				uint32_t granularity,
 				uint32_t preemption,
 				uint32_t hw_submission);
-
 int amd_sched_destroy(struct amd_gpu_scheduler *sched);
 
 int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *c_entity,
-		       void *job);
+		       void *data);
 
 int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
 			uint64_t seq,

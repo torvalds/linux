@@ -29,10 +29,16 @@
 
 static int amdgpu_sched_prepare_job(struct amd_gpu_scheduler *sched,
 				    struct amd_sched_entity *entity,
-				    void *job)
+				    struct amd_sched_job *job)
 {
 	int r = 0;
-	struct amdgpu_cs_parser *sched_job = (struct amdgpu_cs_parser *)job;
+	struct amdgpu_cs_parser *sched_job;
+	if (!job || !job->data) {
+		DRM_ERROR("job is null\n");
+		return -EINVAL;
+	}
+
+	sched_job = (struct amdgpu_cs_parser *)job->data;
 	if (sched_job->prepare_job) {
 		r = sched_job->prepare_job(sched_job);
 		if (r) {
@@ -51,11 +57,11 @@ static struct fence *amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 	struct amdgpu_cs_parser *sched_job;
 	struct amdgpu_fence *fence;
 
-	if (!job || !job->job) {
+	if (!job || !job->data) {
 		DRM_ERROR("job is null\n");
 		return NULL;
 	}
-	sched_job = (struct amdgpu_cs_parser *)job->job;
+	sched_job = (struct amdgpu_cs_parser *)job->data;
 	mutex_lock(&sched_job->job_lock);
 	r = amdgpu_ib_schedule(sched_job->adev,
 			       sched_job->num_ibs,
@@ -83,22 +89,16 @@ err:
 	return NULL;
 }
 
-static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched, void *job)
+static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched,
+				     struct amd_sched_job *job)
 {
-	struct amdgpu_cs_parser *sched_job = NULL;
-	struct amdgpu_fence *fence = NULL;
-	struct amdgpu_ring *ring = NULL;
-	struct amdgpu_device *adev = NULL;
+	struct amdgpu_cs_parser *sched_job;
 
-	if (!job)
+	if (!job || !job->data) {
+		DRM_ERROR("job is null\n");
 		return;
-	sched_job = (struct amdgpu_cs_parser *)job;
-	fence = sched_job->ibs[sched_job->num_ibs - 1].fence;
-	if (!fence)
-		return;
-	ring = fence->ring;
-	adev = ring->adev;
-
+	}
+	sched_job = (struct amdgpu_cs_parser *)job->data;
 	schedule_work(&sched_job->job_work);
 }
 
