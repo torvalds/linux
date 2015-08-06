@@ -47,7 +47,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.3.1.0-k");
+MODULE_VERSION("1.3.2.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -255,8 +255,10 @@ struct vmballoon;
 
 struct vmballoon_ops {
 	void (*add_page)(struct vmballoon *b, int idx, struct page *p);
-	int (*lock)(struct vmballoon *b, unsigned int num_pages);
-	int (*unlock)(struct vmballoon *b, unsigned int num_pages);
+	int (*lock)(struct vmballoon *b, unsigned int num_pages,
+						unsigned int *target);
+	int (*unlock)(struct vmballoon *b, unsigned int num_pages,
+						unsigned int *target);
 };
 
 struct vmballoon {
@@ -413,7 +415,7 @@ static bool vmballoon_send_get_target(struct vmballoon *b, u32 *new_target)
  * check the return value and maybe submit a different page.
  */
 static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
-				     unsigned int *hv_status)
+				unsigned int *hv_status, unsigned int *target)
 {
 	unsigned long status, dummy = 0;
 	u32 pfn32;
@@ -424,7 +426,7 @@ static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
 
 	STATS_INC(b->stats.lock);
 
-	*hv_status = status = VMWARE_BALLOON_CMD(LOCK, pfn, dummy, dummy);
+	*hv_status = status = VMWARE_BALLOON_CMD(LOCK, pfn, dummy, *target);
 	if (vmballoon_check_status(b, status))
 		return 0;
 
@@ -434,14 +436,14 @@ static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
 }
 
 static int vmballoon_send_batched_lock(struct vmballoon *b,
-					unsigned int num_pages)
+				unsigned int num_pages, unsigned int *target)
 {
-	unsigned long status, dummy;
+	unsigned long status;
 	unsigned long pfn = page_to_pfn(b->page);
 
 	STATS_INC(b->stats.lock);
 
-	status = VMWARE_BALLOON_CMD(BATCHED_LOCK, pfn, num_pages, dummy);
+	status = VMWARE_BALLOON_CMD(BATCHED_LOCK, pfn, num_pages, *target);
 	if (vmballoon_check_status(b, status))
 		return 0;
 
@@ -454,7 +456,8 @@ static int vmballoon_send_batched_lock(struct vmballoon *b,
  * Notify the host that guest intends to release given page back into
  * the pool of available (to the guest) pages.
  */
-static bool vmballoon_send_unlock_page(struct vmballoon *b, unsigned long pfn)
+static bool vmballoon_send_unlock_page(struct vmballoon *b, unsigned long pfn,
+							unsigned int *target)
 {
 	unsigned long status, dummy = 0;
 	u32 pfn32;
@@ -465,7 +468,7 @@ static bool vmballoon_send_unlock_page(struct vmballoon *b, unsigned long pfn)
 
 	STATS_INC(b->stats.unlock);
 
-	status = VMWARE_BALLOON_CMD(UNLOCK, pfn, dummy, dummy);
+	status = VMWARE_BALLOON_CMD(UNLOCK, pfn, dummy, *target);
 	if (vmballoon_check_status(b, status))
 		return true;
 
@@ -475,14 +478,14 @@ static bool vmballoon_send_unlock_page(struct vmballoon *b, unsigned long pfn)
 }
 
 static bool vmballoon_send_batched_unlock(struct vmballoon *b,
-						unsigned int num_pages)
+				unsigned int num_pages, unsigned int *target)
 {
-	unsigned long status, dummy;
+	unsigned long status;
 	unsigned long pfn = page_to_pfn(b->page);
 
 	STATS_INC(b->stats.unlock);
 
-	status = VMWARE_BALLOON_CMD(BATCHED_UNLOCK, pfn, num_pages, dummy);
+	status = VMWARE_BALLOON_CMD(BATCHED_UNLOCK, pfn, num_pages, *target);
 	if (vmballoon_check_status(b, status))
 		return true;
 
@@ -528,12 +531,14 @@ static void vmballoon_pop(struct vmballoon *b)
  * refuse list, those refused page are then released at the end of the
  * inflation cycle.
  */
-static int vmballoon_lock_page(struct vmballoon *b, unsigned int num_pages)
+static int vmballoon_lock_page(struct vmballoon *b, unsigned int num_pages,
+							unsigned int *target)
 {
 	int locked, hv_status;
 	struct page *page = b->page;
 
-	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status);
+	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status,
+								target);
 	if (locked > 0) {
 		STATS_INC(b->stats.refused_alloc);
 
@@ -567,11 +572,11 @@ static int vmballoon_lock_page(struct vmballoon *b, unsigned int num_pages)
 }
 
 static int vmballoon_lock_batched_page(struct vmballoon *b,
-				unsigned int num_pages)
+				unsigned int num_pages, unsigned int *target)
 {
 	int locked, i;
 
-	locked = vmballoon_send_batched_lock(b, num_pages);
+	locked = vmballoon_send_batched_lock(b, num_pages, target);
 	if (locked > 0) {
 		for (i = 0; i < num_pages; i++) {
 			u64 pa = vmballoon_batch_get_pa(b->batch_page, i);
@@ -620,11 +625,12 @@ static int vmballoon_lock_batched_page(struct vmballoon *b,
  * the host so it can make sure the page will be available for the guest
  * to use, if needed.
  */
-static int vmballoon_unlock_page(struct vmballoon *b, unsigned int num_pages)
+static int vmballoon_unlock_page(struct vmballoon *b, unsigned int num_pages,
+							unsigned int *target)
 {
 	struct page *page = b->page;
 
-	if (!vmballoon_send_unlock_page(b, page_to_pfn(page))) {
+	if (!vmballoon_send_unlock_page(b, page_to_pfn(page), target)) {
 		list_add(&page->lru, &b->pages);
 		return -EIO;
 	}
@@ -640,12 +646,12 @@ static int vmballoon_unlock_page(struct vmballoon *b, unsigned int num_pages)
 }
 
 static int vmballoon_unlock_batched_page(struct vmballoon *b,
-					unsigned int num_pages)
+				unsigned int num_pages, unsigned int *target)
 {
 	int locked, i, ret = 0;
 	bool hv_success;
 
-	hv_success = vmballoon_send_batched_unlock(b, num_pages);
+	hv_success = vmballoon_send_batched_unlock(b, num_pages, target);
 	if (!hv_success)
 		ret = -EIO;
 
@@ -710,9 +716,7 @@ static void vmballoon_add_batched_page(struct vmballoon *b, int idx,
  */
 static void vmballoon_inflate(struct vmballoon *b)
 {
-	unsigned int goal;
 	unsigned int rate;
-	unsigned int i;
 	unsigned int allocations = 0;
 	unsigned int num_pages = 0;
 	int error = 0;
@@ -735,7 +739,6 @@ static void vmballoon_inflate(struct vmballoon *b)
 	 * slowdown page allocations considerably.
 	 */
 
-	goal = b->target - b->size;
 	/*
 	 * Start with no sleep allocation rate which may be higher
 	 * than sleeping allocation rate.
@@ -744,16 +747,17 @@ static void vmballoon_inflate(struct vmballoon *b)
 			b->rate_alloc : VMW_BALLOON_NOSLEEP_ALLOC_MAX;
 
 	pr_debug("%s - goal: %d, no-sleep rate: %d, sleep rate: %d\n",
-		 __func__, goal, rate, b->rate_alloc);
+		 __func__, b->target - b->size, rate, b->rate_alloc);
 
-	for (i = 0; i < goal; i++) {
-		struct page *page = alloc_page(flags);
+	while (b->size < b->target && num_pages < b->target - b->size) {
+		struct page *page;
 
 		if (flags == VMW_PAGE_ALLOC_NOSLEEP)
 			STATS_INC(b->stats.alloc);
 		else
 			STATS_INC(b->stats.sleep_alloc);
 
+		page = alloc_page(flags);
 		if (!page) {
 			if (flags == VMW_PAGE_ALLOC_CANSLEEP) {
 				/*
@@ -778,7 +782,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 			 */
 			b->slow_allocation_cycles = VMW_BALLOON_SLOW_CYCLES;
 
-			if (i >= b->rate_alloc)
+			if (allocations >= b->rate_alloc)
 				break;
 
 			flags = VMW_PAGE_ALLOC_CANSLEEP;
@@ -789,7 +793,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 
 		b->ops->add_page(b, num_pages++, page);
 		if (num_pages == b->batch_max_pages) {
-			error = b->ops->lock(b, num_pages);
+			error = b->ops->lock(b, num_pages, &b->target);
 			num_pages = 0;
 			if (error)
 				break;
@@ -800,21 +804,21 @@ static void vmballoon_inflate(struct vmballoon *b)
 			allocations = 0;
 		}
 
-		if (i >= rate) {
+		if (allocations >= rate) {
 			/* We allocated enough pages, let's take a break. */
 			break;
 		}
 	}
 
 	if (num_pages > 0)
-		b->ops->lock(b, num_pages);
+		b->ops->lock(b, num_pages, &b->target);
 
 	/*
 	 * We reached our goal without failures so try increasing
 	 * allocation rate.
 	 */
-	if (error == 0 && i >= b->rate_alloc) {
-		unsigned int mult = i / b->rate_alloc;
+	if (error == 0 && allocations >= b->rate_alloc) {
+		unsigned int mult = allocations / b->rate_alloc;
 
 		b->rate_alloc =
 			min(b->rate_alloc + mult * VMW_BALLOON_RATE_ALLOC_INC,
@@ -831,16 +835,11 @@ static void vmballoon_deflate(struct vmballoon *b)
 {
 	struct page *page, *next;
 	unsigned int i = 0;
-	unsigned int goal;
 	unsigned int num_pages = 0;
 	int error;
 
-	pr_debug("%s - size: %d, target %d\n", __func__, b->size, b->target);
-
-	/* limit deallocation rate */
-	goal = min(b->size - b->target, b->rate_free);
-
-	pr_debug("%s - goal: %d, rate: %d\n", __func__, goal, b->rate_free);
+	pr_debug("%s - size: %d, target %d, rate: %d\n", __func__, b->size,
+						b->target, b->rate_free);
 
 	/* free pages to reach target */
 	list_for_each_entry_safe(page, next, &b->pages, lru) {
@@ -848,7 +847,7 @@ static void vmballoon_deflate(struct vmballoon *b)
 		b->ops->add_page(b, num_pages++, page);
 
 		if (num_pages == b->batch_max_pages) {
-			error = b->ops->unlock(b, num_pages);
+			error = b->ops->unlock(b, num_pages, &b->target);
 			num_pages = 0;
 			if (error) {
 				/* quickly decrease rate in case of error */
@@ -858,12 +857,12 @@ static void vmballoon_deflate(struct vmballoon *b)
 			}
 		}
 
-		if (++i >= goal)
+		if (++i >= b->size - b->target)
 			break;
 	}
 
 	if (num_pages > 0)
-		b->ops->unlock(b, num_pages);
+		b->ops->unlock(b, num_pages, &b->target);
 
 	/* slowly increase rate if there were no errors */
 	if (error == 0)
