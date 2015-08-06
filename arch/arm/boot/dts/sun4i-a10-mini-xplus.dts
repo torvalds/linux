@@ -114,6 +114,15 @@
 	status = "okay";
 };
 
+&otg_sram {
+	status = "okay";
+};
+
+&reg_usb0_vbus {
+	regulator-boot-on;
+	status = "okay";
+};
+
 &reg_usb1_vbus {
 	status = "okay";
 };
@@ -128,7 +137,13 @@
 	status = "okay";
 };
 
+&usb_otg {
+	dr_mode = "host";
+	status = "okay";
+};
+
 &usbphy {
+	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	usb2_vbus-supply = <&reg_usb2_vbus>;
 	status = "okay";

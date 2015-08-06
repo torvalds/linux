@@ -1,8 +1,5 @@
 /*
- * This is based on sun4i-a10-olinuxino-lime.dts
- *
- * Copyright 2014 - Hans de Goede <hdegoede@redhat.com>
- * Copyright (c) 2014 FUKAUMI Naoki <naobsd@gmail.com>
+ * Copyright 2015 Josef Gajdusek <atx@atx.name>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -44,16 +41,15 @@
  */
 
 /dts-v1/;
-#include "sun7i-a20.dtsi"
+#include "sun4i-a10.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Olimex A20-OLinuXino-LIME";
-	compatible = "olimex,a20-olinuxino-lime", "allwinner,sun7i-a20";
+	model = "Iteaduino Plus A10";
+	compatible = "itead,iteaduino-plus-a10", "allwinner,sun4i-a10";
 
 	aliases {
 		serial0 = &uart0;
@@ -62,23 +58,15 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
-
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_olinuxinolime>;
-
-		green {
-			label = "a20-olinuxino-lime:green:usr";
-			gpios = <&pio 7 2 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
-	};
 };
 
 &ahci {
 	target-supply = <&reg_ahci_5v>;
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &ehci0 {
@@ -89,16 +77,15 @@
 	status = "okay";
 };
 
-&gmac {
+&emac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
+	pinctrl-0 = <&emac_pins_a>;
 	phy = <&phy1>;
-	phy-mode = "mii";
 	status = "okay";
+};
 
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
+&emac_sram {
+	status = "okay";
 };
 
 &i2c0 {
@@ -107,13 +94,34 @@
 	status = "okay";
 
 	axp209: pmic@34 {
-		compatible = "x-powers,axp209";
 		reg = <0x34>;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <0>;
+	};
+};
 
-		interrupt-controller;
-		#interrupt-cells = <1>;
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins_a>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
+	status = "okay";
+};
+
+&ir0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ir0_rx_pins_a>;
+	status = "okay";
+};
+
+&mdio {
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
 	};
 };
 
@@ -135,48 +143,35 @@
 	status = "okay";
 };
 
-&otg_sram {
-	status = "okay";
-};
-
-&pio {
-	ahci_pwr_pin_olinuxinolime: ahci_pwr_pin@1 {
-		allwinner,pins = "PC3";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	led_pins_olinuxinolime: led_pins@0 {
-		allwinner,pins = "PH2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		allwinner,pins = "PH5";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_DOWN>;
-	};
-};
-
 &reg_ahci_5v {
-	pinctrl-0 = <&ahci_pwr_pin_olinuxinolime>;
-	gpio = <&pio 2 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
-&reg_usb0_vbus {
-	status = "okay";
+#include "axp209.dtsi"
+
+&reg_dcdc2 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1450000>;
+	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc3 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1400000>;
+	regulator-name = "vdd-int-dll";
+};
+
+&reg_ldo1 {
+	regulator-name = "vdd-rtc";
+};
+
+&reg_ldo2 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "avcc";
 };
 
 &reg_usb1_vbus {
@@ -187,23 +182,20 @@
 	status = "okay";
 };
 
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins_a>,
+		    <&spi0_cs0_pins_a>;
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
 };
 
-&usb_otg {
-	dr_mode = "otg";
-	status = "okay";
-};
-
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
-	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
-	usb0_vbus_det-gpio = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
-	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	usb2_vbus-supply = <&reg_usb2_vbus>;
 	status = "okay";
