@@ -83,29 +83,6 @@ struct usb_ep *usb_ep_autoconfig_ss(
 			goto found_ep;
 	}
 
-	/* First, apply chip-specific "best usage" knowledge.
-	 * This might make a good usb_gadget_ops hook ...
-	 */
-#ifdef CONFIG_BLACKFIN
-	if (gadget_is_musbhdrc(gadget)) {
-		if ((USB_ENDPOINT_XFER_BULK == type) ||
-		    (USB_ENDPOINT_XFER_ISOC == type)) {
-			if (USB_DIR_IN & desc->bEndpointAddress)
-				ep = gadget_find_ep_by_name(gadget, "ep5in");
-			else
-				ep = gadget_find_ep_by_name(gadget, "ep6out");
-		} else if (USB_ENDPOINT_XFER_INT == type) {
-			if (USB_DIR_IN & desc->bEndpointAddress)
-				ep = gadget_find_ep_by_name(gadget, "ep1in");
-			else
-				ep = gadget_find_ep_by_name(gadget, "ep2out");
-		} else
-			ep = NULL;
-		if (ep && usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp))
-			goto found_ep;
-	}
-#endif
-
 	/* Second, look at endpoints until an unclaimed one looks usable */
 	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
 		if (usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp))
