@@ -219,7 +219,6 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/composite.h>
 
-#include "gadget_chips.h"
 #include "configfs.h"
 
 

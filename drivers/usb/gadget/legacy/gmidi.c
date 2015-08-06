@@ -35,8 +35,6 @@
 #include <linux/usb/audio.h>
 #include <linux/usb/midi.h>
 
-#include "gadget_chips.h"
-
 #include "u_midi.h"
 
 /*-------------------------------------------------------------------------*/

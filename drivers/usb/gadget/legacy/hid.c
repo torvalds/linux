@@ -19,7 +19,6 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/g_hid.h>
 
-#include "gadget_chips.h"
 #define DRIVER_DESC		"HID Gadget"
 #define DRIVER_VERSION		"2010/03/16"
 

@@ -20,7 +20,6 @@
 #include <linux/err.h>
 
 #include "g_zero.h"
-#include "gadget_chips.h"
 #include "u_f.h"
 
 /*

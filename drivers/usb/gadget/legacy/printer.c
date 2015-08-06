@@ -19,8 +19,6 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/g_printer.h>
 
-#include "gadget_chips.h"
-
 USB_GADGET_COMPOSITE_OPTIONS();
 
 #define DRIVER_DESC		"Printer Gadget"

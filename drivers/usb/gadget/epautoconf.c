@@ -20,8 +20,6 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-#include "gadget_chips.h"
-
 /**
  * usb_ep_autoconfig_ss() - choose an endpoint matching the ep
  * descriptor and ep companion descriptor

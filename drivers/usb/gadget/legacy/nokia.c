@@ -23,7 +23,6 @@
 #include "u_ether.h"
 #include "u_phonet.h"
 #include "u_ecm.h"
-#include "gadget_chips.h"
 #include "f_mass_storage.h"
 
 /* Defines */

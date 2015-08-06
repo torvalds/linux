@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/usb/composite.h>
 
-#include "gadget_chips.h"
 #define DRIVER_DESC		"Linux USB Audio Gadget"
 #define DRIVER_VERSION		"Feb 2, 2012"
 

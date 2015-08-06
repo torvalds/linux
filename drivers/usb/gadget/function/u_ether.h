@@ -20,8 +20,6 @@
 #include <linux/usb/cdc.h>
 #include <linux/netdevice.h>
 
-#include "gadget_chips.h"
-
 #define QMULT_DEFAULT 5
 
 /*
