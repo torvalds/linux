@@ -194,13 +194,8 @@ X!Edrivers/pnp/system.c
 
   <chapter id="snddev">
      <title>Sound Devices</title>
-<?xmlif if excludeextra='1'?>
-<?xmlif else?>
 !Iinclude/sound/core.h
-<?xmlif fi?>
 !Esound/sound_core.c
-<?xmlif if excludeextra='1'?>
-<?xmlif else?>
 !Iinclude/sound/pcm.h
 !Esound/core/pcm.c
 !Esound/core/device.c
@@ -216,7 +211,6 @@ X!Edrivers/pnp/system.c
 !Esound/core/hwdep.c
 !Esound/core/pcm_native.c
 !Esound/core/memalloc.c
-<?xmlif fi?>
 <!-- FIXME: Removed for now since no structured comments in source
 X!Isound/sound_firmware.c
 -->

@@ -56,13 +56,6 @@ htmldocs: $(HTML)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
-	@dups=$$(sed -n 's/.*<refname>\([^<]*\)<\/refname>.*/\1/p'	\
-		 $(obj)/*.xml.noextra | sort | uniq -d);		\
-	if [ -n "$$dups" ]; then					\
-		echo >&2 "The following manual pages are generated more than once:"; \
-		printf >&2 '%s\n' "$$dups";				\
-		exit 1;							\
-	fi
 	find $(obj)/man -name '*.9' | xargs gzip -nf
 
 installmandocs: mandocs
@@ -157,7 +150,7 @@ quiet_cmd_db2html = HTML    $@
             cp $(PNG-$(basename $(notdir $@))) $(patsubst %.html,%,$@); fi
 
 quiet_cmd_db2man = MAN     $@
-      cmd_db2man = if grep -q refentry $<; then xmlif excludeextra=1 <$< >$<.noextra && xmlto man $(XMLTOFLAGS) -o $(obj)/man $<.noextra ; fi
+      cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man $< ; fi
 %.9 : %.xml
 	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install xmlto ***"; \
@@ -224,7 +217,6 @@ clean-files := $(DOCBOOKS) \
 	$(patsubst %.xml, %.ps,   $(DOCBOOKS)) \
 	$(patsubst %.xml, %.pdf,  $(DOCBOOKS)) \
 	$(patsubst %.xml, %.html, $(DOCBOOKS)) \
-	$(patsubst %, %.noextra,  $(DOCBOOKS)) \
 	$(patsubst %.xml, %.9,    $(DOCBOOKS)) \
 	$(index)
 
