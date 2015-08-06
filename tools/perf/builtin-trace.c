@@ -2773,9 +2773,9 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 
 	printed += fprintf(fp, "\n");
 
-	printed += fprintf(fp, "   syscall            calls      min       avg       max      stddev\n");
-	printed += fprintf(fp, "                               (msec)    (msec)    (msec)        (%%)\n");
-	printed += fprintf(fp, "   --------------- -------- --------- --------- ---------     ------\n");
+	printed += fprintf(fp, "   syscall            calls    total       min       avg       max      stddev\n");
+	printed += fprintf(fp, "                               (msec)    (msec)    (msec)    (msec)        (%%)\n");
+	printed += fprintf(fp, "   --------------- -------- --------- --------- --------- ---------     ------\n");
 
 	/* each int_node is a syscall */
 	while (inode) {
@@ -2792,8 +2792,8 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 
 			sc = &trace->syscalls.table[inode->i];
 			printed += fprintf(fp, "   %-15s", sc->name);
-			printed += fprintf(fp, " %8" PRIu64 " %9.3f %9.3f",
-					   n, min, avg);
+			printed += fprintf(fp, " %8" PRIu64 " %9.3f %9.3f %9.3f",
+					   n, avg * n, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 		}
 
