@@ -269,7 +269,8 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	int ret;
 
 	if (request->payload_size < sizeof(*hotplug)) {
-		dev_err(dev, "%s: short hotplug request received\n", __func__);
+		dev_err(dev, "%s: short hotplug request received (%zu < %zu)\n",
+			__func__, request->payload_size, sizeof(*hotplug));
 		return -EINVAL;
 	}
 
@@ -372,7 +373,8 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 
 	if (request->payload_size < sizeof(*hot_unplug)) {
 		dev_err(&op->connection->dev,
-			"short hot unplug request received\n");
+			"short hot unplug request received (%zu < %zu)\n",
+			request->payload_size, sizeof(*hot_unplug));
 		return -EINVAL;
 	}
 
@@ -400,7 +402,8 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 
 	if (request->payload_size < sizeof(*reset)) {
 		dev_err(&op->connection->dev,
-			"short reset request received\n");
+			"short reset request received (%zu < %zu)\n",
+			request->payload_size, sizeof(*reset));
 		return -EINVAL;
 	}
 	reset = request->payload;
