@@ -39,6 +39,41 @@
 
 #include "iscsi_iser.h"
 
+static struct iser_reg_ops fastreg_ops = {
+	.alloc_reg_res	= iser_alloc_fastreg_pool,
+	.free_reg_res	= iser_free_fastreg_pool,
+	.reg_rdma_mem	= iser_reg_rdma_mem_fastreg,
+	.unreg_rdma_mem	= iser_unreg_mem_fastreg,
+};
+
+static struct iser_reg_ops fmr_ops = {
+	.alloc_reg_res	= iser_alloc_fmr_pool,
+	.free_reg_res	= iser_free_fmr_pool,
+	.reg_rdma_mem	= iser_reg_rdma_mem_fmr,
+	.unreg_rdma_mem	= iser_unreg_mem_fmr,
+};
+
+int iser_assign_reg_ops(struct iser_device *device)
+{
+	struct ib_device_attr *dev_attr = &device->dev_attr;
+
+	/* Assign function handles  - based on FMR support */
+	if (device->ib_device->alloc_fmr && device->ib_device->dealloc_fmr &&
+	    device->ib_device->map_phys_fmr && device->ib_device->unmap_fmr) {
+		iser_info("FMR supported, using FMR for registration\n");
+		device->reg_ops = &fmr_ops;
+	} else
+	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
+		iser_info("FastReg supported, using FastReg for registration\n");
+		device->reg_ops = &fastreg_ops;
+	} else {
+		iser_err("IB device does not support FMRs nor FastRegs, can't register memory\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static void
 iser_free_bounce_sg(struct iser_data_buf *data)
 {

@@ -326,6 +326,25 @@ struct iser_comp {
 };
 
 /**
+ * struct iser_device - Memory registration operations
+ *     per-device registration schemes
+ *
+ * @alloc_reg_res:     Allocate registration resources
+ * @free_reg_res:      Free registration resources
+ * @reg_rdma_mem:      Register memory buffers
+ * @unreg_rdma_mem:    Un-register memory buffers
+ */
+struct iser_reg_ops {
+	int            (*alloc_reg_res)(struct ib_conn *ib_conn,
+					unsigned cmds_max);
+	void           (*free_reg_res)(struct ib_conn *ib_conn);
+	int            (*reg_rdma_mem)(struct iscsi_iser_task *iser_task,
+				       enum iser_data_dir cmd_dir);
+	void           (*unreg_rdma_mem)(struct iscsi_iser_task *iser_task,
+					 enum iser_data_dir cmd_dir);
+};
+
+/**
  * struct iser_device - iSER device handle
  *
  * @ib_device:     RDMA device
@@ -338,11 +357,7 @@ struct iser_comp {
  * @comps_used:    Number of completion contexts used, Min between online
  *                 cpus and device max completion vectors
  * @comps:         Dinamically allocated array of completion handlers
- * Memory registration pool Function pointers (FMR or Fastreg):
- *     @iser_alloc_rdma_reg_res: Allocation of memory regions pool
- *     @iser_free_rdma_reg_res:  Free of memory regions pool
- *     @iser_reg_rdma_mem:       Memory registration routine
- *     @iser_unreg_rdma_mem:     Memory deregistration routine
+ * @reg_ops:       Registration ops
  */
 struct iser_device {
 	struct ib_device             *ib_device;
@@ -354,13 +369,7 @@ struct iser_device {
 	int                          refcount;
 	int			     comps_used;
 	struct iser_comp	     *comps;
-	int                          (*iser_alloc_rdma_reg_res)(struct ib_conn *ib_conn,
-								unsigned cmds_max);
-	void                         (*iser_free_rdma_reg_res)(struct ib_conn *ib_conn);
-	int                          (*iser_reg_rdma_mem)(struct iscsi_iser_task *iser_task,
-							  enum iser_data_dir cmd_dir);
-	void                         (*iser_unreg_rdma_mem)(struct iscsi_iser_task *iser_task,
-							    enum iser_data_dir cmd_dir);
+	struct iser_reg_ops          *reg_ops;
 };
 
 #define ISER_CHECK_GUARD	0xc0
@@ -563,6 +572,8 @@ extern int iser_debug_level;
 extern bool iser_pi_enable;
 extern int iser_pi_guard;
 
+int iser_assign_reg_ops(struct iser_device *device);
+
 int iser_send_control(struct iscsi_conn *conn,
 		      struct iscsi_task *task);
 
@@ -636,9 +647,9 @@ int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
 int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 			      struct iscsi_session *session);
-int iser_create_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max);
+int iser_alloc_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max);
 void iser_free_fmr_pool(struct ib_conn *ib_conn);
-int iser_create_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max);
+int iser_alloc_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max);
 void iser_free_fastreg_pool(struct ib_conn *ib_conn);
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector);

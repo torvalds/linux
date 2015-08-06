@@ -87,25 +87,9 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		return ret;
 	}
 
-	/* Assign function handles  - based on FMR support */
-	if (device->ib_device->alloc_fmr && device->ib_device->dealloc_fmr &&
-	    device->ib_device->map_phys_fmr && device->ib_device->unmap_fmr) {
-		iser_info("FMR supported, using FMR for registration\n");
-		device->iser_alloc_rdma_reg_res = iser_create_fmr_pool;
-		device->iser_free_rdma_reg_res = iser_free_fmr_pool;
-		device->iser_reg_rdma_mem = iser_reg_rdma_mem_fmr;
-		device->iser_unreg_rdma_mem = iser_unreg_mem_fmr;
-	} else
-	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
-		iser_info("FastReg supported, using FastReg for registration\n");
-		device->iser_alloc_rdma_reg_res = iser_create_fastreg_pool;
-		device->iser_free_rdma_reg_res = iser_free_fastreg_pool;
-		device->iser_reg_rdma_mem = iser_reg_rdma_mem_fastreg;
-		device->iser_unreg_rdma_mem = iser_unreg_mem_fastreg;
-	} else {
-		iser_err("IB device does not support FMRs nor FastRegs, can't register memory\n");
-		return -1;
-	}
+	ret = iser_assign_reg_ops(device);
+	if (ret)
+		return ret;
 
 	device->comps_used = min_t(int, num_online_cpus(),
 				 device->ib_device->num_comp_vectors);
@@ -211,11 +195,11 @@ static void iser_free_device_ib_res(struct iser_device *device)
 }
 
 /**
- * iser_create_fmr_pool - Creates FMR pool and page_vector
+ * iser_alloc_fmr_pool - Creates FMR pool and page_vector
  *
  * returns 0 on success, or errno code on failure
  */
-int iser_create_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max)
+int iser_alloc_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 {
 	struct iser_device *device = ib_conn->device;
 	struct ib_fmr_pool_param params;
@@ -384,11 +368,11 @@ pi_ctx_alloc_failure:
 }
 
 /**
- * iser_create_fastreg_pool - Creates pool of fast_reg descriptors
+ * iser_alloc_fastreg_pool - Creates pool of fast_reg descriptors
  * for fast registration work requests.
  * returns 0 on success, or errno code on failure
  */
-int iser_create_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max)
+int iser_alloc_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 {
 	struct iser_device *device = ib_conn->device;
 	struct iser_fr_desc *desc;
