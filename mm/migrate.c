@@ -880,7 +880,8 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 	/* Establish migration ptes or remove ptes */
 	if (page_mapped(page)) {
 		try_to_unmap(page,
-			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|
+			TTU_IGNORE_HWPOISON);
 		page_was_mapped = 1;
 	}
 
