@@ -68,7 +68,7 @@ static inline int queued_read_trylock(struct qrwlock *lock)
 
 	cnts = atomic_read(&lock->cnts);
 	if (likely(!(cnts & _QW_WMASK))) {
-		cnts = (u32)atomic_add_return(_QR_BIAS, &lock->cnts);
+		cnts = (u32)atomic_add_return_acquire(_QR_BIAS, &lock->cnts);
 		if (likely(!(cnts & _QW_WMASK)))
 			return 1;
 		atomic_sub(_QR_BIAS, &lock->cnts);
@@ -89,8 +89,8 @@ static inline int queued_write_trylock(struct qrwlock *lock)
 	if (unlikely(cnts))
 		return 0;
 
-	return likely(atomic_cmpxchg(&lock->cnts,
-				     cnts, cnts | _QW_LOCKED) == cnts);
+	return likely(atomic_cmpxchg_acquire(&lock->cnts,
+					     cnts, cnts | _QW_LOCKED) == cnts);
 }
 /**
  * queued_read_lock - acquire read lock of a queue rwlock
@@ -100,7 +100,7 @@ static inline void queued_read_lock(struct qrwlock *lock)
 {
 	u32 cnts;
 
-	cnts = atomic_add_return(_QR_BIAS, &lock->cnts);
+	cnts = atomic_add_return_acquire(_QR_BIAS, &lock->cnts);
 	if (likely(!(cnts & _QW_WMASK)))
 		return;
 
@@ -115,7 +115,7 @@ static inline void queued_read_lock(struct qrwlock *lock)
 static inline void queued_write_lock(struct qrwlock *lock)
 {
 	/* Optimize for the unfair lock case where the fair flag is 0. */
-	if (atomic_cmpxchg(&lock->cnts, 0, _QW_LOCKED) == 0)
+	if (atomic_cmpxchg_acquire(&lock->cnts, 0, _QW_LOCKED) == 0)
 		return;
 
 	queued_write_lock_slowpath(lock);
@@ -130,8 +130,7 @@ static inline void queued_read_unlock(struct qrwlock *lock)
 	/*
 	 * Atomically decrement the reader count
 	 */
-	smp_mb__before_atomic();
-	atomic_sub(_QR_BIAS, &lock->cnts);
+	(void)atomic_sub_return_release(_QR_BIAS, &lock->cnts);
 }
 
 /**
