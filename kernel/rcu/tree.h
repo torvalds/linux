@@ -286,6 +286,18 @@ struct rcu_node {
 	for ((rnp) = (rsp)->level[rcu_num_lvls - 1]; \
 	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
 
+/*
+ * Union to allow "aggregate OR" operation on the need for a quiescent
+ * state by the normal and expedited grace periods.
+ */
+union rcu_noqs {
+	struct {
+		u8 norm;
+		u8 exp;
+	} b; /* Bits. */
+	u16 s; /* Set of bits, aggregate OR here. */
+};
+
 /* Index values for nxttail array in struct rcu_data. */
 #define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
 #define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */
@@ -302,7 +314,7 @@ struct rcu_data {
 					/*  is aware of having started. */
 	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
 					/*  for rcu_all_qs() invocations. */
-	bool		cpu_no_qs;	/* No QS yet for this CPU. */
+	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
 	bool		gpwrap;		/* Possible gpnum/completed wrap. */
