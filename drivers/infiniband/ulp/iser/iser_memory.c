@@ -647,13 +647,12 @@ iser_inv_rkey(struct ib_send_wr *inv_wr, struct ib_mr *mr)
 
 static int
 iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
-		struct fast_reg_descriptor *desc,
+		struct iser_pi_context *pi_ctx,
 		struct iser_mem_reg *data_reg,
 		struct iser_mem_reg *prot_reg,
 		struct iser_mem_reg *sig_reg)
 {
 	struct ib_conn *ib_conn = &iser_task->iser_conn->ib_conn;
-	struct iser_pi_context *pi_ctx = desc->pi_ctx;
 	struct ib_send_wr sig_wr, inv_wr;
 	struct ib_send_wr *bad_wr, *wr = NULL;
 	struct ib_sig_attrs sig_attrs;
@@ -666,7 +665,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 
 	iser_set_prot_checks(iser_task->sc, &sig_attrs.check_mask);
 
-	if (!(desc->reg_indicators & ISER_SIG_KEY_VALID)) {
+	if (!pi_ctx->sig_mr_valid) {
 		iser_inv_rkey(&inv_wr, pi_ctx->sig_mr);
 		wr = &inv_wr;
 	}
@@ -694,7 +693,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 		iser_err("reg_sig_mr failed, ret:%d\n", ret);
 		goto err;
 	}
-	desc->reg_indicators &= ~ISER_SIG_KEY_VALID;
+	pi_ctx->sig_mr_valid = 0;
 
 	sig_reg->sge.lkey = pi_ctx->sig_mr->lkey;
 	sig_reg->rkey = pi_ctx->sig_mr->rkey;
@@ -710,8 +709,7 @@ err:
 
 static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 			    struct iser_data_buf *mem,
-			    struct fast_reg_descriptor *desc,
-			    enum iser_reg_indicator ind,
+			    struct iser_reg_resources *rsc,
 			    struct iser_mem_reg *reg)
 {
 	struct ib_conn *ib_conn = &iser_task->iser_conn->ib_conn;
@@ -726,13 +724,8 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 	if (mem->dma_nents == 1)
 		return iser_reg_dma(device, mem, reg);
 
-	if (ind == ISER_DATA_KEY_VALID) {
-		mr = desc->data_mr;
-		frpl = desc->data_frpl;
-	} else {
-		mr = desc->pi_ctx->prot_mr;
-		frpl = desc->pi_ctx->prot_frpl;
-	}
+	mr = rsc->mr;
+	frpl = rsc->frpl;
 
 	plen = iser_sg_to_page_vec(mem, device->ib_device, frpl->page_list,
 				   &offset, &size);
@@ -741,7 +734,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		return -EINVAL;
 	}
 
-	if (!(desc->reg_indicators & ind)) {
+	if (!rsc->mr_valid) {
 		iser_inv_rkey(&inv_wr, mr);
 		wr = &inv_wr;
 	}
@@ -770,7 +763,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		iser_err("fast registration failed, ret:%d\n", ret);
 		return ret;
 	}
-	desc->reg_indicators &= ~ind;
+	rsc->mr_valid = 0;
 
 	reg->sge.lkey = mr->lkey;
 	reg->rkey = mr->rkey;
@@ -812,8 +805,8 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 		mem_reg->mem_h = desc;
 	}
 
-	err = iser_fast_reg_mr(iser_task, mem, desc,
-			       ISER_DATA_KEY_VALID, mem_reg);
+	err = iser_fast_reg_mr(iser_task, mem,
+			       desc ? &desc->rsc : NULL, mem_reg);
 	if (err)
 		goto err_reg;
 
@@ -833,19 +826,19 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 				}
 			}
 
-			err = iser_fast_reg_mr(iser_task, mem, desc,
-					       ISER_PROT_KEY_VALID, &prot_reg);
+			err = iser_fast_reg_mr(iser_task, mem,
+					       &desc->pi_ctx->rsc, &prot_reg);
 			if (err)
 				goto err_reg;
 		}
 
-		err = iser_reg_sig_mr(iser_task, desc, mem_reg,
+		err = iser_reg_sig_mr(iser_task, desc->pi_ctx, mem_reg,
 				      &prot_reg, mem_reg);
 		if (err) {
 			iser_err("Failed to register signature mr\n");
 			return err;
 		}
-		desc->reg_indicators |= ISER_FASTREG_PROTECTED;
+		desc->pi_ctx->sig_protected = 1;
 	}
 
 	return 0;

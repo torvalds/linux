@@ -280,6 +280,45 @@ void iser_free_fmr_pool(struct ib_conn *ib_conn)
 }
 
 static int
+iser_alloc_reg_res(struct ib_device *ib_device, struct ib_pd *pd,
+		   struct iser_reg_resources *res)
+{
+	int ret;
+
+	res->frpl = ib_alloc_fast_reg_page_list(ib_device,
+						ISCSI_ISER_SG_TABLESIZE + 1);
+	if (IS_ERR(res->frpl)) {
+		ret = PTR_ERR(res->frpl);
+		iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n",
+			 ret);
+		return PTR_ERR(res->frpl);
+	}
+
+	res->mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
+			      ISCSI_ISER_SG_TABLESIZE + 1);
+	if (IS_ERR(res->mr)) {
+		ret = PTR_ERR(res->mr);
+		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
+		goto fast_reg_mr_failure;
+	}
+	res->mr_valid = 1;
+
+	return 0;
+
+fast_reg_mr_failure:
+	ib_free_fast_reg_page_list(res->frpl);
+
+	return ret;
+}
+
+static void
+iser_free_reg_res(struct iser_reg_resources *rsc)
+{
+	ib_dereg_mr(rsc->mr);
+	ib_free_fast_reg_page_list(rsc->frpl);
+}
+
+static int
 iser_alloc_pi_ctx(struct ib_device *ib_device, struct ib_pd *pd,
 		  struct fast_reg_descriptor *desc)
 {
@@ -292,36 +331,25 @@ iser_alloc_pi_ctx(struct ib_device *ib_device, struct ib_pd *pd,
 
 	pi_ctx = desc->pi_ctx;
 
-	pi_ctx->prot_frpl = ib_alloc_fast_reg_page_list(ib_device,
-					    ISCSI_ISER_SG_TABLESIZE);
-	if (IS_ERR(pi_ctx->prot_frpl)) {
-		ret = PTR_ERR(pi_ctx->prot_frpl);
-		goto prot_frpl_failure;
+	ret = iser_alloc_reg_res(ib_device, pd, &pi_ctx->rsc);
+	if (ret) {
+		iser_err("failed to allocate reg_resources\n");
+		goto alloc_reg_res_err;
 	}
-
-	pi_ctx->prot_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
-				      ISCSI_ISER_SG_TABLESIZE + 1);
-	if (IS_ERR(pi_ctx->prot_mr)) {
-		ret = PTR_ERR(pi_ctx->prot_mr);
-		goto prot_mr_failure;
-	}
-	desc->reg_indicators |= ISER_PROT_KEY_VALID;
 
 	pi_ctx->sig_mr = ib_alloc_mr(pd, IB_MR_TYPE_SIGNATURE, 2);
 	if (IS_ERR(pi_ctx->sig_mr)) {
 		ret = PTR_ERR(pi_ctx->sig_mr);
 		goto sig_mr_failure;
 	}
-	desc->reg_indicators |= ISER_SIG_KEY_VALID;
-	desc->reg_indicators &= ~ISER_FASTREG_PROTECTED;
+	pi_ctx->sig_mr_valid = 1;
+	desc->pi_ctx->sig_protected = 0;
 
 	return 0;
 
 sig_mr_failure:
-	ib_dereg_mr(desc->pi_ctx->prot_mr);
-prot_mr_failure:
-	ib_free_fast_reg_page_list(desc->pi_ctx->prot_frpl);
-prot_frpl_failure:
+	iser_free_reg_res(&pi_ctx->rsc);
+alloc_reg_res_err:
 	kfree(desc->pi_ctx);
 
 	return ret;
@@ -330,8 +358,7 @@ prot_frpl_failure:
 static void
 iser_free_pi_ctx(struct iser_pi_context *pi_ctx)
 {
-	ib_free_fast_reg_page_list(pi_ctx->prot_frpl);
-	ib_dereg_mr(pi_ctx->prot_mr);
+	iser_free_reg_res(&pi_ctx->rsc);
 	ib_dereg_mr(pi_ctx->sig_mr);
 	kfree(pi_ctx);
 }
@@ -342,23 +369,11 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 {
 	int ret;
 
-	desc->data_frpl = ib_alloc_fast_reg_page_list(ib_device,
-						      ISCSI_ISER_SG_TABLESIZE + 1);
-	if (IS_ERR(desc->data_frpl)) {
-		ret = PTR_ERR(desc->data_frpl);
-		iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n",
-			 ret);
-		return PTR_ERR(desc->data_frpl);
+	ret = iser_alloc_reg_res(ib_device, pd, &desc->rsc);
+	if (ret) {
+		iser_err("failed to allocate reg_resources\n");
+		return ret;
 	}
-
-	desc->data_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
-				    ISCSI_ISER_SG_TABLESIZE + 1);
-	if (IS_ERR(desc->data_mr)) {
-		ret = PTR_ERR(desc->data_mr);
-		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
-		goto fast_reg_mr_failure;
-	}
-	desc->reg_indicators |= ISER_DATA_KEY_VALID;
 
 	if (pi_enable) {
 		ret = iser_alloc_pi_ctx(ib_device, pd, desc);
@@ -367,10 +382,9 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 	}
 
 	return 0;
+
 pi_ctx_alloc_failure:
-	ib_dereg_mr(desc->data_mr);
-fast_reg_mr_failure:
-	ib_free_fast_reg_page_list(desc->data_frpl);
+	iser_free_reg_res(&desc->rsc);
 
 	return ret;
 }
@@ -431,8 +445,7 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 
 	list_for_each_entry_safe(desc, tmp, &ib_conn->fastreg.pool, list) {
 		list_del(&desc->list);
-		ib_free_fast_reg_page_list(desc->data_frpl);
-		ib_dereg_mr(desc->data_mr);
+		iser_free_reg_res(&desc->rsc);
 		if (desc->pi_ctx)
 			iser_free_pi_ctx(desc->pi_ctx);
 		kfree(desc);
@@ -1244,8 +1257,8 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 	struct ib_mr_status mr_status;
 	int ret;
 
-	if (desc && desc->reg_indicators & ISER_FASTREG_PROTECTED) {
-		desc->reg_indicators &= ~ISER_FASTREG_PROTECTED;
+	if (desc && desc->pi_ctx->sig_protected) {
+		desc->pi_ctx->sig_protected = 0;
 		ret = ib_check_mr_status(desc->pi_ctx->sig_mr,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {

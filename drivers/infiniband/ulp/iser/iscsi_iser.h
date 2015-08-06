@@ -367,41 +367,45 @@ struct iser_device {
 #define ISER_CHECK_REFTAG	0x0f
 #define ISER_CHECK_APPTAG	0x30
 
-enum iser_reg_indicator {
-	ISER_DATA_KEY_VALID	= 1 << 0,
-	ISER_PROT_KEY_VALID	= 1 << 1,
-	ISER_SIG_KEY_VALID	= 1 << 2,
-	ISER_FASTREG_PROTECTED	= 1 << 3,
+/**
+ * struct iser_reg_resources - Fast registration recources
+ *
+ * @mr:         memory region
+ * @frpl:       fast reg page list
+ * @mr_valid:   is mr valid indicator
+ */
+struct iser_reg_resources {
+	struct ib_mr			 *mr;
+	struct ib_fast_reg_page_list     *frpl;
+	u8				  mr_valid:1;
 };
 
 /**
  * struct iser_pi_context - Protection information context
  *
- * @prot_mr:        protection memory region
- * @prot_frpl:      protection fastreg page list
- * @sig_mr:         signature feature enabled memory region
+ * @rsc:             protection buffer registration resources
+ * @sig_mr:          signature enable memory region
+ * @sig_mr_valid:    is sig_mr valid indicator
+ * @sig_protected:   is region protected indicator
  */
 struct iser_pi_context {
-	struct ib_mr                   *prot_mr;
-	struct ib_fast_reg_page_list   *prot_frpl;
+	struct iser_reg_resources	rsc;
 	struct ib_mr                   *sig_mr;
+	u8                              sig_mr_valid:1;
+	u8                              sig_protected:1;
 };
 
 /**
  * struct fast_reg_descriptor - Fast registration descriptor
  *
  * @list:           entry in connection fastreg pool
- * @data_mr:        data memory region
- * @data_frpl:      data fastreg page list
+ * @rsc:            data buffer registration resources
  * @pi_ctx:         protection information context
- * @reg_indicators: fast registration indicators
  */
 struct fast_reg_descriptor {
 	struct list_head		  list;
-	struct ib_mr			 *data_mr;
-	struct ib_fast_reg_page_list     *data_frpl;
+	struct iser_reg_resources	  rsc;
 	struct iser_pi_context		 *pi_ctx;
-	u8				  reg_indicators;
 };
 
 /**
