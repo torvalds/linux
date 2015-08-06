@@ -72,6 +72,7 @@ struct switchdev_obj {
 		struct switchdev_obj_fdb {		/* PORT_FDB */
 			u8 addr[ETH_ALEN];
 			u16 vid;
+			bool is_static;
 		} fdb;
 	} u;
 };
