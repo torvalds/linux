@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/ip_fib.h>
 #include <net/switchdev.h>
@@ -742,11 +743,11 @@ int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	struct switchdev_obj obj = {
 		.id = SWITCHDEV_OBJ_PORT_FDB,
 		.u.fdb = {
-			.addr = addr,
 			.vid = vid,
 		},
 	};
 
+	ether_addr_copy(obj.u.fdb.addr, addr);
 	return switchdev_port_obj_add(dev, &obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_add);
@@ -769,11 +770,11 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 	struct switchdev_obj obj = {
 		.id = SWITCHDEV_OBJ_PORT_FDB,
 		.u.fdb = {
-			.addr = addr,
 			.vid = vid,
 		},
 	};
 
+	ether_addr_copy(obj.u.fdb.addr, addr);
 	return switchdev_port_obj_del(dev, &obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
