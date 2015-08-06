@@ -1230,6 +1230,9 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
+	if (ret == 0)
+		ww_acquire_done(&state->acquire_ctx->ww_ctx);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_check_only);
