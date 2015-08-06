@@ -151,7 +151,7 @@ void log_suspend_abort_reason(const char *fmt, ...)
 
 	suspend_abort = true;
 	va_start(args, fmt);
-	snprintf(abort_reason, MAX_SUSPEND_ABORT_LEN, fmt, args);
+	vsnprintf(abort_reason, MAX_SUSPEND_ABORT_LEN, fmt, args);
 	va_end(args);
 	spin_unlock(&resume_reason_lock);
 }
