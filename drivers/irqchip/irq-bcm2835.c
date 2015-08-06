@@ -96,6 +96,7 @@ struct armctrl_ic {
 static struct armctrl_ic intc __read_mostly;
 static void __exception_irq_entry bcm2835_handle_irq(
 	struct pt_regs *regs);
+static void bcm2836_chained_handle_irq(unsigned int irq, struct irq_desc *desc);
 
 static void armctrl_mask_irq(struct irq_data *d)
 {
@@ -139,7 +140,8 @@ static const struct irq_domain_ops armctrl_ops = {
 };
 
 static int __init armctrl_of_init(struct device_node *node,
-	struct device_node *parent)
+				  struct device_node *parent,
+				  bool is_2836)
 {
 	void __iomem *base;
 	int irq, b, i;
@@ -168,9 +170,33 @@ static int __init armctrl_of_init(struct device_node *node,
 		}
 	}
 
-	set_handle_irq(bcm2835_handle_irq);
+	if (is_2836) {
+		int parent_irq = irq_of_parse_and_map(node, 0);
+
+		if (!parent_irq) {
+			panic("%s: unable to get parent interrupt.\n",
+			      node->full_name);
+		}
+		irq_set_chained_handler(parent_irq, bcm2836_chained_handle_irq);
+	} else {
+		set_handle_irq(bcm2835_handle_irq);
+	}
+
 	return 0;
 }
+
+static int __init bcm2835_armctrl_of_init(struct device_node *node,
+					  struct device_node *parent)
+{
+	return armctrl_of_init(node, parent, false);
+}
+
+static int __init bcm2836_armctrl_of_init(struct device_node *node,
+					  struct device_node *parent)
+{
+	return armctrl_of_init(node, parent, true);
+}
+
 
 /*
  * Handle each interrupt across the entire interrupt controller.  This reads the
@@ -219,4 +245,15 @@ static void __exception_irq_entry bcm2835_handle_irq(
 		handle_IRQ(irq_linear_revmap(intc.domain, hwirq), regs);
 }
 
-IRQCHIP_DECLARE(bcm2835_armctrl_ic, "brcm,bcm2835-armctrl-ic", armctrl_of_init);
+static void bcm2836_chained_handle_irq(unsigned int irq, struct irq_desc *desc)
+{
+	u32 hwirq;
+
+	while ((hwirq = get_next_armctrl_hwirq()) != ~0)
+		generic_handle_irq(irq_linear_revmap(intc.domain, hwirq));
+}
+
+IRQCHIP_DECLARE(bcm2835_armctrl_ic, "brcm,bcm2835-armctrl-ic",
+		bcm2835_armctrl_of_init);
+IRQCHIP_DECLARE(bcm2836_armctrl_ic, "brcm,bcm2836-armctrl-ic",
+		bcm2836_armctrl_of_init);
