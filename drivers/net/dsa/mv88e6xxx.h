@@ -422,13 +422,13 @@ int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
-int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid);
-int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid);
 int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg);
 int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
 			     int reg, int val);
+int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port, u16 vid,
+			   const u8 addr[ETH_ALEN]);
+int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port, u16 vid,
+			   const u8 addr[ETH_ALEN]);
 int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port, u16 *vid,
 			       u8 addr[ETH_ALEN], bool *is_static);
 
