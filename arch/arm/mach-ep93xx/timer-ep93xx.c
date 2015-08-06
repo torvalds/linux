@@ -86,19 +86,22 @@ static int ep93xx_clkevt_set_next_event(unsigned long next,
 }
 
 
-static void ep93xx_clkevt_set_mode(enum clock_event_mode mode,
-				   struct clock_event_device *evt)
+static int ep93xx_clkevt_shutdown(struct clock_event_device *evt)
 {
 	/* Disable timer */
 	writel(0, EP93XX_TIMER3_CONTROL);
+
+	return 0;
 }
 
 static struct clock_event_device ep93xx_clockevent = {
-	.name		= "timer1",
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= ep93xx_clkevt_set_mode,
-	.set_next_event	= ep93xx_clkevt_set_next_event,
-	.rating		= 300,
+	.name			= "timer1",
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_shutdown	= ep93xx_clkevt_shutdown,
+	.set_state_oneshot	= ep93xx_clkevt_shutdown,
+	.tick_resume		= ep93xx_clkevt_shutdown,
+	.set_next_event		= ep93xx_clkevt_set_next_event,
+	.rating			= 300,
 };
 
 static irqreturn_t ep93xx_timer_interrupt(int irq, void *dev_id)
