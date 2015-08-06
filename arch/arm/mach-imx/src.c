@@ -107,7 +107,6 @@ void imx_enable_cpu(int cpu, bool enable)
 		writel_relaxed(val, src_base + SRC_A7RCR1);
 	} else {
 		mask = 1 << (BP_SRC_SCR_CORE1_ENABLE + cpu - 1);
-		spin_lock(&src_lock);
 		val = readl_relaxed(src_base + SRC_SCR);
 		val = enable ? val | mask : val & ~mask;
 		val |= 1 << (BP_SRC_SCR_CORE1_RST + cpu - 1);
