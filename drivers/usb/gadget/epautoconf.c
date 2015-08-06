@@ -32,7 +32,6 @@ ep_matches (
 {
 	u8		type;
 	u16		max;
-
 	int		num_req_streams = 0;
 
 	/* endpoint already claimed? */
@@ -40,6 +39,20 @@ ep_matches (
 		return 0;
 
 	type = usb_endpoint_type(desc);
+	max = 0x7ff & usb_endpoint_maxp(desc);
+
+	if (usb_endpoint_dir_in(desc) && !ep->caps.dir_in)
+		return 0;
+	if (usb_endpoint_dir_out(desc) && !ep->caps.dir_out)
+		return 0;
+
+	if (max > ep->maxpacket_limit)
+		return 0;
+
+	/* "high bandwidth" works only at high speed */
+	if (!gadget_is_dualspeed(gadget) && usb_endpoint_maxp(desc) & (3<<11))
+		return 0;
+
 	switch (type) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		/* only support ep0 for portable CONTROL traffic */
@@ -47,66 +60,36 @@ ep_matches (
 	case USB_ENDPOINT_XFER_ISOC:
 		if (!ep->caps.type_iso)
 			return 0;
+		/* ISO:  limit 1023 bytes full speed,
+		 * 1024 high/super speed
+		 */
+		if (!gadget_is_dualspeed(gadget) && max > 1023)
+			return 0;
 		break;
 	case USB_ENDPOINT_XFER_BULK:
 		if (!ep->caps.type_bulk)
 			return 0;
-		break;
-	case USB_ENDPOINT_XFER_INT:
-		/* bulk endpoints handle interrupt transfers,
-		 * except the toggle-quirky iso-synch kind
-		 */
-		if (!ep->caps.type_int && !ep->caps.type_bulk)
-			return 0;
-		break;
-	}
-
-	if (usb_endpoint_dir_in(desc)) {
-		if (!ep->caps.dir_in)
-			return 0;
-	} else {
-		if (!ep->caps.dir_out)
-			return 0;
-	}
-
-	/*
-	 * Get the number of required streams from the EP companion
-	 * descriptor and see if the EP matches it
-	 */
-	if (usb_endpoint_xfer_bulk(desc)) {
-		if (ep_comp && gadget->max_speed >= USB_SPEED_SUPER) {
+		if (ep_comp && gadget_is_superspeed(gadget)) {
+			/* Get the number of required streams from the
+			 * EP companion descriptor and see if the EP
+			 * matches it
+			 */
 			num_req_streams = ep_comp->bmAttributes & 0x1f;
 			if (num_req_streams > ep->max_streams)
 				return 0;
 		}
-
-	}
-
-	/* endpoint maxpacket size is an input parameter, except for bulk
-	 * where it's an output parameter representing the full speed limit.
-	 * the usb spec fixes high speed bulk maxpacket at 512 bytes.
-	 */
-	max = 0x7ff & usb_endpoint_maxp(desc);
-	switch (type) {
+		break;
 	case USB_ENDPOINT_XFER_INT:
-		/* INT:  limit 64 bytes full speed, 1024 high/super speed */
+		/* Bulk endpoints handle interrupt transfers,
+		 * except the toggle-quirky iso-synch kind
+		 */
+		if (!ep->caps.type_int && !ep->caps.type_bulk)
+			return 0;
+		/* INT:  limit 64 bytes full speed,
+		 * 1024 high/super speed
+		 */
 		if (!gadget_is_dualspeed(gadget) && max > 64)
 			return 0;
-		/* FALLTHROUGH */
-
-	case USB_ENDPOINT_XFER_ISOC:
-		/* ISO:  limit 1023 bytes full speed, 1024 high/super speed */
-		if (ep->maxpacket_limit < max)
-			return 0;
-		if (!gadget_is_dualspeed(gadget) && max > 1023)
-			return 0;
-
-		/* BOTH:  "high bandwidth" works only at high speed */
-		if ((desc->wMaxPacketSize & cpu_to_le16(3<<11))) {
-			if (!gadget_is_dualspeed(gadget))
-				return 0;
-			/* configure your hardware with enough buffering!! */
-		}
 		break;
 	}
 
