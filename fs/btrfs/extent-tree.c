@@ -7567,9 +7567,6 @@ static void unuse_block_rsv(struct btrfs_fs_info *fs_info,
 
 /*
  * finds a free extent and does all the dirty work required for allocation
- * returns the key for the extent through ins, and a tree buffer for
- * the first block of the extent through buf.
- *
  * returns the tree buffer or an ERR_PTR on error.
  */
 struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
