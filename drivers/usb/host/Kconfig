@@ -32,7 +32,14 @@ config USB_XHCI_PCI
        default y
 
 config USB_XHCI_PLATFORM
-	tristate
+	tristate "Generic xHCI driver for a platform device"
+	---help---
+	  Adds an xHCI host driver for a generic platform device, which
+	  provides a memory space and an irq.
+	  It is also a prerequisite for platform specific drivers that
+	  implement some extra quirks.
+
+	  If unsure, say N.
 
 config USB_XHCI_MVEBU
 	tristate "xHCI support for Marvell Armada 375/38x"
