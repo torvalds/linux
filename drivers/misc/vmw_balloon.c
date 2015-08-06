@@ -1,7 +1,7 @@
 /*
  * VMware Balloon driver.
  *
- * Copyright (C) 2000-2013, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2000-2014, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -43,11 +43,13 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/vmw_vmci_defs.h>
+#include <linux/vmw_vmci_api.h>
 #include <asm/hypervisor.h>
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.4.1.0-k");
+MODULE_VERSION("1.5.0.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -101,14 +103,16 @@ enum vmwballoon_capabilities {
 	/*
 	 * Bit 0 is reserved and not associated to any capability.
 	 */
-	VMW_BALLOON_BASIC_CMDS		= (1 << 1),
-	VMW_BALLOON_BATCHED_CMDS	= (1 << 2),
-	VMW_BALLOON_BATCHED_2M_CMDS     = (1 << 3),
+	VMW_BALLOON_BASIC_CMDS			= (1 << 1),
+	VMW_BALLOON_BATCHED_CMDS		= (1 << 2),
+	VMW_BALLOON_BATCHED_2M_CMDS		= (1 << 3),
+	VMW_BALLOON_SIGNALLED_WAKEUP_CMD	= (1 << 4),
 };
 
 #define VMW_BALLOON_CAPABILITIES	(VMW_BALLOON_BASIC_CMDS \
 					| VMW_BALLOON_BATCHED_CMDS \
-					| VMW_BALLOON_BATCHED_2M_CMDS)
+					| VMW_BALLOON_BATCHED_2M_CMDS \
+					| VMW_BALLOON_SIGNALLED_WAKEUP_CMD)
 
 #define VMW_BALLOON_2M_SHIFT		(9)
 #define VMW_BALLOON_NUM_PAGE_SIZES	(2)
@@ -123,7 +127,9 @@ enum vmwballoon_capabilities {
  * VMW_BALLOON_BATCHED_CMDS:
  *	BATCHED_LOCK and BATCHED_UNLOCK commands.
  * VMW BALLOON_BATCHED_2M_CMDS:
- *	BATCHED_2M_LOCK and BATCHED_2M_UNLOCK commands.
+ *	BATCHED_2M_LOCK and BATCHED_2M_UNLOCK commands,
+ * VMW VMW_BALLOON_SIGNALLED_WAKEUP_CMD:
+ *	VMW_BALLOON_CMD_VMCI_DOORBELL_SET command.
  */
 #define VMW_BALLOON_CMD_START			0
 #define VMW_BALLOON_CMD_GET_TARGET		1
@@ -134,6 +140,7 @@ enum vmwballoon_capabilities {
 #define VMW_BALLOON_CMD_BATCHED_UNLOCK		7
 #define VMW_BALLOON_CMD_BATCHED_2M_LOCK		8
 #define VMW_BALLOON_CMD_BATCHED_2M_UNLOCK	9
+#define VMW_BALLOON_CMD_VMCI_DOORBELL_SET	10
 
 
 /* error codes */
@@ -214,6 +221,7 @@ static void vmballoon_batch_set_pa(struct vmballoon_batch_page *batch, int idx,
 #ifdef CONFIG_DEBUG_FS
 struct vmballoon_stats {
 	unsigned int timer;
+	unsigned int doorbell;
 
 	/* allocation statistics */
 	unsigned int alloc[VMW_BALLOON_NUM_PAGE_SIZES];
@@ -235,6 +243,8 @@ struct vmballoon_stats {
 	unsigned int start_fail;
 	unsigned int guest_type;
 	unsigned int guest_type_fail;
+	unsigned int doorbell_set;
+	unsigned int doorbell_unset;
 };
 
 #define STATS_INC(stat) (stat)++
@@ -299,6 +309,8 @@ struct vmballoon {
 	struct sysinfo sysinfo;
 
 	struct delayed_work dwork;
+
+	struct vmci_handle vmci_doorbell;
 };
 
 static struct vmballoon balloon;
@@ -993,12 +1005,75 @@ static bool vmballoon_init_batching(struct vmballoon *b)
 }
 
 /*
+ * Receive notification and resize balloon
+ */
+static void vmballoon_doorbell(void *client_data)
+{
+	struct vmballoon *b = client_data;
+
+	STATS_INC(b->stats.doorbell);
+
+	mod_delayed_work(system_freezable_wq, &b->dwork, 0);
+}
+
+/*
+ * Clean up vmci doorbell
+ */
+static void vmballoon_vmci_cleanup(struct vmballoon *b)
+{
+	int error;
+
+	VMWARE_BALLOON_CMD(VMCI_DOORBELL_SET, VMCI_INVALID_ID,
+			VMCI_INVALID_ID, error);
+	STATS_INC(b->stats.doorbell_unset);
+
+	if (!vmci_handle_is_invalid(b->vmci_doorbell)) {
+		vmci_doorbell_destroy(b->vmci_doorbell);
+		b->vmci_doorbell = VMCI_INVALID_HANDLE;
+	}
+}
+
+/*
+ * Initialize vmci doorbell, to get notified as soon as balloon changes
+ */
+static int vmballoon_vmci_init(struct vmballoon *b)
+{
+	int error = 0;
+
+	if ((b->capabilities & VMW_BALLOON_SIGNALLED_WAKEUP_CMD) != 0) {
+		error = vmci_doorbell_create(&b->vmci_doorbell,
+				VMCI_FLAG_DELAYED_CB,
+				VMCI_PRIVILEGE_FLAG_RESTRICTED,
+				vmballoon_doorbell, b);
+
+		if (error == VMCI_SUCCESS) {
+			VMWARE_BALLOON_CMD(VMCI_DOORBELL_SET,
+					b->vmci_doorbell.context,
+					b->vmci_doorbell.resource, error);
+			STATS_INC(b->stats.doorbell_set);
+		}
+	}
+
+	if (error != 0) {
+		vmballoon_vmci_cleanup(b);
+
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/*
  * Perform standard reset sequence by popping the balloon (in case it
  * is not  empty) and then restarting protocol. This operation normally
  * happens when host responds with VMW_BALLOON_ERROR_RESET to a command.
  */
 static void vmballoon_reset(struct vmballoon *b)
 {
+	int error;
+
+	vmballoon_vmci_cleanup(b);
+
 	/* free all pages, skipping monitor unlock */
 	vmballoon_pop(b);
 
@@ -1024,6 +1099,11 @@ static void vmballoon_reset(struct vmballoon *b)
 	}
 
 	b->reset_required = false;
+
+	error = vmballoon_vmci_init(b);
+	if (error)
+		pr_err("failed to initialize vmci doorbell\n");
+
 	if (!vmballoon_send_guest_id(b))
 		pr_err("failed to send guest ID to the host\n");
 }
@@ -1097,6 +1177,7 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 	seq_printf(f,
 		   "\n"
 		   "timer:              %8u\n"
+		   "doorbell:           %8u\n"
 		   "start:              %8u (%4u failed)\n"
 		   "guestType:          %8u (%4u failed)\n"
 		   "2m-lock:            %8u (%4u failed)\n"
@@ -1112,8 +1193,11 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 		   "err2mAlloc:         %8u\n"
 		   "errAlloc:           %8u\n"
 		   "err2mFree:          %8u\n"
-		   "errFree:            %8u\n",
+		   "errFree:            %8u\n"
+		   "doorbellSet:        %8u\n"
+		   "doorbellUnset:      %8u\n",
 		   stats->timer,
+		   stats->doorbell,
 		   stats->start, stats->start_fail,
 		   stats->guest_type, stats->guest_type_fail,
 		   stats->lock[true],  stats->lock_fail[true],
@@ -1127,7 +1211,8 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 		   stats->free[true],
 		   stats->free[false],
 		   stats->refused_alloc[true], stats->refused_alloc[false],
-		   stats->refused_free[true], stats->refused_free[false]);
+		   stats->refused_free[true], stats->refused_free[false],
+		   stats->doorbell_set, stats->doorbell_unset);
 
 	return 0;
 }
@@ -1204,6 +1289,7 @@ static int __init vmballoon_init(void)
 	if (error)
 		return error;
 
+	balloon.vmci_doorbell = VMCI_INVALID_HANDLE;
 	balloon.batch_page = NULL;
 	balloon.page = NULL;
 	balloon.reset_required = true;
@@ -1216,6 +1302,7 @@ module_init(vmballoon_init);
 
 static void __exit vmballoon_exit(void)
 {
+	vmballoon_vmci_cleanup(&balloon);
 	cancel_delayed_work_sync(&balloon.dwork);
 
 	vmballoon_debugfs_exit(&balloon);
