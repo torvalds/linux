@@ -160,7 +160,8 @@ static void amdgpu_sa_bo_try_free(struct amdgpu_sa_manager *sa_manager)
 
 	sa_bo = list_entry(sa_manager->hole->next, struct amdgpu_sa_bo, olist);
 	list_for_each_entry_safe_from(sa_bo, tmp, &sa_manager->olist, olist) {
-		if (sa_bo->fence == NULL || !amdgpu_fence_signaled(sa_bo->fence)) {
+		if (sa_bo->fence == NULL ||
+		    !fence_is_signaled(&sa_bo->fence->base)) {
 			return;
 		}
 		amdgpu_sa_bo_remove_locked(sa_bo);
@@ -274,7 +275,7 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
 		sa_bo = list_first_entry(&sa_manager->flist[i],
 					 struct amdgpu_sa_bo, flist);
 
-		if (!amdgpu_fence_signaled(sa_bo->fence)) {
+		if (!fence_is_signaled(&sa_bo->fence->base)) {
 			fences[i] = sa_bo->fence;
 			continue;
 		}
@@ -380,7 +381,7 @@ void amdgpu_sa_bo_free(struct amdgpu_device *adev, struct amdgpu_sa_bo **sa_bo,
 
 	sa_manager = (*sa_bo)->manager;
 	spin_lock(&sa_manager->wq.lock);
-	if (fence && !amdgpu_fence_signaled(fence)) {
+	if (fence && !fence_is_signaled(&fence->base)) {
 		(*sa_bo)->fence = amdgpu_fence_ref(fence);
 		list_add_tail(&(*sa_bo)->flist,
 			      &sa_manager->flist[fence->ring->idx]);

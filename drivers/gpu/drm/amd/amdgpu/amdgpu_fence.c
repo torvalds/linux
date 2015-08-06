@@ -425,28 +425,6 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 	return true;
 }
 
-/**
- * amdgpu_fence_signaled - check if a fence has signaled
- *
- * @fence: amdgpu fence object
- *
- * Check if the requested fence has signaled (all asics).
- * Returns true if the fence has signaled or false if it has not.
- */
-bool amdgpu_fence_signaled(struct amdgpu_fence *fence)
-{
-	if (!fence)
-		return true;
-
-	if (amdgpu_fence_seq_signaled(fence->ring, fence->seq)) {
-		if (!fence_signal(&fence->base))
-			FENCE_TRACE(&fence->base, "signaled from amdgpu_fence_signaled\n");
-		return true;
-	}
-
-	return false;
-}
-
 /*
  * amdgpu_ring_wait_seq_timeout - wait for seq of the specific ring to signal
  * @ring: ring to wait on for the seq number
