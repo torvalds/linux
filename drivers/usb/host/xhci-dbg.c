@@ -99,6 +99,8 @@ static void xhci_print_cap_regs(struct xhci_hcd *xhci)
 	xhci_dbg(xhci, "HCC PARAMS 0x%x:\n", (unsigned int) temp);
 	xhci_dbg(xhci, "  HC generates %s bit addresses\n",
 			HCC_64BIT_ADDR(temp) ? "64" : "32");
+	xhci_dbg(xhci, "  HC %s Contiguous Frame ID Capability\n",
+			HCC_CFC(temp) ? "has" : "hasn't");
 	/* FIXME */
 	xhci_dbg(xhci, "  FIXME: more HCCPARAMS debugging\n");
 
