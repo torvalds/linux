@@ -1676,12 +1676,7 @@ static void __split_huge_page_refcount(struct page *page,
 		/* after clearing PageTail the gup refcount can be released */
 		smp_mb__after_atomic();
 
-		/*
-		 * retain hwpoison flag of the poisoned tail page:
-		 *   fix for the unsuitable process killed on Guest Machine(KVM)
-		 *   by the memory-failure.
-		 */
-		page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP | __PG_HWPOISON;
+		page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 		page_tail->flags |= (page->flags &
 				     ((1L << PG_referenced) |
 				      (1L << PG_swapbacked) |
