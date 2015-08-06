@@ -1550,6 +1550,33 @@ static int net2280_pullup(struct usb_gadget *_gadget, int is_on)
 	return 0;
 }
 
+static struct usb_ep *net2280_match_ep(struct usb_gadget *_gadget,
+		struct usb_endpoint_descriptor *desc,
+		struct usb_ss_ep_comp_descriptor *ep_comp)
+{
+	char name[8];
+	struct usb_ep *ep;
+
+	if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT) {
+		/* ep-e, ep-f are PIO with only 64 byte fifos */
+		ep = gadget_find_ep_by_name(_gadget, "ep-e");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep-f");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	}
+
+	/* USB3380: use same address for usb and hardware endpoints */
+	snprintf(name, sizeof(name), "ep%d%s", usb_endpoint_num(desc),
+			usb_endpoint_dir_in(desc) ? "in" : "out");
+	ep = gadget_find_ep_by_name(_gadget, name);
+	if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+		return ep;
+
+	return NULL;
+}
+
 static int net2280_start(struct usb_gadget *_gadget,
 		struct usb_gadget_driver *driver);
 static int net2280_stop(struct usb_gadget *_gadget);
@@ -1561,6 +1588,7 @@ static const struct usb_gadget_ops net2280_ops = {
 	.pullup		= net2280_pullup,
 	.udc_start	= net2280_start,
 	.udc_stop	= net2280_stop,
+	.match_ep	= net2280_match_ep,
 };
 
 /*-------------------------------------------------------------------------*/
