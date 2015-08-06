@@ -155,7 +155,6 @@ struct tegra_dma_sg_req {
 	int				req_len;
 	bool				configured;
 	bool				last_sg;
-	bool				half_done;
 	struct list_head		node;
 	struct tegra_dma_desc		*dma_desc;
 };
@@ -203,8 +202,6 @@ struct tegra_dma_channel {
 	/* ISR handler and tasklet for bottom half of isr handling */
 	dma_isr_handler		isr_handler;
 	struct tasklet_struct	tasklet;
-	dma_async_tx_callback	callback;
-	void			*callback_param;
 
 	/* Channel-slave specific configuration */
 	unsigned int slave_id;
@@ -1136,7 +1133,6 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 		sg_req->ch_regs.apb_seq = apb_seq;
 		sg_req->ch_regs.ahb_seq = ahb_seq;
 		sg_req->configured = false;
-		sg_req->half_done = false;
 		sg_req->last_sg = false;
 		sg_req->dma_desc = dma_desc;
 		sg_req->req_len = len;
