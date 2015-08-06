@@ -129,14 +129,4 @@ static struct pci_driver denali_pci_driver = {
 	.remove = denali_pci_remove,
 };
 
-static int denali_init_pci(void)
-{
-	return pci_register_driver(&denali_pci_driver);
-}
-module_init(denali_init_pci);
-
-static void denali_exit_pci(void)
-{
-	pci_unregister_driver(&denali_pci_driver);
-}
-module_exit(denali_exit_pci);
+module_pci_driver(denali_pci_driver);
