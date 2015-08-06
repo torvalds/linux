@@ -138,7 +138,7 @@ char *audit_watch_path(struct audit_watch *watch)
 
 int audit_watch_compare(struct audit_watch *watch, unsigned long ino, dev_t dev)
 {
-	return (watch->ino != (unsigned long)-1) &&
+	return (watch->ino != AUDIT_INO_UNSET) &&
 		(watch->ino == ino) &&
 		(watch->dev == dev);
 }
@@ -179,8 +179,8 @@ static struct audit_watch *audit_init_watch(char *path)
 	INIT_LIST_HEAD(&watch->rules);
 	atomic_set(&watch->count, 1);
 	watch->path = path;
-	watch->dev = (dev_t)-1;
-	watch->ino = (unsigned long)-1;
+	watch->dev = AUDIT_DEV_UNSET;
+	watch->ino = AUDIT_INO_UNSET;
 
 	return watch;
 }
@@ -493,7 +493,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 	if (mask & (FS_CREATE|FS_MOVED_TO) && inode)
 		audit_update_watch(parent, dname, inode->i_sb->s_dev, inode->i_ino, 0);
 	else if (mask & (FS_DELETE|FS_MOVED_FROM))
-		audit_update_watch(parent, dname, (dev_t)-1, (unsigned long)-1, 1);
+		audit_update_watch(parent, dname, AUDIT_DEV_UNSET, AUDIT_INO_UNSET, 1);
 	else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))
 		audit_remove_parent_watches(parent);
 

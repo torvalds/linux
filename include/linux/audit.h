@@ -27,6 +27,9 @@
 #include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
 
+#define AUDIT_INO_UNSET ((unsigned long)-1)
+#define AUDIT_DEV_UNSET ((dev_t)-1)
+
 struct audit_sig_info {
 	uid_t		uid;
 	pid_t		pid;
