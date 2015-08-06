@@ -78,19 +78,6 @@ static struct drm_encoder_funcs exynos_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-void exynos_drm_encoder_setup(struct drm_device *dev)
-{
-	struct drm_encoder *encoder;
-	unsigned int clone_mask = 0;
-	int cnt = 0;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		clone_mask |= (1 << (cnt++));
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		encoder->possible_clones = clone_mask;
-}
-
 int exynos_drm_encoder_create(struct drm_device *dev,
 			      struct exynos_drm_encoder *exynos_encoder,
 			      enum exynos_drm_output_type type)

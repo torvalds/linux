@@ -41,7 +41,9 @@
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
-	int ret;
+	struct drm_encoder *encoder;
+	unsigned int clone_mask;
+	int cnt, ret;
 
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
 	if (!private)
@@ -67,7 +69,13 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	exynos_drm_mode_config_init(dev);
 
 	/* setup possible_clones. */
-	exynos_drm_encoder_setup(dev);
+	cnt = 0;
+	clone_mask = 0;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		clone_mask |= (1 << (cnt++));
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		encoder->possible_clones = clone_mask;
 
 	platform_set_drvdata(dev->platformdev, dev);
 

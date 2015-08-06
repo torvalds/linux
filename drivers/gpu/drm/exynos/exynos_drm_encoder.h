@@ -16,7 +16,6 @@
 
 #include "exynos_drm_drv.h"
 
-void exynos_drm_encoder_setup(struct drm_device *dev);
 int exynos_drm_encoder_create(struct drm_device *dev, struct exynos_drm_encoder
 			      *encoder, enum exynos_drm_output_type type);
 
