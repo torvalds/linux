@@ -68,13 +68,15 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 				 unsigned short vid, const char *message,
 				 bool roaming);
 
-/* returns 1 if they are the same mac addr */
+/* returns 1 if they are the same mac addr and vid */
 static int batadv_compare_tt(const struct hlist_node *node, const void *data2)
 {
 	const void *data1 = container_of(node, struct batadv_tt_common_entry,
 					 hash_entry);
+	const struct batadv_tt_common_entry *tt1 = data1;
+	const struct batadv_tt_common_entry *tt2 = data2;
 
-	return batadv_compare_eth(data1, data2);
+	return (tt1->vid == tt2->vid) && batadv_compare_eth(data1, data2);
 }
 
 /**
