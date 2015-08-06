@@ -18,6 +18,7 @@
 #include <linux/pm_domain.h>
 
 struct regmap;
+struct reset_controller_dev;
 
 /* Powerdomain allowable state bitfields */
 #define PWRSTS_OFF		BIT(0)
@@ -34,6 +35,9 @@ struct regmap;
  * @cxcs: offsets of branch registers to toggle mem/periph bits in
  * @cxc_count: number of @cxcs
  * @pwrsts: Possible powerdomain power states
+ * @resets: ids of resets associated with this gdsc
+ * @reset_count: number of @resets
+ * @rcdev: reset controller
  */
 struct gdsc {
 	struct generic_pm_domain	pd;
@@ -42,13 +46,18 @@ struct gdsc {
 	unsigned int			*cxcs;
 	unsigned int			cxc_count;
 	const u8			pwrsts;
+	struct reset_controller_dev	*rcdev;
+	unsigned int			*resets;
+	unsigned int			reset_count;
 };
 
 #ifdef CONFIG_QCOM_GDSC
-int gdsc_register(struct device *, struct gdsc **, size_t n, struct regmap *);
+int gdsc_register(struct device *, struct gdsc **, size_t n,
+		  struct reset_controller_dev *, struct regmap *);
 void gdsc_unregister(struct device *);
 #else
 static inline int gdsc_register(struct device *d, struct gdsc **g, size_t n,
+				struct reset_controller_dev *rcdev,
 				struct regmap *r)
 {
 	return -ENOSYS;

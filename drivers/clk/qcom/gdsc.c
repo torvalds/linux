@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/pm_domain.h>
 #include <linux/regmap.h>
+#include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include "gdsc.h"
 
@@ -84,6 +85,24 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	return -ETIMEDOUT;
 }
 
+static inline int gdsc_deassert_reset(struct gdsc *sc)
+{
+	int i;
+
+	for (i = 0; i < sc->reset_count; i++)
+		sc->rcdev->ops->deassert(sc->rcdev, sc->resets[i]);
+	return 0;
+}
+
+static inline int gdsc_assert_reset(struct gdsc *sc)
+{
+	int i;
+
+	for (i = 0; i < sc->reset_count; i++)
+		sc->rcdev->ops->assert(sc->rcdev, sc->resets[i]);
+	return 0;
+}
+
 static inline void gdsc_force_mem_on(struct gdsc *sc)
 {
 	int i;
@@ -106,6 +125,9 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
 	int ret;
+
+	if (sc->pwrsts == PWRSTS_ON)
+		return gdsc_deassert_reset(sc);
 
 	ret = gdsc_toggle_logic(sc, true);
 	if (ret)
@@ -130,6 +152,9 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
 
+	if (sc->pwrsts == PWRSTS_ON)
+		return gdsc_assert_reset(sc);
+
 	if (sc->pwrsts & PWRSTS_OFF)
 		gdsc_clear_mem_on(sc);
 
@@ -153,6 +178,13 @@ static int gdsc_init(struct gdsc *sc)
 	if (ret)
 		return ret;
 
+	/* Force gdsc ON if only ON state is supported */
+	if (sc->pwrsts == PWRSTS_ON) {
+		ret = gdsc_toggle_logic(sc, true);
+		if (ret)
+			return ret;
+	}
+
 	on = gdsc_is_enabled(sc);
 	if (on < 0)
 		return on;
@@ -170,7 +202,7 @@ static int gdsc_init(struct gdsc *sc)
 }
 
 int gdsc_register(struct device *dev, struct gdsc **scs, size_t num,
-		  struct regmap *regmap)
+		  struct reset_controller_dev *rcdev, struct regmap *regmap)
 {
 	int i, ret;
 	struct genpd_onecell_data *data;
@@ -189,6 +221,7 @@ int gdsc_register(struct device *dev, struct gdsc **scs, size_t num,
 		if (!scs[i])
 			continue;
 		scs[i]->regmap = regmap;
+		scs[i]->rcdev = rcdev;
 		ret = gdsc_init(scs[i]);
 		if (ret)
 			return ret;

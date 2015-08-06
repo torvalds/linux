@@ -125,7 +125,8 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 		goto err_reset;
 
 	if (desc->gdscs && desc->num_gdscs) {
-		ret = gdsc_register(dev, desc->gdscs, desc->num_gdscs, regmap);
+		ret = gdsc_register(dev, desc->gdscs, desc->num_gdscs,
+				    &reset->rcdev, regmap);
 		if (ret)
 			goto err_pd;
 	}
