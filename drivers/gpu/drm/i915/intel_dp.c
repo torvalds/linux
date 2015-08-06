@@ -849,8 +849,15 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	}
 
 	if (try == 3) {
-		WARN(1, "dp_aux_ch not started status 0x%08x\n",
-		     I915_READ(ch_ctl));
+		static u32 last_status = -1;
+		const u32 status = I915_READ(ch_ctl);
+
+		if (status != last_status) {
+			WARN(1, "dp_aux_ch not started status 0x%08x\n",
+			     status);
+			last_status = status;
+		}
+
 		ret = -EBUSY;
 		goto out;
 	}
