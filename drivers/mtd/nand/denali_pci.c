@@ -30,19 +30,19 @@ MODULE_DEVICE_TABLE(pci, denali_pci_ids);
 
 static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	int ret = -ENODEV;
+	int ret;
 	resource_size_t csr_base, mem_base;
 	unsigned long csr_len, mem_len;
 	struct denali_nand_info *denali;
 
-	denali = kzalloc(sizeof(*denali), GFP_KERNEL);
+	denali = devm_kzalloc(&dev->dev, sizeof(*denali), GFP_KERNEL);
 	if (!denali)
 		return -ENOMEM;
 
-	ret = pci_enable_device(dev);
+	ret = pcim_enable_device(dev);
 	if (ret) {
 		pr_err("Spectra: pci_enable_device failed.\n");
-		goto failed_alloc_memery;
+		return ret;
 	}
 
 	if (id->driver_data == INTEL_CE4100) {
@@ -70,14 +70,13 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	ret = pci_request_regions(dev, DENALI_NAND_NAME);
 	if (ret) {
 		pr_err("Spectra: Unable to request memory regions\n");
-		goto failed_enable_dev;
+		return ret;
 	}
 
 	denali->flash_reg = ioremap_nocache(csr_base, csr_len);
 	if (!denali->flash_reg) {
 		pr_err("Spectra: Unable to remap memory region\n");
-		ret = -ENOMEM;
-		goto failed_req_regions;
+		return -ENOMEM;
 	}
 
 	denali->flash_mem = ioremap_nocache(mem_base, mem_len);
@@ -99,13 +98,6 @@ failed_remap_mem:
 	iounmap(denali->flash_mem);
 failed_remap_reg:
 	iounmap(denali->flash_reg);
-failed_req_regions:
-	pci_release_regions(dev);
-failed_enable_dev:
-	pci_disable_device(dev);
-failed_alloc_memery:
-	kfree(denali);
-
 	return ret;
 }
 
@@ -117,9 +109,6 @@ static void denali_pci_remove(struct pci_dev *dev)
 	denali_remove(denali);
 	iounmap(denali->flash_reg);
 	iounmap(denali->flash_mem);
-	pci_release_regions(dev);
-	pci_disable_device(dev);
-	kfree(denali);
 }
 
 static struct pci_driver denali_pci_driver = {
