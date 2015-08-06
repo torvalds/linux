@@ -595,18 +595,6 @@ static int tegra_sor_power_down(struct tegra_sor *sor)
 	return 0;
 }
 
-static int tegra_sor_crc_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
-static int tegra_sor_crc_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
 static int tegra_sor_crc_wait(struct tegra_sor *sor, unsigned long timeout)
 {
 	u32 value;
@@ -624,12 +612,11 @@ static int tegra_sor_crc_wait(struct tegra_sor *sor, unsigned long timeout)
 	return -ETIMEDOUT;
 }
 
-static ssize_t tegra_sor_crc_read(struct file *file, char __user *buffer,
-				  size_t size, loff_t *ppos)
+static int tegra_sor_show_crc(struct seq_file *s, void *data)
 {
-	struct tegra_sor *sor = file->private_data;
-	ssize_t num, err;
-	char buf[10];
+	struct drm_info_node *node = s->private;
+	struct tegra_sor *sor = node->info_ent->data;
+	int err = 0;
 	u32 value;
 
 	mutex_lock(&sor->lock);
@@ -658,21 +645,12 @@ static ssize_t tegra_sor_crc_read(struct file *file, char __user *buffer,
 	tegra_sor_writel(sor, SOR_CRCA_RESET, SOR_CRCA);
 	value = tegra_sor_readl(sor, SOR_CRCB);
 
-	num = scnprintf(buf, sizeof(buf), "%08x\n", value);
-
-	err = simple_read_from_buffer(buffer, size, ppos, buf, num);
+	seq_printf(s, "%08x\n", value);
 
 unlock:
 	mutex_unlock(&sor->lock);
 	return err;
 }
-
-static const struct file_operations tegra_sor_crc_fops = {
-	.owner = THIS_MODULE,
-	.open = tegra_sor_crc_open,
-	.read = tegra_sor_crc_read,
-	.release = tegra_sor_crc_release,
-};
 
 static int tegra_sor_show_regs(struct seq_file *s, void *data)
 {
@@ -804,15 +782,15 @@ static int tegra_sor_show_regs(struct seq_file *s, void *data)
 }
 
 static const struct drm_info_list debugfs_files[] = {
+	{ "crc", tegra_sor_show_crc, 0, NULL },
 	{ "regs", tegra_sor_show_regs, 0, NULL },
 };
 
 static int tegra_sor_debugfs_init(struct tegra_sor *sor,
 				  struct drm_minor *minor)
 {
-	struct dentry *entry;
 	unsigned int i;
-	int err = 0;
+	int err;
 
 	sor->debugfs = debugfs_create_dir("sor", minor->debugfs_root);
 	if (!sor->debugfs)
@@ -834,16 +812,9 @@ static int tegra_sor_debugfs_init(struct tegra_sor *sor,
 	if (err < 0)
 		goto free;
 
-	entry = debugfs_create_file("crc", 0644, sor->debugfs, sor,
-				    &tegra_sor_crc_fops);
-	if (!entry) {
-		err = -ENOMEM;
-		goto free;
-	}
-
 	sor->minor = minor;
 
-	return err;
+	return 0;
 
 free:
 	kfree(sor->debugfs_files);
