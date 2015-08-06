@@ -123,6 +123,7 @@ config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
 config FRAMEBUFFER_CONSOLE_ROTATION
        bool "Framebuffer Console Rotation"
        depends on FRAMEBUFFER_CONSOLE
+       depends on !FONT_16x16_CJK
        help
          Enable display rotation for the framebuffer console.  This is done
          in software and may be significantly slower than a normally oriented

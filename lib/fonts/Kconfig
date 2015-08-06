@@ -112,6 +112,9 @@ config FONT_10x18
 config FONT_16x16_CJK
 	bool "console 16x16 CJK font ( cover BMP )" if FONTS
 	depends on FRAMEBUFFER_CONSOLE
+	depends on FB
+	depends on VT_CONSOLE
+	select CONSOLE_TRANSLATIONS
 	help
 	  This is a high resolution console font that covers UNICODE bmp,
 	  mostly is CJK font. If you want full UNICODE support on the VT console, say Y.
