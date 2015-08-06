@@ -101,6 +101,8 @@ static void xhci_print_cap_regs(struct xhci_hcd *xhci)
 			HCC_64BIT_ADDR(temp) ? "64" : "32");
 	xhci_dbg(xhci, "  HC %s Contiguous Frame ID Capability\n",
 			HCC_CFC(temp) ? "has" : "hasn't");
+	xhci_dbg(xhci, "  HC %s generate Stopped - Short Package event\n",
+			HCC_SPC(temp) ? "can" : "can't");
 	/* FIXME */
 	xhci_dbg(xhci, "  FIXME: more HCCPARAMS debugging\n");
 

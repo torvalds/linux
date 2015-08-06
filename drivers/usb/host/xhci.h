@@ -119,6 +119,8 @@ struct xhci_cap_regs {
 #define HCC_LTC(p)		((p) & (1 << 6))
 /* true: no secondary Stream ID Support */
 #define HCC_NSS(p)		((p) & (1 << 7))
+/* true: HC supports Stopped - Short Packet */
+#define HCC_SPC(p)		((p) & (1 << 9))
 /* true: HC has Contiguous Frame ID Capability */
 #define HCC_CFC(p)		((p) & (1 << 11))
 /* Max size for Primary Stream Arrays - 2^(n+1), where n is bits 12:15 */
@@ -1063,8 +1065,8 @@ struct xhci_transfer_event {
 #define COMP_STOP	26
 /* Same as COMP_EP_STOPPED, but the transferred length in the event is invalid */
 #define COMP_STOP_INVAL	27
-/* Control Abort Error - Debug Capability - control pipe aborted */
-#define COMP_DBG_ABORT	28
+/* Same as COMP_EP_STOPPED, but a short packet detected */
+#define COMP_STOP_SHORT	28
 /* Max Exit Latency Too Large Error */
 #define COMP_MEL_ERR	29
 /* TRB type 30 reserved */
