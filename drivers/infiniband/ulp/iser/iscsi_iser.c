@@ -905,6 +905,7 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 		mutex_unlock(&iser_conn->state_mutex);
 		iser_conn_release(iser_conn);
 	}
+
 	iscsi_destroy_endpoint(ep);
 }
 
@@ -1079,7 +1080,7 @@ static void __exit iser_exit(void)
 
 	if (!connlist_empty) {
 		iser_err("Error cleanup stage completed but we still have iser "
-			 "connections, destroying them anyway.\n");
+			 "connections, destroying them anyway\n");
 		list_for_each_entry_safe(iser_conn, n, &ig.connlist,
 					 conn_list) {
 			iser_conn_release(iser_conn);
