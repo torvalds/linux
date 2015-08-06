@@ -471,7 +471,6 @@ u8 r8712_createbss_cmd(struct _adapter *padapter)
 
 u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 {
-	uint t_len = 0;
 	struct ndis_wlan_bssid_ex *psecnetwork;
 	struct cmd_obj		*pcmd;
 	struct cmd_priv		*pcmdpriv = &padapter->cmdpriv;
@@ -486,14 +485,6 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
-	t_len = sizeof(u32) + 6 * sizeof(unsigned char) + 2 +
-			sizeof(struct ndis_802_11_ssid) + sizeof(u32) +
-			sizeof(s32) +
-			sizeof(enum NDIS_802_11_NETWORK_TYPE) +
-			sizeof(struct NDIS_802_11_CONFIGURATION) +
-			sizeof(enum NDIS_802_11_NETWORK_INFRASTRUCTURE) +
-			sizeof(NDIS_802_11_RATES_EX) +
-			sizeof(u32) + MAX_IE_SZ;
 
 	/* for hidden ap to set fw_state here */
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) !=
@@ -516,7 +507,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		kfree(pcmd);
 		return _FAIL;
 	}
-	memcpy(psecnetwork, &pnetwork->network, t_len);
+	memcpy(psecnetwork, &pnetwork->network, sizeof(*psecnetwork));
 	psecuritypriv->authenticator_ie[0] = (unsigned char)
 					     psecnetwork->IELength;
 	if ((psecnetwork->IELength-12) < (256 - 1))
