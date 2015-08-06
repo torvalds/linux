@@ -330,8 +330,11 @@ static int iser_data_buf_aligned_len(struct iser_data_buf *data,
 			break;
 	}
 	ret_len = (next_sg) ? i : i+1;
-	iser_dbg("Found %d aligned entries out of %d in sg:0x%p\n",
-		 ret_len, data->dma_nents, data);
+
+	if (unlikely(ret_len != data->dma_nents))
+		iser_warn("rdma alignment violation (%d/%d aligned)\n",
+			  ret_len, data->dma_nents);
+
 	return ret_len;
 }
 
@@ -407,15 +410,12 @@ iser_reg_dma(struct iser_device *device, struct iser_data_buf *mem,
 
 static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
 			      struct iser_data_buf *mem,
-			      enum iser_data_dir cmd_dir,
-			      int aligned_len)
+			      enum iser_data_dir cmd_dir)
 {
 	struct iscsi_conn *iscsi_conn = iser_task->iser_conn->iscsi_conn;
 	struct iser_device *device = iser_task->iser_conn->ib_conn.device;
 
 	iscsi_conn->fmr_unalign_cnt++;
-	iser_warn("rdma alignment violation (%d/%d aligned) or FMR not supported\n",
-		  aligned_len, mem->size);
 
 	if (iser_debug_level > 0)
 		iser_data_buf_dump(mem, device->ib_device);
@@ -537,8 +537,7 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents) {
-		err = fall_to_bounce_buf(iser_task, mem,
-					 cmd_dir, aligned_len);
+		err = fall_to_bounce_buf(iser_task, mem, cmd_dir);
 		if (err) {
 			iser_err("failed to allocate bounce buffer\n");
 			return err;
@@ -800,8 +799,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents) {
-		err = fall_to_bounce_buf(iser_task, mem,
-					 cmd_dir, aligned_len);
+		err = fall_to_bounce_buf(iser_task, mem, cmd_dir);
 		if (err) {
 			iser_err("failed to allocate bounce buffer\n");
 			return err;
@@ -828,7 +826,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 			aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 			if (aligned_len != mem->dma_nents) {
 				err = fall_to_bounce_buf(iser_task, mem,
-							 cmd_dir, aligned_len);
+							 cmd_dir);
 				if (err) {
 					iser_err("failed to allocate bounce buffer\n");
 					return err;
