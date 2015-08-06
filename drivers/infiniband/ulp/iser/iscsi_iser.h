@@ -239,6 +239,7 @@ struct iser_data_buf {
 struct iser_device;
 struct iscsi_iser_task;
 struct iscsi_endpoint;
+struct iser_reg_resources;
 
 /**
  * struct iser_mem_reg - iSER memory registration info
@@ -331,8 +332,8 @@ struct iser_comp {
  *
  * @alloc_reg_res:     Allocate registration resources
  * @free_reg_res:      Free registration resources
- * @reg_rdma_mem:      Register memory buffers
- * @unreg_rdma_mem:    Un-register memory buffers
+ * @fast_reg_mem:      Register memory buffers
+ * @unreg_mem:         Un-register memory buffers
  * @reg_desc_get:      Get a registration descriptor for pool
  * @reg_desc_put:      Get a registration descriptor to pool
  */
@@ -340,10 +341,12 @@ struct iser_reg_ops {
 	int            (*alloc_reg_res)(struct ib_conn *ib_conn,
 					unsigned cmds_max);
 	void           (*free_reg_res)(struct ib_conn *ib_conn);
-	int            (*reg_rdma_mem)(struct iscsi_iser_task *iser_task,
-				       enum iser_data_dir cmd_dir);
-	void           (*unreg_rdma_mem)(struct iscsi_iser_task *iser_task,
-					 enum iser_data_dir cmd_dir);
+	int            (*reg_mem)(struct iscsi_iser_task *iser_task,
+				  struct iser_data_buf *mem,
+				  struct iser_reg_resources *rsc,
+				  struct iser_mem_reg *reg);
+	void           (*unreg_mem)(struct iscsi_iser_task *iser_task,
+				    enum iser_data_dir cmd_dir);
 	struct iser_fr_desc * (*reg_desc_get)(struct ib_conn *ib_conn);
 	void           (*reg_desc_put)(struct ib_conn *ib_conn,
 				       struct iser_fr_desc *desc);
@@ -622,10 +625,10 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 				     struct iser_data_buf *mem,
 				     enum iser_data_dir cmd_dir);
 
-int  iser_reg_rdma_mem_fmr(struct iscsi_iser_task *task,
-			   enum iser_data_dir cmd_dir);
-int  iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *task,
-			       enum iser_data_dir cmd_dir);
+int iser_reg_rdma_mem(struct iscsi_iser_task *task,
+		      enum iser_data_dir dir);
+void iser_unreg_rdma_mem(struct iscsi_iser_task *task,
+			 enum iser_data_dir dir);
 
 int  iser_connect(struct iser_conn *iser_conn,
 		  struct sockaddr *src_addr,
