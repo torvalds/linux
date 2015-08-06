@@ -300,6 +300,7 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 		.local_port = mlxsw_sx_port->local_port,
 		.is_emad = false,
 	};
+	u64 len;
 	int err;
 
 	if (mlxsw_core_skb_transmit_busy(mlxsw_sx, &tx_info))
@@ -316,6 +317,7 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 		}
 	}
 	mlxsw_sx_txhdr_construct(skb, &tx_info);
+	len = skb->len;
 	/* Due to a race we might fail here because of a full queue. In that
 	 * unlikely case we simply drop the packet.
 	 */
@@ -325,7 +327,7 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 		pcpu_stats = this_cpu_ptr(mlxsw_sx_port->pcpu_stats);
 		u64_stats_update_begin(&pcpu_stats->syncp);
 		pcpu_stats->tx_packets++;
-		pcpu_stats->tx_bytes += skb->len;
+		pcpu_stats->tx_bytes += len;
 		u64_stats_update_end(&pcpu_stats->syncp);
 	} else {
 		this_cpu_inc(mlxsw_sx_port->pcpu_stats->tx_dropped);
