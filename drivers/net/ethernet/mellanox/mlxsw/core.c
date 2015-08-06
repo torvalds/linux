@@ -1073,7 +1073,7 @@ static int mlxsw_core_reg_access_emad(struct mlxsw_core *mlxsw_core,
 			mlxsw_core->emad.tid - 1);
 		mlxsw_core_buf_dump_dbg(mlxsw_core,
 					mlxsw_core->emad.resp_skb->data,
-					skb->len);
+					mlxsw_core->emad.resp_skb->len);
 
 		dev_kfree_skb(mlxsw_core->emad.resp_skb);
 	}
