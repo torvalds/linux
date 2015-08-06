@@ -83,7 +83,7 @@ struct NDIS_802_11_FIXED_IEs {
 	u16 Capabilities;
 };
 
-struct ndis_wlan_bssid_ex {
+struct wlan_bssid_ex {
 	u32 Length;
 	unsigned char  MacAddress[6];
 	u8  Reserved[2];
@@ -203,7 +203,7 @@ struct	wlan_network {
 	unsigned int	last_scanned; /*timestamp for the network */
 	int	aid;		/*will only be valid when a BSS is joined. */
 	int	join_res;
-	struct ndis_wlan_bssid_ex network; /*must be the last item */
+	struct wlan_bssid_ex network; /*must be the last item */
 };
 
 enum VRTL_CARRIER_SENSE {
@@ -233,25 +233,6 @@ enum UAPSD_MAX_SP {
 
 #define NUM_PRE_AUTH_KEY 16
 #define NUM_PMKID_CACHE NUM_PRE_AUTH_KEY
-
-/*
- *	WPA2
- */
-struct wlan_bssid_ex {
-	u32 Length;
-	unsigned char  MacAddress[6];
-	u8  Reserved[2];
-	struct ndis_802_11_ssid  Ssid;
-	u32 Privacy;
-	s32 Rssi;
-	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
-	struct NDIS_802_11_CONFIGURATION  Configuration;
-	enum NDIS_802_11_NETWORK_INFRASTRUCTURE  InfrastructureMode;
-	NDIS_802_11_RATES_EX  SupportedRates;
-	u32 IELength;
-	u8  IEs[MAX_IE_SZ];	/* (timestamp, beacon interval, and capability
-				 * information) */
-};
 
 #endif /* #ifndef WLAN_BSSDEF_H_ */
 

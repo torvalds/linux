@@ -36,7 +36,7 @@
  * Used to report a bss has been scanned
 */
 struct survey_event	{
-	struct ndis_wlan_bssid_ex bss;
+	struct wlan_bssid_ex bss;
 };
 
 /*
