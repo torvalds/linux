@@ -339,6 +339,7 @@ config USB_CDC_COMPOSITE
 config USB_G_NOKIA
 	tristate "Nokia composite gadget"
 	depends on PHONET
+	depends on BLOCK
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_U_ETHER
