@@ -522,7 +522,7 @@ static u32 *tegra_smmu_pte_lookup(struct tegra_smmu_as *as, unsigned long iova,
 static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		       dma_addr_t *dmap)
 {
-	u32 *pd = page_address(as->pd), *pt;
+	u32 *pd = page_address(as->pd);
 	unsigned int pde = iova_pd_index(iova);
 	struct tegra_smmu *smmu = as->smmu;
 
@@ -563,13 +563,14 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		*dmap = smmu_pde_to_dma(pd[pde]);
 	}
 
-	pt = tegra_smmu_pte_offset(as->pts[pde], iova);
+	return tegra_smmu_pte_offset(as->pts[pde], iova);
+}
 
-	/* Keep track of entries in this page table. */
-	if (*pt == 0)
-		as->count[pde]++;
+static void tegra_smmu_pte_get_use(struct tegra_smmu_as *as, unsigned long iova)
+{
+	unsigned int pd_index = iova_pd_index(iova);
 
-	return pt;
+	as->count[pd_index]++;
 }
 
 static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
@@ -629,6 +630,10 @@ static int tegra_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	pte = as_get_pte(as, iova, &pte_dma);
 	if (!pte)
 		return -ENOMEM;
+
+	/* If we aren't overwriting a pre-existing entry, increment use */
+	if (*pte == 0)
+		tegra_smmu_pte_get_use(as, iova);
 
 	tegra_smmu_set_pte(as, iova, pte, pte_dma,
 			   __phys_to_pfn(paddr) | SMMU_PTE_ATTR);
