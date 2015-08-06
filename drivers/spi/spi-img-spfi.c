@@ -443,7 +443,7 @@ static int img_spfi_unprepare(struct spi_master *master,
 
 static int img_spfi_setup(struct spi_device *spi)
 {
-	int ret;
+	int ret = -EINVAL;
 	struct img_spfi_device_data *spfi_data = spi_get_ctldata(spi);
 
 	if (!spfi_data) {
