@@ -962,8 +962,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (kvm->arch.use_irqchip) {
 			/* Set up dummy routing. */
 			memset(&routing, 0, sizeof(routing));
-			kvm_set_irq_routing(kvm, &routing, 0, 0);
-			r = 0;
+			r = kvm_set_irq_routing(kvm, &routing, 0, 0);
 		}
 		break;
 	}
