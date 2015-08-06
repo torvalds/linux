@@ -244,22 +244,18 @@ int iser_create_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max)
 				    IB_ACCESS_REMOTE_READ);
 
 	ib_conn->fmr.pool = ib_create_fmr_pool(device->pd, &params);
-	if (!IS_ERR(ib_conn->fmr.pool))
-		return 0;
+	if (IS_ERR(ib_conn->fmr.pool)) {
+		ret = PTR_ERR(ib_conn->fmr.pool);
+		iser_err("FMR allocation failed, err %d\n", ret);
+		goto err;
+	}
 
-	/* no FMR => no need for page_vec */
+	return 0;
+
+err:
 	kfree(ib_conn->fmr.page_vec);
 	ib_conn->fmr.page_vec = NULL;
-
-	ret = PTR_ERR(ib_conn->fmr.pool);
-	ib_conn->fmr.pool = NULL;
-	if (ret != -ENOSYS) {
-		iser_err("FMR allocation failed, err %d\n", ret);
-		return ret;
-	} else {
-		iser_warn("FMRs are not supported, using unaligned mode\n");
-		return 0;
-	}
+	return ret;
 }
 
 /**
@@ -270,9 +266,7 @@ void iser_free_fmr_pool(struct ib_conn *ib_conn)
 	iser_info("freeing conn %p fmr pool %p\n",
 		  ib_conn, ib_conn->fmr.pool);
 
-	if (ib_conn->fmr.pool != NULL)
-		ib_destroy_fmr_pool(ib_conn->fmr.pool);
-
+	ib_destroy_fmr_pool(ib_conn->fmr.pool);
 	ib_conn->fmr.pool = NULL;
 
 	kfree(ib_conn->fmr.page_vec);
