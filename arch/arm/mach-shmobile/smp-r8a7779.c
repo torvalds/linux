@@ -23,7 +23,6 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
-#include <asm/smp_twd.h>
 
 #include "common.h"
 #include "pm-rcar.h"
@@ -55,14 +54,6 @@ static const struct rcar_sysc_ch * const r8a7779_ch_cpu[4] = {
 	[2] = &r8a7779_ch_cpu2,
 	[3] = &r8a7779_ch_cpu3,
 };
-
-#if defined(CONFIG_HAVE_ARM_TWD) && !defined(CONFIG_ARCH_MULTIPLATFORM)
-static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, R8A7779_SCU_BASE + 0x600, 29);
-void __init r8a7779_register_twd(void)
-{
-	twd_local_timer_register(&twd_local_timer);
-}
-#endif
 
 static int r8a7779_platform_cpu_kill(unsigned int cpu)
 {

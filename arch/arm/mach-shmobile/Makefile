@@ -21,7 +21,6 @@ obj-$(CONFIG_ARCH_R7S72100)	+= setup-r7s72100.o
 ifndef CONFIG_COMMON_CLK
 obj-y				+= clock.o
 obj-$(CONFIG_ARCH_R8A7778)	+= clock-r8a7778.o
-obj-$(CONFIG_ARCH_R8A7779)	+= clock-r8a7779.o
 endif
 
 # CPU reset vector handling objects
@@ -49,13 +48,9 @@ obj-$(CONFIG_PM_RMOBILE)	+= pm-rmobile.o
 obj-$(CONFIG_ARCH_RCAR_GEN2)	+= pm-rcar-gen2.o
 
 # Board objects
-ifdef CONFIG_ARCH_SHMOBILE_MULTI
-obj-$(CONFIG_MACH_MARZEN)	+= board-marzen-reference.o
-else
+ifndef CONFIG_ARCH_SHMOBILE_MULTI
 obj-$(CONFIG_MACH_BOCKW)	+= board-bockw.o
 obj-$(CONFIG_MACH_BOCKW_REFERENCE)	+= board-bockw-reference.o
-obj-$(CONFIG_MACH_MARZEN)	+= board-marzen.o
-endif
 
 # Framework support
 obj-$(CONFIG_SMP)		+= $(smp-y)
