@@ -1201,6 +1201,9 @@ void __init page_alloc_init_late(void)
 
 	/* Block until all are initialised */
 	wait_for_completion(&pgdat_init_all_done_comp);
+
+	/* Reinit limits that are based on free pages after the kernel is up */
+	files_maxfiles_init();
 }
 #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
 
