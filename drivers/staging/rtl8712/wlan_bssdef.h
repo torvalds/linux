@@ -83,17 +83,6 @@ struct NDIS_802_11_FIXED_IEs {
 	u16 Capabilities;
 };
 
-/*
- * Length is the 4 bytes multiples of the sume of
- * 6 * sizeof (unsigned char) + 2 + sizeof (ndis_802_11_ssid) + sizeof (u32)
- * + sizeof (s32) + sizeof (NDIS_802_11_NETWORK_TYPE)
- * + sizeof (struct NDIS_802_11_CONFIGURATION)
- * + sizeof (NDIS_802_11_RATES_EX) + IELength
-
- * Except the IELength, all other fields are fixed length. Therefore, we can
- * define a macro to present the partial sum.
- */
-
 struct ndis_wlan_bssid_ex {
 	u32 Length;
 	unsigned char  MacAddress[6];
@@ -105,6 +94,7 @@ struct ndis_wlan_bssid_ex {
 	struct NDIS_802_11_CONFIGURATION  Configuration;
 	enum NDIS_802_11_NETWORK_INFRASTRUCTURE  InfrastructureMode;
 	NDIS_802_11_RATES_EX  SupportedRates;
+	/* number of content bytes in EIs, which varies */
 	u32 IELength;
 	/*(timestamp, beacon interval, and capability information) */
 	u8 IEs[MAX_IE_SZ];
