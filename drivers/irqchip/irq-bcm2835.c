@@ -178,44 +178,45 @@ static int __init armctrl_of_init(struct device_node *node,
  * handle_IRQ may briefly re-enable interrupts for soft IRQ handling.
  */
 
-static void armctrl_handle_bank(int bank, struct pt_regs *regs)
+static u32 armctrl_translate_bank(int bank)
 {
-	u32 stat, irq;
+	u32 stat = readl_relaxed(intc.pending[bank]);
 
-	while ((stat = readl_relaxed(intc.pending[bank]))) {
-		irq = MAKE_HWIRQ(bank, ffs(stat) - 1);
-		handle_IRQ(irq_linear_revmap(intc.domain, irq), regs);
-	}
+	return MAKE_HWIRQ(bank, ffs(stat) - 1);
 }
 
-static void armctrl_handle_shortcut(int bank, struct pt_regs *regs,
-	u32 stat)
+static u32 armctrl_translate_shortcut(int bank, u32 stat)
 {
-	u32 irq = MAKE_HWIRQ(bank, shortcuts[ffs(stat >> SHORTCUT_SHIFT) - 1]);
-	handle_IRQ(irq_linear_revmap(intc.domain, irq), regs);
+	return MAKE_HWIRQ(bank, shortcuts[ffs(stat >> SHORTCUT_SHIFT) - 1]);
+}
+
+static u32 get_next_armctrl_hwirq(void)
+{
+	u32 stat = readl_relaxed(intc.pending[0]) & BANK0_VALID_MASK;
+
+	if (stat == 0)
+		return ~0;
+	else if (stat & BANK0_HWIRQ_MASK)
+		return MAKE_HWIRQ(0, ffs(stat & BANK0_HWIRQ_MASK) - 1);
+	else if (stat & SHORTCUT1_MASK)
+		return armctrl_translate_shortcut(1, stat & SHORTCUT1_MASK);
+	else if (stat & SHORTCUT2_MASK)
+		return armctrl_translate_shortcut(2, stat & SHORTCUT2_MASK);
+	else if (stat & BANK1_HWIRQ)
+		return armctrl_translate_bank(1);
+	else if (stat & BANK2_HWIRQ)
+		return armctrl_translate_bank(2);
+	else
+		BUG();
 }
 
 static void __exception_irq_entry bcm2835_handle_irq(
 	struct pt_regs *regs)
 {
-	u32 stat, irq;
+	u32 hwirq;
 
-	while ((stat = readl_relaxed(intc.pending[0]) & BANK0_VALID_MASK)) {
-		if (stat & BANK0_HWIRQ_MASK) {
-			irq = MAKE_HWIRQ(0, ffs(stat & BANK0_HWIRQ_MASK) - 1);
-			handle_IRQ(irq_linear_revmap(intc.domain, irq), regs);
-		} else if (stat & SHORTCUT1_MASK) {
-			armctrl_handle_shortcut(1, regs, stat & SHORTCUT1_MASK);
-		} else if (stat & SHORTCUT2_MASK) {
-			armctrl_handle_shortcut(2, regs, stat & SHORTCUT2_MASK);
-		} else if (stat & BANK1_HWIRQ) {
-			armctrl_handle_bank(1, regs);
-		} else if (stat & BANK2_HWIRQ) {
-			armctrl_handle_bank(2, regs);
-		} else {
-			BUG();
-		}
-	}
+	while ((hwirq = get_next_armctrl_hwirq()) != ~0)
+		handle_IRQ(irq_linear_revmap(intc.domain, hwirq), regs);
 }
 
 IRQCHIP_DECLARE(bcm2835_armctrl_ic, "brcm,bcm2835-armctrl-ic", armctrl_of_init);
