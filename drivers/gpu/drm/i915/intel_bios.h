@@ -758,11 +758,6 @@ int intel_parse_bios(struct drm_device *dev);
 #define		DVO_C		2
 #define		DVO_D		3
 
-/* define the PORT for DP output type */
-#define		PORT_IDPB	7
-#define		PORT_IDPC	8
-#define		PORT_IDPD	9
-
 /* Possible values for the "DVO Port" field for versions >= 155: */
 #define DVO_PORT_HDMIA	0
 #define DVO_PORT_HDMIB	1

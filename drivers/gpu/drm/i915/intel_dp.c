@@ -5015,16 +5015,17 @@ intel_trans_dp_port_sel(struct drm_crtc *crtc)
 	return -1;
 }
 
-/* check the VBT to see whether the eDP is on DP-D port */
+/* check the VBT to see whether the eDP is on another port */
 bool intel_dp_is_edp(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	union child_device_config *p_child;
 	int i;
 	static const short port_mapping[] = {
-		[PORT_B] = PORT_IDPB,
-		[PORT_C] = PORT_IDPC,
-		[PORT_D] = PORT_IDPD,
+		[PORT_B] = DVO_PORT_DPB,
+		[PORT_C] = DVO_PORT_DPC,
+		[PORT_D] = DVO_PORT_DPD,
+		[PORT_E] = DVO_PORT_DPE,
 	};
 
 	if (port == PORT_A)
