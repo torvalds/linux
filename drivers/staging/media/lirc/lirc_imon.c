@@ -739,7 +739,7 @@ static int imon_probe(struct usb_interface *interface,
 
 		ep = &iface_desc->endpoint[i].desc;
 		ep_dir = ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
-		ep_type = ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+		ep_type = usb_endpoint_type(ep);
 
 		if (!ir_ep_found &&
 			ep_dir == USB_DIR_IN &&
