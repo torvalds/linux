@@ -278,6 +278,10 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 		out_be32(non_ehci + FSL_SOC_USB_SNOOP2, 0x80000000 | SNOOP_SIZE_2GB);
 	}
 
+	/* Deal with USB erratum A-005275 */
+	if (pdata->has_fsl_erratum_a005275 == 1)
+		ehci->has_fsl_hs_errata = 1;
+
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
 		if (ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0))
