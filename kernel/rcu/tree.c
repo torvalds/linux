@@ -3785,19 +3785,9 @@ void synchronize_sched_expedited(void)
 	/* Take a snapshot of the sequence number.  */
 	s = rcu_exp_gp_seq_snap(rsp);
 
-	if (!try_get_online_cpus()) {
-		/* CPU hotplug operation in flight, fall back to normal GP. */
-		wait_rcu_gp(call_rcu_sched);
-		atomic_long_inc(&rsp->expedited_normal);
-		return;
-	}
-	WARN_ON_ONCE(cpu_is_offline(raw_smp_processor_id()));
-
 	rnp = exp_funnel_lock(rsp, s);
-	if (rnp == NULL) {
-		put_online_cpus();
+	if (rnp == NULL)
 		return;  /* Someone else did our work for us. */
-	}
 
 	rcu_exp_gp_seq_start(rsp);
 	sync_sched_exp_select_cpus(rsp);
@@ -3805,8 +3795,6 @@ void synchronize_sched_expedited(void)
 
 	rcu_exp_gp_seq_end(rsp);
 	mutex_unlock(&rnp->exp_funnel_mutex);
-
-	put_online_cpus();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
 
