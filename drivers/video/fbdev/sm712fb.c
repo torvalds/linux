@@ -32,7 +32,7 @@
 #include <linux/pm.h>
 #endif
 
-#include "sm7xx.h"
+#include "sm712.h"
 
 /*
 * Private structure
