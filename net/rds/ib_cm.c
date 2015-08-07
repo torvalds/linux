@@ -448,8 +448,9 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		 (unsigned long long)be64_to_cpu(lguid),
 		 (unsigned long long)be64_to_cpu(fguid));
 
-	conn = rds_conn_create(dp->dp_daddr, dp->dp_saddr, &rds_ib_transport,
-			       GFP_KERNEL);
+	/* RDS/IB is not currently netns aware, thus init_net */
+	conn = rds_conn_create(&init_net, dp->dp_daddr, dp->dp_saddr,
+			       &rds_ib_transport, GFP_KERNEL);
 	if (IS_ERR(conn)) {
 		rdsdebug("rds_conn_create failed (%ld)\n", PTR_ERR(conn));
 		conn = NULL;
