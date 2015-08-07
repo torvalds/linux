@@ -469,20 +469,20 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 	memcpy(&mix->reg_info, &config->reg_info, sizeof(config->reg_info));
 	if (config->table) {
 		table_bytes = sizeof(*config->table) * config->table_size;
-		mix->table = kzalloc(table_bytes, GFP_KERNEL);
+		mix->table = kmemdup(config->table, table_bytes, GFP_KERNEL);
 		if (!mix->table) {
 			pr_err("%s:%s: could not allocate mmp mix table\n",
 				__func__, name);
 			kfree(mix);
 			return ERR_PTR(-ENOMEM);
 		}
-		memcpy(mix->table, config->table, table_bytes);
 		mix->table_size = config->table_size;
 	}
 
 	if (config->mux_table) {
 		table_bytes = sizeof(u32) * num_parents;
-		mix->mux_table = kzalloc(table_bytes, GFP_KERNEL);
+		mix->mux_table = kmemdup(config->mux_table, table_bytes,
+					 GFP_KERNEL);
 		if (!mix->mux_table) {
 			pr_err("%s:%s: could not allocate mmp mix mux-table\n",
 				__func__, name);
@@ -490,7 +490,6 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 			kfree(mix);
 			return ERR_PTR(-ENOMEM);
 		}
-		memcpy(mix->mux_table, config->mux_table, table_bytes);
 	}
 
 	mix->div_flags = config->div_flags;
