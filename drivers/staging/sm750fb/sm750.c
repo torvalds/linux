@@ -261,22 +261,21 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	pitch = info->fix.line_length;
 	Bpp = info->var.bits_per_pixel >> 3;
 
-	if (image->depth == 1) {
-		if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
-		    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-			fgcol = ((u32 *)info->pseudo_palette)[image->fg_color];
-			bgcol = ((u32 *)info->pseudo_palette)[image->bg_color];
-		} else {
-			fgcol = image->fg_color;
-			bgcol = image->bg_color;
-		}
-		goto _do_work;
-	}
 	/* TODO: Implement hardware acceleration for image->depth > 1 */
-	cfb_imageblit(info, image);
-	return;
+	if (image->depth != 1) {
+		cfb_imageblit(info, image);
+		return;
+	}
 
-_do_work:
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+	    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
+		fgcol = ((u32 *)info->pseudo_palette)[image->fg_color];
+		bgcol = ((u32 *)info->pseudo_palette)[image->bg_color];
+	} else {
+		fgcol = image->fg_color;
+		bgcol = image->bg_color;
+	}
+
 	/*
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
