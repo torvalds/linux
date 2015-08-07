@@ -1100,7 +1100,7 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 		goto error_video;
 
 	/* Connect the video node to the ccp2 subdev. */
-	ret = media_entity_create_link(&ccp2->video_in.video.entity, 0,
+	ret = media_create_pad_link(&ccp2->video_in.video.entity, 0,
 				       &ccp2->subdev.entity, CCP2_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;

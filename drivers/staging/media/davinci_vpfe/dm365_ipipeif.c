@@ -971,7 +971,7 @@ vpfe_ipipeif_register_entities(struct vpfe_ipipeif_device *ipipeif,
 	ipipeif->video_in.vpfe_dev = vpfe_dev;
 
 	flags = 0;
-	ret = media_entity_create_link(&ipipeif->video_in.video_dev.entity, 0,
+	ret = media_create_pad_link(&ipipeif->video_in.video_dev.entity, 0,
 					&ipipeif->subdev.entity, 0, flags);
 	if (ret < 0)
 		goto fail;

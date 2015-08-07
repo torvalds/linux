@@ -263,7 +263,7 @@ static int camif_create_media_links(struct camif_dev *camif)
 {
 	int i, ret;
 
-	ret = media_entity_create_link(&camif->sensor.sd->entity, 0,
+	ret = media_create_pad_link(&camif->sensor.sd->entity, 0,
 				&camif->subdev.entity, CAMIF_SD_PAD_SINK,
 				MEDIA_LNK_FL_IMMUTABLE |
 				MEDIA_LNK_FL_ENABLED);
@@ -271,7 +271,7 @@ static int camif_create_media_links(struct camif_dev *camif)
 		return ret;
 
 	for (i = 1; i < CAMIF_SD_PADS_NUM && !ret; i++) {
-		ret = media_entity_create_link(&camif->subdev.entity, i,
+		ret = media_create_pad_link(&camif->subdev.entity, i,
 				&camif->vp[i - 1].vdev.entity, 0,
 				MEDIA_LNK_FL_IMMUTABLE |
 				MEDIA_LNK_FL_ENABLED);

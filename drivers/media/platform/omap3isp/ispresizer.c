@@ -1756,12 +1756,12 @@ static int resizer_init_entities(struct isp_res_device *res)
 	res->video_out.video.entity.flags |= MEDIA_ENT_FL_DEFAULT;
 
 	/* Connect the video nodes to the resizer subdev. */
-	ret = media_entity_create_link(&res->video_in.video.entity, 0,
+	ret = media_create_pad_link(&res->video_in.video.entity, 0,
 			&res->subdev.entity, RESZ_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(&res->subdev.entity, RESZ_PAD_SOURCE,
+	ret = media_create_pad_link(&res->subdev.entity, RESZ_PAD_SOURCE,
 			&res->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		goto error_link;

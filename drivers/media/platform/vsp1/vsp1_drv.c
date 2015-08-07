@@ -101,7 +101,7 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 			if (!(entity->pads[pad].flags & MEDIA_PAD_FL_SINK))
 				continue;
 
-			ret = media_entity_create_link(&source->subdev.entity,
+			ret = media_create_pad_link(&source->subdev.entity,
 						       source->source_pad,
 						       entity, pad, flags);
 			if (ret < 0)
@@ -262,7 +262,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	if (vsp1->pdata.features & VSP1_HAS_LIF) {
-		ret = media_entity_create_link(
+		ret = media_create_pad_link(
 			&vsp1->wpf[0]->entity.subdev.entity, RWPF_PAD_SOURCE,
 			&vsp1->lif->entity.subdev.entity, LIF_PAD_SINK, 0);
 		if (ret < 0)

@@ -762,7 +762,7 @@ static int ipipeif_init_entities(struct iss_ipipeif_device *ipipeif)
 		return ret;
 
 	/* Connect the IPIPEIF subdev to the video node. */
-	ret = media_entity_create_link(&ipipeif->subdev.entity,
+	ret = media_create_pad_link(&ipipeif->subdev.entity,
 				       IPIPEIF_PAD_SOURCE_ISIF_SF,
 				       &ipipeif->video_out.video.entity, 0, 0);
 	if (ret < 0)

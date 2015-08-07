@@ -2312,12 +2312,12 @@ static int preview_init_entities(struct isp_prev_device *prev)
 		goto error_video_out;
 
 	/* Connect the video nodes to the previewer subdev. */
-	ret = media_entity_create_link(&prev->video_in.video.entity, 0,
+	ret = media_create_pad_link(&prev->video_in.video.entity, 0,
 			&prev->subdev.entity, PREV_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(&prev->subdev.entity, PREV_PAD_SOURCE,
+	ret = media_create_pad_link(&prev->subdev.entity, PREV_PAD_SOURCE,
 			&prev->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		goto error_link;

@@ -1291,7 +1291,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 		goto error_video;
 
 	/* Connect the CSI2 subdev to the video node. */
-	ret = media_entity_create_link(&csi2->subdev.entity, CSI2_PAD_SOURCE,
+	ret = media_create_pad_link(&csi2->subdev.entity, CSI2_PAD_SOURCE,
 				       &csi2->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		goto error_link;

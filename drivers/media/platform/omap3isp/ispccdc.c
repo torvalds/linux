@@ -2667,7 +2667,7 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 		goto error_video;
 
 	/* Connect the CCDC subdev to the video node. */
-	ret = media_entity_create_link(&ccdc->subdev.entity, CCDC_PAD_SOURCE_OF,
+	ret = media_create_pad_link(&ccdc->subdev.entity, CCDC_PAD_SOURCE_OF,
 			&ccdc->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		goto error_link;

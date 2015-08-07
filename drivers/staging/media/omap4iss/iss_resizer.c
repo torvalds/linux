@@ -804,7 +804,7 @@ static int resizer_init_entities(struct iss_resizer_device *resizer)
 		return ret;
 
 	/* Connect the RESIZER subdev to the video node. */
-	ret = media_entity_create_link(&resizer->subdev.entity,
+	ret = media_create_pad_link(&resizer->subdev.entity,
 				       RESIZER_PAD_SOURCE_MEM,
 				       &resizer->video_out.video.entity, 0, 0);
 	if (ret < 0)

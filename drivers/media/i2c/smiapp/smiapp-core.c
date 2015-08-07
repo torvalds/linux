@@ -2495,7 +2495,7 @@ static int smiapp_register_subdevs(struct smiapp_sensor *sensor)
 			return rval;
 		}
 
-		rval = media_entity_create_link(&this->sd.entity,
+		rval = media_create_pad_link(&this->sd.entity,
 						this->source_pad,
 						&last->sd.entity,
 						last->sink_pad,
@@ -2503,7 +2503,7 @@ static int smiapp_register_subdevs(struct smiapp_sensor *sensor)
 						MEDIA_LNK_FL_IMMUTABLE);
 		if (rval) {
 			dev_err(&client->dev,
-				"media_entity_create_link failed\n");
+				"media_create_pad_link failed\n");
 			return rval;
 		}
 

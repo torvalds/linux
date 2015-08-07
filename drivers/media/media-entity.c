@@ -542,7 +542,7 @@ static struct media_link *media_entity_add_link(struct media_entity *entity)
 }
 
 int
-media_entity_create_link(struct media_entity *source, u16 source_pad,
+media_create_pad_link(struct media_entity *source, u16 source_pad,
 			 struct media_entity *sink, u16 sink_pad, u32 flags)
 {
 	struct media_link *link;
@@ -586,7 +586,7 @@ media_entity_create_link(struct media_entity *source, u16 source_pad,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(media_entity_create_link);
+EXPORT_SYMBOL_GPL(media_create_pad_link);
 
 void __media_entity_remove_links(struct media_entity *entity)
 {

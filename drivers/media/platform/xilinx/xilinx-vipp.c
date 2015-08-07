@@ -156,7 +156,7 @@ static int xvip_graph_build_one(struct xvip_composite_device *xdev,
 			local->name, local_pad->index,
 			remote->name, remote_pad->index);
 
-		ret = media_entity_create_link(local, local_pad->index,
+		ret = media_create_pad_link(local, local_pad->index,
 					       remote, remote_pad->index,
 					       link_flags);
 		if (ret < 0) {
@@ -270,7 +270,7 @@ static int xvip_graph_build_dma(struct xvip_composite_device *xdev)
 			source->name, source_pad->index,
 			sink->name, sink_pad->index);
 
-		ret = media_entity_create_link(source, source_pad->index,
+		ret = media_create_pad_link(source, source_pad->index,
 					       sink, sink_pad->index,
 					       link_flags);
 		if (ret < 0) {

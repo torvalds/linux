@@ -284,7 +284,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	if (!(vsp1->pdata.features & VSP1_HAS_LIF) || index != 0)
 		flags |= MEDIA_LNK_FL_IMMUTABLE;
 
-	ret = media_entity_create_link(&wpf->entity.subdev.entity,
+	ret = media_create_pad_link(&wpf->entity.subdev.entity,
 				       RWPF_PAD_SOURCE,
 				       &wpf->video.video.entity, 0, flags);
 	if (ret < 0)

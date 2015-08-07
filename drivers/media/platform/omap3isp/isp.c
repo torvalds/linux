@@ -1865,7 +1865,7 @@ static int isp_link_entity(
 		return -EINVAL;
 	}
 
-	return media_entity_create_link(entity, i, input, pad, flags);
+	return media_create_pad_link(entity, i, input, pad, flags);
 }
 
 static int isp_register_entities(struct isp_device *isp)
@@ -2004,51 +2004,51 @@ static int isp_initialize_modules(struct isp_device *isp)
 	}
 
 	/* Connect the submodules. */
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_ccp2.subdev.entity, CCP2_PAD_SOURCE,
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
 			&isp->isp_prev.subdev.entity, PREV_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_OF,
 			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_prev.subdev.entity, PREV_PAD_SOURCE,
 			&isp->isp_res.subdev.entity, RESZ_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
 			&isp->isp_aewb.subdev.entity, 0,
 			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
 			&isp->isp_af.subdev.entity, 0,
 			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&isp->isp_ccdc.subdev.entity, CCDC_PAD_SOURCE_VP,
 			&isp->isp_hist.subdev.entity, 0,
 			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);

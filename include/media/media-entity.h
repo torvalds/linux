@@ -215,7 +215,7 @@ int media_entity_init(struct media_entity *entity, u16 num_pads,
 		struct media_pad *pads);
 void media_entity_cleanup(struct media_entity *entity);
 
-int media_entity_create_link(struct media_entity *source, u16 source_pad,
+int media_create_pad_link(struct media_entity *source, u16 source_pad,
 		struct media_entity *sink, u16 sink_pad, u32 flags);
 void __media_entity_remove_links(struct media_entity *entity);
 void media_entity_remove_links(struct media_entity *entity);

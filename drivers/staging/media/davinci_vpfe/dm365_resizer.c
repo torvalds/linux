@@ -1826,27 +1826,27 @@ int vpfe_resizer_register_entities(struct vpfe_resizer_device *resizer,
 	resizer->resizer_b.video_out.vpfe_dev = vpfe_dev;
 
 	/* create link between Resizer Crop----> Resizer A*/
-	ret = media_entity_create_link(&resizer->crop_resizer.subdev.entity, 1,
+	ret = media_create_pad_link(&resizer->crop_resizer.subdev.entity, 1,
 				&resizer->resizer_a.subdev.entity,
 				0, flags);
 	if (ret < 0)
 		goto out_create_link;
 
 	/* create link between Resizer Crop----> Resizer B*/
-	ret = media_entity_create_link(&resizer->crop_resizer.subdev.entity, 2,
+	ret = media_create_pad_link(&resizer->crop_resizer.subdev.entity, 2,
 				&resizer->resizer_b.subdev.entity,
 				0, flags);
 	if (ret < 0)
 		goto out_create_link;
 
 	/* create link between Resizer A ----> video out */
-	ret = media_entity_create_link(&resizer->resizer_a.subdev.entity, 1,
+	ret = media_create_pad_link(&resizer->resizer_a.subdev.entity, 1,
 		&resizer->resizer_a.video_out.video_dev.entity, 0, flags);
 	if (ret < 0)
 		goto out_create_link;
 
 	/* create link between Resizer B ----> video out */
-	ret = media_entity_create_link(&resizer->resizer_b.subdev.entity, 1,
+	ret = media_create_pad_link(&resizer->resizer_b.subdev.entity, 1,
 		&resizer->resizer_b.video_out.video_dev.entity, 0, flags);
 	if (ret < 0)
 		goto out_create_link;

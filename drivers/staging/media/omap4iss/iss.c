@@ -1259,7 +1259,7 @@ static int iss_register_entities(struct iss_device *iss)
 			goto done;
 		}
 
-		ret = media_entity_create_link(&sensor->entity, 0, input, pad,
+		ret = media_create_pad_link(&sensor->entity, 0, input, pad,
 					       flags);
 		if (ret < 0)
 			goto done;
@@ -1317,31 +1317,31 @@ static int iss_initialize_modules(struct iss_device *iss)
 	}
 
 	/* Connect the submodules. */
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&iss->csi2a.subdev.entity, CSI2_PAD_SOURCE,
 			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&iss->csi2b.subdev.entity, CSI2_PAD_SOURCE,
 			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
 			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
 			&iss->ipipe.subdev.entity, IPIPE_PAD_SINK, 0);
 	if (ret < 0)
 		goto error_link;
 
-	ret = media_entity_create_link(
+	ret = media_create_pad_link(
 			&iss->ipipe.subdev.entity, IPIPE_PAD_SOURCE_VP,
 			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
 	if (ret < 0)

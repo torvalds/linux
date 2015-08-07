@@ -1264,11 +1264,11 @@ static void cx231xx_create_media_graph(struct cx231xx *dev)
 		return;
 
 	if (tuner)
-		media_entity_create_link(tuner, 0, decoder, 0,
+		media_create_pad_link(tuner, 0, decoder, 0,
 					 MEDIA_LNK_FL_ENABLED);
-	media_entity_create_link(decoder, 1, &dev->vdev.entity, 0,
+	media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
 				 MEDIA_LNK_FL_ENABLED);
-	media_entity_create_link(decoder, 2, &dev->vbi_dev.entity, 0,
+	media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
 				 MEDIA_LNK_FL_ENABLED);
 #endif
 }

@@ -278,7 +278,7 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	rpf->entity.video = video;
 
 	/* Connect the video device to the RPF. */
-	ret = media_entity_create_link(&rpf->video.video.entity, 0,
+	ret = media_create_pad_link(&rpf->video.video.entity, 0,
 				       &rpf->entity.subdev.entity,
 				       RWPF_PAD_SINK,
 				       MEDIA_LNK_FL_ENABLED |

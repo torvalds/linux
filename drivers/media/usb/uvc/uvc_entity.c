@@ -56,7 +56,7 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 			continue;
 
 		remote_pad = remote->num_pads - 1;
-		ret = media_entity_create_link(source, remote_pad,
+		ret = media_create_pad_link(source, remote_pad,
 					       sink, i, flags);
 		if (ret < 0)
 			return ret;
