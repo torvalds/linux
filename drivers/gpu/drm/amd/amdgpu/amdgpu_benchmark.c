@@ -42,7 +42,7 @@ static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
 		r = amdgpu_copy_buffer(ring, saddr, daddr, size, NULL, &fence);
 		if (r)
 			goto exit_do_move;
-		r = amdgpu_fence_wait(fence, false);
+		r = fence_wait(&fence->base, false);
 		if (r)
 			goto exit_do_move;
 		amdgpu_fence_unref(&fence);

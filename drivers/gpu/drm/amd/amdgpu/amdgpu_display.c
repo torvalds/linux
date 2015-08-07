@@ -52,7 +52,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	if (work->fence) {
 		fence = to_amdgpu_fence(work->fence);
 		if (fence) {
-			r = amdgpu_fence_wait(fence, false);
+			r = fence_wait(&fence->base, false);
 			if (r == -EDEADLK) {
 				up_read(&adev->exclusive_lock);
 				r = amdgpu_gpu_reset(adev);

@@ -497,28 +497,6 @@ static long amdgpu_fence_ring_wait_seq_timeout(struct amdgpu_ring *ring, uint64_
 	}
 }
 
-
-/**
- * amdgpu_fence_wait - wait for a fence to signal
- *
- * @fence: amdgpu fence object
- * @intr: use interruptable sleep
- *
- * Wait for the requested fence to signal (all asics).
- * @intr selects whether to use interruptable (true) or non-interruptable
- * (false) sleep when waiting for the fence.
- * Returns 0 if the fence has passed, error for all other cases.
- */
-int amdgpu_fence_wait(struct amdgpu_fence *fence, bool intr)
-{
-	long r;
-
-	r = fence_wait_timeout(&fence->base, intr, MAX_SCHEDULE_TIMEOUT);
-	if (r < 0)
-		return  r;
-	return 0;
-}
-
 /**
  * amdgpu_fence_wait_next - wait for the next fence to signal
  *

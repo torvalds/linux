@@ -180,7 +180,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 
 		if (amdgpu_enable_scheduler || (count >= AMDGPU_NUM_SYNCS)) {
 			/* not enough room, wait manually */
-			r = amdgpu_fence_wait(fence, false);
+			r = fence_wait(&fence->base, false);
 			if (r)
 				return r;
 			continue;
@@ -200,7 +200,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		if (!amdgpu_semaphore_emit_signal(other, semaphore)) {
 			/* signaling wasn't successful wait manually */
 			amdgpu_ring_undo(other);
-			r = amdgpu_fence_wait(fence, false);
+			r = fence_wait(&fence->base, false);
 			if (r)
 				return r;
 			continue;
@@ -210,7 +210,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		if (!amdgpu_semaphore_emit_wait(ring, semaphore)) {
 			/* waiting wasn't successful wait manually */
 			amdgpu_ring_undo(other);
-			r = amdgpu_fence_wait(fence, false);
+			r = fence_wait(&fence->base, false);
 			if (r)
 				return r;
 			continue;

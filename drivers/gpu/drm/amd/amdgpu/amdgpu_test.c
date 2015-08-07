@@ -116,7 +116,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			goto out_lclean_unpin;
 		}
 
-		r = amdgpu_fence_wait(fence, false);
+		r = fence_wait(&fence->base, false);
 		if (r) {
 			DRM_ERROR("Failed to wait for GTT->VRAM fence %d\n", i);
 			goto out_lclean_unpin;
@@ -161,7 +161,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			goto out_lclean_unpin;
 		}
 
-		r = amdgpu_fence_wait(fence, false);
+		r = fence_wait(&fence->base, false);
 		if (r) {
 			DRM_ERROR("Failed to wait for VRAM->GTT fence %d\n", i);
 			goto out_lclean_unpin;
