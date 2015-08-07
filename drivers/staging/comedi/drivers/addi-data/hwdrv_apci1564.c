@@ -6,12 +6,6 @@
 #define APCI1564_DI_INT_ENABLE				0x4
 #define APCI1564_DI_INT_DISABLE				0xfffffffb
 
-/* Digital Output Interrupt Enable Disable. */
-#define APCI1564_DO_VCC_INT_ENABLE			0x1
-#define APCI1564_DO_VCC_INT_DISABLE			0xfffffffe
-#define APCI1564_DO_CC_INT_ENABLE			0x2
-#define APCI1564_DO_CC_INT_DISABLE			0xfffffffd
-
 static int apci1564_timer_insn_config(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
