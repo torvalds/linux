@@ -777,8 +777,7 @@ irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 
 	enabled = dw_readl(dev, DW_IC_ENABLE);
 	stat = dw_readl(dev, DW_IC_RAW_INTR_STAT);
-	dev_dbg(dev->dev, "%s:  %s enabled= 0x%x stat=0x%x\n", __func__,
-		dev->adapter.name, enabled, stat);
+	dev_dbg(dev->dev, "%s: enabled=%#x stat=%#x\n", __func__, enabled, stat);
 	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
 		return IRQ_NONE;
 
