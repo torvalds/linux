@@ -66,6 +66,27 @@ static int dvfs_get_temp(int chn)
 	return temp;
 }
 
+static int pvtm_get_temp(struct dvfs_node *dvfs_node, int chn)
+{
+	int temp = INVALID_TEMP;
+
+#if IS_ENABLED(CONFIG_ROCKCHIP_THERMAL)
+	int read_back = 0;
+
+	if (dvfs_node == NULL ||
+	    IS_ERR_OR_NULL(dvfs_node->vd->regulator))
+		return temp;
+	read_back = dvfs_regulator_get_voltage(
+		dvfs_node->vd->regulator);
+	temp = rockchip_tsadc_get_temp(chn, read_back);
+#else
+	temp = rockchip_tsadc_get_temp(chn);
+#endif
+
+	return temp;
+}
+
+
 static int vdd_gpu_reboot_notifier_event(struct notifier_block *this,
 	unsigned long event, void *ptr)
 {
@@ -1044,7 +1065,6 @@ static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,
 	unsigned int n_voltages = dvfs_node->vd->n_voltages;
 	int *volt_list = dvfs_node->vd->volt_list;
 	int n, temp;
-	int read_back = 0;
 
 	volt_margin = info->volt_margin_uv + pvtm_table[idx].index;
 	n = volt_margin/info->volt_step_uv;
@@ -1052,14 +1072,12 @@ static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,
 		n++;
 
 	pvtm_margin = n*info->delta_pvtm_by_volt;
-	if (cpu_is_rk3288()) {
-		temp = dvfs_get_temp(1);
-	} else {
-		read_back =
-			dvfs_regulator_get_voltage(dvfs_node->vd->regulator);
-		temp = rockchip_tsadc_get_temp(0, read_back);
-	}
-	if (temp < dvfs_node->pvtm_min_temp)
+	if (cpu_is_rk3288())
+		temp = pvtm_get_temp(dvfs_node, 1);
+	else
+		temp = pvtm_get_temp(dvfs_node, 0);
+
+	if (temp < dvfs_node->pvtm_min_temp || temp == INVALID_TEMP)
 		temp = dvfs_node->pvtm_min_temp;
 
 	target_pvtm = min_pvtm+temp * info->delta_pvtm_by_temp + pvtm_margin;
