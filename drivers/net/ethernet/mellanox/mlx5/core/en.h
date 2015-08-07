@@ -138,6 +138,80 @@ struct mlx5e_vport_stats {
 #define NUM_VPORT_COUNTERS     31
 };
 
+static const char pport_strings[][ETH_GSTRING_LEN] = {
+	/* IEEE802.3 counters */
+	"frames_tx",
+	"frames_rx",
+	"check_seq_err",
+	"alignment_err",
+	"octets_tx",
+	"octets_received",
+	"multicast_xmitted",
+	"broadcast_xmitted",
+	"multicast_rx",
+	"broadcast_rx",
+	"in_range_len_errors",
+	"out_of_range_len",
+	"too_long_errors",
+	"symbol_err",
+	"mac_control_tx",
+	"mac_control_rx",
+	"unsupported_op_rx",
+	"pause_ctrl_rx",
+	"pause_ctrl_tx",
+
+	/* RFC2863 counters */
+	"in_octets",
+	"in_ucast_pkts",
+	"in_discards",
+	"in_errors",
+	"in_unknown_protos",
+	"out_octets",
+	"out_ucast_pkts",
+	"out_discards",
+	"out_errors",
+	"in_multicast_pkts",
+	"in_broadcast_pkts",
+	"out_multicast_pkts",
+	"out_broadcast_pkts",
+
+	/* RFC2819 counters */
+	"drop_events",
+	"octets",
+	"pkts",
+	"broadcast_pkts",
+	"multicast_pkts",
+	"crc_align_errors",
+	"undersize_pkts",
+	"oversize_pkts",
+	"fragments",
+	"jabbers",
+	"collisions",
+	"p64octets",
+	"p65to127octets",
+	"p128to255octets",
+	"p256to511octets",
+	"p512to1023octets",
+	"p1024to1518octets",
+	"p1519to2047octets",
+	"p2048to4095octets",
+	"p4096to8191octets",
+	"p8192to10239octets",
+};
+
+#define NUM_IEEE_802_3_COUNTERS		19
+#define NUM_RFC_2863_COUNTERS		13
+#define NUM_RFC_2819_COUNTERS		21
+#define NUM_PPORT_COUNTERS		(NUM_IEEE_802_3_COUNTERS + \
+					 NUM_RFC_2863_COUNTERS + \
+					 NUM_RFC_2819_COUNTERS)
+
+struct mlx5e_pport_stats {
+	__be64 IEEE_802_3_counters[NUM_IEEE_802_3_COUNTERS];
+	__be64 RFC_2863_counters[NUM_RFC_2863_COUNTERS];
+	__be64 RFC_2819_counters[NUM_RFC_2819_COUNTERS];
+};
+
 static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
 	"csum_none",
@@ -180,6 +254,7 @@ struct mlx5e_sq_stats {
 
 struct mlx5e_stats {
 	struct mlx5e_vport_stats   vport;
+	struct mlx5e_pport_stats   pport;
 };
 
 struct mlx5e_params {
@@ -217,6 +292,7 @@ struct mlx5e_cq {
 	struct napi_struct        *napi;
 	struct mlx5_core_cq        mcq;
 	struct mlx5e_channel      *channel;
+	struct mlx5e_priv         *priv;
 
 	/* control */
 	struct mlx5_wq_ctrl        wq_ctrl;
@@ -240,6 +316,7 @@ struct mlx5e_rq {
 	struct mlx5_wq_ctrl    wq_ctrl;
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
+	struct mlx5e_priv     *priv;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_tx_skb_cb {
@@ -344,10 +421,10 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_TT,
 };
 
-enum {
-	MLX5E_RQT_SPREADING  = 0,
-	MLX5E_RQT_DEFAULT_RQ = 1,
-	MLX5E_NUM_RQT        = 2,
+enum mlx5e_rqt_ix {
+	MLX5E_INDIRECTION_RQT,
+	MLX5E_SINGLE_RQ_RQT,
+	MLX5E_NUM_RQT,
 };
 
 struct mlx5e_eth_addr_info {
@@ -372,10 +449,10 @@ struct mlx5e_eth_addr_db {
 enum {
 	MLX5E_STATE_ASYNC_EVENTS_ENABLE,
 	MLX5E_STATE_OPENED,
+	MLX5E_STATE_DESTROYING,
 };
 
 struct mlx5e_vlan_db {
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u32           active_vlans_ft_ix[VLAN_N_VID];
 	u32           untagged_rule_ft_ix;
 	u32           any_vlan_rule_ft_ix;
@@ -399,10 +476,11 @@ struct mlx5e_priv {
 	u32                        pdn;
 	u32                        tdn;
 	struct mlx5_core_mr        mr;
+	struct mlx5e_rq            drop_rq;
 
 	struct mlx5e_channel     **channel;
 	u32                        tisn[MLX5E_MAX_NUM_TC];
-	u32                        rqtn;
+	u32                        rqtn[MLX5E_NUM_RQT];
 	u32                        tirn[MLX5E_NUM_TT];
 
 	struct mlx5e_flow_table    ft;
@@ -479,10 +557,9 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 
-int mlx5e_open_flow_table(struct mlx5e_priv *priv);
-void mlx5e_close_flow_table(struct mlx5e_priv *priv);
+int mlx5e_create_flow_tables(struct mlx5e_priv *priv);
+void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv);
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv);
-void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv);
 void mlx5e_set_rx_mode_work(struct work_struct *work);
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
@@ -491,8 +568,6 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
-int mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
-void mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);

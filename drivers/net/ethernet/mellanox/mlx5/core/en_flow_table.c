@@ -594,44 +594,28 @@ static void mlx5e_del_vlan_rule(struct mlx5e_priv *priv,
 
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv)
 {
-	WARN_ON(!mutex_is_locked(&priv->state_lock));
+	if (!priv->vlan.filter_disabled)
+		return;
 
-	if (priv->vlan.filter_disabled) {
-		priv->vlan.filter_disabled = false;
-		if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-			mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
-					    0);
-	}
+	priv->vlan.filter_disabled = false;
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
 }
 
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
 {
-	WARN_ON(!mutex_is_locked(&priv->state_lock));
+	if (priv->vlan.filter_disabled)
+		return;
 
-	if (!priv->vlan.filter_disabled) {
-		priv->vlan.filter_disabled = true;
-		if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-			mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
-					    0);
-	}
+	priv->vlan.filter_disabled = true;
+	mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
 }
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int err = 0;
 
-	mutex_lock(&priv->state_lock);
-
-	set_bit(vid, priv->vlan.active_vlans);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
-					  vid);
-
-	mutex_unlock(&priv->state_lock);
-
-	return err;
+	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 }
 
 int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
@@ -639,54 +623,9 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	mutex_lock(&priv->state_lock);
-
-	clear_bit(vid, priv->vlan.active_vlans);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
-
-	mutex_unlock(&priv->state_lock);
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 
 	return 0;
-}
-
-int mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv)
-{
-	u16 vid;
-	int err;
-
-	for_each_set_bit(vid, priv->vlan.active_vlans, VLAN_N_VID) {
-		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID,
-					  vid);
-		if (err)
-			return err;
-	}
-
-	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
-	if (err)
-		return err;
-
-	if (priv->vlan.filter_disabled) {
-		err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID,
-					  0);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-void mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv)
-{
-	u16 vid;
-
-	if (priv->vlan.filter_disabled)
-		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_VID, 0);
-
-	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
-
-	for_each_set_bit(vid, priv->vlan.active_vlans, VLAN_N_VID)
-		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_VID, vid);
 }
 
 #define mlx5e_for_each_hash_node(hn, tmp, hash, i) \
@@ -752,18 +691,21 @@ static void mlx5e_handle_netdev_addr(struct mlx5e_priv *priv)
 	mlx5e_for_each_hash_node(hn, tmp, priv->eth_addr.netdev_mc, i)
 		hn->action = MLX5E_ACTION_DEL;
 
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
+	if (!test_bit(MLX5E_STATE_DESTROYING, &priv->state))
 		mlx5e_sync_netdev_addr(priv);
 
 	mlx5e_apply_netdev_addr(priv);
 }
 
-void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv)
+void mlx5e_set_rx_mode_work(struct work_struct *work)
 {
+	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
+					       set_rx_mode_work);
+
 	struct mlx5e_eth_addr_db *ea = &priv->eth_addr;
 	struct net_device *ndev = priv->netdev;
 
-	bool rx_mode_enable   = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	bool rx_mode_enable   = !test_bit(MLX5E_STATE_DESTROYING, &priv->state);
 	bool promisc_enabled   = rx_mode_enable && (ndev->flags & IFF_PROMISC);
 	bool allmulti_enabled  = rx_mode_enable && (ndev->flags & IFF_ALLMULTI);
 	bool broadcast_enabled = rx_mode_enable;
@@ -794,17 +736,6 @@ void mlx5e_set_rx_mode_core(struct mlx5e_priv *priv)
 	ea->promisc_enabled   = promisc_enabled;
 	ea->allmulti_enabled  = allmulti_enabled;
 	ea->broadcast_enabled = broadcast_enabled;
-}
-
-void mlx5e_set_rx_mode_work(struct work_struct *work)
-{
-	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
-					       set_rx_mode_work);
-
-	mutex_lock(&priv->state_lock);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_set_rx_mode_core(priv);
-	mutex_unlock(&priv->state_lock);
 }
 
 void mlx5e_init_eth_addr(struct mlx5e_priv *priv)
@@ -929,7 +860,7 @@ static void mlx5e_destroy_vlan_flow_table(struct mlx5e_priv *priv)
 	mlx5_destroy_flow_table(priv->ft.vlan);
 }
 
-int mlx5e_open_flow_table(struct mlx5e_priv *priv)
+int mlx5e_create_flow_tables(struct mlx5e_priv *priv)
 {
 	int err;
 
@@ -941,7 +872,14 @@ int mlx5e_open_flow_table(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_main_flow_table;
 
+	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
+	if (err)
+		goto err_destroy_vlan_flow_table;
+
 	return 0;
+
+err_destroy_vlan_flow_table:
+	mlx5e_destroy_vlan_flow_table(priv);
 
 err_destroy_main_flow_table:
 	mlx5e_destroy_main_flow_table(priv);
@@ -949,8 +887,9 @@ err_destroy_main_flow_table:
 	return err;
 }
 
-void mlx5e_close_flow_table(struct mlx5e_priv *priv)
+void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
 {
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
 	mlx5e_destroy_vlan_flow_table(priv);
 	mlx5e_destroy_main_flow_table(priv);
 }
