@@ -1,11 +1,3 @@
-/* Digital Input IRQ Function Selection */
-#define APCI1564_DI_INT_OR				(0 << 1)
-#define APCI1564_DI_INT_AND				(1 << 1)
-
-/* Digital Input Interrupt Enable Disable. */
-#define APCI1564_DI_INT_ENABLE				0x4
-#define APCI1564_DI_INT_DISABLE				0xfffffffb
-
 static int apci1564_timer_insn_config(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
