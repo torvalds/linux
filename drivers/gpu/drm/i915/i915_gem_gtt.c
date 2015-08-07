@@ -1475,7 +1475,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ppgtt->base.total = 1ULL << 48;
 		ppgtt->switch_mm = gen8_48b_mm_switch;
 	} else {
-		ret = __pdp_init(false, &ppgtt->pdp);
+		ret = __pdp_init(ppgtt->base.dev, &ppgtt->pdp);
 		if (ret)
 			goto free_scratch;
 
