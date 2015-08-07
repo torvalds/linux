@@ -588,16 +588,18 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 
 	attr = md->attribute;
 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
-		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_WP |
-		     EFI_MEMORY_RP | EFI_MEMORY_XP | EFI_MEMORY_RUNTIME))
+		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
+		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
+		     EFI_MEMORY_RUNTIME))
 		snprintf(pos, size, "|attr=0x%016llx]",
 			 (unsigned long long)attr);
 	else
-		snprintf(pos, size, "|%3s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+		snprintf(pos, size, "|%3s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
 			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
 			 attr & EFI_MEMORY_XP      ? "XP"  : "",
 			 attr & EFI_MEMORY_RP      ? "RP"  : "",
 			 attr & EFI_MEMORY_WP      ? "WP"  : "",
+			 attr & EFI_MEMORY_RO      ? "RO"  : "",
 			 attr & EFI_MEMORY_UCE     ? "UCE" : "",
 			 attr & EFI_MEMORY_WB      ? "WB"  : "",
 			 attr & EFI_MEMORY_WT      ? "WT"  : "",
