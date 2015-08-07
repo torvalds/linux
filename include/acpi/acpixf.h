@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20150619
+#define ACPI_CA_VERSION                 0x20150717
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -251,7 +251,9 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
  * traced each time it is executed.
  */
 ACPI_INIT_GLOBAL(u32, acpi_gbl_trace_flags, 0);
-ACPI_INIT_GLOBAL(acpi_name, acpi_gbl_trace_method_name, 0);
+ACPI_INIT_GLOBAL(const char *, acpi_gbl_trace_method_name, NULL);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_trace_dbg_level, ACPI_TRACE_LEVEL_DEFAULT);
+ACPI_INIT_GLOBAL(u32, acpi_gbl_trace_dbg_layer, ACPI_TRACE_LAYER_DEFAULT);
 
 /*
  * Runtime configuration of debug output control masks. We want the debug
@@ -504,7 +506,7 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					   acpi_object_handler handler,
 					   void **data))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			     acpi_debug_trace(char *name, u32 debug_level,
+			     acpi_debug_trace(const char *name, u32 debug_level,
 					      u32 debug_layer, u32 flags))
 
 /*
@@ -907,6 +909,11 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
 						     const char *module_name,
 						     u32 component_id,
 						     const char *format, ...))
+
+ACPI_DBG_DEPENDENT_RETURN_VOID(void
+			       acpi_trace_point(acpi_trace_event_type type,
+						u8 begin,
+						u8 *aml, char *pathname))
 ACPI_APP_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(1)
 				void ACPI_INTERNAL_VAR_XFACE
 				acpi_log_error(const char *format, ...))

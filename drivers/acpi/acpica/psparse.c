@@ -147,6 +147,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 		return_ACPI_STATUS(AE_OK);	/* OK for now */
 	}
 
+	acpi_ex_stop_trace_opcode(op, walk_state);
+
 	/* Delete this op and the subtree below it if asked to */
 
 	if (((walk_state->parse_flags & ACPI_PARSE_TREE_MASK) !=
@@ -185,7 +187,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			 * op must be replaced by a placeholder return op
 			 */
 			replacement_op =
-			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);
+			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
+					     op->common.aml);
 			if (!replacement_op) {
 				status = AE_NO_MEMORY;
 			}
@@ -209,7 +212,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			    || (op->common.parent->common.aml_opcode ==
 				AML_VAR_PACKAGE_OP)) {
 				replacement_op =
-				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);
+				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
+						     op->common.aml);
 				if (!replacement_op) {
 					status = AE_NO_MEMORY;
 				}
@@ -224,7 +228,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 					AML_VAR_PACKAGE_OP)) {
 					replacement_op =
 					    acpi_ps_alloc_op(op->common.
-							     aml_opcode);
+							     aml_opcode,
+							     op->common.aml);
 					if (!replacement_op) {
 						status = AE_NO_MEMORY;
 					} else {
@@ -240,7 +245,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 		default:
 
 			replacement_op =
-			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);
+			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
+					     op->common.aml);
 			if (!replacement_op) {
 				status = AE_NO_MEMORY;
 			}

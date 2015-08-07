@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acenvex.h - Extra host and compiler configuration
+ * Name: acmsvcex.h - Extra VC specific defines, etc.
  *
  *****************************************************************************/
 
@@ -41,35 +41,14 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACENVEX_H__
-#define __ACENVEX_H__
+#ifndef __ACMSVCEX_H__
+#define __ACMSVCEX_H__
 
-/*! [Begin] no source code translation */
+/* Debug support. */
 
-/******************************************************************************
- *
- * Extra host configuration files. All ACPICA headers are included before
- * including these files.
- *
- *****************************************************************************/
-
-#if defined(_LINUX) || defined(__linux__)
-#include <acpi/platform/aclinuxex.h>
-
-#elif defined(WIN32)
-#include "acwinex.h"
-
-#elif defined(_AED_EFI)
-#include "acefiex.h"
-
-#elif defined(_GNU_EFI)
-#include "acefiex.h"
-
-#elif defined(__DragonFly__)
-#include "acdragonflyex.h"
-
+#ifdef _DEBUG
+#define _CRTDBG_MAP_ALLOC	/* Enables specific file/lineno for leaks */
+#include <crtdbg.h>
 #endif
 
-/*! [End] no source code translation !*/
-
-#endif				/* __ACENVEX_H__ */
+#endif				/* __ACMSVCEX_H__ */

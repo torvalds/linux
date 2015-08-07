@@ -102,6 +102,8 @@ void acpi_db_display_interfaces(char *action_arg, char *interface_name_arg);
 
 acpi_status acpi_db_sleep(char *object_arg);
 
+void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg);
+
 void acpi_db_display_locks(void);
 
 void acpi_db_display_resources(char *object_arg);
@@ -260,6 +262,23 @@ acpi_status acpi_db_user_commands(char prompt, union acpi_parse_object *op);
 
 char *acpi_db_get_next_token(char *string,
 			     char **next, acpi_object_type * return_type);
+
+/*
+ * dbobject
+ */
+void acpi_db_decode_internal_object(union acpi_operand_object *obj_desc);
+
+void
+acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
+				struct acpi_walk_state *walk_state);
+
+void acpi_db_decode_arguments(struct acpi_walk_state *walk_state);
+
+void acpi_db_decode_locals(struct acpi_walk_state *walk_state);
+
+void
+acpi_db_dump_method_info(acpi_status status,
+			 struct acpi_walk_state *walk_state);
 
 /*
  * dbstats - Generation and display of ACPI table statistics

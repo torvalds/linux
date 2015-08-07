@@ -174,8 +174,12 @@ struct acpi_namespace_node {
 	 */
 #ifdef ACPI_LARGE_NAMESPACE_NODE
 	union acpi_parse_object *op;
+	void *method_locals;
+	void *method_args;
 	u32 value;
 	u32 length;
+	u8 arg_count;
+
 #endif
 };
 
@@ -715,7 +719,7 @@ union acpi_parse_value {
 	union acpi_parse_object *arg;	/* arguments and contained ops */
 };
 
-#ifdef ACPI_DISASSEMBLER
+#if defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUG_OUTPUT)
 #define ACPI_DISASM_ONLY_MEMBERS(a)     a;
 #else
 #define ACPI_DISASM_ONLY_MEMBERS(a)
@@ -726,7 +730,7 @@ union acpi_parse_value {
 	u8                              descriptor_type; /* To differentiate various internal objs */\
 	u8                              flags;          /* Type of Op */\
 	u16                             aml_opcode;     /* AML opcode */\
-	u32                             aml_offset;     /* Offset of declaration in AML */\
+	u8                              *aml;           /* Address of declaration in AML */\
 	union acpi_parse_object         *next;          /* Next op */\
 	struct acpi_namespace_node      *node;          /* For use by interpreter */\
 	union acpi_parse_value          value;          /* Value or args associated with the opcode */\
@@ -1103,6 +1107,9 @@ struct acpi_db_method_info {
 	 *   Index of current thread inside all them created.
 	 */
 	char init_args;
+#ifdef ACPI_DEBUGGER
+	acpi_object_type arg_types[4];
+#endif
 	char *arguments[4];
 	char num_threads_str[11];
 	char id_of_thread_str[11];

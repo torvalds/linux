@@ -376,7 +376,7 @@ acpi_ut_display_init_pathname(u8 type,
 	/* Get the full pathname to the node */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-	status = acpi_ns_handle_to_pathname(obj_handle, &buffer);
+	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, FALSE);
 	if (ACPI_FAILURE(status)) {
 		return;
 	}

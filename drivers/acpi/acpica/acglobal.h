@@ -290,8 +290,6 @@ ACPI_GLOBAL(u32, acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS]);
 
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_level);
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_layer);
-ACPI_GLOBAL(u32, acpi_gbl_trace_dbg_level);
-ACPI_GLOBAL(u32, acpi_gbl_trace_dbg_layer);
 
 /*****************************************************************************
  *
@@ -309,6 +307,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_no_resource_disassembly, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_noop_operator, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_cstyle_disassembly, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_force_aml_disassembly, FALSE);
+ACPI_INIT_GLOBAL(union acpi_parse_object *, acpi_gbl_previous_op, NULL);
 
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_disasm);
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_verbose);
