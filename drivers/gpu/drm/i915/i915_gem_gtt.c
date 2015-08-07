@@ -2543,9 +2543,9 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 }
 
 static int i915_gem_setup_global_gtt(struct drm_device *dev,
-				     unsigned long start,
-				     unsigned long mappable_end,
-				     unsigned long end)
+				     u64 start,
+				     u64 mappable_end,
+				     u64 end)
 {
 	/* Let GEM Manage all of the aperture.
 	 *
@@ -2584,7 +2584,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		struct i915_vma *vma = i915_gem_obj_to_vma(obj, ggtt_vm);
 
-		DRM_DEBUG_KMS("reserving preallocated space: %lx + %zx\n",
+		DRM_DEBUG_KMS("reserving preallocated space: %llx + %zx\n",
 			      i915_gem_obj_ggtt_offset(obj), obj->base.size);
 
 		WARN_ON(i915_gem_obj_ggtt_bound(obj));
