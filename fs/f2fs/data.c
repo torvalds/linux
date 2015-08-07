@@ -1558,6 +1558,11 @@ void f2fs_invalidate_page(struct page *page, unsigned int offset,
 		else
 			inode_dec_dirty_pages(inode);
 	}
+
+	/* This is atomic written page, keep Private */
+	if (IS_ATOMIC_WRITTEN_PAGE(page))
+		return;
+
 	ClearPagePrivate(page);
 }
 
@@ -1565,6 +1570,10 @@ int f2fs_release_page(struct page *page, gfp_t wait)
 {
 	/* If this is dirty page, keep PagePrivate */
 	if (PageDirty(page))
+		return 0;
+
+	/* This is atomic written page, keep Private */
+	if (IS_ATOMIC_WRITTEN_PAGE(page))
 		return 0;
 
 	ClearPagePrivate(page);
@@ -1581,8 +1590,15 @@ static int f2fs_set_data_page_dirty(struct page *page)
 	SetPageUptodate(page);
 
 	if (f2fs_is_atomic_file(inode)) {
-		register_inmem_page(inode, page);
-		return 1;
+		if (!IS_ATOMIC_WRITTEN_PAGE(page)) {
+			register_inmem_page(inode, page);
+			return 1;
+		}
+		/*
+		 * Previously, this page has been registered, we just
+		 * return here.
+		 */
+		return 0;
 	}
 
 	if (!PageDirty(page)) {
