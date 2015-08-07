@@ -353,6 +353,13 @@ u64 dma_get_required_mask(struct device *dev)
 	if (ppc_md.dma_get_required_mask)
 		return ppc_md.dma_get_required_mask(dev);
 
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+		struct pci_controller *phb = pci_bus_to_host(pdev->bus);
+		if (phb->controller_ops.dma_get_required_mask)
+			return phb->controller_ops.dma_get_required_mask(pdev);
+	}
+
 	return __dma_get_required_mask(dev);
 }
 EXPORT_SYMBOL_GPL(dma_get_required_mask);
