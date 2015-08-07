@@ -24,9 +24,7 @@
 #include <linux/mii.h>
 #include <linux/timer.h>
 #include <linux/irq.h>
-
 #include <linux/vmalloc.h>
-
 #include <linux/io.h>
 #include <asm/byteorder.h>
 #include <linux/bitops.h>

@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/etherdevice.h>
+
 #include "qlcnic_hw.h"
 
 #define QLCNIC_83XX_BAR0_LENGTH 0x4000

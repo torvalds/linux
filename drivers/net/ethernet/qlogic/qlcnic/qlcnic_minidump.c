@@ -5,12 +5,12 @@
  * See LICENSE.qlcnic for copyright and licensing details.
  */
 
+#include <net/ip.h>
+
 #include "qlcnic.h"
 #include "qlcnic_hdr.h"
 #include "qlcnic_83xx_hw.h"
 #include "qlcnic_hw.h"
-
-#include <net/ip.h>
 
 #define QLC_83XX_MINIDUMP_FLASH		0x520000
 #define QLC_83XX_OCM_INDEX			3

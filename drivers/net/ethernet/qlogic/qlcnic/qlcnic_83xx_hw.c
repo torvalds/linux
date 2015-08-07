@@ -5,13 +5,14 @@
  * See LICENSE.qlcnic for copyright and licensing details.
  */
 
-#include "qlcnic.h"
-#include "qlcnic_sriov.h"
 #include <linux/if_vlan.h>
 #include <linux/ipv6.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/aer.h>
+
+#include "qlcnic.h"
+#include "qlcnic_sriov.h"
 
 static void __qlcnic_83xx_process_aen(struct qlcnic_adapter *);
 static int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *, u8);

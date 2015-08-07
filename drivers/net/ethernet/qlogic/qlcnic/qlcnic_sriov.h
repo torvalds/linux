@@ -8,9 +8,10 @@
 #ifndef _QLCNIC_83XX_SRIOV_H_
 #define _QLCNIC_83XX_SRIOV_H_
 
-#include "qlcnic.h"
 #include <linux/types.h>
 #include <linux/pci.h>
+
+#include "qlcnic.h"
 
 extern const u32 qlcnic_83xx_reg_tbl[];
 extern const u32 qlcnic_83xx_ext_reg_tbl[];
