@@ -512,9 +512,11 @@ struct hci_conn_params {
 		HCI_AUTO_CONN_DIRECT,
 		HCI_AUTO_CONN_ALWAYS,
 		HCI_AUTO_CONN_LINK_LOSS,
+		HCI_AUTO_CONN_EXPLICIT,
 	} auto_connect;
 
 	struct hci_conn *conn;
+	bool explicit_connect;
 };
 
 extern struct list_head hci_dev_list;
@@ -639,6 +641,7 @@ enum {
 	HCI_CONN_DROP,
 	HCI_CONN_PARAM_REMOVAL_PEND,
 	HCI_CONN_NEW_LINK_KEY,
+	HCI_CONN_SCANNING,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
