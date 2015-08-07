@@ -261,13 +261,11 @@ static void au0828_create_media_graph(struct au0828_dev *dev)
 
 	if (tuner)
 		media_create_pad_link(tuner, 0, decoder, 0,
-					 MEDIA_LNK_FL_ENABLED);
-	if (dev->vdev.entity.links)
-		media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
-				 MEDIA_LNK_FL_ENABLED);
-	if (dev->vbi_dev.entity.links)
-		media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
-				 MEDIA_LNK_FL_ENABLED);
+				      MEDIA_LNK_FL_ENABLED);
+	media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
+			      MEDIA_LNK_FL_ENABLED);
+	media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
+			      MEDIA_LNK_FL_ENABLED);
 #endif
 }
 

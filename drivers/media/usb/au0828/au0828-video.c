@@ -644,7 +644,7 @@ static int au0828_enable_analog_tuner(struct au0828_dev *dev)
 	struct media_device *mdev = dev->media_dev;
 	struct media_entity *source;
 	struct media_link *link, *found_link = NULL;
-	int i, ret, active_links = 0;
+	int ret, active_links = 0;
 
 	if (!mdev || !dev->decoder)
 		return 0;
@@ -656,8 +656,7 @@ static int au0828_enable_analog_tuner(struct au0828_dev *dev)
 	 * do DVB streaming while the DMA engine is being used for V4L2,
 	 * this should be enough for the actual needs.
 	 */
-	for (i = 0; i < dev->decoder->num_links; i++) {
-		link = &dev->decoder->links[i];
+	list_for_each_entry(link, &dev->decoder->links, list) {
 		if (link->sink->entity == dev->decoder) {
 			found_link = link;
 			if (link->flags & MEDIA_LNK_FL_ENABLED)
@@ -670,11 +669,10 @@ static int au0828_enable_analog_tuner(struct au0828_dev *dev)
 		return 0;
 
 	source = found_link->source->entity;
-	for (i = 0; i < source->num_links; i++) {
+	list_for_each_entry(link, &source->links, list) {
 		struct media_entity *sink;
 		int flags = 0;
 
-		link = &source->links[i];
 		sink = link->sink->entity;
 
 		if (sink == dev->decoder)

@@ -25,6 +25,7 @@
 #include <linux/ioctl.h>
 #include <linux/media.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
@@ -150,22 +151,21 @@ static long __media_device_enum_links(struct media_device *mdev,
 	}
 
 	if (links->links) {
-		struct media_link_desc __user *ulink;
-		unsigned int l;
+		struct media_link *ent_link;
+		struct media_link_desc __user *ulink = links->links;
 
-		for (l = 0, ulink = links->links; l < entity->num_links; l++) {
+		list_for_each_entry(ent_link, &entity->links, list) {
 			struct media_link_desc link;
 
 			/* Ignore backlinks. */
-			if (entity->links[l].source->entity != entity)
+			if (ent_link->source->entity != entity)
 				continue;
-
 			memset(&link, 0, sizeof(link));
-			media_device_kpad_to_upad(entity->links[l].source,
+			media_device_kpad_to_upad(ent_link->source,
 						  &link.source);
-			media_device_kpad_to_upad(entity->links[l].sink,
+			media_device_kpad_to_upad(ent_link->sink,
 						  &link.sink);
-			link.flags = entity->links[l].flags;
+			link.flags = ent_link->flags;
 			if (copy_to_user(ulink, &link, sizeof(*ulink)))
 				return -EFAULT;
 			ulink++;
@@ -437,6 +437,7 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	/* Warn if we apparently re-register an entity */
 	WARN_ON(entity->graph_obj.mdev != NULL);
 	entity->graph_obj.mdev = mdev;
+	INIT_LIST_HEAD(&entity->links);
 
 	spin_lock(&mdev->lock);
 	/* Initialize media_gobj embedded at the entity */
@@ -465,13 +466,17 @@ void media_device_unregister_entity(struct media_entity *entity)
 {
 	int i;
 	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_link *link, *tmp;
 
 	if (mdev == NULL)
 		return;
 
 	spin_lock(&mdev->lock);
-	for (i = 0; i < entity->num_links; i++)
-		media_gobj_remove(&entity->links[i].graph_obj);
+	list_for_each_entry_safe(link, tmp, &entity->links, list) {
+		media_gobj_remove(&link->graph_obj);
+		list_del(&link->list);
+		kfree(link);
+	}
 	for (i = 0; i < entity->num_pads; i++)
 		media_gobj_remove(&entity->pads[i].graph_obj);
 	media_gobj_remove(&entity->graph_obj);

@@ -74,6 +74,7 @@ struct media_pipeline {
 
 struct media_link {
 	struct media_gobj graph_obj;
+	struct list_head list;
 	struct media_pad *source;	/* Source pad */
 	struct media_pad *sink;		/* Sink pad  */
 	struct media_link *reverse;	/* Link in the reverse direction */
@@ -116,10 +117,9 @@ struct media_entity {
 	u16 num_links;			/* Number of existing links, both
 					 * enabled and disabled */
 	u16 num_backlinks;		/* Number of backlinks */
-	u16 max_links;			/* Maximum number of links */
 
-	struct media_pad *pads;		/* Pads array (num_pads elements) */
-	struct media_link *links;	/* Links array (max_links elements)*/
+	struct media_pad *pads;		/* Pads array (num_pads objects) */
+	struct list_head links;		/* Links list */
 
 	const struct media_entity_operations *ops;	/* Entity operations */
 
@@ -220,7 +220,7 @@ static inline u32 media_gobj_gen_id(enum media_gobj_type type, u32 local_id)
 struct media_entity_graph {
 	struct {
 		struct media_entity *entity;
-		int link;
+		struct list_head *link;
 	} stack[MEDIA_ENTITY_ENUM_MAX_DEPTH];
 
 	DECLARE_BITMAP(entities, MEDIA_ENTITY_ENUM_MAX_ID);
@@ -254,7 +254,7 @@ void media_gobj_init(struct media_device *mdev,
 void media_gobj_remove(struct media_gobj *gobj);
 
 int media_entity_init(struct media_entity *entity, u16 num_pads,
-		struct media_pad *pads);
+		      struct media_pad *pads);
 void media_entity_cleanup(struct media_entity *entity);
 
 int media_create_pad_link(struct media_entity *source, u16 source_pad,

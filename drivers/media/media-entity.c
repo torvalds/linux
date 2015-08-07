@@ -209,21 +209,13 @@ int
 media_entity_init(struct media_entity *entity, u16 num_pads,
 		  struct media_pad *pads)
 {
-	struct media_link *links;
-	unsigned int max_links = num_pads;
 	unsigned int i;
 
-	links = kzalloc(max_links * sizeof(links[0]), GFP_KERNEL);
-	if (links == NULL)
-		return -ENOMEM;
-
 	entity->group_id = 0;
-	entity->max_links = max_links;
 	entity->num_links = 0;
 	entity->num_backlinks = 0;
 	entity->num_pads = num_pads;
 	entity->pads = pads;
-	entity->links = links;
 
 	for (i = 0; i < num_pads; i++) {
 		pads[i].entity = entity;
@@ -237,7 +229,13 @@ EXPORT_SYMBOL_GPL(media_entity_init);
 void
 media_entity_cleanup(struct media_entity *entity)
 {
-	kfree(entity->links);
+	struct media_link *link, *tmp;
+
+	list_for_each_entry_safe(link, tmp, &entity->links, list) {
+		media_gobj_remove(&link->graph_obj);
+		list_del(&link->list);
+		kfree(link);
+	}
 }
 EXPORT_SYMBOL_GPL(media_entity_cleanup);
 
@@ -263,7 +261,7 @@ static void stack_push(struct media_entity_graph *graph,
 		return;
 	}
 	graph->top++;
-	graph->stack[graph->top].link = 0;
+	graph->stack[graph->top].link = (&entity->links)->next;
 	graph->stack[graph->top].entity = entity;
 }
 
@@ -305,6 +303,7 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
 
+
 /**
  * media_entity_graph_walk_next - Get the next entity in the graph
  * @graph: Media graph structure
@@ -328,14 +327,16 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 	 * top of the stack until no more entities on the level can be
 	 * found.
 	 */
-	while (link_top(graph) < stack_top(graph)->num_links) {
+	while (link_top(graph) != &(stack_top(graph)->links)) {
 		struct media_entity *entity = stack_top(graph);
-		struct media_link *link = &entity->links[link_top(graph)];
+		struct media_link *link;
 		struct media_entity *next;
+
+		link = list_entry(link_top(graph), typeof(*link), list);
 
 		/* The link is not enabled so we do not follow. */
 		if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
-			link_top(graph)++;
+			link_top(graph) = link_top(graph)->next;
 			continue;
 		}
 
@@ -346,12 +347,12 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 
 		/* Has the entity already been visited? */
 		if (__test_and_set_bit(media_entity_id(next), graph->entities)) {
-			link_top(graph)++;
+			link_top(graph) = link_top(graph)->next;
 			continue;
 		}
 
 		/* Push the new entity to stack and start over. */
-		link_top(graph)++;
+		link_top(graph) = link_top(graph)->next;
 		stack_push(graph, next);
 	}
 
@@ -383,6 +384,7 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_entity_graph graph;
 	struct media_entity *entity_err = entity;
+	struct media_link *link;
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
@@ -392,7 +394,6 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 	while ((entity = media_entity_graph_walk_next(&graph))) {
 		DECLARE_BITMAP(active, MEDIA_ENTITY_MAX_PADS);
 		DECLARE_BITMAP(has_no_links, MEDIA_ENTITY_MAX_PADS);
-		unsigned int i;
 
 		entity->stream_count++;
 		WARN_ON(entity->pipe && entity->pipe != pipe);
@@ -408,8 +409,7 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 		bitmap_zero(active, entity->num_pads);
 		bitmap_fill(has_no_links, entity->num_pads);
 
-		for (i = 0; i < entity->num_links; i++) {
-			struct media_link *link = &entity->links[i];
+		list_for_each_entry(link, &entity->links, list) {
 			struct media_pad *pad = link->sink->entity == entity
 						? link->sink : link->source;
 
@@ -570,24 +570,19 @@ EXPORT_SYMBOL_GPL(media_entity_put);
 
 static struct media_link *media_entity_add_link(struct media_entity *entity)
 {
-	if (entity->num_links >= entity->max_links) {
-		struct media_link *links = entity->links;
-		unsigned int max_links = entity->max_links + 2;
-		unsigned int i;
+	struct media_link *link;
 
-		links = krealloc(links, max_links * sizeof(*links), GFP_KERNEL);
-		if (links == NULL)
-			return NULL;
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	if (link == NULL)
+		return NULL;
 
-		for (i = 0; i < entity->num_links; i++)
-			links[i].reverse->reverse = &links[i];
+	list_add_tail(&link->list, &entity->links);
 
-		entity->max_links = max_links;
-		entity->links = links;
-	}
-
-	return &entity->links[entity->num_links++];
+	return link;
 }
+
+static void __media_entity_remove_link(struct media_entity *entity,
+				       struct media_link *link);
 
 int
 media_create_pad_link(struct media_entity *source, u16 source_pad,
@@ -617,7 +612,7 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	 */
 	backlink = media_entity_add_link(sink);
 	if (backlink == NULL) {
-		source->num_links--;
+		__media_entity_remove_link(source, link);
 		return -ENOMEM;
 	}
 
@@ -633,43 +628,51 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	backlink->reverse = link;
 
 	sink->num_backlinks++;
+	sink->num_links++;
+	source->num_links++;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(media_create_pad_link);
 
-void __media_entity_remove_links(struct media_entity *entity)
+static void __media_entity_remove_link(struct media_entity *entity,
+				       struct media_link *link)
 {
-	unsigned int i;
+	struct media_link *rlink, *tmp;
+	struct media_entity *remote;
+	unsigned int r = 0;
 
-	for (i = 0; i < entity->num_links; i++) {
-		struct media_link *link = &entity->links[i];
-		struct media_entity *remote;
-		unsigned int r = 0;
+	if (link->source->entity == entity)
+		remote = link->sink->entity;
+	else
+		remote = link->source->entity;
+
+	list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
+		if (rlink != link->reverse) {
+			r++;
+			continue;
+		}
 
 		if (link->source->entity == entity)
-			remote = link->sink->entity;
-		else
-			remote = link->source->entity;
+			remote->num_backlinks--;
 
-		while (r < remote->num_links) {
-			struct media_link *rlink = &remote->links[r];
+		if (--remote->num_links == 0)
+			break;
 
-			if (rlink != link->reverse) {
-				r++;
-				continue;
-			}
-
-			if (link->source->entity == entity)
-				remote->num_backlinks--;
-
-			if (--remote->num_links == 0)
-				break;
-
-			/* Insert last entry in place of the dropped link. */
-			*rlink = remote->links[remote->num_links];
-		}
+		/* Remove the remote link */
+		list_del(&rlink->list);
+		kfree(rlink);
 	}
+	list_del(&link->list);
+	kfree(link);
+}
+
+void __media_entity_remove_links(struct media_entity *entity)
+{
+	struct media_link *link, *tmp;
+
+	list_for_each_entry_safe(link, tmp, &entity->links, list)
+		__media_entity_remove_link(entity, link);
 
 	entity->num_links = 0;
 	entity->num_backlinks = 0;
@@ -794,11 +797,8 @@ struct media_link *
 media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 {
 	struct media_link *link;
-	unsigned int i;
 
-	for (i = 0; i < source->entity->num_links; ++i) {
-		link = &source->entity->links[i];
-
+	list_for_each_entry(link, &source->entity->links, list) {
 		if (link->source->entity == source->entity &&
 		    link->source->index == source->index &&
 		    link->sink->entity == sink->entity &&
@@ -822,11 +822,9 @@ EXPORT_SYMBOL_GPL(media_entity_find_link);
  */
 struct media_pad *media_entity_remote_pad(struct media_pad *pad)
 {
-	unsigned int i;
+	struct media_link *link;
 
-	for (i = 0; i < pad->entity->num_links; i++) {
-		struct media_link *link = &pad->entity->links[i];
-
+	list_for_each_entry(link, &pad->entity->links, list) {
 		if (!(link->flags & MEDIA_LNK_FL_ENABLED))
 			continue;
 
