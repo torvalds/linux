@@ -23,6 +23,14 @@ Optional properties:
   property is used to change AHB burst configuration, check the chipidea
   spec for meaning of each value. If this property is not existed, it
   will use the reset value.
+- tx-burst-size-dword: it is vendor dependent, the tx burst size in dword
+  (4 bytes), This register represents the maximum length of a the burst
+  in 32-bit words while moving data from system memory to the USB
+  bus, changing this value takes effect only the SBUSCFG.AHBBRST is 0.
+- rx-burst-size-dword: it is vendor dependent, the rx burst size in dword
+  (4 bytes), This register represents the maximum length of a the burst
+  in 32-bit words while moving data from the USB bus to system memory,
+  changing this value takes effect only the SBUSCFG.AHBBRST is 0.
 
 Example:
 
@@ -37,4 +45,6 @@ Example:
 		gadget-itc-setting = <0x4>; /* 4 micro-frames */
 		 /* Incremental burst of unspecified length */
 		ahb-burst-config = <0x0>;
+		tx-burst-size-dword = <0x10>; /* 64 bytes */
+		rx-burst-size-dword = <0x10>;
 	};
