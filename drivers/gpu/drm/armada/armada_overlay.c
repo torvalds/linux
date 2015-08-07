@@ -37,7 +37,7 @@ struct armada_ovl_plane {
 	uint32_t dst_yx;
 	uint32_t ctrl0;
 	struct {
-		struct armada_vbl_event update;
+		struct armada_plane_work work;
 		struct armada_regs regs[13];
 	} vbl;
 	struct armada_ovl_plane_properties prop;
@@ -82,14 +82,13 @@ static void armada_ovl_retire_fb(struct armada_ovl_plane *dplane,
 }
 
 /* === Plane support === */
-static void armada_ovl_plane_vbl(struct armada_crtc *dcrtc, void *data)
+static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
+	struct armada_plane *plane, struct armada_plane_work *work)
 {
-	struct armada_ovl_plane *dplane = data;
+	struct armada_ovl_plane *dplane = container_of(plane, struct armada_ovl_plane, base);
 
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
 	armada_ovl_retire_fb(dplane, NULL);
-
-	wake_up(&dplane->base.frame_wait);
 }
 
 static int
@@ -162,9 +161,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			       dcrtc->base + LCD_SPU_SRAM_PARA1);
 	}
 
-	wait_event_timeout(dplane->base.frame_wait,
-			   list_empty(&dplane->vbl.update.node),
-			   HZ/25);
+	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
+		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
 
 	if (plane->fb != fb) {
 		struct armada_gem_object *obj = drm_fb_obj(fb);
@@ -255,7 +253,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 	if (idx) {
 		armada_reg_queue_end(dplane->vbl.regs, idx);
-		armada_drm_vbl_event_add(dcrtc, &dplane->vbl.update);
+		armada_drm_plane_work_queue(dcrtc, &dplane->base,
+					    &dplane->vbl.work);
 	}
 	return 0;
 }
@@ -270,13 +269,12 @@ static int armada_ovl_plane_disable(struct drm_plane *plane)
 		return 0;
 
 	dcrtc = drm_to_armada_crtc(dplane->base.base.crtc);
-	dcrtc->plane = NULL;
 
-	armada_drm_vbl_event_remove(dcrtc, &dplane->vbl.update);
-
-	dplane->ctrl0 = 0;
-
+	armada_drm_plane_work_cancel(dcrtc, &dplane->base);
 	armada_drm_crtc_plane_disable(dcrtc, plane);
+
+	dcrtc->plane = NULL;
+	dplane->ctrl0 = 0;
 
 	fb = xchg(&dplane->old_fb, NULL);
 	if (fb)
@@ -456,8 +454,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 		return ret;
 	}
 
-	armada_drm_vbl_event_init(&dplane->vbl.update, armada_ovl_plane_vbl,
-				  dplane);
+	dplane->vbl.work.fn = armada_ovl_plane_work;
 
 	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,
 				       &armada_ovl_plane_funcs,

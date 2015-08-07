@@ -226,44 +226,15 @@ int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout)
 	return wait_event_timeout(plane->frame_wait, !plane->work, timeout);
 }
 
-void armada_drm_vbl_event_add(struct armada_crtc *dcrtc,
-	struct armada_vbl_event *evt)
+struct armada_plane_work *armada_drm_plane_work_cancel(
+	struct armada_crtc *dcrtc, struct armada_plane *plane)
 {
-	unsigned long flags;
-	bool not_on_list;
+	struct armada_plane_work *work = xchg(&plane->work, NULL);
 
-	WARN_ON(drm_vblank_get(dcrtc->crtc.dev, dcrtc->num));
-
-	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	not_on_list = list_empty(&evt->node);
-	if (not_on_list)
-		list_add_tail(&evt->node, &dcrtc->vbl_list);
-	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-
-	if (!not_on_list)
+	if (work)
 		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
-}
 
-void armada_drm_vbl_event_remove(struct armada_crtc *dcrtc,
-	struct armada_vbl_event *evt)
-{
-	spin_lock_irq(&dcrtc->irq_lock);
-	if (!list_empty(&evt->node)) {
-		list_del_init(&evt->node);
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
-	}
-	spin_unlock_irq(&dcrtc->irq_lock);
-}
-
-static void armada_drm_vbl_event_run(struct armada_crtc *dcrtc)
-{
-	struct armada_vbl_event *e, *n;
-
-	list_for_each_entry_safe(e, n, &dcrtc->vbl_list, node) {
-		list_del_init(&e->node);
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
-		e->fn(dcrtc, e->data);
-	}
+	return work;
 }
 
 static int armada_drm_crtc_queue_frame_work(struct armada_crtc *dcrtc,
@@ -429,6 +400,7 @@ static bool armada_drm_crtc_mode_fixup(struct drm_crtc *crtc,
 static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 {
 	void __iomem *base = dcrtc->base;
+	struct drm_plane *ovl_plane;
 
 	if (stat & DMA_FF_UNDERFLOW)
 		DRM_ERROR("video underflow on crtc %u\n", dcrtc->num);
@@ -439,7 +411,12 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 		drm_handle_vblank(dcrtc->crtc.dev, dcrtc->num);
 
 	spin_lock(&dcrtc->irq_lock);
-	armada_drm_vbl_event_run(dcrtc);
+	ovl_plane = dcrtc->plane;
+	if (ovl_plane) {
+		struct armada_plane *plane = drm_to_armada_plane(ovl_plane);
+		armada_drm_plane_work_run(dcrtc, plane);
+		wake_up(&plane->frame_wait);
+	}
 
 	if (stat & GRA_FRAME_IRQ && dcrtc->interlaced) {
 		int i = stat & GRA_FRAME_IRQ0 ? 0 : 1;
@@ -1188,7 +1165,6 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	dcrtc->spu_iopad_ctrl = CFG_VSCALE_LN_EN | CFG_IOPAD_DUMB24;
 	spin_lock_init(&dcrtc->irq_lock);
 	dcrtc->irq_ena = CLEAN_SPU_IRQ_ISR;
-	INIT_LIST_HEAD(&dcrtc->vbl_list);
 
 	/* Initialize some registers which we don't otherwise set */
 	writel_relaxed(0x00000001, dcrtc->base + LCD_CFG_SCLK_DIV);

@@ -52,6 +52,8 @@ int armada_drm_plane_init(struct armada_plane *plane);
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
 	struct armada_plane *plane, struct armada_plane_work *work);
 int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
+struct armada_plane_work *armada_drm_plane_work_cancel(
+	struct armada_crtc *dcrtc, struct armada_plane *plane);
 
 struct armada_crtc {
 	struct drm_crtc		crtc;
@@ -87,26 +89,8 @@ struct armada_crtc {
 
 	spinlock_t		irq_lock;
 	uint32_t		irq_ena;
-	struct list_head	vbl_list;
 };
 #define drm_to_armada_crtc(c) container_of(c, struct armada_crtc, crtc)
-
-struct armada_vbl_event {
-	struct list_head	node;
-	void			*data;
-	void			(*fn)(struct armada_crtc *, void *);
-};
-
-void armada_drm_vbl_event_add(struct armada_crtc *,
-	struct armada_vbl_event *);
-void armada_drm_vbl_event_remove(struct armada_crtc *,
-	struct armada_vbl_event *);
-#define armada_drm_vbl_event_init(_e, _f, _d) do {	\
-	struct armada_vbl_event *__e = _e;		\
-	INIT_LIST_HEAD(&__e->node);			\
-	__e->data = _d;					\
-	__e->fn = _f;					\
-} while (0)
 
 void armada_drm_crtc_gamma_set(struct drm_crtc *, u16, u16, u16, int);
 void armada_drm_crtc_gamma_get(struct drm_crtc *, u16 *, u16 *, u16 *, int);
