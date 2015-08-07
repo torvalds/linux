@@ -6327,6 +6327,7 @@ static void process_smi_save_state_64(struct kvm_vcpu *vcpu, char *buf)
 static void process_smi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_segment cs, ds;
+	struct desc_ptr dt;
 	char buf[512];
 	u32 cr0;
 
@@ -6358,6 +6359,10 @@ static void process_smi(struct kvm_vcpu *vcpu)
 	vcpu->arch.cr0 = cr0;
 
 	kvm_x86_ops->set_cr4(vcpu, 0);
+
+	/* Undocumented: IDT limit is set to zero on entry to SMM.  */
+	dt.address = dt.size = 0;
+	kvm_x86_ops->set_idt(vcpu, &dt);
 
 	__kvm_set_dr(vcpu, 7, DR7_FIXED_1);
 
