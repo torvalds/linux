@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 
@@ -1331,8 +1332,7 @@ static void tegra_sor_edp_disable(struct drm_encoder *encoder)
 	if (output->panel)
 		drm_panel_unprepare(output->panel);
 
-	reset_control_assert(sor->rst);
-	clk_disable_unprepare(sor->clk);
+	pm_runtime_put(sor->dev);
 }
 
 #if 0
@@ -1393,11 +1393,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	state = to_sor_state(output->connector.state);
 
-	err = clk_prepare_enable(sor->clk);
-	if (err < 0)
-		dev_err(sor->dev, "failed to enable clock: %d\n", err);
-
-	reset_control_deassert(sor->rst);
+	pm_runtime_get_sync(sor->dev);
 
 	if (output->panel)
 		drm_panel_prepare(output->panel);
@@ -1874,9 +1870,7 @@ static void tegra_sor_hdmi_disable(struct drm_encoder *encoder)
 	if (err < 0)
 		dev_err(sor->dev, "failed to power off HDMI rail: %d\n", err);
 
-	reset_control_assert(sor->rst);
-	usleep_range(1000, 2000);
-	clk_disable_unprepare(sor->clk);
+	pm_runtime_put(sor->dev);
 }
 
 static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
@@ -1895,13 +1889,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	state = to_sor_state(output->connector.state);
 	mode = &encoder->crtc->state->adjusted_mode;
 
-	err = clk_prepare_enable(sor->clk);
-	if (err < 0)
-		dev_err(sor->dev, "failed to enable clock: %d\n", err);
-
-	usleep_range(1000, 2000);
-
-	reset_control_deassert(sor->rst);
+	pm_runtime_get_sync(sor->dev);
 
 	/* switch to safe parent clock */
 	err = tegra_sor_set_parent_clock(sor, sor->clk_safe);
@@ -2531,6 +2519,9 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		goto remove;
 	}
 
+	platform_set_drvdata(pdev, sor);
+	pm_runtime_enable(&pdev->dev);
+
 	INIT_LIST_HEAD(&sor->client.list);
 	sor->client.ops = &sor_client_ops;
 	sor->client.dev = &pdev->dev;
@@ -2541,8 +2532,6 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			err);
 		goto remove;
 	}
-
-	platform_set_drvdata(pdev, sor);
 
 	return 0;
 
@@ -2558,6 +2547,8 @@ static int tegra_sor_remove(struct platform_device *pdev)
 {
 	struct tegra_sor *sor = platform_get_drvdata(pdev);
 	int err;
+
+	pm_runtime_disable(&pdev->dev);
 
 	err = host1x_client_unregister(&sor->client);
 	if (err < 0) {
@@ -2577,10 +2568,58 @@ static int tegra_sor_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int tegra_sor_suspend(struct device *dev)
+{
+	struct tegra_sor *sor = dev_get_drvdata(dev);
+	int err;
+
+	err = reset_control_assert(sor->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to assert reset: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 2000);
+
+	clk_disable_unprepare(sor->clk);
+
+	return 0;
+}
+
+static int tegra_sor_resume(struct device *dev)
+{
+	struct tegra_sor *sor = dev_get_drvdata(dev);
+	int err;
+
+	err = clk_prepare_enable(sor->clk);
+	if (err < 0) {
+		dev_err(dev, "failed to enable clock: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 2000);
+
+	err = reset_control_deassert(sor->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to deassert reset: %d\n", err);
+		clk_disable_unprepare(sor->clk);
+		return err;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops tegra_sor_pm_ops = {
+	SET_RUNTIME_PM_OPS(tegra_sor_suspend, tegra_sor_resume, NULL)
+};
+
 struct platform_driver tegra_sor_driver = {
 	.driver = {
 		.name = "tegra-sor",
 		.of_match_table = tegra_sor_of_match,
+		.pm = &tegra_sor_pm_ops,
 	},
 	.probe = tegra_sor_probe,
 	.remove = tegra_sor_remove,
