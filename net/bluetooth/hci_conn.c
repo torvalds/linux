@@ -679,15 +679,18 @@ static void create_le_conn_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct hci_conn *conn;
 
-	if (status == 0)
-		return;
+	hci_dev_lock(hdev);
+
+	conn = hci_lookup_le_connect(hdev);
+
+	if (!status) {
+		hci_connect_le_scan_cleanup(conn);
+		goto done;
+	}
 
 	BT_ERR("HCI request failed to create LE connection: status 0x%2.2x",
 	       status);
 
-	hci_dev_lock(hdev);
-
-	conn = hci_lookup_le_connect(hdev);
 	if (!conn)
 		goto done;
 
@@ -727,6 +730,7 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	hci_req_add(req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
 
 	conn->state = BT_CONNECT;
+	clear_bit(HCI_CONN_SCANNING, &conn->flags);
 }
 
 static void hci_req_directed_advertising(struct hci_request *req,
@@ -770,7 +774,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 role)
 {
 	struct hci_conn_params *params;
-	struct hci_conn *conn;
+	struct hci_conn *conn, *conn_unfinished;
 	struct smp_irk *irk;
 	struct hci_request req;
 	int err;
@@ -793,9 +797,17 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	 * and return the object found.
 	 */
 	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, dst);
+	conn_unfinished = NULL;
 	if (conn) {
-		conn->pending_sec_level = sec_level;
-		goto done;
+		if (conn->state == BT_CONNECT &&
+		    test_bit(HCI_CONN_SCANNING, &conn->flags)) {
+			BT_DBG("will continue unfinished conn %pMR", dst);
+			conn_unfinished = conn;
+		} else {
+			if (conn->pending_sec_level < sec_level)
+				conn->pending_sec_level = sec_level;
+			goto done;
+		}
 	}
 
 	/* Since the controller supports only one LE connection attempt at a
@@ -808,10 +820,6 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	 * resolving key, the connection needs to be established
 	 * to a resolvable random address.
 	 *
-	 * This uses the cached random resolvable address from
-	 * a previous scan. When no cached address is available,
-	 * try connecting to the identity address instead.
-	 *
 	 * Storing the resolvable random address is required here
 	 * to handle connection failures. The address will later
 	 * be resolved back into the original identity address
@@ -823,14 +831,22 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		dst_type = ADDR_LE_DEV_RANDOM;
 	}
 
-	conn = hci_conn_add(hdev, LE_LINK, dst, role);
+	if (conn_unfinished) {
+		conn = conn_unfinished;
+		bacpy(&conn->dst, dst);
+	} else {
+		conn = hci_conn_add(hdev, LE_LINK, dst, role);
+	}
+
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 
 	conn->dst_type = dst_type;
 	conn->sec_level = BT_SECURITY_LOW;
-	conn->pending_sec_level = sec_level;
 	conn->conn_timeout = conn_timeout;
+
+	if (!conn_unfinished)
+		conn->pending_sec_level = sec_level;
 
 	hci_req_init(&req, hdev);
 
@@ -896,7 +912,13 @@ create_conn:
 	}
 
 done:
-	hci_conn_hold(conn);
+	/* If this is continuation of connect started by hci_connect_le_scan,
+	 * it already called hci_conn_hold and calling it again would mess the
+	 * counter.
+	 */
+	if (!conn_unfinished)
+		hci_conn_hold(conn);
+
 	return conn;
 }
 
