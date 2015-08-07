@@ -265,7 +265,8 @@ static int xen_pv_console_init(void)
 		return 0;
 	}
 	info->evtchn = xen_start_info->console.domU.evtchn;
-	info->intf = mfn_to_virt(xen_start_info->console.domU.mfn);
+	/* GFN == MFN for PV guest */
+	info->intf = gfn_to_virt(xen_start_info->console.domU.mfn);
 	info->vtermno = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
@@ -390,7 +391,7 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	if (IS_ERR(info->hvc))
 		return PTR_ERR(info->hvc);
 	if (xen_pv_domain())
-		mfn = virt_to_mfn(info->intf);
+		mfn = virt_to_gfn(info->intf);
 	else
 		mfn = __pa(info->intf) >> PAGE_SHIFT;
 	ret = gnttab_alloc_grant_references(1, &gref_head);

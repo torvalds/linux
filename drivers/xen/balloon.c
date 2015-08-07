@@ -441,7 +441,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	/* Update direct mapping, invalidate P2M, and add to balloon. */
 	for (i = 0; i < nr_pages; i++) {
 		pfn = frame_list[i];
-		frame_list[i] = pfn_to_mfn(pfn);
+		frame_list[i] = pfn_to_gfn(pfn);
 		page = pfn_to_page(pfn);
 
 #ifdef CONFIG_XEN_HAVE_PVMMU

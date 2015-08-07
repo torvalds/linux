@@ -131,7 +131,7 @@ static int xen_tmem_new_pool(struct tmem_pool_uuid uuid,
 static int xen_tmem_put_page(u32 pool_id, struct tmem_oid oid,
 			     u32 index, unsigned long pfn)
 {
-	unsigned long gmfn = xen_pv_domain() ? pfn_to_mfn(pfn) : pfn;
+	unsigned long gmfn = pfn_to_gfn(pfn);
 
 	return xen_tmem_op(TMEM_PUT_PAGE, pool_id, oid, index,
 		gmfn, 0, 0, 0);
@@ -140,7 +140,7 @@ static int xen_tmem_put_page(u32 pool_id, struct tmem_oid oid,
 static int xen_tmem_get_page(u32 pool_id, struct tmem_oid oid,
 			     u32 index, unsigned long pfn)
 {
-	unsigned long gmfn = xen_pv_domain() ? pfn_to_mfn(pfn) : pfn;
+	unsigned long gmfn = pfn_to_gfn(pfn);
 
 	return xen_tmem_op(TMEM_GET_PAGE, pool_id, oid, index,
 		gmfn, 0, 0, 0);

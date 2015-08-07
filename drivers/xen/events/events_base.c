@@ -1688,7 +1688,7 @@ void __init xen_init_IRQ(void)
 		struct physdev_pirq_eoi_gmfn eoi_gmfn;
 
 		pirq_eoi_map = (void *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
-		eoi_gmfn.gmfn = virt_to_mfn(pirq_eoi_map);
+		eoi_gmfn.gmfn = virt_to_gfn(pirq_eoi_map);
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn_v2, &eoi_gmfn);
 		/* TODO: No PVH support for PIRQ EOI */
 		if (rc != 0) {

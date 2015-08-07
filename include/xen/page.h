@@ -3,9 +3,9 @@
 
 #include <asm/xen/page.h>
 
-static inline unsigned long page_to_mfn(struct page *page)
+static inline unsigned long xen_page_to_gfn(struct page *page)
 {
-	return pfn_to_mfn(page_to_pfn(page));
+	return pfn_to_gfn(page_to_pfn(page));
 }
 
 struct xen_memory_region {

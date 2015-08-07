@@ -539,7 +539,7 @@ static int xenfb_remove(struct xenbus_device *dev)
 
 static unsigned long vmalloc_to_mfn(void *address)
 {
-	return pfn_to_mfn(vmalloc_to_pfn(address));
+	return pfn_to_gfn(vmalloc_to_pfn(address));
 }
 
 static void xenfb_init_shared_page(struct xenfb_info *info,
@@ -586,7 +586,7 @@ static int xenfb_connect_backend(struct xenbus_device *dev,
 		goto unbind_irq;
 	}
 	ret = xenbus_printf(xbt, dev->nodename, "page-ref", "%lu",
-			    virt_to_mfn(info->page));
+			    virt_to_gfn(info->page));
 	if (ret)
 		goto error_xenbus;
 	ret = xenbus_printf(xbt, dev->nodename, "event-channel", "%u",

@@ -711,9 +711,7 @@ static int __init xenstored_local_init(void)
 	if (!page)
 		goto out_err;
 
-	xen_store_mfn = xen_start_info->store_mfn =
-		pfn_to_mfn(virt_to_phys((void *)page) >>
-			   PAGE_SHIFT);
+	xen_store_mfn = xen_start_info->store_mfn = virt_to_gfn((void *)page);
 
 	/* Next allocate a local port which xenstored can bind to */
 	alloc_unbound.dom        = DOMID_SELF;
@@ -787,12 +785,12 @@ static int __init xenbus_init(void)
 		err = xenstored_local_init();
 		if (err)
 			goto out_error;
-		xen_store_interface = mfn_to_virt(xen_store_mfn);
+		xen_store_interface = gfn_to_virt(xen_store_mfn);
 		break;
 	case XS_PV:
 		xen_store_evtchn = xen_start_info->store_evtchn;
 		xen_store_mfn = xen_start_info->store_mfn;
-		xen_store_interface = mfn_to_virt(xen_store_mfn);
+		xen_store_interface = gfn_to_virt(xen_store_mfn);
 		break;
 	case XS_HVM:
 		err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
