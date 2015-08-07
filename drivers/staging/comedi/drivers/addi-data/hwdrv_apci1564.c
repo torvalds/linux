@@ -12,11 +12,6 @@
 #define APCI1564_DO_CC_INT_ENABLE			0x2
 #define APCI1564_DO_CC_INT_DISABLE			0xfffffffd
 
-/* TIMER COUNTER WATCHDOG DEFINES */
-#define ADDIDATA_TIMER					0
-#define ADDIDATA_COUNTER				1
-#define ADDIDATA_WATCHDOG				2
-
 static int apci1564_timer_insn_config(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
