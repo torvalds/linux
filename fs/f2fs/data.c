@@ -1494,9 +1494,6 @@ static int check_direct_IO(struct inode *inode, struct iov_iter *iter,
 {
 	unsigned blocksize_mask = inode->i_sb->s_blocksize - 1;
 
-	if (iov_iter_rw(iter) == READ)
-		return 0;
-
 	if (offset & blocksize_mask)
 		return -EINVAL;
 
@@ -1525,8 +1522,9 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
 		return 0;
 
-	if (check_direct_IO(inode, iter, offset))
-		return 0;
+	err = check_direct_IO(inode, iter, offset);
+	if (err)
+		return err;
 
 	trace_f2fs_direct_IO_enter(inode, offset, count, iov_iter_rw(iter));
 
