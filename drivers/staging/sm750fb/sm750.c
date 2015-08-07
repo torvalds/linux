@@ -26,7 +26,6 @@
 
 int smi_indent;
 
-
 /*
  * #ifdef __BIG_ENDIAN
  * ssize_t lynxfb_ops_write(struct fb_info *info, const char __user *buf,
@@ -40,7 +39,6 @@ typedef void (*PROC_SPEC_SETUP)(struct lynx_share*, char *);
 typedef int (*PROC_SPEC_MAP)(struct lynx_share*, struct pci_dev*);
 typedef int (*PROC_SPEC_INITHW)(struct lynx_share*, struct pci_dev*);
 
-
 /* common var for all device */
 static int g_hwcursor = 1;
 static int g_noaccel;
@@ -50,7 +48,6 @@ static const char *g_def_fbmode = "800x600-16@60";
 static char *g_settings;
 static int g_dualview;
 static char *g_option;
-
 
 static const struct fb_videomode lynx750_ext[] = {
 	/*	1024x600-60 VESA	[1.71:1] */
@@ -115,8 +112,6 @@ static const struct fb_videomode lynx750_ext[] = {
 };
 
 
-
-
 /* no hardware cursor supported under version 2.6.10, kernel bug */
 static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 {
@@ -159,7 +154,6 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 
 		cursor->setColor(cursor, fg, bg);
 	}
-
 
 	if (fbcursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETIMAGE)) {
 		cursor->setData(cursor,
@@ -299,7 +293,6 @@ static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
 	int ret;
-
 
 	if (!info)
 		return -EINVAL;
@@ -466,7 +459,6 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	int ret;
 
-
 	ret = 0;
 	share = pci_get_drvdata(pdev);
 
@@ -477,7 +469,6 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		pr_err("error:%d occurred in pci_set_power_state\n", ret);
 		return ret;
 	}
-
 
 	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
 		pci_restore_state(pdev);
@@ -492,7 +483,6 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		(*share->resume)(share);
 
 	hw_sm750_inithw(share, pdev);
-
 
 	info = share->fbinfo[0];
 
@@ -518,7 +508,6 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		fb_set_suspend(info, 0);
 	}
 
-
 	console_unlock();
 	return ret;
 }
@@ -534,7 +523,6 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	int ret;
 	resource_size_t request;
 
-
 	par = info->par;
 	crtc = &par->crtc;
 	output = &par->output;
@@ -545,7 +533,6 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 		 var->xres,
 		 var->yres,
 		 var->bits_per_pixel);
-
 
 	switch (var->bits_per_pixel) {
 	case 8:
@@ -617,7 +604,6 @@ exit:
 	return ret;
 }
 
-
 static int lynxfb_ops_setcolreg(unsigned regno,
 				unsigned red,
 				unsigned green,
@@ -651,7 +637,6 @@ static int lynxfb_ops_setcolreg(unsigned regno,
 		ret = crtc->proc_setColReg(crtc, regno, red, green, blue);
 		goto exit;
 	}
-
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regno < 256) {
 		u32 val;
@@ -782,7 +767,6 @@ static struct fb_ops lynxfb_ops = {
 	.fb_cursor = lynxfb_ops_cursor,
 };
 
-
 static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 {
 	int i;
@@ -802,7 +786,6 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 		"kernel prepared default modedb",
 		"kernel HELPERS prepared vesa_modes",
 	};
-
 
 	static const char *fixId[2] = {
 		"sm750_fb1", "sm750_fb2",
@@ -824,7 +807,6 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	sm750fb_set_drv(par);
 	lynxfb_ops.fb_pan_display = lynxfb_ops_pan_display;
 
-
 	/* set current cursor variable and proc pointer,
 	 * must be set after crtc member initialized */
 	crtc->cursor.offset = crtc->oScreen + crtc->vidmem_size - 1024;
@@ -841,14 +823,12 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	crtc->cursor.setData = hw_cursor_setData;
 	crtc->cursor.vstart = share->pvMem + crtc->cursor.offset;
 
-
 	crtc->cursor.share = share;
 		memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
 	if (!g_hwcursor) {
 		lynxfb_ops.fb_cursor = NULL;
 		crtc->cursor.disable(&crtc->cursor);
 	}
-
 
 	/* set info->fbops, must be set before fb_find_mode */
 	if (!share->accel_off) {
@@ -864,7 +844,6 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 		if (index)
 			g_fbmode[index] = g_fbmode[0];
 	}
-
 
 	for (i = 0; i < 3; i++) {
 
@@ -935,7 +914,6 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	strlcpy(fix->id, fixId[index], sizeof(fix->id));
 
-
 	fix->smem_start = crtc->oScreen + share->vidmem_start;
 	pr_info("fix->smem_start = %lx\n", fix->smem_start);
 	/* according to mmap experiment from user space application,
@@ -997,7 +975,6 @@ static void sm750fb_setup(struct lynx_share *share, char *src)
 	char *exp_res;
 #endif
 	int swap;
-
 
 	spec_share = container_of(share, struct sm750_share, share);
 #ifdef CAP_EXPENSIION
@@ -1095,7 +1072,6 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	struct sm750_share *spec_share = NULL;
 	size_t spec_offset = 0;
 	int fbidx;
-
 
 	/* enable device */
 	if (pci_enable_device(pdev)) {
@@ -1268,7 +1244,6 @@ static int __init lynxfb_setup(char *options)
 	int len;
 	char *opt, *tmp;
 
-
 	if (!options || !*options) {
 		pr_warn("no options.\n");
 		return 0;
@@ -1331,7 +1306,6 @@ static struct pci_driver lynxfb_driver = {
 	.resume = lynxfb_resume,
 #endif
 };
-
 
 static int __init lynxfb_init(void)
 {
