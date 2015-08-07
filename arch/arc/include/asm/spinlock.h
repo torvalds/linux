@@ -260,8 +260,7 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 	"	mov	%[tmp], %[delay]	\n"	/* tmp = delay */	\
 	"2: 	brne.d	%[tmp], 0, 2b		\n"	/* while (tmp != 0) */	\
 	"	sub	%[tmp], %[tmp], 1	\n"	/* tmp-- */		\
-	"	asl.f	%[delay], %[delay], 1	\n"	/* delay *= 2 */	\
-	"	mov.z	%[delay], 1		\n"	/* handle overflow */	\
+	"	rol	%[delay], %[delay]	\n"	/* delay *= 2 */	\
 	"	b	1b			\n"	/* start over */	\
 	"					\n"				\
 	"4: ; --- done ---			\n"				\
