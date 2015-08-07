@@ -223,18 +223,6 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	size_t acc_size;
 	int r;
 
-	/* VI has a hw bug where VM PTEs have to be allocated in groups of 8.
-	 * do this as a temporary workaround
-	 */
-	if (!(domain & (AMDGPU_GEM_DOMAIN_GDS | AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA))) {
-		if ((adev->asic_type >= CHIP_TOPAZ) && (adev->asic_type != CHIP_FIJI)) {
-			if (byte_align & 0x7fff)
-				byte_align = ALIGN(byte_align, 0x8000);
-			if (size & 0x7fff)
-				size = ALIGN(size, 0x8000);
-		}
-	}
-
 	page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
 	size = ALIGN(size, PAGE_SIZE);
 
