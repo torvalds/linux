@@ -1,7 +1,3 @@
-* Add README file (with ASCII art) describing relationships between
-  DPAA2 objects and how combine them to make a NIC, an LS2 switch, etc.
-  Also, define all acronyms used.
-
 * Decide if multiple root fsl-mc buses will be supported per Linux instance,
   and if so add support for this.
 
