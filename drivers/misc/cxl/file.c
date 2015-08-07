@@ -251,7 +251,7 @@ long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
-long afu_compat_ioctl(struct file *file, unsigned int cmd,
+static long afu_compat_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	return afu_ioctl(file, cmd, arg);
@@ -396,7 +396,7 @@ const struct file_operations afu_fops = {
 	.mmap           = afu_mmap,
 };
 
-const struct file_operations afu_master_fops = {
+static const struct file_operations afu_master_fops = {
 	.owner		= THIS_MODULE,
 	.open           = afu_master_open,
 	.poll		= afu_poll,

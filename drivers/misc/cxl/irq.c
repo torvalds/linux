@@ -405,7 +405,7 @@ void cxl_release_psl_irq(struct cxl_afu *afu)
 	kfree(afu->psl_irq_name);
 }
 
-void afu_irq_name_free(struct cxl_context *ctx)
+static void afu_irq_name_free(struct cxl_context *ctx)
 {
 	struct cxl_irq_name *irq_name, *tmp;
 
@@ -464,7 +464,7 @@ out:
 	return -ENOMEM;
 }
 
-void afu_register_hwirqs(struct cxl_context *ctx)
+static void afu_register_hwirqs(struct cxl_context *ctx)
 {
 	irq_hw_number_t hwirq;
 	struct cxl_irq_name *irq_name;
