@@ -1245,7 +1245,9 @@ try_onemore:
 	f2fs_join_shrinker(sbi);
 
 	/* if there are nt orphan nodes free them */
-	recover_orphan_inodes(sbi);
+	err = recover_orphan_inodes(sbi);
+	if (err)
+		goto free_node_inode;
 
 	/* read root inode and dentry */
 	root = f2fs_iget(sb, F2FS_ROOT_INO(sbi));

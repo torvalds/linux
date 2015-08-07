@@ -468,22 +468,34 @@ void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	__remove_ino_entry(sbi, ino, ORPHAN_INO);
 }
 
-static void recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
+static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 {
-	struct inode *inode = f2fs_iget(sbi->sb, ino);
-	f2fs_bug_on(sbi, IS_ERR(inode));
+	struct inode *inode;
+
+	inode = f2fs_iget(sbi->sb, ino);
+	if (IS_ERR(inode)) {
+		/*
+		 * there should be a bug that we can't find the entry
+		 * to orphan inode.
+		 */
+		f2fs_bug_on(sbi, PTR_ERR(inode) == -ENOENT);
+		return PTR_ERR(inode);
+	}
+
 	clear_nlink(inode);
 
 	/* truncate all the data during iput */
 	iput(inode);
+	return 0;
 }
 
-void recover_orphan_inodes(struct f2fs_sb_info *sbi)
+int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 {
 	block_t start_blk, orphan_blocks, i, j;
+	int err;
 
 	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG))
-		return;
+		return 0;
 
 	set_sbi_flag(sbi, SBI_POR_DOING);
 
@@ -499,14 +511,19 @@ void recover_orphan_inodes(struct f2fs_sb_info *sbi)
 		orphan_blk = (struct f2fs_orphan_block *)page_address(page);
 		for (j = 0; j < le32_to_cpu(orphan_blk->entry_count); j++) {
 			nid_t ino = le32_to_cpu(orphan_blk->ino[j]);
-			recover_orphan_inode(sbi, ino);
+			err = recover_orphan_inode(sbi, ino);
+			if (err) {
+				f2fs_put_page(page, 1);
+				clear_sbi_flag(sbi, SBI_POR_DOING);
+				return err;
+			}
 		}
 		f2fs_put_page(page, 1);
 	}
 	/* clear Orphan Flag */
 	clear_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG);
 	clear_sbi_flag(sbi, SBI_POR_DOING);
-	return;
+	return 0;
 }
 
 static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
