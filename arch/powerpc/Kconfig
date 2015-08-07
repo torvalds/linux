@@ -519,11 +519,6 @@ config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
 
-config PPC_HAS_HASH_64K
-	bool
-	depends on PPC64
-	default n
-
 config STDBINUTILS
 	bool "Using standard binutils settings"
 	depends on 44x
@@ -571,7 +566,6 @@ config PPC_16K_PAGES
 config PPC_64K_PAGES
 	bool "64k page size"
 	depends on !PPC_FSL_BOOK3E && (44x || PPC_STD_MMU_64 || PPC_BOOK3E_64)
-	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
 
 config PPC_256K_PAGES
 	bool "256k page size"
