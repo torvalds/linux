@@ -2091,7 +2091,6 @@ static int tegra_dc_remove(struct platform_device *pdev)
 struct platform_driver tegra_dc_driver = {
 	.driver = {
 		.name = "tegra-dc",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra_dc_of_match,
 	},
 	.probe = tegra_dc_probe,
