@@ -580,7 +580,9 @@ void __init omap3xxx_powerdomains_init(void)
 	if (!cpu_is_omap34xx() && !cpu_is_ti81xx())
 		return;
 
-	pwrdm_register_platform_funcs(&ti81xx_pwrdm_operations);
+	/* Only 81xx needs custom pwrdm_operations */
+	if (!cpu_is_ti81xx())
+		pwrdm_register_platform_funcs(&omap3_pwrdm_operations);;
 
 	rev = omap_rev();
 
@@ -588,9 +590,11 @@ void __init omap3xxx_powerdomains_init(void)
 		pwrdm_register_pwrdms(powerdomains_am35x);
 	} else if (rev == TI8148_REV_ES1_0 || rev == TI8148_REV_ES2_0 ||
 		   rev == TI8148_REV_ES2_1) {
+		pwrdm_register_platform_funcs(&ti81xx_pwrdm_operations);
 		pwrdm_register_pwrdms(powerdomains_ti814x);
 	} else if (rev == TI8168_REV_ES1_0 || rev == TI8168_REV_ES1_1
 			|| rev == TI8168_REV_ES2_0 || rev == TI8168_REV_ES2_1) {
+		pwrdm_register_platform_funcs(&ti81xx_pwrdm_operations);
 		pwrdm_register_pwrdms(powerdomains_ti816x);
 	} else {
 		pwrdm_register_pwrdms(powerdomains_omap3430_common);
