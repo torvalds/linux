@@ -24,6 +24,8 @@
 
 	regulators {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		reg_sd1_vmmc: sd1_vmmc{
 			compatible = "regulator-fixed";
@@ -40,6 +42,26 @@
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
 			gpio = <&gpio5 11 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_usb_otg1_vbus: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "usb_otg1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_usb_otg2_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "usb_otg2_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -344,6 +366,18 @@
 			>;
 		};
 
+		pinctrl_usbotg1_vbus: usbotg1vbusgrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO05__GPIO5_IO5    0x14
+			>;
+		};
+
+		pinctrl_usbotg2_vbus: usbotg2vbusgrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO07__GPIO1_IO7    0x14
+			>;
+		};
+
 		pinctrl_usdhc1_1: usdhc1grp-1 {
 			fsl,pins = <
 				MX7D_PAD_SD1_CMD__SD1_CMD     0x17059
@@ -446,6 +480,16 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};
+
+&usbotg1 {
+	vbus-supply = <&reg_usb_otg1_vbus>;
+	status = "okay";
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usb_otg2_vbus>;
 	status = "okay";
 };
 
