@@ -336,7 +336,7 @@ static void raid1_end_read_request(struct bio *bio, int error)
 		spin_lock_irqsave(&conf->device_lock, flags);
 		if (r1_bio->mddev->degraded == conf->raid_disks ||
 		    (r1_bio->mddev->degraded == conf->raid_disks-1 &&
-		     !test_bit(Faulty, &conf->mirrors[mirror].rdev->flags)))
+		     test_bit(In_sync, &conf->mirrors[mirror].rdev->flags)))
 			uptodate = 1;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
@@ -541,7 +541,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 
 	if ((conf->mddev->recovery_cp < this_sector + sectors) ||
 	    (mddev_is_clustered(conf->mddev) &&
-	    md_cluster_ops->area_resyncing(conf->mddev, this_sector,
+	    md_cluster_ops->area_resyncing(conf->mddev, READ, this_sector,
 		    this_sector + sectors)))
 		choose_first = 1;
 	else
@@ -1111,7 +1111,8 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	    ((bio_end_sector(bio) > mddev->suspend_lo &&
 	    bio->bi_iter.bi_sector < mddev->suspend_hi) ||
 	    (mddev_is_clustered(mddev) &&
-	     md_cluster_ops->area_resyncing(mddev, bio->bi_iter.bi_sector, bio_end_sector(bio))))) {
+	     md_cluster_ops->area_resyncing(mddev, WRITE,
+		     bio->bi_iter.bi_sector, bio_end_sector(bio))))) {
 		/* As the suspend_* range is controlled by
 		 * userspace, we want an interruptible
 		 * wait.
@@ -1124,7 +1125,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 			if (bio_end_sector(bio) <= mddev->suspend_lo ||
 			    bio->bi_iter.bi_sector >= mddev->suspend_hi ||
 			    (mddev_is_clustered(mddev) &&
-			     !md_cluster_ops->area_resyncing(mddev,
+			     !md_cluster_ops->area_resyncing(mddev, WRITE,
 				     bio->bi_iter.bi_sector, bio_end_sector(bio))))
 				break;
 			schedule();

@@ -37,15 +37,30 @@ static inline int should_deliver(const struct net_bridge_port *p,
 
 int br_dev_queue_push_xmit(struct sock *sk, struct sk_buff *skb)
 {
-	if (!is_skb_forwardable(skb->dev, skb)) {
-		kfree_skb(skb);
-	} else {
-		skb_push(skb, ETH_HLEN);
-		br_drop_fake_rtable(skb);
-		skb_sender_cpu_clear(skb);
-		dev_queue_xmit(skb);
+	if (!is_skb_forwardable(skb->dev, skb))
+		goto drop;
+
+	skb_push(skb, ETH_HLEN);
+	br_drop_fake_rtable(skb);
+	skb_sender_cpu_clear(skb);
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    (skb->protocol == htons(ETH_P_8021Q) ||
+	     skb->protocol == htons(ETH_P_8021AD))) {
+		int depth;
+
+		if (!__vlan_get_protocol(skb, skb->protocol, &depth))
+			goto drop;
+
+		skb_set_network_header(skb, depth);
 	}
 
+	dev_queue_xmit(skb);
+
+	return 0;
+
+drop:
+	kfree_skb(skb);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(br_dev_queue_push_xmit);

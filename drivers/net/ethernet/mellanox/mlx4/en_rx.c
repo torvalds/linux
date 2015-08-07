@@ -246,7 +246,6 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 
 static inline bool mlx4_en_is_ring_empty(struct mlx4_en_rx_ring *ring)
 {
-	BUG_ON((u32)(ring->prod - ring->cons) > ring->actual_size);
 	return ring->prod == ring->cons;
 }
 

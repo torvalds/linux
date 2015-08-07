@@ -231,7 +231,7 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		dev_warn(&device->dev, "Failed to change power state to %s\n",
 			 acpi_power_state_string(state));
 	} else {
-		device->power.state = state;
+		device->power.state = target_state;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device [%s] transitioned to %s\n",
 				  device->pnp.bus_id,

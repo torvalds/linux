@@ -15,6 +15,10 @@
 		bootargs = "root=/dev/ram0 console=ttyAMA1,115200n8 earlyprintk";
 	};
 
+	aliases {
+		serial1 = &uart1;
+	};
+
 	src@101e0000 {
 		/* These chrystal drivers are not used on this board */
 		disable-sxtalo;

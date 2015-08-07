@@ -2328,7 +2328,7 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 			desc->txd.callback = last->txd.callback;
 			desc->txd.callback_param = last->txd.callback_param;
 		}
-		last->last = false;
+		desc->last = false;
 
 		dma_cookie_assign(&desc->txd);
 
@@ -2623,6 +2623,7 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 		desc->rqcfg.brst_len = 1;
 
 	desc->rqcfg.brst_len = get_burst_len(desc, len);
+	desc->bytes_requested = len;
 
 	desc->txd.flags = flags;
 

@@ -135,7 +135,7 @@ int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
 	return err;
 }
 
-loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
+static loff_t _nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 {
 	struct inode *inode = file_inode(filep);
 	struct nfs42_seek_args args = {
@@ -170,6 +170,23 @@ loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 
 	return vfs_setpos(filep, res.sr_offset, inode->i_sb->s_maxbytes);
 }
+
+loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
+{
+	struct nfs_server *server = NFS_SERVER(file_inode(filep));
+	struct nfs4_exception exception = { };
+	int err;
+
+	do {
+		err = _nfs42_proc_llseek(filep, offset, whence);
+		if (err == -ENOTSUPP)
+			return -EOPNOTSUPP;
+		err = nfs4_handle_exception(server, err, &exception);
+	} while (exception.retry);
+
+	return err;
+}
+
 
 static void
 nfs42_layoutstat_prepare(struct rpc_task *task, void *calldata)
