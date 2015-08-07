@@ -154,6 +154,9 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	if (h->srcline)
 		hists__new_col_len(hists, HISTC_SRCLINE, strlen(h->srcline));
 
+	if (h->srcfile)
+		hists__new_col_len(hists, HISTC_SRCFILE, strlen(h->srcfile));
+
 	if (h->transaction)
 		hists__new_col_len(hists, HISTC_TRANSACTION,
 				   hist_entry__transaction_len());
@@ -949,6 +952,8 @@ void hist_entry__delete(struct hist_entry *he)
 
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
+	if (he->srcfile && he->srcfile[0])
+		free(he->srcfile);
 	free_callchain(he->callchain);
 	free(he);
 }

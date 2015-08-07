@@ -319,6 +319,57 @@ struct sort_entry sort_srcline = {
 	.se_width_idx	= HISTC_SRCLINE,
 };
 
+/* --sort srcfile */
+
+static char no_srcfile[1];
+
+static char *get_srcfile(struct hist_entry *e)
+{
+	char *sf, *p;
+	struct map *map = e->ms.map;
+
+	sf = get_srcline(map->dso, map__rip_2objdump(map, e->ip),
+			 e->ms.sym, true);
+	p = strchr(sf, ':');
+	if (p && *sf) {
+		*p = 0;
+		return sf;
+	}
+	free(sf);
+	return no_srcfile;
+}
+
+static int64_t
+sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->srcfile) {
+		if (!left->ms.map)
+			left->srcfile = no_srcfile;
+		else
+			left->srcfile = get_srcfile(left);
+	}
+	if (!right->srcfile) {
+		if (!right->ms.map)
+			right->srcfile = no_srcfile;
+		else
+			right->srcfile = get_srcfile(right);
+	}
+	return strcmp(right->srcfile, left->srcfile);
+}
+
+static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->srcfile);
+}
+
+struct sort_entry sort_srcfile = {
+	.se_header	= "Source File",
+	.se_cmp		= sort__srcfile_cmp,
+	.se_snprintf	= hist_entry__srcfile_snprintf,
+	.se_width_idx	= HISTC_SRCFILE,
+};
+
 /* --sort parent */
 
 static int64_t
@@ -1196,6 +1247,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_PARENT, "parent", sort_parent),
 	DIM(SORT_CPU, "cpu", sort_cpu),
 	DIM(SORT_SRCLINE, "srcline", sort_srcline),
+	DIM(SORT_SRCFILE, "srcfile", sort_srcfile),
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
