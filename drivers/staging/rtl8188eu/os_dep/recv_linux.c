@@ -29,11 +29,10 @@
 #include <usb_ops_linux.h>
 
 /* alloc os related resource in struct recv_frame */
-int rtw_os_recv_resource_alloc(struct recv_frame *precvframe)
+void rtw_os_recv_resource_alloc(struct recv_frame *precvframe)
 {
 	precvframe->pkt_newalloc = NULL;
 	precvframe->pkt = NULL;
-	return _SUCCESS;
 }
 
 /* alloc os related resource in struct recv_buf */
