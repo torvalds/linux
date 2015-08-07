@@ -3598,6 +3598,9 @@ static const struct attribute_group *regulator_dev_groups[] = {
 static void regulator_dev_release(struct device *dev)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
+
+	kfree(rdev->constraints);
+	of_node_put(rdev->dev.of_node);
 	kfree(rdev);
 }
 
@@ -3829,9 +3832,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
 	mutex_unlock(&regulator_list_mutex);
-	kfree(rdev->constraints);
 	regulator_ena_gpio_free(rdev);
-	of_node_put(rdev->dev.of_node);
 	device_unregister(&rdev->dev);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
