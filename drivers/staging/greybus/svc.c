@@ -256,7 +256,6 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
 	ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
-	// FIXME May require firmware download
 	intf = gb_interface_create(hd, intf_id);
 	if (!intf) {
 		dev_err(dev, "%s: Failed to create interface with id %hhu\n",
