@@ -60,7 +60,9 @@ enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883, ltm4676 };
 #define LTC3880_ID_MASK			0xff00
 #define LTC3883_ID			0x4300
 #define LTC3883_ID_MASK			0xff00
-#define LTM4676_ID			0x4480	/* datasheet claims 0x440X */
+#define LTM4676_ID			0x4400
+#define LTM4676_ID_2			0x4480
+#define LTM4676A_ID			0x47E0
 #define LTM4676_ID_MASK			0xfff0
 
 #define LTC2974_NUM_PAGES		4
@@ -430,7 +432,9 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltc3880;
 	else if ((chip_id & LTC3883_ID_MASK) == LTC3883_ID)
 		return ltc3883;
-	else if ((chip_id & LTM4676_ID_MASK) == LTM4676_ID)
+	else if ((chip_id & LTM4676_ID_MASK) == LTM4676_ID ||
+		 (chip_id & LTM4676_ID_MASK) == LTM4676_ID_2 ||
+		 (chip_id & LTM4676_ID_MASK) == LTM4676A_ID)
 		return ltm4676;
 
 	dev_err(&client->dev, "Unsupported chip ID 0x%x\n", chip_id);
