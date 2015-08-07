@@ -1769,7 +1769,7 @@ static int sim_probe(struct platform_device *pdev)
 		pr_err("Can't get the MEMORY\n");
 		return -ENOMEM;
 	}
-	sim->ioaddr = devm_request_and_ioremap(&pdev->dev, sim->res);
+	sim->ioaddr = devm_ioremap_resource(&pdev->dev, sim->res);
 	dev_dbg(&pdev->dev, "mapped base address: 0x%08x\n", (u32)sim->ioaddr);
 	if (IS_ERR(sim->ioaddr)) {
 		dev_err(&pdev->dev,
