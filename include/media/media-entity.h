@@ -78,10 +78,12 @@ struct media_link {
 	union {
 		struct media_gobj *gobj0;
 		struct media_pad *source;
+		struct media_interface *intf;
 	};
 	union {
 		struct media_gobj *gobj1;
 		struct media_pad *sink;
+		struct media_entity *entity;
 	};
 	struct media_link *reverse;	/* Link in the reverse direction */
 	unsigned long flags;		/* Link flags (MEDIA_LNK_FL_*) */
@@ -154,6 +156,7 @@ struct media_entity {
  * struct media_intf_devnode - Define a Kernel API interface
  *
  * @graph_obj:		embedded graph object
+ * @links:		List of links pointing to graph entities
  * @type:		Type of the interface as defined at the
  *			uapi/media/media.h header, e. g.
  *			MEDIA_INTF_T_*
@@ -161,6 +164,7 @@ struct media_entity {
  */
 struct media_interface {
 	struct media_gobj		graph_obj;
+	struct list_head		links;
 	u32				type;
 	u32				flags;
 };
@@ -290,6 +294,11 @@ struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
 						u32 major, u32 minor,
 						gfp_t gfp_flags);
 void media_devnode_remove(struct media_intf_devnode *devnode);
+struct media_link *media_create_intf_link(struct media_entity *entity,
+					    struct media_interface *intf,
+					    u32 flags);
+void media_remove_intf_link(struct media_link *link);
+
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\
 	 (entity)->ops->operation((entity) , ##args) : -ENOIOCTLCMD)

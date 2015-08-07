@@ -857,6 +857,7 @@ struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
 
 	intf->type = type;
 	intf->flags = flags;
+	INIT_LIST_HEAD(&intf->links);
 
 	devnode->major = major;
 	devnode->minor = minor;
@@ -874,3 +875,40 @@ void media_devnode_remove(struct media_intf_devnode *devnode)
 	kfree(devnode);
 }
 EXPORT_SYMBOL_GPL(media_devnode_remove);
+
+struct media_link *media_create_intf_link(struct media_entity *entity,
+					    struct media_interface *intf,
+					    u32 flags)
+{
+	struct media_link *link;
+
+	link = media_add_link(&intf->links);
+	if (link == NULL)
+		return NULL;
+
+	link->intf = intf;
+	link->entity = entity;
+	link->flags = flags;
+
+	/* Initialize graph object embedded at the new link */
+	media_gobj_init(intf->graph_obj.mdev, MEDIA_GRAPH_LINK,
+			&link->graph_obj);
+
+	return link;
+}
+EXPORT_SYMBOL_GPL(media_create_intf_link);
+
+
+static void __media_remove_intf_link(struct media_link *link)
+{
+	media_gobj_remove(&link->graph_obj);
+	kfree(link);
+}
+
+void media_remove_intf_link(struct media_link *link)
+{
+	mutex_lock(&link->graph_obj.mdev->graph_mutex);
+	__media_remove_intf_link(link);
+	mutex_unlock(&link->graph_obj.mdev->graph_mutex);
+}
+EXPORT_SYMBOL_GPL(media_remove_intf_link);
