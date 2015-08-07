@@ -574,7 +574,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 			 *  = SUCCESSFUL_STATUSCODE, while mac status is MAC_DISCONNECTED (which means something wrong happened) */
 			u16ConnectStatus = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			linux_wlan_set_bssid(priv->dev, NullBssid);
-			WILC_memset(u8ConnectedSSID, 0, ETH_ALEN);
+			memset(u8ConnectedSSID, 0, ETH_ALEN);
 
 			/*BugID_5457*/
 			/*Invalidate u8WLANChannel value on wlan0 disconnect*/
@@ -640,9 +640,9 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 		u8P2Plocalrandom = 0x01;
 		u8P2Precvrandom = 0x00;
 		bWilc_ie = false;
-		WILC_memset(priv->au8AssociatedBss, 0, ETH_ALEN);
+		memset(priv->au8AssociatedBss, 0, ETH_ALEN);
 		linux_wlan_set_bssid(priv->dev, NullBssid);
-		WILC_memset(u8ConnectedSSID, 0, ETH_ALEN);
+		memset(u8ConnectedSSID, 0, ETH_ALEN);
 
 		/*BugID_5457*/
 		/*Invalidate u8WLANChannel value on wlan0 disconnect*/
@@ -887,8 +887,8 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	priv->WILC_WFI_wep_default = 0;
-	WILC_memset(priv->WILC_WFI_wep_key, 0, sizeof(priv->WILC_WFI_wep_key));
-	WILC_memset(priv->WILC_WFI_wep_key_len, 0, sizeof(priv->WILC_WFI_wep_key_len));
+	memset(priv->WILC_WFI_wep_key, 0, sizeof(priv->WILC_WFI_wep_key));
+	memset(priv->WILC_WFI_wep_key_len, 0, sizeof(priv->WILC_WFI_wep_key_len));
 
 	PRINT_INFO(CFG80211_DBG, "sme->crypto.wpa_versions=%x\n", sme->crypto.wpa_versions);
 	PRINT_INFO(CFG80211_DBG, "sme->crypto.cipher_group=%x\n", sme->crypto.cipher_group);
@@ -1490,7 +1490,7 @@ static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
-		WILC_memset(priv->WILC_WFI_wep_key[key_index], 0, priv->WILC_WFI_wep_key_len[key_index]);
+		memset(priv->WILC_WFI_wep_key[key_index], 0, priv->WILC_WFI_wep_key_len[key_index]);
 		priv->WILC_WFI_wep_key_len[key_index] = 0;
 
 		PRINT_D(CFG80211_DBG, "Removing WEP key with index = %d\n", key_index);
@@ -1950,7 +1950,7 @@ static int WILC_WFI_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 				 ETH_ALEN)) {
 			/*If bssid is found, reset the values*/
 			PRINT_D(CFG80211_DBG, "Reseting PMKID values\n");
-			WILC_memset(&priv->pmkid_list.pmkidlist[i], 0, sizeof(tstrHostIFpmkid));
+			memset(&priv->pmkid_list.pmkidlist[i], 0, sizeof(tstrHostIFpmkid));
 			flag = PMKID_FOUND;
 			break;
 		}
@@ -1989,7 +1989,7 @@ static int  WILC_WFI_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	PRINT_D(CFG80211_DBG,  "Flushing  PMKID key values\n");
 
 	/*Get cashed Pmkids and set all with zeros*/
-	WILC_memset(&priv->pmkid_list, 0, sizeof(tstrHostIFpmkidAttr));
+	memset(&priv->pmkid_list, 0, sizeof(tstrHostIFpmkidAttr));
 
 	return 0;
 }

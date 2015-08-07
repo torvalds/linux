@@ -681,9 +681,9 @@ s32 CoreConfiguratorInit(void)
 		goto _fail_;
 	}
 
-	WILC_memset((void *)gps8ConfigPacket, 0, MAX_PACKET_BUFF_SIZE);
+	memset((void *)gps8ConfigPacket, 0, MAX_PACKET_BUFF_SIZE);
 
-	WILC_memset((void *)(&gstrConfigPktInfo), 0, sizeof(tstrConfigPktInfo));
+	memset((void *)(&gstrConfigPktInfo), 0, sizeof(tstrConfigPktInfo));
 _fail_:
 	return s32Error;
 }
@@ -812,7 +812,7 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 		u32 u32Tsf_Hi;
 
 		pstrNetworkInfo = (tstrNetworkInfo *)WILC_MALLOC(sizeof(tstrNetworkInfo));
-		WILC_memset((void *)(pstrNetworkInfo), 0, sizeof(tstrNetworkInfo));
+		memset((void *)(pstrNetworkInfo), 0, sizeof(tstrNetworkInfo));
 
 		pstrNetworkInfo->s8rssi = pu8WidVal[0];
 
@@ -862,7 +862,7 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 
 		if (u16IEsLen > 0) {
 			pstrNetworkInfo->pu8IEs = (u8 *)WILC_MALLOC(u16IEsLen);
-			WILC_memset((void *)(pstrNetworkInfo->pu8IEs), 0, u16IEsLen);
+			memset((void *)(pstrNetworkInfo->pu8IEs), 0, u16IEsLen);
 
 			WILC_memcpy(pstrNetworkInfo->pu8IEs, pu8IEs, u16IEsLen);
 		}
@@ -929,7 +929,7 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 	u16 u16IEsLen = 0;
 
 	pstrConnectRespInfo = (tstrConnectRespInfo *)WILC_MALLOC(sizeof(tstrConnectRespInfo));
-	WILC_memset((void *)(pstrConnectRespInfo), 0, sizeof(tstrConnectRespInfo));
+	memset((void *)(pstrConnectRespInfo), 0, sizeof(tstrConnectRespInfo));
 
 	/* u16AssocRespLen = pu8Buffer[0]; */
 	u16AssocRespLen = (u16)u32BufferLen;
@@ -949,7 +949,7 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 		u16IEsLen = u16AssocRespLen - (CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN);
 
 		pstrConnectRespInfo->pu8RespIEs = (u8 *)WILC_MALLOC(u16IEsLen);
-		WILC_memset((void *)(pstrConnectRespInfo->pu8RespIEs), 0, u16IEsLen);
+		memset((void *)(pstrConnectRespInfo->pu8RespIEs), 0, u16IEsLen);
 
 		WILC_memcpy(pstrConnectRespInfo->pu8RespIEs, pu8IEs, u16IEsLen);
 		pstrConnectRespInfo->u16RespIEsLen = u16IEsLen;
@@ -1023,7 +1023,7 @@ s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZ
 		WILC_ERRORREPORT(s32Error, WILC_NO_MEM);
 	}
 
-	WILC_memset((void *)(pstrSurveyResults), 0, u32SurveyResultsCount * sizeof(wid_site_survey_reslts_s));
+	memset((void *)(pstrSurveyResults), 0, u32SurveyResultsCount * sizeof(wid_site_survey_reslts_s));
 
 	u32SurveyResultsCount = 0;
 
@@ -1871,7 +1871,7 @@ s32 ConfigWaitResponse(char *pcRespBuffer, s32 s32MaxRespBuffLen, s32 *ps32Bytes
 		*ps32BytesRead = gstrConfigPktInfo.s32BytesRead;
 	}
 
-	WILC_memset((void *)(&gstrConfigPktInfo), 0, sizeof(tstrConfigPktInfo));
+	memset((void *)(&gstrConfigPktInfo), 0, sizeof(tstrConfigPktInfo));
 
 	return s32Error;
 }
