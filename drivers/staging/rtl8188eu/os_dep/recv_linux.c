@@ -39,14 +39,12 @@ void rtw_os_recv_resource_alloc(struct recv_frame *precvframe)
 int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 				  struct recv_buf *precvbuf)
 {
-	int res = _SUCCESS;
-
-	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
-	if (precvbuf->purb == NULL)
-		res = _FAIL;
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
-	return res;
+	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!precvbuf->purb)
+		return _FAIL;
+	return _SUCCESS;
 }
 
 void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
