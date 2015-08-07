@@ -329,13 +329,13 @@ static int crypto_ccm_encrypt(struct aead_request *req)
 
 	sg_init_table(pctx->src, 2);
 	sg_set_buf(pctx->src, odata, 16);
-	scatterwalk_sg_chain(pctx->src, 2, req->src);
+	sg_chain(pctx->src, 2, req->src);
 
 	dst = pctx->src;
 	if (req->src != req->dst) {
 		sg_init_table(pctx->dst, 2);
 		sg_set_buf(pctx->dst, odata, 16);
-		scatterwalk_sg_chain(pctx->dst, 2, req->dst);
+		sg_chain(pctx->dst, 2, req->dst);
 		dst = pctx->dst;
 	}
 
@@ -400,13 +400,13 @@ static int crypto_ccm_decrypt(struct aead_request *req)
 
 	sg_init_table(pctx->src, 2);
 	sg_set_buf(pctx->src, authtag, 16);
-	scatterwalk_sg_chain(pctx->src, 2, req->src);
+	sg_chain(pctx->src, 2, req->src);
 
 	dst = pctx->src;
 	if (req->src != req->dst) {
 		sg_init_table(pctx->dst, 2);
 		sg_set_buf(pctx->dst, authtag, 16);
-		scatterwalk_sg_chain(pctx->dst, 2, req->dst);
+		sg_chain(pctx->dst, 2, req->dst);
 		dst = pctx->dst;
 	}
 

@@ -999,7 +999,7 @@ static int sahara_sha_prepare_request(struct ahash_request *req)
 		sg_init_table(rctx->in_sg_chain, 2);
 		sg_set_buf(rctx->in_sg_chain, rctx->rembuf, rctx->buf_cnt);
 
-		scatterwalk_sg_chain(rctx->in_sg_chain, 2, req->src);
+		sg_chain(rctx->in_sg_chain, 2, req->src);
 
 		rctx->total = req->nbytes + rctx->buf_cnt;
 		rctx->in_sg = rctx->in_sg_chain;
