@@ -4139,9 +4139,16 @@ static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 				      intel_dp->aux.i2c_defer_count);
 		intel_dp->compliance_test_data = INTEL_DP_RESOLUTION_FAILSAFE;
 	} else {
+		struct edid *block = intel_connector->detect_edid;
+
+		/* We have to write the checksum
+		 * of the last block read
+		 */
+		block += intel_connector->detect_edid->extensions;
+
 		if (!drm_dp_dpcd_write(&intel_dp->aux,
 					DP_TEST_EDID_CHECKSUM,
-					&intel_connector->detect_edid->checksum,
+					&block->checksum,
 					1))
 			DRM_DEBUG_KMS("Failed to write EDID checksum\n");
 
