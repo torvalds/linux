@@ -114,24 +114,23 @@ static int apci1564_counter_insn_config(struct comedi_device *dev,
 
 	/* Set the mode */
 	ctrl &= ~(ADDI_TCW_CTRL_EXT_CLK_MASK | ADDI_TCW_CTRL_MODE_MASK |
-		  ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
 		  ADDI_TCW_CTRL_TIMER_ENA | ADDI_TCW_CTRL_RESET_ENA |
-		  ADDI_TCW_CTRL_WARN_ENA | ADDI_TCW_CTRL_ENA);
+		  ADDI_TCW_CTRL_WARN_ENA);
 	ctrl |= ADDI_TCW_CTRL_CNTR_ENA | ADDI_TCW_CTRL_EXT_CLK(data[4]);
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	/* Enable or Disable Interrupt */
-	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
-		  ADDI_TCW_CTRL_IRQ_ENA);
 	if (data[1])
 		ctrl |= ADDI_TCW_CTRL_IRQ_ENA;
+	else
+		ctrl &= ~ADDI_TCW_CTRL_IRQ_ENA;
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	/* Set the Up/Down selection */
-	ctrl &= ~(ADDI_TCW_CTRL_CNT_UP | ADDI_TCW_CTRL_GATE |
-		  ADDI_TCW_CTRL_TRIG);
 	if (data[6])
 		ctrl |= ADDI_TCW_CTRL_CNT_UP;
+	else
+		ctrl &= ~ADDI_TCW_CTRL_CNT_UP;
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	return insn->n;
