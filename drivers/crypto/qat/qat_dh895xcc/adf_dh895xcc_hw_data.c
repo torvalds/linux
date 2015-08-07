@@ -45,6 +45,7 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include <adf_accel_devices.h>
+#include <adf_pf2vf_msg.h>
 #include <adf_common_drv.h>
 #include "adf_dh895xcc_hw_data.h"
 #include "adf_drv.h"
@@ -161,6 +162,16 @@ void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 	}
 }
 
+static uint32_t get_pf2vf_offset(uint32_t i)
+{
+	return ADF_DH895XCC_PF2VF_OFFSET(i);
+}
+
+static uint32_t get_vintmsk_offset(uint32_t i)
+{
+	return ADF_DH895XCC_VINTMSK_OFFSET(i);
+}
+
 static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
@@ -197,9 +208,15 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 
 	/* Enable bundle and misc interrupts */
 	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF0_MASK_OFFSET,
-		   ADF_DH895XCC_SMIA0_MASK);
+		   accel_dev->pf.vf_info ? 0 :
+			GENMASK_ULL(GET_MAX_BANKS(accel_dev) - 1, 0));
 	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF1_MASK_OFFSET,
 		   ADF_DH895XCC_SMIA1_MASK);
+}
+
+static int adf_pf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
+{
+	return 0;
 }
 
 void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
@@ -221,17 +238,22 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
+	hw_data->get_pf2vf_offset = get_pf2vf_offset;
+	hw_data->get_vintmsk_offset = get_vintmsk_offset;
 	hw_data->get_sram_bar_id = get_sram_bar_id;
 	hw_data->get_sku = get_sku;
 	hw_data->fw_name = ADF_DH895XCC_FW;
 	hw_data->fw_mmp_name = ADF_DH895XCC_MMP;
 	hw_data->init_admin_comms = adf_init_admin_comms;
 	hw_data->exit_admin_comms = adf_exit_admin_comms;
+	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->send_admin_init = adf_send_admin_init;
 	hw_data->init_arb = adf_init_arb;
 	hw_data->exit_arb = adf_exit_arb;
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
 	hw_data->enable_ints = adf_enable_ints;
+	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
+	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 }
 
 void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)

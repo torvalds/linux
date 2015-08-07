@@ -103,9 +103,11 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 
 	list_for_each(itr, adf_devmgr_get_head()) {
 		accel_dev = list_entry(itr, struct adf_accel_dev, list);
+
 		if ((node == dev_to_node(&GET_DEV(accel_dev)) ||
 		     dev_to_node(&GET_DEV(accel_dev)) < 0) &&
-		    adf_dev_started(accel_dev))
+		    adf_dev_started(accel_dev) &&
+		    !list_empty(&accel_dev->crypto_list))
 			break;
 		accel_dev = NULL;
 	}

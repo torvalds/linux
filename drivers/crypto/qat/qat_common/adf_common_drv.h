@@ -54,8 +54,8 @@
 #include "icp_qat_hal.h"
 
 #define ADF_MAJOR_VERSION	0
-#define ADF_MINOR_VERSION	1
-#define ADF_BUILD_VERSION	4
+#define ADF_MINOR_VERSION	2
+#define ADF_BUILD_VERSION	0
 #define ADF_DRV_VERSION		__stringify(ADF_MAJOR_VERSION) "." \
 				__stringify(ADF_MINOR_VERSION) "." \
 				__stringify(ADF_BUILD_VERSION)
@@ -95,7 +95,7 @@ struct service_hndl {
 
 static inline int get_current_node(void)
 {
-	return cpu_data(current_thread_info()->cpu).phys_proc_id;
+	return topology_physical_package_id(smp_processor_id());
 }
 
 int adf_service_register(struct service_hndl *service);
@@ -106,13 +106,23 @@ int adf_dev_start(struct adf_accel_dev *accel_dev);
 int adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
+void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
+void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
+int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
+void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
+int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
+void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
+void adf_clean_vf_map(bool);
+
 int adf_ctl_dev_register(void);
 void adf_ctl_dev_unregister(void);
 int adf_processes_dev_register(void);
 void adf_processes_dev_unregister(void);
 
-int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev);
-void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev);
+int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
+		       struct adf_accel_dev *pf);
+void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,
+		       struct adf_accel_dev *pf);
 struct list_head *adf_devmgr_get_head(void);
 struct adf_accel_dev *adf_devmgr_get_dev_by_id(uint32_t id);
 struct adf_accel_dev *adf_devmgr_get_first(void);
@@ -211,4 +221,21 @@ int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,
 			 void *addr_ptr, int mem_size);
 void qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 			void *addr_ptr, int mem_size);
+#if defined(CONFIG_PCI_IOV)
+int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
+void adf_disable_sriov(struct adf_accel_dev *accel_dev);
+void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
+				  uint32_t vf_mask);
+void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
+				 uint32_t vf_mask);
+#else
+static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
+{
+	return 0;
+}
+
+static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
+{
+}
+#endif
 #endif

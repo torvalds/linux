@@ -178,6 +178,9 @@ void adf_cfg_dev_remove(struct adf_accel_dev *accel_dev)
 {
 	struct adf_cfg_device_data *dev_cfg_data = accel_dev->cfg;
 
+	if (!dev_cfg_data)
+		return;
+
 	down_write(&dev_cfg_data->lock);
 	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
 	up_write(&dev_cfg_data->lock);

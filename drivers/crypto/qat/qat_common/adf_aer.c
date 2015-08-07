@@ -91,6 +91,9 @@ static void adf_dev_restore(struct adf_accel_dev *accel_dev)
 	dev_info(&GET_DEV(accel_dev), "Resetting device qat_dev%d\n",
 		 accel_dev->accel_id);
 
+	if (!parent)
+		parent = pdev;
+
 	if (!pci_wait_for_pending_transaction(pdev))
 		dev_info(&GET_DEV(accel_dev),
 			 "Transaction still in progress. Proceeding\n");

@@ -187,6 +187,7 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	}
 
 	hw_data->enable_error_correction(accel_dev);
+	hw_data->enable_vf2pf_comms(accel_dev);
 
 	return 0;
 }
@@ -235,7 +236,8 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	set_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
-	if (qat_algs_register() || qat_asym_algs_register()) {
+	if (!list_empty(&accel_dev->crypto_list) &&
+	    (qat_algs_register() || qat_asym_algs_register())) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to register crypto algs\n");
 		set_bit(ADF_STATUS_STARTING, &accel_dev->status);
@@ -270,11 +272,12 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
-	if (qat_algs_unregister())
+	if (!list_empty(&accel_dev->crypto_list) && qat_algs_unregister())
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to unregister crypto algs\n");
 
-	qat_asym_algs_unregister();
+	if (!list_empty(&accel_dev->crypto_list))
+		qat_asym_algs_unregister();
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
@@ -363,6 +366,7 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 	if (hw_data->exit_admin_comms)
 		hw_data->exit_admin_comms(accel_dev);
 
+	hw_data->disable_iov(accel_dev);
 	adf_cleanup_etr_data(accel_dev);
 }
 EXPORT_SYMBOL_GPL(adf_dev_shutdown);

@@ -60,7 +60,7 @@
 #define ADF_CFG_NO_DEVICE 0xFF
 #define ADF_CFG_AFFINITY_WHATEVER 0xFF
 #define MAX_DEVICE_NAME_SIZE 32
-#define ADF_MAX_DEVICES 32
+#define ADF_MAX_DEVICES (32 * 32)
 
 enum adf_cfg_val_type {
 	ADF_DEC,
@@ -71,6 +71,7 @@ enum adf_cfg_val_type {
 enum adf_device_type {
 	DEV_UNKNOWN = 0,
 	DEV_DH895XCC,
+	DEV_DH895XCCVF,
 };
 
 struct adf_dev_status_info {
