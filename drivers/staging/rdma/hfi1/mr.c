@@ -348,11 +348,16 @@ out:
  *
  * Return the memory region on success, otherwise return an errno.
  */
-struct ib_mr *hfi1_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len)
+struct ib_mr *hfi1_alloc_mr(struct ib_pd *pd,
+			    enum ib_mr_type mr_type,
+			    u32 max_num_sg)
 {
 	struct hfi1_mr *mr;
 
-	mr = alloc_mr(max_page_list_len, pd);
+	if (mr_type != IB_MR_TYPE_MEM_REG)
+		return ERR_PTR(-EINVAL);
+
+	mr = alloc_mr(max_num_sg, pd);
 	if (IS_ERR(mr))
 		return (struct ib_mr *)mr;
 

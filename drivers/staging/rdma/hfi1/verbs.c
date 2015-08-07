@@ -2045,6 +2045,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->reg_phys_mr = hfi1_reg_phys_mr;
 	ibdev->reg_user_mr = hfi1_reg_user_mr;
 	ibdev->dereg_mr = hfi1_dereg_mr;
+	ibdev->alloc_mr = hfi1_alloc_mr;
 	ibdev->alloc_fast_reg_page_list = hfi1_alloc_fast_reg_page_list;
 	ibdev->free_fast_reg_page_list = hfi1_free_fast_reg_page_list;
 	ibdev->alloc_fmr = hfi1_alloc_fmr;
