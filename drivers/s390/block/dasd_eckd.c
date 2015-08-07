@@ -1259,7 +1259,11 @@ static void do_path_verification_work(struct work_struct *work)
 		schedule_work(work);
 		return;
 	}
-
+	/* check if path verification already running and delay if so */
+	if (test_and_set_bit(DASD_FLAG_PATH_VERIFY, &device->flags)) {
+		schedule_work(work);
+		return;
+	}
 	opm = 0;
 	npm = 0;
 	ppm = 0;
@@ -1402,7 +1406,7 @@ static void do_path_verification_work(struct work_struct *work)
 		device->path_data.hpfpm |= hpfpm;
 		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	}
-
+	clear_bit(DASD_FLAG_PATH_VERIFY, &device->flags);
 	dasd_put_device(device);
 	if (data->isglobal)
 		mutex_unlock(&dasd_path_verification_mutex);
