@@ -36,14 +36,6 @@ extern struct rb_root phys_to_mach;
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
-	unsigned long mfn;
-
-	if (phys_to_mach.rb_node != NULL) {
-		mfn = __pfn_to_mfn(pfn);
-		if (mfn != INVALID_P2M_ENTRY)
-			return mfn;
-	}
-
 	return pfn;
 }
 
