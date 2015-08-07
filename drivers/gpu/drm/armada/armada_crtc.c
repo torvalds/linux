@@ -201,6 +201,8 @@ static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
 		work->fn(dcrtc, plane, work);
 		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
 	}
+
+	wake_up(&plane->frame_wait);
 }
 
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
@@ -415,7 +417,6 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 	if (ovl_plane) {
 		struct armada_plane *plane = drm_to_armada_plane(ovl_plane);
 		armada_drm_plane_work_run(dcrtc, plane);
-		wake_up(&plane->frame_wait);
 	}
 
 	if (stat & GRA_FRAME_IRQ && dcrtc->interlaced) {
@@ -449,7 +450,6 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 	if (stat & GRA_FRAME_IRQ) {
 		struct armada_plane *plane = drm_to_armada_plane(dcrtc->crtc.primary);
 		armada_drm_plane_work_run(dcrtc, plane);
-		wake_up(&plane->frame_wait);
 	}
 }
 
