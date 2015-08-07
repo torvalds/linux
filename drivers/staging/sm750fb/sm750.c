@@ -298,17 +298,13 @@ static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
 {
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
-	int ret;
 
 	if (!info)
 		return -EINVAL;
 
-	ret = 0;
 	par = info->par;
 	crtc = &par->crtc;
-	ret = crtc->proc_panDisplay(crtc, var, info);
-
-	return ret;
+	return crtc->proc_panDisplay(crtc, var, info);
 }
 
 static int lynxfb_ops_set_par(struct fb_info *info)
