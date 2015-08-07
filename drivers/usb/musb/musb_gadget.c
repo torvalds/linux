@@ -1703,6 +1703,7 @@ static struct usb_ep *musb_match_ep(struct usb_gadget *g,
 			ep = gadget_find_ep_by_name(g, "ep2out");
 		break;
 	default:
+		break;
 	}
 
 	if (ep && usb_gadget_ep_match_desc(g, ep, desc, ep_comp))
