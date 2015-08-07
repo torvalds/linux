@@ -738,6 +738,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options",
 			    itrace_parse_synth_opts),
+	OPT_BOOLEAN(0, "full-source-path", &srcline_full_filename,
+			"Show full source file name path for source lines"),
 	OPT_END()
 	};
 	struct perf_data_file file = {

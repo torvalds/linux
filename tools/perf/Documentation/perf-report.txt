@@ -354,6 +354,8 @@ OPTIONS
 
 	To disable decoding entirely, use --no-itrace.
 
+--full-source-path::
+	Show the full path for source files for srcline output.
 
 include::callchain-overhead-calculation.txt[]
 

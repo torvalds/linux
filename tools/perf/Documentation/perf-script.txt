@@ -260,6 +260,9 @@ OPTIONS
 
 	To disable decoding entirely, use --no-itrace.
 
+--full-source-path::
+	Show the full path for source files for srcline output.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
