@@ -161,10 +161,6 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 			    struct scatterlist *sgl)
 {
-#ifndef CONFIG_ARCH_HAS_SG_CHAIN
-	BUG();
-#endif
-
 	/*
 	 * offset and length are unused for chain entry.  Clear them.
 	 */
