@@ -147,16 +147,15 @@ static int apci1564_counter_insn_write(struct comedi_device *dev,
 	unsigned int ctrl;
 
 	ctrl = inl(iobase + ADDI_TCW_CTRL_REG);
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
 	switch (data[1]) {
 	case 0:	/* Stops the Counter subdevice */
 		ctrl = 0;
 		break;
 	case 1:	/* Start the Counter subdevice */
-		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
 		ctrl |= ADDI_TCW_CTRL_ENA;
 		break;
 	case 2:	/* Clears the Counter subdevice */
-		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
 		ctrl |= ADDI_TCW_CTRL_GATE;
 		break;
 	}
