@@ -178,10 +178,10 @@ static int apci1564_counter_insn_read(struct comedi_device *dev,
 	data[0] = inl(iobase + ADDI_TCW_VAL_REG);
 
 	status = inl(iobase + ADDI_TCW_STATUS_REG);
-	data[1] = (status >> 1) & 1;	/* software trigger status */
-	data[2] = (status >> 2) & 1;	/* hardware trigger status */
-	data[3] = (status >> 3) & 1;	/* software clear status */
-	data[4] = (status >> 0) & 1;	/* overflow status */
+	data[1] = (status & ADDI_TCW_STATUS_SOFT_TRIG) ? 1 : 0;
+	data[2] = (status & ADDI_TCW_STATUS_HARDWARE_TRIG) ? 1 : 0;
+	data[3] = (status & ADDI_TCW_STATUS_SOFT_CLR) ? 1 : 0;
+	data[4] = (status & ADDI_TCW_STATUS_OVERFLOW) ? 1 : 0;
 
 	return insn->n;
 }
