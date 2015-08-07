@@ -60,13 +60,12 @@ static int apci1564_timer_insn_write(struct comedi_device *dev,
 	unsigned int ctrl;
 
 	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
 	switch (data[1]) {
 	case 0:	/* Stop The Timer */
-		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
-			  ADDI_TCW_CTRL_ENA);
+		ctrl &= ~ADDI_TCW_CTRL_ENA;
 		break;
 	case 1:	/* Enable the Timer */
-		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
 		ctrl |= ADDI_TCW_CTRL_ENA;
 		break;
 	}
