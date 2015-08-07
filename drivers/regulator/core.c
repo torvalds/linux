@@ -1601,13 +1601,14 @@ static void _regulator_put(struct regulator *regulator)
 	if (regulator->dev)
 		sysfs_remove_link(&rdev->dev.kobj, regulator->supply_name);
 	mutex_lock(&rdev->mutex);
-	kfree(regulator->supply_name);
 	list_del(&regulator->list);
-	kfree(regulator);
 
 	rdev->open_count--;
 	rdev->exclusive = 0;
 	mutex_unlock(&rdev->mutex);
+
+	kfree(regulator->supply_name);
+	kfree(regulator);
 
 	module_put(rdev->owner);
 }
