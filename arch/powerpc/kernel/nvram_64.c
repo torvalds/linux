@@ -541,10 +541,9 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 			time->tv_sec = be64_to_cpu(oops_hdr->timestamp);
 			time->tv_nsec = 0;
 		}
-		*buf = kmalloc(length, GFP_KERNEL);
+		*buf = kmemdup(buff + hdr_size, length, GFP_KERNEL);
 		if (*buf == NULL)
 			return -ENOMEM;
-		memcpy(*buf, buff + hdr_size, length);
 		kfree(buff);
 
 		if (err_type == ERR_TYPE_KERNEL_PANIC_GZ)
