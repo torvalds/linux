@@ -116,7 +116,7 @@ static int apci1564_counter_insn_config(struct comedi_device *dev,
 	ctrl &= ~(ADDI_TCW_CTRL_EXT_CLK_MASK | ADDI_TCW_CTRL_MODE_MASK |
 		  ADDI_TCW_CTRL_TIMER_ENA | ADDI_TCW_CTRL_RESET_ENA |
 		  ADDI_TCW_CTRL_WARN_ENA);
-	ctrl |= ADDI_TCW_CTRL_CNTR_ENA | ADDI_TCW_CTRL_EXT_CLK(data[4]);
+	ctrl |= ADDI_TCW_CTRL_CNTR_ENA | ADDI_TCW_CTRL_MODE(data[4]);
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	/* Enable or Disable Interrupt */
