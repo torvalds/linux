@@ -59,6 +59,8 @@ struct disasm_line {
 	char		    *name;
 	struct ins	    *ins;
 	int		    line_nr;
+	float		    ipc;
+	u64		    cycles;
 	struct ins_operands ops;
 };
 
@@ -79,6 +81,17 @@ struct sym_hist {
 	u64		addr[0];
 };
 
+struct cyc_hist {
+	u64	start;
+	u64	cycles;
+	u64	cycles_aggr;
+	u32	num;
+	u32	num_aggr;
+	u8	have_start;
+	/* 1 byte padding */
+	u16	reset;
+};
+
 struct source_line_samples {
 	double		percent;
 	double		percent_sum;
@@ -97,6 +110,7 @@ struct source_line {
  * @histogram: Array of addr hit histograms per event being monitored
  * @lines: If 'print_lines' is specified, per source code line percentages
  * @source: source parsed from a disassembler like objdump -dS
+ * @cyc_hist: Average cycles per basic block
  *
  * lines is allocated, percentages calculated and all sorted by percentage
  * when the annotation is about to be presented, so the percentages are for
@@ -109,6 +123,7 @@ struct annotated_source {
 	struct source_line *lines;
 	int    		   nr_histograms;
 	int    		   sizeof_sym_hist;
+	struct cyc_hist	   *cycles_hist;
 	struct sym_hist	   histograms[0];
 };
 
@@ -129,6 +144,10 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 }
 
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx);
+
+int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
+				    struct addr_map_symbol *start,
+				    unsigned cycles);
 
 int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
 

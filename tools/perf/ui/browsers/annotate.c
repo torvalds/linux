@@ -16,6 +16,9 @@ struct disasm_line_samples {
 	u64		nr;
 };
 
+#define IPC_WIDTH 6
+#define CYCLES_WIDTH 6
+
 struct browser_disasm_line {
 	struct rb_node			rb_node;
 	u32				idx;
@@ -53,6 +56,7 @@ struct annotate_browser {
 	int		    max_jump_sources;
 	int		    nr_jumps;
 	bool		    searching_backwards;
+	bool		    have_cycles;
 	u8		    addr_width;
 	u8		    jumps_width;
 	u8		    target_width;
@@ -96,6 +100,15 @@ static int annotate_browser__set_jumps_percent_color(struct annotate_browser *br
 	 return ui_browser__set_color(&browser->b, color);
 }
 
+static int annotate_browser__pcnt_width(struct annotate_browser *ab)
+{
+	int w = 7 * ab->nr_events;
+
+	if (ab->have_cycles)
+		w += IPC_WIDTH + CYCLES_WIDTH;
+	return w;
+}
+
 static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
@@ -106,7 +119,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			     (!current_entry || (browser->use_navkeypressed &&
 					         !browser->navkeypressed)));
 	int width = browser->width, printed;
-	int i, pcnt_width = 7 * ab->nr_events;
+	int i, pcnt_width = annotate_browser__pcnt_width(ab);
 	double percent_max = 0.0;
 	char bf[256];
 
@@ -116,19 +129,34 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	}
 
 	if (dl->offset != -1 && percent_max != 0.0) {
-		for (i = 0; i < ab->nr_events; i++) {
-			ui_browser__set_percent_color(browser,
-						      bdl->samples[i].percent,
-						      current_entry);
-			if (annotate_browser__opts.show_total_period)
-				slsmg_printf("%6" PRIu64 " ",
-					     bdl->samples[i].nr);
-			else
-				slsmg_printf("%6.2f ", bdl->samples[i].percent);
+		if (percent_max != 0.0) {
+			for (i = 0; i < ab->nr_events; i++) {
+				ui_browser__set_percent_color(browser,
+							bdl->samples[i].percent,
+							current_entry);
+				if (annotate_browser__opts.show_total_period)
+					slsmg_printf("%6" PRIu64 " ",
+						     bdl->samples[i].nr);
+				else
+					slsmg_printf("%6.2f ", bdl->samples[i].percent);
+			}
+		} else {
+			slsmg_write_nstring(" ", 7 * ab->nr_events);
 		}
 	} else {
 		ui_browser__set_percent_color(browser, 0, current_entry);
-		slsmg_write_nstring(" ", pcnt_width);
+		slsmg_write_nstring(" ", 7 * ab->nr_events);
+	}
+	if (ab->have_cycles) {
+		if (dl->ipc)
+			slsmg_printf("%*.2f ", IPC_WIDTH - 1, dl->ipc);
+		else
+			slsmg_write_nstring(" ", IPC_WIDTH);
+		if (dl->cycles)
+			slsmg_printf("%*" PRIu64 " ",
+				     CYCLES_WIDTH - 1, dl->cycles);
+		else
+			slsmg_write_nstring(" ", CYCLES_WIDTH);
 	}
 
 	SLsmg_write_char(' ');
@@ -231,7 +259,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	unsigned int from, to;
 	struct map_symbol *ms = ab->b.priv;
 	struct symbol *sym = ms->sym;
-	u8 pcnt_width = 7;
+	u8 pcnt_width = annotate_browser__pcnt_width(ab);
 
 	/* PLT symbols contain external offsets */
 	if (strstr(sym->name, "@plt"))
@@ -255,8 +283,6 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 		to = (u64)btarget->idx;
 	}
 
-	pcnt_width *= ab->nr_events;
-
 	ui_browser__set_color(browser, HE_COLORSET_CODE);
 	__ui_browser__line_arrow(browser, pcnt_width + 2 + ab->addr_width,
 				 from, to);
@@ -266,9 +292,7 @@ static unsigned int annotate_browser__refresh(struct ui_browser *browser)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	int ret = ui_browser__list_head_refresh(browser);
-	int pcnt_width;
-
-	pcnt_width = 7 * ab->nr_events;
+	int pcnt_width = annotate_browser__pcnt_width(ab);
 
 	if (annotate_browser__opts.jump_arrows)
 		annotate_browser__draw_current_jump(browser);
@@ -390,7 +414,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 				max_percent = bpos->samples[i].percent;
 		}
 
-		if (max_percent < 0.01) {
+		if (max_percent < 0.01 && pos->ipc == 0) {
 			RB_CLEAR_NODE(&bpos->rb_node);
 			continue;
 		}
@@ -869,6 +893,75 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
 }
 
+
+static unsigned count_insn(struct annotate_browser *browser, u64 start, u64 end)
+{
+	unsigned n_insn = 0;
+	u64 offset;
+
+	for (offset = start; offset <= end; offset++) {
+		if (browser->offsets[offset])
+			n_insn++;
+	}
+	return n_insn;
+}
+
+static void count_and_fill(struct annotate_browser *browser, u64 start, u64 end,
+			   struct cyc_hist *ch)
+{
+	unsigned n_insn;
+	u64 offset;
+
+	n_insn = count_insn(browser, start, end);
+	if (n_insn && ch->num && ch->cycles) {
+		float ipc = n_insn / ((double)ch->cycles / (double)ch->num);
+
+		/* Hide data when there are too many overlaps. */
+		if (ch->reset >= 0x7fff || ch->reset >= ch->num / 2)
+			return;
+
+		for (offset = start; offset <= end; offset++) {
+			struct disasm_line *dl = browser->offsets[offset];
+
+			if (dl)
+				dl->ipc = ipc;
+		}
+	}
+}
+
+/*
+ * This should probably be in util/annotate.c to share with the tty
+ * annotate, but right now we need the per byte offsets arrays,
+ * which are only here.
+ */
+static void annotate__compute_ipc(struct annotate_browser *browser, size_t size,
+			   struct symbol *sym)
+{
+	u64 offset;
+	struct annotation *notes = symbol__annotation(sym);
+
+	if (!notes->src || !notes->src->cycles_hist)
+		return;
+
+	pthread_mutex_lock(&notes->lock);
+	for (offset = 0; offset < size; ++offset) {
+		struct cyc_hist *ch;
+
+		ch = &notes->src->cycles_hist[offset];
+		if (ch && ch->cycles) {
+			struct disasm_line *dl;
+
+			if (ch->have_start)
+				count_and_fill(browser, ch->start, offset, ch);
+			dl = browser->offsets[offset];
+			if (dl && ch->num_aggr)
+				dl->cycles = ch->cycles_aggr / ch->num_aggr;
+			browser->have_cycles = true;
+		}
+	}
+	pthread_mutex_unlock(&notes->lock);
+}
+
 static void annotate_browser__mark_jump_targets(struct annotate_browser *browser,
 						size_t size)
 {
@@ -991,6 +1084,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	}
 
 	annotate_browser__mark_jump_targets(&browser, size);
+	annotate__compute_ipc(&browser, size, sym);
 
 	browser.addr_width = browser.target_width = browser.min_addr_width = hex_width(size);
 	browser.max_addr_width = hex_width(sym->end);

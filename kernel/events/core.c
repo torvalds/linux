@@ -6846,8 +6846,8 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 	if (event->tp_event->prog)
 		return -EEXIST;
 
-	if (!(event->tp_event->flags & TRACE_EVENT_FL_KPROBE))
-		/* bpf programs can only be attached to kprobes */
+	if (!(event->tp_event->flags & TRACE_EVENT_FL_UKPROBE))
+		/* bpf programs can only be attached to u/kprobes */
 		return -EINVAL;
 
 	prog = bpf_prog_get(prog_fd);

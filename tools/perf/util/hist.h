@@ -47,6 +47,7 @@ enum hist_column {
 	HISTC_MEM_SNOOP,
 	HISTC_MEM_DCACHELINE,
 	HISTC_TRANSACTION,
+	HISTC_CYCLES,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -348,6 +349,9 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 #endif
 
 unsigned int hists__sort_list_width(struct hists *hists);
+
+void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
+			  struct perf_sample *sample, bool nonany_branch_mode);
 
 struct option;
 int parse_filter_percentage(const struct option *opt __maybe_unused,

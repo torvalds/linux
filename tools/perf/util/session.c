@@ -784,10 +784,18 @@ static void branch_stack__printf(struct perf_sample *sample)
 
 	printf("... branch stack: nr:%" PRIu64 "\n", sample->branch_stack->nr);
 
-	for (i = 0; i < sample->branch_stack->nr; i++)
-		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 "\n",
-			i, sample->branch_stack->entries[i].from,
-			sample->branch_stack->entries[i].to);
+	for (i = 0; i < sample->branch_stack->nr; i++) {
+		struct branch_entry *e = &sample->branch_stack->entries[i];
+
+		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
+			i, e->from, e->to,
+			e->flags.cycles,
+			e->flags.mispred ? "M" : " ",
+			e->flags.predicted ? "P" : " ",
+			e->flags.abort ? "A" : " ",
+			e->flags.in_tx ? "T" : " ",
+			(unsigned)e->flags.reserved);
+	}
 }
 
 static void regs_dump__printf(u64 mask, u64 *regs)
