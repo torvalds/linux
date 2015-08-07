@@ -50,10 +50,14 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
-#include <adf_accel_devices.h>
-#include "adf_drv.h"
-#include "adf_dh895xcc_hw_data.h"
+#include "adf_accel_devices.h"
+#include "icp_qat_fw_init_admin.h"
 
+/* Admin Messages Registers */
+#define ADF_DH895XCC_ADMINMSGUR_OFFSET (0x3A000 + 0x574)
+#define ADF_DH895XCC_ADMINMSGLR_OFFSET (0x3A000 + 0x578)
+#define ADF_DH895XCC_MAILBOX_BASE_OFFSET 0x20970
+#define ADF_DH895XCC_MAILBOX_STRIDE 0x1000
 #define ADF_ADMINMSG_LEN 32
 
 struct adf_admin_comms {
@@ -63,8 +67,8 @@ struct adf_admin_comms {
 	struct mutex lock;	/* protects adf_admin_comms struct */
 };
 
-int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev,
-			   uint32_t ae, void *in, void *out)
+static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
+				  void *in, void *out)
 {
 	struct adf_admin_comms *admin = accel_dev->admin;
 	int offset = ae * ADF_ADMINMSG_LEN * 2;
@@ -100,13 +104,47 @@ int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev,
 	return received ? 0 : -EFAULT;
 }
 
+static int adf_send_admin_cmd(struct adf_accel_dev *accel_dev, int cmd)
+{
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+	struct icp_qat_fw_init_admin_req req;
+	struct icp_qat_fw_init_admin_resp resp;
+	int i;
+
+	memset(&req, 0, sizeof(struct icp_qat_fw_init_admin_req));
+	req.init_admin_cmd_id = cmd;
+	for (i = 0; i < hw_device->get_num_aes(hw_device); i++) {
+		memset(&resp, 0, sizeof(struct icp_qat_fw_init_admin_resp));
+		if (adf_put_admin_msg_sync(accel_dev, i, &req, &resp) ||
+		    resp.init_resp_hdr.status)
+			return -EFAULT;
+	}
+	return 0;
+}
+
+/**
+ * adf_send_admin_init() - Function sends init message to FW
+ * @accel_dev: Pointer to acceleration device.
+ *
+ * Function sends admin init message to the FW
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_send_admin_init(struct adf_accel_dev *accel_dev)
+{
+	return adf_send_admin_cmd(accel_dev, ICP_QAT_FW_INIT_ME);
+}
+EXPORT_SYMBOL_GPL(adf_send_admin_init);
+
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 {
 	struct adf_admin_comms *admin;
-	struct adf_bar *pmisc = &GET_BARS(accel_dev)[ADF_DH895XCC_PMISC_BAR];
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_bar *pmisc =
+		&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *csr = pmisc->virt_addr;
 	void __iomem *mailbox = csr + ADF_DH895XCC_MAILBOX_BASE_OFFSET;
-	uint64_t reg_val;
+	u64 reg_val;
 
 	admin = kzalloc_node(sizeof(*accel_dev->admin), GFP_KERNEL,
 			     dev_to_node(&GET_DEV(accel_dev)));
@@ -119,7 +157,7 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 		kfree(admin);
 		return -ENOMEM;
 	}
-	reg_val = (uint64_t)admin->phy_addr;
+	reg_val = (u64)admin->phy_addr;
 	ADF_CSR_WR(csr, ADF_DH895XCC_ADMINMSGUR_OFFSET, reg_val >> 32);
 	ADF_CSR_WR(csr, ADF_DH895XCC_ADMINMSGLR_OFFSET, reg_val);
 	mutex_init(&admin->lock);
@@ -127,6 +165,7 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	accel_dev->admin = admin;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(adf_init_admin_comms);
 
 void adf_exit_admin_comms(struct adf_accel_dev *accel_dev)
 {
@@ -143,3 +182,4 @@ void adf_exit_admin_comms(struct adf_accel_dev *accel_dev)
 	kfree(admin);
 	accel_dev->admin = NULL;
 }
+EXPORT_SYMBOL_GPL(adf_exit_admin_comms);

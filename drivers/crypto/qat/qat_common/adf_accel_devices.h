@@ -141,15 +141,16 @@ struct adf_hw_device_data {
 	uint32_t (*get_num_aes)(struct adf_hw_device_data *self);
 	uint32_t (*get_num_accels)(struct adf_hw_device_data *self);
 	enum dev_sku_info (*get_sku)(struct adf_hw_device_data *self);
-	void (*hw_arb_ring_enable)(struct adf_etr_ring_data *ring);
-	void (*hw_arb_ring_disable)(struct adf_etr_ring_data *ring);
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);
 	void (*enable_error_correction)(struct adf_accel_dev *accel_dev);
 	int (*init_admin_comms)(struct adf_accel_dev *accel_dev);
 	void (*exit_admin_comms)(struct adf_accel_dev *accel_dev);
+	int (*send_admin_init)(struct adf_accel_dev *accel_dev);
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
+	void (*get_arb_mapping)(struct adf_accel_dev *accel_dev,
+				const uint32_t **cfg);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
 	const char *fw_mmp_name;

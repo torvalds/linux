@@ -285,7 +285,7 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 		goto err;
 
 	/* Enable HW arbitration for the given ring */
-	accel_dev->hw_device->hw_arb_ring_enable(ring);
+	adf_update_ring_arb(ring);
 
 	if (adf_ring_debugfs_add(ring, ring_name)) {
 		dev_err(&GET_DEV(accel_dev),
@@ -302,14 +302,13 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 err:
 	adf_cleanup_ring(ring);
 	adf_unreserve_ring(bank, ring_num);
-	accel_dev->hw_device->hw_arb_ring_disable(ring);
+	adf_update_ring_arb(ring);
 	return ret;
 }
 
 void adf_remove_ring(struct adf_etr_ring_data *ring)
 {
 	struct adf_etr_bank_data *bank = ring->bank;
-	struct adf_accel_dev *accel_dev = bank->accel_dev;
 
 	/* Disable interrupts for the given ring */
 	adf_disable_ring_irq(bank, ring->ring_number);
@@ -322,7 +321,7 @@ void adf_remove_ring(struct adf_etr_ring_data *ring)
 	adf_ring_debugfs_rm(ring);
 	adf_unreserve_ring(bank, ring->ring_number);
 	/* Disable HW arbitration for the given ring */
-	accel_dev->hw_device->hw_arb_ring_disable(ring);
+	adf_update_ring_arb(ring);
 	adf_cleanup_ring(ring);
 }
 

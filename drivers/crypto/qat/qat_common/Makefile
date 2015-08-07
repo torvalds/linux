@@ -9,6 +9,8 @@ intel_qat-objs := adf_cfg.o \
 	adf_accel_engine.o \
 	adf_aer.o \
 	adf_transport.o \
+	adf_admin.o \
+	adf_hw_arbiter.o \
 	qat_crypto.o \
 	qat_algs.o \
 	qat_rsakey-asn1.o \

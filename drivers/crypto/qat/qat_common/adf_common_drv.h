@@ -91,7 +91,6 @@ struct service_hndl {
 	unsigned long start_status;
 	char *name;
 	struct list_head list;
-	int admin;
 };
 
 static inline int get_current_node(void)
@@ -135,6 +134,12 @@ int adf_enable_aer(struct adf_accel_dev *accel_dev, struct pci_driver *adf);
 void adf_disable_aer(struct adf_accel_dev *accel_dev);
 int adf_init_aer(void);
 void adf_exit_aer(void);
+int adf_init_admin_comms(struct adf_accel_dev *accel_dev);
+void adf_exit_admin_comms(struct adf_accel_dev *accel_dev);
+int adf_send_admin_init(struct adf_accel_dev *accel_dev);
+int adf_init_arb(struct adf_accel_dev *accel_dev);
+void adf_exit_arb(struct adf_accel_dev *accel_dev);
+void adf_update_ring_arb(struct adf_etr_ring_data *ring);
 
 int adf_dev_get(struct adf_accel_dev *accel_dev);
 void adf_dev_put(struct adf_accel_dev *accel_dev);

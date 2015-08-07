@@ -44,9 +44,8 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include <adf_accel_devices.h>
-#include <adf_transport_internal.h>
-#include "adf_drv.h"
+#include "adf_accel_devices.h"
+#include "adf_transport_internal.h"
 
 #define ADF_ARB_NUM 4
 #define ADF_ARB_REQ_RING_NUM 8
@@ -58,7 +57,6 @@
 #define ADF_ARB_RO_EN_OFFSET 0x090
 #define ADF_ARB_WQCFG_OFFSET 0x100
 #define ADF_ARB_WRK_2_SER_MAP_OFFSET 0x180
-#define ADF_ARB_WRK_2_SER_MAP 10
 #define ADF_ARB_RINGSRVARBEN_OFFSET 0x19C
 
 #define WRITE_CSR_ARB_RINGSRVARBEN(csr_addr, index, value) \
@@ -89,10 +87,11 @@
 
 int adf_init_arb(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	void __iomem *csr = accel_dev->transport->banks[0].csr_addr;
-	uint32_t arb_cfg = 0x1 << 31 | 0x4 << 4 | 0x1;
-	uint32_t arb, i;
-	const uint32_t *thd_2_arb_cfg;
+	u32 arb_cfg = 0x1 << 31 | 0x4 << 4 | 0x1;
+	u32 arb, i;
+	const u32 *thd_2_arb_cfg;
 
 	/* Service arb configured for 32 bytes responses and
 	 * ring flow control check enabled. */
@@ -109,30 +108,39 @@ int adf_init_arb(struct adf_accel_dev *accel_dev)
 		WRITE_CSR_ARB_RESPORDERING(csr, i, 0xFFFFFFFF);
 
 	/* Setup worker queue registers */
-	for (i = 0; i < ADF_ARB_WRK_2_SER_MAP; i++)
+	for (i = 0; i < hw_data->num_engines; i++)
 		WRITE_CSR_ARB_WQCFG(csr, i, i);
 
 	/* Map worker threads to service arbiters */
-	adf_get_arbiter_mapping(accel_dev, &thd_2_arb_cfg);
+	hw_data->get_arb_mapping(accel_dev, &thd_2_arb_cfg);
 
 	if (!thd_2_arb_cfg)
 		return -EFAULT;
 
-	for (i = 0; i < ADF_ARB_WRK_2_SER_MAP; i++)
+	for (i = 0; i < hw_data->num_engines; i++)
 		WRITE_CSR_ARB_WRK_2_SER_MAP(csr, i, *(thd_2_arb_cfg + i));
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(adf_init_arb);
 
-void adf_update_ring_arb_enable(struct adf_etr_ring_data *ring)
+/**
+ * adf_update_ring_arb() - update ring arbitration rgister
+ * @accel_dev:  Pointer to ring data.
+ *
+ * Function enables or disables rings for/from arbitration.
+ */
+void adf_update_ring_arb(struct adf_etr_ring_data *ring)
 {
 	WRITE_CSR_ARB_RINGSRVARBEN(ring->bank->csr_addr,
 				   ring->bank->bank_number,
 				   ring->bank->ring_mask & 0xFF);
 }
+EXPORT_SYMBOL_GPL(adf_update_ring_arb);
 
 void adf_exit_arb(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	void __iomem *csr;
 	unsigned int i;
 
@@ -146,14 +154,15 @@ void adf_exit_arb(struct adf_accel_dev *accel_dev)
 		WRITE_CSR_ARB_SARCONFIG(csr, i, 0);
 
 	/* Shutdown work queue */
-	for (i = 0; i < ADF_ARB_WRK_2_SER_MAP; i++)
+	for (i = 0; i < hw_data->num_engines; i++)
 		WRITE_CSR_ARB_WQCFG(csr, i, 0);
 
 	/* Unmap worker threads to service arbiters */
-	for (i = 0; i < ADF_ARB_WRK_2_SER_MAP; i++)
+	for (i = 0; i < hw_data->num_engines; i++)
 		WRITE_CSR_ARB_WRK_2_SER_MAP(csr, i, 0);
 
 	/* Disable arbitration on all rings */
 	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++)
 		WRITE_CSR_ARB_RINGSRVARBEN(csr, i, 0);
 }
+EXPORT_SYMBOL_GPL(adf_exit_arb);

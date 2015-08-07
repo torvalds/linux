@@ -177,20 +177,6 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	 */
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (!service->admin)
-			continue;
-		if (service->event_hld(accel_dev, ADF_EVENT_INIT)) {
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to initialise service %s\n",
-				service->name);
-			return -EFAULT;
-		}
-		set_bit(accel_dev->accel_id, &service->init_status);
-	}
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
-		if (service->admin)
-			continue;
 		if (service->event_hld(accel_dev, ADF_EVENT_INIT)) {
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to initialise service %s\n",
@@ -218,6 +204,7 @@ EXPORT_SYMBOL_GPL(adf_dev_init);
  */
 int adf_dev_start(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
 
@@ -229,22 +216,13 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 	}
 	set_bit(ADF_STATUS_AE_STARTED, &accel_dev->status);
 
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
-		if (!service->admin)
-			continue;
-		if (service->event_hld(accel_dev, ADF_EVENT_START)) {
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to start service %s\n",
-				service->name);
-			return -EFAULT;
-		}
-		set_bit(accel_dev->accel_id, &service->start_status);
+	if (hw_data->send_admin_init(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed to send init message\n");
+		return -EFAULT;
 	}
+
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (service->admin)
-			continue;
 		if (service->event_hld(accel_dev, ADF_EVENT_START)) {
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to start service %s\n",
@@ -300,8 +278,6 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (service->admin)
-			continue;
 		if (!test_bit(accel_dev->accel_id, &service->start_status))
 			continue;
 		ret = service->event_hld(accel_dev, ADF_EVENT_STOP);
@@ -311,19 +287,6 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 			wait = true;
 			clear_bit(accel_dev->accel_id, &service->start_status);
 		}
-	}
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
-		if (!service->admin)
-			continue;
-		if (!test_bit(accel_dev->accel_id, &service->start_status))
-			continue;
-		if (service->event_hld(accel_dev, ADF_EVENT_STOP))
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to shutdown service %s\n",
-				service->name);
-		else
-			clear_bit(accel_dev->accel_id, &service->start_status);
 	}
 
 	if (wait)
@@ -375,21 +338,6 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (service->admin)
-			continue;
-		if (!test_bit(accel_dev->accel_id, &service->init_status))
-			continue;
-		if (service->event_hld(accel_dev, ADF_EVENT_SHUTDOWN))
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to shutdown service %s\n",
-				service->name);
-		else
-			clear_bit(accel_dev->accel_id, &service->init_status);
-	}
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
-		if (!service->admin)
-			continue;
 		if (!test_bit(accel_dev->accel_id, &service->init_status))
 			continue;
 		if (service->event_hld(accel_dev, ADF_EVENT_SHUTDOWN))
@@ -426,17 +374,6 @@ int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev)
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (service->admin)
-			continue;
-		if (service->event_hld(accel_dev, ADF_EVENT_RESTARTING))
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to restart service %s.\n",
-				service->name);
-	}
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
-		if (!service->admin)
-			continue;
 		if (service->event_hld(accel_dev, ADF_EVENT_RESTARTING))
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to restart service %s.\n",
@@ -452,17 +389,6 @@ int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev)
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
-		if (service->admin)
-			continue;
-		if (service->event_hld(accel_dev, ADF_EVENT_RESTARTED))
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to restart service %s.\n",
-				service->name);
-	}
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
-		if (!service->admin)
-			continue;
 		if (service->event_hld(accel_dev, ADF_EVENT_RESTARTED))
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to restart service %s.\n",

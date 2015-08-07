@@ -386,8 +386,6 @@ static void adf_remove(struct pci_dev *pdev)
 static int __init adfdrv_init(void)
 {
 	request_module("intel_qat");
-	if (qat_admin_register())
-		return -EFAULT;
 
 	if (pci_register_driver(&adf_driver)) {
 		pr_err("QAT: Driver initialization failed\n");
@@ -399,7 +397,6 @@ static int __init adfdrv_init(void)
 static void __exit adfdrv_release(void)
 {
 	pci_unregister_driver(&adf_driver);
-	qat_admin_unregister();
 }
 
 module_init(adfdrv_init);

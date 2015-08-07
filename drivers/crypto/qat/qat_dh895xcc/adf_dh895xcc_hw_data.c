@@ -45,8 +45,8 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include <adf_accel_devices.h>
+#include <adf_common_drv.h>
 #include "adf_dh895xcc_hw_data.h"
-#include "adf_common_drv.h"
 #include "adf_drv.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
@@ -215,8 +215,6 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->alloc_irq = adf_isr_resource_alloc;
 	hw_data->free_irq = adf_isr_resource_free;
 	hw_data->enable_error_correction = adf_enable_error_correction;
-	hw_data->hw_arb_ring_enable = adf_update_ring_arb_enable;
-	hw_data->hw_arb_ring_disable = adf_update_ring_arb_enable;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
 	hw_data->get_num_accels = get_num_accels;
@@ -229,8 +227,10 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->fw_mmp_name = ADF_DH895XCC_MMP;
 	hw_data->init_admin_comms = adf_init_admin_comms;
 	hw_data->exit_admin_comms = adf_exit_admin_comms;
+	hw_data->send_admin_init = adf_send_admin_init;
 	hw_data->init_arb = adf_init_arb;
 	hw_data->exit_arb = adf_exit_arb;
+	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
 	hw_data->enable_ints = adf_enable_ints;
 }
 
