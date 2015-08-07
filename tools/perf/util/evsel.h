@@ -9,7 +9,7 @@
 #include "xyarray.h"
 #include "symbol.h"
 #include "cpumap.h"
-#include "stat.h"
+#include "counts.h"
 
 struct perf_evsel;
 

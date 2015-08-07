@@ -58,6 +58,7 @@
 #include "util/cpumap.h"
 #include "util/thread.h"
 #include "util/thread_map.h"
+#include "util/counts.h"
 
 #include <stdlib.h>
 #include <sys/prctl.h>
