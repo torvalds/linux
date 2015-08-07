@@ -842,7 +842,7 @@ static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-static void mxs_auart_reset(struct uart_port *u)
+static void mxs_auart_reset_deassert(struct uart_port *u)
 {
 	int i;
 	unsigned int reg;
@@ -1291,7 +1291,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 	auart_port[s->port.line] = s;
 
-	mxs_auart_reset(&s->port);
+	mxs_auart_reset_deassert(&s->port);
 
 	ret = uart_add_one_port(&auart_driver, &s->port);
 	if (ret)
