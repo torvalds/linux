@@ -808,14 +808,6 @@ static int __init add_huge_page_size(unsigned long long size)
 	if ((mmu_psize = shift_to_mmu_psize(shift)) < 0)
 		return -EINVAL;
 
-#ifdef CONFIG_SPU_FS_64K_LS
-	/* Disable support for 64K huge pages when 64K SPU local store
-	 * support is enabled as the current implementation conflicts.
-	 */
-	if (shift == PAGE_SHIFT_64K)
-		return -EINVAL;
-#endif /* CONFIG_SPU_FS_64K_LS */
-
 	BUG_ON(mmu_psize_defs[mmu_psize].shift != shift);
 
 	/* Return if huge page size has already been setup */
