@@ -1030,6 +1030,7 @@ static int should_defrag_range(struct inode *inode, u64 start, u32 thresh,
 	struct extent_map *em;
 	int ret = 1;
 	bool next_mergeable = true;
+	bool prev_mergeable = true;
 
 	/*
 	 * make sure that once we start defragging an extent, we keep on
@@ -1050,13 +1051,16 @@ static int should_defrag_range(struct inode *inode, u64 start, u32 thresh,
 		goto out;
 	}
 
+	if (!*defrag_end)
+		prev_mergeable = false;
+
 	next_mergeable = defrag_check_next_extent(inode, em);
 	/*
 	 * we hit a real extent, if it is big or the next extent is not a
 	 * real extent, don't bother defragging it
 	 */
 	if (!compress && (*last_len == 0 || *last_len >= thresh) &&
-	    (em->len >= thresh || !next_mergeable))
+	    (em->len >= thresh || (!next_mergeable && !prev_mergeable)))
 		ret = 0;
 out:
 	/*
