@@ -81,12 +81,6 @@
 #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET + PAGE_OFFSET))
 
 /*
- * Convert a physical address to a Page Frame Number and back
- */
-#define	__phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
-#define	__pfn_to_phys(pfn)	((phys_addr_t)(pfn) << PAGE_SHIFT)
-
-/*
  * Convert a page to/from a physical address
  */
 #define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
