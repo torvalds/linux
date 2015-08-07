@@ -513,7 +513,7 @@ static int platform_drv_probe(struct device *_dev)
 		return ret;
 
 	ret = dev_pm_domain_attach(_dev, true);
-	if (ret != -EPROBE_DEFER) {
+	if (ret != -EPROBE_DEFER && drv->probe) {
 		ret = drv->probe(dev);
 		if (ret)
 			dev_pm_domain_detach(_dev, true);
@@ -536,9 +536,10 @@ static int platform_drv_remove(struct device *_dev)
 {
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
-	int ret;
+	int ret = 0;
 
-	ret = drv->remove(dev);
+	if (drv->remove)
+		ret = drv->remove(dev);
 	dev_pm_domain_detach(_dev, true);
 
 	return ret;
@@ -549,7 +550,8 @@ static void platform_drv_shutdown(struct device *_dev)
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
 
-	drv->shutdown(dev);
+	if (drv->shutdown)
+		drv->shutdown(dev);
 	dev_pm_domain_detach(_dev, true);
 }
 
@@ -563,12 +565,9 @@ int __platform_driver_register(struct platform_driver *drv,
 {
 	drv->driver.owner = owner;
 	drv->driver.bus = &platform_bus_type;
-	if (drv->probe)
-		drv->driver.probe = platform_drv_probe;
-	if (drv->remove)
-		drv->driver.remove = platform_drv_remove;
-	if (drv->shutdown)
-		drv->driver.shutdown = platform_drv_shutdown;
+	drv->driver.probe = platform_drv_probe;
+	drv->driver.remove = platform_drv_remove;
+	drv->driver.shutdown = platform_drv_shutdown;
 
 	return driver_register(&drv->driver);
 }
