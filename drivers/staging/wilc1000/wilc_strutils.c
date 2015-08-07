@@ -4,15 +4,6 @@
 #include "wilc_strutils.h"
 
 
-/*!
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-s32 WILC_memcmp(const void *pvArg1, const void *pvArg2, u32 u32Count)
-{
-	return memcmp(pvArg1, pvArg2, u32Count);
-}
 
 
 /*!

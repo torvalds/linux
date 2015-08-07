@@ -14,19 +14,6 @@
 #include <linux/string.h>
 #include "wilc_errorsupport.h"
 
-/*!
- *  @brief	Compares two memory buffers
- *  @param[in]	pvArg1 pointer to the first memory location
- *  @param[in]	pvArg2 pointer to the second memory location
- *  @param[in]	u32Count the size of the memory buffers
- *  @return	0 if the 2 buffers are equal, 1 if pvArg1 is bigger than pvArg2,
- *              -1 if pvArg1 smaller than pvArg2
- *  @note	this function repeats the functionality of standard memcmp
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-s32 WILC_memcmp(const void *pvArg1, const void *pvArg2, u32 u32Count);
 
 /*!
  *  @brief	Internal implementation for memory copy
