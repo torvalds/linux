@@ -166,14 +166,6 @@ struct recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 	return precvframe;
 }
 
-void rtw_init_recvframe(struct recv_frame *precvframe, struct recv_priv *precvpriv)
-{
-	/* Perry: This can be removed */
-	INIT_LIST_HEAD(&precvframe->list);
-
-	precvframe->len = 0;
-}
-
 int rtw_free_recvframe(struct recv_frame *precvframe,
 		       struct __queue *pfree_recv_queue)
 {
