@@ -832,12 +832,12 @@ static int soc_tplg_denum_create_values(struct soc_enum *se,
 	if (ec->items > sizeof(*ec->values))
 		return -EINVAL;
 
-	se->dobj.control.dvalues =
-		kmalloc(ec->items * sizeof(u32), GFP_KERNEL);
+	se->dobj.control.dvalues = kmemdup(ec->values,
+					   ec->items * sizeof(u32),
+					   GFP_KERNEL);
 	if (!se->dobj.control.dvalues)
 		return -ENOMEM;
 
-	memcpy(se->dobj.control.dvalues, ec->values, ec->items * sizeof(u32));
 	return 0;
 }
 
