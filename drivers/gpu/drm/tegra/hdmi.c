@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/hdmi.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 
@@ -641,6 +642,29 @@ static void tegra_hdmi_enable_audio(struct tegra_hdmi *hdmi)
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 }
 
+static void tegra_hdmi_write_eld(struct tegra_hdmi *hdmi)
+{
+	size_t length = drm_eld_size(hdmi->output.connector.eld), i;
+	u32 value;
+
+	for (i = 0; i < length; i++)
+		tegra_hdmi_writel(hdmi, i << 8 | hdmi->output.connector.eld[i],
+				  HDMI_NV_PDISP_SOR_AUDIO_HDA_ELD_BUFWR);
+
+	/*
+	 * The HDA codec will always report an ELD buffer size of 96 bytes and
+	 * the HDA codec driver will check that each byte read from the buffer
+	 * is valid. Therefore every byte must be written, even if no 96 bytes
+	 * were parsed from EDID.
+	 */
+	for (i = length; i < HDMI_ELD_BUFFER_SIZE; i++)
+		tegra_hdmi_writel(hdmi, i << 8 | 0,
+				  HDMI_NV_PDISP_SOR_AUDIO_HDA_ELD_BUFWR);
+
+	value = SOR_AUDIO_HDA_PRESENSE_VALID | SOR_AUDIO_HDA_PRESENSE_PRESENT;
+	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_AUDIO_HDA_PRESENSE);
+}
+
 static inline u32 tegra_hdmi_subpack(const u8 *ptr, size_t size)
 {
 	u32 value = 0;
@@ -945,29 +969,11 @@ static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
 		tegra_hdmi_disable_avi_infoframe(hdmi);
 		tegra_hdmi_disable_audio(hdmi);
 	}
-}
 
-static void tegra_hdmi_write_eld(struct tegra_hdmi *hdmi)
-{
-	size_t length = drm_eld_size(hdmi->output.connector.eld), i;
-	u32 value;
+	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_INT_ENABLE);
+	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_INT_MASK);
 
-	for (i = 0; i < length; i++)
-		tegra_hdmi_writel(hdmi, i << 8 | hdmi->output.connector.eld[i],
-				  HDMI_NV_PDISP_SOR_AUDIO_HDA_ELD_BUFWR);
-
-	/*
-	 * The HDA codec will always report an ELD buffer size of 96 bytes and
-	 * the HDA codec driver will check that each byte read from the buffer
-	 * is valid. Therefore every byte must be written, even if no 96 bytes
-	 * were parsed from EDID.
-	 */
-	for (i = length; i < HDMI_ELD_BUFFER_SIZE; i++)
-		tegra_hdmi_writel(hdmi, i << 8 | 0,
-				  HDMI_NV_PDISP_SOR_AUDIO_HDA_ELD_BUFWR);
-
-	value = SOR_AUDIO_HDA_PRESENSE_VALID | SOR_AUDIO_HDA_PRESENSE_PRESENT;
-	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_AUDIO_HDA_PRESENSE);
+	pm_runtime_put(hdmi->dev);
 }
 
 static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
@@ -981,6 +987,16 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 	int retries = 1000;
 	u32 value;
 	int err;
+
+	pm_runtime_get_sync(hdmi->dev);
+
+	/*
+	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
+	 * is used for interoperability between the HDA codec driver and the
+	 * HDMI driver.
+	 */
+	tegra_hdmi_writel(hdmi, INT_CODEC_SCRATCH0, HDMI_NV_PDISP_INT_ENABLE);
+	tegra_hdmi_writel(hdmi, INT_CODEC_SCRATCH0, HDMI_NV_PDISP_INT_MASK);
 
 	hdmi->pixel_clock = mode->clock * 1000;
 	h_sync_width = mode->hsync_end - mode->hsync_start;
@@ -1507,22 +1523,6 @@ static int tegra_hdmi_init(struct host1x_client *client)
 		return err;
 	}
 
-	err = clk_prepare_enable(hdmi->clk);
-	if (err < 0) {
-		dev_err(hdmi->dev, "failed to enable clock: %d\n", err);
-		return err;
-	}
-
-	reset_control_deassert(hdmi->rst);
-
-	/*
-	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
-	 * is used for interoperability between the HDA codec driver and the
-	 * HDMI driver.
-	 */
-	tegra_hdmi_writel(hdmi, INT_CODEC_SCRATCH0, HDMI_NV_PDISP_INT_ENABLE);
-	tegra_hdmi_writel(hdmi, INT_CODEC_SCRATCH0, HDMI_NV_PDISP_INT_MASK);
-
 	return 0;
 }
 
@@ -1530,13 +1530,7 @@ static int tegra_hdmi_exit(struct host1x_client *client)
 {
 	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
 
-	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_INT_MASK);
-	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_INT_ENABLE);
-
 	tegra_output_exit(&hdmi->output);
-
-	reset_control_assert(hdmi->rst);
-	clk_disable_unprepare(hdmi->clk);
 
 	regulator_disable(hdmi->vdd);
 	regulator_disable(hdmi->pll);
@@ -1752,6 +1746,9 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	platform_set_drvdata(pdev, hdmi);
+	pm_runtime_enable(&pdev->dev);
+
 	INIT_LIST_HEAD(&hdmi->client.list);
 	hdmi->client.ops = &hdmi_client_ops;
 	hdmi->client.dev = &pdev->dev;
@@ -1763,8 +1760,6 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	platform_set_drvdata(pdev, hdmi);
-
 	return 0;
 }
 
@@ -1772,6 +1767,8 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 {
 	struct tegra_hdmi *hdmi = platform_get_drvdata(pdev);
 	int err;
+
+	pm_runtime_disable(&pdev->dev);
 
 	err = host1x_client_unregister(&hdmi->client);
 	if (err < 0) {
@@ -1782,17 +1779,61 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 
 	tegra_output_remove(&hdmi->output);
 
-	clk_disable_unprepare(hdmi->clk_parent);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int tegra_hdmi_suspend(struct device *dev)
+{
+	struct tegra_hdmi *hdmi = dev_get_drvdata(dev);
+	int err;
+
+	err = reset_control_assert(hdmi->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to assert reset: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 2000);
+
 	clk_disable_unprepare(hdmi->clk);
 
 	return 0;
 }
 
+static int tegra_hdmi_resume(struct device *dev)
+{
+	struct tegra_hdmi *hdmi = dev_get_drvdata(dev);
+	int err;
+
+	err = clk_prepare_enable(hdmi->clk);
+	if (err < 0) {
+		dev_err(dev, "failed to enable clock: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 2000);
+
+	err = reset_control_deassert(hdmi->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to deassert reset: %d\n", err);
+		clk_disable_unprepare(hdmi->clk);
+		return err;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops tegra_hdmi_pm_ops = {
+	SET_RUNTIME_PM_OPS(tegra_hdmi_suspend, tegra_hdmi_resume, NULL)
+};
+
 struct platform_driver tegra_hdmi_driver = {
 	.driver = {
 		.name = "tegra-hdmi",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra_hdmi_of_match,
+		.pm = &tegra_hdmi_pm_ops,
 	},
 	.probe = tegra_hdmi_probe,
 	.remove = tegra_hdmi_remove,
