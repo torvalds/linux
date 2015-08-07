@@ -192,6 +192,7 @@ static void cnic_ctx_wr(struct cnic_dev *dev, u32 cid_addr, u32 off, u32 val)
 	struct drv_ctl_info info;
 	struct drv_ctl_io *io = &info.data.io;
 
+	memset(&info, 0, sizeof(struct drv_ctl_info));
 	info.cmd = DRV_CTL_CTX_WR_CMD;
 	io->cid_addr = cid_addr;
 	io->offset = off;
@@ -206,6 +207,7 @@ static void cnic_ctx_tbl_wr(struct cnic_dev *dev, u32 off, dma_addr_t addr)
 	struct drv_ctl_info info;
 	struct drv_ctl_io *io = &info.data.io;
 
+	memset(&info, 0, sizeof(struct drv_ctl_info));
 	info.cmd = DRV_CTL_CTXTBL_WR_CMD;
 	io->offset = off;
 	io->dma_addr = addr;
@@ -219,6 +221,7 @@ static void cnic_ring_ctl(struct cnic_dev *dev, u32 cid, u32 cl_id, int start)
 	struct drv_ctl_info info;
 	struct drv_ctl_l2_ring *ring = &info.data.ring;
 
+	memset(&info, 0, sizeof(struct drv_ctl_info));
 	if (start)
 		info.cmd = DRV_CTL_START_L2_CMD;
 	else
@@ -236,6 +239,7 @@ static void cnic_reg_wr_ind(struct cnic_dev *dev, u32 off, u32 val)
 	struct drv_ctl_info info;
 	struct drv_ctl_io *io = &info.data.io;
 
+	memset(&info, 0, sizeof(struct drv_ctl_info));
 	info.cmd = DRV_CTL_IO_WR_CMD;
 	io->offset = off;
 	io->data = val;
@@ -249,13 +253,14 @@ static u32 cnic_reg_rd_ind(struct cnic_dev *dev, u32 off)
 	struct drv_ctl_info info;
 	struct drv_ctl_io *io = &info.data.io;
 
+	memset(&info, 0, sizeof(struct drv_ctl_info));
 	info.cmd = DRV_CTL_IO_RD_CMD;
 	io->offset = off;
 	ethdev->drv_ctl(dev->netdev, &info);
 	return io->data;
 }
 
-static void cnic_ulp_ctl(struct cnic_dev *dev, int ulp_type, bool reg)
+static void cnic_ulp_ctl(struct cnic_dev *dev, int ulp_type, bool reg, int state)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_eth_dev *ethdev = cp->ethdev;
@@ -263,6 +268,7 @@ static void cnic_ulp_ctl(struct cnic_dev *dev, int ulp_type, bool reg)
 	struct fcoe_capabilities *fcoe_cap =
 		&info.data.register_data.fcoe_features;
 
+	memset(&info, 0, sizeof(struct drv_ctl_info));
 	if (reg) {
 		info.cmd = DRV_CTL_ULP_REGISTER_CMD;
 		if (ulp_type == CNIC_ULP_FCOE && dev->fcoe_cap)
@@ -272,6 +278,7 @@ static void cnic_ulp_ctl(struct cnic_dev *dev, int ulp_type, bool reg)
 	}
 
 	info.data.ulp_type = ulp_type;
+	info.drv_state = state;
 	ethdev->drv_ctl(dev->netdev, &info);
 }
 
@@ -286,6 +293,7 @@ static void cnic_spq_completion(struct cnic_dev *dev, int cmd, u32 count)
 	struct cnic_eth_dev *ethdev = cp->ethdev;
 	struct drv_ctl_info info;
 
+	memset(&info, 0, sizeof(struct drv_ctl_info));
 	info.cmd = cmd;
 	info.data.credit.credit_count = count;
 	ethdev->drv_ctl(dev->netdev, &info);
@@ -591,7 +599,7 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 
 	mutex_unlock(&cnic_lock);
 
-	cnic_ulp_ctl(dev, ulp_type, true);
+	cnic_ulp_ctl(dev, ulp_type, true, DRV_ACTIVE);
 
 	return 0;
 
@@ -636,7 +644,10 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	if (test_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[ulp_type]))
 		netdev_warn(dev->netdev, "Failed waiting for ULP up call to complete\n");
 
-	cnic_ulp_ctl(dev, ulp_type, false);
+	if (test_bit(ULP_F_INIT, &cp->ulp_flags[ulp_type]))
+		cnic_ulp_ctl(dev, ulp_type, false, DRV_UNLOADED);
+	else
+		cnic_ulp_ctl(dev, ulp_type, false, DRV_INACTIVE);
 
 	return 0;
 }
@@ -4267,6 +4278,7 @@ static void cnic_delete_task(struct work_struct *work)
 
 		cnic_ulp_stop_one(cp, CNIC_ULP_ISCSI);
 
+		memset(&info, 0, sizeof(struct drv_ctl_info));
 		info.cmd = DRV_CTL_ISCSI_STOPPED_CMD;
 		cp->ethdev->drv_ctl(dev->netdev, &info);
 	}
@@ -5433,6 +5445,23 @@ static void cnic_free_dev(struct cnic_dev *dev)
 	kfree(dev);
 }
 
+static int cnic_get_fc_npiv_tbl(struct cnic_dev *dev,
+				struct cnic_fc_npiv_tbl *npiv_tbl)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct bnx2x *bp = netdev_priv(dev->netdev);
+	int ret;
+
+	if (!test_bit(CNIC_F_CNIC_UP, &dev->flags))
+		return -EAGAIN;     /* bnx2x is down */
+
+	if (!BNX2X_CHIP_IS_E2_PLUS(bp))
+		return -EINVAL;
+
+	ret = cp->ethdev->drv_get_fc_npiv_tbl(dev->netdev, npiv_tbl);
+	return ret;
+}
+
 static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 				       struct pci_dev *pdev)
 {
@@ -5451,6 +5480,7 @@ static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 	cdev->register_device = cnic_register_device;
 	cdev->unregister_device = cnic_unregister_device;
 	cdev->iscsi_nl_msg_recv = cnic_iscsi_nl_msg_recv;
+	cdev->get_fc_npiv_tbl = cnic_get_fc_npiv_tbl;
 
 	cp = cdev->cnic_priv;
 	cp->dev = cdev;
