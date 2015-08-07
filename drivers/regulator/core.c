@@ -3827,11 +3827,11 @@ void regulator_unregister(struct regulator_dev *rdev)
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
+	mutex_unlock(&regulator_list_mutex);
 	kfree(rdev->constraints);
 	regulator_ena_gpio_free(rdev);
 	of_node_put(rdev->dev.of_node);
 	device_unregister(&rdev->dev);
-	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
