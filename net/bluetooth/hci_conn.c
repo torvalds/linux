@@ -645,7 +645,7 @@ static void create_le_conn_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	hci_dev_lock(hdev);
 
-	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+	conn = hci_lookup_le_connect(hdev);
 	if (!conn)
 		goto done;
 
@@ -759,8 +759,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	/* Since the controller supports only one LE connection attempt at a
 	 * time, we return -EBUSY if there is any connection attempt running.
 	 */
-	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
-	if (conn)
+	if (hci_lookup_le_connect(hdev))
 		return ERR_PTR(-EBUSY);
 
 	/* When given an identity address with existing identity

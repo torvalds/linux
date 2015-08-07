@@ -4210,7 +4210,7 @@ static bool trigger_le_scan(struct hci_request *req, u16 interval, u8 *status)
 		/* Don't let discovery abort an outgoing connection attempt
 		 * that's using directed advertising.
 		 */
-		if (hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
+		if (hci_lookup_le_connect(hdev)) {
 			*status = MGMT_STATUS_REJECTED;
 			return false;
 		}
