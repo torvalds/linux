@@ -91,6 +91,21 @@
 #define TWL4030_MSTATEC_COMPLETE1	0x0b
 #define TWL4030_MSTATEC_COMPLETE4	0x0e
 
+#if IS_ENABLED(CONFIG_TWL4030_MADC)
+/*
+ * If AC (Accessory Charger) voltage exceeds 4.5V (MADC 11)
+ * then AC is available.
+ */
+static inline int ac_available(void)
+{
+	return twl4030_get_madc_conversion(11) > 4500;
+}
+#else
+static inline int ac_available(void)
+{
+	return 0;
+}
+#endif
 static bool allow_usb;
 module_param(allow_usb, bool, 0644);
 MODULE_PARM_DESC(allow_usb, "Allow USB charge drawing default current");
@@ -263,7 +278,7 @@ static int twl4030_charger_update_current(struct twl4030_bci *bci)
 	 * If AC (Accessory Charger) voltage exceeds 4.5V (MADC 11)
 	 * and AC is enabled, set current for 'ac'
 	 */
-	if (twl4030_get_madc_conversion(11) > 4500) {
+	if (ac_available()) {
 		cur = bci->ac_cur;
 		bci->ac_is_active = true;
 	} else {
