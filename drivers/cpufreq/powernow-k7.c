@@ -421,7 +421,7 @@ static int powernow_acpi_init(void)
 	return 0;
 
 err2:
-	acpi_processor_unregister_performance(acpi_processor_perf, 0);
+	acpi_processor_unregister_performance(0);
 err1:
 	free_cpumask_var(acpi_processor_perf->shared_cpu_map);
 err05:
@@ -661,7 +661,7 @@ static int powernow_cpu_exit(struct cpufreq_policy *policy)
 {
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI
 	if (acpi_processor_perf) {
-		acpi_processor_unregister_performance(acpi_processor_perf, 0);
+		acpi_processor_unregister_performance(0);
 		free_cpumask_var(acpi_processor_perf->shared_cpu_map);
 		kfree(acpi_processor_perf);
 	}

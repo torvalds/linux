@@ -784,9 +784,7 @@ acpi_processor_register_performance(struct acpi_processor_performance
 
 EXPORT_SYMBOL(acpi_processor_register_performance);
 
-void
-acpi_processor_unregister_performance(struct acpi_processor_performance
-				      *performance, unsigned int cpu)
+void acpi_processor_unregister_performance(unsigned int cpu)
 {
 	struct acpi_processor *pr;
 
