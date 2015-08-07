@@ -731,7 +731,7 @@ static const struct dev_pm_ops mtk_spi_pm = {
 			   mtk_spi_runtime_resume, NULL)
 };
 
-struct platform_driver mtk_spi_driver = {
+static struct platform_driver mtk_spi_driver = {
 	.driver = {
 		.name = "mtk-spi",
 		.pm	= &mtk_spi_pm,
