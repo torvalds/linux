@@ -176,6 +176,10 @@ static inline xpaddr_t machine_to_phys(xmaddr_t machine)
 	return XPADDR(PFN_PHYS(mfn_to_pfn(PFN_DOWN(machine.maddr))) | offset);
 }
 
+/* Pseudo-physical <-> Bus conversion */
+#define pfn_to_bfn(pfn)		pfn_to_mfn(pfn)
+#define bfn_to_pfn(bfn)		mfn_to_pfn(bfn)
+
 /*
  * We detect special mappings in one of two ways:
  *  1. If the MFN is an I/O page then Xen will set the m2p entry
@@ -196,7 +200,7 @@ static inline xpaddr_t machine_to_phys(xmaddr_t machine)
  *      require. In all the cases we care about, the FOREIGN_FRAME bit is
  *      masked (e.g., pfn_to_mfn()) so behaviour there is correct.
  */
-static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
+static inline unsigned long bfn_to_local_pfn(unsigned long mfn)
 {
 	unsigned long pfn;
 
@@ -262,7 +266,7 @@ void make_lowmem_page_readwrite(void *vaddr);
 
 static inline bool xen_arch_need_swiotlb(struct device *dev,
 					 unsigned long pfn,
-					 unsigned long mfn)
+					 unsigned long bfn)
 {
 	return false;
 }

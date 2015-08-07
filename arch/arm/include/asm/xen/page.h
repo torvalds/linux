@@ -52,7 +52,26 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	return mfn;
 }
 
-#define mfn_to_local_pfn(mfn) mfn_to_pfn(mfn)
+/* Pseudo-physical <-> BUS conversion */
+static inline unsigned long pfn_to_bfn(unsigned long pfn)
+{
+	unsigned long mfn;
+
+	if (phys_to_mach.rb_node != NULL) {
+		mfn = __pfn_to_mfn(pfn);
+		if (mfn != INVALID_P2M_ENTRY)
+			return mfn;
+	}
+
+	return pfn;
+}
+
+static inline unsigned long bfn_to_pfn(unsigned long bfn)
+{
+	return bfn;
+}
+
+#define bfn_to_local_pfn(bfn)	bfn_to_pfn(bfn)
 
 /* VIRT <-> MACHINE conversion */
 #define virt_to_mfn(v)		(pfn_to_mfn(virt_to_pfn(v)))
@@ -96,7 +115,7 @@ static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 bool xen_arch_need_swiotlb(struct device *dev,
 			   unsigned long pfn,
-			   unsigned long mfn);
+			   unsigned long bfn);
 unsigned long xen_get_swiotlb_free_pages(unsigned int order);
 
 #endif /* _ASM_ARM_XEN_PAGE_H */
