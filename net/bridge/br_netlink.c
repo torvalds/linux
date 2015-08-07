@@ -724,6 +724,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_AGEING_TIME] = { .type = NLA_U32 },
 	[IFLA_BR_STP_STATE] = { .type = NLA_U32 },
 	[IFLA_BR_PRIORITY] = { .type = NLA_U16 },
+	[IFLA_BR_VLAN_FILTERING] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -771,6 +772,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		br_stp_set_bridge_priority(br, priority);
 	}
 
+	if (data[IFLA_BR_VLAN_FILTERING]) {
+		u8 vlan_filter = nla_get_u8(data[IFLA_BR_VLAN_FILTERING]);
+
+		err = __br_vlan_filter_toggle(br, vlan_filter);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -782,6 +791,7 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_AGEING_TIME */
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_STP_STATE */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_PRIORITY */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_VLAN_FILTERING */
 	       0;
 }
 
@@ -794,13 +804,15 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	u32 ageing_time = jiffies_to_clock_t(br->ageing_time);
 	u32 stp_enabled = br->stp_enabled;
 	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
+	u8 vlan_enabled = br_vlan_enabled(br);
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
 	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
 	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time) ||
 	    nla_put_u32(skb, IFLA_BR_AGEING_TIME, ageing_time) ||
 	    nla_put_u32(skb, IFLA_BR_STP_STATE, stp_enabled) ||
-	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority))
+	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority) ||
+	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled))
 		return -EMSGSIZE;
 
 	return 0;
