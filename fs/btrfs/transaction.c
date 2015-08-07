@@ -2152,7 +2152,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
-	if (current != root->fs_info->transaction_kthread)
+	if (current != root->fs_info->transaction_kthread &&
+	    current != root->fs_info->cleaner_kthread)
 		btrfs_run_delayed_iputs(root);
 
 	return ret;

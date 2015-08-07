@@ -702,6 +702,7 @@ void wbc_account_io(struct writeback_control *wbc, struct page *page,
 	else
 		wbc->wb_tcand_bytes -= min(bytes, wbc->wb_tcand_bytes);
 }
+EXPORT_SYMBOL_GPL(wbc_account_io);
 
 /**
  * inode_congested - test whether an inode is congested

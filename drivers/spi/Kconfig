@@ -612,7 +612,7 @@ config SPI_XTENSA_XTFPGA
 
 config SPI_ZYNQMP_GQSPI
 	tristate "Xilinx ZynqMP GQSPI controller"
-	depends on SPI_MASTER
+	depends on SPI_MASTER && HAS_DMA
 	help
 	  Enables Xilinx GQSPI controller driver for Zynq UltraScale+ MPSoC.
 
