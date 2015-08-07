@@ -614,6 +614,49 @@ static int amdgpu_cgs_irq_put(void *cgs_device, unsigned src_id, unsigned type)
 	return amdgpu_irq_put(adev, adev->irq.sources[src_id], type);
 }
 
+int amdgpu_cgs_set_clockgating_state(void *cgs_device,
+				  enum amd_ip_block_type block_type,
+				  enum amd_clockgating_state state)
+{
+	CGS_FUNC_ADEV;
+	int i, r = -1;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+
+		if (adev->ip_blocks[i].type == block_type) {
+			r = adev->ip_blocks[i].funcs->set_clockgating_state(
+								(void *)adev,
+									state);
+			break;
+		}
+	}
+	return r;
+}
+
+int amdgpu_cgs_set_powergating_state(void *cgs_device,
+				  enum amd_ip_block_type block_type,
+				  enum amd_powergating_state state)
+{
+	CGS_FUNC_ADEV;
+	int i, r = -1;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+
+		if (adev->ip_blocks[i].type == block_type) {
+			r = adev->ip_blocks[i].funcs->set_powergating_state(
+								(void *)adev,
+									state);
+			break;
+		}
+	}
+	return r;
+}
+
+
 static uint32_t fw_type_convert(void *cgs_device, uint32_t fw_type)
 {
 	CGS_FUNC_ADEV;
@@ -760,7 +803,9 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_pm_request_engine,
 	amdgpu_cgs_pm_query_clock_limits,
 	amdgpu_cgs_set_camera_voltages,
-	amdgpu_cgs_get_firmware_info
+	amdgpu_cgs_get_firmware_info,
+	amdgpu_cgs_set_powergating_state,
+	amdgpu_cgs_set_clockgating_state
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
