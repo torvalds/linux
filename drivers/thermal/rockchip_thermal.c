@@ -106,16 +106,14 @@ struct rockchip_thermal_data {
 #define TSADCV2_AUTO_PERIOD_HT			0x6c
 
 #define TSADCV2_AUTO_EN				BIT(0)
-#define TSADCV2_AUTO_DISABLE			~BIT(0)
 #define TSADCV2_AUTO_SRC_EN(chn)		BIT(4 + (chn))
 #define TSADCV2_AUTO_TSHUT_POLARITY_HIGH	BIT(8)
-#define TSADCV2_AUTO_TSHUT_POLARITY_LOW		~BIT(8)
 
 #define TSADCV2_INT_SRC_EN(chn)			BIT(chn)
 #define TSADCV2_SHUT_2GPIO_SRC_EN(chn)		BIT(4 + (chn))
 #define TSADCV2_SHUT_2CRU_SRC_EN(chn)		BIT(8 + (chn))
 
-#define TSADCV2_INT_PD_CLEAR			~BIT(8)
+#define TSADCV2_INT_PD_CLEAR_MASK		~BIT(8)
 
 #define TSADCV2_DATA_MASK			0xfff
 #define TSADCV2_HIGHT_INT_DEBOUNCE_COUNT	4
@@ -244,10 +242,10 @@ static void rk_tsadcv2_initialize(void __iomem *regs,
 				  enum tshut_polarity tshut_polarity)
 {
 	if (tshut_polarity == TSHUT_HIGH_ACTIVE)
-		writel_relaxed(0 | (TSADCV2_AUTO_TSHUT_POLARITY_HIGH),
+		writel_relaxed(0U | TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
 			       regs + TSADCV2_AUTO_CON);
 	else
-		writel_relaxed(0 | (TSADCV2_AUTO_TSHUT_POLARITY_LOW),
+		writel_relaxed(0U & ~TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
 			       regs + TSADCV2_AUTO_CON);
 
 	writel_relaxed(TSADCV2_AUTO_PERIOD_TIME, regs + TSADCV2_AUTO_PERIOD);
@@ -264,7 +262,7 @@ static void rk_tsadcv2_irq_ack(void __iomem *regs)
 	u32 val;
 
 	val = readl_relaxed(regs + TSADCV2_INT_PD);
-	writel_relaxed(val & TSADCV2_INT_PD_CLEAR, regs + TSADCV2_INT_PD);
+	writel_relaxed(val & TSADCV2_INT_PD_CLEAR_MASK, regs + TSADCV2_INT_PD);
 }
 
 static void rk_tsadcv2_control(void __iomem *regs, bool enable)
