@@ -850,6 +850,19 @@ static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int max98090_shdn_event(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+
+	if (event & SND_SOC_DAPM_POST_PMU)
+		max98090->shdn_pending = true;
+
+	return 0;
+
+}
+
 static const char *mic1_mux_text[] = { "IN12", "IN56" };
 
 static SOC_ENUM_SINGLE_DECL(mic1_mux_enum,
@@ -1158,9 +1171,11 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("SDOEN", M98090_REG_IO_CONFIGURATION,
 		M98090_SDOEN_SHIFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DMICL_ENA", M98090_REG_DIGITAL_MIC_ENABLE,
-		 M98090_DIGMICL_SHIFT, 0, NULL, 0),
+		 M98090_DIGMICL_SHIFT, 0, max98090_shdn_event,
+			SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("DMICR_ENA", M98090_REG_DIGITAL_MIC_ENABLE,
-		 M98090_DIGMICR_SHIFT, 0, NULL, 0),
+		 M98090_DIGMICR_SHIFT, 0, max98090_shdn_event,
+			 SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("AHPF", M98090_REG_FILTER_CONFIG,
 		M98090_AHPF_SHIFT, 0, NULL, 0),
 
@@ -1205,10 +1220,12 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 		&max98090_right_adc_mixer_controls[0],
 		ARRAY_SIZE(max98090_right_adc_mixer_controls)),
 
-	SND_SOC_DAPM_ADC("ADCL", NULL, M98090_REG_INPUT_ENABLE,
-		M98090_ADLEN_SHIFT, 0),
-	SND_SOC_DAPM_ADC("ADCR", NULL, M98090_REG_INPUT_ENABLE,
-		M98090_ADREN_SHIFT, 0),
+	SND_SOC_DAPM_ADC_E("ADCL", NULL, M98090_REG_INPUT_ENABLE,
+		M98090_ADLEN_SHIFT, 0, max98090_shdn_event,
+		SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_ADC_E("ADCR", NULL, M98090_REG_INPUT_ENABLE,
+		M98090_ADREN_SHIFT, 0, max98090_shdn_event,
+		SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_AIF_OUT("AIFOUTL", "HiFi Capture", 0,
 		SND_SOC_NOPM, 0, 0),
@@ -2536,9 +2553,26 @@ static int max98090_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static void max98090_seq_notifier(struct snd_soc_dapm_context *dapm,
+	enum snd_soc_dapm_type event, int subseq)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
+	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+
+	if (max98090->shdn_pending) {
+		snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+				M98090_SHDNN_MASK, 0);
+		msleep(40);
+		snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+				M98090_SHDNN_MASK, M98090_SHDNN_MASK);
+		max98090->shdn_pending = false;
+	}
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_max98090 = {
 	.probe   = max98090_probe,
 	.remove  = max98090_remove,
+	.seq_notifier = max98090_seq_notifier,
 	.set_bias_level = max98090_set_bias_level,
 };
 
