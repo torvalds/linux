@@ -82,7 +82,8 @@ static int apci1564_timer_insn_read(struct comedi_device *dev,
 	struct apci1564_private *devpriv = dev->private;
 
 	/* Stores the status of the Timer */
-	data[0] = inl(devpriv->timer + ADDI_TCW_STATUS_REG) & 0x1;
+	data[0] = inl(devpriv->timer + ADDI_TCW_STATUS_REG) &
+		  ADDI_TCW_STATUS_OVERFLOW;
 
 	/* Stores the Actual value of the Timer */
 	data[1] = inl(devpriv->timer + ADDI_TCW_VAL_REG);
