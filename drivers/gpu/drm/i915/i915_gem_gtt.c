@@ -1480,14 +1480,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			goto free_scratch;
 
 		ppgtt->base.total = 1ULL << 32;
-		if (IS_ENABLED(CONFIG_X86_32))
-			/* While we have a proliferation of size_t variables
-			 * we cannot represent the full ppgtt size on 32bit,
-			 * so limit it to the same size as the GGTT (currently
-			 * 2GiB).
-			 */
-			ppgtt->base.total = to_i915(ppgtt->base.dev)->gtt.base.total;
-
 		ppgtt->switch_mm = gen8_legacy_mm_switch;
 		trace_i915_page_directory_pointer_entry_alloc(&ppgtt->base,
 							      0, 0,
