@@ -126,19 +126,6 @@ config MACH_BOCKW
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD && I2C
 	select USE_OF
 
-config MACH_BOCKW_REFERENCE
-	bool "BOCK-W  - Reference Device Tree Implementation"
-	depends on ARCH_R8A7778
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
-	---help---
-	   Use reference implementation of BockW board support
-	   which makes use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
 comment "Renesas ARM SoCs System Configuration"
 
 config CPU_HAS_INTEVT
