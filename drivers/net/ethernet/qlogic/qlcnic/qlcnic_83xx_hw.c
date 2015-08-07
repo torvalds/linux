@@ -119,6 +119,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_DCB_QUERY_CAP, 1, 2},
 	{QLCNIC_CMD_DCB_QUERY_PARAM, 1, 50},
 	{QLCNIC_CMD_SET_INGRESS_ENCAP, 2, 1},
+	{QLCNIC_CMD_83XX_EXTEND_ISCSI_DUMP_CAP, 4, 1},
 };
 
 const u32 qlcnic_83xx_ext_reg_tbl[] = {
@@ -3512,6 +3513,31 @@ void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data)
 		netdev_err(netdev, "Error getting Rx stats\n");
 out:
 	qlcnic_free_mbx_args(&cmd);
+}
+
+#define QLCNIC_83XX_ADD_PORT0		BIT_0
+#define QLCNIC_83XX_ADD_PORT1		BIT_1
+#define QLCNIC_83XX_EXTENDED_MEM_SIZE	13 /* In MB */
+int qlcnic_83xx_extend_md_capab(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_cmd_args cmd;
+	int err;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter,
+				    QLCNIC_CMD_83XX_EXTEND_ISCSI_DUMP_CAP);
+	if (err)
+		return err;
+
+	cmd.req.arg[1] = (QLCNIC_83XX_ADD_PORT0 | QLCNIC_83XX_ADD_PORT1);
+	cmd.req.arg[2] = QLCNIC_83XX_EXTENDED_MEM_SIZE;
+	cmd.req.arg[3] = QLCNIC_83XX_EXTENDED_MEM_SIZE;
+
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err)
+		dev_err(&adapter->pdev->dev,
+			"failed to issue extend iSCSI minidump capability\n");
+
+	return err;
 }
 
 int qlcnic_83xx_reg_test(struct qlcnic_adapter *adapter)

@@ -1396,19 +1396,51 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+static inline bool
+qlcnic_83xx_md_check_extended_dump_capability(struct qlcnic_adapter *adapter)
+{
+	/* For special adapters (with 0x8830 device ID), where iSCSI firmware
+	 * dump needs to be captured as part of regular firmware dump
+	 * collection process, firmware exports it's capability through
+	 * capability registers
+	 */
+	return ((adapter->pdev->device == PCI_DEVICE_ID_QLOGIC_QLE8830) &&
+		(adapter->ahw->extra_capability[0] &
+		 QLCNIC_FW_CAPABILITY_2_EXT_ISCSI_DUMP));
+}
+
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *adapter)
 {
 	u32 prev_version, current_version;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_fw_dump *fw_dump = &ahw->fw_dump;
 	struct pci_dev *pdev = adapter->pdev;
+	bool extended = false;
 
 	prev_version = adapter->fw_version;
 	current_version = qlcnic_83xx_get_fw_version(adapter);
 
 	if (fw_dump->tmpl_hdr == NULL || current_version > prev_version) {
 		vfree(fw_dump->tmpl_hdr);
+
+		if (qlcnic_83xx_md_check_extended_dump_capability(adapter))
+			extended = !qlcnic_83xx_extend_md_capab(adapter);
+
 		if (!qlcnic_fw_cmd_get_minidump_temp(adapter))
 			dev_info(&pdev->dev, "Supports FW dump capability\n");
+
+		/* Once we have minidump template with extended iSCSI dump
+		 * capability, update the minidump capture mask to 0x1f as
+		 * per FW requirement
+		 */
+		if (extended) {
+			struct qlcnic_83xx_dump_template_hdr *hdr;
+
+			hdr = fw_dump->tmpl_hdr;
+			hdr->drv_cap_mask = 0x1f;
+			fw_dump->cap_mask = 0x1f;
+			dev_info(&pdev->dev,
+				 "Extended iSCSI dump capability and updated capture mask to 0x1f\n");
+		}
 	}
 }
