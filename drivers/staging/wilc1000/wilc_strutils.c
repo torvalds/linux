@@ -25,15 +25,6 @@ void WILC_memcpy_INTERNAL(void *pvTarget, const void *pvSource, u32 u32Count)
 	memcpy(pvTarget, pvSource, u32Count);
 }
 
-/*!
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-void *WILC_memset(void *pvTarget, u8 u8SetValue, u32 u32Count)
-{
-	return memset(pvTarget, u8SetValue, u32Count);
-}
 
 /*!
  *  @author	syounan

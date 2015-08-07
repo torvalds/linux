@@ -71,18 +71,6 @@ static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, u32 u32Count
 	}
 }
 
-/*!
- *  @brief	Sets the contents of a memory buffer with the given value
- *  @param[in]	pvTarget the target buffer which contsnts will be set
- *  @param[in]	u8SetValue the value to be used
- *  @param[in]	u32Count the size of the memory buffer
- *  @return	value of pvTarget
- *  @note	this function repeats the functionality of standard memset
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-void *WILC_memset(void *pvTarget, u8 u8SetValue, u32 u32Count);
 
 /*!
  *  @brief	copies the contents of source string into the target string
