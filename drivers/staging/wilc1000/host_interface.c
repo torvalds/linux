@@ -801,7 +801,7 @@ s32 Handle_get_IPAddress(void *drvHandler, u8 *pu8IPAddr, u8 idx)
 	/*get the value by searching the local copy*/
 	WILC_FREE(strWID.ps8WidVal);
 
-	if (WILC_memcmp(gs8GetIP[idx], gs8SetIP[idx], IP_ALEN) != 0)
+	if (memcmp(gs8GetIP[idx], gs8SetIP[idx], IP_ALEN) != 0)
 		host_int_setup_ipaddress((WILC_WFIDrvHandle)pstrWFIDrv, gs8SetIP[idx], idx);
 
 	if (s32Error != WILC_SUCCESS) {
@@ -1527,7 +1527,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 
 
 	for (i = 0; i < pstrWFIDrv->u32SurveyResultsCount; i++)	{
-		if (WILC_memcmp(pstrWFIDrv->astrSurveyResults[i].SSID,
+		if (memcmp(pstrWFIDrv->astrSurveyResults[i].SSID,
 				pstrHostIFconnectAttr->pu8ssid,
 				pstrHostIFconnectAttr->ssidLen) == 0) {
 			PRINT_INFO(HOSTINF_DBG, "Network with required SSID is found %s\n", pstrHostIFconnectAttr->pu8ssid);
@@ -1540,7 +1540,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 				/* BSSID is also passed from the user, so decision of matching
 				 * should consider also this passed BSSID */
 
-				if (WILC_memcmp(pstrWFIDrv->astrSurveyResults[i].BSSID,
+				if (memcmp(pstrWFIDrv->astrSurveyResults[i].BSSID,
 						pstrHostIFconnectAttr->pu8bssid,
 						6) == 0) {
 					PRINT_INFO(HOSTINF_DBG, "BSSID is passed from the user and matched\n");
@@ -1648,7 +1648,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 
 	/* if we try to connect to an already connected AP then discard the request */
 
-	if (WILC_memcmp(pstrHostIFconnectAttr->pu8bssid, u8ConnectedSSID, ETH_ALEN) == 0) {
+	if (memcmp(pstrHostIFconnectAttr->pu8bssid, u8ConnectedSSID, ETH_ALEN) == 0) {
 
 		s32Error = WILC_SUCCESS;
 		PRINT_ER("Trying to connect to an already connected AP, Discard connect request\n");
@@ -1720,7 +1720,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 		u32WidsCount++;
 
 		/*BugID_5137*/
-		if (WILC_memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
+		if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
 
 			gu32FlushedInfoElemAsocSize = pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen;
 			gu8FlushedInfoElemAsoc =  WILC_MALLOC(gu32FlushedInfoElemAsocSize);
@@ -1735,7 +1735,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 	u32WidsCount++;
 
 	/*BugID_5137*/
-	if (WILC_memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
 		gu8Flushed11iMode = pstrWFIDrv->strWILC_UsrConnReq.u8security;
 
 	PRINT_INFO(HOSTINF_DBG, "Encrypt Mode = %x\n", pstrWFIDrv->strWILC_UsrConnReq.u8security);
@@ -1748,7 +1748,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 	u32WidsCount++;
 
 	/*BugID_5137*/
-	if (WILC_memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
 		gu8FlushedAuthType = (u8)pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type;
 
 	PRINT_INFO(HOSTINF_DBG, "Authentication Type = %x\n", pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type);
@@ -1803,7 +1803,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 	strWIDList[u32WidsCount].ps8WidVal = WILC_MALLOC(strWIDList[u32WidsCount].s32ValueSize);
 
 	/*BugID_5137*/
-	if (WILC_memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
 		gu32FlushedJoinReqSize = strWIDList[u32WidsCount].s32ValueSize;
 		gu8FlushedJoinReq = WILC_MALLOC(gu32FlushedJoinReqSize);
 	}
@@ -1940,7 +1940,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 	/* ////////////////////// */
 
 	/*BugID_5137*/
-	if (WILC_memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
 		memcpy(gu8FlushedJoinReq, pu8CurrByte, gu32FlushedJoinReqSize);
 		gu8FlushedJoinReqDrvHandler = (u32)pstrWFIDrv;
 	}
@@ -2246,7 +2246,7 @@ static s32 Handle_RcvdNtwrkInfo(void *drvHandler, tstrRcvdNetworkInfo *pstrRcvdN
 
 			if ((pstrWFIDrv->strWILC_UsrScanReq.astrFoundNetworkInfo[i].au8bssid != NULL) &&
 			    (pstrNetworkInfo->au8bssid != NULL)) {
-				if (WILC_memcmp(pstrWFIDrv->strWILC_UsrScanReq.astrFoundNetworkInfo[i].au8bssid,
+				if (memcmp(pstrWFIDrv->strWILC_UsrScanReq.astrFoundNetworkInfo[i].au8bssid,
 						pstrNetworkInfo->au8bssid, 6) == 0) {
 					if (pstrNetworkInfo->s8rssi <= pstrWFIDrv->strWILC_UsrScanReq.astrFoundNetworkInfo[i].s8rssi) {
 						/*we have already found this network with better rssi, so keep the old cached one and don't
