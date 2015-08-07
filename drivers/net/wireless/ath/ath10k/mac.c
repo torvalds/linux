@@ -4342,6 +4342,11 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		}
 	}
 
+	spin_lock_bh(&ar->htt.tx_lock);
+	if (!ar->tx_paused)
+		ieee80211_wake_queue(ar->hw, arvif->vdev_id);
+	spin_unlock_bh(&ar->htt.tx_lock);
+
 	mutex_unlock(&ar->conf_mutex);
 	return 0;
 
