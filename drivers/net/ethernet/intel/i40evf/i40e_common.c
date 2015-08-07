@@ -54,6 +54,15 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_20G_KR2:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
+		case I40E_DEV_ID_SFP_X722:
+		case I40E_DEV_ID_1G_BASE_T_X722:
+		case I40E_DEV_ID_10G_BASE_T_X722:
+			hw->mac.type = I40E_MAC_X722;
+			break;
+		case I40E_DEV_ID_X722_VF:
+		case I40E_DEV_ID_X722_VF_HV:
+			hw->mac.type = I40E_MAC_X722_VF;
+			break;
 		case I40E_DEV_ID_VF:
 		case I40E_DEV_ID_VF_HV:
 			hw->mac.type = I40E_MAC_VF;
@@ -381,6 +390,169 @@ i40e_status i40evf_aq_queue_shutdown(struct i40e_hw *hw,
 	status = i40evf_asq_send_command(hw, &desc, NULL, 0, NULL);
 
 	return status;
+}
+
+/**
+ * i40e_aq_get_set_rss_lut
+ * @hw: pointer to the hardware structure
+ * @vsi_id: vsi fw index
+ * @pf_lut: for PF table set true, for VSI table set false
+ * @lut: pointer to the lut buffer provided by the caller
+ * @lut_size: size of the lut buffer
+ * @set: set true to set the table, false to get the table
+ *
+ * Internal function to get or set RSS look up table
+ **/
+static i40e_status i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
+					   u16 vsi_id, bool pf_lut,
+					   u8 *lut, u16 lut_size,
+					   bool set)
+{
+	i40e_status status;
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_get_set_rss_lut *cmd_resp =
+		   (struct i40e_aqc_get_set_rss_lut *)&desc.params.raw;
+
+	if (set)
+		i40evf_fill_default_direct_cmd_desc(&desc,
+						    i40e_aqc_opc_set_rss_lut);
+	else
+		i40evf_fill_default_direct_cmd_desc(&desc,
+						    i40e_aqc_opc_get_rss_lut);
+
+	/* Indirect command */
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
+
+	cmd_resp->vsi_id =
+			cpu_to_le16((u16)((vsi_id <<
+					  I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT) &
+					  I40E_AQC_SET_RSS_LUT_VSI_ID_MASK));
+	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_LUT_VSI_VALID);
+
+	if (pf_lut)
+		cmd_resp->flags |= cpu_to_le16((u16)
+					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF <<
+					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
+					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+	else
+		cmd_resp->flags |= cpu_to_le16((u16)
+					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI <<
+					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
+					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+
+	cmd_resp->addr_high = cpu_to_le32(high_16_bits((u64)lut));
+	cmd_resp->addr_low = cpu_to_le32(lower_32_bits((u64)lut));
+
+	status = i40evf_asq_send_command(hw, &desc, lut, lut_size, NULL);
+
+	return status;
+}
+
+/**
+ * i40evf_aq_get_rss_lut
+ * @hw: pointer to the hardware structure
+ * @vsi_id: vsi fw index
+ * @pf_lut: for PF table set true, for VSI table set false
+ * @lut: pointer to the lut buffer provided by the caller
+ * @lut_size: size of the lut buffer
+ *
+ * get the RSS lookup table, PF or VSI type
+ **/
+i40e_status i40evf_aq_get_rss_lut(struct i40e_hw *hw, u16 vsi_id,
+				  bool pf_lut, u8 *lut, u16 lut_size)
+{
+	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size,
+				       false);
+}
+
+/**
+ * i40evf_aq_set_rss_lut
+ * @hw: pointer to the hardware structure
+ * @vsi_id: vsi fw index
+ * @pf_lut: for PF table set true, for VSI table set false
+ * @lut: pointer to the lut buffer provided by the caller
+ * @lut_size: size of the lut buffer
+ *
+ * set the RSS lookup table, PF or VSI type
+ **/
+i40e_status i40evf_aq_set_rss_lut(struct i40e_hw *hw, u16 vsi_id,
+				  bool pf_lut, u8 *lut, u16 lut_size)
+{
+	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size, true);
+}
+
+/**
+ * i40e_aq_get_set_rss_key
+ * @hw: pointer to the hw struct
+ * @vsi_id: vsi fw index
+ * @key: pointer to key info struct
+ * @set: set true to set the key, false to get the key
+ *
+ * get the RSS key per VSI
+ **/
+static i40e_status i40e_aq_get_set_rss_key(struct i40e_hw *hw,
+				      u16 vsi_id,
+				      struct i40e_aqc_get_set_rss_key_data *key,
+				      bool set)
+{
+	i40e_status status;
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_get_set_rss_key *cmd_resp =
+			(struct i40e_aqc_get_set_rss_key *)&desc.params.raw;
+	u16 key_size = sizeof(struct i40e_aqc_get_set_rss_key_data);
+
+	if (set)
+		i40evf_fill_default_direct_cmd_desc(&desc,
+						    i40e_aqc_opc_set_rss_key);
+	else
+		i40evf_fill_default_direct_cmd_desc(&desc,
+						    i40e_aqc_opc_get_rss_key);
+
+	/* Indirect command */
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
+
+	cmd_resp->vsi_id =
+			cpu_to_le16((u16)((vsi_id <<
+					  I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT) &
+					  I40E_AQC_SET_RSS_KEY_VSI_ID_MASK));
+	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_KEY_VSI_VALID);
+	cmd_resp->addr_high = cpu_to_le32(high_16_bits((u64)key));
+	cmd_resp->addr_low = cpu_to_le32(lower_32_bits((u64)key));
+
+	status = i40evf_asq_send_command(hw, &desc, key, key_size, NULL);
+
+	return status;
+}
+
+/**
+ * i40evf_aq_get_rss_key
+ * @hw: pointer to the hw struct
+ * @vsi_id: vsi fw index
+ * @key: pointer to key info struct
+ *
+ **/
+i40e_status i40evf_aq_get_rss_key(struct i40e_hw *hw,
+				  u16 vsi_id,
+				  struct i40e_aqc_get_set_rss_key_data *key)
+{
+	return i40e_aq_get_set_rss_key(hw, vsi_id, key, false);
+}
+
+/**
+ * i40evf_aq_set_rss_key
+ * @hw: pointer to the hw struct
+ * @vsi_id: vsi fw index
+ * @key: pointer to key info struct
+ *
+ * set the RSS key per VSI
+ **/
+i40e_status i40evf_aq_set_rss_key(struct i40e_hw *hw,
+				  u16 vsi_id,
+				  struct i40e_aqc_get_set_rss_key_data *key)
+{
+	return i40e_aq_get_set_rss_key(hw, vsi_id, key, true);
 }
 
 

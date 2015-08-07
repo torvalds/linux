@@ -853,15 +853,40 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
  **/
 static void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	u32 val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
-		  I40E_PFINT_DYN_CTLN_ITR_INDX_MASK | /* set noitr */
-		  I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
-		  I40E_PFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK;
-		  /* allow 00 to be written to the index */
+	u16 flags = q_vector->tx.ring[0].flags;
 
-	wr32(&vsi->back->hw,
-	     I40E_PFINT_DYN_CTLN(q_vector->v_idx + vsi->base_vector - 1),
-	     val);
+	if (flags & I40E_TXR_FLAGS_WB_ON_ITR) {
+		u32 val;
+
+		if (q_vector->arm_wb_state)
+			return;
+
+		val = I40E_PFINT_DYN_CTLN_WB_ON_ITR_MASK;
+
+		wr32(&vsi->back->hw,
+		     I40E_PFINT_DYN_CTLN(q_vector->v_idx +
+					 vsi->base_vector - 1),
+		     val);
+		q_vector->arm_wb_state = true;
+	} else if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+		u32 val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
+			  I40E_PFINT_DYN_CTLN_ITR_INDX_MASK | /* set noitr */
+			  I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
+			  I40E_PFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK;
+			  /* allow 00 to be written to the index */
+
+		wr32(&vsi->back->hw,
+		     I40E_PFINT_DYN_CTLN(q_vector->v_idx +
+					 vsi->base_vector - 1), val);
+	} else {
+		u32 val = I40E_PFINT_DYN_CTL0_INTENA_MASK |
+			  I40E_PFINT_DYN_CTL0_ITR_INDX_MASK | /* set noitr */
+			  I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK |
+			  I40E_PFINT_DYN_CTL0_SW_ITR_INDX_ENA_MASK;
+			/* allow 00 to be written to the index */
+
+		wr32(&vsi->back->hw, I40E_PFINT_DYN_CTL0, val);
+	}
 }
 
 /**
@@ -1404,7 +1429,8 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	 * so the total length of IPv4 header is IHL*4 bytes
 	 * The UDP_0 bit *may* bet set if the *inner* header is UDP
 	 */
-	if (ipv4_tunnel) {
+	if (!(vsi->back->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE) &&
+	    (ipv4_tunnel)) {
 		skb->transport_header = skb->mac_header +
 					sizeof(struct ethhdr) +
 					(ip_hdr(skb)->ihl * 4);
@@ -1918,6 +1944,9 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 		return budget;
 	}
 
+	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
+		q_vector->arm_wb_state = false;
+
 	/* Work is done so exit the polling mode and re-enable the interrupt */
 	napi_complete(napi);
 	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
@@ -2011,6 +2040,13 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	/* Due to lack of space, no more new filters can be programmed */
 	if (th->syn && (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
+	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE) {
+		/* HW ATR eviction will take care of removing filters on FIN
+		 * and RST packets.
+		 */
+		if (th->fin || th->rst)
+			return;
+	}
 
 	tx_ring->atr_count++;
 
@@ -2065,6 +2101,9 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			((u32)I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id) <<
 			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
 			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+
+	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)
+		dtype_cmd |= I40E_TXD_FLTR_QW1_ATR_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
 	fdir_desc->rsvd = cpu_to_le32(0);
@@ -2273,11 +2312,15 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 	struct iphdr *this_ip_hdr;
 	u32 network_hdr_len;
 	u8 l4_hdr = 0;
+	struct udphdr *oudph;
+	struct iphdr *oiph;
 	u32 l4_tunnel = 0;
 
 	if (skb->encapsulation) {
 		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_UDP:
+			oudph = udp_hdr(skb);
+			oiph = ip_hdr(skb);
 			l4_tunnel = I40E_TXD_CTX_UDP_TUNNELING;
 			*tx_flags |= I40E_TX_FLAGS_VXLAN_TUNNEL;
 			break;
@@ -2313,6 +2356,15 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		if (this_ip_hdr->version == 6) {
 			*tx_flags &= ~I40E_TX_FLAGS_IPV4;
 			*tx_flags |= I40E_TX_FLAGS_IPV6;
+		}
+		if ((tx_ring->flags & I40E_TXR_FLAGS_OUTER_UDP_CSUM) &&
+		    (l4_tunnel == I40E_TXD_CTX_UDP_TUNNELING)        &&
+		    (*cd_tunneling & I40E_TXD_CTX_QW0_EXT_IP_MASK)) {
+			oudph->check = ~csum_tcpudp_magic(oiph->saddr,
+					oiph->daddr,
+					(skb->len - skb_transport_offset(skb)),
+					IPPROTO_UDP, 0);
+			*cd_tunneling |= I40E_TXD_CTX_QW0_L4T_CS_MASK;
 		}
 	} else {
 		network_hdr_len = skb_network_header_len(skb);
