@@ -733,17 +733,19 @@ static struct svc_rdma_fastreg_mr *rdma_alloc_frmr(struct svcxprt_rdma *xprt)
 	struct ib_mr *mr;
 	struct ib_fast_reg_page_list *pl;
 	struct svc_rdma_fastreg_mr *frmr;
+	u32 num_sg;
 
 	frmr = kmalloc(sizeof(*frmr), GFP_KERNEL);
 	if (!frmr)
 		goto err;
 
-	mr = ib_alloc_mr(xprt->sc_pd, IB_MR_TYPE_MEM_REG, RPCSVC_MAXPAGES);
+	num_sg = min_t(u32, RPCSVC_MAXPAGES, xprt->sc_frmr_pg_list_len);
+	mr = ib_alloc_mr(xprt->sc_pd, IB_MR_TYPE_MEM_REG, num_sg);
 	if (IS_ERR(mr))
 		goto err_free_frmr;
 
 	pl = ib_alloc_fast_reg_page_list(xprt->sc_cm_id->device,
-					 RPCSVC_MAXPAGES);
+					 num_sg);
 	if (IS_ERR(pl))
 		goto err_free_mr;
 
