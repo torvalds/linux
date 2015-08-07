@@ -17,8 +17,6 @@
  *
  *
  ******************************************************************************/
-#define _RECV_OSDEP_C_
-
 #include <osdep_service.h>
 #include <drv_types.h>
 
