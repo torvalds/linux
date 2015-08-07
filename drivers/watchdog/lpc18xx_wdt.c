@@ -123,7 +123,7 @@ static int lpc18xx_wdt_set_timeout(struct watchdog_device *wdt_dev,
 	return 0;
 }
 
-unsigned int lpc18xx_wdt_get_timeleft(struct watchdog_device *wdt_dev)
+static unsigned int lpc18xx_wdt_get_timeleft(struct watchdog_device *wdt_dev)
 {
 	struct lpc18xx_wdt_dev *lpc18xx_wdt = watchdog_get_drvdata(wdt_dev);
 	unsigned int val;
