@@ -19,6 +19,9 @@ struct virt_dma_desc {
 	struct dma_async_tx_descriptor tx;
 	/* protected by vc.lock */
 	struct list_head node;
+
+	void (*overide_callback) (void *overide_param);
+	void *overide_param;
 };
 
 struct virt_dma_chan {

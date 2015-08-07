@@ -740,13 +740,16 @@ static void sdma_event_disable(struct sdma_channel *sdmac, unsigned int event)
 static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
 {
 	struct sdma_buffer_descriptor *bd;
-	struct sdma_desc *desc = sdmac->desc;
+	struct sdma_desc *desc;
+	unsigned long flags;
 
 	/*
 	 * loop mode. Iterate over descriptors, re-setup them and
 	 * call callback function.
 	 */
-	while (1) {
+	spin_lock_irqsave(&sdmac->vc.lock, flags);
+	while (sdmac->desc) {
+		desc = sdmac->desc;
 		bd = &desc->bd[desc->buf_tail];
 
 		if (bd->mode.status & BD_DONE)
@@ -764,8 +767,11 @@ static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
 			bd->mode.count = desc->des_count;
 		}
 
-		vchan_cyclic_callback(&desc->vd);
+		spin_unlock_irqrestore(&sdmac->vc.lock, flags);
+		desc->vd.tx.callback(desc->vd.tx.callback_param);
+		spin_lock_irqsave(&sdmac->vc.lock, flags);
 	}
+	spin_unlock_irqrestore(&sdmac->vc.lock, flags);
 }
 
 static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
@@ -813,10 +819,7 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 		desc = sdmac->desc;
 		if (desc) {
 			if (sdmac->flags & IMX_DMA_SG_LOOP) {
-				if (sdmac->peripheral_type == IMX_DMATYPE_HDMI)
-					vchan_cyclic_callback(&desc->vd);
-				else
-					sdma_handle_channel_loop(sdmac);
+				vchan_cyclic_callback(&desc->vd);
 			} else {
 				mxc_sdma_handle_channel_normal(sdmac);
 				vchan_cookie_complete(&desc->vd);
@@ -1635,6 +1638,8 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 		return vchan_tx_prep(&sdmac->vc, &desc->vd, flags);
 
 	desc->buf_tail = 0;
+	desc->vd.overide_callback = (void *)sdma_handle_channel_loop;
+	desc->vd.overide_param = sdmac;
 
 	if (period_len > SDMA_BD_MAX_CNT) {
 		dev_err(sdma->dev, "SDMA channel %d: maximum period size exceeded: %zu > %d\n",

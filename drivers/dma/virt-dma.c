@@ -74,8 +74,12 @@ static void vchan_complete(unsigned long arg)
 	}
 	spin_unlock_irq(&vc->lock);
 
-	if (cb)
-		cb(cb_data);
+	if (cb) {
+		if (vd->overide_callback)
+			vd->overide_callback(vd->overide_param);
+		else
+			cb(cb_data);
+	}
 
 	while (!list_empty(&head)) {
 		vd = list_first_entry(&head, struct virt_dma_desc, node);
