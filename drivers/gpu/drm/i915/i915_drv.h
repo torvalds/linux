@@ -484,6 +484,7 @@ struct drm_i915_error_state {
 	struct timeval time;
 
 	char error_msg[128];
+	int iommu;
 	u32 reset_count;
 	u32 suspend_count;
 
