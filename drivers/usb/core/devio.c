@@ -103,7 +103,7 @@ MODULE_PARM_DESC(usbfs_snoop, "true to log all usbfs traffic");
 #define snoop(dev, format, arg...)				\
 	do {							\
 		if (usbfs_snoop)				\
-			dev_info(dev , format , ## arg);	\
+			dev_info(dev, format, ## arg);		\
 	} while (0)
 
 enum snoop_when {
@@ -1321,7 +1321,7 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	is_in = (uurb->endpoint & USB_ENDPOINT_DIR_MASK) != 0;
 
 	u = 0;
-	switch(uurb->type) {
+	switch (uurb->type) {
 	case USBDEVFS_URB_TYPE_CONTROL:
 		if (!usb_endpoint_xfer_control(&ep->desc))
 			return -EINVAL;
