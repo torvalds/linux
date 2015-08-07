@@ -8,6 +8,7 @@ Required properties:
   * "lltc,ltc3880"
   * "lltc,ltc3882"
   * "lltc,ltc3883"
+  * "lltc,ltc3887"
   * "lltc,ltm4676"
 - reg: I2C slave address
 

@@ -27,6 +27,10 @@ Supported chips:
     Prefix: 'ltc3883'
     Addresses scanned: -
     Datasheet: http://www.linear.com/product/ltc3883
+  * Linear Technology LTC3887
+    Prefix: 'ltc3887'
+    Addresses scanned: -
+    Datasheet: http://www.linear.com/product/ltc3887
   * Linear Technology LTM4676
     Prefix: 'ltm4676'
     Addresses scanned: -
@@ -41,7 +45,8 @@ Description
 LTC2974 is a quad digital power supply managers.
 LTC2978 is an octal power supply monitor.
 LTC2977 is a pin compatible replacement for LTC2978.
-LTC3880 and LTC3882 are dual output poly-phase step-down DC/DC controllers.
+LTC3880, LTC3882, and LTC3887 are dual output poly-phase step-down DC/DC
+controllers.
 LTC3883 is a single phase step-down DC/DC controller.
 LTM4676 is a dual 13A or single 26A uModule regulator.
 
@@ -85,7 +90,7 @@ in[N]_label		"vout[1-8]".
 			LTC2974: N=2-5
 			LTC2977: N=2-9
 			LTC2978: N=2-9
-			LTC3880, LTC3882, LTM4676: N=2-3
+			LTC3880, LTC3882, LTC3887, LTM4676: N=2-3
 			LTC3883: N=2
 in[N]_input		Measured output voltage.
 in[N]_min		Minimum output voltage.
@@ -105,8 +110,8 @@ temp[N]_input		Measured temperature.
 			and temp5 reports the chip temperature.
 			On LTC2977 and LTC2978, only one temperature measurement
 			is supported and reports the chip temperature.
-			On LTC3880, LTC3882, and LTM4676, temp1 and temp2
-			report external temperatures, and temp3 reports
+			On LTC3880, LTC3882, LTC3887, and LTM4676, temp1 and
+			temp2 report external temperatures, and temp3 reports
 			the chip temperature.
 			On LTC3883, temp1 reports an external temperature,
 			and temp2 reports the chip temperature.
@@ -134,11 +139,11 @@ power[N]_label		"pout[1-4]".
 			LTC2974: N=1-4
 			LTC2977: Not supported
 			LTC2978: Not supported
-			LTC3880, LTC3882, LTM4676: N=1-2
+			LTC3880, LTC3882, LTC3887, LTM4676: N=1-2
 			LTC3883: N=2
 power[N]_input		Measured output power.
 
-curr1_label		"iin". LTC3880, LTC3883, and LTM4676 only.
+curr1_label		"iin". LTC3880, LTC3883, LTC3887, and LTM4676 only.
 curr1_input		Measured input current.
 curr1_max		Maximum input current.
 curr1_max_alarm		Input current high alarm.
@@ -149,7 +154,7 @@ curr[N]_label		"iout[1-4]".
 			LTC2974: N=1-4
 			LTC2977: not supported
 			LTC2978: not supported
-			LTC3880, LTC3882, LTM4676: N=2-3
+			LTC3880, LTC3882, LTC3887, LTM4676: N=2-3
 			LTC3883: N=2
 curr[N]_input		Measured output current.
 curr[N]_max		Maximum output current.

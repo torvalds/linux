@@ -1,6 +1,6 @@
 /*
  * Hardware monitoring driver for LTC2974, LTC2977, LTC2978, LTC3880,
- * LTC3883, and LTM4676
+ * LTC3883, LTC3887. and LTM4676
  *
  * Copyright (c) 2011 Ericsson AB.
  * Copyright (c) 2013, 2014 Guenter Roeck
@@ -25,7 +25,8 @@
 #include <linux/regulator/driver.h>
 #include "pmbus.h"
 
-enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883, ltm4676 };
+enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883, ltc3887,
+	     ltm4676 };
 
 /* Common for all chips */
 #define LTC2978_MFR_VOUT_PEAK		0xdd
@@ -42,7 +43,7 @@ enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883, ltm4676 };
 #define LTC2974_MFR_IOUT_PEAK		0xd7
 #define LTC2974_MFR_IOUT_MIN		0xd8
 
-/* LTC3880, LTC3882, LTC3883, and LTM4676 */
+/* LTC3880, LTC3882, LTC3883, LTC3887, and LTM4676 */
 #define LTC3880_MFR_IOUT_PEAK		0xd7
 #define LTC3880_MFR_CLEAR_PEAKS		0xe3
 #define LTC3880_MFR_TEMPERATURE2_PEAK	0xf4
@@ -60,9 +61,11 @@ enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883, ltm4676 };
 #define LTC3880_ID_MASK			0xff00
 #define LTC3883_ID			0x4300
 #define LTC3883_ID_MASK			0xff00
+#define LTC3887_ID			0x4700
+#define LTC3887_ID_MASK			0xff00
 #define LTM4676_ID			0x4400
 #define LTM4676_ID_2			0x4480
-#define LTM4676A_ID			0x47E0
+#define LTM4676A_ID			0x47e0
 #define LTM4676_ID_MASK			0xfff0
 
 #define LTC2974_NUM_PAGES		4
@@ -315,7 +318,8 @@ static int ltc2978_clear_peaks(struct i2c_client *client, int page,
 {
 	int ret;
 
-	if (id == ltc3880 || id == ltc3882 || id == ltc3883 || id == ltm4676)
+	if (id == ltc3880 || id == ltc3882 || id == ltc3883 || id == ltc3887 ||
+	    id == ltm4676)
 		ret = pmbus_write_byte(client, 0, LTC3880_MFR_CLEAR_PEAKS);
 	else
 		ret = pmbus_write_byte(client, page, PMBUS_CLEAR_FAULTS);
@@ -373,6 +377,7 @@ static const struct i2c_device_id ltc2978_id[] = {
 	{"ltc3880", ltc3880},
 	{"ltc3882", ltc3882},
 	{"ltc3883", ltc3883},
+	{"ltc3887", ltc3887},
 	{"ltm4676", ltm4676},
 	{}
 };
@@ -432,6 +437,8 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltc3880;
 	else if ((chip_id & LTC3883_ID_MASK) == LTC3883_ID)
 		return ltc3883;
+	else if ((chip_id & LTC3887_ID_MASK) == LTC3887_ID)
+		return ltc3887;
 	else if ((chip_id & LTM4676_ID_MASK) == LTM4676_ID ||
 		 (chip_id & LTM4676_ID_MASK) == LTM4676_ID_2 ||
 		 (chip_id & LTM4676_ID_MASK) == LTM4676A_ID)
@@ -511,6 +518,7 @@ static int ltc2978_probe(struct i2c_client *client,
 		}
 		break;
 	case ltc3880:
+	case ltc3887:
 	case ltm4676:
 		info->read_word_data = ltc3880_read_word_data;
 		info->pages = LTC3880_NUM_PAGES;
@@ -573,6 +581,7 @@ static const struct of_device_id ltc2978_of_match[] = {
 	{ .compatible = "lltc,ltc3880" },
 	{ .compatible = "lltc,ltc3882" },
 	{ .compatible = "lltc,ltc3883" },
+	{ .compatible = "lltc,ltc3887" },
 	{ .compatible = "lltc,ltm4676" },
 	{ }
 };
