@@ -8,15 +8,16 @@ static int apci1564_timer_insn_config(struct comedi_device *dev,
 
 	devpriv->tsk_current = current;
 
-	/* First Stop The Timer */
+	/* Stop the timer */
 	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
-	ctrl &= 0xfffff9fe;
-	/* Stop The Timer */
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_ENA);
 	outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
 
 	if (data[1] == 1) {
 		/* Enable timer int & disable all the other int sources */
-		outl(0x02, devpriv->timer + ADDI_TCW_CTRL_REG);
+		outl(ADDI_TCW_CTRL_IRQ_ENA,
+		     devpriv->timer + ADDI_TCW_CTRL_REG);
 		outl(0x0, dev->iobase + APCI1564_DI_IRQ_REG);
 		outl(0x0, dev->iobase + APCI1564_DO_IRQ_REG);
 		outl(0x0, dev->iobase + APCI1564_WDOG_IRQ_REG);
@@ -40,9 +41,11 @@ static int apci1564_timer_insn_config(struct comedi_device *dev,
 	outl(data[3], devpriv->timer + ADDI_TCW_RELOAD_REG);
 
 	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
-	ctrl &= 0xfff719e2;
-	ctrl |= (2 << 13) | 0x10;
-	/* mode 2 */
+	ctrl &= ~(ADDI_TCW_CTRL_CNTR_ENA | ADDI_TCW_CTRL_MODE_MASK |
+		  ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_TIMER_ENA | ADDI_TCW_CTRL_RESET_ENA |
+		  ADDI_TCW_CTRL_WARN_ENA | ADDI_TCW_CTRL_ENA);
+	ctrl |= ADDI_TCW_CTRL_MODE(2) | ADDI_TCW_CTRL_TIMER_ENA;
 	outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
 
 	return insn->n;
@@ -59,11 +62,12 @@ static int apci1564_timer_insn_write(struct comedi_device *dev,
 	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
 	switch (data[1]) {
 	case 0:	/* Stop The Timer */
-		ctrl &= 0xfffff9fe;
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+			  ADDI_TCW_CTRL_ENA);
 		break;
 	case 1:	/* Enable the Timer */
-		ctrl &= 0xfffff9ff;
-		ctrl |= 0x1;
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
+		ctrl |= ADDI_TCW_CTRL_ENA;
 		break;
 	}
 	outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
@@ -99,35 +103,35 @@ static int apci1564_counter_insn_config(struct comedi_device *dev,
 
 	devpriv->tsk_current = current;
 
-	/* First Stop The Counter */
-	ctrl = inl(iobase + ADDI_TCW_CTRL_REG);
-	ctrl &= 0xfffff9fe;
 	/* Stop The Timer */
+	ctrl = inl(iobase + ADDI_TCW_CTRL_REG);
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_ENA);
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	/* Set the reload value */
 	outl(data[3], iobase + ADDI_TCW_RELOAD_REG);
 
-	/* Set the mode :             */
-	/* - Disable the hardware     */
-	/* - Disable the counter mode */
-	/* - Disable the warning      */
-	/* - Disable the reset        */
-	/* - Disable the timer mode   */
-	/* - Enable the counter mode  */
-
-	ctrl &= 0xfffc19e2;
-	ctrl |= 0x80000 | (data[4] << 16);
+	/* Set the mode */
+	ctrl &= ~(ADDI_TCW_CTRL_EXT_CLK_MASK | ADDI_TCW_CTRL_MODE_MASK |
+		  ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_TIMER_ENA | ADDI_TCW_CTRL_RESET_ENA |
+		  ADDI_TCW_CTRL_WARN_ENA | ADDI_TCW_CTRL_ENA);
+	ctrl |= ADDI_TCW_CTRL_CNTR_ENA | ADDI_TCW_CTRL_EXT_CLK(data[4]);
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	/* Enable or Disable Interrupt */
-	ctrl &= 0xfffff9fd;
-	ctrl |= (data[1] << 1);
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_IRQ_ENA);
+	if (data[1])
+		ctrl |= ADDI_TCW_CTRL_IRQ_ENA;
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	/* Set the Up/Down selection */
-	ctrl &= 0xfffbf9ff;
-	ctrl |= (data[6] << 18);
+	ctrl &= ~(ADDI_TCW_CTRL_CNT_UP | ADDI_TCW_CTRL_GATE |
+		  ADDI_TCW_CTRL_TRIG);
+	if (data[6])
+		ctrl |= ADDI_TCW_CTRL_CNT_UP;
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 
 	return insn->n;
@@ -149,12 +153,12 @@ static int apci1564_counter_insn_write(struct comedi_device *dev,
 		ctrl = 0;
 		break;
 	case 1:	/* Start the Counter subdevice */
-		ctrl &= 0xfffff9ff;
-		ctrl |= 0x1;
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
+		ctrl |= ADDI_TCW_CTRL_ENA;
 		break;
 	case 2:	/* Clears the Counter subdevice */
-		ctrl &= 0xfffff9ff;
-		ctrl |= 0x400;
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
+		ctrl |= ADDI_TCW_CTRL_GATE;
 		break;
 	}
 	outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
