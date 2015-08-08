@@ -594,6 +594,7 @@ struct ixgbe_mac_addr {
 
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
+#define IXGBE_SFP_POLL_JIFFIES (2 * HZ)	/* SFP poll every 2 seconds */
 
 /* board specific private data structure */
 struct ixgbe_adapter {
@@ -707,6 +708,7 @@ struct ixgbe_adapter {
 
 	u32 link_speed;
 	bool link_up;
+	unsigned long sfp_poll_time;
 	unsigned long link_check_timeout;
 
 	struct timer_list service_timer;
