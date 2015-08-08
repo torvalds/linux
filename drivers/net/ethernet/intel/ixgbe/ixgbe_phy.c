@@ -1230,7 +1230,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			hw->phy.sfp_type = ixgbe_sfp_type_lr;
 		else
 			hw->phy.sfp_type = ixgbe_sfp_type_unknown;
-	} else if (hw->mac.type == ixgbe_mac_82599EB) {
+	} else {
 		if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE) {
 			if (hw->bus.lan_id == 0)
 				hw->phy.sfp_type =
