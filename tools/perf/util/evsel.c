@@ -598,6 +598,7 @@ static void apply_config_terms(struct perf_evsel *evsel)
 		switch (term->type) {
 		case PERF_EVSEL__CONFIG_TERM_PERIOD:
 			attr->sample_period = term->val.period;
+			attr->freq = 0;
 			break;
 		case PERF_EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
