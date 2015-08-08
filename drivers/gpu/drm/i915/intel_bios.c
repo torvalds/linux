@@ -909,19 +909,19 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	/* Each DDI port can have more than one value on the "DVO Port" field,
 	 * so look for all the possible values for each port and abort if more
 	 * than one is found. */
-	int dvo_ports[][2] = {
-		{DVO_PORT_HDMIA, DVO_PORT_DPA},
-		{DVO_PORT_HDMIB, DVO_PORT_DPB},
-		{DVO_PORT_HDMIC, DVO_PORT_DPC},
-		{DVO_PORT_HDMID, DVO_PORT_DPD},
-		{DVO_PORT_CRT, -1 /* Port E can only be DVO_PORT_CRT */ },
+	int dvo_ports[][3] = {
+		{DVO_PORT_HDMIA, DVO_PORT_DPA, -1},
+		{DVO_PORT_HDMIB, DVO_PORT_DPB, -1},
+		{DVO_PORT_HDMIC, DVO_PORT_DPC, -1},
+		{DVO_PORT_HDMID, DVO_PORT_DPD, -1},
+		{DVO_PORT_CRT, DVO_PORT_HDMIE, DVO_PORT_DPE},
 	};
 
 	/* Find the child device to use, abort if more than one found. */
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		it = dev_priv->vbt.child_dev + i;
 
-		for (j = 0; j < 2; j++) {
+		for (j = 0; j < 3; j++) {
 			if (dvo_ports[port][j] == -1)
 				break;
 

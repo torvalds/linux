@@ -775,6 +775,8 @@ int intel_parse_bios(struct drm_device *dev);
 #define DVO_PORT_DPC	8
 #define DVO_PORT_DPD	9
 #define DVO_PORT_DPA	10
+#define DVO_PORT_DPE	11
+#define DVO_PORT_HDMIE	12
 #define DVO_PORT_MIPIA	21
 #define DVO_PORT_MIPIB	22
 #define DVO_PORT_MIPIC	23

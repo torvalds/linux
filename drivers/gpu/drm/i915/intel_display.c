@@ -13960,6 +13960,15 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_ddi_init(dev, PORT_C);
 		if (found & SFUSE_STRAP_DDID_DETECTED)
 			intel_ddi_init(dev, PORT_D);
+		/*
+		 * On SKL we don't have a way to detect DDI-E so we rely on VBT.
+		 */
+		if (IS_SKYLAKE(dev) &&
+		    (dev_priv->vbt.ddi_port_info[PORT_E].supports_dp ||
+		     dev_priv->vbt.ddi_port_info[PORT_E].supports_dvi ||
+		     dev_priv->vbt.ddi_port_info[PORT_E].supports_hdmi))
+			intel_ddi_init(dev, PORT_E);
+
 	} else if (HAS_PCH_SPLIT(dev)) {
 		int found;
 		dpd_is_edp = intel_dp_is_edp(dev, PORT_D);
