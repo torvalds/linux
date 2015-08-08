@@ -910,6 +910,20 @@ static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 }
 
 /**
+ *  ixgbe_setup_mac_link_sfp_x550em - Configure the KR PHY for SFP.
+ *  @hw: pointer to hardware structure
+ *
+ *  Configures the extern PHY and the integrated KR PHY for SFP support.
+ */
+static s32
+ixgbe_setup_mac_link_sfp_x550em(struct ixgbe_hw *hw,
+				ixgbe_link_speed speed,
+				__always_unused bool autoneg_wait_to_complete)
+{
+	return ixgbe_setup_ixfi_x550em(hw, &speed);
+}
+
+/**
  * ixgbe_setup_mac_link_t_X550em - Sets the auto advertised link speed
  * @hw: pointer to hardware structure
  * @speed: new link speed
@@ -1003,6 +1017,10 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 		mac->ops.disable_tx_laser = NULL;
 		mac->ops.enable_tx_laser = NULL;
 		mac->ops.flap_tx_laser = NULL;
+		mac->ops.setup_link = ixgbe_setup_mac_link_multispeed_fiber;
+		mac->ops.setup_mac_link = ixgbe_setup_mac_link_sfp_x550em;
+		mac->ops.set_rate_select_speed =
+					ixgbe_set_soft_rate_select_speed;
 		break;
 	case ixgbe_media_type_copper:
 		mac->ops.setup_link = ixgbe_setup_mac_link_t_X550em;
