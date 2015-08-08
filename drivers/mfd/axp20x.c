@@ -140,6 +140,13 @@ static struct resource axp20x_pek_resources[] = {
 	},
 };
 
+static struct resource axp20x_usb_power_supply_resources[] = {
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_PLUGIN, "VBUS_PLUGIN"),
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_REMOVAL, "VBUS_REMOVAL"),
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_VALID, "VBUS_VALID"),
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_NOT_VALID, "VBUS_NOT_VALID"),
+};
+
 static struct resource axp22x_pek_resources[] = {
 	{
 		.name   = "PEK_DBR",
@@ -432,11 +439,16 @@ static const struct regmap_irq_chip axp288_regmap_irq_chip = {
 
 static struct mfd_cell axp20x_cells[] = {
 	{
-		.name			= "axp20x-pek",
-		.num_resources		= ARRAY_SIZE(axp20x_pek_resources),
-		.resources		= axp20x_pek_resources,
+		.name		= "axp20x-pek",
+		.num_resources	= ARRAY_SIZE(axp20x_pek_resources),
+		.resources	= axp20x_pek_resources,
 	}, {
-		.name			= "axp20x-regulator",
+		.name		= "axp20x-regulator",
+	}, {
+		.name		= "axp20x-usb-power-supply",
+		.of_compatible	= "x-powers,axp202-usb-power-supply",
+		.num_resources	= ARRAY_SIZE(axp20x_usb_power_supply_resources),
+		.resources	= axp20x_usb_power_supply_resources,
 	},
 };
 
