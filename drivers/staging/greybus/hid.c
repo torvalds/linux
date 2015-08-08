@@ -523,8 +523,8 @@ static void gb_hid_connection_exit(struct gb_connection *connection)
 static struct gb_protocol hid_protocol = {
 	.name			= "hid",
 	.id			= GREYBUS_PROTOCOL_HID,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_HID_VERSION_MAJOR,
+	.minor			= GB_HID_VERSION_MINOR,
 	.connection_init	= gb_hid_connection_init,
 	.connection_exit	= gb_hid_connection_exit,
 	.request_recv		= gb_hid_irq_handler,
