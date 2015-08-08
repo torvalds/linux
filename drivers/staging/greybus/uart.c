@@ -767,8 +767,8 @@ static void gb_tty_exit(void)
 static struct gb_protocol uart_protocol = {
 	.name			= "uart",
 	.id			= GREYBUS_PROTOCOL_UART,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_UART_VERSION_MAJOR,
+	.minor			= GB_UART_VERSION_MINOR,
 	.connection_init	= gb_uart_connection_init,
 	.connection_exit	= gb_uart_connection_exit,
 	.request_recv		= gb_uart_request_recv,
