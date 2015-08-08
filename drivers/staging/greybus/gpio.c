@@ -719,8 +719,8 @@ static void gb_gpio_connection_exit(struct gb_connection *connection)
 static struct gb_protocol gpio_protocol = {
 	.name			= "gpio",
 	.id			= GREYBUS_PROTOCOL_GPIO,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_GPIO_VERSION_MAJOR,
+	.minor			= GB_GPIO_VERSION_MINOR,
 	.connection_init	= gb_gpio_connection_init,
 	.connection_exit	= gb_gpio_connection_exit,
 	.request_recv		= gb_gpio_request_recv,
