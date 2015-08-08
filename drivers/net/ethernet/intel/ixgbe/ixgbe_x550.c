@@ -910,6 +910,40 @@ static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 }
 
 /**
+ *  ixgbe_supported_sfp_modules_X550em - Check if SFP module type is supported
+ *  @hw: pointer to hardware structure
+ *  @linear: true if SFP module is linear
+ */
+static s32 ixgbe_supported_sfp_modules_X550em(struct ixgbe_hw *hw, bool *linear)
+{
+	switch (hw->phy.sfp_type) {
+	case ixgbe_sfp_type_not_present:
+		return IXGBE_ERR_SFP_NOT_PRESENT;
+	case ixgbe_sfp_type_da_cu_core0:
+	case ixgbe_sfp_type_da_cu_core1:
+		*linear = true;
+		break;
+	case ixgbe_sfp_type_srlr_core0:
+	case ixgbe_sfp_type_srlr_core1:
+	case ixgbe_sfp_type_da_act_lmt_core0:
+	case ixgbe_sfp_type_da_act_lmt_core1:
+	case ixgbe_sfp_type_1g_sx_core0:
+	case ixgbe_sfp_type_1g_sx_core1:
+	case ixgbe_sfp_type_1g_lx_core0:
+	case ixgbe_sfp_type_1g_lx_core1:
+		*linear = false;
+		break;
+	case ixgbe_sfp_type_unknown:
+	case ixgbe_sfp_type_1g_cu_core0:
+	case ixgbe_sfp_type_1g_cu_core1:
+	default:
+		return IXGBE_ERR_SFP_NOT_SUPPORTED;
+	}
+
+	return 0;
+}
+
+/**
  *  ixgbe_setup_mac_link_sfp_x550em - Configure the KR PHY for SFP.
  *  @hw: pointer to hardware structure
  *
@@ -920,7 +954,49 @@ ixgbe_setup_mac_link_sfp_x550em(struct ixgbe_hw *hw,
 				ixgbe_link_speed speed,
 				__always_unused bool autoneg_wait_to_complete)
 {
-	return ixgbe_setup_ixfi_x550em(hw, &speed);
+	s32 status;
+	u16 slice, value;
+	bool setup_linear = false;
+
+	/* Check if SFP module is supported and linear */
+	status = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
+
+	/* If no SFP module present, then return success. Return success since
+	 * there is no reason to configure CS4227 and SFP not present error is
+	 * not accepted in the setup MAC link flow.
+	 */
+	if (status == IXGBE_ERR_SFP_NOT_PRESENT)
+		return 0;
+
+	if (status)
+		return status;
+
+	/* Configure CS4227 LINE side to 10G SR. */
+	slice = IXGBE_CS4227_LINE_SPARE22_MSB + (hw->bus.lan_id << 12);
+	value = IXGBE_CS4227_SPEED_10G;
+	status = ixgbe_write_i2c_combined_generic(hw, IXGBE_CS4227, slice,
+						  value);
+
+	/* Configure CS4227 for HOST connection rate then type. */
+	slice = IXGBE_CS4227_HOST_SPARE22_MSB + (hw->bus.lan_id << 12);
+	value = speed & IXGBE_LINK_SPEED_10GB_FULL ?
+		IXGBE_CS4227_SPEED_10G : IXGBE_CS4227_SPEED_1G;
+	status = ixgbe_write_i2c_combined_generic(hw, IXGBE_CS4227, slice,
+						  value);
+
+	slice = IXGBE_CS4227_HOST_SPARE24_LSB + (hw->bus.lan_id << 12);
+	if (setup_linear)
+		value = (IXGBE_CS4227_EDC_MODE_CX1 << 1) | 1;
+	else
+		value = (IXGBE_CS4227_EDC_MODE_SR << 1) | 1;
+	status = ixgbe_write_i2c_combined_generic(hw, IXGBE_CS4227, slice,
+						  value);
+
+	/* If internal link mode is XFI, then setup XFI internal link. */
+	if (!(hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_INT_PHY_MODE))
+		status = ixgbe_setup_ixfi_x550em(hw, &speed);
+
+	return status;
 }
 
 /**
@@ -1036,53 +1112,18 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
  */
 static s32 ixgbe_setup_sfp_modules_X550em(struct ixgbe_hw *hw)
 {
-	bool setup_linear;
-	u16 reg_slice, edc_mode;
-	s32 ret_val;
+	s32 status;
+	bool linear;
 
-	switch (hw->phy.sfp_type) {
-	case ixgbe_sfp_type_unknown:
-		return 0;
-	case ixgbe_sfp_type_not_present:
-		return IXGBE_ERR_SFP_NOT_PRESENT;
-	case ixgbe_sfp_type_da_cu_core0:
-	case ixgbe_sfp_type_da_cu_core1:
-		setup_linear = true;
-		break;
-	case ixgbe_sfp_type_srlr_core0:
-	case ixgbe_sfp_type_srlr_core1:
-	case ixgbe_sfp_type_da_act_lmt_core0:
-	case ixgbe_sfp_type_da_act_lmt_core1:
-	case ixgbe_sfp_type_1g_sx_core0:
-	case ixgbe_sfp_type_1g_sx_core1:
-		setup_linear = false;
-		break;
-	default:
-		return IXGBE_ERR_SFP_NOT_SUPPORTED;
-	}
+	/* Check if SFP module is supported */
+	status = ixgbe_supported_sfp_modules_X550em(hw, &linear);
+	if (status)
+		return status;
 
 	ixgbe_init_mac_link_ops_X550em(hw);
 	hw->phy.ops.reset = NULL;
 
-	/* The CS4227 slice address is the base address + the port-pair reg
-	 * offset. I.e. Slice 0 = 0x12B0 and slice 1 = 0x22B0.
-	 */
-	reg_slice = IXGBE_CS4227_SPARE24_LSB + (hw->bus.lan_id << 12);
-
-	if (setup_linear)
-		edc_mode = (IXGBE_CS4227_EDC_MODE_CX1 << 1) | 0x1;
-	else
-		edc_mode = (IXGBE_CS4227_EDC_MODE_SR << 1) | 0x1;
-
-	/* Configure CS4227 for connection type. */
-	ret_val = hw->phy.ops.write_i2c_combined(hw, IXGBE_CS4227, reg_slice,
-						 edc_mode);
-
-	if (ret_val)
-		ret_val = hw->phy.ops.write_i2c_combined(hw, 0x80, reg_slice,
-							 edc_mode);
-
-	return ret_val;
+	return 0;
 }
 
 /** ixgbe_get_link_capabilities_x550em - Determines link capabilities
