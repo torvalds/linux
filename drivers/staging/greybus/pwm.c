@@ -239,8 +239,8 @@ static void gb_pwm_connection_exit(struct gb_connection *connection)
 static struct gb_protocol pwm_protocol = {
 	.name			= "pwm",
 	.id			= GREYBUS_PROTOCOL_PWM,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_PWM_VERSION_MAJOR,
+	.minor			= GB_PWM_VERSION_MINOR,
 	.connection_init	= gb_pwm_connection_init,
 	.connection_exit	= gb_pwm_connection_exit,
 	.request_recv		= NULL, /* no incoming requests */
