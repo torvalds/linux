@@ -58,6 +58,10 @@ Optionnal property:
 			  Documentation/devicetree/bindings/net/ethernet.txt
 			  for details.
 
+- mii-bus		: Should be a phandle to a valid MDIO bus device node.
+			  This mii-bus will be used in preference to the
+			  global dsa,mii-bus defined above, for this switch.
+
 Optional subnodes:
 - fixed-link		: Fixed-link subnode describing a link to a non-MDIO
 			  managed entity. See
@@ -107,6 +111,7 @@ Example:
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <17 1>;	/* MDIO address 17, switch 1 in tree */
+			mii-bus = <&mii_bus1>;
 
 			switch1uplink: port@0 {
 				reg = <0>;
