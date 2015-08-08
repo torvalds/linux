@@ -318,6 +318,13 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
 
+static struct sk_buff *gre_handle_offloads(struct sk_buff *skb,
+					   bool csum)
+{
+	return iptunnel_handle_offloads(skb, csum,
+					csum ? SKB_GSO_GRE_CSUM : SKB_GSO_GRE);
+}
+
 static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel_info *tun_info;
@@ -1011,6 +1018,35 @@ static struct rtnl_link_ops ipgre_tap_ops __read_mostly = {
 	.fill_info	= ipgre_fill_info,
 	.get_link_net	= ip_tunnel_get_link_net,
 };
+
+struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
+					u8 name_assign_type)
+{
+	struct nlattr *tb[IFLA_MAX + 1];
+	struct net_device *dev;
+	struct ip_tunnel *t;
+	int err;
+
+	memset(&tb, 0, sizeof(tb));
+
+	dev = rtnl_create_link(net, name, name_assign_type,
+			       &ipgre_tap_ops, tb);
+	if (IS_ERR(dev))
+		return dev;
+
+	/* Configure flow based GRE device. */
+	t = netdev_priv(dev);
+	t->collect_md = true;
+
+	err = ipgre_newlink(net, dev, tb, NULL);
+	if (err < 0)
+		goto out;
+	return dev;
+out:
+	free_netdev(dev);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(gretap_fb_dev_create);
 
 static int __net_init ipgre_tap_init_net(struct net *net)
 {

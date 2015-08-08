@@ -33,16 +33,8 @@ struct gre_cisco_protocol {
 int gre_cisco_register(struct gre_cisco_protocol *proto);
 int gre_cisco_unregister(struct gre_cisco_protocol *proto);
 
-void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
-		      int hdr_len);
-
-static inline struct sk_buff *gre_handle_offloads(struct sk_buff *skb,
-						  bool csum)
-{
-	return iptunnel_handle_offloads(skb, csum,
-					csum ? SKB_GSO_GRE_CSUM : SKB_GSO_GRE);
-}
-
+struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
+				       u8 name_assign_type);
 
 static inline int ip_gre_calc_hlen(__be16 o_flags)
 {
