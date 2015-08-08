@@ -84,7 +84,7 @@ struct gb_hid {
 
 static DEFINE_MUTEX(gb_hid_open_mutex);
 
-/* Routines to get controller's infomation over greybus */
+/* Routines to get controller's information over greybus */
 
 /* Define get_version() routine */
 define_get_version(gb_hid, HID);
