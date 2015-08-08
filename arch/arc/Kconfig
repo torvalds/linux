@@ -8,6 +8,7 @@
 
 config ARC
 	def_bool y
+	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
 	select COMMON_CLK
 	select CLONE_BACKWARDS
