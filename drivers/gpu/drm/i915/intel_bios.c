@@ -968,13 +968,28 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 
 	if (is_dp) {
-		if (aux_channel == 0x40 && port != PORT_A)
+		if (port == PORT_E) {
+			info->alternate_aux_channel = aux_channel;
+			/* if DDIE share aux channel with other port, then
+			 * DP couldn't exist on the shared port. Otherwise
+			 * they share the same aux channel and system
+			 * couldn't communicate with them seperately. */
+			if (aux_channel == DP_AUX_A)
+				dev_priv->vbt.ddi_port_info[PORT_A].supports_dp = 0;
+			else if (aux_channel == DP_AUX_B)
+				dev_priv->vbt.ddi_port_info[PORT_B].supports_dp = 0;
+			else if (aux_channel == DP_AUX_C)
+				dev_priv->vbt.ddi_port_info[PORT_C].supports_dp = 0;
+			else if (aux_channel == DP_AUX_D)
+				dev_priv->vbt.ddi_port_info[PORT_D].supports_dp = 0;
+		}
+		else if (aux_channel == DP_AUX_A && port != PORT_A)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port A\n");
-		if (aux_channel == 0x10 && port != PORT_B)
+		else if (aux_channel == DP_AUX_B && port != PORT_B)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port B\n");
-		if (aux_channel == 0x20 && port != PORT_C)
+		else if (aux_channel == DP_AUX_C && port != PORT_C)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port C\n");
-		if (aux_channel == 0x30 && port != PORT_D)
+		else if (aux_channel == DP_AUX_D && port != PORT_D)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port D\n");
 	}
 

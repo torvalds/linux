@@ -1033,10 +1033,33 @@ static void
 intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
+	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
 	const char *name = NULL;
+	uint32_t porte_aux_ctl_reg = DPA_AUX_CH_CTL;
 	int ret;
+
+	/* On SKL we don't have Aux for port E so we rely on VBT to set
+	 * a proper alternate aux channel.
+	 */
+	if (IS_SKYLAKE(dev) && port == PORT_E) {
+		switch (info->alternate_aux_channel) {
+		case DP_AUX_B:
+			porte_aux_ctl_reg = DPB_AUX_CH_CTL;
+			break;
+		case DP_AUX_C:
+			porte_aux_ctl_reg = DPC_AUX_CH_CTL;
+			break;
+		case DP_AUX_D:
+			porte_aux_ctl_reg = DPD_AUX_CH_CTL;
+			break;
+		case DP_AUX_A:
+		default:
+			porte_aux_ctl_reg = DPA_AUX_CH_CTL;
+		}
+	}
 
 	switch (port) {
 	case PORT_A:
@@ -1055,6 +1078,10 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 		intel_dp->aux_ch_ctl_reg = PCH_DPD_AUX_CH_CTL;
 		name = "DPDDC-D";
 		break;
+	case PORT_E:
+		intel_dp->aux_ch_ctl_reg = porte_aux_ctl_reg;
+		name = "DPDDC-E";
+		break;
 	default:
 		BUG();
 	}
@@ -1068,7 +1095,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	 *
 	 * Skylake moves AUX_CTL back next to DDI_BUF_CTL, on the CPU.
 	 */
-	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
+	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev) && port != PORT_E)
 		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
 	intel_dp->aux.name = name;

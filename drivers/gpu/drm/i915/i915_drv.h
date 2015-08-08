@@ -1409,6 +1409,11 @@ enum modeset_restore {
 	MODESET_SUSPENDED,
 };
 
+#define DP_AUX_A 0x40
+#define DP_AUX_B 0x10
+#define DP_AUX_C 0x20
+#define DP_AUX_D 0x30
+
 struct ddi_vbt_port_info {
 	/*
 	 * This is an index in the HDMI/DVI DDI buffer translation table.
@@ -1421,6 +1426,8 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dvi:1;
 	uint8_t supports_hdmi:1;
 	uint8_t supports_dp:1;
+
+	uint8_t alternate_aux_channel;
 };
 
 enum psr_lines_to_wait {
