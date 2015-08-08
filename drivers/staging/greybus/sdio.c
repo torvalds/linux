@@ -192,8 +192,9 @@ static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
 
 	request = op->request;
 
-	if (request->payload_size != sizeof(*payload)) {
-		dev_err(mmc_dev(host->mmc), "wrong event size received\n");
+	if (request->payload_size < sizeof(*payload)) {
+		dev_err(mmc_dev(host->mmc), "wrong event size received (%zu < %zu)\n",
+			request->payload_size, sizeof(*payload));
 		return -EINVAL;
 	}
 
