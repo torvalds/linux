@@ -540,8 +540,14 @@ int audit_dupe_exe(struct audit_krule *new, struct audit_krule *old)
 
 int audit_exe_compare(struct task_struct *tsk, struct audit_fsnotify_mark *mark)
 {
-	unsigned long ino = tsk->mm->exe_file->f_inode->i_ino;
-	dev_t dev = tsk->mm->exe_file->f_inode->i_sb->s_dev;
+	struct file *exe_file;
+	unsigned long ino;
+	dev_t dev;
 
+	rcu_read_lock();
+	exe_file = rcu_dereference(tsk->mm->exe_file);
+	ino = exe_file->f_inode->i_ino;
+	dev = exe_file->f_inode->i_sb->s_dev;
+	rcu_read_unlock();
 	return audit_mark_compare(mark, ino, dev);
 }
