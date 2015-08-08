@@ -41,11 +41,10 @@ s32 WILC_strncmp(const char *pcStr1, const char *pcStr2,
 		s32Result = 1;
 	} else {
 		s32Result = strncmp(pcStr1, pcStr2, u32Count);
-		if (s32Result < 0) {
+		if (s32Result < 0)
 			s32Result = -1;
-		} else if (s32Result > 0)    {
+		else if (s32Result > 0)
 			s32Result = 1;
-		}
 	}
 
 	return s32Result;

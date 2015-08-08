@@ -1350,11 +1350,10 @@ static s32 Handle_Scan(void *drvHandler, tstrHostIFscanAttr *pstrHostIFscanAttr)
 	/*keep the state as is , no need to change it*/
 	/* gWFiDrvHandle->enuHostIFstate = HOST_IF_SCANNING; */
 
-	if (pstrWFIDrv->enuHostIFstate == HOST_IF_CONNECTED) {
+	if (pstrWFIDrv->enuHostIFstate == HOST_IF_CONNECTED)
 		gbScanWhileConnected = true;
-	} else if (pstrWFIDrv->enuHostIFstate == HOST_IF_IDLE)	  {
+	else if (pstrWFIDrv->enuHostIFstate == HOST_IF_IDLE)
 		gbScanWhileConnected = false;
-	}
 
 	s32Error = SendConfigPkt(SET_CFG, strWIDList, u32WidsCount, false, (u32)pstrWFIDrv);
 
@@ -2849,11 +2848,10 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			 * |------------|---------|-------|------------|---------------|----------------|
 			 |	6 bytes	 | 8 byte  |1 byte |  1 byte	|   16 bytes	|	  8 bytes	 |*/
 
-			if (pstrWFIDrv->enuHostIFstate == HOST_IF_CONNECTED) {
+			if (pstrWFIDrv->enuHostIFstate == HOST_IF_CONNECTED)
 				WILC_memcpy(pu8keybuf, pstrWFIDrv->au8AssociatedBSSID, ETH_ALEN);
-			} else {
+			else
 				PRINT_ER("Couldn't handle WPARxGtk while enuHostIFstate is not HOST_IF_CONNECTED\n");
-			}
 
 			WILC_memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.pu8seq, 8);
 
@@ -4024,11 +4022,10 @@ static void Handle_PowerManagement(void *drvHandler, tstrHostIfPowerMgmtParam *s
 
 	strWID.u16WIDid = (u16)WID_POWER_MANAGEMENT;
 
-	if (strPowerMgmtParam->bIsEnabled == true)	{
+	if (strPowerMgmtParam->bIsEnabled == true)
 		s8PowerMode = MIN_FAST_PS;
-	} else {
+	else
 		s8PowerMode = NO_POWERSAVE;
-	}
 	PRINT_D(HOSTINF_DBG, "Handling power mgmt to %d\n", s8PowerMode);
 	strWID.ps8WidVal = &s8PowerMode;
 	strWID.s32ValueSize = sizeof(char);
@@ -5479,9 +5476,9 @@ s32 host_int_set_join_req(WILC_WFIDrvHandle hWFIDrv, u8 *pu8bssid,
 		WILC_memcpy(strHostIFmsg.uniHostIFmsgBody.strHostIFconnectAttr.pu8IEs,
 			    pu8IEs, IEsLen);
 	}
-	if (pstrWFIDrv->enuHostIFstate < HOST_IF_CONNECTING) {
+	if (pstrWFIDrv->enuHostIFstate < HOST_IF_CONNECTING)
 		pstrWFIDrv->enuHostIFstate = HOST_IF_CONNECTING;
-	} else
+	else
 		PRINT_D(GENERIC_DBG, "Don't set state to 'connecting' as state is %d\n", pstrWFIDrv->enuHostIFstate);
 
 	/* send the message */

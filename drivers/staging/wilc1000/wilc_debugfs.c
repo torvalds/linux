@@ -62,11 +62,10 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char *buf, size_t
 
 	flag = buffer[0] - '0';
 
-	if (flag > 0) {
+	if (flag > 0)
 		flag = DEBUG | ERR;
-	} else if (flag < 0) {
+	else if (flag < 0)
 		flag = 100;
-	}
 
 	if (flag > DBG_LEVEL_ALL) {
 		printk("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&DEBUG_LEVEL));
@@ -75,11 +74,10 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char *buf, size_t
 
 	atomic_set(&DEBUG_LEVEL, (int)flag);
 
-	if (flag == 0) {
+	if (flag == 0)
 		printk("Debug-level disabled\n");
-	} else {
+	else
 		printk("Debug-level enabled\n");
-	}
 	return count;
 }
 

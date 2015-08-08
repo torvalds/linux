@@ -463,11 +463,10 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 	Pending_Acks = 0;
 	Opened_TCP_session = 0;
 
-	if (PendingAcks_arrBase == 0) {
+	if (PendingAcks_arrBase == 0)
 		PendingAcks_arrBase = MAX_TCP_SESSION;
-	} else {
+	else
 		PendingAcks_arrBase = 0;
-	}
 
 
 	p->os_func.os_spin_unlock(p->txq_spinlock, &p->txq_spinlock_flags);
@@ -1110,11 +1109,10 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 				/*Bug3959: transmitting mgmt frames received from host*/
 				/*setting bit 30 in the host header to indicate mgmt frame*/
 #ifdef WILC_AP_EXTERNAL_MLME
-				if (tqe->type == WILC_MGMT_PKT)	{
+				if (tqe->type == WILC_MGMT_PKT)
 					header |= (1 << 30);
-				} else {
+				else
 					header &= ~(1 << 30);
-				}
 #endif
 
 #ifdef BIG_ENDIAN
@@ -1541,11 +1539,10 @@ static int wilc_wlan_firmware_download(const uint8_t *buffer, uint32_t buffer_si
 		acquire_bus(ACQUIRE_ONLY);
 		offset += 8;
 		while (((int)size) && (offset < buffer_size)) {
-			if (size <= blksz) {
+			if (size <= blksz)
 				size2 = size;
-			} else {
+			else
 				size2 = blksz;
-			}
 			/* Copy firmware into a DMA coherent buffer */
 			memcpy(dma_buffer, &buffer[offset], size2);
 			ret = p->hif_func.hif_block_tx(addr, dma_buffer, size2);
@@ -2302,11 +2299,10 @@ u16 Set_machw_change_vir_if(bool bValue)
 		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
 	}
 
-	if (bValue) {
+	if (bValue)
 		reg |= (BIT31);
-	} else {
+	else
 		reg &= ~(BIT31);
-	}
 
 	ret = (&g_wlan)->hif_func.hif_write_reg(WILC_CHANGING_VIR_IF, reg);
 

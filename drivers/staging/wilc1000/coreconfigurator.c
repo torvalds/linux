@@ -706,11 +706,10 @@ u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
 
 	/* Search for the TIM Element Field and return if the element is found */
 	while (u16index < (u16RxLen - FCS_LEN)) {
-		if (pu8msa[u16index] == ITIM) {
+		if (pu8msa[u16index] == ITIM)
 			return &pu8msa[u16index];
-		} else {
+		else
 			u16index += (IE_HDR_LEN + pu8msa[u16index + 1]);
-		}
 	}
 
 	return 0;
@@ -1527,11 +1526,10 @@ s32 further_process_response(u8 *resp,
 	u8 cfg_str[256] = {0};
 	tenuWIDtype enuWIDtype = WID_UNDEF;
 
-	if (process_wid_num) {
+	if (process_wid_num)
 		enuWIDtype = get_wid_type(g_wid_num);
-	} else {
+	else
 		enuWIDtype = gastrWIDs[cnt].enuWIDtype;
-	}
 
 
 	switch (enuWIDtype) {

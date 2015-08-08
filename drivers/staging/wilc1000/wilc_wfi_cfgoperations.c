@@ -443,11 +443,10 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 			PRINT_D(CFG80211_DBG, "Refreshing Scan ...\n");
 			refresh_scan(priv, 1, false);
 
-			if (priv->u32RcvdChCount > 0) {
+			if (priv->u32RcvdChCount > 0)
 				PRINT_D(CFG80211_DBG, "%d Network(s) found\n", priv->u32RcvdChCount);
-			} else {
+			else
 				PRINT_D(CFG80211_DBG, "No networks found\n");
-			}
 
 			down(&(priv->hSemScanReq));
 
@@ -1686,11 +1685,10 @@ static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
 		sinfo->txrate.legacy = strStatistics.u8LinkSpeed * 10;
 
 #ifdef TCP_ENHANCEMENTS
-		if ((strStatistics.u8LinkSpeed > TCP_ACK_FILTER_LINK_SPEED_THRESH) && (strStatistics.u8LinkSpeed != DEFAULT_LINK_SPEED)) {
+		if ((strStatistics.u8LinkSpeed > TCP_ACK_FILTER_LINK_SPEED_THRESH) && (strStatistics.u8LinkSpeed != DEFAULT_LINK_SPEED))
 			Enable_TCP_ACK_Filter(true);
-		} else if (strStatistics.u8LinkSpeed != DEFAULT_LINK_SPEED)   {
+		else if (strStatistics.u8LinkSpeed != DEFAULT_LINK_SPEED)
 			Enable_TCP_ACK_Filter(false);
-		}
 #endif
 
 		PRINT_D(CORECONFIG_DBG, "*** stats[%d][%d][%d][%d][%d]\n", sinfo->signal, sinfo->rx_packets, sinfo->tx_packets,
@@ -2059,11 +2057,10 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 		}
 		#endif  /* USE_SUPPLICANT_GO_INTENT */
 
-		if (buf[index] ==  CHANLIST_ATTR_ID) {
+		if (buf[index] ==  CHANLIST_ATTR_ID)
 			channel_list_attr_index = index;
-		} else if (buf[index] ==  OPERCHAN_ATTR_ID)   {
+		else if (buf[index] ==  OPERCHAN_ATTR_ID)
 			op_channel_attr_index = index;
-		}
 		index += buf[index + 1] + 3; /* ID,Length byte */
 	}
 
@@ -2145,11 +2142,10 @@ void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftype)
 		}
 		#endif
 
-		if (buf[index] ==  CHANLIST_ATTR_ID) {
+		if (buf[index] ==  CHANLIST_ATTR_ID)
 			channel_list_attr_index = index;
-		} else if (buf[index] ==  OPERCHAN_ATTR_ID)   {
+		else if (buf[index] ==  OPERCHAN_ATTR_ID)
 			op_channel_attr_index = index;
-		}
 		index += buf[index + 1] + 3; /* ID,Length byte */
 	}
 

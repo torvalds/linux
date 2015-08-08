@@ -422,11 +422,10 @@ static void isr_bh_routine(struct work_struct *work)
 
 	int_rcvdB++;
 	PRINT_D(INT_DBG, "Interrupt received BH\n");
-	if (g_linux_wlan->oup.wlan_handle_rx_isr != 0) {
+	if (g_linux_wlan->oup.wlan_handle_rx_isr != 0)
 		g_linux_wlan->oup.wlan_handle_rx_isr();
-	} else {
+	else
 		PRINT_ER("wlan_handle_rx_isr() hasn't been initialized\n");
-	}
 
 #if (RX_BH_TYPE == RX_BH_THREADED_IRQ)
 	return IRQ_HANDLED;
@@ -450,11 +449,10 @@ static int isr_bh_routine(void *vp)
 		}
 		int_rcvdB++;
 		PRINT_D(INT_DBG, "Interrupt received BH\n");
-		if (g_linux_wlan->oup.wlan_handle_rx_isr != 0) {
+		if (g_linux_wlan->oup.wlan_handle_rx_isr != 0)
 			g_linux_wlan->oup.wlan_handle_rx_isr();
-		} else {
+		else
 			PRINT_ER("wlan_handle_rx_isr() hasn't been initialized\n");
-		}
 	}
 
 	return 0;
@@ -607,22 +605,20 @@ static int linux_wlan_lock_timeout(void *vp, u32 timeout)
 {
 	int error = -1;
 	PRINT_D(LOCK_DBG, "Locking %p\n", vp);
-	if (vp != NULL)	{
+	if (vp != NULL)
 		error = down_timeout((struct semaphore *)vp, msecs_to_jiffies(timeout));
-	} else {
+	else
 		PRINT_ER("Failed, mutex is NULL\n");
-	}
 	return error;
 }
 
 void linux_wlan_unlock(void *vp)
 {
 	PRINT_D(LOCK_DBG, "Unlocking %p\n", vp);
-	if (vp != NULL)	{
+	if (vp != NULL)
 		up((struct semaphore *)vp);
-	} else {
+	else
 		PRINT_ER("Failed, mutex is NULL\n");
-	}
 }
 
 static void linux_wlan_init_mutex(char *lockName, void *plock, int count)
@@ -2125,11 +2121,10 @@ static void linux_wlan_tx_complete(void *priv, int status)
 {
 
 	struct tx_complete_data *pv_data = (struct tx_complete_data *)priv;
-	if (status == 1) {
+	if (status == 1)
 		PRINT_D(TX_DBG, "Packet sent successfully - Size = %d - Address = %p - SKB = %p\n", pv_data->size, pv_data->buff, pv_data->skb);
-	} else {
+	else
 		PRINT_D(TX_DBG, "Couldn't send packet - Size = %d - Address = %p - SKB = %p\n", pv_data->size, pv_data->buff, pv_data->skb);
-	}
 	/* Free the SK Buffer, its work is done */
 	dev_kfree_skb(pv_data->skb);
 	linux_wlan_free(pv_data);
