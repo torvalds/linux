@@ -346,11 +346,11 @@ static int cim_qcfg_show(struct seq_file *seq, void *v)
 		if (is_t4(adap->params.chip)) {
 			i = t4_cim_read(adap, UP_OBQ_0_REALADDR_A,
 					ARRAY_SIZE(obq_wr_t4), obq_wr_t4);
-				wr = obq_wr_t4;
+			wr = obq_wr_t4;
 		} else {
 			i = t4_cim_read(adap, UP_OBQ_0_SHADOW_REALADDR_A,
 					ARRAY_SIZE(obq_wr_t5), obq_wr_t5);
-				wr = obq_wr_t5;
+			wr = obq_wr_t5;
 		}
 	}
 	if (i)
@@ -2095,7 +2095,7 @@ do { \
 #undef T
 #undef S
 #undef S3
-return 0;
+	return 0;
 }
 
 static int sge_queue_entries(const struct adapter *adap)
