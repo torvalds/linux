@@ -349,8 +349,8 @@ static void gb_i2c_connection_exit(struct gb_connection *connection)
 static struct gb_protocol i2c_protocol = {
 	.name			= "i2c",
 	.id			= GREYBUS_PROTOCOL_I2C,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_I2C_VERSION_MAJOR,
+	.minor			= GB_I2C_VERSION_MINOR,
 	.connection_init	= gb_i2c_connection_init,
 	.connection_exit	= gb_i2c_connection_exit,
 	.request_recv		= NULL,	/* no incoming requests */
