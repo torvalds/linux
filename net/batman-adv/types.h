@@ -1156,8 +1156,8 @@ struct batadv_forw_packet {
  * @bat_hardif_neigh_init: called on creation of single hop entry
  * @bat_neigh_cmp: compare the metrics of two neighbors for their respective
  *  outgoing interfaces
- * @bat_neigh_is_equiv_or_better: check if neigh1 is equally good or better
- *  than neigh2 for their respective outgoing interface from the metric
+ * @bat_neigh_is_similar_or_better: check if neigh1 is equally similar or
+ *  better than neigh2 for their respective outgoing interface from the metric
  *  prospective
  * @bat_neigh_print: print the single hop neighbor list (optional)
  * @bat_neigh_free: free the resources allocated by the routing algorithm for a
@@ -1185,7 +1185,7 @@ struct batadv_algo_ops {
 			     struct batadv_hard_iface *if_outgoing1,
 			     struct batadv_neigh_node *neigh2,
 			     struct batadv_hard_iface *if_outgoing2);
-	bool (*bat_neigh_is_equiv_or_better)
+	bool (*bat_neigh_is_similar_or_better)
 		(struct batadv_neigh_node *neigh1,
 		 struct batadv_hard_iface *if_outgoing1,
 		 struct batadv_neigh_node *neigh2,
