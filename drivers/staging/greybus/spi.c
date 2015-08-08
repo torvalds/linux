@@ -340,8 +340,8 @@ static void gb_spi_connection_exit(struct gb_connection *connection)
 static struct gb_protocol spi_protocol = {
 	.name			= "spi",
 	.id			= GREYBUS_PROTOCOL_SPI,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_SPI_VERSION_MAJOR,
+	.minor			= GB_SPI_VERSION_MINOR,
 	.connection_init	= gb_spi_connection_init,
 	.connection_exit	= gb_spi_connection_exit,
 	.request_recv		= NULL,
