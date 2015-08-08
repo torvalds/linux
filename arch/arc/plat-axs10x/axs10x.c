@@ -389,6 +389,21 @@ axs103_set_freq(unsigned int id, unsigned int fd, unsigned int od)
 
 static void __init axs103_early_init(void)
 {
+	/*
+	 * AXS103 configurations for SMP/QUAD configurations share device tree
+	 * which defaults to 90 MHz. However recent failures of Quad config
+	 * revealed P&R timing violations so clamp it down to safe 50 MHz
+	 * Instead of duplicating defconfig/DT for SMP/QUAD, add a small hack
+	 *
+	 * This hack is really hacky as of now. Fix it properly by getting the
+	 * number of cores as return value of platform's early SMP callback
+	 */
+#ifdef CONFIG_ARC_MCIP
+	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
+	if (num_cores > 2)
+		arc_set_core_freq(50 * 1000000);
+#endif
+
 	switch (arc_get_core_freq()/1000000) {
 	case 33:
 		axs103_set_freq(1, 1, 1);
