@@ -711,6 +711,11 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 		usleep_range(50, 100);
 	}
 
+	/* Release semaphores and return error if SW NVM semaphore
+	 * was not granted because we do not have access to the EEPROM
+	 */
+	hw_dbg(hw, "REGSMP Software NVM semaphore not granted\n");
+	ixgbe_release_swfw_sync_semaphore(hw);
 	return IXGBE_ERR_EEPROM;
 }
 
