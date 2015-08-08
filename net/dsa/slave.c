@@ -732,7 +732,8 @@ static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
 		return -ENODEV;
 
 	/* Use already configured phy mode */
-	p->phy_interface = p->phy->interface;
+	if (p->phy_interface == PHY_INTERFACE_MODE_NA)
+		p->phy_interface = p->phy->interface;
 	phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
 			   p->phy_interface);
 
