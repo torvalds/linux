@@ -1949,6 +1949,7 @@ enum {
 #define IXGBE_GSSR_SW_MNG_SM		0x0400
 #define IXGBE_GSSR_SHARED_I2C_SM	0x1806 /* Wait for both phys & I2Cs */
 #define IXGBE_GSSR_I2C_MASK		0x1800
+#define IXGBE_GSSR_NVM_PHY_MASK		0xF
 
 /* FW Status register bitmask */
 #define IXGBE_FWSTS_FWRI    0x00000200 /* Firmware Reset Indication */

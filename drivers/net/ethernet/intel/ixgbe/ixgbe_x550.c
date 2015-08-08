@@ -2263,6 +2263,62 @@ static void ixgbe_set_source_address_pruning_X550(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_PFFLPH, (u32)(pfflp >> 32));
 }
 
+/**
+ * ixgbe_set_mux - Set mux for port 1 access with CS4227
+ * @hw: pointer to hardware structure
+ * @state: set mux if 1, clear if 0
+ */
+static void ixgbe_set_mux(struct ixgbe_hw *hw, u8 state)
+{
+	u32 esdp;
+
+	if (!hw->bus.lan_id)
+		return;
+	esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
+	if (state)
+		esdp |= IXGBE_ESDP_SDP1;
+	else
+		esdp &= ~IXGBE_ESDP_SDP1;
+	IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp);
+	IXGBE_WRITE_FLUSH(hw);
+}
+
+/**
+ * ixgbe_acquire_swfw_sync_X550em - Acquire SWFW semaphore
+ * @hw: pointer to hardware structure
+ * @mask: Mask to specify which semaphore to acquire
+ *
+ * Acquires the SWFW semaphore and sets the I2C MUX
+ */
+static s32 ixgbe_acquire_swfw_sync_X550em(struct ixgbe_hw *hw, u32 mask)
+{
+	s32 status;
+
+	status = ixgbe_acquire_swfw_sync_X540(hw, mask);
+	if (status)
+		return status;
+
+	if (mask & IXGBE_GSSR_I2C_MASK)
+		ixgbe_set_mux(hw, 1);
+
+	return 0;
+}
+
+/**
+ * ixgbe_release_swfw_sync_X550em - Release SWFW semaphore
+ * @hw: pointer to hardware structure
+ * @mask: Mask to specify which semaphore to release
+ *
+ * Releases the SWFW semaphore and sets the I2C MUX
+ */
+static void ixgbe_release_swfw_sync_X550em(struct ixgbe_hw *hw, u32 mask)
+{
+	if (mask & IXGBE_GSSR_I2C_MASK)
+		ixgbe_set_mux(hw, 0);
+
+	ixgbe_release_swfw_sync_X540(hw, mask);
+}
+
 #define X550_COMMON_MAC \
 	.init_hw			= &ixgbe_init_hw_generic, \
 	.start_hw			= &ixgbe_start_hw_X540, \
@@ -2300,8 +2356,6 @@ static void ixgbe_set_source_address_pruning_X550(struct ixgbe_hw *hw,
 				&ixgbe_set_source_address_pruning_X550, \
 	.set_ethertype_anti_spoofing	= \
 				&ixgbe_set_ethertype_anti_spoofing_X550, \
-	.acquire_swfw_sync		= &ixgbe_acquire_swfw_sync_X540, \
-	.release_swfw_sync		= &ixgbe_release_swfw_sync_X540, \
 	.disable_rx_buff		= &ixgbe_disable_rx_buff_generic, \
 	.enable_rx_buff			= &ixgbe_enable_rx_buff_generic, \
 	.get_thermal_sensor_data	= NULL, \
@@ -2321,6 +2375,8 @@ static struct ixgbe_mac_operations mac_ops_X550 = {
 	.get_link_capabilities	= &ixgbe_get_copper_link_capabilities_generic,
 	.get_bus_info		= &ixgbe_get_bus_info_generic,
 	.setup_sfp		= NULL,
+	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X540,
+	.release_swfw_sync	= &ixgbe_release_swfw_sync_X540,
 };
 
 static struct ixgbe_mac_operations mac_ops_X550EM_x = {
@@ -2333,7 +2389,8 @@ static struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.get_link_capabilities	= &ixgbe_get_link_capabilities_X550em,
 	.get_bus_info		= &ixgbe_get_bus_info_X550em,
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
-
+	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X550em,
+	.release_swfw_sync	= &ixgbe_release_swfw_sync_X550em,
 };
 
 #define X550_COMMON_EEP \
