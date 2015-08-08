@@ -33,7 +33,8 @@ FILES=					\
 	test-compile-32.bin		\
 	test-compile-x32.bin		\
 	test-zlib.bin			\
-	test-lzma.bin
+	test-lzma.bin			\
+	test-bpf.bin
 
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
@@ -155,6 +156,9 @@ test-zlib.bin:
 
 test-lzma.bin:
 	$(BUILD) -llzma
+
+test-bpf.bin:
+	$(BUILD)
 
 -include *.d
 
