@@ -140,6 +140,17 @@ static inline void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+static void ct_show_zone(struct seq_file *s, const struct nf_conn *ct)
+{
+	seq_printf(s, "zone=%u ", nf_ct_zone(ct)->id);
+}
+#else
+static inline void ct_show_zone(struct seq_file *s, const struct nf_conn *ct)
+{
+}
+#endif
+
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
 static void ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 {
@@ -228,11 +239,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 #endif
 
 	ct_show_secctx(s, ct);
-
-#ifdef CONFIG_NF_CONNTRACK_ZONES
-	seq_printf(s, "zone=%u ", nf_ct_zone(ct));
-#endif
-
+	ct_show_zone(s, ct);
 	ct_show_delta_time(s, ct);
 
 	seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use));
