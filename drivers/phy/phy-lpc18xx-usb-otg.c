@@ -33,12 +33,12 @@ static int lpc18xx_usb_otg_phy_init(struct phy *phy)
 	struct lpc18xx_usb_otg_phy *lpc = phy_get_drvdata(phy);
 	int ret;
 
-	ret = clk_prepare(lpc->clk);
+	/* The PHY must be clocked at 480 MHz */
+	ret = clk_set_rate(lpc->clk, 480000000);
 	if (ret)
 		return ret;
 
-	/* The PHY must be clocked at 480 MHz */
-	return clk_set_rate(lpc->clk, 480000000);
+	return clk_prepare(lpc->clk);
 }
 
 static int lpc18xx_usb_otg_phy_exit(struct phy *phy)
