@@ -882,9 +882,53 @@ static ssize_t authorized_default_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(authorized_default);
 
+/*
+ * interface_authorized_default_show - show default authorization status
+ * for USB interfaces
+ *
+ * note: interface_authorized_default is the default value
+ *       for initializing the authorized attribute of interfaces
+ */
+static ssize_t interface_authorized_default_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct usb_device *usb_dev = to_usb_device(dev);
+	struct usb_hcd *hcd = bus_to_hcd(usb_dev->bus);
+
+	return sprintf(buf, "%u\n", !!HCD_INTF_AUTHORIZED(hcd));
+}
+
+/*
+ * interface_authorized_default_store - store default authorization status
+ * for USB interfaces
+ *
+ * note: interface_authorized_default is the default value
+ *       for initializing the authorized attribute of interfaces
+ */
+static ssize_t interface_authorized_default_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb_device *usb_dev = to_usb_device(dev);
+	struct usb_hcd *hcd = bus_to_hcd(usb_dev->bus);
+	int rc = count;
+	bool val;
+
+	if (strtobool(buf, &val) != 0)
+		return -EINVAL;
+
+	if (val)
+		set_bit(HCD_FLAG_INTF_AUTHORIZED, &hcd->flags);
+	else
+		clear_bit(HCD_FLAG_INTF_AUTHORIZED, &hcd->flags);
+
+	return rc;
+}
+static DEVICE_ATTR_RW(interface_authorized_default);
+
 /* Group all the USB bus attributes */
 static struct attribute *usb_bus_attrs[] = {
 		&dev_attr_authorized_default.attr,
+		&dev_attr_interface_authorized_default.attr,
 		NULL,
 };
 
@@ -2681,6 +2725,9 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	else
 		hcd->authorized_default = authorized_default;
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+
+	/* per default all interfaces are authorized */
+	set_bit(HCD_FLAG_INTF_AUTHORIZED, &hcd->flags);
 
 	/* HC is in reset state, but accessible.  Now do the one-time init,
 	 * bottom up so that hcds can customize the root hubs before hub_wq
