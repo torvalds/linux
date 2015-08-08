@@ -187,7 +187,6 @@ extern struct crypto_alg nx_cbc_aes_alg;
 extern struct crypto_alg nx_ecb_aes_alg;
 extern struct aead_alg nx_gcm_aes_alg;
 extern struct aead_alg nx_gcm4106_aes_alg;
-extern struct crypto_alg nx_ctr_aes_alg;
 extern struct crypto_alg nx_ctr3686_aes_alg;
 extern struct aead_alg nx_ccm_aes_alg;
 extern struct aead_alg nx_ccm4309_aes_alg;
