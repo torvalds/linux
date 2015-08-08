@@ -3332,7 +3332,7 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
-	tstrWILC_AddStaParam strStaParams = {{0}};
+	tstrWILC_AddStaParam strStaParams = { {0} };
 	perInterface_wlan_t *nic;
 
 
@@ -3463,7 +3463,7 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
-	tstrWILC_AddStaParam strStaParams = {{0}};
+	tstrWILC_AddStaParam strStaParams = { {0} };
 	perInterface_wlan_t *nic;
 
 
