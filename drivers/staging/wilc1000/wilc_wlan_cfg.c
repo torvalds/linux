@@ -551,7 +551,7 @@ static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *r
 
 	case 'L':
 #ifndef SWITCH_LOG_TERMINAL
-		PRINT_ER("Unexpected firmware log message received \n");
+		PRINT_ER("Unexpected firmware log message received\n");
 #else
 		PRINT_D(FIRM_DBG, "\nFIRMWARE LOGS :\n<<\n%s\n>>\n", frame);
 		break;
@@ -566,18 +566,18 @@ static int wilc_wlan_cfg_indicate_rx(uint8_t *frame, int size, wilc_cfg_rsp_t *r
 #endif
 /*bug3819:*/
 	case 'S':
-		PRINT_INFO(RX_DBG, "Scan Notification Received \n");
+		PRINT_INFO(RX_DBG, "Scan Notification Received\n");
 		host_int_ScanCompleteReceived(frame - 4, size + 4);
 		break;
 
 #ifdef WILC_FULLY_HOSTING_AP
 	case 'T':
-		PRINT_INFO(RX_DBG, "TBTT Notification Received \n");
+		PRINT_INFO(RX_DBG, "TBTT Notification Received\n");
 		process_tbtt_isr();
 		break;
 
 	case 'A':
-		PRINT_INFO(RX_DBG, "HOSTAPD ACK Notification Received \n");
+		PRINT_INFO(RX_DBG, "HOSTAPD ACK Notification Received\n");
 		WILC_mgm_HOSTAPD_ACK(ptru32Frame, bStatus);
 		break;
 #endif

@@ -296,7 +296,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		PRINT_D(GENERIC_DBG, "[%s] Up IP\n", dev_iface->ifa_label);
 
 		pIP_Add_buff = (char *) (&(dev_iface->ifa_address));
-		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d \n", pIP_Add_buff[0], pIP_Add_buff[1], pIP_Add_buff[2], pIP_Add_buff[3]);
+		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n", pIP_Add_buff[0], pIP_Add_buff[1], pIP_Add_buff[2], pIP_Add_buff[3]);
 		host_int_setup_ipaddress((WILC_WFIDrvHandle)pstrWFIDrv, pIP_Add_buff, nic->u8IfIdx);
 
 		break;
@@ -318,7 +318,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		PRINT_D(GENERIC_DBG, "[%s] Down IP\n", dev_iface->ifa_label);
 
 		pIP_Add_buff = null_ip;
-		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d \n", pIP_Add_buff[0], pIP_Add_buff[1], pIP_Add_buff[2], pIP_Add_buff[3]);
+		PRINT_D(GENERIC_DBG, "IP add=%d:%d:%d:%d\n", pIP_Add_buff[0], pIP_Add_buff[1], pIP_Add_buff[2], pIP_Add_buff[3]);
 
 		host_int_setup_ipaddress((WILC_WFIDrvHandle)pstrWFIDrv, pIP_Add_buff, nic->u8IfIdx);
 
@@ -1020,7 +1020,7 @@ static int linux_wlan_firmware_download(linux_wlan_t *p_nic)
 	release_firmware(g_linux_wlan->wilc_firmware);
 	g_linux_wlan->wilc_firmware = NULL;
 
-	PRINT_D(INIT_DBG, "Download Succeeded \n");
+	PRINT_D(INIT_DBG, "Download Succeeded\n");
 
 _FAIL_:
 	return ret;
@@ -1774,7 +1774,7 @@ int repeat_power_cycle(perInterface_wlan_t *nic)
 	#endif
 
 	if (linux_wlan_get_firmware(nic)) {
-		PRINT_ER("Can't get firmware \n");
+		PRINT_ER("Can't get firmware\n");
 		ret = -1;
 		goto __fail__;
 	}
@@ -1859,7 +1859,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 #endif
 
 		if (linux_wlan_get_firmware(nic)) {
-			PRINT_ER("Can't get firmware \n");
+			PRINT_ER("Can't get firmware\n");
 			ret = -EIO;
 			goto _fail_irq_enable_;
 		}
@@ -2080,13 +2080,13 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	if (!dev)
 		return;
 
-	PRINT_D(INIT_DBG, "Setting Multicast List with count = %d. \n", dev->mc.count);
+	PRINT_D(INIT_DBG, "Setting Multicast List with count = %d.\n", dev->mc.count);
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Normally, we should configure the chip to retrive all packets
 		 * but we don't wanna support this right now */
 		/* TODO: add promiscuous mode support */
-		PRINT_D(INIT_DBG, "Set promiscuous mode ON, retrive all packets \n");
+		PRINT_D(INIT_DBG, "Set promiscuous mode ON, retrive all packets\n");
 		return;
 	}
 
@@ -2145,7 +2145,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct ethhdr *eth_h;
 	nic = netdev_priv(ndev);
 
-	PRINT_D(INT_DBG, "\n========\n IntUH: %d - IntBH: %d - IntCld: %d \n========\n", int_rcvdU, int_rcvdB, int_clrd);
+	PRINT_D(INT_DBG, "\n========\n IntUH: %d - IntBH: %d - IntCld: %d\n========\n", int_rcvdU, int_rcvdB, int_clrd);
 	PRINT_D(TX_DBG, "Sending packet just received from TCP/IP\n");
 
 	/* Stop the network interface queue */
@@ -2551,7 +2551,7 @@ int wilc_netdev_init(void)
 
 	#ifndef WILC_SDIO
 	if (!linux_spi_init(&g_linux_wlan->wilc_spidev)) {
-		PRINT_ER("Can't initialize SPI \n");
+		PRINT_ER("Can't initialize SPI\n");
 		return -1; /* ERROR */
 	}
 	g_linux_wlan->wilc_spidev = wilc_spi_dev;
@@ -2636,7 +2636,7 @@ static void __exit exit_wilc_driver(void)
 			}
 		}
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
-			PRINT_D(INIT_DBG, "Unregistering netdev %p \n", g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
+			PRINT_D(INIT_DBG, "Unregistering netdev %p\n", g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 			unregister_netdev(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 			#ifdef USE_WIRELESS
 			PRINT_D(INIT_DBG, "Freeing Wiphy...\n");

@@ -447,7 +447,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
 		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].Session_index].Bigger_Ack_num) {
 			struct txq_entry_t *tqe;
-			PRINT_D(TCP_ENH, "DROP ACK: %u \n", Pending_Acks_info[i].ack_num);
+			PRINT_D(TCP_ENH, "DROP ACK: %u\n", Pending_Acks_info[i].ack_num);
 			tqe = Pending_Acks_info[i].txqe;
 			if (tqe) {
 				wilc_wlan_txq_remove(tqe);
@@ -992,7 +992,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 				/**
 				 *      wait for vmm table is ready
 				 **/
-				PRINT_WRN(GENERIC_DBG, "[wilc txq]: warn, vmm table not clear yet, wait... \n");
+				PRINT_WRN(GENERIC_DBG, "[wilc txq]: warn, vmm table not clear yet, wait...\n");
 				release_bus(RELEASE_ALLOW_SLEEP);
 				p->os_func.os_sleep(3); /* wait 3 ms */
 				acquire_bus(ACQUIRE_AND_WAKEUP);
@@ -1059,7 +1059,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 			}
 
 			if (entries == 0) {
-				PRINT_WRN(GENERIC_DBG, "[wilc txq]: no more buffer in the chip (reg: %08x), retry later [[ %d, %x ]] \n", reg, i, vmm_table[i - 1]);
+				PRINT_WRN(GENERIC_DBG, "[wilc txq]: no more buffer in the chip (reg: %08x), retry later [[ %d, %x ]]\n", reg, i, vmm_table[i - 1]);
 
 				/* undo the transaction. */
 				ret = p->hif_func.hif_read_reg(WILC_HOST_TX_CTRL, &reg);
@@ -1209,7 +1209,7 @@ static void wilc_wlan_handle_rxq(void)
 
 	do {
 		if (p->quit) {
-			PRINT_D(RX_DBG, "exit 1st do-while due to Clean_UP function \n");
+			PRINT_D(RX_DBG, "exit 1st do-while due to Clean_UP function\n");
 			p->os_func.os_signal(p->cfg_wait);
 			break;
 		}
@@ -1326,7 +1326,7 @@ static void wilc_wlan_handle_rxq(void)
 	} while (1);
 
 	p->rxq_exit = 1;
-	PRINT_D(RX_DBG, "THREAD: Exiting RX thread \n");
+	PRINT_D(RX_DBG, "THREAD: Exiting RX thread\n");
 	return;
 }
 

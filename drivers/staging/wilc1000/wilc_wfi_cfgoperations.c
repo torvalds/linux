@@ -239,7 +239,7 @@ void remove_network_from_shadow(void *pUserVoid)
 
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		if (time_after(now, astrLastScannedNtwrksShadow[i].u32TimeRcvdInScan + (unsigned long)(SCAN_RESULT_EXPIRE))) {
-			PRINT_D(CFG80211_DBG, "Network expired in ScanShadow: %s \n", astrLastScannedNtwrksShadow[i].au8ssid);
+			PRINT_D(CFG80211_DBG, "Network expired in ScanShadow: %s\n", astrLastScannedNtwrksShadow[i].au8ssid);
 
 			if (astrLastScannedNtwrksShadow[i].pu8IEs != NULL) {
 				WILC_FREE(astrLastScannedNtwrksShadow[i].pu8IEs);
@@ -393,7 +393,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 				WILC_NULLCHECK(s32Error, channel);
 
 				PRINT_INFO(CFG80211_DBG, "Network Info:: CHANNEL Frequency: %d, RSSI: %d, CapabilityInfo: %d,"
-					   "BeaconPeriod: %d \n", channel->center_freq, (((s32)pstrNetworkInfo->s8rssi) * 100),
+					   "BeaconPeriod: %d\n", channel->center_freq, (((s32)pstrNetworkInfo->s8rssi) * 100),
 					   pstrNetworkInfo->u16CapInfo, pstrNetworkInfo->u16BeaconPeriod);
 
 				if (pstrNetworkInfo->bNewNetwork == true) {
@@ -429,7 +429,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 					/* So this network is discovered before, we'll just update its RSSI */
 					for (i = 0; i < priv->u32RcvdChCount; i++) {
 						if (memcmp(astrLastScannedNtwrksShadow[i].au8bssid, pstrNetworkInfo->au8bssid, 6) == 0) {
-							PRINT_D(CFG80211_DBG, "Update RSSI of %s \n", astrLastScannedNtwrksShadow[i].au8ssid);
+							PRINT_D(CFG80211_DBG, "Update RSSI of %s\n", astrLastScannedNtwrksShadow[i].au8ssid);
 
 							astrLastScannedNtwrksShadow[i].s8rssi = pstrNetworkInfo->s8rssi;
 							astrLastScannedNtwrksShadow[i].u32TimeRcvdInScan = jiffies;
@@ -439,14 +439,14 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 				}
 			}
 		} else if (enuScanEvent == SCAN_EVENT_DONE)    {
-			PRINT_D(CFG80211_DBG, "Scan Done[%p] \n", priv->dev);
-			PRINT_D(CFG80211_DBG, "Refreshing Scan ... \n");
+			PRINT_D(CFG80211_DBG, "Scan Done[%p]\n", priv->dev);
+			PRINT_D(CFG80211_DBG, "Refreshing Scan ...\n");
 			refresh_scan(priv, 1, false);
 
 			if (priv->u32RcvdChCount > 0) {
-				PRINT_D(CFG80211_DBG, "%d Network(s) found \n", priv->u32RcvdChCount);
+				PRINT_D(CFG80211_DBG, "%d Network(s) found\n", priv->u32RcvdChCount);
 			} else {
-				PRINT_D(CFG80211_DBG, "No networks found \n");
+				PRINT_D(CFG80211_DBG, "No networks found\n");
 			}
 
 			down(&(priv->hSemScanReq));
@@ -464,7 +464,7 @@ static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetwo
 		else if (enuScanEvent == SCAN_EVENT_ABORTED) {
 			down(&(priv->hSemScanReq));
 
-			PRINT_D(CFG80211_DBG, "Scan Aborted \n");
+			PRINT_D(CFG80211_DBG, "Scan Aborted\n");
 			if (priv->pstrScanReq != NULL) {
 
 				update_scan_time(priv);
@@ -582,7 +582,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 				u8WLANChannel = INVALID_CHANNEL;
 			#endif
 
-			PRINT_ER("Unspecified failure: Connection status %d : MAC status = %d \n", u16ConnectStatus, u8MacStatus);
+			PRINT_ER("Unspecified failure: Connection status %d : MAC status = %d\n", u16ConnectStatus, u8MacStatus);
 		}
 
 		if (u16ConnectStatus == WLAN_STATUS_SUCCESS) {
@@ -768,17 +768,17 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 					WILC_memcpy(strHiddenNetwork.pstrHiddenNetworkInfo[i].pu8ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
 					strHiddenNetwork.pstrHiddenNetworkInfo[i].u8ssidlen = request->ssids[i].ssid_len;
 				} else {
-					PRINT_D(CFG80211_DBG, "Received one NULL SSID \n");
+					PRINT_D(CFG80211_DBG, "Received one NULL SSID\n");
 					strHiddenNetwork.u8ssidnum -= 1;
 				}
 			}
-			PRINT_D(CFG80211_DBG, "Trigger Scan Request \n");
+			PRINT_D(CFG80211_DBG, "Trigger Scan Request\n");
 			s32Error = host_int_scan(priv->hWILCWFIDrv, USER_SCAN, ACTIVE_SCAN,
 						 au8ScanChanList, request->n_channels,
 						 (const u8 *)request->ie, request->ie_len,
 						 CfgScanResult, (void *)priv, &strHiddenNetwork);
 		} else {
-			PRINT_D(CFG80211_DBG, "Trigger Scan Request \n");
+			PRINT_D(CFG80211_DBG, "Trigger Scan Request\n");
 			s32Error = host_int_scan(priv->hWILCWFIDrv, USER_SCAN, ACTIVE_SCAN,
 						 au8ScanChanList, request->n_channels,
 						 (const u8 *)request->ie, request->ie_len,
@@ -787,7 +787,7 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 
 	} else {
 		PRINT_ER("Requested num of scanned channels is greater than the max, supported"
-			 " channels \n");
+			 " channels\n");
 	}
 
 	if (s32Error != WILC_SUCCESS) {
@@ -840,7 +840,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 	} else
 		pstrWFIDrv->u8P2PConnect = 0;
 	#endif
-	PRINT_INFO(CFG80211_DBG, "Required SSID = %s\n , AuthType = %d \n", sme->ssid, sme->auth_type);
+	PRINT_INFO(CFG80211_DBG, "Required SSID = %s\n , AuthType = %d\n", sme->ssid, sme->auth_type);
 
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		if ((sme->ssid_len == astrLastScannedNtwrksShadow[i].u8SsidLen) &&
@@ -1045,7 +1045,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 					 tenuAuth_type, pstrNetworkInfo->u8channel,
 					 pstrNetworkInfo->pJoinParams);
 	if (s32Error != WILC_SUCCESS) {
-		PRINT_ER("host_int_set_join_req(): Error(%d) \n", s32Error);
+		PRINT_ER("host_int_set_join_req(): Error(%d)\n", s32Error);
 		s32Error = -ENOENT;
 		goto done;
 	}
@@ -1574,7 +1574,7 @@ static int WILC_WFI_set_default_key(struct wiphy *wiphy, struct net_device *netd
 
 	priv = wiphy_priv(wiphy);
 
-	PRINT_D(CFG80211_DBG, "Setting default key with idx = %d \n", key_index);
+	PRINT_D(CFG80211_DBG, "Setting default key with idx = %d\n", key_index);
 
 	if (key_index != priv->WILC_WFI_wep_default) {
 
@@ -1811,7 +1811,7 @@ static int WILC_WFI_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	priv = wiphy_priv(wiphy);
 
 	pstrCfgParamVal.u32SetCfgFlag = 0;
-	PRINT_D(CFG80211_DBG, "Setting Wiphy params \n");
+	PRINT_D(CFG80211_DBG, "Setting Wiphy params\n");
 
 	if (changed & WIPHY_PARAM_RETRY_SHORT) {
 		PRINT_D(CFG80211_DBG, "Setting WIPHY_PARAM_RETRY_SHORT %d\n",
@@ -2336,7 +2336,7 @@ static void WILC_WFI_RemainOnChannelReady(void *pUserVoid)
 	struct WILC_WFI_priv *priv;
 	priv = (struct WILC_WFI_priv *)pUserVoid;
 
-	PRINT_D(HOSTINF_DBG, "Remain on channel ready \n");
+	PRINT_D(HOSTINF_DBG, "Remain on channel ready\n");
 
 	priv->bInP2PlistenState = true;
 
@@ -2364,7 +2364,7 @@ static void WILC_WFI_RemainOnChannelExpired(void *pUserVoid, u32 u32SessionID)
 
 	/*BugID_5477*/
 	if (u32SessionID == priv->strRemainOnChanParams.u32ListenSessionID) {
-		PRINT_D(GENERIC_DBG, "Remain on channel expired \n");
+		PRINT_D(GENERIC_DBG, "Remain on channel expired\n");
 
 		priv->bInP2PlistenState = false;
 
@@ -3211,7 +3211,7 @@ static int WILC_WFI_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	priv = wiphy_priv(wiphy);
 	PRINT_D(HOSTAPD_DBG, "Starting ap\n");
 
-	PRINT_D(HOSTAPD_DBG, "Interval = %d \n DTIM period = %d\n Head length = %zu Tail length = %zu\n",
+	PRINT_D(HOSTAPD_DBG, "Interval = %d\n DTIM period = %d\n Head length = %zu Tail length = %zu\n",
 		settings->beacon_interval, settings->dtim_period, beacon->head_len, beacon->tail_len);
 
 	s32Error = WILC_WFI_CfgSetChannel(wiphy, &settings->chandef);
@@ -3427,7 +3427,7 @@ static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
 
 
 		if (mac == NULL) {
-			PRINT_D(HOSTAPD_DBG, "All associated stations \n");
+			PRINT_D(HOSTAPD_DBG, "All associated stations\n");
 			s32Error = host_int_del_allstation(priv->hWILCWFIDrv, priv->assoc_stainfo.au8Sta_AssociatedBss);
 		} else {
 			PRINT_D(HOSTAPD_DBG, "With mac address: %x%x%x%x%x%x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
