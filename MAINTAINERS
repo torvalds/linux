@@ -5059,9 +5059,21 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux.git
 S:	Maintained
 F:	arch/ia64/
 
+IBM Power VMX Cryptographic instructions
+M:	Leonidas S. Barbosa <leosilva@linux.vnet.ibm.com>
+M: 	Paulo Flabiano Smorigo <pfsmorigo.vnet.ibm.com>
+L:	linux-crypto@vger.kernel.org
+S:	Supported
+F:	drivers/crypto/vmx/Makefile
+F:	drivers/crypto/vmx/Kconfig
+F:	drivers/crypto/vmx/vmx.c
+F:	drivers/crypto/vmx/aes*
+F:	drivers/crypto/vmx/ghash*
+F:	drivers/crypto/vmx/ppc-xlate.pl
+
 IBM Power in-Nest Crypto Acceleration
-M:	Marcelo Henrique Cerri <mhcerri@linux.vnet.ibm.com>
-M:	Fionnuala Gunter <fin@linux.vnet.ibm.com>
+M:	Leonidas S. Barbosa <leosilva@linux.vnet.ibm.com>
+M:	Paulo Flabiano Smorigo <pfsmorigo.vnet.ibm.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	drivers/crypto/nx/Makefile
