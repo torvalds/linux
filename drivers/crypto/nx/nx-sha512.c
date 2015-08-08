@@ -71,7 +71,6 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 	struct sha512_state *sctx = shash_desc_ctx(desc);
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
-	struct nx_sg *in_sg;
 	struct nx_sg *out_sg;
 	u64 to_process, leftover = 0, total;
 	unsigned long irq_flags;
@@ -97,7 +96,6 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 	NX_CPB_FDM(csbcpb) |= NX_FDM_INTERMEDIATE;
 	NX_CPB_FDM(csbcpb) |= NX_FDM_CONTINUATION;
 
-	in_sg = nx_ctx->in_sg;
 	max_sg_len = min_t(u64, nx_ctx->ap->sglen,
 			nx_driver.of.max_sg_len/sizeof(struct nx_sg));
 	max_sg_len = min_t(u64, max_sg_len,
@@ -114,18 +112,12 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 	}
 
 	do {
-		/*
-		 * to_process: the SHA512_BLOCK_SIZE data chunk to process in
-		 * this update. This value is also restricted by the sg list
-		 * limits.
-		 */
-		to_process = total - leftover;
-		to_process = to_process & ~(SHA512_BLOCK_SIZE - 1);
-		leftover = total - to_process;
+		int used_sgs = 0;
+		struct nx_sg *in_sg = nx_ctx->in_sg;
 
 		if (buf_len) {
 			data_len = buf_len;
-			in_sg = nx_build_sg_list(nx_ctx->in_sg,
+			in_sg = nx_build_sg_list(in_sg,
 						 (u8 *) sctx->buf,
 						 &data_len, max_sg_len);
 
@@ -133,7 +125,19 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 				rc = -EINVAL;
 				goto out;
 			}
+			used_sgs = in_sg - nx_ctx->in_sg;
 		}
+
+		/* to_process: SHA512_BLOCK_SIZE aligned chunk to be
+		 * processed in this iteration. This value is restricted
+		 * by sg list limits and number of sgs we already used
+		 * for leftover data. (see above)
+		 * In ideal case, we could allow NX_PAGE_SIZE * max_sg_len,
+		 * but because data may not be aligned, we need to account
+		 * for that too. */
+		to_process = min_t(u64, total,
+			(max_sg_len - 1 - used_sgs) * NX_PAGE_SIZE);
+		to_process = to_process & ~(SHA512_BLOCK_SIZE - 1);
 
 		data_len = to_process - buf_len;
 		in_sg = nx_build_sg_list(in_sg, (u8 *) data,
@@ -146,7 +150,7 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 			goto out;
 		}
 
-		to_process = (data_len + buf_len);
+		to_process = data_len + buf_len;
 		leftover = total - to_process;
 
 		/*
