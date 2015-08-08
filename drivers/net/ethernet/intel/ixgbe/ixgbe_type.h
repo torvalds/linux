@@ -3329,6 +3329,10 @@ struct ixgbe_phy_operations {
 	s32 (*set_phy_power)(struct ixgbe_hw *, bool on);
 	s32 (*enter_lplu)(struct ixgbe_hw *);
 	s32 (*handle_lasi)(struct ixgbe_hw *hw);
+	s32 (*read_i2c_combined_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
+					  u16 *value);
+	s32 (*write_i2c_combined_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
+					   u16 value);
 };
 
 struct ixgbe_eeprom_info {
