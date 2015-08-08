@@ -146,21 +146,6 @@ static struct vport *vxlan_create(const struct vport_parms *parms)
 	return ovs_netdev_link(vport, parms->name);
 }
 
-static void vxlan_destroy(struct vport *vport)
-{
-	rtnl_lock();
-	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
-		ovs_netdev_detach_dev(vport);
-
-	/* Early release so we can unregister the device */
-	dev_put(vport->dev);
-	rtnl_delete_link(vport->dev);
-	vport->dev = NULL;
-	rtnl_unlock();
-
-	call_rcu(&vport->rcu, ovs_vport_free_rcu);
-}
-
 static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
 				     struct ip_tunnel_info *egress_tun_info)
 {
@@ -183,7 +168,7 @@ static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
 static struct vport_ops ovs_vxlan_netdev_vport_ops = {
 	.type			= OVS_VPORT_TYPE_VXLAN,
 	.create			= vxlan_create,
-	.destroy		= vxlan_destroy,
+	.destroy		= ovs_netdev_tunnel_destroy,
 	.get_options		= vxlan_get_options,
 	.send			= ovs_netdev_send,
 	.get_egress_tun_info	= vxlan_get_egress_tun_info,
