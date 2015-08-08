@@ -56,6 +56,283 @@ static void ixgbe_setup_mux_ctl(struct ixgbe_hw *hw)
 	IXGBE_WRITE_FLUSH(hw);
 }
 
+/**
+ * ixgbe_read_cs4227 - Read CS4227 register
+ * @hw: pointer to hardware structure
+ * @reg: register number to write
+ * @value: pointer to receive value read
+ *
+ * Returns status code
+ */
+static s32 ixgbe_read_cs4227(struct ixgbe_hw *hw, u16 reg, u16 *value)
+{
+	return hw->phy.ops.read_i2c_combined_unlocked(hw, IXGBE_CS4227, reg,
+						      value);
+}
+
+/**
+ * ixgbe_write_cs4227 - Write CS4227 register
+ * @hw: pointer to hardware structure
+ * @reg: register number to write
+ * @value: value to write to register
+ *
+ * Returns status code
+ */
+static s32 ixgbe_write_cs4227(struct ixgbe_hw *hw, u16 reg, u16 value)
+{
+	return hw->phy.ops.write_i2c_combined_unlocked(hw, IXGBE_CS4227, reg,
+						       value);
+}
+
+/**
+ * ixgbe_check_cs4227_reg - Perform diag on a CS4227 register
+ * @hw: pointer to hardware structure
+ * @reg: the register to check
+ *
+ * Performs a diagnostic on a register in the CS4227 chip. Returns an error
+ * if it is not operating correctly.
+ * This function assumes that the caller has acquired the proper semaphore.
+ */
+static s32 ixgbe_check_cs4227_reg(struct ixgbe_hw *hw, u16 reg)
+{
+	s32 status;
+	u32 retry;
+	u16 reg_val;
+
+	reg_val = (IXGBE_CS4227_EDC_MODE_DIAG << 1) | 1;
+	status = ixgbe_write_cs4227(hw, reg, reg_val);
+	if (status)
+		return status;
+	for (retry = 0; retry < IXGBE_CS4227_RETRIES; retry++) {
+		msleep(IXGBE_CS4227_CHECK_DELAY);
+		reg_val = 0xFFFF;
+		ixgbe_read_cs4227(hw, reg, &reg_val);
+		if (!reg_val)
+			break;
+	}
+	if (reg_val) {
+		hw_err(hw, "CS4227 reg 0x%04X failed diagnostic\n", reg);
+		return status;
+	}
+
+	return 0;
+}
+
+/**
+ * ixgbe_get_cs4227_status - Return CS4227 status
+ * @hw: pointer to hardware structure
+ *
+ * Performs a diagnostic on the CS4227 chip. Returns an error if it is
+ * not operating correctly.
+ * This function assumes that the caller has acquired the proper semaphore.
+ */
+static s32 ixgbe_get_cs4227_status(struct ixgbe_hw *hw)
+{
+	s32 status;
+	u16 value = 0;
+
+	/* Exit if the diagnostic has already been performed. */
+	status = ixgbe_read_cs4227(hw, IXGBE_CS4227_SCRATCH, &value);
+	if (status)
+		return status;
+	if (value == IXGBE_CS4227_RESET_COMPLETE)
+		return 0;
+
+	/* Check port 0. */
+	status = ixgbe_check_cs4227_reg(hw, IXGBE_CS4227_LINE_SPARE24_LSB);
+	if (status)
+		return status;
+
+	status = ixgbe_check_cs4227_reg(hw, IXGBE_CS4227_HOST_SPARE24_LSB);
+	if (status)
+		return status;
+
+	/* Check port 1. */
+	status = ixgbe_check_cs4227_reg(hw, IXGBE_CS4227_LINE_SPARE24_LSB +
+					(1 << 12));
+	if (status)
+		return status;
+
+	return ixgbe_check_cs4227_reg(hw, IXGBE_CS4227_HOST_SPARE24_LSB +
+				      (1 << 12));
+}
+
+/**
+ * ixgbe_read_pe - Read register from port expander
+ * @hw: pointer to hardware structure
+ * @reg: register number to read
+ * @value: pointer to receive read value
+ *
+ * Returns status code
+ */
+static s32 ixgbe_read_pe(struct ixgbe_hw *hw, u8 reg, u8 *value)
+{
+	s32 status;
+
+	status = ixgbe_read_i2c_byte_generic_unlocked(hw, reg, IXGBE_PE, value);
+	if (status)
+		hw_err(hw, "port expander access failed with %d\n", status);
+	return status;
+}
+
+/**
+ * ixgbe_write_pe - Write register to port expander
+ * @hw: pointer to hardware structure
+ * @reg: register number to write
+ * @value: value to write
+ *
+ * Returns status code
+ */
+static s32 ixgbe_write_pe(struct ixgbe_hw *hw, u8 reg, u8 value)
+{
+	s32 status;
+
+	status = ixgbe_write_i2c_byte_generic_unlocked(hw, reg, IXGBE_PE,
+						       value);
+	if (status)
+		hw_err(hw, "port expander access failed with %d\n", status);
+	return status;
+}
+
+/**
+ * ixgbe_reset_cs4227 - Reset CS4227 using port expander
+ * @hw: pointer to hardware structure
+ *
+ * Returns error code
+ */
+static s32 ixgbe_reset_cs4227(struct ixgbe_hw *hw)
+{
+	s32 status;
+	u32 retry;
+	u16 value;
+	u8 reg;
+
+	/* Trigger hard reset. */
+	status = ixgbe_read_pe(hw, IXGBE_PE_OUTPUT, &reg);
+	if (status)
+		return status;
+	reg |= IXGBE_PE_BIT1;
+	status = ixgbe_write_pe(hw, IXGBE_PE_OUTPUT, reg);
+	if (status)
+		return status;
+
+	status = ixgbe_read_pe(hw, IXGBE_PE_CONFIG, &reg);
+	if (status)
+		return status;
+	reg &= ~IXGBE_PE_BIT1;
+	status = ixgbe_write_pe(hw, IXGBE_PE_CONFIG, reg);
+	if (status)
+		return status;
+
+	status = ixgbe_read_pe(hw, IXGBE_PE_OUTPUT, &reg);
+	if (status)
+		return status;
+	reg &= ~IXGBE_PE_BIT1;
+	status = ixgbe_write_pe(hw, IXGBE_PE_OUTPUT, reg);
+	if (status)
+		return status;
+
+	usleep_range(IXGBE_CS4227_RESET_HOLD, IXGBE_CS4227_RESET_HOLD + 100);
+
+	status = ixgbe_read_pe(hw, IXGBE_PE_OUTPUT, &reg);
+	if (status)
+		return status;
+	reg |= IXGBE_PE_BIT1;
+	status = ixgbe_write_pe(hw, IXGBE_PE_OUTPUT, reg);
+	if (status)
+		return status;
+
+	/* Wait for the reset to complete. */
+	msleep(IXGBE_CS4227_RESET_DELAY);
+	for (retry = 0; retry < IXGBE_CS4227_RETRIES; retry++) {
+		status = ixgbe_read_cs4227(hw, IXGBE_CS4227_EFUSE_STATUS,
+					   &value);
+		if (!status && value == IXGBE_CS4227_EEPROM_LOAD_OK)
+			break;
+		msleep(IXGBE_CS4227_CHECK_DELAY);
+	}
+	if (retry == IXGBE_CS4227_RETRIES) {
+		hw_err(hw, "CS4227 reset did not complete\n");
+		return IXGBE_ERR_PHY;
+	}
+
+	status = ixgbe_read_cs4227(hw, IXGBE_CS4227_EEPROM_STATUS, &value);
+	if (status || !(value & IXGBE_CS4227_EEPROM_LOAD_OK)) {
+		hw_err(hw, "CS4227 EEPROM did not load successfully\n");
+		return IXGBE_ERR_PHY;
+	}
+
+	return 0;
+}
+
+/**
+ * ixgbe_check_cs4227 - Check CS4227 and reset as needed
+ * @hw: pointer to hardware structure
+ */
+static void ixgbe_check_cs4227(struct ixgbe_hw *hw)
+{
+	u32 swfw_mask = hw->phy.phy_semaphore_mask;
+	s32 status;
+	u16 value;
+	u8 retry;
+
+	for (retry = 0; retry < IXGBE_CS4227_RETRIES; retry++) {
+		status = hw->mac.ops.acquire_swfw_sync(hw, swfw_mask);
+		if (status) {
+			hw_err(hw, "semaphore failed with %d\n", status);
+			msleep(IXGBE_CS4227_CHECK_DELAY);
+			continue;
+		}
+
+		/* Get status of reset flow. */
+		status = ixgbe_read_cs4227(hw, IXGBE_CS4227_SCRATCH, &value);
+		if (!status && value == IXGBE_CS4227_RESET_COMPLETE)
+			goto out;
+
+		if (status || value != IXGBE_CS4227_RESET_PENDING)
+			break;
+
+		/* Reset is pending. Wait and check again. */
+		hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+		msleep(IXGBE_CS4227_CHECK_DELAY);
+	}
+
+	/* Reset the CS4227. */
+	status = ixgbe_reset_cs4227(hw);
+	if (status) {
+		hw_err(hw, "CS4227 reset failed: %d", status);
+		goto out;
+	}
+
+	/* Reset takes so long, temporarily release semaphore in case the
+	 * other driver instance is waiting for the reset indication.
+	 */
+	ixgbe_write_cs4227(hw, IXGBE_CS4227_SCRATCH,
+			   IXGBE_CS4227_RESET_PENDING);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+	usleep_range(10000, 12000);
+	status = hw->mac.ops.acquire_swfw_sync(hw, swfw_mask);
+	if (status) {
+		hw_err(hw, "semaphore failed with %d", status);
+		return;
+	}
+
+	/* Is the CS4227 working correctly? */
+	status = ixgbe_get_cs4227_status(hw);
+	if (status) {
+		hw_err(hw, "CS4227 status failed: %d", status);
+		goto out;
+	}
+
+	/* Record completion for next time. */
+	status = ixgbe_write_cs4227(hw, IXGBE_CS4227_SCRATCH,
+				    IXGBE_CS4227_RESET_COMPLETE);
+
+out:
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+	msleep(hw->eeprom.semaphore_delay);
+}
+
 /** ixgbe_identify_phy_x550em - Get PHY type based on device id
  *  @hw: pointer to hardware structure
  *
@@ -68,7 +345,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		/* set up for CS4227 usage */
 		hw->phy.phy_semaphore_mask = IXGBE_GSSR_SHARED_I2C_SM;
 		ixgbe_setup_mux_ctl(hw);
-
+		ixgbe_check_cs4227(hw);
 		return ixgbe_identify_module_generic(hw);
 	case IXGBE_DEV_ID_X550EM_X_KX4:
 		hw->phy.type = ixgbe_phy_x550em_kx4;

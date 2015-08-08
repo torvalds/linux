@@ -81,14 +81,29 @@
 #define IXGBE_I2C_EEPROM_STATUS_FAIL		0x2
 #define IXGBE_I2C_EEPROM_STATUS_IN_PROGRESS	0x3
 #define IXGBE_CS4227				0xBE    /* CS4227 address */
+#define IXGBE_CS4227_SCRATCH			2
+#define IXGBE_CS4227_RESET_PENDING		0x1357
+#define IXGBE_CS4227_RESET_COMPLETE		0x5AA5
+#define IXGBE_CS4227_RETRIES			15
+#define IXGBE_CS4227_EFUSE_STATUS		0x0181
 #define IXGBE_CS4227_LINE_SPARE22_MSB		0x12AD	/* Reg to set speed */
 #define IXGBE_CS4227_LINE_SPARE24_LSB		0x12B0	/* Reg to set EDC */
 #define IXGBE_CS4227_HOST_SPARE22_MSB		0x1AAD	/* Reg to set speed */
 #define IXGBE_CS4227_HOST_SPARE24_LSB		0x1AB0	/* Reg to program EDC */
+#define IXGBE_CS4227_EEPROM_STATUS		0x5001
+#define IXGBE_CS4227_EEPROM_LOAD_OK		0x0001
 #define IXGBE_CS4227_SPEED_1G			0x8000
 #define IXGBE_CS4227_SPEED_10G			0
 #define IXGBE_CS4227_EDC_MODE_CX1		0x0002
 #define IXGBE_CS4227_EDC_MODE_SR		0x0004
+#define IXGBE_CS4227_EDC_MODE_DIAG		0x0008
+#define IXGBE_CS4227_RESET_HOLD			500	/* microseconds */
+#define IXGBE_CS4227_RESET_DELAY		500	/* milliseconds */
+#define IXGBE_CS4227_CHECK_DELAY		30	/* milliseconds */
+#define IXGBE_PE				0xE0	/* Port expander addr */
+#define IXGBE_PE_OUTPUT				1	/* Output reg offset */
+#define IXGBE_PE_CONFIG				3	/* Config reg offset */
+#define IXGBE_PE_BIT1				(1 << 1)
 
 /* Flow control defines */
 #define IXGBE_TAF_SYM_PAUSE                  0x400
