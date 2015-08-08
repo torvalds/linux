@@ -575,6 +575,7 @@ static const struct i2c_device_id nct7904_id[] = {
 	{"nct7904", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, nct7904_id);
 
 static struct i2c_driver nct7904_driver = {
 	.class = I2C_CLASS_HWMON,
