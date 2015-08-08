@@ -1,5 +1,5 @@
-#ifndef __WILC_platfrom_H__
-#define __WILC_platfrom_H__
+#ifndef __WILC_platform_H__
+#define __WILC_platform_H__
 
 #include <linux/kthread.h>
 #include <linux/semaphore.h>
