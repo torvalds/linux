@@ -2476,6 +2476,9 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 	hw_dbg(hw, "GIO Master Disable bit didn't clear - requesting resets\n");
 	hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
 
+	if (hw->mac.type >= ixgbe_mac_X550)
+		return 0;
+
 	/*
 	 * Before proceeding, make sure that the PCIe block does not have
 	 * transactions pending.
