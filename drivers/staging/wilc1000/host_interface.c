@@ -9,7 +9,6 @@ extern u8 connecting;
 extern WILC_TimerHandle hDuringIpTimer;
 #endif
 
-extern bool bEnablePS;
 /*BugID_5137*/
 extern u8 g_wilc_initialized;
 /*****************************************************************************/

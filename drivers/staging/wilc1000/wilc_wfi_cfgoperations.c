@@ -22,7 +22,6 @@
 #define IS_MGMT_STATUS_SUCCES			0x040
 #define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
-extern void linux_wlan_free(void *vp);
 extern int linux_wlan_get_firmware(perInterface_wlan_t *p_nic);
 extern void linux_wlan_unlock(void *vp);
 extern u16 Set_machw_change_vir_if(bool bValue);
@@ -1620,7 +1619,6 @@ static int WILC_WFI_dump_survey(struct wiphy *wiphy, struct net_device *netdev,
  *  @version	1.0
  */
 
-extern uint32_t Statisitcs_totalAcks, Statisitcs_DroppedAcks;
 static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *mac, struct station_info *sinfo)
 {

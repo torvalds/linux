@@ -16,7 +16,6 @@
  *      Global
  *
  ********************************************/
-extern unsigned int int_clrd;
 extern wilc_hif_func_t hif_sdio;
 extern wilc_hif_func_t hif_spi;
 extern wilc_cfg_func_t mac_cfg;
@@ -24,8 +23,6 @@ extern wilc_cfg_func_t mac_cfg;
 extern u8 g_wilc_initialized; /* AMR : 0422 RK3026 Crash issue */
 #endif
 extern void WILC_WFI_mgmt_rx(uint8_t *buff, uint32_t size);
-extern void frmw_to_linux(uint8_t *buff, uint32_t size);
-int sdio_xfer_cnt(void);
 uint32_t wilc_get_chipid(uint8_t update);
 u16 Set_machw_change_vir_if(bool bValue);
 
