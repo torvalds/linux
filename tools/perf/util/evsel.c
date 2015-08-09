@@ -2158,8 +2158,13 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		printed += perf_event_attr__fprintf(fp, &evsel->attr,
 						    __print_attr__fprintf, &first);
 	} else if (details->freq) {
-		printed += comma_fprintf(fp, &first, " sample_freq=%" PRIu64,
-					 (u64)evsel->attr.sample_freq);
+		const char *term = "sample_freq";
+
+		if (!evsel->attr.freq)
+			term = "sample_period";
+
+		printed += comma_fprintf(fp, &first, " %s=%" PRIu64,
+					 term, (u64)evsel->attr.sample_freq);
 	}
 out:
 	fputc('\n', fp);
