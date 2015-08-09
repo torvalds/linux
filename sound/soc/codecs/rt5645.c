@@ -2943,6 +2943,9 @@ static int rt5645_irq_detection(struct rt5645_priv *rt5645)
 {
 	int val, btn_type, gpio_state = 0, report = 0;
 
+	if (!rt5645->codec)
+		return -EINVAL;
+
 	switch (rt5645->pdata.jd_mode) {
 	case 0: /* Not using rt5645 JD */
 		if (rt5645->gpiod_hp_det) {
@@ -3338,6 +3341,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		break;
 
 	case RT5645_DMIC_DATA_GPIO5:
+		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
+			RT5645_I2S2_DAC_PIN_MASK, RT5645_I2S2_DAC_PIN_GPIO);
 		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
 			RT5645_DMIC_1_DP_MASK, RT5645_DMIC_1_DP_GPIO5);
 		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,

@@ -203,7 +203,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	if (ret)
 		return ret;
 
-	if (RING_SPACE(chan, 49)) {
+	if (RING_SPACE(chan, 49 + (device->info.chipset >= 0x11 ? 4 : 0))) {
 		nouveau_fbcon_gpu_lockup(info);
 		return 0;
 	}

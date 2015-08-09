@@ -1716,6 +1716,7 @@ card_probe_error:
 	if (card->remove)
 		card->remove(card);
 
+	snd_soc_dapm_free(&card->dapm);
 	soc_cleanup_card_debugfs(card);
 	snd_card_free(card->snd_card);
 

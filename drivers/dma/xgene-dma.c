@@ -111,6 +111,7 @@
 #define XGENE_DMA_MEM_RAM_SHUTDOWN		0xD070
 #define XGENE_DMA_BLK_MEM_RDY			0xD074
 #define XGENE_DMA_BLK_MEM_RDY_VAL		0xFFFFFFFF
+#define XGENE_DMA_RING_CMD_SM_OFFSET		0x8000
 
 /* X-Gene SoC EFUSE csr register and bit defination */
 #define XGENE_SOC_JTAG1_SHADOW			0x18
@@ -1886,6 +1887,8 @@ static int xgene_dma_get_resources(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Failed to ioremap ring cmd csr region");
 		return -ENOMEM;
 	}
+
+	pdma->csr_ring_cmd += XGENE_DMA_RING_CMD_SM_OFFSET;
 
 	/* Get efuse csr region */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);

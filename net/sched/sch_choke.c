@@ -385,6 +385,19 @@ static void choke_reset(struct Qdisc *sch)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);
 
+	while (q->head != q->tail) {
+		struct sk_buff *skb = q->tab[q->head];
+
+		q->head = (q->head + 1) & q->tab_mask;
+		if (!skb)
+			continue;
+		qdisc_qstats_backlog_dec(sch, skb);
+		--sch->q.qlen;
+		qdisc_drop(skb, sch);
+	}
+
+	memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
+	q->head = q->tail = 0;
 	red_restart(&q->vars);
 }
 

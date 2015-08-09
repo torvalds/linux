@@ -196,7 +196,12 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 	}
 
 	funcs = connector->helper_private;
-	new_encoder = funcs->best_encoder(connector);
+
+	if (funcs->atomic_best_encoder)
+		new_encoder = funcs->atomic_best_encoder(connector,
+							 connector_state);
+	else
+		new_encoder = funcs->best_encoder(connector);
 
 	if (!new_encoder) {
 		DRM_DEBUG_ATOMIC("No suitable encoder found for [CONNECTOR:%d:%s]\n",
@@ -228,6 +233,9 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 			return ret;
 		}
 	}
+
+	if (WARN_ON(!connector_state->crtc))
+		return -EINVAL;
 
 	connector_state->best_encoder = new_encoder;
 	idx = drm_crtc_index(connector_state->crtc);

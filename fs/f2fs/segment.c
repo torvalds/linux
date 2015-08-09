@@ -257,6 +257,7 @@ void commit_inmem_pages(struct inode *inode, bool abort)
 		if (!abort) {
 			lock_page(cur->page);
 			if (cur->page->mapping == inode->i_mapping) {
+				set_page_dirty(cur->page);
 				f2fs_wait_on_page_writeback(cur->page, DATA);
 				if (clear_page_dirty_for_io(cur->page))
 					inode_dec_dirty_pages(inode);
