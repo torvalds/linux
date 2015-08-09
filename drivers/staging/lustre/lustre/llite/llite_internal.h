@@ -456,7 +456,6 @@ struct eacl_table {
 };
 
 struct ll_sb_info {
-	struct list_head		  ll_list;
 	/* this protects pglist and ra_info.  It isn't safe to
 	 * grab from interrupt contexts */
 	spinlock_t		  ll_lock;
