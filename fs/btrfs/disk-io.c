@@ -3761,6 +3761,15 @@ void close_ctree(struct btrfs_root *root)
 	cancel_work_sync(&fs_info->async_reclaim_work);
 
 	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
+		/*
+		 * If the cleaner thread is stopped and there are
+		 * block groups queued for removal, the deletion will be
+		 * skipped when we quit the cleaner thread.
+		 */
+		mutex_lock(&root->fs_info->cleaner_mutex);
+		btrfs_delete_unused_bgs(root->fs_info);
+		mutex_unlock(&root->fs_info->cleaner_mutex);
+
 		ret = btrfs_commit_super(root);
 		if (ret)
 			btrfs_err(fs_info, "commit super ret %d", ret);
