@@ -361,7 +361,7 @@ S:	Supported
 F:	drivers/input/touchscreen/ad7879.c
 
 ADDRESS SPACE LAYOUT RANDOMIZATION (ASLR)
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 S:	Maintained
 
 ADM1025 HARDWARE MONITOR DRIVER
@@ -746,7 +746,7 @@ S:	Maintained
 F:	sound/aoa/
 
 APM DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 S:	Odd fixes
 F:	arch/x86/kernel/apm_32.c
 F:	include/linux/apm_bios.h
@@ -4245,7 +4245,7 @@ S:	Maintained
 F:	drivers/block/rsxx/
 
 FLOPPY DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
 S:	Odd fixes
 F:	drivers/block/floppy.c
@@ -4816,7 +4816,7 @@ F:	include/linux/pm.h
 F:	arch/*/include/asm/suspend*.h
 
 HID CORE LAYER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 L:	linux-input@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained
@@ -4825,7 +4825,7 @@ F:	include/linux/hid*
 F:	include/uapi/linux/hid*
 
 HID SENSOR HUB DRIVERS
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 M:	Jonathan Cameron <jic23@kernel.org>
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	linux-input@vger.kernel.org
@@ -5565,7 +5565,7 @@ F:	include/uapi/linux/ip_vs.h
 F:	net/netfilter/ipvs/
 
 IPWIRELESS DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 M:	David Sterba <dsterba@suse.com>
 S:	Odd Fixes
 F:	drivers/tty/ipwireless/
@@ -6255,7 +6255,7 @@ F:	drivers/platform/x86/hp_accel.c
 LIVE PATCHING
 M:	Josh Poimboeuf <jpoimboe@redhat.com>
 M:	Seth Jennings <sjenning@redhat.com>
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 M:	Vojtech Pavlik <vojtech@suse.com>
 S:	Maintained
 F:	kernel/livepatch/
@@ -8014,7 +8014,7 @@ S:	Maintained
 F:	drivers/pinctrl/spear/
 
 PKTCDVD DRIVER
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 S:	Maintained
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
@@ -10626,7 +10626,7 @@ F:	drivers/usb/gadget/
 F:	include/linux/usb/gadget*
 
 USB HID/HIDBP DRIVERS (USB KEYBOARDS, MICE, REMOTE CONTROLS, ...)
-M:	Jiri Kosina <jkosina@suse.com>
+M:	Jiri Kosina <jikos@kernel.org>
 L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained
