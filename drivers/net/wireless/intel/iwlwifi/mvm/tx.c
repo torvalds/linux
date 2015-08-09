@@ -478,10 +478,14 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 				      struct ieee80211_tx_info *info, __le16 fc)
 {
-	if (iwl_mvm_is_dqa_supported(mvm) &&
-	    info->control.vif->type == NL80211_IFTYPE_AP &&
-	    ieee80211_is_probe_resp(fc))
-		return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		if (info->control.vif->type == NL80211_IFTYPE_AP &&
+		    ieee80211_is_probe_resp(fc))
+			return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+		else if (ieee80211_is_mgmt(fc) &&
+			 info->control.vif->type == NL80211_IFTYPE_P2P_DEVICE)
+			return IWL_MVM_DQA_P2P_DEVICE_QUEUE;
+	}
 
 	return info->hw_queue;
 }

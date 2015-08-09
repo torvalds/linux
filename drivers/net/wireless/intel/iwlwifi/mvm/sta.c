@@ -1016,6 +1016,10 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		    (mvmvif->bcast_sta.tfd_queue_msk &
 		     BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE)))
 			queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+		else if ((vif->type == NL80211_IFTYPE_P2P_DEVICE) &&
+			 (mvmvif->bcast_sta.tfd_queue_msk &
+			  BIT(IWL_MVM_DQA_P2P_DEVICE_QUEUE)))
+			queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
 		else if (WARN(1, "Missed required TXQ for adding bcast STA\n"))
 			return -EINVAL;
 
@@ -1068,6 +1072,9 @@ int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 		if (iwl_mvm_is_dqa_supported(mvm))
 			qmask |= BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE);
+	} else if (iwl_mvm_is_dqa_supported(mvm) &&
+		   vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		qmask |= BIT(IWL_MVM_DQA_P2P_DEVICE_QUEUE);
 	}
 
 	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta, qmask,
