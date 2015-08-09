@@ -141,15 +141,26 @@ static ssize_t blk_mq_sysfs_completed_show(struct blk_mq_ctx *ctx, char *page)
 
 static ssize_t sysfs_list_show(char *page, struct list_head *list, char *msg)
 {
-	char *start_page = page;
 	struct request *rq;
+	int len = snprintf(page, PAGE_SIZE - 1, "%s:\n", msg);
 
-	page += sprintf(page, "%s:\n", msg);
+	list_for_each_entry(rq, list, queuelist) {
+		const int rq_len = 2 * sizeof(rq) + 2;
 
-	list_for_each_entry(rq, list, queuelist)
-		page += sprintf(page, "\t%p\n", rq);
+		/* if the output will be truncated */
+		if (PAGE_SIZE - 1 < len + rq_len) {
+			/* backspacing if it can't hold '\t...\n' */
+			if (PAGE_SIZE - 1 < len + 5)
+				len -= rq_len;
+			len += snprintf(page + len, PAGE_SIZE - 1 - len,
+					"\t...\n");
+			break;
+		}
+		len += snprintf(page + len, PAGE_SIZE - 1 - len,
+				"\t%p\n", rq);
+	}
 
-	return page - start_page;
+	return len;
 }
 
 static ssize_t blk_mq_sysfs_rq_list_show(struct blk_mq_ctx *ctx, char *page)
