@@ -336,7 +336,8 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	 * as aggregatable.
 	 * Mark all DATA queues as allowing to be aggregated at some point
 	 */
-	cfg.aggregate = (queue >= IWL_MVM_DQA_MIN_DATA_QUEUE);
+	cfg.aggregate = (queue >= IWL_MVM_DQA_MIN_DATA_QUEUE ||
+			 queue == IWL_MVM_DQA_BSS_CLIENT_QUEUE);
 
 	IWL_DEBUG_TX_QUEUES(mvm, "Allocating queue #%d to sta %d on tid %d\n",
 			    queue, mvmsta->sta_id, tid);
@@ -448,7 +449,8 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 }
 
 static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
-				      struct ieee80211_sta *sta)
+				      struct ieee80211_sta *sta,
+				      enum nl80211_iftype vif_type)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	int queue;
@@ -456,8 +458,13 @@ static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
 	spin_lock_bh(&mvm->queue_info_lock);
 
 	/* Make sure we have free resources for this STA */
-	queue = iwl_mvm_find_free_queue(mvm, IWL_MVM_DQA_MIN_DATA_QUEUE,
-					IWL_MVM_DQA_MAX_DATA_QUEUE);
+	if (vif_type == NL80211_IFTYPE_STATION && !sta->tdls &&
+	    !mvm->queue_info[IWL_MVM_DQA_BSS_CLIENT_QUEUE].hw_queue_refcount &&
+	    !mvm->queue_info[IWL_MVM_DQA_BSS_CLIENT_QUEUE].setup_reserved)
+		queue = IWL_MVM_DQA_BSS_CLIENT_QUEUE;
+	else
+		queue = iwl_mvm_find_free_queue(mvm, IWL_MVM_DQA_MIN_DATA_QUEUE,
+						IWL_MVM_DQA_MAX_DATA_QUEUE);
 	if (queue < 0) {
 		spin_unlock_bh(&mvm->queue_info_lock);
 		IWL_ERR(mvm, "No available queues for new station\n");
@@ -551,7 +558,8 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	}
 
 	if (iwl_mvm_is_dqa_supported(mvm)) {
-		ret = iwl_mvm_reserve_sta_stream(mvm, sta);
+		ret = iwl_mvm_reserve_sta_stream(mvm, sta,
+						 ieee80211_vif_type_p2p(vif));
 		if (ret)
 			goto err;
 	}

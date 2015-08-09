@@ -89,6 +89,8 @@ enum {
 /*
  * DQA queue numbers
  *
+ * @IWL_MVM_DQA_BSS_CLIENT_QUEUE: a queue reserved for BSS activity, to ensure
+ *	that we are never left without the possibility to connect to an AP.
  * @IWL_MVM_DQA_MIN_MGMT_QUEUE: first TXQ in pool for MGMT and non-QOS frames.
  *	Each MGMT queue is mapped to a single STA
  *	MGMT frames are frames that return true on ieee80211_is_mgmt()
@@ -100,6 +102,7 @@ enum {
  * @IWL_MVM_DQA_MAX_DATA_QUEUE: last TXQ in pool for DATA frames
  */
 enum iwl_mvm_dqa_txq {
+	IWL_MVM_DQA_BSS_CLIENT_QUEUE = 4,
 	IWL_MVM_DQA_MIN_MGMT_QUEUE = 5,
 	IWL_MVM_DQA_MAX_MGMT_QUEUE = 8,
 	IWL_MVM_DQA_MIN_DATA_QUEUE = 10,
