@@ -600,6 +600,10 @@ static void apply_config_terms(struct perf_evsel *evsel)
 			attr->sample_period = term->val.period;
 			attr->freq = 0;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_FREQ:
+			attr->sample_freq = term->val.freq;
+			attr->freq = 1;
+			break;
 		case PERF_EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
 				perf_evsel__set_sample_bit(evsel, TIME);

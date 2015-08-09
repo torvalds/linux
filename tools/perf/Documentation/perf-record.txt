@@ -49,6 +49,7 @@ OPTIONS
 	  These params can be used to overload default config values per event.
 	  Here is a list of the params.
 	  - 'period': Set event sampling period
+	  - 'freq': Set event sampling frequency
 	  - 'time': Disable/enable time stamping. Acceptable values are 1 for
 		    enabling time stamping. 0 for disabling time stamping.
 		    The default is 1.

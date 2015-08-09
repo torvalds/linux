@@ -597,6 +597,9 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 		CHECK_TYPE_VAL(NUM);
 		break;
+	case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
+		CHECK_TYPE_VAL(NUM);
+		break;
 	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
 		/*
 		 * TODO uncomment when the field is available
@@ -658,6 +661,9 @@ do {								\
 		switch (term->type_term) {
 		case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 			ADD_CONFIG_TERM(PERIOD, period, term->val.num);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
+			ADD_CONFIG_TERM(FREQ, freq, term->val.num);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_TIME:
 			ADD_CONFIG_TERM(TIME, time, term->val.num);
