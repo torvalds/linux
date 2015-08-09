@@ -1605,6 +1605,54 @@ static struct device_attribute *android_usb_attributes[] = {
 	&dev_attr_state,
 	NULL
 };
+
+static int android_device_create(struct gadget_info *gi)
+{
+	struct device_attribute **attrs;
+	struct device_attribute *attr;
+
+	INIT_WORK(&gi->work, android_work);
+	android_device = device_create(android_class, NULL,
+				MKDEV(0, 0), NULL, "android0");
+	if (IS_ERR(android_device))
+		return PTR_ERR(android_device);
+
+	dev_set_drvdata(android_device, gi);
+
+	attrs = android_usb_attributes;
+	while ((attr = *attrs++)) {
+		int err;
+
+		err = device_create_file(android_device, attr);
+		if (err) {
+			device_destroy(android_device->class,
+				       android_device->devt);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static void android_device_destroy(void)
+{
+	struct device_attribute **attrs;
+	struct device_attribute *attr;
+
+	attrs = android_usb_attributes;
+	while ((attr = *attrs++))
+		device_remove_file(android_device, attr);
+	device_destroy(android_device->class, android_device->devt);
+}
+#else
+static inline int android_device_create(struct gadget_info *gi)
+{
+	return 0;
+}
+
+static inline void android_device_destroy(void)
+{
+}
 #endif
 
 static struct config_group *gadgets_make(
@@ -1612,9 +1660,6 @@ static struct config_group *gadgets_make(
 		const char *name)
 {
 	struct gadget_info *gi;
-	struct device_attribute **attrs;
-	struct device_attribute *attr;
-	int err;
 
 	gi = kzalloc(sizeof(*gi), GFP_KERNEL);
 	if (!gi)
@@ -1658,37 +1703,14 @@ static struct config_group *gadgets_make(
 	gi->composite.gadget_driver.function = kstrdup(name, GFP_KERNEL);
 	gi->composite.name = gi->composite.gadget_driver.function;
 
-#ifdef CONFIG_USB_CONFIGFS_UEVENT
-	INIT_WORK(&gi->work, android_work);
-	android_device = device_create(android_class, NULL,
-				MKDEV(0, 0), NULL, "android0");
-	if (IS_ERR(android_device))
+	if (!gi->composite.gadget_driver.function)
 		goto err;
 
-	dev_set_drvdata(android_device, gi);
-
-	attrs = android_usb_attributes;
-	while ((attr = *attrs++)) {
-		err = device_create_file(android_device, attr);
-		if (err)
-			goto err1;
-	}
-#endif
-
-	if (!gi->composite.gadget_driver.function)
-		goto err1;
+	if (android_device_create(gi) < 0)
+		goto err;
 
 	return &gi->group;
 
-err1:
-#ifdef CONFIG_USB_CONFIGFS_UEVENT
-	attrs = android_usb_attributes;
-	while ((attr = *attrs++))
-		device_remove_file(android_device, attr);
-
-	device_destroy(android_device->class,
-				android_device->devt);
-#endif
 err:
 	kfree(gi);
 	return ERR_PTR(-ENOMEM);
@@ -1696,17 +1718,8 @@ err:
 
 static void gadgets_drop(struct config_group *group, struct config_item *item)
 {
-	struct device_attribute **attrs;
-	struct device_attribute *attr;
-
 	config_item_put(item);
-
-#ifdef CONFIG_USB_CONFIGFS_UEVENT
-	attrs = android_usb_attributes;
-	while ((attr = *attrs++))
-		device_remove_file(android_device, attr);
-	device_destroy(android_device->class, android_device->devt);
-#endif
+	android_device_destroy();
 }
 
 static struct configfs_group_operations gadgets_ops = {
