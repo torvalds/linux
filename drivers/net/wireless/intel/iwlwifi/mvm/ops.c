@@ -619,7 +619,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);
 
-	trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
+	if (iwl_mvm_is_dqa_supported(mvm))
+		trans_cfg.cmd_queue = IWL_MVM_DQA_CMD_QUEUE;
+	else
+		trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
 	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 	trans_cfg.scd_set_active = true;
 

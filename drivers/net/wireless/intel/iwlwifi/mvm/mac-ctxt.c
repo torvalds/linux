@@ -252,9 +252,13 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 		.exclude_vif = exclude_vif,
 		.used_hw_queues =
 			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
-			BIT(mvm->aux_queue) |
-			BIT(IWL_MVM_CMD_QUEUE),
+			BIT(mvm->aux_queue),
 	};
+
+	if (iwl_mvm_is_dqa_supported(mvm))
+		data.used_hw_queues |= BIT(IWL_MVM_DQA_CMD_QUEUE);
+	else
+		data.used_hw_queues |= BIT(IWL_MVM_CMD_QUEUE);
 
 	lockdep_assert_held(&mvm->mutex);
 
