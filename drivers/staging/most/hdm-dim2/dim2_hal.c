@@ -889,7 +889,7 @@ struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
 		struct dim_ch_state_t *state_ptr)
 {
 	if (!ch || !state_ptr)
-		return 0;
+		return NULL;
 
 	state_ptr->ready = ch->state.level < 2;
 	state_ptr->done_buffers = ch->done_sw_buffers_number;
