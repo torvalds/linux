@@ -22,6 +22,12 @@ struct blk_flush_queue {
 	struct list_head	flush_queue[2];
 	struct list_head	flush_data_in_flight;
 	struct request		*flush_rq;
+
+	/*
+	 * flush_rq shares tag with this rq, both can't be active
+	 * at the same time
+	 */
+	struct request		*orig_rq;
 	spinlock_t		mq_flush_lock;
 };
 
