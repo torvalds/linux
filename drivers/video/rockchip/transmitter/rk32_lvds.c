@@ -80,7 +80,7 @@ static int rk32_lvds_en(void)
 	        (screen->type == SCREEN_LVDS_10BIT))
 		val |= LVDS_CH0_EN;
 	else if (screen->type == SCREEN_RGB)
-		val |= LVDS_TTL_EN | LVDS_CH0_EN | LVDS_CH1_EN;
+		val = LVDS_TTL_EN | LVDS_CH0_EN | LVDS_CH1_EN;
 
 	h_bp = screen->mode.hsync_len + screen->mode.left_margin;
 	if (h_bp & 0x01)
