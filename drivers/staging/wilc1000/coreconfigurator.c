@@ -1577,8 +1577,8 @@ s32 further_process_response(u8 *resp,
 	case WID_ADR:
 		create_mac_addr(cfg_str, resp + idx);
 
-		WILC_strncpy(pstrWIDresult->ps8WidVal, cfg_str, WILC_strlen(cfg_str));
-		pstrWIDresult->ps8WidVal[WILC_strlen(cfg_str)] = '\0';
+		WILC_strncpy(pstrWIDresult->ps8WidVal, cfg_str, strlen(cfg_str));
+		pstrWIDresult->ps8WidVal[strlen(cfg_str)] = '\0';
 		break;
 
 	case WID_IP:
