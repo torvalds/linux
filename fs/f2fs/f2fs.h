@@ -321,7 +321,7 @@ enum {
 					 */
 };
 
-#define F2FS_LINK_MAX		32000	/* maximum link count per file */
+#define F2FS_LINK_MAX	0xffffffff	/* maximum link count per file */
 
 #define MAX_DIR_RA_PAGES	4	/* maximum ra pages of dir */
 
