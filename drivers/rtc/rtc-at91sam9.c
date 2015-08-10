@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
