@@ -909,6 +909,50 @@ static int vmw_cmd_surface_copy_check(struct vmw_private *dev_priv,
 				 &cmd->body.dest.sid, NULL);
 }
 
+static int vmw_cmd_buffer_copy_check(struct vmw_private *dev_priv,
+				      struct vmw_sw_context *sw_context,
+				      SVGA3dCmdHeader *header)
+{
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXBufferCopy body;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, typeof(*cmd), header);
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				user_surface_converter,
+				&cmd->body.src, NULL);
+	if (ret != 0)
+		return ret;
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.dest, NULL);
+}
+
+static int vmw_cmd_pred_copy_check(struct vmw_private *dev_priv,
+				   struct vmw_sw_context *sw_context,
+				   SVGA3dCmdHeader *header)
+{
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXPredCopyRegion body;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, typeof(*cmd), header);
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				user_surface_converter,
+				&cmd->body.srcSid, NULL);
+	if (ret != 0)
+		return ret;
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.dstSid, NULL);
+}
+
 static int vmw_cmd_stretch_blt_check(struct vmw_private *dev_priv,
 				     struct vmw_sw_context *sw_context,
 				     SVGA3dCmdHeader *header)
@@ -3075,8 +3119,6 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_clear_rendertarget_view, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_CLEAR_DEPTHSTENCIL_VIEW,
 		    &vmw_cmd_dx_clear_depthstencil_view, true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_PRED_COPY_REGION, &vmw_cmd_invalid,
-		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_PRED_COPY, &vmw_cmd_invalid,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_GENMIPS, &vmw_cmd_invalid,
@@ -3137,6 +3179,10 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_cid_check, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_TOPOLOGY,
 		    &vmw_cmd_dx_cid_check, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_BUFFER_COPY,
+		    &vmw_cmd_buffer_copy_check, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_PRED_COPY_REGION,
+		    &vmw_cmd_pred_copy_check, true, false, true),
 };
 
 static int vmw_cmd_check(struct vmw_private *dev_priv,
