@@ -288,4 +288,7 @@ config XEN_SYMS
           Exports hypervisor symbols (along with their types and addresses) via
           /proc/xen/xensyms file, similar to /proc/kallsyms
 
+config XEN_HAVE_VPMU
+       bool
+
 endmenu
