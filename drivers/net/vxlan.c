@@ -931,10 +931,10 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		hlist_for_each_entry_rcu(f, &vxlan->fdb_head[h], hlist) {
 			struct vxlan_rdst *rd;
 
-			if (idx < cb->args[0])
-				goto skip;
-
 			list_for_each_entry_rcu(rd, &f->remotes, list) {
+				if (idx < cb->args[0])
+					goto skip;
+
 				err = vxlan_fdb_info(skb, vxlan, f,
 						     NETLINK_CB(cb->skb).portid,
 						     cb->nlh->nlmsg_seq,
@@ -942,9 +942,9 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 						     NLM_F_MULTI, rd);
 				if (err < 0)
 					goto out;
-			}
 skip:
-			++idx;
+				++idx;
+			}
 		}
 	}
 out:
