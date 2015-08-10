@@ -108,13 +108,13 @@ bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number);
 u32 DIM_ReadRegister(u8 register_index);
 
 
-extern u32 DIMCB_IoRead(u32 *ptr32);
+u32 DIMCB_IoRead(u32 *ptr32);
 
-extern void DIMCB_IoWrite(u32 *ptr32, u32 value);
+void DIMCB_IoWrite(u32 *ptr32, u32 value);
 
-extern void DIMCB_OnError(u8 error_id, const char *error_message);
+void DIMCB_OnError(u8 error_id, const char *error_message);
 
-extern void DIMCB_OnFail(const char *filename, int linenum);
+void DIMCB_OnFail(const char *filename, int linenum);
 
 
 #ifdef __cplusplus
