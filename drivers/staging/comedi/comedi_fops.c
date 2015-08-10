@@ -2774,12 +2774,6 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	return dev;
 }
 
-static void comedi_free_board_minor(unsigned minor)
-{
-	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
-	comedi_free_board_dev(comedi_clear_board_minor(minor));
-}
-
 void comedi_release_hardware_device(struct device *hardware_device)
 {
 	int minor;
@@ -2852,10 +2846,13 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 
 static void comedi_cleanup_board_minors(void)
 {
+	struct comedi_device *dev;
 	unsigned i;
 
-	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++)
-		comedi_free_board_minor(i);
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
+		dev = comedi_clear_board_minor(i);
+		comedi_free_board_dev(dev);
+	}
 }
 
 static int __init comedi_init(void)
