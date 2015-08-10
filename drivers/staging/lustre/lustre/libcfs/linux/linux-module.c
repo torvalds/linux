@@ -96,8 +96,6 @@ int libcfs_ioctl_popdata(void *arg, void *data, int size)
 	return 0;
 }
 
-extern struct cfs_psdev_ops	  libcfs_psdev_ops;
-
 static int
 libcfs_psdev_open(struct inode *inode, struct file *file)
 {

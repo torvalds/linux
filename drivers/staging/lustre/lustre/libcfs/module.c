@@ -66,19 +66,10 @@ MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
 MODULE_DESCRIPTION("Portals v3.1");
 MODULE_LICENSE("GPL");
 
-extern struct miscdevice libcfs_dev;
-extern struct cfs_wi_sched *cfs_sched_rehash;
-extern void libcfs_init_nidstrings(void);
-
 static void insert_debugfs(void);
 static void remove_debugfs(void);
 
 static struct dentry *lnet_debugfs_root;
-extern char lnet_upcall[1024];
-/**
- * The path of debug log dump upcall script.
- */
-extern char lnet_debug_log_upcall[1024];
 
 static void kportal_memhog_free(struct libcfs_device_userstate *ldu)
 {
@@ -716,7 +707,7 @@ struct lnet_debugfs_symlink_def {
 	char *target;
 };
 
-struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
+static struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
 	{ "console_ratelimit",
 	  "/sys/module/libcfs/parameters/libcfs_console_ratelimit"},
 	{ "debug_path",
