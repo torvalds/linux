@@ -184,7 +184,7 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm)
 
 	if (!lli->lli_remote_perms) {
 		perm_hash = alloc_rmtperm_hash();
-		if (perm_hash == NULL) {
+		if (!perm_hash) {
 			CERROR("alloc lli_remote_perms failed!\n");
 			return -ENOMEM;
 		}
@@ -287,7 +287,7 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 
 		perm = req_capsule_server_swab_get(&req->rq_pill, &RMF_ACL,
 						   lustre_swab_mdt_remote_perm);
-		if (unlikely(perm == NULL)) {
+		if (unlikely(!perm)) {
 			mutex_unlock(&lli->lli_rmtperm_mutex);
 			rc = -EPROTO;
 			break;
