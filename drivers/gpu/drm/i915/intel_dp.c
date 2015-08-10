@@ -5876,6 +5876,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		break;
 	case PORT_B:
 		intel_encoder->hpd_pin = HPD_PORT_B;
+		if (IS_BROXTON(dev_priv) && (INTEL_REVID(dev) < BXT_REVID_B0))
+			intel_encoder->hpd_pin = HPD_PORT_A;
 		break;
 	case PORT_C:
 		intel_encoder->hpd_pin = HPD_PORT_C;
