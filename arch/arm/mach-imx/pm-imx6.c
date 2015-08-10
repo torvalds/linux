@@ -249,6 +249,27 @@ struct imx6_cpu_pm_info {
 	u32 mmdc_io_val[MX6_MAX_MMDC_IO_NUM][2]; /* To save offset and value */
 } __aligned(8);
 
+unsigned long save_ttbr1(void)
+{
+	unsigned long lttbr1;
+
+	asm volatile(
+		".align 4\n"
+		"mrc p15, 0, %0, c2, c0, 1\n"
+		: "=r" (lttbr1)
+	);
+	return lttbr1;
+}
+
+void restore_ttbr1(unsigned long ttbr1)
+{
+	asm volatile(
+		".align 4\n"
+		"mcr p15, 0, %0, c2, c0, 1\n"
+		: : "r" (ttbr1)
+	);
+}
+
 void imx6q_set_int_mem_clk_lpm(bool enable)
 {
 	u32 val = readl_relaxed(ccm_base + CGPR);

@@ -127,6 +127,7 @@ static void __init imx7d_map_io(void)
 {
 	debug_ll_io_init();
 	imx7_pm_map_io();
+	imx_busfreq_map_io();
 }
 
 DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual (Device Tree)")
