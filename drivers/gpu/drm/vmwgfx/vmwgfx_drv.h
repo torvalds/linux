@@ -88,6 +88,8 @@ struct vmw_dma_buffer {
 	struct ttm_buffer_object base;
 	struct list_head res_list;
 	s32 pin_count;
+	/* Not ref-counted.  Protected by binding_mutex */
+	struct vmw_resource *dx_query_ctx;
 };
 
 /**
@@ -658,6 +660,9 @@ extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   unsigned long new_backup_offset);
 extern void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 				     struct ttm_mem_reg *mem);
+extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
+				  struct ttm_mem_reg *mem);
+extern int vmw_query_readback_all(struct vmw_dma_buffer *dx_query_mob);
 extern void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 				struct vmw_fence_obj *fence);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
@@ -1011,6 +1016,11 @@ extern struct vmw_ctx_binding_state *
 vmw_context_binding_state(struct vmw_resource *ctx);
 extern void vmw_dx_context_scrub_cotables(struct vmw_resource *ctx,
 					  bool readback);
+extern int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
+				     struct vmw_dma_buffer *mob);
+extern struct vmw_dma_buffer *
+vmw_context_get_dx_query_mob(struct vmw_resource *ctx_res);
+
 
 /*
  * Surface management - vmwgfx_surface.c

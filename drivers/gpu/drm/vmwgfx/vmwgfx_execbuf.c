@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009 - 2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -101,19 +101,32 @@ struct vmw_cmd_entry {
 static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 					struct vmw_sw_context *sw_context,
 					struct vmw_resource *ctx);
+static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
+				 struct vmw_sw_context *sw_context,
+				 SVGAMobId *id,
+				 struct vmw_dma_buffer **vmw_bo_p);
+static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
+				   struct vmw_dma_buffer *vbo,
+				   bool validate_as_mob,
+				   uint32_t *p_val_node);
+
 
 /**
- * vmw_resource_unreserve - unreserve resources previously reserved for
+ * vmw_resources_unreserve - unreserve resources previously reserved for
  * command submission.
  *
- * @list_head: list of resources to unreserve.
+ * @sw_context: pointer to the software context
  * @backoff: Whether command submission failed.
  */
-static void vmw_resource_list_unreserve(struct vmw_sw_context *sw_context,
-					struct list_head *list,
-					bool backoff)
+static void vmw_resources_unreserve(struct vmw_sw_context *sw_context,
+				    bool backoff)
 {
 	struct vmw_resource_val_node *val;
+	struct list_head *list = &sw_context->resource_list;
+
+	if (sw_context->dx_query_mob && !backoff)
+		vmw_context_bind_dx_query(sw_context->dx_query_ctx,
+					  sw_context->dx_query_mob);
 
 	list_for_each_entry(val, list, head) {
 		struct vmw_resource *res = val->res;
@@ -376,6 +389,16 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 			break;
 	}
 
+	if (dev_priv->has_dx && vmw_res_type(ctx) == vmw_res_dx_context) {
+		struct vmw_dma_buffer *dx_query_mob;
+
+		dx_query_mob = vmw_context_get_dx_query_mob(ctx);
+		if (dx_query_mob)
+			ret = vmw_bo_to_validate_list(sw_context,
+						      dx_query_mob,
+						      true, NULL);
+	}
+
 	mutex_unlock(&dev_priv->binding_mutex);
 	return ret;
 }
@@ -533,7 +556,7 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
 {
 	struct vmw_resource_val_node *val;
-	int ret;
+	int ret = 0;
 
 	list_for_each_entry(val, &sw_context->resource_list, head) {
 		struct vmw_resource *res = val->res;
@@ -554,7 +577,18 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
 		}
 	}
 
-	return 0;
+	if (sw_context->dx_query_mob) {
+		struct vmw_dma_buffer *expected_dx_query_mob;
+
+		expected_dx_query_mob =
+			vmw_context_get_dx_query_mob(sw_context->dx_query_ctx);
+		if (expected_dx_query_mob &&
+		    expected_dx_query_mob != sw_context->dx_query_mob) {
+			ret = -EINVAL;
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -725,6 +759,46 @@ out_no_reloc:
 }
 
 /**
+ * vmw_rebind_dx_query - Rebind DX query associated with the context
+ *
+ * @ctx_res: context the query belongs to
+ *
+ * This function assumes binding_mutex is held.
+ */
+static int vmw_rebind_all_dx_query(struct vmw_resource *ctx_res)
+{
+	struct vmw_private *dev_priv = ctx_res->dev_priv;
+	struct vmw_dma_buffer *dx_query_mob;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXBindAllQuery body;
+	} *cmd;
+
+
+	dx_query_mob = vmw_context_get_dx_query_mob(ctx_res);
+
+	if (!dx_query_mob || dx_query_mob->dx_query_ctx)
+		return 0;
+
+	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), ctx_res->id);
+
+	if (cmd == NULL) {
+		DRM_ERROR("Failed to rebind queries.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_DX_BIND_ALL_QUERY;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = ctx_res->id;
+	cmd->body.mobid = dx_query_mob->base.mem.start;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	vmw_context_bind_dx_query(ctx_res, dx_query_mob);
+
+	return 0;
+}
+
+/**
  * vmw_rebind_contexts - Rebind all resources previously bound to
  * referenced contexts.
  *
@@ -748,6 +822,10 @@ static int vmw_rebind_contexts(struct vmw_sw_context *sw_context)
 				DRM_ERROR("Failed to rebind context.\n");
 			return ret;
 		}
+
+		ret = vmw_rebind_all_dx_query(val->res);
+		if (ret != 0)
+			return ret;
 	}
 
 	return 0;
@@ -1247,6 +1325,98 @@ out_no_reloc:
 	*vmw_bo_p = NULL;
 	return ret;
 }
+
+
+
+/**
+ * vmw_cmd_dx_define_query - validate a SVGA_3D_CMD_DX_DEFINE_QUERY command.
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context used for this command submission.
+ * @header: Pointer to the command header in the command stream.
+ *
+ * This function adds the new query into the query COTABLE
+ */
+static int vmw_cmd_dx_define_query(struct vmw_private *dev_priv,
+				   struct vmw_sw_context *sw_context,
+				   SVGA3dCmdHeader *header)
+{
+	struct vmw_dx_define_query_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXDefineQuery q;
+	} *cmd;
+
+	int    ret;
+	struct vmw_resource_val_node *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_resource *cotable_res;
+
+
+	if (ctx_node == NULL) {
+		DRM_ERROR("DX Context not set for query.\n");
+		return -EINVAL;
+	}
+
+	cmd = container_of(header, struct vmw_dx_define_query_cmd, header);
+
+	if (cmd->q.type <  SVGA3D_QUERYTYPE_MIN ||
+	    cmd->q.type >= SVGA3D_QUERYTYPE_MAX)
+		return -EINVAL;
+
+	cotable_res = vmw_context_cotable(ctx_node->res, SVGA_COTABLE_DXQUERY);
+	ret = vmw_cotable_notify(cotable_res, cmd->q.queryId);
+	vmw_resource_unreference(&cotable_res);
+
+	return ret;
+}
+
+
+
+/**
+ * vmw_cmd_dx_bind_query - validate a SVGA_3D_CMD_DX_BIND_QUERY command.
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context used for this command submission.
+ * @header: Pointer to the command header in the command stream.
+ *
+ * The query bind operation will eventually associate the query ID
+ * with its backing MOB.  In this function, we take the user mode
+ * MOB ID and use vmw_translate_mob_ptr() to translate it to its
+ * kernel mode equivalent.
+ */
+static int vmw_cmd_dx_bind_query(struct vmw_private *dev_priv,
+				 struct vmw_sw_context *sw_context,
+				 SVGA3dCmdHeader *header)
+{
+	struct vmw_dx_bind_query_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXBindQuery q;
+	} *cmd;
+
+	struct vmw_dma_buffer *vmw_bo;
+	int    ret;
+
+
+	cmd = container_of(header, struct vmw_dx_bind_query_cmd, header);
+
+	/*
+	 * Look up the buffer pointed to by q.mobid, put it on the relocation
+	 * list so its kernel mode MOB ID can be filled in later
+	 */
+	ret = vmw_translate_mob_ptr(dev_priv, sw_context, &cmd->q.mobid,
+				    &vmw_bo);
+
+	if (ret != 0)
+		return ret;
+
+	sw_context->dx_query_mob = vmw_bo;
+	sw_context->dx_query_ctx = sw_context->dx_ctx_node->res;
+
+	vmw_dmabuf_unreference(&vmw_bo);
+
+	return ret;
+}
+
+
 
 /**
  * vmw_cmd_begin_gb_query - validate a  SVGA_3D_CMD_BEGIN_GB_QUERY command.
@@ -2975,6 +3145,8 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    false, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_MOB, &vmw_cmd_invalid,
 		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_REDEFINE_GB_MOB64, &vmw_cmd_invalid,
+		    false, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING, &vmw_cmd_invalid,
 		    false, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SURFACE, &vmw_cmd_invalid,
@@ -3097,15 +3269,17 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_cid_check, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_RASTERIZER_STATE,
 		    &vmw_cmd_dx_cid_check, true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_DEFINE_QUERY, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DEFINE_QUERY, &vmw_cmd_dx_define_query,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_DESTROY_QUERY, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DESTROY_QUERY, &vmw_cmd_ok,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_BIND_QUERY, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_BIND_QUERY, &vmw_cmd_dx_bind_query,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_BEGIN_QUERY, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_QUERY_OFFSET,
+		    &vmw_cmd_ok, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_BEGIN_QUERY, &vmw_cmd_ok,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_END_QUERY, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_END_QUERY, &vmw_cmd_ok,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_READBACK_QUERY, &vmw_cmd_invalid,
 		    true, false, true),
@@ -3780,6 +3954,8 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	sw_context->last_query_ctx = NULL;
 	sw_context->needs_post_query_barrier = false;
 	sw_context->dx_ctx_node = NULL;
+	sw_context->dx_query_mob = NULL;
+	sw_context->dx_query_ctx = NULL;
 	memset(sw_context->res_cache, 0, sizeof(sw_context->res_cache));
 	INIT_LIST_HEAD(&sw_context->validate_nodes);
 	INIT_LIST_HEAD(&sw_context->res_relocations);
@@ -3803,7 +3979,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 	ret = vmw_cmd_check_all(dev_priv, sw_context, kernel_commands,
 				command_size);
-
 	/*
 	 * Merge the resource lists before checking the return status
 	 * from vmd_cmd_check_all so that all the open hashtabs will
@@ -3869,8 +4044,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (ret != 0)
 		DRM_ERROR("Fence submission error. Syncing.\n");
 
-	vmw_resource_list_unreserve(sw_context, &sw_context->resource_list,
-				    false);
+	vmw_resources_unreserve(sw_context, false);
 
 	ttm_eu_fence_buffer_objects(&ticket, &sw_context->validate_nodes,
 				    (void *) fence);
@@ -3908,8 +4082,7 @@ out_unlock_binding:
 out_err:
 	ttm_eu_backoff_reservation(&ticket, &sw_context->validate_nodes);
 out_err_nores:
-	vmw_resource_list_unreserve(sw_context, &sw_context->resource_list,
-				    true);
+	vmw_resources_unreserve(sw_context, true);
 	vmw_resource_relocations_free(&sw_context->res_relocations);
 	vmw_free_relocations(sw_context);
 	vmw_clear_validations(sw_context);

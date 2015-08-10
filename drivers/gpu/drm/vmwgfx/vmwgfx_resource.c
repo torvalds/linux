@@ -1451,9 +1451,9 @@ void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 /**
  * vmw_resource_move_notify - TTM move_notify_callback
  *
- * @bo:             The TTM buffer object about to move.
- * @mem:            The truct ttm_mem_reg indicating to what memory
- *                  region the move is taking place.
+ * @bo: The TTM buffer object about to move.
+ * @mem: The struct ttm_mem_reg indicating to what memory
+ *       region the move is taking place.
  *
  * Evicts the Guest Backed hardware resource if the backup
  * buffer is being moved out of MOB memory.
@@ -1501,6 +1501,101 @@ void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 
 		(void) ttm_bo_wait(bo, false, false, false);
 	}
+}
+
+
+
+/**
+ * vmw_query_readback_all - Read back cached query states
+ *
+ * @dx_query_mob: Buffer containing the DX query MOB
+ *
+ * Read back cached states from the device if they exist.  This function
+ * assumings binding_mutex is held.
+ */
+int vmw_query_readback_all(struct vmw_dma_buffer *dx_query_mob)
+{
+	struct vmw_resource *dx_query_ctx;
+	struct vmw_private *dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXReadbackAllQuery body;
+	} *cmd;
+
+
+	/* No query bound, so do nothing */
+	if (!dx_query_mob || !dx_query_mob->dx_query_ctx)
+		return 0;
+
+	dx_query_ctx = dx_query_mob->dx_query_ctx;
+	dev_priv     = dx_query_ctx->dev_priv;
+
+	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), dx_query_ctx->id);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for "
+			  "query MOB read back.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id   = SVGA_3D_CMD_DX_READBACK_ALL_QUERY;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid    = dx_query_ctx->id;
+
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	/* Triggers a rebind the next time affected context is bound */
+	dx_query_mob->dx_query_ctx = NULL;
+
+	return 0;
+}
+
+
+
+/**
+ * vmw_query_move_notify - Read back cached query states
+ *
+ * @bo: The TTM buffer object about to move.
+ * @mem: The memory region @bo is moving to.
+ *
+ * Called before the query MOB is swapped out to read back cached query
+ * states from the device.
+ */
+void vmw_query_move_notify(struct ttm_buffer_object *bo,
+			   struct ttm_mem_reg *mem)
+{
+	struct vmw_dma_buffer *dx_query_mob;
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct vmw_private *dev_priv;
+
+
+	dev_priv = container_of(bdev, struct vmw_private, bdev);
+
+	mutex_lock(&dev_priv->binding_mutex);
+
+	dx_query_mob = container_of(bo, struct vmw_dma_buffer, base);
+	if (mem == NULL || !dx_query_mob || !dx_query_mob->dx_query_ctx) {
+		mutex_unlock(&dev_priv->binding_mutex);
+		return;
+	}
+
+	/* If BO is being moved from MOB to system memory */
+	if (mem->mem_type == TTM_PL_SYSTEM && bo->mem.mem_type == VMW_PL_MOB) {
+		struct vmw_fence_obj *fence;
+
+		(void) vmw_query_readback_all(dx_query_mob);
+		mutex_unlock(&dev_priv->binding_mutex);
+
+		/* Create a fence and attach the BO to it */
+		(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
+		vmw_fence_single_bo(bo, fence);
+
+		if (fence != NULL)
+			vmw_fence_obj_unreference(&fence);
+
+		(void) ttm_bo_wait(bo, false, false, false);
+	} else
+		mutex_unlock(&dev_priv->binding_mutex);
+
 }
 
 /**

@@ -121,7 +121,9 @@ static void vmw_context_cotables_unref(struct vmw_user_context *uctx)
 		res = uctx->cotables[i];
 		uctx->cotables[i] = NULL;
 		spin_unlock(&uctx->cotable_lock);
-		vmw_resource_unreference(&res);
+
+		if (res)
+			vmw_resource_unreference(&res);
 	}
 }
 
@@ -585,6 +587,8 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct ttm_buffer_object *bo = val_buf->bo;
 	struct vmw_fence_obj *fence;
+	struct vmw_user_context *uctx =
+		container_of(res, struct vmw_user_context, res);
 
 	struct {
 		SVGA3dCmdHeader header;
@@ -602,6 +606,13 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_context_scrub_cotables(res, readback);
+
+	if (uctx->dx_query_mob && uctx->dx_query_mob->dx_query_ctx &&
+	    readback) {
+		WARN_ON(uctx->dx_query_mob->dx_query_ctx != res);
+		if (vmw_query_readback_all(uctx->dx_query_mob))
+			DRM_ERROR("Failed to read back query states\n");
+	}
 
 	submit_size = sizeof(*cmd2) + (readback ? sizeof(*cmd1) : 0);
 
@@ -692,6 +703,9 @@ static void vmw_user_context_free(struct vmw_resource *res)
 
 	if (ctx->cbs)
 		vmw_binding_state_free(ctx->cbs);
+
+	(void) vmw_context_bind_dx_query(res, NULL);
+
 	ttm_base_object_kfree(ctx, base);
 	ttm_mem_global_free(vmw_mem_glob(dev_priv),
 			    vmw_user_context_size);
@@ -866,4 +880,58 @@ struct vmw_ctx_binding_state *
 vmw_context_binding_state(struct vmw_resource *ctx)
 {
 	return container_of(ctx, struct vmw_user_context, res)->cbs;
+}
+
+/**
+ * vmw_context_bind_dx_query -
+ * Sets query MOB for the context.  If @mob is NULL, then this function will
+ * remove the association between the MOB and the context.  This function
+ * assumes the binding_mutex is held.
+ *
+ * @ctx_res: The context resource
+ * @mob: a reference to the query MOB
+ *
+ * Returns -EINVAL if a MOB has already been set and does not match the one
+ * specified in the parameter.  0 otherwise.
+ */
+int vmw_context_bind_dx_query(struct vmw_resource *ctx_res,
+			      struct vmw_dma_buffer *mob)
+{
+	struct vmw_user_context *uctx =
+		container_of(ctx_res, struct vmw_user_context, res);
+
+	if (mob == NULL) {
+		if (uctx->dx_query_mob) {
+			uctx->dx_query_mob->dx_query_ctx = NULL;
+			vmw_dmabuf_unreference(&uctx->dx_query_mob);
+			uctx->dx_query_mob = NULL;
+		}
+
+		return 0;
+	}
+
+	/* Can only have one MOB per context for queries */
+	if (uctx->dx_query_mob && uctx->dx_query_mob != mob)
+		return -EINVAL;
+
+	mob->dx_query_ctx  = ctx_res;
+
+	if (!uctx->dx_query_mob)
+		uctx->dx_query_mob = vmw_dmabuf_reference(mob);
+
+	return 0;
+}
+
+/**
+ * vmw_context_get_dx_query_mob - Returns non-counted reference to DX query mob
+ *
+ * @ctx_res: The context resource
+ */
+struct vmw_dma_buffer *
+vmw_context_get_dx_query_mob(struct vmw_resource *ctx_res)
+{
+	struct vmw_user_context *uctx =
+		container_of(ctx_res, struct vmw_user_context, res);
+
+	return uctx->dx_query_mob;
 }
