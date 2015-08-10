@@ -52,9 +52,6 @@
 
 #include "6lowpan_i.h"
 
-LIST_HEAD(lowpan_devices);
-static int lowpan_open_count;
-
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -114,7 +111,6 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_device *real_dev;
-	struct lowpan_dev_record *entry;
 	int ret;
 
 	ASSERT_RTNL();
@@ -133,31 +129,19 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 	}
 
-	lowpan_dev_info(dev)->real_dev = real_dev;
-	mutex_init(&lowpan_dev_info(dev)->dev_list_mtx);
-
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
+	if (real_dev->ieee802154_ptr->lowpan_dev) {
 		dev_put(real_dev);
-		lowpan_dev_info(dev)->real_dev = NULL;
-		return -ENOMEM;
+		return -EBUSY;
 	}
 
-	entry->ldev = dev;
-
+	lowpan_dev_info(dev)->real_dev = real_dev;
 	/* Set the lowpan hardware address to the wpan hardware address. */
 	memcpy(dev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
 
-	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
-	INIT_LIST_HEAD(&entry->list);
-	list_add_tail(&entry->list, &lowpan_devices);
-	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
-
 	ret = register_netdevice(dev);
 	if (ret >= 0) {
-		if (!lowpan_open_count)
-			lowpan_rx_init();
-		lowpan_open_count++;
+		real_dev->ieee802154_ptr->lowpan_dev = dev;
+		lowpan_rx_init();
 	}
 
 	return ret;
@@ -167,27 +151,12 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(dev);
 	struct net_device *real_dev = lowpan_dev->real_dev;
-	struct lowpan_dev_record *entry, *tmp;
 
 	ASSERT_RTNL();
 
-	lowpan_open_count--;
-	if (!lowpan_open_count)
-		lowpan_rx_exit();
-
-	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
-	list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
-		if (entry->ldev == dev) {
-			list_del(&entry->list);
-			kfree(entry);
-		}
-	}
-	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
-
-	mutex_destroy(&lowpan_dev_info(dev)->dev_list_mtx);
-
-	unregister_netdevice_queue(dev, head);
-
+	lowpan_rx_exit();
+	real_dev->ieee802154_ptr->lowpan_dev = NULL;
+	unregister_netdevice(dev);
 	dev_put(real_dev);
 }
 
@@ -214,19 +183,21 @@ static int lowpan_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	LIST_HEAD(del_list);
-	struct lowpan_dev_record *entry, *tmp;
 
 	if (dev->type != ARPHRD_IEEE802154)
 		goto out;
 
-	if (event == NETDEV_UNREGISTER) {
-		list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
-			if (lowpan_dev_info(entry->ldev)->real_dev == dev)
-				lowpan_dellink(entry->ldev, &del_list);
-		}
-
-		unregister_netdevice_many(&del_list);
+	switch (event) {
+	case NETDEV_UNREGISTER:
+		/* Check if wpan interface is unregistered that we
+		 * also delete possible lowpan interfaces which belongs
+		 * to the wpan interface.
+		 */
+		if (dev->ieee802154_ptr && dev->ieee802154_ptr->lowpan_dev)
+			lowpan_dellink(dev->ieee802154_ptr->lowpan_dev, NULL);
+		break;
+	default:
+		break;
 	}
 
 out:

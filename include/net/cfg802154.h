@@ -173,6 +173,9 @@ struct wpan_dev {
 	struct list_head list;
 	struct net_device *netdev;
 
+	/* lowpan interface, set when the wpan_dev belongs to one lowpan_dev */
+	struct net_device *lowpan_dev;
+
 	u32 identifier;
 
 	/* MAC PIB */
