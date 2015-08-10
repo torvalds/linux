@@ -198,15 +198,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 static int omap_crtc_dss_enable(enum omap_channel channel)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[channel];
-	struct omap_overlay_manager_info info;
 
-	memset(&info, 0, sizeof(info));
-	info.default_color = 0x00000000;
-	info.trans_key = 0x00000000;
-	info.trans_key_type = OMAP_DSS_COLOR_KEY_GFX_DST;
-	info.trans_enabled = false;
-
-	dispc_mgr_setup(omap_crtc->channel, &info);
 	dispc_mgr_set_timings(omap_crtc->channel,
 			&omap_crtc->vm);
 	omap_crtc_set_enabled(&omap_crtc->base, true);
@@ -313,6 +305,21 @@ void omap_crtc_vblank_irq(struct drm_crtc *crtc)
 	DBG("%s: apply done", omap_crtc->name);
 }
 
+static void omap_crtc_write_crtc_properties(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct omap_overlay_manager_info info;
+
+	memset(&info, 0, sizeof(info));
+
+	info.default_color = 0x000000;
+	info.trans_enabled = false;
+	info.partial_alpha_enabled = false;
+	info.cpr_enable = false;
+
+	dispc_mgr_setup(omap_crtc->channel, &info);
+}
+
 /* -----------------------------------------------------------------------------
  * CRTC Functions
  */
@@ -409,6 +416,8 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 		}
 		dispc_mgr_set_gamma(omap_crtc->channel, lut, length);
 	}
+
+	omap_crtc_write_crtc_properties(crtc);
 
 	/* Only flush the CRTC if it is currently enabled. */
 	if (!omap_crtc->enabled)
