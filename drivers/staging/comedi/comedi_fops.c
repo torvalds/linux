@@ -2836,11 +2836,9 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 
 	if (!s)
 		return;
-	if (s->minor < 0)
+	if (s->minor < COMEDI_NUM_BOARD_MINORS ||
+	    s->minor >= COMEDI_NUM_MINORS)
 		return;
-
-	BUG_ON(s->minor >= COMEDI_NUM_MINORS);
-	BUG_ON(s->minor < COMEDI_NUM_BOARD_MINORS);
 
 	i = s->minor - COMEDI_NUM_BOARD_MINORS;
 	mutex_lock(&comedi_subdevice_minor_table_lock);
