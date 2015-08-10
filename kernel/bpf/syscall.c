@@ -72,7 +72,7 @@ static int bpf_map_release(struct inode *inode, struct file *filp)
 		/* prog_array stores refcnt-ed bpf_prog pointers
 		 * release them all when user space closes prog_array_fd
 		 */
-		bpf_prog_array_map_clear(map);
+		bpf_fd_array_map_clear(map);
 
 	bpf_map_put(map);
 	return 0;

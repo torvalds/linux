@@ -246,7 +246,7 @@ static void emit_prologue(u8 **pprog)
  *     goto out;
  *   if (++tail_call_cnt > MAX_TAIL_CALL_CNT)
  *     goto out;
- *   prog = array->prog[index];
+ *   prog = array->ptrs[index];
  *   if (prog == NULL)
  *     goto out;
  *   goto *(prog->bpf_func + prologue_size);
@@ -284,9 +284,9 @@ static void emit_bpf_tail_call(u8 **pprog)
 	EMIT3(0x83, 0xC0, 0x01);                  /* add eax, 1 */
 	EMIT2_off32(0x89, 0x85, -STACKSIZE + 36); /* mov dword ptr [rbp - 516], eax */
 
-	/* prog = array->prog[index]; */
+	/* prog = array->ptrs[index]; */
 	EMIT4_off32(0x48, 0x8D, 0x84, 0xD6,       /* lea rax, [rsi + rdx * 8 + offsetof(...)] */
-		    offsetof(struct bpf_array, prog));
+		    offsetof(struct bpf_array, ptrs));
 	EMIT3(0x48, 0x8B, 0x00);                  /* mov rax, qword ptr [rax] */
 
 	/* if (prog == NULL)

@@ -450,7 +450,7 @@ select_insn:
 
 		tail_call_cnt++;
 
-		prog = READ_ONCE(array->prog[index]);
+		prog = READ_ONCE(array->ptrs[index]);
 		if (unlikely(!prog))
 			goto out;
 
