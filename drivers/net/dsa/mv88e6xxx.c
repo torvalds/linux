@@ -1182,8 +1182,8 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	return 0;
 }
 
-static int __mv88e6xxx_write_addr(struct dsa_switch *ds,
-				  const unsigned char *addr)
+static int _mv88e6xxx_atu_mac_write(struct dsa_switch *ds,
+				    const unsigned char *addr)
 {
 	int i, ret;
 
@@ -1198,7 +1198,7 @@ static int __mv88e6xxx_write_addr(struct dsa_switch *ds,
 	return 0;
 }
 
-static int __mv88e6xxx_read_addr(struct dsa_switch *ds, unsigned char *addr)
+static int _mv88e6xxx_atu_mac_read(struct dsa_switch *ds, unsigned char *addr)
 {
 	int i, ret;
 
@@ -1225,7 +1225,7 @@ static int __mv88e6xxx_port_fdb_cmd(struct dsa_switch *ds, int port,
 	if (ret < 0)
 		return ret;
 
-	ret = __mv88e6xxx_write_addr(ds, addr);
+	ret = _mv88e6xxx_atu_mac_write(ds, addr);
 	if (ret < 0)
 		return ret;
 
@@ -1280,7 +1280,7 @@ static int __mv88e6xxx_port_getnext(struct dsa_switch *ds, int port,
 	if (ret < 0)
 		return ret;
 
-	ret = __mv88e6xxx_write_addr(ds, addr);
+	ret = _mv88e6xxx_atu_mac_write(ds, addr);
 	if (ret < 0)
 		return ret;
 
@@ -1297,7 +1297,7 @@ static int __mv88e6xxx_port_getnext(struct dsa_switch *ds, int port,
 			return -ENOENT;
 	} while (!(((ret >> 4) & 0xff) & (1 << port)));
 
-	ret = __mv88e6xxx_read_addr(ds, addr);
+	ret = _mv88e6xxx_atu_mac_read(ds, addr);
 	if (ret < 0)
 		return ret;
 
@@ -1659,7 +1659,7 @@ static int mv88e6xxx_atu_show_db(struct seq_file *s, struct dsa_switch *ds,
 	unsigned char addr[6];
 	int ret, data, state;
 
-	ret = __mv88e6xxx_write_addr(ds, bcast);
+	ret = _mv88e6xxx_atu_mac_write(ds, bcast);
 	if (ret < 0)
 		return ret;
 
@@ -1674,7 +1674,7 @@ static int mv88e6xxx_atu_show_db(struct seq_file *s, struct dsa_switch *ds,
 		state = data & GLOBAL_ATU_DATA_STATE_MASK;
 		if (state == GLOBAL_ATU_DATA_STATE_UNUSED)
 			break;
-		ret = __mv88e6xxx_read_addr(ds, addr);
+		ret = _mv88e6xxx_atu_mac_read(ds, addr);
 		if (ret < 0)
 			return ret;
 		mv88e6xxx_atu_show_entry(s, dbnum, addr, data);
