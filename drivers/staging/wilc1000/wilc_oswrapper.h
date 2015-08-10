@@ -32,8 +32,6 @@
 /* Memory support */
 #include "wilc_memory.h"
 
-/* String Utilities */
-#include "wilc_strutils.h"
 
 /* Message Queue */
 #include "wilc_msgqueue.h"
