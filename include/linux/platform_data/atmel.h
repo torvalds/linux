@@ -9,15 +9,7 @@
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
-#include <linux/device.h>
-#include <linux/i2c.h>
-#include <linux/leds.h>
-#include <linux/spi/spi.h>
-#include <linux/usb/atmel_usba_udc.h>
-#include <linux/atmel-mci.h>
-#include <sound/atmel-ac97c.h>
 #include <linux/serial.h>
-#include <linux/platform_data/macb.h>
 
 /*
  * at91: 6 USARTs and one DBGU port (SAM9260)
