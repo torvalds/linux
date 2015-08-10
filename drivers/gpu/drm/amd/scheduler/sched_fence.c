@@ -60,21 +60,13 @@ struct amd_sched_fence *amd_sched_fence_create(
 	return fence;
 }
 
-bool amd_sched_check_ts(struct amd_sched_entity *s_entity, uint64_t v_seq)
-{
-	return atomic64_read(&s_entity->last_signaled_v_seq) >= v_seq ? true : false;
-}
-
 void amd_sched_fence_signal(struct amd_sched_fence *fence)
 {
-	if (amd_sched_check_ts(fence->entity, fence->v_seq)) {
-		int ret = fence_signal(&fence->base);
-		if (!ret)
-			FENCE_TRACE(&fence->base, "signaled from irq context\n");
-		else
-			FENCE_TRACE(&fence->base, "was already signaled\n");
-	} else
-		WARN(true, "fence process dismattch with job!\n");
+	int ret = fence_signal(&fence->base);
+	if (!ret)
+		FENCE_TRACE(&fence->base, "signaled from irq context\n");
+	else
+		FENCE_TRACE(&fence->base, "was already signaled\n");
 }
 
 static const char *amd_sched_fence_get_driver_name(struct fence *fence)
@@ -90,23 +82,14 @@ static const char *amd_sched_fence_get_timeline_name(struct fence *f)
 
 static bool amd_sched_fence_enable_signaling(struct fence *f)
 {
-	struct amd_sched_fence *fence = to_amd_sched_fence(f);
-
-	return !amd_sched_check_ts(fence->entity, fence->v_seq);
-}
-
-static bool amd_sched_fence_is_signaled(struct fence *f)
-{
-	struct amd_sched_fence *fence = to_amd_sched_fence(f);
-
-	return amd_sched_check_ts(fence->entity, fence->v_seq);
+	return true;
 }
 
 const struct fence_ops amd_sched_fence_ops = {
 	.get_driver_name = amd_sched_fence_get_driver_name,
 	.get_timeline_name = amd_sched_fence_get_timeline_name,
 	.enable_signaling = amd_sched_fence_enable_signaling,
-	.signaled = amd_sched_fence_is_signaled,
+	.signaled = NULL,
 	.wait = fence_default_wait,
 	.release = NULL,
 };
