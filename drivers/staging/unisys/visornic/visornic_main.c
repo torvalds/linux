@@ -71,6 +71,15 @@ static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	{ SPAR_VNIC_CHANNEL_PROTOCOL_UUID, "ultravnic" },
 	{ NULL_UUID_LE, NULL }
 };
+MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
+/*
+ * FIXME XXX: This next line of code must be fixed and removed before
+ * acceptance into the 'normal' part of the kernel.  It is only here as a place
+ * holder to get module autoloading functionality working for visorbus.  Code
+ * must be added to scripts/mode/file2alias.c, etc., to get this working
+ * properly.
+ */
+MODULE_ALIAS("visorbus:" SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR);
 
 /* This is used to tell the visor bus driver which types of visor devices
  * we support, and what functions to call when a visor device that we support
