@@ -459,12 +459,14 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
 {
 	struct bio_vec *bvec;
 	unsigned i;
+	int err;
 
 	if (bio->bi_error)
 		dio->io_error = -EIO;
 
 	if (dio->is_async && dio->rw == READ) {
 		bio_check_pages_dirty(bio);	/* transfers ownership */
+		err = bio->bi_error;
 	} else {
 		bio_for_each_segment_all(bvec, bio, i) {
 			struct page *page = bvec->bv_page;
@@ -473,9 +475,10 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
 				set_page_dirty_lock(page);
 			page_cache_release(page);
 		}
+		err = bio->bi_error;
 		bio_put(bio);
 	}
-	return bio->bi_error;
+	return err;
 }
 
 /*
