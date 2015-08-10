@@ -2273,6 +2273,11 @@ static int mlx4_allocate_default_counters(struct mlx4_dev *dev)
 		} else if (err == -ENOENT) {
 			err = 0;
 			continue;
+		} else if (mlx4_is_slave(dev) && err == -EINVAL) {
+			priv->def_counter[port] = MLX4_SINK_COUNTER_INDEX(dev);
+			mlx4_warn(dev, "can't allocate counter from old PF driver, using index %d\n",
+				  MLX4_SINK_COUNTER_INDEX(dev));
+			err = 0;
 		} else {
 			mlx4_err(dev, "%s: failed to allocate default counter port %d err %d\n",
 				 __func__, port + 1, err);

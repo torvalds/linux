@@ -1075,15 +1075,34 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	const union child_device_config *p_child;
 	union child_device_config *child_dev_ptr;
 	int i, child_device_num, count;
-	u16	block_size;
+	u8 expected_size;
+	u16 block_size;
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
 		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
-	if (p_defs->child_dev_size < sizeof(*p_child)) {
-		DRM_ERROR("General definiton block child device size is too small.\n");
+	if (bdb->version < 195) {
+		expected_size = 33;
+	} else if (bdb->version == 195) {
+		expected_size = 37;
+	} else if (bdb->version <= 197) {
+		expected_size = 38;
+	} else {
+		expected_size = 38;
+		DRM_DEBUG_DRIVER("Expected child_device_config size for BDB version %u not known; assuming %u\n",
+				 expected_size, bdb->version);
+	}
+
+	if (expected_size > sizeof(*p_child)) {
+		DRM_ERROR("child_device_config cannot fit in p_child\n");
+		return;
+	}
+
+	if (p_defs->child_dev_size != expected_size) {
+		DRM_ERROR("Size mismatch; child_device_config size=%u (expected %u); bdb->version: %u\n",
+			  p_defs->child_dev_size, expected_size, bdb->version);
 		return;
 	}
 	/* get the block size of general definitions */
@@ -1130,7 +1149,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 
 		child_dev_ptr = dev_priv->vbt.child_dev + count;
 		count++;
-		memcpy(child_dev_ptr, p_child, sizeof(*p_child));
+		memcpy(child_dev_ptr, p_child, p_defs->child_dev_size);
 	}
 	return;
 }

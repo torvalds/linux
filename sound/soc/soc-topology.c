@@ -33,6 +33,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/soc-topology.h>
+#include <sound/tlv.h>
 
 /*
  * We make several passes over the data (since it wont necessarily be ordered)
@@ -144,7 +145,7 @@ static const struct snd_soc_tplg_kcontrol_ops io_ops[] = {
 	{SND_SOC_TPLG_CTL_STROBE, snd_soc_get_strobe,
 		snd_soc_put_strobe, NULL},
 	{SND_SOC_TPLG_DAPM_CTL_VOLSW, snd_soc_dapm_get_volsw,
-		snd_soc_dapm_put_volsw, NULL},
+		snd_soc_dapm_put_volsw, snd_soc_info_volsw},
 	{SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE, snd_soc_dapm_get_enum_double,
 		snd_soc_dapm_put_enum_double, snd_soc_info_enum_double},
 	{SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT, snd_soc_dapm_get_enum_double,
@@ -534,7 +535,7 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 			k->put = bops[i].put;
 		if (k->get == NULL && bops[i].id == hdr->ops.get)
 			k->get = bops[i].get;
-		if (k->info == NULL && ops[i].id == hdr->ops.info)
+		if (k->info == NULL && bops[i].id == hdr->ops.info)
 			k->info = bops[i].info;
 	}
 
@@ -579,29 +580,51 @@ static int soc_tplg_init_kcontrol(struct soc_tplg *tplg,
 	return 0;
 }
 
-static int soc_tplg_create_tlv(struct soc_tplg *tplg,
-	struct snd_kcontrol_new *kc, u32 tlv_size)
+
+static int soc_tplg_create_tlv_db_scale(struct soc_tplg *tplg,
+	struct snd_kcontrol_new *kc, struct snd_soc_tplg_tlv_dbscale *scale)
 {
-	struct snd_soc_tplg_ctl_tlv *tplg_tlv;
-	struct snd_ctl_tlv *tlv;
+	unsigned int item_len = 2 * sizeof(unsigned int);
+	unsigned int *p;
 
-	if (tlv_size == 0)
-		return 0;
-
-	tplg_tlv = (struct snd_soc_tplg_ctl_tlv *) tplg->pos;
-	tplg->pos += tlv_size;
-
-	tlv = kzalloc(sizeof(*tlv) + tlv_size, GFP_KERNEL);
-	if (tlv == NULL)
+	p = kzalloc(item_len + 2 * sizeof(unsigned int), GFP_KERNEL);
+	if (!p)
 		return -ENOMEM;
 
-	dev_dbg(tplg->dev, " created TLV type %d size %d bytes\n",
-		tplg_tlv->numid, tplg_tlv->size);
+	p[0] = SNDRV_CTL_TLVT_DB_SCALE;
+	p[1] = item_len;
+	p[2] = scale->min;
+	p[3] = (scale->step & TLV_DB_SCALE_MASK)
+			| (scale->mute ? TLV_DB_SCALE_MUTE : 0);
 
-	tlv->numid = tplg_tlv->numid;
-	tlv->length = tplg_tlv->size;
-	memcpy(tlv->tlv, tplg_tlv + 1, tplg_tlv->size);
-	kc->tlv.p = (void *)tlv;
+	kc->tlv.p = (void *)p;
+	return 0;
+}
+
+static int soc_tplg_create_tlv(struct soc_tplg *tplg,
+	struct snd_kcontrol_new *kc, struct snd_soc_tplg_ctl_hdr *tc)
+{
+	struct snd_soc_tplg_ctl_tlv *tplg_tlv;
+
+	if (!(tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE))
+		return 0;
+
+	if (tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		kc->tlv.c = snd_soc_bytes_tlv_callback;
+	} else {
+		tplg_tlv = &tc->tlv;
+		switch (tplg_tlv->type) {
+		case SNDRV_CTL_TLVT_DB_SCALE:
+			return soc_tplg_create_tlv_db_scale(tplg, kc,
+					&tplg_tlv->scale);
+
+		/* TODO: add support for other TLV types */
+		default:
+			dev_dbg(tplg->dev, "Unsupported TLV type %d\n",
+					tplg_tlv->type);
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
@@ -773,7 +796,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 		}
 
 		/* create any TLV data */
-		soc_tplg_create_tlv(tplg, &kc, mc->hdr.tlv_size);
+		soc_tplg_create_tlv(tplg, &kc, &mc->hdr);
 
 		/* register control here */
 		err = soc_tplg_add_kcontrol(tplg, &kc,
@@ -1351,6 +1374,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	template.reg = w->reg;
 	template.shift = w->shift;
 	template.mask = w->mask;
+	template.subseq = w->subseq;
 	template.on_val = w->invert ? 0 : 1;
 	template.off_val = w->invert ? 1 : 0;
 	template.ignore_suspend = w->ignore_suspend;

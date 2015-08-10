@@ -192,16 +192,6 @@ asmlinkage void start_secondary(void)
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
-/*
- * Call into both interrupt handlers, as we share the IPI for them
- */
-void __irq_entry smp_call_function_interrupt(void)
-{
-	irq_enter();
-	generic_smp_call_function_interrupt();
-	irq_exit();
-}
-
 static void stop_this_cpu(void *dummy)
 {
 	/*

@@ -38,6 +38,14 @@ gk20a_ibus_init_priv_ring(struct gk20a_ibus_priv *priv)
 	nv_wr32(priv, 0x12004c, 0x4);
 	nv_wr32(priv, 0x122204, 0x2);
 	nv_rd32(priv, 0x122204);
+
+	/*
+	 * Bug: increase clock timeout to avoid operation failure at high
+	 * gpcclk rate.
+	 */
+	nv_wr32(priv, 0x122354, 0x800);
+	nv_wr32(priv, 0x128328, 0x800);
+	nv_wr32(priv, 0x124320, 0x800);
 }
 
 static void
