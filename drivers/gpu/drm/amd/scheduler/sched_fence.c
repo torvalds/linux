@@ -27,16 +27,7 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
-static void amd_sched_fence_wait_cb(struct fence *f, struct fence_cb *cb)
-{
-	struct amd_sched_fence *fence =
-		container_of(cb, struct amd_sched_fence, cb);
-	list_del_init(&fence->list);
-	fence_put(&fence->base);
-}
-
-struct amd_sched_fence *amd_sched_fence_create(
-	struct amd_sched_entity *s_entity)
+struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity)
 {
 	struct amd_sched_fence *fence = NULL;
 	fence = kzalloc(sizeof(struct amd_sched_fence), GFP_KERNEL);
@@ -49,14 +40,6 @@ struct amd_sched_fence *amd_sched_fence_create(
 		&fence->lock,
 		s_entity->fence_context,
 		fence->v_seq);
-	fence_get(&fence->base);
-	list_add_tail(&fence->list, &s_entity->fence_list);
-	if (fence_add_callback(&fence->base,&fence->cb,
-			       amd_sched_fence_wait_cb)) {
-		fence_put(&fence->base);
-		kfree(fence);
-		return NULL;
-	}
 	return fence;
 }
 

@@ -53,7 +53,6 @@ struct amd_sched_entity {
 	wait_queue_head_t		wait_emit;
 	bool                            is_pending;
 	uint64_t                        fence_context;
-	struct list_head		fence_list;
 	char                            name[20];
 };
 
@@ -78,7 +77,6 @@ struct amd_run_queue {
 struct amd_sched_fence {
 	struct fence                    base;
 	struct fence_cb                 cb;
-	struct list_head		list;
 	struct amd_sched_entity	        *entity;
 	uint64_t			v_seq;
 	spinlock_t			lock;

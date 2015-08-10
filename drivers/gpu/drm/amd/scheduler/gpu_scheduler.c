@@ -195,7 +195,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	entity->fence_context = fence_context_alloc(1);
 	snprintf(name, sizeof(name), "c_entity[%llu]", entity->fence_context);
 	memcpy(entity->name, name, 20);
-	INIT_LIST_HEAD(&entity->fence_list);
 	if(kfifo_alloc(&entity->job_queue,
 		       jobs * sizeof(void *),
 		       GFP_KERNEL))
