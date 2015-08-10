@@ -70,8 +70,9 @@ struct switchdev_obj {
 			u32 tb_id;
 		} ipv4_fib;
 		struct switchdev_obj_fdb {		/* PORT_FDB */
-			const unsigned char *addr;
+			u8 addr[ETH_ALEN];
 			u16 vid;
+			bool is_static;
 		} fdb;
 	} u;
 };

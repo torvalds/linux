@@ -964,7 +964,7 @@ static int _mv88e6xxx_atu_cmd(struct dsa_switch *ds, int fid, u16 cmd)
 {
 	int ret;
 
-	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, 0x01, fid);
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_FID, fid);
 	if (ret < 0)
 		return ret;
 
@@ -1091,7 +1091,7 @@ int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
 	ps->bridge_mask[fid] = br_port_mask;
 
 	if (fid != ps->fid[port]) {
-		ps->fid_mask |= 1 << ps->fid[port];
+		clear_bit(ps->fid[port], ps->fid_bitmap);
 		ps->fid[port] = fid;
 		ret = _mv88e6xxx_update_bridge_config(ds, fid);
 	}
@@ -1125,9 +1125,16 @@ int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
 
 	mutex_lock(&ps->smi_mutex);
 
-	newfid = __ffs(ps->fid_mask);
+	newfid = find_next_zero_bit(ps->fid_bitmap, VLAN_N_VID, 1);
+	if (unlikely(newfid > ps->num_ports)) {
+		netdev_err(ds->ports[port], "all first %d FIDs are used\n",
+			   ps->num_ports);
+		ret = -ENOSPC;
+		goto unlock;
+	}
+
 	ps->fid[port] = newfid;
-	ps->fid_mask &= ~(1 << newfid);
+	set_bit(newfid, ps->fid_bitmap);
 	ps->bridge_mask[fid] &= ~(1 << port);
 	ps->bridge_mask[newfid] = 1 << port;
 
@@ -1135,6 +1142,7 @@ int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
 	if (!ret)
 		ret = _mv88e6xxx_update_bridge_config(ds, newfid);
 
+unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
@@ -1174,8 +1182,8 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	return 0;
 }
 
-static int __mv88e6xxx_write_addr(struct dsa_switch *ds,
-				  const unsigned char *addr)
+static int _mv88e6xxx_atu_mac_write(struct dsa_switch *ds,
+				    const u8 addr[ETH_ALEN])
 {
 	int i, ret;
 
@@ -1190,7 +1198,7 @@ static int __mv88e6xxx_write_addr(struct dsa_switch *ds,
 	return 0;
 }
 
-static int __mv88e6xxx_read_addr(struct dsa_switch *ds, unsigned char *addr)
+static int _mv88e6xxx_atu_mac_read(struct dsa_switch *ds, u8 addr[ETH_ALEN])
 {
 	int i, ret;
 
@@ -1206,109 +1214,190 @@ static int __mv88e6xxx_read_addr(struct dsa_switch *ds, unsigned char *addr)
 	return 0;
 }
 
-static int __mv88e6xxx_port_fdb_cmd(struct dsa_switch *ds, int port,
-				    const unsigned char *addr, int state)
+static int _mv88e6xxx_atu_load(struct dsa_switch *ds,
+			       struct mv88e6xxx_atu_entry *entry)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u8 fid = ps->fid[port];
+	u16 reg = 0;
 	int ret;
 
 	ret = _mv88e6xxx_atu_wait(ds);
 	if (ret < 0)
 		return ret;
 
-	ret = __mv88e6xxx_write_addr(ds, addr);
+	ret = _mv88e6xxx_atu_mac_write(ds, entry->mac);
 	if (ret < 0)
 		return ret;
 
-	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_DATA,
-				   (0x10 << port) | state);
-	if (ret)
+	if (entry->state != GLOBAL_ATU_DATA_STATE_UNUSED) {
+		unsigned int mask, shift;
+
+		if (entry->trunk) {
+			reg |= GLOBAL_ATU_DATA_TRUNK;
+			mask = GLOBAL_ATU_DATA_TRUNK_ID_MASK;
+			shift = GLOBAL_ATU_DATA_TRUNK_ID_SHIFT;
+		} else {
+			mask = GLOBAL_ATU_DATA_PORT_VECTOR_MASK;
+			shift = GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT;
+		}
+
+		reg |= (entry->portv_trunkid << shift) & mask;
+	}
+
+	reg |= entry->state & GLOBAL_ATU_DATA_STATE_MASK;
+
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_ATU_DATA, reg);
+	if (ret < 0)
 		return ret;
 
-	ret = _mv88e6xxx_atu_cmd(ds, fid, GLOBAL_ATU_OP_LOAD_DB);
-
-	return ret;
+	return _mv88e6xxx_atu_cmd(ds, entry->fid, GLOBAL_ATU_OP_LOAD_DB);
 }
 
-int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+static int _mv88e6xxx_atu_getnext(struct dsa_switch *ds, u16 fid,
+				  const u8 addr[ETH_ALEN],
+				  struct mv88e6xxx_atu_entry *entry)
 {
-	int state = is_multicast_ether_addr(addr) ?
-		GLOBAL_ATU_DATA_STATE_MC_STATIC :
-		GLOBAL_ATU_DATA_STATE_UC_STATIC;
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_atu_entry next = { 0 };
 	int ret;
 
-	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_port_fdb_cmd(ds, port, addr, state);
-	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
-}
-
-int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret;
-
-	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_port_fdb_cmd(ds, port, addr,
-				       GLOBAL_ATU_DATA_STATE_UNUSED);
-	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
-}
-
-static int __mv88e6xxx_port_getnext(struct dsa_switch *ds, int port,
-				    unsigned char *addr, bool *is_static)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u8 fid = ps->fid[port];
-	int ret, state;
+	next.fid = fid;
 
 	ret = _mv88e6xxx_atu_wait(ds);
 	if (ret < 0)
 		return ret;
 
-	ret = __mv88e6xxx_write_addr(ds, addr);
+	ret = _mv88e6xxx_atu_mac_write(ds, addr);
 	if (ret < 0)
 		return ret;
 
-	do {
-		ret = _mv88e6xxx_atu_cmd(ds, fid,  GLOBAL_ATU_OP_GET_NEXT_DB);
-		if (ret < 0)
-			return ret;
-
-		ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL, GLOBAL_ATU_DATA);
-		if (ret < 0)
-			return ret;
-		state = ret & GLOBAL_ATU_DATA_STATE_MASK;
-		if (state == GLOBAL_ATU_DATA_STATE_UNUSED)
-			return -ENOENT;
-	} while (!(((ret >> 4) & 0xff) & (1 << port)));
-
-	ret = __mv88e6xxx_read_addr(ds, addr);
+	ret = _mv88e6xxx_atu_cmd(ds, fid, GLOBAL_ATU_OP_GET_NEXT_DB);
 	if (ret < 0)
 		return ret;
 
-	*is_static = state == (is_multicast_ether_addr(addr) ?
-			       GLOBAL_ATU_DATA_STATE_MC_STATIC :
-			       GLOBAL_ATU_DATA_STATE_UC_STATIC);
+	ret = _mv88e6xxx_atu_mac_read(ds, next.mac);
+	if (ret < 0)
+		return ret;
 
+	ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL, GLOBAL_ATU_DATA);
+	if (ret < 0)
+		return ret;
+
+	next.state = ret & GLOBAL_ATU_DATA_STATE_MASK;
+	if (next.state != GLOBAL_ATU_DATA_STATE_UNUSED) {
+		unsigned int mask, shift;
+
+		if (ret & GLOBAL_ATU_DATA_TRUNK) {
+			next.trunk = true;
+			mask = GLOBAL_ATU_DATA_TRUNK_ID_MASK;
+			shift = GLOBAL_ATU_DATA_TRUNK_ID_SHIFT;
+		} else {
+			next.trunk = false;
+			mask = GLOBAL_ATU_DATA_PORT_VECTOR_MASK;
+			shift = GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT;
+		}
+
+		next.portv_trunkid = (ret & mask) >> shift;
+	}
+
+	*entry = next;
 	return 0;
 }
 
-/* get next entry for port */
-int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
-			       unsigned char *addr, bool *is_static)
+static int _mv88e6xxx_port_vid_to_fid(struct dsa_switch *ds, int port, u16 vid)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (vid == 0)
+		return ps->fid[port];
+
+	return -ENOENT;
+}
+
+static int _mv88e6xxx_port_fdb_load(struct dsa_switch *ds, int port, u16 vid,
+				    const u8 addr[ETH_ALEN], u8 state)
+{
+	struct mv88e6xxx_atu_entry entry = { 0 };
+	int ret;
+
+	ret = _mv88e6xxx_port_vid_to_fid(ds, port, vid);
+	if (ret < 0)
+		return ret;
+
+	entry.fid = ret;
+	entry.state = state;
+	ether_addr_copy(entry.mac, addr);
+	if (state != GLOBAL_ATU_DATA_STATE_UNUSED) {
+		entry.trunk = false;
+		entry.portv_trunkid = BIT(port);
+	}
+
+	return _mv88e6xxx_atu_load(ds, &entry);
+}
+
+int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port, u16 vid,
+			   const u8 addr[ETH_ALEN])
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u8 state = is_multicast_ether_addr(addr) ?
+		GLOBAL_ATU_DATA_STATE_MC_STATIC :
+		GLOBAL_ATU_DATA_STATE_UC_STATIC;
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_port_getnext(ds, port, addr, is_static);
+	ret = _mv88e6xxx_port_fdb_load(ds, port, vid, addr, state);
+	mutex_unlock(&ps->smi_mutex);
+
+	return ret;
+}
+
+int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port, u16 vid,
+			   const u8 addr[ETH_ALEN])
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u8 state = GLOBAL_ATU_DATA_STATE_UNUSED;
+	int ret;
+
+	mutex_lock(&ps->smi_mutex);
+	ret = _mv88e6xxx_port_fdb_load(ds, port, vid, addr, state);
+	mutex_unlock(&ps->smi_mutex);
+
+	return ret;
+}
+
+int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port, u16 *vid,
+			       u8 addr[ETH_ALEN], bool *is_static)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_atu_entry next;
+	u16 fid;
+	int ret;
+
+	mutex_lock(&ps->smi_mutex);
+
+	ret = _mv88e6xxx_port_vid_to_fid(ds, port, *vid);
+	if (ret < 0)
+		goto unlock;
+	fid = ret;
+
+	do {
+		if (is_broadcast_ether_addr(addr)) {
+			ret = -ENOENT;
+			goto unlock;
+		}
+
+		ret = _mv88e6xxx_atu_getnext(ds, fid, addr, &next);
+		if (ret < 0)
+			goto unlock;
+
+		ether_addr_copy(addr, next.mac);
+
+		if (next.state == GLOBAL_ATU_DATA_STATE_UNUSED)
+			continue;
+	} while (next.trunk || (next.portv_trunkid & BIT(port)) == 0);
+
+	*is_static = next.state == (is_multicast_ether_addr(addr) ?
+				    GLOBAL_ATU_DATA_STATE_MC_STATIC :
+				    GLOBAL_ATU_DATA_STATE_UC_STATIC);
+unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
@@ -1552,9 +1641,9 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	 * ports, and allow each of the 'real' ports to only talk to
 	 * the upstream port.
 	 */
-	fid = __ffs(ps->fid_mask);
+	fid = port + 1;
 	ps->fid[port] = fid;
-	ps->fid_mask &= ~(1 << fid);
+	set_bit(fid, ps->fid_bitmap);
 
 	if (!dsa_is_cpu_port(ds, port))
 		ps->bridge_mask[fid] = 1 << port;
@@ -1651,7 +1740,7 @@ static int mv88e6xxx_atu_show_db(struct seq_file *s, struct dsa_switch *ds,
 	unsigned char addr[6];
 	int ret, data, state;
 
-	ret = __mv88e6xxx_write_addr(ds, bcast);
+	ret = _mv88e6xxx_atu_mac_write(ds, bcast);
 	if (ret < 0)
 		return ret;
 
@@ -1666,7 +1755,7 @@ static int mv88e6xxx_atu_show_db(struct seq_file *s, struct dsa_switch *ds,
 		state = data & GLOBAL_ATU_DATA_STATE_MASK;
 		if (state == GLOBAL_ATU_DATA_STATE_UNUSED)
 			break;
-		ret = __mv88e6xxx_read_addr(ds, addr);
+		ret = _mv88e6xxx_atu_mac_read(ds, addr);
 		if (ret < 0)
 			return ret;
 		mv88e6xxx_atu_show_entry(s, dbnum, addr, data);
@@ -1852,8 +1941,6 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 	mutex_init(&ps->smi_mutex);
 
 	ps->id = REG_READ(REG_PORT(0), PORT_SWITCH_ID) & 0xfff0;
-
-	ps->fid_mask = (1 << DSA_MAX_PORTS) - 1;
 
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
 
