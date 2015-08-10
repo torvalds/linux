@@ -77,8 +77,6 @@ static struct fence *amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 			goto err;
 	}
 
-	amd_sched_emit(entity, sched_job->ibs[sched_job->num_ibs - 1].sequence);
-
 	mutex_unlock(&sched_job->job_lock);
 	return &fence->base;
 

@@ -44,7 +44,6 @@ struct amd_sched_entity {
 	spinlock_t			lock;
 	/* the virtual_seq is unique per context per ring */
 	atomic64_t			last_queued_v_seq;
-	atomic64_t			last_emitted_v_seq;
 	atomic64_t			last_signaled_v_seq;
 	/* the job_queue maintains the jobs submitted by clients */
 	struct kfifo                    job_queue;
@@ -154,21 +153,12 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		       void *data,
 		       struct amd_sched_fence **fence);
 
-int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
-			uint64_t seq,
-			bool intr,
-			long timeout);
-
-uint64_t amd_sched_get_handled_seq(struct amd_gpu_scheduler *sched);
-
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
 			  struct amd_run_queue *rq,
 			  uint32_t jobs);
 int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity);
-
-void amd_sched_emit(struct amd_sched_entity *c_entity, uint64_t seq);
 
 uint64_t amd_sched_next_queued_seq(struct amd_sched_entity *c_entity);
 

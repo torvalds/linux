@@ -202,7 +202,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 		return -EINVAL;
 
 	spin_lock_init(&entity->queue_lock);
-	atomic64_set(&entity->last_emitted_v_seq, seq_ring);
 	atomic64_set(&entity->last_queued_v_seq, seq_ring);
 	atomic64_set(&entity->last_signaled_v_seq, seq_ring);
 
@@ -326,53 +325,6 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 	}
 
 	wake_up_interruptible(&sched->wait_queue);
-	return 0;
-}
-
-/**
- * Wait for a virtual sequence number to be emitted.
- *
- * @c_entity	The pointer to a valid context entity
- * @seq         The virtual sequence number to wait
- * @intr	Interruptible or not
- * @timeout	Timeout in ms, wait infinitely if <0
- * @emit        wait for emit or signal
- *
- * return =0 signaled ,  <0 failed
-*/
-int amd_sched_wait_emit(struct amd_sched_entity *c_entity,
-			uint64_t seq,
-			bool intr,
-			long timeout)
-{
-	atomic64_t *v_seq = &c_entity->last_emitted_v_seq;
-	wait_queue_head_t *wait_queue = &c_entity->wait_emit;
-
-	if (intr && (timeout < 0)) {
-		wait_event_interruptible(
-			*wait_queue,
-			seq <= atomic64_read(v_seq));
-		return 0;
-	} else if (intr && (timeout >= 0)) {
-		wait_event_interruptible_timeout(
-			*wait_queue,
-			seq <= atomic64_read(v_seq),
-			msecs_to_jiffies(timeout));
-		return (seq <= atomic64_read(v_seq)) ?
-			0 : -1;
-	} else if (!intr && (timeout < 0)) {
-		wait_event(
-			*wait_queue,
-			seq <= atomic64_read(v_seq));
-		return 0;
-	} else if (!intr && (timeout >= 0)) {
-		wait_event_timeout(
-			*wait_queue,
-			seq <= atomic64_read(v_seq),
-			msecs_to_jiffies(timeout));
-		return (seq <= atomic64_read(v_seq)) ?
-			0 : -1;
-	}
 	return 0;
 }
 
@@ -508,19 +460,6 @@ int amd_sched_destroy(struct amd_gpu_scheduler *sched)
 	kthread_stop(sched->thread);
 	kfree(sched);
 	return  0;
-}
-
-/**
- * Update emitted sequence and wake up the waiters, called by run_job
- * in driver side
- *
- * @entity The context entity
- * @seq The sequence number for the latest emitted job
-*/
-void amd_sched_emit(struct amd_sched_entity *c_entity, uint64_t seq)
-{
-	atomic64_set(&c_entity->last_emitted_v_seq, seq);
-	wake_up_all(&c_entity->wait_emit);
 }
 
 /**
