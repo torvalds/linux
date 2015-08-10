@@ -101,16 +101,14 @@ struct dom0_vga_console_info;
 
 #ifdef CONFIG_XEN_DOM0
 void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size);
-void __init xen_init_apic(void);
 #else
 static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
 				       size_t size)
 {
 }
-static inline void __init xen_init_apic(void)
-{
-}
 #endif
+
+void __init xen_init_apic(void);
 
 #ifdef CONFIG_XEN_EFI
 extern void xen_efi_init(void);
