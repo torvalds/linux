@@ -406,7 +406,7 @@ static inline int lmv_user_md_size(int stripes, int lmm_magic)
 		      stripes * sizeof(struct lmv_user_mds_data);
 }
 
-extern void lustre_swab_lmv_user_md(struct lmv_user_md *lum);
+void lustre_swab_lmv_user_md(struct lmv_user_md *lum);
 
 struct ll_recreate_obj {
 	__u64 lrc_id;

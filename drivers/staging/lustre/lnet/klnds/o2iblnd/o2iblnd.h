@@ -642,7 +642,7 @@ typedef struct kib_peer {
 
 extern kib_data_t kiblnd_data;
 
-extern void kiblnd_hdev_destroy(kib_hca_dev_t *hdev);
+void kiblnd_hdev_destroy(kib_hca_dev_t *hdev);
 
 static inline void
 kiblnd_hdev_addref_locked(kib_hca_dev_t *hdev)
