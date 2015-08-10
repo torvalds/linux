@@ -60,26 +60,6 @@ static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, u32 u32Count
 
 
 
-/*!
- *  @brief	Compares two strings up to u32Count characters
- *  @details	Compares 2 strings reporting which is bigger, NULL is considered
- *              the smallest string, then a zero length string then all other
- *              strings depending on thier ascii characters order with small case
- *              converted to uppder case
- *  @param[in]	pcStr1 the first string, NULL is valid and considered smaller
- *              than any other non-NULL string (incliding zero lenght strings)
- *  @param[in]	pcStr2 the second string, NULL is valid and considered smaller
- *              than any other non-NULL string (incliding zero lenght strings)
- *  @param[in]	u32Count copying will proceed until a null character in pcStr1 or
- *              pcStr2 is encountered or u32Count of bytes copied
- *  @return	0 if the 2 strings are equal, 1 if pcStr1 is bigger than pcStr2,
- *              -1 if pcStr1 smaller than pcStr2
- *  @author	aabozaeid
- *  @date	7 Dec 2010
- *  @version	1.0
- */
-s32 WILC_strncmp(const char *pcStr1, const char *pcStr2,
-			 u32 u32Count);
 
 
 #endif
