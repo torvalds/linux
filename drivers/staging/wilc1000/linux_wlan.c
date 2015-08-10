@@ -2338,8 +2338,7 @@ int mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 
 done:
 
-	if (buff != NULL)
-		kfree(buff);
+	kfree(buff);
 
 	return s32Error;
 }
