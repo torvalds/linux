@@ -584,7 +584,7 @@ static bool reqsk_queue_unlink(struct request_sock_queue *queue,
 	}
 
 	spin_unlock(&queue->syn_wait_lock);
-	if (del_timer(&req->rsk_timer))
+	if (del_timer_sync(&req->rsk_timer))
 		reqsk_put(req);
 	return found;
 }
