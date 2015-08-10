@@ -7930,16 +7930,31 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
  */
 static void switched_to_fair(struct rq *rq, struct task_struct *p)
 {
-#ifdef CONFIG_FAIR_GROUP_SCHED
 	struct sched_entity *se = &p->se;
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
 	/*
 	 * Since the real-depth could have been changed (only FAIR
 	 * class maintain depth value), reset depth properly.
 	 */
 	se->depth = se->parent ? se->parent->depth + 1 : 0;
 #endif
-	if (!task_on_rq_queued(p))
+
+	if (!task_on_rq_queued(p)) {
+
+		/*
+		 * Ensure the task has a non-normalized vruntime when it is switched
+		 * back to the fair class with !queued, so that enqueue_entity() at
+		 * wake-up time will do the right thing.
+		 *
+		 * If it's queued, then the enqueue_entity(.flags=0) makes the task
+		 * has non-normalized vruntime, if it's !queued, then it still has
+		 * normalized vruntime.
+		 */
+		if (p->state != TASK_RUNNING)
+			se->vruntime += cfs_rq_of(se)->min_vruntime;
 		return;
+	}
 
 	/*
 	 * We were most likely switched from sched_rt, so
