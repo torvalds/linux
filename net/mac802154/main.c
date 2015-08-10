@@ -111,7 +111,7 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	phy->supported.max_minbe = 8;
 	phy->supported.min_maxbe = 3;
 	phy->supported.max_maxbe = 8;
-	phy->supported.min_frame_retries = -1;
+	phy->supported.min_frame_retries = 0;
 	phy->supported.max_frame_retries = 7;
 	phy->supported.max_csma_backoffs = 5;
 	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
@@ -177,11 +177,8 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	}
 
 	if (!(hw->flags & IEEE802154_HW_FRAME_RETRIES)) {
-		/* TODO should be 3, but our default value is -1 which means
-		 * no ARET handling.
-		 */
-		local->phy->supported.min_frame_retries = -1;
-		local->phy->supported.max_frame_retries = -1;
+		local->phy->supported.min_frame_retries = 3;
+		local->phy->supported.max_frame_retries = 3;
 	}
 
 	if (hw->flags & IEEE802154_HW_PROMISCUOUS)

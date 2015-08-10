@@ -498,8 +498,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	wpan_dev->min_be = 3;
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
-	/* for compatibility, actual default is 3 */
-	wpan_dev->frame_retries = -1;
+	wpan_dev->frame_retries = 3;
 
 	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
