@@ -11,6 +11,7 @@
 #include <asm/cpu.h>
 #include <asm/smp.h>
 #include <asm/pci-direct.h>
+#include <asm/delay.h>
 
 #ifdef CONFIG_X86_64
 # include <asm/mmconfig.h>
@@ -506,6 +507,9 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		/* A random value per boot for bit slice [12:upper_bit) */
 		va_align.bits = get_random_int() & va_align.mask;
 	}
+
+	if (cpu_has(c, X86_FEATURE_MWAITX))
+		use_mwaitx_delay();
 }
 
 static void early_init_amd(struct cpuinfo_x86 *c)
