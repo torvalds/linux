@@ -29,6 +29,8 @@
 #define SPI_NOR_MAX_ID_LEN	6
 
 struct flash_info {
+	char		*name;
+
 	/*
 	 * This array stores the ID bytes.
 	 * The first three bytes are the JEDIC ID.
@@ -59,7 +61,7 @@ struct flash_info {
 
 #define JEDEC_MFR(info)	((info)->id[0])
 
-static const struct spi_device_id *spi_nor_match_id(const char *name);
+static const struct flash_info *spi_nor_match_id(const char *name);
 
 /*
  * Read the status register, returning its value in the location
@@ -169,7 +171,7 @@ static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
 }
 
 /* Enable/disable 4-byte addressing mode. */
-static inline int set_4byte(struct spi_nor *nor, struct flash_info *info,
+static inline int set_4byte(struct spi_nor *nor, const struct flash_info *info,
 			    int enable)
 {
 	int status;
@@ -469,7 +471,6 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 /* Used when the "_ext_id" is two bytes at most */
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
-	((kernel_ulong_t)&(struct flash_info) {				\
 		.id = {							\
 			((_jedec_id) >> 16) & 0xff,			\
 			((_jedec_id) >> 8) & 0xff,			\
@@ -481,11 +482,9 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
-		.flags = (_flags),					\
-	})
+		.flags = (_flags),
 
 #define INFO6(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
-	((kernel_ulong_t)&(struct flash_info) {				\
 		.id = {							\
 			((_jedec_id) >> 16) & 0xff,			\
 			((_jedec_id) >> 8) & 0xff,			\
@@ -498,17 +497,14 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
-		.flags = (_flags),					\
-	})
+		.flags = (_flags),
 
 #define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_width, _flags)	\
-	((kernel_ulong_t)&(struct flash_info) {				\
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = (_page_size),				\
 		.addr_width = (_addr_width),				\
-		.flags = (_flags),					\
-	})
+		.flags = (_flags),
 
 /* NOTE: double check command sets and memory organization when you add
  * more nor chips.  This current list focusses on newer chips, which
@@ -521,7 +517,7 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
  * For historical (and compatibility) reasons (before we got above config) some
  * old entries may be missing 4K flag.
  */
-static const struct spi_device_id spi_nor_ids[] = {
+static const struct flash_info spi_nor_ids[] = {
 	/* Atmel -- some are (confusingly) marketed as "DataFlash" */
 	{ "at25fs010",  INFO(0x1f6601, 0, 32 * 1024,   4, SECT_4K) },
 	{ "at25fs040",  INFO(0x1f6604, 0, 64 * 1024,   8, SECT_4K) },
@@ -703,11 +699,11 @@ static const struct spi_device_id spi_nor_ids[] = {
 	{ },
 };
 
-static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
+static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
 {
 	int			tmp;
 	u8			id[SPI_NOR_MAX_ID_LEN];
-	struct flash_info	*info;
+	const struct flash_info	*info;
 
 	tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
 	if (tmp < 0) {
@@ -716,7 +712,7 @@ static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 	}
 
 	for (tmp = 0; tmp < ARRAY_SIZE(spi_nor_ids) - 1; tmp++) {
-		info = (void *)spi_nor_ids[tmp].driver_data;
+		info = &spi_nor_ids[tmp];
 		if (info->id_len) {
 			if (!memcmp(info->id, id, info->id_len))
 				return &spi_nor_ids[tmp];
@@ -962,7 +958,7 @@ static int micron_quad_enable(struct spi_nor *nor)
 	return 0;
 }
 
-static int set_quad_mode(struct spi_nor *nor, struct flash_info *info)
+static int set_quad_mode(struct spi_nor *nor, const struct flash_info *info)
 {
 	int status;
 
@@ -1004,8 +1000,7 @@ static int spi_nor_check(struct spi_nor *nor)
 
 int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 {
-	const struct spi_device_id	*id = NULL;
-	struct flash_info		*info;
+	const struct flash_info *info = NULL;
 	struct device *dev = nor->dev;
 	struct mtd_info *mtd = nor->mtd;
 	struct device_node *np = dev->of_node;
@@ -1017,26 +1012,24 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 		return ret;
 
 	if (name)
-		id = spi_nor_match_id(name);
+		info = spi_nor_match_id(name);
 	/* Try to auto-detect if chip name wasn't specified or not found */
-	if (!id)
-		id = spi_nor_read_id(nor);
-	if (IS_ERR_OR_NULL(id))
+	if (!info)
+		info = spi_nor_read_id(nor);
+	if (IS_ERR_OR_NULL(info))
 		return -ENOENT;
-
-	info = (void *)id->driver_data;
 
 	/*
 	 * If caller has specified name of flash model that can normally be
 	 * detected using JEDEC, let's verify it.
 	 */
 	if (name && info->id_len) {
-		const struct spi_device_id *jid;
+		const struct flash_info *jinfo;
 
-		jid = spi_nor_read_id(nor);
-		if (IS_ERR(jid)) {
-			return PTR_ERR(jid);
-		} else if (jid != id) {
+		jinfo = spi_nor_read_id(nor);
+		if (IS_ERR(jinfo)) {
+			return PTR_ERR(jinfo);
+		} else if (jinfo != info) {
 			/*
 			 * JEDEC knows better, so overwrite platform ID. We
 			 * can't trust partitions any longer, but we'll let
@@ -1045,9 +1038,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 			 * information, even if it's not 100% accurate.
 			 */
 			dev_warn(dev, "found %s, expected %s\n",
-				 jid->name, id->name);
-			id = jid;
-			info = (void *)jid->driver_data;
+				 jinfo->name, info->name);
+			info = jinfo;
 		}
 	}
 
@@ -1197,7 +1189,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 
 	nor->read_dummy = spi_nor_read_dummy_cycles(nor);
 
-	dev_info(dev, "%s (%lld Kbytes)\n", id->name,
+	dev_info(dev, "%s (%lld Kbytes)\n", info->name,
 			(long long)mtd->size >> 10);
 
 	dev_dbg(dev,
@@ -1220,9 +1212,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 }
 EXPORT_SYMBOL_GPL(spi_nor_scan);
 
-static const struct spi_device_id *spi_nor_match_id(const char *name)
+static const struct flash_info *spi_nor_match_id(const char *name)
 {
-	const struct spi_device_id *id = spi_nor_ids;
+	const struct flash_info *id = spi_nor_ids;
 
 	while (id->name[0]) {
 		if (!strcmp(name, id->name))
