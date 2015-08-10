@@ -544,21 +544,21 @@ INLINE u8 get_from_ds(u8 *header)
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
 INLINE void get_address1(u8 *pu8msa, u8 *addr)
 {
-	WILC_memcpy(addr, pu8msa + 4, 6);
+	memcpy(addr, pu8msa + 4, 6);
 }
 
 /* This function extracts the MAC Address in 'address2' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
 INLINE void get_address2(u8 *pu8msa, u8 *addr)
 {
-	WILC_memcpy(addr, pu8msa + 10, 6);
+	memcpy(addr, pu8msa + 10, 6);
 }
 
 /* This function extracts the MAC Address in 'address3' field of the MAC     */
 /* header and updates the MAC Address in the allocated 'addr' variable.      */
 INLINE void get_address3(u8 *pu8msa, u8 *addr)
 {
-	WILC_memcpy(addr, pu8msa + 16, 6);
+	memcpy(addr, pu8msa + 16, 6);
 }
 
 /* This function extracts the BSSID from the incoming WLAN packet based on   */
@@ -863,7 +863,7 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 			pstrNetworkInfo->pu8IEs = (u8 *)WILC_MALLOC(u16IEsLen);
 			memset((void *)(pstrNetworkInfo->pu8IEs), 0, u16IEsLen);
 
-			WILC_memcpy(pstrNetworkInfo->pu8IEs, pu8IEs, u16IEsLen);
+			memcpy(pstrNetworkInfo->pu8IEs, pu8IEs, u16IEsLen);
 		}
 		pstrNetworkInfo->u16IEsLen = u16IEsLen;
 
@@ -950,7 +950,7 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 		pstrConnectRespInfo->pu8RespIEs = (u8 *)WILC_MALLOC(u16IEsLen);
 		memset((void *)(pstrConnectRespInfo->pu8RespIEs), 0, u16IEsLen);
 
-		WILC_memcpy(pstrConnectRespInfo->pu8RespIEs, pu8IEs, u16IEsLen);
+		memcpy(pstrConnectRespInfo->pu8RespIEs, pu8IEs, u16IEsLen);
 		pstrConnectRespInfo->u16RespIEsLen = u16IEsLen;
 	}
 
@@ -1037,7 +1037,7 @@ s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZ
 		pu8BufferPtr += 2;
 
 		for (j = 0; j < u32SurveyBytesLength; j += SURVEY_RESULT_LENGTH) {
-			WILC_memcpy(&pstrSurveyResults[u32SurveyResultsCount], pu8BufferPtr, SURVEY_RESULT_LENGTH);
+			memcpy(&pstrSurveyResults[u32SurveyResultsCount], pu8BufferPtr, SURVEY_RESULT_LENGTH);
 			pu8BufferPtr += SURVEY_RESULT_LENGTH;
 			u32SurveyResultsCount++;
 		}
@@ -1562,10 +1562,10 @@ s32 further_process_response(u8 *resp,
 	}
 
 	case WID_STR:
-		WILC_memcpy(cfg_str, resp + idx, cfg_len);
+		memcpy(cfg_str, resp + idx, cfg_len);
 		/* cfg_str[cfg_len] = '\0'; //mostafa: no need currently for NULL termination */
 		if (pstrWIDresult->s32ValueSize >= cfg_len) {
-			WILC_memcpy(pstrWIDresult->ps8WidVal, cfg_str, cfg_len); /* mostafa: no need currently for the extra NULL byte */
+			memcpy(pstrWIDresult->ps8WidVal, cfg_str, cfg_len); /* mostafa: no need currently for the extra NULL byte */
 			pstrWIDresult->s32ValueSize = cfg_len;
 		} else {
 			PRINT_ER("allocated WID buffer length is smaller than the received WID Length\n");
@@ -1591,7 +1591,7 @@ s32 further_process_response(u8 *resp,
 
 	case WID_BIN_DATA:
 		if (pstrWIDresult->s32ValueSize >= cfg_len) {
-			WILC_memcpy(pstrWIDresult->ps8WidVal, resp + idx, cfg_len);
+			memcpy(pstrWIDresult->ps8WidVal, resp + idx, cfg_len);
 			pstrWIDresult->s32ValueSize = cfg_len;
 		} else {
 			PRINT_ER("Allocated WID buffer length is smaller than the received WID Length Err(%d)\n", retval);
@@ -1879,10 +1879,10 @@ s32 ConfigProvideResponse(char *pcRespBuffer, s32 s32RespLen)
 
 	if (gstrConfigPktInfo.bRespRequired) {
 		if (s32RespLen <= gstrConfigPktInfo.s32MaxRespBuffLen) {
-			WILC_memcpy(gstrConfigPktInfo.pcRespBuffer, pcRespBuffer, s32RespLen);
+			memcpy(gstrConfigPktInfo.pcRespBuffer, pcRespBuffer, s32RespLen);
 			gstrConfigPktInfo.s32BytesRead = s32RespLen;
 		} else {
-			WILC_memcpy(gstrConfigPktInfo.pcRespBuffer, pcRespBuffer, gstrConfigPktInfo.s32MaxRespBuffLen);
+			memcpy(gstrConfigPktInfo.pcRespBuffer, pcRespBuffer, gstrConfigPktInfo.s32MaxRespBuffLen);
 			gstrConfigPktInfo.s32BytesRead = gstrConfigPktInfo.s32MaxRespBuffLen;
 			PRINT_ER("BusProvideResponse() Response greater than the prepared Buffer Size\n");
 		}

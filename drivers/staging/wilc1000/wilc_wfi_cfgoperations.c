@@ -321,10 +321,10 @@ void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, vo
 	astrLastScannedNtwrksShadow[ap_index].u16CapInfo = pstrNetworkInfo->u16CapInfo;
 
 	astrLastScannedNtwrksShadow[ap_index].u8SsidLen = pstrNetworkInfo->u8SsidLen;
-	WILC_memcpy(astrLastScannedNtwrksShadow[ap_index].au8ssid,
+	memcpy(astrLastScannedNtwrksShadow[ap_index].au8ssid,
 		    pstrNetworkInfo->au8ssid, pstrNetworkInfo->u8SsidLen);
 
-	WILC_memcpy(astrLastScannedNtwrksShadow[ap_index].au8bssid,
+	memcpy(astrLastScannedNtwrksShadow[ap_index].au8bssid,
 		    pstrNetworkInfo->au8bssid, ETH_ALEN);
 
 	astrLastScannedNtwrksShadow[ap_index].u16BeaconPeriod = pstrNetworkInfo->u16BeaconPeriod;
@@ -337,7 +337,7 @@ void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, vo
 		WILC_FREE(astrLastScannedNtwrksShadow[ap_index].pu8IEs);
 	astrLastScannedNtwrksShadow[ap_index].pu8IEs =
 		(u8 *)WILC_MALLOC(pstrNetworkInfo->u16IEsLen);        /* will be deallocated by the WILC_WFI_CfgScan() function */
-	WILC_memcpy(astrLastScannedNtwrksShadow[ap_index].pu8IEs,
+	memcpy(astrLastScannedNtwrksShadow[ap_index].pu8IEs,
 		    pstrNetworkInfo->pu8IEs, pstrNetworkInfo->u16IEsLen);
 
 	astrLastScannedNtwrksShadow[ap_index].u32TimeRcvdInScan = jiffies;
@@ -590,7 +590,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 
 			PRINT_INFO(CFG80211_DBG, "Connection Successful:: BSSID: %x%x%x%x%x%x\n", pstrConnectInfo->au8bssid[0],
 				   pstrConnectInfo->au8bssid[1], pstrConnectInfo->au8bssid[2], pstrConnectInfo->au8bssid[3], pstrConnectInfo->au8bssid[4], pstrConnectInfo->au8bssid[5]);
-			WILC_memcpy(priv->au8AssociatedBss, pstrConnectInfo->au8bssid, ETH_ALEN);
+			memcpy(priv->au8AssociatedBss, pstrConnectInfo->au8bssid, ETH_ALEN);
 
 			/* BugID_4209: if this network has expired in the scan results in the above nl80211 layer, refresh them here by calling
 			 *  cfg80211_inform_bss() with the last Scan results before calling cfg80211_connect_result() to avoid
@@ -764,7 +764,7 @@ static int WILC_WFI_CfgScan(struct wiphy *wiphy, struct cfg80211_scan_request *r
 
 				if (request->ssids[i].ssid != NULL && request->ssids[i].ssid_len != 0) {
 					strHiddenNetwork.pstrHiddenNetworkInfo[i].pu8ssid = WILC_MALLOC(request->ssids[i].ssid_len);
-					WILC_memcpy(strHiddenNetwork.pstrHiddenNetworkInfo[i].pu8ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
+					memcpy(strHiddenNetwork.pstrHiddenNetworkInfo[i].pu8ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
 					strHiddenNetwork.pstrHiddenNetworkInfo[i].u8ssidlen = request->ssids[i].ssid_len;
 				} else {
 					PRINT_D(CFG80211_DBG, "Received one NULL SSID\n");
@@ -915,7 +915,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 			}
 			priv->WILC_WFI_wep_default = sme->key_idx;
 			priv->WILC_WFI_wep_key_len[sme->key_idx] = sme->key_len;
-			WILC_memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
+			memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
 
 			/*BugID_5137*/
 			g_key_wep_params.key_len = sme->key_len;
@@ -933,7 +933,7 @@ static int WILC_WFI_CfgConnect(struct wiphy *wiphy, struct net_device *dev,
 
 			priv->WILC_WFI_wep_default = sme->key_idx;
 			priv->WILC_WFI_wep_key_len[sme->key_idx] = sme->key_len;
-			WILC_memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
+			memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
 
 			/*BugID_5137*/
 			g_key_wep_params.key_len = sme->key_len;
@@ -1149,7 +1149,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 
 			priv->WILC_WFI_wep_default = key_index;
 			priv->WILC_WFI_wep_key_len[key_index] = params->key_len;
-			WILC_memcpy(priv->WILC_WFI_wep_key[key_index], params->key, params->key_len);
+			memcpy(priv->WILC_WFI_wep_key[key_index], params->key, params->key_len);
 
 			PRINT_D(CFG80211_DBG, "Adding AP WEP Default key Idx = %d\n", key_index);
 			PRINT_D(CFG80211_DBG, "Adding AP WEP Key len= %d\n", params->key_len);
@@ -1171,7 +1171,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 		if (memcmp(params->key, priv->WILC_WFI_wep_key[key_index], params->key_len)) {
 			priv->WILC_WFI_wep_default = key_index;
 			priv->WILC_WFI_wep_key_len[key_index] = params->key_len;
-			WILC_memcpy(priv->WILC_WFI_wep_key[key_index], params->key, params->key_len);
+			memcpy(priv->WILC_WFI_wep_key[key_index], params->key, params->key_len);
 
 			PRINT_D(CFG80211_DBG, "Adding WEP Default key Idx = %d\n", key_index);
 			PRINT_D(CFG80211_DBG, "Adding WEP Key length = %d\n", params->key_len);
@@ -1222,7 +1222,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 					WILC_FREE(priv->wilc_gtk[key_index]->key);
 
 				priv->wilc_gtk[key_index]->key = (u8 *)WILC_MALLOC(params->key_len);
-				WILC_memcpy(priv->wilc_gtk[key_index]->key, params->key, params->key_len);
+				memcpy(priv->wilc_gtk[key_index]->key, params->key, params->key_len);
 
 				/* if there has been previous allocation for the same index through its seq, free that memory and allocate again*/
 				if (priv->wilc_gtk[key_index]->seq)
@@ -1230,7 +1230,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 
 				if ((params->seq_len) > 0) {
 					priv->wilc_gtk[key_index]->seq = (u8 *)WILC_MALLOC(params->seq_len);
-					WILC_memcpy(priv->wilc_gtk[key_index]->seq, params->seq, params->seq_len);
+					memcpy(priv->wilc_gtk[key_index]->seq, params->seq, params->seq_len);
 				}
 
 				priv->wilc_gtk[key_index]->cipher = params->cipher;
@@ -1283,10 +1283,10 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 						PRINT_INFO(CFG80211_DBG, "Adding group seq value[%d] = %x\n", i, params->seq[i]);
 				}
 
-				WILC_memcpy(priv->wilc_ptk[key_index]->key, params->key, params->key_len);
+				memcpy(priv->wilc_ptk[key_index]->key, params->key, params->key_len);
 
 				if ((params->seq_len) > 0)
-					WILC_memcpy(priv->wilc_ptk[key_index]->seq, params->seq, params->seq_len);
+					memcpy(priv->wilc_ptk[key_index]->seq, params->seq, params->seq_len);
 
 				priv->wilc_ptk[key_index]->cipher = params->cipher;
 				priv->wilc_ptk[key_index]->key_len = params->key_len;
@@ -1902,9 +1902,9 @@ static int WILC_WFI_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 	}
 	if (i < WILC_MAX_NUM_PMKIDS) {
 		PRINT_D(CFG80211_DBG, "Setting PMKID in private structure\n");
-		WILC_memcpy(priv->pmkid_list.pmkidlist[i].bssid, pmksa->bssid,
+		memcpy(priv->pmkid_list.pmkidlist[i].bssid, pmksa->bssid,
 			    ETH_ALEN);
-		WILC_memcpy(priv->pmkid_list.pmkidlist[i].pmkid, pmksa->pmkid,
+		memcpy(priv->pmkid_list.pmkidlist[i].pmkid, pmksa->pmkid,
 			    PMKID_LEN);
 		if (!(flag == PMKID_FOUND))
 			priv->pmkid_list.numpmkid++;
@@ -1954,10 +1954,10 @@ static int WILC_WFI_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 	if (i < priv->pmkid_list.numpmkid && priv->pmkid_list.numpmkid > 0) {
 		for (; i < (priv->pmkid_list.numpmkid - 1); i++) {
-			WILC_memcpy(priv->pmkid_list.pmkidlist[i].bssid,
+			memcpy(priv->pmkid_list.pmkidlist[i].bssid,
 				    priv->pmkid_list.pmkidlist[i + 1].bssid,
 				    ETH_ALEN);
-			WILC_memcpy(priv->pmkid_list.pmkidlist[i].pmkid,
+			memcpy(priv->pmkid_list.pmkidlist[i].pmkid,
 				    priv->pmkid_list.pmkidlist[i].pmkid,
 				    PMKID_LEN);
 		}
@@ -2199,7 +2199,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, uint8_t *buff, uint32_t size)
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
 
 	/* Get WILC header */
-	WILC_memcpy(&header, (buff - HOST_HDR_OFFSET), HOST_HDR_OFFSET);
+	memcpy(&header, (buff - HOST_HDR_OFFSET), HOST_HDR_OFFSET);
 
 	/* The packet offset field conain info about what type of managment frame */
 	/* we are dealing with and ack status */
@@ -2466,7 +2466,7 @@ static int   WILC_WFI_cancel_remain_on_channel(struct wiphy *wiphy,
  */
 void WILC_WFI_add_wilcvendorspec(u8 *buff)
 {
-	WILC_memcpy(buff, u8P2P_vendorspec, sizeof(u8P2P_vendorspec));
+	memcpy(buff, u8P2P_vendorspec, sizeof(u8P2P_vendorspec));
 }
 /**
  *  @brief      WILC_WFI_mgmt_tx_frame
@@ -2519,7 +2519,7 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 			PRINT_ER("Failed to allocate memory for mgmt_tx buff\n");
 			return WILC_FAIL;
 		}
-		WILC_memcpy(mgmt_tx->buff, buf, len);
+		memcpy(mgmt_tx->buff, buf, len);
 		mgmt_tx->size = len;
 
 
@@ -3338,8 +3338,8 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
 		#ifndef WILC_FULLY_HOSTING_AP
 
-		WILC_memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
-		WILC_memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
+		memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
+		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
 		strStaParams.u16AssocID = params->aid;
 		strStaParams.u8NumRates = params->supported_rates_len;
 		strStaParams.pu8Rates = params->supported_rates;
@@ -3357,7 +3357,7 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.bIsHTSupported = true;
 			strStaParams.u16HTCapInfo = params->ht_capa->cap_info;
 			strStaParams.u8AmpduParams = params->ht_capa->ampdu_params_info;
-			WILC_memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
+			memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
 			strStaParams.u16HTExtParams = params->ht_capa->extended_ht_cap_info;
 			strStaParams.u32TxBeamformingCap = params->ht_capa->tx_BF_cap_info;
 			strStaParams.u8ASELCap = params->ht_capa->antenna_selection_info;
@@ -3380,7 +3380,7 @@ static int  WILC_WFI_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 		#else
 		PRINT_D(CFG80211_DBG, "Adding station parameters %d\n", params->aid);
-		WILC_memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
+		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
 
 		PRINT_D(CFG80211_DBG, "BSSID = %x%x%x%x%x%x\n", priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][0], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][1], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][2], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][3], priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][4],
 			priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid][5]);
@@ -3471,7 +3471,7 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 	if (nic->iftype == AP_MODE || nic->iftype == GO_MODE) {
 		#ifndef WILC_FULLY_HOSTING_AP
 
-		WILC_memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
+		memcpy(strStaParams.au8BSSID, mac, ETH_ALEN);
 		strStaParams.u16AssocID = params->aid;
 		strStaParams.u8NumRates = params->supported_rates_len;
 		strStaParams.pu8Rates = params->supported_rates;
@@ -3487,7 +3487,7 @@ static int WILC_WFI_change_station(struct wiphy *wiphy, struct net_device *dev,
 			strStaParams.bIsHTSupported = true;
 			strStaParams.u16HTCapInfo = params->ht_capa->cap_info;
 			strStaParams.u8AmpduParams = params->ht_capa->ampdu_params_info;
-			WILC_memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
+			memcpy(strStaParams.au8SuppMCsSet, &params->ht_capa->mcs, WILC_SUPP_MCS_SET_SIZE);
 			strStaParams.u16HTExtParams = params->ht_capa->extended_ht_cap_info;
 			strStaParams.u32TxBeamformingCap = params->ht_capa->tx_BF_cap_info;
 			strStaParams.u8ASELCap = params->ht_capa->antenna_selection_info;

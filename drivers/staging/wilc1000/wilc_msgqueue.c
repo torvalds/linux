@@ -77,7 +77,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	pstrMessage->pstrNext = NULL;
 	pstrMessage->pvBuffer = WILC_MALLOC(u32SendBufferSize);
 	WILC_NULLCHECK(s32RetStatus, pstrMessage->pvBuffer);
-	WILC_memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
+	memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
 
 
 	/* add it to the message queue */
@@ -170,7 +170,7 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 
 		/* consume the message */
 		pHandle->u32ReceiversCount--;
-		WILC_memcpy(pvRecvBuffer, pstrMessage->pvBuffer, pstrMessage->u32Length);
+		memcpy(pvRecvBuffer, pstrMessage->pvBuffer, pstrMessage->u32Length);
 		*pu32ReceivedLength = pstrMessage->u32Length;
 
 		pHandle->pstrMessageList = pstrMessage->pstrNext;

@@ -2105,7 +2105,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	/* Store all of the multicast addresses in the hardware filter */
 	netdev_for_each_mc_addr(ha, dev)
 	{
-		WILC_memcpy(gau8MulticastMacAddrList[i], ha->addr, ETH_ALEN);
+		memcpy(gau8MulticastMacAddrList[i], ha->addr, ETH_ALEN);
 		PRINT_D(INIT_DBG, "Entry[%d]: %x:%x:%x:%x:%x:%x\n", i,
 			gau8MulticastMacAddrList[i][0], gau8MulticastMacAddrList[i][1], gau8MulticastMacAddrList[i][2], gau8MulticastMacAddrList[i][3], gau8MulticastMacAddrList[i][4], gau8MulticastMacAddrList[i][5]);
 		i++;
