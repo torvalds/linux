@@ -151,6 +151,9 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
 
+	if (h->srcline)
+		hists__new_col_len(hists, HISTC_SRCLINE, strlen(h->srcline));
+
 	if (h->transaction)
 		hists__new_col_len(hists, HISTC_TRANSACTION,
 				   hist_entry__transaction_len());
