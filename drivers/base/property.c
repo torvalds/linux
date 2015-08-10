@@ -462,7 +462,8 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 		return acpi_dev_prop_read(to_acpi_node(fwnode), propname,
 					  DEV_PROP_STRING, val, 1);
 
-	return -ENXIO;
+	return pset_prop_read_array(to_pset(fwnode), propname,
+				    DEV_PROP_STRING, val, 1);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
 
