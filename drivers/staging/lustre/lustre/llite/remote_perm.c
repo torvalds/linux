@@ -104,8 +104,7 @@ void free_rmtperm_hash(struct hlist_head *hash)
 		return;
 
 	for (i = 0; i < REMOTE_PERM_HASHSIZE; i++)
-		hlist_for_each_entry_safe(lrp, next, hash + i,
-					      lrp_list)
+		hlist_for_each_entry_safe(lrp, next, hash + i, lrp_list)
 			free_ll_remote_perm(lrp);
 	OBD_SLAB_FREE(hash, ll_rmtperm_hash_cachep,
 		      REMOTE_PERM_HASHSIZE * sizeof(*hash));
@@ -322,8 +321,7 @@ void ll_free_remote_perms(struct inode *inode)
 	spin_lock(&lli->lli_lock);
 
 	for (i = 0; i < REMOTE_PERM_HASHSIZE; i++) {
-		hlist_for_each_entry_safe(lrp, node, next, hash + i,
-					      lrp_list)
+		hlist_for_each_entry_safe(lrp, node, next, hash + i, lrp_list)
 			free_ll_remote_perm(lrp);
 	}
 
