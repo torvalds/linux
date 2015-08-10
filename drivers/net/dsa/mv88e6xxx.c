@@ -1310,7 +1310,7 @@ static int __mv88e6xxx_port_getnext(struct dsa_switch *ds, int port,
 
 /* get next entry for port */
 int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
-			       unsigned char *addr, bool *is_static)
+			       unsigned char *addr, u16 *vid, bool *is_static)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;

@@ -208,8 +208,8 @@ static int dsa_slave_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	struct dsa_switch *ds = p->parent;
 	int ret = -EOPNOTSUPP;
 
-	if (ds->drv->fdb_add)
-		ret = ds->drv->fdb_add(ds, p->port, addr, vid);
+	if (ds->drv->port_fdb_add)
+		ret = ds->drv->port_fdb_add(ds, p->port, addr, vid);
 
 	return ret;
 }
@@ -222,8 +222,8 @@ static int dsa_slave_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 	struct dsa_switch *ds = p->parent;
 	int ret = -EOPNOTSUPP;
 
-	if (ds->drv->fdb_del)
-		ret = ds->drv->fdb_del(ds, p->port, addr, vid);
+	if (ds->drv->port_fdb_del)
+		ret = ds->drv->port_fdb_del(ds, p->port, addr, vid);
 
 	return ret;
 }
@@ -272,22 +272,24 @@ static int dsa_slave_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	unsigned char addr[ETH_ALEN] = { 0 };
+	u16 vid = 0;
 	int ret;
 
-	if (!ds->drv->fdb_getnext)
+	if (!ds->drv->port_fdb_getnext)
 		return -EOPNOTSUPP;
 
 	for (; ; idx++) {
 		bool is_static;
 
-		ret = ds->drv->fdb_getnext(ds, p->port, addr, &is_static);
+		ret = ds->drv->port_fdb_getnext(ds, p->port, addr, &vid,
+						&is_static);
 		if (ret < 0)
 			break;
 
 		if (idx < cb->args[0])
 			continue;
 
-		ret = dsa_slave_fill_info(dev, skb, addr, 0,
+		ret = dsa_slave_fill_info(dev, skb, addr, vid,
 					  is_static,
 					  NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq,
