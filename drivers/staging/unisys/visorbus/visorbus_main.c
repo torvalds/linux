@@ -716,7 +716,7 @@ unregister_driver_attributes(struct visor_driver *drv)
 static void
 dev_periodic_work(void *xdev)
 {
-	struct visor_device *dev = (struct visor_device *)xdev;
+	struct visor_device *dev = xdev;
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
 	down(&dev->visordriver_callback_lock);
