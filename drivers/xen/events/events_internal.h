@@ -68,7 +68,6 @@ struct evtchn_ops {
 	bool (*test_and_set_mask)(unsigned port);
 	void (*mask)(unsigned port);
 	void (*unmask)(unsigned port);
-	void (*close)(unsigned port, unsigned cpu);
 
 	void (*handle_events)(unsigned cpu);
 	void (*resume)(void);
@@ -144,12 +143,6 @@ static inline void xen_evtchn_resume(void)
 {
 	if (evtchn_ops->resume)
 		evtchn_ops->resume();
-}
-
-static inline void xen_evtchn_op_close(unsigned port, unsigned cpu)
-{
-	if (evtchn_ops->close)
-		return evtchn_ops->close(port, cpu);
 }
 
 void xen_evtchn_2l_init(void);
