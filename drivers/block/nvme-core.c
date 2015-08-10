@@ -1735,6 +1735,12 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 		page_shift = dev_page_max;
 	}
 
+	dev->subsystem = readl(&dev->bar->vs) >= NVME_VS(1, 1) ?
+						NVME_CAP_NSSRC(cap) : 0;
+
+	if (dev->subsystem && (readl(&dev->bar->csts) & NVME_CSTS_NSSRO))
+		writel(NVME_CSTS_NSSRO, &dev->bar->csts);
+
 	result = nvme_disable_ctrl(dev, cap);
 	if (result < 0)
 		return result;
@@ -2059,7 +2065,10 @@ static int nvme_kthread(void *data)
 		spin_lock(&dev_list_lock);
 		list_for_each_entry_safe(dev, next, &dev_list, node) {
 			int i;
-			if (readl(&dev->bar->csts) & NVME_CSTS_CFS) {
+			u32 csts = readl(&dev->bar->csts);
+
+			if ((dev->subsystem && (csts & NVME_CSTS_NSSRO)) ||
+							csts & NVME_CSTS_CFS) {
 				if (work_busy(&dev->reset_work))
 					continue;
 				list_del_init(&dev->node);
