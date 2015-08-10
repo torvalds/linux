@@ -196,8 +196,8 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		uint32_t *bounce32 = (uint32_t *) bounce;
 
 		num = size / sizeof(uint32_t);
-		if (num > SVGA3D_DEVCAP_DX)
-			num = SVGA3D_DEVCAP_DX;
+		if (num > SVGA3D_DEVCAP_MAX)
+			num = SVGA3D_DEVCAP_MAX;
 
 		spin_lock(&dev_priv->cap_lock);
 		for (i = 0; i < num; ++i) {

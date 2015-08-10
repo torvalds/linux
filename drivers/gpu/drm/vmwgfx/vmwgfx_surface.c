@@ -1533,6 +1533,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	srf->offsets           = NULL;
 	srf->base_size         = size;
 	srf->autogen_filter    = SVGA3D_TEX_FILTER_NONE;
+	srf->array_size        = array_size;
 	srf->multisample_count = multisample_count;
 
 	if (array_size)

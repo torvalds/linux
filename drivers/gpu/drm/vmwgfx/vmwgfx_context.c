@@ -37,6 +37,7 @@ struct vmw_user_context {
 	struct vmw_cmdbuf_res_manager *man;
 	struct vmw_resource *cotables[SVGA_COTABLE_DX10_MAX];
 	spinlock_t cotable_lock;
+	struct vmw_dma_buffer *dx_query_mob;
 };
 
 static void vmw_user_context_free(struct vmw_resource *res);

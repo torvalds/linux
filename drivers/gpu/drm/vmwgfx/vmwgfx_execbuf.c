@@ -553,6 +553,7 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
 				return ret;
 		}
 	}
+
 	return 0;
 }
 
@@ -2484,6 +2485,63 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 			    &sw_context->staged_cmd_res);
 }
 
+/**
+ * vmw_cmd_dx_set_so_targets - Validate an
+ * SVGA_3D_CMD_DX_SET_SOTARGETS command.
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
+				     struct vmw_sw_context *sw_context,
+				     SVGA3dCmdHeader *header)
+{
+	struct vmw_resource_val_node *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_bindinfo_so binding;
+	struct vmw_resource_val_node *res_node;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXSetSOTargets body;
+		SVGA3dSoTarget targets[];
+	} *cmd;
+	int i, ret, num;
+
+	if (unlikely(ctx_node == NULL)) {
+		DRM_ERROR("DX Context not set.\n");
+		return -EINVAL;
+	}
+
+	cmd = container_of(header, typeof(*cmd), header);
+	num = (cmd->header.size - sizeof(cmd->body)) /
+		sizeof(SVGA3dSoTarget);
+
+	if (num > SVGA3D_DX_MAX_SOTARGETS) {
+		DRM_ERROR("Invalid DX SO binding.\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num; i++) {
+		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+					user_surface_converter,
+					&cmd->targets[i].sid, &res_node);
+		if (unlikely(ret != 0))
+			return ret;
+
+		binding.bi.ctx = ctx_node->res;
+		binding.bi.res = ((res_node) ? res_node->res : NULL);
+		binding.bi.bt = vmw_ctx_binding_so,
+		binding.offset = cmd->targets[i].offset;
+		binding.size = cmd->targets[i].sizeInBytes;
+		binding.slot = i;
+
+		vmw_binding_add(ctx_node->staged_bindings, &binding.bi,
+				0, binding.slot);
+	}
+
+	return 0;
+}
+
 static int vmw_cmd_dx_so_define(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				SVGA3dCmdHeader *header)
@@ -2971,11 +3029,17 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_set_shader_res, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_SHADER, &vmw_cmd_dx_set_shader,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW_INSTANCED, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_SAMPLERS, &vmw_cmd_dx_cid_check,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW_INDEXED_INSTANCED, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW, &vmw_cmd_dx_cid_check,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW_AUTO, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW_INDEXED, &vmw_cmd_dx_cid_check,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW_INSTANCED, &vmw_cmd_dx_cid_check,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW_INDEXED_INSTANCED,
+		    &vmw_cmd_dx_cid_check, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DRAW_AUTO, &vmw_cmd_dx_cid_check,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_VERTEX_BUFFERS,
 		    &vmw_cmd_dx_set_vertex_buffers, true, false, true),
@@ -2985,11 +3049,10 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_set_rendertargets, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_BLEND_STATE, &vmw_cmd_dx_cid_check,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_RASTERIZER_STATE, &vmw_cmd_dx_cid_check,
-		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_DEPTHSTENCIL_STATE,
-		    &vmw_cmd_dx_cid_check,
-		    true, false, true),
+		    &vmw_cmd_dx_cid_check, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_RASTERIZER_STATE,
+		    &vmw_cmd_dx_cid_check, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_DEFINE_QUERY, &vmw_cmd_invalid,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_DESTROY_QUERY, &vmw_cmd_invalid,
@@ -3066,8 +3129,10 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_so_define, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_DESTROY_STREAMOUTPUT,
 		    &vmw_cmd_dx_cid_check, true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_STREAMOUTPUT, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_STREAMOUTPUT, &vmw_cmd_dx_cid_check,
 		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_SOTARGETS,
+		    &vmw_cmd_dx_set_so_targets, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_INPUT_LAYOUT,
 		    &vmw_cmd_dx_cid_check, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_TOPOLOGY,
@@ -3621,14 +3686,14 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	uint32_t handle;
 	int ret;
 
-     	if (throttle_us) {
+	if (throttle_us) {
 		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
 				   throttle_us);
-		
+
 		if (ret)
 			return ret;
 	}
-	
+
 	kernel_commands = vmw_execbuf_cmdbuf(dev_priv, user_commands,
 					     kernel_commands, command_size,
 					     &header);
@@ -3692,11 +3757,18 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 	ret = vmw_cmd_check_all(dev_priv, sw_context, kernel_commands,
 				command_size);
+
+	/*
+	 * Merge the resource lists before checking the return status
+	 * from vmd_cmd_check_all so that all the open hashtabs will
+	 * be handled properly even if vmw_cmd_check_all fails.
+	 */
+	list_splice_init(&sw_context->ctx_resource_list,
+			 &sw_context->resource_list);
+
 	if (unlikely(ret != 0))
 		goto out_err_nores;
 
-	list_splice_init(&sw_context->ctx_resource_list,
-			 &sw_context->resource_list);
 	ret = vmw_resources_reserve(sw_context);
 	if (unlikely(ret != 0))
 		goto out_err_nores;
