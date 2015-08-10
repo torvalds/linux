@@ -36,6 +36,17 @@
 #define hcd_to_ohci_at91_priv(h) \
 	((struct ohci_at91_priv *)hcd_to_ohci(h)->priv)
 
+#define AT91_MAX_USBH_PORTS	3
+struct at91_usbh_data {
+	int vbus_pin[AT91_MAX_USBH_PORTS];	/* port power-control pin */
+	int overcurrent_pin[AT91_MAX_USBH_PORTS];
+	u8 ports;				/* number of ports on root hub */
+	u8 overcurrent_supported;
+	u8 vbus_pin_active_low[AT91_MAX_USBH_PORTS];
+	u8 overcurrent_status[AT91_MAX_USBH_PORTS];
+	u8 overcurrent_changed[AT91_MAX_USBH_PORTS];
+};
+
 struct ohci_at91_priv {
 	struct clk *iclk;
 	struct clk *fclk;
