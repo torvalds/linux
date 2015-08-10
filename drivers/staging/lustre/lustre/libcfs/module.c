@@ -707,7 +707,7 @@ struct lnet_debugfs_symlink_def {
 	char *target;
 };
 
-static struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
+static const struct lnet_debugfs_symlink_def lnet_debugfs_symlinks[] = {
 	{ "console_ratelimit",
 	  "/sys/module/libcfs/parameters/libcfs_console_ratelimit"},
 	{ "debug_path",
@@ -762,7 +762,7 @@ static void insert_debugfs(void)
 {
 	struct ctl_table *table;
 	struct dentry *entry;
-	struct lnet_debugfs_symlink_def *symlinks;
+	const struct lnet_debugfs_symlink_def *symlinks;
 
 	if (lnet_debugfs_root == NULL)
 		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
