@@ -215,7 +215,6 @@ static struct comedi_subdevice
 	struct comedi_subdevice *s;
 	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
 
-	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
 	mutex_lock(&comedi_subdevice_minor_table_lock);
 	s = comedi_subdevice_minor_table[i];
 	if (s && s->device != dev)
@@ -241,7 +240,6 @@ static struct comedi_device *comedi_dev_get_from_subdevice_minor(unsigned minor)
 	struct comedi_subdevice *s;
 	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
 
-	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
 	mutex_lock(&comedi_subdevice_minor_table_lock);
 	s = comedi_subdevice_minor_table[i];
 	dev = comedi_dev_get(s ? s->device : NULL);
