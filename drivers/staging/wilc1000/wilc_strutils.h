@@ -95,15 +95,5 @@ char *WILC_strncpy(char *pcTarget, const char *pcSource,
 s32 WILC_strncmp(const char *pcStr1, const char *pcStr2,
 			 u32 u32Count);
 
-/*!
- *  @brief	gets the length of a string
- *  @param[in]	pcStr the string
- *  @return	the length
- *  @note	this function repeats the functionality of standard strlen
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-u32 WILC_strlen(const char *pcStr);
 
 #endif

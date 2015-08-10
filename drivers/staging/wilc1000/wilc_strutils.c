@@ -50,12 +50,3 @@ s32 WILC_strncmp(const char *pcStr1, const char *pcStr2,
 	return s32Result;
 }
 
-/*!
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-u32 WILC_strlen(const char *pcStr)
-{
-	return (u32)strlen(pcStr);
-}
