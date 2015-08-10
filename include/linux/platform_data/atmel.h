@@ -25,15 +25,6 @@
  */
 #define ATMEL_MAX_UART	7
 
- /* USB Device */
-struct at91_udc_data {
-	int	vbus_pin;		/* high == host powering us */
-	u8	vbus_active_low;	/* vbus polarity */
-	u8	vbus_polled;		/* Use polling, not interrupt */
-	int	pullup_pin;		/* active == D+ pulled up */
-	u8	pullup_active_low;	/* true == pullup_pin is active low */
-};
-
  /* Compact Flash */
 struct at91_cf_data {
 	int	irq_pin;		/* I/O IRQ */
