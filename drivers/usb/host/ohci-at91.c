@@ -442,7 +442,6 @@ static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id at91_ohci_dt_ids[] = {
 	{ .compatible = "atmel,at91rm9200-ohci" },
 	{ /* sentinel */ }
@@ -492,12 +491,6 @@ static int ohci_at91_of_init(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-static int ohci_at91_of_init(struct platform_device *pdev)
-{
-	return 0;
-}
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -684,7 +677,7 @@ static struct platform_driver ohci_hcd_at91_driver = {
 	.driver		= {
 		.name	= "at91_ohci",
 		.pm	= &ohci_hcd_at91_pm_ops,
-		.of_match_table	= of_match_ptr(at91_ohci_dt_ids),
+		.of_match_table	= at91_ohci_dt_ids,
 	},
 };
 
