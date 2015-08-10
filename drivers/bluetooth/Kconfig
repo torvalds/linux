@@ -155,6 +155,19 @@ config BT_HCIUART_BCM
 
 	  Say Y here to compile support for Broadcom protocol.
 
+config BT_HCIUART_QCA
+	bool "Qualcomm Atheros protocol support"
+	depends on BT_HCIUART
+	select BT_HCIUART_H4
+	select BT_QCA
+	help
+	  The Qualcomm Atheros protocol supports HCI In-Band Sleep feature
+	  over serial port interface(H4) between controller and host.
+	  This protocol is required for UART clock control for QCA Bluetooth
+	  devices.
+
+	  Say Y here to compile support for QCA protocol.
+
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB
