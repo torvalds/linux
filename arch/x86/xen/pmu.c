@@ -51,6 +51,8 @@ static __read_mostly int amd_num_counters;
 /* Alias registers (0x4c1) for full-width writes to PMCs */
 #define MSR_PMC_ALIAS_MASK          (~(MSR_IA32_PERFCTR0 ^ MSR_IA32_PMC0))
 
+#define INTEL_PMC_TYPE_SHIFT        30
+
 static __read_mostly int intel_num_arch_counters, intel_num_fixed_counters;
 
 
@@ -167,6 +169,91 @@ static int is_intel_pmu_msr(u32 msr_index, int *type, int *index)
 	}
 }
 
+bool pmu_msr_read(unsigned int msr, uint64_t *val, int *err)
+{
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+		if (is_amd_pmu_msr(msr)) {
+			*val = native_read_msr_safe(msr, err);
+			return true;
+		}
+	} else {
+		int type, index;
+
+		if (is_intel_pmu_msr(msr, &type, &index)) {
+			*val = native_read_msr_safe(msr, err);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool pmu_msr_write(unsigned int msr, uint32_t low, uint32_t high, int *err)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+		if (is_amd_pmu_msr(msr)) {
+			*err = native_write_msr_safe(msr, low, high);
+			return true;
+		}
+	} else {
+		int type, index;
+
+		if (is_intel_pmu_msr(msr, &type, &index)) {
+			*err = native_write_msr_safe(msr, low, high);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static unsigned long long xen_amd_read_pmc(int counter)
+{
+	uint32_t msr;
+	int err;
+
+	msr = amd_counters_base + (counter * amd_msr_step);
+	return native_read_msr_safe(msr, &err);
+}
+
+static unsigned long long xen_intel_read_pmc(int counter)
+{
+	int err;
+	uint32_t msr;
+
+	if (counter & (1<<INTEL_PMC_TYPE_SHIFT))
+		msr = MSR_CORE_PERF_FIXED_CTR0 + (counter & 0xffff);
+	else
+		msr = MSR_IA32_PERFCTR0 + counter;
+
+	return native_read_msr_safe(msr, &err);
+}
+
+unsigned long long xen_read_pmc(int counter)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		return xen_amd_read_pmc(counter);
+	else
+		return xen_intel_read_pmc(counter);
+}
+
+int pmu_apic_update(uint32_t val)
+{
+	int ret;
+	struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
+
+	if (!xenpmu_data) {
+		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		return -EINVAL;
+	}
+
+	xenpmu_data->pmu.l.lapic_lvtpc = val;
+	ret = HYPERVISOR_xenpmu_op(XENPMU_lvtpc_set, NULL);
+
+	return ret;
+}
+
 /* perf callbacks */
 static int xen_is_in_guest(void)
 {
@@ -239,12 +326,18 @@ static void xen_convert_regs(const struct xen_pmu_regs *xen_regs,
 
 irqreturn_t xen_pmu_irq_handler(int irq, void *dev_id)
 {
-	int ret = IRQ_NONE;
+	int err, ret = IRQ_NONE;
 	struct pt_regs regs;
 	const struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 
 	if (!xenpmu_data) {
 		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		return ret;
+	}
+
+	err = HYPERVISOR_xenpmu_op(XENPMU_flush, NULL);
+	if (err) {
+		pr_warn_once("%s: failed hypercall, err: %d\n", __func__, err);
 		return ret;
 	}
 

@@ -1031,6 +1031,9 @@ static u64 xen_read_msr_safe(unsigned int msr, int *err)
 {
 	u64 val;
 
+	if (pmu_msr_read(msr, &val, err))
+		return val;
+
 	val = native_read_msr_safe(msr, err);
 	switch (msr) {
 	case MSR_IA32_APICBASE:
@@ -1077,15 +1080,11 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 		   Xen console noise. */
 
 	default:
-		ret = native_write_msr_safe(msr, low, high);
+		if (!pmu_msr_write(msr, low, high, &ret))
+			ret = native_write_msr_safe(msr, low, high);
 	}
 
 	return ret;
-}
-
-unsigned long long xen_read_pmc(int counter)
-{
-	return 0;
 }
 
 void xen_setup_shared_info(void)
