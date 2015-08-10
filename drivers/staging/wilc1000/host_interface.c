@@ -5159,9 +5159,7 @@ s32 host_int_set_RSNAConfigPSKPassPhrase(WILC_WFIDrvHandle hWFIDrv, u8 *pu8PassP
 {
 	s32 s32Error = WILC_SUCCESS;
 	tstrWID strWID;
-	/* tstrWILC_WFIDrv * pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv; */
 
-	/* u8 u8Psklength = WILC_strlen(pu8PassPhrase); */
 	/*validating psk length*/
 	if ((u8Psklength > 7) && (u8Psklength < 65)) {
 		strWID.u16WIDid	= (u16)WID_11I_PSK;

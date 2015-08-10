@@ -1332,7 +1332,6 @@ void ProcessStrWid(char *pcPacket, s32 *ps32PktLen,
 
 	if (g_oper_mode == SET_CFG) {
 		/* Message Length */
-		/* u16MsgLen = WILC_strlen(pu8val); */
 		u16MsgLen = (u16)s32ValueSize;
 
 		/* Length */
