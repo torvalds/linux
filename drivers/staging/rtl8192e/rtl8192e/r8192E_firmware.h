@@ -60,6 +60,6 @@ struct rt_firmware {
 };
 
 bool rtl92e_init_fw(struct net_device *dev);
-extern void rtl92e_init_fw_param(struct net_device *dev);
+void rtl92e_init_fw_param(struct net_device *dev);
 
 #endif

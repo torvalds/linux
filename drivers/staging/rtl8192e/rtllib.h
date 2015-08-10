@@ -1984,228 +1984,199 @@ static inline int rtllib_is_cck_rate(u8 rate)
 
 
 /* rtllib.c */
-extern void free_rtllib(struct net_device *dev);
-extern struct net_device *alloc_rtllib(int sizeof_priv);
+void free_rtllib(struct net_device *dev);
+struct net_device *alloc_rtllib(int sizeof_priv);
 
 /* rtllib_tx.c */
 
-extern int rtllib_encrypt_fragment(
+int rtllib_encrypt_fragment(
 	struct rtllib_device *ieee,
 	struct sk_buff *frag,
 	int hdr_len);
 
-extern int rtllib_xmit(struct sk_buff *skb,  struct net_device *dev);
-extern void rtllib_txb_free(struct rtllib_txb *);
+int rtllib_xmit(struct sk_buff *skb,  struct net_device *dev);
+void rtllib_txb_free(struct rtllib_txb *);
 
 /* rtllib_rx.c */
-extern int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
-			struct rtllib_rx_stats *rx_stats);
-extern void rtllib_rx_probe_rq(struct rtllib_device *ieee,
-			   struct sk_buff *skb);
-extern int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel);
+int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
+	      struct rtllib_rx_stats *rx_stats);
+void rtllib_rx_probe_rq(struct rtllib_device *ieee,
+			struct sk_buff *skb);
+int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel);
 
 /* rtllib_wx.c */
-extern int rtllib_wx_get_scan(struct rtllib_device *ieee,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu, char *key);
-extern int rtllib_wx_set_encode(struct rtllib_device *ieee,
-				   struct iw_request_info *info,
-				   union iwreq_data *wrqu, char *key);
-extern int rtllib_wx_get_encode(struct rtllib_device *ieee,
-				   struct iw_request_info *info,
-				   union iwreq_data *wrqu, char *key);
-extern int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *extra);
-extern int rtllib_wx_set_auth(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       struct iw_param *data, char *extra);
-extern int rtllib_wx_set_mlme(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra);
-extern int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len);
+int rtllib_wx_get_scan(struct rtllib_device *ieee,
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *key);
+int rtllib_wx_set_encode(struct rtllib_device *ieee,
+			 struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *key);
+int rtllib_wx_get_encode(struct rtllib_device *ieee,
+			 struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *key);
+int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra);
+int rtllib_wx_set_auth(struct rtllib_device *ieee,
+		       struct iw_request_info *info,
+		       struct iw_param *data, char *extra);
+int rtllib_wx_set_mlme(struct rtllib_device *ieee,
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra);
+int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len);
 
 /* rtllib_softmac.c */
-extern int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
-				   struct sk_buff *skb,
-				   struct rtllib_rx_stats *rx_stats, u16 type,
-				   u16 stype);
-extern void rtllib_softmac_new_net(struct rtllib_device *ieee,
-				   struct rtllib_network *net);
+int rtllib_rx_frame_softmac(struct rtllib_device *ieee, struct sk_buff *skb,
+			    struct rtllib_rx_stats *rx_stats, u16 type,
+			    u16 stype);
+void rtllib_softmac_new_net(struct rtllib_device *ieee,
+			    struct rtllib_network *net);
 
 void SendDisassociation(struct rtllib_device *ieee, bool deauth, u16 asRsn);
-extern void rtllib_softmac_xmit(struct rtllib_txb *txb,
-				struct rtllib_device *ieee);
+void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee);
 
-extern void rtllib_stop_send_beacons(struct rtllib_device *ieee);
-extern void notify_wx_assoc_event(struct rtllib_device *ieee);
-extern void rtllib_start_ibss(struct rtllib_device *ieee);
-extern void rtllib_softmac_init(struct rtllib_device *ieee);
-extern void rtllib_softmac_free(struct rtllib_device *ieee);
-extern void rtllib_disassociate(struct rtllib_device *ieee);
-extern void rtllib_stop_scan(struct rtllib_device *ieee);
-extern bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan);
-extern void rtllib_stop_scan_syncro(struct rtllib_device *ieee);
-extern void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
-extern void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee,
-					  short pwr);
-extern void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee);
-extern void rtllib_start_protocol(struct rtllib_device *ieee);
-extern void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown);
+void rtllib_stop_send_beacons(struct rtllib_device *ieee);
+void notify_wx_assoc_event(struct rtllib_device *ieee);
+void rtllib_start_ibss(struct rtllib_device *ieee);
+void rtllib_softmac_init(struct rtllib_device *ieee);
+void rtllib_softmac_free(struct rtllib_device *ieee);
+void rtllib_disassociate(struct rtllib_device *ieee);
+void rtllib_stop_scan(struct rtllib_device *ieee);
+bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan);
+void rtllib_stop_scan_syncro(struct rtllib_device *ieee);
+void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
+void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee, short pwr);
+void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee);
+void rtllib_start_protocol(struct rtllib_device *ieee);
+void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown);
 
-extern void rtllib_EnableNetMonitorMode(struct net_device *dev,
+void rtllib_EnableNetMonitorMode(struct net_device *dev, bool bInitState);
+void rtllib_DisableNetMonitorMode(struct net_device *dev, bool bInitState);
+void rtllib_EnableIntelPromiscuousMode(struct net_device *dev, bool bInitState);
+void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
 					bool bInitState);
-extern void rtllib_DisableNetMonitorMode(struct net_device *dev,
-					 bool bInitState);
-extern void rtllib_EnableIntelPromiscuousMode(struct net_device *dev,
-					      bool bInitState);
-extern void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
-					       bool bInitState);
-extern void rtllib_softmac_stop_protocol(struct rtllib_device *ieee,
-					 u8 mesh_flag, u8 shutdown);
-extern void rtllib_softmac_start_protocol(struct rtllib_device *ieee,
-					  u8 mesh_flag);
+void rtllib_softmac_stop_protocol(struct rtllib_device *ieee,
+				  u8 mesh_flag, u8 shutdown);
+void rtllib_softmac_start_protocol(struct rtllib_device *ieee, u8 mesh_flag);
 
-extern void rtllib_reset_queue(struct rtllib_device *ieee);
-extern void rtllib_wake_all_queues(struct rtllib_device *ieee);
-extern void rtllib_stop_all_queues(struct rtllib_device *ieee);
-extern struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee);
-extern void rtllib_start_send_beacons(struct rtllib_device *ieee);
-extern void rtllib_stop_send_beacons(struct rtllib_device *ieee);
-extern int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee,
-				       struct iw_point *p, u8 is_mesh);
+void rtllib_reset_queue(struct rtllib_device *ieee);
+void rtllib_wake_all_queues(struct rtllib_device *ieee);
+void rtllib_stop_all_queues(struct rtllib_device *ieee);
+struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee);
+void rtllib_start_send_beacons(struct rtllib_device *ieee);
+void rtllib_stop_send_beacons(struct rtllib_device *ieee);
+int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee,
+				struct iw_point *p, u8 is_mesh);
 
-extern void notify_wx_assoc_event(struct rtllib_device *ieee);
-extern void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success);
+void notify_wx_assoc_event(struct rtllib_device *ieee);
+void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success);
 
-extern void softmac_mgmt_xmit(struct sk_buff *skb,
-			      struct rtllib_device *ieee);
-extern u8 rtllib_ap_sec_type(struct rtllib_device *ieee);
+void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee);
+u8 rtllib_ap_sec_type(struct rtllib_device *ieee);
 
 /* rtllib_softmac_wx.c */
 
-extern int rtllib_wx_get_wap(struct rtllib_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *ext);
+int rtllib_wx_get_wap(struct rtllib_device *ieee, struct iw_request_info *info,
+		      union iwreq_data *wrqu, char *ext);
 
-extern int rtllib_wx_set_wap(struct rtllib_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *awrq,
-			     char *extra);
+int rtllib_wx_set_wap(struct rtllib_device *ieee, struct iw_request_info *info,
+		      union iwreq_data *awrq, char *extra);
 
-extern int rtllib_wx_get_essid(struct rtllib_device *ieee,
-			       struct iw_request_info *a,
-			       union iwreq_data *wrqu, char *b);
+int rtllib_wx_get_essid(struct rtllib_device *ieee, struct iw_request_info *a,
+			union iwreq_data *wrqu, char *b);
 
-extern int rtllib_wx_set_rate(struct rtllib_device *ieee,
-			      struct iw_request_info *info,
-			      union iwreq_data *wrqu, char *extra);
+int rtllib_wx_set_rate(struct rtllib_device *ieee, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_get_rate(struct rtllib_device *ieee,
-			      struct iw_request_info *info,
-			      union iwreq_data *wrqu, char *extra);
+int rtllib_wx_get_rate(struct rtllib_device *ieee, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_set_mode(struct rtllib_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *b);
+int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
+		       union iwreq_data *wrqu, char *b);
 
-extern int rtllib_wx_set_scan(struct rtllib_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *b);
+int rtllib_wx_set_scan(struct rtllib_device *ieee, struct iw_request_info *a,
+		       union iwreq_data *wrqu, char *b);
 
-extern int rtllib_wx_set_essid(struct rtllib_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *extra);
+int rtllib_wx_set_essid(struct rtllib_device *ieee, struct iw_request_info *a,
+			union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_get_mode(struct rtllib_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *b);
+int rtllib_wx_get_mode(struct rtllib_device *ieee, struct iw_request_info *a,
+		       union iwreq_data *wrqu, char *b);
 
-extern int rtllib_wx_set_freq(struct rtllib_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *b);
+int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
+		       union iwreq_data *wrqu, char *b);
 
-extern int rtllib_wx_get_freq(struct rtllib_device *ieee,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *b);
-extern void rtllib_wx_sync_scan_wq(void *data);
+int rtllib_wx_get_freq(struct rtllib_device *ieee, struct iw_request_info *a,
+		       union iwreq_data *wrqu, char *b);
+void rtllib_wx_sync_scan_wq(void *data);
 
-extern int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra);
+int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
+			struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_get_name(struct rtllib_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra);
+int rtllib_wx_get_name(struct rtllib_device *ieee, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_set_power(struct rtllib_device *ieee,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu, char *extra);
+int rtllib_wx_set_power(struct rtllib_device *ieee,
+			struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_get_power(struct rtllib_device *ieee,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu, char *extra);
+int rtllib_wx_get_power(struct rtllib_device *ieee,
+			struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_set_rts(struct rtllib_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra);
+int rtllib_wx_set_rts(struct rtllib_device *ieee, struct iw_request_info *info,
+		      union iwreq_data *wrqu, char *extra);
 
-extern int rtllib_wx_get_rts(struct rtllib_device *ieee,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra);
+int rtllib_wx_get_rts(struct rtllib_device *ieee, struct iw_request_info *info,
+		      union iwreq_data *wrqu, char *extra);
 #define MAX_RECEIVE_BUFFER_SIZE 9100
 
 void HTSetConnectBwMode(struct rtllib_device *ieee,
 			enum ht_channel_width Bandwidth,
 			enum ht_extchnl_offset Offset);
-extern void HTUpdateDefaultSetting(struct rtllib_device *ieee);
-extern void HTConstructCapabilityElement(struct rtllib_device *ieee,
-					 u8 *posHTCap, u8 *len,
-					 u8 isEncrypt, bool bAssoc);
-extern void HTConstructInfoElement(struct rtllib_device *ieee,
-				   u8 *posHTInfo, u8 *len, u8 isEncrypt);
-extern void HTConstructRT2RTAggElement(struct rtllib_device *ieee,
-				       u8 *posRT2RTAgg, u8 *len);
-extern void HTOnAssocRsp(struct rtllib_device *ieee);
-extern void HTInitializeHTInfo(struct rtllib_device *ieee);
-extern void HTInitializeBssDesc(struct bss_ht *pBssHT);
-extern void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
-					  struct rtllib_network *pNetwork);
-extern void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
-					    struct rtllib_network *pNetwork);
-extern u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
-			      u8 *pMCSFilter);
+void HTUpdateDefaultSetting(struct rtllib_device *ieee);
+void HTConstructCapabilityElement(struct rtllib_device *ieee,
+				  u8 *posHTCap, u8 *len,
+				  u8 isEncrypt, bool bAssoc);
+void HTConstructInfoElement(struct rtllib_device *ieee,
+			    u8 *posHTInfo, u8 *len, u8 isEncrypt);
+void HTConstructRT2RTAggElement(struct rtllib_device *ieee,
+				u8 *posRT2RTAgg, u8 *len);
+void HTOnAssocRsp(struct rtllib_device *ieee);
+void HTInitializeHTInfo(struct rtllib_device *ieee);
+void HTInitializeBssDesc(struct bss_ht *pBssHT);
+void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
+				   struct rtllib_network *pNetwork);
+void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
+				     struct rtllib_network *pNetwork);
+u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
+		       u8 *pMCSFilter);
 extern u8 MCS_FILTER_ALL[];
 extern u16 MCS_DATA_RATE[2][2][77];
-extern u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame);
-extern void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo);
-extern bool IsHTHalfNmodeAPs(struct rtllib_device *ieee);
-extern u16  TxCountToDataRate(struct rtllib_device *ieee, u8 nDataRate);
-extern int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb);
-extern int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb);
-extern int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb);
-extern void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
-			u8 Policy, u8 bOverwritePending);
-extern void TsInitDelBA(struct rtllib_device *ieee,
-			struct ts_common_info *pTsCommonInfo,
-			enum tr_select TxRxSelect);
-extern void BaSetupTimeOut(unsigned long data);
-extern void TxBaInactTimeout(unsigned long data);
-extern void RxBaInactTimeout(unsigned long data);
-extern void ResetBaEntry(struct ba_record *pBA);
-extern bool GetTs(
-	struct rtllib_device *ieee,
-	struct ts_common_info **ppTS,
-	u8 *Addr,
-	u8 TID,
-	enum tr_select TxRxSelect,
-	bool bAddNewTs
-);
-extern void TSInitialize(struct rtllib_device *ieee);
-extern  void TsStartAddBaProcess(struct rtllib_device *ieee,
-				  struct tx_ts_record *pTxTS);
-extern void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr);
-extern void RemoveAllTS(struct rtllib_device *ieee);
+u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame);
+void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo);
+bool IsHTHalfNmodeAPs(struct rtllib_device *ieee);
+u16  TxCountToDataRate(struct rtllib_device *ieee, u8 nDataRate);
+int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb);
+int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb);
+int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb);
+void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
+		 u8 Policy, u8 bOverwritePending);
+void TsInitDelBA(struct rtllib_device *ieee,
+		 struct ts_common_info *pTsCommonInfo,
+		 enum tr_select TxRxSelect);
+void BaSetupTimeOut(unsigned long data);
+void TxBaInactTimeout(unsigned long data);
+void RxBaInactTimeout(unsigned long data);
+void ResetBaEntry(struct ba_record *pBA);
+bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS, u8 *Addr,
+	   u8 TID, enum tr_select TxRxSelect, bool bAddNewTs);
+void TSInitialize(struct rtllib_device *ieee);
+void TsStartAddBaProcess(struct rtllib_device *ieee,
+			 struct tx_ts_record *pTxTS);
+void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr);
+void RemoveAllTS(struct rtllib_device *ieee);
 
 extern const long rtllib_wlan_frequencies[];
 
@@ -2229,17 +2200,17 @@ bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn);
 /* For the function is more related to hardware setting, it's better to use the
  * ieee handler to refer to it.
  */
-extern void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
-					struct rx_ts_record *pTS);
-extern int rtllib_parse_info_param(struct rtllib_device *ieee,
-		struct rtllib_info_element *info_element,
-		u16 length,
-		struct rtllib_network *network,
-		struct rtllib_rx_stats *stats);
+void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
+				 struct rx_ts_record *pTS);
+int rtllib_parse_info_param(struct rtllib_device *ieee,
+			    struct rtllib_info_element *info_element,
+			    u16 length,
+			    struct rtllib_network *network,
+			    struct rtllib_rx_stats *stats);
 
 void rtllib_indicate_packets(struct rtllib_device *ieee,
 			     struct rtllib_rxb **prxbIndicateArray, u8  index);
-extern void HTUseDefaultSetting(struct rtllib_device *ieee);
+void HTUseDefaultSetting(struct rtllib_device *ieee);
 #define RT_ASOC_RETRY_LIMIT	5
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee);
 #define SEM_DOWN_IEEE_WX(psem) down(psem)

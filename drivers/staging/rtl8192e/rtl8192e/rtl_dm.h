@@ -188,20 +188,20 @@ extern const u8 dm_cck_tx_bb_gain_ch14[CCKTxBBGainTableLength][8];
 /*--------------------------Exported Function prototype---------------------*/
 /*--------------------------Exported Function prototype---------------------*/
 
-extern  void rtl92e_dm_init(struct net_device *dev);
-extern  void rtl92e_dm_deinit(struct net_device *dev);
+void rtl92e_dm_init(struct net_device *dev);
+void rtl92e_dm_deinit(struct net_device *dev);
 
-extern void rtl92e_dm_watchdog(struct net_device *dev);
+void rtl92e_dm_watchdog(struct net_device *dev);
 
 
-extern  void    rtl92e_init_adaptive_rate(struct net_device *dev);
-extern  void    rtl92e_dm_txpower_tracking_wq(void *data);
+void    rtl92e_init_adaptive_rate(struct net_device *dev);
+void    rtl92e_dm_txpower_tracking_wq(void *data);
 
-extern  void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
+void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
 
-extern  void    rtl92e_dm_restore_state(struct net_device *dev);
-extern  void    rtl92e_dm_backup_state(struct net_device *dev);
-extern  void    rtl92e_dm_init_edca_turbo(struct net_device *dev);
-extern  void    rtl92e_dm_rf_pathcheck_wq(void *data);
-extern  void rtl92e_dm_init_txpower_tracking(struct net_device *dev);
+void    rtl92e_dm_restore_state(struct net_device *dev);
+void    rtl92e_dm_backup_state(struct net_device *dev);
+void    rtl92e_dm_init_edca_turbo(struct net_device *dev);
+void    rtl92e_dm_rf_pathcheck_wq(void *data);
+void rtl92e_dm_init_txpower_tracking(struct net_device *dev);
 #endif	/*__R8192UDM_H__ */

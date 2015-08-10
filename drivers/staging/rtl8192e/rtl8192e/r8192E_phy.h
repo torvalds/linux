@@ -67,40 +67,36 @@ enum rf90_radio_path {
 #define bMaskLWord                0x0000ffff
 #define bMaskDWord                0xffffffff
 
-extern u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath);
-extern void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr,
-			      u32 dwBitMask, u32 dwData);
-extern u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr,
-			     u32 dwBitMask);
-extern void rtl92e_set_rf_reg(struct net_device *dev,
-			      enum rf90_radio_path eRFPath, u32 RegAddr,
-			      u32 BitMask, u32 Data);
-extern u32 rtl92e_get_rf_reg(struct net_device *dev,
-			     enum rf90_radio_path eRFPath, u32 RegAddr,
-			     u32 BitMask);
-extern void rtl92e_config_mac(struct net_device *dev);
-extern bool rtl92e_check_bb_and_rf(struct net_device *dev,
-				   enum hw90_block CheckBlock,
-				   enum rf90_radio_path eRFPath);
-extern bool rtl92e_config_bb(struct net_device *dev);
-extern void rtl92e_get_tx_power(struct net_device *dev);
-extern void rtl92e_set_tx_power(struct net_device *dev, u8 channel);
-extern bool rtl92e_config_phy(struct net_device *dev);
-extern u8 rtl92e_config_rf_path(struct net_device *dev,
-				enum rf90_radio_path eRFPath);
+u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath);
+void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr,
+		       u32 dwBitMask, u32 dwData);
+u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask);
+void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
+		       u32 RegAddr, u32 BitMask, u32 Data);
+u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
+		      u32 RegAddr, u32 BitMask);
+void rtl92e_config_mac(struct net_device *dev);
+bool rtl92e_check_bb_and_rf(struct net_device *dev,
+			    enum hw90_block CheckBlock,
+			    enum rf90_radio_path eRFPath);
+bool rtl92e_config_bb(struct net_device *dev);
+void rtl92e_get_tx_power(struct net_device *dev);
+void rtl92e_set_tx_power(struct net_device *dev, u8 channel);
+bool rtl92e_config_phy(struct net_device *dev);
+u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath);
 
-extern u8 rtl92e_set_channel(struct net_device *dev, u8 channel);
-extern void rtl92e_set_bw_mode(struct net_device *dev,
-			       enum ht_channel_width Bandwidth,
-			       enum ht_extchnl_offset Offset);
-extern void rtl92e_init_gain(struct net_device *dev, u8 Operation);
+u8 rtl92e_set_channel(struct net_device *dev, u8 channel);
+void rtl92e_set_bw_mode(struct net_device *dev,
+			enum ht_channel_width Bandwidth,
+			enum ht_extchnl_offset Offset);
+void rtl92e_init_gain(struct net_device *dev, u8 Operation);
 
-extern	void rtl92e_set_rf_off(struct net_device *dev);
+void rtl92e_set_rf_off(struct net_device *dev);
 
 bool rtl92e_set_rf_power_state(struct net_device *dev,
 			       enum rt_rf_power_state eRFPowerState);
 #define PHY_SetRFPowerState rtl92e_set_rf_power_state
 
-extern void rtl92e_scan_op_backup(struct net_device *dev, u8 Operation);
+void rtl92e_scan_op_backup(struct net_device *dev, u8 Operation);
 
 #endif
