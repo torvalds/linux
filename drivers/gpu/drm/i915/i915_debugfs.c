@@ -1868,7 +1868,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	struct intel_framebuffer *fb;
 	struct drm_framebuffer *drm_fb;
 
-#ifdef CONFIG_DRM_I915_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	ifbdev = dev_priv->fbdev;
