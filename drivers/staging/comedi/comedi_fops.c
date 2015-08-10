@@ -227,7 +227,6 @@ static struct comedi_device *comedi_dev_get_from_board_minor(unsigned minor)
 {
 	struct comedi_device *dev;
 
-	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 	mutex_lock(&comedi_board_minor_table_lock);
 	dev = comedi_dev_get(comedi_board_minor_table[minor]);
 	mutex_unlock(&comedi_board_minor_table_lock);
