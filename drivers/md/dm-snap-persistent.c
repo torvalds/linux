@@ -533,7 +533,7 @@ static int read_exceptions(struct pstore *ps,
 		chunk = area_location(ps, ps->current_area);
 
 		area = dm_bufio_read(client, chunk, &bp);
-		if (unlikely(IS_ERR(area))) {
+		if (IS_ERR(area)) {
 			r = PTR_ERR(area);
 			goto ret_destroy_bufio;
 		}
