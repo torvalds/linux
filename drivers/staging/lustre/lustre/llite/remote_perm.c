@@ -54,8 +54,8 @@
 #include "../include/lustre_param.h"
 #include "llite_internal.h"
 
-struct kmem_cache *ll_remote_perm_cachep = NULL;
-struct kmem_cache *ll_rmtperm_hash_cachep = NULL;
+struct kmem_cache *ll_remote_perm_cachep;
+struct kmem_cache *ll_rmtperm_hash_cachep;
 
 static inline struct ll_remote_perm *alloc_ll_remote_perm(void)
 {
