@@ -206,6 +206,8 @@
 #define GLOBAL_ATU_OP_GET_CLR_VIOLATION	  ((7 << 12) | GLOBAL_ATU_OP_BUSY)
 #define GLOBAL_ATU_DATA		0x0c
 #define GLOBAL_ATU_DATA_TRUNK			BIT(15)
+#define GLOBAL_ATU_DATA_TRUNK_ID_MASK		0x00f0
+#define GLOBAL_ATU_DATA_TRUNK_ID_SHIFT		4
 #define GLOBAL_ATU_DATA_PORT_VECTOR_MASK	0x3ff0
 #define GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT	4
 #define GLOBAL_ATU_DATA_STATE_MASK		0x0f
@@ -315,6 +317,14 @@
 #define GLOBAL2_WDOG_CONTROL	0x1b
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
+
+struct mv88e6xxx_atu_entry {
+	u16	fid;
+	u8	state;
+	bool	trunk;
+	u16	portv_trunkid;
+	u8	mac[ETH_ALEN];
+};
 
 struct mv88e6xxx_priv_state {
 	/* When using multi-chip addressing, this mutex protects
