@@ -256,6 +256,16 @@ ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 	return 0;
 }
 
+static int
+ieee802154_set_ackreq_default(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev, bool ackreq)
+{
+	ASSERT_RTNL();
+
+	wpan_dev->ackreq = ackreq;
+	return 0;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
@@ -273,4 +283,5 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_lbt_mode = ieee802154_set_lbt_mode,
+	.set_ackreq_default = ieee802154_set_ackreq_default,
 };

@@ -224,7 +224,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		da.mode = IEEE802154_ADDR_LONG;
 		da.extended_addr = ieee802154_devaddr_from_raw(daddr);
-		cb->ackreq = wpan_dev->frame_retries >= 0;
+		cb->ackreq = wpan_dev->ackreq;
 	}
 
 	return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,
