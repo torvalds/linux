@@ -946,7 +946,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk, struct sk_buff *skb)
 				   &ipv6_hdr(skb)->daddr, tcp_v6_iif(skb));
 	if (req) {
 		nsk = tcp_check_req(sk, skb, req, false);
-		if (!nsk)
+		if (!nsk || nsk == sk)
 			reqsk_put(req);
 		return nsk;
 	}
