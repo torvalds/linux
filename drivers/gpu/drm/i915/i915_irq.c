@@ -90,6 +90,7 @@ static const u32 hpd_status_i915[HPD_NUM_PINS] = {
 
 /* BXT hpd list */
 static const u32 hpd_bxt[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = BXT_DE_PORT_HP_DDIA,
 	[HPD_PORT_B] = BXT_DE_PORT_HP_DDIB,
 	[HPD_PORT_C] = BXT_DE_PORT_HP_DDIC
 };
@@ -3014,30 +3015,25 @@ static void bxt_hpd_irq_setup(struct drm_device *dev)
 	u32 hotplug_port = 0;
 	u32 hotplug_ctrl;
 
-	/* Now, enable HPD */
 	for_each_intel_encoder(dev, intel_encoder) {
 		if (dev_priv->hotplug.stats[intel_encoder->hpd_pin].state
 				== HPD_ENABLED)
 			hotplug_port |= hpd_bxt[intel_encoder->hpd_pin];
 	}
 
-	/* Mask all HPD control bits */
 	hotplug_ctrl = I915_READ(BXT_HOTPLUG_CTL) & ~BXT_HOTPLUG_CTL_MASK;
 
-	/* Enable requested port in hotplug control */
-	/* TODO: implement (short) HPD support on port A */
-	WARN_ON_ONCE(hotplug_port & BXT_DE_PORT_HP_DDIA);
+	if (hotplug_port & BXT_DE_PORT_HP_DDIA)
+		hotplug_ctrl |= BXT_DDIA_HPD_ENABLE;
 	if (hotplug_port & BXT_DE_PORT_HP_DDIB)
 		hotplug_ctrl |= BXT_DDIB_HPD_ENABLE;
 	if (hotplug_port & BXT_DE_PORT_HP_DDIC)
 		hotplug_ctrl |= BXT_DDIC_HPD_ENABLE;
 	I915_WRITE(BXT_HOTPLUG_CTL, hotplug_ctrl);
 
-	/* Unmask DDI hotplug in IMR */
 	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IMR) & ~hotplug_port;
 	I915_WRITE(GEN8_DE_PORT_IMR, hotplug_ctrl);
 
-	/* Enable DDI hotplug in IER */
 	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IER) | hotplug_port;
 	I915_WRITE(GEN8_DE_PORT_IER, hotplug_ctrl);
 	POSTING_READ(GEN8_DE_PORT_IER);
