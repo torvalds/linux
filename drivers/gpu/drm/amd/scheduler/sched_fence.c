@@ -68,7 +68,7 @@ bool amd_sched_check_ts(struct amd_sched_entity *s_entity, uint64_t v_seq)
 void amd_sched_fence_signal(struct amd_sched_fence *fence)
 {
 	if (amd_sched_check_ts(fence->entity, fence->v_seq)) {
-		int ret = fence_signal_locked(&fence->base);
+		int ret = fence_signal(&fence->base);
 		if (!ret)
 			FENCE_TRACE(&fence->base, "signaled from irq context\n");
 		else
