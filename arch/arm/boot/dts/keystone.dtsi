@@ -273,7 +273,7 @@
 			#size-cells = <0>;
 			reg		= <0x02090300 0x100>;
 			status = "disabled";
-			clocks = <&clkpa>;
+			clocks = <&clkcpgmac>;
 			clock-names = "fck";
 			bus_freq	= <2500000>;
 		};
