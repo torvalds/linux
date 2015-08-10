@@ -117,7 +117,8 @@ static inline int remote_perm_hashfunc(uid_t uid)
 }
 
 /* NB: setxid permission is not checked here, instead it's done on
- * MDT when client get remote permission. */
+ * MDT when client get remote permission.
+ */
 static int do_check_remote_perm(struct ll_inode_info *lli, int mask)
 {
 	struct hlist_head *head;
