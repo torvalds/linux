@@ -1863,10 +1863,9 @@ ff_layout_mirror_prepare_stats(struct nfs42_layoutstat_args *args,
 		memcpy(&devinfo->dev_id, &dev->deviceid, NFS4_DEVICEID4_SIZE);
 		devinfo->offset = pls->pls_range.offset;
 		devinfo->length = pls->pls_range.length;
-		/* well, we don't really know if IO is continuous or not! */
-		devinfo->read_count = mirror->read_stat.io_stat.bytes_completed;
+		devinfo->read_count = mirror->read_stat.io_stat.ops_completed;
 		devinfo->read_bytes = mirror->read_stat.io_stat.bytes_completed;
-		devinfo->write_count = mirror->write_stat.io_stat.bytes_completed;
+		devinfo->write_count = mirror->write_stat.io_stat.ops_completed;
 		devinfo->write_bytes = mirror->write_stat.io_stat.bytes_completed;
 		devinfo->layout_type = LAYOUT_FLEX_FILES;
 		devinfo->layoutstats_encode = ff_layout_encode_layoutstats;
