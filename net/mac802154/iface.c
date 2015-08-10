@@ -125,12 +125,27 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
+	/* lowpan need to be down for update
+	 * SLAAC address after ifup
+	 */
+	if (sdata->wpan_dev.lowpan_dev) {
+		if (netif_running(sdata->wpan_dev.lowpan_dev))
+			return -EBUSY;
+	}
+
 	ieee802154_be64_to_le64(&extended_addr, addr->sa_data);
 	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr))
 		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	sdata->wpan_dev.extended_addr = extended_addr;
+
+	/* update lowpan interface mac address when
+	 * wpan mac has been changed
+	 */
+	if (sdata->wpan_dev.lowpan_dev)
+		memcpy(sdata->wpan_dev.lowpan_dev->dev_addr, dev->dev_addr,
+		       dev->addr_len);
 
 	return mac802154_wpan_update_llsec(dev);
 }
