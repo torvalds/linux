@@ -667,6 +667,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	char *wqe;
 	struct sk_buff *skb;
 	struct mlxsw_rx_info rx_info;
+	u16 byte_count;
 	int err;
 
 	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
@@ -686,7 +687,10 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	rx_info.sys_port = mlxsw_pci_cqe_system_port_get(cqe);
 	rx_info.trap_id = mlxsw_pci_cqe_trap_id_get(cqe);
 
-	skb_put(skb, mlxsw_pci_cqe_byte_count_get(cqe));
+	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
+	if (mlxsw_pci_cqe_crc_get(cqe))
+		byte_count -= ETH_FCS_LEN;
+	skb_put(skb, byte_count);
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
 
 put_new_skb:
@@ -1439,6 +1443,15 @@ mlxsw_pci_sdq_pick(struct mlxsw_pci *mlxsw_pci,
 	return mlxsw_pci_sdq_get(mlxsw_pci, sdqn);
 }
 
+static bool mlxsw_pci_skb_transmit_busy(void *bus_priv,
+					const struct mlxsw_tx_info *tx_info)
+{
+	struct mlxsw_pci *mlxsw_pci = bus_priv;
+	struct mlxsw_pci_queue *q = mlxsw_pci_sdq_pick(mlxsw_pci, tx_info);
+
+	return !mlxsw_pci_queue_elem_info_producer_get(q);
+}
+
 static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 				  const struct mlxsw_tx_info *tx_info)
 {
@@ -1621,11 +1634,12 @@ err_in_mbox_map:
 }
 
 static const struct mlxsw_bus mlxsw_pci_bus = {
-	.kind		= "pci",
-	.init		= mlxsw_pci_init,
-	.fini		= mlxsw_pci_fini,
-	.skb_transmit	= mlxsw_pci_skb_transmit,
-	.cmd_exec	= mlxsw_pci_cmd_exec,
+	.kind			= "pci",
+	.init			= mlxsw_pci_init,
+	.fini			= mlxsw_pci_fini,
+	.skb_transmit_busy	= mlxsw_pci_skb_transmit_busy,
+	.skb_transmit		= mlxsw_pci_skb_transmit,
+	.cmd_exec		= mlxsw_pci_cmd_exec,
 };
 
 static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci)

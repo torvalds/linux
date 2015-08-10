@@ -245,6 +245,16 @@ static int mlxsw_sx_port_swid_set(struct mlxsw_sx_port *mlxsw_sx_port, u8 swid)
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(pspa), pspa_pl);
 }
 
+static int
+mlxsw_sx_port_system_port_mapping_set(struct mlxsw_sx_port *mlxsw_sx_port)
+{
+	struct mlxsw_sx *mlxsw_sx = mlxsw_sx_port->mlxsw_sx;
+	char sspr_pl[MLXSW_REG_SSPR_LEN];
+
+	mlxsw_reg_sspr_pack(sspr_pl, mlxsw_sx_port->local_port);
+	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(sspr), sspr_pl);
+}
+
 static int mlxsw_sx_port_module_check(struct mlxsw_sx_port *mlxsw_sx_port,
 				      bool *p_usable)
 {
@@ -290,37 +300,34 @@ static netdev_tx_t mlxsw_sx_port_xmit(struct sk_buff *skb,
 		.local_port = mlxsw_sx_port->local_port,
 		.is_emad = false,
 	};
-	struct sk_buff *skb_old = NULL;
+	u64 len;
 	int err;
 
-	if (unlikely(skb_headroom(skb) < MLXSW_TXHDR_LEN)) {
-		struct sk_buff *skb_new;
+	if (mlxsw_core_skb_transmit_busy(mlxsw_sx, &tx_info))
+		return NETDEV_TX_BUSY;
 
-		skb_old = skb;
-		skb_new = skb_realloc_headroom(skb, MLXSW_TXHDR_LEN);
-		if (!skb_new) {
+	if (unlikely(skb_headroom(skb) < MLXSW_TXHDR_LEN)) {
+		struct sk_buff *skb_orig = skb;
+
+		skb = skb_realloc_headroom(skb, MLXSW_TXHDR_LEN);
+		if (!skb) {
 			this_cpu_inc(mlxsw_sx_port->pcpu_stats->tx_dropped);
-			dev_kfree_skb_any(skb_old);
+			dev_kfree_skb_any(skb_orig);
 			return NETDEV_TX_OK;
 		}
-		skb = skb_new;
 	}
 	mlxsw_sx_txhdr_construct(skb, &tx_info);
+	len = skb->len;
+	/* Due to a race we might fail here because of a full queue. In that
+	 * unlikely case we simply drop the packet.
+	 */
 	err = mlxsw_core_skb_transmit(mlxsw_sx, skb, &tx_info);
-	if (err == -EAGAIN) {
-		if (skb_old)
-			dev_kfree_skb_any(skb);
-		return NETDEV_TX_BUSY;
-	}
-
-	if (skb_old)
-		dev_kfree_skb_any(skb_old);
 
 	if (!err) {
 		pcpu_stats = this_cpu_ptr(mlxsw_sx_port->pcpu_stats);
 		u64_stats_update_begin(&pcpu_stats->syncp);
 		pcpu_stats->tx_packets++;
-		pcpu_stats->tx_bytes += skb->len;
+		pcpu_stats->tx_bytes += len;
 		u64_stats_update_end(&pcpu_stats->syncp);
 	} else {
 		this_cpu_inc(mlxsw_sx_port->pcpu_stats->tx_dropped);
@@ -1001,6 +1008,13 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 		goto port_not_usable;
 	}
 
+	err = mlxsw_sx_port_system_port_mapping_set(mlxsw_sx_port);
+	if (err) {
+		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to set system port mapping\n",
+			mlxsw_sx_port->local_port);
+		goto err_port_system_port_mapping_set;
+	}
+
 	err = mlxsw_sx_port_swid_set(mlxsw_sx_port, 0);
 	if (err) {
 		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to set SWID\n",
@@ -1061,6 +1075,7 @@ err_port_stp_state_set:
 err_port_mtu_set:
 err_port_speed_set:
 err_port_swid_set:
+err_port_system_port_mapping_set:
 port_not_usable:
 err_port_module_check:
 err_dev_addr_get:
@@ -1079,6 +1094,7 @@ static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 	unregister_netdev(mlxsw_sx_port->dev); /* This calls ndo_stop */
 	mlxsw_sx_port_swid_set(mlxsw_sx_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	free_percpu(mlxsw_sx_port->pcpu_stats);
+	free_netdev(mlxsw_sx_port->dev);
 }
 
 static void mlxsw_sx_ports_remove(struct mlxsw_sx *mlxsw_sx)

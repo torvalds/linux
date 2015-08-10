@@ -73,6 +73,9 @@ struct mlxsw_tx_info {
 	bool is_emad;
 };
 
+bool mlxsw_core_skb_transmit_busy(void *driver_priv,
+				  const struct mlxsw_tx_info *tx_info);
+
 int mlxsw_core_skb_transmit(void *driver_priv, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info);
 
@@ -177,6 +180,8 @@ struct mlxsw_bus {
 	int (*init)(void *bus_priv, struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_config_profile *profile);
 	void (*fini)(void *bus_priv);
+	bool (*skb_transmit_busy)(void *bus_priv,
+				  const struct mlxsw_tx_info *tx_info);
 	int (*skb_transmit)(void *bus_priv, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info);
 	int (*cmd_exec)(void *bus_priv, u16 opcode, u8 opcode_mod,
