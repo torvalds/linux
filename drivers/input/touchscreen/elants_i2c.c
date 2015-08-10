@@ -1173,7 +1173,7 @@ static int elants_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	ts->reset_gpio = devm_gpiod_get(&client->dev, "reset");
+	ts->reset_gpio = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ts->reset_gpio)) {
 		error = PTR_ERR(ts->reset_gpio);
 
@@ -1188,14 +1188,6 @@ static int elants_i2c_probe(struct i2c_client *client,
 		}
 
 		ts->keep_power_in_suspend = true;
-	} else {
-		error = gpiod_direction_output(ts->reset_gpio, 0);
-		if (error) {
-			dev_err(&client->dev,
-				"failed to configure reset gpio as output: %d\n",
-				error);
-			return error;
-		}
 	}
 
 	error = elants_i2c_power_on(ts);
