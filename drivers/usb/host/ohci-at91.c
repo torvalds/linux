@@ -449,16 +449,17 @@ static const struct of_device_id at91_ohci_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, at91_ohci_dt_ids);
 
-static int ohci_at91_of_init(struct platform_device *pdev)
+/*-------------------------------------------------------------------------*/
+
+static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	int i, gpio, ret;
-	enum of_gpio_flags flags;
 	struct at91_usbh_data	*pdata;
-	u32 ports;
-
-	if (!np)
-		return 0;
+	int			i;
+	int			gpio;
+	int			ret;
+	enum of_gpio_flags	flags;
+	u32			ports;
 
 	/* Right now device-tree probed devices don't get dma_mask set.
 	 * Since shared usb code relies on it, set it here for now.
@@ -489,89 +490,69 @@ static int ohci_at91_of_init(struct platform_device *pdev)
 
 	pdev->dev.platform_data = pdata;
 
-	return 0;
-}
-
-/*-------------------------------------------------------------------------*/
-
-static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
-{
-	struct at91_usbh_data	*pdata;
-	int			i;
-	int			gpio;
-	int			ret;
-
-	ret = ohci_at91_of_init(pdev);
-	if (ret)
-		return ret;
-
-	pdata = dev_get_platdata(&pdev->dev);
-
-	if (pdata) {
-		at91_for_each_port(i) {
-			/*
-			 * do not configure PIO if not in relation with
-			 * real USB port on board
-			 */
-			if (i >= pdata->ports) {
-				pdata->vbus_pin[i] = -EINVAL;
-				pdata->overcurrent_pin[i] = -EINVAL;
-				break;
-			}
-
-			if (!gpio_is_valid(pdata->vbus_pin[i]))
-				continue;
-			gpio = pdata->vbus_pin[i];
-
-			ret = gpio_request(gpio, "ohci_vbus");
-			if (ret) {
-				dev_err(&pdev->dev,
-					"can't request vbus gpio %d\n", gpio);
-				continue;
-			}
-			ret = gpio_direction_output(gpio,
-						!pdata->vbus_pin_active_low[i]);
-			if (ret) {
-				dev_err(&pdev->dev,
-					"can't put vbus gpio %d as output %d\n",
-					gpio, !pdata->vbus_pin_active_low[i]);
-				gpio_free(gpio);
-				continue;
-			}
-
-			ohci_at91_usb_set_power(pdata, i, 1);
+	at91_for_each_port(i) {
+		/*
+		 * do not configure PIO if not in relation with
+		 * real USB port on board
+		 */
+		if (i >= pdata->ports) {
+			pdata->vbus_pin[i] = -EINVAL;
+			pdata->overcurrent_pin[i] = -EINVAL;
+			break;
 		}
 
-		at91_for_each_port(i) {
-			if (!gpio_is_valid(pdata->overcurrent_pin[i]))
-				continue;
-			gpio = pdata->overcurrent_pin[i];
+		if (!gpio_is_valid(pdata->vbus_pin[i]))
+			continue;
+		gpio = pdata->vbus_pin[i];
 
-			ret = gpio_request(gpio, "ohci_overcurrent");
-			if (ret) {
-				dev_err(&pdev->dev,
-					"can't request overcurrent gpio %d\n",
-					gpio);
-				continue;
-			}
+		ret = gpio_request(gpio, "ohci_vbus");
+		if (ret) {
+			dev_err(&pdev->dev,
+				"can't request vbus gpio %d\n", gpio);
+			continue;
+		}
+		ret = gpio_direction_output(gpio,
+					!pdata->vbus_pin_active_low[i]);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"can't put vbus gpio %d as output %d\n",
+				gpio, !pdata->vbus_pin_active_low[i]);
+			gpio_free(gpio);
+			continue;
+		}
 
-			ret = gpio_direction_input(gpio);
-			if (ret) {
-				dev_err(&pdev->dev,
-					"can't configure overcurrent gpio %d as input\n",
-					gpio);
-				gpio_free(gpio);
-				continue;
-			}
+		ohci_at91_usb_set_power(pdata, i, 1);
+	}
 
-			ret = request_irq(gpio_to_irq(gpio),
-					  ohci_hcd_at91_overcurrent_irq,
-					  IRQF_SHARED, "ohci_overcurrent", pdev);
-			if (ret) {
-				gpio_free(gpio);
-				dev_err(&pdev->dev,
-					"can't get gpio IRQ for overcurrent\n");
-			}
+	at91_for_each_port(i) {
+		if (!gpio_is_valid(pdata->overcurrent_pin[i]))
+			continue;
+		gpio = pdata->overcurrent_pin[i];
+
+		ret = gpio_request(gpio, "ohci_overcurrent");
+		if (ret) {
+			dev_err(&pdev->dev,
+				"can't request overcurrent gpio %d\n",
+				gpio);
+			continue;
+		}
+
+		ret = gpio_direction_input(gpio);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"can't configure overcurrent gpio %d as input\n",
+				gpio);
+			gpio_free(gpio);
+			continue;
+		}
+
+		ret = request_irq(gpio_to_irq(gpio),
+				  ohci_hcd_at91_overcurrent_irq,
+				  IRQF_SHARED, "ohci_overcurrent", pdev);
+		if (ret) {
+			gpio_free(gpio);
+			dev_err(&pdev->dev,
+				"can't get gpio IRQ for overcurrent\n");
 		}
 	}
 
