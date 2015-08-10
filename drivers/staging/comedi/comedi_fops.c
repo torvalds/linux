@@ -2930,14 +2930,7 @@ module_init(comedi_init);
 
 static void __exit comedi_cleanup(void)
 {
-	int i;
-
 	comedi_cleanup_board_minors();
-	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i)
-		BUG_ON(comedi_board_minor_table[i]);
-	for (i = 0; i < COMEDI_NUM_SUBDEVICE_MINORS; ++i)
-		BUG_ON(comedi_subdevice_minor_table[i]);
-
 	class_destroy(comedi_class);
 	cdev_del(&comedi_cdev);
 	unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
