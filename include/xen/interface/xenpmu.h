@@ -56,4 +56,37 @@ struct xen_pmu_params {
  */
 #define XENPMU_FEATURE_INTEL_BTS  1
 
+/*
+ * Shared PMU data between hypervisor and PV(H) domains.
+ *
+ * The hypervisor fills out this structure during PMU interrupt and sends an
+ * interrupt to appropriate VCPU.
+ * Architecture-independent fields of xen_pmu_data are WO for the hypervisor
+ * and RO for the guest but some fields in xen_pmu_arch can be writable
+ * by both the hypervisor and the guest (see arch-$arch/pmu.h).
+ */
+struct xen_pmu_data {
+	/* Interrupted VCPU */
+	uint32_t vcpu_id;
+
+	/*
+	 * Physical processor on which the interrupt occurred. On non-privileged
+	 * guests set to vcpu_id;
+	 */
+	uint32_t pcpu_id;
+
+	/*
+	 * Domain that was interrupted. On non-privileged guests set to
+	 * DOMID_SELF.
+	 * On privileged guests can be DOMID_SELF, DOMID_XEN, or, when in
+	 * XENPMU_MODE_ALL mode, domain ID of another domain.
+	 */
+	domid_t  domain_id;
+
+	uint8_t pad[6];
+
+	/* Architecture-specific information */
+	struct xen_pmu_arch pmu;
+};
+
 #endif /* __XEN_PUBLIC_XENPMU_H__ */

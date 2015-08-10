@@ -250,6 +250,129 @@ struct vcpu_guest_context {
 #endif
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_guest_context);
+
+/* AMD PMU registers and structures */
+struct xen_pmu_amd_ctxt {
+	/*
+	 * Offsets to counter and control MSRs (relative to xen_pmu_arch.c.amd).
+	 * For PV(H) guests these fields are RO.
+	 */
+	uint32_t counters;
+	uint32_t ctrls;
+
+	/* Counter MSRs */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+	uint64_t regs[];
+#elif defined(__GNUC__)
+	uint64_t regs[0];
+#endif
+};
+
+/* Intel PMU registers and structures */
+struct xen_pmu_cntr_pair {
+	uint64_t counter;
+	uint64_t control;
+};
+
+struct xen_pmu_intel_ctxt {
+	/*
+	 * Offsets to fixed and architectural counter MSRs (relative to
+	 * xen_pmu_arch.c.intel).
+	 * For PV(H) guests these fields are RO.
+	 */
+	uint32_t fixed_counters;
+	uint32_t arch_counters;
+
+	/* PMU registers */
+	uint64_t global_ctrl;
+	uint64_t global_ovf_ctrl;
+	uint64_t global_status;
+	uint64_t fixed_ctrl;
+	uint64_t ds_area;
+	uint64_t pebs_enable;
+	uint64_t debugctl;
+
+	/* Fixed and architectural counter MSRs */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+	uint64_t regs[];
+#elif defined(__GNUC__)
+	uint64_t regs[0];
+#endif
+};
+
+/* Sampled domain's registers */
+struct xen_pmu_regs {
+	uint64_t ip;
+	uint64_t sp;
+	uint64_t flags;
+	uint16_t cs;
+	uint16_t ss;
+	uint8_t cpl;
+	uint8_t pad[3];
+};
+
+/* PMU flags */
+#define PMU_CACHED	   (1<<0) /* PMU MSRs are cached in the context */
+#define PMU_SAMPLE_USER	   (1<<1) /* Sample is from user or kernel mode */
+#define PMU_SAMPLE_REAL	   (1<<2) /* Sample is from realmode */
+#define PMU_SAMPLE_PV	   (1<<3) /* Sample from a PV guest */
+
+/*
+ * Architecture-specific information describing state of the processor at
+ * the time of PMU interrupt.
+ * Fields of this structure marked as RW for guest should only be written by
+ * the guest when PMU_CACHED bit in pmu_flags is set (which is done by the
+ * hypervisor during PMU interrupt). Hypervisor will read updated data in
+ * XENPMU_flush hypercall and clear PMU_CACHED bit.
+ */
+struct xen_pmu_arch {
+	union {
+		/*
+		 * Processor's registers at the time of interrupt.
+		 * WO for hypervisor, RO for guests.
+		 */
+		struct xen_pmu_regs regs;
+		/*
+		 * Padding for adding new registers to xen_pmu_regs in
+		 * the future
+		 */
+#define XENPMU_REGS_PAD_SZ  64
+		uint8_t pad[XENPMU_REGS_PAD_SZ];
+	} r;
+
+	/* WO for hypervisor, RO for guest */
+	uint64_t pmu_flags;
+
+	/*
+	 * APIC LVTPC register.
+	 * RW for both hypervisor and guest.
+	 * Only APIC_LVT_MASKED bit is loaded by the hypervisor into hardware
+	 * during XENPMU_flush or XENPMU_lvtpc_set.
+	 */
+	union {
+		uint32_t lapic_lvtpc;
+		uint64_t pad;
+	} l;
+
+	/*
+	 * Vendor-specific PMU registers.
+	 * RW for both hypervisor and guest (see exceptions above).
+	 * Guest's updates to this field are verified and then loaded by the
+	 * hypervisor into hardware during XENPMU_flush
+	 */
+	union {
+		struct xen_pmu_amd_ctxt amd;
+		struct xen_pmu_intel_ctxt intel;
+
+		/*
+		 * Padding for contexts (fixed parts only, does not include
+		 * MSR banks that are specified by offsets)
+		 */
+#define XENPMU_CTXT_PAD_SZ  128
+		uint8_t pad[XENPMU_CTXT_PAD_SZ];
+	} c;
+};
+
 #endif	/* !__ASSEMBLY__ */
 
 /*

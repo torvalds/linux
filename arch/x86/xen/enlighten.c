@@ -84,6 +84,7 @@
 #include "mmu.h"
 #include "smp.h"
 #include "multicalls.h"
+#include "pmu.h"
 
 EXPORT_SYMBOL_GPL(hypercall_page);
 
@@ -1082,6 +1083,11 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 	return ret;
 }
 
+unsigned long long xen_read_pmc(int counter)
+{
+	return 0;
+}
+
 void xen_setup_shared_info(void)
 {
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
@@ -1216,7 +1222,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.write_msr = xen_write_msr_safe,
 
 	.read_tsc = native_read_tsc,
-	.read_pmc = native_read_pmc,
+	.read_pmc = xen_read_pmc,
 
 	.read_tscp = native_read_tscp,
 
@@ -1267,6 +1273,10 @@ static const struct pv_apic_ops xen_apic_ops __initconst = {
 static void xen_reboot(int reason)
 {
 	struct sched_shutdown r = { .reason = reason };
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		xen_pmu_finish(cpu);
 
 	if (HYPERVISOR_sched_op(SCHEDOP_shutdown, &r))
 		BUG();
