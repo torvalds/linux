@@ -235,7 +235,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		for (i = 0; i < adev->num_ip_blocks; i++) {
 			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_enabled[i]) {
+			    adev->ip_block_status[i].valid) {
 				ip.hw_ip_version_major = adev->ip_blocks[i].major;
 				ip.hw_ip_version_minor = adev->ip_blocks[i].minor;
 				ip.capabilities_flags = 0;
@@ -274,7 +274,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		for (i = 0; i < adev->num_ip_blocks; i++)
 			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_enabled[i] &&
+			    adev->ip_block_status[i].valid &&
 			    count < AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
 				count++;
 
@@ -317,16 +317,17 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_INFO_FW_GFX_RLC:
 			fw_info.ver = adev->gfx.rlc_fw_version;
-			fw_info.feature = 0;
+			fw_info.feature = adev->gfx.rlc_feature_version;
 			break;
 		case AMDGPU_INFO_FW_GFX_MEC:
-			if (info->query_fw.index == 0)
+			if (info->query_fw.index == 0) {
 				fw_info.ver = adev->gfx.mec_fw_version;
-			else if (info->query_fw.index == 1)
+				fw_info.feature = adev->gfx.mec_feature_version;
+			} else if (info->query_fw.index == 1) {
 				fw_info.ver = adev->gfx.mec2_fw_version;
-			else
+				fw_info.feature = adev->gfx.mec2_feature_version;
+			} else
 				return -EINVAL;
-			fw_info.feature = 0;
 			break;
 		case AMDGPU_INFO_FW_SMC:
 			fw_info.ver = adev->pm.fw_version;
@@ -336,7 +337,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			if (info->query_fw.index >= 2)
 				return -EINVAL;
 			fw_info.ver = adev->sdma[info->query_fw.index].fw_version;
-			fw_info.feature = 0;
+			fw_info.feature = adev->sdma[info->query_fw.index].feature_version;
 			break;
 		default:
 			return -EINVAL;
@@ -416,7 +417,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return n ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_DEV_INFO: {
-		struct drm_amdgpu_info_device dev_info;
+		struct drm_amdgpu_info_device dev_info = {};
 		struct amdgpu_cu_info cu_info;
 
 		dev_info.device_id = dev->pdev->device;

@@ -188,7 +188,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	if (ret)
 		return ret;
 
-	ret = RING_SPACE(chan, 59);
+	ret = RING_SPACE(chan, 58);
 	if (ret) {
 		nouveau_fbcon_gpu_lockup(info);
 		return ret;
@@ -252,6 +252,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->var.yres_virtual);
 	OUT_RING(chan, upper_32_bits(fb->vma.offset));
 	OUT_RING(chan, lower_32_bits(fb->vma.offset));
+	FIRE_RING(chan);
 
 	return 0;
 }

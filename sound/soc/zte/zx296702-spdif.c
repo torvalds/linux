@@ -322,9 +322,9 @@ static int zx_spdif_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	zx_spdif->mapbase = res->start;
 	zx_spdif->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!zx_spdif->reg_base) {
+	if (IS_ERR(zx_spdif->reg_base)) {
 		dev_err(&pdev->dev, "ioremap failed!\n");
-		return -EIO;
+		return PTR_ERR(zx_spdif->reg_base);
 	}
 
 	zx_spdif_dev_init(zx_spdif->reg_base);

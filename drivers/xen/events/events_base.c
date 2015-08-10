@@ -452,9 +452,11 @@ static void xen_free_irq(unsigned irq)
 	irq_free_desc(irq);
 }
 
-static void xen_evtchn_close(unsigned int port)
+static void xen_evtchn_close(unsigned int port, unsigned int cpu)
 {
 	struct evtchn_close close;
+
+	xen_evtchn_op_close(port, cpu);
 
 	close.port = port;
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
@@ -544,7 +546,7 @@ out:
 
 err:
 	pr_err("irq%d: Failed to set port to irq mapping (%d)\n", irq, rc);
-	xen_evtchn_close(evtchn);
+	xen_evtchn_close(evtchn, NR_CPUS);
 	return 0;
 }
 
@@ -565,7 +567,7 @@ static void shutdown_pirq(struct irq_data *data)
 		return;
 
 	mask_evtchn(evtchn);
-	xen_evtchn_close(evtchn);
+	xen_evtchn_close(evtchn, cpu_from_evtchn(evtchn));
 	xen_irq_info_cleanup(info);
 }
 
@@ -609,7 +611,7 @@ static void __unbind_from_irq(unsigned int irq)
 	if (VALID_EVTCHN(evtchn)) {
 		unsigned int cpu = cpu_from_irq(irq);
 
-		xen_evtchn_close(evtchn);
+		xen_evtchn_close(evtchn, cpu);
 
 		switch (type_from_irq(irq)) {
 		case IRQT_VIRQ:

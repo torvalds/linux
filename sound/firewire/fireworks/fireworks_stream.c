@@ -172,6 +172,15 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 	efw->tx_stream.flags |= CIP_DBC_IS_END_EVENT;
 	/* Fireworks reset dbc at bus reset. */
 	efw->tx_stream.flags |= CIP_SKIP_DBC_ZERO_CHECK;
+	/*
+	 * But Recent firmwares starts packets with non-zero dbc.
+	 * Driver version 5.7.6 installs firmware version 5.7.3.
+	 */
+	if (efw->is_fireworks3 &&
+	    (efw->firmware_version == 0x5070000 ||
+	     efw->firmware_version == 0x5070300 ||
+	     efw->firmware_version == 0x5080000))
+		efw->tx_stream.tx_first_dbc = 0x02;
 	/* AudioFire9 always reports wrong dbs. */
 	if (efw->is_af9)
 		efw->tx_stream.flags |= CIP_WRONG_DBS;

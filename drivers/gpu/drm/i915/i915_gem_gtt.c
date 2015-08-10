@@ -1923,6 +1923,17 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 		vma->vm->insert_entries(vma->vm, pages,
 					vma->node.start,
 					cache_level, pte_flags);
+
+		/* Note the inconsistency here is due to absence of the
+		 * aliasing ppgtt on gen4 and earlier. Though we always
+		 * request PIN_USER for execbuffer (translated to LOCAL_BIND),
+		 * without the appgtt, we cannot honour that request and so
+		 * must substitute it with a global binding. Since we do this
+		 * behind the upper layers back, we need to explicitly set
+		 * the bound flag ourselves.
+		 */
+		vma->bound |= GLOBAL_BIND;
+
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt && flags & LOCAL_BIND) {
