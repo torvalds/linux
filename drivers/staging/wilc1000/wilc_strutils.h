@@ -27,36 +27,6 @@
  */
 void WILC_memcpy_INTERNAL(void *pvTarget, const void *pvSource, u32 u32Count);
 
-/*!
- *  @brief	Copies the contents of a memory buffer into another
- *  @param[in]	pvTarget the target buffer to which the data is copied into
- *  @param[in]	pvSource pointer to the second memory location
- *  @param[in]	u32Count the size of the data to copy
- *  @return	WILC_SUCCESS if copy is successfully handeled
- *              WILC_FAIL if copy failed
- *  @note	this function repeats the functionality of standard memcpy,
- *              however memcpy is undefined if the two buffers overlap but this
- *              implementation will check for overlap and report error
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, u32 u32Count)
-{
-	if (
-		(((u8 *)pvTarget <= (u8 *)pvSource)
-		 && (((u8 *)pvTarget + u32Count) > (u8 *)pvSource))
-
-		|| (((u8 *)pvSource <= (u8 *)pvTarget)
-		    && (((u8 *)pvSource + u32Count) > (u8 *)pvTarget))
-		) {
-		/* ovelapped memory, return Error */
-		return WILC_FAIL;
-	} else {
-		WILC_memcpy_INTERNAL(pvTarget, pvSource, u32Count);
-		return WILC_SUCCESS;
-	}
-}
 
 
 
