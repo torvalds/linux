@@ -66,7 +66,7 @@ static const char *dram_phym_sel[] = { "pll_dram_main_clk",
 	"dram_phym_alt_clk", };
 
 static const char *dram_sel[] = { "pll_dram_main_clk",
-	"dram_alt_clk", };
+	"dram_alt_root_clk", };
 
 static const char *dram_phym_alt_sel[] = { "osc", "pll_dram_533m_clk",
 	"pll_sys_main_clk", "pll_enet_500m_clk",
