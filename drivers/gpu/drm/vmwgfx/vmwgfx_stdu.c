@@ -561,6 +561,7 @@ static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
 				true, /* a scanout buffer */
 				content_srf.mip_levels[0],
 				content_srf.multisample_count,
+				0,
 				display_base_size,
 				&display_srf);
 		if (unlikely(ret != 0)) {

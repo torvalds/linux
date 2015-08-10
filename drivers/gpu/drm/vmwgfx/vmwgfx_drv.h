@@ -59,6 +59,8 @@
 #define VMWGFX_NUM_GB_SHADER 20000
 #define VMWGFX_NUM_GB_SURFACE 32768
 #define VMWGFX_NUM_GB_SCREEN_TARGET VMWGFX_MAX_DISPLAYS
+#define VMWGFX_NUM_DXCONTEXT 256
+#define VMWGFX_NUM_DXQUERY 512
 #define VMWGFX_NUM_MOB (VMWGFX_NUM_GB_CONTEXT +\
 			VMWGFX_NUM_GB_SHADER +\
 			VMWGFX_NUM_GB_SURFACE +\
@@ -132,6 +134,9 @@ enum vmw_res_type {
 	vmw_res_surface,
 	vmw_res_stream,
 	vmw_res_shader,
+	vmw_res_dx_context,
+	vmw_res_cotable,
+	vmw_res_view,
 	vmw_res_max
 };
 
@@ -139,7 +144,8 @@ enum vmw_res_type {
  * Resources that are managed using command streams.
  */
 enum vmw_cmdbuf_res_type {
-	vmw_cmdbuf_res_compat_shader
+	vmw_cmdbuf_res_shader,
+	vmw_cmdbuf_res_view
 };
 
 struct vmw_cmdbuf_res_manager;
@@ -162,11 +168,13 @@ struct vmw_surface {
 	struct drm_vmw_size *sizes;
 	uint32_t num_sizes;
 	bool scanout;
+	uint32_t array_size;
 	/* TODO so far just a extra pointer */
 	struct vmw_cursor_snooper snooper;
 	struct vmw_surface_offset *offsets;
 	SVGA3dTextureFilter autogen_filter;
 	uint32_t multisample_count;
+	struct list_head view_list;
 };
 
 struct vmw_marker_queue {
@@ -186,6 +194,7 @@ struct vmw_fifo_state {
 	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
 	struct vmw_marker_queue marker_queue;
+	bool dx;
 };
 
 struct vmw_relocation {
@@ -266,73 +275,6 @@ struct vmw_piter {
 };
 
 /*
- * enum vmw_ctx_binding_type - abstract resource to context binding types
- */
-enum vmw_ctx_binding_type {
-	vmw_ctx_binding_shader,
-	vmw_ctx_binding_rt,
-	vmw_ctx_binding_tex,
-	vmw_ctx_binding_max
-};
-
-/**
- * struct vmw_ctx_bindinfo - structure representing a single context binding
- *
- * @ctx: Pointer to the context structure. NULL means the binding is not
- * active.
- * @res: Non ref-counted pointer to the bound resource.
- * @bt: The binding type.
- * @i1: Union of information needed to unbind.
- */
-struct vmw_ctx_bindinfo {
-	struct vmw_resource *ctx;
-	struct vmw_resource *res;
-	enum vmw_ctx_binding_type bt;
-	bool scrubbed;
-	union {
-		SVGA3dShaderType shader_type;
-		SVGA3dRenderTargetType rt_type;
-		uint32 texture_stage;
-	} i1;
-};
-
-/**
- * struct vmw_ctx_binding - structure representing a single context binding
- *                        - suitable for tracking in a context
- *
- * @ctx_list: List head for context.
- * @res_list: List head for bound resource.
- * @bi: Binding info
- */
-struct vmw_ctx_binding {
-	struct list_head ctx_list;
-	struct list_head res_list;
-	struct vmw_ctx_bindinfo bi;
-};
-
-
-/**
- * struct vmw_ctx_binding_state - context binding state
- *
- * @list: linked list of individual bindings.
- * @render_targets: Render target bindings.
- * @texture_units: Texture units/samplers bindings.
- * @shaders: Shader bindings.
- *
- * Note that this structure also provides storage space for the individual
- * struct vmw_ctx_binding objects, so that no dynamic allocation is needed
- * for individual bindings.
- *
- */
-struct vmw_ctx_binding_state {
-	struct list_head list;
-	struct vmw_ctx_binding render_targets[SVGA3D_RT_MAX];
-	struct vmw_ctx_binding texture_units[SVGA3D_NUM_TEXTURE_UNITS];
-	struct vmw_ctx_binding shaders[SVGA3D_SHADERTYPE_PREDX_MAX];
-};
-
-
-/*
  * enum vmw_display_unit_type - Describes the display unit
  */
 enum vmw_display_unit_type {
@@ -356,6 +298,7 @@ struct vmw_sw_context{
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
 	struct list_head resource_list;
+	struct list_head ctx_resource_list; /* For contexts and cotables */
 	struct vmw_dma_buffer *cur_query_bo;
 	struct list_head res_relocations;
 	uint32_t *buf_start;
@@ -363,8 +306,13 @@ struct vmw_sw_context{
 	struct vmw_resource *last_query_ctx;
 	bool needs_post_query_barrier;
 	struct vmw_resource *error_resource;
-	struct vmw_ctx_binding_state staged_bindings;
+	struct vmw_ctx_binding_state *staged_bindings;
+	bool staged_bindings_inuse;
 	struct list_head staged_cmd_res;
+	struct vmw_resource_val_node *dx_ctx_node;
+	struct vmw_dma_buffer *dx_query_mob;
+	struct vmw_resource *dx_query_ctx;
+	struct vmw_cmdbuf_res_manager *man;
 };
 
 struct vmw_legacy_display;
@@ -380,6 +328,26 @@ struct vmw_vga_topology_state {
 	uint32_t primary;
 	uint32_t pos_x;
 	uint32_t pos_y;
+};
+
+
+/*
+ * struct vmw_otable - Guest Memory OBject table metadata
+ *
+ * @size:           Size of the table (page-aligned).
+ * @page_table:     Pointer to a struct vmw_mob holding the page table.
+ */
+struct vmw_otable {
+	unsigned long size;
+	struct vmw_mob *page_table;
+	bool enabled;
+};
+
+struct vmw_otable_batch {
+	unsigned num_otables;
+	struct vmw_otable *otables;
+	struct vmw_resource *context;
+	struct ttm_buffer_object *otable_bo;
 };
 
 struct vmw_private {
@@ -417,6 +385,7 @@ struct vmw_private {
 	bool has_mob;
 	spinlock_t hw_lock;
 	spinlock_t cap_lock;
+	bool has_dx;
 
 	/*
 	 * VGA registers.
@@ -552,8 +521,7 @@ struct vmw_private {
 	/*
 	 * Guest Backed stuff
 	 */
-	struct ttm_buffer_object *otable_bo;
-	struct vmw_otable *otables;
+	struct vmw_otable_batch otable_batch;
 
 	struct vmw_cmdbuf_man *cman;
 };
@@ -685,6 +653,7 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 				  uint32_t *inout_id,
 				  struct vmw_resource **out);
 extern void vmw_resource_unreserve(struct vmw_resource *res,
+				   bool switch_backup,
 				   struct vmw_dma_buffer *new_backup,
 				   unsigned long new_backup_offset);
 extern void vmw_resource_move_notify(struct ttm_buffer_object *bo,
@@ -742,7 +711,10 @@ extern int vmw_fifo_init(struct vmw_private *dev_priv,
 extern void vmw_fifo_release(struct vmw_private *dev_priv,
 			     struct vmw_fifo_state *fifo);
 extern void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes);
+extern void *
+vmw_fifo_reserve_dx(struct vmw_private *dev_priv, uint32_t bytes, int ctx_id);
 extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
+extern void vmw_fifo_commit_flush(struct vmw_private *dev_priv, uint32_t bytes);
 extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *seqno);
 extern void vmw_fifo_ping_host_locked(struct vmw_private *, uint32_t reason);
@@ -828,14 +800,15 @@ static inline struct page *vmw_piter_page(struct vmw_piter *viter)
  * Command submission - vmwgfx_execbuf.c
  */
 
-extern int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
-			     struct drm_file *file_priv);
+extern int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
+			     struct drm_file *file_priv, size_t size);
 extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       struct vmw_private *dev_priv,
 			       void __user *user_commands,
 			       void *kernel_commands,
 			       uint32_t command_size,
 			       uint64_t throttle_us,
+			       uint32_t dx_context_handle,
 			       struct drm_vmw_fence_rep __user
 			       *user_fence_rep,
 			       struct vmw_fence_obj **out_fence);
@@ -960,6 +933,7 @@ int vmw_dumb_destroy(struct drm_file *file_priv,
 		     uint32_t handle);
 extern int vmw_resource_pin(struct vmw_resource *res, bool interruptible);
 extern void vmw_resource_unpin(struct vmw_resource *res);
+extern enum vmw_res_type vmw_res_type(const struct vmw_resource *res);
 
 /**
  * Overlay control - vmwgfx_overlay.c
@@ -1016,27 +990,28 @@ extern void vmw_otables_takedown(struct vmw_private *dev_priv);
 
 extern const struct vmw_user_resource_conv *user_context_converter;
 
-extern struct vmw_resource *vmw_context_alloc(struct vmw_private *dev_priv);
-
 extern int vmw_context_check(struct vmw_private *dev_priv,
 			     struct ttm_object_file *tfile,
 			     int id,
 			     struct vmw_resource **p_res);
 extern int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
+extern int vmw_extended_context_define_ioctl(struct drm_device *dev, void *data,
+					     struct drm_file *file_priv);
 extern int vmw_context_destroy_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
-extern int vmw_context_binding_add(struct vmw_ctx_binding_state *cbs,
-				   const struct vmw_ctx_bindinfo *ci);
-extern void
-vmw_context_binding_state_transfer(struct vmw_resource *res,
-				   struct vmw_ctx_binding_state *cbs);
-extern void vmw_context_binding_res_list_kill(struct list_head *head);
-extern void vmw_context_binding_res_list_scrub(struct list_head *head);
-extern int vmw_context_rebind_all(struct vmw_resource *ctx);
 extern struct list_head *vmw_context_binding_list(struct vmw_resource *ctx);
 extern struct vmw_cmdbuf_res_manager *
 vmw_context_res_man(struct vmw_resource *ctx);
+extern struct vmw_resource *vmw_context_cotable(struct vmw_resource *ctx,
+						SVGACOTableType cotable_type);
+extern struct list_head *vmw_context_binding_list(struct vmw_resource *ctx);
+struct vmw_ctx_binding_state;
+extern struct vmw_ctx_binding_state *
+vmw_context_binding_state(struct vmw_resource *ctx);
+extern void vmw_dx_context_scrub_cotables(struct vmw_resource *ctx,
+					  bool readback);
+
 /*
  * Surface management - vmwgfx_surface.c
  */
@@ -1066,6 +1041,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       bool for_scanout,
 			       uint32_t num_mip_levels,
 			       uint32_t multisample_count,
+			       uint32_t array_size,
 			       struct drm_vmw_size size,
 			       struct vmw_surface **srf_out);
 
@@ -1085,12 +1061,21 @@ extern int vmw_compat_shader_add(struct vmw_private *dev_priv,
 				 SVGA3dShaderType shader_type,
 				 size_t size,
 				 struct list_head *list);
-extern int vmw_compat_shader_remove(struct vmw_cmdbuf_res_manager *man,
-				    u32 user_key, SVGA3dShaderType shader_type,
-				    struct list_head *list);
+extern int vmw_shader_remove(struct vmw_cmdbuf_res_manager *man,
+			     u32 user_key, SVGA3dShaderType shader_type,
+			     struct list_head *list);
+extern int vmw_dx_shader_add(struct vmw_cmdbuf_res_manager *man,
+			     struct vmw_resource *ctx,
+			     u32 user_key,
+			     SVGA3dShaderType shader_type,
+			     struct list_head *list);
+extern void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
+					     struct list_head *list,
+					     bool readback);
+
 extern struct vmw_resource *
-vmw_compat_shader_lookup(struct vmw_cmdbuf_res_manager *man,
-			 u32 user_key, SVGA3dShaderType shader_type);
+vmw_shader_lookup(struct vmw_cmdbuf_res_manager *man,
+		  u32 user_key, SVGA3dShaderType shader_type);
 
 /*
  * Command buffer managed resources - vmwgfx_cmdbuf_res.c
@@ -1114,8 +1099,20 @@ extern int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
 extern int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 				 enum vmw_cmdbuf_res_type res_type,
 				 u32 user_key,
-				 struct list_head *list);
+				 struct list_head *list,
+				 struct vmw_resource **res);
 
+/*
+ * COTable management - vmwgfx_cotable.c
+ */
+extern const SVGACOTableType vmw_cotable_scrub_order[];
+extern struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
+					      struct vmw_resource *ctx,
+					      u32 type);
+extern int vmw_cotable_notify(struct vmw_resource *res, int id);
+extern int vmw_cotable_scrub(struct vmw_resource *res, bool readback);
+extern void vmw_cotable_add_resource(struct vmw_resource *ctx,
+				     struct list_head *head);
 
 /*
  * Command buffer managerment vmwgfx_cmdbuf.c

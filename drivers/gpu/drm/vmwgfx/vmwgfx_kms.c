@@ -528,7 +528,11 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	if (unlikely(format != surface->format)) {
+	/*
+	 * For DX, surface format validation is done when surface->scanout
+	 * is set.
+	 */
+	if (!dev_priv->has_dx && format != surface->format) {
 		DRM_ERROR("Invalid surface format for requested mode.\n");
 		return -EINVAL;
 	}
@@ -754,6 +758,7 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 			true, /* can be a scanout buffer */
 			1, /* num of mip levels */
 			0,
+			0,
 			content_base_size,
 			srf_out);
 	if (ret) {
@@ -769,7 +774,7 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 	vmw_dmabuf_unreference(&res->backup);
 	res->backup = vmw_dmabuf_reference(dmabuf_mob);
 	res->backup_offset = 0;
-	vmw_resource_unreserve(res, NULL, 0);
+	vmw_resource_unreserve(res, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 
 	return 0;
@@ -1869,7 +1874,7 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 void vmw_kms_helper_resource_revert(struct vmw_resource *res)
 {
 	vmw_kms_helper_buffer_revert(res->backup);
-	vmw_resource_unreserve(res, NULL, 0);
+	vmw_resource_unreserve(res, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 }
 
@@ -1916,7 +1921,7 @@ int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
 out_revert:
 	vmw_kms_helper_buffer_revert(res->backup);
 out_unreserve:
-	vmw_resource_unreserve(res, NULL, 0);
+	vmw_resource_unreserve(res, false, NULL, 0);
 out_unlock:
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 	return ret;
@@ -1937,7 +1942,7 @@ void vmw_kms_helper_resource_finish(struct vmw_resource *res,
 		vmw_kms_helper_buffer_finish(res->dev_priv, NULL, res->backup,
 					     out_fence, NULL);
 
-	vmw_resource_unreserve(res, NULL, 0);
+	vmw_resource_unreserve(res, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 }
 

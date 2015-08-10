@@ -31,6 +31,7 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/drmP.h>
 #include "vmwgfx_resource_priv.h"
+#include "vmwgfx_binding.h"
 
 #define VMW_RES_EVICT_ERR_COUNT 10
 
@@ -144,10 +145,10 @@ static void vmw_resource_release(struct kref *kref)
 	}
 
 	if (likely(res->hw_destroy != NULL)) {
-		res->hw_destroy(res);
 		mutex_lock(&dev_priv->binding_mutex);
-		vmw_context_binding_res_list_kill(&res->binding_head);
+		vmw_binding_res_list_kill(&res->binding_head);
 		mutex_unlock(&dev_priv->binding_mutex);
+		res->hw_destroy(res);
 	}
 
 	id = res->id;
@@ -1149,14 +1150,16 @@ out_bind_failed:
  * command submission.
  *
  * @res:               Pointer to the struct vmw_resource to unreserve.
+ * @switch_backup:     Backup buffer has been switched.
  * @new_backup:        Pointer to new backup buffer if command submission
- *                     switched.
- * @new_backup_offset: New backup offset if @new_backup is !NULL.
+ *                     switched. May be NULL.
+ * @new_backup_offset: New backup offset if @switch_backup is true.
  *
  * Currently unreserving a resource means putting it back on the device's
  * resource lru list, so that it can be evicted if necessary.
  */
 void vmw_resource_unreserve(struct vmw_resource *res,
+			    bool switch_backup,
 			    struct vmw_dma_buffer *new_backup,
 			    unsigned long new_backup_offset)
 {
@@ -1165,19 +1168,22 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 	if (!list_empty(&res->lru_head))
 		return;
 
-	if (new_backup && new_backup != res->backup) {
-
+	if (switch_backup && new_backup != res->backup) {
 		if (res->backup) {
 			lockdep_assert_held(&res->backup->base.resv->lock.base);
 			list_del_init(&res->mob_head);
 			vmw_dmabuf_unreference(&res->backup);
 		}
 
-		res->backup = vmw_dmabuf_reference(new_backup);
-		lockdep_assert_held(&new_backup->base.resv->lock.base);
-		list_add_tail(&res->mob_head, &new_backup->res_list);
+		if (new_backup) {
+			res->backup = vmw_dmabuf_reference(new_backup);
+			lockdep_assert_held(&new_backup->base.resv->lock.base);
+			list_add_tail(&res->mob_head, &new_backup->res_list);
+		} else {
+			res->backup = NULL;
+		}
 	}
-	if (new_backup)
+	if (switch_backup)
 		res->backup_offset = new_backup_offset;
 
 	if (!res->func->may_evict || res->id == -1 || res->pin_count)
@@ -1269,8 +1275,12 @@ int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 	if (res->func->needs_backup && res->backup == NULL &&
 	    !no_backup) {
 		ret = vmw_resource_buf_alloc(res, interruptible);
-		if (unlikely(ret != 0))
+		if (unlikely(ret != 0)) {
+			DRM_ERROR("Failed to allocate a backup buffer "
+				  "of size %lu. bytes\n",
+				  (unsigned long) res->backup_size);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -1354,7 +1364,7 @@ int vmw_resource_validate(struct vmw_resource *res)
 	struct ttm_validate_buffer val_buf;
 	unsigned err_count = 0;
 
-	if (likely(!res->func->may_evict))
+	if (!res->func->create)
 		return 0;
 
 	val_buf.bo = NULL;
@@ -1624,7 +1634,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 	res->pin_count++;
 
 out_no_validate:
-	vmw_resource_unreserve(res, NULL, 0UL);
+	vmw_resource_unreserve(res, false, NULL, 0UL);
 out_no_reserve:
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 	ttm_write_unlock(&dev_priv->reservation_sem);
@@ -1660,8 +1670,18 @@ void vmw_resource_unpin(struct vmw_resource *res)
 		ttm_bo_unreserve(&vbo->base);
 	}
 
-	vmw_resource_unreserve(res, NULL, 0UL);
+	vmw_resource_unreserve(res, false, NULL, 0UL);
 
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 	ttm_read_unlock(&dev_priv->reservation_sem);
+}
+
+/**
+ * vmw_res_type - Return the resource type
+ *
+ * @res: Pointer to the resource
+ */
+enum vmw_res_type vmw_res_type(const struct vmw_resource *res)
+{
+	return res->func->res_type;
 }

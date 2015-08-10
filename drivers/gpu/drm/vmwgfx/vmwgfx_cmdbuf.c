@@ -916,9 +916,8 @@ static void *vmw_cmdbuf_reserve_cur(struct vmw_cmdbuf_man *man,
 
 	cur = man->cur;
 	if (cur && (size + man->cur_pos > cur->size ||
-	    (ctx_id != SVGA3D_INVALID_ID &&
-	     (cur->cb_header->flags & SVGA_CB_FLAG_DX_CONTEXT) &&
-	     ctx_id != cur->cb_header->dxContext)))
+		    ((cur->cb_header->flags & SVGA_CB_FLAG_DX_CONTEXT) &&
+		     ctx_id != cur->cb_header->dxContext)))
 		__vmw_cmdbuf_cur_flush(man);
 
 	if (!man->cur) {

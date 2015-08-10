@@ -110,6 +110,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value =
 			(dev_priv->active_display_unit == vmw_du_screen_target);
 		break;
+	case DRM_VMW_PARAM_DX:
+		param->value = dev_priv->has_dx;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);
@@ -193,8 +196,8 @@ int vmw_get_cap_3d_ioctl(struct drm_device *dev, void *data,
 		uint32_t *bounce32 = (uint32_t *) bounce;
 
 		num = size / sizeof(uint32_t);
-		if (num > SVGA3D_DEVCAP_MAX)
-			num = SVGA3D_DEVCAP_MAX;
+		if (num > SVGA3D_DEVCAP_DX)
+			num = SVGA3D_DEVCAP_DX;
 
 		spin_lock(&dev_priv->cap_lock);
 		for (i = 0; i < num; ++i) {

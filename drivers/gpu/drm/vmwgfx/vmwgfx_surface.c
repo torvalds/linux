@@ -27,8 +27,11 @@
 
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
+#include "vmwgfx_so.h"
+#include "vmwgfx_binding.h"
 #include <ttm/ttm_placement.h>
 #include "device_include/svga3d_surfacedefs.h"
+
 
 /**
  * struct vmw_user_surface - User-space visible surface resource
@@ -593,6 +596,7 @@ static int vmw_surface_init(struct vmw_private *dev_priv,
 	 * surface validate.
 	 */
 
+	INIT_LIST_HEAD(&srf->view_list);
 	vmw_resource_activate(res, vmw_hw_surface_destroy);
 	return ret;
 }
@@ -723,6 +727,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	desc = svga3dsurface_get_desc(req->format);
 	if (unlikely(desc->block_desc == SVGA3DBLOCKDESC_NONE)) {
 		DRM_ERROR("Invalid surface format for surface creation.\n");
+		DRM_ERROR("Format requested is: %d\n", req->format);
 		return -EINVAL;
 	}
 
@@ -1018,12 +1023,16 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_surface *srf = vmw_res_to_srf(res);
-	uint32_t cmd_len, submit_len;
+	uint32_t cmd_len, cmd_id, submit_len;
 	int ret;
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDefineGBSurface body;
 	} *cmd;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDefineGBSurface_v2 body;
+	} *cmd2;
 
 	if (likely(res->id != -1))
 		return 0;
@@ -1040,9 +1049,19 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	cmd_len = sizeof(cmd->body);
-	submit_len = sizeof(*cmd);
+	if (srf->array_size > 0) {
+		/* has_dx checked on creation time. */
+		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V2;
+		cmd_len = sizeof(cmd2->body);
+		submit_len = sizeof(*cmd2);
+	} else {
+		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE;
+		cmd_len = sizeof(cmd->body);
+		submit_len = sizeof(*cmd);
+	}
+
 	cmd = vmw_fifo_reserve(dev_priv, submit_len);
+	cmd2 = (typeof(cmd2))cmd;
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
 			  "creation.\n");
@@ -1050,17 +1069,33 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_SURFACE;
-	cmd->header.size = cmd_len;
-	cmd->body.sid = srf->res.id;
-	cmd->body.surfaceFlags = srf->flags;
-	cmd->body.format = srf->format;
-	cmd->body.numMipLevels = srf->mip_levels[0];
-	cmd->body.multisampleCount = srf->multisample_count;
-	cmd->body.autogenFilter = srf->autogen_filter;
-	cmd->body.size.width = srf->base_size.width;
-	cmd->body.size.height = srf->base_size.height;
-	cmd->body.size.depth = srf->base_size.depth;
+	if (srf->array_size > 0) {
+		cmd2->header.id = cmd_id;
+		cmd2->header.size = cmd_len;
+		cmd2->body.sid = srf->res.id;
+		cmd2->body.surfaceFlags = srf->flags;
+		cmd2->body.format = cpu_to_le32(srf->format);
+		cmd2->body.numMipLevels = srf->mip_levels[0];
+		cmd2->body.multisampleCount = srf->multisample_count;
+		cmd2->body.autogenFilter = srf->autogen_filter;
+		cmd2->body.size.width = srf->base_size.width;
+		cmd2->body.size.height = srf->base_size.height;
+		cmd2->body.size.depth = srf->base_size.depth;
+		cmd2->body.arraySize = srf->array_size;
+	} else {
+		cmd->header.id = cmd_id;
+		cmd->header.size = cmd_len;
+		cmd->body.sid = srf->res.id;
+		cmd->body.surfaceFlags = srf->flags;
+		cmd->body.format = cpu_to_le32(srf->format);
+		cmd->body.numMipLevels = srf->mip_levels[0];
+		cmd->body.multisampleCount = srf->multisample_count;
+		cmd->body.autogenFilter = srf->autogen_filter;
+		cmd->body.size.width = srf->base_size.width;
+		cmd->body.size.height = srf->base_size.height;
+		cmd->body.size.depth = srf->base_size.depth;
+	}
+
 	vmw_fifo_commit(dev_priv, submit_len);
 
 	return 0;
@@ -1188,6 +1223,7 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 static int vmw_gb_surface_destroy(struct vmw_resource *res)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
+	struct vmw_surface *srf = vmw_res_to_srf(res);
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDestroyGBSurface body;
@@ -1197,7 +1233,8 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 		return 0;
 
 	mutex_lock(&dev_priv->binding_mutex);
-	vmw_context_binding_res_list_scrub(&res->binding_head);
+	vmw_view_surface_list_destroy(dev_priv, &srf->view_list);
+	vmw_binding_res_list_scrub(&res->binding_head);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
@@ -1259,6 +1296,7 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 			req->drm_surface_flags & drm_vmw_surface_flag_scanout,
 			req->mip_levels,
 			req->multisample_count,
+			req->array_size,
 			req->base_size,
 			&srf);
 	if (unlikely(ret != 0))
@@ -1275,10 +1313,17 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	res = &user_srf->srf.res;
 
 
-	if (req->buffer_handle != SVGA3D_INVALID_ID)
+	if (req->buffer_handle != SVGA3D_INVALID_ID) {
 		ret = vmw_user_dmabuf_lookup(tfile, req->buffer_handle,
 					     &res->backup);
-	else if (req->drm_surface_flags & drm_vmw_surface_flag_create_buffer)
+		if (ret == 0 && res->backup->base.num_pages * PAGE_SIZE <
+		    res->backup_size) {
+			DRM_ERROR("Surface backup buffer is too small.\n");
+			vmw_dmabuf_unreference(&res->backup);
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+	} else if (req->drm_surface_flags & drm_vmw_surface_flag_create_buffer)
 		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
 					    res->backup_size,
 					    req->drm_surface_flags &
@@ -1378,6 +1423,7 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 	rep->creq.drm_surface_flags = 0;
 	rep->creq.multisample_count = srf->multisample_count;
 	rep->creq.autogen_filter = srf->autogen_filter;
+	rep->creq.array_size = srf->array_size;
 	rep->creq.buffer_handle = backup_handle;
 	rep->creq.base_size = srf->base_size;
 	rep->crep.handle = user_srf->prime.base.hash.key;
@@ -1404,6 +1450,7 @@ out_bad_resource:
  * @for_scanout: true if inteded to be used for scanout buffer
  * @num_mip_levels:  number of MIP levels
  * @multisample_count:
+ * @array_size: Surface array size.
  * @size: width, heigh, depth of the surface requested
  * @user_srf_out: allocated user_srf.  Set to NULL on failure.
  *
@@ -1419,6 +1466,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       bool for_scanout,
 			       uint32_t num_mip_levels,
 			       uint32_t multisample_count,
+			       uint32_t array_size,
 			       struct drm_vmw_size size,
 			       struct vmw_surface **srf_out)
 {
@@ -1426,7 +1474,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	struct vmw_user_surface *user_srf;
 	struct vmw_surface *srf;
 	int ret;
-
+	u32 num_layers;
 
 	*srf_out = NULL;
 
@@ -1443,6 +1491,12 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 			DRM_ERROR("Invalid surface format.\n");
 			return -EINVAL;
 		}
+	}
+
+	/* array_size must be null for non-GL3 host. */
+	if (array_size > 0 && !dev_priv->has_dx) {
+		DRM_ERROR("Tried to create DX surface on non-DX host.\n");
+		return -EINVAL;
 	}
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
@@ -1481,10 +1535,21 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	srf->autogen_filter    = SVGA3D_TEX_FILTER_NONE;
 	srf->multisample_count = multisample_count;
 
-	srf->res.backup_size   = svga3dsurface_get_serialized_size(srf->format,
-					srf->base_size,
-					srf->mip_levels[0],
-					srf->flags & SVGA3D_SURFACE_CUBEMAP);
+	if (array_size)
+		num_layers = array_size;
+	else if (svga3d_flags & SVGA3D_SURFACE_CUBEMAP)
+		num_layers = SVGA3D_MAX_SURFACE_FACES;
+	else
+		num_layers = 1;
+
+	srf->res.backup_size   =
+		svga3dsurface_get_serialized_size(srf->format,
+						  srf->base_size,
+						  srf->mip_levels[0],
+						  num_layers);
+
+	if (srf->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
+		srf->res.backup_size += sizeof(SVGA3dDXSOState);
 
 	if (dev_priv->active_display_unit == vmw_du_screen_target &&
 	    for_scanout)
