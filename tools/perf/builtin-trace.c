@@ -1014,7 +1014,8 @@ static struct syscall_fmt {
 	{ .name	    = "fchmod",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "fchmodat",   .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "fchown",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "fchownat",   .errmsg = true,
@@ -1045,7 +1046,8 @@ static struct syscall_fmt {
 	{ .name	    = "futex",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_FUTEX_OP, /* op */ }, },
 	{ .name	    = "futimesat", .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "getdents",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "getdents64", .errmsg = true,
@@ -1078,13 +1080,18 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
 	{ .name	    = "listxattr",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "llistxattr", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
+	{ .name	    = "lremovexattr",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "lseek",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
 			     [2] = SCA_STRARRAY, /* whence */ },
 	  .arg_parm	 = { [2] = &strarray__whences, /* whence */ }, },
 	{ .name	    = "lsetxattr",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
-	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
+	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat",
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "lsxattr",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name     = "madvise",    .errmsg = true,
@@ -1098,7 +1105,8 @@ static struct syscall_fmt {
 	{ .name	    = "mknod",      .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "mknodat",    .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
+	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */
+			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "mlock",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "mlockall",   .errmsg = true,
@@ -1111,6 +1119,8 @@ static struct syscall_fmt {
 	{ .name	    = "mprotect",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* start */
 			     [2] = SCA_MMAP_PROT, /* prot */ }, },
+	{ .name	    = "mq_unlink", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* u_name */ }, },
 	{ .name	    = "mremap",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */
 			     [3] = SCA_MREMAP_FLAGS, /* flags */
@@ -1201,7 +1211,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* family */
 			     [1] = SCA_SK_TYPE, /* type */ },
 	  .arg_parm	 = { [0] = &strarray__socket_families, /* family */ }, },
-	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat", },
+	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat",
+	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "statfs",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "swapoff",    .errmsg = true,
@@ -1227,6 +1238,8 @@ static struct syscall_fmt {
 			     [1] = SCA_FILENAME, /* filename */ }, },
 	{ .name	    = "utimes",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* filename */ }, },
+	{ .name	    = "vmsplice",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "write",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "writev",	    .errmsg = true,
