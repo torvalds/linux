@@ -1000,6 +1000,12 @@ static inline int reg_probe_width(vpu_reg *reg)
 	return width_in_mb * 16;
 }
 
+static inline int reg_probe_hevc_y_stride(vpu_reg *reg)
+{
+	int y_virstride = reg->reg[8];
+	return y_virstride;
+}
+
 #if defined(CONFIG_VCODEC_MMU)
 static int vcodec_fd_to_iova(struct vpu_subdev_data *data, vpu_reg *reg,int fd)
 {
@@ -1291,6 +1297,10 @@ static vpu_reg *reg_init(struct vpu_subdev_data *data,
 						reg->freq = VPU_FREQ_400M;
 					}
 				}
+			}
+			if (data->hw_info->hw_id == HEVC_ID) {
+				if (reg_probe_hevc_y_stride(reg) > 60000)
+					reg->freq = VPU_FREQ_400M;
 			}
 			if (reg->type == VPU_PP) {
 				reg->freq = VPU_FREQ_400M;
