@@ -17,16 +17,6 @@ void WILC_memcpy_INTERNAL(void *pvTarget, const void *pvSource, u32 u32Count)
 }
 
 
-/*!
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-char *WILC_strncpy(char *pcTarget, const char *pcSource,
-			u32 u32Count)
-{
-	return strncpy(pcTarget, pcSource, u32Count);
-}
 
 s32 WILC_strncmp(const char *pcStr1, const char *pcStr2,
 			 u32 u32Count)

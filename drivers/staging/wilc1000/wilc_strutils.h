@@ -59,20 +59,6 @@ static WILC_ErrNo WILC_memcpy(void *pvTarget, const void *pvSource, u32 u32Count
 }
 
 
-/*!
- *  @brief	copies the contents of source string into the target string
- *  @param[in]	pcTarget the target string buffer
- *  @param[in]	pcSource the source string the will be copied
- *  @param[in]	u32Count copying will proceed until a null character in pcSource
- *              is encountered or u32Count of bytes copied
- *  @return	value of pcTarget
- *  @note	this function repeats the functionality of standard strncpy
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-char *WILC_strncpy(char *pcTarget, const char *pcSource,
-			u32 u32Count);
 
 /*!
  *  @brief	Compares two strings up to u32Count characters
