@@ -18,6 +18,155 @@
 static DEFINE_PER_CPU(struct xen_pmu_data *, xenpmu_shared);
 #define get_xenpmu_data()    per_cpu(xenpmu_shared, smp_processor_id())
 
+
+/* AMD PMU */
+#define F15H_NUM_COUNTERS   6
+#define F10H_NUM_COUNTERS   4
+
+static __read_mostly uint32_t amd_counters_base;
+static __read_mostly uint32_t amd_ctrls_base;
+static __read_mostly int amd_msr_step;
+static __read_mostly int k7_counters_mirrored;
+static __read_mostly int amd_num_counters;
+
+/* Intel PMU */
+#define MSR_TYPE_COUNTER            0
+#define MSR_TYPE_CTRL               1
+#define MSR_TYPE_GLOBAL             2
+#define MSR_TYPE_ARCH_COUNTER       3
+#define MSR_TYPE_ARCH_CTRL          4
+
+/* Number of general pmu registers (CPUID.EAX[0xa].EAX[8..15]) */
+#define PMU_GENERAL_NR_SHIFT        8
+#define PMU_GENERAL_NR_BITS         8
+#define PMU_GENERAL_NR_MASK         (((1 << PMU_GENERAL_NR_BITS) - 1) \
+				     << PMU_GENERAL_NR_SHIFT)
+
+/* Number of fixed pmu registers (CPUID.EDX[0xa].EDX[0..4]) */
+#define PMU_FIXED_NR_SHIFT          0
+#define PMU_FIXED_NR_BITS           5
+#define PMU_FIXED_NR_MASK           (((1 << PMU_FIXED_NR_BITS) - 1) \
+				     << PMU_FIXED_NR_SHIFT)
+
+/* Alias registers (0x4c1) for full-width writes to PMCs */
+#define MSR_PMC_ALIAS_MASK          (~(MSR_IA32_PERFCTR0 ^ MSR_IA32_PMC0))
+
+static __read_mostly int intel_num_arch_counters, intel_num_fixed_counters;
+
+
+static void xen_pmu_arch_init(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+
+		switch (boot_cpu_data.x86) {
+		case 0x15:
+			amd_num_counters = F15H_NUM_COUNTERS;
+			amd_counters_base = MSR_F15H_PERF_CTR;
+			amd_ctrls_base = MSR_F15H_PERF_CTL;
+			amd_msr_step = 2;
+			k7_counters_mirrored = 1;
+			break;
+		case 0x10:
+		case 0x12:
+		case 0x14:
+		case 0x16:
+		default:
+			amd_num_counters = F10H_NUM_COUNTERS;
+			amd_counters_base = MSR_K7_PERFCTR0;
+			amd_ctrls_base = MSR_K7_EVNTSEL0;
+			amd_msr_step = 1;
+			k7_counters_mirrored = 0;
+			break;
+		}
+	} else {
+		uint32_t eax, ebx, ecx, edx;
+
+		cpuid(0xa, &eax, &ebx, &ecx, &edx);
+
+		intel_num_arch_counters = (eax & PMU_GENERAL_NR_MASK) >>
+			PMU_GENERAL_NR_SHIFT;
+		intel_num_fixed_counters = (edx & PMU_FIXED_NR_MASK) >>
+			PMU_FIXED_NR_SHIFT;
+	}
+}
+
+static inline uint32_t get_fam15h_addr(u32 addr)
+{
+	switch (addr) {
+	case MSR_K7_PERFCTR0:
+	case MSR_K7_PERFCTR1:
+	case MSR_K7_PERFCTR2:
+	case MSR_K7_PERFCTR3:
+		return MSR_F15H_PERF_CTR + (addr - MSR_K7_PERFCTR0);
+	case MSR_K7_EVNTSEL0:
+	case MSR_K7_EVNTSEL1:
+	case MSR_K7_EVNTSEL2:
+	case MSR_K7_EVNTSEL3:
+		return MSR_F15H_PERF_CTL + (addr - MSR_K7_EVNTSEL0);
+	default:
+		break;
+	}
+
+	return addr;
+}
+
+static inline bool is_amd_pmu_msr(unsigned int msr)
+{
+	if ((msr >= MSR_F15H_PERF_CTL &&
+	     msr < MSR_F15H_PERF_CTR + (amd_num_counters * 2)) ||
+	    (msr >= MSR_K7_EVNTSEL0 &&
+	     msr < MSR_K7_PERFCTR0 + amd_num_counters))
+		return true;
+
+	return false;
+}
+
+static int is_intel_pmu_msr(u32 msr_index, int *type, int *index)
+{
+	u32 msr_index_pmc;
+
+	switch (msr_index) {
+	case MSR_CORE_PERF_FIXED_CTR_CTRL:
+	case MSR_IA32_DS_AREA:
+	case MSR_IA32_PEBS_ENABLE:
+		*type = MSR_TYPE_CTRL;
+		return true;
+
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+	case MSR_CORE_PERF_GLOBAL_STATUS:
+	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+		*type = MSR_TYPE_GLOBAL;
+		return true;
+
+	default:
+
+		if ((msr_index >= MSR_CORE_PERF_FIXED_CTR0) &&
+		    (msr_index < MSR_CORE_PERF_FIXED_CTR0 +
+				 intel_num_fixed_counters)) {
+			*index = msr_index - MSR_CORE_PERF_FIXED_CTR0;
+			*type = MSR_TYPE_COUNTER;
+			return true;
+		}
+
+		if ((msr_index >= MSR_P6_EVNTSEL0) &&
+		    (msr_index < MSR_P6_EVNTSEL0 +  intel_num_arch_counters)) {
+			*index = msr_index - MSR_P6_EVNTSEL0;
+			*type = MSR_TYPE_ARCH_CTRL;
+			return true;
+		}
+
+		msr_index_pmc = msr_index & MSR_PMC_ALIAS_MASK;
+		if ((msr_index_pmc >= MSR_IA32_PERFCTR0) &&
+		    (msr_index_pmc < MSR_IA32_PERFCTR0 +
+				     intel_num_arch_counters)) {
+			*type = MSR_TYPE_ARCH_COUNTER;
+			*index = msr_index_pmc - MSR_IA32_PERFCTR0;
+			return true;
+		}
+		return false;
+	}
+}
+
 /* perf callbacks */
 static int xen_is_in_guest(void)
 {
@@ -141,8 +290,10 @@ void xen_pmu_init(int cpu)
 
 	per_cpu(xenpmu_shared, cpu) = xenpmu_data;
 
-	if (cpu == 0)
+	if (cpu == 0) {
 		perf_register_guest_info_callbacks(&xen_guest_cbs);
+		xen_pmu_arch_init();
+	}
 
 	return;
 
