@@ -226,7 +226,7 @@ static void adf_cleanup_bh(struct adf_accel_dev *accel_dev)
 	tasklet_kill(&priv_data->banks[0].resp_handler);
 }
 
-void adf_isr_resource_free(struct adf_accel_dev *accel_dev)
+void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
@@ -237,7 +237,7 @@ void adf_isr_resource_free(struct adf_accel_dev *accel_dev)
 	adf_disable_msi(accel_dev);
 }
 
-int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
+int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 {
 	if (adf_enable_msi(accel_dev))
 		goto err_out;
@@ -253,6 +253,6 @@ int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 
 	return 0;
 err_out:
-	adf_isr_resource_free(accel_dev);
+	adf_vf_isr_resource_free(accel_dev);
 	return -EFAULT;
 }

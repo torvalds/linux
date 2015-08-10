@@ -143,8 +143,8 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 	hw_data->num_engines = ADF_DH895XCCIOV_MAX_ACCELENGINES;
 	hw_data->tx_rx_gap = ADF_DH895XCCIOV_RX_RINGS_OFFSET;
 	hw_data->tx_rings_mask = ADF_DH895XCCIOV_TX_RINGS_MASK;
-	hw_data->alloc_irq = adf_isr_resource_alloc;
-	hw_data->free_irq = adf_isr_resource_free;
+	hw_data->alloc_irq = adf_vf_isr_resource_alloc;
+	hw_data->free_irq = adf_vf_isr_resource_free;
 	hw_data->enable_error_correction = adf_vf_void_noop;
 	hw_data->init_admin_comms = adf_vf_int_noop;
 	hw_data->exit_admin_comms = adf_vf_void_noop;

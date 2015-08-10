@@ -51,7 +51,7 @@
 
 void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data);
-int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
-void adf_isr_resource_free(struct adf_accel_dev *accel_dev);
+int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
+void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
 void adf_update_ring_arb_enable(struct adf_etr_ring_data *ring);
 #endif
