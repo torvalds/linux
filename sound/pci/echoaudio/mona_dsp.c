@@ -52,7 +52,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	chip->device_id = device_id;
 	chip->subdevice_id = subdevice_id;
-	chip->bad_board = TRUE;
+	chip->bad_board = true;
 	chip->input_clock_types =
 		ECHO_CLOCK_BIT_INTERNAL | ECHO_CLOCK_BIT_SPDIF |
 		ECHO_CLOCK_BIT_WORD | ECHO_CLOCK_BIT_ADAT;
@@ -69,7 +69,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	if ((err = load_firmware(chip)) < 0)
 		return err;
-	chip->bad_board = FALSE;
+	chip->bad_board = false;
 
 	return err;
 }
@@ -79,8 +79,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 static int set_mixer_defaults(struct echoaudio *chip)
 {
 	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
-	chip->professional_spdif = FALSE;
-	chip->digital_in_automute = TRUE;
+	chip->professional_spdif = false;
+	chip->digital_in_automute = true;
 	return init_line_levels(chip);
 }
 
@@ -148,7 +148,7 @@ static int load_asic(struct echoaudio *chip)
 	   48 kHz, internal clock, S/PDIF RCA mode */
 	if (!err) {
 		control_reg = GML_CONVERTER_ENABLE | GML_48KHZ;
-		err = write_control_reg(chip, control_reg, TRUE);
+		err = write_control_reg(chip, control_reg, true);
 	}
 
 	return err;
@@ -356,7 +356,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 	}
 
 	chip->input_clock = clock;
-	return write_control_reg(chip, control_reg, TRUE);
+	return write_control_reg(chip, control_reg, true);
 }
 
 
@@ -367,16 +367,16 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	int err, incompatible_clock;
 
 	/* Set clock to "internal" if it's not compatible with the new mode */
-	incompatible_clock = FALSE;
+	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
 	case DIGITAL_MODE_SPDIF_RCA:
 		if (chip->input_clock == ECHO_CLOCK_ADAT)
-			incompatible_clock = TRUE;
+			incompatible_clock = true;
 		break;
 	case DIGITAL_MODE_ADAT:
 		if (chip->input_clock == ECHO_CLOCK_SPDIF)
-			incompatible_clock = TRUE;
+			incompatible_clock = true;
 		break;
 	default:
 		dev_err(chip->card->dev,
@@ -415,7 +415,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		break;
 	}
 
-	err = write_control_reg(chip, control_reg, FALSE);
+	err = write_control_reg(chip, control_reg, false);
 	spin_unlock_irq(&chip->lock);
 	if (err < 0)
 		return err;
