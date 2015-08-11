@@ -26,6 +26,8 @@
 #include "ascot2e.h"
 #include "dvb_frontend.h"
 
+#define MAX_WRITE_REGSIZE 10
+
 enum ascot2e_state {
 	STATE_UNKNOWN,
 	STATE_SLEEP,
@@ -120,15 +122,21 @@ static int ascot2e_write_regs(struct ascot2e_priv *priv,
 			      u8 reg, const u8 *data, u32 len)
 {
 	int ret;
-	u8 buf[len+1];
+	u8 buf[MAX_WRITE_REGSIZE + 1];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->i2c_address,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = len + 1,
 			.buf = buf,
 		}
 	};
+
+	if (len + 1 >= sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,"wr reg=%04x: len=%d is too big!\n",
+			 reg, len + 1);
+		return -E2BIG;
+	}
 
 	ascot2e_i2c_debug(priv, reg, 1, data, len);
 	buf[0] = reg;
