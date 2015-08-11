@@ -24,7 +24,6 @@
 
 #include "vme_pio2.h"
 
-
 static const char driver_name[] = "pio2";
 
 static int bus[PIO2_CARDS_MAX];
@@ -118,7 +117,6 @@ static void pio2_int(int level, int vector, void *ptr)
 	}
 }
 
-
 /*
  * We return whether this has been successful - this is used in the probe to
  * ensure we have a valid card.
@@ -157,7 +155,6 @@ static struct vme_driver pio2_driver = {
 	.probe = pio2_probe,
 	.remove = pio2_remove,
 };
-
 
 static int __init pio2_init(void)
 {
@@ -480,7 +477,6 @@ static void __exit pio2_exit(void)
 {
 	vme_unregister_driver(&pio2_driver);
 }
-
 
 /* These are required for each board */
 MODULE_PARM_DESC(bus, "Enumeration of VMEbus to which the board is connected");
