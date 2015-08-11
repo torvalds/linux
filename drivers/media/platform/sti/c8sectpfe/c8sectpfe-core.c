@@ -361,7 +361,7 @@ static struct channel_info *find_channel(struct c8sectpfei *fei, int tsin_num)
 {
 	int i;
 
-	for (i = 0; i < C8SECTPFE_MAXCHANNEL; i++) {
+	for (i = 0; i < C8SECTPFE_MAX_TSIN_CHAN; i++) {
 		if (!fei->channel_data[i])
 			continue;
 
