@@ -581,15 +581,11 @@ static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 static inline void check_block_count(struct f2fs_sb_info *sbi,
 		int segno, struct f2fs_sit_entry *raw_sit)
 {
+#ifdef CONFIG_F2FS_CHECK_FS
 	bool is_valid  = test_bit_le(0, raw_sit->valid_map) ? true : false;
 	int valid_blocks = 0;
 	int cur_pos = 0, next_pos;
 
-	/* check segment usage, and check boundary of a given segment number */
-	f2fs_bug_on(sbi, GET_SIT_VBLOCKS(raw_sit) > sbi->blocks_per_seg
-					|| segno > TOTAL_SEGS(sbi) - 1);
-
-#ifdef CONFIG_F2FS_CHECK_FS
 	/* check bitmap with valid block count */
 	do {
 		if (is_valid) {
@@ -606,6 +602,9 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 	} while (cur_pos < sbi->blocks_per_seg);
 	BUG_ON(GET_SIT_VBLOCKS(raw_sit) != valid_blocks);
 #endif
+	/* check segment usage, and check boundary of a given segment number */
+	f2fs_bug_on(sbi, GET_SIT_VBLOCKS(raw_sit) > sbi->blocks_per_seg
+					|| segno > TOTAL_SEGS(sbi) - 1);
 }
 
 static inline pgoff_t current_sit_addr(struct f2fs_sb_info *sbi,
