@@ -615,3 +615,12 @@ config PM_H1940
 endmenu	# SAMSUNG S3C24XX SoCs Support
 
 endif	# ARCH_S3C24XX
+
+comment "Connectivity Feature"
+
+config BT_BCM20710
+	bool "Enable BCM20710 driver"
+	depends on BT
+	default n
+	help
+	  Adds RFKILL driver for Broadcom BCM20710 chipset

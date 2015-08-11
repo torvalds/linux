@@ -443,6 +443,13 @@ static struct platform_device mini2451_1wire = {
 	},
 };
 
+#ifdef CONFIG_BT_BCM20710
+static struct platform_device bcm20710_bt_device = {
+	.name		= "bcm20710_bluetooth",
+	.id			= -1,
+};
+#endif
+
 static struct platform_device *mini2451_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_hsmmc1,
@@ -459,6 +466,7 @@ static struct platform_device *mini2451_devices[] __initdata = {
 	&samsung_device_pwm,
 	&mini2451_led1,
 	&mini2451_1wire,
+	&bcm20710_bt_device,
 };
 
 static void __init mini2451_init_time(void)

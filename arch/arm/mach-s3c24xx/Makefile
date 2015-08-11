@@ -65,6 +65,8 @@ obj-$(CONFIG_MACH_SMDK2413)		+= mach-smdk2413.o
 obj-$(CONFIG_MACH_VSTMS)		+= mach-vstms.o
 
 obj-$(CONFIG_MACH_MINI2451)		+= mach-mini2451.o mini2451-lcds.o
+obj-$(CONFIG_BT_BCM20710)		+= board-bluetooth-bcm20710.o
+
 obj-$(CONFIG_MACH_SMDK2416)		+= mach-smdk2416.o
 obj-$(CONFIG_MACH_S3C2416_DT)		+= mach-s3c2416-dt.o
 
