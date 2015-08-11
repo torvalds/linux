@@ -318,7 +318,7 @@ struct cftype {
 	 * end of cftype array.
 	 */
 	char name[MAX_CFTYPE_NAME];
-	int private;
+	unsigned long private;
 	/*
 	 * If not 0, file mode is set to this value, otherwise it will
 	 * be figured out automatically
