@@ -1260,6 +1260,8 @@ static void srp_map_desc(struct srp_map_state *state, dma_addr_t dma_addr,
 {
 	struct srp_direct_buf *desc = state->desc;
 
+	WARN_ON_ONCE(!dma_len);
+
 	desc->va = cpu_to_be64(dma_addr);
 	desc->key = cpu_to_be32(rkey);
 	desc->len = cpu_to_be32(dma_len);
@@ -1366,29 +1368,17 @@ static int srp_finish_mapping(struct srp_map_state *state,
 
 static int srp_map_sg_entry(struct srp_map_state *state,
 			    struct srp_rdma_ch *ch,
-			    struct scatterlist *sg, int sg_index,
-			    bool use_mr)
+			    struct scatterlist *sg, int sg_index)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
 	struct ib_device *ibdev = dev->dev;
 	dma_addr_t dma_addr = ib_sg_dma_address(ibdev, sg);
 	unsigned int dma_len = ib_sg_dma_len(ibdev, sg);
-	unsigned int len;
+	unsigned int len = 0;
 	int ret;
 
-	if (!dma_len)
-		return 0;
-
-	if (!use_mr) {
-		/*
-		 * Once we're in direct map mode for a request, we don't
-		 * go back to FMR or FR mode, so no need to update anything
-		 * other than the descriptor.
-		 */
-		srp_map_desc(state, dma_addr, dma_len, target->rkey);
-		return 0;
-	}
+	WARN_ON_ONCE(!dma_len);
 
 	while (dma_len) {
 		unsigned offset = dma_addr & ~dev->mr_page_mask;
@@ -1441,16 +1431,20 @@ static int srp_map_sg(struct srp_map_state *state, struct srp_rdma_ch *ch,
 		use_mr = !!ch->fmr_pool;
 	}
 
-	for_each_sg(scat, sg, count, i) {
-		ret = srp_map_sg_entry(state, ch, sg, i, use_mr);
-		if (ret)
-			goto out;
-	}
-
 	if (use_mr) {
+		for_each_sg(scat, sg, count, i) {
+			ret = srp_map_sg_entry(state, ch, sg, i);
+			if (ret)
+				goto out;
+		}
 		ret = srp_finish_mapping(state, ch);
 		if (ret)
 			goto out;
+	} else {
+		for_each_sg(scat, sg, count, i) {
+			srp_map_desc(state, ib_sg_dma_address(dev->dev, sg),
+				     ib_sg_dma_len(dev->dev, sg), target->rkey);
+		}
 	}
 
 	req->nmdesc = state->nmdesc;
