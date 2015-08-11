@@ -47,57 +47,7 @@ typedef struct {
 void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
 		       char *pcFileName, u32 u32LineNo);
 
-/*!
- *  @brief	Allocates a given size of bytes and zero filling it
- *  @param[in]	u32Size size of memory in bytes to be allocated
- *  @param[in]	strAttrs Optional attributes, NULL for default
- *              if not NULL, pAllocationPool should point to the pool to use for
- *              this allocation. if NULL memory will be allocated directly from
- *              the system
- *  @param[in]	pcFileName file name of the calling code for debugging
- *  @param[in]	u32LineNo line number of the calling code for debugging
- *  @return	The new allocated block, NULL if allocation fails
- *  @note	It is recommended to use of of the wrapper macros instead of
- *              calling this function directly
- *  @sa		sttrWILC_MemoryAttrs
- *  @sa		WILC_CALLOC
- *  @sa		WILC_CALLOC_EX
- *  @sa		WILC_NEW_0
- *  @sa		WILC_NEW_0_EX
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-void *WILC_MemoryCalloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
-			char *pcFileName, u32 u32LineNo);
 
-/*!
- *  @brief	Reallocates a given block to a new size
- *  @param[in]	pvOldBlock the old memory block, if NULL then this function
- *              behaves as a new allocation function
- *  @param[in]	u32NewSize size of the new memory block in bytes, if zero then
- *              this function behaves as a free function
- *  @param[in]	strAttrs Optional attributes, NULL for default
- *              if pAllocationPool!=NULL and pvOldBlock==NULL, pAllocationPool
- *              should point to the pool to use for this allocation.
- *              if pAllocationPool==NULL and pvOldBlock==NULL memory will be
- *              allocated directly from	the system
- *              if and pvOldBlock!=NULL, pAllocationPool will not be inspected
- *              and reallocation is done from the same pool as the original block
- *  @param[in]	pcFileName file name of the calling code for debugging
- *  @param[in]	u32LineNo line number of the calling code for debugging
- *  @return	The new allocated block, possibly same as pvOldBlock
- *  @note	It is recommended to use of of the wrapper macros instead of
- *              calling this function directly
- *  @sa		sttrWILC_MemoryAttrs
- *  @sa		WILC_REALLOC
- *  @sa		WILC_REALLOC_EX
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-void *WILC_MemoryRealloc(void *pvOldBlock, u32 u32NewSize,
-			 tstrWILC_MemoryAttrs *strAttrs, char *pcFileName, u32 u32LineNo);
 
 /*!
  *  @brief	Frees given block
