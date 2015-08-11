@@ -24,7 +24,9 @@ config CRYPTO_DEV_QAT_DH895xCC
 
 config CRYPTO_DEV_QAT_DH895xCCVF
 	tristate "Support for Intel(R) DH895xCC Virtual Function"
+	depends on X86 && PCI
 	select PCI_IOV
+	select CRYPTO_DEV_QAT
 
 	help
 	  Support for Intel(R) DH895xcc with Intel(R) QuickAssist Technology
