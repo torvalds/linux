@@ -207,9 +207,12 @@ static void lenovo_features_set_cptkbd(struct hid_device *hdev)
 	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
 
 	ret = lenovo_send_cmd_cptkbd(hdev, 0x05, cptkbd_data->fn_lock);
-	ret = lenovo_send_cmd_cptkbd(hdev, 0x02, cptkbd_data->sensitivity);
 	if (ret)
 		hid_err(hdev, "Fn-lock setting failed: %d\n", ret);
+
+	ret = lenovo_send_cmd_cptkbd(hdev, 0x02, cptkbd_data->sensitivity);
+	if (ret)
+		hid_err(hdev, "Sensitivity setting failed: %d\n", ret);
 }
 
 static ssize_t attr_fn_lock_show_cptkbd(struct device *dev,
