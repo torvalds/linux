@@ -112,20 +112,6 @@ struct wl18xx_acx_error_stats {
 	u32 tbc_exch_mismatch;
 } __packed;
 
-struct wl18xx_acx_debug_stats {
-	u32 debug1;
-	u32 debug2;
-	u32 debug3;
-	u32 debug4;
-	u32 debug5;
-	u32 debug6;
-} __packed;
-
-struct wl18xx_acx_ring_stats {
-	u32 prepared_descs;
-	u32 tx_cmplt;
-} __packed;
-
 #define NUM_OF_RATES_INDEXES 30
 struct wl18xx_acx_tx_stats {
 	u32 tx_prepared_descs;
@@ -215,21 +201,6 @@ struct wl18xx_acx_pwr_stats {
 	u32 ap_sleep_counter;
 } __packed;
 
-struct wl18xx_acx_event_stats {
-	u32 calibration;
-	u32 rx_mismatch;
-	u32 rx_mem_empty;
-} __packed;
-
-struct wl18xx_acx_ps_poll_stats {
-	u32 ps_poll_timeouts;
-	u32 upsd_timeouts;
-	u32 upsd_max_ap_turn;
-	u32 ps_poll_max_ap_turn;
-	u32 ps_poll_utilization;
-	u32 upsd_utilization;
-} __packed;
-
 struct wl18xx_acx_rx_filter_stats {
 	u32 beacon_filter;
 	u32 arp_filter;
@@ -260,8 +231,6 @@ struct wl18xx_acx_aggr_stats {
 struct wl18xx_acx_pipeline_stats {
 	u32 hs_tx_stat_fifo_int;
 	u32 hs_rx_stat_fifo_int;
-	u32 tcp_tx_stat_fifo_int;
-	u32 tcp_rx_stat_fifo_int;
 	u32 enc_tx_stat_fifo_int;
 	u32 enc_rx_stat_fifo_int;
 	u32 rx_complete_stat_fifo_int;
@@ -269,22 +238,19 @@ struct wl18xx_acx_pipeline_stats {
 	u32 post_proc_swi;
 	u32 sec_frag_swi;
 	u32 pre_to_defrag_swi;
-	u32 defrag_to_csum_swi;
-	u32 csum_to_rx_xfer_swi;
+	u32 defrag_to_rx_xfer_swi;
 	u32 dec_packet_in;
 	u32 dec_packet_in_fifo_full;
 	u32 dec_packet_out;
-	u32 cs_rx_packet_in;
-	u32 cs_rx_packet_out;
 	u16 pipeline_fifo_full[PIPE_STATS_HW_FIFO];
 	u16 padding;
 } __packed;
 
-struct wl18xx_acx_mem_stats {
-	u32 rx_free_mem_blks;
-	u32 tx_free_mem_blks;
-	u32 fwlog_free_mem_blks;
-	u32 fw_gen_free_mem_blks;
+#define DIVERSITY_STATS_NUM_OF_ANT	2
+
+struct wl18xx_acx_diversity_stats {
+	u32 num_of_packets_per_ant[DIVERSITY_STATS_NUM_OF_ANT];
+	u32 total_num_of_toggles;
 } __packed;
 
 struct wl18xx_acx_thermal_stats {
@@ -322,6 +288,7 @@ struct wl18xx_acx_statistics {
 	struct wl18xx_acx_rx_rate_stats		rx_rate;
 	struct wl18xx_acx_aggr_stats		aggr_size;
 	struct wl18xx_acx_pipeline_stats	pipeline;
+	struct wl18xx_acx_diversity_stats	diversity;
 	struct wl18xx_acx_thermal_stats		thermal;
 	struct wl18xx_acx_calib_failure_stats	calib;
 	struct wl18xx_roaming_stats		roaming;

@@ -153,8 +153,6 @@ WL18XX_DEBUGFS_FWSTATS_FILE_ARRAY(aggr_size, rx_size,
 				  AGGR_STATS_RX_SIZE_LEN);
 
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, hs_tx_stat_fifo_int, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, tcp_tx_stat_fifo_int, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, tcp_rx_stat_fifo_int, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, enc_tx_stat_fifo_int, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, enc_rx_stat_fifo_int, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, rx_complete_stat_fifo_int, "%u");
@@ -162,16 +160,17 @@ WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, pre_proc_swi, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, post_proc_swi, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, sec_frag_swi, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, pre_to_defrag_swi, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, defrag_to_csum_swi, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, csum_to_rx_xfer_swi, "%u");
+WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, defrag_to_rx_xfer_swi, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, dec_packet_in, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, dec_packet_in_fifo_full, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, dec_packet_out, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, cs_rx_packet_in, "%u");
-WL18XX_DEBUGFS_FWSTATS_FILE(pipeline, cs_rx_packet_out, "%u");
 
 WL18XX_DEBUGFS_FWSTATS_FILE_ARRAY(pipeline, pipeline_fifo_full,
 				  PIPE_STATS_HW_FIFO);
+
+WL18XX_DEBUGFS_FWSTATS_FILE_ARRAY(diversity, num_of_packets_per_ant,
+				  DIVERSITY_STATS_NUM_OF_ANT);
+WL18XX_DEBUGFS_FWSTATS_FILE(diversity, total_num_of_toggles, "%u");
 
 WL18XX_DEBUGFS_FWSTATS_FILE(thermal, irq_thr_low, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(thermal, irq_thr_high, "%u");
@@ -478,8 +477,6 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(aggr_size, rx_size);
 
 	DEBUGFS_FWSTATS_ADD(pipeline, hs_tx_stat_fifo_int);
-	DEBUGFS_FWSTATS_ADD(pipeline, tcp_tx_stat_fifo_int);
-	DEBUGFS_FWSTATS_ADD(pipeline, tcp_rx_stat_fifo_int);
 	DEBUGFS_FWSTATS_ADD(pipeline, enc_tx_stat_fifo_int);
 	DEBUGFS_FWSTATS_ADD(pipeline, enc_rx_stat_fifo_int);
 	DEBUGFS_FWSTATS_ADD(pipeline, rx_complete_stat_fifo_int);
@@ -487,14 +484,14 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(pipeline, post_proc_swi);
 	DEBUGFS_FWSTATS_ADD(pipeline, sec_frag_swi);
 	DEBUGFS_FWSTATS_ADD(pipeline, pre_to_defrag_swi);
-	DEBUGFS_FWSTATS_ADD(pipeline, defrag_to_csum_swi);
-	DEBUGFS_FWSTATS_ADD(pipeline, csum_to_rx_xfer_swi);
+	DEBUGFS_FWSTATS_ADD(pipeline, defrag_to_rx_xfer_swi);
 	DEBUGFS_FWSTATS_ADD(pipeline, dec_packet_in);
 	DEBUGFS_FWSTATS_ADD(pipeline, dec_packet_in_fifo_full);
 	DEBUGFS_FWSTATS_ADD(pipeline, dec_packet_out);
-	DEBUGFS_FWSTATS_ADD(pipeline, cs_rx_packet_in);
-	DEBUGFS_FWSTATS_ADD(pipeline, cs_rx_packet_out);
 	DEBUGFS_FWSTATS_ADD(pipeline, pipeline_fifo_full);
+
+	DEBUGFS_FWSTATS_ADD(diversity, num_of_packets_per_ant);
+	DEBUGFS_FWSTATS_ADD(diversity, total_num_of_toggles);
 
 	DEBUGFS_FWSTATS_ADD(thermal, irq_thr_low);
 	DEBUGFS_FWSTATS_ADD(thermal, irq_thr_high);
