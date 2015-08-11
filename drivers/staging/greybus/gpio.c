@@ -366,7 +366,8 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 	request = op->request;
 
 	if (request->payload_size < sizeof(*event)) {
-		dev_err(ggc->chip.dev, "short event received\n");
+		dev_err(ggc->chip.dev, "short event received (%zu < %zu)\n",
+			request->payload_size, sizeof(*event));
 		return -EINVAL;
 	}
 

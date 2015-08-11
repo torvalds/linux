@@ -23,11 +23,10 @@
 #include "greybus.h"
 
 struct gb_loopback_stats {
-	u64 min;
-	u64 max;
-	u64 avg;
+	u32 min;
+	u32 max;
 	u64 sum;
-	u64 count;
+	u32 count;
 };
 
 struct gb_loopback {
@@ -78,15 +77,14 @@ module_param(kfifo_depth, uint, 0444);
 define_get_version(gb_loopback, LOOPBACK);
 
 /* interface sysfs attributes */
-#define gb_loopback_ro_attr(field, type)				\
+#define gb_loopback_ro_attr(field)					\
 static ssize_t field##_show(struct device *dev,				\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
-	return sprintf(buf, "%"#type"\n", gb->field);			\
+	struct gb_loopback *gb = connection->private;			\
+	return sprintf(buf, "%u\n", gb->field);				\
 }									\
 static DEVICE_ATTR_RO(field)
 
@@ -96,16 +94,30 @@ static ssize_t name##_##field##_show(struct device *dev,		\
 			    char *buf)					\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
+	struct gb_loopback *gb = connection->private;			\
 	return sprintf(buf, "%"#type"\n", gb->name.field);		\
 }									\
 static DEVICE_ATTR_RO(name##_##field)
 
+#define gb_loopback_ro_avg_attr(name)					\
+static ssize_t name##_avg_show(struct device *dev,			\
+			    struct device_attribute *attr,		\
+			    char *buf)					\
+{									\
+	struct gb_connection *connection = to_gb_connection(dev);	\
+	struct gb_loopback *gb = connection->private;			\
+	struct gb_loopback_stats *stats = &gb->name;			\
+	u32 count = stats->count ? stats->count : 1;			\
+	u64 avg = stats->sum + count / 2;	/* round closest */	\
+	u32 rem = do_div(avg, count);					\
+	return sprintf(buf, "%llu.%06u\n", avg, 1000000 * rem / count);	\
+}									\
+static DEVICE_ATTR_RO(name##_avg)
+
 #define gb_loopback_stats_attrs(field)					\
-	gb_loopback_ro_stats_attr(field, min, llu);			\
-	gb_loopback_ro_stats_attr(field, max, llu);			\
-	gb_loopback_ro_stats_attr(field, avg, llu);
+	gb_loopback_ro_stats_attr(field, min, u);			\
+	gb_loopback_ro_stats_attr(field, max, u);			\
+	gb_loopback_ro_avg_attr(field);
 
 #define gb_loopback_attr(field, type)					\
 static ssize_t field##_show(struct device *dev,				\
@@ -113,8 +125,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
+	struct gb_loopback *gb = connection->private;			\
 	return sprintf(buf, "%"#type"\n", gb->field);			\
 }									\
 static ssize_t field##_store(struct device *dev,			\
@@ -124,8 +135,7 @@ static ssize_t field##_store(struct device *dev,			\
 {									\
 	int ret;							\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb =					\
-		(struct gb_loopback *)connection->private;		\
+	struct gb_loopback *gb = connection->private;			\
 	mutex_lock(&gb->mutex);						\
 	ret = sscanf(buf, "%"#type, &gb->field);			\
 	if (ret != 1)							\
@@ -175,15 +185,15 @@ gb_loopback_stats_attrs(requests_per_second);
 /* Quantity of data sent and received on this cport */
 gb_loopback_stats_attrs(throughput);
 /* Number of errors encountered during loop */
-gb_loopback_ro_attr(error, d);
+gb_loopback_ro_attr(error);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
-gb_loopback_ro_attr(iteration_count, u);
+gb_loopback_ro_attr(iteration_count);
 
 /*
  * Type of loopback message to send based on protocol type definitions
  * 0 => Don't send message
  * 2 => Send ping message continuously (message without payload)
- * 3 => Send transer message continuously (message with payload,
+ * 3 => Send transfer message continuously (message with payload,
  *					   payload returned in response)
  * 4 => Send a sink message (message with payload, no payload in response)
  */
@@ -344,7 +354,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 static void gb_loopback_reset_stats(struct gb_loopback *gb)
 {
 	struct gb_loopback_stats reset = {
-		.min = 0xffffffff,
+		.min = U32_MAX,
 	};
 	memcpy(&gb->latency, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb->throughput, &reset, sizeof(struct gb_loopback_stats));
@@ -352,7 +362,7 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	       sizeof(struct gb_loopback_stats));
 }
 
-static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u64 val)
+static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
 {
 	if (stats->min > val)
 		stats->min = val;
@@ -360,8 +370,6 @@ static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u64 val)
 		stats->max = val;
 	stats->sum += val;
 	stats->count++;
-	stats->avg = stats->sum;
-	do_div(stats->avg, stats->count);
 }
 
 static void gb_loopback_requests_update(struct gb_loopback *gb, u32 latency)
@@ -410,7 +418,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	do_div(tmp, NSEC_PER_USEC);
 	lat = tmp;
 
-	/* Log latency stastic */
+	/* Log latency statistic */
 	gb_loopback_update_stats(&gb->latency, lat);
 	kfifo_in(&gb->kfifo, (unsigned char *)&lat, sizeof(lat));
 
@@ -423,7 +431,7 @@ static int gb_loopback_fn(void *data)
 {
 	int error = 0;
 	int ms_wait;
-	struct gb_loopback *gb = (struct gb_loopback *)data;
+	struct gb_loopback *gb = data;
 
 	while (1) {
 		if (!gb->type)
@@ -482,19 +490,19 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
 	if (minor < 0) {
 		retval = minor;
-		goto out_free;
+		goto out_sysfs;
 	}
 
 	/* Check the version */
 	retval = get_version(gb);
 	if (retval)
-		goto out_get_ver;
+		goto out_minor;
 
 	/* Calculate maximum payload */
 	gb->size_max = gb_operation_get_payload_size_max(connection);
 	if (gb->size_max <= sizeof(struct gb_loopback_transfer_request)) {
 		retval = -EINVAL;
-		goto out_get_ver;
+		goto out_minor;
 	}
 	gb->size_max -= sizeof(struct gb_loopback_transfer_request);
 
@@ -502,7 +510,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	if (kfifo_alloc(&gb->kfifo, kfifo_depth * sizeof(u32),
 			  GFP_KERNEL)) {
 		retval = -ENOMEM;
-		goto out_get_ver;
+		goto out_minor;
 	}
 
 	/* Create device entry */
@@ -510,13 +518,13 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	cdev_init(&gb->cdev, &loopback_fops);
 	retval = cdev_add(&gb->cdev, gb->dev, 1);
 	if (retval)
-		goto out_cdev;
+		goto out_kfifo;
 
 	gb->device = device_create(loopback_class, &connection->dev, gb->dev,
 				   gb, "gb!loopback%d", minor);
 	if (IS_ERR(gb->device)) {
 		retval = PTR_ERR(gb->device);
-		goto out_device;
+		goto out_cdev;
 	}
 
 	/* Fork worker thread */
@@ -525,21 +533,25 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
-		goto out_kfifo;
+		goto out_device;
 	}
 
 	return 0;
 
 out_device:
-	cdev_del(&gb->cdev);
+	device_del(gb->device);
 out_cdev:
-	ida_simple_remove(&minors, minor);
+	cdev_del(&gb->cdev);
 out_kfifo:
 	kfifo_free(&gb->kfifo);
-out_get_ver:
+out_minor:
+	ida_simple_remove(&minors, minor);
+out_sysfs:
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 out_free:
+	connection->private = NULL;
 	kfree(gb);
+
 	return retval;
 }
 
@@ -547,13 +559,14 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 {
 	struct gb_loopback *gb = connection->private;
 
+	connection->private = NULL;
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
 
-	cdev_del(&gb->cdev);
-	ida_simple_remove(&minors, MINOR(gb->dev));
 	device_del(gb->device);
+	cdev_del(&gb->cdev);
 	kfifo_free(&gb->kfifo);
+	ida_simple_remove(&minors, MINOR(gb->dev));
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 	kfree(gb);
 }
@@ -584,7 +597,7 @@ static ssize_t loopback_read(struct file *file, char __user *buf, size_t count,
 	size_t fifo_len;
 	int retval;
 
-	if (!count || count%sizeof(u32))
+	if (!count || count % sizeof(u32))
 		return -EINVAL;
 
 	mutex_lock(&gb->mutex);
