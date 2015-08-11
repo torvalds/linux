@@ -293,4 +293,13 @@ config VIDEO_VIM2M
 	  framework.
 endif #V4L_TEST_DRIVERS
 
+menuconfig DVB_PLATFORM_DRIVERS
+	bool "DVB platform devices"
+	depends on MEDIA_DIGITAL_TV_SUPPORT
+	default n
+	---help---
+	  Say Y here to enable support for platform-specific Digital TV drivers.
+
+if DVB_PLATFORM_DRIVERS
 source "drivers/media/platform/sti/c8sectpfe/Kconfig"
+endif #DVB_PLATFORM_DRIVERS
