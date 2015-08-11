@@ -67,19 +67,11 @@ static int gemini_timer_set_next_event(unsigned long cycles,
 {
 	u32 cr;
 
-	cr = readl(TIMER_CR);
-
-	/* This may be overdoing it, feel free to test without this */
-	cr &= ~TIMER_2_CR_ENABLE;
-	cr &= ~TIMER_2_CR_INT;
-	writel(cr, TIMER_CR);
-
-	/* Set next event */
-	writel(cycles, TIMER_COUNT(TIMER2_BASE));
-	writel(cycles, TIMER_LOAD(TIMER2_BASE));
-	cr |= TIMER_2_CR_ENABLE;
-	cr |= TIMER_2_CR_INT;
-	writel(cr, TIMER_CR);
+	/* Setup the match register */
+	cr = readl(TIMER_COUNT(TIMER1_BASE));
+	writel(cr + cycles, TIMER_MATCH1(TIMER1_BASE));
+	if (readl(TIMER_COUNT(TIMER1_BASE)) - cr > cycles)
+		return -ETIME;
 
 	return 0;
 }
@@ -92,10 +84,26 @@ static int gemini_timer_shutdown(struct clock_event_device *evt)
 	 * Disable also for oneshot: the set_next() call will arm the timer
 	 * instead.
 	 */
+	/* Stop timer and interrupt. */
 	cr = readl(TIMER_CR);
-	cr &= ~TIMER_2_CR_ENABLE;
-	cr &= ~TIMER_2_CR_INT;
+	cr &= ~(TIMER_1_CR_ENABLE | TIMER_1_CR_INT);
 	writel(cr, TIMER_CR);
+
+	/* Setup counter start from 0 */
+	writel(0, TIMER_COUNT(TIMER1_BASE));
+	writel(0, TIMER_LOAD(TIMER1_BASE));
+
+	/* enable interrupt */
+	cr = readl(TIMER_INTR_MASK);
+	cr &= ~(TIMER_1_INT_OVERFLOW | TIMER_1_INT_MATCH2);
+	cr |= TIMER_1_INT_MATCH1;
+	writel(cr, TIMER_INTR_MASK);
+
+	/* start the timer */
+	cr = readl(TIMER_CR);
+	cr |= TIMER_1_CR_ENABLE;
+	writel(cr, TIMER_CR);
+
 	return 0;
 }
 
@@ -104,21 +112,37 @@ static int gemini_timer_set_periodic(struct clock_event_device *evt)
 	u32 period = DIV_ROUND_CLOSEST(tick_rate, HZ);
 	u32 cr;
 
-	/* Start the timer */
-	writel(period, TIMER_COUNT(TIMER2_BASE));
-	writel(period, TIMER_LOAD(TIMER2_BASE));
+	/* Stop timer and interrupt */
 	cr = readl(TIMER_CR);
-	cr |= TIMER_2_CR_ENABLE;
-	cr |= TIMER_2_CR_INT;
+	cr &= ~(TIMER_1_CR_ENABLE | TIMER_1_CR_INT);
 	writel(cr, TIMER_CR);
+
+	/* Setup timer to fire at 1/HT intervals. */
+	cr = 0xffffffff - (period - 1);
+	writel(cr, TIMER_COUNT(TIMER1_BASE));
+	writel(cr, TIMER_LOAD(TIMER1_BASE));
+
+	/* enable interrupt on overflow */
+	cr = readl(TIMER_INTR_MASK);
+	cr &= ~(TIMER_1_INT_MATCH1 | TIMER_1_INT_MATCH2);
+	cr |= TIMER_1_INT_OVERFLOW;
+	writel(cr, TIMER_INTR_MASK);
+
+	/* Start the timer */
+	cr = readl(TIMER_CR);
+	cr |= TIMER_1_CR_ENABLE;
+	cr |= TIMER_1_CR_INT;
+	writel(cr, TIMER_CR);
+
 	return 0;
 }
 
-/* Use TIMER2 as clock event */
+/* Use TIMER1 as clock event */
 static struct clock_event_device gemini_clockevent = {
-	.name			= "TIMER2",
+	.name			= "TIMER1",
 	/* Reasonably fast and accurate clock event */
 	.rating			= 300,
+	.shift                  = 32,
 	.features		= CLOCK_EVT_FEAT_PERIODIC |
 				  CLOCK_EVT_FEAT_ONESHOT,
 	.set_next_event		= gemini_timer_set_next_event,
@@ -175,20 +199,22 @@ void __init gemini_timer_init(void)
 	}
 
 	/*
-	 * Make irqs happen for the system timer
+	 * Reset the interrupt mask and status
 	 */
-	setup_irq(IRQ_TIMER2, &gemini_timer_irq);
+	writel(TIMER_INT_ALL_MASK, TIMER_INTR_MASK);
+	writel(0, TIMER_INTR_STATE);
+	writel(TIMER_DEFAULT_FLAGS, TIMER_CR);
 
-	/* Enable and use TIMER1 as clock source */
-	writel(0xffffffff, TIMER_COUNT(TIMER1_BASE));
-	writel(0xffffffff, TIMER_LOAD(TIMER1_BASE));
-	writel(TIMER_1_CR_ENABLE, TIMER_CR);
-	if (clocksource_mmio_init(TIMER_COUNT(TIMER1_BASE),
-				  "TIMER1", tick_rate, 300, 32,
-				  clocksource_mmio_readl_up))
-		pr_err("timer: failed to initialize gemini clock source\n");
-
-	/* Configure and register the clockevent */
+	/*
+	 * Setup clockevent timer (interrupt-driven.)
+	 */
+	writel(0, TIMER_COUNT(TIMER1_BASE));
+	writel(0, TIMER_LOAD(TIMER1_BASE));
+	writel(0, TIMER_MATCH1(TIMER1_BASE));
+	writel(0, TIMER_MATCH2(TIMER1_BASE));
+	setup_irq(IRQ_TIMER1, &gemini_timer_irq);
+	gemini_clockevent.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&gemini_clockevent, tick_rate,
 					1, 0xffffffff);
+
 }
