@@ -497,8 +497,6 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG))
 		return 0;
 
-	set_sbi_flag(sbi, SBI_POR_DOING);
-
 	start_blk = __start_cp_addr(sbi) + 1 + __cp_payload(sbi);
 	orphan_blocks = __start_sum_addr(sbi) - 1 - __cp_payload(sbi);
 
@@ -514,7 +512,6 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 			err = recover_orphan_inode(sbi, ino);
 			if (err) {
 				f2fs_put_page(page, 1);
-				clear_sbi_flag(sbi, SBI_POR_DOING);
 				return err;
 			}
 		}
@@ -522,7 +519,6 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 	}
 	/* clear Orphan Flag */
 	clear_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG);
-	clear_sbi_flag(sbi, SBI_POR_DOING);
 	return 0;
 }
 
