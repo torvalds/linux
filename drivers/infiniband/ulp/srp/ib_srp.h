@@ -282,8 +282,14 @@ struct srp_fr_pool {
  */
 struct srp_map_state {
 	union {
-		struct ib_pool_fmr **next_fmr;
-		struct srp_fr_desc **next_fr;
+		struct {
+			struct ib_pool_fmr **next;
+			struct ib_pool_fmr **end;
+		} fmr;
+		struct {
+			struct srp_fr_desc **next;
+			struct srp_fr_desc **end;
+		} fr;
 	};
 	struct srp_direct_buf  *desc;
 	u64		       *pages;
