@@ -989,8 +989,8 @@ static int cxd2841er_get_carrier_offset_s_s2(struct cxd2841er_priv *priv,
 	return 0;
 }
 
-int cxd2841er_get_carrier_offset_t2(
-	struct cxd2841er_priv *priv, u32 bandwidth, int *offset)
+static int cxd2841er_get_carrier_offset_t2(struct cxd2841er_priv *priv,
+					   u32 bandwidth, int *offset)
 {
 	u8 data[4];
 
@@ -1029,8 +1029,8 @@ int cxd2841er_get_carrier_offset_t2(
 	return 0;
 }
 
-int cxd2841er_get_carrier_offset_c(
-	struct cxd2841er_priv *priv, int *offset)
+static int cxd2841er_get_carrier_offset_c(struct cxd2841er_priv *priv,
+					  int *offset)
 {
 	u8 data[2];
 
@@ -1357,7 +1357,7 @@ static int cxd2841er_read_snr_t(struct cxd2841er_priv *priv, u32 *snr)
 	return 0;
 }
 
-int cxd2841er_read_snr_t2(struct cxd2841er_priv *priv, u32 *snr)
+static int cxd2841er_read_snr_t2(struct cxd2841er_priv *priv, u32 *snr)
 {
 	u32 reg;
 	u8 data[2];
