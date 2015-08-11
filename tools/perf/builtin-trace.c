@@ -1173,11 +1173,14 @@ static struct syscall_fmt {
 	{ .name	    = "readv",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FD, /* fd */ }, },
 	{ .name	    = "recvfrom",   .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "recvmmsg",   .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "recvmsg",    .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [2] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "removexattr", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FILENAME, /* pathname */ }, },
 	{ .name	    = "renameat",   .errmsg = true,
@@ -1193,11 +1196,14 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "select",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "sendmmsg",    .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "sendmsg",    .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [2] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "sendto",	    .errmsg = true,
-	  .arg_scnprintf = { [3] = SCA_MSG_FLAGS, /* flags */ }, },
+	  .arg_scnprintf = { [0] = SCA_FD, /* fd */
+			     [3] = SCA_MSG_FLAGS, /* flags */ }, },
 	{ .name	    = "setitimer",  .errmsg = true, STRARRAY(0, which, itimers), },
 	{ .name	    = "setrlimit",  .errmsg = true, STRARRAY(0, resource, rlimit_resources), },
 	{ .name	    = "setxattr",   .errmsg = true,
