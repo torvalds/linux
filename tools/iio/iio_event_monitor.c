@@ -284,7 +284,11 @@ int main(int argc, char **argv)
 	ret = ioctl(fd, IIO_GET_EVENT_FD_IOCTL, &event_fd);
 	if (ret == -1 || event_fd == -1) {
 		ret = -errno;
-		fprintf(stderr, "Failed to retrieve event fd\n");
+		if (ret == -ENODEV)
+			fprintf(stderr,
+				"This device does not support events\n");
+		else
+			fprintf(stderr, "Failed to retrieve event fd\n");
 		if (close(fd) == -1)
 			perror("Failed to close character device file");
 
