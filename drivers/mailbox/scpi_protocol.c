@@ -463,19 +463,20 @@ int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type)
 }
 EXPORT_SYMBOL_GPL(scpi_ddr_init);
 
-int scpi_ddr_set_clk_rate(u32 rate)
+int scpi_ddr_set_clk_rate(u32 rate, u32 lcdc_type)
 {
 	struct scpi_data_buf sdata;
 	struct rockchip_mbox_msg mdata;
 	struct __packed1 {
 		u32 clk_rate;
+		u32 lcdc_type;
 	} tx_buf;
 	struct __packed2 {
 		u32 status;
 	} rx_buf;
 
 	tx_buf.clk_rate = (u32)rate;
-
+	tx_buf.lcdc_type = (u32)lcdc_type;
 	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_DDR,
 			SCPI_DDR_SET_FREQ, tx_buf, rx_buf);
 	return scpi_execute_cmd(&sdata);

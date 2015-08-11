@@ -77,9 +77,14 @@ static int _ddr_recalc_rate(void)
 static int _ddr_change_freq(u32 n_mhz)
 {
 	u32 ret;
+	u32 lcdc_type;
+	struct rk_lcdc_driver *lcdc_dev = NULL;
 
 	printk(KERN_DEBUG pr_fmt("In func %s,freq=%dMHz\n"), __func__, n_mhz);
-	if (scpi_ddr_set_clk_rate(n_mhz))
+	lcdc_dev = rk_get_lcdc_drv("lcdc0");
+	lcdc_type = lcdc_dev ? (u32)lcdc_dev->cur_screen->type : 0;
+	printk(KERN_DEBUG pr_fmt("lcdc type:%d\n"), lcdc_type);
+	if (scpi_ddr_set_clk_rate(n_mhz, lcdc_type))
 		pr_info("set ddr freq timeout\n");
 	ret = _ddr_recalc_rate() / 1000000;
 	printk(KERN_DEBUG pr_fmt("Func %s out,freq=%dMHz\n"), __func__, ret);
@@ -253,7 +258,13 @@ static void ddr_init(u32 dram_speed_bin, u32 freq)
 {
 	int lcdc_type;
 
-	lcdc_type = rockchip_get_screen_type();
+	struct rk_lcdc_driver *lcdc_dev = NULL;
+
+	lcdc_dev = rk_get_lcdc_drv("lcdc0");
+	if (lcdc_dev == NULL)
+		lcdc_type = 0;
+	else
+		lcdc_type = (u32)lcdc_dev->cur_screen->type;
 	printk(KERN_DEBUG pr_fmt("In Func:%s,dram_speed_bin:%d,freq:%d,lcdc_type:%d\n"),
 	       __func__, dram_speed_bin, freq, lcdc_type);
 	if (scpi_ddr_init(dram_speed_bin, freq, lcdc_type))
