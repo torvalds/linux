@@ -514,8 +514,8 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 	struct amdgpu_device *adev = ctx->parser->adev;
 	int32_t *msg, msg_type, handle;
 	void *ptr;
-
-	int i, r;
+	long r;
+	int i;
 
 	if (offset & 0x3F) {
 		DRM_ERROR("UVD messages must be 64 byte aligned!\n");
@@ -524,14 +524,14 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, true, false,
 						MAX_SCHEDULE_TIMEOUT);
-	if (r) {
-		DRM_ERROR("Failed waiting for UVD message (%d)!\n", r);
+	if (r < 0) {
+		DRM_ERROR("Failed waiting for UVD message (%ld)!\n", r);
 		return r;
 	}
 
 	r = amdgpu_bo_kmap(bo, &ptr);
 	if (r) {
-		DRM_ERROR("Failed mapping the UVD message (%d)!\n", r);
+		DRM_ERROR("Failed mapping the UVD message (%ld)!\n", r);
 		return r;
 	}
 
