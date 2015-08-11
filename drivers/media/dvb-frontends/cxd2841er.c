@@ -33,6 +33,8 @@
 #include "cxd2841er.h"
 #include "cxd2841er_priv.h"
 
+#define MAX_WRITE_REGSIZE	16
+
 enum cxd2841er_state {
 	STATE_SHUTDOWN = 0,
 	STATE_SLEEP_S,
@@ -202,17 +204,23 @@ static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
 				u8 addr, u8 reg, const u8 *data, u32 len)
 {
 	int ret;
-	u8 buf[len+1];
+	u8 buf[MAX_WRITE_REGSIZE + 1];
 	u8 i2c_addr = (addr == I2C_SLVX ?
 		priv->i2c_addr_slvx : priv->i2c_addr_slvt);
 	struct i2c_msg msg[1] = {
 		{
 			.addr = i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = len + 1,
 			.buf = buf,
 		}
 	};
+
+	if (len + 1 >= sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,"wr reg=%04x: len=%d is too big!\n",
+			 reg, len + 1);
+		return -E2BIG;
+	}
 
 	cxd2841er_i2c_debug(priv, i2c_addr, reg, 1, data, len);
 	buf[0] = reg;
