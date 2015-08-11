@@ -588,7 +588,7 @@ bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
 	const u16 active = ioat2_ring_active(ioat);
 	const u32 new_size = 1 << order;
 	struct ioat_ring_ent **ring;
-	u16 i;
+	u32 i;
 
 	if (order > ioat_get_max_alloc_order())
 		return false;
