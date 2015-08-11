@@ -1032,7 +1032,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 				      MAX_TAIL_CALL_CNT, 0, 0x2);
 
 		/*
-		 * prog = array->prog[index];
+		 * prog = array->ptrs[index];
 		 * if (prog == NULL)
 		 *         goto out;
 		 */
@@ -1041,7 +1041,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT6_DISP_LH(0xeb000000, 0x000d, REG_1, BPF_REG_3, REG_0, 3);
 		/* lg %r1,prog(%b2,%r1) */
 		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_1, BPF_REG_2,
-			      REG_1, offsetof(struct bpf_array, prog));
+			      REG_1, offsetof(struct bpf_array, ptrs));
 		/* clgij %r1,0,0x8,label0 */
 		EMIT6_PCREL_IMM_LABEL(0xec000000, 0x007d, REG_1, 0, 0, 0x8);
 
