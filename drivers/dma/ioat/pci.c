@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include "dma.h"
-#include "dma_v2.h"
 #include "registers.h"
 #include "hw.h"
 
@@ -115,7 +114,7 @@ static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
 MODULE_PARM_DESC(ioat_dca_enabled, "control support of dca service (default: 1)");
 
-struct kmem_cache *ioat2_cache;
+struct kmem_cache *ioat_cache;
 struct kmem_cache *ioat3_sed_cache;
 
 #define DRV_NAME "ioatdma"
@@ -246,14 +245,14 @@ static int __init ioat_init_module(void)
 	pr_info("%s: Intel(R) QuickData Technology Driver %s\n",
 		DRV_NAME, IOAT_DMA_VERSION);
 
-	ioat2_cache = kmem_cache_create("ioat2", sizeof(struct ioat_ring_ent),
+	ioat_cache = kmem_cache_create("ioat", sizeof(struct ioat_ring_ent),
 					0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!ioat2_cache)
+	if (!ioat_cache)
 		return -ENOMEM;
 
 	ioat3_sed_cache = KMEM_CACHE(ioat_sed_ent, 0);
 	if (!ioat3_sed_cache)
-		goto err_ioat2_cache;
+		goto err_ioat_cache;
 
 	err = pci_register_driver(&ioat_pci_driver);
 	if (err)
@@ -264,8 +263,8 @@ static int __init ioat_init_module(void)
  err_ioat3_cache:
 	kmem_cache_destroy(ioat3_sed_cache);
 
- err_ioat2_cache:
-	kmem_cache_destroy(ioat2_cache);
+ err_ioat_cache:
+	kmem_cache_destroy(ioat_cache);
 
 	return err;
 }
@@ -274,6 +273,6 @@ module_init(ioat_init_module);
 static void __exit ioat_exit_module(void)
 {
 	pci_unregister_driver(&ioat_pci_driver);
-	kmem_cache_destroy(ioat2_cache);
+	kmem_cache_destroy(ioat_cache);
 }
 module_exit(ioat_exit_module);

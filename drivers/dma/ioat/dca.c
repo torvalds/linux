@@ -31,7 +31,6 @@
 
 #include "dma.h"
 #include "registers.h"
-#include "dma_v2.h"
 
 /*
  * Bit 7 of a tag map entry is the "valid" bit, if it is set then bits 0:6
