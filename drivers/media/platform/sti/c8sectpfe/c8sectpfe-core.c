@@ -33,6 +33,7 @@
 #include <linux/time.h>
 #include <linux/version.h>
 #include <linux/wait.h>
+#include <linux/pinctrl/pinctrl.h>
 
 #include "c8sectpfe-core.h"
 #include "c8sectpfe-common.h"
