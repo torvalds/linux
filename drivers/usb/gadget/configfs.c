@@ -426,11 +426,6 @@ static int config_usb_cfg_link(
 	}
 
 	f = usb_get_function(fi);
-	if (f == NULL) {
-		/* Are we trying to symlink PTP without MTP function? */
-		ret = -EINVAL; /* Invalid Configuration */
-		goto out;
-	}
 	if (IS_ERR(f)) {
 		ret = PTR_ERR(f);
 		goto out;
