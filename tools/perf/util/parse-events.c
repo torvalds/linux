@@ -614,6 +614,12 @@ do {									   \
 			return -EINVAL;
 		}
 		break;
+	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+		CHECK_TYPE_VAL(STR);
+		break;
+	case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+		CHECK_TYPE_VAL(NUM);
+		break;
 	case PARSE_EVENTS__TERM_TYPE_NAME:
 		CHECK_TYPE_VAL(STR);
 		break;
@@ -667,6 +673,12 @@ do {								\
 			break;
 		case PARSE_EVENTS__TERM_TYPE_TIME:
 			ADD_CONFIG_TERM(TIME, time, term->val.num);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+			ADD_CONFIG_TERM(CALLGRAPH, callgraph, term->val.str);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+			ADD_CONFIG_TERM(STACK_USER, stack_user, term->val.num);
 			break;
 		default:
 			break;

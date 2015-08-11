@@ -53,6 +53,9 @@ OPTIONS
 	  - 'time': Disable/enable time stamping. Acceptable values are 1 for
 		    enabling time stamping. 0 for disabling time stamping.
 		    The default is 1.
+	  - 'call-graph': Disable/enable callgraph. Acceptable str are "fp" for
+			 FP mode, "dwarf" for DWARF mode, "lbr" for LBR mode.
+	  - 'stack-size': user stack size for dwarf mode
 	  Note: If user explicitly sets options which conflict with the params,
 	  the value set by the params will be overridden.
 
