@@ -299,7 +299,7 @@ hdac_ext_host_stream_assign(struct hdac_ext_bus *ebus,
 		if (stream->direction != substream->stream)
 			continue;
 
-		if (stream->opened) {
+		if (!stream->opened) {
 			if (!hstream->decoupled)
 				snd_hdac_ext_stream_decouple(ebus, hstream, true);
 			res = hstream;

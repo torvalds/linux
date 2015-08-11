@@ -454,8 +454,15 @@ spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 		    cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE1_PROT)
 			buf[4] = 0x5;
 		else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT ||
-			cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE3_PROT)
+			 cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE3_PROT)
 			buf[4] = 0x4;
+	}
+
+	/* logical unit supports type 1 and type 3 protection */
+	if ((dev->transport->get_device_type(dev) == TYPE_DISK) &&
+	    (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) &&
+	    (dev->dev_attrib.pi_prot_type || cmd->se_sess->sess_prot_type)) {
+		buf[4] |= (0x3 << 3);
 	}
 
 	/* Set HEADSUP, ORDSUP, SIMPSUP */

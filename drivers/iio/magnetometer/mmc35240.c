@@ -202,8 +202,8 @@ static int mmc35240_hw_set(struct mmc35240_data *data, bool set)
 		coil_bit = MMC35240_CTRL0_RESET_BIT;
 
 	return regmap_update_bits(data->regmap, MMC35240_REG_CTRL0,
-				  MMC35240_CTRL0_REFILL_BIT,
-				  coil_bit);
+				  coil_bit, coil_bit);
+
 }
 
 static int mmc35240_init(struct mmc35240_data *data)
@@ -222,14 +222,15 @@ static int mmc35240_init(struct mmc35240_data *data)
 
 	/*
 	 * make sure we restore sensor characteristics, by doing
-	 * a RESET/SET sequence
+	 * a SET/RESET sequence, the axis polarity being naturally
+	 * aligned after RESET
 	 */
-	ret = mmc35240_hw_set(data, false);
+	ret = mmc35240_hw_set(data, true);
 	if (ret < 0)
 		return ret;
 	usleep_range(MMC53240_WAIT_SET_RESET, MMC53240_WAIT_SET_RESET + 1);
 
-	ret = mmc35240_hw_set(data, true);
+	ret = mmc35240_hw_set(data, false);
 	if (ret < 0)
 		return ret;
 
@@ -503,6 +504,7 @@ static int mmc35240_probe(struct i2c_client *client,
 	}
 
 	data = iio_priv(indio_dev);
+	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	data->regmap = regmap;
 	data->res = MMC35240_16_BITS_SLOW;

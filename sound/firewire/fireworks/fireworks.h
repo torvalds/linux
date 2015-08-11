@@ -70,8 +70,8 @@ struct snd_efw {
 	bool resp_addr_changable;
 
 	/* for quirks */
-	bool is_af2;
 	bool is_af9;
+	bool is_fireworks3;
 	u32 firmware_version;
 
 	unsigned int midi_in_ports;

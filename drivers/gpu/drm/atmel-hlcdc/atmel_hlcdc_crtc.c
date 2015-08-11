@@ -355,6 +355,7 @@ int atmel_hlcdc_crtc_create(struct drm_device *dev)
 		planes->overlays[i]->base.possible_crtcs = 1 << crtc->id;
 
 	drm_crtc_helper_add(&crtc->base, &lcdc_crtc_helper_funcs);
+	drm_crtc_vblank_reset(&crtc->base);
 
 	dc->crtc = &crtc->base;
 

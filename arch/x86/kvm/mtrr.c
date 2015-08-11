@@ -120,6 +120,16 @@ static u8 mtrr_default_type(struct kvm_mtrr *mtrr_state)
 	return mtrr_state->deftype & IA32_MTRR_DEF_TYPE_TYPE_MASK;
 }
 
+static u8 mtrr_disabled_type(void)
+{
+	/*
+	 * Intel SDM 11.11.2.2: all MTRRs are disabled when
+	 * IA32_MTRR_DEF_TYPE.E bit is cleared, and the UC
+	 * memory type is applied to all of physical memory.
+	 */
+	return MTRR_TYPE_UNCACHABLE;
+}
+
 /*
 * Three terms are used in the following code:
 * - segment, it indicates the address segments covered by fixed MTRRs.
@@ -434,6 +444,8 @@ struct mtrr_iter {
 
 	/* output fields. */
 	int mem_type;
+	/* mtrr is completely disabled? */
+	bool mtrr_disabled;
 	/* [start, end) is not fully covered in MTRRs? */
 	bool partial_map;
 
@@ -549,7 +561,7 @@ static void mtrr_lookup_var_next(struct mtrr_iter *iter)
 static void mtrr_lookup_start(struct mtrr_iter *iter)
 {
 	if (!mtrr_is_enabled(iter->mtrr_state)) {
-		iter->partial_map = true;
+		iter->mtrr_disabled = true;
 		return;
 	}
 
@@ -563,6 +575,7 @@ static void mtrr_lookup_init(struct mtrr_iter *iter,
 	iter->mtrr_state = mtrr_state;
 	iter->start = start;
 	iter->end = end;
+	iter->mtrr_disabled = false;
 	iter->partial_map = false;
 	iter->fixed = false;
 	iter->range = NULL;
@@ -656,15 +669,19 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 		return MTRR_TYPE_WRBACK;
 	}
 
-	/* It is not covered by MTRRs. */
-	if (iter.partial_map) {
-		/*
-		 * We just check one page, partially covered by MTRRs is
-		 * impossible.
-		 */
-		WARN_ON(type != -1);
-		type = mtrr_default_type(mtrr_state);
-	}
+	if (iter.mtrr_disabled)
+		return mtrr_disabled_type();
+
+	/*
+	 * We just check one page, partially covered by MTRRs is
+	 * impossible.
+	 */
+	WARN_ON(iter.partial_map);
+
+	/* not contained in any MTRRs. */
+	if (type == -1)
+		return mtrr_default_type(mtrr_state);
+
 	return type;
 }
 EXPORT_SYMBOL_GPL(kvm_mtrr_get_guest_memory_type);
@@ -688,6 +705,9 @@ bool kvm_mtrr_check_gfn_range_consistency(struct kvm_vcpu *vcpu, gfn_t gfn,
 		if (type != iter.mem_type)
 			return false;
 	}
+
+	if (iter.mtrr_disabled)
+		return true;
 
 	if (!iter.partial_map)
 		return true;
