@@ -121,4 +121,13 @@ static inline int arch_phys_wc_index(int handle)
 #endif
 #endif
 
+enum {
+	/* See memremap() kernel-doc for usage description... */
+	MEMREMAP_WB = 1 << 0,
+	MEMREMAP_WT = 1 << 1,
+};
+
+void *memremap(resource_size_t offset, size_t size, unsigned long flags);
+void memunmap(void *addr);
+
 #endif /* _LINUX_IO_H */
