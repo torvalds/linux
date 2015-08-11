@@ -1897,6 +1897,10 @@ config MODULE_SIG
 	  is simply appended to the module. For more information see
 	  Documentation/module-signing.txt.
 
+	  Note that this option adds the OpenSSL development packages as a
+	  kernel build dependency so that the signing tool can use its crypto
+	  library.
+
 	  !!!WARNING!!!  If you enable this option, you MUST make sure that the
 	  module DOES NOT get stripped after being signed.  This includes the
 	  debuginfo strip done by some packagers (such as rpmbuild) and
