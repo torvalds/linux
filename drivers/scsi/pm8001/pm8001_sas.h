@@ -569,6 +569,14 @@ struct pm8001_fw_image_header {
 #define	NCQ_READ_LOG_FLAG			0x80000000
 #define	NCQ_ABORT_ALL_FLAG			0x40000000
 #define	NCQ_2ND_RLE_FLAG			0x20000000
+
+/* Device states */
+#define DS_OPERATIONAL				0x01
+#define DS_PORT_IN_RESET			0x02
+#define DS_IN_RECOVERY				0x03
+#define DS_IN_ERROR				0x04
+#define DS_NON_OPERATIONAL			0x07
+
 /**
  * brief param structure for firmware flash update.
  */
