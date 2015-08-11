@@ -12626,17 +12626,17 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 
 	modeset_update_crtc_power_domains(state);
 
-	drm_atomic_helper_commit_planes(dev, state);
-
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!needs_modeset(crtc->state) || !crtc->state->enable)
+		if (!needs_modeset(crtc->state) || !crtc->state->enable) {
+			drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 			continue;
+		}
 
 		update_scanline_offset(to_intel_crtc(crtc));
 
 		dev_priv->display.crtc_enable(crtc);
-		intel_crtc_enable_planes(crtc);
+		drm_atomic_helper_commit_planes_on_crtc(crtc_state);
 	}
 
 	/* FIXME: add subpixel order */
@@ -13269,7 +13269,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 			if (IS_BROADWELL(dev))
 				intel_crtc->atomic.wait_vblank = true;
 
-			if (crtc_state && !needs_modeset(&crtc_state->base))
+			if (crtc_state)
 				intel_crtc->atomic.post_enable_primary = true;
 		}
 
@@ -15004,6 +15004,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		struct intel_plane_state *plane_state;
 
 		memset(crtc->config, 0, sizeof(*crtc->config));
+		crtc->config->base.crtc = &crtc->base;
 
 		crtc->config->quirks |= PIPE_CONFIG_QUIRK_INHERITED_MODE;
 
