@@ -55,8 +55,6 @@ struct gb_tty {
 	struct async_icount oldcount;
 	wait_queue_head_t wioctl;
 	struct mutex mutex;
-	u8 version_major;
-	u8 version_minor;
 	u8 ctrlin;	/* input control lines */
 	u8 ctrlout;	/* output control lines */
 	struct gb_tty_line_coding line_coding;
@@ -66,9 +64,6 @@ static struct tty_driver *gb_tty_driver;
 static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
 static atomic_t reference_count = ATOMIC_INIT(0);
-
-/* Define get_version() routine */
-define_get_version(gb_tty, UART);
 
 static int gb_uart_receive_data(struct gb_tty *gb_tty,
 				struct gb_connection *connection,
@@ -628,21 +623,16 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty->connection = connection;
 	connection->private = gb_tty;
 
-	/* Check for compatible protocol version */
-	retval = get_version(gb_tty);
-	if (retval)
-		goto error_version;
-
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
 		if (minor == -ENOSPC) {
 			dev_err(&connection->dev,
 				"no more free minor numbers\n");
 			retval = -ENODEV;
-			goto error_version;
+			goto error_minor;
 		}
 		retval = minor;
-		goto error_version;
+		goto error_minor;
 	}
 
 	gb_tty->minor = minor;
@@ -674,7 +664,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 error:
 	tty_port_destroy(&gb_tty->port);
 	release_minor(gb_tty);
-error_version:
+error_minor:
 	connection->private = NULL;
 	kfree(gb_tty->buffer);
 error_payload:
