@@ -52,6 +52,15 @@ void ui_browser__write_nstring(struct ui_browser *browser __maybe_unused, const 
 	slsmg_write_nstring(msg, width);
 }
 
+void ui_browser__printf(struct ui_browser *browser __maybe_unused, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	slsmg_vprintf(fmt, args);
+	va_end(args);
+}
+
 static struct list_head *
 ui_browser__list_head_filter_entries(struct ui_browser *browser,
 				     struct list_head *pos)

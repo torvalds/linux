@@ -1,7 +1,6 @@
 #include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"
-#include "../libslang.h"
 #include "../ui.h"
 #include "../util.h"
 #include "../../util/annotate.h"
@@ -134,11 +133,13 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 				ui_browser__set_percent_color(browser,
 							bdl->samples[i].percent,
 							current_entry);
-				if (annotate_browser__opts.show_total_period)
-					slsmg_printf("%6" PRIu64 " ",
-						     bdl->samples[i].nr);
-				else
-					slsmg_printf("%6.2f ", bdl->samples[i].percent);
+				if (annotate_browser__opts.show_total_period) {
+					ui_browser__printf(browser, "%6" PRIu64 " ",
+							   bdl->samples[i].nr);
+				} else {
+					ui_browser__printf(browser, "%6.2f ",
+							   bdl->samples[i].percent);
+				}
 			}
 		} else {
 			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
@@ -149,12 +150,12 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	}
 	if (ab->have_cycles) {
 		if (dl->ipc)
-			slsmg_printf("%*.2f ", IPC_WIDTH - 1, dl->ipc);
+			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, dl->ipc);
 		else
 			ui_browser__write_nstring(browser, " ", IPC_WIDTH);
 		if (dl->cycles)
-			slsmg_printf("%*" PRIu64 " ",
-				     CYCLES_WIDTH - 1, dl->cycles);
+			ui_browser__printf(browser, "%*" PRIu64 " ",
+					   CYCLES_WIDTH - 1, dl->cycles);
 		else
 			ui_browser__write_nstring(browser, " ", CYCLES_WIDTH);
 	}
