@@ -37,6 +37,14 @@
 
 #define chan_num(ch) ((int)((ch)->reg_base - (ch)->ioat_dma->reg_base) / 0x80)
 
+/* ioat hardware assumes at least two sources for raid operations */
+#define src_cnt_to_sw(x) ((x) + 2)
+#define src_cnt_to_hw(x) ((x) - 2)
+#define ndest_to_sw(x) ((x) + 1)
+#define ndest_to_hw(x) ((x) - 1)
+#define src16_cnt_to_sw(x) ((x) + 9)
+#define src16_cnt_to_hw(x) ((x) - 9)
+
 /*
  * workaround for IOAT ver.3.0 null descriptor issue
  * (channel returns error when size is 0)
@@ -190,15 +198,22 @@ struct ioat_ring_ent {
 	struct ioat_sed_ent *sed;
 };
 
+extern const struct sysfs_ops ioat_sysfs_ops;
+extern struct ioat_sysfs_entry ioat_version_attr;
+extern struct ioat_sysfs_entry ioat_cap_attr;
+extern int ioat_pending_level;
+extern int ioat_ring_alloc_order;
+extern struct kobj_type ioat_ktype;
+extern struct kmem_cache *ioat_cache;
+extern int ioat_ring_max_alloc_order;
+extern struct kmem_cache *ioat_sed_cache;
+
 static inline struct ioatdma_chan *to_ioat_chan(struct dma_chan *c)
 {
 	return container_of(c, struct ioatdma_chan, dma_chan);
 }
 
-
-
 /* wrapper around hardware descriptor format + additional software fields */
-
 #ifdef DEBUG
 #define set_desc_id(desc, i) ((desc)->id = (i))
 #define desc_id(desc) ((desc)->id)
@@ -381,13 +396,10 @@ ioat_set_chainaddr(struct ioatdma_chan *ioat_chan, u64 addr)
 	       ioat_chan->reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
 }
 
-irqreturn_t ioat_dma_do_interrupt(int irq, void *data);
-irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data);
-struct ioat_ring_ent **
-ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags);
-void ioat_start_null_desc(struct ioatdma_chan *ioat_chan);
-void ioat_free_ring_ent(struct ioat_ring_ent *desc, struct dma_chan *chan);
-int ioat_reset_hw(struct ioatdma_chan *ioat_chan);
+/* IOAT Prep functions */
+struct dma_async_tx_descriptor *
+ioat_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
+			   dma_addr_t dma_src, size_t len, unsigned long flags);
 struct dma_async_tx_descriptor *
 ioat_prep_interrupt_lock(struct dma_chan *c, unsigned long flags);
 struct dma_async_tx_descriptor *
@@ -412,53 +424,38 @@ struct dma_async_tx_descriptor *
 ioat_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 		     unsigned int src_cnt, size_t len,
 		     enum sum_check_flags *result, unsigned long flags);
+
+/* IOAT Operation functions */
+irqreturn_t ioat_dma_do_interrupt(int irq, void *data);
+irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data);
+struct ioat_ring_ent **
+ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags);
+void ioat_start_null_desc(struct ioatdma_chan *ioat_chan);
+void ioat_free_ring_ent(struct ioat_ring_ent *desc, struct dma_chan *chan);
+int ioat_reset_hw(struct ioatdma_chan *ioat_chan);
 enum dma_status
 ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 		struct dma_tx_state *txstate);
 void ioat_cleanup_event(unsigned long data);
 void ioat_timer_event(unsigned long data);
-bool is_bwd_ioat(struct pci_dev *pdev);
-int ioat_probe(struct ioatdma_device *ioat_dma);
-int ioat_register(struct ioatdma_device *ioat_dma);
-int ioat_dma_self_test(struct ioatdma_device *ioat_dma);
-void ioat_dma_remove(struct ioatdma_device *ioat_dma);
-struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-void ioat_init_channel(struct ioatdma_device *ioat_dma,
-		       struct ioatdma_chan *ioat_chan, int idx);
 enum dma_status ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 				   struct dma_tx_state *txstate);
 bool ioat_cleanup_preamble(struct ioatdma_chan *ioat_chan,
 			   dma_addr_t *phys_complete);
-void ioat_kobject_add(struct ioatdma_device *ioat_dma, struct kobj_type *type);
-void ioat_kobject_del(struct ioatdma_device *ioat_dma);
-int ioat_dma_setup_interrupts(struct ioatdma_device *ioat_dma);
-void ioat_stop(struct ioatdma_chan *ioat_chan);
-int ioat_dma_probe(struct ioatdma_device *ioat_dma, int dca);
-int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca);
-struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs);
-int ioat_enumerate_channels(struct ioatdma_device *ioat_dma);
-struct dma_async_tx_descriptor *
-ioat_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
-			   dma_addr_t dma_src, size_t len, unsigned long flags);
 void ioat_issue_pending(struct dma_chan *chan);
-int ioat_alloc_chan_resources(struct dma_chan *c);
-void ioat_free_chan_resources(struct dma_chan *c);
-void __ioat_restart_chan(struct ioatdma_chan *ioat_chan);
 bool reshape_ring(struct ioatdma_chan *ioat, int order);
 void __ioat_issue_pending(struct ioatdma_chan *ioat_chan);
 void ioat_timer_event(unsigned long data);
 int ioat_quiesce(struct ioatdma_chan *ioat_chan, unsigned long tmo);
 int ioat_reset_sync(struct ioatdma_chan *ioat_chan, unsigned long tmo);
+void __ioat_restart_chan(struct ioatdma_chan *ioat_chan);
 
-extern const struct sysfs_ops ioat_sysfs_ops;
-extern struct ioat_sysfs_entry ioat_version_attr;
-extern struct ioat_sysfs_entry ioat_cap_attr;
-extern int ioat_pending_level;
-extern int ioat_ring_alloc_order;
-extern struct kobj_type ioat_ktype;
-extern struct kmem_cache *ioat_cache;
-extern int ioat_ring_max_alloc_order;
-extern struct kmem_cache *ioat_sed_cache;
-
+/* IOAT Init functions */
+bool is_bwd_ioat(struct pci_dev *pdev);
+void ioat_kobject_add(struct ioatdma_device *ioat_dma, struct kobj_type *type);
+void ioat_kobject_del(struct ioatdma_device *ioat_dma);
+int ioat_dma_setup_interrupts(struct ioatdma_device *ioat_dma);
+void ioat_stop(struct ioatdma_chan *ioat_chan);
+struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 #endif /* IOATDMA_H */

@@ -110,6 +110,9 @@ MODULE_DEVICE_TABLE(pci, ioat_pci_tbl);
 
 static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void ioat_remove(struct pci_dev *pdev);
+static void
+ioat_init_channel(struct ioatdma_device *ioat_dma,
+		  struct ioatdma_chan *ioat_chan, int idx);
 
 static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
@@ -269,7 +272,7 @@ static void ioat_dma_test_callback(void *dma_async_param)
  * ioat_dma_self_test - Perform a IOAT transaction to verify the HW works.
  * @ioat_dma: dma device to be tested
  */
-int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
+static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 {
 	int i;
 	u8 *src;
@@ -453,7 +456,6 @@ err_no_irq:
 	dev_err(dev, "no usable interrupts\n");
 	return err;
 }
-EXPORT_SYMBOL(ioat_dma_setup_interrupts);
 
 static void ioat_disable_interrupts(struct ioatdma_device *ioat_dma)
 {
@@ -461,7 +463,7 @@ static void ioat_disable_interrupts(struct ioatdma_device *ioat_dma)
 	writeb(0, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
 }
 
-int ioat_probe(struct ioatdma_device *ioat_dma)
+static int ioat_probe(struct ioatdma_device *ioat_dma)
 {
 	int err = -ENODEV;
 	struct dma_device *dma = &ioat_dma->dma_dev;
@@ -517,7 +519,7 @@ err_dma_pool:
 	return err;
 }
 
-int ioat_register(struct ioatdma_device *ioat_dma)
+static int ioat_register(struct ioatdma_device *ioat_dma)
 {
 	int err = dma_async_device_register(&ioat_dma->dma_dev);
 
@@ -530,7 +532,7 @@ int ioat_register(struct ioatdma_device *ioat_dma)
 	return err;
 }
 
-void ioat_dma_remove(struct ioatdma_device *ioat_dma)
+static void ioat_dma_remove(struct ioatdma_device *ioat_dma)
 {
 	struct dma_device *dma = &ioat_dma->dma_dev;
 
@@ -550,7 +552,7 @@ void ioat_dma_remove(struct ioatdma_device *ioat_dma)
  * ioat_enumerate_channels - find and initialize the device's channels
  * @ioat_dma: the ioat dma device to be enumerated
  */
-int ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
+static int ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
 {
 	struct ioatdma_chan *ioat_chan;
 	struct device *dev = &ioat_dma->pdev->dev;
@@ -593,7 +595,7 @@ int ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
  * ioat_free_chan_resources - release all the descriptors
  * @chan: the channel to be cleaned
  */
-void ioat_free_chan_resources(struct dma_chan *c)
+static void ioat_free_chan_resources(struct dma_chan *c)
 {
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 	struct ioatdma_device *ioat_dma = ioat_chan->ioat_dma;
@@ -646,7 +648,7 @@ void ioat_free_chan_resources(struct dma_chan *c)
 /* ioat_alloc_chan_resources - allocate/initialize ioat descriptor ring
  * @chan: channel to be initialized
  */
-int ioat_alloc_chan_resources(struct dma_chan *c)
+static int ioat_alloc_chan_resources(struct dma_chan *c)
 {
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 	struct ioat_ring_ent **ring;
@@ -712,7 +714,7 @@ int ioat_alloc_chan_resources(struct dma_chan *c)
 }
 
 /* common channel initialization */
-void
+static void
 ioat_init_channel(struct ioatdma_device *ioat_dma,
 		  struct ioatdma_chan *ioat_chan, int idx)
 {
@@ -1048,7 +1050,7 @@ static void ioat3_intr_quirk(struct ioatdma_device *ioat_dma)
 	}
 }
 
-int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
+static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 {
 	struct pci_dev *pdev = ioat_dma->pdev;
 	int dca_en = system_has_dca_enabled(pdev);
