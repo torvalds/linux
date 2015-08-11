@@ -1393,16 +1393,6 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 		return 0;
 	}
 
-	if (dma_len > dev->mr_max_size) {
-		ret = srp_finish_mapping(state, ch);
-		if (ret)
-			return ret;
-
-		srp_map_desc(state, dma_addr, dma_len, target->rkey);
-		srp_map_update_start(state, NULL, 0, 0);
-		return 0;
-	}
-
 	/*
 	 * If this is the first sg that will be mapped via FMR or via FR, save
 	 * our position. We need to know the first unmapped entry, its index,
