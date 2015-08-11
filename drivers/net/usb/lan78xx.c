@@ -291,8 +291,6 @@ static int lan78xx_read_reg(struct lan78xx_net *dev, u32 index, u32 *data)
 	u32 *buf = kmalloc(sizeof(u32), GFP_KERNEL);
 	int ret;
 
-	BUG_ON(!dev);
-
 	if (!buf)
 		return -ENOMEM;
 
@@ -318,8 +316,6 @@ static int lan78xx_write_reg(struct lan78xx_net *dev, u32 index, u32 data)
 {
 	u32 *buf = kmalloc(sizeof(u32), GFP_KERNEL);
 	int ret;
-
-	BUG_ON(!dev);
 
 	if (!buf)
 		return -ENOMEM;
@@ -350,10 +346,6 @@ static int lan78xx_read_stats(struct lan78xx_net *dev,
 	struct lan78xx_statstage *stats;
 	u32 *src;
 	u32 *dst;
-
-	BUG_ON(!dev);
-	BUG_ON(!data);
-	BUG_ON(sizeof(struct lan78xx_statstage) != 0xBC);
 
 	stats = kmalloc(sizeof(*stats), GFP_KERNEL);
 	if (!stats)
@@ -687,9 +679,6 @@ static int lan78xx_read_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 	u32 val;
 	int i, ret;
 
-	BUG_ON(!dev);
-	BUG_ON(!data);
-
 	ret = lan78xx_eeprom_confirm_not_busy(dev);
 	if (ret)
 		return ret;
@@ -736,9 +725,6 @@ static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 {
 	u32 val;
 	int i, ret;
-
-	BUG_ON(!dev);
-	BUG_ON(!data);
 
 	ret = lan78xx_eeprom_confirm_not_busy(dev);
 	if (ret)
@@ -2220,20 +2206,10 @@ static enum skb_state defer_bh(struct lan78xx_net *dev, struct sk_buff *skb,
 	spin_lock_irqsave(&list->lock, flags);
 	old_state = entry->state;
 	entry->state = state;
-	if (!list->prev)
-		BUG_ON(!list->prev);
-	if (!list->next)
-		BUG_ON(!list->next);
-	if (!skb->prev || !skb->next)
-		BUG_ON(true);
 
 	__skb_unlink(skb, list);
 	spin_unlock(&list->lock);
 	spin_lock(&dev->done.lock);
-	if (!dev->done.prev)
-		BUG_ON(!dev->done.prev);
-	if (!dev->done.next)
-		BUG_ON(!dev->done.next);
 
 	__skb_queue_tail(&dev->done, skb);
 	if (skb_queue_len(&dev->done) == 1)
@@ -2749,8 +2725,6 @@ static void lan78xx_tx_bh(struct lan78xx_net *dev)
 			memcpy(skb->data + pos, skb2->data, skb2->len);
 			pos += roundup(skb2->len, sizeof(u32));
 			dev_kfree_skb(skb2);
-		} else {
-			BUG_ON(true);
 		}
 	}
 
@@ -2858,11 +2832,6 @@ static void lan78xx_bh(unsigned long param)
 	struct lan78xx_net *dev = (struct lan78xx_net *)param;
 	struct sk_buff *skb;
 	struct skb_data *entry;
-
-	if (!dev->done.prev)
-		BUG_ON(!dev->done.prev);
-	if (!dev->done.next)
-		BUG_ON(!dev->done.next);
 
 	while ((skb = skb_dequeue(&dev->done))) {
 		entry = (struct skb_data *)(skb->cb);
