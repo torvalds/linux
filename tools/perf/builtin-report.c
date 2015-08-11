@@ -316,6 +316,11 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	if (evname != NULL)
 		ret += fprintf(fp, " of event '%s'", evname);
 
+	if (symbol_conf.show_ref_callgraph &&
+	    strstr(evname, "call-graph=no")) {
+		ret += fprintf(fp, ", show reference callgraph");
+	}
+
 	if (rep->mem_mode) {
 		ret += fprintf(fp, "\n# Total weight : %" PRIu64, nr_events);
 		ret += fprintf(fp, "\n# Sort order   : %s", sort_order ? : default_mem_sort_order);
@@ -740,6 +745,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			    itrace_parse_synth_opts),
 	OPT_BOOLEAN(0, "full-source-path", &srcline_full_filename,
 			"Show full source file name path for source lines"),
+	OPT_BOOLEAN(0, "show-ref-call-graph", &symbol_conf.show_ref_callgraph,
+		    "Show callgraph from reference event"),
 	OPT_END()
 	};
 	struct perf_data_file file = {

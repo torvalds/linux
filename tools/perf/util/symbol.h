@@ -106,7 +106,8 @@ struct symbol_conf {
 			filter_relative,
 			show_hist_headers,
 			branch_callstack,
-			has_filter;
+			has_filter,
+			show_ref_callgraph;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

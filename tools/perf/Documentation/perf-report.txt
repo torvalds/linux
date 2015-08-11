@@ -359,6 +359,17 @@ OPTIONS
 --full-source-path::
 	Show the full path for source files for srcline output.
 
+--show-ref-call-graph::
+	When multiple events are sampled, it may not be needed to collect
+	callgraphs for all of them. The sample sites are usually nearby,
+	and it's enough to collect the callgraphs on a reference event.
+	So user can use "call-graph=no" event modifier to disable callgraph
+	for other events to reduce the overhead.
+	However, perf report cannot show callgraphs for the event which
+	disable the callgraph.
+	This option extends the perf report to show reference callgraphs,
+	which collected by reference event, in no callgraph event.
+
 include::callchain-overhead-calculation.txt[]
 
 SEE ALSO

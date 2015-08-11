@@ -1141,7 +1141,12 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	struct hist_entry *n;
 	u64 min_callchain_hits;
 	struct perf_evsel *evsel = hists_to_evsel(hists);
-	bool use_callchain = evsel ? (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) : symbol_conf.use_callchain;
+	bool use_callchain;
+
+	if (evsel && !symbol_conf.show_ref_callgraph)
+		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
+	else
+		use_callchain = symbol_conf.use_callchain;
 
 	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
 
