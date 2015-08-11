@@ -48,7 +48,6 @@
 
 #include <linux/bitops.h>
 #include <linux/if_arp.h>
-#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
@@ -610,21 +609,3 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lowpan_header_compress);
-
-static int __init lowpan_module_init(void)
-{
-	request_module_nowait("ipv6");
-
-	request_module_nowait("nhc_dest");
-	request_module_nowait("nhc_fragment");
-	request_module_nowait("nhc_hop");
-	request_module_nowait("nhc_ipv6");
-	request_module_nowait("nhc_mobility");
-	request_module_nowait("nhc_routing");
-	request_module_nowait("nhc_udp");
-
-	return 0;
-}
-module_init(lowpan_module_init);
-
-MODULE_LICENSE("GPL");
