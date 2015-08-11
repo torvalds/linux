@@ -288,6 +288,10 @@ struct srp_map_state {
 			struct srp_fr_desc **next;
 			struct srp_fr_desc **end;
 		} fr;
+		struct {
+			void		   **next;
+			void		   **end;
+		} gen;
 	};
 	struct srp_direct_buf  *desc;
 	u64		       *pages;
