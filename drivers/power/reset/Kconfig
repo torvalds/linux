@@ -23,7 +23,7 @@ config POWER_RESET_AT91_POWEROFF
 	  SoCs
 
 config POWER_RESET_AT91_RESET
-	bool "Atmel AT91 reset driver"
+	tristate "Atmel AT91 reset driver"
 	depends on ARCH_AT91
 	default SOC_AT91SAM9 || SOC_SAMA5
 	help

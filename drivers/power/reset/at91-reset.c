@@ -178,7 +178,7 @@ static struct notifier_block at91_restart_nb = {
 	.priority = 192,
 };
 
-static int at91_reset_probe(struct platform_device *pdev)
+static int __init at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *np;
@@ -214,6 +214,13 @@ static int at91_reset_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __exit at91_reset_remove(struct platform_device *pdev)
+{
+	unregister_restart_handler(&at91_restart_nb);
+
+	return 0;
+}
+
 static const struct platform_device_id at91_reset_plat_match[] = {
 	{ "at91-sam9260-reset", (unsigned long)at91sam9260_restart },
 	{ "at91-sam9g45-reset", (unsigned long)at91sam9g45_restart },
@@ -221,11 +228,15 @@ static const struct platform_device_id at91_reset_plat_match[] = {
 };
 
 static struct platform_driver at91_reset_driver = {
-	.probe = at91_reset_probe,
+	.remove = __exit_p(at91_reset_remove),
 	.driver = {
 		.name = "at91-reset",
 		.of_match_table = at91_reset_of_match,
 	},
 	.id_table = at91_reset_plat_match,
 };
-module_platform_driver(at91_reset_driver);
+module_platform_driver_probe(at91_reset_driver, at91_reset_probe);
+
+MODULE_AUTHOR("Atmel Corporation");
+MODULE_DESCRIPTION("Reset driver for Atmel SoCs");
+MODULE_LICENSE("GPL v2");
