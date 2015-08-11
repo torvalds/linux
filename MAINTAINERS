@@ -9876,6 +9876,7 @@ S:	Supported
 F:	arch/arc/
 F:	Documentation/devicetree/bindings/arc/
 F:	drivers/tty/serial/arc_uart.c
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vgupta/arc.git
 
 SYNOPSYS ARC SDP platform support
 M:	Alexey Brodkin <abrodkin@synopsys.com>
