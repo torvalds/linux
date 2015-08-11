@@ -259,22 +259,22 @@ static int pio2_probe(struct vme_dev *vdev)
 	for (i = 1; i < PIO2_VARIANT_LENGTH; i++) {
 		switch (card->variant[i]) {
 		case '0':
-			card->bank[i-1].config = NOFIT;
+			card->bank[i - 1].config = NOFIT;
 			break;
 		case '1':
 		case '2':
 		case '3':
 		case '4':
-			card->bank[i-1].config = INPUT;
+			card->bank[i - 1].config = INPUT;
 			break;
 		case '5':
-			card->bank[i-1].config = OUTPUT;
+			card->bank[i - 1].config = OUTPUT;
 			break;
 		case '6':
 		case '7':
 		case '8':
 		case '9':
-			card->bank[i-1].config = BOTH;
+			card->bank[i - 1].config = BOTH;
 			break;
 		}
 	}
