@@ -798,7 +798,7 @@ s32 Handle_get_IPAddress(void *drvHandler, u8 *pu8IPAddr, u8 idx)
 	memcpy(gs8GetIP[idx], strWID.ps8WidVal, IP_ALEN);
 
 	/*get the value by searching the local copy*/
-	WILC_FREE(strWID.ps8WidVal);
+	kfree(strWID.ps8WidVal);
 
 	if (memcmp(gs8GetIP[idx], gs8SetIP[idx], IP_ALEN) != 0)
 		host_int_setup_ipaddress((WILC_WFIDrvHandle)pstrWFIDrv, gs8SetIP[idx], idx);
@@ -862,7 +862,7 @@ static s32 Handle_SetMacAddress(void *drvHandler, tstrHostIfSetMacAddress *pstrH
 	{
 
 	}
-	WILC_FREE(mac_buf);
+	kfree(mac_buf);
 	return s32Error;
 }
 
@@ -1373,28 +1373,28 @@ static s32 Handle_Scan(void *drvHandler, tstrHostIFscanAttr *pstrHostIFscanAttr)
 
 	/* Deallocate pstrHostIFscanAttr->u8ChnlListLen which was prevoisuly allocated by the sending thread */
 	if (pstrHostIFscanAttr->pu8ChnlFreqList != NULL) {
-		WILC_FREE(pstrHostIFscanAttr->pu8ChnlFreqList);
+		kfree(pstrHostIFscanAttr->pu8ChnlFreqList);
 		pstrHostIFscanAttr->pu8ChnlFreqList = NULL;
 	}
 
 	/* Deallocate pstrHostIFscanAttr->pu8IEs which was previously allocated by the sending thread */
 	if (pstrHostIFscanAttr->pu8IEs != NULL)	{
-		WILC_FREE(pstrHostIFscanAttr->pu8IEs);
+		kfree(pstrHostIFscanAttr->pu8IEs);
 		pstrHostIFscanAttr->pu8IEs = NULL;
 	}
 	if (pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo != NULL)	{
-		WILC_FREE(pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo);
+		kfree(pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo);
 		pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo = NULL;
 	}
 
 	/* Deallocate pstrHostIFscanAttr->u8ChnlListLen which was prevoisuly allocated by the sending thread */
 	if (pstrHostIFscanAttr->pu8ChnlFreqList != NULL) {
-		WILC_FREE(pstrHostIFscanAttr->pu8ChnlFreqList);
+		kfree(pstrHostIFscanAttr->pu8ChnlFreqList);
 		pstrHostIFscanAttr->pu8ChnlFreqList = NULL;
 	}
 
 	if (pu8HdnNtwrksWidVal != NULL)
-		WILC_FREE(pu8HdnNtwrksWidVal);
+		kfree(pu8HdnNtwrksWidVal);
 
 	return s32Error;
 }
@@ -1993,7 +1993,7 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 			pstrWFIDrv->enuHostIFstate = HOST_IF_IDLE;
 			/* Deallocation */
 			if (strConnectInfo.pu8ReqIEs != NULL) {
-				WILC_FREE(strConnectInfo.pu8ReqIEs);
+				kfree(strConnectInfo.pu8ReqIEs);
 				strConnectInfo.pu8ReqIEs = NULL;
 			}
 
@@ -2005,24 +2005,24 @@ static s32 Handle_Connect(void *drvHandler, tstrHostIFconnectAttr *pstrHostIFcon
 	PRINT_D(HOSTINF_DBG, "Deallocating connection parameters\n");
 	/* Deallocate pstrHostIFconnectAttr->pu8bssid which was prevoisuly allocated by the sending thread */
 	if (pstrHostIFconnectAttr->pu8bssid != NULL) {
-		WILC_FREE(pstrHostIFconnectAttr->pu8bssid);
+		kfree(pstrHostIFconnectAttr->pu8bssid);
 		pstrHostIFconnectAttr->pu8bssid = NULL;
 	}
 
 	/* Deallocate pstrHostIFconnectAttr->pu8ssid which was prevoisuly allocated by the sending thread */
 	if (pstrHostIFconnectAttr->pu8ssid != NULL) {
-		WILC_FREE(pstrHostIFconnectAttr->pu8ssid);
+		kfree(pstrHostIFconnectAttr->pu8ssid);
 		pstrHostIFconnectAttr->pu8ssid = NULL;
 	}
 
 	/* Deallocate pstrHostIFconnectAttr->pu8IEs which was prevoisuly allocated by the sending thread */
 	if (pstrHostIFconnectAttr->pu8IEs != NULL) {
-		WILC_FREE(pstrHostIFconnectAttr->pu8IEs);
+		kfree(pstrHostIFconnectAttr->pu8IEs);
 		pstrHostIFconnectAttr->pu8IEs = NULL;
 	}
 
 	if (pu8CurrByte != NULL)
-		WILC_FREE(pu8CurrByte);
+		kfree(pu8CurrByte);
 	return s32Error;
 }
 
@@ -2150,7 +2150,7 @@ static s32 Handle_ConnectTimeout(void *drvHandler)
 
 		/* Deallocation of strConnectInfo.pu8ReqIEs */
 		if (strConnectInfo.pu8ReqIEs != NULL) {
-			WILC_FREE(strConnectInfo.pu8ReqIEs);
+			kfree(strConnectInfo.pu8ReqIEs);
 			strConnectInfo.pu8ReqIEs = NULL;
 		}
 	} else {
@@ -2173,18 +2173,18 @@ static s32 Handle_ConnectTimeout(void *drvHandler)
 	/* Deallocation of the Saved Connect Request in the global Handle */
 	pstrWFIDrv->strWILC_UsrConnReq.ssidLen = 0;
 	if (pstrWFIDrv->strWILC_UsrConnReq.pu8ssid != NULL) {
-		WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
+		kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
 		pstrWFIDrv->strWILC_UsrConnReq.pu8ssid = NULL;
 	}
 
 	if (pstrWFIDrv->strWILC_UsrConnReq.pu8bssid != NULL) {
-		WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
+		kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
 		pstrWFIDrv->strWILC_UsrConnReq.pu8bssid = NULL;
 	}
 
 	pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 	if (pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs != NULL) {
-		WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
+		kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
 		pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs = NULL;
 	}
 
@@ -2192,11 +2192,11 @@ static s32 Handle_ConnectTimeout(void *drvHandler)
 	/*BugID_5213*/
 	/*Freeing flushed join request params on connect timeout*/
 	if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == (u32)drvHandler) {
-		WILC_FREE(gu8FlushedJoinReq);
+		kfree(gu8FlushedJoinReq);
 		gu8FlushedJoinReq = NULL;
 	}
 	if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == (u32)drvHandler) {
-		WILC_FREE(gu8FlushedInfoElemAsoc);
+		kfree(gu8FlushedInfoElemAsoc);
 		gu8FlushedInfoElemAsoc = NULL;
 	}
 
@@ -2312,7 +2312,7 @@ static s32 Handle_RcvdNtwrkInfo(void *drvHandler, tstrRcvdNetworkInfo *pstrRcvdN
 done:
 	/* Deallocate pstrRcvdNetworkInfo->pu8Buffer which was prevoisuly allocated by the sending thread */
 	if (pstrRcvdNetworkInfo->pu8Buffer != NULL) {
-		WILC_FREE(pstrRcvdNetworkInfo->pu8Buffer);
+		kfree(pstrRcvdNetworkInfo->pu8Buffer);
 		pstrRcvdNetworkInfo->pu8Buffer = NULL;
 	}
 
@@ -2520,30 +2520,30 @@ static s32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncInfo *pst
 
 			/* Deallocation */
 			if (strConnectInfo.pu8RespIEs != NULL) {
-				WILC_FREE(strConnectInfo.pu8RespIEs);
+				kfree(strConnectInfo.pu8RespIEs);
 				strConnectInfo.pu8RespIEs = NULL;
 			}
 
 			if (strConnectInfo.pu8ReqIEs != NULL) {
-				WILC_FREE(strConnectInfo.pu8ReqIEs);
+				kfree(strConnectInfo.pu8ReqIEs);
 				strConnectInfo.pu8ReqIEs = NULL;
 			}
 
 
 			pstrWFIDrv->strWILC_UsrConnReq.ssidLen = 0;
 			if (pstrWFIDrv->strWILC_UsrConnReq.pu8ssid != NULL) {
-				WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
+				kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
 				pstrWFIDrv->strWILC_UsrConnReq.pu8ssid = NULL;
 			}
 
 			if (pstrWFIDrv->strWILC_UsrConnReq.pu8bssid != NULL) {
-				WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
+				kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
 				pstrWFIDrv->strWILC_UsrConnReq.pu8bssid = NULL;
 			}
 
 			pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 			if (pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs != NULL) {
-				WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
+				kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
 				pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs = NULL;
 			}
 
@@ -2591,25 +2591,25 @@ static s32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncInfo *pst
 			/*
 			 * if(strDisconnectNotifInfo.ie != NULL)
 			 * {
-			 *      WILC_FREE(strDisconnectNotifInfo.ie);
+			 *      kfree(strDisconnectNotifInfo.ie);
 			 *      strDisconnectNotifInfo.ie = NULL;
 			 * }
 			 */
 
 			pstrWFIDrv->strWILC_UsrConnReq.ssidLen = 0;
 			if (pstrWFIDrv->strWILC_UsrConnReq.pu8ssid != NULL) {
-				WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
+				kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
 				pstrWFIDrv->strWILC_UsrConnReq.pu8ssid = NULL;
 			}
 
 			if (pstrWFIDrv->strWILC_UsrConnReq.pu8bssid != NULL) {
-				WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
+				kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
 				pstrWFIDrv->strWILC_UsrConnReq.pu8bssid = NULL;
 			}
 
 			pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 			if (pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs != NULL) {
-				WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
+				kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
 				pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs = NULL;
 			}
 
@@ -2617,11 +2617,11 @@ static s32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncInfo *pst
 			/*Freeing flushed join request params on receiving*/
 			/*MAC_DISCONNECTED while connected*/
 			if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == (u32)drvHandler) {
-				WILC_FREE(gu8FlushedJoinReq);
+				kfree(gu8FlushedJoinReq);
 				gu8FlushedJoinReq = NULL;
 			}
 			if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == (u32)drvHandler) {
-				WILC_FREE(gu8FlushedInfoElemAsoc);
+				kfree(gu8FlushedInfoElemAsoc);
 				gu8FlushedInfoElemAsoc = NULL;
 			}
 
@@ -2648,7 +2648,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(void *drvHandler, tstrRcvdGnrlAsyncInfo *pst
 
 	/* Deallocate pstrRcvdGnrlAsyncInfo->pu8Buffer which was prevoisuly allocated by the sending thread */
 	if (pstrRcvdGnrlAsyncInfo->pu8Buffer != NULL) {
-		WILC_FREE(pstrRcvdGnrlAsyncInfo->pu8Buffer);
+		kfree(pstrRcvdGnrlAsyncInfo->pu8Buffer);
 		pstrRcvdGnrlAsyncInfo->pu8Buffer = NULL;
 	}
 
@@ -2717,7 +2717,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 				    pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen);
 
 
-			WILC_FREE(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey);
+			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey);
 
 			strWIDList[3].u16WIDid = (u16)WID_WEP_KEY_VALUE;
 			strWIDList[3].enuWIDtype = WID_STR;
@@ -2726,7 +2726,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 
 
 			s32Error = SendConfigPkt(SET_CFG, strWIDList, 4, true, (u32)pstrWFIDrv);
-			WILC_FREE(pu8keybuf);
+			kfree(pu8keybuf);
 
 
 		}
@@ -2746,7 +2746,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			memcpy(pu8keybuf + 2, pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey,
 				    pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen);
 
-			WILC_FREE(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey);
+			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey);
 
 			strWID.u16WIDid	= (u16)WID_ADD_WEP_KEY;
 			strWID.enuWIDtype	= WID_STR;
@@ -2754,7 +2754,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 			strWID.s32ValueSize = pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen + 2;
 
 			s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
-			WILC_FREE(pu8keybuf);
+			kfree(pu8keybuf);
 		} else if (pstrHostIFkeyAttr->u8KeyAction & REMOVEKEY)	  {
 
 			PRINT_D(HOSTINF_DBG, "Removing key\n");
@@ -2822,7 +2822,7 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 
 			s32Error = SendConfigPkt(SET_CFG, strWIDList, 2, true, (u32)pstrWFIDrv);
 
-			WILC_FREE(pu8keybuf);
+			kfree(pu8keybuf);
 
 			/* ////////////////////////// */
 			up(&(pstrWFIDrv->hSemTestKeyBlock));
@@ -2868,15 +2868,15 @@ static int Handle_Key(void *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
 
 			s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 
-			WILC_FREE(pu8keybuf);
+			kfree(pu8keybuf);
 
 			/* ////////////////////////// */
 			up(&(pstrWFIDrv->hSemTestKeyBlock));
 			/* ///////////////////////// */
 		}
 _WPARxGtk_end_case_:
-		WILC_FREE(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.pu8key);
-		WILC_FREE(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.pu8seq);
+		kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.pu8key);
+		kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.pu8seq);
 		if (ret == -1)
 			return ret;
 
@@ -2924,7 +2924,7 @@ _WPARxGtk_end_case_:
 			strWIDList[1].s32ValueSize = PTK_KEY_MSG_LEN + 1;
 
 			s32Error = SendConfigPkt(SET_CFG, strWIDList, 2, true, (u32)pstrWFIDrv);
-			WILC_FREE(pu8keybuf);
+			kfree(pu8keybuf);
 
 			/* ////////////////////////// */
 			up(&(pstrWFIDrv->hSemTestKeyBlock));
@@ -2965,7 +2965,7 @@ _WPARxGtk_end_case_:
 			strWID.s32ValueSize = PTK_KEY_MSG_LEN;
 
 			s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
-			WILC_FREE(pu8keybuf);
+			kfree(pu8keybuf);
 
 			/* ////////////////////////// */
 			up(&(pstrWFIDrv->hSemTestKeyBlock));
@@ -2973,7 +2973,7 @@ _WPARxGtk_end_case_:
 		}
 
 _WPAPtk_end_case_:
-		WILC_FREE(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.pu8key);
+		kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwpaAttr.pu8key);
 		if (ret == -1)
 			return ret;
 
@@ -3005,7 +3005,7 @@ _WPAPtk_end_case_:
 
 		s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 
-		WILC_FREE(pu8keybuf);
+		kfree(pu8keybuf);
 		break;
 	}
 
@@ -3099,29 +3099,29 @@ static void Handle_Disconnect(void *drvHandler)
 		/* Deallocation */
 		pstrWFIDrv->strWILC_UsrConnReq.ssidLen = 0;
 		if (pstrWFIDrv->strWILC_UsrConnReq.pu8ssid != NULL) {
-			WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
+			kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid);
 			pstrWFIDrv->strWILC_UsrConnReq.pu8ssid = NULL;
 		}
 
 		if (pstrWFIDrv->strWILC_UsrConnReq.pu8bssid != NULL) {
-			WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
+			kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid);
 			pstrWFIDrv->strWILC_UsrConnReq.pu8bssid = NULL;
 		}
 
 		pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen = 0;
 		if (pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs != NULL) {
-			WILC_FREE(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
+			kfree(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs);
 			pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs = NULL;
 		}
 
 
 		/*BugID_5137*/
 		if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == (u32)drvHandler) {
-			WILC_FREE(gu8FlushedJoinReq);
+			kfree(gu8FlushedJoinReq);
 			gu8FlushedJoinReq = NULL;
 		}
 		if (gu8FlushedInfoElemAsoc != NULL && gu8FlushedJoinReqDrvHandler == (u32)drvHandler) {
-			WILC_FREE(gu8FlushedInfoElemAsoc);
+			kfree(gu8FlushedInfoElemAsoc);
 			gu8FlushedInfoElemAsoc = NULL;
 		}
 
@@ -4179,7 +4179,7 @@ static s32 Handle_AddBASession(void *drvHandler, tstrHostIfBASessionInfo *strHos
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 
 	if (strWID.ps8WidVal != NULL)
-		WILC_FREE(strWID.ps8WidVal);
+		kfree(strWID.ps8WidVal);
 
 	return s32Error;
 
@@ -4247,7 +4247,7 @@ static s32 Handle_DelBASession(void *drvHandler, tstrHostIfBASessionInfo *strHos
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 
 	if (strWID.ps8WidVal != NULL)
-		WILC_FREE(strWID.ps8WidVal);
+		kfree(strWID.ps8WidVal);
 
 	/*BugID_5222*/
 	up(&hWaitResponse);
@@ -4301,7 +4301,7 @@ static s32 Handle_DelAllRxBASessions(void *drvHandler, tstrHostIfBASessionInfo *
 
 
 	if (strWID.ps8WidVal != NULL)
-		WILC_FREE(strWID.ps8WidVal);
+		kfree(strWID.ps8WidVal);
 
 	/*BugID_5222*/
 	up(&hWaitResponse);
@@ -6617,7 +6617,7 @@ s32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 
 _fail_mem_:
 	if (pstrWFIDrv != NULL)
-		WILC_FREE(pstrWFIDrv);
+		kfree(pstrWFIDrv);
 #ifdef WILC_P2P
 _fail_timer_3:
 	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), NULL);
@@ -6743,7 +6743,7 @@ s32 host_int_deinit(WILC_WFIDrvHandle hWFIDrv)
 	u32Intialized = 0;
 	/* gWFiDrvHandle = NULL; */
 	if (pstrWFIDrv != NULL) {
-		WILC_FREE(pstrWFIDrv);
+		kfree(pstrWFIDrv);
 		/* pstrWFIDrv=NULL; */
 
 	}
@@ -7124,10 +7124,10 @@ s32 host_int_add_beacon(WILC_WFIDrvHandle hWFIDrv, u32 u32Interval,
 	WILC_CATCH(s32Error)
 	{
 		if (pstrSetBeaconParam->pu8Head != NULL)
-			WILC_FREE(pstrSetBeaconParam->pu8Head);
+			kfree(pstrSetBeaconParam->pu8Head);
 
 		if (pstrSetBeaconParam->pu8Tail != NULL)
-			WILC_FREE(pstrSetBeaconParam->pu8Tail);
+			kfree(pstrSetBeaconParam->pu8Tail);
 	}
 
 	return s32Error;
@@ -7660,7 +7660,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 void host_int_freeJoinParams(void *pJoinParams)
 {
 	if ((tstrJoinBssParam *)pJoinParams != NULL)
-		WILC_FREE((tstrJoinBssParam *)pJoinParams);
+		kfree((tstrJoinBssParam *)pJoinParams);
 	else
 		PRINT_ER("Unable to FREE null pointer\n");
 }

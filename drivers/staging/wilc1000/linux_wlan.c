@@ -2660,7 +2660,7 @@ static void __exit exit_wilc_driver(void)
 
 		linux_wlan_deinit_lock(&close_exit_sync);
 		if (g_linux_wlan != NULL) {
-			WILC_FREE(g_linux_wlan);
+			kfree(g_linux_wlan);
 			g_linux_wlan = NULL;
 		}
 		printk("Module_exit Done.\n");

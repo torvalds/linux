@@ -150,7 +150,7 @@ void clear_shadow_scan(void *pUserVoid)
 
 		for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 			if (astrLastScannedNtwrksShadow[u32LastScannedNtwrksCountShadow].pu8IEs != NULL) {
-				WILC_FREE(astrLastScannedNtwrksShadow[i].pu8IEs);
+				kfree(astrLastScannedNtwrksShadow[i].pu8IEs);
 				astrLastScannedNtwrksShadow[u32LastScannedNtwrksCountShadow].pu8IEs = NULL;
 			}
 
@@ -242,7 +242,7 @@ void remove_network_from_shadow(void *pUserVoid)
 			PRINT_D(CFG80211_DBG, "Network expired in ScanShadow: %s\n", astrLastScannedNtwrksShadow[i].au8ssid);
 
 			if (astrLastScannedNtwrksShadow[i].pu8IEs != NULL) {
-				WILC_FREE(astrLastScannedNtwrksShadow[i].pu8IEs);
+				kfree(astrLastScannedNtwrksShadow[i].pu8IEs);
 				astrLastScannedNtwrksShadow[i].pu8IEs = NULL;
 			}
 
@@ -334,7 +334,7 @@ void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, vo
 	astrLastScannedNtwrksShadow[ap_index].u16IEsLen = pstrNetworkInfo->u16IEsLen;
 	astrLastScannedNtwrksShadow[ap_index].u64Tsf = pstrNetworkInfo->u64Tsf;
 	if (ap_found != -1)
-		WILC_FREE(astrLastScannedNtwrksShadow[ap_index].pu8IEs);
+		kfree(astrLastScannedNtwrksShadow[ap_index].pu8IEs);
 	astrLastScannedNtwrksShadow[ap_index].pu8IEs =
 		(u8 *)WILC_MALLOC(pstrNetworkInfo->u16IEsLen);        /* will be deallocated by the WILC_WFI_CfgScan() function */
 	memcpy(astrLastScannedNtwrksShadow[ap_index].pu8IEs,
@@ -1219,14 +1219,14 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 				}
 				/* if there has been previous allocation for the same index through its key, free that memory and allocate again*/
 				if (priv->wilc_gtk[key_index]->key)
-					WILC_FREE(priv->wilc_gtk[key_index]->key);
+					kfree(priv->wilc_gtk[key_index]->key);
 
 				priv->wilc_gtk[key_index]->key = (u8 *)WILC_MALLOC(params->key_len);
 				memcpy(priv->wilc_gtk[key_index]->key, params->key, params->key_len);
 
 				/* if there has been previous allocation for the same index through its seq, free that memory and allocate again*/
 				if (priv->wilc_gtk[key_index]->seq)
-					WILC_FREE(priv->wilc_gtk[key_index]->seq);
+					kfree(priv->wilc_gtk[key_index]->seq);
 
 				if ((params->seq_len) > 0) {
 					priv->wilc_gtk[key_index]->seq = (u8 *)WILC_MALLOC(params->seq_len);
@@ -1265,12 +1265,12 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 				}
 
 				if (priv->wilc_ptk[key_index]->key)
-					WILC_FREE(priv->wilc_ptk[key_index]->key);
+					kfree(priv->wilc_ptk[key_index]->key);
 
 				priv->wilc_ptk[key_index]->key = (u8 *)WILC_MALLOC(params->key_len);
 
 				if (priv->wilc_ptk[key_index]->seq)
-					WILC_FREE(priv->wilc_ptk[key_index]->seq);
+					kfree(priv->wilc_ptk[key_index]->seq);
 
 				if ((params->seq_len) > 0)
 					priv->wilc_ptk[key_index]->seq = (u8 *)WILC_MALLOC(params->seq_len);
@@ -1422,7 +1422,7 @@ static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
 
 		/*Delete saved WEP keys params, if any*/
 		if (g_key_wep_params.key != NULL) {
-			WILC_FREE(g_key_wep_params.key);
+			kfree(g_key_wep_params.key);
 			g_key_wep_params.key = NULL;
 		}
 
@@ -1433,16 +1433,16 @@ static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
 
 			if (priv->wilc_gtk[key_index]->key != NULL) {
 
-				WILC_FREE(priv->wilc_gtk[key_index]->key);
+				kfree(priv->wilc_gtk[key_index]->key);
 				priv->wilc_gtk[key_index]->key = NULL;
 			}
 			if (priv->wilc_gtk[key_index]->seq) {
 
-				WILC_FREE(priv->wilc_gtk[key_index]->seq);
+				kfree(priv->wilc_gtk[key_index]->seq);
 				priv->wilc_gtk[key_index]->seq = NULL;
 			}
 
-			WILC_FREE(priv->wilc_gtk[key_index]);
+			kfree(priv->wilc_gtk[key_index]);
 			priv->wilc_gtk[key_index] = NULL;
 
 		}
@@ -1451,35 +1451,35 @@ static int WILC_WFI_del_key(struct wiphy *wiphy, struct net_device *netdev,
 
 			if (priv->wilc_ptk[key_index]->key) {
 
-				WILC_FREE(priv->wilc_ptk[key_index]->key);
+				kfree(priv->wilc_ptk[key_index]->key);
 				priv->wilc_ptk[key_index]->key = NULL;
 			}
 			if (priv->wilc_ptk[key_index]->seq) {
 
-				WILC_FREE(priv->wilc_ptk[key_index]->seq);
+				kfree(priv->wilc_ptk[key_index]->seq);
 				priv->wilc_ptk[key_index]->seq = NULL;
 			}
-			WILC_FREE(priv->wilc_ptk[key_index]);
+			kfree(priv->wilc_ptk[key_index]);
 			priv->wilc_ptk[key_index] = NULL;
 		}
 	#endif
 
 		/*Delete saved PTK and GTK keys params, if any*/
 		if (g_key_ptk_params.key != NULL) {
-			WILC_FREE(g_key_ptk_params.key);
+			kfree(g_key_ptk_params.key);
 			g_key_ptk_params.key = NULL;
 		}
 		if (g_key_ptk_params.seq != NULL) {
-			WILC_FREE(g_key_ptk_params.seq);
+			kfree(g_key_ptk_params.seq);
 			g_key_ptk_params.seq = NULL;
 		}
 
 		if (g_key_gtk_params.key != NULL) {
-			WILC_FREE(g_key_gtk_params.key);
+			kfree(g_key_gtk_params.key);
 			g_key_gtk_params.key = NULL;
 		}
 		if (g_key_gtk_params.seq != NULL) {
-			WILC_FREE(g_key_gtk_params.seq);
+			kfree(g_key_gtk_params.seq);
 			g_key_gtk_params.seq = NULL;
 		}
 

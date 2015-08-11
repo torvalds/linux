@@ -891,13 +891,13 @@ s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo)
 
 	if (pstrNetworkInfo != NULL) {
 		if (pstrNetworkInfo->pu8IEs != NULL) {
-			WILC_FREE(pstrNetworkInfo->pu8IEs);
+			kfree(pstrNetworkInfo->pu8IEs);
 			pstrNetworkInfo->pu8IEs = NULL;
 		} else {
 			s32Error = WILC_FAIL;
 		}
 
-		WILC_FREE(pstrNetworkInfo);
+		kfree(pstrNetworkInfo);
 		pstrNetworkInfo = NULL;
 
 	} else {
@@ -976,13 +976,13 @@ s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
 
 	if (pstrConnectRespInfo != NULL) {
 		if (pstrConnectRespInfo->pu8RespIEs != NULL) {
-			WILC_FREE(pstrConnectRespInfo->pu8RespIEs);
+			kfree(pstrConnectRespInfo->pu8RespIEs);
 			pstrConnectRespInfo->pu8RespIEs = NULL;
 		} else {
 			s32Error = WILC_FAIL;
 		}
 
-		WILC_FREE(pstrConnectRespInfo);
+		kfree(pstrConnectRespInfo);
 		pstrConnectRespInfo = NULL;
 
 	} else {
@@ -1056,7 +1056,7 @@ s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 	s32 s32Error = WILC_SUCCESS;
 
 	if (pstrSurveyResults != NULL) {
-		WILC_FREE(pstrSurveyResults);
+		kfree(pstrSurveyResults);
 	}
 
 	return s32Error;
@@ -1958,7 +1958,7 @@ s32 CoreConfiguratorDeInit(void)
 
 	if (gps8ConfigPacket != NULL) {
 
-		WILC_FREE(gps8ConfigPacket);
+		kfree(gps8ConfigPacket);
 		gps8ConfigPacket = NULL;
 	}
 

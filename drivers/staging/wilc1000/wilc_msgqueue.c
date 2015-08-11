@@ -39,7 +39,7 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle,
 
 	while (pHandle->pstrMessageList != NULL) {
 		Message *pstrMessge = pHandle->pstrMessageList->pstrNext;
-		WILC_FREE(pHandle->pstrMessageList);
+		kfree(pHandle->pstrMessageList);
 		pHandle->pstrMessageList = pstrMessge;
 	}
 
@@ -100,9 +100,9 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 		/* error occured, free any allocations */
 		if (pstrMessage != NULL) {
 			if (pstrMessage->pvBuffer != NULL) {
-				WILC_FREE(pstrMessage->pvBuffer);
+				kfree(pstrMessage->pvBuffer);
 			}
-			WILC_FREE(pstrMessage);
+			kfree(pstrMessage);
 		}
 	}
 
@@ -175,8 +175,8 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 
 		pHandle->pstrMessageList = pstrMessage->pstrNext;
 
-		WILC_FREE(pstrMessage->pvBuffer);
-		WILC_FREE(pstrMessage);
+		kfree(pstrMessage->pvBuffer);
+		kfree(pstrMessage);
 
 		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
