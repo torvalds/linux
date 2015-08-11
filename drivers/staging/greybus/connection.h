@@ -11,6 +11,7 @@
 #define __CONNECTION_H
 
 #include <linux/list.h>
+#include <linux/kfifo.h>
 
 enum gb_connection_state {
 	GB_CONNECTION_STATE_INVALID	= 0,
@@ -42,6 +43,7 @@ struct gb_connection {
 	struct list_head		operations;
 
 	struct workqueue_struct		*wq;
+	struct kfifo			ts_kfifo;
 
 	atomic_t			op_cycle;
 
@@ -65,6 +67,9 @@ void gb_hd_connections_exit(struct greybus_host_device *hd);
 
 void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
+void gb_connection_push_timestamp(struct gb_connection *connection);
+int gb_connection_pop_timestamp(struct gb_connection *connection,
+				struct timeval *tv);
 
 void gb_connection_bind_protocol(struct gb_connection *connection);
 

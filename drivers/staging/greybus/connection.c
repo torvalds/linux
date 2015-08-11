@@ -11,6 +11,10 @@
 
 #include "greybus.h"
 
+#define GB_CONNECTION_TS_KFIFO_ELEMENTS	2
+#define GB_CONNECTION_TS_KFIFO_LEN \
+	(GB_CONNECTION_TS_KFIFO_ELEMENTS * sizeof(struct timeval))
+
 static DEFINE_SPINLOCK(gb_connections_lock);
 
 /* This is only used at initialization time; no locking is required. */
@@ -63,6 +67,29 @@ void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 }
 EXPORT_SYMBOL_GPL(greybus_data_rcvd);
 
+void gb_connection_push_timestamp(struct gb_connection *connection)
+{
+	struct timeval tv;
+
+	do_gettimeofday(&tv);
+	kfifo_in_locked(&connection->ts_kfifo, (void *)&tv,
+			sizeof(struct timeval), &connection->lock);
+}
+EXPORT_SYMBOL_GPL(gb_connection_push_timestamp);
+
+int gb_connection_pop_timestamp(struct gb_connection *connection,
+				struct timeval *tv)
+{
+	int retval;
+
+	if (!kfifo_len(&connection->ts_kfifo))
+		return -ENOMEM;
+	retval = kfifo_out_locked(&connection->ts_kfifo, (void *)tv,
+				  sizeof(*tv), &connection->lock);
+	return retval;
+}
+EXPORT_SYMBOL_GPL(gb_connection_pop_timestamp);
+
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -102,6 +129,7 @@ static void gb_connection_release(struct device *dev)
 	struct gb_connection *connection = to_gb_connection(dev);
 
 	destroy_workqueue(connection->wq);
+	kfifo_free(&connection->ts_kfifo);
 	kfree(connection);
 }
 
@@ -222,6 +250,10 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	if (!connection->wq)
 		goto err_free_connection;
 
+	if (kfifo_alloc(&connection->ts_kfifo, GB_CONNECTION_TS_KFIFO_LEN,
+			GFP_KERNEL))
+		goto err_free_connection;
+
 	connection->dev.parent = parent;
 	connection->dev.bus = &greybus_bus_type;
 	connection->dev.type = &greybus_connection_type;
@@ -238,7 +270,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 		pr_err("failed to add connection device for cport 0x%04hx\n",
 			cport_id);
 
-		goto err_free_connection;
+		goto err_free_kfifo;
 	}
 
 	spin_lock_irq(&gb_connections_lock);
@@ -259,6 +291,8 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	return connection;
 
+err_free_kfifo:
+	kfifo_free(&connection->ts_kfifo);
 err_free_connection:
 	kfree(connection);
 err_remove_ida:
