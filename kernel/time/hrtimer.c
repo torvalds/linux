@@ -679,14 +679,13 @@ static void retrigger_next_event(void *arg)
 /*
  * Switch to high resolution mode
  */
-static int hrtimer_switch_to_hres(void)
+static void hrtimer_switch_to_hres(void)
 {
 	struct hrtimer_cpu_base *base = this_cpu_ptr(&hrtimer_bases);
 
 	if (tick_init_highres()) {
 		printk(KERN_WARNING "Could not switch to high resolution "
 				    "mode on CPU %d\n", base->cpu);
-		return 0;
 	}
 	base->hres_active = 1;
 	hrtimer_resolution = HIGH_RES_NSEC;
@@ -694,7 +693,6 @@ static int hrtimer_switch_to_hres(void)
 	tick_setup_sched_timer();
 	/* "Retrigger" the interrupt to get things going */
 	retrigger_next_event(NULL);
-	return 1;
 }
 
 static void clock_was_set_work(struct work_struct *work)
@@ -718,7 +716,7 @@ void clock_was_set_delayed(void)
 static inline int __hrtimer_hres_active(struct hrtimer_cpu_base *b) { return 0; }
 static inline int hrtimer_hres_active(void) { return 0; }
 static inline int hrtimer_is_hres_enabled(void) { return 0; }
-static inline int hrtimer_switch_to_hres(void) { return 0; }
+static inline void hrtimer_switch_to_hres(void) { }
 static inline void
 hrtimer_force_reprogram(struct hrtimer_cpu_base *base, int skip_equal) { }
 static inline int hrtimer_reprogram(struct hrtimer *timer,
