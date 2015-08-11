@@ -780,11 +780,11 @@ static int wa_add(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-#define WA_REG(addr, mask, val) { \
+#define WA_REG(addr, mask, val) do { \
 		const int r = wa_add(dev_priv, (addr), (mask), (val)); \
 		if (r) \
 			return r; \
-	}
+	} while (0)
 
 #define WA_SET_BIT_MASKED(addr, mask) \
 	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
