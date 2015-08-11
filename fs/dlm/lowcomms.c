@@ -1020,6 +1020,7 @@ socket_err:
 
 out:
 	mutex_unlock(&con->sock_mutex);
+	set_bit(CF_WRITE_PENDING, &con->flags);
 }
 
 /* Connect a new socket to its peer */
@@ -1114,6 +1115,7 @@ out_err:
 	}
 out:
 	mutex_unlock(&con->sock_mutex);
+	set_bit(CF_WRITE_PENDING, &con->flags);
 	return;
 }
 
@@ -1502,10 +1504,8 @@ static void process_send_sockets(struct work_struct *work)
 {
 	struct connection *con = container_of(work, struct connection, swork);
 
-	if (test_and_clear_bit(CF_CONNECT_PENDING, &con->flags)) {
+	if (test_and_clear_bit(CF_CONNECT_PENDING, &con->flags))
 		con->connect_action(con);
-		set_bit(CF_WRITE_PENDING, &con->flags);
-	}
 	if (test_and_clear_bit(CF_WRITE_PENDING, &con->flags))
 		send_to_sock(con);
 }
