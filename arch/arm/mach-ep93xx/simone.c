@@ -40,8 +40,6 @@ static struct ep93xx_eth_data __initdata simone_eth_data = {
 };
 
 static struct ep93xxfb_mach_info __initdata simone_fb_info = {
-	.num_modes	= EP93XXFB_USE_MODEDB,
-	.bpp		= 16,
 	.flags		= EP93XXFB_USE_SDCSN0 | EP93XXFB_PCLK_FALLING,
 };
 

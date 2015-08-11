@@ -106,8 +106,6 @@ static void vision_lcd_blank(int blank_mode, struct fb_info *info)
 }
 
 static struct ep93xxfb_mach_info ep93xxfb_info __initdata = {
-	.num_modes	= EP93XXFB_USE_MODEDB,
-	.bpp		= 16,
 	.flags		= EP93XXFB_USE_SDCSN0 | EP93XXFB_PCLK_FALLING,
 	.setup		= vision_lcd_setup,
 	.teardown	= vision_lcd_teardown,
