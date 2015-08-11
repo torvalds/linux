@@ -15,6 +15,7 @@
 #include <asm/mach/time.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <linux/sched_clock.h>
 
 /*
  * Register definitions for the timers
@@ -61,6 +62,11 @@
 
 
 static unsigned int tick_rate;
+
+static u64 notrace gemini_read_sched_clock(void)
+{
+	return readl(TIMER_COUNT(TIMER3_BASE));
+}
 
 static int gemini_timer_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
@@ -206,8 +212,21 @@ void __init gemini_timer_init(void)
 	writel(TIMER_DEFAULT_FLAGS, TIMER_CR);
 
 	/*
-	 * Setup clockevent timer (interrupt-driven.)
+	 * Setup free-running clocksource timer (interrupts
+	 * disabled.)
 	 */
+	writel(0, TIMER_COUNT(TIMER3_BASE));
+	writel(0, TIMER_LOAD(TIMER3_BASE));
+	writel(0, TIMER_MATCH1(TIMER3_BASE));
+	writel(0, TIMER_MATCH2(TIMER3_BASE));
+	clocksource_mmio_init(TIMER_COUNT(TIMER3_BASE),
+			      "gemini_clocksource", tick_rate,
+			      300, 32, clocksource_mmio_readl_up);
+	sched_clock_register(gemini_read_sched_clock, 32, tick_rate);
+
+	/*
+	 * Setup clockevent timer (interrupt-driven.)
+	*/
 	writel(0, TIMER_COUNT(TIMER1_BASE));
 	writel(0, TIMER_LOAD(TIMER1_BASE));
 	writel(0, TIMER_MATCH1(TIMER1_BASE));
