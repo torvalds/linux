@@ -790,6 +790,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 		ccb->device = pm8001_dev;
 		ccb->ccb_tag = ccb_tag;
 		ccb->task = task;
+		ccb->n_elem = 0;
 
 		res = PM8001_CHIP_DISP->task_abort(pm8001_ha,
 			pm8001_dev, flag, task_tag, ccb_tag);
