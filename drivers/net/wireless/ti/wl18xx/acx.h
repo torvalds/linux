@@ -93,11 +93,23 @@ struct wl18xx_acx_checksum_state {
 
 
 struct wl18xx_acx_error_stats {
-	u32 error_frame;
-	u32 error_null_Frame_tx_start;
-	u32 error_numll_frame_cts_start;
-	u32 error_bar_retry;
-	u32 error_frame_cts_nul_flid;
+	u32 error_frame_non_ctrl;
+	u32 error_frame_ctrl;
+	u32 error_frame_during_protection;
+	u32 null_frame_tx_start;
+	u32 null_frame_cts_start;
+	u32 bar_retry;
+	u32 num_frame_cts_nul_flid;
+	u32 tx_abort_failure;
+	u32 tx_resume_failure;
+	u32 rx_cmplt_db_overflow_cnt;
+	u32 elp_while_rx_exch;
+	u32 elp_while_tx_exch;
+	u32 elp_while_tx;
+	u32 elp_while_nvic_pending;
+	u32 rx_excessive_frame_len;
+	u32 burst_mismatch;
+	u32 tbc_exch_mismatch;
 } __packed;
 
 struct wl18xx_acx_debug_stats {
@@ -114,6 +126,7 @@ struct wl18xx_acx_ring_stats {
 	u32 tx_cmplt;
 } __packed;
 
+#define NUM_OF_RATES_INDEXES 30
 struct wl18xx_acx_tx_stats {
 	u32 tx_prepared_descs;
 	u32 tx_cmplt;
@@ -123,7 +136,7 @@ struct wl18xx_acx_tx_stats {
 	u32 tx_data_programmed;
 	u32 tx_burst_programmed;
 	u32 tx_starts;
-	u32 tx_imm_resp;
+	u32 tx_stop;
 	u32 tx_start_templates;
 	u32 tx_start_int_templates;
 	u32 tx_start_fw_gen;
@@ -132,13 +145,14 @@ struct wl18xx_acx_tx_stats {
 	u32 tx_exch;
 	u32 tx_retry_template;
 	u32 tx_retry_data;
+	u32 tx_retry_per_rate[NUM_OF_RATES_INDEXES];
 	u32 tx_exch_pending;
 	u32 tx_exch_expiry;
 	u32 tx_done_template;
 	u32 tx_done_data;
 	u32 tx_done_int_template;
-	u32 tx_frame_checksum;
-	u32 tx_checksum_result;
+	u32 tx_cfe1;
+	u32 tx_cfe2;
 	u32 frag_called;
 	u32 frag_mpdu_alloc_failed;
 	u32 frag_init_called;
@@ -166,11 +180,8 @@ struct wl18xx_acx_rx_stats {
 	u32 rx_cmplt_task;
 	u32 rx_phy_hdr;
 	u32 rx_timeout;
+	u32 rx_rts_timeout;
 	u32 rx_timeout_wa;
-	u32 rx_wa_density_dropped_frame;
-	u32 rx_wa_ba_not_expected;
-	u32 rx_frame_checksum;
-	u32 rx_checksum_result;
 	u32 defrag_called;
 	u32 defrag_init_called;
 	u32 defrag_in_process_called;
@@ -180,6 +191,7 @@ struct wl18xx_acx_rx_stats {
 	u32 decrypt_key_not_found;
 	u32 defrag_need_decrypt;
 	u32 rx_tkip_replays;
+	u32 rx_xfr;
 } __packed;
 
 struct wl18xx_acx_isr_stats {
@@ -194,6 +206,13 @@ struct wl18xx_acx_pwr_stats {
 	u32 connection_out_of_sync;
 	u32 cont_miss_bcns_spread[PWR_STAT_MAX_CONT_MISSED_BCNS_SPREAD];
 	u32 rcvd_awake_bcns_cnt;
+	u32 sleep_time_count;
+	u32 sleep_time_avg;
+	u32 sleep_cycle_avg;
+	u32 sleep_percent;
+	u32 ap_sleep_active_conf;
+	u32 ap_sleep_user_conf;
+	u32 ap_sleep_counter;
 } __packed;
 
 struct wl18xx_acx_event_stats {
@@ -228,11 +247,11 @@ struct wl18xx_acx_rx_rate_stats {
 } __packed;
 
 #define AGGR_STATS_TX_AGG	16
-#define AGGR_STATS_TX_RATE	16
 #define AGGR_STATS_RX_SIZE_LEN	16
 
 struct wl18xx_acx_aggr_stats {
-	u32 tx_agg_vs_rate[AGGR_STATS_TX_AGG * AGGR_STATS_TX_RATE];
+	u32 tx_agg_rate[AGGR_STATS_TX_AGG];
+	u32 tx_agg_len[AGGR_STATS_TX_AGG];
 	u32 rx_size[AGGR_STATS_RX_SIZE_LEN];
 } __packed;
 
@@ -258,6 +277,7 @@ struct wl18xx_acx_pipeline_stats {
 	u32 cs_rx_packet_in;
 	u32 cs_rx_packet_out;
 	u16 pipeline_fifo_full[PIPE_STATS_HW_FIFO];
+	u16 padding;
 } __packed;
 
 struct wl18xx_acx_mem_stats {
@@ -267,21 +287,45 @@ struct wl18xx_acx_mem_stats {
 	u32 fw_gen_free_mem_blks;
 } __packed;
 
+struct wl18xx_acx_thermal_stats {
+	u16 irq_thr_low;
+	u16 irq_thr_high;
+	u16 tx_stop;
+	u16 tx_resume;
+	u16 false_irq;
+	u16 adc_source_unexpected;
+} __packed;
+
+#define WL18XX_NUM_OF_CALIBRATIONS_ERRORS 18
+struct wl18xx_acx_calib_failure_stats {
+	u16 fail_count[WL18XX_NUM_OF_CALIBRATIONS_ERRORS];
+	u32 calib_count;
+} __packed;
+
+struct wl18xx_roaming_stats {
+	s32 rssi_level;
+} __packed;
+
+struct wl18xx_dfs_stats {
+	u32 num_of_radar_detections;
+} __packed;
+
 struct wl18xx_acx_statistics {
 	struct acx_header header;
 
 	struct wl18xx_acx_error_stats		error;
-	struct wl18xx_acx_debug_stats		debug;
 	struct wl18xx_acx_tx_stats		tx;
 	struct wl18xx_acx_rx_stats		rx;
 	struct wl18xx_acx_isr_stats		isr;
 	struct wl18xx_acx_pwr_stats		pwr;
-	struct wl18xx_acx_ps_poll_stats		ps_poll;
 	struct wl18xx_acx_rx_filter_stats	rx_filter;
 	struct wl18xx_acx_rx_rate_stats		rx_rate;
 	struct wl18xx_acx_aggr_stats		aggr_size;
 	struct wl18xx_acx_pipeline_stats	pipeline;
-	struct wl18xx_acx_mem_stats		mem;
+	struct wl18xx_acx_thermal_stats		thermal;
+	struct wl18xx_acx_calib_failure_stats	calib;
+	struct wl18xx_roaming_stats		roaming;
+	struct wl18xx_dfs_stats			dfs;
 } __packed;
 
 struct wl18xx_acx_clear_statistics {
