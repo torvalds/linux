@@ -182,6 +182,9 @@ int gb_protocol_get_version(struct gb_connection *connection, int type,
 		return -ENOTSUPP;
 	}
 
+	connection->module_major = response->major;
+	connection->module_minor = response->minor;
+
 	dev_dbg(&connection->dev, "version_major = %u version_minor = %u\n",
 		response->major, response->minor);
 
