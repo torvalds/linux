@@ -1066,8 +1066,9 @@ static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
 		phy_power_off(dp->phy);
 }
 
-static void exynos_dp_poweron(struct exynos_dp_device *dp)
+static void exynos_dp_enable(struct exynos_drm_display *display)
 {
+	struct exynos_dp_device *dp = display_to_dp(display);
 	struct exynos_drm_crtc *crtc = dp_to_crtc(dp);
 
 	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
@@ -1088,10 +1089,13 @@ static void exynos_dp_poweron(struct exynos_dp_device *dp)
 	exynos_dp_init_dp(dp);
 	enable_irq(dp->irq);
 	exynos_dp_commit(&dp->display);
+
+	dp->dpms_mode = DRM_MODE_DPMS_ON;
 }
 
-static void exynos_dp_poweroff(struct exynos_dp_device *dp)
+static void exynos_dp_disable(struct exynos_drm_display *display)
 {
+	struct exynos_dp_device *dp = display_to_dp(display);
 	struct exynos_drm_crtc *crtc = dp_to_crtc(dp);
 
 	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
@@ -1116,30 +1120,14 @@ static void exynos_dp_poweroff(struct exynos_dp_device *dp)
 		if (drm_panel_unprepare(dp->panel))
 			DRM_ERROR("failed to turnoff the panel\n");
 	}
-}
 
-static void exynos_dp_dpms(struct exynos_drm_display *display, int mode)
-{
-	struct exynos_dp_device *dp = display_to_dp(display);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		exynos_dp_poweron(dp);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		exynos_dp_poweroff(dp);
-		break;
-	default:
-		break;
-	}
-	dp->dpms_mode = mode;
+	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
 static struct exynos_drm_display_ops exynos_dp_display_ops = {
 	.create_connector = exynos_dp_create_connector,
-	.dpms = exynos_dp_dpms,
+	.enable = exynos_dp_enable,
+	.disable = exynos_dp_disable,
 	.commit = exynos_dp_commit,
 };
 
@@ -1319,7 +1307,7 @@ static void exynos_dp_unbind(struct device *dev, struct device *master,
 {
 	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 
-	exynos_dp_dpms(&dp->display, DRM_MODE_DPMS_OFF);
+	exynos_dp_disable(&dp->display);
 }
 
 static const struct component_ops exynos_dp_ops = {
@@ -1377,7 +1365,7 @@ static int exynos_dp_suspend(struct device *dev)
 {
 	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 
-	exynos_dp_dpms(&dp->display, DRM_MODE_DPMS_OFF);
+	exynos_dp_disable(&dp->display);
 	return 0;
 }
 
@@ -1385,7 +1373,7 @@ static int exynos_dp_resume(struct device *dev)
 {
 	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 
-	exynos_dp_dpms(&dp->display, DRM_MODE_DPMS_ON);
+	exynos_dp_enable(&dp->display);
 	return 0;
 }
 #endif

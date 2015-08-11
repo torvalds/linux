@@ -70,8 +70,8 @@ static void exynos_drm_encoder_enable(struct drm_encoder *encoder)
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
 	struct exynos_drm_display *display = exynos_encoder->display;
 
-	if (display->ops->dpms)
-		display->ops->dpms(display, DRM_MODE_DPMS_ON);
+	if (display->ops->enable)
+		display->ops->enable(display);
 
 	if (display->ops->commit)
 		display->ops->commit(display);
@@ -82,8 +82,8 @@ static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
 	struct exynos_drm_display *display = exynos_encoder->display;
 
-	if (display->ops->dpms)
-		display->ops->dpms(display, DRM_MODE_DPMS_OFF);
+	if (display->ops->disable)
+		display->ops->disable(display);
 }
 
 static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {

@@ -1723,8 +1723,9 @@ static void hdmi_commit(struct exynos_drm_display *display)
 	hdmi_conf_apply(hdata);
 }
 
-static void hdmi_poweron(struct hdmi_context *hdata)
+static void hdmi_enable(struct exynos_drm_display *display)
 {
+	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct hdmi_resources *res = &hdata->res;
 
 	if (hdata->powered)
@@ -1745,15 +1746,32 @@ static void hdmi_poweron(struct hdmi_context *hdata)
 	clk_prepare_enable(res->sclk_hdmi);
 
 	hdmiphy_poweron(hdata);
-	hdmi_commit(&hdata->display);
+	hdmi_commit(display);
 }
 
-static void hdmi_poweroff(struct hdmi_context *hdata)
+static void hdmi_disable(struct exynos_drm_display *display)
 {
+	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct hdmi_resources *res = &hdata->res;
+	struct drm_crtc *crtc = hdata->encoder->crtc;
+	const struct drm_crtc_helper_funcs *funcs = NULL;
 
 	if (!hdata->powered)
 		return;
+
+	/*
+	 * The SFRs of VP and Mixer are updated by Vertical Sync of
+	 * Timing generator which is a part of HDMI so the sequence
+	 * to disable TV Subsystem should be as following,
+	 *	VP -> Mixer -> HDMI
+	 *
+	 * Below codes will try to disable Mixer and VP(if used)
+	 * prior to disabling HDMI.
+	 */
+	if (crtc)
+		funcs = crtc->helper_private;
+	if (funcs && funcs->disable)
+		(*funcs->disable)(crtc);
 
 	/* HDMI System Disable */
 	hdmi_reg_writemask(hdata, HDMI_CON_0, 0, HDMI_EN);
@@ -1776,49 +1794,12 @@ static void hdmi_poweroff(struct hdmi_context *hdata)
 	hdata->powered = false;
 }
 
-static void hdmi_dpms(struct exynos_drm_display *display, int mode)
-{
-	struct hdmi_context *hdata = display_to_hdmi(display);
-	struct drm_encoder *encoder = hdata->encoder;
-	struct drm_crtc *crtc = encoder->crtc;
-	const struct drm_crtc_helper_funcs *funcs = NULL;
-
-	DRM_DEBUG_KMS("mode %d\n", mode);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		hdmi_poweron(hdata);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		/*
-		 * The SFRs of VP and Mixer are updated by Vertical Sync of
-		 * Timing generator which is a part of HDMI so the sequence
-		 * to disable TV Subsystem should be as following,
-		 *	VP -> Mixer -> HDMI
-		 *
-		 * Below codes will try to disable Mixer and VP(if used)
-		 * prior to disabling HDMI.
-		 */
-		if (crtc)
-			funcs = crtc->helper_private;
-		if (funcs && funcs->disable)
-			(*funcs->disable)(crtc);
-
-		hdmi_poweroff(hdata);
-		break;
-	default:
-		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);
-		break;
-	}
-}
-
 static struct exynos_drm_display_ops hdmi_display_ops = {
 	.create_connector = hdmi_create_connector,
 	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
-	.dpms		= hdmi_dpms,
+	.enable		= hdmi_enable,
+	.disable	= hdmi_disable,
 	.commit		= hdmi_commit,
 };
 

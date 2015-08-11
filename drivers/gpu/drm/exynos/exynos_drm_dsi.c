@@ -1518,16 +1518,17 @@ static void exynos_dsi_poweroff(struct exynos_dsi *dsi)
 		dev_err(dsi->dev, "cannot disable regulators %d\n", ret);
 }
 
-static int exynos_dsi_enable(struct exynos_dsi *dsi)
+static void exynos_dsi_enable(struct exynos_drm_display *display)
 {
+	struct exynos_dsi *dsi = display_to_dsi(display);
 	int ret;
 
 	if (dsi->state & DSIM_STATE_ENABLED)
-		return 0;
+		return;
 
 	ret = exynos_dsi_poweron(dsi);
 	if (ret < 0)
-		return ret;
+		return;
 
 	dsi->state |= DSIM_STATE_ENABLED;
 
@@ -1535,7 +1536,7 @@ static int exynos_dsi_enable(struct exynos_dsi *dsi)
 	if (ret < 0) {
 		dsi->state &= ~DSIM_STATE_ENABLED;
 		exynos_dsi_poweroff(dsi);
-		return ret;
+		return;
 	}
 
 	exynos_dsi_set_display_mode(dsi);
@@ -1547,16 +1548,16 @@ static int exynos_dsi_enable(struct exynos_dsi *dsi)
 		exynos_dsi_set_display_enable(dsi, false);
 		drm_panel_unprepare(dsi->panel);
 		exynos_dsi_poweroff(dsi);
-		return ret;
+		return;
 	}
 
 	dsi->state |= DSIM_STATE_VIDOUT_AVAILABLE;
-
-	return 0;
 }
 
-static void exynos_dsi_disable(struct exynos_dsi *dsi)
+static void exynos_dsi_disable(struct exynos_drm_display *display)
 {
+	struct exynos_dsi *dsi = display_to_dsi(display);
+
 	if (!(dsi->state & DSIM_STATE_ENABLED))
 		return;
 
@@ -1569,26 +1570,6 @@ static void exynos_dsi_disable(struct exynos_dsi *dsi)
 	dsi->state &= ~DSIM_STATE_ENABLED;
 
 	exynos_dsi_poweroff(dsi);
-}
-
-static void exynos_dsi_dpms(struct exynos_drm_display *display, int mode)
-{
-	struct exynos_dsi *dsi = display_to_dsi(display);
-
-	if (dsi->panel) {
-		switch (mode) {
-		case DRM_MODE_DPMS_ON:
-			exynos_dsi_enable(dsi);
-			break;
-		case DRM_MODE_DPMS_STANDBY:
-		case DRM_MODE_DPMS_SUSPEND:
-		case DRM_MODE_DPMS_OFF:
-			exynos_dsi_disable(dsi);
-			break;
-		default:
-			break;
-		}
-	}
 }
 
 static enum drm_connector_status
@@ -1604,7 +1585,7 @@ exynos_dsi_detect(struct drm_connector *connector, bool force)
 		struct exynos_drm_display *display;
 
 		display = platform_get_drvdata(to_platform_device(dsi->dev));
-		exynos_dsi_dpms(display, DRM_MODE_DPMS_OFF);
+		exynos_dsi_disable(display);
 		drm_panel_detach(dsi->panel);
 		dsi->panel = NULL;
 	}
@@ -1698,7 +1679,8 @@ static void exynos_dsi_mode_set(struct exynos_drm_display *display,
 static struct exynos_drm_display_ops exynos_dsi_display_ops = {
 	.create_connector = exynos_dsi_create_connector,
 	.mode_set = exynos_dsi_mode_set,
-	.dpms = exynos_dsi_dpms
+	.enable = exynos_dsi_enable,
+	.disable = exynos_dsi_disable,
 };
 
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
@@ -1849,7 +1831,7 @@ static void exynos_dsi_unbind(struct device *dev, struct device *master,
 	struct exynos_drm_display *display = dev_get_drvdata(dev);
 	struct exynos_dsi *dsi = display_to_dsi(display);
 
-	exynos_dsi_dpms(display, DRM_MODE_DPMS_OFF);
+	exynos_dsi_disable(display);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 }

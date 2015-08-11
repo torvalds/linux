@@ -86,7 +86,8 @@ struct exynos_drm_plane {
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
  * @check_mode: check if mode is valid or not.
- * @dpms: display device on or off.
+ * @enable: display device on.
+ * @disable: display device off.
  * @commit: apply changes to hw
  */
 struct exynos_drm_display;
@@ -102,7 +103,8 @@ struct exynos_drm_display_ops {
 				struct drm_display_mode *mode);
 	int (*check_mode)(struct exynos_drm_display *display,
 				struct drm_display_mode *mode);
-	void (*dpms)(struct exynos_drm_display *display, int mode);
+	void (*enable)(struct exynos_drm_display *display);
+	void (*disable)(struct exynos_drm_display *display);
 	void (*commit)(struct exynos_drm_display *display);
 };
 

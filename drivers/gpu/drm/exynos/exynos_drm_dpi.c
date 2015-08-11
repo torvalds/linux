@@ -32,7 +32,6 @@ struct exynos_dpi {
 	struct drm_encoder *encoder;
 
 	struct videomode *vm;
-	int dpms_mode;
 };
 
 #define connector_to_dpi(c) container_of(c, struct exynos_dpi, connector)
@@ -133,46 +132,30 @@ static int exynos_dpi_create_connector(struct exynos_drm_display *display,
 	return 0;
 }
 
-static void exynos_dpi_poweron(struct exynos_dpi *ctx)
+static void exynos_dpi_enable(struct exynos_drm_display *display)
 {
+	struct exynos_dpi *ctx = display_to_dpi(display);
+
 	if (ctx->panel) {
 		drm_panel_prepare(ctx->panel);
 		drm_panel_enable(ctx->panel);
 	}
 }
 
-static void exynos_dpi_poweroff(struct exynos_dpi *ctx)
+static void exynos_dpi_disable(struct exynos_drm_display *display)
 {
+	struct exynos_dpi *ctx = display_to_dpi(display);
+
 	if (ctx->panel) {
 		drm_panel_disable(ctx->panel);
 		drm_panel_unprepare(ctx->panel);
 	}
 }
 
-static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
-{
-	struct exynos_dpi *ctx = display_to_dpi(display);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		if (ctx->dpms_mode != DRM_MODE_DPMS_ON)
-				exynos_dpi_poweron(ctx);
-			break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		if (ctx->dpms_mode == DRM_MODE_DPMS_ON)
-			exynos_dpi_poweroff(ctx);
-		break;
-	default:
-		break;
-	}
-	ctx->dpms_mode = mode;
-}
-
 static struct exynos_drm_display_ops exynos_dpi_display_ops = {
 	.create_connector = exynos_dpi_create_connector,
-	.dpms = exynos_dpi_dpms
+	.enable = exynos_dpi_enable,
+	.disable = exynos_dpi_disable,
 };
 
 /* of_* functions will be removed after merge of of_graph patches */
@@ -311,7 +294,6 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 	ctx->display.type = EXYNOS_DISPLAY_TYPE_LCD;
 	ctx->display.ops = &exynos_dpi_display_ops;
 	ctx->dev = dev;
-	ctx->dpms_mode = DRM_MODE_DPMS_OFF;
 
 	ret = exynos_dpi_parse_dt(ctx);
 	if (ret < 0) {
@@ -332,7 +314,7 @@ int exynos_dpi_remove(struct exynos_drm_display *display)
 {
 	struct exynos_dpi *ctx = display_to_dpi(display);
 
-	exynos_dpi_dpms(&ctx->display, DRM_MODE_DPMS_OFF);
+	exynos_dpi_disable(&ctx->display);
 
 	if (ctx->panel)
 		drm_panel_detach(ctx->panel);
