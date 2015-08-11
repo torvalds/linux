@@ -1579,17 +1579,14 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 			 wrpll_params.central_freq;
 	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
-		struct drm_encoder *encoder = &intel_encoder->base;
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		switch (intel_dp->link_bw) {
-		case DP_LINK_BW_1_62:
+		switch (crtc_state->port_clock / 2) {
+		case 81000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, 0);
 			break;
-		case DP_LINK_BW_2_7:
+		case 135000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1350, 0);
 			break;
-		case DP_LINK_BW_5_4:
+		case 270000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2700, 0);
 			break;
 		}
