@@ -569,6 +569,15 @@ static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
 static const char *itimers[] = { "REAL", "VIRTUAL", "PROF", };
 static DEFINE_STRARRAY(itimers);
 
+static const char *keyctl_options[] = {
+	"GET_KEYRING_ID", "JOIN_SESSION_KEYRING", "UPDATE", "REVOKE", "CHOWN",
+	"SETPERM", "DESCRIBE", "CLEAR", "LINK", "UNLINK", "SEARCH", "READ",
+	"INSTANTIATE", "NEGATE", "SET_REQKEY_KEYRING", "SET_TIMEOUT",
+	"ASSUME_AUTHORITY", "GET_SECURITY", "SESSION_TO_PARENT", "REJECT",
+	"INSTANTIATE_IOV", "INVALIDATE", "GET_PERSISTENT",
+};
+static DEFINE_STRARRAY(keyctl_options);
+
 static const char *whences[] = { "SET", "CUR", "END",
 #ifdef SEEK_DATA
 "DATA",
@@ -1071,6 +1080,7 @@ static struct syscall_fmt {
 #else
 			     [2] = SCA_HEX, /* arg */ }, },
 #endif
+	{ .name	    = "keyctl",	    .errmsg = true, STRARRAY(0, option, keyctl_options), },
 	{ .name	    = "kill",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "lchown",    .errmsg = true,
