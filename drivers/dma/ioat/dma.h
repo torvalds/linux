@@ -28,12 +28,9 @@
 
 #define IOAT_DMA_VERSION  "4.00"
 
-#define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 #define IOAT_DMA_DCA_ANY_CPU		~0
 
 #define to_ioatdma_device(dev) container_of(dev, struct ioatdma_device, common)
-#define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
-#define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, txd)
 #define to_dev(ioat_chan) (&(ioat_chan)->device->pdev->dev)
 #define to_pdev(ioat_chan) ((ioat_chan)->device->pdev)
 
@@ -123,23 +120,6 @@ struct ioat_sysfs_entry {
 };
 
 /**
- * struct ioat_dma_chan - internal representation of a DMA channel
- */
-struct ioat_dma_chan {
-	struct ioat_chan_common base;
-
-	size_t xfercap;	/* XFERCAP register value expanded out */
-
-	spinlock_t desc_lock;
-	struct list_head free_desc;
-	struct list_head used_desc;
-
-	int pending;
-	u16 desccount;
-	u16 active;
-};
-
-/**
  * struct ioat_sed_ent - wrapper around super extended hardware descriptor
  * @hw: hardware SED
  * @sed_dma: dma address for the SED
@@ -158,33 +138,7 @@ static inline struct ioat_chan_common *to_chan_common(struct dma_chan *c)
 	return container_of(c, struct ioat_chan_common, common);
 }
 
-static inline struct ioat_dma_chan *to_ioat_chan(struct dma_chan *c)
-{
-	struct ioat_chan_common *chan = to_chan_common(c);
-
-	return container_of(chan, struct ioat_dma_chan, base);
-}
-
 /* wrapper around hardware descriptor format + additional software fields */
-
-/**
- * struct ioat_desc_sw - wrapper around hardware descriptor
- * @hw: hardware DMA descriptor (for memcpy)
- * @node: this descriptor will either be on the free list,
- *     or attached to a transaction list (tx_list)
- * @txd: the generic software descriptor for all engines
- * @id: identifier for debug
- */
-struct ioat_desc_sw {
-	struct ioat_dma_descriptor *hw;
-	struct list_head node;
-	size_t len;
-	struct list_head tx_list;
-	struct dma_async_tx_descriptor txd;
-	#ifdef DEBUG
-	int id;
-	#endif
-};
 
 #ifdef DEBUG
 #define set_desc_id(desc, i) ((desc)->id = (i))
@@ -253,13 +207,6 @@ static inline u64 ioat_chansts(struct ioat_chan_common *chan)
 #define ioat_chansts ioat_chansts_32
 #endif
 
-static inline void ioat_start(struct ioat_chan_common *chan)
-{
-	u8 ver = chan->device->version;
-
-	writeb(IOAT_CHANCMD_START, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
-}
-
 static inline u64 ioat_chansts_to_addr(u64 status)
 {
 	return status & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR;
@@ -293,16 +240,6 @@ static inline bool ioat_reset_pending(struct ioat_chan_common *chan)
 	return (cmd & IOAT_CHANCMD_RESET) == IOAT_CHANCMD_RESET;
 }
 
-static inline void ioat_set_chainaddr(struct ioat_dma_chan *ioat, u64 addr)
-{
-	struct ioat_chan_common *chan = &ioat->base;
-
-	writel(addr & 0x00000000FFFFFFFF,
-	       chan->reg_base + IOAT1_CHAINADDR_OFFSET_LOW);
-	writel(addr >> 32,
-	       chan->reg_base + IOAT1_CHAINADDR_OFFSET_HIGH);
-}
-
 static inline bool is_ioat_active(unsigned long status)
 {
 	return ((status & IOAT_CHANSTS_STATUS) == IOAT_CHANSTS_ACTIVE);
@@ -331,11 +268,9 @@ static inline bool is_ioat_bug(unsigned long err)
 
 int ioat_probe(struct ioatdma_device *device);
 int ioat_register(struct ioatdma_device *device);
-int ioat1_dma_probe(struct ioatdma_device *dev, int dca);
 int ioat_dma_self_test(struct ioatdma_device *device);
 void ioat_dma_remove(struct ioatdma_device *device);
 struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-dma_addr_t ioat_get_current_completion(struct ioat_chan_common *chan);
 void ioat_init_channel(struct ioatdma_device *device,
 		       struct ioat_chan_common *chan, int idx);
 enum dma_status ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,

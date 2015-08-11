@@ -71,14 +71,6 @@ static inline int dca2_tag_map_valid(u8 *tag_map)
 #define APICID_BIT(x)		(DCA_TAG_MAP_VALID | (x))
 #define IOAT_TAG_MAP_LEN	8
 
-static u8 ioat_tag_map_BNB[IOAT_TAG_MAP_LEN] = {
-	1, APICID_BIT(1), APICID_BIT(2), APICID_BIT(2), };
-static u8 ioat_tag_map_SCNB[IOAT_TAG_MAP_LEN] = {
-	1, APICID_BIT(1), APICID_BIT(2), APICID_BIT(2), };
-static u8 ioat_tag_map_CNB[IOAT_TAG_MAP_LEN] = {
-	1, APICID_BIT(1), APICID_BIT(3), APICID_BIT(4), APICID_BIT(2), };
-static u8 ioat_tag_map_UNISYS[IOAT_TAG_MAP_LEN] = { 0 };
-
 /* pack PCI B/D/F into a u16 */
 static inline u16 dcaid_from_pcidev(struct pci_dev *pci)
 {
@@ -126,72 +118,6 @@ struct ioat_dca_priv {
 	struct ioat_dca_slot 	 req_slots[0];
 };
 
-/* 5000 series chipset DCA Port Requester ID Table Entry Format
- * [15:8]	PCI-Express Bus Number
- * [7:3]	PCI-Express Device Number
- * [2:0]	PCI-Express Function Number
- *
- * 5000 series chipset DCA control register format
- * [7:1]	Reserved (0)
- * [0]		Ignore Function Number
- */
-
-static int ioat_dca_add_requester(struct dca_provider *dca, struct device *dev)
-{
-	struct ioat_dca_priv *ioatdca = dca_priv(dca);
-	struct pci_dev *pdev;
-	int i;
-	u16 id;
-
-	/* This implementation only supports PCI-Express */
-	if (!dev_is_pci(dev))
-		return -ENODEV;
-	pdev = to_pci_dev(dev);
-	id = dcaid_from_pcidev(pdev);
-
-	if (ioatdca->requester_count == ioatdca->max_requesters)
-		return -ENODEV;
-
-	for (i = 0; i < ioatdca->max_requesters; i++) {
-		if (ioatdca->req_slots[i].pdev == NULL) {
-			/* found an empty slot */
-			ioatdca->requester_count++;
-			ioatdca->req_slots[i].pdev = pdev;
-			ioatdca->req_slots[i].rid = id;
-			writew(id, ioatdca->dca_base + (i * 4));
-			/* make sure the ignore function bit is off */
-			writeb(0, ioatdca->dca_base + (i * 4) + 2);
-			return i;
-		}
-	}
-	/* Error, ioatdma->requester_count is out of whack */
-	return -EFAULT;
-}
-
-static int ioat_dca_remove_requester(struct dca_provider *dca,
-				     struct device *dev)
-{
-	struct ioat_dca_priv *ioatdca = dca_priv(dca);
-	struct pci_dev *pdev;
-	int i;
-
-	/* This implementation only supports PCI-Express */
-	if (!dev_is_pci(dev))
-		return -ENODEV;
-	pdev = to_pci_dev(dev);
-
-	for (i = 0; i < ioatdca->max_requesters; i++) {
-		if (ioatdca->req_slots[i].pdev == pdev) {
-			writew(0, ioatdca->dca_base + (i * 4));
-			ioatdca->req_slots[i].pdev = NULL;
-			ioatdca->req_slots[i].rid = 0;
-			ioatdca->requester_count--;
-			return i;
-		}
-	}
-	return -ENODEV;
-}
-
 static u8 ioat_dca_get_tag(struct dca_provider *dca,
 			   struct device *dev,
 			   int cpu)
@@ -230,83 +156,6 @@ static int ioat_dca_dev_managed(struct dca_provider *dca,
 	}
 	return 0;
 }
-
-static struct dca_ops ioat_dca_ops = {
-	.add_requester		= ioat_dca_add_requester,
-	.remove_requester	= ioat_dca_remove_requester,
-	.get_tag		= ioat_dca_get_tag,
-	.dev_managed		= ioat_dca_dev_managed,
-};
-
-
-struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase)
-{
-	struct dca_provider *dca;
-	struct ioat_dca_priv *ioatdca;
-	u8 *tag_map = NULL;
-	int i;
-	int err;
-	u8 version;
-	u8 max_requesters;
-
-	if (!system_has_dca_enabled(pdev))
-		return NULL;
-
-	/* I/OAT v1 systems must have a known tag_map to support DCA */
-	switch (pdev->vendor) {
-	case PCI_VENDOR_ID_INTEL:
-		switch (pdev->device) {
-		case PCI_DEVICE_ID_INTEL_IOAT:
-			tag_map = ioat_tag_map_BNB;
-			break;
-		case PCI_DEVICE_ID_INTEL_IOAT_CNB:
-			tag_map = ioat_tag_map_CNB;
-			break;
-		case PCI_DEVICE_ID_INTEL_IOAT_SCNB:
-			tag_map = ioat_tag_map_SCNB;
-			break;
-		}
-		break;
-	case PCI_VENDOR_ID_UNISYS:
-		switch (pdev->device) {
-		case PCI_DEVICE_ID_UNISYS_DMA_DIRECTOR:
-			tag_map = ioat_tag_map_UNISYS;
-			break;
-		}
-		break;
-	}
-	if (tag_map == NULL)
-		return NULL;
-
-	version = readb(iobase + IOAT_VER_OFFSET);
-	if (version == IOAT_VER_3_0)
-		max_requesters = IOAT3_DCA_MAX_REQ;
-	else
-		max_requesters = IOAT_DCA_MAX_REQ;
-
-	dca = alloc_dca_provider(&ioat_dca_ops,
-			sizeof(*ioatdca) +
-			(sizeof(struct ioat_dca_slot) * max_requesters));
-	if (!dca)
-		return NULL;
-
-	ioatdca = dca_priv(dca);
-	ioatdca->max_requesters = max_requesters;
-	ioatdca->dca_base = iobase + 0x54;
-
-	/* copy over the APIC ID to DCA tag mapping */
-	for (i = 0; i < IOAT_TAG_MAP_LEN; i++)
-		ioatdca->tag_map[i] = tag_map[i];
-
-	err = register_dca_provider(dca, &pdev->dev);
-	if (err) {
-		free_dca_provider(dca);
-		return NULL;
-	}
-
-	return dca;
-}
-
 
 static int ioat2_dca_add_requester(struct dca_provider *dca, struct device *dev)
 {
