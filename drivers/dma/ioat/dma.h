@@ -381,6 +381,43 @@ ioat_set_chainaddr(struct ioatdma_chan *ioat_chan, u64 addr)
 	       ioat_chan->reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
 }
 
+irqreturn_t ioat_dma_do_interrupt(int irq, void *data);
+irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data);
+struct ioat_ring_ent **
+ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags);
+void ioat_start_null_desc(struct ioatdma_chan *ioat_chan);
+void ioat_free_ring_ent(struct ioat_ring_ent *desc, struct dma_chan *chan);
+int ioat_reset_hw(struct ioatdma_chan *ioat_chan);
+struct dma_async_tx_descriptor *
+ioat_prep_interrupt_lock(struct dma_chan *c, unsigned long flags);
+struct dma_async_tx_descriptor *
+ioat_prep_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
+	       unsigned int src_cnt, size_t len, unsigned long flags);
+struct dma_async_tx_descriptor *
+ioat_prep_xor_val(struct dma_chan *chan, dma_addr_t *src,
+		    unsigned int src_cnt, size_t len,
+		    enum sum_check_flags *result, unsigned long flags);
+struct dma_async_tx_descriptor *
+ioat_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
+	      unsigned int src_cnt, const unsigned char *scf, size_t len,
+	      unsigned long flags);
+struct dma_async_tx_descriptor *
+ioat_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
+		  unsigned int src_cnt, const unsigned char *scf, size_t len,
+		  enum sum_check_flags *pqres, unsigned long flags);
+struct dma_async_tx_descriptor *
+ioat_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
+		 unsigned int src_cnt, size_t len, unsigned long flags);
+struct dma_async_tx_descriptor *
+ioat_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
+		     unsigned int src_cnt, size_t len,
+		     enum sum_check_flags *result, unsigned long flags);
+enum dma_status
+ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
+		struct dma_tx_state *txstate);
+void ioat_cleanup_event(unsigned long data);
+void ioat_timer_event(unsigned long data);
+bool is_bwd_ioat(struct pci_dev *pdev);
 int ioat_probe(struct ioatdma_device *ioat_dma);
 int ioat_register(struct ioatdma_device *ioat_dma);
 int ioat_dma_self_test(struct ioatdma_device *ioat_dma);
@@ -421,5 +458,7 @@ extern int ioat_pending_level;
 extern int ioat_ring_alloc_order;
 extern struct kobj_type ioat_ktype;
 extern struct kmem_cache *ioat_cache;
+extern int ioat_ring_max_alloc_order;
+extern struct kmem_cache *ioat_sed_cache;
 
 #endif /* IOATDMA_H */
