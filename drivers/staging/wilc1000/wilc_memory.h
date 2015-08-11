@@ -112,11 +112,6 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 
 
 
-/*!
- * @brief	standrad free wrapper with default attributes
- */
-#define WILC_FREE(__ptr__) \
-	WILC_FREE_EX(__ptr__, NULL)
 
 /*!
  * @brief	Allocates a block (with default attributes) of given type and number of
