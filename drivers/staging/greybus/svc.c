@@ -193,8 +193,8 @@ static int gb_svc_hello(struct gb_operation *op)
 	 * SVC sends information about the endo and interface-id on the hello
 	 * request, use that to create an endo.
 	 */
-	if (op->request->payload_size != sizeof(*hello_request)) {
-		dev_err(dev, "%s: Illegal size of hello request (%zu %zu)\n",
+	if (op->request->payload_size < sizeof(*hello_request)) {
+		dev_err(dev, "%s: Illegal size of hello request (%zu < %zu)\n",
 			__func__, op->request->payload_size,
 			sizeof(*hello_request));
 		return -EINVAL;
