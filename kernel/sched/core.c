@@ -2124,11 +2124,11 @@ void set_numabalancing_state(bool enabled)
 		sched_feat_set("NO_NUMA");
 }
 #else
-__read_mostly bool numabalancing_enabled;
+__read_mostly bool sched_numa_balancing;
 
 void set_numabalancing_state(bool enabled)
 {
-	numabalancing_enabled = enabled;
+	sched_numa_balancing = enabled;
 }
 #endif /* CONFIG_SCHED_DEBUG */
 
@@ -2138,7 +2138,7 @@ int sysctl_numa_balancing(struct ctl_table *table, int write,
 {
 	struct ctl_table t;
 	int err;
-	int state = numabalancing_enabled;
+	int state = sched_numa_balancing;
 
 	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;

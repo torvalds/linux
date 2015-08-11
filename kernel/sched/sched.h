@@ -1006,13 +1006,13 @@ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
 #ifdef CONFIG_NUMA_BALANCING
 #define sched_feat_numa(x) sched_feat(x)
 #ifdef CONFIG_SCHED_DEBUG
-#define numabalancing_enabled sched_feat_numa(NUMA)
+#define sched_numa_balancing sched_feat_numa(NUMA)
 #else
-extern bool numabalancing_enabled;
+extern bool sched_numa_balancing;
 #endif /* CONFIG_SCHED_DEBUG */
 #else
 #define sched_feat_numa(x) (0)
-#define numabalancing_enabled (0)
+#define sched_numa_balancing (0)
 #endif /* CONFIG_NUMA_BALANCING */
 
 static inline u64 global_rt_period(void)
