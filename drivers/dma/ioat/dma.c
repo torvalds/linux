@@ -206,7 +206,6 @@ static void __ioat_restart_chan(struct ioatdma_chan *ioat_chan)
 	/* set the tail to be re-issued */
 	ioat_chan->issued = ioat_chan->tail;
 	ioat_chan->dmacount = 0;
-	set_bit(IOAT_COMPLETION_PENDING, &ioat_chan->state);
 	mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
 
 	dev_dbg(to_dev(ioat_chan),
@@ -689,7 +688,6 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 	if (active - i == 0) {
 		dev_dbg(to_dev(ioat_chan), "%s: cancel completion timeout\n",
 			__func__);
-		clear_bit(IOAT_COMPLETION_PENDING, &ioat_chan->state);
 		mod_timer(&ioat_chan->timer, jiffies + IDLE_TIMEOUT);
 	}
 

@@ -95,7 +95,6 @@ struct ioatdma_chan {
 	dma_addr_t last_completion;
 	spinlock_t cleanup_lock;
 	unsigned long state;
-	#define IOAT_COMPLETION_PENDING 0
 	#define IOAT_COMPLETION_ACK 1
 	#define IOAT_RESET_PENDING 2
 	#define IOAT_KOBJ_INIT_FAIL 3
