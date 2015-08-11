@@ -22,6 +22,7 @@
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
 
+#define to_exynos_encoder(x)	container_of(x, struct exynos_drm_encoder, base)
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
@@ -77,7 +78,7 @@ struct exynos_drm_plane {
 };
 
 /*
- * Exynos DRM Display Structure.
+ * Exynos DRM Encoder Structure.
  *	- this structure is common to analog tv, digital tv and lcd panel.
  *
  * @create_connector: initialize and register a new connector
@@ -88,37 +89,30 @@ struct exynos_drm_plane {
  * @disable: display device off.
  * @commit: apply changes to hw
  */
-struct exynos_drm_display;
-struct exynos_drm_display_ops {
-	int (*create_connector)(struct exynos_drm_display *display,
-				struct drm_encoder *encoder);
-	void (*mode_fixup)(struct exynos_drm_display *display,
+struct exynos_drm_encoder;
+struct exynos_drm_encoder_ops {
+	int (*create_connector)(struct exynos_drm_encoder *encoder);
+	void (*mode_fixup)(struct exynos_drm_encoder *encoder,
 				struct drm_connector *connector,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
-	void (*mode_set)(struct exynos_drm_display *display,
+	void (*mode_set)(struct exynos_drm_encoder *encoder,
 				struct drm_display_mode *mode);
-	void (*enable)(struct exynos_drm_display *display);
-	void (*disable)(struct exynos_drm_display *display);
-	void (*commit)(struct exynos_drm_display *display);
+	void (*enable)(struct exynos_drm_encoder *encoder);
+	void (*disable)(struct exynos_drm_encoder *encoder);
+	void (*commit)(struct exynos_drm_encoder *encoder);
 };
 
 /*
- * Exynos drm display structure, maps 1:1 with an encoder/connector
+ * exynos specific encoder structure.
  *
- * @list: the list entry for this manager
+ * @drm_encoder: encoder object.
  * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
- * @encoder: encoder object this display maps to
- * @connector: connector object this display maps to
  * @ops: pointer to callbacks for exynos drm specific functionality
- * @ctx: A pointer to the display's implementation specific context
  */
-struct exynos_drm_display {
-	struct list_head list;
-	enum exynos_drm_output_type type;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	struct exynos_drm_display_ops *ops;
+struct exynos_drm_encoder {
+	struct drm_encoder		base;
+	struct exynos_drm_encoder_ops	*ops;
 };
 
 /*
@@ -265,12 +259,12 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
-struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
-int exynos_dpi_remove(struct exynos_drm_display *display);
+struct exynos_drm_encoder *exynos_dpi_probe(struct device *dev);
+int exynos_dpi_remove(struct exynos_drm_encoder *encoder);
 #else
-static inline struct exynos_drm_display *
+static inline struct exynos_drm_encoder *
 exynos_dpi_probe(struct device *dev) { return NULL; }
-static inline int exynos_dpi_remove(struct exynos_drm_display *display)
+static inline int exynos_dpi_remove(struct exynos_drm_encoder *encoder)
 {
 	return 0;
 }
@@ -278,7 +272,8 @@ static inline int exynos_dpi_remove(struct exynos_drm_display *display)
 
 /* This function creates a encoder and a connector, and initializes them. */
 int exynos_drm_create_enc_conn(struct drm_device *dev,
-				struct exynos_drm_display *display);
+			       struct exynos_drm_encoder *encoder,
+			       enum exynos_drm_output_type type);
 
 extern struct platform_driver fimd_driver;
 extern struct platform_driver exynos5433_decon_driver;

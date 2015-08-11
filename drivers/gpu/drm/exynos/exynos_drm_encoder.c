@@ -18,20 +18,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 
-#define to_exynos_encoder(x)	container_of(x, struct exynos_drm_encoder,\
-				drm_encoder)
-
-/*
- * exynos specific encoder structure.
- *
- * @drm_encoder: encoder object.
- * @display: the display structure that maps to this encoder
- */
-struct exynos_drm_encoder {
-	struct drm_encoder		drm_encoder;
-	struct exynos_drm_display	*display;
-};
-
 static bool
 exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 			       const struct drm_display_mode *mode,
@@ -39,16 +25,16 @@ exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
-	struct exynos_drm_display *display = exynos_encoder->display;
 	struct drm_connector *connector;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder != encoder)
 			continue;
 
-		if (display->ops->mode_fixup)
-			display->ops->mode_fixup(display, connector, mode,
-					adjusted_mode);
+		if (exynos_encoder->ops->mode_fixup)
+			exynos_encoder->ops->mode_fixup(exynos_encoder,
+							connector, mode,
+							adjusted_mode);
 	}
 
 	return true;
@@ -59,31 +45,28 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 					 struct drm_display_mode *adjusted_mode)
 {
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
-	struct exynos_drm_display *display = exynos_encoder->display;
 
-	if (display->ops->mode_set)
-		display->ops->mode_set(display, adjusted_mode);
+	if (exynos_encoder->ops->mode_set)
+		exynos_encoder->ops->mode_set(exynos_encoder, adjusted_mode);
 }
 
 static void exynos_drm_encoder_enable(struct drm_encoder *encoder)
 {
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
-	struct exynos_drm_display *display = exynos_encoder->display;
 
-	if (display->ops->enable)
-		display->ops->enable(display);
+	if (exynos_encoder->ops->enable)
+		exynos_encoder->ops->enable(exynos_encoder);
 
-	if (display->ops->commit)
-		display->ops->commit(display);
+	if (exynos_encoder->ops->commit)
+		exynos_encoder->ops->commit(exynos_encoder);
 }
 
 static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 {
 	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
-	struct exynos_drm_display *display = exynos_encoder->display;
 
-	if (display->ops->disable)
-		display->ops->disable(display);
+	if (exynos_encoder->ops->disable)
+		exynos_encoder->ops->disable(exynos_encoder);
 }
 
 static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {
@@ -93,16 +76,8 @@ static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {
 	.disable	= exynos_drm_encoder_disable,
 };
 
-static void exynos_drm_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
-
-	drm_encoder_cleanup(encoder);
-	kfree(exynos_encoder);
-}
-
 static struct drm_encoder_funcs exynos_encoder_funcs = {
-	.destroy = exynos_drm_encoder_destroy,
+	.destroy = drm_encoder_cleanup,
 };
 
 void exynos_drm_encoder_setup(struct drm_device *dev)
@@ -118,23 +93,16 @@ void exynos_drm_encoder_setup(struct drm_device *dev)
 		encoder->possible_clones = clone_mask;
 }
 
-struct drm_encoder *
-exynos_drm_encoder_create(struct drm_device *dev,
-			   struct exynos_drm_display *display,
-			   unsigned long possible_crtcs)
+int exynos_drm_encoder_create(struct drm_device *dev,
+			      struct exynos_drm_encoder *exynos_encoder,
+			      unsigned long possible_crtcs)
 {
 	struct drm_encoder *encoder;
-	struct exynos_drm_encoder *exynos_encoder;
 
 	if (!possible_crtcs)
-		return NULL;
+		return -EINVAL;
 
-	exynos_encoder = kzalloc(sizeof(*exynos_encoder), GFP_KERNEL);
-	if (!exynos_encoder)
-		return NULL;
-
-	exynos_encoder->display = display;
-	encoder = &exynos_encoder->drm_encoder;
+	encoder = &exynos_encoder->base;
 	encoder->possible_crtcs = possible_crtcs;
 
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
@@ -146,10 +114,5 @@ exynos_drm_encoder_create(struct drm_device *dev,
 
 	DRM_DEBUG_KMS("encoder has been created\n");
 
-	return encoder;
-}
-
-struct exynos_drm_display *exynos_drm_get_display(struct drm_encoder *encoder)
-{
-	return to_exynos_encoder(encoder)->display;
+	return 0;
 }

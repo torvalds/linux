@@ -61,7 +61,7 @@ struct decon_context {
 	atomic_t			wait_vsync_event;
 
 	struct exynos_drm_panel_info panel;
-	struct exynos_drm_display *display;
+	struct exynos_drm_encoder *encoder;
 };
 
 static const struct of_device_id decon_driver_dt_match[] = {
@@ -681,8 +681,9 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(ctx->crtc);
 	}
 
-	if (ctx->display)
-		exynos_drm_create_enc_conn(drm_dev, ctx->display);
+	if (ctx->encoder)
+		exynos_drm_create_enc_conn(drm_dev, ctx->encoder,
+					   EXYNOS_DISPLAY_TYPE_LCD);
 
 	return 0;
 
@@ -695,8 +696,8 @@ static void decon_unbind(struct device *dev, struct device *master,
 
 	decon_disable(ctx->crtc);
 
-	if (ctx->display)
-		exynos_dpi_remove(ctx->display);
+	if (ctx->encoder)
+		exynos_dpi_remove(ctx->encoder);
 
 	decon_ctx_remove(ctx);
 }
@@ -781,9 +782,9 @@ static int decon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ctx->display = exynos_dpi_probe(dev);
-	if (IS_ERR(ctx->display)) {
-		ret = PTR_ERR(ctx->display);
+	ctx->encoder = exynos_dpi_probe(dev);
+	if (IS_ERR(ctx->encoder)) {
+		ret = PTR_ERR(ctx->encoder);
 		goto err_iounmap;
 	}
 

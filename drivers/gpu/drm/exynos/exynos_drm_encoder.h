@@ -15,9 +15,7 @@
 #define _EXYNOS_DRM_ENCODER_H_
 
 void exynos_drm_encoder_setup(struct drm_device *dev);
-struct drm_encoder *exynos_drm_encoder_create(struct drm_device *dev,
-			struct exynos_drm_display *mgr,
-			unsigned long possible_crtcs);
-struct exynos_drm_display *exynos_drm_get_display(struct drm_encoder *encoder);
+int exynos_drm_encoder_create(struct drm_device *dev, struct exynos_drm_encoder
+			      *encoder, unsigned long possible_crtcs);
 
 #endif

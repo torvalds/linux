@@ -30,7 +30,7 @@ void exynos_drm_crtc_complete_scanout(struct drm_framebuffer *fb);
 
 /* This function gets pipe value to crtc device matched with out_type. */
 int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
-					unsigned int out_type);
+				       enum exynos_drm_output_type out_type);
 
 /*
  * This function calls the crtc device(manager)'s te_handler() callback

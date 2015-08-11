@@ -21,38 +21,33 @@
 static LIST_HEAD(exynos_drm_subdrv_list);
 
 int exynos_drm_create_enc_conn(struct drm_device *dev,
-					struct exynos_drm_display *display)
+			       struct exynos_drm_encoder *exynos_encoder,
+			       enum exynos_drm_output_type type)
 {
-	struct drm_encoder *encoder;
 	int ret;
 	unsigned long possible_crtcs = 0;
 
-	ret = exynos_drm_crtc_get_pipe_from_type(dev, display->type);
+	ret = exynos_drm_crtc_get_pipe_from_type(dev, type);
 	if (ret < 0)
 		return ret;
 
 	possible_crtcs |= 1 << ret;
 
 	/* create and initialize a encoder for this sub driver. */
-	encoder = exynos_drm_encoder_create(dev, display, possible_crtcs);
-	if (!encoder) {
+	ret = exynos_drm_encoder_create(dev, exynos_encoder, possible_crtcs);
+	if (ret) {
 		DRM_ERROR("failed to create encoder\n");
-		return -EFAULT;
+		return ret;
 	}
 
-	display->encoder = encoder;
-
-	ret = display->ops->create_connector(display, encoder);
+	ret = exynos_encoder->ops->create_connector(exynos_encoder);
 	if (ret) {
 		DRM_ERROR("failed to create connector ret = %d\n", ret);
-		goto err_destroy_encoder;
+		drm_encoder_cleanup(&exynos_encoder->base);
+		return ret;
 	}
 
 	return 0;
-
-err_destroy_encoder:
-	encoder->funcs->destroy(encoder);
-	return ret;
 }
 
 int exynos_drm_subdrv_register(struct exynos_drm_subdrv *subdrv)

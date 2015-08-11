@@ -169,7 +169,7 @@ struct fimd_context {
 
 	struct exynos_drm_panel_info panel;
 	struct fimd_driver_data *driver_data;
-	struct exynos_drm_display *display;
+	struct exynos_drm_encoder *encoder;
 };
 
 static const struct of_device_id fimd_driver_dt_match[] = {
@@ -945,8 +945,9 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(ctx->crtc))
 		return PTR_ERR(ctx->crtc);
 
-	if (ctx->display)
-		exynos_drm_create_enc_conn(drm_dev, ctx->display);
+	if (ctx->encoder)
+		exynos_drm_create_enc_conn(drm_dev, ctx->encoder,
+					   EXYNOS_DISPLAY_TYPE_LCD);
 
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
@@ -967,8 +968,8 @@ static void fimd_unbind(struct device *dev, struct device *master,
 
 	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
 
-	if (ctx->display)
-		exynos_dpi_remove(ctx->display);
+	if (ctx->encoder)
+		exynos_dpi_remove(ctx->encoder);
 }
 
 static const struct component_ops fimd_component_ops = {
@@ -1075,10 +1076,9 @@ static int fimd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ctx->display = exynos_dpi_probe(dev);
-	if (IS_ERR(ctx->display)) {
-		return PTR_ERR(ctx->display);
-	}
+	ctx->encoder = exynos_dpi_probe(dev);
+	if (IS_ERR(ctx->encoder))
+		return PTR_ERR(ctx->encoder);
 
 	pm_runtime_enable(dev);
 

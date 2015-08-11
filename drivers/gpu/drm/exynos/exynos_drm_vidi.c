@@ -35,11 +35,10 @@
 					connector)
 
 struct vidi_context {
-	struct exynos_drm_display	display;
+	struct exynos_drm_encoder	encoder;
 	struct platform_device		*pdev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
-	struct drm_encoder		*encoder;
 	struct drm_connector		connector;
 	struct exynos_drm_plane		planes[WINDOWS_NR];
 	struct edid			*raw_edid;
@@ -55,9 +54,9 @@ struct vidi_context {
 	int				pipe;
 };
 
-static inline struct vidi_context *display_to_vidi(struct exynos_drm_display *d)
+static inline struct vidi_context *encoder_to_vidi(struct exynos_drm_encoder *e)
 {
-	return container_of(d, struct vidi_context, display);
+	return container_of(e, struct vidi_context, encoder);
 }
 
 static const char fake_edid_info[] = {
@@ -254,9 +253,7 @@ static DEVICE_ATTR(connection, 0644, vidi_show_connection,
 int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 				struct drm_file *file_priv)
 {
-	struct vidi_context *ctx = NULL;
-	struct drm_encoder *encoder;
-	struct exynos_drm_display *display;
+	struct vidi_context *ctx = dev_get_drvdata(drm_dev->dev);
 	struct drm_exynos_vidi_connection *vidi = data;
 
 	if (!vidi) {
@@ -266,21 +263,6 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 
 	if (vidi->connection > 1) {
 		DRM_DEBUG_KMS("connection should be 0 or 1.\n");
-		return -EINVAL;
-	}
-
-	list_for_each_entry(encoder, &drm_dev->mode_config.encoder_list,
-								head) {
-		display = exynos_drm_get_display(encoder);
-
-		if (display->type == EXYNOS_DISPLAY_TYPE_VIDI) {
-			ctx = display_to_vidi(display);
-			break;
-		}
-	}
-
-	if (!ctx) {
-		DRM_DEBUG_KMS("not found virtual device type encoder.\n");
 		return -EINVAL;
 	}
 
@@ -376,7 +358,7 @@ static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 {
 	struct vidi_context *ctx = ctx_from_connector(connector);
 
-	return ctx->encoder;
+	return &ctx->encoder.base;
 }
 
 static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
@@ -384,14 +366,13 @@ static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
 	.best_encoder = vidi_best_encoder,
 };
 
-static int vidi_create_connector(struct exynos_drm_display *display,
-				struct drm_encoder *encoder)
+static int vidi_create_connector(struct exynos_drm_encoder *exynos_encoder)
 {
-	struct vidi_context *ctx = display_to_vidi(display);
+	struct vidi_context *ctx = encoder_to_vidi(exynos_encoder);
+	struct drm_encoder *encoder = &exynos_encoder->base;
 	struct drm_connector *connector = &ctx->connector;
 	int ret;
 
-	ctx->encoder = encoder;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	ret = drm_connector_init(ctx->drm_dev, connector,
@@ -409,7 +390,7 @@ static int vidi_create_connector(struct exynos_drm_display *display,
 }
 
 
-static struct exynos_drm_display_ops vidi_display_ops = {
+static struct exynos_drm_encoder_ops vidi_encoder_ops = {
 	.create_connector = vidi_create_connector,
 };
 
@@ -442,7 +423,8 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(ctx->crtc);
 	}
 
-	ret = exynos_drm_create_enc_conn(drm_dev, &ctx->display);
+	ret = exynos_drm_create_enc_conn(drm_dev, &ctx->encoder,
+					 EXYNOS_DISPLAY_TYPE_VIDI);
 	if (ret) {
 		ctx->crtc->base.funcs->destroy(&ctx->crtc->base);
 		return ret;
@@ -470,8 +452,7 @@ static int vidi_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->display.type = EXYNOS_DISPLAY_TYPE_VIDI;
-	ctx->display.ops = &vidi_display_ops;
+	ctx->encoder.ops = &vidi_encoder_ops;
 	ctx->default_win = 0;
 	ctx->pdev = pdev;
 
