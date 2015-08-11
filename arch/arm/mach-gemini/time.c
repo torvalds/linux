@@ -19,21 +19,46 @@
 /*
  * Register definitions for the timers
  */
-#define TIMER_COUNT(BASE_ADDR)		(BASE_ADDR  + 0x00)
-#define TIMER_LOAD(BASE_ADDR)		(BASE_ADDR  + 0x04)
-#define TIMER_MATCH1(BASE_ADDR)		(BASE_ADDR  + 0x08)
-#define TIMER_MATCH2(BASE_ADDR)		(BASE_ADDR  + 0x0C)
-#define TIMER_CR(BASE_ADDR)		(BASE_ADDR  + 0x30)
 
-#define TIMER_1_CR_ENABLE		(1 << 0)
-#define TIMER_1_CR_CLOCK		(1 << 1)
-#define TIMER_1_CR_INT			(1 << 2)
-#define TIMER_2_CR_ENABLE		(1 << 3)
-#define TIMER_2_CR_CLOCK		(1 << 4)
-#define TIMER_2_CR_INT			(1 << 5)
-#define TIMER_3_CR_ENABLE		(1 << 6)
-#define TIMER_3_CR_CLOCK		(1 << 7)
-#define TIMER_3_CR_INT			(1 << 8)
+#define TIMER1_BASE		GEMINI_TIMER_BASE
+#define TIMER2_BASE		(GEMINI_TIMER_BASE + 0x10)
+#define TIMER3_BASE		(GEMINI_TIMER_BASE + 0x20)
+
+#define TIMER_COUNT(BASE)	(IO_ADDRESS(BASE) + 0x00)
+#define TIMER_LOAD(BASE)	(IO_ADDRESS(BASE) + 0x04)
+#define TIMER_MATCH1(BASE)	(IO_ADDRESS(BASE) + 0x08)
+#define TIMER_MATCH2(BASE)	(IO_ADDRESS(BASE) + 0x0C)
+#define TIMER_CR		(IO_ADDRESS(GEMINI_TIMER_BASE) + 0x30)
+#define TIMER_INTR_STATE	(IO_ADDRESS(GEMINI_TIMER_BASE) + 0x34)
+#define TIMER_INTR_MASK		(IO_ADDRESS(GEMINI_TIMER_BASE) + 0x38)
+
+#define TIMER_1_CR_ENABLE	(1 << 0)
+#define TIMER_1_CR_CLOCK	(1 << 1)
+#define TIMER_1_CR_INT		(1 << 2)
+#define TIMER_2_CR_ENABLE	(1 << 3)
+#define TIMER_2_CR_CLOCK	(1 << 4)
+#define TIMER_2_CR_INT		(1 << 5)
+#define TIMER_3_CR_ENABLE	(1 << 6)
+#define TIMER_3_CR_CLOCK	(1 << 7)
+#define TIMER_3_CR_INT		(1 << 8)
+#define TIMER_1_CR_UPDOWN	(1 << 9)
+#define TIMER_2_CR_UPDOWN	(1 << 10)
+#define TIMER_3_CR_UPDOWN	(1 << 11)
+#define TIMER_DEFAULT_FLAGS	(TIMER_1_CR_UPDOWN | \
+				 TIMER_3_CR_ENABLE | \
+				 TIMER_3_CR_UPDOWN)
+
+#define TIMER_1_INT_MATCH1	(1 << 0)
+#define TIMER_1_INT_MATCH2	(1 << 1)
+#define TIMER_1_INT_OVERFLOW	(1 << 2)
+#define TIMER_2_INT_MATCH1	(1 << 3)
+#define TIMER_2_INT_MATCH2	(1 << 4)
+#define TIMER_2_INT_OVERFLOW	(1 << 5)
+#define TIMER_3_INT_MATCH1	(1 << 6)
+#define TIMER_3_INT_MATCH2	(1 << 7)
+#define TIMER_3_INT_OVERFLOW	(1 << 8)
+#define TIMER_INT_ALL_MASK	0x1ff
+
 
 static unsigned int tick_rate;
 
@@ -42,19 +67,19 @@ static int gemini_timer_set_next_event(unsigned long cycles,
 {
 	u32 cr;
 
-	cr = readl(TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
+	cr = readl(TIMER_CR);
 
 	/* This may be overdoing it, feel free to test without this */
 	cr &= ~TIMER_2_CR_ENABLE;
 	cr &= ~TIMER_2_CR_INT;
-	writel(cr, TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
+	writel(cr, TIMER_CR);
 
 	/* Set next event */
-	writel(cycles, TIMER_COUNT(IO_ADDRESS(GEMINI_TIMER2_BASE)));
-	writel(cycles, TIMER_LOAD(IO_ADDRESS(GEMINI_TIMER2_BASE)));
+	writel(cycles, TIMER_COUNT(TIMER2_BASE));
+	writel(cycles, TIMER_LOAD(TIMER2_BASE));
 	cr |= TIMER_2_CR_ENABLE;
 	cr |= TIMER_2_CR_INT;
-	writel(cr, TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
+	writel(cr, TIMER_CR);
 
 	return 0;
 }
@@ -67,10 +92,10 @@ static int gemini_timer_shutdown(struct clock_event_device *evt)
 	 * Disable also for oneshot: the set_next() call will arm the timer
 	 * instead.
 	 */
-	cr = readl(TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
+	cr = readl(TIMER_CR);
 	cr &= ~TIMER_2_CR_ENABLE;
 	cr &= ~TIMER_2_CR_INT;
-	writel(cr, TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
+	writel(cr, TIMER_CR);
 	return 0;
 }
 
@@ -80,12 +105,12 @@ static int gemini_timer_set_periodic(struct clock_event_device *evt)
 	u32 cr;
 
 	/* Start the timer */
-	writel(period, TIMER_COUNT(IO_ADDRESS(GEMINI_TIMER2_BASE)));
-	writel(period, TIMER_LOAD(IO_ADDRESS(GEMINI_TIMER2_BASE)));
-	cr = readl(TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
+	writel(period, TIMER_COUNT(TIMER2_BASE));
+	writel(period, TIMER_LOAD(TIMER2_BASE));
+	cr = readl(TIMER_CR);
 	cr |= TIMER_2_CR_ENABLE;
 	cr |= TIMER_2_CR_INT;
-	writel(cr, TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
+	writel(cr, TIMER_CR);
 	return 0;
 }
 
@@ -155,10 +180,10 @@ void __init gemini_timer_init(void)
 	setup_irq(IRQ_TIMER2, &gemini_timer_irq);
 
 	/* Enable and use TIMER1 as clock source */
-	writel(0xffffffff, TIMER_COUNT(IO_ADDRESS(GEMINI_TIMER1_BASE)));
-	writel(0xffffffff, TIMER_LOAD(IO_ADDRESS(GEMINI_TIMER1_BASE)));
-	writel(TIMER_1_CR_ENABLE, TIMER_CR(IO_ADDRESS(GEMINI_TIMER_BASE)));
-	if (clocksource_mmio_init(TIMER_COUNT(IO_ADDRESS(GEMINI_TIMER1_BASE)),
+	writel(0xffffffff, TIMER_COUNT(TIMER1_BASE));
+	writel(0xffffffff, TIMER_LOAD(TIMER1_BASE));
+	writel(TIMER_1_CR_ENABLE, TIMER_CR);
+	if (clocksource_mmio_init(TIMER_COUNT(TIMER1_BASE),
 				  "TIMER1", tick_rate, 300, 32,
 				  clocksource_mmio_readl_up))
 		pr_err("timer: failed to initialize gemini clock source\n");
