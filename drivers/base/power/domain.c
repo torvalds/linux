@@ -2074,7 +2074,7 @@ static int pm_genpd_summary_one(struct seq_file *s,
 
 	if (WARN_ON(genpd->status >= ARRAY_SIZE(status_lookup)))
 		goto exit;
-	seq_printf(s, "%-30s  %-15s  ", genpd->name, status_lookup[genpd->status]);
+	seq_printf(s, "%-30s  %-15s ", genpd->name, status_lookup[genpd->status]);
 
 	/*
 	 * Modifications on the list require holding locks on both
@@ -2109,8 +2109,8 @@ static int pm_genpd_summary_show(struct seq_file *s, void *data)
 	struct generic_pm_domain *genpd;
 	int ret = 0;
 
-	seq_puts(s, "    domain                      status         slaves\n");
-	seq_puts(s, "           /device                                      runtime status\n");
+	seq_puts(s, "domain                          status          slaves\n");
+	seq_puts(s, "    /device                                             runtime status\n");
 	seq_puts(s, "----------------------------------------------------------------------\n");
 
 	ret = mutex_lock_interruptible(&gpd_list_lock);
