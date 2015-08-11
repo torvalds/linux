@@ -11,8 +11,6 @@
 
 struct gb_svc {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 };
 
 static struct ida greybus_svc_device_id_map;
@@ -162,6 +160,9 @@ static int gb_svc_version_request(struct gb_operation *op)
 			version->major, GB_SVC_VERSION_MAJOR);
 		return -ENOTSUPP;
 	}
+
+	connection->module_major = version->major;
+	connection->module_minor = version->minor;
 
 	if (!gb_operation_response_alloc(op, sizeof(*version), GFP_KERNEL)) {
 		dev_err(dev, "%s: error allocating response\n",
