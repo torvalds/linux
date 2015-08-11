@@ -1003,11 +1003,7 @@ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
 #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
 #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
 
-#ifdef CONFIG_NUMA_BALANCING
-extern bool sched_numa_balancing;
-#else
-#define sched_numa_balancing (0)
-#endif /* CONFIG_NUMA_BALANCING */
+extern struct static_key_false sched_numa_balancing;
 
 static inline u64 global_rt_period(void)
 {
