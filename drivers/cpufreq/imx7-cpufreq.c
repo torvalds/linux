@@ -248,7 +248,6 @@ static int imx7d_cpufreq_probe(struct platform_device *pdev)
 
 	register_pm_notifier(&imx7_cpufreq_pm_notifier);
 
-	register_pm_notifier(&imx7_cpufreq_pm_notifier);
 	of_node_put(np);
 	return 0;
 
