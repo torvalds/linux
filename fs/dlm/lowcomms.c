@@ -535,7 +535,9 @@ static void close_connection(struct connection *con, bool and_other)
 	mutex_unlock(&con->sock_mutex);
 }
 
-/* We only send shutdown messages to nodes that are not part of the cluster */
+/* We only send shutdown messages to nodes that are not part of the cluster
+ * or if we get multiple connections from a node.
+ */
 static void sctp_send_shutdown(sctp_assoc_t associd)
 {
 	static char outcmsg[CMSG_SPACE(sizeof(struct sctp_sndrcvinfo))];
@@ -717,6 +719,14 @@ static void process_sctp_notification(struct connection *con,
 			new_con = nodeid2con(nodeid, GFP_NOFS);
 			if (!new_con)
 				return;
+
+			if (new_con->sock) {
+				log_print("reject connect from node %d: "
+					  "already has a connection.",
+					  nodeid);
+				sctp_send_shutdown(prim.ssp_assoc_id);
+				return;
+			}
 
 			/* Peel off a new sock */
 			lock_sock(con->sock->sk);
