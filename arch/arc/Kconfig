@@ -313,11 +313,11 @@ config ARC_PAGE_SIZE_8K
 
 config ARC_PAGE_SIZE_16K
 	bool "16KB"
-	depends on ARC_MMU_V3
+	depends on ARC_MMU_V3 || ARC_MMU_V4
 
 config ARC_PAGE_SIZE_4K
 	bool "4KB"
-	depends on ARC_MMU_V3
+	depends on ARC_MMU_V3 || ARC_MMU_V4
 
 endchoice
 
@@ -365,6 +365,11 @@ config ARC_HAS_LLSC
 	default y
 	depends on !ARC_CANT_LLSC
 
+config ARC_STAR_9000923308
+	bool "Workaround for llock/scond livelock"
+	default y
+	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
+
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
 	default y
@@ -377,6 +382,10 @@ config ARC_HAS_LL64
 	  Enable gcc to generate 64-bit load/store instructions
 	  ISA mandates even/odd registers to allow encoding of two
 	  dest operands with 2 possible source operands.
+	default y
+
+config ARC_HAS_DIV_REM
+	bool "Insn: div, divu, rem, remu"
 	default y
 
 config ARC_HAS_RTC

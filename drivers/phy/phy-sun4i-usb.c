@@ -212,6 +212,7 @@ void sun4i_usb_phy_set_squelch_detect(struct phy *_phy, bool enabled)
 
 	sun4i_usb_phy_write(phy, PHY_SQUELCH_DETECT, enabled ? 0 : 2, 2);
 }
+EXPORT_SYMBOL_GPL(sun4i_usb_phy_set_squelch_detect);
 
 static struct phy_ops sun4i_usb_phy_ops = {
 	.init		= sun4i_usb_phy_init,
