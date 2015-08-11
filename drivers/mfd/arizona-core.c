@@ -30,7 +30,7 @@
 
 #include "arizona.h"
 
-static const char *wm5102_core_supplies[] = {
+static const char * const wm5102_core_supplies[] = {
 	"AVDD",
 	"DBVDD1",
 };
@@ -148,7 +148,7 @@ static irqreturn_t arizona_overclocked(int irq, void *data)
 	struct arizona *arizona = data;
 	unsigned int val[3];
 	int ret;
-	
+
 	ret = regmap_bulk_read(arizona->regmap, ARIZONA_INTERRUPT_RAW_STATUS_6,
 			       &val[0], 3);
 	if (ret != 0) {
@@ -567,9 +567,8 @@ static int arizona_runtime_resume(struct device *dev)
 		break;
 	default:
 		ret = arizona_wait_for_boot(arizona);
-		if (ret != 0) {
+		if (ret != 0)
 			goto err;
-		}
 
 		if (arizona->external_dcvdd) {
 			ret = regmap_update_bits(arizona->regmap,
@@ -776,8 +775,8 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	ret = of_property_read_u32_array(arizona->dev->of_node,
 					 "wlf,gpio-defaults",
-					 arizona->pdata.gpio_defaults,
-					 ARRAY_SIZE(arizona->pdata.gpio_defaults));
+					 pdata->gpio_defaults,
+					 ARRAY_SIZE(pdata->gpio_defaults));
 	if (ret >= 0) {
 		/*
 		 * All values are literal except out of range values
@@ -785,11 +784,11 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		 * data which uses 0 as chip default and out of range
 		 * as zero.
 		 */
-		for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
-			if (arizona->pdata.gpio_defaults[i] > 0xffff)
-				arizona->pdata.gpio_defaults[i] = 0;
-			else if (arizona->pdata.gpio_defaults[i] == 0)
-				arizona->pdata.gpio_defaults[i] = 0x10000;
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+			if (pdata->gpio_defaults[i] > 0xffff)
+				pdata->gpio_defaults[i] = 0;
+			else if (pdata->gpio_defaults[i] == 0)
+				pdata->gpio_defaults[i] = 0x10000;
 		}
 	} else {
 		dev_err(arizona->dev, "Failed to parse GPIO defaults: %d\n",
@@ -798,20 +797,20 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	of_property_for_each_u32(arizona->dev->of_node, "wlf,inmode", prop,
 				 cur, val) {
-		if (count == ARRAY_SIZE(arizona->pdata.inmode))
+		if (count == ARRAY_SIZE(pdata->inmode))
 			break;
 
-		arizona->pdata.inmode[count] = val;
+		pdata->inmode[count] = val;
 		count++;
 	}
 
 	count = 0;
 	of_property_for_each_u32(arizona->dev->of_node, "wlf,dmic-ref", prop,
 				 cur, val) {
-		if (count == ARRAY_SIZE(arizona->pdata.dmic_ref))
+		if (count == ARRAY_SIZE(pdata->dmic_ref))
 			break;
 
-		arizona->pdata.dmic_ref[count] = val;
+		pdata->dmic_ref[count] = val;
 		count++;
 	}
 
@@ -839,7 +838,7 @@ static const struct mfd_cell early_devs[] = {
 	{ .name = "arizona-ldo1" },
 };
 
-static const char *wm5102_supplies[] = {
+static const char * const wm5102_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"DBVDD3",
@@ -882,7 +881,7 @@ static const struct mfd_cell wm5110_devs[] = {
 	},
 };
 
-static const char *wm8997_supplies[] = {
+static const char * const wm8997_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"CPVDD",
