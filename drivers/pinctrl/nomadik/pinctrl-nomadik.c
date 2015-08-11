@@ -1010,6 +1010,7 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		int irq = gpio_to_irq(gpio);
 		struct irq_desc	*desc = irq_to_desc(irq);
 		int pullidx = 0;
+		int val;
 
 		if (pull)
 			pullidx = data_out ? 1 : 2;
@@ -1019,6 +1020,10 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 			   label ?: "(none)",
 			   pulls[pullidx],
 			   (mode < 0) ? "unknown" : modes[mode]);
+
+		val = nmk_gpio_get_input(chip, offset);
+		seq_printf(s, " VAL %d", val);
+
 		/*
 		 * This races with request_irq(), set_irq_type(),
 		 * and set_irq_wake() ... but those are "rare".
