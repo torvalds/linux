@@ -12,37 +12,9 @@
 #include "greybus.h"
 #include "audio.h"
 
-#define GB_I2S_MGMT_VERSION_MAJOR		0x00
-#define GB_I2S_MGMT_VERSION_MINOR		0x01
-
-#define GB_I2S_DATA_VERSION_MAJOR		0x00
-#define GB_I2S_DATA_VERSION_MINOR		0x01
-
 /***********************************
  * GB I2S helper functions
  ***********************************/
-int gb_i2s_mgmt_get_version(struct gb_connection *connection)
-{
-	struct gb_protocol_version_response response;
-
-	memset(&response, 0, sizeof(response));
-	return gb_protocol_get_version(connection,
-				       GB_I2S_MGMT_TYPE_PROTOCOL_VERSION,
-				       NULL, 0, &response,
-				       GB_I2S_MGMT_VERSION_MAJOR);
-}
-
-int gb_i2s_data_get_version(struct gb_connection *connection)
-{
-	struct gb_protocol_version_response response;
-
-	memset(&response, 0, sizeof(response));
-	return gb_protocol_get_version(connection,
-				       GB_I2S_DATA_TYPE_PROTOCOL_VERSION,
-				       NULL, 0, &response,
-				       GB_I2S_DATA_VERSION_MAJOR);
-}
-
 int gb_i2s_mgmt_activate_cport(struct gb_connection *connection,
 				      uint16_t cport)
 {

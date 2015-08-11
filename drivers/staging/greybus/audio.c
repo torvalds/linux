@@ -225,12 +225,6 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 		goto out_card;
 	}
 
-	ret = gb_i2s_data_get_version(connection);
-	if (ret) {
-		pr_err("i2s data get_version() failed: %d\n", ret);
-		goto out_get_ver;
-	}
-
 #if USE_RT5645
 	rt5647_info.addr = RT5647_I2C_ADDR;
 	strlcpy(rt5647_info.type, "rt5647", I2C_NAME_SIZE);
@@ -251,8 +245,10 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 
 	return 0;
 
+#if USE_RT5645
 out_get_ver:
 	platform_device_unregister(&snd_dev->card);
+#endif
 out_card:
 	platform_device_unregister(&snd_dev->cpu_dai);
 out_dai:
@@ -295,12 +291,6 @@ static int gb_i2s_mgmt_connection_init(struct gb_connection *connection)
 	snd_dev->mgmt_connection = connection;
 	connection->private = snd_dev;
 	spin_unlock_irqrestore(&snd_dev->lock, flags);
-
-	ret = gb_i2s_mgmt_get_version(connection);
-	if (ret) {
-		pr_err("i2s mgmt get_version() failed: %d\n", ret);
-		goto err_free_snd_dev;
-	}
 
 	ret = gb_i2s_mgmt_get_cfgs(snd_dev, connection);
 	if (ret) {

@@ -75,8 +75,6 @@ struct gb_snd {
 /*
  * GB I2S cmd functions
  */
-int gb_i2s_mgmt_get_version(struct gb_connection *connection);
-int gb_i2s_data_get_version(struct gb_connection *connection);
 int gb_i2s_mgmt_activate_cport(struct gb_connection *connection,
 				      uint16_t cport);
 int gb_i2s_mgmt_deactivate_cport(struct gb_connection *connection,
