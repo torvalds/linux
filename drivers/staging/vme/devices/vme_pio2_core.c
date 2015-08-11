@@ -175,7 +175,6 @@ static int __init pio2_init(void)
 
 static int pio2_match(struct vme_dev *vdev)
 {
-
 	if (vdev->num >= bus_num) {
 		dev_err(&vdev->dev,
 			"The enumeration of the VMEbus to which the board is connected must be specified\n");
@@ -231,7 +230,6 @@ static int pio2_probe(struct vme_dev *vdev)
 	card->vdev = vdev;
 
 	for (i = 0; i < PIO2_VARIANT_LENGTH; i++) {
-
 		if (isdigit(card->variant[i]) == 0) {
 			dev_err(&card->vdev->dev, "Variant invalid\n");
 			retval = -EINVAL;
