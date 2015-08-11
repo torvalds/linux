@@ -216,7 +216,7 @@ static int pio2_probe(struct vme_dev *vdev)
 	int vec;
 
 	card = kzalloc(sizeof(struct pio2_card), GFP_KERNEL);
-	if (card == NULL) {
+	if (!card) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
@@ -281,7 +281,7 @@ static int pio2_probe(struct vme_dev *vdev)
 
 	/* Get a master window and position over regs */
 	card->window = vme_master_request(vdev, VME_A24, VME_SCT, VME_D16);
-	if (card->window == NULL) {
+	if (!card->window) {
 		dev_err(&card->vdev->dev,
 			"Unable to assign VME master resource\n");
 		retval = -EIO;
