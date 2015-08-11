@@ -32,8 +32,6 @@ struct gb_battery {
 	// updates from the SVC "on the fly" so we don't have to always go ask
 	// the battery for some information.  Hopefully...
 	struct gb_connection *connection;
-	u8 version_major;
-	u8 version_minor;
 
 };
 
@@ -42,8 +40,6 @@ struct gb_battery {
 #define	GB_BATTERY_VERSION_MINOR		0x01
 
 /* Greybus battery request types */
-#define	GB_BATTERY_TYPE_INVALID			0x00
-#define	GB_BATTERY_TYPE_PROTOCOL_VERSION	0x01
 #define	GB_BATTERY_TYPE_TECHNOLOGY		0x02
 #define	GB_BATTERY_TYPE_STATUS			0x03
 #define	GB_BATTERY_TYPE_MAX_VOLTAGE		0x04
@@ -93,9 +89,6 @@ struct gb_battery_temperature_response {
 struct gb_battery_voltage_response {
 	__le32	voltage;
 };
-
-/* Define get_version() routine */
-define_get_version(gb_battery, BATTERY);
 
 static int get_tech(struct gb_battery *gb)
 {
@@ -345,12 +338,7 @@ static int gb_battery_connection_init(struct gb_connection *connection)
 	gb->connection = connection;
 	connection->private = gb;
 
-	/* Check the version */
-	retval = get_version(gb);
-	if (retval)
-		goto out;
 	retval = init_and_register(connection, gb);
-out:
 	if (retval)
 		kfree(gb);
 
