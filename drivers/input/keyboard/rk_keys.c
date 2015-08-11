@@ -59,6 +59,7 @@ enum rk_key_type {
 };
 
 struct rk_keys_button {
+	struct device *dev;
 	u32 type;		/* TYPE_GPIO, TYPE_ADC */
 	u32 code;		/* key code */
 	const char *desc;	/* key label */
@@ -85,13 +86,6 @@ struct rk_keys_drvdata {
 };
 
 static struct input_dev *sinput_dev;
-static struct rk_keys_drvdata *spdata;
-
-static void *rk_key_get_drvdata(void)
-{
-	BUG_ON(!spdata);
-	return spdata;
-}
 
 void rk_send_power_key(int state)
 {
@@ -121,8 +115,8 @@ EXPORT_SYMBOL(rk_send_wakeup_key);
 
 static void keys_timer(unsigned long _data)
 {
-	struct rk_keys_drvdata *pdata = rk_key_get_drvdata();
 	struct rk_keys_button *button = (struct rk_keys_button *)_data;
+	struct rk_keys_drvdata *pdata = dev_get_drvdata(button->dev);
 	struct input_dev *input = pdata->input;
 	int state;
 
@@ -148,8 +142,8 @@ static void keys_timer(unsigned long _data)
 
 static irqreturn_t keys_isr(int irq, void *dev_id)
 {
-	struct rk_keys_drvdata *pdata = rk_key_get_drvdata();
 	struct rk_keys_button *button = (struct rk_keys_button *)dev_id;
+	struct rk_keys_drvdata *pdata = dev_get_drvdata(button->dev);
 	struct input_dev *input = pdata->input;
 
 	BUG_ON(irq != gpio_to_irq(button->gpio));
@@ -341,6 +335,7 @@ static int keys_probe(struct platform_device *pdev)
 		return error;
 	}
 	platform_set_drvdata(pdev, ddata);
+	dev_set_drvdata(&pdev->dev, ddata);
 
 	input->name = "rk29-keypad";	/* pdev->name; */
 	input->phys = "gpio-keys/input0";
@@ -362,6 +357,14 @@ static int keys_probe(struct platform_device *pdev)
 	if (ddata->rep)
 		__set_bit(EV_REP, input->evbit);
 
+	error = input_register_device(input);
+	if (error) {
+		pr_err("gpio-keys: Unable to register input device, error: %d\n",
+		       error);
+		goto fail0;
+	}
+	sinput_dev = input;
+
 	for (i = 0; i < ddata->nbuttons; i++) {
 		struct rk_keys_button *button = &ddata->button[i];
 
@@ -377,10 +380,12 @@ static int keys_probe(struct platform_device *pdev)
 	}
 
 	wake_lock_init(&ddata->wake_lock, WAKE_LOCK_SUSPEND, input->name);
+	device_init_wakeup(dev, wakeup);
 
 	for (i = 0; i < ddata->nbuttons; i++) {
 		struct rk_keys_button *button = &ddata->button[i];
 
+		button->dev = &pdev->dev;
 		if (button->type == TYPE_GPIO) {
 			int irq;
 
@@ -427,15 +432,6 @@ static int keys_probe(struct platform_device *pdev)
 	}
 
 	input_set_capability(input, EV_KEY, KEY_WAKEUP);
-	device_init_wakeup(dev, wakeup);
-
-	error = input_register_device(input);
-	if (error) {
-		pr_err("gpio-keys: Unable to register input device, error: %d\n",
-		       error);
-		goto fail2;
-	}
-
 	/* adc polling work */
 	if (ddata->chan) {
 		INIT_DELAYED_WORK(&ddata->adc_poll_work, adc_key_poll);
@@ -443,16 +439,13 @@ static int keys_probe(struct platform_device *pdev)
 				      ADC_SAMPLE_JIFFIES);
 	}
 
-	spdata = ddata;
-	sinput_dev = input;
 	return error;
 
-fail2:
-	device_init_wakeup(dev, 0);
 fail1:
-	wake_lock_destroy(&ddata->wake_lock);
 	while (--i >= 0)
 		del_timer_sync(&ddata->button[i].timer);
+	device_init_wakeup(dev, 0);
+	wake_lock_destroy(&ddata->wake_lock);
 fail0:
 	platform_set_drvdata(pdev, NULL);
 
@@ -475,7 +468,6 @@ static int keys_remove(struct platform_device *pdev)
 	wake_lock_destroy(&ddata->wake_lock);
 
 	sinput_dev = NULL;
-	spdata = NULL;
 
 	return 0;
 }
