@@ -843,6 +843,7 @@ pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha)
 	int rc;
 	u32 tag;
 	u32 opc = OPC_INB_SET_CONTROLLER_CONFIG;
+	u32 page_code;
 
 	memset(&payload, 0, sizeof(struct set_ctrl_cfg_req));
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
@@ -851,8 +852,14 @@ pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha)
 
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	payload.tag = cpu_to_le32(tag);
+
+	if (IS_SPCV_12G(pm8001_ha->pdev))
+		page_code = THERMAL_PAGE_CODE_7H;
+	else
+		page_code = THERMAL_PAGE_CODE_8H;
+
 	payload.cfg_pg[0] = (THERMAL_LOG_ENABLE << 9) |
-			(THERMAL_ENABLE << 8) | THERMAL_OP_CODE;
+				(THERMAL_ENABLE << 8) | page_code;
 	payload.cfg_pg[1] = (LTEMPHIL << 24) | (RTEMPHIL << 8);
 
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload, 0);

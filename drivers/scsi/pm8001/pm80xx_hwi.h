@@ -177,7 +177,8 @@
 /* Thermal related */
 #define	THERMAL_ENABLE			0x1
 #define	THERMAL_LOG_ENABLE		0x1
-#define THERMAL_OP_CODE			0x6
+#define THERMAL_PAGE_CODE_7H		0x6
+#define THERMAL_PAGE_CODE_8H		0x7
 #define LTEMPHIL			 70
 #define RTEMPHIL			100
 
