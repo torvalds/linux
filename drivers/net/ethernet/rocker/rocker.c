@@ -4543,7 +4543,7 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
 		if (found->key.pport != rocker_port->pport)
 			continue;
-		ether_addr_copy(fdb->addr, found->key.addr);
+		fdb->addr = found->key.addr;
 		fdb->vid = rocker_port_vlan_to_vid(rocker_port,
 						   found->key.vlan_id);
 		err = obj->cb(rocker_port->dev, obj);

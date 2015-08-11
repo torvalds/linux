@@ -296,16 +296,12 @@ struct dsa_switch_driver {
 				     u32 br_port_mask);
 	int	(*port_stp_update)(struct dsa_switch *ds, int port,
 				   u8 state);
-
-	/*
-	 * Forwarding database
-	 */
-	int	(*port_fdb_add)(struct dsa_switch *ds, int port, u16 vid,
-				const u8 addr[ETH_ALEN]);
-	int	(*port_fdb_del)(struct dsa_switch *ds, int port, u16 vid,
-				const u8 addr[ETH_ALEN]);
-	int	(*port_fdb_getnext)(struct dsa_switch *ds, int port, u16 *vid,
-				    u8 addr[ETH_ALEN], bool *is_static);
+	int	(*fdb_add)(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
+	int	(*fdb_del)(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
+	int	(*fdb_getnext)(struct dsa_switch *ds, int port,
+			       unsigned char *addr, bool *is_static);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);

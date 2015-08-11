@@ -11,8 +11,6 @@
 #ifndef __MV88E6XXX_H
 #define __MV88E6XXX_H
 
-#include <linux/if_vlan.h>
-
 #ifndef UINT64_MAX
 #define UINT64_MAX		(u64)(~((u64)0))
 #endif
@@ -171,7 +169,6 @@
 #define GLOBAL_MAC_01		0x01
 #define GLOBAL_MAC_23		0x02
 #define GLOBAL_MAC_45		0x03
-#define GLOBAL_ATU_FID		0x01	/* 6097 6165 6351 6352 */
 #define GLOBAL_CONTROL		0x04
 #define GLOBAL_CONTROL_SW_RESET		BIT(15)
 #define GLOBAL_CONTROL_PPU_ENABLE	BIT(14)
@@ -206,8 +203,6 @@
 #define GLOBAL_ATU_OP_GET_CLR_VIOLATION	  ((7 << 12) | GLOBAL_ATU_OP_BUSY)
 #define GLOBAL_ATU_DATA		0x0c
 #define GLOBAL_ATU_DATA_TRUNK			BIT(15)
-#define GLOBAL_ATU_DATA_TRUNK_ID_MASK		0x00f0
-#define GLOBAL_ATU_DATA_TRUNK_ID_SHIFT		4
 #define GLOBAL_ATU_DATA_PORT_VECTOR_MASK	0x3ff0
 #define GLOBAL_ATU_DATA_PORT_VECTOR_SHIFT	4
 #define GLOBAL_ATU_DATA_STATE_MASK		0x0f
@@ -318,14 +313,6 @@
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
-struct mv88e6xxx_atu_entry {
-	u16	fid;
-	u8	state;
-	bool	trunk;
-	u16	portv_trunkid;
-	u8	mac[ETH_ALEN];
-};
-
 struct mv88e6xxx_priv_state {
 	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
@@ -364,9 +351,9 @@ struct mv88e6xxx_priv_state {
 
 	/* hw bridging */
 
-	DECLARE_BITMAP(fid_bitmap, VLAN_N_VID);	/* FIDs 1 to 4095 available */
-	u16 fid[DSA_MAX_PORTS];			/* per (non-bridged) port FID */
-	u16 bridge_mask[DSA_MAX_PORTS];		/* br groups (indexed by FID) */
+	u32 fid_mask;
+	u8 fid[DSA_MAX_PORTS];
+	u16 bridge_mask[DSA_MAX_PORTS];
 
 	unsigned long port_state_update_mask;
 	u8 port_state[DSA_MAX_PORTS];
@@ -426,15 +413,15 @@ int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
+int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
+int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
+int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
+			       unsigned char *addr, bool *is_static);
 int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg);
 int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
 			     int reg, int val);
-int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port, u16 vid,
-			   const u8 addr[ETH_ALEN]);
-int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port, u16 vid,
-			   const u8 addr[ETH_ALEN]);
-int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port, u16 *vid,
-			       u8 addr[ETH_ALEN], bool *is_static);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
 extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
