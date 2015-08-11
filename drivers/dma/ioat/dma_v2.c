@@ -798,7 +798,7 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 	struct ioat_chan_common *chan = &ioat->base;
 	struct ioatdma_device *device = chan->device;
 	struct ioat_ring_ent *desc;
-	const u16 total_descs = 1 << ioat->alloc_order;
+	const int total_descs = 1 << ioat->alloc_order;
 	int descs;
 	int i;
 
