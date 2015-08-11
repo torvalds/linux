@@ -177,7 +177,7 @@ static int rsnd_dmaen_init(struct rsnd_dai_stream *io,
 		dma_cap_set(DMA_SLAVE, mask);
 
 		dmaen->chan = dma_request_channel(mask, shdma_chan_filter,
-						  (void *)id);
+						  (void *)(uintptr_t)id);
 	}
 	if (IS_ERR_OR_NULL(dmaen->chan)) {
 		dmaen->chan = NULL;
