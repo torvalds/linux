@@ -1272,6 +1272,8 @@ static void srp_map_desc(struct srp_map_state *state, dma_addr_t dma_addr,
 static int srp_map_finish_fmr(struct srp_map_state *state,
 			      struct srp_rdma_ch *ch)
 {
+	struct srp_target_port *target = ch->target;
+	struct srp_device *dev = target->srp_host->srp_dev;
 	struct ib_pool_fmr *fmr;
 	u64 io_addr = 0;
 
@@ -1283,7 +1285,8 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 	*state->next_fmr++ = fmr;
 	state->nmdesc++;
 
-	srp_map_desc(state, 0, state->dma_len, fmr->fmr->rkey);
+	srp_map_desc(state, state->base_dma_addr & ~dev->mr_page_mask,
+		     state->dma_len, fmr->fmr->rkey);
 
 	return 0;
 }
@@ -1390,14 +1393,7 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 		return 0;
 	}
 
-	/*
-	 * Since not all RDMA HW drivers support non-zero page offsets for
-	 * FMR, if we start at an offset into a page, don't merge into the
-	 * current FMR mapping. Finish it out, and use the kernel's MR for
-	 * this sg entry.
-	 */
-	if ((!dev->use_fast_reg && dma_addr & ~dev->mr_page_mask) ||
-	    dma_len > dev->mr_max_size) {
+	if (dma_len > dev->mr_max_size) {
 		ret = srp_finish_mapping(state, ch);
 		if (ret)
 			return ret;
