@@ -21,11 +21,6 @@
 #define IOAT_MMIO_BAR		0
 
 /* CB device ID's */
-#define IOAT_PCI_DID_5000       0x1A38
-#define IOAT_PCI_DID_CNB        0x360B
-#define IOAT_PCI_DID_SCNB       0x65FF
-#define IOAT_PCI_DID_SNB        0x402F
-
 #define PCI_DEVICE_ID_INTEL_IOAT_IVB0	0x0e20
 #define PCI_DEVICE_ID_INTEL_IOAT_IVB1	0x0e21
 #define PCI_DEVICE_ID_INTEL_IOAT_IVB2	0x0e22
