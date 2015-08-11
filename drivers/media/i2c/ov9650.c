@@ -1436,7 +1436,7 @@ static int ov965x_detect_sensor(struct v4l2_subdev *sd)
 	int ret;
 
 	mutex_lock(&ov965x->lock);
-	 __ov965x_set_power(ov965x, 1);
+	__ov965x_set_power(ov965x, 1);
 	usleep_range(25000, 26000);
 
 	/* Check sensor revision */
