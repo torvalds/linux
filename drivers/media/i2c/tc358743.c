@@ -59,6 +59,9 @@ MODULE_LICENSE("GPL");
 #define EDID_NUM_BLOCKS_MAX 8
 #define EDID_BLOCK_SIZE 128
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  (EDID_NUM_BLOCKS_MAX * EDID_BLOCK_SIZE + 2)
+
 static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
@@ -93,6 +96,9 @@ struct tc358743_state {
 
 	/* edid  */
 	u8 edid_blocks_written;
+
+	/* used by i2c_wr() */
+	u8 wr_data[MAX_XFER_SIZE];
 
 	struct v4l2_dv_timings timings;
 	u32 mbus_fmt_code;
@@ -143,9 +149,13 @@ static void i2c_wr(struct v4l2_subdev *sd, u16 reg, u8 *values, u32 n)
 {
 	struct tc358743_state *state = to_state(sd);
 	struct i2c_client *client = state->i2c_client;
+	u8 *data = state->wr_data;
 	int err, i;
 	struct i2c_msg msg;
-	u8 data[2 + n];
+
+	if ((2 + n) > sizeof(state->wr_data))
+		v4l2_warn(sd, "i2c wr reg=%04x: len=%d is too big!\n",
+			  reg, 2 + n);
 
 	msg.addr = client->addr;
 	msg.buf = data;
