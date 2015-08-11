@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
 #include <linux/interrupt.h>
@@ -129,6 +130,7 @@ struct sun4i_ss_ctx {
 	int irq;
 	struct clk *busclk;
 	struct clk *ssclk;
+	struct reset_control *reset;
 	struct device *dev;
 	struct resource *res;
 	spinlock_t slock; /* control the use of the device */

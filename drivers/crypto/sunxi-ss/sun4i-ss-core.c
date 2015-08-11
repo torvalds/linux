@@ -22,6 +22,7 @@
 #include <linux/scatterlist.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/reset.h>
 
 #include "sun4i-ss.h"
 
@@ -253,6 +254,14 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	}
 	dev_dbg(&pdev->dev, "clock ahb_ss acquired\n");
 
+	ss->reset = devm_reset_control_get_optional(&pdev->dev, "ahb");
+	if (IS_ERR(ss->reset)) {
+		if (PTR_ERR(ss->reset) == -EPROBE_DEFER)
+			return PTR_ERR(ss->reset);
+		dev_info(&pdev->dev, "no reset control found\n");
+		ss->reset = NULL;
+	}
+
 	/* Enable both clocks */
 	err = clk_prepare_enable(ss->busclk);
 	if (err != 0) {
@@ -273,6 +282,15 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	if (err != 0) {
 		dev_err(&pdev->dev, "Cannot set clock rate to ssclk\n");
 		goto error_clk;
+	}
+
+	/* Deassert reset if we have a reset control */
+	if (ss->reset) {
+		err = reset_control_deassert(ss->reset);
+		if (err) {
+			dev_err(&pdev->dev, "Cannot deassert reset control\n");
+			goto error_clk;
+		}
 	}
 
 	/*
@@ -352,6 +370,8 @@ error_alg:
 			break;
 		}
 	}
+	if (ss->reset)
+		reset_control_assert(ss->reset);
 error_clk:
 	clk_disable_unprepare(ss->ssclk);
 error_ssclk:
@@ -376,6 +396,8 @@ static int sun4i_ss_remove(struct platform_device *pdev)
 	}
 
 	writel(0, ss->base + SS_CTL);
+	if (ss->reset)
+		reset_control_assert(ss->reset);
 	clk_disable_unprepare(ss->busclk);
 	clk_disable_unprepare(ss->ssclk);
 	return 0;
