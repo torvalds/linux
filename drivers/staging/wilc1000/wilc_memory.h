@@ -126,19 +126,7 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 	(WILC_MemoryAlloc( \
 		 (__size__), __attrs__, NULL, 0))
 
-/*!
- * @brief	standrad calloc wrapper with custom attributes
- */
-	#define WILC_CALLOC_EX(__size__, __attrs__) \
-	(WILC_MemoryCalloc( \
-		 (__size__), __attrs__, NULL, 0))
 
-/*!
- * @brief	standrad realloc wrapper with custom attributes
- */
-	#define WILC_REALLOC_EX(__ptr__, __new_size__, __attrs__) \
-	(WILC_MemoryRealloc( \
-		 (__ptr__), (__new_size__), __attrs__, NULL, 0))
 /*!
  * @brief	standrad free wrapper with custom attributes
  */
@@ -154,24 +142,7 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 	((__struct_type__ *)WILC_MALLOC_EX( \
 		 sizeof(__struct_type__) * (u32)(__n_structs__), __attrs__))
 
-/*!
- * @brief	Allocates a block (with custom attributes) of given type and number of
- * elements and Zero-fills it
- */
-#define WILC_NEW_0_EX(__struct_type__, __n_structs__, __attrs__) \
-	((__struct_type__ *)WILC_CALLOC_EX( \
-		 sizeof(__struct_type__) * (u32)(__n_structs__), __attrs__))
 
-/*!
- * @brief	Frees a block (with custom attributes), also setting the original pointer
- * to NULL
- */
-#define WILC_FREE_SET_NULL_EX(__ptr__, __attrs__) do { \
-		if (__ptr__ != NULL) { \
-			WILC_FREE_EX(__ptr__, __attrs__); \
-			__ptr__ = NULL; \
-		} \
-} while (0)
 
 /*!
  * @brief	Frees a block (with custom attributes) if the pointer expression evaluates
@@ -189,17 +160,7 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 #define WILC_MALLOC(__size__) \
 	WILC_MALLOC_EX(__size__, NULL)
 
-/*!
- * @brief	standrad calloc wrapper with default attributes
- */
-#define WILC_CALLOC(__size__) \
-	WILC_CALLOC_EX(__size__, NULL)
 
-/*!
- * @brief	standrad realloc wrapper with default attributes
- */
-#define WILC_REALLOC(__ptr__, __new_size__) \
-	WILC_REALLOC_EX(__ptr__, __new_size__, NULL)
 
 /*!
  * @brief	standrad free wrapper with default attributes
@@ -214,19 +175,7 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 #define WILC_NEW(__struct_type__, __n_structs__) \
 	WILC_NEW_EX(__struct_type__, __n_structs__, NULL)
 
-/*!
- * @brief	Allocates a block (with default attributes) of given type and number of
- * elements and Zero-fills it
- */
-#define WILC_NEW_0(__struct_type__, __n_structs__) \
-	WILC_NEW_O_EX(__struct_type__, __n_structs__, NULL)
 
-/*!
- * @brief	Frees a block (with default attributes), also setting the original pointer
- * to NULL
- */
-#define WILC_FREE_SET_NULL(__ptr__) \
-	WILC_FREE_SET_NULL_EX(__ptr__, NULL)
 
 /*!
  * @brief	Frees a block (with default attributes) if the pointer expression evaluates
