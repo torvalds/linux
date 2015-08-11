@@ -1236,11 +1236,17 @@ static void sb_wait_write(struct super_block *sb, int level)
 {
 	s64 writers;
 
-	/*
-	 * We just cycle-through lockdep here so that it does not complain
-	 * about returning with lock to userspace
-	 */
 	rwsem_acquire(&sb->s_writers.lock_map[level-1], 0, 0, _THIS_IP_);
+	/*
+	 * We are going to return to userspace and forget about this lock, the
+	 * ownership goes to the caller of thaw_super() which does unlock.
+	 *
+	 * FIXME: we should do this before return from freeze_super() after we
+	 * called sync_filesystem(sb) and s_op->freeze_fs(sb), and thaw_super()
+	 * should re-acquire these locks before s_op->unfreeze_fs(sb). However
+	 * this leads to lockdep false-positives, so currently we do the early
+	 * release right after acquire.
+	 */
 	rwsem_release(&sb->s_writers.lock_map[level-1], 1, _THIS_IP_);
 
 	do {
