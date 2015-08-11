@@ -1038,9 +1038,8 @@ static int host1x_drm_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops host1x_drm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(host1x_drm_suspend, host1x_drm_resume)
-};
+static SIMPLE_DEV_PM_OPS(host1x_drm_pm_ops, host1x_drm_suspend,
+			 host1x_drm_resume);
 
 static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra20-dc", },
