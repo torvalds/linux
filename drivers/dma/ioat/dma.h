@@ -63,11 +63,15 @@ enum ioat_irq_mode {
  * @pdev: PCI-Express device
  * @reg_base: MMIO register space base address
  * @dma_pool: for allocating DMA descriptors
+ * @completion_pool: DMA buffers for completion ops
+ * @sed_hw_pool: DMA super descriptor pools
  * @dma_dev: embedded struct dma_device
  * @version: version of ioatdma device
  * @msix_entries: irq handlers
  * @idx: per channel data
  * @dca: direct cache access context
+ * @irq_mode: interrupt mode (INTX, MSI, MSIX)
+ * @cap: read DMA capabilities register
  */
 struct ioatdma_device {
 	struct pci_dev *pdev;
@@ -138,9 +142,9 @@ struct ioat_sysfs_entry {
 /**
  * struct ioat_sed_ent - wrapper around super extended hardware descriptor
  * @hw: hardware SED
- * @sed_dma: dma address for the SED
- * @list: list member
+ * @dma: dma address for the SED
  * @parent: point to the dma descriptor that's the parent
+ * @hw_pool: descriptor pool index
  */
 struct ioat_sed_ent {
 	struct ioat_sed_raw_descriptor *hw;
@@ -152,7 +156,6 @@ struct ioat_sed_ent {
 /**
  * struct ioat_ring_ent - wrapper around hardware descriptor
  * @hw: hardware DMA descriptor (for memcpy)
- * @fill: hardware fill descriptor
  * @xor: hardware xor descriptor
  * @xor_ex: hardware xor extension descriptor
  * @pq: hardware pq descriptor
@@ -163,6 +166,7 @@ struct ioat_sed_ent {
  * @len: total transaction length for unmap
  * @result: asynchronous result of validate operations
  * @id: identifier for debug
+ * @sed: pointer to super extended descriptor sw desc
  */
 
 struct ioat_ring_ent {
