@@ -113,6 +113,9 @@ static void ioat_remove(struct pci_dev *pdev);
 static void
 ioat_init_channel(struct ioatdma_device *ioat_dma,
 		  struct ioatdma_chan *ioat_chan, int idx);
+static void ioat_intr_quirk(struct ioatdma_device *ioat_dma);
+static int ioat_enumerate_channels(struct ioatdma_device *ioat_dma);
+static int ioat3_dma_self_test(struct ioatdma_device *ioat_dma);
 
 static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
@@ -443,8 +446,8 @@ intx:
 
 	ioat_dma->irq_mode = IOAT_INTX;
 done:
-	if (ioat_dma->intr_quirk)
-		ioat_dma->intr_quirk(ioat_dma);
+	if (is_bwd_ioat(pdev))
+		ioat_intr_quirk(ioat_dma);
 	intrctrl |= IOAT_INTRCTRL_MASTER_INT_EN;
 	writeb(intrctrl, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
 	return 0;
@@ -489,7 +492,7 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 		goto err_completion_pool;
 	}
 
-	ioat_dma->enumerate_channels(ioat_dma);
+	ioat_enumerate_channels(ioat_dma);
 
 	dma_cap_set(DMA_MEMCPY, dma->cap_mask);
 	dma->dev = &pdev->dev;
@@ -503,7 +506,7 @@ static int ioat_probe(struct ioatdma_device *ioat_dma)
 	if (err)
 		goto err_setup_interrupts;
 
-	err = ioat_dma->self_test(ioat_dma);
+	err = ioat3_dma_self_test(ioat_dma);
 	if (err)
 		goto err_self_test;
 
@@ -582,7 +585,7 @@ static int ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
 		ioat_init_channel(ioat_dma, ioat_chan, i);
 		ioat_chan->xfercap_log = xfercap_log;
 		spin_lock_init(&ioat_chan->prep_lock);
-		if (ioat_dma->reset_hw(ioat_chan)) {
+		if (ioat_reset_hw(ioat_chan)) {
 			i = 0;
 			break;
 		}
@@ -611,7 +614,7 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 		return;
 
 	ioat_stop(ioat_chan);
-	ioat_dma->reset_hw(ioat_chan);
+	ioat_reset_hw(ioat_chan);
 
 	spin_lock_bh(&ioat_chan->cleanup_lock);
 	spin_lock_bh(&ioat_chan->prep_lock);
@@ -730,9 +733,9 @@ ioat_init_channel(struct ioatdma_device *ioat_dma,
 	list_add_tail(&ioat_chan->dma_chan.device_node, &dma->channels);
 	ioat_dma->idx[idx] = ioat_chan;
 	init_timer(&ioat_chan->timer);
-	ioat_chan->timer.function = ioat_dma->timer_fn;
+	ioat_chan->timer.function = ioat_timer_event;
 	ioat_chan->timer.data = data;
-	tasklet_init(&ioat_chan->cleanup_task, ioat_dma->cleanup_fn, data);
+	tasklet_init(&ioat_chan->cleanup_task, ioat_cleanup_event, data);
 }
 
 #define IOAT_NUM_SRC_TEST 6 /* must be <= 8 */
@@ -1053,10 +1056,6 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	bool is_raid_device = false;
 	int err;
 
-	ioat_dma->enumerate_channels = ioat_enumerate_channels;
-	ioat_dma->reset_hw = ioat_reset_hw;
-	ioat_dma->self_test = ioat3_dma_self_test;
-	ioat_dma->intr_quirk = ioat_intr_quirk;
 	dma = &ioat_dma->dma_dev;
 	dma->device_prep_dma_memcpy = ioat_dma_prep_memcpy_lock;
 	dma->device_issue_pending = ioat_issue_pending;
@@ -1114,8 +1113,6 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	}
 
 	dma->device_tx_status = ioat_tx_status;
-	ioat_dma->cleanup_fn = ioat_cleanup_event;
-	ioat_dma->timer_fn = ioat_timer_event;
 
 	/* starting with CB3.3 super extended descriptors are supported */
 	if (ioat_dma->cap & IOAT_CAP_RAID16SS) {

@@ -68,14 +68,6 @@ enum ioat_irq_mode {
  * @msix_entries: irq handlers
  * @idx: per channel data
  * @dca: direct cache access context
- * @intr_quirk: interrupt setup quirk (for ioat_v1 devices)
- * @enumerate_channels: hw version specific channel enumeration
- * @reset_hw: hw version specific channel (re)initialization
- * @cleanup_fn: select between the v2 and v3 cleanup routines
- * @timer_fn: select between the v2 and v3 timer watchdog routines
- * @self_test: hardware version specific self test for each supported op type
- *
- * Note: the v3 cleanup routine supports raid operations
  */
 struct ioatdma_device {
 	struct pci_dev *pdev;
@@ -91,12 +83,6 @@ struct ioatdma_device {
 	struct dca_provider *dca;
 	enum ioat_irq_mode irq_mode;
 	u32 cap;
-	void (*intr_quirk)(struct ioatdma_device *ioat_dma);
-	int (*enumerate_channels)(struct ioatdma_device *ioat_dma);
-	int (*reset_hw)(struct ioatdma_chan *ioat_chan);
-	void (*cleanup_fn)(unsigned long data);
-	void (*timer_fn)(unsigned long data);
-	int (*self_test)(struct ioatdma_device *ioat_dma);
 };
 
 struct ioatdma_chan {

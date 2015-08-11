@@ -121,7 +121,7 @@ void ioat_stop(struct ioatdma_chan *ioat_chan)
 	tasklet_kill(&ioat_chan->cleanup_task);
 
 	/* final cleanup now that everything is quiesced and can't re-arm */
-	ioat_dma->cleanup_fn((unsigned long)&ioat_chan->dma_chan);
+	ioat_cleanup_event((unsigned long)&ioat_chan->dma_chan);
 }
 
 static void __ioat_issue_pending(struct ioatdma_chan *ioat_chan)
@@ -520,10 +520,8 @@ int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
 	 */
 	if (time_is_before_jiffies(ioat_chan->timer.expires)
 	    && timer_pending(&ioat_chan->timer)) {
-		struct ioatdma_device *ioat_dma = ioat_chan->ioat_dma;
-
 		mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
-		ioat_dma->timer_fn((unsigned long)ioat_chan);
+		ioat_timer_event((unsigned long)ioat_chan);
 	}
 
 	return -ENOMEM;
