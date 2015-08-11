@@ -76,6 +76,10 @@
 	};
 };
 
+&cpu0 {
+	arm-supply = <&sw1a_reg>;
+};
+
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
@@ -102,10 +106,6 @@
 			reg = <1>;
 		};
 	};
-};
-
-&cpu0 {
-	arm-supply = <&sw1a_reg>;
 };
 
 &fec2 {
