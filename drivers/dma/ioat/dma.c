@@ -50,7 +50,7 @@ MODULE_PARM_DESC(ioat_pending_level,
 static irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
 {
 	struct ioatdma_device *instance = data;
-	struct ioat_chan_common *chan;
+	struct ioatdma_chan *ioat_chan;
 	unsigned long attnstatus;
 	int bit;
 	u8 intrctrl;
@@ -67,9 +67,9 @@ static irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
 
 	attnstatus = readl(instance->reg_base + IOAT_ATTNSTATUS_OFFSET);
 	for_each_set_bit(bit, &attnstatus, BITS_PER_LONG) {
-		chan = ioat_chan_by_index(instance, bit);
-		if (test_bit(IOAT_RUN, &chan->state))
-			tasklet_schedule(&chan->cleanup_task);
+		ioat_chan = ioat_chan_by_index(instance, bit);
+		if (test_bit(IOAT_RUN, &ioat_chan->state))
+			tasklet_schedule(&ioat_chan->cleanup_task);
 	}
 
 	writeb(intrctrl, instance->reg_base + IOAT_INTRCTRL_OFFSET);
@@ -83,45 +83,47 @@ static irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
  */
 static irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data)
 {
-	struct ioat_chan_common *chan = data;
+	struct ioatdma_chan *ioat_chan = data;
 
-	if (test_bit(IOAT_RUN, &chan->state))
-		tasklet_schedule(&chan->cleanup_task);
+	if (test_bit(IOAT_RUN, &ioat_chan->state))
+		tasklet_schedule(&ioat_chan->cleanup_task);
 
 	return IRQ_HANDLED;
 }
 
 /* common channel initialization */
-void ioat_init_channel(struct ioatdma_device *device, struct ioat_chan_common *chan, int idx)
+void
+ioat_init_channel(struct ioatdma_device *device, struct ioatdma_chan *ioat_chan,
+		  int idx)
 {
 	struct dma_device *dma = &device->common;
-	struct dma_chan *c = &chan->common;
+	struct dma_chan *c = &ioat_chan->dma_chan;
 	unsigned long data = (unsigned long) c;
 
-	chan->device = device;
-	chan->reg_base = device->reg_base + (0x80 * (idx + 1));
-	spin_lock_init(&chan->cleanup_lock);
-	chan->common.device = dma;
-	dma_cookie_init(&chan->common);
-	list_add_tail(&chan->common.device_node, &dma->channels);
-	device->idx[idx] = chan;
-	init_timer(&chan->timer);
-	chan->timer.function = device->timer_fn;
-	chan->timer.data = data;
-	tasklet_init(&chan->cleanup_task, device->cleanup_fn, data);
+	ioat_chan->device = device;
+	ioat_chan->reg_base = device->reg_base + (0x80 * (idx + 1));
+	spin_lock_init(&ioat_chan->cleanup_lock);
+	ioat_chan->dma_chan.device = dma;
+	dma_cookie_init(&ioat_chan->dma_chan);
+	list_add_tail(&ioat_chan->dma_chan.device_node, &dma->channels);
+	device->idx[idx] = ioat_chan;
+	init_timer(&ioat_chan->timer);
+	ioat_chan->timer.function = device->timer_fn;
+	ioat_chan->timer.data = data;
+	tasklet_init(&ioat_chan->cleanup_task, device->cleanup_fn, data);
 }
 
-void ioat_stop(struct ioat_chan_common *chan)
+void ioat_stop(struct ioatdma_chan *ioat_chan)
 {
-	struct ioatdma_device *device = chan->device;
+	struct ioatdma_device *device = ioat_chan->device;
 	struct pci_dev *pdev = device->pdev;
-	int chan_id = chan_num(chan);
+	int chan_id = chan_num(ioat_chan);
 	struct msix_entry *msix;
 
 	/* 1/ stop irq from firing tasklets
 	 * 2/ stop the tasklet from re-arming irqs
 	 */
-	clear_bit(IOAT_RUN, &chan->state);
+	clear_bit(IOAT_RUN, &ioat_chan->state);
 
 	/* flush inflight interrupts */
 	switch (device->irq_mode) {
@@ -138,29 +140,30 @@ void ioat_stop(struct ioat_chan_common *chan)
 	}
 
 	/* flush inflight timers */
-	del_timer_sync(&chan->timer);
+	del_timer_sync(&ioat_chan->timer);
 
 	/* flush inflight tasklet runs */
-	tasklet_kill(&chan->cleanup_task);
+	tasklet_kill(&ioat_chan->cleanup_task);
 
 	/* final cleanup now that everything is quiesced and can't re-arm */
-	device->cleanup_fn((unsigned long) &chan->common);
+	device->cleanup_fn((unsigned long)&ioat_chan->dma_chan);
 }
 
-dma_addr_t ioat_get_current_completion(struct ioat_chan_common *chan)
+dma_addr_t ioat_get_current_completion(struct ioatdma_chan *ioat_chan)
 {
 	dma_addr_t phys_complete;
 	u64 completion;
 
-	completion = *chan->completion;
+	completion = *ioat_chan->completion;
 	phys_complete = ioat_chansts_to_addr(completion);
 
-	dev_dbg(to_dev(chan), "%s: phys_complete: %#llx\n", __func__,
+	dev_dbg(to_dev(ioat_chan), "%s: phys_complete: %#llx\n", __func__,
 		(unsigned long long) phys_complete);
 
 	if (is_ioat_halted(completion)) {
-		u32 chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
-		dev_err(to_dev(chan), "Channel halted, chanerr = %x\n",
+		u32 chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
+
+		dev_err(to_dev(ioat_chan), "Channel halted, chanerr = %x\n",
 			chanerr);
 
 		/* TODO do something to salvage the situation */
@@ -169,14 +172,14 @@ dma_addr_t ioat_get_current_completion(struct ioat_chan_common *chan)
 	return phys_complete;
 }
 
-bool ioat_cleanup_preamble(struct ioat_chan_common *chan,
+bool ioat_cleanup_preamble(struct ioatdma_chan *ioat_chan,
 			   dma_addr_t *phys_complete)
 {
-	*phys_complete = ioat_get_current_completion(chan);
-	if (*phys_complete == chan->last_completion)
+	*phys_complete = ioat_get_current_completion(ioat_chan);
+	if (*phys_complete == ioat_chan->last_completion)
 		return false;
-	clear_bit(IOAT_COMPLETION_ACK, &chan->state);
-	mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
+	clear_bit(IOAT_COMPLETION_ACK, &ioat_chan->state);
+	mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
 
 	return true;
 }
@@ -185,8 +188,8 @@ enum dma_status
 ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 		   struct dma_tx_state *txstate)
 {
-	struct ioat_chan_common *chan = to_chan_common(c);
-	struct ioatdma_device *device = chan->device;
+	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
+	struct ioatdma_device *device = ioat_chan->device;
 	enum dma_status ret;
 
 	ret = dma_cookie_status(c, cookie, txstate);
@@ -322,7 +325,7 @@ MODULE_PARM_DESC(ioat_interrupt_style,
  */
 int ioat_dma_setup_interrupts(struct ioatdma_device *device)
 {
-	struct ioat_chan_common *chan;
+	struct ioatdma_chan *ioat_chan;
 	struct pci_dev *pdev = device->pdev;
 	struct device *dev = &pdev->dev;
 	struct msix_entry *msix;
@@ -351,15 +354,15 @@ msix:
 
 	for (i = 0; i < msixcnt; i++) {
 		msix = &device->msix_entries[i];
-		chan = ioat_chan_by_index(device, i);
+		ioat_chan = ioat_chan_by_index(device, i);
 		err = devm_request_irq(dev, msix->vector,
 				       ioat_dma_do_interrupt_msix, 0,
-				       "ioat-msix", chan);
+				       "ioat-msix", ioat_chan);
 		if (err) {
 			for (j = 0; j < i; j++) {
 				msix = &device->msix_entries[j];
-				chan = ioat_chan_by_index(device, j);
-				devm_free_irq(dev, msix->vector, chan);
+				ioat_chan = ioat_chan_by_index(device, j);
+				devm_free_irq(dev, msix->vector, ioat_chan);
 			}
 			goto msi;
 		}
@@ -507,14 +510,14 @@ static ssize_t
 ioat_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 {
 	struct ioat_sysfs_entry *entry;
-	struct ioat_chan_common *chan;
+	struct ioatdma_chan *ioat_chan;
 
 	entry = container_of(attr, struct ioat_sysfs_entry, attr);
-	chan = container_of(kobj, struct ioat_chan_common, kobj);
+	ioat_chan = container_of(kobj, struct ioatdma_chan, kobj);
 
 	if (!entry->show)
 		return -EIO;
-	return entry->show(&chan->common, page);
+	return entry->show(&ioat_chan->dma_chan, page);
 }
 
 const struct sysfs_ops ioat_sysfs_ops = {
@@ -527,16 +530,17 @@ void ioat_kobject_add(struct ioatdma_device *device, struct kobj_type *type)
 	struct dma_chan *c;
 
 	list_for_each_entry(c, &dma->channels, device_node) {
-		struct ioat_chan_common *chan = to_chan_common(c);
+		struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 		struct kobject *parent = &c->dev->device.kobj;
 		int err;
 
-		err = kobject_init_and_add(&chan->kobj, type, parent, "quickdata");
+		err = kobject_init_and_add(&ioat_chan->kobj, type,
+					   parent, "quickdata");
 		if (err) {
-			dev_warn(to_dev(chan),
+			dev_warn(to_dev(ioat_chan),
 				 "sysfs init error (%d), continuing...\n", err);
-			kobject_put(&chan->kobj);
-			set_bit(IOAT_KOBJ_INIT_FAIL, &chan->state);
+			kobject_put(&ioat_chan->kobj);
+			set_bit(IOAT_KOBJ_INIT_FAIL, &ioat_chan->state);
 		}
 	}
 }
@@ -547,11 +551,11 @@ void ioat_kobject_del(struct ioatdma_device *device)
 	struct dma_chan *c;
 
 	list_for_each_entry(c, &dma->channels, device_node) {
-		struct ioat_chan_common *chan = to_chan_common(c);
+		struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
 
-		if (!test_bit(IOAT_KOBJ_INIT_FAIL, &chan->state)) {
-			kobject_del(&chan->kobj);
-			kobject_put(&chan->kobj);
+		if (!test_bit(IOAT_KOBJ_INIT_FAIL, &ioat_chan->state)) {
+			kobject_del(&ioat_chan->kobj);
+			kobject_put(&ioat_chan->kobj);
 		}
 	}
 }

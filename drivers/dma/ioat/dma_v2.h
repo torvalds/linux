@@ -38,65 +38,36 @@ extern int ioat_ring_alloc_order;
 #define ioat_get_max_alloc_order() \
 	(min(ioat_ring_max_alloc_order, IOAT_MAX_ORDER))
 
-/* struct ioat2_dma_chan - ioat v2 / v3 channel attributes
- * @base: common ioat channel parameters
- * @xfercap_log; log2 of channel max transfer length (for fast division)
- * @head: allocated index
- * @issued: hardware notification point
- * @tail: cleanup index
- * @dmacount: identical to 'head' except for occasionally resetting to zero
- * @alloc_order: log2 of the number of allocated descriptors
- * @produce: number of descriptors to produce at submit time
- * @ring: software ring buffer implementation of hardware ring
- * @prep_lock: serializes descriptor preparation (producers)
- */
-struct ioat2_dma_chan {
-	struct ioat_chan_common base;
-	size_t xfercap_log;
-	u16 head;
-	u16 issued;
-	u16 tail;
-	u16 dmacount;
-	u16 alloc_order;
-	u16 produce;
-	struct ioat_ring_ent **ring;
-	spinlock_t prep_lock;
-};
-
-static inline struct ioat2_dma_chan *to_ioat2_chan(struct dma_chan *c)
+static inline u32 ioat2_ring_size(struct ioatdma_chan *ioat_chan)
 {
-	struct ioat_chan_common *chan = to_chan_common(c);
-
-	return container_of(chan, struct ioat2_dma_chan, base);
-}
-
-static inline u32 ioat2_ring_size(struct ioat2_dma_chan *ioat)
-{
-	return 1 << ioat->alloc_order;
+	return 1 << ioat_chan->alloc_order;
 }
 
 /* count of descriptors in flight with the engine */
-static inline u16 ioat2_ring_active(struct ioat2_dma_chan *ioat)
+static inline u16 ioat2_ring_active(struct ioatdma_chan *ioat_chan)
 {
-	return CIRC_CNT(ioat->head, ioat->tail, ioat2_ring_size(ioat));
+	return CIRC_CNT(ioat_chan->head, ioat_chan->tail,
+			ioat2_ring_size(ioat_chan));
 }
 
 /* count of descriptors pending submission to hardware */
-static inline u16 ioat2_ring_pending(struct ioat2_dma_chan *ioat)
+static inline u16 ioat2_ring_pending(struct ioatdma_chan *ioat_chan)
 {
-	return CIRC_CNT(ioat->head, ioat->issued, ioat2_ring_size(ioat));
+	return CIRC_CNT(ioat_chan->head, ioat_chan->issued,
+			ioat2_ring_size(ioat_chan));
 }
 
-static inline u32 ioat2_ring_space(struct ioat2_dma_chan *ioat)
+static inline u32 ioat2_ring_space(struct ioatdma_chan *ioat_chan)
 {
-	return ioat2_ring_size(ioat) - ioat2_ring_active(ioat);
+	return ioat2_ring_size(ioat_chan) - ioat2_ring_active(ioat_chan);
 }
 
-static inline u16 ioat2_xferlen_to_descs(struct ioat2_dma_chan *ioat, size_t len)
+static inline u16
+ioat2_xferlen_to_descs(struct ioatdma_chan *ioat_chan, size_t len)
 {
-	u16 num_descs = len >> ioat->xfercap_log;
+	u16 num_descs = len >> ioat_chan->xfercap_log;
 
-	num_descs += !!(len & ((1 << ioat->xfercap_log) - 1));
+	num_descs += !!(len & ((1 << ioat_chan->xfercap_log) - 1));
 	return num_descs;
 }
 
@@ -136,25 +107,24 @@ struct ioat_ring_ent {
 };
 
 static inline struct ioat_ring_ent *
-ioat2_get_ring_ent(struct ioat2_dma_chan *ioat, u16 idx)
+ioat2_get_ring_ent(struct ioatdma_chan *ioat_chan, u16 idx)
 {
-	return ioat->ring[idx & (ioat2_ring_size(ioat) - 1)];
+	return ioat_chan->ring[idx & (ioat2_ring_size(ioat_chan) - 1)];
 }
 
-static inline void ioat2_set_chainaddr(struct ioat2_dma_chan *ioat, u64 addr)
+static inline void
+ioat2_set_chainaddr(struct ioatdma_chan *ioat_chan, u64 addr)
 {
-	struct ioat_chan_common *chan = &ioat->base;
-
 	writel(addr & 0x00000000FFFFFFFF,
-	       chan->reg_base + IOAT2_CHAINADDR_OFFSET_LOW);
+	       ioat_chan->reg_base + IOAT2_CHAINADDR_OFFSET_LOW);
 	writel(addr >> 32,
-	       chan->reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
+	       ioat_chan->reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
 }
 
 int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
 int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
 struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-int ioat2_check_space_lock(struct ioat2_dma_chan *ioat, int num_descs);
+int ioat2_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs);
 int ioat2_enumerate_channels(struct ioatdma_device *device);
 struct dma_async_tx_descriptor *
 ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
@@ -162,12 +132,12 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 void ioat2_issue_pending(struct dma_chan *chan);
 int ioat2_alloc_chan_resources(struct dma_chan *c);
 void ioat2_free_chan_resources(struct dma_chan *c);
-void __ioat2_restart_chan(struct ioat2_dma_chan *ioat);
-bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
-void __ioat2_issue_pending(struct ioat2_dma_chan *ioat);
+void __ioat2_restart_chan(struct ioatdma_chan *ioat_chan);
+bool reshape_ring(struct ioatdma_chan *ioat, int order);
+void __ioat2_issue_pending(struct ioatdma_chan *ioat_chan);
 void ioat2_timer_event(unsigned long data);
-int ioat2_quiesce(struct ioat_chan_common *chan, unsigned long tmo);
-int ioat2_reset_sync(struct ioat_chan_common *chan, unsigned long tmo);
+int ioat2_quiesce(struct ioatdma_chan *ioat_chan, unsigned long tmo);
+int ioat2_reset_sync(struct ioatdma_chan *ioat_chan, unsigned long tmo);
 extern struct kobj_type ioat2_ktype;
 extern struct kmem_cache *ioat2_cache;
 #endif /* IOATDMA_V2_H */

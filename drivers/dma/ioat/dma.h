@@ -78,20 +78,20 @@ struct ioatdma_device {
 	struct dma_device common;
 	u8 version;
 	struct msix_entry msix_entries[4];
-	struct ioat_chan_common *idx[4];
+	struct ioatdma_chan *idx[4];
 	struct dca_provider *dca;
 	enum ioat_irq_mode irq_mode;
 	u32 cap;
 	void (*intr_quirk)(struct ioatdma_device *device);
 	int (*enumerate_channels)(struct ioatdma_device *device);
-	int (*reset_hw)(struct ioat_chan_common *chan);
+	int (*reset_hw)(struct ioatdma_chan *ioat_chan);
 	void (*cleanup_fn)(unsigned long data);
 	void (*timer_fn)(unsigned long data);
 	int (*self_test)(struct ioatdma_device *device);
 };
 
-struct ioat_chan_common {
-	struct dma_chan common;
+struct ioatdma_chan {
+	struct dma_chan dma_chan;
 	void __iomem *reg_base;
 	dma_addr_t last_completion;
 	spinlock_t cleanup_lock;
@@ -112,6 +112,27 @@ struct ioat_chan_common {
 	u64 *completion;
 	struct tasklet_struct cleanup_task;
 	struct kobject kobj;
+
+/* ioat v2 / v3 channel attributes
+ * @xfercap_log; log2 of channel max transfer length (for fast division)
+ * @head: allocated index
+ * @issued: hardware notification point
+ * @tail: cleanup index
+ * @dmacount: identical to 'head' except for occasionally resetting to zero
+ * @alloc_order: log2 of the number of allocated descriptors
+ * @produce: number of descriptors to produce at submit time
+ * @ring: software ring buffer implementation of hardware ring
+ * @prep_lock: serializes descriptor preparation (producers)
+ */
+	size_t xfercap_log;
+	u16 head;
+	u16 issued;
+	u16 tail;
+	u16 dmacount;
+	u16 alloc_order;
+	u16 produce;
+	struct ioat_ring_ent **ring;
+	spinlock_t prep_lock;
 };
 
 struct ioat_sysfs_entry {
@@ -133,10 +154,12 @@ struct ioat_sed_ent {
 	unsigned int hw_pool;
 };
 
-static inline struct ioat_chan_common *to_chan_common(struct dma_chan *c)
+static inline struct ioatdma_chan *to_ioat_chan(struct dma_chan *c)
 {
-	return container_of(c, struct ioat_chan_common, common);
+	return container_of(c, struct ioatdma_chan, dma_chan);
 }
+
+
 
 /* wrapper around hardware descriptor format + additional software fields */
 
@@ -149,10 +172,10 @@ static inline struct ioat_chan_common *to_chan_common(struct dma_chan *c)
 #endif
 
 static inline void
-__dump_desc_dbg(struct ioat_chan_common *chan, struct ioat_dma_descriptor *hw,
+__dump_desc_dbg(struct ioatdma_chan *ioat_chan, struct ioat_dma_descriptor *hw,
 		struct dma_async_tx_descriptor *tx, int id)
 {
-	struct device *dev = to_dev(chan);
+	struct device *dev = to_dev(ioat_chan);
 
 	dev_dbg(dev, "desc[%d]: (%#llx->%#llx) cookie: %d flags: %#x"
 		" ctl: %#10.8x (op: %#x int_en: %d compl: %d)\n", id,
@@ -162,25 +185,25 @@ __dump_desc_dbg(struct ioat_chan_common *chan, struct ioat_dma_descriptor *hw,
 }
 
 #define dump_desc_dbg(c, d) \
-	({ if (d) __dump_desc_dbg(&c->base, d->hw, &d->txd, desc_id(d)); 0; })
+	({ if (d) __dump_desc_dbg(c, d->hw, &d->txd, desc_id(d)); 0; })
 
-static inline struct ioat_chan_common *
+static inline struct ioatdma_chan *
 ioat_chan_by_index(struct ioatdma_device *device, int index)
 {
 	return device->idx[index];
 }
 
-static inline u64 ioat_chansts_32(struct ioat_chan_common *chan)
+static inline u64 ioat_chansts_32(struct ioatdma_chan *ioat_chan)
 {
-	u8 ver = chan->device->version;
+	u8 ver = ioat_chan->device->version;
 	u64 status;
 	u32 status_lo;
 
 	/* We need to read the low address first as this causes the
 	 * chipset to latch the upper bits for the subsequent read
 	 */
-	status_lo = readl(chan->reg_base + IOAT_CHANSTS_OFFSET_LOW(ver));
-	status = readl(chan->reg_base + IOAT_CHANSTS_OFFSET_HIGH(ver));
+	status_lo = readl(ioat_chan->reg_base + IOAT_CHANSTS_OFFSET_LOW(ver));
+	status = readl(ioat_chan->reg_base + IOAT_CHANSTS_OFFSET_HIGH(ver));
 	status <<= 32;
 	status |= status_lo;
 
@@ -189,16 +212,16 @@ static inline u64 ioat_chansts_32(struct ioat_chan_common *chan)
 
 #if BITS_PER_LONG == 64
 
-static inline u64 ioat_chansts(struct ioat_chan_common *chan)
+static inline u64 ioat_chansts(struct ioatdma_chan *ioat_chan)
 {
-	u8 ver = chan->device->version;
+	u8 ver = ioat_chan->device->version;
 	u64 status;
 
 	 /* With IOAT v3.3 the status register is 64bit.  */
 	if (ver >= IOAT_VER_3_3)
-		status = readq(chan->reg_base + IOAT_CHANSTS_OFFSET(ver));
+		status = readq(ioat_chan->reg_base + IOAT_CHANSTS_OFFSET(ver));
 	else
-		status = ioat_chansts_32(chan);
+		status = ioat_chansts_32(ioat_chan);
 
 	return status;
 }
@@ -212,31 +235,33 @@ static inline u64 ioat_chansts_to_addr(u64 status)
 	return status & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_ADDR;
 }
 
-static inline u32 ioat_chanerr(struct ioat_chan_common *chan)
+static inline u32 ioat_chanerr(struct ioatdma_chan *ioat_chan)
 {
-	return readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+	return readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 }
 
-static inline void ioat_suspend(struct ioat_chan_common *chan)
+static inline void ioat_suspend(struct ioatdma_chan *ioat_chan)
 {
-	u8 ver = chan->device->version;
+	u8 ver = ioat_chan->device->version;
 
-	writeb(IOAT_CHANCMD_SUSPEND, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+	writeb(IOAT_CHANCMD_SUSPEND,
+	       ioat_chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
 }
 
-static inline void ioat_reset(struct ioat_chan_common *chan)
+static inline void ioat_reset(struct ioatdma_chan *ioat_chan)
 {
-	u8 ver = chan->device->version;
+	u8 ver = ioat_chan->device->version;
 
-	writeb(IOAT_CHANCMD_RESET, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+	writeb(IOAT_CHANCMD_RESET,
+	       ioat_chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
 }
 
-static inline bool ioat_reset_pending(struct ioat_chan_common *chan)
+static inline bool ioat_reset_pending(struct ioatdma_chan *ioat_chan)
 {
-	u8 ver = chan->device->version;
+	u8 ver = ioat_chan->device->version;
 	u8 cmd;
 
-	cmd = readb(chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+	cmd = readb(ioat_chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
 	return (cmd & IOAT_CHANCMD_RESET) == IOAT_CHANCMD_RESET;
 }
 
@@ -272,15 +297,15 @@ int ioat_dma_self_test(struct ioatdma_device *device);
 void ioat_dma_remove(struct ioatdma_device *device);
 struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 void ioat_init_channel(struct ioatdma_device *device,
-		       struct ioat_chan_common *chan, int idx);
+		       struct ioatdma_chan *ioat_chan, int idx);
 enum dma_status ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 				   struct dma_tx_state *txstate);
-bool ioat_cleanup_preamble(struct ioat_chan_common *chan,
+bool ioat_cleanup_preamble(struct ioatdma_chan *ioat_chan,
 			   dma_addr_t *phys_complete);
 void ioat_kobject_add(struct ioatdma_device *device, struct kobj_type *type);
 void ioat_kobject_del(struct ioatdma_device *device);
 int ioat_dma_setup_interrupts(struct ioatdma_device *device);
-void ioat_stop(struct ioat_chan_common *chan);
+void ioat_stop(struct ioatdma_chan *ioat_chan);
 extern const struct sysfs_ops ioat_sysfs_ops;
 extern struct ioat_sysfs_entry ioat_version_attr;
 extern struct ioat_sysfs_entry ioat_cap_attr;
