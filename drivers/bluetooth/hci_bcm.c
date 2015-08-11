@@ -51,6 +51,11 @@ struct bcm_device {
 	bool			clk_enabled;
 
 	u32			init_speed;
+
+#ifdef CONFIG_PM_SLEEP
+	struct hci_uart		*hu;
+	bool			is_suspended; /* suspend/resume flag */
+#endif
 };
 
 struct bcm_data {
@@ -170,6 +175,9 @@ static int bcm_open(struct hci_uart *hu)
 		if (hu->tty->dev->parent == dev->pdev->dev.parent) {
 			bcm->dev = dev;
 			hu->init_speed = dev->init_speed;
+#ifdef CONFIG_PM_SLEEP
+			dev->hu = hu;
+#endif
 			break;
 		}
 	}
@@ -190,8 +198,12 @@ static int bcm_close(struct hci_uart *hu)
 
 	/* Protect bcm->dev against removal of the device or driver */
 	spin_lock(&bcm_device_list_lock);
-	if (bcm_device_exists(bcm->dev))
+	if (bcm_device_exists(bcm->dev)) {
 		bcm_gpio_set_power(bcm->dev, false);
+#ifdef CONFIG_PM_SLEEP
+		bcm->dev->hu = NULL;
+#endif
+	}
 	spin_unlock(&bcm_device_list_lock);
 
 	skb_queue_purge(&bcm->txq);
@@ -317,6 +329,55 @@ static struct sk_buff *bcm_dequeue(struct hci_uart *hu)
 
 	return skb_dequeue(&bcm->txq);
 }
+
+#ifdef CONFIG_PM_SLEEP
+/* Platform suspend callback */
+static int bcm_suspend(struct device *dev)
+{
+	struct bcm_device *bdev = platform_get_drvdata(to_platform_device(dev));
+
+	BT_DBG("suspend (%p): is_suspended %d", bdev, bdev->is_suspended);
+
+	if (!bdev->is_suspended) {
+		hci_uart_set_flow_control(bdev->hu, true);
+
+		/* Once this callback returns, driver suspends BT via GPIO */
+		bdev->is_suspended = true;
+	}
+
+	/* Suspend the device */
+	if (bdev->device_wakeup) {
+		gpiod_set_value(bdev->device_wakeup, false);
+		BT_DBG("suspend, delaying 15 ms");
+		mdelay(15);
+	}
+
+	return 0;
+}
+
+/* Platform resume callback */
+static int bcm_resume(struct device *dev)
+{
+	struct bcm_device *bdev = platform_get_drvdata(to_platform_device(dev));
+
+	BT_DBG("resume (%p): is_suspended %d", bdev, bdev->is_suspended);
+
+	if (bdev->device_wakeup) {
+		gpiod_set_value(bdev->device_wakeup, true);
+		BT_DBG("resume, delaying 15 ms");
+		mdelay(15);
+	}
+
+	/* When this callback executes, the device has woken up already */
+	if (bdev->is_suspended) {
+		bdev->is_suspended = false;
+
+		hci_uart_set_flow_control(bdev->hu, false);
+	}
+
+	return 0;
+}
+#endif
 
 static const struct acpi_gpio_params device_wakeup_gpios = { 0, 0, false };
 static const struct acpi_gpio_params shutdown_gpios = { 1, 0, false };
@@ -474,12 +535,16 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, bcm_acpi_match);
 #endif
 
+/* Platform suspend and resume callbacks */
+static SIMPLE_DEV_PM_OPS(bcm_pm_ops, bcm_suspend, bcm_resume);
+
 static struct platform_driver bcm_driver = {
 	.probe = bcm_probe,
 	.remove = bcm_remove,
 	.driver = {
 		.name = "hci_bcm",
 		.acpi_match_table = ACPI_PTR(bcm_acpi_match),
+		.pm = &bcm_pm_ops,
 	},
 };
 
