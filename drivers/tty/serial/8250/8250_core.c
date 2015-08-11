@@ -38,11 +38,11 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/io.h>
 #ifdef CONFIG_SPARC
 #include <linux/sunserialcore.h>
 #endif
 
-#include <asm/io.h>
 #include <asm/irq.h>
 
 #include "8250.h"

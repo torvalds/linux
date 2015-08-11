@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "pm-rcar.h"
 
 /* SYSC */
