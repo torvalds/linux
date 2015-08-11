@@ -1047,15 +1047,6 @@ static int dapm_widget_list_create(struct snd_soc_dapm_widget_list **list,
 	return 0;
 }
 
-static void trace_snd_soc_dapm_path(struct snd_soc_dapm_widget *w,
-	enum snd_soc_dapm_direction dir, struct snd_soc_dapm_path *p)
-{
-	if (dir == SND_SOC_DAPM_DIR_IN)
-		trace_snd_soc_dapm_input_path(w, p);
-	else
-		trace_snd_soc_dapm_output_path(w, p);
-}
-
 /*
  * Common implementation for is_connected_output_ep() and
  * is_connected_input_ep(). The function is inlined since the combined size of
