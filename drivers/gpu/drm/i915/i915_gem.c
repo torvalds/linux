@@ -1005,12 +1005,14 @@ out:
 		if (!needs_clflush_after &&
 		    obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 			if (i915_gem_clflush_object(obj, obj->pin_display))
-				i915_gem_chipset_flush(dev);
+				needs_clflush_after = true;
 		}
 	}
 
 	if (needs_clflush_after)
 		i915_gem_chipset_flush(dev);
+	else
+		obj->cache_dirty = true;
 
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 	return ret;
@@ -3639,10 +3641,10 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct i915_vma *vma, *next;
-	int ret;
+	int ret = 0;
 
 	if (obj->cache_level == cache_level)
-		return 0;
+		goto out;
 
 	if (i915_gem_obj_is_pinned(obj)) {
 		DRM_DEBUG("can not change the cache level of pinned objects\n");
@@ -3687,6 +3689,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		vma->node.color = cache_level;
 	obj->cache_level = cache_level;
 
+out:
 	if (obj->cache_dirty &&
 	    obj->base.write_domain != I915_GEM_DOMAIN_CPU &&
 	    cpu_write_needs_clflush(obj)) {
