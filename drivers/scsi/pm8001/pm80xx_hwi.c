@@ -1609,6 +1609,13 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
+	case IO_XFER_ERROR_INVALID_SSP_RSP_FRAME:
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("IO_XFER_ERROR_INVALID_SSP_RSP_FRAME\n"));
+		ts->resp = SAS_TASK_COMPLETE;
+		ts->stat = SAS_OPEN_REJECT;
+		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
+		break;
 	case IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED:
 		PM8001_IO_DBG(pm8001_ha,
 		pm8001_printk("IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED\n"));
