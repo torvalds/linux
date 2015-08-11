@@ -72,6 +72,7 @@ struct switchdev_obj {
 		struct switchdev_obj_fdb {		/* PORT_FDB */
 			const unsigned char *addr;
 			u16 vid;
+			u16 ndm_state;
 		} fdb;
 	} u;
 };
