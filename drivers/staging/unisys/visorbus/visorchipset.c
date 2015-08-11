@@ -119,7 +119,7 @@ static struct visorchannel *controlvm_channel;
 
 /* Manages the request payload in the controlvm channel */
 struct visor_controlvm_payload_info {
-	u8 __iomem *ptr;	/* pointer to base address of payload pool */
+	u8 *ptr;		/* pointer to base address of payload pool */
 	u64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
 	u32 bytes;		/* number of bytes in payload pool */
@@ -401,21 +401,22 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 		p = __va((unsigned long) (addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
-		void __iomem *mapping;
+		void *mapping;
 
 		if (!request_mem_region(addr, bytes, "visorchipset")) {
 			rc = NULL;
 			goto cleanup;
 		}
 
-		mapping = ioremap_cache(addr, bytes);
+		mapping = memremap(addr, bytes, MEMREMAP_WB);
 		if (!mapping) {
 			release_mem_region(addr, bytes);
 			rc = NULL;
 			goto cleanup;
 		}
-		memcpy_fromio(ctx->data, mapping, bytes);
+		memcpy(ctx->data, mapping, bytes);
 		release_mem_region(addr, bytes);
+		memunmap(mapping);
 	}
 
 	ctx->byte_stream = true;
@@ -1327,7 +1328,7 @@ static int
 initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
 				  struct visor_controlvm_payload_info *info)
 {
-	u8 __iomem *payload = NULL;
+	u8 *payload = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	if (!info) {
@@ -1339,7 +1340,7 @@ initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 		goto cleanup;
 	}
-	payload = ioremap_cache(phys_addr + offset, bytes);
+	payload = memremap(phys_addr + offset, bytes, MEMREMAP_WB);
 	if (!payload) {
 		rc = -CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
 		goto cleanup;
@@ -1352,7 +1353,7 @@ initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
 cleanup:
 	if (rc < 0) {
 		if (payload) {
-			iounmap(payload);
+			memunmap(payload);
 			payload = NULL;
 		}
 	}
@@ -1363,7 +1364,7 @@ static void
 destroy_controlvm_payload_info(struct visor_controlvm_payload_info *info)
 {
 	if (info->ptr) {
-		iounmap(info->ptr);
+		memunmap(info->ptr);
 		info->ptr = NULL;
 	}
 	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
