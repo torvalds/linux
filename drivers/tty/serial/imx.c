@@ -217,6 +217,7 @@ struct imx_port {
 	unsigned int		dma_tx_nents;
 	wait_queue_head_t	dma_wait;
 	unsigned int            saved_reg[10];
+	bool			context_saved;
 };
 
 struct imx_port_ucrs {
@@ -1972,6 +1973,40 @@ static int serial_imx_remove(struct platform_device *pdev)
 	return uart_remove_one_port(&imx_reg, &sport->port);
 }
 
+static void serial_imx_restore_context(struct imx_port *sport)
+{
+	if (!sport->context_saved)
+		return;
+
+	writel(sport->saved_reg[4], sport->port.membase + UFCR);
+	writel(sport->saved_reg[5], sport->port.membase + UESC);
+	writel(sport->saved_reg[6], sport->port.membase + UTIM);
+	writel(sport->saved_reg[7], sport->port.membase + UBIR);
+	writel(sport->saved_reg[8], sport->port.membase + UBMR);
+	writel(sport->saved_reg[9], sport->port.membase + IMX21_UTS);
+	writel(sport->saved_reg[0], sport->port.membase + UCR1);
+	writel(sport->saved_reg[1] | UCR2_SRST, sport->port.membase + UCR2);
+	writel(sport->saved_reg[2], sport->port.membase + UCR3);
+	writel(sport->saved_reg[3], sport->port.membase + UCR4);
+	sport->context_saved = false;
+}
+
+static void serial_imx_save_context(struct imx_port *sport)
+{
+	/* Save necessary regs */
+	sport->saved_reg[0] = readl(sport->port.membase + UCR1);
+	sport->saved_reg[1] = readl(sport->port.membase + UCR2);
+	sport->saved_reg[2] = readl(sport->port.membase + UCR3);
+	sport->saved_reg[3] = readl(sport->port.membase + UCR4);
+	sport->saved_reg[4] = readl(sport->port.membase + UFCR);
+	sport->saved_reg[5] = readl(sport->port.membase + UESC);
+	sport->saved_reg[6] = readl(sport->port.membase + UTIM);
+	sport->saved_reg[7] = readl(sport->port.membase + UBIR);
+	sport->saved_reg[8] = readl(sport->port.membase + UBMR);
+	sport->saved_reg[9] = readl(sport->port.membase + IMX21_UTS);
+	sport->context_saved = true;
+}
+
 static void serial_imx_enable_wakeup(struct imx_port *sport, bool on)
 {
 	unsigned int val;
@@ -2001,17 +2036,7 @@ static int imx_serial_port_suspend_noirq(struct device *dev)
 	if (ret)
 		return ret;
 
-	/* Save necessary regs */
-	sport->saved_reg[0] = readl(sport->port.membase + UCR1);
-	sport->saved_reg[1] = readl(sport->port.membase + UCR2);
-	sport->saved_reg[2] = readl(sport->port.membase + UCR3);
-	sport->saved_reg[3] = readl(sport->port.membase + UCR4);
-	sport->saved_reg[4] = readl(sport->port.membase + UFCR);
-	sport->saved_reg[5] = readl(sport->port.membase + UESC);
-	sport->saved_reg[6] = readl(sport->port.membase + UTIM);
-	sport->saved_reg[7] = readl(sport->port.membase + UBIR);
-	sport->saved_reg[8] = readl(sport->port.membase + UBMR);
-	sport->saved_reg[9] = readl(sport->port.membase + IMX21_UTS);
+	serial_imx_save_context(sport);
 
 	clk_disable(sport->clk_ipg);
 
@@ -2028,16 +2053,7 @@ static int imx_serial_port_resume_noirq(struct device *dev)
 	if (ret)
 		return ret;
 
-	writel(sport->saved_reg[4], sport->port.membase + UFCR);
-	writel(sport->saved_reg[5], sport->port.membase + UESC);
-	writel(sport->saved_reg[6], sport->port.membase + UTIM);
-	writel(sport->saved_reg[7], sport->port.membase + UBIR);
-	writel(sport->saved_reg[8], sport->port.membase + UBMR);
-	writel(sport->saved_reg[9], sport->port.membase + IMX21_UTS);
-	writel(sport->saved_reg[0], sport->port.membase + UCR1);
-	writel(sport->saved_reg[1] | UCR2_SRST, sport->port.membase + UCR2);
-	writel(sport->saved_reg[2], sport->port.membase + UCR3);
-	writel(sport->saved_reg[3], sport->port.membase + UCR4);
+	serial_imx_restore_context(sport);
 
 	clk_disable(sport->clk_ipg);
 
