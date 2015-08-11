@@ -187,25 +187,25 @@ int ioat2_reset_sync(struct ioatdma_chan *ioat_chan, unsigned long tmo)
 
 /**
  * ioat2_enumerate_channels - find and initialize the device's channels
- * @device: the device to be enumerated
+ * @ioat_dma: the ioat dma device to be enumerated
  */
-int ioat2_enumerate_channels(struct ioatdma_device *device)
+int ioat2_enumerate_channels(struct ioatdma_device *ioat_dma)
 {
 	struct ioatdma_chan *ioat_chan;
-	struct device *dev = &device->pdev->dev;
-	struct dma_device *dma = &device->common;
+	struct device *dev = &ioat_dma->pdev->dev;
+	struct dma_device *dma = &ioat_dma->dma_dev;
 	u8 xfercap_log;
 	int i;
 
 	INIT_LIST_HEAD(&dma->channels);
-	dma->chancnt = readb(device->reg_base + IOAT_CHANCNT_OFFSET);
+	dma->chancnt = readb(ioat_dma->reg_base + IOAT_CHANCNT_OFFSET);
 	dma->chancnt &= 0x1f; /* bits [4:0] valid */
-	if (dma->chancnt > ARRAY_SIZE(device->idx)) {
+	if (dma->chancnt > ARRAY_SIZE(ioat_dma->idx)) {
 		dev_warn(dev, "(%d) exceeds max supported channels (%zu)\n",
-			 dma->chancnt, ARRAY_SIZE(device->idx));
-		dma->chancnt = ARRAY_SIZE(device->idx);
+			 dma->chancnt, ARRAY_SIZE(ioat_dma->idx));
+		dma->chancnt = ARRAY_SIZE(ioat_dma->idx);
 	}
-	xfercap_log = readb(device->reg_base + IOAT_XFERCAP_OFFSET);
+	xfercap_log = readb(ioat_dma->reg_base + IOAT_XFERCAP_OFFSET);
 	xfercap_log &= 0x1f; /* bits [4:0] valid */
 	if (xfercap_log == 0)
 		return 0;
@@ -216,10 +216,10 @@ int ioat2_enumerate_channels(struct ioatdma_device *device)
 		if (!ioat_chan)
 			break;
 
-		ioat_init_channel(device, ioat_chan, i);
+		ioat_init_channel(ioat_dma, ioat_chan, i);
 		ioat_chan->xfercap_log = xfercap_log;
 		spin_lock_init(&ioat_chan->prep_lock);
-		if (device->reset_hw(ioat_chan)) {
+		if (ioat_dma->reset_hw(ioat_chan)) {
 			i = 0;
 			break;
 		}
@@ -258,18 +258,18 @@ static struct ioat_ring_ent *ioat2_alloc_ring_ent(struct dma_chan *chan, gfp_t f
 {
 	struct ioat_dma_descriptor *hw;
 	struct ioat_ring_ent *desc;
-	struct ioatdma_device *dma;
+	struct ioatdma_device *ioat_dma;
 	dma_addr_t phys;
 
-	dma = to_ioatdma_device(chan->device);
-	hw = pci_pool_alloc(dma->dma_pool, flags, &phys);
+	ioat_dma = to_ioatdma_device(chan->device);
+	hw = pci_pool_alloc(ioat_dma->dma_pool, flags, &phys);
 	if (!hw)
 		return NULL;
 	memset(hw, 0, sizeof(*hw));
 
 	desc = kmem_cache_zalloc(ioat2_cache, flags);
 	if (!desc) {
-		pci_pool_free(dma->dma_pool, hw, phys);
+		pci_pool_free(ioat_dma->dma_pool, hw, phys);
 		return NULL;
 	}
 
@@ -282,10 +282,10 @@ static struct ioat_ring_ent *ioat2_alloc_ring_ent(struct dma_chan *chan, gfp_t f
 
 static void ioat2_free_ring_ent(struct ioat_ring_ent *desc, struct dma_chan *chan)
 {
-	struct ioatdma_device *dma;
+	struct ioatdma_device *ioat_dma;
 
-	dma = to_ioatdma_device(chan->device);
-	pci_pool_free(dma->dma_pool, desc->hw, desc->txd.phys);
+	ioat_dma = to_ioatdma_device(chan->device);
+	pci_pool_free(ioat_dma->dma_pool, desc->hw, desc->txd.phys);
 	kmem_cache_free(ioat2_cache, desc);
 }
 
@@ -348,7 +348,7 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	/* allocate a completion writeback area */
 	/* doing 2 32bit writes to mmio since 1 64b write doesn't work */
 	ioat_chan->completion =
-		pci_pool_alloc(ioat_chan->device->completion_pool,
+		pci_pool_alloc(ioat_chan->ioat_dma->completion_pool,
 			       GFP_KERNEL, &ioat_chan->completion_dma);
 	if (!ioat_chan->completion)
 		return -ENOMEM;
@@ -554,10 +554,10 @@ int ioat2_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
 	 */
 	if (time_is_before_jiffies(ioat_chan->timer.expires)
 	    && timer_pending(&ioat_chan->timer)) {
-		struct ioatdma_device *device = ioat_chan->device;
+		struct ioatdma_device *ioat_dma = ioat_chan->ioat_dma;
 
 		mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
-		device->timer_fn((unsigned long)ioat_chan);
+		ioat_dma->timer_fn((unsigned long)ioat_chan);
 	}
 
 	return -ENOMEM;
@@ -617,7 +617,7 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 void ioat2_free_chan_resources(struct dma_chan *c)
 {
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
-	struct ioatdma_device *device = ioat_chan->device;
+	struct ioatdma_device *ioat_dma = ioat_chan->ioat_dma;
 	struct ioat_ring_ent *desc;
 	const int total_descs = 1 << ioat_chan->alloc_order;
 	int descs;
@@ -630,7 +630,7 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 		return;
 
 	ioat_stop(ioat_chan);
-	device->reset_hw(ioat_chan);
+	ioat_dma->reset_hw(ioat_chan);
 
 	spin_lock_bh(&ioat_chan->cleanup_lock);
 	spin_lock_bh(&ioat_chan->prep_lock);
@@ -654,7 +654,7 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 	kfree(ioat_chan->ring);
 	ioat_chan->ring = NULL;
 	ioat_chan->alloc_order = 0;
-	pci_pool_free(device->completion_pool, ioat_chan->completion,
+	pci_pool_free(ioat_dma->completion_pool, ioat_chan->completion,
 		      ioat_chan->completion_dma);
 	spin_unlock_bh(&ioat_chan->prep_lock);
 	spin_unlock_bh(&ioat_chan->cleanup_lock);

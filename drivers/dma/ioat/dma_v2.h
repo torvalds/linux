@@ -121,11 +121,11 @@ ioat2_set_chainaddr(struct ioatdma_chan *ioat_chan, u64 addr)
 	       ioat_chan->reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
 }
 
-int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
-int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
+int ioat2_dma_probe(struct ioatdma_device *ioat_dma, int dca);
+int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca);
 struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 int ioat2_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs);
-int ioat2_enumerate_channels(struct ioatdma_device *device);
+int ioat2_enumerate_channels(struct ioatdma_device *ioat_dma);
 struct dma_async_tx_descriptor *
 ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 			   dma_addr_t dma_src, size_t len, unsigned long flags);

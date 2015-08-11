@@ -93,30 +93,30 @@ static irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data)
 
 /* common channel initialization */
 void
-ioat_init_channel(struct ioatdma_device *device, struct ioatdma_chan *ioat_chan,
-		  int idx)
+ioat_init_channel(struct ioatdma_device *ioat_dma,
+		  struct ioatdma_chan *ioat_chan, int idx)
 {
-	struct dma_device *dma = &device->common;
+	struct dma_device *dma = &ioat_dma->dma_dev;
 	struct dma_chan *c = &ioat_chan->dma_chan;
 	unsigned long data = (unsigned long) c;
 
-	ioat_chan->device = device;
-	ioat_chan->reg_base = device->reg_base + (0x80 * (idx + 1));
+	ioat_chan->ioat_dma = ioat_dma;
+	ioat_chan->reg_base = ioat_dma->reg_base + (0x80 * (idx + 1));
 	spin_lock_init(&ioat_chan->cleanup_lock);
 	ioat_chan->dma_chan.device = dma;
 	dma_cookie_init(&ioat_chan->dma_chan);
 	list_add_tail(&ioat_chan->dma_chan.device_node, &dma->channels);
-	device->idx[idx] = ioat_chan;
+	ioat_dma->idx[idx] = ioat_chan;
 	init_timer(&ioat_chan->timer);
-	ioat_chan->timer.function = device->timer_fn;
+	ioat_chan->timer.function = ioat_dma->timer_fn;
 	ioat_chan->timer.data = data;
-	tasklet_init(&ioat_chan->cleanup_task, device->cleanup_fn, data);
+	tasklet_init(&ioat_chan->cleanup_task, ioat_dma->cleanup_fn, data);
 }
 
 void ioat_stop(struct ioatdma_chan *ioat_chan)
 {
-	struct ioatdma_device *device = ioat_chan->device;
-	struct pci_dev *pdev = device->pdev;
+	struct ioatdma_device *ioat_dma = ioat_chan->ioat_dma;
+	struct pci_dev *pdev = ioat_dma->pdev;
 	int chan_id = chan_num(ioat_chan);
 	struct msix_entry *msix;
 
@@ -126,9 +126,9 @@ void ioat_stop(struct ioatdma_chan *ioat_chan)
 	clear_bit(IOAT_RUN, &ioat_chan->state);
 
 	/* flush inflight interrupts */
-	switch (device->irq_mode) {
+	switch (ioat_dma->irq_mode) {
 	case IOAT_MSIX:
-		msix = &device->msix_entries[chan_id];
+		msix = &ioat_dma->msix_entries[chan_id];
 		synchronize_irq(msix->vector);
 		break;
 	case IOAT_MSI:
@@ -146,7 +146,7 @@ void ioat_stop(struct ioatdma_chan *ioat_chan)
 	tasklet_kill(&ioat_chan->cleanup_task);
 
 	/* final cleanup now that everything is quiesced and can't re-arm */
-	device->cleanup_fn((unsigned long)&ioat_chan->dma_chan);
+	ioat_dma->cleanup_fn((unsigned long)&ioat_chan->dma_chan);
 }
 
 dma_addr_t ioat_get_current_completion(struct ioatdma_chan *ioat_chan)
@@ -189,14 +189,14 @@ ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 		   struct dma_tx_state *txstate)
 {
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(c);
-	struct ioatdma_device *device = ioat_chan->device;
+	struct ioatdma_device *ioat_dma = ioat_chan->ioat_dma;
 	enum dma_status ret;
 
 	ret = dma_cookie_status(c, cookie, txstate);
 	if (ret == DMA_COMPLETE)
 		return ret;
 
-	device->cleanup_fn((unsigned long) c);
+	ioat_dma->cleanup_fn((unsigned long) c);
 
 	return dma_cookie_status(c, cookie, txstate);
 }
@@ -215,15 +215,15 @@ static void ioat_dma_test_callback(void *dma_async_param)
 
 /**
  * ioat_dma_self_test - Perform a IOAT transaction to verify the HW works.
- * @device: device to be tested
+ * @ioat_dma: dma device to be tested
  */
-int ioat_dma_self_test(struct ioatdma_device *device)
+int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 {
 	int i;
 	u8 *src;
 	u8 *dest;
-	struct dma_device *dma = &device->common;
-	struct device *dev = &device->pdev->dev;
+	struct dma_device *dma = &ioat_dma->dma_dev;
+	struct device *dev = &ioat_dma->pdev->dev;
 	struct dma_chan *dma_chan;
 	struct dma_async_tx_descriptor *tx;
 	dma_addr_t dma_dest, dma_src;
@@ -266,8 +266,9 @@ int ioat_dma_self_test(struct ioatdma_device *device)
 		goto unmap_src;
 	}
 	flags = DMA_PREP_INTERRUPT;
-	tx = device->common.device_prep_dma_memcpy(dma_chan, dma_dest, dma_src,
-						   IOAT_TEST_SIZE, flags);
+	tx = ioat_dma->dma_dev.device_prep_dma_memcpy(dma_chan, dma_dest,
+						      dma_src, IOAT_TEST_SIZE,
+						      flags);
 	if (!tx) {
 		dev_err(dev, "Self-test prep failed, disabling\n");
 		err = -ENODEV;
@@ -321,12 +322,12 @@ MODULE_PARM_DESC(ioat_interrupt_style,
 
 /**
  * ioat_dma_setup_interrupts - setup interrupt handler
- * @device: ioat device
+ * @ioat_dma: ioat dma device
  */
-int ioat_dma_setup_interrupts(struct ioatdma_device *device)
+int ioat_dma_setup_interrupts(struct ioatdma_device *ioat_dma)
 {
 	struct ioatdma_chan *ioat_chan;
-	struct pci_dev *pdev = device->pdev;
+	struct pci_dev *pdev = ioat_dma->pdev;
 	struct device *dev = &pdev->dev;
 	struct msix_entry *msix;
 	int i, j, msixcnt;
@@ -344,31 +345,31 @@ int ioat_dma_setup_interrupts(struct ioatdma_device *device)
 
 msix:
 	/* The number of MSI-X vectors should equal the number of channels */
-	msixcnt = device->common.chancnt;
+	msixcnt = ioat_dma->dma_dev.chancnt;
 	for (i = 0; i < msixcnt; i++)
-		device->msix_entries[i].entry = i;
+		ioat_dma->msix_entries[i].entry = i;
 
-	err = pci_enable_msix_exact(pdev, device->msix_entries, msixcnt);
+	err = pci_enable_msix_exact(pdev, ioat_dma->msix_entries, msixcnt);
 	if (err)
 		goto msi;
 
 	for (i = 0; i < msixcnt; i++) {
-		msix = &device->msix_entries[i];
-		ioat_chan = ioat_chan_by_index(device, i);
+		msix = &ioat_dma->msix_entries[i];
+		ioat_chan = ioat_chan_by_index(ioat_dma, i);
 		err = devm_request_irq(dev, msix->vector,
 				       ioat_dma_do_interrupt_msix, 0,
 				       "ioat-msix", ioat_chan);
 		if (err) {
 			for (j = 0; j < i; j++) {
-				msix = &device->msix_entries[j];
-				ioat_chan = ioat_chan_by_index(device, j);
+				msix = &ioat_dma->msix_entries[j];
+				ioat_chan = ioat_chan_by_index(ioat_dma, j);
 				devm_free_irq(dev, msix->vector, ioat_chan);
 			}
 			goto msi;
 		}
 	}
 	intrctrl |= IOAT_INTRCTRL_MSIX_VECTOR_CONTROL;
-	device->irq_mode = IOAT_MSIX;
+	ioat_dma->irq_mode = IOAT_MSIX;
 	goto done;
 
 msi:
@@ -377,69 +378,70 @@ msi:
 		goto intx;
 
 	err = devm_request_irq(dev, pdev->irq, ioat_dma_do_interrupt, 0,
-			       "ioat-msi", device);
+			       "ioat-msi", ioat_dma);
 	if (err) {
 		pci_disable_msi(pdev);
 		goto intx;
 	}
-	device->irq_mode = IOAT_MSI;
+	ioat_dma->irq_mode = IOAT_MSI;
 	goto done;
 
 intx:
 	err = devm_request_irq(dev, pdev->irq, ioat_dma_do_interrupt,
-			       IRQF_SHARED, "ioat-intx", device);
+			       IRQF_SHARED, "ioat-intx", ioat_dma);
 	if (err)
 		goto err_no_irq;
 
-	device->irq_mode = IOAT_INTX;
+	ioat_dma->irq_mode = IOAT_INTX;
 done:
-	if (device->intr_quirk)
-		device->intr_quirk(device);
+	if (ioat_dma->intr_quirk)
+		ioat_dma->intr_quirk(ioat_dma);
 	intrctrl |= IOAT_INTRCTRL_MASTER_INT_EN;
-	writeb(intrctrl, device->reg_base + IOAT_INTRCTRL_OFFSET);
+	writeb(intrctrl, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
 	return 0;
 
 err_no_irq:
 	/* Disable all interrupt generation */
-	writeb(0, device->reg_base + IOAT_INTRCTRL_OFFSET);
-	device->irq_mode = IOAT_NOIRQ;
+	writeb(0, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
+	ioat_dma->irq_mode = IOAT_NOIRQ;
 	dev_err(dev, "no usable interrupts\n");
 	return err;
 }
 EXPORT_SYMBOL(ioat_dma_setup_interrupts);
 
-static void ioat_disable_interrupts(struct ioatdma_device *device)
+static void ioat_disable_interrupts(struct ioatdma_device *ioat_dma)
 {
 	/* Disable all interrupt generation */
-	writeb(0, device->reg_base + IOAT_INTRCTRL_OFFSET);
+	writeb(0, ioat_dma->reg_base + IOAT_INTRCTRL_OFFSET);
 }
 
-int ioat_probe(struct ioatdma_device *device)
+int ioat_probe(struct ioatdma_device *ioat_dma)
 {
 	int err = -ENODEV;
-	struct dma_device *dma = &device->common;
-	struct pci_dev *pdev = device->pdev;
+	struct dma_device *dma = &ioat_dma->dma_dev;
+	struct pci_dev *pdev = ioat_dma->pdev;
 	struct device *dev = &pdev->dev;
 
 	/* DMA coherent memory pool for DMA descriptor allocations */
-	device->dma_pool = pci_pool_create("dma_desc_pool", pdev,
-					   sizeof(struct ioat_dma_descriptor),
-					   64, 0);
-	if (!device->dma_pool) {
+	ioat_dma->dma_pool = pci_pool_create("dma_desc_pool", pdev,
+					     sizeof(struct ioat_dma_descriptor),
+					     64, 0);
+	if (!ioat_dma->dma_pool) {
 		err = -ENOMEM;
 		goto err_dma_pool;
 	}
 
-	device->completion_pool = pci_pool_create("completion_pool", pdev,
-						  sizeof(u64), SMP_CACHE_BYTES,
-						  SMP_CACHE_BYTES);
+	ioat_dma->completion_pool = pci_pool_create("completion_pool", pdev,
+						    sizeof(u64),
+						    SMP_CACHE_BYTES,
+						    SMP_CACHE_BYTES);
 
-	if (!device->completion_pool) {
+	if (!ioat_dma->completion_pool) {
 		err = -ENOMEM;
 		goto err_completion_pool;
 	}
 
-	device->enumerate_channels(device);
+	ioat_dma->enumerate_channels(ioat_dma);
 
 	dma_cap_set(DMA_MEMCPY, dma->cap_mask);
 	dma->dev = &pdev->dev;
@@ -449,34 +451,34 @@ int ioat_probe(struct ioatdma_device *device)
 		goto err_setup_interrupts;
 	}
 
-	err = ioat_dma_setup_interrupts(device);
+	err = ioat_dma_setup_interrupts(ioat_dma);
 	if (err)
 		goto err_setup_interrupts;
 
-	err = device->self_test(device);
+	err = ioat_dma->self_test(ioat_dma);
 	if (err)
 		goto err_self_test;
 
 	return 0;
 
 err_self_test:
-	ioat_disable_interrupts(device);
+	ioat_disable_interrupts(ioat_dma);
 err_setup_interrupts:
-	pci_pool_destroy(device->completion_pool);
+	pci_pool_destroy(ioat_dma->completion_pool);
 err_completion_pool:
-	pci_pool_destroy(device->dma_pool);
+	pci_pool_destroy(ioat_dma->dma_pool);
 err_dma_pool:
 	return err;
 }
 
-int ioat_register(struct ioatdma_device *device)
+int ioat_register(struct ioatdma_device *ioat_dma)
 {
-	int err = dma_async_device_register(&device->common);
+	int err = dma_async_device_register(&ioat_dma->dma_dev);
 
 	if (err) {
-		ioat_disable_interrupts(device);
-		pci_pool_destroy(device->completion_pool);
-		pci_pool_destroy(device->dma_pool);
+		ioat_disable_interrupts(ioat_dma);
+		pci_pool_destroy(ioat_dma->completion_pool);
+		pci_pool_destroy(ioat_dma->dma_pool);
 	}
 
 	return err;
@@ -499,10 +501,10 @@ struct ioat_sysfs_entry ioat_cap_attr = __ATTR_RO(cap);
 static ssize_t version_show(struct dma_chan *c, char *page)
 {
 	struct dma_device *dma = c->device;
-	struct ioatdma_device *device = to_ioatdma_device(dma);
+	struct ioatdma_device *ioat_dma = to_ioatdma_device(dma);
 
 	return sprintf(page, "%d.%d\n",
-		       device->version >> 4, device->version & 0xf);
+		       ioat_dma->version >> 4, ioat_dma->version & 0xf);
 }
 struct ioat_sysfs_entry ioat_version_attr = __ATTR_RO(version);
 
@@ -524,9 +526,9 @@ const struct sysfs_ops ioat_sysfs_ops = {
 	.show	= ioat_attr_show,
 };
 
-void ioat_kobject_add(struct ioatdma_device *device, struct kobj_type *type)
+void ioat_kobject_add(struct ioatdma_device *ioat_dma, struct kobj_type *type)
 {
-	struct dma_device *dma = &device->common;
+	struct dma_device *dma = &ioat_dma->dma_dev;
 	struct dma_chan *c;
 
 	list_for_each_entry(c, &dma->channels, device_node) {
@@ -545,9 +547,9 @@ void ioat_kobject_add(struct ioatdma_device *device, struct kobj_type *type)
 	}
 }
 
-void ioat_kobject_del(struct ioatdma_device *device)
+void ioat_kobject_del(struct ioatdma_device *ioat_dma)
 {
-	struct dma_device *dma = &device->common;
+	struct dma_device *dma = &ioat_dma->dma_dev;
 	struct dma_chan *c;
 
 	list_for_each_entry(c, &dma->channels, device_node) {
@@ -560,18 +562,18 @@ void ioat_kobject_del(struct ioatdma_device *device)
 	}
 }
 
-void ioat_dma_remove(struct ioatdma_device *device)
+void ioat_dma_remove(struct ioatdma_device *ioat_dma)
 {
-	struct dma_device *dma = &device->common;
+	struct dma_device *dma = &ioat_dma->dma_dev;
 
-	ioat_disable_interrupts(device);
+	ioat_disable_interrupts(ioat_dma);
 
-	ioat_kobject_del(device);
+	ioat_kobject_del(ioat_dma);
 
 	dma_async_device_unregister(dma);
 
-	pci_pool_destroy(device->dma_pool);
-	pci_pool_destroy(device->completion_pool);
+	pci_pool_destroy(ioat_dma->dma_pool);
+	pci_pool_destroy(ioat_dma->completion_pool);
 
 	INIT_LIST_HEAD(&dma->channels);
 }
