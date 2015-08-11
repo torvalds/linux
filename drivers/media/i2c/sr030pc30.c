@@ -489,18 +489,14 @@ static int sr030pc30_get_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *mf;
 	struct sr030pc30_info *info = to_sr030pc30(sd);
-	int ret;
 
 	if (!format || format->pad)
 		return -EINVAL;
 
 	mf = &format->format;
 
-	if (!info->curr_win || !info->curr_fmt) {
-		ret = sr030pc30_set_params(sd);
-		if (ret)
-			return ret;
-	}
+	if (!info->curr_win || !info->curr_fmt)
+		return -EINVAL;
 
 	mf->width	= info->curr_win->width;
 	mf->height	= info->curr_win->height;
