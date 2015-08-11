@@ -527,7 +527,7 @@ static int tda10071_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	unsigned int uitmp;
 
 	if (c->strength.stat[0].scale == FE_SCALE_DECIBEL) {
-		uitmp = c->strength.stat[0].svalue / 1000 + 256;
+		uitmp = div_s64(c->strength.stat[0].svalue, 1000) + 256;
 		uitmp = clamp(uitmp, 181U, 236U); /* -75dBm - -20dBm */
 		/* scale value to 0x0000-0xffff */
 		*strength = (uitmp-181) * 0xffff / (236-181);
