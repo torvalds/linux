@@ -219,6 +219,16 @@ static struct attribute *loopback_attrs[] = {
 };
 ATTRIBUTE_GROUPS(loopback);
 
+static void gb_loopback_calc_latency(struct gb_loopback *gb,
+				     struct timeval *ts, struct timeval *te)
+{
+	u64 t1, t2;
+
+	t1 = timeval_to_ns(ts);
+	t2 = timeval_to_ns(te);
+	gb->elapsed_nsecs = t2 - t1;
+}
+
 static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
 {
 	struct timeval ts, te;
@@ -236,7 +246,7 @@ static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
 				   request, len + sizeof(*request), NULL, 0);
 
 	do_gettimeofday(&te);
-	gb->elapsed_nsecs = timeval_to_ns(&te) - timeval_to_ns(&ts);
+	gb_loopback_calc_latency(gb, &ts, &te);
 
 	kfree(request);
 	return retval;
@@ -265,7 +275,7 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 				   request, len + sizeof(*request),
 				   response, len + sizeof(*response));
 	do_gettimeofday(&te);
-	gb->elapsed_nsecs = timeval_to_ns(&te) - timeval_to_ns(&ts);
+	gb_loopback_calc_latency(gb, &ts, &te);
 
 	if (retval)
 		goto gb_error;
@@ -289,7 +299,7 @@ static int gb_loopback_ping(struct gb_loopback *gb)
 	retval = gb_operation_sync(gb->connection, GB_LOOPBACK_TYPE_PING,
 				   NULL, 0, NULL, 0);
 	do_gettimeofday(&te);
-	gb->elapsed_nsecs = timeval_to_ns(&te) - timeval_to_ns(&ts);
+	gb_loopback_calc_latency(gb, &ts, &te);
 
 	return retval;
 }
