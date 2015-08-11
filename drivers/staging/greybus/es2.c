@@ -16,6 +16,7 @@
 #include "greybus.h"
 #include "svc_msg.h"
 #include "kernel_ver.h"
+#include "connection.h"
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
@@ -340,6 +341,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 					  es1->cport_out[bulk_ep_set].endpoint),
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
+	gb_connection_push_timestamp(message->operation->connection);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
