@@ -828,7 +828,9 @@ struct amdgpu_flip_work {
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct amdgpu_bo		*old_rbo;
-	struct fence			*fence;
+	struct fence			*excl;
+	unsigned			shared_count;
+	struct fence			**shared;
 };
 
 
