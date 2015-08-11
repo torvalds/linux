@@ -22,6 +22,8 @@
 
 #include "greybus.h"
 
+#define NSEC_PER_DAY 86400000000000ULL
+
 struct gb_loopback_stats {
 	u32 min;
 	u32 max;
@@ -226,7 +228,10 @@ static void gb_loopback_calc_latency(struct gb_loopback *gb,
 
 	t1 = timeval_to_ns(ts);
 	t2 = timeval_to_ns(te);
-	gb->elapsed_nsecs = t2 - t1;
+	if (t2 > t1)
+		gb->elapsed_nsecs = t2 - t1;
+	else
+		gb->elapsed_nsecs = NSEC_PER_DAY - t2 + t1;
 }
 
 static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
