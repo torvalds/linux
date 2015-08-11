@@ -96,7 +96,7 @@ static const struct attribute_group visorbus_dev_group = {
 	.attrs = visorbus_dev_attrs,
 };
 
-const struct attribute_group *visorbus_dev_groups[] = {
+static const struct attribute_group *visorbus_dev_groups[] = {
 	&visorbus_dev_group,
 	NULL,
 };
