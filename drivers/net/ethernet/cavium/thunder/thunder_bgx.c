@@ -6,6 +6,7 @@
  * as published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -26,7 +27,7 @@
 struct lmac {
 	struct bgx		*bgx;
 	int			dmac;
-	unsigned char		mac[ETH_ALEN];
+	u8			mac[ETH_ALEN];
 	bool			link_up;
 	int			lmacid; /* ID within BGX */
 	int			lmacid_bd; /* ID on board */
@@ -835,6 +836,86 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 	}
 }
 
+#ifdef CONFIG_ACPI
+
+static int acpi_get_mac_address(struct acpi_device *adev, u8 *dst)
+{
+	u8 mac[ETH_ALEN];
+	int ret;
+
+	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
+					    "mac-address", mac, ETH_ALEN);
+	if (ret)
+		goto out;
+
+	if (!is_valid_ether_addr(mac)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	memcpy(dst, mac, ETH_ALEN);
+out:
+	return ret;
+}
+
+/* Currently only sets the MAC address. */
+static acpi_status bgx_acpi_register_phy(acpi_handle handle,
+					 u32 lvl, void *context, void **rv)
+{
+	struct bgx *bgx = context;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		goto out;
+
+	acpi_get_mac_address(adev, bgx->lmac[bgx->lmac_count].mac);
+
+	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, &bgx->pdev->dev);
+
+	bgx->lmac[bgx->lmac_count].lmacid = bgx->lmac_count;
+out:
+	bgx->lmac_count++;
+	return AE_OK;
+}
+
+static acpi_status bgx_acpi_match_id(acpi_handle handle, u32 lvl,
+				     void *context, void **ret_val)
+{
+	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct bgx *bgx = context;
+	char bgx_sel[5];
+
+	snprintf(bgx_sel, 5, "BGX%d", bgx->bgx_id);
+	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &string))) {
+		pr_warn("Invalid link device\n");
+		return AE_OK;
+	}
+
+	if (strncmp(string.pointer, bgx_sel, 4))
+		return AE_OK;
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+			    bgx_acpi_register_phy, NULL, bgx, NULL);
+
+	kfree(string.pointer);
+	return AE_CTRL_TERMINATE;
+}
+
+static int bgx_init_acpi_phy(struct bgx *bgx)
+{
+	acpi_get_devices(NULL, bgx_acpi_match_id, bgx, (void **)NULL);
+	return 0;
+}
+
+#else
+
+static int bgx_init_acpi_phy(struct bgx *bgx)
+{
+	return -ENODEV;
+}
+
+#endif /* CONFIG_ACPI */
+
 #if IS_ENABLED(CONFIG_OF_MDIO)
 
 static int bgx_init_of_phy(struct bgx *bgx)
@@ -882,6 +963,9 @@ static int bgx_init_of_phy(struct bgx *bgx)
 
 static int bgx_init_phy(struct bgx *bgx)
 {
+	if (!acpi_disabled)
+		return bgx_init_acpi_phy(bgx);
+
 	return bgx_init_of_phy(bgx);
 }
 
