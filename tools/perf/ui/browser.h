@@ -37,6 +37,8 @@ void ui_browser__refresh_dimensions(struct ui_browser *browser);
 void ui_browser__reset_index(struct ui_browser *browser);
 
 void ui_browser__gotorc(struct ui_browser *browser, int y, int x);
+void ui_browser__write_nstring(struct ui_browser *browser, const char *msg,
+			       unsigned int width);
 void ui_browser__write_graph(struct ui_browser *browser, int graph);
 void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
 			      u64 start, u64 end);

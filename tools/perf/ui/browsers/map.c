@@ -32,7 +32,7 @@ static void map_browser__write(struct ui_browser *browser, void *nd, int row)
 		     sym->binding == STB_LOCAL  ? 'l' : 'w');
 	width = browser->width - ((mb->addrlen * 2) + 4);
 	if (width > 0)
-		slsmg_write_nstring(sym->name, width);
+		ui_browser__write_nstring(browser, sym->name, width);
 }
 
 /* FIXME uber-kludgy, see comment on cmd_report... */

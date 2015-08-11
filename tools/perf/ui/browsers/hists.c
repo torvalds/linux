@@ -540,10 +540,10 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 
 	ui_browser__set_color(&browser->b, color);
 	hist_browser__gotorc(browser, row, 0);
-	slsmg_write_nstring(" ", offset);
+	ui_browser__write_nstring(&browser->b, " ", offset);
 	slsmg_printf("%c", folded_sign);
 	ui_browser__write_graph(&browser->b, show_annotated ? SLSMG_RARROW_CHAR : ' ');
-	slsmg_write_nstring(str, width);
+	ui_browser__write_nstring(&browser->b, str, width);
 }
 
 static void hist_browser__fprintf_callchain_entry(struct hist_browser *b __maybe_unused,
@@ -822,7 +822,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		if (!browser->b.navkeypressed)
 			width += 1;
 
-		slsmg_write_nstring("", width);
+		ui_browser__write_nstring(&browser->b, "", width);
 
 		++row;
 		++printed;
@@ -899,7 +899,7 @@ static void hist_browser__show_headers(struct hist_browser *browser)
 	hists__scnprintf_headers(headers, sizeof(headers), browser->hists);
 	ui_browser__gotorc(&browser->b, 0, 0);
 	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
-	slsmg_write_nstring(headers, browser->b.width + 1);
+	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
 }
 
 static void ui_browser__hists_init_top(struct ui_browser *browser)
@@ -2057,7 +2057,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		warn = bf;
 	}
 
-	slsmg_write_nstring(warn, browser->width - printed);
+	ui_browser__write_nstring(browser, warn, browser->width - printed);
 
 	if (current_entry)
 		menu->selection = evsel;
