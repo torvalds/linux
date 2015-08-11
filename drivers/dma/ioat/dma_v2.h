@@ -153,7 +153,6 @@ static inline void ioat2_set_chainaddr(struct ioat2_dma_chan *ioat, u64 addr)
 
 int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
 int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
-struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 int ioat2_check_space_lock(struct ioat2_dma_chan *ioat, int num_descs);
 int ioat2_enumerate_channels(struct ioatdma_device *device);
@@ -166,7 +165,6 @@ void ioat2_free_chan_resources(struct dma_chan *c);
 void __ioat2_restart_chan(struct ioat2_dma_chan *ioat);
 bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
 void __ioat2_issue_pending(struct ioat2_dma_chan *ioat);
-void ioat2_cleanup_event(unsigned long data);
 void ioat2_timer_event(unsigned long data);
 int ioat2_quiesce(struct ioat_chan_common *chan, unsigned long tmo);
 int ioat2_reset_sync(struct ioat_chan_common *chan, unsigned long tmo);

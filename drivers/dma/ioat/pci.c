@@ -210,9 +210,7 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, device);
 
 	device->version = readb(device->reg_base + IOAT_VER_OFFSET);
-	if (device->version == IOAT_VER_2_0)
-		err = ioat2_dma_probe(device, ioat_dca_enabled);
-	else if (device->version >= IOAT_VER_3_0)
+	if (device->version >= IOAT_VER_3_0)
 		err = ioat3_dma_probe(device, ioat_dca_enabled);
 	else
 		return -ENODEV;
