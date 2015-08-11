@@ -57,6 +57,8 @@ struct tegra_drm {
 		struct work_struct work;
 		struct mutex lock;
 	} commit;
+
+	struct drm_atomic_state *state;
 };
 
 struct tegra_drm_client;
@@ -272,6 +274,8 @@ int tegra_drm_fb_prepare(struct drm_device *drm);
 void tegra_drm_fb_free(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
+void tegra_drm_fb_suspend(struct drm_device *drm);
+void tegra_drm_fb_resume(struct drm_device *drm);
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 void tegra_fb_output_poll_changed(struct drm_device *drm);
