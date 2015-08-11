@@ -382,17 +382,34 @@ int gb_connection_init(struct gb_connection *connection)
 	connection->state = GB_CONNECTION_STATE_ENABLED;
 	spin_unlock_irq(&connection->lock);
 
-	ret = connection->protocol->connection_init(connection);
-	if (ret) {
-		spin_lock_irq(&connection->lock);
-		connection->state = GB_CONNECTION_STATE_ERROR;
-		spin_unlock_irq(&connection->lock);
-		goto disconnect;
+	/*
+	 * Request protocol version supported by the module. We don't need to do
+	 * this for SVC as that is initiated by the SVC.
+	 */
+	if (connection->hd_cport_id != GB_SVC_CPORT_ID) {
+		struct gb_protocol_version_response response;
+
+		ret = gb_protocol_get_version(connection,
+					      GB_REQUEST_TYPE_PROTOCOL_VERSION,
+					      NULL, 0, &response,
+					      connection->protocol->major);
+		if (ret) {
+			dev_err(&connection->dev,
+				"Failed to get version CPort-%d (%d)\n",
+				cport_id, ret);
+			goto disconnect;
+		}
 	}
 
-	return 0;
+	ret = connection->protocol->connection_init(connection);
+	if (!ret)
+		return 0;
 
 disconnect:
+	spin_lock_irq(&connection->lock);
+	connection->state = GB_CONNECTION_STATE_ERROR;
+	spin_unlock_irq(&connection->lock);
+
 	gb_connection_disconnected(connection);
 	return ret;
 }
