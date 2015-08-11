@@ -68,8 +68,6 @@ struct gb_hid_input_report_request {
 /* Greybus HID device's structure */
 struct gb_hid {
 	struct gb_connection		*connection;
-	u8				version_major;
-	u8				version_minor;
 
 	struct hid_device		*hid;
 	struct gb_hid_desc_response	hdesc;
@@ -85,9 +83,6 @@ struct gb_hid {
 static DEFINE_MUTEX(gb_hid_open_mutex);
 
 /* Routines to get controller's information over greybus */
-
-/* Define get_version() routine */
-define_get_version(gb_hid, HID);
 
 /* Operations performed on greybus */
 static int gb_hid_get_desc(struct gb_hid *ghid)
@@ -444,10 +439,6 @@ static int gb_hid_init(struct gb_hid *ghid)
 {
 	struct hid_device *hid = ghid->hid;
 	int ret;
-
-	ret = get_version(ghid);
-	if (ret)
-		return ret;
 
 	ret = gb_hid_get_desc(ghid);
 	if (ret)
