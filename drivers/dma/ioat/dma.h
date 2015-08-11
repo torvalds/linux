@@ -438,24 +438,15 @@ ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 		struct dma_tx_state *txstate);
 void ioat_cleanup_event(unsigned long data);
 void ioat_timer_event(unsigned long data);
-enum dma_status ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
-				   struct dma_tx_state *txstate);
-bool ioat_cleanup_preamble(struct ioatdma_chan *ioat_chan,
-			   dma_addr_t *phys_complete);
 int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs);
 void ioat_issue_pending(struct dma_chan *chan);
-bool reshape_ring(struct ioatdma_chan *ioat, int order);
-void __ioat_issue_pending(struct ioatdma_chan *ioat_chan);
 void ioat_timer_event(unsigned long data);
-int ioat_quiesce(struct ioatdma_chan *ioat_chan, unsigned long tmo);
-int ioat_reset_sync(struct ioatdma_chan *ioat_chan, unsigned long tmo);
-void __ioat_restart_chan(struct ioatdma_chan *ioat_chan);
 
 /* IOAT Init functions */
 bool is_bwd_ioat(struct pci_dev *pdev);
+struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 void ioat_kobject_add(struct ioatdma_device *ioat_dma, struct kobj_type *type);
 void ioat_kobject_del(struct ioatdma_device *ioat_dma);
 int ioat_dma_setup_interrupts(struct ioatdma_device *ioat_dma);
 void ioat_stop(struct ioatdma_chan *ioat_chan);
-struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 #endif /* IOATDMA_H */

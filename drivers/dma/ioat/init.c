@@ -735,13 +735,6 @@ ioat_init_channel(struct ioatdma_device *ioat_dma,
 	tasklet_init(&ioat_chan->cleanup_task, ioat_dma->cleanup_fn, data);
 }
 
-static void ioat3_dma_test_callback(void *dma_async_param)
-{
-	struct completion *cmp = dma_async_param;
-
-	complete(cmp);
-}
-
 #define IOAT_NUM_SRC_TEST 6 /* must be <= 8 */
 static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 {
@@ -835,7 +828,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	async_tx_ack(tx);
 	init_completion(&cmp);
-	tx->callback = ioat3_dma_test_callback;
+	tx->callback = ioat_dma_test_callback;
 	tx->callback_param = &cmp;
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
@@ -903,7 +896,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	async_tx_ack(tx);
 	init_completion(&cmp);
-	tx->callback = ioat3_dma_test_callback;
+	tx->callback = ioat_dma_test_callback;
 	tx->callback_param = &cmp;
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
@@ -956,7 +949,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	async_tx_ack(tx);
 	init_completion(&cmp);
-	tx->callback = ioat3_dma_test_callback;
+	tx->callback = ioat_dma_test_callback;
 	tx->callback_param = &cmp;
 	cookie = tx->tx_submit(tx);
 	if (cookie < 0) {
@@ -1024,7 +1017,7 @@ static int ioat3_dma_self_test(struct ioatdma_device *ioat_dma)
 	return 0;
 }
 
-static void ioat3_intr_quirk(struct ioatdma_device *ioat_dma)
+static void ioat_intr_quirk(struct ioatdma_device *ioat_dma)
 {
 	struct dma_device *dma;
 	struct dma_chan *c;
@@ -1063,7 +1056,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	ioat_dma->enumerate_channels = ioat_enumerate_channels;
 	ioat_dma->reset_hw = ioat_reset_hw;
 	ioat_dma->self_test = ioat3_dma_self_test;
-	ioat_dma->intr_quirk = ioat3_intr_quirk;
+	ioat_dma->intr_quirk = ioat_intr_quirk;
 	dma = &ioat_dma->dma_dev;
 	dma->device_prep_dma_memcpy = ioat_dma_prep_memcpy_lock;
 	dma->device_issue_pending = ioat_issue_pending;
@@ -1162,7 +1155,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	ioat_kobject_add(ioat_dma, &ioat_ktype);
 
 	if (dca)
-		ioat_dma->dca = ioat3_dca_init(pdev, ioat_dma->reg_base);
+		ioat_dma->dca = ioat_dca_init(pdev, ioat_dma->reg_base);
 
 	return 0;
 }

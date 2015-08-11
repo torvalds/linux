@@ -132,7 +132,7 @@ static int ioat_dca_dev_managed(struct dca_provider *dca,
 	return 0;
 }
 
-static int ioat3_dca_add_requester(struct dca_provider *dca, struct device *dev)
+static int ioat_dca_add_requester(struct dca_provider *dca, struct device *dev)
 {
 	struct ioat_dca_priv *ioatdca = dca_priv(dca);
 	struct pci_dev *pdev;
@@ -166,7 +166,7 @@ static int ioat3_dca_add_requester(struct dca_provider *dca, struct device *dev)
 	return -EFAULT;
 }
 
-static int ioat3_dca_remove_requester(struct dca_provider *dca,
+static int ioat_dca_remove_requester(struct dca_provider *dca,
 				      struct device *dev)
 {
 	struct ioat_dca_priv *ioatdca = dca_priv(dca);
@@ -193,7 +193,7 @@ static int ioat3_dca_remove_requester(struct dca_provider *dca,
 	return -ENODEV;
 }
 
-static u8 ioat3_dca_get_tag(struct dca_provider *dca,
+static u8 ioat_dca_get_tag(struct dca_provider *dca,
 			    struct device *dev,
 			    int cpu)
 {
@@ -224,14 +224,14 @@ static u8 ioat3_dca_get_tag(struct dca_provider *dca,
 	return tag;
 }
 
-static struct dca_ops ioat3_dca_ops = {
-	.add_requester		= ioat3_dca_add_requester,
-	.remove_requester	= ioat3_dca_remove_requester,
-	.get_tag		= ioat3_dca_get_tag,
+static struct dca_ops ioat_dca_ops = {
+	.add_requester		= ioat_dca_add_requester,
+	.remove_requester	= ioat_dca_remove_requester,
+	.get_tag		= ioat_dca_get_tag,
 	.dev_managed		= ioat_dca_dev_managed,
 };
 
-static int ioat3_dca_count_dca_slots(void *iobase, u16 dca_offset)
+static int ioat_dca_count_dca_slots(void *iobase, u16 dca_offset)
 {
 	int slots = 0;
 	u32 req;
@@ -266,7 +266,7 @@ static inline int dca3_tag_map_invalid(u8 *tag_map)
 		(tag_map[4] == DCA_TAG_MAP_VALID));
 }
 
-struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase)
+struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 {
 	struct dca_provider *dca;
 	struct ioat_dca_priv *ioatdca;
@@ -293,11 +293,11 @@ struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 	if (dca_offset == 0)
 		return NULL;
 
-	slots = ioat3_dca_count_dca_slots(iobase, dca_offset);
+	slots = ioat_dca_count_dca_slots(iobase, dca_offset);
 	if (slots == 0)
 		return NULL;
 
-	dca = alloc_dca_provider(&ioat3_dca_ops,
+	dca = alloc_dca_provider(&ioat_dca_ops,
 				 sizeof(*ioatdca)
 				      + (sizeof(struct ioat_dca_slot) * slots));
 	if (!dca)
