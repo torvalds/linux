@@ -146,10 +146,10 @@ static int lenovo_input_mapping_cptkbd(struct hid_device *hdev,
 
 		switch (usage->hid & HID_USAGE) {
 		case 0x0000:
-			hid_map_usage(hi, usage, bit, max, EV_REL, 0x06);
+			hid_map_usage(hi, usage, bit, max, EV_REL, REL_HWHEEL);
 			return 1;
 		case 0x0001:
-			hid_map_usage(hi, usage, bit, max, EV_REL, 0x08);
+			hid_map_usage(hi, usage, bit, max, EV_REL, REL_WHEEL);
 			return 1;
 		default:
 			return -1;
