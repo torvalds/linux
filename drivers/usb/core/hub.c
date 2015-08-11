@@ -671,8 +671,8 @@ resubmit:
 	if (hub->quiescing)
 		return;
 
-	if ((status = usb_submit_urb(hub->urb, GFP_ATOMIC)) != 0
-			&& status != -ENODEV && status != -EPERM)
+	status = usb_submit_urb(hub->urb, GFP_ATOMIC);
+	if (status != 0 && status != -ENODEV && status != -EPERM)
 		dev_err(hub->intfdev, "resubmit --> %d\n", status);
 }
 
