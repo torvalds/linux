@@ -546,7 +546,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	if (ret)
 		goto err_qp;
 
-	if (dev->use_fast_reg && dev->has_fr) {
+	if (dev->use_fast_reg) {
 		fr_pool = srp_alloc_fr_pool(target);
 		if (IS_ERR(fr_pool)) {
 			ret = PTR_ERR(fr_pool);
@@ -557,7 +557,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 		if (ch->fr_pool)
 			srp_destroy_fr_pool(ch->fr_pool);
 		ch->fr_pool = fr_pool;
-	} else if (!dev->use_fast_reg && dev->has_fmr) {
+	} else if (dev->use_fmr) {
 		fmr_pool = srp_alloc_fmr_pool(target);
 		if (IS_ERR(fmr_pool)) {
 			ret = PTR_ERR(fmr_pool);
@@ -623,7 +623,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 	if (dev->use_fast_reg) {
 		if (ch->fr_pool)
 			srp_destroy_fr_pool(ch->fr_pool);
-	} else {
+	} else if (dev->use_fmr) {
 		if (ch->fmr_pool)
 			ib_destroy_fmr_pool(ch->fmr_pool);
 	}
@@ -1085,7 +1085,7 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 		if (req->nmdesc)
 			srp_fr_pool_put(ch->fr_pool, req->fr_list,
 					req->nmdesc);
-	} else {
+	} else if (dev->use_fmr) {
 		struct ib_pool_fmr **pfmr;
 
 		for (i = req->nmdesc, pfmr = req->fmr_list; i > 0; i--, pfmr++)
@@ -1345,7 +1345,10 @@ static int srp_finish_mapping(struct srp_map_state *state,
 			      struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
+	struct srp_device *dev = target->srp_host->srp_dev;
 	int ret = 0;
+
+	WARN_ON_ONCE(!dev->use_fast_reg && !dev->use_fmr);
 
 	if (state->npages == 0)
 		return 0;
@@ -1354,8 +1357,7 @@ static int srp_finish_mapping(struct srp_map_state *state,
 		srp_map_desc(state, state->base_dma_addr, state->dma_len,
 			     target->rkey);
 	else
-		ret = target->srp_host->srp_dev->use_fast_reg ?
-			srp_map_finish_fr(state, ch) :
+		ret = dev->use_fast_reg ? srp_map_finish_fr(state, ch) :
 			srp_map_finish_fmr(state, ch);
 
 	if (ret == 0) {
@@ -1417,21 +1419,18 @@ static int srp_map_sg(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	struct srp_device *dev = target->srp_host->srp_dev;
 	struct scatterlist *sg;
 	int i, ret;
-	bool use_mr;
 
 	state->desc	= req->indirect_desc;
 	state->pages	= req->map_page;
 	if (dev->use_fast_reg) {
 		state->fr.next = req->fr_list;
 		state->fr.end = req->fr_list + target->cmd_sg_cnt;
-		use_mr = !!ch->fr_pool;
-	} else {
+	} else if (dev->use_fmr) {
 		state->fmr.next = req->fmr_list;
 		state->fmr.end = req->fmr_list + target->cmd_sg_cnt;
-		use_mr = !!ch->fmr_pool;
 	}
 
-	if (use_mr) {
+	if (dev->use_fast_reg || dev->use_fmr) {
 		for_each_sg(scat, sg, count, i) {
 			ret = srp_map_sg_entry(state, ch, sg, i);
 			if (ret)
@@ -3364,6 +3363,7 @@ static void srp_add_one(struct ib_device *device)
 
 	srp_dev->use_fast_reg = (srp_dev->has_fr &&
 				 (!srp_dev->has_fmr || prefer_fr));
+	srp_dev->use_fmr = !srp_dev->use_fast_reg && srp_dev->has_fmr;
 
 	/*
 	 * Use the smallest page size supported by the HCA, down to a

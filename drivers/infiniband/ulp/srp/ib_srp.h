@@ -102,6 +102,7 @@ struct srp_device {
 	int			max_pages_per_mr;
 	bool			has_fmr;
 	bool			has_fr;
+	bool			use_fmr;
 	bool			use_fast_reg;
 };
 
