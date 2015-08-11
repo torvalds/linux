@@ -19,8 +19,6 @@
 
 struct gb_raw {
 	struct gb_connection *connection;
-	u8 version_major;
-	u8 version_minor;
 
 	struct list_head list;
 	int list_data;
@@ -35,12 +33,7 @@ struct gb_raw {
 #define	GB_RAW_VERSION_MINOR			0x01
 
 /* Greybus raw request types */
-#define	GB_RAW_TYPE_INVALID			0x00
-#define	GB_RAW_TYPE_PROTOCOL_VERSION		0x01
 #define	GB_RAW_TYPE_SEND			0x02
-
-/* Define get_version() routine */
-define_get_version(gb_raw, RAW);
 
 struct gb_raw_send_request {
 	__le32	len;
@@ -179,11 +172,6 @@ static int gb_raw_connection_init(struct gb_connection *connection)
 
 	raw->connection = connection;
 	connection->private = raw;
-
-	/* Check the protocol version */
-	retval = get_version(raw);
-	if (retval)
-		goto error_free;
 
 	INIT_LIST_HEAD(&raw->list);
 	mutex_init(&raw->list_lock);
