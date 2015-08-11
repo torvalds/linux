@@ -1,9 +1,9 @@
 ldflags-y += --wrap=ioremap_wc
 ldflags-y += --wrap=devm_ioremap_nocache
-ldflags-y += --wrap=memremap
-ldflags-y += --wrap=memunmap
+ldflags-y += --wrap=devm_memremap
 ldflags-y += --wrap=ioremap_nocache
 ldflags-y += --wrap=iounmap
+ldflags-y += --wrap=__devm_request_region
 ldflags-y += --wrap=__request_region
 ldflags-y += --wrap=__release_region
 

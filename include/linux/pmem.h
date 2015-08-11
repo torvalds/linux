@@ -46,9 +46,9 @@ static inline void memcpy_from_pmem(void *dst, void __pmem const *src, size_t si
 	memcpy(dst, (void __force const *) src, size);
 }
 
-static inline void memunmap_pmem(void __pmem *addr)
+static inline void memunmap_pmem(struct device *dev, void __pmem *addr)
 {
-	memunmap((void __force *) addr);
+	devm_memunmap(dev, (void __force *) addr);
 }
 
 /**
@@ -97,13 +97,15 @@ static inline void default_memcpy_to_pmem(void __pmem *dst, const void *src,
  * wmb_pmem() arrange for the data to be written through the
  * cache to persistent media.
  */
-static inline void __pmem *memremap_pmem(resource_size_t offset,
-		unsigned long size)
+static inline void __pmem *memremap_pmem(struct device *dev,
+		resource_size_t offset, unsigned long size)
 {
 #ifdef ARCH_MEMREMAP_PMEM
-	return (void __pmem *) memremap(offset, size, ARCH_MEMREMAP_PMEM);
+	return (void __pmem *) devm_memremap(dev, offset, size,
+			ARCH_MEMREMAP_PMEM);
 #else
-	return (void __pmem *) memremap(offset, size, MEMREMAP_WT);
+	return (void __pmem *) devm_memremap(dev, offset, size,
+			MEMREMAP_WT);
 #endif
 }
 

@@ -80,8 +80,8 @@ void __iomem *__wrap_devm_ioremap_nocache(struct device *dev,
 }
 EXPORT_SYMBOL(__wrap_devm_ioremap_nocache);
 
-void *__wrap_memremap(resource_size_t offset, size_t size,
-		unsigned long flags)
+void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
+		size_t size, unsigned long flags)
 {
 	struct nfit_test_resource *nfit_res;
 
@@ -91,9 +91,9 @@ void *__wrap_memremap(resource_size_t offset, size_t size,
 	if (nfit_res)
 		return (void __iomem *) nfit_res->buf + offset
 			- nfit_res->res->start;
-	return memremap(offset, size, flags);
+	return devm_memremap(dev, offset, size, flags);
 }
-EXPORT_SYMBOL(__wrap_memremap);
+EXPORT_SYMBOL(__wrap_devm_memremap);
 
 void __iomem *__wrap_ioremap_nocache(resource_size_t offset, unsigned long size)
 {
@@ -120,22 +120,9 @@ void __wrap_iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(__wrap_iounmap);
 
-void __wrap_memunmap(void *addr)
-{
-	struct nfit_test_resource *nfit_res;
-
-	rcu_read_lock();
-	nfit_res = get_nfit_res((unsigned long) addr);
-	rcu_read_unlock();
-	if (nfit_res)
-		return;
-	return memunmap(addr);
-}
-EXPORT_SYMBOL(__wrap_memunmap);
-
-struct resource *__wrap___request_region(struct resource *parent,
-		resource_size_t start, resource_size_t n, const char *name,
-		int flags)
+static struct resource *nfit_test_request_region(struct device *dev,
+		struct resource *parent, resource_size_t start,
+		resource_size_t n, const char *name, int flags)
 {
 	struct nfit_test_resource *nfit_res;
 
@@ -163,9 +150,28 @@ struct resource *__wrap___request_region(struct resource *parent,
 			return res;
 		}
 	}
+	if (dev)
+		return __devm_request_region(dev, parent, start, n, name);
 	return __request_region(parent, start, n, name, flags);
 }
+
+struct resource *__wrap___request_region(struct resource *parent,
+		resource_size_t start, resource_size_t n, const char *name,
+		int flags)
+{
+	return nfit_test_request_region(NULL, parent, start, n, name, flags);
+}
 EXPORT_SYMBOL(__wrap___request_region);
+
+struct resource *__wrap___devm_request_region(struct device *dev,
+		struct resource *parent, resource_size_t start,
+		resource_size_t n, const char *name)
+{
+	if (!dev)
+		return NULL;
+	return nfit_test_request_region(dev, parent, start, n, name, 0);
+}
+EXPORT_SYMBOL(__wrap___devm_request_region);
 
 void __wrap___release_region(struct resource *parent, resource_size_t start,
 				resource_size_t n)
