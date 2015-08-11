@@ -162,7 +162,7 @@ static int max_loop = MAX_LOOP_DEFAULT;
 static struct lloop_device *loop_dev;
 static struct gendisk **disks;
 static struct mutex lloop_mutex;
-static void *ll_iocontrol_magic = NULL;
+static void *ll_iocontrol_magic;
 
 static loff_t get_loop_size(struct lloop_device *lo, struct file *file)
 {
