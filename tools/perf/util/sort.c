@@ -330,6 +330,8 @@ static char *get_srcfile(struct hist_entry *e)
 
 	sf = get_srcline(map->dso, map__rip_2objdump(map, e->ip),
 			 e->ms.sym, true);
+	if (!strcmp(sf, SRCLINE_UNKNOWN))
+		return no_srcfile;
 	p = strchr(sf, ':');
 	if (p && *sf) {
 		*p = 0;
