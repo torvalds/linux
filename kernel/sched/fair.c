@@ -5562,10 +5562,10 @@ static int migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
 	unsigned long src_faults, dst_faults;
 	int src_nid, dst_nid;
 
-	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
+	if (!sched_numa_balancing)
 		return -1;
 
-	if (!sched_feat(NUMA))
+	if (!p->numa_faults || !(env->sd->flags & SD_NUMA))
 		return -1;
 
 	src_nid = cpu_to_node(env->src_cpu);
