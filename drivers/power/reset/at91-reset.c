@@ -11,6 +11,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -46,6 +47,7 @@ enum reset_type {
 };
 
 static void __iomem *at91_ramc_base[2], *at91_rstc_base;
+static struct clk *sclk;
 
 /*
 * unless the SDRAM is cleanly shutdown before we hit the
@@ -205,9 +207,21 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
 	at91_restart_nb.notifier_call = match->data;
 
-	ret = register_restart_handler(&at91_restart_nb);
-	if (ret)
+	sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sclk))
+		return PTR_ERR(sclk);
+
+	ret = clk_prepare_enable(sclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not enable slow clock\n");
 		return ret;
+	}
+
+	ret = register_restart_handler(&at91_restart_nb);
+	if (ret) {
+		clk_disable_unprepare(sclk);
+		return ret;
+	}
 
 	at91_reset_status(pdev);
 
@@ -217,6 +231,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 static int __exit at91_reset_remove(struct platform_device *pdev)
 {
 	unregister_restart_handler(&at91_restart_nb);
+	clk_disable_unprepare(sclk);
 
 	return 0;
 }
