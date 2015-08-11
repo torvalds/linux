@@ -651,12 +651,17 @@ static void apply_config_terms(struct perf_evsel *evsel,
 
 		/* parse callgraph parameters */
 		if (callgraph_buf != NULL) {
-			param.enabled = true;
-			if (parse_callchain_record(callgraph_buf, &param)) {
-				pr_err("per-event callgraph setting for %s failed. "
-				       "Apply callgraph global setting for it\n",
-				       evsel->name);
-				return;
+			if (!strcmp(callgraph_buf, "no")) {
+				param.enabled = false;
+				param.record_mode = CALLCHAIN_NONE;
+			} else {
+				param.enabled = true;
+				if (parse_callchain_record(callgraph_buf, &param)) {
+					pr_err("per-event callgraph setting for %s failed. "
+					       "Apply callgraph global setting for it\n",
+					       evsel->name);
+					return;
+				}
 			}
 		}
 		if (dump_size > 0) {

@@ -1109,13 +1109,14 @@ void hists__inc_stats(struct hists *hists, struct hist_entry *h)
 
 static void __hists__insert_output_entry(struct rb_root *entries,
 					 struct hist_entry *he,
-					 u64 min_callchain_hits)
+					 u64 min_callchain_hits,
+					 bool use_callchain)
 {
 	struct rb_node **p = &entries->rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
 
-	if (symbol_conf.use_callchain)
+	if (use_callchain)
 		callchain_param.sort(&he->sorted_chain, he->callchain,
 				      min_callchain_hits, &callchain_param);
 
@@ -1139,6 +1140,8 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
+	struct perf_evsel *evsel = hists_to_evsel(hists);
+	bool use_callchain = evsel ? (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) : symbol_conf.use_callchain;
 
 	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
 
@@ -1157,7 +1160,7 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 		n = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&n->rb_node_in);
 
-		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
+		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits, use_callchain);
 		hists__inc_stats(hists, n);
 
 		if (!n->filtered)
