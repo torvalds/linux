@@ -168,11 +168,14 @@ static void remove_from_modeset(struct drm_mode_set *set,
 	}
 	set->num_connectors--;
 
-	/* because i915 is pissy about this..
+	/*
 	 * TODO maybe need to makes sure we set it back to !=NULL somewhere?
 	 */
-	if (set->num_connectors == 0)
+	if (set->num_connectors == 0) {
 		set->fb = NULL;
+		drm_mode_destroy(connector->dev, set->mode);
+		set->mode = NULL;
+	}
 }
 
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
