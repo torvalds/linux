@@ -78,15 +78,6 @@ static const struct regmap_bus ac97_regmap_bus = {
 	.reg_read = regmap_ac97_reg_read,
 };
 
-/**
- * regmap_init_ac97(): Initialise AC'97 register map
- *
- * @ac97: Device that will be interacted with
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.
- */
 struct regmap *__regmap_init_ac97(struct snd_ac97 *ac97,
 				  const struct regmap_config *config,
 				  struct lock_class_key *lock_key,
@@ -97,16 +88,6 @@ struct regmap *__regmap_init_ac97(struct snd_ac97 *ac97,
 }
 EXPORT_SYMBOL_GPL(__regmap_init_ac97);
 
-/**
- * devm_regmap_init_ac97(): Initialise AC'97 register map
- *
- * @ac97: Device that will be interacted with
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  The regmap will be automatically freed by the
- * device management code.
- */
 struct regmap *__devm_regmap_init_ac97(struct snd_ac97 *ac97,
 				       const struct regmap_config *config,
 				       struct lock_class_key *lock_key,

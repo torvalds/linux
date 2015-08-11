@@ -515,18 +515,6 @@ enum regmap_endian regmap_get_val_endian(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(regmap_get_val_endian);
 
-/**
- * regmap_init(): Initialise register map
- *
- * @dev: Device that will be interacted with
- * @bus: Bus-specific callbacks to use with device
- * @bus_context: Data passed to bus-specific callbacks
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.  This function should generally not be called
- * directly, it should be called by bus-specific init functions.
- */
 struct regmap *__regmap_init(struct device *dev,
 			     const struct regmap_bus *bus,
 			     void *bus_context,
@@ -912,19 +900,6 @@ static void devm_regmap_release(struct device *dev, void *res)
 	regmap_exit(*(struct regmap **)res);
 }
 
-/**
- * devm_regmap_init(): Initialise managed register map
- *
- * @dev: Device that will be interacted with
- * @bus: Bus-specific callbacks to use with device
- * @bus_context: Data passed to bus-specific callbacks
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  This function should generally not be called
- * directly, it should be called by bus-specific init functions.  The
- * map will be automatically freed by the device management code.
- */
 struct regmap *__devm_regmap_init(struct device *dev,
 				  const struct regmap_bus *bus,
 				  void *bus_context,

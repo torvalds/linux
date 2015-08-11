@@ -419,52 +419,88 @@ struct regmap *__devm_regmap_init_ac97(struct snd_ac97 *ac97,
 #define __regmap_lockdep_wrapper(fn, name, ...) fn(__VA_ARGS__, NULL, NULL)
 #endif
 
+/**
+ * regmap_init(): Initialise register map
+ *
+ * @dev: Device that will be interacted with
+ * @bus: Bus-specific callbacks to use with device
+ * @bus_context: Data passed to bus-specific callbacks
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.  This function should generally not be called
+ * directly, it should be called by bus-specific init functions.
+ */
 #define regmap_init(dev, bus, bus_context, config)			\
 	__regmap_lockdep_wrapper(__regmap_init, #config,		\
 				dev, bus, bus_context, config)
 int regmap_attach_dev(struct device *dev, struct regmap *map,
 		      const struct regmap_config *config);
+
+/**
+ * regmap_init_i2c(): Initialise register map
+ *
+ * @i2c: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
 #define regmap_init_i2c(i2c, config)					\
 	__regmap_lockdep_wrapper(__regmap_init_i2c, #config,		\
 				i2c, config)
+
+/**
+ * regmap_init_spi(): Initialise register map
+ *
+ * @spi: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
 #define regmap_init_spi(dev, config)					\
 	__regmap_lockdep_wrapper(__regmap_init_spi, #config,		\
 				dev, config)
+
+/**
+ * regmap_init_spmi_base(): Create regmap for the Base register space
+ * @sdev:	SPMI device that will be interacted with
+ * @config:	Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
 #define regmap_init_spmi_base(dev, config)				\
 	__regmap_lockdep_wrapper(__regmap_init_spmi_base, #config,	\
 				dev, config)
+
+/**
+ * regmap_init_spmi_ext(): Create regmap for Ext register space
+ * @sdev:	Device that will be interacted with
+ * @config:	Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
 #define regmap_init_spmi_ext(dev, config)				\
 	__regmap_lockdep_wrapper(__regmap_init_spmi_ext, #config,	\
 				dev, config)
+
+/**
+ * regmap_init_mmio_clk(): Initialise register map with register clock
+ *
+ * @dev: Device that will be interacted with
+ * @clk_id: register clock consumer ID
+ * @regs: Pointer to memory-mapped IO region
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
 #define regmap_init_mmio_clk(dev, clk_id, regs, config)			\
 	__regmap_lockdep_wrapper(__regmap_init_mmio_clk, #config,	\
 				dev, clk_id, regs, config)
-#define regmap_init_ac97(ac97, config)					\
-	__regmap_lockdep_wrapper(__regmap_init_ac97, #config,		\
-				ac97, config)
-bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
-
-#define devm_regmap_init(dev, bus, bus_context, config)			\
-	__regmap_lockdep_wrapper(__devm_regmap_init, #config,		\
-				dev, bus, bus_context, config)
-#define devm_regmap_init_i2c(i2c, config)				\
-	__regmap_lockdep_wrapper(__devm_regmap_init_i2c, #config,	\
-				i2c, config)
-#define devm_regmap_init_spi(dev, config)				\
-	__regmap_lockdep_wrapper(__devm_regmap_init_spi, #config,	\
-				dev, config)
-#define devm_regmap_init_spmi_base(dev, config)				\
-	__regmap_lockdep_wrapper(__devm_regmap_init_spmi_base, #config,	\
-				dev, config)
-#define devm_regmap_init_spmi_ext(dev, config)				\
-	__regmap_lockdep_wrapper(__devm_regmap_init_spmi_ext, #config,	\
-				dev, config)
-#define devm_regmap_init_mmio_clk(dev, clk_id, regs, config)		\
-	__regmap_lockdep_wrapper(__devm_regmap_init_mmio_clk, #config,	\
-				dev, clk_id, regs, config)
-#define devm_regmap_init_ac97(ac97, config)				\
-	__regmap_lockdep_wrapper(__devm_regmap_init_ac97, #config,	\
-				ac97, config)
 
 /**
  * regmap_init_mmio(): Initialise register map
@@ -480,6 +516,107 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 	regmap_init_mmio_clk(dev, NULL, regs, config)
 
 /**
+ * regmap_init_ac97(): Initialise AC'97 register map
+ *
+ * @ac97: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
+#define regmap_init_ac97(ac97, config)					\
+	__regmap_lockdep_wrapper(__regmap_init_ac97, #config,		\
+				ac97, config)
+bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
+
+/**
+ * devm_regmap_init(): Initialise managed register map
+ *
+ * @dev: Device that will be interacted with
+ * @bus: Bus-specific callbacks to use with device
+ * @bus_context: Data passed to bus-specific callbacks
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  This function should generally not be called
+ * directly, it should be called by bus-specific init functions.  The
+ * map will be automatically freed by the device management code.
+ */
+#define devm_regmap_init(dev, bus, bus_context, config)			\
+	__regmap_lockdep_wrapper(__devm_regmap_init, #config,		\
+				dev, bus, bus_context, config)
+
+/**
+ * devm_regmap_init_i2c(): Initialise managed register map
+ *
+ * @i2c: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_i2c(i2c, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_i2c, #config,	\
+				i2c, config)
+
+/**
+ * devm_regmap_init_spi(): Initialise register map
+ *
+ * @spi: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The map will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_spi(dev, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_spi, #config,	\
+				dev, config)
+
+/**
+ * devm_regmap_init_spmi_base(): Create managed regmap for Base register space
+ * @sdev:	SPMI device that will be interacted with
+ * @config:	Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_spmi_base(dev, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_spmi_base, #config,	\
+				dev, config)
+
+/**
+ * devm_regmap_init_spmi_ext(): Create managed regmap for Ext register space
+ * @sdev:	SPMI device that will be interacted with
+ * @config:	Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_spmi_ext(dev, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_spmi_ext, #config,	\
+				dev, config)
+
+/**
+ * devm_regmap_init_mmio_clk(): Initialise managed register map with clock
+ *
+ * @dev: Device that will be interacted with
+ * @clk_id: register clock consumer ID
+ * @regs: Pointer to memory-mapped IO region
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_mmio_clk(dev, clk_id, regs, config)		\
+	__regmap_lockdep_wrapper(__devm_regmap_init_mmio_clk, #config,	\
+				dev, clk_id, regs, config)
+
+/**
  * devm_regmap_init_mmio(): Initialise managed register map
  *
  * @dev: Device that will be interacted with
@@ -492,6 +629,20 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  */
 #define devm_regmap_init_mmio(dev, regs, config)		\
 	devm_regmap_init_mmio_clk(dev, NULL, regs, config)
+
+/**
+ * devm_regmap_init_ac97(): Initialise AC'97 register map
+ *
+ * @ac97: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_ac97(ac97, config)				\
+	__regmap_lockdep_wrapper(__devm_regmap_init_ac97, #config,	\
+				ac97, config)
 
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,

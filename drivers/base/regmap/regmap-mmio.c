@@ -296,17 +296,6 @@ err_free:
 	return ERR_PTR(ret);
 }
 
-/**
- * regmap_init_mmio_clk(): Initialise register map with register clock
- *
- * @dev: Device that will be interacted with
- * @clk_id: register clock consumer ID
- * @regs: Pointer to memory-mapped IO region
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer to
- * a struct regmap.
- */
 struct regmap *__regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 				      void __iomem *regs,
 				      const struct regmap_config *config,
@@ -324,18 +313,6 @@ struct regmap *__regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 }
 EXPORT_SYMBOL_GPL(__regmap_init_mmio_clk);
 
-/**
- * devm_regmap_init_mmio_clk(): Initialise managed register map with clock
- *
- * @dev: Device that will be interacted with
- * @clk_id: register clock consumer ID
- * @regs: Pointer to memory-mapped IO region
- * @config: Configuration for register map
- *
- * The return value will be an ERR_PTR() on error or a valid pointer
- * to a struct regmap.  The regmap will be automatically freed by the
- * device management code.
- */
 struct regmap *__devm_regmap_init_mmio_clk(struct device *dev,
 					   const char *clk_id,
 					   void __iomem *regs,
