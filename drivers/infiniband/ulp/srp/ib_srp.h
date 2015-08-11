@@ -276,9 +276,6 @@ struct srp_fr_pool {
  * @npages:	    Number of page addresses in the pages[] array.
  * @nmdesc:	    Number of FMR or FR memory descriptors used for mapping.
  * @ndesc:	    Number of SRP buffer descriptors that have been filled in.
- * @unmapped_sg:    First element of the sg-list that is mapped via FMR or FR.
- * @unmapped_index: Index of the first element mapped via FMR or FR.
- * @unmapped_addr:  DMA address of the first element mapped via FMR or FR.
  */
 struct srp_map_state {
 	union {
@@ -299,9 +296,6 @@ struct srp_map_state {
 	unsigned int		npages;
 	unsigned int		nmdesc;
 	unsigned int		ndesc;
-	struct scatterlist     *unmapped_sg;
-	int			unmapped_index;
-	dma_addr_t		unmapped_addr;
 };
 
 #endif /* IB_SRP_H */

@@ -1364,15 +1364,6 @@ static int srp_finish_mapping(struct srp_map_state *state,
 	return ret;
 }
 
-static void srp_map_update_start(struct srp_map_state *state,
-				 struct scatterlist *sg, int sg_index,
-				 dma_addr_t dma_addr)
-{
-	state->unmapped_sg = sg;
-	state->unmapped_index = sg_index;
-	state->unmapped_addr = dma_addr;
-}
-
 static int srp_map_sg_entry(struct srp_map_state *state,
 			    struct srp_rdma_ch *ch,
 			    struct scatterlist *sg, int sg_index,
@@ -1399,23 +1390,12 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 		return 0;
 	}
 
-	/*
-	 * If this is the first sg that will be mapped via FMR or via FR, save
-	 * our position. We need to know the first unmapped entry, its index,
-	 * and the first unmapped address within that entry to be able to
-	 * restart mapping after an error.
-	 */
-	if (!state->unmapped_sg)
-		srp_map_update_start(state, sg, sg_index, dma_addr);
-
 	while (dma_len) {
 		unsigned offset = dma_addr & ~dev->mr_page_mask;
 		if (state->npages == dev->max_pages_per_mr || offset != 0) {
 			ret = srp_finish_mapping(state, ch);
 			if (ret)
 				return ret;
-
-			srp_map_update_start(state, sg, sg_index, dma_addr);
 		}
 
 		len = min_t(unsigned int, dma_len, dev->mr_page_size - offset);
@@ -1434,11 +1414,8 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	 * boundries.
 	 */
 	ret = 0;
-	if (len != dev->mr_page_size) {
+	if (len != dev->mr_page_size)
 		ret = srp_finish_mapping(state, ch);
-		if (!ret)
-			srp_map_update_start(state, NULL, 0, 0);
-	}
 	return ret;
 }
 
@@ -1448,9 +1425,8 @@ static int srp_map_sg(struct srp_map_state *state, struct srp_rdma_ch *ch,
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
-	struct ib_device *ibdev = dev->dev;
 	struct scatterlist *sg;
-	int i;
+	int i, ret;
 	bool use_mr;
 
 	state->desc	= req->indirect_desc;
@@ -1466,34 +1442,22 @@ static int srp_map_sg(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	}
 
 	for_each_sg(scat, sg, count, i) {
-		if (srp_map_sg_entry(state, ch, sg, i, use_mr)) {
-			/*
-			 * Memory registration failed, so backtrack to the
-			 * first unmapped entry and continue on without using
-			 * memory registration.
-			 */
-			dma_addr_t dma_addr;
-			unsigned int dma_len;
-
-backtrack:
-			sg = state->unmapped_sg;
-			i = state->unmapped_index;
-
-			dma_addr = ib_sg_dma_address(ibdev, sg);
-			dma_len = ib_sg_dma_len(ibdev, sg);
-			dma_len -= (state->unmapped_addr - dma_addr);
-			dma_addr = state->unmapped_addr;
-			use_mr = false;
-			srp_map_desc(state, dma_addr, dma_len, target->rkey);
-		}
+		ret = srp_map_sg_entry(state, ch, sg, i, use_mr);
+		if (ret)
+			goto out;
 	}
 
-	if (use_mr && srp_finish_mapping(state, ch))
-		goto backtrack;
+	if (use_mr) {
+		ret = srp_finish_mapping(state, ch);
+		if (ret)
+			goto out;
+	}
 
 	req->nmdesc = state->nmdesc;
+	ret = 0;
 
-	return 0;
+out:
+	return ret;
 }
 
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
