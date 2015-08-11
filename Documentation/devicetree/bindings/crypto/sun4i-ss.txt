@@ -9,6 +9,10 @@ Required properties:
 	* "ahb" : AHB gating clock
 	* "mod" : SS controller clock
 
+Optional properties:
+ - resets : phandle + reset specifier pair
+ - reset-names : must contain "ahb"
+
 Example:
 	crypto: crypto-engine@01c15000 {
 		compatible = "allwinner,sun4i-a10-crypto";
