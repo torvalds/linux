@@ -16,8 +16,6 @@
 
 struct gb_pwm_chip {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 	u8			pwm_max;	/* max pwm number */
 
 	struct pwm_chip		chip;
@@ -26,9 +24,6 @@ struct gb_pwm_chip {
 #define pwm_chip_to_gb_pwm_chip(chip) \
 	container_of(chip, struct gb_pwm_chip, chip)
 
-
-/* Define get_version() routine */
-define_get_version(gb_pwm_chip, PWM);
 
 static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 {
@@ -193,11 +188,6 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 	pwmc->connection = connection;
 	connection->private = pwmc;
-
-	/* Check for compatible protocol version */
-	ret = get_version(pwmc);
-	if (ret)
-		goto out_err;
 
 	/* Query number of pwms present */
 	ret = gb_pwm_count_operation(pwmc);
