@@ -85,7 +85,7 @@ struct lowpan_dev {
 
 static inline struct lowpan_dev *lowpan_dev(const struct net_device *netdev)
 {
-	return netdev_priv(netdev);
+	return (struct lowpan_dev *)lowpan_priv(netdev)->priv;
 }
 
 static inline void peer_add(struct lowpan_dev *dev, struct lowpan_peer *peer)
@@ -848,8 +848,9 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_dev **dev)
 	struct net_device *netdev;
 	int err = 0;
 
-	netdev = alloc_netdev(sizeof(struct lowpan_dev), IFACE_NAME_TEMPLATE,
-			      NET_NAME_UNKNOWN, netdev_setup);
+	netdev = alloc_netdev(LOWPAN_PRIV_SIZE(sizeof(struct lowpan_dev)),
+			      IFACE_NAME_TEMPLATE, NET_NAME_UNKNOWN,
+			      netdev_setup);
 	if (!netdev)
 		return -ENOMEM;
 
@@ -868,6 +869,8 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_dev **dev)
 	INIT_LIST_HEAD(&(*dev)->list);
 	list_add_rcu(&(*dev)->list, &bt_6lowpan_devices);
 	spin_unlock(&devices_lock);
+
+	lowpan_netdev_setup(netdev, LOWPAN_LLTYPE_BTLE);
 
 	err = register_netdev(netdev);
 	if (err < 0) {

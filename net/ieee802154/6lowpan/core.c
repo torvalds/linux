@@ -138,6 +138,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	/* Set the lowpan hardware address to the wpan hardware address. */
 	memcpy(dev->dev_addr, real_dev->dev_addr, IEEE802154_ADDR_LEN);
 
+	lowpan_netdev_setup(dev, LOWPAN_LLTYPE_IEEE802154);
+
 	ret = register_netdevice(dev);
 	if (ret >= 0) {
 		real_dev->ieee802154_ptr->lowpan_dev = dev;
@@ -162,7 +164,7 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 
 static struct rtnl_link_ops lowpan_link_ops __read_mostly = {
 	.kind		= "lowpan",
-	.priv_size	= sizeof(struct lowpan_dev_info),
+	.priv_size	= LOWPAN_PRIV_SIZE(sizeof(struct lowpan_dev_info)),
 	.setup		= lowpan_setup,
 	.newlink	= lowpan_newlink,
 	.dellink	= lowpan_dellink,
