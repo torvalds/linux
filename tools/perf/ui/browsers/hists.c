@@ -784,11 +784,12 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.size		= sizeof(s),
 			.ptr		= &arg,
 		};
+		int column = 0;
 
 		hist_browser__gotorc(browser, row, 0);
 
 		perf_hpp__for_each_format(fmt) {
-			if (perf_hpp__should_skip(fmt))
+			if (perf_hpp__should_skip(fmt) || column++ < browser->b.horiz_scroll)
 				continue;
 
 			if (current_entry && browser->b.navkeypressed) {
@@ -861,14 +862,16 @@ static int advance_hpp_check(struct perf_hpp *hpp, int inc)
 	return hpp->size <= 0;
 }
 
-static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
+static int hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf, size_t size)
 {
+	struct hists *hists = browser->hists;
 	struct perf_hpp dummy_hpp = {
 		.buf    = buf,
 		.size   = size,
 	};
 	struct perf_hpp_fmt *fmt;
 	size_t ret = 0;
+	int column = 0;
 
 	if (symbol_conf.use_callchain) {
 		ret = scnprintf(buf, size, "  ");
@@ -877,7 +880,7 @@ static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
 	}
 
 	perf_hpp__for_each_format(fmt) {
-		if (perf_hpp__should_skip(fmt))
+		if (perf_hpp__should_skip(fmt)  || column++ < browser->b.horiz_scroll)
 			continue;
 
 		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
@@ -896,7 +899,7 @@ static void hist_browser__show_headers(struct hist_browser *browser)
 {
 	char headers[1024];
 
-	hists__scnprintf_headers(headers, sizeof(headers), browser->hists);
+	hists_browser__scnprintf_headers(browser, headers, sizeof(headers));
 	ui_browser__gotorc(&browser->b, 0, 0);
 	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
 	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
@@ -1806,8 +1809,17 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	memset(options, 0, sizeof(options));
 	memset(actions, 0, sizeof(actions));
 
-	perf_hpp__for_each_format(fmt)
+	perf_hpp__for_each_format(fmt) {
 		perf_hpp__reset_width(fmt, hists);
+		/*
+		 * This is done just once, and activates the horizontal scrolling
+		 * code in the ui_browser code, it would be better to have a the
+		 * counter in the perf_hpp code, but I couldn't find doing it here
+		 * works, FIXME by setting this in hist_browser__new, for now, be
+		 * clever 8-)
+		 */
+		++browser->b.columns;
+	}
 
 	if (symbol_conf.col_width_list_str)
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
