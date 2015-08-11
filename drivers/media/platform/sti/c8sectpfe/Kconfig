@@ -1,6 +1,6 @@
 config DVB_C8SECTPFE
 	tristate "STMicroelectronics C8SECTPFE DVB support"
-	depends on DVB_CORE && I2C && (ARCH_STI || ARCH_MULTIPLATFORM)
+	depends on DVB_CORE && I2C && (ARCH_STI || ARCH_MULTIPLATFORM || COMPILE_TEST)
 	select LIBELF_32
 	select FW_LOADER
 	select FW_LOADER_USER_HELPER_FALLBACK
