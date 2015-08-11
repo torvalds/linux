@@ -107,27 +107,4 @@ void gb_##__protocol##_exit(void)			\
 	gb_protocol_deregister(&__protocol);		\
 }							\
 
-/*
- * Macro to create get_version() routine for protocols
- * @__device: name of the device struct
- * @__protocol: name of protocol in CAPITALS
- */
-#define define_get_version(__device, __protocol)	\
-static int get_version(struct __device *dev)		\
-{							\
-	struct gb_protocol_version_response response;	\
-	int retval;					\
-							\
-	retval = gb_protocol_get_version(dev->connection,		\
-				GB_##__protocol##_TYPE_PROTOCOL_VERSION,\
-				NULL, 0, &response,			\
-				GB_##__protocol##_VERSION_MAJOR);	\
-	if (retval)					\
-		return retval;				\
-							\
-	dev->version_major = response.major;		\
-	dev->version_minor = response.minor;		\
-	return 0;					\
-}
-
 #endif /* __PROTOCOL_H */
