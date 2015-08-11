@@ -396,7 +396,6 @@ static int imx_usb_charger_get_property(struct power_supply *psy,
 static int imx_usb_register_charger(struct usb_charger *charger,
 		const char *name)
 {
-	struct power_supply		*psy = charger->psy;
 	struct power_supply_desc	*desc = &charger->psy_desc;
 
 	if (!charger->dev)
@@ -414,14 +413,15 @@ static int imx_usb_register_charger(struct usb_charger *charger,
 	desc->properties	= imx_usb_charger_power_props;
 	desc->num_properties	= ARRAY_SIZE(imx_usb_charger_power_props);
 	desc->get_property	= imx_usb_charger_get_property;
-	psy->supplied_to	= imx_usb_charger_supplied_to;
-	psy->num_supplicants	= sizeof(imx_usb_charger_supplied_to)
-					/ sizeof(char *);
 
-	charger->psy = devm_power_supply_register(charger->dev->parent,
+	charger->psy = devm_power_supply_register(charger->dev,
 						&charger->psy_desc, NULL);
 	if (IS_ERR(charger->psy))
 		return PTR_ERR(charger->psy);
+
+	charger->psy->supplied_to	= imx_usb_charger_supplied_to;
+	charger->psy->num_supplicants	= sizeof(imx_usb_charger_supplied_to)
+					/ sizeof(char *);
 
 	return 0;
 }
