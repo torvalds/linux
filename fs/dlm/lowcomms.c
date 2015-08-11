@@ -542,6 +542,10 @@ static int receive_from_sock(struct connection *con)
 		ret = -EAGAIN;
 		goto out_close;
 	}
+	if (con->nodeid == 0) {
+		ret = -EINVAL;
+		goto out_close;
+	}
 
 	if (con->rx_page == NULL) {
 		/*
@@ -581,8 +585,6 @@ static int receive_from_sock(struct connection *con)
 		goto out_close;
 	else if (ret == len)
 		call_again_soon = 1;
-
-	BUG_ON(con->nodeid == 0);
 
 	cbuf_add(&con->cb, ret);
 	ret = dlm_process_incoming_buffer(con->nodeid,
