@@ -1191,7 +1191,7 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 
 	ret = dapm_widget_list_create(list, &widgets);
 	if (ret)
-		return ret;
+		paths = ret;
 
 	trace_snd_soc_dapm_connected(paths, stream);
 	mutex_unlock(&card->dapm_mutex);
