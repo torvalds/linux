@@ -95,7 +95,7 @@ struct srp_device {
 	struct list_head	dev_list;
 	struct ib_device       *dev;
 	struct ib_pd	       *pd;
-	struct ib_mr	       *mr;
+	struct ib_mr	       *global_mr;
 	u64			mr_page_mask;
 	int			mr_page_size;
 	int			mr_max_size;
@@ -183,10 +183,10 @@ struct srp_target_port {
 	spinlock_t		lock;
 
 	/* read only in the hot path */
+	struct ib_mr		*global_mr;
 	struct srp_rdma_ch	*ch;
 	u32			ch_count;
 	u32			lkey;
-	u32			rkey;
 	enum srp_target_state	state;
 	unsigned int		max_iu_len;
 	unsigned int		cmd_sg_cnt;
