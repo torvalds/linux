@@ -48,12 +48,12 @@
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/gpio-cfg.h>
-#include <plat/irq-uart.h>
 #include <plat/pwm-core.h>
 #include <plat/regs-irqtype.h>
-#include <plat/watchdog-reset.h>
 
 #include "common.h"
+#include "irq-uart.h"
+#include "watchdog-reset.h"
 
 /* External clock frequency */
 static unsigned long xtal_f = 12000000, xusbxti_f = 48000000;

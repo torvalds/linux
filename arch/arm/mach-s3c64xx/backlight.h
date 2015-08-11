@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-samsung/include/plat/backlight.h
- *
+/*
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *              http://www.samsung.com
  *

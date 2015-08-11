@@ -40,6 +40,8 @@ obj-$(CONFIG_S3C64XX_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
 obj-$(CONFIG_S3C64XX_SETUP_SPI)		+= setup-spi.o
 obj-$(CONFIG_S3C64XX_SETUP_USB_PHY) += setup-usb-phy.o
 
+obj-$(CONFIG_SAMSUNG_DEV_BACKLIGHT)	+= dev-backlight.o
+
 # Machine support
 
 obj-$(CONFIG_MACH_ANW6410)		+= mach-anw6410.o

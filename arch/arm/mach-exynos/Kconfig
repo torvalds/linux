@@ -30,6 +30,11 @@ menuconfig ARCH_EXYNOS
 
 if ARCH_EXYNOS
 
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in setup memory (init) code for MFC
+
 config ARCH_EXYNOS3
 	bool "SAMSUNG EXYNOS3"
 	select ARM_CPU_SUSPEND if PM

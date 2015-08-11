@@ -1,5 +1,4 @@
-/* arch/arm/plat-samsung/include/plat/irq-uart.h
- *
+/*
  * Copyright (c) 2010 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
