@@ -238,7 +238,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 		pr_err("failed to add connection device for cport 0x%04hx\n",
 			cport_id);
 
-		goto err_remove_ida;
+		goto err_free_connection;
 	}
 
 	spin_lock_irq(&gb_connections_lock);
