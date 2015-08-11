@@ -57,6 +57,7 @@ enum phy_speed {
 	PHY_SPEED_15 = 0x01,
 	PHY_SPEED_30 = 0x02,
 	PHY_SPEED_60 = 0x04,
+	PHY_SPEED_120 = 0x08,
 };
 
 enum data_direction {
