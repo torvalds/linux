@@ -246,7 +246,6 @@ static void intel_threshold_interrupt(void)
 		return;
 
 	machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_banks_owned));
-	mce_notify_irq();
 }
 
 /*

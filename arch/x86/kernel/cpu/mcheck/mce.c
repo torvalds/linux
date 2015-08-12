@@ -159,7 +159,8 @@ void mce_log(struct mce *mce)
 	/* Emit the trace record: */
 	trace_mce_record(mce);
 
-	atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
+	if (!mce_gen_pool_add(mce))
+		irq_work_queue(&mce_irq_work);
 
 	mce->finished = 0;
 	wmb();
@@ -1122,7 +1123,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		/* assuming valid severity level != 0 */
 		m.severity = severity;
 		m.usable_addr = mce_usable_address(&m);
-		mce_gen_pool_add(&m);
 
 		mce_log(&m);
 
