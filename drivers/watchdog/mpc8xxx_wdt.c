@@ -68,12 +68,6 @@ module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-/*
- * We always prescale, but if someone really doesn't want to they can set this
- * to 0
- */
-static int prescale = 1;
-
 static DEFINE_SPINLOCK(wdt_spinlock);
 
 static void mpc8xxx_wdt_keepalive(void)
@@ -101,11 +95,9 @@ static void mpc8xxx_wdt_timer_ping(unsigned long arg)
 
 static int mpc8xxx_wdt_start(struct watchdog_device *w)
 {
-	u32 tmp = SWCRR_SWEN;
+	u32 tmp = SWCRR_SWEN | SWCRR_SWPR;
 
 	/* Good, fire up the show */
-	if (prescale)
-		tmp |= SWCRR_SWPR;
 	if (reset)
 		tmp |= SWCRR_SWRI;
 
@@ -179,10 +171,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	}
 
 	/* Calculate the timeout in seconds */
-	if (prescale)
-		timeout_sec = (timeout * wdt_type->prescaler) / freq;
-	else
-		timeout_sec = timeout / freq;
+	timeout_sec = (timeout * wdt_type->prescaler) / freq;
 
 	mpc8xxx_wdt_dev.timeout = timeout_sec;
 #ifdef MODULE
