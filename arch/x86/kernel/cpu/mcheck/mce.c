@@ -52,11 +52,11 @@
 
 static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
-#define rcu_dereference_check_mce(p) \
+#define mce_log_get_idx_check(p) \
 ({ \
 	rcu_lockdep_assert(rcu_read_lock_sched_held() || \
 			   lockdep_is_held(&mce_chrdev_read_mutex), \
-			   "suspicious rcu_dereference_check_mce() usage"); \
+			   "suspicious mce_log_get_idx_check() usage"); \
 	smp_load_acquire(&(p)); \
 })
 
@@ -165,7 +165,7 @@ void mce_log(struct mce *mce)
 	mce->finished = 0;
 	wmb();
 	for (;;) {
-		entry = rcu_dereference_check_mce(mcelog.next);
+		entry = mce_log_get_idx_check(mcelog.next);
 		for (;;) {
 
 			/*
@@ -1812,7 +1812,7 @@ static ssize_t mce_chrdev_read(struct file *filp, char __user *ubuf,
 			goto out;
 	}
 
-	next = rcu_dereference_check_mce(mcelog.next);
+	next = mce_log_get_idx_check(mcelog.next);
 
 	/* Only supports full reads right now */
 	err = -EINVAL;
