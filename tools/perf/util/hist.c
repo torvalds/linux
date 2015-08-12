@@ -151,6 +151,12 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_LOCAL_WEIGHT, 12);
 	hists__new_col_len(hists, HISTC_GLOBAL_WEIGHT, 12);
 
+	if (h->srcline)
+		hists__new_col_len(hists, HISTC_SRCLINE, strlen(h->srcline));
+
+	if (h->srcfile)
+		hists__new_col_len(hists, HISTC_SRCFILE, strlen(h->srcfile));
+
 	if (h->transaction)
 		hists__new_col_len(hists, HISTC_TRANSACTION,
 				   hist_entry__transaction_len());
@@ -761,6 +767,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	struct hist_entry **he_cache = iter->priv;
 	struct hist_entry *he;
 	struct hist_entry he_tmp = {
+		.hists = evsel__hists(evsel),
 		.cpu = al->cpu,
 		.thread = al->thread,
 		.comm = thread__comm(al->thread),
@@ -945,6 +952,8 @@ void hist_entry__delete(struct hist_entry *he)
 
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
+	if (he->srcfile && he->srcfile[0])
+		free(he->srcfile);
 	free_callchain(he->callchain);
 	free(he);
 }

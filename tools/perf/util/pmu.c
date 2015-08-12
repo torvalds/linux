@@ -634,7 +634,7 @@ static char *formats_error_string(struct list_head *formats)
 {
 	struct perf_pmu_format *format;
 	char *err, *str;
-	static const char *static_terms = "config,config1,config2,name,period,branch_type,time\n";
+	static const char *static_terms = "config,config1,config2,name,period,freq,branch_type,time\n";
 	unsigned i = 0;
 
 	if (!asprintf(&str, "valid terms:"))
