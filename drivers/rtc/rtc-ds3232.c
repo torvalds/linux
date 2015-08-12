@@ -463,7 +463,10 @@ static int ds3232_suspend(struct device *dev)
 
 	if (device_can_wakeup(dev)) {
 		ds3232->suspended = true;
-		irq_set_irq_wake(client->irq, 1);
+		if (irq_set_irq_wake(client->irq, 1)) {
+			dev_warn_once(dev, "Cannot set wakeup source\n");
+			ds3232->suspended = false;
+		}
 	}
 
 	return 0;
