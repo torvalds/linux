@@ -544,14 +544,6 @@ static int remove_raw(struct shadow_spine *s, struct dm_btree_info *info,
 	return r;
 }
 
-static struct dm_btree_value_type le64_type = {
-	.context = NULL,
-	.size = sizeof(__le64),
-	.inc = NULL,
-	.dec = NULL,
-	.equal = NULL
-};
-
 int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, dm_block_t *new_root)
 {
@@ -559,12 +551,14 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 	int index = 0, r = 0;
 	struct shadow_spine spine;
 	struct btree_node *n;
+	struct dm_btree_value_type le64_vt;
 
+	init_le64_type(info->tm, &le64_vt);
 	init_shadow_spine(&spine, info);
 	for (level = 0; level < info->levels; level++) {
 		r = remove_raw(&spine, info,
 			       (level == last_level ?
-				&info->value_type : &le64_type),
+				&info->value_type : &le64_vt),
 			       root, keys[level], (unsigned *)&index);
 		if (r < 0)
 			break;
