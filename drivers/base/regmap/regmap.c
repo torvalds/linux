@@ -1740,7 +1740,7 @@ EXPORT_SYMBOL_GPL(regmap_bulk_write);
  *
  * the (register,newvalue) pairs in regs have not been formatted, but
  * they are all in the same page and have been changed to being page
- * relative. The page register has been written if that was neccessary.
+ * relative. The page register has been written if that was necessary.
  */
 static int _regmap_raw_multi_reg_write(struct regmap *map,
 				       const struct reg_default *regs,
@@ -2050,7 +2050,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 
 	/*
 	 * Some buses or devices flag reads by setting the high bits in the
-	 * register addresss; since it's always the high bits for all
+	 * register address; since it's always the high bits for all
 	 * current formats we can do this here rather than in
 	 * formatting.  This may break if we get interesting formats.
 	 */
