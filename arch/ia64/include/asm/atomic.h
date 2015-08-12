@@ -45,8 +45,6 @@ ia64_atomic_##op (int i, atomic_t *v)					\
 ATOMIC_OP(add, +)
 ATOMIC_OP(sub, -)
 
-#undef ATOMIC_OP
-
 #define atomic_add_return(i,v)						\
 ({									\
 	int __ia64_aar_i = (i);						\
@@ -71,6 +69,16 @@ ATOMIC_OP(sub, -)
 		: ia64_atomic_sub(__ia64_asr_i, v);			\
 })
 
+ATOMIC_OP(and, &)
+ATOMIC_OP(or, |)
+ATOMIC_OP(xor, ^)
+
+#define atomic_and(i,v)	(void)ia64_atomic_and(i,v)
+#define atomic_or(i,v)	(void)ia64_atomic_or(i,v)
+#define atomic_xor(i,v)	(void)ia64_atomic_xor(i,v)
+
+#undef ATOMIC_OP
+
 #define ATOMIC64_OP(op, c_op)						\
 static __inline__ long							\
 ia64_atomic64_##op (__s64 i, atomic64_t *v)				\
@@ -88,8 +96,6 @@ ia64_atomic64_##op (__s64 i, atomic64_t *v)				\
 
 ATOMIC64_OP(add, +)
 ATOMIC64_OP(sub, -)
-
-#undef ATOMIC64_OP
 
 #define atomic64_add_return(i,v)					\
 ({									\
@@ -114,6 +120,16 @@ ATOMIC64_OP(sub, -)
 		? ia64_fetch_and_add(-__ia64_asr_i, &(v)->counter)	\
 		: ia64_atomic64_sub(__ia64_asr_i, v);			\
 })
+
+ATOMIC64_OP(and, &)
+ATOMIC64_OP(or, |)
+ATOMIC64_OP(xor, ^)
+
+#define atomic64_and(i,v)	(void)ia64_atomic64_and(i,v)
+#define atomic64_or(i,v)	(void)ia64_atomic64_or(i,v)
+#define atomic64_xor(i,v)	(void)ia64_atomic64_xor(i,v)
+
+#undef ATOMIC64_OP
 
 #define atomic_cmpxchg(v, old, new) (cmpxchg(&((v)->counter), old, new))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))

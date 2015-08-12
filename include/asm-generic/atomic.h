@@ -98,15 +98,16 @@ ATOMIC_OP_RETURN(add, +)
 ATOMIC_OP_RETURN(sub, -)
 #endif
 
-#ifndef atomic_clear_mask
+#ifndef atomic_and
 ATOMIC_OP(and, &)
-#define atomic_clear_mask(i, v) atomic_and(~(i), (v))
 #endif
 
-#ifndef atomic_set_mask
-#define CONFIG_ARCH_HAS_ATOMIC_OR
+#ifndef atomic_or
 ATOMIC_OP(or, |)
-#define atomic_set_mask(i, v)	atomic_or((i), (v))
+#endif
+
+#ifndef atomic_xor
+ATOMIC_OP(xor, ^)
 #endif
 
 #undef ATOMIC_OP_RETURN

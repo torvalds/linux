@@ -508,7 +508,7 @@ static void zfcp_fc_adisc_handler(void *data)
 	/* port is good, unblock rport without going through erp */
 	zfcp_scsi_schedule_rport_register(port);
  out:
-	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	put_device(&port->dev);
 	kmem_cache_free(zfcp_fc_req_cache, fc_req);
 }
@@ -564,14 +564,14 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	if (atomic_read(&port->status) & ZFCP_STATUS_PORT_LINK_TEST)
 		goto out;
 
-	atomic_set_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	atomic_or(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 
 	retval = zfcp_fc_adisc(port);
 	if (retval == 0)
 		return;
 
 	/* send of ADISC was not possible */
-	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1");
 
 out:
@@ -640,7 +640,7 @@ static void zfcp_fc_validate_port(struct zfcp_port *port, struct list_head *lh)
 	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC))
 		return;
 
-	atomic_clear_mask(ZFCP_STATUS_COMMON_NOESC, &port->status);
+	atomic_andnot(ZFCP_STATUS_COMMON_NOESC, &port->status);
 
 	if ((port->supported_classes != 0) ||
 	    !list_empty(&port->unit_list))
