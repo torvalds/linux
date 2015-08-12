@@ -50,7 +50,7 @@ static int rockchip_inv_set_phase(struct clk_hw *hw, int degrees)
 		val = !!degrees;
 	} else {
 		pr_err("%s: unsupported phase %d for %s\n",
-		       __func__, degrees, __clk_get_name(hw->clk));
+		       __func__, degrees, clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 

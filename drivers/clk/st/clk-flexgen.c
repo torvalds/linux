@@ -45,7 +45,7 @@ static int flexgen_enable(struct clk_hw *hw)
 
 	clk_gate_ops.enable(fgate_hw);
 
-	pr_debug("%s: flexgen output enabled\n", __clk_get_name(hw->clk));
+	pr_debug("%s: flexgen output enabled\n", clk_hw_get_name(hw));
 	return 0;
 }
 
@@ -59,7 +59,7 @@ static void flexgen_disable(struct clk_hw *hw)
 
 	clk_gate_ops.disable(fgate_hw);
 
-	pr_debug("%s: flexgen output disabled\n", __clk_get_name(hw->clk));
+	pr_debug("%s: flexgen output disabled\n", clk_hw_get_name(hw));
 }
 
 static int flexgen_is_enabled(struct clk_hw *hw)

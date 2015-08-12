@@ -292,7 +292,7 @@ static unsigned long recalc_stm_pll800c65(struct clk_hw *hw,
 	res = (uint64_t)2 * (uint64_t)parent_rate * (uint64_t)ndiv;
 	rate = (unsigned long)div64_u64(res, mdiv * (1 << pdiv));
 
-	pr_debug("%s:%s rate %lu\n", __clk_get_name(hw->clk), __func__, rate);
+	pr_debug("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
 
 	return rate;
 
@@ -317,7 +317,7 @@ static unsigned long recalc_stm_pll1600c65(struct clk_hw *hw,
 	/* Note: input is divided by 1000 to avoid overflow */
 	rate = ((2 * (parent_rate / 1000) * ndiv) / mdiv) * 1000;
 
-	pr_debug("%s:%s rate %lu\n", __clk_get_name(hw->clk), __func__, rate);
+	pr_debug("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
 
 	return rate;
 }
@@ -339,7 +339,7 @@ static unsigned long recalc_stm_pll3200c32(struct clk_hw *hw,
 		/* Note: input is divided to avoid overflow */
 		rate = ((2 * (parent_rate/1000) * ndiv) / idf) * 1000;
 
-	pr_debug("%s:%s rate %lu\n", __clk_get_name(hw->clk), __func__, rate);
+	pr_debug("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
 
 	return rate;
 }
@@ -366,7 +366,7 @@ static unsigned long recalc_stm_pll1200c32(struct clk_hw *hw,
 	/* Note: input is divided by 1000 to avoid overflow */
 	rate = (((parent_rate / 1000) * ldf) / (odf * idf)) * 1000;
 
-	pr_debug("%s:%s rate %lu\n", __clk_get_name(hw->clk), __func__, rate);
+	pr_debug("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
 
 	return rate;
 }

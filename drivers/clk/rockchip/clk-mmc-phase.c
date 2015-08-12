@@ -108,7 +108,7 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 	writel(HIWORD_UPDATE(raw_value, 0x07ff, mmc_clock->shift), mmc_clock->reg);
 
 	pr_debug("%s->set_phase(%d) delay_nums=%u reg[0x%p]=0x%03x actual_degrees=%d\n",
-		__clk_get_name(hw->clk), degrees, delay_num,
+		clk_hw_get_name(hw), degrees, delay_num,
 		mmc_clock->reg, raw_value>>(mmc_clock->shift),
 		rockchip_mmc_get_phase(hw)
 	);

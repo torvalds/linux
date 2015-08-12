@@ -110,7 +110,7 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	if (r) {
 		/* IDLEST register not in the CM module */
 		_wait_idlest_generic(clk, idlest_reg, (1 << idlest_bit),
-				     idlest_val, __clk_get_name(clk->hw.clk));
+				     idlest_val, clk_hw_get_name(&clk->hw));
 	} else {
 		ti_clk_ll_ops->cm_wait_module_ready(0, prcm_mod, idlest_reg_id,
 						    idlest_bit);
@@ -216,7 +216,7 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 		if (ret) {
 			WARN(1,
 			     "%s: could not enable %s's clockdomain %s: %d\n",
-			     __func__, __clk_get_name(hw->clk),
+			     __func__, clk_hw_get_name(hw),
 			     clk->clkdm_name, ret);
 			return ret;
 		}
@@ -224,7 +224,7 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 
 	if (unlikely(!clk->enable_reg)) {
 		pr_err("%s: %s missing enable_reg\n", __func__,
-		       __clk_get_name(hw->clk));
+		       clk_hw_get_name(hw));
 		ret = -EINVAL;
 		goto err;
 	}
@@ -270,7 +270,7 @@ void omap2_dflt_clk_disable(struct clk_hw *hw)
 		 * controlled by its parent.
 		 */
 		pr_err("%s: independent clock %s has no enable_reg\n",
-		       __func__, __clk_get_name(hw->clk));
+		       __func__, clk_hw_get_name(hw));
 		return;
 	}
 

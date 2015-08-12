@@ -139,7 +139,7 @@ static u8 cpg_div6_clock_get_parent(struct clk_hw *hw)
 	}
 
 	pr_err("%s: %s DIV6 clock set to invalid parent %u\n",
-	       __func__, __clk_get_name(hw->clk), hw_index);
+	       __func__, clk_hw_get_name(hw), hw_index);
 	return 0;
 }
 

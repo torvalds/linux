@@ -48,23 +48,23 @@ int omap2_clkops_enable_clkdm(struct clk_hw *hw)
 
 	if (unlikely(!clk->clkdm)) {
 		pr_err("%s: %s: no clkdm set ?!\n", __func__,
-		       __clk_get_name(hw->clk));
+		       clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
 	if (unlikely(clk->enable_reg))
 		pr_err("%s: %s: should use dflt_clk_enable ?!\n", __func__,
-		       __clk_get_name(hw->clk));
+		       clk_hw_get_name(hw));
 
 	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
 		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
-		       __func__, __clk_get_name(hw->clk));
+		       __func__, clk_hw_get_name(hw));
 		return 0;
 	}
 
 	ret = ti_clk_ll_ops->clkdm_clk_enable(clk->clkdm, hw->clk);
 	WARN(ret, "%s: could not enable %s's clockdomain %s: %d\n",
-	     __func__, __clk_get_name(hw->clk), clk->clkdm_name, ret);
+	     __func__, clk_hw_get_name(hw), clk->clkdm_name, ret);
 
 	return ret;
 }
@@ -86,17 +86,17 @@ void omap2_clkops_disable_clkdm(struct clk_hw *hw)
 
 	if (unlikely(!clk->clkdm)) {
 		pr_err("%s: %s: no clkdm set ?!\n", __func__,
-		       __clk_get_name(hw->clk));
+		       clk_hw_get_name(hw));
 		return;
 	}
 
 	if (unlikely(clk->enable_reg))
 		pr_err("%s: %s: should use dflt_clk_disable ?!\n", __func__,
-		       __clk_get_name(hw->clk));
+		       clk_hw_get_name(hw));
 
 	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
 		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
-		       __func__, __clk_get_name(hw->clk));
+		       __func__, clk_hw_get_name(hw));
 		return;
 	}
 

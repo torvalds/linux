@@ -50,7 +50,7 @@ static int dra7_apll_enable(struct clk_hw *hw)
 	if (!ad)
 		return -EINVAL;
 
-	clk_name = __clk_get_name(clk->hw.clk);
+	clk_name = clk_hw_get_name(&clk->hw);
 
 	state <<= __ffs(ad->idlest_mask);
 
@@ -273,7 +273,7 @@ static int omap2_apll_enable(struct clk_hw *hw)
 
 	if (i == MAX_APLL_WAIT_TRIES) {
 		pr_warn("%s failed to transition to locked\n",
-			__clk_get_name(clk->hw.clk));
+			clk_hw_get_name(&clk->hw));
 		return -EBUSY;
 	}
 

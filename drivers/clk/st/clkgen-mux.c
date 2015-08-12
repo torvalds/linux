@@ -139,7 +139,7 @@ static u8 clkgena_divmux_get_parent(struct clk_hw *hw)
 	genamux->muxsel = clk_mux_ops.get_parent(mux_hw);
 	if ((s8)genamux->muxsel < 0) {
 		pr_debug("%s: %s: Invalid parent, setting to default.\n",
-		      __func__, __clk_get_name(hw->clk));
+		      __func__, clk_hw_get_name(hw));
 		genamux->muxsel = 0;
 	}
 
