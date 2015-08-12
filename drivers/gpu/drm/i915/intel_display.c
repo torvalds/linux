@@ -11236,6 +11236,9 @@ static bool __intel_pageflip_stall_check(struct drm_device *dev,
 	if (atomic_read(&work->pending) >= INTEL_FLIP_COMPLETE)
 		return true;
 
+	if (atomic_read(&work->pending) < INTEL_FLIP_PENDING)
+		return false;
+
 	if (!work->enable_stall_check)
 		return false;
 
