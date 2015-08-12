@@ -302,8 +302,10 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		remaining_words -= n_words;
 	}
 
-	if (use_irq)
+	if (use_irq) {
 		xspi->write_fn(0, xspi->regs + XIPIF_V123B_DGIER_OFFSET);
+		xspi->write_fn(cr, xspi->regs + XSPI_CR_OFFSET);
+	}
 
 	return t->len;
 }
