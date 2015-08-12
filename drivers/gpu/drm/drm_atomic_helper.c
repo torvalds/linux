@@ -958,7 +958,7 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 			continue;
 
 		old_crtc_state->enable = true;
-		old_crtc_state->last_vblank_count = drm_vblank_count(dev, i);
+		old_crtc_state->last_vblank_count = drm_crtc_vblank_count(crtc);
 	}
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
@@ -967,7 +967,7 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 
 		ret = wait_event_timeout(dev->vblank[i].queue,
 				old_crtc_state->last_vblank_count !=
-					drm_vblank_count(dev, i),
+					drm_crtc_vblank_count(crtc),
 				msecs_to_jiffies(50));
 
 		drm_crtc_vblank_put(crtc);
