@@ -118,7 +118,7 @@ static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
  * CPU/chipset specific EDAC code can register a notifier call here to print
  * MCE errors in a human-readable form.
  */
-static ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
+ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
 
 /* Do initial initialization of a struct mce */
 void mce_setup(struct mce *m)
@@ -1728,6 +1728,12 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
 
 	if (__mcheck_cpu_cap_init() < 0 || __mcheck_cpu_apply_quirks(c) < 0) {
 		mca_cfg.disabled = true;
+		return;
+	}
+
+	if (mce_gen_pool_init()) {
+		mca_cfg.disabled = true;
+		pr_emerg("Couldn't allocate MCE records pool!\n");
 		return;
 	}
 
