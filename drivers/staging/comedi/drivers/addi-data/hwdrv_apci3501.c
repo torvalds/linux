@@ -22,55 +22,42 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 				      unsigned int *data)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ctrl = 0;
+	unsigned int ctrl;
+
+	if (data[0] != ADDIDATA_WATCHDOG &&
+	    data[0] != ADDIDATA_TIMER)
+		return -EINVAL;
 
 	devpriv->tsk_Current = current;
-	if (data[0] == ADDIDATA_WATCHDOG) {
 
-		devpriv->timer_mode = ADDIDATA_WATCHDOG;
-		/* Disable the watchdog */
-		outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	devpriv->timer_mode = data[0];
 
-		if (data[1] == 1) {
-			/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
-			outl(0x02, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else {
-			/* disable Timer interrupt */
-			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
-
-		outl(data[2], dev->iobase + APCI3501_TIMER_TIMEBASE_REG);
-		outl(data[3], dev->iobase + APCI3501_TIMER_RELOAD_REG);
-
-		/* Set the mode (e2->e0) */
-		ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-		ctrl |= 0xfff819e0;
-		outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
-	}
-
-	else if (data[0] == ADDIDATA_TIMER) {
-		/* First Stop The Timer */
+	/* first, disable the watchdog or stop the timer */
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
+		ctrl = 0;
+	} else {
 		ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
 		ctrl &= 0xfffff9fe;
-		outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		devpriv->timer_mode = ADDIDATA_TIMER;
-		if (data[1] == 1) {
-			/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
-			outl(0x02, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else {
-			/* disable Timer interrupt */
-			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
+	}
+	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
-		outl(data[2], dev->iobase + APCI3501_TIMER_TIMEBASE_REG);
-		outl(data[3], dev->iobase + APCI3501_TIMER_RELOAD_REG);
+	/* enable/disable the timer interrupt */
+	ctrl = (data[1] == 1) ? 0x2 : 0;
+	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
+	outl(data[2], dev->iobase + APCI3501_TIMER_TIMEBASE_REG);
+	outl(data[3], dev->iobase + APCI3501_TIMER_RELOAD_REG);
+
+	ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
+		/* Set the mode (e2->e0) NOTE: this doesn't look correct */
+		ctrl |= 0xfff819e0;
+	} else {
 		/* mode 2 */
-		ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
 		ctrl &= 0xfff719e2;
 		ctrl |= (2 << 13) | 0x10;
-		outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 	}
+	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
 	return insn->n;
 }
