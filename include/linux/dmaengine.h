@@ -1229,7 +1229,7 @@ struct dma_chan *dma_get_any_slave_channel(struct dma_device *device);
 static inline struct dma_chan
 *__dma_request_slave_channel_compat(const dma_cap_mask_t *mask,
 				  dma_filter_fn fn, void *fn_param,
-				  struct device *dev, char *name)
+				  struct device *dev, const char *name)
 {
 	struct dma_chan *chan;
 
