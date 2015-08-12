@@ -276,20 +276,12 @@ static void svc_process_hotplug(struct work_struct *work)
 	struct device *dev = &connection->dev;
 	struct gb_interface *intf;
 	u8 intf_id, device_id;
-	u32 unipro_mfg_id;
-	u32 unipro_prod_id;
-	u32 ara_vend_id;
-	u32 ara_prod_id;
 	int ret;
 
 	/*
 	 * Grab the information we need.
 	 */
 	intf_id = hotplug->intf_id;
-	unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
-	unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
-	ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
-	ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
 	intf = gb_interface_create(hd, intf_id);
 	if (!intf) {
@@ -297,6 +289,11 @@ static void svc_process_hotplug(struct work_struct *work)
 			__func__, intf_id);
 		goto free_svc_hotplug;
 	}
+
+	intf->unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
+	intf->unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
+	intf->ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
+	intf->ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
 	/*
 	 * Create a device id for the interface:

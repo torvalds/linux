@@ -15,6 +15,7 @@
 
 #include "greybus.h"
 #include "kernel_ver.h"
+#include "connection.h"
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_GBUF_MSG_SIZE_MAX	2048
@@ -215,6 +216,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
+	gb_connection_push_timestamp(message->operation->connection);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);

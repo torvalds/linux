@@ -28,6 +28,12 @@ struct gb_interface {
 	char *product_string;
 	u64 unique_id;
 
+	/* Information taken from the hotplug event */
+	u32 unipro_mfg_id;
+	u32 unipro_prod_id;
+	u32 ara_vend_id;
+	u32 ara_prod_id;
+
 	struct gb_module *module;
 	struct greybus_host_device *hd;
 };

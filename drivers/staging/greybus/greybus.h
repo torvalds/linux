@@ -27,6 +27,7 @@
 #include "manifest.h"
 #include "endo.h"
 #include "svc.h"
+#include "firmware.h"
 #include "module.h"
 #include "control.h"
 #include "interface.h"

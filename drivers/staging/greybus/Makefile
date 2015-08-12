@@ -9,6 +9,7 @@ greybus-y :=	core.o		\
 		protocol.o	\
 		control.o	\
 		svc.o		\
+		firmware.o	\
 		operation.o
 
 gb-phy-y :=	gpbridge.o	\

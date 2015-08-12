@@ -308,8 +308,16 @@ static int __init gb_init(void)
 		goto error_svc;
 	}
 
+	retval = gb_firmware_protocol_init();
+	if (retval) {
+		pr_err("gb_firmware_protocol_init failed\n");
+		goto error_firmware;
+	}
+
 	return 0;	/* Success */
 
+error_firmware:
+	gb_svc_protocol_exit();
 error_svc:
 	gb_control_protocol_exit();
 error_control:
@@ -327,6 +335,7 @@ module_init(gb_init);
 
 static void __exit gb_exit(void)
 {
+	gb_firmware_protocol_exit();
 	gb_svc_protocol_exit();
 	gb_control_protocol_exit();
 	gb_endo_exit();
