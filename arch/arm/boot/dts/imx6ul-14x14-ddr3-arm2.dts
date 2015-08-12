@@ -725,8 +725,8 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
-	cd-gpios = <&gpio1 19 0>;
-	wp-gpios = <&gpio1 18 0>;
+	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
 	vmmc-supply = <&reg_sd1_vmmc>;
@@ -738,8 +738,8 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
-	cd-gpios = <&gpio4 17 0>;
-	wp-gpios = <&gpio4 18 0>;
+	cd-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio4 18 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
 	vmmc-supply = <&reg_sd2_vmmc>;
