@@ -609,6 +609,8 @@ struct ath10k {
 		 */
 		bool continuous_frag_desc;
 
+		u32 channel_counters_freq_hz;
+
 		struct ath10k_hw_params_fw {
 			const char *dir;
 			const char *fw;
