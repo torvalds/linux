@@ -1768,8 +1768,8 @@ static int _regmap_raw_multi_reg_write(struct regmap *map,
 	u8 = buf;
 
 	for (i = 0; i < num_regs; i++) {
-		int reg = regs[i].reg;
-		int val = regs[i].def;
+		unsigned int reg = regs[i].reg;
+		unsigned int val = regs[i].def;
 		trace_regmap_hw_write_start(map, reg, 1);
 		map->format.format_reg(u8, reg, map->reg_shift);
 		u8 += reg_bytes + pad_bytes;
