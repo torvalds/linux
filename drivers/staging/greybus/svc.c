@@ -232,10 +232,6 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	struct device *dev = &op->connection->dev;
 	struct gb_interface *intf;
 	u8 intf_id, device_id;
-	u32 unipro_mfg_id;
-	u32 unipro_prod_id;
-	u32 ara_vend_id;
-	u32 ara_prod_id;
 	int ret;
 
 	if (request->payload_size < sizeof(*hotplug)) {
@@ -252,10 +248,6 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	 * XXX have the SVC get acknowledgement before we proceed.
 	 */
 	intf_id = hotplug->intf_id;
-	unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
-	unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
-	ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
-	ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
 	intf = gb_interface_create(hd, intf_id);
 	if (!intf) {
@@ -263,6 +255,11 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 			__func__, intf_id);
 		return -EINVAL;
 	}
+
+	intf->unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
+	intf->unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
+	intf->ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
+	intf->ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
 	/*
 	 * Create a device id for the interface:
