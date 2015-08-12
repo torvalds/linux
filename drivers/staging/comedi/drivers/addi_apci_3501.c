@@ -72,7 +72,7 @@
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
 struct apci3501_private {
-	int i_IobaseAmcc;
+	unsigned long amcc;
 	struct task_struct *tsk_Current;
 	unsigned char timer_mode;
 };
@@ -222,11 +222,10 @@ static unsigned short apci3501_eeprom_readw(unsigned long iobase,
 static int apci3501_eeprom_get_ao_n_chan(struct comedi_device *dev)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned long iobase = devpriv->i_IobaseAmcc;
 	unsigned char nfuncs;
 	int i;
 
-	nfuncs = apci3501_eeprom_readw(iobase, 10) & 0xff;
+	nfuncs = apci3501_eeprom_readw(devpriv->amcc, 10) & 0xff;
 
 	/* Read functionality details */
 	for (i = 0; i < nfuncs; i++) {
@@ -235,11 +234,11 @@ static int apci3501_eeprom_get_ao_n_chan(struct comedi_device *dev)
 		unsigned char func;
 		unsigned short val;
 
-		func = apci3501_eeprom_readw(iobase, 12 + offset) & 0x3f;
-		addr = apci3501_eeprom_readw(iobase, 14 + offset);
+		func = apci3501_eeprom_readw(devpriv->amcc, 12 + offset) & 0x3f;
+		addr = apci3501_eeprom_readw(devpriv->amcc, 14 + offset);
 
 		if (func == EEPROM_ANALOGOUTPUT) {
-			val = apci3501_eeprom_readw(iobase, addr + 10);
+			val = apci3501_eeprom_readw(devpriv->amcc, addr + 10);
 			return (val >> 4) & 0x3ff;
 		}
 	}
@@ -254,7 +253,7 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 	struct apci3501_private *devpriv = dev->private;
 	unsigned short addr = CR_CHAN(insn->chanspec);
 
-	data[0] = apci3501_eeprom_readw(devpriv->i_IobaseAmcc, 2 * addr);
+	data[0] = apci3501_eeprom_readw(devpriv->amcc, 2 * addr);
 
 	return insn->n;
 }
@@ -335,7 +334,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
+	devpriv->amcc = pci_resource_start(pcidev, 0);
 
 	ao_n_chan = apci3501_eeprom_get_ao_n_chan(dev);
 
