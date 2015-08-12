@@ -163,11 +163,19 @@ struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)
 	return protocol;
 }
 
-int gb_protocol_get_version(struct gb_connection *connection, void *request,
-			    int request_size)
+int gb_protocol_get_version(struct gb_connection *connection, bool send_request)
 {
 	struct gb_protocol_version_response response;
+	struct gb_protocol_version_response *request = NULL;
+	int request_size = 0;
 	int retval;
+
+	if (send_request) {
+		response.major = connection->protocol->major;
+		response.minor = connection->protocol->minor;
+		request = &response;
+		request_size = sizeof(*request);
+	}
 
 	retval = gb_operation_sync(connection, GB_REQUEST_TYPE_PROTOCOL_VERSION,
 				   request, request_size, &response,

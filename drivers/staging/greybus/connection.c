@@ -421,7 +421,7 @@ int gb_connection_init(struct gb_connection *connection)
 	 * this for SVC as that is initiated by the SVC.
 	 */
 	if (connection->hd_cport_id != GB_SVC_CPORT_ID) {
-		ret = gb_protocol_get_version(connection, NULL, 0);
+		ret = gb_protocol_get_version(connection, false);
 		if (ret) {
 			dev_err(&connection->dev,
 				"Failed to get version CPort-%d (%d)\n",
