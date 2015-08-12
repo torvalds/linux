@@ -258,6 +258,58 @@ struct gb_battery_voltage_response {
 };
 
 
+/* HID */
+
+/* Version of the Greybus hid protocol we support */
+#define GB_HID_VERSION_MAJOR		0x00
+#define GB_HID_VERSION_MINOR		0x01
+
+/* Greybus HID operation types */
+#define GB_HID_TYPE_INVALID		0x00
+#define GB_HID_TYPE_PROTOCOL_VERSION	0x01
+#define GB_HID_TYPE_GET_DESC		0x02
+#define GB_HID_TYPE_GET_REPORT_DESC	0x03
+#define GB_HID_TYPE_PWR_ON		0x04
+#define GB_HID_TYPE_PWR_OFF		0x05
+#define GB_HID_TYPE_GET_REPORT		0x06
+#define GB_HID_TYPE_SET_REPORT		0x07
+#define GB_HID_TYPE_IRQ_EVENT		0x08
+
+/* Report type */
+#define GB_HID_INPUT_REPORT		0
+#define GB_HID_OUTPUT_REPORT		1
+#define GB_HID_FEATURE_REPORT		2
+
+/* Different request/response structures */
+/* HID get descriptor response */
+struct gb_hid_desc_response {
+	__u8				bLength;
+	__le16				wReportDescLength;
+	__le16				bcdHID;
+	__le16				wProductID;
+	__le16				wVendorID;
+	__u8				bCountryCode;
+} __packed;
+
+/* HID get report request/response */
+struct gb_hid_get_report_request {
+	__u8				report_type;
+	__u8				report_id;
+};
+
+/* HID set report request */
+struct gb_hid_set_report_request {
+	__u8				report_type;
+	__u8				report_id;
+	__u8				report[0];
+};
+
+/* HID input report request, via interrupt pipe */
+struct gb_hid_input_report_request {
+	__u8				report[0];
+};
+
+
 /* I2C */
 
 /* Version of the Greybus i2c protocol we support */
