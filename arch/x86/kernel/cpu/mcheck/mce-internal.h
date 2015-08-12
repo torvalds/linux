@@ -79,3 +79,5 @@ static inline int apei_clear_mce(u64 record_id)
 	return -EINVAL;
 }
 #endif
+
+void mce_inject_log(struct mce *m);

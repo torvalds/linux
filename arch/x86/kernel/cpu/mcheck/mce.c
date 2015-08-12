@@ -199,6 +199,14 @@ void mce_log(struct mce *mce)
 	set_bit(0, &mce_need_notify);
 }
 
+void mce_inject_log(struct mce *m)
+{
+	mutex_lock(&mce_chrdev_read_mutex);
+	mce_log(m);
+	mutex_unlock(&mce_chrdev_read_mutex);
+}
+EXPORT_SYMBOL_GPL(mce_inject_log);
+
 static struct notifier_block mce_srao_nb;
 
 void mce_register_decode_chain(struct notifier_block *nb)
