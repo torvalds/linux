@@ -1721,13 +1721,14 @@ static int gfar_add_cls(struct gfar_private *priv,
 	}
 
 process:
+	priv->rx_list.count++;
 	ret = gfar_process_filer_changes(priv);
 	if (ret)
 		goto clean_list;
-	priv->rx_list.count++;
 	return ret;
 
 clean_list:
+	priv->rx_list.count--;
 	list_del(&temp->list);
 clean_mem:
 	kfree(temp);
