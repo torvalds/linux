@@ -374,7 +374,7 @@ static inline struct request_list *blk_get_rl(struct request_queue *q,
 	 * root_rl in such cases.
 	 */
 	blkg = blkg_lookup_create(blkcg, q);
-	if (unlikely(IS_ERR(blkg)))
+	if (IS_ERR(blkg))
 		goto root_rl;
 
 	blkg_get(blkg);
