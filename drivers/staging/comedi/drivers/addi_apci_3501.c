@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 
 #include "../comedi_pci.h"
+#include "addi_tcw.h"
 #include "amcc_s5933.h"
 
 /*
@@ -40,14 +41,7 @@
 #define APCI3501_AO_DATA_VAL(x)			((x) << 8)
 #define APCI3501_AO_DATA_BIPOLAR		BIT(31)
 #define APCI3501_AO_TRIG_SCS_REG		0x08
-#define APCI3501_TIMER_SYNC_REG			0x20
-#define APCI3501_TIMER_RELOAD_REG		0x24
-#define APCI3501_TIMER_TIMEBASE_REG		0x28
-#define APCI3501_TIMER_CTRL_REG			0x2c
-#define APCI3501_TIMER_STATUS_REG		0x30
-#define APCI3501_TIMER_IRQ_REG			0x34
-#define APCI3501_TIMER_WARN_RELOAD_REG		0x38
-#define APCI3501_TIMER_WARN_TIMEBASE_REG	0x3c
+#define APCI3501_TIMER_BASE			0x20
 #define APCI3501_DO_REG				0x40
 #define APCI3501_DI_REG				0x50
 
@@ -73,6 +67,7 @@
 
 struct apci3501_private {
 	unsigned long amcc;
+	unsigned long tcw;
 	struct task_struct *tsk_Current;
 	unsigned char timer_mode;
 };
@@ -266,11 +261,11 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	unsigned int ctrl;
 
 	/*  Disable Interrupt */
-	ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
 	ctrl &= 0xfffff9fd;
-	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
-	status = inl(dev->iobase + APCI3501_TIMER_IRQ_REG) & 0x1;
+	status = inl(devpriv->tcw + ADDI_TCW_IRQ_REG) & 0x1;
 	if (!status) {
 		dev_err(dev->class_dev, "IRQ from unknown source\n");
 		return IRQ_NONE;
@@ -278,11 +273,11 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
-	ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
 	ctrl &= 0xfffff9fd;
 	ctrl |= 1 << 1;
-	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
-	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
+	inl(devpriv->tcw + ADDI_TCW_STATUS_REG);
 
 	return IRQ_HANDLED;
 }
@@ -334,8 +329,9 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev->iobase = pci_resource_start(pcidev, 1);
 	devpriv->amcc = pci_resource_start(pcidev, 0);
+	dev->iobase = pci_resource_start(pcidev, 1);
+	devpriv->tcw = dev->iobase + APCI3501_TIMER_BASE;
 
 	ao_n_chan = apci3501_eeprom_get_ao_n_chan(dev);
 

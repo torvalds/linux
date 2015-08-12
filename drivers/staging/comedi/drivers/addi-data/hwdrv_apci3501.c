@@ -36,19 +36,19 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
 		ctrl = 0;
 	} else {
-		ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+		ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
 		ctrl &= 0xfffff9fe;
 	}
-	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
 	/* enable/disable the timer interrupt */
 	ctrl = (data[1] == 1) ? 0x2 : 0;
-	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
-	outl(data[2], dev->iobase + APCI3501_TIMER_TIMEBASE_REG);
-	outl(data[3], dev->iobase + APCI3501_TIMER_RELOAD_REG);
+	outl(data[2], devpriv->tcw + ADDI_TCW_TIMEBASE_REG);
+	outl(data[3], devpriv->tcw + ADDI_TCW_RELOAD_REG);
 
-	ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
 	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
 		/* Set the mode (e2->e0) NOTE: this doesn't look correct */
 		ctrl |= 0xfff819e0;
@@ -57,7 +57,7 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 		ctrl &= 0xfff719e2;
 		ctrl |= (2 << 13) | 0x10;
 	}
-	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
 	return insn->n;
 }
@@ -84,7 +84,7 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 
 	if (devpriv->timer_mode == ADDIDATA_WATCHDOG ||
 	    devpriv->timer_mode == ADDIDATA_TIMER) {
-		ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+		ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
 		ctrl &= 0xfffff9ff;
 
 		if (data[1] == 1) {		/* enable */
@@ -97,10 +97,10 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 		} else if (data[1] == 2) {	/* trigger */
 			ctrl |= 0x200;
 		}
-		outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
+		outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 	}
 
-	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
+	inl(devpriv->tcw + ADDI_TCW_STATUS_REG);
 	return insn->n;
 }
 
@@ -125,8 +125,8 @@ static int apci3501_read_insn_timer(struct comedi_device *dev,
 	    devpriv->timer_mode != ADDIDATA_WATCHDOG)
 		return -EINVAL;
 
-	data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
-	data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
+	data[0] = inl(devpriv->tcw + ADDI_TCW_STATUS_REG) & 0x1;
+	data[1] = inl(devpriv->tcw + ADDI_TCW_VAL_REG);
 
 	return insn->n;
 }
