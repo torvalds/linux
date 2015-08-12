@@ -286,7 +286,7 @@ static int __init extlog_init(void)
 	 */
 	old_edac_report_status = get_edac_report_status();
 	set_edac_report_status(EDAC_REPORTING_DISABLED);
-	mce_register_decode_chain(&extlog_mce_dec, true);
+	mce_register_decode_chain(&extlog_mce_dec);
 	/* enable OS to be involved to take over management from BIOS */
 	((struct extlog_l1_head *)extlog_l1_addr)->flags |= FLAG_OS_OPTIN;
 

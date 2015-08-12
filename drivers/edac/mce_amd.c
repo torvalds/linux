@@ -895,7 +895,7 @@ static int __init mce_amd_init(void)
 
 	pr_info("MCE: In-kernel MCE decoding enabled.\n");
 
-	mce_register_decode_chain(&amd_mce_dec_nb, true);
+	mce_register_decode_chain(&amd_mce_dec_nb);
 
 	return 0;
 }

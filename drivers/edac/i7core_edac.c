@@ -2424,7 +2424,7 @@ static int __init i7core_init(void)
 	pci_rc = pci_register_driver(&i7core_driver);
 
 	if (pci_rc >= 0) {
-		mce_register_decode_chain(&i7_mce_dec, true);
+		mce_register_decode_chain(&i7_mce_dec);
 		return 0;
 	}
 
