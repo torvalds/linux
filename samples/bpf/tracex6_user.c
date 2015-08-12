@@ -17,8 +17,7 @@ static void test_bpf_perf_event(void)
 {
 	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	int *pmu_fd = malloc(nr_cpus * sizeof(int));
-	unsigned long value;
-	int i;
+	int status, i;
 
 	struct perf_event_attr attr_insn_pmu = {
 		.freq = 0,
@@ -32,22 +31,26 @@ static void test_bpf_perf_event(void)
 
 	for (i = 0; i < nr_cpus; i++) {
 		pmu_fd[i] = perf_event_open(&attr_insn_pmu, -1/*pid*/, i/*cpu*/, -1/*group_fd*/, 0);
-		if (pmu_fd[i] < 0)
+		if (pmu_fd[i] < 0) {
 			printf("event syscall failed\n");
+			goto exit;
+		}
 
 		bpf_update_elem(map_fd[0], &i, &pmu_fd[i], BPF_ANY);
 		ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE, 0);
 	}
 
-	system("ls");
-	system("pwd");
-	system("sleep 2");
+	status = system("ls > /dev/null");
+	if (status)
+		goto exit;
+	status = system("sleep 2");
+	if (status)
+		goto exit;
 
+exit:
 	for (i = 0; i < nr_cpus; i++)
 		close(pmu_fd[i]);
-
-	close(map_fd);
-
+	close(map_fd[0]);
 	free(pmu_fd);
 }
 
@@ -63,6 +66,7 @@ int main(int argc, char **argv)
 	}
 
 	test_bpf_perf_event();
+	read_trace_pipe();
 
 	return 0;
 }
