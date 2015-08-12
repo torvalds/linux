@@ -707,9 +707,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 			  SVGA3D_DEVCAP_MAX_TEXTURE_HEIGHT);
 		dev_priv->texture_max_height = vmw_read(dev_priv,
 							SVGA_REG_DEV_CAP);
-	} else
+	} else {
+		dev_priv->texture_max_width = 8192;
+		dev_priv->texture_max_height = 8192;
 		dev_priv->prim_bb_mem = dev_priv->vram_size;
- 
+	}
+
 	vmw_print_capabilities(dev_priv->capabilities);
 
 	ret = vmw_dma_masks(dev_priv);
