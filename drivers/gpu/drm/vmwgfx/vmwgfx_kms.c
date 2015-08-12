@@ -539,19 +539,13 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	if (!vmw_surface_reference(surface)) {
-		DRM_ERROR("failed to reference surface %p\n", surface);
-		ret = -EINVAL;
-		goto out_err2;
-	}
-
 	/* XXX get the first 3 from the surface info */
 	vfbs->base.base.bits_per_pixel = mode_cmd->bpp;
 	vfbs->base.base.pitches[0] = mode_cmd->pitch;
 	vfbs->base.base.depth = mode_cmd->depth;
 	vfbs->base.base.width = mode_cmd->width;
 	vfbs->base.base.height = mode_cmd->height;
-	vfbs->surface = surface;
+	vfbs->surface = vmw_surface_reference(surface);
 	vfbs->base.user_handle = mode_cmd->handle;
 	vfbs->is_dmabuf_proxy = is_dmabuf_proxy;
 
@@ -560,13 +554,12 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	ret = drm_framebuffer_init(dev, &vfbs->base.base,
 				   &vmw_framebuffer_surface_funcs);
 	if (ret)
-		goto out_err3;
+		goto out_err2;
 
 	return 0;
 
-out_err3:
-	vmw_surface_unreference(&surface);
 out_err2:
+	vmw_surface_unreference(&surface);
 	kfree(vfbs);
 out_err1:
 	return ret;
@@ -836,32 +829,25 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	if (!vmw_dmabuf_reference(dmabuf)) {
-		DRM_ERROR("failed to reference dmabuf %p\n", dmabuf);
-		ret = -EINVAL;
-		goto out_err2;
-	}
-
 	vfbd->base.base.bits_per_pixel = mode_cmd->bpp;
 	vfbd->base.base.pitches[0] = mode_cmd->pitch;
 	vfbd->base.base.depth = mode_cmd->depth;
 	vfbd->base.base.width = mode_cmd->width;
 	vfbd->base.base.height = mode_cmd->height;
 	vfbd->base.dmabuf = true;
-	vfbd->buffer = dmabuf;
+	vfbd->buffer = vmw_dmabuf_reference(dmabuf);
 	vfbd->base.user_handle = mode_cmd->handle;
 	*out = &vfbd->base;
 
 	ret = drm_framebuffer_init(dev, &vfbd->base.base,
 				   &vmw_framebuffer_dmabuf_funcs);
 	if (ret)
-		goto out_err3;
+		goto out_err2;
 
 	return 0;
 
-out_err3:
-	vmw_dmabuf_unreference(&dmabuf);
 out_err2:
+	vmw_dmabuf_unreference(&dmabuf);
 	kfree(vfbd);
 out_err1:
 	return ret;
@@ -886,7 +872,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 			bool only_2d,
 			const struct drm_mode_fb_cmd *mode_cmd)
 {
-	struct vmw_framebuffer *vfb;
+	struct vmw_framebuffer *vfb = NULL;
 	bool is_dmabuf_proxy = false;
 	int ret;
 
@@ -906,15 +892,23 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 	}
 
 	/* Create the new framebuffer depending one what we have */
-	if (surface)
+	if (surface) {
 		ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
 						      mode_cmd,
 						      is_dmabuf_proxy);
-	else if (dmabuf)
+
+		/*
+		 * vmw_create_dmabuf_proxy() adds a reference that is no longer
+		 * needed
+		 */
+		if (is_dmabuf_proxy)
+			vmw_surface_unreference(&surface);
+	} else if (dmabuf) {
 		ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, dmabuf, &vfb,
 						     mode_cmd);
-	else
+	} else {
 		BUG();
+	}
 
 	if (ret)
 		return ERR_PTR(ret);
