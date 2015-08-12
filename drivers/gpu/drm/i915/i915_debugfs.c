@@ -2412,6 +2412,81 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void i915_guc_client_info(struct seq_file *m,
+				 struct drm_i915_private *dev_priv,
+				 struct i915_guc_client *client)
+{
+	struct intel_engine_cs *ring;
+	uint64_t tot = 0;
+	uint32_t i;
+
+	seq_printf(m, "\tPriority %d, GuC ctx index: %u, PD offset 0x%x\n",
+		client->priority, client->ctx_index, client->proc_desc_offset);
+	seq_printf(m, "\tDoorbell id %d, offset: 0x%x, cookie 0x%x\n",
+		client->doorbell_id, client->doorbell_offset, client->cookie);
+	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",
+		client->wq_size, client->wq_offset, client->wq_tail);
+
+	seq_printf(m, "\tFailed to queue: %u\n", client->q_fail);
+	seq_printf(m, "\tFailed doorbell: %u\n", client->b_fail);
+	seq_printf(m, "\tLast submission result: %d\n", client->retcode);
+
+	for_each_ring(ring, dev_priv, i) {
+		seq_printf(m, "\tSubmissions: %llu %s\n",
+				client->submissions[i],
+				ring->name);
+		tot += client->submissions[i];
+	}
+	seq_printf(m, "\tTotal: %llu\n", tot);
+}
+
+static int i915_guc_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_guc guc;
+	struct i915_guc_client client = { .client_obj = 0 };
+	struct intel_engine_cs *ring;
+	enum intel_ring_id i;
+	u64 total = 0;
+
+	if (!HAS_GUC_SCHED(dev_priv->dev))
+		return 0;
+
+	/* Take a local copy of the GuC data, so we can dump it at leisure */
+	spin_lock(&dev_priv->guc.host2guc_lock);
+	guc = dev_priv->guc;
+	if (guc.execbuf_client) {
+		spin_lock(&guc.execbuf_client->wq_lock);
+		client = *guc.execbuf_client;
+		spin_unlock(&guc.execbuf_client->wq_lock);
+	}
+	spin_unlock(&dev_priv->guc.host2guc_lock);
+
+	seq_printf(m, "GuC total action count: %llu\n", guc.action_count);
+	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail);
+	seq_printf(m, "GuC last action command: 0x%x\n", guc.action_cmd);
+	seq_printf(m, "GuC last action status: 0x%x\n", guc.action_status);
+	seq_printf(m, "GuC last action error code: %d\n", guc.action_err);
+
+	seq_printf(m, "\nGuC submissions:\n");
+	for_each_ring(ring, dev_priv, i) {
+		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x %9d\n",
+			ring->name, guc.submissions[i],
+			guc.last_seqno[i], guc.last_seqno[i]);
+		total += guc.submissions[i];
+	}
+	seq_printf(m, "\t%s: %llu\n", "Total", total);
+
+	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc.execbuf_client);
+	i915_guc_client_info(m, dev_priv, &client);
+
+	/* Add more as required ... */
+
+	return 0;
+}
+
 static int i915_guc_log_dump(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -5099,6 +5174,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)VCS},
 	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
 	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},
+	{"i915_guc_info", i915_guc_info, 0},
 	{"i915_guc_load_status", i915_guc_load_status_info, 0},
 	{"i915_guc_log_dump", i915_guc_log_dump, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
