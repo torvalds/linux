@@ -408,7 +408,6 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 {
 	struct platform_device *pdev = dev->pdev;
 	const struct acpi_device_id *id;
-	struct gpio_desc *gpio;
 	struct acpi_device *adev;
 	LIST_HEAD(resources);
 	int ret;
@@ -426,21 +425,16 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 
-	gpio = devm_gpiod_get(&pdev->dev, "device-wakeup");
-	if (!IS_ERR(gpio)) {
-		ret = gpiod_direction_output(gpio, 0);
-		if (ret)
-			return ret;
-		dev->device_wakeup = gpio;
-	}
+	dev->device_wakeup = devm_gpiod_get_optional(&pdev->dev,
+						     "device-wakeup",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(dev->device_wakeup))
+		return PTR_ERR(dev->device_wakeup);
 
-	gpio = devm_gpiod_get(&pdev->dev, "shutdown");
-	if (!IS_ERR(gpio)) {
-		ret = gpiod_direction_output(gpio, 0);
-		if (ret)
-			return ret;
-		dev->shutdown = gpio;
-	}
+	dev->shutdown = devm_gpiod_get_optional(&pdev->dev, "shutdown",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(dev->shutdown))
+		return PTR_ERR(dev->shutdown);
 
 	/* Make sure at-least one of the GPIO is defined and that
 	 * a name is specified for this instance
