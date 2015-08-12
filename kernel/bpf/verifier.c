@@ -853,7 +853,7 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 	if (!map)
 		return 0;
 
-	for (i = 0; i <= ARRAY_SIZE(func_limit); i++) {
+	for (i = 0; i < ARRAY_SIZE(func_limit); i++) {
 		bool_map = (map->map_type == func_limit[i].map_type);
 		bool_func = (func_id == func_limit[i].func_id);
 		/* only when map & func pair match it can continue.
