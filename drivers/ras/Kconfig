@@ -29,4 +29,7 @@ menuconfig RAS
 	  data corruption.
 
 if RAS
+
+source arch/x86/ras/Kconfig
+
 endif
