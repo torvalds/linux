@@ -209,7 +209,7 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *pmisc_addr = pmisc->virt_addr;
 	struct adf_accel_vf_info *vf_info;
-	int i, ret;
+	int i;
 	u32 reg;
 
 	/* Workqueue for PF2VF responses */
@@ -255,11 +255,7 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 	 * order for all the hardware resources (i.e. bundles) to be usable.
 	 * When SR-IOV is enabled, each of the VFs will own one bundle.
 	 */
-	ret = pci_enable_sriov(pdev, totalvfs);
-	if (ret)
-		return ret;
-
-	return 0;
+	return pci_enable_sriov(pdev, totalvfs);
 }
 
 /**
