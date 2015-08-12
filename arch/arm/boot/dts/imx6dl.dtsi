@@ -43,9 +43,13 @@
 				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
 				 <&clks IMX6QDL_CLK_STEP>,
 				 <&clks IMX6QDL_CLK_PLL1_SW>,
-				 <&clks IMX6QDL_CLK_PLL1_SYS>;
+				 <&clks IMX6QDL_CLK_PLL1_SYS>,
+				 <&clks IMX6QDL_CLK_PLL1>,
+				 <&clks IMX6QDL_PLL1_BYPASS>,
+				 <&clks IMX6QDL_PLL1_BYPASS_SRC>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
-				      "pll1_sw", "pll1_sys";
+				      "pll1_sw", "pll1_sys", "pll1",
+				      "pll1_bypass", "Pll1_bypass_src";
 			arm-supply = <&reg_arm>;
 			pu-supply = <&reg_pu>;
 			soc-supply = <&reg_soc>;

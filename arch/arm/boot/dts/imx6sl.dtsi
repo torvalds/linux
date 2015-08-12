@@ -55,11 +55,17 @@
 				396000          1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
-			clocks = <&clks IMX6SL_CLK_ARM>, <&clks IMX6SL_CLK_PLL2_PFD2>,
-					<&clks IMX6SL_CLK_STEP>, <&clks IMX6SL_CLK_PLL1_SW>,
-					<&clks IMX6SL_CLK_PLL1_SYS>;
+			clocks = <&clks IMX6SL_CLK_ARM>,
+				 <&clks IMX6SL_CLK_PLL2_PFD2>,
+				 <&clks IMX6SL_CLK_STEP>,
+				 <&clks IMX6SL_CLK_PLL1_SW>,
+				 <&clks IMX6SL_CLK_PLL1_SYS>,
+				 <&clks IMX6SL_CLK_PLL1>,
+				 <&clks IMX6SL_PLL1_BYPASS>,
+				 <&clks IMX6SL_PLL1_BYPASS_SRC>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
-				      "pll1_sw", "pll1_sys";
+				      "pll1_sw", "pll1_sys", "pll1", "pll1_bypass",
+				      "pll1_bypass_src";
 			arm-supply = <&reg_arm>;
 			pu-supply = <&reg_pu>;
 			soc-supply = <&reg_soc>;
