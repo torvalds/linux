@@ -877,7 +877,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring,
 	if (fence)
 		*fence = fence_get(f);
 	amdgpu_bo_unref(&bo);
-
+	fence_put(f);
 	if (amdgpu_enable_scheduler)
 		return 0;
 

@@ -313,6 +313,7 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		kfree(job);
 		return -EINVAL;
 	}
+	fence_get(&(*fence)->base);
 	job->s_fence = *fence;
 	while (kfifo_in_spinlocked(&c_entity->job_queue, &job, sizeof(void *),
 				   &c_entity->queue_lock) != sizeof(void *)) {

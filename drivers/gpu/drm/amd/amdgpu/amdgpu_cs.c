@@ -136,6 +136,7 @@ static void amdgpu_job_work_func(struct work_struct *work)
 		sched_job->free_job(sched_job);
 	mutex_unlock(&sched_job->job_lock);
 	/* after processing job, free memory */
+	fence_put(&sched_job->s_fence->base);
 	kfree(sched_job);
 }
 struct amdgpu_cs_parser *amdgpu_cs_parser_create(struct amdgpu_device *adev,

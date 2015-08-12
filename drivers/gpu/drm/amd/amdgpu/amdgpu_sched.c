@@ -133,13 +133,13 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			return r;
 		}
 		ibs[num_ibs - 1].sequence = sched_job->s_fence->v_seq;
-		*f = &sched_job->s_fence->base;
+		*f = fence_get(&sched_job->s_fence->base);
 		mutex_unlock(&sched_job->job_lock);
 	} else {
 		r = amdgpu_ib_schedule(adev, num_ibs, ibs, owner);
 		if (r)
 			return r;
-		*f = &ibs[num_ibs - 1].fence->base;
+		*f = fence_get(&ibs[num_ibs - 1].fence->base);
 	}
 	return 0;
 }

@@ -415,6 +415,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 		goto err;
 	if (fence)
 		*fence = fence_get(f);
+	fence_put(f);
 	if (amdgpu_enable_scheduler)
 		return 0;
 err:
@@ -481,6 +482,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 		goto err;
 	if (fence)
 		*fence = fence_get(f);
+	fence_put(f);
 	if (amdgpu_enable_scheduler)
 		return 0;
 err:
