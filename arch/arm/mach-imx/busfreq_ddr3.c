@@ -54,6 +54,7 @@ static int curr_ddr_rate;
 #define SMP_WFE_CODE_SIZE	0x400
 void (*imx7d_change_ddr_freq)(u32 freq) = NULL;
 extern void imx7d_ddr3_freq_change(u32 freq);
+extern void imx_lpddr3_freq_change(u32 freq);
 
 extern unsigned int ddr_med_rate;
 extern unsigned int ddr_normal_rate;
@@ -270,6 +271,12 @@ int init_ddrc_ddr_settings(struct platform_device *busfreq_pdev)
 		imx7d_change_ddr_freq = (void *)fncpy(
 			(void *)ddr_freq_change_iram_base + SMP_WFE_CODE_SIZE,
 			&imx7d_ddr3_freq_change,
+			MX7_BUSFREQ_OCRAM_SIZE - SMP_WFE_CODE_SIZE);
+	else if (ddr_type == IMX_DDR_TYPE_LPDDR3)
+		imx7d_change_ddr_freq = (void *)fncpy(
+			(void *)ddr_freq_change_iram_base +
+			SMP_WFE_CODE_SIZE,
+			&imx_lpddr3_freq_change,
 			MX7_BUSFREQ_OCRAM_SIZE - SMP_WFE_CODE_SIZE);
 
 	curr_ddr_rate = ddr_normal_rate;
