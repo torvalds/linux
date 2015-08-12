@@ -28,6 +28,16 @@
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 #include <linux/reboot.h>
+/**
+ * @file mali_kbase_config_rk.c
+ * 对 platform_config_of_rk 的具体实现.
+ * 
+ * mali_device_driver 包含两部分 : 
+ *      .DP : platform_dependent_part_in_mdd : 依赖 platform 部分, 源码在 <mdd_src_dir>/platform/<platform_name> 目录下.
+ *			在 mali_device_driver 内部, 记为 platform_dependent_part.
+ *      .DP : common_parts_in_mdd : arm 实现的通用的部分, 源码在 <mdd_src_dir> 目录下.
+ *			在 mali_device_driver 内部, 记为 common_parts.
+ */
 
 int get_cpu_clock_speed(u32 *cpu_clock);
 
@@ -155,6 +165,7 @@ int kbase_platform_rk_init(struct kbase_device *kbdev)
                         E("fail to register pm_notifier.");
 			return -1;
 		}
+		
 		pr_info("%s,register_reboot_notifier\n",__func__);
 		register_reboot_notifier(&mali_reboot_notifier);
  		return 0;
@@ -191,19 +202,30 @@ static int pm_callback_power_on(struct kbase_device *kbdev)
 	struct rk_context *platform;
 	platform = (struct rk_context *)kbdev->platform_context;
 
+	/* 若 mali_device 是 suspended 的, 则... */
 	if (pm_runtime_status_suspended(dev))
+	{
+		/* 预置返回 1, 表征 gpu_state 可能已经 lost 了. */
 		ret_val = 1;
+	}
 	else
+	{
 		ret_val = 0;
+	}
 
 	if(dev->power.disable_depth > 0) {
 		if(platform->cmu_pmu_status == 0)
+		{
+			/* 使能 gpu_power_domain 和 clk_of_gpu_dvfs_node. */
 			kbase_platform_cmu_pmu_control(kbdev, 1);
+		}
 		return ret_val;
 	}
+
 	result = pm_runtime_resume(dev);
 
-	if (result < 0 && result == -EAGAIN)
+	// if (result < 0 && result == -EAGAIN)
+	if ( -EAGAIN == result )
 		kbase_platform_cmu_pmu_control(kbdev, 1);
 	else if (result < 0)
 		printk(KERN_ERR "pm_runtime_get_sync failed (%d)\n", result);
@@ -220,6 +242,7 @@ static void pm_callback_power_off(struct kbase_device *kbdev)
 int kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	pm_suspend_ignore_children(kbdev->dev, true);
+	/* 对 mali_device 使能 runtime_pm. */
 	pm_runtime_enable(kbdev->dev);
 #ifdef CONFIG_MALI_MIDGARD_DEBUG_SYS
 	if (kbase_platform_create_sysfs_file(kbdev->dev))

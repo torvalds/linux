@@ -13,7 +13,12 @@
  *
  */
 
-
+/**
+ * @file mali_kbase_config_platform.h
+ * 声明 platform_config_of_rk (platform_rk 的 platform_config).
+ * 
+ * 参见 文档 'mali_midgard_ddk_r6p0_integration_manual_DIT0023P_en' 中的 3.4.1.
+ */
 
 /**
  * Maximum frequency 

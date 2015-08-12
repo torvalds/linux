@@ -9,8 +9,10 @@
 
 /**
  * @file mali_kbase_platform.c
- * Platform-dependent init.
+ * 
+ * 对 mali_kbase_platform.h 声明的 pm, clk 等接口的具体实现. 
  */
+
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 #include <mali_kbase_uku.h>
@@ -43,6 +45,7 @@
 
 #include <linux/rockchip/dvfs.h> 
 
+// #define ENABLE_DEBUG_LOG
 #include "custom_log.h"
 
 /* ############################################################################################# */
@@ -50,13 +53,24 @@
 #define MALI_T7XX_DEFAULT_CLOCK 100000
 
 
+/**
+ * clk_of_gpu_dvfs_node 的状态. 
+ * 1, clock 被使能.
+ * 0, 禁止.
+ */
 static int mali_clk_status = 0;
+
+/**
+ * gpu_power_domain 的状态. 
+ * 1, 上电. 
+ * 0, 掉电.
+ */
 static int mali_pd_status = 0;
 
-u32 kbase_group_error = 0;
+// u32 kbase_group_error = 0;
 static struct kobject *rk_gpu;
 
-int mali_dvfs_clk_set(struct dvfs_node *node,unsigned long rate)
+int mali_dvfs_clk_set(struct dvfs_node *node, unsigned long rate)
 {
 	int ret = 0;
 	if(!node)
@@ -64,6 +78,7 @@ int mali_dvfs_clk_set(struct dvfs_node *node,unsigned long rate)
 		printk("clk_get_dvfs_node error \r\n");
 		ret = -1;
 	}
+	/* .KP : 调用 dvfs_module 设置 gpu_clk. */
 	ret = dvfs_clk_set_rate(node,rate * MALI_KHZ);
 	if(ret)
 	{
@@ -71,6 +86,10 @@ int mali_dvfs_clk_set(struct dvfs_node *node,unsigned long rate)
 	}
 	return ret;
 }
+
+/**
+ * 初始化和 gpu_pm 和 gpu_clk.
+ */
 static int kbase_platform_power_clock_init(struct kbase_device *kbdev)
 {
 	/*struct device *dev = kbdev->dev;*/
@@ -108,9 +127,9 @@ static int kbase_platform_power_clock_init(struct kbase_device *kbdev)
 		dvfs_clk_prepare_enable(platform->mali_clk_node);
 		printk("clk enabled\n");
 	}
-	mali_dvfs_clk_set(platform->mali_clk_node,MALI_T7XX_DEFAULT_CLOCK);
-	
+	mali_dvfs_clk_set(platform->mali_clk_node, MALI_T7XX_DEFAULT_CLOCK);
 	mali_clk_status = 1;
+
 	return 0;
 	
 out:
@@ -120,6 +139,7 @@ out:
 	return -EPERM;
 
 }
+
 int kbase_platform_clock_off(struct kbase_device *kbdev)
 {
 	struct rk_context *platform;
@@ -161,6 +181,7 @@ int kbase_platform_clock_on(struct kbase_device *kbdev)
 
 	return 0;
 }
+
 int kbase_platform_is_power_on(void)
 {
 	return mali_pd_status;
@@ -212,6 +233,7 @@ int kbase_platform_power_off(struct kbase_device *kbdev)
 	return 0;
 }
 
+
 int kbase_platform_cmu_pmu_control(struct kbase_device *kbdev, int control)
 {
 	unsigned long flags;
@@ -228,33 +250,45 @@ int kbase_platform_cmu_pmu_control(struct kbase_device *kbdev, int control)
 	/* off */
 	if (control == 0) 
 	{
+		/* 若已经关闭, 则... */
 		if (platform->cmu_pmu_status == 0) 
 		{
 			spin_unlock_irqrestore(&platform->cmu_pmu_lock, flags);
 			return 0;
 		}
 
+		/* 关闭 gpu_power_domain. */
 		if (kbase_platform_power_off(kbdev))
+		{
 			panic("failed to turn off mali power domain\n");
+		}
+		/* 关闭 gpu_dvfs_node 的 clock. */
 		if (kbase_platform_clock_off(kbdev))
+		{
 			panic("failed to turn off mali clock\n");
+		}
 
 		platform->cmu_pmu_status = 0;
 		printk("turn off mali power \n");
 	} 
-	else 
+	else /* on */
 	{
-		/* on */
 		if (platform->cmu_pmu_status == 1) 
 		{
 			spin_unlock_irqrestore(&platform->cmu_pmu_lock, flags);
 			return 0;
 		}
 
+		/* 开启 gpu_power_domain. */
 		if (kbase_platform_power_on(kbdev))
+		{
 			panic("failed to turn on mali power domain\n");
+		}
+		/* 使能 gpu_dvfs_node 的 clock. */
 		if (kbase_platform_clock_on(kbdev))
+		{
 			panic("failed to turn on mali clock\n");
+		}
 
 		platform->cmu_pmu_status = 1;
 		printk(KERN_ERR "turn on mali power\n");
@@ -265,23 +299,102 @@ int kbase_platform_cmu_pmu_control(struct kbase_device *kbdev, int control)
 	return 0;
 }
 
+/*---------------------------------------------------------------------------*/
+
 static ssize_t error_count_show(struct device *dev,struct device_attribute *attr, char *buf)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 	ssize_t ret;
 
-    D_PTR(dev);
-    if ( NULL == kbdev )
-    {
-        E("fail to get kbase_device instance.");
-        return 0;
-    }
+	D_PTR(dev);
+	if ( NULL == kbdev )
+	{
+		E("fail to get kbase_device instance.");
+		return 0;
+	}
 
-    D_DEC(kbdev->kbase_group_error);
-	ret = scnprintf(buf, PAGE_SIZE, "%d\n", kbdev->kbase_group_error);
+	D_DEC(kbdev->kbase_group_error);
+	ret = scnprintf(buf, PAGE_SIZE, "%u\n", kbdev->kbase_group_error);
 	return ret;
 }
 static DEVICE_ATTR(error_count, S_IRUGO, error_count_show, NULL);
+
+
+/*---------------------------------------------------------------------------*/
+/* < 对在 sysfs_dir_of_mali_device 下的 rk_ext_file_nodes 的具体实现,  >*/
+// .DP : impl_of_rk_ext_file_nodes.
+
+/**
+ * .doc : 对 sysfs_dir_of_mali_device 下 rk_ext_file_nodes 提供的接口的定义
+ *
+ * sysfs_dir_of_mali_device 通常是 sys/devices/ffa30000.gpu
+ *
+ * 其下有如下的 rk_ext_file_nodes : 
+ *	clock, 
+ *		对该文件的 cat 操作, 将输出当前 gpu_clk_freq 和可能的 freq 的列表, 形如 : 
+ *			current_gpu_clk_freq :  99000 KHz
+ *			possible_freqs : 99000, 179000, 297000, 417000, 480000 (KHz)
+ *		出现在 "possible_freqs" 中的有效频点, 依赖在 .dts 文件中的配置.
+ *		可以使用 echo 命令向本文件写入待设置的 gpu_clk_freq_in_khz, 比如 : 
+ *			echo 417000 > clock
+ *		注意, 这里写入的 gpu_clk_freq_in_khz "必须" 是出现在 possible_freqs 中的.
+ *		另外, mali_module 默认使能 dvfs, 
+ *		所以若希望将 gpu_clk 固定在上面的特定 freq, 要关闭 dvfs 先 :
+ *			echo off > dvfs
+ *	fbdev, 
+ *		只支持 cat. 
+ *		.R : 目前不确定该提供接口的用意.
+ *	// dtlb,
+ *	dvfs,
+ *		cat 该节点, 将返回当前 mali_dvfs 的状态, 包括 mali_dvfs 是否开启, gpu 使用率, 当前 gpu_clk 频率.
+ *		若当前 mali_dvfs 被开启, 可能返回如下信息 : 
+ *		        mali_dvfs is ON 
+ *			gpu_utilisation : 100 
+ *			current_gpu_clk_freq : 480 MHz
+ *		若当前 mali_dvfs 被关闭, 可能返回 : 
+ *			mali_dvfs is OFF 
+ *			current_gpu_clk_freq : 99 MHz
+ *		若一段时间没有 job 下发到 gpu, common_parts 也会自动关闭 mali_dvfs.
+ *
+ *		将字串 off 写入该节点, 将关闭 mali_dvfs, 
+ *		且会将 gpu_clk_freq 固定到可能的最高的频率 或者 gpu_clk_freq_of_upper_limit(若有指定).
+ *		之后, 若将字串 on 写入该节点, 将重新开启 mali_dvfs.
+ *
+ *	dvfs_upper_lock,
+ *	        cat 该节点, 返回当前 dvfs_level_upper_limit 的信息, 诸如
+ *	                upper_lock_freq : 417000 KHz
+ *                      possible upper_lock_freqs : 99000, 179000, 297000, 417000, 480000 (KHz)
+ *                      if you want to unset upper_lock_freq, to echo 'off' to this file.
+ *              
+ *              对该节点写入上面 possible upper_lock_freqs 中的某个 频率, 可以将该频率设置为 gpu_clk_freq_of_upper_limit, 比如.
+ *                      echo 417000 > dvfs_upper_lock
+ *              若要清除之前设置的 dvfs_level_upper_limit, 写入 off 即可.
+ *                      
+ *	dvfs_under_lock,
+ *	        cat 该节点, 返回当前 dvfs_level_lower_limit 的信息, 诸如
+ *	                under_lock_freq : 179000 KHz 
+ *	                possible under_lock_freqs : 99000, 179000, 297000, 417000, 480000 (KHz) 
+ *	                if you want to unset under_lock_freq, to echo 'off' to this file.
+ *              对该节点写入上面 possible under_lock_freq 中的某个 频率, 可以将该频率设置为 gpu_clk_freq_of_lower_limit, 比如.
+ *                      echo 179000 > dvfs_under_lock
+ *              若要清除之前设置的 dvfs_level_lower_limit, 写入 off 即可.
+ *
+ *	time_in_state
+ *	        cat 该节点, 返回 mali_dvfs 停留在不同 level 中的时间统计, 譬如
+ *	                ------------------------------------------------------------------------------
+ *                      index_of_level          gpu_clk_freq (KHz)              time_in_this_level (s)  
+ *                      ------------------------------------------------------------------------------
+ *                      0                       99                              206                     
+ *                      1                       179                             9                       
+ *                      2                       297                             0                       
+ *                      3                       417                             0                       
+ *                      4                       480                             47                      
+ *                      ------------------------------------------------------------------------------
+ *              若通过 dvfs 节点, 开启/关闭 mali_dvfs, 则本节点输出的信息可能不准确.
+ *
+ *              若要复位上述时间统计, 可以向该节点写入任意字串, 比如 : 
+ *                      echo dummy > time_in_state
+ */
 
 #ifdef CONFIG_MALI_MIDGARD_DEBUG_SYS
 static ssize_t show_clock(struct device *dev, struct device_attribute *attr, char *buf)
@@ -289,7 +402,7 @@ static ssize_t show_clock(struct device *dev, struct device_attribute *attr, cha
 	struct kbase_device *kbdev;
 	struct rk_context *platform;
 	ssize_t ret = 0;
-	unsigned int clkrate;
+	unsigned int clkrate = 0;	// 从 dvfs_module 获取的 gpu_clk_freq, Hz 为单位.
 	int i ;
 	kbdev = dev_get_drvdata(dev);
 
@@ -306,16 +419,27 @@ static ssize_t show_clock(struct device *dev, struct device_attribute *attr, cha
 		return -ENODEV;
 	}
 	clkrate = dvfs_clk_get_rate(platform->mali_clk_node);
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current clk mali = %dMhz", clkrate / 1000000);
-
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "current_gpu_clk_freq : %d KHz", clkrate / 1000);
+	
 	/* To be revised  */
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings:");
-	for(i=0;i<MALI_DVFS_STEP;i++)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ",p_mali_dvfs_infotbl[i].clock/1000);
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Mhz");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\npossible_freqs : ");
+	for ( i = 0; i < MALI_DVFS_STEP; i++ )
+	{
+		if ( i < (MALI_DVFS_STEP - 1) )
+		{
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d, ", p_mali_dvfs_infotbl[i].clock);
+		}
+		else
+		{
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ", p_mali_dvfs_infotbl[i].clock);
+		}
+	}
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(KHz)");
 
 	if (ret < PAGE_SIZE - 1)
+	{
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	}
 	else {
 		buf[PAGE_SIZE - 2] = '\n';
 		buf[PAGE_SIZE - 1] = '\0';
@@ -360,6 +484,7 @@ static ssize_t set_clock(struct device *dev, struct device_attribute *attr, cons
 	}
 #endif
 	freq = simple_strtoul(buf, NULL, 10);
+	D("freq : %u.", freq);
 
 	kbase_platform_dvfs_set_level(kbdev, kbase_platform_dvfs_get_level(freq));
 	return count;
@@ -377,7 +502,15 @@ static ssize_t show_fbdev(struct device *dev, struct device_attribute *attr, cha
 		return -ENODEV;
 
 	for (i = 0; i < num_registered_fb; i++)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "fb[%d] xres=%d, yres=%d, addr=0x%lx\n", i, registered_fb[i]->var.xres, registered_fb[i]->var.yres, registered_fb[i]->fix.smem_start);
+	{
+		ret += snprintf(buf + ret, 
+				PAGE_SIZE - ret,
+				"fb[%d] xres=%d, yres=%d, addr=0x%lx\n",
+				i,
+				registered_fb[i]->var.xres,
+				registered_fb[i]->var.yres,
+				registered_fb[i]->fix.smem_start);
+	}
 
 	if (ret < PAGE_SIZE - 1)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
@@ -611,15 +744,29 @@ static ssize_t show_dvfs(struct device *dev, struct device_attribute *attr, char
 	if (!platform)
 		return -ENODEV;
 
+	/* 获取当前 gpu_dvfs_node 的 clk_freq, Hz 为单位. */
 	clkrate = dvfs_clk_get_rate(platform->mali_clk_node);
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
+	/* 若 mali_dvfs 是 开启的, 则... */
 	if (kbase_platform_dvfs_get_enable_status())
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali DVFS is on\nutilisation:%d\ncurrent clock:%dMhz", kbase_platform_dvfs_get_utilisation(),clkrate/1000000);
+	{
+		ret += snprintf(buf + ret,
+				PAGE_SIZE - ret,
+				"mali_dvfs is ON \ngpu_utilisation : %d \ncurrent_gpu_clk_freq : %u MHz",
+				kbase_platform_dvfs_get_utilisation(),
+				clkrate / 1000000);
+	}
+	/* 否则, ... */
 	else
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali  DVFS is off,clock:%dMhz",clkrate/1000000);
+	{
+		ret += snprintf(buf + ret,
+				PAGE_SIZE - ret,
+				"mali_dvfs is OFF \ncurrent_gpu_clk_freq : %u MHz",
+				clkrate / 1000000);
+	}
 #else
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali  DVFS is disabled");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali_dvfs is DISABLED");
 #endif
 
 	if (ret < PAGE_SIZE - 1)
@@ -647,10 +794,12 @@ static ssize_t set_dvfs(struct device *dev, struct device_attribute *attr, const
 	platform = (struct rk_context *)kbdev->platform_context;
 	if (sysfs_streq("off", buf)) {
 		/*kbase_platform_dvfs_enable(false, MALI_DVFS_BL_CONFIG_FREQ);*/
+		D("to disable mali_dvfs, and set current_dvfs_level to the highest one.");
 		kbase_platform_dvfs_enable(false, p_mali_dvfs_infotbl[MALI_DVFS_STEP-1].clock);	
 		platform->dvfs_enabled = false;
 	} else if (sysfs_streq("on", buf)) {
 		/*kbase_platform_dvfs_enable(true, MALI_DVFS_START_FREQ);*/
+		D("to disable mali_dvfs, and set current_dvfs_level to the lowest one.");
 		kbase_platform_dvfs_enable(true, p_mali_dvfs_infotbl[0].clock);
 		platform->dvfs_enabled = true;
 	} else {
@@ -668,27 +817,47 @@ static ssize_t show_upper_lock_dvfs(struct device *dev, struct device_attribute 
 	ssize_t ret = 0;
 	int i;
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-	int locked_level = -1;
+	int gpu_clk_freq = 0;
 #endif
 
 	kbdev = dev_get_drvdata(dev);
 
 	if (!kbdev)
+	{
+		E("err.");
 		return -ENODEV;
+	}
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-	locked_level = mali_get_dvfs_upper_locked_freq();
-	if (locked_level > 0)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current Upper Lock Level = %dMhz", locked_level);
+	gpu_clk_freq = mali_get_dvfs_upper_locked_freq();
+	if (gpu_clk_freq > 0)
+	{
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "upper_lock_freq : %d KHz", gpu_clk_freq);
+	}
 	else
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Unset the Upper Lock Level");
+	{
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "upper_lock_freq is NOT set");
+	}
 	/*ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 400, 350,266, 160, 100, If you want to unlock : 600 or off");*/
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings :");
-	for(i=0;i<MALI_DVFS_STEP;i++)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ",p_mali_dvfs_infotbl[i].clock/1000);
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "Mhz");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, ", If you want to unlock : off");
 
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\npossible upper_lock_freqs : ");
+	for ( i = 0; i < MALI_DVFS_STEP; i++ )
+	{
+		if ( i < (MALI_DVFS_STEP - 1) )
+		{
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d, ", p_mali_dvfs_infotbl[i].clock);
+		}
+		else
+		{
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ", p_mali_dvfs_infotbl[i].clock);
+		}
+	}
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(KHz)");
+	
+	if ( gpu_clk_freq > 0 )
+	{
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nif you want to unset upper_lock_freq, to echo 'off' to this file.");
+	}
 #else
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali DVFS is disabled. You can not set");
 #endif
@@ -706,16 +875,18 @@ static ssize_t show_upper_lock_dvfs(struct device *dev, struct device_attribute 
 
 static ssize_t set_upper_lock_dvfs(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct kbase_device *kbdev;
+	struct kbase_device *kbdev = NULL;
 	int i;
-	unsigned int freq;
+	unsigned int freq = 0;              // 可能由 caller 传入的, 待设置的 gpu_freq_upper_limit.
+        int ret = 0;
+
 	kbdev = dev_get_drvdata(dev);
-	freq = 0;
 
-	if (!kbdev)
-		return -ENODEV;
-
-freq = simple_strtoul(buf, NULL, 10);
+	if ( NULL == kbdev)
+        {
+                E("'kbdev' is NULL.");
+	        return -ENODEV;
+        }
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	if (sysfs_streq("off", buf)) 
@@ -724,20 +895,34 @@ freq = simple_strtoul(buf, NULL, 10);
 	} 
 	else 
 	{
+		freq = simple_strtoul(buf, NULL, 10);
+		D_DEC(freq);
+
+                D("to search the level that matches target_freq; num_of_mali_dvfs_levels : %d.", MALI_DVFS_STEP);
 		for(i=0;i<MALI_DVFS_STEP;i++)
 		{
+                        D("p_mali_dvfs_infotbl[%d].clock : %d", i, p_mali_dvfs_infotbl[i].clock);
 			if (p_mali_dvfs_infotbl[i].clock == freq) 
 			{
-				mali_dvfs_freq_lock(i);
+                                D("target_freq is acceptable in level '%d', to set '%d' as index of dvfs_level_upper_limit.", i, i);
+				ret = mali_dvfs_freq_lock(i);
+                                if ( 0 != ret )
+                                {
+                                        E("fail to set dvfs_level_upper_limit, ret : %d.", ret);
+                                        return -EINVAL;
+                                }
 				break;
 			}
-			if(i==MALI_DVFS_STEP)
-			{
-				dev_err(dev, "set_clock: invalid value\n");
-				return -ENOENT;
-			}
+		}
+		/* 若 "没有" 找到和 target_freq match 的 level, 则... */
+		if ( MALI_DVFS_STEP == i )
+		{
+			// dev_err(dev, "set_clock: invalid value\n");
+			E("invalid target_freq : %d", freq);
+			return -ENOENT;
 		}
 	}
+        
 #else				/* CONFIG_MALI_MIDGARD_DVFS */
 	printk(KERN_DEBUG "mali DVFS is disabled. You can not set\n");
 #endif
@@ -751,7 +936,7 @@ static ssize_t show_under_lock_dvfs(struct device *dev, struct device_attribute 
 	ssize_t ret = 0;
 	int i;
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-	int locked_level = -1;
+	int gpu_clk_freq = 0;
 #endif
 
 	kbdev = dev_get_drvdata(dev);
@@ -760,18 +945,34 @@ static ssize_t show_under_lock_dvfs(struct device *dev, struct device_attribute 
 		return -ENODEV;
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-	locked_level = mali_get_dvfs_under_locked_freq();
-	if (locked_level > 0)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Current Under Lock Level = %dMhz", locked_level);
+	gpu_clk_freq = mali_get_dvfs_under_locked_freq();
+	if (gpu_clk_freq > 0)
+	{
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "under_lock_freq : %d KHz",gpu_clk_freq);
+	}
 	else
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "Unset the Under Lock Level");
+	{
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "under_lock_freq is NOT set.");
+	}
 	/*ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings : 600, 400, 350,266, 160, If you want to unlock : 100 or off");*/
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nPossible settings :");
-	for(i=0;i<MALI_DVFS_STEP;i++)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ",p_mali_dvfs_infotbl[i].clock/1000);
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "Mhz");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, ", If you want to unlock : off");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\npossible under_lock_freqs : ");
+	for ( i = 0; i < MALI_DVFS_STEP; i++ )
+	{
+		if ( i < (MALI_DVFS_STEP - 1) )
+		{
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d, ", p_mali_dvfs_infotbl[i].clock);
+		}
+		else
+		{
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%d ", p_mali_dvfs_infotbl[i].clock);
+		}
+	}
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(KHz)");
 
+	if ( gpu_clk_freq > 0 )
+	{
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\nif you want to unset under_lock_freq, to echo 'off' to this file.");
+	}
 #else
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "mali DVFS is disabled. You can not set");
 #endif
@@ -790,35 +991,49 @@ static ssize_t show_under_lock_dvfs(struct device *dev, struct device_attribute 
 static ssize_t set_under_lock_dvfs(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int i;
-	unsigned int freq;
-	struct kbase_device *kbdev;
-	kbdev = dev_get_drvdata(dev);
-	freq = 0;
+	unsigned int freq = 0;
+	struct kbase_device *kbdev = NULL;
+        int ret = 0;
 
-	if (!kbdev)
+	kbdev = dev_get_drvdata(dev);
+	if ( NULL == kbdev)
+	{
+		E("err.")
 		return -ENODEV;
+	}
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	if (sysfs_streq("off", buf)) 
 	{
-		mali_dvfs_freq_unlock();
+		mali_dvfs_freq_under_unlock();
 	} 
 	else 
 	{
+		freq = simple_strtoul(buf, NULL, 10);
+		D_DEC(freq);
+
 		for(i=0;i<MALI_DVFS_STEP;i++)
 		{
 			if (p_mali_dvfs_infotbl[i].clock == freq) 
 			{
-				mali_dvfs_freq_lock(i);
+                                D("to set '%d' as the index of dvfs_level_lower_limit", i);
+				ret = mali_dvfs_freq_under_lock(i);
+                                if ( 0 != ret )
+                                {
+                                        E("fail to set dvfs_level_lower_limit, ret : %d.", ret);
+                                        return -EINVAL;
+                                }
 				break;
 			}
-			if(i==MALI_DVFS_STEP)
-			{
-				dev_err(dev, "set_clock: invalid value\n");
-				return -ENOENT;
-			}
+		}
+		/* 若 "没有" 找到和 target_freq match 的 level, 则... */
+		if( i == MALI_DVFS_STEP )
+		{
+			dev_err(dev, "set_clock: invalid value\n");
+			return -ENOENT;
 		}
 	}
+
 #else				/* CONFIG_MALI_MIDGARD_DVFS */
 	printk(KERN_DEBUG "mali DVFS is disabled. You can not set\n");
 #endif
@@ -836,6 +1051,7 @@ DEVICE_ATTR(dvfs, S_IRUGO | S_IWUSR, show_dvfs, set_dvfs);
 DEVICE_ATTR(dvfs_upper_lock, S_IRUGO | S_IWUSR, show_upper_lock_dvfs, set_upper_lock_dvfs);
 DEVICE_ATTR(dvfs_under_lock, S_IRUGO | S_IWUSR, show_under_lock_dvfs, set_under_lock_dvfs);
 DEVICE_ATTR(time_in_state, S_IRUGO | S_IWUSR, show_time_in_state, set_time_in_state);
+/*---------------------------------------------------------------------------*/
 
 int kbase_platform_create_sysfs_file(struct device *dev)
 {
@@ -849,12 +1065,12 @@ int kbase_platform_create_sysfs_file(struct device *dev)
 		goto out;
 	}
 
-    /*  rk_ext : device will crash after "cat /sys/devices/ffa30000.gpu/dtlb".
+	/*  rk_ext : device will crash after "cat /sys/devices/ffa30000.gpu/dtlb".
 	if (device_create_file(dev, &dev_attr_dtlb)) {
 		dev_err(dev, "Couldn't create sysfs file [dtlb]\n");
 		goto out;
 	}
-    */
+	*/
 
 	if (device_create_file(dev, &dev_attr_dvfs)) {
 		dev_err(dev, "Couldn't create sysfs file [dvfs]\n");
@@ -876,6 +1092,7 @@ int kbase_platform_create_sysfs_file(struct device *dev)
 		goto out;
 	}
 	return 0;
+
  out:
 	return -ENOENT;
 }
@@ -902,6 +1119,7 @@ mali_error kbase_platform_init(struct kbase_device *kbdev)
 	if (NULL == platform)
 		return MALI_ERROR_OUT_OF_MEMORY;
 
+	/* .KP : 将 'rk_context' 关联到 mali_device. */
 	kbdev->platform_context = (void *)platform;
 
 	platform->cmu_pmu_status = 0;

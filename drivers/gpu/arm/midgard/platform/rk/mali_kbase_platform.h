@@ -8,18 +8,25 @@
 
 /**
  * @file mali_kbase_platform.h
- * Platform-dependent init
+ * // Platform-dependent init
+ * 
+ * 声明 platform_dependent_part 的 work_context 类型, pm, clk 等操作的接口. 
  */
 
 #ifndef _KBASE_PLATFORM_H_
 #define _KBASE_PLATFORM_H_
 
+/** 
+ * work_context_of_platform_dependent_part_of_rk.
+ */
 struct rk_context {
 	/** Indicator if system clock to mail-t604 is active */
 	int cmu_pmu_status;
 	/** cmd & pmu lock */
 	spinlock_t cmu_pmu_lock;
+	/** gpu_power_domain. */
 	struct clk *mali_pd;
+	/** gpu_dvfs_node. */
 	struct dvfs_node * mali_clk_node;
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 	/*To calculate utilization for x sec */
@@ -27,7 +34,9 @@ struct rk_context {
 	int utilisation;
 	u32 time_busy;
 	u32 time_idle;
+	/** mali_dvfs 是否被使能. */
 	bool dvfs_enabled;
+	/** 标识当前有 touch_input_event 到来. */
 	bool gpu_in_touch;
 	spinlock_t gpu_in_touch_lock;
 #endif
@@ -158,20 +167,58 @@ typedef enum
 
 } mali_error;
 
-
-int mali_dvfs_clk_set(struct dvfs_node * node,unsigned long rate);
+/**
+ * 将 gpu_clk 设置为 'rate', 'rate' 以 KHz 为单位. 
+ * @param node: 
+ *      指向 gpu_dvfs_node 
+ * @param rate
+ *      预期设置的 gpu_clk 的 value, KHz 为单位. 
+ */
+int mali_dvfs_clk_set(struct dvfs_node * node,unsigned long rate);      // 'rate' 以 KHz 为单位. 
 
 /* All things that are needed for the Linux port. */
+/**
+ * 关闭/开启 gpu 的 power 和 clock.
+ * @param kbdev
+ *	指向 mali_device.
+ * @param control
+ *	若是 1, 表征要开启.
+ *	若是 0, 表征要关闭.
+ */
 int kbase_platform_cmu_pmu_control(struct kbase_device *kbdev, int control);
+/**
+ * 在 sysfs_dir_of_mali_device 下创建 rk_ext_file_nodes.
+ */
 int kbase_platform_create_sysfs_file(struct device *dev);
+/**
+ * 删除 sysfs_dir_of_mali_device 下的 rk_ext_file_nodes.
+ */
 void kbase_platform_remove_sysfs_file(struct device *dev);
+
+/**
+ * 返回 gpu_power_domain 是否开启. 
+ */
 int kbase_platform_is_power_on(void);
+
 mali_error kbase_platform_init(struct kbase_device *kbdev);
 void kbase_platform_term(struct kbase_device *kbdev);
 
+/**
+ * 使能 clk_of_gpu_dvfs_node.
+ */
 int kbase_platform_clock_on(struct kbase_device *kbdev);
+/**
+ * 禁止(关闭) clk_of_gpu_dvfs_node.
+ */
 int kbase_platform_clock_off(struct kbase_device *kbdev);
+
+/**
+ * 开启 gpu_power_domain.
+ */
 int kbase_platform_power_off(struct kbase_device *kbdev);
+/**
+ * 关闭 gpu_power_domain.
+ */
 int kbase_platform_power_on(struct kbase_device *kbdev);
 
 #endif				/* _KBASE_PLATFORM_H_ */

@@ -104,7 +104,7 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 
 #define KBASE_DRV_NAME "mali"
 /** rk_ext : version of rk_ext on mali_ko, aka. rk_ko_ver. */
-#define ROCKCHIP_VERSION    (12)
+#define ROCKCHIP_VERSION    (13)
 
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
 
