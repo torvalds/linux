@@ -298,7 +298,7 @@ static int caam_remove(struct platform_device *pdev)
 	struct device *ctrldev;
 	struct caam_drv_private *ctrlpriv;
 	struct caam_ctrl __iomem *ctrl;
-	int ring, ret = 0;
+	int ring;
 
 	ctrldev = &pdev->dev;
 	ctrlpriv = dev_get_drvdata(ctrldev);
@@ -328,7 +328,7 @@ static int caam_remove(struct platform_device *pdev)
 	clk_disable_unprepare(ctrlpriv->caam_aclk);
 	clk_disable_unprepare(ctrlpriv->caam_emi_slow);
 
-	return ret;
+	return 0;
 }
 
 /*
