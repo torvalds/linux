@@ -729,6 +729,7 @@ static const struct panel_desc hannstar_hsd070pww1 = {
 		.width = 151,
 		.height = 94,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
 };
 
 static const struct display_timing hannstar_hsd100pxn1_timing = {
