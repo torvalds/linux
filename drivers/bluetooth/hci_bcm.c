@@ -388,6 +388,7 @@ static const struct acpi_gpio_mapping acpi_bcm_default_gpios[] = {
 	{ },
 };
 
+#ifdef CONFIG_ACPI
 static int bcm_resource(struct acpi_resource *ares, void *data)
 {
 	struct bcm_device *dev = data;
@@ -453,6 +454,12 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 
 	return 0;
 }
+#else
+static int bcm_acpi_probe(struct bcm_device *dev)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_ACPI */
 
 static int bcm_probe(struct platform_device *pdev)
 {
