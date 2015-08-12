@@ -133,19 +133,12 @@ static int apci3501_read_insn_timer(struct comedi_device *dev,
 {
 	struct apci3501_private *devpriv = dev->private;
 
-	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
-		data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
-		data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
-	}
+	if (devpriv->timer_mode != ADDIDATA_TIMER &&
+	    devpriv->timer_mode != ADDIDATA_WATCHDOG)
+		return -EINVAL;
 
-	else if (devpriv->timer_mode == ADDIDATA_TIMER) {
-		data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
-		data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
-	}
+	data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
+	data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
 
-	else if (devpriv->timer_mode != ADDIDATA_TIMER &&
-		 devpriv->timer_mode != ADDIDATA_WATCHDOG) {
-		dev_err(dev->class_dev, "Invalid subdevice.\n");
-	}
 	return insn->n;
 }
