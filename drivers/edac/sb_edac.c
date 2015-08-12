@@ -2591,7 +2591,7 @@ static int __init sbridge_init(void)
 
 	pci_rc = pci_register_driver(&sbridge_driver);
 	if (pci_rc >= 0) {
-		mce_register_decode_chain(&sbridge_mce_dec);
+		mce_register_decode_chain(&sbridge_mce_dec, true);
 		if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
 			sbridge_printk(KERN_WARNING, "Loading driver, error reporting disabled.\n");
 		return 0;

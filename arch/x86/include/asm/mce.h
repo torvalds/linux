@@ -140,7 +140,7 @@ struct mce_vendor_flags {
 extern struct mce_vendor_flags mce_flags;
 
 extern struct mca_config mca_cfg;
-extern void mce_register_decode_chain(struct notifier_block *nb);
+extern void mce_register_decode_chain(struct notifier_block *nb, bool drain);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
 #include <linux/percpu.h>
