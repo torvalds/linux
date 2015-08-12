@@ -169,7 +169,8 @@ int vga_switcheroo_register_client(struct pci_dev *pdev,
 				   bool driver_power_control)
 {
 	return register_client(pdev, ops, -1,
-			       pdev == vga_default_device(), driver_power_control);
+			       pdev == vga_default_device(),
+			       driver_power_control);
 }
 EXPORT_SYMBOL(vga_switcheroo_register_client);
 
@@ -185,6 +186,7 @@ static struct vga_switcheroo_client *
 find_client_from_pci(struct list_head *head, struct pci_dev *pdev)
 {
 	struct vga_switcheroo_client *client;
+
 	list_for_each_entry(client, head, list)
 		if (client->pdev == pdev)
 			return client;
@@ -195,6 +197,7 @@ static struct vga_switcheroo_client *
 find_client_from_id(struct list_head *head, int client_id)
 {
 	struct vga_switcheroo_client *client;
+
 	list_for_each_entry(client, head, list)
 		if (client->id == client_id)
 			return client;
@@ -205,6 +208,7 @@ static struct vga_switcheroo_client *
 find_active_client(struct list_head *head)
 {
 	struct vga_switcheroo_client *client;
+
 	list_for_each_entry(client, head, list)
 		if (client->active && client_is_vga(client))
 			return client;
@@ -262,10 +266,12 @@ static int vga_switcheroo_show(struct seq_file *m, void *v)
 {
 	struct vga_switcheroo_client *client;
 	int i = 0;
+
 	mutex_lock(&vgasr_mutex);
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		seq_printf(m, "%d:%s%s:%c:%s%s:%s\n", i,
-			   client_id(client) == VGA_SWITCHEROO_DIS ? "DIS" : "IGD",
+			   client_id(client) == VGA_SWITCHEROO_DIS ? "DIS" :
+								     "IGD",
 			   client_is_vga(client) ? "" : "-Audio",
 			   client->active ? '+' : ' ',
 			   client->driver_power_control ? "Dyn" : "",
@@ -349,6 +355,7 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 
 	if (new_client->fb_info) {
 		struct fb_event event;
+
 		console_lock();
 		event.info = new_client->fb_info;
 		fb_notifier_call_chain(FB_EVENT_REMAP_ALL_CONSOLE, &event);
@@ -543,7 +550,8 @@ static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
 	}
 
 	priv->switch_file = debugfs_create_file("switch", 0644,
-						priv->debugfs_root, NULL, &vga_switcheroo_debugfs_fops);
+						priv->debugfs_root, NULL,
+						&vga_switcheroo_debugfs_fops);
 	if (!priv->switch_file) {
 		pr_err("cannot create %s/vgaswitcheroo/switch\n", mp);
 		goto fail;
@@ -584,7 +592,8 @@ err:
 }
 EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
 
-static void vga_switcheroo_power_switch(struct pci_dev *pdev, enum vga_switcheroo_state state)
+static void vga_switcheroo_power_switch(struct pci_dev *pdev,
+					enum vga_switcheroo_state state)
 {
 	struct vga_switcheroo_client *client;
 
@@ -603,7 +612,8 @@ static void vga_switcheroo_power_switch(struct pci_dev *pdev, enum vga_switchero
 
 /* force a PCI device to a certain state - mainly to turn off audio clients */
 
-void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev, enum vga_switcheroo_state dynamic)
+void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev,
+				       enum vga_switcheroo_state dynamic)
 {
 	struct vga_switcheroo_client *client;
 
@@ -649,7 +659,8 @@ static int vga_switcheroo_runtime_resume(struct device *dev)
 
 /* this version is for the case where the power switch is separate
    to the device being powered down. */
-int vga_switcheroo_init_domain_pm_ops(struct device *dev, struct dev_pm_domain *domain)
+int vga_switcheroo_init_domain_pm_ops(struct device *dev,
+				      struct dev_pm_domain *domain)
 {
 	/* copy over all the bus versions */
 	if (dev->bus && dev->bus->pm) {
@@ -680,7 +691,8 @@ static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 	/* we need to check if we have to switch back on the video
 	   device so the audio device can come back */
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
-		if (PCI_SLOT(client->pdev->devfn) == PCI_SLOT(pdev->devfn) && client_is_vga(client)) {
+		if (PCI_SLOT(client->pdev->devfn) == PCI_SLOT(pdev->devfn) &&
+		    client_is_vga(client)) {
 			found = client;
 			ret = pm_runtime_get_sync(&client->pdev->dev);
 			if (ret) {
@@ -700,12 +712,15 @@ static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 	return ret;
 }
 
-int vga_switcheroo_init_domain_pm_optimus_hdmi_audio(struct device *dev, struct dev_pm_domain *domain)
+int
+vga_switcheroo_init_domain_pm_optimus_hdmi_audio(struct device *dev,
+						 struct dev_pm_domain *domain)
 {
 	/* copy over all the bus versions */
 	if (dev->bus && dev->bus->pm) {
 		domain->ops = *dev->bus->pm;
-		domain->ops.runtime_resume = vga_switcheroo_runtime_resume_hdmi_audio;
+		domain->ops.runtime_resume =
+			vga_switcheroo_runtime_resume_hdmi_audio;
 
 		dev->pm_domain = domain;
 		return 0;
