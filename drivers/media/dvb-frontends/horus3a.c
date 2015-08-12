@@ -285,6 +285,7 @@ static int horus3a_set_params(struct dvb_frontend *fe)
 			rolloff = 20;
 			break;
 		case ROLLOFF_AUTO:
+		default:
 			dev_err(&priv->i2c->dev,
 				"horus3a: auto roll-off is not supported\n");
 			return -EINVAL;
