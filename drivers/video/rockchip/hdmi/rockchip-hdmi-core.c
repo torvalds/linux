@@ -255,6 +255,8 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	DBG("%s\n", __func__);
 	if (hdmi->ops->remove)
 		hdmi->ops->remove(hdmi);
+	if (hdmi->property->feature & SUPPORT_CEC)
+		rockchip_hdmi_cec_set_pa(0);
 	if (hdmi->hotplug == HDMI_HPD_ACTIVED) {
 		screen.type = SCREEN_HDMI;
 		rk_fb_switch_screen(&screen, 0, hdmi->lcdc->id);

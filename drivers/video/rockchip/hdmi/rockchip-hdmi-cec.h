@@ -3,7 +3,7 @@
 #include "rockchip-hdmi.h"
 
 #include <linux/input.h>
-
+#include <linux/miscdevice.h>
 enum {
 	CEC_LOGADDR_TV          = 0x00,
 	CEC_LOGADDR_RECDEV1     = 0x01,
@@ -133,7 +133,7 @@ struct cec_framedata {
 	char opcode;
 	char args[MAX_CMD_SIZE];
 	char argcount;
-	char nextframeargcount;
+	char returnval;
 };
 
 struct cec_delayed_work {
@@ -142,39 +142,44 @@ struct cec_delayed_work {
 	void *data;
 };
 
+struct cecframelist {
+	struct list_head framelist;
+	struct cec_framedata cecframe;
+};
+
 struct cec_device {
 	struct workqueue_struct *workqueue;
 	struct hdmi *hdmi;
+	struct miscdevice device;
 	int address_phy;
 	int address_logic;
 	int powerstatus;
-	char cecval[32];
+	int enable;
+	struct list_head ceclist;
+	struct mutex cec_lock;	/* mutex for hdmicec operation*/
 
 	int (*sendframe)(struct hdmi *, struct cec_framedata *);
 	int (*readframe)(struct hdmi *, struct cec_framedata *);
 	void (*setceclogicaddr)(struct hdmi *, int);
 };
 
+#define DEBUG
 #ifdef DEBUG
 #define CECDBG(format, ...) \
 		pr_info(format, ## __VA_ARGS__)
 #else
 #define CECDBG(format, ...)
 #endif
-
-/*====================================
-//used for cec key control direction  OK and back
-====================================*/
-enum  {
-	S_CEC_MAKESURE   = 0x0,
-	S_CEC_UP         = 0x1,
-	S_CEC_DOWN       = 0x2,
-	S_CEC_LEFT       = 0x3,
-	S_CEC_RIGHT      = 0x4,
-	S_CEC_BACK       = 0x0d,
-	S_CEC_VENDORBACK = 0x91,
-};
-
+/* for HAL ioctl*/
+#define HDMI_CEC_MAGIC     'N'
+#define HDMI_IOCTL_CECSEND   _IOW(HDMI_CEC_MAGIC, 0, struct cec_framedata)
+#define HDMI_IOCTL_CECENAB   _IOW(HDMI_CEC_MAGIC, 1, int)
+#define HDMI_IOCTL_CECPHY    _IOR(HDMI_CEC_MAGIC, 2, int)
+#define HDMI_IOCTL_CECLOGIC  _IOR(HDMI_CEC_MAGIC, 3, int)
+#define HDMI_IOCTL_CECREAD   _IOR(HDMI_CEC_MAGIC, 4, struct cec_framedata)
+#define HDMI_IOCTL_CECSETLA  _IOW(HDMI_CEC_MAGIC, 5, int)
+#define HDMI_IOCTL_CECCLEARLA  _IOW(HDMI_CEC_MAGIC, 6, int)
+/*for HAL ioctl end*/
 int rockchip_hdmi_cec_init(struct hdmi *hdmi,
 			   int (*sendframe)(struct hdmi *,
 					    struct cec_framedata *),
