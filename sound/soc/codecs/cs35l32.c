@@ -74,33 +74,8 @@ static const struct reg_default cs35l32_reg_defaults[] = {
 static bool cs35l32_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS35L32_DEVID_AB:
-	case CS35L32_DEVID_CD:
-	case CS35L32_DEVID_E:
-	case CS35L32_FAB_ID:
-	case CS35L32_REV_ID:
-	case CS35L32_PWRCTL1:
-	case CS35L32_PWRCTL2:
-	case CS35L32_CLK_CTL:
-	case CS35L32_BATT_THRESHOLD:
-	case CS35L32_VMON:
-	case CS35L32_BST_CPCP_CTL:
-	case CS35L32_IMON_SCALING:
-	case CS35L32_AUDIO_LED_MNGR:
-	case CS35L32_ADSP_CTL:
-	case CS35L32_CLASSD_CTL:
-	case CS35L32_PROTECT_CTL:
-	case CS35L32_INT_MASK_1:
-	case CS35L32_INT_MASK_2:
-	case CS35L32_INT_MASK_3:
-	case CS35L32_INT_STATUS_1:
-	case CS35L32_INT_STATUS_2:
-	case CS35L32_INT_STATUS_3:
-	case CS35L32_LED_STATUS:
-	case CS35L32_FLASH_MODE:
-	case CS35L32_MOVIE_MODE:
-	case CS35L32_FLASH_TIMER:
-	case CS35L32_FLASH_INHIBIT:
+	case CS35L32_DEVID_AB ... CS35L32_AUDIO_LED_MNGR:
+	case CS35L32_ADSP_CTL ... CS35L32_FLASH_INHIBIT:
 		return true;
 	default:
 		return false;
@@ -110,15 +85,8 @@ static bool cs35l32_readable_register(struct device *dev, unsigned int reg)
 static bool cs35l32_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS35L32_DEVID_AB:
-	case CS35L32_DEVID_CD:
-	case CS35L32_DEVID_E:
-	case CS35L32_FAB_ID:
-	case CS35L32_REV_ID:
-	case CS35L32_INT_STATUS_1:
-	case CS35L32_INT_STATUS_2:
-	case CS35L32_INT_STATUS_3:
-	case CS35L32_LED_STATUS:
+	case CS35L32_DEVID_AB ... CS35L32_REV_ID:
+	case CS35L32_INT_STATUS_1 ... CS35L32_LED_STATUS:
 		return true;
 	default:
 		return false;
@@ -128,10 +96,7 @@ static bool cs35l32_volatile_register(struct device *dev, unsigned int reg)
 static bool cs35l32_precious_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS35L32_INT_STATUS_1:
-	case CS35L32_INT_STATUS_2:
-	case CS35L32_INT_STATUS_3:
-	case CS35L32_LED_STATUS:
+	case CS35L32_INT_STATUS_1 ... CS35L32_LED_STATUS:
 		return true;
 	default:
 		return false;
