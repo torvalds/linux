@@ -249,3 +249,40 @@ int shadow_root(struct shadow_spine *s)
 {
 	return s->root;
 }
+
+static void le64_inc(void *context, const void *value_le)
+{
+	struct dm_transaction_manager *tm = context;
+	__le64 v_le;
+
+	memcpy(&v_le, value_le, sizeof(v_le));
+	dm_tm_inc(tm, le64_to_cpu(v_le));
+}
+
+static void le64_dec(void *context, const void *value_le)
+{
+	struct dm_transaction_manager *tm = context;
+	__le64 v_le;
+
+	memcpy(&v_le, value_le, sizeof(v_le));
+	dm_tm_dec(tm, le64_to_cpu(v_le));
+}
+
+static int le64_equal(void *context, const void *value1_le, const void *value2_le)
+{
+	__le64 v1_le, v2_le;
+
+	memcpy(&v1_le, value1_le, sizeof(v1_le));
+	memcpy(&v2_le, value2_le, sizeof(v2_le));
+	return v1_le == v2_le;
+}
+
+void init_le64_type(struct dm_transaction_manager *tm,
+		    struct dm_btree_value_type *vt)
+{
+	vt->context = tm;
+	vt->size = sizeof(__le64);
+	vt->inc = le64_inc;
+	vt->dec = le64_dec;
+	vt->equal = le64_equal;
+}
