@@ -971,7 +971,7 @@ void drm_send_vblank_event(struct drm_device *dev, int crtc,
 	struct timeval now;
 	unsigned int seq;
 
-	if (crtc >= 0) {
+	if (dev->num_crtcs > 0) {
 		seq = drm_vblank_count_and_time(dev, crtc, &now);
 	} else {
 		seq = 0;
