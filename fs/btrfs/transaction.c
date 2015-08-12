@@ -1895,8 +1895,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			spin_unlock(&root->fs_info->trans_lock);
 
 			wait_for_commit(root, prev_trans);
+			ret = prev_trans->aborted;
 
 			btrfs_put_transaction(prev_trans);
+			if (ret)
+				goto cleanup_transaction;
 		} else {
 			spin_unlock(&root->fs_info->trans_lock);
 		}
