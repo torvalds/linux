@@ -2412,6 +2412,34 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_guc_log_dump(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *log_obj = dev_priv->guc.log_obj;
+	u32 *log;
+	int i = 0, pg;
+
+	if (!log_obj)
+		return 0;
+
+	for (pg = 0; pg < log_obj->base.size / PAGE_SIZE; pg++) {
+		log = kmap_atomic(i915_gem_object_get_page(log_obj, pg));
+
+		for (i = 0; i < PAGE_SIZE / sizeof(u32); i += 4)
+			seq_printf(m, "0x%08x 0x%08x 0x%08x 0x%08x\n",
+				   *(log + i), *(log + i + 1),
+				   *(log + i + 2), *(log + i + 3));
+
+		kunmap_atomic(log);
+	}
+
+	seq_putc(m, '\n');
+
+	return 0;
+}
+
 static int i915_edp_psr_status(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -5072,6 +5100,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
 	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},
 	{"i915_guc_load_status", i915_guc_load_status_info, 0},
+	{"i915_guc_log_dump", i915_guc_log_dump, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_hangcheck_info", i915_hangcheck_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},

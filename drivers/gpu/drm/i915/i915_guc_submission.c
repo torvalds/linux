@@ -79,6 +79,47 @@ static void gem_release_guc_obj(struct drm_i915_gem_object *obj)
 	drm_gem_object_unreference(&obj->base);
 }
 
+static void guc_create_log(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_gem_object *obj;
+	unsigned long offset;
+	uint32_t size, flags;
+
+	if (i915.guc_log_level < GUC_LOG_VERBOSITY_MIN)
+		return;
+
+	if (i915.guc_log_level > GUC_LOG_VERBOSITY_MAX)
+		i915.guc_log_level = GUC_LOG_VERBOSITY_MAX;
+
+	/* The first page is to save log buffer state. Allocate one
+	 * extra page for others in case for overlap */
+	size = (1 + GUC_LOG_DPC_PAGES + 1 +
+		GUC_LOG_ISR_PAGES + 1 +
+		GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT;
+
+	obj = guc->log_obj;
+	if (!obj) {
+		obj = gem_allocate_guc_obj(dev_priv->dev, size);
+		if (!obj) {
+			/* logging will be off */
+			i915.guc_log_level = -1;
+			return;
+		}
+
+		guc->log_obj = obj;
+	}
+
+	/* each allocated unit is a page */
+	flags = GUC_LOG_VALID | GUC_LOG_NOTIFY_ON_HALF_FULL |
+		(GUC_LOG_DPC_PAGES << GUC_LOG_DPC_SHIFT) |
+		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
+		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
+
+	offset = i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT; /* in pages */
+	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
+}
+
 /*
  * Set up the memory resources to be shared with the GuC.  At this point,
  * we require just one object that can be mapped through the GGTT.
@@ -103,6 +144,8 @@ int i915_guc_submission_init(struct drm_device *dev)
 
 	ida_init(&guc->ctx_ids);
 
+	guc_create_log(guc);
+
 	return 0;
 }
 
@@ -110,6 +153,9 @@ void i915_guc_submission_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
+
+	gem_release_guc_obj(dev_priv->guc.log_obj);
+	guc->log_obj = NULL;
 
 	if (guc->ctx_pool_obj)
 		ida_destroy(&guc->ctx_ids);

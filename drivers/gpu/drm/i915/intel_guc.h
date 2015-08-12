@@ -56,6 +56,7 @@ struct intel_guc {
 	struct intel_guc_fw guc_fw;
 
 	uint32_t log_flags;
+	struct drm_i915_gem_object *log_obj;
 
 	struct drm_i915_gem_object *ctx_pool_obj;
 	struct ida ctx_ids;
