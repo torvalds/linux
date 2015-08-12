@@ -117,6 +117,7 @@ void imx_enable_cpu(int cpu, bool enable)
 
 void imx_set_cpu_jump(int cpu, void *jump_addr)
 {
+	spin_lock(&src_lock);
 	cpu = cpu_logical_map(cpu);
 	if (cpu_is_imx7d())
 		writel_relaxed(virt_to_phys(jump_addr),
@@ -124,6 +125,7 @@ void imx_set_cpu_jump(int cpu, void *jump_addr)
 	else
 		writel_relaxed(virt_to_phys(jump_addr),
 			src_base + SRC_GPR1 + cpu * 8);
+	spin_unlock(&src_lock);
 }
 
 u32 imx_get_cpu_arg(int cpu)

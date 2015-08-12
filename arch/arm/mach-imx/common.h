@@ -112,6 +112,8 @@ void imx_gpcv2_post_resume(void);
 void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
 unsigned int imx_gpcv2_is_mf_mix_off(void);
 void __init imx_gpcv2_check_dt(void);
+void imx_gpcv2_set_lpm_mode(enum mxc_cpu_pwr_mode mode);
+void imx_gpcv2_set_cpu_power_gate_in_idle(bool pdn);
 void imx_gpc_mask_all(void);
 void imx_gpc_restore_all(void);
 void imx_gpc_hwirq_mask(unsigned int hwirq);
@@ -128,6 +130,7 @@ int imx_ddrc_get_ddr_type(void);
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 void imx_busfreq_map_io(void);
+void imx7d_low_power_idle(void);
 
 #ifdef CONFIG_SUSPEND
 void v7_cpu_resume(void);
