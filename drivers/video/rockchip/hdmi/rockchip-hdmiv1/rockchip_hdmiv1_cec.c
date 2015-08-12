@@ -64,7 +64,7 @@ static int rockchip_hdmiv1_cec_send_frame(struct hdmi *hdmi,
 	if (wait_event_interruptible_timeout(cec.wait,
 					     cec.busfree == 0,
 					     msecs_to_jiffies(17)))
-		return -1;
+		return CEC_SEND_BUSY;
 
 	CECDBG("end wait bus free,start tx,busfree=%d\n", cec.busfree);
 	/*Start TX*/
@@ -78,9 +78,9 @@ static int rockchip_hdmiv1_cec_send_frame(struct hdmi *hdmi,
 
 	if (cec.tx_done == 1) {
 		cec.tx_done = 0;
-		return 0;
+		return CEC_SEND_SUCCESS;
 	} else {
-		return -1;
+		return CEC_SEND_NACK;
 	}
 }
 

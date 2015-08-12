@@ -124,6 +124,12 @@ enum {
 	EVENT_ENUMERATE,
 };
 
+enum {
+	CEC_SEND_SUCCESS = 0,
+	CEC_SEND_NACK,
+	CEC_SEND_BUSY
+};
+
 #define MAKE_SRCDEST(src, dest)    ((src << 4) | dest)
 
 #define MAX_CMD_SIZE 16

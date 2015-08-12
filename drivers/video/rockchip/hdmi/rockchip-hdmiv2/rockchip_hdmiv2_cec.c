@@ -91,11 +91,11 @@ static int rockchip_hdmiv2_cec_sendframe(struct hdmi *hdmi,
 	}
 	CECDBG("%s interrupt 0x%02x\n", __func__, interrupt);
 	if (interrupt & m_DONE)
-		return 0;
+		return CEC_SEND_SUCCESS;
 	else if (interrupt & m_NACK)
-		return 1;
+		return CEC_SEND_NACK;
 	else
-		return  -1;
+		return CEC_SEND_BUSY;
 }
 
 void rockchip_hdmiv2_cec_init(struct hdmi *hdmi)
