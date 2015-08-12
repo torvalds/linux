@@ -1020,7 +1020,7 @@ static int bmg160_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
+	dev_set_drvdata(&client->dev, indio_dev);
 	data->dev = &client->dev;
 
 	ret = bmg160_chip_init(data);
@@ -1154,7 +1154,7 @@ static int bmg160_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int bmg160_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmg160_data *data = iio_priv(indio_dev);
 
 	mutex_lock(&data->mutex);
@@ -1166,7 +1166,7 @@ static int bmg160_suspend(struct device *dev)
 
 static int bmg160_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmg160_data *data = iio_priv(indio_dev);
 
 	mutex_lock(&data->mutex);
@@ -1182,7 +1182,7 @@ static int bmg160_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int bmg160_runtime_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmg160_data *data = iio_priv(indio_dev);
 	int ret;
 
@@ -1197,7 +1197,7 @@ static int bmg160_runtime_suspend(struct device *dev)
 
 static int bmg160_runtime_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmg160_data *data = iio_priv(indio_dev);
 	int ret;
 
