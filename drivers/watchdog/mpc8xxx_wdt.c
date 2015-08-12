@@ -170,7 +170,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	enabled = in_be32(&ddata->base->swcrr) & SWCRR_SWEN;
 	if (!enabled && wdt_type->hw_enabled) {
 		pr_info("could not be enabled in software\n");
-		return -ENOSYS;
+		return -ENODEV;
 	}
 
 	spin_lock_init(&ddata->lock);
