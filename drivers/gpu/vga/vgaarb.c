@@ -29,6 +29,8 @@
  *
  */
 
+#define pr_fmt(fmt) "vgaarb: " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -527,7 +529,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	/* Allocate structure */
 	vgadev = kmalloc(sizeof(struct vga_device), GFP_KERNEL);
 	if (vgadev == NULL) {
-		pr_err("vgaarb: failed to allocate pci device\n");
+		pr_err("failed to allocate pci device\n");
 		/* What to do on allocation failure ? For now, let's
 		 * just do nothing, I'm not sure there is anything saner
 		 * to be done
@@ -581,8 +583,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	 */
 	if (vga_default == NULL &&
 	    ((vgadev->owns & VGA_RSRC_LEGACY_MASK) == VGA_RSRC_LEGACY_MASK)) {
-		pr_info("vgaarb: setting as boot device: PCI:%s\n",
-			pci_name(pdev));
+		pr_info("setting as boot device: PCI:%s\n", pci_name(pdev));
 		vga_set_default_device(pdev);
 	}
 
@@ -591,7 +592,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	/* Add to the list */
 	list_add(&vgadev->list, &vga_list);
 	vga_count++;
-	pr_info("vgaarb: device added: PCI:%s,decodes=%s,owns=%s,locks=%s\n",
+	pr_info("device added: PCI:%s,decodes=%s,owns=%s,locks=%s\n",
 		pci_name(pdev),
 		vga_iostate_to_str(vgadev->decodes),
 		vga_iostate_to_str(vgadev->owns),
@@ -651,7 +652,7 @@ static inline void vga_update_device_decodes(struct vga_device *vgadev,
 	decodes_unlocked = vgadev->locks & decodes_removed;
 	vgadev->decodes = new_decodes;
 
-	pr_info("vgaarb: device changed decodes: PCI:%s,olddecodes=%s,decodes=%s:owns=%s\n",
+	pr_info("device changed decodes: PCI:%s,olddecodes=%s,decodes=%s:owns=%s\n",
 		pci_name(vgadev->pdev),
 		vga_iostate_to_str(old_decodes),
 		vga_iostate_to_str(vgadev->decodes),
@@ -673,7 +674,7 @@ static inline void vga_update_device_decodes(struct vga_device *vgadev,
 	if (!(old_decodes & VGA_RSRC_LEGACY_MASK) &&
 	    new_decodes & VGA_RSRC_LEGACY_MASK)
 		vga_decode_count++;
-	pr_debug("vgaarb: decoding count now is: %d\n", vga_decode_count);
+	pr_debug("decoding count now is: %d\n", vga_decode_count);
 }
 
 static void __vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes, bool userspace)
@@ -1075,13 +1076,13 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 				ret_val = -EPROTO;
 				goto done;
 			}
-			pr_debug("vgaarb: %s ==> %x:%x:%x.%x\n", curr_pos,
+			pr_debug("%s ==> %x:%x:%x.%x\n", curr_pos,
 				domain, bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 			pdev = pci_get_domain_bus_and_slot(domain, bus, devfn);
-			pr_debug("vgaarb: pdev %p\n", pdev);
+			pr_debug("pdev %p\n", pdev);
 			if (!pdev) {
-				pr_err("vgaarb: invalid PCI address %x:%x:%x\n",
+				pr_err("invalid PCI address %x:%x:%x\n",
 					domain, bus, devfn);
 				ret_val = -ENODEV;
 				goto done;
@@ -1089,10 +1090,10 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 		}
 
 		vgadev = vgadev_find(pdev);
-		pr_debug("vgaarb: vgadev %p\n", vgadev);
+		pr_debug("vgadev %p\n", vgadev);
 		if (vgadev == NULL) {
 			if (pdev) {
-				pr_err("vgaarb: this pci device is not a vga device\n");
+				pr_err("this pci device is not a vga device\n");
 				pci_dev_put(pdev);
 			}
 
@@ -1112,7 +1113,7 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 			}
 		}
 		if (i == MAX_USER_CARDS) {
-			pr_err("vgaarb: maximum user cards (%d) number reached!\n",
+			pr_err("maximum user cards (%d) number reached!\n",
 				MAX_USER_CARDS);
 			pci_dev_put(pdev);
 			/* XXX: which value to return? */
@@ -1128,7 +1129,7 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 	} else if (strncmp(curr_pos, "decodes ", 8) == 0) {
 		curr_pos += 8;
 		remaining -= 8;
-		pr_debug("vgaarb: client 0x%p called 'decodes'\n", priv);
+		pr_debug("client 0x%p called 'decodes'\n", priv);
 
 		if (!vga_str_to_iostate(curr_pos, remaining, &io_state)) {
 			ret_val = -EPROTO;
@@ -1303,7 +1304,7 @@ static int __init vga_arb_device_init(void)
 
 	rc = misc_register(&vga_arb_device);
 	if (rc < 0)
-		pr_err("vgaarb: error %d registering device\n", rc);
+		pr_err("error %d registering device\n", rc);
 
 	bus_register_notifier(&pci_bus_type, &pci_notifier);
 
@@ -1315,7 +1316,7 @@ static int __init vga_arb_device_init(void)
 			       PCI_ANY_ID, pdev)) != NULL)
 		vga_arbiter_add_pci_device(pdev);
 
-	pr_info("vgaarb: loaded\n");
+	pr_info("loaded\n");
 
 	list_for_each_entry(vgadev, &vga_list, list) {
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
@@ -1342,18 +1343,18 @@ static int __init vga_arb_device_init(void)
 			    (screen_info.lfb_base + screen_info.lfb_size) >= end)
 				continue;
 			if (!vga_default_device())
-				pr_info("vgaarb: setting as boot device: PCI:%s\n",
+				pr_info("setting as boot device: PCI:%s\n",
 					pci_name(vgadev->pdev));
 			else if (vgadev->pdev != vga_default_device())
-				pr_info("vgaarb: overriding boot device: PCI:%s\n",
+				pr_info("overriding boot device: PCI:%s\n",
 					pci_name(vgadev->pdev));
 			vga_set_default_device(vgadev->pdev);
 		}
 #endif
 		if (vgadev->bridge_has_one_vga)
-			pr_info("vgaarb: bridge control possible %s\n", pci_name(vgadev->pdev));
+			pr_info("bridge control possible %s\n", pci_name(vgadev->pdev));
 		else
-			pr_info("vgaarb: no bridge control possible %s\n", pci_name(vgadev->pdev));
+			pr_info("no bridge control possible %s\n", pci_name(vgadev->pdev));
 	}
 	return rc;
 }
