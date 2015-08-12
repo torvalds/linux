@@ -93,17 +93,17 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 	if (devpriv->timer_mode == ADDIDATA_WATCHDOG ||
 	    devpriv->timer_mode == ADDIDATA_TIMER) {
 		ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
-		ctrl &= 0xfffff9ff;
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG);
 
 		if (data[1] == 1) {		/* enable */
-			ctrl |= 0x1;
+			ctrl |= ADDI_TCW_CTRL_ENA;
 		} else if (data[1] == 0) {	/* stop */
 			if (devpriv->timer_mode == ADDIDATA_WATCHDOG)
 				ctrl = 0;
 			else
-				ctrl &= ~0x1;
+				ctrl &= ~ADDI_TCW_CTRL_ENA;
 		} else if (data[1] == 2) {	/* trigger */
-			ctrl |= 0x200;
+			ctrl |= ADDI_TCW_CTRL_TRIG;
 		}
 		outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 	}
