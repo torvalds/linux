@@ -352,14 +352,22 @@ static int __init caam_rng_init(void)
 		return PTR_ERR(dev);
 	}
 	rng_ctx = kmalloc(sizeof(struct caam_rng_ctx), GFP_DMA);
-	if (!rng_ctx)
-		return -ENOMEM;
+	if (!rng_ctx) {
+		err = -ENOMEM;
+		goto free_caam_alloc;
+	}
 	err = caam_init_rng(rng_ctx, dev);
 	if (err)
-		return err;
+		goto free_rng_ctx;
 
 	dev_info(dev, "registering rng-caam\n");
 	return hwrng_register(&caam_rng);
+
+free_rng_ctx:
+	kfree(rng_ctx);
+free_caam_alloc:
+	caam_jr_free(dev);
+	return err;
 }
 
 module_init(caam_rng_init);
