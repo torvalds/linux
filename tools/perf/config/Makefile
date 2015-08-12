@@ -297,7 +297,11 @@ ifndef NO_LIBELF
     else
       CFLAGS += -DHAVE_DWARF_SUPPORT $(LIBDW_CFLAGS)
       LDFLAGS += $(LIBDW_LDFLAGS)
-      EXTLIBS += -ldw
+      DWARFLIBS := -ldw
+      ifeq ($(findstring -static,${LDFLAGS}),-static)
+	DWARFLIBS += -lelf -lebl -lz -llzma -lbz2
+      endif
+      EXTLIBS += ${DWARFLIBS}
       $(call detected,CONFIG_DWARF)
     endif # PERF_HAVE_DWARF_REGS
   endif # NO_DWARF

@@ -70,8 +70,13 @@ test-libelf.bin:
 test-glibc.bin:
 	$(BUILD)
 
+DWARFLIBS := -ldw
+ifeq ($(findstring -static,${LDFLAGS}),-static)
+DWARFLIBS += -lelf -lebl -lz -llzma -lbz2
+endif
+
 test-dwarf.bin:
-	$(BUILD) -ldw
+	$(BUILD) $(DWARFLIBS)
 
 test-libelf-mmap.bin:
 	$(BUILD) -lelf
