@@ -51,7 +51,6 @@ struct mpc8xxx_wdt_type {
 };
 
 static struct mpc8xxx_wdt __iomem *wd_base;
-static int mpc8xxx_wdt_init_late(void);
 
 static u16 timeout = 0xffff;
 module_param(timeout, ushort, 0);
@@ -174,11 +173,14 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	timeout_sec = (timeout * wdt_type->prescaler) / freq;
 
 	mpc8xxx_wdt_dev.timeout = timeout_sec;
-#ifdef MODULE
-	ret = mpc8xxx_wdt_init_late();
-	if (ret)
+
+	watchdog_set_nowayout(&mpc8xxx_wdt_dev, nowayout);
+
+	ret = watchdog_register_device(&mpc8xxx_wdt_dev);
+	if (ret) {
+		pr_err("cannot register watchdog device (err=%d)\n", ret);
 		goto err_unmap;
-#endif
+	}
 
 	pr_info("WDT driver for MPC8xxx initialized. mode:%s timeout=%d (%d seconds)\n",
 		reset ? "reset" : "interrupt", timeout, timeout_sec);
@@ -193,7 +195,6 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	return 0;
 err_unmap:
 	iounmap(wd_base);
-	wd_base = NULL;
 	return ret;
 }
 
@@ -241,31 +242,6 @@ static struct platform_driver mpc8xxx_wdt_driver = {
 		.of_match_table = mpc8xxx_wdt_match,
 	},
 };
-
-/*
- * We do wdt initialization in two steps: arch_initcall probes the wdt
- * very early to start pinging the watchdog (misc devices are not yet
- * available), and later module_init() just registers the misc device.
- */
-static int mpc8xxx_wdt_init_late(void)
-{
-	int ret;
-
-	if (!wd_base)
-		return -ENODEV;
-
-	watchdog_set_nowayout(&mpc8xxx_wdt_dev, nowayout);
-
-	ret = watchdog_register_device(&mpc8xxx_wdt_dev);
-	if (ret) {
-		pr_err("cannot register watchdog device (err=%d)\n", ret);
-		return ret;
-	}
-	return 0;
-}
-#ifndef MODULE
-module_init(mpc8xxx_wdt_init_late);
-#endif
 
 static int __init mpc8xxx_wdt_init(void)
 {
