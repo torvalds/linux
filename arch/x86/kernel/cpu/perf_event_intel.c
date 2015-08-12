@@ -2758,7 +2758,7 @@ static int intel_pmu_cpu_prepare(int cpu)
 	if (x86_pmu.extra_regs || x86_pmu.lbr_sel_map) {
 		cpuc->shared_regs = allocate_shared_regs(cpu);
 		if (!cpuc->shared_regs)
-			return NOTIFY_BAD;
+			goto err;
 	}
 
 	if (x86_pmu.flags & PMU_FL_EXCL_CNTRS) {
@@ -2766,18 +2766,27 @@ static int intel_pmu_cpu_prepare(int cpu)
 
 		cpuc->constraint_list = kzalloc(sz, GFP_KERNEL);
 		if (!cpuc->constraint_list)
-			return NOTIFY_BAD;
+			goto err_shared_regs;
 
 		cpuc->excl_cntrs = allocate_excl_cntrs(cpu);
-		if (!cpuc->excl_cntrs) {
-			kfree(cpuc->constraint_list);
-			kfree(cpuc->shared_regs);
-			return NOTIFY_BAD;
-		}
+		if (!cpuc->excl_cntrs)
+			goto err_constraint_list;
+
 		cpuc->excl_thread_id = 0;
 	}
 
 	return NOTIFY_OK;
+
+err_constraint_list:
+	kfree(cpuc->constraint_list);
+	cpuc->constraint_list = NULL;
+
+err_shared_regs:
+	kfree(cpuc->shared_regs);
+	cpuc->shared_regs = NULL;
+
+err:
+	return NOTIFY_BAD;
 }
 
 static void intel_pmu_cpu_starting(int cpu)
