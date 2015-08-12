@@ -128,6 +128,21 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
 			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
 	}
 
+	/* If GuC submission is enabled, set up additional parameters here */
+	if (i915.enable_guc_submission) {
+		u32 pgs = i915_gem_obj_ggtt_offset(dev_priv->guc.ctx_pool_obj);
+		u32 ctx_in_16 = GUC_MAX_GPU_CONTEXTS / 16;
+
+		pgs >>= PAGE_SHIFT;
+		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
+			(ctx_in_16 << GUC_CTL_CTXNUM_IN16_SHIFT);
+
+		params[GUC_CTL_FEATURE] |= GUC_CTL_KERNEL_SUBMISSIONS;
+
+		/* Unmask this bit to enable the GuC's internal scheduler */
+		params[GUC_CTL_FEATURE] &= ~GUC_CTL_DISABLE_SCHEDULER;
+	}
+
 	I915_WRITE(SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
@@ -360,6 +375,10 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		break;
 	}
 
+	err = i915_guc_submission_init(dev);
+	if (err)
+		goto fail;
+
 	err = guc_ucode_xfer(dev_priv);
 	if (err)
 		goto fail;
@@ -520,6 +539,8 @@ void intel_guc_ucode_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
+
+	i915_guc_submission_fini(dev);
 
 	if (guc_fw->guc_fw_obj)
 		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);

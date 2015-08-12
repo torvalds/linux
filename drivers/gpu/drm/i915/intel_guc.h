@@ -56,6 +56,9 @@ struct intel_guc {
 	struct intel_guc_fw guc_fw;
 
 	uint32_t log_flags;
+
+	struct drm_i915_gem_object *ctx_pool_obj;
+	struct ida ctx_ids;
 };
 
 /* intel_guc_loader.c */
@@ -63,5 +66,9 @@ extern void intel_guc_ucode_init(struct drm_device *dev);
 extern int intel_guc_ucode_load(struct drm_device *dev);
 extern void intel_guc_ucode_fini(struct drm_device *dev);
 extern const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status);
+
+/* i915_guc_submission.c */
+int i915_guc_submission_init(struct drm_device *dev);
+void i915_guc_submission_fini(struct drm_device *dev);
 
 #endif
