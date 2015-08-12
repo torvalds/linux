@@ -13681,7 +13681,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	struct intel_plane *primary;
 	struct intel_plane_state *state;
 	const uint32_t *intel_primary_formats;
-	int num_formats;
+	unsigned int num_formats;
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (primary == NULL)
