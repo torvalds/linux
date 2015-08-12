@@ -2120,8 +2120,11 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	list_add_tail(&ns->list, &dev->namespaces);
 
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
-	if (dev->max_hw_sectors)
+	if (dev->max_hw_sectors) {
 		blk_queue_max_hw_sectors(ns->queue, dev->max_hw_sectors);
+		blk_queue_max_segments(ns->queue,
+			((dev->max_hw_sectors << 9) / dev->page_size) + 1);
+	}
 	if (dev->stripe_size)
 		blk_queue_chunk_sectors(ns->queue, dev->stripe_size >> 9);
 	if (dev->vwc & NVME_CTRL_VWC_PRESENT)
