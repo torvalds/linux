@@ -38,10 +38,6 @@
 #define   GS_MIA_SHIFT			16
 #define   GS_MIA_MASK			  (0x07 << GS_MIA_SHIFT)
 
-#define GUC_WOPCM_SIZE			0xc050
-#define   GUC_WOPCM_SIZE_VALUE  	  (0x80 << 12)	/* 512KB */
-#define GUC_WOPCM_OFFSET		0x80000		/* 512KB */
-
 #define SOFT_SCRATCH(n)			(0xc180 + ((n) * 4))
 
 #define UOS_RSA_SCRATCH_0		0xc200
@@ -56,10 +52,18 @@
 #define   UOS_MOVE			  (1<<4)
 #define   START_DMA			  (1<<0)
 #define DMA_GUC_WOPCM_OFFSET		0xc340
+#define   GUC_WOPCM_OFFSET_VALUE	  0x80000	/* 512KB */
+
+#define GUC_WOPCM_SIZE			0xc050
+#define   GUC_WOPCM_SIZE_VALUE  	  (0x80 << 12)	/* 512KB */
+
+/* GuC addresses below GUC_WOPCM_TOP don't map through the GTT */
+#define	GUC_WOPCM_TOP			(GUC_WOPCM_SIZE_VALUE)
 
 #define GEN8_GT_PM_CONFIG		0x138140
+#define GEN9LP_GT_PM_CONFIG		0x138140
 #define GEN9_GT_PM_CONFIG		0x13816c
-#define   GEN8_GT_DOORBELL_ENABLE	  (1<<0)
+#define   GT_DOORBELL_ENABLE		  (1<<0)
 
 #define GEN8_GTCR			0x4274
 #define   GEN8_GTCR_INVALIDATE		  (1<<0)
@@ -80,7 +84,8 @@
 				 GUC_ENABLE_READ_CACHE_LOGIC		| \
 				 GUC_ENABLE_MIA_CACHING			| \
 				 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA	| \
-				 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA)
+				 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA	| \
+				 GUC_ENABLE_MIA_CLOCK_GATING)
 
 #define HOST2GUC_INTERRUPT		0xc4c8
 #define   HOST2GUC_TRIGGER		  (1<<0)

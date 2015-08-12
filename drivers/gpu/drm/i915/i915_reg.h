@@ -6860,7 +6860,9 @@ enum skl_disp_power_wells {
 #define   GEN9_PGCTL_SSB_EU311_ACK	(1 << 14)
 
 #define GEN7_MISCCPCTL			(0x9424)
-#define   GEN7_DOP_CLOCK_GATE_ENABLE	(1<<0)
+#define   GEN7_DOP_CLOCK_GATE_ENABLE		(1<<0)
+#define   GEN8_DOP_CLOCK_GATE_CFCLK_ENABLE	(1<<2)
+#define   GEN8_DOP_CLOCK_GATE_GUC_ENABLE	(1<<4)
 
 #define GEN8_GARBCNTL                   0xB004
 #define   GEN9_GAPS_TSV_CREDIT_DISABLE  (1<<7)
