@@ -1995,7 +1995,7 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 		return;
 	}
 
-	page = i915_gem_object_get_page(ctx_obj, 1);
+	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
 	if (!WARN_ON(page == NULL)) {
 		reg_state = kmap_atomic(page);
 

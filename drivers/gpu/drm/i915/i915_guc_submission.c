@@ -364,17 +364,57 @@ static void guc_init_proc_desc(struct intel_guc *guc,
 static void guc_init_ctx_desc(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
+	struct intel_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
+	int i;
 
 	memset(&desc, 0, sizeof(desc));
 
 	desc.attribute = GUC_CTX_DESC_ATTR_ACTIVE | GUC_CTX_DESC_ATTR_KERNEL;
 	desc.context_id = client->ctx_index;
 	desc.priority = client->priority;
-	desc.engines_used = (1 << RCS) | (1 << VCS) | (1 << BCS) |
-			    (1 << VECS) | (1 << VCS2); /* all engines */
 	desc.db_id = client->doorbell_id;
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct guc_execlist_context *lrc = &desc.lrc[i];
+		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
+		struct intel_engine_cs *ring;
+		struct drm_i915_gem_object *obj;
+		uint64_t ctx_desc;
+
+		/* TODO: We have a design issue to be solved here. Only when we
+		 * receive the first batch, we know which engine is used by the
+		 * user. But here GuC expects the lrc and ring to be pinned. It
+		 * is not an issue for default context, which is the only one
+		 * for now who owns a GuC client. But for future owner of GuC
+		 * client, need to make sure lrc is pinned prior to enter here.
+		 */
+		obj = ctx->engine[i].state;
+		if (!obj)
+			break;	/* XXX: continue? */
+
+		ring = ringbuf->ring;
+		ctx_desc = intel_lr_context_descriptor(ctx, ring);
+		lrc->context_desc = (u32)ctx_desc;
+
+		/* The state page is after PPHWSP */
+		lrc->ring_lcra = i915_gem_obj_ggtt_offset(obj) +
+				LRC_STATE_PN * PAGE_SIZE;
+		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
+				(ring->id << GUC_ELC_ENGINE_OFFSET);
+
+		obj = ringbuf->obj;
+
+		lrc->ring_begin = i915_gem_obj_ggtt_offset(obj);
+		lrc->ring_end = lrc->ring_begin + obj->base.size - 1;
+		lrc->ring_next_free_location = lrc->ring_begin;
+		lrc->ring_current_tail_pointer_value = 0;
+
+		desc.engines_used |= (1 << ring->id);
+	}
+
+	WARN_ON(desc.engines_used == 0);
 
 	/*
 	 * The CPU address is only needed at certain points, so kmap_atomic on
@@ -501,6 +541,29 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	return 0;
 }
 
+#define CTX_RING_BUFFER_START		0x08
+
+/* Update the ringbuffer pointer in a saved context image */
+static void lr_context_update(struct drm_i915_gem_request *rq)
+{
+	enum intel_ring_id ring_id = rq->ring->id;
+	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring_id].state;
+	struct drm_i915_gem_object *rb_obj = rq->ringbuf->obj;
+	struct page *page;
+	uint32_t *reg_state;
+
+	BUG_ON(!ctx_obj);
+	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
+	WARN_ON(!i915_gem_obj_is_pinned(rb_obj));
+
+	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+	reg_state = kmap_atomic(page);
+
+	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(rb_obj);
+
+	kunmap_atomic(reg_state);
+}
+
 /**
  * i915_guc_submit() - Submit commands through GuC
  * @client:	the guc client where commands will go through
@@ -516,6 +579,10 @@ int i915_guc_submit(struct i915_guc_client *client,
 	enum intel_ring_id ring_id = rq->ring->id;
 	unsigned long flags;
 	int q_ret, b_ret;
+
+	/* Need this because of the deferred pin ctx and ring */
+	/* Shall we move this right after ring is pinned? */
+	lr_context_update(rq);
 
 	spin_lock_irqsave(&client->wq_lock, flags);
 
@@ -643,11 +710,13 @@ static void guc_client_free(struct drm_device *dev,
  * 		The kernel client to replace ExecList submission is created with
  * 		NORMAL priority. Priority of a client for scheduler can be HIGH,
  * 		while a preemption context can use CRITICAL.
+ * @ctx		the context to own the client (we use the default render context)
  *
  * Return:	An i915_guc_client object if success.
  */
 static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
-						uint32_t priority)
+						uint32_t priority,
+						struct intel_context *ctx)
 {
 	struct i915_guc_client *client;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -660,6 +729,7 @@ static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
 
 	client->doorbell_id = GUC_INVALID_DOORBELL_ID;
 	client->priority = priority;
+	client->owner = ctx;
 	client->guc = guc;
 
 	client->ctx_index = (uint32_t)ida_simple_get(&guc->ctx_ids, 0,
@@ -793,10 +863,11 @@ int i915_guc_submission_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
+	struct intel_context *ctx = dev_priv->ring[RCS].default_context;
 	struct i915_guc_client *client;
 
 	/* client for execbuf submission */
-	client = guc_client_alloc(dev, GUC_CTX_PRIORITY_KMD_NORMAL);
+	client = guc_client_alloc(dev, GUC_CTX_PRIORITY_KMD_NORMAL, ctx);
 	if (!client) {
 		DRM_ERROR("Failed to create execbuf guc_client\n");
 		return -ENOMEM;

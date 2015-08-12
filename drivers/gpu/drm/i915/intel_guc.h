@@ -29,6 +29,7 @@
 
 struct i915_guc_client {
 	struct drm_i915_gem_object *client_obj;
+	struct intel_context *owner;
 	struct intel_guc *guc;
 	uint32_t priority;
 	uint32_t ctx_index;

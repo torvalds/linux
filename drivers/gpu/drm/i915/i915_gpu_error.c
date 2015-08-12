@@ -462,17 +462,17 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		}
 
 		if ((obj = error->ring[i].hws_page)) {
-			err_printf(m, "%s --- HW Status = 0x%08x\n",
-				   dev_priv->ring[i].name,
-				   lower_32_bits(obj->gtt_offset));
+			err_printf(m, "%s --- HW Status = 0x%08llx\n",
+				dev_priv->ring[i].name,
+				obj->gtt_offset + LRC_PPHWSP_PN * PAGE_SIZE);
 			offset = 0;
 			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
 				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
 					   offset,
-					   obj->pages[0][elt],
-					   obj->pages[0][elt+1],
-					   obj->pages[0][elt+2],
-					   obj->pages[0][elt+3]);
+					   obj->pages[LRC_PPHWSP_PN][elt],
+					   obj->pages[LRC_PPHWSP_PN][elt+1],
+					   obj->pages[LRC_PPHWSP_PN][elt+2],
+					   obj->pages[LRC_PPHWSP_PN][elt+3]);
 					offset += 16;
 			}
 		}

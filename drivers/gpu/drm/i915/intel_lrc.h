@@ -68,6 +68,12 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 }
 
 /* Logical Ring Contexts */
+
+/* One extra page is added before LRC for GuC as shared data */
+#define LRC_GUCSHR_PN	(0)
+#define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + 1)
+#define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
+
 void intel_lr_context_free(struct intel_context *ctx);
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
