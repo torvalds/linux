@@ -828,6 +828,8 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 
 	s5pv210_clk_sleep_init();
 
+	samsung_clk_of_add_provider(np, ctx);
+
 	pr_info("%s clocks: mout_apll = %ld, mout_mpll = %ld\n"
 		"\tmout_epll = %ld, mout_vpll = %ld\n",
 		is_s5p6442 ? "S5P6442" : "S5PV210",
