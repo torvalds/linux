@@ -139,7 +139,6 @@ static struct watchdog_device mpc8xxx_wdt_dev = {
 	.ops = &mpc8xxx_wdt_ops,
 };
 
-static const struct of_device_id mpc8xxx_wdt_match[];
 static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 {
 	int ret;
@@ -150,10 +149,9 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	bool enabled;
 	unsigned int timeout_sec;
 
-	match = of_match_device(mpc8xxx_wdt_match, &ofdev->dev);
-	if (!match)
+	wdt_type = of_device_get_match_data(&ofdev->dev);
+	if (!wdt_type)
 		return -EINVAL;
-	wdt_type = match->data;
 
 	if (!freq || freq == -1)
 		return -EINVAL;
