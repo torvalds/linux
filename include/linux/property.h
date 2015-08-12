@@ -166,4 +166,8 @@ void device_add_property_set(struct device *dev, struct property_set *pset);
 
 bool device_dma_is_coherent(struct device *dev);
 
+int device_get_phy_mode(struct device *dev);
+
+void *device_get_mac_address(struct device *dev, char *addr, int alen);
+
 #endif /* _LINUX_PROPERTY_H_ */
