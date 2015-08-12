@@ -92,46 +92,24 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ctrl = 0;
+	unsigned int ctrl;
 
-	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
-		if (data[1] == 1) {
-			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ctrl &= 0xfffff9ff;
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG ||
+	    devpriv->timer_mode == ADDIDATA_TIMER) {
+		ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+		ctrl &= 0xfffff9ff;
+
+		if (data[1] == 1) {		/* enable */
 			ctrl |= 0x1;
-			/* Enable the Watchdog */
-			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else if (data[1] == 0) { /* Stop The Watchdog */
-			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else if (data[1] == 2) {
-			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ctrl &= 0xfffff9ff;
+		} else if (data[1] == 0) {	/* stop */
+			if (devpriv->timer_mode == ADDIDATA_WATCHDOG)
+				ctrl = 0;
+			else
+				ctrl &= ~0x1;
+		} else if (data[1] == 2) {	/* trigger */
 			ctrl |= 0x200;
-			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 		}
-	}
-
-	if (devpriv->timer_mode == ADDIDATA_TIMER) {
-		if (data[1] == 1) {
-			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ctrl &= 0xfffff9ff;
-			ctrl |= 0x1;
-			/* Enable the Timer */
-			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		} else if (data[1] == 0) {
-			/* Stop The Timer */
-			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ctrl &= 0xfffff9fe;
-			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
-
-		else if (data[1] == 2) {
-			/* Trigger the Timer */
-			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ctrl &= 0xfffff9ff;
-			ctrl |= 0x200;
-			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		}
+		outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 	}
 
 	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
