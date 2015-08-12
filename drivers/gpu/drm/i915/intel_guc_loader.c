@@ -342,6 +342,8 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
+	i915_guc_submission_disable(dev);
+
 	if (guc_fw->guc_fw_fetch_status == GUC_FIRMWARE_NONE)
 		return 0;
 
@@ -389,11 +391,19 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
+	if (i915.enable_guc_submission) {
+		err = i915_guc_submission_enable(dev);
+		if (err)
+			goto fail;
+	}
+
 	return 0;
 
 fail:
 	if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_PENDING)
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
+
+	i915_guc_submission_disable(dev);
 
 	return err;
 }

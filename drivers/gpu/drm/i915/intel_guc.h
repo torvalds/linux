@@ -27,6 +27,31 @@
 #include "intel_guc_fwif.h"
 #include "i915_guc_reg.h"
 
+struct i915_guc_client {
+	struct drm_i915_gem_object *client_obj;
+	struct intel_guc *guc;
+	uint32_t priority;
+	uint32_t ctx_index;
+
+	uint32_t proc_desc_offset;
+	uint32_t doorbell_offset;
+	uint32_t cookie;
+	uint16_t doorbell_id;
+	uint16_t padding;		/* Maintain alignment		*/
+
+	uint32_t wq_offset;
+	uint32_t wq_size;
+
+	spinlock_t wq_lock;		/* Protects all data below	*/
+	uint32_t wq_tail;
+
+	/* GuC submission statistics & status */
+	uint64_t submissions[I915_NUM_RINGS];
+	uint32_t q_fail;
+	uint32_t b_fail;
+	int retcode;
+};
+
 enum intel_guc_fw_status {
 	GUC_FIRMWARE_FAIL = -1,
 	GUC_FIRMWARE_NONE = 0,
@@ -60,6 +85,23 @@ struct intel_guc {
 
 	struct drm_i915_gem_object *ctx_pool_obj;
 	struct ida ctx_ids;
+
+	struct i915_guc_client *execbuf_client;
+
+	spinlock_t host2guc_lock;	/* Protects all data below	*/
+
+	DECLARE_BITMAP(doorbell_bitmap, GUC_MAX_DOORBELLS);
+	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
+
+	/* Action status & statistics */
+	uint64_t action_count;		/* Total commands issued	*/
+	uint32_t action_cmd;		/* Last command word		*/
+	uint32_t action_status;		/* Last return status		*/
+	uint32_t action_fail;		/* Total number of failures	*/
+	int32_t action_err;		/* Last error code		*/
+
+	uint64_t submissions[I915_NUM_RINGS];
+	uint32_t last_seqno[I915_NUM_RINGS];
 };
 
 /* intel_guc_loader.c */
@@ -70,6 +112,10 @@ extern const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status);
 
 /* i915_guc_submission.c */
 int i915_guc_submission_init(struct drm_device *dev);
+int i915_guc_submission_enable(struct drm_device *dev);
+int i915_guc_submit(struct i915_guc_client *client,
+		    struct drm_i915_gem_request *rq);
+void i915_guc_submission_disable(struct drm_device *dev);
 void i915_guc_submission_fini(struct drm_device *dev);
 
 #endif
