@@ -1,0 +1,10 @@
+config VIDEO_MXC_PXP_V4L2
+        tristate "MXC PxP V4L2 driver"
+        depends on VIDEO_DEV && VIDEO_V4L2
+        select VIDEOBUF_DMA_CONTIG
+        ---help---
+          This is a video4linux driver for the Freescale PxP
+          (Pixel Pipeline). This module supports output overlay of
+          the MXC framebuffer on a video stream.
+
+          To compile this driver as a module, choose M here.
