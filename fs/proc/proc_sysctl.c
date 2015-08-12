@@ -948,7 +948,7 @@ static struct ctl_dir *get_subdir(struct ctl_dir *dir,
 found:
 	subdir->header.nreg++;
 failed:
-	if (unlikely(IS_ERR(subdir))) {
+	if (IS_ERR(subdir)) {
 		pr_err("sysctl could not get directory: ");
 		sysctl_print_dir(dir);
 		pr_cont("/%*.*s %ld\n",
