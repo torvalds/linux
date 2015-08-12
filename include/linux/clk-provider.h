@@ -607,17 +607,17 @@ void devm_clk_unregister(struct device *dev, struct clk *clk);
 
 /* helper functions */
 const char *__clk_get_name(struct clk *clk);
-const char *clk_hw_get_name(struct clk_hw *hw);
+const char *clk_hw_get_name(const struct clk_hw *hw);
 struct clk_hw *__clk_get_hw(struct clk *clk);
-unsigned int clk_hw_get_num_parents(struct clk_hw *hw);
-struct clk_hw *clk_hw_get_parent(struct clk_hw *hw);
-struct clk_hw *clk_hw_get_parent_by_index(struct clk_hw *hw,
+unsigned int clk_hw_get_num_parents(const struct clk_hw *hw);
+struct clk_hw *clk_hw_get_parent(const struct clk_hw *hw);
+struct clk_hw *clk_hw_get_parent_by_index(const struct clk_hw *hw,
 					  unsigned int index);
 unsigned int __clk_get_enable_count(struct clk *clk);
-unsigned long clk_hw_get_rate(struct clk_hw *hw);
+unsigned long clk_hw_get_rate(const struct clk_hw *hw);
 unsigned long __clk_get_flags(struct clk *clk);
-unsigned long clk_hw_get_flags(struct clk_hw *hw);
-bool clk_hw_is_prepared(struct clk_hw *hw);
+unsigned long clk_hw_get_flags(const struct clk_hw *hw);
+bool clk_hw_is_prepared(const struct clk_hw *hw);
 bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
 int __clk_mux_determine_rate(struct clk_hw *hw,

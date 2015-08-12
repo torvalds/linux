@@ -278,7 +278,7 @@ const char *__clk_get_name(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(__clk_get_name);
 
-const char *clk_hw_get_name(struct clk_hw *hw)
+const char *clk_hw_get_name(const struct clk_hw *hw)
 {
 	return hw->core->name;
 }
@@ -290,13 +290,13 @@ struct clk_hw *__clk_get_hw(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(__clk_get_hw);
 
-unsigned int clk_hw_get_num_parents(struct clk_hw *hw)
+unsigned int clk_hw_get_num_parents(const struct clk_hw *hw)
 {
 	return hw->core->num_parents;
 }
 EXPORT_SYMBOL_GPL(clk_hw_get_num_parents);
 
-struct clk_hw *clk_hw_get_parent(struct clk_hw *hw)
+struct clk_hw *clk_hw_get_parent(const struct clk_hw *hw)
 {
 	return hw->core->parent ? hw->core->parent->hw : NULL;
 }
@@ -359,7 +359,8 @@ static struct clk_core *clk_core_get_parent_by_index(struct clk_core *core,
 		return core->parents[index];
 }
 
-struct clk_hw *clk_hw_get_parent_by_index(struct clk_hw *hw, unsigned int index)
+struct clk_hw *
+clk_hw_get_parent_by_index(const struct clk_hw *hw, unsigned int index)
 {
 	struct clk_core *parent;
 
@@ -395,7 +396,7 @@ out:
 	return ret;
 }
 
-unsigned long clk_hw_get_rate(struct clk_hw *hw)
+unsigned long clk_hw_get_rate(const struct clk_hw *hw)
 {
 	return clk_core_get_rate_nolock(hw->core);
 }
@@ -415,13 +416,13 @@ unsigned long __clk_get_flags(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(__clk_get_flags);
 
-unsigned long clk_hw_get_flags(struct clk_hw *hw)
+unsigned long clk_hw_get_flags(const struct clk_hw *hw)
 {
 	return hw->core->flags;
 }
 EXPORT_SYMBOL_GPL(clk_hw_get_flags);
 
-bool clk_hw_is_prepared(struct clk_hw *hw)
+bool clk_hw_is_prepared(const struct clk_hw *hw)
 {
 	return clk_core_is_prepared(hw->core);
 }
