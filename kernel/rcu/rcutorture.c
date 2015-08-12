@@ -635,6 +635,8 @@ static struct rcu_torture_ops sched_ops = {
 	.deferred_free	= rcu_sched_torture_deferred_free,
 	.sync		= synchronize_sched,
 	.exp_sync	= synchronize_sched_expedited,
+	.get_state	= get_state_synchronize_sched,
+	.cond_sync	= cond_synchronize_sched,
 	.call		= call_rcu_sched,
 	.cb_barrier	= rcu_barrier_sched,
 	.fqs		= rcu_sched_force_quiescent_state,
@@ -684,9 +686,19 @@ static struct rcu_torture_ops tasks_ops = {
 
 #define RCUTORTURE_TASKS_OPS &tasks_ops,
 
+static bool __maybe_unused torturing_tasks(void)
+{
+	return cur_ops == &tasks_ops;
+}
+
 #else /* #ifdef CONFIG_TASKS_RCU */
 
 #define RCUTORTURE_TASKS_OPS
+
+static bool torturing_tasks(void)
+{
+	return false;
+}
 
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
@@ -823,9 +835,7 @@ rcu_torture_cbflood(void *arg)
 	}
 	if (err) {
 		VERBOSE_TOROUT_STRING("rcu_torture_cbflood disabled: Bad args or OOM");
-		while (!torture_must_stop())
-			schedule_timeout_interruptible(HZ);
-		return 0;
+		goto wait_for_stop;
 	}
 	VERBOSE_TOROUT_STRING("rcu_torture_cbflood task started");
 	do {
@@ -844,6 +854,7 @@ rcu_torture_cbflood(void *arg)
 		stutter_wait("rcu_torture_cbflood");
 	} while (!torture_must_stop());
 	vfree(rhp);
+wait_for_stop:
 	torture_kthread_stopping("rcu_torture_cbflood");
 	return 0;
 }
@@ -1088,7 +1099,8 @@ static void rcu_torture_timer(unsigned long unused)
 	p = rcu_dereference_check(rcu_torture_current,
 				  rcu_read_lock_bh_held() ||
 				  rcu_read_lock_sched_held() ||
-				  srcu_read_lock_held(srcu_ctlp));
+				  srcu_read_lock_held(srcu_ctlp) ||
+				  torturing_tasks());
 	if (p == NULL) {
 		/* Leave because rcu_torture_writer is not yet underway */
 		cur_ops->readunlock(idx);
@@ -1162,7 +1174,8 @@ rcu_torture_reader(void *arg)
 		p = rcu_dereference_check(rcu_torture_current,
 					  rcu_read_lock_bh_held() ||
 					  rcu_read_lock_sched_held() ||
-					  srcu_read_lock_held(srcu_ctlp));
+					  srcu_read_lock_held(srcu_ctlp) ||
+					  torturing_tasks());
 		if (p == NULL) {
 			/* Wait for rcu_torture_writer to get underway */
 			cur_ops->readunlock(idx);
@@ -1507,7 +1520,7 @@ static int rcu_torture_barrier_init(void)
 	int i;
 	int ret;
 
-	if (n_barrier_cbs == 0)
+	if (n_barrier_cbs <= 0)
 		return 0;
 	if (cur_ops->call == NULL || cur_ops->cb_barrier == NULL) {
 		pr_alert("%s" TORTURE_FLAG
@@ -1786,12 +1799,15 @@ rcu_torture_init(void)
 					  writer_task);
 	if (firsterr)
 		goto unwind;
-	fakewriter_tasks = kzalloc(nfakewriters * sizeof(fakewriter_tasks[0]),
-				   GFP_KERNEL);
-	if (fakewriter_tasks == NULL) {
-		VERBOSE_TOROUT_ERRSTRING("out of memory");
-		firsterr = -ENOMEM;
-		goto unwind;
+	if (nfakewriters > 0) {
+		fakewriter_tasks = kzalloc(nfakewriters *
+					   sizeof(fakewriter_tasks[0]),
+					   GFP_KERNEL);
+		if (fakewriter_tasks == NULL) {
+			VERBOSE_TOROUT_ERRSTRING("out of memory");
+			firsterr = -ENOMEM;
+			goto unwind;
+		}
 	}
 	for (i = 0; i < nfakewriters; i++) {
 		firsterr = torture_create_kthread(rcu_torture_fakewriter,
@@ -1818,7 +1834,7 @@ rcu_torture_init(void)
 		if (firsterr)
 			goto unwind;
 	}
-	if (test_no_idle_hz) {
+	if (test_no_idle_hz && shuffle_interval > 0) {
 		firsterr = torture_shuffle_init(shuffle_interval * HZ);
 		if (firsterr)
 			goto unwind;

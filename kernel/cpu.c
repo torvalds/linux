@@ -381,14 +381,14 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 * will observe it.
 	 *
 	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
-	 * not imply sync_sched(), so explicitly call both.
+	 * not imply sync_sched(), so wait for both.
 	 *
 	 * Do sync before park smpboot threads to take care the rcu boost case.
 	 */
-#ifdef CONFIG_PREEMPT
-	synchronize_sched();
-#endif
-	synchronize_rcu();
+	if (IS_ENABLED(CONFIG_PREEMPT))
+		synchronize_rcu_mult(call_rcu, call_rcu_sched);
+	else
+		synchronize_rcu();
 
 	smpboot_park_threads(cpu);
 

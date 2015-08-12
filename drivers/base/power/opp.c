@@ -110,8 +110,8 @@ static DEFINE_MUTEX(dev_opp_list_lock);
 
 #define opp_rcu_lockdep_assert()					\
 do {									\
-	rcu_lockdep_assert(rcu_read_lock_held() ||			\
-				lockdep_is_held(&dev_opp_list_lock),	\
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&			\
+				!lockdep_is_held(&dev_opp_list_lock),	\
 			   "Missing rcu_read_lock() or "		\
 			   "dev_opp_list_lock protection");		\
 } while (0)

@@ -28,7 +28,7 @@ o	You must use one of the rcu_dereference() family of primitives
 o	Avoid cancellation when using the "+" and "-" infix arithmetic
 	operators.  For example, for a given variable "x", avoid
 	"(x-x)".  There are similar arithmetic pitfalls from other
-	arithmetic operatiors, such as "(x*0)", "(x/(x+1))" or "(x%1)".
+	arithmetic operators, such as "(x*0)", "(x/(x+1))" or "(x%1)".
 	The compiler is within its rights to substitute zero for all of
 	these expressions, so that subsequent accesses no longer depend
 	on the rcu_dereference(), again possibly resulting in bugs due

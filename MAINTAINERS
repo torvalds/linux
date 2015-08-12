@@ -8472,7 +8472,7 @@ M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 M:	Josh Triplett <josh@joshtriplett.org>
 R:	Steven Rostedt <rostedt@goodmis.org>
 R:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-R:	Lai Jiangshan <laijs@cn.fujitsu.com>
+R:	Lai Jiangshan <jiangshanlai@gmail.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
@@ -8499,7 +8499,7 @@ M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 M:	Josh Triplett <josh@joshtriplett.org>
 R:	Steven Rostedt <rostedt@goodmis.org>
 R:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-R:	Lai Jiangshan <laijs@cn.fujitsu.com>
+R:	Lai Jiangshan <jiangshanlai@gmail.com>
 L:	linux-kernel@vger.kernel.org
 W:	http://www.rdrop.com/users/paulmck/RCU/
 S:	Supported
@@ -9367,7 +9367,7 @@ F:	include/linux/sl?b*.h
 F:	mm/sl?b*
 
 SLEEPABLE READ-COPY UPDATE (SRCU)
-M:	Lai Jiangshan <laijs@cn.fujitsu.com>
+M:	Lai Jiangshan <jiangshanlai@gmail.com>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 M:	Josh Triplett <josh@joshtriplett.org>
 R:	Steven Rostedt <rostedt@goodmis.org>
