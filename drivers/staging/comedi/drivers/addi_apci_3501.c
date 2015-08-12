@@ -262,11 +262,12 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 	/*  Disable Interrupt */
 	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
-	ctrl &= 0xfffff9fd;
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_IRQ_ENA);
 	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
-	status = inl(devpriv->tcw + ADDI_TCW_IRQ_REG) & 0x1;
-	if (!status) {
+	status = inl(devpriv->tcw + ADDI_TCW_IRQ_REG);
+	if (!(status & ADDI_TCW_IRQ)) {
 		dev_err(dev->class_dev, "IRQ from unknown source\n");
 		return IRQ_NONE;
 	}
@@ -274,8 +275,9 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
 	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
-	ctrl &= 0xfffff9fd;
-	ctrl |= 1 << 1;
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_IRQ_ENA);
+	ctrl |= ADDI_TCW_CTRL_IRQ_ENA;
 	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 	inl(devpriv->tcw + ADDI_TCW_STATUS_REG);
 
