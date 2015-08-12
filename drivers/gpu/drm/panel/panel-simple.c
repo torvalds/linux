@@ -713,7 +713,12 @@ static const struct display_timing hannstar_hsd070pww1_timing = {
 	.hactive = { 1280, 1280, 1280 },
 	.hfront_porch = { 1, 1, 10 },
 	.hback_porch = { 1, 1, 10 },
-	.hsync_len = { 52, 158, 661 },
+	/*
+	 * According to the data sheet, the minimum horizontal blanking interval
+	 * is 54 clocks (1 + 52 + 1), but tests with a Nitrogen6X have shown the
+	 * minimum working horizontal blanking interval to be 60 clocks.
+	 */
+	.hsync_len = { 58, 158, 661 },
 	.vactive = { 800, 800, 800 },
 	.vfront_porch = { 1, 1, 10 },
 	.vback_porch = { 1, 1, 10 },
