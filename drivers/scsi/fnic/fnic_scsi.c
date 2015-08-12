@@ -330,6 +330,7 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 	int flags;
 	u8 exch_flags;
 	struct scsi_lun fc_lun;
+	int r;
 
 	if (sg_count) {
 		/* For each SGE, create a device desc entry */
@@ -346,12 +347,27 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 			 io_req->sgl_list,
 			 sizeof(io_req->sgl_list[0]) * sg_count,
 			 PCI_DMA_TODEVICE);
+
+		r = pci_dma_mapping_error(fnic->pdev, io_req->sgl_list_pa);
+		if (r) {
+			printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+			return SCSI_MLQUEUE_HOST_BUSY;
+		}
 	}
 
 	io_req->sense_buf_pa = pci_map_single(fnic->pdev,
 					      sc->sense_buffer,
 					      SCSI_SENSE_BUFFERSIZE,
 					      PCI_DMA_FROMDEVICE);
+
+	r = pci_dma_mapping_error(fnic->pdev, io_req->sense_buf_pa);
+	if (r) {
+		pci_unmap_single(fnic->pdev, io_req->sgl_list_pa,
+				sizeof(io_req->sgl_list[0]) * sg_count,
+				PCI_DMA_TODEVICE);
+		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
 
 	int_to_scsilun(sc->device->lun, &fc_lun);
 
