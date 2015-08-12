@@ -1868,6 +1868,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case K_RIGHT:
 			/* menu */
 			break;
+		case K_ESC:
 		case K_LEFT: {
 			const void *top;
 
@@ -1877,6 +1878,12 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				 */
 				if (left_exits)
 					goto out_free_stack;
+
+				if (key == K_ESC &&
+				    ui_browser__dialog_yesno(&browser->b,
+							     "Do you really want to exit?"))
+					goto out_free_stack;
+
 				continue;
 			}
 			top = pstack__peek(browser->pstack);
@@ -1892,12 +1899,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				do_zoom_thread(browser, actions);
 			continue;
 		}
-		case K_ESC:
-			if (!left_exits &&
-			    !ui_browser__dialog_yesno(&browser->b,
-					       "Do you really want to exit?"))
-				continue;
-			/* Fall thru */
 		case 'q':
 		case CTRL('c'):
 			goto out_free_stack;
@@ -2120,15 +2121,11 @@ browse_hists:
 				else
 					pos = perf_evsel__prev(pos);
 				goto browse_hists;
-			case K_ESC:
-				if (!ui_browser__dialog_yesno(&menu->b,
-						"Do you really want to exit?"))
-					continue;
-				/* Fall thru */
 			case K_SWITCH_INPUT_DATA:
 			case 'q':
 			case CTRL('c'):
 				goto out;
+			case K_ESC:
 			default:
 				continue;
 			}
