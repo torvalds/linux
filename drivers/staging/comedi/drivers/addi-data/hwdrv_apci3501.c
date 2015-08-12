@@ -27,7 +27,7 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 	devpriv->tsk_Current = current;
 	if (data[0] == ADDIDATA_WATCHDOG) {
 
-		devpriv->b_TimerSelectMode = ADDIDATA_WATCHDOG;
+		devpriv->timer_mode = ADDIDATA_WATCHDOG;
 		/* Disable the watchdog */
 		outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
@@ -52,7 +52,7 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 		ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
 		ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
 		outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-		devpriv->b_TimerSelectMode = ADDIDATA_TIMER;
+		devpriv->timer_mode = ADDIDATA_TIMER;
 		if (data[1] == 1) {
 			/* Enable TIMER int & DISABLE ALL THE OTHER int SOURCES */
 			outl(0x02, dev->iobase + APCI3501_TIMER_CTRL_REG);
@@ -94,7 +94,7 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 	struct apci3501_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
 
-	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
 
 		if (data[1] == 1) {
 			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
@@ -110,7 +110,7 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 		}
 	}
 
-	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
+	if (devpriv->timer_mode == ADDIDATA_TIMER) {
 		if (data[1] == 1) {
 
 			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
@@ -153,18 +153,18 @@ static int apci3501_read_insn_timer(struct comedi_device *dev,
 {
 	struct apci3501_private *devpriv = dev->private;
 
-	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
+	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
 		data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
 		data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
 	}
 
-	else if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
+	else if (devpriv->timer_mode == ADDIDATA_TIMER) {
 		data[0] = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
 		data[1] = inl(dev->iobase + APCI3501_TIMER_SYNC_REG);
 	}
 
-	else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
-		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)) {
+	else if (devpriv->timer_mode != ADDIDATA_TIMER &&
+		 devpriv->timer_mode != ADDIDATA_WATCHDOG) {
 		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
 	return insn->n;

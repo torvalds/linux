@@ -74,7 +74,7 @@
 struct apci3501_private {
 	int i_IobaseAmcc;
 	struct task_struct *tsk_Current;
-	unsigned char b_TimerSelectMode;
+	unsigned char timer_mode;
 };
 
 static struct comedi_lrange apci3501_ao_range = {
