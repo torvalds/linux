@@ -770,7 +770,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 			continue;
 		}
 		/* Filter lines based on address */
-		if (rt_die != cu_die)
+		if (rt_die != cu_die) {
 			/*
 			 * Address filtering
 			 * The line is included in given function, and
@@ -784,6 +784,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 				    decf != dwarf_decl_file(&die_mem))
 					continue;
 			}
+		}
 		/* Get source line */
 		fname = dwarf_linesrc(line, NULL, NULL);
 
