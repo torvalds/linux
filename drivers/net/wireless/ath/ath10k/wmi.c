@@ -2412,8 +2412,10 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 		ar->ch_info_can_report_survey = true;
 	}
 
-	ar->survey_last_rx_clear_count = rx_clear_count;
-	ar->survey_last_cycle_count = cycle_count;
+	if (!(cmd_flags & WMI_CHAN_INFO_FLAG_PRE_COMPLETE)) {
+		ar->survey_last_rx_clear_count = rx_clear_count;
+		ar->survey_last_cycle_count = cycle_count;
+	}
 
 exit:
 	spin_unlock_bh(&ar->data_lock);
