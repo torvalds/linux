@@ -2257,6 +2257,73 @@ static const struct file_operations mem_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
+static int tid_info_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adap = seq->private;
+	const struct tid_info *t = &adap->tids;
+	enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);
+
+	if (t4_read_reg(adap, LE_DB_CONFIG_A) & HASHEN_F) {
+		unsigned int sb;
+
+		if (chip <= CHELSIO_T5)
+			sb = t4_read_reg(adap, LE_DB_SERVER_INDEX_A) / 4;
+		else
+			sb = t4_read_reg(adap, LE_DB_SRVR_START_INDEX_A);
+
+		if (sb) {
+			seq_printf(seq, "TID range: 0..%u/%u..%u", sb - 1,
+				   adap->tids.hash_base,
+				   t->ntids - 1);
+			seq_printf(seq, ", in use: %u/%u\n",
+				   atomic_read(&t->tids_in_use),
+				   atomic_read(&t->hash_tids_in_use));
+		} else if (adap->flags & FW_OFLD_CONN) {
+			seq_printf(seq, "TID range: %u..%u/%u..%u",
+				   t->aftid_base,
+				   t->aftid_end,
+				   adap->tids.hash_base,
+				   t->ntids - 1);
+			seq_printf(seq, ", in use: %u/%u\n",
+				   atomic_read(&t->tids_in_use),
+				   atomic_read(&t->hash_tids_in_use));
+		} else {
+			seq_printf(seq, "TID range: %u..%u",
+				   adap->tids.hash_base,
+				   t->ntids - 1);
+			seq_printf(seq, ", in use: %u\n",
+				   atomic_read(&t->hash_tids_in_use));
+		}
+	} else if (t->ntids) {
+		seq_printf(seq, "TID range: 0..%u", t->ntids - 1);
+		seq_printf(seq, ", in use: %u\n",
+			   atomic_read(&t->tids_in_use));
+	}
+
+	if (t->nstids)
+		seq_printf(seq, "STID range: %u..%u, in use: %u\n",
+			   (!t->stid_base &&
+			   (chip <= CHELSIO_T5)) ?
+			   t->stid_base + 1 : t->stid_base,
+			   t->stid_base + t->nstids - 1, t->stids_in_use);
+	if (t->natids)
+		seq_printf(seq, "ATID range: 0..%u, in use: %u\n",
+			   t->natids - 1, t->atids_in_use);
+	seq_printf(seq, "FTID range: %u..%u\n", t->ftid_base,
+		   t->ftid_base + t->nftids - 1);
+	if (t->nsftids)
+		seq_printf(seq, "SFTID range: %u..%u in use: %u\n",
+			   t->sftid_base, t->sftid_base + t->nsftids - 2,
+			   t->sftids_in_use);
+	if (t->ntids)
+		seq_printf(seq, "HW TID usage: %u IP users, %u IPv6 users\n",
+			   t4_read_reg(adap, LE_DB_ACT_CNT_IPV4_A),
+			   t4_read_reg(adap, LE_DB_ACT_CNT_IPV6_A));
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(tid_info);
+
 static void add_debugfs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
 {
@@ -2670,6 +2737,7 @@ int t4_setup_debugfs(struct adapter *adap)
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif
+		{ "tids", &tid_info_debugfs_fops, S_IRUSR, 0},
 		{ "blocked_fl", &blocked_fl_fops, S_IRUSR | S_IWUSR, 0 },
 		{ "meminfo", &meminfo_fops, S_IRUSR, 0 },
 	};
