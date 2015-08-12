@@ -549,8 +549,11 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ti,hwmods = "cpgmac0";
-			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
-			clock-names = "fck", "cpts";
+			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>,
+				 <&dpll_clksel_mac_clk>;
+			clock-names = "fck", "cpts", "50mclk";
+			assigned-clocks = <&dpll_clksel_mac_clk>;
+			assigned-clock-rates = <50000000>;
 			status = "disabled";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
