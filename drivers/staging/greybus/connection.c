@@ -428,19 +428,7 @@ int gb_connection_init(struct gb_connection *connection)
 	 * this for SVC as that is initiated by the SVC.
 	 */
 	if (connection->hd_cport_id != GB_SVC_CPORT_ID) {
-		bool send_request = false;
-
-		/*
-		 * We need to send the protocol version of the firmware protocol
-		 * supported by AP and so this special case.
-		 */
-		if (connection->protocol->id == GREYBUS_PROTOCOL_FIRMWARE)
-			send_request = true;
-
-		// FIXME: Should we always send the protocol version AP can
-		// support ?
-
-		ret = gb_protocol_get_version(connection, send_request);
+		ret = gb_protocol_get_version(connection);
 		if (ret) {
 			dev_err(&connection->dev,
 				"Failed to get version CPort-%d (%d)\n",

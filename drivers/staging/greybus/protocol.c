@@ -163,38 +163,32 @@ struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)
 	return protocol;
 }
 
-int gb_protocol_get_version(struct gb_connection *connection, bool send_request)
+int gb_protocol_get_version(struct gb_connection *connection)
 {
-	struct gb_protocol_version_response response;
-	struct gb_protocol_version_response *request = NULL;
-	int request_size = 0;
+	struct gb_protocol_version_response version;
 	int retval;
 
-	if (send_request) {
-		response.major = connection->protocol->major;
-		response.minor = connection->protocol->minor;
-		request = &response;
-		request_size = sizeof(*request);
-	}
+	version.major = connection->protocol->major;
+	version.minor = connection->protocol->minor;
 
 	retval = gb_operation_sync(connection, GB_REQUEST_TYPE_PROTOCOL_VERSION,
-				   request, request_size, &response,
-				   sizeof(response));
+				   &version, sizeof(version), &version,
+				   sizeof(version));
 	if (retval)
 		return retval;
 
-	if (response.major > connection->protocol->major) {
+	if (version.major > connection->protocol->major) {
 		dev_err(&connection->dev,
 			"unsupported major version (%hhu > %hhu)\n",
-			response.major, connection->protocol->major);
+			version.major, connection->protocol->major);
 		return -ENOTSUPP;
 	}
 
-	connection->module_major = response.major;
-	connection->module_minor = response.minor;
+	connection->module_major = version.major;
+	connection->module_minor = version.minor;
 
 	dev_dbg(&connection->dev, "version_major = %u version_minor = %u\n",
-		response.major, response.minor);
+		version.major, version.minor);
 
 	return 0;
 }

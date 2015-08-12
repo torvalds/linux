@@ -44,7 +44,7 @@ int gb_protocol_deregister(struct gb_protocol *protocol);
 	__gb_protocol_register(protocol, THIS_MODULE)
 
 struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor);
-int gb_protocol_get_version(struct gb_connection *connection, bool send_request);
+int gb_protocol_get_version(struct gb_connection *connection);
 
 void gb_protocol_put(struct gb_protocol *protocol);
 
