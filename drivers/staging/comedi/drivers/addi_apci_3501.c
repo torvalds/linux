@@ -262,25 +262,26 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ui_Timer_AOWatchdog;
-	unsigned long ul_Command1;
+	unsigned int status;
+	unsigned int ctrl;
 
 	/*  Disable Interrupt */
-	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = ul_Command1 & 0xFFFFF9FDul;
-	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl &= 0xfffff9fd;
+	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
-	ui_Timer_AOWatchdog = inl(dev->iobase + APCI3501_TIMER_IRQ_REG) & 0x1;
-	if ((!ui_Timer_AOWatchdog)) {
+	status = inl(dev->iobase + APCI3501_TIMER_IRQ_REG) & 0x1;
+	if (!status) {
 		dev_err(dev->class_dev, "IRQ from unknown source\n");
 		return IRQ_NONE;
 	}
 
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
-	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul) | 1 << 1;
-	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl &= 0xfffff9fd;
+	ctrl |= 1 << 1;
+	outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
 
 	return IRQ_HANDLED;
