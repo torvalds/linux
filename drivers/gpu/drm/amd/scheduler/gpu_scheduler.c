@@ -28,31 +28,29 @@
 #include "gpu_scheduler.h"
 
 /* Initialize a given run queue struct */
-static void init_rq(struct amd_run_queue *rq)
+static void amd_sched_rq_init(struct amd_sched_rq *rq)
 {
-	INIT_LIST_HEAD(&rq->head.list);
-	rq->head.belongto_rq = rq;
+	INIT_LIST_HEAD(&rq->entities);
 	mutex_init(&rq->lock);
-	atomic_set(&rq->nr_entity, 0);
-	rq->current_entity = &rq->head;
+	rq->current_entity = NULL;
 }
 
-/* Note: caller must hold the lock or in a atomic context */
-static void rq_remove_entity(struct amd_run_queue *rq,
-			     struct amd_sched_entity *entity)
+static void amd_sched_rq_add_entity(struct amd_sched_rq *rq,
+				    struct amd_sched_entity *entity)
 {
-	if (rq->current_entity == entity)
-		rq->current_entity = list_entry(entity->list.prev,
-						typeof(*entity), list);
+	mutex_lock(&rq->lock);
+	list_add_tail(&entity->list, &rq->entities);
+	mutex_unlock(&rq->lock);
+}
+
+static void amd_sched_rq_remove_entity(struct amd_sched_rq *rq,
+				       struct amd_sched_entity *entity)
+{
+	mutex_lock(&rq->lock);
 	list_del_init(&entity->list);
-	atomic_dec(&rq->nr_entity);
-}
-
-static void rq_add_entity(struct amd_run_queue *rq,
-			  struct amd_sched_entity *entity)
-{
-	list_add_tail(&entity->list, &rq->head.list);
-	atomic_inc(&rq->nr_entity);
+	if (rq->current_entity == entity)
+		rq->current_entity = NULL;
+	mutex_unlock(&rq->lock);
 }
 
 /**
@@ -60,38 +58,32 @@ static void rq_add_entity(struct amd_run_queue *rq,
  * It could return the same entity as current one if current is the only
  * available one in the queue. Return NULL if nothing available.
  */
-static struct amd_sched_entity *rq_select_entity(struct amd_run_queue *rq)
+static struct amd_sched_entity *
+amd_sched_rq_select_entity(struct amd_sched_rq *rq)
 {
-	struct amd_sched_entity *p = rq->current_entity;
-	int i = atomic_read(&rq->nr_entity) + 1; /*real count + dummy head*/
+	struct amd_sched_entity *entity = rq->current_entity;
 
-	while (i) {
-		p = list_entry(p->list.next, typeof(*p), list);
-		if (!rq->check_entity_status(p)) {
-			rq->current_entity = p;
-			break;
+	if (entity) {
+		list_for_each_entry_continue(entity, &rq->entities, list) {
+			if (!kfifo_is_empty(&entity->job_queue)) {
+				rq->current_entity = entity;
+				return rq->current_entity;
+			}
 		}
-		i--;
 	}
-	return i ? p : NULL;
-}
 
-static bool context_entity_is_waiting(struct amd_sched_entity *entity)
-{
-	/* TODO: sync obj for multi-ring synchronization */
-	return false;
-}
+	list_for_each_entry(entity, &rq->entities, list) {
 
-static int gpu_entity_check_status(struct amd_sched_entity *entity)
-{
-	if (entity == &entity->belongto_rq->head)
-		return -1;
+		if (!kfifo_is_empty(&entity->job_queue)) {
+			rq->current_entity = entity;
+			return rq->current_entity;
+		}
 
-	if (kfifo_is_empty(&entity->job_queue) ||
-	    context_entity_is_waiting(entity))
-		return -1;
+		if (entity == rq->current_entity)
+			break;
+	}
 
-	return 0;
+	return NULL;
 }
 
 /**
@@ -124,10 +116,10 @@ static struct amd_sched_entity *
 kernel_rq_select_context(struct amd_gpu_scheduler *sched)
 {
 	struct amd_sched_entity *sched_entity;
-	struct amd_run_queue *rq = &sched->kernel_rq;
+	struct amd_sched_rq *rq = &sched->kernel_rq;
 
 	mutex_lock(&rq->lock);
-	sched_entity = rq_select_entity(rq);
+	sched_entity = amd_sched_rq_select_entity(rq);
 	mutex_unlock(&rq->lock);
 	return sched_entity;
 }
@@ -140,7 +132,7 @@ select_context(struct amd_gpu_scheduler *sched)
 {
 	struct amd_sched_entity *wake_entity = NULL;
 	struct amd_sched_entity *tmp;
-	struct amd_run_queue *rq;
+	struct amd_sched_rq *rq;
 
 	if (!is_scheduler_ready(sched))
 		return NULL;
@@ -152,7 +144,7 @@ select_context(struct amd_gpu_scheduler *sched)
 
 	rq = &sched->sched_rq;
 	mutex_lock(&rq->lock);
-	tmp = rq_select_entity(rq);
+	tmp = amd_sched_rq_select_entity(rq);
 	mutex_unlock(&rq->lock);
 exit:
 	if (sched->current_entity && (sched->current_entity != tmp))
@@ -176,7 +168,7 @@ exit:
 */
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
-			  struct amd_run_queue *rq,
+			  struct amd_sched_rq *rq,
 			  uint32_t jobs)
 {
 	uint64_t seq_ring = 0;
@@ -206,9 +198,7 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	atomic64_set(&entity->last_signaled_v_seq, seq_ring);
 
 	/* Add the entity to the run queue */
-	mutex_lock(&rq->lock);
-	rq_add_entity(rq, entity);
-	mutex_unlock(&rq->lock);
+	amd_sched_rq_add_entity(rq, entity);
 	return 0;
 }
 
@@ -254,7 +244,7 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			    struct amd_sched_entity *entity)
 {
 	int r = 0;
-	struct amd_run_queue *rq = entity->belongto_rq;
+	struct amd_sched_rq *rq = entity->belongto_rq;
 
 	if (!is_context_entity_initialized(sched, entity))
 		return 0;
@@ -276,9 +266,7 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 				 entity);
 	}
 
-	mutex_lock(&rq->lock);
-	rq_remove_entity(rq, entity);
-	mutex_unlock(&rq->lock);
+	amd_sched_rq_remove_entity(rq, entity);
 	kfifo_free(&entity->job_queue);
 	return r;
 }
@@ -429,11 +417,8 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
 	mutex_init(&sched->sched_lock);
 	spin_lock_init(&sched->queue_lock);
-	init_rq(&sched->sched_rq);
-	sched->sched_rq.check_entity_status = gpu_entity_check_status;
-
-	init_rq(&sched->kernel_rq);
-	sched->kernel_rq.check_entity_status = gpu_entity_check_status;
+	amd_sched_rq_init(&sched->sched_rq);
+	amd_sched_rq_init(&sched->kernel_rq);
 
 	init_waitqueue_head(&sched->wait_queue);
 	INIT_LIST_HEAD(&sched->active_hw_rq);

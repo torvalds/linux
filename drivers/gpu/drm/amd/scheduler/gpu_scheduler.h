@@ -30,7 +30,7 @@
 #define AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS		3000
 
 struct amd_gpu_scheduler;
-struct amd_run_queue;
+struct amd_sched_rq;
 
 /**
  * A scheduler entity is a wrapper around a job queue or a group
@@ -40,7 +40,7 @@ struct amd_run_queue;
 */
 struct amd_sched_entity {
 	struct list_head		list;
-	struct amd_run_queue		*belongto_rq;
+	struct amd_sched_rq		*belongto_rq;
 	spinlock_t			lock;
 	/* the virtual_seq is unique per context per ring */
 	atomic64_t			last_queued_v_seq;
@@ -62,17 +62,10 @@ struct amd_sched_entity {
  * one specific ring. It implements the scheduling policy that selects
  * the next entity to emit commands from.
 */
-struct amd_run_queue {
-	struct mutex			lock;
-	atomic_t			nr_entity;
-	struct amd_sched_entity	        head;
-	struct amd_sched_entity	        *current_entity;
-	/**
-	 * Return 0 means this entity can be scheduled
-	 * Return -1 means this entity cannot be scheduled for reasons,
-	 * i.e, it is the head, or these is no job, etc
-	*/
-	int (*check_entity_status)(struct amd_sched_entity *entity);
+struct amd_sched_rq {
+	struct mutex		lock;
+	struct list_head	entities;
+	struct amd_sched_entity	*current_entity;
 };
 
 struct amd_sched_fence {
@@ -124,8 +117,8 @@ struct amd_sched_backend_ops {
 struct amd_gpu_scheduler {
 	void			        *device;
 	struct task_struct		*thread;
-	struct amd_run_queue		sched_rq;
-	struct amd_run_queue		kernel_rq;
+	struct amd_sched_rq		sched_rq;
+	struct amd_sched_rq		kernel_rq;
 	struct list_head		active_hw_rq;
 	atomic64_t			hw_rq_count;
 	struct amd_sched_backend_ops	*ops;
@@ -154,7 +147,7 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
-			  struct amd_run_queue *rq,
+			  struct amd_sched_rq *rq,
 			  uint32_t jobs);
 int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity);

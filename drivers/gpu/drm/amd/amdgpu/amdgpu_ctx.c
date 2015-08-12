@@ -41,7 +41,7 @@ int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
 	if (amdgpu_enable_scheduler) {
 		/* create context entity for each ring */
 		for (i = 0; i < adev->num_rings; i++) {
-			struct amd_run_queue *rq;
+			struct amd_sched_rq *rq;
 			if (kernel)
 				rq = &adev->rings[i]->scheduler->kernel_rq;
 			else
