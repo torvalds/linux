@@ -6,15 +6,15 @@
  * Licensed under GPLv2
  *
  * vga_switcheroo.c - Support for laptop with dual GPU using one set of outputs
-
- Switcher interface - methods require for ATPX and DCM
- - switchto - this throws the output MUX switch
- - discrete_set_power - sets the power state for the discrete card
-
- GPU driver interface
- - set_gpu_state - this should do the equiv of s/r for the card
-		  - this should *not* set the discrete power state
- - switch_check  - check if the device is in a position to switch now
+ *
+ * Switcher interface - methods require for ATPX and DCM
+ * - switchto - this throws the output MUX switch
+ * - discrete_set_power - sets the power state for the discrete card
+ *
+ * GPU driver interface
+ * - set_gpu_state - this should do the equiv of s/r for the card
+ *                 - this should *not* set the discrete power state
+ * - switch_check  - check if the device is in a position to switch now
  */
 
 #include <linux/module.h>
