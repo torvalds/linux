@@ -133,7 +133,8 @@ static int apci3501_read_insn_timer(struct comedi_device *dev,
 	    devpriv->timer_mode != ADDIDATA_WATCHDOG)
 		return -EINVAL;
 
-	data[0] = inl(devpriv->tcw + ADDI_TCW_STATUS_REG) & 0x1;
+	data[0] = inl(devpriv->tcw + ADDI_TCW_STATUS_REG) &
+		  ADDI_TCW_STATUS_OVERFLOW;
 	data[1] = inl(devpriv->tcw + ADDI_TCW_VAL_REG);
 
 	return insn->n;
