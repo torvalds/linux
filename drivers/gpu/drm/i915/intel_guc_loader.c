@@ -79,6 +79,53 @@ const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 	}
 };
 
+static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *ring;
+	int i, irqs;
+
+	/* tell all command streamers NOT to forward interrupts and vblank to GuC */
+	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
+	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
+	for_each_ring(ring, dev_priv, i)
+		I915_WRITE(RING_MODE_GEN7(ring), irqs);
+
+	/* tell DE to send nothing to GuC */
+	I915_WRITE(DE_GUCRMR, ~0);
+
+	/* route all GT interrupts to the host */
+	I915_WRITE(GUC_BCS_RCS_IER, 0);
+	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
+	I915_WRITE(GUC_WD_VECS_IER, 0);
+}
+
+static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *ring;
+	int i, irqs;
+
+	/* tell all command streamers to forward interrupts and vblank to GuC */
+	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_ALWAYS);
+	irqs |= _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
+	for_each_ring(ring, dev_priv, i)
+		I915_WRITE(RING_MODE_GEN7(ring), irqs);
+
+	/* tell DE to send (all) flip_done to GuC */
+	irqs = DERRMR_PIPEA_PRI_FLIP_DONE | DERRMR_PIPEA_SPR_FLIP_DONE |
+	       DERRMR_PIPEB_PRI_FLIP_DONE | DERRMR_PIPEB_SPR_FLIP_DONE |
+	       DERRMR_PIPEC_PRI_FLIP_DONE | DERRMR_PIPEC_SPR_FLIP_DONE;
+	/* Unmasked bits will cause GuC response message to be sent */
+	I915_WRITE(DE_GUCRMR, ~irqs);
+
+	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
+	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
+	       GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
+	/* These three registers have the same bit definitions */
+	I915_WRITE(GUC_BCS_RCS_IER, ~irqs);
+	I915_WRITE(GUC_VCS2_VCS1_IER, ~irqs);
+	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
+}
+
 static u32 get_gttype(struct drm_i915_private *dev_priv)
 {
 	/* XXX: GT type based on PCI device ID? field seems unused by fw */
@@ -342,6 +389,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
+	direct_interrupts_to_host(dev_priv);
 	i915_guc_submission_disable(dev);
 
 	if (guc_fw->guc_fw_fetch_status == GUC_FIRMWARE_NONE)
@@ -395,6 +443,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		err = i915_guc_submission_enable(dev);
 		if (err)
 			goto fail;
+		direct_interrupts_to_guc(dev_priv);
 	}
 
 	return 0;
@@ -403,6 +452,7 @@ fail:
 	if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_PENDING)
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
+	direct_interrupts_to_host(dev_priv);
 	i915_guc_submission_disable(dev);
 
 	return err;
@@ -550,6 +600,7 @@ void intel_guc_ucode_fini(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
+	direct_interrupts_to_host(dev_priv);
 	i915_guc_submission_fini(dev);
 
 	if (guc_fw->guc_fw_obj)
