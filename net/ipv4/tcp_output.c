@@ -2275,13 +2275,12 @@ void tcp_send_loss_probe(struct sock *sk)
 		tp->tlp_high_seq = tp->snd_nxt;
 
 rearm_timer:
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-				  inet_csk(sk)->icsk_rto,
-				  TCP_RTO_MAX);
-
-	if (likely(!err))
-		NET_INC_STATS_BH(sock_net(sk),
-				 LINUX_MIB_TCPLOSSPROBES);
+	if (likely(!err)) {
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPLOSSPROBES);
+		/* Reset s.t. tcp_rearm_rto will restart timer from now */
+		inet_csk(sk)->icsk_pending = 0;
+	}
+	tcp_rearm_rto(sk);
 }
 
 /* Push out any pending frames which were held back due to
