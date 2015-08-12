@@ -248,11 +248,7 @@ static inline void flush_write_buffers(void)
 #endif
 }
 
-static inline void __pmem *arch_memremap_pmem(resource_size_t offset,
-	unsigned long size)
-{
-	return (void __force __pmem *) ioremap_cache(offset, size);
-}
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
 
 #endif /* __KERNEL__ */
 

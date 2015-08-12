@@ -80,23 +80,26 @@ void __iomem *__wrap_devm_ioremap_nocache(struct device *dev,
 }
 EXPORT_SYMBOL(__wrap_devm_ioremap_nocache);
 
-void __iomem *__wrap_ioremap_cache(resource_size_t offset, unsigned long size)
+void *__wrap_memremap(resource_size_t offset, size_t size,
+		unsigned long flags)
 {
-	return __nfit_test_ioremap(offset, size, ioremap_cache);
+	struct nfit_test_resource *nfit_res;
+
+	rcu_read_lock();
+	nfit_res = get_nfit_res(offset);
+	rcu_read_unlock();
+	if (nfit_res)
+		return (void __iomem *) nfit_res->buf + offset
+			- nfit_res->res->start;
+	return memremap(offset, size, flags);
 }
-EXPORT_SYMBOL(__wrap_ioremap_cache);
+EXPORT_SYMBOL(__wrap_memremap);
 
 void __iomem *__wrap_ioremap_nocache(resource_size_t offset, unsigned long size)
 {
 	return __nfit_test_ioremap(offset, size, ioremap_nocache);
 }
 EXPORT_SYMBOL(__wrap_ioremap_nocache);
-
-void __iomem *__wrap_ioremap_wt(resource_size_t offset, unsigned long size)
-{
-	return __nfit_test_ioremap(offset, size, ioremap_wt);
-}
-EXPORT_SYMBOL(__wrap_ioremap_wt);
 
 void __iomem *__wrap_ioremap_wc(resource_size_t offset, unsigned long size)
 {
@@ -116,6 +119,19 @@ void __wrap_iounmap(volatile void __iomem *addr)
 	return iounmap(addr);
 }
 EXPORT_SYMBOL(__wrap_iounmap);
+
+void __wrap_memunmap(void *addr)
+{
+	struct nfit_test_resource *nfit_res;
+
+	rcu_read_lock();
+	nfit_res = get_nfit_res((unsigned long) addr);
+	rcu_read_unlock();
+	if (nfit_res)
+		return;
+	return memunmap(addr);
+}
+EXPORT_SYMBOL(__wrap_memunmap);
 
 struct resource *__wrap___request_region(struct resource *parent,
 		resource_size_t start, resource_size_t n, const char *name,
