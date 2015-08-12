@@ -142,8 +142,7 @@ static struct watchdog_device mpc8xxx_wdt_dev = {
 static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 {
 	int ret;
-	const struct of_device_id *match;
-	struct device_node *np = ofdev->dev.of_node;
+	struct resource *res;
 	const struct mpc8xxx_wdt_type *wdt_type;
 	u32 freq = fsl_get_sys_freq();
 	bool enabled;
@@ -156,15 +155,15 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	if (!freq || freq == -1)
 		return -EINVAL;
 
-	wd_base = of_iomap(np, 0);
-	if (!wd_base)
-		return -ENOMEM;
+	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
+	wd_base = devm_ioremap_resource(&ofdev->dev, res);
+	if (IS_ERR(wd_base))
+		return PTR_ERR(wd_base);
 
 	enabled = in_be32(&wd_base->swcrr) & SWCRR_SWEN;
 	if (!enabled && wdt_type->hw_enabled) {
 		pr_info("could not be enabled in software\n");
-		ret = -ENOSYS;
-		goto err_unmap;
+		return -ENOSYS;
 	}
 
 	/* Calculate the timeout in seconds */
@@ -177,7 +176,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	ret = watchdog_register_device(&mpc8xxx_wdt_dev);
 	if (ret) {
 		pr_err("cannot register watchdog device (err=%d)\n", ret);
-		goto err_unmap;
+		return ret;
 	}
 
 	pr_info("WDT driver for MPC8xxx initialized. mode:%s timeout=%d (%d seconds)\n",
@@ -191,9 +190,6 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	if (enabled)
 		mod_timer(&wdt_timer, jiffies);
 	return 0;
-err_unmap:
-	iounmap(wd_base);
-	return ret;
 }
 
 static int mpc8xxx_wdt_remove(struct platform_device *ofdev)
@@ -202,7 +198,6 @@ static int mpc8xxx_wdt_remove(struct platform_device *ofdev)
 		reset ? "reset" : "machine check exception");
 	del_timer_sync(&wdt_timer);
 	watchdog_unregister_device(&mpc8xxx_wdt_dev);
-	iounmap(wd_base);
 
 	return 0;
 }
