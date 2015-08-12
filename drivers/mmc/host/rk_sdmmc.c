@@ -1969,20 +1969,21 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
-	struct mmc_data	*data;
 	u32 i, regs, cmd_flags;
 	u32 sdio_int;
 	unsigned long timeout = 0;
 	bool ret_timeout = true, is_retry = false;
 	u32 opcode, offset;
 
+	if (host->cur_slot->mrq->data)
+		dw_mci_stop_dma(host);
+
 	offset = host->cru_reset_offset;
 	opcode = host->mrq->cmd->opcode;
 	host->cur_slot->mrq = NULL;
 	host->mrq = NULL;
 	host->state = STATE_IDLE;
-
-	data = host->data;
+	host->data = NULL;
 
 	if ((opcode == MMC_SEND_TUNING_BLOCK_HS200) ||
 	    (opcode == MMC_SEND_TUNING_BLOCK))
