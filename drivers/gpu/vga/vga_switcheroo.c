@@ -525,14 +525,11 @@ static const struct file_operations vga_switcheroo_debugfs_fops = {
 
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv)
 {
-	if (priv->switch_file) {
-		debugfs_remove(priv->switch_file);
-		priv->switch_file = NULL;
-	}
-	if (priv->debugfs_root) {
-		debugfs_remove(priv->debugfs_root);
-		priv->debugfs_root = NULL;
-	}
+	debugfs_remove(priv->switch_file);
+	priv->switch_file = NULL;
+
+	debugfs_remove(priv->debugfs_root);
+	priv->debugfs_root = NULL;
 }
 
 static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
