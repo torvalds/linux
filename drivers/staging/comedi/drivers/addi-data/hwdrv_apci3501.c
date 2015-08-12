@@ -37,12 +37,13 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 		ctrl = 0;
 	} else {
 		ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
-		ctrl &= 0xfffff9fe;
+		ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+			  ADDI_TCW_CTRL_ENA);
 	}
 	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
 	/* enable/disable the timer interrupt */
-	ctrl = (data[1] == 1) ? 0x2 : 0;
+	ctrl = (data[1] == 1) ? ADDI_TCW_CTRL_IRQ_ENA : 0;
 	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
 	outl(data[2], devpriv->tcw + ADDI_TCW_TIMEBASE_REG);
@@ -51,11 +52,18 @@ static int apci3501_config_insn_timer(struct comedi_device *dev,
 	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
 	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
 		/* Set the mode (e2->e0) NOTE: this doesn't look correct */
-		ctrl |= 0xfff819e0;
+		ctrl |= ~(ADDI_TCW_CTRL_CNT_UP | ADDI_TCW_CTRL_EXT_CLK_MASK |
+			  ADDI_TCW_CTRL_MODE_MASK | ADDI_TCW_CTRL_GATE |
+			  ADDI_TCW_CTRL_TRIG | ADDI_TCW_CTRL_TIMER_ENA |
+			  ADDI_TCW_CTRL_RESET_ENA | ADDI_TCW_CTRL_WARN_ENA |
+			  ADDI_TCW_CTRL_IRQ_ENA | ADDI_TCW_CTRL_ENA);
 	} else {
 		/* mode 2 */
-		ctrl &= 0xfff719e2;
-		ctrl |= (2 << 13) | 0x10;
+		ctrl &= ~(ADDI_TCW_CTRL_CNTR_ENA | ADDI_TCW_CTRL_MODE_MASK |
+			  ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+			  ADDI_TCW_CTRL_TIMER_ENA | ADDI_TCW_CTRL_RESET_ENA |
+			  ADDI_TCW_CTRL_WARN_ENA | ADDI_TCW_CTRL_ENA);
+		ctrl |= ADDI_TCW_CTRL_MODE(2) | ADDI_TCW_CTRL_TIMER_ENA;
 	}
 	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
