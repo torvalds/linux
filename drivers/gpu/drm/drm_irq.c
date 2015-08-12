@@ -877,6 +877,7 @@ u32 drm_vblank_count(struct drm_device *dev, int crtc)
 
 	if (WARN_ON(crtc >= dev->num_crtcs))
 		return 0;
+
 	return vblank->count;
 }
 EXPORT_SYMBOL(drm_vblank_count);
@@ -1110,10 +1111,10 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
 
-	if (WARN_ON(atomic_read(&vblank->refcount) == 0))
+	if (WARN_ON(crtc >= dev->num_crtcs))
 		return;
 
-	if (WARN_ON(crtc >= dev->num_crtcs))
+	if (WARN_ON(atomic_read(&vblank->refcount) == 0))
 		return;
 
 	/* Last user schedules interrupt disable */
@@ -1157,6 +1158,9 @@ void drm_wait_one_vblank(struct drm_device *dev, int crtc)
 {
 	int ret;
 	u32 last;
+
+	if (WARN_ON(crtc >= dev->num_crtcs))
+		return;
 
 	ret = drm_vblank_get(dev, crtc);
 	if (WARN(ret, "vblank not available on crtc %i, ret=%i\n", crtc, ret))
@@ -1426,6 +1430,9 @@ void drm_vblank_post_modeset(struct drm_device *dev, int crtc)
 
 	/* vblank is not initialized (IRQ not installed ?), or has been freed */
 	if (!dev->num_crtcs)
+		return;
+
+	if (WARN_ON(crtc >= dev->num_crtcs))
 		return;
 
 	if (vblank->inmodeset) {
