@@ -92,43 +92,45 @@ static int apci3501_write_insn_timer(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ul_Command1 = 0;
+	unsigned int ctrl = 0;
 
 	if (devpriv->timer_mode == ADDIDATA_WATCHDOG) {
-
 		if (data[1] == 1) {
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
+			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl &= 0xfffff9ff;
+			ctrl |= 0x1;
 			/* Enable the Watchdog */
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 		} else if (data[1] == 0) { /* Stop The Watchdog */
 			outl(0x0, dev->iobase + APCI3501_TIMER_CTRL_REG);
 		} else if (data[1] == 2) {
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x200UL;
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl &= 0xfffff9ff;
+			ctrl |= 0x200;
+			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 		}
 	}
 
 	if (devpriv->timer_mode == ADDIDATA_TIMER) {
 		if (data[1] == 1) {
-
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
+			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl &= 0xfffff9ff;
+			ctrl |= 0x1;
 			/* Enable the Timer */
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 		} else if (data[1] == 0) {
 			/* Stop The Timer */
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl &= 0xfffff9fe;
+			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 		}
 
 		else if (data[1] == 2) {
 			/* Trigger the Timer */
-			ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x200UL;
-			outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
+			ctrl &= 0xfffff9ff;
+			ctrl |= 0x200;
+			outl(ctrl, dev->iobase + APCI3501_TIMER_CTRL_REG);
 		}
 	}
 
