@@ -188,6 +188,9 @@ config ARCH_HAS_ILOG2_U64
 config ARCH_HAS_BANDGAP
 	bool
 
+config FIX_EARLYCON_MEM
+	def_bool y if MMU
+
 config GENERIC_HWEIGHT
 	bool
 	default y

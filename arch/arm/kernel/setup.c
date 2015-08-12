@@ -37,6 +37,7 @@
 #include <asm/cpu.h>
 #include <asm/cputype.h>
 #include <asm/elf.h>
+#include <asm/fixmap.h>
 #include <asm/procinfo.h>
 #include <asm/psci.h>
 #include <asm/sections.h>
@@ -953,6 +954,9 @@ void __init setup_arch(char **cmdline_p)
 	/* populate cmd_line too for later use, preserving boot_command_line */
 	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = cmd_line;
+
+	if (IS_ENABLED(CONFIG_FIX_EARLYCON_MEM))
+		early_fixmap_init();
 
 	parse_early_param();
 
