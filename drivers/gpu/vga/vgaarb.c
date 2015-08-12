@@ -1091,8 +1091,11 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 		vgadev = vgadev_find(pdev);
 		pr_debug("vgaarb: vgadev %p\n", vgadev);
 		if (vgadev == NULL) {
-			pr_err("vgaarb: this pci device is not a vga device\n");
-			pci_dev_put(pdev);
+			if (pdev) {
+				pr_err("vgaarb: this pci device is not a vga device\n");
+				pci_dev_put(pdev);
+			}
+
 			ret_val = -ENODEV;
 			goto done;
 		}
