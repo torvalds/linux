@@ -3186,6 +3186,7 @@ static struct {
 	{ AR_SREV_VERSION_9550,         "9550" },
 	{ AR_SREV_VERSION_9565,         "9565" },
 	{ AR_SREV_VERSION_9531,         "9531" },
+	{ AR_SREV_VERSION_9561,         "9561" },
 };
 
 /* For devices with external radios */
