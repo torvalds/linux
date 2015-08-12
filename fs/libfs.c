@@ -1185,7 +1185,7 @@ void make_empty_dir_inode(struct inode *inode)
 	inode->i_uid = GLOBAL_ROOT_UID;
 	inode->i_gid = GLOBAL_ROOT_GID;
 	inode->i_rdev = 0;
-	inode->i_size = 2;
+	inode->i_size = 0;
 	inode->i_blkbits = PAGE_SHIFT;
 	inode->i_blocks = 0;
 
