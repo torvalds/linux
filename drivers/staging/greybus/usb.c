@@ -20,8 +20,6 @@
 #define GB_USB_VERSION_MINOR		0x01
 
 /* Greybus USB request types */
-#define GB_USB_TYPE_INVALID		0x00
-#define GB_USB_TYPE_PROTOCOL_VERSION	0x01
 #define GB_USB_TYPE_HCD_START		0x02
 #define GB_USB_TYPE_HCD_STOP		0x03
 #define GB_USB_TYPE_HUB_CONTROL		0x04
@@ -39,9 +37,6 @@ struct gb_usb_hub_control_response {
 
 struct gb_usb_device {
 	struct gb_connection *connection;
-
-	u8 version_major;
-	u8 version_minor;
 };
 
 static inline struct gb_usb_device *to_gb_usb_device(struct usb_hcd *hcd)
@@ -53,9 +48,6 @@ static inline struct usb_hcd *gb_usb_device_to_hcd(struct gb_usb_device *dev)
 {
 	return container_of((void *)dev, struct usb_hcd, hcd_priv);
 }
-
-/* Define get_version() routine */
-define_get_version(gb_usb_device, USB);
 
 static void hcd_stop(struct usb_hcd *hcd)
 {
@@ -183,11 +175,6 @@ static int gb_usb_connection_init(struct gb_connection *connection)
 	gb_usb_dev->connection = connection;
 	connection->private = gb_usb_dev;
 
-	/* Check for compatible protocol version */
-	retval = get_version(gb_usb_dev);
-	if (retval)
-		goto err_put_hcd;
-
 	hcd->has_tt = 1;
 
 	/*
@@ -226,8 +213,8 @@ static void gb_usb_connection_exit(struct gb_connection *connection)
 static struct gb_protocol usb_protocol = {
 	.name			= "usb",
 	.id			= GREYBUS_PROTOCOL_USB,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_USB_VERSION_MAJOR,
+	.minor			= GB_USB_VERSION_MINOR,
 	.connection_init	= gb_usb_connection_init,
 	.connection_exit	= gb_usb_connection_exit,
 	.request_recv		= NULL,	/* FIXME we have requests!!! */

@@ -12,9 +12,6 @@
 #include <linux/slab.h>
 #include "greybus.h"
 
-/* Define get_version() routine */
-define_get_version(gb_control, CONTROL);
-
 /* Get Manifest's size from the interface */
 int gb_control_get_manifest_size_operation(struct gb_interface *intf)
 {
@@ -100,7 +97,6 @@ static int gb_control_request_recv(u8 type, struct gb_operation *op)
 static int gb_control_connection_init(struct gb_connection *connection)
 {
 	struct gb_control *control;
-	int ret;
 
 	control = kzalloc(sizeof(*control), GFP_KERNEL);
 	if (!control)
@@ -109,14 +105,10 @@ static int gb_control_connection_init(struct gb_connection *connection)
 	control->connection = connection;
 	connection->private = control;
 
-	ret = get_version(control);
-	if (ret)
-		kfree(control);
-
 	/* Set interface's control connection */
 	connection->bundle->intf->control = control;
 
-	return ret;
+	return 0;
 }
 
 static void gb_control_connection_exit(struct gb_connection *connection)

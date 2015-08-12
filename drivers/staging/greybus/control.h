@@ -12,8 +12,6 @@
 
 struct gb_control {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 };
 
 int gb_control_connected_operation(struct gb_control *control, u16 cport_id);

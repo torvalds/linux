@@ -99,6 +99,10 @@ struct gb_operation_msg_hdr {
 };
 
 
+/* Generic request numbers supported by all modules */
+#define GB_REQUEST_TYPE_INVALID			0x00
+#define GB_REQUEST_TYPE_PROTOCOL_VERSION	0x01
+
 /* Control Protocol */
 
 /* version request has no payload */

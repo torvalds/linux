@@ -17,8 +17,6 @@
 
 struct gb_spi {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 
 	/* Modes supported by spi controller */
 	u16			mode;
@@ -181,9 +179,6 @@ static void gb_spi_cleanup(struct spi_device *spi)
 
 /* Routines to get controller infomation */
 
-/* Define get_version() routine */
-define_get_version(gb_spi, SPI);
-
 /*
  * Map Greybus spi mode bits/flags/bpw into Linux ones.
  * All bits are same for now and so these macro's return same values.
@@ -264,11 +259,6 @@ static int gb_spi_init(struct gb_spi *spi)
 {
 	int ret;
 
-	/* First thing we need to do is check the version */
-	ret = get_version(spi);
-	if (ret)
-		return ret;
-
 	/* mode never changes, just get it once */
 	ret = gb_spi_mode_operation(spi);
 	if (ret)
@@ -340,8 +330,8 @@ static void gb_spi_connection_exit(struct gb_connection *connection)
 static struct gb_protocol spi_protocol = {
 	.name			= "spi",
 	.id			= GREYBUS_PROTOCOL_SPI,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_SPI_VERSION_MAJOR,
+	.minor			= GB_SPI_VERSION_MINOR,
 	.connection_init	= gb_spi_connection_init,
 	.connection_exit	= gb_spi_connection_exit,
 	.request_recv		= NULL,

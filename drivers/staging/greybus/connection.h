@@ -34,6 +34,8 @@ struct gb_connection {
 	u8				protocol_id;
 	u8				major;
 	u8				minor;
+	u8				module_major;
+	u8				module_minor;
 
 	spinlock_t			lock;
 	enum gb_connection_state	state;

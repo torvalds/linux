@@ -18,8 +18,6 @@
 
 struct gb_sdio_host {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 	struct mmc_host		*mmc;
 	struct mmc_request	*mrq;
 	struct mutex		lock;	/* lock for this host */
@@ -35,9 +33,6 @@ struct gb_sdio_host {
 };
 
 static struct workqueue_struct *gb_sdio_mrq_workqueue;
-
-/* Define get_version() routine */
-define_get_version(gb_sdio_host, SDIO);
 
 #define GB_SDIO_RSP_R1_R5_R6_R7	(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
 				 GB_SDIO_RSP_OPCODE)
@@ -192,8 +187,9 @@ static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
 
 	request = op->request;
 
-	if (request->payload_size != sizeof(*payload)) {
-		dev_err(mmc_dev(host->mmc), "wrong event size received\n");
+	if (request->payload_size < sizeof(*payload)) {
+		dev_err(mmc_dev(host->mmc), "wrong event size received (%zu < %zu)\n",
+			request->payload_size, sizeof(*payload));
 		return -EINVAL;
 	}
 
@@ -693,10 +689,6 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 
 	host->connection = connection;
 	connection->private = host;
-
-	ret = get_version(host);
-	if (ret < 0)
-		goto free_mmc;
 
 	ret = gb_sdio_get_caps(host);
 	if (ret < 0)

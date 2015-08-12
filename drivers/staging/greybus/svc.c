@@ -16,8 +16,6 @@
 
 struct gb_svc {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 };
 
 struct svc_hotplug {
@@ -201,6 +199,9 @@ static int gb_svc_version_request(struct gb_operation *op)
 		return -ENOTSUPP;
 	}
 
+	connection->module_major = version->major;
+	connection->module_minor = version->minor;
+
 	if (!gb_operation_response_alloc(op, sizeof(*version), GFP_KERNEL)) {
 		dev_err(dev, "%s: error allocating response\n",
 				__func__);
@@ -231,8 +232,8 @@ static int gb_svc_hello(struct gb_operation *op)
 	 * SVC sends information about the endo and interface-id on the hello
 	 * request, use that to create an endo.
 	 */
-	if (op->request->payload_size != sizeof(*hello_request)) {
-		dev_err(dev, "%s: Illegal size of hello request (%zu %zu)\n",
+	if (op->request->payload_size < sizeof(*hello_request)) {
+		dev_err(dev, "%s: Illegal size of hello request (%zu < %zu)\n",
 			__func__, op->request->payload_size,
 			sizeof(*hello_request));
 		return -EINVAL;
@@ -290,7 +291,6 @@ static void svc_process_hotplug(struct work_struct *work)
 	ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
 	ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
-	// FIXME May require firmware download
 	intf = gb_interface_create(hd, intf_id);
 	if (!intf) {
 		dev_err(dev, "%s: Failed to create interface with id %hhu\n",

@@ -16,8 +16,6 @@
 
 struct gb_i2c_device {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 
 	u32			functionality;
 	u16			timeout_msec;
@@ -25,9 +23,6 @@ struct gb_i2c_device {
 
 	struct i2c_adapter	adapter;
 };
-
-/* Define get_version() routine */
-define_get_version(gb_i2c_device, I2C);
 
 /*
  * Map Greybus i2c functionality bits into Linux ones
@@ -277,11 +272,6 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 {
 	int ret;
 
-	/* First thing we need to do is check the version */
-	ret = get_version(gb_i2c_dev);
-	if (ret)
-		return ret;
-
 	/* Assume the functionality never changes, just get it once */
 	ret = gb_i2c_functionality_operation(gb_i2c_dev);
 	if (ret)
@@ -349,8 +339,8 @@ static void gb_i2c_connection_exit(struct gb_connection *connection)
 static struct gb_protocol i2c_protocol = {
 	.name			= "i2c",
 	.id			= GREYBUS_PROTOCOL_I2C,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_I2C_VERSION_MAJOR,
+	.minor			= GB_I2C_VERSION_MINOR,
 	.connection_init	= gb_i2c_connection_init,
 	.connection_exit	= gb_i2c_connection_exit,
 	.request_recv		= NULL,	/* no incoming requests */

@@ -16,8 +16,6 @@
 
 struct gb_pwm_chip {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 	u8			pwm_max;	/* max pwm number */
 
 	struct pwm_chip		chip;
@@ -26,9 +24,6 @@ struct gb_pwm_chip {
 #define pwm_chip_to_gb_pwm_chip(chip) \
 	container_of(chip, struct gb_pwm_chip, chip)
 
-
-/* Define get_version() routine */
-define_get_version(gb_pwm_chip, PWM);
 
 static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 {
@@ -194,11 +189,6 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 	pwmc->connection = connection;
 	connection->private = pwmc;
 
-	/* Check for compatible protocol version */
-	ret = get_version(pwmc);
-	if (ret)
-		goto out_err;
-
 	/* Query number of pwms present */
 	ret = gb_pwm_count_operation(pwmc);
 	if (ret)
@@ -239,8 +229,8 @@ static void gb_pwm_connection_exit(struct gb_connection *connection)
 static struct gb_protocol pwm_protocol = {
 	.name			= "pwm",
 	.id			= GREYBUS_PROTOCOL_PWM,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_PWM_VERSION_MAJOR,
+	.minor			= GB_PWM_VERSION_MINOR,
 	.connection_init	= gb_pwm_connection_init,
 	.connection_exit	= gb_pwm_connection_exit,
 	.request_recv		= NULL, /* no incoming requests */

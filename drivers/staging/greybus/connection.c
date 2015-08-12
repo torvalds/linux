@@ -335,6 +335,28 @@ void gb_connection_destroy(struct gb_connection *connection)
 	device_unregister(&connection->dev);
 }
 
+static void gb_connection_disconnected(struct gb_connection *connection)
+{
+	struct gb_control *control;
+	int cport_id = connection->intf_cport_id;
+	int ret;
+
+	/*
+	 * Inform Interface about In-active CPorts. We don't need to do this
+	 * operation for control cport.
+	 */
+	if ((cport_id == GB_CONTROL_CPORT_ID) ||
+	    (connection->hd_cport_id == GB_SVC_CPORT_ID))
+		return;
+
+	control = connection->bundle->intf->control;
+
+	ret = gb_control_disconnected_operation(control, cport_id);
+	if (ret)
+		dev_warn(&connection->dev,
+			"Failed to disconnect CPort-%d (%d)\n", cport_id, ret);
+}
+
 int gb_connection_init(struct gb_connection *connection)
 {
 	int cport_id = connection->intf_cport_id;
@@ -367,20 +389,35 @@ int gb_connection_init(struct gb_connection *connection)
 	connection->state = GB_CONNECTION_STATE_ENABLED;
 	spin_unlock_irq(&connection->lock);
 
-	ret = connection->protocol->connection_init(connection);
-	if (ret) {
-		spin_lock_irq(&connection->lock);
-		connection->state = GB_CONNECTION_STATE_ERROR;
-		spin_unlock_irq(&connection->lock);
+	/*
+	 * Request protocol version supported by the module. We don't need to do
+	 * this for SVC as that is initiated by the SVC.
+	 */
+	if (connection->hd_cport_id != GB_SVC_CPORT_ID) {
+		ret = gb_protocol_get_version(connection, NULL, 0);
+		if (ret) {
+			dev_err(&connection->dev,
+				"Failed to get version CPort-%d (%d)\n",
+				cport_id, ret);
+			goto disconnect;
+		}
 	}
 
+	ret = connection->protocol->connection_init(connection);
+	if (!ret)
+		return 0;
+
+disconnect:
+	spin_lock_irq(&connection->lock);
+	connection->state = GB_CONNECTION_STATE_ERROR;
+	spin_unlock_irq(&connection->lock);
+
+	gb_connection_disconnected(connection);
 	return ret;
 }
 
 void gb_connection_exit(struct gb_connection *connection)
 {
-	int cport_id = connection->intf_cport_id;
-
 	if (!connection->protocol) {
 		dev_warn(&connection->dev, "exit without protocol.\n");
 		return;
@@ -397,22 +434,7 @@ void gb_connection_exit(struct gb_connection *connection)
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 
 	connection->protocol->connection_exit(connection);
-
-	/*
-	 * Inform Interface about In-active CPorts. We don't need to do this
-	 * operation for control cport.
-	 */
-	if (cport_id != GB_CONTROL_CPORT_ID &&
-	    connection->hd_cport_id != GB_SVC_CPORT_ID) {
-		struct gb_control *control = connection->bundle->intf->control;
-		int ret;
-
-		ret = gb_control_disconnected_operation(control, cport_id);
-		if (ret)
-			dev_warn(&connection->dev,
-				 "Failed to disconnect CPort-%d (%d)\n",
-				 cport_id, ret);
-	}
+	gb_connection_disconnected(connection);
 }
 
 void gb_hd_connections_exit(struct greybus_host_device *hd)

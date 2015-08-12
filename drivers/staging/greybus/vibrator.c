@@ -19,8 +19,6 @@ struct gb_vibrator_device {
 	struct gb_connection	*connection;
 	struct device		*dev;
 	int			minor;		/* vibrator minor number */
-	u8			version_major;
-	u8			version_minor;
 };
 
 /* Version of the Greybus vibrator protocol we support */
@@ -28,17 +26,12 @@ struct gb_vibrator_device {
 #define	GB_VIBRATOR_VERSION_MINOR		0x01
 
 /* Greybus Vibrator operation types */
-#define	GB_VIBRATOR_TYPE_INVALID		0x00
-#define	GB_VIBRATOR_TYPE_PROTOCOL_VERSION	0x01
 #define	GB_VIBRATOR_TYPE_ON			0x02
 #define	GB_VIBRATOR_TYPE_OFF			0x03
 
 struct gb_vibrator_on_request {
 	__le16	timeout_ms;
 };
-
-/* Define get_version() routine */
-define_get_version(gb_vibrator_device, VIBRATOR);
 
 static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 {
@@ -108,10 +101,6 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 	vib->connection = connection;
 	connection->private = vib;
 
-	retval = get_version(vib);
-	if (retval)
-		goto error;
-
 	/*
 	 * For now we create a device in sysfs for the vibrator, but odds are
 	 * there is a "real" device somewhere in the kernel for this, but I
@@ -167,8 +156,8 @@ static void gb_vibrator_connection_exit(struct gb_connection *connection)
 static struct gb_protocol vibrator_protocol = {
 	.name			= "vibrator",
 	.id			= GREYBUS_PROTOCOL_VIBRATOR,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_VIBRATOR_VERSION_MAJOR,
+	.minor			= GB_VIBRATOR_VERSION_MINOR,
 	.connection_init	= gb_vibrator_connection_init,
 	.connection_exit	= gb_vibrator_connection_exit,
 	.request_recv		= NULL,	/* no incoming requests */

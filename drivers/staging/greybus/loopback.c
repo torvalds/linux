@@ -31,8 +31,6 @@ struct gb_loopback_stats {
 
 struct gb_loopback {
 	struct gb_connection *connection;
-	u8 version_major;
-	u8 version_minor;
 
 	struct kfifo kfifo;
 	struct mutex mutex;
@@ -72,9 +70,6 @@ module_param(kfifo_depth, uint, 0444);
 #define MAX_PACKET_SIZE (PAGE_SIZE * 2)
 
 #define GB_LOOPBACK_MS_WAIT_MAX				1000
-
-/* Define get_version() routine */
-define_get_version(gb_loopback, LOOPBACK);
 
 /* interface sysfs attributes */
 #define gb_loopback_ro_attr(field)					\
@@ -492,11 +487,6 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		retval = minor;
 		goto out_sysfs;
 	}
-
-	/* Check the version */
-	retval = get_version(gb);
-	if (retval)
-		goto out_minor;
 
 	/* Calculate maximum payload */
 	gb->size_max = gb_operation_get_payload_size_max(connection);

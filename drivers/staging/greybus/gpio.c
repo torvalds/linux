@@ -33,8 +33,6 @@ struct gb_gpio_line {
 
 struct gb_gpio_controller {
 	struct gb_connection	*connection;
-	u8			version_major;
-	u8			version_minor;
 	u8			line_max;	/* max line number */
 	struct gb_gpio_line	*lines;
 
@@ -50,9 +48,6 @@ struct gb_gpio_controller {
 #define gpio_chip_to_gb_gpio_controller(chip) \
 	container_of(chip, struct gb_gpio_controller, chip)
 #define irq_data_to_gpio_chip(d) (d->domain->host_data)
-
-/* Define get_version() routine */
-define_get_version(gb_gpio_controller, GPIO);
 
 static int gb_gpio_line_count_operation(struct gb_gpio_controller *ggc)
 {
@@ -476,11 +471,6 @@ static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
 {
 	int ret;
 
-	/* First thing we need to do is check the version */
-	ret = get_version(ggc);
-	if (ret)
-		return ret;
-
 	/* Now find out how many lines there are */
 	ret = gb_gpio_line_count_operation(ggc);
 	if (ret)
@@ -719,8 +709,8 @@ static void gb_gpio_connection_exit(struct gb_connection *connection)
 static struct gb_protocol gpio_protocol = {
 	.name			= "gpio",
 	.id			= GREYBUS_PROTOCOL_GPIO,
-	.major			= 0,
-	.minor			= 1,
+	.major			= GB_GPIO_VERSION_MAJOR,
+	.minor			= GB_GPIO_VERSION_MINOR,
 	.connection_init	= gb_gpio_connection_init,
 	.connection_exit	= gb_gpio_connection_exit,
 	.request_recv		= gb_gpio_request_recv,
