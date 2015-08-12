@@ -179,8 +179,12 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	pll1_sw_clk = devm_clk_get(cpu_dev, "pll1_sw");
 	step_clk = devm_clk_get(cpu_dev, "step");
 	pll2_pfd2_396m_clk = devm_clk_get(cpu_dev, "pll2_pfd2_396m");
+	pll1 = devm_clk_get(cpu_dev, "pll1");
+	pll1_bypass = devm_clk_get(cpu_dev, "pll1_bypass");
+	pll1_bypass_src = devm_clk_get(cpu_dev, "pll1_bypass_src");
 	if (IS_ERR(arm_clk) || IS_ERR(pll1_sys_clk) || IS_ERR(pll1_sw_clk) ||
-	    IS_ERR(step_clk) || IS_ERR(pll2_pfd2_396m_clk)) {
+	    IS_ERR(step_clk) || IS_ERR(pll2_pfd2_396m_clk) || IS_ERR(pll1) ||
+	    IS_ERR(pll1_bypass) || IS_ERR(pll1_bypass_src)) {
 		dev_err(cpu_dev, "failed to get clocks\n");
 		ret = -ENOENT;
 		goto put_node;
