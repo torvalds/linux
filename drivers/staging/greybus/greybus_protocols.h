@@ -146,6 +146,60 @@ struct gb_control_disconnected_request {
 };
 /* Control protocol [dis]connected response has no payload */
 
+
+/* Firmware Protocol */
+
+/* Version of the Greybus firmware protocol we support */
+#define GB_FIRMWARE_VERSION_MAJOR		0x00
+#define GB_FIRMWARE_VERSION_MINOR		0x01
+
+/* Greybus firmware request types */
+#define GB_FIRMWARE_TYPE_INVALID		0x00
+#define GB_FIRMWARE_TYPE_PROTOCOL_VERSION	0x01
+#define GB_FIRMWARE_TYPE_FIRMWARE_SIZE		0x02
+#define GB_FIRMWARE_TYPE_GET_FIRMWARE		0x03
+#define GB_FIRMWARE_TYPE_READY_TO_BOOT		0x04
+
+/* Greybus firmware boot stages */
+#define GB_FIRMWARE_BOOT_STAGE_ONE		0x01 /* Reserved for the boot ROM */
+#define GB_FIRMWARE_BOOT_STAGE_TWO		0x02 /* Firmware package to be loaded by the boot ROM */
+#define GB_FIRMWARE_BOOT_STAGE_THREE		0x03 /* Module personality package loaded by Stage 2 firmware */
+
+/* Greybus firmware ready to boot status */
+#define GB_FIRMWARE_BOOT_STATUS_INVALID		0x00 /* Firmware blob could not be validated */
+#define GB_FIRMWARE_BOOT_STATUS_INSECURE	0x01 /* Firmware blob is valid but insecure */
+#define GB_FIRMWARE_BOOT_STATUS_SECURE		0x02 /* Firmware blob is valid and secure */
+
+/* Max firmware data fetch size in bytes */
+#define GB_FIRMWARE_FETCH_MAX			2000
+
+/* Firmware protocol firmware size request/response */
+struct gb_firmware_size_request {
+	__u8			stage;
+};
+
+struct gb_firmware_size_response {
+	__le32			size;
+};
+
+/* Firmware protocol get firmware request/response */
+struct gb_firmware_get_firmware_request {
+	__le32			offset;
+	__le32			size;
+};
+
+struct gb_firmware_get_firmware_response {
+	__u8			data[0];
+};
+
+/* Firmware protocol Ready to boot request */
+struct gb_firmware_ready_to_boot_request {
+	__u8			stage;
+	__u8			status;
+};
+/* Firmware protocol Ready to boot response has no payload */
+
+
 /* I2C */
 
 /* Version of the Greybus i2c protocol we support */
