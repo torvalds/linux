@@ -162,6 +162,7 @@ struct netvsc_device_info {
 	bool link_state;	/* 0 - link up, 1 - link down */
 	int  ring_size;
 	u32  max_num_vrss_chns;
+	u32  num_chn;
 };
 
 enum rndis_device_state {

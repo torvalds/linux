@@ -799,6 +799,8 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 
 	ndevctx->device_ctx = hdev;
 	hv_set_drvdata(hdev, ndev);
+
+	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.max_num_vrss_chns = max_num_vrss_chns;
 	rndis_filter_device_add(hdev, &device_info);
@@ -1022,6 +1024,7 @@ static int netvsc_probe(struct hv_device *dev,
 	net->needed_headroom = max_needed_headroom;
 
 	/* Notify the netvsc driver of the new device */
+	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.max_num_vrss_chns = max_num_vrss_chns;
 	ret = rndis_filter_device_add(dev, &device_info);
