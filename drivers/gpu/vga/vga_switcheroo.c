@@ -17,6 +17,8 @@
  * - switch_check  - check if the device is in a position to switch now
  */
 
+#define pr_fmt(fmt) "vga_switcheroo: " fmt
+
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -111,7 +113,7 @@ int vga_switcheroo_register_handler(struct vga_switcheroo_handler *handler)
 
 	vgasr_priv.handler = handler;
 	if (vga_switcheroo_ready()) {
-		pr_info("vga_switcheroo: enabled\n");
+		pr_info("enabled\n");
 		vga_switcheroo_enable();
 	}
 	mutex_unlock(&vgasr_mutex);
@@ -124,7 +126,7 @@ void vga_switcheroo_unregister_handler(void)
 	mutex_lock(&vgasr_mutex);
 	vgasr_priv.handler = NULL;
 	if (vgasr_priv.active) {
-		pr_info("vga_switcheroo: disabled\n");
+		pr_info("disabled\n");
 		vga_switcheroo_debugfs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
@@ -155,7 +157,7 @@ static int register_client(struct pci_dev *pdev,
 		vgasr_priv.registered_clients++;
 
 	if (vga_switcheroo_ready()) {
-		pr_info("vga_switcheroo: enabled\n");
+		pr_info("enabled\n");
 		vga_switcheroo_enable();
 	}
 	mutex_unlock(&vgasr_mutex);
@@ -235,7 +237,7 @@ void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 		kfree(client);
 	}
 	if (vgasr_priv.active && vgasr_priv.registered_clients < 2) {
-		pr_info("vga_switcheroo: disabled\n");
+		pr_info("disabled\n");
 		vga_switcheroo_debugfs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
@@ -375,7 +377,7 @@ static bool check_can_switch(void)
 
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		if (!client->ops->can_switch(client->pdev)) {
-			pr_err("vga_switcheroo: client %x refused switch\n", client->id);
+			pr_err("client %x refused switch\n", client->id);
 			return false;
 		}
 	}
@@ -484,20 +486,20 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	if (can_switch) {
 		ret = vga_switchto_stage1(client);
 		if (ret)
-			pr_err("vga_switcheroo: switching failed stage 1 %d\n", ret);
+			pr_err("switching failed stage 1 %d\n", ret);
 
 		ret = vga_switchto_stage2(client);
 		if (ret)
-			pr_err("vga_switcheroo: switching failed stage 2 %d\n", ret);
+			pr_err("switching failed stage 2 %d\n", ret);
 
 	} else {
-		pr_info("vga_switcheroo: setting delayed switch to client %d\n", client->id);
+		pr_info("setting delayed switch to client %d\n", client->id);
 		vgasr_priv.delayed_switch_active = true;
 		vgasr_priv.delayed_client_id = client_id;
 
 		ret = vga_switchto_stage1(client);
 		if (ret)
-			pr_err("vga_switcheroo: delayed switching stage 1 failed %d\n", ret);
+			pr_err("delayed switching stage 1 failed %d\n", ret);
 	}
 
 out:
@@ -528,20 +530,22 @@ static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv)
 
 static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
 {
+	static const char mp[] = "/sys/kernel/debug";
+
 	/* already initialised */
 	if (priv->debugfs_root)
 		return 0;
 	priv->debugfs_root = debugfs_create_dir("vgaswitcheroo", NULL);
 
 	if (!priv->debugfs_root) {
-		pr_err("vga_switcheroo: Cannot create /sys/kernel/debug/vgaswitcheroo\n");
+		pr_err("Cannot create %s/vgaswitcheroo\n", mp);
 		goto fail;
 	}
 
 	priv->switch_file = debugfs_create_file("switch", 0644,
 						priv->debugfs_root, NULL, &vga_switcheroo_debugfs_fops);
 	if (!priv->switch_file) {
-		pr_err("vga_switcheroo: cannot create /sys/kernel/debug/vgaswitcheroo/switch\n");
+		pr_err("cannot create %s/vgaswitcheroo/switch\n", mp);
 		goto fail;
 	}
 	return 0;
@@ -560,7 +564,8 @@ int vga_switcheroo_process_delayed_switch(void)
 	if (!vgasr_priv.delayed_switch_active)
 		goto err;
 
-	pr_info("vga_switcheroo: processing delayed switch to %d\n", vgasr_priv.delayed_client_id);
+	pr_info("processing delayed switch to %d\n",
+		vgasr_priv.delayed_client_id);
 
 	client = find_client_from_id(&vgasr_priv.clients,
 				     vgasr_priv.delayed_client_id);
@@ -569,7 +574,7 @@ int vga_switcheroo_process_delayed_switch(void)
 
 	ret = vga_switchto_stage2(client);
 	if (ret)
-		pr_err("vga_switcheroo: delayed switching failed stage 2 %d\n", ret);
+		pr_err("delayed switching failed stage 2 %d\n", ret);
 
 	vgasr_priv.delayed_switch_active = false;
 	err = 0;
