@@ -2736,6 +2736,7 @@
 #define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30
 #define LE_DB_INT_CAUSE_A 0x19c3c
 #define LE_DB_TID_HASHBASE_A 0x19df8
+#define T6_LE_DB_HASH_TID_BASE_A 0x19df8
 
 #define HASHEN_S    20
 #define HASHEN_V(x) ((x) << HASHEN_S)
