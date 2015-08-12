@@ -85,6 +85,7 @@
 #define BMC150_MAGN_REG_HIGH_THRESH		0x50
 #define BMC150_MAGN_REG_REP_XY			0x51
 #define BMC150_MAGN_REG_REP_Z			0x52
+#define BMC150_MAGN_REG_REP_DATAMASK		GENMASK(7, 0)
 
 #define BMC150_MAGN_REG_TRIM_START		0x5D
 #define BMC150_MAGN_REG_TRIM_END		0x71
@@ -559,7 +560,7 @@ static int bmc150_magn_write_raw(struct iio_dev *indio_dev,
 			}
 			ret = regmap_update_bits(data->regmap,
 						 BMC150_MAGN_REG_REP_XY,
-						 0xFF,
+						 BMC150_MAGN_REG_REP_DATAMASK,
 						 BMC150_MAGN_REPXY_TO_REGVAL
 						 (val));
 			mutex_unlock(&data->mutex);
@@ -575,7 +576,7 @@ static int bmc150_magn_write_raw(struct iio_dev *indio_dev,
 			}
 			ret = regmap_update_bits(data->regmap,
 						 BMC150_MAGN_REG_REP_Z,
-						 0xFF,
+						 BMC150_MAGN_REG_REP_DATAMASK,
 						 BMC150_MAGN_REPZ_TO_REGVAL
 						 (val));
 			mutex_unlock(&data->mutex);
@@ -651,7 +652,9 @@ static const struct iio_info bmc150_magn_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static const unsigned long bmc150_magn_scan_masks[] = {0x07, 0};
+static const unsigned long bmc150_magn_scan_masks[] = {
+					BIT(AXIS_X) | BIT(AXIS_Y) | BIT(AXIS_Z),
+					0};
 
 static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 {
@@ -662,7 +665,6 @@ static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->mutex);
 	ret = bmc150_magn_read_xyz(data, data->buffer);
-	mutex_unlock(&data->mutex);
 	if (ret < 0)
 		goto err;
 
@@ -670,6 +672,7 @@ static irqreturn_t bmc150_magn_trigger_handler(int irq, void *p)
 					   pf->timestamp);
 
 err:
+	mutex_unlock(&data->mutex);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
@@ -781,29 +784,23 @@ static int bmc150_magn_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	if (state == data->dready_trigger_on)
 		goto err_unlock;
 
-	ret = bmc150_magn_set_power_state(data, state);
-	if (ret < 0)
-		goto err_unlock;
-
 	ret = regmap_update_bits(data->regmap, BMC150_MAGN_REG_INT_DRDY,
 				 BMC150_MAGN_MASK_DRDY_EN,
 				 state << BMC150_MAGN_SHIFT_DRDY_EN);
 	if (ret < 0)
-		goto err_poweroff;
+		goto err_unlock;
 
 	data->dready_trigger_on = state;
 
 	if (state) {
 		ret = bmc150_magn_reset_intr(data);
 		if (ret < 0)
-			goto err_poweroff;
+			goto err_unlock;
 	}
 	mutex_unlock(&data->mutex);
 
 	return 0;
 
-err_poweroff:
-	bmc150_magn_set_power_state(data, false);
 err_unlock:
 	mutex_unlock(&data->mutex);
 	return ret;
@@ -1041,6 +1038,9 @@ static int bmc150_magn_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+/*
+ * Should be called with data->mutex held.
+ */
 static int bmc150_magn_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));

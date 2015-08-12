@@ -417,6 +417,7 @@ static const struct of_device_id cm3232_of_match[] = {
 	{.compatible = "capella,cm3232"},
 	{}
 };
+MODULE_DEVICE_TABLE(of, cm3232_of_match);
 
 static struct i2c_driver cm3232_driver = {
 	.driver = {

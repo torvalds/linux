@@ -151,6 +151,7 @@ struct bmc150_scale_info {
 };
 
 struct bmc150_accel_chip_info {
+	const char *name;
 	u8 chip_id;
 	const struct iio_chan_spec *channels;
 	int num_channels;
@@ -341,63 +342,6 @@ static int bmc150_accel_any_motion_setup(struct bmc150_accel_trigger *t,
 {
 	if (state)
 		return bmc150_accel_update_slope(t->data);
-
-	return 0;
-}
-
-static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
-{
-	int ret;
-
-	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_CHIP_ID);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error: Reading chip id\n");
-		return ret;
-	}
-
-	dev_dbg(&data->client->dev, "Chip Id %x\n", ret);
-	if (ret != data->chip_info->chip_id) {
-		dev_err(&data->client->dev, "Invalid chip %x\n", ret);
-		return -ENODEV;
-	}
-
-	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
-	if (ret < 0)
-		return ret;
-
-	/* Set Bandwidth */
-	ret = bmc150_accel_set_bw(data, BMC150_ACCEL_DEF_BW, 0);
-	if (ret < 0)
-		return ret;
-
-	/* Set Default Range */
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_PMU_RANGE,
-					BMC150_ACCEL_DEF_RANGE_4G);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_pmu_range\n");
-		return ret;
-	}
-
-	data->range = BMC150_ACCEL_DEF_RANGE_4G;
-
-	/* Set default slope duration and thresholds */
-	data->slope_thres = BMC150_ACCEL_DEF_SLOPE_THRESHOLD;
-	data->slope_dur = BMC150_ACCEL_DEF_SLOPE_DURATION;
-	ret = bmc150_accel_update_slope(data);
-	if (ret < 0)
-		return ret;
-
-	/* Set default as latched interrupts */
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_RST_LATCH,
-					BMC150_ACCEL_INT_MODE_LATCH_INT |
-					BMC150_ACCEL_INT_MODE_LATCH_RESET);
-	if (ret < 0) {
-		dev_err(&data->client->dev,
-			"Error writing reg_int_rst_latch\n");
-		return ret;
-	}
 
 	return 0;
 }
@@ -1119,6 +1063,7 @@ enum {
 
 static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 	[bmc150] = {
+		.name = "BMC150A",
 		.chip_id = 0xFA,
 		.channels = bmc150_accel_channels,
 		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
@@ -1128,6 +1073,7 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	[bmi055] = {
+		.name = "BMI055A",
 		.chip_id = 0xFA,
 		.channels = bmc150_accel_channels,
 		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
@@ -1137,6 +1083,7 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	[bma255] = {
+		.name = "BMA0255",
 		.chip_id = 0xFA,
 		.channels = bmc150_accel_channels,
 		.num_channels = ARRAY_SIZE(bmc150_accel_channels),
@@ -1146,6 +1093,7 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 				 {76590, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	[bma250e] = {
+		.name = "BMA250E",
 		.chip_id = 0xF9,
 		.channels = bma250e_accel_channels,
 		.num_channels = ARRAY_SIZE(bma250e_accel_channels),
@@ -1155,6 +1103,7 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 				 {306457, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	[bma222e] = {
+		.name = "BMA222E",
 		.chip_id = 0xF8,
 		.channels = bma222e_accel_channels,
 		.num_channels = ARRAY_SIZE(bma222e_accel_channels),
@@ -1164,6 +1113,7 @@ static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 				 {1225831, BMC150_ACCEL_DEF_RANGE_16G} },
 	},
 	[bma280] = {
+		.name = "BMA0280",
 		.chip_id = 0xFB,
 		.channels = bma280_accel_channels,
 		.num_channels = ARRAY_SIZE(bma280_accel_channels),
@@ -1410,20 +1360,6 @@ static irqreturn_t bmc150_accel_irq_handler(int irq, void *private)
 	return IRQ_NONE;
 }
 
-static const char *bmc150_accel_match_acpi_device(struct device *dev, int *data)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-
-	if (!id)
-		return NULL;
-
-	*data = (int)id->driver_data;
-
-	return dev_name(dev);
-}
-
 static int bmc150_accel_gpio_probe(struct i2c_client *client,
 				   struct bmc150_accel_data *data)
 {
@@ -1618,6 +1554,70 @@ static const struct iio_buffer_setup_ops bmc150_accel_buffer_ops = {
 	.postdisable = bmc150_accel_buffer_postdisable,
 };
 
+static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
+{
+	int ret, i;
+
+	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_CHIP_ID);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error: Reading chip id\n");
+		return ret;
+	}
+
+	dev_dbg(&data->client->dev, "Chip Id %x\n", ret);
+	for (i = 0; i < ARRAY_SIZE(bmc150_accel_chip_info_tbl); i++) {
+		if (bmc150_accel_chip_info_tbl[i].chip_id == ret) {
+			data->chip_info = &bmc150_accel_chip_info_tbl[i];
+			break;
+		}
+	}
+
+	if (!data->chip_info) {
+		dev_err(&data->client->dev, "Unsupported chip %x\n", ret);
+		return -ENODEV;
+	}
+
+	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Set Bandwidth */
+	ret = bmc150_accel_set_bw(data, BMC150_ACCEL_DEF_BW, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Set Default Range */
+	ret = i2c_smbus_write_byte_data(data->client,
+					BMC150_ACCEL_REG_PMU_RANGE,
+					BMC150_ACCEL_DEF_RANGE_4G);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_pmu_range\n");
+		return ret;
+	}
+
+	data->range = BMC150_ACCEL_DEF_RANGE_4G;
+
+	/* Set default slope duration and thresholds */
+	data->slope_thres = BMC150_ACCEL_DEF_SLOPE_THRESHOLD;
+	data->slope_dur = BMC150_ACCEL_DEF_SLOPE_DURATION;
+	ret = bmc150_accel_update_slope(data);
+	if (ret < 0)
+		return ret;
+
+	/* Set default as latched interrupts */
+	ret = i2c_smbus_write_byte_data(data->client,
+					BMC150_ACCEL_REG_INT_RST_LATCH,
+					BMC150_ACCEL_INT_MODE_LATCH_INT |
+					BMC150_ACCEL_INT_MODE_LATCH_RESET);
+	if (ret < 0) {
+		dev_err(&data->client->dev,
+			"Error writing reg_int_rst_latch\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int bmc150_accel_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
 {
@@ -1625,7 +1625,6 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret;
 	const char *name = NULL;
-	int chip_id = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -1635,15 +1634,8 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	if (id) {
+	if (id)
 		name = id->name;
-		chip_id = id->driver_data;
-	}
-
-	if (ACPI_HANDLE(&client->dev))
-		name = bmc150_accel_match_acpi_device(&client->dev, &chip_id);
-
-	data->chip_info = &bmc150_accel_chip_info_tbl[chip_id];
 
 	ret = bmc150_accel_chip_init(data);
 	if (ret < 0)
@@ -1654,7 +1646,7 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = data->chip_info->channels;
 	indio_dev->num_channels = data->chip_info->num_channels;
-	indio_dev->name = name;
+	indio_dev->name = name ? name : data->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmc150_accel_info;
 
@@ -1670,7 +1662,7 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	if (client->irq < 0)
 		client->irq = bmc150_accel_gpio_probe(client, data);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(
 						&client->dev, client->irq,
 						bmc150_accel_irq_handler,

@@ -68,6 +68,10 @@ static const struct of_device_id st_accel_of_match[] = {
 		.compatible = "st,lsm330-accel",
 		.data = LSM330_ACCEL_DEV_NAME,
 	},
+	{
+		.compatible = "st,lsm303agr-accel",
+		.data = LSM303AGR_ACCEL_DEV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_accel_of_match);
@@ -116,6 +120,7 @@ static const struct i2c_device_id st_accel_id_table[] = {
 	{ LSM303DL_ACCEL_DEV_NAME },
 	{ LSM303DLM_ACCEL_DEV_NAME },
 	{ LSM330_ACCEL_DEV_NAME },
+	{ LSM303AGR_ACCEL_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_accel_id_table);

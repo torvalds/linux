@@ -1634,6 +1634,7 @@ static const struct of_device_id gp2ap020a00f_of_match[] = {
 	{ .compatible = "sharp,gp2ap020a00f" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, gp2ap020a00f_of_match);
 #endif
 
 static struct i2c_driver gp2ap020a00f_driver = {

@@ -193,15 +193,15 @@ void process_scan(char *data,
 
 void print_usage(void)
 {
-	printf("Usage: generic_buffer [options]...\n"
-	       "Capture, convert and output data from IIO device buffer\n"
-	       "  -c <n>     Do n conversions\n"
-	       "  -e         Disable wait for event (new data)\n"
-	       "  -g         Use trigger-less mode\n"
-	       "  -l <n>     Set buffer length to n samples\n"
-	       "  -n <name>  Set device name (mandatory)\n"
-	       "  -t <name>  Set trigger name\n"
-	       "  -w <n>     Set delay between reads in us (event-less mode)\n");
+	fprintf(stderr, "Usage: generic_buffer [options]...\n"
+		"Capture, convert and output data from IIO device buffer\n"
+		"  -c <n>     Do n conversions\n"
+		"  -e         Disable wait for event (new data)\n"
+		"  -g         Use trigger-less mode\n"
+		"  -l <n>     Set buffer length to n samples\n"
+		"  -n <name>  Set device name (mandatory)\n"
+		"  -t <name>  Set trigger name\n"
+		"  -w <n>     Set delay between reads in us (event-less mode)\n");
 }
 
 int main(int argc, char **argv)
@@ -270,8 +270,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (device_name == NULL) {
-		printf("Device name not set\n");
+	if (!device_name) {
+		fprintf(stderr, "Device name not set\n");
 		print_usage();
 		return -1;
 	}
@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 	/* Find the device requested */
 	dev_num = find_type_by_name(device_name, "iio:device");
 	if (dev_num < 0) {
-		printf("Failed to find the %s\n", device_name);
+		fprintf(stderr, "Failed to find the %s\n", device_name);
 		return dev_num;
 	}
 
@@ -290,7 +290,7 @@ int main(int argc, char **argv)
 		return -ENOMEM;
 
 	if (!notrigger) {
-		if (trigger_name == NULL) {
+		if (!trigger_name) {
 			/*
 			 * Build the trigger name. If it is device associated
 			 * its name is <device_name>_dev[n] where n matches
@@ -307,7 +307,8 @@ int main(int argc, char **argv)
 		/* Verify the trigger exists */
 		trig_num = find_type_by_name(trigger_name, "trigger");
 		if (trig_num < 0) {
-			printf("Failed to find the trigger %s\n", trigger_name);
+			fprintf(stderr, "Failed to find the trigger %s\n",
+				trigger_name);
 			ret = trig_num;
 			goto error_free_triggername;
 		}
@@ -323,8 +324,8 @@ int main(int argc, char **argv)
 	 */
 	ret = build_channel_array(dev_dir_name, &channels, &num_channels);
 	if (ret) {
-		printf("Problem reading scan element information\n");
-		printf("diag %s\n", dev_dir_name);
+		fprintf(stderr, "Problem reading scan element information\n"
+			"diag %s\n", dev_dir_name);
 		goto error_free_triggername;
 	}
 
@@ -350,7 +351,8 @@ int main(int argc, char **argv)
 						    dev_dir_name,
 						    trigger_name);
 		if (ret < 0) {
-			printf("Failed to write current_trigger file\n");
+			fprintf(stderr,
+				"Failed to write current_trigger file\n");
 			goto error_free_buf_dir_name;
 		}
 	}
@@ -362,8 +364,11 @@ int main(int argc, char **argv)
 
 	/* Enable the buffer */
 	ret = write_sysfs_int("enable", buf_dir_name, 1);
-	if (ret < 0)
+	if (ret < 0) {
+		fprintf(stderr,
+			"Failed to enable buffer: %s\n", strerror(-ret));
 		goto error_free_buf_dir_name;
+	}
 
 	scan_size = size_from_channelarray(channels, num_channels);
 	data = malloc(scan_size * buf_len);
@@ -382,7 +387,7 @@ int main(int argc, char **argv)
 	fp = open(buffer_access, O_RDONLY | O_NONBLOCK);
 	if (fp == -1) { /* TODO: If it isn't there make the node */
 		ret = -errno;
-		printf("Failed to open %s\n", buffer_access);
+		fprintf(stderr, "Failed to open %s\n", buffer_access);
 		goto error_free_buffer_access;
 	}
 
@@ -410,7 +415,7 @@ int main(int argc, char **argv)
 		read_size = read(fp, data, toread * scan_size);
 		if (read_size < 0) {
 			if (errno == EAGAIN) {
-				printf("nothing available\n");
+				fprintf(stderr, "nothing available\n");
 				continue;
 			} else {
 				break;
@@ -431,7 +436,8 @@ int main(int argc, char **argv)
 		ret = write_sysfs_string("trigger/current_trigger",
 					 dev_dir_name, "NULL");
 		if (ret < 0)
-			printf("Failed to write to %s\n", dev_dir_name);
+			fprintf(stderr, "Failed to write to %s\n",
+				dev_dir_name);
 
 error_close_buffer_access:
 	if (close(fp) == -1)

@@ -215,8 +215,8 @@ static void print_event(struct iio_event_data *event)
 	bool diff = IIO_EVENT_CODE_EXTRACT_DIFF(event->id);
 
 	if (!event_is_known(event)) {
-		printf("Unknown event: time: %lld, id: %llx\n",
-		       event->timestamp, event->id);
+		fprintf(stderr, "Unknown event: time: %lld, id: %llx\n",
+			event->timestamp, event->id);
 
 		return;
 	}
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 	int fd, event_fd;
 
 	if (argc <= 1) {
-		printf("Usage: %s <device_name>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <device_name>\n", argv[0]);
 		return -1;
 	}
 
@@ -262,9 +262,8 @@ int main(int argc, char **argv)
 		printf("Found IIO device with name %s with device number %d\n",
 		       device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
-		if (ret < 0) {
+		if (ret < 0)
 			return -ENOMEM;
-		}
 	} else {
 		/*
 		 * If we can't find an IIO device by name assume device_name is
@@ -278,14 +277,14 @@ int main(int argc, char **argv)
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
 		ret = -errno;
-		fprintf(stdout, "Failed to open %s\n", chrdev_name);
+		fprintf(stderr, "Failed to open %s\n", chrdev_name);
 		goto error_free_chrdev_name;
 	}
 
 	ret = ioctl(fd, IIO_GET_EVENT_FD_IOCTL, &event_fd);
 	if (ret == -1 || event_fd == -1) {
 		ret = -errno;
-		fprintf(stdout, "Failed to retrieve event fd\n");
+		fprintf(stderr, "Failed to retrieve event fd\n");
 		if (close(fd) == -1)
 			perror("Failed to close character device file");
 
@@ -301,7 +300,7 @@ int main(int argc, char **argv)
 		ret = read(event_fd, &event, sizeof(event));
 		if (ret == -1) {
 			if (errno == EAGAIN) {
-				printf("nothing available\n");
+				fprintf(stderr, "nothing available\n");
 				continue;
 			} else {
 				ret = -errno;
@@ -311,7 +310,7 @@ int main(int argc, char **argv)
 		}
 
 		if (ret != sizeof(event)) {
-			printf("Reading event failed!\n");
+			fprintf(stderr, "Reading event failed!\n");
 			ret = -EIO;
 			break;
 		}

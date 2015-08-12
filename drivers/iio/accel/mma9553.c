@@ -1149,7 +1149,7 @@ static int mma9553_probe(struct i2c_client *client,
 	if (client->irq < 0)
 		client->irq = mma9553_gpio_probe(client);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						mma9553_irq_handler,
 						mma9553_event_handler,

@@ -51,6 +51,7 @@ static const struct spi_device_id st_magn_id_table[] = {
 	{ LSM303DLHC_MAGN_DEV_NAME },
 	{ LSM303DLM_MAGN_DEV_NAME },
 	{ LIS3MDL_MAGN_DEV_NAME },
+	{ LSM303AGR_MAGN_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_magn_id_table);

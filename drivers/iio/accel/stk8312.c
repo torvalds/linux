@@ -37,16 +37,16 @@
 #define STK8312_REG_OTPDATA		0x3E
 #define STK8312_REG_OTPCTRL		0x3F
 
-#define STK8312_MODE_ACTIVE		0x01
+#define STK8312_MODE_ACTIVE		BIT(0)
 #define STK8312_MODE_STANDBY		0x00
-#define STK8312_DREADY_BIT		0x10
-#define STK8312_INT_MODE		0xC0
-#define STK8312_RNG_MASK		0xC0
-#define STK8312_SR_MASK			0x07
-#define STK8312_SR_400HZ_IDX		0
+#define STK8312_MODE_INT_AH_PP		0xC0	/* active-high, push-pull */
+#define STK8312_DREADY_BIT		BIT(4)
+#define STK8312_RNG_6G			1
 #define STK8312_RNG_SHIFT		6
-#define STK8312_READ_RETRIES		16
-#define STK8312_ALL_CHANNEL_MASK	7
+#define STK8312_RNG_MASK		GENMASK(7, 6)
+#define STK8312_SR_MASK			GENMASK(2, 0)
+#define STK8312_SR_400HZ_IDX		0
+#define STK8312_ALL_CHANNEL_MASK	GENMASK(2, 0)
 #define STK8312_ALL_CHANNEL_SIZE	3
 
 #define STK8312_DRIVER_NAME		"stk8312"
@@ -69,8 +69,8 @@ static const int stk8312_scale_table[][2] = {
 };
 
 static const struct {
-	u16 val;
-	u32 val2;
+	int val;
+	int val2;
 } stk8312_samp_freq_table[] = {
 	{400, 0}, {200, 0}, {100, 0}, {50, 0}, {25, 0},
 	{12, 500000}, {6, 250000}, {3, 125000}
@@ -103,7 +103,7 @@ static const struct iio_chan_spec stk8312_channels[] = {
 struct stk8312_data {
 	struct i2c_client *client;
 	struct mutex lock;
-	int range;
+	u8 range;
 	u8 sample_rate_idx;
 	u8 mode;
 	struct iio_trigger *dready_trig;
@@ -144,22 +144,25 @@ static int stk8312_otp_init(struct stk8312_data *data)
 		if (ret < 0)
 			goto exit_err;
 		count--;
-	} while (!(ret & 0x80) && count > 0);
+	} while (!(ret & BIT(7)) && count > 0);
 
-	if (count == 0)
+	if (count == 0) {
+		ret = -ETIMEDOUT;
 		goto exit_err;
+	}
 
 	ret = i2c_smbus_read_byte_data(client, STK8312_REG_OTPDATA);
+	if (ret == 0)
+		ret = -EINVAL;
 	if (ret < 0)
 		goto exit_err;
 
-	ret = i2c_smbus_write_byte_data(data->client,
-			STK8312_REG_AFECTRL, ret);
+	ret = i2c_smbus_write_byte_data(data->client, STK8312_REG_AFECTRL, ret);
 	if (ret < 0)
 		goto exit_err;
 	msleep(150);
 
-	return ret;
+	return 0;
 
 exit_err:
 	dev_err(&client->dev, "failed to initialize sensor\n");
@@ -203,8 +206,11 @@ static int stk8312_set_interrupts(struct stk8312_data *data, u8 int_mask)
 		return ret;
 
 	ret = i2c_smbus_write_byte_data(client, STK8312_REG_INTSU, int_mask);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&client->dev, "failed to set interrupts\n");
+		stk8312_set_mode(data, mode);
+		return ret;
+	}
 
 	return stk8312_set_mode(data, mode);
 }
@@ -228,7 +234,7 @@ static int stk8312_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 	data->dready_trigger_on = state;
 
-	return ret;
+	return 0;
 }
 
 static const struct iio_trigger_ops stk8312_trigger_ops = {
@@ -236,7 +242,7 @@ static const struct iio_trigger_ops stk8312_trigger_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int stk8312_set_sample_rate(struct stk8312_data *data, int rate)
+static int stk8312_set_sample_rate(struct stk8312_data *data, u8 rate)
 {
 	int ret;
 	u8 masked_reg;
@@ -253,20 +259,24 @@ static int stk8312_set_sample_rate(struct stk8312_data *data, int rate)
 		return ret;
 
 	ret = i2c_smbus_read_byte_data(client, STK8312_REG_SR);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to set sampling rate\n");
-		return ret;
-	}
+	if (ret < 0)
+		goto err_activate;
 
 	masked_reg = (ret & (~STK8312_SR_MASK)) | rate;
 
 	ret = i2c_smbus_write_byte_data(client, STK8312_REG_SR, masked_reg);
 	if (ret < 0)
-		dev_err(&client->dev, "failed to set sampling rate\n");
-	else
-		data->sample_rate_idx = rate;
+		goto err_activate;
+
+	data->sample_rate_idx = rate;
 
 	return stk8312_set_mode(data, mode);
+
+err_activate:
+	dev_err(&client->dev, "failed to set sampling rate\n");
+	stk8312_set_mode(data, mode);
+
+	return ret;
 }
 
 static int stk8312_set_range(struct stk8312_data *data, u8 range)
@@ -288,21 +298,25 @@ static int stk8312_set_range(struct stk8312_data *data, u8 range)
 		return ret;
 
 	ret = i2c_smbus_read_byte_data(client, STK8312_REG_STH);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to change sensor range\n");
-		return ret;
-	}
+	if (ret < 0)
+		goto err_activate;
 
 	masked_reg = ret & (~STK8312_RNG_MASK);
 	masked_reg |= range << STK8312_RNG_SHIFT;
 
 	ret = i2c_smbus_write_byte_data(client, STK8312_REG_STH, masked_reg);
 	if (ret < 0)
-		dev_err(&client->dev, "failed to change sensor range\n");
-	else
-		data->range = range;
+		goto err_activate;
+
+	data->range = range;
 
 	return stk8312_set_mode(data, mode);
+
+err_activate:
+	dev_err(&client->dev, "failed to change sensor range\n");
+	stk8312_set_mode(data, mode);
+
+	return ret;
 }
 
 static int stk8312_read_accel(struct stk8312_data *data, u8 address)
@@ -335,18 +349,21 @@ static int stk8312_read_raw(struct iio_dev *indio_dev,
 		ret = stk8312_set_mode(data, data->mode | STK8312_MODE_ACTIVE);
 		if (ret < 0) {
 			mutex_unlock(&data->lock);
-			return -EINVAL;
+			return ret;
 		}
 		ret = stk8312_read_accel(data, chan->address);
 		if (ret < 0) {
 			stk8312_set_mode(data,
 					 data->mode & (~STK8312_MODE_ACTIVE));
 			mutex_unlock(&data->lock);
-			return -EINVAL;
+			return ret;
 		}
 		*val = sign_extend32(ret, 7);
-		stk8312_set_mode(data, data->mode & (~STK8312_MODE_ACTIVE));
+		ret = stk8312_set_mode(data,
+				       data->mode & (~STK8312_MODE_ACTIVE));
 		mutex_unlock(&data->lock);
+		if (ret < 0)
+			return ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = stk8312_scale_table[data->range - 1][0];
@@ -418,7 +435,6 @@ static irqreturn_t stk8312_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct stk8312_data *data = iio_priv(indio_dev);
 	int bit, ret, i = 0;
-	u8 buffer[STK8312_ALL_CHANNEL_SIZE];
 
 	mutex_lock(&data->lock);
 	/*
@@ -429,18 +445,15 @@ static irqreturn_t stk8312_trigger_handler(int irq, void *p)
 		ret = i2c_smbus_read_i2c_block_data(data->client,
 						    STK8312_REG_XOUT,
 						    STK8312_ALL_CHANNEL_SIZE,
-						    buffer);
+						    data->buffer);
 		if (ret < STK8312_ALL_CHANNEL_SIZE) {
 			dev_err(&data->client->dev, "register read failed\n");
 			mutex_unlock(&data->lock);
 			goto err;
 		}
-		data->buffer[0] = buffer[0];
-		data->buffer[1] = buffer[1];
-		data->buffer[2] = buffer[2];
 	} else {
 		for_each_set_bit(bit, indio_dev->active_scan_mask,
-			   indio_dev->masklength) {
+				 indio_dev->masklength) {
 			ret = stk8312_read_accel(data, bit);
 			if (ret < 0) {
 				mutex_unlock(&data->lock);
@@ -547,11 +560,12 @@ static int stk8312_probe(struct i2c_client *client,
 		return ret;
 	}
 	data->sample_rate_idx = STK8312_SR_400HZ_IDX;
-	ret = stk8312_set_range(data, 1);
+	ret = stk8312_set_range(data, STK8312_RNG_6G);
 	if (ret < 0)
 		return ret;
 
-	ret = stk8312_set_mode(data, STK8312_INT_MODE | STK8312_MODE_ACTIVE);
+	ret = stk8312_set_mode(data,
+			       STK8312_MODE_INT_AH_PP | STK8312_MODE_ACTIVE);
 	if (ret < 0)
 		return ret;
 
@@ -606,7 +620,7 @@ static int stk8312_probe(struct i2c_client *client,
 		goto err_buffer_cleanup;
 	}
 
-	return ret;
+	return 0;
 
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
@@ -662,6 +676,7 @@ static const struct i2c_device_id stk8312_i2c_id[] = {
 	{"STK8312", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, stk8312_i2c_id);
 
 static const struct acpi_device_id stk8312_acpi_id[] = {
 	{"STK8312", 0},
@@ -672,7 +687,7 @@ MODULE_DEVICE_TABLE(acpi, stk8312_acpi_id);
 
 static struct i2c_driver stk8312_driver = {
 	.driver = {
-		.name = "stk8312",
+		.name = STK8312_DRIVER_NAME,
 		.pm = STK8312_PM_OPS,
 		.acpi_match_table = ACPI_PTR(stk8312_acpi_id),
 	},
