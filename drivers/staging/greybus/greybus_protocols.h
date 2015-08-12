@@ -200,6 +200,64 @@ struct gb_firmware_ready_to_boot_request {
 /* Firmware protocol Ready to boot response has no payload */
 
 
+/* BATTERY */
+
+/* Version of the Greybus battery protocol we support */
+#define	GB_BATTERY_VERSION_MAJOR		0x00
+#define	GB_BATTERY_VERSION_MINOR		0x01
+
+/* Greybus battery request types */
+#define	GB_BATTERY_TYPE_TECHNOLOGY		0x02
+#define	GB_BATTERY_TYPE_STATUS			0x03
+#define	GB_BATTERY_TYPE_MAX_VOLTAGE		0x04
+#define	GB_BATTERY_TYPE_PERCENT_CAPACITY	0x05
+#define	GB_BATTERY_TYPE_TEMPERATURE		0x06
+#define	GB_BATTERY_TYPE_VOLTAGE			0x07
+#define	GB_BATTERY_TYPE_CURRENT			0x08
+#define GB_BATTERY_TYPE_CAPACITY		0x09	// TODO - POWER_SUPPLY_PROP_CURRENT_MAX
+#define GB_BATTERY_TYPE_SHUTDOWN_TEMP		0x0a	// TODO - POWER_SUPPLY_PROP_TEMP_ALERT_MAX
+
+/* Should match up with battery types in linux/power_supply.h */
+#define GB_BATTERY_TECH_UNKNOWN			0x0000
+#define GB_BATTERY_TECH_NiMH			0x0001
+#define GB_BATTERY_TECH_LION			0x0002
+#define GB_BATTERY_TECH_LIPO			0x0003
+#define GB_BATTERY_TECH_LiFe			0x0004
+#define GB_BATTERY_TECH_NiCd			0x0005
+#define GB_BATTERY_TECH_LiMn			0x0006
+
+struct gb_battery_technology_response {
+	__le32	technology;
+};
+
+/* Should match up with battery status in linux/power_supply.h */
+#define GB_BATTERY_STATUS_UNKNOWN		0x0000
+#define GB_BATTERY_STATUS_CHARGING		0x0001
+#define GB_BATTERY_STATUS_DISCHARGING		0x0002
+#define GB_BATTERY_STATUS_NOT_CHARGING		0x0003
+#define GB_BATTERY_STATUS_FULL			0x0004
+
+struct gb_battery_status_response {
+	__le16	battery_status;
+};
+
+struct gb_battery_max_voltage_response {
+	__le32	max_voltage;
+};
+
+struct gb_battery_capacity_response {
+	__le32	capacity;
+};
+
+struct gb_battery_temperature_response {
+	__le32	temperature;
+};
+
+struct gb_battery_voltage_response {
+	__le32	voltage;
+};
+
+
 /* I2C */
 
 /* Version of the Greybus i2c protocol we support */
