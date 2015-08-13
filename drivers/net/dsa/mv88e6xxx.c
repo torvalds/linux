@@ -2005,13 +2005,11 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 			goto abort;
 	}
 
-	/* Port Control 2: don't force a good FCS, set the maximum
-	 * frame size to 10240 bytes, don't let the switch add or
-	 * strip 802.1q tags, don't discard tagged or untagged frames
-	 * on this port, do a destination address lookup on all
-	 * received packets as usual, disable ARP mirroring and don't
-	 * send a copy of all transmitted/received frames on this port
-	 * to the CPU.
+	/* Port Control 2: don't force a good FCS, set the maximum frame size to
+	 * 10240 bytes, enable secure 802.1q tags, don't discard tagged or
+	 * untagged frames on this port, do a destination address lookup on all
+	 * received packets as usual, disable ARP mirroring and don't send a
+	 * copy of all transmitted/received frames on this port to the CPU.
 	 */
 	reg = 0;
 	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
@@ -2032,6 +2030,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		if (port == dsa_upstream_port(ds))
 			reg |= PORT_CONTROL_2_FORWARD_UNKNOWN;
 	}
+
+	reg |= PORT_CONTROL_2_8021Q_SECURE;
 
 	if (reg) {
 		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
