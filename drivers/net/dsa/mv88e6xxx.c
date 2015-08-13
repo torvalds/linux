@@ -2,6 +2,9 @@
  * net/dsa/mv88e6xxx.c - Marvell 88e6xxx switch chip support
  * Copyright (c) 2008 Marvell Semiconductor
  *
+ * Copyright (c) 2015 CMC Electronics, Inc.
+ *	Added support for VLAN Table Unit operations
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -1182,6 +1185,19 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	return 0;
 }
 
+int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
+{
+	int ret;
+
+	ret = mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_DEFAULT_VLAN);
+	if (ret < 0)
+		return ret;
+
+	*pvid = ret & PORT_DEFAULT_VLAN_MASK;
+
+	return 0;
+}
+
 static int _mv88e6xxx_vtu_wait(struct dsa_switch *ds)
 {
 	return _mv88e6xxx_wait(ds, REG_GLOBAL, GLOBAL_VTU_OP,
@@ -1208,6 +1224,128 @@ static int _mv88e6xxx_vtu_stu_flush(struct dsa_switch *ds)
 		return ret;
 
 	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_FLUSH_ALL);
+}
+
+static int _mv88e6xxx_vtu_stu_data_read(struct dsa_switch *ds,
+					struct mv88e6xxx_vtu_stu_entry *entry,
+					unsigned int nibble_offset)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u16 regs[3];
+	int i;
+	int ret;
+
+	for (i = 0; i < 3; ++i) {
+		ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL,
+					  GLOBAL_VTU_DATA_0_3 + i);
+		if (ret < 0)
+			return ret;
+
+		regs[i] = ret;
+	}
+
+	for (i = 0; i < ps->num_ports; ++i) {
+		unsigned int shift = (i % 4) * 4 + nibble_offset;
+		u16 reg = regs[i / 4];
+
+		entry->data[i] = (reg >> shift) & GLOBAL_VTU_STU_DATA_MASK;
+	}
+
+	return 0;
+}
+
+static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds, u16 vid,
+				  struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	struct mv88e6xxx_vtu_stu_entry next = { 0 };
+	int ret;
+
+	ret = _mv88e6xxx_vtu_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_VID,
+				   vid & GLOBAL_VTU_VID_MASK);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_VTU_GET_NEXT);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL, GLOBAL_VTU_VID);
+	if (ret < 0)
+		return ret;
+
+	next.vid = ret & GLOBAL_VTU_VID_MASK;
+	next.valid = !!(ret & GLOBAL_VTU_VID_VALID);
+
+	if (next.valid) {
+		ret = _mv88e6xxx_vtu_stu_data_read(ds, &next, 0);
+		if (ret < 0)
+			return ret;
+
+		if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
+		    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds)) {
+			ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL,
+						  GLOBAL_VTU_FID);
+			if (ret < 0)
+				return ret;
+
+			next.fid = ret & GLOBAL_VTU_FID_MASK;
+
+			ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL,
+						  GLOBAL_VTU_SID);
+			if (ret < 0)
+				return ret;
+
+			next.sid = ret & GLOBAL_VTU_SID_MASK;
+		}
+	}
+
+	*entry = next;
+	return 0;
+}
+
+int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
+			   unsigned long *ports, unsigned long *untagged)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry next;
+	int port;
+	int err;
+
+	if (*vid == 4095)
+		return -ENOENT;
+
+	mutex_lock(&ps->smi_mutex);
+	err = _mv88e6xxx_vtu_getnext(ds, *vid, &next);
+	mutex_unlock(&ps->smi_mutex);
+
+	if (err)
+		return err;
+
+	if (!next.valid)
+		return -ENOENT;
+
+	*vid = next.vid;
+
+	for (port = 0; port < ps->num_ports; ++port) {
+		clear_bit(port, ports);
+		clear_bit(port, untagged);
+
+		if (dsa_is_cpu_port(ds, port))
+			continue;
+
+		if (next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED ||
+		    next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED)
+			set_bit(port, ports);
+
+		if (next.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED)
+			set_bit(port, untagged);
+	}
+
+	return 0;
 }
 
 static int _mv88e6xxx_atu_mac_write(struct dsa_switch *ds,
