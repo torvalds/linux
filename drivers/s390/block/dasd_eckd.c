@@ -3989,7 +3989,7 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 	rc = -EFAULT;
 	if (copy_from_user(&usrparm, argp, sizeof(usrparm)))
 		goto out;
-	if (is_compat_task() || sizeof(long) == 4) {
+	if (is_compat_task()) {
 		/* Make sure pointers are sane even on 31 bit. */
 		rc = -EINVAL;
 		if ((usrparm.psf_data >> 32) != 0)
