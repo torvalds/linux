@@ -23,7 +23,7 @@
 struct dsi_phy_ops {
 	int (*enable)(struct msm_dsi_phy *phy, int src_pll_id,
 		const unsigned long bit_rate, const unsigned long esc_rate);
-	int (*disable)(struct msm_dsi_phy *phy);
+	void (*disable)(struct msm_dsi_phy *phy);
 };
 
 struct dsi_phy_cfg {
@@ -399,7 +399,7 @@ static int dsi_28nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	return 0;
 }
 
-static int dsi_28nm_phy_disable(struct msm_dsi_phy *phy)
+static void dsi_28nm_phy_disable(struct msm_dsi_phy *phy)
 {
 	dsi_phy_write(phy->base + REG_DSI_28nm_PHY_CTRL_0, 0);
 	dsi_28nm_phy_regulator_ctrl(phy, false);
@@ -409,8 +409,6 @@ static int dsi_28nm_phy_disable(struct msm_dsi_phy *phy)
 	 * ensure that the phy is completely disabled
 	 */
 	wmb();
-
-	return 0;
 }
 
 static void dsi_20nm_phy_regulator_ctrl(struct msm_dsi_phy *phy, bool enable)
@@ -515,12 +513,10 @@ static int dsi_20nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	return 0;
 }
 
-static int dsi_20nm_phy_disable(struct msm_dsi_phy *phy)
+static void dsi_20nm_phy_disable(struct msm_dsi_phy *phy)
 {
 	dsi_phy_write(phy->base + REG_DSI_20nm_PHY_CTRL_0, 0);
 	dsi_20nm_phy_regulator_ctrl(phy, false);
-
-	return 0;
 }
 
 static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
@@ -730,15 +726,13 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	return phy->cfg->ops.enable(phy, src_pll_id, bit_rate, esc_rate);
 }
 
-int msm_dsi_phy_disable(struct msm_dsi_phy *phy)
+void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 {
 	if (!phy || !phy->cfg->ops.disable)
-		return -EINVAL;
+		return;
 
 	phy->cfg->ops.disable(phy);
 	dsi_phy_regulator_disable(phy);
-
-	return 0;
 }
 
 void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,

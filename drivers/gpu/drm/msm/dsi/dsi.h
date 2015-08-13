@@ -168,7 +168,7 @@ void msm_dsi_phy_driver_register(void);
 void msm_dsi_phy_driver_unregister(void);
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	const unsigned long bit_rate, const unsigned long esc_rate);
-int msm_dsi_phy_disable(struct msm_dsi_phy *phy);
+void msm_dsi_phy_disable(struct msm_dsi_phy *phy);
 void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
 					u32 *clk_pre, u32 *clk_post);
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);
