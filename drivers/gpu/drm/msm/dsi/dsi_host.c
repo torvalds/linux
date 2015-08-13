@@ -28,115 +28,7 @@
 
 #include "dsi.h"
 #include "dsi.xml.h"
-
-#define MSM_DSI_VER_MAJOR_V2	0x02
-#define MSM_DSI_VER_MAJOR_6G	0x03
-#define MSM_DSI_6G_VER_MINOR_V1_0	0x10000000
-#define MSM_DSI_6G_VER_MINOR_V1_1	0x10010000
-#define MSM_DSI_6G_VER_MINOR_V1_1_1	0x10010001
-#define MSM_DSI_6G_VER_MINOR_V1_2	0x10020000
-#define MSM_DSI_6G_VER_MINOR_V1_3	0x10030000
-#define MSM_DSI_6G_VER_MINOR_V1_3_1	0x10030001
-
-#define DSI_6G_REG_SHIFT	4
-
-struct dsi_config {
-	u32 major;
-	u32 minor;
-	u32 io_offset;
-	struct dsi_reg_config reg_cfg;
-};
-
-static const struct dsi_config dsi_cfgs[] = {
-	{MSM_DSI_VER_MAJOR_V2, 0, 0, {0,} },
-	{ /* 8974 v1 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_0,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8974 v2 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_1,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8974 v3 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_1_1,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8084 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_2,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 3000000, 3000000, 150000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8916 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_3_1,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 4,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdd", 2850000, 2850000, 100000, 100},
-				{"vdda", 1200000, 1200000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-			},
-		},
-	},
-	{ /* 8x94 */
-		.major = MSM_DSI_VER_MAJOR_6G,
-		.minor = MSM_DSI_6G_VER_MINOR_V1_3,
-		.io_offset = DSI_6G_REG_SHIFT,
-		.reg_cfg = {
-			.num = 7,
-			.regs = {
-				{"gdsc", -1, -1, -1, -1},
-				{"vdda", 1250000, 1250000, 100000, 100},
-				{"vddio", 1800000, 1800000, 100000, 100},
-				{"vcca", 1000000, 1000000, 10000, 100},
-				{"vdd", 1800000, 1800000, 100000, 100},
-				{"lab_reg", -1, -1, -1, -1},
-				{"ibb_reg", -1, -1, -1, -1},
-			},
-		}
-	},
-};
+#include "dsi_cfg.h"
 
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
@@ -214,7 +106,7 @@ struct msm_dsi_host {
 	struct gpio_desc *disp_en_gpio;
 	struct gpio_desc *te_gpio;
 
-	const struct dsi_config *cfg;
+	const struct msm_dsi_cfg_handler *cfg_hnd;
 
 	struct completion dma_comp;
 	struct completion video_comp;
@@ -259,61 +151,58 @@ static u32 dsi_get_bpp(const enum mipi_dsi_pixel_format fmt)
 
 static inline u32 dsi_read(struct msm_dsi_host *msm_host, u32 reg)
 {
-	return msm_readl(msm_host->ctrl_base + msm_host->cfg->io_offset + reg);
+	return msm_readl(msm_host->ctrl_base + reg);
 }
 static inline void dsi_write(struct msm_dsi_host *msm_host, u32 reg, u32 data)
 {
-	msm_writel(data, msm_host->ctrl_base + msm_host->cfg->io_offset + reg);
+	msm_writel(data, msm_host->ctrl_base + reg);
 }
 
 static int dsi_host_regulator_enable(struct msm_dsi_host *msm_host);
 static void dsi_host_regulator_disable(struct msm_dsi_host *msm_host);
 
-static const struct dsi_config *dsi_get_config(struct msm_dsi_host *msm_host)
+static const struct msm_dsi_cfg_handler *dsi_get_config(
+						struct msm_dsi_host *msm_host)
 {
-	const struct dsi_config *cfg;
+	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
 	struct regulator *gdsc_reg;
-	int i, ret;
+	int ret;
 	u32 major = 0, minor = 0;
 
 	gdsc_reg = regulator_get(&msm_host->pdev->dev, "gdsc");
 	if (IS_ERR(gdsc_reg)) {
 		pr_err("%s: cannot get gdsc\n", __func__);
-		goto fail;
+		goto exit;
 	}
 	ret = regulator_enable(gdsc_reg);
 	if (ret) {
 		pr_err("%s: unable to enable gdsc\n", __func__);
-		regulator_put(gdsc_reg);
-		goto fail;
+		goto put_gdsc;
 	}
 	ret = clk_prepare_enable(msm_host->ahb_clk);
 	if (ret) {
 		pr_err("%s: unable to enable ahb_clk\n", __func__);
-		regulator_disable(gdsc_reg);
-		regulator_put(gdsc_reg);
-		goto fail;
+		goto disable_gdsc;
 	}
 
 	ret = dsi_get_version(msm_host->ctrl_base, &major, &minor);
-
-	clk_disable_unprepare(msm_host->ahb_clk);
-	regulator_disable(gdsc_reg);
-	regulator_put(gdsc_reg);
 	if (ret) {
 		pr_err("%s: Invalid version\n", __func__);
-		goto fail;
+		goto disable_clks;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(dsi_cfgs); i++) {
-		cfg = dsi_cfgs + i;
-		if ((cfg->major == major) && (cfg->minor == minor))
-			return cfg;
-	}
-	pr_err("%s: Version %x:%x not support\n", __func__, major, minor);
+	cfg_hnd = msm_dsi_cfg_get(major, minor);
 
-fail:
-	return NULL;
+	DBG("%s: Version %x:%x\n", __func__, major, minor);
+
+disable_clks:
+	clk_disable_unprepare(msm_host->ahb_clk);
+disable_gdsc:
+	regulator_disable(gdsc_reg);
+put_gdsc:
+	regulator_put(gdsc_reg);
+exit:
+	return cfg_hnd;
 }
 
 static inline struct msm_dsi_host *to_msm_dsi_host(struct mipi_dsi_host *host)
@@ -324,8 +213,8 @@ static inline struct msm_dsi_host *to_msm_dsi_host(struct mipi_dsi_host *host)
 static void dsi_host_regulator_disable(struct msm_dsi_host *msm_host)
 {
 	struct regulator_bulk_data *s = msm_host->supplies;
-	const struct dsi_reg_entry *regs = msm_host->cfg->reg_cfg.regs;
-	int num = msm_host->cfg->reg_cfg.num;
+	const struct dsi_reg_entry *regs = msm_host->cfg_hnd->cfg->reg_cfg.regs;
+	int num = msm_host->cfg_hnd->cfg->reg_cfg.num;
 	int i;
 
 	DBG("");
@@ -340,8 +229,8 @@ static void dsi_host_regulator_disable(struct msm_dsi_host *msm_host)
 static int dsi_host_regulator_enable(struct msm_dsi_host *msm_host)
 {
 	struct regulator_bulk_data *s = msm_host->supplies;
-	const struct dsi_reg_entry *regs = msm_host->cfg->reg_cfg.regs;
-	int num = msm_host->cfg->reg_cfg.num;
+	const struct dsi_reg_entry *regs = msm_host->cfg_hnd->cfg->reg_cfg.regs;
+	int num = msm_host->cfg_hnd->cfg->reg_cfg.num;
 	int ret, i;
 
 	DBG("");
@@ -374,8 +263,8 @@ fail:
 static int dsi_regulator_init(struct msm_dsi_host *msm_host)
 {
 	struct regulator_bulk_data *s = msm_host->supplies;
-	const struct dsi_reg_entry *regs = msm_host->cfg->reg_cfg.regs;
-	int num = msm_host->cfg->reg_cfg.num;
+	const struct dsi_reg_entry *regs = msm_host->cfg_hnd->cfg->reg_cfg.regs;
+	int num = msm_host->cfg_hnd->cfg->reg_cfg.num;
 	int i, ret;
 
 	for (i = 0; i < num; i++)
@@ -717,6 +606,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 {
 	u32 flags = msm_host->mode_flags;
 	enum mipi_dsi_pixel_format mipi_fmt = msm_host->format;
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	u32 data = 0;
 
 	if (!enable) {
@@ -770,8 +660,8 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	data |= DSI_TRIG_CTRL_MDP_TRIGGER(TRIGGER_NONE);
 	data |= DSI_TRIG_CTRL_DMA_TRIGGER(TRIGGER_SW);
 	data |= DSI_TRIG_CTRL_STREAM(msm_host->channel);
-	if ((msm_host->cfg->major == MSM_DSI_VER_MAJOR_6G) &&
-		(msm_host->cfg->minor >= MSM_DSI_6G_VER_MINOR_V1_2))
+	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
+		(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_2))
 		data |= DSI_TRIG_CTRL_BLOCK_DMA_WITHIN_FRAME;
 	dsi_write(msm_host, REG_DSI_TRIG_CTRL, data);
 
@@ -1531,12 +1421,15 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	msm_host->cfg = dsi_get_config(msm_host);
-	if (!msm_host->cfg) {
+	msm_host->cfg_hnd = dsi_get_config(msm_host);
+	if (!msm_host->cfg_hnd) {
 		ret = -EINVAL;
 		pr_err("%s: get config failed\n", __func__);
 		goto fail;
 	}
+
+	/* fixup base address by io offset */
+	msm_host->ctrl_base += msm_host->cfg_hnd->cfg->io_offset;
 
 	ret = dsi_regulator_init(msm_host);
 	if (ret) {
@@ -1726,6 +1619,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 				const struct mipi_dsi_msg *msg)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int data_byte, rx_byte, dlen, end;
 	int short_response, diff, pkt_size, ret = 0;
 	char cmd;
@@ -1767,8 +1661,8 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 			return -EINVAL;
 		}
 
-		if ((msm_host->cfg->major == MSM_DSI_VER_MAJOR_6G) &&
-			(msm_host->cfg->minor >= MSM_DSI_6G_VER_MINOR_V1_1)) {
+		if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
+			(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_1)) {
 			/* Clear the RDBK_DATA registers */
 			dsi_write(msm_host, REG_DSI_RDBK_DATA_CTRL,
 					DSI_RDBK_DATA_CTRL_CLR);
