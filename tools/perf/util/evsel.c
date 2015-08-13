@@ -588,11 +588,36 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 	}
 }
 
-static void apply_config_terms(struct perf_evsel *evsel)
+static void
+perf_evsel__reset_callgraph(struct perf_evsel *evsel,
+			    struct callchain_param *param)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	perf_evsel__reset_sample_bit(evsel, CALLCHAIN);
+	if (param->record_mode == CALLCHAIN_LBR) {
+		perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
+		attr->branch_sample_type &= ~(PERF_SAMPLE_BRANCH_USER |
+					      PERF_SAMPLE_BRANCH_CALL_STACK);
+	}
+	if (param->record_mode == CALLCHAIN_DWARF) {
+		perf_evsel__reset_sample_bit(evsel, REGS_USER);
+		perf_evsel__reset_sample_bit(evsel, STACK_USER);
+	}
+}
+
+static void apply_config_terms(struct perf_evsel *evsel,
+			       struct record_opts *opts)
 {
 	struct perf_evsel_config_term *term;
 	struct list_head *config_terms = &evsel->config_terms;
 	struct perf_event_attr *attr = &evsel->attr;
+	struct callchain_param param;
+	u32 dump_size = 0;
+	char *callgraph_buf = NULL;
+
+	/* callgraph default */
+	param.record_mode = callchain_param.record_mode;
 
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
@@ -610,9 +635,47 @@ static void apply_config_terms(struct perf_evsel *evsel)
 			else
 				perf_evsel__reset_sample_bit(evsel, TIME);
 			break;
+		case PERF_EVSEL__CONFIG_TERM_CALLGRAPH:
+			callgraph_buf = term->val.callgraph;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
+			dump_size = term->val.stack_user;
+			break;
 		default:
 			break;
 		}
+	}
+
+	/* User explicitly set per-event callgraph, clear the old setting and reset. */
+	if ((callgraph_buf != NULL) || (dump_size > 0)) {
+
+		/* parse callgraph parameters */
+		if (callgraph_buf != NULL) {
+			if (!strcmp(callgraph_buf, "no")) {
+				param.enabled = false;
+				param.record_mode = CALLCHAIN_NONE;
+			} else {
+				param.enabled = true;
+				if (parse_callchain_record(callgraph_buf, &param)) {
+					pr_err("per-event callgraph setting for %s failed. "
+					       "Apply callgraph global setting for it\n",
+					       evsel->name);
+					return;
+				}
+			}
+		}
+		if (dump_size > 0) {
+			dump_size = round_up(dump_size, sizeof(u64));
+			param.dump_size = dump_size;
+		}
+
+		/* If global callgraph set, clear it */
+		if (callchain_param.enabled)
+			perf_evsel__reset_callgraph(evsel, &callchain_param);
+
+		/* set perf-event callgraph */
+		if (param.enabled)
+			perf_evsel__config_callgraph(evsel, opts, &param);
 	}
 }
 
@@ -812,7 +875,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	 * Apply event specific term settings,
 	 * it overloads any global configuration.
 	 */
-	apply_config_terms(evsel);
+	apply_config_terms(evsel, opts);
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)

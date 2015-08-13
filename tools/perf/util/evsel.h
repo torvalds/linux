@@ -41,6 +41,8 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_PERIOD,
 	PERF_EVSEL__CONFIG_TERM_FREQ,
 	PERF_EVSEL__CONFIG_TERM_TIME,
+	PERF_EVSEL__CONFIG_TERM_CALLGRAPH,
+	PERF_EVSEL__CONFIG_TERM_STACK_USER,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -51,6 +53,8 @@ struct perf_evsel_config_term {
 		u64	period;
 		u64	freq;
 		bool	time;
+		char	*callgraph;
+		u64	stack_user;
 	} val;
 };
 

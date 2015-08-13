@@ -1,7 +1,6 @@
 #include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"
-#include "../libslang.h"
 #include "../ui.h"
 #include "../util.h"
 #include "../../util/annotate.h"
@@ -134,29 +133,31 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 				ui_browser__set_percent_color(browser,
 							bdl->samples[i].percent,
 							current_entry);
-				if (annotate_browser__opts.show_total_period)
-					slsmg_printf("%6" PRIu64 " ",
-						     bdl->samples[i].nr);
-				else
-					slsmg_printf("%6.2f ", bdl->samples[i].percent);
+				if (annotate_browser__opts.show_total_period) {
+					ui_browser__printf(browser, "%6" PRIu64 " ",
+							   bdl->samples[i].nr);
+				} else {
+					ui_browser__printf(browser, "%6.2f ",
+							   bdl->samples[i].percent);
+				}
 			}
 		} else {
-			slsmg_write_nstring(" ", 7 * ab->nr_events);
+			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
 		}
 	} else {
 		ui_browser__set_percent_color(browser, 0, current_entry);
-		slsmg_write_nstring(" ", 7 * ab->nr_events);
+		ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
 	}
 	if (ab->have_cycles) {
 		if (dl->ipc)
-			slsmg_printf("%*.2f ", IPC_WIDTH - 1, dl->ipc);
+			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, dl->ipc);
 		else
-			slsmg_write_nstring(" ", IPC_WIDTH);
+			ui_browser__write_nstring(browser, " ", IPC_WIDTH);
 		if (dl->cycles)
-			slsmg_printf("%*" PRIu64 " ",
-				     CYCLES_WIDTH - 1, dl->cycles);
+			ui_browser__printf(browser, "%*" PRIu64 " ",
+					   CYCLES_WIDTH - 1, dl->cycles);
 		else
-			slsmg_write_nstring(" ", CYCLES_WIDTH);
+			ui_browser__write_nstring(browser, " ", CYCLES_WIDTH);
 	}
 
 	SLsmg_write_char(' ');
@@ -166,7 +167,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		width += 1;
 
 	if (!*dl->line)
-		slsmg_write_nstring(" ", width - pcnt_width);
+		ui_browser__write_nstring(browser, " ", width - pcnt_width);
 	else if (dl->offset == -1) {
 		if (dl->line_nr && annotate_browser__opts.show_linenr)
 			printed = scnprintf(bf, sizeof(bf), "%-*d ",
@@ -174,8 +175,8 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		else
 			printed = scnprintf(bf, sizeof(bf), "%*s  ",
 				    ab->addr_width, " ");
-		slsmg_write_nstring(bf, printed);
-		slsmg_write_nstring(dl->line, width - printed - pcnt_width + 1);
+		ui_browser__write_nstring(browser, bf, printed);
+		ui_browser__write_nstring(browser, dl->line, width - printed - pcnt_width + 1);
 	} else {
 		u64 addr = dl->offset;
 		int color = -1;
@@ -194,7 +195,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 							    bdl->jump_sources);
 					prev = annotate_browser__set_jumps_percent_color(ab, bdl->jump_sources,
 											 current_entry);
-					slsmg_write_nstring(bf, printed);
+					ui_browser__write_nstring(browser, bf, printed);
 					ui_browser__set_color(browser, prev);
 				}
 
@@ -208,7 +209,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 
 		if (change_color)
 			color = ui_browser__set_color(browser, HE_COLORSET_ADDR);
-		slsmg_write_nstring(bf, printed);
+		ui_browser__write_nstring(browser, bf, printed);
 		if (change_color)
 			ui_browser__set_color(browser, color);
 		if (dl->ins && dl->ins->ops->scnprintf) {
@@ -222,11 +223,11 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 				ui_browser__write_graph(browser, SLSMG_RARROW_CHAR);
 				SLsmg_write_char(' ');
 			} else {
-				slsmg_write_nstring(" ", 2);
+				ui_browser__write_nstring(browser, " ", 2);
 			}
 		} else {
 			if (strcmp(dl->name, "retq")) {
-				slsmg_write_nstring(" ", 2);
+				ui_browser__write_nstring(browser, " ", 2);
 			} else {
 				ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
 				SLsmg_write_char(' ');
@@ -234,7 +235,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		}
 
 		disasm_line__scnprintf(dl, bf, sizeof(bf), !annotate_browser__opts.use_offset);
-		slsmg_write_nstring(bf, width - pcnt_width - 3 - printed);
+		ui_browser__write_nstring(browser, bf, width - pcnt_width - 3 - printed);
 	}
 
 	if (current_entry)
