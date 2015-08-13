@@ -70,11 +70,24 @@ extern int mlx4_ib_sm_guid_assign;
 
 #define MLX4_IB_UC_STEER_QPN_ALIGN 1
 #define MLX4_IB_UC_MAX_NUM_QPS     256
+
+enum hw_bar_type {
+	HW_BAR_BF,
+	HW_BAR_DB,
+	HW_BAR_CLOCK,
+	HW_BAR_COUNT
+};
+
+struct mlx4_ib_vma_private_data {
+	struct vm_area_struct *vma;
+};
+
 struct mlx4_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct mlx4_uar		uar;
 	struct list_head	db_page_list;
 	struct mutex		db_page_mutex;
+	struct mlx4_ib_vma_private_data hw_bar_info[HW_BAR_COUNT];
 };
 
 struct mlx4_ib_pd {
