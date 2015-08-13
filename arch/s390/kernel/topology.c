@@ -451,6 +451,7 @@ static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_thread_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
 	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
 	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
+	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
 };
 
