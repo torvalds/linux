@@ -185,7 +185,7 @@ int main(int argc, char **argv)
 	ERR(!b, "%s", x509_name);
 	x509 = d2i_X509_bio(b, NULL); /* Binary encoded X.509 */
 	if (!x509) {
-		BIO_reset(b);
+		ERR(BIO_reset(b) != 1, "%s", x509_name);
 		x509 = PEM_read_bio_X509(b, NULL, NULL, NULL); /* PEM encoded X.509 */
 		if (x509)
 			drain_openssl_errors();
