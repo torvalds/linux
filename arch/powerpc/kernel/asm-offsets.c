@@ -213,7 +213,6 @@ int main(void)
 		offsetof(struct tlb_core_data, esel_max));
 	DEFINE(TCD_ESEL_FIRST,
 		offsetof(struct tlb_core_data, esel_first));
-	DEFINE(TCD_LOCK, offsetof(struct tlb_core_data, lock));
 #endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef CONFIG_PPC_STD_MMU_64
