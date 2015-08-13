@@ -95,9 +95,9 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
 	uint8_t *data_address;
 	uint8_t *end_of_data;
 
-	cvmx_dprintf("Packet Length:   %u\n", work->len);
-	cvmx_dprintf("	  Input Port:  %u\n", work->ipprt);
-	cvmx_dprintf("	  QoS:	       %u\n", work->qos);
+	cvmx_dprintf("Packet Length:   %u\n", work->word1.len);
+	cvmx_dprintf("	  Input Port:  %u\n", cvmx_wqe_get_port(work));
+	cvmx_dprintf("	  QoS:	       %u\n", cvmx_wqe_get_qos(work));
 	cvmx_dprintf("	  Buffers:     %u\n", work->word2.s.bufs);
 
 	if (work->word2.s.bufs == 0) {
@@ -127,7 +127,7 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
 		}
 	} else
 		buffer_ptr = work->packet_ptr;
-	remaining_bytes = work->len;
+	remaining_bytes = work->word1.len;
 
 	while (remaining_bytes) {
 		start_of_buffer =
