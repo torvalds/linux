@@ -28,6 +28,7 @@
 #include <linux/vmalloc.h>
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
+#include <asm/etr.h>
 #include <asm/pgtable.h>
 #include <asm/nmi.h>
 #include <asm/switch_to.h>
@@ -138,16 +139,47 @@ int kvm_arch_hardware_enable(void)
 
 static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address);
 
+/*
+ * This callback is executed during stop_machine(). All CPUs are therefore
+ * temporarily stopped. In order not to change guest behavior, we have to
+ * disable preemption whenever we touch the epoch of kvm and the VCPUs,
+ * so a CPU won't be stopped while calculating with the epoch.
+ */
+static int kvm_clock_sync(struct notifier_block *notifier, unsigned long val,
+			  void *v)
+{
+	struct kvm *kvm;
+	struct kvm_vcpu *vcpu;
+	int i;
+	unsigned long long *delta = v;
+
+	list_for_each_entry(kvm, &vm_list, vm_list) {
+		kvm->arch.epoch -= *delta;
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			vcpu->arch.sie_block->epoch -= *delta;
+		}
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block kvm_clock_notifier = {
+	.notifier_call = kvm_clock_sync,
+};
+
 int kvm_arch_hardware_setup(void)
 {
 	gmap_notifier.notifier_call = kvm_gmap_notifier;
 	gmap_register_ipte_notifier(&gmap_notifier);
+	atomic_notifier_chain_register(&s390_epoch_delta_notifier,
+				       &kvm_clock_notifier);
 	return 0;
 }
 
 void kvm_arch_hardware_unsetup(void)
 {
 	gmap_unregister_ipte_notifier(&gmap_notifier);
+	atomic_notifier_chain_unregister(&s390_epoch_delta_notifier,
+					 &kvm_clock_notifier);
 }
 
 int kvm_arch_init(void *opaque)
@@ -501,11 +533,13 @@ static int kvm_s390_set_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 		return r;
 
 	mutex_lock(&kvm->lock);
+	preempt_disable();
 	kvm->arch.epoch = gtod - host_tod;
 	kvm_s390_vcpu_block_all(kvm);
 	kvm_for_each_vcpu(vcpu_idx, cur_vcpu, kvm)
 		cur_vcpu->arch.sie_block->epoch = kvm->arch.epoch;
 	kvm_s390_vcpu_unblock_all(kvm);
+	preempt_enable();
 	mutex_unlock(&kvm->lock);
 	VM_EVENT(kvm, 3, "SET: TOD base: 0x%llx\n", gtod);
 	return 0;
@@ -553,7 +587,9 @@ static int kvm_s390_get_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 	if (r)
 		return r;
 
+	preempt_disable();
 	gtod = host_tod + kvm->arch.epoch;
+	preempt_enable();
 	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
 		return -EFAULT;
 	VM_EVENT(kvm, 3, "QUERY: TOD base: 0x%llx\n", gtod);
@@ -926,8 +962,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (kvm->arch.use_irqchip) {
 			/* Set up dummy routing. */
 			memset(&routing, 0, sizeof(routing));
-			kvm_set_irq_routing(kvm, &routing, 0, 0);
-			r = 0;
+			r = kvm_set_irq_routing(kvm, &routing, 0, 0);
 		}
 		break;
 	}
@@ -1314,7 +1349,9 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
 	mutex_lock(&vcpu->kvm->lock);
+	preempt_disable();
 	vcpu->arch.sie_block->epoch = vcpu->kvm->arch.epoch;
+	preempt_enable();
 	mutex_unlock(&vcpu->kvm->lock);
 	if (!kvm_is_ucontrol(vcpu->kvm))
 		vcpu->arch.gmap = vcpu->kvm->arch.gmap;
