@@ -4,8 +4,9 @@ if ARCH_MXC
 
 menu "MXC support drivers"
 
-source "drivers/mxc/vpu/Kconfig"
+source "drivers/mxc/mlb/Kconfig"
 source "drivers/mxc/sim/Kconfig"
+source "drivers/mxc/vpu/Kconfig"
 
 endmenu
 

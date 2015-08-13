@@ -1,0 +1,17 @@
+#
+# MLB150 configuration
+#
+
+menu "MXC Media Local Bus Driver"
+
+config MXC_MLB
+	boolean
+
+config MXC_MLB150
+	tristate "MLB150 support"
+	depends on SOC_IMX6Q
+	select MXC_MLB
+	---help---
+	Say Y to get the MLB150 support.
+
+endmenu
