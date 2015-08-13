@@ -1198,6 +1198,12 @@ int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
 	return 0;
 }
 
+int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 pvid)
+{
+	return mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
+				   pvid & PORT_DEFAULT_VLAN_MASK);
+}
+
 static int _mv88e6xxx_vtu_wait(struct dsa_switch *ds)
 {
 	return _mv88e6xxx_wait(ds, REG_GLOBAL, GLOBAL_VTU_OP,
@@ -1372,6 +1378,169 @@ loadpurge:
 		return ret;
 
 	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_VTU_LOAD_PURGE);
+}
+
+static int _mv88e6xxx_stu_getnext(struct dsa_switch *ds, u8 sid,
+				  struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	struct mv88e6xxx_vtu_stu_entry next = { 0 };
+	int ret;
+
+	ret = _mv88e6xxx_vtu_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_SID,
+				   sid & GLOBAL_VTU_SID_MASK);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_STU_GET_NEXT);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL, GLOBAL_VTU_SID);
+	if (ret < 0)
+		return ret;
+
+	next.sid = ret & GLOBAL_VTU_SID_MASK;
+
+	ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL, GLOBAL_VTU_VID);
+	if (ret < 0)
+		return ret;
+
+	next.valid = !!(ret & GLOBAL_VTU_VID_VALID);
+
+	if (next.valid) {
+		ret = _mv88e6xxx_vtu_stu_data_read(ds, &next, 2);
+		if (ret < 0)
+			return ret;
+	}
+
+	*entry = next;
+	return 0;
+}
+
+static int _mv88e6xxx_stu_loadpurge(struct dsa_switch *ds,
+				    struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	u16 reg = 0;
+	int ret;
+
+	ret = _mv88e6xxx_vtu_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	if (!entry->valid)
+		goto loadpurge;
+
+	/* Write port states */
+	ret = _mv88e6xxx_vtu_stu_data_write(ds, entry, 2);
+	if (ret < 0)
+		return ret;
+
+	reg = GLOBAL_VTU_VID_VALID;
+loadpurge:
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_VID, reg);
+	if (ret < 0)
+		return ret;
+
+	reg = entry->sid & GLOBAL_VTU_SID_MASK;
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_SID, reg);
+	if (ret < 0)
+		return ret;
+
+	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_STU_LOAD_PURGE);
+}
+
+static int _mv88e6xxx_vlan_init(struct dsa_switch *ds, u16 vid,
+				struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry vlan = {
+		.valid = true,
+		.vid = vid,
+	};
+	int i;
+
+	/* exclude all ports except the CPU */
+	for (i = 0; i < ps->num_ports; ++i)
+		vlan.data[i] = dsa_is_cpu_port(ds, i) ?
+			GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED :
+			GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+
+	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
+	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds)) {
+		struct mv88e6xxx_vtu_stu_entry vstp;
+		int err;
+
+		/* Adding a VTU entry requires a valid STU entry. As VSTP is not
+		 * implemented, only one STU entry is needed to cover all VTU
+		 * entries. Thus, validate the SID 0.
+		 */
+		vlan.sid = 0;
+		err = _mv88e6xxx_stu_getnext(ds, GLOBAL_VTU_SID_MASK, &vstp);
+		if (err)
+			return err;
+
+		if (vstp.sid != vlan.sid || !vstp.valid) {
+			memset(&vstp, 0, sizeof(vstp));
+			vstp.valid = true;
+			vstp.sid = vlan.sid;
+
+			err = _mv88e6xxx_stu_loadpurge(ds, &vstp);
+			if (err)
+				return err;
+		}
+
+		/* Non-bridged ports and bridge groups use FIDs from 1 to
+		 * num_ports; VLANs use FIDs from num_ports+1 to 4095.
+		 */
+		vlan.fid = find_next_zero_bit(ps->fid_bitmap, VLAN_N_VID,
+					      ps->num_ports + 1);
+		if (unlikely(vlan.fid == VLAN_N_VID)) {
+			pr_err("no more FID available for VLAN %d\n", vid);
+			return -ENOSPC;
+		}
+
+		err = _mv88e6xxx_flush_fid(ds, vlan.fid);
+		if (err)
+			return err;
+
+		set_bit(vlan.fid, ps->fid_bitmap);
+	}
+
+	*entry = vlan;
+	return 0;
+}
+
+int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
+			    bool untagged)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry vlan;
+	int err;
+
+	mutex_lock(&ps->smi_mutex);
+	err = _mv88e6xxx_vtu_getnext(ds, vid - 1, &vlan);
+	if (err)
+		goto unlock;
+
+	if (vlan.vid != vid || !vlan.valid) {
+		err = _mv88e6xxx_vlan_init(ds, vid, &vlan);
+		if (err)
+			goto unlock;
+	}
+
+	vlan.data[port] = untagged ?
+		GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED :
+		GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED;
+
+	err = _mv88e6xxx_vtu_loadpurge(ds, &vlan);
+unlock:
+	mutex_unlock(&ps->smi_mutex);
+
+	return err;
 }
 
 int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)

@@ -197,6 +197,8 @@
 #define GLOBAL_VTU_OP_FLUSH_ALL		((0x01 << 12) | GLOBAL_VTU_OP_BUSY)
 #define GLOBAL_VTU_OP_VTU_LOAD_PURGE	((0x03 << 12) | GLOBAL_VTU_OP_BUSY)
 #define GLOBAL_VTU_OP_VTU_GET_NEXT	((0x04 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_STU_LOAD_PURGE	((0x05 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_STU_GET_NEXT	((0x06 << 12) | GLOBAL_VTU_OP_BUSY)
 #define GLOBAL_VTU_VID		0x06
 #define GLOBAL_VTU_VID_MASK	0xfff
 #define GLOBAL_VTU_VID_VALID	BIT(12)
@@ -208,6 +210,10 @@
 #define GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED	0x01
 #define GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED	0x02
 #define GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER	0x03
+#define GLOBAL_STU_DATA_PORT_STATE_DISABLED	0x00
+#define GLOBAL_STU_DATA_PORT_STATE_BLOCKING	0x01
+#define GLOBAL_STU_DATA_PORT_STATE_LEARNING	0x02
+#define GLOBAL_STU_DATA_PORT_STATE_FORWARDING	0x03
 #define GLOBAL_ATU_CONTROL	0x0a
 #define GLOBAL_ATU_CONTROL_LEARN2ALL	BIT(3)
 #define GLOBAL_ATU_OP		0x0b
@@ -454,6 +460,9 @@ int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
 int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
+int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 vid);
+int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
+			    bool untagged);
 int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid);
 int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
 			   unsigned long *ports, unsigned long *untagged);
