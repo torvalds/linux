@@ -1145,11 +1145,13 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	return 0;
 }
 
-static u64 intel_pt_switch_ip(struct machine *machine, u64 *ptss_ip)
+static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 {
+	struct machine *machine = pt->machine;
 	struct map *map;
 	struct symbol *sym, *start;
 	u64 ip, switch_ip = 0;
+	const char *ptss;
 
 	if (ptss_ip)
 		*ptss_ip = 0;
@@ -1177,8 +1179,13 @@ static u64 intel_pt_switch_ip(struct machine *machine, u64 *ptss_ip)
 	if (!switch_ip || !ptss_ip)
 		return 0;
 
+	if (pt->have_sched_switch == 1)
+		ptss = "perf_trace_sched_switch";
+	else
+		ptss = "__perf_event_task_sched_out";
+
 	for (sym = start; sym; sym = dso__next_symbol(sym)) {
-		if (!strcmp(sym->name, "perf_trace_sched_switch")) {
+		if (!strcmp(sym->name, ptss)) {
 			ip = map->unmap_ip(map, sym->start);
 			if (ip >= map->start && ip < map->end) {
 				*ptss_ip = ip;
@@ -1198,11 +1205,11 @@ static int intel_pt_run_decoder(struct intel_pt_queue *ptq, u64 *timestamp)
 
 	if (!pt->kernel_start) {
 		pt->kernel_start = machine__kernel_start(pt->machine);
-		if (pt->per_cpu_mmaps && pt->have_sched_switch &&
+		if (pt->per_cpu_mmaps &&
+		    (pt->have_sched_switch == 1 || pt->have_sched_switch == 3) &&
 		    !pt->timeless_decoding && intel_pt_tracing_kernel(pt) &&
 		    !pt->sampling_mode) {
-			pt->switch_ip = intel_pt_switch_ip(pt->machine,
-							   &pt->ptss_ip);
+			pt->switch_ip = intel_pt_switch_ip(pt, &pt->ptss_ip);
 			if (pt->switch_ip) {
 				intel_pt_log("switch_ip: %"PRIx64" ptss_ip: %"PRIx64"\n",
 					     pt->switch_ip, pt->ptss_ip);
@@ -1387,31 +1394,18 @@ static struct intel_pt_queue *intel_pt_cpu_to_ptq(struct intel_pt *pt, int cpu)
 	return NULL;
 }
 
-static int intel_pt_process_switch(struct intel_pt *pt,
-				   struct perf_sample *sample)
+static int intel_pt_sync_switch(struct intel_pt *pt, int cpu, pid_t tid,
+				u64 timestamp)
 {
 	struct intel_pt_queue *ptq;
-	struct perf_evsel *evsel;
-	pid_t tid;
-	int cpu, err;
-
-	evsel = perf_evlist__id2evsel(pt->session->evlist, sample->id);
-	if (evsel != pt->switch_evsel)
-		return 0;
-
-	tid = perf_evsel__intval(evsel, sample, "next_pid");
-	cpu = sample->cpu;
-
-	intel_pt_log("sched_switch: cpu %d tid %d time %"PRIu64" tsc %#"PRIx64"\n",
-		     cpu, tid, sample->time, perf_time_to_tsc(sample->time,
-		     &pt->tc));
+	int err;
 
 	if (!pt->sync_switch)
-		goto out;
+		return 1;
 
 	ptq = intel_pt_cpu_to_ptq(pt, cpu);
 	if (!ptq)
-		goto out;
+		return 1;
 
 	switch (ptq->switch_state) {
 	case INTEL_PT_SS_NOT_TRACING:
@@ -1424,7 +1418,7 @@ static int intel_pt_process_switch(struct intel_pt *pt,
 		return 0;
 	case INTEL_PT_SS_EXPECTING_SWITCH_EVENT:
 		if (!ptq->on_heap) {
-			ptq->timestamp = perf_time_to_tsc(sample->time,
+			ptq->timestamp = perf_time_to_tsc(timestamp,
 							  &pt->tc);
 			err = auxtrace_heap__add(&pt->heap, ptq->queue_nr,
 						 ptq->timestamp);
@@ -1441,8 +1435,74 @@ static int intel_pt_process_switch(struct intel_pt *pt,
 	default:
 		break;
 	}
-out:
+
+	return 1;
+}
+
+static int intel_pt_process_switch(struct intel_pt *pt,
+				   struct perf_sample *sample)
+{
+	struct perf_evsel *evsel;
+	pid_t tid;
+	int cpu, ret;
+
+	evsel = perf_evlist__id2evsel(pt->session->evlist, sample->id);
+	if (evsel != pt->switch_evsel)
+		return 0;
+
+	tid = perf_evsel__intval(evsel, sample, "next_pid");
+	cpu = sample->cpu;
+
+	intel_pt_log("sched_switch: cpu %d tid %d time %"PRIu64" tsc %#"PRIx64"\n",
+		     cpu, tid, sample->time, perf_time_to_tsc(sample->time,
+		     &pt->tc));
+
+	ret = intel_pt_sync_switch(pt, cpu, tid, sample->time);
+	if (ret <= 0)
+		return ret;
+
 	return machine__set_current_tid(pt->machine, cpu, -1, tid);
+}
+
+static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
+				   struct perf_sample *sample)
+{
+	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
+	pid_t pid, tid;
+	int cpu, ret;
+
+	cpu = sample->cpu;
+
+	if (pt->have_sched_switch == 3) {
+		if (!out)
+			return 0;
+		if (event->header.type != PERF_RECORD_SWITCH_CPU_WIDE) {
+			pr_err("Expecting CPU-wide context switch event\n");
+			return -EINVAL;
+		}
+		pid = event->context_switch.next_prev_pid;
+		tid = event->context_switch.next_prev_tid;
+	} else {
+		if (out)
+			return 0;
+		pid = sample->pid;
+		tid = sample->tid;
+	}
+
+	if (tid == -1) {
+		pr_err("context_switch event has no tid\n");
+		return -EINVAL;
+	}
+
+	intel_pt_log("context_switch: cpu %d pid %d tid %d time %"PRIu64" tsc %#"PRIx64"\n",
+		     cpu, pid, tid, sample->time, perf_time_to_tsc(sample->time,
+		     &pt->tc));
+
+	ret = intel_pt_sync_switch(pt, cpu, tid, sample->time);
+	if (ret <= 0)
+		return ret;
+
+	return machine__set_current_tid(pt->machine, cpu, pid, tid);
 }
 
 static int intel_pt_process_itrace_start(struct intel_pt *pt,
@@ -1515,6 +1575,9 @@ static int intel_pt_process_event(struct perf_session *session,
 		err = intel_pt_process_switch(pt, sample);
 	else if (event->header.type == PERF_RECORD_ITRACE_START)
 		err = intel_pt_process_itrace_start(pt, event, sample);
+	else if (event->header.type == PERF_RECORD_SWITCH ||
+		 event->header.type == PERF_RECORD_SWITCH_CPU_WIDE)
+		err = intel_pt_context_switch(pt, event, sample);
 
 	intel_pt_log("event %s (%u): cpu %d time %"PRIu64" tsc %#"PRIx64"\n",
 		     perf_event__name(event->header.type), event->header.type,
@@ -1777,6 +1840,18 @@ static struct perf_evsel *intel_pt_find_sched_switch(struct perf_evlist *evlist)
 	return NULL;
 }
 
+static bool intel_pt_find_switch(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel) {
+		if (evsel->attr.context_switch)
+			return true;
+	}
+
+	return false;
+}
+
 static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_PMU_TYPE]		= "  PMU Type            %"PRId64"\n",
 	[INTEL_PT_TIME_SHIFT]		= "  Time Shift          %"PRIu64"\n",
@@ -1888,6 +1963,10 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 			pr_err("%s: missing sched_switch event\n", __func__);
 			goto err_delete_thread;
 		}
+	} else if (pt->have_sched_switch == 2 &&
+		   !intel_pt_find_switch(session->evlist)) {
+		pr_err("%s: missing context_switch attribute flag\n", __func__);
+		goto err_delete_thread;
 	}
 
 	if (session->itrace_synth_opts && session->itrace_synth_opts->set) {
