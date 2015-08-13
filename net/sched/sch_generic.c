@@ -735,7 +735,7 @@ static void attach_one_default_qdisc(struct net_device *dev,
 {
 	struct Qdisc *qdisc = &noqueue_qdisc;
 
-	if (dev->tx_queue_len) {
+	if (dev->tx_queue_len && !(dev->priv_flags & IFF_NO_QUEUE)) {
 		qdisc = qdisc_create_dflt(dev_queue,
 					  default_qdisc_ops, TC_H_ROOT);
 		if (!qdisc) {
@@ -755,7 +755,9 @@ static void attach_default_qdiscs(struct net_device *dev)
 
 	txq = netdev_get_tx_queue(dev, 0);
 
-	if (!netif_is_multiqueue(dev) || dev->tx_queue_len == 0) {
+	if (!netif_is_multiqueue(dev) ||
+	    dev->tx_queue_len == 0 ||
+	    dev->priv_flags & IFF_NO_QUEUE) {
 		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
 		dev->qdisc = txq->qdisc_sleeping;
 		atomic_inc(&dev->qdisc->refcnt);
