@@ -367,4 +367,5 @@ driver's rocker_port_ipv4_resolve() for an example.
 
 The driver can monitor for updates to arp_tbl using the netevent notifier
 NETEVENT_NEIGH_UPDATE.  The device can be programmed with resolved nexthops
-for the routes as arp_tbl updates.
+for the routes as arp_tbl updates.  The driver implements ndo_neigh_destroy
+to know when arp_tbl neighbor entries are purged from the port.

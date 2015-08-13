@@ -4264,6 +4264,16 @@ static int rocker_port_change_proto_down(struct net_device *dev,
 	return 0;
 }
 
+static void rocker_port_neigh_destroy(struct neighbour *n)
+{
+	struct rocker_port *rocker_port = netdev_priv(n->dev);
+	int flags = ROCKER_OP_FLAG_REMOVE | ROCKER_OP_FLAG_NOWAIT;
+	__be32 ip_addr = *(__be32 *)n->primary_key;
+
+	rocker_port_ipv4_neigh(rocker_port, SWITCHDEV_TRANS_NONE,
+			       flags, ip_addr, n->ha);
+}
+
 static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_open			= rocker_port_open,
 	.ndo_stop			= rocker_port_stop,
@@ -4278,6 +4288,7 @@ static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_fdb_dump			= switchdev_port_fdb_dump,
 	.ndo_get_phys_port_name		= rocker_port_get_phys_port_name,
 	.ndo_change_proto_down		= rocker_port_change_proto_down,
+	.ndo_neigh_destroy		= rocker_port_neigh_destroy,
 };
 
 /********************
