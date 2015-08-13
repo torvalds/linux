@@ -31,7 +31,6 @@
 struct m25p {
 	struct spi_device	*spi;
 	struct spi_nor		spi_nor;
-	struct mtd_info		mtd;
 	u8			command[MAX_CMD_SIZE];
 };
 
@@ -159,7 +158,7 @@ static int m25p80_erase(struct spi_nor *nor, loff_t offset)
 	struct m25p *flash = nor->priv;
 
 	dev_dbg(nor->dev, "%dKiB at 0x%08x\n",
-		flash->mtd.erasesize / 1024, (u32)offset);
+		flash->spi_nor.mtd.erasesize / 1024, (u32)offset);
 
 	/* Set up command buffer. */
 	flash->command[0] = nor->erase_opcode;
@@ -201,7 +200,6 @@ static int m25p_probe(struct spi_device *spi)
 	nor->read_reg = m25p80_read_reg;
 
 	nor->dev = &spi->dev;
-	nor->mtd = &flash->mtd;
 	nor->priv = flash;
 
 	spi_set_drvdata(spi, flash);
@@ -213,7 +211,7 @@ static int m25p_probe(struct spi_device *spi)
 		mode = SPI_NOR_DUAL;
 
 	if (data && data->name)
-		flash->mtd.name = data->name;
+		nor->mtd.name = data->name;
 
 	/* For some (historical?) reason many platforms provide two different
 	 * names in flash_platform_data: "name" and "type". Quite often name is
@@ -231,7 +229,7 @@ static int m25p_probe(struct spi_device *spi)
 
 	ppdata.of_node = spi->dev.of_node;
 
-	return mtd_device_parse_register(&flash->mtd, NULL, &ppdata,
+	return mtd_device_parse_register(&nor->mtd, NULL, &ppdata,
 			data ? data->parts : NULL,
 			data ? data->nr_parts : 0);
 }
@@ -242,7 +240,7 @@ static int m25p_remove(struct spi_device *spi)
 	struct m25p	*flash = spi_get_drvdata(spi);
 
 	/* Clean up MTD stuff. */
-	return mtd_device_unregister(&flash->mtd);
+	return mtd_device_unregister(&flash->spi_nor.mtd);
 }
 
 /*
