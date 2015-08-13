@@ -60,6 +60,20 @@
 
 #include <asm/xen/hypervisor.h>
 
+/*
+ * The minimal size of segment supported by the block framework is PAGE_SIZE.
+ * When Linux is using a different page size than Xen, it may not be possible
+ * to put all the data in a single segment.
+ * This can happen when the backend doesn't support indirect descriptor and
+ * therefore the maximum amount of data that a request can carry is
+ * BLKIF_MAX_SEGMENTS_PER_REQUEST * XEN_PAGE_SIZE = 44KB
+ *
+ * Note that we only support one extra request. So the Linux page size
+ * should be <= ( 2 * BLKIF_MAX_SEGMENTS_PER_REQUEST * XEN_PAGE_SIZE) =
+ * 88KB.
+ */
+#define HAS_EXTRA_REQ (BLKIF_MAX_SEGMENTS_PER_REQUEST < XEN_PFN_PER_PAGE)
+
 enum blkif_state {
 	BLKIF_STATE_DISCONNECTED,
 	BLKIF_STATE_CONNECTED,
@@ -72,6 +86,13 @@ struct grant {
 	struct list_head node;
 };
 
+enum blk_req_status {
+	REQ_WAITING,
+	REQ_DONE,
+	REQ_ERROR,
+	REQ_EOPNOTSUPP,
+};
+
 struct blk_shadow {
 	struct blkif_request req;
 	struct request *request;
@@ -79,6 +100,14 @@ struct blk_shadow {
 	struct grant **indirect_grants;
 	struct scatterlist *sg;
 	unsigned int num_sg;
+	enum blk_req_status status;
+
+	#define NO_ASSOCIATED_ID ~0UL
+	/*
+	 * Id of the sibling if we ever need 2 requests when handling a
+	 * block I/O request
+	 */
+	unsigned long associated_id;
 };
 
 struct split_bio {
@@ -492,6 +521,8 @@ static unsigned long blkif_ring_get_request(struct blkfront_ring_info *rinfo,
 
 	id = get_id_from_freelist(rinfo);
 	rinfo->shadow[id].request = req;
+	rinfo->shadow[id].status = REQ_WAITING;
+	rinfo->shadow[id].associated_id = NO_ASSOCIATED_ID;
 
 	(*ring_req)->u.rw.id = id;
 
@@ -533,6 +564,9 @@ struct setup_rw_req {
 	bool need_copy;
 	unsigned int bvec_off;
 	char *bvec_data;
+
+	bool require_extra_req;
+	struct blkif_request *extra_ring_req;
 };
 
 static void blkif_setup_rw_req_grant(unsigned long gfn, unsigned int offset,
@@ -546,7 +580,23 @@ static void blkif_setup_rw_req_grant(unsigned long gfn, unsigned int offset,
 	unsigned int grant_idx = setup->grant_idx;
 	struct blkif_request *ring_req = setup->ring_req;
 	struct blkfront_ring_info *rinfo = setup->rinfo;
+	/*
+	 * We always use the shadow of the first request to store the list
+	 * of grant associated to the block I/O request. This made the
+	 * completion more easy to handle even if the block I/O request is
+	 * split.
+	 */
 	struct blk_shadow *shadow = &rinfo->shadow[setup->id];
+
+	if (unlikely(setup->require_extra_req &&
+		     grant_idx >= BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
+		/*
+		 * We are using the second request, setup grant_idx
+		 * to be the index of the segment array.
+		 */
+		grant_idx -= BLKIF_MAX_SEGMENTS_PER_REQUEST;
+		ring_req = setup->extra_ring_req;
+	}
 
 	if ((ring_req->operation == BLKIF_OP_INDIRECT) &&
 	    (grant_idx % GRANTS_PER_INDIRECT_FRAME == 0)) {
@@ -562,7 +612,11 @@ static void blkif_setup_rw_req_grant(unsigned long gfn, unsigned int offset,
 
 	gnt_list_entry = get_grant(&setup->gref_head, gfn, rinfo);
 	ref = gnt_list_entry->gref;
-	shadow->grants_used[grant_idx] = gnt_list_entry;
+	/*
+	 * All the grants are stored in the shadow of the first
+	 * request. Therefore we have to use the global index.
+	 */
+	shadow->grants_used[setup->grant_idx] = gnt_list_entry;
 
 	if (setup->need_copy) {
 		void *shared_data;
@@ -604,11 +658,31 @@ static void blkif_setup_rw_req_grant(unsigned long gfn, unsigned int offset,
 	(setup->grant_idx)++;
 }
 
+static void blkif_setup_extra_req(struct blkif_request *first,
+				  struct blkif_request *second)
+{
+	uint16_t nr_segments = first->u.rw.nr_segments;
+
+	/*
+	 * The second request is only present when the first request uses
+	 * all its segments. It's always the continuity of the first one.
+	 */
+	first->u.rw.nr_segments = BLKIF_MAX_SEGMENTS_PER_REQUEST;
+
+	second->u.rw.nr_segments = nr_segments - BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	second->u.rw.sector_number = first->u.rw.sector_number +
+		(BLKIF_MAX_SEGMENTS_PER_REQUEST * XEN_PAGE_SIZE) / 512;
+
+	second->u.rw.handle = first->u.rw.handle;
+	second->operation = first->operation;
+}
+
 static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *rinfo)
 {
 	struct blkfront_info *info = rinfo->dev_info;
-	struct blkif_request *ring_req;
-	unsigned long id;
+	struct blkif_request *ring_req, *extra_ring_req = NULL;
+	unsigned long id, extra_id = NO_ASSOCIATED_ID;
+	bool require_extra_req = false;
 	int i;
 	struct setup_rw_req setup = {
 		.grant_idx = 0,
@@ -650,19 +724,19 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	/* Fill out a communications ring structure. */
 	id = blkif_ring_get_request(rinfo, req, &ring_req);
 
-	BUG_ON(info->max_indirect_segments == 0 &&
-	       GREFS(req->nr_phys_segments) > BLKIF_MAX_SEGMENTS_PER_REQUEST);
-	BUG_ON(info->max_indirect_segments &&
-	       GREFS(req->nr_phys_segments) > info->max_indirect_segments);
-
 	num_sg = blk_rq_map_sg(req->q, req, rinfo->shadow[id].sg);
 	num_grant = 0;
 	/* Calculate the number of grant used */
 	for_each_sg(rinfo->shadow[id].sg, sg, num_sg, i)
 	       num_grant += gnttab_count_grant(sg->offset, sg->length);
 
+	require_extra_req = info->max_indirect_segments == 0 &&
+		num_grant > BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	BUG_ON(!HAS_EXTRA_REQ && require_extra_req);
+
 	rinfo->shadow[id].num_sg = num_sg;
-	if (num_grant > BLKIF_MAX_SEGMENTS_PER_REQUEST) {
+	if (num_grant > BLKIF_MAX_SEGMENTS_PER_REQUEST &&
+	    likely(!require_extra_req)) {
 		/*
 		 * The indirect operation can only be a BLKIF_OP_READ or
 		 * BLKIF_OP_WRITE
@@ -702,10 +776,30 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 			}
 		}
 		ring_req->u.rw.nr_segments = num_grant;
+		if (unlikely(require_extra_req)) {
+			extra_id = blkif_ring_get_request(rinfo, req,
+							  &extra_ring_req);
+			/*
+			 * Only the first request contains the scatter-gather
+			 * list.
+			 */
+			rinfo->shadow[extra_id].num_sg = 0;
+
+			blkif_setup_extra_req(ring_req, extra_ring_req);
+
+			/* Link the 2 requests together */
+			rinfo->shadow[extra_id].associated_id = id;
+			rinfo->shadow[id].associated_id = extra_id;
+		}
 	}
 
 	setup.ring_req = ring_req;
 	setup.id = id;
+
+	setup.require_extra_req = require_extra_req;
+	if (unlikely(require_extra_req))
+		setup.extra_ring_req = extra_ring_req;
+
 	for_each_sg(rinfo->shadow[id].sg, sg, num_sg, i) {
 		BUG_ON(sg->offset + sg->length > PAGE_SIZE);
 
@@ -728,6 +822,8 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 
 	/* Keep a private copy so we can reissue requests when recovering. */
 	rinfo->shadow[id].req = *ring_req;
+	if (unlikely(require_extra_req))
+		rinfo->shadow[extra_id].req = *extra_ring_req;
 
 	if (max_grefs > 0)
 		gnttab_free_grant_references(setup.gref_head);
@@ -829,7 +925,16 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 	memset(&info->tag_set, 0, sizeof(info->tag_set));
 	info->tag_set.ops = &blkfront_mq_ops;
 	info->tag_set.nr_hw_queues = info->nr_rings;
-	info->tag_set.queue_depth =  BLK_RING_SIZE(info);
+	if (HAS_EXTRA_REQ && info->max_indirect_segments == 0) {
+		/*
+		 * When indirect descriptior is not supported, the I/O request
+		 * will be split between multiple request in the ring.
+		 * To avoid problems when sending the request, divide by
+		 * 2 the depth of the queue.
+		 */
+		info->tag_set.queue_depth =  BLK_RING_SIZE(info) / 2;
+	} else
+		info->tag_set.queue_depth = BLK_RING_SIZE(info);
 	info->tag_set.numa_node = NUMA_NO_NODE;
 	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
 	info->tag_set.cmd_size = 0;
@@ -1269,20 +1374,93 @@ static void blkif_copy_from_grant(unsigned long gfn, unsigned int offset,
 	kunmap_atomic(shared_data);
 }
 
-static void blkif_completion(struct blk_shadow *s, struct blkfront_ring_info *rinfo,
+static enum blk_req_status blkif_rsp_to_req_status(int rsp)
+{
+	switch (rsp)
+	{
+	case BLKIF_RSP_OKAY:
+		return REQ_DONE;
+	case BLKIF_RSP_EOPNOTSUPP:
+		return REQ_EOPNOTSUPP;
+	case BLKIF_RSP_ERROR:
+		/* Fallthrough. */
+	default:
+		return REQ_ERROR;
+	}
+}
+
+/*
+ * Get the final status of the block request based on two ring response
+ */
+static int blkif_get_final_status(enum blk_req_status s1,
+				  enum blk_req_status s2)
+{
+	BUG_ON(s1 == REQ_WAITING);
+	BUG_ON(s2 == REQ_WAITING);
+
+	if (s1 == REQ_ERROR || s2 == REQ_ERROR)
+		return BLKIF_RSP_ERROR;
+	else if (s1 == REQ_EOPNOTSUPP || s2 == REQ_EOPNOTSUPP)
+		return BLKIF_RSP_EOPNOTSUPP;
+	return BLKIF_RSP_OKAY;
+}
+
+static bool blkif_completion(unsigned long *id,
+			     struct blkfront_ring_info *rinfo,
 			     struct blkif_response *bret)
 {
 	int i = 0;
 	struct scatterlist *sg;
 	int num_sg, num_grant;
 	struct blkfront_info *info = rinfo->dev_info;
+	struct blk_shadow *s = &rinfo->shadow[*id];
 	struct copy_from_grant data = {
-		.s = s,
 		.grant_idx = 0,
 	};
 
 	num_grant = s->req.operation == BLKIF_OP_INDIRECT ?
 		s->req.u.indirect.nr_segments : s->req.u.rw.nr_segments;
+
+	/* The I/O request may be split in two. */
+	if (unlikely(s->associated_id != NO_ASSOCIATED_ID)) {
+		struct blk_shadow *s2 = &rinfo->shadow[s->associated_id];
+
+		/* Keep the status of the current response in shadow. */
+		s->status = blkif_rsp_to_req_status(bret->status);
+
+		/* Wait the second response if not yet here. */
+		if (s2->status == REQ_WAITING)
+			return 0;
+
+		bret->status = blkif_get_final_status(s->status,
+						      s2->status);
+
+		/*
+		 * All the grants is stored in the first shadow in order
+		 * to make the completion code simpler.
+		 */
+		num_grant += s2->req.u.rw.nr_segments;
+
+		/*
+		 * The two responses may not come in order. Only the
+		 * first request will store the scatter-gather list.
+		 */
+		if (s2->num_sg != 0) {
+			/* Update "id" with the ID of the first response. */
+			*id = s->associated_id;
+			s = s2;
+		}
+
+		/*
+		 * We don't need anymore the second request, so recycling
+		 * it now.
+		 */
+		if (add_id_to_freelist(rinfo, s->associated_id))
+			WARN(1, "%s: can't recycle the second part (id = %ld) of the request\n",
+			     info->gd->disk_name, s->associated_id);
+	}
+
+	data.s = s;
 	num_sg = s->num_sg;
 
 	if (bret->operation == BLKIF_OP_READ && info->feature_persistent) {
@@ -1352,6 +1530,8 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_ring_info *ri
 			}
 		}
 	}
+
+	return 1;
 }
 
 static irqreturn_t blkif_interrupt(int irq, void *dev_id)
@@ -1391,8 +1571,14 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 		}
 		req  = rinfo->shadow[id].request;
 
-		if (bret->operation != BLKIF_OP_DISCARD)
-			blkif_completion(&rinfo->shadow[id], rinfo, bret);
+		if (bret->operation != BLKIF_OP_DISCARD) {
+			/*
+			 * We may need to wait for an extra response if the
+			 * I/O request is split in 2
+			 */
+			if (!blkif_completion(&id, rinfo, bret))
+				continue;
+		}
 
 		if (add_id_to_freelist(rinfo, id)) {
 			WARN(1, "%s: response to %s (id %ld) couldn't be recycled!\n",
@@ -2017,8 +2203,18 @@ static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo)
 	int err, i;
 	struct blkfront_info *info = rinfo->dev_info;
 
-	if (info->max_indirect_segments == 0)
-		grants = BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	if (info->max_indirect_segments == 0) {
+		if (!HAS_EXTRA_REQ)
+			grants = BLKIF_MAX_SEGMENTS_PER_REQUEST;
+		else {
+			/*
+			 * When an extra req is required, the maximum
+			 * grants supported is related to the size of the
+			 * Linux block segment.
+			 */
+			grants = GRANTS_PER_PSEG;
+		}
+	}
 	else
 		grants = info->max_indirect_segments;
 	psegs = grants / GRANTS_PER_PSEG;
