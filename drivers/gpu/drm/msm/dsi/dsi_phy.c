@@ -157,17 +157,21 @@ fail:
 	return ret;
 }
 
-static void dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg)
+static void dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
+				u32 bit_mask)
 {
 	int phy_id = phy->id;
+	u32 val;
 
 	if ((phy_id >= DSI_MAX) || (pll_id >= DSI_MAX))
 		return;
 
+	val = dsi_phy_read(phy->base + reg);
+
 	if (phy->cfg->src_pll_truthtable[phy_id][pll_id])
-		dsi_phy_write(phy->base + reg, 0x01);
+		dsi_phy_write(phy->base + reg, val | bit_mask);
 	else
-		dsi_phy_write(phy->base + reg, 0x00);
+		dsi_phy_write(phy->base + reg, val & (~bit_mask));
 }
 
 #define S_DIV_ROUND_UP(n, d)	\
@@ -389,7 +393,8 @@ static int dsi_28nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 	dsi_phy_write(base + REG_DSI_28nm_PHY_CTRL_0, 0x5f);
 
-	dsi_phy_set_src_pll(phy, src_pll_id, REG_DSI_28nm_PHY_GLBL_TEST_CTRL);
+	dsi_phy_set_src_pll(phy, src_pll_id, REG_DSI_28nm_PHY_GLBL_TEST_CTRL,
+			DSI_28nm_PHY_GLBL_TEST_CTRL_BITCLK_HS_SEL);
 
 	return 0;
 }
@@ -451,7 +456,8 @@ static int dsi_20nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 	dsi_phy_write(base + REG_DSI_20nm_PHY_STRENGTH_0, 0xff);
 
-	dsi_phy_set_src_pll(phy, src_pll_id, REG_DSI_20nm_PHY_GLBL_TEST_CTRL);
+	dsi_phy_set_src_pll(phy, src_pll_id, REG_DSI_20nm_PHY_GLBL_TEST_CTRL,
+			DSI_20nm_PHY_GLBL_TEST_CTRL_BITCLK_HS_SEL);
 
 	for (i = 0; i < 4; i++) {
 		dsi_phy_write(base + REG_DSI_20nm_PHY_LN_CFG_3(i),
