@@ -322,6 +322,7 @@ struct mdp_superblock_1 {
 					|MD_FEATURE_NEW_OFFSET		\
 					|MD_FEATURE_RECOVERY_BITMAP	\
 					|MD_FEATURE_CLUSTERED		\
+					|MD_FEATURE_JOURNAL		\
 					)
 
 struct r5l_payload_header {
