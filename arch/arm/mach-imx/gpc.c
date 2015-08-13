@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Freescale Semiconductor, Inc.
+ * Copyright 2011-2015 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -26,6 +26,7 @@
 
 #define GPC_CNTR		0x000
 #define GPC_IMR1		0x008
+#define GPC_PGC_MF_PDN		0x220
 #define GPC_PGC_GPU_PDN		0x260
 #define GPC_PGC_GPU_PUPSCR	0x264
 #define GPC_PGC_GPU_PDNSCR	0x268
@@ -53,6 +54,27 @@ struct pu_domain {
 static void __iomem *gpc_base;
 static u32 gpc_wake_irqs[IMR_NUM];
 static u32 gpc_saved_imrs[IMR_NUM];
+static u32 gpc_mf_irqs[IMR_NUM];
+static u32 gpc_mf_request_on[IMR_NUM];
+
+unsigned int imx_gpc_is_mf_mix_off(void)
+{
+	return readl_relaxed(gpc_base + GPC_PGC_MF_PDN);
+}
+
+static void imx_gpc_mf_mix_off(void)
+{
+	int i;
+
+	for (i = 0; i < IMR_NUM; i++)
+		if (((gpc_wake_irqs[i] | gpc_mf_request_on[i]) &
+						gpc_mf_irqs[i]) != 0)
+			return;
+
+	pr_info("Turn off M/F mix!\n");
+	/* turn off mega/fast mix */
+	writel_relaxed(0x1, gpc_base + GPC_PGC_MF_PDN);
+}
 
 void imx_gpc_set_arm_power_up_timing(u32 sw2iso, u32 sw)
 {
@@ -75,6 +97,10 @@ void imx_gpc_pre_suspend(bool arm_power_off)
 {
 	void __iomem *reg_imr1 = gpc_base + GPC_IMR1;
 	int i;
+
+	/* power down the mega-fast power domain */
+	if (cpu_is_imx6ul() && arm_power_off)
+		imx_gpc_mf_mix_off();
 
 	/* Tell GPC to power off ARM core when suspend */
 	if (arm_power_off)
@@ -265,6 +291,21 @@ static int __init imx_gpc_init(struct device_node *node,
 	/* Initially mask all interrupts */
 	for (i = 0; i < IMR_NUM; i++)
 		writel_relaxed(~0, gpc_base + GPC_IMR1 + i * 4);
+
+	/* Read supported wakeup source in M/F domain */
+	if (cpu_is_imx6ul()) {
+		of_property_read_u32_index(node, "fsl,mf-mix-wakeup-irq", 0,
+			&gpc_mf_irqs[0]);
+		of_property_read_u32_index(node, "fsl,mf-mix-wakeup-irq", 1,
+			&gpc_mf_irqs[1]);
+		of_property_read_u32_index(node, "fsl,mf-mix-wakeup-irq", 2,
+			&gpc_mf_irqs[2]);
+		of_property_read_u32_index(node, "fsl,mf-mix-wakeup-irq", 3,
+			&gpc_mf_irqs[3]);
+		if (!(gpc_mf_irqs[0] | gpc_mf_irqs[1] |
+			gpc_mf_irqs[2] | gpc_mf_irqs[3]))
+			pr_info("No wakeup source in Mega/Fast domain found!\n");
+	}
 
 	return 0;
 }

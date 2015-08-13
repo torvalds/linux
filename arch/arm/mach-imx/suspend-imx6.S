@@ -64,6 +64,9 @@
 #define	PM_INFO_MX6Q_TTBR1_V_OFFSET		0x48
 #define PM_INFO_MMDC_IO_NUM_OFFSET		0x4c
 #define PM_INFO_MMDC_IO_VAL_OFFSET		0x50
+/* below offsets depends on MX6_MAX_MMDC_IO_NUM(33) definition */
+#define PM_INFO_MMDC_NUM_OFFSET			0x158
+#define PM_INFO_MMDC_VAL_OFFSET			0x15c
 
 #define MX6Q_SRC_GPR1	0x20
 #define MX6Q_SRC_GPR2	0x24
@@ -131,29 +134,8 @@
 
 	.endm
 
-	.macro	resume_mmdc
-
-	/* restore MMDC IO */
-	cmp	r5, #0x0
-	ldreq	r11, [r0, #PM_INFO_MX6Q_IOMUXC_V_OFFSET]
-	ldrne	r11, [r0, #PM_INFO_MX6Q_IOMUXC_P_OFFSET]
-
-	ldr	r6, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
-	ldr	r7, =PM_INFO_MMDC_IO_VAL_OFFSET
-	add	r7, r7, r0
-1:
-	ldr	r8, [r7], #0x4
-	ldr	r9, [r7], #0x4
-	str	r9, [r11, r8]
-	subs	r6, r6, #0x1
-	bne	1b
-
-	cmp	r5, #0x0
-	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
-	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC_P_OFFSET]
-
-	cmp	r3, #IMX_DDR_TYPE_LPDDR2
-	bne	4f
+	/* r11 must be MMDC base address */
+	.macro reset_read_fifo
 
 	/* reset read FIFO, RST_RD_FIFO */
 	ldr	r7, =MX6Q_MMDC_MPDGCTRL0
@@ -173,20 +155,145 @@
 	ldr	r6, [r11, r7]
 	ands	r6, r6, #(1 << 31)
 	bne	3b
-4:
+
+	.endm
+
+	/* r11 must be MMDC base address */
+	.macro mmdc_out_and_auto_self_refresh
+
 	/* let DDR out of self-refresh */
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	bic	r7, r7, #(1 << 21)
 	str	r7, [r11, #MX6Q_MMDC_MAPSR]
-5:
+4:
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	ands	r7, r7, #(1 << 25)
-	bne	5b
+	bne	4b
 
 	/* enable DDR auto power saving */
 	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
 	bic	r7, r7, #0x1
 	str	r7, [r11, #MX6Q_MMDC_MAPSR]
+
+	.endm
+
+	/* r10 must be iomuxc base address */
+	.macro resume_iomuxc_gpr
+
+	add	r10, r10, #0x4000
+	/* IOMUXC GPR DRAM_RESET_BYPASS */
+	ldr	r4, [r10, #0x8]
+	bic	r4, r4, #(0x1 << 27)
+	str	r4, [r10, #0x8]
+	/* IOMUXC GPR DRAM_CKE_BYPASS */
+	ldr	r4, [r10, #0x8]
+	bic	r4, r4, #(0x1 << 31)
+	str	r4, [r10, #0x8]
+
+	.endm
+
+	.macro	resume_io
+
+	/* restore MMDC IO */
+	cmp	r5, #0x0
+	ldreq	r10, [r0, #PM_INFO_MX6Q_IOMUXC_V_OFFSET]
+	ldrne	r10, [r0, #PM_INFO_MX6Q_IOMUXC_P_OFFSET]
+
+	ldr	r6, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
+	ldr	r7, =PM_INFO_MMDC_IO_VAL_OFFSET
+	add	r7, r7, r0
+5:
+	ldr	r8, [r7], #0x4
+	ldr	r9, [r7], #0x4
+	str	r9, [r10, r8]
+	subs	r6, r6, #0x1
+	bne	5b
+
+	cmp	r5, #0x0
+	/* Here only MMDC0 is set */
+	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
+	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC_P_OFFSET]
+
+	cmp     r3, #IMX_DDR_TYPE_LPDDR2
+	bne     6f
+
+	reset_read_fifo
+6:
+	mmdc_out_and_auto_self_refresh
+
+	.endm
+
+	.macro	resume_mmdc_io
+
+	cmp	r5, #0x0
+	ldreq	r10, [r0, #PM_INFO_MX6Q_IOMUXC_V_OFFSET]
+	ldrne	r10, [r0, #PM_INFO_MX6Q_IOMUXC_P_OFFSET]
+	ldreq	r11, [r0, #PM_INFO_MX6Q_MMDC_V_OFFSET]
+	ldrne	r11, [r0, #PM_INFO_MX6Q_MMDC_P_OFFSET]
+
+	/* resume mmdc iomuxc settings */
+	ldr	r6, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
+	ldr	r7, =PM_INFO_MMDC_IO_VAL_OFFSET
+	add	r7, r7, r0
+7:
+	ldr	r8, [r7], #0x4
+	ldr	r9, [r7], #0x4
+	str	r9, [r10, r8]
+	subs	r6, r6, #0x1
+	bne	7b
+
+	/* check whether we need to restore MMDC */
+	cmp	r5, #0x0
+	beq	8f
+
+	/* check whether last suspend is with M/F mix off */
+	ldr	r9, [r0, #PM_INFO_MX6Q_GPC_P_OFFSET]
+	ldr	r6, [r9, #0x220]
+	cmp	r6, #0x0
+	bne	9f
+8:
+	resume_iomuxc_gpr
+
+	b	13f
+9:
+	/* restore MMDC settings */
+	ldr	r6, [r0, #PM_INFO_MMDC_NUM_OFFSET]
+	ldr	r7, =PM_INFO_MMDC_VAL_OFFSET
+	add	r7, r7, r0
+10:
+	ldr	r8, [r7], #0x4
+	ldr	r9, [r7], #0x4
+	str	r9, [r11, r8]
+	subs	r6, r6, #0x1
+	bne	10b
+
+	/* let DDR enter self-refresh */
+	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
+	orr	r7, r7, #(1 << 20)
+	str	r7, [r11, #MX6Q_MMDC_MAPSR]
+11:
+	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
+	ands	r7, r7, #(1 << 24)
+	beq	11b
+
+	resume_iomuxc_gpr
+
+	reset_read_fifo
+
+	/* let DDR out of self-refresh */
+	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
+	bic	r7, r7, #(1 << 20)
+	str	r7, [r11, #MX6Q_MMDC_MAPSR]
+12:
+	ldr	r7, [r11, #MX6Q_MMDC_MAPSR]
+	ands	r7, r7, #(1 << 24)
+	bne	12b
+
+	/* kick off MMDC */
+	ldr	r4, =0x0
+	str	r4, [r11, #0x1c]
+13:
+	mmdc_out_and_auto_self_refresh
 
 	.endm
 
@@ -391,6 +498,28 @@ set_mmdc_io_lpm:
 	str	r6, [r11, r9]
 set_mmdc_io_lpm_done:
 
+	/* check whether it supports Mega/Fast off */
+	ldr	r6, [r0, #PM_INFO_MMDC_NUM_OFFSET]
+	cmp	r6, #0x0
+	beq	set_mmdc_lpm_done
+
+	/* IOMUXC GPR DRAM_RESET */
+	add	r11, r11, #0x4000
+	ldr	r6, [r11, #0x8]
+	orr	r6, r6, #(0x1 << 28)
+	str	r6, [r11, #0x8]
+
+	/* IOMUXC GPR DRAM_RESET_BYPASS */
+	ldr	r6, [r11, #0x8]
+	orr	r6, r6, #(0x1 << 27)
+	str	r6, [r11, #0x8]
+
+	/* IOMUXC GPR DRAM_CKE_BYPASS */
+	ldr	r6, [r11, #0x8]
+	orr	r6, r6, #(0x1 << 31)
+	str	r6, [r11, #0x8]
+set_mmdc_lpm_done:
+
 	/*
 	 * mask all GPC interrupts before
 	 * enabling the RBC counters to
@@ -462,7 +591,16 @@ rbc_loop:
 	 * resume, we need to restore MMDC IO first
 	 */
 	mov	r5, #0x0
-	resume_mmdc
+	/* check whether it supports Mega/Fast off */
+	ldr	r6, [r0, #PM_INFO_MMDC_NUM_OFFSET]
+	cmp	r6, #0x0
+	beq	only_resume_io
+	resume_mmdc_io
+	b	resume_mmdc_done
+only_resume_io:
+	resume_io
+resume_mmdc_done:
+
 	restore_ttbr1
 
 	/* return to suspend finish */
@@ -488,7 +626,16 @@ resume:
 
 	ldr	r3, [r0, #PM_INFO_DDR_TYPE_OFFSET]
 	mov	r5, #0x1
-	resume_mmdc
+	/* check whether it supports Mega/Fast off */
+	ldr	r6, [r0, #PM_INFO_MMDC_NUM_OFFSET]
+	cmp	r6, #0x0
+	beq	dsm_only_resume_io
+	resume_mmdc_io
+	b	dsm_resume_mmdc_done
+dsm_only_resume_io:
+	ldr	r3, [r0, #PM_INFO_DDR_TYPE_OFFSET]
+	resume_io
+dsm_resume_mmdc_done:
 
 	ret	lr
 ENDPROC(imx6_suspend)
