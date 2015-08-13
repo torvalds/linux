@@ -933,7 +933,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_unlock(&mvmsta->lock);
 
-	if (txq_id < mvm->first_agg_queue)
+	/* Increase pending frames count if this isn't AMPDU */
+	if (!is_ampdu)
 		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;
@@ -1181,6 +1182,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	u8 skb_freed = 0;
 	u16 next_reclaimed, seq_ctl;
 	bool is_ndp = false;
+	bool txq_agg = false; /* Is this TXQ aggregated */
 
 	__skb_queue_head_init(&skbs);
 
@@ -1311,6 +1313,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			bool send_eosp_ndp = false;
 
 			spin_lock_bh(&mvmsta->lock);
+			txq_agg = (mvmsta->tid_data[tid].state == IWL_AGG_ON);
+
 			if (!is_ndp) {
 				tid_data->next_reclaimed = next_reclaimed;
 				IWL_DEBUG_TX_REPLY(mvm,
@@ -1366,11 +1370,11 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
 	 */
-	if (txq_id >= mvm->first_agg_queue)
+	if (txq_agg)
 		goto out;
 
 	/* We can't free more than one frame at once on a shared queue */
-	WARN_ON(skb_freed > 1);
+	WARN_ON(!iwl_mvm_is_dqa_supported(mvm) && (skb_freed > 1));
 
 	/* If we have still frames for this STA nothing to do here */
 	if (!atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id]))
@@ -1465,8 +1469,11 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct iwl_mvm_sta *mvmsta;
+	int queue = SEQ_TO_QUEUE(sequence);
 
-	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < mvm->first_agg_queue))
+	if (WARN_ON_ONCE(queue < mvm->first_agg_queue &&
+			 (!iwl_mvm_is_dqa_supported(mvm) ||
+			  (queue != IWL_MVM_DQA_BSS_CLIENT_QUEUE))))
 		return;
 
 	if (WARN_ON_ONCE(tid == IWL_TID_NON_QOS))

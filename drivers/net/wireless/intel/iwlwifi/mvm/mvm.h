@@ -671,6 +671,28 @@ struct iwl_mvm_baid_data {
 	struct iwl_mvm_reorder_buffer reorder_buf[];
 };
 
+/*
+ * enum iwl_mvm_queue_status - queue status
+ * @IWL_MVM_QUEUE_FREE: the queue is not allocated nor reserved
+ *	Basically, this means that this queue can be used for any purpose
+ * @IWL_MVM_QUEUE_RESERVED: queue is reserved but not yet in use
+ *	This is the state of a queue that has been dedicated for some RATID
+ *	(agg'd or not), but that hasn't yet gone through the actual enablement
+ *	of iwl_mvm_enable_txq(), and therefore no traffic can go through it yet.
+ *	Note that in this state there is no requirement to already know what TID
+ *	should be used with this queue, it is just marked as a queue that will
+ *	be used, and shouldn't be allocated to anyone else.
+ * @IWL_MVM_QUEUE_READY: queue is ready to be used
+ *	This is the state of a queue that has been fully configured (including
+ *	SCD pointers, etc), has a specific RA/TID assigned to it, and can be
+ *	used to send traffic.
+ */
+enum iwl_mvm_queue_status {
+	IWL_MVM_QUEUE_FREE,
+	IWL_MVM_QUEUE_RESERVED,
+	IWL_MVM_QUEUE_READY,
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -726,13 +748,8 @@ struct iwl_mvm {
 		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
 		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
-		/*
-		 * This is to mark that queue is reserved for a STA but not yet
-		 * allocated. This is needed to make sure we have at least one
-		 * available queue to use when adding a new STA
-		 */
-		bool setup_reserved;
 		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
+		enum iwl_mvm_queue_status status;
 	} queue_info[IWL_MAX_HW_QUEUES];
 	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
 	struct work_struct add_stream_wk; /* To add streams to queues */
@@ -1630,6 +1647,10 @@ static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 /* Stop/start all mac queues in a given bitmap */
 void iwl_mvm_start_mac_queues(struct iwl_mvm *mvm, unsigned long mq);
 void iwl_mvm_stop_mac_queues(struct iwl_mvm *mvm, unsigned long mq);
+
+/* Re-configure the SCD for a queue that has already been configured */
+int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
+			 int tid, int frame_limit, u16 ssn);
 
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff);

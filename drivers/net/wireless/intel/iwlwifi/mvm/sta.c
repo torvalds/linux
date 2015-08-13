@@ -326,6 +326,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	u8 mac_queue = mvmsta->vif->hw_queue[ac];
 	int queue = -1;
 	int ssn;
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -354,8 +355,15 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	if (queue < 0)
 		queue = iwl_mvm_find_free_queue(mvm, IWL_MVM_DQA_MIN_DATA_QUEUE,
 						IWL_MVM_DQA_MAX_DATA_QUEUE);
+
+	/*
+	 * Mark TXQ as ready, even though it hasn't been fully configured yet,
+	 * to make sure no one else takes it.
+	 * This will allow avoiding re-acquiring the lock at the end of the
+	 * configuration. On error we'll mark it back as free.
+	 */
 	if (queue >= 0)
-		mvm->queue_info[queue].setup_reserved = false;
+		mvm->queue_info[queue].status = IWL_MVM_QUEUE_READY;
 
 	spin_unlock_bh(&mvm->queue_info_lock);
 
@@ -387,7 +395,16 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		mvmsta->reserved_queue = IEEE80211_INVAL_HW_QUEUE;
 	spin_unlock_bh(&mvmsta->lock);
 
-	return iwl_mvm_sta_send_to_fw(mvm, sta, true, STA_MODIFY_QUEUES);
+	ret = iwl_mvm_sta_send_to_fw(mvm, sta, true, STA_MODIFY_QUEUES);
+	if (ret)
+		goto out_err;
+
+	return 0;
+
+out_err:
+	iwl_mvm_disable_txq(mvm, queue, mac_queue, tid, 0);
+
+	return ret;
 }
 
 static inline u8 iwl_mvm_tid_to_ac_queue(int tid)
@@ -493,7 +510,8 @@ static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
 	/* Make sure we have free resources for this STA */
 	if (vif_type == NL80211_IFTYPE_STATION && !sta->tdls &&
 	    !mvm->queue_info[IWL_MVM_DQA_BSS_CLIENT_QUEUE].hw_queue_refcount &&
-	    !mvm->queue_info[IWL_MVM_DQA_BSS_CLIENT_QUEUE].setup_reserved)
+	    (mvm->queue_info[IWL_MVM_DQA_BSS_CLIENT_QUEUE].status ==
+	     IWL_MVM_QUEUE_FREE))
 		queue = IWL_MVM_DQA_BSS_CLIENT_QUEUE;
 	else
 		queue = iwl_mvm_find_free_queue(mvm, IWL_MVM_DQA_MIN_DATA_QUEUE,
@@ -503,7 +521,7 @@ static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "No available queues for new station\n");
 		return -ENOSPC;
 	}
-	mvm->queue_info[queue].setup_reserved = true;
+	mvm->queue_info[queue].status = IWL_MVM_QUEUE_RESERVED;
 
 	spin_unlock_bh(&mvm->queue_info_lock);
 
@@ -1398,7 +1416,9 @@ static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		mvm_sta->tfd_queue_msk |= BIT(queue);
 		mvm_sta->tid_disable_agg &= ~BIT(tid);
 	} else {
-		mvm_sta->tfd_queue_msk &= ~BIT(queue);
+		/* In DQA-mode the queue isn't removed on agg termination */
+		if (!iwl_mvm_is_dqa_supported(mvm))
+			mvm_sta->tfd_queue_msk &= ~BIT(queue);
 		mvm_sta->tid_disable_agg |= BIT(tid);
 	}
 
@@ -1481,16 +1501,34 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	spin_lock_bh(&mvm->queue_info_lock);
 
-	txq_id = iwl_mvm_find_free_queue(mvm, mvm->first_agg_queue,
-					 mvm->last_agg_queue);
-	if (txq_id < 0) {
-		ret = txq_id;
-		spin_unlock_bh(&mvm->queue_info_lock);
-		IWL_ERR(mvm, "Failed to allocate agg queue\n");
-		goto release_locks;
+	/*
+	 * Note the possible cases:
+	 *  1. In DQA mode with an enabled TXQ - TXQ needs to become agg'ed
+	 *  2. Non-DQA mode: the TXQ hasn't yet been enabled, so find a free
+	 *	one and mark it as reserved
+	 *  3. In DQA mode, but no traffic yet on this TID: same treatment as in
+	 *	non-DQA mode, since the TXQ hasn't yet been allocated
+	 */
+	txq_id = mvmsta->tid_data[tid].txq_id;
+	if (!iwl_mvm_is_dqa_supported(mvm) ||
+	    mvm->queue_info[txq_id].status != IWL_MVM_QUEUE_READY) {
+		txq_id = iwl_mvm_find_free_queue(mvm, mvm->first_agg_queue,
+						 mvm->last_agg_queue);
+		if (txq_id < 0) {
+			ret = txq_id;
+			spin_unlock_bh(&mvm->queue_info_lock);
+			IWL_ERR(mvm, "Failed to allocate agg queue\n");
+			goto release_locks;
+		}
+
+		/* TXQ hasn't yet been enabled, so mark it only as reserved */
+		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_RESERVED;
 	}
-	mvm->queue_info[txq_id].setup_reserved = true;
 	spin_unlock_bh(&mvm->queue_info_lock);
+
+	IWL_DEBUG_TX_QUEUES(mvm,
+			    "AGG for tid %d will be on queue #%d\n",
+			    tid, txq_id);
 
 	tid_data = &mvmsta->tid_data[tid];
 	tid_data->ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
@@ -1526,6 +1564,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	unsigned int wdg_timeout =
 		iwl_mvm_get_wd_timeout(mvm, vif, sta->tdls, false);
 	int queue, ret;
+	bool alloc_queue = true;
 	u16 ssn;
 
 	struct iwl_trans_txq_scd_cfg cfg = {
@@ -1551,8 +1590,46 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	cfg.fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
 
-	iwl_mvm_enable_txq(mvm, queue, vif->hw_queue[tid_to_mac80211_ac[tid]],
-			   ssn, &cfg, wdg_timeout);
+	/* In DQA mode, the existing queue might need to be reconfigured */
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		spin_lock_bh(&mvm->queue_info_lock);
+		/* Maybe there is no need to even alloc a queue... */
+		if (mvm->queue_info[queue].status == IWL_MVM_QUEUE_READY)
+			alloc_queue = false;
+		spin_unlock_bh(&mvm->queue_info_lock);
+
+		/*
+		 * Only reconfig the SCD for the queue if the window size has
+		 * changed from current (become smaller)
+		 */
+		if (!alloc_queue && buf_size < mvmsta->max_agg_bufsize) {
+			/*
+			 * If reconfiguring an existing queue, it first must be
+			 * drained
+			 */
+			ret = iwl_trans_wait_tx_queue_empty(mvm->trans,
+							    BIT(queue));
+			if (ret) {
+				IWL_ERR(mvm,
+					"Error draining queue before reconfig\n");
+				return ret;
+			}
+
+			ret = iwl_mvm_reconfig_scd(mvm, queue, cfg.fifo,
+						   mvmsta->sta_id, tid,
+						   buf_size, ssn);
+			if (ret) {
+				IWL_ERR(mvm,
+					"Error reconfiguring TXQ #%d\n", queue);
+				return ret;
+			}
+		}
+	}
+
+	if (alloc_queue)
+		iwl_mvm_enable_txq(mvm, queue,
+				   vif->hw_queue[tid_to_mac80211_ac[tid]], ssn,
+				   &cfg, wdg_timeout);
 
 	ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
 	if (ret)
@@ -1560,7 +1637,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* No need to mark as reserved */
 	spin_lock_bh(&mvm->queue_info_lock);
-	mvm->queue_info[queue].setup_reserved = false;
+	mvm->queue_info[queue].status = IWL_MVM_QUEUE_READY;
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	/*
@@ -1607,9 +1684,16 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	mvmsta->agg_tids &= ~BIT(tid);
 
-	/* No need to mark as reserved anymore */
 	spin_lock_bh(&mvm->queue_info_lock);
-	mvm->queue_info[txq_id].setup_reserved = false;
+	/*
+	 * The TXQ is marked as reserved only if no traffic came through yet
+	 * This means no traffic has been sent on this TID (agg'd or not), so
+	 * we no longer have use for the queue. Since it hasn't even been
+	 * allocated through iwl_mvm_enable_txq, so we can just mark it back as
+	 * free.
+	 */
+	if (mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_RESERVED)
+		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_FREE;
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	switch (tid_data->state) {
@@ -1635,9 +1719,11 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_mvm_disable_txq(mvm, txq_id,
-				    vif->hw_queue[tid_to_mac80211_ac[tid]], tid,
-				    0);
+		if (!iwl_mvm_is_dqa_supported(mvm)) {
+			int mac_queue = vif->hw_queue[tid_to_mac80211_ac[tid]];
+
+			iwl_mvm_disable_txq(mvm, txq_id, mac_queue, tid, 0);
+		}
 		return 0;
 	case IWL_AGG_STARTING:
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1688,9 +1774,16 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	mvmsta->agg_tids &= ~BIT(tid);
 	spin_unlock_bh(&mvmsta->lock);
 
-	/* No need to mark as reserved */
 	spin_lock_bh(&mvm->queue_info_lock);
-	mvm->queue_info[txq_id].setup_reserved = false;
+	/*
+	 * The TXQ is marked as reserved only if no traffic came through yet
+	 * This means no traffic has been sent on this TID (agg'd or not), so
+	 * we no longer have use for the queue. Since it hasn't even been
+	 * allocated through iwl_mvm_enable_txq, so we can just mark it back as
+	 * free.
+	 */
+	if (mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_RESERVED)
+		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_FREE;
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	if (old_state >= IWL_AGG_ON) {
@@ -1703,9 +1796,12 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_mvm_disable_txq(mvm, tid_data->txq_id,
-				    vif->hw_queue[tid_to_mac80211_ac[tid]], tid,
-				    0);
+		if (!iwl_mvm_is_dqa_supported(mvm)) {
+			int mac_queue = vif->hw_queue[tid_to_mac80211_ac[tid]];
+
+			iwl_mvm_disable_txq(mvm, tid_data->txq_id, mac_queue,
+					    tid, 0);
+		}
 	}
 
 	return 0;
