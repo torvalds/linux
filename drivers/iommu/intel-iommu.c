@@ -1210,9 +1210,9 @@ next:
 /* We can't just free the pages because the IOMMU may still be walking
    the page tables, and may have cached the intermediate levels. The
    pages can only be freed after the IOTLB flush has been done. */
-struct page *domain_unmap(struct dmar_domain *domain,
-			  unsigned long start_pfn,
-			  unsigned long last_pfn)
+static struct page *domain_unmap(struct dmar_domain *domain,
+				 unsigned long start_pfn,
+				 unsigned long last_pfn)
 {
 	struct page *freelist = NULL;
 
@@ -1236,7 +1236,7 @@ struct page *domain_unmap(struct dmar_domain *domain,
 	return freelist;
 }
 
-void dma_free_pagelist(struct page *freelist)
+static void dma_free_pagelist(struct page *freelist)
 {
 	struct page *pg;
 
