@@ -1839,6 +1839,30 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			break;
 		}
 
+		case fmax_op: {
+			union ieee754sp fs, ft;
+
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			SPFROMREG(ft, MIPSInst_FT(ir));
+			SPFROMREG(fs, MIPSInst_FS(ir));
+			rv.s = ieee754sp_fmax(fs, ft);
+			break;
+		}
+
+		case fmaxa_op: {
+			union ieee754sp fs, ft;
+
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			SPFROMREG(ft, MIPSInst_FT(ir));
+			SPFROMREG(fs, MIPSInst_FS(ir));
+			rv.s = ieee754sp_fmaxa(fs, ft);
+			break;
+		}
+
 		case fabs_op:
 			handler.u = ieee754sp_abs;
 			goto scopuop;
@@ -2130,6 +2154,30 @@ copcsr:
 			DPFROMREG(ft, MIPSInst_FT(ir));
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			rv.d = ieee754dp_fmina(fs, ft);
+			break;
+		}
+
+		case fmax_op: {
+			union ieee754dp fs, ft;
+
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			DPFROMREG(ft, MIPSInst_FT(ir));
+			DPFROMREG(fs, MIPSInst_FS(ir));
+			rv.d = ieee754dp_fmax(fs, ft);
+			break;
+		}
+
+		case fmaxa_op: {
+			union ieee754dp fs, ft;
+
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			DPFROMREG(ft, MIPSInst_FT(ir));
+			DPFROMREG(fs, MIPSInst_FS(ir));
+			rv.d = ieee754dp_fmaxa(fs, ft);
 			break;
 		}
 
