@@ -981,8 +981,7 @@ static int storvsc_channel_init(struct hv_device *device)
 	 * support multi-channel.
 	 */
 	max_chns = vstor_packet->storage_channel_properties.max_channel_cnt;
-	if ((vmbus_proto_version != VERSION_WIN7) &&
-	   (vmbus_proto_version != VERSION_WS2008))  {
+	if (vmbus_proto_version >= VERSION_WIN8) {
 		if (vstor_packet->storage_channel_properties.flags &
 		    STORAGE_CHANNEL_SUPPORTS_MULTI_CHANNEL)
 			process_sub_channels = true;
@@ -1759,9 +1758,7 @@ static int storvsc_probe(struct hv_device *device,
 	 * set state to properly communicate with the host.
 	 */
 
-	switch (vmbus_proto_version) {
-	case VERSION_WS2008:
-	case VERSION_WIN7:
+	if (vmbus_proto_version < VERSION_WIN8) {
 		sense_buffer_size = PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE;
 		vmscsi_size_delta = sizeof(struct vmscsi_win8_extension);
 		vmstor_current_major = VMSTOR_WIN7_MAJOR;
@@ -1769,8 +1766,7 @@ static int storvsc_probe(struct hv_device *device,
 		max_luns_per_target = STORVSC_IDE_MAX_LUNS_PER_TARGET;
 		max_targets = STORVSC_IDE_MAX_TARGETS;
 		max_channels = STORVSC_IDE_MAX_CHANNELS;
-		break;
-	default:
+	} else {
 		sense_buffer_size = POST_WIN7_STORVSC_SENSE_BUFFER_SIZE;
 		vmscsi_size_delta = 0;
 		vmstor_current_major = VMSTOR_WIN8_MAJOR;
@@ -1784,7 +1780,6 @@ static int storvsc_probe(struct hv_device *device,
 		 * VCPUs in the guest.
 		 */
 		max_sub_channels = (num_cpus / storvsc_vcpus_per_sub_channel);
-		break;
 	}
 
 	scsi_driver.can_queue = (max_outstanding_req_per_channel *
