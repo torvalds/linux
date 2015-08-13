@@ -101,6 +101,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
+		if (bind)
+			return 0;
 		if (!ovr) {
 			tcf_hash_release(a, bind);
 			return -EEXIST;

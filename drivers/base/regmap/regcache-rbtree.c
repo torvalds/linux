@@ -296,11 +296,20 @@ static int regcache_rbtree_insert_to_block(struct regmap *map,
 	if (!blk)
 		return -ENOMEM;
 
-	present = krealloc(rbnode->cache_present,
-		    BITS_TO_LONGS(blklen) * sizeof(*present), GFP_KERNEL);
-	if (!present) {
-		kfree(blk);
-		return -ENOMEM;
+	if (BITS_TO_LONGS(blklen) > BITS_TO_LONGS(rbnode->blklen)) {
+		present = krealloc(rbnode->cache_present,
+				   BITS_TO_LONGS(blklen) * sizeof(*present),
+				   GFP_KERNEL);
+		if (!present) {
+			kfree(blk);
+			return -ENOMEM;
+		}
+
+		memset(present + BITS_TO_LONGS(rbnode->blklen), 0,
+		       (BITS_TO_LONGS(blklen) - BITS_TO_LONGS(rbnode->blklen))
+		       * sizeof(*present));
+	} else {
+		present = rbnode->cache_present;
 	}
 
 	/* insert the register value in the correct place in the rbnode block */

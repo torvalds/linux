@@ -353,10 +353,8 @@ static int __net_init synproxy_net_init(struct net *net)
 	int err = -ENOMEM;
 
 	ct = nf_ct_tmpl_alloc(net, 0, GFP_KERNEL);
-	if (IS_ERR(ct)) {
-		err = PTR_ERR(ct);
+	if (!ct)
 		goto err1;
-	}
 
 	if (!nfct_seqadj_ext_add(ct))
 		goto err2;

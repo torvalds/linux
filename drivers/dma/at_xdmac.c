@@ -359,18 +359,19 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 	 * descriptor view 2 since some fields of the configuration register
 	 * depend on transfer size and src/dest addresses.
 	 */
-	if (at_xdmac_chan_is_cyclic(atchan)) {
+	if (at_xdmac_chan_is_cyclic(atchan))
 		reg = AT_XDMAC_CNDC_NDVIEW_NDV1;
-		at_xdmac_chan_write(atchan, AT_XDMAC_CC, first->lld.mbr_cfg);
-	} else if (first->lld.mbr_ubc & AT_XDMAC_MBR_UBC_NDV3) {
+	else if (first->lld.mbr_ubc & AT_XDMAC_MBR_UBC_NDV3)
 		reg = AT_XDMAC_CNDC_NDVIEW_NDV3;
-	} else {
-		/*
-		 * No need to write AT_XDMAC_CC reg, it will be done when the
-		 * descriptor is fecthed.
-		 */
+	else
 		reg = AT_XDMAC_CNDC_NDVIEW_NDV2;
-	}
+	/*
+	 * Even if the register will be updated from the configuration in the
+	 * descriptor when using view 2 or higher, the PROT bit won't be set
+	 * properly. This bit can be modified only by using the channel
+	 * configuration register.
+	 */
+	at_xdmac_chan_write(atchan, AT_XDMAC_CC, first->lld.mbr_cfg);
 
 	reg |= AT_XDMAC_CNDC_NDDUP
 	       | AT_XDMAC_CNDC_NDSUP
@@ -681,15 +682,16 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lld.mbr_sa = mem;
 			desc->lld.mbr_da = atchan->sconfig.dst_addr;
 		}
-		desc->lld.mbr_cfg = atchan->cfg;
-		dwidth = at_xdmac_get_dwidth(desc->lld.mbr_cfg);
+		dwidth = at_xdmac_get_dwidth(atchan->cfg);
 		fixed_dwidth = IS_ALIGNED(len, 1 << dwidth)
-			       ? at_xdmac_get_dwidth(desc->lld.mbr_cfg)
+			       ? dwidth
 			       : AT_XDMAC_CC_DWIDTH_BYTE;
 		desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV2			/* next descriptor view */
 			| AT_XDMAC_MBR_UBC_NDEN					/* next descriptor dst parameter update */
 			| AT_XDMAC_MBR_UBC_NSEN					/* next descriptor src parameter update */
 			| (len >> fixed_dwidth);				/* microblock length */
+		desc->lld.mbr_cfg = (atchan->cfg & ~AT_XDMAC_CC_DWIDTH_MASK) |
+				    AT_XDMAC_CC_DWIDTH(fixed_dwidth);
 		dev_dbg(chan2dev(chan),
 			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
 			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);

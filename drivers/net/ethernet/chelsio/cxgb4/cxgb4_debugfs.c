@@ -2778,10 +2778,11 @@ int t4_setup_debugfs(struct adapter *adap)
 					EXT_MEM1_SIZE_G(size));
 		}
 	} else {
-		if (i & EXT_MEM_ENABLE_F)
+		if (i & EXT_MEM_ENABLE_F) {
 			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR_A);
 			add_debugfs_mem(adap, "mc", MEM_MC,
 					EXT_MEM_SIZE_G(size));
+		}
 	}
 
 	de = debugfs_create_file_size("flash", S_IRUSR, adap->debugfs_root, adap,

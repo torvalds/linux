@@ -44,11 +44,9 @@ int of_get_videomode(struct device_node *np, struct videomode *vm,
 		index = disp->native_mode;
 
 	ret = videomode_from_timings(disp, vm, index);
-	if (ret)
-		return ret;
 
 	display_timings_release(disp);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(of_get_videomode);

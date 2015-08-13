@@ -1284,6 +1284,39 @@ fail_register_pen_input:
 	return error;
 }
 
+/*
+ * Not all devices report physical dimensions from HID.
+ * Compute the default from hardcoded logical dimension
+ * and resolution before driver overwrites them.
+ */
+static void wacom_set_default_phy(struct wacom_features *features)
+{
+	if (features->x_resolution) {
+		features->x_phy = (features->x_max * 100) /
+					features->x_resolution;
+		features->y_phy = (features->y_max * 100) /
+					features->y_resolution;
+	}
+}
+
+static void wacom_calculate_res(struct wacom_features *features)
+{
+	/* set unit to "100th of a mm" for devices not reported by HID */
+	if (!features->unit) {
+		features->unit = 0x11;
+		features->unitExpo = -3;
+	}
+
+	features->x_resolution = wacom_calc_hid_res(features->x_max,
+						    features->x_phy,
+						    features->unit,
+						    features->unitExpo);
+	features->y_resolution = wacom_calc_hid_res(features->y_max,
+						    features->y_phy,
+						    features->unit,
+						    features->unitExpo);
+}
+
 static void wacom_wireless_work(struct work_struct *work)
 {
 	struct wacom *wacom = container_of(work, struct wacom, work);
@@ -1341,6 +1374,8 @@ static void wacom_wireless_work(struct work_struct *work)
 		if (wacom_wac1->features.type != INTUOSHT &&
 		    wacom_wac1->features.type != BAMBOO_PT)
 			wacom_wac1->features.device_type |= WACOM_DEVICETYPE_PAD;
+		wacom_set_default_phy(&wacom_wac1->features);
+		wacom_calculate_res(&wacom_wac1->features);
 		snprintf(wacom_wac1->pen_name, WACOM_NAME_MAX, "%s (WL) Pen",
 			 wacom_wac1->features.name);
 		snprintf(wacom_wac1->pad_name, WACOM_NAME_MAX, "%s (WL) Pad",
@@ -1359,7 +1394,9 @@ static void wacom_wireless_work(struct work_struct *work)
 			wacom_wac2->features =
 				*((struct wacom_features *)id->driver_data);
 			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
+			wacom_set_default_phy(&wacom_wac2->features);
 			wacom_wac2->features.x_max = wacom_wac2->features.y_max = 4096;
+			wacom_calculate_res(&wacom_wac2->features);
 			snprintf(wacom_wac2->touch_name, WACOM_NAME_MAX,
 				 "%s (WL) Finger",wacom_wac2->features.name);
 			snprintf(wacom_wac2->pad_name, WACOM_NAME_MAX,
@@ -1405,39 +1442,6 @@ void wacom_battery_work(struct work_struct *work)
 		 wacom->battery) {
 		wacom_destroy_battery(wacom);
 	}
-}
-
-/*
- * Not all devices report physical dimensions from HID.
- * Compute the default from hardcoded logical dimension
- * and resolution before driver overwrites them.
- */
-static void wacom_set_default_phy(struct wacom_features *features)
-{
-	if (features->x_resolution) {
-		features->x_phy = (features->x_max * 100) /
-					features->x_resolution;
-		features->y_phy = (features->y_max * 100) /
-					features->y_resolution;
-	}
-}
-
-static void wacom_calculate_res(struct wacom_features *features)
-{
-	/* set unit to "100th of a mm" for devices not reported by HID */
-	if (!features->unit) {
-		features->unit = 0x11;
-		features->unitExpo = -3;
-	}
-
-	features->x_resolution = wacom_calc_hid_res(features->x_max,
-						    features->x_phy,
-						    features->unit,
-						    features->unitExpo);
-	features->y_resolution = wacom_calc_hid_res(features->y_max,
-						    features->y_phy,
-						    features->unit,
-						    features->unitExpo);
 }
 
 static size_t wacom_compute_pktlen(struct hid_device *hdev)

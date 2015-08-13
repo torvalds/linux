@@ -137,7 +137,7 @@ my $ksource = ($ARGV[0] ? $ARGV[0] : '.');
 my $kconfig = $ARGV[1];
 my $lsmod_file = $ENV{'LSMOD'};
 
-my @makefiles = `find $ksource -name Makefile 2>/dev/null`;
+my @makefiles = `find $ksource -name Makefile -or -name Kbuild 2>/dev/null`;
 chomp @makefiles;
 
 my %depends;
