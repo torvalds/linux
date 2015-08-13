@@ -58,12 +58,11 @@
  * Win8: 5.1
  */
 
+#define VMSTOR_PROTO_VERSION(MAJOR_, MINOR_)	((((MAJOR_) & 0xff) << 8) | \
+						(((MINOR_) & 0xff)))
 
-#define VMSTOR_WIN7_MAJOR 4
-#define VMSTOR_WIN7_MINOR 2
-
-#define VMSTOR_WIN8_MAJOR 5
-#define VMSTOR_WIN8_MINOR 1
+#define VMSTOR_PROTO_VERSION_WIN7	VMSTOR_PROTO_VERSION(4, 2)
+#define VMSTOR_PROTO_VERSION_WIN8	VMSTOR_PROTO_VERSION(5, 1)
 
 
 /*  Packet structure describing virtual storage requests. */
@@ -161,8 +160,7 @@ static int sense_buffer_size;
  */
 
 static int vmscsi_size_delta;
-static int vmstor_current_major;
-static int vmstor_current_minor;
+static int vmstor_proto_version;
 
 struct vmscsi_win8_extension {
 	/*
@@ -474,18 +472,6 @@ done:
 	kfree(wrk);
 }
 
-/*
- * Major/minor macros.  Minor version is in LSB, meaning that earlier flat
- * version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1).
- */
-
-static inline u16 storvsc_get_version(u8 major, u8 minor)
-{
-	u16 version;
-
-	version = ((major << 8) | minor);
-	return version;
-}
 
 /*
  * We can get incoming messages from the host that are not in response to
@@ -923,8 +909,7 @@ static int storvsc_channel_init(struct hv_device *device)
 	vstor_packet->operation = VSTOR_OPERATION_QUERY_PROTOCOL_VERSION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	vstor_packet->version.major_minor =
-		storvsc_get_version(vmstor_current_major, vmstor_current_minor);
+	vstor_packet->version.major_minor = vmstor_proto_version;
 
 	/*
 	 * The revision number is only used in Windows; set it to 0.
@@ -1555,7 +1540,7 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	u32 payload_sz;
 	u32 length;
 
-	if (vmstor_current_major <= VMSTOR_WIN8_MAJOR) {
+	if (vmstor_proto_version <= VMSTOR_PROTO_VERSION_WIN8) {
 		/*
 		 * On legacy hosts filter unimplemented commands.
 		 * Future hosts are expected to correctly handle
@@ -1761,16 +1746,14 @@ static int storvsc_probe(struct hv_device *device,
 	if (vmbus_proto_version < VERSION_WIN8) {
 		sense_buffer_size = PRE_WIN8_STORVSC_SENSE_BUFFER_SIZE;
 		vmscsi_size_delta = sizeof(struct vmscsi_win8_extension);
-		vmstor_current_major = VMSTOR_WIN7_MAJOR;
-		vmstor_current_minor = VMSTOR_WIN7_MINOR;
+		vmstor_proto_version = VMSTOR_PROTO_VERSION_WIN7;
 		max_luns_per_target = STORVSC_IDE_MAX_LUNS_PER_TARGET;
 		max_targets = STORVSC_IDE_MAX_TARGETS;
 		max_channels = STORVSC_IDE_MAX_CHANNELS;
 	} else {
 		sense_buffer_size = POST_WIN7_STORVSC_SENSE_BUFFER_SIZE;
 		vmscsi_size_delta = 0;
-		vmstor_current_major = VMSTOR_WIN8_MAJOR;
-		vmstor_current_minor = VMSTOR_WIN8_MINOR;
+		vmstor_proto_version = VMSTOR_PROTO_VERSION_WIN8;
 		max_luns_per_target = STORVSC_MAX_LUNS_PER_TARGET;
 		max_targets = STORVSC_MAX_TARGETS;
 		max_channels = STORVSC_MAX_CHANNELS;
