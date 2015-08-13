@@ -146,6 +146,7 @@ static void ks0108_parport_attach(struct parport *port)
 		goto err_unreg_device;
 	}
 
+	ks0108_parport = port;
 	ks0108_inited = 1;
 	return;
 
@@ -167,6 +168,7 @@ static void ks0108_parport_detach(struct parport *port)
 	parport_release(ks0108_pardevice);
 	parport_unregister_device(ks0108_pardevice);
 	ks0108_pardevice = NULL;
+	ks0108_parport = NULL;
 }
 
 /*
