@@ -481,6 +481,23 @@ static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 	return 0;
 }
 
+static unsigned long blkif_ring_get_request(struct blkfront_ring_info *rinfo,
+					    struct request *req,
+					    struct blkif_request **ring_req)
+{
+	unsigned long id;
+
+	*ring_req = RING_GET_REQUEST(&rinfo->ring, rinfo->ring.req_prod_pvt);
+	rinfo->ring.req_prod_pvt++;
+
+	id = get_id_from_freelist(rinfo);
+	rinfo->shadow[id].request = req;
+
+	(*ring_req)->u.rw.id = id;
+
+	return id;
+}
+
 static int blkif_queue_discard_req(struct request *req, struct blkfront_ring_info *rinfo)
 {
 	struct blkfront_info *info = rinfo->dev_info;
@@ -488,9 +505,7 @@ static int blkif_queue_discard_req(struct request *req, struct blkfront_ring_inf
 	unsigned long id;
 
 	/* Fill out a communications ring structure. */
-	ring_req = RING_GET_REQUEST(&rinfo->ring, rinfo->ring.req_prod_pvt);
-	id = get_id_from_freelist(rinfo);
-	rinfo->shadow[id].request = req;
+	id = blkif_ring_get_request(rinfo, req, &ring_req);
 
 	ring_req->operation = BLKIF_OP_DISCARD;
 	ring_req->u.discard.nr_sectors = blk_rq_sectors(req);
@@ -500,8 +515,6 @@ static int blkif_queue_discard_req(struct request *req, struct blkfront_ring_inf
 		ring_req->u.discard.flag = BLKIF_DISCARD_SECURE;
 	else
 		ring_req->u.discard.flag = 0;
-
-	rinfo->ring.req_prod_pvt++;
 
 	/* Keep a private copy so we can reissue requests when recovering. */
 	rinfo->shadow[id].req = *ring_req;
@@ -635,9 +648,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		}
 
 	/* Fill out a communications ring structure. */
-	ring_req = RING_GET_REQUEST(&rinfo->ring, rinfo->ring.req_prod_pvt);
-	id = get_id_from_freelist(rinfo);
-	rinfo->shadow[id].request = req;
+	id = blkif_ring_get_request(rinfo, req, &ring_req);
 
 	BUG_ON(info->max_indirect_segments == 0 &&
 	       GREFS(req->nr_phys_segments) > BLKIF_MAX_SEGMENTS_PER_REQUEST);
@@ -650,7 +661,6 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	for_each_sg(rinfo->shadow[id].sg, sg, num_sg, i)
 	       num_grant += gnttab_count_grant(sg->offset, sg->length);
 
-	ring_req->u.rw.id = id;
 	rinfo->shadow[id].num_sg = num_sg;
 	if (num_grant > BLKIF_MAX_SEGMENTS_PER_REQUEST) {
 		/*
@@ -715,8 +725,6 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	}
 	if (setup.segments)
 		kunmap_atomic(setup.segments);
-
-	rinfo->ring.req_prod_pvt++;
 
 	/* Keep a private copy so we can reissue requests when recovering. */
 	rinfo->shadow[id].req = *ring_req;
