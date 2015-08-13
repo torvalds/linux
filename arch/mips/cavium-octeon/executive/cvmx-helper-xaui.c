@@ -124,6 +124,13 @@ int __cvmx_helper_xaui_enable(int interface)
 	union cvmx_gmxx_tx_int_en gmx_tx_int_en;
 	union cvmx_pcsxx_int_en_reg pcsx_int_en_reg;
 
+	/* Setup PKND */
+	if (octeon_has_feature(OCTEON_FEATURE_PKND)) {
+		gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(0, interface));
+		gmx_cfg.s.pknd = cvmx_helper_get_ipd_port(interface, 0);
+		cvmx_write_csr(CVMX_GMXX_PRTX_CFG(0, interface), gmx_cfg.u64);
+	}
+
 	/* (1) Interface has already been enabled. */
 
 	/* (2) Disable GMX. */
