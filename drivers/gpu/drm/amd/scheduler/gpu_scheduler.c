@@ -158,7 +158,7 @@ exit:
 	if (sched->current_entity && (sched->current_entity != tmp))
 		wake_entity = sched->current_entity;
 	sched->current_entity = tmp;
-	if (wake_entity)
+	if (wake_entity && wake_entity->need_wakeup)
 		wake_up(&wake_entity->wait_queue);
 	return tmp;
 }
@@ -195,6 +195,7 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	entity->fence_context = fence_context_alloc(1);
 	snprintf(name, sizeof(name), "c_entity[%llu]", entity->fence_context);
 	memcpy(entity->name, name, 20);
+	entity->need_wakeup = false;
 	if(kfifo_alloc(&entity->job_queue,
 		       jobs * sizeof(void *),
 		       GFP_KERNEL))
@@ -257,7 +258,7 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 
 	if (!is_context_entity_initialized(sched, entity))
 		return 0;
-
+	entity->need_wakeup = true;
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs
@@ -323,8 +324,9 @@ int amd_sched_push_job(struct amd_gpu_scheduler *sched,
 		*/
 		schedule();
 	}
-
-	wake_up_interruptible(&sched->wait_queue);
+	/* first job wake up scheduler */
+	if ((kfifo_len(&c_entity->job_queue) / sizeof(void *)) == 1)
+		wake_up_interruptible(&sched->wait_queue);
 	return 0;
 }
 

@@ -54,6 +54,7 @@ struct amd_sched_entity {
 	bool                            is_pending;
 	uint64_t                        fence_context;
 	char                            name[20];
+	bool                            need_wakeup;
 };
 
 /**
