@@ -466,7 +466,7 @@ typedef union _tuniHostIFmsgBody {
 typedef struct _tstrHostIFmsg {
 	u16 u16MsgId;                                           /*!< Message ID */
 	tuniHostIFmsgBody uniHostIFmsgBody;             /*!< Message body */
-	void *drvHandler;
+	tstrWILC_WFIDrv *drvHandler;
 } tstrHostIFmsg;
 
 #ifdef CONNECT_DIRECT
