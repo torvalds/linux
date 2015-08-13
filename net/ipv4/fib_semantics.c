@@ -670,16 +670,18 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		struct fib_result res;
 
 		if (nh->nh_flags & RTNH_F_ONLINK) {
+			unsigned int addr_type;
 
 			if (cfg->fc_scope >= RT_SCOPE_LINK)
-				return -EINVAL;
-			if (inet_addr_type(net, nh->nh_gw) != RTN_UNICAST)
 				return -EINVAL;
 			dev = __dev_get_by_index(net, nh->nh_oif);
 			if (!dev)
 				return -ENODEV;
 			if (!(dev->flags & IFF_UP))
 				return -ENETDOWN;
+			addr_type = inet_addr_type_dev_table(net, dev, nh->nh_gw);
+			if (addr_type != RTN_UNICAST)
+				return -EINVAL;
 			if (!netif_carrier_ok(dev))
 				nh->nh_flags |= RTNH_F_LINKDOWN;
 			nh->nh_dev = dev;

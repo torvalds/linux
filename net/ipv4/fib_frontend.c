@@ -260,6 +260,19 @@ unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 }
 EXPORT_SYMBOL(inet_dev_addr_type);
 
+/* inet_addr_type with dev == NULL but using the table from a dev
+ * if one is associated
+ */
+unsigned int inet_addr_type_dev_table(struct net *net,
+				      const struct net_device *dev,
+				      __be32 addr)
+{
+	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+
+	return __inet_dev_addr_type(net, NULL, addr, rt_table);
+}
+EXPORT_SYMBOL(inet_addr_type_dev_table);
+
 __be32 fib_compute_spec_dst(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -510,9 +523,12 @@ static int rtentry_to_fib_config(struct net *net, int cmd, struct rtentry *rt,
 
 	addr = sk_extract_addr(&rt->rt_gateway);
 	if (rt->rt_gateway.sa_family == AF_INET && addr) {
+		unsigned int addr_type;
+
 		cfg->fc_gw = addr;
+		addr_type = inet_addr_type_table(net, addr, cfg->fc_table);
 		if (rt->rt_flags & RTF_GATEWAY &&
-		    inet_addr_type(net, addr) == RTN_UNICAST)
+		    addr_type == RTN_UNICAST)
 			cfg->fc_scope = RT_SCOPE_UNIVERSE;
 	}
 
@@ -984,11 +1000,14 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 			fib_magic(RTM_DELROUTE, RTN_BROADCAST, any, 32, prim);
 	}
 	if (!(ok & LOCAL_OK)) {
+		unsigned int addr_type;
+
 		fib_magic(RTM_DELROUTE, RTN_LOCAL, ifa->ifa_local, 32, prim);
 
 		/* Check, that this local address finally disappeared. */
-		if (gone &&
-		    inet_addr_type(dev_net(dev), ifa->ifa_local) != RTN_LOCAL) {
+		addr_type = inet_addr_type_dev_table(dev_net(dev), dev,
+						     ifa->ifa_local);
+		if (gone && addr_type != RTN_LOCAL) {
 			/* And the last, but not the least thing.
 			 * We must flush stray FIB entries.
 			 *
