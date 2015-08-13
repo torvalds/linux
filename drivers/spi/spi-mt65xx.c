@@ -359,11 +359,9 @@ static void mtk_spi_setup_dma_addr(struct spi_master *master,
 	struct mtk_spi *mdata = spi_master_get_devdata(master);
 
 	if (mdata->tx_sgl)
-		writel((__force u32)cpu_to_le32(xfer->tx_dma),
-		       mdata->base + SPI_TX_SRC_REG);
+		writel(xfer->tx_dma, mdata->base + SPI_TX_SRC_REG);
 	if (mdata->rx_sgl)
-		writel((__force u32)cpu_to_le32(xfer->rx_dma),
-		       mdata->base + SPI_RX_DST_REG);
+		writel(xfer->rx_dma, mdata->base + SPI_RX_DST_REG);
 }
 
 static int mtk_spi_fifo_transfer(struct spi_master *master,
