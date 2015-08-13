@@ -205,7 +205,6 @@ static int m25p_probe(struct spi_device *spi)
 	nor->priv = flash;
 
 	spi_set_drvdata(spi, flash);
-	flash->mtd.priv = nor;
 	flash->spi = spi;
 
 	if (spi->mode & SPI_RX_QUAD)

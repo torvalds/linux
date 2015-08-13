@@ -1018,7 +1018,6 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		nor->mtd = mtd;
 		nor->dev = dev;
 		nor->priv = q;
-		mtd->priv = nor;
 
 		/* fill the hooks */
 		nor->read_reg = fsl_qspi_read_reg;

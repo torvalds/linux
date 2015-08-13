@@ -331,7 +331,6 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 	writel(ctrl, spifi->io_base + SPIFI_CTRL);
 
-	spifi->mtd.priv  = &spifi->nor;
 	spifi->nor.mtd   = &spifi->mtd;
 	spifi->nor.dev   = spifi->dev;
 	spifi->nor.priv  = spifi;
