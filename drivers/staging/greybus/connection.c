@@ -270,7 +270,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 		pr_err("failed to add connection device for cport 0x%04hx\n",
 			cport_id);
 
-		goto err_free_kfifo;
+		goto err_remove_ida;
 	}
 
 	spin_lock_irq(&gb_connections_lock);
@@ -296,8 +296,6 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	return connection;
 
-err_free_kfifo:
-	kfifo_free(&connection->ts_kfifo);
 err_destroy_wq:
 	destroy_workqueue(connection->wq);
 err_free_connection:
