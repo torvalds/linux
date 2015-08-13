@@ -1005,8 +1005,6 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	/* iterate the subnodes. */
 	for_each_available_child_of_node(dev->of_node, np) {
-		char modalias[40];
-
 		/* skip the holes */
 		if (!q->has_second_chip)
 			i *= 2;
@@ -1027,10 +1025,6 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		nor->prepare = fsl_qspi_prep;
 		nor->unprepare = fsl_qspi_unprep;
 
-		ret = of_modalias_node(np, modalias, sizeof(modalias));
-		if (ret < 0)
-			goto mutex_failed;
-
 		ret = of_property_read_u32(np, "spi-max-frequency",
 				&q->clk_rate);
 		if (ret < 0)
@@ -1039,7 +1033,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		/* set the chip address for READID */
 		fsl_qspi_set_base_addr(q, nor);
 
-		ret = spi_nor_scan(nor, modalias, SPI_NOR_QUAD);
+		ret = spi_nor_scan(nor, NULL, SPI_NOR_QUAD);
 		if (ret)
 			goto mutex_failed;
 
