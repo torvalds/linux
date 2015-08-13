@@ -59,7 +59,9 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_net.h>
+#include <linux/acpi.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 
 #include "smsc911x.h"
 
@@ -2362,59 +2364,46 @@ static const struct smsc911x_ops shifted_smsc911x_ops = {
 	.tx_writefifo = smsc911x_tx_writefifo_shift,
 };
 
-#ifdef CONFIG_OF
-static int smsc911x_probe_config_dt(struct smsc911x_platform_config *config,
-				    struct device_node *np)
+static int smsc911x_probe_config(struct smsc911x_platform_config *config,
+				 struct device *dev)
 {
-	const char *mac;
 	u32 width = 0;
 
-	if (!np)
+	if (!dev)
 		return -ENODEV;
 
-	config->phy_interface = of_get_phy_mode(np);
+	config->phy_interface = device_get_phy_mode(dev);
 
-	mac = of_get_mac_address(np);
-	if (mac)
-		memcpy(config->mac, mac, ETH_ALEN);
+	device_get_mac_address(dev, config->mac, ETH_ALEN);
 
-	of_property_read_u32(np, "reg-shift", &config->shift);
+	device_property_read_u32(dev, "reg-shift", &config->shift);
 
-	of_property_read_u32(np, "reg-io-width", &width);
+	device_property_read_u32(dev, "reg-io-width", &width);
 	if (width == 4)
 		config->flags |= SMSC911X_USE_32BIT;
 	else
 		config->flags |= SMSC911X_USE_16BIT;
 
-	if (of_get_property(np, "smsc,irq-active-high", NULL))
+	if (device_property_present(dev, "smsc,irq-active-high"))
 		config->irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_HIGH;
 
-	if (of_get_property(np, "smsc,irq-push-pull", NULL))
+	if (device_property_present(dev, "smsc,irq-push-pull"))
 		config->irq_type = SMSC911X_IRQ_TYPE_PUSH_PULL;
 
-	if (of_get_property(np, "smsc,force-internal-phy", NULL))
+	if (device_property_present(dev, "smsc,force-internal-phy"))
 		config->flags |= SMSC911X_FORCE_INTERNAL_PHY;
 
-	if (of_get_property(np, "smsc,force-external-phy", NULL))
+	if (device_property_present(dev, "smsc,force-external-phy"))
 		config->flags |= SMSC911X_FORCE_EXTERNAL_PHY;
 
-	if (of_get_property(np, "smsc,save-mac-address", NULL))
+	if (device_property_present(dev, "smsc,save-mac-address"))
 		config->flags |= SMSC911X_SAVE_MAC_ADDRESS;
 
 	return 0;
 }
-#else
-static inline int smsc911x_probe_config_dt(
-				struct smsc911x_platform_config *config,
-				struct device_node *np)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_OF */
 
 static int smsc911x_drv_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct net_device *dev;
 	struct smsc911x_data *pdata;
 	struct smsc911x_platform_config *config = dev_get_platdata(&pdev->dev);
@@ -2478,7 +2467,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 		goto out_disable_resources;
 	}
 
-	retval = smsc911x_probe_config_dt(&pdata->config, np);
+	retval = smsc911x_probe_config(&pdata->config, &pdev->dev);
 	if (retval && config) {
 		/* copy config parameters across to pdata */
 		memcpy(&pdata->config, config, sizeof(pdata->config));
@@ -2654,6 +2643,12 @@ static const struct of_device_id smsc911x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, smsc911x_dt_ids);
 #endif
 
+static const struct acpi_device_id smsc911x_acpi_match[] = {
+	{ "ARMH9118", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, smsc911x_acpi_match);
+
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
 	.remove = smsc911x_drv_remove,
@@ -2661,6 +2656,7 @@ static struct platform_driver smsc911x_driver = {
 		.name	= SMSC_CHIPNAME,
 		.pm	= SMSC911X_PM_OPS,
 		.of_match_table = of_match_ptr(smsc911x_dt_ids),
+		.acpi_match_table = ACPI_PTR(smsc911x_acpi_match),
 	},
 };
 
