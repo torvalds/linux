@@ -105,6 +105,30 @@ bool perf_can_record_switch_events(void)
 	return perf_probe_api(perf_probe_context_switch);
 }
 
+bool perf_can_record_cpu_wide(void)
+{
+	struct perf_event_attr attr = {
+		.type = PERF_TYPE_SOFTWARE,
+		.config = PERF_COUNT_SW_CPU_CLOCK,
+		.exclude_kernel = 1,
+	};
+	struct cpu_map *cpus;
+	int cpu, fd;
+
+	cpus = cpu_map__new(NULL);
+	if (!cpus)
+		return false;
+	cpu = cpus->map[0];
+	cpu_map__put(cpus);
+
+	fd = sys_perf_event_open(&attr, -1, cpu, -1, 0);
+	if (fd < 0)
+		return false;
+	close(fd);
+
+	return true;
+}
+
 void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 {
 	struct perf_evsel *evsel;
