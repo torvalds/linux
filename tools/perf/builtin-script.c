@@ -1561,6 +1561,22 @@ static int have_cmd(int argc, const char **argv)
 	return 0;
 }
 
+static void script__setup_sample_type(struct perf_script *script)
+{
+	struct perf_session *session = script->session;
+	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
+
+	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
+		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
+		    (sample_type & PERF_SAMPLE_STACK_USER))
+			callchain_param.record_mode = CALLCHAIN_DWARF;
+		else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+			callchain_param.record_mode = CALLCHAIN_LBR;
+		else
+			callchain_param.record_mode = CALLCHAIN_FP;
+	}
+}
+
 int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	bool show_full_info = false;
@@ -1849,6 +1865,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out_delete;
 
 	script.session = session;
+	script__setup_sample_type(&script);
 
 	session->itrace_synth_opts = &itrace_synth_opts;
 
