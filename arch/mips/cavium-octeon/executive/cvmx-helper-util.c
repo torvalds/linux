@@ -382,6 +382,10 @@ int cvmx_helper_get_ipd_port(int interface, int port)
 		return port + 32;
 	case 3:
 		return port + 36;
+	case 4:
+		return port + 40;
+	case 5:
+		return port + 44;
 	}
 	return -1;
 }
@@ -404,6 +408,10 @@ int cvmx_helper_get_interface_num(int ipd_port)
 		return 2;
 	else if (ipd_port < 40)
 		return 3;
+	else if (ipd_port < 44)
+		return 4;
+	else if (ipd_port < 48)
+		return 5;
 	else
 		cvmx_dprintf("cvmx_helper_get_interface_num: Illegal IPD "
 			     "port number\n");
@@ -427,6 +435,10 @@ int cvmx_helper_get_interface_index_num(int ipd_port)
 	else if (ipd_port < 36)
 		return ipd_port & 3;
 	else if (ipd_port < 40)
+		return ipd_port & 3;
+	else if (ipd_port < 44)
+		return ipd_port & 3;
+	else if (ipd_port < 48)
 		return ipd_port & 3;
 	else
 		cvmx_dprintf("cvmx_helper_get_interface_index_num: "
