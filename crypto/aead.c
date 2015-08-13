@@ -13,6 +13,8 @@
  */
 
 #include <crypto/internal/geniv.h>
+#include <crypto/internal/rng.h>
+#include <crypto/null.h>
 #include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -745,6 +747,59 @@ void aead_geniv_exit(struct crypto_tfm *tfm)
 	crypto_free_aead(__crypto_aead_cast(tfm)->child);
 }
 EXPORT_SYMBOL_GPL(aead_geniv_exit);
+
+int aead_init_geniv(struct crypto_aead *aead)
+{
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(aead);
+	struct aead_instance *inst = aead_alg_instance(aead);
+	struct crypto_aead *child;
+	int err;
+
+	spin_lock_init(&ctx->lock);
+
+	err = crypto_get_default_rng();
+	if (err)
+		goto out;
+
+	err = crypto_rng_get_bytes(crypto_default_rng, ctx->salt,
+				   crypto_aead_ivsize(aead));
+	crypto_put_default_rng();
+	if (err)
+		goto out;
+
+	ctx->null = crypto_get_default_null_skcipher();
+	err = PTR_ERR(ctx->null);
+	if (IS_ERR(ctx->null))
+		goto out;
+
+	child = crypto_spawn_aead(aead_instance_ctx(inst));
+	err = PTR_ERR(child);
+	if (IS_ERR(child))
+		goto drop_null;
+
+	ctx->child = child;
+	crypto_aead_set_reqsize(aead, crypto_aead_reqsize(child) +
+				      sizeof(struct aead_request));
+
+	err = 0;
+
+out:
+	return err;
+
+drop_null:
+	crypto_put_default_null_skcipher();
+	goto out;
+}
+EXPORT_SYMBOL_GPL(aead_init_geniv);
+
+void aead_exit_geniv(struct crypto_aead *tfm)
+{
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(tfm);
+
+	crypto_free_aead(ctx->child);
+	crypto_put_default_null_skcipher();
+}
+EXPORT_SYMBOL_GPL(aead_exit_geniv);
 
 static int crypto_nivaead_default(struct crypto_alg *alg, u32 type, u32 mask)
 {

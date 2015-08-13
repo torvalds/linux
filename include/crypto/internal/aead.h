@@ -123,12 +123,6 @@ static inline struct crypto_aead *crypto_spawn_aead(
 	return crypto_spawn_tfm2(&spawn->base);
 }
 
-struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
-				       struct rtattr **tb, u32 type, u32 mask);
-void aead_geniv_free(struct aead_instance *inst);
-int aead_geniv_init(struct crypto_tfm *tfm);
-void aead_geniv_exit(struct crypto_tfm *tfm);
-
 static inline struct crypto_aead *aead_geniv_base(struct crypto_aead *geniv)
 {
 	return geniv->child;
