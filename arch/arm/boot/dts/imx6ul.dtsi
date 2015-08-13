@@ -346,7 +346,8 @@
 				};
 
 				sai1: sai@02028000 {
-					compatible = "fsl,imx6ul-sai";
+					compatible = "fsl,imx6ul-sai",
+						     "fsl,imx6sx-sai";
 					reg = <0x02028000 0x4000>;
 					interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6UL_CLK_SAI1_IPG>,
@@ -354,12 +355,13 @@
 						 <&clks 0>, <&clks 0>;
 					clock-names = "bus", "mclk1", "mclk2", "mclk3";
 					dma-names = "rx", "tx";
-					dmas = <&sdma 35 25 0>, <&sdma 36 25 0>;
+					dmas = <&sdma 35 24 0>, <&sdma 36 24 0>;
 					status = "disabled";
 				};
 
 				sai2: sai@0202c000 {
-					compatible = "fsl,imx6ul-sai";
+					compatible = "fsl,imx6ul-sai",
+						     "fsl,imx6sx-sai";
 					reg = <0x0202c000 0x4000>;
 					interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6UL_CLK_SAI2_IPG>,
@@ -367,12 +369,13 @@
 						 <&clks 0>, <&clks 0>;
 					clock-names = "bus", "mclk1", "mclk2", "mclk3";
 					dma-names = "rx", "tx";
-					dmas = <&sdma 37 25 0>, <&sdma 38 25 0>;
+					dmas = <&sdma 37 24 0>, <&sdma 38 24 0>;
 					status = "disabled";
 				};
 
 				sai3: sai@02030000 {
-					compatible = "fsl,imx6ul-sai";
+					compatible = "fsl,imx6ul-sai",
+						     "fsl,imx6sx-sai";
 					reg = <0x02030000 0x4000>;
 					interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6UL_CLK_DUMMY>,
