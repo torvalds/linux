@@ -172,6 +172,7 @@ static int rsi_load_ta_instructions(struct rsi_common *common)
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u32 len;
 	u32 num_blocks;
+	const u8 *fw;
 	const struct firmware *fw_entry = NULL;
 	u32 block_size = dev->tx_blk_size;
 	int status = 0;
@@ -200,6 +201,10 @@ static int rsi_load_ta_instructions(struct rsi_common *common)
 		return status;
 	}
 
+	/* Copy firmware into DMA-accessible memory */
+	fw = kmemdup(fw_entry->data, fw_entry->size, GFP_KERNEL);
+	if (!fw)
+		return -ENOMEM;
 	len = fw_entry->size;
 
 	if (len % 4)
@@ -210,7 +215,8 @@ static int rsi_load_ta_instructions(struct rsi_common *common)
 	rsi_dbg(INIT_ZONE, "%s: Instruction size:%d\n", __func__, len);
 	rsi_dbg(INIT_ZONE, "%s: num blocks: %d\n", __func__, num_blocks);
 
-	status = rsi_copy_to_card(common, fw_entry->data, len, num_blocks);
+	status = rsi_copy_to_card(common, fw, len, num_blocks);
+	kfree(fw);
 	release_firmware(fw_entry);
 	return status;
 }
