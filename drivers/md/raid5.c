@@ -755,6 +755,10 @@ static void unlock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
 /* Only freshly new full stripe normal write stripe can be added to a batch list */
 static bool stripe_can_batch(struct stripe_head *sh)
 {
+	struct r5conf *conf = sh->raid_conf;
+
+	if (conf->log)
+		return false;
 	return test_bit(STRIPE_BATCH_READY, &sh->state) &&
 		!test_bit(STRIPE_BITMAP_PENDING, &sh->state) &&
 		is_full_stripe_write(sh);
