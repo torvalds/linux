@@ -609,4 +609,12 @@ static inline int algorithm_is_DDF(int layout)
 
 extern void md_raid5_kick_device(struct r5conf *conf);
 extern int raid5_set_cache_size(struct mddev *mddev, int size);
+extern sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
+extern void raid5_release_stripe(struct stripe_head *sh);
+extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
+				     int previous, int *dd_idx,
+				     struct stripe_head *sh);
+extern struct stripe_head *
+raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
+			int previous, int noblock, int noquiesce);
 #endif
