@@ -169,6 +169,26 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/*
+		 * The rk3288 cannot use the memory area above 0xfe000000
+		 * for dma operations for some reason. While there is
+		 * probably a better solution available somewhere, we
+		 * haven't found it yet and while devices with 2GB of ram
+		 * are not affected, this issue prevents 4GB from booting.
+		 * So to make these devices at least bootable, block
+		 * this area for the time being until the real solution
+		 * is found.
+		 */
+		dma-unusable@fe000000 {
+			reg = <0xfe000000 0x1000000>;
+		};
+	};
+
 	xin24m: oscillator {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
