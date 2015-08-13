@@ -186,15 +186,19 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		goto out;
 	}
 	bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
-	if (bo_list && !bo_list->has_userptr) {
-		p->bo_list = amdgpu_bo_list_clone(bo_list);
-		amdgpu_bo_list_put(bo_list);
-		if (!p->bo_list)
-			return -ENOMEM;
-	} else if (bo_list && bo_list->has_userptr)
+	if (!amdgpu_enable_scheduler)
 		p->bo_list = bo_list;
-	else
-		p->bo_list = NULL;
+	else {
+		if (bo_list && !bo_list->has_userptr) {
+			p->bo_list = amdgpu_bo_list_clone(bo_list);
+			amdgpu_bo_list_put(bo_list);
+			if (!p->bo_list)
+				return -ENOMEM;
+		} else if (bo_list && bo_list->has_userptr)
+			p->bo_list = bo_list;
+		else
+			p->bo_list = NULL;
+	}
 
 	/* get chunks */
 	INIT_LIST_HEAD(&p->validated);
@@ -495,7 +499,7 @@ static void amdgpu_cs_parser_fini_late(struct amdgpu_cs_parser *parser)
 	if (parser->ctx)
 		amdgpu_ctx_put(parser->ctx);
 	if (parser->bo_list) {
-		if (!parser->bo_list->has_userptr)
+		if (amdgpu_enable_scheduler && !parser->bo_list->has_userptr)
 			amdgpu_bo_list_free(parser->bo_list);
 		else
 			amdgpu_bo_list_put(parser->bo_list);
