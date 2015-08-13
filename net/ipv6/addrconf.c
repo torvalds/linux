@@ -4706,6 +4706,7 @@ static inline size_t inet6_if_nlmsg_size(void)
 	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_ADDRESS */
 	       + nla_total_size(4) /* IFLA_MTU */
 	       + nla_total_size(4) /* IFLA_LINK */
+	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(inet6_ifla6_size()); /* IFLA_PROTINFO */
 }
 
@@ -4962,7 +4963,9 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	     nla_put(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr)) ||
 	    nla_put_u32(skb, IFLA_MTU, dev->mtu) ||
 	    (dev->ifindex != dev_get_iflink(dev) &&
-	     nla_put_u32(skb, IFLA_LINK, dev_get_iflink(dev))))
+	     nla_put_u32(skb, IFLA_LINK, dev_get_iflink(dev))) ||
+	    nla_put_u8(skb, IFLA_OPERSTATE,
+		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN))
 		goto nla_put_failure;
 	protoinfo = nla_nest_start(skb, IFLA_PROTINFO);
 	if (!protoinfo)
