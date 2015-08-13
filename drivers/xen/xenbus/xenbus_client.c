@@ -814,8 +814,10 @@ static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 
 	rv = xenbus_unmap_ring(dev, node->handles, node->nr_handles,
 			       addrs);
-	if (!rv)
+	if (!rv) {
 		vunmap(vaddr);
+		free_xenballooned_pages(node->nr_handles, node->hvm.pages);
+	}
 	else
 		WARN(1, "Leaking %p, size %u page(s)\n", vaddr,
 		     node->nr_handles);
