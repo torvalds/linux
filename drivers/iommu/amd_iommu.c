@@ -1835,8 +1835,8 @@ static void free_gcr3_table(struct protection_domain *domain)
 		free_gcr3_tbl_level2(domain->gcr3_tbl);
 	else if (domain->glx == 1)
 		free_gcr3_tbl_level1(domain->gcr3_tbl);
-	else if (domain->glx != 0)
-		BUG();
+	else
+		BUG_ON(domain->glx != 0);
 
 	free_page((unsigned long)domain->gcr3_tbl);
 }
