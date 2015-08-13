@@ -1723,9 +1723,6 @@ void i915_gem_suspend_gtt_mappings(struct drm_device *dev)
 
 int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 {
-	if (obj->has_dma_mapping)
-		return 0;
-
 	if (!dma_map_sg(&obj->base.dev->pdev->dev,
 			obj->pages->sgl, obj->pages->nents,
 			PCI_DMA_BIDIRECTIONAL))
@@ -1972,10 +1969,8 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 
 	interruptible = do_idling(dev_priv);
 
-	if (!obj->has_dma_mapping)
-		dma_unmap_sg(&dev->pdev->dev,
-			     obj->pages->sgl, obj->pages->nents,
-			     PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_sg(&dev->pdev->dev, obj->pages->sgl, obj->pages->nents,
+		     PCI_DMA_BIDIRECTIONAL);
 
 	undo_idling(dev_priv, interruptible);
 }

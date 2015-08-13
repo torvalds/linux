@@ -36,6 +36,7 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 	if (robj) {
 		if (robj->gem_base.import_attach)
 			drm_prime_gem_destroy(&robj->gem_base, robj->tbo.sg);
+		radeon_mn_unregister(robj);
 		radeon_bo_unref(&robj);
 	}
 }

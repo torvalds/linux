@@ -527,17 +527,8 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen)
 		goto out_notify;
 	}
 
-	/*
-	 * Some architectures have to walk the irq descriptors to
-	 * setup the vector space for the cpu which comes online.
-	 * Prevent irq alloc/free across the bringup.
-	 */
-	irq_lock_sparse();
-
 	/* Arch-specific enabling code. */
 	ret = __cpu_up(cpu, idle);
-
-	irq_unlock_sparse();
 
 	if (ret != 0)
 		goto out_notify;

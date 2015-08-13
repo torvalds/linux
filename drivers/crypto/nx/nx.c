@@ -713,12 +713,15 @@ static int nx_crypto_ctx_init(struct nx_crypto_ctx *nx_ctx, u32 fc, u32 mode)
 /* entry points from the crypto tfm initializers */
 int nx_crypto_ctx_aes_ccm_init(struct crypto_tfm *tfm)
 {
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct nx_ccm_rctx));
 	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_CCM);
 }
 
 int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm)
 {
+	crypto_aead_set_reqsize(tfm, sizeof(struct nx_gcm_rctx));
 	return nx_crypto_ctx_init(crypto_aead_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_GCM);
 }

@@ -779,6 +779,7 @@ config MMC_TOSHIBA_PCI
 
 config MMC_MTK
 	tristate "MediaTek SD/MMC Card Interface support"
+	depends on HAS_DMA
 	help
 	  This selects the MediaTek(R) Secure digital and Multimedia card Interface.
 	  If you have a machine with a integrated SD/MMC card reader, say Y or M here.

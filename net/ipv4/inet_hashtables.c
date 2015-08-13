@@ -624,22 +624,21 @@ EXPORT_SYMBOL_GPL(inet_hashinfo_init);
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 {
+	unsigned int locksz = sizeof(spinlock_t);
 	unsigned int i, nblocks = 1;
 
-	if (sizeof(spinlock_t) != 0) {
+	if (locksz != 0) {
 		/* allocate 2 cache lines or at least one spinlock per cpu */
-		nblocks = max_t(unsigned int,
-				2 * L1_CACHE_BYTES / sizeof(spinlock_t),
-				1);
+		nblocks = max(2U * L1_CACHE_BYTES / locksz, 1U);
 		nblocks = roundup_pow_of_two(nblocks * num_possible_cpus());
 
 		/* no more locks than number of hash buckets */
 		nblocks = min(nblocks, hashinfo->ehash_mask + 1);
 
-		hashinfo->ehash_locks =	kmalloc_array(nblocks, sizeof(spinlock_t),
+		hashinfo->ehash_locks =	kmalloc_array(nblocks, locksz,
 						      GFP_KERNEL | __GFP_NOWARN);
 		if (!hashinfo->ehash_locks)
-			hashinfo->ehash_locks = vmalloc(nblocks * sizeof(spinlock_t));
+			hashinfo->ehash_locks = vmalloc(nblocks * locksz);
 
 		if (!hashinfo->ehash_locks)
 			return -ENOMEM;

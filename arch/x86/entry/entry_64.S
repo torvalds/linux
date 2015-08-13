@@ -1237,11 +1237,12 @@ ENTRY(nmi)
 	 *  If the variable is not set and the stack is not the NMI
 	 *  stack then:
 	 *    o Set the special variable on the stack
-	 *    o Copy the interrupt frame into a "saved" location on the stack
-	 *    o Copy the interrupt frame into a "copy" location on the stack
+	 *    o Copy the interrupt frame into an "outermost" location on the
+	 *      stack
+	 *    o Copy the interrupt frame into an "iret" location on the stack
 	 *    o Continue processing the NMI
 	 *  If the variable is set or the previous stack is the NMI stack:
-	 *    o Modify the "copy" location to jump to the repeate_nmi
+	 *    o Modify the "iret" location to jump to the repeat_nmi
 	 *    o return back to the first NMI
 	 *
 	 * Now on exit of the first NMI, we first clear the stack variable
@@ -1250,31 +1251,151 @@ ENTRY(nmi)
 	 * a nested NMI that updated the copy interrupt stack frame, a
 	 * jump will be made to the repeat_nmi code that will handle the second
 	 * NMI.
+	 *
+	 * However, espfix prevents us from directly returning to userspace
+	 * with a single IRET instruction.  Similarly, IRET to user mode
+	 * can fault.  We therefore handle NMIs from user space like
+	 * other IST entries.
 	 */
 
 	/* Use %rdx as our temp variable throughout */
 	pushq	%rdx
 
-	/*
-	 * If %cs was not the kernel segment, then the NMI triggered in user
-	 * space, which means it is definitely not nested.
-	 */
-	cmpl	$__KERNEL_CS, 16(%rsp)
-	jne	first_nmi
+	testb	$3, CS-RIP+8(%rsp)
+	jz	.Lnmi_from_kernel
 
 	/*
-	 * Check the special variable on the stack to see if NMIs are
-	 * executing.
+	 * NMI from user mode.  We need to run on the thread stack, but we
+	 * can't go through the normal entry paths: NMIs are masked, and
+	 * we don't want to enable interrupts, because then we'll end
+	 * up in an awkward situation in which IRQs are on but NMIs
+	 * are off.
+	 */
+
+	SWAPGS
+	cld
+	movq	%rsp, %rdx
+	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+	pushq	5*8(%rdx)	/* pt_regs->ss */
+	pushq	4*8(%rdx)	/* pt_regs->rsp */
+	pushq	3*8(%rdx)	/* pt_regs->flags */
+	pushq	2*8(%rdx)	/* pt_regs->cs */
+	pushq	1*8(%rdx)	/* pt_regs->rip */
+	pushq   $-1		/* pt_regs->orig_ax */
+	pushq   %rdi		/* pt_regs->di */
+	pushq   %rsi		/* pt_regs->si */
+	pushq   (%rdx)		/* pt_regs->dx */
+	pushq   %rcx		/* pt_regs->cx */
+	pushq   %rax		/* pt_regs->ax */
+	pushq   %r8		/* pt_regs->r8 */
+	pushq   %r9		/* pt_regs->r9 */
+	pushq   %r10		/* pt_regs->r10 */
+	pushq   %r11		/* pt_regs->r11 */
+	pushq	%rbx		/* pt_regs->rbx */
+	pushq	%rbp		/* pt_regs->rbp */
+	pushq	%r12		/* pt_regs->r12 */
+	pushq	%r13		/* pt_regs->r13 */
+	pushq	%r14		/* pt_regs->r14 */
+	pushq	%r15		/* pt_regs->r15 */
+
+	/*
+	 * At this point we no longer need to worry about stack damage
+	 * due to nesting -- we're on the normal thread stack and we're
+	 * done with the NMI stack.
+	 */
+
+	movq	%rsp, %rdi
+	movq	$-1, %rsi
+	call	do_nmi
+
+	/*
+	 * Return back to user mode.  We must *not* do the normal exit
+	 * work, because we don't want to enable interrupts.  Fortunately,
+	 * do_nmi doesn't modify pt_regs.
+	 */
+	SWAPGS
+	jmp	restore_c_regs_and_iret
+
+.Lnmi_from_kernel:
+	/*
+	 * Here's what our stack frame will look like:
+	 * +---------------------------------------------------------+
+	 * | original SS                                             |
+	 * | original Return RSP                                     |
+	 * | original RFLAGS                                         |
+	 * | original CS                                             |
+	 * | original RIP                                            |
+	 * +---------------------------------------------------------+
+	 * | temp storage for rdx                                    |
+	 * +---------------------------------------------------------+
+	 * | "NMI executing" variable                                |
+	 * +---------------------------------------------------------+
+	 * | iret SS          } Copied from "outermost" frame        |
+	 * | iret Return RSP  } on each loop iteration; overwritten  |
+	 * | iret RFLAGS      } by a nested NMI to force another     |
+	 * | iret CS          } iteration if needed.                 |
+	 * | iret RIP         }                                      |
+	 * +---------------------------------------------------------+
+	 * | outermost SS          } initialized in first_nmi;       |
+	 * | outermost Return RSP  } will not be changed before      |
+	 * | outermost RFLAGS      } NMI processing is done.         |
+	 * | outermost CS          } Copied to "iret" frame on each  |
+	 * | outermost RIP         } iteration.                      |
+	 * +---------------------------------------------------------+
+	 * | pt_regs                                                 |
+	 * +---------------------------------------------------------+
+	 *
+	 * The "original" frame is used by hardware.  Before re-enabling
+	 * NMIs, we need to be done with it, and we need to leave enough
+	 * space for the asm code here.
+	 *
+	 * We return by executing IRET while RSP points to the "iret" frame.
+	 * That will either return for real or it will loop back into NMI
+	 * processing.
+	 *
+	 * The "outermost" frame is copied to the "iret" frame on each
+	 * iteration of the loop, so each iteration starts with the "iret"
+	 * frame pointing to the final return target.
+	 */
+
+	/*
+	 * Determine whether we're a nested NMI.
+	 *
+	 * If we interrupted kernel code between repeat_nmi and
+	 * end_repeat_nmi, then we are a nested NMI.  We must not
+	 * modify the "iret" frame because it's being written by
+	 * the outer NMI.  That's okay; the outer NMI handler is
+	 * about to about to call do_nmi anyway, so we can just
+	 * resume the outer NMI.
+	 */
+
+	movq	$repeat_nmi, %rdx
+	cmpq	8(%rsp), %rdx
+	ja	1f
+	movq	$end_repeat_nmi, %rdx
+	cmpq	8(%rsp), %rdx
+	ja	nested_nmi_out
+1:
+
+	/*
+	 * Now check "NMI executing".  If it's set, then we're nested.
+	 * This will not detect if we interrupted an outer NMI just
+	 * before IRET.
 	 */
 	cmpl	$1, -8(%rsp)
 	je	nested_nmi
 
 	/*
-	 * Now test if the previous stack was an NMI stack.
-	 * We need the double check. We check the NMI stack to satisfy the
-	 * race when the first NMI clears the variable before returning.
-	 * We check the variable because the first NMI could be in a
-	 * breakpoint routine using a breakpoint stack.
+	 * Now test if the previous stack was an NMI stack.  This covers
+	 * the case where we interrupt an outer NMI after it clears
+	 * "NMI executing" but before IRET.  We need to be careful, though:
+	 * there is one case in which RSP could point to the NMI stack
+	 * despite there being no NMI active: naughty userspace controls
+	 * RSP at the very beginning of the SYSCALL targets.  We can
+	 * pull a fast one on naughty userspace, though: we program
+	 * SYSCALL to mask DF, so userspace cannot cause DF to be set
+	 * if it controls the kernel's RSP.  We set DF before we clear
+	 * "NMI executing".
 	 */
 	lea	6*8(%rsp), %rdx
 	/* Compare the NMI stack (rdx) with the stack we came from (4*8(%rsp)) */
@@ -1286,25 +1407,20 @@ ENTRY(nmi)
 	cmpq	%rdx, 4*8(%rsp)
 	/* If it is below the NMI stack, it is a normal NMI */
 	jb	first_nmi
-	/* Ah, it is within the NMI stack, treat it as nested */
+
+	/* Ah, it is within the NMI stack. */
+
+	testb	$(X86_EFLAGS_DF >> 8), (3*8 + 1)(%rsp)
+	jz	first_nmi	/* RSP was user controlled. */
+
+	/* This is a nested NMI. */
 
 nested_nmi:
 	/*
-	 * Do nothing if we interrupted the fixup in repeat_nmi.
-	 * It's about to repeat the NMI handler, so we are fine
-	 * with ignoring this one.
+	 * Modify the "iret" frame to point to repeat_nmi, forcing another
+	 * iteration of NMI handling.
 	 */
-	movq	$repeat_nmi, %rdx
-	cmpq	8(%rsp), %rdx
-	ja	1f
-	movq	$end_repeat_nmi, %rdx
-	cmpq	8(%rsp), %rdx
-	ja	nested_nmi_out
-
-1:
-	/* Set up the interrupted NMIs stack to jump to repeat_nmi */
-	leaq	-1*8(%rsp), %rdx
-	movq	%rdx, %rsp
+	subq	$8, %rsp
 	leaq	-10*8(%rsp), %rdx
 	pushq	$__KERNEL_DS
 	pushq	%rdx
@@ -1318,61 +1434,42 @@ nested_nmi:
 nested_nmi_out:
 	popq	%rdx
 
-	/* No need to check faults here */
+	/* We are returning to kernel mode, so this cannot result in a fault. */
 	INTERRUPT_RETURN
 
 first_nmi:
-	/*
-	 * Because nested NMIs will use the pushed location that we
-	 * stored in rdx, we must keep that space available.
-	 * Here's what our stack frame will look like:
-	 * +-------------------------+
-	 * | original SS             |
-	 * | original Return RSP     |
-	 * | original RFLAGS         |
-	 * | original CS             |
-	 * | original RIP            |
-	 * +-------------------------+
-	 * | temp storage for rdx    |
-	 * +-------------------------+
-	 * | NMI executing variable  |
-	 * +-------------------------+
-	 * | copied SS               |
-	 * | copied Return RSP       |
-	 * | copied RFLAGS           |
-	 * | copied CS               |
-	 * | copied RIP              |
-	 * +-------------------------+
-	 * | Saved SS                |
-	 * | Saved Return RSP        |
-	 * | Saved RFLAGS            |
-	 * | Saved CS                |
-	 * | Saved RIP               |
-	 * +-------------------------+
-	 * | pt_regs                 |
-	 * +-------------------------+
-	 *
-	 * The saved stack frame is used to fix up the copied stack frame
-	 * that a nested NMI may change to make the interrupted NMI iret jump
-	 * to the repeat_nmi. The original stack frame and the temp storage
-	 * is also used by nested NMIs and can not be trusted on exit.
-	 */
-	/* Do not pop rdx, nested NMIs will corrupt that part of the stack */
+	/* Restore rdx. */
 	movq	(%rsp), %rdx
 
-	/* Set the NMI executing variable on the stack. */
-	pushq	$1
+	/* Make room for "NMI executing". */
+	pushq	$0
 
-	/* Leave room for the "copied" frame */
+	/* Leave room for the "iret" frame */
 	subq	$(5*8), %rsp
 
-	/* Copy the stack frame to the Saved frame */
+	/* Copy the "original" frame to the "outermost" frame */
 	.rept 5
 	pushq	11*8(%rsp)
 	.endr
 
 	/* Everything up to here is safe from nested NMIs */
 
+#ifdef CONFIG_DEBUG_ENTRY
+	/*
+	 * For ease of testing, unmask NMIs right away.  Disabled by
+	 * default because IRET is very expensive.
+	 */
+	pushq	$0		/* SS */
+	pushq	%rsp		/* RSP (minus 8 because of the previous push) */
+	addq	$8, (%rsp)	/* Fix up RSP */
+	pushfq			/* RFLAGS */
+	pushq	$__KERNEL_CS	/* CS */
+	pushq	$1f		/* RIP */
+	INTERRUPT_RETURN	/* continues at repeat_nmi below */
+1:
+#endif
+
+repeat_nmi:
 	/*
 	 * If there was a nested NMI, the first NMI's iret will return
 	 * here. But NMIs are still enabled and we can take another
@@ -1381,16 +1478,20 @@ first_nmi:
 	 * it will just return, as we are about to repeat an NMI anyway.
 	 * This makes it safe to copy to the stack frame that a nested
 	 * NMI will update.
+	 *
+	 * RSP is pointing to "outermost RIP".  gsbase is unknown, but, if
+	 * we're repeating an NMI, gsbase has the same value that it had on
+	 * the first iteration.  paranoid_entry will load the kernel
+	 * gsbase if needed before we call do_nmi.  "NMI executing"
+	 * is zero.
 	 */
-repeat_nmi:
-	/*
-	 * Update the stack variable to say we are still in NMI (the update
-	 * is benign for the non-repeat case, where 1 was pushed just above
-	 * to this very stack slot).
-	 */
-	movq	$1, 10*8(%rsp)
+	movq	$1, 10*8(%rsp)		/* Set "NMI executing". */
 
-	/* Make another copy, this one may be modified by nested NMIs */
+	/*
+	 * Copy the "outermost" frame to the "iret" frame.  NMIs that nest
+	 * here must not modify the "iret" frame while we're writing to
+	 * it or it will end up containing garbage.
+	 */
 	addq	$(10*8), %rsp
 	.rept 5
 	pushq	-6*8(%rsp)
@@ -1399,9 +1500,9 @@ repeat_nmi:
 end_repeat_nmi:
 
 	/*
-	 * Everything below this point can be preempted by a nested
-	 * NMI if the first NMI took an exception and reset our iret stack
-	 * so that we repeat another NMI.
+	 * Everything below this point can be preempted by a nested NMI.
+	 * If this happens, then the inner NMI will change the "iret"
+	 * frame to point back to repeat_nmi.
 	 */
 	pushq	$-1				/* ORIG_RAX: no syscall to restart */
 	ALLOC_PT_GPREGS_ON_STACK
@@ -1415,28 +1516,11 @@ end_repeat_nmi:
 	 */
 	call	paranoid_entry
 
-	/*
-	 * Save off the CR2 register. If we take a page fault in the NMI then
-	 * it could corrupt the CR2 value. If the NMI preempts a page fault
-	 * handler before it was able to read the CR2 register, and then the
-	 * NMI itself takes a page fault, the page fault that was preempted
-	 * will read the information from the NMI page fault and not the
-	 * origin fault. Save it off and restore it if it changes.
-	 * Use the r12 callee-saved register.
-	 */
-	movq	%cr2, %r12
-
 	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
 	movq	%rsp, %rdi
 	movq	$-1, %rsi
 	call	do_nmi
 
-	/* Did the NMI take a page fault? Restore cr2 if it did */
-	movq	%cr2, %rcx
-	cmpq	%rcx, %r12
-	je	1f
-	movq	%r12, %cr2
-1:
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	nmi_restore
 nmi_swapgs:
@@ -1444,11 +1528,26 @@ nmi_swapgs:
 nmi_restore:
 	RESTORE_EXTRA_REGS
 	RESTORE_C_REGS
-	/* Pop the extra iret frame at once */
+
+	/* Point RSP at the "iret" frame. */
 	REMOVE_PT_GPREGS_FROM_STACK 6*8
 
-	/* Clear the NMI executing stack variable */
-	movq	$0, 5*8(%rsp)
+	/*
+	 * Clear "NMI executing".  Set DF first so that we can easily
+	 * distinguish the remaining code between here and IRET from
+	 * the SYSCALL entry and exit paths.  On a native kernel, we
+	 * could just inspect RIP, but, on paravirt kernels,
+	 * INTERRUPT_RETURN can translate into a jump into a
+	 * hypercall page.
+	 */
+	std
+	movq	$0, 5*8(%rsp)		/* clear "NMI executing" */
+
+	/*
+	 * INTERRUPT_RETURN reads the "iret" frame and exits the NMI
+	 * stack in a single instruction.  We are returning to kernel
+	 * mode, so this cannot result in a fault.
+	 */
 	INTERRUPT_RETURN
 END(nmi)
 

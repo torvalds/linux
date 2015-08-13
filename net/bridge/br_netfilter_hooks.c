@@ -111,7 +111,7 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
 /* largest possible L2 header, see br_nf_dev_queue_xmit() */
 #define NF_BRIDGE_MAX_MAC_HEADER_LENGTH (PPPOE_SES_HLEN + ETH_HLEN)
 
-#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) || IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 struct brnf_frag_data {
 	char mac[NF_BRIDGE_MAX_MAC_HEADER_LENGTH];
 	u8 encap_size;
@@ -694,6 +694,7 @@ static int br_nf_push_frag_xmit(struct sock *sk, struct sk_buff *skb)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
 			     int (*output)(struct sock *, struct sk_buff *))
 {
@@ -712,6 +713,7 @@ static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
 
 	return ip_do_fragment(sk, skb, output);
 }
+#endif
 
 static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 {
@@ -742,7 +744,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 		struct brnf_frag_data *data;
 
 		if (br_validate_ipv4(skb))
-			return NF_DROP;
+			goto drop;
 
 		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
 
@@ -767,7 +769,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 		struct brnf_frag_data *data;
 
 		if (br_validate_ipv6(skb))
-			return NF_DROP;
+			goto drop;
 
 		IP6CB(skb)->frag_max_size = nf_bridge->frag_max_size;
 
@@ -782,12 +784,16 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 
 		if (v6ops)
 			return v6ops->fragment(sk, skb, br_nf_push_frag_xmit);
-		else
-			return -EMSGSIZE;
+
+		kfree_skb(skb);
+		return -EMSGSIZE;
 	}
 #endif
 	nf_bridge_info_free(skb);
 	return br_dev_queue_push_xmit(sk, skb);
+ drop:
+	kfree_skb(skb);
+	return 0;
 }
 
 /* PF_BRIDGE/POST_ROUTING ********************************************/

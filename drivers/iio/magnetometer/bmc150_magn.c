@@ -706,11 +706,11 @@ static int bmc150_magn_init(struct bmc150_magn_data *data)
 		goto err_poweroff;
 	}
 	if (chip_id != BMC150_MAGN_CHIP_ID_VAL) {
-		dev_err(&data->client->dev, "Invalid chip id 0x%x\n", ret);
+		dev_err(&data->client->dev, "Invalid chip id 0x%x\n", chip_id);
 		ret = -ENODEV;
 		goto err_poweroff;
 	}
-	dev_dbg(&data->client->dev, "Chip id %x\n", ret);
+	dev_dbg(&data->client->dev, "Chip id %x\n", chip_id);
 
 	preset = bmc150_magn_presets_table[BMC150_MAGN_DEFAULT_PRESET];
 	ret = bmc150_magn_set_odr(data, preset.odr);

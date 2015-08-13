@@ -104,7 +104,7 @@ int br_validate_ipv6(struct sk_buff *skb)
 {
 	const struct ipv6hdr *hdr;
 	struct net_device *dev = skb->dev;
-	struct inet6_dev *idev = in6_dev_get(skb->dev);
+	struct inet6_dev *idev = __in6_dev_get(skb->dev);
 	u32 pkt_len;
 	u8 ip6h_len = sizeof(struct ipv6hdr);
 

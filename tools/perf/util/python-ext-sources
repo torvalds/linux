@@ -10,7 +10,7 @@ util/ctype.c
 util/evlist.c
 util/evsel.c
 util/cpumap.c
-../../lib/hweight.c
+../lib/hweight.c
 util/thread_map.c
 util/util.c
 util/xyarray.c
@@ -19,5 +19,5 @@ util/rblist.c
 util/stat.c
 util/strlist.c
 util/trace-event.c
-../../lib/rbtree.c
+../lib/rbtree.c
 util/string.c
