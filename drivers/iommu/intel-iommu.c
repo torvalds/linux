@@ -2799,15 +2799,18 @@ static void intel_iommu_init_qi(struct intel_iommu *iommu)
 }
 
 static int copy_context_table(struct intel_iommu *iommu,
-			      struct root_entry *old_re,
+			      struct root_entry __iomem *old_re,
 			      struct context_entry **tbl,
 			      int bus, bool ext)
 {
-	struct context_entry *old_ce = NULL, *new_ce = NULL, ce;
 	int tbl_idx, pos = 0, idx, devfn, ret = 0, did;
+	struct context_entry __iomem *old_ce = NULL;
+	struct context_entry *new_ce = NULL, ce;
+	struct root_entry re;
 	phys_addr_t old_ce_phys;
 
 	tbl_idx = ext ? bus * 2 : bus;
+	memcpy_fromio(&re, old_re, sizeof(re));
 
 	for (devfn = 0; devfn < 256; devfn++) {
 		/* First calculate the correct index */
@@ -2827,9 +2830,9 @@ static int copy_context_table(struct intel_iommu *iommu,
 
 			ret = 0;
 			if (devfn < 0x80)
-				old_ce_phys = root_entry_lctp(old_re);
+				old_ce_phys = root_entry_lctp(&re);
 			else
-				old_ce_phys = root_entry_uctp(old_re);
+				old_ce_phys = root_entry_uctp(&re);
 
 			if (!old_ce_phys) {
 				if (ext && devfn == 0) {
@@ -2854,7 +2857,7 @@ static int copy_context_table(struct intel_iommu *iommu,
 		}
 
 		/* Now copy the context entry */
-		ce = old_ce[idx];
+		memcpy_fromio(&ce, old_ce + idx, sizeof(ce));
 
 		if (!__context_present(&ce))
 			continue;
@@ -2898,8 +2901,8 @@ out:
 
 static int copy_translation_tables(struct intel_iommu *iommu)
 {
+	struct root_entry __iomem *old_rt;
 	struct context_entry **ctxt_tbls;
-	struct root_entry *old_rt;
 	phys_addr_t old_rt_phys;
 	int ctxt_table_entries;
 	unsigned long flags;
