@@ -89,12 +89,16 @@ struct ib_uverbs_device {
 	int					num_comp_vectors;
 	struct completion			comp;
 	struct device			       *dev;
-	struct ib_device		       *ib_dev;
+	struct ib_device	__rcu	       *ib_dev;
 	int					devnum;
 	struct cdev			        cdev;
 	struct rb_root				xrcd_tree;
 	struct mutex				xrcd_tree_mutex;
 	struct kobject				kobj;
+	struct srcu_struct			disassociate_srcu;
+	struct mutex				lists_mutex; /* protect lists */
+	struct list_head			uverbs_file_list;
+	struct list_head			uverbs_events_file_list;
 };
 
 struct ib_uverbs_event_file {
@@ -106,6 +110,7 @@ struct ib_uverbs_event_file {
 	wait_queue_head_t			poll_wait;
 	struct fasync_struct		       *async_queue;
 	struct list_head			event_list;
+	struct list_head			list;
 };
 
 struct ib_uverbs_file {
@@ -115,6 +120,8 @@ struct ib_uverbs_file {
 	struct ib_ucontext		       *ucontext;
 	struct ib_event_handler			event_handler;
 	struct ib_uverbs_event_file	       *async_file;
+	struct list_head			list;
+	int					is_closed;
 };
 
 struct ib_uverbs_event {
