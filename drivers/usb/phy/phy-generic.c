@@ -230,7 +230,8 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 		clk_rate = pdata->clk_rate;
 		needs_vcc = pdata->needs_vcc;
 		if (gpio_is_valid(pdata->gpio_reset)) {
-			err = devm_gpio_request_one(dev, pdata->gpio_reset, 0,
+			err = devm_gpio_request_one(dev, pdata->gpio_reset,
+						    GPIOF_ACTIVE_LOW,
 						    dev_name(dev));
 			if (!err)
 				nop->gpiod_reset =
