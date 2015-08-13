@@ -376,6 +376,7 @@
 			clocks = <&clks IMX7D_NAND_USDHC_BUS_ROOT_CLK>,
 				<&clks IMX7D_NAND_ROOT_CLK>;
 			clock-names = "dma_apbh_bch", "dma_apbh_io";
+			status = "disabled";
 		};
 
 		aips1: aips-bus@30000000 {
@@ -1239,7 +1240,7 @@
 				compatible = "fsl,imx7d-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x30b40000 0x10000>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX7D_CLK_DUMMY>,
+				clocks = <&clks IMX7D_IPG_ROOT_CLK>,
 					<&clks IMX7D_NAND_USDHC_BUS_ROOT_CLK>,
 					<&clks IMX7D_USDHC1_ROOT_CLK>;
 				clock-names = "ipg", "ahb", "per";
