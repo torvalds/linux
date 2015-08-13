@@ -3878,7 +3878,7 @@ bfa_sfp_show_comp(struct bfa_sfp_s *sfp, struct bfi_mbmsg_s *msg)
 		bfa_trc(sfp, sfp->data_valid);
 		if (sfp->data_valid) {
 			u32	size = sizeof(struct sfp_mem_s);
-			u8 *des = (u8 *) &(sfp->sfpmem);
+			u8 *des = (u8 *)(sfp->sfpmem);
 			memcpy(des, sfp->dbuf_kva, size);
 		}
 		/*
