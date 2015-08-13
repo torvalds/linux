@@ -340,6 +340,7 @@ enum {
 	STRIPE_BITMAP_PENDING,	/* Being added to bitmap, don't add
 				 * to batch yet.
 				 */
+	STRIPE_LOG_TRAPPED, /* trapped into log */
 };
 
 #define STRIPE_EXPAND_SYNC_FLAGS \

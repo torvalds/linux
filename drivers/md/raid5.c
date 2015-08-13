@@ -4316,6 +4316,9 @@ static void handle_stripe(struct stripe_head *sh)
 
 	analyse_stripe(sh, &s);
 
+	if (test_bit(STRIPE_LOG_TRAPPED, &sh->state))
+		goto finish;
+
 	if (s.handle_bad_blocks) {
 		set_bit(STRIPE_HANDLE, &sh->state);
 		goto finish;
