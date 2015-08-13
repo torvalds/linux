@@ -2730,7 +2730,6 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		break;
 	case CRYPTO_ALG_TYPE_AEAD:
 		alg = &t_alg->algt.alg.aead.base;
-		alg->cra_flags |= CRYPTO_ALG_AEAD_NEW;
 		t_alg->algt.alg.aead.init = talitos_cra_init_aead;
 		t_alg->algt.alg.aead.setkey = aead_setkey;
 		t_alg->algt.alg.aead.encrypt = aead_encrypt;

@@ -634,8 +634,7 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_AEAD_NEW)) &
-	    algt->mask)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
 	ghash_alg = crypto_find_alg(ghash_name, &crypto_ahash_type,
@@ -690,7 +689,6 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 
 	inst->alg.base.cra_flags = (ghash->base.cra_flags | ctr->cra_flags) &
 				   CRYPTO_ALG_ASYNC;
-	inst->alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 	inst->alg.base.cra_priority = (ghash->base.cra_priority +
 				       ctr->cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;
@@ -935,8 +933,7 @@ static int crypto_rfc4106_create(struct crypto_template *tmpl,
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_AEAD_NEW)) &
-	    algt->mask)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
 	ccm_name = crypto_attr_alg_name(tb[1]);
@@ -976,7 +973,6 @@ static int crypto_rfc4106_create(struct crypto_template *tmpl,
 		goto out_drop_alg;
 
 	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
-	inst->alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = 1;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;
@@ -1175,8 +1171,7 @@ static int crypto_rfc4543_create(struct crypto_template *tmpl,
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_AEAD_NEW)) &
-	    algt->mask)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
 	ccm_name = crypto_attr_alg_name(tb[1]);
@@ -1217,7 +1212,6 @@ static int crypto_rfc4543_create(struct crypto_template *tmpl,
 		goto out_drop_alg;
 
 	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
-	inst->alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = 1;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;

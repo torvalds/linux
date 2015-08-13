@@ -514,8 +514,7 @@ static struct proto_ops algif_aead_ops = {
 
 static void *aead_bind(const char *name, u32 type, u32 mask)
 {
-	return crypto_alloc_aead(name, type | CRYPTO_ALG_AEAD_NEW,
-				 mask | CRYPTO_ALG_AEAD_NEW);
+	return crypto_alloc_aead(name, type, mask);
 }
 
 static void aead_release(void *private)

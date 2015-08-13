@@ -1451,7 +1451,6 @@ static int __init ixp_module_init(void)
 
 		/* authenc */
 		cra->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
-				      CRYPTO_ALG_AEAD_NEW |
 				      CRYPTO_ALG_ASYNC;
 		cra->setkey = aead_setkey;
 		cra->setauthsize = aead_setauthsize;

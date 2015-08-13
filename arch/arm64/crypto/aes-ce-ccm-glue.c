@@ -280,7 +280,6 @@ static struct aead_alg ccm_aes_alg = {
 	.base = {
 		.cra_name		= "ccm(aes)",
 		.cra_driver_name	= "ccm-aes-ce",
-		.cra_flags		= CRYPTO_ALG_AEAD_NEW,
 		.cra_priority		= 300,
 		.cra_blocksize		= 1,
 		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),

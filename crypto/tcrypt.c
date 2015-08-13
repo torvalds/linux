@@ -344,12 +344,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 		goto out_nosg;
 	sgout = &sg[9];
 
-	tfm = crypto_alloc_aead(algo, CRYPTO_ALG_AEAD_NEW,
-				CRYPTO_ALG_AEAD_NEW);
-	if (PTR_ERR(tfm) == -ENOENT) {
-		aad_size -= 8;
-		tfm = crypto_alloc_aead(algo, 0, CRYPTO_ALG_AEAD_NEW);
-	}
+	tfm = crypto_alloc_aead(algo, 0, 0);
 
 	if (IS_ERR(tfm)) {
 		pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,

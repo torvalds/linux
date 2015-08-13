@@ -1437,8 +1437,7 @@ static struct aead_alg aesni_aead_algs[] = { {
 		.cra_name		= "rfc4106(gcm(aes))",
 		.cra_driver_name	= "rfc4106-gcm-aesni",
 		.cra_priority		= 400,
-		.cra_flags		= CRYPTO_ALG_ASYNC |
-					  CRYPTO_ALG_AEAD_NEW,
+		.cra_flags		= CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= 1,
 		.cra_ctxsize		= sizeof(struct cryptd_aead *),
 		.cra_module		= THIS_MODULE,

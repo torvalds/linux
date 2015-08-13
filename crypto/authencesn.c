@@ -409,8 +409,7 @@ static int crypto_authenc_esn_create(struct crypto_template *tmpl,
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_AEAD_NEW)) &
-	    algt->mask)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
 	auth = ahash_attr_alg(tb[1], CRYPTO_ALG_TYPE_HASH,
@@ -458,7 +457,6 @@ static int crypto_authenc_esn_create(struct crypto_template *tmpl,
 		goto err_drop_enc;
 
 	inst->alg.base.cra_flags = enc->cra_flags & CRYPTO_ALG_ASYNC;
-	inst->alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 	inst->alg.base.cra_priority = enc->cra_priority * 10 +
 				      auth_base->cra_priority;
 	inst->alg.base.cra_blocksize = enc->cra_blocksize;

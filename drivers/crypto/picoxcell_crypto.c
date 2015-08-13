@@ -1738,7 +1738,6 @@ static int spacc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&engine->registered_aeads);
 	for (i = 0; i < engine->num_aeads; ++i) {
 		engine->aeads[i].engine = engine;
-		engine->aeads[i].alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 		err = crypto_register_aead(&engine->aeads[i].alg);
 		if (!err) {
 			list_add_tail(&engine->aeads[i].entry,

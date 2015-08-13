@@ -518,8 +518,7 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_AEAD_NEW)) &
-	    algt->mask)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
 	cipher = crypto_alg_mod_lookup(cipher_name,  CRYPTO_ALG_TYPE_CIPHER,
@@ -571,7 +570,6 @@ static int crypto_ccm_create_common(struct crypto_template *tmpl,
 	memcpy(inst->alg.base.cra_name, full_name, CRYPTO_MAX_ALG_NAME);
 
 	inst->alg.base.cra_flags = ctr->cra_flags & CRYPTO_ALG_ASYNC;
-	inst->alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 	inst->alg.base.cra_priority = (cipher->cra_priority +
 				       ctr->cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;
@@ -820,8 +818,7 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_AEAD_NEW)) &
-	    algt->mask)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
 	ccm_name = crypto_attr_alg_name(tb[1]);
@@ -861,7 +858,6 @@ static int crypto_rfc4309_create(struct crypto_template *tmpl,
 		goto out_drop_alg;
 
 	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
-	inst->alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = 1;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;

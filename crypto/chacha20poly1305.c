@@ -585,8 +585,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	if (IS_ERR(algt))
 		return PTR_ERR(algt);
 
-	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_AEAD_NEW)) &
-	    algt->mask)
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return -EINVAL;
 
 	chacha_name = crypto_attr_alg_name(tb[1]);
@@ -644,7 +643,6 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 
 	inst->alg.base.cra_flags = (chacha->cra_flags | poly->cra_flags) &
 				   CRYPTO_ALG_ASYNC;
-	inst->alg.base.cra_flags |= CRYPTO_ALG_AEAD_NEW;
 	inst->alg.base.cra_priority = (chacha->cra_priority +
 				       poly->cra_priority) / 2;
 	inst->alg.base.cra_blocksize = 1;

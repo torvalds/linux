@@ -177,8 +177,8 @@ static inline void cryptd_check_internal(struct rtattr **tb, u32 *type,
 	if (IS_ERR(algt))
 		return;
 
-	*type |= algt->type & (CRYPTO_ALG_INTERNAL | CRYPTO_ALG_AEAD_NEW);
-	*mask |= algt->mask & (CRYPTO_ALG_INTERNAL | CRYPTO_ALG_AEAD_NEW);
+	*type |= algt->type & CRYPTO_ALG_INTERNAL;
+	*mask |= algt->mask & CRYPTO_ALG_INTERNAL;
 }
 
 static int cryptd_blkcipher_setkey(struct crypto_ablkcipher *parent,
@@ -805,9 +805,7 @@ static int cryptd_create_aead(struct crypto_template *tmpl,
 		goto out_drop_aead;
 
 	inst->alg.base.cra_flags = CRYPTO_ALG_ASYNC |
-				   (alg->base.cra_flags &
-				    (CRYPTO_ALG_INTERNAL |
-				     CRYPTO_ALG_AEAD_NEW));
+				   (alg->base.cra_flags & CRYPTO_ALG_INTERNAL);
 	inst->alg.base.cra_ctxsize = sizeof(struct cryptd_aead_ctx);
 
 	inst->alg.ivsize = crypto_aead_alg_ivsize(alg);

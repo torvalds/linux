@@ -559,8 +559,7 @@ struct aead_alg nx_ccm_aes_alg = {
 		.cra_name        = "ccm(aes)",
 		.cra_driver_name = "ccm-aes-nx",
 		.cra_priority    = 300,
-		.cra_flags       = CRYPTO_ALG_NEED_FALLBACK |
-				   CRYPTO_ALG_AEAD_NEW,
+		.cra_flags       = CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize   = 1,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
 		.cra_module      = THIS_MODULE,
@@ -580,8 +579,7 @@ struct aead_alg nx_ccm4309_aes_alg = {
 		.cra_name        = "rfc4309(ccm(aes))",
 		.cra_driver_name = "rfc4309-ccm-aes-nx",
 		.cra_priority    = 300,
-		.cra_flags       = CRYPTO_ALG_NEED_FALLBACK |
-				   CRYPTO_ALG_AEAD_NEW,
+		.cra_flags       = CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize   = 1,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
 		.cra_module      = THIS_MODULE,
