@@ -859,7 +859,10 @@ static int cvm_oct_remove(struct platform_device *pdev)
 	int port;
 
 	/* Disable POW interrupt */
-	cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group), 0);
+	else
+		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
 
 	cvmx_ipd_disable();
 

@@ -195,12 +195,19 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		prefetch(work);
 		did_work_request = 0;
 		if (work == NULL) {
-			union cvmx_pow_wq_int wq_int;
+			if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+				cvmx_write_csr(CVMX_SSO_WQ_IQ_DIS,
+					       1ull << pow_receive_group);
+				cvmx_write_csr(CVMX_SSO_WQ_INT,
+					       1ull << pow_receive_group);
+			} else {
+				union cvmx_pow_wq_int wq_int;
 
-			wq_int.u64 = 0;
-			wq_int.s.iq_dis = 1 << pow_receive_group;
-			wq_int.s.wq_int = 1 << pow_receive_group;
-			cvmx_write_csr(CVMX_POW_WQ_INT, wq_int.u64);
+				wq_int.u64 = 0;
+				wq_int.s.iq_dis = 1 << pow_receive_group;
+				wq_int.s.wq_int = 1 << pow_receive_group;
+				cvmx_write_csr(CVMX_POW_WQ_INT, wq_int.u64);
+			}
 			break;
 		}
 		pskb = (struct sk_buff **)(cvm_oct_get_buffer_ptr(work->packet_ptr) -
@@ -422,8 +429,6 @@ void cvm_oct_rx_initialize(void)
 {
 	int i;
 	struct net_device *dev_for_napi = NULL;
-	union cvmx_pow_wq_int_thrx int_thr;
-	union cvmx_pow_wq_int_pc int_pc;
 
 	for (i = 0; i < TOTAL_NUMBER_OF_PORTS; i++) {
 		if (cvm_oct_device[i]) {
@@ -449,15 +454,34 @@ void cvm_oct_rx_initialize(void)
 
 	disable_irq_nosync(OCTEON_IRQ_WORKQ0 + pow_receive_group);
 
-	int_thr.u64 = 0;
-	int_thr.s.tc_en = 1;
-	int_thr.s.tc_thr = 1;
 	/* Enable POW interrupt when our port has at least one packet */
-	cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), int_thr.u64);
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+		union cvmx_sso_wq_int_thrx int_thr;
+		union cvmx_pow_wq_int_pc int_pc;
 
-	int_pc.u64 = 0;
-	int_pc.s.pc_thr = 5;
-	cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
+		int_thr.u64 = 0;
+		int_thr.s.tc_en = 1;
+		int_thr.s.tc_thr = 1;
+		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group),
+			       int_thr.u64);
+
+		int_pc.u64 = 0;
+		int_pc.s.pc_thr = 5;
+		cvmx_write_csr(CVMX_SSO_WQ_INT_PC, int_pc.u64);
+	} else {
+		union cvmx_pow_wq_int_thrx int_thr;
+		union cvmx_pow_wq_int_pc int_pc;
+
+		int_thr.u64 = 0;
+		int_thr.s.tc_en = 1;
+		int_thr.s.tc_thr = 1;
+		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group),
+			       int_thr.u64);
+
+		int_pc.u64 = 0;
+		int_pc.s.pc_thr = 5;
+		cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
+	}
 
 	/* Schedule NAPI now. This will indirectly enable the interrupt. */
 	napi_schedule(&cvm_oct_napi);
