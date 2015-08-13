@@ -5183,7 +5183,8 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_probe_ports;
 	}
 
-	dev_info(&pdev->dev, "Rocker switch with id %016llx\n", rocker->hw.id);
+	dev_info(&pdev->dev, "Rocker switch with id %*phN\n",
+		 (int)sizeof(rocker->hw.id), &rocker->hw.id);
 
 	return 0;
 
