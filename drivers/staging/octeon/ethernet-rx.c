@@ -172,9 +172,16 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	/* Only allow work for our group (and preserve priorities) */
-	old_group_mask = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(coreid));
-	cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid),
-		       (old_group_mask & ~0xFFFFull) | 1 << pow_receive_group);
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+		old_group_mask = cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid));
+		cvmx_write_csr(CVMX_SSO_PPX_GRP_MSK(coreid),
+				1ull << pow_receive_group);
+		cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid)); /* Flush */
+	} else {
+		old_group_mask = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(coreid));
+		cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid),
+			(old_group_mask & ~0xFFFFull) | 1 << pow_receive_group);
+	}
 
 	if (USE_ASYNC_IOBDMA) {
 		cvmx_pow_work_request_async(CVMX_SCR_SCRATCH, CVMX_POW_NO_WAIT);
@@ -397,7 +404,13 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		}
 	}
 	/* Restore the original POW group mask */
-	cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid), old_group_mask);
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+		cvmx_write_csr(CVMX_SSO_PPX_GRP_MSK(coreid), old_group_mask);
+		cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid)); /* Flush */
+	} else {
+		cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid), old_group_mask);
+	}
+
 	if (USE_ASYNC_IOBDMA) {
 		/* Restore the scratch area */
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
