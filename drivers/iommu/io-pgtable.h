@@ -143,4 +143,9 @@ struct io_pgtable_init_fns {
 	void (*free)(struct io_pgtable *iop);
 };
 
+extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s1_init_fns;
+extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s2_init_fns;
+extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns;
+extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns;
+
 #endif /* __IO_PGTABLE_H */
