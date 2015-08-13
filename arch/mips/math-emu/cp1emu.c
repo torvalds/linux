@@ -1803,6 +1803,18 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			goto copcsr;
 		}
 
+		case fclass_op: {
+			union ieee754sp fs;
+
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			SPFROMREG(fs, MIPSInst_FS(ir));
+			rv.w = ieee754sp_2008class(fs);
+			rfmt = w_fmt;
+			break;
+		}
+
 		case fabs_op:
 			handler.u = ieee754sp_abs;
 			goto scopuop;
@@ -2059,6 +2071,18 @@ copcsr:
 			rv.l = ieee754dp_tlong(fs);
 			rv.d = ieee754dp_flong(rv.l);
 			goto copcsr;
+		}
+
+		case fclass_op: {
+			union ieee754dp fs;
+
+			if (!cpu_has_mips_r6)
+				return SIGILL;
+
+			DPFROMREG(fs, MIPSInst_FS(ir));
+			rv.w = ieee754dp_2008class(fs);
+			rfmt = w_fmt;
+			break;
 		}
 
 		case fabs_op:
