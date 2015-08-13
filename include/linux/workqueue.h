@@ -265,7 +265,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 /**
  * delayed_work_pending - Find out whether a delayable work item is currently
  * pending
- * @work: The work item in question
+ * @w: The work item in question
  */
 #define delayed_work_pending(w) \
 	work_pending(&(w)->work)
@@ -366,7 +366,7 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags
  * @max_active: max in-flight work items, 0 for default
- * @args: args for @fmt
+ * @args...: args for @fmt
  *
  * Allocate a workqueue with the specified parameters.  For detailed
  * information on WQ_* flags, please refer to Documentation/workqueue.txt.
@@ -398,7 +398,7 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
  * alloc_ordered_workqueue - allocate an ordered workqueue
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags (only WQ_FREEZABLE and WQ_MEM_RECLAIM are meaningful)
- * @args: args for @fmt
+ * @args...: args for @fmt
  *
  * Allocate an ordered workqueue.  An ordered workqueue executes at
  * most one work item at any given time in the queued order.  They are
