@@ -2562,6 +2562,8 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "PORT_DDI_D_2_LANES";
 	case POWER_DOMAIN_PORT_DDI_D_4_LANES:
 		return "PORT_DDI_D_4_LANES";
+	case POWER_DOMAIN_PORT_DDI_E_2_LANES:
+		return "PORT_DDI_E_2_LANES";
 	case POWER_DOMAIN_PORT_DSI:
 		return "PORT_DSI";
 	case POWER_DOMAIN_PORT_CRT:
