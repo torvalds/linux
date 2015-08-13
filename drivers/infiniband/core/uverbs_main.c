@@ -406,10 +406,9 @@ static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 	}
 	spin_unlock_irq(&file->lock);
 
-	if (file->is_async) {
+	if (file->is_async)
 		ib_unregister_event_handler(&file->uverbs_file->event_handler);
-		kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
-	}
+	kref_put(&file->uverbs_file->ref, ib_uverbs_release_file);
 	kref_put(&file->ref, ib_uverbs_release_event_file);
 
 	return 0;
@@ -541,13 +540,20 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 				NULL, NULL);
 }
 
+void ib_uverbs_free_async_event_file(struct ib_uverbs_file *file)
+{
+	kref_put(&file->async_file->ref, ib_uverbs_release_event_file);
+	file->async_file = NULL;
+}
+
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 					int is_async)
 {
 	struct ib_uverbs_event_file *ev_file;
 	struct file *filp;
+	int ret;
 
-	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
+	ev_file = kzalloc(sizeof(*ev_file), GFP_KERNEL);
 	if (!ev_file)
 		return ERR_PTR(-ENOMEM);
 
@@ -556,15 +562,41 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	INIT_LIST_HEAD(&ev_file->event_list);
 	init_waitqueue_head(&ev_file->poll_wait);
 	ev_file->uverbs_file = uverbs_file;
+	kref_get(&ev_file->uverbs_file->ref);
 	ev_file->async_queue = NULL;
-	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
 
 	filp = anon_inode_getfile("[infinibandevent]", &uverbs_event_fops,
 				  ev_file, O_RDONLY);
 	if (IS_ERR(filp))
-		kfree(ev_file);
+		goto err_put_refs;
 
+	if (is_async) {
+		WARN_ON(uverbs_file->async_file);
+		uverbs_file->async_file = ev_file;
+		kref_get(&uverbs_file->async_file->ref);
+		INIT_IB_EVENT_HANDLER(&uverbs_file->event_handler,
+				      uverbs_file->device->ib_dev,
+				      ib_uverbs_event_handler);
+		ret = ib_register_event_handler(&uverbs_file->event_handler);
+		if (ret)
+			goto err_put_file;
+
+		/* At that point async file stuff was fully set */
+		ev_file->is_async = 1;
+	}
+
+	return filp;
+
+err_put_file:
+	fput(filp);
+	kref_put(&uverbs_file->async_file->ref, ib_uverbs_release_event_file);
+	uverbs_file->async_file = NULL;
+	return ERR_PTR(ret);
+
+err_put_refs:
+	kref_put(&ev_file->uverbs_file->ref, ib_uverbs_release_file);
+	kref_put(&ev_file->ref, ib_uverbs_release_event_file);
 	return filp;
 }
 
