@@ -151,7 +151,12 @@ int __cvmx_helper_xaui_enable(int interface)
 	/* (4)c Aply reset sequence */
 	xauiCtl.u64 = cvmx_read_csr(CVMX_PCSXX_CONTROL1_REG(interface));
 	xauiCtl.s.lo_pwr = 0;
-	xauiCtl.s.reset = 1;
+
+	/* Issuing a reset here seems to hang some CN68XX chips. */
+	if (!OCTEON_IS_MODEL(OCTEON_CN68XX_PASS1_X) &&
+	    !OCTEON_IS_MODEL(OCTEON_CN68XX_PASS2_X))
+		xauiCtl.s.reset = 1;
+
 	cvmx_write_csr(CVMX_PCSXX_CONTROL1_REG(interface), xauiCtl.u64);
 
 	/* Wait for PCS to come out of reset */
