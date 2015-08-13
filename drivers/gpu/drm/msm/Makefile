@@ -1,5 +1,5 @@
 ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/msm
-ccflags-$(CONFIG_DRM_MSM_DSI_PLL) += -Idrivers/gpu/drm/msm/dsi
+ccflags-$(CONFIG_DRM_MSM_DSI) += -Idrivers/gpu/drm/msm/dsi
 
 msm-y := \
 	adreno/adreno_device.o \
@@ -56,7 +56,9 @@ msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
 			dsi/dsi_host.o \
 			dsi/dsi_manager.o \
-			dsi/dsi_phy.o \
+			dsi/phy/dsi_phy.o \
+			dsi/phy/dsi_phy_20nm.o \
+			dsi/phy/dsi_phy_28nm.o \
 			mdp/mdp5/mdp5_cmd_encoder.o
 
 msm-$(CONFIG_DRM_MSM_DSI_PLL) += dsi/pll/dsi_pll.o \
