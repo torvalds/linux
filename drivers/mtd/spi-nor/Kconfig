@@ -26,7 +26,8 @@ config SPI_FSL_QUADSPI
 	depends on ARCH_MXC
 	help
 	  This enables support for the Quad SPI controller in master mode.
-	  We only connect the NOR to this controller now.
+	  This controller does not support generic SPI. It only supports
+	  SPI NOR.
 
 config SPI_NXP_SPIFI
 	tristate "NXP SPI Flash Interface (SPIFI)"
