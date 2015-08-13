@@ -140,7 +140,6 @@ echo "fi"
 echo ""
 echo "%files"
 echo '%defattr (-, root, root)'
-echo "%dir /lib/modules"
 echo "/lib/modules/$KERNELRELEASE"
 echo "%exclude /lib/modules/$KERNELRELEASE/build"
 echo "%exclude /lib/modules/$KERNELRELEASE/source"
