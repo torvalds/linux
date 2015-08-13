@@ -79,6 +79,7 @@ static DEFINE_SPINLOCK(map_lock);
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
 
 static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
+				     struct ib_device *ib_dev,
 				     const char __user *buf, int in_len,
 				     int out_len) = {
 	[IB_USER_VERBS_CMD_GET_CONTEXT]		= ib_uverbs_get_context,
@@ -119,6 +120,7 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 };
 
 static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
+				    struct ib_device *ib_dev,
 				    struct ib_udata *ucore,
 				    struct ib_udata *uhw) = {
 	[IB_USER_VERBS_EX_CMD_CREATE_FLOW]	= ib_uverbs_ex_create_flow,
@@ -557,6 +559,7 @@ void ib_uverbs_free_async_event_file(struct ib_uverbs_file *file)
 }
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
+					struct ib_device	*ib_dev,
 					int is_async)
 {
 	struct ib_uverbs_event_file *ev_file;
@@ -586,7 +589,7 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 		uverbs_file->async_file = ev_file;
 		kref_get(&uverbs_file->async_file->ref);
 		INIT_IB_EVENT_HANDLER(&uverbs_file->event_handler,
-				      uverbs_file->device->ib_dev,
+				      ib_dev,
 				      ib_uverbs_event_handler);
 		ret = ib_register_event_handler(&uverbs_file->event_handler);
 		if (ret)
@@ -643,8 +646,12 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			     size_t count, loff_t *pos)
 {
 	struct ib_uverbs_file *file = filp->private_data;
+	struct ib_device *ib_dev = file->device->ib_dev;
 	struct ib_uverbs_cmd_hdr hdr;
 	__u32 flags;
+
+	if (!ib_dev)
+		return -ENODEV;
 
 	if (count < sizeof hdr)
 		return -EINVAL;
@@ -672,13 +679,13 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		    command != IB_USER_VERBS_CMD_GET_CONTEXT)
 			return -EINVAL;
 
-		if (!(file->device->ib_dev->uverbs_cmd_mask & (1ull << command)))
+		if (!(ib_dev->uverbs_cmd_mask & (1ull << command)))
 			return -ENOSYS;
 
 		if (hdr.in_words * 4 != count)
 			return -EINVAL;
 
-		return uverbs_cmd_table[command](file,
+		return uverbs_cmd_table[command](file, ib_dev,
 						 buf + sizeof(hdr),
 						 hdr.in_words * 4,
 						 hdr.out_words * 4);
@@ -705,7 +712,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		if (!file->ucontext)
 			return -EINVAL;
 
-		if (!(file->device->ib_dev->uverbs_ex_cmd_mask & (1ull << command)))
+		if (!(ib_dev->uverbs_ex_cmd_mask & (1ull << command)))
 			return -ENOSYS;
 
 		if (count < (sizeof(hdr) + sizeof(ex_hdr)))
@@ -746,6 +753,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 				       ex_hdr.provider_out_words * 8);
 
 		err = uverbs_ex_cmd_table[command](file,
+						   ib_dev,
 						   &ucore,
 						   &uhw);
 
@@ -761,11 +769,12 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct ib_uverbs_file *file = filp->private_data;
+	struct ib_device *ib_dev = file->device->ib_dev;
 
-	if (!file->ucontext)
+	if (!ib_dev || !file->ucontext)
 		return -ENODEV;
 	else
-		return file->device->ib_dev->mmap(file->ucontext, vma);
+		return ib_dev->mmap(file->ucontext, vma);
 }
 
 /*

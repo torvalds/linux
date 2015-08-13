@@ -178,6 +178,7 @@ extern struct idr ib_uverbs_rule_idr;
 void idr_remove_uobj(struct idr *idp, struct ib_uobject *uobj);
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
+					struct ib_device *ib_dev,
 					int is_async);
 void ib_uverbs_free_async_event_file(struct ib_uverbs_file *uverbs_file);
 struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd);
@@ -214,6 +215,7 @@ struct ib_uverbs_flow_spec {
 
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\
+				 struct ib_device *ib_dev,              \
 				 const char __user *buf, int in_len,	\
 				 int out_len)
 
@@ -255,6 +257,7 @@ IB_UVERBS_DECLARE_CMD(close_xrcd);
 
 #define IB_UVERBS_DECLARE_EX_CMD(name)				\
 	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
+				struct ib_device *ib_dev,		\
 				struct ib_udata *ucore,		\
 				struct ib_udata *uhw)
 
