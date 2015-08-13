@@ -29,6 +29,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/workqueue.h>
 
 #define USB_GPIO_DEBOUNCE_MS	20	/* ms */
@@ -208,7 +209,8 @@ static int palmas_usb_probe(struct platform_device *pdev)
 			palmas_usb->wakeup = pdata->wakeup;
 	}
 
-	palmas_usb->id_gpiod = devm_gpiod_get_optional(&pdev->dev, "id");
+	palmas_usb->id_gpiod = devm_gpiod_get_optional(&pdev->dev, "id",
+							GPIOD_IN);
 	if (IS_ERR(palmas_usb->id_gpiod)) {
 		dev_err(&pdev->dev, "failed to get id gpio\n");
 		return PTR_ERR(palmas_usb->id_gpiod);
