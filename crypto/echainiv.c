@@ -247,9 +247,6 @@ static int echainiv_aead_create(struct crypto_template *tmpl,
 	spawn = aead_instance_ctx(inst);
 	alg = crypto_spawn_aead_alg(spawn);
 
-	if (alg->base.cra_aead.encrypt)
-		goto done;
-
 	err = -EINVAL;
 	if (inst->alg.ivsize & (sizeof(u32) - 1) ||
 	    inst->alg.ivsize > MAX_IV_SIZE)
@@ -267,7 +264,6 @@ static int echainiv_aead_create(struct crypto_template *tmpl,
 
 	inst->free = aead_geniv_free;
 
-done:
 	err = aead_register_instance(tmpl, inst);
 	if (err)
 		goto free_inst;
