@@ -2300,8 +2300,7 @@ static void i40evf_init_task(struct work_struct *work)
 	}
 	return;
 restart:
-	schedule_delayed_work(&adapter->init_task,
-			      msecs_to_jiffies(50));
+	schedule_delayed_work(&adapter->init_task, msecs_to_jiffies(30));
 	return;
 
 err_register:
@@ -2434,7 +2433,8 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->adminq_task, i40evf_adminq_task);
 	INIT_WORK(&adapter->watchdog_task, i40evf_watchdog_task);
 	INIT_DELAYED_WORK(&adapter->init_task, i40evf_init_task);
-	schedule_delayed_work(&adapter->init_task, 10);
+	schedule_delayed_work(&adapter->init_task,
+			      msecs_to_jiffies(5 * (pdev->devfn & 0x07)));
 
 	return 0;
 
