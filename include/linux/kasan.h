@@ -12,7 +12,16 @@ struct vm_struct;
 #define KASAN_SHADOW_SCALE_SHIFT 3
 
 #include <asm/kasan.h>
+#include <asm/pgtable.h>
 #include <linux/sched.h>
+
+extern unsigned char kasan_zero_page[PAGE_SIZE];
+extern pte_t kasan_zero_pte[PTRS_PER_PTE];
+extern pmd_t kasan_zero_pmd[PTRS_PER_PMD];
+extern pud_t kasan_zero_pud[PTRS_PER_PUD];
+
+void kasan_populate_zero_shadow(const void *shadow_start,
+				const void *shadow_end);
 
 static inline void *kasan_mem_to_shadow(const void *addr)
 {
