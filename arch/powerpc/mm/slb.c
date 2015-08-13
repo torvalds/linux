@@ -62,16 +62,16 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 				     unsigned long flags,
 				     enum slb_index index)
 {
+	struct slb_shadow *p = get_slb_shadow();
+
 	/*
 	 * Clear the ESID first so the entry is not valid while we are
 	 * updating it.  No write barriers are needed here, provided
 	 * we only update the current CPU's SLB shadow buffer.
 	 */
-	get_slb_shadow()->save_area[index].esid = 0;
-	get_slb_shadow()->save_area[index].vsid =
-				cpu_to_be64(mk_vsid_data(ea, ssize, flags));
-	get_slb_shadow()->save_area[index].esid =
-				cpu_to_be64(mk_esid_data(ea, ssize, index));
+	p->save_area[index].esid = 0;
+	p->save_area[index].vsid = cpu_to_be64(mk_vsid_data(ea, ssize, flags));
+	p->save_area[index].esid = cpu_to_be64(mk_esid_data(ea, ssize, index));
 }
 
 static inline void slb_shadow_clear(enum slb_index index)
