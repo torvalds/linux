@@ -709,7 +709,7 @@ static void cryptd_aead_encrypt(struct crypto_async_request *areq, int err)
 	struct aead_request *req;
 
 	req = container_of(areq, struct aead_request, base);
-	cryptd_aead_crypt(req, child, err, crypto_aead_crt(child)->encrypt);
+	cryptd_aead_crypt(req, child, err, crypto_aead_alg(child)->encrypt);
 }
 
 static void cryptd_aead_decrypt(struct crypto_async_request *areq, int err)
@@ -719,7 +719,7 @@ static void cryptd_aead_decrypt(struct crypto_async_request *areq, int err)
 	struct aead_request *req;
 
 	req = container_of(areq, struct aead_request, base);
-	cryptd_aead_crypt(req, child, err, crypto_aead_crt(child)->decrypt);
+	cryptd_aead_crypt(req, child, err, crypto_aead_alg(child)->decrypt);
 }
 
 static int cryptd_aead_enqueue(struct aead_request *req,
