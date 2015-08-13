@@ -212,12 +212,12 @@ void fib_flush_external(struct net *net)
  */
 static inline unsigned int __inet_dev_addr_type(struct net *net,
 						const struct net_device *dev,
-						__be32 addr)
+						__be32 addr, int tb_id)
 {
 	struct flowi4		fl4 = { .daddr = addr };
 	struct fib_result	res;
 	unsigned int ret = RTN_BROADCAST;
-	struct fib_table *local_table;
+	struct fib_table *table;
 
 	if (ipv4_is_zeronet(addr) || ipv4_is_lbcast(addr))
 		return RTN_BROADCAST;
@@ -226,10 +226,10 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 
 	rcu_read_lock();
 
-	local_table = fib_get_table(net, RT_TABLE_LOCAL);
-	if (local_table) {
+	table = fib_get_table(net, tb_id);
+	if (table) {
 		ret = RTN_UNICAST;
-		if (!fib_table_lookup(local_table, &fl4, &res, FIB_LOOKUP_NOREF)) {
+		if (!fib_table_lookup(table, &fl4, &res, FIB_LOOKUP_NOREF)) {
 			if (!dev || dev == res.fi->fib_dev)
 				ret = res.type;
 		}
@@ -239,16 +239,24 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	return ret;
 }
 
+unsigned int inet_addr_type_table(struct net *net, __be32 addr, int tb_id)
+{
+	return __inet_dev_addr_type(net, NULL, addr, tb_id);
+}
+EXPORT_SYMBOL(inet_addr_type_table);
+
 unsigned int inet_addr_type(struct net *net, __be32 addr)
 {
-	return __inet_dev_addr_type(net, NULL, addr);
+	return __inet_dev_addr_type(net, NULL, addr, RT_TABLE_LOCAL);
 }
 EXPORT_SYMBOL(inet_addr_type);
 
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr)
 {
-	return __inet_dev_addr_type(net, dev, addr);
+	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+
+	return __inet_dev_addr_type(net, dev, addr, rt_table);
 }
 EXPORT_SYMBOL(inet_dev_addr_type);
 
