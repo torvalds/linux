@@ -1201,6 +1201,298 @@ static const struct file_operations mbox_debugfs_fops = {
 	.write   = mbox_write
 };
 
+static int mps_trc_show(struct seq_file *seq, void *v)
+{
+	int enabled, i;
+	struct trace_params tp;
+	unsigned int trcidx = (uintptr_t)seq->private & 3;
+	struct adapter *adap = seq->private - trcidx;
+
+	t4_get_trace_filter(adap, &tp, trcidx, &enabled);
+	if (!enabled) {
+		seq_puts(seq, "tracer is disabled\n");
+		return 0;
+	}
+
+	if (tp.skip_ofst * 8 >= TRACE_LEN) {
+		dev_err(adap->pdev_dev, "illegal trace pattern skip offset\n");
+		return -EINVAL;
+	}
+	if (tp.port < 8) {
+		i = adap->chan_map[tp.port & 3];
+		if (i >= MAX_NPORTS) {
+			dev_err(adap->pdev_dev, "tracer %u is assigned "
+				"to non-existing port\n", trcidx);
+			return -EINVAL;
+		}
+		seq_printf(seq, "tracer is capturing %s %s, ",
+			   adap->port[i]->name, tp.port < 4 ? "Rx" : "Tx");
+	} else
+		seq_printf(seq, "tracer is capturing loopback %d, ",
+			   tp.port - 8);
+	seq_printf(seq, "snap length: %u, min length: %u\n", tp.snap_len,
+		   tp.min_len);
+	seq_printf(seq, "packets captured %smatch filter\n",
+		   tp.invert ? "do not " : "");
+
+	if (tp.skip_ofst) {
+		seq_puts(seq, "filter pattern: ");
+		for (i = 0; i < tp.skip_ofst * 2; i += 2)
+			seq_printf(seq, "%08x%08x", tp.data[i], tp.data[i + 1]);
+		seq_putc(seq, '/');
+		for (i = 0; i < tp.skip_ofst * 2; i += 2)
+			seq_printf(seq, "%08x%08x", tp.mask[i], tp.mask[i + 1]);
+		seq_puts(seq, "@0\n");
+	}
+
+	seq_puts(seq, "filter pattern: ");
+	for (i = tp.skip_ofst * 2; i < TRACE_LEN / 4; i += 2)
+		seq_printf(seq, "%08x%08x", tp.data[i], tp.data[i + 1]);
+	seq_putc(seq, '/');
+	for (i = tp.skip_ofst * 2; i < TRACE_LEN / 4; i += 2)
+		seq_printf(seq, "%08x%08x", tp.mask[i], tp.mask[i + 1]);
+	seq_printf(seq, "@%u\n", (tp.skip_ofst + tp.skip_len) * 8);
+	return 0;
+}
+
+static int mps_trc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mps_trc_show, inode->i_private);
+}
+
+static unsigned int xdigit2int(unsigned char c)
+{
+	return isdigit(c) ? c - '0' : tolower(c) - 'a' + 10;
+}
+
+#define TRC_PORT_NONE 0xff
+#define TRC_RSS_ENABLE 0x33
+#define TRC_RSS_DISABLE 0x13
+
+/* Set an MPS trace filter.  Syntax is:
+ *
+ * disable
+ *
+ * to disable tracing, or
+ *
+ * interface qid=<qid no> [snaplen=<val>] [minlen=<val>] [not] [<pattern>]...
+ *
+ * where interface is one of rxN, txN, or loopbackN, N = 0..3, qid can be one
+ * of the NIC's response qid obtained from sge_qinfo and pattern has the form
+ *
+ * <pattern data>[/<pattern mask>][@<anchor>]
+ *
+ * Up to 2 filter patterns can be specified.  If 2 are supplied the first one
+ * must be anchored at 0.  An omited mask is taken as a mask of 1s, an omitted
+ * anchor is taken as 0.
+ */
+static ssize_t mps_trc_write(struct file *file, const char __user *buf,
+			     size_t count, loff_t *pos)
+{
+	int i, j, enable, ret;
+	u32 *data, *mask;
+	struct trace_params tp;
+	const struct inode *ino;
+	unsigned int trcidx;
+	char *s, *p, *word, *end;
+	struct adapter *adap;
+
+	ino = file_inode(file);
+	trcidx = (uintptr_t)ino->i_private & 3;
+	adap = ino->i_private - trcidx;
+
+	/* Don't accept input more than 1K, can't be anything valid except lots
+	 * of whitespace.  Well, use less.
+	 */
+	if (count > 1024)
+		return -EFBIG;
+	p = s = kzalloc(count + 1, GFP_USER);
+	if (!s)
+		return -ENOMEM;
+	if (copy_from_user(s, buf, count)) {
+		count = -EFAULT;
+		goto out;
+	}
+
+	if (s[count - 1] == '\n')
+		s[count - 1] = '\0';
+
+	enable = strcmp("disable", s) != 0;
+	if (!enable)
+		goto apply;
+
+	/* enable or disable trace multi rss filter */
+	if (adap->trace_rss)
+		t4_write_reg(adap, MPS_TRC_CFG_A, TRC_RSS_ENABLE);
+	else
+		t4_write_reg(adap, MPS_TRC_CFG_A, TRC_RSS_DISABLE);
+
+	memset(&tp, 0, sizeof(tp));
+	tp.port = TRC_PORT_NONE;
+	i = 0;	/* counts pattern nibbles */
+
+	while (p) {
+		while (isspace(*p))
+			p++;
+		word = strsep(&p, " ");
+		if (!*word)
+			break;
+
+		if (!strncmp(word, "qid=", 4)) {
+			end = (char *)word + 4;
+			ret = kstrtoul(end, 10, (unsigned long *)&j);
+			if (ret)
+				goto out;
+			if (!adap->trace_rss) {
+				t4_write_reg(adap, MPS_T5_TRC_RSS_CONTROL_A, j);
+				continue;
+			}
+
+			switch (trcidx) {
+			case 0:
+				t4_write_reg(adap, MPS_TRC_RSS_CONTROL_A, j);
+				break;
+			case 1:
+				t4_write_reg(adap,
+					     MPS_TRC_FILTER1_RSS_CONTROL_A, j);
+				break;
+			case 2:
+				t4_write_reg(adap,
+					     MPS_TRC_FILTER2_RSS_CONTROL_A, j);
+				break;
+			case 3:
+				t4_write_reg(adap,
+					     MPS_TRC_FILTER3_RSS_CONTROL_A, j);
+				break;
+			}
+			continue;
+		}
+		if (!strncmp(word, "snaplen=", 8)) {
+			end = (char *)word + 8;
+			ret = kstrtoul(end, 10, (unsigned long *)&j);
+			if (ret || j > 9600) {
+inval:				count = -EINVAL;
+				goto out;
+			}
+			tp.snap_len = j;
+			continue;
+		}
+		if (!strncmp(word, "minlen=", 7)) {
+			end = (char *)word + 7;
+			ret = kstrtoul(end, 10, (unsigned long *)&j);
+			if (ret || j > TFMINPKTSIZE_M)
+				goto inval;
+			tp.min_len = j;
+			continue;
+		}
+		if (!strcmp(word, "not")) {
+			tp.invert = !tp.invert;
+			continue;
+		}
+		if (!strncmp(word, "loopback", 8) && tp.port == TRC_PORT_NONE) {
+			if (word[8] < '0' || word[8] > '3' || word[9])
+				goto inval;
+			tp.port = word[8] - '0' + 8;
+			continue;
+		}
+		if (!strncmp(word, "tx", 2) && tp.port == TRC_PORT_NONE) {
+			if (word[2] < '0' || word[2] > '3' || word[3])
+				goto inval;
+			tp.port = word[2] - '0' + 4;
+			if (adap->chan_map[tp.port & 3] >= MAX_NPORTS)
+				goto inval;
+			continue;
+		}
+		if (!strncmp(word, "rx", 2) && tp.port == TRC_PORT_NONE) {
+			if (word[2] < '0' || word[2] > '3' || word[3])
+				goto inval;
+			tp.port = word[2] - '0';
+			if (adap->chan_map[tp.port] >= MAX_NPORTS)
+				goto inval;
+			continue;
+		}
+		if (!isxdigit(*word))
+			goto inval;
+
+		/* we have found a trace pattern */
+		if (i) {                            /* split pattern */
+			if (tp.skip_len)            /* too many splits */
+				goto inval;
+			tp.skip_ofst = i / 16;
+		}
+
+		data = &tp.data[i / 8];
+		mask = &tp.mask[i / 8];
+		j = i;
+
+		while (isxdigit(*word)) {
+			if (i >= TRACE_LEN * 2) {
+				count = -EFBIG;
+				goto out;
+			}
+			*data = (*data << 4) + xdigit2int(*word++);
+			if (++i % 8 == 0)
+				data++;
+		}
+		if (*word == '/') {
+			word++;
+			while (isxdigit(*word)) {
+				if (j >= i)         /* mask longer than data */
+					goto inval;
+				*mask = (*mask << 4) + xdigit2int(*word++);
+				if (++j % 8 == 0)
+					mask++;
+			}
+			if (i != j)                 /* mask shorter than data */
+				goto inval;
+		} else {                            /* no mask, use all 1s */
+			for ( ; i - j >= 8; j += 8)
+				*mask++ = 0xffffffff;
+			if (i % 8)
+				*mask = (1 << (i % 8) * 4) - 1;
+		}
+		if (*word == '@') {
+			end = (char *)word + 1;
+			ret = kstrtoul(end, 10, (unsigned long *)&j);
+			if (*end && *end != '\n')
+				goto inval;
+			if (j & 7)          /* doesn't start at multiple of 8 */
+				goto inval;
+			j /= 8;
+			if (j < tp.skip_ofst)     /* overlaps earlier pattern */
+				goto inval;
+			if (j - tp.skip_ofst > 31)            /* skip too big */
+				goto inval;
+			tp.skip_len = j - tp.skip_ofst;
+		}
+		if (i % 8) {
+			*data <<= (8 - i % 8) * 4;
+			*mask <<= (8 - i % 8) * 4;
+			i = (i + 15) & ~15;         /* 8-byte align */
+		}
+	}
+
+	if (tp.port == TRC_PORT_NONE)
+		goto inval;
+
+apply:
+	i = t4_set_trace_filter(adap, &tp, trcidx, enable);
+	if (i)
+		count = i;
+out:
+	kfree(s);
+	return count;
+}
+
+static const struct file_operations mps_trc_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = mps_trc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+	.write   = mps_trc_write
+};
+
 static ssize_t flash_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
 {
@@ -2708,6 +3000,10 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "mbox5", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 5 },
 		{ "mbox6", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 6 },
 		{ "mbox7", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 7 },
+		{ "trace0", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 0 },
+		{ "trace1", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 1 },
+		{ "trace2", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 2 },
+		{ "trace3", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 3 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 		{ "mps_tcam", &mps_tcam_debugfs_fops, S_IRUSR, 0 },
 		{ "rss", &rss_debugfs_fops, S_IRUSR, 0 },
@@ -2789,6 +3085,8 @@ int t4_setup_debugfs(struct adapter *adap)
 				      &flash_debugfs_fops, adap->params.sf_size);
 	debugfs_create_bool("use_backdoor", S_IWUSR | S_IRUSR,
 			    adap->debugfs_root, &adap->use_bd);
+	debugfs_create_bool("trace_rss", S_IWUSR | S_IRUSR,
+			    adap->debugfs_root, &adap->trace_rss);
 
 	return 0;
 }

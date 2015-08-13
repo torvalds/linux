@@ -1886,6 +1886,9 @@
 #define TRCMULTIFILTER_F    TRCMULTIFILTER_V(1U)
 
 #define MPS_TRC_RSS_CONTROL_A		0x9808
+#define MPS_TRC_FILTER1_RSS_CONTROL_A	0x9ff4
+#define MPS_TRC_FILTER2_RSS_CONTROL_A	0x9ffc
+#define MPS_TRC_FILTER3_RSS_CONTROL_A	0xa004
 #define MPS_T5_TRC_RSS_CONTROL_A	0xa00c
 
 #define RSSCONTROL_S    16
@@ -1893,6 +1896,59 @@
 
 #define QUEUENUMBER_S    0
 #define QUEUENUMBER_V(x) ((x) << QUEUENUMBER_S)
+
+#define TFINVERTMATCH_S    24
+#define TFINVERTMATCH_V(x) ((x) << TFINVERTMATCH_S)
+#define TFINVERTMATCH_F    TFINVERTMATCH_V(1U)
+
+#define TFEN_S    22
+#define TFEN_V(x) ((x) << TFEN_S)
+#define TFEN_F    TFEN_V(1U)
+
+#define TFPORT_S    18
+#define TFPORT_M    0xfU
+#define TFPORT_V(x) ((x) << TFPORT_S)
+#define TFPORT_G(x) (((x) >> TFPORT_S) & TFPORT_M)
+
+#define TFLENGTH_S    8
+#define TFLENGTH_M    0x1fU
+#define TFLENGTH_V(x) ((x) << TFLENGTH_S)
+#define TFLENGTH_G(x) (((x) >> TFLENGTH_S) & TFLENGTH_M)
+
+#define TFOFFSET_S    0
+#define TFOFFSET_M    0x1fU
+#define TFOFFSET_V(x) ((x) << TFOFFSET_S)
+#define TFOFFSET_G(x) (((x) >> TFOFFSET_S) & TFOFFSET_M)
+
+#define T5_TFINVERTMATCH_S    25
+#define T5_TFINVERTMATCH_V(x) ((x) << T5_TFINVERTMATCH_S)
+#define T5_TFINVERTMATCH_F    T5_TFINVERTMATCH_V(1U)
+
+#define T5_TFEN_S    23
+#define T5_TFEN_V(x) ((x) << T5_TFEN_S)
+#define T5_TFEN_F    T5_TFEN_V(1U)
+
+#define T5_TFPORT_S    18
+#define T5_TFPORT_M    0x1fU
+#define T5_TFPORT_V(x) ((x) << T5_TFPORT_S)
+#define T5_TFPORT_G(x) (((x) >> T5_TFPORT_S) & T5_TFPORT_M)
+
+#define MPS_TRC_FILTER_MATCH_CTL_A_A 0x9810
+#define MPS_TRC_FILTER_MATCH_CTL_B_A 0x9820
+
+#define TFMINPKTSIZE_S    16
+#define TFMINPKTSIZE_M    0x1ffU
+#define TFMINPKTSIZE_V(x) ((x) << TFMINPKTSIZE_S)
+#define TFMINPKTSIZE_G(x) (((x) >> TFMINPKTSIZE_S) & TFMINPKTSIZE_M)
+
+#define TFCAPTUREMAX_S    0
+#define TFCAPTUREMAX_M    0x3fffU
+#define TFCAPTUREMAX_V(x) ((x) << TFCAPTUREMAX_S)
+#define TFCAPTUREMAX_G(x) (((x) >> TFCAPTUREMAX_S) & TFCAPTUREMAX_M)
+
+#define MPS_TRC_FILTER0_MATCH_A 0x9c00
+#define MPS_TRC_FILTER0_DONT_CARE_A 0x9c80
+#define MPS_TRC_FILTER1_MATCH_A 0x9d00
 
 #define TP_RSS_CONFIG_A 0x7df0
 
