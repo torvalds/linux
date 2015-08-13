@@ -61,6 +61,7 @@ enum media_gobj_type {
  * All objects on the media graph should have this struct embedded
  */
 struct media_gobj {
+	struct media_device	*mdev;
 	u32			id;
 };
 
@@ -198,6 +199,12 @@ struct media_entity_graph {
 
 #define gobj_to_entity(gobj) \
 		container_of(gobj, struct media_entity, graph_obj)
+
+#define gobj_to_pad(gobj) \
+		container_of(gobj, struct media_pad, graph_obj)
+
+#define gobj_to_link(gobj) \
+		container_of(gobj, struct media_link, graph_obj)
 
 void media_gobj_init(struct media_device *mdev,
 		    enum media_gobj_type type,

@@ -27,6 +27,69 @@
 #include <media/media-device.h>
 
 /**
+ *  dev_dbg_obj - Prints in debug mode a change on some object
+ *
+ * @event_name:	Name of the event to report. Could be __func__
+ * @gobj:	Pointer to the object
+ *
+ * Enabled only if DEBUG or CONFIG_DYNAMIC_DEBUG. Otherwise, it
+ * won't produce any code.
+ */
+static inline const char *gobj_type(enum media_gobj_type type)
+{
+	switch (type) {
+	case MEDIA_GRAPH_ENTITY:
+		return "entity";
+	case MEDIA_GRAPH_PAD:
+		return "pad";
+	case MEDIA_GRAPH_LINK:
+		return "link";
+	default:
+		return "unknown";
+	}
+}
+
+static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
+{
+#if defined(DEBUG) || defined (CONFIG_DYNAMIC_DEBUG)
+	switch (media_type(gobj)) {
+	case MEDIA_GRAPH_ENTITY:
+		dev_dbg(gobj->mdev->dev,
+			"%s: id 0x%08x entity#%d: '%s'\n",
+			event_name, gobj->id, media_localid(gobj),
+			gobj_to_entity(gobj)->name);
+		break;
+	case MEDIA_GRAPH_LINK:
+	{
+		struct media_link *link = gobj_to_link(gobj);
+
+		dev_dbg(gobj->mdev->dev,
+			"%s: id 0x%08x link#%d: '%s' %s#%d ==> '%s' %s#%d\n",
+			event_name, gobj->id, media_localid(gobj),
+
+			link->source->entity->name,
+			gobj_type(media_type(&link->source->graph_obj)),
+			media_localid(&link->source->graph_obj),
+
+			link->sink->entity->name,
+			gobj_type(media_type(&link->sink->graph_obj)),
+			media_localid(&link->sink->graph_obj));
+		break;
+	}
+	case MEDIA_GRAPH_PAD:
+	{
+		struct media_pad *pad = gobj_to_pad(gobj);
+
+		dev_dbg(gobj->mdev->dev,
+			"%s: id 0x%08x pad#%d: '%s':%d\n",
+			event_name, gobj->id, media_localid(gobj),
+			pad->entity->name, pad->index);
+	}
+	}
+#endif
+}
+
+/**
  *  media_gobj_init - Initialize a graph object
  *
  * @mdev:	Pointer to the media_device that contains the object
@@ -43,6 +106,8 @@ void media_gobj_init(struct media_device *mdev,
 			   enum media_gobj_type type,
 			   struct media_gobj *gobj)
 {
+	gobj->mdev = mdev;
+
 	/* Create a per-type unique object ID */
 	switch (type) {
 	case MEDIA_GRAPH_ENTITY:
@@ -55,6 +120,7 @@ void media_gobj_init(struct media_device *mdev,
 		gobj->id = media_gobj_gen_id(type, ++mdev->link_id);
 		break;
 	}
+	dev_dbg_obj(__func__, gobj);
 }
 
 /**
@@ -66,7 +132,7 @@ void media_gobj_init(struct media_device *mdev,
  */
 void media_gobj_remove(struct media_gobj *gobj)
 {
-	/* For now, nothing to do */
+	dev_dbg_obj(__func__, gobj);
 }
 
 /**
