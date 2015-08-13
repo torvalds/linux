@@ -274,7 +274,7 @@ static int qat_alg_aead_init_enc_session(struct crypto_aead *aead_tfm,
 					 struct crypto_authenc_keys *keys)
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(aead_tfm);
-	unsigned int digestsize = crypto_aead_crt(aead_tfm)->authsize;
+	unsigned int digestsize = crypto_aead_authsize(aead_tfm);
 	struct qat_enc *enc_ctx = &ctx->enc_cd->qat_enc_cd;
 	struct icp_qat_hw_cipher_algo_blk *cipher = &enc_ctx->cipher;
 	struct icp_qat_hw_auth_algo_blk *hash =
@@ -354,7 +354,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 					 struct crypto_authenc_keys *keys)
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(aead_tfm);
-	unsigned int digestsize = crypto_aead_crt(aead_tfm)->authsize;
+	unsigned int digestsize = crypto_aead_authsize(aead_tfm);
 	struct qat_dec *dec_ctx = &ctx->dec_cd->qat_dec_cd;
 	struct icp_qat_hw_auth_algo_blk *hash = &dec_ctx->hash;
 	struct icp_qat_hw_cipher_algo_blk *cipher =
@@ -797,7 +797,7 @@ static int qat_alg_aead_dec(struct aead_request *areq)
 	struct icp_qat_fw_la_cipher_req_params *cipher_param;
 	struct icp_qat_fw_la_auth_req_params *auth_param;
 	struct icp_qat_fw_la_bulk_req *msg;
-	int digst_size = crypto_aead_crt(aead_tfm)->authsize;
+	int digst_size = crypto_aead_authsize(aead_tfm);
 	int ret, ctr = 0;
 
 	ret = qat_alg_sgl_to_bufl(ctx->inst, areq->src, areq->dst, qat_req);
