@@ -1182,6 +1182,34 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	return 0;
 }
 
+static int _mv88e6xxx_vtu_wait(struct dsa_switch *ds)
+{
+	return _mv88e6xxx_wait(ds, REG_GLOBAL, GLOBAL_VTU_OP,
+			       GLOBAL_VTU_OP_BUSY);
+}
+
+static int _mv88e6xxx_vtu_cmd(struct dsa_switch *ds, u16 op)
+{
+	int ret;
+
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_OP, op);
+	if (ret < 0)
+		return ret;
+
+	return _mv88e6xxx_vtu_wait(ds);
+}
+
+static int _mv88e6xxx_vtu_stu_flush(struct dsa_switch *ds)
+{
+	int ret;
+
+	ret = _mv88e6xxx_vtu_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_FLUSH_ALL);
+}
+
 static int _mv88e6xxx_atu_mac_write(struct dsa_switch *ds,
 				    const unsigned char *addr)
 {
@@ -2071,6 +2099,12 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds)
 	/* Wait for the flush to complete. */
 	mutex_lock(&ps->smi_mutex);
 	ret = _mv88e6xxx_stats_wait(ds);
+	if (ret < 0)
+		goto unlock;
+
+	/* Clear all the VTU and STU entries */
+	ret = _mv88e6xxx_vtu_stu_flush(ds);
+unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
