@@ -252,7 +252,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	if (kfifo_alloc(&connection->ts_kfifo, GB_CONNECTION_TS_KFIFO_LEN,
 			GFP_KERNEL))
-		goto err_free_connection;
+		goto err_destroy_wq;
 
 	connection->dev.parent = parent;
 	connection->dev.bus = &greybus_bus_type;
@@ -298,6 +298,8 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 err_free_kfifo:
 	kfifo_free(&connection->ts_kfifo);
+err_destroy_wq:
+	destroy_workqueue(connection->wq);
 err_free_connection:
 	kfree(connection);
 err_remove_ida:
