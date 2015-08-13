@@ -7427,15 +7427,19 @@ int unregister_md_personality(struct md_personality *p)
 }
 EXPORT_SYMBOL(unregister_md_personality);
 
-int register_md_cluster_operations(struct md_cluster_operations *ops, struct module *module)
+int register_md_cluster_operations(struct md_cluster_operations *ops,
+				   struct module *module)
 {
-	if (md_cluster_ops != NULL)
-		return -EALREADY;
+	int ret = 0;
 	spin_lock(&pers_lock);
-	md_cluster_ops = ops;
-	md_cluster_mod = module;
+	if (md_cluster_ops != NULL)
+		ret = -EALREADY;
+	else {
+		md_cluster_ops = ops;
+		md_cluster_mod = module;
+	}
 	spin_unlock(&pers_lock);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(register_md_cluster_operations);
 
