@@ -1254,6 +1254,32 @@ static int _mv88e6xxx_vtu_stu_data_read(struct dsa_switch *ds,
 	return 0;
 }
 
+static int _mv88e6xxx_vtu_stu_data_write(struct dsa_switch *ds,
+					 struct mv88e6xxx_vtu_stu_entry *entry,
+					 unsigned int nibble_offset)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u16 regs[3] = { 0 };
+	int i;
+	int ret;
+
+	for (i = 0; i < ps->num_ports; ++i) {
+		unsigned int shift = (i % 4) * 4 + nibble_offset;
+		u8 data = entry->data[i];
+
+		regs[i / 4] |= (data & GLOBAL_VTU_STU_DATA_MASK) << shift;
+	}
+
+	for (i = 0; i < 3; ++i) {
+		ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL,
+					   GLOBAL_VTU_DATA_0_3 + i, regs[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds, u16 vid,
 				  struct mv88e6xxx_vtu_stu_entry *entry)
 {
@@ -1305,6 +1331,93 @@ static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds, u16 vid,
 
 	*entry = next;
 	return 0;
+}
+
+static int _mv88e6xxx_vtu_loadpurge(struct dsa_switch *ds,
+				    struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	u16 reg = 0;
+	int ret;
+
+	ret = _mv88e6xxx_vtu_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	if (!entry->valid)
+		goto loadpurge;
+
+	/* Write port member tags */
+	ret = _mv88e6xxx_vtu_stu_data_write(ds, entry, 0);
+	if (ret < 0)
+		return ret;
+
+	if (mv88e6xxx_6097_family(ds) || mv88e6xxx_6165_family(ds) ||
+	    mv88e6xxx_6351_family(ds) || mv88e6xxx_6352_family(ds)) {
+		reg = entry->sid & GLOBAL_VTU_SID_MASK;
+		ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_SID, reg);
+		if (ret < 0)
+			return ret;
+
+		reg = entry->fid & GLOBAL_VTU_FID_MASK;
+		ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_FID, reg);
+		if (ret < 0)
+			return ret;
+	}
+
+	reg = GLOBAL_VTU_VID_VALID;
+loadpurge:
+	reg |= entry->vid & GLOBAL_VTU_VID_MASK;
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_VTU_VID, reg);
+	if (ret < 0)
+		return ret;
+
+	return _mv88e6xxx_vtu_cmd(ds, GLOBAL_VTU_OP_VTU_LOAD_PURGE);
+}
+
+int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry vlan;
+	bool keep = false;
+	int i, err;
+
+	mutex_lock(&ps->smi_mutex);
+
+	err = _mv88e6xxx_vtu_getnext(ds, vid - 1, &vlan);
+	if (err)
+		goto unlock;
+
+	if (vlan.vid != vid || !vlan.valid ||
+	    vlan.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
+		err = -ENOENT;
+		goto unlock;
+	}
+
+	vlan.data[port] = GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
+
+	/* keep the VLAN unless all ports are excluded */
+	for (i = 0; i < ps->num_ports; ++i) {
+		if (dsa_is_cpu_port(ds, i))
+			continue;
+
+		if (vlan.data[i] != GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER) {
+			keep = true;
+			break;
+		}
+	}
+
+	vlan.valid = keep;
+	err = _mv88e6xxx_vtu_loadpurge(ds, &vlan);
+	if (err)
+		goto unlock;
+
+	if (!keep)
+		clear_bit(vlan.fid, ps->fid_bitmap);
+
+unlock:
+	mutex_unlock(&ps->smi_mutex);
+
+	return err;
 }
 
 static int _mv88e6xxx_port_vtu_getnext(struct dsa_switch *ds, int port, u16 vid,
