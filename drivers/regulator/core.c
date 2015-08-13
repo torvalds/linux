@@ -2723,7 +2723,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 		goto out;
 
 	/* If we're trying to set a range that overlaps the current voltage,
-	 * return succesfully even though the regulator does not support
+	 * return successfully even though the regulator does not support
 	 * changing the voltage.
 	 */
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
