@@ -247,6 +247,10 @@ static int ath10k_install_peer_wep_keys(struct ath10k_vif *arvif,
 
 	lockdep_assert_held(&ar->conf_mutex);
 
+	if (WARN_ON(arvif->vif->type != NL80211_IFTYPE_AP &&
+		    arvif->vif->type != NL80211_IFTYPE_ADHOC))
+		return -EINVAL;
+
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find(ar, arvif->vdev_id, addr);
 	spin_unlock_bh(&ar->data_lock);
@@ -258,21 +262,34 @@ static int ath10k_install_peer_wep_keys(struct ath10k_vif *arvif,
 		if (arvif->wep_keys[i] == NULL)
 			continue;
 
-		flags = 0;
-		flags |= WMI_KEY_PAIRWISE;
+		switch (arvif->vif->type) {
+		case NL80211_IFTYPE_AP:
+			flags = WMI_KEY_PAIRWISE;
 
-		ret = ath10k_install_key(arvif, arvif->wep_keys[i], SET_KEY,
-					 addr, flags);
-		if (ret < 0)
-			return ret;
+			if (arvif->def_wep_key_idx == i)
+				flags |= WMI_KEY_TX_USAGE;
 
-		flags = 0;
-		flags |= WMI_KEY_GROUP;
+			ret = ath10k_install_key(arvif, arvif->wep_keys[i],
+						 SET_KEY, addr, flags);
+			if (ret < 0)
+				return ret;
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			ret = ath10k_install_key(arvif, arvif->wep_keys[i],
+						 SET_KEY, addr,
+						 WMI_KEY_PAIRWISE);
+			if (ret < 0)
+				return ret;
 
-		ret = ath10k_install_key(arvif, arvif->wep_keys[i], SET_KEY,
-					 addr, flags);
-		if (ret < 0)
-			return ret;
+			ret = ath10k_install_key(arvif, arvif->wep_keys[i],
+						 SET_KEY, addr, WMI_KEY_GROUP);
+			if (ret < 0)
+				return ret;
+			break;
+		default:
+			WARN_ON(1);
+			return -EINVAL;
+		}
 
 		spin_lock_bh(&ar->data_lock);
 		peer->keys[i] = arvif->wep_keys[i];
@@ -287,6 +304,9 @@ static int ath10k_install_peer_wep_keys(struct ath10k_vif *arvif,
 	 *
 	 * FIXME: Revisit. Perhaps this can be done in a less hacky way.
 	 */
+	if (arvif->vif->type != NL80211_IFTYPE_ADHOC)
+		return 0;
+
 	if (arvif->def_wep_key_idx == -1)
 		return 0;
 
