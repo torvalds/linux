@@ -127,6 +127,8 @@ enum spi_nor_option_flags {
 	SNOR_F_USE_FSR		= BIT(0),
 };
 
+struct mtd_info;
+
 /**
  * struct spi_nor - Structure for defining a the SPI NOR layer
  * @mtd:		point to a mtd_info structure
