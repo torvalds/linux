@@ -1307,6 +1307,29 @@ static int _mv88e6xxx_vtu_getnext(struct dsa_switch *ds, u16 vid,
 	return 0;
 }
 
+static int _mv88e6xxx_port_vtu_getnext(struct dsa_switch *ds, int port, u16 vid,
+				       struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	int err;
+
+	do {
+		if (vid == 4095)
+			return -ENOENT;
+
+		err = _mv88e6xxx_vtu_getnext(ds, vid, entry);
+		if (err)
+			return err;
+
+		if (!entry->valid)
+			return -ENOENT;
+
+		vid = entry->vid;
+	} while (entry->data[port] != GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED &&
+		 entry->data[port] != GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED);
+
+	return 0;
+}
+
 int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
 			   unsigned long *ports, unsigned long *untagged)
 {
@@ -1421,9 +1444,18 @@ static int _mv88e6xxx_atu_load(struct dsa_switch *ds,
 static int _mv88e6xxx_port_vid_to_fid(struct dsa_switch *ds, int port, u16 vid)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_vtu_stu_entry vlan;
+	int err;
 
 	if (vid == 0)
 		return ps->fid[port];
+
+	err = _mv88e6xxx_port_vtu_getnext(ds, port, vid - 1, &vlan);
+	if (err)
+		return err;
+
+	if (vlan.vid == vid)
+		return vlan.fid;
 
 	return -ENOENT;
 }
@@ -1548,8 +1580,14 @@ int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
 
 	do {
 		if (is_broadcast_ether_addr(addr)) {
-			ret = -ENOENT;
-			goto unlock;
+			struct mv88e6xxx_vtu_stu_entry vtu;
+
+			ret = _mv88e6xxx_port_vtu_getnext(ds, port, *vid, &vtu);
+			if (ret < 0)
+				goto unlock;
+
+			*vid = vtu.vid;
+			fid = vtu.fid;
 		}
 
 		ret = _mv88e6xxx_atu_getnext(ds, fid, addr, &next);
