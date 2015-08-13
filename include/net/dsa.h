@@ -298,6 +298,17 @@ struct dsa_switch_driver {
 				   u8 state);
 
 	/*
+	 * VLAN support
+	 */
+	int	(*port_pvid_get)(struct dsa_switch *ds, int port, u16 *pvid);
+	int	(*port_pvid_set)(struct dsa_switch *ds, int port, u16 pvid);
+	int	(*port_vlan_add)(struct dsa_switch *ds, int port, u16 vid,
+				 bool untagged);
+	int	(*port_vlan_del)(struct dsa_switch *ds, int port, u16 vid);
+	int	(*vlan_getnext)(struct dsa_switch *ds, u16 *vid,
+				unsigned long *ports, unsigned long *untagged);
+
+	/*
 	 * Forwarding database
 	 */
 	int	(*port_fdb_add)(struct dsa_switch *ds, int port,
