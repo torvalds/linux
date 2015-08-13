@@ -359,6 +359,7 @@ static DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 
 static void media_device_release(struct media_devnode *mdev)
 {
+	dev_dbg(mdev->parent, "Media device released\n");
 }
 
 /**
@@ -397,6 +398,8 @@ int __must_check __media_device_register(struct media_device *mdev,
 		return ret;
 	}
 
+	dev_dbg(mdev->dev, "Media device registered\n");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__media_device_register);
@@ -416,6 +419,8 @@ void media_device_unregister(struct media_device *mdev)
 
 	device_remove_file(&mdev->devnode.dev, &dev_attr_model);
 	media_devnode_unregister(&mdev->devnode);
+
+	dev_dbg(mdev->dev, "Media device unregistered\n");
 }
 EXPORT_SYMBOL_GPL(media_device_unregister);
 
