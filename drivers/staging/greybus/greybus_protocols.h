@@ -823,6 +823,22 @@ struct gb_svc_route_create_request {
 	__u8	dev2_id;
 };
 
+
+/* RAW */
+
+/* Version of the Greybus raw protocol we support */
+#define	GB_RAW_VERSION_MAJOR			0x00
+#define	GB_RAW_VERSION_MINOR			0x01
+
+/* Greybus raw request types */
+#define	GB_RAW_TYPE_SEND			0x02
+
+struct gb_raw_send_request {
+	__le32	len;
+	__u8	data[0];
+};
+
+
 /* UART */
 
 /* Version of the Greybus UART protocol we support */

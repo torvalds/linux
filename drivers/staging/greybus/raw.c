@@ -28,18 +28,6 @@ struct gb_raw {
 	struct device *device;
 };
 
-/* Version of the Greybus raw protocol we support */
-#define	GB_RAW_VERSION_MAJOR			0x00
-#define	GB_RAW_VERSION_MINOR			0x01
-
-/* Greybus raw request types */
-#define	GB_RAW_TYPE_SEND			0x02
-
-struct gb_raw_send_request {
-	__le32	len;
-	__u8	data[0];
-};
-
 struct raw_data {
 	struct list_head entry;
 	u32 len;
