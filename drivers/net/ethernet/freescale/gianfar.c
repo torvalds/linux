@@ -2102,6 +2102,11 @@ int startup_gfar(struct net_device *ndev)
 	/* Start Rx/Tx DMA and enable the interrupts */
 	gfar_start(priv);
 
+	/* force link state update after mac reset */
+	priv->oldlink = 0;
+	priv->oldspeed = 0;
+	priv->oldduplex = -1;
+
 	phy_start(priv->phydev);
 
 	enable_napi(priv);
