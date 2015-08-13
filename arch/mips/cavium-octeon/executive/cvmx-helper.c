@@ -658,6 +658,21 @@ static int __cvmx_helper_global_setup_pko(void)
 	fau_to.s.tout_val = 0xfff;
 	fau_to.s.tout_enb = 0;
 	cvmx_write_csr(CVMX_IOB_FAU_TIMEOUT, fau_to.u64);
+
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+		union cvmx_pko_reg_min_pkt min_pkt;
+
+		min_pkt.u64 = 0;
+		min_pkt.s.size1 = 59;
+		min_pkt.s.size2 = 59;
+		min_pkt.s.size3 = 59;
+		min_pkt.s.size4 = 59;
+		min_pkt.s.size5 = 59;
+		min_pkt.s.size6 = 59;
+		min_pkt.s.size7 = 59;
+		cvmx_write_csr(CVMX_PKO_REG_MIN_PKT, min_pkt.u64);
+	}
+
 	return 0;
 }
 
