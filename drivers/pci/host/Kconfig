@@ -135,7 +135,7 @@ config PCIE_IPROC_PLATFORM
 	  through the generic platform bus interface
 
 config PCIE_IPROC_BCMA
-	bool "Broadcom iProc PCIe BCMA bus driver"
+	tristate "Broadcom iProc PCIe BCMA bus driver"
 	depends on ARCH_BCM_IPROC || (ARM && COMPILE_TEST)
 	select PCIE_IPROC
 	select BCMA
