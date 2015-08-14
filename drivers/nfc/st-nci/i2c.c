@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
-#include <linux/platform_data/st_nci.h>
+#include <linux/platform_data/st-nci.h>
 
 #include "ndlc.h"
 
