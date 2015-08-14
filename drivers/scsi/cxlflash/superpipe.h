@@ -31,9 +31,11 @@ extern struct cxlflash_global global;
 #define MC_DISCOVERY_TIMEOUT 5  /* 5 secs */
 
 #define CHAN2PORT(_x)	((_x) + 1)
+#define PORT2CHAN(_x)	((_x) - 1)
 
 enum lun_mode {
 	MODE_NONE = 0,
+	MODE_VIRTUAL,
 	MODE_PHYSICAL
 };
 
@@ -41,13 +43,14 @@ enum lun_mode {
 struct glun_info {
 	u64 max_lba;		/* from read cap(16) */
 	u32 blk_len;		/* from read cap(16) */
-	enum lun_mode mode;	/* NONE, PHYSICAL */
+	enum lun_mode mode;	/* NONE, VIRTUAL, PHYSICAL */
 	int users;		/* Number of users w/ references to LUN */
 
 	u8 wwid[16];
 
 	struct mutex mutex;
 
+	struct blka blka;
 	struct list_head list;
 };
 
@@ -58,6 +61,7 @@ struct llun_info {
 	u32 host_no;		/* host_no from Scsi_host */
 	u32 port_sel;		/* What port to use for this LUN */
 	bool newly_created;	/* Whether the LUN was just discovered */
+	bool in_table;		/* Whether a LUN table entry was created */
 
 	u8 wwid[16];		/* Keep a duplicate copy here? */
 
@@ -90,6 +94,7 @@ struct ctx_info {
 	u32 rht_out;		/* Number of checked out RHT entries */
 	u32 rht_perms;		/* User-defined permissions for RHT entries */
 	struct llun_info **rht_lun;       /* Mapping of RHT entries to LUNs */
+	bool *rht_needs_ws;	/* User-desired write-same function per RHTE */
 
 	struct cxl_ioctl_start_work work;
 	u64 ctxid;
@@ -111,9 +116,17 @@ struct cxlflash_global {
 	struct page *err_page; /* One page of all 0xF for error notification */
 };
 
+int cxlflash_vlun_resize(struct scsi_device *, struct dk_cxlflash_resize *);
+int _cxlflash_vlun_resize(struct scsi_device *, struct ctx_info *,
+			  struct dk_cxlflash_resize *);
+
 int cxlflash_disk_release(struct scsi_device *, struct dk_cxlflash_release *);
 int _cxlflash_disk_release(struct scsi_device *, struct ctx_info *,
 			   struct dk_cxlflash_release *);
+
+int cxlflash_disk_clone(struct scsi_device *, struct dk_cxlflash_clone *);
+
+int cxlflash_disk_virtual_open(struct scsi_device *, void *);
 
 int cxlflash_lun_attach(struct glun_info *, enum lun_mode, bool);
 void cxlflash_lun_detach(struct glun_info *);
@@ -126,6 +139,8 @@ struct sisl_rht_entry *get_rhte(struct ctx_info *, res_hndl_t,
 
 struct sisl_rht_entry *rhte_checkout(struct ctx_info *, struct llun_info *);
 void rhte_checkin(struct ctx_info *, struct sisl_rht_entry *);
+
+void cxlflash_ba_terminate(struct ba_lun *);
 
 int cxlflash_manage_lun(struct scsi_device *, struct dk_cxlflash_manage_lun *);
 

@@ -26,9 +26,23 @@
 
 #include "sislite.h"
 #include "common.h"
+#include "vlun.h"
 #include "superpipe.h"
 
 struct cxlflash_global global;
+
+/**
+ * marshal_rele_to_resize() - translate release to resize structure
+ * @rele:	Source structure from which to translate/copy.
+ * @resize:	Destination structure for the translate/copy.
+ */
+static void marshal_rele_to_resize(struct dk_cxlflash_release *release,
+				   struct dk_cxlflash_resize *resize)
+{
+	resize->hdr = release->hdr;
+	resize->context_id = release->context_id;
+	resize->rsrc_handle = release->rsrc_handle;
+}
 
 /**
  * marshal_det_to_rele() - translate detach to release structure
@@ -449,6 +463,7 @@ void rhte_checkin(struct ctx_info *ctxi,
 	rhte->fp = 0;
 	ctxi->rht_out--;
 	ctxi->rht_lun[rsrc_handle] = NULL;
+	ctxi->rht_needs_ws[rsrc_handle] = false;
 }
 
 /**
@@ -526,13 +541,21 @@ out:
 /**
  * cxlflash_lun_detach() - detaches a user from a LUN and resets the LUN's mode
  * @gli:	LUN to detach.
+ *
+ * When resetting the mode, terminate block allocation resources as they
+ * are no longer required (service is safe to call even when block allocation
+ * resources were not present - such as when transitioning from physical mode).
+ * These resources will be reallocated when needed (subsequent transition to
+ * virtual mode).
  */
 void cxlflash_lun_detach(struct glun_info *gli)
 {
 	mutex_lock(&gli->mutex);
 	WARN_ON(gli->mode == MODE_NONE);
-	if (--gli->users == 0)
+	if (--gli->users == 0) {
 		gli->mode = MODE_NONE;
+		cxlflash_ba_terminate(&gli->blka.ba_lun);
+	}
 	pr_debug("%s: gli->users=%u\n", __func__, gli->users);
 	WARN_ON(gli->users < 0);
 	mutex_unlock(&gli->mutex);
@@ -544,10 +567,12 @@ void cxlflash_lun_detach(struct glun_info *gli)
  * @ctxi:	Context owning resources.
  * @release:	Release ioctl data structure.
  *
- * Note that the AFU sync should _not_ be performed when the context is sitting
- * on the error recovery list. A context on the error recovery list is not known
- * to the AFU due to reset. When the context is recovered, it will be reattached
- * and made known again to the AFU.
+ * For LUNs in virtual mode, the virtual LUN associated with the specified
+ * resource handle is resized to 0 prior to releasing the RHTE. Note that the
+ * AFU sync should _not_ be performed when the context is sitting on the error
+ * recovery list. A context on the error recovery list is not known to the AFU
+ * due to reset. When the context is recovered, it will be reattached and made
+ * known again to the AFU.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -562,6 +587,7 @@ int _cxlflash_disk_release(struct scsi_device *sdev,
 	struct afu *afu = cfg->afu;
 	bool put_ctx = false;
 
+	struct dk_cxlflash_resize size;
 	res_hndl_t rhndl = release->rsrc_handle;
 
 	int rc = 0;
@@ -594,7 +620,24 @@ int _cxlflash_disk_release(struct scsi_device *sdev,
 		goto out;
 	}
 
+	/*
+	 * Resize to 0 for virtual LUNS by setting the size
+	 * to 0. This will clear LXT_START and LXT_CNT fields
+	 * in the RHT entry and properly sync with the AFU.
+	 *
+	 * Afterwards we clear the remaining fields.
+	 */
 	switch (gli->mode) {
+	case MODE_VIRTUAL:
+		marshal_rele_to_resize(release, &size);
+		size.req_size = 0;
+		rc = _cxlflash_vlun_resize(sdev, ctxi, &size);
+		if (rc) {
+			dev_dbg(dev, "%s: resize failed rc %d\n", __func__, rc);
+			goto out;
+		}
+
+		break;
 	case MODE_PHYSICAL:
 		/*
 		 * Clear the Format 1 RHT entry for direct access
@@ -666,6 +709,7 @@ static void destroy_context(struct cxlflash_cfg *cfg,
 
 	/* Free memory associated with context */
 	free_page((ulong)ctxi->rht_start);
+	kfree(ctxi->rht_needs_ws);
 	kfree(ctxi->rht_lun);
 	kfree(ctxi);
 	atomic_dec_if_positive(&cfg->num_user_contexts);
@@ -693,11 +737,13 @@ static struct ctx_info *create_context(struct cxlflash_cfg *cfg,
 	struct afu *afu = cfg->afu;
 	struct ctx_info *ctxi = NULL;
 	struct llun_info **lli = NULL;
+	bool *ws = NULL;
 	struct sisl_rht_entry *rhte;
 
 	ctxi = kzalloc(sizeof(*ctxi), GFP_KERNEL);
 	lli = kzalloc((MAX_RHT_PER_CONTEXT * sizeof(*lli)), GFP_KERNEL);
-	if (unlikely(!ctxi || !lli)) {
+	ws = kzalloc((MAX_RHT_PER_CONTEXT * sizeof(*ws)), GFP_KERNEL);
+	if (unlikely(!ctxi || !lli || !ws)) {
 		dev_err(dev, "%s: Unable to allocate context!\n", __func__);
 		goto err;
 	}
@@ -709,6 +755,7 @@ static struct ctx_info *create_context(struct cxlflash_cfg *cfg,
 	}
 
 	ctxi->rht_lun = lli;
+	ctxi->rht_needs_ws = ws;
 	ctxi->rht_start = rhte;
 	ctxi->rht_perms = perms;
 
@@ -728,6 +775,7 @@ out:
 	return ctxi;
 
 err:
+	kfree(ws);
 	kfree(lli);
 	kfree(ctxi);
 	ctxi = NULL;
@@ -1729,6 +1777,12 @@ static int cxlflash_disk_verify(struct scsi_device *sdev,
 	case MODE_PHYSICAL:
 		last_lba = gli->max_lba;
 		break;
+	case MODE_VIRTUAL:
+		/* Cast lxt_cnt to u64 for multiply to be treated as 64bit op */
+		last_lba = ((u64)rhte->lxt_cnt * MC_CHUNK_SIZE * gli->blk_len);
+		last_lba /= CXLFLASH_BLOCK_SIZE;
+		last_lba--;
+		break;
 	default:
 		WARN(1, "Unsupported LUN mode!");
 	}
@@ -1756,12 +1810,18 @@ static char *decode_ioctl(int cmd)
 		return __stringify_1(DK_CXLFLASH_ATTACH);
 	case DK_CXLFLASH_USER_DIRECT:
 		return __stringify_1(DK_CXLFLASH_USER_DIRECT);
+	case DK_CXLFLASH_USER_VIRTUAL:
+		return __stringify_1(DK_CXLFLASH_USER_VIRTUAL);
+	case DK_CXLFLASH_VLUN_RESIZE:
+		return __stringify_1(DK_CXLFLASH_VLUN_RESIZE);
 	case DK_CXLFLASH_RELEASE:
 		return __stringify_1(DK_CXLFLASH_RELEASE);
 	case DK_CXLFLASH_DETACH:
 		return __stringify_1(DK_CXLFLASH_DETACH);
 	case DK_CXLFLASH_VERIFY:
 		return __stringify_1(DK_CXLFLASH_VERIFY);
+	case DK_CXLFLASH_VLUN_CLONE:
+		return __stringify_1(DK_CXLFLASH_VLUN_CLONE);
 	case DK_CXLFLASH_RECOVER_AFU:
 		return __stringify_1(DK_CXLFLASH_RECOVER_AFU);
 	case DK_CXLFLASH_MANAGE_LUN:
@@ -1876,6 +1936,7 @@ static int ioctl_common(struct scsi_device *sdev, int cmd)
 	rc = check_state(cfg);
 	if (unlikely(rc) && (cfg->state == STATE_FAILTERM)) {
 		switch (cmd) {
+		case DK_CXLFLASH_VLUN_RESIZE:
 		case DK_CXLFLASH_RELEASE:
 		case DK_CXLFLASH_DETACH:
 			dev_dbg(dev, "%s: Command override! (%d)\n",
@@ -1923,12 +1984,18 @@ int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	{sizeof(struct dk_cxlflash_verify), (sioctl)cxlflash_disk_verify},
 	{sizeof(struct dk_cxlflash_recover_afu), (sioctl)cxlflash_afu_recover},
 	{sizeof(struct dk_cxlflash_manage_lun), (sioctl)cxlflash_manage_lun},
+	{sizeof(struct dk_cxlflash_uvirtual), cxlflash_disk_virtual_open},
+	{sizeof(struct dk_cxlflash_resize), (sioctl)cxlflash_vlun_resize},
+	{sizeof(struct dk_cxlflash_clone), (sioctl)cxlflash_disk_clone},
 	};
 
 	/* Restrict command set to physical support only for internal LUN */
 	if (afu->internal_lun)
 		switch (cmd) {
 		case DK_CXLFLASH_RELEASE:
+		case DK_CXLFLASH_USER_VIRTUAL:
+		case DK_CXLFLASH_VLUN_RESIZE:
+		case DK_CXLFLASH_VLUN_CLONE:
 			dev_dbg(dev, "%s: %s not supported for lun_mode=%d\n",
 				__func__, decode_ioctl(cmd), afu->internal_lun);
 			rc = -EINVAL;
@@ -1942,6 +2009,9 @@ int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	case DK_CXLFLASH_DETACH:
 	case DK_CXLFLASH_VERIFY:
 	case DK_CXLFLASH_RECOVER_AFU:
+	case DK_CXLFLASH_USER_VIRTUAL:
+	case DK_CXLFLASH_VLUN_RESIZE:
+	case DK_CXLFLASH_VLUN_CLONE:
 		dev_dbg(dev, "%s: %s (%08X) on dev(%d/%d/%d/%llu)\n",
 			__func__, decode_ioctl(cmd), cmd, shost->host_no,
 			sdev->channel, sdev->id, sdev->lun);

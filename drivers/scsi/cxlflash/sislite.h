@@ -397,16 +397,17 @@ struct cxlflash_afu_map {
 	};
 };
 
-/* LBA translation control blocks */
-
+/*
+ * LXT - LBA Translation Table
+ * LXT control blocks
+ */
 struct sisl_lxt_entry {
 	u64 rlba_base;	/* bits 0:47 is base
-				 * b48:55 is lun index
-				 * b58:59 is write & read perms
-				 * (if no perm, afu_rc=0x15)
-				 * b60:63 is port_sel mask
-				 */
-
+			 * b48:55 is lun index
+			 * b58:59 is write & read perms
+			 * (if no perm, afu_rc=0x15)
+			 * b60:63 is port_sel mask
+			 */
 };
 
 /*
@@ -464,5 +465,8 @@ struct sisl_rht_entry_f1 {
 /* Special Task Management Function CDB */
 #define TMF_LUN_RESET  0x1U
 #define TMF_CLEAR_ACA  0x2U
+
+
+#define SISLITE_MAX_WS_BLOCKS 512
 
 #endif /* _SISLITE_H */

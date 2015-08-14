@@ -1989,6 +1989,8 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	afu_err_intr_init(cfg->afu);
 	atomic64_set(&afu->room, readq_be(&afu->host_map->cmd_room));
 
+	/* Restore the LUN mappings */
+	cxlflash_restore_luntable(cfg);
 err1:
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
@@ -2286,6 +2288,17 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	cfg->init_state = INIT_STATE_NONE;
 	cfg->dev = pdev;
+
+	/*
+	 * The promoted LUNs move to the top of the LUN table. The rest stay
+	 * on the bottom half. The bottom half grows from the end
+	 * (index = 255), whereas the top half grows from the beginning
+	 * (index = 0).
+	 */
+	cfg->promote_lun_index  = 0;
+	cfg->last_lun_index[0] = CXLFLASH_NUM_VLUNS/2 - 1;
+	cfg->last_lun_index[1] = CXLFLASH_NUM_VLUNS/2 - 1;
+
 	cfg->dev_id = (struct pci_device_id *)dev_id;
 	cfg->mcctx = NULL;
 

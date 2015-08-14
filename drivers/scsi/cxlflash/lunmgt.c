@@ -20,6 +20,7 @@
 
 #include "sislite.h"
 #include "common.h"
+#include "vlun.h"
 #include "superpipe.h"
 
 /**
@@ -42,6 +43,7 @@ static struct llun_info *create_local(struct scsi_device *sdev, u8 *wwid)
 	lli->sdev = sdev;
 	lli->newly_created = true;
 	lli->host_no = sdev->host->host_no;
+	lli->in_table = false;
 
 	memcpy(lli->wwid, wwid, DK_CXLFLASH_MANAGE_LUN_WWID_LEN);
 out:
@@ -208,6 +210,7 @@ void cxlflash_term_global_luns(void)
 	mutex_lock(&global.mutex);
 	list_for_each_entry_safe(gli, temp, &global.gluns, list) {
 		list_del(&gli->list);
+		cxlflash_ba_terminate(&gli->blka.ba_lun);
 		kfree(gli);
 	}
 	mutex_unlock(&global.mutex);

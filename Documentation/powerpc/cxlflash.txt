@@ -163,7 +163,8 @@ DK_CXLFLASH_ATTACH
 
         - These tokens are only valid for the process under which they
           were created. The child of a forked process cannot continue
-          to use the context id or file descriptor created by its parent.
+          to use the context id or file descriptor created by its parent
+          (see DK_CXLFLASH_VLUN_CLONE for further details).
 
         - These tokens are only valid for the lifetime of the context and
           the process under which they were created. Once either is
@@ -193,6 +194,45 @@ DK_CXLFLASH_USER_DIRECT
     treated as a resource handle that is returned to the user. The user
     is then able to use the handle to reference the LUN during I/O.
 
+DK_CXLFLASH_USER_VIRTUAL
+------------------------
+    This ioctl is responsible for transitioning the LUN to virtual mode
+    of access and configuring the AFU for virtual access from user space
+    on a per-context basis. Additionally, the block size and last logical
+    block address (LBA) are returned to the user.
+
+    As mentioned previously, when operating in user space access mode,
+    LUNs may be accessed in whole or in part. Only one mode is allowed
+    at a time and if one mode is active (outstanding references exist),
+    requests to use the LUN in a different mode are denied.
+
+    The AFU is configured for virtual access from user space by adding
+    an entry to the AFU's resource handle table. The index of the entry
+    is treated as a resource handle that is returned to the user. The
+    user is then able to use the handle to reference the LUN during I/O.
+
+    By default, the virtual LUN is created with a size of 0. The user
+    would need to use the DK_CXLFLASH_VLUN_RESIZE ioctl to adjust the grow
+    the virtual LUN to a desired size. To avoid having to perform this
+    resize for the initial creation of the virtual LUN, the user has the
+    option of specifying a size as part of the DK_CXLFLASH_USER_VIRTUAL
+    ioctl, such that when success is returned to the user, the
+    resource handle that is provided is already referencing provisioned
+    storage. This is reflected by the last LBA being a non-zero value.
+
+DK_CXLFLASH_VLUN_RESIZE
+-----------------------
+    This ioctl is responsible for resizing a previously created virtual
+    LUN and will fail if invoked upon a LUN that is not in virtual
+    mode. Upon success, an updated last LBA is returned to the user
+    indicating the new size of the virtual LUN associated with the
+    resource handle.
+
+    The partitioning of virtual LUNs is jointly mediated by the cxlflash
+    driver and the AFU. An allocation table is kept for each LUN that is
+    operating in the virtual mode and used to program a LUN translation
+    table that the AFU references when provided with a resource handle.
+
 DK_CXLFLASH_RELEASE
 -------------------
     This ioctl is responsible for releasing a previously obtained
@@ -213,6 +253,27 @@ DK_CXLFLASH_DETACH
     not explicitly released via the DK_CXLFLASH_RELEASE ioctl. Upon
     success, all "tokens" which had been provided to the user from the
     DK_CXLFLASH_ATTACH onward are no longer valid.
+
+DK_CXLFLASH_VLUN_CLONE
+----------------------
+    This ioctl is responsible for cloning a previously created
+    context to a more recently created context. It exists solely to
+    support maintaining user space access to storage after a process
+    forks. Upon success, the child process (which invoked the ioctl)
+    will have access to the same LUNs via the same resource handle(s)
+    and fd2 as the parent, but under a different context.
+
+    Context sharing across processes is not supported with CXL and
+    therefore each fork must be met with establishing a new context
+    for the child process. This ioctl simplifies the state management
+    and playback required by a user in such a scenario. When a process
+    forks, child process can clone the parents context by first creating
+    a context (via DK_CXLFLASH_ATTACH) and then using this ioctl to
+    perform the clone from the parent to the child.
+
+    The clone itself is fairly simple. The resource handle and lun
+    translation tables are copied from the parent context to the child's
+    and then synced with the AFU.
 
 DK_CXLFLASH_VERIFY
 ------------------
