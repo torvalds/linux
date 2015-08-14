@@ -49,10 +49,5 @@ obj-$(CONFIG_PM_RCAR)		+= pm-rcar.o
 obj-$(CONFIG_PM_RMOBILE)	+= pm-rmobile.o
 obj-$(CONFIG_ARCH_RCAR_GEN2)	+= pm-rcar-gen2.o
 
-# Board objects
-ifndef CONFIG_ARCH_SHMOBILE_MULTI
-obj-$(CONFIG_MACH_BOCKW)	+= board-bockw.o
-endif
-
 # Framework support
 obj-$(CONFIG_SMP)		+= $(smp-y)
