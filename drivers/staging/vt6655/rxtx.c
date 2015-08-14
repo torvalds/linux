@@ -1200,7 +1200,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 
 	ptdCurr = (PSTxDesc)pHeadTD;
 
-	ptdCurr->pTDInfo->dwReqCount = cbReqCount;
+	ptdCurr->pTDInfo->dwReqCount = (u16)cbReqCount;
 	ptdCurr->pTDInfo->dwHeaderLength = cbHeaderLength;
 
 	return cbHeaderLength;

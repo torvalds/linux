@@ -1193,7 +1193,7 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	/* Set TSR1 & ReqCount in TxDescHead */
 	head_td->td1.tcr |= (TCR_STP | TCR_EDP | EDMSDU);
-	head_td->td1.req_count = cpu_to_le16((u16)head_td->pTDInfo->dwReqCount);
+	head_td->td1.req_count = cpu_to_le16(head_td->pTDInfo->dwReqCount);
 
 	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->buf_dma);
 
