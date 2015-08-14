@@ -189,14 +189,14 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 				ST_NCI_DEVICE_MGNT_GATE,
 				ST_NCI_DEVICE_MGNT_PIPE);
 	if (r < 0)
-		goto free_info;
+		return r;
 
 	/* Get pipe list */
 	r = nci_hci_send_cmd(ndev, ST_NCI_DEVICE_MGNT_GATE,
 			ST_NCI_DM_GETINFO, pipe_list, sizeof(pipe_list),
 			&skb_pipe_list);
 	if (r < 0)
-		goto free_info;
+		return r;
 
 	/* Complete the existing gate_pipe table */
 	for (i = 0; i < skb_pipe_list->len; i++) {
@@ -222,6 +222,7 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 		    dm_pipe_info->src_host_id != ST_NCI_ESE_HOST_ID) {
 			pr_err("Unexpected apdu_reader pipe on host %x\n",
 			       dm_pipe_info->src_host_id);
+			kfree_skb(skb_pipe_info);
 			continue;
 		}
 
@@ -241,13 +242,12 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 			ndev->hci_dev->pipes[st_nci_gates[j].pipe].host =
 						dm_pipe_info->src_host_id;
 		}
+		kfree_skb(skb_pipe_info);
 	}
 
 	memcpy(ndev->hci_dev->init_data.gates, st_nci_gates,
 	       sizeof(st_nci_gates));
 
-free_info:
-	kfree_skb(skb_pipe_info);
 	kfree_skb(skb_pipe_list);
 	return r;
 }
