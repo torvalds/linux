@@ -108,55 +108,55 @@
 #define BULK_TIMEOUT		1000
 
 /* 300Hz max frequ under PWM */
-#define MIN_PWM_PERIOD  ((long)(1E9/300))
+#define MIN_PWM_PERIOD		((long)(1E9 / 300))
 
 /* Default PWM frequency */
-#define PWM_DEFAULT_PERIOD ((long)(1E9/100))
+#define PWM_DEFAULT_PERIOD	((long)(1E9 / 100))
 
 /* Size of one A/D value */
-#define SIZEADIN          ((sizeof(u16)))
+#define SIZEADIN		((sizeof(u16)))
 
 /*
  * Size of the input-buffer IN BYTES
  * Always multiple of 8 for 8 microframes which is needed in the highspeed mode
  */
-#define SIZEINBUF         ((8*SIZEADIN))
+#define SIZEINBUF		(8 * SIZEADIN)
 
 /* 16 bytes. */
-#define SIZEINSNBUF       16
+#define SIZEINSNBUF		16
 
 /* size of one value for the D/A converter: channel and value */
-#define SIZEDAOUT          ((sizeof(u8) + sizeof(u16)))
+#define SIZEDAOUT		((sizeof(u8) + sizeof(u16)))
 
 /*
  * Size of the output-buffer in bytes
  * Actually only the first 4 triplets are used but for the
  * high speed mode we need to pad it to 8 (microframes).
  */
-#define SIZEOUTBUF         ((8*SIZEDAOUT))
+#define SIZEOUTBUF		(8 * SIZEDAOUT)
 
 /*
  * Size of the buffer for the dux commands: just now max size is determined
  * by the analogue out + command byte + panic bytes...
  */
-#define SIZEOFDUXBUFFER    ((8*SIZEDAOUT+2))
+#define SIZEOFDUXBUFFER		(8 * SIZEDAOUT + 2)
 
 /* Number of in-URBs which receive the data: min=2 */
-#define NUMOFINBUFFERSFULL     5
+#define NUMOFINBUFFERSFULL	5
 
 /* Number of out-URBs which send the data: min=2 */
-#define NUMOFOUTBUFFERSFULL    5
+#define NUMOFOUTBUFFERSFULL	5
 
 /* Number of in-URBs which receive the data: min=5 */
 /* must have more buffers due to buggy USB ctr */
-#define NUMOFINBUFFERSHIGH     10
+#define NUMOFINBUFFERSHIGH	10
 
 /* Number of out-URBs which send the data: min=5 */
 /* must have more buffers due to buggy USB ctr */
-#define NUMOFOUTBUFFERSHIGH    10
+#define NUMOFOUTBUFFERSHIGH	10
 
 /* number of retries to get the right dux command */
-#define RETRIES 10
+#define RETRIES			10
 
 static const struct comedi_lrange range_usbdux_ai_range = {
 	4, {
