@@ -13945,8 +13945,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		 */
 		found = I915_READ(DDI_BUF_CTL_A) & DDI_INIT_DISPLAY_DETECTED;
 		/* WaIgnoreDDIAStrap: skl */
-		if (found ||
-		    (IS_SKYLAKE(dev) && INTEL_REVID(dev) < SKL_REVID_D0))
+		if (found || IS_SKYLAKE(dev))
 			intel_ddi_init(dev, PORT_A);
 
 		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
