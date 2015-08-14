@@ -999,11 +999,17 @@
 				status = "disabled";
 			};
 
-			mlb@0218c000 {
+			mlb: mlb@0218c000 {
+				compatible = "fsl,imx6q-mlb150";
 				reg = <0x0218c000 0x4000>;
 				interrupts = <0 53 IRQ_TYPE_LEVEL_HIGH>,
 					     <0 117 IRQ_TYPE_LEVEL_HIGH>,
 					     <0 126 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6QDL_CLK_MLB>,
+					 <&clks IMX6QDL_CLK_PLL8_MLB>;
+				clock-names = "mlb", "pll8_mlb";
+				iram = <&ocram>;
+				status = "disabled";
 			};
 
 			usdhc1: usdhc@02190000 {

@@ -471,6 +471,14 @@
 			>;
 		};
 
+		pinctrl_mlb: mlb {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_TXD1__MLB_CLK 0x80000000
+				MX6QDL_PAD_GPIO_6__MLB_SIG    0x80000000
+				MX6QDL_PAD_GPIO_2__MLB_DATA   0x80000000
+			>;
+		};
+
 		pinctrl_pwm3: pwm1grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD4_DAT1__PWM3_OUT		0x1b0b1
@@ -620,6 +628,12 @@
 			};
 		};
 	};
+};
+
+&mlb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mlb>;
+	status = "okay";
 };
 
 &pwm3 {
