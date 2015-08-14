@@ -57,21 +57,21 @@ LIST_HEAD(smk_ipv6_port_list);
 static struct kmem_cache *smack_inode_cache;
 int smack_enabled;
 
-#ifdef CONFIG_SECURITY_SMACK_BRINGUP
-static char *smk_bu_mess[] = {
-	"Bringup Error",	/* Unused */
-	"Bringup",		/* SMACK_BRINGUP_ALLOW */
-	"Unconfined Subject",	/* SMACK_UNCONFINED_SUBJECT */
-	"Unconfined Object",	/* SMACK_UNCONFINED_OBJECT */
-};
-
-static const match_table_t tokens = {
+static const match_table_t smk_mount_tokens = {
 	{Opt_fsdefault, SMK_FSDEFAULT "%s"},
 	{Opt_fsfloor, SMK_FSFLOOR "%s"},
 	{Opt_fshat, SMK_FSHAT "%s"},
 	{Opt_fsroot, SMK_FSROOT "%s"},
 	{Opt_fstransmute, SMK_FSTRANS "%s"},
 	{Opt_error, NULL},
+};
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+static char *smk_bu_mess[] = {
+	"Bringup Error",	/* Unused */
+	"Bringup",		/* SMACK_BRINGUP_ALLOW */
+	"Unconfined Subject",	/* SMACK_UNCONFINED_SUBJECT */
+	"Unconfined Object",	/* SMACK_UNCONFINED_OBJECT */
 };
 
 static void smk_bu_mode(int mode, char *s)
@@ -599,9 +599,14 @@ static int smack_parse_opts_str(char *options,
 		struct security_mnt_opts *opts)
 {
 	char *p;
-	char *fsdefault = NULL, *fsfloor = NULL;
-	char *fshat = NULL, *fsroot = NULL, *fstransmute = NULL;
-	int rc = -ENOMEM, num_mnt_opts = 0;
+	char *fsdefault = NULL;
+	char *fsfloor = NULL;
+	char *fshat = NULL;
+	char *fsroot = NULL;
+	char *fstransmute = NULL;
+	int rc = -ENOMEM;
+	int num_mnt_opts = 0;
+	int token;
 
 	opts->num_mnt_opts = 0;
 
@@ -609,13 +614,12 @@ static int smack_parse_opts_str(char *options,
 		return 0;
 
 	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
 		substring_t args[MAX_OPT_ARGS];
 
 		if (!*p)
 			continue;
 
-		token = match_token(p, tokens, args);
+		token = match_token(p, smk_mount_tokens, args);
 
 		switch (token) {
 		case Opt_fsdefault:
