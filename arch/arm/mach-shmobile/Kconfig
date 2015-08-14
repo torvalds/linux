@@ -99,29 +99,6 @@ config ARCH_SH73A0
 comment "Renesas ARM SoCs System Configuration"
 endif
 
-if ARCH_SHMOBILE_LEGACY
-
-comment "Renesas ARM SoCs System Type"
-
-config ARCH_R8A7779
-	bool "R-Car H1 (R8A77790)"
-	select ARCH_RCAR_GEN1
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-
-comment "Renesas ARM SoCs System Configuration"
-
-config CPU_HAS_INTEVT
-        bool
-	default y
-
-config SH_CLK_CPG
-	bool
-
-source "drivers/sh/Kconfig"
-
-endif
-
 if ARCH_SHMOBILE
 
 menu "Timer and clock configuration"
