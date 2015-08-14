@@ -152,6 +152,7 @@ config DRM_AMDGPU
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
+	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
 	help
 	  Choose this option if you have a recent AMD Radeon graphics card.
