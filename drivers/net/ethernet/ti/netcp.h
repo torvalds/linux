@@ -85,7 +85,6 @@ struct netcp_intf {
 	struct list_head	rxhook_list_head;
 	unsigned int		rx_queue_id;
 	void			*rx_fdq[KNAV_DMA_FDQ_PER_CHAN];
-	u32			rx_buffer_sizes[KNAV_DMA_FDQ_PER_CHAN];
 	struct napi_struct	rx_napi;
 	struct napi_struct	tx_napi;
 
