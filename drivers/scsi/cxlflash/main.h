@@ -22,7 +22,7 @@
 
 #define CXLFLASH_NAME		"cxlflash"
 #define CXLFLASH_ADAPTER_NAME	"IBM POWER CXL Flash Adapter"
-#define CXLFLASH_DRIVER_DATE	"(June 2, 2015)"
+#define CXLFLASH_DRIVER_DATE	"(August 13, 2015)"
 
 #define PCI_DEVICE_ID_IBM_CORSA	0x04F0
 #define CXLFLASH_SUBS_DEV_ID	0x04F0
@@ -100,5 +100,9 @@ struct asyc_intr_info {
 #define CLR_FC_ERROR	0x01
 #define LINK_RESET	0x02
 };
+
+#ifndef CONFIG_CXL_EEH
+#define cxl_perst_reloads_same_image(_a, _b) do { } while (0)
+#endif
 
 #endif /* _CXLFLASH_MAIN_H */

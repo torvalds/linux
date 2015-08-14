@@ -76,6 +76,12 @@ enum cxlflash_init_state {
 	INIT_STATE_SCSI
 };
 
+enum cxlflash_state {
+	STATE_NORMAL,	/* Normal running state, everything good */
+	STATE_LIMBO,	/* Limbo running state, trying to reset/recover */
+	STATE_FAILTERM	/* Failed/terminating state, error out users/threads */
+};
+
 /*
  * Each context has its own set of resource handles that is visible
  * only from that context.
@@ -91,8 +97,6 @@ struct cxlflash_cfg {
 
 	ulong cxlflash_regs_pci;
 
-	wait_queue_head_t eeh_waitq;
-
 	struct work_struct work_q;
 	enum cxlflash_init_state init_state;
 	enum cxlflash_lr_state lr_state;
@@ -105,7 +109,8 @@ struct cxlflash_cfg {
 
 	wait_queue_head_t tmf_waitq;
 	bool tmf_active;
-	u8 err_recovery_active:1;
+	wait_queue_head_t limbo_waitq;
+	enum cxlflash_state state;
 };
 
 struct afu_cmd {

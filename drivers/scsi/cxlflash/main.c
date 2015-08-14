@@ -353,6 +353,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct cxlflash_cfg *cfg = (struct cxlflash_cfg *)host->hostdata;
 	struct afu *afu = cfg->afu;
 	struct pci_dev *pdev = cfg->dev;
+	struct device *dev = &cfg->dev->dev;
 	struct afu_cmd *cmd;
 	u32 port_sel = scp->device->channel + 1;
 	int nseg, i, ncount;
@@ -379,6 +380,21 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 		goto out;
 	}
 	spin_unlock_irqrestore(&cfg->tmf_waitq.lock, lock_flags);
+
+	switch (cfg->state) {
+	case STATE_LIMBO:
+		dev_dbg_ratelimited(dev, "%s: device in limbo!\n", __func__);
+		rc = SCSI_MLQUEUE_HOST_BUSY;
+		goto out;
+	case STATE_FAILTERM:
+		dev_dbg_ratelimited(dev, "%s: device has failed!\n", __func__);
+		scp->result = (DID_NO_CONNECT << 16);
+		scp->scsi_done(scp);
+		rc = 0;
+		goto out;
+	default:
+		break;
+	}
 
 	cmd = cxlflash_cmd_checkout(afu);
 	if (unlikely(!cmd)) {
@@ -455,9 +471,21 @@ static int cxlflash_eh_device_reset_handler(struct scsi_cmnd *scp)
 		 get_unaligned_be32(&((u32 *)scp->cmnd)[2]),
 		 get_unaligned_be32(&((u32 *)scp->cmnd)[3]));
 
-	rcr = send_tmf(afu, scp, TMF_LUN_RESET);
-	if (unlikely(rcr))
+	switch (cfg->state) {
+	case STATE_NORMAL:
+		rcr = send_tmf(afu, scp, TMF_LUN_RESET);
+		if (unlikely(rcr))
+			rc = FAILED;
+		break;
+	case STATE_LIMBO:
+		wait_event(cfg->limbo_waitq, cfg->state != STATE_LIMBO);
+		if (cfg->state == STATE_NORMAL)
+			break;
+		/* fall through */
+	default:
 		rc = FAILED;
+		break;
+	}
 
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
@@ -487,11 +515,29 @@ static int cxlflash_eh_host_reset_handler(struct scsi_cmnd *scp)
 		 get_unaligned_be32(&((u32 *)scp->cmnd)[2]),
 		 get_unaligned_be32(&((u32 *)scp->cmnd)[3]));
 
-	rcr = cxlflash_afu_reset(cfg);
-	if (rcr == 0)
-		rc = SUCCESS;
-	else
+	switch (cfg->state) {
+	case STATE_NORMAL:
+		cfg->state = STATE_LIMBO;
+		scsi_block_requests(cfg->host);
+
+		rcr = cxlflash_afu_reset(cfg);
+		if (rcr) {
+			rc = FAILED;
+			cfg->state = STATE_FAILTERM;
+		} else
+			cfg->state = STATE_NORMAL;
+		wake_up_all(&cfg->limbo_waitq);
+		scsi_unblock_requests(cfg->host);
+		break;
+	case STATE_LIMBO:
+		wait_event(cfg->limbo_waitq, cfg->state != STATE_LIMBO);
+		if (cfg->state == STATE_NORMAL)
+			break;
+		/* fall through */
+	default:
 		rc = FAILED;
+		break;
+	}
 
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
@@ -642,7 +688,7 @@ static void cxlflash_wait_for_pci_err_recovery(struct cxlflash_cfg *cfg)
 	struct pci_dev *pdev = cfg->dev;
 
 	if (pci_channel_offline(pdev))
-		wait_event_timeout(cfg->eeh_waitq,
+		wait_event_timeout(cfg->limbo_waitq,
 				   !pci_channel_offline(pdev),
 				   CXLFLASH_PCI_ERROR_RECOVERY_TIMEOUT);
 }
@@ -824,6 +870,8 @@ static void cxlflash_remove(struct pci_dev *pdev)
 		wait_event_interruptible_locked_irq(cfg->tmf_waitq,
 						    !cfg->tmf_active);
 	spin_unlock_irqrestore(&cfg->tmf_waitq.lock, lock_flags);
+
+	cfg->state = STATE_FAILTERM;
 
 	switch (cfg->init_state) {
 	case INIT_STATE_SCSI:
@@ -1879,6 +1927,8 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 
+	cxl_perst_reloads_same_image(cfg->cxl_afu, true);
+
 	rc = init_mc(cfg);
 	if (rc) {
 		dev_err(dev, "%s: call to init_mc failed, rc=%d!\n",
@@ -2021,6 +2071,12 @@ void cxlflash_wait_resp(struct afu *afu, struct afu_cmd *cmd)
  * the sync. This design point requires calling threads to not be on interrupt
  * context due to the possibility of sleeping during concurrent sync operations.
  *
+ * AFU sync operations are only necessary and allowed when the device is
+ * operating normally. When not operating normally, sync requests can occur as
+ * part of cleaning up resources associated with an adapter prior to removal.
+ * In this scenario, these requests are simply ignored (safe due to the AFU
+ * going away).
+ *
  * Return:
  *	0 on success
  *	-1 on failure
@@ -2028,10 +2084,16 @@ void cxlflash_wait_resp(struct afu *afu, struct afu_cmd *cmd)
 int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 		      res_hndl_t res_hndl_u, u8 mode)
 {
+	struct cxlflash_cfg *cfg = afu->parent;
 	struct afu_cmd *cmd = NULL;
 	int rc = 0;
 	int retry_cnt = 0;
 	static DEFINE_MUTEX(sync_active);
+
+	if (cfg->state != STATE_NORMAL) {
+		pr_debug("%s: Sync not required! (%u)\n", __func__, cfg->state);
+		return 0;
+	}
 
 	mutex_lock(&sync_active);
 retry:
@@ -2116,11 +2178,16 @@ int cxlflash_afu_reset(struct cxlflash_cfg *cfg)
  */
 static void cxlflash_worker_thread(struct work_struct *work)
 {
-	struct cxlflash_cfg *cfg =
-	    container_of(work, struct cxlflash_cfg, work_q);
+	struct cxlflash_cfg *cfg = container_of(work, struct cxlflash_cfg,
+						work_q);
 	struct afu *afu = cfg->afu;
 	int port;
 	ulong lock_flags;
+
+	/* Avoid MMIO if the device has failed */
+
+	if (cfg->state != STATE_NORMAL)
+		return;
 
 	spin_lock_irqsave(cfg->host->host_lock, lock_flags);
 
@@ -2200,10 +2267,9 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	cfg->dev = pdev;
 	cfg->dev_id = (struct pci_device_id *)dev_id;
 	cfg->mcctx = NULL;
-	cfg->err_recovery_active = 0;
 
 	init_waitqueue_head(&cfg->tmf_waitq);
-	init_waitqueue_head(&cfg->eeh_waitq);
+	init_waitqueue_head(&cfg->limbo_waitq);
 
 	INIT_WORK(&cfg->work_q, cxlflash_worker_thread);
 	cfg->lr_state = LINK_RESET_INVALID;
@@ -2259,6 +2325,91 @@ out_remove:
 	goto out;
 }
 
+/**
+ * cxlflash_pci_error_detected() - called when a PCI error is detected
+ * @pdev:	PCI device struct.
+ * @state:	PCI channel state.
+ *
+ * Return: PCI_ERS_RESULT_NEED_RESET or PCI_ERS_RESULT_DISCONNECT
+ */
+static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
+						    pci_channel_state_t state)
+{
+	struct cxlflash_cfg *cfg = pci_get_drvdata(pdev);
+	struct device *dev = &cfg->dev->dev;
+
+	dev_dbg(dev, "%s: pdev=%p state=%u\n", __func__, pdev, state);
+
+	switch (state) {
+	case pci_channel_io_frozen:
+		cfg->state = STATE_LIMBO;
+
+		/* Turn off legacy I/O */
+		scsi_block_requests(cfg->host);
+
+		term_mc(cfg, UNDO_START);
+		stop_afu(cfg);
+
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		cfg->state = STATE_FAILTERM;
+		wake_up_all(&cfg->limbo_waitq);
+		scsi_unblock_requests(cfg->host);
+		return PCI_ERS_RESULT_DISCONNECT;
+	default:
+		break;
+	}
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * cxlflash_pci_slot_reset() - called when PCI slot has been reset
+ * @pdev:	PCI device struct.
+ *
+ * This routine is called by the pci error recovery code after the PCI
+ * slot has been reset, just before we should resume normal operations.
+ *
+ * Return: PCI_ERS_RESULT_RECOVERED or PCI_ERS_RESULT_DISCONNECT
+ */
+static pci_ers_result_t cxlflash_pci_slot_reset(struct pci_dev *pdev)
+{
+	int rc = 0;
+	struct cxlflash_cfg *cfg = pci_get_drvdata(pdev);
+	struct device *dev = &cfg->dev->dev;
+
+	dev_dbg(dev, "%s: pdev=%p\n", __func__, pdev);
+
+	rc = init_afu(cfg);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: EEH recovery failed! (%d)\n", __func__, rc);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * cxlflash_pci_resume() - called when normal operation can resume
+ * @pdev:	PCI device struct
+ */
+static void cxlflash_pci_resume(struct pci_dev *pdev)
+{
+	struct cxlflash_cfg *cfg = pci_get_drvdata(pdev);
+	struct device *dev = &cfg->dev->dev;
+
+	dev_dbg(dev, "%s: pdev=%p\n", __func__, pdev);
+
+	cfg->state = STATE_NORMAL;
+	wake_up_all(&cfg->limbo_waitq);
+	scsi_unblock_requests(cfg->host);
+}
+
+static const struct pci_error_handlers cxlflash_err_handler = {
+	.error_detected = cxlflash_pci_error_detected,
+	.slot_reset = cxlflash_pci_slot_reset,
+	.resume = cxlflash_pci_resume,
+};
+
 /*
  * PCI device structure
  */
@@ -2267,6 +2418,7 @@ static struct pci_driver cxlflash_driver = {
 	.id_table = cxlflash_pci_table,
 	.probe = cxlflash_probe,
 	.remove = cxlflash_remove,
+	.err_handler = &cxlflash_err_handler,
 };
 
 /**
