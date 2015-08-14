@@ -51,12 +51,15 @@ static irqreturn_t snvs_secvio_interrupt(int irq, void *snvsdev)
 	struct device *dev = snvsdev;
 	struct snvs_secvio_drv_private *svpriv = dev_get_drvdata(dev);
 
+	clk_enable(svpriv->clk);
 	/* Check the HP secvio status register */
 	svpriv->irqcause = rd_reg32(&svpriv->svregs->hp.secvio_status) &
 				    HP_SECVIOST_SECVIOMASK;
 
-	if (!svpriv->irqcause)
+	if (!svpriv->irqcause) {
+		clk_disable(svpriv->clk);
 		return IRQ_NONE;
+	}
 
 	/* Now ACK cause */
 	setbits32(&svpriv->svregs->hp.secvio_status, svpriv->irqcause);
@@ -65,6 +68,8 @@ static irqreturn_t snvs_secvio_interrupt(int irq, void *snvsdev)
 	preempt_disable();
 	tasklet_schedule(&svpriv->irqtask[smp_processor_id()]);
 	preempt_enable();
+
+	clk_disable(svpriv->clk);
 
 	return IRQ_HANDLED;
 }
@@ -176,6 +181,7 @@ static int snvs_secvio_remove(struct platform_device *pdev)
 	svdev = &pdev->dev;
 	svpriv = dev_get_drvdata(svdev);
 
+	clk_enable(svpriv->clk);
 	/* Set all sources to nonfatal */
 	wr_reg32(&svpriv->svregs->hp.secvio_intcfg, 0);
 
@@ -183,6 +189,7 @@ static int snvs_secvio_remove(struct platform_device *pdev)
 	for_each_possible_cpu(i)
 		tasklet_kill(&svpriv->irqtask[i]);
 
+	clk_disable_unprepare(svpriv->clk);
 	free_irq(svpriv->irq, svdev);
 	iounmap(svpriv->svregs);
 	kfree(svpriv);
@@ -227,6 +234,12 @@ static int snvs_secvio_probe(struct platform_device *pdev)
 	}
 	svpriv->svregs = (struct snvs_full __force *)snvsregs;
 
+	svpriv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(svpriv->clk)) {
+		dev_err(&pdev->dev, "can't get snvs clock\n");
+		svpriv->clk = NULL;
+	}
+
 	 /* Device data set up. Now init interrupt source descriptions */
 	for (i = 0; i < MAX_SECVIO_SOURCES; i++) {
 		svpriv->intsrc[i].intname = violation_src_name[i];
@@ -248,6 +261,7 @@ static int snvs_secvio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	clk_prepare_enable(svpriv->clk);
 	/*
 	 * Configure all sources as fatal violations except LP section,
 	 * source #5 (typically used as an external tamper detect), and
@@ -262,6 +276,8 @@ static int snvs_secvio_probe(struct platform_device *pdev)
 			    HP_STATUS_SSM_ST_MASK) >> HP_STATUS_SSM_ST_SHIFT;
 	dev_info(svdev, "violation handlers armed - %s state\n",
 		 snvs_ssm_state_name[hpstate]);
+
+	clk_disable(svpriv->clk);
 
 	return 0;
 }

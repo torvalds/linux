@@ -364,6 +364,15 @@ Secure Non-Volatile Storage (SNVS) Low Power (LP) RTC Node
       Definition: A standard property.  Specifies the physical
           address and length of the SNVS LP configuration registers.
 
+  - clocks
+      Usage: optional
+      Value type: <prop-encoded-array>
+      Definition: A standard property.  Specifies the source clock for
+	  snvs register access. If i.MX clk driver defines the clock node,
+	  it needs user to specify the clocks in device tree for all modules
+	  with snvs LP/HP registers access. The modules involved snvs LP/HP
+	  registers access are snvs-power key, snvs-rtc, and caam.
+
 EXAMPLE
 	sec_mon_rtc_lp@314000 {
 		compatible = "fsl,sec-v4.0-mon-rtc-lp";

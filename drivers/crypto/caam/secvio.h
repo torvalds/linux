@@ -55,6 +55,7 @@ struct snvs_secvio_drv_private {
 	spinlock_t svlock ____cacheline_aligned;
 	struct tasklet_struct irqtask[NR_CPUS];
 	struct snvs_full __iomem *svregs;	/* both HP and LP domains */
+	struct clk *clk;
 	int irq;
 	u32 irqcause; /* stashed cause of violation interrupt */
 
