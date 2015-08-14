@@ -51,6 +51,7 @@ struct tda998x_priv {
 	bool edid_delay_active;
 
 	struct drm_encoder encoder;
+	struct drm_connector connector;
 };
 
 /* The TDA9988 series of devices use a paged register scheme.. to simplify
@@ -1331,11 +1332,10 @@ fail:
 
 struct tda998x_priv2 {
 	struct tda998x_priv base;
-	struct drm_connector connector;
 };
 
 #define conn_to_tda998x_priv2(x) \
-	container_of(x, struct tda998x_priv2, connector);
+	container_of(x, struct tda998x_priv2, base.connector);
 
 #define enc_to_tda998x_priv2(x) \
 	container_of(x, struct tda998x_priv2, base.encoder);
@@ -1463,7 +1463,7 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 		crtcs = 1 << 0;
 	}
 
-	priv->connector.interlace_allowed = 1;
+	priv->base.connector.interlace_allowed = 1;
 	priv->base.encoder.possible_crtcs = crtcs;
 
 	ret = tda998x_create(client, &priv->base);
@@ -1473,7 +1473,7 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	if (!dev->of_node && params)
 		tda998x_encoder_set_config(&priv->base, params);
 
-	tda998x_encoder_set_polling(&priv->base, &priv->connector);
+	tda998x_encoder_set_polling(&priv->base, &priv->base.connector);
 
 	drm_encoder_helper_add(&priv->base.encoder, &tda998x_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, &priv->base.encoder, &tda998x_encoder_funcs,
@@ -1481,25 +1481,25 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_encoder;
 
-	drm_connector_helper_add(&priv->connector,
+	drm_connector_helper_add(&priv->base.connector,
 				 &tda998x_connector_helper_funcs);
-	ret = drm_connector_init(drm, &priv->connector,
+	ret = drm_connector_init(drm, &priv->base.connector,
 				 &tda998x_connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);
 	if (ret)
 		goto err_connector;
 
-	ret = drm_connector_register(&priv->connector);
+	ret = drm_connector_register(&priv->base.connector);
 	if (ret)
 		goto err_sysfs;
 
-	priv->connector.encoder = &priv->base.encoder;
-	drm_mode_connector_attach_encoder(&priv->connector, &priv->base.encoder);
+	priv->base.connector.encoder = &priv->base.encoder;
+	drm_mode_connector_attach_encoder(&priv->base.connector, &priv->base.encoder);
 
 	return 0;
 
 err_sysfs:
-	drm_connector_cleanup(&priv->connector);
+	drm_connector_cleanup(&priv->base.connector);
 err_connector:
 	drm_encoder_cleanup(&priv->base.encoder);
 err_encoder:
@@ -1512,7 +1512,7 @@ static void tda998x_unbind(struct device *dev, struct device *master,
 {
 	struct tda998x_priv2 *priv = dev_get_drvdata(dev);
 
-	drm_connector_cleanup(&priv->connector);
+	drm_connector_cleanup(&priv->base.connector);
 	drm_encoder_cleanup(&priv->base.encoder);
 	tda998x_destroy(&priv->base);
 }
