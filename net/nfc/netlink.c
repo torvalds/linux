@@ -1518,8 +1518,8 @@ static int nfc_genl_vendor_cmd(struct sk_buff *skb,
 	if (!dev || !dev->vendor_cmds || !dev->n_vendor_cmds)
 		return -ENODEV;
 
-	data = nla_data(info->attrs[NFC_ATTR_VENDOR_DATA]);
-	if (data) {
+	if (info->attrs[NFC_ATTR_VENDOR_DATA]) {
+		data = nla_data(info->attrs[NFC_ATTR_VENDOR_DATA]);
 		data_len = nla_len(info->attrs[NFC_ATTR_VENDOR_DATA]);
 		if (data_len == 0)
 			return -EINVAL;
