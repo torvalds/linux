@@ -23,6 +23,7 @@
 
 #include "../codecs/sgtl5000.h"
 #include "../codecs/wm8962.h"
+#include "../codecs/wm8960.h"
 
 #define RX 0
 #define TX 1
@@ -479,6 +480,12 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv.fll_id = WM8962_SYSCLK_FLL;
 		priv->codec_priv.pll_id = WM8962_FLL;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+	} else if (of_device_is_compatible(np, "fsl,imx-audio-wm8960")) {
+		codec_dai_name = "wm8960-hifi";
+		priv->card.set_bias_level = fsl_asoc_card_set_bias_level;
+		priv->codec_priv.fll_id = WM8960_SYSCLK_AUTO;
+		priv->codec_priv.pll_id = WM8960_SYSCLK_AUTO;
+		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 	} else {
 		dev_err(&pdev->dev, "unknown Device Tree compatible\n");
 		return -EINVAL;
@@ -582,6 +589,7 @@ static const struct of_device_id fsl_asoc_card_dt_ids[] = {
 	{ .compatible = "fsl,imx-audio-cs42888", },
 	{ .compatible = "fsl,imx-audio-sgtl5000", },
 	{ .compatible = "fsl,imx-audio-wm8962", },
+	{ .compatible = "fsl,imx-audio-wm8960", },
 	{}
 };
 
