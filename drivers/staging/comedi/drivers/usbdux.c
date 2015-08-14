@@ -517,8 +517,7 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	struct usbdux_private *this_usbduxsub = dev->private;
-	int err = 0, i;
-	unsigned int tmp_timer;
+	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -549,6 +548,10 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* full speed does 1kHz scans every USB frame */
+		unsigned int arg = 1000000;
+		unsigned int min_arg = arg;
+
 		if (this_usbduxsub->high_speed) {
 			/*
 			 * In high speed mode microframes are possible.
@@ -556,33 +559,20 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			 * sample one channel. Thus, the more channels
 			 * are in the channel list the more time we need.
 			 */
-			i = 1;
+			int i = 1;
+
 			/* find a power of 2 for the number of channels */
-			while (i < (cmd->chanlist_len))
+			while (i < cmd->chanlist_len)
 				i = i * 2;
 
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    1000000 / 8 * i);
-			/* now calc the real sampling rate with all the
-			 * rounding errors */
-			tmp_timer =
-			    ((unsigned int)(cmd->scan_begin_arg / 125000)) *
-			    125000;
-		} else {
-			/* full speed */
-			/* 1kHz scans every USB frame */
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    1000000);
-			/*
-			 * calc the real sampling rate with the rounding errors
-			 */
-			tmp_timer = ((unsigned int)(cmd->scan_begin_arg /
-						   1000000)) * 1000000;
+			arg /= 8;
+			min_arg = arg * i;
 		}
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg,
-						   tmp_timer);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    min_arg);
+		/* calc the real sampling rate with the rounding errors */
+		arg = (cmd->scan_begin_arg / arg) * arg;
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
