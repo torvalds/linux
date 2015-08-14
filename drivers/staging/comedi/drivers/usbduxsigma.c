@@ -230,8 +230,7 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 			for (i = 0; i < cmd->chanlist_len; i++) {
 				val = be32_to_cpu(devpriv->in_buf[i + 1]);
 				val &= 0x00ffffff; /* strip status byte */
-				val ^= 0x00800000; /* convert to unsigned */
-
+				val = comedi_offset_munge(s, val);
 				if (!comedi_buf_write_samples(s, &val, 1))
 					return;
 			}
@@ -749,9 +748,7 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 		val = be32_to_cpu(get_unaligned((__be32
 						 *)(devpriv->insn_buf + 1)));
 		val &= 0x00ffffff;	/* strip status byte */
-		val ^= 0x00800000;	/* convert to unsigned */
-
-		data[i] = val;
+		data[i] = comedi_offset_munge(s, val);
 	}
 	up(&devpriv->sem);
 
@@ -1219,6 +1216,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 
 static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 {
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct usbduxsigma_private *devpriv = dev->private;
 	u8 sysred;
 	u32 val;
@@ -1263,9 +1261,8 @@ static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 	/* 32 bits big endian from the A/D converter */
 	val = be32_to_cpu(get_unaligned((__be32 *)(devpriv->insn_buf + 1)));
 	val &= 0x00ffffff;	/* strip status byte */
-	val ^= 0x00800000;	/* convert to unsigned */
 
-	return (int)val;
+	return (int)comedi_offset_munge(s, val);
 }
 
 static int usbduxsigma_firmware_upload(struct comedi_device *dev,
