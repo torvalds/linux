@@ -877,12 +877,8 @@ ao_trig_exit:
 static int usbdux_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	struct usbdux_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int flags;
-
-	if (!devpriv)
-		return -EFAULT;
 
 	/* Step 1 : check if triggers are trivially valid */
 
