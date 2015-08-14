@@ -177,10 +177,10 @@ int update_devfreq(struct devfreq *devfreq)
 		return err;
 
 	/*
-	 * Adjust the freuqency with user freq and QoS.
+	 * Adjust the frequency with user freq and QoS.
 	 *
-	 * List from the highest proiority
-	 * max_freq (probably called by thermal when it's too hot)
+	 * List from the highest priority
+	 * max_freq
 	 * min_freq
 	 */
 
