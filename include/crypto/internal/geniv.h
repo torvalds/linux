@@ -27,8 +27,6 @@ struct aead_geniv_ctx {
 struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 				       struct rtattr **tb, u32 type, u32 mask);
 void aead_geniv_free(struct aead_instance *inst);
-int aead_geniv_init(struct crypto_tfm *tfm);
-void aead_geniv_exit(struct crypto_tfm *tfm);
 int aead_init_geniv(struct crypto_aead *tfm);
 void aead_exit_geniv(struct crypto_aead *tfm);
 
