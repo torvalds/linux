@@ -290,7 +290,7 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
  *
  * Returns 0 on success or error code otherwise.
  */
-int hdm_poison_channel(struct most_interface *iface, int channel)
+static int hdm_poison_channel(struct most_interface *iface, int channel)
 {
 	struct most_dev *mdev;
 
@@ -328,7 +328,7 @@ int hdm_poison_channel(struct most_interface *iface, int channel)
  * This inserts the INIC hardware specific padding bytes into a streaming
  * channel's buffer
  */
-int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
+static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 {
 	struct most_channel_config *conf = &mdev->conf[channel];
 	unsigned int j, num_frames, frame_size;
@@ -365,7 +365,7 @@ int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
  * This takes the INIC hardware specific padding bytes off a streaming
  * channel's buffer.
  */
-int hdm_remove_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
+static int hdm_remove_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 {
 	unsigned int j, num_frames, frame_size;
 	struct most_channel_config *const conf = &mdev->conf[channel];
@@ -644,7 +644,7 @@ static void hdm_read_completion(struct urb *urb)
  *
  * Context: Could in _some_ cases be interrupt!
  */
-int hdm_enqueue(struct most_interface *iface, int channel, struct mbo *mbo)
+static int hdm_enqueue(struct most_interface *iface, int channel, struct mbo *mbo)
 {
 	struct most_dev *mdev;
 	struct buf_anchor *anchor;
@@ -743,8 +743,8 @@ _error:
  * @channel: channel ID
  * @conf: structure that holds the configuration information
  */
-int hdm_configure_channel(struct most_interface *iface, int channel,
-			  struct most_channel_config *conf)
+static int hdm_configure_channel(struct most_interface *iface, int channel,
+				 struct most_channel_config *conf)
 {
 	unsigned int num_frames;
 	unsigned int frame_size;
@@ -824,7 +824,7 @@ exit:
  * This triggers the USB vendor requests to read the hardware address and
  * the current link status of the attached device.
  */
-int hdm_update_netinfo(struct most_dev *mdev)
+static int hdm_update_netinfo(struct most_dev *mdev)
 {
 	struct device *dev = &mdev->usb_device->dev;
 	int i;
@@ -873,7 +873,7 @@ int hdm_update_netinfo(struct most_dev *mdev)
  * polls for the NI state of the INIC every 2 seconds.
  *
  */
-void hdm_request_netinfo(struct most_interface *iface, int channel)
+static void hdm_request_netinfo(struct most_interface *iface, int channel)
 {
 	struct most_dev *mdev;
 
