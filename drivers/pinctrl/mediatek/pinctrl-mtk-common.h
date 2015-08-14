@@ -267,6 +267,8 @@ struct mtk_pinctrl {
 	void __iomem		*eint_reg_base;
 	struct irq_domain	*domain;
 	int			*eint_dual_edges;
+	u32 *wake_mask;
+	u32 *cur_mask;
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,
@@ -281,5 +283,7 @@ int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
 int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
 		const struct mtk_pin_ies_smt_set *ies_smt_infos, unsigned int info_num,
 		unsigned int pin, unsigned char align, int value);
+
+extern const struct dev_pm_ops mtk_eint_pm_ops;
 
 #endif /* __PINCTRL_MTK_COMMON_H */
