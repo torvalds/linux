@@ -80,6 +80,10 @@
 	arm-supply = <&sw1a_reg>;
 };
 
+&epxp {
+	status = "okay";
+};
+
 &ecspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 19 0>;
