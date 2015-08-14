@@ -157,7 +157,7 @@ static long pm_address(u_char FPU_modrm, u_char segment,
 		addr->selector = PM_REG_(segment);
 	}
 
-	descriptor = FPU_get_ldt_descriptor(segment);
+	descriptor = FPU_get_ldt_descriptor(addr->selector);
 	base_address = SEG_BASE_ADDR(descriptor);
 	address = base_address + offset;
 	limit = base_address
