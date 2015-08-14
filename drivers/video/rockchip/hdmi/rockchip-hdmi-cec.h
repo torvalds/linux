@@ -169,7 +169,6 @@ struct cec_device {
 	void (*setceclogicaddr)(struct hdmi *, int);
 };
 
-#define DEBUG
 #ifdef DEBUG
 #define CECDBG(format, ...) \
 		pr_info(format, ## __VA_ARGS__)
