@@ -1497,7 +1497,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		/* check the range on address */
 		if (address > (pf->ioremap_len - sizeof(u32))) {
 			dev_info(&pf->pdev->dev, "read reg address 0x%08x too large, max=0x%08lx\n",
-				 address, (pf->ioremap_len - sizeof(u32)));
+				 address, (unsigned long int)(pf->ioremap_len - sizeof(u32)));
 			goto command_write_done;
 		}
 
@@ -1516,7 +1516,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		/* check the range on address */
 		if (address > (pf->ioremap_len - sizeof(u32))) {
 			dev_info(&pf->pdev->dev, "write reg address 0x%08x too large, max=0x%08lx\n",
-				 address, (pf->ioremap_len - sizeof(u32)));
+				 address, (unsigned long int)(pf->ioremap_len - sizeof(u32)));
 			goto command_write_done;
 		}
 		wr32(&pf->hw, address, value);
