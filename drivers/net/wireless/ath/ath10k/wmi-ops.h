@@ -37,8 +37,10 @@ struct wmi_ops {
 			      struct wmi_peer_kick_ev_arg *arg);
 	int (*pull_swba)(struct ath10k *ar, struct sk_buff *skb,
 			 struct wmi_swba_ev_arg *arg);
-	int (*pull_phyerr)(struct ath10k *ar, struct sk_buff *skb,
-			   struct wmi_phyerr_ev_arg *arg);
+	int (*pull_phyerr_hdr)(struct ath10k *ar, struct sk_buff *skb,
+			       struct wmi_phyerr_hdr_arg *arg);
+	int (*pull_phyerr)(struct ath10k *ar, const void *phyerr_buf,
+			   int left_len, struct wmi_phyerr_ev_arg *arg);
 	int (*pull_svc_rdy)(struct ath10k *ar, struct sk_buff *skb,
 			    struct wmi_svc_rdy_ev_arg *arg);
 	int (*pull_rdy)(struct ath10k *ar, struct sk_buff *skb,
@@ -261,13 +263,23 @@ ath10k_wmi_pull_swba(struct ath10k *ar, struct sk_buff *skb,
 }
 
 static inline int
-ath10k_wmi_pull_phyerr(struct ath10k *ar, struct sk_buff *skb,
-		       struct wmi_phyerr_ev_arg *arg)
+ath10k_wmi_pull_phyerr_hdr(struct ath10k *ar, struct sk_buff *skb,
+			   struct wmi_phyerr_hdr_arg *arg)
+{
+	if (!ar->wmi.ops->pull_phyerr_hdr)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->pull_phyerr_hdr(ar, skb, arg);
+}
+
+static inline int
+ath10k_wmi_pull_phyerr(struct ath10k *ar, const void *phyerr_buf,
+		       int left_len, struct wmi_phyerr_ev_arg *arg)
 {
 	if (!ar->wmi.ops->pull_phyerr)
 		return -EOPNOTSUPP;
 
-	return ar->wmi.ops->pull_phyerr(ar, skb, arg);
+	return ar->wmi.ops->pull_phyerr(ar, phyerr_buf, left_len, arg);
 }
 
 static inline int

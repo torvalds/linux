@@ -3271,7 +3271,7 @@ void ath10k_wmi_event_tbttoffset_update(struct ath10k *ar, struct sk_buff *skb)
 }
 
 static void ath10k_dfs_radar_report(struct ath10k *ar,
-				    const struct wmi_phyerr *phyerr,
+				    struct wmi_phyerr_ev_arg *phyerr,
 				    const struct phyerr_radar_report *rr,
 				    u64 tsf)
 {
@@ -3315,7 +3315,7 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 	}
 
 	/* report event to DFS pattern detector */
-	tsf32l = __le32_to_cpu(phyerr->tsf_timestamp);
+	tsf32l = phyerr->tsf_timestamp;
 	tsf64 = tsf & (~0xFFFFFFFFULL);
 	tsf64 |= tsf32l;
 
@@ -3360,7 +3360,7 @@ radar_detected:
 }
 
 static int ath10k_dfs_fft_report(struct ath10k *ar,
-				 const struct wmi_phyerr *phyerr,
+				 struct wmi_phyerr_ev_arg *phyerr,
 				 const struct phyerr_fft_report *fftr,
 				 u64 tsf)
 {
@@ -3398,7 +3398,7 @@ static int ath10k_dfs_fft_report(struct ath10k *ar,
 }
 
 void ath10k_wmi_event_dfs(struct ath10k *ar,
-			  const struct wmi_phyerr *phyerr,
+			  struct wmi_phyerr_ev_arg *phyerr,
 			  u64 tsf)
 {
 	int buf_len, tlv_len, res, i = 0;
@@ -3407,11 +3407,11 @@ void ath10k_wmi_event_dfs(struct ath10k *ar,
 	const struct phyerr_fft_report *fftr;
 	const u8 *tlv_buf;
 
-	buf_len = __le32_to_cpu(phyerr->buf_len);
+	buf_len = phyerr->buf_len;
 	ath10k_dbg(ar, ATH10K_DBG_REGULATORY,
 		   "wmi event dfs err_code %d rssi %d tsfl 0x%X tsf64 0x%llX len %d\n",
 		   phyerr->phy_err_code, phyerr->rssi_combined,
-		   __le32_to_cpu(phyerr->tsf_timestamp), tsf, buf_len);
+		   phyerr->tsf_timestamp, tsf, buf_len);
 
 	/* Skip event if DFS disabled */
 	if (!config_enabled(CONFIG_ATH10K_DFS_CERTIFIED))
@@ -3463,7 +3463,7 @@ void ath10k_wmi_event_dfs(struct ath10k *ar,
 }
 
 void ath10k_wmi_event_spectral_scan(struct ath10k *ar,
-				    const struct wmi_phyerr *phyerr,
+				    struct wmi_phyerr_ev_arg *phyerr,
 				    u64 tsf)
 {
 	int buf_len, tlv_len, res, i = 0;
@@ -3472,7 +3472,7 @@ void ath10k_wmi_event_spectral_scan(struct ath10k *ar,
 	const struct phyerr_fft_report *fftr;
 	size_t fftr_len;
 
-	buf_len = __le32_to_cpu(phyerr->buf_len);
+	buf_len = phyerr->buf_len;
 
 	while (i < buf_len) {
 		if (i + sizeof(*tlv) > buf_len) {
@@ -3516,65 +3516,110 @@ void ath10k_wmi_event_spectral_scan(struct ath10k *ar,
 	}
 }
 
-static int ath10k_wmi_op_pull_phyerr_ev(struct ath10k *ar, struct sk_buff *skb,
-					struct wmi_phyerr_ev_arg *arg)
+static int ath10k_wmi_op_pull_phyerr_ev_hdr(struct ath10k *ar,
+					    struct sk_buff *skb,
+					    struct wmi_phyerr_hdr_arg *arg)
 {
 	struct wmi_phyerr_event *ev = (void *)skb->data;
 
 	if (skb->len < sizeof(*ev))
 		return -EPROTO;
 
-	arg->num_phyerrs = ev->num_phyerrs;
-	arg->tsf_l32 = ev->tsf_l32;
-	arg->tsf_u32 = ev->tsf_u32;
-	arg->buf_len = __cpu_to_le32(skb->len - sizeof(*ev));
+	arg->num_phyerrs = __le32_to_cpu(ev->num_phyerrs);
+	arg->tsf_l32 = __le32_to_cpu(ev->tsf_l32);
+	arg->tsf_u32 = __le32_to_cpu(ev->tsf_u32);
+	arg->buf_len = skb->len - sizeof(*ev);
 	arg->phyerrs = ev->phyerrs;
+
+	return 0;
+}
+
+int ath10k_wmi_op_pull_phyerr_ev(struct ath10k *ar,
+				 const void *phyerr_buf,
+				 int left_len,
+				 struct wmi_phyerr_ev_arg *arg)
+{
+	const struct wmi_phyerr *phyerr = phyerr_buf;
+	int i;
+
+	if (left_len < sizeof(*phyerr)) {
+		ath10k_warn(ar, "wrong phyerr event head len %d (need: >=%d)\n",
+			    left_len, sizeof(*phyerr));
+		return -EINVAL;
+	}
+
+	arg->tsf_timestamp = __le32_to_cpu(phyerr->tsf_timestamp);
+	arg->freq1 = __le16_to_cpu(phyerr->freq1);
+	arg->freq2 = __le16_to_cpu(phyerr->freq2);
+	arg->rssi_combined = phyerr->rssi_combined;
+	arg->chan_width_mhz = phyerr->chan_width_mhz;
+	arg->buf_len = __le32_to_cpu(phyerr->buf_len);
+	arg->buf = phyerr->buf;
+	arg->hdr_len = sizeof(*phyerr);
+
+	for (i = 0; i < 4; i++)
+		arg->nf_chains[i] = __le16_to_cpu(phyerr->nf_chains[i]);
+
+	switch (phyerr->phy_err_code) {
+	case PHY_ERROR_GEN_SPECTRAL_SCAN:
+		arg->phy_err_code = PHY_ERROR_SPECTRAL_SCAN;
+		break;
+	case PHY_ERROR_GEN_FALSE_RADAR_EXT:
+		arg->phy_err_code = PHY_ERROR_FALSE_RADAR_EXT;
+		break;
+	case PHY_ERROR_GEN_RADAR:
+		arg->phy_err_code = PHY_ERROR_RADAR;
+		break;
+	default:
+		arg->phy_err_code = PHY_ERROR_UNKNOWN;
+		break;
+	}
 
 	return 0;
 }
 
 void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb)
 {
-	struct wmi_phyerr_ev_arg arg = {};
-	const struct wmi_phyerr *phyerr;
+	struct wmi_phyerr_hdr_arg hdr_arg = {};
+	struct wmi_phyerr_ev_arg phyerr_arg = {};
+	const void *phyerr;
 	u32 count, i, buf_len, phy_err_code;
 	u64 tsf;
 	int left_len, ret;
 
 	ATH10K_DFS_STAT_INC(ar, phy_errors);
 
-	ret = ath10k_wmi_pull_phyerr(ar, skb, &arg);
+	ret = ath10k_wmi_pull_phyerr_hdr(ar, skb, &hdr_arg);
 	if (ret) {
-		ath10k_warn(ar, "failed to parse phyerr event: %d\n", ret);
+		ath10k_warn(ar, "failed to parse phyerr event hdr: %d\n", ret);
 		return;
 	}
 
-	left_len = __le32_to_cpu(arg.buf_len);
-
 	/* Check number of included events */
-	count = __le32_to_cpu(arg.num_phyerrs);
+	count = hdr_arg.num_phyerrs;
 
-	tsf = __le32_to_cpu(arg.tsf_u32);
+	left_len = hdr_arg.buf_len;
+
+	tsf = hdr_arg.tsf_u32;
 	tsf <<= 32;
-	tsf |= __le32_to_cpu(arg.tsf_l32);
+	tsf |= hdr_arg.tsf_l32;
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi event phyerr count %d tsf64 0x%llX\n",
 		   count, tsf);
 
-	phyerr = arg.phyerrs;
+	phyerr = hdr_arg.phyerrs;
 	for (i = 0; i < count; i++) {
-		/* Check if we can read event header */
-		if (left_len < sizeof(*phyerr)) {
-			ath10k_warn(ar, "single event (%d) wrong head len\n",
+		ret = ath10k_wmi_pull_phyerr(ar, phyerr, left_len, &phyerr_arg);
+		if (ret) {
+			ath10k_warn(ar, "failed to parse phyerr event (%d)\n",
 				    i);
 			return;
 		}
 
-		left_len -= sizeof(*phyerr);
-
-		buf_len = __le32_to_cpu(phyerr->buf_len);
-		phy_err_code = phyerr->phy_err_code;
+		left_len -= phyerr_arg.hdr_len;
+		buf_len = phyerr_arg.buf_len;
+		phy_err_code = phyerr_arg.phy_err_code;
 
 		if (left_len < buf_len) {
 			ath10k_warn(ar, "single event (%d) wrong buf len\n", i);
@@ -3585,20 +3630,20 @@ void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb)
 
 		switch (phy_err_code) {
 		case PHY_ERROR_RADAR:
-			ath10k_wmi_event_dfs(ar, phyerr, tsf);
+			ath10k_wmi_event_dfs(ar, &phyerr_arg, tsf);
 			break;
 		case PHY_ERROR_SPECTRAL_SCAN:
-			ath10k_wmi_event_spectral_scan(ar, phyerr, tsf);
+			ath10k_wmi_event_spectral_scan(ar, &phyerr_arg, tsf);
 			break;
 		case PHY_ERROR_FALSE_RADAR_EXT:
-			ath10k_wmi_event_dfs(ar, phyerr, tsf);
-			ath10k_wmi_event_spectral_scan(ar, phyerr, tsf);
+			ath10k_wmi_event_dfs(ar, &phyerr_arg, tsf);
+			ath10k_wmi_event_spectral_scan(ar, &phyerr_arg, tsf);
 			break;
 		default:
 			break;
 		}
 
-		phyerr = (void *)phyerr + sizeof(*phyerr) + buf_len;
+		phyerr = phyerr + phyerr_arg.hdr_len + buf_len;
 	}
 }
 
@@ -6197,6 +6242,7 @@ static const struct wmi_ops wmi_ops = {
 	.pull_vdev_start = ath10k_wmi_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_op_pull_peer_kick_ev,
 	.pull_swba = ath10k_wmi_op_pull_swba_ev,
+	.pull_phyerr_hdr = ath10k_wmi_op_pull_phyerr_ev_hdr,
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_svc_rdy = ath10k_wmi_main_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
@@ -6268,6 +6314,7 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.pull_vdev_start = ath10k_wmi_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_op_pull_peer_kick_ev,
 	.pull_swba = ath10k_wmi_op_pull_swba_ev,
+	.pull_phyerr_hdr = ath10k_wmi_op_pull_phyerr_ev_hdr,
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
@@ -6333,6 +6380,7 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.pull_vdev_start = ath10k_wmi_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_op_pull_peer_kick_ev,
 	.pull_swba = ath10k_wmi_op_pull_swba_ev,
+	.pull_phyerr_hdr = ath10k_wmi_op_pull_phyerr_ev_hdr,
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
@@ -6394,6 +6442,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.pull_vdev_start = ath10k_wmi_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_op_pull_peer_kick_ev,
 	.pull_swba = ath10k_wmi_op_pull_swba_ev,
+	.pull_phyerr_hdr = ath10k_wmi_op_pull_phyerr_ev_hdr,
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,

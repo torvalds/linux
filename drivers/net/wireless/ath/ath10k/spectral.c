@@ -57,7 +57,7 @@ static uint8_t get_max_exp(s8 max_index, u16 max_magnitude, size_t bin_len,
 }
 
 int ath10k_spectral_process_fft(struct ath10k *ar,
-				const struct wmi_phyerr *phyerr,
+				struct wmi_phyerr_ev_arg *phyerr,
 				const struct phyerr_fft_report *fftr,
 				size_t bin_len, u64 tsf)
 {
@@ -118,15 +118,14 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 	fft_sample->total_gain_db = __cpu_to_be16(total_gain_db);
 	fft_sample->base_pwr_db = __cpu_to_be16(base_pwr_db);
 
-	freq1 = __le16_to_cpu(phyerr->freq1);
-	freq2 = __le16_to_cpu(phyerr->freq2);
+	freq1 = phyerr->freq1;
+	freq2 = phyerr->freq2;
 	fft_sample->freq1 = __cpu_to_be16(freq1);
 	fft_sample->freq2 = __cpu_to_be16(freq2);
 
 	chain_idx = MS(reg0, SEARCH_FFT_REPORT_REG0_FFT_CHN_IDX);
 
-	fft_sample->noise = __cpu_to_be16(
-			__le16_to_cpu(phyerr->nf_chains[chain_idx]));
+	fft_sample->noise = __cpu_to_be16(phyerr->nf_chains[chain_idx]);
 
 	bins = (u8 *)fftr;
 	bins += sizeof(*fftr);

@@ -838,9 +838,9 @@ static int ath10k_wmi_tlv_op_pull_swba_ev(struct ath10k *ar,
 	return 0;
 }
 
-static int ath10k_wmi_tlv_op_pull_phyerr_ev(struct ath10k *ar,
-					    struct sk_buff *skb,
-					    struct wmi_phyerr_ev_arg *arg)
+static int ath10k_wmi_tlv_op_pull_phyerr_ev_hdr(struct ath10k *ar,
+						struct sk_buff *skb,
+						struct wmi_phyerr_hdr_arg *arg)
 {
 	const void **tb;
 	const struct wmi_tlv_phyerr_ev *ev;
@@ -862,10 +862,10 @@ static int ath10k_wmi_tlv_op_pull_phyerr_ev(struct ath10k *ar,
 		return -EPROTO;
 	}
 
-	arg->num_phyerrs  = ev->num_phyerrs;
-	arg->tsf_l32 = ev->tsf_l32;
-	arg->tsf_u32 = ev->tsf_u32;
-	arg->buf_len = ev->buf_len;
+	arg->num_phyerrs  = __le32_to_cpu(ev->num_phyerrs);
+	arg->tsf_l32 = __le32_to_cpu(ev->tsf_l32);
+	arg->tsf_u32 = __le32_to_cpu(ev->tsf_u32);
+	arg->buf_len = __le32_to_cpu(ev->buf_len);
 	arg->phyerrs = phyerrs;
 
 	kfree(tb);
@@ -3407,7 +3407,8 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.pull_vdev_start = ath10k_wmi_tlv_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_tlv_op_pull_peer_kick_ev,
 	.pull_swba = ath10k_wmi_tlv_op_pull_swba_ev,
-	.pull_phyerr = ath10k_wmi_tlv_op_pull_phyerr_ev,
+	.pull_phyerr_hdr = ath10k_wmi_tlv_op_pull_phyerr_ev_hdr,
+	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_svc_rdy = ath10k_wmi_tlv_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_tlv_op_pull_rdy_ev,
 	.pull_fw_stats = ath10k_wmi_tlv_op_pull_fw_stats,
