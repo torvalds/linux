@@ -396,7 +396,10 @@ static void gc_node_segment(struct f2fs_sb_info *sbi,
 {
 	bool initial = true;
 	struct f2fs_summary *entry;
+	block_t start_addr;
 	int off;
+
+	start_addr = START_BLOCK(sbi, segno);
 
 next_step:
 	entry = sum;
@@ -404,6 +407,7 @@ next_step:
 	for (off = 0; off < sbi->blocks_per_seg; off++, entry++) {
 		nid_t nid = le32_to_cpu(entry->nid);
 		struct page *node_page;
+		struct node_info ni;
 
 		/* stop BG_GC if there is not enough free sections. */
 		if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0))
@@ -422,6 +426,12 @@ next_step:
 
 		/* block may become invalid during get_node_page */
 		if (check_valid_map(sbi, segno, off) == 0) {
+			f2fs_put_page(node_page, 1);
+			continue;
+		}
+
+		get_node_info(sbi, nid, &ni);
+		if (ni.blk_addr != start_addr + off) {
 			f2fs_put_page(node_page, 1);
 			continue;
 		}
