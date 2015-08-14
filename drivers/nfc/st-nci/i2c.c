@@ -118,15 +118,10 @@ static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 /*
  * Reads an ndlc frame and returns it in a newly allocated sk_buff.
  * returns:
- * frame size : if received frame is complete (find ST_NCI_SOF_EOF at
- * end of read)
- * -EAGAIN : if received frame is incomplete (not find ST_NCI_SOF_EOF
- * at end of read)
+ * 0 : if received frame is complete
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
- * (value returned from st_nci_i2c_repack)
- * -EIO : if no ST_NCI_SOF_EOF is found after reaching
- * the read length end sequence
+ * -ENOMEM : cannot allocate skb, frame dropped
  */
 static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 				 struct sk_buff **skb)
