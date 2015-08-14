@@ -92,13 +92,13 @@ This has a number of options available:
  (4) "File name or PKCS#11 URI of module signing key" (CONFIG_MODULE_SIG_KEY)
 
      Setting this option to something other than its default of
-     "signing_key.pem" will disable the autogeneration of signing keys and
-     allow the kernel modules to be signed with a key of your choosing.
-     The string provided should identify a file containing both a private
-     key and its corresponding X.509 certificate in PEM form, or — on
-     systems where the OpenSSL ENGINE_pkcs11 is functional — a PKCS#11 URI
-     as defined by RFC7512. In the latter case, the PKCS#11 URI should
-     reference both a certificate and a private key.
+     "certs/signing_key.pem" will disable the autogeneration of signing keys
+     and allow the kernel modules to be signed with a key of your choosing.
+     The string provided should identify a file containing both a private key
+     and its corresponding X.509 certificate in PEM form, or — on systems where
+     the OpenSSL ENGINE_pkcs11 is functional — a PKCS#11 URI as defined by
+     RFC7512. In the latter case, the PKCS#11 URI should reference both a
+     certificate and a private key.
 
      If the PEM file containing the private key is encrypted, or if the
      PKCS#11 token requries a PIN, this can be provided at build time by
@@ -130,12 +130,12 @@ Under normal conditions, when CONFIG_MODULE_SIG_KEY is unchanged from its
 default, the kernel build will automatically generate a new keypair using
 openssl if one does not exist in the file:
 
-	signing_key.pem
+	certs/signing_key.pem
 
 during the building of vmlinux (the public part of the key needs to be built
 into vmlinux) using parameters in the:
 
-	x509.genkey
+	certs/x509.genkey
 
 file (which is also generated if it does not already exist).
 

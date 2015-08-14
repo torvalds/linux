@@ -2589,6 +2589,15 @@ S:	Supported
 F:	Documentation/filesystems/ceph.txt
 F:	fs/ceph/
 
+CERTIFICATE HANDLING:
+M:	David Howells <dhowells@redhat.com>
+M:	David Woodhouse <dwmw2@infradead.org>
+L:	keyrings@linux-nfs.org
+S:	Maintained
+F:	Documentation/module-signing.txt
+F:	certs/
+F:	scripts/extract-cert.c
+
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
 S:	Orphan

@@ -1,0 +1,147 @@
+#
+# Makefile for the linux kernel signature checking certificates.
+#
+
+obj-$(CONFIG_SYSTEM_TRUSTED_KEYRING) += system_keyring.o system_certificates.o
+
+###############################################################################
+#
+# When a Kconfig string contains a filename, it is suitable for
+# passing to shell commands. It is surrounded by double-quotes, and
+# any double-quotes or backslashes within it are escaped by
+# backslashes.
+#
+# This is no use for dependencies or $(wildcard). We need to strip the
+# surrounding quotes and the escaping from quotes and backslashes, and
+# we *do* need to escape any spaces in the string. So, for example:
+#
+# Usage: $(eval $(call config_filename,FOO))
+#
+# Defines FOO_FILENAME based on the contents of the CONFIG_FOO option,
+# transformed as described above to be suitable for use within the
+# makefile.
+#
+# Also, if the filename is a relative filename and exists in the source
+# tree but not the build tree, define FOO_SRCPREFIX as $(srctree)/ to
+# be prefixed to *both* command invocation and dependencies.
+#
+# Note: We also print the filenames in the quiet_cmd_foo text, and
+# perhaps ought to have a version specially escaped for that purpose.
+# But it's only cosmetic, and $(patsubst "%",%,$(CONFIG_FOO)) is good
+# enough.  It'll strip the quotes in the common case where there's no
+# space and it's a simple filename, and it'll retain the quotes when
+# there's a space. There are some esoteric cases in which it'll print
+# the wrong thing, but we don't really care. The actual dependencies
+# and commands *do* get it right, with various combinations of single
+# and double quotes, backslashes and spaces in the filenames.
+#
+###############################################################################
+#
+quote := $(firstword " ")
+space :=
+space +=
+space_escape := %%%SPACE%%%
+#
+define config_filename
+ifneq ($$(CONFIG_$(1)),"")
+$(1)_FILENAME := $$(subst \\,\,$$(subst \$$(quote),$$(quote),$$(subst $$(space_escape),\$$(space),$$(patsubst "%",%,$$(subst $$(space),$$(space_escape),$$(CONFIG_$(1)))))))
+ifneq ($$(patsubst /%,%,$$(firstword $$($(1)_FILENAME))),$$(firstword $$($(1)_FILENAME)))
+else
+ifeq ($$(wildcard $$($(1)_FILENAME)),)
+ifneq ($$(wildcard $$(srctree)/$$($(1)_FILENAME)),)
+$(1)_SRCPREFIX := $(srctree)/
+endif
+endif
+endif
+endif
+endef
+#
+###############################################################################
+
+ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
+
+$(eval $(call config_filename,SYSTEM_TRUSTED_KEYS))
+
+# GCC doesn't include .incbin files in -MD generated dependencies (PR#66871)
+$(obj)/system_certificates.o: $(obj)/x509_certificate_list
+
+# Cope with signing_key.x509 existing in $(srctree) not $(objtree)
+AFLAGS_system_certificates.o := -I$(srctree)
+
+quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
+      cmd_extract_certs  = scripts/extract-cert $(2) $@ || ( rm $@; exit 1)
+
+targets += x509_certificate_list
+$(obj)/x509_certificate_list: scripts/extract-cert $(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(SYSTEM_TRUSTED_KEYS_FILENAME) FORCE
+	$(call if_changed,extract_certs,$(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(CONFIG_SYSTEM_TRUSTED_KEYS))
+endif
+
+clean-files := x509_certificate_list .x509.list
+
+ifeq ($(CONFIG_MODULE_SIG),y)
+###############################################################################
+#
+# If module signing is requested, say by allyesconfig, but a key has not been
+# supplied, then one will need to be generated to make sure the build does not
+# fail and that the kernel may be used afterwards.
+#
+###############################################################################
+ifndef CONFIG_MODULE_SIG_HASH
+$(error Could not determine digest type to use from kernel config)
+endif
+
+# We do it this way rather than having a boolean option for enabling an
+# external private key, because 'make randconfig' might enable such a
+# boolean option and we unfortunately can't make it depend on !RANDCONFIG.
+ifeq ($(CONFIG_MODULE_SIG_KEY),"certs/signing_key.pem")
+$(obj)/signing_key.pem: $(obj)/x509.genkey
+	@echo "###"
+	@echo "### Now generating an X.509 key pair to be used for signing modules."
+	@echo "###"
+	@echo "### If this takes a long time, you might wish to run rngd in the"
+	@echo "### background to keep the supply of entropy topped up.  It"
+	@echo "### needs to be run as root, and uses a hardware random"
+	@echo "### number generator if one is available."
+	@echo "###"
+	openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+		-batch -x509 -config $(obj)/x509.genkey \
+		-outform PEM -out $(obj)/signing_key.pem \
+		-keyout $(obj)/signing_key.pem 2>&1
+	@echo "###"
+	@echo "### Key pair generated."
+	@echo "###"
+
+$(obj)/x509.genkey:
+	@echo Generating X.509 key generation config
+	@echo  >$@ "[ req ]"
+	@echo >>$@ "default_bits = 4096"
+	@echo >>$@ "distinguished_name = req_distinguished_name"
+	@echo >>$@ "prompt = no"
+	@echo >>$@ "string_mask = utf8only"
+	@echo >>$@ "x509_extensions = myexts"
+	@echo >>$@
+	@echo >>$@ "[ req_distinguished_name ]"
+	@echo >>$@ "#O = Unspecified company"
+	@echo >>$@ "CN = Build time autogenerated kernel key"
+	@echo >>$@ "#emailAddress = unspecified.user@unspecified.company"
+	@echo >>$@
+	@echo >>$@ "[ myexts ]"
+	@echo >>$@ "basicConstraints=critical,CA:FALSE"
+	@echo >>$@ "keyUsage=digitalSignature"
+	@echo >>$@ "subjectKeyIdentifier=hash"
+	@echo >>$@ "authorityKeyIdentifier=keyid"
+endif
+
+$(eval $(call config_filename,MODULE_SIG_KEY))
+
+# If CONFIG_MODULE_SIG_KEY isn't a PKCS#11 URI, depend on it
+ifeq ($(patsubst pkcs11:%,%,$(firstword $(MODULE_SIG_KEY_FILENAME))),$(firstword $(MODULE_SIG_KEY_FILENAME)))
+X509_DEP := $(MODULE_SIG_KEY_SRCPREFIX)$(MODULE_SIG_KEY_FILENAME)
+endif
+
+# GCC PR#66871 again.
+$(obj)/system_certificates.o: $(obj)/signing_key.x509
+
+$(obj)/signing_key.x509: scripts/extract-cert include/config/module/sig/key.h $(X509_DEP)
+	$(call cmd,extract_certs,$(MODULE_SIG_KEY_SRCPREFIX)$(CONFIG_MODULE_SIG_KEY))
+endif
