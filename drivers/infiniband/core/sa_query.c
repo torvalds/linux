@@ -740,7 +740,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
-	query = kmalloc(sizeof *query, gfp_mask);
+	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -862,7 +862,7 @@ int ib_sa_service_rec_query(struct ib_sa_client *client,
 	    method != IB_SA_METHOD_DELETE)
 		return -EINVAL;
 
-	query = kmalloc(sizeof *query, gfp_mask);
+	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -954,7 +954,7 @@ int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
-	query = kmalloc(sizeof *query, gfp_mask);
+	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -1051,7 +1051,7 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
-	query = kmalloc(sizeof *query, gfp_mask);
+	query = kzalloc(sizeof(*query), gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
