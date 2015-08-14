@@ -113,6 +113,7 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 			    struct scatterlist *src, unsigned int nbytes)
 {
 	int ret;
+	u64 inc;
 	struct blkcipher_walk walk;
 	struct p8_aes_ctr_ctx *ctx =
 		crypto_tfm_ctx(crypto_blkcipher_tfm(desc->tfm));
@@ -140,7 +141,12 @@ static int p8_aes_ctr_crypt(struct blkcipher_desc *desc,
 						    walk.iv);
 			pagefault_enable();
 
-			crypto_inc(walk.iv, AES_BLOCK_SIZE);
+			/* We need to update IV mostly for last bytes/round */
+			inc = (nbytes & AES_BLOCK_MASK) / AES_BLOCK_SIZE;
+			if (inc > 0)
+				while (inc--)
+					crypto_inc(walk.iv, AES_BLOCK_SIZE);
+
 			nbytes &= AES_BLOCK_SIZE - 1;
 			ret = blkcipher_walk_done(desc, &walk, nbytes);
 		}
