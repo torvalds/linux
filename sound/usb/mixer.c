@@ -282,6 +282,21 @@ static int get_abs_value(struct usb_mixer_elem_info *cval, int val)
 	return val;
 }
 
+static int uac2_ctl_value_size(int val_type)
+{
+	switch (val_type) {
+	case USB_MIXER_S32:
+	case USB_MIXER_U32:
+		return 4;
+	case USB_MIXER_S16:
+	case USB_MIXER_U16:
+		return 2;
+	default:
+		return 1;
+	}
+	return 0; /* unreachable */
+}
+
 
 /*
  * retrieve a mixer value
@@ -328,14 +343,14 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request,
 			    int validx, int *value_ret)
 {
 	struct snd_usb_audio *chip = cval->head.mixer->chip;
-	unsigned char buf[2 + 3 * sizeof(__u16)]; /* enough space for one range */
+	unsigned char buf[4 + 3 * sizeof(__u32)]; /* enough space for one range */
 	unsigned char *val;
 	int idx = 0, ret, size;
 	__u8 bRequest;
 
 	if (request == UAC_GET_CUR) {
 		bRequest = UAC2_CS_CUR;
-		size = sizeof(__u16);
+		size = uac2_ctl_value_size(cval->val_type);
 	} else {
 		bRequest = UAC2_CS_RANGE;
 		size = sizeof(buf);
@@ -446,7 +461,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 				int request, int validx, int value_set)
 {
 	struct snd_usb_audio *chip = cval->head.mixer->chip;
-	unsigned char buf[2];
+	unsigned char buf[4];
 	int idx = 0, val_len, err, timeout = 10;
 
 	validx += cval->idx_off;
@@ -454,8 +469,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	if (cval->head.mixer->protocol == UAC_VERSION_1) {
 		val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
 	} else { /* UAC_VERSION_2 */
-		/* audio class v2 controls are always 2 bytes in size */
-		val_len = sizeof(__u16);
+		val_len = uac2_ctl_value_size(cval->val_type);
 
 		/* FIXME */
 		if (request != UAC_SET_CUR) {
@@ -469,6 +483,8 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	value_set = convert_bytes_value(cval, value_set);
 	buf[0] = value_set & 0xff;
 	buf[1] = (value_set >> 8) & 0xff;
+	buf[2] = (value_set >> 16) & 0xff;
+	buf[3] = (value_set >> 24) & 0xff;
 	err = snd_usb_autoresume(chip);
 	if (err < 0)
 		return -EIO;
@@ -798,24 +814,25 @@ static int check_input_term(struct mixer_build *state, int id,
 /* feature unit control information */
 struct usb_feature_control_info {
 	const char *name;
-	unsigned int type;	/* control type (mute, volume, etc.) */
+	int type;	/* data type for uac1 */
+	int type_uac2;	/* data type for uac2 if different from uac1, else -1 */
 };
 
 static struct usb_feature_control_info audio_feature_info[] = {
-	{ "Mute",			USB_MIXER_INV_BOOLEAN },
-	{ "Volume",			USB_MIXER_S16 },
-	{ "Tone Control - Bass",	USB_MIXER_S8 },
-	{ "Tone Control - Mid",		USB_MIXER_S8 },
-	{ "Tone Control - Treble",	USB_MIXER_S8 },
-	{ "Graphic Equalizer",		USB_MIXER_S8 }, /* FIXME: not implemeted yet */
-	{ "Auto Gain Control",		USB_MIXER_BOOLEAN },
-	{ "Delay Control",		USB_MIXER_U16 }, /* FIXME: U32 in UAC2 */
-	{ "Bass Boost",			USB_MIXER_BOOLEAN },
-	{ "Loudness",			USB_MIXER_BOOLEAN },
+	{ "Mute",			USB_MIXER_INV_BOOLEAN, -1 },
+	{ "Volume",			USB_MIXER_S16, -1 },
+	{ "Tone Control - Bass",	USB_MIXER_S8, -1 },
+	{ "Tone Control - Mid",		USB_MIXER_S8, -1 },
+	{ "Tone Control - Treble",	USB_MIXER_S8, -1 },
+	{ "Graphic Equalizer",		USB_MIXER_S8, -1 }, /* FIXME: not implemeted yet */
+	{ "Auto Gain Control",		USB_MIXER_BOOLEAN, -1 },
+	{ "Delay Control",		USB_MIXER_U16, USB_MIXER_U32 },
+	{ "Bass Boost",			USB_MIXER_BOOLEAN, -1 },
+	{ "Loudness",			USB_MIXER_BOOLEAN, -1 },
 	/* UAC2 specific */
-	{ "Input Gain Control",		USB_MIXER_S16 },
-	{ "Input Gain Pad Control",	USB_MIXER_S16 },
-	{ "Phase Inverter Control",	USB_MIXER_BOOLEAN },
+	{ "Input Gain Control",		USB_MIXER_S16, -1 },
+	{ "Input Gain Pad Control",	USB_MIXER_S16, -1 },
+	{ "Phase Inverter Control",	USB_MIXER_BOOLEAN, -1 },
 };
 
 /* private_free callback */
@@ -1215,6 +1232,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 			      int readonly_mask)
 {
 	struct uac_feature_unit_descriptor *desc = raw_desc;
+	struct usb_feature_control_info *ctl_info;
 	unsigned int len = 0;
 	int mapped_name = 0;
 	int nameid = uac_feature_unit_iFeature(desc);
@@ -1240,7 +1258,13 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	snd_usb_mixer_elem_init_std(&cval->head, state->mixer, unitid);
 	cval->control = control;
 	cval->cmask = ctl_mask;
-	cval->val_type = audio_feature_info[control-1].type;
+	ctl_info = &audio_feature_info[control-1];
+	if (state->mixer->protocol == UAC_VERSION_1)
+		cval->val_type = ctl_info->type;
+	else /* UAC_VERSION_2 */
+		cval->val_type = ctl_info->type_uac2 >= 0 ?
+			ctl_info->type_uac2 : ctl_info->type;
+
 	if (ctl_mask == 0) {
 		cval->channels = 1;	/* master channel */
 		cval->master_readonly = readonly_mask;
