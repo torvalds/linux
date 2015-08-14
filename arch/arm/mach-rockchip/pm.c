@@ -246,14 +246,14 @@ static int rk3288_suspend_init(struct device_node *np)
 				"rockchip,rk3288-sgrf");
 	if (IS_ERR(sgrf_regmap)) {
 		pr_err("%s: could not find sgrf regmap\n", __func__);
-		return PTR_ERR(pmu_regmap);
+		return PTR_ERR(sgrf_regmap);
 	}
 
 	grf_regmap = syscon_regmap_lookup_by_compatible(
 				"rockchip,rk3288-grf");
 	if (IS_ERR(grf_regmap)) {
 		pr_err("%s: could not find grf regmap\n", __func__);
-		return PTR_ERR(pmu_regmap);
+		return PTR_ERR(grf_regmap);
 	}
 
 	sram_np = of_find_compatible_node(NULL, NULL,
