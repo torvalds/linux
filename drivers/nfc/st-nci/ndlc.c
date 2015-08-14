@@ -194,7 +194,6 @@ static void llt_ndlc_rcv_queue(struct llt_ndlc *ndlc)
 					  msecs_to_jiffies(NDLC_TIMER_T1_WAIT));
 				break;
 			default:
-				pr_err("UNKNOWN Packet Control Byte=%d\n", pcb);
 				kfree_skb(skb);
 				break;
 			}
