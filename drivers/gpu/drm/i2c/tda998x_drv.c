@@ -23,7 +23,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_encoder_slave.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/i2c/tda998x.h>
@@ -52,8 +51,6 @@ struct tda998x_priv {
 	wait_queue_head_t edid_delay_waitq;
 	bool edid_delay_active;
 };
-
-#define to_tda998x_priv(x)  ((struct tda998x_priv *)to_encoder_slave(x)->slave_priv)
 
 /* The TDA9988 series of devices use a paged register scheme.. to simplify
  * things we encode the page # in upper bits of the register #.  To read/
@@ -1182,16 +1179,6 @@ static void tda998x_encoder_set_polling(struct tda998x_priv *priv,
 			DRM_CONNECTOR_POLL_DISCONNECT;
 }
 
-static int
-tda998x_encoder_set_property(struct drm_encoder *encoder,
-			    struct drm_connector *connector,
-			    struct drm_property *property,
-			    uint64_t val)
-{
-	DBG("");
-	return 0;
-}
-
 static void tda998x_destroy(struct tda998x_priv *priv)
 {
 	/* disable all IRQs and free the IRQ handler */
@@ -1206,78 +1193,6 @@ static void tda998x_destroy(struct tda998x_priv *priv)
 
 	i2c_unregister_device(priv->cec);
 }
-
-/* Slave encoder support */
-
-static void
-tda998x_encoder_slave_set_config(struct drm_encoder *encoder, void *params)
-{
-	tda998x_encoder_set_config(to_tda998x_priv(encoder), params);
-}
-
-static void tda998x_encoder_slave_destroy(struct drm_encoder *encoder)
-{
-	struct tda998x_priv *priv = to_tda998x_priv(encoder);
-
-	tda998x_destroy(priv);
-	drm_i2c_encoder_destroy(encoder);
-	kfree(priv);
-}
-
-static void tda998x_encoder_slave_dpms(struct drm_encoder *encoder, int mode)
-{
-	tda998x_encoder_dpms(to_tda998x_priv(encoder), mode);
-}
-
-static int tda998x_encoder_slave_mode_valid(struct drm_encoder *encoder,
-					    struct drm_display_mode *mode)
-{
-	return tda998x_encoder_mode_valid(to_tda998x_priv(encoder), mode);
-}
-
-static void
-tda998x_encoder_slave_mode_set(struct drm_encoder *encoder,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode)
-{
-	tda998x_encoder_mode_set(to_tda998x_priv(encoder), mode, adjusted_mode);
-}
-
-static enum drm_connector_status
-tda998x_encoder_slave_detect(struct drm_encoder *encoder,
-			     struct drm_connector *connector)
-{
-	return tda998x_encoder_detect(to_tda998x_priv(encoder));
-}
-
-static int tda998x_encoder_slave_get_modes(struct drm_encoder *encoder,
-					   struct drm_connector *connector)
-{
-	return tda998x_encoder_get_modes(to_tda998x_priv(encoder), connector);
-}
-
-static int
-tda998x_encoder_slave_create_resources(struct drm_encoder *encoder,
-				       struct drm_connector *connector)
-{
-	tda998x_encoder_set_polling(to_tda998x_priv(encoder), connector);
-	return 0;
-}
-
-static struct drm_encoder_slave_funcs tda998x_encoder_slave_funcs = {
-	.set_config = tda998x_encoder_slave_set_config,
-	.destroy = tda998x_encoder_slave_destroy,
-	.dpms = tda998x_encoder_slave_dpms,
-	.save = tda998x_encoder_save,
-	.restore = tda998x_encoder_restore,
-	.mode_fixup = tda998x_encoder_mode_fixup,
-	.mode_valid = tda998x_encoder_slave_mode_valid,
-	.mode_set = tda998x_encoder_slave_mode_set,
-	.detect = tda998x_encoder_slave_detect,
-	.get_modes = tda998x_encoder_slave_get_modes,
-	.create_resources = tda998x_encoder_slave_create_resources,
-	.set_property = tda998x_encoder_set_property,
-};
 
 /* I2C driver functions */
 
@@ -1411,31 +1326,6 @@ fail:
 	if (priv->cec)
 		i2c_unregister_device(priv->cec);
 	return -ENXIO;
-}
-
-static int tda998x_encoder_init(struct i2c_client *client,
-				struct drm_device *dev,
-				struct drm_encoder_slave *encoder_slave)
-{
-	struct tda998x_priv *priv;
-	int ret;
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->encoder = &encoder_slave->base;
-
-	ret = tda998x_create(client, priv);
-	if (ret) {
-		kfree(priv);
-		return ret;
-	}
-
-	encoder_slave->slave_priv = priv;
-	encoder_slave->slave_funcs = &tda998x_encoder_slave_funcs;
-
-	return 0;
 }
 
 struct tda998x_priv2 {
@@ -1659,38 +1549,18 @@ static struct i2c_device_id tda998x_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tda998x_ids);
 
-static struct drm_i2c_encoder_driver tda998x_driver = {
-	.i2c_driver = {
-		.probe = tda998x_probe,
-		.remove = tda998x_remove,
-		.driver = {
-			.name = "tda998x",
-			.of_match_table = of_match_ptr(tda998x_dt_ids),
-		},
-		.id_table = tda998x_ids,
+static struct i2c_driver tda998x_driver = {
+	.probe = tda998x_probe,
+	.remove = tda998x_remove,
+	.driver = {
+		.name = "tda998x",
+		.of_match_table = of_match_ptr(tda998x_dt_ids),
 	},
-	.encoder_init = tda998x_encoder_init,
+	.id_table = tda998x_ids,
 };
 
-/* Module initialization */
-
-static int __init
-tda998x_init(void)
-{
-	DBG("");
-	return drm_i2c_encoder_register(THIS_MODULE, &tda998x_driver);
-}
-
-static void __exit
-tda998x_exit(void)
-{
-	DBG("");
-	drm_i2c_encoder_unregister(&tda998x_driver);
-}
+module_i2c_driver(tda998x_driver);
 
 MODULE_AUTHOR("Rob Clark <robdclark@gmail.com");
 MODULE_DESCRIPTION("NXP Semiconductors TDA998X HDMI Encoder");
 MODULE_LICENSE("GPL");
-
-module_init(tda998x_init);
-module_exit(tda998x_exit);
