@@ -997,7 +997,7 @@ int irq_chip_retrigger_hierarchy(struct irq_data *data)
 		if (data->chip && data->chip->irq_retrigger)
 			return data->chip->irq_retrigger(data);
 
-	return -ENOSYS;
+	return 0;
 }
 
 /**
