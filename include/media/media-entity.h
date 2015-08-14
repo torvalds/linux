@@ -34,9 +34,11 @@
  * enum media_gobj_type - type of a graph object
  *
  * @MEDIA_GRAPH_ENTITY:		Identify a media entity
+ * @MEDIA_GRAPH_PAD:		Identify a media pad
  */
 enum media_gobj_type {
 	MEDIA_GRAPH_ENTITY,
+	MEDIA_GRAPH_PAD,
 };
 
 #define MEDIA_BITS_PER_TYPE		8
@@ -72,6 +74,7 @@ struct media_link {
 };
 
 struct media_pad {
+	struct media_gobj graph_obj;
 	struct media_entity *entity;	/* Entity this pad belongs to */
 	u16 index;			/* Pad index in the entity pads array */
 	unsigned long flags;		/* Pad flags (MEDIA_PAD_FL_*) */

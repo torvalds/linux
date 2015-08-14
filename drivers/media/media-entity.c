@@ -48,6 +48,9 @@ void media_gobj_init(struct media_device *mdev,
 	case MEDIA_GRAPH_ENTITY:
 		gobj->id = media_gobj_gen_id(type, ++mdev->entity_id);
 		break;
+	case MEDIA_GRAPH_PAD:
+		gobj->id = media_gobj_gen_id(type, ++mdev->pad_id);
+		break;
 	}
 }
 
