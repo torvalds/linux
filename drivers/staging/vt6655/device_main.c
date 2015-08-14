@@ -915,7 +915,7 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 		byTsr1 = pTD->td0.tsr1;
 
 		/* Only the status of first TD in the chain is correct */
-		if (pTD->m_td1TD1.byTCR & TCR_STP) {
+		if (pTD->td1.tcr & TCR_STP) {
 			if ((pTD->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB) != 0) {
 				if (!(byTsr1 & TSR1_TERR)) {
 					if (byTsr0 != 0) {
@@ -1174,7 +1174,7 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	head_td = priv->apCurrTD[dma_idx];
 
-	head_td->m_td1TD1.byTCR = 0;
+	head_td->td1.tcr = 0;
 
 	head_td->pTDInfo->skb = skb;
 
@@ -1192,9 +1192,8 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	priv->bPWBitOn = false;
 
 	/* Set TSR1 & ReqCount in TxDescHead */
-	head_td->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP | EDMSDU);
-	head_td->m_td1TD1.wReqCount =
-			cpu_to_le16((u16)head_td->pTDInfo->dwReqCount);
+	head_td->td1.tcr |= (TCR_STP | TCR_EDP | EDMSDU);
+	head_td->td1.req_count = cpu_to_le16((u16)head_td->pTDInfo->dwReqCount);
 
 	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->buf_dma);
 

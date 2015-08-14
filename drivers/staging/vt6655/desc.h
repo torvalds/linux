@@ -234,12 +234,11 @@ struct vnt_tdes0 {
 #endif
 } __packed;
 
-typedef struct tagTDES1 {
-	volatile    __le16        wReqCount;
-	volatile    unsigned char byTCR;
-	volatile    unsigned char byReserved;
-} __attribute__ ((__packed__))
-STDES1;
+struct vnt_tdes1 {
+	volatile __le16 req_count;
+	volatile u8 tcr;
+	volatile u8 reserved;
+} __packed;
 
 typedef struct tagDEVICE_TD_INFO {
 	void *mic_hdr;
@@ -254,7 +253,7 @@ typedef struct tagDEVICE_TD_INFO {
 /* transmit descriptor */
 typedef struct tagSTxDesc {
 	volatile struct vnt_tdes0 td0;
-	volatile    STDES1  m_td1TD1;
+	volatile struct vnt_tdes1 td1;
 	volatile    __le32  buff_addr;
 	volatile    __le32  next_desc;
 	struct tagSTxDesc *next __aligned(8);
