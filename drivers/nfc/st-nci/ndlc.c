@@ -198,8 +198,10 @@ static void llt_ndlc_rcv_queue(struct llt_ndlc *ndlc)
 				kfree_skb(skb);
 				break;
 			}
-		} else {
+		} else if ((pcb & PCB_TYPE_MASK) == PCB_TYPE_DATAFRAME) {
 			nci_recv_frame(ndlc->ndev, skb);
+		} else {
+			kfree_skb(skb);
 		}
 	}
 }
