@@ -112,6 +112,7 @@
 #endif
 #include <net/secure_seq.h>
 #include <net/ip_tunnels.h>
+#include <net/vrf.h>
 
 #define RT_FL_TOS(oldflp4) \
 	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
@@ -1726,7 +1727,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	 *	Now we are ready to route packet.
 	 */
 	fl4.flowi4_oif = 0;
-	fl4.flowi4_iif = dev->ifindex;
+	fl4.flowi4_iif = vrf_master_ifindex_rcu(dev) ? : dev->ifindex;
 	fl4.flowi4_mark = skb->mark;
 	fl4.flowi4_tos = tos;
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
@@ -2129,6 +2130,11 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 			else if (!fl4->daddr)
 				fl4->saddr = inet_select_addr(dev_out, 0,
 							      RT_SCOPE_HOST);
+		}
+		if (netif_is_vrf(dev_out) &&
+		    !(fl4->flowi4_flags & FLOWI_FLAG_VRFSRC)) {
+			rth = vrf_dev_get_rth(dev_out);
+			goto out;
 		}
 	}
 
