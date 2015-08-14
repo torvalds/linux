@@ -161,6 +161,7 @@ struct devfreq {
 	struct delayed_work work;
 
 	unsigned long previous_freq;
+	struct devfreq_dev_status last_status;
 
 	void *data; /* private data for governors */
 
@@ -203,6 +204,15 @@ extern int devm_devfreq_register_opp_notifier(struct device *dev,
 					      struct devfreq *devfreq);
 extern void devm_devfreq_unregister_opp_notifier(struct device *dev,
 						struct devfreq *devfreq);
+
+/**
+ * devfreq_update_stats() - update the last_status pointer in struct devfreq
+ * @df:		the devfreq instance whose status needs updating
+ */
+static inline int devfreq_update_stats(struct devfreq *df)
+{
+	return df->profile->get_dev_status(df->dev.parent, &df->last_status);
+}
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
@@ -288,6 +298,11 @@ static inline int devm_devfreq_register_opp_notifier(struct device *dev,
 static inline void devm_devfreq_unregister_opp_notifier(struct device *dev,
 							struct devfreq *devfreq)
 {
+}
+
+static inline int devfreq_update_stats(struct devfreq *df)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_PM_DEVFREQ */
 
