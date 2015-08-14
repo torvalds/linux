@@ -1007,27 +1007,39 @@ static struct rt6_info *rt6_get_pcpu_route(struct rt6_info *rt)
 
 static struct rt6_info *rt6_make_pcpu_route(struct rt6_info *rt)
 {
+	struct fib6_table *table = rt->rt6i_table;
 	struct rt6_info *pcpu_rt, *prev, **p;
 
 	pcpu_rt = ip6_rt_pcpu_alloc(rt);
 	if (!pcpu_rt) {
 		struct net *net = dev_net(rt->dst.dev);
 
-		pcpu_rt = net->ipv6.ip6_null_entry;
-		goto done;
+		dst_hold(&net->ipv6.ip6_null_entry->dst);
+		return net->ipv6.ip6_null_entry;
 	}
 
-	p = this_cpu_ptr(rt->rt6i_pcpu);
-	prev = cmpxchg(p, NULL, pcpu_rt);
-	if (prev) {
-		/* If someone did it before us, return prev instead */
+	read_lock_bh(&table->tb6_lock);
+	if (rt->rt6i_pcpu) {
+		p = this_cpu_ptr(rt->rt6i_pcpu);
+		prev = cmpxchg(p, NULL, pcpu_rt);
+		if (prev) {
+			/* If someone did it before us, return prev instead */
+			dst_destroy(&pcpu_rt->dst);
+			pcpu_rt = prev;
+		}
+	} else {
+		/* rt has been removed from the fib6 tree
+		 * before we have a chance to acquire the read_lock.
+		 * In this case, don't brother to create a pcpu rt
+		 * since rt is going away anyway.  The next
+		 * dst_check() will trigger a re-lookup.
+		 */
 		dst_destroy(&pcpu_rt->dst);
-		pcpu_rt = prev;
+		pcpu_rt = rt;
 	}
-
-done:
 	dst_hold(&pcpu_rt->dst);
 	rt6_dst_from_metrics_check(pcpu_rt);
+	read_unlock_bh(&table->tb6_lock);
 	return pcpu_rt;
 }
 
@@ -1103,11 +1115,21 @@ redo_rt6_select:
 		rt->dst.__use++;
 		pcpu_rt = rt6_get_pcpu_route(rt);
 
-		if (!pcpu_rt)
+		if (pcpu_rt) {
+			read_unlock_bh(&table->tb6_lock);
+		} else {
+			/* We have to do the read_unlock first
+			 * because rt6_make_pcpu_route() may trigger
+			 * ip6_dst_gc() which will take the write_lock.
+			 */
+			dst_hold(&rt->dst);
+			read_unlock_bh(&table->tb6_lock);
 			pcpu_rt = rt6_make_pcpu_route(rt);
+			dst_release(&rt->dst);
+		}
 
-		read_unlock_bh(&table->tb6_lock);
 		return pcpu_rt;
+
 	}
 }
 
