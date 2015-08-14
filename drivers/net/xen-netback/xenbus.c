@@ -33,6 +33,8 @@ struct backend_info {
 	enum xenbus_state frontend_state;
 	struct xenbus_watch hotplug_status_watch;
 	u8 have_hotplug_status_watch:1;
+
+	const char *hotplug_script;
 };
 
 static int connect_rings(struct backend_info *);
@@ -55,6 +57,7 @@ static int netback_remove(struct xenbus_device *dev)
 		xenvif_free(be->vif);
 		be->vif = NULL;
 	}
+	kfree(be->hotplug_script);
 	kfree(be);
 	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
@@ -72,6 +75,7 @@ static int netback_probe(struct xenbus_device *dev,
 	struct xenbus_transaction xbt;
 	int err;
 	int sg;
+	const char *script;
 	struct backend_info *be = kzalloc(sizeof(struct backend_info),
 					  GFP_KERNEL);
 	if (!be) {
@@ -132,6 +136,15 @@ static int netback_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
+	script = xenbus_read(XBT_NIL, dev->nodename, "script", NULL);
+	if (IS_ERR(script)) {
+		err = PTR_ERR(script);
+		xenbus_dev_fatal(dev, err, "reading script");
+		goto fail;
+	}
+
+	be->hotplug_script = script;
+
 	err = xenbus_switch_state(dev, XenbusStateInitWait);
 	if (err)
 		goto fail;
@@ -162,22 +175,14 @@ static int netback_uevent(struct xenbus_device *xdev,
 			  struct kobj_uevent_env *env)
 {
 	struct backend_info *be = dev_get_drvdata(&xdev->dev);
-	char *val;
 
-	val = xenbus_read(XBT_NIL, xdev->nodename, "script", NULL);
-	if (IS_ERR(val)) {
-		int err = PTR_ERR(val);
-		xenbus_dev_fatal(xdev, err, "reading script");
-		return err;
-	} else {
-		if (add_uevent_var(env, "script=%s", val)) {
-			kfree(val);
-			return -ENOMEM;
-		}
-		kfree(val);
-	}
+	if (!be)
+		return 0;
 
-	if (!be || !be->vif)
+	if (add_uevent_var(env, "script=%s", be->hotplug_script))
+		return -ENOMEM;
+
+	if (!be->vif)
 		return 0;
 
 	return add_uevent_var(env, "vif=%s", be->vif->dev->name);

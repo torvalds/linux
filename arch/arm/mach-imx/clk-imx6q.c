@@ -515,7 +515,7 @@ int __init mx6q_clocks_init(void)
 	clk[gpmi_io]      = imx_clk_gate2("gpmi_io",       "enfc",              base + 0x78, 28);
 	clk[gpmi_apb]     = imx_clk_gate2("gpmi_apb",      "usdhc3",            base + 0x78, 30);
 	clk[rom]          = imx_clk_gate2("rom",           "ahb",               base + 0x7c, 0);
-	clk[sata]         = imx_clk_gate2("sata",          "ipg",               base + 0x7c, 4);
+	clk[sata]         = imx_clk_gate2("sata",          "ahb",               base + 0x7c, 4);
 	clk[sdma]         = imx_clk_gate2("sdma",          "ahb",               base + 0x7c, 6);
 	clk[spba]         = imx_clk_gate2("spba",          "ipg",               base + 0x7c, 12);
 	clk[ssi1_ipg]     = imx_clk_gate2("ssi1_ipg",      "ipg",               base + 0x7c, 18);

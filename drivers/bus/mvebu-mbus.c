@@ -838,7 +838,7 @@ fs_initcall(mvebu_mbus_debugfs_init);
 int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 			   size_t mbuswins_size,
 			   phys_addr_t sdramwins_phys_base,
-			   size_t sdramwins_size)
+			   size_t sdramwins_size, int is_coherent)
 {
 	struct mvebu_mbus_state *mbus = &mbus_state;
 	const struct of_device_id *of_id;
@@ -865,8 +865,7 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 		return -ENOMEM;
 	}
 
-	if (of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric"))
-		mbus->hw_io_coherency = 1;
+	mbus->hw_io_coherency = is_coherent;
 
 	for (win = 0; win < mbus->soc->num_wins; win++)
 		mvebu_mbus_disable_window(mbus, win);
