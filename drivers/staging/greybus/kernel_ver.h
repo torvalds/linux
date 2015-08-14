@@ -248,4 +248,45 @@ static inline size_t sg_pcopy_from_buffer(struct scatterlist *sgl,
 	list_entry((ptr)->prev, type, member)
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+/*
+ * Before this version the led classdev did not support groups
+ */
+#define LED_HAVE_GROUPS
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+/*
+ * At this time the internal API for the set brightness was changed to the async
+ * version, and one sync API was added to handle cases that need immediate
+ * effect. Also, the led class flash and lock for sysfs access was introduced.
+ */
+#define LED_HAVE_SET_SYNC
+#define LED_HAVE_FLASH
+#define LED_HAVE_LOCK
+#include <linux/led-class-flash.h>
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+/*
+ * From this version upper it was introduced the possibility to disable led
+ * sysfs entries to handle control of the led device to v4l2, which was
+ * implemented later. So, before that this should return false.
+ */
+#include <linux/leds.h>
+static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
+{
+	return false;
+}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+/*
+ * New helper functions for registering/unregistering flash led devices as v4l2
+ * subdevices were added.
+ */
+#define V4L2_HAVE_FLASH
+#include <media/v4l2-flash-led-class.h>
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */
