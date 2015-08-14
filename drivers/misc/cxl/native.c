@@ -183,10 +183,8 @@ static int spa_max_procs(int spa_size)
 	return ((spa_size / 8) - 96) / 17;
 }
 
-static int alloc_spa(struct cxl_afu *afu)
+int cxl_alloc_spa(struct cxl_afu *afu)
 {
-	u64 spap;
-
 	/* Work out how many pages to allocate */
 	afu->spa_order = 0;
 	do {
@@ -205,6 +203,13 @@ static int alloc_spa(struct cxl_afu *afu)
 	pr_devel("spa pages: %i afu->spa_max_procs: %i   afu->num_procs: %i\n",
 		 1<<afu->spa_order, afu->spa_max_procs, afu->num_procs);
 
+	return 0;
+}
+
+static void attach_spa(struct cxl_afu *afu)
+{
+	u64 spap;
+
 	afu->sw_command_status = (__be64 *)((char *)afu->spa +
 					    ((afu->spa_max_procs + 3) * 128));
 
@@ -213,14 +218,19 @@ static int alloc_spa(struct cxl_afu *afu)
 	spap |= CXL_PSL_SPAP_V;
 	pr_devel("cxl: SPA allocated at 0x%p. Max processes: %i, sw_command_status: 0x%p CXL_PSL_SPAP_An=0x%016llx\n", afu->spa, afu->spa_max_procs, afu->sw_command_status, spap);
 	cxl_p1n_write(afu, CXL_PSL_SPAP_An, spap);
-
-	return 0;
 }
 
-static void release_spa(struct cxl_afu *afu)
+static inline void detach_spa(struct cxl_afu *afu)
 {
 	cxl_p1n_write(afu, CXL_PSL_SPAP_An, 0);
-	free_pages((unsigned long) afu->spa, afu->spa_order);
+}
+
+void cxl_release_spa(struct cxl_afu *afu)
+{
+	if (afu->spa) {
+		free_pages((unsigned long) afu->spa, afu->spa_order);
+		afu->spa = NULL;
+	}
 }
 
 int cxl_tlb_slb_invalidate(struct cxl *adapter)
@@ -447,8 +457,11 @@ static int activate_afu_directed(struct cxl_afu *afu)
 
 	dev_info(&afu->dev, "Activating AFU directed mode\n");
 
-	if (alloc_spa(afu))
-		return -ENOMEM;
+	if (afu->spa == NULL) {
+		if (cxl_alloc_spa(afu))
+			return -ENOMEM;
+	}
+	attach_spa(afu);
 
 	cxl_p1n_write(afu, CXL_PSL_SCNTL_An, CXL_PSL_SCNTL_An_PM_AFU);
 	cxl_p1n_write(afu, CXL_PSL_AMOR_An, 0xFFFFFFFFFFFFFFFFULL);
@@ -558,8 +571,6 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	__cxl_afu_reset(afu);
 	cxl_afu_disable(afu);
 	cxl_psl_purge(afu);
-
-	release_spa(afu);
 
 	return 0;
 }

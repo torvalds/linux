@@ -632,6 +632,9 @@ void unregister_cxl_calls(struct cxl_calls *calls);
 int cxl_alloc_adapter_nr(struct cxl *adapter);
 void cxl_remove_adapter_nr(struct cxl *adapter);
 
+int cxl_alloc_spa(struct cxl_afu *afu);
+void cxl_release_spa(struct cxl_afu *afu);
+
 int cxl_file_init(void);
 void cxl_file_exit(void);
 int cxl_register_adapter(struct cxl *adapter);
