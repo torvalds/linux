@@ -551,6 +551,10 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 	if (r)
 		return r;
 
+	r = amdgpu_sync_fence(adev, &p->ibs[0].sync, vm->page_directory_fence);
+	if (r)
+		return r;
+
 	r = amdgpu_vm_clear_freed(adev, vm);
 	if (r)
 		return r;

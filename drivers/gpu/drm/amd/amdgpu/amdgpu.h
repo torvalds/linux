@@ -982,6 +982,7 @@ struct amdgpu_vm {
 	/* contains the page directory */
 	struct amdgpu_bo	*page_directory;
 	unsigned		max_pde_used;
+	struct fence		*page_directory_fence;
 
 	/* array of page tables, one for each page directory entry */
 	struct amdgpu_vm_pt	*page_tables;
