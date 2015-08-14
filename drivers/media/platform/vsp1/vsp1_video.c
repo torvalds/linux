@@ -323,10 +323,10 @@ static int vsp1_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 			break;
 
 		/* Ensure the branch has no loop. */
-		if (entities & (1 << entity->subdev.entity.id))
+		if (entities & (1 << media_entity_id(&entity->subdev.entity)))
 			return -EPIPE;
 
-		entities |= 1 << entity->subdev.entity.id;
+		entities |= 1 << media_entity_id(&entity->subdev.entity);
 
 		/* UDS can't be chained. */
 		if (entity->type == VSP1_ENTITY_UDS) {
