@@ -2977,6 +2977,9 @@ struct wmi_10_4_mgmt_rx_event {
 #define PHY_ERROR_GEN_FALSE_RADAR_EXT		0x24
 #define PHY_ERROR_GEN_RADAR			0x05
 
+#define PHY_ERROR_10_4_RADAR_MASK               0x4
+#define PHY_ERROR_10_4_SPECTRAL_SCAN_MASK       0x4000000
+
 enum phy_err_type {
 	PHY_ERROR_UNKNOWN,
 	PHY_ERROR_SPECTRAL_SCAN,
@@ -3003,6 +3006,23 @@ struct wmi_phyerr_event {
 	__le32 tsf_l32;
 	__le32 tsf_u32;
 	struct wmi_phyerr phyerrs[0];
+} __packed;
+
+struct wmi_10_4_phyerr_event {
+	__le32 tsf_l32;
+	__le32 tsf_u32;
+	__le16 freq1;
+	__le16 freq2;
+	u8 rssi_combined;
+	u8 chan_width_mhz;
+	u8 phy_err_code;
+	u8 rsvd0;
+	__le32 rssi_chains[4];
+	__le16 nf_chains[4];
+	__le32 phy_err_mask[2];
+	__le32 tsf_timestamp;
+	__le32 buf_len;
+	u8 buf[0];
 } __packed;
 
 #define PHYERR_TLV_SIG				0xBB
