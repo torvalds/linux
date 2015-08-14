@@ -178,7 +178,7 @@ static void most_free_mbo_coherent(struct mbo *mbo)
  * flush_channel_fifos - clear the channel fifos
  * @c: pointer to channel object
  */
-void flush_channel_fifos(struct most_c_obj *c)
+static void flush_channel_fifos(struct most_c_obj *c)
 {
 	unsigned long flags, hf_flags;
 	struct mbo *mbo, *tmp;
@@ -888,7 +888,7 @@ static ssize_t show_add_link(struct most_aim_obj *aim_obj,
  * Input: "mdev0:ch0@ep_81"
  * Output: *a -> "mdev0", *b -> "ch0@ep_81", *c == NULL
  */
-int split_string(char *buf, char **a, char **b, char **c)
+static int split_string(char *buf, char **a, char **b, char **c)
 {
 	*a = strsep(&buf, ":");
 	if (!*a)
@@ -1006,7 +1006,7 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 	return len;
 }
 
-struct most_aim_attribute most_aim_attr_add_link =
+static struct most_aim_attribute most_aim_attr_add_link =
 	__ATTR(add_link, S_IRUGO | S_IWUSR, show_add_link, store_add_link);
 
 static ssize_t show_remove_link(struct most_aim_obj *aim_obj,
@@ -1057,7 +1057,7 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 	return len;
 }
 
-struct most_aim_attribute most_aim_attr_remove_link =
+static struct most_aim_attribute most_aim_attr_remove_link =
 	__ATTR(remove_link, S_IRUGO | S_IWUSR, show_remove_link, store_remove_link);
 
 static struct attribute *most_aim_def_attrs[] = {
@@ -1121,14 +1121,14 @@ static void destroy_most_aim_obj(struct most_aim_obj *p)
 /**
  * Instantiation of the MOST bus
  */
-struct bus_type most_bus = {
+static struct bus_type most_bus = {
 	.name = "most",
 };
 
 /**
  * Instantiation of the core driver
  */
-struct device_driver mostcore = {
+static struct device_driver mostcore = {
 	.name = "mostcore",
 	.bus = &most_bus,
 };
@@ -1255,7 +1255,8 @@ static void arm_mbo(struct mbo *mbo)
  *
  * Returns the number of allocated and enqueued MBOs.
  */
-int arm_mbo_chain(struct most_c_obj *c, int dir, void (*compl)(struct mbo *))
+static int arm_mbo_chain(struct most_c_obj *c, int dir,
+			 void (*compl)(struct mbo *))
 {
 	unsigned int i;
 	int retval;
