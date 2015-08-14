@@ -1710,6 +1710,34 @@ static void gen8_set_seqno(struct intel_engine_cs *ring, u32 seqno)
 	intel_write_status_page(ring, I915_GEM_HWS_INDEX, seqno);
 }
 
+static u32 bxt_a_get_seqno(struct intel_engine_cs *ring, bool lazy_coherency)
+{
+
+	/*
+	 * On BXT A steppings there is a HW coherency issue whereby the
+	 * MI_STORE_DATA_IMM storing the completed request's seqno
+	 * occasionally doesn't invalidate the CPU cache. Work around this by
+	 * clflushing the corresponding cacheline whenever the caller wants
+	 * the coherency to be guaranteed. Note that this cacheline is known
+	 * to be clean at this point, since we only write it in
+	 * bxt_a_set_seqno(), where we also do a clflush after the write. So
+	 * this clflush in practice becomes an invalidate operation.
+	 */
+
+	if (!lazy_coherency)
+		intel_flush_status_page(ring, I915_GEM_HWS_INDEX);
+
+	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
+}
+
+static void bxt_a_set_seqno(struct intel_engine_cs *ring, u32 seqno)
+{
+	intel_write_status_page(ring, I915_GEM_HWS_INDEX, seqno);
+
+	/* See bxt_a_get_seqno() explaining the reason for the clflush. */
+	intel_flush_status_page(ring, I915_GEM_HWS_INDEX);
+}
+
 static int gen8_emit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
@@ -1879,8 +1907,13 @@ static int logical_render_ring_init(struct drm_device *dev)
 		ring->init_hw = gen8_init_render_ring;
 	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
-	ring->get_seqno = gen8_get_seqno;
-	ring->set_seqno = gen8_set_seqno;
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+		ring->get_seqno = bxt_a_get_seqno;
+		ring->set_seqno = bxt_a_set_seqno;
+	} else {
+		ring->get_seqno = gen8_get_seqno;
+		ring->set_seqno = gen8_set_seqno;
+	}
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush_render;
 	ring->irq_get = gen8_logical_ring_get_irq;
@@ -1926,8 +1959,13 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	ring->get_seqno = gen8_get_seqno;
-	ring->set_seqno = gen8_set_seqno;
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+		ring->get_seqno = bxt_a_get_seqno;
+		ring->set_seqno = bxt_a_set_seqno;
+	} else {
+		ring->get_seqno = gen8_get_seqno;
+		ring->set_seqno = gen8_set_seqno;
+	}
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush;
 	ring->irq_get = gen8_logical_ring_get_irq;
@@ -1976,8 +2014,13 @@ static int logical_blt_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	ring->get_seqno = gen8_get_seqno;
-	ring->set_seqno = gen8_set_seqno;
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+		ring->get_seqno = bxt_a_get_seqno;
+		ring->set_seqno = bxt_a_set_seqno;
+	} else {
+		ring->get_seqno = gen8_get_seqno;
+		ring->set_seqno = gen8_set_seqno;
+	}
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush;
 	ring->irq_get = gen8_logical_ring_get_irq;
@@ -2001,8 +2044,13 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 
 	ring->init_hw = gen8_init_common_ring;
-	ring->get_seqno = gen8_get_seqno;
-	ring->set_seqno = gen8_set_seqno;
+	if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0) {
+		ring->get_seqno = bxt_a_get_seqno;
+		ring->set_seqno = bxt_a_set_seqno;
+	} else {
+		ring->get_seqno = gen8_get_seqno;
+		ring->set_seqno = gen8_set_seqno;
+	}
 	ring->emit_request = gen8_emit_request;
 	ring->emit_flush = gen8_emit_flush;
 	ring->irq_get = gen8_logical_ring_get_irq;
