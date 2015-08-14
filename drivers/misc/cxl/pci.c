@@ -880,11 +880,6 @@ int cxl_reset(struct cxl *adapter)
 
 	dev_info(&dev->dev, "CXL reset\n");
 
-	for (i = 0; i < adapter->slices; i++) {
-		cxl_pci_vphb_remove(adapter->afu[i]);
-		cxl_remove_afu(adapter->afu[i]);
-	}
-
 	/* pcie_warm_reset requests a fundamental pci reset which includes a
 	 * PERST assert/deassert.  PERST triggers a loading of the image
 	 * if "user" or "factory" is selected in sysfs */
