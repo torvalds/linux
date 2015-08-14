@@ -687,9 +687,6 @@ static int join(struct mddev *mddev, int nodes)
 	int ret, ops_rv;
 	char str[64];
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENOENT;
-
 	cinfo = kzalloc(sizeof(struct md_cluster_info), GFP_KERNEL);
 	if (!cinfo)
 		return -ENOMEM;
@@ -771,7 +768,6 @@ err:
 		dlm_release_lockspace(cinfo->lockspace, 2);
 	mddev->cluster_info = NULL;
 	kfree(cinfo);
-	module_put(THIS_MODULE);
 	return ret;
 }
 
