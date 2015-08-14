@@ -49,13 +49,26 @@ INSTALL_MOD_PATH	?= /..
 PWD			:= $(shell pwd)
 
 # kernel config option that shall be enable
-CONFIG_OPTIONS_ENABLE := SYSFS SPI USB SND_SOC MMC
+CONFIG_OPTIONS_ENABLE := SYSFS SPI USB SND_SOC MMC LEDS_CLASS
 
 # kernel config option that shall be disable
 CONFIG_OPTIONS_DISABLE :=
 
 # this only run in kbuild part of the makefile
 ifneq ($(KERNELRELEASE),)
+# This function returns the argument version if current kernel version is minor
+# than the passed version, return 1 if equal or the current kernel version if it
+# is greater than argument version.
+kvers_cmp=$(shell [[ "$(KERNELVERSION)" == "$(1)" ]] && echo 1 || echo -e "$(1)\n$(KERNELVERSION)" | sort -V | tail -1)
+
+ifneq ($(call kvers_cmp,"3.19.0"),3.19.0)
+    CONFIG_OPTIONS_ENABLE += LEDS_CLASS_FLASH
+endif
+
+ifneq ($(call kvers_cmp,"4.2.0"),4.2.0)
+    CONFIG_OPTIONS_ENABLE += V4L2_FLASH_LED_CLASS
+endif
+
 $(foreach opt,$(CONFIG_OPTIONS_ENABLE),$(if $(CONFIG_$(opt)),, \
      $(error CONFIG_$(opt) is disabled in the kernel configuration and must be enable \
      to continue compilation)))
