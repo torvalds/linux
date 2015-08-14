@@ -43,7 +43,12 @@ void media_gobj_init(struct media_device *mdev,
 			   enum media_gobj_type type,
 			   struct media_gobj *gobj)
 {
-	/* For now, nothing to do */
+	/* Create a per-type unique object ID */
+	switch (type) {
+	case MEDIA_GRAPH_ENTITY:
+		gobj->id = media_gobj_gen_id(type, ++mdev->entity_id);
+		break;
+	}
 }
 
 /**

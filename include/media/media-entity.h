@@ -33,10 +33,10 @@
 /**
  * enum media_gobj_type - type of a graph object
  *
+ * @MEDIA_GRAPH_ENTITY:		Identify a media entity
  */
 enum media_gobj_type {
-	 /* FIXME: add the types here, as we embed media_gobj */
-	MEDIA_GRAPH_NONE
+	MEDIA_GRAPH_ENTITY,
 };
 
 #define MEDIA_BITS_PER_TYPE		8
@@ -94,10 +94,9 @@ struct media_entity_operations {
 };
 
 struct media_entity {
+	struct media_gobj graph_obj;
 	struct list_head list;
 	struct media_device *parent;	/* Media device this entity belongs to*/
-	u32 id;				/* Entity ID, unique in the parent media
-					 * device context */
 	const char *name;		/* Entity name */
 	u32 type;			/* Entity type (MEDIA_ENT_T_*) */
 	u32 revision;			/* Entity revision, driver specific */
@@ -148,7 +147,7 @@ static inline u32 media_entity_subtype(struct media_entity *entity)
 
 static inline u32 media_entity_id(struct media_entity *entity)
 {
-	return entity->id;
+	return entity->graph_obj.id;
 }
 
 static inline enum media_gobj_type media_type(struct media_gobj *gobj)

@@ -41,7 +41,7 @@ struct device;
  * @bus_info:	Unique and stable device location identifier
  * @hw_revision: Hardware device revision
  * @driver_version: Device driver version
- * @entity_id:	ID of the next entity to be registered
+ * @entity_id:	Unique ID used on the last entity registered
  * @entities:	List of registered entities
  * @lock:	Entities list lock
  * @graph_mutex: Entities graph operation lock
@@ -69,6 +69,7 @@ struct media_device {
 	u32 driver_version;
 
 	u32 entity_id;
+
 	struct list_head entities;
 
 	/* Protects the entities list */

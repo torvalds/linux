@@ -379,7 +379,6 @@ int __must_check __media_device_register(struct media_device *mdev,
 	if (WARN_ON(mdev->dev == NULL || mdev->model[0] == 0))
 		return -EINVAL;
 
-	mdev->entity_id = 1;
 	INIT_LIST_HEAD(&mdev->entities);
 	spin_lock_init(&mdev->lock);
 	mutex_init(&mdev->graph_mutex);
@@ -433,10 +432,8 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	entity->parent = mdev;
 
 	spin_lock(&mdev->lock);
-	if (entity->id == 0)
-		entity->id = mdev->entity_id++;
-	else
-		mdev->entity_id = max(entity->id + 1, mdev->entity_id);
+	/* Initialize media_gobj embedded at the entity */
+	media_gobj_init(mdev, MEDIA_GRAPH_ENTITY, &entity->graph_obj);
 	list_add_tail(&entity->list, &mdev->entities);
 	spin_unlock(&mdev->lock);
 
@@ -459,6 +456,7 @@ void media_device_unregister_entity(struct media_entity *entity)
 		return;
 
 	spin_lock(&mdev->lock);
+	media_gobj_remove(&entity->graph_obj);
 	list_del(&entity->list);
 	spin_unlock(&mdev->lock);
 	entity->parent = NULL;
