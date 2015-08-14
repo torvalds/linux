@@ -266,6 +266,14 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	return 0;
 }
 
+void cxl_pci_vphb_reconfigure(struct cxl_afu *afu)
+{
+	/* When we are reconfigured, the AFU's MMIO space is unmapped
+	 * and remapped. We need to reflect this in the PHB's view of
+	 * the world.
+	 */
+	afu->phb->cfg_addr = afu->afu_desc_mmio + afu->crs_offset;
+}
 
 void cxl_pci_vphb_remove(struct cxl_afu *afu)
 {
