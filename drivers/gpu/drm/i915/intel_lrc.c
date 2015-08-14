@@ -848,6 +848,8 @@ static int intel_lr_context_pin(struct intel_engine_cs *ring,
 		ret = intel_pin_and_map_ringbuffer_obj(ring->dev, ringbuf);
 		if (ret)
 			goto unpin_ctx_obj;
+
+		ctx_obj->dirty = true;
 	}
 
 	return ret;
