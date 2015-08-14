@@ -872,6 +872,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	}
 
 	spin_lock(&vm->status_lock);
+	list_splice_init(&bo_va->invalids, &bo_va->valids);
 	list_del_init(&bo_va->vm_status);
 	if (!mem)
 		list_add(&bo_va->vm_status, &vm->cleared);
