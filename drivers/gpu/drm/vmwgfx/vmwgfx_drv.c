@@ -1054,7 +1054,7 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 		return -EINVAL;
 
 	vmaster = vmw_master_check(dev, file_priv, flags);
-	if (unlikely(IS_ERR(vmaster))) {
+	if (IS_ERR(vmaster)) {
 		ret = PTR_ERR(vmaster);
 
 		if (ret != -ERESTARTSYS)

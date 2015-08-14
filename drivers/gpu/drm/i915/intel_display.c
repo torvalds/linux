@@ -10221,7 +10221,7 @@ static struct drm_framebuffer *
 mode_fits_in_fbdev(struct drm_device *dev,
 		   struct drm_display_mode *mode)
 {
-#ifdef CONFIG_DRM_I915_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct drm_framebuffer *fb;
@@ -13681,7 +13681,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	struct intel_plane *primary;
 	struct intel_plane_state *state;
 	const uint32_t *intel_primary_formats;
-	int num_formats;
+	unsigned int num_formats;
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (primary == NULL)
@@ -14475,7 +14475,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	return intel_framebuffer_create(dev, mode_cmd, obj);
 }
 
-#ifndef CONFIG_DRM_I915_FBDEV
+#ifndef CONFIG_DRM_FBDEV_EMULATION
 static inline void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 }

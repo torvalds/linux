@@ -3802,7 +3802,7 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 	struct drm_display_mode *mode;
 	struct drm_device *dev = connector->dev;
 
-	count = sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
+	count = ARRAY_SIZE(drm_dmt_modes);
 	if (hdisplay < 0)
 		hdisplay = 0;
 	if (vdisplay < 0)

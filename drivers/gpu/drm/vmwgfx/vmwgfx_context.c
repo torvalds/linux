@@ -159,7 +159,7 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 
 	if (dev_priv->has_mob) {
 		uctx->man = vmw_cmdbuf_res_man_create(dev_priv);
-		if (unlikely(IS_ERR(uctx->man))) {
+		if (IS_ERR(uctx->man)) {
 			ret = PTR_ERR(uctx->man);
 			uctx->man = NULL;
 			goto out_err;

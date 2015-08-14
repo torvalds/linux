@@ -395,7 +395,7 @@ static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 
 static void intel_connector_add_to_fbdev(struct intel_connector *connector)
 {
-#ifdef CONFIG_DRM_I915_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper, &connector->base);
 #endif
@@ -403,7 +403,7 @@ static void intel_connector_add_to_fbdev(struct intel_connector *connector)
 
 static void intel_connector_remove_from_fbdev(struct intel_connector *connector)
 {
-#ifdef CONFIG_DRM_I915_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper, &connector->base);
 #endif

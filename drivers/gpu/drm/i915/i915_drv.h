@@ -1854,7 +1854,7 @@ struct drm_i915_private {
 
 	struct drm_i915_gem_object *vlv_pctx;
 
-#ifdef CONFIG_DRM_I915_FBDEV
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
 	struct work_struct fbdev_suspend_work;
