@@ -145,7 +145,7 @@ static void qat_rsa_cb(struct icp_qat_fw_pke_resp *resp)
 	}
 
 	if (areq->dst_len != req->ctx->key_sz)
-		memcpy(areq->dst, ptr, areq->dst_len);
+		memmove(areq->dst, ptr, areq->dst_len);
 
 	akcipher_request_complete(areq, err);
 }
