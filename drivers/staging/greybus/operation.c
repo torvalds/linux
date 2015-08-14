@@ -235,8 +235,8 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 	ret = gb_operation_response_send(operation, status);
 	if (ret) {
 		dev_err(&operation->connection->dev,
-			"failed to send response %d: %d\n",
-			status, ret);
+			"failed to send response %d for type 0x%02hhx: %d\n",
+			status, operation->type, ret);
 			return;
 	}
 }
@@ -794,7 +794,8 @@ void greybus_message_sent(struct greybus_host_device *hd,
 	if (message == operation->response) {
 		if (status) {
 			dev_err(&connection->dev,
-				"error sending response: %d\n", status);
+				"error sending response type 0x%02hhx: %d\n",
+				operation->type, status);
 		}
 		gb_operation_put_active(operation);
 		gb_operation_put(operation);
@@ -867,8 +868,8 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	message = operation->response;
 	message_size = sizeof(*message->header) + message->payload_size;
 	if (!errno && size != message_size) {
-		dev_err(&connection->dev, "bad message size (%zu != %zu)\n",
-			size, message_size);
+		dev_err(&connection->dev, "bad message (0x%02hhx) size (%zu != %zu)\n",
+			size, message_size, message->header->type);
 		errno = -EMSGSIZE;
 	}
 
@@ -913,8 +914,9 @@ void gb_connection_recv(struct gb_connection *connection,
 	msg_size = le16_to_cpu(header.size);
 	if (size < msg_size) {
 		dev_err(&connection->dev,
-			"incomplete message received: 0x%04x (%zu < %zu)\n",
-			le16_to_cpu(header.operation_id), size, msg_size);
+			"incomplete message received for type 0x%02hhx: 0x%04x (%zu < %zu)\n",
+			header.type, le16_to_cpu(header.operation_id), size,
+			msg_size);
 		return;		/* XXX Should still complete operation */
 	}
 
@@ -1019,8 +1021,8 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 
 	ret = gb_operation_request_send_sync_timeout(operation, timeout);
 	if (ret) {
-		dev_err(&connection->dev, "synchronous operation failed: %d\n",
-			ret);
+		dev_err(&connection->dev, "synchronous operation failed: 0x%02hhx (%d)\n",
+			type, ret);
 	} else {
 		if (response_size) {
 			memcpy(response, operation->response->payload,
