@@ -5174,7 +5174,7 @@ static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 	struct device *dev = &adapter->pdev->dev;
 	int status;
 
-	if (lancer_chip(adapter) || BEx_chip(adapter))
+	if (lancer_chip(adapter) || BEx_chip(adapter) || be_is_mc(adapter))
 		return;
 
 	if (adapter->flags & BE_FLAGS_VXLAN_OFFLOADS) {
@@ -5221,7 +5221,7 @@ static void be_del_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (lancer_chip(adapter) || BEx_chip(adapter))
+	if (lancer_chip(adapter) || BEx_chip(adapter) || be_is_mc(adapter))
 		return;
 
 	if (adapter->vxlan_port != port)
