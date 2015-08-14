@@ -266,7 +266,7 @@ static void usbduxsub_ai_handle_urb(struct comedi_device *dev,
 
 			/* bipolar data is two's-complement */
 			if (comedi_range_is_bipolar(s, range))
-				val ^= ((s->maxdata + 1) >> 1);
+				val = comedi_offset_munge(s, val);
 
 			/* transfer data */
 			if (!comedi_buf_write_samples(s, &val, 1))
@@ -776,7 +776,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 
 		/* bipolar data is two's-complement */
 		if (comedi_range_is_bipolar(s, range))
-			val ^= ((s->maxdata + 1) >> 1);
+			val = comedi_offset_munge(s, val);
 
 		data[i] = val;
 	}
