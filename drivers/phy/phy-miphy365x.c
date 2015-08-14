@@ -510,7 +510,7 @@ static struct phy *miphy365x_xlate(struct device *dev,
 	return miphy_phy->phy;
 }
 
-static struct phy_ops miphy365x_ops = {
+static const struct phy_ops miphy365x_ops = {
 	.init		= miphy365x_init,
 	.owner		= THIS_MODULE,
 };

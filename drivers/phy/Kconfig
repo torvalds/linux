@@ -54,6 +54,17 @@ config PHY_EXYNOS_MIPI_VIDEO
 	  Support for MIPI CSI-2 and MIPI DSI DPHY found on Samsung S5P
 	  and EXYNOS SoCs.
 
+config PHY_LPC18XX_USB_OTG
+	tristate "NXP LPC18xx/43xx SoC USB OTG PHY driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	depends on MFD_SYSCON
+	select GENERIC_PHY
+	help
+	  Enable this to support NXP LPC18xx/43xx internal USB OTG PHY.
+
+	  This driver is need for USB0 support on LPC18xx/43xx and takes
+	  care of enabling and clock setup.
+
 config PHY_PXA_28NM_HSIC
 	tristate "Marvell USB HSIC 28nm PHY Driver"
 	depends on HAS_IOMEM
@@ -199,6 +210,8 @@ config PHY_SUN4I_USB
 	tristate "Allwinner sunxi SoC USB PHY driver"
 	depends on ARCH_SUNXI && HAS_IOMEM && OF
 	depends on RESET_CONTROLLER
+	depends on EXTCON
+	depends on POWER_SUPPLY
 	select GENERIC_PHY
 	help
 	  Enable this to support the transceiver that is part of Allwinner

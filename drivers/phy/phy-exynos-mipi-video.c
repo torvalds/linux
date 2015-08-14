@@ -124,7 +124,7 @@ static struct phy *exynos_mipi_video_phy_xlate(struct device *dev,
 	return state->phys[args->args[0]].phy;
 }
 
-static struct phy_ops exynos_mipi_video_phy_ops = {
+static const struct phy_ops exynos_mipi_video_phy_ops = {
 	.power_on	= exynos_mipi_video_phy_power_on,
 	.power_off	= exynos_mipi_video_phy_power_off,
 	.owner		= THIS_MODULE,
