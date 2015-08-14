@@ -864,7 +864,6 @@ const struct regmap_config adav80x_regmap_config = {
 	.val_bits = 8,
 	.pad_bits = 1,
 	.reg_bits = 7,
-	.read_flag_mask = 0x01,
 
 	.max_register = ADAV80X_PLL_OUTE,
 
