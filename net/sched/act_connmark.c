@@ -72,6 +72,7 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 		goto out;
 
 	zone.id = ca->zone;
+	zone.dir = NF_CT_DEFAULT_ZONE_DIR;
 
 	thash = nf_conntrack_find_get(dev_net(skb->dev), &zone, &tuple);
 	if (!thash)

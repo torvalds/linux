@@ -181,6 +181,19 @@ out:
 #endif
 }
 
+static u16 xt_ct_flags_to_dir(const struct xt_ct_target_info_v1 *info)
+{
+	switch (info->flags & (XT_CT_ZONE_DIR_ORIG |
+			       XT_CT_ZONE_DIR_REPL)) {
+	case XT_CT_ZONE_DIR_ORIG:
+		return NF_CT_ZONE_DIR_ORIG;
+	case XT_CT_ZONE_DIR_REPL:
+		return NF_CT_ZONE_DIR_REPL;
+	default:
+		return NF_CT_DEFAULT_ZONE_DIR;
+	}
+}
+
 static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 			  struct xt_ct_target_info_v1 *info)
 {
@@ -194,7 +207,8 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	}
 
 #ifndef CONFIG_NF_CONNTRACK_ZONES
-	if (info->zone)
+	if (info->zone || info->flags & (XT_CT_ZONE_DIR_ORIG |
+					 XT_CT_ZONE_DIR_REPL))
 		goto err1;
 #endif
 
@@ -204,6 +218,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 
 	memset(&zone, 0, sizeof(zone));
 	zone.id = info->zone;
+	zone.dir = xt_ct_flags_to_dir(info);
 
 	ct = nf_ct_tmpl_alloc(par->net, &zone, GFP_KERNEL);
 	ret = PTR_ERR(ct);
