@@ -55,7 +55,3 @@ Boards:
     compatible = "renesas,lager", "renesas,r8a7790"
   - Marzen
     compatible = "renesas,marzen", "renesas,r8a7779"
-
-Note: Reference Device Tree Implementations are temporary implementations
-      to ease the migration from platform devices to Device Tree, and are
-      intended to be removed in the future.
