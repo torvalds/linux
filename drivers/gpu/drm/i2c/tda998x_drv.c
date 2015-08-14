@@ -1330,21 +1330,17 @@ fail:
 	return -ENXIO;
 }
 
-struct tda998x_priv2 {
-	struct tda998x_priv base;
-};
+#define conn_to_tda998x_priv(x) \
+	container_of(x, struct tda998x_priv, connector);
 
-#define conn_to_tda998x_priv2(x) \
-	container_of(x, struct tda998x_priv2, base.connector);
-
-#define enc_to_tda998x_priv2(x) \
-	container_of(x, struct tda998x_priv2, base.encoder);
+#define enc_to_tda998x_priv(x) \
+	container_of(x, struct tda998x_priv, encoder);
 
 static void tda998x_encoder2_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct tda998x_priv2 *priv = enc_to_tda998x_priv2(encoder);
+	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
 
-	tda998x_encoder_dpms(&priv->base, mode);
+	tda998x_encoder_dpms(priv, mode);
 }
 
 static void tda998x_encoder_prepare(struct drm_encoder *encoder)
@@ -1361,9 +1357,9 @@ static void tda998x_encoder2_mode_set(struct drm_encoder *encoder,
 				      struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
 {
-	struct tda998x_priv2 *priv = enc_to_tda998x_priv2(encoder);
+	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
 
-	tda998x_encoder_mode_set(&priv->base, mode, adjusted_mode);
+	tda998x_encoder_mode_set(priv, mode, adjusted_mode);
 }
 
 static const struct drm_encoder_helper_funcs tda998x_encoder_helper_funcs = {
@@ -1378,9 +1374,9 @@ static const struct drm_encoder_helper_funcs tda998x_encoder_helper_funcs = {
 
 static void tda998x_encoder_destroy(struct drm_encoder *encoder)
 {
-	struct tda998x_priv2 *priv = enc_to_tda998x_priv2(encoder);
+	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
 
-	tda998x_destroy(&priv->base);
+	tda998x_destroy(priv);
 	drm_encoder_cleanup(encoder);
 }
 
@@ -1390,25 +1386,25 @@ static const struct drm_encoder_funcs tda998x_encoder_funcs = {
 
 static int tda998x_connector_get_modes(struct drm_connector *connector)
 {
-	struct tda998x_priv2 *priv = conn_to_tda998x_priv2(connector);
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
 
-	return tda998x_encoder_get_modes(&priv->base, connector);
+	return tda998x_encoder_get_modes(priv, connector);
 }
 
 static int tda998x_connector_mode_valid(struct drm_connector *connector,
 					struct drm_display_mode *mode)
 {
-	struct tda998x_priv2 *priv = conn_to_tda998x_priv2(connector);
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
 
-	return tda998x_encoder_mode_valid(&priv->base, mode);
+	return tda998x_encoder_mode_valid(priv, mode);
 }
 
 static struct drm_encoder *
 tda998x_connector_best_encoder(struct drm_connector *connector)
 {
-	struct tda998x_priv2 *priv = conn_to_tda998x_priv2(connector);
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
 
-	return &priv->base.encoder;
+	return &priv->encoder;
 }
 
 static
@@ -1421,9 +1417,9 @@ const struct drm_connector_helper_funcs tda998x_connector_helper_funcs = {
 static enum drm_connector_status
 tda998x_connector_detect(struct drm_connector *connector, bool force)
 {
-	struct tda998x_priv2 *priv = conn_to_tda998x_priv2(connector);
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
 
-	return tda998x_encoder_detect(&priv->base);
+	return tda998x_encoder_detect(priv);
 }
 
 static void tda998x_connector_destroy(struct drm_connector *connector)
@@ -1444,7 +1440,7 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	struct tda998x_encoder_params *params = dev->platform_data;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct drm_device *drm = data;
-	struct tda998x_priv2 *priv;
+	struct tda998x_priv *priv;
 	u32 crtcs = 0;
 	int ret;
 
@@ -1463,58 +1459,58 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 		crtcs = 1 << 0;
 	}
 
-	priv->base.connector.interlace_allowed = 1;
-	priv->base.encoder.possible_crtcs = crtcs;
+	priv->connector.interlace_allowed = 1;
+	priv->encoder.possible_crtcs = crtcs;
 
-	ret = tda998x_create(client, &priv->base);
+	ret = tda998x_create(client, priv);
 	if (ret)
 		return ret;
 
 	if (!dev->of_node && params)
-		tda998x_encoder_set_config(&priv->base, params);
+		tda998x_encoder_set_config(priv, params);
 
-	tda998x_encoder_set_polling(&priv->base, &priv->base.connector);
+	tda998x_encoder_set_polling(priv, &priv->connector);
 
-	drm_encoder_helper_add(&priv->base.encoder, &tda998x_encoder_helper_funcs);
-	ret = drm_encoder_init(drm, &priv->base.encoder, &tda998x_encoder_funcs,
+	drm_encoder_helper_add(&priv->encoder, &tda998x_encoder_helper_funcs);
+	ret = drm_encoder_init(drm, &priv->encoder, &tda998x_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS);
 	if (ret)
 		goto err_encoder;
 
-	drm_connector_helper_add(&priv->base.connector,
+	drm_connector_helper_add(&priv->connector,
 				 &tda998x_connector_helper_funcs);
-	ret = drm_connector_init(drm, &priv->base.connector,
+	ret = drm_connector_init(drm, &priv->connector,
 				 &tda998x_connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);
 	if (ret)
 		goto err_connector;
 
-	ret = drm_connector_register(&priv->base.connector);
+	ret = drm_connector_register(&priv->connector);
 	if (ret)
 		goto err_sysfs;
 
-	priv->base.connector.encoder = &priv->base.encoder;
-	drm_mode_connector_attach_encoder(&priv->base.connector, &priv->base.encoder);
+	priv->connector.encoder = &priv->encoder;
+	drm_mode_connector_attach_encoder(&priv->connector, &priv->encoder);
 
 	return 0;
 
 err_sysfs:
-	drm_connector_cleanup(&priv->base.connector);
+	drm_connector_cleanup(&priv->connector);
 err_connector:
-	drm_encoder_cleanup(&priv->base.encoder);
+	drm_encoder_cleanup(&priv->encoder);
 err_encoder:
-	tda998x_destroy(&priv->base);
+	tda998x_destroy(priv);
 	return ret;
 }
 
 static void tda998x_unbind(struct device *dev, struct device *master,
 			   void *data)
 {
-	struct tda998x_priv2 *priv = dev_get_drvdata(dev);
+	struct tda998x_priv *priv = dev_get_drvdata(dev);
 
-	drm_connector_cleanup(&priv->base.connector);
-	drm_encoder_cleanup(&priv->base.encoder);
-	tda998x_destroy(&priv->base);
+	drm_connector_cleanup(&priv->connector);
+	drm_encoder_cleanup(&priv->encoder);
+	tda998x_destroy(priv);
 }
 
 static const struct component_ops tda998x_ops = {
