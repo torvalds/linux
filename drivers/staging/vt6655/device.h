@@ -252,11 +252,11 @@ struct vnt_private {
 	int                         nTxQueues;
 	volatile int                iTDUsed[TYPE_MAXTD];
 
-	volatile PSTxDesc           apCurrTD[TYPE_MAXTD];
-	volatile PSTxDesc           apTailTD[TYPE_MAXTD];
+	struct vnt_tx_desc *apCurrTD[TYPE_MAXTD];
+	struct vnt_tx_desc *apTailTD[TYPE_MAXTD];
 
-	volatile PSTxDesc           apTD0Rings;
-	volatile PSTxDesc           apTD1Rings;
+	struct vnt_tx_desc *apTD0Rings;
+	struct vnt_tx_desc *apTD1Rings;
 
 	volatile PSRxDesc           aRD0Ring;
 	volatile PSRxDesc           aRD1Ring;

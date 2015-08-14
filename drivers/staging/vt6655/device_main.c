@@ -157,7 +157,7 @@ static int  device_rx_srv(struct vnt_private *pDevice, unsigned int uIdx);
 static int  device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx);
 static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pDesc);
 static void device_init_registers(struct vnt_private *pDevice);
-static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc);
+static void device_free_tx_buf(struct vnt_private *, struct vnt_tx_desc *);
 static void device_free_td0_ring(struct vnt_private *pDevice);
 static void device_free_td1_ring(struct vnt_private *pDevice);
 static void device_free_rd0_ring(struct vnt_private *pDevice);
@@ -522,8 +522,8 @@ static bool device_init_rings(struct vnt_private *pDevice)
 	vir_pool = dma_zalloc_coherent(&pDevice->pcid->dev,
 					 pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 					 pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-					 pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-					 pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc),
+					 pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc) +
+					 pDevice->sOpts.nTxDescs[1] * sizeof(struct vnt_tx_desc),
 					 &pDevice->pool_dma, GFP_ATOMIC);
 	if (vir_pool == NULL) {
 		dev_err(&pDevice->pcid->dev, "allocate desc dma memory failed\n");
@@ -551,8 +551,8 @@ static bool device_init_rings(struct vnt_private *pDevice)
 		dma_free_coherent(&pDevice->pcid->dev,
 				    pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 				    pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-				    pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-				    pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc),
+				    pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc) +
+				    pDevice->sOpts.nTxDescs[1] * sizeof(struct vnt_tx_desc),
 				    vir_pool, pDevice->pool_dma
 			);
 		return false;
@@ -562,7 +562,7 @@ static bool device_init_rings(struct vnt_private *pDevice)
 		pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc);
 
 	pDevice->td1_pool_dma = pDevice->td0_pool_dma +
-		pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc);
+		pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc);
 
 	/* vir_pool: pvoid type */
 	pDevice->apTD0Rings = vir_pool
@@ -572,7 +572,7 @@ static bool device_init_rings(struct vnt_private *pDevice)
 	pDevice->apTD1Rings = vir_pool
 		+ pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc)
 		+ pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc)
-		+ pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc);
+		+ pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc);
 
 	pDevice->tx1_bufs = pDevice->tx0_bufs +
 		pDevice->sOpts.nTxDescs[0] * PKT_BUF_SZ;
@@ -597,8 +597,8 @@ static void device_free_rings(struct vnt_private *pDevice)
 	dma_free_coherent(&pDevice->pcid->dev,
 			    pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 			    pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-			    pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-			    pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc)
+			    pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc) +
+			    pDevice->sOpts.nTxDescs[1] * sizeof(struct vnt_tx_desc)
 			    ,
 			    pDevice->aRD0Ring, pDevice->pool_dma
 		);
@@ -697,10 +697,11 @@ static void device_init_td0_ring(struct vnt_private *pDevice)
 {
 	int i;
 	dma_addr_t  curr;
-	PSTxDesc        pDesc;
+	struct vnt_tx_desc *pDesc;
 
 	curr = pDevice->td0_pool_dma;
-	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++, curr += sizeof(STxDesc)) {
+	for (i = 0; i < pDevice->sOpts.nTxDescs[0];
+	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		pDesc = &(pDevice->apTD0Rings[i]);
 		pDesc->td_info = alloc_td_info();
 
@@ -709,7 +710,7 @@ static void device_init_td0_ring(struct vnt_private *pDevice)
 			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD0Rings[(i+1) % pDevice->sOpts.nTxDescs[0]]);
-		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
+		pDesc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
@@ -721,11 +722,12 @@ static void device_init_td1_ring(struct vnt_private *pDevice)
 {
 	int i;
 	dma_addr_t  curr;
-	PSTxDesc    pDesc;
+	struct vnt_tx_desc *pDesc;
 
 	/* Init the TD ring entries */
 	curr = pDevice->td1_pool_dma;
-	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++, curr += sizeof(STxDesc)) {
+	for (i = 0; i < pDevice->sOpts.nTxDescs[1];
+	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		pDesc = &(pDevice->apTD1Rings[i]);
 		pDesc->td_info = alloc_td_info();
 
@@ -734,7 +736,7 @@ static void device_init_td1_ring(struct vnt_private *pDevice)
 			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD1Rings[(i + 1) % pDevice->sOpts.nTxDescs[1]]);
-		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
+		pDesc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
@@ -747,7 +749,7 @@ static void device_free_td0_ring(struct vnt_private *pDevice)
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++) {
-		PSTxDesc        pDesc = &(pDevice->apTD0Rings[i]);
+		struct vnt_tx_desc *pDesc = &pDevice->apTD0Rings[i];
 		struct vnt_td_info *pTDInfo = pDesc->td_info;
 
 		dev_kfree_skb(pTDInfo->skb);
@@ -760,7 +762,7 @@ static void device_free_td1_ring(struct vnt_private *pDevice)
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++) {
-		PSTxDesc        pDesc = &(pDevice->apTD1Rings[i]);
+		struct vnt_tx_desc *pDesc = &pDevice->apTD1Rings[i];
 		struct vnt_td_info *pTDInfo = pDesc->td_info;
 
 		dev_kfree_skb(pTDInfo->skb);
@@ -900,7 +902,7 @@ static int vnt_int_report_rate(struct vnt_private *priv,
 
 static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 {
-	PSTxDesc                 pTD;
+	struct vnt_tx_desc *pTD;
 	int                      works = 0;
 	unsigned char byTsr0;
 	unsigned char byTsr1;
@@ -958,7 +960,8 @@ static void device_error(struct vnt_private *pDevice, unsigned short status)
 	}
 }
 
-static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc)
+static void device_free_tx_buf(struct vnt_private *pDevice,
+			       struct vnt_tx_desc *pDesc)
 {
 	struct vnt_td_info *pTDInfo = pDesc->td_info;
 	struct sk_buff *skb = pTDInfo->skb;
@@ -1156,7 +1159,7 @@ static irqreturn_t vnt_interrupt(int irq,  void *arg)
 static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	PSTxDesc head_td;
+	struct vnt_tx_desc *head_td;
 	u32 dma_idx;
 	unsigned long flags;
 

@@ -514,7 +514,7 @@ CARDvSafeResetTx(
 )
 {
 	unsigned int uu;
-	PSTxDesc    pCurrTD;
+	struct vnt_tx_desc *pCurrTD;
 
 	/* initialize TD index */
 	pDevice->apTailTD[0] = pDevice->apCurrTD[0] = &(pDevice->apTD0Rings[0]);

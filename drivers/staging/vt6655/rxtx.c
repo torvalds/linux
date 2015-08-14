@@ -130,7 +130,7 @@ s_vGenerateTxParameter(
 static unsigned int
 s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 		  unsigned char *pbyTxBufferAddr,
-		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
+		  unsigned int uDMAIdx, struct vnt_tx_desc *pHeadTD,
 		  unsigned int uNodeIndex);
 
 static
@@ -1027,7 +1027,7 @@ s_vGenerateTxParameter(
 static unsigned int
 s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 		  unsigned char *pbyTxBufferAddr,
-		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
+		  unsigned int uDMAIdx, struct vnt_tx_desc *pHeadTD,
 		  unsigned int is_pspoll)
 {
 	struct vnt_td_info *td_info = pHeadTD->td_info;
@@ -1047,7 +1047,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	unsigned int cbReqCount = 0;
 	bool bNeedACK = (bool)(fifo_ctl & FIFOCTL_NEEDACK);
 	bool bRTS = (bool)(fifo_ctl & FIFOCTL_RTS);
-	PSTxDesc       ptdCurr;
+	struct vnt_tx_desc *ptdCurr;
 	unsigned int cbHeaderLength = 0;
 	void *pvRrvTime;
 	struct vnt_mic_hdr *pMICHDR;
@@ -1198,7 +1198,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	/* Copy the Packet into a tx Buffer */
 	memcpy((pbyBuffer + uLength), skb->data, skb->len);
 
-	ptdCurr = (PSTxDesc)pHeadTD;
+	ptdCurr = pHeadTD;
 
 	ptdCurr->td_info->req_count = (u16)cbReqCount;
 
@@ -1273,7 +1273,7 @@ static void vnt_fill_txkey(struct ieee80211_hdr *hdr, u8 *key_buffer,
 }
 
 int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
-			     PSTxDesc head_td, struct sk_buff *skb)
+			     struct vnt_tx_desc *head_td, struct sk_buff *skb)
 {
 	struct vnt_td_info *td_info = head_td->td_info;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);

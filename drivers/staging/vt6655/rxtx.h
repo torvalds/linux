@@ -192,7 +192,7 @@ struct vnt_tx_short_buf_head {
 } __packed;
 
 int vnt_generate_fifo_header(struct vnt_private *, u32,
-			     PSTxDesc head_td, struct sk_buff *);
+			     struct vnt_tx_desc *head_td, struct sk_buff *);
 int vnt_beacon_make(struct vnt_private *, struct ieee80211_vif *);
 int vnt_beacon_enable(struct vnt_private *, struct ieee80211_vif *,
 		      struct ieee80211_bss_conf *);

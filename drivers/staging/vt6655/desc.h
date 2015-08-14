@@ -250,16 +250,14 @@ struct vnt_td_info {
 };
 
 /* transmit descriptor */
-typedef struct tagSTxDesc {
+struct vnt_tx_desc {
 	volatile struct vnt_tdes0 td0;
 	volatile struct vnt_tdes1 td1;
-	volatile    __le32  buff_addr;
-	volatile    __le32  next_desc;
-	struct tagSTxDesc *next __aligned(8);
+	volatile __le32 buff_addr;
+	volatile __le32 next_desc;
+	struct vnt_tx_desc *next __aligned(8);
 	struct vnt_td_info *td_info __aligned(8);
-} __attribute__ ((__packed__))
-STxDesc, *PSTxDesc;
-typedef const STxDesc *PCSTxDesc;
+} __packed;
 
 /* Length, Service, and Signal fields of Phy for Tx */
 struct vnt_phy_field {
