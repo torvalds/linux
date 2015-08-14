@@ -415,8 +415,8 @@ static inline PDEVICE_RD_INFO alloc_rd_info(void)
 	return kzalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC);
 }
 
-static inline PDEVICE_TD_INFO alloc_td_info(void)
+static inline struct vnt_td_info *alloc_td_info(void)
 {
-	return kzalloc(sizeof(DEVICE_TD_INFO), GFP_ATOMIC);
+	return kzalloc(sizeof(struct vnt_td_info), GFP_ATOMIC);
 }
 #endif

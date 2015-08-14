@@ -702,11 +702,11 @@ static void device_init_td0_ring(struct vnt_private *pDevice)
 	curr = pDevice->td0_pool_dma;
 	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++, curr += sizeof(STxDesc)) {
 		pDesc = &(pDevice->apTD0Rings[i]);
-		pDesc->pTDInfo = alloc_td_info();
+		pDesc->td_info = alloc_td_info();
 
 		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
-			pDesc->pTDInfo->buf = pDevice->tx0_bufs + (i)*PKT_BUF_SZ;
-			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
+			pDesc->td_info->buf = pDevice->tx0_bufs + (i)*PKT_BUF_SZ;
+			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD0Rings[(i+1) % pDevice->sOpts.nTxDescs[0]]);
 		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
@@ -727,11 +727,11 @@ static void device_init_td1_ring(struct vnt_private *pDevice)
 	curr = pDevice->td1_pool_dma;
 	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++, curr += sizeof(STxDesc)) {
 		pDesc = &(pDevice->apTD1Rings[i]);
-		pDesc->pTDInfo = alloc_td_info();
+		pDesc->td_info = alloc_td_info();
 
 		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
-			pDesc->pTDInfo->buf = pDevice->tx1_bufs + (i) * PKT_BUF_SZ;
-			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
+			pDesc->td_info->buf = pDevice->tx1_bufs + (i) * PKT_BUF_SZ;
+			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD1Rings[(i + 1) % pDevice->sOpts.nTxDescs[1]]);
 		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
@@ -748,10 +748,10 @@ static void device_free_td0_ring(struct vnt_private *pDevice)
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++) {
 		PSTxDesc        pDesc = &(pDevice->apTD0Rings[i]);
-		PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
+		struct vnt_td_info *pTDInfo = pDesc->td_info;
 
 		dev_kfree_skb(pTDInfo->skb);
-		kfree(pDesc->pTDInfo);
+		kfree(pDesc->td_info);
 	}
 }
 
@@ -761,10 +761,10 @@ static void device_free_td1_ring(struct vnt_private *pDevice)
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++) {
 		PSTxDesc        pDesc = &(pDevice->apTD1Rings[i]);
-		PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
+		struct vnt_td_info *pTDInfo = pDesc->td_info;
 
 		dev_kfree_skb(pTDInfo->skb);
-		kfree(pDesc->pTDInfo);
+		kfree(pDesc->td_info);
 	}
 }
 
@@ -839,7 +839,7 @@ static const u8 fallback_rate1[5][5] = {
 };
 
 static int vnt_int_report_rate(struct vnt_private *priv,
-			       PDEVICE_TD_INFO context, u8 tsr0, u8 tsr1)
+			       struct vnt_td_info *context, u8 tsr0, u8 tsr1)
 {
 	struct vnt_tx_fifo_head *fifo_head;
 	struct ieee80211_tx_info *info;
@@ -916,7 +916,7 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 
 		/* Only the status of first TD in the chain is correct */
 		if (pTD->td1.tcr & TCR_STP) {
-			if ((pTD->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB) != 0) {
+			if ((pTD->td_info->flags & TD_FLAGS_NETIF_SKB) != 0) {
 				if (!(byTsr1 & TSR1_TERR)) {
 					if (byTsr0 != 0) {
 						pr_debug(" Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X]\n",
@@ -930,13 +930,13 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 			}
 
 			if (byTsr1 & TSR1_TERR) {
-				if ((pTD->pTDInfo->byFlags & TD_FLAGS_PRIV_SKB) != 0) {
+				if ((pTD->td_info->flags & TD_FLAGS_PRIV_SKB) != 0) {
 					pr_debug(" Tx[%d] fail has error. tsr1[%02X] tsr0[%02X]\n",
 						 (int)uIdx, byTsr1, byTsr0);
 				}
 			}
 
-			vnt_int_report_rate(pDevice, pTD->pTDInfo, byTsr0, byTsr1);
+			vnt_int_report_rate(pDevice, pTD->td_info, byTsr0, byTsr1);
 
 			device_free_tx_buf(pDevice, pTD);
 			pDevice->iTDUsed[uIdx]--;
@@ -960,14 +960,14 @@ static void device_error(struct vnt_private *pDevice, unsigned short status)
 
 static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc)
 {
-	PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
+	struct vnt_td_info *pTDInfo = pDesc->td_info;
 	struct sk_buff *skb = pTDInfo->skb;
 
 	if (skb)
 		ieee80211_tx_status_irqsafe(pDevice->hw, skb);
 
 	pTDInfo->skb = NULL;
-	pTDInfo->byFlags = 0;
+	pTDInfo->flags = 0;
 }
 
 static void vnt_check_bb_vga(struct vnt_private *priv)
@@ -1176,10 +1176,10 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	head_td->td1.tcr = 0;
 
-	head_td->pTDInfo->skb = skb;
+	head_td->td_info->skb = skb;
 
 	if (dma_idx == TYPE_AC0DMA)
-		head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
+		head_td->td_info->flags = TD_FLAGS_NETIF_SKB;
 
 	priv->apCurrTD[dma_idx] = head_td->next;
 
@@ -1193,16 +1193,16 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	/* Set TSR1 & ReqCount in TxDescHead */
 	head_td->td1.tcr |= (TCR_STP | TCR_EDP | EDMSDU);
-	head_td->td1.req_count = cpu_to_le16(head_td->pTDInfo->dwReqCount);
+	head_td->td1.req_count = cpu_to_le16(head_td->td_info->req_count);
 
-	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->buf_dma);
+	head_td->buff_addr = cpu_to_le32(head_td->td_info->buf_dma);
 
 	/* Poll Transmit the adapter */
 	wmb();
 	head_td->td0.owner = OWNED_BY_NIC;
 	wmb(); /* second memory barrier */
 
-	if (head_td->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)
+	if (head_td->td_info->flags & TD_FLAGS_NETIF_SKB)
 		MACvTransmitAC0(priv->PortOffset);
 	else
 		MACvTransmit0(priv->PortOffset);

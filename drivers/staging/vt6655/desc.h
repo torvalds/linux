@@ -240,14 +240,14 @@ struct vnt_tdes1 {
 	volatile u8 reserved;
 } __packed;
 
-typedef struct tagDEVICE_TD_INFO {
+struct vnt_td_info {
 	void *mic_hdr;
 	struct sk_buff *skb;
 	unsigned char *buf;
-	dma_addr_t          buf_dma;
-	u16 dwReqCount;
-	unsigned char byFlags;
-} DEVICE_TD_INFO,    *PDEVICE_TD_INFO;
+	dma_addr_t buf_dma;
+	u16 req_count;
+	u8 flags;
+};
 
 /* transmit descriptor */
 typedef struct tagSTxDesc {
@@ -256,7 +256,7 @@ typedef struct tagSTxDesc {
 	volatile    __le32  buff_addr;
 	volatile    __le32  next_desc;
 	struct tagSTxDesc *next __aligned(8);
-	volatile    PDEVICE_TD_INFO pTDInfo __aligned(8);
+	struct vnt_td_info *td_info __aligned(8);
 } __attribute__ ((__packed__))
 STxDesc, *PSTxDesc;
 typedef const STxDesc *PCSTxDesc;

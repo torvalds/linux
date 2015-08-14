@@ -1030,7 +1030,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
 		  unsigned int is_pspoll)
 {
-	PDEVICE_TD_INFO td_info = pHeadTD->pTDInfo;
+	struct vnt_td_info *td_info = pHeadTD->td_info;
 	struct sk_buff *skb = td_info->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -1192,7 +1192,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	hdr->duration_id = uDuration;
 
 	cbReqCount = cbHeaderLength + uPadding + skb->len;
-	pbyBuffer = (unsigned char *)pHeadTD->pTDInfo->buf;
+	pbyBuffer = (unsigned char *)pHeadTD->td_info->buf;
 	uLength = cbHeaderLength + uPadding;
 
 	/* Copy the Packet into a tx Buffer */
@@ -1200,7 +1200,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 
 	ptdCurr = (PSTxDesc)pHeadTD;
 
-	ptdCurr->pTDInfo->dwReqCount = (u16)cbReqCount;
+	ptdCurr->td_info->req_count = (u16)cbReqCount;
 
 	return cbHeaderLength;
 }
@@ -1275,7 +1275,7 @@ static void vnt_fill_txkey(struct ieee80211_hdr *hdr, u8 *key_buffer,
 int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 			     PSTxDesc head_td, struct sk_buff *skb)
 {
-	PDEVICE_TD_INFO td_info = head_td->pTDInfo;
+	struct vnt_td_info *td_info = head_td->td_info;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *tx_rate = &info->control.rates[0];
 	struct ieee80211_rate *rate;
