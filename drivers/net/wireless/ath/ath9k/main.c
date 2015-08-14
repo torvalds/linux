@@ -195,11 +195,13 @@ static bool ath_prepare_reset(struct ath_softc *sc)
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
 
-	if (!ath_drain_all_txq(sc))
-		ret = false;
-
-	if (!ath_stoprecv(sc))
-		ret = false;
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ret &= ath_stoprecv(sc);
+		ret &= ath_drain_all_txq(sc);
+	} else {
+		ret &= ath_drain_all_txq(sc);
+		ret &= ath_stoprecv(sc);
+	}
 
 	return ret;
 }

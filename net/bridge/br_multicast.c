@@ -1026,6 +1026,9 @@ static void br_multicast_add_router(struct net_bridge *br,
 	struct net_bridge_port *p;
 	struct hlist_node *slot = NULL;
 
+	if (!hlist_unhashed(&port->rlist))
+		return;
+
 	hlist_for_each_entry(p, &br->router_list, rlist) {
 		if ((unsigned long) port >= (unsigned long) p)
 			break;
@@ -1053,12 +1056,8 @@ static void br_multicast_mark_router(struct net_bridge *br,
 	if (port->multicast_router != 1)
 		return;
 
-	if (!hlist_unhashed(&port->rlist))
-		goto timer;
-
 	br_multicast_add_router(br, port);
 
-timer:
 	mod_timer(&port->multicast_router_timer,
 		  now + br->multicast_querier_interval);
 }

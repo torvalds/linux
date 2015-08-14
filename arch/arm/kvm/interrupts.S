@@ -159,13 +159,9 @@ __kvm_vcpu_return:
 	@ Don't trap coprocessor accesses for host kernel
 	set_hstr vmexit
 	set_hdcr vmexit
-	set_hcptr vmexit, (HCPTR_TTA | HCPTR_TCP(10) | HCPTR_TCP(11))
+	set_hcptr vmexit, (HCPTR_TTA | HCPTR_TCP(10) | HCPTR_TCP(11)), after_vfp_restore
 
 #ifdef CONFIG_VFPv3
-	@ Save floating point registers we if let guest use them.
-	tst	r2, #(HCPTR_TCP(10) | HCPTR_TCP(11))
-	bne	after_vfp_restore
-
 	@ Switch VFP/NEON hardware state to the host's
 	add	r7, vcpu, #VCPU_VFP_GUEST
 	store_vfp_state r7
@@ -177,6 +173,8 @@ after_vfp_restore:
 	@ Restore FPEXC_EN which we clobbered on entry
 	pop	{r2}
 	VFPFMXR FPEXC, r2
+#else
+after_vfp_restore:
 #endif
 
 	@ Reset Hyp-role
@@ -472,7 +470,7 @@ switch_to_guest_vfp:
 	push	{r3-r7}
 
 	@ NEON/VFP used.  Turn on VFP access.
-	set_hcptr vmexit, (HCPTR_TCP(10) | HCPTR_TCP(11))
+	set_hcptr vmtrap, (HCPTR_TCP(10) | HCPTR_TCP(11))
 
 	@ Switch VFP/NEON hardware state to the guest's
 	add	r7, r0, #VCPU_VFP_HOST
