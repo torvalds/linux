@@ -493,6 +493,7 @@ struct cxl {
 	bool user_image_loaded;
 	bool perst_loads_image;
 	bool perst_select_user;
+	bool perst_same_image;
 };
 
 int cxl_alloc_one_irq(struct cxl *adapter);

@@ -327,3 +327,10 @@ int cxl_afu_reset(struct cxl_context *ctx)
 	return cxl_afu_check_and_enable(afu);
 }
 EXPORT_SYMBOL_GPL(cxl_afu_reset);
+
+void cxl_perst_reloads_same_image(struct cxl_afu *afu,
+				  bool perst_reloads_same_image)
+{
+	afu->adapter->perst_same_image = perst_reloads_same_image;
+}
+EXPORT_SYMBOL_GPL(cxl_perst_reloads_same_image);
