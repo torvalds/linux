@@ -198,7 +198,6 @@ btrfs_get_bdev_and_sb(const char *device_path, fmode_t flags, void *holder,
 
 	if (IS_ERR(*bdev)) {
 		ret = PTR_ERR(*bdev);
-		printk(KERN_INFO "BTRFS: open %s failed\n", device_path);
 		goto error;
 	}
 
