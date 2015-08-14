@@ -516,7 +516,7 @@ static int usbdux_submit_urbs(struct comedi_device *dev,
 static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
+	struct usbdux_private *devpriv = dev->private;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -552,7 +552,7 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 		unsigned int arg = 1000000;
 		unsigned int min_arg = arg;
 
-		if (this_usbduxsub->high_speed) {
+		if (devpriv->high_speed) {
 			/*
 			 * In high speed mode microframes are possible.
 			 * However, during one microframe we can roughly
@@ -877,18 +877,18 @@ ao_trig_exit:
 static int usbdux_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
+	struct usbdux_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int flags;
 
-	if (!this_usbduxsub)
+	if (!devpriv)
 		return -EFAULT;
 
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
-	if (0) {		/* (this_usbduxsub->high_speed) */
+	if (0) {		/* (devpriv->high_speed) */
 		/* the sampling rate is set by the coversion rate */
 		flags = TRIG_FOLLOW;
 	} else {
@@ -897,7 +897,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	}
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, flags);
 
-	if (0) {		/* (this_usbduxsub->high_speed) */
+	if (0) {		/* (devpriv->high_speed) */
 		/*
 		 * in usb-2.0 only one conversion it transmitted
 		 * but with 8kHz/n
