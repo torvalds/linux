@@ -130,6 +130,7 @@ int gpiod_to_irq(const struct gpio_desc *desc);
 /* Convert between the old gpio_ and new gpiod_ interfaces */
 struct gpio_desc *gpio_to_desc(unsigned gpio);
 int desc_to_gpio(const struct gpio_desc *desc);
+struct gpio_desc *gpio_name_to_desc(const char *name);
 
 /* Child properties interface */
 struct fwnode_handle;
@@ -400,6 +401,12 @@ static inline struct gpio_desc *gpio_to_desc(unsigned gpio)
 {
 	return ERR_PTR(-EINVAL);
 }
+
+static inline struct gpio_desc *gpio_name_to_desc(const char *name)
+{
+	return ERR_PTR(-EINVAL);
+}
+
 static inline int desc_to_gpio(const struct gpio_desc *desc)
 {
 	/* GPIO can never have been requested */

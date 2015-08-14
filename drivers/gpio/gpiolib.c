@@ -90,6 +90,38 @@ struct gpio_desc *gpio_to_desc(unsigned gpio)
 EXPORT_SYMBOL_GPL(gpio_to_desc);
 
 /**
+ * Convert a GPIO name to its descriptor
+ */
+struct gpio_desc *gpio_name_to_desc(const char * const name)
+{
+	struct gpio_chip *chip;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	list_for_each_entry(chip, &gpio_chips, list) {
+		int i;
+
+		for (i = 0; i != chip->ngpio; ++i) {
+			struct gpio_desc *gpio = &chip->desc[i];
+
+			if (!gpio->name)
+				continue;
+
+			if (!strcmp(gpio->name, name)) {
+				spin_unlock_irqrestore(&gpio_lock, flags);
+				return gpio;
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(gpio_name_to_desc);
+
+/**
  * Get the GPIO descriptor corresponding to the given hw number for this chip.
  */
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
