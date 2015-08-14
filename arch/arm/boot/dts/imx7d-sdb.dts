@@ -375,6 +375,17 @@
 			>;
 		};
 
+		pinctrl_sim1_1: sim1grp-1 {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA10__SIM1_PORT1_RST_B 0x77
+				MX7D_PAD_EPDC_DATA12__SIM1_PORT1_PD    0x77
+				MX7D_PAD_EPDC_DATA11__SIM1_PORT1_SVEN  0x77
+				MX7D_PAD_EPDC_DATA09__SIM1_PORT1_CLK   0x73
+				MX7D_PAD_EPDC_DATA08__SIM1_PORT1_TRXD  0x73
+			>;
+		};
+
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX7D_PAD_UART1_TX_DATA__UART1_DCE_TX 0x79
@@ -450,6 +461,15 @@
 		};
 	};
 };
+
+&sim1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sim1_1>;
+	port = <0>;
+	sven_low_active;
+	status = "okay";
+};
+
 
 &uart1 {
 	pinctrl-names = "default";
