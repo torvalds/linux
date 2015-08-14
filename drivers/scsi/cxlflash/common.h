@@ -107,6 +107,17 @@ struct cxlflash_cfg {
 	struct pci_pool *cxlflash_cmd_pool;
 	struct pci_dev *parent_dev;
 
+	atomic_t recovery_threads;
+	struct mutex ctx_recovery_mutex;
+	struct mutex ctx_tbl_list_mutex;
+	struct ctx_info *ctx_tbl[MAX_CONTEXT];
+	struct list_head ctx_err_recovery; /* contexts w/ recovery pending */
+	struct file_operations cxl_fops;
+
+	atomic_t num_user_contexts;
+
+	struct list_head lluns; /* list of llun_info structs */
+
 	wait_queue_head_t tmf_waitq;
 	bool tmf_active;
 	wait_queue_head_t limbo_waitq;
@@ -182,4 +193,12 @@ int cxlflash_afu_reset(struct cxlflash_cfg *);
 struct afu_cmd *cxlflash_cmd_checkout(struct afu *);
 void cxlflash_cmd_checkin(struct afu_cmd *);
 int cxlflash_afu_sync(struct afu *, ctx_hndl_t, res_hndl_t, u8);
+void cxlflash_list_init(void);
+void cxlflash_term_global_luns(void);
+void cxlflash_free_errpage(void);
+int cxlflash_ioctl(struct scsi_device *, int, void __user *);
+void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *);
+int cxlflash_mark_contexts_error(struct cxlflash_cfg *);
+void cxlflash_term_local_luns(struct cxlflash_cfg *);
+
 #endif /* ifndef _CXLFLASH_COMMON_H */
