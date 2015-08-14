@@ -16,9 +16,9 @@ extern int smi_indent;
 
 struct lynx_accel {
 	/* base virtual address of DPR registers */
-	volatile unsigned char __iomem * dprBase;
+	volatile unsigned char __iomem *dprBase;
 	/* base virtual address of de data port */
-	volatile unsigned char __iomem * dpPortBase;
+	volatile unsigned char __iomem *dpPortBase;
 
 	/* function fointers */
 	void (*de_init)(struct lynx_accel *);
@@ -64,8 +64,8 @@ struct lynx_share {
 	/* locks*/
 	spinlock_t slock;
 	/* function pointers */
-	void (*suspend)(struct lynx_share*);
-	void (*resume)(struct lynx_share*);
+	void (*suspend)(struct lynx_share *);
+	void (*resume)(struct lynx_share *);
 };
 
 struct lynx_cursor {
@@ -80,7 +80,7 @@ struct lynx_cursor {
 	char __iomem *vstart;
 	int offset;
 	/* mmio addr of hw cursor */
-	volatile char __iomem * mmio;
+	volatile char __iomem *mmio;
 	/* the lynx_share of this adaptor */
 	struct lynx_share *share;
 	/* proc_routines */
@@ -114,7 +114,7 @@ struct lynxfb_crtc {
 
 	int (*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
 	int (*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
-	void (*clear)(struct lynxfb_crtc*);
+	void (*clear)(struct lynxfb_crtc *);
 	/* pan display */
 	int (*proc_panDisplay)(struct lynxfb_crtc *,
 			       const struct fb_var_screeninfo *,
@@ -146,7 +146,7 @@ struct lynxfb_output {
 
 	int (*proc_checkMode)(struct lynxfb_output*, struct fb_var_screeninfo*);
 	int (*proc_setBLANK)(struct lynxfb_output*, int);
-	void  (*clear)(struct lynxfb_output*);
+	void  (*clear)(struct lynxfb_output *);
 };
 
 struct lynxfb_par {
