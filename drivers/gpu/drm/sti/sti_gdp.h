@@ -11,6 +11,9 @@
 
 #include <linux/types.h>
 
-struct sti_layer *sti_gdp_create(struct device *dev, int id);
-
+struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
+				 struct device *dev, int desc,
+				 void __iomem *baseaddr,
+				 unsigned int possible_crtcs,
+				 enum drm_plane_type type);
 #endif

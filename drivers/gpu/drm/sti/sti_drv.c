@@ -18,8 +18,8 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
-#include "sti_drm_drv.h"
-#include "sti_drm_crtc.h"
+#include "sti_crtc.h"
+#include "sti_drv.h"
 
 #define DRIVER_NAME	"sti"
 #define DRIVER_DESC	"STMicroelectronics SoC DRM"
@@ -30,15 +30,15 @@
 #define STI_MAX_FB_HEIGHT	4096
 #define STI_MAX_FB_WIDTH	4096
 
-static void sti_drm_atomic_schedule(struct sti_drm_private *private,
-				  struct drm_atomic_state *state)
+static void sti_atomic_schedule(struct sti_private *private,
+				struct drm_atomic_state *state)
 {
 	private->commit.state = state;
 	schedule_work(&private->commit.work);
 }
 
-static void sti_drm_atomic_complete(struct sti_drm_private *private,
-				  struct drm_atomic_state *state)
+static void sti_atomic_complete(struct sti_private *private,
+				struct drm_atomic_state *state)
 {
 	struct drm_device *drm = private->drm_dev;
 
@@ -68,18 +68,18 @@ static void sti_drm_atomic_complete(struct sti_drm_private *private,
 	drm_atomic_state_free(state);
 }
 
-static void sti_drm_atomic_work(struct work_struct *work)
+static void sti_atomic_work(struct work_struct *work)
 {
-	struct sti_drm_private *private = container_of(work,
-			struct sti_drm_private, commit.work);
+	struct sti_private *private = container_of(work,
+			struct sti_private, commit.work);
 
-	sti_drm_atomic_complete(private, private->commit.state);
+	sti_atomic_complete(private, private->commit.state);
 }
 
-static int sti_drm_atomic_commit(struct drm_device *drm,
-			       struct drm_atomic_state *state, bool async)
+static int sti_atomic_commit(struct drm_device *drm,
+			     struct drm_atomic_state *state, bool async)
 {
-	struct sti_drm_private *private = drm->dev_private;
+	struct sti_private *private = drm->dev_private;
 	int err;
 
 	err = drm_atomic_helper_prepare_planes(drm, state);
@@ -99,21 +99,21 @@ static int sti_drm_atomic_commit(struct drm_device *drm,
 	drm_atomic_helper_swap_state(drm, state);
 
 	if (async)
-		sti_drm_atomic_schedule(private, state);
+		sti_atomic_schedule(private, state);
 	else
-		sti_drm_atomic_complete(private, state);
+		sti_atomic_complete(private, state);
 
 	mutex_unlock(&private->commit.lock);
 	return 0;
 }
 
-static struct drm_mode_config_funcs sti_drm_mode_config_funcs = {
+static struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = sti_drm_atomic_commit,
+	.atomic_commit = sti_atomic_commit,
 };
 
-static void sti_drm_mode_config_init(struct drm_device *dev)
+static void sti_mode_config_init(struct drm_device *dev)
 {
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -126,15 +126,15 @@ static void sti_drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.max_width = STI_MAX_FB_HEIGHT;
 	dev->mode_config.max_height = STI_MAX_FB_WIDTH;
 
-	dev->mode_config.funcs = &sti_drm_mode_config_funcs;
+	dev->mode_config.funcs = &sti_mode_config_funcs;
 }
 
-static int sti_drm_load(struct drm_device *dev, unsigned long flags)
+static int sti_load(struct drm_device *dev, unsigned long flags)
 {
-	struct sti_drm_private *private;
+	struct sti_private *private;
 	int ret;
 
-	private = kzalloc(sizeof(struct sti_drm_private), GFP_KERNEL);
+	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private) {
 		DRM_ERROR("Failed to allocate private\n");
 		return -ENOMEM;
@@ -143,12 +143,12 @@ static int sti_drm_load(struct drm_device *dev, unsigned long flags)
 	private->drm_dev = dev;
 
 	mutex_init(&private->commit.lock);
-	INIT_WORK(&private->commit.work, sti_drm_atomic_work);
+	INIT_WORK(&private->commit.work, sti_atomic_work);
 
 	drm_mode_config_init(dev);
 	drm_kms_helper_poll_init(dev);
 
-	sti_drm_mode_config_init(dev);
+	sti_mode_config_init(dev);
 
 	ret = component_bind_all(dev->dev, dev);
 	if (ret) {
@@ -162,13 +162,13 @@ static int sti_drm_load(struct drm_device *dev, unsigned long flags)
 
 #ifdef CONFIG_DRM_STI_FBDEV
 	drm_fbdev_cma_init(dev, 32,
-		   dev->mode_config.num_crtc,
-		   dev->mode_config.num_connector);
+			   dev->mode_config.num_crtc,
+			   dev->mode_config.num_connector);
 #endif
 	return 0;
 }
 
-static const struct file_operations sti_drm_driver_fops = {
+static const struct file_operations sti_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.mmap = drm_gem_cma_mmap,
@@ -181,33 +181,33 @@ static const struct file_operations sti_drm_driver_fops = {
 	.release = drm_release,
 };
 
-static struct dma_buf *sti_drm_gem_prime_export(struct drm_device *dev,
-						struct drm_gem_object *obj,
-						int flags)
+static struct dma_buf *sti_gem_prime_export(struct drm_device *dev,
+					    struct drm_gem_object *obj,
+					    int flags)
 {
 	/* we want to be able to write in mmapped buffer */
 	flags |= O_RDWR;
 	return drm_gem_prime_export(dev, obj, flags);
 }
 
-static struct drm_driver sti_drm_driver = {
+static struct drm_driver sti_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET |
 	    DRIVER_GEM | DRIVER_PRIME,
-	.load = sti_drm_load,
+	.load = sti_load,
 	.gem_free_object = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
-	.fops = &sti_drm_driver_fops,
+	.fops = &sti_driver_fops,
 
 	.get_vblank_counter = drm_vblank_count,
-	.enable_vblank = sti_drm_crtc_enable_vblank,
-	.disable_vblank = sti_drm_crtc_disable_vblank,
+	.enable_vblank = sti_crtc_enable_vblank,
+	.disable_vblank = sti_crtc_disable_vblank,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = sti_drm_gem_prime_export,
+	.gem_prime_export = sti_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
@@ -227,29 +227,31 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
-static int sti_drm_bind(struct device *dev)
+static int sti_bind(struct device *dev)
 {
-	return drm_platform_init(&sti_drm_driver, to_platform_device(dev));
+	return drm_platform_init(&sti_driver, to_platform_device(dev));
 }
 
-static void sti_drm_unbind(struct device *dev)
+static void sti_unbind(struct device *dev)
 {
 	drm_put_dev(dev_get_drvdata(dev));
 }
 
-static const struct component_master_ops sti_drm_ops = {
-	.bind = sti_drm_bind,
-	.unbind = sti_drm_unbind,
+static const struct component_master_ops sti_ops = {
+	.bind = sti_bind,
+	.unbind = sti_unbind,
 };
 
-static int sti_drm_master_probe(struct platform_device *pdev)
+static int sti_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
+	struct device_node *node = dev->of_node;
 	struct device_node *child_np;
 	struct component_match *match = NULL;
 
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+
+	of_platform_populate(node, NULL, NULL, dev);
 
 	child_np = of_get_next_available_child(node, NULL);
 
@@ -259,68 +261,33 @@ static int sti_drm_master_probe(struct platform_device *pdev)
 		child_np = of_get_next_available_child(node, child_np);
 	}
 
-	return component_master_add_with_match(dev, &sti_drm_ops, match);
+	return component_master_add_with_match(dev, &sti_ops, match);
 }
 
-static int sti_drm_master_remove(struct platform_device *pdev)
+static int sti_platform_remove(struct platform_device *pdev)
 {
-	component_master_del(&pdev->dev, &sti_drm_ops);
-	return 0;
-}
-
-static struct platform_driver sti_drm_master_driver = {
-	.probe = sti_drm_master_probe,
-	.remove = sti_drm_master_remove,
-	.driver = {
-		.name = DRIVER_NAME "__master",
-	},
-};
-
-static int sti_drm_platform_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct platform_device *master;
-
-	of_platform_populate(node, NULL, NULL, dev);
-
-	platform_driver_register(&sti_drm_master_driver);
-	master = platform_device_register_resndata(dev,
-			DRIVER_NAME "__master", -1,
-			NULL, 0, NULL, 0);
-	if (IS_ERR(master))
-               return PTR_ERR(master);
-
-	platform_set_drvdata(pdev, master);
-	return 0;
-}
-
-static int sti_drm_platform_remove(struct platform_device *pdev)
-{
-	struct platform_device *master = platform_get_drvdata(pdev);
-
+	component_master_del(&pdev->dev, &sti_ops);
 	of_platform_depopulate(&pdev->dev);
-	platform_device_unregister(master);
-	platform_driver_unregister(&sti_drm_master_driver);
+
 	return 0;
 }
 
-static const struct of_device_id sti_drm_dt_ids[] = {
+static const struct of_device_id sti_dt_ids[] = {
 	{ .compatible = "st,sti-display-subsystem", },
 	{ /* end node */ },
 };
-MODULE_DEVICE_TABLE(of, sti_drm_dt_ids);
+MODULE_DEVICE_TABLE(of, sti_dt_ids);
 
-static struct platform_driver sti_drm_platform_driver = {
-	.probe = sti_drm_platform_probe,
-	.remove = sti_drm_platform_remove,
+static struct platform_driver sti_platform_driver = {
+	.probe = sti_platform_probe,
+	.remove = sti_platform_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = sti_drm_dt_ids,
+		.of_match_table = sti_dt_ids,
 	},
 };
 
-module_platform_driver(sti_drm_platform_driver);
+module_platform_driver(sti_platform_driver);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

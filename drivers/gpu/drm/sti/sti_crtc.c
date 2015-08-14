@@ -15,22 +15,20 @@
 #include <drm/drm_plane_helper.h>
 
 #include "sti_compositor.h"
-#include "sti_drm_drv.h"
-#include "sti_drm_crtc.h"
+#include "sti_crtc.h"
+#include "sti_drv.h"
+#include "sti_vid.h"
 #include "sti_vtg.h"
 
-static void sti_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	DRM_DEBUG_KMS("\n");
-}
-
-static void sti_drm_crtc_prepare(struct drm_crtc *crtc)
+static void sti_crtc_enable(struct drm_crtc *crtc)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 	struct device *dev = mixer->dev;
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 
-	mixer->enabled = true;
+	DRM_DEBUG_DRIVER("\n");
+
+	mixer->status = STI_MIXER_READY;
 
 	/* Prepare and enable the compo IP clock */
 	if (mixer->id == STI_MIXER_MAIN) {
@@ -41,45 +39,28 @@ static void sti_drm_crtc_prepare(struct drm_crtc *crtc)
 			DRM_INFO("Failed to prepare/enable compo_aux clk\n");
 	}
 
-	sti_mixer_clear_all_layers(mixer);
-}
-
-static void sti_drm_crtc_commit(struct drm_crtc *crtc)
-{
-	struct sti_mixer *mixer = to_sti_mixer(crtc);
-	struct device *dev = mixer->dev;
-	struct sti_compositor *compo = dev_get_drvdata(dev);
-	struct sti_layer *layer;
-
-	if ((!mixer || !compo)) {
-		DRM_ERROR("Can not find mixer or compositor)\n");
-		return;
-	}
-
-	/* get GDP which is reserved to the CRTC FB */
-	layer = to_sti_layer(crtc->primary);
-	if (layer)
-		sti_layer_commit(layer);
-	else
-		DRM_ERROR("Can not find CRTC dedicated plane (GDP0)\n");
-
-	/* Enable layer on mixer */
-	if (sti_mixer_set_layer_status(mixer, layer, true))
-		DRM_ERROR("Can not enable layer at mixer\n");
-
 	drm_crtc_vblank_on(crtc);
 }
 
-static bool sti_drm_crtc_mode_fixup(struct drm_crtc *crtc,
-				    const struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode)
+static void sti_crtc_disabling(struct drm_crtc *crtc)
+{
+	struct sti_mixer *mixer = to_sti_mixer(crtc);
+
+	DRM_DEBUG_DRIVER("\n");
+
+	mixer->status = STI_MIXER_DISABLING;
+}
+
+static bool sti_crtc_mode_fixup(struct drm_crtc *crtc,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
 {
 	/* accept the provided drm_display_mode, do not fix it up */
 	return true;
 }
 
 static int
-sti_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
+sti_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 	struct device *dev = mixer->dev;
@@ -122,21 +103,18 @@ sti_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 	res = sti_mixer_active_video_area(mixer, &crtc->mode);
 	if (res) {
-		DRM_ERROR("Can not set active video area\n");
+		DRM_ERROR("Can't set active video area\n");
 		return -EINVAL;
 	}
 
 	return res;
 }
 
-static void sti_drm_crtc_disable(struct drm_crtc *crtc)
+static void sti_crtc_disable(struct drm_crtc *crtc)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 	struct device *dev = mixer->dev;
 	struct sti_compositor *compo = dev_get_drvdata(dev);
-
-	if (!mixer->enabled)
-		return;
 
 	DRM_DEBUG_KMS("CRTC:%d (%s)\n", crtc->base.id, sti_mixer_to_str(mixer));
 
@@ -154,18 +132,18 @@ static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 		clk_disable_unprepare(compo->clk_compo_aux);
 	}
 
-	mixer->enabled = false;
+	mixer->status = STI_MIXER_DISABLED;
 }
 
 static void
-sti_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+sti_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
-	sti_drm_crtc_prepare(crtc);
-	sti_drm_crtc_mode_set(crtc, &crtc->state->adjusted_mode);
+	sti_crtc_enable(crtc);
+	sti_crtc_mode_set(crtc, &crtc->state->adjusted_mode);
 }
 
-static void sti_drm_atomic_begin(struct drm_crtc *crtc,
-				 struct drm_crtc_state *old_crtc_state)
+static void sti_crtc_atomic_begin(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_crtc_state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -179,47 +157,109 @@ static void sti_drm_atomic_begin(struct drm_crtc *crtc,
 	}
 }
 
-static void sti_drm_atomic_flush(struct drm_crtc *crtc,
-				 struct drm_crtc_state *old_crtc_state)
+static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_crtc_state)
 {
+	struct drm_device *drm_dev = crtc->dev;
+	struct sti_mixer *mixer = to_sti_mixer(crtc);
+	struct sti_compositor *compo = dev_get_drvdata(mixer->dev);
+	struct drm_plane *p;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	/* perform plane actions */
+	list_for_each_entry(p, &drm_dev->mode_config.plane_list, head) {
+		struct sti_plane *plane = to_sti_plane(p);
+
+		switch (plane->status) {
+		case STI_PLANE_UPDATED:
+			/* update planes tag as updated */
+			DRM_DEBUG_DRIVER("update plane %s\n",
+					 sti_plane_to_str(plane));
+
+			if (sti_mixer_set_plane_depth(mixer, plane)) {
+				DRM_ERROR("Cannot set plane %s depth\n",
+					  sti_plane_to_str(plane));
+				break;
+			}
+
+			if (sti_mixer_set_plane_status(mixer, plane, true)) {
+				DRM_ERROR("Cannot enable plane %s at mixer\n",
+					  sti_plane_to_str(plane));
+				break;
+			}
+
+			/* if plane is HQVDP_0 then commit the vid[0] */
+			if (plane->desc == STI_HQVDP_0)
+				sti_vid_commit(compo->vid[0], p->state);
+
+			plane->status = STI_PLANE_READY;
+
+			break;
+		case STI_PLANE_DISABLING:
+			/* disabling sequence for planes tag as disabling */
+			DRM_DEBUG_DRIVER("disable plane %s from mixer\n",
+					 sti_plane_to_str(plane));
+
+			if (sti_mixer_set_plane_status(mixer, plane, false)) {
+				DRM_ERROR("Cannot disable plane %s at mixer\n",
+					  sti_plane_to_str(plane));
+				continue;
+			}
+
+			if (plane->desc == STI_CURSOR)
+				/* tag plane status for disabled */
+				plane->status = STI_PLANE_DISABLED;
+			else
+				/* tag plane status for flushing */
+				plane->status = STI_PLANE_FLUSHING;
+
+			/* if plane is HQVDP_0 then disable the vid[0] */
+			if (plane->desc == STI_HQVDP_0)
+				sti_vid_disable(compo->vid[0]);
+
+			break;
+		default:
+			/* Other status case are not handled */
+			break;
+		}
+	}
 }
 
 static struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
-	.dpms = sti_drm_crtc_dpms,
-	.prepare = sti_drm_crtc_prepare,
-	.commit = sti_drm_crtc_commit,
-	.mode_fixup = sti_drm_crtc_mode_fixup,
+	.enable = sti_crtc_enable,
+	.disable = sti_crtc_disabling,
+	.mode_fixup = sti_crtc_mode_fixup,
 	.mode_set = drm_helper_crtc_mode_set,
-	.mode_set_nofb = sti_drm_crtc_mode_set_nofb,
+	.mode_set_nofb = sti_crtc_mode_set_nofb,
 	.mode_set_base = drm_helper_crtc_mode_set_base,
-	.disable = sti_drm_crtc_disable,
-	.atomic_begin = sti_drm_atomic_begin,
-	.atomic_flush = sti_drm_atomic_flush,
+	.atomic_begin = sti_crtc_atomic_begin,
+	.atomic_flush = sti_crtc_atomic_flush,
 };
 
-static void sti_drm_crtc_destroy(struct drm_crtc *crtc)
+static void sti_crtc_destroy(struct drm_crtc *crtc)
 {
 	DRM_DEBUG_KMS("\n");
 	drm_crtc_cleanup(crtc);
 }
 
-static int sti_drm_crtc_set_property(struct drm_crtc *crtc,
-				     struct drm_property *property,
-				     uint64_t val)
+static int sti_crtc_set_property(struct drm_crtc *crtc,
+				 struct drm_property *property,
+				 uint64_t val)
 {
 	DRM_DEBUG_KMS("\n");
 	return 0;
 }
 
-int sti_drm_crtc_vblank_cb(struct notifier_block *nb,
-			   unsigned long event, void *data)
+int sti_crtc_vblank_cb(struct notifier_block *nb,
+		       unsigned long event, void *data)
 {
 	struct drm_device *drm_dev;
 	struct sti_compositor *compo =
 		container_of(nb, struct sti_compositor, vtg_vblank_nb);
 	int *crtc = data;
 	unsigned long flags;
-	struct sti_drm_private *priv;
+	struct sti_private *priv;
 
 	drm_dev = compo->mixer[*crtc]->drm_crtc.dev;
 	priv = drm_dev->dev_private;
@@ -235,20 +275,37 @@ int sti_drm_crtc_vblank_cb(struct notifier_block *nb,
 	spin_lock_irqsave(&drm_dev->event_lock, flags);
 	if (compo->mixer[*crtc]->pending_event) {
 		drm_send_vblank_event(drm_dev, -1,
-				compo->mixer[*crtc]->pending_event);
+				      compo->mixer[*crtc]->pending_event);
 		drm_vblank_put(drm_dev, *crtc);
 		compo->mixer[*crtc]->pending_event = NULL;
 	}
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
 
+	if (compo->mixer[*crtc]->status == STI_MIXER_DISABLING) {
+		struct drm_plane *p;
+
+		/* Disable mixer only if all overlay planes (GDP and VDP)
+		 * are disabled */
+		list_for_each_entry(p, &drm_dev->mode_config.plane_list, head) {
+			struct sti_plane *plane = to_sti_plane(p);
+
+			if ((plane->desc & STI_PLANE_TYPE_MASK) <= STI_VDP)
+				if (plane->status != STI_PLANE_DISABLED)
+					return 0;
+		}
+		sti_crtc_disable(&compo->mixer[*crtc]->drm_crtc);
+	}
+
 	return 0;
 }
 
-int sti_drm_crtc_enable_vblank(struct drm_device *dev, int crtc)
+int sti_crtc_enable_vblank(struct drm_device *dev, int crtc)
 {
-	struct sti_drm_private *dev_priv = dev->dev_private;
+	struct sti_private *dev_priv = dev->dev_private;
 	struct sti_compositor *compo = dev_priv->compo;
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
+
+	DRM_DEBUG_DRIVER("\n");
 
 	if (sti_vtg_register_client(crtc == STI_MIXER_MAIN ?
 			compo->vtg_main : compo->vtg_aux,
@@ -259,11 +316,11 @@ int sti_drm_crtc_enable_vblank(struct drm_device *dev, int crtc)
 
 	return 0;
 }
-EXPORT_SYMBOL(sti_drm_crtc_enable_vblank);
+EXPORT_SYMBOL(sti_crtc_enable_vblank);
 
-void sti_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
+void sti_crtc_disable_vblank(struct drm_device *drm_dev, int crtc)
 {
-	struct sti_drm_private *priv = dev->dev_private;
+	struct sti_private *priv = drm_dev->dev_private;
 	struct sti_compositor *compo = priv->compo;
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
 
@@ -275,23 +332,23 @@ void sti_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 
 	/* free the resources of the pending requests */
 	if (compo->mixer[crtc]->pending_event) {
-		drm_vblank_put(dev, crtc);
+		drm_vblank_put(drm_dev, crtc);
 		compo->mixer[crtc]->pending_event = NULL;
 	}
 }
-EXPORT_SYMBOL(sti_drm_crtc_disable_vblank);
+EXPORT_SYMBOL(sti_crtc_disable_vblank);
 
 static struct drm_crtc_funcs sti_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.destroy = sti_drm_crtc_destroy,
-	.set_property = sti_drm_crtc_set_property,
+	.destroy = sti_crtc_destroy,
+	.set_property = sti_crtc_set_property,
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
-bool sti_drm_crtc_is_main(struct drm_crtc *crtc)
+bool sti_crtc_is_main(struct drm_crtc *crtc)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -300,18 +357,18 @@ bool sti_drm_crtc_is_main(struct drm_crtc *crtc)
 
 	return false;
 }
-EXPORT_SYMBOL(sti_drm_crtc_is_main);
+EXPORT_SYMBOL(sti_crtc_is_main);
 
-int sti_drm_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
-		struct drm_plane *primary, struct drm_plane *cursor)
+int sti_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
+		  struct drm_plane *primary, struct drm_plane *cursor)
 {
 	struct drm_crtc *crtc = &mixer->drm_crtc;
 	int res;
 
 	res = drm_crtc_init_with_planes(drm_dev, crtc, primary, cursor,
-			&sti_crtc_funcs);
+					&sti_crtc_funcs);
 	if (res) {
-		DRM_ERROR("Can not initialze CRTC\n");
+		DRM_ERROR("Can't initialze CRTC\n");
 		return -EINVAL;
 	}
 
