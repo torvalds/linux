@@ -246,7 +246,6 @@ typedef struct tagDEVICE_TD_INFO {
 	unsigned char *buf;
 	dma_addr_t          buf_dma;
 	u16 dwReqCount;
-	unsigned long dwHeaderLength;
 	unsigned char byFlags;
 } DEVICE_TD_INFO,    *PDEVICE_TD_INFO;
 
