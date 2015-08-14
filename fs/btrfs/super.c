@@ -130,7 +130,6 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 	}
 }
 
-#ifdef CONFIG_PRINTK
 /*
  * __btrfs_std_error decodes expected errors from the caller and
  * invokes the approciate error response.
@@ -140,7 +139,9 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		       unsigned int line, int errno, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
+#ifdef CONFIG_PRINTK
 	const char *errstr;
+#endif
 
 	/*
 	 * Special case: if the error is EROFS, and we're already
@@ -149,6 +150,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
   		return;
 
+#ifdef CONFIG_PRINTK
 	errstr = btrfs_decode_error(errno);
 	if (fmt) {
 		struct va_format vaf;
@@ -166,6 +168,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		printk(KERN_CRIT "BTRFS: error (device %s) in %s:%d: errno=%d %s\n",
 			sb->s_id, function, line, errno, errstr);
 	}
+#endif
 
 	/* Don't go through full error handling during mount */
 	save_error_info(fs_info);
@@ -173,6 +176,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		btrfs_handle_error(fs_info);
 }
 
+#ifdef CONFIG_PRINTK
 static const char * const logtypes[] = {
 	"emergency",
 	"alert",
@@ -211,27 +215,6 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	printk("%sBTRFS %s (device %s): %pV\n", lvl, type, sb->s_id, &vaf);
 
 	va_end(args);
-}
-
-#else
-
-void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
-		       unsigned int line, int errno, const char *fmt, ...)
-{
-	struct super_block *sb = fs_info->sb;
-
-	/*
-	 * Special case: if the error is EROFS, and we're already
-	 * under MS_RDONLY, then it is safe here.
-	 */
-	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
-		return;
-
-	/* Don't go through full error handling during mount */
-	if (sb->s_flags & MS_BORN) {
-		save_error_info(fs_info);
-		btrfs_handle_error(fs_info);
-	}
 }
 #endif
 
