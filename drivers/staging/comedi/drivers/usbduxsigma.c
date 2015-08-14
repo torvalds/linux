@@ -66,10 +66,10 @@
 #define USBDUXSUB_CPUCS 0xE600
 
 /* 300Hz max frequ under PWM */
-#define MIN_PWM_PERIOD  ((long)(1E9/300))
+#define MIN_PWM_PERIOD  ((long)(1E9 / 300))
 
 /* Default PWM frequency */
-#define PWM_DEFAULT_PERIOD ((long)(1E9/100))
+#define PWM_DEFAULT_PERIOD ((long)(1E9 / 100))
 
 /* Number of channels (16 AD and offset)*/
 #define NUMCHANNELS 16
@@ -81,7 +81,7 @@
  * Size of the async input-buffer IN BYTES, the DIO state is transmitted
  * as the first byte.
  */
-#define SIZEINBUF         (((NUMCHANNELS+1)*SIZEADIN))
+#define SIZEINBUF         (((NUMCHANNELS + 1) * SIZEADIN))
 
 /* 16 bytes. */
 #define SIZEINSNBUF       16
@@ -90,20 +90,20 @@
 #define NUMOUTCHANNELS    8
 
 /* size of one value for the D/A converter: channel and value */
-#define SIZEDAOUT          ((sizeof(uint8_t)+sizeof(uint16_t)))
+#define SIZEDAOUT          ((sizeof(uint8_t) + sizeof(uint16_t)))
 
 /*
  * Size of the output-buffer in bytes
  * Actually only the first 4 triplets are used but for the
  * high speed mode we need to pad it to 8 (microframes).
  */
-#define SIZEOUTBUF         ((8*SIZEDAOUT))
+#define SIZEOUTBUF         ((8 * SIZEDAOUT))
 
 /*
  * Size of the buffer for the dux commands: just now max size is determined
  * by the analogue out + command byte + panic bytes...
  */
-#define SIZEOFDUXBUFFER    ((8*SIZEDAOUT+2))
+#define SIZEOFDUXBUFFER    ((8 * SIZEDAOUT + 2))
 
 /* Number of in-URBs which receive the data: min=2 */
 #define NUMOFINBUFFERSFULL     5
@@ -228,7 +228,7 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 			for (i = 0; i < cmd->chanlist_len; i++) {
 				/* transfer data,
 				   note first byte is the DIO state */
-				val = be32_to_cpu(devpriv->in_buf[i+1]);
+				val = be32_to_cpu(devpriv->in_buf[i + 1]);
 				val &= 0x00ffffff; /* strip status byte */
 				val ^= 0x00800000; /* convert to unsigned */
 
@@ -559,7 +559,7 @@ static void create_adc_command(unsigned int chan,
 	if (chan < 8)
 		(*muxsg0) = (*muxsg0) | (1 << chan);
 	else if (chan < 16)
-		(*muxsg1) = (*muxsg1) | (1 << (chan-8));
+		(*muxsg1) = (*muxsg1) | (1 << (chan - 8));
 }
 
 static int usbbuxsigma_send_cmd(struct comedi_device *dev, int cmd_type)
