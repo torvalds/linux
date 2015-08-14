@@ -61,25 +61,6 @@ static const struct reg_default wm8741_reg_defaults[] = {
 	{ 32, 0x0002 },     /* R32 - ADDITONAL_CONTROL_1 */
 };
 
-static bool wm8741_readable(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case WM8741_DACLLSB_ATTENUATION:
-	case WM8741_DACLMSB_ATTENUATION:
-	case WM8741_DACRLSB_ATTENUATION:
-	case WM8741_DACRMSB_ATTENUATION:
-	case WM8741_VOLUME_CONTROL:
-	case WM8741_FORMAT_CONTROL:
-	case WM8741_FILTER_CONTROL:
-	case WM8741_MODE_CONTROL_1:
-	case WM8741_MODE_CONTROL_2:
-	case WM8741_ADDITIONAL_CONTROL_1:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static int wm8741_reset(struct snd_soc_codec *codec)
 {
 	return snd_soc_write(codec, WM8741_RESET, 0);
@@ -541,8 +522,6 @@ static const struct regmap_config wm8741_regmap = {
 	.reg_defaults = wm8741_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8741_reg_defaults),
 	.cache_type = REGCACHE_RBTREE,
-
-	.readable_reg = wm8741_readable,
 };
 
 static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
