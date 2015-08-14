@@ -54,6 +54,12 @@ struct tda998x_priv {
 	struct drm_connector connector;
 };
 
+#define conn_to_tda998x_priv(x) \
+	container_of(x, struct tda998x_priv, connector)
+
+#define enc_to_tda998x_priv(x) \
+	container_of(x, struct tda998x_priv, encoder)
+
 /* The TDA9988 series of devices use a paged register scheme.. to simplify
  * things we encode the page # in upper bits of the register #.  To read/
  * write a given register, we need to make sure CURPAGE register is set
@@ -562,7 +568,7 @@ tda998x_reset(struct tda998x_priv *priv)
  * trying to read EDID data.
  *
  * However, tda998x_encoder_get_modes() may be called at any moment
- * after tda998x_encoder_detect() indicates that we are connected, so
+ * after tda998x_connector_detect() indicates that we are connected, so
  * we need to delay probing modes in tda998x_encoder_get_modes() after
  * we have seen a HPD inactive->active transition.  This code implements
  * that delay.
@@ -816,8 +822,10 @@ static void tda998x_encoder_set_config(struct tda998x_priv *priv,
 	priv->params = *p;
 }
 
-static void tda998x_encoder_dpms(struct tda998x_priv *priv, int mode)
+static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
+	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
+
 	/* we only care about on or off: */
 	if (mode != DRM_MODE_DPMS_ON)
 		mode = DRM_MODE_DPMS_OFF;
@@ -867,8 +875,8 @@ tda998x_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static int tda998x_encoder_mode_valid(struct tda998x_priv *priv,
-				      struct drm_display_mode *mode)
+static int tda998x_connector_mode_valid(struct drm_connector *connector,
+					struct drm_display_mode *mode)
 {
 	if (mode->clock > 150000)
 		return MODE_CLOCK_HIGH;
@@ -880,10 +888,11 @@ static int tda998x_encoder_mode_valid(struct tda998x_priv *priv,
 }
 
 static void
-tda998x_encoder_mode_set(struct tda998x_priv *priv,
+tda998x_encoder_mode_set(struct drm_encoder *encoder,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode)
 {
+	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
 	u16 ref_pix, ref_line, n_pix, n_line;
 	u16 hs_pix_s, hs_pix_e;
 	u16 vs1_pix_s, vs1_pix_e, vs1_line_s, vs1_line_e;
@@ -1071,8 +1080,9 @@ tda998x_encoder_mode_set(struct tda998x_priv *priv,
 }
 
 static enum drm_connector_status
-tda998x_encoder_detect(struct tda998x_priv *priv)
+tda998x_connector_detect(struct drm_connector *connector, bool force)
 {
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
 	u8 val = cec_read(priv, REG_CEC_RXSHPDLEV);
 
 	return (val & CEC_RXSHPDLEV_HPD) ? connector_status_connected :
@@ -1135,10 +1145,9 @@ static int read_edid_block(void *data, u8 *buf, unsigned int blk, size_t length)
 	return 0;
 }
 
-static int
-tda998x_encoder_get_modes(struct tda998x_priv *priv,
-			  struct drm_connector *connector)
+static int tda998x_connector_get_modes(struct drm_connector *connector)
 {
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
 	struct edid *edid;
 	int n;
 
@@ -1330,46 +1339,24 @@ fail:
 	return -ENXIO;
 }
 
-#define conn_to_tda998x_priv(x) \
-	container_of(x, struct tda998x_priv, connector);
-
-#define enc_to_tda998x_priv(x) \
-	container_of(x, struct tda998x_priv, encoder);
-
-static void tda998x_encoder2_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
-
-	tda998x_encoder_dpms(priv, mode);
-}
-
 static void tda998x_encoder_prepare(struct drm_encoder *encoder)
 {
-	tda998x_encoder2_dpms(encoder, DRM_MODE_DPMS_OFF);
+	tda998x_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
 static void tda998x_encoder_commit(struct drm_encoder *encoder)
 {
-	tda998x_encoder2_dpms(encoder, DRM_MODE_DPMS_ON);
-}
-
-static void tda998x_encoder2_mode_set(struct drm_encoder *encoder,
-				      struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted_mode)
-{
-	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
-
-	tda998x_encoder_mode_set(priv, mode, adjusted_mode);
+	tda998x_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
 static const struct drm_encoder_helper_funcs tda998x_encoder_helper_funcs = {
-	.dpms = tda998x_encoder2_dpms,
+	.dpms = tda998x_encoder_dpms,
 	.save = tda998x_encoder_save,
 	.restore = tda998x_encoder_restore,
 	.mode_fixup = tda998x_encoder_mode_fixup,
 	.prepare = tda998x_encoder_prepare,
 	.commit = tda998x_encoder_commit,
-	.mode_set = tda998x_encoder2_mode_set,
+	.mode_set = tda998x_encoder_mode_set,
 };
 
 static void tda998x_encoder_destroy(struct drm_encoder *encoder)
@@ -1383,21 +1370,6 @@ static void tda998x_encoder_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_funcs tda998x_encoder_funcs = {
 	.destroy = tda998x_encoder_destroy,
 };
-
-static int tda998x_connector_get_modes(struct drm_connector *connector)
-{
-	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
-
-	return tda998x_encoder_get_modes(priv, connector);
-}
-
-static int tda998x_connector_mode_valid(struct drm_connector *connector,
-					struct drm_display_mode *mode)
-{
-	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
-
-	return tda998x_encoder_mode_valid(priv, mode);
-}
 
 static struct drm_encoder *
 tda998x_connector_best_encoder(struct drm_connector *connector)
@@ -1413,14 +1385,6 @@ const struct drm_connector_helper_funcs tda998x_connector_helper_funcs = {
 	.mode_valid = tda998x_connector_mode_valid,
 	.best_encoder = tda998x_connector_best_encoder,
 };
-
-static enum drm_connector_status
-tda998x_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
-
-	return tda998x_encoder_detect(priv);
-}
 
 static void tda998x_connector_destroy(struct drm_connector *connector)
 {
