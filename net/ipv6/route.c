@@ -993,13 +993,21 @@ static struct rt6_info *ip6_rt_pcpu_alloc(struct rt6_info *rt)
 /* It should be called with read_lock_bh(&tb6_lock) acquired */
 static struct rt6_info *rt6_get_pcpu_route(struct rt6_info *rt)
 {
-	struct rt6_info *pcpu_rt, *prev, **p;
+	struct rt6_info *pcpu_rt, **p;
 
 	p = this_cpu_ptr(rt->rt6i_pcpu);
 	pcpu_rt = *p;
 
-	if (pcpu_rt)
-		goto done;
+	if (pcpu_rt) {
+		dst_hold(&pcpu_rt->dst);
+		rt6_dst_from_metrics_check(pcpu_rt);
+	}
+	return pcpu_rt;
+}
+
+static struct rt6_info *rt6_make_pcpu_route(struct rt6_info *rt)
+{
+	struct rt6_info *pcpu_rt, *prev, **p;
 
 	pcpu_rt = ip6_rt_pcpu_alloc(rt);
 	if (!pcpu_rt) {
@@ -1009,6 +1017,7 @@ static struct rt6_info *rt6_get_pcpu_route(struct rt6_info *rt)
 		goto done;
 	}
 
+	p = this_cpu_ptr(rt->rt6i_pcpu);
 	prev = cmpxchg(p, NULL, pcpu_rt);
 	if (prev) {
 		/* If someone did it before us, return prev instead */
@@ -1093,8 +1102,11 @@ redo_rt6_select:
 		rt->dst.lastuse = jiffies;
 		rt->dst.__use++;
 		pcpu_rt = rt6_get_pcpu_route(rt);
-		read_unlock_bh(&table->tb6_lock);
 
+		if (!pcpu_rt)
+			pcpu_rt = rt6_make_pcpu_route(rt);
+
+		read_unlock_bh(&table->tb6_lock);
 		return pcpu_rt;
 	}
 }
