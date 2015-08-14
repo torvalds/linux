@@ -21,3 +21,14 @@ config NFC_ST_NCI_I2C
 
 	  If you choose to build a module, it'll be called st-nci_i2c.
 	  Say N if unsure.
+
+config NFC_ST_NCI_SPI
+	tristate "NFC ST NCI spi support"
+	depends on NFC_ST_NCI && SPI
+	---help---
+	  This module adds support for an SPI interface to the
+	  STMicroelectronics NFC NCI chips familly.
+	  Select this if your platform is using the spi bus.
+
+	  If you choose to build a module, it'll be called st-nci_spi.
+	  Say N if unsure.
