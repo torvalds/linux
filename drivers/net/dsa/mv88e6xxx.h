@@ -131,6 +131,7 @@
 #define PORT_CONTROL_1		0x05
 #define PORT_BASE_VLAN		0x06
 #define PORT_DEFAULT_VLAN	0x07
+#define PORT_DEFAULT_VLAN_MASK	0xfff
 #define PORT_CONTROL_2		0x08
 #define PORT_CONTROL_2_IGNORE_FCS	BIT(15)
 #define PORT_CONTROL_2_VTU_PRI_OVERRIDE	BIT(14)
@@ -139,6 +140,11 @@
 #define PORT_CONTROL_2_JUMBO_1522	(0x00 << 12)
 #define PORT_CONTROL_2_JUMBO_2048	(0x01 << 12)
 #define PORT_CONTROL_2_JUMBO_10240	(0x02 << 12)
+#define PORT_CONTROL_2_8021Q_MASK	(0x03 << 10)
+#define PORT_CONTROL_2_8021Q_DISABLED	(0x00 << 10)
+#define PORT_CONTROL_2_8021Q_FALLBACK	(0x01 << 10)
+#define PORT_CONTROL_2_8021Q_CHECK	(0x02 << 10)
+#define PORT_CONTROL_2_8021Q_SECURE	(0x03 << 10)
 #define PORT_CONTROL_2_DISCARD_TAGGED	BIT(9)
 #define PORT_CONTROL_2_DISCARD_UNTAGGED	BIT(8)
 #define PORT_CONTROL_2_MAP_DA		BIT(7)
@@ -172,6 +178,10 @@
 #define GLOBAL_MAC_23		0x02
 #define GLOBAL_MAC_45		0x03
 #define GLOBAL_ATU_FID		0x01	/* 6097 6165 6351 6352 */
+#define GLOBAL_VTU_FID		0x02	/* 6097 6165 6351 6352 */
+#define GLOBAL_VTU_FID_MASK	0xfff
+#define GLOBAL_VTU_SID		0x03	/* 6097 6165 6351 6352 */
+#define GLOBAL_VTU_SID_MASK	0x3f
 #define GLOBAL_CONTROL		0x04
 #define GLOBAL_CONTROL_SW_RESET		BIT(15)
 #define GLOBAL_CONTROL_PPU_ENABLE	BIT(14)
@@ -188,10 +198,27 @@
 #define GLOBAL_CONTROL_TCAM_EN		BIT(1)
 #define GLOBAL_CONTROL_EEPROM_DONE_EN	BIT(0)
 #define GLOBAL_VTU_OP		0x05
+#define GLOBAL_VTU_OP_BUSY	BIT(15)
+#define GLOBAL_VTU_OP_FLUSH_ALL		((0x01 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_VTU_LOAD_PURGE	((0x03 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_VTU_GET_NEXT	((0x04 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_STU_LOAD_PURGE	((0x05 << 12) | GLOBAL_VTU_OP_BUSY)
+#define GLOBAL_VTU_OP_STU_GET_NEXT	((0x06 << 12) | GLOBAL_VTU_OP_BUSY)
 #define GLOBAL_VTU_VID		0x06
+#define GLOBAL_VTU_VID_MASK	0xfff
+#define GLOBAL_VTU_VID_VALID	BIT(12)
 #define GLOBAL_VTU_DATA_0_3	0x07
 #define GLOBAL_VTU_DATA_4_7	0x08
 #define GLOBAL_VTU_DATA_8_11	0x09
+#define GLOBAL_VTU_STU_DATA_MASK		0x03
+#define GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED	0x00
+#define GLOBAL_VTU_DATA_MEMBER_TAG_UNTAGGED	0x01
+#define GLOBAL_VTU_DATA_MEMBER_TAG_TAGGED	0x02
+#define GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER	0x03
+#define GLOBAL_STU_DATA_PORT_STATE_DISABLED	0x00
+#define GLOBAL_STU_DATA_PORT_STATE_BLOCKING	0x01
+#define GLOBAL_STU_DATA_PORT_STATE_LEARNING	0x02
+#define GLOBAL_STU_DATA_PORT_STATE_FORWARDING	0x03
 #define GLOBAL_ATU_CONTROL	0x0a
 #define GLOBAL_ATU_CONTROL_LEARN2ALL	BIT(3)
 #define GLOBAL_ATU_OP		0x0b
@@ -326,6 +353,17 @@ struct mv88e6xxx_atu_entry {
 	u8	mac[ETH_ALEN];
 };
 
+struct mv88e6xxx_vtu_stu_entry {
+	/* VTU only */
+	u16	vid;
+	u16	fid;
+
+	/* VTU and STU */
+	u8	sid;
+	bool	valid;
+	u8	data[DSA_MAX_PORTS];
+};
+
 struct mv88e6xxx_priv_state {
 	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
@@ -426,6 +464,13 @@ int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
+int mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *vid);
+int mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 vid);
+int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port, u16 vid,
+			    bool untagged);
+int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid);
+int mv88e6xxx_vlan_getnext(struct dsa_switch *ds, u16 *vid,
+			   unsigned long *ports, unsigned long *untagged);
 int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid);
 int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
