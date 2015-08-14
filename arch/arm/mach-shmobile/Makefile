@@ -18,12 +18,6 @@ obj-$(CONFIG_ARCH_R8A7794)	+= setup-r8a7794.o
 obj-$(CONFIG_ARCH_EMEV2)	+= setup-emev2.o
 obj-$(CONFIG_ARCH_R7S72100)	+= setup-r7s72100.o
 
-# Clock objects
-ifndef CONFIG_COMMON_CLK
-obj-y				+= clock.o
-obj-$(CONFIG_ARCH_R8A7778)	+= clock-r8a7778.o
-endif
-
 # CPU reset vector handling objects
 cpu-y				:= platsmp.o headsmp.o
 
