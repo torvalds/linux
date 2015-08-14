@@ -374,9 +374,10 @@ static void remove_suspend_info(struct md_cluster_info *cinfo, int slot)
 }
 
 
-static void process_suspend_info(struct md_cluster_info *cinfo,
+static void process_suspend_info(struct mddev *mddev,
 		int slot, sector_t lo, sector_t hi)
 {
+	struct md_cluster_info *cinfo = mddev->cluster_info;
 	struct suspend_info *s;
 
 	if (!hi) {
@@ -389,6 +390,8 @@ static void process_suspend_info(struct md_cluster_info *cinfo,
 	s->slot = slot;
 	s->lo = lo;
 	s->hi = hi;
+	mddev->pers->quiesce(mddev, 1);
+	mddev->pers->quiesce(mddev, 0);
 	spin_lock_irq(&cinfo->suspend_lock);
 	/* Remove existing entry (if exists) before adding */
 	__remove_suspend_info(cinfo, slot);
@@ -457,7 +460,7 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	case RESYNCING:
 		pr_info("%s: %d Received message: RESYNCING from %d\n",
 			__func__, __LINE__, msg->slot);
-		process_suspend_info(mddev->cluster_info, msg->slot,
+		process_suspend_info(mddev, msg->slot,
 				msg->low, msg->high);
 		break;
 	case NEWDISK:
