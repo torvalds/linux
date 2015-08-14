@@ -41,6 +41,13 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 			rc = -EBUSY;
 			goto out;
 		}
+
+		if (!cxl_adapter_link_ok(afu->adapter)) {
+			afu->enabled = enabled;
+			rc = -EIO;
+			goto out;
+		}
+
 		pr_devel_ratelimited("AFU control... (0x%016llx)\n",
 				     AFU_Cntl | command);
 		cpu_relax();
@@ -85,6 +92,10 @@ int __cxl_afu_reset(struct cxl_afu *afu)
 
 int cxl_afu_check_and_enable(struct cxl_afu *afu)
 {
+	if (!cxl_adapter_link_ok(afu->adapter)) {
+		WARN(1, "Refusing to enable afu while link down!\n");
+		return -EIO;
+	}
 	if (afu->enabled)
 		return 0;
 	return afu_enable(afu);
@@ -103,6 +114,12 @@ int cxl_psl_purge(struct cxl_afu *afu)
 
 	pr_devel("PSL purge request\n");
 
+	if (!cxl_adapter_link_ok(afu->adapter)) {
+		dev_warn(&afu->dev, "PSL Purge called with link down, ignoring\n");
+		rc = -EIO;
+		goto out;
+	}
+
 	if ((AFU_Cntl & CXL_AFU_Cntl_An_ES_MASK) != CXL_AFU_Cntl_An_ES_Disabled) {
 		WARN(1, "psl_purge request while AFU not disabled!\n");
 		cxl_afu_disable(afu);
@@ -119,6 +136,11 @@ int cxl_psl_purge(struct cxl_afu *afu)
 			rc = -EBUSY;
 			goto out;
 		}
+		if (!cxl_adapter_link_ok(afu->adapter)) {
+			rc = -EIO;
+			goto out;
+		}
+
 		dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 		pr_devel_ratelimited("PSL purging... PSL_CNTL: 0x%016llx  PSL_DSISR: 0x%016llx\n", PSL_CNTL, dsisr);
 		if (dsisr & CXL_PSL_DSISR_TRANS) {
@@ -215,6 +237,8 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter)
 			dev_warn(&adapter->dev, "WARNING: CXL adapter wide TLBIA timed out!\n");
 			return -EBUSY;
 		}
+		if (!cxl_adapter_link_ok(adapter))
+			return -EIO;
 		cpu_relax();
 	}
 
@@ -224,6 +248,8 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter)
 			dev_warn(&adapter->dev, "WARNING: CXL adapter wide SLBIA timed out!\n");
 			return -EBUSY;
 		}
+		if (!cxl_adapter_link_ok(adapter))
+			return -EIO;
 		cpu_relax();
 	}
 	return 0;
@@ -240,6 +266,11 @@ int cxl_afu_slbia(struct cxl_afu *afu)
 			dev_warn(&afu->dev, "WARNING: CXL AFU SLBIA timed out!\n");
 			return -EBUSY;
 		}
+		/* If the adapter has gone down, we can assume that we
+		 * will PERST it and that will invalidate everything.
+		 */
+		if (!cxl_adapter_link_ok(afu->adapter))
+			return -EIO;
 		cpu_relax();
 	}
 	return 0;
@@ -279,6 +310,8 @@ static void slb_invalid(struct cxl_context *ctx)
 	cxl_p1_write(adapter, CXL_PSL_SLBIA, CXL_TLB_SLB_IQ_LPIDPID);
 
 	while (1) {
+		if (!cxl_adapter_link_ok(adapter))
+			break;
 		slbia = cxl_p1_read(adapter, CXL_PSL_SLBIA);
 		if (!(slbia & CXL_TLB_SLB_P))
 			break;
@@ -306,6 +339,11 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 		if (time_after_eq(jiffies, timeout)) {
 			dev_warn(&ctx->afu->dev, "WARNING: Process Element Command timed out!\n");
 			rc = -EBUSY;
+			goto out;
+		}
+		if (!cxl_adapter_link_ok(ctx->afu->adapter)) {
+			dev_warn(&ctx->afu->dev, "WARNING: Device link down, aborting Process Element Command!\n");
+			rc = -EIO;
 			goto out;
 		}
 		state = be64_to_cpup(ctx->afu->sw_command_status);
@@ -355,8 +393,13 @@ static int terminate_process_element(struct cxl_context *ctx)
 
 	mutex_lock(&ctx->afu->spa_mutex);
 	pr_devel("%s Terminate pe: %i started\n", __func__, ctx->pe);
-	rc = do_process_element_cmd(ctx, CXL_SPA_SW_CMD_TERMINATE,
-				    CXL_PE_SOFTWARE_STATE_V | CXL_PE_SOFTWARE_STATE_T);
+	/* We could be asked to terminate when the hw is down. That
+	 * should always succeed: it's not running if the hw has gone
+	 * away and is being reset.
+	 */
+	if (cxl_adapter_link_ok(ctx->afu->adapter))
+		rc = do_process_element_cmd(ctx, CXL_SPA_SW_CMD_TERMINATE,
+					    CXL_PE_SOFTWARE_STATE_V | CXL_PE_SOFTWARE_STATE_T);
 	ctx->elem->software_state = 0;	/* Remove Valid bit */
 	pr_devel("%s Terminate pe: %i finished\n", __func__, ctx->pe);
 	mutex_unlock(&ctx->afu->spa_mutex);
@@ -369,7 +412,14 @@ static int remove_process_element(struct cxl_context *ctx)
 
 	mutex_lock(&ctx->afu->spa_mutex);
 	pr_devel("%s Remove pe: %i started\n", __func__, ctx->pe);
-	if (!(rc = do_process_element_cmd(ctx, CXL_SPA_SW_CMD_REMOVE, 0)))
+
+	/* We could be asked to remove when the hw is down. Again, if
+	 * the hw is down, the PE is gone, so we succeed.
+	 */
+	if (cxl_adapter_link_ok(ctx->afu->adapter))
+		rc = do_process_element_cmd(ctx, CXL_SPA_SW_CMD_REMOVE, 0);
+
+	if (!rc)
 		ctx->pe_inserted = false;
 	slb_invalid(ctx);
 	pr_devel("%s Remove pe: %i finished\n", __func__, ctx->pe);
@@ -612,6 +662,11 @@ int cxl_afu_activate_mode(struct cxl_afu *afu, int mode)
 	if (!(mode & afu->modes_supported))
 		return -EINVAL;
 
+	if (!cxl_adapter_link_ok(afu->adapter)) {
+		WARN(1, "Device link is down, refusing to activate!\n");
+		return -EIO;
+	}
+
 	if (mode == CXL_MODE_DIRECTED)
 		return activate_afu_directed(afu);
 	if (mode == CXL_MODE_DEDICATED)
@@ -622,6 +677,11 @@ int cxl_afu_activate_mode(struct cxl_afu *afu, int mode)
 
 int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed, u64 amr)
 {
+	if (!cxl_adapter_link_ok(ctx->afu->adapter)) {
+		WARN(1, "Device link is down, refusing to attach process!\n");
+		return -EIO;
+	}
+
 	ctx->kernel = kernel;
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
 		return attach_afu_directed(ctx, wed, amr);
@@ -665,6 +725,12 @@ int cxl_detach_process(struct cxl_context *ctx)
 int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info)
 {
 	u64 pidtid;
+
+	/* If the adapter has gone away, we can't get any meaningful
+	 * information.
+	 */
+	if (!cxl_adapter_link_ok(afu->adapter))
+		return -EIO;
 
 	info->dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 	info->dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);

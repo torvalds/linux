@@ -138,6 +138,26 @@ static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
 	return 0;
 }
 
+
+static inline bool cxl_config_link_ok(struct pci_bus *bus)
+{
+	struct pci_controller *phb;
+	struct cxl_afu *afu;
+
+	/* Config space IO is based on phb->cfg_addr, which is based on
+	 * afu_desc_mmio. This isn't safe to read/write when the link
+	 * goes down, as EEH tears down MMIO space.
+	 *
+	 * Check if the link is OK before proceeding.
+	 */
+
+	phb = pci_bus_to_host(bus);
+	if (phb == NULL)
+		return false;
+	afu = (struct cxl_afu *)phb->private_data;
+	return cxl_adapter_link_ok(afu->adapter);
+}
+
 static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 				int offset, int len, u32 *val)
 {
@@ -149,6 +169,9 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 				  &mask, &shift);
 	if (rc)
 		return rc;
+
+	if (!cxl_config_link_ok(bus))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Can only read 32 bits */
 	*val = (in_le32(ioaddr) >> shift) & mask;
@@ -166,6 +189,9 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 				  &mask, &shift);
 	if (rc)
 		return rc;
+
+	if (!cxl_config_link_ok(bus))
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/* Can only write 32 bits so do read-modify-write */
 	mask <<= shift;

@@ -73,6 +73,11 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 	if (!afu->current_mode)
 		goto err_put_afu;
 
+	if (!cxl_adapter_link_ok(adapter)) {
+		rc = -EIO;
+		goto err_put_afu;
+	}
+
 	if (!(ctx = cxl_context_alloc())) {
 		rc = -ENOMEM;
 		goto err_put_afu;
@@ -238,6 +243,9 @@ long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (ctx->status == CLOSED)
 		return -EIO;
 
+	if (!cxl_adapter_link_ok(ctx->afu->adapter))
+		return -EIO;
+
 	pr_devel("afu_ioctl\n");
 	switch (cmd) {
 	case CXL_IOCTL_START_WORK:
@@ -263,6 +271,9 @@ int afu_mmap(struct file *file, struct vm_area_struct *vm)
 
 	/* AFU must be started before we can MMIO */
 	if (ctx->status != STARTED)
+		return -EIO;
+
+	if (!cxl_adapter_link_ok(ctx->afu->adapter))
 		return -EIO;
 
 	return cxl_context_iomap(ctx, vm);
@@ -309,6 +320,9 @@ ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	int rc;
 	DEFINE_WAIT(wait);
 
+	if (!cxl_adapter_link_ok(ctx->afu->adapter))
+		return -EIO;
+
 	if (count < CXL_READ_MIN_SIZE)
 		return -EINVAL;
 
@@ -318,6 +332,11 @@ ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 		prepare_to_wait(&ctx->wq, &wait, TASK_INTERRUPTIBLE);
 		if (ctx_event_pending(ctx))
 			break;
+
+		if (!cxl_adapter_link_ok(ctx->afu->adapter)) {
+			rc = -EIO;
+			goto out;
+		}
 
 		if (file->f_flags & O_NONBLOCK) {
 			rc = -EAGAIN;
