@@ -114,7 +114,7 @@
 #define PWM_DEFAULT_PERIOD ((long)(1E9/100))
 
 /* Size of one A/D value */
-#define SIZEADIN          ((sizeof(uint16_t)))
+#define SIZEADIN          ((sizeof(u16)))
 
 /*
  * Size of the input-buffer IN BYTES
@@ -126,7 +126,7 @@
 #define SIZEINSNBUF       16
 
 /* size of one value for the D/A converter: channel and value */
-#define SIZEDAOUT          ((sizeof(uint8_t)+sizeof(uint16_t)))
+#define SIZEDAOUT          ((sizeof(u8) + sizeof(u16)))
 
 /*
  * Size of the output-buffer in bytes
@@ -187,7 +187,7 @@ struct usbdux_private {
 	/* PWM period */
 	unsigned int pwm_period;
 	/* PWM internal delay for the GPIF in the FX2 */
-	uint8_t pwm_delay;
+	u8 pwm_delay;
 	/* size of the PWM buffer which holds the bit pattern */
 	int pwm_buf_sz;
 	/* input buffer for the ISO-transfer */
@@ -209,7 +209,7 @@ struct usbdux_private {
 	/* interval in frames/uframes */
 	unsigned int ai_interval;
 	/* commands */
-	uint8_t *dux_commands;
+	u8 *dux_commands;
 	struct semaphore sem;
 };
 
@@ -262,7 +262,7 @@ static void usbduxsub_ai_handle_urb(struct comedi_device *dev,
 		/* get the data from the USB bus and hand it over to comedi */
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			unsigned int range = CR_RANGE(cmd->chanlist[i]);
-			uint16_t val = le16_to_cpu(devpriv->in_buf[i]);
+			u16 val = le16_to_cpu(devpriv->in_buf[i]);
 
 			/* bipolar data is two's-complement */
 			if (comedi_range_is_bipolar(s, range))
@@ -380,7 +380,7 @@ static void usbduxsub_ao_handle_urb(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	uint8_t *datap;
+	u8 *datap;
 	int ret;
 	int i;
 
@@ -603,10 +603,10 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
  * creates the ADC command for the MAX1271
  * range is the range value from comedi
  */
-static uint8_t create_adc_command(unsigned int chan, unsigned int range)
+static u8 create_adc_command(unsigned int chan, unsigned int range)
 {
-	uint8_t p = (range <= 1);
-	uint8_t r = ((range % 2) == 0);
+	u8 p = (range <= 1);
+	u8 r = ((range % 2) == 0);
 
 	return (chan << 4) | ((p == 1) << 2) | ((r == 1) << 3);
 }
@@ -1391,8 +1391,8 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 				  unsigned long context)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
-	uint8_t *buf;
-	uint8_t *tmp;
+	u8 *buf;
+	u8 *tmp;
 	int ret;
 
 	if (!data)
