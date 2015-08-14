@@ -341,6 +341,9 @@ int cxl_register_psl_err_irq(struct cxl *adapter)
 
 void cxl_release_psl_err_irq(struct cxl *adapter)
 {
+	if (adapter->err_virq != irq_find_mapping(NULL, adapter->err_hwirq))
+		return;
+
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, 0x0000000000000000);
 	cxl_unmap_irq(adapter->err_virq, adapter);
 	cxl_release_one_irq(adapter, adapter->err_hwirq);
@@ -374,6 +377,9 @@ int cxl_register_serr_irq(struct cxl_afu *afu)
 
 void cxl_release_serr_irq(struct cxl_afu *afu)
 {
+	if (afu->serr_virq != irq_find_mapping(NULL, afu->serr_hwirq))
+		return;
+
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, 0x0000000000000000);
 	cxl_unmap_irq(afu->serr_virq, afu);
 	cxl_release_one_irq(afu->adapter, afu->serr_hwirq);
@@ -400,6 +406,9 @@ int cxl_register_psl_irq(struct cxl_afu *afu)
 
 void cxl_release_psl_irq(struct cxl_afu *afu)
 {
+	if (afu->psl_virq != irq_find_mapping(NULL, afu->psl_hwirq))
+		return;
+
 	cxl_unmap_irq(afu->psl_virq, afu);
 	cxl_release_one_irq(afu->adapter, afu->psl_hwirq);
 	kfree(afu->psl_irq_name);
