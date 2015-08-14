@@ -240,7 +240,8 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	cp += sprintf(cp, "%d, %d, %d,\n", KEY_MAP_VER, num_keys, nstates);
 	cp1 += 2; /* now pointing at shift states */
 	/* dump num_keys+1 as first row is shift states + flags,
-	 * each subsequent row is key + states */
+	 * each subsequent row is key + states
+	 */
 	for (n = 0; n <= num_keys; n++) {
 		for (i = 0; i <= nstates; i++) {
 			ch = *cp1++;
