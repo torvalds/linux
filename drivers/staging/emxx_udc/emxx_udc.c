@@ -3153,36 +3153,46 @@ static const struct usb_gadget_ops nbu2ss_gadget_ops = {
 	.ioctl			= nbu2ss_gad_ioctl,
 };
 
-static const char g_ep0_name[] = "ep0";
-static const char g_ep1_name[] = "ep1-bulk";
-static const char g_ep2_name[] = "ep2-bulk";
-static const char g_ep3_name[] = "ep3in-int";
-static const char g_ep4_name[] = "ep4-iso";
-static const char g_ep5_name[] = "ep5-iso";
-static const char g_ep6_name[] = "ep6-bulk";
-static const char g_ep7_name[] = "ep7-bulk";
-static const char g_ep8_name[] = "ep8in-int";
-static const char g_ep9_name[] = "ep9-iso";
-static const char g_epa_name[] = "epa-iso";
-static const char g_epb_name[] = "epb-bulk";
-static const char g_epc_name[] = "epc-nulk";
-static const char g_epd_name[] = "epdin-int";
+static const struct {
+	const char *name;
+	const struct usb_ep_caps caps;
+} ep_info[NUM_ENDPOINTS] = {
+#define EP_INFO(_name, _caps) \
+	{ \
+		.name = _name, \
+		.caps = _caps, \
+	}
 
-static const char *gp_ep_name[NUM_ENDPOINTS] = {
-	g_ep0_name,
-	g_ep1_name,
-	g_ep2_name,
-	g_ep3_name,
-	g_ep4_name,
-	g_ep5_name,
-	g_ep6_name,
-	g_ep7_name,
-	g_ep8_name,
-	g_ep9_name,
-	g_epa_name,
-	g_epb_name,
-	g_epc_name,
-	g_epd_name,
+	EP_INFO("ep0",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_CONTROL, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep1-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep2-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep3in-int",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep4-iso",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep5-iso",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep6-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep7-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("ep8in-int",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_IN)),
+	EP_INFO("ep9-iso",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("epa-iso",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_ISO, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("epb-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("epc-bulk",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_BULK, USB_EP_CAPS_DIR_ALL)),
+	EP_INFO("epdin-int",
+		USB_EP_CAPS(USB_EP_CAPS_TYPE_INT, USB_EP_CAPS_DIR_IN)),
+
+#undef EP_INFO
 };
 
 /*-------------------------------------------------------------------------*/
@@ -3200,10 +3210,12 @@ static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 		ep->desc = NULL;
 
 		ep->ep.driver_data = NULL;
-		ep->ep.name = gp_ep_name[i];
+		ep->ep.name = ep_info[i].name;
+		ep->ep.caps = ep_info[i].caps;
 		ep->ep.ops = &nbu2ss_ep_ops;
 
-		ep->ep.maxpacket = (i == 0 ? EP0_PACKETSIZE : EP_PACKETSIZE);
+		usb_ep_set_maxpacket_limit(&ep->ep,
+				i == 0 ? EP0_PACKETSIZE : EP_PACKETSIZE);
 
 		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 		INIT_LIST_HEAD(&ep->queue);

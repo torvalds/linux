@@ -41,6 +41,8 @@ int check_user_usb_string(const char *name,
 #define MAX_NAME_LEN	40
 #define MAX_USB_STRING_LANGS 2
 
+static const struct usb_descriptor_header *otg_desc[2];
+
 struct gadget_info {
 	struct config_group group;
 	struct config_group functions_group;
@@ -55,9 +57,6 @@ struct gadget_info {
 	struct list_head available_func;
 
 	const char *udc_name;
-#ifdef CONFIG_USB_OTG
-	struct usb_otg_descriptor otg;
-#endif
 	struct usb_composite_driver composite;
 	struct usb_composite_dev cdev;
 	bool use_os_desc;
@@ -1376,12 +1375,28 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 		memcpy(cdev->qw_sign, gi->qw_sign, OS_STRING_QW_SIGN_LEN);
 	}
 
+	if (gadget_is_otg(gadget) && !otg_desc[0]) {
+		struct usb_descriptor_header *usb_desc;
+
+		usb_desc = usb_otg_descriptor_alloc(gadget);
+		if (!usb_desc) {
+			ret = -ENOMEM;
+			goto err_comp_cleanup;
+		}
+		usb_otg_descriptor_init(gadget, usb_desc);
+		otg_desc[0] = usb_desc;
+		otg_desc[1] = NULL;
+	}
+
 	/* Go through all configs, attach all functions */
 	list_for_each_entry(c, &gi->cdev.configs, list) {
 		struct config_usb_cfg *cfg;
 		struct usb_function *f;
 		struct usb_function *tmp;
 		struct gadget_config_name *cn;
+
+		if (gadget_is_otg(gadget))
+			c->descriptors = otg_desc;
 
 		cfg = container_of(c, struct config_usb_cfg, c);
 		if (!list_empty(&cfg->string_list)) {
@@ -1437,6 +1452,8 @@ static void configfs_composite_unbind(struct usb_gadget *gadget)
 	cdev = get_gadget_data(gadget);
 	gi = container_of(cdev, struct gadget_info, cdev);
 
+	kfree(otg_desc[0]);
+	otg_desc[0] = NULL;
 	purge_configs_funcs(gi);
 	composite_dev_cleanup(cdev);
 	usb_ep_autoconfig_reset(cdev->gadget);
@@ -1509,12 +1526,6 @@ static struct config_group *gadgets_make(
 
 	if (!gi->composite.gadget_driver.function)
 		goto err;
-
-#ifdef CONFIG_USB_OTG
-	gi->otg.bLength = sizeof(struct usb_otg_descriptor);
-	gi->otg.bDescriptorType = USB_DT_OTG;
-	gi->otg.bmAttributes = USB_OTG_SRP | USB_OTG_HNP;
-#endif
 
 	config_group_init_type_name(&gi->group, name,
 				&gadget_root_type);

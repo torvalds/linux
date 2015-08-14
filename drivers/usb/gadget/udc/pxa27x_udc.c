@@ -1710,6 +1710,7 @@ static void udc_init_data(struct pxa_udc *dev)
 	INIT_LIST_HEAD(&dev->gadget.ep_list);
 	INIT_LIST_HEAD(&dev->gadget.ep0->ep_list);
 	dev->udc_usb_ep[0].pxa_ep = &dev->pxa_ep[0];
+	dev->gadget.quirk_altset_not_supp = 1;
 	ep0_idle(dev);
 
 	/* PXA endpoints init */
@@ -2422,7 +2423,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		}
 		udc->udc_command = mach->udc_command;
 	} else {
-		udc->gpiod = devm_gpiod_get(&pdev->dev, NULL);
+		udc->gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_ASIS);
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);

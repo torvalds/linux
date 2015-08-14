@@ -5,7 +5,7 @@
 
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
-	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
+	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, AW, ...)'
 	depends on (USB || USB_GADGET)
 	help
 	  Say Y here if your system has a dual role high speed USB
@@ -19,6 +19,8 @@ config USB_MUSB_HDRC
 
 	  Analog Devices parts using this IP include Blackfin BF54x,
 	  BF525 and BF527.
+
+	  Allwinner SoCs using this IP include A10, A13, A20, ...
 
 	  If you do not know what this is, please say N.
 
@@ -59,6 +61,15 @@ config USB_MUSB_DUAL_ROLE
 endchoice
 
 comment "Platform Glue Layer"
+
+config USB_MUSB_SUNXI
+	tristate "Allwinner (sunxi)"
+	depends on ARCH_SUNXI
+	depends on NOP_USB_XCEIV
+	depends on PHY_SUN4I_USB
+	depends on EXTCON
+	depends on GENERIC_PHY
+	select SUNXI_SRAM
 
 config USB_MUSB_DAVINCI
 	tristate "DaVinci"
@@ -113,19 +124,20 @@ config USB_MUSB_JZ4740
 config USB_MUSB_AM335X_CHILD
 	tristate
 
-choice
-	prompt 'MUSB DMA mode'
-	default MUSB_PIO_ONLY if ARCH_MULTIPLATFORM || USB_MUSB_JZ4740
-	default USB_UX500_DMA if USB_MUSB_UX500
-	default USB_INVENTRA_DMA if USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
-	default USB_TI_CPPI_DMA if USB_MUSB_DAVINCI
-	default USB_TUSB_OMAP_DMA if USB_MUSB_TUSB6010
-	default MUSB_PIO_ONLY if USB_MUSB_TUSB6010 || USB_MUSB_DA8XX || USB_MUSB_AM35X \
-				|| USB_MUSB_DSPS
+comment "MUSB DMA mode"
+
+config MUSB_PIO_ONLY
+	bool 'Disable DMA (always use PIO)'
 	help
-	  Unfortunately, only one option can be enabled here. Ideally one
-	  should be able to build all these drivers into one kernel to
-	  allow using DMA on multiplatform kernels.
+	  All data is copied between memory and FIFO by the CPU.
+	  DMA controllers are ignored.
+
+	  Do not choose this unless DMA support for your SOC or board
+	  is unavailable (or unstable).  When DMA is enabled at compile time,
+	  you can still disable it at run time using the "use_dma=n" module
+	  parameter.
+
+if !MUSB_PIO_ONLY
 
 config USB_UX500_DMA
 	bool 'ST Ericsson Ux500'
@@ -157,17 +169,6 @@ config USB_TUSB_OMAP_DMA
 	help
 	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.
 
-config MUSB_PIO_ONLY
-	bool 'Disable DMA (always use PIO)'
-	help
-	  All data is copied between memory and FIFO by the CPU.
-	  DMA controllers are ignored.
-
-	  Do not choose this unless DMA support for your SOC or board
-	  is unavailable (or unstable).  When DMA is enabled at compile time,
-	  you can still disable it at run time using the "use_dma=n" module
-	  parameter.
-
-endchoice
+endif # !MUSB_PIO_ONLY
 
 endif # USB_MUSB_HDRC
