@@ -3188,6 +3188,37 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	put_bh(bh);
 }
 
+int btrfs_read_dev_one_super(struct block_device *bdev, int copy_num,
+			struct buffer_head **bh_ret)
+{
+	struct buffer_head *bh;
+	struct btrfs_super_block *super;
+	u64 bytenr;
+
+	bytenr = btrfs_sb_offset(copy_num);
+	if (bytenr + BTRFS_SUPER_INFO_SIZE >= i_size_read(bdev->bd_inode))
+		return -EINVAL;
+
+	bh = __bread(bdev, bytenr / 4096, BTRFS_SUPER_INFO_SIZE);
+	/*
+	 * If we fail to read from the underlying devices, as of now
+	 * the best option we have is to mark it EIO.
+	 */
+	if (!bh)
+		return -EIO;
+
+	super = (struct btrfs_super_block *)bh->b_data;
+	if (btrfs_super_bytenr(super) != bytenr ||
+		    btrfs_super_magic(super) != BTRFS_MAGIC) {
+		brelse(bh);
+		return -EINVAL;
+	}
+
+	*bh_ret = bh;
+	return 0;
+}
+
+
 struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 {
 	struct buffer_head *bh;
@@ -3195,7 +3226,6 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 	struct btrfs_super_block *super;
 	int i;
 	u64 transid = 0;
-	u64 bytenr;
 	int ret = -EINVAL;
 
 	/* we would like to check all the supers, but that would make
@@ -3204,28 +3234,11 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
 	 */
 	for (i = 0; i < 1; i++) {
-		bytenr = btrfs_sb_offset(i);
-		if (bytenr + BTRFS_SUPER_INFO_SIZE >=
-					i_size_read(bdev->bd_inode))
-			break;
-		bh = __bread(bdev, bytenr / 4096,
-					BTRFS_SUPER_INFO_SIZE);
-		/*
-		 * If we fail to read from the underlying devices, as of now
-		 * the best option we have is to mark it EIO.
-		 */
-		if (!bh) {
-			ret = -EIO;
+		ret = btrfs_read_dev_one_super(bdev, i, &bh);
+		if (ret)
 			continue;
-		}
 
 		super = (struct btrfs_super_block *)bh->b_data;
-		if (btrfs_super_bytenr(super) != bytenr ||
-		    btrfs_super_magic(super) != BTRFS_MAGIC) {
-			brelse(bh);
-			ret = -EINVAL;
-			continue;
-		}
 
 		if (!latest || btrfs_super_generation(super) > transid) {
 			brelse(latest);
