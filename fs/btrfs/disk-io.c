@@ -2653,8 +2653,8 @@ int open_ctree(struct super_block *sb,
 	 * Read super block and check the signature bytes only
 	 */
 	bh = btrfs_read_dev_super(fs_devices->latest_bdev);
-	if (!bh) {
-		err = -EINVAL;
+	if (IS_ERR(bh)) {
+		err = PTR_ERR(bh);
 		goto fail_alloc;
 	}
 
@@ -3196,6 +3196,7 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 	int i;
 	u64 transid = 0;
 	u64 bytenr;
+	int ret = -EINVAL;
 
 	/* we would like to check all the supers, but that would make
 	 * a btrfs mount succeed after a mkfs from a different FS.
@@ -3209,13 +3210,20 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 			break;
 		bh = __bread(bdev, bytenr / 4096,
 					BTRFS_SUPER_INFO_SIZE);
-		if (!bh)
+		/*
+		 * If we fail to read from the underlying devices, as of now
+		 * the best option we have is to mark it EIO.
+		 */
+		if (!bh) {
+			ret = -EIO;
 			continue;
+		}
 
 		super = (struct btrfs_super_block *)bh->b_data;
 		if (btrfs_super_bytenr(super) != bytenr ||
 		    btrfs_super_magic(super) != BTRFS_MAGIC) {
 			brelse(bh);
+			ret = -EINVAL;
 			continue;
 		}
 
@@ -3227,6 +3235,10 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 			brelse(bh);
 		}
 	}
+
+	if (!latest)
+		return ERR_PTR(ret);
+
 	return latest;
 }
 

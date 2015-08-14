@@ -211,8 +211,8 @@ btrfs_get_bdev_and_sb(const char *device_path, fmode_t flags, void *holder,
 	}
 	invalidate_bdev(*bdev);
 	*bh = btrfs_read_dev_super(*bdev);
-	if (!*bh) {
-		ret = -EINVAL;
+	if (IS_ERR(*bh)) {
+		ret = PTR_ERR(*bh);
 		blkdev_put(*bdev, flags);
 		goto error;
 	}
@@ -6746,8 +6746,8 @@ int btrfs_scratch_superblock(struct btrfs_device *device)
 	struct btrfs_super_block *disk_super;
 
 	bh = btrfs_read_dev_super(device->bdev);
-	if (!bh)
-		return -EINVAL;
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 	disk_super = (struct btrfs_super_block *)bh->b_data;
 
 	memset(&disk_super->magic, 0, sizeof(disk_super->magic));
