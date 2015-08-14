@@ -683,7 +683,7 @@ int btrfs_sysfs_add_device(struct btrfs_fs_devices *fs_devs)
 	return 0;
 }
 
-int btrfs_kobj_add_device(struct btrfs_fs_devices *fs_devices,
+int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,
 				struct btrfs_device *one_device)
 {
 	int error = 0;
@@ -744,7 +744,7 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 
 	btrfs_set_fs_info_ptr(fs_info);
 
-	error = btrfs_kobj_add_device(fs_devs, NULL);
+	error = btrfs_sysfs_add_device_link(fs_devs, NULL);
 	if (error)
 		return error;
 
