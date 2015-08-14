@@ -52,6 +52,8 @@
 #include "../include/obd_cksum.h"
 #include "../include/lustre/ll_fiemap.h"
 
+#include "ptlrpc_internal.h"
+
 static inline int lustre_msg_hdr_size_v2(int count)
 {
 	return cfs_size_round(offsetof(struct lustre_msg_v2,
