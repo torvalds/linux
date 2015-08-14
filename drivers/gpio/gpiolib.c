@@ -250,6 +250,38 @@ static int gpiochip_add_to_list(struct gpio_chip *chip)
 	return err;
 }
 
+/*
+ * Takes the names from gc->names and checks if they are all unique. If they
+ * are, they are assigned to their gpio descriptors.
+ *
+ * Returns -EEXIST if one of the names is already used for a different GPIO.
+ */
+static int gpiochip_set_desc_names(struct gpio_chip *gc)
+{
+	int i;
+
+	if (!gc->names)
+		return 0;
+
+	/* First check all names if they are unique */
+	for (i = 0; i != gc->ngpio; ++i) {
+		struct gpio_desc *gpio;
+
+		gpio = gpio_name_to_desc(gc->names[i]);
+		if (gpio) {
+			dev_err(gc->dev, "Detected name collision for GPIO name '%s'\n",
+				gc->names[i]);
+			return -EEXIST;
+		}
+	}
+
+	/* Then add all names to the GPIO descriptors */
+	for (i = 0; i != gc->ngpio; ++i)
+		gc->desc[i].name = gc->names[i];
+
+	return 0;
+}
+
 /**
  * gpiochip_add() - register a gpio_chip
  * @chip: the chip to register, with chip->base initialized
@@ -322,6 +354,10 @@ int gpiochip_add(struct gpio_chip *chip)
 	if (!chip->owner && chip->dev && chip->dev->driver)
 		chip->owner = chip->dev->driver->owner;
 
+	status = gpiochip_set_desc_names(chip);
+	if (status)
+		goto err_remove_from_list;
+
 	status = of_gpiochip_add(chip);
 	if (status)
 		goto err_remove_chip;
@@ -342,6 +378,7 @@ err_remove_chip:
 	acpi_gpiochip_remove(chip);
 	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
+err_remove_from_list:
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_del(&chip->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
