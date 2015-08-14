@@ -736,7 +736,7 @@ int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs,
 	return error;
 }
 
-int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
+int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 {
 	int error;
 	struct btrfs_fs_devices *fs_devs = fs_info->fs_devices;

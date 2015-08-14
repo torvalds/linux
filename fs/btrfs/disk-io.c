@@ -2933,7 +2933,7 @@ retry_root_backup:
 		goto fail_fsdev_sysfs;
 	}
 
-	ret = btrfs_sysfs_add_one(fs_info);
+	ret = btrfs_sysfs_add_mounted(fs_info);
 	if (ret) {
 		pr_err("BTRFS: failed to init sysfs interface: %d\n", ret);
 		goto fail_fsdev_sysfs;
