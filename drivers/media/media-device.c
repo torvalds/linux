@@ -438,6 +438,13 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	media_gobj_init(mdev, MEDIA_GRAPH_ENTITY, &entity->graph_obj);
 	list_add_tail(&entity->list, &mdev->entities);
 
+	/*
+	 * Initialize objects at the links
+	 * in the case where links got created before entity register
+	 */
+	for (i = 0; i < entity->num_links; i++)
+		media_gobj_init(mdev, MEDIA_GRAPH_LINK,
+				&entity->links[i].graph_obj);
 	/* Initialize objects at the pads */
 	for (i = 0; i < entity->num_pads; i++)
 		media_gobj_init(mdev, MEDIA_GRAPH_PAD,
@@ -465,6 +472,8 @@ void media_device_unregister_entity(struct media_entity *entity)
 		return;
 
 	spin_lock(&mdev->lock);
+	for (i = 0; i < entity->num_links; i++)
+		media_gobj_remove(&entity->links[i].graph_obj);
 	for (i = 0; i < entity->num_pads; i++)
 		media_gobj_remove(&entity->pads[i].graph_obj);
 	media_gobj_remove(&entity->graph_obj);

@@ -35,10 +35,12 @@
  *
  * @MEDIA_GRAPH_ENTITY:		Identify a media entity
  * @MEDIA_GRAPH_PAD:		Identify a media pad
+ * @MEDIA_GRAPH_LINK:		Identify a media link
  */
 enum media_gobj_type {
 	MEDIA_GRAPH_ENTITY,
 	MEDIA_GRAPH_PAD,
+	MEDIA_GRAPH_LINK,
 };
 
 #define MEDIA_BITS_PER_TYPE		8
@@ -67,6 +69,7 @@ struct media_pipeline {
 };
 
 struct media_link {
+	struct media_gobj graph_obj;
 	struct media_pad *source;	/* Source pad */
 	struct media_pad *sink;		/* Sink pad  */
 	struct media_link *reverse;	/* Link in the reverse direction */

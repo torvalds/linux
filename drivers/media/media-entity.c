@@ -51,6 +51,9 @@ void media_gobj_init(struct media_device *mdev,
 	case MEDIA_GRAPH_PAD:
 		gobj->id = media_gobj_gen_id(type, ++mdev->pad_id);
 		break;
+	case MEDIA_GRAPH_LINK:
+		gobj->id = media_gobj_gen_id(type, ++mdev->link_id);
+		break;
 	}
 }
 
@@ -491,6 +494,9 @@ media_entity_create_link(struct media_entity *source, u16 source_pad,
 	link->sink = &sink->pads[sink_pad];
 	link->flags = flags;
 
+	/* Initialize graph object embedded at the new link */
+	media_gobj_init(source->parent, MEDIA_GRAPH_LINK, &link->graph_obj);
+
 	/* Create the backlink. Backlinks are used to help graph traversal and
 	 * are not reported to userspace.
 	 */
@@ -503,6 +509,9 @@ media_entity_create_link(struct media_entity *source, u16 source_pad,
 	backlink->source = &source->pads[source_pad];
 	backlink->sink = &sink->pads[sink_pad];
 	backlink->flags = flags;
+
+	/* Initialize graph object embedded at the new link */
+	media_gobj_init(sink->parent, MEDIA_GRAPH_LINK, &backlink->graph_obj);
 
 	link->reverse = backlink;
 	backlink->reverse = link;
