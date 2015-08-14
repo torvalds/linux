@@ -533,12 +533,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
        amdgpu_cs_parser_fini_late(parser);
 }
 
-static int amdgpu_cs_parser_run_job(struct amdgpu_cs_parser *sched_job)
-{
-       amdgpu_cs_parser_fini_early(sched_job, 0, true);
-       return 0;
-}
-
 static int amdgpu_cs_parser_free_job(struct amdgpu_cs_parser *sched_job)
 {
        amdgpu_cs_parser_fini_late(sched_job);
@@ -904,14 +898,10 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (amdgpu_enable_scheduler && parser->num_ibs) {
 		struct amdgpu_ring * ring =
 			amdgpu_cs_parser_get_ring(adev, parser);
-		if (ring->is_pte_ring || (parser->bo_list && parser->bo_list->has_userptr)) {
-			r = amdgpu_cs_parser_prepare_job(parser);
-			if (r)
-				goto out;
-		} else
-			parser->prepare_job = amdgpu_cs_parser_prepare_job;
+		r = amdgpu_cs_parser_prepare_job(parser);
+		if (r)
+			goto out;
 		parser->ring = ring;
-		parser->run_job = amdgpu_cs_parser_run_job;
 		parser->free_job = amdgpu_cs_parser_free_job;
 		mutex_lock(&parser->job_lock);
 		r = amd_sched_push_job(ring->scheduler,
@@ -927,6 +917,11 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 					     &parser->s_fence->base,
 					     parser->s_fence->v_seq);
 		cs->out.handle = parser->s_fence->v_seq;
+		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
+		ttm_eu_fence_buffer_objects(&parser->ticket,
+				&parser->validated,
+				&parser->s_fence->base);
+
 		mutex_unlock(&parser->job_lock);
 		up_read(&adev->exclusive_lock);
 		return 0;
