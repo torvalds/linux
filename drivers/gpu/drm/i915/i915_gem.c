@@ -3742,6 +3742,15 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		level = I915_CACHE_NONE;
 		break;
 	case I915_CACHING_CACHED:
+		/*
+		 * Due to a HW issue on BXT A stepping, GPU stores via a
+		 * snooped mapping may leave stale data in a corresponding CPU
+		 * cacheline, whereas normally such cachelines would get
+		 * invalidated.
+		 */
+		if (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0)
+			return -ENODEV;
+
 		level = I915_CACHE_LLC;
 		break;
 	case I915_CACHING_DISPLAY:
