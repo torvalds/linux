@@ -149,9 +149,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	int i, j;
 
 	num_scalers_need = hweight32(scaler_state->scaler_users);
-	DRM_DEBUG_KMS("crtc_state = %p need = %d avail = %d scaler_users = 0x%x\n",
-		crtc_state, num_scalers_need, intel_crtc->num_scalers,
-		scaler_state->scaler_users);
 
 	/*
 	 * High level flow:

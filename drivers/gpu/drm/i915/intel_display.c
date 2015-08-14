@@ -2933,8 +2933,6 @@ static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
 	I915_WRITE(SKL_PS_CTRL(intel_crtc->pipe, id), 0);
 	I915_WRITE(SKL_PS_WIN_POS(intel_crtc->pipe, id), 0);
 	I915_WRITE(SKL_PS_WIN_SZ(intel_crtc->pipe, id), 0);
-	DRM_DEBUG_KMS("CRTC:%d Disabled scaler id %u.%u\n",
-		intel_crtc->base.base.id, intel_crtc->pipe, id);
 }
 
 /*
