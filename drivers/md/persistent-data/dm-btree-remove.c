@@ -689,6 +689,7 @@ static int remove_one(struct dm_btree_info *info, dm_block_t root,
 					     value_ptr(n, index));
 
 		delete_at(n, index);
+		keys[last_level] = k + 1ull;
 
 	} else
 		r = -ENODATA;

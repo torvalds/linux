@@ -680,7 +680,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <4>;
 	no-1-8-v;
-	cd-gpios = <&gpio7 2 0>;
+	cd-gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
 	fsl,wp-controller;
 	status = "okay";
 };
@@ -690,7 +690,7 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
 	no-1-8-v;
-	cd-gpios = <&gpio7 3 0>;
+	cd-gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
 	fsl,wp-controller;
 	status = "okay";
 };

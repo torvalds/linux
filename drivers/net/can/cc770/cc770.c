@@ -504,10 +504,10 @@ static void cc770_rx(struct net_device *dev, unsigned int mo, u8 ctrl1)
 		for (i = 0; i < cf->can_dlc; i++)
 			cf->data[i] = cc770_read_reg(priv, msgobj[mo].data[i]);
 	}
-	netif_rx(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 }
 
 static int cc770_err(struct net_device *dev, u8 status)
@@ -584,10 +584,10 @@ static int cc770_err(struct net_device *dev, u8 status)
 		}
 	}
 
-	netif_rx(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 
 	return 0;
 }

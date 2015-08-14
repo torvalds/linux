@@ -166,14 +166,30 @@ gk104_fifo_context_attach(struct nvkm_object *parent,
 }
 
 static int
+gk104_fifo_chan_kick(struct gk104_fifo_chan *chan)
+{
+	struct nvkm_object *obj = (void *)chan;
+	struct gk104_fifo_priv *priv = (void *)obj->engine;
+
+	nv_wr32(priv, 0x002634, chan->base.chid);
+	if (!nv_wait(priv, 0x002634, 0x100000, 0x000000)) {
+		nv_error(priv, "channel %d [%s] kick timeout\n",
+			 chan->base.chid, nvkm_client_name(chan));
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int
 gk104_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 			  struct nvkm_object *object)
 {
 	struct nvkm_bar *bar = nvkm_bar(parent);
-	struct gk104_fifo_priv *priv = (void *)parent->engine;
 	struct gk104_fifo_base *base = (void *)parent->parent;
 	struct gk104_fifo_chan *chan = (void *)parent;
 	u32 addr;
+	int ret;
 
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW    : return 0;
@@ -188,13 +204,9 @@ gk104_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 		return -EINVAL;
 	}
 
-	nv_wr32(priv, 0x002634, chan->base.chid);
-	if (!nv_wait(priv, 0x002634, 0xffffffff, chan->base.chid)) {
-		nv_error(priv, "channel %d [%s] kick timeout\n",
-			 chan->base.chid, nvkm_client_name(chan));
-		if (suspend)
-			return -EBUSY;
-	}
+	ret = gk104_fifo_chan_kick(chan);
+	if (ret && suspend)
+		return ret;
 
 	if (addr) {
 		nv_wo32(base, addr + 0x00, 0x00000000);
@@ -319,6 +331,7 @@ gk104_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 		gk104_fifo_runlist_update(priv, chan->engine);
 	}
 
+	gk104_fifo_chan_kick(chan);
 	nv_wr32(priv, 0x800000 + (chid * 8), 0x00000000);
 	return nvkm_fifo_channel_fini(&chan->base, suspend);
 }

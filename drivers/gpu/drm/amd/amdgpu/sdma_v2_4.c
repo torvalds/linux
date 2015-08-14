@@ -121,6 +121,7 @@ static int sdma_v2_4_init_microcode(struct amdgpu_device *adev)
 	int err, i;
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
+	const struct sdma_firmware_header_v1_0 *hdr;
 
 	DRM_DEBUG("\n");
 
@@ -142,6 +143,9 @@ static int sdma_v2_4_init_microcode(struct amdgpu_device *adev)
 		err = amdgpu_ucode_validate(adev->sdma[i].fw);
 		if (err)
 			goto out;
+		hdr = (const struct sdma_firmware_header_v1_0 *)adev->sdma[i].fw->data;
+		adev->sdma[i].fw_version = le32_to_cpu(hdr->header.ucode_version);
+		adev->sdma[i].feature_version = le32_to_cpu(hdr->ucode_feature_version);
 
 		if (adev->firmware.smu_load) {
 			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA0 + i];
@@ -541,8 +545,6 @@ static int sdma_v2_4_load_microcode(struct amdgpu_device *adev)
 			hdr = (const struct sdma_firmware_header_v1_0 *)adev->sdma[i].fw->data;
 			amdgpu_ucode_print_sdma_hdr(&hdr->header);
 			fw_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
-			adev->sdma[i].fw_version = le32_to_cpu(hdr->header.ucode_version);
-
 			fw_data = (const __le32 *)
 				(adev->sdma[i].fw->data +
 				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));

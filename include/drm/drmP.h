@@ -691,7 +691,7 @@ struct drm_vblank_crtc {
 	struct timer_list disable_timer;		/* delayed disable timer */
 
 	/* vblank counter, protected by dev->vblank_time_lock for writes */
-	unsigned long count;
+	u32 count;
 	/* vblank timestamps, protected by dev->vblank_time_lock for writes */
 	struct timeval time[DRM_VBLANKTIME_RBSIZE];
 

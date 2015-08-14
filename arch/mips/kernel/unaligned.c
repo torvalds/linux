@@ -438,7 +438,7 @@ do {                                                        \
 		: "memory");                                \
 } while(0)
 
-#define     StoreDW(addr, value, res) \
+#define     _StoreDW(addr, value, res) \
 do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tpush\n\t"		    \

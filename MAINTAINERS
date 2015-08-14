@@ -5605,6 +5605,7 @@ F:	kernel/irq/
 IRQCHIP DRIVERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 M:	Jason Cooper <jason@lakedaemon.net>
+M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
@@ -5613,11 +5614,14 @@ F:	Documentation/devicetree/bindings/interrupt-controller/
 F:	drivers/irqchip/
 
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
-M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
+M:	Jiang Liu <jiang.liu@linux.intel.com>
+M:	Marc Zyngier <marc.zyngier@arm.com>
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	Documentation/IRQ-domain.txt
 F:	include/linux/irqdomain.h
 F:	kernel/irq/irqdomain.c
+F:	kernel/irq/msi.c
 
 ISAPNP
 M:	Jaroslav Kysela <perex@perex.cz>
@@ -5904,7 +5908,6 @@ S:	Supported
 F:	Documentation/s390/kvm.txt
 F:	arch/s390/include/asm/kvm*
 F:	arch/s390/kvm/
-F:	drivers/s390/kvm/
 
 KERNEL VIRTUAL MACHINE (KVM) FOR ARM
 M:	Christoffer Dall <christoffer.dall@linaro.org>
@@ -6843,6 +6846,12 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/msi2500/
+
+MSYSTEMS DISKONCHIP G3 MTD DRIVER
+M:	Robert Jarzmik <robert.jarzmik@free.fr>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/devices/docg3*
 
 MT9M032 APTINA SENSOR DRIVER
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -10900,6 +10909,15 @@ F:	drivers/net/virtio_net.c
 F:	drivers/block/virtio_blk.c
 F:	include/linux/virtio_*.h
 F:	include/uapi/linux/virtio_*.h
+
+VIRTIO DRIVERS FOR S390
+M:	Christian Borntraeger <borntraeger@de.ibm.com>
+M:	Cornelia Huck <cornelia.huck@de.ibm.com>
+L:	linux-s390@vger.kernel.org
+L:	virtualization@lists.linux-foundation.org
+L:	kvm@vger.kernel.org
+S:	Supported
+F:	drivers/s390/virtio/
 
 VIRTIO GPU DRIVER
 M:	David Airlie <airlied@linux.ie>

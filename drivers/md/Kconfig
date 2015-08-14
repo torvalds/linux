@@ -259,7 +259,7 @@ config DM_CRYPT
 	  the ciphers you're going to use in the cryptoapi configuration.
 
 	  For further information on dm-crypt and userspace tools see:
-	  <http://code.google.com/p/cryptsetup/wiki/DMCrypt>
+	  <https://gitlab.com/cryptsetup/cryptsetup/wikis/DMCrypt>
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-crypt.

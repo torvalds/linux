@@ -89,11 +89,10 @@
 #define ECR_C_BIT_DTLB_LD_MISS		8
 #define ECR_C_BIT_DTLB_ST_MISS		9
 
-
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
 #define AUX_INTR_VEC_BASE	0x25
-
+#define AUX_NON_VOL		0x5e
 
 /*
  * Floating Pt Registers
@@ -240,9 +239,9 @@ struct bcr_extn_xymem {
 
 struct bcr_perip {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int start:8, pad2:8, sz:8, pad:8;
+	unsigned int start:8, pad2:8, sz:8, ver:8;
 #else
-	unsigned int pad:8, sz:8, pad2:8, start:8;
+	unsigned int ver:8, sz:8, pad2:8, start:8;
 #endif
 };
 

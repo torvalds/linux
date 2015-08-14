@@ -1427,10 +1427,10 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		/* Attempt to use the ring cache */
 		if (virt_dev->num_rings_cached == 0)
 			return -ENOMEM;
+		virt_dev->num_rings_cached--;
 		virt_dev->eps[ep_index].new_ring =
 			virt_dev->ring_cache[virt_dev->num_rings_cached];
 		virt_dev->ring_cache[virt_dev->num_rings_cached] = NULL;
-		virt_dev->num_rings_cached--;
 		xhci_reinit_cached_ring(xhci, virt_dev->eps[ep_index].new_ring,
 					1, type);
 	}
@@ -1792,7 +1792,8 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	int size;
 	int i, j, num_ports;
 
-	del_timer_sync(&xhci->cmd_timer);
+	if (timer_pending(&xhci->cmd_timer))
+		del_timer_sync(&xhci->cmd_timer);
 
 	/* Free the Event Ring Segment Table and the actual Event Ring */
 	size = sizeof(struct xhci_erst_entry)*(xhci->erst.num_entries);

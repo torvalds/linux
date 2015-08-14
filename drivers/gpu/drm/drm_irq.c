@@ -75,7 +75,7 @@ module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600)
 module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
 static void store_vblank(struct drm_device *dev, int crtc,
-			 unsigned vblank_count_inc,
+			 u32 vblank_count_inc,
 			 struct timeval *t_vblank)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];

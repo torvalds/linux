@@ -2415,7 +2415,8 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *vha, uint16_t *cur_xchg_cnt,
 			*orig_iocb_cnt = mcp->mb[10];
 		if (vha->hw->flags.npiv_supported && max_npiv_vports)
 			*max_npiv_vports = mcp->mb[11];
-		if ((IS_QLA81XX(vha->hw) || IS_QLA83XX(vha->hw)) && max_fcfs)
+		if ((IS_QLA81XX(vha->hw) || IS_QLA83XX(vha->hw) ||
+		    IS_QLA27XX(vha->hw)) && max_fcfs)
 			*max_fcfs = mcp->mb[12];
 	}
 
@@ -3898,7 +3899,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (!(rsp->options & BIT_0)) {
 		WRT_REG_DWORD(rsp->rsp_q_out, 0);
-		if (!IS_QLA83XX(ha))
+		if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha))
 			WRT_REG_DWORD(rsp->rsp_q_in, 0);
 	}
 
@@ -5345,7 +5346,7 @@ qla83xx_restart_nic_firmware(scsi_qla_host_t *vha)
 	mbx_cmd_t *mcp = &mc;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA83XX(ha))
+	if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha))
 		return QLA_FUNCTION_FAILED;
 
 	ql_dbg(ql_dbg_mbx, vha, 0x1143, "Entered %s.\n", __func__);

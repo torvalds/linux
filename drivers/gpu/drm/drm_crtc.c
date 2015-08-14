@@ -5273,12 +5273,9 @@ void drm_mode_config_reset(struct drm_device *dev)
 		if (encoder->funcs->reset)
 			encoder->funcs->reset(encoder);
 
-	drm_for_each_connector(connector, dev) {
-		connector->status = connector_status_unknown;
-
+	drm_for_each_connector(connector, dev)
 		if (connector->funcs->reset)
 			connector->funcs->reset(connector);
-	}
 }
 EXPORT_SYMBOL(drm_mode_config_reset);
 

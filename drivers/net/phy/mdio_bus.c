@@ -421,6 +421,8 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct phy_device *phydev = to_phy_device(dev);
 	struct phy_driver *phydrv = to_phy_driver(drv);
+	const int num_ids = ARRAY_SIZE(phydev->c45_ids.device_ids);
+	int i;
 
 	if (of_driver_match_device(dev, drv))
 		return 1;
@@ -428,8 +430,21 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 	if (phydrv->match_phy_device)
 		return phydrv->match_phy_device(phydev);
 
-	return (phydrv->phy_id & phydrv->phy_id_mask) ==
-		(phydev->phy_id & phydrv->phy_id_mask);
+	if (phydev->is_c45) {
+		for (i = 1; i < num_ids; i++) {
+			if (!(phydev->c45_ids.devices_in_package & (1 << i)))
+				continue;
+
+			if ((phydrv->phy_id & phydrv->phy_id_mask) ==
+			    (phydev->c45_ids.device_ids[i] &
+			     phydrv->phy_id_mask))
+				return 1;
+		}
+		return 0;
+	} else {
+		return (phydrv->phy_id & phydrv->phy_id_mask) ==
+			(phydev->phy_id & phydrv->phy_id_mask);
+	}
 }
 
 #ifdef CONFIG_PM
