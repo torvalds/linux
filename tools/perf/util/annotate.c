@@ -621,7 +621,7 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 				    struct addr_map_symbol *start,
 				    unsigned cycles)
 {
-	unsigned long saddr = 0;
+	u64 saddr = 0;
 	int err;
 
 	if (!cycles)
@@ -640,7 +640,7 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 		   start->addr == ams->sym->start + ams->map->start)))
 		saddr = start->al_addr;
 	if (saddr == 0)
-		pr_debug2("BB with bad start: addr %lx start %lx sym %lx saddr %lx\n",
+		pr_debug2("BB with bad start: addr %"PRIx64" start %"PRIx64" sym %"PRIx64" saddr %"PRIx64"\n",
 			ams->addr,
 			start ? start->addr : 0,
 			ams->sym ? ams->sym->start + ams->map->start : 0,
