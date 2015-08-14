@@ -206,18 +206,6 @@
 #define SIRFSOC_CLKC_LEAF_CLK_EN8_SET        0x0548
 
 
-static void __iomem *sirfsoc_clk_vbase;
-static struct clk_onecell_data clk_data;
-
-static const struct clk_div_table pll_div_table[] = {
-	{ .val = 0, .div = 1 },
-	{ .val = 1, .div = 2 },
-	{ .val = 2, .div = 4 },
-	{ .val = 3, .div = 8 },
-	{ .val = 4, .div = 16 },
-	{ .val = 5, .div = 32 },
-};
-
 struct clk_pll {
 	struct clk_hw hw;
 	u16 regofs;  /* register offset */
@@ -282,6 +270,18 @@ struct atlas7_reset_desc {
 	u32 rst_ofs;
 	u8  rst_bit;
 	spinlock_t *lock;
+};
+
+static void __iomem *sirfsoc_clk_vbase;
+static struct clk_onecell_data clk_data;
+
+static const struct clk_div_table pll_div_table[] = {
+	{ .val = 0, .div = 1 },
+	{ .val = 1, .div = 2 },
+	{ .val = 2, .div = 4 },
+	{ .val = 3, .div = 8 },
+	{ .val = 4, .div = 16 },
+	{ .val = 5, .div = 32 },
 };
 
 static DEFINE_SPINLOCK(cpupll_ctrl1_lock);
