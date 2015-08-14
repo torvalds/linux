@@ -301,25 +301,15 @@ struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 	tmpl->status = IPS_TEMPLATE;
 	write_pnet(&tmpl->ct_net, net);
 
-#ifdef CONFIG_NF_CONNTRACK_ZONES
-	if (zone) {
-		struct nf_conntrack_zone *nf_ct_zone;
+	if (nf_ct_zone_add(tmpl, flags, zone) < 0)
+		goto out_free;
 
-		nf_ct_zone = nf_ct_ext_add(tmpl, NF_CT_EXT_ZONE, GFP_ATOMIC);
-		if (!nf_ct_zone)
-			goto out_free;
-		nf_ct_zone->id = zone->id;
-		nf_ct_zone->dir = zone->dir;
-	}
-#endif
 	atomic_set(&tmpl->ct_general.use, 0);
 
 	return tmpl;
-#ifdef CONFIG_NF_CONNTRACK_ZONES
 out_free:
 	kfree(tmpl);
 	return NULL;
-#endif
 }
 EXPORT_SYMBOL_GPL(nf_ct_tmpl_alloc);
 
@@ -850,10 +840,9 @@ __nf_conntrack_alloc(struct net *net,
 	 * SLAB_DESTROY_BY_RCU.
 	 */
 	ct = kmem_cache_alloc(net->ct.nf_conntrack_cachep, gfp);
-	if (ct == NULL) {
-		atomic_dec(&net->ct.count);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (ct == NULL)
+		goto out;
+
 	spin_lock_init(&ct->lock);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
@@ -867,29 +856,20 @@ __nf_conntrack_alloc(struct net *net,
 	memset(&ct->__nfct_init_offset[0], 0,
 	       offsetof(struct nf_conn, proto) -
 	       offsetof(struct nf_conn, __nfct_init_offset[0]));
-#ifdef CONFIG_NF_CONNTRACK_ZONES
-	if (zone) {
-		struct nf_conntrack_zone *nf_ct_zone;
 
-		nf_ct_zone = nf_ct_ext_add(ct, NF_CT_EXT_ZONE, GFP_ATOMIC);
-		if (!nf_ct_zone)
-			goto out_free;
-		nf_ct_zone->id = zone->id;
-		nf_ct_zone->dir = zone->dir;
-	}
-#endif
+	if (zone && nf_ct_zone_add(ct, GFP_ATOMIC, zone) < 0)
+		goto out_free;
+
 	/* Because we use RCU lookups, we set ct_general.use to zero before
 	 * this is inserted in any list.
 	 */
 	atomic_set(&ct->ct_general.use, 0);
 	return ct;
-
-#ifdef CONFIG_NF_CONNTRACK_ZONES
 out_free:
-	atomic_dec(&net->ct.count);
 	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
+out:
+	atomic_dec(&net->ct.count);
 	return ERR_PTR(-ENOMEM);
-#endif
 }
 
 struct nf_conn *nf_conntrack_alloc(struct net *net,
@@ -937,6 +917,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	struct nf_conntrack_expect *exp = NULL;
 	const struct nf_conntrack_zone *zone;
 	struct nf_conn_timeout *timeout_ext;
+	struct nf_conntrack_zone tmp;
 	unsigned int *timeouts;
 
 	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
@@ -944,7 +925,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		return NULL;
 	}
 
-	zone = nf_ct_zone_tmpl(tmpl);
+	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
 	ct = __nf_conntrack_alloc(net, zone, tuple, &repl_tuple, GFP_ATOMIC,
 				  hash);
 	if (IS_ERR(ct))
@@ -1042,6 +1023,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	const struct nf_conntrack_zone *zone;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_tuple_hash *h;
+	struct nf_conntrack_zone tmp;
 	struct nf_conn *ct;
 	u32 hash;
 
@@ -1053,7 +1035,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	}
 
 	/* look for tuple match */
-	zone = nf_ct_zone_tmpl(tmpl);
+	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
 	hash = hash_conntrack_raw(&tuple);
 	h = __nf_conntrack_find_get(net, zone, &tuple, hash);
 	if (!h) {

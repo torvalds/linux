@@ -10,9 +10,12 @@
 
 #define NF_CT_DEFAULT_ZONE_DIR	(NF_CT_ZONE_DIR_ORIG | NF_CT_ZONE_DIR_REPL)
 
+#define NF_CT_FLAG_MARK		1
+
 struct nf_conntrack_zone {
 	u16	id;
-	u16	dir;
+	u8	flags;
+	u8	dir;
 };
 
 extern const struct nf_conntrack_zone nf_ct_zone_dflt;
@@ -32,9 +35,45 @@ nf_ct_zone(const struct nf_conn *ct)
 }
 
 static inline const struct nf_conntrack_zone *
-nf_ct_zone_tmpl(const struct nf_conn *tmpl)
+nf_ct_zone_init(struct nf_conntrack_zone *zone, u16 id, u8 dir, u8 flags)
 {
-	return tmpl ? nf_ct_zone(tmpl) : &nf_ct_zone_dflt;
+	zone->id = id;
+	zone->flags = flags;
+	zone->dir = dir;
+
+	return zone;
+}
+
+static inline const struct nf_conntrack_zone *
+nf_ct_zone_tmpl(const struct nf_conn *tmpl, const struct sk_buff *skb,
+		struct nf_conntrack_zone *tmp)
+{
+	const struct nf_conntrack_zone *zone;
+
+	if (!tmpl)
+		return &nf_ct_zone_dflt;
+
+	zone = nf_ct_zone(tmpl);
+	if (zone->flags & NF_CT_FLAG_MARK)
+		zone = nf_ct_zone_init(tmp, skb->mark, zone->dir, 0);
+
+	return zone;
+}
+
+static inline int nf_ct_zone_add(struct nf_conn *ct, gfp_t flags,
+				 const struct nf_conntrack_zone *info)
+{
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	struct nf_conntrack_zone *nf_ct_zone;
+
+	nf_ct_zone = nf_ct_ext_add(ct, NF_CT_EXT_ZONE, flags);
+	if (!nf_ct_zone)
+		return -ENOMEM;
+
+	nf_ct_zone_init(nf_ct_zone, info->id, info->dir,
+			info->flags);
+#endif
+	return 0;
 }
 
 static inline bool nf_ct_zone_matches_dir(const struct nf_conntrack_zone *zone,
