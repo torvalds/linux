@@ -114,46 +114,74 @@ $(obj)/config_data.h: $(obj)/config_data.gz FORCE
 
 ###############################################################################
 #
-# Roll all the X.509 certificates that we can find together and pull them into
-# the kernel so that they get loaded into the system trusted keyring during
-# boot.
+# When a Kconfig string contains a filename, it is suitable for
+# passing to shell commands. It is surrounded by double-quotes, and
+# any double-quotes or backslashes within it are escaped by
+# backslashes.
 #
-# We look in the source root and the build root for all files whose name ends
-# in ".x509".  Unfortunately, this will generate duplicate filenames, so we
-# have make canonicalise the pathnames and then sort them to discard the
-# duplicates.
+# This is no use for dependencies or $(wildcard). We need to strip the
+# surrounding quotes and the escaping from quotes and backslashes, and
+# we *do* need to escape any spaces in the string. So, for example:
+#
+# Usage: $(eval $(call config_filename,FOO))
+#
+# Defines FOO_FILENAME based on the contents of the CONFIG_FOO option,
+# transformed as described above to be suitable for use within the
+# makefile.
+#
+# Also, if the filename is a relative filename and exists in the source
+# tree but not the build tree, define FOO_SRCPREFIX as $(srctree)/ to
+# be prefixed to *both* command invocation and dependencies.
+#
+# Note: We also print the filenames in the quiet_cmd_foo text, and
+# perhaps ought to have a version specially escaped for that purpose.
+# But it's only cosmetic, and $(patsubst "%",%,$(CONFIG_FOO)) is good
+# enough.  It'll strip the quotes in the common case where there's no
+# space and it's a simple filename, and it'll retain the quotes when
+# there's a space. There are some esoteric cases in which it'll print
+# the wrong thing, but we don't really care. The actual dependencies
+# and commands *do* get it right, with various combinations of single
+# and double quotes, backslashes and spaces in the filenames.
 #
 ###############################################################################
+#
+quote := $(firstword " ")
+space :=
+space +=
+space_escape := %%%SPACE%%%
+#
+define config_filename
+ifneq ($$(CONFIG_$(1)),"")
+$(1)_FILENAME := $$(subst \\,\,$$(subst \$$(quote),$$(quote),$$(subst $$(space_escape),\$$(space),$$(patsubst "%",%,$$(subst $$(space),$$(space_escape),$$(CONFIG_$(1)))))))
+ifneq ($$(patsubst /%,%,$$(firstword $$($(1)_FILENAME))),$$(firstword $$($(1)_FILENAME)))
+else
+ifeq ($$(wildcard $$($(1)_FILENAME)),)
+ifneq ($$(wildcard $$(srctree)/$$($(1)_FILENAME)),)
+$(1)_SRCPREFIX := $(srctree)/
+endif
+endif
+endif
+endif
+endef
+#
+###############################################################################
+
 ifeq ($(CONFIG_SYSTEM_TRUSTED_KEYRING),y)
-X509_CERTIFICATES-y := $(wildcard *.x509) $(wildcard $(srctree)/*.x509)
-X509_CERTIFICATES-$(CONFIG_MODULE_SIG) += $(objtree)/signing_key.x509
-X509_CERTIFICATES-raw := $(sort $(foreach CERT,$(X509_CERTIFICATES-y), \
-				$(or $(realpath $(CERT)),$(CERT))))
-X509_CERTIFICATES := $(subst $(realpath $(objtree))/,,$(X509_CERTIFICATES-raw))
 
-ifeq ($(X509_CERTIFICATES),)
-$(warning *** No X.509 certificates found ***)
-endif
+$(eval $(call config_filename,SYSTEM_TRUSTED_KEYS))
 
-ifneq ($(wildcard $(obj)/.x509.list),)
-ifneq ($(shell cat $(obj)/.x509.list),$(X509_CERTIFICATES))
-$(warning X.509 certificate list changed to "$(X509_CERTIFICATES)" from "$(shell cat $(obj)/.x509.list)")
-$(shell rm $(obj)/.x509.list)
-endif
-endif
+# GCC doesn't include .incbin files in -MD generated dependencies (PR#66871)
+$(obj)/system_certificates.o: $(obj)/x509_certificate_list
 
-kernel/system_certificates.o: $(obj)/x509_certificate_list
+# Cope with signing_key.x509 existing in $(srctree) not $(objtree)
+AFLAGS_system_certificates.o := -I$(srctree)
 
-quiet_cmd_x509certs  = CERTS   $@
-      cmd_x509certs  = cat $(X509_CERTIFICATES) /dev/null >$@ $(foreach X509,$(X509_CERTIFICATES),; $(kecho) "  - Including cert $(X509)")
+quiet_cmd_extract_certs  = EXTRACT_CERTS   $(patsubst "%",%,$(2))
+      cmd_extract_certs  = scripts/extract-cert $(2) $@ || ( rm $@; exit 1)
 
-targets += $(obj)/x509_certificate_list
-$(obj)/x509_certificate_list: $(X509_CERTIFICATES) $(obj)/.x509.list
-	$(call if_changed,x509certs)
-
-targets += $(obj)/.x509.list
-$(obj)/.x509.list:
-	@echo $(X509_CERTIFICATES) >$@
+targets += x509_certificate_list
+$(obj)/x509_certificate_list: scripts/extract-cert $(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(SYSTEM_TRUSTED_KEYS_FILENAME) FORCE
+	$(call if_changed,extract_certs,$(SYSTEM_TRUSTED_KEYS_SRCPREFIX)$(CONFIG_SYSTEM_TRUSTED_KEYS))
 endif
 
 clean-files := x509_certificate_list .x509.list
@@ -170,7 +198,11 @@ ifndef CONFIG_MODULE_SIG_HASH
 $(error Could not determine digest type to use from kernel config)
 endif
 
-signing_key.priv signing_key.x509: x509.genkey
+# We do it this way rather than having a boolean option for enabling an
+# external private key, because 'make randconfig' might enable such a
+# boolean option and we unfortunately can't make it depend on !RANDCONFIG.
+ifeq ($(CONFIG_MODULE_SIG_KEY),"signing_key.pem")
+signing_key.pem: x509.genkey
 	@echo "###"
 	@echo "### Now generating an X.509 key pair to be used for signing modules."
 	@echo "###"
@@ -181,8 +213,8 @@ signing_key.priv signing_key.x509: x509.genkey
 	@echo "###"
 	openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config x509.genkey \
-		-outform DER -out signing_key.x509 \
-		-keyout signing_key.priv 2>&1
+		-outform PEM -out signing_key.pem \
+		-keyout signing_key.pem 2>&1
 	@echo "###"
 	@echo "### Key pair generated."
 	@echo "###"
@@ -206,4 +238,18 @@ x509.genkey:
 	@echo >>x509.genkey "keyUsage=digitalSignature"
 	@echo >>x509.genkey "subjectKeyIdentifier=hash"
 	@echo >>x509.genkey "authorityKeyIdentifier=keyid"
+endif
+
+$(eval $(call config_filename,MODULE_SIG_KEY))
+
+# If CONFIG_MODULE_SIG_KEY isn't a PKCS#11 URI, depend on it
+ifeq ($(patsubst pkcs11:%,%,$(firstword $(MODULE_SIG_KEY_FILENAME))),$(firstword $(MODULE_SIG_KEY_FILENAME)))
+X509_DEP := $(MODULE_SIG_KEY_SRCPREFIX)$(MODULE_SIG_KEY_FILENAME)
+endif
+
+# GCC PR#66871 again.
+$(obj)/system_certificates.o: signing_key.x509
+
+signing_key.x509: scripts/extract-cert include/config/module/sig/key.h $(X509_DEP)
+	$(call cmd,extract_certs,$(MODULE_SIG_KEY_SRCPREFIX)$(CONFIG_MODULE_SIG_KEY))
 endif

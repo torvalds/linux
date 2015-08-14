@@ -7,6 +7,9 @@
 	.globl VMLINUX_SYMBOL(system_certificate_list)
 VMLINUX_SYMBOL(system_certificate_list):
 __cert_list_start:
+#ifdef CONFIG_MODULE_SIG
+	.incbin "signing_key.x509"
+#endif
 	.incbin "kernel/x509_certificate_list"
 __cert_list_end:
 
