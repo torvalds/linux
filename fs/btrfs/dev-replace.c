@@ -327,19 +327,6 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	    args->start.tgtdev_name[0] == '\0')
 		return -EINVAL;
 
-	/*
-	 * Here we commit the transaction to make sure commit_total_bytes
-	 * of all the devices are updated.
-	 */
-	trans = btrfs_attach_transaction(root);
-	if (!IS_ERR(trans)) {
-		ret = btrfs_commit_transaction(trans, root);
-		if (ret)
-			return ret;
-	} else if (PTR_ERR(trans) != -ENOENT) {
-		return PTR_ERR(trans);
-	}
-
 	/* the disk copy procedure reuses the scrub code */
 	mutex_lock(&fs_info->volume_mutex);
 	ret = btrfs_dev_replace_find_srcdev(root, args->start.srcdevid,
@@ -355,6 +342,19 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	mutex_unlock(&fs_info->volume_mutex);
 	if (ret)
 		return ret;
+
+	/*
+	 * Here we commit the transaction to make sure commit_total_bytes
+	 * of all the devices are updated.
+	 */
+	trans = btrfs_attach_transaction(root);
+	if (!IS_ERR(trans)) {
+		ret = btrfs_commit_transaction(trans, root);
+		if (ret)
+			return ret;
+	} else if (PTR_ERR(trans) != -ENOENT) {
+		return PTR_ERR(trans);
+	}
 
 	btrfs_dev_replace_lock(dev_replace);
 	switch (dev_replace->replace_state) {
