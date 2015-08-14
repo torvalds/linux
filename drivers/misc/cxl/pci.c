@@ -966,7 +966,6 @@ static int cxl_read_vsec(struct cxl *adapter, struct pci_dev *dev)
 	CXL_READ_VSEC_BASE_IMAGE(dev, vsec, &adapter->base_image);
 	CXL_READ_VSEC_IMAGE_STATE(dev, vsec, &image_state);
 	adapter->user_image_loaded = !!(image_state & CXL_VSEC_USER_IMAGE_LOADED);
-	adapter->perst_loads_image = true;
 	adapter->perst_select_user = !!(image_state & CXL_VSEC_USER_IMAGE_LOADED);
 
 	CXL_READ_VSEC_NAFUS(dev, vsec, &adapter->slices);
@@ -1026,22 +1025,33 @@ static void cxl_release_adapter(struct device *dev)
 
 	pr_devel("cxl_release_adapter\n");
 
+	cxl_remove_adapter_nr(adapter);
+
 	kfree(adapter);
 }
 
-static struct cxl *cxl_alloc_adapter(struct pci_dev *dev)
+static struct cxl *cxl_alloc_adapter(void)
 {
 	struct cxl *adapter;
 
 	if (!(adapter = kzalloc(sizeof(struct cxl), GFP_KERNEL)))
 		return NULL;
 
-	adapter->dev.parent = &dev->dev;
-	adapter->dev.release = cxl_release_adapter;
-	pci_set_drvdata(dev, adapter);
 	spin_lock_init(&adapter->afu_list_lock);
 
+	if (cxl_alloc_adapter_nr(adapter))
+		goto err1;
+
+	if (dev_set_name(&adapter->dev, "card%i", adapter->adapter_num))
+		goto err2;
+
 	return adapter;
+
+err2:
+	cxl_remove_adapter_nr(adapter);
+err1:
+	kfree(adapter);
+	return NULL;
 }
 
 static int sanitise_adapter_regs(struct cxl *adapter)
@@ -1050,57 +1060,96 @@ static int sanitise_adapter_regs(struct cxl *adapter)
 	return cxl_tlb_slb_invalidate(adapter);
 }
 
-static struct cxl *cxl_init_adapter(struct pci_dev *dev)
+/* This should contain *only* operations that can safely be done in
+ * both creation and recovery.
+ */
+static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 {
-	struct cxl *adapter;
-	bool free = true;
 	int rc;
 
+	adapter->dev.parent = &dev->dev;
+	adapter->dev.release = cxl_release_adapter;
+	pci_set_drvdata(dev, adapter);
 
-	if (!(adapter = cxl_alloc_adapter(dev)))
-		return ERR_PTR(-ENOMEM);
+	rc = pci_enable_device(dev);
+	if (rc) {
+		dev_err(&dev->dev, "pci_enable_device failed: %i\n", rc);
+		return rc;
+	}
 
 	if ((rc = cxl_read_vsec(adapter, dev)))
-		goto err1;
+		return rc;
 
 	if ((rc = cxl_vsec_looks_ok(adapter, dev)))
-		goto err1;
+	        return rc;
 
 	if ((rc = setup_cxl_bars(dev)))
-		goto err1;
+		return rc;
 
 	if ((rc = switch_card_to_cxl(dev)))
-		goto err1;
-
-	if ((rc = cxl_alloc_adapter_nr(adapter)))
-		goto err1;
-
-	if ((rc = dev_set_name(&adapter->dev, "card%i", adapter->adapter_num)))
-		goto err2;
+		return rc;
 
 	if ((rc = cxl_update_image_control(adapter)))
-		goto err2;
+		return rc;
 
 	if ((rc = cxl_map_adapter_regs(adapter, dev)))
-		goto err2;
+		return rc;
 
 	if ((rc = sanitise_adapter_regs(adapter)))
-		goto err2;
+		goto err;
 
 	if ((rc = init_implementation_adapter_regs(adapter, dev)))
-		goto err3;
+		goto err;
 
 	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_CAPI)))
-		goto err3;
+		goto err;
 
 	/* If recovery happened, the last step is to turn on snooping.
 	 * In the non-recovery case this has no effect */
-	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_ON))) {
-		goto err3;
-	}
+	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_SNOOP_ON)))
+		goto err;
 
 	if ((rc = cxl_register_psl_err_irq(adapter)))
-		goto err3;
+		goto err;
+
+	return 0;
+
+err:
+	cxl_unmap_adapter_regs(adapter);
+	return rc;
+
+}
+
+static void cxl_deconfigure_adapter(struct cxl *adapter)
+{
+	struct pci_dev *pdev = to_pci_dev(adapter->dev.parent);
+
+	cxl_release_psl_err_irq(adapter);
+	cxl_unmap_adapter_regs(adapter);
+
+	pci_disable_device(pdev);
+}
+
+static struct cxl *cxl_init_adapter(struct pci_dev *dev)
+{
+	struct cxl *adapter;
+	int rc;
+
+	adapter = cxl_alloc_adapter();
+	if (!adapter)
+		return ERR_PTR(-ENOMEM);
+
+	/* Set defaults for parameters which need to persist over
+	 * configure/reconfigure
+	 */
+	adapter->perst_loads_image = true;
+
+	rc = cxl_configure_adapter(adapter, dev);
+	if (rc) {
+		pci_disable_device(dev);
+		cxl_release_adapter(&adapter->dev);
+		return ERR_PTR(rc);
+	}
 
 	/* Don't care if this one fails: */
 	cxl_debugfs_adapter_add(adapter);
@@ -1118,35 +1167,25 @@ static struct cxl *cxl_init_adapter(struct pci_dev *dev)
 	return adapter;
 
 err_put1:
-	device_unregister(&adapter->dev);
-	free = false;
+	/* This should mirror cxl_remove_adapter, except without the
+	 * sysfs parts
+	 */
 	cxl_debugfs_adapter_remove(adapter);
-	cxl_release_psl_err_irq(adapter);
-err3:
-	cxl_unmap_adapter_regs(adapter);
-err2:
-	cxl_remove_adapter_nr(adapter);
-err1:
-	if (free)
-		kfree(adapter);
+	cxl_deconfigure_adapter(adapter);
+	device_unregister(&adapter->dev);
 	return ERR_PTR(rc);
 }
 
 static void cxl_remove_adapter(struct cxl *adapter)
 {
-	struct pci_dev *pdev = to_pci_dev(adapter->dev.parent);
-
-	pr_devel("cxl_release_adapter\n");
+	pr_devel("cxl_remove_adapter\n");
 
 	cxl_sysfs_adapter_remove(adapter);
 	cxl_debugfs_adapter_remove(adapter);
-	cxl_release_psl_err_irq(adapter);
-	cxl_unmap_adapter_regs(adapter);
-	cxl_remove_adapter_nr(adapter);
+
+	cxl_deconfigure_adapter(adapter);
 
 	device_unregister(&adapter->dev);
-
-	pci_disable_device(pdev);
 }
 
 static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
@@ -1160,15 +1199,9 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (cxl_verbose)
 		dump_cxl_config_space(dev);
 
-	if ((rc = pci_enable_device(dev))) {
-		dev_err(&dev->dev, "pci_enable_device failed: %i\n", rc);
-		return rc;
-	}
-
 	adapter = cxl_init_adapter(dev);
 	if (IS_ERR(adapter)) {
 		dev_err(&dev->dev, "cxl_init_adapter failed: %li\n", PTR_ERR(adapter));
-		pci_disable_device(dev);
 		return PTR_ERR(adapter);
 	}
 
