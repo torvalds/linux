@@ -19,6 +19,7 @@
 #include <linux/magic.h>
 #include <linux/kobject.h>
 #include <linux/sched.h>
+#include <linux/bio.h>
 
 #ifdef CONFIG_F2FS_CHECK_FS
 #define f2fs_bug_on(sbi, condition)	BUG_ON(condition)
@@ -1251,6 +1252,20 @@ retry:
 	}
 
 	return entry;
+}
+
+static inline struct bio *f2fs_bio_alloc(int npages)
+{
+	struct bio *bio;
+
+	/* No failure on bio allocation */
+retry:
+	bio = bio_alloc(GFP_NOIO, npages);
+	if (!bio) {
+		cond_resched();
+		goto retry;
+	}
+	return bio;
 }
 
 static inline void f2fs_radix_tree_insert(struct radix_tree_root *root,

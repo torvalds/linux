@@ -330,9 +330,11 @@ repeat:
 		return 0;
 
 	if (!llist_empty(&fcc->issue_list)) {
-		struct bio *bio = bio_alloc(GFP_NOIO, 0);
+		struct bio *bio;
 		struct flush_cmd *cmd, *next;
 		int ret;
+
+		bio = f2fs_bio_alloc(0);
 
 		fcc->dispatch_list = llist_del_all(&fcc->issue_list);
 		fcc->dispatch_list = llist_reverse_order(fcc->dispatch_list);
@@ -365,8 +367,15 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	if (test_opt(sbi, NOBARRIER))
 		return 0;
 
-	if (!test_opt(sbi, FLUSH_MERGE))
-		return blkdev_issue_flush(sbi->sb->s_bdev, GFP_KERNEL, NULL);
+	if (!test_opt(sbi, FLUSH_MERGE)) {
+		struct bio *bio = f2fs_bio_alloc(0);
+		int ret;
+
+		bio->bi_bdev = sbi->sb->s_bdev;
+		ret = submit_bio_wait(WRITE_FLUSH, bio);
+		bio_put(bio);
+		return ret;
+	}
 
 	init_completion(&cmd.wait);
 
