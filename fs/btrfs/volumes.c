@@ -2041,10 +2041,8 @@ int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
 			}
 		}
 
-		if (!*device) {
-			btrfs_err(root->fs_info, "no missing device found");
-			return -ENOENT;
-		}
+		if (!*device)
+			return BTRFS_ERROR_DEV_MISSING_NOT_FOUND;
 
 		return 0;
 	} else {
