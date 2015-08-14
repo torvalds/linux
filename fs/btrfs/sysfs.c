@@ -557,7 +557,7 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	addrm_unknown_feature_attrs(fs_info, false);
 	sysfs_remove_group(&fs_info->fs_devices->super_kobj, &btrfs_feature_attr_group);
 	sysfs_remove_files(&fs_info->fs_devices->super_kobj, btrfs_attrs);
-	btrfs_kobj_rm_device(fs_info->fs_devices, NULL);
+	btrfs_sysfs_rm_device_link(fs_info->fs_devices, NULL);
 }
 
 const char * const btrfs_feature_set_names[3] = {
@@ -637,7 +637,7 @@ static void init_feature_attrs(void)
 
 /* when one_device is NULL, it removes all device links */
 
-int btrfs_kobj_rm_device(struct btrfs_fs_devices *fs_devices,
+int btrfs_sysfs_rm_device_link(struct btrfs_fs_devices *fs_devices,
 		struct btrfs_device *one_device)
 {
 	struct hd_struct *disk;
@@ -750,7 +750,7 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 
 	error = sysfs_create_files(super_kobj, btrfs_attrs);
 	if (error) {
-		btrfs_kobj_rm_device(fs_devs, NULL);
+		btrfs_sysfs_rm_device_link(fs_devs, NULL);
 		return error;
 	}
 
