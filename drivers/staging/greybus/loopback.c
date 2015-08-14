@@ -273,6 +273,8 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 		return -ENOMEM;
 	}
 
+	memset(request->data, 0x5A, len);
+
 	request->len = cpu_to_le32(len);
 
 	do_gettimeofday(&ts);
