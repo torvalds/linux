@@ -118,8 +118,6 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_VERSION_MINOR		0x01
 
 /* Greybus control request types */
-#define GB_CONTROL_TYPE_INVALID			0x00
-#define GB_CONTROL_TYPE_PROTOCOL_VERSION	0x01
 #define GB_CONTROL_TYPE_PROBE_AP		0x02
 #define GB_CONTROL_TYPE_GET_MANIFEST_SIZE	0x03
 #define GB_CONTROL_TYPE_GET_MANIFEST		0x04
@@ -154,8 +152,6 @@ struct gb_control_disconnected_request {
 #define GB_FIRMWARE_VERSION_MINOR		0x01
 
 /* Greybus firmware request types */
-#define GB_FIRMWARE_TYPE_INVALID		0x00
-#define GB_FIRMWARE_TYPE_PROTOCOL_VERSION	0x01
 #define GB_FIRMWARE_TYPE_FIRMWARE_SIZE		0x02
 #define GB_FIRMWARE_TYPE_GET_FIRMWARE		0x03
 #define GB_FIRMWARE_TYPE_READY_TO_BOOT		0x04
@@ -265,8 +261,6 @@ struct gb_battery_voltage_response {
 #define GB_HID_VERSION_MINOR		0x01
 
 /* Greybus HID operation types */
-#define GB_HID_TYPE_INVALID		0x00
-#define GB_HID_TYPE_PROTOCOL_VERSION	0x01
 #define GB_HID_TYPE_GET_DESC		0x02
 #define GB_HID_TYPE_GET_REPORT_DESC	0x03
 #define GB_HID_TYPE_PWR_ON		0x04
@@ -317,8 +311,6 @@ struct gb_hid_input_report_request {
 #define GB_I2C_VERSION_MINOR		0x01
 
 /* Greybus i2c request types */
-#define GB_I2C_TYPE_INVALID		0x00
-#define GB_I2C_TYPE_PROTOCOL_VERSION	0x01
 #define GB_I2C_TYPE_FUNCTIONALITY	0x02
 #define GB_I2C_TYPE_TIMEOUT		0x03
 #define GB_I2C_TYPE_RETRIES		0x04
@@ -374,8 +366,6 @@ struct gb_i2c_transfer_response {
 #define GB_GPIO_VERSION_MINOR		0x01
 
 /* Greybus GPIO request types */
-#define GB_GPIO_TYPE_INVALID		0x00
-#define GB_GPIO_TYPE_PROTOCOL_VERSION	0x01
 #define GB_GPIO_TYPE_LINE_COUNT		0x02
 #define GB_GPIO_TYPE_ACTIVATE		0x03
 #define GB_GPIO_TYPE_DEACTIVATE		0x04
@@ -479,8 +469,6 @@ struct gb_gpio_irq_event_request {
 #define GB_PWM_VERSION_MINOR		0x01
 
 /* Greybus PWM operation types */
-#define GB_PWM_TYPE_INVALID		0x00
-#define GB_PWM_TYPE_PROTOCOL_VERSION	0x01
 #define GB_PWM_TYPE_PWM_COUNT		0x02
 #define GB_PWM_TYPE_ACTIVATE		0x03
 #define GB_PWM_TYPE_DEACTIVATE		0x04
@@ -523,7 +511,6 @@ struct gb_pwm_disable_request {
 
 /* I2S */
 
-#define GB_I2S_MGMT_TYPE_PROTOCOL_VERSION		0x01
 #define GB_I2S_MGMT_TYPE_GET_SUPPORTED_CONFIGURATIONS	0x02
 #define GB_I2S_MGMT_TYPE_SET_CONFIGURATION		0x03
 #define GB_I2S_MGMT_TYPE_SET_SAMPLES_PER_MESSAGE	0x04
@@ -650,7 +637,6 @@ struct gb_i2s_mgmt_report_event_request {
 };
 /* report event response has no payload */
 
-#define GB_I2S_DATA_TYPE_PROTOCOL_VERSION		0x01
 #define GB_I2S_DATA_TYPE_SEND_DATA			0x02
 
 struct gb_i2s_send_data_request {
@@ -687,8 +673,6 @@ struct gb_i2s_send_data_request {
 #define GB_SPI_FLAG_NO_TX		BIT(2)		/* can't do buffer write */
 
 /* Greybus spi operation types */
-#define GB_SPI_TYPE_INVALID		0x00
-#define GB_SPI_TYPE_PROTOCOL_VERSION	0x01
 #define GB_SPI_TYPE_MODE		0x02
 #define GB_SPI_TYPE_FLAGS		0x03
 #define GB_SPI_TYPE_BITS_PER_WORD_MASK	0x04
@@ -751,8 +735,6 @@ struct gb_spi_transfer_response {
 #define GB_SVC_VERSION_MINOR		0x01
 
 /* Greybus SVC request types */
-#define GB_SVC_TYPE_INVALID		0x00
-#define GB_SVC_TYPE_PROTOCOL_VERSION	0x01
 #define GB_SVC_TYPE_SVC_HELLO		0x02
 #define GB_SVC_TYPE_INTF_DEVICE_ID	0x03
 #define GB_SVC_TYPE_INTF_HOTPLUG	0x04
@@ -846,8 +828,6 @@ struct gb_raw_send_request {
 #define GB_UART_VERSION_MINOR		0x01
 
 /* Greybus UART operation types */
-#define GB_UART_TYPE_INVALID			0x00
-#define GB_UART_TYPE_PROTOCOL_VERSION		0x01
 #define GB_UART_TYPE_SEND_DATA			0x02
 #define GB_UART_TYPE_RECEIVE_DATA		0x03	/* Unsolicited data */
 #define GB_UART_TYPE_SET_LINE_CODING		0x04
@@ -919,8 +899,6 @@ struct gb_uart_serial_state_request {
 #define GB_LOOPBACK_VERSION_MINOR		0x01
 
 /* Greybus loopback request types */
-#define GB_LOOPBACK_TYPE_INVALID		0x00
-#define GB_LOOPBACK_TYPE_PROTOCOL_VERSION	0x01
 #define GB_LOOPBACK_TYPE_PING			0x02
 #define GB_LOOPBACK_TYPE_TRANSFER		0x03
 #define GB_LOOPBACK_TYPE_SINK			0x04
@@ -940,8 +918,6 @@ struct gb_loopback_transfer_response {
 #define GB_SDIO_VERSION_MINOR		0x01
 
 /* Greybus SDIO operation types */
-#define GB_SDIO_TYPE_INVALID			0x00
-#define GB_SDIO_TYPE_PROTOCOL_VERSION		0x01
 #define GB_SDIO_TYPE_GET_CAPABILITIES		0x02
 #define GB_SDIO_TYPE_SET_IOS			0x03
 #define GB_SDIO_TYPE_COMMAND			0x04

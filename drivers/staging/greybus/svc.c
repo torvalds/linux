@@ -452,7 +452,7 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 static int gb_svc_request_recv(u8 type, struct gb_operation *op)
 {
 	switch (type) {
-	case GB_SVC_TYPE_PROTOCOL_VERSION:
+	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
 		return gb_svc_version_request(op);
 	case GB_SVC_TYPE_SVC_HELLO:
 		return gb_svc_hello(op);

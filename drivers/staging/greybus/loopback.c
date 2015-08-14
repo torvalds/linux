@@ -319,7 +319,7 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 
 	/* By convention, the AP initiates the version operation */
 	switch (type) {
-	case GB_LOOPBACK_TYPE_PROTOCOL_VERSION:
+	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
 		dev_err(&connection->dev,
 			"module-initiated version operation\n");
 		return -EINVAL;

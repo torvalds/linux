@@ -71,7 +71,7 @@ static int gb_control_request_recv(u8 type, struct gb_operation *op)
 		// Send authenticated block of data, confirming this module is
 		// an AP.
 		break;
-	case GB_CONTROL_TYPE_PROTOCOL_VERSION:
+	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
 		if (!gb_operation_response_alloc(op, sizeof(*version),
 						 GFP_KERNEL)) {
 			dev_err(&connection->dev,
