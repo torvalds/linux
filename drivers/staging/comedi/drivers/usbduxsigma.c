@@ -223,11 +223,11 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 		if (devpriv->ai_counter == 0) {
 			devpriv->ai_counter = devpriv->ai_timer;
 
-			/* get the data from the USB bus
-			   and hand it over to comedi */
+			/*
+			 * Get the data from the USB bus and hand it over
+			 * to comedi. Note, first byte is the DIO state.
+			 */
 			for (i = 0; i < cmd->chanlist_len; i++) {
-				/* transfer data,
-				   note first byte is the DIO state */
 				val = be32_to_cpu(devpriv->in_buf[i + 1]);
 				val &= 0x00ffffff; /* strip status byte */
 				val ^= 0x00800000; /* convert to unsigned */
