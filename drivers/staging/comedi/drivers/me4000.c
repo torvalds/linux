@@ -480,7 +480,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 
 	entry = chan | ME4000_AI_LIST_RANGE(range);
 	if (aref == AREF_DIFF) {
-		if (!(s->subdev_flags && SDF_DIFF)) {
+		if (!(s->subdev_flags & SDF_DIFF)) {
 			dev_err(dev->class_dev,
 				"Differential inputs are not available\n");
 			return -EINVAL;
@@ -559,7 +559,7 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 		}
 
 		if (aref == AREF_DIFF) {
-			if (!(s->subdev_flags && SDF_DIFF)) {
+			if (!(s->subdev_flags & SDF_DIFF)) {
 				dev_err(dev->class_dev,
 					"Differential inputs are not available\n");
 				return -EINVAL;
