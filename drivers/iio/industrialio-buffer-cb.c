@@ -1,4 +1,12 @@
+/* The industrial I/O callback buffer
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
+ */
+
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/export.h>
@@ -124,3 +132,7 @@ struct iio_channel
 	return cb_buffer->channels;
 }
 EXPORT_SYMBOL_GPL(iio_channel_cb_get_channels);
+
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
+MODULE_DESCRIPTION("Industrial I/O callback buffer");
+MODULE_LICENSE("GPL");
