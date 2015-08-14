@@ -2758,6 +2758,13 @@ static int srp_sdev_count(struct Scsi_Host *host)
 	return c;
 }
 
+/*
+ * Return values:
+ * < 0 upon failure. Caller is responsible for SRP target port cleanup.
+ * 0 and target->state == SRP_TARGET_REMOVED if asynchronous target port
+ *    removal has been scheduled.
+ * 0 and target->state != SRP_TARGET_REMOVED upon success.
+ */
 static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 {
 	struct srp_rport_identifiers ids;
@@ -3296,6 +3303,8 @@ out:
 	mutex_unlock(&host->add_target_mutex);
 
 	scsi_host_put(target->scsi_host);
+	if (ret < 0)
+		scsi_host_put(target->scsi_host);
 
 	return ret;
 
