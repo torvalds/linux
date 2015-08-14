@@ -586,7 +586,7 @@ static ssize_t cxlflash_show_port_status(struct device *dev,
 	u64 *fc_regs;
 
 	rc = kstrtouint((attr->attr.name + 4), 10, &port);
-	if (rc || (port > NUM_FC_PORTS))
+	if (rc || (port >= NUM_FC_PORTS))
 		return 0;
 
 	fc_regs = &afu->afu_map->global.fc_regs[port][0];
