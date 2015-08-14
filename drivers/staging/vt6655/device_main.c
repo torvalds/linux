@@ -906,13 +906,13 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 	unsigned char byTsr1;
 
 	for (pTD = pDevice->apTailTD[uIdx]; pDevice->iTDUsed[uIdx] > 0; pTD = pTD->next) {
-		if (pTD->m_td0TD0.f1Owner == OWNED_BY_NIC)
+		if (pTD->td0.owner == OWNED_BY_NIC)
 			break;
 		if (works++ > 15)
 			break;
 
-		byTsr0 = pTD->m_td0TD0.byTSR0;
-		byTsr1 = pTD->m_td0TD0.byTSR1;
+		byTsr0 = pTD->td0.tsr0;
+		byTsr1 = pTD->td0.tsr1;
 
 		/* Only the status of first TD in the chain is correct */
 		if (pTD->m_td1TD1.byTCR & TCR_STP) {
@@ -1200,7 +1200,7 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	/* Poll Transmit the adapter */
 	wmb();
-	head_td->m_td0TD0.f1Owner = OWNED_BY_NIC;
+	head_td->td0.owner = OWNED_BY_NIC;
 	wmb(); /* second memory barrier */
 
 	if (head_td->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)
