@@ -35,11 +35,6 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
-	/* wait for the completion of page flip. */
-	if (!wait_event_timeout(exynos_crtc->pending_flip_queue,
-				(exynos_crtc->event == NULL), HZ/20))
-		exynos_crtc->event = NULL;
-
 	drm_crtc_vblank_off(crtc);
 
 	if (exynos_crtc->ops->disable)
@@ -146,8 +141,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	if (!exynos_crtc)
 		return ERR_PTR(-ENOMEM);
 
-	init_waitqueue_head(&exynos_crtc->pending_flip_queue);
-
 	exynos_crtc->pipe = pipe;
 	exynos_crtc->type = type;
 	exynos_crtc->ops = ops;
@@ -215,10 +208,8 @@ void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
 		wake_up(&exynos_crtc->wait_update);
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	if (exynos_crtc->event) {
+	if (exynos_crtc->event)
 		drm_crtc_send_vblank_event(crtc, exynos_crtc->event);
-		wake_up(&exynos_crtc->pending_flip_queue);
-	}
 
 	exynos_crtc->event = NULL;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
