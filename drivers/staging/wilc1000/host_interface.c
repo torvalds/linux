@@ -1366,7 +1366,7 @@ static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler, tstrHostIFscanAttr *pstrHost
 
 	WILC_CATCH(s32Error)
 	{
-		WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
+		WILC_TimerStop(&pstrWFIDrv->hScanTimer);
 		/*if there is an ongoing scan request*/
 		Handle_ScanDone(drvHandler, SCAN_EVENT_ABORTED);
 	}
@@ -1966,7 +1966,7 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	{
 		tstrConnectInfo strConnectInfo;
 
-		WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), NULL);
+		WILC_TimerStop(&pstrWFIDrv->hConnectTimer);
 
 		PRINT_D(HOSTINF_DBG, "could not start connecting to the required network\n");
 
@@ -2477,7 +2477,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 			}
 
 
-			WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), NULL);
+			WILC_TimerStop(&pstrWFIDrv->hConnectTimer);
 			pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult(CONN_DISCONN_EVENT_CONN_RESP,
 									   &strConnectInfo,
 									   u8MacStatus,
@@ -2501,7 +2501,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 				#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 				PRINT_D(GENERIC_DBG, "Obtaining an IP, Disable Scan\n");
 				g_obtainingIP = true;
-				WILC_TimerStart(&hDuringIpTimer, 10000, NULL, NULL);
+				WILC_TimerStart(&hDuringIpTimer, 10000, NULL);
 				#endif
 
 				#ifdef WILC_PARSE_SCAN_IN_HOST
@@ -2556,7 +2556,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 
 			if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
 				PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running OBSS Scan >>\n\n");
-				WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
+				WILC_TimerStop(&pstrWFIDrv->hScanTimer);
 				Handle_ScanDone((void *)pstrWFIDrv, SCAN_EVENT_ABORTED);
 			}
 
@@ -2633,7 +2633,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 			PRINT_D(HOSTINF_DBG, "Received MAC_DISCONNECTED from the FW while scanning\n");
 			PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running Scan >>\n\n");
 			/*Abort the running scan*/
-			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
+			WILC_TimerStop(&pstrWFIDrv->hScanTimer);
 			if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult)
 				Handle_ScanDone(pstrWFIDrv, SCAN_EVENT_ABORTED);
 
@@ -3067,7 +3067,7 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 		strDisconnectNotifInfo.ie_len = 0;
 
 		if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
-			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
+			WILC_TimerStop(&pstrWFIDrv->hScanTimer);
 			pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_ABORTED, NULL,
 									pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid, NULL);
 
@@ -3080,7 +3080,7 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 			/*Stop connect timer, if connection in progress*/
 			if (pstrWFIDrv->enuHostIFstate == HOST_IF_WAITING_CONN_RESP) {
 				PRINT_D(HOSTINF_DBG, "Upper layer requested termination of connection\n");
-				WILC_TimerStop(&(pstrWFIDrv->hConnectTimer), NULL);
+				WILC_TimerStop(&pstrWFIDrv->hConnectTimer);
 			}
 
 			pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult(CONN_DISCONN_EVENT_DISCONN_NOTIF, NULL,
@@ -3849,7 +3849,7 @@ static int Handle_RemainOnChan(tstrWILC_WFIDrv *drvHandler, tstrHostIfRemainOnCh
 	WILC_CATCH(-1)
 	{
 		P2P_LISTEN_STATE = 1;
-		WILC_TimerStart(&(pstrWFIDrv->hRemainOnChannel), pstrHostIfRemainOnChan->u32duration, (void *)pstrWFIDrv, NULL);
+		WILC_TimerStart(&(pstrWFIDrv->hRemainOnChannel), pstrHostIfRemainOnChan->u32duration, (void *)pstrWFIDrv);
 
 		/*Calling CFG ready_on_channel*/
 		if (pstrWFIDrv->strHostIfRemainOnChan.pRemainOnChanReady)
@@ -3984,7 +3984,7 @@ static void ListenTimerCB(void *pvArg)
 	tstrHostIFmsg strHostIFmsg;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)pvArg;
 	/*Stopping remain-on-channel timer*/
-	WILC_TimerStop(&(pstrWFIDrv->hRemainOnChannel), NULL);
+	WILC_TimerStop(&pstrWFIDrv->hRemainOnChannel);
 
 	/* prepare the Timer Callback message */
 	memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
@@ -4395,7 +4395,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_RCVD_SCAN_COMPLETE:
-			WILC_TimerStop(&(pstrWFIDrv->hScanTimer), NULL);
+			WILC_TimerStop(&pstrWFIDrv->hScanTimer);
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
 			/*BugID_5213*/
@@ -5485,7 +5485,7 @@ s32 host_int_set_join_req(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8bssid,
 	}
 
 	enuScanConnTimer = CONNECT_TIMER;
-	WILC_TimerStart(&(pstrWFIDrv->hConnectTimer), HOST_IF_CONNECT_TIMEOUT, (void *) hWFIDrv, NULL);
+	WILC_TimerStart(&(pstrWFIDrv->hConnectTimer), HOST_IF_CONNECT_TIMEOUT, (void *) hWFIDrv);
 
 	WILC_CATCH(s32Error)
 	{
@@ -6218,7 +6218,7 @@ s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
 
 	enuScanConnTimer = SCAN_TIMER;
 	PRINT_D(HOSTINF_DBG, ">> Starting the SCAN timer\n");
-	WILC_TimerStart(&(pstrWFIDrv->hScanTimer), HOST_IF_SCAN_TIMEOUT, (void *) hWFIDrv, NULL);
+	WILC_TimerStart(&(pstrWFIDrv->hScanTimer), HOST_IF_SCAN_TIMEOUT, (void *) hWFIDrv);
 
 
 	WILC_CATCH(s32Error)
@@ -6441,7 +6441,7 @@ void GetPeriodicRSSI(void *pvArg)
 			return;
 		}
 	}
-	WILC_TimerStart(&(g_hPeriodicRSSI), 5000, (void *)pstrWFIDrv, NULL);
+	WILC_TimerStart(&(g_hPeriodicRSSI), 5000, (void *)pstrWFIDrv);
 }
 
 
@@ -6537,23 +6537,23 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 			s32Error = WILC_FAIL;
 			goto _fail_mq_;
 		}
-		s32Error = WILC_TimerCreate(&(g_hPeriodicRSSI), GetPeriodicRSSI, NULL);
+		s32Error = WILC_TimerCreate(&(g_hPeriodicRSSI), GetPeriodicRSSI);
 		if (s32Error < 0) {
 			PRINT_ER("Failed to creat Timer\n");
 			goto _fail_timer_1;
 		}
-		WILC_TimerStart(&(g_hPeriodicRSSI), 5000, (void *)pstrWFIDrv, NULL);
+		WILC_TimerStart(&(g_hPeriodicRSSI), 5000, (void *)pstrWFIDrv);
 
 	}
 
 
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hScanTimer), TimerCB_Scan, NULL);
+	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hScanTimer), TimerCB_Scan);
 	if (s32Error < 0) {
 		PRINT_ER("Failed to creat Timer\n");
 		goto _fail_thread_;
 	}
 
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hConnectTimer), TimerCB_Connect, NULL);
+	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hConnectTimer), TimerCB_Connect);
 	if (s32Error < 0) {
 		PRINT_ER("Failed to creat Timer\n");
 		goto _fail_timer_1;
@@ -6562,7 +6562,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 
 	#ifdef WILC_P2P
 	/*Remain on channel timer*/
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hRemainOnChannel), ListenTimerCB, NULL);
+	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hRemainOnChannel), ListenTimerCB);
 	if (s32Error < 0) {
 		PRINT_ER("Failed to creat Remain-on-channel Timer\n");
 		goto _fail_timer_3;
@@ -6618,13 +6618,13 @@ _fail_mem_:
 		kfree(pstrWFIDrv);
 #ifdef WILC_P2P
 _fail_timer_3:
-	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), NULL);
+	WILC_TimerDestroy(&pstrWFIDrv->hRemainOnChannel);
 #endif
 _fail_timer_2:
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
-	WILC_TimerDestroy(&(pstrWFIDrv->hConnectTimer), NULL);
+	WILC_TimerDestroy(&pstrWFIDrv->hConnectTimer);
 _fail_timer_1:
-	WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), NULL);
+	WILC_TimerDestroy(&pstrWFIDrv->hScanTimer);
 _fail_thread_:
 	kthread_stop(HostIFthreadHandler);
 _fail_mq_:
@@ -6673,25 +6673,25 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 	/*BugID_5348*/
 	/*Destroy all timers before acquiring hSemDeinitDrvHandle*/
 	/*to guarantee handling all messages befor proceeding*/
-	if (WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), NULL)) {
+	if (WILC_TimerDestroy(&pstrWFIDrv->hScanTimer)) {
 		PRINT_D(HOSTINF_DBG, ">> Scan timer is active\n");
 		/* msleep(HOST_IF_SCAN_TIMEOUT+1000); */
 	}
 
-	if (WILC_TimerDestroy(&(pstrWFIDrv->hConnectTimer), NULL)) {
+	if (WILC_TimerDestroy(&pstrWFIDrv->hConnectTimer)) {
 		PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 		/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 	}
 
 
-	if (WILC_TimerDestroy(&(g_hPeriodicRSSI), NULL)) {
+	if (WILC_TimerDestroy(&g_hPeriodicRSSI)) {
 		PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 		/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 	}
 
 	#ifdef WILC_P2P
 	/*Destroy Remain-onchannel Timer*/
-	WILC_TimerDestroy(&(pstrWFIDrv->hRemainOnChannel), NULL);
+	WILC_TimerDestroy(&pstrWFIDrv->hRemainOnChannel);
 	#endif
 
 	host_int_set_wfi_drv_handler(NULL);
@@ -6715,7 +6715,7 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 	memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
 
 	if (clients_count == 1)	{
-		if (WILC_TimerDestroy(&g_hPeriodicRSSI, NULL)) {
+		if (WILC_TimerDestroy(&g_hPeriodicRSSI)) {
 			PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 			/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 		}
@@ -6991,7 +6991,7 @@ s32 host_int_ListenStateExpired(tstrWILC_WFIDrv *hWFIDrv, u32 u32SessionID)
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 
 	/*Stopping remain-on-channel timer*/
-	WILC_TimerStop(&(pstrWFIDrv->hRemainOnChannel), NULL);
+	WILC_TimerStop(&pstrWFIDrv->hRemainOnChannel);
 
 	/* prepare the timer fire Message */
 	memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));

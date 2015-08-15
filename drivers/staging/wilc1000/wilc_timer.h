@@ -16,18 +16,6 @@
 typedef void (*tpfWILC_TimerFunction)(void *);
 
 /*!
- *  @struct             tstrWILC_TimerAttrs
- *  @brief		Timer API options
- *  @author		syounan
- *  @date		16 Aug 2010
- *  @version		1.0
- */
-typedef struct {
-	/* a dummy member to avoid compiler errors*/
-	u8 dummy;
-} tstrWILC_TimerAttrs;
-
-/*!
  *  @brief	Creates a new timer
  *  @details	Timers are a useful utility to execute some callback function
  *              in the future.
@@ -51,7 +39,6 @@ typedef struct {
  *              and only flags other threads to do the actual work
  *              also it should be noted that the underlaying OS maynot give any
  *              guarentees on which contect this callback will execute in
- *  @param[in]	pstrAttrs Optional attributes, NULL for default
  *  @return	Error code indicating sucess/failure
  *  @sa		WILC_TimerAttrs
  *  @author	syounan
@@ -59,7 +46,7 @@ typedef struct {
  *  @version	1.0
  */
 WILC_ErrNo WILC_TimerCreate(struct timer_list *pHandle,
-			    tpfWILC_TimerFunction pfCallback, tstrWILC_TimerAttrs *pstrAttrs);
+			    tpfWILC_TimerFunction pfCallback);
 
 
 /*!
@@ -70,15 +57,13 @@ WILC_ErrNo WILC_TimerCreate(struct timer_list *pHandle,
  *              if the timer was EXECUTING then the callback will be allowed to
  *              finish first then all resources are freed
  *  @param[in]	pHandle handle to the timer object
- *  @param[in]	pstrAttrs Optional attributes, NULL for default
  *  @return	Error code indicating sucess/failure
  *  @sa		WILC_TimerAttrs
  *  @author	syounan
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerDestroy(struct timer_list *pHandle,
-			     tstrWILC_TimerAttrs *pstrAttrs);
+WILC_ErrNo WILC_TimerDestroy(struct timer_list *pHandle);
 
 /*!
  *  @brief	Starts a given timer
@@ -91,16 +76,13 @@ WILC_ErrNo WILC_TimerDestroy(struct timer_list *pHandle,
  *  @param[in]	u32Timeout timeout value in msec after witch the callback
  *              function will be executed. Timeout value of 0 is not allowed for
  *              periodic timers
- *  @param[in]	pstrAttrs Optional attributes, NULL for default,
- *              set bPeriodicTimer to run this timer as a periodic timer
  *  @return	Error code indicating sucess/failure
  *  @sa		WILC_TimerAttrs
  *  @author	syounan
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout, void *pvArg,
-			   tstrWILC_TimerAttrs *pstrAttrs);
+WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout, void *pvArg);
 
 
 /*!
@@ -114,15 +96,13 @@ WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout, void *pvA
  *              done then move the timer to the IDLE state (which is trivial
  *              work if the timer is non periodic)
  *  @param[in]	pHandle handle to the timer object
- *  @param[in]	pstrAttrs Optional attributes, NULL for default,
  *  @return	Error code indicating sucess/failure
  *  @sa		WILC_TimerAttrs
  *  @author	syounan
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerStop(struct timer_list *pHandle,
-			  tstrWILC_TimerAttrs *pstrAttrs);
+WILC_ErrNo WILC_TimerStop(struct timer_list *pHandle);
 
 
 
