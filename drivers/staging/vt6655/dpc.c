@@ -144,7 +144,7 @@ bool vnt_receive_frame(struct vnt_private *priv, PSRxDesc curr_rd)
 			 priv->rx_buf_sz, DMA_FROM_DEVICE);
 
 	frame_size = le16_to_cpu(curr_rd->m_rd1RD1.wReqCount)
-			- le16_to_cpu(curr_rd->m_rd0RD0.wResCount);
+			- le16_to_cpu(curr_rd->rd0.res_count);
 
 	if ((frame_size > 2364) || (frame_size < 33)) {
 		/* Frame Size error drop this packet.*/

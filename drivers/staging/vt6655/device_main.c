@@ -778,7 +778,7 @@ static int device_rx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 	int works = 0;
 
 	for (pRD = pDevice->pCurrRD[uIdx];
-	     pRD->m_rd0RD0.f1Owner == OWNED_BY_HOST;
+	     pRD->rd0.owner == OWNED_BY_HOST;
 	     pRD = pRD->next) {
 		if (works++ > 15)
 			break;
@@ -793,7 +793,7 @@ static int device_rx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 				break;
 			}
 		}
-		pRD->m_rd0RD0.f1Owner = OWNED_BY_NIC;
+		pRD->rd0.owner = OWNED_BY_NIC;
 	}
 
 	pDevice->pCurrRD[uIdx] = pRD;
@@ -814,10 +814,10 @@ static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pRD)
 			       skb_put(pRDInfo->skb, skb_tailroom(pRDInfo->skb)),
 			       pDevice->rx_buf_sz, DMA_FROM_DEVICE);
 
-	*((unsigned int *)&(pRD->m_rd0RD0)) = 0; /* FIX cast */
+	*((unsigned int *)&pRD->rd0) = 0; /* FIX cast */
 
-	pRD->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
-	pRD->m_rd0RD0.f1Owner = OWNED_BY_NIC;
+	pRD->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
+	pRD->rd0.owner = OWNED_BY_NIC;
 	pRD->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
 	pRD->buff_addr = cpu_to_le32(pRDInfo->skb_dma);
 

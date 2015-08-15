@@ -573,16 +573,16 @@ CARDvSafeResetRx(
 	/* init state, all RD is chip's */
 	for (uu = 0; uu < pDevice->sOpts.nRxDescs0; uu++) {
 		pDesc = &(pDevice->aRD0Ring[uu]);
-		pDesc->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
-		pDesc->m_rd0RD0.f1Owner = OWNED_BY_NIC;
+		pDesc->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
+		pDesc->rd0.owner = OWNED_BY_NIC;
 		pDesc->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
 	}
 
 	/* init state, all RD is chip's */
 	for (uu = 0; uu < pDevice->sOpts.nRxDescs1; uu++) {
 		pDesc = &(pDevice->aRD1Ring[uu]);
-		pDesc->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
-		pDesc->m_rd0RD0.f1Owner = OWNED_BY_NIC;
+		pDesc->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
+		pDesc->rd0.owner = OWNED_BY_NIC;
 		pDesc->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
 	}
 
