@@ -730,7 +730,7 @@ INLINE void chip_wakeup(void)
 
 			do {
 				/* Wait for the chip to stabilize*/
-				WILC_Sleep(2);
+				usleep_range(2 * 1000, 2 * 1000);
 				/* Make sure chip is awake. This is an extra step that can be removed */
 				/* later to avoid the bus access overhead */
 				if ((wilc_get_chipid(true) == 0)) {
@@ -753,7 +753,7 @@ INLINE void chip_wakeup(void)
 			/* If still off, redo the wake up sequence */
 			while (((clk_status_reg & 0x1) == 0) && (((++trials) % 3) == 0)) {
 				/* Wait for the chip to stabilize*/
-				WILC_Sleep(2);
+				usleep_range(2 * 1000, 2 * 1000);
 
 				/* Make sure chip is awake. This is an extra step that can be removed */
 				/* later to avoid the bus access overhead */
@@ -1408,7 +1408,7 @@ static void wilc_wlan_handle_isr_ext(uint32_t int_status)
 		buffer = p->os_func.os_malloc(size);
 		if (buffer == NULL) {
 			wilc_debug(N_ERR, "[wilc isr]: fail alloc host memory...drop the packets (%d)\n", size);
-			WILC_Sleep(100);
+			usleep_range(100 * 1000, 100 * 1000);
 			goto _end_;
 		}
 #endif

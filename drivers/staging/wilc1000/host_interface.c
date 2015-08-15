@@ -4339,7 +4339,7 @@ static int hostIFthread(void *pvArg)
 		/*Re-Queue HIF message*/
 		if ((!g_wilc_initialized)) {
 			PRINT_D(GENERIC_DBG, "--WAIT--");
-			WILC_Sleep(200);
+			usleep_range(200 * 1000, 200 * 1000);
 			WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 			continue;
 		}
@@ -4347,7 +4347,7 @@ static int hostIFthread(void *pvArg)
 		if (strHostIFmsg.u16MsgId == HOST_IF_MSG_CONNECT && pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult != NULL) {
 			PRINT_D(HOSTINF_DBG, "Requeue connect request till scan done received\n");
 			WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
-			WILC_Sleep(2);
+			usleep_range(2 * 1000, 2 * 1000);
 			continue;
 		}
 
