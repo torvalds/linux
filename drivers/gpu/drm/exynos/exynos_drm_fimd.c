@@ -59,6 +59,7 @@
 #define VIDWnALPHA1(win)	(VIDW_ALPHA + 0x04 + (win) * 8)
 
 #define VIDWx_BUF_START(win, buf)	(VIDW_BUF_START(buf) + (win) * 8)
+#define VIDWx_BUF_START_S(win, buf)	(VIDW_BUF_START_S(buf) + (win) * 8)
 #define VIDWx_BUF_END(win, buf)		(VIDW_BUF_END(buf) + (win) * 8)
 #define VIDWx_BUF_SIZE(win, buf)	(VIDW_BUF_SIZE(buf) + (win) * 4)
 
@@ -895,7 +896,7 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
-	u32 val, clear_bit;
+	u32 val, clear_bit, start, start_s;
 	int win;
 
 	val = readl(ctx->regs + VIDINTCON1);
@@ -917,7 +918,10 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		if (!plane->pending_fb)
 			continue;
 
-		exynos_drm_crtc_finish_update(ctx->crtc, plane);
+		start = readl(ctx->regs + VIDWx_BUF_START(win, 0));
+		start_s = readl(ctx->regs + VIDWx_BUF_START_S(win, 0));
+		if (start == start_s)
+			exynos_drm_crtc_finish_update(ctx->crtc, plane);
 	}
 
 	if (ctx->i80_if) {
