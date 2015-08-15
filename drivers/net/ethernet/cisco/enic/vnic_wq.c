@@ -26,6 +26,7 @@
 
 #include "vnic_dev.h"
 #include "vnic_wq.h"
+#include "enic.h"
 
 static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 {
@@ -94,7 +95,7 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 
 	wq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_WQ, index);
 	if (!wq->ctrl) {
-		pr_err("Failed to hook WQ[%d] resource\n", index);
+		vdev_err("Failed to hook WQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 
@@ -158,6 +159,7 @@ void vnic_wq_enable(struct vnic_wq *wq)
 int vnic_wq_disable(struct vnic_wq *wq)
 {
 	unsigned int wait;
+	struct vnic_dev *vdev = wq->vdev;
 
 	iowrite32(0, &wq->ctrl->enable);
 
@@ -168,7 +170,7 @@ int vnic_wq_disable(struct vnic_wq *wq)
 		udelay(10);
 	}
 
-	pr_err("Failed to disable WQ[%d]\n", wq->index);
+	vdev_neterr("Failed to disable WQ[%d]\n", wq->index);
 
 	return -ETIMEDOUT;
 }

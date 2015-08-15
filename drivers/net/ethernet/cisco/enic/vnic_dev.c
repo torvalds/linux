@@ -28,6 +28,7 @@
 #include "vnic_devcmd.h"
 #include "vnic_dev.h"
 #include "vnic_stats.h"
+#include "enic.h"
 
 #define VNIC_MAX_RES_HDR_SIZE \
 	(sizeof(struct vnic_resource_header) + \
@@ -51,14 +52,14 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		return -EINVAL;
 
 	if (bar->len < VNIC_MAX_RES_HDR_SIZE) {
-		pr_err("vNIC BAR0 res hdr length error\n");
+		vdev_err("vNIC BAR0 res hdr length error\n");
 		return -EINVAL;
 	}
 
 	rh  = bar->vaddr;
 	mrh = bar->vaddr;
 	if (!rh) {
-		pr_err("vNIC BAR0 res hdr not mem-mapped\n");
+		vdev_err("vNIC BAR0 res hdr not mem-mapped\n");
 		return -EINVAL;
 	}
 
@@ -67,11 +68,10 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		(ioread32(&rh->version) != VNIC_RES_VERSION)) {
 		if ((ioread32(&mrh->magic) != MGMTVNIC_MAGIC) ||
 			(ioread32(&mrh->version) != MGMTVNIC_VERSION)) {
-			pr_err("vNIC BAR0 res magic/version error "
-			"exp (%lx/%lx) or (%lx/%lx), curr (%x/%x)\n",
-			VNIC_RES_MAGIC, VNIC_RES_VERSION,
-			MGMTVNIC_MAGIC, MGMTVNIC_VERSION,
-			ioread32(&rh->magic), ioread32(&rh->version));
+			vdev_err("vNIC BAR0 res magic/version error exp (%lx/%lx) or (%lx/%lx), curr (%x/%x)\n",
+				 VNIC_RES_MAGIC, VNIC_RES_VERSION,
+				 MGMTVNIC_MAGIC, MGMTVNIC_VERSION,
+				 ioread32(&rh->magic), ioread32(&rh->version));
 			return -EINVAL;
 		}
 	}
@@ -105,12 +105,9 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 			/* each count is stride bytes long */
 			len = count * VNIC_RES_STRIDE;
 			if (len + bar_offset > bar[bar_num].len) {
-				pr_err("vNIC BAR0 resource %d "
-					"out-of-bounds, offset 0x%x + "
-					"size 0x%x > bar len 0x%lx\n",
-					type, bar_offset,
-					len,
-					bar[bar_num].len);
+				vdev_err("vNIC BAR0 resource %d out-of-bounds, offset 0x%x + size 0x%x > bar len 0x%lx\n",
+					 type, bar_offset, len,
+					 bar[bar_num].len);
 				return -EINVAL;
 			}
 			break;
@@ -199,8 +196,8 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 		&ring->base_addr_unaligned);
 
 	if (!ring->descs_unaligned) {
-		pr_err("Failed to allocate ring (size=%d), aborting\n",
-			(int)ring->size);
+		vdev_err("Failed to allocate ring (size=%d), aborting\n",
+			 (int)ring->size);
 		return -ENOMEM;
 	}
 
@@ -242,7 +239,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		return -ENODEV;
 	}
 	if (status & STAT_BUSY) {
-		pr_err("Busy devcmd %d\n", _CMD_N(cmd));
+		vdev_neterr("Busy devcmd %d\n", _CMD_N(cmd));
 		return -EBUSY;
 	}
 
@@ -276,8 +273,8 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 					return -err;
 				if (err != ERR_ECMDUNKNOWN ||
 				    cmd != CMD_CAPABILITY)
-					pr_err("Error %d devcmd %d\n",
-						err, _CMD_N(cmd));
+					vdev_neterr("Error %d devcmd %d\n",
+						    err, _CMD_N(cmd));
 				return -err;
 			}
 
@@ -291,7 +288,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		}
 	}
 
-	pr_err("Timedout devcmd %d\n", _CMD_N(cmd));
+	vdev_neterr("Timedout devcmd %d\n", _CMD_N(cmd));
 	return -ETIMEDOUT;
 }
 
@@ -318,7 +315,8 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 		err = (int)vdev->args[1];
 		if (err != ERR_ECMDUNKNOWN ||
 		    cmd != CMD_CAPABILITY)
-			pr_err("Error %d proxy devcmd %d\n", err, _CMD_N(cmd));
+			vdev_neterr("Error %d proxy devcmd %d\n", err,
+				    _CMD_N(cmd));
 		return err;
 	}
 
@@ -611,7 +609,7 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 
 	err = vnic_dev_cmd(vdev, CMD_PACKET_FILTER, &a0, &a1, wait);
 	if (err)
-		pr_err("Can't set packet filter\n");
+		vdev_neterr("Can't set packet filter\n");
 
 	return err;
 }
@@ -628,7 +626,7 @@ int vnic_dev_add_addr(struct vnic_dev *vdev, const u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
 	if (err)
-		pr_err("Can't add addr [%pM], %d\n", addr, err);
+		vdev_neterr("Can't add addr [%pM], %d\n", addr, err);
 
 	return err;
 }
@@ -645,7 +643,7 @@ int vnic_dev_del_addr(struct vnic_dev *vdev, const u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_DEL, &a0, &a1, wait);
 	if (err)
-		pr_err("Can't del addr [%pM], %d\n", addr, err);
+		vdev_neterr("Can't del addr [%pM], %d\n", addr, err);
 
 	return err;
 }
@@ -689,7 +687,7 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 	dma_addr_t notify_pa;
 
 	if (vdev->notify || vdev->notify_pa) {
-		pr_err("notify block %p still allocated", vdev->notify);
+		vdev_neterr("notify block %p still allocated", vdev->notify);
 		return -EINVAL;
 	}
 
@@ -808,7 +806,7 @@ int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev)
 	 */
 	if ((err == ERR_ECMDUNKNOWN) ||
 		(!err && !(vdev->args[0] && vdev->args[1] && vdev->args[2]))) {
-		pr_warn("Using default conversion factor for interrupt coalesce timer\n");
+		vdev_netwarn("Using default conversion factor for interrupt coalesce timer\n");
 		vnic_dev_intr_coal_timer_info_default(vdev);
 		return 0;
 	}

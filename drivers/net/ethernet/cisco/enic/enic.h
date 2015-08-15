@@ -191,6 +191,25 @@ struct enic {
 	struct vnic_gen_stats gen_stats;
 };
 
+static inline struct net_device *vnic_get_netdev(struct vnic_dev *vdev)
+{
+	struct enic *enic = vdev->priv;
+
+	return enic->netdev;
+}
+
+/* wrappers function for kernel log
+ * Make sure variable vdev of struct vnic_dev is available in the block where
+ * these macros are used
+ */
+#define vdev_info(args...)	dev_info(&vdev->pdev->dev, args)
+#define vdev_warn(args...)	dev_warn(&vdev->pdev->dev, args)
+#define vdev_err(args...)	dev_err(&vdev->pdev->dev, args)
+
+#define vdev_netinfo(args...)	netdev_info(vnic_get_netdev(vdev), args)
+#define vdev_netwarn(args...)	netdev_warn(vnic_get_netdev(vdev), args)
+#define vdev_neterr(args...)	netdev_err(vnic_get_netdev(vdev), args)
+
 static inline struct device *enic_get_dev(struct enic *enic)
 {
 	return &(enic->pdev->dev);

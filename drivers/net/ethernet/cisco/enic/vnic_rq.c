@@ -26,6 +26,7 @@
 
 #include "vnic_dev.h"
 #include "vnic_rq.h"
+#include "enic.h"
 
 static int vnic_rq_alloc_bufs(struct vnic_rq *rq)
 {
@@ -91,7 +92,7 @@ int vnic_rq_alloc(struct vnic_dev *vdev, struct vnic_rq *rq, unsigned int index,
 
 	rq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_RQ, index);
 	if (!rq->ctrl) {
-		pr_err("Failed to hook RQ[%d] resource\n", index);
+		vdev_err("Failed to hook RQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 
@@ -167,6 +168,7 @@ void vnic_rq_enable(struct vnic_rq *rq)
 int vnic_rq_disable(struct vnic_rq *rq)
 {
 	unsigned int wait;
+	struct vnic_dev *vdev = rq->vdev;
 
 	iowrite32(0, &rq->ctrl->enable);
 
@@ -177,7 +179,7 @@ int vnic_rq_disable(struct vnic_rq *rq)
 		udelay(10);
 	}
 
-	pr_err("Failed to disable RQ[%d]\n", rq->index);
+	vdev_neterr("Failed to disable RQ[%d]\n", rq->index);
 
 	return -ETIMEDOUT;
 }
