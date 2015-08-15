@@ -61,7 +61,6 @@ void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
  *  @sa		WILC_FREE
  *  @sa		WILC_FREE_EX
  *  @sa		WILC_FREE_SET_NULL
- *  @sa		WILC_FREE_IF_TRUE
  *  @author	syounan
  *  @date	16 Aug 2010
  *  @version	1.0
@@ -92,18 +91,6 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
 	((__struct_type__ *)WILC_MALLOC_EX( \
 		 sizeof(__struct_type__) * (u32)(__n_structs__), __attrs__))
 
-
-
-/*!
- * @brief	Frees a block (with custom attributes) if the pointer expression evaluates
- * to true
- */
-#define WILC_FREE_IF_TRUE_EX(__ptr__, __attrs__) do { \
-		if (__ptr__ != NULL) { \
-			WILC_FREE_EX(__ptr__, __attrs__); \
-		} \
-} while (0)
-
 /*!
  * @brief	standrad malloc wrapper with default attributes
  */
@@ -119,15 +106,5 @@ void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
  */
 #define WILC_NEW(__struct_type__, __n_structs__) \
 	WILC_NEW_EX(__struct_type__, __n_structs__, NULL)
-
-
-
-/*!
- * @brief	Frees a block (with default attributes) if the pointer expression evaluates
- * to true
- */
-#define WILC_FREE_IF_TRUE(__ptr__) \
-	WILC_FREE_IF_TRUE_EX(__ptr__, NULL)
-
 
 #endif

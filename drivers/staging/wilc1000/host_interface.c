@@ -3487,9 +3487,9 @@ static void Handle_AddBeacon(tstrWILC_WFIDrv *drvHandler, tstrHostIFSetBeacon *p
 	WILC_CATCH(s32Error)
 	{
 	}
-	WILC_FREE_IF_TRUE(strWID.ps8WidVal);
-	WILC_FREE_IF_TRUE(pstrSetBeaconParam->pu8Head);
-	WILC_FREE_IF_TRUE(pstrSetBeaconParam->pu8Tail);
+	kfree(strWID.ps8WidVal);
+	kfree(pstrSetBeaconParam->pu8Head);
+	kfree(pstrSetBeaconParam->pu8Tail);
 }
 
 
@@ -3629,8 +3629,8 @@ static void Handle_AddStation(tstrWILC_WFIDrv *drvHandler, tstrWILC_AddStaParam 
 	WILC_CATCH(s32Error)
 	{
 	}
-	WILC_FREE_IF_TRUE(pstrStationParam->pu8Rates);
-	WILC_FREE_IF_TRUE(strWID.ps8WidVal);
+	kfree(pstrStationParam->pu8Rates);
+	kfree(strWID.ps8WidVal);
 }
 
 /**
@@ -3686,7 +3686,7 @@ static void Handle_DelAllSta(tstrWILC_WFIDrv *drvHandler, tstrHostIFDelAllSta *p
 	WILC_CATCH(s32Error)
 	{
 	}
-	WILC_FREE_IF_TRUE(strWID.ps8WidVal);
+	kfree(strWID.ps8WidVal);
 
 	up(&hWaitResponse);
 }
@@ -3733,7 +3733,7 @@ static void Handle_DelStation(tstrWILC_WFIDrv *drvHandler, tstrHostIFDelSta *pst
 	WILC_CATCH(s32Error)
 	{
 	}
-	WILC_FREE_IF_TRUE(strWID.ps8WidVal);
+	kfree(strWID.ps8WidVal);
 }
 
 
@@ -3776,8 +3776,8 @@ static void Handle_EditStation(tstrWILC_WFIDrv *drvHandler, tstrWILC_AddStaParam
 	WILC_CATCH(s32Error)
 	{
 	}
-	WILC_FREE_IF_TRUE(pstrStationParam->pu8Rates);
-	WILC_FREE_IF_TRUE(strWID.ps8WidVal);
+	kfree(pstrStationParam->pu8Rates);
+	kfree(strWID.ps8WidVal);
 }
 #endif /*WILC_AP_EXTERNAL_MLME*/
 
@@ -4093,7 +4093,7 @@ static void Handle_SetMulticastFilter(tstrWILC_WFIDrv *drvHandler, tstrHostIFSet
 	WILC_CATCH(s32Error)
 	{
 	}
-	WILC_FREE_IF_TRUE(strWID.ps8WidVal);
+	kfree(strWID.ps8WidVal);
 
 }
 
