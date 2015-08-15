@@ -818,7 +818,7 @@ static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pRD)
 
 	pRD->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
 	pRD->rd0.owner = OWNED_BY_NIC;
-	pRD->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
+	pRD->rd1.req_count = cpu_to_le16(pDevice->rx_buf_sz);
 	pRD->buff_addr = cpu_to_le32(pRDInfo->skb_dma);
 
 	return true;

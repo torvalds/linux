@@ -575,7 +575,7 @@ CARDvSafeResetRx(
 		pDesc = &(pDevice->aRD0Ring[uu]);
 		pDesc->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
 		pDesc->rd0.owner = OWNED_BY_NIC;
-		pDesc->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
+		pDesc->rd1.req_count = cpu_to_le16(pDevice->rx_buf_sz);
 	}
 
 	/* init state, all RD is chip's */
@@ -583,7 +583,7 @@ CARDvSafeResetRx(
 		pDesc = &(pDevice->aRD1Ring[uu]);
 		pDesc->rd0.res_count = cpu_to_le16(pDevice->rx_buf_sz);
 		pDesc->rd0.owner = OWNED_BY_NIC;
-		pDesc->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
+		pDesc->rd1.req_count = cpu_to_le16(pDevice->rx_buf_sz);
 	}
 
 	/* set perPkt mode */

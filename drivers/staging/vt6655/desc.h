@@ -189,16 +189,15 @@ struct vnt_rdes0 {
 #endif
 } __packed;
 
-typedef struct tagRDES1 {
-	__le16	       wReqCount;
-	unsigned short wReserved;
-} __attribute__ ((__packed__))
-SRDES1;
+struct vnt_rdes1 {
+	__le16 req_count;
+	u16 reserved;
+} __packed;
 
 /* Rx descriptor*/
 typedef struct tagSRxDesc {
 	volatile struct vnt_rdes0 rd0;
-	volatile SRDES1 m_rd1RD1;
+	volatile struct vnt_rdes1 rd1;
 	volatile __le32 buff_addr;
 	volatile __le32 next_desc;
 	struct tagSRxDesc *next __aligned(8);
