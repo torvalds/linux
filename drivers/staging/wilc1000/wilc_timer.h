@@ -84,26 +84,4 @@ WILC_ErrNo WILC_TimerDestroy(struct timer_list *pHandle);
  */
 WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout, void *pvArg);
 
-
-/*!
- *  @brief	Stops a given timer
- *  @details	This function will move the timer to the IDLE state cancelling
- *              any sheduled callback execution.
- *              if this function is called on a timer already in the IDLE state
- *              it will have no effect.
- *              if this function is called on a timer in EXECUTING state
- *              (callback has already started) it will wait until executing is
- *              done then move the timer to the IDLE state (which is trivial
- *              work if the timer is non periodic)
- *  @param[in]	pHandle handle to the timer object
- *  @return	Error code indicating sucess/failure
- *  @sa		WILC_TimerAttrs
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-WILC_ErrNo WILC_TimerStop(struct timer_list *pHandle);
-
-
-
 #endif

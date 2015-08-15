@@ -1366,7 +1366,7 @@ static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler, tstrHostIFscanAttr *pstrHost
 
 	WILC_CATCH(s32Error)
 	{
-		WILC_TimerStop(&pstrWFIDrv->hScanTimer);
+		del_timer(&pstrWFIDrv->hScanTimer);
 		/*if there is an ongoing scan request*/
 		Handle_ScanDone(drvHandler, SCAN_EVENT_ABORTED);
 	}
@@ -1966,7 +1966,7 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	{
 		tstrConnectInfo strConnectInfo;
 
-		WILC_TimerStop(&pstrWFIDrv->hConnectTimer);
+		del_timer(&pstrWFIDrv->hConnectTimer);
 
 		PRINT_D(HOSTINF_DBG, "could not start connecting to the required network\n");
 
@@ -2477,7 +2477,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 			}
 
 
-			WILC_TimerStop(&pstrWFIDrv->hConnectTimer);
+			del_timer(&pstrWFIDrv->hConnectTimer);
 			pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult(CONN_DISCONN_EVENT_CONN_RESP,
 									   &strConnectInfo,
 									   u8MacStatus,
@@ -2556,7 +2556,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 
 			if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
 				PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running OBSS Scan >>\n\n");
-				WILC_TimerStop(&pstrWFIDrv->hScanTimer);
+				del_timer(&pstrWFIDrv->hScanTimer);
 				Handle_ScanDone((void *)pstrWFIDrv, SCAN_EVENT_ABORTED);
 			}
 
@@ -2633,7 +2633,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 			PRINT_D(HOSTINF_DBG, "Received MAC_DISCONNECTED from the FW while scanning\n");
 			PRINT_D(HOSTINF_DBG, "\n\n<< Abort the running Scan >>\n\n");
 			/*Abort the running scan*/
-			WILC_TimerStop(&pstrWFIDrv->hScanTimer);
+			del_timer(&pstrWFIDrv->hScanTimer);
 			if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult)
 				Handle_ScanDone(pstrWFIDrv, SCAN_EVENT_ABORTED);
 
@@ -3067,7 +3067,7 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 		strDisconnectNotifInfo.ie_len = 0;
 
 		if (pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult) {
-			WILC_TimerStop(&pstrWFIDrv->hScanTimer);
+			del_timer(&pstrWFIDrv->hScanTimer);
 			pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_ABORTED, NULL,
 									pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid, NULL);
 
@@ -3080,7 +3080,7 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 			/*Stop connect timer, if connection in progress*/
 			if (pstrWFIDrv->enuHostIFstate == HOST_IF_WAITING_CONN_RESP) {
 				PRINT_D(HOSTINF_DBG, "Upper layer requested termination of connection\n");
-				WILC_TimerStop(&pstrWFIDrv->hConnectTimer);
+				del_timer(&pstrWFIDrv->hConnectTimer);
 			}
 
 			pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult(CONN_DISCONN_EVENT_DISCONN_NOTIF, NULL,
@@ -3984,7 +3984,7 @@ static void ListenTimerCB(void *pvArg)
 	tstrHostIFmsg strHostIFmsg;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)pvArg;
 	/*Stopping remain-on-channel timer*/
-	WILC_TimerStop(&pstrWFIDrv->hRemainOnChannel);
+	del_timer(&pstrWFIDrv->hRemainOnChannel);
 
 	/* prepare the Timer Callback message */
 	memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
@@ -4395,7 +4395,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_RCVD_SCAN_COMPLETE:
-			WILC_TimerStop(&pstrWFIDrv->hScanTimer);
+			del_timer(&pstrWFIDrv->hScanTimer);
 			PRINT_D(HOSTINF_DBG, "scan completed successfully\n");
 
 			/*BugID_5213*/
@@ -6991,7 +6991,7 @@ s32 host_int_ListenStateExpired(tstrWILC_WFIDrv *hWFIDrv, u32 u32SessionID)
 		WILC_ERRORREPORT(s32Error, WILC_INVALID_ARGUMENT);
 
 	/*Stopping remain-on-channel timer*/
-	WILC_TimerStop(&pstrWFIDrv->hRemainOnChannel);
+	del_timer(&pstrWFIDrv->hRemainOnChannel);
 
 	/* prepare the timer fire Message */
 	memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));

@@ -32,12 +32,3 @@ WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout,
 	}
 	return s32RetStatus;
 }
-
-WILC_ErrNo WILC_TimerStop(struct timer_list *pHandle)
-{
-	WILC_ErrNo s32RetStatus = WILC_FAIL;
-	if (pHandle != NULL)
-		s32RetStatus = del_timer(pHandle);
-
-	return s32RetStatus;
-}
