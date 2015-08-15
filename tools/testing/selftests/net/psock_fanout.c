@@ -19,6 +19,7 @@
  *   - PACKET_FANOUT_LB
  *   - PACKET_FANOUT_CPU
  *   - PACKET_FANOUT_ROLLOVER
+ *   - PACKET_FANOUT_CBPF
  *
  * Todo:
  * - functionality: PACKET_FANOUT_FLAG_DEFRAG
@@ -115,8 +116,8 @@ static char *sock_fanout_open_ring(int fd)
 
 	ring = mmap(0, req.tp_block_size * req.tp_block_nr,
 		    PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (!ring) {
-		fprintf(stderr, "packetsock ring mmap\n");
+	if (ring == MAP_FAILED) {
+		perror("packetsock ring mmap");
 		exit(1);
 	}
 
@@ -209,6 +210,7 @@ static int test_datapath(uint16_t typeflags, int port_off,
 {
 	const int expect0[] = { 0, 0 };
 	char *rings[2];
+	uint8_t type = typeflags & 0xFF;
 	int fds[2], fds_udp[2][2], ret;
 
 	fprintf(stderr, "test: datapath 0x%hx\n", typeflags);
@@ -219,6 +221,9 @@ static int test_datapath(uint16_t typeflags, int port_off,
 		fprintf(stderr, "ERROR: failed open\n");
 		exit(1);
 	}
+	if (type == PACKET_FANOUT_CBPF)
+		sock_setfilter(fds[0], SOL_PACKET, PACKET_FANOUT_DATA);
+
 	rings[0] = sock_fanout_open_ring(fds[0]);
 	rings[1] = sock_fanout_open_ring(fds[1]);
 	pair_udp_open(fds_udp[0], PORT_BASE);
@@ -227,11 +232,11 @@ static int test_datapath(uint16_t typeflags, int port_off,
 
 	/* Send data, but not enough to overflow a queue */
 	pair_udp_send(fds_udp[0], 15);
-	pair_udp_send(fds_udp[1], 5);
+	pair_udp_send_char(fds_udp[1], 5, DATA_CHAR_1);
 	ret = sock_fanout_read(fds, rings, expect1);
 
 	/* Send more data, overflow the queue */
-	pair_udp_send(fds_udp[0], 15);
+	pair_udp_send_char(fds_udp[0], 15, DATA_CHAR_1);
 	/* TODO: ensure consistent order between expect1 and expect2 */
 	ret |= sock_fanout_read(fds, rings, expect2);
 
@@ -275,6 +280,7 @@ int main(int argc, char **argv)
 	const int expect_rb[2][2]	= { { 15, 5 },  { 20, 15 } };
 	const int expect_cpu0[2][2]	= { { 20, 0 },  { 20, 0 } };
 	const int expect_cpu1[2][2]	= { { 0, 20 },  { 0, 20 } };
+	const int expect_bpf[2][2]	= { { 15, 5 },  { 15, 20 } };
 	int port_off = 2, tries = 5, ret;
 
 	test_control_single();
@@ -295,6 +301,8 @@ int main(int argc, char **argv)
 			     port_off, expect_lb[0], expect_lb[1]);
 	ret |= test_datapath(PACKET_FANOUT_ROLLOVER,
 			     port_off, expect_rb[0], expect_rb[1]);
+	ret |= test_datapath(PACKET_FANOUT_CBPF,
+			     port_off, expect_bpf[0], expect_bpf[1]);
 
 	set_cpuaffinity(0);
 	ret |= test_datapath(PACKET_FANOUT_CPU, port_off,
