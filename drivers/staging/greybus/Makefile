@@ -61,7 +61,7 @@ ifneq ($(KERNELRELEASE),)
 # This function returns the argument version if current kernel version is minor
 # than the passed version, return 1 if equal or the current kernel version if it
 # is greater than argument version.
-kvers_cmp=$(shell [[ "$(KERNELVERSION)" == "$(1)" ]] && echo 1 || echo -e "$(1)\n$(KERNELVERSION)" | sort -V | tail -1)
+kvers_cmp=$(shell [ "$(KERNELVERSION)" = "$(1)" ] && echo 1 || printf "$(1)\n$(KERNELVERSION)" | sort -V | tail -1)
 
 ifneq ($(call kvers_cmp,"3.19.0"),3.19.0)
     CONFIG_OPTIONS_ENABLE += LEDS_CLASS_FLASH
