@@ -52,6 +52,8 @@
 
 #include "6lowpan_i.h"
 
+static int open_count;
+
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -141,12 +143,18 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	lowpan_netdev_setup(dev, LOWPAN_LLTYPE_IEEE802154);
 
 	ret = register_netdevice(dev);
-	if (ret >= 0) {
-		real_dev->ieee802154_ptr->lowpan_dev = dev;
-		lowpan_rx_init();
+	if (ret < 0) {
+		dev_put(real_dev);
+		return ret;
 	}
 
-	return ret;
+	real_dev->ieee802154_ptr->lowpan_dev = dev;
+	if (!open_count)
+		lowpan_rx_init();
+
+	open_count++;
+
+	return 0;
 }
 
 static void lowpan_dellink(struct net_device *dev, struct list_head *head)
@@ -156,7 +164,11 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 
 	ASSERT_RTNL();
 
-	lowpan_rx_exit();
+	open_count--;
+
+	if (!open_count)
+		lowpan_rx_exit();
+
 	real_dev->ieee802154_ptr->lowpan_dev = NULL;
 	unregister_netdevice(dev);
 	dev_put(real_dev);
