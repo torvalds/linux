@@ -195,16 +195,14 @@ struct vnt_rdes1 {
 } __packed;
 
 /* Rx descriptor*/
-typedef struct tagSRxDesc {
+struct vnt_rx_desc {
 	volatile struct vnt_rdes0 rd0;
 	volatile struct vnt_rdes1 rd1;
 	volatile __le32 buff_addr;
 	volatile __le32 next_desc;
-	struct tagSRxDesc *next __aligned(8);
+	struct vnt_rx_desc *next __aligned(8);
 	struct vnt_rd_info *rd_info __aligned(8);
-} __attribute__ ((__packed__))
-SRxDesc, *PSRxDesc;
-typedef const SRxDesc *PCSRxDesc;
+} __packed;
 
 struct vnt_tdes0 {
 	volatile u8 tsr0;

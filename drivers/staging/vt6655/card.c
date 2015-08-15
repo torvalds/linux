@@ -564,7 +564,7 @@ CARDvSafeResetRx(
 )
 {
 	unsigned int uu;
-	PSRxDesc    pDesc;
+	struct vnt_rx_desc *pDesc;
 
 	/* initialize RD index */
 	pDevice->pCurrRD[0] = &(pDevice->aRD0Ring[0]);

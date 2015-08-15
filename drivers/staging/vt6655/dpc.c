@@ -132,7 +132,7 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 	return true;
 }
 
-bool vnt_receive_frame(struct vnt_private *priv, PSRxDesc curr_rd)
+bool vnt_receive_frame(struct vnt_private *priv, struct vnt_rx_desc *curr_rd)
 {
 	struct vnt_rd_info *rd_info = curr_rd->rd_info;
 	struct sk_buff *skb;

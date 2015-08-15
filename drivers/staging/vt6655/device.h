@@ -258,9 +258,9 @@ struct vnt_private {
 	struct vnt_tx_desc *apTD0Rings;
 	struct vnt_tx_desc *apTD1Rings;
 
-	volatile PSRxDesc           aRD0Ring;
-	volatile PSRxDesc           aRD1Ring;
-	volatile PSRxDesc           pCurrRD[TYPE_MAXRD];
+	struct vnt_rx_desc *aRD0Ring;
+	struct vnt_rx_desc *aRD1Ring;
+	struct vnt_rx_desc *pCurrRD[TYPE_MAXRD];
 
 	OPTIONS                     sOpts;
 
