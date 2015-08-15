@@ -1156,6 +1156,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		set_sta_flag(sta, WLAN_STA_TDLS_CHAN_SWITCH);
 
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
+	    !sdata->u.mgd.tdls_wider_bw_prohibited &&
 	    ieee80211_hw_check(&local->hw, TDLS_WIDER_BW) &&
 	    params->ext_capab_len >= 8 &&
 	    params->ext_capab[7] & WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED)

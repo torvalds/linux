@@ -535,6 +535,7 @@ struct ieee80211_if_managed {
 	struct sk_buff *teardown_skb; /* A copy to send through the AP */
 	spinlock_t teardown_lock; /* To lock changing teardown_skb */
 	bool tdls_chan_switch_prohibited;
+	bool tdls_wider_bw_prohibited;
 
 	/* WMM-AC TSPEC support */
 	struct ieee80211_sta_tx_tspec tx_tspec[IEEE80211_NUM_ACS];
