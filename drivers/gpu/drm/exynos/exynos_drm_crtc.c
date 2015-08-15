@@ -75,10 +75,7 @@ static void exynos_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_plane *plane;
 
-	if (crtc->state->event) {
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-		exynos_crtc->event = crtc->state->event;
-	}
+	exynos_crtc->event = crtc->state->event;
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
@@ -156,6 +153,8 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	exynos_crtc->ops = ops;
 	exynos_crtc->ctx = ctx;
 
+	init_waitqueue_head(&exynos_crtc->wait_update);
+
 	crtc = &exynos_crtc->base;
 
 	private->crtc[pipe] = crtc;
@@ -197,6 +196,13 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
 		exynos_crtc->ops->disable_vblank(exynos_crtc);
 }
 
+void exynos_drm_crtc_wait_pending_update(struct exynos_drm_crtc *exynos_crtc)
+{
+	wait_event_timeout(exynos_crtc->wait_update,
+			   (atomic_read(&exynos_crtc->pending_update) == 0),
+			   msecs_to_jiffies(50));
+}
+
 void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
 				struct exynos_drm_plane *exynos_plane)
 {
@@ -205,10 +211,12 @@ void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
 
 	exynos_plane->pending_fb = NULL;
 
+	if (atomic_dec_and_test(&exynos_crtc->pending_update))
+		wake_up(&exynos_crtc->wait_update);
+
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (exynos_crtc->event) {
 		drm_crtc_send_vblank_event(crtc, exynos_crtc->event);
-		drm_crtc_vblank_put(crtc);
 		wake_up(&exynos_crtc->pending_flip_queue);
 	}
 
