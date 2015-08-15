@@ -20,6 +20,7 @@
  *   - PACKET_FANOUT_CPU
  *   - PACKET_FANOUT_ROLLOVER
  *   - PACKET_FANOUT_CBPF
+ *   - PACKET_FANOUT_EBPF
  *
  * Todo:
  * - functionality: PACKET_FANOUT_FLAG_DEFRAG
@@ -45,7 +46,9 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/unistd.h>	/* for __NR_bpf */
 #include <linux/filter.h>
+#include <linux/bpf.h>
 #include <linux/if_packet.h>
 #include <net/ethernet.h>
 #include <netinet/ip.h>
@@ -90,6 +93,51 @@ static int sock_fanout_open(uint16_t typeflags, int num_packets)
 
 	pair_udp_setfilter(fd);
 	return fd;
+}
+
+static void sock_fanout_set_ebpf(int fd)
+{
+	const int len_off = __builtin_offsetof(struct __sk_buff, len);
+	struct bpf_insn prog[] = {
+		{ BPF_ALU64 | BPF_MOV | BPF_X,   6, 1, 0, 0 },
+		{ BPF_LDX   | BPF_W   | BPF_MEM, 0, 6, len_off, 0 },
+		{ BPF_JMP   | BPF_JGE | BPF_K,   0, 0, 1, DATA_LEN },
+		{ BPF_JMP   | BPF_JA  | BPF_K,   0, 0, 4, 0 },
+		{ BPF_LD    | BPF_B   | BPF_ABS, 0, 0, 0, 0x50 },
+		{ BPF_JMP   | BPF_JEQ | BPF_K,   0, 0, 2, DATA_CHAR },
+		{ BPF_JMP   | BPF_JEQ | BPF_K,   0, 0, 1, DATA_CHAR_1 },
+		{ BPF_ALU   | BPF_MOV | BPF_K,   0, 0, 0, 0 },
+		{ BPF_JMP   | BPF_EXIT,          0, 0, 0, 0 }
+	};
+	char log_buf[512];
+	union bpf_attr attr;
+	int pfd;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	attr.insns = (unsigned long) prog;
+	attr.insn_cnt = sizeof(prog) / sizeof(prog[0]);
+	attr.license = (unsigned long) "GPL";
+	attr.log_buf = (unsigned long) log_buf,
+	attr.log_size = sizeof(log_buf),
+	attr.log_level = 1,
+
+	pfd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+	if (pfd < 0) {
+		perror("bpf");
+		fprintf(stderr, "bpf verifier:\n%s\n", log_buf);
+		exit(1);
+	}
+
+	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT_DATA, &pfd, sizeof(pfd))) {
+		perror("fanout data ebpf");
+		exit(1);
+	}
+
+	if (close(pfd)) {
+		perror("close ebpf");
+		exit(1);
+	}
 }
 
 static char *sock_fanout_open_ring(int fd)
@@ -223,6 +271,8 @@ static int test_datapath(uint16_t typeflags, int port_off,
 	}
 	if (type == PACKET_FANOUT_CBPF)
 		sock_setfilter(fds[0], SOL_PACKET, PACKET_FANOUT_DATA);
+	else if (type == PACKET_FANOUT_EBPF)
+		sock_fanout_set_ebpf(fds[0]);
 
 	rings[0] = sock_fanout_open_ring(fds[0]);
 	rings[1] = sock_fanout_open_ring(fds[1]);
@@ -301,7 +351,10 @@ int main(int argc, char **argv)
 			     port_off, expect_lb[0], expect_lb[1]);
 	ret |= test_datapath(PACKET_FANOUT_ROLLOVER,
 			     port_off, expect_rb[0], expect_rb[1]);
+
 	ret |= test_datapath(PACKET_FANOUT_CBPF,
+			     port_off, expect_bpf[0], expect_bpf[1]);
+	ret |= test_datapath(PACKET_FANOUT_EBPF,
 			     port_off, expect_bpf[0], expect_bpf[1]);
 
 	set_cpuaffinity(0);
