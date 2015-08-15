@@ -708,7 +708,8 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 
 			if (tbl)
 				err = fib_table_lookup(tbl, &fl4, &res,
-						   FIB_LOOKUP_IGNORE_LINKSTATE);
+						       FIB_LOOKUP_IGNORE_LINKSTATE |
+						       FIB_LOOKUP_NOREF);
 			else
 				err = fib_lookup(net, &fl4, &res,
 						 FIB_LOOKUP_IGNORE_LINKSTATE);
