@@ -25,7 +25,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
-#include "exynos_drm_encoder.h"
 #include "exynos_drm_vidi.h"
 
 /* vidi has totally three virtual windows. */
@@ -35,7 +34,7 @@
 					connector)
 
 struct vidi_context {
-	struct exynos_drm_encoder	encoder;
+	struct drm_encoder		encoder;
 	struct platform_device		*pdev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
@@ -54,7 +53,7 @@ struct vidi_context {
 	int				pipe;
 };
 
-static inline struct vidi_context *encoder_to_vidi(struct exynos_drm_encoder *e)
+static inline struct vidi_context *encoder_to_vidi(struct drm_encoder *e)
 {
 	return container_of(e, struct vidi_context, encoder);
 }
@@ -358,7 +357,7 @@ static struct drm_encoder *vidi_best_encoder(struct drm_connector *connector)
 {
 	struct vidi_context *ctx = ctx_from_connector(connector);
 
-	return &ctx->encoder.base;
+	return &ctx->encoder;
 }
 
 static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
@@ -366,10 +365,9 @@ static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
 	.best_encoder = vidi_best_encoder,
 };
 
-static int vidi_create_connector(struct exynos_drm_encoder *exynos_encoder)
+static int vidi_create_connector(struct drm_encoder *encoder)
 {
-	struct vidi_context *ctx = encoder_to_vidi(exynos_encoder);
-	struct drm_encoder *encoder = &exynos_encoder->base;
+	struct vidi_context *ctx = encoder_to_vidi(encoder);
 	struct drm_connector *connector = &ctx->connector;
 	int ret;
 
@@ -389,15 +387,47 @@ static int vidi_create_connector(struct exynos_drm_encoder *exynos_encoder)
 	return 0;
 }
 
+static bool exynos_vidi_mode_fixup(struct drm_encoder *encoder,
+				 const struct drm_display_mode *mode,
+				 struct drm_display_mode *adjusted_mode)
+{
+	return true;
+}
+
+static void exynos_vidi_mode_set(struct drm_encoder *encoder,
+			       struct drm_display_mode *mode,
+			       struct drm_display_mode *adjusted_mode)
+{
+}
+
+static void exynos_vidi_enable(struct drm_encoder *encoder)
+{
+}
+
+static void exynos_vidi_disable(struct drm_encoder *encoder)
+{
+}
+
+static struct drm_encoder_helper_funcs exynos_vidi_encoder_helper_funcs = {
+	.mode_fixup = exynos_vidi_mode_fixup,
+	.mode_set = exynos_vidi_mode_set,
+	.enable = exynos_vidi_enable,
+	.disable = exynos_vidi_disable,
+};
+
+static struct drm_encoder_funcs exynos_vidi_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static int vidi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct vidi_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_encoder *exynos_encoder = &ctx->encoder;
+	struct drm_encoder *encoder = &ctx->encoder;
 	struct exynos_drm_plane *exynos_plane;
 	enum drm_plane_type type;
 	unsigned int zpos;
-	int ret;
+	int pipe, ret;
 
 	vidi_ctx_initialize(ctx, drm_dev);
 
@@ -419,17 +449,24 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(ctx->crtc);
 	}
 
-	ret = exynos_drm_encoder_create(drm_dev, exynos_encoder,
-					EXYNOS_DISPLAY_TYPE_VIDI);
-	if (ret) {
-		DRM_ERROR("failed to create encoder\n");
-		return ret;
-	}
+	pipe = exynos_drm_crtc_get_pipe_from_type(drm_dev,
+						  EXYNOS_DISPLAY_TYPE_VIDI);
+	if (pipe < 0)
+		return pipe;
 
-	ret = vidi_create_connector(exynos_encoder);
+	encoder->possible_crtcs = 1 << pipe;
+
+	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
+
+	drm_encoder_init(drm_dev, encoder, &exynos_vidi_encoder_funcs,
+			 DRM_MODE_ENCODER_TMDS);
+
+	drm_encoder_helper_add(encoder, &exynos_vidi_encoder_helper_funcs);
+
+	ret = vidi_create_connector(encoder);
 	if (ret) {
 		DRM_ERROR("failed to create connector ret = %d\n", ret);
-		drm_encoder_cleanup(&exynos_encoder->base);
+		drm_encoder_cleanup(encoder);
 		return ret;
 	}
 

@@ -44,7 +44,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
-#include "exynos_drm_encoder.h"
 #include "exynos_mixer.h"
 
 #include <linux/gpio.h>
@@ -88,7 +87,7 @@ struct hdmi_resources {
 };
 
 struct hdmi_context {
-	struct exynos_drm_encoder	encoder;
+	struct drm_encoder		encoder;
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct drm_connector		connector;
@@ -116,7 +115,7 @@ struct hdmi_context {
 	struct regmap			*pmureg;
 };
 
-static inline struct hdmi_context *encoder_to_hdmi(struct exynos_drm_encoder *e)
+static inline struct hdmi_context *encoder_to_hdmi(struct drm_encoder *e)
 {
 	return container_of(e, struct hdmi_context, encoder);
 }
@@ -1032,7 +1031,7 @@ static struct drm_encoder *hdmi_best_encoder(struct drm_connector *connector)
 {
 	struct hdmi_context *hdata = ctx_from_connector(connector);
 
-	return &hdata->encoder.base;
+	return &hdata->encoder;
 }
 
 static struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
@@ -1041,9 +1040,9 @@ static struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
 	.best_encoder = hdmi_best_encoder,
 };
 
-static int hdmi_create_connector(struct exynos_drm_encoder *exynos_encoder)
+static int hdmi_create_connector(struct drm_encoder *encoder)
 {
-	struct hdmi_context *hdata = encoder_to_hdmi(exynos_encoder);
+	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
 	struct drm_connector *connector = &hdata->connector;
 	int ret;
 
@@ -1059,28 +1058,35 @@ static int hdmi_create_connector(struct exynos_drm_encoder *exynos_encoder)
 
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
 	drm_connector_register(connector);
-	drm_mode_connector_attach_encoder(connector, &exynos_encoder->base);
+	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }
 
-static void hdmi_mode_fixup(struct exynos_drm_encoder *encoder,
-				struct drm_connector *connector,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+static bool hdmi_mode_fixup(struct drm_encoder *encoder,
+			    const struct drm_display_mode *mode,
+			    struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = encoder->dev;
+	struct drm_connector *connector;
 	struct drm_display_mode *m;
 	int mode_ok;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder)
+			break;
+	}
+
+	if (connector->encoder != encoder)
+		return true;
 
 	mode_ok = hdmi_mode_valid(connector, adjusted_mode);
 
 	/* just return if user desired mode exists. */
 	if (mode_ok == MODE_OK)
-		return;
+		return true;
 
 	/*
 	 * otherwise, find the most suitable mode among modes and change it
@@ -1100,6 +1106,8 @@ static void hdmi_mode_fixup(struct exynos_drm_encoder *encoder,
 			break;
 		}
 	}
+
+	return true;
 }
 
 static void hdmi_set_acr(u32 freq, u8 *acr)
@@ -1697,22 +1705,23 @@ static void hdmi_conf_apply(struct hdmi_context *hdata)
 	hdmi_regs_dump(hdata, "start");
 }
 
-static void hdmi_mode_set(struct exynos_drm_encoder *encoder,
-			struct drm_display_mode *mode)
+static void hdmi_mode_set(struct drm_encoder *encoder,
+			  struct drm_display_mode *mode,
+			  struct drm_display_mode *adjusted_mode)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
-	struct drm_display_mode *m = mode;
+	struct drm_display_mode *m = adjusted_mode;
 
 	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%s\n",
 		m->hdisplay, m->vdisplay,
 		m->vrefresh, (m->flags & DRM_MODE_FLAG_INTERLACE) ?
 		"INTERLACED" : "PROGRESSIVE");
 
-	drm_mode_copy(&hdata->current_mode, mode);
+	drm_mode_copy(&hdata->current_mode, m);
 	hdata->cea_video_id = drm_match_cea_mode(mode);
 }
 
-static void hdmi_enable(struct exynos_drm_encoder *encoder)
+static void hdmi_enable(struct drm_encoder *encoder)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
 	struct hdmi_resources *res = &hdata->res;
@@ -1738,11 +1747,11 @@ static void hdmi_enable(struct exynos_drm_encoder *encoder)
 	hdmi_conf_apply(hdata);
 }
 
-static void hdmi_disable(struct exynos_drm_encoder *encoder)
+static void hdmi_disable(struct drm_encoder *encoder)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
 	struct hdmi_resources *res = &hdata->res;
-	struct drm_crtc *crtc = hdata->encoder.base.crtc;
+	struct drm_crtc *crtc = encoder->crtc;
 	const struct drm_crtc_helper_funcs *funcs = NULL;
 
 	if (!hdata->powered)
@@ -1783,11 +1792,15 @@ static void hdmi_disable(struct exynos_drm_encoder *encoder)
 	hdata->powered = false;
 }
 
-static struct exynos_drm_encoder_ops hdmi_encoder_ops = {
+static struct drm_encoder_helper_funcs exynos_hdmi_encoder_helper_funcs = {
 	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
 	.enable		= hdmi_enable,
 	.disable	= hdmi_disable,
+};
+
+static struct drm_encoder_funcs exynos_hdmi_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
 };
 
 static void hdmi_hotplug_work_func(struct work_struct *work)
@@ -1917,22 +1930,29 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm_dev = data;
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
-	struct exynos_drm_encoder *exynos_encoder = &hdata->encoder;
-	int ret;
+	struct drm_encoder *encoder = &hdata->encoder;
+	int ret, pipe;
 
 	hdata->drm_dev = drm_dev;
 
-	ret = exynos_drm_encoder_create(drm_dev, exynos_encoder,
-					EXYNOS_DISPLAY_TYPE_HDMI);
-	if (ret) {
-		DRM_ERROR("failed to create encoder\n");
-		return ret;
-	}
+	pipe = exynos_drm_crtc_get_pipe_from_type(drm_dev,
+						  EXYNOS_DISPLAY_TYPE_HDMI);
+	if (pipe < 0)
+		return pipe;
 
-	ret = hdmi_create_connector(exynos_encoder);
+	encoder->possible_crtcs = 1 << pipe;
+
+	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
+
+	drm_encoder_init(drm_dev, encoder, &exynos_hdmi_encoder_funcs,
+			 DRM_MODE_ENCODER_TMDS);
+
+	drm_encoder_helper_add(encoder, &exynos_hdmi_encoder_helper_funcs);
+
+	ret = hdmi_create_connector(encoder);
 	if (ret) {
 		DRM_ERROR("failed to create connector ret = %d\n", ret);
-		drm_encoder_cleanup(&exynos_encoder->base);
+		drm_encoder_cleanup(encoder);
 		return ret;
 	}
 
@@ -1985,7 +2005,6 @@ static int hdmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	hdata->drv_data = match->data;
-	hdata->encoder.ops = &hdmi_encoder_ops;
 
 	platform_set_drvdata(pdev, hdata);
 

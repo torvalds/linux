@@ -22,7 +22,6 @@
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
 
-#define to_exynos_encoder(x)	container_of(x, struct exynos_drm_encoder, base)
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
@@ -75,40 +74,6 @@ struct exynos_drm_plane {
 	unsigned int v_ratio;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	unsigned int zpos;
-};
-
-/*
- * Exynos DRM Encoder Structure.
- *	- this structure is common to analog tv, digital tv and lcd panel.
- *
- * @mode_fixup: fix mode data comparing to hw specific display mode.
- * @mode_set: convert drm_display_mode to hw specific display mode and
- *	      would be called by encoder->mode_set().
- * @enable: display device on.
- * @disable: display device off.
- */
-struct exynos_drm_encoder;
-struct exynos_drm_encoder_ops {
-	void (*mode_fixup)(struct exynos_drm_encoder *encoder,
-				struct drm_connector *connector,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
-	void (*mode_set)(struct exynos_drm_encoder *encoder,
-				struct drm_display_mode *mode);
-	void (*enable)(struct exynos_drm_encoder *encoder);
-	void (*disable)(struct exynos_drm_encoder *encoder);
-};
-
-/*
- * exynos specific encoder structure.
- *
- * @drm_encoder: encoder object.
- * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
- * @ops: pointer to callbacks for exynos drm specific functionality
- */
-struct exynos_drm_encoder {
-	struct drm_encoder		base;
-	struct exynos_drm_encoder_ops	*ops;
 };
 
 /*
@@ -255,18 +220,18 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
-struct exynos_drm_encoder *exynos_dpi_probe(struct device *dev);
-int exynos_dpi_remove(struct exynos_drm_encoder *encoder);
-int exynos_dpi_bind(struct drm_device *dev, struct exynos_drm_encoder *encoder);
+struct drm_encoder *exynos_dpi_probe(struct device *dev);
+int exynos_dpi_remove(struct drm_encoder *encoder);
+int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder);
 #else
-static inline struct exynos_drm_encoder *
+static inline struct drm_encoder *
 exynos_dpi_probe(struct device *dev) { return NULL; }
-static inline int exynos_dpi_remove(struct exynos_drm_encoder *encoder)
+static inline int exynos_dpi_remove(struct drm_encoder *encoder)
 {
 	return 0;
 }
 static inline int exynos_dpi_bind(struct drm_device *dev,
-				  struct exynos_drm_encoder *encoder)
+				  struct drm_encoder *encoder)
 {
 	return 0;
 }

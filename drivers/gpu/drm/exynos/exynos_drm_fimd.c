@@ -169,7 +169,7 @@ struct fimd_context {
 
 	struct exynos_drm_panel_info panel;
 	struct fimd_driver_data *driver_data;
-	struct exynos_drm_encoder *encoder;
+	struct drm_encoder *encoder;
 };
 
 static const struct of_device_id fimd_driver_dt_match[] = {

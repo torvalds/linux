@@ -19,7 +19,6 @@
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
-#include "exynos_drm_encoder.h"
 #include "exynos_drm_plane.h"
 
 static void exynos_drm_crtc_enable(struct drm_crtc *crtc)

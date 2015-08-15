@@ -147,7 +147,7 @@ struct link_train {
 };
 
 struct exynos_dp_device {
-	struct exynos_drm_encoder encoder;
+	struct drm_encoder	encoder;
 	struct device		*dev;
 	struct drm_device	*drm_dev;
 	struct drm_connector	connector;
