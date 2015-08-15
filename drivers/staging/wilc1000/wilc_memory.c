@@ -14,16 +14,3 @@ void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
 	else
 		return NULL;
 }
-
-
-
-/*!
- *  @author	syounan
- *  @date	18 Aug 2010
- *  @version	1.0
- */
-void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
-		     char *pcFileName, u32 u32LineNo)
-{
-	kfree(pvBlock);
-}

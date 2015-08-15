@@ -47,41 +47,12 @@ typedef struct {
 void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
 		       char *pcFileName, u32 u32LineNo);
 
-
-
-/*!
- *  @brief	Frees given block
- *  @param[in]	pvBlock the memory block to be freed
- *  @param[in]	strAttrs Optional attributes, NULL for default
- *  @param[in]	pcFileName file name of the calling code for debugging
- *  @param[in]	u32LineNo line number of the calling code for debugging
- *  @note	It is recommended to use of of the wrapper macros instead of
- *              calling this function directly
- *  @sa		sttrWILC_MemoryAttrs
- *  @sa		WILC_FREE
- *  @sa		WILC_FREE_EX
- *  @sa		WILC_FREE_SET_NULL
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-void WILC_MemoryFree(const void *pvBlock, tstrWILC_MemoryAttrs *strAttrs,
-			char *pcFileName, u32 u32LineNo);
-
 /*!
  * @brief	standrad malloc wrapper with custom attributes
  */
 	#define WILC_MALLOC_EX(__size__, __attrs__) \
 	(WILC_MemoryAlloc( \
 		 (__size__), __attrs__, NULL, 0))
-
-
-/*!
- * @brief	standrad free wrapper with custom attributes
- */
-	#define WILC_FREE_EX(__ptr__, __attrs__) \
-	(WILC_MemoryFree( \
-		 (__ptr__), __attrs__, NULL, 0))
 
 /*!
  * @brief	Allocates a block (with custom attributes) of given type and number of
