@@ -2014,7 +2014,6 @@ s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 		/**
 		 *      get the value
 		 **/
-		/* WILC_Sleep(1000); */
 		counter = 0;
 		for (counter = 0; counter < u32WIDsCount; counter++) {
 			pstrWIDs[counter].s32ValueSize = gpstrWlanOps->wlan_cfg_get_value(

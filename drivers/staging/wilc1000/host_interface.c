@@ -4932,7 +4932,6 @@ s32 host_int_add_ptk(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8Ptk, u8 u8PtkKeylen,
 
 	/* ////////////// */
 	down(&(pstrWFIDrv->hSemTestKeyBlock));
-	/* WILC_Sleep(100); */
 	/* /////// */
 
 	WILC_CATCH(s32Error)
@@ -5033,7 +5032,6 @@ s32 host_int_add_rx_gtk(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8RxGtk, u8 u8GtkKe
 		PRINT_ER("Error in sending message queue:  RX GTK\n");
 	/* ////////////// */
 	down(&(pstrWFIDrv->hSemTestKeyBlock));
-	/* WILC_Sleep(100); */
 	/* /////// */
 
 	WILC_CATCH(s32Error)
