@@ -896,15 +896,15 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	if (ctx->pipe < 0 || !ctx->drm_dev)
 		goto out;
 
-	if (ctx->i80_if) {
-		exynos_drm_crtc_finish_pageflip(ctx->crtc);
+	if (!ctx->i80_if)
+		drm_crtc_handle_vblank(&ctx->crtc->base);
 
+	exynos_drm_crtc_finish_pageflip(ctx->crtc);
+
+	if (ctx->i80_if) {
 		/* Exits triggering mode */
 		atomic_set(&ctx->triggering, 0);
 	} else {
-		drm_crtc_handle_vblank(&ctx->crtc->base);
-		exynos_drm_crtc_finish_pageflip(ctx->crtc);
-
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
 			atomic_set(&ctx->wait_vsync_event, 0);
