@@ -25,7 +25,8 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					void *context);
 int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe);
 void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe);
-void exynos_drm_crtc_finish_pageflip(struct exynos_drm_crtc *exynos_crtc);
+void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
+				   struct exynos_drm_plane *exynos_plane);
 void exynos_drm_crtc_complete_scanout(struct drm_framebuffer *fb);
 
 /* This function gets pipe value to crtc device matched with out_type. */

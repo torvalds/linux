@@ -179,6 +179,7 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 {
 	struct vidi_context *ctx = container_of(work, struct vidi_context,
 					work);
+	int win;
 
 	if (ctx->pipe < 0)
 		return;
@@ -197,7 +198,14 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 
 	mutex_unlock(&ctx->lock);
 
-	exynos_drm_crtc_finish_pageflip(ctx->crtc);
+	for (win = 0 ; win < WINDOWS_NR ; win++) {
+		struct exynos_drm_plane *plane = &ctx->planes[win];
+
+		if (!plane->pending_fb)
+			continue;
+
+		exynos_drm_crtc_finish_update(ctx->crtc, plane);
+	}
 }
 
 static int vidi_show_connection(struct device *dev,

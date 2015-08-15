@@ -197,18 +197,19 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
 		exynos_crtc->ops->disable_vblank(exynos_crtc);
 }
 
-void exynos_drm_crtc_finish_pageflip(struct exynos_drm_crtc *exynos_crtc)
+void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
+				struct exynos_drm_plane *exynos_plane)
 {
 	struct drm_crtc *crtc = &exynos_crtc->base;
 	unsigned long flags;
 
+	exynos_plane->pending_fb = NULL;
+
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (exynos_crtc->event) {
-
 		drm_crtc_send_vblank_event(crtc, exynos_crtc->event);
 		drm_crtc_vblank_put(crtc);
 		wake_up(&exynos_crtc->pending_flip_queue);
-
 	}
 
 	exynos_crtc->event = NULL;

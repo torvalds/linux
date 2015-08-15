@@ -74,6 +74,7 @@ struct exynos_drm_plane {
 	unsigned int v_ratio;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	unsigned int zpos;
+	struct drm_framebuffer *pending_fb;
 };
 
 /*

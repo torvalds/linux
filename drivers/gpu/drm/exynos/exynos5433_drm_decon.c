@@ -542,13 +542,21 @@ static irqreturn_t decon_lcd_sys_irq_handler(int irq, void *dev_id)
 {
 	struct decon_context *ctx = dev_id;
 	u32 val;
+	int win;
 
 	if (!test_bit(BIT_CLKS_ENABLED, &ctx->enabled))
 		goto out;
 
 	val = readl(ctx->addr + DECON_VIDINTCON1);
 	if (val & VIDINTCON1_INTFRMDONEPEND) {
-		exynos_drm_crtc_finish_pageflip(ctx->crtc);
+		for (win = 0 ; win < WINDOWS_NR ; win++) {
+			struct exynos_drm_plane *plane = &ctx->planes[win];
+
+			if (!plane->pending_fb)
+				continue;
+
+			exynos_drm_crtc_finish_update(ctx->crtc, plane);
+		}
 
 		/* clear */
 		writel(VIDINTCON1_INTFRMDONEPEND,

@@ -896,6 +896,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
 	u32 val, clear_bit;
+	int win;
 
 	val = readl(ctx->regs + VIDINTCON1);
 
@@ -910,7 +911,14 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	if (!ctx->i80_if)
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 
-	exynos_drm_crtc_finish_pageflip(ctx->crtc);
+	for (win = 0 ; win < WINDOWS_NR ; win++) {
+		struct exynos_drm_plane *plane = &ctx->planes[win];
+
+		if (!plane->pending_fb)
+			continue;
+
+		exynos_drm_crtc_finish_update(ctx->crtc, plane);
+	}
 
 	if (ctx->i80_if) {
 		/* Exits triggering mode */
