@@ -324,6 +324,7 @@ int ib_register_device(struct ib_device *device,
 					    u8, struct kobject *))
 {
 	int ret;
+	struct ib_client *client;
 
 	mutex_lock(&device_mutex);
 
@@ -361,13 +362,9 @@ int ib_register_device(struct ib_device *device,
 
 	device->reg_state = IB_DEV_REGISTERED;
 
-	{
-		struct ib_client *client;
-
-		list_for_each_entry(client, &client_list, list)
-			if (client->add && !add_client_context(device, client))
-				client->add(device);
-	}
+	list_for_each_entry(client, &client_list, list)
+		if (client->add && !add_client_context(device, client))
+			client->add(device);
 
 	down_write(&lists_rwsem);
 	list_add_tail(&device->core_list, &device_list);
