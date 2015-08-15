@@ -869,7 +869,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	message_size = sizeof(*message->header) + message->payload_size;
 	if (!errno && size != message_size) {
 		dev_err(&connection->dev, "bad message (0x%02hhx) size (%zu != %zu)\n",
-			size, message_size, message->header->type);
+			message->header->type, size, message_size);
 		errno = -EMSGSIZE;
 	}
 
