@@ -145,7 +145,7 @@ static int sw_sync_open(struct inode *inode, struct file *file)
 	get_task_comm(task_comm, current);
 
 	obj = sw_sync_timeline_create(task_comm);
-	if (obj == NULL)
+	if (!obj)
 		return -ENOMEM;
 
 	file->private_data = obj;
@@ -179,14 +179,14 @@ static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
 	}
 
 	pt = sw_sync_pt_create(obj, data.value);
-	if (pt == NULL) {
+	if (!pt) {
 		err = -ENOMEM;
 		goto err;
 	}
 
 	data.name[sizeof(data.name) - 1] = '\0';
 	fence = sync_fence_create(data.name, pt);
-	if (fence == NULL) {
+	if (!fence) {
 		sync_pt_free(pt);
 		err = -ENOMEM;
 		goto err;
