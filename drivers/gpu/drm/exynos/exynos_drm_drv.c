@@ -13,6 +13,8 @@
 
 #include <linux/pm_runtime.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 #include <linux/component.h>
@@ -36,6 +38,56 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
+struct exynos_atomic_commit {
+	struct work_struct	work;
+	struct drm_device	*dev;
+	struct drm_atomic_state *state;
+	u32			crtcs;
+};
+
+static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
+{
+	struct drm_device *dev = commit->dev;
+	struct exynos_drm_private *priv = dev->dev_private;
+	struct drm_atomic_state *state = commit->state;
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	/*
+	 * Exynos can't update planes with CRTCs and encoders disabled,
+	 * its updates routines, specially for FIMD, requires the clocks
+	 * to be enabled. So it is necessary to handle the modeset operations
+	 * *before* the commit_planes() step, this way it will always
+	 * have the relevant clocks enabled to perform the update.
+	 */
+
+	drm_atomic_helper_commit_planes(dev, state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_state_free(state);
+
+	spin_lock(&priv->lock);
+	priv->pending &= ~commit->crtcs;
+	spin_unlock(&priv->lock);
+
+	wake_up_all(&priv->wait);
+
+	kfree(commit);
+}
+
+static void exynos_drm_atomic_work(struct work_struct *work)
+{
+	struct exynos_atomic_commit *commit = container_of(work,
+				struct exynos_atomic_commit, work);
+
+	exynos_atomic_commit_complete(commit);
+}
+
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
@@ -46,6 +98,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
+
+	init_waitqueue_head(&private->wait);
+	spin_lock_init(&private->lock);
 
 	dev_set_drvdata(dev->dev, dev);
 	dev->dev_private = (void *)private;
@@ -145,6 +200,64 @@ static int exynos_drm_unload(struct drm_device *dev)
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
+
+	return 0;
+}
+
+static int commit_is_pending(struct exynos_drm_private *priv, u32 crtcs)
+{
+	bool pending;
+
+	spin_lock(&priv->lock);
+	pending = priv->pending & crtcs;
+	spin_unlock(&priv->lock);
+
+	return pending;
+}
+
+int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
+			 bool async)
+{
+	struct exynos_drm_private *priv = dev->dev_private;
+	struct exynos_atomic_commit *commit;
+	int i, ret;
+
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (!commit)
+		return -ENOMEM;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret) {
+		kfree(commit);
+		return ret;
+	}
+
+	/* This is the point of no return */
+
+	INIT_WORK(&commit->work, exynos_drm_atomic_work);
+	commit->dev = dev;
+	commit->state = state;
+
+	/* Wait until all affected CRTCs have completed previous commits and
+	 * mark them as pending.
+	 */
+	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
+		if (state->crtcs[i])
+			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
+	}
+
+	wait_event(priv->wait, !commit_is_pending(priv, commit->crtcs));
+
+	spin_lock(&priv->lock);
+	priv->pending |= commit->crtcs;
+	spin_unlock(&priv->lock);
+
+	drm_atomic_helper_swap_state(dev, state);
+
+	if (async)
+		schedule_work(&commit->work);
+	else
+		exynos_atomic_commit_complete(commit);
 
 	return 0;
 }

@@ -170,6 +170,9 @@ struct drm_exynos_file_private {
  * @da_space_size: size of device address space.
  *	if 0 then default value is used for it.
  * @pipe: the pipe number for this crtc/manager.
+ * @pending: the crtcs that have pending updates to finish
+ * @lock: protect access to @pending
+ * @wait: wait an atomic commit to finish
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
@@ -185,6 +188,11 @@ struct exynos_drm_private {
 	unsigned long da_space_size;
 
 	unsigned int pipe;
+
+	/* for atomic commit */
+	u32			pending;
+	spinlock_t		lock;
+	wait_queue_head_t	wait;
 };
 
 /*
@@ -242,6 +250,9 @@ static inline int exynos_dpi_bind(struct drm_device *dev,
 	return 0;
 }
 #endif
+
+int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
+			 bool async);
 
 
 extern struct platform_driver fimd_driver;

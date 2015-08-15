@@ -267,41 +267,6 @@ static void exynos_drm_output_poll_changed(struct drm_device *dev)
 		exynos_drm_fbdev_init(dev);
 }
 
-static int exynos_atomic_commit(struct drm_device *dev,
-				struct drm_atomic_state *state,
-				bool async)
-{
-	int ret;
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (ret)
-		return ret;
-
-	/* This is the point of no return */
-
-	drm_atomic_helper_swap_state(dev, state);
-
-	drm_atomic_helper_commit_modeset_disables(dev, state);
-
-	drm_atomic_helper_commit_modeset_enables(dev, state);
-
-	/*
-	 * Exynos can't update planes with CRTCs and encoders disabled,
-	 * its updates routines, specially for FIMD, requires the clocks
-	 * to be enabled. So it is necessary to handle the modeset operations
-	 * *before* the commit_planes() step, this way it will always
-	 * have the relevant clocks enabled to perform the update.
-	 */
-
-	drm_atomic_helper_commit_planes(dev, state);
-
-	drm_atomic_helper_cleanup_planes(dev, state);
-
-	drm_atomic_state_free(state);
-
-	return 0;
-}
-
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
 	.fb_create = exynos_user_fb_create,
 	.output_poll_changed = exynos_drm_output_poll_changed,
