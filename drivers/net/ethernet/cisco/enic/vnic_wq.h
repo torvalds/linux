@@ -88,6 +88,17 @@ struct vnic_wq {
 	unsigned int pkts_outstanding;
 };
 
+struct devcmd2_controller {
+	struct vnic_wq_ctrl __iomem *wq_ctrl;
+	struct vnic_devcmd2 *cmd_ring;
+	struct devcmd2_result *result;
+	u16 next_result;
+	u16 result_size;
+	int color;
+	struct vnic_dev_ring results_ring;
+	struct vnic_wq wq;
+};
+
 static inline unsigned int vnic_wq_desc_avail(struct vnic_wq *wq)
 {
 	/* how many does SW own? */

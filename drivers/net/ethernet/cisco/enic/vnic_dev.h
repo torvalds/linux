@@ -107,6 +107,7 @@ struct vnic_dev {
 	u32 proxy_index;
 	u64 args[VNIC_DEVCMD_NARGS];
 	struct vnic_intr_coal_timer_info intr_coal_timer_info;
+	struct devcmd2_controller *devcmd2;
 };
 
 struct vnic_stats;

@@ -365,6 +365,12 @@ enum vnic_devcmd_cmd {
 	 */
 	CMD_PROV_INFO_UPDATE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 56),
 
+	/* Initialization for the devcmd2 interface.
+	 * in: (u64) a0 = host result buffer physical address
+	 * in: (u16) a1 = number of entries in result buffer
+	 */
+	CMD_INITIALIZE_DEVCMD2 = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 57),
+
 	/* Add a filter.
 	 * in: (u64) a0= filter address
 	 *     (u32) a1= size of filter
@@ -627,6 +633,23 @@ struct vnic_devcmd {
 	u32 status;			/* RO */
 	u32 cmd;			/* RW */
 	u64 args[VNIC_DEVCMD_NARGS];	/* RW cmd args (little-endian) */
+};
+
+#define VNIC_DEVCMD2_NARGS	VNIC_DEVCMD_NARGS
+struct vnic_devcmd2 {
+	u16 pad;
+	u16 flags;
+	u32 cmd;
+	u64 args[VNIC_DEVCMD2_NARGS];
+};
+
+#define VNIC_DEVCMD2_NRESULTS	VNIC_DEVCMD_NARGS
+struct devcmd2_result {
+	u64 results[VNIC_DEVCMD2_NRESULTS];
+	u32 pad;
+	u16 completed_index;
+	u8  error;
+	u8  color;
 };
 
 #endif /* _VNIC_DEVCMD_H_ */
