@@ -108,6 +108,8 @@ struct vnic_dev {
 	u64 args[VNIC_DEVCMD_NARGS];
 	struct vnic_intr_coal_timer_info intr_coal_timer_info;
 	struct devcmd2_controller *devcmd2;
+	int (*devcmd_rtn)(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+			  int wait);
 };
 
 struct vnic_stats;
@@ -174,5 +176,6 @@ int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status);
 int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
 int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
 			struct filter *data);
+int vnic_devcmd_init(struct vnic_dev *vdev);
 
 #endif /* _VNIC_DEV_H_ */

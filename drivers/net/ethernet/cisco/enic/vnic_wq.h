@@ -185,5 +185,11 @@ void vnic_wq_enable(struct vnic_wq *wq);
 int vnic_wq_disable(struct vnic_wq *wq);
 void vnic_wq_clean(struct vnic_wq *wq,
 	void (*buf_clean)(struct vnic_wq *wq, struct vnic_wq_buf *buf));
+int vnic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+			  unsigned int desc_count, unsigned int desc_size);
+void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+			unsigned int fetch_index, unsigned int posted_index,
+			unsigned int error_interrupt_enable,
+			unsigned int error_interrupt_offset);
 
 #endif /* _VNIC_WQ_H_ */

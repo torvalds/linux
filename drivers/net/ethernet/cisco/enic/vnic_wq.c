@@ -114,10 +114,27 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 	return 0;
 }
 
-static void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
-	unsigned int fetch_index, unsigned int posted_index,
-	unsigned int error_interrupt_enable,
-	unsigned int error_interrupt_offset)
+int vnic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+			  unsigned int desc_count, unsigned int desc_size)
+{
+	int err;
+
+	wq->index = 0;
+	wq->vdev = vdev;
+
+	wq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD2, 0);
+	if (!wq->ctrl)
+		return -EINVAL;
+	vnic_wq_disable(wq);
+	err = vnic_dev_alloc_desc_ring(vdev, &wq->ring, desc_count, desc_size);
+
+	return err;
+}
+
+void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+			unsigned int fetch_index, unsigned int posted_index,
+			unsigned int error_interrupt_enable,
+			unsigned int error_interrupt_offset)
 {
 	u64 paddr;
 	unsigned int count = wq->ring.desc_count;
