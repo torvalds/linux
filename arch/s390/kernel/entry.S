@@ -563,6 +563,8 @@ ENTRY(io_int_handler)
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_INT_CODE(12,%r11),__LC_SUBCHANNEL_ID
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
+	TSTMSK	__LC_CPU_FLAGS,_CIF_IGNORE_IRQ
+	jo	.Lio_restore
 	TRACE_IRQS_OFF
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 .Lio_loop:
@@ -738,6 +740,8 @@ ENTRY(ext_int_handler)
 	mvc	__PT_INT_PARM(4,%r11),__LC_EXT_PARAMS
 	mvc	__PT_INT_PARM_LONG(8,%r11),0(%r1)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
+	TSTMSK	__LC_CPU_FLAGS,_CIF_IGNORE_IRQ
+	jo	.Lio_restore
 	TRACE_IRQS_OFF
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs

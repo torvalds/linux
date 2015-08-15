@@ -96,6 +96,19 @@ enum irq_subclass {
 	IRQ_SUBCLASS_SERVICE_SIGNAL = 9,
 };
 
+#define CR0_IRQ_SUBCLASS_MASK					  \
+	((1UL << (63 - 30))  /* Warning Track */		| \
+	 (1UL << (63 - 48))  /* Malfunction Alert */		| \
+	 (1UL << (63 - 49))  /* Emergency Signal */		| \
+	 (1UL << (63 - 50))  /* External Call */		| \
+	 (1UL << (63 - 52))  /* Clock Comparator */		| \
+	 (1UL << (63 - 53))  /* CPU Timer */			| \
+	 (1UL << (63 - 54))  /* Service Signal */		| \
+	 (1UL << (63 - 57))  /* Interrupt Key */		| \
+	 (1UL << (63 - 58))  /* Measurement Alert */		| \
+	 (1UL << (63 - 59))  /* Timing Alert */			| \
+	 (1UL << (63 - 62))) /* IUCV */
+
 void irq_subclass_register(enum irq_subclass subclass);
 void irq_subclass_unregister(enum irq_subclass subclass);
 

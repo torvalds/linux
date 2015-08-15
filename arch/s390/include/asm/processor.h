@@ -15,11 +15,13 @@
 #define CIF_ASCE		1	/* user asce needs fixup / uaccess */
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 #define CIF_FPU			3	/* restore vector registers */
+#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
 
 #define _CIF_MCCK_PENDING	(1<<CIF_MCCK_PENDING)
 #define _CIF_ASCE		(1<<CIF_ASCE)
 #define _CIF_NOHZ_DELAY		(1<<CIF_NOHZ_DELAY)
 #define _CIF_FPU		(1<<CIF_FPU)
+#define _CIF_IGNORE_IRQ		(1<<CIF_IGNORE_IRQ)
 
 #ifndef __ASSEMBLY__
 
