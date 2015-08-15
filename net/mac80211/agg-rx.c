@@ -189,6 +189,7 @@ static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *d
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
+	bool amsdu = ieee80211_hw_check(&local->hw, SUPPORTS_AMSDU_IN_AMPDU);
 	u16 capab;
 
 	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
@@ -217,7 +218,8 @@ static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *d
 	mgmt->u.action.u.addba_resp.action_code = WLAN_ACTION_ADDBA_RESP;
 	mgmt->u.action.u.addba_resp.dialog_token = dialog_token;
 
-	capab = (u16)(policy << 1);	/* bit 1 aggregation policy */
+	capab = (u16)(amsdu << 0);	/* bit 0 A-MSDU support */
+	capab |= (u16)(policy << 1);	/* bit 1 aggregation policy */
 	capab |= (u16)(tid << 2); 	/* bit 5:2 TID number */
 	capab |= (u16)(buf_size << 6);	/* bit 15:6 max size of aggregation */
 
