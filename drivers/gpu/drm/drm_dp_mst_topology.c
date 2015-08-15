@@ -873,9 +873,10 @@ static void drm_dp_destroy_port(struct kref *kref)
 		   from an EDID retrieval */
 		if (port->connector) {
 			mutex_lock(&mgr->destroy_connector_lock);
-			list_add(&port->connector->destroy_list, &mgr->destroy_connector_list);
+			list_add(&port->next, &mgr->destroy_connector_list);
 			mutex_unlock(&mgr->destroy_connector_lock);
 			schedule_work(&mgr->destroy_connector_work);
+			return;
 		}
 		drm_dp_port_teardown_pdt(port, port->pdt);
 
@@ -2659,7 +2660,7 @@ static void drm_dp_tx_work(struct work_struct *work)
 static void drm_dp_destroy_connector_work(struct work_struct *work)
 {
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, destroy_connector_work);
-	struct drm_connector *connector;
+	struct drm_dp_mst_port *port;
 
 	/*
 	 * Not a regular list traverse as we have to drop the destroy
@@ -2668,15 +2669,21 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 	 */
 	for (;;) {
 		mutex_lock(&mgr->destroy_connector_lock);
-		connector = list_first_entry_or_null(&mgr->destroy_connector_list, struct drm_connector, destroy_list);
-		if (!connector) {
+		port = list_first_entry_or_null(&mgr->destroy_connector_list, struct drm_dp_mst_port, next);
+		if (!port) {
 			mutex_unlock(&mgr->destroy_connector_lock);
 			break;
 		}
-		list_del(&connector->destroy_list);
+		list_del(&port->next);
 		mutex_unlock(&mgr->destroy_connector_lock);
 
-		mgr->cbs->destroy_connector(mgr, connector);
+		mgr->cbs->destroy_connector(mgr, port->connector);
+
+		drm_dp_port_teardown_pdt(port, port->pdt);
+
+		if (!port->input && port->vcpi.vcpi > 0)
+			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
+		kfree(port);
 	}
 }
 
