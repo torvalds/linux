@@ -134,7 +134,7 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 
 bool vnt_receive_frame(struct vnt_private *priv, PSRxDesc curr_rd)
 {
-	PDEVICE_RD_INFO rd_info = curr_rd->pRDInfo;
+	struct vnt_rd_info *rd_info = curr_rd->rd_info;
 	struct sk_buff *skb;
 	u16 frame_size;
 

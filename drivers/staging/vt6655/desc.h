@@ -167,10 +167,10 @@
  * leads error.
  */
 
-typedef struct tagDEVICE_RD_INFO {
+struct vnt_rd_info {
 	struct sk_buff *skb;
 	dma_addr_t  skb_dma;
-} DEVICE_RD_INFO,   *PDEVICE_RD_INFO;
+};
 
 struct vnt_rdes0 {
 	volatile __le16 res_count;
@@ -201,7 +201,7 @@ typedef struct tagSRxDesc {
 	volatile __le32 buff_addr;
 	volatile __le32 next_desc;
 	struct tagSRxDesc *next __aligned(8);
-	volatile PDEVICE_RD_INFO pRDInfo __aligned(8);
+	struct vnt_rd_info *rd_info __aligned(8);
 } __attribute__ ((__packed__))
 SRxDesc, *PSRxDesc;
 typedef const SRxDesc *PCSRxDesc;

@@ -622,7 +622,7 @@ static void device_init_rd0_ring(struct vnt_private *pDevice)
 	/* Init the RD0 ring entries */
 	for (i = 0; i < pDevice->sOpts.nRxDescs0; i ++, curr += sizeof(SRxDesc)) {
 		pDesc = &(pDevice->aRD0Ring[i]);
-		pDesc->pRDInfo = alloc_rd_info();
+		pDesc->rd_info = alloc_rd_info();
 
 		if (!device_alloc_rx_buf(pDevice, pDesc))
 			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
@@ -645,7 +645,7 @@ static void device_init_rd1_ring(struct vnt_private *pDevice)
 	/* Init the RD1 ring entries */
 	for (i = 0; i < pDevice->sOpts.nRxDescs1; i ++, curr += sizeof(SRxDesc)) {
 		pDesc = &(pDevice->aRD1Ring[i]);
-		pDesc->pRDInfo = alloc_rd_info();
+		pDesc->rd_info = alloc_rd_info();
 
 		if (!device_alloc_rx_buf(pDevice, pDesc))
 			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
@@ -665,14 +665,14 @@ static void device_free_rd0_ring(struct vnt_private *pDevice)
 
 	for (i = 0; i < pDevice->sOpts.nRxDescs0; i++) {
 		PSRxDesc        pDesc = &(pDevice->aRD0Ring[i]);
-		PDEVICE_RD_INFO  pRDInfo = pDesc->pRDInfo;
+		struct vnt_rd_info *rd_info = pDesc->rd_info;
 
-		dma_unmap_single(&pDevice->pcid->dev, pRDInfo->skb_dma,
+		dma_unmap_single(&pDevice->pcid->dev, rd_info->skb_dma,
 				 pDevice->rx_buf_sz, DMA_FROM_DEVICE);
 
-		dev_kfree_skb(pRDInfo->skb);
+		dev_kfree_skb(rd_info->skb);
 
-		kfree(pDesc->pRDInfo);
+		kfree(pDesc->rd_info);
 	}
 }
 
@@ -682,14 +682,14 @@ static void device_free_rd1_ring(struct vnt_private *pDevice)
 
 	for (i = 0; i < pDevice->sOpts.nRxDescs1; i++) {
 		PSRxDesc        pDesc = &(pDevice->aRD1Ring[i]);
-		PDEVICE_RD_INFO  pRDInfo = pDesc->pRDInfo;
+		struct vnt_rd_info *rd_info = pDesc->rd_info;
 
-		dma_unmap_single(&pDevice->pcid->dev, pRDInfo->skb_dma,
+		dma_unmap_single(&pDevice->pcid->dev, rd_info->skb_dma,
 				 pDevice->rx_buf_sz, DMA_FROM_DEVICE);
 
-		dev_kfree_skb(pRDInfo->skb);
+		dev_kfree_skb(rd_info->skb);
 
-		kfree(pDesc->pRDInfo);
+		kfree(pDesc->rd_info);
 	}
 }
 
@@ -783,7 +783,7 @@ static int device_rx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 		if (works++ > 15)
 			break;
 
-		if (!pRD->pRDInfo->skb)
+		if (!pRD->rd_info->skb)
 			break;
 
 		if (vnt_receive_frame(pDevice, pRD)) {
@@ -803,7 +803,7 @@ static int device_rx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 
 static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pRD)
 {
-	PDEVICE_RD_INFO pRDInfo = pRD->pRDInfo;
+	struct vnt_rd_info *pRDInfo = pRD->rd_info;
 
 	pRDInfo->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
 	if (pRDInfo->skb == NULL)
