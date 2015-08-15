@@ -20,7 +20,7 @@
 /* #define USE_OLD_SPI_SW */
 
 
-#include "wilc_type.h"
+#include "wilc_oswrapper.h"
 #include "linux_wlan_common.h"
 
 
