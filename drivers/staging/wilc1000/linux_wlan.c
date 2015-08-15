@@ -71,7 +71,7 @@ extern void resolve_disconnect_aberration(void *drvHandler);
 extern u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 void wilc1000_wlan_deinit(linux_wlan_t *nic);
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-extern WILC_TimerHandle hDuringIpTimer;
+extern struct timer_list hDuringIpTimer;
 #endif
 
 static int linux_wlan_device_power(int on_off)

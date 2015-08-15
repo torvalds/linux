@@ -1,7 +1,7 @@
 
 #include "wilc_timer.h"
 
-WILC_ErrNo WILC_TimerCreate(WILC_TimerHandle *pHandle,
+WILC_ErrNo WILC_TimerCreate(struct timer_list *pHandle,
 	tpfWILC_TimerFunction pfCallback, tstrWILC_TimerAttrs *pstrAttrs)
 {
 	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
@@ -10,7 +10,7 @@ WILC_ErrNo WILC_TimerCreate(WILC_TimerHandle *pHandle,
 	return s32RetStatus;
 }
 
-WILC_ErrNo WILC_TimerDestroy(WILC_TimerHandle *pHandle,
+WILC_ErrNo WILC_TimerDestroy(struct timer_list *pHandle,
 	tstrWILC_TimerAttrs *pstrAttrs)
 {
 	WILC_ErrNo s32RetStatus = WILC_FAIL;
@@ -23,7 +23,7 @@ WILC_ErrNo WILC_TimerDestroy(WILC_TimerHandle *pHandle,
 }
 
 
-WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, u32 u32Timeout,
+WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout,
 	void *pvArg, tstrWILC_TimerAttrs *pstrAttrs)
 {
 	WILC_ErrNo s32RetStatus = WILC_FAIL;
@@ -34,7 +34,7 @@ WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, u32 u32Timeout,
 	return s32RetStatus;
 }
 
-WILC_ErrNo WILC_TimerStop(WILC_TimerHandle *pHandle,
+WILC_ErrNo WILC_TimerStop(struct timer_list *pHandle,
 	tstrWILC_TimerAttrs *pstrAttrs)
 {
 	WILC_ErrNo s32RetStatus = WILC_FAIL;

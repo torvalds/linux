@@ -32,9 +32,9 @@ extern int mac_close(struct net_device *ndev);
 tstrNetworkInfo astrLastScannedNtwrksShadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 u32 u32LastScannedNtwrksCountShadow;
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-WILC_TimerHandle hDuringIpTimer;
+struct timer_list hDuringIpTimer;
 #endif
-WILC_TimerHandle hAgingTimer;
+struct timer_list hAgingTimer;
 static u8 op_ifcs;
 extern u8 u8ConnectedSSID[6];
 

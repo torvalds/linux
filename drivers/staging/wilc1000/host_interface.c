@@ -6,7 +6,7 @@ extern s32 TransportDeInit(void);
 extern u8 connecting;
 
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-extern WILC_TimerHandle hDuringIpTimer;
+extern struct timer_list hDuringIpTimer;
 #endif
 
 /*BugID_5137*/
@@ -546,7 +546,7 @@ static struct semaphore hSemHostIFthrdEnd;
 struct semaphore hSemDeinitDrvHandle;
 static struct semaphore hWaitResponse;
 struct semaphore hSemHostIntDeinit;
-WILC_TimerHandle g_hPeriodicRSSI;
+struct timer_list g_hPeriodicRSSI;
 
 
 

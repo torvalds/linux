@@ -58,7 +58,7 @@ typedef struct {
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerCreate(WILC_TimerHandle *pHandle,
+WILC_ErrNo WILC_TimerCreate(struct timer_list *pHandle,
 			    tpfWILC_TimerFunction pfCallback, tstrWILC_TimerAttrs *pstrAttrs);
 
 
@@ -77,7 +77,7 @@ WILC_ErrNo WILC_TimerCreate(WILC_TimerHandle *pHandle,
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerDestroy(WILC_TimerHandle *pHandle,
+WILC_ErrNo WILC_TimerDestroy(struct timer_list *pHandle,
 			     tstrWILC_TimerAttrs *pstrAttrs);
 
 /*!
@@ -99,7 +99,7 @@ WILC_ErrNo WILC_TimerDestroy(WILC_TimerHandle *pHandle,
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, u32 u32Timeout, void *pvArg,
+WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout, void *pvArg,
 			   tstrWILC_TimerAttrs *pstrAttrs);
 
 
@@ -121,7 +121,7 @@ WILC_ErrNo WILC_TimerStart(WILC_TimerHandle *pHandle, u32 u32Timeout, void *pvAr
  *  @date	16 Aug 2010
  *  @version	1.0
  */
-WILC_ErrNo WILC_TimerStop(WILC_TimerHandle *pHandle,
+WILC_ErrNo WILC_TimerStop(struct timer_list *pHandle,
 			  tstrWILC_TimerAttrs *pstrAttrs);
 
 

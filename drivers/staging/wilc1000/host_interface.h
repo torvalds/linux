@@ -367,10 +367,10 @@ typedef struct {
 	struct semaphore hSemGetCHNL;
 	struct semaphore hSemInactiveTime;
 /* timer handlers */
-	WILC_TimerHandle hScanTimer;
-	WILC_TimerHandle hConnectTimer;
+	struct timer_list hScanTimer;
+	struct timer_list hConnectTimer;
 	#ifdef WILC_P2P
-	WILC_TimerHandle hRemainOnChannel;
+	struct timer_list hRemainOnChannel;
 	#endif
 
 	bool IFC_UP;

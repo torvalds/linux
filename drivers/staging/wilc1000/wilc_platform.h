@@ -16,10 +16,6 @@
  *      OS specific types
  *******************************************************************/
 
-typedef struct timer_list WILC_TimerHandle;
-
-
-
 /* Message Queue type is a structure */
 typedef struct __Message_struct {
 	void *pvBuffer;
