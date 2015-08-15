@@ -3978,11 +3978,11 @@ _done_:
  *  @date
  *  @version		1.0
  */
-static void ListenTimerCB(void *pvArg)
+static void ListenTimerCB(unsigned long arg)
 {
 	s32 s32Error = WILC_SUCCESS;
 	tstrHostIFmsg strHostIFmsg;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)pvArg;
+	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)arg;
 	/*Stopping remain-on-channel timer*/
 	del_timer(&pstrWFIDrv->hRemainOnChannel);
 
@@ -4542,8 +4542,9 @@ static int hostIFthread(void *pvArg)
 	return 0;
 }
 
-static void TimerCB_Scan(void *pvArg)
+static void TimerCB_Scan(unsigned long arg)
 {
+	void *pvArg = (void *)arg;
 	tstrHostIFmsg strHostIFmsg;
 
 	/* prepare the Timer Callback message */
@@ -4555,8 +4556,9 @@ static void TimerCB_Scan(void *pvArg)
 	WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg), NULL);
 }
 
-static void TimerCB_Connect(void *pvArg)
+static void TimerCB_Connect(unsigned long arg)
 {
+	void *pvArg = (void *)arg;
 	tstrHostIFmsg strHostIFmsg;
 
 	/* prepare the Timer Callback message */
@@ -6415,9 +6417,9 @@ void host_int_send_join_leave_info_to_host
  *  @version		1.0
  */
 
-void GetPeriodicRSSI(void *pvArg)
+static void GetPeriodicRSSI(unsigned long arg)
 {
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)pvArg;
+	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)arg;
 
 	if (pstrWFIDrv == NULL)	{
 		PRINT_ER("Driver handler is NULL\n");
@@ -6537,36 +6539,19 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 			s32Error = WILC_FAIL;
 			goto _fail_mq_;
 		}
-		s32Error = WILC_TimerCreate(&(g_hPeriodicRSSI), GetPeriodicRSSI);
-		if (s32Error < 0) {
-			PRINT_ER("Failed to creat Timer\n");
-			goto _fail_timer_1;
-		}
+		setup_timer(&g_hPeriodicRSSI, GetPeriodicRSSI, 0);
 		WILC_TimerStart(&(g_hPeriodicRSSI), 5000, (void *)pstrWFIDrv);
 
 	}
 
 
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hScanTimer), TimerCB_Scan);
-	if (s32Error < 0) {
-		PRINT_ER("Failed to creat Timer\n");
-		goto _fail_thread_;
-	}
+	setup_timer(&pstrWFIDrv->hScanTimer, TimerCB_Scan, 0);
 
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hConnectTimer), TimerCB_Connect);
-	if (s32Error < 0) {
-		PRINT_ER("Failed to creat Timer\n");
-		goto _fail_timer_1;
-	}
-
+	setup_timer(&pstrWFIDrv->hConnectTimer, TimerCB_Connect, 0);
 
 	#ifdef WILC_P2P
 	/*Remain on channel timer*/
-	s32Error = WILC_TimerCreate(&(pstrWFIDrv->hRemainOnChannel), ListenTimerCB);
-	if (s32Error < 0) {
-		PRINT_ER("Failed to creat Remain-on-channel Timer\n");
-		goto _fail_timer_3;
-	}
+	setup_timer(&pstrWFIDrv->hRemainOnChannel, ListenTimerCB, 0);
 	#endif
 
 	sema_init(&(pstrWFIDrv->gtOsCfgValuesSem), 1);
@@ -6617,15 +6602,12 @@ _fail_mem_:
 	if (pstrWFIDrv != NULL)
 		kfree(pstrWFIDrv);
 #ifdef WILC_P2P
-_fail_timer_3:
 	del_timer_sync(&pstrWFIDrv->hRemainOnChannel);
 #endif
 _fail_timer_2:
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 	del_timer_sync(&pstrWFIDrv->hConnectTimer);
-_fail_timer_1:
 	del_timer_sync(&pstrWFIDrv->hScanTimer);
-_fail_thread_:
 	kthread_stop(HostIFthreadHandler);
 _fail_mq_:
 	WILC_MsgQueueDestroy(&gMsgQHostIF, NULL);

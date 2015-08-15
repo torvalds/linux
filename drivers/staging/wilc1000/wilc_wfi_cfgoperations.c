@@ -231,7 +231,7 @@ void update_scan_time(void *pUserVoid)
 	}
 }
 
-void remove_network_from_shadow(void *pUserVoid)
+static void remove_network_from_shadow(unsigned long arg)
 {
 	unsigned long now = jiffies;
 	int i, j;
@@ -257,13 +257,13 @@ void remove_network_from_shadow(void *pUserVoid)
 
 	PRINT_D(CFG80211_DBG, "Number of cached networks: %d\n", u32LastScannedNtwrksCountShadow);
 	if (u32LastScannedNtwrksCountShadow != 0)
-		WILC_TimerStart(&(hAgingTimer), AGING_TIME, pUserVoid);
+		WILC_TimerStart(&(hAgingTimer), AGING_TIME, (void *)arg);
 	else
 		PRINT_D(CFG80211_DBG, "No need to restart Aging timer\n");
 }
 
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-void clear_duringIP(void *pUserVoid)
+static void clear_duringIP(unsigned long arg)
 {
 	PRINT_D(GENERIC_DBG, "GO:IP Obtained , enable scan\n");
 	g_obtainingIP = false;
@@ -3824,9 +3824,9 @@ int WILC_WFI_InitHostInt(struct net_device *net)
 	PRINT_D(INIT_DBG, "Host[%p][%p]\n", net, net->ieee80211_ptr);
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
-		s32Error = WILC_TimerCreate(&(hAgingTimer), remove_network_from_shadow);
+		setup_timer(&hAgingTimer, remove_network_from_shadow, 0);
 		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-		s32Error = WILC_TimerCreate(&(hDuringIpTimer), clear_duringIP);
+		setup_timer(&hDuringIpTimer, clear_duringIP, 0);
 		#endif
 	}
 	op_ifcs++;
