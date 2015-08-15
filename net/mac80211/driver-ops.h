@@ -260,6 +260,22 @@ static inline void drv_configure_filter(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_config_iface_filter(struct ieee80211_local *local,
+					   struct ieee80211_sub_if_data *sdata,
+					   unsigned int filter_flags,
+					   unsigned int changed_flags)
+{
+	might_sleep();
+
+	trace_drv_config_iface_filter(local, sdata, filter_flags,
+				      changed_flags);
+	if (local->ops->config_iface_filter)
+		local->ops->config_iface_filter(&local->hw, &sdata->vif,
+						filter_flags,
+						changed_flags);
+	trace_drv_return_void(local);
+}
+
 static inline int drv_set_tim(struct ieee80211_local *local,
 			      struct ieee80211_sta *sta, bool set)
 {

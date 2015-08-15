@@ -5,6 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1358,6 +1359,8 @@ enum ieee80211_vif_flags {
  * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
  *	interface debug files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
+ * @probe_req_reg: probe requests should be reported to mac80211 for this
+ *	interface.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  * @txq: the multicast data TX queue (if driver uses the TXQ abstraction)
@@ -1381,6 +1384,8 @@ struct ieee80211_vif {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
 #endif
+
+	unsigned int probe_req_reg;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -2825,6 +2830,13 @@ enum ieee80211_reconfig_type {
  *	See the section "Frame filtering" for more information.
  *	This callback must be implemented and can sleep.
  *
+ * @config_iface_filter: Configure the interface's RX filter.
+ *	This callback is optional and is used to configure which frames
+ *	should be passed to mac80211. The filter_flags is the combination
+ *	of FIF_* flags. The changed_flags is a bit mask that indicates
+ *	which flags are changed.
+ *	This callback can sleep.
+ *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
  * 	must be set or cleared for a given STA. Must be atomic.
  *
@@ -3264,6 +3276,10 @@ struct ieee80211_ops {
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
 				 u64 multicast);
+	void (*config_iface_filter)(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    unsigned int filter_flags,
+				    unsigned int changed_flags);
 	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
