@@ -25,13 +25,8 @@ static void exynos_drm_crtc_enable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
-	if (exynos_crtc->enabled)
-		return;
-
 	if (exynos_crtc->ops->enable)
 		exynos_crtc->ops->enable(exynos_crtc);
-
-	exynos_crtc->enabled = true;
 
 	drm_crtc_vblank_on(crtc);
 }
@@ -39,9 +34,6 @@ static void exynos_drm_crtc_enable(struct drm_crtc *crtc)
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	if (!exynos_crtc->enabled)
-		return;
 
 	/* wait for the completion of page flip. */
 	if (!wait_event_timeout(exynos_crtc->pending_flip_queue,
@@ -52,8 +44,6 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 
 	if (exynos_crtc->ops->disable)
 		exynos_crtc->ops->disable(exynos_crtc);
-
-	exynos_crtc->enabled = false;
 }
 
 static bool
@@ -172,9 +162,6 @@ int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[pipe]);
 
-	if (!exynos_crtc->enabled)
-		return -EPERM;
-
 	if (exynos_crtc->ops->enable_vblank)
 		return exynos_crtc->ops->enable_vblank(exynos_crtc);
 
@@ -186,9 +173,6 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
 	struct exynos_drm_private *private = dev->dev_private;
 	struct exynos_drm_crtc *exynos_crtc =
 		to_exynos_crtc(private->crtc[pipe]);
-
-	if (!exynos_crtc->enabled)
-		return;
 
 	if (exynos_crtc->ops->disable_vblank)
 		exynos_crtc->ops->disable_vblank(exynos_crtc);
