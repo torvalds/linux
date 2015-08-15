@@ -1472,6 +1472,7 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 		idx = fanout_demux_rollover(f, skb, 0, false, num);
 		break;
 	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
 		idx = fanout_demux_bpf(f, skb, num);
 		break;
 	}
@@ -1529,6 +1530,7 @@ static void fanout_init_data(struct packet_fanout *f)
 		atomic_set(&f->rr_cur, 0);
 		break;
 	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
 		RCU_INIT_POINTER(f->bpf_prog, NULL);
 		break;
 	}
@@ -1571,12 +1573,39 @@ static int fanout_set_data_cbpf(struct packet_sock *po, char __user *data,
 	return 0;
 }
 
+static int fanout_set_data_ebpf(struct packet_sock *po, char __user *data,
+				unsigned int len)
+{
+	struct bpf_prog *new;
+	u32 fd;
+
+	if (sock_flag(&po->sk, SOCK_FILTER_LOCKED))
+		return -EPERM;
+	if (len != sizeof(fd))
+		return -EINVAL;
+	if (copy_from_user(&fd, data, len))
+		return -EFAULT;
+
+	new = bpf_prog_get(fd);
+	if (IS_ERR(new))
+		return PTR_ERR(new);
+	if (new->type != BPF_PROG_TYPE_SOCKET_FILTER) {
+		bpf_prog_put(new);
+		return -EINVAL;
+	}
+
+	__fanout_set_data_bpf(po->fanout, new);
+	return 0;
+}
+
 static int fanout_set_data(struct packet_sock *po, char __user *data,
 			   unsigned int len)
 {
 	switch (po->fanout->type) {
 	case PACKET_FANOUT_CBPF:
 		return fanout_set_data_cbpf(po, data, len);
+	case PACKET_FANOUT_EBPF:
+		return fanout_set_data_ebpf(po, data, len);
 	default:
 		return -EINVAL;
 	};
@@ -1586,6 +1615,7 @@ static void fanout_release_data(struct packet_fanout *f)
 {
 	switch (f->type) {
 	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
 		__fanout_set_data_bpf(f, NULL);
 	};
 }
@@ -1608,6 +1638,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	case PACKET_FANOUT_RND:
 	case PACKET_FANOUT_QM:
 	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
 		break;
 	default:
 		return -EINVAL;
