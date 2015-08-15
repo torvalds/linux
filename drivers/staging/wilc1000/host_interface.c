@@ -6618,13 +6618,13 @@ _fail_mem_:
 		kfree(pstrWFIDrv);
 #ifdef WILC_P2P
 _fail_timer_3:
-	WILC_TimerDestroy(&pstrWFIDrv->hRemainOnChannel);
+	del_timer_sync(&pstrWFIDrv->hRemainOnChannel);
 #endif
 _fail_timer_2:
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
-	WILC_TimerDestroy(&pstrWFIDrv->hConnectTimer);
+	del_timer_sync(&pstrWFIDrv->hConnectTimer);
 _fail_timer_1:
-	WILC_TimerDestroy(&pstrWFIDrv->hScanTimer);
+	del_timer_sync(&pstrWFIDrv->hScanTimer);
 _fail_thread_:
 	kthread_stop(HostIFthreadHandler);
 _fail_mq_:
@@ -6673,25 +6673,25 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 	/*BugID_5348*/
 	/*Destroy all timers before acquiring hSemDeinitDrvHandle*/
 	/*to guarantee handling all messages befor proceeding*/
-	if (WILC_TimerDestroy(&pstrWFIDrv->hScanTimer)) {
+	if (del_timer_sync(&pstrWFIDrv->hScanTimer)) {
 		PRINT_D(HOSTINF_DBG, ">> Scan timer is active\n");
 		/* msleep(HOST_IF_SCAN_TIMEOUT+1000); */
 	}
 
-	if (WILC_TimerDestroy(&pstrWFIDrv->hConnectTimer)) {
+	if (del_timer_sync(&pstrWFIDrv->hConnectTimer)) {
 		PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 		/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 	}
 
 
-	if (WILC_TimerDestroy(&g_hPeriodicRSSI)) {
+	if (del_timer_sync(&g_hPeriodicRSSI)) {
 		PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 		/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 	}
 
 	#ifdef WILC_P2P
 	/*Destroy Remain-onchannel Timer*/
-	WILC_TimerDestroy(&pstrWFIDrv->hRemainOnChannel);
+	del_timer_sync(&pstrWFIDrv->hRemainOnChannel);
 	#endif
 
 	host_int_set_wfi_drv_handler(NULL);
@@ -6715,7 +6715,7 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 	memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
 
 	if (clients_count == 1)	{
-		if (WILC_TimerDestroy(&g_hPeriodicRSSI)) {
+		if (del_timer_sync(&g_hPeriodicRSSI)) {
 			PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 			/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 		}

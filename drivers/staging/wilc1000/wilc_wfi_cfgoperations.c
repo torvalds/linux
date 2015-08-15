@@ -145,7 +145,7 @@ void clear_shadow_scan(void *pUserVoid)
 {
 	int i;
 	if (op_ifcs == 0) {
-		WILC_TimerDestroy(&hAgingTimer);
+		del_timer_sync(&hAgingTimer);
 		PRINT_INFO(CORECONFIG_DBG, "destroy aging timer\n");
 
 		for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
@@ -3876,7 +3876,7 @@ int WILC_WFI_DeInitHostInt(struct net_device *net)
 	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	if (op_ifcs == 0) {
 		PRINT_D(CORECONFIG_DBG, "destroy during ip\n");
-		WILC_TimerDestroy(&hDuringIpTimer);
+		del_timer_sync(&hDuringIpTimer);
 	}
 	#endif
 

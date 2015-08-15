@@ -48,23 +48,6 @@ typedef void (*tpfWILC_TimerFunction)(void *);
 WILC_ErrNo WILC_TimerCreate(struct timer_list *pHandle,
 			    tpfWILC_TimerFunction pfCallback);
 
-
-/*!
- *  @brief	Destroys a given timer
- *  @details	This will destroy a given timer freeing any resources used by it
- *              if the timer was PENDING Then must be cancelled as well(i.e.
- *              goes to	IDLE, same effect as calling WILC_TimerCancel first)
- *              if the timer was EXECUTING then the callback will be allowed to
- *              finish first then all resources are freed
- *  @param[in]	pHandle handle to the timer object
- *  @return	Error code indicating sucess/failure
- *  @sa		WILC_TimerAttrs
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-WILC_ErrNo WILC_TimerDestroy(struct timer_list *pHandle);
-
 /*!
  *  @brief	Starts a given timer
  *  @details	This function will move the timer to the PENDING state until the
