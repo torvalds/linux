@@ -141,6 +141,8 @@ struct snd_soc_tplg_ops {
 	int io_ops_count;
 };
 
+#ifdef CONFIG_SND_SOC_TOPOLOGY
+
 /* gets a pointer to data from the firmware block header */
 static inline const void *snd_soc_tplg_get_data(struct snd_soc_tplg_hdr *hdr)
 {
@@ -164,5 +166,15 @@ void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
 int snd_soc_tplg_widget_bind_event(struct snd_soc_dapm_widget *w,
 	const struct snd_soc_tplg_widget_events *events, int num_events,
 	u16 event_type);
+
+#else
+
+static inline int snd_soc_tplg_component_remove(struct snd_soc_component *comp,
+						u32 index)
+{
+	return 0;
+}
+
+#endif
 
 #endif
