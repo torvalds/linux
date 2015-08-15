@@ -93,6 +93,38 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf)
 	return raw - build_id;
 }
 
+int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id)
+{
+	char notes[PATH_MAX];
+	u8 build_id[BUILD_ID_SIZE];
+	int ret;
+
+	if (!root_dir)
+		root_dir = "";
+
+	scnprintf(notes, sizeof(notes), "%s/sys/kernel/notes", root_dir);
+
+	ret = sysfs__read_build_id(notes, build_id, sizeof(build_id));
+	if (ret < 0)
+		return ret;
+
+	return build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+}
+
+int filename__sprintf_build_id(const char *pathname, char *sbuild_id)
+{
+	u8 build_id[BUILD_ID_SIZE];
+	int ret;
+
+	ret = filename__read_build_id(pathname, build_id, sizeof(build_id));
+	if (ret < 0)
+		return ret;
+	else if (ret != sizeof(build_id))
+		return -EINVAL;
+
+	return build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+}
+
 /* asnprintf consolidates asprintf and snprintf */
 static int asnprintf(char **strp, size_t size, const char *fmt, ...)
 {
