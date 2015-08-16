@@ -96,47 +96,68 @@ module_param(kfifo_depth, uint, 0444);
 #define GB_LOOPBACK_MS_WAIT_MAX				1000
 
 /* interface sysfs attributes */
-#define gb_loopback_ro_attr(field)					\
-static ssize_t field##_show(struct device *dev,				\
+#define gb_loopback_ro_attr(field, pfx, conn)				\
+static ssize_t field##_##pfx##_show(struct device *dev,			\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
-	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb = connection->private;			\
-	return sprintf(buf, "%u\n", gb->field);				\
+	struct gb_connection *connection;				\
+	struct gb_loopback *gb;						\
+	if (conn) {							\
+		connection = to_gb_connection(dev);			\
+		gb = connection->private;				\
+		return sprintf(buf, "%u\n", gb->field);			\
+	} else {							\
+		return sprintf(buf, "%u\n", gb_dev.field);		\
+	}								\
 }									\
-static DEVICE_ATTR_RO(field)
+static DEVICE_ATTR_RO(field##_##pfx)
 
-#define gb_loopback_ro_stats_attr(name, field, type)			\
-static ssize_t name##_##field##_show(struct device *dev,		\
+#define gb_loopback_ro_stats_attr(name, field, type, pfx, conn)		\
+static ssize_t name##_##field##_##pfx##_show(struct device *dev,	\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
-	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb = connection->private;			\
-	return sprintf(buf, "%"#type"\n", gb->name.field);		\
+	struct gb_connection *connection;				\
+	struct gb_loopback *gb;						\
+	if (conn) {							\
+		connection = to_gb_connection(dev);			\
+		gb = connection->private;				\
+		return sprintf(buf, "%"#type"\n", gb->name.field);	\
+	} else {							\
+		return sprintf(buf, "%"#type"\n", gb_dev.name.field);	\
+	}								\
 }									\
-static DEVICE_ATTR_RO(name##_##field)
+static DEVICE_ATTR_RO(name##_##field##_##pfx)
 
-#define gb_loopback_ro_avg_attr(name)					\
-static ssize_t name##_avg_show(struct device *dev,			\
+#define gb_loopback_ro_avg_attr(name, pfx, conn)			\
+static ssize_t name##_avg_##pfx##_show(struct device *dev,		\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
-	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb = connection->private;			\
-	struct gb_loopback_stats *stats = &gb->name;			\
-	u32 count = stats->count ? stats->count : 1;			\
-	u64 avg = stats->sum + count / 2;	/* round closest */	\
-	u32 rem = do_div(avg, count);					\
+	struct gb_loopback_stats *stats;				\
+	struct gb_connection *connection;				\
+	struct gb_loopback *gb;						\
+	u64 avg;							\
+	u32 count, rem;							\
+	if (conn) {							\
+		connection = to_gb_connection(dev);			\
+		gb = connection->private;				\
+		stats = &gb->name;					\
+	} else {							\
+		stats = &gb_dev.name;					\
+	}								\
+	count = stats->count ? stats->count : 1;			\
+	avg = stats->sum + count / 2;	/* round closest */		\
+	rem = do_div(avg, count);					\
 	return sprintf(buf, "%llu.%06u\n", avg, 1000000 * rem / count);	\
 }									\
-static DEVICE_ATTR_RO(name##_avg)
+static DEVICE_ATTR_RO(name##_avg_##pfx)
 
-#define gb_loopback_stats_attrs(field)					\
-	gb_loopback_ro_stats_attr(field, min, u);			\
-	gb_loopback_ro_stats_attr(field, max, u);			\
-	gb_loopback_ro_avg_attr(field);
+#define gb_loopback_stats_attrs(field, pfx, conn)			\
+	gb_loopback_ro_stats_attr(field, min, u, pfx, conn);		\
+	gb_loopback_ro_stats_attr(field, max, u, pfx, conn);		\
+	gb_loopback_ro_avg_attr(field, pfx, conn)
 
 #define gb_loopback_attr(field, type)					\
 static ssize_t field##_show(struct device *dev,				\
@@ -165,8 +186,8 @@ static ssize_t field##_store(struct device *dev,			\
 }									\
 static DEVICE_ATTR_RW(field)
 
-#define gb_dev_loopback_ro_attr(field)					\
-static ssize_t field##_show(struct device *dev,				\
+#define gb_dev_loopback_ro_attr(field, conn)				\
+static ssize_t field##_show(struct device *dev,		\
 			    struct device_attribute *attr,		\
 			    char *buf)					\
 {									\
@@ -241,15 +262,20 @@ static void gb_loopback_check_attr(struct gb_loopback_device *gb_dev,
 }
 
 /* Time to send and receive one message */
-gb_loopback_stats_attrs(latency);
+gb_loopback_stats_attrs(latency, dev, false);
+gb_loopback_stats_attrs(latency, con, true);
 /* Time to send and receive one message not including greybus */
-gb_loopback_stats_attrs(latency_gb);
+gb_loopback_stats_attrs(latency_gb, dev, false);
+gb_loopback_stats_attrs(latency_gb, con, true);
 /* Number of requests sent per second on this cport */
-gb_loopback_stats_attrs(requests_per_second);
+gb_loopback_stats_attrs(requests_per_second, dev, false);
+gb_loopback_stats_attrs(requests_per_second, con, true);
 /* Quantity of data sent and received on this cport */
-gb_loopback_stats_attrs(throughput);
+gb_loopback_stats_attrs(throughput, dev, false);
+gb_loopback_stats_attrs(throughput, con, true);
 /* Number of errors encountered during loop */
-gb_loopback_ro_attr(error);
+gb_loopback_ro_attr(error, dev, false);
+gb_loopback_ro_attr(error, con, true);
 
 /*
  * Type of loopback message to send based on protocol type definitions
@@ -267,33 +293,51 @@ gb_dev_loopback_rw_attr(ms_wait, d);
 /* Maximum iterations for a given operation: 1-(2^32-1), 0 implies infinite */
 gb_dev_loopback_rw_attr(iteration_max, u);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
-gb_dev_loopback_ro_attr(iteration_count);
+gb_dev_loopback_ro_attr(iteration_count, false);
 /* A bit-mask of destination connecitons to include in the test run */
 gb_dev_loopback_rw_attr(mask, u);
 
-static struct attribute *loopback_attrs[] = {
-	&dev_attr_latency_min.attr,
-	&dev_attr_latency_max.attr,
-	&dev_attr_latency_avg.attr,
-	&dev_attr_latency_gb_min.attr,
-	&dev_attr_latency_gb_max.attr,
-	&dev_attr_latency_gb_avg.attr,
-	&dev_attr_requests_per_second_min.attr,
-	&dev_attr_requests_per_second_max.attr,
-	&dev_attr_requests_per_second_avg.attr,
-	&dev_attr_throughput_min.attr,
-	&dev_attr_throughput_max.attr,
-	&dev_attr_throughput_avg.attr,
+static struct attribute *loopback_dev_attrs[] = {
+	&dev_attr_latency_min_dev.attr,
+	&dev_attr_latency_max_dev.attr,
+	&dev_attr_latency_avg_dev.attr,
+	&dev_attr_latency_gb_min_dev.attr,
+	&dev_attr_latency_gb_max_dev.attr,
+	&dev_attr_latency_gb_avg_dev.attr,
+	&dev_attr_requests_per_second_min_dev.attr,
+	&dev_attr_requests_per_second_max_dev.attr,
+	&dev_attr_requests_per_second_avg_dev.attr,
+	&dev_attr_throughput_min_dev.attr,
+	&dev_attr_throughput_max_dev.attr,
+	&dev_attr_throughput_avg_dev.attr,
 	&dev_attr_type.attr,
 	&dev_attr_size.attr,
 	&dev_attr_ms_wait.attr,
 	&dev_attr_iteration_count.attr,
 	&dev_attr_iteration_max.attr,
 	&dev_attr_mask.attr,
-	&dev_attr_error.attr,
+	&dev_attr_error_dev.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(loopback);
+ATTRIBUTE_GROUPS(loopback_dev);
+
+static struct attribute *loopback_con_attrs[] = {
+	&dev_attr_latency_min_con.attr,
+	&dev_attr_latency_max_con.attr,
+	&dev_attr_latency_avg_con.attr,
+	&dev_attr_latency_gb_min_con.attr,
+	&dev_attr_latency_gb_max_con.attr,
+	&dev_attr_latency_gb_avg_con.attr,
+	&dev_attr_requests_per_second_min_con.attr,
+	&dev_attr_requests_per_second_max_con.attr,
+	&dev_attr_requests_per_second_avg_con.attr,
+	&dev_attr_throughput_min_con.attr,
+	&dev_attr_throughput_max_con.attr,
+	&dev_attr_throughput_avg_con.attr,
+	&dev_attr_error_con.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(loopback_con);
 
 static u32 gb_loopback_nsec_to_usec_latency(u64 elapsed_nsecs)
 {
@@ -776,6 +820,27 @@ static const struct file_operations gb_loopback_debugfs_latency_ops = {
 	.release	= single_release,
 };
 
+static int gb_loopback_dbgfs_dev_latency_show(struct seq_file *s, void *unused)
+{
+	struct gb_loopback_device *gb_dev = s->private;
+
+	return gb_loopback_dbgfs_latency_show_common(s, &gb_dev->kfifo,
+						     &gb_dev->mutex);
+}
+
+static int gb_loopback_dev_latency_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, gb_loopback_dbgfs_dev_latency_show,
+			   inode->i_private);
+}
+
+static const struct file_operations gb_loopback_debugfs_dev_latency_ops = {
+	.open		= gb_loopback_dev_latency_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 #define DEBUGFS_NAMELEN 32
 
 static int gb_loopback_connection_init(struct gb_connection *connection)
@@ -783,12 +848,39 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	struct gb_loopback *gb;
 	int retval;
 	char name[DEBUGFS_NAMELEN];
+	struct kobject *kobj = &connection->bundle->intf->module->dev.kobj;
 
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
 		return -ENOMEM;
 	gb_loopback_reset_stats(&gb_dev);
 
+	/* If this is the first connection - create a module endo0:x entries */
+	mutex_lock(&gb_dev.mutex);
+	if (!gb_dev.count) {
+		snprintf(name, sizeof(name), "raw_latency_endo0:%d",
+			 connection->bundle->intf->module->module_id);
+		debugfs_create_file(name, S_IFREG | S_IRUGO,
+				    gb_dev.root, &gb_dev,
+				    &gb_loopback_debugfs_dev_latency_ops);
+		retval = sysfs_create_groups(kobj, loopback_dev_groups);
+		if (retval) {
+			mutex_unlock(&gb_dev.mutex);
+			goto out_sysfs;
+		}
+		/* Calculate maximum payload */
+		gb_dev.size_max = gb_operation_get_payload_size_max(connection);
+		if (gb_dev.size_max <=
+			sizeof(struct gb_loopback_transfer_request)) {
+			retval = -EINVAL;
+			mutex_unlock(&gb_dev.mutex);
+			goto out_sysfs;
+		}
+		gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
+	}
+	mutex_unlock(&gb_dev.mutex);
+
+	/* Create per-connection sysfs and debugfs data-points */
 	snprintf(name, sizeof(name), "raw_latency_endo0:%d:%d:%d:%d",
 		connection->bundle->intf->module->module_id,
 		connection->bundle->intf->interface_id,
@@ -798,25 +890,16 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 				       &gb_loopback_debugfs_latency_ops);
 	gb->connection = connection;
 	connection->private = gb;
-	retval = sysfs_create_groups(&connection->dev.kobj, loopback_groups);
+	retval = sysfs_create_groups(&connection->dev.kobj,
+				     loopback_con_groups);
 	if (retval)
-		goto out_debugfs;
-
-	/* Calculate maximum payload */
-	mutex_lock(&gb_dev.mutex);
-	gb_dev.size_max = gb_operation_get_payload_size_max(connection);
-	if (gb_dev.size_max <= sizeof(struct gb_loopback_transfer_request)) {
-		retval = -EINVAL;
-		goto out_sysfs;
-	}
-	gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
-	mutex_unlock(&gb_dev.mutex);
+		goto out_sysfs_dev;
 
 	/* Allocate kfifo */
 	if (kfifo_alloc(&gb->kfifo_lat, kfifo_depth * sizeof(u32),
 			  GFP_KERNEL)) {
 		retval = -ENOMEM;
-		goto out_sysfs;
+		goto out_sysfs_conn;
 	}
 	if (kfifo_alloc(&gb->kfifo_ts, kfifo_depth * sizeof(struct timeval) * 2,
 			  GFP_KERNEL)) {
@@ -843,11 +926,14 @@ out_kfifo1:
 	kfifo_free(&gb->kfifo_ts);
 out_kfifo0:
 	kfifo_free(&gb->kfifo_lat);
-out_sysfs:
-	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
-out_debugfs:
+out_sysfs_conn:
+	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
+out_sysfs_dev:
+	if (!gb_dev.count)
+		sysfs_remove_groups(kobj, loopback_dev_groups);
 	debugfs_remove(gb->file);
 	connection->private = NULL;
+out_sysfs:
 	kfree(gb);
 
 	return retval;
@@ -856,6 +942,7 @@ out_debugfs:
 static void gb_loopback_connection_exit(struct gb_connection *connection)
 {
 	struct gb_loopback *gb = connection->private;
+	struct kobject *kobj = &connection->bundle->intf->module->dev.kobj;
 
 	gb_dev.count--;
 	connection->private = NULL;
@@ -864,7 +951,9 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 
 	kfifo_free(&gb->kfifo_lat);
 	kfifo_free(&gb->kfifo_ts);
-	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
+	if (!gb_dev.count)
+		sysfs_remove_groups(kobj, loopback_dev_groups);
+	sysfs_remove_groups(&connection->dev.kobj, loopback_con_groups);
 	debugfs_remove(gb->file);
 	kfree(gb);
 }
@@ -877,27 +966,6 @@ static struct gb_protocol loopback_protocol = {
 	.connection_init	= gb_loopback_connection_init,
 	.connection_exit	= gb_loopback_connection_exit,
 	.request_recv		= gb_loopback_request_recv,
-};
-
-static int gb_loopback_dbgfs_dev_latency_show(struct seq_file *s, void *unused)
-{
-	struct gb_loopback_device *gb_dev = s->private;
-
-	return gb_loopback_dbgfs_latency_show_common(s, &gb_dev->kfifo,
-						     &gb_dev->mutex);
-}
-
-static int gb_loopback_dev_latency_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, gb_loopback_dbgfs_dev_latency_show,
-			   inode->i_private);
-}
-
-static const struct file_operations gb_loopback_debugfs_dev_latency_ops = {
-	.open		= gb_loopback_dev_latency_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
 };
 
 static int loopback_init(void)
@@ -914,9 +982,6 @@ static int loopback_init(void)
 		goto error_debugfs;
 	}
 
-	debugfs_create_file("aggregate_latency", S_IFREG | S_IRUGO,
-			    gb_dev.root, &gb_dev,
-			    &gb_loopback_debugfs_dev_latency_ops);
 	retval = gb_protocol_register(&loopback_protocol);
 	if (!retval)
 		return retval;
