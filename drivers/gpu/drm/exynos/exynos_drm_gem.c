@@ -20,16 +20,6 @@
 #include "exynos_drm_buf.h"
 #include "exynos_drm_iommu.h"
 
-static int check_gem_flags(unsigned int flags)
-{
-	if (flags & ~(EXYNOS_BO_MASK)) {
-		DRM_ERROR("invalid flags.\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static void update_vm_cache_attr(struct exynos_drm_gem_obj *obj,
 					struct vm_area_struct *vma)
 {
@@ -164,16 +154,17 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 	struct exynos_drm_gem_buf *buf;
 	int ret;
 
+	if (flags & ~(EXYNOS_BO_MASK)) {
+		DRM_ERROR("invalid flags.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	if (!size) {
 		DRM_ERROR("invalid size.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	size = roundup_gem_size(size, flags);
-
-	ret = check_gem_flags(flags);
-	if (ret)
-		return ERR_PTR(ret);
 
 	buf = exynos_drm_init_buf(dev, size);
 	if (!buf)
@@ -584,10 +575,6 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	obj = vma->vm_private_data;
 	exynos_gem_obj = to_exynos_gem_obj(obj);
-
-	ret = check_gem_flags(exynos_gem_obj->flags);
-	if (ret)
-		goto err_close_vm;
 
 	update_vm_cache_attr(exynos_gem_obj, vma);
 
