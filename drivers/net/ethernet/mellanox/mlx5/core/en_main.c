@@ -1184,6 +1184,7 @@ static void mlx5e_fill_indir_rqt_rqns(struct mlx5e_priv *priv, void *rqtc)
 		if (priv->params.rss_hfunc == ETH_RSS_HASH_XOR)
 			ix = mlx5e_bits_invert(i, MLX5E_LOG_INDIR_RQT_SIZE);
 
+		ix = priv->params.indirection_rqt[ix];
 		ix = ix % priv->params.num_channels;
 		MLX5_SET(rqtc, rqtc, rq_num[i],
 			 test_bit(MLX5E_STATE_OPENED, &priv->state) ?
@@ -1242,7 +1243,7 @@ static int mlx5e_create_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix)
 	return err;
 }
 
-static int mlx5e_redirect_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix)
+int mlx5e_redirect_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 *in;
@@ -1912,6 +1913,7 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 				    int num_channels)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int i;
 
 	priv->params.log_sq_size           =
 		MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
@@ -1934,6 +1936,9 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 
 	netdev_rss_key_fill(priv->params.toeplitz_hash_key,
 			    sizeof(priv->params.toeplitz_hash_key));
+
+	for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++)
+		priv->params.indirection_rqt[i] = i % num_channels;
 
 	priv->params.lro_en = false && !!MLX5_CAP_ETH(priv->mdev, lro_cap);
 	priv->params.lro_wqe_sz            =

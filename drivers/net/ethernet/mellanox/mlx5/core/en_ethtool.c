@@ -684,10 +684,30 @@ out:
 	return err;
 }
 
+static u32 mlx5e_get_rxfh_key_size(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	return sizeof(priv->params.toeplitz_hash_key);
+}
+
+static u32 mlx5e_get_rxfh_indir_size(struct net_device *netdev)
+{
+	return MLX5E_INDIR_RQT_SIZE;
+}
+
 static int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 			  u8 *hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (indir)
+		memcpy(indir, priv->params.indirection_rqt,
+		       sizeof(priv->params.indirection_rqt));
+
+	if (key)
+		memcpy(key, priv->params.toeplitz_hash_key,
+		       sizeof(priv->params.toeplitz_hash_key));
 
 	if (hfunc)
 		*hfunc = priv->params.rss_hfunc;
@@ -699,24 +719,56 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 			  const u8 *key, const u8 hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	bool close_open;
 	int err = 0;
 
-	if (hfunc == ETH_RSS_HASH_NO_CHANGE)
-		return 0;
-
-	if ((hfunc != ETH_RSS_HASH_XOR) &&
+	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) &&
+	    (hfunc != ETH_RSS_HASH_XOR) &&
 	    (hfunc != ETH_RSS_HASH_TOP))
 		return -EINVAL;
 
 	mutex_lock(&priv->state_lock);
 
-	priv->params.rss_hfunc = hfunc;
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		mlx5e_close_locked(dev);
-		err = mlx5e_open_locked(dev);
+	if (indir) {
+		memcpy(priv->params.indirection_rqt, indir,
+		       sizeof(priv->params.indirection_rqt));
+		mlx5e_redirect_rqt(priv, MLX5E_INDIRECTION_RQT);
 	}
 
+	close_open = (key || (hfunc != ETH_RSS_HASH_NO_CHANGE)) &&
+		     test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (close_open)
+		mlx5e_close_locked(dev);
+
+	if (key)
+		memcpy(priv->params.toeplitz_hash_key, key,
+		       sizeof(priv->params.toeplitz_hash_key));
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE)
+		priv->params.rss_hfunc = hfunc;
+
+	if (close_open)
+		err = mlx5e_open_locked(priv->netdev);
+
 	mutex_unlock(&priv->state_lock);
+
+	return err;
+}
+
+static int mlx5e_get_rxnfc(struct net_device *netdev,
+			   struct ethtool_rxnfc *info, u32 *rule_locs)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err = 0;
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = priv->params.num_channels;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
 
 	return err;
 }
@@ -793,8 +845,11 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.set_coalesce      = mlx5e_set_coalesce,
 	.get_settings      = mlx5e_get_settings,
 	.set_settings      = mlx5e_set_settings,
+	.get_rxfh_key_size   = mlx5e_get_rxfh_key_size,
+	.get_rxfh_indir_size = mlx5e_get_rxfh_indir_size,
 	.get_rxfh          = mlx5e_get_rxfh,
 	.set_rxfh          = mlx5e_set_rxfh,
+	.get_rxnfc         = mlx5e_get_rxnfc,
 	.get_tunable       = mlx5e_get_tunable,
 	.set_tunable       = mlx5e_set_tunable,
 };
