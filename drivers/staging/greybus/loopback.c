@@ -675,7 +675,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	/* Express latency in terms of microseconds */
 	lat = gb_loopback_nsec_to_usec_latency(gb->elapsed_nsecs);
 
-	/* Log latency statistic */
+	/* Log latency stastic */
 	gb_loopback_update_stats(&gb_dev.latency, lat);
 	gb_loopback_update_stats(&gb->latency, lat);
 
