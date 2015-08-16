@@ -36,6 +36,7 @@ struct gb_loopback_device {
 	struct dentry *root;
 	u32 count;
 
+	struct kfifo kfifo;
 	struct mutex mutex;
 	struct list_head list;
 	wait_queue_head_t wq;
@@ -64,7 +65,8 @@ struct gb_loopback {
 	struct gb_connection *connection;
 
 	struct dentry *file;
-	struct kfifo kfifo;
+	struct kfifo kfifo_lat;
+	struct kfifo kfifo_ts;
 	struct mutex mutex;
 	struct task_struct *task;
 	struct list_head entry;
@@ -75,6 +77,7 @@ struct gb_loopback {
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
 
+	u32 lbid;
 	u32 iteration_count;
 	u64 elapsed_nsecs;
 	u64 elapsed_nsecs_gb;
@@ -217,7 +220,8 @@ static void gb_loopback_check_attr(struct gb_loopback_device *gb_dev,
 				 "cannot log bytes %u kfifo_depth %u\n",
 				 gb_dev->iteration_max, kfifo_depth);
 		}
-		kfifo_reset_out(&gb->kfifo);
+		kfifo_reset_out(&gb->kfifo_lat);
+		kfifo_reset_out(&gb->kfifo_ts);
 		mutex_unlock(&gb->mutex);
 	}
 
@@ -225,6 +229,7 @@ static void gb_loopback_check_attr(struct gb_loopback_device *gb_dev,
 	case GB_LOOPBACK_TYPE_PING:
 	case GB_LOOPBACK_TYPE_TRANSFER:
 	case GB_LOOPBACK_TYPE_SINK:
+		kfifo_reset_out(&gb_dev->kfifo);
 		gb_loopback_reset_stats(gb_dev);
 		wake_up(&gb_dev->wq);
 		break;
@@ -310,6 +315,13 @@ static u64 gb_loopback_calc_latency(struct timeval *ts, struct timeval *te)
 	return __gb_loopback_calc_latency(t1, t2);
 }
 
+static void gb_loopback_push_latency_ts(struct gb_loopback *gb,
+					struct timeval *ts, struct timeval *te)
+{
+	kfifo_in(&gb->kfifo_ts, (unsigned char *)ts, sizeof(*ts));
+	kfifo_in(&gb->kfifo_ts, (unsigned char *)te, sizeof(*te));
+}
+
 static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
 {
 	struct timeval ts, te;
@@ -329,6 +341,7 @@ static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
 	do_gettimeofday(&te);
 
 	/* Calculate the total time the message took */
+	gb_loopback_push_latency_ts(gb, &ts, &te);
 	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
 
 	/* Calculate non-greybus related component of the latency */
@@ -368,6 +381,7 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 	do_gettimeofday(&te);
 
 	/* Calculate the total time the message took */
+	gb_loopback_push_latency_ts(gb, &ts, &te);
 	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
 
 	/* Calculate non-greybus related component of the latency */
@@ -401,6 +415,7 @@ static int gb_loopback_ping(struct gb_loopback *gb)
 	do_gettimeofday(&te);
 
 	/* Calculate the total time the message took */
+	gb_loopback_push_latency_ts(gb, &ts, &te);
 	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
 
 	/* Calculate non-greybus related component of the latency */
@@ -541,6 +556,59 @@ static void gb_loopback_throughput_update(struct gb_loopback *gb, u32 latency)
 	gb_loopback_update_stats(&gb->throughput, throughput);
 }
 
+static int gb_loopback_calculate_aggregate_stats(void)
+{
+	struct gb_loopback *gb;
+	struct timeval ts;
+	struct timeval te;
+	u64 t1, t2;
+	u64 ts_min;
+	u64 te_max;
+	u64 elapsed_nsecs;
+	u32 lat;
+	int i, latched;
+	int rollover = 0;
+
+	for (i = 0; i < gb_dev.iteration_max; i++) {
+		latched = 0;
+		ts_min = 0;
+		te_max = 0;
+		list_for_each_entry(gb, &gb_dev.list, entry) {
+			if (kfifo_out(&gb->kfifo_ts, &ts, sizeof(ts)) < sizeof(ts))
+				goto error;
+			if (kfifo_out(&gb->kfifo_ts, &te, sizeof(te)) < sizeof(te))
+				goto error;
+			t1 = timeval_to_ns(&ts);
+			t2 = timeval_to_ns(&te);
+
+			/* minimum timestamp is always what we want */
+			if (latched == 0 || t1 < ts_min)
+				ts_min = t1;
+
+			/* maximum timestamp needs to handle rollover */
+			if (t2 > t1) {
+				if (latched == 0 || t2 > te_max)
+					te_max = t2;
+			} else {
+				if (latched == 0 || rollover == 0)
+					te_max = t2;
+				if (rollover == 1 && t2 > te_max)
+					te_max = t2;
+				rollover = 1;
+			}
+			latched = 1;
+		}
+		/* Calculate the aggregate timestamp */
+		elapsed_nsecs = __gb_loopback_calc_latency(ts_min, te_max);
+		lat = gb_loopback_nsec_to_usec_latency(elapsed_nsecs);
+		kfifo_in(&gb_dev.kfifo, (unsigned char *)&lat, sizeof(lat));
+	}
+	return 0;
+error:
+	kfifo_reset_out(&gb_dev.kfifo);
+	return -ENOMEM;
+}
+
 static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 {
 	u32 lat;
@@ -554,7 +622,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	gb_loopback_update_stats(&gb->latency, lat);
 
 	/* Raw latency log on a per thread basis */
-	kfifo_in(&gb->kfifo, (unsigned char *)&lat, sizeof(lat));
+	kfifo_in(&gb->kfifo_lat, (unsigned char *)&lat, sizeof(lat));
 
 	/* Log throughput and requests using latency as benchmark */
 	gb_loopback_throughput_update(gb, lat);
@@ -600,6 +668,7 @@ static int gb_loopback_fn(void *data)
 			}
 			/* Optionally terminate */
 			if (gb_dev.iteration_count == gb_dev.iteration_max) {
+				gb_loopback_calculate_aggregate_stats();
 				gb_dev.type = 0;
 				mutex_unlock(&gb_dev.mutex);
 				continue;
@@ -645,26 +714,35 @@ sleep:
 	return 0;
 }
 
-static int gb_loopback_dbgfs_latency_show(struct seq_file *s, void *unused)
+static int gb_loopback_dbgfs_latency_show_common(struct seq_file *s,
+						 struct kfifo *kfifo,
+						 struct mutex *mutex)
 {
-	struct gb_loopback *gb = s->private;
 	u32 latency;
 	int retval;
 
-	if (kfifo_len(&gb->kfifo) == 0) {
+	if (kfifo_len(kfifo) == 0) {
 		retval = -EAGAIN;
 		goto done;
 	}
 
-	mutex_lock(&gb->mutex);
-	retval = kfifo_out(&gb->kfifo, &latency, sizeof(latency));
+	mutex_lock(mutex);
+	retval = kfifo_out(kfifo, &latency, sizeof(latency));
 	if (retval > 0) {
 		seq_printf(s, "%u", latency);
 		retval = 0;
 	}
-	mutex_unlock(&gb->mutex);
+	mutex_unlock(mutex);
 done:
 	return retval;
+}
+
+static int gb_loopback_dbgfs_latency_show(struct seq_file *s, void *unused)
+{
+	struct gb_loopback *gb = s->private;
+
+	return gb_loopback_dbgfs_latency_show_common(s, &gb->kfifo_lat,
+						     &gb->mutex);
 }
 
 static int gb_loopback_latency_open(struct inode *inode, struct file *file)
@@ -717,18 +795,24 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	mutex_unlock(&gb_dev.mutex);
 
 	/* Allocate kfifo */
-	if (kfifo_alloc(&gb->kfifo, kfifo_depth * sizeof(u32),
+	if (kfifo_alloc(&gb->kfifo_lat, kfifo_depth * sizeof(u32),
 			  GFP_KERNEL)) {
 		retval = -ENOMEM;
 		goto out_sysfs;
 	}
+	if (kfifo_alloc(&gb->kfifo_ts, kfifo_depth * sizeof(struct timeval) * 2,
+			  GFP_KERNEL)) {
+		retval = -ENOMEM;
+		goto out_kfifo0;
+	}
 
 	/* Fork worker thread */
 	mutex_init(&gb->mutex);
+	gb->lbid = 1 << gb_dev.count;
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
-		goto out_kfifo;
+		goto out_kfifo1;
 	}
 
 	mutex_lock(&gb_dev.mutex);
@@ -737,8 +821,10 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	gb_dev.count++;
 	return 0;
 
-out_kfifo:
-	kfifo_free(&gb->kfifo);
+out_kfifo1:
+	kfifo_free(&gb->kfifo_ts);
+out_kfifo0:
+	kfifo_free(&gb->kfifo_lat);
 out_sysfs:
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 out_debugfs:
@@ -758,7 +844,8 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
 
-	kfifo_free(&gb->kfifo);
+	kfifo_free(&gb->kfifo_lat);
+	kfifo_free(&gb->kfifo_ts);
 	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 	debugfs_remove(gb->file);
 	kfree(gb);
@@ -774,20 +861,58 @@ static struct gb_protocol loopback_protocol = {
 	.request_recv		= gb_loopback_request_recv,
 };
 
+static int gb_loopback_dbgfs_dev_latency_show(struct seq_file *s, void *unused)
+{
+	struct gb_loopback_device *gb_dev = s->private;
+
+	return gb_loopback_dbgfs_latency_show_common(s, &gb_dev->kfifo,
+						     &gb_dev->mutex);
+}
+
+static int gb_loopback_dev_latency_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, gb_loopback_dbgfs_dev_latency_show,
+			   inode->i_private);
+}
+
+static const struct file_operations gb_loopback_debugfs_dev_latency_ops = {
+	.open		= gb_loopback_dev_latency_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int loopback_init(void)
 {
+	int retval;
+
 	init_waitqueue_head(&gb_dev.wq);
 	INIT_LIST_HEAD(&gb_dev.list);
 	mutex_init(&gb_dev.mutex);
 	gb_dev.root = debugfs_create_dir("gb_loopback", NULL);
 
-	return gb_protocol_register(&loopback_protocol);
+	if (kfifo_alloc(&gb_dev.kfifo, kfifo_depth * sizeof(u32), GFP_KERNEL)) {
+		retval = -ENOMEM;
+		goto error_debugfs;
+	}
+
+	debugfs_create_file("aggregate_latency", S_IFREG | S_IRUGO,
+			    gb_dev.root, &gb_dev,
+			    &gb_loopback_debugfs_dev_latency_ops);
+	retval = gb_protocol_register(&loopback_protocol);
+	if (!retval)
+		return retval;
+
+error_debugfs:
+	debugfs_remove_recursive(gb_dev.root);
+	return retval;
 }
 module_init(loopback_init);
 
 static void __exit loopback_exit(void)
 {
 	debugfs_remove_recursive(gb_dev.root);
+	kfifo_free(&gb_dev.kfifo);
 	gb_protocol_deregister(&loopback_protocol);
 }
 module_exit(loopback_exit);
