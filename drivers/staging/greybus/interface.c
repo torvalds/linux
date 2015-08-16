@@ -109,7 +109,7 @@ int gb_create_bundle_connection(struct gb_interface *intf, u8 class)
 }
 
 /*
- * A Greybus module represents a user-replicable component on an Ara
+ * A Greybus module represents a user-replaceable component on an Ara
  * phone.  An interface is the physical connection on that module.  A
  * module may have more than one interface.
  *
