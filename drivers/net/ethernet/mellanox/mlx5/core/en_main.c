@@ -1611,7 +1611,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 						       rx_hash_toeplitz_key);
 
 			MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
-			netdev_rss_key_fill(rss_key, len);
+			memcpy(rss_key, priv->params.toeplitz_hash_key, len);
 		}
 		break;
 	}
@@ -1938,6 +1938,9 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->params.num_tc                = 1;
 	priv->params.default_vlan_prio     = 0;
 	priv->params.rss_hfunc             = ETH_RSS_HASH_XOR;
+
+	netdev_rss_key_fill(priv->params.toeplitz_hash_key,
+			    sizeof(priv->params.toeplitz_hash_key));
 
 	priv->params.lro_en = false && !!MLX5_CAP_ETH(priv->mdev, lro_cap);
 	priv->params.lro_wqe_sz            =
