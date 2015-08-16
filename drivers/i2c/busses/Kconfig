@@ -619,6 +619,16 @@ config I2C_KEMPLD
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-kempld.
 
+config I2C_LPC2K
+	tristate "I2C bus support for NXP LPC2K/LPC178x/18xx/43xx"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	help
+	  This driver supports the I2C interface found several NXP
+	  devices including LPC2xxx, LPC178x/7x and LPC18xx/43xx.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-lpc2k.
+
 config I2C_MESON
 	tristate "Amlogic Meson I2C controller"
 	depends on ARCH_MESON
