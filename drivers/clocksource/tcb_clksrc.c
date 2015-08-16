@@ -208,7 +208,7 @@ static int __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 
 	ret = request_irq(irq, ch2_irq, IRQF_TIMER, "tc_clkevt", &clkevt);
 	if (ret) {
-		clk_disable_unprepare(t2_clk);
+		clk_unprepare(t2_clk);
 		return ret;
 	}
 
