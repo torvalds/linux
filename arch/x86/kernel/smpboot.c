@@ -898,7 +898,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 
 	if (!boot_error) {
 		/*
-		 * Wait 10s total for a response from AP
+		 * Wait 10s total for first sign of life from AP
 		 */
 		boot_error = -1;
 		timeout = jiffies + 10*HZ;
@@ -911,7 +911,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 				boot_error = 0;
 				break;
 			}
-			udelay(100);
 			schedule();
 		}
 	}
