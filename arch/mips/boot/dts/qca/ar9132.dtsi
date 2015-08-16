@@ -115,6 +115,14 @@
 				interrupt-controller;
 				#interrupt-cells = <1>;
 			};
+
+			rst: reset-controller@1806001c {
+				compatible = "qca,ar9132-reset",
+						"qca,ar7100-reset";
+				reg = <0x1806001c 0x4>;
+
+				#reset-cells = <1>;
+			};
 		};
 
 		spi@1f000000 {
