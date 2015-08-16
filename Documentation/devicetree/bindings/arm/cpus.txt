@@ -199,6 +199,7 @@ nodes to be present and contain the properties described below.
 			    "qcom,kpss-acc-v1"
 			    "qcom,kpss-acc-v2"
 			    "rockchip,rk3066-smp"
+			    "ste,dbx500-smp"
 
 	- cpu-release-addr
 		Usage: required for systems that have an "enable-method"
