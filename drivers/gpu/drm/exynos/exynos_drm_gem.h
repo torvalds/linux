@@ -20,26 +20,6 @@
 #define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
 
 /*
- * exynos drm gem buffer structure.
- *
- * @cookie: cookie returned by dma_alloc_attrs
- * @kvaddr: kernel virtual address to allocated memory region.
- * @dma_addr: bus address(accessed by dma) to allocated memory region.
- *	- this address could be physical address without IOMMU and
- *	device address with IOMMU.
- * @pages: Array of backing pages.
- * @size: size of allocated memory region.
- */
-struct exynos_drm_gem_buf {
-	void 			*cookie;
-	void __iomem		*kvaddr;
-	dma_addr_t		dma_addr;
-	struct dma_attrs	dma_attrs;
-	struct page		**pages;
-	unsigned long		size;
-};
-
-/*
  * exynos drm buffer structure.
  *
  * @base: a gem object.
@@ -50,18 +30,28 @@ struct exynos_drm_gem_buf {
  *	by user request or at framebuffer creation.
  *	continuous memory region allocated by user request
  *	or at framebuffer creation.
+ * @flags: indicate memory type to allocated buffer and cache attruibute.
  * @size: size requested from user, in bytes and this size is aligned
  *	in page unit.
- * @flags: indicate memory type to allocated buffer and cache attruibute.
+ * @cookie: cookie returned by dma_alloc_attrs
+ * @kvaddr: kernel virtual address to allocated memory region.
+ * @dma_addr: bus address(accessed by dma) to allocated memory region.
+ *	- this address could be physical address without IOMMU and
+ *	device address with IOMMU.
+ * @pages: Array of backing pages.
  *
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
 struct exynos_drm_gem_obj {
-	struct drm_gem_object		base;
-	struct exynos_drm_gem_buf	*buffer;
-	unsigned long			size;
-	unsigned int			flags;
+	struct drm_gem_object	base;
+	unsigned int		flags;
+	unsigned long		size;
+	void			*cookie;
+	void __iomem		*kvaddr;
+	dma_addr_t		dma_addr;
+	struct dma_attrs	dma_attrs;
+	struct page		**pages;
 };
 
 struct page **exynos_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
