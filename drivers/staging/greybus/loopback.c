@@ -50,9 +50,11 @@ struct gb_loopback {
 	int ms_wait;
 
 	struct gb_loopback_stats latency;
+	struct gb_loopback_stats latency_gb;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
 	u64 elapsed_nsecs;
+	u64 elapsed_nsecs_gb;
 	u32 error;
 };
 
@@ -177,6 +179,8 @@ static void gb_loopback_check_attr(struct gb_connection *connection,
 
 /* Time to send and receive one message */
 gb_loopback_stats_attrs(latency);
+/* Time to send and receive one message not including greybus */
+gb_loopback_stats_attrs(latency_gb);
 /* Number of requests sent per second on this cport */
 gb_loopback_stats_attrs(requests_per_second);
 /* Quantity of data sent and received on this cport */
@@ -209,6 +213,7 @@ gb_loopback_attr(iteration_max, u);
 
 static struct attribute *loopback_attrs[] = {
 	dev_stats_attrs(latency),
+	dev_stats_attrs(latency_gb),
 	dev_stats_attrs(requests_per_second),
 	dev_stats_attrs(throughput),
 	&dev_attr_type.attr,
@@ -221,17 +226,16 @@ static struct attribute *loopback_attrs[] = {
 };
 ATTRIBUTE_GROUPS(loopback);
 
-static void gb_loopback_calc_latency(struct gb_loopback *gb,
-				     struct timeval *ts, struct timeval *te)
+static u64 gb_loopback_calc_latency(struct timeval *ts, struct timeval *te)
 {
 	u64 t1, t2;
 
 	t1 = timeval_to_ns(ts);
 	t2 = timeval_to_ns(te);
 	if (t2 > t1)
-		gb->elapsed_nsecs = t2 - t1;
+		return t2 - t1;
 	else
-		gb->elapsed_nsecs = NSEC_PER_DAY - t2 + t1;
+		return NSEC_PER_DAY - t2 + t1;
 }
 
 static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
@@ -251,7 +255,15 @@ static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
 				   request, len + sizeof(*request), NULL, 0);
 
 	do_gettimeofday(&te);
-	gb_loopback_calc_latency(gb, &ts, &te);
+
+	/* Calculate the total time the message took */
+	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
+
+	/* Calculate non-greybus related component of the latency */
+	gb_connection_pop_timestamp(gb->connection, &ts);
+	gb_connection_pop_timestamp(gb->connection, &te);
+	gb->elapsed_nsecs_gb = gb_loopback_calc_latency(&ts, &te);
+
 
 	kfree(request);
 	return retval;
@@ -282,7 +294,14 @@ static int gb_loopback_transfer(struct gb_loopback *gb, u32 len)
 				   request, len + sizeof(*request),
 				   response, len + sizeof(*response));
 	do_gettimeofday(&te);
-	gb_loopback_calc_latency(gb, &ts, &te);
+
+	/* Calculate the total time the message took */
+	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
+
+	/* Calculate non-greybus related component of the latency */
+	gb_connection_pop_timestamp(gb->connection, &ts);
+	gb_connection_pop_timestamp(gb->connection, &te);
+	gb->elapsed_nsecs_gb = gb_loopback_calc_latency(&ts, &te);
 
 	if (retval)
 		goto gb_error;
@@ -308,7 +327,14 @@ static int gb_loopback_ping(struct gb_loopback *gb)
 	retval = gb_operation_sync(gb->connection, GB_LOOPBACK_TYPE_PING,
 				   NULL, 0, NULL, 0);
 	do_gettimeofday(&te);
-	gb_loopback_calc_latency(gb, &ts, &te);
+
+	/* Calculate the total time the message took */
+	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
+
+	/* Calculate non-greybus related component of the latency */
+	gb_connection_pop_timestamp(gb->connection, &ts);
+	gb_connection_pop_timestamp(gb->connection, &te);
+	gb->elapsed_nsecs_gb = gb_loopback_calc_latency(&ts, &te);
 
 	return retval;
 }
@@ -371,6 +397,7 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 		.min = U32_MAX,
 	};
 	memcpy(&gb->latency, &reset, sizeof(struct gb_loopback_stats));
+	memcpy(&gb->latency_gb, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb->throughput, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb->requests_per_second, &reset,
 	       sizeof(struct gb_loopback_stats));
@@ -439,6 +466,11 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	/* Log throughput and requests using latency as benchmark */
 	gb_loopback_throughput_update(gb, lat);
 	gb_loopback_requests_update(gb, lat);
+
+	/* Calculate the greybus related latency number in nanoseconds */
+	tmp = gb->elapsed_nsecs - gb->elapsed_nsecs_gb;
+	lat = tmp;
+	gb_loopback_update_stats(&gb->latency_gb, lat);
 }
 
 static int gb_loopback_fn(void *data)
