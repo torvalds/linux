@@ -3654,7 +3654,8 @@ static void synchronize_sched_expedited_cpu_stop(void *data)
  * Select the nodes that the upcoming expedited grace period needs
  * to wait for.
  */
-static void sync_sched_exp_select_cpus(struct rcu_state *rsp)
+static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
+				     smp_call_func_t func)
 {
 	int cpu;
 	unsigned long flags;
@@ -3696,7 +3697,7 @@ static void sync_sched_exp_select_cpus(struct rcu_state *rsp)
 		for (cpu = rnp->grplo; cpu <= rnp->grphi; cpu++, mask <<= 1) {
 			if (!(mask_ofl_ipi & mask))
 				continue;
-			ret = smp_call_function_single(cpu, synchronize_sched_expedited_cpu_stop, NULL, 0);
+			ret = smp_call_function_single(cpu, func, rsp, 0);
 			if (!ret)
 				mask_ofl_ipi &= ~mask;
 		}
@@ -3788,7 +3789,7 @@ void synchronize_sched_expedited(void)
 		return;  /* Someone else did our work for us. */
 
 	rcu_exp_gp_seq_start(rsp);
-	sync_sched_exp_select_cpus(rsp);
+	sync_rcu_exp_select_cpus(rsp, synchronize_sched_expedited_cpu_stop);
 	synchronize_sched_expedited_wait(rsp);
 
 	rcu_exp_gp_seq_end(rsp);
