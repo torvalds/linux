@@ -16,8 +16,8 @@
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <linux/scatterlist.h>
 
-#include <asm/scatterlist.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>

@@ -580,7 +580,7 @@ acpi_ns_repair_HID(struct acpi_evaluate_info *info,
 	 * # is a hex digit.
 	 */
 	for (dest = new_string->string.pointer; *source; dest++, source++) {
-		*dest = (char)ACPI_TOUPPER(*source);
+		*dest = (char)toupper((int)*source);
 	}
 
 	acpi_ut_remove_reference(return_object);

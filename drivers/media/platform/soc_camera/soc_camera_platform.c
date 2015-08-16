@@ -37,9 +37,11 @@ static int soc_camera_platform_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int soc_camera_platform_fill_fmt(struct v4l2_subdev *sd,
-					struct v4l2_mbus_framefmt *mf)
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
+	struct v4l2_mbus_framefmt *mf = &format->format;
 
 	mf->width	= p->format.width;
 	mf->height	= p->format.height;
@@ -61,15 +63,16 @@ static struct v4l2_subdev_core_ops platform_subdev_core_ops = {
 	.s_power = soc_camera_platform_s_power,
 };
 
-static int soc_camera_platform_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-					u32 *code)
+static int soc_camera_platform_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
 
-	if (index)
+	if (code->pad || code->index)
 		return -EINVAL;
 
-	*code = p->format.code;
+	code->code = p->format.code;
 	return 0;
 }
 
@@ -117,18 +120,21 @@ static int soc_camera_platform_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
 	.s_stream	= soc_camera_platform_s_stream,
-	.enum_mbus_fmt	= soc_camera_platform_enum_fmt,
 	.cropcap	= soc_camera_platform_cropcap,
 	.g_crop		= soc_camera_platform_g_crop,
-	.try_mbus_fmt	= soc_camera_platform_fill_fmt,
-	.g_mbus_fmt	= soc_camera_platform_fill_fmt,
-	.s_mbus_fmt	= soc_camera_platform_fill_fmt,
 	.g_mbus_config	= soc_camera_platform_g_mbus_config,
+};
+
+static const struct v4l2_subdev_pad_ops platform_subdev_pad_ops = {
+	.enum_mbus_code = soc_camera_platform_enum_mbus_code,
+	.get_fmt	= soc_camera_platform_fill_fmt,
+	.set_fmt	= soc_camera_platform_fill_fmt,
 };
 
 static struct v4l2_subdev_ops platform_subdev_ops = {
 	.core	= &platform_subdev_core_ops,
 	.video	= &platform_subdev_video_ops,
+	.pad	= &platform_subdev_pad_ops,
 };
 
 static int soc_camera_platform_probe(struct platform_device *pdev)

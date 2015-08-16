@@ -207,6 +207,14 @@ static void intel_disable_crt(struct intel_encoder *encoder)
 	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
+static void pch_disable_crt(struct intel_encoder *encoder)
+{
+}
+
+static void pch_post_disable_crt(struct intel_encoder *encoder)
+{
+	intel_disable_crt(encoder);
+}
 
 static void hsw_crt_post_disable(struct intel_encoder *encoder)
 {
@@ -747,7 +755,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
-	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPB);
+	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPB);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 
 out:
@@ -888,7 +896,12 @@ void intel_crt_init(struct drm_device *dev)
 		crt->adpa_reg = ADPA;
 
 	crt->base.compute_config = intel_crt_compute_config;
-	crt->base.disable = intel_disable_crt;
+	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev)) {
+		crt->base.disable = pch_disable_crt;
+		crt->base.post_disable = pch_post_disable_crt;
+	} else {
+		crt->base.disable = intel_disable_crt;
+	}
 	crt->base.enable = intel_enable_crt;
 	if (I915_HAS_HOTPLUG(dev))
 		crt->base.hpd_pin = HPD_CRT;

@@ -103,11 +103,17 @@ saffire_write_quad(struct snd_bebob *bebob, u64 offset, u32 value)
 				  &data, sizeof(__be32), 0);
 }
 
-static const char *const saffirepro_10_clk_src_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF", "Word Clock"
+static enum snd_bebob_clock_type saffirepro_10_clk_src_types[] = {
+	SND_BEBOB_CLOCK_TYPE_INTERNAL,
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* Word Clock */
 };
-static const char *const saffirepro_26_clk_src_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF", "ADAT1", "ADAT2", "Word Clock"
+static enum snd_bebob_clock_type saffirepro_26_clk_src_types[] = {
+	SND_BEBOB_CLOCK_TYPE_INTERNAL,
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* ADAT1 */
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* ADAT2 */
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* Word Clock */
 };
 /* Value maps between registers and labels for SaffirePro 10/26. */
 static const signed char saffirepro_clk_maps[][SAFFIREPRO_CLOCK_SOURCE_COUNT] = {
@@ -178,7 +184,7 @@ saffirepro_both_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 		goto end;
 
 	/* depending on hardware, use a different mapping */
-	if (bebob->spec->clock->labels == saffirepro_10_clk_src_labels)
+	if (bebob->spec->clock->types == saffirepro_10_clk_src_types)
 		map = saffirepro_clk_maps[0];
 	else
 		map = saffirepro_clk_maps[1];
@@ -195,8 +201,9 @@ end:
 }
 
 struct snd_bebob_spec saffire_le_spec;
-static const char *const saffire_both_clk_src_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF"
+static enum snd_bebob_clock_type saffire_both_clk_src_types[] = {
+	SND_BEBOB_CLOCK_TYPE_INTERNAL,
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,
 };
 static int
 saffire_both_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
@@ -259,8 +266,8 @@ static struct snd_bebob_rate_spec saffirepro_both_rate_spec = {
 };
 /* Saffire Pro 26 I/O  */
 static struct snd_bebob_clock_spec saffirepro_26_clk_spec = {
-	.num	= ARRAY_SIZE(saffirepro_26_clk_src_labels),
-	.labels	= saffirepro_26_clk_src_labels,
+	.num	= ARRAY_SIZE(saffirepro_26_clk_src_types),
+	.types	= saffirepro_26_clk_src_types,
 	.get	= &saffirepro_both_clk_src_get,
 };
 struct snd_bebob_spec saffirepro_26_spec = {
@@ -270,8 +277,8 @@ struct snd_bebob_spec saffirepro_26_spec = {
 };
 /* Saffire Pro 10 I/O */
 static struct snd_bebob_clock_spec saffirepro_10_clk_spec = {
-	.num	= ARRAY_SIZE(saffirepro_10_clk_src_labels),
-	.labels	= saffirepro_10_clk_src_labels,
+	.num	= ARRAY_SIZE(saffirepro_10_clk_src_types),
+	.types	= saffirepro_10_clk_src_types,
 	.get	= &saffirepro_both_clk_src_get,
 };
 struct snd_bebob_spec saffirepro_10_spec = {
@@ -285,8 +292,8 @@ static struct snd_bebob_rate_spec saffire_both_rate_spec = {
 	.set	= &snd_bebob_stream_set_rate,
 };
 static struct snd_bebob_clock_spec saffire_both_clk_spec = {
-	.num	= ARRAY_SIZE(saffire_both_clk_src_labels),
-	.labels	= saffire_both_clk_src_labels,
+	.num	= ARRAY_SIZE(saffire_both_clk_src_types),
+	.types	= saffire_both_clk_src_types,
 	.get	= &saffire_both_clk_src_get,
 };
 /* Saffire LE */

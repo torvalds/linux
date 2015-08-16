@@ -59,7 +59,6 @@
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
-#include "clock.h"
 #include "devices.h"
 
 static unsigned long tosa_pin_config[] = {

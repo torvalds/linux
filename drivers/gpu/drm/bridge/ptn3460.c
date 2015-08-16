@@ -15,6 +15,7 @@
 
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -23,10 +24,9 @@
 
 #include <drm/drm_panel.h>
 
-#include "bridge/ptn3460.h"
-
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
+#include "drm_atomic_helper.h"
 #include "drm_edid.h"
 #include "drmP.h"
 
@@ -259,10 +259,13 @@ static void ptn3460_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs ptn3460_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = ptn3460_detect,
 	.destroy = ptn3460_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int ptn3460_bridge_attach(struct drm_bridge *bridge)
@@ -330,32 +333,23 @@ static int ptn3460_probe(struct i2c_client *client,
 
 	ptn_bridge->client = client;
 
-	ptn_bridge->gpio_pd_n = devm_gpiod_get(&client->dev, "powerdown");
+	ptn_bridge->gpio_pd_n = devm_gpiod_get(&client->dev, "powerdown",
+					       GPIOD_OUT_HIGH);
 	if (IS_ERR(ptn_bridge->gpio_pd_n)) {
 		ret = PTR_ERR(ptn_bridge->gpio_pd_n);
 		dev_err(dev, "cannot get gpio_pd_n %d\n", ret);
 		return ret;
 	}
 
-	ret = gpiod_direction_output(ptn_bridge->gpio_pd_n, 1);
-	if (ret) {
-		DRM_ERROR("cannot configure gpio_pd_n\n");
-		return ret;
-	}
-
-	ptn_bridge->gpio_rst_n = devm_gpiod_get(&client->dev, "reset");
-	if (IS_ERR(ptn_bridge->gpio_rst_n)) {
-		ret = PTR_ERR(ptn_bridge->gpio_rst_n);
-		DRM_ERROR("cannot get gpio_rst_n %d\n", ret);
-		return ret;
-	}
 	/*
 	 * Request the reset pin low to avoid the bridge being
 	 * initialized prematurely
 	 */
-	ret = gpiod_direction_output(ptn_bridge->gpio_rst_n, 0);
-	if (ret) {
-		DRM_ERROR("cannot configure gpio_rst_n\n");
+	ptn_bridge->gpio_rst_n = devm_gpiod_get(&client->dev, "reset",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(ptn_bridge->gpio_rst_n)) {
+		ret = PTR_ERR(ptn_bridge->gpio_rst_n);
+		DRM_ERROR("cannot get gpio_rst_n %d\n", ret);
 		return ret;
 	}
 
@@ -389,7 +383,7 @@ static int ptn3460_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ptn3460_i2c_table[] = {
-	{"nxp,ptn3460", 0},
+	{"ptn3460", 0},
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, ptn3460_i2c_table);

@@ -83,12 +83,12 @@ config UGETH_TX_ON_DEMAND
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
-	depends on FSL_SOC
 	select FSL_PQ_MDIO
 	select PHYLIB
 	select CRC32
 	---help---
 	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
-	  and MPC86xx family of chips, and the FEC on the 8540.
+	  and MPC86xx family of chips, the eTSEC on LS1021A and the FEC
+	  on the 8540.
 
 endif # NET_VENDOR_FREESCALE

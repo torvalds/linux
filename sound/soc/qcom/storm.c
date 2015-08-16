@@ -69,11 +69,6 @@ static struct snd_soc_dai_link storm_dai_link = {
 	.ops		= &storm_soc_ops,
 };
 
-static struct snd_soc_card storm_soc_card = {
-	.name	= "ipq806x-storm",
-	.dev	= NULL,
-};
-
 static int storm_parse_of(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link = card->dai_link;
@@ -99,14 +94,13 @@ static int storm_parse_of(struct snd_soc_card *card)
 
 static int storm_platform_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &storm_soc_card;
+	struct snd_soc_card *card;
 	int ret;
 
-	if (card->dev) {
-		dev_err(&pdev->dev, "%s() error, existing soundcard\n",
-				__func__);
-		return -ENODEV;
-	}
+	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
+	if (!card)
+		return -ENOMEM;
+
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 
@@ -128,16 +122,12 @@ static int storm_platform_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret == -EPROBE_DEFER) {
-		card->dev = NULL;
-		return ret;
-	} else if (ret) {
+	if (ret)
 		dev_err(&pdev->dev, "%s() error registering soundcard: %d\n",
 				__func__, ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
+
 }
 
 #ifdef CONFIG_OF

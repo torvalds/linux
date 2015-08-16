@@ -338,7 +338,7 @@ static int mei_txe_pm_runtime_suspend(struct device *device)
 	 * However if device is not wakeable we do not enter
 	 * D-low state and we need to keep the interrupt kicking
 	 */
-	 if (!ret && pci_dev_run_wake(pdev))
+	if (!ret && pci_dev_run_wake(pdev))
 		mei_disable_interrupts(dev);
 
 	dev_dbg(&pdev->dev, "rpm: txe: runtime suspend ret=%d\n", ret);

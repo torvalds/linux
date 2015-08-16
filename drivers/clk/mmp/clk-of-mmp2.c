@@ -30,6 +30,7 @@
 #define APBC_TWSI4	0x7c
 #define APBC_TWSI5	0x80
 #define APBC_KPC	0x18
+#define APBC_TIMER	0x24
 #define APBC_UART0	0x2c
 #define APBC_UART1	0x30
 #define APBC_UART2	0x34
@@ -98,10 +99,8 @@ static struct mmp_clk_factor_masks uart_factor_masks = {
 };
 
 static struct mmp_clk_factor_tbl uart_factor_tbl[] = {
-	{.num = 14634, .den = 2165},	/*14.745MHZ */
+	{.num = 8125, .den = 1536},	/*14.745MHZ */
 	{.num = 3521, .den = 689},	/*19.23MHZ */
-	{.num = 9679, .den = 5728},	/*58.9824MHZ */
-	{.num = 15850, .den = 9451},	/*59.429MHZ */
 };
 
 static void mmp2_pll_init(struct mmp2_clk_unit *pxa_unit)
@@ -134,6 +133,9 @@ static DEFINE_SPINLOCK(ssp2_lock);
 static DEFINE_SPINLOCK(ssp3_lock);
 static const char *ssp_parent_names[] = {"vctcxo_4", "vctcxo_2", "vctcxo", "pll1_16"};
 
+static DEFINE_SPINLOCK(timer_lock);
+static const char *timer_parent_names[] = {"clk32", "vctcxo_2", "vctcxo_4", "vctcxo"};
+
 static DEFINE_SPINLOCK(reset_lock);
 
 static struct mmp_param_mux_clk apbc_mux_clks[] = {
@@ -145,6 +147,7 @@ static struct mmp_param_mux_clk apbc_mux_clks[] = {
 	{0, "ssp1_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP1, 4, 3, 0, &ssp1_lock},
 	{0, "ssp2_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP2, 4, 3, 0, &ssp2_lock},
 	{0, "ssp3_mux", ssp_parent_names, ARRAY_SIZE(ssp_parent_names), CLK_SET_RATE_PARENT, APBC_SSP3, 4, 3, 0, &ssp3_lock},
+	{0, "timer_mux", timer_parent_names, ARRAY_SIZE(timer_parent_names), CLK_SET_RATE_PARENT, APBC_TIMER, 4, 3, 0, &timer_lock},
 };
 
 static struct mmp_param_gate_clk apbc_gate_clks[] = {
@@ -170,6 +173,7 @@ static struct mmp_param_gate_clk apbc_gate_clks[] = {
 	{MMP2_CLK_SSP1, "ssp1_clk", "ssp1_mux", CLK_SET_RATE_PARENT, APBC_SSP1, 0x7, 0x3, 0x0, 0, &ssp1_lock},
 	{MMP2_CLK_SSP2, "ssp2_clk", "ssp2_mux", CLK_SET_RATE_PARENT, APBC_SSP2, 0x7, 0x3, 0x0, 0, &ssp2_lock},
 	{MMP2_CLK_SSP3, "ssp3_clk", "ssp3_mux", CLK_SET_RATE_PARENT, APBC_SSP3, 0x7, 0x3, 0x0, 0, &ssp3_lock},
+	{MMP2_CLK_TIMER, "timer_clk", "timer_mux", CLK_SET_RATE_PARENT, APBC_TIMER, 0x7, 0x3, 0x0, 0, &timer_lock},
 };
 
 static void mmp2_apb_periph_clk_init(struct mmp2_clk_unit *pxa_unit)

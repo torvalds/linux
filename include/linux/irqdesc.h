@@ -3,9 +3,6 @@
 
 /*
  * Core internal functions to deal with irq descriptors
- *
- * This include will move to kernel/irq once we cleaned up the tree.
- * For now it's included from <linux/irq.h>
  */
 
 struct irq_affinity_notify;
@@ -90,7 +87,12 @@ struct irq_desc {
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
-#ifndef CONFIG_SPARSE_IRQ
+#ifdef CONFIG_SPARSE_IRQ
+extern void irq_lock_sparse(void);
+extern void irq_unlock_sparse(void);
+#else
+static inline void irq_lock_sparse(void) { }
+static inline void irq_unlock_sparse(void) { }
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
 
@@ -101,6 +103,11 @@ static inline struct irq_desc *irq_data_to_desc(struct irq_data *data)
 #else
 	return container_of(data, struct irq_desc, irq_data);
 #endif
+}
+
+static inline unsigned int irq_desc_get_irq(struct irq_desc *desc)
+{
+	return desc->irq_data.irq;
 }
 
 static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
@@ -186,6 +193,47 @@ __irq_set_chip_handler_name_locked(unsigned int irq, struct irq_chip *chip,
 	irq_desc_get_irq_data(desc)->chip = chip;
 	desc->handle_irq = handler;
 	desc->name = name;
+}
+
+/**
+ * irq_set_handler_locked - Set irq handler from a locked region
+ * @data:	Pointer to the irq_data structure which identifies the irq
+ * @handler:	Flow control handler function for this interrupt
+ *
+ * Sets the handler in the irq descriptor associated to @data.
+ *
+ * Must be called with irq_desc locked and valid parameters. Typical
+ * call site is the irq_set_type() callback.
+ */
+static inline void irq_set_handler_locked(struct irq_data *data,
+					  irq_flow_handler_t handler)
+{
+	struct irq_desc *desc = irq_data_to_desc(data);
+
+	desc->handle_irq = handler;
+}
+
+/**
+ * irq_set_chip_handler_name_locked - Set chip, handler and name from a locked region
+ * @data:	Pointer to the irq_data structure for which the chip is set
+ * @chip:	Pointer to the new irq chip
+ * @handler:	Flow control handler function for this interrupt
+ * @name:	Name of the interrupt
+ *
+ * Replace the irq chip at the proper hierarchy level in @data and
+ * sets the handler and name in the associated irq descriptor.
+ *
+ * Must be called with irq_desc locked and valid parameters.
+ */
+static inline void
+irq_set_chip_handler_name_locked(struct irq_data *data, struct irq_chip *chip,
+				 irq_flow_handler_t handler, const char *name)
+{
+	struct irq_desc *desc = irq_data_to_desc(data);
+
+	desc->handle_irq = handler;
+	desc->name = name;
+	data->chip = chip;
 }
 
 static inline int irq_balancing_disabled(unsigned int irq)

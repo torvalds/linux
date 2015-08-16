@@ -341,6 +341,7 @@ static int ml26124_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int i = get_coeff(priv->mclk, params_rate(hw_params));
+	int srate;
 
 	if (i < 0)
 		return i;
@@ -370,53 +371,16 @@ static int ml26124_hw_params(struct snd_pcm_substream *substream,
 				    BIT(0) | BIT(1), 0);
 	}
 
-	switch (params_rate(hw_params)) {
-	case 16000:
-		snd_soc_update_bits(codec, ML26124_SMPLING_RATE, 0xf,
-				    get_srate(params_rate(hw_params)));
-		snd_soc_update_bits(codec, ML26124_PLLNL, 0xff,
-				    coeff_div[i].pllnl);
-		snd_soc_update_bits(codec, ML26124_PLLNH, 0x1,
-				    coeff_div[i].pllnh);
-		snd_soc_update_bits(codec, ML26124_PLLML, 0xff,
-				    coeff_div[i].pllml);
-		snd_soc_update_bits(codec, ML26124_PLLMH, 0x3f,
-				    coeff_div[i].pllmh);
-		snd_soc_update_bits(codec, ML26124_PLLDIV, 0x1f,
-				    coeff_div[i].plldiv);
-		break;
-	case 32000:
-		snd_soc_update_bits(codec, ML26124_SMPLING_RATE, 0xf,
-				    get_srate(params_rate(hw_params)));
-		snd_soc_update_bits(codec, ML26124_PLLNL, 0xff,
-				    coeff_div[i].pllnl);
-		snd_soc_update_bits(codec, ML26124_PLLNH, 0x1,
-				    coeff_div[i].pllnh);
-		snd_soc_update_bits(codec, ML26124_PLLML, 0xff,
-				    coeff_div[i].pllml);
-		snd_soc_update_bits(codec, ML26124_PLLMH, 0x3f,
-				    coeff_div[i].pllmh);
-		snd_soc_update_bits(codec, ML26124_PLLDIV, 0x1f,
-				    coeff_div[i].plldiv);
-		break;
-	case 48000:
-		snd_soc_update_bits(codec, ML26124_SMPLING_RATE, 0xf,
-				    get_srate(params_rate(hw_params)));
-		snd_soc_update_bits(codec, ML26124_PLLNL, 0xff,
-				    coeff_div[i].pllnl);
-		snd_soc_update_bits(codec, ML26124_PLLNH, 0x1,
-				    coeff_div[i].pllnh);
-		snd_soc_update_bits(codec, ML26124_PLLML, 0xff,
-				    coeff_div[i].pllml);
-		snd_soc_update_bits(codec, ML26124_PLLMH, 0x3f,
-				    coeff_div[i].pllmh);
-		snd_soc_update_bits(codec, ML26124_PLLDIV, 0x1f,
-				    coeff_div[i].plldiv);
-		break;
-	default:
-		pr_err("%s:this rate is no support for ml26124\n", __func__);
-		return -EINVAL;
-	}
+	srate = get_srate(params_rate(hw_params));
+	if (srate < 0)
+		return srate;
+
+	snd_soc_update_bits(codec, ML26124_SMPLING_RATE, 0xf, srate);
+	snd_soc_update_bits(codec, ML26124_PLLNL, 0xff, coeff_div[i].pllnl);
+	snd_soc_update_bits(codec, ML26124_PLLNH, 0x1, coeff_div[i].pllnh);
+	snd_soc_update_bits(codec, ML26124_PLLML, 0xff, coeff_div[i].pllml);
+	snd_soc_update_bits(codec, ML26124_PLLMH, 0x3f, coeff_div[i].pllmh);
+	snd_soc_update_bits(codec, ML26124_PLLDIV, 0x1f, coeff_div[i].plldiv);
 
 	return 0;
 }
@@ -523,7 +487,7 @@ static int ml26124_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* VMID ON */
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_update_bits(codec, ML26124_PW_REF_PW_MNG,
 					    ML26124_VMID, ML26124_VMID);
 			msleep(500);
@@ -536,7 +500,6 @@ static int ml26124_set_bias_level(struct snd_soc_codec *codec,
 				    ML26124_VMID, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

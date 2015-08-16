@@ -48,7 +48,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/sunrpc/addr.h>
@@ -58,11 +57,6 @@
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
-
-MODULE_LICENSE("Dual BSD/GPL");
-
-MODULE_DESCRIPTION("RPC/RDMA Transport for Linux kernel NFS");
-MODULE_AUTHOR("Network Appliance, Inc.");
 
 /*
  * tunables
@@ -244,6 +238,16 @@ xprt_rdma_connect_worker(struct work_struct *work)
 
 	dprintk("RPC:       %s: exit\n", __func__);
 	xprt_clear_connecting(xprt);
+}
+
+static void
+xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
+{
+	struct rpcrdma_xprt *r_xprt = container_of(xprt, struct rpcrdma_xprt,
+						   rx_xprt);
+
+	pr_info("rpcrdma: injecting transport disconnect on xprt=%p\n", xprt);
+	rdma_disconnect(r_xprt->rx_ia.ri_id);
 }
 
 /*
@@ -618,12 +622,6 @@ xprt_rdma_send_request(struct rpc_task *task)
 	if (req->rl_reply == NULL) 		/* e.g. reconnection */
 		rpcrdma_recv_buffer_get(req);
 
-	if (req->rl_reply) {
-		req->rl_reply->rr_func = rpcrdma_reply_handler;
-		/* this need only be done once, but... */
-		req->rl_reply->rr_xprt = xprt;
-	}
-
 	/* Must suppress retransmit to maintain credits */
 	if (req->rl_connect_cookie == xprt->connect_cookie)
 		goto drop_connection;
@@ -682,6 +680,17 @@ static void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 	   r_xprt->rx_stats.bad_reply_count);
 }
 
+static int
+xprt_rdma_enable_swap(struct rpc_xprt *xprt)
+{
+	return -EINVAL;
+}
+
+static void
+xprt_rdma_disable_swap(struct rpc_xprt *xprt)
+{
+}
+
 /*
  * Plumbing for rpc transport switch and kernel module
  */
@@ -700,7 +709,10 @@ static struct rpc_xprt_ops xprt_rdma_procs = {
 	.send_request		= xprt_rdma_send_request,
 	.close			= xprt_rdma_close,
 	.destroy		= xprt_rdma_destroy,
-	.print_stats		= xprt_rdma_print_stats
+	.print_stats		= xprt_rdma_print_stats,
+	.enable_swap		= xprt_rdma_enable_swap,
+	.disable_swap		= xprt_rdma_disable_swap,
+	.inject_disconnect	= xprt_rdma_inject_disconnect
 };
 
 static struct xprt_class xprt_rdma = {
@@ -711,7 +723,7 @@ static struct xprt_class xprt_rdma = {
 	.setup			= xprt_setup_rdma,
 };
 
-static void __exit xprt_rdma_cleanup(void)
+void xprt_rdma_cleanup(void)
 {
 	int rc;
 
@@ -726,16 +738,23 @@ static void __exit xprt_rdma_cleanup(void)
 	if (rc)
 		dprintk("RPC:       %s: xprt_unregister returned %i\n",
 			__func__, rc);
+
+	frwr_destroy_recovery_wq();
 }
 
-static int __init xprt_rdma_init(void)
+int xprt_rdma_init(void)
 {
 	int rc;
 
-	rc = xprt_register_transport(&xprt_rdma);
-
+	rc = frwr_alloc_recovery_wq();
 	if (rc)
 		return rc;
+
+	rc = xprt_register_transport(&xprt_rdma);
+	if (rc) {
+		frwr_destroy_recovery_wq();
+		return rc;
+	}
 
 	dprintk("RPCRDMA Module Init, register RPC RDMA transport\n");
 
@@ -753,6 +772,3 @@ static int __init xprt_rdma_init(void)
 #endif
 	return 0;
 }
-
-module_init(xprt_rdma_init);
-module_exit(xprt_rdma_cleanup);

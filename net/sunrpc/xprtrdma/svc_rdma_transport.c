@@ -91,7 +91,7 @@ struct svc_xprt_class svc_rdma_class = {
 	.xcl_name = "rdma",
 	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_rdma_ops,
-	.xcl_max_payload = RPCSVC_MAXPAYLOAD_RDMA,
+	.xcl_max_payload = RPCRDMA_MAXPAYLOAD,
 	.xcl_ident = XPRT_TRANSPORT_RDMA,
 };
 
@@ -99,12 +99,8 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
 	struct svc_rdma_op_ctxt *ctxt;
 
-	while (1) {
-		ctxt = kmem_cache_alloc(svc_rdma_ctxt_cachep, GFP_KERNEL);
-		if (ctxt)
-			break;
-		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
-	}
+	ctxt = kmem_cache_alloc(svc_rdma_ctxt_cachep,
+				GFP_KERNEL | __GFP_NOFAIL);
 	ctxt->xprt = xprt;
 	INIT_LIST_HEAD(&ctxt->dto_q);
 	ctxt->count = 0;
@@ -156,12 +152,8 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 struct svc_rdma_req_map *svc_rdma_get_req_map(void)
 {
 	struct svc_rdma_req_map *map;
-	while (1) {
-		map = kmem_cache_alloc(svc_rdma_map_cachep, GFP_KERNEL);
-		if (map)
-			break;
-		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
-	}
+	map = kmem_cache_alloc(svc_rdma_map_cachep,
+			       GFP_KERNEL | __GFP_NOFAIL);
 	map->count = 0;
 	return map;
 }
@@ -493,18 +485,6 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	return cma_xprt;
 }
 
-struct page *svc_rdma_get_page(void)
-{
-	struct page *page;
-
-	while ((page = alloc_page(GFP_KERNEL)) == NULL) {
-		/* If we can't get memory, wait a bit and try again */
-		printk(KERN_INFO "svcrdma: out of memory...retrying in 1s\n");
-		schedule_timeout_uninterruptible(msecs_to_jiffies(1000));
-	}
-	return page;
-}
-
 int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 {
 	struct ib_recv_wr recv_wr, *bad_recv_wr;
@@ -523,7 +503,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 			pr_err("svcrdma: Too many sges (%d)\n", sge_no);
 			goto err_put_ctxt;
 		}
-		page = svc_rdma_get_page();
+		page = alloc_page(GFP_KERNEL | __GFP_NOFAIL);
 		ctxt->pages[sge_no] = page;
 		pa = ib_dma_map_page(xprt->sc_cm_id->device,
 				     page, 0, PAGE_SIZE,
@@ -1318,11 +1298,11 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	struct ib_send_wr err_wr;
 	struct page *p;
 	struct svc_rdma_op_ctxt *ctxt;
-	u32 *va;
+	__be32 *va;
 	int length;
 	int ret;
 
-	p = svc_rdma_get_page();
+	p = alloc_page(GFP_KERNEL | __GFP_NOFAIL);
 	va = page_address(p);
 
 	/* XDR encode error */

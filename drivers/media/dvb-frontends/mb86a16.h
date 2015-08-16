@@ -28,7 +28,8 @@
 struct mb86a16_config {
 	u8 demod_address;
 
-	int (*set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int (*set_voltage)(struct dvb_frontend *fe,
+			   enum fe_sec_voltage voltage);
 };
 
 

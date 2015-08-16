@@ -184,7 +184,8 @@ of open() for more details.</entry>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved[11]</structfield></entry>
-	    <entry>Reserved field for future use. Must be set to zero.</entry>
+	    <entry>Reserved field for future use. Drivers and applications must
+set the array to zero.</entry>
 	  </row>
 	</tbody>
       </tgroup>

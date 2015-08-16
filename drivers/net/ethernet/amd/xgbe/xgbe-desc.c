@@ -268,7 +268,7 @@ static int xgbe_alloc_pages(struct xgbe_prv_data *pdata,
 	int ret;
 
 	/* Try to obtain pages, decreasing order if necessary */
-	gfp |= __GFP_COLD | __GFP_COMP;
+	gfp |= __GFP_COLD | __GFP_COMP | __GFP_NOWARN;
 	while (order >= 0) {
 		pages = alloc_pages(gfp, order);
 		if (pages)
@@ -303,7 +303,8 @@ static void xgbe_set_buffer_data(struct xgbe_buffer_data *bd,
 	get_page(pa->pages);
 	bd->pa = *pa;
 
-	bd->dma = pa->pages_dma + pa->pages_offset;
+	bd->dma_base = pa->pages_dma;
+	bd->dma_off = pa->pages_offset;
 	bd->dma_len = len;
 
 	pa->pages_offset += len;

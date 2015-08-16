@@ -65,6 +65,8 @@ xfs_inobt_lookup(
 	int			*stat)	/* success/failure */
 {
 	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_holemask = 0;
+	cur->bc_rec.i.ir_count = 0;
 	cur->bc_rec.i.ir_freecount = 0;
 	cur->bc_rec.i.ir_free = 0;
 	return xfs_btree_lookup(cur, dir, stat);
@@ -82,7 +84,14 @@ xfs_inobt_update(
 	union xfs_btree_rec	rec;
 
 	rec.inobt.ir_startino = cpu_to_be32(irec->ir_startino);
-	rec.inobt.ir_freecount = cpu_to_be32(irec->ir_freecount);
+	if (xfs_sb_version_hassparseinodes(&cur->bc_mp->m_sb)) {
+		rec.inobt.ir_u.sp.ir_holemask = cpu_to_be16(irec->ir_holemask);
+		rec.inobt.ir_u.sp.ir_count = irec->ir_count;
+		rec.inobt.ir_u.sp.ir_freecount = irec->ir_freecount;
+	} else {
+		/* ir_holemask/ir_count not supported on-disk */
+		rec.inobt.ir_u.f.ir_freecount = cpu_to_be32(irec->ir_freecount);
+	}
 	rec.inobt.ir_free = cpu_to_be64(irec->ir_free);
 	return xfs_btree_update(cur, &rec);
 }
@@ -100,12 +109,27 @@ xfs_inobt_get_rec(
 	int			error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
-	if (!error && *stat == 1) {
-		irec->ir_startino = be32_to_cpu(rec->inobt.ir_startino);
-		irec->ir_freecount = be32_to_cpu(rec->inobt.ir_freecount);
-		irec->ir_free = be64_to_cpu(rec->inobt.ir_free);
+	if (error || *stat == 0)
+		return error;
+
+	irec->ir_startino = be32_to_cpu(rec->inobt.ir_startino);
+	if (xfs_sb_version_hassparseinodes(&cur->bc_mp->m_sb)) {
+		irec->ir_holemask = be16_to_cpu(rec->inobt.ir_u.sp.ir_holemask);
+		irec->ir_count = rec->inobt.ir_u.sp.ir_count;
+		irec->ir_freecount = rec->inobt.ir_u.sp.ir_freecount;
+	} else {
+		/*
+		 * ir_holemask/ir_count not supported on-disk. Fill in hardcoded
+		 * values for full inode chunks.
+		 */
+		irec->ir_holemask = XFS_INOBT_HOLEMASK_FULL;
+		irec->ir_count = XFS_INODES_PER_CHUNK;
+		irec->ir_freecount =
+				be32_to_cpu(rec->inobt.ir_u.f.ir_freecount);
 	}
-	return error;
+	irec->ir_free = be64_to_cpu(rec->inobt.ir_free);
+
+	return 0;
 }
 
 /*
@@ -114,10 +138,14 @@ xfs_inobt_get_rec(
 STATIC int
 xfs_inobt_insert_rec(
 	struct xfs_btree_cur	*cur,
+	__uint16_t		holemask,
+	__uint8_t		count,
 	__int32_t		freecount,
 	xfs_inofree_t		free,
 	int			*stat)
 {
+	cur->bc_rec.i.ir_holemask = holemask;
+	cur->bc_rec.i.ir_count = count;
 	cur->bc_rec.i.ir_freecount = freecount;
 	cur->bc_rec.i.ir_free = free;
 	return xfs_btree_insert(cur, stat);
@@ -154,7 +182,9 @@ xfs_inobt_insert(
 		}
 		ASSERT(i == 0);
 
-		error = xfs_inobt_insert_rec(cur, XFS_INODES_PER_CHUNK,
+		error = xfs_inobt_insert_rec(cur, XFS_INOBT_HOLEMASK_FULL,
+					     XFS_INODES_PER_CHUNK,
+					     XFS_INODES_PER_CHUNK,
 					     XFS_INOBT_ALL_FREE, &i);
 		if (error) {
 			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
@@ -220,6 +250,7 @@ xfs_ialloc_inode_init(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct list_head	*buffer_list,
+	int			icount,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		agbno,
 	xfs_agblock_t		length,
@@ -275,7 +306,7 @@ xfs_ialloc_inode_init(
 		 * they track in the AIL as if they were physically logged.
 		 */
 		if (tp)
-			xfs_icreate_log(tp, agno, agbno, mp->m_ialloc_inos,
+			xfs_icreate_log(tp, agno, agbno, icount,
 					mp->m_sb.sb_inodesize, length, gen);
 	} else
 		version = 2;
@@ -347,6 +378,214 @@ xfs_ialloc_inode_init(
 }
 
 /*
+ * Align startino and allocmask for a recently allocated sparse chunk such that
+ * they are fit for insertion (or merge) into the on-disk inode btrees.
+ *
+ * Background:
+ *
+ * When enabled, sparse inode support increases the inode alignment from cluster
+ * size to inode chunk size. This means that the minimum range between two
+ * non-adjacent inode records in the inobt is large enough for a full inode
+ * record. This allows for cluster sized, cluster aligned block allocation
+ * without need to worry about whether the resulting inode record overlaps with
+ * another record in the tree. Without this basic rule, we would have to deal
+ * with the consequences of overlap by potentially undoing recent allocations in
+ * the inode allocation codepath.
+ *
+ * Because of this alignment rule (which is enforced on mount), there are two
+ * inobt possibilities for newly allocated sparse chunks. One is that the
+ * aligned inode record for the chunk covers a range of inodes not already
+ * covered in the inobt (i.e., it is safe to insert a new sparse record). The
+ * other is that a record already exists at the aligned startino that considers
+ * the newly allocated range as sparse. In the latter case, record content is
+ * merged in hope that sparse inode chunks fill to full chunks over time.
+ */
+STATIC void
+xfs_align_sparse_ino(
+	struct xfs_mount		*mp,
+	xfs_agino_t			*startino,
+	uint16_t			*allocmask)
+{
+	xfs_agblock_t			agbno;
+	xfs_agblock_t			mod;
+	int				offset;
+
+	agbno = XFS_AGINO_TO_AGBNO(mp, *startino);
+	mod = agbno % mp->m_sb.sb_inoalignmt;
+	if (!mod)
+		return;
+
+	/* calculate the inode offset and align startino */
+	offset = mod << mp->m_sb.sb_inopblog;
+	*startino -= offset;
+
+	/*
+	 * Since startino has been aligned down, left shift allocmask such that
+	 * it continues to represent the same physical inodes relative to the
+	 * new startino.
+	 */
+	*allocmask <<= offset / XFS_INODES_PER_HOLEMASK_BIT;
+}
+
+/*
+ * Determine whether the source inode record can merge into the target. Both
+ * records must be sparse, the inode ranges must match and there must be no
+ * allocation overlap between the records.
+ */
+STATIC bool
+__xfs_inobt_can_merge(
+	struct xfs_inobt_rec_incore	*trec,	/* tgt record */
+	struct xfs_inobt_rec_incore	*srec)	/* src record */
+{
+	uint64_t			talloc;
+	uint64_t			salloc;
+
+	/* records must cover the same inode range */
+	if (trec->ir_startino != srec->ir_startino)
+		return false;
+
+	/* both records must be sparse */
+	if (!xfs_inobt_issparse(trec->ir_holemask) ||
+	    !xfs_inobt_issparse(srec->ir_holemask))
+		return false;
+
+	/* both records must track some inodes */
+	if (!trec->ir_count || !srec->ir_count)
+		return false;
+
+	/* can't exceed capacity of a full record */
+	if (trec->ir_count + srec->ir_count > XFS_INODES_PER_CHUNK)
+		return false;
+
+	/* verify there is no allocation overlap */
+	talloc = xfs_inobt_irec_to_allocmask(trec);
+	salloc = xfs_inobt_irec_to_allocmask(srec);
+	if (talloc & salloc)
+		return false;
+
+	return true;
+}
+
+/*
+ * Merge the source inode record into the target. The caller must call
+ * __xfs_inobt_can_merge() to ensure the merge is valid.
+ */
+STATIC void
+__xfs_inobt_rec_merge(
+	struct xfs_inobt_rec_incore	*trec,	/* target */
+	struct xfs_inobt_rec_incore	*srec)	/* src */
+{
+	ASSERT(trec->ir_startino == srec->ir_startino);
+
+	/* combine the counts */
+	trec->ir_count += srec->ir_count;
+	trec->ir_freecount += srec->ir_freecount;
+
+	/*
+	 * Merge the holemask and free mask. For both fields, 0 bits refer to
+	 * allocated inodes. We combine the allocated ranges with bitwise AND.
+	 */
+	trec->ir_holemask &= srec->ir_holemask;
+	trec->ir_free &= srec->ir_free;
+}
+
+/*
+ * Insert a new sparse inode chunk into the associated inode btree. The inode
+ * record for the sparse chunk is pre-aligned to a startino that should match
+ * any pre-existing sparse inode record in the tree. This allows sparse chunks
+ * to fill over time.
+ *
+ * This function supports two modes of handling preexisting records depending on
+ * the merge flag. If merge is true, the provided record is merged with the
+ * existing record and updated in place. The merged record is returned in nrec.
+ * If merge is false, an existing record is replaced with the provided record.
+ * If no preexisting record exists, the provided record is always inserted.
+ *
+ * It is considered corruption if a merge is requested and not possible. Given
+ * the sparse inode alignment constraints, this should never happen.
+ */
+STATIC int
+xfs_inobt_insert_sprec(
+	struct xfs_mount		*mp,
+	struct xfs_trans		*tp,
+	struct xfs_buf			*agbp,
+	int				btnum,
+	struct xfs_inobt_rec_incore	*nrec,	/* in/out: new/merged rec. */
+	bool				merge)	/* merge or replace */
+{
+	struct xfs_btree_cur		*cur;
+	struct xfs_agi			*agi = XFS_BUF_TO_AGI(agbp);
+	xfs_agnumber_t			agno = be32_to_cpu(agi->agi_seqno);
+	int				error;
+	int				i;
+	struct xfs_inobt_rec_incore	rec;
+
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno, btnum);
+
+	/* the new record is pre-aligned so we know where to look */
+	error = xfs_inobt_lookup(cur, nrec->ir_startino, XFS_LOOKUP_EQ, &i);
+	if (error)
+		goto error;
+	/* if nothing there, insert a new record and return */
+	if (i == 0) {
+		error = xfs_inobt_insert_rec(cur, nrec->ir_holemask,
+					     nrec->ir_count, nrec->ir_freecount,
+					     nrec->ir_free, &i);
+		if (error)
+			goto error;
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error);
+
+		goto out;
+	}
+
+	/*
+	 * A record exists at this startino. Merge or replace the record
+	 * depending on what we've been asked to do.
+	 */
+	if (merge) {
+		error = xfs_inobt_get_rec(cur, &rec, &i);
+		if (error)
+			goto error;
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error);
+		XFS_WANT_CORRUPTED_GOTO(mp,
+					rec.ir_startino == nrec->ir_startino,
+					error);
+
+		/*
+		 * This should never fail. If we have coexisting records that
+		 * cannot merge, something is seriously wrong.
+		 */
+		XFS_WANT_CORRUPTED_GOTO(mp, __xfs_inobt_can_merge(nrec, &rec),
+					error);
+
+		trace_xfs_irec_merge_pre(mp, agno, rec.ir_startino,
+					 rec.ir_holemask, nrec->ir_startino,
+					 nrec->ir_holemask);
+
+		/* merge to nrec to output the updated record */
+		__xfs_inobt_rec_merge(nrec, &rec);
+
+		trace_xfs_irec_merge_post(mp, agno, nrec->ir_startino,
+					  nrec->ir_holemask);
+
+		error = xfs_inobt_rec_check_count(mp, nrec);
+		if (error)
+			goto error;
+	}
+
+	error = xfs_inobt_update(cur, nrec);
+	if (error)
+		goto error;
+
+out:
+	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
+	return 0;
+error:
+	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+	return error;
+}
+
+/*
  * Allocate new inodes in the allocation group specified by agbp.
  * Return 0 for success, else error code.
  */
@@ -364,11 +603,22 @@ xfs_ialloc_ag_alloc(
 	xfs_agino_t	newlen;		/* new number of inodes */
 	int		isaligned = 0;	/* inode allocation at stripe unit */
 					/* boundary */
+	uint16_t	allocmask = (uint16_t) -1; /* init. to full chunk */
+	struct xfs_inobt_rec_incore rec;
 	struct xfs_perag *pag;
+	int		do_sparse = 0;
 
 	memset(&args, 0, sizeof(args));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
+	args.fsbno = NULLFSBLOCK;
+
+#ifdef DEBUG
+	/* randomly do sparse inode allocations */
+	if (xfs_sb_version_hassparseinodes(&tp->t_mountp->m_sb) &&
+	    args.mp->m_ialloc_min_blks < args.mp->m_ialloc_blks)
+		do_sparse = prandom_u32() & 1;
+#endif
 
 	/*
 	 * Locking will ensure that we don't have two callers in here
@@ -390,6 +640,8 @@ xfs_ialloc_ag_alloc(
 	agno = be32_to_cpu(agi->agi_seqno);
 	args.agbno = XFS_AGINO_TO_AGBNO(args.mp, newino) +
 		     args.mp->m_ialloc_blks;
+	if (do_sparse)
+		goto sparse_alloc;
 	if (likely(newino != NULLAGINO &&
 		  (args.agbno < be32_to_cpu(agi->agi_length)))) {
 		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
@@ -428,8 +680,7 @@ xfs_ialloc_ag_alloc(
 		 * subsequent requests.
 		 */
 		args.minalignslop = 0;
-	} else
-		args.fsbno = NULLFSBLOCK;
+	}
 
 	if (unlikely(args.fsbno == NULLFSBLOCK)) {
 		/*
@@ -480,6 +731,47 @@ xfs_ialloc_ag_alloc(
 			return error;
 	}
 
+	/*
+	 * Finally, try a sparse allocation if the filesystem supports it and
+	 * the sparse allocation length is smaller than a full chunk.
+	 */
+	if (xfs_sb_version_hassparseinodes(&args.mp->m_sb) &&
+	    args.mp->m_ialloc_min_blks < args.mp->m_ialloc_blks &&
+	    args.fsbno == NULLFSBLOCK) {
+sparse_alloc:
+		args.type = XFS_ALLOCTYPE_NEAR_BNO;
+		args.agbno = be32_to_cpu(agi->agi_root);
+		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
+		args.alignment = args.mp->m_sb.sb_spino_align;
+		args.prod = 1;
+
+		args.minlen = args.mp->m_ialloc_min_blks;
+		args.maxlen = args.minlen;
+
+		/*
+		 * The inode record will be aligned to full chunk size. We must
+		 * prevent sparse allocation from AG boundaries that result in
+		 * invalid inode records, such as records that start at agbno 0
+		 * or extend beyond the AG.
+		 *
+		 * Set min agbno to the first aligned, non-zero agbno and max to
+		 * the last aligned agbno that is at least one full chunk from
+		 * the end of the AG.
+		 */
+		args.min_agbno = args.mp->m_sb.sb_inoalignmt;
+		args.max_agbno = round_down(args.mp->m_sb.sb_agblocks,
+					    args.mp->m_sb.sb_inoalignmt) -
+				 args.mp->m_ialloc_blks;
+
+		error = xfs_alloc_vextent(&args);
+		if (error)
+			return error;
+
+		newlen = args.len << args.mp->m_sb.sb_inopblog;
+		ASSERT(newlen <= XFS_INODES_PER_CHUNK);
+		allocmask = (1 << (newlen / XFS_INODES_PER_HOLEMASK_BIT)) - 1;
+	}
+
 	if (args.fsbno == NULLFSBLOCK) {
 		*alloc = 0;
 		return 0;
@@ -495,8 +787,8 @@ xfs_ialloc_ag_alloc(
 	 * rather than a linear progression to prevent the next generation
 	 * number from being easily guessable.
 	 */
-	error = xfs_ialloc_inode_init(args.mp, tp, NULL, agno, args.agbno,
-			args.len, prandom_u32());
+	error = xfs_ialloc_inode_init(args.mp, tp, NULL, newlen, agno,
+			args.agbno, args.len, prandom_u32());
 
 	if (error)
 		return error;
@@ -504,6 +796,73 @@ xfs_ialloc_ag_alloc(
 	 * Convert the results.
 	 */
 	newino = XFS_OFFBNO_TO_AGINO(args.mp, args.agbno, 0);
+
+	if (xfs_inobt_issparse(~allocmask)) {
+		/*
+		 * We've allocated a sparse chunk. Align the startino and mask.
+		 */
+		xfs_align_sparse_ino(args.mp, &newino, &allocmask);
+
+		rec.ir_startino = newino;
+		rec.ir_holemask = ~allocmask;
+		rec.ir_count = newlen;
+		rec.ir_freecount = newlen;
+		rec.ir_free = XFS_INOBT_ALL_FREE;
+
+		/*
+		 * Insert the sparse record into the inobt and allow for a merge
+		 * if necessary. If a merge does occur, rec is updated to the
+		 * merged record.
+		 */
+		error = xfs_inobt_insert_sprec(args.mp, tp, agbp, XFS_BTNUM_INO,
+					       &rec, true);
+		if (error == -EFSCORRUPTED) {
+			xfs_alert(args.mp,
+	"invalid sparse inode record: ino 0x%llx holemask 0x%x count %u",
+				  XFS_AGINO_TO_INO(args.mp, agno,
+						   rec.ir_startino),
+				  rec.ir_holemask, rec.ir_count);
+			xfs_force_shutdown(args.mp, SHUTDOWN_CORRUPT_INCORE);
+		}
+		if (error)
+			return error;
+
+		/*
+		 * We can't merge the part we've just allocated as for the inobt
+		 * due to finobt semantics. The original record may or may not
+		 * exist independent of whether physical inodes exist in this
+		 * sparse chunk.
+		 *
+		 * We must update the finobt record based on the inobt record.
+		 * rec contains the fully merged and up to date inobt record
+		 * from the previous call. Set merge false to replace any
+		 * existing record with this one.
+		 */
+		if (xfs_sb_version_hasfinobt(&args.mp->m_sb)) {
+			error = xfs_inobt_insert_sprec(args.mp, tp, agbp,
+						       XFS_BTNUM_FINO, &rec,
+						       false);
+			if (error)
+				return error;
+		}
+	} else {
+		/* full chunk - insert new records to both btrees */
+		error = xfs_inobt_insert(args.mp, tp, agbp, newino, newlen,
+					 XFS_BTNUM_INO);
+		if (error)
+			return error;
+
+		if (xfs_sb_version_hasfinobt(&args.mp->m_sb)) {
+			error = xfs_inobt_insert(args.mp, tp, agbp, newino,
+						 newlen, XFS_BTNUM_FINO);
+			if (error)
+				return error;
+		}
+	}
+
+	/*
+	 * Update AGI counts and newino.
+	 */
 	be32_add_cpu(&agi->agi_count, newlen);
 	be32_add_cpu(&agi->agi_freecount, newlen);
 	pag = xfs_perag_get(args.mp, agno);
@@ -511,20 +870,6 @@ xfs_ialloc_ag_alloc(
 	xfs_perag_put(pag);
 	agi->agi_newino = cpu_to_be32(newino);
 
-	/*
-	 * Insert records describing the new inode chunk into the btrees.
-	 */
-	error = xfs_inobt_insert(args.mp, tp, agbp, newino, newlen,
-				 XFS_BTNUM_INO);
-	if (error)
-		return error;
-
-	if (xfs_sb_version_hasfinobt(&args.mp->m_sb)) {
-		error = xfs_inobt_insert(args.mp, tp, agbp, newino, newlen,
-					 XFS_BTNUM_FINO);
-		if (error)
-			return error;
-	}
 	/*
 	 * Log allocation group header fields
 	 */
@@ -645,7 +990,7 @@ xfs_ialloc_ag_select(
 		 * if we fail allocation due to alignment issues then it is most
 		 * likely a real ENOSPC condition.
 		 */
-		ineed = mp->m_ialloc_blks;
+		ineed = mp->m_ialloc_min_blks;
 		if (flags && ineed > 1)
 			ineed += xfs_ialloc_cluster_alignment(mp);
 		longest = pag->pagf_longest;
@@ -729,6 +1074,27 @@ xfs_ialloc_get_rec(
 	}
 
 	return 0;
+}
+
+/*
+ * Return the offset of the first free inode in the record. If the inode chunk
+ * is sparsely allocated, we convert the record holemask to inode granularity
+ * and mask off the unallocated regions from the inode free mask.
+ */
+STATIC int
+xfs_inobt_first_free_inode(
+	struct xfs_inobt_rec_incore	*rec)
+{
+	xfs_inofree_t			realfree;
+
+	/* if there are no holes, return the first available offset */
+	if (!xfs_inobt_issparse(rec->ir_holemask))
+		return xfs_lowbit64(rec->ir_free);
+
+	realfree = xfs_inobt_irec_to_allocmask(rec);
+	realfree &= rec->ir_free;
+
+	return xfs_lowbit64(realfree);
 }
 
 /*
@@ -961,7 +1327,7 @@ newino:
 	}
 
 alloc_inode:
-	offset = xfs_lowbit64(rec.ir_free);
+	offset = xfs_inobt_first_free_inode(&rec);
 	ASSERT(offset >= 0);
 	ASSERT(offset < XFS_INODES_PER_CHUNK);
 	ASSERT((XFS_AGINO_TO_OFFSET(mp, rec.ir_startino) %
@@ -1210,7 +1576,7 @@ xfs_dialloc_ag(
 	if (error)
 		goto error_cur;
 
-	offset = xfs_lowbit64(rec.ir_free);
+	offset = xfs_inobt_first_free_inode(&rec);
 	ASSERT(offset >= 0);
 	ASSERT(offset < XFS_INODES_PER_CHUNK);
 	ASSERT((XFS_AGINO_TO_OFFSET(mp, rec.ir_startino) %
@@ -1439,6 +1805,83 @@ out_error:
 	return error;
 }
 
+/*
+ * Free the blocks of an inode chunk. We must consider that the inode chunk
+ * might be sparse and only free the regions that are allocated as part of the
+ * chunk.
+ */
+STATIC void
+xfs_difree_inode_chunk(
+	struct xfs_mount		*mp,
+	xfs_agnumber_t			agno,
+	struct xfs_inobt_rec_incore	*rec,
+	struct xfs_bmap_free		*flist)
+{
+	xfs_agblock_t	sagbno = XFS_AGINO_TO_AGBNO(mp, rec->ir_startino);
+	int		startidx, endidx;
+	int		nextbit;
+	xfs_agblock_t	agbno;
+	int		contigblk;
+	DECLARE_BITMAP(holemask, XFS_INOBT_HOLEMASK_BITS);
+
+	if (!xfs_inobt_issparse(rec->ir_holemask)) {
+		/* not sparse, calculate extent info directly */
+		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno,
+				  XFS_AGINO_TO_AGBNO(mp, rec->ir_startino)),
+				  mp->m_ialloc_blks, flist, mp);
+		return;
+	}
+
+	/* holemask is only 16-bits (fits in an unsigned long) */
+	ASSERT(sizeof(rec->ir_holemask) <= sizeof(holemask[0]));
+	holemask[0] = rec->ir_holemask;
+
+	/*
+	 * Find contiguous ranges of zeroes (i.e., allocated regions) in the
+	 * holemask and convert the start/end index of each range to an extent.
+	 * We start with the start and end index both pointing at the first 0 in
+	 * the mask.
+	 */
+	startidx = endidx = find_first_zero_bit(holemask,
+						XFS_INOBT_HOLEMASK_BITS);
+	nextbit = startidx + 1;
+	while (startidx < XFS_INOBT_HOLEMASK_BITS) {
+		nextbit = find_next_zero_bit(holemask, XFS_INOBT_HOLEMASK_BITS,
+					     nextbit);
+		/*
+		 * If the next zero bit is contiguous, update the end index of
+		 * the current range and continue.
+		 */
+		if (nextbit != XFS_INOBT_HOLEMASK_BITS &&
+		    nextbit == endidx + 1) {
+			endidx = nextbit;
+			goto next;
+		}
+
+		/*
+		 * nextbit is not contiguous with the current end index. Convert
+		 * the current start/end to an extent and add it to the free
+		 * list.
+		 */
+		agbno = sagbno + (startidx * XFS_INODES_PER_HOLEMASK_BIT) /
+				  mp->m_sb.sb_inopblock;
+		contigblk = ((endidx - startidx + 1) *
+			     XFS_INODES_PER_HOLEMASK_BIT) /
+			    mp->m_sb.sb_inopblock;
+
+		ASSERT(agbno % mp->m_sb.sb_spino_align == 0);
+		ASSERT(contigblk % mp->m_sb.sb_spino_align == 0);
+		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno, agbno), contigblk,
+				  flist, mp);
+
+		/* reset range to current bit and carry on... */
+		startidx = endidx = nextbit;
+
+next:
+		nextbit++;
+	}
+}
+
 STATIC int
 xfs_difree_inobt(
 	struct xfs_mount		*mp,
@@ -1446,8 +1889,7 @@ xfs_difree_inobt(
 	struct xfs_buf			*agbp,
 	xfs_agino_t			agino,
 	struct xfs_bmap_free		*flist,
-	int				*deleted,
-	xfs_ino_t			*first_ino,
+	struct xfs_icluster		*xic,
 	struct xfs_inobt_rec_incore	*orec)
 {
 	struct xfs_agi			*agi = XFS_BUF_TO_AGI(agbp);
@@ -1501,20 +1943,23 @@ xfs_difree_inobt(
 	rec.ir_freecount++;
 
 	/*
-	 * When an inode cluster is free, it becomes eligible for removal
+	 * When an inode chunk is free, it becomes eligible for removal. Don't
+	 * remove the chunk if the block size is large enough for multiple inode
+	 * chunks (that might not be free).
 	 */
 	if (!(mp->m_flags & XFS_MOUNT_IKEEP) &&
-	    (rec.ir_freecount == mp->m_ialloc_inos)) {
-
-		*deleted = 1;
-		*first_ino = XFS_AGINO_TO_INO(mp, agno, rec.ir_startino);
+	    rec.ir_free == XFS_INOBT_ALL_FREE &&
+	    mp->m_sb.sb_inopblock <= XFS_INODES_PER_CHUNK) {
+		xic->deleted = 1;
+		xic->first_ino = XFS_AGINO_TO_INO(mp, agno, rec.ir_startino);
+		xic->alloc = xfs_inobt_irec_to_allocmask(&rec);
 
 		/*
 		 * Remove the inode cluster from the AGI B+Tree, adjust the
 		 * AGI and Superblock inode counts, and mark the disk space
 		 * to be freed when the transaction is committed.
 		 */
-		ilen = mp->m_ialloc_inos;
+		ilen = rec.ir_freecount;
 		be32_add_cpu(&agi->agi_count, -ilen);
 		be32_add_cpu(&agi->agi_freecount, -(ilen - 1));
 		xfs_ialloc_log_agi(tp, agbp, XFS_AGI_COUNT | XFS_AGI_FREECOUNT);
@@ -1530,11 +1975,9 @@ xfs_difree_inobt(
 			goto error0;
 		}
 
-		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno,
-				  XFS_AGINO_TO_AGBNO(mp, rec.ir_startino)),
-				  mp->m_ialloc_blks, flist, mp);
+		xfs_difree_inode_chunk(mp, agno, &rec, flist);
 	} else {
-		*deleted = 0;
+		xic->deleted = 0;
 
 		error = xfs_inobt_update(cur, &rec);
 		if (error) {
@@ -1599,7 +2042,9 @@ xfs_difree_finobt(
 		 */
 		XFS_WANT_CORRUPTED_GOTO(mp, ibtrec->ir_freecount == 1, error);
 
-		error = xfs_inobt_insert_rec(cur, ibtrec->ir_freecount,
+		error = xfs_inobt_insert_rec(cur, ibtrec->ir_holemask,
+					     ibtrec->ir_count,
+					     ibtrec->ir_freecount,
 					     ibtrec->ir_free, &i);
 		if (error)
 			goto error;
@@ -1634,8 +2079,13 @@ xfs_difree_finobt(
 	 * free inode. Hence, if all of the inodes are free and we aren't
 	 * keeping inode chunks permanently on disk, remove the record.
 	 * Otherwise, update the record with the new information.
+	 *
+	 * Note that we currently can't free chunks when the block size is large
+	 * enough for multiple chunks. Leave the finobt record to remain in sync
+	 * with the inobt.
 	 */
-	if (rec.ir_freecount == mp->m_ialloc_inos &&
+	if (rec.ir_free == XFS_INOBT_ALL_FREE &&
+	    mp->m_sb.sb_inopblock <= XFS_INODES_PER_CHUNK &&
 	    !(mp->m_flags & XFS_MOUNT_IKEEP)) {
 		error = xfs_btree_delete(cur, &i);
 		if (error)
@@ -1671,8 +2121,7 @@ xfs_difree(
 	struct xfs_trans	*tp,		/* transaction pointer */
 	xfs_ino_t		inode,		/* inode to be freed */
 	struct xfs_bmap_free	*flist,		/* extents to free */
-	int			*deleted,/* set if inode cluster was deleted */
-	xfs_ino_t		*first_ino)/* first inode in deleted cluster */
+	struct xfs_icluster	*xic)	/* cluster info if deleted */
 {
 	/* REFERENCED */
 	xfs_agblock_t		agbno;	/* block number containing inode */
@@ -1723,8 +2172,7 @@ xfs_difree(
 	/*
 	 * Fix up the inode allocation btree.
 	 */
-	error = xfs_difree_inobt(mp, tp, agbp, agino, flist, deleted, first_ino,
-				 &rec);
+	error = xfs_difree_inobt(mp, tp, agbp, agino, flist, xic, &rec);
 	if (error)
 		goto error0;
 

@@ -5,6 +5,7 @@ source "lib/Kconfig.debug"
 config ARM_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
+	depends on MMU
 	select DEBUG_FS
 	---help---
 	  Say Y here if you want to show the kernel pagetable layout in a
@@ -410,6 +411,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6SX.
 
+	config DEBUG_IMX7D_UART
+		bool "i.MX7D Debug UART"
+		depends on SOC_IMX7D
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX7D.
+
 	config DEBUG_KEYSTONE_UART0
 		bool "Kernel low-level debugging on KEYSTONE2 using UART0"
 		depends on ARCH_KEYSTONE
@@ -432,6 +440,14 @@ choice
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on KS8695.
+
+	config DEBUG_LPC18XX_UART0
+		bool "Kernel low-level debugging via LPC18xx/43xx UART0"
+		depends on ARCH_LPC18XX
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on NXP LPC18xx/43xx UART0.
 
 	config DEBUG_MESON_UARTAO
 		bool "Kernel low-level debugging via Meson6 UARTAO"
@@ -908,13 +924,22 @@ choice
 		  on SA-11x0 UART ports. The kernel will check for the first
 		  enabled UART in a sequence 3-1-2.
 
-	config DEBUG_SOCFPGA_UART
+	config DEBUG_SOCFPGA_UART0
 		depends on ARCH_SOCFPGA
-		bool "Use SOCFPGA UART for low-level debug"
+		bool "Use SOCFPGA UART0 for low-level debug"
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on SOCFPGA based platforms.
+		  on SOCFPGA(Cyclone 5 and Arria 5) based platforms.
+
+	config DEBUG_SOCFPGA_UART1
+		depends on ARCH_SOCFPGA
+		bool "Use SOCFPGA UART1 for low-level debug"
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on SOCFPGA(Arria 10) based platforms.
+
 
 	config DEBUG_SUN9I_UART0
 		bool "Kernel low-level debugging messages via sun9i UART0"
@@ -1157,6 +1182,18 @@ choice
 		  For more details about semihosting, please see
 		  chapter 8 of DUI0203I_rvct_developer_guide.pdf from ARM Ltd.
 
+	config DEBUG_ZTE_ZX
+		bool "Use ZTE ZX UART"
+		select DEBUG_UART_PL01X
+		depends on ARCH_ZX
+		help
+		  Say Y here if you are enabling ZTE ZX296702 SOC and need
+		  debug uart support.
+
+		  This option is preferred over the platform specific
+		  options; the platform specific options are deprecated
+		  and will be soon removed.
+
 	config DEBUG_LL_UART_8250
 		bool "Kernel low-level debugging via 8250 UART"
 		help
@@ -1231,7 +1268,8 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART || \
 						DEBUG_IMX6SL_UART || \
-						DEBUG_IMX6SX_UART
+						DEBUG_IMX6SX_UART || \
+						DEBUG_IMX7D_UART
 	default 1
 	depends on ARCH_MXC
 	help
@@ -1281,7 +1319,8 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART || \
 				 DEBUG_IMX6SL_UART || \
-				 DEBUG_IMX6SX_UART
+				 DEBUG_IMX6SX_UART || \
+				 DEBUG_IMX7D_UART
 	default "debug/ks8695.S" if DEBUG_KS8695_UART
 	default "debug/msm.S" if DEBUG_QCOM_UARTDM
 	default "debug/netx.S" if DEBUG_NETX_UART
@@ -1337,6 +1376,7 @@ config DEBUG_UART_PHYS
 	default 0x02531000 if DEBUG_KEYSTONE_UART1
 	default 0x03010fe0 if ARCH_RPC
 	default 0x07000000 if DEBUG_SUN9I_UART0
+	default 0x09405000 if DEBUG_ZTE_ZX
 	default 0x10009000 if DEBUG_REALVIEW_STD_PORT || \
 				DEBUG_VEXPRESS_UART0_CA9
 	default 0x1010c000 if DEBUG_REALVIEW_PB1176_PORT
@@ -1359,6 +1399,7 @@ config DEBUG_UART_PHYS
 	default 0x20201000 if DEBUG_BCM2835
 	default 0x3e000000 if DEBUG_BCM_KONA_UART
 	default 0x4000e400 if DEBUG_LL_UART_EFM32
+	default 0x40081000 if DEBUG_LPC18XX_UART0
 	default 0x40090000 if ARCH_LPC32XX
 	default 0x40100000 if DEBUG_PXA_UART1
 	default 0x42000000 if ARCH_GEMINI
@@ -1407,7 +1448,8 @@ config DEBUG_UART_PHYS
 	default 0xfd883000 if DEBUG_ALPINE_UART0
 	default 0xfe800000 if ARCH_IOP32X
 	default 0xff690000 if DEBUG_RK32_UART2
-	default 0xffc02000 if DEBUG_SOCFPGA_UART
+	default 0xffc02000 if DEBUG_SOCFPGA_UART0
+	default 0xffc02100 if DEBUG_SOCFPGA_UART1
 	default 0xffd82340 if ARCH_IOP13XX
 	default 0xffe40000 if DEBUG_RCAR_GEN1_SCIF0
 	default 0xffe42000 if DEBUG_RCAR_GEN1_SCIF2
@@ -1466,6 +1508,7 @@ config DEBUG_UART_VIRT
 	default 0xfb009000 if DEBUG_REALVIEW_STD_PORT
 	default 0xfb10c000 if DEBUG_REALVIEW_PB1176_PORT
 	default 0xfc40ab00 if DEBUG_BRCMSTB_UART
+	default 0xfc705000 if DEBUG_ZTE_ZX
 	default 0xfcfe8600 if DEBUG_UART_BCM63XX
 	default 0xfd000000 if ARCH_SPEAR3XX || ARCH_SPEAR6XX
 	default 0xfd000000 if ARCH_SPEAR13XX
@@ -1485,7 +1528,8 @@ config DEBUG_UART_VIRT
 	default 0xfeb26000 if DEBUG_RK3X_UART1
 	default 0xfeb30c00 if DEBUG_KEYSTONE_UART0
 	default 0xfeb31000 if DEBUG_KEYSTONE_UART1
-	default 0xfec02000 if DEBUG_SOCFPGA_UART
+	default 0xfec02000 if DEBUG_SOCFPGA_UART0
+	default 0xfec02100 if DEBUG_SOCFPGA_UART1
 	default 0xfec12000 if DEBUG_MVEBU_UART0 || DEBUG_MVEBU_UART0_ALTERNATE
 	default 0xfec12100 if DEBUG_MVEBU_UART1_ALTERNATE
 	default 0xfec10000 if DEBUG_SIRFATLAS7_UART0
@@ -1530,8 +1574,9 @@ config DEBUG_UART_8250_WORD
 	bool "Use 32-bit accesses for 8250 UART"
 	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	depends on DEBUG_UART_8250_SHIFT >= 2
-	default y if DEBUG_PICOXCELL_UART || DEBUG_SOCFPGA_UART || \
-		ARCH_KEYSTONE || DEBUG_ALPINE_UART0 || \
+	default y if DEBUG_PICOXCELL_UART || DEBUG_SOCFPGA_UART0 || \
+		DEBUG_SOCFPGA_UART1 || ARCH_KEYSTONE || \
+		DEBUG_ALPINE_UART0 || \
 		DEBUG_DAVINCI_DMx_UART0 || DEBUG_DAVINCI_DA8XX_UART1 || \
 		DEBUG_DAVINCI_DA8XX_UART2 || \
 		DEBUG_BCM_KONA_UART || DEBUG_RK32_UART2 || \
@@ -1544,7 +1589,7 @@ config DEBUG_UART_8250_FLOW_CONTROL
 
 config DEBUG_UNCOMPRESS
 	bool
-	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG
+	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
 	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM)
 	help
@@ -1561,7 +1606,7 @@ config DEBUG_UNCOMPRESS
 config UNCOMPRESS_INCLUDE
 	string
 	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					PLAT_SAMSUNG || ARCH_EFM32 || \
+					PLAT_SAMSUNG || ARM_SINGLE_ARMV7M || \
 					ARCH_SHMOBILE_LEGACY
 	default "mach/uncompress.h"
 
@@ -1590,7 +1635,7 @@ config PID_IN_CONTEXTIDR
 
 config DEBUG_SET_MODULE_RONX
 	bool "Set loadable kernel module data as NX and text as RO"
-	depends on MODULES
+	depends on MODULES && MMU
 	---help---
 	  This option helps catch unintended modifications to loadable
 	  kernel module's text and read-only data. It also prevents execution

@@ -1290,8 +1290,6 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 		const u8 *pn;
 
 		memcpy(igtk_cmd.IGTK, keyconf->key, keyconf->keylen);
-		ieee80211_aes_cmac_calculate_k1_k2(keyconf,
-						   igtk_cmd.K1, igtk_cmd.K2);
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		pn = seq.aes_cmac.pn;
 		igtk_cmd.receive_seq_cnt = cpu_to_le64(((u64) pn[5] << 0) |

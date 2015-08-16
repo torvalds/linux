@@ -287,6 +287,9 @@ static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 
 void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
+void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_buffer *buf,
+		       enum vb2_buffer_state state);
+
 int coda_h264_padding(int size, char *p);
 
 bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);

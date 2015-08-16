@@ -100,9 +100,9 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 
 		/* Clear existing buffer and copy in the new one */
 
-		ACPI_MEMSET(target_desc->buffer.pointer, 0,
-			    target_desc->buffer.length);
-		ACPI_MEMCPY(target_desc->buffer.pointer, buffer, length);
+		memset(target_desc->buffer.pointer, 0,
+		       target_desc->buffer.length);
+		memcpy(target_desc->buffer.pointer, buffer, length);
 
 #ifdef ACPI_OBSOLETE_BEHAVIOR
 		/*
@@ -129,8 +129,8 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 	} else {
 		/* Truncate the source, copy only what will fit */
 
-		ACPI_MEMCPY(target_desc->buffer.pointer, buffer,
-			    target_desc->buffer.length);
+		memcpy(target_desc->buffer.pointer, buffer,
+		       target_desc->buffer.length);
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Truncating source buffer from %X to %X\n",
@@ -187,9 +187,9 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 		 * String will fit in existing non-static buffer.
 		 * Clear old string and copy in the new one
 		 */
-		ACPI_MEMSET(target_desc->string.pointer, 0,
-			    (acpi_size) target_desc->string.length + 1);
-		ACPI_MEMCPY(target_desc->string.pointer, buffer, length);
+		memset(target_desc->string.pointer, 0,
+		       (acpi_size) target_desc->string.length + 1);
+		memcpy(target_desc->string.pointer, buffer, length);
 	} else {
 		/*
 		 * Free the current buffer, then allocate a new buffer
@@ -210,7 +210,7 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 		}
 
 		target_desc->common.flags &= ~AOPOBJ_STATIC_POINTER;
-		ACPI_MEMCPY(target_desc->string.pointer, buffer, length);
+		memcpy(target_desc->string.pointer, buffer, length);
 	}
 
 	/* Set the new target length */

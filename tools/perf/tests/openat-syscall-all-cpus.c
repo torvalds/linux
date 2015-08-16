@@ -78,7 +78,7 @@ int test__openat_syscall_event_on_all_cpus(void)
 	 * we use the auto allocation it will allocate just for 1 cpu,
 	 * as we start by cpu 0.
 	 */
-	if (perf_evsel__alloc_counts(evsel, cpus->nr) < 0) {
+	if (perf_evsel__alloc_counts(evsel, cpus->nr, 1) < 0) {
 		pr_debug("perf_evsel__alloc_counts(ncpus=%d)\n", cpus->nr);
 		goto out_close_fd;
 	}
@@ -98,9 +98,9 @@ int test__openat_syscall_event_on_all_cpus(void)
 		}
 
 		expected = nr_openat_calls + cpu;
-		if (evsel->counts->cpu[cpu].val != expected) {
+		if (perf_counts(evsel->counts, cpu, 0)->val != expected) {
 			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
-				 expected, cpus->map[cpu], evsel->counts->cpu[cpu].val);
+				 expected, cpus->map[cpu], perf_counts(evsel->counts, cpu, 0)->val);
 			err = -1;
 		}
 	}
@@ -111,6 +111,6 @@ out_close_fd:
 out_evsel_delete:
 	perf_evsel__delete(evsel);
 out_thread_map_delete:
-	thread_map__delete(threads);
+	thread_map__put(threads);
 	return err;
 }

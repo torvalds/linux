@@ -1,5 +1,16 @@
+ifndef MK
+ifeq ($(MAKECMDGOALS),)
+# no target specified, trigger the whole suite
+all:
+	@echo "Testing Makefile";      $(MAKE) -sf tests/make MK=Makefile
+	@echo "Testing Makefile.perf"; $(MAKE) -sf tests/make MK=Makefile.perf
+else
+# run only specific test over 'Makefile'
+%:
+	@echo "Testing Makefile";      $(MAKE) -sf tests/make MK=Makefile $@
+endif
+else
 PERF := .
-MK   := Makefile
 
 include config/Makefile.arch
 
@@ -47,6 +58,7 @@ make_install_man    := install-man
 make_install_html   := install-html
 make_install_info   := install-info
 make_install_pdf    := install-pdf
+make_install_prefix := install prefix=/tmp/krava
 make_static         := LDFLAGS=-static
 
 # all the NO_* variable combined
@@ -57,7 +69,12 @@ make_minimal        += NO_LIBDW_DWARF_UNWIND=1 NO_AUXTRACE=1
 
 # $(run) contains all available tests
 run := make_pure
+# Targets 'clean all' can be run together only through top level
+# Makefile because we detect clean target in Makefile.perf and
+# disable features detection
+ifeq ($(MK),Makefile)
 run += make_clean_all
+endif
 run += make_python_perf_so
 run += make_debug
 run += make_no_libperl
@@ -83,6 +100,7 @@ run += make_util_map_o
 run += make_util_pmu_bison_o
 run += make_install
 run += make_install_bin
+run += make_install_prefix
 # FIXME 'install-*' commented out till they're fixed
 # run += make_install_doc
 # run += make_install_man
@@ -157,6 +175,12 @@ test_make_install_O     := $(call test_dest_files,$(installed_files_all))
 test_make_install_bin   := $(call test_dest_files,$(installed_files_bin))
 test_make_install_bin_O := $(call test_dest_files,$(installed_files_bin))
 
+# We prefix all installed files for make_install_prefix
+# with '/tmp/krava' to match installed/prefix-ed files.
+installed_files_all_prefix := $(addprefix /tmp/krava/,$(installed_files_all))
+test_make_install_prefix   := $(call test_dest_files,$(installed_files_all_prefix))
+test_make_install_prefix_O := $(call test_dest_files,$(installed_files_all_prefix))
+
 # FIXME nothing gets installed
 test_make_install_man    := test -f $$TMP_DEST/share/man/man1/perf.1
 test_make_install_man_O  := $(test_make_install_man)
@@ -226,13 +250,13 @@ tarpkg:
 	( eval $$cmd ) >> $@ 2>&1
 
 make_kernelsrc:
-	@echo " - make -C <kernelsrc> tools/perf"
+	@echo "- make -C <kernelsrc> tools/perf"
 	$(call clean); \
 	(make -C ../.. tools/perf) > $@ 2>&1 && \
 	test -x perf && rm -f $@ || (cat $@ ; false)
 
 make_kernelsrc_tools:
-	@echo " - make -C <kernelsrc>/tools perf"
+	@echo "- make -C <kernelsrc>/tools perf"
 	$(call clean); \
 	(make -C ../../tools perf) > $@ 2>&1 && \
 	test -x perf && rm -f $@ || (cat $@ ; false)
@@ -244,3 +268,4 @@ out: $(run_O)
 	@echo OK
 
 .PHONY: all $(run) $(run_O) tarpkg clean
+endif # ifndef MK

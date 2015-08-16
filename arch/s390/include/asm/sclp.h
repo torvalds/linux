@@ -11,6 +11,7 @@
 #include <asm/cpu.h>
 
 #define SCLP_CHP_INFO_MASK_SIZE		32
+#define SCLP_MAX_CORES			256
 
 struct sclp_chp_info {
 	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];
@@ -26,7 +27,7 @@ struct sclp_ipl_info {
 	char loadparm[LOADPARM_LEN];
 };
 
-struct sclp_cpu_entry {
+struct sclp_core_entry {
 	u8 core_id;
 	u8 reserved0[2];
 	u8 : 3;
@@ -38,12 +39,11 @@ struct sclp_cpu_entry {
 	u8 reserved1;
 } __attribute__((packed));
 
-struct sclp_cpu_info {
+struct sclp_core_info {
 	unsigned int configured;
 	unsigned int standby;
 	unsigned int combined;
-	int has_cpu_type;
-	struct sclp_cpu_entry cpu[MAX_CPU_ADDRESS + 1];
+	struct sclp_core_entry core[SCLP_MAX_CORES];
 };
 
 struct sclp_info {
@@ -51,7 +51,7 @@ struct sclp_info {
 	unsigned char has_vt220 : 1;
 	unsigned char has_siif : 1;
 	unsigned char has_sigpif : 1;
-	unsigned char has_cpu_type : 1;
+	unsigned char has_core_type : 1;
 	unsigned char has_sprp : 1;
 	unsigned int ibc;
 	unsigned int mtid;
@@ -60,15 +60,15 @@ struct sclp_info {
 	unsigned long long rzm;
 	unsigned long long rnmax;
 	unsigned long long hamax;
-	unsigned int max_cpu;
+	unsigned int max_cores;
 	unsigned long hsa_size;
 	unsigned long long facilities;
 };
 extern struct sclp_info sclp;
 
-int sclp_get_cpu_info(struct sclp_cpu_info *info);
-int sclp_cpu_configure(u8 cpu);
-int sclp_cpu_deconfigure(u8 cpu);
+int sclp_get_core_info(struct sclp_core_info *info);
+int sclp_core_configure(u8 core);
+int sclp_core_deconfigure(u8 core);
 int sclp_sdias_blk_count(void);
 int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
 int sclp_chp_configure(struct chp_id chpid);

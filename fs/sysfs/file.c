@@ -90,7 +90,7 @@ static ssize_t sysfs_kf_bin_read(struct kernfs_open_file *of, char *buf,
 		return 0;
 
 	if (size) {
-		if (pos > size)
+		if (pos >= size)
 			return 0;
 		if (pos + count > size)
 			count = size - pos;

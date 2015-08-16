@@ -1318,7 +1318,7 @@ static int armpmu_device_probe(struct platform_device *pdev)
 	/* Don't bother with PPIs; they're already affine */
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0 && irq_is_percpu(irq))
-		return 0;
+		goto out;
 
 	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
 	if (!irqs)
@@ -1340,12 +1340,13 @@ static int armpmu_device_probe(struct platform_device *pdev)
 			if (arch_find_n_match_cpu_physical_id(dn, cpu, NULL))
 				break;
 
-		of_node_put(dn);
 		if (cpu >= nr_cpu_ids) {
 			pr_warn("Failed to find logical CPU for %s\n",
 				dn->name);
+			of_node_put(dn);
 			break;
 		}
+		of_node_put(dn);
 
 		irqs[i] = cpu;
 	}
@@ -1355,6 +1356,7 @@ static int armpmu_device_probe(struct platform_device *pdev)
 	else
 		kfree(irqs);
 
+out:
 	cpu_pmu->plat_device = pdev;
 	return 0;
 }

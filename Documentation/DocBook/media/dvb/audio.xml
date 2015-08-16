@@ -1,7 +1,7 @@
 <title>DVB Audio Device</title>
 <para>The DVB audio device controls the MPEG2 audio decoder of the DVB hardware. It
-can be accessed through <emphasis role="tt">/dev/dvb/adapter0/audio0</emphasis>. Data types and and
-ioctl definitions can be accessed by including <emphasis role="tt">linux/dvb/audio.h</emphasis> in your
+can be accessed through <constant>/dev/dvb/adapter?/audio?</constant>. Data types and and
+ioctl definitions can be accessed by including <constant>linux/dvb/audio.h</constant> in your
 application.
 </para>
 <para>Please note that some DVB cards don&#8217;t have their own MPEG decoder, which results in
@@ -32,7 +32,7 @@ typedef enum {
 </programlisting>
 <para>AUDIO_SOURCE_DEMUX selects the demultiplexer (fed either by the frontend or the
 DVR device) as the source of the video stream. If AUDIO_SOURCE_MEMORY
-is selected the stream comes from the application through the <emphasis role="tt">write()</emphasis> system
+is selected the stream comes from the application through the <constant>write()</constant> system
 call.
 </para>
 

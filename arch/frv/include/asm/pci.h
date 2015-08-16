@@ -14,7 +14,7 @@
 #define _ASM_FRV_PCI_H
 
 #include <linux/mm.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm-generic/pci-dma-compat.h>
 #include <asm-generic/pci.h>
 

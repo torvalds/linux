@@ -230,29 +230,40 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
 	int result, flags;
 	struct nbd_request request;
 	unsigned long size = blk_rq_bytes(req);
+	u32 type;
+
+	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+		type = NBD_CMD_DISC;
+	else if (req->cmd_flags & REQ_DISCARD)
+		type = NBD_CMD_TRIM;
+	else if (req->cmd_flags & REQ_FLUSH)
+		type = NBD_CMD_FLUSH;
+	else if (rq_data_dir(req) == WRITE)
+		type = NBD_CMD_WRITE;
+	else
+		type = NBD_CMD_READ;
 
 	memset(&request, 0, sizeof(request));
 	request.magic = htonl(NBD_REQUEST_MAGIC);
-	request.type = htonl(nbd_cmd(req));
-
-	if (nbd_cmd(req) != NBD_CMD_FLUSH && nbd_cmd(req) != NBD_CMD_DISC) {
+	request.type = htonl(type);
+	if (type != NBD_CMD_FLUSH && type != NBD_CMD_DISC) {
 		request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
 		request.len = htonl(size);
 	}
 	memcpy(request.handle, &req, sizeof(req));
 
 	dev_dbg(nbd_to_dev(nbd), "request %p: sending control (%s@%llu,%uB)\n",
-		req, nbdcmd_to_ascii(nbd_cmd(req)),
+		req, nbdcmd_to_ascii(type),
 		(unsigned long long)blk_rq_pos(req) << 9, blk_rq_bytes(req));
 	result = sock_xmit(nbd, 1, &request, sizeof(request),
-			(nbd_cmd(req) == NBD_CMD_WRITE) ? MSG_MORE : 0);
+			(type == NBD_CMD_WRITE) ? MSG_MORE : 0);
 	if (result <= 0) {
 		dev_err(disk_to_dev(nbd->disk),
 			"Send control failed (result %d)\n", result);
 		return -EIO;
 	}
 
-	if (nbd_cmd(req) == NBD_CMD_WRITE) {
+	if (type == NBD_CMD_WRITE) {
 		struct req_iterator iter;
 		struct bio_vec bvec;
 		/*
@@ -352,7 +363,7 @@ static struct request *nbd_read_stat(struct nbd_device *nbd)
 	}
 
 	dev_dbg(nbd_to_dev(nbd), "request %p: got reply\n", req);
-	if (nbd_cmd(req) == NBD_CMD_READ) {
+	if (rq_data_dir(req) != WRITE) {
 		struct req_iterator iter;
 		struct bio_vec bvec;
 
@@ -452,23 +463,11 @@ static void nbd_handle_req(struct nbd_device *nbd, struct request *req)
 	if (req->cmd_type != REQ_TYPE_FS)
 		goto error_out;
 
-	nbd_cmd(req) = NBD_CMD_READ;
-	if (rq_data_dir(req) == WRITE) {
-		if ((req->cmd_flags & REQ_DISCARD)) {
-			WARN_ON(!(nbd->flags & NBD_FLAG_SEND_TRIM));
-			nbd_cmd(req) = NBD_CMD_TRIM;
-		} else
-			nbd_cmd(req) = NBD_CMD_WRITE;
-		if (nbd->flags & NBD_FLAG_READ_ONLY) {
-			dev_err(disk_to_dev(nbd->disk),
-				"Write on read-only\n");
-			goto error_out;
-		}
-	}
-
-	if (req->cmd_flags & REQ_FLUSH) {
-		BUG_ON(unlikely(blk_rq_sectors(req)));
-		nbd_cmd(req) = NBD_CMD_FLUSH;
+	if (rq_data_dir(req) == WRITE &&
+	    (nbd->flags & NBD_FLAG_READ_ONLY)) {
+		dev_err(disk_to_dev(nbd->disk),
+			"Write on read-only\n");
+		goto error_out;
 	}
 
 	req->errors = 0;
@@ -592,8 +591,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		fsync_bdev(bdev);
 		mutex_lock(&nbd->tx_lock);
 		blk_rq_init(NULL, &sreq);
-		sreq.cmd_type = REQ_TYPE_SPECIAL;
-		nbd_cmd(&sreq) = NBD_CMD_DISC;
+		sreq.cmd_type = REQ_TYPE_DRV_PRIV;
 
 		/* Check again after getting mutex back.  */
 		if (!nbd->sock)
@@ -713,7 +711,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		bdev->bd_inode->i_size = 0;
 		set_capacity(nbd->disk, 0);
 		if (max_part > 0)
-			ioctl_by_bdev(bdev, BLKRRPART, 0);
+			blkdev_reread_part(bdev);
 		if (nbd->disconnect) /* user requested, ignore socket errors */
 			return 0;
 		return nbd->harderror;

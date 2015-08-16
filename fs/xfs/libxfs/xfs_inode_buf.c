@@ -46,8 +46,7 @@ xfs_inobp_check(
 	j = mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog;
 
 	for (i = 0; i < j; i++) {
-		dip = (xfs_dinode_t *)xfs_buf_offset(bp,
-					i * mp->m_sb.sb_inodesize);
+		dip = xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize);
 		if (!dip->di_next_unlinked)  {
 			xfs_alert(mp,
 	"Detected bogus zero next_unlinked field in inode %d buffer 0x%llx.",
@@ -86,8 +85,7 @@ xfs_inode_buf_verify(
 		int		di_ok;
 		xfs_dinode_t	*dip;
 
-		dip = (struct xfs_dinode *)xfs_buf_offset(bp,
-					(i << mp->m_sb.sb_inodelog));
+		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_inodelog));
 		di_ok = dip->di_magic == cpu_to_be16(XFS_DINODE_MAGIC) &&
 			    XFS_DINODE_GOOD_VERSION(dip->di_version);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
@@ -186,7 +184,7 @@ xfs_imap_to_bp(
 	}
 
 	*bpp = bp;
-	*dipp = (struct xfs_dinode *)xfs_buf_offset(bp, imap->im_boffset);
+	*dipp = xfs_buf_offset(bp, imap->im_boffset);
 	return 0;
 }
 

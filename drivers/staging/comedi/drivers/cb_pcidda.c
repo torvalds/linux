@@ -335,18 +335,18 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 				 unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct cb_pcidda_board *thisboard = NULL;
+	const struct cb_pcidda_board *board = NULL;
 	struct cb_pcidda_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
 	int ret;
 
 	if (context < ARRAY_SIZE(cb_pcidda_boards))
-		thisboard = &cb_pcidda_boards[context];
-	if (!thisboard)
+		board = &cb_pcidda_boards[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -366,8 +366,8 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->ao_chans;
-	s->maxdata = (1 << thisboard->ao_bits) - 1;
+	s->n_chan = board->ao_chans;
+	s->maxdata = (1 << board->ao_bits) - 1;
 	s->range_table = &cb_pcidda_ranges;
 	s->insn_write = cb_pcidda_ao_insn_write;
 
@@ -384,7 +384,7 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 		devpriv->eeprom_data[i] = cb_pcidda_read_eeprom(dev, i);
 
 	/*  set calibrations dacs */
-	for (i = 0; i < thisboard->ao_chans; i++)
+	for (i = 0; i < board->ao_chans; i++)
 		cb_pcidda_calibrate(dev, i, devpriv->ao_range[i]);
 
 	return 0;

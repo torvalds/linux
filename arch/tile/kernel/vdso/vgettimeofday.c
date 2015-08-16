@@ -67,7 +67,7 @@ static inline int do_realtime(struct vdso_data *vdso, struct timespec *ts)
 	u64 ns;
 
 	do {
-		count = read_seqcount_begin(&vdso->tb_seq);
+		count = raw_read_seqcount_begin(&vdso->tb_seq);
 		ts->tv_sec = vdso->wall_time_sec;
 		ns = vdso->wall_time_snsec;
 		ns += vgetsns(vdso);
@@ -86,7 +86,7 @@ static inline int do_monotonic(struct vdso_data *vdso, struct timespec *ts)
 	u64 ns;
 
 	do {
-		count = read_seqcount_begin(&vdso->tb_seq);
+		count = raw_read_seqcount_begin(&vdso->tb_seq);
 		ts->tv_sec = vdso->monotonic_time_sec;
 		ns = vdso->monotonic_time_snsec;
 		ns += vgetsns(vdso);
@@ -105,7 +105,7 @@ static inline int do_realtime_coarse(struct vdso_data *vdso,
 	unsigned count;
 
 	do {
-		count = read_seqcount_begin(&vdso->tb_seq);
+		count = raw_read_seqcount_begin(&vdso->tb_seq);
 		ts->tv_sec = vdso->wall_time_coarse_sec;
 		ts->tv_nsec = vdso->wall_time_coarse_nsec;
 	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
@@ -119,7 +119,7 @@ static inline int do_monotonic_coarse(struct vdso_data *vdso,
 	unsigned count;
 
 	do {
-		count = read_seqcount_begin(&vdso->tb_seq);
+		count = raw_read_seqcount_begin(&vdso->tb_seq);
 		ts->tv_sec = vdso->monotonic_time_coarse_sec;
 		ts->tv_nsec = vdso->monotonic_time_coarse_nsec;
 	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
@@ -137,7 +137,7 @@ struct syscall_return_value __vdso_gettimeofday(struct timeval *tv,
 	/* The use of the timezone is obsolete, normally tz is NULL. */
 	if (unlikely(tz != NULL)) {
 		do {
-			count = read_seqcount_begin(&vdso->tz_seq);
+			count = raw_read_seqcount_begin(&vdso->tz_seq);
 			tz->tz_minuteswest = vdso->tz_minuteswest;
 			tz->tz_dsttime = vdso->tz_dsttime;
 		} while (unlikely(read_seqcount_retry(&vdso->tz_seq, count)));

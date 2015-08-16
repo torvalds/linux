@@ -65,11 +65,9 @@ struct clk *clk_register_fixed_rate_with_accuracy(struct device *dev,
 	struct clk_init_data init;
 
 	/* allocate fixed-rate clock */
-	fixed = kzalloc(sizeof(struct clk_fixed_rate), GFP_KERNEL);
-	if (!fixed) {
-		pr_err("%s: could not allocate fixed clk\n", __func__);
+	fixed = kzalloc(sizeof(*fixed), GFP_KERNEL);
+	if (!fixed)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &clk_fixed_rate_ops;

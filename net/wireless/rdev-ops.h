@@ -733,6 +733,8 @@ static inline void
 rdev_mgmt_frame_register(struct cfg80211_registered_device *rdev,
 			 struct wireless_dev *wdev, u16 frame_type, bool reg)
 {
+	might_sleep();
+
 	trace_rdev_mgmt_frame_register(&rdev->wiphy, wdev , frame_type, reg);
 	rdev->ops->mgmt_frame_register(&rdev->wiphy, wdev , frame_type, reg);
 	trace_rdev_return_void(&rdev->wiphy);

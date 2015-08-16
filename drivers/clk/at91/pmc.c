@@ -153,7 +153,7 @@ static int pmc_irq_domain_xlate(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops pmc_irq_ops = {
+static const struct irq_domain_ops pmc_irq_ops = {
 	.map	= pmc_irq_map,
 	.xlate	= pmc_irq_domain_xlate,
 };

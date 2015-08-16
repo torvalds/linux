@@ -528,4 +528,7 @@ source "lib/fonts/Kconfig"
 config ARCH_HAS_SG_CHAIN
 	def_bool n
 
+config ARCH_HAS_PMEM_API
+	bool
+
 endmenu

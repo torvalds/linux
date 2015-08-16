@@ -299,7 +299,7 @@ extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
 
 /* Buffer Utility Routines */
-extern xfs_caddr_t xfs_buf_offset(xfs_buf_t *, size_t);
+extern void *xfs_buf_offset(struct xfs_buf *, size_t);
 
 /* Delayed Write Buffer Routines */
 extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);

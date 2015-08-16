@@ -290,7 +290,7 @@ corresponding to a given GPIO using the following call:
 
 	int gpiod_to_irq(const struct gpio_desc *desc)
 
-It will return an IRQ number, or an negative errno code if the mapping can't be
+It will return an IRQ number, or a negative errno code if the mapping can't be
 done (most likely because that particular GPIO cannot be used as IRQ). It is an
 unchecked error to use a GPIO that wasn't set up as an input using
 gpiod_direction_input(), or to use an IRQ number that didn't originally come

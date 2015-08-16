@@ -154,7 +154,7 @@ static int __init init_cpu_info(enum arch_id arch)
 
 	/* get info for boot cpu from lowcore, stored in the HSA */
 
-	sa_ext = dump_save_area_create(0);
+	sa_ext = dump_save_areas.areas[0];
 	if (!sa_ext)
 		return -ENOMEM;
 	if (memcpy_hsa_kernel(&sa_ext->sa, sys_info.sa_base,

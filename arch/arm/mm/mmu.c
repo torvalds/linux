@@ -1072,6 +1072,7 @@ void __init sanity_check_meminfo(void)
 	int highmem = 0;
 	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
 	struct memblock_region *reg;
+	bool should_use_highmem = false;
 
 	for_each_memblock(memory, reg) {
 		phys_addr_t block_start = reg->base;
@@ -1090,6 +1091,7 @@ void __init sanity_check_meminfo(void)
 				pr_notice("Ignoring RAM at %pa-%pa (!CONFIG_HIGHMEM)\n",
 					  &block_start, &block_end);
 				memblock_remove(reg->base, reg->size);
+				should_use_highmem = true;
 				continue;
 			}
 
@@ -1100,6 +1102,7 @@ void __init sanity_check_meminfo(void)
 					  &block_start, &block_end, &vmalloc_limit);
 				memblock_remove(vmalloc_limit, overlap_size);
 				block_end = vmalloc_limit;
+				should_use_highmem = true;
 			}
 		}
 
@@ -1133,6 +1136,9 @@ void __init sanity_check_meminfo(void)
 
 		}
 	}
+
+	if (should_use_highmem)
+		pr_notice("Consider using a HIGHMEM enabled kernel.\n");
 
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
@@ -1387,123 +1393,98 @@ static void __init map_lowmem(void)
 	}
 }
 
-#ifdef CONFIG_ARM_LPAE
+#ifdef CONFIG_ARM_PV_FIXUP
+extern unsigned long __atags_pointer;
+typedef void pgtables_remap(long long offset, unsigned long pgd, void *bdata);
+pgtables_remap lpae_pgtables_remap_asm;
+
 /*
  * early_paging_init() recreates boot time page table setup, allowing machines
  * to switch over to a high (>4G) address space on LPAE systems
  */
-void __init early_paging_init(const struct machine_desc *mdesc,
-			      struct proc_info_list *procinfo)
+void __init early_paging_init(const struct machine_desc *mdesc)
 {
-	pmdval_t pmdprot = procinfo->__cpu_mm_mmu_flags;
-	unsigned long map_start, map_end;
-	pgd_t *pgd0, *pgdk;
-	pud_t *pud0, *pudk, *pud_start;
-	pmd_t *pmd0, *pmdk;
-	phys_addr_t phys;
-	int i;
+	pgtables_remap *lpae_pgtables_remap;
+	unsigned long pa_pgd;
+	unsigned int cr, ttbcr;
+	long long offset;
+	void *boot_data;
 
-	if (!(mdesc->init_meminfo))
+	if (!mdesc->pv_fixup)
 		return;
 
-	/* remap kernel code and data */
-	map_start = init_mm.start_code & PMD_MASK;
-	map_end   = ALIGN(init_mm.brk, PMD_SIZE);
+	offset = mdesc->pv_fixup();
+	if (offset == 0)
+		return;
 
-	/* get a handle on things... */
-	pgd0 = pgd_offset_k(0);
-	pud_start = pud0 = pud_offset(pgd0, 0);
-	pmd0 = pmd_offset(pud0, 0);
+	/*
+	 * Get the address of the remap function in the 1:1 identity
+	 * mapping setup by the early page table assembly code.  We
+	 * must get this prior to the pv update.  The following barrier
+	 * ensures that this is complete before we fixup any P:V offsets.
+	 */
+	lpae_pgtables_remap = (pgtables_remap *)(unsigned long)__pa(lpae_pgtables_remap_asm);
+	pa_pgd = __pa(swapper_pg_dir);
+	boot_data = __va(__atags_pointer);
+	barrier();
 
-	pgdk = pgd_offset_k(map_start);
-	pudk = pud_offset(pgdk, map_start);
-	pmdk = pmd_offset(pudk, map_start);
+	pr_info("Switching physical address space to 0x%08llx\n",
+		(u64)PHYS_OFFSET + offset);
 
-	mdesc->init_meminfo();
+	/* Re-set the phys pfn offset, and the pv offset */
+	__pv_offset += offset;
+	__pv_phys_pfn_offset += PFN_DOWN(offset);
 
 	/* Run the patch stub to update the constants */
 	fixup_pv_table(&__pv_table_begin,
 		(&__pv_table_end - &__pv_table_begin) << 2);
 
 	/*
-	 * Cache cleaning operations for self-modifying code
-	 * We should clean the entries by MVA but running a
-	 * for loop over every pv_table entry pointer would
-	 * just complicate the code.
+	 * We changing not only the virtual to physical mapping, but also
+	 * the physical addresses used to access memory.  We need to flush
+	 * all levels of cache in the system with caching disabled to
+	 * ensure that all data is written back, and nothing is prefetched
+	 * into the caches.  We also need to prevent the TLB walkers
+	 * allocating into the caches too.  Note that this is ARMv7 LPAE
+	 * specific.
 	 */
-	flush_cache_louis();
-	dsb(ishst);
-	isb();
-
-	/*
-	 * FIXME: This code is not architecturally compliant: we modify
-	 * the mappings in-place, indeed while they are in use by this
-	 * very same code.  This may lead to unpredictable behaviour of
-	 * the CPU.
-	 *
-	 * Even modifying the mappings in a separate page table does
-	 * not resolve this.
-	 *
-	 * The architecture strongly recommends that when a mapping is
-	 * changed, that it is changed by first going via an invalid
-	 * mapping and back to the new mapping.  This is to ensure that
-	 * no TLB conflicts (caused by the TLB having more than one TLB
-	 * entry match a translation) can occur.  However, doing that
-	 * here will result in unmapping the code we are running.
-	 */
-	pr_warn("WARNING: unsafe modification of in-place page tables - tainting kernel\n");
-	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
-
-	/*
-	 * Remap level 1 table.  This changes the physical addresses
-	 * used to refer to the level 2 page tables to the high
-	 * physical address alias, leaving everything else the same.
-	 */
-	for (i = 0; i < PTRS_PER_PGD; pud0++, i++) {
-		set_pud(pud0,
-			__pud(__pa(pmd0) | PMD_TYPE_TABLE | L_PGD_SWAPPER));
-		pmd0 += PTRS_PER_PMD;
-	}
-
-	/*
-	 * Remap the level 2 table, pointing the mappings at the high
-	 * physical address alias of these pages.
-	 */
-	phys = __pa(map_start);
-	do {
-		*pmdk++ = __pmd(phys | pmdprot);
-		phys += PMD_SIZE;
-	} while (phys < map_end);
-
-	/*
-	 * Ensure that the above updates are flushed out of the cache.
-	 * This is not strictly correct; on a system where the caches
-	 * are coherent with each other, but the MMU page table walks
-	 * may not be coherent, flush_cache_all() may be a no-op, and
-	 * this will fail.
-	 */
+	cr = get_cr();
+	set_cr(cr & ~(CR_I | CR_C));
+	asm("mrc p15, 0, %0, c2, c0, 2" : "=r" (ttbcr));
+	asm volatile("mcr p15, 0, %0, c2, c0, 2"
+		: : "r" (ttbcr & ~(3 << 8 | 3 << 10)));
 	flush_cache_all();
 
 	/*
-	 * Re-write the TTBR values to point them at the high physical
-	 * alias of the page tables.  We expect __va() will work on
-	 * cpu_get_pgd(), which returns the value of TTBR0.
+	 * Fixup the page tables - this must be in the idmap region as
+	 * we need to disable the MMU to do this safely, and hence it
+	 * needs to be assembly.  It's fairly simple, as we're using the
+	 * temporary tables setup by the initial assembly code.
 	 */
-	cpu_switch_mm(pgd0, &init_mm);
-	cpu_set_ttbr(1, __pa(pgd0) + TTBR1_OFFSET);
+	lpae_pgtables_remap(offset, pa_pgd, boot_data);
 
-	/* Finally flush any stale TLB values. */
-	local_flush_bp_all();
-	local_flush_tlb_all();
+	/* Re-enable the caches and cacheable TLB walks */
+	asm volatile("mcr p15, 0, %0, c2, c0, 2" : : "r" (ttbcr));
+	set_cr(cr);
 }
 
 #else
 
-void __init early_paging_init(const struct machine_desc *mdesc,
-			      struct proc_info_list *procinfo)
+void __init early_paging_init(const struct machine_desc *mdesc)
 {
-	if (mdesc->init_meminfo)
-		mdesc->init_meminfo();
+	long long offset;
+
+	if (!mdesc->pv_fixup)
+		return;
+
+	offset = mdesc->pv_fixup();
+	if (offset == 0)
+		return;
+
+	pr_crit("Physical address space modification is only to support Keystone2.\n");
+	pr_crit("Please enable ARM_LPAE and ARM_PATCH_PHYS_VIRT support to use this\n");
+	pr_crit("feature. Your kernel may crash now, have a good day.\n");
+	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
 }
 
 #endif
@@ -1519,6 +1500,7 @@ void __init paging_init(const struct machine_desc *mdesc)
 	build_mem_type_table();
 	prepare_page_table();
 	map_lowmem();
+	memblock_set_current_limit(arm_lowmem_limit);
 	dma_contiguous_remap();
 	devicemaps_init(mdesc);
 	kmap_init();

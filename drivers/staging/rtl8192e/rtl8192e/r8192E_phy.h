@@ -41,13 +41,7 @@
 #define Rtl819XPHY_REGArray			Rtl8192PciEPHY_REGArray
 #define Rtl819XPHY_REG_1T2RArray		Rtl8192PciEPHY_REG_1T2RArray
 
-extern u32 rtl819XMACPHY_Array_PG[];
-extern u32 rtl819XPHY_REG_1T2RArray[];
 extern u32 rtl819XAGCTAB_Array[];
-extern u32 rtl819XRadioA_Array[];
-extern u32 rtl819XRadioB_Array[];
-extern u32 rtl819XRadioC_Array[];
-extern u32 rtl819XRadioD_Array[];
 
 enum hw90_block {
 	HW90_BLOCK_MAC = 0,

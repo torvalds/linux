@@ -36,7 +36,6 @@
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 #include <asm/unaligned.h>
 
@@ -109,13 +108,13 @@ static struct sbp_session *sbp_session_find_by_guid(
 }
 
 static struct sbp_login_descriptor *sbp_login_find_by_lun(
-		struct sbp_session *session, struct se_lun *lun)
+		struct sbp_session *session, u32 unpacked_lun)
 {
 	struct sbp_login_descriptor *login, *found = NULL;
 
 	spin_lock_bh(&session->lock);
 	list_for_each_entry(login, &session->login_list, link) {
-		if (login->lun == lun)
+		if (login->login_lun == unpacked_lun)
 			found = login;
 	}
 	spin_unlock_bh(&session->lock);
@@ -125,7 +124,7 @@ static struct sbp_login_descriptor *sbp_login_find_by_lun(
 
 static int sbp_login_count_all_by_lun(
 		struct sbp_tpg *tpg,
-		struct se_lun *lun,
+		u32 unpacked_lun,
 		int exclusive)
 {
 	struct se_session *se_sess;
@@ -139,7 +138,7 @@ static int sbp_login_count_all_by_lun(
 
 		spin_lock_bh(&sess->lock);
 		list_for_each_entry(login, &sess->login_list, link) {
-			if (login->lun != lun)
+			if (login->login_lun != unpacked_lun)
 				continue;
 
 			if (!exclusive || login->exclusive)
@@ -175,23 +174,23 @@ static struct sbp_login_descriptor *sbp_login_find_by_id(
 	return found;
 }
 
-static struct se_lun *sbp_get_lun_from_tpg(struct sbp_tpg *tpg, int lun)
+static u32 sbp_get_lun_from_tpg(struct sbp_tpg *tpg, u32 login_lun, int *err)
 {
 	struct se_portal_group *se_tpg = &tpg->se_tpg;
 	struct se_lun *se_lun;
 
-	if (lun >= TRANSPORT_MAX_LUNS_PER_TPG)
-		return ERR_PTR(-EINVAL);
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(se_lun, &se_tpg->tpg_lun_hlist, link) {
+		if (se_lun->unpacked_lun == login_lun) {
+			rcu_read_unlock();
+			*err = 0;
+			return login_lun;
+		}
+	}
+	rcu_read_unlock();
 
-	spin_lock(&se_tpg->tpg_lun_lock);
-	se_lun = se_tpg->tpg_lun_list[lun];
-
-	if (se_lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE)
-		se_lun = ERR_PTR(-ENODEV);
-
-	spin_unlock(&se_tpg->tpg_lun_lock);
-
-	return se_lun;
+	*err = -ENODEV;
+	return login_lun;
 }
 
 static struct sbp_session *sbp_session_create(
@@ -295,17 +294,16 @@ static void sbp_management_request_login(
 {
 	struct sbp_tport *tport = agent->tport;
 	struct sbp_tpg *tpg = tport->tpg;
-	struct se_lun *se_lun;
-	int ret;
-	u64 guid;
 	struct sbp_session *sess;
 	struct sbp_login_descriptor *login;
 	struct sbp_login_response_block *response;
-	int login_response_len;
+	u64 guid;
+	u32 unpacked_lun;
+	int login_response_len, ret;
 
-	se_lun = sbp_get_lun_from_tpg(tpg,
-			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)));
-	if (IS_ERR(se_lun)) {
+	unpacked_lun = sbp_get_lun_from_tpg(tpg,
+			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)), &ret);
+	if (ret) {
 		pr_notice("login to unknown LUN: %d\n",
 			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)));
 
@@ -326,11 +324,11 @@ static void sbp_management_request_login(
 	}
 
 	pr_notice("mgt_agent LOGIN to LUN %d from %016llx\n",
-		se_lun->unpacked_lun, guid);
+		unpacked_lun, guid);
 
 	sess = sbp_session_find_by_guid(tpg, guid);
 	if (sess) {
-		login = sbp_login_find_by_lun(sess, se_lun);
+		login = sbp_login_find_by_lun(sess, unpacked_lun);
 		if (login) {
 			pr_notice("initiator already logged-in\n");
 
@@ -358,7 +356,7 @@ static void sbp_management_request_login(
 	 * reject with access_denied if any logins present
 	 */
 	if (LOGIN_ORB_EXCLUSIVE(be32_to_cpu(req->orb.misc)) &&
-			sbp_login_count_all_by_lun(tpg, se_lun, 0)) {
+			sbp_login_count_all_by_lun(tpg, unpacked_lun, 0)) {
 		pr_warn("refusing exclusive login with other active logins\n");
 
 		req->status.status = cpu_to_be32(
@@ -371,7 +369,7 @@ static void sbp_management_request_login(
 	 * check exclusive bit in any existing login descriptor
 	 * reject with access_denied if any exclusive logins present
 	 */
-	if (sbp_login_count_all_by_lun(tpg, se_lun, 1)) {
+	if (sbp_login_count_all_by_lun(tpg, unpacked_lun, 1)) {
 		pr_warn("refusing login while another exclusive login present\n");
 
 		req->status.status = cpu_to_be32(
@@ -384,7 +382,7 @@ static void sbp_management_request_login(
 	 * check we haven't exceeded the number of allowed logins
 	 * reject with resources_unavailable if we have
 	 */
-	if (sbp_login_count_all_by_lun(tpg, se_lun, 0) >=
+	if (sbp_login_count_all_by_lun(tpg, unpacked_lun, 0) >=
 			tport->max_logins_per_lun) {
 		pr_warn("max number of logins reached\n");
 
@@ -440,7 +438,7 @@ static void sbp_management_request_login(
 	}
 
 	login->sess = sess;
-	login->lun = se_lun;
+	login->login_lun = unpacked_lun;
 	login->status_fifo_addr = sbp2_pointer_to_addr(&req->orb.status_fifo);
 	login->exclusive = LOGIN_ORB_EXCLUSIVE(be32_to_cpu(req->orb.misc));
 	login->login_id = atomic_inc_return(&login_id);
@@ -602,7 +600,7 @@ static void sbp_management_request_logout(
 	}
 
 	pr_info("mgt_agent LOGOUT from LUN %d session %d\n",
-		login->lun->unpacked_lun, login->login_id);
+		login->login_lun, login->login_id);
 
 	if (req->node_addr != login->sess->node_id) {
 		pr_warn("logout from different node ID\n");
@@ -1228,12 +1226,14 @@ static void sbp_handle_command(struct sbp_target_request *req)
 		goto err;
 	}
 
-	unpacked_lun = req->login->lun->unpacked_lun;
+	unpacked_lun = req->login->login_lun;
 	sbp_calc_data_length_direction(req, &data_length, &data_dir);
 
 	pr_debug("sbp_handle_command ORB:0x%llx unpacked_lun:%d data_len:%d data_dir:%d\n",
 			req->orb_pointer, unpacked_lun, data_length, data_dir);
 
+	/* only used for printk until we do TMRs */
+	req->se_cmd.tag = req->orb_pointer;
 	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
 			      req->sense_buf, unpacked_lun, data_length,
 			      TCM_SIMPLE_TAG, data_dir, 0))
@@ -1707,33 +1707,6 @@ static u16 sbp_get_tag(struct se_portal_group *se_tpg)
 	return tpg->tport_tpgt;
 }
 
-static u32 sbp_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
-static struct se_node_acl *sbp_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	struct sbp_nacl *nacl;
-
-	nacl = kzalloc(sizeof(struct sbp_nacl), GFP_KERNEL);
-	if (!nacl) {
-		pr_err("Unable to allocate struct sbp_nacl\n");
-		return NULL;
-	}
-
-	return &nacl->se_node_acl;
-}
-
-static void sbp_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl)
-{
-	struct sbp_nacl *nacl =
-		container_of(se_nacl, struct sbp_nacl, se_node_acl);
-	kfree(nacl);
-}
-
 static u32 sbp_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -1795,15 +1768,6 @@ static void sbp_set_default_node_attrs(struct se_node_acl *nacl)
 	return;
 }
 
-static u32 sbp_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct sbp_target_request *req = container_of(se_cmd,
-			struct sbp_target_request, se_cmd);
-
-	/* only used for printk until we do TMRs */
-	return (u32)req->orb_pointer;
-}
-
 static int sbp_get_cmd_state(struct se_cmd *se_cmd)
 {
 	return 0;
@@ -1859,106 +1823,23 @@ static int sbp_check_stop_free(struct se_cmd *se_cmd)
 	return 1;
 }
 
-/*
- * Handlers for Serial Bus Protocol 2/3 (SBP-2 / SBP-3)
- */
-static u8 sbp_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	/*
-	 * Return a IEEE 1394 SCSI Protocol identifier for loopback operations
-	 * This is defined in section 7.5.1 Table 362 in spc4r17
-	 */
-	return SCSI_PROTOCOL_SBP;
-}
-
-static u32 sbp_get_pr_transport_id(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code,
-	unsigned char *buf)
-{
-	int ret;
-
-	/*
-	 * Set PROTOCOL IDENTIFIER to 3h for SBP
-	 */
-	buf[0] = SCSI_PROTOCOL_SBP;
-	/*
-	 * From spc4r17, 7.5.4.4 TransportID for initiator ports using SCSI
-	 * over IEEE 1394
-	 */
-	ret = hex2bin(&buf[8], se_nacl->initiatorname, 8);
-	if (ret < 0)
-		pr_debug("sbp transport_id: invalid hex string\n");
-
-	/*
-	 * The IEEE 1394 Transport ID is a hardcoded 24-byte length
-	 */
-	return 24;
-}
-
-static u32 sbp_get_pr_transport_id_len(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code)
-{
-	*format_code = 0;
-	/*
-	 * From spc4r17, 7.5.4.4 TransportID for initiator ports using SCSI
-	 * over IEEE 1394
-	 *
-	 * The SBP Transport ID is a hardcoded 24-byte length
-	 */
-	return 24;
-}
-
-/*
- * Used for handling SCSI fabric dependent TransportIDs in SPC-3 and above
- * Persistent Reservation SPEC_I_PT=1 and PROUT REGISTER_AND_MOVE operations.
- */
-static char *sbp_parse_pr_out_transport_id(
-	struct se_portal_group *se_tpg,
-	const char *buf,
-	u32 *out_tid_len,
-	char **port_nexus_ptr)
-{
-	/*
-	 * Assume the FORMAT CODE 00b from spc4r17, 7.5.4.4 TransportID
-	 * for initiator ports using SCSI over SBP Serial SCSI Protocol
-	 *
-	 * The TransportID for a IEEE 1394 Initiator Port is of fixed size of
-	 * 24 bytes, and IEEE 1394 does not contain a I_T nexus identifier,
-	 * so we return the **port_nexus_ptr set to NULL.
-	 */
-	*port_nexus_ptr = NULL;
-	*out_tid_len = 24;
-
-	return (char *)&buf[8];
-}
-
 static int sbp_count_se_tpg_luns(struct se_portal_group *tpg)
 {
-	int i, count = 0;
+	struct se_lun *lun;
+	int count = 0;
 
-	spin_lock(&tpg->tpg_lun_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		struct se_lun *se_lun = tpg->tpg_lun_list[i];
-
-		if (se_lun->lun_status == TRANSPORT_LUN_STATUS_FREE)
-			continue;
-
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(lun, &tpg->tpg_lun_hlist, link)
 		count++;
-	}
-	spin_unlock(&tpg->tpg_lun_lock);
+	rcu_read_unlock();
 
 	return count;
 }
 
 static int sbp_update_unit_directory(struct sbp_tport *tport)
 {
-	int num_luns, num_entries, idx = 0, mgt_agt_addr, ret, i;
+	struct se_lun *lun;
+	int num_luns, num_entries, idx = 0, mgt_agt_addr, ret;
 	u32 *data;
 
 	if (tport->unit_directory.data) {
@@ -2020,28 +1901,23 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	/* unit unique ID (leaf is just after LUNs) */
 	data[idx++] = 0x8d000000 | (num_luns + 1);
 
-	spin_lock(&tport->tpg->se_tpg.tpg_lun_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		struct se_lun *se_lun = tport->tpg->se_tpg.tpg_lun_list[i];
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(lun, &tport->tpg->se_tpg.tpg_lun_hlist, link) {
 		struct se_device *dev;
 		int type;
-
-		if (se_lun->lun_status == TRANSPORT_LUN_STATUS_FREE)
-			continue;
-
-		spin_unlock(&tport->tpg->se_tpg.tpg_lun_lock);
-
-		dev = se_lun->lun_se_dev;
+		/*
+		 * rcu_dereference_raw protected by se_lun->lun_group symlink
+		 * reference to se_device->dev_group.
+		 */
+		dev = rcu_dereference_raw(lun->lun_se_dev);
 		type = dev->transport->get_device_type(dev);
 
 		/* logical_unit_number */
 		data[idx++] = 0x14000000 |
 			((type << 16) & 0x1f0000) |
-			(se_lun->unpacked_lun & 0xffff);
-
-		spin_lock(&tport->tpg->se_tpg.tpg_lun_lock);
+			(lun->unpacked_lun & 0xffff);
 	}
-	spin_unlock(&tport->tpg->se_tpg.tpg_lun_lock);
+	rcu_read_unlock();
 
 	/* unit unique ID leaf */
 	data[idx++] = 2 << 16;
@@ -2100,48 +1976,13 @@ static ssize_t sbp_format_wwn(char *buf, size_t len, u64 wwn)
 	return snprintf(buf, len, "%016llx", wwn);
 }
 
-static struct se_node_acl *sbp_make_nodeacl(
-		struct se_portal_group *se_tpg,
-		struct config_group *group,
-		const char *name)
+static int sbp_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 {
-	struct se_node_acl *se_nacl, *se_nacl_new;
-	struct sbp_nacl *nacl;
 	u64 guid = 0;
-	u32 nexus_depth = 1;
 
 	if (sbp_parse_wwn(name, &guid) < 0)
-		return ERR_PTR(-EINVAL);
-
-	se_nacl_new = sbp_alloc_fabric_acl(se_tpg);
-	if (!se_nacl_new)
-		return ERR_PTR(-ENOMEM);
-
-	/*
-	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a NodeACL from demo mode -> explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, se_nacl_new,
-			name, nexus_depth);
-	if (IS_ERR(se_nacl)) {
-		sbp_release_fabric_acl(se_tpg, se_nacl_new);
-		return se_nacl;
-	}
-
-	nacl = container_of(se_nacl, struct sbp_nacl, se_node_acl);
-	nacl->guid = guid;
-	sbp_format_wwn(nacl->iport_name, SBP_NAMELEN, guid);
-
-	return se_nacl;
-}
-
-static void sbp_drop_nodeacl(struct se_node_acl *se_acl)
-{
-	struct sbp_nacl *nacl =
-		container_of(se_acl, struct sbp_nacl, se_node_acl);
-
-	core_tpg_del_initiator_node_acl(se_acl->se_tpg, se_acl, 1);
-	kfree(nacl);
+		return -EINVAL;
+	return 0;
 }
 
 static int sbp_post_link_lun(
@@ -2214,8 +2055,7 @@ static struct se_portal_group *sbp_make_tpg(
 		goto out_free_tpg;
 	}
 
-	ret = core_tpg_register(&sbp_ops, wwn, &tpg->se_tpg, tpg,
-			TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, SCSI_PROTOCOL_SBP);
 	if (ret < 0)
 		goto out_unreg_mgt_agt;
 
@@ -2505,19 +2345,12 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.module				= THIS_MODULE,
 	.name				= "sbp",
 	.get_fabric_name		= sbp_get_fabric_name,
-	.get_fabric_proto_ident		= sbp_get_fabric_proto_ident,
 	.tpg_get_wwn			= sbp_get_fabric_wwn,
 	.tpg_get_tag			= sbp_get_tag,
-	.tpg_get_default_depth		= sbp_get_default_depth,
-	.tpg_get_pr_transport_id	= sbp_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= sbp_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= sbp_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= sbp_check_true,
 	.tpg_check_demo_mode_cache	= sbp_check_true,
 	.tpg_check_demo_mode_write_protect = sbp_check_false,
 	.tpg_check_prod_mode_write_protect = sbp_check_false,
-	.tpg_alloc_fabric_acl		= sbp_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= sbp_release_fabric_acl,
 	.tpg_get_inst_index		= sbp_tpg_get_inst_index,
 	.release_cmd			= sbp_release_cmd,
 	.shutdown_session		= sbp_shutdown_session,
@@ -2526,7 +2359,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.write_pending			= sbp_write_pending,
 	.write_pending_status		= sbp_write_pending_status,
 	.set_default_node_attributes	= sbp_set_default_node_attrs,
-	.get_task_tag			= sbp_get_task_tag,
 	.get_cmd_state			= sbp_get_cmd_state,
 	.queue_data_in			= sbp_queue_data_in,
 	.queue_status			= sbp_queue_status,
@@ -2542,8 +2374,7 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.fabric_pre_unlink		= sbp_pre_unlink_lun,
 	.fabric_make_np			= NULL,
 	.fabric_drop_np			= NULL,
-	.fabric_make_nodeacl		= sbp_make_nodeacl,
-	.fabric_drop_nodeacl		= sbp_drop_nodeacl,
+	.fabric_init_nodeacl		= sbp_init_nodeacl,
 
 	.tfc_wwn_attrs			= sbp_wwn_attrs,
 	.tfc_tpg_base_attrs		= sbp_tpg_base_attrs,

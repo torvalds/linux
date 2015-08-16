@@ -78,15 +78,20 @@ s390_base_pgm_handler_fn:
 #
 # Calls diag 308 subcode 1 and continues execution
 #
-# The following conditions must be ensured before calling this function:
-# * Prefix register = 0
-# * Lowcore protection is disabled
-#
 ENTRY(diag308_reset)
 	larl	%r4,.Lctlregs		# Save control registers
 	stctg	%c0,%c15,0(%r4)
+	lg	%r2,0(%r4)		# Disable lowcore protection
+	nilh	%r2,0xefff
+	larl	%r4,.Lctlreg0
+	stg	%r2,0(%r4)
+	lctlg	%c0,%c0,0(%r4)
 	larl	%r4,.Lfpctl		# Floating point control register
 	stfpc	0(%r4)
+	larl	%r4,.Lprefix		# Save prefix register
+	stpx	0(%r4)
+	larl	%r4,.Lprefix_zero	# Set prefix register to 0
+	spx	0(%r4)
 	larl	%r4,.Lcontinue_psw	# Save PSW flags
 	epsw	%r2,%r3
 	stm	%r2,%r3,0(%r4)
@@ -106,6 +111,8 @@ ENTRY(diag308_reset)
 	lctlg	%c0,%c15,0(%r4)
 	larl	%r4,.Lfpctl		# Restore floating point ctl register
 	lfpc	0(%r4)
+	larl	%r4,.Lprefix		# Restore prefix register
+	spx	0(%r4)
 	larl	%r4,.Lcontinue_psw	# Restore PSW flags
 	lpswe	0(%r4)
 .Lcontinue:
@@ -122,10 +129,16 @@ ENTRY(diag308_reset)
 
 	.section .bss
 .align 8
+.Lctlreg0:
+	.quad	0
 .Lctlregs:
 	.rept	16
 	.quad	0
 	.endr
 .Lfpctl:
+	.long	0
+.Lprefix:
+	.long	0
+.Lprefix_zero:
 	.long	0
 	.previous

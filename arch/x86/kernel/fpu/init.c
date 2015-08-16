@@ -95,11 +95,12 @@ static void __init fpu__init_system_mxcsr(void)
 	unsigned int mask = 0;
 
 	if (cpu_has_fxsr) {
-		struct fxregs_state fx_tmp __aligned(32) = { };
+		/* Static because GCC does not get 16-byte stack alignment right: */
+		static struct fxregs_state fxregs __initdata;
 
-		asm volatile("fxsave %0" : "+m" (fx_tmp));
+		asm volatile("fxsave %0" : "+m" (fxregs));
 
-		mask = fx_tmp.mxcsr_mask;
+		mask = fxregs.mxcsr_mask;
 
 		/*
 		 * If zero then use the default features mask,

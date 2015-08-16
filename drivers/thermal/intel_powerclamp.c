@@ -119,7 +119,7 @@ exit:
 	return ret;
 }
 
-static struct kernel_param_ops duration_ops = {
+static const struct kernel_param_ops duration_ops = {
 	.set = duration_set,
 	.get = param_get_int,
 };
@@ -167,7 +167,7 @@ exit_win:
 	return ret;
 }
 
-static struct kernel_param_ops window_size_ops = {
+static const struct kernel_param_ops window_size_ops = {
 	.set = window_size_set,
 	.get = param_get_int,
 };
@@ -697,6 +697,7 @@ static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 6, 0x4d},
 	{ X86_VENDOR_INTEL, 6, 0x4f},
 	{ X86_VENDOR_INTEL, 6, 0x56},
+	{ X86_VENDOR_INTEL, 6, 0x57},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);

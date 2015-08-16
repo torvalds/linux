@@ -119,12 +119,12 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 	if (per_cpu) {
 		mp->cpu = evlist->cpus->map[idx];
 		if (evlist->threads)
-			mp->tid = evlist->threads->map[0];
+			mp->tid = thread_map__pid(evlist->threads, 0);
 		else
 			mp->tid = -1;
 	} else {
 		mp->cpu = -1;
-		mp->tid = evlist->threads->map[idx];
+		mp->tid = thread_map__pid(evlist->threads, idx);
 	}
 }
 
@@ -1180,6 +1180,13 @@ static int __auxtrace_mmap__read(struct auxtrace_mmap *mm,
 		data1 = &data[head_off - len1];
 		len2 = 0;
 		data2 = NULL;
+	}
+
+	if (itr->alignment) {
+		unsigned int unwanted = len1 % itr->alignment;
+
+		len1 -= unwanted;
+		size -= unwanted;
 	}
 
 	/* padding must be written by fn() e.g. record__process_auxtrace() */

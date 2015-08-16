@@ -84,7 +84,7 @@ struct rtc_plat_data {
 	enum imx_rtc_type devtype;
 };
 
-static struct platform_device_id imx_rtc_devtype[] = {
+static const struct platform_device_id imx_rtc_devtype[] = {
 	{
 		.name = "imx1-rtc",
 		.driver_data = IMX1_RTC,

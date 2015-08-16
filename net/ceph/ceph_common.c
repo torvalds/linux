@@ -9,6 +9,7 @@
 #include <keys/ceph-type.h>
 #include <linux/module.h>
 #include <linux/mount.h>
+#include <linux/nsproxy.h>
 #include <linux/parser.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -16,8 +17,6 @@
 #include <linux/statfs.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/nsproxy.h>
-#include <net/net_namespace.h>
 
 
 #include <linux/ceph/ceph_features.h>
@@ -130,6 +129,13 @@ int ceph_compare_options(struct ceph_options *new_opt,
 	int ofs = offsetof(struct ceph_options, mon_addr);
 	int i;
 	int ret;
+
+	/*
+	 * Don't bother comparing options if network namespaces don't
+	 * match.
+	 */
+	if (!net_eq(current->nsproxy->net_ns, read_pnet(&client->msgr.net)))
+		return -1;
 
 	ret = memcmp(opt1, opt2, ofs);
 	if (ret)
@@ -335,9 +341,6 @@ ceph_parse_options(char *options, const char *dev_name,
 	int err = -ENOMEM;
 	substring_t argstr[MAX_OPT_ARGS];
 
-	if (current->nsproxy->net_ns != &init_net)
-		return ERR_PTR(-EINVAL);
-
 	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
 	if (!opt)
 		return ERR_PTR(-ENOMEM);
@@ -352,8 +355,8 @@ ceph_parse_options(char *options, const char *dev_name,
 	/* start with defaults */
 	opt->flags = CEPH_OPT_DEFAULT;
 	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
-	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT; /* seconds */
-	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;   /* seconds */
+	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
+	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
 
 	/* get mon ip(s) */
 	/* ip1[:port1][,ip2[:port2]...] */
@@ -439,13 +442,32 @@ ceph_parse_options(char *options, const char *dev_name,
 			pr_warn("ignoring deprecated osdtimeout option\n");
 			break;
 		case Opt_osdkeepalivetimeout:
-			opt->osd_keepalive_timeout = intval;
+			/* 0 isn't well defined right now, reject it */
+			if (intval < 1 || intval > INT_MAX / 1000) {
+				pr_err("osdkeepalive out of range\n");
+				err = -EINVAL;
+				goto out;
+			}
+			opt->osd_keepalive_timeout =
+					msecs_to_jiffies(intval * 1000);
 			break;
 		case Opt_osd_idle_ttl:
-			opt->osd_idle_ttl = intval;
+			/* 0 isn't well defined right now, reject it */
+			if (intval < 1 || intval > INT_MAX / 1000) {
+				pr_err("osd_idle_ttl out of range\n");
+				err = -EINVAL;
+				goto out;
+			}
+			opt->osd_idle_ttl = msecs_to_jiffies(intval * 1000);
 			break;
 		case Opt_mount_timeout:
-			opt->mount_timeout = intval;
+			/* 0 is "wait forever" (i.e. infinite timeout) */
+			if (intval < 0 || intval > INT_MAX / 1000) {
+				pr_err("mount_timeout out of range\n");
+				err = -EINVAL;
+				goto out;
+			}
+			opt->mount_timeout = msecs_to_jiffies(intval * 1000);
 			break;
 
 		case Opt_share:
@@ -512,12 +534,14 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
 		seq_puts(m, "notcp_nodelay,");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
-		seq_printf(m, "mount_timeout=%d,", opt->mount_timeout);
+		seq_printf(m, "mount_timeout=%d,",
+			   jiffies_to_msecs(opt->mount_timeout) / 1000);
 	if (opt->osd_idle_ttl != CEPH_OSD_IDLE_TTL_DEFAULT)
-		seq_printf(m, "osd_idle_ttl=%d,", opt->osd_idle_ttl);
+		seq_printf(m, "osd_idle_ttl=%d,",
+			   jiffies_to_msecs(opt->osd_idle_ttl) / 1000);
 	if (opt->osd_keepalive_timeout != CEPH_OSD_KEEPALIVE_DEFAULT)
 		seq_printf(m, "osdkeepalivetimeout=%d,",
-			   opt->osd_keepalive_timeout);
+		    jiffies_to_msecs(opt->osd_keepalive_timeout) / 1000);
 
 	/* drop redundant comma */
 	if (m->count != pos)
@@ -587,6 +611,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 fail_monc:
 	ceph_monc_stop(&client->monc);
 fail:
+	ceph_messenger_fini(&client->msgr);
 	kfree(client);
 	return ERR_PTR(err);
 }
@@ -600,8 +625,8 @@ void ceph_destroy_client(struct ceph_client *client)
 
 	/* unmount */
 	ceph_osdc_stop(&client->osdc);
-
 	ceph_monc_stop(&client->monc);
+	ceph_messenger_fini(&client->msgr);
 
 	ceph_debugfs_client_cleanup(client);
 
@@ -626,8 +651,8 @@ static int have_mon_and_osd_map(struct ceph_client *client)
  */
 int __ceph_open_session(struct ceph_client *client, unsigned long started)
 {
-	int err;
-	unsigned long timeout = client->options->mount_timeout * HZ;
+	unsigned long timeout = client->options->mount_timeout;
+	long err;
 
 	/* open session, and wait for mon and osd maps */
 	err = ceph_monc_open_session(&client->monc);
@@ -635,16 +660,15 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 		return err;
 
 	while (!have_mon_and_osd_map(client)) {
-		err = -EIO;
 		if (timeout && time_after_eq(jiffies, started + timeout))
-			return err;
+			return -ETIMEDOUT;
 
 		/* wait */
 		dout("mount waiting for mon_map\n");
 		err = wait_event_interruptible_timeout(client->auth_wq,
 			have_mon_and_osd_map(client) || (client->auth_err < 0),
-			timeout);
-		if (err == -EINTR || err == -ERESTARTSYS)
+			ceph_timeout_jiffies(timeout));
+		if (err < 0)
 			return err;
 		if (client->auth_err < 0)
 			return client->auth_err;
@@ -721,5 +745,5 @@ module_exit(exit_ceph_lib);
 MODULE_AUTHOR("Sage Weil <sage@newdream.net>");
 MODULE_AUTHOR("Yehuda Sadeh <yehuda@hq.newdream.net>");
 MODULE_AUTHOR("Patience Warnick <patience@newdream.net>");
-MODULE_DESCRIPTION("Ceph filesystem for Linux");
+MODULE_DESCRIPTION("Ceph core library");
 MODULE_LICENSE("GPL");

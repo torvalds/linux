@@ -142,6 +142,12 @@ config ARM_GLOBAL_TIMER
 	help
 	  This options enables support for the ARM global timer unit
 
+config ARM_TIMER_SP804
+	bool "Support for Dual Timer SP804 module"
+	depends on GENERIC_SCHED_CLOCK && CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CLKSRC_OF if OF
+
 config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	bool
 	depends on ARM_GLOBAL_TIMER
@@ -275,4 +281,16 @@ config CLKSRC_PXA
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
+
+config H8300_TMR16
+        bool
+
+config H8300_TPU
+        bool
+
+config CLKSRC_IMX_GPT
+	bool "Clocksource using i.MX GPT" if COMPILE_TEST
+	depends on ARM && CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+
 endmenu

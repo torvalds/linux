@@ -577,7 +577,7 @@ static int wm8971_set_bias_level(struct snd_soc_codec *codec,
 		flush_delayed_work(&wm8971->charge_work);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_cache_sync(codec);
 			/* charge output caps - set vmid to 5k for quick power up */
 			snd_soc_write(codec, WM8971_PWR1, pwr_reg | 0x01c0);
@@ -594,7 +594,6 @@ static int wm8971_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8971_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

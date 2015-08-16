@@ -18,6 +18,12 @@ Optional properties:
 
 - maxim,dmic-freq: Frequency at which to clock DMIC
 
+- maxim,micbias: Micbias voltage applies to the analog mic, valid voltages value are:
+	0 - 2.2v
+	1 - 2.55v
+	2 - 2.4v
+	3 - 2.8v
+
 Pins on the device (for linking into audio routes):
 
   * MIC1

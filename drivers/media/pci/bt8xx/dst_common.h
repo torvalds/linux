@@ -113,11 +113,11 @@ struct dst_state {
 	u8 dst_type;
 	u32 type_flags;
 	u32 frequency;		/* intermediate frequency in kHz for QPSK */
-	fe_spectral_inversion_t inversion;
+	enum fe_spectral_inversion inversion;
 	u32 symbol_rate;	/* symbol rate in Symbols per second */
-	fe_code_rate_t fec;
-	fe_sec_voltage_t voltage;
-	fe_sec_tone_mode_t tone;
+	enum fe_code_rate fec;
+	enum fe_sec_voltage voltage;
+	enum fe_sec_tone_mode tone;
 	u32 decode_freq;
 	u8 decode_lock;
 	u16 decode_strength;
@@ -127,8 +127,8 @@ struct dst_state {
 	u32 bandwidth;
 	u32 dst_hw_cap;
 	u8 dst_fw_version;
-	fe_sec_mini_cmd_t minicmd;
-	fe_modulation_t modulation;
+	enum fe_sec_mini_cmd minicmd;
+	enum fe_modulation modulation;
 	u8 messages[256];
 	u8 mac_address[8];
 	u8 fw_version[8];

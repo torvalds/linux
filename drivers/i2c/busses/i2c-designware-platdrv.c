@@ -281,7 +281,8 @@ static int dw_i2c_remove(struct platform_device *pdev)
 
 	i2c_dw_disable(dev);
 
-	pm_runtime_put(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	if (has_acpi_companion(&pdev->dev))
@@ -296,6 +297,22 @@ static const struct of_device_id dw_i2c_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+static int dw_i2c_prepare(struct device *dev)
+{
+	return pm_runtime_suspended(dev);
+}
+
+static void dw_i2c_complete(struct device *dev)
+{
+	if (dev->power.direct_complete)
+		pm_request_resume(dev);
+}
+#else
+#define dw_i2c_prepare	NULL
+#define dw_i2c_complete	NULL
 #endif
 
 #ifdef CONFIG_PM
@@ -322,10 +339,18 @@ static int dw_i2c_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static UNIVERSAL_DEV_PM_OPS(dw_i2c_dev_pm_ops, dw_i2c_suspend,
-			    dw_i2c_resume, NULL);
+static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
+	.prepare = dw_i2c_prepare,
+	.complete = dw_i2c_complete,
+	SET_SYSTEM_SLEEP_PM_OPS(dw_i2c_suspend, dw_i2c_resume)
+	SET_RUNTIME_PM_OPS(dw_i2c_suspend, dw_i2c_resume, NULL)
+};
+
+#define DW_I2C_DEV_PMOPS (&dw_i2c_dev_pm_ops)
+#else
+#define DW_I2C_DEV_PMOPS NULL
+#endif
 
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:i2c_designware");
@@ -337,7 +362,7 @@ static struct platform_driver dw_i2c_driver = {
 		.name	= "i2c_designware",
 		.of_match_table = of_match_ptr(dw_i2c_of_match),
 		.acpi_match_table = ACPI_PTR(dw_i2c_acpi_match),
-		.pm	= &dw_i2c_dev_pm_ops,
+		.pm	= DW_I2C_DEV_PMOPS,
 	},
 };
 

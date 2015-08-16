@@ -3,16 +3,16 @@ Linux I2C slave interface description
 
 by Wolfram Sang <wsa@sang-engineering.com> in 2014-15
 
-Linux can also be an I2C slave in case I2C controllers have slave support.
-Besides this HW requirement, one also needs a software backend providing the
-actual functionality. An example for this is the slave-eeprom driver, which
-acts as a dual memory driver. While another I2C master on the bus can access it
-like a regular EEPROM, the Linux I2C slave can access the content via sysfs and
-retrieve/provide information as needed. The software backend driver and the I2C
-bus driver communicate via events. Here is a small graph visualizing the data
-flow and the means by which data is transported. The dotted line marks only one
-example. The backend could also use e.g. a character device, be in-kernel
-only, or something completely different:
+Linux can also be an I2C slave if the I2C controller in use has slave
+functionality. For that to work, one needs slave support in the bus driver plus
+a hardware independent software backend providing the actual functionality. An
+example for the latter is the slave-eeprom driver, which acts as a dual memory
+driver. While another I2C master on the bus can access it like a regular
+EEPROM, the Linux I2C slave can access the content via sysfs and handle data as
+needed. The backend driver and the I2C bus driver communicate via events. Here
+is a small graph visualizing the data flow and the means by which data is
+transported. The dotted line marks only one example. The backend could also
+use a character device, be in-kernel only, or something completely different:
 
 
               e.g. sysfs        I2C slave events        I/O registers
@@ -42,6 +42,11 @@ behaviour and setup.
 
 Developer manual
 ================
+
+First, the events which are used by the bus driver and the backend will be
+described in detail. After that, some implementation hints for extending bus
+drivers and writing backends will be given.
+
 
 I2C slave events
 ----------------

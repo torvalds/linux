@@ -1041,7 +1041,7 @@ static u16 rtw_get_cur_max_rate(struct rtw_adapter *adapter)
 		while (pcur_bss->SupportedRates[i] != 0 &&
 		       pcur_bss->SupportedRates[i] != 0xFF) {
 			rate = pcur_bss->SupportedRates[i] & 0x7F;
-			if (rate>max_rate)
+			if (rate > max_rate)
 				max_rate = rate;
 			i++;
 		}

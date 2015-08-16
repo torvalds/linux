@@ -594,6 +594,7 @@ struct bcmgenet_priv {
 	wait_queue_head_t wq;
 	struct phy_device *phydev;
 	struct device_node *phy_dn;
+	struct device_node *mdio_dn;
 	struct mii_bus *mii_bus;
 	u16 gphy_rev;
 	struct clk *clk_eee;

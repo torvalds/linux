@@ -724,35 +724,30 @@ static int coda_qbuf(struct file *file, void *priv,
 }
 
 static bool coda_buf_is_end_of_stream(struct coda_ctx *ctx,
-				      struct v4l2_buffer *buf)
+				      struct vb2_buffer *buf)
 {
 	struct vb2_queue *src_vq;
 
 	src_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 
 	return ((ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG) &&
-		(buf->sequence == (ctx->qsequence - 1)));
+		(buf->v4l2_buf.sequence == (ctx->qsequence - 1)));
 }
 
-static int coda_dqbuf(struct file *file, void *priv,
-		      struct v4l2_buffer *buf)
+void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_buffer *buf,
+		       enum vb2_buffer_state state)
 {
-	struct coda_ctx *ctx = fh_to_ctx(priv);
-	int ret;
+	const struct v4l2_event eos_event = {
+		.type = V4L2_EVENT_EOS
+	};
 
-	ret = v4l2_m2m_dqbuf(file, ctx->fh.m2m_ctx, buf);
-
-	/* If this is the last capture buffer, emit an end-of-stream event */
-	if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    coda_buf_is_end_of_stream(ctx, buf)) {
-		const struct v4l2_event eos_event = {
-			.type = V4L2_EVENT_EOS
-		};
+	if (coda_buf_is_end_of_stream(ctx, buf)) {
+		buf->v4l2_buf.flags |= V4L2_BUF_FLAG_LAST;
 
 		v4l2_event_queue_fh(&ctx->fh, &eos_event);
 	}
 
-	return ret;
+	v4l2_m2m_buf_done(buf, state);
 }
 
 static int coda_g_selection(struct file *file, void *fh,
@@ -865,7 +860,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 
 	.vidioc_qbuf		= coda_qbuf,
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
-	.vidioc_dqbuf		= coda_dqbuf,
+	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
 	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
 
 	.vidioc_streamon	= v4l2_m2m_ioctl_streamon,
@@ -2160,9 +2155,9 @@ static int coda_probe(struct platform_device *pdev)
 	}
 
 	/* Get IRAM pool from device tree or platform data */
-	pool = of_get_named_gen_pool(np, "iram", 0);
+	pool = of_gen_pool_get(np, "iram", 0);
 	if (!pool && pdata)
-		pool = dev_get_gen_pool(pdata->iram_dev);
+		pool = gen_pool_get(pdata->iram_dev);
 	if (!pool) {
 		dev_err(&pdev->dev, "iram pool not available\n");
 		return -ENOMEM;

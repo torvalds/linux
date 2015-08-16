@@ -10,8 +10,11 @@
 #include "netns.h"
 
 static struct dentry *topdir;
+static struct dentry *rpc_fault_dir;
 static struct dentry *rpc_clnt_dir;
 static struct dentry *rpc_xprt_dir;
+
+unsigned int rpc_inject_disconnect;
 
 struct rpc_clnt_iter {
 	struct rpc_clnt	*clnt;
@@ -257,6 +260,8 @@ rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
 		debugfs_remove_recursive(xprt->debugfs);
 		xprt->debugfs = NULL;
 	}
+
+	atomic_set(&xprt->inject_disconnect, rpc_inject_disconnect);
 }
 
 void
@@ -266,11 +271,79 @@ rpc_xprt_debugfs_unregister(struct rpc_xprt *xprt)
 	xprt->debugfs = NULL;
 }
 
+static int
+fault_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = kmalloc(128, GFP_KERNEL);
+	if (!filp->private_data)
+		return -ENOMEM;
+	return 0;
+}
+
+static int
+fault_release(struct inode *inode, struct file *filp)
+{
+	kfree(filp->private_data);
+	return 0;
+}
+
+static ssize_t
+fault_disconnect_read(struct file *filp, char __user *user_buf,
+		      size_t len, loff_t *offset)
+{
+	char *buffer = (char *)filp->private_data;
+	size_t size;
+
+	size = sprintf(buffer, "%u\n", rpc_inject_disconnect);
+	return simple_read_from_buffer(user_buf, len, offset, buffer, size);
+}
+
+static ssize_t
+fault_disconnect_write(struct file *filp, const char __user *user_buf,
+		       size_t len, loff_t *offset)
+{
+	char buffer[16];
+
+	if (len >= sizeof(buffer))
+		len = sizeof(buffer) - 1;
+	if (copy_from_user(buffer, user_buf, len))
+		return -EFAULT;
+	buffer[len] = '\0';
+	if (kstrtouint(buffer, 10, &rpc_inject_disconnect))
+		return -EINVAL;
+	return len;
+}
+
+static const struct file_operations fault_disconnect_fops = {
+	.owner		= THIS_MODULE,
+	.open		= fault_open,
+	.read		= fault_disconnect_read,
+	.write		= fault_disconnect_write,
+	.release	= fault_release,
+};
+
+static struct dentry *
+inject_fault_dir(struct dentry *topdir)
+{
+	struct dentry *faultdir;
+
+	faultdir = debugfs_create_dir("inject_fault", topdir);
+	if (!faultdir)
+		return NULL;
+
+	if (!debugfs_create_file("disconnect", S_IFREG | S_IRUSR, faultdir,
+				 NULL, &fault_disconnect_fops))
+		return NULL;
+
+	return faultdir;
+}
+
 void __exit
 sunrpc_debugfs_exit(void)
 {
 	debugfs_remove_recursive(topdir);
 	topdir = NULL;
+	rpc_fault_dir = NULL;
 	rpc_clnt_dir = NULL;
 	rpc_xprt_dir = NULL;
 }
@@ -281,6 +354,10 @@ sunrpc_debugfs_init(void)
 	topdir = debugfs_create_dir("sunrpc", NULL);
 	if (!topdir)
 		return;
+
+	rpc_fault_dir = inject_fault_dir(topdir);
+	if (!rpc_fault_dir)
+		goto out_remove;
 
 	rpc_clnt_dir = debugfs_create_dir("rpc_clnt", topdir);
 	if (!rpc_clnt_dir)
@@ -294,5 +371,6 @@ sunrpc_debugfs_init(void)
 out_remove:
 	debugfs_remove_recursive(topdir);
 	topdir = NULL;
+	rpc_fault_dir = NULL;
 	rpc_clnt_dir = NULL;
 }

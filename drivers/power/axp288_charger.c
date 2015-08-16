@@ -848,7 +848,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	/* Register for extcon notification */
 	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
 	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
-	ret = extcon_register_notifier(info->cable.edev, &info->cable.nb);
+	ret = extcon_register_notifier(info->cable.edev, EXTCON_NONE, &info->cable.nb);
 	if (ret) {
 		dev_err(&info->pdev->dev,
 			"failed to register extcon notifier %d\n", ret);
@@ -909,7 +909,7 @@ intr_reg_failed:
 		extcon_unregister_interest(&info->otg.cable);
 	power_supply_unregister(info->psy_usb);
 psy_reg_failed:
-	extcon_unregister_notifier(info->cable.edev, &info->cable.nb);
+	extcon_unregister_notifier(info->cable.edev, EXTCON_NONE, &info->cable.nb);
 	return ret;
 }
 
@@ -920,7 +920,7 @@ static int axp288_charger_remove(struct platform_device *pdev)
 	if (info->otg.cable.edev)
 		extcon_unregister_interest(&info->otg.cable);
 
-	extcon_unregister_notifier(info->cable.edev, &info->cable.nb);
+	extcon_unregister_notifier(info->cable.edev, EXTCON_NONE, &info->cable.nb);
 	power_supply_unregister(info->psy_usb);
 
 	return 0;

@@ -14,12 +14,15 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
 
 #include <asm/i8259.h>
 #include <asm/io.h>
+
+#include "../../drivers/irqchip/irqchip.h"
 
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
@@ -327,7 +330,7 @@ static struct irq_domain_ops i8259A_ops = {
  * driver compatibility reasons interrupts 0 - 15 to be the i8259
  * interrupts even if the hardware uses a different interrupt numbering.
  */
-void __init init_i8259_irqs(void)
+struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
 {
 	struct irq_domain *domain;
 
@@ -336,10 +339,46 @@ void __init init_i8259_irqs(void)
 
 	init_8259A(0);
 
-	domain = irq_domain_add_legacy(NULL, 16, I8259A_IRQ_BASE, 0,
+	domain = irq_domain_add_legacy(node, 16, I8259A_IRQ_BASE, 0,
 				       &i8259A_ops, NULL);
 	if (!domain)
 		panic("Failed to add i8259 IRQ domain");
 
 	setup_irq(I8259A_IRQ_BASE + PIC_CASCADE_IR, &irq2);
+	return domain;
 }
+
+void __init init_i8259_irqs(void)
+{
+	__init_i8259_irqs(NULL);
+}
+
+static void i8259_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+{
+	struct irq_domain *domain = irq_get_handler_data(irq);
+	int hwirq = i8259_irq();
+
+	if (hwirq < 0)
+		return;
+
+	irq = irq_linear_revmap(domain, hwirq);
+	generic_handle_irq(irq);
+}
+
+int __init i8259_of_init(struct device_node *node, struct device_node *parent)
+{
+	struct irq_domain *domain;
+	unsigned int parent_irq;
+
+	parent_irq = irq_of_parse_and_map(node, 0);
+	if (!parent_irq) {
+		pr_err("Failed to map i8259 parent IRQ\n");
+		return -ENODEV;
+	}
+
+	domain = __init_i8259_irqs(node);
+	irq_set_handler_data(parent_irq, domain);
+	irq_set_chained_handler(parent_irq, i8259_irq_dispatch);
+	return 0;
+}
+IRQCHIP_DECLARE(i8259, "intel,i8259", i8259_of_init);

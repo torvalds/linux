@@ -49,10 +49,15 @@ struct snd_bebob_stream_formation {
 extern const unsigned int snd_bebob_rate_table[SND_BEBOB_STRM_FMT_ENTRIES];
 
 /* device specific operations */
-#define SND_BEBOB_CLOCK_INTERNAL	"Internal"
+enum snd_bebob_clock_type {
+	SND_BEBOB_CLOCK_TYPE_INTERNAL = 0,
+	SND_BEBOB_CLOCK_TYPE_EXTERNAL,
+	SND_BEBOB_CLOCK_TYPE_SYT,
+};
 struct snd_bebob_clock_spec {
 	unsigned int num;
 	const char *const *labels;
+	enum snd_bebob_clock_type *types;
 	int (*get)(struct snd_bebob *bebob, unsigned int *id);
 };
 struct snd_bebob_rate_spec {
@@ -92,8 +97,7 @@ struct snd_bebob {
 	struct amdtp_stream rx_stream;
 	struct cmp_connection out_conn;
 	struct cmp_connection in_conn;
-	atomic_t capture_substreams;
-	atomic_t playback_substreams;
+	atomic_t substreams_counter;
 
 	struct snd_bebob_stream_formation
 		tx_stream_formations[SND_BEBOB_STRM_FMT_ENTRIES];
@@ -110,6 +114,9 @@ struct snd_bebob {
 	/* for M-Audio special devices */
 	void *maudio_special_quirk;
 	bool deferred_registration;
+
+	/* For BeBoB version quirk. */
+	unsigned int version;
 };
 
 static inline int
@@ -159,7 +166,8 @@ enum avc_bridgeco_plug_type {
 	AVC_BRIDGECO_PLUG_TYPE_MIDI	= 0x02,
 	AVC_BRIDGECO_PLUG_TYPE_SYNC	= 0x03,
 	AVC_BRIDGECO_PLUG_TYPE_ANA	= 0x04,
-	AVC_BRIDGECO_PLUG_TYPE_DIG	= 0x05
+	AVC_BRIDGECO_PLUG_TYPE_DIG	= 0x05,
+	AVC_BRIDGECO_PLUG_TYPE_ADDITION	= 0x06
 };
 static inline void
 avc_bridgeco_fill_unit_addr(u8 buf[AVC_BRIDGECO_ADDR_BYTES],
@@ -205,8 +213,8 @@ int avc_bridgeco_get_plug_strm_fmt(struct fw_unit *unit,
 /* for AMDTP streaming */
 int snd_bebob_stream_get_rate(struct snd_bebob *bebob, unsigned int *rate);
 int snd_bebob_stream_set_rate(struct snd_bebob *bebob, unsigned int rate);
-int snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob,
-					  bool *internal);
+int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
+				   enum snd_bebob_clock_type *src);
 int snd_bebob_stream_discover(struct snd_bebob *bebob);
 int snd_bebob_stream_init_duplex(struct snd_bebob *bebob);
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate);

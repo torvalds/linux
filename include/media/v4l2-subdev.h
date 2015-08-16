@@ -40,6 +40,8 @@
 #define V4L2_SUBDEV_IR_TX_NOTIFY		_IOW('v', 1, u32)
 #define V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ	0x00000001
 
+#define	V4L2_DEVICE_NOTIFY_EVENT		_IOW('v', 2, struct v4l2_event)
+
 struct v4l2_device;
 struct v4l2_ctrl_handler;
 struct v4l2_event_subscription;
@@ -293,14 +295,6 @@ struct v4l2_mbus_frame_desc {
 
    g_dv_timings(): Get custom dv timings in the sub device.
 
-   enum_mbus_fmt: enumerate pixel formats, provided by a video data source
-
-   g_mbus_fmt: get the current pixel format, provided by a video data source
-
-   try_mbus_fmt: try to set a pixel format on a video data source
-
-   s_mbus_fmt: set a pixel format on a video data source
-
    g_mbus_config: get supported mediabus configurations
 
    s_mbus_config: set a certain mediabus configuration. This operation is added
@@ -338,14 +332,6 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
-	int (*enum_mbus_fmt)(struct v4l2_subdev *sd, unsigned int index,
-			     u32 *code);
-	int (*g_mbus_fmt)(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *fmt);
-	int (*try_mbus_fmt)(struct v4l2_subdev *sd,
-			    struct v4l2_mbus_framefmt *fmt);
-	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *fmt);
 	int (*g_mbus_config)(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg);
 	int (*s_mbus_config)(struct v4l2_subdev *sd,
@@ -619,6 +605,8 @@ struct v4l2_subdev {
 	struct video_device *devnode;
 	/* pointer to the physical device, if any */
 	struct device *dev;
+	/* The device_node of the subdev, usually the same as dev->of_node. */
+	struct device_node *of_node;
 	/* Links this subdev to a global subdev_list or @notifier->done list. */
 	struct list_head async_list;
 	/* Pointer to respective struct v4l2_async_subdev. */

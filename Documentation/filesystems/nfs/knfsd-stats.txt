@@ -68,16 +68,10 @@ sockets-enqueued
 	rate of change for this counter is zero; significantly non-zero
 	values may indicate a performance limitation.
 
-	This can happen either because there are too few nfsd threads in the
-	thread pool for the NFS workload (the workload is thread-limited),
-	or because the NFS workload needs more CPU time than is available in
-	the thread pool (the workload is CPU-limited).  In the former case,
-	configuring more nfsd threads will probably improve the performance
-	of the NFS workload.  In the latter case, the sunrpc server layer is
-	already choosing not to wake idle nfsd threads because there are too
-	many nfsd threads which want to run but cannot, so configuring more
-	nfsd threads will make no difference whatsoever.  The overloads-avoided
-	statistic (see below) can be used to distinguish these cases.
+	This can happen because there are too few nfsd threads in the thread
+	pool for the NFS workload (the workload is thread-limited), in which
+	case configuring more nfsd threads will probably improve the
+	performance of the NFS workload.
 
 threads-woken
 	Counts how many times an idle nfsd thread is woken to try to
@@ -87,36 +81,6 @@ threads-woken
 	network-facing NFS work is being handled quickly, which is a good
 	thing.  The ideal rate of change for this counter will be close
 	to but less than the rate of change of the packets-arrived counter.
-
-overloads-avoided
-	Counts how many times the sunrpc server layer chose not to wake an
-	nfsd thread, despite the presence of idle nfsd threads, because
-	too many nfsd threads had been recently woken but could not get
-	enough CPU time to actually run.
-
-	This statistic counts a circumstance where the sunrpc layer
-	heuristically avoids overloading the CPU scheduler with too many
-	runnable nfsd threads.  The ideal rate of change for this counter
-	is zero.  Significant non-zero values indicate that the workload
-	is CPU limited.  Usually this is associated with heavy CPU usage
-	on all the CPUs in the nfsd thread pool.
-
-	If a sustained large overloads-avoided rate is detected on a pool,
-	the top(1) utility should be used to check for the following
-	pattern of CPU usage on all the CPUs associated with the given
-	nfsd thread pool.
-
-	 - %us ~= 0 (as you're *NOT* running applications on your NFS server)
-
-	 - %wa ~= 0
-
-	 - %id ~= 0
-
-	 - %sy + %hi + %si ~= 100
-
-	If this pattern is seen, configuring more nfsd threads will *not*
-	improve the performance of the workload.  If this patten is not
-	seen, then something more subtle is wrong.
 
 threads-timedout
 	Counts how many times an nfsd thread triggered an idle timeout,

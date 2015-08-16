@@ -499,8 +499,8 @@ static int sti_dvo_probe(struct platform_device *pdev)
 	}
 	dvo->regs = devm_ioremap_nocache(dev, res->start,
 			resource_size(res));
-	if (IS_ERR(dvo->regs))
-		return PTR_ERR(dvo->regs);
+	if (!dvo->regs)
+		return -ENOMEM;
 
 	dvo->clk_pix = devm_clk_get(dev, "dvo_pix");
 	if (IS_ERR(dvo->clk_pix)) {

@@ -58,5 +58,5 @@ Example:
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
-		}
+		};
 	};

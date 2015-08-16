@@ -72,7 +72,7 @@ static int param_get_hashtbl_sz(char *buffer, const struct kernel_param *kp)
 
 #define param_check_hashtbl_sz(name, p) __param_check(name, p, unsigned int);
 
-static struct kernel_param_ops param_ops_hashtbl_sz = {
+static const struct kernel_param_ops param_ops_hashtbl_sz = {
 	.set = param_set_hashtbl_sz,
 	.get = param_get_hashtbl_sz,
 };

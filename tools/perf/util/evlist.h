@@ -289,5 +289,4 @@ void perf_evlist__to_front(struct perf_evlist *evlist,
 
 void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 				     struct perf_evsel *tracking_evsel);
-
 #endif /* __PERF_EVLIST_H */

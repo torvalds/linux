@@ -17,6 +17,8 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 
+#include "common.h"
+
 #define MMDC_MAPSR		0x404
 #define BP_MMDC_MAPSR_PSD	0
 #define BP_MMDC_MAPSR_PSS	4

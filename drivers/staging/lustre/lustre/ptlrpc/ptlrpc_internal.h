@@ -76,19 +76,16 @@ void ptlrpc_initiate_recovery(struct obd_import *imp);
 int lustre_unpack_req_ptlrpc_body(struct ptlrpc_request *req, int offset);
 int lustre_unpack_rep_ptlrpc_body(struct ptlrpc_request *req, int offset);
 
-#if defined(CONFIG_PROC_FS)
-void ptlrpc_lprocfs_register_service(struct proc_dir_entry *proc_entry,
-				     struct ptlrpc_service *svc);
+int ptlrpc_sysfs_register_service(struct kset *parent,
+				  struct ptlrpc_service *svc);
+void ptlrpc_sysfs_unregister_service(struct ptlrpc_service *svc);
+
+void ptlrpc_ldebugfs_register_service(struct dentry *debugfs_entry,
+				      struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_rpc_sent(struct ptlrpc_request *req, long amount);
 void ptlrpc_lprocfs_do_request_stat(struct ptlrpc_request *req,
 				     long q_usec, long work_usec);
-#else
-#define ptlrpc_lprocfs_register_service(params...) do {} while (0)
-#define ptlrpc_lprocfs_unregister_service(params...) do {} while (0)
-#define ptlrpc_lprocfs_rpc_sent(params...) do {} while (0)
-#define ptlrpc_lprocfs_do_request_stat(params...) do {} while (0)
-#endif /* CONFIG_PROC_FS */
 
 /* NRS */
 
@@ -263,14 +260,8 @@ void sptlrpc_enc_pool_fini(void);
 int sptlrpc_proc_enc_pool_seq_show(struct seq_file *m, void *v);
 
 /* sec_lproc.c */
-#if defined(CONFIG_PROC_FS)
 int  sptlrpc_lproc_init(void);
 void sptlrpc_lproc_fini(void);
-#else
-static inline int sptlrpc_lproc_init(void)
-{ return 0; }
-static inline void sptlrpc_lproc_fini(void) {}
-#endif
 
 /* sec_gc.c */
 int sptlrpc_gc_init(void);

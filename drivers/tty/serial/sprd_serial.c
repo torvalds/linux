@@ -716,7 +716,7 @@ static int sprd_probe(struct platform_device *pdev)
 	up->flags = UPF_BOOT_AUTOCONF;
 
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk))
+	if (!IS_ERR_OR_NULL(clk))
 		up->uartclk = clk_get_rate(clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

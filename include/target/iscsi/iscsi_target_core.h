@@ -247,10 +247,6 @@ struct iscsi_conn_ops {
 	u8	DataDigest;			/* [0,1] == [None,CRC32C] */
 	u32	MaxRecvDataSegmentLength;	/* [512..2**24-1] */
 	u32	MaxXmitDataSegmentLength;	/* [512..2**24-1] */
-	u8	OFMarker;			/* [0,1] == [No,Yes] */
-	u8	IFMarker;			/* [0,1] == [No,Yes] */
-	u32	OFMarkInt;			/* [1..65535] */
-	u32	IFMarkInt;			/* [1..65535] */
 	/*
 	 * iSER specific connection parameters
 	 */
@@ -531,12 +527,6 @@ struct iscsi_conn {
 	u32			exp_statsn;
 	/* Per connection status sequence number */
 	u32			stat_sn;
-	/* IFMarkInt's Current Value */
-	u32			if_marker;
-	/* OFMarkInt's Current Value */
-	u32			of_marker;
-	/* Used for calculating OFMarker offset to next PDU */
-	u32			of_marker_offset;
 #define IPV6_ADDRESS_SPACE				48
 	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
 	unsigned char		local_ip[IPV6_ADDRESS_SPACE];
@@ -754,10 +744,10 @@ struct iscsi_node_stat_grps {
 };
 
 struct iscsi_node_acl {
+	struct se_node_acl	se_node_acl;
 	struct iscsi_node_attrib node_attrib;
 	struct iscsi_node_auth	node_auth;
 	struct iscsi_node_stat_grps node_stat_grps;
-	struct se_node_acl	se_node_acl;
 };
 
 struct iscsi_tpg_attrib {

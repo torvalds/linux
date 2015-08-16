@@ -245,7 +245,7 @@ the case would look like this:
 
 	if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
 		using_dac = 1;
-	   	consistent_using_dac = 1;
+		consistent_using_dac = 1;
 	} else if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32))) {
 		using_dac = 0;
 		consistent_using_dac = 0;
@@ -358,7 +358,7 @@ There are two types of DMA mappings:
   transfer, unmapped right after it (unless you use dma_sync_* below)
   and for which hardware can optimize for sequential accesses.
 
-  This of "streaming" as "asynchronous" or "outside the coherency
+  Think of "streaming" as "asynchronous" or "outside the coherency
   domain".
 
   Good examples of what to use streaming mappings for are:

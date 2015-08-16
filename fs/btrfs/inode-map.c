@@ -246,6 +246,7 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 {
 	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct rb_root *rbroot = &root->free_ino_pinned->free_space_offset;
+	spinlock_t *rbroot_lock = &root->free_ino_pinned->tree_lock;
 	struct btrfs_free_space *info;
 	struct rb_node *n;
 	u64 count;
@@ -254,24 +255,30 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 		return;
 
 	while (1) {
+		bool add_to_ctl = true;
+
+		spin_lock(rbroot_lock);
 		n = rb_first(rbroot);
-		if (!n)
+		if (!n) {
+			spin_unlock(rbroot_lock);
 			break;
+		}
 
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
 		BUG_ON(info->bitmap); /* Logic error */
 
 		if (info->offset > root->ino_cache_progress)
-			goto free;
+			add_to_ctl = false;
 		else if (info->offset + info->bytes > root->ino_cache_progress)
 			count = root->ino_cache_progress - info->offset + 1;
 		else
 			count = info->bytes;
 
-		__btrfs_add_free_space(ctl, info->offset, count);
-free:
 		rb_erase(&info->offset_index, rbroot);
-		kfree(info);
+		spin_unlock(rbroot_lock);
+		if (add_to_ctl)
+			__btrfs_add_free_space(ctl, info->offset, count);
+		kmem_cache_free(btrfs_free_space_cachep, info);
 	}
 }
 

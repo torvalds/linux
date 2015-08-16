@@ -33,40 +33,16 @@ static struct memblock_type oldmem_type = {
 };
 
 #define for_each_dump_mem_range(i, nid, p_start, p_end, p_nid)		\
-	for (i = 0, __next_mem_range(&i, nid, &memblock.physmem,	\
+	for (i = 0, __next_mem_range(&i, nid, MEMBLOCK_NONE,		\
+				     &memblock.physmem,			\
 				     &oldmem_type, p_start,		\
 				     p_end, p_nid);			\
 	     i != (u64)ULLONG_MAX;					\
-	     __next_mem_range(&i, nid, &memblock.physmem,		\
+	     __next_mem_range(&i, nid, MEMBLOCK_NONE, &memblock.physmem,\
 			      &oldmem_type,				\
 			      p_start, p_end, p_nid))
 
 struct dump_save_areas dump_save_areas;
-
-/*
- * Allocate and add a save area for a CPU
- */
-struct save_area_ext *dump_save_area_create(int cpu)
-{
-	struct save_area_ext **save_areas, *save_area;
-
-	save_area = kmalloc(sizeof(*save_area), GFP_KERNEL);
-	if (!save_area)
-		return NULL;
-	if (cpu + 1 > dump_save_areas.count) {
-		dump_save_areas.count = cpu + 1;
-		save_areas = krealloc(dump_save_areas.areas,
-				      dump_save_areas.count * sizeof(void *),
-				      GFP_KERNEL | __GFP_ZERO);
-		if (!save_areas) {
-			kfree(save_area);
-			return NULL;
-		}
-		dump_save_areas.areas = save_areas;
-	}
-	dump_save_areas.areas[cpu] = save_area;
-	return save_area;
-}
 
 /*
  * Return physical address for virtual address
@@ -415,7 +391,7 @@ static void *nt_s390_vx_low(void *ptr, __vector128 *vx_regs)
 	ptr += len;
 	/* Copy lower halves of SIMD registers 0-15 */
 	for (i = 0; i < 16; i++) {
-		memcpy(ptr, &vx_regs[i], 8);
+		memcpy(ptr, &vx_regs[i].u[2], 8);
 		ptr += 8;
 	}
 	return ptr;

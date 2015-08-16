@@ -669,6 +669,8 @@ struct iwl_priv {
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
 
+	struct napi_struct *napi;
+
 	struct list_head calib_results;
 
 	struct workqueue_struct *workqueue;

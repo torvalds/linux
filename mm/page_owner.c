@@ -310,4 +310,4 @@ static int __init pageowner_init(void)
 
 	return 0;
 }
-module_init(pageowner_init)
+late_initcall(pageowner_init)

@@ -42,13 +42,6 @@ config HVC_RTAS
 	help
 	  IBM Console device driver which makes use of RTAS
 
-config HVC_BEAT
-	bool "Toshiba's Beat Hypervisor Console support"
-	depends on PPC_CELLEB
-	select HVC_DRIVER
-	help
-	  Toshiba's Cell Reference Set Beat Console device driver
-
 config HVC_IUCV
 	bool "z/VM IUCV Hypervisor console support (VM only)"
 	depends on S390

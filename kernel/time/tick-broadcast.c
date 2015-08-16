@@ -159,7 +159,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 {
 	struct clock_event_device *bc = tick_broadcast_device.evtdev;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
 
@@ -221,13 +221,14 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 			 * If we kept the cpu in the broadcast mask,
 			 * tell the caller to leave the per cpu device
 			 * in shutdown state. The periodic interrupt
-			 * is delivered by the broadcast device.
+			 * is delivered by the broadcast device, if
+			 * the broadcast device exists and is not
+			 * hrtimer based.
 			 */
-			ret = cpumask_test_cpu(cpu, tick_broadcast_mask);
+			if (bc && !(bc->features & CLOCK_EVT_FEAT_HRTIMER))
+				ret = cpumask_test_cpu(cpu, tick_broadcast_mask);
 			break;
 		default:
-			/* Nothing to do */
-			ret = 0;
 			break;
 		}
 	}
@@ -265,8 +266,22 @@ static bool tick_do_broadcast(struct cpumask *mask)
 	 * Check, if the current cpu is in the mask
 	 */
 	if (cpumask_test_cpu(cpu, mask)) {
+		struct clock_event_device *bc = tick_broadcast_device.evtdev;
+
 		cpumask_clear_cpu(cpu, mask);
-		local = true;
+		/*
+		 * We only run the local handler, if the broadcast
+		 * device is not hrtimer based. Otherwise we run into
+		 * a hrtimer recursion.
+		 *
+		 * local timer_interrupt()
+		 *   local_handler()
+		 *     expire_hrtimers()
+		 *       bc_handler()
+		 *         local_handler()
+		 *	     expire_hrtimers()
+		 */
+		local = !(bc->features & CLOCK_EVT_FEAT_HRTIMER);
 	}
 
 	if (!cpumask_empty(mask)) {
@@ -301,6 +316,13 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
 	bool bc_local;
 
 	raw_spin_lock(&tick_broadcast_lock);
+
+	/* Handle spurious interrupts gracefully */
+	if (clockevent_state_shutdown(tick_broadcast_device.evtdev)) {
+		raw_spin_unlock(&tick_broadcast_lock);
+		return;
+	}
+
 	bc_local = tick_do_periodic_broadcast();
 
 	if (clockevent_state_oneshot(dev)) {
@@ -359,8 +381,16 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 	case TICK_BROADCAST_ON:
 		cpumask_set_cpu(cpu, tick_broadcast_on);
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_mask)) {
-			if (tick_broadcast_device.mode ==
-			    TICKDEV_MODE_PERIODIC)
+			/*
+			 * Only shutdown the cpu local device, if:
+			 *
+			 * - the broadcast device exists
+			 * - the broadcast device is not a hrtimer based one
+			 * - the broadcast device is in periodic mode to
+			 *   avoid a hickup during switch to oneshot mode
+			 */
+			if (bc && !(bc->features & CLOCK_EVT_FEAT_HRTIMER) &&
+			    tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
 				clockevents_shutdown(dev);
 		}
 		break;
@@ -379,14 +409,16 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 		break;
 	}
 
-	if (cpumask_empty(tick_broadcast_mask)) {
-		if (!bc_stopped)
-			clockevents_shutdown(bc);
-	} else if (bc_stopped) {
-		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
-			tick_broadcast_start_periodic(bc);
-		else
-			tick_broadcast_setup_oneshot(bc);
+	if (bc) {
+		if (cpumask_empty(tick_broadcast_mask)) {
+			if (!bc_stopped)
+				clockevents_shutdown(bc);
+		} else if (bc_stopped) {
+			if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
+				tick_broadcast_start_periodic(bc);
+			else
+				tick_broadcast_setup_oneshot(bc);
+		}
 	}
 	raw_spin_unlock(&tick_broadcast_lock);
 }
@@ -662,71 +694,82 @@ static void broadcast_shutdown_local(struct clock_event_device *bc,
 	clockevents_switch_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 }
 
-/**
- * tick_broadcast_oneshot_control - Enter/exit broadcast oneshot mode
- * @state:	The target state (enter/exit)
- *
- * The system enters/leaves a state, where affected devices might stop
- * Returns 0 on success, -EBUSY if the cpu is used to broadcast wakeups.
- *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
- * under us.
- */
-int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 {
 	struct clock_event_device *bc, *dev;
-	struct tick_device *td;
 	int cpu, ret = 0;
 	ktime_t now;
 
 	/*
-	 * Periodic mode does not care about the enter/exit of power
-	 * states
+	 * If there is no broadcast device, tell the caller not to go
+	 * into deep idle.
 	 */
-	if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
-		return 0;
+	if (!tick_broadcast_device.evtdev)
+		return -EBUSY;
 
-	/*
-	 * We are called with preemtion disabled from the depth of the
-	 * idle code, so we can't be moved away.
-	 */
-	td = this_cpu_ptr(&tick_cpu_device);
-	dev = td->evtdev;
-
-	if (!(dev->features & CLOCK_EVT_FEAT_C3STOP))
-		return 0;
+	dev = this_cpu_ptr(&tick_cpu_device)->evtdev;
 
 	raw_spin_lock(&tick_broadcast_lock);
 	bc = tick_broadcast_device.evtdev;
 	cpu = smp_processor_id();
 
 	if (state == TICK_BROADCAST_ENTER) {
+		/*
+		 * If the current CPU owns the hrtimer broadcast
+		 * mechanism, it cannot go deep idle and we do not add
+		 * the CPU to the broadcast mask. We don't have to go
+		 * through the EXIT path as the local timer is not
+		 * shutdown.
+		 */
+		ret = broadcast_needs_cpu(bc, cpu);
+		if (ret)
+			goto out;
+
+		/*
+		 * If the broadcast device is in periodic mode, we
+		 * return.
+		 */
+		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC) {
+			/* If it is a hrtimer based broadcast, return busy */
+			if (bc->features & CLOCK_EVT_FEAT_HRTIMER)
+				ret = -EBUSY;
+			goto out;
+		}
+
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_oneshot_mask)) {
 			WARN_ON_ONCE(cpumask_test_cpu(cpu, tick_broadcast_pending_mask));
+
+			/* Conditionally shut down the local timer. */
 			broadcast_shutdown_local(bc, dev);
+
 			/*
 			 * We only reprogram the broadcast timer if we
 			 * did not mark ourself in the force mask and
 			 * if the cpu local event is earlier than the
 			 * broadcast event. If the current CPU is in
 			 * the force mask, then we are going to be
-			 * woken by the IPI right away.
+			 * woken by the IPI right away; we return
+			 * busy, so the CPU does not try to go deep
+			 * idle.
 			 */
-			if (!cpumask_test_cpu(cpu, tick_broadcast_force_mask) &&
-			    dev->next_event.tv64 < bc->next_event.tv64)
+			if (cpumask_test_cpu(cpu, tick_broadcast_force_mask)) {
+				ret = -EBUSY;
+			} else if (dev->next_event.tv64 < bc->next_event.tv64) {
 				tick_broadcast_set_event(bc, cpu, dev->next_event);
+				/*
+				 * In case of hrtimer broadcasts the
+				 * programming might have moved the
+				 * timer to this cpu. If yes, remove
+				 * us from the broadcast mask and
+				 * return busy.
+				 */
+				ret = broadcast_needs_cpu(bc, cpu);
+				if (ret) {
+					cpumask_clear_cpu(cpu,
+						tick_broadcast_oneshot_mask);
+				}
+			}
 		}
-		/*
-		 * If the current CPU owns the hrtimer broadcast
-		 * mechanism, it cannot go deep idle and we remove the
-		 * CPU from the broadcast mask. We don't have to go
-		 * through the EXIT path as the local timer is not
-		 * shutdown.
-		 */
-		ret = broadcast_needs_cpu(bc, cpu);
-		if (ret)
-			cpumask_clear_cpu(cpu, tick_broadcast_oneshot_mask);
 	} else {
 		if (cpumask_test_and_clear_cpu(cpu, tick_broadcast_oneshot_mask)) {
 			clockevents_switch_state(dev, CLOCK_EVT_STATE_ONESHOT);
@@ -938,6 +981,16 @@ bool tick_broadcast_oneshot_available(void)
 	return bc ? bc->features & CLOCK_EVT_FEAT_ONESHOT : false;
 }
 
+#else
+int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+{
+	struct clock_event_device *bc = tick_broadcast_device.evtdev;
+
+	if (!bc || (bc->features & CLOCK_EVT_FEAT_HRTIMER))
+		return -EBUSY;
+
+	return 0;
+}
 #endif
 
 void __init tick_broadcast_init(void)

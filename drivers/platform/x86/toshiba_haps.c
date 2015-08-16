@@ -78,15 +78,20 @@ static ssize_t protection_level_store(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct toshiba_haps_dev *haps = dev_get_drvdata(dev);
-	int level, ret;
+	int level;
+	int ret;
 
-	if (sscanf(buf, "%d", &level) != 1 || level < 0 || level > 3)
-		return -EINVAL;
-
-	/* Set the sensor level.
-	 * Acceptable levels are:
+	ret = kstrtoint(buf, 0, &level);
+	if (ret)
+		return ret;
+	/*
+	 * Check for supported levels, which can be:
 	 * 0 - Disabled | 1 - Low | 2 - Medium | 3 - High
 	 */
+	if (level < 0 || level > 3)
+		return -EINVAL;
+
+	/* Set the sensor level */
 	ret = toshiba_haps_protection_level(haps->acpi_dev->handle, level);
 	if (ret != 0)
 		return ret;
@@ -95,15 +100,21 @@ static ssize_t protection_level_store(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(protection_level);
 
 static ssize_t reset_protection_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	struct toshiba_haps_dev *haps = dev_get_drvdata(dev);
-	int reset, ret;
+	int reset;
+	int ret;
 
-	if (sscanf(buf, "%d", &reset) != 1 || reset != 1)
+	ret = kstrtoint(buf, 0, &reset);
+	if (ret)
+		return ret;
+	/* The only accepted value is 1 */
+	if (reset != 1)
 		return -EINVAL;
 
 	/* Reset the protection interface */
@@ -113,10 +124,7 @@ static ssize_t reset_protection_store(struct device *dev,
 
 	return count;
 }
-
-static DEVICE_ATTR(protection_level, S_IRUGO | S_IWUSR,
-		   protection_level_show, protection_level_store);
-static DEVICE_ATTR(reset_protection, S_IWUSR, NULL, reset_protection_store);
+static DEVICE_ATTR_WO(reset_protection);
 
 static struct attribute *haps_attributes[] = {
 	&dev_attr_protection_level.attr,

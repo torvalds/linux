@@ -91,11 +91,6 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
  */
 #define SND_DMAENGINE_PCM_FLAG_NO_DT BIT(1)
 /*
- * The platforms dmaengine driver does not support reporting the amount of
- * bytes that are still left to transfer.
- */
-#define SND_DMAENGINE_PCM_FLAG_NO_RESIDUE BIT(2)
-/*
  * The PCM is half duplex and the DMA channel is shared between capture and
  * playback.
  */

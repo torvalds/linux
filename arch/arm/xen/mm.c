@@ -15,10 +15,10 @@
 #include <xen/xen.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/memory.h>
+#include <xen/page.h>
 #include <xen/swiotlb-xen.h>
 
 #include <asm/cacheflush.h>
-#include <asm/xen/page.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/interface.h>
 

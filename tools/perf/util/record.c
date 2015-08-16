@@ -64,7 +64,7 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 	if (!cpus)
 		return false;
 	cpu = cpus->map[0];
-	cpu_map__delete(cpus);
+	cpu_map__put(cpus);
 
 	do {
 		ret = perf_do_probe_api(fn, cpu, try[i++]);
@@ -226,7 +226,7 @@ bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 		struct cpu_map *cpus = cpu_map__new(NULL);
 
 		cpu =  cpus ? cpus->map[0] : 0;
-		cpu_map__delete(cpus);
+		cpu_map__put(cpus);
 	} else {
 		cpu = evlist->cpus->map[0];
 	}

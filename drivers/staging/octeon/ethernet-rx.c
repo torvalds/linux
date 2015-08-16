@@ -1,29 +1,13 @@
-/**********************************************************************
- * Author: Cavium Networks
- *
- * Contact: support@caviumnetworks.com
- * This file is part of the OCTEON SDK
+/*
+ * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
  * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- * or visit http://www.gnu.org/licenses/.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium Networks for more information
-**********************************************************************/
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/cache.h>
@@ -93,11 +77,8 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 		 * instead of 60+4FCS.  Note these packets still get
 		 * counted as frame errors.
 		 */
-	} else
-	    if (USE_10MBPS_PREAMBLE_WORKAROUND
-		&& ((work->word2.snoip.err_code == 5)
-		    || (work->word2.snoip.err_code == 7))) {
-
+	} else if (work->word2.snoip.err_code == 5 ||
+		   work->word2.snoip.err_code == 7) {
 		/*
 		 * We received a packet with either an alignment error
 		 * or a FCS error. This may be signalling that we are
@@ -233,7 +214,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		}
 		rx_count++;
 
-		skb_in_hw = USE_SKBUFFS_IN_HW && work->word2.s.bufs == 1;
+		skb_in_hw = work->word2.s.bufs == 1;
 		if (likely(skb_in_hw)) {
 			skb = *pskb;
 			prefetch(&skb->head);
@@ -394,7 +375,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		 * Check to see if the skbuff and work share the same
 		 * packet buffer.
 		 */
-		if (USE_SKBUFFS_IN_HW && likely(packet_not_copied)) {
+		if (likely(packet_not_copied)) {
 			/*
 			 * This buffer needs to be replaced, increment
 			 * the number of buffers we need to free by
@@ -403,8 +384,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
 					      1);
 
-			cvmx_fpa_free(work, CVMX_FPA_WQE_POOL,
-				      DONT_WRITEBACK(1));
+			cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
 		} else {
 			cvm_oct_free_work(work);
 		}

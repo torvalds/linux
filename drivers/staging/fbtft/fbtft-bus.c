@@ -184,7 +184,7 @@ EXPORT_SYMBOL(fbtft_write_vmem16_bus8);
 /* 16 bit pixel over 9-bit SPI bus: dc + high byte, dc + low byte */
 int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u8 *vmem8;
+	u8 __iomem *vmem8;
 	u16 *txbuf16 = par->txbuf.buf;
 	size_t remain;
 	size_t to_copy;
@@ -212,12 +212,12 @@ int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 
 #ifdef __LITTLE_ENDIAN
 		for (i = 0; i < to_copy; i += 2) {
-			txbuf16[i]   = 0x0100 | vmem8[i+1];
-			txbuf16[i+1] = 0x0100 | vmem8[i];
+			txbuf16[i]     = 0x0100 | ioread8(vmem8 + i + 1);
+			txbuf16[i + 1] = 0x0100 | ioread8(vmem8 + i);
 		}
 #else
 		for (i = 0; i < to_copy; i++)
-			txbuf16[i]   = 0x0100 | vmem8[i];
+			txbuf16[i]   = 0x0100 | ioread8(vmem8 + i);
 #endif
 		vmem8 = vmem8 + to_copy;
 		ret = par->fbtftops.write(par, par->txbuf.buf, to_copy*2);
