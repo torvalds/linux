@@ -971,6 +971,67 @@ gk104_ram_calc_data(struct gk104_ram *ram, u32 khz, struct nvkm_ram_data *data)
 }
 
 static int
+gk104_calc_pll_output(int fN, int M, int N, int P, int clk)
+{
+	return ((clk * N) + (((u16)(fN + 4096) * clk) >> 13)) / (M * P);
+}
+
+static int
+gk104_pll_calc_hiclk(int target_khz, int crystal,
+		int *N1, int *fN1, int *M1, int *P1,
+		int *N2, int *M2, int *P2)
+{
+	int best_clk = 0, best_err = target_khz, p_ref, n_ref;
+	bool upper = false;
+
+	*M1 = 1;
+	/* M has to be 1, otherwise it gets unstable */
+	*M2 = 1;
+	/* can be 1 or 2, sticking with 1 for simplicity */
+	*P2 = 1;
+
+	for (p_ref = 0x7; p_ref >= 0x5; --p_ref) {
+		for (n_ref = 0x25; n_ref <= 0x2b; ++n_ref) {
+			int cur_N, cur_clk, cur_err;
+
+			cur_clk = gk104_calc_pll_output(0, 1, n_ref, p_ref, crystal);
+			cur_N = target_khz / cur_clk;
+			cur_err = target_khz
+				- gk104_calc_pll_output(0xf000, 1, cur_N, 1, cur_clk);
+
+			/* we found a better combination */
+			if (cur_err < best_err) {
+				best_err = cur_err;
+				best_clk = cur_clk;
+				*N2 = cur_N;
+				*N1 = n_ref;
+				*P1 = p_ref;
+				upper = false;
+			}
+
+			cur_N += 1;
+			cur_err = gk104_calc_pll_output(0xf000, 1, cur_N, 1, cur_clk)
+				- target_khz;
+			if (cur_err < best_err) {
+				best_err = cur_err;
+				best_clk = cur_clk;
+				*N2 = cur_N;
+				*N1 = n_ref;
+				*P1 = p_ref;
+				upper = true;
+			}
+		}
+	}
+
+	/* adjust fN to get closer to the target clock */
+	*fN1 = (u16)((((best_err / *N2 * *P2) * (*P1 * *M1)) << 13) / crystal);
+	if (upper)
+		*fN1 = (u16)(1 - *fN1);
+
+	return gk104_calc_pll_output(*fN1, 1, *N1, *P1, crystal);
+}
+
+static int
 gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 {
 	struct gk104_ramfuc *fuc = &ram->fuc;
@@ -994,31 +1055,24 @@ gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 	 * kepler boards, no idea how/why they're chosen.
 	 */
 	refclk = next->freq;
-	if (ram->mode == 2)
-		refclk = fuc->mempll.refclk;
-
-	/* calculate refpll coefficients */
-	ret = gt215_pll_calc(subdev, &fuc->refpll, refclk, &ram->N1,
-			     &ram->fN1, &ram->M1, &ram->P1);
-	fuc->mempll.refclk = ret;
-	if (ret <= 0) {
-		nvkm_error(subdev, "unable to calc refpll\n");
-		return -EINVAL;
-	}
-
-	/* calculate mempll coefficients, if we're using it */
 	if (ram->mode == 2) {
-		/* post-divider doesn't work... the reg takes the values but
-		 * appears to completely ignore it.  there *is* a bit at
-		 * bit 28 that appears to divide the clock by 2 if set.
-		 */
-		fuc->mempll.min_p = 1;
-		fuc->mempll.max_p = 2;
-
-		ret = gt215_pll_calc(subdev, &fuc->mempll, next->freq,
-				     &ram->N2, NULL, &ram->M2, &ram->P2);
+		ret = gk104_pll_calc_hiclk(next->freq, subdev->device->crystal,
+				&ram->N1, &ram->fN1, &ram->M1, &ram->P1,
+				&ram->N2, &ram->M2, &ram->P2);
+		fuc->mempll.refclk = ret;
 		if (ret <= 0) {
-			nvkm_error(subdev, "unable to calc mempll\n");
+			nvkm_error(subdev, "unable to calc plls\n");
+			return -EINVAL;
+		}
+		nvkm_debug(subdev, "sucessfully calced PLLs for clock %i kHz"
+				" (refclock: %i kHz)\n", next->freq, ret);
+	} else {
+		/* calculate refpll coefficients */
+		ret = gt215_pll_calc(subdev, &fuc->refpll, refclk, &ram->N1,
+				     &ram->fN1, &ram->M1, &ram->P1);
+		fuc->mempll.refclk = ret;
+		if (ret <= 0) {
+			nvkm_error(subdev, "unable to calc refpll\n");
 			return -EINVAL;
 		}
 	}
