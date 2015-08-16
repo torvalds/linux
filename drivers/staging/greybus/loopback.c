@@ -271,16 +271,19 @@ gb_dev_loopback_ro_attr(iteration_count);
 /* A bit-mask of destination connecitons to include in the test run */
 gb_dev_loopback_rw_attr(mask, u);
 
-#define dev_stats_attrs(name)						\
-	&dev_attr_##name##_min.attr,					\
-	&dev_attr_##name##_max.attr,					\
-	&dev_attr_##name##_avg.attr
-
 static struct attribute *loopback_attrs[] = {
-	dev_stats_attrs(latency),
-	dev_stats_attrs(latency_gb),
-	dev_stats_attrs(requests_per_second),
-	dev_stats_attrs(throughput),
+	&dev_attr_latency_min.attr,
+	&dev_attr_latency_max.attr,
+	&dev_attr_latency_avg.attr,
+	&dev_attr_latency_gb_min.attr,
+	&dev_attr_latency_gb_max.attr,
+	&dev_attr_latency_gb_avg.attr,
+	&dev_attr_requests_per_second_min.attr,
+	&dev_attr_requests_per_second_max.attr,
+	&dev_attr_requests_per_second_avg.attr,
+	&dev_attr_throughput_min.attr,
+	&dev_attr_throughput_max.attr,
+	&dev_attr_throughput_avg.attr,
 	&dev_attr_type.attr,
 	&dev_attr_size.attr,
 	&dev_attr_ms_wait.attr,
