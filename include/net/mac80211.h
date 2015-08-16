@@ -3026,6 +3026,9 @@ enum ieee80211_reconfig_type {
  *	buffer size of 8. Correct ways to retransmit #1 would be:
  *	 - TX:       1 or 18 or 81
  *	Even "189" would be wrong since 1 could be lost again.
+ *	The @amsdu parameter is valid when the action is set to
+ *	%IEEE80211_AMPDU_TX_OPERATIONAL and indicates the peer's ability
+ *	to receive A-MSDU within A-MPDU.
  *
  *	Returns a negative error code on failure.
  *	The callback can sleep.
@@ -3363,7 +3366,7 @@ struct ieee80211_ops {
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			    u8 buf_size);
+			    u8 buf_size, bool amsdu);
 	int (*get_survey)(struct ieee80211_hw *hw, int idx,
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);

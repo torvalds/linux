@@ -1856,7 +1856,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      enum ieee80211_ampdu_mlme_action action,
 			      struct ieee80211_sta *sta,
-			      u16 tid, u16 *ssn, u8 buf_size)
+			      u16 tid, u16 *ssn, u8 buf_size, bool amsdu)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
