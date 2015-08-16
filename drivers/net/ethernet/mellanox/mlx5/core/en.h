@@ -56,8 +56,10 @@
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC      0x10
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS      0x20
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES                0x80
-#define MLX5E_PARAMS_DEFAULT_RX_HASH_LOG_TBL_SZ         0x7
 
+#define MLX5E_LOG_INDIR_RQT_SIZE       0x7
+#define MLX5E_INDIR_RQT_SIZE           BIT(MLX5E_LOG_INDIR_RQT_SIZE)
+#define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE >> 1)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_UPDATE_STATS_INTERVAL    200 /* msecs */
 #define MLX5E_SQ_BF_BUDGET             16
@@ -268,7 +270,6 @@ struct mlx5e_params {
 	u16 tx_cq_moderation_usec;
 	u16 tx_cq_moderation_pkts;
 	u16 min_rx_wqes;
-	u16 rx_hash_log_tbl_sz;
 	bool lro_en;
 	u32 lro_wqe_sz;
 	u8  rss_hfunc;
