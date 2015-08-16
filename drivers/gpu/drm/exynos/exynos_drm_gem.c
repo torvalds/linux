@@ -20,22 +20,6 @@
 #include "exynos_drm_buf.h"
 #include "exynos_drm_iommu.h"
 
-static void update_vm_cache_attr(struct exynos_drm_gem_obj *obj,
-					struct vm_area_struct *vma)
-{
-	DRM_DEBUG_KMS("flags = 0x%x\n", obj->flags);
-
-	/* non-cachable as default. */
-	if (obj->flags & EXYNOS_BO_CACHABLE)
-		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-	else if (obj->flags & EXYNOS_BO_WC)
-		vma->vm_page_prot =
-			pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
-	else
-		vma->vm_page_prot =
-			pgprot_noncached(vm_get_page_prot(vma->vm_flags));
-}
-
 static unsigned long roundup_gem_size(unsigned long size, unsigned int flags)
 {
 	/* TODO */
@@ -576,7 +560,17 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	obj = vma->vm_private_data;
 	exynos_gem_obj = to_exynos_gem_obj(obj);
 
-	update_vm_cache_attr(exynos_gem_obj, vma);
+	DRM_DEBUG_KMS("flags = 0x%x\n", exynos_gem_obj->flags);
+
+	/* non-cachable as default. */
+	if (exynos_gem_obj->flags & EXYNOS_BO_CACHABLE)
+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	else if (exynos_gem_obj->flags & EXYNOS_BO_WC)
+		vma->vm_page_prot =
+			pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+	else
+		vma->vm_page_prot =
+			pgprot_noncached(vm_get_page_prot(vma->vm_flags));
 
 	ret = exynos_drm_gem_mmap_buffer(exynos_gem_obj, vma);
 	if (ret)
