@@ -42,11 +42,11 @@
 
 #define MLX5E_MAX_NUM_TC	8
 
-#define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x7
+#define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x6
 #define MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE                0xa
 #define MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xd
 
-#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x7
+#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x1
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
 
