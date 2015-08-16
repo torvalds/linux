@@ -1300,7 +1300,7 @@ static void mlx5e_build_tir_ctx_lro(void *tirc, struct mlx5e_priv *priv)
 		  ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
 	MLX5_SET(tirc, tirc, lro_timeout_period_usecs,
 		 MLX5_CAP_ETH(priv->mdev,
-			      lro_timer_supported_periods[3]));
+			      lro_timer_supported_periods[2]));
 }
 
 static int mlx5e_modify_tir_lro(struct mlx5e_priv *priv, int tt)
@@ -1940,7 +1940,6 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++)
 		priv->params.indirection_rqt[i] = i % num_channels;
 
-	priv->params.lro_en = false && !!MLX5_CAP_ETH(priv->mdev, lro_cap);
 	priv->params.lro_wqe_sz            =
 		MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 

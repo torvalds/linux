@@ -111,10 +111,12 @@ static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe)
 		tcp = (struct tcphdr *)(skb->data + ETH_HLEN +
 					sizeof(struct iphdr));
 		ipv6 = NULL;
+		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 	} else {
 		tcp = (struct tcphdr *)(skb->data + ETH_HLEN +
 					sizeof(struct ipv6hdr));
 		ipv4 = NULL;
+		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
 	}
 
 	if (get_cqe_lro_tcppsh(cqe))
@@ -162,7 +164,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	lro_num_seg = be32_to_cpu(cqe->srqn) >> 24;
 	if (lro_num_seg > 1) {
 		mlx5e_lro_update_hdr(skb, cqe);
-		skb_shinfo(skb)->gso_size = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
+		skb_shinfo(skb)->gso_size = DIV_ROUND_UP(cqe_bcnt, lro_num_seg);
 		rq->stats.lro_packets++;
 		rq->stats.lro_bytes += cqe_bcnt;
 	}
