@@ -283,6 +283,15 @@ static struct attribute *loopback_attrs[] = {
 };
 ATTRIBUTE_GROUPS(loopback);
 
+static u32 gb_loopback_nsec_to_usec_latency(u64 elapsed_nsecs)
+{
+	u32 lat;
+
+	do_div(elapsed_nsecs, NSEC_PER_USEC);
+	lat = elapsed_nsecs;
+	return lat;
+}
+
 static u64 gb_loopback_calc_latency(struct timeval *ts, struct timeval *te)
 {
 	u64 t1, t2;
@@ -532,9 +541,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	u64 tmp;
 
 	/* Express latency in terms of microseconds */
-	tmp = gb->elapsed_nsecs;
-	do_div(tmp, NSEC_PER_USEC);
-	lat = tmp;
+	lat = gb_loopback_nsec_to_usec_latency(gb->elapsed_nsecs);
 
 	/* Log latency statistic */
 	gb_loopback_update_stats(&gb_dev.latency, lat);
