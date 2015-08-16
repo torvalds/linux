@@ -926,7 +926,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 			 * for the MTRR work(triggered by the AP coming online)
 			 * to be completed in the stop machine context.
 			 */
-			udelay(100);
 			schedule();
 		}
 	}
