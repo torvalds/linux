@@ -42,6 +42,7 @@ struct gb_loopback_device {
 	wait_queue_head_t wq;
 
 	int type;
+	u32 mask;
 	u32 size;
 	u32 iteration_max;
 	u32 iteration_count;
@@ -267,6 +268,8 @@ gb_dev_loopback_rw_attr(ms_wait, d);
 gb_dev_loopback_rw_attr(iteration_max, u);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
 gb_dev_loopback_ro_attr(iteration_count);
+/* A bit-mask of destination connecitons to include in the test run */
+gb_dev_loopback_rw_attr(mask, u);
 
 #define dev_stats_attrs(name)						\
 	&dev_attr_##name##_min.attr,					\
@@ -283,6 +286,7 @@ static struct attribute *loopback_attrs[] = {
 	&dev_attr_ms_wait.attr,
 	&dev_attr_iteration_count.attr,
 	&dev_attr_iteration_max.attr,
+	&dev_attr_mask.attr,
 	&dev_attr_error.attr,
 	NULL,
 };
@@ -320,6 +324,11 @@ static void gb_loopback_push_latency_ts(struct gb_loopback *gb,
 {
 	kfifo_in(&gb->kfifo_ts, (unsigned char *)ts, sizeof(*ts));
 	kfifo_in(&gb->kfifo_ts, (unsigned char *)te, sizeof(*te));
+}
+
+static int gb_loopback_active(struct gb_loopback *gb)
+{
+	return (gb_dev.mask == 0 || (gb_dev.mask & gb->lbid));
 }
 
 static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
@@ -574,6 +583,8 @@ static int gb_loopback_calculate_aggregate_stats(void)
 		ts_min = 0;
 		te_max = 0;
 		list_for_each_entry(gb, &gb_dev.list, entry) {
+			if (!gb_loopback_active(gb))
+				continue;
 			if (kfifo_out(&gb->kfifo_ts, &ts, sizeof(ts)) < sizeof(ts))
 				goto error;
 			if (kfifo_out(&gb->kfifo_ts, &te, sizeof(te)) < sizeof(te))
@@ -653,10 +664,14 @@ static int gb_loopback_fn(void *data)
 			break;
 
 		mutex_lock(&gb_dev.mutex);
+		if (!gb_loopback_active(gb))
+			goto unlock_continue;
 		if (gb_dev.iteration_max) {
 			/* Determine overall lowest count */
 			low_count = gb->iteration_count;
 			list_for_each_entry(gb_list, &gb_dev.list, entry) {
+				if (!gb_loopback_active(gb_list))
+					continue;
 				if (gb_list->iteration_count < low_count)
 					low_count = gb_list->iteration_count;
 			}
@@ -670,8 +685,7 @@ static int gb_loopback_fn(void *data)
 			if (gb_dev.iteration_count == gb_dev.iteration_max) {
 				gb_loopback_calculate_aggregate_stats();
 				gb_dev.type = 0;
-				mutex_unlock(&gb_dev.mutex);
-				continue;
+				goto unlock_continue;
 			}
 		}
 		size = gb_dev.size;
@@ -706,6 +720,7 @@ static int gb_loopback_fn(void *data)
 		gb->iteration_count++;
 
 		mutex_unlock(&gb->mutex);
+unlock_continue:
 		mutex_unlock(&gb_dev.mutex);
 sleep:
 		if (ms_wait)
