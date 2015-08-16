@@ -3822,12 +3822,22 @@ static inline bool netif_is_vrf(const struct net_device *dev)
 
 static inline bool netif_index_is_vrf(struct net *net, int ifindex)
 {
-	struct net_device *dev = dev_get_by_index_rcu(net, ifindex);
 	bool rc = false;
 
+#if IS_ENABLED(CONFIG_NET_VRF)
+	struct net_device *dev;
+
+	if (ifindex == 0)
+		return false;
+
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, ifindex);
 	if (dev)
 		rc = netif_is_vrf(dev);
 
+	rcu_read_unlock();
+#endif
 	return rc;
 }
 
