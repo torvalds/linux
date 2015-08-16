@@ -649,7 +649,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 static int gb_loopback_fn(void *data)
 {
 	int error = 0;
-	int ms_wait;
+	int ms_wait = 0;
 	int type;
 	u32 size;
 	u32 low_count;
