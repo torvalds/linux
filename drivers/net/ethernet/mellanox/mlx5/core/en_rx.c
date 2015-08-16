@@ -151,6 +151,38 @@ static inline void mlx5e_skb_set_hash(struct mlx5_cqe64 *cqe,
 	skb_set_hash(skb, be32_to_cpu(cqe->rss_hash_result), ht);
 }
 
+static inline bool is_first_ethertype_ip(struct sk_buff *skb)
+{
+	__be16 ethertype = ((struct ethhdr *)skb->data)->h_proto;
+
+	return (ethertype == htons(ETH_P_IP) || ethertype == htons(ETH_P_IPV6));
+}
+
+static inline void mlx5e_handle_csum(struct net_device *netdev,
+				     struct mlx5_cqe64 *cqe,
+				     struct mlx5e_rq *rq,
+				     struct sk_buff *skb)
+{
+	if (unlikely(!(netdev->features & NETIF_F_RXCSUM)))
+		goto csum_none;
+
+	if (likely(cqe->hds_ip_ext & CQE_L4_OK)) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	} else if (is_first_ethertype_ip(skb)) {
+		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum = csum_unfold(cqe->check_sum);
+		rq->stats.csum_sw++;
+	} else {
+		goto csum_none;
+	}
+
+	return;
+
+csum_none:
+	skb->ip_summed = CHECKSUM_NONE;
+	rq->stats.csum_none++;
+}
+
 static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				      struct mlx5e_rq *rq,
 				      struct sk_buff *skb)
@@ -169,15 +201,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 		rq->stats.lro_bytes += cqe_bcnt;
 	}
 
-	if (likely(netdev->features & NETIF_F_RXCSUM) &&
-	    (cqe->hds_ip_ext & CQE_L2_OK) &&
-	    (cqe->hds_ip_ext & CQE_L3_OK) &&
-	    (cqe->hds_ip_ext & CQE_L4_OK)) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else {
-		skb->ip_summed = CHECKSUM_NONE;
-		rq->stats.csum_none++;
-	}
+	mlx5e_handle_csum(netdev, cqe, rq, skb);
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
