@@ -168,4 +168,13 @@ void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
 				struct sg_table *sgt,
 				enum dma_data_direction dir);
 
+/* low-level interface prime helpers */
+struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
+struct drm_gem_object *
+exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
+				     struct dma_buf_attachment *attach,
+				     struct sg_table *sgt);
+void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj);
+void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+
 #endif

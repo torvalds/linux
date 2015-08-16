@@ -26,7 +26,6 @@
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
-#include "exynos_drm_dmabuf.h"
 #include "exynos_drm_g2d.h"
 #include "exynos_drm_ipp.h"
 #include "exynos_drm_iommu.h"
@@ -304,8 +303,12 @@ static struct drm_driver exynos_drm_driver = {
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_export	= exynos_dmabuf_prime_export,
-	.gem_prime_import	= exynos_dmabuf_prime_import,
+	.gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_get_sg_table	= exynos_drm_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,
+	.gem_prime_vmap		= exynos_drm_gem_prime_vmap,
+	.gem_prime_vunmap	= exynos_drm_gem_prime_vunmap,
 	.ioctls			= exynos_ioctls,
 	.num_ioctls		= ARRAY_SIZE(exynos_ioctls),
 	.fops			= &exynos_drm_driver_fops,

@@ -13,6 +13,7 @@
 #include <drm/drm_vma_manager.h>
 
 #include <linux/shmem_fs.h>
+#include <linux/dma-buf.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
@@ -576,4 +577,82 @@ err_close_vm:
 	drm_gem_free_mmap_offset(obj);
 
 	return ret;
+}
+
+/* low-level interface prime helpers */
+struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	struct exynos_drm_gem_buf *buf = exynos_gem_obj->buffer;
+	int npages;
+
+	npages = buf->size >> PAGE_SHIFT;
+
+	return drm_prime_pages_to_sg(buf->pages, npages);
+}
+
+struct drm_gem_object *
+exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
+				     struct dma_buf_attachment *attach,
+				     struct sg_table *sgt)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct exynos_drm_gem_buf *buf;
+	int npages;
+	int ret;
+
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	buf->size = attach->dmabuf->size;
+	buf->dma_addr = sg_dma_address(sgt->sgl);
+
+	npages = buf->size >> PAGE_SHIFT;
+	buf->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	if (!buf->pages) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = drm_prime_sg_to_page_addr_arrays(sgt, buf->pages, NULL, npages);
+	if (ret < 0)
+		goto err_free_large;
+
+	exynos_gem_obj = exynos_drm_gem_init(dev, buf->size);
+	if (IS_ERR(exynos_gem_obj)) {
+		ret = PTR_ERR(exynos_gem_obj);
+		goto err;
+	}
+
+	if (sgt->nents == 1) {
+		/* always physically continuous memory if sgt->nents is 1. */
+		exynos_gem_obj->flags |= EXYNOS_BO_CONTIG;
+	} else {
+		/*
+		 * this case could be CONTIG or NONCONTIG type but for now
+		 * sets NONCONTIG.
+		 * TODO. we have to find a way that exporter can notify
+		 * the type of its own buffer to importer.
+		 */
+		exynos_gem_obj->flags |= EXYNOS_BO_NONCONTIG;
+	}
+
+	return &exynos_gem_obj->base;
+
+err_free_large:
+	drm_free_large(buf->pages);
+err:
+	kfree(buf);
+	return ERR_PTR(ret);
+}
+
+void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj)
+{
+	return NULL;
+}
+
+void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	/* Nothing to do */
 }
