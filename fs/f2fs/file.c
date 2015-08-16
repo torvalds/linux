@@ -206,8 +206,8 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	/* if the inode is dirty, let's recover all the time */
-	if (!datasync && is_inode_flag_set(fi, FI_DIRTY_INODE)) {
-		update_inode_page(inode);
+	if (!datasync) {
+		f2fs_write_inode(inode, NULL);
 		goto go_write;
 	}
 
