@@ -97,8 +97,6 @@ DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 DEFINE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-atomic_t init_deasserted;
-
 static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 {
 	unsigned long flags;
@@ -146,16 +144,11 @@ static void smp_callin(void)
 
 	/*
 	 * If waken up by an INIT in an 82489DX configuration
-	 * we may get here before an INIT-deassert IPI reaches
-	 * our local APIC.  We have to wait for the IPI or we'll
-	 * lock up on an APIC access.
-	 *
-	 * Since CPU0 is not wakened up by INIT, it doesn't wait for the IPI.
+	 * cpu_callout_mask guarantees we don't get here before
+	 * an INIT_deassert IPI reaches our local APIC, so it is
+	 * now safe to touch our local APIC.
 	 */
 	cpuid = smp_processor_id();
-	if (apic->wait_for_init_deassert && cpuid)
-		while (!atomic_read(&init_deasserted))
-			cpu_relax();
 
 	/*
 	 * (This works even if the APIC is not enabled.)
@@ -620,7 +613,6 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	send_status = safe_apic_wait_icr_idle();
 
 	mb();
-	atomic_set(&init_deasserted, 1);
 
 	/*
 	 * Should we send STARTUP IPIs ?
@@ -860,8 +852,6 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	 * This grunge runs the startup process for
 	 * the targeted processor.
 	 */
-
-	atomic_set(&init_deasserted, 0);
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 
