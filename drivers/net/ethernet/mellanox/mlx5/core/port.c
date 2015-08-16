@@ -216,22 +216,25 @@ int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 }
 EXPORT_SYMBOL_GPL(mlx5_set_port_proto);
 
-int mlx5_set_port_status(struct mlx5_core_dev *dev,
-			 enum mlx5_port_status status)
+int mlx5_set_port_admin_status(struct mlx5_core_dev *dev,
+			       enum mlx5_port_status status)
 {
 	u32 in[MLX5_ST_SZ_DW(paos_reg)];
 	u32 out[MLX5_ST_SZ_DW(paos_reg)];
 
 	memset(in, 0, sizeof(in));
 
+	MLX5_SET(paos_reg, in, local_port, 1);
 	MLX5_SET(paos_reg, in, admin_status, status);
 	MLX5_SET(paos_reg, in, ase, 1);
 
 	return mlx5_core_access_reg(dev, in, sizeof(in), out,
 				    sizeof(out), MLX5_REG_PAOS, 0, 1);
 }
+EXPORT_SYMBOL_GPL(mlx5_set_port_admin_status);
 
-int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status)
+int mlx5_query_port_admin_status(struct mlx5_core_dev *dev,
+				 enum mlx5_port_status *status)
 {
 	u32 in[MLX5_ST_SZ_DW(paos_reg)];
 	u32 out[MLX5_ST_SZ_DW(paos_reg)];
@@ -239,14 +242,17 @@ int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status)
 
 	memset(in, 0, sizeof(in));
 
+	MLX5_SET(paos_reg, in, local_port, 1);
+
 	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
 				   sizeof(out), MLX5_REG_PAOS, 0, 0);
 	if (err)
 		return err;
 
-	*status = MLX5_GET(paos_reg, out, oper_status);
+	*status = MLX5_GET(paos_reg, out, admin_status);
 	return err;
 }
+EXPORT_SYMBOL_GPL(mlx5_query_port_admin_status);
 
 static void mlx5_query_port_mtu(struct mlx5_core_dev *dev, int *admin_mtu,
 				int *max_mtu, int *oper_mtu, u8 port)
