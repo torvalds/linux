@@ -450,15 +450,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			goto out;
 	}
 
-	if (sk->sk_bound_dev_if) {
-		struct net_device *dev;
-
-		rcu_read_lock();
-		dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
-		if (dev)
-			tb_id = vrf_dev_table_rcu(dev) ? : tb_id;
-		rcu_read_unlock();
-	}
+	tb_id = vrf_dev_table_ifindex(net, sk->sk_bound_dev_if) ? : tb_id;
 	chk_addr_ret = inet_addr_type_table(net, addr->sin_addr.s_addr, tb_id);
 
 	/* Not specified by any standard per-se, however it breaks too
