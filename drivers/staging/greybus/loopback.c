@@ -292,16 +292,22 @@ static u32 gb_loopback_nsec_to_usec_latency(u64 elapsed_nsecs)
 	return lat;
 }
 
+static u64 __gb_loopback_calc_latency(u64 t1, u64 t2)
+{
+	if (t2 > t1)
+		return t2 - t1;
+	else
+		return NSEC_PER_DAY - t2 + t1;
+}
+
 static u64 gb_loopback_calc_latency(struct timeval *ts, struct timeval *te)
 {
 	u64 t1, t2;
 
 	t1 = timeval_to_ns(ts);
 	t2 = timeval_to_ns(te);
-	if (t2 > t1)
-		return t2 - t1;
-	else
-		return NSEC_PER_DAY - t2 + t1;
+
+	return __gb_loopback_calc_latency(t1, t2);
 }
 
 static int gb_loopback_sink(struct gb_loopback *gb, u32 len)
