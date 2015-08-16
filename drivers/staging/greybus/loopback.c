@@ -35,6 +35,27 @@ struct gb_loopback_stats {
 struct gb_loopback_device {
 	struct dentry *root;
 	u32 count;
+
+	struct mutex mutex;
+	struct list_head list;
+	wait_queue_head_t wq;
+
+	int type;
+	u32 size;
+	u32 iteration_max;
+	u32 iteration_count;
+	size_t size_max;
+	int ms_wait;
+	u32 error;
+
+	struct timeval start;
+	struct timeval end;
+
+	/* Overall stats */
+	struct gb_loopback_stats latency;
+	struct gb_loopback_stats latency_gb;
+	struct gb_loopback_stats throughput;
+	struct gb_loopback_stats requests_per_second;
 };
 
 static struct gb_loopback_device gb_dev;
@@ -46,19 +67,15 @@ struct gb_loopback {
 	struct kfifo kfifo;
 	struct mutex mutex;
 	struct task_struct *task;
-	wait_queue_head_t wq;
+	struct list_head entry;
 
-	int type;
-	u32 size;
-	u32 iteration_max;
-	u32 iteration_count;
-	size_t size_max;
-	int ms_wait;
-
+	/* Per connection stats */
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats latency_gb;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
+
+	u32 iteration_count;
 	u64 elapsed_nsecs;
 	u64 elapsed_nsecs_gb;
 	u32 error;
@@ -133,45 +150,86 @@ static ssize_t field##_store(struct device *dev,			\
 {									\
 	int ret;							\
 	struct gb_connection *connection = to_gb_connection(dev);	\
-	struct gb_loopback *gb = connection->private;			\
-	mutex_lock(&gb->mutex);						\
+	mutex_lock(&gb_dev.mutex);					\
 	ret = sscanf(buf, "%"#type, &gb->field);			\
 	if (ret != 1)							\
 		len = -EINVAL;						\
 	else								\
-		gb_loopback_check_attr(connection, gb);			\
-	mutex_unlock(&gb->mutex);					\
+		gb_loopback_check_attr(connection);			\
+	mutex_unlock(&gb_dev.mutex);					\
 	return len;							\
 }									\
 static DEVICE_ATTR_RW(field)
 
-static void gb_loopback_reset_stats(struct gb_loopback *gb);
-static void gb_loopback_check_attr(struct gb_connection *connection,
-				   struct gb_loopback *gb)
-{
-	if (gb->ms_wait > GB_LOOPBACK_MS_WAIT_MAX)
-		gb->ms_wait = GB_LOOPBACK_MS_WAIT_MAX;
-	if (gb->size > gb->size_max)
-		gb->size = gb->size_max;
-	gb->error = 0;
-	gb->iteration_count = 0;
-	gb_loopback_reset_stats(gb);
+#define gb_dev_loopback_ro_attr(field)					\
+static ssize_t field##_show(struct device *dev,				\
+			    struct device_attribute *attr,		\
+			    char *buf)					\
+{									\
+	return sprintf(buf, "%u\n", gb_dev.field);			\
+}									\
+static DEVICE_ATTR_RO(field)
 
-	if (kfifo_depth < gb->iteration_max) {
-		dev_warn(&connection->dev,
-			 "iteration_max %u kfifo_depth %u cannot log all data\n",
-			 gb->iteration_max, kfifo_depth);
+#define gb_dev_loopback_rw_attr(field, type)				\
+static ssize_t field##_show(struct device *dev,				\
+			    struct device_attribute *attr,		\
+			    char *buf)					\
+{									\
+	return sprintf(buf, "%"#type"\n", gb_dev.field);		\
+}									\
+static ssize_t field##_store(struct device *dev,			\
+			    struct device_attribute *attr,		\
+			    const char *buf,				\
+			    size_t len)					\
+{									\
+	int ret;							\
+	struct gb_connection *connection = to_gb_connection(dev);	\
+	mutex_lock(&gb_dev.mutex);					\
+	ret = sscanf(buf, "%"#type, &gb_dev.field);			\
+	if (ret != 1)							\
+		len = -EINVAL;						\
+	else								\
+		gb_loopback_check_attr(&gb_dev, connection);		\
+	mutex_unlock(&gb_dev.mutex);					\
+	return len;							\
+}									\
+static DEVICE_ATTR_RW(field)
+
+static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev);
+static void gb_loopback_check_attr(struct gb_loopback_device *gb_dev,
+				   struct gb_connection *connection)
+{
+	struct gb_loopback *gb;
+
+	if (gb_dev->ms_wait > GB_LOOPBACK_MS_WAIT_MAX)
+		gb_dev->ms_wait = GB_LOOPBACK_MS_WAIT_MAX;
+	if (gb_dev->size > gb_dev->size_max)
+		gb_dev->size = gb_dev->size_max;
+	gb_dev->iteration_count = 0;
+	gb_dev->error = 0;
+
+	list_for_each_entry(gb, &gb_dev->list, entry) {
+		mutex_lock(&gb->mutex);
+		gb->iteration_count = 0;
+		gb->error = 0;
+		if (kfifo_depth < gb_dev->iteration_max) {
+			dev_warn(&connection->dev,
+				 "cannot log bytes %u kfifo_depth %u\n",
+				 gb_dev->iteration_max, kfifo_depth);
+		}
+		kfifo_reset_out(&gb->kfifo);
+		mutex_unlock(&gb->mutex);
 	}
 
-	switch (gb->type) {
+	switch (gb_dev->type) {
 	case GB_LOOPBACK_TYPE_PING:
 	case GB_LOOPBACK_TYPE_TRANSFER:
 	case GB_LOOPBACK_TYPE_SINK:
-		kfifo_reset_out(&gb->kfifo);
-		wake_up(&gb->wq);
+		gb_loopback_reset_stats(gb_dev);
+		wake_up(&gb_dev->wq);
 		break;
 	default:
-		gb->type = 0;
+		gb_dev->type = 0;
 		break;
 	}
 }
@@ -186,8 +244,6 @@ gb_loopback_stats_attrs(requests_per_second);
 gb_loopback_stats_attrs(throughput);
 /* Number of errors encountered during loop */
 gb_loopback_ro_attr(error);
-/* The current index of the for (i = 0; i < iteration_max; i++) loop */
-gb_loopback_ro_attr(iteration_count);
 
 /*
  * Type of loopback message to send based on protocol type definitions
@@ -197,13 +253,15 @@ gb_loopback_ro_attr(iteration_count);
  *					   payload returned in response)
  * 4 => Send a sink message (message with payload, no payload in response)
  */
-gb_loopback_attr(type, d);
+gb_dev_loopback_rw_attr(type, d);
 /* Size of transfer message payload: 0-4096 bytes */
-gb_loopback_attr(size, u);
+gb_dev_loopback_rw_attr(size, u);
 /* Time to wait between two messages: 0-1000 ms */
-gb_loopback_attr(ms_wait, d);
+gb_dev_loopback_rw_attr(ms_wait, d);
 /* Maximum iterations for a given operation: 1-(2^32-1), 0 implies infinite */
-gb_loopback_attr(iteration_max, u);
+gb_dev_loopback_rw_attr(iteration_max, u);
+/* The current index of the for (i = 0; i < iteration_max; i++) loop */
+gb_dev_loopback_ro_attr(iteration_count);
 
 #define dev_stats_attrs(name)						\
 	&dev_attr_##name##_min.attr,					\
@@ -341,7 +399,6 @@ static int gb_loopback_ping(struct gb_loopback *gb)
 static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
-	struct gb_loopback *gb = connection->private;
 	struct gb_loopback_transfer_request *request;
 	struct gb_loopback_transfer_response *response;
 	size_t len;
@@ -365,10 +422,10 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 		}
 		request = operation->request->payload;
 		len = le32_to_cpu(request->len);
-		if (len > gb->size_max) {
+		if (len > gb_dev.size_max) {
 			dev_err(&connection->dev,
 				"transfer request too large (%zu > %zu)\n",
-				len, gb->size_max);
+				len, gb_dev.size_max);
 			return -EINVAL;
 		}
 
@@ -390,15 +447,34 @@ static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
 	}
 }
 
-static void gb_loopback_reset_stats(struct gb_loopback *gb)
+static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev)
 {
 	struct gb_loopback_stats reset = {
 		.min = U32_MAX,
 	};
-	memcpy(&gb->latency, &reset, sizeof(struct gb_loopback_stats));
-	memcpy(&gb->latency_gb, &reset, sizeof(struct gb_loopback_stats));
-	memcpy(&gb->throughput, &reset, sizeof(struct gb_loopback_stats));
-	memcpy(&gb->requests_per_second, &reset,
+	struct gb_loopback *gb;
+
+	/* Reset per-connection stats */
+	list_for_each_entry(gb, &gb_dev->list, entry) {
+		mutex_lock(&gb->mutex);
+		memcpy(&gb->latency, &reset,
+		       sizeof(struct gb_loopback_stats));
+		memcpy(&gb->latency_gb, &reset,
+		       sizeof(struct gb_loopback_stats));
+		memcpy(&gb->throughput, &reset,
+		       sizeof(struct gb_loopback_stats));
+		memcpy(&gb->requests_per_second, &reset,
+		       sizeof(struct gb_loopback_stats));
+		mutex_unlock(&gb->mutex);
+	}
+
+	/* Reset aggregate stats */
+	memset(&gb_dev->start, 0, sizeof(struct timeval));
+	memset(&gb_dev->end, 0, sizeof(struct timeval));
+	memcpy(&gb_dev->latency, &reset, sizeof(struct gb_loopback_stats));
+	memcpy(&gb_dev->latency_gb, &reset, sizeof(struct gb_loopback_stats));
+	memcpy(&gb_dev->throughput, &reset, sizeof(struct gb_loopback_stats));
+	memcpy(&gb_dev->requests_per_second, &reset,
 	       sizeof(struct gb_loopback_stats));
 }
 
@@ -417,6 +493,7 @@ static void gb_loopback_requests_update(struct gb_loopback *gb, u32 latency)
 	u32 req = USEC_PER_SEC;
 
 	do_div(req, latency);
+	gb_loopback_update_stats(&gb_dev.requests_per_second, req);
 	gb_loopback_update_stats(&gb->requests_per_second, req);
 }
 
@@ -425,17 +502,17 @@ static void gb_loopback_throughput_update(struct gb_loopback *gb, u32 latency)
 	u32 throughput;
 	u32 aggregate_size = sizeof(struct gb_operation_msg_hdr) * 2;
 
-	switch (gb->type) {
+	switch (gb_dev.type) {
 	case GB_LOOPBACK_TYPE_PING:
 		break;
 	case GB_LOOPBACK_TYPE_SINK:
 		aggregate_size += sizeof(struct gb_loopback_transfer_request) +
-				  gb->size;
+				  gb_dev.size;
 		break;
 	case GB_LOOPBACK_TYPE_TRANSFER:
 		aggregate_size += sizeof(struct gb_loopback_transfer_request) +
 				  sizeof(struct gb_loopback_transfer_response) +
-				  gb->size * 2;
+				  gb_dev.size * 2;
 		break;
 	default:
 		return;
@@ -445,6 +522,7 @@ static void gb_loopback_throughput_update(struct gb_loopback *gb, u32 latency)
 	throughput = USEC_PER_SEC;
 	do_div(throughput, latency);
 	throughput *= aggregate_size;
+	gb_loopback_update_stats(&gb_dev.throughput, throughput);
 	gb_loopback_update_stats(&gb->throughput, throughput);
 }
 
@@ -459,7 +537,10 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	lat = tmp;
 
 	/* Log latency statistic */
+	gb_loopback_update_stats(&gb_dev.latency, lat);
 	gb_loopback_update_stats(&gb->latency, lat);
+
+	/* Raw latency log on a per thread basis */
 	kfifo_in(&gb->kfifo, (unsigned char *)&lat, sizeof(lat));
 
 	/* Log throughput and requests using latency as benchmark */
@@ -469,6 +550,7 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	/* Calculate the greybus related latency number in nanoseconds */
 	tmp = gb->elapsed_nsecs - gb->elapsed_nsecs_gb;
 	lat = tmp;
+	gb_loopback_update_stats(&gb_dev.latency_gb, lat);
 	gb_loopback_update_stats(&gb->latency_gb, lat);
 }
 
@@ -476,38 +558,74 @@ static int gb_loopback_fn(void *data)
 {
 	int error = 0;
 	int ms_wait;
+	int type;
+	u32 size;
+	u32 low_count;
 	struct gb_loopback *gb = data;
+	struct gb_loopback *gb_list;
 
 	while (1) {
-		if (!gb->type)
-			wait_event_interruptible(gb->wq, gb->type ||
+		if (!gb_dev.type)
+			wait_event_interruptible(gb_dev.wq, gb_dev.type ||
 						 kthread_should_stop());
 		if (kthread_should_stop())
 			break;
 
-		mutex_lock(&gb->mutex);
-		if (gb->iteration_max) {
-			if (gb->iteration_count < gb->iteration_max) {
-				gb->iteration_count++;
+		mutex_lock(&gb_dev.mutex);
+		if (gb_dev.iteration_max) {
+			/* Determine overall lowest count */
+			low_count = gb->iteration_count;
+			list_for_each_entry(gb_list, &gb_dev.list, entry) {
+				if (gb_list->iteration_count < low_count)
+					low_count = gb_list->iteration_count;
+			}
+			/* All threads achieved at least low_count iterations */
+			if (gb_dev.iteration_count < low_count) {
+				gb_dev.iteration_count = low_count;
 				sysfs_notify(&gb->connection->dev.kobj, NULL,
 					     "iteration_count");
-			} else {
-				gb->type = 0;
-				mutex_unlock(&gb->mutex);
+			}
+			/* Optionally terminate */
+			if (gb_dev.iteration_count == gb_dev.iteration_max) {
+				gb_dev.type = 0;
+				mutex_unlock(&gb_dev.mutex);
 				continue;
 			}
 		}
-		if (gb->type == GB_LOOPBACK_TYPE_PING)
+		size = gb_dev.size;
+		ms_wait = gb_dev.ms_wait;
+		type = gb_dev.type;
+		mutex_unlock(&gb_dev.mutex);
+
+		mutex_lock(&gb->mutex);
+		if (gb->iteration_count >= gb_dev.iteration_max) {
+			/* If this thread finished before siblings then sleep */
+			ms_wait = 1;
+			mutex_unlock(&gb->mutex);
+			goto sleep;
+		}
+		/* Else operations to perform */
+		if (type == GB_LOOPBACK_TYPE_PING)
 			error = gb_loopback_ping(gb);
-		else if (gb->type == GB_LOOPBACK_TYPE_TRANSFER)
-			error = gb_loopback_transfer(gb, gb->size);
-		else if (gb->type == GB_LOOPBACK_TYPE_SINK)
-			error = gb_loopback_sink(gb, gb->size);
-		if (error)
-			gb->error++;
-		gb_loopback_calculate_stats(gb);
-		ms_wait = gb->ms_wait;
+		else if (type == GB_LOOPBACK_TYPE_TRANSFER)
+			error = gb_loopback_transfer(gb, size);
+		else if (type == GB_LOOPBACK_TYPE_SINK)
+			error = gb_loopback_sink(gb, size);
 		mutex_unlock(&gb->mutex);
+
+		mutex_lock(&gb_dev.mutex);
+		mutex_lock(&gb->mutex);
+
+		if (error) {
+			gb_dev.error++;
+			gb->error++;
+		}
+		gb_loopback_calculate_stats(gb);
+		gb->iteration_count++;
+
+		mutex_unlock(&gb->mutex);
+		mutex_unlock(&gb_dev.mutex);
+sleep:
 		if (ms_wait)
 			msleep(ms_wait);
 	}
@@ -549,7 +667,7 @@ static const struct file_operations gb_loopback_debugfs_latency_ops = {
 	.release	= single_release,
 };
 
-#define DEBUGFS_NAMELEN 24
+#define DEBUGFS_NAMELEN 32
 
 static int gb_loopback_connection_init(struct gb_connection *connection)
 {
@@ -560,7 +678,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
 		return -ENOMEM;
-	gb_loopback_reset_stats(gb);
+	gb_loopback_reset_stats(&gb_dev);
 
 	snprintf(name, sizeof(name), "raw_latency_endo0:%d:%d:%d:%d",
 		connection->bundle->intf->module->module_id,
@@ -576,12 +694,14 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		goto out_debugfs;
 
 	/* Calculate maximum payload */
-	gb->size_max = gb_operation_get_payload_size_max(connection);
-	if (gb->size_max <= sizeof(struct gb_loopback_transfer_request)) {
+	mutex_lock(&gb_dev.mutex);
+	gb_dev.size_max = gb_operation_get_payload_size_max(connection);
+	if (gb_dev.size_max <= sizeof(struct gb_loopback_transfer_request)) {
 		retval = -EINVAL;
 		goto out_sysfs;
 	}
-	gb->size_max -= sizeof(struct gb_loopback_transfer_request);
+	gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
+	mutex_unlock(&gb_dev.mutex);
 
 	/* Allocate kfifo */
 	if (kfifo_alloc(&gb->kfifo, kfifo_depth * sizeof(u32),
@@ -591,7 +711,6 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	}
 
 	/* Fork worker thread */
-	init_waitqueue_head(&gb->wq);
 	mutex_init(&gb->mutex);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
@@ -599,6 +718,9 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		goto out_kfifo;
 	}
 
+	mutex_lock(&gb_dev.mutex);
+	list_add_tail(&gb->entry, &gb_dev.list);
+	mutex_unlock(&gb_dev.mutex);
 	gb_dev.count++;
 	return 0;
 
@@ -641,7 +763,11 @@ static struct gb_protocol loopback_protocol = {
 
 static int loopback_init(void)
 {
+	init_waitqueue_head(&gb_dev.wq);
+	INIT_LIST_HEAD(&gb_dev.list);
+	mutex_init(&gb_dev.mutex);
 	gb_dev.root = debugfs_create_dir("gb_loopback", NULL);
+
 	return gb_protocol_register(&loopback_protocol);
 }
 module_init(loopback_init);
