@@ -172,6 +172,8 @@ static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 			*ppcpu_rt = NULL;
 		}
 	}
+
+	non_pcpu_rt->rt6i_pcpu = NULL;
 }
 
 static void rt6_release(struct rt6_info *rt)
