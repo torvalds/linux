@@ -1073,8 +1073,6 @@ struct gb_sdio_event_request {
 #define GB_LIGHTS_VERSION_MINOR 0x01
 
 /* Greybus Lights request types */
-#define GB_LIGHTS_TYPE_INVALID			0x00
-#define GB_LIGHTS_TYPE_PROTOCOL_VERSION		0x01
 #define GB_LIGHTS_TYPE_GET_LIGHTS		0x02
 #define GB_LIGHTS_TYPE_GET_LIGHT_CONFIG		0x03
 #define GB_LIGHTS_TYPE_GET_CHANNEL_CONFIG	0x04
