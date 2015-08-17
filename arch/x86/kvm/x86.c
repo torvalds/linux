@@ -2105,7 +2105,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (guest_cpuid_has_tsc_adjust(vcpu)) {
 			if (!msr_info->host_initiated) {
 				s64 adj = data - vcpu->arch.ia32_tsc_adjust_msr;
-				kvm_x86_ops->adjust_tsc_offset(vcpu, adj, true);
+				adjust_tsc_offset_guest(vcpu, adj);
 			}
 			vcpu->arch.ia32_tsc_adjust_msr = data;
 		}
@@ -3157,8 +3157,7 @@ static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
 			cpuid_count(XSTATE_CPUID, index,
 				    &size, &offset, &ecx, &edx);
 			memcpy(dest, src + offset, size);
-		} else
-			WARN_ON_ONCE(1);
+		}
 
 		valid -= feature;
 	}
@@ -6328,6 +6327,7 @@ static void process_smi_save_state_64(struct kvm_vcpu *vcpu, char *buf)
 static void process_smi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_segment cs, ds;
+	struct desc_ptr dt;
 	char buf[512];
 	u32 cr0;
 
@@ -6359,6 +6359,10 @@ static void process_smi(struct kvm_vcpu *vcpu)
 	vcpu->arch.cr0 = cr0;
 
 	kvm_x86_ops->set_cr4(vcpu, 0);
+
+	/* Undocumented: IDT limit is set to zero on entry to SMM.  */
+	dt.address = dt.size = 0;
+	kvm_x86_ops->set_idt(vcpu, &dt);
 
 	__kvm_set_dr(vcpu, 7, DR7_FIXED_1);
 
@@ -7315,11 +7319,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	vcpu = kvm_x86_ops->vcpu_create(kvm, id);
 
-	/*
-	 * Activate fpu unconditionally in case the guest needs eager FPU.  It will be
-	 * deactivated soon if it doesn't.
-	 */
-	kvm_x86_ops->fpu_activate(vcpu);
 	return vcpu;
 }
 
@@ -8217,6 +8216,24 @@ bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
 		return !kvm_event_needs_reinjection(vcpu) &&
 			kvm_x86_ops->interrupt_allowed(vcpu);
 }
+
+void kvm_arch_start_assignment(struct kvm *kvm)
+{
+	atomic_inc(&kvm->arch.assigned_device_count);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_start_assignment);
+
+void kvm_arch_end_assignment(struct kvm *kvm)
+{
+	atomic_dec(&kvm->arch.assigned_device_count);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_end_assignment);
+
+bool kvm_arch_has_assigned_device(struct kvm *kvm)
+{
+	return atomic_read(&kvm->arch.assigned_device_count);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_has_assigned_device);
 
 void kvm_arch_register_noncoherent_dma(struct kvm *kvm)
 {

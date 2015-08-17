@@ -4,5 +4,3 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
 				   context.o proc.o pageattr.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_ARM64_PTDUMP)	+= dump.o
-
-CFLAGS_mmu.o			:= -I$(srctree)/scripts/dtc/libfdt/

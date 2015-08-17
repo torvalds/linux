@@ -369,10 +369,7 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 	struct inet6_dev *idev;
 
 	dst_destroy_metrics_generic(dst);
-
-	if (rt->rt6i_pcpu)
-		free_percpu(rt->rt6i_pcpu);
-
+	free_percpu(rt->rt6i_pcpu);
 	rt6_uncached_list_del(rt);
 
 	idev = rt->rt6i_idev;
@@ -1834,6 +1831,7 @@ int ip6_route_add(struct fib6_config *cfg)
 		int gwa_type;
 
 		gw_addr = &cfg->fc_gateway;
+		gwa_type = ipv6_addr_type(gw_addr);
 
 		/* if gw_addr is local we will fail to detect this in case
 		 * address is still TENTATIVE (DAD in progress). rt6_lookup()
@@ -1841,11 +1839,12 @@ int ip6_route_add(struct fib6_config *cfg)
 		 * prefix route was assigned to, which might be non-loopback.
 		 */
 		err = -EINVAL;
-		if (ipv6_chk_addr_and_flags(net, gw_addr, NULL, 0, 0))
+		if (ipv6_chk_addr_and_flags(net, gw_addr,
+					    gwa_type & IPV6_ADDR_LINKLOCAL ?
+					    dev : NULL, 0, 0))
 			goto out;
 
 		rt->rt6i_gateway = *gw_addr;
-		gwa_type = ipv6_addr_type(gw_addr);
 
 		if (gwa_type != (IPV6_ADDR_LINKLOCAL|IPV6_ADDR_UNICAST)) {
 			struct rt6_info *grt;

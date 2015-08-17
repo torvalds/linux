@@ -2403,7 +2403,8 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		}
 		tp_len = tpacket_fill_skb(po, skb, ph, dev, size_max, proto,
 					  addr, hlen);
-		if (tp_len > dev->mtu + dev->hard_header_len) {
+		if (likely(tp_len >= 0) &&
+		    tp_len > dev->mtu + dev->hard_header_len) {
 			struct ethhdr *ehdr;
 			/* Earlier code assumed this would be a VLAN pkt,
 			 * double-check this now that we have the actual
@@ -2784,7 +2785,7 @@ static int packet_release(struct socket *sock)
 static int packet_do_bind(struct sock *sk, struct net_device *dev, __be16 proto)
 {
 	struct packet_sock *po = pkt_sk(sk);
-	const struct net_device *dev_curr;
+	struct net_device *dev_curr;
 	__be16 proto_curr;
 	bool need_rehook;
 
@@ -2808,15 +2809,13 @@ static int packet_do_bind(struct sock *sk, struct net_device *dev, __be16 proto)
 
 		po->num = proto;
 		po->prot_hook.type = proto;
-
-		if (po->prot_hook.dev)
-			dev_put(po->prot_hook.dev);
-
 		po->prot_hook.dev = dev;
 
 		po->ifindex = dev ? dev->ifindex : 0;
 		packet_cached_dev_assign(po, dev);
 	}
+	if (dev_curr)
+		dev_put(dev_curr);
 
 	if (proto == 0 || !need_rehook)
 		goto out_unlock;

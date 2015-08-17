@@ -85,11 +85,9 @@ void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr)
 		hlist_add_head_rcu(&addr->hlnode, &port->hlhead[hash]);
 }
 
-void ipvlan_ht_addr_del(struct ipvl_addr *addr, bool sync)
+void ipvlan_ht_addr_del(struct ipvl_addr *addr)
 {
 	hlist_del_init_rcu(&addr->hlnode);
-	if (sync)
-		synchronize_rcu();
 }
 
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
@@ -531,7 +529,7 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 int ipvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
-	struct ipvl_port *port = ipvlan_port_get_rcu(ipvlan->phy_dev);
+	struct ipvl_port *port = ipvlan_port_get_rcu_bh(ipvlan->phy_dev);
 
 	if (!port)
 		goto out;

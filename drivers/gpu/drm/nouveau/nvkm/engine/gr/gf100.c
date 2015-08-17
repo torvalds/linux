@@ -663,6 +663,37 @@ gf100_gr_zbc_init(struct gf100_gr_priv *priv)
 		gf100_gr_zbc_clear_depth(priv, index);
 }
 
+/**
+ * Wait until GR goes idle. GR is considered idle if it is disabled by the
+ * MC (0x200) register, or GR is not busy and a context switch is not in
+ * progress.
+ */
+int
+gf100_gr_wait_idle(struct gf100_gr_priv *priv)
+{
+	unsigned long end_jiffies = jiffies + msecs_to_jiffies(2000);
+	bool gr_enabled, ctxsw_active, gr_busy;
+
+	do {
+		/*
+		 * required to make sure FIFO_ENGINE_STATUS (0x2640) is
+		 * up-to-date
+		 */
+		nv_rd32(priv, 0x400700);
+
+		gr_enabled = nv_rd32(priv, 0x200) & 0x1000;
+		ctxsw_active = nv_rd32(priv, 0x2640) & 0x8000;
+		gr_busy = nv_rd32(priv, 0x40060c) & 0x1;
+
+		if (!gr_enabled || (!gr_busy && !ctxsw_active))
+			return 0;
+	} while (time_before(jiffies, end_jiffies));
+
+	nv_error(priv, "wait for idle timeout (en: %d, ctxsw: %d, busy: %d)\n",
+		 gr_enabled, ctxsw_active, gr_busy);
+	return -EAGAIN;
+}
+
 void
 gf100_gr_mmio(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
 {
@@ -699,7 +730,13 @@ gf100_gr_icmd(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
 
 		while (addr < next) {
 			nv_wr32(priv, 0x400200, addr);
-			nv_wait(priv, 0x400700, 0x00000002, 0x00000000);
+			/**
+			 * Wait for GR to go idle after submitting a
+			 * GO_IDLE bundle
+			 */
+			if ((addr & 0xffff) == 0xe100)
+				gf100_gr_wait_idle(priv);
+			nv_wait(priv, 0x400700, 0x00000004, 0x00000000);
 			addr += init->pitch;
 		}
 	}

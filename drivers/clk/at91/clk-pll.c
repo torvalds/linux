@@ -346,12 +346,16 @@ at91_clk_register_pll(struct at91_pmc *pmc, unsigned int irq, const char *name,
 	irq_set_status_flags(pll->irq, IRQ_NOAUTOEN);
 	ret = request_irq(pll->irq, clk_pll_irq_handler, IRQF_TRIGGER_HIGH,
 			  id ? "clk-pllb" : "clk-plla", pll);
-	if (ret)
+	if (ret) {
+		kfree(pll);
 		return ERR_PTR(ret);
+	}
 
 	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		free_irq(pll->irq, pll);
 		kfree(pll);
+	}
 
 	return clk;
 }

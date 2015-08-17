@@ -70,6 +70,8 @@
 
 #define DRM_IOCTL_WAIT_VBLANK32		DRM_IOWR(0x3a, drm_wait_vblank32_t)
 
+#define DRM_IOCTL_MODE_ADDFB232		DRM_IOWR(0xb8, drm_mode_fb_cmd232_t)
+
 typedef struct drm_version_32 {
 	int version_major;	  /**< Major version */
 	int version_minor;	  /**< Minor version */
@@ -1016,6 +1018,63 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 	return 0;
 }
 
+typedef struct drm_mode_fb_cmd232 {
+	u32 fb_id;
+	u32 width;
+	u32 height;
+	u32 pixel_format;
+	u32 flags;
+	u32 handles[4];
+	u32 pitches[4];
+	u32 offsets[4];
+	u64 modifier[4];
+} __attribute__((packed)) drm_mode_fb_cmd232_t;
+
+static int compat_drm_mode_addfb2(struct file *file, unsigned int cmd,
+				  unsigned long arg)
+{
+	struct drm_mode_fb_cmd232 __user *argp = (void __user *)arg;
+	struct drm_mode_fb_cmd232 req32;
+	struct drm_mode_fb_cmd2 __user *req64;
+	int i;
+	int err;
+
+	if (copy_from_user(&req32, argp, sizeof(req32)))
+		return -EFAULT;
+
+	req64 = compat_alloc_user_space(sizeof(*req64));
+
+	if (!access_ok(VERIFY_WRITE, req64, sizeof(*req64))
+	    || __put_user(req32.width, &req64->width)
+	    || __put_user(req32.height, &req64->height)
+	    || __put_user(req32.pixel_format, &req64->pixel_format)
+	    || __put_user(req32.flags, &req64->flags))
+		return -EFAULT;
+
+	for (i = 0; i < 4; i++) {
+		if (__put_user(req32.handles[i], &req64->handles[i]))
+			return -EFAULT;
+		if (__put_user(req32.pitches[i], &req64->pitches[i]))
+			return -EFAULT;
+		if (__put_user(req32.offsets[i], &req64->offsets[i]))
+			return -EFAULT;
+		if (__put_user(req32.modifier[i], &req64->modifier[i]))
+			return -EFAULT;
+	}
+
+	err = drm_ioctl(file, DRM_IOCTL_MODE_ADDFB2, (unsigned long)req64);
+	if (err)
+		return err;
+
+	if (__get_user(req32.fb_id, &req64->fb_id))
+		return -EFAULT;
+
+	if (copy_to_user(argp, &req32, sizeof(req32)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static drm_ioctl_compat_t *drm_compat_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_VERSION32)] = compat_drm_version,
 	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE32)] = compat_drm_getunique,
@@ -1048,6 +1107,7 @@ static drm_ioctl_compat_t *drm_compat_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_UPDATE_DRAW32)] = compat_drm_update_draw,
 #endif
 	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK32)] = compat_drm_wait_vblank,
+	[DRM_IOCTL_NR(DRM_IOCTL_MODE_ADDFB232)] = compat_drm_mode_addfb2,
 };
 
 /**

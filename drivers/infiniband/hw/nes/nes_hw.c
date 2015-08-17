@@ -3861,7 +3861,7 @@ void nes_manage_arp_cache(struct net_device *netdev, unsigned char *mac_addr,
 				(((u32)mac_addr[2]) << 24) | (((u32)mac_addr[3]) << 16) |
 				(((u32)mac_addr[4]) << 8)  | (u32)mac_addr[5]);
 		cqp_wqe->wqe_words[NES_CQP_ARP_WQE_MAC_HIGH_IDX] = cpu_to_le32(
-				(((u32)mac_addr[0]) << 16) | (u32)mac_addr[1]);
+				(((u32)mac_addr[0]) << 8) | (u32)mac_addr[1]);
 	} else {
 		cqp_wqe->wqe_words[NES_CQP_ARP_WQE_MAC_ADDR_LOW_IDX] = 0;
 		cqp_wqe->wqe_words[NES_CQP_ARP_WQE_MAC_HIGH_IDX] = 0;

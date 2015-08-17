@@ -406,6 +406,7 @@ static __init int yama_init(void)
 	 */
 	if (!security_module_enable("yama"))
 		return 0;
+	yama_add_hooks();
 #endif
 	pr_info("Yama: becoming mindful.\n");
 

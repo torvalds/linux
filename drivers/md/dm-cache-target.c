@@ -1947,6 +1947,7 @@ static int commit_if_needed(struct cache *cache)
 
 static void process_deferred_bios(struct cache *cache)
 {
+	bool prealloc_used = false;
 	unsigned long flags;
 	struct bio_list bios;
 	struct bio *bio;
@@ -1966,6 +1967,7 @@ static void process_deferred_bios(struct cache *cache)
 		 * this bio might require one, we pause until there are some
 		 * prepared mappings to process.
 		 */
+		prealloc_used = true;
 		if (prealloc_data_structs(cache, &structs)) {
 			spin_lock_irqsave(&cache->lock, flags);
 			bio_list_merge(&cache->deferred_bios, &bios);
@@ -1983,11 +1985,13 @@ static void process_deferred_bios(struct cache *cache)
 			process_bio(cache, &structs, bio);
 	}
 
-	prealloc_free_structs(cache, &structs);
+	if (prealloc_used)
+		prealloc_free_structs(cache, &structs);
 }
 
 static void process_deferred_cells(struct cache *cache)
 {
+	bool prealloc_used = false;
 	unsigned long flags;
 	struct dm_bio_prison_cell *cell, *tmp;
 	struct list_head cells;
@@ -2007,6 +2011,7 @@ static void process_deferred_cells(struct cache *cache)
 		 * this bio might require one, we pause until there are some
 		 * prepared mappings to process.
 		 */
+		prealloc_used = true;
 		if (prealloc_data_structs(cache, &structs)) {
 			spin_lock_irqsave(&cache->lock, flags);
 			list_splice(&cells, &cache->deferred_cells);
@@ -2017,7 +2022,8 @@ static void process_deferred_cells(struct cache *cache)
 		process_cell(cache, &structs, cell);
 	}
 
-	prealloc_free_structs(cache, &structs);
+	if (prealloc_used)
+		prealloc_free_structs(cache, &structs);
 }
 
 static void process_deferred_flush_bios(struct cache *cache, bool submit_bios)
@@ -2062,7 +2068,7 @@ static void process_deferred_writethrough_bios(struct cache *cache)
 
 static void writeback_some_dirty_blocks(struct cache *cache)
 {
-	int r = 0;
+	bool prealloc_used = false;
 	dm_oblock_t oblock;
 	dm_cblock_t cblock;
 	struct prealloc structs;
@@ -2072,15 +2078,12 @@ static void writeback_some_dirty_blocks(struct cache *cache)
 	memset(&structs, 0, sizeof(structs));
 
 	while (spare_migration_bandwidth(cache)) {
-		if (prealloc_data_structs(cache, &structs))
-			break;
+		if (policy_writeback_work(cache->policy, &oblock, &cblock, busy))
+			break; /* no work to do */
 
-		r = policy_writeback_work(cache->policy, &oblock, &cblock, busy);
-		if (r)
-			break;
-
-		r = get_cell(cache, oblock, &structs, &old_ocell);
-		if (r) {
+		prealloc_used = true;
+		if (prealloc_data_structs(cache, &structs) ||
+		    get_cell(cache, oblock, &structs, &old_ocell)) {
 			policy_set_dirty(cache->policy, oblock);
 			break;
 		}
@@ -2088,7 +2091,8 @@ static void writeback_some_dirty_blocks(struct cache *cache)
 		writeback(cache, &structs, oblock, cblock, old_ocell);
 	}
 
-	prealloc_free_structs(cache, &structs);
+	if (prealloc_used)
+		prealloc_free_structs(cache, &structs);
 }
 
 /*----------------------------------------------------------------
@@ -3496,7 +3500,7 @@ static void cache_resume(struct dm_target *ti)
  * <#demotions> <#promotions> <#dirty>
  * <#features> <features>*
  * <#core args> <core args>
- * <policy name> <#policy args> <policy args>* <cache metadata mode>
+ * <policy name> <#policy args> <policy args>* <cache metadata mode> <needs_check>
  */
 static void cache_status(struct dm_target *ti, status_type_t type,
 			 unsigned status_flags, char *result, unsigned maxlen)
@@ -3581,6 +3585,11 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("ro ");
 		else
 			DMEMIT("rw ");
+
+		if (dm_cache_metadata_needs_check(cache->cmd))
+			DMEMIT("needs_check ");
+		else
+			DMEMIT("- ");
 
 		break;
 
@@ -3820,7 +3829,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
-	.version = {1, 7, 0},
+	.version = {1, 8, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
 	.dtr = cache_dtr,

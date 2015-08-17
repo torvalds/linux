@@ -45,7 +45,7 @@ struct seq_file;
  * @base: identifies the first GPIO number handled by this chip;
  *	or, if negative during registration, requests dynamic ID allocation.
  *	DEPRECATION: providing anything non-negative and nailing the base
- *	base offset of GPIO chips is deprecated. Please pass -1 as base to
+ *	offset of GPIO chips is deprecated. Please pass -1 as base to
  *	let gpiolib select the chip base in all possible cases. We want to
  *	get rid of the static GPIO number space in the long run.
  * @ngpio: the number of GPIOs handled by this controller; the last GPIO

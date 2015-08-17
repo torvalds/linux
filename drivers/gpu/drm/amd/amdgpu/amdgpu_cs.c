@@ -669,6 +669,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 				  struct amdgpu_cs_parser *p)
 {
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_ib *ib;
 	int i, j, r;
 
@@ -694,6 +695,7 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 		for (j = 0; j < num_deps; ++j) {
 			struct amdgpu_fence *fence;
 			struct amdgpu_ring *ring;
+			struct amdgpu_ctx *ctx;
 
 			r = amdgpu_cs_get_ring(adev, deps[j].ip_type,
 					       deps[j].ip_instance,
@@ -701,14 +703,21 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 			if (r)
 				return r;
 
+			ctx = amdgpu_ctx_get(fpriv, deps[j].ctx_id);
+			if (ctx == NULL)
+				return -EINVAL;
+
 			r = amdgpu_fence_recreate(ring, p->filp,
 						  deps[j].handle,
 						  &fence);
-			if (r)
+			if (r) {
+				amdgpu_ctx_put(ctx);
 				return r;
+			}
 
 			amdgpu_sync_fence(&ib->sync, fence);
 			amdgpu_fence_unref(&fence);
+			amdgpu_ctx_put(ctx);
 		}
 	}
 
@@ -808,12 +817,16 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 
 	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
 			       wait->in.ring, &ring);
-	if (r)
+	if (r) {
+		amdgpu_ctx_put(ctx);
 		return r;
+	}
 
 	r = amdgpu_fence_recreate(ring, filp, wait->in.handle, &fence);
-	if (r)
+	if (r) {
+		amdgpu_ctx_put(ctx);
 		return r;
+	}
 
 	r = fence_wait_timeout(&fence->base, true, timeout);
 	amdgpu_fence_unref(&fence);

@@ -1349,6 +1349,11 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *qgroup;
 	int ret = 0;
+	/* Sometimes we would want to clear the limit on this qgroup.
+	 * To meet this requirement, we treat the -1 as a special value
+	 * which tell kernel to clear the limit on this qgroup.
+	 */
+	const u64 CLEAR_VALUE = -1;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
@@ -1364,14 +1369,42 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
-	if (limit->flags & BTRFS_QGROUP_LIMIT_MAX_RFER)
-		qgroup->max_rfer = limit->max_rfer;
-	if (limit->flags & BTRFS_QGROUP_LIMIT_MAX_EXCL)
-		qgroup->max_excl = limit->max_excl;
-	if (limit->flags & BTRFS_QGROUP_LIMIT_RSV_RFER)
-		qgroup->rsv_rfer = limit->rsv_rfer;
-	if (limit->flags & BTRFS_QGROUP_LIMIT_RSV_EXCL)
-		qgroup->rsv_excl = limit->rsv_excl;
+	if (limit->flags & BTRFS_QGROUP_LIMIT_MAX_RFER) {
+		if (limit->max_rfer == CLEAR_VALUE) {
+			qgroup->lim_flags &= ~BTRFS_QGROUP_LIMIT_MAX_RFER;
+			limit->flags &= ~BTRFS_QGROUP_LIMIT_MAX_RFER;
+			qgroup->max_rfer = 0;
+		} else {
+			qgroup->max_rfer = limit->max_rfer;
+		}
+	}
+	if (limit->flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) {
+		if (limit->max_excl == CLEAR_VALUE) {
+			qgroup->lim_flags &= ~BTRFS_QGROUP_LIMIT_MAX_EXCL;
+			limit->flags &= ~BTRFS_QGROUP_LIMIT_MAX_EXCL;
+			qgroup->max_excl = 0;
+		} else {
+			qgroup->max_excl = limit->max_excl;
+		}
+	}
+	if (limit->flags & BTRFS_QGROUP_LIMIT_RSV_RFER) {
+		if (limit->rsv_rfer == CLEAR_VALUE) {
+			qgroup->lim_flags &= ~BTRFS_QGROUP_LIMIT_RSV_RFER;
+			limit->flags &= ~BTRFS_QGROUP_LIMIT_RSV_RFER;
+			qgroup->rsv_rfer = 0;
+		} else {
+			qgroup->rsv_rfer = limit->rsv_rfer;
+		}
+	}
+	if (limit->flags & BTRFS_QGROUP_LIMIT_RSV_EXCL) {
+		if (limit->rsv_excl == CLEAR_VALUE) {
+			qgroup->lim_flags &= ~BTRFS_QGROUP_LIMIT_RSV_EXCL;
+			limit->flags &= ~BTRFS_QGROUP_LIMIT_RSV_EXCL;
+			qgroup->rsv_excl = 0;
+		} else {
+			qgroup->rsv_excl = limit->rsv_excl;
+		}
+	}
 	qgroup->lim_flags |= limit->flags;
 
 	spin_unlock(&fs_info->qgroup_lock);
@@ -1618,6 +1651,11 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 				/* Exclusive -> exclusive, nothing changed */
 			}
 		}
+
+		/* For exclusive extent, free its reserved bytes too */
+		if (nr_old_roots == 0 && nr_new_roots == 1 &&
+		    cur_new_count == nr_new_roots)
+			qg->reserved -= num_bytes;
 		if (dirty)
 			qgroup_dirty(fs_info, qg);
 	}

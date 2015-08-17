@@ -243,6 +243,11 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	len1 = arg_end - arg_start;
 	len2 = env_end - env_start;
 
+	/* Empty ARGV. */
+	if (len1 == 0) {
+		rv = 0;
+		goto out_free_page;
+	}
 	/*
 	 * Inherently racy -- command line shares address space
 	 * with code and data.

@@ -1,3 +1,6 @@
+ldflags-y += --wrap=ioremap_wt
+ldflags-y += --wrap=ioremap_wc
+ldflags-y += --wrap=devm_ioremap_nocache
 ldflags-y += --wrap=ioremap_cache
 ldflags-y += --wrap=ioremap_nocache
 ldflags-y += --wrap=iounmap

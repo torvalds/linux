@@ -1902,6 +1902,7 @@ call_transmit_status(struct rpc_task *task)
 
 	switch (task->tk_status) {
 	case -EAGAIN:
+	case -ENOBUFS:
 		break;
 	default:
 		dprint_status(task);
@@ -1928,7 +1929,6 @@ call_transmit_status(struct rpc_task *task)
 	case -ECONNABORTED:
 	case -EADDRINUSE:
 	case -ENOTCONN:
-	case -ENOBUFS:
 	case -EPIPE:
 		rpc_task_force_reencode(task);
 	}
@@ -2057,12 +2057,13 @@ call_status(struct rpc_task *task)
 	case -ECONNABORTED:
 		rpc_force_rebind(clnt);
 	case -EADDRINUSE:
-	case -ENOBUFS:
 		rpc_delay(task, 3*HZ);
 	case -EPIPE:
 	case -ENOTCONN:
 		task->tk_action = call_bind;
 		break;
+	case -ENOBUFS:
+		rpc_delay(task, HZ>>2);
 	case -EAGAIN:
 		task->tk_action = call_transmit;
 		break;

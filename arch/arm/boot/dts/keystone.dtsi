@@ -267,17 +267,6 @@
 				  1 0 0x21000A00 0x00000100>;
 		};
 
-		mdio: mdio@02090300 {
-			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg		= <0x02090300 0x100>;
-			status = "disabled";
-			clocks = <&clkpa>;
-			clock-names = "fck";
-			bus_freq	= <2500000>;
-		};
-
 		kirq0: keystone_irq@26202a0 {
 			compatible = "ti,keystone-irq";
 			interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
@@ -286,7 +275,7 @@
 			ti,syscon-dev = <&devctrl 0x2a0>;
 		};
 
-		pcie@21800000 {
+		pcie0: pcie@21800000 {
 			compatible = "ti,keystone-pcie", "snps,dw-pcie";
 			clocks = <&clkpcie>;
 			clock-names = "pcie";
@@ -296,6 +285,7 @@
 			ranges = <0x81000000 0 0 0x23250000 0 0x4000
 				0x82000000 0 0x50000000 0x50000000 0 0x10000000>;
 
+			status = "disabled";
 			device_type = "pci";
 			num-lanes = <2>;
 

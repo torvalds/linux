@@ -80,9 +80,6 @@ static ssize_t i2c_slave_eeprom_bin_read(struct file *filp, struct kobject *kobj
 	struct eeprom_data *eeprom;
 	unsigned long flags;
 
-	if (off + count > attr->size)
-		return -EFBIG;
-
 	eeprom = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	spin_lock_irqsave(&eeprom->buffer_lock, flags);
@@ -97,9 +94,6 @@ static ssize_t i2c_slave_eeprom_bin_write(struct file *filp, struct kobject *kob
 {
 	struct eeprom_data *eeprom;
 	unsigned long flags;
-
-	if (off + count > attr->size)
-		return -EFBIG;
 
 	eeprom = dev_get_drvdata(container_of(kobj, struct device, kobj));
 

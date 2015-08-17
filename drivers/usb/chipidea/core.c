@@ -1024,7 +1024,18 @@ static struct platform_driver ci_hdrc_driver = {
 	},
 };
 
-module_platform_driver(ci_hdrc_driver);
+static int __init ci_hdrc_platform_register(void)
+{
+	ci_hdrc_host_driver_init();
+	return platform_driver_register(&ci_hdrc_driver);
+}
+module_init(ci_hdrc_platform_register);
+
+static void __exit ci_hdrc_platform_unregister(void)
+{
+	platform_driver_unregister(&ci_hdrc_driver);
+}
+module_exit(ci_hdrc_platform_unregister);
 
 MODULE_ALIAS("platform:ci_hdrc");
 MODULE_LICENSE("GPL v2");

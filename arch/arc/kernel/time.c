@@ -203,34 +203,24 @@ static int arc_clkevent_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void arc_clkevent_set_mode(enum clock_event_mode mode,
-				  struct clock_event_device *dev)
+static int arc_clkevent_set_periodic(struct clock_event_device *dev)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-                /*
-                 * At X Hz, 1 sec = 1000ms -> X cycles;
-                 *                    10ms -> X / 100 cycles
-                 */
-		arc_timer_event_setup(arc_get_core_freq() / HZ);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		break;
-	default:
-		break;
-	}
-
-	return;
+	/*
+	 * At X Hz, 1 sec = 1000ms -> X cycles;
+	 *		      10ms -> X / 100 cycles
+	 */
+	arc_timer_event_setup(arc_get_core_freq() / HZ);
+	return 0;
 }
 
 static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
-	.name		= "ARC Timer0",
-	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.mode		= CLOCK_EVT_MODE_UNUSED,
-	.rating		= 300,
-	.irq		= TIMER0_IRQ,	/* hardwired, no need for resources */
-	.set_next_event = arc_clkevent_set_next_event,
-	.set_mode	= arc_clkevent_set_mode,
+	.name			= "ARC Timer0",
+	.features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC,
+	.rating			= 300,
+	.irq			= TIMER0_IRQ,	/* hardwired, no need for resources */
+	.set_next_event		= arc_clkevent_set_next_event,
+	.set_state_periodic	= arc_clkevent_set_periodic,
 };
 
 static irqreturn_t timer_irq_handler(int irq, void *dev_id)
@@ -240,7 +230,7 @@ static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 	 * irq_set_chip_and_handler() asked for handle_percpu_devid_irq()
 	 */
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
-	int irq_reenable = evt->mode == CLOCK_EVT_MODE_PERIODIC;
+	int irq_reenable = clockevent_state_periodic(evt);
 
 	/*
 	 * Any write to CTRL reg ACks the interrupt, we rewrite the
