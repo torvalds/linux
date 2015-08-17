@@ -583,32 +583,25 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		goto end;
 	}
 
-	if (m2m_ctx->m2m_dev->m2m_ops->unlock)
-		m2m_ctx->m2m_dev->m2m_ops->unlock(m2m_ctx->priv);
-	else if (m2m_ctx->q_lock)
-		mutex_unlock(m2m_ctx->q_lock);
-
+	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (list_empty(&src_q->done_list))
 		poll_wait(file, &src_q->done_wq, wait);
+	spin_unlock_irqrestore(&src_q->done_lock, flags);
+
+	spin_lock_irqsave(&dst_q->done_lock, flags);
 	if (list_empty(&dst_q->done_list)) {
 		/*
 		 * If the last buffer was dequeued from the capture queue,
 		 * return immediately. DQBUF will return -EPIPE.
 		 */
-		if (dst_q->last_buffer_dequeued)
+		if (dst_q->last_buffer_dequeued) {
+			spin_unlock_irqrestore(&dst_q->done_lock, flags);
 			return rc | POLLIN | POLLRDNORM;
+		}
 
 		poll_wait(file, &dst_q->done_wq, wait);
 	}
-
-	if (m2m_ctx->m2m_dev->m2m_ops->lock)
-		m2m_ctx->m2m_dev->m2m_ops->lock(m2m_ctx->priv);
-	else if (m2m_ctx->q_lock) {
-		if (mutex_lock_interruptible(m2m_ctx->q_lock)) {
-			rc |= POLLERR;
-			goto end;
-		}
-	}
+	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
