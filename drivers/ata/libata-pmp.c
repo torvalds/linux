@@ -145,12 +145,23 @@ int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *r_val)
 
 	if (reg > SATA_PMP_PSCR_CONTROL)
 		return -EINVAL;
+	
+	/* For some PMP cards, we need to delay some time */
+	if (link>flags & ATA_LFLAG_DELAY) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		/* sleep 50 msecond */
+		schedule_timeout(msecs_to_jiffies(50));
+	}
 
 	err_mask = sata_pmp_read(link, reg, r_val);
 	if (err_mask) {
 		ata_link_warn(link, "failed to read SCR %d (Emask=0x%x)\n",
 			      reg, err_mask);
 		return -EIO;
+	} else if (vendor== 0x197b && devid == 0x0325) {
+		ata_for_each_link(link, ap, EDGE) {
+			link->flags |= ATA_LFLAG_DELAY;
+		}
 	}
 	return 0;
 }
@@ -176,13 +187,15 @@ int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val)
 
 	if (reg > SATA_PMP_PSCR_CONTROL)
 		return -EINVAL;
+		
+
 
 	err_mask = sata_pmp_write(link, reg, val);
 	if (err_mask) {
 		ata_link_warn(link, "failed to write SCR %d (Emask=0x%x)\n",
 			      reg, err_mask);
 		return -EIO;
-	}
+	} 
 	return 0;
 }
 
