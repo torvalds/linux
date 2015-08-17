@@ -83,8 +83,8 @@
 #define S526_INT_AI		BIT(2)
 #define S526_INT_AO		BIT(1)
 #define S526_INT_TIMER		BIT(0)
-#define REG_MSC 0x10
-
+#define S526_MISC_REG		0x10
+#define S526_MISC_LED_OFF	BIT(0)
 #define S526_GPCT_LSB_REG(x)	(0x12 + ((x) * 8))
 #define S526_GPCT_MSB_REG(x)	(0x14 + ((x) * 8))
 #define S526_GPCT_MODE_REG(x)	(0x16 + ((x) * 8))
