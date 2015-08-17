@@ -188,35 +188,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		 */
 		devpriv->gpct_config[chan] = data[0];
 
-#if 0
-		/*  Example of Counter Application */
-		/* One-shot (software trigger) */
-		cmReg.reg.coutSource = 0;	/*  out RCAP */
-		cmReg.reg.coutPolarity = 1;	/*  Polarity inverted */
-		cmReg.reg.autoLoadResetRcap = 0;/*  Auto load disabled */
-		cmReg.reg.hwCtEnableSource = 3;	/*  NOT RCAP */
-		cmReg.reg.ctEnableCtrl = 2;	/*  Hardware */
-		cmReg.reg.clockSource = 2;	/*  Internal */
-		cmReg.reg.countDir = 1;	/*  Down */
-		cmReg.reg.countDirCtrl = 1;	/*  Software */
-		cmReg.reg.outputRegLatchCtrl = 0;	/*  latch on read */
-		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-		cmReg.reg.reserved = 0;
-
-		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
-
-		s526_gpct_write(dev, chan, 0x0013c68);
-
-		/*  Reset the counter */
-		outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
-		/*  Load the counter from PR0 */
-		outw(0x4000, dev->iobase + S526_GPCT_CTRL_REG(chan));
-
-		/*  Reset RCAP (fires one-shot) */
-		outw(0x0008, dev->iobase + S526_GPCT_CTRL_REG(chan));
-
-#endif
-
 #if 1
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
