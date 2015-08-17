@@ -200,28 +200,21 @@ int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt)
 	return rc;
 }
 
-/* Must be called with imp_lock held! */
-static void ptlrpc_deactivate_and_unlock_import(struct obd_import *imp)
-{
-	assert_spin_locked(&imp->imp_lock);
-
-	CDEBUG(D_HA, "setting import %s INVALID\n", obd2cli_tgt(imp->imp_obd));
-	imp->imp_invalid = 1;
-	imp->imp_generation++;
-	spin_unlock(&imp->imp_lock);
-
-	ptlrpc_abort_inflight(imp);
-	obd_import_event(imp->imp_obd, imp, IMP_EVENT_INACTIVE);
-}
-
 /*
  * This acts as a barrier; all existing requests are rejected, and
  * no new requests will be accepted until the import is valid again.
  */
 void ptlrpc_deactivate_import(struct obd_import *imp)
 {
+	CDEBUG(D_HA, "setting import %s INVALID\n", obd2cli_tgt(imp->imp_obd));
+
 	spin_lock(&imp->imp_lock);
-	ptlrpc_deactivate_and_unlock_import(imp);
+	imp->imp_invalid = 1;
+	imp->imp_generation++;
+	spin_unlock(&imp->imp_lock);
+
+	ptlrpc_abort_inflight(imp);
+	obd_import_event(imp->imp_obd, imp, IMP_EVENT_INACTIVE);
 }
 EXPORT_SYMBOL(ptlrpc_deactivate_import);
 
