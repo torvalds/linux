@@ -57,7 +57,7 @@ struct nbd_device {
 	int blksize;
 	loff_t bytesize;
 	int xmit_timeout;
-	int disconnect; /* a disconnect has been requested by user */
+	bool disconnect; /* a disconnect has been requested by user */
 
 	struct timer_list timeout_timer;
 	struct task_struct *task_recv;
@@ -145,7 +145,7 @@ static void nbd_xmit_timeout(unsigned long arg)
 	if (list_empty(&nbd->queue_head))
 		return;
 
-	nbd->disconnect = 1;
+	nbd->disconnect = true;
 
 	task = READ_ONCE(nbd->task_recv);
 	if (task)
@@ -646,7 +646,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		if (!nbd->sock)
 			return -EINVAL;
 
-		nbd->disconnect = 1;
+		nbd->disconnect = true;
 
 		nbd_send_req(nbd, &sreq);
 		return 0;
@@ -674,7 +674,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 			nbd->sock = sock;
 			if (max_part > 0)
 				bdev->bd_invalidated = 1;
-			nbd->disconnect = 0; /* we're connected now */
+			nbd->disconnect = false; /* we're connected now */
 			return 0;
 		}
 		return -EINVAL;
