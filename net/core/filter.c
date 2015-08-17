@@ -1124,6 +1124,7 @@ int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
 	*pfp = fp;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(bpf_prog_create_from_user);
 
 void bpf_prog_destroy(struct bpf_prog *fp)
 {
