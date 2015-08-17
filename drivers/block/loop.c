@@ -1595,6 +1595,12 @@ static int loop_add(struct loop_device **l, int i)
 	}
 	lo->lo_queue->queuedata = lo;
 
+	/*
+	 * It doesn't make sense to enable merge because the I/O
+	 * submitted to backing file is handled page by page.
+	 */
+	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+
 	INIT_LIST_HEAD(&lo->write_cmd_head);
 	INIT_WORK(&lo->write_work, loop_queue_write_work);
 
