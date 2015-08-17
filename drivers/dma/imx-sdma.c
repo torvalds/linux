@@ -342,6 +342,7 @@ struct sdma_channel {
 	struct imx_dma_data		data;
 	unsigned int			chn_count;
 	unsigned int			chn_real_count;
+	bool				context_loaded;
 	u32				bd_size_sum;
 	bool				src_dualfifo;
 	bool				dst_dualfifo;
@@ -948,6 +949,9 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	int ret;
 	unsigned long flags;
 
+	if (sdmac->context_loaded)
+		return 0;
+
 	if (sdmac->direction == DMA_DEV_TO_MEM)
 		load_address = sdmac->pc_from_device;
 	else if (sdmac->direction == DMA_DEV_TO_DEV)
@@ -994,6 +998,8 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	ret = sdma_run_channel0(sdma);
 
 	spin_unlock_irqrestore(&sdma->channel_0_lock, flags);
+
+	sdmac->context_loaded = true;
 
 	return ret;
 }
@@ -1299,6 +1305,7 @@ static int sdma_terminate_all(struct dma_chan *chan)
 	spin_unlock_irqrestore(&sdmac->vc.lock, flags);
 	vchan_dma_desc_free_list(&sdmac->vc, &head);
 	sdma_disable_channel(chan);
+	sdmac->context_loaded = false;
 
 	return 0;
 }
@@ -1405,7 +1412,11 @@ static struct sdma_desc *sdma_transfer_init(struct sdma_channel *sdmac,
 	if (sdma_alloc_bd(desc))
 		goto err_desc_out;
 
+	if (sdma_load_context(sdmac))
+		goto err_desc_out;
+
 	return desc;
+
 err_desc_out:
 	kfree(desc);
 err_out:
@@ -2162,6 +2173,7 @@ static int sdma_probe(struct platform_device *pdev)
 		struct sdma_channel *sdmac = &sdma->channel[i];
 
 		sdmac->sdma = sdma;
+		sdmac->context_loaded = false;
 		sdmac->channel = i;
 		sdmac->status = DMA_IN_PROGRESS;
 		sdmac->vc.desc_free = sdma_desc_free;
