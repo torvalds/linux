@@ -195,7 +195,7 @@ abort:
 }
 
 static int nct7802_write_voltage(struct nct7802_data *data, int nr, int index,
-				 unsigned int voltage)
+				 unsigned long voltage)
 {
 	int shift = 8 - REG_VOLTAGE_LIMIT_MSB_SHIFT[index - 1][nr];
 	int err;

@@ -92,6 +92,8 @@ static int nouveau_platform_power_down(struct nouveau_platform_gpu *gpu)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_IOMMU_API)
+
 static void nouveau_platform_probe_iommu(struct device *dev,
 					 struct nouveau_platform_gpu *gpu)
 {
@@ -157,6 +159,20 @@ static void nouveau_platform_remove_iommu(struct device *dev,
 		iommu_domain_free(gpu->iommu.domain);
 	}
 }
+
+#else
+
+static void nouveau_platform_probe_iommu(struct device *dev,
+					 struct nouveau_platform_gpu *gpu)
+{
+}
+
+static void nouveau_platform_remove_iommu(struct device *dev,
+					  struct nouveau_platform_gpu *gpu)
+{
+}
+
+#endif
 
 static int nouveau_platform_probe(struct platform_device *pdev)
 {

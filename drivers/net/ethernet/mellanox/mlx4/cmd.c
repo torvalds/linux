@@ -686,6 +686,7 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 {
 	struct mlx4_cmd *cmd = &mlx4_priv(dev)->cmd;
 	struct mlx4_cmd_context *context;
+	long ret_wait;
 	int err = 0;
 
 	down(&cmd->event_sem);
@@ -711,8 +712,20 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	if (err)
 		goto out_reset;
 
-	if (!wait_for_completion_timeout(&context->done,
-					 msecs_to_jiffies(timeout))) {
+	if (op == MLX4_CMD_SENSE_PORT) {
+		ret_wait =
+			wait_for_completion_interruptible_timeout(&context->done,
+								  msecs_to_jiffies(timeout));
+		if (ret_wait < 0) {
+			context->fw_status = 0;
+			context->out_param = 0;
+			context->result = 0;
+		}
+	} else {
+		ret_wait = (long)wait_for_completion_timeout(&context->done,
+							     msecs_to_jiffies(timeout));
+	}
+	if (!ret_wait) {
 		mlx4_warn(dev, "command 0x%x timed out (go bit not cleared)\n",
 			  op);
 		if (op == MLX4_CMD_NOP) {

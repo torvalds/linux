@@ -50,7 +50,12 @@ nv04_instobj_dtor(struct nvkm_object *object)
 {
 	struct nv04_instmem_priv *priv = (void *)nvkm_instmem(object);
 	struct nv04_instobj_priv *node = (void *)object;
+	struct nvkm_subdev *subdev = (void *)priv;
+
+	mutex_lock(&subdev->mutex);
 	nvkm_mm_free(&priv->heap, &node->mem);
+	mutex_unlock(&subdev->mutex);
+
 	nvkm_instobj_destroy(&node->base);
 }
 
@@ -62,6 +67,7 @@ nv04_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nv04_instmem_priv *priv = (void *)nvkm_instmem(parent);
 	struct nv04_instobj_priv *node;
 	struct nvkm_instobj_args *args = data;
+	struct nvkm_subdev *subdev = (void *)priv;
 	int ret;
 
 	if (!args->align)
@@ -72,8 +78,10 @@ nv04_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	mutex_lock(&subdev->mutex);
 	ret = nvkm_mm_head(&priv->heap, 0, 1, args->size, args->size,
 			   args->align, &node->mem);
+	mutex_unlock(&subdev->mutex);
 	if (ret)
 		return ret;
 

@@ -319,6 +319,12 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
  * @vma: The virtual memory area where the fault occurred
  * @vmf: The description of the fault
  * @get_block: The filesystem method used to translate file offsets to blocks
+ * @complete_unwritten: The filesystem method used to convert unwritten blocks
+ *	to written so the data written to them is exposed. This is required for
+ *	required by write faults for filesystems that will return unwritten
+ *	extent mappings from @get_block, but it is optional for reads as
+ *	dax_insert_mapping() will always zero unwritten blocks. If the fs does
+ *	not support unwritten extents, the it should pass NULL.
  *
  * When a page fault occurs, filesystems may call this helper in their
  * fault handler for DAX files. __dax_fault() assumes the caller has done all
@@ -437,8 +443,12 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	 * as for normal BH based IO completions.
 	 */
 	error = dax_insert_mapping(inode, &bh, vma, vmf);
-	if (buffer_unwritten(&bh))
-		complete_unwritten(&bh, !error);
+	if (buffer_unwritten(&bh)) {
+		if (complete_unwritten)
+			complete_unwritten(&bh, !error);
+		else
+			WARN_ON_ONCE(!(vmf->flags & FAULT_FLAG_WRITE));
+	}
 
  out:
 	if (error == -ENOMEM)

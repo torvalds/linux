@@ -44,15 +44,9 @@ int snd_hdac_ext_bus_parse_capabilities(struct hdac_ext_bus *ebus)
 
 	offset = snd_hdac_chip_readl(bus, LLCH);
 
-	if (offset < 0)
-		return -EIO;
-
 	/* Lets walk the linked capabilities list */
 	do {
 		cur_cap = _snd_hdac_chip_read(l, bus, offset);
-
-		if (cur_cap < 0)
-			return -EIO;
 
 		dev_dbg(bus->dev, "Capability version: 0x%x\n",
 				((cur_cap & AZX_CAP_HDR_VER_MASK) >> AZX_CAP_HDR_VER_OFF));

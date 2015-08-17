@@ -637,8 +637,8 @@ static void msm_debugfs_cleanup(struct drm_minor *minor)
  * Fences:
  */
 
-int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
-		ktime_t *timeout)
+int msm_wait_fence(struct drm_device *dev, uint32_t fence,
+		ktime_t *timeout , bool interruptible)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
@@ -667,7 +667,12 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 			remaining_jiffies = timespec_to_jiffies(&ts);
 		}
 
-		ret = wait_event_interruptible_timeout(priv->fence_event,
+		if (interruptible)
+			ret = wait_event_interruptible_timeout(priv->fence_event,
+				fence_completed(dev, fence),
+				remaining_jiffies);
+		else
+			ret = wait_event_timeout(priv->fence_event,
 				fence_completed(dev, fence),
 				remaining_jiffies);
 
@@ -853,7 +858,7 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	return msm_wait_fence_interruptable(dev, args->fence, &timeout);
+	return msm_wait_fence(dev, args->fence, &timeout, true);
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {

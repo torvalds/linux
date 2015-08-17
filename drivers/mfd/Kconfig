@@ -115,7 +115,7 @@ config MFD_CROS_EC_I2C
 
 config MFD_CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && CROS_EC_PROTO && SPI && OF
+	depends on MFD_CROS_EC && CROS_EC_PROTO && SPI
 
 	---help---
 	  If you say Y here, you get support for talking to the ChromeOS EC

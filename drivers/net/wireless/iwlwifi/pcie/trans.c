@@ -182,7 +182,7 @@ static void iwl_trans_pcie_write_shr(struct iwl_trans *trans, u32 reg, u32 val)
 
 static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 {
-	if (!trans->cfg->apmg_not_supported)
+	if (trans->cfg->apmg_not_supported)
 		return;
 
 	if (vaux && pci_pme_capable(to_pci_dev(trans->dev), PCI_D3cold))
@@ -478,10 +478,16 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000)
 			iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
 					  APMG_PCIDEV_STT_VAL_WAKE_ME);
-		else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+				    CSR_RESET_LINK_PWR_MGMT_DISABLED);
 			iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_PREPARE |
 				    CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+			mdelay(1);
+			iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+				      CSR_RESET_LINK_PWR_MGMT_DISABLED);
+		}
 		mdelay(5);
 	}
 
@@ -575,6 +581,10 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 	if (ret >= 0)
 		return 0;
 
+	iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+		    CSR_RESET_LINK_PWR_MGMT_DISABLED);
+	msleep(1);
+
 	for (iter = 0; iter < 10; iter++) {
 		/* If HW is not ready, prepare the conditions to check again */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
@@ -582,8 +592,10 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0)
-				return 0;
+			if (ret >= 0) {
+				ret = 0;
+				goto out;
+			}
 
 			usleep_range(200, 1000);
 			t += 200;
@@ -592,6 +604,10 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 	}
 
 	IWL_ERR(trans, "Couldn't prepare the card\n");
+
+out:
+	iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
+		      CSR_RESET_LINK_PWR_MGMT_DISABLED);
 
 	return ret;
 }
@@ -2459,7 +2475,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	struct iwl_trans_pcie *trans_pcie;
 	struct iwl_trans *trans;
 	u16 pci_cmd;
-	int err;
+	int ret;
 
 	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie),
 				&pdev->dev, cfg, &trans_ops_pcie, 0);
@@ -2474,8 +2490,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	spin_lock_init(&trans_pcie->ref_lock);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 
-	err = pci_enable_device(pdev);
-	if (err)
+	ret = pci_enable_device(pdev);
+	if (ret)
 		goto out_no_pci;
 
 	if (!cfg->base_params->pcie_l1_allowed) {
@@ -2491,23 +2507,23 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
-	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
-	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (!err)
-			err = pci_set_consistent_dma_mask(pdev,
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
+	if (!ret)
+		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
+	if (ret) {
+		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (!ret)
+			ret = pci_set_consistent_dma_mask(pdev,
 							  DMA_BIT_MASK(32));
 		/* both attempts failed: */
-		if (err) {
+		if (ret) {
 			dev_err(&pdev->dev, "No suitable DMA available\n");
 			goto out_pci_disable_device;
 		}
 	}
 
-	err = pci_request_regions(pdev, DRV_NAME);
-	if (err) {
+	ret = pci_request_regions(pdev, DRV_NAME);
+	if (ret) {
 		dev_err(&pdev->dev, "pci_request_regions failed\n");
 		goto out_pci_disable_device;
 	}
@@ -2515,7 +2531,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie->hw_base = pci_ioremap_bar(pdev, 0);
 	if (!trans_pcie->hw_base) {
 		dev_err(&pdev->dev, "pci_ioremap_bar failed\n");
-		err = -ENODEV;
+		ret = -ENODEV;
 		goto out_pci_release_regions;
 	}
 
@@ -2527,9 +2543,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie->pci_dev = pdev;
 	iwl_disable_interrupts(trans);
 
-	err = pci_enable_msi(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "pci_enable_msi failed(0X%x)\n", err);
+	ret = pci_enable_msi(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "pci_enable_msi failed(0X%x)\n", ret);
 		/* enable rfkill interrupt: hw bug w/a */
 		pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
 		if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
@@ -2547,10 +2563,15 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	 */
 	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
 		unsigned long flags;
-		int ret;
 
 		trans->hw_rev = (trans->hw_rev & 0xfff0) |
 				(CSR_HW_REV_STEP(trans->hw_rev << 2) << 2);
+
+		ret = iwl_pcie_prepare_card_hw(trans);
+		if (ret) {
+			IWL_WARN(trans, "Exit HW not ready\n");
+			goto out_pci_disable_msi;
+		}
 
 		/*
 		 * in-order to recognize C step driver should read chip version
@@ -2591,13 +2612,14 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
 
-	if (iwl_pcie_alloc_ict(trans))
+	ret = iwl_pcie_alloc_ict(trans);
+	if (ret)
 		goto out_pci_disable_msi;
 
-	err = request_threaded_irq(pdev->irq, iwl_pcie_isr,
+	ret = request_threaded_irq(pdev->irq, iwl_pcie_isr,
 				   iwl_pcie_irq_handler,
 				   IRQF_SHARED, DRV_NAME, trans);
-	if (err) {
+	if (ret) {
 		IWL_ERR(trans, "Error allocating IRQ %d\n", pdev->irq);
 		goto out_free_ict;
 	}
@@ -2617,5 +2639,5 @@ out_pci_disable_device:
 	pci_disable_device(pdev);
 out_no_pci:
 	iwl_trans_free(trans);
-	return ERR_PTR(err);
+	return ERR_PTR(ret);
 }

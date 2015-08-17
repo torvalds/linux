@@ -2063,10 +2063,10 @@ static struct notifier_block ratelimit_nb = {
  */
 void __init page_writeback_init(void)
 {
+	BUG_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
+
 	writeback_set_ratelimit();
 	register_cpu_notifier(&ratelimit_nb);
-
-	BUG_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
 }
 
 /**

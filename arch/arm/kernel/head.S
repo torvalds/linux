@@ -399,6 +399,9 @@ ENTRY(secondary_startup)
 	sub	lr, r4, r5			@ mmu has been enabled
 	add	r3, r7, lr
 	ldrd	r4, [r3, #0]			@ get secondary_data.pgdir
+ARM_BE8(eor	r4, r4, r5)			@ Swap r5 and r4 in BE:
+ARM_BE8(eor	r5, r4, r5)			@ it can be done in 3 steps
+ARM_BE8(eor	r4, r4, r5)			@ without using a temp reg.
 	ldr	r8, [r3, #8]			@ get secondary_data.swapper_pg_dir
 	badr	lr, __enable_mmu		@ return address
 	mov	r13, r12			@ __secondary_switched address

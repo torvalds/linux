@@ -196,7 +196,7 @@ static struct tgfx __init *tgfx_probe(int parport, int *n_buttons, int n_devs)
 		if (n_buttons[i] < 1)
 			continue;
 
-		if (n_buttons[i] > 6) {
+		if (n_buttons[i] > ARRAY_SIZE(tgfx_buttons)) {
 			printk(KERN_ERR "turbografx.c: Invalid number of buttons %d\n", n_buttons[i]);
 			err = -EINVAL;
 			goto err_unreg_devs;

@@ -2213,6 +2213,9 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			features->x_max = 4096;
 			features->y_max = 4096;
 		}
+		else if (features->pktlen == WACOM_PKGLEN_BBTOUCH) {
+			features->device_type |= WACOM_DEVICETYPE_PAD;
+		}
 	}
 
 	/*
