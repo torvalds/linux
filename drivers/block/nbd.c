@@ -41,7 +41,6 @@
 
 struct nbd_device {
 	int flags;
-	int harderror;		/* Code of hard error			*/
 	struct socket * sock;	/* If == NULL, device is not ready, yet	*/
 	int magic;
 
@@ -329,26 +328,24 @@ static struct request *nbd_read_stat(struct nbd_device *nbd)
 	if (result <= 0) {
 		dev_err(disk_to_dev(nbd->disk),
 			"Receive control failed (result %d)\n", result);
-		goto harderror;
+		return ERR_PTR(result);
 	}
 
 	if (ntohl(reply.magic) != NBD_REPLY_MAGIC) {
 		dev_err(disk_to_dev(nbd->disk), "Wrong magic (0x%lx)\n",
 				(unsigned long)ntohl(reply.magic));
-		result = -EPROTO;
-		goto harderror;
+		return ERR_PTR(-EPROTO);
 	}
 
 	req = nbd_find_request(nbd, *(struct request **)reply.handle);
 	if (IS_ERR(req)) {
 		result = PTR_ERR(req);
 		if (result != -ENOENT)
-			goto harderror;
+			return ERR_PTR(result);
 
 		dev_err(disk_to_dev(nbd->disk), "Unexpected reply (%p)\n",
 			reply.handle);
-		result = -EBADR;
-		goto harderror;
+		return ERR_PTR(-EBADR);
 	}
 
 	if (ntohl(reply.error)) {
@@ -376,9 +373,6 @@ static struct request *nbd_read_stat(struct nbd_device *nbd)
 		}
 	}
 	return req;
-harderror:
-	nbd->harderror = result;
-	return NULL;
 }
 
 static ssize_t pid_show(struct device *dev,
@@ -413,8 +407,15 @@ static int nbd_do_it(struct nbd_device *nbd)
 
 	nbd->task_recv = current;
 
-	while ((req = nbd_read_stat(nbd)) != NULL)
+	while (1) {
+		req = nbd_read_stat(nbd);
+		if (IS_ERR(req)) {
+			ret = PTR_ERR(req);
+			break;
+		}
+
 		nbd_end_request(nbd, req);
+	}
 
 	nbd->task_recv = NULL;
 
@@ -734,8 +735,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		kthread_stop(thread);
 
 		mutex_lock(&nbd->tx_lock);
-		if (error)
-			return error;
+
 		sock_shutdown(nbd);
 		sock = nbd->sock;
 		nbd->sock = NULL;
@@ -754,7 +754,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 			blkdev_reread_part(bdev);
 		if (nbd->disconnect) /* user requested, ignore socket errors */
 			return 0;
-		return nbd->harderror;
+		return error;
 	}
 
 	case NBD_CLEAR_QUE:
