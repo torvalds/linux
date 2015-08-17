@@ -50,6 +50,8 @@
 		pci0 = &pci0;
 		pci1 = &pci1;
 		pci2 = &pci2;
+		vga = &display;
+		display = &display;
 	};
 
 	cpus {
