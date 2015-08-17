@@ -59,6 +59,10 @@ struct nbd_device {
 	pid_t pid; /* pid of nbd-client, if attached */
 	int xmit_timeout;
 	int disconnect; /* a disconnect has been requested by user */
+
+	struct timer_list timeout_timer;
+	struct task_struct *task_recv;
+	struct task_struct *task_send;
 };
 
 #define NBD_MAGIC 0x68797548
@@ -121,6 +125,7 @@ static void sock_shutdown(struct nbd_device *nbd, int lock)
 		dev_warn(disk_to_dev(nbd->disk), "shutting down socket\n");
 		kernel_sock_shutdown(nbd->sock, SHUT_RDWR);
 		nbd->sock = NULL;
+		del_timer_sync(&nbd->timeout_timer);
 	}
 	if (lock)
 		mutex_unlock(&nbd->tx_lock);
@@ -128,11 +133,23 @@ static void sock_shutdown(struct nbd_device *nbd, int lock)
 
 static void nbd_xmit_timeout(unsigned long arg)
 {
-	struct task_struct *task = (struct task_struct *)arg;
+	struct nbd_device *nbd = (struct nbd_device *)arg;
+	struct task_struct *task;
 
-	printk(KERN_WARNING "nbd: killing hung xmit (%s, pid: %d)\n",
-		task->comm, task->pid);
-	force_sig(SIGKILL, task);
+	if (list_empty(&nbd->queue_head))
+		return;
+
+	nbd->disconnect = 1;
+
+	task = READ_ONCE(nbd->task_recv);
+	if (task)
+		force_sig(SIGKILL, task);
+
+	task = READ_ONCE(nbd->task_send);
+	if (task)
+		force_sig(SIGKILL, nbd->task_send);
+
+	dev_err(nbd_to_dev(nbd), "Connection timed out, killed receiver and sender, shutting down connection\n");
 }
 
 /*
@@ -171,32 +188,11 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 		msg.msg_controllen = 0;
 		msg.msg_flags = msg_flags | MSG_NOSIGNAL;
 
-		if (send) {
-			struct timer_list ti;
-
-			if (nbd->xmit_timeout) {
-				init_timer(&ti);
-				ti.function = nbd_xmit_timeout;
-				ti.data = (unsigned long)current;
-				ti.expires = jiffies + nbd->xmit_timeout;
-				add_timer(&ti);
-			}
+		if (send)
 			result = kernel_sendmsg(sock, &msg, &iov, 1, size);
-			if (nbd->xmit_timeout)
-				del_timer_sync(&ti);
-		} else
+		else
 			result = kernel_recvmsg(sock, &msg, &iov, 1, size,
 						msg.msg_flags);
-
-		if (signal_pending(current)) {
-			siginfo_t info;
-			printk(KERN_WARNING "nbd (pid %d: %s) got signal %d\n",
-				task_pid_nr(current), current->comm,
-				dequeue_signal_lock(current, &current->blocked, &info));
-			result = -EINTR;
-			sock_shutdown(nbd, !send);
-			break;
-		}
 
 		if (result <= 0) {
 			if (result == 0)
@@ -209,6 +205,9 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 
 	sigprocmask(SIG_SETMASK, &oldset, NULL);
 	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+
+	if (!send && nbd->xmit_timeout)
+		mod_timer(&nbd->timeout_timer, jiffies + nbd->xmit_timeout);
 
 	return result;
 }
@@ -415,12 +414,26 @@ static int nbd_do_it(struct nbd_device *nbd)
 		return ret;
 	}
 
+	nbd->task_recv = current;
+
 	while ((req = nbd_read_stat(nbd)) != NULL)
 		nbd_end_request(nbd, req);
 
+	nbd->task_recv = NULL;
+
+	if (signal_pending(current)) {
+		siginfo_t info;
+
+		ret = dequeue_signal_lock(current, &current->blocked, &info);
+		dev_warn(nbd_to_dev(nbd), "pid %d, %s, got signal %d\n",
+			 task_pid_nr(current), current->comm, ret);
+		sock_shutdown(nbd, 1);
+		ret = -ETIMEDOUT;
+	}
+
 	device_remove_file(disk_to_dev(nbd->disk), &pid_attr);
 	nbd->pid = 0;
-	return 0;
+	return ret;
 }
 
 static void nbd_clear_que(struct nbd_device *nbd)
@@ -482,6 +495,9 @@ static void nbd_handle_req(struct nbd_device *nbd, struct request *req)
 
 	nbd->active_req = req;
 
+	if (nbd->xmit_timeout && list_empty_careful(&nbd->queue_head))
+		mod_timer(&nbd->timeout_timer, jiffies + nbd->xmit_timeout);
+
 	if (nbd_send_req(nbd, req) != 0) {
 		dev_err(disk_to_dev(nbd->disk), "Request send failed\n");
 		req->errors++;
@@ -508,12 +524,26 @@ static int nbd_thread(void *data)
 	struct nbd_device *nbd = data;
 	struct request *req;
 
+	nbd->task_send = current;
+
 	set_user_nice(current, MIN_NICE);
 	while (!kthread_should_stop() || !list_empty(&nbd->waiting_queue)) {
 		/* wait for something to do */
 		wait_event_interruptible(nbd->waiting_wq,
 					 kthread_should_stop() ||
 					 !list_empty(&nbd->waiting_queue));
+
+		if (signal_pending(current)) {
+			siginfo_t info;
+			int ret;
+
+			ret = dequeue_signal_lock(current, &current->blocked,
+						  &info);
+			dev_warn(nbd_to_dev(nbd), "pid %d, %s, got signal %d\n",
+				 task_pid_nr(current), current->comm, ret);
+			sock_shutdown(nbd, 1);
+			break;
+		}
 
 		/* extract request */
 		if (list_empty(&nbd->waiting_queue))
@@ -528,6 +558,9 @@ static int nbd_thread(void *data)
 		/* handle request */
 		nbd_handle_req(nbd, req);
 	}
+
+	nbd->task_send = NULL;
+
 	return 0;
 }
 
@@ -648,6 +681,12 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 	case NBD_SET_TIMEOUT:
 		nbd->xmit_timeout = arg * HZ;
+		if (arg)
+			mod_timer(&nbd->timeout_timer,
+				  jiffies + nbd->xmit_timeout);
+		else
+			del_timer_sync(&nbd->timeout_timer);
+
 		return 0;
 
 	case NBD_SET_FLAGS:
@@ -842,6 +881,9 @@ static int __init nbd_init(void)
 		spin_lock_init(&nbd_dev[i].queue_lock);
 		INIT_LIST_HEAD(&nbd_dev[i].queue_head);
 		mutex_init(&nbd_dev[i].tx_lock);
+		init_timer(&nbd_dev[i].timeout_timer);
+		nbd_dev[i].timeout_timer.function = nbd_xmit_timeout;
+		nbd_dev[i].timeout_timer.data = (unsigned long)&nbd_dev[i];
 		init_waitqueue_head(&nbd_dev[i].active_wq);
 		init_waitqueue_head(&nbd_dev[i].waiting_wq);
 		nbd_dev[i].blksize = 1024;
