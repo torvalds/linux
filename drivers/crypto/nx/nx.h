@@ -149,6 +149,8 @@ struct nx_crypto_ctx {
 	} priv;
 };
 
+struct crypto_aead;
+
 /* prototypes */
 int nx_crypto_ctx_aes_ccm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm);
