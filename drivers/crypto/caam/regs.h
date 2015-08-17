@@ -108,20 +108,31 @@
 
 /*
  * The only users of these wr/rd_reg64 functions is the Job Ring (JR).
- * The DMA address registers in the JR are a pair of 32-bit registers.
- * The layout is:
+ * The DMA address registers in the JR are handled differently depending on
+ * platform:
+ *
+ * 1. All BE CAAM platforms and i.MX platforms (LE CAAM):
  *
  *    base + 0x0000 : most-significant 32 bits
  *    base + 0x0004 : least-significant 32 bits
  *
  * The 32-bit version of this core therefore has to write to base + 0x0004
- * to set the 32-bit wide DMA address. This seems to be independent of the
- * endianness of the written/read data.
+ * to set the 32-bit wide DMA address.
+ *
+ * 2. All other LE CAAM platforms (LS1021A etc.)
+ *    base + 0x0000 : least-significant 32 bits
+ *    base + 0x0004 : most-significant 32 bits
  */
 
 #ifndef CONFIG_64BIT
+#if !defined(CONFIG_CRYPTO_DEV_FSL_CAAM_LE) || \
+	defined(CONFIG_CRYPTO_DEV_FSL_CAAM_IMX)
 #define REG64_MS32(reg) ((u32 __iomem *)(reg))
 #define REG64_LS32(reg) ((u32 __iomem *)(reg) + 1)
+#else
+#define REG64_MS32(reg) ((u32 __iomem *)(reg) + 1)
+#define REG64_LS32(reg) ((u32 __iomem *)(reg))
+#endif
 
 static inline void wr_reg64(u64 __iomem *reg, u64 data)
 {

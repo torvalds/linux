@@ -23,12 +23,12 @@
 #define SEC4_SG_OFFS_MASK	0x00001fff
 
 struct sec4_sg_entry {
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	dma_addr_t ptr;
-#else
+#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
 	u32 rsvd1;
 	dma_addr_t ptr;
-#endif
+#else
+	u64 ptr;
+#endif /* CONFIG_CRYPTO_DEV_FSL_CAAM_IMX */
 	u32 len;
 	u8 rsvd2;
 	u8 buf_pool_id;

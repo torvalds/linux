@@ -16,10 +16,10 @@
 #include "error.h"
 
 /*
- * ARM targets tend to have clock control subsystems that can
+ * i.MX targets tend to have clock control subsystems that can
  * enable/disable clocking to our device.
  */
-#ifdef CONFIG_ARM
+#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
 static inline struct clk *caam_drv_identify_clk(struct device *dev,
 						char *clk_name)
 {
