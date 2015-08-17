@@ -138,8 +138,8 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 	if (powered && !IS_ERR(dev->clk) && !dev->clk_enabled)
 		clk_enable(dev->clk);
 
-	gpiod_set_value_cansleep(dev->shutdown, powered);
-	gpiod_set_value_cansleep(dev->device_wakeup, powered);
+	gpiod_set_value(dev->shutdown, powered);
+	gpiod_set_value(dev->device_wakeup, powered);
 
 	if (!powered && !IS_ERR(dev->clk) && dev->clk_enabled)
 		clk_disable(dev->clk);
