@@ -46,13 +46,6 @@
 
 struct pnfs_block_dev;
 
-enum pnfs_block_volume_type {
-	PNFS_BLOCK_VOLUME_SIMPLE	= 0,
-	PNFS_BLOCK_VOLUME_SLICE		= 1,
-	PNFS_BLOCK_VOLUME_CONCAT	= 2,
-	PNFS_BLOCK_VOLUME_STRIPE	= 3,
-};
-
 #define PNFS_BLOCK_MAX_UUIDS	4
 #define PNFS_BLOCK_MAX_DEVICES	64
 
@@ -117,13 +110,6 @@ struct pnfs_block_dev {
 			struct pnfs_block_dev_map *map);
 };
 
-enum exstate4 {
-	PNFS_BLOCK_READWRITE_DATA	= 0,
-	PNFS_BLOCK_READ_DATA		= 1,
-	PNFS_BLOCK_INVALID_DATA		= 2, /* mapped, but data is invalid */
-	PNFS_BLOCK_NONE_DATA		= 3  /* unmapped, it's a hole */
-};
-
 /* sector_t fields are all in 512-byte sectors */
 struct pnfs_block_extent {
 	union {
@@ -134,14 +120,11 @@ struct pnfs_block_extent {
 	sector_t	be_f_offset;	/* the starting offset in the file */
 	sector_t	be_length;	/* the size of the extent */
 	sector_t	be_v_offset;	/* the starting offset in the volume */
-	enum exstate4	be_state;	/* the state of this extent */
+	enum pnfs_block_extent_state be_state;	/* the state of this extent */
 #define EXTENT_WRITTEN		1
 #define EXTENT_COMMITTING	2
 	unsigned int	be_tag;
 };
-
-/* on the wire size of the extent */
-#define BL_EXTENT_SIZE	(7 * sizeof(__be32) + NFS4_DEVICEID4_SIZE)
 
 struct pnfs_block_layout {
 	struct pnfs_layout_hdr	bl_layout;

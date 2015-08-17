@@ -465,7 +465,7 @@ out:
 static size_t ext_tree_layoutupdate_size(size_t count)
 {
 	return sizeof(__be32) /* number of entries */ +
-		BL_EXTENT_SIZE * count;
+		PNFS_BLOCK_EXTENT_SIZE * count;
 }
 
 static void ext_tree_free_commitdata(struct nfs4_layoutcommit_args *arg,
