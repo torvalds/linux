@@ -180,7 +180,6 @@ int spi_bitbang_setup(struct spi_device *spi)
 {
 	struct spi_bitbang_cs	*cs = spi->controller_state;
 	struct spi_bitbang	*bitbang;
-	unsigned long		flags;
 
 	bitbang = spi_master_get_devdata(spi->master);
 
@@ -210,12 +209,12 @@ int spi_bitbang_setup(struct spi_device *spi)
 	 */
 
 	/* deselect chip (low or high) */
-	spin_lock_irqsave(&bitbang->lock, flags);
+	mutex_lock(&bitbang->lock);
 	if (!bitbang->busy) {
 		bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
 		ndelay(cs->nsecs);
 	}
-	spin_unlock_irqrestore(&bitbang->lock, flags);
+	mutex_unlock(&bitbang->lock);
 
 	return 0;
 }
@@ -255,13 +254,12 @@ static int spi_bitbang_bufs(struct spi_device *spi, struct spi_transfer *t)
 static int spi_bitbang_prepare_hardware(struct spi_master *spi)
 {
 	struct spi_bitbang	*bitbang;
-	unsigned long		flags;
 
 	bitbang = spi_master_get_devdata(spi);
 
-	spin_lock_irqsave(&bitbang->lock, flags);
+	mutex_lock(&bitbang->lock);
 	bitbang->busy = 1;
-	spin_unlock_irqrestore(&bitbang->lock, flags);
+	mutex_unlock(&bitbang->lock);
 
 	return 0;
 }
@@ -378,13 +376,12 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 static int spi_bitbang_unprepare_hardware(struct spi_master *spi)
 {
 	struct spi_bitbang	*bitbang;
-	unsigned long		flags;
 
 	bitbang = spi_master_get_devdata(spi);
 
-	spin_lock_irqsave(&bitbang->lock, flags);
+	mutex_lock(&bitbang->lock);
 	bitbang->busy = 0;
-	spin_unlock_irqrestore(&bitbang->lock, flags);
+	mutex_unlock(&bitbang->lock);
 
 	return 0;
 }
@@ -427,7 +424,7 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	if (!master || !bitbang->chipselect)
 		return -EINVAL;
 
-	spin_lock_init(&bitbang->lock);
+	mutex_init(&bitbang->lock);
 
 	if (!master->mode_bits)
 		master->mode_bits = SPI_CPOL | SPI_CPHA | bitbang->flags;
