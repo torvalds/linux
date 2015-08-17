@@ -418,16 +418,19 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 	return result;
 }
 
-static int s526_ai_eoc(struct comedi_device *dev,
-		       struct comedi_subdevice *s,
-		       struct comedi_insn *insn,
-		       unsigned long context)
+static int s526_eoc(struct comedi_device *dev,
+		    struct comedi_subdevice *s,
+		    struct comedi_insn *insn,
+		    unsigned long context)
 {
 	unsigned int status;
 
 	status = inw(dev->iobase + S526_INT_STATUS_REG);
-	if (status & S526_INT_AI)
+	if (status & context) {
+		/* we got our eoc event, clear it */
+		outw(context, dev->iobase + S526_INT_STATUS_REG);
 		return 0;
+	}
 	return -EBUSY;
 }
 
@@ -455,11 +458,9 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		outw(ctrl, dev->iobase + S526_AI_CTRL_REG);
 
 		/* wait for conversion to end */
-		ret = comedi_timeout(dev, s, insn, s526_ai_eoc, 0);
+		ret = comedi_timeout(dev, s, insn, s526_eoc, S526_INT_AI);
 		if (ret)
 			return ret;
-
-		outw(S526_INT_AI, dev->iobase + S526_INT_STATUS_REG);
 
 		d = inw(dev->iobase + S526_AI_REG);
 
@@ -479,6 +480,7 @@ static int s526_ao_insn_write(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int ctrl = S526_AO_CTRL_CHAN(chan);
 	unsigned int val = s->readback[chan];
+	int ret;
 	int i;
 
 	outw(ctrl, dev->iobase + S526_AO_CTRL_REG);
@@ -488,6 +490,11 @@ static int s526_ao_insn_write(struct comedi_device *dev,
 		val = data[i];
 		outw(val, dev->iobase + S526_AO_REG);
 		outw(ctrl, dev->iobase + S526_AO_CTRL_REG);
+
+		/* wait for conversion to end */
+		ret = comedi_timeout(dev, s, insn, s526_eoc, S526_INT_AO);
+		if (ret)
+			return ret;
 	}
 	s->readback[chan] = val;
 
