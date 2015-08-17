@@ -997,7 +997,12 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	else if (type == PCI_EXP_TYPE_UPSTREAM ||
 		 type == PCI_EXP_TYPE_DOWNSTREAM) {
 		parent = pci_upstream_bridge(pdev);
-		if (!parent->has_secondary_link)
+
+		/*
+		 * Usually there's an upstream device (Root Port or Switch
+		 * Downstream Port), but we can't assume one exists.
+		 */
+		if (parent && !parent->has_secondary_link)
 			pdev->has_secondary_link = 1;
 	}
 }
