@@ -20,26 +20,24 @@
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
-#include "exynos_drm_drv.h"
+#include "exynos_drm_crtc.h"
 
 struct exynos_dpi {
-	struct exynos_drm_display display;
+	struct drm_encoder encoder;
 	struct device *dev;
 	struct device_node *panel_node;
 
 	struct drm_panel *panel;
 	struct drm_connector connector;
-	struct drm_encoder *encoder;
 
 	struct videomode *vm;
-	int dpms_mode;
 };
 
 #define connector_to_dpi(c) container_of(c, struct exynos_dpi, connector)
 
-static inline struct exynos_dpi *display_to_dpi(struct exynos_drm_display *d)
+static inline struct exynos_dpi *encoder_to_dpi(struct drm_encoder *e)
 {
-	return container_of(d, struct exynos_dpi, display);
+	return container_of(e, struct exynos_dpi, encoder);
 }
 
 static enum drm_connector_status
@@ -99,7 +97,7 @@ exynos_dpi_best_encoder(struct drm_connector *connector)
 {
 	struct exynos_dpi *ctx = connector_to_dpi(connector);
 
-	return ctx->encoder;
+	return &ctx->encoder;
 }
 
 static struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
@@ -107,14 +105,11 @@ static struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
 	.best_encoder = exynos_dpi_best_encoder,
 };
 
-static int exynos_dpi_create_connector(struct exynos_drm_display *display,
-				       struct drm_encoder *encoder)
+static int exynos_dpi_create_connector(struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = display_to_dpi(display);
+	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
 	struct drm_connector *connector = &ctx->connector;
 	int ret;
-
-	ctx->encoder = encoder;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
@@ -133,46 +128,48 @@ static int exynos_dpi_create_connector(struct exynos_drm_display *display,
 	return 0;
 }
 
-static void exynos_dpi_poweron(struct exynos_dpi *ctx)
+static bool exynos_dpi_mode_fixup(struct drm_encoder *encoder,
+				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
 {
+	return true;
+}
+
+static void exynos_dpi_mode_set(struct drm_encoder *encoder,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+}
+
+static void exynos_dpi_enable(struct drm_encoder *encoder)
+{
+	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
+
 	if (ctx->panel) {
 		drm_panel_prepare(ctx->panel);
 		drm_panel_enable(ctx->panel);
 	}
 }
 
-static void exynos_dpi_poweroff(struct exynos_dpi *ctx)
+static void exynos_dpi_disable(struct drm_encoder *encoder)
 {
+	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
+
 	if (ctx->panel) {
 		drm_panel_disable(ctx->panel);
 		drm_panel_unprepare(ctx->panel);
 	}
 }
 
-static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
-{
-	struct exynos_dpi *ctx = display_to_dpi(display);
+static struct drm_encoder_helper_funcs exynos_dpi_encoder_helper_funcs = {
+	.mode_fixup = exynos_dpi_mode_fixup,
+	.mode_set = exynos_dpi_mode_set,
+	.enable = exynos_dpi_enable,
+	.disable = exynos_dpi_disable,
+};
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		if (ctx->dpms_mode != DRM_MODE_DPMS_ON)
-				exynos_dpi_poweron(ctx);
-			break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		if (ctx->dpms_mode == DRM_MODE_DPMS_ON)
-			exynos_dpi_poweroff(ctx);
-		break;
-	default:
-		break;
-	}
-	ctx->dpms_mode = mode;
-}
-
-static struct exynos_drm_display_ops exynos_dpi_display_ops = {
-	.create_connector = exynos_dpi_create_connector,
-	.dpms = exynos_dpi_dpms
+static struct drm_encoder_funcs exynos_dpi_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
 };
 
 /* of_* functions will be removed after merge of of_graph patches */
@@ -299,7 +296,34 @@ static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 	return 0;
 }
 
-struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
+int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder)
+{
+	int ret;
+
+	ret = exynos_drm_crtc_get_pipe_from_type(dev, EXYNOS_DISPLAY_TYPE_LCD);
+	if (ret < 0)
+		return ret;
+
+	encoder->possible_crtcs = 1 << ret;
+
+	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
+
+	drm_encoder_init(dev, encoder, &exynos_dpi_encoder_funcs,
+			 DRM_MODE_ENCODER_TMDS);
+
+	drm_encoder_helper_add(encoder, &exynos_dpi_encoder_helper_funcs);
+
+	ret = exynos_dpi_create_connector(encoder);
+	if (ret) {
+		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		drm_encoder_cleanup(encoder);
+		return ret;
+	}
+
+	return 0;
+}
+
+struct drm_encoder *exynos_dpi_probe(struct device *dev)
 {
 	struct exynos_dpi *ctx;
 	int ret;
@@ -308,10 +332,7 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	ctx->display.type = EXYNOS_DISPLAY_TYPE_LCD;
-	ctx->display.ops = &exynos_dpi_display_ops;
 	ctx->dev = dev;
-	ctx->dpms_mode = DRM_MODE_DPMS_OFF;
 
 	ret = exynos_dpi_parse_dt(ctx);
 	if (ret < 0) {
@@ -325,14 +346,14 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 			return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	return &ctx->display;
+	return &ctx->encoder;
 }
 
-int exynos_dpi_remove(struct exynos_drm_display *display)
+int exynos_dpi_remove(struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = display_to_dpi(display);
+	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
 
-	exynos_dpi_dpms(&ctx->display, DRM_MODE_DPMS_OFF);
+	exynos_dpi_disable(&ctx->encoder);
 
 	if (ctx->panel)
 		drm_panel_detach(ctx->panel);

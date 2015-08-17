@@ -97,29 +97,18 @@ static void exynos_plane_mode_set(struct drm_plane *plane,
 	/* set drm framebuffer data. */
 	exynos_plane->src_x = src_x;
 	exynos_plane->src_y = src_y;
-	exynos_plane->src_width = (actual_w * exynos_plane->h_ratio) >> 16;
-	exynos_plane->src_height = (actual_h * exynos_plane->v_ratio) >> 16;
-	exynos_plane->fb_width = fb->width;
-	exynos_plane->fb_height = fb->height;
-	exynos_plane->bpp = fb->bits_per_pixel;
-	exynos_plane->pitch = fb->pitches[0];
-	exynos_plane->pixel_format = fb->pixel_format;
+	exynos_plane->src_w = (actual_w * exynos_plane->h_ratio) >> 16;
+	exynos_plane->src_h = (actual_h * exynos_plane->v_ratio) >> 16;
 
 	/* set plane range to be displayed. */
 	exynos_plane->crtc_x = crtc_x;
 	exynos_plane->crtc_y = crtc_y;
-	exynos_plane->crtc_width = actual_w;
-	exynos_plane->crtc_height = actual_h;
-
-	/* set drm mode data. */
-	exynos_plane->mode_width = mode->hdisplay;
-	exynos_plane->mode_height = mode->vdisplay;
-	exynos_plane->refresh = mode->vrefresh;
-	exynos_plane->scan_flag = mode->flags;
+	exynos_plane->crtc_w = actual_w;
+	exynos_plane->crtc_h = actual_h;
 
 	DRM_DEBUG_KMS("plane : offset_x/y(%d,%d), width/height(%d,%d)",
 			exynos_plane->crtc_x, exynos_plane->crtc_y,
-			exynos_plane->crtc_width, exynos_plane->crtc_height);
+			exynos_plane->crtc_w, exynos_plane->crtc_h);
 
 	plane->crtc = crtc;
 }
@@ -145,15 +134,15 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 
 	nr = exynos_drm_fb_get_buf_cnt(state->fb);
 	for (i = 0; i < nr; i++) {
-		struct exynos_drm_gem_buf *buffer =
-					exynos_drm_fb_buffer(state->fb, i);
+		struct exynos_drm_gem_obj *obj =
+					exynos_drm_fb_gem_obj(state->fb, i);
 
-		if (!buffer) {
-			DRM_DEBUG_KMS("buffer is null\n");
+		if (!obj) {
+			DRM_DEBUG_KMS("gem object is null\n");
 			return -EFAULT;
 		}
 
-		exynos_plane->dma_addr[i] = buffer->dma_addr +
+		exynos_plane->dma_addr[i] = obj->dma_addr +
 					    state->fb->offsets[i];
 
 		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
@@ -179,8 +168,8 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 			      state->src_x >> 16, state->src_y >> 16,
 			      state->src_w >> 16, state->src_h >> 16);
 
-	if (exynos_crtc->ops->win_commit)
-		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
+	if (exynos_crtc->ops->update_plane)
+		exynos_crtc->ops->update_plane(exynos_crtc, exynos_plane);
 }
 
 static void exynos_plane_atomic_disable(struct drm_plane *plane,
@@ -192,9 +181,9 @@ static void exynos_plane_atomic_disable(struct drm_plane *plane,
 	if (!old_state->crtc)
 		return;
 
-	if (exynos_crtc->ops->win_disable)
-		exynos_crtc->ops->win_disable(exynos_crtc,
-					      exynos_plane->zpos);
+	if (exynos_crtc->ops->disable_plane)
+		exynos_crtc->ops->disable_plane(exynos_crtc,
+						exynos_plane);
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
