@@ -93,7 +93,7 @@ static inline bool __rpc_copy_addr6(struct sockaddr *dst,
 	return true;
 }
 #else	/* !(IS_ENABLED(CONFIG_IPV6) */
-static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
+static inline bool rpc_cmp_addr6(const struct sockaddr *sap1,
 				   const struct sockaddr *sap2)
 {
 	return false;
