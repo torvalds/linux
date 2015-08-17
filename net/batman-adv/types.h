@@ -221,6 +221,7 @@ struct batadv_orig_bat_iv {
  * @batadv_dat_addr_t:  address of the orig node in the distributed hash
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
+ * @mcast_handler_lock: synchronizes mcast-capability and -flag changes
  * @mcast_flags: multicast flags announced by the orig node
  * @mcast_want_all_unsnoop_node: a list node for the
  *  mcast.want_all_unsnoopables list
@@ -268,13 +269,15 @@ struct batadv_orig_node {
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
 #ifdef CONFIG_BATMAN_ADV_MCAST
+	/* synchronizes mcast tvlv specific orig changes */
+	spinlock_t mcast_handler_lock;
 	uint8_t mcast_flags;
 	struct hlist_node mcast_want_all_unsnoopables_node;
 	struct hlist_node mcast_want_all_ipv4_node;
 	struct hlist_node mcast_want_all_ipv6_node;
 #endif
-	uint8_t capabilities;
-	uint8_t capa_initialized;
+	unsigned long capabilities;
+	unsigned long capa_initialized;
 	atomic_t last_ttvn;
 	unsigned char *tt_buff;
 	int16_t tt_buff_len;
@@ -313,10 +316,10 @@ struct batadv_orig_node {
  *  (= orig node announces a tvlv of type BATADV_TVLV_MCAST)
  */
 enum batadv_orig_capabilities {
-	BATADV_ORIG_CAPA_HAS_DAT = BIT(0),
-	BATADV_ORIG_CAPA_HAS_NC = BIT(1),
-	BATADV_ORIG_CAPA_HAS_TT = BIT(2),
-	BATADV_ORIG_CAPA_HAS_MCAST = BIT(3),
+	BATADV_ORIG_CAPA_HAS_DAT,
+	BATADV_ORIG_CAPA_HAS_NC,
+	BATADV_ORIG_CAPA_HAS_TT,
+	BATADV_ORIG_CAPA_HAS_MCAST,
 };
 
 /**

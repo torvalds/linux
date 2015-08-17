@@ -19,6 +19,7 @@
 #include "main.h"
 
 #include <linux/atomic.h>
+#include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
 #include <linux/compiler.h>
 #include <linux/debugfs.h>
@@ -134,9 +135,9 @@ static void batadv_nc_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					  uint16_t tvlv_value_len)
 {
 	if (flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND)
-		orig->capabilities &= ~BATADV_ORIG_CAPA_HAS_NC;
+		clear_bit(BATADV_ORIG_CAPA_HAS_NC, &orig->capabilities);
 	else
-		orig->capabilities |= BATADV_ORIG_CAPA_HAS_NC;
+		set_bit(BATADV_ORIG_CAPA_HAS_NC, &orig->capabilities);
 }
 
 /**
@@ -894,7 +895,7 @@ void batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
 		goto out;
 
 	/* check if orig node is network coding enabled */
-	if (!(orig_node->capabilities & BATADV_ORIG_CAPA_HAS_NC))
+	if (!test_bit(BATADV_ORIG_CAPA_HAS_NC, &orig_node->capabilities))
 		goto out;
 
 	/* accept ogms from 'good' neighbors and single hop neighbors */
