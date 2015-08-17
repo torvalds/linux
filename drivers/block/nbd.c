@@ -41,7 +41,7 @@
 #include <linux/nbd.h>
 
 struct nbd_device {
-	int flags;
+	u32 flags;
 	struct socket * sock;	/* If == NULL, device is not ready, yet	*/
 	int magic;
 
