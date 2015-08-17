@@ -69,6 +69,8 @@ struct loop_cmd {
 	struct kthread_work work;
 	struct request *rq;
 	struct list_head list;
+	bool use_aio;           /* use AIO interface to handle I/O */
+	struct kiocb iocb;
 };
 
 /* Support for loadable transfer modules */

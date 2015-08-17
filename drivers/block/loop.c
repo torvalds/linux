@@ -445,6 +445,90 @@ static int lo_req_flush(struct loop_device *lo, struct request *rq)
 	return ret;
 }
 
+static inline void handle_partial_read(struct loop_cmd *cmd, long bytes)
+{
+	if (bytes < 0 || (cmd->rq->cmd_flags & REQ_WRITE))
+		return;
+
+	if (unlikely(bytes < blk_rq_bytes(cmd->rq))) {
+		struct bio *bio = cmd->rq->bio;
+
+		bio_advance(bio, bytes);
+		zero_fill_bio(bio);
+	}
+}
+
+static void lo_rw_aio_complete(struct kiocb *iocb, long ret, long ret2)
+{
+	struct loop_cmd *cmd = container_of(iocb, struct loop_cmd, iocb);
+	struct request *rq = cmd->rq;
+
+	handle_partial_read(cmd, ret);
+
+	if (ret > 0)
+		ret = 0;
+	else if (ret < 0)
+		ret = -EIO;
+
+	rq->errors = ret;
+	blk_mq_complete_request(rq);
+}
+
+static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+		     loff_t pos, bool rw)
+{
+	struct iov_iter iter;
+	struct bio_vec *bvec;
+	struct bio *bio = cmd->rq->bio;
+	struct file *file = lo->lo_backing_file;
+	int ret;
+
+	/* nomerge for loop request queue */
+	WARN_ON(cmd->rq->bio != cmd->rq->biotail);
+
+	bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+	iov_iter_bvec(&iter, ITER_BVEC | rw, bvec,
+		      bio_segments(bio), blk_rq_bytes(cmd->rq));
+
+	cmd->iocb.ki_pos = pos;
+	cmd->iocb.ki_filp = file;
+	cmd->iocb.ki_complete = lo_rw_aio_complete;
+	cmd->iocb.ki_flags = IOCB_DIRECT;
+
+	if (rw == WRITE)
+		ret = file->f_op->write_iter(&cmd->iocb, &iter);
+	else
+		ret = file->f_op->read_iter(&cmd->iocb, &iter);
+
+	if (ret != -EIOCBQUEUED)
+		cmd->iocb.ki_complete(&cmd->iocb, ret, 0);
+	return 0;
+}
+
+
+static inline int lo_rw_simple(struct loop_device *lo,
+		struct request *rq, loff_t pos, bool rw)
+{
+	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
+
+	if (cmd->use_aio)
+		return lo_rw_aio(lo, cmd, pos, rw);
+
+	/*
+	 * lo_write_simple and lo_read_simple should have been covered
+	 * by io submit style function like lo_rw_aio(), one blocker
+	 * is that lo_read_simple() need to call flush_dcache_page after
+	 * the page is written from kernel, and it isn't easy to handle
+	 * this in io submit style function which submits all segments
+	 * of the req at one time. And direct read IO doesn't need to
+	 * run flush_dcache_page().
+	 */
+	if (rw == WRITE)
+		return lo_write_simple(lo, rq, pos);
+	else
+		return lo_read_simple(lo, rq, pos);
+}
+
 static int do_req_filebacked(struct loop_device *lo, struct request *rq)
 {
 	loff_t pos;
@@ -460,13 +544,13 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
 		else if (lo->transfer)
 			ret = lo_write_transfer(lo, rq, pos);
 		else
-			ret = lo_write_simple(lo, rq, pos);
+			ret = lo_rw_simple(lo, rq, pos, WRITE);
 
 	} else {
 		if (lo->transfer)
 			ret = lo_read_transfer(lo, rq, pos);
 		else
-			ret = lo_read_simple(lo, rq, pos);
+			ret = lo_rw_simple(lo, rq, pos, READ);
 	}
 
 	return ret;
@@ -1570,6 +1654,12 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (lo->lo_state != Lo_bound)
 		return -EIO;
 
+	if (lo->use_dio && !(cmd->rq->cmd_flags & (REQ_FLUSH |
+					REQ_DISCARD)))
+		cmd->use_aio = true;
+	else
+		cmd->use_aio = false;
+
 	queue_kthread_work(&lo->worker, &cmd->work);
 
 	return BLK_MQ_RQ_QUEUE_OK;
@@ -1589,7 +1679,9 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
  failed:
 	if (ret)
 		cmd->rq->errors = -EIO;
-	blk_mq_complete_request(cmd->rq);
+	/* complete non-aio request */
+	if (!cmd->use_aio || ret)
+		blk_mq_complete_request(cmd->rq);
 }
 
 static void loop_queue_work(struct kthread_work *work)
