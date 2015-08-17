@@ -361,6 +361,8 @@ config TWL6030_GPADC
 config VF610_ADC
 	tristate "Freescale vf610 ADC driver"
 	depends on OF
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to support for Vybrid board analog-to-digital converter.
 	  Since the IP is used for i.MX6SLX, the driver also support i.MX6SLX.
