@@ -905,7 +905,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	uint8_t hdmi_level_shift;
 	int i, j;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
-	uint8_t aux_channel;
+	uint8_t aux_channel, ddc_pin;
 	/* Each DDI port can have more than one value on the "DVO Port" field,
 	 * so look for all the possible values for each port and abort if more
 	 * than one is found. */
@@ -939,6 +939,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		return;
 
 	aux_channel = child->raw[25];
+	ddc_pin = child->common.ddc_pin;
 
 	is_dvi = child->common.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
 	is_dp = child->common.device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
@@ -970,11 +971,27 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
-		if (child->common.ddc_pin == 0x05 && port != PORT_B)
+		if (port == PORT_E) {
+			info->alternate_ddc_pin = ddc_pin;
+			/* if DDIE share ddc pin with other port, then
+			 * dvi/hdmi couldn't exist on the shared port.
+			 * Otherwise they share the same ddc bin and system
+			 * couldn't communicate with them seperately. */
+			if (ddc_pin == DDC_PIN_B) {
+				dev_priv->vbt.ddi_port_info[PORT_B].supports_dvi = 0;
+				dev_priv->vbt.ddi_port_info[PORT_B].supports_hdmi = 0;
+			} else if (ddc_pin == DDC_PIN_C) {
+				dev_priv->vbt.ddi_port_info[PORT_C].supports_dvi = 0;
+				dev_priv->vbt.ddi_port_info[PORT_C].supports_hdmi = 0;
+			} else if (ddc_pin == DDC_PIN_D) {
+				dev_priv->vbt.ddi_port_info[PORT_D].supports_dvi = 0;
+				dev_priv->vbt.ddi_port_info[PORT_D].supports_hdmi = 0;
+			}
+		} else if (ddc_pin == DDC_PIN_B && port != PORT_B)
 			DRM_DEBUG_KMS("Unexpected DDC pin for port B\n");
-		if (child->common.ddc_pin == 0x04 && port != PORT_C)
+		else if (ddc_pin == DDC_PIN_C && port != PORT_C)
 			DRM_DEBUG_KMS("Unexpected DDC pin for port C\n");
-		if (child->common.ddc_pin == 0x06 && port != PORT_D)
+		else if (ddc_pin == DDC_PIN_D && port != PORT_D)
 			DRM_DEBUG_KMS("Unexpected DDC pin for port D\n");
 	}
 
