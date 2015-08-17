@@ -468,6 +468,7 @@ static void nbd_clear_que(struct nbd_device *nbd)
 		req->errors++;
 		nbd_end_request(nbd, req);
 	}
+	dev_dbg(disk_to_dev(nbd->disk), "queue cleared\n");
 }
 
 
@@ -740,7 +741,6 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		sock = nbd->sock;
 		nbd->sock = NULL;
 		nbd_clear_que(nbd);
-		dev_warn(disk_to_dev(nbd->disk), "queue cleared\n");
 		kill_bdev(bdev);
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 		set_device_ro(bdev, false);
