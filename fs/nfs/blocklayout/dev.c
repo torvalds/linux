@@ -65,6 +65,11 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 				return -EIO;
 			p = xdr_decode_hyper(p, &b->simple.sigs[i].offset);
 			b->simple.sigs[i].sig_len = be32_to_cpup(p++);
+			if (b->simple.sigs[i].sig_len > PNFS_BLOCK_UUID_LEN) {
+				pr_info("signature too long: %d\n",
+					b->simple.sigs[i].sig_len);
+				return -EIO;
+			}
 
 			p = xdr_inline_decode(xdr, b->simple.sigs[i].sig_len);
 			if (!p)
