@@ -1946,9 +1946,9 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 
 	/* production settings */
 	settings = tegra_sor_hdmi_find_settings(sor, mode->clock * 1000);
-	if (IS_ERR(settings)) {
-		dev_err(sor->dev, "no settings for pixel clock %d Hz: %ld\n",
-			mode->clock * 1000, PTR_ERR(settings));
+	if (!settings) {
+		dev_err(sor->dev, "no settings for pixel clock %d Hz\n",
+			mode->clock * 1000);
 		return;
 	}
 
