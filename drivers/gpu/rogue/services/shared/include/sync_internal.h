@@ -117,4 +117,9 @@ typedef struct _SYNC_PRIM_
 
 IMG_INTERNAL IMG_UINT32 SyncPrimGetFirmwareAddr(PVRSRV_CLIENT_SYNC_PRIM *psSync);
 
+IMG_INTERNAL PVRSRV_ERROR SyncPrimLocalGetHandleAndOffset(PVRSRV_CLIENT_SYNC_PRIM *psSync,
+							IMG_HANDLE *phBlock,
+							IMG_UINT32 *pui32Offset);
+
+
 #endif	/* _SYNC_INTERNAL_ */

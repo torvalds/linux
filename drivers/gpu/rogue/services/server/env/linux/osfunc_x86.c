@@ -58,8 +58,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ON_EACH_CPU(func, info, wait) on_each_cpu(func, info, 0, wait)
 #endif
 
-#define ROUND_UP(x,a) (((x) + (a) - 1) & ~((a) - 1))
-
 static void per_cpu_cache_flush(void *arg)
 {
     PVR_UNREFERENCED_PARAMETER(arg);
@@ -95,8 +93,8 @@ static void x86_flush_cache_range(const void *pvStart, const void *pvEnd)
 	IMG_BYTE *pbEnd = (IMG_BYTE *)pvEnd;
 	IMG_BYTE *pbBase;
 
-	pbEnd = (IMG_BYTE *)ROUND_UP((IMG_UINTPTR_T)pbEnd,
-								 boot_cpu_data.x86_clflush_size);
+	pbEnd = (IMG_BYTE *)PVR_ALIGN((IMG_UINTPTR_T)pbEnd,
+	                              (IMG_UINTPTR_T)boot_cpu_data.x86_clflush_size);
 
 	mb();
 	for(pbBase = pbStart; pbBase < pbEnd; pbBase += boot_cpu_data.x86_clflush_size)

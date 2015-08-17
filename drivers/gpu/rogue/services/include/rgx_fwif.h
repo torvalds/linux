@@ -345,6 +345,7 @@ typedef struct _RGX_BIFINFO_
 {
 	IMG_UINT64	RGXFW_ALIGN		ui64BIFReqStatus;
 	IMG_UINT64	RGXFW_ALIGN		ui64BIFMMUStatus;
+	IMG_UINT64	RGXFW_ALIGN		ui64PCAddress; /*!< phys address of the page catalogue */
 } RGX_BIFINFO;
 
 typedef struct _RGX_MMUINFO_

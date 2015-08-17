@@ -90,6 +90,10 @@ extern "C" {
 #include "common_ri_bridge.h"
 #endif
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+#include "common_devicememhistory_bridge.h"
+#endif
+
 #include "pvr_bridge_io.h"
 /* 
  * Bridge Cmd Ids
@@ -178,9 +182,13 @@ extern "C" {
 #define PVRSRV_BRIDGE_RI_CMD_LAST			(PVRSRV_BRIDGE_RI_START - 1)
 #endif
 
+#define PVRSRV_BRIDGE_DEVICEMEMHISTORY_START				(PVRSRV_BRIDGE_RI_CMD_LAST + 1)
+#if !defined(SUPPORT_PAGE_FAULT_DEBUG)
+#define PVRSRV_BRIDGE_DEVICEMEMHISTORY_CMD_LAST			(PVRSRV_BRIDGE_DEVICEMEMHISTORY_START - 1)
+#endif
 
 /* For rgx_bridge.h. "last" below means last+1 (first beyond last) */
-#define PVRSRV_BRIDGE_LAST_NON_DEVICE_CMD       (PVRSRV_BRIDGE_RI_CMD_LAST)
+#define PVRSRV_BRIDGE_LAST_NON_DEVICE_CMD       (PVRSRV_BRIDGE_DEVICEMEMHISTORY_CMD_LAST)
 
 /******************************************************************************
  * Generic bridge structures 

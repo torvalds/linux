@@ -111,10 +111,12 @@ typedef struct PVRSRV_BRIDGE_IN_RGXSUBMITTRANSFER_TAG
 	IMG_HANDLE hTransferContext;
 	IMG_UINT32 ui32PrepareCount;
 	IMG_UINT32 * pui32ClientFenceCount;
-	PRGXFWIF_UFO_ADDR* * psFenceUFOAddress;
+	IMG_HANDLE* * phFenceUFOSyncPrimBlock;
+	IMG_UINT32* * pui32FenceSyncOffset;
 	IMG_UINT32* * pui32FenceValue;
 	IMG_UINT32 * pui32ClientUpdateCount;
-	PRGXFWIF_UFO_ADDR* * psUpdateUFOAddress;
+	IMG_HANDLE* * phUpdateUFOSyncPrimBlock;
+	IMG_UINT32* * pui32UpdateSyncOffset;
 	IMG_UINT32* * pui32UpdateValue;
 	IMG_UINT32 * pui32ServerSyncCount;
 	IMG_UINT32* * pui32ServerSyncFlags;
@@ -162,10 +164,12 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKSYNCTRANSFER_TAG
 {
 	IMG_HANDLE hTransferContext;
 	IMG_UINT32 ui32ClientFenceCount;
-	PRGXFWIF_UFO_ADDR * psClientFenceUFOAddress;
+	IMG_HANDLE * phClientFenceUFOSyncPrimBlock;
+	IMG_UINT32 * pui32ClientFenceSyncOffset;
 	IMG_UINT32 * pui32ClientFenceValue;
 	IMG_UINT32 ui32ClientUpdateCount;
-	PRGXFWIF_UFO_ADDR * psClientUpdateUFOAddress;
+	IMG_HANDLE * phClientUpdateUFOSyncPrimBlock;
+	IMG_UINT32 * pui32ClientUpdateSyncOffset;
 	IMG_UINT32 * pui32ClientUpdateValue;
 	IMG_UINT32 ui32ServerSyncCount;
 	IMG_UINT32 * pui32ServerSyncFlags;

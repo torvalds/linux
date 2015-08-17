@@ -55,6 +55,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "lock.h"
 #include "devicemem_mmap.h"
 #include "devicemem_utils.h"
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+#include "mm_common.h"
+#include "devicemem_history_shared.h"
+#endif
 
 #define DEVMEM_HEAPNAME_MAXLENGTH 160
 
@@ -205,6 +209,9 @@ struct _DEVMEM_MEMDESC_ {
 
 	DEVMEM_DEVICE_MEMDESC sDeviceMemDesc;	/*!< Device specifics of the memdesc */
 	DEVMEM_CPU_MEMDESC sCPUMemDesc;		/*!< CPU specifics of the memdesc */
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	DEVICEMEM_HISTORY_MEMDESC_DATA sTraceData;
+#endif
 
 #if defined(PVR_RI_DEBUG)
     IMG_HANDLE hRIHandle;					/*!< Handle to RI information */

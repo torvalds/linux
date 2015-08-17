@@ -58,6 +58,29 @@ typedef struct _SERVER_SYNC_EXPORT_ SERVER_SYNC_EXPORT;
 typedef struct _SYNC_CONNECTION_DATA_ SYNC_CONNECTION_DATA;
 typedef struct SYNC_RECORD* SYNC_RECORD_HANDLE;
 
+typedef struct _SYNC_ADDR_LIST_
+{
+	IMG_UINT32 ui32NumSyncs;
+	PRGXFWIF_UFO_ADDR *pasFWAddrs;
+} SYNC_ADDR_LIST;
+
+PVRSRV_ERROR
+SyncPrimitiveBlockToFWAddr(SYNC_PRIMITIVE_BLOCK *psSyncPrimBlock,
+						IMG_UINT32 ui32Offset,
+						PRGXFWIF_UFO_ADDR *psAddrOut);
+
+IMG_VOID
+SyncAddrListInit(SYNC_ADDR_LIST *psList);
+
+IMG_VOID
+SyncAddrListDeinit(SYNC_ADDR_LIST *psList);
+
+PVRSRV_ERROR
+SyncAddrListPopulate(SYNC_ADDR_LIST *psList,
+						IMG_UINT32 ui32NumSyncs,
+						SYNC_PRIMITIVE_BLOCK **apsSyncPrimBlock,
+						IMG_UINT32 *paui32SyncOffset);
+
 PVRSRV_ERROR
 PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
 								PVRSRV_DEVICE_NODE *psDevNode,

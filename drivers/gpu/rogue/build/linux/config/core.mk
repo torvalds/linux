@@ -504,6 +504,7 @@ $(eval $(call BothConfigMake,BUILD,$(BUILD)))
 
 ifeq ($(BUILD),debug)
 PVR_RI_DEBUG ?= 1
+SUPPORT_PAGE_FAULT_DEBUG ?= 1
 $(eval $(call BothConfigC,DEBUG,))
 $(eval $(call KernelConfigC,DEBUG_LINUX_MEMORY_ALLOCATIONS,))
 $(eval $(call KernelConfigC,DEBUG_LINUX_MEM_AREAS,))
@@ -684,6 +685,12 @@ $(eval $(call TunableBothConfigMake,PVR_RI_DEBUG,))
 $(eval $(call TunableBothConfigC,PVR_RI_DEBUG,,\
 Enable Resource Information (RI) debug. This logs details of_\
 resource allocations with annotation to help indicate their use._\
+))
+
+$(eval $(call TunableBothConfigMake,SUPPORT_PAGE_FAULT_DEBUG,))
+$(eval $(call TunableBothConfigC,SUPPORT_PAGE_FAULT_DEBUG,,\
+Collect information about allocations such as descriptive strings_\
+and timing data for more detailed page fault analysis._\
 ))
 
 $(eval $(call TunableKernelConfigC,PVRSRV_ENABLE_MEMORY_STATS,,\

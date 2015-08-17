@@ -59,13 +59,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 static IMG_UINT32 ui32CacheOpps = 0;
 static IMG_UINT32 ui32CacheOpSequence = 0;
 
-
-#define SERVER_MMU_CONTEXT_MAX_NAME 40
 typedef struct _SERVER_MMU_CONTEXT_ {
 	DEVMEM_MEMDESC *psFWMemContextMemDesc;
 	MMU_CONTEXT *psMMUContext;
 	IMG_PID uiPID;
-	IMG_CHAR szProcessName[SERVER_MMU_CONTEXT_MAX_NAME];
+	IMG_CHAR szProcessName[RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME];
 	DLLIST_NODE sNode;
 	PVRSRV_RGXDEV_INFO *psDevInfo;
 } SERVER_MMU_CONTEXT;
@@ -234,6 +232,49 @@ _PVRSRVPowerLock_Exit:
 	return eError;
 }
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+/* page fault debug is the only current use case for needing to find process info
+ * after that process device memory context has been destroyed
+ */
+
+typedef struct _UNREGISTERED_MEMORY_CONTEXT_
+{
+	IMG_PID uiPID;
+	IMG_CHAR szProcessName[RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME];
+	IMG_DEV_PHYADDR sPCDevPAddr;
+} UNREGISTERED_MEMORY_CONTEXT;
+
+/* must be a power of two */
+#define UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE (1 << 3)
+
+static UNREGISTERED_MEMORY_CONTEXT gasUnregisteredMemCtxs[UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE];
+static IMG_UINT32 gui32UnregisteredMemCtxsHead = 0;
+
+/* record a device memory context being unregistered.
+ * the list of unregistered contexts can be used to find the PID and process name
+ * belonging to a memory context which has been destroyed
+ */
+static IMG_VOID _RecordUnregisteredMemoryContext(PVRSRV_RGXDEV_INFO *psDevInfo, SERVER_MMU_CONTEXT *psServerMMUContext)
+{
+	UNREGISTERED_MEMORY_CONTEXT *psRecord;
+
+	OSLockAcquire(psDevInfo->hMMUCtxUnregLock);
+
+	psRecord = &gasUnregisteredMemCtxs[gui32UnregisteredMemCtxsHead];
+
+	gui32UnregisteredMemCtxsHead = (gui32UnregisteredMemCtxsHead + 1)
+					& (UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE - 1);
+
+	OSLockRelease(psDevInfo->hMMUCtxUnregLock);
+
+	psRecord->uiPID = psServerMMUContext->uiPID;
+	MMU_AcquireBaseAddr(psServerMMUContext->psMMUContext, &psRecord->sPCDevPAddr);
+	OSStringNCopy(psRecord->szProcessName, psServerMMUContext->szProcessName, sizeof(psRecord->szProcessName));
+	psRecord->szProcessName[sizeof(psRecord->szProcessName) - 1] = '\0';
+}
+
+#endif
+
 IMG_VOID RGXUnregisterMemoryContext(IMG_HANDLE hPrivData)
 {
 	SERVER_MMU_CONTEXT *psServerMMUContext = hPrivData;
@@ -242,6 +283,10 @@ IMG_VOID RGXUnregisterMemoryContext(IMG_HANDLE hPrivData)
 	OSWRLockAcquireWrite(psDevInfo->hMemoryCtxListLock, DEVINFO_MEMORYLIST);
 	dllist_remove_node(&psServerMMUContext->sNode);
 	OSWRLockReleaseWrite(psDevInfo->hMemoryCtxListLock);
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	_RecordUnregisteredMemoryContext(psDevInfo, psServerMMUContext);
+#endif
 
 	/*
 	 * Release the page catalogue address acquired in RGXRegisterMemoryContext().
@@ -418,11 +463,11 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 		psServerMMUContext->psMMUContext = psMMUContext;
 		psServerMMUContext->psFWMemContextMemDesc = psFWMemContextMemDesc;
 		if (OSSNPrintf(psServerMMUContext->szProcessName,
-						SERVER_MMU_CONTEXT_MAX_NAME,
+						RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME,
 						"%s",
-						OSGetCurrentProcessNameKM()) == SERVER_MMU_CONTEXT_MAX_NAME)
+						OSGetCurrentProcessNameKM()) == RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME)
 		{
-			psServerMMUContext->szProcessName[SERVER_MMU_CONTEXT_MAX_NAME-1] = '\0';
+			psServerMMUContext->szProcessName[RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME-1] = '\0';
 		}
 
 		OSWRLockAcquireWrite(psDevInfo->hMemoryCtxListLock, DEVINFO_MEMORYLIST);
@@ -501,6 +546,204 @@ IMG_VOID RGXCheckFaultAddress(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_VIRTADDR *p
 						&sFaultData);
 
 	OSWRLockReleaseRead(psDevInfo->hMemoryCtxListLock);
+}
+
+/* input for query to find the MMU context corresponding to a
+ * page catalogue address
+ */
+typedef struct _RGX_FIND_MMU_CONTEXT_
+{
+	IMG_DEV_PHYADDR sPCAddress;
+	SERVER_MMU_CONTEXT *psServerMMUContext;
+	MMU_CONTEXT *psMMUContext;
+} RGX_FIND_MMU_CONTEXT;
+
+static IMG_BOOL _RGXFindMMUContext(PDLLIST_NODE psNode, IMG_PVOID pvCallbackData)
+{
+	SERVER_MMU_CONTEXT *psServerMMUContext = IMG_CONTAINER_OF(psNode, SERVER_MMU_CONTEXT, sNode);
+	RGX_FIND_MMU_CONTEXT *psData = pvCallbackData;
+	IMG_DEV_PHYADDR sPCDevPAddr;
+
+	if (MMU_AcquireBaseAddr(psServerMMUContext->psMMUContext, &sPCDevPAddr) != PVRSRV_OK)
+	{
+		PVR_LOG(("Failed to get PC address for memory context"));
+		return IMG_TRUE;
+	}
+
+	if (psData->sPCAddress.uiAddr == sPCDevPAddr.uiAddr)
+	{
+		psData->psServerMMUContext = psServerMMUContext;
+
+		return IMG_FALSE;
+	}
+	return IMG_TRUE;
+}
+
+/* given the physical address of a page catalogue, searches for a corresponding
+ * MMU context and if found, provides the caller details of the process.
+ * Returns IMG_TRUE if a process is found.
+ */
+IMG_BOOL RGXPCAddrToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_PHYADDR sPCAddress,
+								RGXMEM_PROCESS_INFO *psInfo)
+{
+	RGX_FIND_MMU_CONTEXT sData;
+	IMG_BOOL bRet = IMG_FALSE;
+
+	sData.sPCAddress = sPCAddress;
+	sData.psServerMMUContext = IMG_NULL;
+
+	/* check if the input PC addr corresponds to an active memory context */
+	dllist_foreach_node(&psDevInfo->sMemoryContextList, _RGXFindMMUContext, &sData);
+
+	if(sData.psServerMMUContext != IMG_NULL)
+	{
+		psInfo->uiPID = sData.psServerMMUContext->uiPID;
+		OSStringNCopy(psInfo->szProcessName, sData.psServerMMUContext->szProcessName, sizeof(psInfo->szProcessName));
+		psInfo->szProcessName[sizeof(psInfo->szProcessName) - 1] = '\0';
+		psInfo->bUnregistered = IMG_FALSE;
+		bRet = IMG_TRUE;
+	}
+	/* else check if the input PC addr corresponds to the firmware */
+	else
+	{
+		IMG_DEV_PHYADDR sKernelPCDevPAddr;
+		PVRSRV_ERROR eError;
+
+		eError = MMU_AcquireBaseAddr(psDevInfo->psKernelMMUCtx, &sKernelPCDevPAddr);
+
+		if(eError != PVRSRV_OK)
+		{
+			PVR_LOG(("Failed to get PC address for kernel memory context"));
+		}
+		else
+		{
+			if(sPCAddress.uiAddr == sKernelPCDevPAddr.uiAddr)
+			{
+				psInfo->uiPID = RGXMEM_SERVER_PID_FIRMWARE;
+				OSStringNCopy(psInfo->szProcessName, "Firmware", sizeof(psInfo->szProcessName));
+				psInfo->szProcessName[sizeof(psInfo->szProcessName) - 1] = '\0';
+				psInfo->bUnregistered = IMG_FALSE;
+				bRet = IMG_TRUE;
+			}
+		}
+	}
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	if(bRet == IMG_FALSE)
+	{
+		/* no active memory context found with the given PC address.
+		 * Check the list of most recently freed memory contexts.
+		 */
+		 IMG_UINT32 i;
+
+		 OSLockAcquire(psDevInfo->hMMUCtxUnregLock);
+
+		 for(i = (gui32UnregisteredMemCtxsHead > 0) ? (gui32UnregisteredMemCtxsHead - 1) :
+		 					UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE;
+							i != gui32UnregisteredMemCtxsHead; i--)
+		{
+			UNREGISTERED_MEMORY_CONTEXT *psRecord = &gasUnregisteredMemCtxs[i];
+
+			if(psRecord->sPCDevPAddr.uiAddr == sPCAddress.uiAddr)
+			{
+				psInfo->uiPID = psRecord->uiPID;
+				OSStringNCopy(psInfo->szProcessName, psRecord->szProcessName, sizeof(psInfo->szProcessName)-1);
+				psInfo->szProcessName[sizeof(psInfo->szProcessName) - 1] = '\0';
+				psInfo->bUnregistered = IMG_TRUE;
+				bRet = IMG_TRUE;
+				break;
+			}
+		}
+
+		OSLockRelease(psDevInfo->hMMUCtxUnregLock);
+
+	}
+#endif
+	return bRet;
+}
+
+/* input for query to find the MMU context corresponding to a PID */
+typedef struct _RGX_FIND_MMU_CONTEXT_BY_PID_
+{
+	IMG_PID uiPID;
+	SERVER_MMU_CONTEXT *psServerMMUContext;
+	MMU_CONTEXT *psMMUContext;
+} RGX_FIND_MMU_CONTEXT_BY_PID;
+
+static IMG_BOOL _RGXFindMMUContextByPID(PDLLIST_NODE psNode, IMG_PVOID pvCallbackData)
+{
+	SERVER_MMU_CONTEXT *psServerMMUContext = IMG_CONTAINER_OF(psNode, SERVER_MMU_CONTEXT, sNode);
+	RGX_FIND_MMU_CONTEXT_BY_PID *psData = pvCallbackData;
+
+	if (psData->uiPID == psServerMMUContext->uiPID)
+	{
+		psData->psServerMMUContext = psServerMMUContext;
+
+		return IMG_FALSE;
+	}
+	return IMG_TRUE;
+}
+
+IMG_BOOL RGXPCPIDToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_PID uiPID,
+								RGXMEM_PROCESS_INFO *psInfo)
+{
+	RGX_FIND_MMU_CONTEXT_BY_PID sData;
+	IMG_BOOL bRet = IMG_FALSE;
+
+	sData.uiPID = uiPID;
+	sData.psServerMMUContext = IMG_NULL;
+
+	/* check if the input PID corresponds to an active memory context */
+	dllist_foreach_node(&psDevInfo->sMemoryContextList, _RGXFindMMUContextByPID, &sData);
+
+	if(sData.psServerMMUContext != IMG_NULL)
+	{
+		psInfo->uiPID = sData.psServerMMUContext->uiPID;
+		OSStringNCopy(psInfo->szProcessName, sData.psServerMMUContext->szProcessName, sizeof(psInfo->szProcessName));
+		psInfo->szProcessName[sizeof(psInfo->szProcessName) - 1] = '\0';
+		psInfo->bUnregistered = IMG_FALSE;
+		bRet = IMG_TRUE;
+	}
+	/* else check if the input PID corresponds to the firmware */
+	else if(uiPID == RGXMEM_SERVER_PID_FIRMWARE)
+	{
+		psInfo->uiPID = RGXMEM_SERVER_PID_FIRMWARE;
+		OSStringNCopy(psInfo->szProcessName, "Firmware", sizeof(psInfo->szProcessName));
+		psInfo->szProcessName[sizeof(psInfo->szProcessName) - 1] = '\0';
+		psInfo->bUnregistered = IMG_FALSE;
+		bRet = IMG_TRUE;
+	}
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	/* if the PID didn't correspond to an active context or the
+	 * FW address then see if it matches a recently unregistered context
+	 */
+	if(bRet == IMG_FALSE)
+	{
+		 IMG_UINT32 i;
+
+		 OSLockAcquire(psDevInfo->hMMUCtxUnregLock);
+
+		 for(i = (gui32UnregisteredMemCtxsHead > 0) ? (gui32UnregisteredMemCtxsHead - 1) :
+		 					UNREGISTERED_MEMORY_CONTEXTS_HISTORY_SIZE;
+							i != gui32UnregisteredMemCtxsHead; i--)
+		{
+			UNREGISTERED_MEMORY_CONTEXT *psRecord = &gasUnregisteredMemCtxs[i];
+
+			if(psRecord->uiPID == uiPID)
+			{
+				psInfo->uiPID = psRecord->uiPID;
+				OSStringNCopy(psInfo->szProcessName, psRecord->szProcessName, sizeof(psInfo->szProcessName)-1);
+				psInfo->szProcessName[sizeof(psInfo->szProcessName) - 1] = '\0';
+				psInfo->bUnregistered = IMG_TRUE;
+				bRet = IMG_TRUE;
+				break;
+			}
+		}
+
+		OSLockRelease(psDevInfo->hMMUCtxUnregLock);
+
+	}
+#endif
+	return bRet;
 }
 
 /******************************************************************************

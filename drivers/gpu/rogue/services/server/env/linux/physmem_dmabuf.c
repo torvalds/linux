@@ -67,6 +67,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/dma-buf.h>
 #include <linux/scatterlist.h>
 
+#if defined(LDM_PCI)
+#include <linux/pci.h>
+#elif defined(LDM_PLATFORM)
+#include <linux/platform_device.h>
+#else
+#error Either LDM_PCI or LDM_PLATFORM must be defined
+#endif
+
 typedef struct _PMR_DMA_BUF_DATA_
 {
 	struct dma_buf_attachment *psAttachment;
@@ -87,6 +95,14 @@ typedef struct _PMR_DMA_BUF_DATA_
 
 /* Start size of the g_psDmaBufHash hash table */
 #define DMA_BUF_HASH_SIZE 20
+
+extern
+#if defined(LDM_PCI)
+	struct pci_dev
+#elif defined(LDM_PLATFORM)
+	struct platform_device
+#endif
+	*gpsPVRLDMDev;
 
 static HASH_TABLE *g_psDmaBufHash = IMG_NULL;
 static IMG_UINT32 g_ui32HashRefCount = 0;
@@ -486,7 +502,7 @@ PhysmemImportDmaBuf(CONNECTION_DATA *psConnection,
 	}
 
 	/* Attach a fake device to to the dmabuf */
-	psPrivData->psAttachment = dma_buf_attach(psPrivData->psDmaBuf, (void *)0x1);
+	psPrivData->psAttachment = dma_buf_attach(psPrivData->psDmaBuf, &gpsPVRLDMDev->dev);
 
 	if (IS_ERR_OR_NULL(psPrivData->psAttachment))
 	{

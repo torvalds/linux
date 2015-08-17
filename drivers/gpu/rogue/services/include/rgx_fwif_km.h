@@ -112,6 +112,10 @@ typedef struct {RGXFWIF_DEV_VIRTADDR p;
 				  RGXFWIF_DEV_VIRTADDR n;}	RGXFWIF_DLLIST_NODE;
 #endif /* RGX_FIRMWARE */
 
+/*!
+ * This number is used to represent an invalid page catalogue physical address
+ */
+#define RGXFWIF_INVALID_PC_PHYADDR 0xFFFFFFFFFFFFFFFFLLU
 
 /*!
 	Firmware memory context.

@@ -332,6 +332,11 @@ typedef struct _PVRSRV_RGXDEV_INFO_
 
 	DLLIST_NODE 		sCommonCtxtListHead;
 	IMG_UINT32			ui32CommonCtxtCurrentID;			/*!< ID assigned to the next common context */
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	POS_LOCK 				hDebugFaultInfoLock;		/*!< Lock to protect the debug fault info list */
+	POS_LOCK 				hMMUCtxUnregLock;	/*!< Lock to protect list of unregistered MMU contexts */
+#endif
 } PVRSRV_RGXDEV_INFO;
 
 

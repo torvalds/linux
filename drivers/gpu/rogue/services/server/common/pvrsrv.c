@@ -81,6 +81,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #include "process_stats.h"
 #endif
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+#include "devicemem_history_server.h"
+#endif
+
 /*! Wait 100ms before retrying deferred clean-up again */
 #define CLEANUP_THREAD_WAIT_RETRY_TIMEOUT 0x00000064
 
@@ -652,6 +657,16 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVInit(IMG_VOID)
 		goto Error;
 	}
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	eError = DevicememHistoryInitKM();
+
+	if(eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "Failed to initialise DevicememHistory"));
+		goto Error;
+	}
+#endif
+
 	eError = PVRSRVConnectionInit();
 	if(eError != PVRSRV_OK)
 	{
@@ -1014,6 +1029,10 @@ IMG_VOID IMG_CALLCONV PVRSRVDeInit(IMG_VOID)
 
 #if defined(PVR_RI_DEBUG)
 	RIDeInitKM();
+#endif
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	DevicememHistoryDeInitKM();
 #endif
 
 	eError = PVRSRVConnectionDeInit();

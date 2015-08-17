@@ -219,6 +219,11 @@ struct _MMU_CONTEXT_
 
 	/*! Base level info structure. Must be last member in structure */
 	MMU_Levelx_INFO sBaseLevelInfo;
+
+	/*! Lock to ensure exclusive access when manipulating the MMU context or
+	 * reading and using its content
+	 */
+	POS_LOCK hLock;
 };
 
 /* useful macros */
@@ -2173,11 +2178,21 @@ MMU_ContextCreate(PVRSRV_DEVICE_NODE *psDevNode,
 	psMMUContext->sBaseLevelInfo.ui32NumOfEntries = ui32BaseObjects;
 	psMMUContext->sBaseLevelInfo.ui32RefCount = 0;
 
+	eError = OSLockCreate(&psMMUContext->hLock, LOCK_TYPE_PASSIVE);
+
+	if(eError != PVRSRV_OK)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "MMU_ContextCreate: Failed to create lock for MMU_CONTEXT"));
+		goto e5;
+	}
+
 	/* return context */
 	*ppsMMUContext = psMMUContext;
 
 	return PVRSRV_OK;
 
+e5:
+	_PxMemFree(psMMUContext, &psMMUContext->sBaseLevelInfo.sMemDesc, psDevAttrs->eTopLevel);
 e4:
 	RA_Delete(psCtx->psPhysMemRA);
 e3:
@@ -2219,6 +2234,8 @@ MMU_ContextDestroy (MMU_CONTEXT *psMMUContext)
 	psMMUContext->psPhysMemCtx->pszPhysMemRAName = IMG_NULL;
 
 	OSFreeMem(psMMUContext->psPhysMemCtx);
+
+	OSLockDestroy(psMMUContext->hLock);
 
 	/* free the context itself. */
 	OSFreeMem(psMMUContext);
@@ -2286,7 +2303,10 @@ MMU_Alloc (MMU_CONTEXT *psMMUContext,
 
 	sDevVAddrEnd = *psDevVAddr;
 	sDevVAddrEnd.uiAddr += uSize;
+
+	OSLockAcquire(psMMUContext->hLock);
 	eError = _AllocPageTables(psMMUContext, *psDevVAddr, sDevVAddrEnd, uiProtFlags, uiLog2PageSize);
+	OSLockRelease(psMMUContext->hLock);
 
 	if (eError != PVRSRV_OK)
 	{
@@ -2323,7 +2343,11 @@ MMU_Free (MMU_CONTEXT *psMMUContext,
 	sDevVAddrEnd = sDevVAddr;
 	sDevVAddrEnd.uiAddr += uiSize;
 
+	OSLockAcquire(psMMUContext->hLock);
+
 	_FreePageTables(psMMUContext, sDevVAddr, sDevVAddrEnd, uiLog2PageSize);
+
+	OSLockRelease(psMMUContext->hLock);
 }
 
 /*
@@ -2342,12 +2366,17 @@ MMU_UnmapPages (MMU_CONTEXT *psMMUContext,
     PDUMPCOMMENT("Invalidate the entry in %d page tables for virtual range: 0x%010llX to 0x%010llX",
 	             ui32PageCount, (IMG_UINT64)sDevVAddr.uiAddr, ((IMG_UINT64)sDevVAddr.uiAddr)+(uiPageSize*ui32PageCount));
 #endif
+
+	OSLockAcquire(psMMUContext->hLock);
+
 	while (ui32PageCount !=0)
 	{
 		_MMU_UnmapPage(psMMUContext, sDevVAddr, uiLog2PageSize);
 		sDevVAddr.uiAddr += uiPageSize;
 		ui32PageCount--;
 	}
+
+	OSLockRelease(psMMUContext->hLock);
 }
 
 /*
@@ -2455,6 +2484,8 @@ MMU_MapPMR (MMU_CONTEXT *psMMUContext,
     PDUMPCOMMENT("Wire up Page Table entries to point to the Data Pages (%lld bytes)", uiSizeBytes);
 #endif
 
+	OSLockAcquire(psMMUContext->hLock);
+
 	for (i=0, uiCount=0;
          uiCount<uiSizeBytes;
          i++, uiCount+=uiPageSize)
@@ -2510,6 +2541,9 @@ MMU_MapPMR (MMU_CONTEXT *psMMUContext,
 		*/
 		sDevVAddr.uiAddr += uiPageSize;
 	}
+
+	OSLockRelease(psMMUContext->hLock);
+
 #if defined(PDUMP)
     PDUMPCOMMENT("Wired up %d Page Table entries (out of %d)", ui32MappedCount, i);
 #endif
@@ -2573,6 +2607,8 @@ IMG_VOID MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDe
 	IMG_UINT32 ui32PDIndex;
 	IMG_UINT32 ui32PTIndex;
 	IMG_UINT32 ui32Log2PageSize;
+
+	OSLockAcquire(psMMUContext->hLock);
 
 	/*
 		At this point we don't know the page size so assume it's 4K.
@@ -2766,6 +2802,8 @@ IMG_VOID MMU_CheckFaultAddress(MMU_CONTEXT *psMMUContext, IMG_DEV_VIRTADDR *psDe
 				PVR_LOG(("Unsupported MMU setup"));
 				break;
 	}
+
+	OSLockRelease(psMMUContext->hLock);
 }
 
 #if defined(PDUMP)

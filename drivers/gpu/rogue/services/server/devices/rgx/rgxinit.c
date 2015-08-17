@@ -556,6 +556,22 @@ PVRSRV_ERROR PVRSRVRGXInitDevPart2KM (PVRSRV_DEVICE_NODE	*psDeviceNode,
 	dllist_init(&psDevInfo->sFreeListHead);
 	psDevInfo->ui32FreelistCurrID = 1;
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	eError = OSLockCreate(&psDevInfo->hDebugFaultInfoLock, LOCK_TYPE_PASSIVE);
+
+	if(eError != PVRSRV_OK)
+	{
+		return eError;
+	}
+
+	eError = OSLockCreate(&psDevInfo->hMMUCtxUnregLock, LOCK_TYPE_PASSIVE);
+
+	if(eError != PVRSRV_OK)
+	{
+		return eError;
+	}
+#endif
+
 	/* Allocate DVFS History */
 	psDevInfo->psGpuDVFSHistory = OSAllocZMem(sizeof(*(psDevInfo->psGpuDVFSHistory)));
 	if (psDevInfo->psGpuDVFSHistory == IMG_NULL)
@@ -1392,6 +1408,11 @@ PVRSRV_ERROR DevDeInitRGX (PVRSRV_DEVICE_NODE *psDeviceNode)
 	OSWRLockDestroy(psDevInfo->hTransferCtxListLock);
 	OSWRLockDestroy(psDevInfo->hRaytraceCtxListLock);
 	OSWRLockDestroy(psDevInfo->hMemoryCtxListLock);
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	OSLockDestroy(psDevInfo->hDebugFaultInfoLock);
+	OSLockDestroy(psDevInfo->hMMUCtxUnregLock);
+#endif
 
 	/* Free the init scripts. */
 	OSFreeMem(psDevInfo->psScripts);

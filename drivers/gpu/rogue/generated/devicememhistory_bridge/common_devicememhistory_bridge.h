@@ -1,9 +1,9 @@
 /*************************************************************************/ /*!
 @File
-@Title          Version numbers and strings.
+@Title          Common bridge header for devicememhistory
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
-@Description    Version numbers and strings for PVR Consumer services
-                components.
+@Description    Declares common defines and structures that are used by both
+                the client and sever side of the bridge for devicememhistory
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -42,47 +42,57 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
-#ifndef _PVRVERSION_H_
-#define _PVRVERSION_H_
+#ifndef COMMON_DEVICEMEMHISTORY_BRIDGE_H
+#define COMMON_DEVICEMEMHISTORY_BRIDGE_H
 
-/*
- *  Rogue KM Version Note
- *
- *  L 0.16:
- *          Support gpu disable dvfs case.
- *          Add rk_tf_check_version to compatible for rk3328.
- *  L 0.17:
- *          merge 1.4_ED3573678 DDK code
- *  L 0.18:
- *          If fix freq,then don't force to drop freq to the lowest.
- *  L 0.22:
- *			merge 1.4_ED3632227 DDK code
- */
+#include "img_types.h"
+#include "mm_common.h"
 
-#define PVR_STR(X) #X
-#define PVR_STR2(X) PVR_STR(X)
 
-#define PVRVERSION_MAJ               1
-#define PVRVERSION_MIN               4
+#include "pvr_bridge_io.h"
 
-#define PVRVERSION_FAMILY           "rogueddk"
-#define PVRVERSION_BRANCHNAME       "1.4"
-#define PVRVERSION_BUILD             3632227
-#define PVRVERSION_BSCONTROL        "Rogue_DDK_Android_RSCompute"
+#define PVRSRV_BRIDGE_DEVICEMEMHISTORY_CMD_FIRST			(PVRSRV_BRIDGE_DEVICEMEMHISTORY_START)
+#define PVRSRV_BRIDGE_DEVICEMEMHISTORY_DEVICEMEMHISTORYMAP			PVRSRV_IOWR(PVRSRV_BRIDGE_DEVICEMEMHISTORY_CMD_FIRST+0)
+#define PVRSRV_BRIDGE_DEVICEMEMHISTORY_DEVICEMEMHISTORYUNMAP			PVRSRV_IOWR(PVRSRV_BRIDGE_DEVICEMEMHISTORY_CMD_FIRST+1)
+#define PVRSRV_BRIDGE_DEVICEMEMHISTORY_CMD_LAST			(PVRSRV_BRIDGE_DEVICEMEMHISTORY_CMD_FIRST+1)
 
-#define PVRVERSION_STRING           "Rogue_DDK_Android_RSCompute rogueddk 1.4@" PVR_STR2(PVRVERSION_BUILD)
-#define PVRVERSION_STRING_SHORT     "1.4@" PVR_STR2(PVRVERSION_BUILD) ""
 
-#define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
+/*******************************************
+            DevicememHistoryMap          
+ *******************************************/
 
-#define PVRVERSION_BUILD_HI          363
-#define PVRVERSION_BUILD_LO          2227
-#define PVRVERSION_STRING_NUMERIC    PVR_STR2(PVRVERSION_MAJ) "." PVR_STR2(PVRVERSION_MIN) "." PVR_STR2(PVRVERSION_BUILD_HI) "." PVR_STR2(PVRVERSION_BUILD_LO)
+/* Bridge in structure for DevicememHistoryMap */
+typedef struct PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYMAP_TAG
+{
+	IMG_DEV_VIRTADDR sDevVAddr;
+	IMG_DEVMEM_SIZE_T uiSize;
+	const IMG_CHAR * puiText;
+} PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYMAP;
 
-#define PVRVERSION_PACK(MAJ,MIN) ((((MAJ)&0xFFFF) << 16) | (((MIN)&0xFFFF) << 0))
-#define PVRVERSION_UNPACK_MAJ(VERSION) (((VERSION) >> 16) & 0xFFFF)
-#define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
 
-//chenli:define rockchip version
-#define RKVERSION                   "Rogue L 0.22"
-#endif /* _PVRVERSION_H_ */
+/* Bridge out structure for DevicememHistoryMap */
+typedef struct PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYMAP_TAG
+{
+	PVRSRV_ERROR eError;
+} PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYMAP;
+
+/*******************************************
+            DevicememHistoryUnmap          
+ *******************************************/
+
+/* Bridge in structure for DevicememHistoryUnmap */
+typedef struct PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYUNMAP_TAG
+{
+	IMG_DEV_VIRTADDR sDevVAddr;
+	IMG_DEVMEM_SIZE_T uiSize;
+	const IMG_CHAR * puiText;
+} PVRSRV_BRIDGE_IN_DEVICEMEMHISTORYUNMAP;
+
+
+/* Bridge out structure for DevicememHistoryUnmap */
+typedef struct PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYUNMAP_TAG
+{
+	PVRSRV_ERROR eError;
+} PVRSRV_BRIDGE_OUT_DEVICEMEMHISTORYUNMAP;
+
+#endif /* COMMON_DEVICEMEMHISTORY_BRIDGE_H */

@@ -1,9 +1,6 @@
 /*************************************************************************/ /*!
-@File
-@Title          Version numbers and strings.
+@Title          Direct client bridge for devicememhistory
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
-@Description    Version numbers and strings for PVR Consumer services
-                components.
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -42,47 +39,50 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
-#ifndef _PVRVERSION_H_
-#define _PVRVERSION_H_
+#include "client_devicememhistory_bridge.h"
+#include "img_defs.h"
+#include "pvr_debug.h"
 
-/*
- *  Rogue KM Version Note
- *
- *  L 0.16:
- *          Support gpu disable dvfs case.
- *          Add rk_tf_check_version to compatible for rk3328.
- *  L 0.17:
- *          merge 1.4_ED3573678 DDK code
- *  L 0.18:
- *          If fix freq,then don't force to drop freq to the lowest.
- *  L 0.22:
- *			merge 1.4_ED3632227 DDK code
- */
+/* Module specific includes */
+#include "img_types.h"
+#include "mm_common.h"
 
-#define PVR_STR(X) #X
-#define PVR_STR2(X) PVR_STR(X)
+#include "devicemem_history_server.h"
 
-#define PVRVERSION_MAJ               1
-#define PVRVERSION_MIN               4
 
-#define PVRVERSION_FAMILY           "rogueddk"
-#define PVRVERSION_BRANCHNAME       "1.4"
-#define PVRVERSION_BUILD             3632227
-#define PVRVERSION_BSCONTROL        "Rogue_DDK_Android_RSCompute"
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeDevicememHistoryMap(IMG_HANDLE hBridge,
+								 IMG_DEV_VIRTADDR sDevVAddr,
+								 IMG_DEVMEM_SIZE_T uiSize,
+								 const IMG_CHAR *puiText)
+{
+	PVRSRV_ERROR eError;
+	PVR_UNREFERENCED_PARAMETER(hBridge);
 
-#define PVRVERSION_STRING           "Rogue_DDK_Android_RSCompute rogueddk 1.4@" PVR_STR2(PVRVERSION_BUILD)
-#define PVRVERSION_STRING_SHORT     "1.4@" PVR_STR2(PVRVERSION_BUILD) ""
 
-#define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
+	eError =
+		DevicememHistoryMapKM(
+					sDevVAddr,
+					uiSize,
+					puiText);
 
-#define PVRVERSION_BUILD_HI          363
-#define PVRVERSION_BUILD_LO          2227
-#define PVRVERSION_STRING_NUMERIC    PVR_STR2(PVRVERSION_MAJ) "." PVR_STR2(PVRVERSION_MIN) "." PVR_STR2(PVRVERSION_BUILD_HI) "." PVR_STR2(PVRVERSION_BUILD_LO)
+	return eError;
+}
 
-#define PVRVERSION_PACK(MAJ,MIN) ((((MAJ)&0xFFFF) << 16) | (((MIN)&0xFFFF) << 0))
-#define PVRVERSION_UNPACK_MAJ(VERSION) (((VERSION) >> 16) & 0xFFFF)
-#define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
+IMG_INTERNAL PVRSRV_ERROR IMG_CALLCONV BridgeDevicememHistoryUnmap(IMG_HANDLE hBridge,
+								   IMG_DEV_VIRTADDR sDevVAddr,
+								   IMG_DEVMEM_SIZE_T uiSize,
+								   const IMG_CHAR *puiText)
+{
+	PVRSRV_ERROR eError;
+	PVR_UNREFERENCED_PARAMETER(hBridge);
 
-//chenli:define rockchip version
-#define RKVERSION                   "Rogue L 0.22"
-#endif /* _PVRVERSION_H_ */
+
+	eError =
+		DevicememHistoryUnmapKM(
+					sDevVAddr,
+					uiSize,
+					puiText);
+
+	return eError;
+}
+

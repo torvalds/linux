@@ -83,6 +83,26 @@ extern "C" {
 #define PVRSRV_4K_PAGE_SIZE					4096UL      /*!< Size of a 4K Page */
 #define PVRSRV_4K_PAGE_SIZE_ALIGNSHIFT		12          /*!< Amount to shift an address by so that
                                                           it is always page-aligned */
+/*! 16k page size definition */
+#define PVRSRV_16K_PAGE_SIZE					16384UL      /*!< Size of a 16K Page */
+#define PVRSRV_16K_PAGE_SIZE_ALIGNSHIFT		14          /*!< Amount to shift an address by so that
+                                                          it is always page-aligned */
+/*! 64k page size definition */
+#define PVRSRV_64K_PAGE_SIZE					65536UL      /*!< Size of a 64K Page */
+#define PVRSRV_64K_PAGE_SIZE_ALIGNSHIFT		16          /*!< Amount to shift an address by so that
+                                                          it is always page-aligned */
+/*! 256k page size definition */
+#define PVRSRV_256K_PAGE_SIZE					262144UL      /*!< Size of a 256K Page */
+#define PVRSRV_256K_PAGE_SIZE_ALIGNSHIFT		18          /*!< Amount to shift an address by so that
+                                                          it is always page-aligned */
+/*! 1MB page size definition */
+#define PVRSRV_1M_PAGE_SIZE					1048576UL      /*!< Size of a 1M Page */
+#define PVRSRV_1M_PAGE_SIZE_ALIGNSHIFT		20          /*!< Amount to shift an address by so that
+                                                          it is always page-aligned */
+/*! 2MB page size definition */
+#define PVRSRV_2M_PAGE_SIZE					2097152UL      /*!< Size of a 2M Page */
+#define PVRSRV_2M_PAGE_SIZE_ALIGNSHIFT		21          /*!< Amount to shift an address by so that
+                                                          it is always page-aligned */
 
 
 #define EVENTOBJNAME_MAXLENGTH (50) /*!< Max length of an event object name */

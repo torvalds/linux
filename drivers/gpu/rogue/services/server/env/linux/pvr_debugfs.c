@@ -145,20 +145,25 @@ static void *_DebugFSStatisticSeqNext(struct seq_file *psSeqFile,
 	PVR_DEBUGFS_DRIVER_STAT *psStatData = (PVR_DEBUGFS_DRIVER_STAT *)psSeqFile->private;
 	IMG_BOOL bResult = IMG_FALSE;
 
-	if (puiPosition)
+	if (puiPosition && psStatData && psStatData->pvData)
 	{
-		(*puiPosition)++;
+		bResult = psStatData->pfnGetNextStat(psStatData->pvData,
+		                                     (IMG_UINT32)(*puiPosition) + 1,
+		                                     &psStatData->i32StatValue,
+		                                     &psStatData->pszStatFormat);
 
-		if (psStatData)
+		if (psStatData->pszStatFormat)
 		{
-			if (psStatData->pvData)
-			{
-				bResult = psStatData->pfnGetNextStat(psStatData->pvData,
-									(IMG_UINT32)(*puiPosition),
-									&psStatData->i32StatValue,
-									&psStatData->pszStatFormat);
-			}
+			IMG_CHAR tmp_buff[1];
+			IMG_INT32 i32Size = snprintf(tmp_buff, 0, psStatData->pszStatFormat,
+			                             psStatData->i32StatValue);
+			if ((i32Size < 0) || (psSeqFile->size - psSeqFile->count < i32Size))
+				return NULL;
 		}
+
+		if (bResult)
+			(*puiPosition)++;
+
 	}
 	return bResult ? psStatData : NULL;
 }
@@ -169,12 +174,18 @@ static int _DebugFSStatisticSeqShow(struct seq_file *psSeqFile, void *pvData)
 
 	if (psStatData != NULL)
 	{
+		int ret;
+
 		if (psStatData->pszStatFormat == NULL)
 		{
 			return -EINVAL;
 		}
 
-		seq_printf(psSeqFile, psStatData->pszStatFormat, psStatData->i32StatValue);
+		if ((ret = seq_printf(psSeqFile, psStatData->pszStatFormat, psStatData->i32StatValue)))
+		{
+			PVR_DPF((PVR_DBG_WARNING, "%s: Overflow when writing to seq_file (%d).", __FUNCTION__, ret));
+			return ret;
+		}
 	}
 
 	return 0;
@@ -552,7 +563,7 @@ void PVRDebugFSRemoveEntry(PVR_DEBUGFS_ENTRY_DATA *psDebugFSEntry)
 */ /**************************************************************************/
 PVR_DEBUGFS_DRIVER_STAT *PVRDebugFSCreateStatisticEntry(const char *pszName,
 					 PVR_DEBUGFS_DIR_DATA *psDir,
-				     PVRSRV_GET_NEXT_STAT_FUNC *pfnGetNextStat,
+					 PVRSRV_GET_NEXT_STAT_FUNC *pfnGetNextStat,
 					 PVRSRV_INC_STAT_MEM_REFCOUNT_FUNC	*pfnIncStatMemRefCount,
 					 PVRSRV_INC_STAT_MEM_REFCOUNT_FUNC	*pfnDecStatMemRefCount,
 					 void *pvData)

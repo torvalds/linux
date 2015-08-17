@@ -862,6 +862,28 @@ SyncPrimSet(PVRSRV_CLIENT_SYNC_PRIM *psSync, IMG_UINT32 ui32Value)
 
 }
 
+IMG_INTERNAL PVRSRV_ERROR SyncPrimLocalGetHandleAndOffset(PVRSRV_CLIENT_SYNC_PRIM *psSync,
+							IMG_HANDLE *phBlock,
+							IMG_UINT32 *pui32Offset)
+{
+	SYNC_PRIM *psSyncInt;
+
+	if(!psSync || !phBlock || !pui32Offset)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "SyncPrimGetHandleAndOffset: invalid input pointer"));
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	psSyncInt = IMG_CONTAINER_OF(psSync, SYNC_PRIM, sCommon);
+
+	PVR_ASSERT(psSyncInt->eType == SYNC_PRIM_TYPE_LOCAL);
+
+	*phBlock = psSyncInt->u.sLocal.psSyncBlock->hServerSyncPrimBlock;
+	*pui32Offset = psSyncInt->u.sLocal.uiSpanAddr - psSyncInt->u.sLocal.psSyncBlock->uiSpanBase;
+
+	return PVRSRV_OK;
+}
+
 IMG_INTERNAL IMG_UINT32 SyncPrimGetFirmwareAddr(PVRSRV_CLIENT_SYNC_PRIM *psSync)
 {
 	SYNC_PRIM *psSyncInt;

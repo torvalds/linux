@@ -59,6 +59,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "tlstream.h"
 #include "rgxfwutils.h"
 #include "pvrsrv.h"
+#include "services.h"
 
 #include "devicemem_pdump.h"
 
@@ -75,6 +76,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgxtransfer.h"
 #if defined(RGX_FEATURE_RAY_TRACING)
 #include "rgxray.h"
+#endif
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+#include "devicemem_history_server.h"
 #endif
 
 
@@ -914,6 +918,446 @@ static IMG_VOID _RGXDecodeMMUReqTags(IMG_UINT32  ui32TagID,
 
 
 #if !defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE)
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+
+typedef enum _DEVICEMEM_HISTORY_QUERY_INDEX_
+{
+	DEVICEMEM_HISTORY_QUERY_INDEX_PRECEDING,
+	DEVICEMEM_HISTORY_QUERY_INDEX_FAULTED,
+	DEVICEMEM_HISTORY_QUERY_INDEX_NEXT,
+	DEVICEMEM_HISTORY_QUERY_INDEX_COUNT,
+} DEVICEMEM_HISTORY_QUERY_INDEX;
+
+/*!
+*******************************************************************************
+
+ @Function	_PrintDevicememHistoryQueryResult
+
+ @Description
+
+ Print details of a single result from a DevicememHistory query
+
+ @Input pfnDumpDebugPrintf       - Debug printf function
+ @Input psResult                 - The DevicememHistory result to be printed
+ @Input psFaultProcessInfo       - The process info derived from the page fault
+ @Input ui32Index                - The index of the result
+
+ @Return   IMG_VOID
+
+******************************************************************************/
+static IMG_VOID _PrintDevicememHistoryQueryResult(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+								RGXMEM_PROCESS_INFO *psFaultProcessInfo,
+								DEVICEMEM_HISTORY_QUERY_OUT_RESULT *psResult,
+								IMG_UINT32 ui32Index)
+{
+	IMG_UINT32 ui32Remainder;
+
+	if(psFaultProcessInfo->uiPID != RGXMEM_SERVER_PID_FIRMWARE)
+	{
+		PVR_DUMPDEBUG_LOG(("  [%u] Name: %s Base address: " IMG_DEV_VIRTADDR_FMTSPEC
+					" Size: " IMG_DEVMEM_SIZE_FMTSPEC
+					" Allocated: %c Modified %llu us ago (abs time %llu us)",
+										ui32Index,
+										psResult->szString,
+						(unsigned long long) psResult->sBaseDevVAddr.uiAddr,
+						(unsigned long long) psResult->uiSize,
+						psResult->bAllocated ? 'Y' : 'N',
+						(unsigned long long) OSDivide64r64(psResult->ui64Age, 1000, &ui32Remainder),
+						(unsigned long long) OSDivide64r64(psResult->ui64When, 1000, &ui32Remainder)));
+	}
+	else
+	{
+		PVR_DUMPDEBUG_LOG(("  [%u] Name: %s Base address: " IMG_DEV_VIRTADDR_FMTSPEC
+					" Size: " IMG_DEVMEM_SIZE_FMTSPEC
+					" Allocated: %c Modified %llu us ago (abs time %llu us) PID: %u (%s)",
+										ui32Index,
+										psResult->szString,
+						(unsigned long long) psResult->sBaseDevVAddr.uiAddr,
+						(unsigned long long) psResult->uiSize,
+						psResult->bAllocated ? 'Y' : 'N',
+						(unsigned long long) OSDivide64r64(psResult->ui64Age, 1000, &ui32Remainder),
+						(unsigned long long) OSDivide64r64(psResult->ui64When, 1000, &ui32Remainder),
+						(unsigned int) psResult->sProcessInfo.uiPID,
+						psResult->sProcessInfo.szProcessName));
+	}
+}
+
+/*!
+*******************************************************************************
+
+ @Function	_PrintDevicememHistoryQueryOut
+
+ @Description
+
+ Print details of all the results from a DevicememHistory query
+
+ @Input pfnDumpDebugPrintf       - Debug printf function
+ @Input psResult                 - The DevicememHistory result to be printed
+
+ @Return   IMG_VOID
+
+******************************************************************************/
+static IMG_VOID _PrintDevicememHistoryQueryOut(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+												RGXMEM_PROCESS_INFO *psFaultProcessInfo,
+												DEVICEMEM_HISTORY_QUERY_OUT *psQueryOut)
+{
+	IMG_UINT32 i;
+
+	if(psQueryOut->ui32NumResults == 0)
+	{
+		PVR_DUMPDEBUG_LOG(("  No results"));
+	}
+	else
+	{
+		for(i = 0; i < psQueryOut->ui32NumResults; i++)
+		{
+			_PrintDevicememHistoryQueryResult(pfnDumpDebugPrintf,
+									psFaultProcessInfo,
+									&psQueryOut->sResults[i],
+									i);
+		}
+	}
+}
+
+/* table of HW page size values and the equivalent */
+static const unsigned int aui32HWPageSizeTable[][2] =
+{
+	{ 0, PVRSRV_4K_PAGE_SIZE },
+	{ 1, PVRSRV_16K_PAGE_SIZE },
+	{ 2, PVRSRV_64K_PAGE_SIZE },
+	{ 3, PVRSRV_256K_PAGE_SIZE },
+	{ 4, PVRSRV_1M_PAGE_SIZE },
+	{ 5, PVRSRV_2M_PAGE_SIZE }
+};
+
+/*!
+*******************************************************************************
+
+ @Function	_PageSizeHWToBytes
+
+ @Description
+
+ Convert a HW page size value to its size in bytes
+
+ @Input ui32PageSizeHW     - The HW page size value
+
+ @Return   IMG_UINT32      The page size in bytes
+
+******************************************************************************/
+static IMG_UINT32 _PageSizeHWToBytes(IMG_UINT32 ui32PageSizeHW)
+{
+	PVR_ASSERT(ui32PageSizeHW <= 5);
+
+	return aui32HWPageSizeTable[ui32PageSizeHW][1];
+}
+
+/*!
+*******************************************************************************
+
+ @Function	_GetDevicememHistoryData
+
+ @Description
+
+ Get the DevicememHistory results for the given PID and faulting device virtual address.
+ The function will query DevicememHistory for information about the faulting page, as well
+ as the page before and after.
+
+ @Input uiPID              - The process ID to search for allocations belonging to
+ @Input sFaultDevVAddr     - The device address to search for allocations at/before/after
+ @Input asQueryOut         - Storage for the query results
+ @Input ui32PageSizeBytes  - Faulted page size in bytes
+
+ @Return   IMG_VOID
+
+******************************************************************************/
+static IMG_BOOL _GetDevicememHistoryData(IMG_PID uiPID, IMG_DEV_VIRTADDR sFaultDevVAddr,
+							DEVICEMEM_HISTORY_QUERY_OUT asQueryOut[DEVICEMEM_HISTORY_QUERY_INDEX_COUNT],
+							IMG_UINT32 ui32PageSizeBytes)
+{
+	IMG_UINT32 i;
+	DEVICEMEM_HISTORY_QUERY_IN sQueryIn;
+	IMG_BOOL bAnyHits = IMG_FALSE;
+
+	/* if the page fault originated in the firmware then the allocation may
+	 * appear to belong to any PID, because FW allocations are attributed
+	 * to the client process creating the allocation, so instruct the
+	 * devicemem_history query to search all available PIDs
+	 */
+	if(uiPID == RGXMEM_SERVER_PID_FIRMWARE)
+	{
+		sQueryIn.uiPID = DEVICEMEM_HISTORY_PID_ANY;
+	}
+	else
+	{
+		sQueryIn.uiPID = uiPID;
+	}
+
+	/* query the DevicememHistory about the preceding / faulting / next page */
+
+	for(i = DEVICEMEM_HISTORY_QUERY_INDEX_PRECEDING; i < DEVICEMEM_HISTORY_QUERY_INDEX_COUNT; i++)
+	{
+		IMG_BOOL bHits;
+
+		switch(i)
+		{
+			case DEVICEMEM_HISTORY_QUERY_INDEX_PRECEDING:
+				sQueryIn.sDevVAddr.uiAddr = (sFaultDevVAddr.uiAddr & ~(IMG_UINT64)(ui32PageSizeBytes - 1)) - 1;
+				break;
+			case DEVICEMEM_HISTORY_QUERY_INDEX_FAULTED:
+				sQueryIn.sDevVAddr = sFaultDevVAddr;
+				break;
+			case DEVICEMEM_HISTORY_QUERY_INDEX_NEXT:
+				sQueryIn.sDevVAddr.uiAddr = (sFaultDevVAddr.uiAddr & ~(IMG_UINT64)(ui32PageSizeBytes - 1)) + ui32PageSizeBytes;
+				break;
+		}
+
+		/* return value ignored because we check each of the QUERY_OUT elements
+		 * later to see if they contain any hits
+		 */
+		bHits = DevicememHistoryQuery(&sQueryIn, &asQueryOut[i]);
+
+		if(bHits == IMG_TRUE)
+		{
+			bAnyHits = IMG_TRUE;
+		}
+	}
+
+	return bAnyHits;
+}
+
+/* stored data about one page fault */
+typedef struct _FAULT_INFO_
+{
+	/* the process info of the memory context that page faulted */
+	RGXMEM_PROCESS_INFO sProcessInfo;
+	IMG_DEV_VIRTADDR sFaultDevVAddr;
+	DEVICEMEM_HISTORY_QUERY_OUT asQueryOut[DEVICEMEM_HISTORY_QUERY_INDEX_COUNT];
+	/* the CR timer value at the time of the fault, recorded by the FW.
+	 * used to differentiate different page faults
+	 */
+	IMG_UINT64 ui64CRTimer;
+	/* time when this FAULT_INFO entry was added. used for timing
+	 * reference against the map/unmap information
+	 */
+	IMG_UINT64 ui64When;
+} FAULT_INFO;
+
+/* history list of page faults.
+ * Keeps the first `n` page faults and the last `n` page faults, like the FW
+ * HWR log
+ */
+typedef struct _FAULT_INFO_LOG_
+{
+	IMG_UINT32 ui32Head;
+	IMG_UINT32 ui32NumWrites;
+	/* the number of faults in this log need not correspond exactly to
+	 * the HWINFO number of the FW, as the FW HWINFO log may contain
+	 * non-page fault HWRs
+	 */
+	FAULT_INFO asFaults[RGXFWIF_HWINFO_MAX];
+} FAULT_INFO_LOG;
+
+static FAULT_INFO_LOG gsFaultInfoLog = { 0 };
+
+/*!
+*******************************************************************************
+
+ @Function	_QueryFaultInfo
+
+ @Description
+
+ Searches the local list of previously analysed page faults to see if the given
+ fault has already been analysed and if so, returns a pointer to the analysis
+ object (FAULT_INFO *), otherwise returns NULL.
+
+ @Input pfnDumpDebugPrintf       - The debug printf function
+ @Input sFaultDevVAddr           - The faulting device virtual address
+ @Input ui64CRTimer              - The CR timer value recorded by the FW at the time of the fault
+
+ @Return   FAULT_INFO* Pointer to an existing fault analysis structure if found, otherwise IMG_NULL
+
+******************************************************************************/
+static FAULT_INFO *_QueryFaultInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+								IMG_DEV_VIRTADDR sFaultDevVAddr,
+								IMG_UINT64 ui64CRTimer)
+{
+	IMG_UINT32 i;
+
+	for(i = 0; i < MIN(gsFaultInfoLog.ui32NumWrites, RGXFWIF_HWINFO_MAX); i++)
+	{
+		if((gsFaultInfoLog.asFaults[i].ui64CRTimer == ui64CRTimer) &&
+			(gsFaultInfoLog.asFaults[i].sFaultDevVAddr.uiAddr == sFaultDevVAddr.uiAddr))
+			{
+				return &gsFaultInfoLog.asFaults[i];
+			}
+	}
+
+	return IMG_NULL;
+}
+
+/*!
+*******************************************************************************
+
+ @Function	__AcquireNextFaultInfoElement
+
+ @Description
+
+ Gets a pointer to the next element in the fault info log
+ (requires the fault info lock be held)
+
+
+ @Return   FAULT_INFO* Pointer to the next record for writing
+
+******************************************************************************/
+
+static FAULT_INFO *_AcquireNextFaultInfoElement(IMG_VOID)
+{
+	IMG_UINT32 ui32Head = gsFaultInfoLog.ui32Head;
+	FAULT_INFO *psInfo = &gsFaultInfoLog.asFaults[ui32Head];
+
+	return psInfo;
+}
+
+static IMG_VOID _CommitFaultInfo(PVRSRV_RGXDEV_INFO *psDevInfo,
+							FAULT_INFO *psInfo,
+							RGXMEM_PROCESS_INFO *psProcessInfo,
+							IMG_DEV_VIRTADDR sFaultDevVAddr,
+							IMG_UINT64 ui64CRTimer)
+{
+	IMG_UINT32 i, j;
+
+	/* commit the page fault details */
+
+	psInfo->sProcessInfo = *psProcessInfo;
+	psInfo->sFaultDevVAddr = sFaultDevVAddr;
+	psInfo->ui64CRTimer = ui64CRTimer;
+	psInfo->ui64When = OSClockus64();
+
+	/* if the page fault was caused by the firmware then get information about
+	 * which client application created the related allocations.
+	 *
+	 * Fill in the process info data for each query result.
+	 */
+
+	if(psInfo->sProcessInfo.uiPID == RGXMEM_SERVER_PID_FIRMWARE)
+	{
+		for(i = 0; i < DEVICEMEM_HISTORY_QUERY_INDEX_COUNT; i++)
+		{
+			for(j = 0; j < DEVICEMEM_HISTORY_QUERY_OUT_MAX_RESULTS; j++)
+			{
+				IMG_BOOL bFound;
+
+				RGXMEM_PROCESS_INFO *psProcInfo = &psInfo->asQueryOut[i].sResults[j].sProcessInfo;
+				bFound = RGXPCPIDToProcessInfo(psDevInfo,
+									psProcInfo->uiPID,
+									psProcInfo);
+				if(!bFound)
+				{
+					OSStringNCopy(psProcInfo->szProcessName,
+									"(unknown)",
+									sizeof(psProcInfo->szProcessName) - 1);
+					psProcInfo->szProcessName[sizeof(psProcInfo->szProcessName) - 1] = '\0';
+				}
+			}
+		}
+	}
+
+	/* assert the faults circular buffer hasn't been moving and
+	 * move the head along
+	 */
+
+	PVR_ASSERT(psInfo == &gsFaultInfoLog.asFaults[gsFaultInfoLog.ui32Head]);
+
+	if(gsFaultInfoLog.ui32Head < RGXFWIF_HWINFO_MAX - 1)
+	{
+		gsFaultInfoLog.ui32Head++;
+	}
+	else
+	{
+		/* wrap back to the first of the 'LAST' entries */
+		gsFaultInfoLog.ui32Head = RGXFWIF_HWINFO_MAX_FIRST;
+	}
+
+	gsFaultInfoLog.ui32NumWrites++;
+
+
+}
+
+/*!
+*******************************************************************************
+
+ @Function	_PrintFaultInfo
+
+ @Description
+
+ Print all the details of a page fault from a FAULT_INFO structure
+
+ @Input pfnDumpDebugPrintf   - The debug printf function
+ @Input psInfo               - The page fault occurrence to print
+ @Input pui32Index           - (optional) index value to include in the print output
+
+ @Return   IMG_VOID
+
+******************************************************************************/
+static IMG_VOID _PrintFaultInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+							FAULT_INFO *psInfo,
+							const IMG_UINT32 *pui32Index)
+{
+	IMG_UINT32 i;
+
+	IMG_PID uiPID;
+
+	uiPID = (psInfo->sProcessInfo.uiPID == RGXMEM_SERVER_PID_FIRMWARE) ? 0 : psInfo->sProcessInfo.uiPID;
+
+	if(pui32Index)
+	{
+		PVR_DUMPDEBUG_LOG(("(%u) Device memory history for page fault address 0x%010llX, CRTimer: 0x%016llX, "
+							"PID: %u (%s, unregistered: %u) Abs Time: %llu us",
+					*pui32Index,
+					(unsigned long long) psInfo->sFaultDevVAddr.uiAddr,
+					psInfo->ui64CRTimer,
+					(unsigned int) uiPID,
+					psInfo->sProcessInfo.szProcessName,
+					psInfo->sProcessInfo.bUnregistered,
+					(unsigned long long) psInfo->ui64When));
+	}
+	else
+	{
+		PVR_DUMPDEBUG_LOG(("Device memory history for page fault address 0x%010llX, PID: %u (%s, unregistered: %u) Abs Time: %llu us",
+					(unsigned long long) psInfo->sFaultDevVAddr.uiAddr,
+					(unsigned int) uiPID,
+					psInfo->sProcessInfo.szProcessName,
+					psInfo->sProcessInfo.bUnregistered,
+					(unsigned long long) psInfo->ui64When));
+	}
+
+	for(i = DEVICEMEM_HISTORY_QUERY_INDEX_PRECEDING; i < DEVICEMEM_HISTORY_QUERY_INDEX_COUNT; i++)
+	{
+		const IMG_CHAR *pszWhich;
+
+		switch(i)
+		{
+			case DEVICEMEM_HISTORY_QUERY_INDEX_PRECEDING:
+				pszWhich = "Preceding page";
+				break;
+			case DEVICEMEM_HISTORY_QUERY_INDEX_FAULTED:
+				pszWhich = "Faulted page";
+				break;
+			case DEVICEMEM_HISTORY_QUERY_INDEX_NEXT:
+				pszWhich = "Next page";
+				break;
+		}
+
+		PVR_DUMPDEBUG_LOG(("%s:", pszWhich));
+		_PrintDevicememHistoryQueryOut(pfnDumpDebugPrintf,
+							&psInfo->sProcessInfo,
+							&psInfo->asQueryOut[i]);
+	}
+}
+
+#endif
+
 /*!
 *******************************************************************************
 
@@ -927,6 +1371,8 @@ static IMG_VOID _RGXDecodeMMUReqTags(IMG_UINT32  ui32TagID,
  @Input eBankID	 				- BIF identifier
  @Input ui64MMUStatus			- MMU Status register value
  @Input ui64ReqStatus			- BIF request Status register value
+ @Input ui64PCAddress                   - Page catalogue base address of faulting access
+ @Input ui64CRTimer                     - RGX CR timer value at time of page fault
  @Input bBIFSummary				- Flag to check whether the function is called
  	 	 	 	 	 	 	 	  as a part of the debug dump summary or
 								  as a part of a HWR log
@@ -938,6 +1384,8 @@ static IMG_VOID _RGXDumpRGXBIFBank(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
                                    RGXDBG_BIF_ID 		eBankID,
                                    IMG_UINT64			ui64MMUStatus,
                                    IMG_UINT64			ui64ReqStatus,
+                                   IMG_UINT64			ui64PCAddress,
+                                   IMG_UINT64			ui64CRTimer,
                                    IMG_BOOL				bBIFSummary)
 {
 
@@ -947,6 +1395,14 @@ static IMG_VOID _RGXDumpRGXBIFBank(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 	}
 	else
 	{
+		IMG_DEV_VIRTADDR sFaultDevVAddr;
+		IMG_DEV_PHYADDR sPCDevPAddr = { 0 };
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+		IMG_BOOL bFound = IMG_FALSE;
+		RGXMEM_PROCESS_INFO sProcessInfo;
+		IMG_UINT32 ui32PageSizeBytes;
+		FAULT_INFO *psInfo;
+#endif
 		/* Bank 0 & 1 share the same fields */
 		PVR_DUMPDEBUG_LOG(("%s%s - FAULT:",
 						  (bBIFSummary)?"":"    ",
@@ -968,6 +1424,10 @@ static IMG_VOID _RGXDumpRGXBIFBank(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 
 			IMG_BOOL bROFault = (ui64MMUStatus & RGX_CR_BIF_FAULT_BANK0_MMU_STATUS_FAULT_RO_EN) != 0;
 			IMG_BOOL bProtFault = (ui64MMUStatus & RGX_CR_BIF_FAULT_BANK0_MMU_STATUS_FAULT_PM_META_RO_EN) != 0;
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+			ui32PageSizeBytes = _PageSizeHWToBytes(ui32PageSize);
+#endif
 
 			PVR_DUMPDEBUG_LOG(("%s  * MMU status (0x%016llX): PC = %d%s, Page Size = %d, MMU data type = %d%s%s.",
 			                  (bBIFSummary)?"":"    ",
@@ -993,7 +1453,9 @@ static IMG_VOID _RGXDumpRGXBIFBank(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 			IMG_UINT32 ui32TagID = 
 				(ui64ReqStatus & ~RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_TAG_ID_CLRMSK) >>
 							RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_TAG_ID_SHIFT;
-			IMG_UINT64 ui64Addr = (ui64ReqStatus & ~RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_ADDRESS_CLRMSK);
+			IMG_UINT64 ui64Addr = ((ui64ReqStatus & ~RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_ADDRESS_CLRMSK) >>
+							RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_ADDRESS_SHIFT) <<
+							RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_ADDRESS_ALIGNSHIFT;
 
 			_RGXDecodeBIFReqTags(eBankID, ui32TagID, ui32TagSB, &pszTagID, &pszTagSB, &aszScratch[0], RGX_DEBUG_STR_SIZE);
 
@@ -1007,19 +1469,96 @@ static IMG_VOID _RGXDumpRGXBIFBank(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 		}
 
 		/* Check if the host thinks this fault is valid */
+
+		sFaultDevVAddr.uiAddr = (ui64ReqStatus & ~RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_ADDRESS_CLRMSK);
+
 		if(bBIFSummary)
 		{
 			IMG_UINT32 ui32PC = 
 				(ui64MMUStatus & ~RGX_CR_BIF_FAULT_BANK0_MMU_STATUS_CAT_BASE_CLRMSK) >>
 					RGX_CR_BIF_FAULT_BANK0_MMU_STATUS_CAT_BASE_SHIFT;
-			IMG_DEV_VIRTADDR sFaultDevVAddr;
-			IMG_DEV_PHYADDR sPCDevPAddr;
+				
+			/* Only the first 8 cat bases are application memory contexts which we can validate... */
+			if (ui32PC < 8)
+			{
+				sPCDevPAddr.uiAddr = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_CAT_BASEN(ui32PC));
+				PVR_DUMPDEBUG_LOG(("Acquired live PC address: 0x%016llX", sPCDevPAddr.uiAddr));
+			}
+			else
+			{
+				sPCDevPAddr.uiAddr = 0;
+			}
+		}
+		else
+		{
+			PVR_DUMPDEBUG_LOG(("FW logged fault using PC Address: 0x%016llX", ui64PCAddress));
+			sPCDevPAddr.uiAddr = ui64PCAddress;
+		}
 
-			sPCDevPAddr.uiAddr = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_CAT_BASEN(ui32PC));
-			sFaultDevVAddr.uiAddr = (ui64ReqStatus & ~RGX_CR_BIF_FAULT_BANK0_REQ_STATUS_ADDRESS_CLRMSK);
+		if(bBIFSummary)
+		{
+			PVR_DUMPDEBUG_LOG(("Checking faulting address 0x%010llX", sFaultDevVAddr.uiAddr));
 			RGXCheckFaultAddress(psDevInfo, &sFaultDevVAddr, &sPCDevPAddr);
 		}
-		
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+
+		 /* look to see if we have already processed this fault.
+		  * if so then use the previously acquired information.
+		  */
+		OSLockAcquire(psDevInfo->hDebugFaultInfoLock);
+		psInfo = _QueryFaultInfo(pfnDumpDebugPrintf, sFaultDevVAddr, ui64CRTimer);
+
+		if(psInfo == IMG_NULL)
+		{
+			if(sPCDevPAddr.uiAddr != RGXFWIF_INVALID_PC_PHYADDR)
+			{
+				/* look up the process details for the faulting page catalogue */
+				bFound = RGXPCAddrToProcessInfo(psDevInfo, sPCDevPAddr, &sProcessInfo);
+
+				if(bFound)
+				{
+					IMG_BOOL bHits;
+
+					psInfo = _AcquireNextFaultInfoElement();
+
+					/* get any DevicememHistory data for the faulting address */
+					bHits = _GetDevicememHistoryData(sProcessInfo.uiPID,
+										sFaultDevVAddr,
+										psInfo->asQueryOut,
+										ui32PageSizeBytes);
+
+					if(bHits)
+					{
+						_CommitFaultInfo(psDevInfo,
+										psInfo,
+										&sProcessInfo,
+										sFaultDevVAddr,
+										ui64CRTimer);
+					}
+				}
+				else
+				{
+					PVR_DUMPDEBUG_LOG(("Could not find PID for PC 0x%016llX", sPCDevPAddr.uiAddr));
+				}
+			}
+			else
+			{
+				PVR_DUMPDEBUG_LOG(("Page fault not applicable to Devmem History"));
+			}
+		}
+
+		/* psInfo should always be non-NULL if the process was found */
+		PVR_ASSERT((psInfo != IMG_NULL) || !bFound);
+
+		if(psInfo != IMG_NULL)
+		{
+			_PrintFaultInfo(pfnDumpDebugPrintf, psInfo, NULL);
+		}
+
+		OSLockRelease(psDevInfo->hDebugFaultInfoLock);
+#endif
+
 	}
 
 }
@@ -1343,6 +1882,8 @@ static IMG_VOID _RGXDumpFWHWRInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 						_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXFWIF_HWRTYPE_BIF_BANK_GET(psHWRInfo->eHWRType),
 										psHWRInfo->uHWRData.sBIFInfo.ui64BIFMMUStatus,
 										psHWRInfo->uHWRData.sBIFInfo.ui64BIFReqStatus,
+										psHWRInfo->uHWRData.sBIFInfo.ui64PCAddress,
+										psHWRInfo->ui64CRTimer,
 										IMG_FALSE);
 					}
 					break;
@@ -1352,6 +1893,8 @@ static IMG_VOID _RGXDumpFWHWRInfo(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 						_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_TEXAS_BIF,
 										psHWRInfo->uHWRData.sBIFInfo.ui64BIFMMUStatus,
 										psHWRInfo->uHWRData.sBIFInfo.ui64BIFReqStatus,
+										psHWRInfo->uHWRData.sBIFInfo.ui64PCAddress,
+										psHWRInfo->ui64CRTimer,
 										IMG_FALSE);
 					}
 					break;
@@ -1511,12 +2054,12 @@ static IMG_VOID _RGXDumpRGXDebugSummary(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrint
 		ui64RegValMMUStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_FAULT_BANK0_MMU_STATUS);
 		ui64RegValREQStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_FAULT_BANK0_REQ_STATUS);
 
-		_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_BIF0, ui64RegValMMUStatus, ui64RegValREQStatus, IMG_TRUE);
+		_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_BIF0, ui64RegValMMUStatus, ui64RegValREQStatus, 0, 0, IMG_TRUE);
 
 		ui64RegValMMUStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_FAULT_BANK1_MMU_STATUS);
 		ui64RegValREQStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_BIF_FAULT_BANK1_REQ_STATUS);
 
-		_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_BIF1, ui64RegValMMUStatus, ui64RegValREQStatus, IMG_TRUE);
+		_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_BIF1, ui64RegValMMUStatus, ui64RegValREQStatus, 0, 0, IMG_TRUE);
 
 #if defined(RGX_FEATURE_CLUSTER_GROUPING)
 #if defined(RGX_NUM_PHANTOMS)
@@ -1531,14 +2074,14 @@ static IMG_VOID _RGXDumpRGXDebugSummary(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrint
 				ui64RegValMMUStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_TEXAS_BIF_FAULT_BANK0_MMU_STATUS);
 				ui64RegValREQStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_TEXAS_BIF_FAULT_BANK0_REQ_STATUS);
 
-				_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_TEXAS, ui64RegValMMUStatus, ui64RegValREQStatus, IMG_TRUE);
+				_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_TEXAS, ui64RegValMMUStatus, ui64RegValREQStatus, 0, 0, IMG_TRUE);
 			}
 		}
 #else
 		ui64RegValMMUStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_TEXAS_BIF_FAULT_BANK0_MMU_STATUS);
 		ui64RegValREQStatus = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_TEXAS_BIF_FAULT_BANK0_REQ_STATUS);
 
-		_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_TEXAS_BIF, ui64RegValMMUStatus, ui64RegValREQStatus, IMG_TRUE);
+		_RGXDumpRGXBIFBank(pfnDumpDebugPrintf, psDevInfo, RGXDBG_TEXAS_BIF, ui64RegValMMUStatus, ui64RegValREQStatus, 0, 0, IMG_TRUE);
 #endif
 #endif
 #endif

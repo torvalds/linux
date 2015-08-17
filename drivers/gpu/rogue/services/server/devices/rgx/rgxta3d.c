@@ -107,6 +107,10 @@ struct _RGX_SERVER_RENDER_CONTEXT_ {
 #define RC_CLEANUP_3D_COMPLETE		(1 << 1)
 	PVRSRV_CLIENT_SYNC_PRIM		*psCleanupSync;
 	DLLIST_NODE					sListNode;
+	SYNC_ADDR_LIST			sSyncAddrListTAFence;
+	SYNC_ADDR_LIST			sSyncAddrListTAUpdate;
+	SYNC_ADDR_LIST			sSyncAddrList3DFence;
+	SYNC_ADDR_LIST			sSyncAddrList3DUpdate;
 };
 
 
@@ -2448,6 +2452,11 @@ PVRSRV_ERROR PVRSRVRGXCreateRenderContextKM(CONNECTION_DATA				*psConnection,
 		goto fail_3dcontext;
 	}
 
+	SyncAddrListInit(&psRenderContext->sSyncAddrListTAFence);
+	SyncAddrListInit(&psRenderContext->sSyncAddrListTAUpdate);
+	SyncAddrListInit(&psRenderContext->sSyncAddrList3DFence);
+	SyncAddrListInit(&psRenderContext->sSyncAddrList3DUpdate);
+
 	{
 		PVRSRV_RGXDEV_INFO			*psDevInfo = psDeviceNode->pvDevice;
 
@@ -2556,6 +2565,11 @@ PVRSRV_ERROR PVRSRVRGXDestroyRenderContextKM(RGX_SERVER_RENDER_CONTEXT *psRender
 		/* Free the cleanup sync */
 		SyncPrimFree(psRenderContext->psCleanupSync);
 
+		SyncAddrListDeinit(&psRenderContext->sSyncAddrListTAFence);
+		SyncAddrListDeinit(&psRenderContext->sSyncAddrListTAUpdate);
+		SyncAddrListDeinit(&psRenderContext->sSyncAddrList3DFence);
+		SyncAddrListDeinit(&psRenderContext->sSyncAddrList3DUpdate);
+
 		OSFreeMem(psRenderContext);
 	}
 
@@ -2581,24 +2595,29 @@ static RGX_CCB_CMD_HELPER_DATA as3DCmdHelperData[3];
 IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 								 IMG_UINT32					ui32ClientTAFenceCount,
-								 PRGXFWIF_UFO_ADDR			*pauiClientTAFenceUFOAddress,
+								 SYNC_PRIMITIVE_BLOCK				**apsClientTAFenceSyncPrimBlock,
+								 IMG_UINT32					*paui32ClientTAFenceSyncOffset,
 								 IMG_UINT32					*paui32ClientTAFenceValue,
 								 IMG_UINT32					ui32ClientTAUpdateCount,
-								 PRGXFWIF_UFO_ADDR			*pauiClientTAUpdateUFOAddress,
+								 SYNC_PRIMITIVE_BLOCK				**apsClientTAUpdateSyncPrimBlock,
+								 IMG_UINT32					*paui32ClientTAUpdateSyncOffset,
 								 IMG_UINT32					*paui32ClientTAUpdateValue,
 								 IMG_UINT32					ui32ServerTASyncPrims,
 								 IMG_UINT32					*paui32ServerTASyncFlags,
 								 SERVER_SYNC_PRIMITIVE 		**pasServerTASyncs,
 								 IMG_UINT32					ui32Client3DFenceCount,
-								 PRGXFWIF_UFO_ADDR			*pauiClient3DFenceUFOAddress,
+								 SYNC_PRIMITIVE_BLOCK				**apsClient3DFenceSyncPrimBlock,
+								 IMG_UINT32					*paui32Client3DFenceSyncOffset,
 								 IMG_UINT32					*paui32Client3DFenceValue,
 								 IMG_UINT32					ui32Client3DUpdateCount,
-								 PRGXFWIF_UFO_ADDR			*pauiClient3DUpdateUFOAddress,
+								 SYNC_PRIMITIVE_BLOCK				**apsClient3DUpdateSyncPrimBlock,
+								 IMG_UINT32					*paui32Client3DUpdateSyncOffset,
 								 IMG_UINT32					*paui32Client3DUpdateValue,
 								 IMG_UINT32					ui32Server3DSyncPrims,
 								 IMG_UINT32					*paui32Server3DSyncFlags,
 								 SERVER_SYNC_PRIMITIVE 		**pasServer3DSyncs,
-								 PRGXFWIF_UFO_ADDR			uiPRFenceUFOAddress,
+								 SYNC_PRIMITIVE_BLOCK				*psPRFenceSyncPrimBlock,
+								 IMG_UINT32					ui32PRFenceSyncOffset,
 								 IMG_UINT32					ui32PRFenceValue,
 								 IMG_UINT32					ui32NumFenceFDs,
 								 IMG_INT32					*ai32FenceFDs,
@@ -2645,6 +2664,8 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 	PRGXFWIF_UFO_ADDR 		*puiUpdateFWAddrs = IMG_NULL;
 	IMG_UINT32 				*pui32UpdateValues = IMG_NULL;
 
+	PRGXFWIF_UFO_ADDR			uiPRFenceUFOAddress;
+
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
 	/* Android fd sync update info */
 	struct pvr_sync_append_data *psFDData = NULL;
@@ -2654,8 +2675,66 @@ PVRSRV_ERROR PVRSRVRGXKickTA3DKM(RGX_SERVER_RENDER_CONTEXT	*psRenderContext,
 	PRGXFWIF_TIMESTAMP_ADDR pPostAddr;
 	PRGXFWIF_UFO_ADDR       pRMWUFOAddr;
 
+	PRGXFWIF_UFO_ADDR			*pauiClientTAFenceUFOAddress;
+	PRGXFWIF_UFO_ADDR			*pauiClientTAUpdateUFOAddress;
+	PRGXFWIF_UFO_ADDR			*pauiClient3DFenceUFOAddress;
+	PRGXFWIF_UFO_ADDR			*pauiClient3DUpdateUFOAddress;
+
 	*pbCommittedRefCountsTA = IMG_FALSE;
 	*pbCommittedRefCounts3D = IMG_FALSE;
+
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrListTAFence,
+										ui32ClientTAFenceCount,
+										apsClientTAFenceSyncPrimBlock,
+										paui32ClientTAFenceSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiClientTAFenceUFOAddress = psRenderContext->sSyncAddrListTAFence.pasFWAddrs;
+
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrListTAUpdate,
+										ui32ClientTAUpdateCount,
+										apsClientTAUpdateSyncPrimBlock,
+										paui32ClientTAUpdateSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiClientTAUpdateUFOAddress = psRenderContext->sSyncAddrListTAUpdate.pasFWAddrs;
+
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrList3DFence,
+										ui32Client3DFenceCount,
+										apsClient3DFenceSyncPrimBlock,
+										paui32Client3DFenceSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiClient3DFenceUFOAddress = psRenderContext->sSyncAddrList3DFence.pasFWAddrs;
+
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrList3DUpdate,
+										ui32Client3DUpdateCount,
+										apsClient3DUpdateSyncPrimBlock,
+										paui32Client3DUpdateSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiClient3DUpdateUFOAddress = psRenderContext->sSyncAddrList3DUpdate.pasFWAddrs;
+
+	eError = SyncPrimitiveBlockToFWAddr(psPRFenceSyncPrimBlock,
+									ui32PRFenceSyncOffset,
+									&uiPRFenceUFOAddress);
+
+	if(eError != PVRSRV_OK)
+	{
+		goto err_pr_fence_address;
+	}
 
 	/* Sanity check the server fences */
 	for (i=0;i<ui32ServerTASyncPrims;i++)
@@ -3130,6 +3209,8 @@ fail_tacmdinit:
 	pvr_sync_free_append_fences_data(psFDData);
 fail_fdsync:
 #endif
+err_pr_fence_address:
+err_populate_sync_addr_list:
 	PVR_ASSERT(eError != PVRSRV_OK);
 	return eError;
 }
@@ -3294,19 +3375,23 @@ IMG_BOOL CheckForStalledClientRenderCtxt(PVRSRV_RGXDEV_INFO *psDevInfo)
 IMG_EXPORT PVRSRV_ERROR 
 PVRSRVRGXKickSyncTAKM(RGX_SERVER_RENDER_CONTEXT  *psRenderContext,
                        IMG_UINT32                  ui32TAClientFenceCount,
-                       PRGXFWIF_UFO_ADDR           *pauiTAClientFenceUFOAddress,
+                       SYNC_PRIMITIVE_BLOCK				**apsTAClientFenceSyncPrimBlock,
+                       IMG_UINT32					*paui32TAClientFenceSyncOffset,
                        IMG_UINT32                  *paui32TAClientFenceValue,
                        IMG_UINT32                  ui32TAClientUpdateCount,
-                       PRGXFWIF_UFO_ADDR           *pauiTAClientUpdateUFOAddress,
+                       SYNC_PRIMITIVE_BLOCK				**apsTAClientUpdateSyncPrimBlock,
+                       IMG_UINT32					*paui32TAClientUpdateSyncOffset,
                        IMG_UINT32                  *paui32TAClientUpdateValue,
                        IMG_UINT32                  ui32TAServerSyncPrimsCount,
                        IMG_UINT32                  *paui32TAServerSyncFlags,
                        SERVER_SYNC_PRIMITIVE       **pasTAServerSyncs,
 					   IMG_UINT32                  ui323DClientFenceCount,
-					   PRGXFWIF_UFO_ADDR           *paui3DClientFenceUFOAddress,
+                       SYNC_PRIMITIVE_BLOCK				**aps3DClientFenceSyncPrimBlock,
+                       IMG_UINT32					*paui323DClientFenceSyncOffset,
 					   IMG_UINT32                  *paui323DClientFenceValue,
 					   IMG_UINT32                  ui323DClientUpdateCount,
-					   PRGXFWIF_UFO_ADDR           *paui3DClientUpdateUFOAddress,
+                       SYNC_PRIMITIVE_BLOCK				**aps3DClientUpdateSyncPrimBlock,
+                       IMG_UINT32					*paui323DClientUpdateSyncOffset,
 					   IMG_UINT32                  *paui323DClientUpdateValue,
 					   IMG_UINT32                  ui323DServerSyncPrimsCount,
 					   IMG_UINT32                  *paui323DServerSyncFlags,
@@ -3316,11 +3401,61 @@ PVRSRVRGXKickSyncTAKM(RGX_SERVER_RENDER_CONTEXT  *psRenderContext,
                        IMG_BOOL                    bPDumpContinuous)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
+	PRGXFWIF_UFO_ADDR			*pauiTAClientFenceUFOAddress;
+	PRGXFWIF_UFO_ADDR			*pauiTAClientUpdateUFOAddress;
+	PRGXFWIF_UFO_ADDR			*paui3DClientFenceUFOAddress;
+	PRGXFWIF_UFO_ADDR			*paui3DClientUpdateUFOAddress;
 
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
 	/* Android fd sync update info */
 	struct pvr_sync_append_data *psFDData = NULL;
+#endif
 
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrListTAFence,
+										ui32TAClientFenceCount,
+										apsTAClientFenceSyncPrimBlock,
+										paui32TAClientFenceSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiTAClientFenceUFOAddress = psRenderContext->sSyncAddrListTAFence.pasFWAddrs;
+
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrListTAUpdate,
+										ui32TAClientUpdateCount,
+										apsTAClientUpdateSyncPrimBlock,
+										paui32TAClientUpdateSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiTAClientUpdateUFOAddress = psRenderContext->sSyncAddrListTAUpdate.pasFWAddrs;
+
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrList3DFence,
+										ui323DClientFenceCount,
+										aps3DClientFenceSyncPrimBlock,
+										paui323DClientFenceSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	paui3DClientFenceUFOAddress = psRenderContext->sSyncAddrList3DFence.pasFWAddrs;
+
+	eError = SyncAddrListPopulate(&psRenderContext->sSyncAddrList3DUpdate,
+										ui323DClientUpdateCount,
+										aps3DClientUpdateSyncPrimBlock,
+										paui323DClientUpdateSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	paui3DClientUpdateUFOAddress = psRenderContext->sSyncAddrList3DUpdate.pasFWAddrs;
+
+#if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
 	/* Android FD fences are hardcoded to updates (IMG_TRUE below), Fences go to the TA and updates to the 3D */
 	if (ui32NumFenceFDs)
 	{
@@ -3415,7 +3550,7 @@ fail_kickTA:
 	pvr_sync_free_append_fences_data(psFDData);
 fail_fdsync:
 #endif
-
+err_populate_sync_addr_list:
 	return eError;
 }
 /******************************************************************************

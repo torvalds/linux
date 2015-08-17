@@ -94,6 +94,10 @@ ifeq ($(PVR_RI_DEBUG),1)
 pvrsrvkm-y += services/server/common/ri_server.o
 endif
 
+ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
+pvrsrvkm-y += services/server/common/devicemem_history_server.o
+endif
+
 ifeq ($(PVR_HANDLE_BACKEND),generic)
 pvrsrvkm-y += services/server/common/handle_generic.o
 else
@@ -163,6 +167,9 @@ endif
 
 ifeq ($(PVR_RI_DEBUG),1)
 CFLAGS_ri_server.o := -Werror
+endif
+ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
+CFLAGS_devicememhistory_server.o := -Werror
 endif
 ifeq ($(SUPPORT_GPUTRACE_EVENTS),1)
 CFLAGS_pvr_gputrace.o := -Werror
@@ -270,6 +277,11 @@ ccflags-y += \
  -I$(bridge_base)/dri_bridge
 endif
 
+ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
+ccflags-y += \
+ -I$(bridge_base)/devicememhistory_bridge \
+ -I$(bridge_base)/ddevicememhistory_bridge
+endif
 
 ifeq ($(SUPPORT_RAY_TRACING),1)
 ccflags-y += -I$(bridge_base)/rgxray_bridge
@@ -344,6 +356,11 @@ ifeq ($(PVR_RI_DEBUG),1)
 pvrsrvkm-y += \
  generated/ri_bridge/server_ri_bridge.o \
  generated/dri_bridge/client_ri_bridge.o
+endif
+ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
+pvrsrvkm-y += \
+ generated/devicememhistory_bridge/server_devicememhistory_bridge.o \
+ generated/ddevicememhistory_bridge/client_devicememhistory_bridge.o
 endif
 
 ifeq ($(SUPPORT_DISPLAY_CLASS),1)
@@ -430,6 +447,10 @@ CFLAGS_server_rgxhwperf_bridge.o := -Werror
 ifeq ($(PVR_RI_DEBUG),1)
 CFLAGS_server_ri_bridge.o := -Werror
 CFLAGS_client_ri_bridge.o := -Werror
+endif
+ifeq ($(SUPPORT_PAGE_FAULT_DEBUG),1)
+CFLAGS_server_devicememhistory_bridge.o := -Werror
+CFLAGS_client_devicememhistory_bridge.o := -Werror
 endif
 ifeq ($(SUPPORT_ION),1)
 CFLAGS_physmem_dmabuf.o := -Werror

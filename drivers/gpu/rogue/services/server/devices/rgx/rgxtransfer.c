@@ -90,6 +90,8 @@ struct _RGX_SERVER_TQ_CONTEXT_ {
 	RGX_SERVER_TQ_2D_DATA		s2DData;
 	PVRSRV_CLIENT_SYNC_PRIM		*psCleanupSync;
 	DLLIST_NODE					sListNode;
+	SYNC_ADDR_LIST			sSyncAddrListFence;
+	SYNC_ADDR_LIST			sSyncAddrListUpdate;
 };
 
 /*
@@ -334,6 +336,9 @@ PVRSRV_ERROR PVRSRVRGXCreateTransferContextKM(CONNECTION_DATA		*psConnection,
 	}
 	psTransferContext->ui32Flags |= RGX_SERVER_TQ_CONTEXT_FLAGS_2D;
 
+	SyncAddrListInit(&psTransferContext->sSyncAddrListFence);
+	SyncAddrListInit(&psTransferContext->sSyncAddrListUpdate);
+
 	{
 		PVRSRV_RGXDEV_INFO			*psDevInfo = psDeviceNode->pvDevice;
 
@@ -404,6 +409,9 @@ PVRSRV_ERROR PVRSRVRGXDestroyTransferContextKM(RGX_SERVER_TQ_CONTEXT *psTransfer
 	DevmemFwFree(psTransferContext->psFWFrameworkMemDesc);
 	SyncPrimFree(psTransferContext->psCleanupSync);
 
+	SyncAddrListDeinit(&psTransferContext->sSyncAddrListFence);
+	SyncAddrListDeinit(&psTransferContext->sSyncAddrListUpdate);
+
 	OSFreeMem(psTransferContext);
 
 	return PVRSRV_OK;
@@ -424,10 +432,12 @@ IMG_EXPORT
 PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 									   IMG_UINT32				ui32PrepareCount,
 									   IMG_UINT32				*paui32ClientFenceCount,
-									   PRGXFWIF_UFO_ADDR		**papauiClientFenceUFOAddress,
+									   SYNC_PRIMITIVE_BLOCK		***papauiClientFenceUFOSyncPrimBlock,
+									   IMG_UINT32				**papaui32ClientFenceSyncOffset,
 									   IMG_UINT32				**papaui32ClientFenceValue,
 									   IMG_UINT32				*paui32ClientUpdateCount,
-									   PRGXFWIF_UFO_ADDR		**papauiClientUpdateUFOAddress,
+									   SYNC_PRIMITIVE_BLOCK		***papauiClientUpdateUFOSyncPrimBlock,
+									   IMG_UINT32				**papaui32ClientUpdateSyncOffset,
 									   IMG_UINT32				**papaui32ClientUpdateValue,
 									   IMG_UINT32				*paui32ServerSyncCount,
 									   IMG_UINT32				**papaui32ServerSyncFlags,
@@ -602,10 +612,27 @@ PVRSRV_ERROR PVRSRVRGXSubmitTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 		}
 
 		ui32IntClientFenceCount  = paui32ClientFenceCount[i];
-		pauiIntFenceUFOAddress   = papauiClientFenceUFOAddress[i];
+		eError = SyncAddrListPopulate(&psTransferContext->sSyncAddrListFence,
+										ui32IntClientFenceCount,
+										papauiClientFenceUFOSyncPrimBlock[i],
+										papaui32ClientFenceSyncOffset[i]);
+		if(eError != PVRSRV_OK)
+		{
+			goto fail_populate_sync_addr_list;
+		}
+		pauiIntFenceUFOAddress = psTransferContext->sSyncAddrListFence.pasFWAddrs;
+
 		paui32IntFenceValue      = papaui32ClientFenceValue[i];
 		ui32IntClientUpdateCount = paui32ClientUpdateCount[i];
-		pauiIntUpdateUFOAddress  = papauiClientUpdateUFOAddress[i];
+		eError = SyncAddrListPopulate(&psTransferContext->sSyncAddrListUpdate,
+										ui32IntClientUpdateCount,
+										papauiClientUpdateUFOSyncPrimBlock[i],
+										papaui32ClientUpdateSyncOffset[i]);
+		if(eError != PVRSRV_OK)
+		{
+			goto fail_populate_sync_addr_list;
+		}
+		pauiIntUpdateUFOAddress = psTransferContext->sSyncAddrListUpdate.pasFWAddrs;
 		paui32IntUpdateValue     = papaui32ClientUpdateValue[i];
 
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
@@ -854,7 +881,7 @@ fail_syncinit:
 		psFDFenceData = NULL;
 	}
 #endif
-
+fail_populate_sync_addr_list:
 fail_pdumpcheck:
 fail_cmdtype:
 	PVR_ASSERT(eError != PVRSRV_OK);
@@ -966,10 +993,12 @@ IMG_BOOL CheckForStalledClientTransferCtxt(PVRSRV_RGXDEV_INFO *psDevInfo)
 
 PVRSRV_ERROR PVRSRVRGXKickSyncTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContext,
 									   IMG_UINT32				ui32ClientFenceCount,
-									   PRGXFWIF_UFO_ADDR		*pauiClientFenceUFOAddress,
+									   SYNC_PRIMITIVE_BLOCK		**pauiClientFenceUFOSyncPrimBlock,
+									   IMG_UINT32				*paui32ClientFenceSyncOffset,
 									   IMG_UINT32				*paui32ClientFenceValue,
 									   IMG_UINT32				ui32ClientUpdateCount,
-									   PRGXFWIF_UFO_ADDR		*pauiClientUpdateUFOAddress,
+									   SYNC_PRIMITIVE_BLOCK		**pauiClientUpdateUFOSyncPrimBlock,
+									   IMG_UINT32				*paui32ClientUpdateSyncOffset,
 									   IMG_UINT32				*paui32ClientUpdateValue,
 									   IMG_UINT32				ui32ServerSyncCount,
 									   IMG_UINT32				*pui32ServerSyncFlags,
@@ -983,10 +1012,36 @@ PVRSRV_ERROR PVRSRVRGXKickSyncTransferKM(RGX_SERVER_TQ_CONTEXT	*psTransferContex
 	IMG_CHAR                    *pszCommandName;
 	RGXFWIF_DM                  eDM;
 	IMG_BOOL                    bPDumpContinuous;
+
+	PRGXFWIF_UFO_ADDR *pauiClientFenceUFOAddress;
+	PRGXFWIF_UFO_ADDR *pauiClientUpdateUFOAddress;
+
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
 	/* Android fd sync update info */
 	struct pvr_sync_append_data *psFDFenceData = NULL;
 #endif /* defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC) */
+
+	eError = SyncAddrListPopulate(&psTransferContext->sSyncAddrListFence,
+									ui32ClientFenceCount,
+									pauiClientFenceUFOSyncPrimBlock,
+									paui32ClientFenceSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiClientFenceUFOAddress = psTransferContext->sSyncAddrListFence.pasFWAddrs;
+
+	eError = SyncAddrListPopulate(&psTransferContext->sSyncAddrListUpdate,
+									ui32ClientUpdateCount,
+									pauiClientUpdateUFOSyncPrimBlock,
+									paui32ClientUpdateSyncOffset);
+	if(eError != PVRSRV_OK)
+	{
+		goto err_populate_sync_addr_list;
+	}
+
+	pauiClientUpdateUFOAddress = psTransferContext->sSyncAddrListUpdate.pasFWAddrs;
 
 
 	bPDumpContinuous = ((ui32TQPrepareFlags & TQ_PREP_FLAGS_PDUMPCONTINUOUS) == TQ_PREP_FLAGS_PDUMPCONTINUOUS);
@@ -1075,7 +1130,7 @@ fail_kicksync:
 	pvr_sync_free_append_fences_data(psFDFenceData);
 fail_fdsync:
 #endif
-
+err_populate_sync_addr_list:
 	return eError;
 }
 

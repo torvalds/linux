@@ -49,6 +49,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "mmu_common.h"
 #include "rgxdevice.h"
 
+#define RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME 40
+
+/* this PID denotes the firmware */
+#define RGXMEM_SERVER_PID_FIRMWARE 0xFFFFFFFF
+
+typedef struct _RGXMEM_PROCESS_INFO_
+{
+	IMG_PID uiPID;
+	IMG_CHAR szProcessName[RGXMEM_SERVER_MMU_CONTEXT_MAX_NAME];
+	IMG_BOOL bUnregistered;
+} RGXMEM_PROCESS_INFO;
 
 IMG_VOID RGXMMUSyncPrimAlloc(PVRSRV_DEVICE_NODE *psDeviceNode);
 IMG_VOID RGXMMUSyncPrimFree(IMG_VOID);
@@ -73,4 +84,11 @@ DEVMEM_MEMDESC *RGXGetFWMemDescFromMemoryContextHandle(IMG_HANDLE hPriv);
 IMG_VOID RGXCheckFaultAddress(PVRSRV_RGXDEV_INFO *psDevInfo,
 							  IMG_DEV_VIRTADDR *psDevVAddr,
 							  IMG_DEV_PHYADDR *psDevPAddr);
+
+IMG_BOOL RGXPCAddrToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_DEV_PHYADDR sPCAddress,
+								RGXMEM_PROCESS_INFO *psInfo);
+
+IMG_BOOL RGXPCPIDToProcessInfo(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_PID uiPID,
+                                                                RGXMEM_PROCESS_INFO *psInfo);
+
 #endif /* __RGXMEM_H__ */

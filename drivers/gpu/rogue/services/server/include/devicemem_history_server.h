@@ -1,9 +1,8 @@
 /*************************************************************************/ /*!
-@File
-@Title          Version numbers and strings.
+@File			devicemem_history_server.h
+@Title          Resource Information abstraction
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
-@Description    Version numbers and strings for PVR Consumer services
-                components.
+@Description	Devicemem History functions
 @License        Dual MIT/GPLv2
 
 The contents of this file are subject to the MIT license as set out below.
@@ -42,47 +41,64 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
-#ifndef _PVRVERSION_H_
-#define _PVRVERSION_H_
+#ifndef _DEVICEMEM_HISTORY_SERVER_H_
+#define _DEVICEMEM_HISTORY_SERVER_H_
 
-/*
- *  Rogue KM Version Note
- *
- *  L 0.16:
- *          Support gpu disable dvfs case.
- *          Add rk_tf_check_version to compatible for rk3328.
- *  L 0.17:
- *          merge 1.4_ED3573678 DDK code
- *  L 0.18:
- *          If fix freq,then don't force to drop freq to the lowest.
- *  L 0.22:
- *			merge 1.4_ED3632227 DDK code
+#include "img_defs.h"
+#include "mm_common.h"
+#include "pvrsrv_error.h"
+#include "rgxmem.h"
+#include "pvrsrv.h"
+
+extern PVRSRV_ERROR
+DevicememHistoryInitKM(IMG_VOID);
+
+extern IMG_VOID
+DevicememHistoryDeInitKM(IMG_VOID);
+
+extern PVRSRV_ERROR
+DevicememHistoryMapKM(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T uiSize, const char szText[DEVICEMEM_HISTORY_TEXT_BUFSZ]);
+
+extern PVRSRV_ERROR
+DevicememHistoryUnmapKM(IMG_DEV_VIRTADDR sDevVAddr, IMG_SIZE_T uiSize, const char szText[DEVICEMEM_HISTORY_TEXT_BUFSZ]);
+
+/* used when the PID does not matter */
+#define DEVICEMEM_HISTORY_PID_ANY 0xFFFFFFFE
+
+typedef struct _DEVICEMEM_HISTORY_QUERY_IN_
+{
+	IMG_PID uiPID;
+	IMG_DEV_VIRTADDR sDevVAddr;
+} DEVICEMEM_HISTORY_QUERY_IN;
+
+/* store up to 2 results for a lookup. in the case of the faulting page being
+ * re-mapped between the page fault occurring on HW and the page fault analysis
+ * being done, the second result entry will show the allocation being unmapped
  */
+#define DEVICEMEM_HISTORY_QUERY_OUT_MAX_RESULTS 2
 
-#define PVR_STR(X) #X
-#define PVR_STR2(X) PVR_STR(X)
+typedef struct _DEVICEMEM_HISTORY_QUERY_OUT_RESULT_
+{
+	IMG_CHAR szString[DEVICEMEM_HISTORY_TEXT_BUFSZ];
+	IMG_DEV_VIRTADDR sBaseDevVAddr;
+	IMG_SIZE_T uiSize;
+	IMG_BOOL bAllocated;
+	IMG_UINT64 ui64When;
+	IMG_UINT64 ui64Age;
+	RGXMEM_PROCESS_INFO sProcessInfo;
+} DEVICEMEM_HISTORY_QUERY_OUT_RESULT;
 
-#define PVRVERSION_MAJ               1
-#define PVRVERSION_MIN               4
+typedef struct _DEVICEMEM_HISTORY_QUERY_OUT_
+{
+	IMG_UINT32 ui32NumResults;
+	/* result 0 is the newest */
+	DEVICEMEM_HISTORY_QUERY_OUT_RESULT sResults[DEVICEMEM_HISTORY_QUERY_OUT_MAX_RESULTS];
+} DEVICEMEM_HISTORY_QUERY_OUT;
 
-#define PVRVERSION_FAMILY           "rogueddk"
-#define PVRVERSION_BRANCHNAME       "1.4"
-#define PVRVERSION_BUILD             3632227
-#define PVRVERSION_BSCONTROL        "Rogue_DDK_Android_RSCompute"
+extern IMG_BOOL
+DevicememHistoryQuery(DEVICEMEM_HISTORY_QUERY_IN *psQueryIn, DEVICEMEM_HISTORY_QUERY_OUT *psQueryOut);
 
-#define PVRVERSION_STRING           "Rogue_DDK_Android_RSCompute rogueddk 1.4@" PVR_STR2(PVRVERSION_BUILD)
-#define PVRVERSION_STRING_SHORT     "1.4@" PVR_STR2(PVRVERSION_BUILD) ""
+extern void
+DevicememHistoryPrintAllWrapper(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf);
 
-#define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
-
-#define PVRVERSION_BUILD_HI          363
-#define PVRVERSION_BUILD_LO          2227
-#define PVRVERSION_STRING_NUMERIC    PVR_STR2(PVRVERSION_MAJ) "." PVR_STR2(PVRVERSION_MIN) "." PVR_STR2(PVRVERSION_BUILD_HI) "." PVR_STR2(PVRVERSION_BUILD_LO)
-
-#define PVRVERSION_PACK(MAJ,MIN) ((((MAJ)&0xFFFF) << 16) | (((MIN)&0xFFFF) << 0))
-#define PVRVERSION_UNPACK_MAJ(VERSION) (((VERSION) >> 16) & 0xFFFF)
-#define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
-
-//chenli:define rockchip version
-#define RKVERSION                   "Rogue L 0.22"
-#endif /* _PVRVERSION_H_ */
+#endif

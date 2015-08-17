@@ -135,6 +135,13 @@ PVRSRV_ERROR RegisterPVRTLFunctions(void);
 #if defined(PVR_RI_DEBUG)
 PVRSRV_ERROR RegisterRIFunctions(void);
 #endif
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+PVRSRV_ERROR RegisterDEVICEMEMHISTORYFunctions(void);
+#endif
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+PVRSRV_ERROR InitDEVICEMEMHISTORYBridge(IMG_VOID);
+PVRSRV_ERROR DeinitDEVICEMEMHISTORYBridge(IMG_VOID);
+#endif
 #if defined(SUPPORT_ION)
 PVRSRV_ERROR RegisterDMABUFFunctions(void);
 #endif
@@ -265,6 +272,13 @@ LinuxBridgeInit(void)
 
 	#if defined(PVR_RI_DEBUG)
 	eError = RegisterRIFunctions();
+	if (eError != PVRSRV_OK)
+	{
+		return eError;
+	}
+	#endif
+	#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	eError = RegisterDEVICEMEMHISTORYFunctions();
 	if (eError != PVRSRV_OK)
 	{
 		return eError;

@@ -2488,9 +2488,16 @@ _ObtainRIMemoryStatistic(PVRSRV_RI_MEMORY_STATS* psRIMemoryStats,
                          IMG_INT32* pi32StatData,
                          IMG_CHAR** ppszStatFmtText)
 {
+	static IMG_UINT32 ui32LastStatNumber = 0;
+	static IMG_BOOL bLastStatus = IMG_TRUE;
+
 	PVR_ASSERT(psRIMemoryStats != IMG_NULL);
 
 	PVR_UNREFERENCED_PARAMETER(pi32StatData);
+
+	if (ui32StatNumber > 0 && ui32LastStatNumber == ui32StatNumber)
+		return bLastStatus;
+	ui32LastStatNumber = ui32StatNumber;
 
 	/*
 	 * If this request is for the first item then set the handle to null.
@@ -2504,12 +2511,14 @@ _ObtainRIMemoryStatistic(PVRSRV_RI_MEMORY_STATS* psRIMemoryStats,
 	}
 	else if (psRIMemoryStats->pRIHandle == IMG_NULL)
 	{
+		ui32LastStatNumber = 0;
 		return IMG_FALSE;
 	}
-	
-	return RIGetListEntryKM(psRIMemoryStats->pid,
-	                        &psRIMemoryStats->pRIHandle,
-	                        ppszStatFmtText);
+
+	bLastStatus = RIGetListEntryKM(psRIMemoryStats->pid,
+	                               &psRIMemoryStats->pRIHandle,
+	                               ppszStatFmtText);
+	return bLastStatus;
 } /* _ObtainRIMemoryStatistic */
 #endif
 

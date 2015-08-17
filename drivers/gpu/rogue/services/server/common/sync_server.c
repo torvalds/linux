@@ -71,6 +71,7 @@ struct _SYNC_PRIMITIVE_BLOCK_
 	POS_LOCK			hLock;
 	DLLIST_NODE			sConnectionNode;
 	SYNC_CONNECTION_DATA *psSyncConnectionData;	/*!< Link back to the sync connection data if there is one */
+	PRGXFWIF_UFO_ADDR		uiFWAddr;	/*!< The firmware address of the sync prim block */
 };
 
 struct _SERVER_SYNC_PRIMITIVE_
@@ -177,6 +178,153 @@ static IMG_UINT32 g_ui32NextSyncRequestorID = 1;
 #else
 #define SYNC_UPDATES_PRINT(fmt, ...)
 #endif
+
+/*!
+*****************************************************************************
+ @Function      : SyncPrimitiveBlockToFWAddr
+
+ @Description   : Given a pointer to a sync primitive block and an offset,
+                  returns the firmware address of the sync.
+
+ @Input           psSyncPrimBlock : Sync primitive block which contains the sync
+ @Input           ui32Offset      : Offset of sync within the sync primitive block
+ @Output          psAddrOut       : Absolute FW address of the sync is written out through
+                                    this pointer
+ @Return :        PVRSRV_OK on success. PVRSRV_ERROR_INVALID_PARAMS if input
+                  parameters are invalid.
+*****************************************************************************/
+
+PVRSRV_ERROR
+SyncPrimitiveBlockToFWAddr(SYNC_PRIMITIVE_BLOCK *psSyncPrimBlock,
+							IMG_UINT32 ui32Offset,
+						PRGXFWIF_UFO_ADDR *psAddrOut)
+{
+	/* check offset is legal */
+	if((ui32Offset >= psSyncPrimBlock->ui32BlockSize) ||
+						(ui32Offset % sizeof(IMG_UINT32)))
+	{
+		PVR_DPF((PVR_DBG_ERROR, "PVRSRVSyncPrimitiveBlockToFWAddr: parameters check failed"));
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	psAddrOut->ui32Addr = psSyncPrimBlock->uiFWAddr.ui32Addr + ui32Offset;
+
+	return PVRSRV_OK;
+}
+
+/*!
+*****************************************************************************
+ @Function      : SyncAddrListGrow
+
+ @Description   : Grow the SYNC_ADDR_LIST so it can accommodate the given
+                  number of syncs
+
+ @Input           psList       : The SYNC_ADDR_LIST to grow
+ @Input           ui32NumSyncs : The number of sync addresses to be able to hold
+ @Return :        PVRSRV_OK on success
+*****************************************************************************/
+
+static PVRSRV_ERROR SyncAddrListGrow(SYNC_ADDR_LIST *psList, IMG_UINT32 ui32NumSyncs)
+{
+	if(ui32NumSyncs > psList->ui32NumSyncs)
+	{
+		OSFreeMem(psList->pasFWAddrs);
+		psList->pasFWAddrs = OSAllocMem(sizeof(PRGXFWIF_UFO_ADDR) * ui32NumSyncs);
+		if(psList->pasFWAddrs == IMG_NULL)
+		{
+			return PVRSRV_ERROR_OUT_OF_MEMORY;
+		}
+
+		psList->ui32NumSyncs = ui32NumSyncs;
+	}
+
+	return PVRSRV_OK;
+}
+
+/*!
+*****************************************************************************
+ @Function      : SyncAddrListInit
+
+ @Description   : Initialise a SYNC_ADDR_LIST structure ready for use
+
+ @Input           psList        : The SYNC_ADDR_LIST structure to initialise
+ @Return        : None
+*****************************************************************************/
+
+IMG_VOID
+SyncAddrListInit(SYNC_ADDR_LIST *psList)
+{
+	psList->ui32NumSyncs = 0;
+}
+
+/*!
+*****************************************************************************
+ @Function      : SyncAddrListDeinit
+
+ @Description   : Frees any resources associated with the given SYNC_ADDR_LIST
+
+ @Input           psList        : The SYNC_ADDR_LIST structure to deinitialise
+ @Return        : None
+*****************************************************************************/
+
+IMG_VOID
+SyncAddrListDeinit(SYNC_ADDR_LIST *psList)
+{
+	if(psList->ui32NumSyncs != 0)
+	{
+		OSFreeMem(psList->pasFWAddrs);
+	}
+}
+
+/*!
+*****************************************************************************
+ @Function      : SyncAddrListPopulate
+
+ @Description   : Populate the given SYNC_ADDR_LIST with the FW addresses
+                  of the syncs given by the SYNC_PRIMITIVE_BLOCKs and sync offsets
+
+ @Input           ui32NumSyncs    : The number of syncs being passed in
+ @Input           apsSyncPrimBlock: Array of pointers to SYNC_PRIMITIVE_BLOCK structures
+                                    in which the syncs are based
+ @Input           paui32SyncOffset: Array of offsets within each of the sync primitive blocks
+                                    where the syncs are located
+ @Return :        PVRSRV_OK on success. PVRSRV_ERROR_INVALID_PARAMS if input
+                  parameters are invalid.
+*****************************************************************************/
+
+PVRSRV_ERROR
+SyncAddrListPopulate(SYNC_ADDR_LIST *psList,
+						IMG_UINT32 ui32NumSyncs,
+						SYNC_PRIMITIVE_BLOCK **apsSyncPrimBlock,
+						IMG_UINT32 *paui32SyncOffset)
+{
+	IMG_UINT32 i;
+	PVRSRV_ERROR eError;
+
+	if(ui32NumSyncs > psList->ui32NumSyncs)
+	{
+		eError = SyncAddrListGrow(psList, ui32NumSyncs);
+
+		if(eError != PVRSRV_OK)
+		{
+			return eError;
+		}
+	}
+
+	for(i = 0; i < ui32NumSyncs; i++)
+	{
+		eError = SyncPrimitiveBlockToFWAddr(apsSyncPrimBlock[i],
+								paui32SyncOffset[i],
+								&psList->pasFWAddrs[i]);
+
+		if(eError != PVRSRV_OK)
+		{
+			return eError;
+		}
+	}
+
+	return PVRSRV_OK;
+}
 
 #if defined(PVRSRV_ENABLE_FULL_SYNC_TRACKING)
 PVRSRV_ERROR
@@ -428,12 +576,14 @@ PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
 
 	eError = psDevNode->pfnAllocUFOBlock(psDevNode,
 										 &psNewSyncBlk->psMemDesc,
-										 puiSyncPrimVAddr,
+										 &psNewSyncBlk->uiFWAddr.ui32Addr,
 										 &psNewSyncBlk->ui32BlockSize);
 	if (eError != PVRSRV_OK)
 	{
 		goto e1;
 	}
+
+	*puiSyncPrimVAddr = psNewSyncBlk->uiFWAddr.ui32Addr;
 
 	eError = DevmemAcquireCpuVirtAddr(psNewSyncBlk->psMemDesc,
 									  (IMG_PVOID *) &psNewSyncBlk->pui32LinAddr);

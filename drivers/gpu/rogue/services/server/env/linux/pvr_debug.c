@@ -64,6 +64,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgxdebug.h"
 #include "lists.h"
 #include "osfunc.h"
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+#include "devicemem_history_server.h"
+#endif
 
 #if defined(PVRSRV_NEED_PVR_DPF)
 
@@ -1310,6 +1313,75 @@ static IMG_INT DebugLevelSet(const char __user *pcBuffer,
 }
 #endif /* defined(DEBUG) */
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+
+static void *_DevicememHistorySeqStart(struct seq_file *psSeqFile,
+				   loff_t *puiPosition)
+{
+	if (*puiPosition == 0)
+	{
+		return SEQ_START_TOKEN;
+	}
+
+	return NULL;
+}
+
+static void _DevicememHistorySeqStop(struct seq_file *psSeqFile, void *pvData)
+{
+	PVR_UNREFERENCED_PARAMETER(psSeqFile);
+	PVR_UNREFERENCED_PARAMETER(pvData);
+}
+
+static void *_DevicememHistorySeqNext(struct seq_file *psSeqFile,
+				  void *pvData,
+				  loff_t *puiPosition)
+{
+	PVR_UNREFERENCED_PARAMETER(pvData);
+
+	(*puiPosition)++;
+
+	return NULL;
+}
+
+static struct seq_file *gpsDevicememHistoryPrintfSeqFile = IMG_NULL;
+
+static void _DevicememHistorySeqPrintf(const IMG_CHAR *pszFormat, ...)
+{
+	if (gpsDevicememHistoryPrintfSeqFile)
+	{
+		IMG_CHAR  szBuffer[PVR_MAX_DEBUG_MESSAGE_LEN];
+		va_list  ArgList;
+
+		va_start(ArgList, pszFormat);
+		vsnprintf(szBuffer, PVR_MAX_DEBUG_MESSAGE_LEN, pszFormat, ArgList);
+		seq_printf(gpsDevicememHistoryPrintfSeqFile, "%s", szBuffer);
+		va_end(ArgList);
+	}
+}
+static int _DevicememHistorySeqShow(struct seq_file *psSeqFile, void *pvData)
+{
+	if (pvData == SEQ_START_TOKEN)
+	{
+		gpsDevicememHistoryPrintfSeqFile = psSeqFile;
+
+		DevicememHistoryPrintAllWrapper(_DevicememHistorySeqPrintf);
+
+		gpsDevicememHistoryPrintfSeqFile = NULL;
+	}
+	return 0;
+}
+
+static struct seq_operations gsDevicememHistoryReadOps =
+{
+	.start = _DevicememHistorySeqStart,
+	.stop = _DevicememHistorySeqStop,
+	.next = _DevicememHistorySeqNext,
+	.show = _DevicememHistorySeqShow,
+};
+
+static PVR_DEBUGFS_ENTRY_DATA *gpsDevicememHistoryDebugFSEntry;
+
+#endif
 
 static PVR_DEBUGFS_ENTRY_DATA *gpsVersionDebugFSEntry;
 static PVR_DEBUGFS_ENTRY_DATA *gpsNodesDebugFSEntry;
@@ -1407,7 +1479,28 @@ int PVRDebugCreateDebugFSEntries(void)
 	}
 #endif
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	iResult = PVRDebugFSCreateEntry("devicemem_history",
+					NULL,
+					&gsDevicememHistoryReadOps,
+					NULL,
+					NULL,
+					&gpsDevicememHistoryDebugFSEntry);
+	if(iResult != 0)
+	{
+		goto ErrorRemoveDebugLevelEntry;
+	}
+#endif
+
 	return 0;
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+ErrorRemoveDebugLevelEntry:
+#if defined(DEBUG)
+	PVRDebugFSRemoveEntry(gpsDebugLevelDebugFSEntry);
+	gpsDebugLevelDebugFSEntry = NULL;
+#endif
+#endif
 
 #if (defined(DEBUG) && defined(PVRSRV_ENABLE_FW_TRACE_DEBUGFS))
 ErrorRemoveFWTraceLogEntry:
@@ -1477,6 +1570,14 @@ void PVRDebugRemoveDebugFSEntries(void)
 		PVRDebugFSRemoveEntry(gpsVersionDebugFSEntry);
 		gpsVersionDebugFSEntry = NULL;
 	}
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	if(gpsDevicememHistoryDebugFSEntry != NULL)
+	{
+		PVRDebugFSRemoveEntry(gpsDevicememHistoryDebugFSEntry);
+		gpsDevicememHistoryDebugFSEntry = NULL;
+	}
+#endif
 
 }
 

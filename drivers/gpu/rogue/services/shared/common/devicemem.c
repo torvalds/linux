@@ -58,6 +58,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined(PVR_RI_DEBUG)
 #include "client_ri_bridge.h"
 #endif 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+#include "client_devicememhistory_bridge.h"
+#endif
 
 #if defined(__KERNEL__)
 #include "pvrsrv.h"
@@ -1090,6 +1093,13 @@ DevmemAllocate(DEVMEM_HEAP *psHeap,
 #endif
 	}
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	/* copy the allocation descriptive name and size so it can be passed to DevicememHistory when
+	 * the allocation gets mapped/unmapped
+	 */
+	OSStringNCopy(psMemDesc->sTraceData.szText, pszText, sizeof(psMemDesc->sTraceData.szText) - 1);
+	psMemDesc->sTraceData.uiSize = uiSize;
+#endif
 
 #if defined(PVR_RI_DEBUG)
 	{
@@ -1195,6 +1205,14 @@ DevmemAllocateExportable(IMG_HANDLE hBridge,
 					   psImport);
 
     *ppsMemDescPtr = psMemDesc;
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	/* copy the allocation descriptive name and size so it can be passed to DevicememHistory when
+	 * the allocation gets mapped/unmapped
+	 */
+	OSStringNCopy(psMemDesc->sTraceData.szText, pszText, sizeof(psMemDesc->sTraceData.szText) - 1);
+	psMemDesc->sTraceData.uiSize = uiSize;
+#endif
 
 #if defined(PVR_RI_DEBUG)
 	{
@@ -1304,6 +1322,14 @@ DevmemAllocateSparse(IMG_HANDLE hBridge,
 	_DevmemMemDescInit(psMemDesc,
 					   0,
 					   psImport);
+
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	/* copy the allocation descriptive name and size so it can be passed to DevicememHistory when
+	 * the allocation gets mapped/unmapped
+	 */
+	OSStringNCopy(psMemDesc->sTraceData.szText, pszText, sizeof(psMemDesc->sTraceData.szText) - 1);
+	psMemDesc->sTraceData.uiSize = uiSize;
+#endif
 
 #if defined(PVR_RI_DEBUG)
 	{
@@ -1629,6 +1655,13 @@ DevmemMapToDevice(DEVMEM_MEMDESC *psMemDesc,
 
     OSLockRelease(psMemDesc->sDeviceMemDesc.hLock);
 
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+	BridgeDevicememHistoryMap(psMemDesc->psImport->hBridge,
+						psMemDesc->sDeviceMemDesc.sDevVAddr,
+						psMemDesc->sTraceData.uiSize,
+						psMemDesc->sTraceData.szText);
+#endif
+
 #if defined(PVR_RI_DEBUG)
 	if (psMemDesc->hRIHandle)
     {
@@ -1702,6 +1735,12 @@ DevmemReleaseDevVirtAddr(DEVMEM_MEMDESC *psMemDesc)
 
 	if (--psMemDesc->sDeviceMemDesc.ui32RefCount == 0)
 	{
+#if defined(SUPPORT_PAGE_FAULT_DEBUG)
+		BridgeDevicememHistoryUnmap(psMemDesc->psImport->hBridge,
+							psMemDesc->sDeviceMemDesc.sDevVAddr,
+							psMemDesc->sTraceData.uiSize,
+							psMemDesc->sTraceData.szText);
+#endif
 		_DevmemImportStructDevUnmap(psMemDesc->psImport);
 		OSLockRelease(psMemDesc->sDeviceMemDesc.hLock);
 
