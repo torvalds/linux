@@ -688,6 +688,23 @@ static void loop_config_discard(struct loop_device *lo)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 }
 
+static void loop_unprepare_queue(struct loop_device *lo)
+{
+	flush_kthread_worker(&lo->worker);
+	kthread_stop(lo->worker_task);
+}
+
+static int loop_prepare_queue(struct loop_device *lo)
+{
+	init_kthread_worker(&lo->worker);
+	lo->worker_task = kthread_run(kthread_worker_fn,
+			&lo->worker, "loop%d", lo->lo_number);
+	if (IS_ERR(lo->worker_task))
+		return -ENOMEM;
+	set_user_nice(lo->worker_task, MIN_NICE);
+	return 0;
+}
+
 static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		       struct block_device *bdev, unsigned int arg)
 {
@@ -745,11 +762,8 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	size = get_loop_size(lo, file);
 	if ((loff_t)(sector_t)size != size)
 		goto out_putf;
-	error = -ENOMEM;
-	lo->wq = alloc_workqueue("kloopd%d",
-			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND, 16,
-			lo->lo_number);
-	if (!lo->wq)
+	error = loop_prepare_queue(lo);
+	if (error)
 		goto out_putf;
 
 	error = 0;
@@ -903,8 +917,7 @@ static int loop_clr_fd(struct loop_device *lo)
 	lo->lo_flags = 0;
 	if (!part_shift)
 		lo->lo_disk->flags |= GENHD_FL_NO_PART_SCAN;
-	destroy_workqueue(lo->wq);
-	lo->wq = NULL;
+	loop_unprepare_queue(lo);
 	mutex_unlock(&lo->lo_ctl_mutex);
 	/*
 	 * Need not hold lo_ctl_mutex to fput backing file.
@@ -1461,23 +1474,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (lo->lo_state != Lo_bound)
 		return -EIO;
 
-	if (cmd->rq->cmd_flags & REQ_WRITE) {
-		struct loop_device *lo = cmd->rq->q->queuedata;
-		bool need_sched = true;
-
-		spin_lock_irq(&lo->lo_lock);
-		if (lo->write_started)
-			need_sched = false;
-		else
-			lo->write_started = true;
-		list_add_tail(&cmd->list, &lo->write_cmd_head);
-		spin_unlock_irq(&lo->lo_lock);
-
-		if (need_sched)
-			queue_work(lo->wq, &lo->write_work);
-	} else {
-		queue_work(lo->wq, &cmd->read_work);
-	}
+	queue_kthread_work(&lo->worker, &cmd->work);
 
 	return BLK_MQ_RQ_QUEUE_OK;
 }
@@ -1499,35 +1496,10 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 	blk_mq_complete_request(cmd->rq);
 }
 
-static void loop_queue_write_work(struct work_struct *work)
-{
-	struct loop_device *lo =
-		container_of(work, struct loop_device, write_work);
-	LIST_HEAD(cmd_list);
-
-	spin_lock_irq(&lo->lo_lock);
- repeat:
-	list_splice_init(&lo->write_cmd_head, &cmd_list);
-	spin_unlock_irq(&lo->lo_lock);
-
-	while (!list_empty(&cmd_list)) {
-		struct loop_cmd *cmd = list_first_entry(&cmd_list,
-				struct loop_cmd, list);
-		list_del_init(&cmd->list);
-		loop_handle_cmd(cmd);
-	}
-
-	spin_lock_irq(&lo->lo_lock);
-	if (!list_empty(&lo->write_cmd_head))
-		goto repeat;
-	lo->write_started = false;
-	spin_unlock_irq(&lo->lo_lock);
-}
-
-static void loop_queue_read_work(struct work_struct *work)
+static void loop_queue_work(struct kthread_work *work)
 {
 	struct loop_cmd *cmd =
-		container_of(work, struct loop_cmd, read_work);
+		container_of(work, struct loop_cmd, work);
 
 	loop_handle_cmd(cmd);
 }
@@ -1539,7 +1511,7 @@ static int loop_init_request(void *data, struct request *rq,
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
 	cmd->rq = rq;
-	INIT_WORK(&cmd->read_work, loop_queue_read_work);
+	init_kthread_work(&cmd->work, loop_queue_work);
 
 	return 0;
 }
@@ -1600,9 +1572,6 @@ static int loop_add(struct loop_device **l, int i)
 	 * submitted to backing file is handled page by page.
 	 */
 	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
-
-	INIT_LIST_HEAD(&lo->write_cmd_head);
-	INIT_WORK(&lo->write_work, loop_queue_write_work);
 
 	disk = lo->lo_disk = alloc_disk(1 << part_shift);
 	if (!disk)
