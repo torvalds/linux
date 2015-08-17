@@ -363,4 +363,4 @@ static int __init machine_check_init(void)
 	ctl_set_bit(14, 24);	/* enable warning MCH */
 	return 0;
 }
-arch_initcall(machine_check_init);
+early_initcall(machine_check_init);
