@@ -2259,30 +2259,21 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 	return DDI_BUF_TRANS_SELECT(level);
 }
 
-static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
+void intel_ddi_clk_select(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *pipe_config)
 {
-	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_ddi_get_encoder_port(intel_encoder);
-	int type = intel_encoder->type;
-	int hdmi_level;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = intel_ddi_get_encoder_port(encoder);
 
-	if (type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		intel_edp_panel_on(intel_dp);
-	}
-
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
-		uint32_t dpll = crtc->config->ddi_pll_sel;
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		uint32_t dpll = pipe_config->ddi_pll_sel;
 		uint32_t val;
 
 		/*
 		 * DPLL0 is used for eDP and is the only "private" DPLL (as
 		 * opposed to shared) on SKL
 		 */
-		if (type == INTEL_OUTPUT_EDP) {
+		if (encoder->type == INTEL_OUTPUT_EDP) {
 			WARN_ON(dpll != SKL_DPLL0);
 
 			val = I915_READ(DPLL_CTRL1);
@@ -2290,7 +2281,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 			val &= ~(DPLL_CTRL1_HDMI_MODE(dpll) |
 				 DPLL_CTRL1_SSC(dpll) |
 				 DPLL_CTRL1_LINK_RATE_MASK(dpll));
-			val |= crtc->config->dpll_hw_state.ctrl1 << (dpll * 6);
+			val |= pipe_config->dpll_hw_state.ctrl1 << (dpll * 6);
 
 			I915_WRITE(DPLL_CTRL1, val);
 			POSTING_READ(DPLL_CTRL1);
@@ -2306,10 +2297,28 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 		I915_WRITE(DPLL_CTRL2, val);
 
-	} else if (INTEL_INFO(dev)->gen < 9) {
-		WARN_ON(crtc->config->ddi_pll_sel == PORT_CLK_SEL_NONE);
-		I915_WRITE(PORT_CLK_SEL(port), crtc->config->ddi_pll_sel);
+	} else if (INTEL_INFO(dev_priv)->gen < 9) {
+		WARN_ON(pipe_config->ddi_pll_sel == PORT_CLK_SEL_NONE);
+		I915_WRITE(PORT_CLK_SEL(port), pipe_config->ddi_pll_sel);
 	}
+}
+
+static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
+{
+	struct drm_encoder *encoder = &intel_encoder->base;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
+	enum port port = intel_ddi_get_encoder_port(intel_encoder);
+	int type = intel_encoder->type;
+	int hdmi_level;
+
+	if (type == INTEL_OUTPUT_EDP) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		intel_edp_panel_on(intel_dp);
+	}
+
+	intel_ddi_clk_select(intel_encoder, crtc->config);
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);

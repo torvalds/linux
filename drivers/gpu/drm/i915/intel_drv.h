@@ -997,6 +997,8 @@ void intel_crt_init(struct drm_device *dev);
 
 
 /* intel_ddi.c */
+void intel_ddi_clk_select(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *pipe_config);
 void intel_prepare_ddi(struct drm_device *dev);
 void hsw_fdi_link_train(struct drm_crtc *crtc);
 void intel_ddi_init(struct drm_device *dev, enum port port);
