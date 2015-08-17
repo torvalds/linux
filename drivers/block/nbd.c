@@ -399,7 +399,7 @@ static struct device_attribute pid_attr = {
 	.show = pid_show,
 };
 
-static int nbd_do_it(struct nbd_device *nbd)
+static int nbd_thread_recv(struct nbd_device *nbd)
 {
 	struct request *req;
 	int ret;
@@ -530,7 +530,7 @@ error_out:
 	nbd_end_request(nbd, req);
 }
 
-static int nbd_thread(void *data)
+static int nbd_thread_send(void *data)
 {
 	struct nbd_device *nbd = data;
 	struct request *req;
@@ -584,7 +584,7 @@ static int nbd_thread(void *data)
  *   { printk( "Warning: Ignoring result!\n"); nbd_end_request( req ); }
  */
 
-static void do_nbd_request(struct request_queue *q)
+static void nbd_request_handler(struct request_queue *q)
 		__releases(q->queue_lock) __acquires(q->queue_lock)
 {
 	struct request *req;
@@ -738,7 +738,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		else
 			blk_queue_flush(nbd->disk->queue, 0);
 
-		thread = kthread_run(nbd_thread, nbd, "%s",
+		thread = kthread_run(nbd_thread_send, nbd, "%s",
 				     nbd_name(nbd));
 		if (IS_ERR(thread)) {
 			mutex_lock(&nbd->tx_lock);
@@ -746,7 +746,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		}
 
 		nbd_dev_dbg_init(nbd);
-		error = nbd_do_it(nbd);
+		error = nbd_thread_recv(nbd);
 		nbd_dev_dbg_close(nbd);
 		kthread_stop(thread);
 
@@ -1021,7 +1021,7 @@ static int __init nbd_init(void)
 		 * every gendisk to have its very own request_queue struct.
 		 * These structs are big so we dynamically allocate them.
 		 */
-		disk->queue = blk_init_queue(do_nbd_request, &nbd_lock);
+		disk->queue = blk_init_queue(nbd_request_handler, &nbd_lock);
 		if (!disk->queue) {
 			put_disk(disk);
 			goto out;
