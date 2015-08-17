@@ -28,16 +28,13 @@
 static void amdgpu_ctx_do_release(struct kref *ref)
 {
 	struct amdgpu_ctx *ctx;
-	struct amdgpu_ctx_mgr *mgr;
 
 	ctx = container_of(ref, struct amdgpu_ctx, refcount);
-	mgr = &ctx->fpriv->ctx_mgr;
-
-	idr_remove(&mgr->ctx_handles, ctx->id);
 	kfree(ctx);
 }
 
-int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint32_t *id, uint32_t flags)
+int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
+		     uint32_t *id)
 {
 	int r;
 	struct amdgpu_ctx *ctx;
@@ -57,8 +54,6 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uin
 	*id = (uint32_t)r;
 
 	memset(ctx, 0, sizeof(*ctx));
-	ctx->id = *id;
-	ctx->fpriv = fpriv;
 	kref_init(&ctx->refcount);
 	mutex_unlock(&mgr->lock);
 
@@ -73,6 +68,7 @@ int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint
 	mutex_lock(&mgr->lock);
 	ctx = idr_find(&mgr->ctx_handles, id);
 	if (ctx) {
+		idr_remove(&mgr->ctx_handles, id);
 		kref_put(&ctx->refcount, amdgpu_ctx_do_release);
 		mutex_unlock(&mgr->lock);
 		return 0;
@@ -97,8 +93,8 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 	}
 
 	/* TODO: these two are always zero */
-	out->state.flags = ctx->state.flags;
-	out->state.hangs = ctx->state.hangs;
+	out->state.flags = 0x0;
+	out->state.hangs = 0x0;
 
 	/* determine if a GPU reset has occured since the last call */
 	reset_counter = atomic_read(&adev->gpu_reset_counter);
@@ -123,7 +119,7 @@ void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv)
 
 	idr_for_each_entry(idp,ctx,id) {
 		if (kref_put(&ctx->refcount, amdgpu_ctx_do_release) != 1)
-			DRM_ERROR("ctx (id=%ul) is still alive\n",ctx->id);
+			DRM_ERROR("ctx %p is still alive\n", ctx);
 	}
 
 	mutex_destroy(&mgr->lock);
@@ -134,7 +130,6 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 {
 	int r;
 	uint32_t id;
-	uint32_t flags;
 
 	union drm_amdgpu_ctx *args = data;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -142,11 +137,10 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 
 	r = 0;
 	id = args->in.ctx_id;
-	flags = args->in.flags;
 
 	switch (args->in.op) {
 		case AMDGPU_CTX_OP_ALLOC_CTX:
-			r = amdgpu_ctx_alloc(adev, fpriv, &id, flags);
+			r = amdgpu_ctx_alloc(adev, fpriv, &id);
 			args->out.alloc.ctx_id = id;
 			break;
 		case AMDGPU_CTX_OP_FREE_CTX:
@@ -177,17 +171,9 @@ struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id)
 
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
 {
-	struct amdgpu_fpriv *fpriv;
-	struct amdgpu_ctx_mgr *mgr;
-
 	if (ctx == NULL)
 		return -EINVAL;
 
-	fpriv = ctx->fpriv;
-	mgr = &fpriv->ctx_mgr;
-	mutex_lock(&mgr->lock);
 	kref_put(&ctx->refcount, amdgpu_ctx_do_release);
-	mutex_unlock(&mgr->lock);
-
 	return 0;
 }

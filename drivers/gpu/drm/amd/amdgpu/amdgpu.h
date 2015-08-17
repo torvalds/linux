@@ -179,6 +179,7 @@ struct amdgpu_ring;
 struct amdgpu_semaphore;
 struct amdgpu_cs_parser;
 struct amdgpu_irq_src;
+struct amdgpu_fpriv;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_EOP = 0,
@@ -984,26 +985,31 @@ struct amdgpu_vm_manager {
  * context related structures
  */
 
-struct amdgpu_ctx_state {
-	uint64_t flags;
-	uint32_t hangs;
-};
-
 struct amdgpu_ctx {
-	/* call kref_get()before CS start and kref_put() after CS fence signaled */
-	struct kref refcount;
-	struct amdgpu_fpriv *fpriv;
-	struct amdgpu_ctx_state state;
-	uint32_t id;
-	unsigned reset_counter;
+	struct kref		refcount;
+	unsigned		reset_counter;
 };
 
 struct amdgpu_ctx_mgr {
-	struct amdgpu_device *adev;
-	struct idr ctx_handles;
-	/* lock for IDR system */
-	struct mutex lock;
+	struct amdgpu_device	*adev;
+	struct mutex		lock;
+	/* protected by lock */
+	struct idr		ctx_handles;
 };
+
+int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
+		     uint32_t *id);
+int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
+		    uint32_t id);
+
+void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv);
+
+struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
+int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
+
+int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
+		     struct drm_file *filp);
+
 
 /*
  * file private structure
@@ -1013,7 +1019,7 @@ struct amdgpu_fpriv {
 	struct amdgpu_vm	vm;
 	struct mutex		bo_list_lock;
 	struct idr		bo_list_handles;
-	struct amdgpu_ctx_mgr ctx_mgr;
+	struct amdgpu_ctx_mgr	ctx_mgr;
 };
 
 /*
@@ -1849,18 +1855,6 @@ struct amdgpu_atcs_functions {
 struct amdgpu_atcs {
 	struct amdgpu_atcs_functions functions;
 };
-
-int amdgpu_ctx_alloc(struct amdgpu_device *adev,struct amdgpu_fpriv *fpriv,
-							uint32_t *id,uint32_t flags);
-int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
-						  uint32_t id);
-
-void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv);
-struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
-int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
-
-extern int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
-						 struct drm_file *filp);
 
 /*
  * CGS
