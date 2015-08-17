@@ -67,7 +67,14 @@
 #define S526_AI_CTRL_START	BIT(0)
 #define S526_AO_REG		0x08
 #define S526_AI_REG		0x08
-#define REG_DIO 0x0A
+#define S526_DIO_CTRL_REG	0x0a
+#define S526_DIO_CTRL_DIO3_NEG	BIT(15)	/* irq on DIO3 neg/pos edge */
+#define S526_DIO_CTRL_DIO2_NEG	BIT(14)	/* irq on DIO2 neg/pos edge */
+#define S526_DIO_CTRL_DIO1_NEG	BIT(13)	/* irq on DIO1 neg/pos edge */
+#define S526_DIO_CTRL_DIO0_NEG	BIT(12)	/* irq on DIO0 neg/pos edge */
+#define S526_DIO_CTRL_GRP2_OUT	BIT(11)
+#define S526_DIO_CTRL_GRP1_OUT	BIT(10)
+#define S526_DIO_CTRL_GRP2_NEG	BIT(8)	/* irq on DIO[4-7] neg/pos edge */
 #define S526_INT_ENA_REG	0x0c
 #define S526_INT_STATUS_REG	0x0e
 #define S526_INT_DIO(x)		BIT(8 + ((x) & 0x7))
@@ -490,9 +497,9 @@ static int s526_dio_insn_bits(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outw(s->state, dev->iobase + REG_DIO);
+		outw(s->state, dev->iobase + S526_DIO_CTRL_REG);
 
-	data[1] = inw(dev->iobase + REG_DIO) & 0xff;
+	data[1] = inw(dev->iobase + S526_DIO_CTRL_REG) & 0xff;
 
 	return insn->n;
 }
@@ -506,6 +513,10 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 	unsigned int mask;
 	int ret;
 
+	/*
+	 * Digital I/O can be configured as inputs or outputs in
+	 * groups of 4; DIO group 1 (DIO0-3) and DIO group 2 (DIO4-7).
+	 */
 	if (chan < 4)
 		mask = 0x0f;
 	else
@@ -515,17 +526,16 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* bit 10/11 set the group 1/2's mode */
 	if (s->io_bits & 0x0f)
-		s->state |= (1 << 10);
+		s->state |= S526_DIO_CTRL_GRP1_OUT;
 	else
-		s->state &= ~(1 << 10);
+		s->state &= ~S526_DIO_CTRL_GRP1_OUT;
 	if (s->io_bits & 0xf0)
-		s->state |= (1 << 11);
+		s->state |= S526_DIO_CTRL_GRP2_OUT;
 	else
-		s->state &= ~(1 << 11);
+		s->state &= ~S526_DIO_CTRL_GRP2_OUT;
 
-	outw(s->state, dev->iobase + REG_DIO);
+	outw(s->state, dev->iobase + S526_DIO_CTRL_REG);
 
 	return insn->n;
 }
