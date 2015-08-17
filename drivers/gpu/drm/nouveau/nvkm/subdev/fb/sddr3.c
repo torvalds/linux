@@ -53,7 +53,7 @@ static const struct ramxlat
 ramddr3_wr[] = {
 	{ 5, 1 }, { 6, 2 }, { 7, 3 }, { 8, 4 }, { 10, 5 }, { 12, 6 },
 	/* the below are mentioned in some, but not all, ddr3 docs */
-	{ 14, 7 }, { 16, 0 },
+	{ 14, 7 }, { 15, 7 }, { 16, 0 },
 	{ -1 }
 };
 
@@ -61,7 +61,7 @@ static const struct ramxlat
 ramddr3_cwl[] = {
 	{ 5, 0 }, { 6, 1 }, { 7, 2 }, { 8, 3 },
 	/* the below are mentioned in some, but not all, ddr3 docs */
-	{ 9, 4 },
+	{ 9, 4 }, { 10, 5 },
 	{ -1 }
 };
 
