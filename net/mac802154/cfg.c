@@ -209,10 +209,6 @@ ieee802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
 {
 	ASSERT_RTNL();
 
-	if (wpan_dev->min_be == min_be &&
-	    wpan_dev->max_be == max_be)
-		return 0;
-
 	wpan_dev->min_be = min_be;
 	wpan_dev->max_be = max_be;
 	return 0;
@@ -223,9 +219,6 @@ ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 			  __le16 short_addr)
 {
 	ASSERT_RTNL();
-
-	if (wpan_dev->short_addr == short_addr)
-		return 0;
 
 	wpan_dev->short_addr = short_addr;
 	return 0;
@@ -238,9 +231,6 @@ ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 {
 	ASSERT_RTNL();
 
-	if (wpan_dev->csma_retries == max_csma_backoffs)
-		return 0;
-
 	wpan_dev->csma_retries = max_csma_backoffs;
 	return 0;
 }
@@ -252,9 +242,6 @@ ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 {
 	ASSERT_RTNL();
 
-	if (wpan_dev->frame_retries == max_frame_retries)
-		return 0;
-
 	wpan_dev->frame_retries = max_frame_retries;
 	return 0;
 }
@@ -265,10 +252,17 @@ ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 {
 	ASSERT_RTNL();
 
-	if (wpan_dev->lbt == mode)
-		return 0;
-
 	wpan_dev->lbt = mode;
+	return 0;
+}
+
+static int
+ieee802154_set_ackreq_default(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev, bool ackreq)
+{
+	ASSERT_RTNL();
+
+	wpan_dev->ackreq = ackreq;
 	return 0;
 }
 
@@ -289,4 +283,5 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
 	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 	.set_lbt_mode = ieee802154_set_lbt_mode,
+	.set_ackreq_default = ieee802154_set_ackreq_default,
 };
