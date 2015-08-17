@@ -56,7 +56,10 @@
 #define S526_WDOG_INVERTED	BIT(4)
 #define S526_WDOG_ENA		BIT(3)
 #define S526_WDOG_INTERVAL(x)	(((x) & 0x7) << 0)
-#define REG_DAC 0x04
+#define S526_AO_CTRL_REG	0x04
+#define S526_AO_CTRL_RESET	BIT(3)
+#define S526_AO_CTRL_CHAN(x)	(((x) & 0x3) << 1)
+#define S526_AO_CTRL_START	BIT(0)
 #define REG_ADC 0x06
 #define REG_ADD 0x08
 #define REG_DIO 0x0A
@@ -452,16 +455,17 @@ static int s526_ao_insn_write(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int ctrl = S526_AO_CTRL_CHAN(chan);
 	unsigned int val = s->readback[chan];
 	int i;
 
-	outw(chan << 1, dev->iobase + REG_DAC);
+	outw(ctrl, dev->iobase + S526_AO_CTRL_REG);
+	ctrl |= S526_AO_CTRL_START;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 		outw(val, dev->iobase + REG_ADD);
-		/* starts the D/A conversion */
-		outw((chan << 1) | 1, dev->iobase + REG_DAC);
+		outw(ctrl, dev->iobase + S526_AO_CTRL_REG);
 	}
 	s->readback[chan] = val;
 
