@@ -363,8 +363,6 @@ static void wilc_wlan_parse_response_frame(uint8_t *info, int size)
 		size -= (2 + len);
 		info += (2 + len);
 	}
-
-	return;
 }
 
 static int wilc_wlan_parse_info_frame(uint8_t *info, int size)

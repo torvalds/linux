@@ -65,8 +65,6 @@ static void __exit wilc_module_deinit(void)
 	FREE_WILC_BUFFER(g_tx_buf)
 	FREE_WILC_BUFFER(g_rx_buf)
 	FREE_WILC_BUFFER(g_fw_buf)
-
-	return;
 }
 
 MODULE_LICENSE("Dual BSD/GPL");

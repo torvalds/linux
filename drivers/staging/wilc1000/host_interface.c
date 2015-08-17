@@ -6782,9 +6782,6 @@ void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	s32Error = WILC_MsgQueueSend(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg));
 	if (s32Error)
 		PRINT_ER("Error in sending network info message queue message parameters: Error(%d)\n", s32Error);
-
-
-	return;
 }
 
 /**
@@ -6848,7 +6845,6 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 
 	/*BugID_5348*/
 	up(&hSemHostIntDeinit);
-	return;
 }
 
 /**

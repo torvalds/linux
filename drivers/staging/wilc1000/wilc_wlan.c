@@ -124,8 +124,6 @@ static void wilc_debug(uint32_t flag, char *fmt, ...)
 		if (g_wlan.os_func.os_debug)
 			g_wlan.os_func.os_debug(buf);
 	}
-
-	return;
 }
 
 static CHIP_PS_STATE_T genuChipPSstate = CHIP_WAKEDUP;
@@ -1325,7 +1323,6 @@ static void wilc_wlan_handle_rxq(void)
 
 	p->rxq_exit = 1;
 	PRINT_D(RX_DBG, "THREAD: Exiting RX thread\n");
-	return;
 }
 
 /********************************************

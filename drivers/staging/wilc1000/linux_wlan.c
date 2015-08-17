@@ -1385,7 +1385,6 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 	} else {
 		PRINT_D(INIT_DBG, "wilc1000 is not initialized\n");
 	}
-	return;
 }
 
 int wlan_init_locks(linux_wlan_t *p_nic)
