@@ -119,12 +119,13 @@ static void nbd_end_request(struct nbd_device *nbd, struct request *req)
  */
 static void sock_shutdown(struct nbd_device *nbd)
 {
-	if (nbd->sock) {
-		dev_warn(disk_to_dev(nbd->disk), "shutting down socket\n");
-		kernel_sock_shutdown(nbd->sock, SHUT_RDWR);
-		nbd->sock = NULL;
-		del_timer_sync(&nbd->timeout_timer);
-	}
+	if (!nbd->sock)
+		return;
+
+	dev_warn(disk_to_dev(nbd->disk), "shutting down socket\n");
+	kernel_sock_shutdown(nbd->sock, SHUT_RDWR);
+	nbd->sock = NULL;
+	del_timer_sync(&nbd->timeout_timer);
 }
 
 static void nbd_xmit_timeout(unsigned long arg)
