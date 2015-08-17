@@ -133,7 +133,6 @@ struct intel_encoder {
 
 	enum intel_output_type type;
 	unsigned int cloneable;
-	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
 	bool (*compute_config)(struct intel_encoder *,
 			       struct intel_crtc_state *);
@@ -992,14 +991,10 @@ void intel_mark_busy(struct drm_device *dev);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 int intel_display_suspend(struct drm_device *dev);
-int intel_crtc_control(struct drm_crtc *crtc, bool enable);
-void intel_crtc_update_dpms(struct drm_crtc *crtc);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 int intel_connector_init(struct intel_connector *);
 struct intel_connector *intel_connector_alloc(void);
-int intel_connector_dpms(struct drm_connector *, int mode);
 bool intel_connector_get_hw_state(struct intel_connector *connector);
-void intel_modeset_check_state(struct drm_device *dev);
 bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 				struct intel_digital_port *port);
 void intel_connector_attach_encoder(struct intel_connector *connector,
@@ -1243,7 +1238,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits,
 			  enum fb_op_origin origin);
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
-		     unsigned int frontbuffer_bits);
+		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
 const char *intel_no_fbc_reason_str(enum no_fbc_reason reason);
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
 

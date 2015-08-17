@@ -37,6 +37,8 @@ struct render_state {
 	struct drm_i915_gem_object *obj;
 	u64 ggtt_offset;
 	int gen;
+	u32 aux_batch_size;
+	u32 aux_batch_offset;
 };
 
 int i915_gem_render_state_init(struct drm_i915_gem_request *req);

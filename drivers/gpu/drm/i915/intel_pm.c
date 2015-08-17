@@ -102,6 +102,12 @@ static void skl_init_clock_gating(struct drm_device *dev)
 		/* WaDisableLSQCROPERFforOCL:skl */
 		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
 			   GEN8_LQSC_RO_PERF_DIS);
+
+	/* WaEnableGapsTsvCreditFix:skl */
+	if (IS_SKYLAKE(dev) && (INTEL_REVID(dev) >= SKL_REVID_C0)) {
+		I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
+					   GEN9_GAPS_TSV_CREDIT_DISABLE));
+	}
 }
 
 static void bxt_init_clock_gating(struct drm_device *dev)
@@ -4266,7 +4272,7 @@ static void ironlake_enable_drps(struct drm_device *dev)
 
 	if (wait_for_atomic((I915_READ(MEMSWCTL) & MEMCTL_CMD_STS) == 0, 10))
 		DRM_ERROR("stuck trying to change perf mode\n");
-	msleep(1);
+	mdelay(1);
 
 	ironlake_set_drps(dev, fstart);
 
@@ -4297,10 +4303,10 @@ static void ironlake_disable_drps(struct drm_device *dev)
 
 	/* Go back to the starting frequency */
 	ironlake_set_drps(dev, dev_priv->ips.fstart);
-	msleep(1);
+	mdelay(1);
 	rgvswctl |= MEMCTL_CMD_STS;
 	I915_WRITE(MEMSWCTL, rgvswctl);
-	msleep(1);
+	mdelay(1);
 
 	spin_unlock_irq(&mchdev_lock);
 }

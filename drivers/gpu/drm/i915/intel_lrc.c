@@ -497,6 +497,9 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 		status_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
 				(read_pointer % 6) * 8 + 4);
 
+		if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
+			continue;
+
 		if (status & GEN8_CTX_STATUS_PREEMPTED) {
 			if (status & GEN8_CTX_STATUS_LITE_RESTORE) {
 				if (execlists_check_remove_request(ring, status_id))
@@ -521,7 +524,7 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 	ring->next_context_status_buffer = write_pointer % 6;
 
 	I915_WRITE(RING_CONTEXT_STATUS_PTR(ring),
-		   ((u32)ring->next_context_status_buffer & 0x07) << 8);
+		   _MASKED_FIELD(0x07 << 8, ((u32)ring->next_context_status_buffer & 0x07) << 8));
 }
 
 static int execlists_context_queue(struct drm_i915_gem_request *request)
@@ -1736,6 +1739,12 @@ static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
 		return 0;
 
 	ret = req->ring->emit_bb_start(req, so.ggtt_offset,
+				       I915_DISPATCH_SECURE);
+	if (ret)
+		goto out;
+
+	ret = req->ring->emit_bb_start(req,
+				       (so.ggtt_offset + so.aux_batch_offset),
 				       I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;

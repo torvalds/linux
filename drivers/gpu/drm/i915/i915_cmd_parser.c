@@ -151,8 +151,8 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
 	CMD(  MI_PREDICATE,                     SMI,    F,  1,      S  ),
 	CMD(  MI_TOPOLOGY_FILTER,               SMI,    F,  1,      S  ),
-	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
+	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_SET_CONTEXT,                   SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_URB_CLEAR,                     SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3F,   B,
@@ -564,7 +564,7 @@ static bool validate_cmds_sorted(struct intel_engine_cs *ring,
 
 		for (j = 0; j < table->count; j++) {
 			const struct drm_i915_cmd_descriptor *desc =
-				&table->table[i];
+				&table->table[j];
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
 			if (curr < previous) {

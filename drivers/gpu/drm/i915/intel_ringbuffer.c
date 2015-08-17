@@ -780,11 +780,11 @@ static int wa_add(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-#define WA_REG(addr, mask, val) { \
+#define WA_REG(addr, mask, val) do { \
 		const int r = wa_add(dev_priv, (addr), (mask), (val)); \
 		if (r) \
 			return r; \
-	}
+	} while (0)
 
 #define WA_SET_BIT_MASKED(addr, mask) \
 	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
@@ -1041,13 +1041,6 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	if (INTEL_REVID(dev) == SKL_REVID_C0 ||
-	    INTEL_REVID(dev) == SKL_REVID_D0)
-		/* WaBarrierPerformanceFixDisable:skl */
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FENCE_DEST_SLM_DISABLE |
-				  HDC_BARRIER_PERFORMANCE_DISABLE);
-
 	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
 		/*
 		 *Use Force Non-Coherent whenever executing a 3D context. This
@@ -1065,6 +1058,13 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		WA_SET_BIT_MASKED(HDC_CHICKEN0,
 				  HDC_FENCE_DEST_SLM_DISABLE |
 				  HDC_BARRIER_PERFORMANCE_DISABLE);
+
+	/* WaDisableSbeCacheDispatchPortSharing:skl */
+	if (INTEL_REVID(dev) <= SKL_REVID_F0) {
+		WA_SET_BIT_MASKED(
+			GEN7_HALF_SLICE_CHICKEN1,
+			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
+	}
 
 	return skl_tune_iz_hashing(ring);
 }

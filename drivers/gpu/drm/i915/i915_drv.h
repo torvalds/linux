@@ -56,7 +56,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150717"
+#define DRIVER_DATE		"20150731"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -206,11 +206,11 @@ enum intel_display_power_domain {
 
 enum hpd_pin {
 	HPD_NONE = 0,
-	HPD_PORT_A = HPD_NONE, /* PORT_A is internal */
 	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
 	HPD_CRT,
 	HPD_SDVO_B,
 	HPD_SDVO_C,
+	HPD_PORT_A,
 	HPD_PORT_B,
 	HPD_PORT_C,
 	HPD_PORT_D,
@@ -484,6 +484,7 @@ struct drm_i915_error_state {
 	struct timeval time;
 
 	char error_msg[128];
+	int iommu;
 	u32 reset_count;
 	u32 suspend_count;
 
@@ -742,7 +743,7 @@ enum csr_state {
 
 struct intel_csr {
 	const char *fw_path;
-	__be32 *dmc_payload;
+	uint32_t *dmc_payload;
 	uint32_t dmc_fw_size;
 	uint32_t mmio_count;
 	uint32_t mmioaddr[8];
@@ -894,6 +895,7 @@ enum fb_op_origin {
 	ORIGIN_CPU,
 	ORIGIN_CS,
 	ORIGIN_FLIP,
+	ORIGIN_DIRTYFB,
 };
 
 struct i915_fbc {
@@ -1408,6 +1410,11 @@ enum modeset_restore {
 	MODESET_SUSPENDED,
 };
 
+#define DP_AUX_A 0x40
+#define DP_AUX_B 0x10
+#define DP_AUX_C 0x20
+#define DP_AUX_D 0x30
+
 struct ddi_vbt_port_info {
 	/*
 	 * This is an index in the HDMI/DVI DDI buffer translation table.
@@ -1420,6 +1427,11 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dvi:1;
 	uint8_t supports_hdmi:1;
 	uint8_t supports_dp:1;
+
+	uint8_t alternate_aux_channel;
+
+	uint8_t dp_boost_level;
+	uint8_t hdmi_boost_level;
 };
 
 enum psr_lines_to_wait {
@@ -2610,6 +2622,8 @@ struct i915_params {
 	bool reset;
 	bool disable_display;
 	bool disable_vtd_wa;
+	bool enable_guc_submission;
+	int guc_log_level;
 	int use_mmio_flip;
 	int mmio_debug;
 	bool verbose_state_checks;
@@ -2626,7 +2640,6 @@ extern void i915_driver_preclose(struct drm_device *dev,
 				 struct drm_file *file);
 extern void i915_driver_postclose(struct drm_device *dev,
 				  struct drm_file *file);
-extern int i915_driver_device_is_agp(struct drm_device * dev);
 #ifdef CONFIG_COMPAT
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
@@ -2646,7 +2659,7 @@ void intel_hpd_irq_handler(struct drm_device *dev, u32 pin_mask, u32 long_mask);
 void intel_hpd_init(struct drm_i915_private *dev_priv);
 void intel_hpd_init_work(struct drm_i915_private *dev_priv);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
-enum port intel_hpd_pin_to_port(enum hpd_pin pin);
+bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port);
 
 /* i915_irq.c */
 void i915_queue_hangcheck(struct drm_device *dev);
@@ -2758,6 +2771,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
+struct drm_i915_gem_object *i915_gem_object_create_from_data(
+		struct drm_device *dev, const void *data, size_t size);
 void i915_init_vm(struct drm_i915_private *dev_priv,
 		  struct i915_address_space *vm);
 void i915_gem_free_object(struct drm_gem_object *obj);
@@ -2864,11 +2879,6 @@ static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req,
 
 int __must_check i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
 int __must_check i915_gem_set_seqno(struct drm_device *dev, u32 seqno);
-int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
-
-bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
-void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
 
 struct drm_i915_gem_request *
 i915_gem_find_active_request(struct intel_engine_cs *ring);
@@ -2966,8 +2976,6 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
-void i915_gem_restore_fences(struct drm_device *dev);
-
 unsigned long
 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
 			      const struct i915_ggtt_view *view);
@@ -3062,6 +3070,19 @@ i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj)
 	i915_gem_object_ggtt_unpin_view(obj, &i915_ggtt_view_normal);
 }
 
+/* i915_gem_fence.c */
+int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
+
+bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
+void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
+
+void i915_gem_restore_fences(struct drm_device *dev);
+
+void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
+void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
+void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
+
 /* i915_gem_context.c */
 int __must_check i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_fini(struct drm_device *dev);
@@ -3153,10 +3174,6 @@ static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_objec
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		obj->tiling_mode != I915_TILING_NONE;
 }
-
-void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
-void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
-void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
 
 /* i915_gem_debug.c */
 #if WATCH_LISTS

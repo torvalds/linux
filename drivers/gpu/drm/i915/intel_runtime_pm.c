@@ -68,6 +68,22 @@
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 				    int power_well_id);
 
+static void intel_power_well_enable(struct drm_i915_private *dev_priv,
+				    struct i915_power_well *power_well)
+{
+	DRM_DEBUG_KMS("enabling %s\n", power_well->name);
+	power_well->ops->enable(dev_priv, power_well);
+	power_well->hw_enabled = true;
+}
+
+static void intel_power_well_disable(struct drm_i915_private *dev_priv,
+				     struct i915_power_well *power_well)
+{
+	DRM_DEBUG_KMS("disabling %s\n", power_well->name);
+	power_well->hw_enabled = false;
+	power_well->ops->disable(dev_priv, power_well);
+}
+
 /*
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
@@ -1104,11 +1120,8 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 	mutex_lock(&power_domains->lock);
 
 	for_each_power_well(i, power_well, BIT(domain), power_domains) {
-		if (!power_well->count++) {
-			DRM_DEBUG_KMS("enabling %s\n", power_well->name);
-			power_well->ops->enable(dev_priv, power_well);
-			power_well->hw_enabled = true;
-		}
+		if (!power_well->count++)
+			intel_power_well_enable(dev_priv, power_well);
 	}
 
 	power_domains->domain_use_count[domain]++;
@@ -1142,11 +1155,8 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
 		WARN_ON(!power_well->count);
 
-		if (!--power_well->count && i915.disable_power_well) {
-			DRM_DEBUG_KMS("disabling %s\n", power_well->name);
-			power_well->hw_enabled = false;
-			power_well->ops->disable(dev_priv, power_well);
-		}
+		if (!--power_well->count && i915.disable_power_well)
+			intel_power_well_disable(dev_priv, power_well);
 	}
 
 	mutex_unlock(&power_domains->lock);

@@ -935,8 +935,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
-	driver.driver_features &= ~(DRIVER_USE_AGP);
-
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
@@ -1491,7 +1489,15 @@ static int intel_runtime_suspend(struct device *device)
 	 * FIXME: We really should find a document that references the arguments
 	 * used below!
 	 */
-	if (IS_HASWELL(dev)) {
+	if (IS_BROADWELL(dev)) {
+		/*
+		 * On Broadwell, if we use PCI_D1 the PCH DDI ports will stop
+		 * being detected, and the call we do at intel_runtime_resume()
+		 * won't be able to restore them. Since PCI_D3hot matches the
+		 * actual specification and appears to be working, use it.
+		 */
+		intel_opregion_notify_adapter(dev, PCI_D3hot);
+	} else {
 		/*
 		 * current versions of firmware which depend on this opregion
 		 * notification have repurposed the D1 definition to mean
@@ -1500,16 +1506,6 @@ static int intel_runtime_suspend(struct device *device)
 		 * the suspend path.
 		 */
 		intel_opregion_notify_adapter(dev, PCI_D1);
-	} else {
-		/*
-		 * On Broadwell, if we use PCI_D1 the PCH DDI ports will stop
-		 * being detected, and the call we do at intel_runtime_resume()
-		 * won't be able to restore them. Since PCI_D3hot matches the
-		 * actual specification and appears to be working, use it. Let's
-		 * assume the other non-Haswell platforms will stay the same as
-		 * Broadwell.
-		 */
-		intel_opregion_notify_adapter(dev, PCI_D3hot);
 	}
 
 	assert_forcewakes_inactive(dev_priv);
@@ -1649,7 +1645,6 @@ static struct drm_driver driver = {
 	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
-	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
 	    DRIVER_RENDER,
 	.load = i915_driver_load,
@@ -1664,7 +1659,6 @@ static struct drm_driver driver = {
 	.suspend = i915_suspend_legacy,
 	.resume = i915_resume_legacy,
 
-	.device_is_agp = i915_driver_device_is_agp,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = i915_debugfs_init,
 	.debugfs_cleanup = i915_debugfs_cleanup,

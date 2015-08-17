@@ -186,11 +186,103 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 	drm_mm_takedown(&dev_priv->mm.stolen);
 }
 
+static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				     unsigned long *base, unsigned long *size)
+{
+	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
+
+	switch (reg_val & GEN6_STOLEN_RESERVED_SIZE_MASK) {
+	case GEN6_STOLEN_RESERVED_1M:
+		*size = 1024 * 1024;
+		break;
+	case GEN6_STOLEN_RESERVED_512K:
+		*size = 512 * 1024;
+		break;
+	case GEN6_STOLEN_RESERVED_256K:
+		*size = 256 * 1024;
+		break;
+	case GEN6_STOLEN_RESERVED_128K:
+		*size = 128 * 1024;
+		break;
+	default:
+		*size = 1024 * 1024;
+		MISSING_CASE(reg_val & GEN6_STOLEN_RESERVED_SIZE_MASK);
+	}
+}
+
+static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				     unsigned long *base, unsigned long *size)
+{
+	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	*base = reg_val & GEN7_STOLEN_RESERVED_ADDR_MASK;
+
+	switch (reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK) {
+	case GEN7_STOLEN_RESERVED_1M:
+		*size = 1024 * 1024;
+		break;
+	case GEN7_STOLEN_RESERVED_256K:
+		*size = 256 * 1024;
+		break;
+	default:
+		*size = 1024 * 1024;
+		MISSING_CASE(reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK);
+	}
+}
+
+static void gen8_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				     unsigned long *base, unsigned long *size)
+{
+	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
+
+	switch (reg_val & GEN8_STOLEN_RESERVED_SIZE_MASK) {
+	case GEN8_STOLEN_RESERVED_1M:
+		*size = 1024 * 1024;
+		break;
+	case GEN8_STOLEN_RESERVED_2M:
+		*size = 2 * 1024 * 1024;
+		break;
+	case GEN8_STOLEN_RESERVED_4M:
+		*size = 4 * 1024 * 1024;
+		break;
+	case GEN8_STOLEN_RESERVED_8M:
+		*size = 8 * 1024 * 1024;
+		break;
+	default:
+		*size = 8 * 1024 * 1024;
+		MISSING_CASE(reg_val & GEN8_STOLEN_RESERVED_SIZE_MASK);
+	}
+}
+
+static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				    unsigned long *base, unsigned long *size)
+{
+	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+	unsigned long stolen_top;
+
+	stolen_top = dev_priv->mm.stolen_base + dev_priv->gtt.stolen_size;
+
+	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
+
+	/* On these platforms, the register doesn't have a size field, so the
+	 * size is the distance between the base and the top of the stolen
+	 * memory. We also have the genuine case where base is zero and there's
+	 * nothing reserved. */
+	if (*base == 0)
+		*size = 0;
+	else
+		*size = stolen_top - *base;
+}
+
 int i915_gem_init_stolen(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 tmp;
-	int bios_reserved = 0;
+	unsigned long reserved_total, reserved_base, reserved_size;
+	unsigned long stolen_top;
 
 	mutex_init(&dev_priv->mm.stolen_lock);
 
@@ -208,26 +300,61 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	if (dev_priv->mm.stolen_base == 0)
 		return 0;
 
-	DRM_DEBUG_KMS("found %zd bytes of stolen memory at %08lx\n",
-		      dev_priv->gtt.stolen_size, dev_priv->mm.stolen_base);
+	stolen_top = dev_priv->mm.stolen_base + dev_priv->gtt.stolen_size;
 
-	if (INTEL_INFO(dev)->gen >= 8) {
-		tmp = I915_READ(GEN7_BIOS_RESERVED);
-		tmp >>= GEN8_BIOS_RESERVED_SHIFT;
-		tmp &= GEN8_BIOS_RESERVED_MASK;
-		bios_reserved = (1024*1024) << tmp;
-	} else if (IS_GEN7(dev)) {
-		tmp = I915_READ(GEN7_BIOS_RESERVED);
-		bios_reserved = tmp & GEN7_BIOS_RESERVED_256K ?
-			256*1024 : 1024*1024;
+	switch (INTEL_INFO(dev_priv)->gen) {
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		/* Assume the gen6 maximum for the older platforms. */
+		reserved_size = 1024 * 1024;
+		reserved_base = stolen_top - reserved_size;
+		break;
+	case 6:
+		gen6_get_stolen_reserved(dev_priv, &reserved_base,
+					 &reserved_size);
+		break;
+	case 7:
+		gen7_get_stolen_reserved(dev_priv, &reserved_base,
+					 &reserved_size);
+		break;
+	default:
+		if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv))
+			bdw_get_stolen_reserved(dev_priv, &reserved_base,
+						&reserved_size);
+		else
+			gen8_get_stolen_reserved(dev_priv, &reserved_base,
+						 &reserved_size);
+		break;
 	}
 
-	if (WARN_ON(bios_reserved > dev_priv->gtt.stolen_size))
+	/* It is possible for the reserved base to be zero, but the register
+	 * field for size doesn't have a zero option. */
+	if (reserved_base == 0) {
+		reserved_size = 0;
+		reserved_base = stolen_top;
+	}
+
+	if (reserved_base < dev_priv->mm.stolen_base ||
+	    reserved_base + reserved_size > stolen_top) {
+		DRM_DEBUG_KMS("Stolen reserved area [0x%08lx - 0x%08lx] outside stolen memory [0x%08lx - 0x%08lx]\n",
+			      reserved_base, reserved_base + reserved_size,
+			      dev_priv->mm.stolen_base, stolen_top);
 		return 0;
+	}
+
+	/* It is possible for the reserved area to end before the end of stolen
+	 * memory, so just consider the start. */
+	reserved_total = stolen_top - reserved_base;
+
+	DRM_DEBUG_KMS("Memory reserved for graphics device: %luK, usable: %luK\n",
+		      dev_priv->gtt.stolen_size >> 10,
+		      (dev_priv->gtt.stolen_size - reserved_total) >> 10);
 
 	/* Basic memrange allocator for stolen space */
 	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size -
-		    bios_reserved);
+		    reserved_total);
 
 	return 0;
 }

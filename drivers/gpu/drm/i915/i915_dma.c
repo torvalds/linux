@@ -1274,13 +1274,3 @@ const struct drm_ioctl_desc i915_ioctls[] = {
 };
 
 int i915_max_ioctl = ARRAY_SIZE(i915_ioctls);
-
-/*
- * This is really ugly: Because old userspace abused the linux agp interface to
- * manage the gtt, we need to claim that all intel devices are agp.  For
- * otherwise the drm core refuses to initialize the agp support code.
- */
-int i915_driver_device_is_agp(struct drm_device *dev)
-{
-	return 1;
-}

@@ -886,6 +886,17 @@ err:
 	memset(dev_priv->vbt.dsi.sequence, 0, sizeof(dev_priv->vbt.dsi.sequence));
 }
 
+static u8 translate_iboost(u8 val)
+{
+	static const u8 mapping[] = { 1, 3, 7 }; /* See VBT spec */
+
+	if (val >= ARRAY_SIZE(mapping)) {
+		DRM_DEBUG_KMS("Unsupported I_boost value found in VBT (%d), display may not work properly\n", val);
+		return 0;
+	}
+	return mapping[val];
+}
+
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			   const struct bdb_header *bdb)
 {
@@ -968,13 +979,28 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 
 	if (is_dp) {
-		if (aux_channel == 0x40 && port != PORT_A)
+		if (port == PORT_E) {
+			info->alternate_aux_channel = aux_channel;
+			/* if DDIE share aux channel with other port, then
+			 * DP couldn't exist on the shared port. Otherwise
+			 * they share the same aux channel and system
+			 * couldn't communicate with them seperately. */
+			if (aux_channel == DP_AUX_A)
+				dev_priv->vbt.ddi_port_info[PORT_A].supports_dp = 0;
+			else if (aux_channel == DP_AUX_B)
+				dev_priv->vbt.ddi_port_info[PORT_B].supports_dp = 0;
+			else if (aux_channel == DP_AUX_C)
+				dev_priv->vbt.ddi_port_info[PORT_C].supports_dp = 0;
+			else if (aux_channel == DP_AUX_D)
+				dev_priv->vbt.ddi_port_info[PORT_D].supports_dp = 0;
+		}
+		else if (aux_channel == DP_AUX_A && port != PORT_A)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port A\n");
-		if (aux_channel == 0x10 && port != PORT_B)
+		else if (aux_channel == DP_AUX_B && port != PORT_B)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port B\n");
-		if (aux_channel == 0x20 && port != PORT_C)
+		else if (aux_channel == DP_AUX_C && port != PORT_C)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port C\n");
-		if (aux_channel == 0x30 && port != PORT_D)
+		else if (aux_channel == DP_AUX_D && port != PORT_D)
 			DRM_DEBUG_KMS("Unexpected AUX channel for port D\n");
 	}
 
@@ -985,6 +1011,16 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			      port_name(port),
 			      hdmi_level_shift);
 		info->hdmi_level_shift = hdmi_level_shift;
+	}
+
+	/* Parse the I_boost config for SKL and above */
+	if (bdb->version >= 196 && (child->common.flags_1 & IBOOST_ENABLE)) {
+		info->dp_boost_level = translate_iboost(child->common.iboost_level & 0xF);
+		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
+			      port_name(port), info->dp_boost_level);
+		info->hdmi_boost_level = translate_iboost(child->common.iboost_level >> 4);
+		DRM_DEBUG_KMS("VBT HDMI boost level for port %c: %d\n",
+			      port_name(port), info->hdmi_boost_level);
 	}
 }
 

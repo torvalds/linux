@@ -3645,74 +3645,40 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 	return 0;
 }
 
-static void hsw_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
+static void hsw_trans_edp_pipe_A_crc_wa(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_A]);
 	struct intel_crtc_state *pipe_config;
+	struct drm_atomic_state *state;
+	int ret = 0;
 
 	drm_modeset_lock_all(dev);
-	pipe_config = to_intel_crtc_state(crtc->base.state);
+	state = drm_atomic_state_alloc(dev);
+	if (!state) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	/*
-	 * If we use the eDP transcoder we need to make sure that we don't
-	 * bypass the pfit, since otherwise the pipe CRC source won't work. Only
-	 * relevant on hsw with pipe A when using the always-on power well
-	 * routing.
-	 */
+	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(&crtc->base);
+	pipe_config = intel_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(pipe_config)) {
+		ret = PTR_ERR(pipe_config);
+		goto out;
+	}
+
+	pipe_config->pch_pfit.force_thru = enable;
 	if (pipe_config->cpu_transcoder == TRANSCODER_EDP &&
-	    !pipe_config->pch_pfit.enabled) {
-		bool active = pipe_config->base.active;
+	    pipe_config->pch_pfit.enabled != enable)
+		pipe_config->base.connectors_changed = true;
 
-		if (active) {
-			intel_crtc_control(&crtc->base, false);
-			pipe_config = to_intel_crtc_state(crtc->base.state);
-		}
-
-		pipe_config->pch_pfit.force_thru = true;
-
-		intel_display_power_get(dev_priv,
-					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
-
-		if (active)
-			intel_crtc_control(&crtc->base, true);
-	}
+	ret = drm_atomic_commit(state);
+out:
 	drm_modeset_unlock_all(dev);
-}
-
-static void hsw_undo_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc =
-		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_A]);
-	struct intel_crtc_state *pipe_config;
-
-	drm_modeset_lock_all(dev);
-	/*
-	 * If we use the eDP transcoder we need to make sure that we don't
-	 * bypass the pfit, since otherwise the pipe CRC source won't work. Only
-	 * relevant on hsw with pipe A when using the always-on power well
-	 * routing.
-	 */
-	pipe_config = to_intel_crtc_state(crtc->base.state);
-	if (pipe_config->pch_pfit.force_thru) {
-		bool active = pipe_config->base.active;
-
-		if (active) {
-			intel_crtc_control(&crtc->base, false);
-			pipe_config = to_intel_crtc_state(crtc->base.state);
-		}
-
-		pipe_config->pch_pfit.force_thru = false;
-
-		intel_display_power_put(dev_priv,
-					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
-
-		if (active)
-			intel_crtc_control(&crtc->base, true);
-	}
-	drm_modeset_unlock_all(dev);
+	WARN(ret, "Toggling workaround to %i returns %i\n", enable, ret);
+	if (ret)
+		drm_atomic_state_free(state);
 }
 
 static int ivb_pipe_crc_ctl_reg(struct drm_device *dev,
@@ -3732,7 +3698,7 @@ static int ivb_pipe_crc_ctl_reg(struct drm_device *dev,
 		break;
 	case INTEL_PIPE_CRC_SOURCE_PF:
 		if (IS_HASWELL(dev) && pipe == PIPE_A)
-			hsw_trans_edp_pipe_A_crc_wa(dev);
+			hsw_trans_edp_pipe_A_crc_wa(dev, true);
 
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
 		break;
@@ -3844,7 +3810,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		else if (IS_VALLEYVIEW(dev))
 			vlv_undo_pipe_scramble_reset(dev, pipe);
 		else if (IS_HASWELL(dev) && pipe == PIPE_A)
-			hsw_undo_trans_edp_pipe_A_crc_wa(dev);
+			hsw_trans_edp_pipe_A_crc_wa(dev, false);
 
 		hsw_enable_ips(crtc);
 	}
@@ -4030,24 +3996,14 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 {
 	char *input_buffer;
 	int status = 0;
-	struct seq_file *m;
 	struct drm_device *dev;
 	struct drm_connector *connector;
 	struct list_head *connector_list;
 	struct intel_dp *intel_dp;
 	int val = 0;
 
-	m = file->private_data;
-	if (!m) {
-		status = -ENODEV;
-		return status;
-	}
-	dev = m->private;
+	dev = ((struct seq_file *)file->private_data)->private;
 
-	if (!dev) {
-		status = -ENODEV;
-		return status;
-	}
 	connector_list = &dev->mode_config.connector_list;
 
 	if (len == 0)
@@ -4071,9 +4027,7 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 		    DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
 
-		if (connector->connector_type ==
-		    DRM_MODE_CONNECTOR_DisplayPort &&
-		    connector->status == connector_status_connected &&
+		if (connector->status == connector_status_connected &&
 		    connector->encoder != NULL) {
 			intel_dp = enc_to_intel_dp(connector->encoder);
 			status = kstrtoint(input_buffer, 10, &val);
@@ -4104,9 +4058,6 @@ static int i915_displayport_test_active_show(struct seq_file *m, void *data)
 	struct drm_connector *connector;
 	struct list_head *connector_list = &dev->mode_config.connector_list;
 	struct intel_dp *intel_dp;
-
-	if (!dev)
-		return -ENODEV;
 
 	list_for_each_entry(connector, connector_list, head) {
 
@@ -4152,9 +4103,6 @@ static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 	struct list_head *connector_list = &dev->mode_config.connector_list;
 	struct intel_dp *intel_dp;
 
-	if (!dev)
-		return -ENODEV;
-
 	list_for_each_entry(connector, connector_list, head) {
 
 		if (connector->connector_type !=
@@ -4193,9 +4141,6 @@ static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 	struct drm_connector *connector;
 	struct list_head *connector_list = &dev->mode_config.connector_list;
 	struct intel_dp *intel_dp;
-
-	if (!dev)
-		return -ENODEV;
 
 	list_for_each_entry(connector, connector_list, head) {
 

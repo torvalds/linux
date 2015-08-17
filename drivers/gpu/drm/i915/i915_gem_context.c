@@ -287,6 +287,7 @@ err_unpin:
 	if (is_global_default_ctx && ctx->legacy_hw_ctx.rcs_state)
 		i915_gem_object_ggtt_unpin(ctx->legacy_hw_ctx.rcs_state);
 err_destroy:
+	idr_remove(&file_priv->context_idr, ctx->user_handle);
 	i915_gem_context_unreference(ctx);
 	return ERR_PTR(ret);
 }

@@ -1936,7 +1936,9 @@ static void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
 	/* PCH only available on ILK+ */
-	BUG_ON(INTEL_INFO(dev)->gen < 5);
+	if (INTEL_INFO(dev)->gen < 5)
+		return;
+
 	if (pll == NULL)
 		return;
 
@@ -2395,7 +2397,18 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 	 * a fence as the cost is not that onerous.
 	 */
 	ret = i915_gem_object_get_fence(obj);
-	if (ret)
+	if (ret == -EDEADLK) {
+		/*
+		 * -EDEADLK means there are no free fences
+		 * no pending flips.
+		 *
+		 * This is propagated to atomic, but it uses
+		 * -EDEADLK to force a locking recovery, so
+		 * change the returned error to -EBUSY.
+		 */
+		ret = -EBUSY;
+		goto err_unpin;
+	} else if (ret)
 		goto err_unpin;
 
 	i915_gem_object_pin_fence(obj);
@@ -5134,6 +5147,7 @@ static enum intel_display_power_domain port_to_power_domain(enum port port)
 {
 	switch (port) {
 	case PORT_A:
+	case PORT_E:
 		return POWER_DOMAIN_PORT_DDI_A_4_LANES;
 	case PORT_B:
 		return POWER_DOMAIN_PORT_DDI_B_4_LANES;
@@ -6271,67 +6285,6 @@ free:
 	return ret;
 }
 
-/* Master function to enable/disable CRTC and corresponding power wells */
-int intel_crtc_control(struct drm_crtc *crtc, bool enable)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_modeset_acquire_ctx *ctx = config->acquire_ctx;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *pipe_config;
-	struct drm_atomic_state *state;
-	int ret;
-
-	if (enable == intel_crtc->active)
-		return 0;
-
-	if (enable && !crtc->state->enable)
-		return 0;
-
-	/* this function should be called with drm_modeset_lock_all for now */
-	if (WARN_ON(!ctx))
-		return -EIO;
-	lockdep_assert_held(&ctx->ww_ctx);
-
-	state = drm_atomic_state_alloc(dev);
-	if (WARN_ON(!state))
-		return -ENOMEM;
-
-	state->acquire_ctx = ctx;
-	state->allow_modeset = true;
-
-	pipe_config = intel_atomic_get_crtc_state(state, intel_crtc);
-	if (IS_ERR(pipe_config)) {
-		ret = PTR_ERR(pipe_config);
-		goto err;
-	}
-	pipe_config->base.active = enable;
-
-	ret = drm_atomic_commit(state);
-	if (!ret)
-		return ret;
-
-err:
-	DRM_ERROR("Updating crtc active failed with %i\n", ret);
-	drm_atomic_state_free(state);
-	return ret;
-}
-
-/**
- * Sets the power management mode of the pipe and plane.
- */
-void intel_crtc_update_dpms(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *intel_encoder;
-	bool enable = false;
-
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
-		enable |= intel_encoder->connectors_active;
-
-	intel_crtc_control(crtc, enable);
-}
-
 void intel_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
@@ -6340,62 +6293,42 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_encoder);
 }
 
-/* Simple dpms helper for encoders with just one connector, no cloning and only
- * one kind of off state. It clamps all !ON modes to fully OFF and changes the
- * state of the entire output pipe. */
-static void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
-{
-	if (mode == DRM_MODE_DPMS_ON) {
-		encoder->connectors_active = true;
-
-		intel_crtc_update_dpms(encoder->base.crtc);
-	} else {
-		encoder->connectors_active = false;
-
-		intel_crtc_update_dpms(encoder->base.crtc);
-	}
-}
-
 /* Cross check the actual hw state with our own modeset state tracking (and it's
  * internal consistency). */
 static void intel_connector_check_state(struct intel_connector *connector)
 {
+	struct drm_crtc *crtc = connector->base.state->crtc;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.base.id,
+		      connector->base.name);
+
 	if (connector->get_hw_state(connector)) {
-		struct intel_encoder *encoder = connector->encoder;
-		struct drm_crtc *crtc;
-		bool encoder_enabled;
-		enum pipe pipe;
+		struct drm_encoder *encoder = &connector->encoder->base;
+		struct drm_connector_state *conn_state = connector->base.state;
 
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-			      connector->base.base.id,
-			      connector->base.name);
+		I915_STATE_WARN(!crtc,
+			 "connector enabled without attached crtc\n");
 
-		/* there is no real hw state for MST connectors */
-		if (connector->mst_port)
+		if (!crtc)
 			return;
 
-		I915_STATE_WARN(connector->base.dpms == DRM_MODE_DPMS_OFF,
-		     "wrong connector dpms state\n");
-		I915_STATE_WARN(connector->base.encoder != &encoder->base,
-		     "active connector not linked to encoder\n");
+		I915_STATE_WARN(!crtc->state->active,
+		      "connector is active, but attached crtc isn't\n");
 
-		if (encoder) {
-			I915_STATE_WARN(!encoder->connectors_active,
-			     "encoder->connectors_active not set\n");
+		if (!encoder)
+			return;
 
-			encoder_enabled = encoder->get_hw_state(encoder, &pipe);
-			I915_STATE_WARN(!encoder_enabled, "encoder not enabled\n");
-			if (I915_STATE_WARN_ON(!encoder->base.crtc))
-				return;
+		I915_STATE_WARN(conn_state->best_encoder != encoder,
+			"atomic encoder doesn't match attached encoder\n");
 
-			crtc = encoder->base.crtc;
-
-			I915_STATE_WARN(!crtc->state->enable,
-					"crtc not enabled\n");
-			I915_STATE_WARN(!to_intel_crtc(crtc)->active, "crtc not active\n");
-			I915_STATE_WARN(pipe != to_intel_crtc(crtc)->pipe,
-			     "encoder active on the wrong pipe\n");
-		}
+		I915_STATE_WARN(conn_state->crtc != encoder->crtc,
+			"attached encoder crtc differs from connector crtc\n");
+	} else {
+		I915_STATE_WARN(crtc && crtc->state->active,
+			"attached crtc is active, but connector isn't\n");
+		I915_STATE_WARN(!crtc && connector->base.state->best_encoder,
+			"best encoder set without crtc!\n");
 	}
 }
 
@@ -6425,28 +6358,6 @@ struct intel_connector *intel_connector_alloc(void)
 	}
 
 	return connector;
-}
-
-/* Even simpler default implementation, if there's really no special case to
- * consider. */
-int intel_connector_dpms(struct drm_connector *connector, int mode)
-{
-	/* All the simple cases only support two dpms states. */
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
-
-	if (mode == connector->dpms)
-		return 0;
-
-	connector->dpms = mode;
-
-	/* Only need to change hw state when actually enabled */
-	if (connector->encoder)
-		intel_encoder_dpms(to_intel_encoder(connector->encoder), mode);
-
-	intel_modeset_check_state(connector->dev);
-
-	return 0;
 }
 
 /* Simple connector->get_hw_state implementation for encoders that support only
@@ -10764,14 +10675,11 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 		container_of(__work, struct intel_unpin_work, work);
 	struct intel_crtc *crtc = to_intel_crtc(work->crtc);
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_plane *primary = crtc->base.primary;
 
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(work->old_fb, primary->state);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
-
-	intel_fbc_update(dev_priv);
 
 	if (work->flip_queued_req)
 		i915_gem_request_assign(&work->flip_queued_req, NULL);
@@ -11544,7 +11452,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			  to_intel_plane(primary)->frontbuffer_bit);
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_fbc_disable(dev_priv);
+	intel_fbc_disable_crtc(intel_crtc);
 	intel_frontbuffer_flip_prepare(dev,
 				       to_intel_plane(primary)->frontbuffer_bit);
 
@@ -11840,17 +11748,13 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc_state);
 	struct drm_atomic_state *state = crtc_state->state;
-	int ret, idx = crtc->base.id;
+	int ret;
 	bool mode_changed = needs_modeset(crtc_state);
 
 	if (mode_changed && !check_encoder_cloning(state, intel_crtc)) {
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
 		return -EINVAL;
 	}
-
-	I915_STATE_WARN(crtc->state->active != intel_crtc->active,
-		"[CRTC:%i] mismatch between state->active(%i) and crtc->active(%i)\n",
-		idx, crtc->state->active, intel_crtc->active);
 
 	if (mode_changed && !crtc_state->active)
 		intel_crtc->atomic.update_wm_post = true;
@@ -12160,6 +12064,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	struct intel_dpll_hw_state dpll_hw_state;
 	enum intel_dpll_id shared_dpll;
 	uint32_t ddi_pll_sel;
+	bool force_thru;
 
 	/* FIXME: before the switch to atomic started, a new pipe_config was
 	 * kzalloc'd. Code that depends on any field being zero should be
@@ -12171,6 +12076,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	shared_dpll = crtc_state->shared_dpll;
 	dpll_hw_state = crtc_state->dpll_hw_state;
 	ddi_pll_sel = crtc_state->ddi_pll_sel;
+	force_thru = crtc_state->pch_pfit.force_thru;
 
 	memset(crtc_state, 0, sizeof *crtc_state);
 
@@ -12179,6 +12085,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	crtc_state->shared_dpll = shared_dpll;
 	crtc_state->dpll_hw_state = dpll_hw_state;
 	crtc_state->ddi_pll_sel = ddi_pll_sel;
+	crtc_state->pch_pfit.force_thru = force_thru;
 }
 
 static int
@@ -12280,7 +12187,9 @@ encoder_retry:
 		goto encoder_retry;
 	}
 
-	pipe_config->dither = pipe_config->pipe_bpp != base_bpp;
+	/* Dithering seems to not pass-through bits correctly when it should, so
+	 * only enable it on 6bpc panels. */
+	pipe_config->dither = pipe_config->pipe_bpp == 6*3;
 	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
@@ -12288,48 +12197,15 @@ fail:
 	return ret;
 }
 
-static bool intel_crtc_in_use(struct drm_crtc *crtc)
-{
-	struct drm_encoder *encoder;
-	struct drm_device *dev = crtc->dev;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		if (encoder->crtc == crtc)
-			return true;
-
-	return false;
-}
-
 static void
-intel_modeset_update_state(struct drm_atomic_state *state)
+intel_modeset_update_crtc_state(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
-	struct intel_encoder *intel_encoder;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_connector *connector;
 	int i;
-
-	intel_shared_dpll_commit(state);
-
-	for_each_intel_encoder(dev, intel_encoder) {
-		if (!intel_encoder->base.crtc)
-			continue;
-
-		crtc = intel_encoder->base.crtc;
-		crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
-		if (!crtc_state || !needs_modeset(crtc->state))
-			continue;
-
-		intel_encoder->connectors_active = false;
-	}
-
-	drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
 	/* Double check state. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		WARN_ON(crtc->state->enable != intel_crtc_in_use(crtc));
-
 		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
 
 		/* Update hwmode for vblank functions */
@@ -12337,21 +12213,6 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 			crtc->hwmode = crtc->state->adjusted_mode;
 		else
 			crtc->hwmode.crtc_clock = 0;
-	}
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder || !connector->encoder->crtc)
-			continue;
-
-		crtc = connector->encoder->crtc;
-		crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
-		if (!crtc_state || !needs_modeset(crtc->state))
-			continue;
-
-		if (crtc->state->active) {
-			intel_encoder = to_intel_encoder(connector->encoder);
-			intel_encoder->connectors_active = true;
-		}
 	}
 }
 
@@ -12702,20 +12563,23 @@ static void check_wm_state(struct drm_device *dev)
 }
 
 static void
-check_connector_state(struct drm_device *dev)
+check_connector_state(struct drm_device *dev,
+		      struct drm_atomic_state *old_state)
 {
-	struct intel_connector *connector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector *connector;
+	int i;
 
-	for_each_intel_connector(dev, connector) {
-		struct drm_encoder *encoder = connector->base.encoder;
-		struct drm_connector_state *state = connector->base.state;
+	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
+		struct drm_encoder *encoder = connector->encoder;
+		struct drm_connector_state *state = connector->state;
 
 		/* This also checks the encoder/connector hw state with the
 		 * ->get_hw_state callbacks. */
-		intel_connector_check_state(connector);
+		intel_connector_check_state(to_intel_connector(connector));
 
 		I915_STATE_WARN(state->best_encoder != encoder,
-		     "connector's staged encoder doesn't match current encoder\n");
+		     "connector's atomic encoder doesn't match legacy encoder\n");
 	}
 }
 
@@ -12727,133 +12591,106 @@ check_encoder_state(struct drm_device *dev)
 
 	for_each_intel_encoder(dev, encoder) {
 		bool enabled = false;
-		bool active = false;
-		enum pipe pipe, tracked_pipe;
+		enum pipe pipe;
 
 		DRM_DEBUG_KMS("[ENCODER:%d:%s]\n",
 			      encoder->base.base.id,
 			      encoder->base.name);
 
-		I915_STATE_WARN(encoder->connectors_active && !encoder->base.crtc,
-		     "encoder's active_connectors set, but no crtc\n");
-
 		for_each_intel_connector(dev, connector) {
-			if (connector->base.encoder != &encoder->base)
+			if (connector->base.state->best_encoder != &encoder->base)
 				continue;
 			enabled = true;
-			if (connector->base.dpms != DRM_MODE_DPMS_OFF)
-				active = true;
 
 			I915_STATE_WARN(connector->base.state->crtc !=
 					encoder->base.crtc,
 			     "connector's crtc doesn't match encoder crtc\n");
 		}
-		/*
-		 * for MST connectors if we unplug the connector is gone
-		 * away but the encoder is still connected to a crtc
-		 * until a modeset happens in response to the hotplug.
-		 */
-		if (!enabled && encoder->base.encoder_type == DRM_MODE_ENCODER_DPMST)
-			continue;
 
 		I915_STATE_WARN(!!encoder->base.crtc != enabled,
 		     "encoder's enabled state mismatch "
 		     "(expected %i, found %i)\n",
 		     !!encoder->base.crtc, enabled);
-		I915_STATE_WARN(active && !encoder->base.crtc,
-		     "active encoder with no crtc\n");
 
-		I915_STATE_WARN(encoder->connectors_active != active,
-		     "encoder's computed active state doesn't match tracked active state "
-		     "(expected %i, found %i)\n", active, encoder->connectors_active);
+		if (!encoder->base.crtc) {
+			bool active;
 
-		active = encoder->get_hw_state(encoder, &pipe);
-		I915_STATE_WARN(active != encoder->connectors_active,
-		     "encoder's hw state doesn't match sw tracking "
-		     "(expected %i, found %i)\n",
-		     encoder->connectors_active, active);
-
-		if (!encoder->base.crtc)
-			continue;
-
-		tracked_pipe = to_intel_crtc(encoder->base.crtc)->pipe;
-		I915_STATE_WARN(active && pipe != tracked_pipe,
-		     "active encoder's pipe doesn't match"
-		     "(expected %i, found %i)\n",
-		     tracked_pipe, pipe);
-
+			active = encoder->get_hw_state(encoder, &pipe);
+			I915_STATE_WARN(active,
+			     "encoder detached but still enabled on pipe %c.\n",
+			     pipe_name(pipe));
+		}
 	}
 }
 
 static void
-check_crtc_state(struct drm_device *dev)
+check_crtc_state(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
-	struct intel_crtc_state pipe_config;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
 
-	for_each_intel_crtc(dev, crtc) {
-		bool enabled = false;
-		bool active = false;
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		struct intel_crtc_state *pipe_config, *sw_config;
+		bool active;
 
-		memset(&pipe_config, 0, sizeof(pipe_config));
-
-		DRM_DEBUG_KMS("[CRTC:%d]\n",
-			      crtc->base.base.id);
-
-		I915_STATE_WARN(crtc->active && !crtc->base.state->enable,
-		     "active crtc, but not enabled in sw tracking\n");
-
-		for_each_intel_encoder(dev, encoder) {
-			if (encoder->base.crtc != &crtc->base)
-				continue;
-			enabled = true;
-			if (encoder->connectors_active)
-				active = true;
-		}
-
-		I915_STATE_WARN(active != crtc->active,
-		     "crtc's computed active state doesn't match tracked active state "
-		     "(expected %i, found %i)\n", active, crtc->active);
-		I915_STATE_WARN(enabled != crtc->base.state->enable,
-		     "crtc's computed enabled state doesn't match tracked enabled state "
-		     "(expected %i, found %i)\n", enabled,
-				crtc->base.state->enable);
-
-		active = dev_priv->display.get_pipe_config(crtc,
-							   &pipe_config);
-
-		/* hw state is inconsistent with the pipe quirk */
-		if ((crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-		    (crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
-			active = crtc->active;
-
-		for_each_intel_encoder(dev, encoder) {
-			enum pipe pipe;
-			if (encoder->base.crtc != &crtc->base)
-				continue;
-			if (encoder->get_hw_state(encoder, &pipe))
-				encoder->get_config(encoder, &pipe_config);
-		}
-
-		I915_STATE_WARN(crtc->active != active,
-		     "crtc active state doesn't match with hw state "
-		     "(expected %i, found %i)\n", crtc->active, active);
-
-		I915_STATE_WARN(crtc->active != crtc->base.state->active,
-		     "transitional active state does not match atomic hw state "
-		     "(expected %i, found %i)\n", crtc->base.state->active, crtc->active);
-
-		if (!active)
+		if (!needs_modeset(crtc->state))
 			continue;
 
-		if (!intel_pipe_config_compare(dev, crtc->config,
-					       &pipe_config, false)) {
+		__drm_atomic_helper_crtc_destroy_state(crtc, old_crtc_state);
+		pipe_config = to_intel_crtc_state(old_crtc_state);
+		memset(pipe_config, 0, sizeof(*pipe_config));
+		pipe_config->base.crtc = crtc;
+		pipe_config->base.state = old_state;
+
+		DRM_DEBUG_KMS("[CRTC:%d]\n",
+			      crtc->base.id);
+
+		active = dev_priv->display.get_pipe_config(intel_crtc,
+							   pipe_config);
+
+		/* hw state is inconsistent with the pipe quirk */
+		if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
+		    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+			active = crtc->state->active;
+
+		I915_STATE_WARN(crtc->state->active != active,
+		     "crtc active state doesn't match with hw state "
+		     "(expected %i, found %i)\n", crtc->state->active, active);
+
+		I915_STATE_WARN(intel_crtc->active != crtc->state->active,
+		     "transitional active state does not match atomic hw state "
+		     "(expected %i, found %i)\n", crtc->state->active, intel_crtc->active);
+
+		for_each_encoder_on_crtc(dev, crtc, encoder) {
+			enum pipe pipe;
+
+			active = encoder->get_hw_state(encoder, &pipe);
+			I915_STATE_WARN(active != crtc->state->active,
+				"[ENCODER:%i] active %i with crtc active %i\n",
+				encoder->base.base.id, active, crtc->state->active);
+
+			I915_STATE_WARN(active && intel_crtc->pipe != pipe,
+					"Encoder connected to wrong pipe %c\n",
+					pipe_name(pipe));
+
+			if (active)
+				encoder->get_config(encoder, pipe_config);
+		}
+
+		if (!crtc->state->active)
+			continue;
+
+		sw_config = to_intel_crtc_state(crtc->state);
+		if (!intel_pipe_config_compare(dev, sw_config,
+					       pipe_config, false)) {
 			I915_STATE_WARN(1, "pipe state doesn't match!\n");
-			intel_dump_pipe_config(crtc, &pipe_config,
+			intel_dump_pipe_config(intel_crtc, pipe_config,
 					       "[hw state]");
-			intel_dump_pipe_config(crtc, crtc->config,
+			intel_dump_pipe_config(intel_crtc, sw_config,
 					       "[sw state]");
 		}
 	}
@@ -12908,13 +12745,14 @@ check_shared_dpll_state(struct drm_device *dev)
 	}
 }
 
-void
-intel_modeset_check_state(struct drm_device *dev)
+static void
+intel_modeset_check_state(struct drm_device *dev,
+			  struct drm_atomic_state *old_state)
 {
 	check_wm_state(dev);
-	check_connector_state(dev);
+	check_connector_state(dev, old_state);
 	check_encoder_state(dev);
-	check_crtc_state(dev);
+	check_crtc_state(dev, old_state);
 	check_shared_dpll_state(dev);
 }
 
@@ -13270,12 +13108,14 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	/* Only after disabling all output pipelines that will be changed can we
 	 * update the the output configuration. */
-	intel_modeset_update_state(state);
+	intel_modeset_update_crtc_state(state);
 
-	/* The state has been swaped above, so state actually contains the
-	 * old state now. */
-	if (any_ms)
+	if (any_ms) {
+		intel_shared_dpll_commit(state);
+
+		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 		modeset_update_crtc_power_domains(state);
+	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
@@ -13298,10 +13138,11 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 	drm_atomic_helper_cleanup_planes(dev, state);
-	drm_atomic_state_free(state);
 
 	if (any_ms)
-		intel_modeset_check_state(dev);
+		intel_modeset_check_state(dev, state);
+
+	drm_atomic_state_free(state);
 
 	return 0;
 }
@@ -14106,8 +13947,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		 */
 		found = I915_READ(DDI_BUF_CTL_A) & DDI_INIT_DISPLAY_DETECTED;
 		/* WaIgnoreDDIAStrap: skl */
-		if (found ||
-		    (IS_SKYLAKE(dev) && INTEL_REVID(dev) < SKL_REVID_D0))
+		if (found || IS_SKYLAKE(dev))
 			intel_ddi_init(dev, PORT_A);
 
 		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
@@ -14271,7 +14111,7 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
-	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
+	intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
@@ -15065,8 +14905,10 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
 	enable = false;
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-		enable |= encoder->connectors_active;
+	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
+		enable = true;
+		break;
+	}
 
 	if (!enable)
 		intel_crtc_disable_noatomic(&crtc->base);
@@ -15093,10 +14935,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 *  actually up, hence no need to break them. */
 		WARN_ON(crtc->active);
 
-		for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
-			WARN_ON(encoder->connectors_active);
+		for_each_encoder_on_crtc(dev, &crtc->base, encoder)
 			encoder->base.crtc = NULL;
-		}
 	}
 
 	if (crtc->active || HAS_GMCH_DISPLAY(dev)) {
@@ -15122,6 +14962,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 {
 	struct intel_connector *connector;
 	struct drm_device *dev = encoder->base.dev;
+	bool active = false;
 
 	/* We need to check both for a crtc link (meaning that the
 	 * encoder is active and trying to read from a pipe) and the
@@ -15129,7 +14970,15 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	bool has_active_crtc = encoder->base.crtc &&
 		to_intel_crtc(encoder->base.crtc)->active;
 
-	if (encoder->connectors_active && !has_active_crtc) {
+	for_each_intel_connector(dev, connector) {
+		if (connector->base.encoder != &encoder->base)
+			continue;
+
+		active = true;
+		break;
+	}
+
+	if (active && !has_active_crtc) {
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] has active connectors but no active pipe!\n",
 			      encoder->base.base.id,
 			      encoder->base.name);
@@ -15146,7 +14995,6 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 				encoder->post_disable(encoder);
 		}
 		encoder->base.crtc = NULL;
-		encoder->connectors_active = false;
 
 		/* Inconsistent output/port/pipe state happens presumably due to
 		 * a bug in one of the get_hw_state functions. Or someplace else
@@ -15308,7 +15156,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			encoder->base.crtc = NULL;
 		}
 
-		encoder->connectors_active = false;
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] hw state readout: %s, pipe %c\n",
 			      encoder->base.base.id,
 			      encoder->base.name,
@@ -15319,7 +15166,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	for_each_intel_connector(dev, connector) {
 		if (connector->get_hw_state(connector)) {
 			connector->base.dpms = DRM_MODE_DPMS_ON;
-			connector->encoder->connectors_active = true;
 			connector->base.encoder = &connector->encoder->base;
 		} else {
 			connector->base.dpms = DRM_MODE_DPMS_OFF;

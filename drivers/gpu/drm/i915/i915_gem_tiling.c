@@ -31,201 +31,32 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-/** @file i915_gem_tiling.c
- *
- * Support for managing tiling state of buffer objects.
- *
- * The idea behind tiling is to increase cache hit rates by rearranging
- * pixel data so that a group of pixel accesses are in the same cacheline.
- * Performance improvement from doing this on the back/depth buffer are on
- * the order of 30%.
- *
- * Intel architectures make this somewhat more complicated, though, by
- * adjustments made to addressing of data when the memory is in interleaved
- * mode (matched pairs of DIMMS) to improve memory bandwidth.
- * For interleaved memory, the CPU sends every sequential 64 bytes
- * to an alternate memory channel so it can get the bandwidth from both.
- *
- * The GPU also rearranges its accesses for increased bandwidth to interleaved
- * memory, and it matches what the CPU does for non-tiled.  However, when tiled
- * it does it a little differently, since one walks addresses not just in the
- * X direction but also Y.  So, along with alternating channels when bit
- * 6 of the address flips, it also alternates when other bits flip --  Bits 9
- * (every 512 bytes, an X tile scanline) and 10 (every two X tile scanlines)
- * are common to both the 915 and 965-class hardware.
- *
- * The CPU also sometimes XORs in higher bits as well, to improve
- * bandwidth doing strided access like we do so frequently in graphics.  This
- * is called "Channel XOR Randomization" in the MCH documentation.  The result
- * is that the CPU is XORing in either bit 11 or bit 17 to bit 6 of its address
- * decode.
- *
- * All of this bit 6 XORing has an effect on our memory management,
- * as we need to make sure that the 3d driver can correctly address object
- * contents.
- *
- * If we don't have interleaved memory, all tiling is safe and no swizzling is
- * required.
- *
- * When bit 17 is XORed in, we simply refuse to tile at all.  Bit
- * 17 is not just a page offset, so as we page an objet out and back in,
- * individual pages in it will have different bit 17 addresses, resulting in
- * each 64 bytes being swapped with its neighbor!
- *
- * Otherwise, if interleaved, we have to tell the 3d driver what the address
- * swizzling it needs to do is, since it's writing with the CPU to the pages
- * (bit 6 and potentially bit 11 XORed in), and the GPU is reading from the
- * pages (bit 6, 9, and 10 XORed in), resulting in a cumulative bit swizzling
- * required by the CPU of XORing in bit 6, 9, 10, and potentially 11, in order
- * to match what the GPU expects.
- */
-
 /**
- * Detects bit 6 swizzling of address lookup between IGD access and CPU
- * access through main memory.
+ * DOC: buffer object tiling
+ *
+ * i915_gem_set_tiling() and i915_gem_get_tiling() is the userspace interface to
+ * declare fence register requirements.
+ *
+ * In principle GEM doesn't care at all about the internal data layout of an
+ * object, and hence it also doesn't care about tiling or swizzling. There's two
+ * exceptions:
+ *
+ * - For X and Y tiling the hardware provides detilers for CPU access, so called
+ *   fences. Since there's only a limited amount of them the kernel must manage
+ *   these, and therefore userspace must tell the kernel the object tiling if it
+ *   wants to use fences for detiling.
+ * - On gen3 and gen4 platforms have a swizzling pattern for tiled objects which
+ *   depends upon the physical page frame number. When swapping such objects the
+ *   page frame number might change and the kernel must be able to fix this up
+ *   and hence now the tiling. Note that on a subset of platforms with
+ *   asymmetric memory channel population the swizzling pattern changes in an
+ *   unknown way, and for those the kernel simply forbids swapping completely.
+ *
+ * Since neither of this applies for new tiling layouts on modern platforms like
+ * W, Ys and Yf tiling GEM only allows object tiling to be set to X or Y tiled.
+ * Anything else can be handled in userspace entirely without the kernel's
+ * invovlement.
  */
-void
-i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
-
-	if (INTEL_INFO(dev)->gen >= 8 || IS_VALLEYVIEW(dev)) {
-		/*
-		 * On BDW+, swizzling is not used. We leave the CPU memory
-		 * controller in charge of optimizing memory accesses without
-		 * the extra address manipulation GPU side.
-		 *
-		 * VLV and CHV don't have GPU swizzling.
-		 */
-		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (INTEL_INFO(dev)->gen >= 6) {
-		if (dev_priv->preserve_bios_swizzle) {
-			if (I915_READ(DISP_ARB_CTL) &
-			    DISP_TILE_SURFACE_SWIZZLING) {
-				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
-				swizzle_y = I915_BIT_6_SWIZZLE_9;
-			} else {
-				swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-			}
-		} else {
-			uint32_t dimm_c0, dimm_c1;
-			dimm_c0 = I915_READ(MAD_DIMM_C0);
-			dimm_c1 = I915_READ(MAD_DIMM_C1);
-			dimm_c0 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
-			dimm_c1 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
-			/* Enable swizzling when the channels are populated
-			 * with identically sized dimms. We don't need to check
-			 * the 3rd channel because no cpu with gpu attached
-			 * ships in that configuration. Also, swizzling only
-			 * makes sense for 2 channels anyway. */
-			if (dimm_c0 == dimm_c1) {
-				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
-				swizzle_y = I915_BIT_6_SWIZZLE_9;
-			} else {
-				swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-			}
-		}
-	} else if (IS_GEN5(dev)) {
-		/* On Ironlake whatever DRAM config, GPU always do
-		 * same swizzling setup.
-		 */
-		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
-		swizzle_y = I915_BIT_6_SWIZZLE_9;
-	} else if (IS_GEN2(dev)) {
-		/* As far as we know, the 865 doesn't have these bit 6
-		 * swizzling issues.
-		 */
-		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (IS_MOBILE(dev) || (IS_GEN3(dev) && !IS_G33(dev))) {
-		uint32_t dcc;
-
-		/* On 9xx chipsets, channel interleave by the CPU is
-		 * determined by DCC.  For single-channel, neither the CPU
-		 * nor the GPU do swizzling.  For dual channel interleaved,
-		 * the GPU's interleave is bit 9 and 10 for X tiled, and bit
-		 * 9 for Y tiled.  The CPU's interleave is independent, and
-		 * can be based on either bit 11 (haven't seen this yet) or
-		 * bit 17 (common).
-		 */
-		dcc = I915_READ(DCC);
-		switch (dcc & DCC_ADDRESSING_MODE_MASK) {
-		case DCC_ADDRESSING_MODE_SINGLE_CHANNEL:
-		case DCC_ADDRESSING_MODE_DUAL_CHANNEL_ASYMMETRIC:
-			swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-			swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-			break;
-		case DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED:
-			if (dcc & DCC_CHANNEL_XOR_DISABLE) {
-				/* This is the base swizzling by the GPU for
-				 * tiled buffers.
-				 */
-				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
-				swizzle_y = I915_BIT_6_SWIZZLE_9;
-			} else if ((dcc & DCC_CHANNEL_XOR_BIT_17) == 0) {
-				/* Bit 11 swizzling by the CPU in addition. */
-				swizzle_x = I915_BIT_6_SWIZZLE_9_10_11;
-				swizzle_y = I915_BIT_6_SWIZZLE_9_11;
-			} else {
-				/* Bit 17 swizzling by the CPU in addition. */
-				swizzle_x = I915_BIT_6_SWIZZLE_9_10_17;
-				swizzle_y = I915_BIT_6_SWIZZLE_9_17;
-			}
-			break;
-		}
-
-		/* check for L-shaped memory aka modified enhanced addressing */
-		if (IS_GEN4(dev)) {
-			uint32_t ddc2 = I915_READ(DCC2);
-
-			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE))
-				dev_priv->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
-		}
-
-		if (dcc == 0xffffffff) {
-			DRM_ERROR("Couldn't read from MCHBAR.  "
-				  "Disabling tiling.\n");
-			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
-		}
-	} else {
-		/* The 965, G33, and newer, have a very flexible memory
-		 * configuration.  It will enable dual-channel mode
-		 * (interleaving) on as much memory as it can, and the GPU
-		 * will additionally sometimes enable different bit 6
-		 * swizzling for tiled objects from the CPU.
-		 *
-		 * Here's what I found on the G965:
-		 *    slot fill         memory size  swizzling
-		 * 0A   0B   1A   1B    1-ch   2-ch
-		 * 512  0    0    0     512    0     O
-		 * 512  0    512  0     16     1008  X
-		 * 512  0    0    512   16     1008  X
-		 * 0    512  0    512   16     1008  X
-		 * 1024 1024 1024 0     2048   1024  O
-		 *
-		 * We could probably detect this based on either the DRB
-		 * matching, which was the case for the swizzling required in
-		 * the table above, or from the 1-ch value being less than
-		 * the minimum size of a rank.
-		 */
-		if (I915_READ16(C0DRB3) != I915_READ16(C1DRB3)) {
-			swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-			swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-		} else {
-			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
-			swizzle_y = I915_BIT_6_SWIZZLE_9;
-		}
-	}
-
-	dev_priv->mm.bit_6_swizzle_x = swizzle_x;
-	dev_priv->mm.bit_6_swizzle_y = swizzle_y;
-}
 
 /* Check pitch constriants for all chips & tiling formats */
 static bool
@@ -313,8 +144,18 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 }
 
 /**
+ * i915_gem_set_tiling - IOCTL handler to set tiling mode
+ * @dev: DRM device
+ * @data: data pointer for the ioctl
+ * @file: DRM file for the ioctl call
+ *
  * Sets the tiling mode of an object, returning the required swizzling of
  * bit 6 of addresses in the object.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
  */
 int
 i915_gem_set_tiling(struct drm_device *dev, void *data,
@@ -432,7 +273,17 @@ err:
 }
 
 /**
+ * i915_gem_get_tiling - IOCTL handler to get tiling mode
+ * @dev: DRM device
+ * @data: data pointer for the ioctl
+ * @file: DRM file for the ioctl call
+ *
  * Returns the current tiling mode and required bit 6 swizzling for the object.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
  */
 int
 i915_gem_get_tiling(struct drm_device *dev, void *data,
@@ -477,76 +328,4 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
-}
-
-/**
- * Swap every 64 bytes of this page around, to account for it having a new
- * bit 17 of its physical address and therefore being interpreted differently
- * by the GPU.
- */
-static void
-i915_gem_swizzle_page(struct page *page)
-{
-	char temp[64];
-	char *vaddr;
-	int i;
-
-	vaddr = kmap(page);
-
-	for (i = 0; i < PAGE_SIZE; i += 128) {
-		memcpy(temp, &vaddr[i], 64);
-		memcpy(&vaddr[i], &vaddr[i + 64], 64);
-		memcpy(&vaddr[i + 64], temp, 64);
-	}
-
-	kunmap(page);
-}
-
-void
-i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
-{
-	struct sg_page_iter sg_iter;
-	int i;
-
-	if (obj->bit_17 == NULL)
-		return;
-
-	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
-		struct page *page = sg_page_iter_page(&sg_iter);
-		char new_bit_17 = page_to_phys(page) >> 17;
-		if ((new_bit_17 & 0x1) !=
-		    (test_bit(i, obj->bit_17) != 0)) {
-			i915_gem_swizzle_page(page);
-			set_page_dirty(page);
-		}
-		i++;
-	}
-}
-
-void
-i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
-{
-	struct sg_page_iter sg_iter;
-	int page_count = obj->base.size >> PAGE_SHIFT;
-	int i;
-
-	if (obj->bit_17 == NULL) {
-		obj->bit_17 = kcalloc(BITS_TO_LONGS(page_count),
-				      sizeof(long), GFP_KERNEL);
-		if (obj->bit_17 == NULL) {
-			DRM_ERROR("Failed to allocate memory for bit 17 "
-				  "record\n");
-			return;
-		}
-	}
-
-	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
-		if (page_to_phys(sg_page_iter_page(&sg_iter)) & (1 << 17))
-			__set_bit(i, obj->bit_17);
-		else
-			__clear_bit(i, obj->bit_17);
-		i++;
-	}
 }
