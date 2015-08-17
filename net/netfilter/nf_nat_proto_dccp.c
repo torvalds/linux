@@ -69,7 +69,7 @@ dccp_manip_pkt(struct sk_buff *skb,
 	l3proto->csum_update(skb, iphdroff, &hdr->dccph_checksum,
 			     tuple, maniptype);
 	inet_proto_csum_replace2(&hdr->dccph_checksum, skb, oldport, newport,
-				 0);
+				 false);
 	return true;
 }
 

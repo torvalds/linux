@@ -301,7 +301,7 @@ out:
 EXPORT_SYMBOL(in6_pton);
 
 void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
-			      __be32 from, __be32 to, int pseudohdr)
+			      __be32 from, __be32 to, bool pseudohdr)
 {
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		csum_replace4(sum, from, to);
@@ -318,7 +318,7 @@ EXPORT_SYMBOL(inet_proto_csum_replace4);
 
 void inet_proto_csum_replace16(__sum16 *sum, struct sk_buff *skb,
 			       const __be32 *from, const __be32 *to,
-			       int pseudohdr)
+			       bool pseudohdr)
 {
 	__be32 diff[] = {
 		~from[0], ~from[1], ~from[2], ~from[3],
