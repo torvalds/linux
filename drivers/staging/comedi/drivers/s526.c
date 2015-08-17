@@ -133,7 +133,7 @@ union cmReg {
 
 struct s526_private {
 	unsigned int gpct_config[4];
-	unsigned short ai_config;
+	unsigned short ai_ctrl;
 };
 
 static void s526_gpct_write(struct comedi_device *dev,
@@ -388,36 +388,6 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int s526_ai_insn_config(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct s526_private *devpriv = dev->private;
-	int result = -EINVAL;
-
-	if (insn->n < 1)
-		return result;
-
-	result = insn->n;
-
-	/* data[0] : channels was set in relevant bits.
-	   data[1] : delay
-	 */
-	/* COMMENT: abbotti 2008-07-24: I don't know why you'd want to
-	 * enable channels here.  The channel should be enabled in the
-	 * INSN_READ handler. */
-
-	/*  Enable ADC interrupt */
-	outw(S526_INT_AI, dev->iobase + S526_INT_ENA_REG);
-	devpriv->ai_config = (data[0] & 0x3ff) << 5;
-	if (data[1] > 0)
-		devpriv->ai_config |= S526_AI_CTRL_DELAY;/* set the delay */
-
-	devpriv->ai_config |= 0x0001;		/* ADC start bit */
-
-	return result;
-}
-
 static int s526_eoc(struct comedi_device *dev,
 		    struct comedi_subdevice *s,
 		    struct comedi_insn *insn,
@@ -446,17 +416,21 @@ static int s526_ai_insn_read(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	/*
-	 * Set configured delay, enable conversion and read for requested
-	 * channel only, set "ADC start" bit.
-	 */
-	ctrl = (devpriv->ai_config & S526_AI_CTRL_DELAY) |
-	       S526_AI_CTRL_CONV(chan) | S526_AI_CTRL_READ(chan) |
+	ctrl = S526_AI_CTRL_CONV(chan) | S526_AI_CTRL_READ(chan) |
 	       S526_AI_CTRL_START;
+	if (ctrl != devpriv->ai_ctrl) {
+		/*
+		 * The multiplexor needs to change, enable the 15us
+		 * delay for the first sample.
+		 */
+		devpriv->ai_ctrl = ctrl;
+		ctrl |= S526_AI_CTRL_DELAY;
+	}
 
 	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
 		outw(ctrl, dev->iobase + S526_AI_CTRL_REG);
+		ctrl &= ~S526_AI_CTRL_DELAY;
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, s526_eoc, S526_INT_AI);
@@ -590,7 +564,6 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table	= &range_bipolar10;
 	s->len_chanlist	= 16;
 	s->insn_read	= s526_ai_insn_read;
-	s->insn_config	= s526_ai_insn_config;
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[2];
