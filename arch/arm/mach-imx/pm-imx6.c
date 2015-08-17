@@ -390,6 +390,25 @@ static const u32 imx6ul_mmdc_offset[] __initconst = {
 	0x020, 0x818, 0x01c,
 };
 
+static const u32 imx6ul_mmdc_io_lpddr2_offset[] __initconst = {
+	0x244, 0x248, 0x24c, 0x250, /* DQM0, DQM1, RAS, CAS */
+	0x27c, 0x498, 0x4a4, 0x490, /* SDCLK0, GPR_B0DS-B1DS, GPR_ADDS */
+	0x280, 0x284, 0x260, 0x264, /* SDQS0~1, SODT0, SODT1 */
+	0x494, 0x4b0, 0x274, 0x278, /* MODE_CTL, MODE, SDCKE0, SDCKE1 */
+	0x288,			    /* DRAM_RESET */
+};
+
+static const u32 imx6ul_mmdc_lpddr2_offset[] __initconst = {
+	0x01c, 0x85c, 0x800, 0x890,
+	0x8b8, 0x81c, 0x820, 0x82c,
+	0x830, 0x83c, 0x848, 0x850,
+	0x8c0, 0x8b8, 0x004, 0x008,
+	0x00c, 0x010, 0x038, 0x014,
+	0x018, 0x01c, 0x02c, 0x030,
+	0x040, 0x000, 0x020, 0x818,
+	0x800, 0x004, 0x01c,
+};
+
 static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
 	.mmdc_compat = "fsl,imx6q-mmdc",
 	.src_compat = "fsl,imx6q-src",
@@ -454,6 +473,17 @@ static const struct imx6_pm_socdata imx6ul_pm_data __initconst = {
 	.mmdc_io_offset = imx6ul_mmdc_io_offset,
 	.mmdc_num = ARRAY_SIZE(imx6ul_mmdc_offset),
 	.mmdc_offset = imx6ul_mmdc_offset,
+};
+
+static const struct imx6_pm_socdata imx6ul_lpddr2_pm_data __initconst = {
+	.mmdc_compat = "fsl,imx6ul-mmdc",
+	.src_compat = "fsl,imx6ul-src",
+	.iomuxc_compat = "fsl,imx6ul-iomuxc",
+	.gpc_compat = "fsl,imx6ul-gpc",
+	.mmdc_io_num = ARRAY_SIZE(imx6ul_mmdc_io_lpddr2_offset),
+	.mmdc_io_offset = imx6ul_mmdc_io_lpddr2_offset,
+	.mmdc_num = ARRAY_SIZE(imx6ul_mmdc_lpddr2_offset),
+	.mmdc_offset = imx6ul_mmdc_lpddr2_offset,
 };
 
 static struct map_desc iram_tlb_io_desc __initdata = {
@@ -1050,7 +1080,8 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	}
 
 	/* need to overwrite the value for some mmdc registers */
-	if (cpu_is_imx6sx() || cpu_is_imx6ul()) {
+	if ((cpu_is_imx6sx() || cpu_is_imx6ul()) &&
+		pm_info->ddr_type != IMX_DDR_TYPE_LPDDR2) {
 		pm_info->mmdc_val[20][1] = (pm_info->mmdc_val[20][1]
 			& 0xffff0000) | 0x0202;
 		pm_info->mmdc_val[23][1] = 0x8033;
@@ -1066,6 +1097,19 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		pm_info->mmdc_val[20][1] = 0x20024;
 		pm_info->mmdc_val[23][1] = 0x1748;
 		pm_info->mmdc_val[32][1] = 0xa1310003;
+	}
+
+	if (cpu_is_imx6ul() &&
+		pm_info->ddr_type == IMX_DDR_TYPE_LPDDR2) {
+		pm_info->mmdc_val[0][1] = 0x8000;
+		pm_info->mmdc_val[2][1] = 0xa1390003;
+		pm_info->mmdc_val[3][1] = 0x470000;
+		pm_info->mmdc_val[4][1] = 0x800;
+		pm_info->mmdc_val[13][1] = 0x800;
+		pm_info->mmdc_val[14][1] = 0x20012;
+		pm_info->mmdc_val[20][1] = 0x1748;
+		pm_info->mmdc_val[21][1] = 0x8000;
+		pm_info->mmdc_val[28][1] = 0xa1310003;
 	}
 
 	imx6_suspend_in_ocram_fn = fncpy(
@@ -1183,5 +1227,8 @@ void __init imx6sx_pm_init(void)
 
 void __init imx6ul_pm_init(void)
 {
-	imx6_pm_common_init(&imx6ul_pm_data);
+	if (imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
+		imx6_pm_common_init(&imx6ul_lpddr2_pm_data);
+	else
+		imx6_pm_common_init(&imx6ul_pm_data);
 }
