@@ -10,6 +10,7 @@ Required properties:
   * "lltc,ltc3880"
   * "lltc,ltc3882"
   * "lltc,ltc3883"
+  * "lltc,ltc3886"
   * "lltc,ltc3887"
   * "lltc,ltm2987"
   * "lltc,ltm4676"
@@ -25,7 +26,7 @@ Valid names of regulators depend on number of supplies supported per device:
   * ltc2974, ltc2975 : vout0 - vout3
   * ltc2977, ltc2980, ltm2987 : vout0 - vout7
   * ltc2978 : vout0 - vout7
-  * ltc3880, ltc3882 : vout0 - vout1
+  * ltc3880, ltc3882, ltc3886 : vout0 - vout1
   * ltc3883 : vout0
   * ltm4676 : vout0 - vout1
 

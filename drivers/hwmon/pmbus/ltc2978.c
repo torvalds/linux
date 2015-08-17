@@ -25,7 +25,7 @@
 #include "pmbus.h"
 
 enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
-	ltc3883, ltc3887, ltm2987, ltm4676 };
+	ltc3883, ltc3886, ltc3887, ltm2987, ltm4676 };
 
 /* Common for all chips */
 #define LTC2978_MFR_VOUT_PEAK		0xdd
@@ -47,7 +47,7 @@ enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
 #define LTC3880_MFR_CLEAR_PEAKS		0xe3
 #define LTC3880_MFR_TEMPERATURE2_PEAK	0xf4
 
-/* LTC3883 only */
+/* LTC3883 and LTC3886 only */
 #define LTC3883_MFR_IIN_PEAK		0xe1
 
 /* LTC2975 only */
@@ -69,6 +69,7 @@ enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
 #define LTC3882_ID			0x4200
 #define LTC3882_ID_D1			0x4240	/* Dash 1 */
 #define LTC3883_ID			0x4300
+#define LTC3886_ID			0x4600
 #define LTC3887_ID			0x4700
 #define LTM2987_ID_A			0x8010	/* A/B for two die IDs */
 #define LTM2987_ID_B			0x8020
@@ -417,6 +418,7 @@ static const struct i2c_device_id ltc2978_id[] = {
 	{"ltc3880", ltc3880},
 	{"ltc3882", ltc3882},
 	{"ltc3883", ltc3883},
+	{"ltc3886", ltc3886},
 	{"ltc3887", ltc3887},
 	{"ltm2987", ltm2987},
 	{"ltm4676", ltm4676},
@@ -485,6 +487,8 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltc3882;
 	else if (chip_id == LTC3883_ID)
 		return ltc3883;
+	else if (chip_id == LTC3886_ID)
+		return ltc3886;
 	else if (chip_id == LTC3887_ID)
 		return ltc3887;
 	else if (chip_id == LTM2987_ID_A || chip_id == LTM2987_ID_B)
@@ -624,6 +628,21 @@ static int ltc2978_probe(struct i2c_client *client,
 		  | PMBUS_HAVE_PIN | PMBUS_HAVE_POUT | PMBUS_HAVE_TEMP
 		  | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_STATUS_TEMP;
 		break;
+	case ltc3886:
+		data->features |= FEAT_CLEAR_PEAKS;
+		info->read_word_data = ltc3883_read_word_data;
+		info->pages = LTC3880_NUM_PAGES;
+		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_IIN
+		  | PMBUS_HAVE_STATUS_INPUT
+		  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+		  | PMBUS_HAVE_PIN | PMBUS_HAVE_POUT | PMBUS_HAVE_TEMP
+		  | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_STATUS_TEMP;
+		info->func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
+		  | PMBUS_HAVE_POUT
+		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -650,6 +669,7 @@ static const struct of_device_id ltc2978_of_match[] = {
 	{ .compatible = "lltc,ltc3880" },
 	{ .compatible = "lltc,ltc3882" },
 	{ .compatible = "lltc,ltc3883" },
+	{ .compatible = "lltc,ltc3886" },
 	{ .compatible = "lltc,ltc3887" },
 	{ .compatible = "lltc,ltm2987" },
 	{ .compatible = "lltc,ltm4676" },

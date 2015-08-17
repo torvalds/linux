@@ -35,6 +35,10 @@ Supported chips:
     Prefix: 'ltc3883'
     Addresses scanned: -
     Datasheet: http://www.linear.com/product/ltc3883
+  * Linear Technology LTC3886
+    Prefix: 'ltc3886'
+    Addresses scanned: -
+    Datasheet: http://www.linear.com/product/ltc3886
   * Linear Technology LTC3887
     Prefix: 'ltc3887'
     Addresses scanned: -
@@ -60,8 +64,8 @@ LTC2977 is a pin compatible replacement for LTC2978.
 LTC2980 is a 16-channel Power System Manager, consisting of two LTC2977
 in a single die. The chip is instantiated and reported as two separate chips
 on two different I2C bus addresses.
-LTC3880, LTC3882, and LTC3887 are dual output poly-phase step-down DC/DC
-controllers.
+LTC3880, LTC3882, LTC3886, and LTC3887 are dual output poly-phase step-down
+DC/DC controllers.
 LTC3883 is a single phase step-down DC/DC controller.
 LTM2987 is a 16-channel Power System Manager with two LTC2977 plus
 additional components on a single die. The chip is instantiated and reported
@@ -113,7 +117,7 @@ in[N]_label		"vout[1-8]".
 			LTC2974, LTC2975: N=2-5
 			LTC2977, LTC2980, LTM2987: N=2-9
 			LTC2978: N=2-9
-			LTC3880, LTC3882, LTC3887, LTM4676: N=2-3
+			LTC3880, LTC3882, LTC23886 LTC3887, LTM4676: N=2-3
 			LTC3883: N=2
 in[N]_input		Measured output voltage.
 in[N]_min		Minimum output voltage.
@@ -161,29 +165,30 @@ temp[N]_highest		Highest measured temperature. Not supported for chip
 temp[N]_reset_history	Reset temperature history. Not supported for chip
 			temperature sensor on LTC2974 and LTC2975.
 
-power1_label		"pin". LTC3883 only.
+power1_label		"pin". LTC3883 and LTC3886 only.
 power1_input		Measured input power.
 
 power[N]_label		"pout[1-4]".
 			LTC2974, LTC2975: N=1-4
 			LTC2977, LTC2980, LTM2987: Not supported
 			LTC2978: Not supported
-			LTC3880, LTC3882, LTC3887, LTM4676: N=1-2
+			LTC3880, LTC3882, LTC3886, LTC3887, LTM4676: N=1-2
 			LTC3883: N=2
 power[N]_input		Measured output power.
 
-curr1_label		"iin". LTC3880, LTC3883, LTC3887, and LTM4676 only.
+curr1_label		"iin". LTC3880, LTC3883, LTC3886, LTC3887, and LTM4676
+			only.
 curr1_input		Measured input current.
 curr1_max		Maximum input current.
 curr1_max_alarm		Input current high alarm.
-curr1_highest		Highest input current. LTC3883 only.
-curr1_reset_history	Reset input current history. LTC3883 only.
+curr1_highest		Highest input current. LTC3883 and LTC3886 only.
+curr1_reset_history	Reset input current history. LTC3883 and LTC3886 only.
 
 curr[N]_label		"iout[1-4]".
 			LTC2974, LTC2975: N=1-4
 			LTC2977, LTC2980, LTM2987: not supported
 			LTC2978: not supported
-			LTC3880, LTC3882, LTC3887, LTM4676: N=2-3
+			LTC3880, LTC3882, LTC3886, LTC3887, LTM4676: N=2-3
 			LTC3883: N=2
 curr[N]_input		Measured output current.
 curr[N]_max		Maximum output current.
