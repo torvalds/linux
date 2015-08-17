@@ -176,15 +176,17 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 	unsigned int val;
 	union cmReg cmReg;
 
-	/*  Check what type of Counter the user requested, data[0] contains */
-	/*  the Application type */
+	/*
+	 * Check what type of Counter the user requested
+	 * data[0] contains the Application type
+	 */
 	switch (data[0]) {
 	case INSN_CONFIG_GPCT_QUADRATURE_ENCODER:
 		/*
-		   data[0]: Application Type
-		   data[1]: Counter Mode Register Value
-		   data[2]: Pre-load Register Value
-		   data[3]: Conter Control Register
+		 * data[0]: Application Type
+		 * data[1]: Counter Mode Register Value
+		 * data[2]: Pre-load Register Value
+		 * data[3]: Conter Control Register
 		 */
 		devpriv->gpct_config[chan] = data[0];
 
@@ -214,11 +216,13 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 			cmReg.reg.clockSource = 0;
 
 		/*  When to take into account the indexpulse: */
-		/*if (data[2] == GPCT_IndexPhaseLowLow) {
-		} else if (data[2] == GPCT_IndexPhaseLowHigh) {
-		} else if (data[2] == GPCT_IndexPhaseHighLow) {
-		} else if (data[2] == GPCT_IndexPhaseHighHigh) {
-		}*/
+		/*
+		 * if (data[2] == GPCT_IndexPhaseLowLow) {
+		 * } else if (data[2] == GPCT_IndexPhaseLowHigh) {
+		 * } else if (data[2] == GPCT_IndexPhaseHighLow) {
+		 * } else if (data[2] == GPCT_IndexPhaseHighHigh) {
+		 * }
+		 */
 		/*  Take into account the index pulse? */
 		if (data[3] == GPCT_RESET_COUNTER_ON_INDEX)
 			/*  Auto load with INDEX^ */
@@ -248,11 +252,11 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 	case INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR:
 		/*
-		   data[0]: Application Type
-		   data[1]: Counter Mode Register Value
-		   data[2]: Pre-load Register 0 Value
-		   data[3]: Pre-load Register 1 Value
-		   data[4]: Conter Control Register
+		 * data[0]: Application Type
+		 * data[1]: Counter Mode Register Value
+		 * data[2]: Pre-load Register 0 Value
+		 * data[3]: Pre-load Register 1 Value
+		 * data[4]: Conter Control Register
 		 */
 		devpriv->gpct_config[chan] = data[0];
 
@@ -281,11 +285,11 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 	case INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR:
 		/*
-		   data[0]: Application Type
-		   data[1]: Counter Mode Register Value
-		   data[2]: Pre-load Register 0 Value
-		   data[3]: Pre-load Register 1 Value
-		   data[4]: Conter Control Register
+		 * data[0]: Application Type
+		 * data[1]: Counter Mode Register Value
+		 * data[2]: Pre-load Register 0 Value
+		 * data[3]: Pre-load Register 1 Value
+		 * data[4]: Conter Control Register
 		 */
 		devpriv->gpct_config[chan] = data[0];
 
@@ -332,11 +336,12 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 	/*  Check what Application of Counter this channel is configured for */
 	switch (devpriv->gpct_config[chan]) {
 	case INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR:
-		/* data[0] contains the PULSE_WIDTH
-		   data[1] contains the PULSE_PERIOD
-		   @pre PULSE_PERIOD > PULSE_WIDTH > 0
-		   The above periods must be expressed as a multiple of the
-		   pulse frequency on the selected source
+		/*
+		 * data[0] contains the PULSE_WIDTH
+		 * data[1] contains the PULSE_PERIOD
+		 * @pre PULSE_PERIOD > PULSE_WIDTH > 0
+		 * The above periods must be expressed as a multiple of the
+		 * pulse frequency on the selected source
 		 */
 		if ((data[1] <= data[0]) || !data[0])
 			return -EINVAL;
