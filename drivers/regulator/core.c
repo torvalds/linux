@@ -1588,7 +1588,7 @@ static void _regulator_put(struct regulator *regulator)
 {
 	struct regulator_dev *rdev;
 
-	if (regulator == NULL || IS_ERR(regulator))
+	if (IS_ERR_OR_NULL(regulator))
 		return;
 
 	lockdep_assert_held_once(&regulator_list_mutex);
