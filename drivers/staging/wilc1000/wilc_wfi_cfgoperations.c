@@ -339,7 +339,7 @@ void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, vo
 	if (ap_found != -1)
 		kfree(astrLastScannedNtwrksShadow[ap_index].pu8IEs);
 	astrLastScannedNtwrksShadow[ap_index].pu8IEs =
-		(u8 *)WILC_MALLOC(pstrNetworkInfo->u16IEsLen);        /* will be deallocated by the WILC_WFI_CfgScan() function */
+		WILC_MALLOC(pstrNetworkInfo->u16IEsLen);        /* will be deallocated by the WILC_WFI_CfgScan() function */
 	memcpy(astrLastScannedNtwrksShadow[ap_index].pu8IEs,
 		    pstrNetworkInfo->pu8IEs, pstrNetworkInfo->u16IEsLen);
 
@@ -1193,13 +1193,13 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 		if (priv->wdev->iftype == NL80211_IFTYPE_AP || priv->wdev->iftype == NL80211_IFTYPE_P2P_GO) {
 
 			if (priv->wilc_gtk[key_index] == NULL) {
-				priv->wilc_gtk[key_index] = (struct wilc_wfi_key *)WILC_MALLOC(sizeof(struct wilc_wfi_key));
+				priv->wilc_gtk[key_index] = WILC_MALLOC(sizeof(struct wilc_wfi_key));
 				priv->wilc_gtk[key_index]->key = NULL;
 				priv->wilc_gtk[key_index]->seq = NULL;
 
 			}
 			if (priv->wilc_ptk[key_index] == NULL) {
-				priv->wilc_ptk[key_index] = (struct wilc_wfi_key *)WILC_MALLOC(sizeof(struct wilc_wfi_key));
+				priv->wilc_ptk[key_index] = WILC_MALLOC(sizeof(struct wilc_wfi_key));
 				priv->wilc_ptk[key_index]->key = NULL;
 				priv->wilc_ptk[key_index]->seq = NULL;
 			}
@@ -1224,7 +1224,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 				if (priv->wilc_gtk[key_index]->key)
 					kfree(priv->wilc_gtk[key_index]->key);
 
-				priv->wilc_gtk[key_index]->key = (u8 *)WILC_MALLOC(params->key_len);
+				priv->wilc_gtk[key_index]->key = WILC_MALLOC(params->key_len);
 				memcpy(priv->wilc_gtk[key_index]->key, params->key, params->key_len);
 
 				/* if there has been previous allocation for the same index through its seq, free that memory and allocate again*/
@@ -1232,7 +1232,7 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 					kfree(priv->wilc_gtk[key_index]->seq);
 
 				if ((params->seq_len) > 0) {
-					priv->wilc_gtk[key_index]->seq = (u8 *)WILC_MALLOC(params->seq_len);
+					priv->wilc_gtk[key_index]->seq = WILC_MALLOC(params->seq_len);
 					memcpy(priv->wilc_gtk[key_index]->seq, params->seq, params->seq_len);
 				}
 
@@ -1270,13 +1270,13 @@ static int WILC_WFI_add_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 				if (priv->wilc_ptk[key_index]->key)
 					kfree(priv->wilc_ptk[key_index]->key);
 
-				priv->wilc_ptk[key_index]->key = (u8 *)WILC_MALLOC(params->key_len);
+				priv->wilc_ptk[key_index]->key = WILC_MALLOC(params->key_len);
 
 				if (priv->wilc_ptk[key_index]->seq)
 					kfree(priv->wilc_ptk[key_index]->seq);
 
 				if ((params->seq_len) > 0)
-					priv->wilc_ptk[key_index]->seq = (u8 *)WILC_MALLOC(params->seq_len);
+					priv->wilc_ptk[key_index]->seq = WILC_MALLOC(params->seq_len);
 
 				if (INFO) {
 					for (i = 0; i < params->key_len; i++)
@@ -2512,12 +2512,12 @@ int WILC_WFI_mgmt_tx(struct wiphy *wiphy,
 	if (ieee80211_is_mgmt(mgmt->frame_control)) {
 
 		/*mgmt frame allocation*/
-		mgmt_tx = (struct p2p_mgmt_data *)WILC_MALLOC(sizeof(struct p2p_mgmt_data));
+		mgmt_tx = WILC_MALLOC(sizeof(struct p2p_mgmt_data));
 		if (mgmt_tx == NULL) {
 			PRINT_ER("Failed to allocate memory for mgmt_tx structure\n");
 			return WILC_FAIL;
 		}
-		mgmt_tx->buff = (char *)WILC_MALLOC(buf_len);
+		mgmt_tx->buff = WILC_MALLOC(buf_len);
 		if (mgmt_tx->buff == NULL) {
 			PRINT_ER("Failed to allocate memory for mgmt_tx buff\n");
 			return WILC_FAIL;

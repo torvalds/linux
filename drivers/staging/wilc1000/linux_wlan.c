@@ -2465,7 +2465,7 @@ int wilc_netdev_init(void)
 	linux_wlan_init_lock("close_exit_sync", &close_exit_sync, 0);
 
 	/*create the common structure*/
-	g_linux_wlan = (linux_wlan_t *)WILC_MALLOC(sizeof(linux_wlan_t));
+	g_linux_wlan = WILC_MALLOC(sizeof(linux_wlan_t));
 	memset(g_linux_wlan, 0, sizeof(linux_wlan_t));
 
 	/*Reset interrupt count debug*/
