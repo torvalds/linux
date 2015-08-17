@@ -92,6 +92,7 @@
 #ifdef CONFIG_INET
 #include <net/inet_common.h>
 #endif
+#include <linux/bpf.h>
 
 #include "internal.h"
 
@@ -1410,6 +1411,22 @@ static unsigned int fanout_demux_qm(struct packet_fanout *f,
 	return skb_get_queue_mapping(skb) % num;
 }
 
+static unsigned int fanout_demux_bpf(struct packet_fanout *f,
+				     struct sk_buff *skb,
+				     unsigned int num)
+{
+	struct bpf_prog *prog;
+	unsigned int ret = 0;
+
+	rcu_read_lock();
+	prog = rcu_dereference(f->bpf_prog);
+	if (prog)
+		ret = BPF_PROG_RUN(prog, skb) % num;
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static bool fanout_has_flag(struct packet_fanout *f, u16 flag)
 {
 	return f->flags & (flag >> 8);
@@ -1453,6 +1470,10 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 		break;
 	case PACKET_FANOUT_ROLLOVER:
 		idx = fanout_demux_rollover(f, skb, 0, false, num);
+		break;
+	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
+		idx = fanout_demux_bpf(f, skb, num);
 		break;
 	}
 
@@ -1502,6 +1523,103 @@ static bool match_fanout_group(struct packet_type *ptype, struct sock *sk)
 	return false;
 }
 
+static void fanout_init_data(struct packet_fanout *f)
+{
+	switch (f->type) {
+	case PACKET_FANOUT_LB:
+		atomic_set(&f->rr_cur, 0);
+		break;
+	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
+		RCU_INIT_POINTER(f->bpf_prog, NULL);
+		break;
+	}
+}
+
+static void __fanout_set_data_bpf(struct packet_fanout *f, struct bpf_prog *new)
+{
+	struct bpf_prog *old;
+
+	spin_lock(&f->lock);
+	old = rcu_dereference_protected(f->bpf_prog, lockdep_is_held(&f->lock));
+	rcu_assign_pointer(f->bpf_prog, new);
+	spin_unlock(&f->lock);
+
+	if (old) {
+		synchronize_net();
+		bpf_prog_destroy(old);
+	}
+}
+
+static int fanout_set_data_cbpf(struct packet_sock *po, char __user *data,
+				unsigned int len)
+{
+	struct bpf_prog *new;
+	struct sock_fprog fprog;
+	int ret;
+
+	if (sock_flag(&po->sk, SOCK_FILTER_LOCKED))
+		return -EPERM;
+	if (len != sizeof(fprog))
+		return -EINVAL;
+	if (copy_from_user(&fprog, data, len))
+		return -EFAULT;
+
+	ret = bpf_prog_create_from_user(&new, &fprog, NULL);
+	if (ret)
+		return ret;
+
+	__fanout_set_data_bpf(po->fanout, new);
+	return 0;
+}
+
+static int fanout_set_data_ebpf(struct packet_sock *po, char __user *data,
+				unsigned int len)
+{
+	struct bpf_prog *new;
+	u32 fd;
+
+	if (sock_flag(&po->sk, SOCK_FILTER_LOCKED))
+		return -EPERM;
+	if (len != sizeof(fd))
+		return -EINVAL;
+	if (copy_from_user(&fd, data, len))
+		return -EFAULT;
+
+	new = bpf_prog_get(fd);
+	if (IS_ERR(new))
+		return PTR_ERR(new);
+	if (new->type != BPF_PROG_TYPE_SOCKET_FILTER) {
+		bpf_prog_put(new);
+		return -EINVAL;
+	}
+
+	__fanout_set_data_bpf(po->fanout, new);
+	return 0;
+}
+
+static int fanout_set_data(struct packet_sock *po, char __user *data,
+			   unsigned int len)
+{
+	switch (po->fanout->type) {
+	case PACKET_FANOUT_CBPF:
+		return fanout_set_data_cbpf(po, data, len);
+	case PACKET_FANOUT_EBPF:
+		return fanout_set_data_ebpf(po, data, len);
+	default:
+		return -EINVAL;
+	};
+}
+
+static void fanout_release_data(struct packet_fanout *f)
+{
+	switch (f->type) {
+	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
+		__fanout_set_data_bpf(f, NULL);
+	};
+}
+
 static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 {
 	struct packet_sock *po = pkt_sk(sk);
@@ -1519,6 +1637,8 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	case PACKET_FANOUT_CPU:
 	case PACKET_FANOUT_RND:
 	case PACKET_FANOUT_QM:
+	case PACKET_FANOUT_CBPF:
+	case PACKET_FANOUT_EBPF:
 		break;
 	default:
 		return -EINVAL;
@@ -1561,10 +1681,10 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 		match->id = id;
 		match->type = type;
 		match->flags = flags;
-		atomic_set(&match->rr_cur, 0);
 		INIT_LIST_HEAD(&match->list);
 		spin_lock_init(&match->lock);
 		atomic_set(&match->sk_ref, 0);
+		fanout_init_data(match);
 		match->prot_hook.type = po->prot_hook.type;
 		match->prot_hook.dev = po->prot_hook.dev;
 		match->prot_hook.func = packet_rcv_fanout;
@@ -1610,6 +1730,7 @@ static void fanout_release(struct sock *sk)
 	if (atomic_dec_and_test(&f->sk_ref)) {
 		list_del(&f->list);
 		dev_remove_pack(&f->prot_hook);
+		fanout_release_data(f);
 		kfree(f);
 	}
 	mutex_unlock(&fanout_mutex);
@@ -3528,6 +3649,13 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 			return -EFAULT;
 
 		return fanout_add(sk, val & 0xffff, val >> 16);
+	}
+	case PACKET_FANOUT_DATA:
+	{
+		if (!po->fanout)
+			return -EINVAL;
+
+		return fanout_set_data(po, optval, optlen);
 	}
 	case PACKET_TX_HAS_OFF:
 	{

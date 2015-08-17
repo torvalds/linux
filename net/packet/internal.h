@@ -79,7 +79,10 @@ struct packet_fanout {
 	u16			id;
 	u8			type;
 	u8			flags;
-	atomic_t		rr_cur;
+	union {
+		atomic_t		rr_cur;
+		struct bpf_prog __rcu	*bpf_prog;
+	};
 	struct list_head	list;
 	struct sock		*arr[PACKET_FANOUT_MAX];
 	spinlock_t		lock;
