@@ -1524,6 +1524,7 @@ static int nfc_genl_vendor_cmd(struct sk_buff *skb,
 		if (data_len == 0)
 			return -EINVAL;
 	} else {
+		data = NULL;
 		data_len = 0;
 	}
 
