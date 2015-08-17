@@ -995,6 +995,31 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	return ret;
 }
 
+static int sdma_save_restore_context(struct sdma_engine *sdma, bool save)
+{
+	struct sdma_context_data *context = sdma->context;
+	struct sdma_buffer_descriptor *bd0 = sdma->bd0;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&sdma->channel_0_lock, flags);
+
+	if (save)
+		bd0->mode.command = C0_GETDM;
+	else
+		bd0->mode.command = C0_SETDM;
+
+	bd0->mode.status = BD_DONE | BD_INTR | BD_WRAP | BD_EXTD;
+	bd0->mode.count = MAX_DMA_CHANNELS * sizeof(*context) / 4;
+	bd0->buffer_addr = sdma->context_phys;
+	bd0->ext_buffer_addr = 2048;
+	ret = sdma_run_channel0(sdma);
+
+	spin_unlock_irqrestore(&sdma->channel_0_lock, flags);
+
+	return ret;
+}
+
 static struct sdma_channel *to_sdma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct sdma_channel, vc.chan);
@@ -1955,8 +1980,8 @@ static int sdma_init(struct sdma_engine *sdma)
 	/* Be sure SDMA has not started yet */
 	writel_relaxed(0, sdma->regs + SDMA_H_C0PTR);
 
-	ccbsize = MAX_DMA_CHANNELS * sizeof (struct sdma_channel_control)
-		+ sizeof(struct sdma_context_data);
+	ccbsize = MAX_DMA_CHANNELS * (sizeof(struct sdma_channel_control)
+		+ sizeof(struct sdma_context_data));
 
 	sdma->channel_control = gen_pool_dma_alloc(sdma->iram_pool, ccbsize, &ccb_phys);
 	if (!sdma->channel_control) {
@@ -2269,7 +2294,7 @@ static int sdma_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
-	int i;
+	int i, ret = 0;
 
 	/* Do nothing if not i.MX6SX or i.MX7D*/
 	if (sdma->drvdata != &sdma_imx6sx && sdma->drvdata != &sdma_imx7d)
@@ -2277,6 +2302,12 @@ static int sdma_suspend(struct device *dev)
 
 	clk_enable(sdma->clk_ipg);
 	clk_enable(sdma->clk_ahb);
+
+	ret = sdma_save_restore_context(sdma, true);
+	if (ret) {
+		dev_err(sdma->dev, "save context error!\n");
+		return ret;
+	}
 	/* save regs */
 	for (i = 0; i < MXC_SDMA_SAVED_REG_NUM; i++) {
 		/*
@@ -2336,6 +2367,12 @@ static int sdma_resume(struct device *dev)
 	ret = sdma_get_firmware(sdma, sdma->fw_name);
 	if (ret) {
 		dev_warn(&pdev->dev, "failed to get firware\n");
+		return ret;
+	}
+
+	ret = sdma_save_restore_context(sdma, false);
+	if (ret) {
+		dev_err(sdma->dev, "restore context error!\n");
 		return ret;
 	}
 
