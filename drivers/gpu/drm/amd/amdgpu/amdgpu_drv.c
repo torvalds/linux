@@ -75,6 +75,7 @@ int amdgpu_deep_color = 0;
 int amdgpu_vm_size = 8;
 int amdgpu_vm_block_size = -1;
 int amdgpu_exp_hw_support = 0;
+int amdgpu_enable_scheduler = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);

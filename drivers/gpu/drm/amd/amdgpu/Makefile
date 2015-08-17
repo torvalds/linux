@@ -4,7 +4,8 @@
 
 ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include/asic_reg \
 	-Idrivers/gpu/drm/amd/include \
-	-Idrivers/gpu/drm/amd/amdgpu
+	-Idrivers/gpu/drm/amd/amdgpu \
+	-Idrivers/gpu/drm/amd/scheduler
 
 amdgpu-y := amdgpu_drv.o
 
@@ -81,6 +82,10 @@ amdgpu-y += \
 
 # add cgs
 amdgpu-y += amdgpu_cgs.o
+
+# GPU scheduler
+amdgpu-y += \
+	../scheduler/gpu_scheduler.o
 
 amdgpu-$(CONFIG_COMPAT) += amdgpu_ioc32.o
 amdgpu-$(CONFIG_VGA_SWITCHEROO) += amdgpu_atpx_handler.o
