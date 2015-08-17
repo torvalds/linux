@@ -24,8 +24,8 @@
 #include <linux/regulator/driver.h>
 #include "pmbus.h"
 
-enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883,
-	     ltc3887, ltm4676 };
+enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
+	ltc3883, ltc3887, ltm2987, ltm4676 };
 
 /* Common for all chips */
 #define LTC2978_MFR_VOUT_PEAK		0xdd
@@ -33,7 +33,7 @@ enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883,
 #define LTC2978_MFR_TEMPERATURE_PEAK	0xdf
 #define LTC2978_MFR_SPECIAL_ID		0xe7	/* Undocumented on LTC3882 */
 
-/* LTC2974, LTC2975, LCT2977, and LTC2978 */
+/* LTC2974, LTC2975, LCT2977, LTC2980, LTC2978, and LTM2987 */
 #define LTC2978_MFR_VOUT_MIN		0xfb
 #define LTC2978_MFR_VIN_MIN		0xfc
 #define LTC2978_MFR_TEMPERATURE_MIN	0xfd
@@ -63,11 +63,15 @@ enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc3880, ltc3882, ltc3883,
 #define LTC2977_ID			0x0130
 #define LTC2978_ID_REV1			0x0110	/* Early revision */
 #define LTC2978_ID_REV2			0x0120
+#define LTC2980_ID_A			0x8030	/* A/B for two die IDs */
+#define LTC2980_ID_B			0x8040
 #define LTC3880_ID			0x4020
 #define LTC3882_ID			0x4200
 #define LTC3882_ID_D1			0x4240	/* Dash 1 */
 #define LTC3883_ID			0x4300
 #define LTC3887_ID			0x4700
+#define LTM2987_ID_A			0x8010	/* A/B for two die IDs */
+#define LTM2987_ID_B			0x8020
 #define LTM4676_ID_REV1			0x4400
 #define LTM4676_ID_REV2			0x4480
 #define LTM4676A_ID			0x47e0
@@ -409,10 +413,12 @@ static const struct i2c_device_id ltc2978_id[] = {
 	{"ltc2975", ltc2975},
 	{"ltc2977", ltc2977},
 	{"ltc2978", ltc2978},
+	{"ltc2980", ltc2980},
 	{"ltc3880", ltc3880},
 	{"ltc3882", ltc3882},
 	{"ltc3883", ltc3883},
 	{"ltc3887", ltc3887},
+	{"ltm2987", ltm2987},
 	{"ltm4676", ltm4676},
 	{}
 };
@@ -471,6 +477,8 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltc2977;
 	else if (chip_id == LTC2978_ID_REV1 || chip_id == LTC2978_ID_REV2)
 		return ltc2978;
+	else if (chip_id == LTC2980_ID_A || chip_id == LTC2980_ID_B)
+		return ltc2980;
 	else if (chip_id == LTC3880_ID)
 		return ltc3880;
 	else if (chip_id == LTC3882_ID || chip_id == LTC3882_ID_D1)
@@ -479,6 +487,8 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltc3883;
 	else if (chip_id == LTC3887_ID)
 		return ltc3887;
+	else if (chip_id == LTM2987_ID_A || chip_id == LTM2987_ID_B)
+		return ltm2987;
 	else if (chip_id == LTM4676_ID_REV1 || chip_id == LTM4676_ID_REV2 ||
 		 chip_id == LTM4676A_ID)
 		return ltm4676;
@@ -559,6 +569,8 @@ static int ltc2978_probe(struct i2c_client *client,
 		break;
 	case ltc2977:
 	case ltc2978:
+	case ltc2980:
+	case ltm2987:
 		info->read_word_data = ltc2978_read_word_data;
 		info->pages = LTC2978_NUM_PAGES;
 		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT
@@ -634,10 +646,12 @@ static const struct of_device_id ltc2978_of_match[] = {
 	{ .compatible = "lltc,ltc2975" },
 	{ .compatible = "lltc,ltc2977" },
 	{ .compatible = "lltc,ltc2978" },
+	{ .compatible = "lltc,ltc2980" },
 	{ .compatible = "lltc,ltc3880" },
 	{ .compatible = "lltc,ltc3882" },
 	{ .compatible = "lltc,ltc3883" },
 	{ .compatible = "lltc,ltc3887" },
+	{ .compatible = "lltc,ltm2987" },
 	{ .compatible = "lltc,ltm4676" },
 	{ }
 };
