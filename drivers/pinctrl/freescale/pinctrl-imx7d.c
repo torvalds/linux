@@ -172,14 +172,17 @@ enum imx7d_pads {
 	MX7D_PAD_ENET1_RX_CLK = 152,
 	MX7D_PAD_ENET1_CRS = 153,
 	MX7D_PAD_ENET1_COL = 154,
-	MX7D_PAD_GPIO1_IO00 = 155,
-	MX7D_PAD_GPIO1_IO01 = 156,
-	MX7D_PAD_GPIO1_IO02 = 157,
-	MX7D_PAD_GPIO1_IO03 = 158,
-	MX7D_PAD_GPIO1_IO04 = 159,
-	MX7D_PAD_GPIO1_IO05 = 160,
-	MX7D_PAD_GPIO1_IO06 = 161,
-	MX7D_PAD_GPIO1_IO07 = 162,
+};
+
+enum imx7d_lpsr_pads {
+	MX7D_PAD_GPIO1_IO00 = 0,
+	MX7D_PAD_GPIO1_IO01 = 1,
+	MX7D_PAD_GPIO1_IO02 = 2,
+	MX7D_PAD_GPIO1_IO03 = 3,
+	MX7D_PAD_GPIO1_IO04 = 4,
+	MX7D_PAD_GPIO1_IO05 = 5,
+	MX7D_PAD_GPIO1_IO06 = 6,
+	MX7D_PAD_GPIO1_IO07 = 7,
 };
 
 /* Pad names for the pinmux subsystem */
@@ -339,6 +342,10 @@ static const struct pinctrl_pin_desc imx7d_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX7D_PAD_ENET1_RX_CLK),
 	IMX_PINCTRL_PIN(MX7D_PAD_ENET1_CRS),
 	IMX_PINCTRL_PIN(MX7D_PAD_ENET1_COL),
+};
+
+/* Pad names for the pinmux subsystem */
+static const struct pinctrl_pin_desc imx7d_lpsr_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO00),
 	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO01),
 	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO02),
@@ -354,14 +361,31 @@ static struct imx_pinctrl_soc_info imx7d_pinctrl_info = {
 	.npins = ARRAY_SIZE(imx7d_pinctrl_pads),
 };
 
+static struct imx_pinctrl_soc_info imx7d_lpsr_pinctrl_info = {
+	.pins = imx7d_lpsr_pinctrl_pads,
+	.npins = ARRAY_SIZE(imx7d_lpsr_pinctrl_pads),
+	.flags = SHARE_INPUT_SELECT_REG | ZERO_OFFSET_VALID,
+};
+
 static struct of_device_id imx7d_pinctrl_of_match[] = {
-	{ .compatible = "fsl,imx7d-iomuxc", },
+	{ .compatible = "fsl,imx7d-iomuxc", .data = &imx7d_pinctrl_info, },
+	{ .compatible = "fsl,imx7d-iomuxc-lpsr", .data = &imx7d_lpsr_pinctrl_info },
 	{ /* sentinel */ }
 };
 
 static int imx7d_pinctrl_probe(struct platform_device *pdev)
 {
-	return imx_pinctrl_probe(pdev, &imx7d_pinctrl_info);
+	const struct of_device_id *match;
+	struct imx_pinctrl_soc_info *pinctrl_info;
+
+	match = of_match_device(imx7d_pinctrl_of_match, &pdev->dev);
+
+	if (!match)
+		return -ENODEV;
+
+	pinctrl_info = (struct imx_pinctrl_soc_info *) match->data;
+
+	return imx_pinctrl_probe(pdev, pinctrl_info);
 }
 
 static struct platform_driver imx7d_pinctrl_driver = {
