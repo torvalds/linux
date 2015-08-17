@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/memory_hotplug.h>
 
 #ifndef ioremap_cache
 /* temporary while we convert existing ioremap_cache users to memremap */
@@ -135,3 +136,55 @@ void devm_memunmap(struct device *dev, void *addr)
 	memunmap(addr);
 }
 EXPORT_SYMBOL(devm_memunmap);
+
+#ifdef CONFIG_ZONE_DEVICE
+struct page_map {
+	struct resource res;
+};
+
+static void devm_memremap_pages_release(struct device *dev, void *res)
+{
+	struct page_map *page_map = res;
+
+	/* pages are dead and unused, undo the arch mapping */
+	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
+}
+
+void *devm_memremap_pages(struct device *dev, struct resource *res)
+{
+	int is_ram = region_intersects(res->start, resource_size(res),
+			"System RAM");
+	struct page_map *page_map;
+	int error, nid;
+
+	if (is_ram == REGION_MIXED) {
+		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
+				__func__, res);
+		return ERR_PTR(-ENXIO);
+	}
+
+	if (is_ram == REGION_INTERSECTS)
+		return __va(res->start);
+
+	page_map = devres_alloc(devm_memremap_pages_release,
+			sizeof(*page_map), GFP_KERNEL);
+	if (!page_map)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(&page_map->res, res, sizeof(*res));
+
+	nid = dev_to_node(dev);
+	if (nid < 0)
+		nid = 0;
+
+	error = arch_add_memory(nid, res->start, resource_size(res), true);
+	if (error) {
+		devres_free(page_map);
+		return ERR_PTR(error);
+	}
+
+	devres_add(dev, page_map);
+	return __va(res->start);
+}
+EXPORT_SYMBOL(devm_memremap_pages);
+#endif /* CONFIG_ZONE_DEVICE */
