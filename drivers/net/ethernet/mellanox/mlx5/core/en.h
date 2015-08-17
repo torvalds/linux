@@ -42,22 +42,24 @@
 
 #define MLX5E_MAX_NUM_TC	8
 
-#define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x7
+#define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x6
 #define MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE                0xa
 #define MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE                0xd
 
-#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x7
+#define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE                0x1
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
 
-#define MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 (16 * 1024)
+#define MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 (64 * 1024)
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC      0x10
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS      0x20
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC      0x10
 #define MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS      0x20
 #define MLX5E_PARAMS_DEFAULT_MIN_RX_WQES                0x80
-#define MLX5E_PARAMS_DEFAULT_RX_HASH_LOG_TBL_SZ         0x7
 
+#define MLX5E_LOG_INDIR_RQT_SIZE       0x7
+#define MLX5E_INDIR_RQT_SIZE           BIT(MLX5E_LOG_INDIR_RQT_SIZE)
+#define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE >> 1)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_UPDATE_STATS_INTERVAL    200 /* msecs */
 #define MLX5E_SQ_BF_BUDGET             16
@@ -92,6 +94,7 @@ static const char vport_strings[][ETH_GSTRING_LEN] = {
 	"lro_bytes",
 	"rx_csum_good",
 	"rx_csum_none",
+	"rx_csum_sw",
 	"tx_csum_offload",
 	"tx_queue_stopped",
 	"tx_queue_wake",
@@ -129,13 +132,14 @@ struct mlx5e_vport_stats {
 	u64 lro_bytes;
 	u64 rx_csum_good;
 	u64 rx_csum_none;
+	u64 rx_csum_sw;
 	u64 tx_csum_offload;
 	u64 tx_queue_stopped;
 	u64 tx_queue_wake;
 	u64 tx_queue_dropped;
 	u64 rx_wqe_err;
 
-#define NUM_VPORT_COUNTERS     31
+#define NUM_VPORT_COUNTERS     32
 };
 
 static const char pport_strings[][ETH_GSTRING_LEN] = {
@@ -215,6 +219,7 @@ struct mlx5e_pport_stats {
 static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
 	"csum_none",
+	"csum_sw",
 	"lro_packets",
 	"lro_bytes",
 	"wqe_err"
@@ -223,10 +228,11 @@ static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 struct mlx5e_rq_stats {
 	u64 packets;
 	u64 csum_none;
+	u64 csum_sw;
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 wqe_err;
-#define NUM_RQ_STATS 5
+#define NUM_RQ_STATS 6
 };
 
 static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
@@ -268,11 +274,12 @@ struct mlx5e_params {
 	u16 tx_cq_moderation_usec;
 	u16 tx_cq_moderation_pkts;
 	u16 min_rx_wqes;
-	u16 rx_hash_log_tbl_sz;
 	bool lro_en;
 	u32 lro_wqe_sz;
-	u8  rss_hfunc;
 	u16 tx_max_inline;
+	u8  rss_hfunc;
+	u8  toeplitz_hash_key[40];
+	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
 };
 
 enum {
@@ -568,6 +575,8 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
+
+int mlx5e_redirect_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
