@@ -46,7 +46,12 @@
 #define S526_NUM_PORTS 27
 
 /* registers */
-#define REG_TCR 0x00
+#define S526_TIMER_REG		0x00
+#define S526_TIMER_LOAD(x)	(((x) & 0xff) << 8)
+#define S526_TIMER_MODE		((x) << 1)
+#define S526_TIMER_MANUAL	S526_TIMER_MODE(0)
+#define S526_TIMER_AUTO		S526_TIMER_MODE(1)
+#define S526_TIMER_RESTART	BIT(0)
 #define REG_WDC 0x02
 #define REG_DAC 0x04
 #define REG_ADC 0x06
