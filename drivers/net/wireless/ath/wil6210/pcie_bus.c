@@ -21,16 +21,14 @@
 
 #include "wil6210.h"
 
-static int use_msi = 1;
-module_param(use_msi, int, S_IRUGO);
-MODULE_PARM_DESC(use_msi,
-		 " Use MSI interrupt: "
-		 "0 - don't, 1 - (default) - single, or 3");
+static bool use_msi = true;
+module_param(use_msi, bool, S_IRUGO);
+MODULE_PARM_DESC(use_msi, " Use MSI interrupt, default - true");
 
 static
 void wil_set_capabilities(struct wil6210_priv *wil)
 {
-	u32 rev_id = ioread32(wil->csr + HOSTADDR(RGF_USER_JTAG_DEV_ID));
+	u32 rev_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
 
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
 
@@ -50,24 +48,12 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 
 void wil_disable_irq(struct wil6210_priv *wil)
 {
-	int irq = wil->pdev->irq;
-
-	disable_irq(irq);
-	if (wil->n_msi == 3) {
-		disable_irq(irq + 1);
-		disable_irq(irq + 2);
-	}
+	disable_irq(wil->pdev->irq);
 }
 
 void wil_enable_irq(struct wil6210_priv *wil)
 {
-	int irq = wil->pdev->irq;
-
-	enable_irq(irq);
-	if (wil->n_msi == 3) {
-		enable_irq(irq + 1);
-		enable_irq(irq + 2);
-	}
+	enable_irq(wil->pdev->irq);
 }
 
 /* Bus ops */
@@ -80,6 +66,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	 * and only MSI should be used
 	 */
 	int msi_only = pdev->msi_enabled;
+	bool _use_msi = use_msi;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
@@ -87,41 +74,20 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
 	pci_set_master(pdev);
 
-	/*
-	 * how many MSI interrupts to request?
-	 */
-	switch (use_msi) {
-	case 3:
-	case 1:
-		wil_dbg_misc(wil, "Setup %d MSI interrupts\n", use_msi);
-		break;
-	case 0:
-		wil_dbg_misc(wil, "MSI interrupts disabled, use INTx\n");
-		break;
-	default:
-		wil_err(wil, "Invalid use_msi=%d, default to 1\n", use_msi);
-		use_msi = 1;
-	}
+	wil_dbg_misc(wil, "Setup %s interrupt\n", use_msi ? "MSI" : "INTx");
 
-	if (use_msi == 3 && pci_enable_msi_range(pdev, 3, 3) < 0) {
-		wil_err(wil, "3 MSI mode failed, try 1 MSI\n");
-		use_msi = 1;
-	}
-
-	if (use_msi == 1 && pci_enable_msi(pdev)) {
+	if (use_msi && pci_enable_msi(pdev)) {
 		wil_err(wil, "pci_enable_msi failed, use INTx\n");
-		use_msi = 0;
+		_use_msi = false;
 	}
 
-	wil->n_msi = use_msi;
-
-	if ((wil->n_msi == 0) && msi_only) {
+	if (!_use_msi && msi_only) {
 		wil_err(wil, "Interrupt pin not routed, unable to use INTx\n");
 		rc = -ENODEV;
 		goto stop_master;
 	}
 
-	rc = wil6210_init_irq(wil, pdev->irq);
+	rc = wil6210_init_irq(wil, pdev->irq, _use_msi);
 	if (rc)
 		goto stop_master;
 
@@ -293,11 +259,80 @@ static const struct pci_device_id wil6210_pcie_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);
 
+#ifdef CONFIG_PM
+
+static int wil6210_suspend(struct device *dev, bool is_runtime)
+{
+	int rc = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+
+	wil_dbg_pm(wil, "%s(%s)\n", __func__,
+		   is_runtime ? "runtime" : "system");
+
+	rc = wil_can_suspend(wil, is_runtime);
+	if (rc)
+		goto out;
+
+	rc = wil_suspend(wil, is_runtime);
+	if (rc)
+		goto out;
+
+	/* TODO: how do I bring card in low power state? */
+
+	/* disable bus mastering */
+	pci_clear_master(pdev);
+	/* PCI will call pci_save_state(pdev) and pci_prepare_to_sleep(pdev) */
+
+out:
+	return rc;
+}
+
+static int wil6210_resume(struct device *dev, bool is_runtime)
+{
+	int rc = 0;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct wil6210_priv *wil = pci_get_drvdata(pdev);
+
+	wil_dbg_pm(wil, "%s(%s)\n", __func__,
+		   is_runtime ? "runtime" : "system");
+
+	/* allow master */
+	pci_set_master(pdev);
+
+	rc = wil_resume(wil, is_runtime);
+	if (rc)
+		pci_clear_master(pdev);
+
+	return rc;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int wil6210_pm_suspend(struct device *dev)
+{
+	return wil6210_suspend(dev, false);
+}
+
+static int wil6210_pm_resume(struct device *dev)
+{
+	return wil6210_resume(dev, false);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops wil6210_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(wil6210_pm_suspend, wil6210_pm_resume)
+};
+
 static struct pci_driver wil6210_driver = {
 	.probe		= wil_pcie_probe,
 	.remove		= wil_pcie_remove,
 	.id_table	= wil6210_pcie_ids,
 	.name		= WIL_NAME,
+	.driver		= {
+		.pm = &wil6210_pm_ops,
+	},
 };
 
 static int __init wil6210_driver_init(void)

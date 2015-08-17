@@ -83,14 +83,38 @@ struct htt_ver_req {
  * around the mask + shift defs.
  */
 struct htt_data_tx_desc_frag {
-	__le32 paddr;
-	__le32 len;
+	union {
+		struct double_word_addr {
+			__le32 paddr;
+			__le32 len;
+		} __packed dword_addr;
+		struct triple_word_addr {
+			__le32 paddr_lo;
+			__le16 paddr_hi;
+			__le16 len_16;
+		} __packed tword_addr;
+	} __packed;
 } __packed;
 
 struct htt_msdu_ext_desc {
-	__le32 tso_flag[4];
+	__le32 tso_flag[3];
+	__le16 ip_identification;
+	u8 flags;
+	u8 reserved;
 	struct htt_data_tx_desc_frag frags[6];
 };
+
+#define	HTT_MSDU_EXT_DESC_FLAG_IPV4_CSUM_ENABLE		BIT(0)
+#define	HTT_MSDU_EXT_DESC_FLAG_UDP_IPV4_CSUM_ENABLE	BIT(1)
+#define	HTT_MSDU_EXT_DESC_FLAG_UDP_IPV6_CSUM_ENABLE	BIT(2)
+#define	HTT_MSDU_EXT_DESC_FLAG_TCP_IPV4_CSUM_ENABLE	BIT(3)
+#define	HTT_MSDU_EXT_DESC_FLAG_TCP_IPV6_CSUM_ENABLE	BIT(4)
+
+#define HTT_MSDU_CHECKSUM_ENABLE (HTT_MSDU_EXT_DESC_FLAG_IPV4_CSUM_ENABLE \
+				 | HTT_MSDU_EXT_DESC_FLAG_UDP_IPV4_CSUM_ENABLE \
+				 | HTT_MSDU_EXT_DESC_FLAG_UDP_IPV6_CSUM_ENABLE \
+				 | HTT_MSDU_EXT_DESC_FLAG_TCP_IPV4_CSUM_ENABLE \
+				 | HTT_MSDU_EXT_DESC_FLAG_TCP_IPV6_CSUM_ENABLE)
 
 enum htt_data_tx_desc_flags0 {
 	HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT = 1 << 0,
@@ -260,6 +284,9 @@ struct htt_aggr_conf {
 } __packed;
 
 #define HTT_MGMT_FRM_HDR_DOWNLOAD_LEN 32
+struct htt_mgmt_tx_desc_qca99x0 {
+	__le32 rate;
+} __packed;
 
 struct htt_mgmt_tx_desc {
 	u8 pad[sizeof(u32) - sizeof(struct htt_cmd_hdr)];
@@ -268,6 +295,9 @@ struct htt_mgmt_tx_desc {
 	__le32 len;
 	__le32 vdev_id;
 	u8 hdr[HTT_MGMT_FRM_HDR_DOWNLOAD_LEN];
+	union {
+		struct htt_mgmt_tx_desc_qca99x0 qca99x0;
+	} __packed;
 } __packed;
 
 enum htt_mgmt_tx_status {
@@ -1366,6 +1396,8 @@ struct ath10k_htt {
 	u8 target_version_minor;
 	struct completion target_version_received;
 	enum ath10k_fw_htt_op_version op_version;
+	u8 max_num_amsdu;
+	u8 max_num_ampdu;
 
 	const enum htt_t2h_msg_type *t2h_msg_types;
 	u32 t2h_msg_types_max;
@@ -1527,6 +1559,12 @@ struct htt_rx_desc {
  */
 #define HTT_LOG2_MAX_CACHE_LINE_SIZE 7	/* 2^7 = 128 */
 #define HTT_MAX_CACHE_LINE_SIZE_MASK ((1 << HTT_LOG2_MAX_CACHE_LINE_SIZE) - 1)
+
+/* These values are default in most firmware revisions and apparently are a
+ * sweet spot performance wise.
+ */
+#define ATH10K_HTT_MAX_NUM_AMSDU_DEFAULT 3
+#define ATH10K_HTT_MAX_NUM_AMPDU_DEFAULT 64
 
 int ath10k_htt_connect(struct ath10k_htt *htt);
 int ath10k_htt_init(struct ath10k *ar);

@@ -124,11 +124,11 @@ EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_print_driver_info(struct ath10k *ar)
 {
-	char fw_features[128];
+	char fw_features[128] = {};
 
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
 
-	ath10k_info(ar, "%s (0x%08x, 0x%08x%s%s%s) fw %s api %d htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d features %s\n",
+	ath10k_info(ar, "%s (0x%08x, 0x%08x%s%s%s) fw %s api %d htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d features %s\n",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
@@ -144,6 +144,8 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ar->htt.op_version,
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations,
+		    test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags),
+		    !test_bit(ATH10K_FLAG_HW_CRYPTO_DISABLED, &ar->dev_flags),
 		    fw_features);
 	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d testmode %d\n",
 		    config_enabled(CONFIG_ATH10K_DEBUG),
@@ -1363,12 +1365,8 @@ static ssize_t ath10k_read_htt_max_amsdu_ampdu(struct file *file,
 
 	mutex_lock(&ar->conf_mutex);
 
-	if (ar->debug.htt_max_amsdu)
-		amsdu = ar->debug.htt_max_amsdu;
-
-	if (ar->debug.htt_max_ampdu)
-		ampdu = ar->debug.htt_max_ampdu;
-
+	amsdu = ar->htt.max_num_amsdu;
+	ampdu = ar->htt.max_num_ampdu;
 	mutex_unlock(&ar->conf_mutex);
 
 	len = scnprintf(buf, sizeof(buf), "%u %u\n", amsdu, ampdu);
@@ -1402,8 +1400,8 @@ static ssize_t ath10k_write_htt_max_amsdu_ampdu(struct file *file,
 		goto out;
 
 	res = count;
-	ar->debug.htt_max_amsdu = amsdu;
-	ar->debug.htt_max_ampdu = ampdu;
+	ar->htt.max_num_amsdu = amsdu;
+	ar->htt.max_num_ampdu = ampdu;
 
 out:
 	mutex_unlock(&ar->conf_mutex);
@@ -1904,9 +1902,6 @@ void ath10k_debug_stop(struct ath10k *ar)
 	 * warning from del_timer(). */
 	if (ar->debug.htt_stats_mask != 0)
 		cancel_delayed_work(&ar->debug.htt_stats_dwork);
-
-	ar->debug.htt_max_amsdu = 0;
-	ar->debug.htt_max_ampdu = 0;
 
 	ath10k_wmi_pdev_pktlog_disable(ar);
 }

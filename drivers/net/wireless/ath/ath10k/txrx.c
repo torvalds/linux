@@ -53,8 +53,6 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *msdu;
 
-	lockdep_assert_held(&htt->tx_lock);
-
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
 		   "htt tx completion msdu_id %u discard %d no_ack %d success %d\n",
 		   tx_done->msdu_id, !!tx_done->discard,
@@ -66,12 +64,19 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		return;
 	}
 
+	spin_lock_bh(&htt->tx_lock);
 	msdu = idr_find(&htt->pending_tx, tx_done->msdu_id);
 	if (!msdu) {
 		ath10k_warn(ar, "received tx completion for invalid msdu_id: %d\n",
 			    tx_done->msdu_id);
+		spin_unlock_bh(&htt->tx_lock);
 		return;
 	}
+	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
+	__ath10k_htt_tx_dec_pending(htt);
+	if (htt->num_pending_tx == 0)
+		wake_up(&htt->empty_tx_wq);
+	spin_unlock_bh(&htt->tx_lock);
 
 	skb_cb = ATH10K_SKB_CB(msdu);
 
@@ -90,7 +95,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	if (tx_done->discard) {
 		ieee80211_free_txskb(htt->ar->hw, msdu);
-		goto exit;
+		return;
 	}
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
@@ -104,12 +109,6 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */
-
-exit:
-	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
-	__ath10k_htt_tx_dec_pending(htt);
-	if (htt->num_pending_tx == 0)
-		wake_up(&htt->empty_tx_wq);
 }
 
 struct ath10k_peer *ath10k_peer_find(struct ath10k *ar, int vdev_id,

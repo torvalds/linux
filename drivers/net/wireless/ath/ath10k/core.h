@@ -92,6 +92,7 @@ struct ath10k_skb_cb {
 		u8 tid;
 		u16 freq;
 		bool is_offchan;
+		bool nohwcrypt;
 		struct ath10k_htt_txbuf *txbuf;
 		u32 txbuf_paddr;
 	} __packed htt;
@@ -152,6 +153,7 @@ struct ath10k_wmi {
 	const struct wmi_ops *ops;
 
 	u32 num_mem_chunks;
+	u32 rx_decap_mode;
 	struct ath10k_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];
 };
 
@@ -341,6 +343,7 @@ struct ath10k_vif {
 	} u;
 
 	bool use_cts_prot;
+	bool nohwcrypt;
 	int num_legacy_stations;
 	int txpower;
 	struct wmi_wmm_params_all_arg wmm_params;
@@ -381,9 +384,6 @@ struct ath10k_debug {
 	u32 pktlog_filter;
 	u32 reg_addr;
 	u32 nf_cal_period;
-
-	u8 htt_max_amsdu;
-	u8 htt_max_ampdu;
 
 	struct ath10k_fw_crash_data *fw_crash_data;
 };
@@ -453,15 +453,20 @@ enum ath10k_fw_features {
 	ATH10K_FW_FEATURE_WOWLAN_SUPPORT = 6,
 
 	/* Don't trust error code from otp.bin */
-	ATH10K_FW_FEATURE_IGNORE_OTP_RESULT,
+	ATH10K_FW_FEATURE_IGNORE_OTP_RESULT = 7,
 
 	/* Some firmware revisions pad 4th hw address to 4 byte boundary making
 	 * it 8 bytes long in Native Wifi Rx decap.
 	 */
-	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING,
+	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING = 8,
 
 	/* Firmware supports bypassing PLL setting on init. */
 	ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT = 9,
+
+	/* Raw mode support. If supported, FW supports receiving and trasmitting
+	 * frames in raw mode.
+	 */
+	ATH10K_FW_FEATURE_RAW_MODE_SUPPORT = 10,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -476,12 +481,28 @@ enum ath10k_dev_flags {
 	 * waiters should immediately cancel instead of waiting for a time out.
 	 */
 	ATH10K_FLAG_CRASH_FLUSH,
+
+	/* Use Raw mode instead of native WiFi Tx/Rx encap mode.
+	 * Raw mode supports both hardware and software crypto. Native WiFi only
+	 * supports hardware crypto.
+	 */
+	ATH10K_FLAG_RAW_MODE,
+
+	/* Disable HW crypto engine */
+	ATH10K_FLAG_HW_CRYPTO_DISABLED,
 };
 
 enum ath10k_cal_mode {
 	ATH10K_CAL_MODE_FILE,
 	ATH10K_CAL_MODE_OTP,
 	ATH10K_CAL_MODE_DT,
+};
+
+enum ath10k_crypt_mode {
+	/* Only use hardware crypto engine */
+	ATH10K_CRYPT_MODE_HW,
+	/* Only use software crypto engine */
+	ATH10K_CRYPT_MODE_SW,
 };
 
 static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
@@ -673,6 +694,8 @@ struct ath10k {
 	struct completion vdev_setup_done;
 
 	struct workqueue_struct *workqueue;
+	/* Auxiliary workqueue */
+	struct workqueue_struct *workqueue_aux;
 
 	/* prevents concurrent FW reconfiguration */
 	struct mutex conf_mutex;
@@ -694,6 +717,9 @@ struct ath10k {
 	int max_num_tdls_vdevs;
 	int num_active_peers;
 	int num_tids;
+
+	struct work_struct svc_rdy_work;
+	struct sk_buff *svc_rdy_skb;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;

@@ -217,14 +217,16 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_99X0(ar) ((ar)->hw_rev == ATH10K_HW_QCA99X0)
 
 /* Known pecularities:
- *  - current FW doesn't support raw rx mode (last tested v599)
- *  - current FW dumps upon raw tx mode (last tested v599)
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
  *    param, llc/snap) are aligned to 4byte boundaries each */
 enum ath10k_hw_txrx_mode {
 	ATH10K_HW_TXRX_RAW = 0,
+
+	/* Native Wifi decap mode is used to align IP frames to 4-byte
+	 * boundaries and avoid a very expensive re-alignment in mac80211.
+	 */
 	ATH10K_HW_TXRX_NATIVE_WIFI = 1,
 	ATH10K_HW_TXRX_ETHERNET = 2,
 
@@ -286,10 +288,6 @@ enum ath10k_hw_rate_cck {
 #define TARGET_RX_TIMEOUT_LO_PRI		100
 #define TARGET_RX_TIMEOUT_HI_PRI		40
 
-/* Native Wifi decap mode is used to align IP frames to 4-byte boundaries and
- * avoid a very expensive re-alignment in mac80211. */
-#define TARGET_RX_DECAP_MODE			ATH10K_HW_TXRX_NATIVE_WIFI
-
 #define TARGET_SCAN_MAX_PENDING_REQS		4
 #define TARGET_BMISS_OFFLOAD_MAX_VDEV		3
 #define TARGET_ROAM_OFFLOAD_MAX_VDEV		3
@@ -324,7 +322,6 @@ enum ath10k_hw_rate_cck {
 #define TARGET_10X_RX_CHAIN_MASK		(BIT(0) | BIT(1) | BIT(2))
 #define TARGET_10X_RX_TIMEOUT_LO_PRI		100
 #define TARGET_10X_RX_TIMEOUT_HI_PRI		40
-#define TARGET_10X_RX_DECAP_MODE		ATH10K_HW_TXRX_NATIVE_WIFI
 #define TARGET_10X_SCAN_MAX_PENDING_REQS	4
 #define TARGET_10X_BMISS_OFFLOAD_MAX_VDEV	2
 #define TARGET_10X_ROAM_OFFLOAD_MAX_VDEV	2
@@ -363,10 +360,7 @@ enum ath10k_hw_rate_cck {
 						 (TARGET_10_4_NUM_VDEVS))
 #define TARGET_10_4_ACTIVE_PEERS		0
 
-/* TODO: increase qcache max client limit to 512 after
- * testing with 512 client.
- */
-#define TARGET_10_4_NUM_QCACHE_PEERS_MAX	256
+#define TARGET_10_4_NUM_QCACHE_PEERS_MAX	512
 #define TARGET_10_4_QCACHE_ACTIVE_PEERS		50
 #define TARGET_10_4_NUM_OFFLOAD_PEERS		0
 #define TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS	0
