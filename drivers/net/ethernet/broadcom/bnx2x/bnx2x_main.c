@@ -2494,7 +2494,7 @@ static void bnx2x_calc_vn_max(struct bnx2x *bp, int vn,
 	else {
 		u32 maxCfg = bnx2x_extract_max_cfg(bp, vn_cfg);
 
-		if (IS_MF_SI(bp)) {
+		if (IS_MF_PERCENT_BW(bp)) {
 			/* maxCfg in percents of linkspeed */
 			vn_max_rate = (bp->link_vars.line_speed * maxCfg) / 100;
 		} else /* SD modes */

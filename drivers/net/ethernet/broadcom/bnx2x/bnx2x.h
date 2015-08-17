@@ -2571,6 +2571,10 @@ void bnx2x_notify_link_changed(struct bnx2x *bp);
 			(IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp) ||	\
 			 IS_MF_SI_STORAGE_PERSONALITY_ONLY(bp))
 
+/* Determines whether BW configuration arrives in 100Mb units or in
+ * percentages from actual physical link speed.
+ */
+#define IS_MF_PERCENT_BW(bp) (IS_MF_SI(bp) || IS_MF_UFP(bp) || IS_MF_BD(bp))
 
 #define SET_FLAG(value, mask, flag) \
 	do {\

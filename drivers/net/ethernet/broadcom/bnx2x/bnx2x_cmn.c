@@ -1190,7 +1190,7 @@ u16 bnx2x_get_mf_speed(struct bnx2x *bp)
 		/* Calculate the current MAX line speed limit for the MF
 		 * devices
 		 */
-		if (IS_MF_SI(bp))
+		if (IS_MF_PERCENT_BW(bp))
 			line_speed = (line_speed * maxCfg) / 100;
 		else { /* SD mode */
 			u16 vn_max_rate = maxCfg * 100;
