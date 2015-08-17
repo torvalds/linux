@@ -38,8 +38,6 @@ typedef struct {
  *  @sa		sttrWILC_MemoryAttrs
  *  @sa		WILC_MALLOC
  *  @sa		WILC_MALLOC_EX
- *  @sa		WILC_NEW
- *  @sa		WILC_NEW_EX
  *  @author	syounan
  *  @date	16 Aug 2010
  *  @version	1.0
@@ -54,13 +52,6 @@ void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
 	(WILC_MemoryAlloc( \
 		 (__size__), __attrs__, NULL, 0))
 
-/*!
- * @brief	Allocates a block (with custom attributes) of given type and number of
- * elements
- */
-#define WILC_NEW_EX(__struct_type__, __n_structs__, __attrs__) \
-	((__struct_type__ *)WILC_MALLOC_EX( \
-		 sizeof(__struct_type__) * (u32)(__n_structs__), __attrs__))
 
 /*!
  * @brief	standrad malloc wrapper with default attributes
@@ -71,11 +62,5 @@ void *WILC_MemoryAlloc(u32 u32Size, tstrWILC_MemoryAttrs *strAttrs,
 
 
 
-/*!
- * @brief	Allocates a block (with default attributes) of given type and number of
- * elements
- */
-#define WILC_NEW(__struct_type__, __n_structs__) \
-	WILC_NEW_EX(__struct_type__, __n_structs__, NULL)
 
 #endif
