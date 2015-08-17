@@ -55,22 +55,12 @@
 #define REG_IER 0x0C
 #define REG_ISR 0x0E
 #define REG_MSC 0x10
-#define REG_C0L 0x12
-#define REG_C0H 0x14
-#define REG_C0M 0x16
-#define REG_C0C 0x18
-#define REG_C1L 0x1A
-#define REG_C1H 0x1C
-#define REG_C1M 0x1E
-#define REG_C1C 0x20
-#define REG_C2L 0x22
-#define REG_C2H 0x24
-#define REG_C2M 0x26
-#define REG_C2C 0x28
-#define REG_C3L 0x2A
-#define REG_C3H 0x2C
-#define REG_C3M 0x2E
-#define REG_C3C 0x30
+
+#define S526_GPCT_LSB_REG(x)	(0x12 + ((x) * 8))
+#define S526_GPCT_MSB_REG(x)	(0x14 + ((x) * 8))
+#define S526_GPCT_MODE_REG(x)	(0x16 + ((x) * 8))
+#define S526_GPCT_CTRL_REG(x)	(0x18 + ((x) * 8))
+
 #define REG_EED 0x32
 #define REG_EEC 0x34
 
@@ -114,24 +104,36 @@ struct s526_private {
 	unsigned short ai_config;
 };
 
+static void s526_gpct_write(struct comedi_device *dev,
+			    unsigned int chan, unsigned int val)
+{
+	/* write high word then low word */
+	outw((val >> 16) & 0xffff, dev->iobase + S526_GPCT_MSB_REG(chan));
+	outw(val & 0xffff, dev->iobase + S526_GPCT_LSB_REG(chan));
+}
+
+static unsigned int s526_gpct_read(struct comedi_device *dev,
+				   unsigned int chan)
+{
+	unsigned int val;
+
+	/* read the low word then high word */
+	val = inw(dev->iobase + S526_GPCT_LSB_REG(chan)) & 0xffff;
+	val |= (inw(dev->iobase + S526_GPCT_MSB_REG(chan)) & 0xff) << 16;
+
+	return val;
+}
+
 static int s526_gpct_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned long chan_iobase = dev->iobase + chan * 8;
-	unsigned int lo;
-	unsigned int hi;
 	int i;
 
-	for (i = 0; i < insn->n; i++) {
-		/* Read the low word first */
-		lo = inw(chan_iobase + REG_C0L) & 0xffff;
-		hi = inw(chan_iobase + REG_C0H) & 0xff;
-
-		data[i] = (hi << 16) | lo;
-	}
+	for (i = 0; i < insn->n; i++)
+		data[i] = s526_gpct_read(dev, chan);
 
 	return insn->n;
 }
@@ -143,7 +145,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 {
 	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned long chan_iobase = dev->iobase + chan * 8;
 	unsigned int val;
 	union cmReg cmReg;
 
@@ -174,32 +175,31 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
 		cmReg.reg.reserved = 0;
 
-		outw(cmReg.value, chan_iobase + REG_C0M);
+		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
 
-		outw(0x0001, chan_iobase + REG_C0H);
-		outw(0x3C68, chan_iobase + REG_C0L);
+		s526_gpct_write(dev, chan, 0x0013c68);
 
 		/*  Reset the counter */
-		outw(0x8000, chan_iobase + REG_C0C);
+		outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 		/*  Load the counter from PR0 */
-		outw(0x4000, chan_iobase + REG_C0C);
+		outw(0x4000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 
 		/*  Reset RCAP (fires one-shot) */
-		outw(0x0008, chan_iobase + REG_C0C);
+		outw(0x0008, dev->iobase + S526_GPCT_CTRL_REG(chan));
 
 #endif
 
 #if 1
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
-		outw(cmReg.value, chan_iobase + REG_C0M);
+		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
 
 		/*  Reset the counter if it is software preload */
 		if (cmReg.reg.autoLoadResetRcap == 0) {
 			/*  Reset the counter */
-			outw(0x8000, chan_iobase + REG_C0C);
+			outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 			/* Load the counter from PR0
-			 * outw(0x4000, chan_iobase + REG_C0C);
+			 * outw(0x4000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 			 */
 		}
 #else
@@ -227,27 +227,22 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
-		outw(cmReg.value, chan_iobase + REG_C0M);
+		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
 
-		/*  Load the pre-load register high word */
-		val = (data[2] >> 16) & 0xffff;
-		outw(val, chan_iobase + REG_C0H);
-
-		/*  Load the pre-load register low word */
-		val = data[2] & 0xffff;
-		outw(val, chan_iobase + REG_C0L);
+		/*  Load the pre-load register */
+		s526_gpct_write(dev, chan, data[2]);
 
 		/*  Write the Counter Control Register */
-		if (data[3]) {
-			val = data[3] & 0xffff;
-			outw(val, chan_iobase + REG_C0C);
-		}
+		if (data[3])
+			outw(data[3] & 0xffff,
+			     dev->iobase + S526_GPCT_CTRL_REG(chan));
+
 		/*  Reset the counter if it is software preload */
 		if (cmReg.reg.autoLoadResetRcap == 0) {
 			/*  Reset the counter */
-			outw(0x8000, chan_iobase + REG_C0C);
+			outw(0x8000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 			/*  Load the counter from PR0 */
-			outw(0x4000, chan_iobase + REG_C0C);
+			outw(0x4000, dev->iobase + S526_GPCT_CTRL_REG(chan));
 		}
 #endif
 		break;
@@ -265,33 +260,23 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-		outw(cmReg.value, chan_iobase + REG_C0M);
+		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
 
-		/*  Load the pre-load register 0 high word */
-		val = (data[2] >> 16) & 0xffff;
-		outw(val, chan_iobase + REG_C0H);
-
-		/*  Load the pre-load register 0 low word */
-		val = data[2] & 0xffff;
-		outw(val, chan_iobase + REG_C0L);
+		/* Load the pre-load register 0 */
+		s526_gpct_write(dev, chan, data[2]);
 
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 1;	/*  PR1 */
-		outw(cmReg.value, chan_iobase + REG_C0M);
+		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
 
-		/*  Load the pre-load register 1 high word */
-		val = (data[3] >> 16) & 0xffff;
-		outw(val, chan_iobase + REG_C0H);
-
-		/*  Load the pre-load register 1 low word */
-		val = data[3] & 0xffff;
-		outw(val, chan_iobase + REG_C0L);
+		/* Load the pre-load register 1 */
+		s526_gpct_write(dev, chan, data[3]);
 
 		/*  Write the Counter Control Register */
 		if (data[4]) {
 			val = data[4] & 0xffff;
-			outw(val, chan_iobase + REG_C0C);
+			outw(val, dev->iobase + S526_GPCT_CTRL_REG(chan));
 		}
 		break;
 
@@ -308,33 +293,23 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-		outw(cmReg.value, chan_iobase + REG_C0M);
+		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
 
-		/*  Load the pre-load register 0 high word */
-		val = (data[2] >> 16) & 0xffff;
-		outw(val, chan_iobase + REG_C0H);
-
-		/*  Load the pre-load register 0 low word */
-		val = data[2] & 0xffff;
-		outw(val, chan_iobase + REG_C0L);
+		/* Load the pre-load register 0 */
+		s526_gpct_write(dev, chan, data[2]);
 
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 1;	/*  PR1 */
-		outw(cmReg.value, chan_iobase + REG_C0M);
+		outw(cmReg.value, dev->iobase + S526_GPCT_MODE_REG(chan));
 
-		/*  Load the pre-load register 1 high word */
-		val = (data[3] >> 16) & 0xffff;
-		outw(val, chan_iobase + REG_C0H);
-
-		/*  Load the pre-load register 1 low word */
-		val = data[3] & 0xffff;
-		outw(val, chan_iobase + REG_C0L);
+		/* Load the pre-load register 1 */
+		s526_gpct_write(dev, chan, data[3]);
 
 		/*  Write the Counter Control Register */
 		if (data[4]) {
 			val = data[4] & 0xffff;
-			outw(val, chan_iobase + REG_C0C);
+			outw(val, dev->iobase + S526_GPCT_CTRL_REG(chan));
 		}
 		break;
 
@@ -352,9 +327,8 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 {
 	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned long chan_iobase = dev->iobase + chan * 8;
 
-	inw(chan_iobase + REG_C0M);	/* Is this read required? */
+	inw(dev->iobase + S526_GPCT_MODE_REG(chan));	/* Is this required? */
 
 	/*  Check what Application of Counter this channel is configured for */
 	switch (devpriv->gpct_config[chan]) {
@@ -372,8 +346,7 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 
 	case INSN_CONFIG_GPCT_QUADRATURE_ENCODER:
 	case INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR:
-		outw((data[0] >> 16) & 0xffff, chan_iobase + REG_C0H);
-		outw(data[0] & 0xffff, chan_iobase + REG_C0L);
+		s526_gpct_write(dev, chan, data[0]);
 		break;
 
 	default:
