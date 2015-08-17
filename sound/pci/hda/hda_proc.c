@@ -36,21 +36,6 @@ MODULE_PARM_DESC(dump_coef, "Dump processing coefficients in codec proc file (-1
 #define param_read(codec, nid, parm) \
 	snd_hdac_read_parm_uncached(&(codec)->core, nid, parm)
 
-static char *bits_names(unsigned int bits, const char * const names[], int size)
-{
-	int i, n;
-	static char buf[128];
-
-	for (i = 0, n = 0; i < size; i++) {
-		if (bits & (1U<<i) && names[i])
-			n += snprintf(buf + n, sizeof(buf) - n, " %s",
-				      names[i]);
-	}
-	buf[n] = '\0';
-
-	return buf;
-}
-
 static const char *get_wid_type_name(unsigned int wid_value)
 {
 	static const char * const names[16] = {
@@ -555,9 +540,16 @@ static void print_power_state(struct snd_info_buffer *buffer,
 	int sup = param_read(codec, nid, AC_PAR_POWER_STATE);
 	int pwr = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_POWER_STATE, 0);
-	if (sup != -1)
-		snd_iprintf(buffer, "  Power states: %s\n",
-			    bits_names(sup, names, ARRAY_SIZE(names)));
+	if (sup != -1) {
+		int i;
+
+		snd_iprintf(buffer, "  Power states: ");
+		for (i = 0; i < ARRAY_SIZE(names); i++) {
+			if (sup & (1U << i))
+				snd_iprintf(buffer, " %s", names[i]);
+		}
+		snd_iprintf(buffer, "\n");
+	}
 
 	snd_iprintf(buffer, "  Power: setting=%s, actual=%s",
 		    get_pwr_state(pwr & AC_PWRST_SETTING),
