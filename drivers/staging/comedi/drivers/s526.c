@@ -60,7 +60,11 @@
 #define S526_AO_CTRL_RESET	BIT(3)
 #define S526_AO_CTRL_CHAN(x)	(((x) & 0x3) << 1)
 #define S526_AO_CTRL_START	BIT(0)
-#define REG_ADC 0x06
+#define S526_AI_CTRL_REG	0x06
+#define S526_AI_CTRL_DELAY	BIT(15)
+#define S526_AI_CTRL_CONV(x)	(1 << (5 + ((x) & 0x9)))
+#define S526_AI_CTRL_READ(x)	(((x) & 0xf) << 1)
+#define S526_AI_CTRL_START	BIT(0)
 #define REG_ADD 0x08
 #define REG_DIO 0x0A
 #define REG_IER 0x0C
@@ -391,7 +395,7 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 	outw(ISR_ADC_DONE, dev->iobase + REG_IER);
 	devpriv->ai_config = (data[0] & 0x3ff) << 5;
 	if (data[1] > 0)
-		devpriv->ai_config |= 0x8000;	/* set the delay */
+		devpriv->ai_config |= S526_AI_CTRL_DELAY;/* set the delay */
 
 	devpriv->ai_config |= 0x0001;		/* ADC start bit */
 
@@ -416,20 +420,23 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int ctrl;
 	int n;
-	unsigned short value;
 	unsigned int d;
 	int ret;
 
-	/* Set configured delay, enable channel for this channel only,
-	 * select "ADC read" channel, set "ADC start" bit. */
-	value = (devpriv->ai_config & 0x8000) |
-		((1 << 5) << chan) | (chan << 1) | 0x0001;
+	/*
+	 * Set configured delay, enable conversion and read for requested
+	 * channel only, set "ADC start" bit.
+	 */
+	ctrl = (devpriv->ai_config & S526_AI_CTRL_DELAY) |
+	       S526_AI_CTRL_CONV(chan) | S526_AI_CTRL_READ(chan) |
+	       S526_AI_CTRL_START;
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(value, dev->iobase + REG_ADC);
+		outw(ctrl, dev->iobase + S526_AI_CTRL_REG);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, s526_ai_eoc, 0);
