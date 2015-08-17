@@ -1,5 +1,5 @@
 /**********************************************************
- * Copyright 2007-2009 VMware, Inc.  All rights reserved.
+ * Copyright 2007-2015 VMware, Inc.  All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -152,19 +152,17 @@ VMwareVideoGetAttributes(const SVGAOverlayFormat format,    /* IN */
     switch (format) {
     case VMWARE_FOURCC_YV12:
        *height = (*height + 1) & ~1;
-       *size = (*width + 3) & ~3;
+       *size = (*width) * (*height);
 
        if (pitches) {
-          pitches[0] = *size;
+          pitches[0] = *width;
        }
-
-       *size *= *height;
 
        if (offsets) {
           offsets[1] = *size;
        }
 
-       tmp = ((*width >> 1) + 3) & ~3;
+       tmp = *width >> 1;
 
        if (pitches) {
           pitches[1] = pitches[2] = tmp;
