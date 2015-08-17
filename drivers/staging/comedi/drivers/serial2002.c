@@ -175,7 +175,7 @@ static int serial2002_tty_read(struct file *f, int timeout)
 					result = ch;
 					break;
 				}
-				udelay(100);
+				usleep_range(100, 1000);
 			}
 		}
 		set_fs(oldfs);
