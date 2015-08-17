@@ -236,7 +236,7 @@ struct imx_port {
 	unsigned int		tx_bytes;
 	unsigned int		dma_tx_nents;
 	wait_queue_head_t	dma_wait;
-	unsigned int            saved_reg[11];
+	unsigned int            saved_reg[10];
 };
 
 struct imx_port_ucrs {
@@ -1857,8 +1857,7 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 	sport->saved_reg[6] = readl(sport->port.membase + UTIM);
 	sport->saved_reg[7] = readl(sport->port.membase + UBIR);
 	sport->saved_reg[8] = readl(sport->port.membase + UBMR);
-	sport->saved_reg[9] = readl(sport->port.membase + UBRC);
-	sport->saved_reg[10] = readl(sport->port.membase + IMX21_UTS);
+	sport->saved_reg[9] = readl(sport->port.membase + IMX21_UTS);
 
 	return 0;
 }
@@ -1873,8 +1872,7 @@ static int serial_imx_resume(struct platform_device *dev)
 	writel(sport->saved_reg[6], sport->port.membase + UTIM);
 	writel(sport->saved_reg[7], sport->port.membase + UBIR);
 	writel(sport->saved_reg[8], sport->port.membase + UBMR);
-	writel(sport->saved_reg[9], sport->port.membase + UBRC);
-	writel(sport->saved_reg[10], sport->port.membase + IMX21_UTS);
+	writel(sport->saved_reg[9], sport->port.membase + IMX21_UTS);
 	writel(sport->saved_reg[0], sport->port.membase + UCR1);
 	writel(sport->saved_reg[1] | 0x1, sport->port.membase + UCR2);
 	writel(sport->saved_reg[2], sport->port.membase + UCR3);
