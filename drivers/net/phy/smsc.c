@@ -124,7 +124,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 				return rc;
 			if (rc & MII_LAN83C185_ENERGYON)
 				break;
-		};
+		}
 
 		/* Re-enable EDPD */
 		rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
