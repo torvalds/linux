@@ -77,44 +77,44 @@
 
 	.align 3
 
-       /* Check if the cpu is cortex-a7 */
-       .macro is_cortex_a7
+	/* Check if the cpu is cortex-a7 */
+	.macro is_cortex_a7
 
-       /* Read the primary cpu number is MPIDR */
-       mrc     p15, 0, r5, c0, c0, 0
-       ldr     r6, =0xfff0
-       and     r5, r5, r6
-       ldr     r6, =0xc070
-       cmp     r5, r6
+	/* Read the primary cpu number is MPIDR */
+	mrc     p15, 0, r5, c0, c0, 0
+	ldr     r6, =0xfff0
+	and     r5, r5, r6
+	ldr     r6, =0xc070
+	cmp     r5, r6
 
-       .endm
+	.endm
 
-       .macro  disable_l1_cache
+	.macro  disable_l1_cache
 
-       /*
-        * Flush all data from the L1 data cache before disabling
-        * SCTLR.C bit.
-        */
-       push    {r0 - r10, lr}
-       ldr     r7, =v7_flush_dcache_all
-       mov     lr, pc
-       mov     pc, r7
-       pop     {r0 - r10, lr}
+	/*
+	 * Flush all data from the L1 data cache before disabling
+	 * SCTLR.C bit.
+	 */
+	push    {r0 - r10, lr}
+	ldr     r7, =v7_flush_dcache_all
+	mov     lr, pc
+	mov     pc, r7
+	pop     {r0 - r10, lr}
 
-       /* disable d-cache */
-       mrc     p15, 0, r7, c1, c0, 0
-       bic     r7, r7, #(1 << 2)
-       mcr     p15, 0, r7, c1, c0, 0
-       dsb
-       isb
+	/* disable d-cache */
+	mrc     p15, 0, r7, c1, c0, 0
+	bic     r7, r7, #(1 << 2)
+	mcr     p15, 0, r7, c1, c0, 0
+	dsb
+	isb
 
-       push    {r0 -r10, lr}
-       ldr     r7, = v7_flush_dcache_all
-       mov     lr, pc
-       mov     pc , r7
-       pop     {r0 -r10, lr}
+	push    {r0 -r10, lr}
+	ldr     r7, = v7_flush_dcache_all
+	mov     lr, pc
+	mov     pc , r7
+	pop     {r0 -r10, lr}
 
-       .endm
+	.endm
 
 	.macro  sync_l2_cache
 
