@@ -104,17 +104,12 @@ static void grgpio_set_imask(struct grgpio_priv *priv, unsigned int offset,
 {
 	struct bgpio_chip *bgc = &priv->bgc;
 	unsigned long mask = bgc->pin2mask(bgc, offset);
-	unsigned long flags;
-
-	spin_lock_irqsave(&bgc->lock, flags);
 
 	if (val)
 		priv->imask |= mask;
 	else
 		priv->imask &= ~mask;
 	bgc->write_reg(priv->regs + GRGPIO_IMASK, priv->imask);
-
-	spin_unlock_irqrestore(&bgc->lock, flags);
 }
 
 static int grgpio_to_irq(struct gpio_chip *gc, unsigned offset)
@@ -180,16 +175,26 @@ static void grgpio_irq_mask(struct irq_data *d)
 {
 	struct grgpio_priv *priv = irq_data_get_irq_chip_data(d);
 	int offset = d->hwirq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->bgc.lock, flags);
 
 	grgpio_set_imask(priv, offset, 0);
+
+	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
 static void grgpio_irq_unmask(struct irq_data *d)
 {
 	struct grgpio_priv *priv = irq_data_get_irq_chip_data(d);
 	int offset = d->hwirq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->bgc.lock, flags);
 
 	grgpio_set_imask(priv, offset, 1);
+
+	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
 static struct irq_chip grgpio_irq_chip = {
