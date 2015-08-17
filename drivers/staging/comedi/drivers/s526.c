@@ -1,40 +1,39 @@
 /*
-    comedi/drivers/s526.c
-    Sensoray s526 Comedi driver
+ * s526.c
+ * Sensoray s526 Comedi driver
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: s526
-Description: Sensoray 526 driver
-Devices: [Sensoray] 526 (s526)
-Author: Richie
-	Everett Wang <everett.wang@everteq.com>
-Updated: Thu, 14 Sep. 2006
-Status: experimental
-
-Encoder works
-Analog input works
-Analog output works
-PWM output works
-Commands are not supported yet.
-
-Configuration Options:
-
-comedi_config /dev/comedi0 s526 0x2C0,0x3
-
-*/
+ * Driver: s526
+ * Description: Sensoray 526 driver
+ * Devices: [Sensoray] 526 (s526)
+ * Author: Richie
+ *	   Everett Wang <everett.wang@everteq.com>
+ * Updated: Thu, 14 Sep. 2006
+ * Status: experimental
+ *
+ * Encoder works
+ * Analog input works
+ * Analog output works
+ * PWM output works
+ * Commands are not supported yet.
+ *
+ * Configuration Options:
+ *   [0] - I/O port base address
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
