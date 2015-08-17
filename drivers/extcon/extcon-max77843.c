@@ -781,6 +781,15 @@ static int max77843_muic_probe(struct platform_device *pdev)
 	/* Support virtual irq domain for max77843 MUIC device */
 	INIT_WORK(&info->irq_work, max77843_muic_irq_work);
 
+	/* Clear IRQ bits before request IRQs */
+	ret = regmap_bulk_read(max77843->regmap_muic,
+			MAX77843_MUIC_REG_INT1, info->status,
+			MAX77843_MUIC_IRQ_NUM);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to Clear IRQ bits\n");
+		goto err_muic_irq;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(max77843_muic_irqs); i++) {
 		struct max77843_muic_irq *muic_irq = &max77843_muic_irqs[i];
 		unsigned int virq = 0;

@@ -27,8 +27,6 @@
 #define __LINUX_EXTCON_H__
 
 #include <linux/device.h>
-#include <linux/notifier.h>
-#include <linux/sysfs.h>
 
 /*
  * Define the unique id of supported external connectors
@@ -77,8 +75,6 @@ struct extcon_cable;
  *			be attached simulataneously. {0x7, 0} is equivalent to
  *			{0x3, 0x6, 0x5, 0}. If it is {0xFFFFFFFF, 0}, there
  *			can be no simultaneous connections.
- * @print_state:	An optional callback to override the method to print the
- *			status of the extcon device.
  * @dev:		Device of this extcon.
  * @state:		Attach/detach state of this extcon. Do not provide at
  *			register-time.
@@ -101,9 +97,6 @@ struct extcon_dev {
 	const char *name;
 	const unsigned int *supported_cable;
 	const u32 *mutually_exclusive;
-
-	/* Optional callbacks to override class functions */
-	ssize_t	(*print_state)(struct extcon_dev *edev, char *buf);
 
 	/* Internal data. Please do not set. */
 	struct device dev;
