@@ -558,14 +558,11 @@ retry:
 	arg->layoutupdate_len = ext_tree_layoutupdate_size(count);
 
 	if (unlikely(arg->layoutupdate_pages != &arg->layoutupdate_page)) {
-		__be32 *p = start_p;
+		void *p = start_p, *end = p + arg->layoutupdate_len;
 		int i = 0;
 
-		for (p = start_p;
-		     p < start_p + arg->layoutupdate_len;
-		     p += PAGE_SIZE) {
+		for ( ; p < end; p += PAGE_SIZE)
 			arg->layoutupdate_pages[i++] = vmalloc_to_page(p);
-		}
 	}
 
 	dprintk("%s found %zu ranges\n", __func__, count);
