@@ -52,7 +52,10 @@
 #define S526_TIMER_MANUAL	S526_TIMER_MODE(0)
 #define S526_TIMER_AUTO		S526_TIMER_MODE(1)
 #define S526_TIMER_RESTART	BIT(0)
-#define REG_WDC 0x02
+#define S526_WDOG_REG		0x02
+#define S526_WDOG_INVERTED	BIT(4)
+#define S526_WDOG_ENA		BIT(3)
+#define S526_WDOG_INTERVAL(x)	(((x) & 0x7) << 0)
 #define REG_DAC 0x04
 #define REG_ADC 0x06
 #define REG_ADD 0x08
