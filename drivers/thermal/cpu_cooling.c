@@ -262,7 +262,9 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
  * efficiently.  Power is stored in mW, frequency in KHz.  The
  * resulting table is in ascending order.
  *
- * Return: 0 on success, -E* on error.
+ * Return: 0 on success, -EINVAL if there are no OPPs for any CPUs,
+ * -ENOMEM if we run out of memory or -EAGAIN if an OPP was
+ * added/enabled while the function was executing.
  */
 static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 				 u32 capacitance)
@@ -270,10 +272,8 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 	struct power_table *power_table;
 	struct dev_pm_opp *opp;
 	struct device *dev = NULL;
-	int num_opps = 0, cpu, i, ret = 0;
+	int num_opps = 0, cpu, i;
 	unsigned long freq;
-
-	rcu_read_lock();
 
 	for_each_cpu(cpu, &cpufreq_device->allowed_cpus) {
 		dev = get_cpu_device(cpu);
@@ -284,30 +284,31 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 		}
 
 		num_opps = dev_pm_opp_get_opp_count(dev);
-		if (num_opps > 0) {
+		if (num_opps > 0)
 			break;
-		} else if (num_opps < 0) {
-			ret = num_opps;
-			goto unlock;
-		}
+		else if (num_opps < 0)
+			return num_opps;
 	}
 
-	if (num_opps == 0) {
-		ret = -EINVAL;
-		goto unlock;
-	}
+	if (num_opps == 0)
+		return -EINVAL;
 
 	power_table = kcalloc(num_opps, sizeof(*power_table), GFP_KERNEL);
-	if (!power_table) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	if (!power_table)
+		return -ENOMEM;
+
+	rcu_read_lock();
 
 	for (freq = 0, i = 0;
 	     opp = dev_pm_opp_find_freq_ceil(dev, &freq), !IS_ERR(opp);
 	     freq++, i++) {
 		u32 freq_mhz, voltage_mv;
 		u64 power;
+
+		if (i >= num_opps) {
+			rcu_read_unlock();
+			return -EAGAIN;
+		}
 
 		freq_mhz = freq / 1000000;
 		voltage_mv = dev_pm_opp_get_voltage(opp) / 1000;
@@ -326,18 +327,16 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 		power_table[i].power = power;
 	}
 
-	if (i == 0) {
-		ret = PTR_ERR(opp);
-		goto unlock;
-	}
+	rcu_read_unlock();
+
+	if (i != num_opps)
+		return PTR_ERR(opp);
 
 	cpufreq_device->cpu_dev = dev;
 	cpufreq_device->dyn_power_table = power_table;
 	cpufreq_device->dyn_power_table_entries = i;
 
-unlock:
-	rcu_read_unlock();
-	return ret;
+	return 0;
 }
 
 static u32 cpu_freq_to_power(struct cpufreq_cooling_device *cpufreq_device,
