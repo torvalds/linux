@@ -167,7 +167,6 @@ extern void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
 static struct semaphore SemHandleSendPkt;
 static struct semaphore SemHandlePktResp;
 
-static s8 *gps8ConfigPacket;
 
 static tstrConfigPktInfo gstrConfigPktInfo;
 
@@ -674,17 +673,8 @@ s32 CoreConfiguratorInit(void)
 	sema_init(&SemHandleSendPkt, 1);
 	sema_init(&SemHandlePktResp, 0);
 
-	gps8ConfigPacket = WILC_MALLOC(MAX_PACKET_BUFF_SIZE);
-	if (gps8ConfigPacket == NULL) {
-		PRINT_ER("failed in gps8ConfigPacket allocation\n");
-		s32Error = WILC_NO_MEM;
-		goto _fail_;
-	}
-
-	memset((void *)gps8ConfigPacket, 0, MAX_PACKET_BUFF_SIZE);
 
 	memset((void *)(&gstrConfigPktInfo), 0, sizeof(tstrConfigPktInfo));
-_fail_:
 	return s32Error;
 }
 
@@ -1954,11 +1944,6 @@ s32 CoreConfiguratorDeInit(void)
 
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorDeInit()\n");
 
-	if (gps8ConfigPacket != NULL) {
-
-		kfree(gps8ConfigPacket);
-		gps8ConfigPacket = NULL;
-	}
 
 	return s32Error;
 }
