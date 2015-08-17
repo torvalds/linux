@@ -561,51 +561,54 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* General-Purpose Counter/Timer (GPCT) */
 	s = &dev->subdevices[0];
-	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
-	s->n_chan = 4;
-	s->maxdata = 0x00ffffff;	/* 24 bit counter */
-	s->insn_read = s526_gpct_rinsn;
-	s->insn_config = s526_gpct_insn_config;
-	s->insn_write = s526_gpct_winsn;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
+	s->n_chan	= 4;
+	s->maxdata	= 0x00ffffff;
+	s->insn_read	= s526_gpct_rinsn;
+	s->insn_config	= s526_gpct_insn_config;
+	s->insn_write	= s526_gpct_winsn;
 
+	/*
+	 * Analog Input subdevice
+	 * channels 0 to 7 are the regular differential inputs
+	 * channel 8 is "reference 0" (+10V)
+	 * channel 9 is "reference 1" (0V)
+	 */
 	s = &dev->subdevices[1];
-	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF;
-	/* channels 0 to 7 are the regular differential inputs */
-	/* channel 8 is "reference 0" (+10V), channel 9 is "reference 1" (0V) */
-	s->n_chan = 10;
-	s->maxdata = 0xffff;
-	s->range_table = &range_bipolar10;
-	s->len_chanlist = 16;
-	s->insn_read = s526_ai_rinsn;
-	s->insn_config = s526_ai_insn_config;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_DIFF;
+	s->n_chan	= 10;
+	s->maxdata	= 0xffff;
+	s->range_table	= &range_bipolar10;
+	s->len_chanlist	= 16;
+	s->insn_read	= s526_ai_rinsn;
+	s->insn_config	= s526_ai_insn_config;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[2];
-	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 0xffff;
-	s->range_table = &range_bipolar10;
-	s->insn_write = s526_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 0xffff;
+	s->range_table	= &range_bipolar10;
+	s->insn_write	= s526_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[3];
-	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = s526_dio_insn_bits;
-	s->insn_config = s526_dio_insn_config;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= s526_dio_insn_bits;
+	s->insn_config	= s526_dio_insn_config;
 
 	return 0;
 }
