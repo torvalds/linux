@@ -2501,7 +2501,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsy
 				#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 				PRINT_D(GENERIC_DBG, "Obtaining an IP, Disable Scan\n");
 				g_obtainingIP = true;
-				WILC_TimerStart(&hDuringIpTimer, 10000, NULL);
+				mod_timer(&hDuringIpTimer,
+					  jiffies + msecs_to_jiffies(10000));
 				#endif
 
 				#ifdef WILC_PARSE_SCAN_IN_HOST
@@ -3849,7 +3850,10 @@ static int Handle_RemainOnChan(tstrWILC_WFIDrv *drvHandler, tstrHostIfRemainOnCh
 	WILC_CATCH(-1)
 	{
 		P2P_LISTEN_STATE = 1;
-		WILC_TimerStart(&(pstrWFIDrv->hRemainOnChannel), pstrHostIfRemainOnChan->u32duration, (void *)pstrWFIDrv);
+		pstrWFIDrv->hRemainOnChannel.data = (unsigned long)pstrWFIDrv;
+		mod_timer(&pstrWFIDrv->hRemainOnChannel,
+			  jiffies +
+			  msecs_to_jiffies(pstrHostIfRemainOnChan->u32duration));
 
 		/*Calling CFG ready_on_channel*/
 		if (pstrWFIDrv->strHostIfRemainOnChan.pRemainOnChanReady)
@@ -5487,7 +5491,9 @@ s32 host_int_set_join_req(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8bssid,
 	}
 
 	enuScanConnTimer = CONNECT_TIMER;
-	WILC_TimerStart(&(pstrWFIDrv->hConnectTimer), HOST_IF_CONNECT_TIMEOUT, (void *) hWFIDrv);
+	pstrWFIDrv->hConnectTimer.data = (unsigned long)hWFIDrv;
+	mod_timer(&pstrWFIDrv->hConnectTimer,
+		  jiffies + msecs_to_jiffies(HOST_IF_CONNECT_TIMEOUT));
 
 	WILC_CATCH(s32Error)
 	{
@@ -6220,8 +6226,9 @@ s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
 
 	enuScanConnTimer = SCAN_TIMER;
 	PRINT_D(HOSTINF_DBG, ">> Starting the SCAN timer\n");
-	WILC_TimerStart(&(pstrWFIDrv->hScanTimer), HOST_IF_SCAN_TIMEOUT, (void *) hWFIDrv);
-
+	pstrWFIDrv->hScanTimer.data = (unsigned long)hWFIDrv;
+	mod_timer(&pstrWFIDrv->hScanTimer,
+		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
 
 	WILC_CATCH(s32Error)
 	{
@@ -6443,7 +6450,8 @@ static void GetPeriodicRSSI(unsigned long arg)
 			return;
 		}
 	}
-	WILC_TimerStart(&(g_hPeriodicRSSI), 5000, (void *)pstrWFIDrv);
+	g_hPeriodicRSSI.data = (unsigned long)pstrWFIDrv;
+	mod_timer(&g_hPeriodicRSSI, jiffies + msecs_to_jiffies(5000));
 }
 
 
@@ -6539,9 +6547,8 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 			s32Error = WILC_FAIL;
 			goto _fail_mq_;
 		}
-		setup_timer(&g_hPeriodicRSSI, GetPeriodicRSSI, 0);
-		WILC_TimerStart(&(g_hPeriodicRSSI), 5000, (void *)pstrWFIDrv);
-
+		setup_timer(&g_hPeriodicRSSI, GetPeriodicRSSI, pstrWFIDrv);
+		mod_timer(&g_hPeriodicRSSI, jiffies + msecs_to_jiffies(5000));
 	}
 
 

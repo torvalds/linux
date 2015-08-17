@@ -256,10 +256,12 @@ static void remove_network_from_shadow(unsigned long arg)
 	}
 
 	PRINT_D(CFG80211_DBG, "Number of cached networks: %d\n", u32LastScannedNtwrksCountShadow);
-	if (u32LastScannedNtwrksCountShadow != 0)
-		WILC_TimerStart(&(hAgingTimer), AGING_TIME, (void *)arg);
-	else
+	if (u32LastScannedNtwrksCountShadow != 0) {
+		hAgingTimer.data = arg;
+		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
+	} else {
 		PRINT_D(CFG80211_DBG, "No need to restart Aging timer\n");
+	}
 }
 
 #ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
@@ -277,7 +279,8 @@ int8_t is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid)
 
 	if (u32LastScannedNtwrksCountShadow == 0) {
 		PRINT_D(CFG80211_DBG, "Starting Aging timer\n");
-		WILC_TimerStart(&(hAgingTimer), AGING_TIME, pUserVoid);
+		hAgingTimer.data = (unsigned long)pUserVoid;
+		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
 		state = -1;
 	} else {
 		/* Linear search for now */
@@ -3069,7 +3072,7 @@ static int WILC_WFI_change_virt_intf(struct wiphy *wiphy, struct net_device *dev
 
 		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 		g_obtainingIP = true;
-		WILC_TimerStart(&hDuringIpTimer, duringIP_TIME, NULL);
+		mod_timer(&hDuringIpTimer, jiffies + msecs_to_jiffies(duringIP_TIME));
 		#endif
 		host_int_set_power_mgmt(priv->hWILCWFIDrv, 0, 0);
 		/*BugID_5222*/

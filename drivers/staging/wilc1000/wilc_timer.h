@@ -47,24 +47,4 @@ typedef void (*tpfWILC_TimerFunction)(void *);
  */
 WILC_ErrNo WILC_TimerCreate(struct timer_list *pHandle,
 			    tpfWILC_TimerFunction pfCallback);
-
-/*!
- *  @brief	Starts a given timer
- *  @details	This function will move the timer to the PENDING state until the
- *              given time expires (in msec) then the callback function will be
- *              executed (timer in EXECUTING state) after execution is dene the
- *              timer either goes to IDLE (if bPeriodicTimer==false) or
- *              PENDING with same timeout value (if bPeriodicTimer==true)
- *  @param[in]	pHandle handle to the timer object
- *  @param[in]	u32Timeout timeout value in msec after witch the callback
- *              function will be executed. Timeout value of 0 is not allowed for
- *              periodic timers
- *  @return	Error code indicating sucess/failure
- *  @sa		WILC_TimerAttrs
- *  @author	syounan
- *  @date	16 Aug 2010
- *  @version	1.0
- */
-WILC_ErrNo WILC_TimerStart(struct timer_list *pHandle, u32 u32Timeout, void *pvArg);
-
 #endif
