@@ -5860,6 +5860,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	case PORT_D:
 		intel_encoder->hpd_pin = HPD_PORT_D;
 		break;
+	case PORT_E:
+		intel_encoder->hpd_pin = HPD_PORT_E;
+		break;
 	default:
 		BUG();
 	}
