@@ -15,38 +15,39 @@
 #include "skeleton.dtsi"
 
 / {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "ste,dbx500-smp";
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+			};
+		};
+		CPU0: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x300>;
+		};
+		CPU1: cpu@301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x301>;
+		};
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "stericsson,db8500";
 		interrupt-parent = <&intc>;
 		ranges;
-
-		cpus {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			cpu-map {
-				cluster0 {
-					core0 {
-						cpu = <&CPU0>;
-					};
-					core1 {
-						cpu = <&CPU1>;
-					};
-				};
-			};
-			CPU0: cpu@0 {
-				device_type = "cpu";
-				compatible = "arm,cortex-a9";
-				reg = <0>;
-			};
-			CPU1: cpu@1 {
-				device_type = "cpu";
-				compatible = "arm,cortex-a9";
-				reg = <1>;
-			};
-		};
 
 		ptm@801ae000 {
 			compatible = "arm,coresight-etm3x", "arm,primecell";
