@@ -33,6 +33,7 @@
 #include <linux/net.h>
 #include <linux/kthread.h>
 #include <linux/types.h>
+#include <linux/debugfs.h>
 
 #include <asm/uaccess.h>
 #include <asm/types.h>
@@ -61,7 +62,17 @@ struct nbd_device {
 	struct timer_list timeout_timer;
 	struct task_struct *task_recv;
 	struct task_struct *task_send;
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *dbg_dir;
+#endif
 };
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+static struct dentry *nbd_dbg_dir;
+#endif
+
+#define nbd_name(nbd) ((nbd)->disk->disk_name)
 
 #define NBD_MAGIC 0x68797548
 
@@ -609,6 +620,9 @@ static void do_nbd_request(struct request_queue *q)
 	}
 }
 
+static int nbd_dev_dbg_init(struct nbd_device *nbd);
+static void nbd_dev_dbg_close(struct nbd_device *nbd);
+
 /* Must be called with tx_lock held */
 
 static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
@@ -725,13 +739,15 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 			blk_queue_flush(nbd->disk->queue, 0);
 
 		thread = kthread_run(nbd_thread, nbd, "%s",
-				     nbd->disk->disk_name);
+				     nbd_name(nbd));
 		if (IS_ERR(thread)) {
 			mutex_lock(&nbd->tx_lock);
 			return PTR_ERR(thread);
 		}
 
+		nbd_dev_dbg_init(nbd);
 		error = nbd_do_it(nbd);
+		nbd_dev_dbg_close(nbd);
 		kthread_stop(thread);
 
 		mutex_lock(&nbd->tx_lock);
@@ -796,6 +812,161 @@ static const struct block_device_operations nbd_fops =
 	.owner =	THIS_MODULE,
 	.ioctl =	nbd_ioctl,
 };
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+
+static int nbd_dbg_tasks_show(struct seq_file *s, void *unused)
+{
+	struct nbd_device *nbd = s->private;
+
+	if (nbd->task_recv)
+		seq_printf(s, "recv: %d\n", task_pid_nr(nbd->task_recv));
+	if (nbd->task_send)
+		seq_printf(s, "send: %d\n", task_pid_nr(nbd->task_send));
+
+	return 0;
+}
+
+static int nbd_dbg_tasks_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, nbd_dbg_tasks_show, inode->i_private);
+}
+
+static const struct file_operations nbd_dbg_tasks_ops = {
+	.open = nbd_dbg_tasks_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int nbd_dbg_flags_show(struct seq_file *s, void *unused)
+{
+	struct nbd_device *nbd = s->private;
+	u32 flags = nbd->flags;
+
+	seq_printf(s, "Hex: 0x%08x\n\n", flags);
+
+	seq_puts(s, "Known flags:\n");
+
+	if (flags & NBD_FLAG_HAS_FLAGS)
+		seq_puts(s, "NBD_FLAG_HAS_FLAGS\n");
+	if (flags & NBD_FLAG_READ_ONLY)
+		seq_puts(s, "NBD_FLAG_READ_ONLY\n");
+	if (flags & NBD_FLAG_SEND_FLUSH)
+		seq_puts(s, "NBD_FLAG_SEND_FLUSH\n");
+	if (flags & NBD_FLAG_SEND_TRIM)
+		seq_puts(s, "NBD_FLAG_SEND_TRIM\n");
+
+	return 0;
+}
+
+static int nbd_dbg_flags_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, nbd_dbg_flags_show, inode->i_private);
+}
+
+static const struct file_operations nbd_dbg_flags_ops = {
+	.open = nbd_dbg_flags_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int nbd_dev_dbg_init(struct nbd_device *nbd)
+{
+	struct dentry *dir;
+	struct dentry *f;
+
+	dir = debugfs_create_dir(nbd_name(nbd), nbd_dbg_dir);
+	if (IS_ERR_OR_NULL(dir)) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs dir for '%s' (%ld)\n",
+			nbd_name(nbd), PTR_ERR(dir));
+		return PTR_ERR(dir);
+	}
+	nbd->dbg_dir = dir;
+
+	f = debugfs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
+	if (IS_ERR_OR_NULL(f)) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'tasks', %ld\n",
+			PTR_ERR(f));
+		return PTR_ERR(f);
+	}
+
+	f = debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
+	if (IS_ERR_OR_NULL(f)) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'size_bytes', %ld\n",
+			PTR_ERR(f));
+		return PTR_ERR(f);
+	}
+
+	f = debugfs_create_u32("timeout", 0444, dir, &nbd->xmit_timeout);
+	if (IS_ERR_OR_NULL(f)) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'timeout', %ld\n",
+			PTR_ERR(f));
+		return PTR_ERR(f);
+	}
+
+	f = debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
+	if (IS_ERR_OR_NULL(f)) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'blocksize', %ld\n",
+			PTR_ERR(f));
+		return PTR_ERR(f);
+	}
+
+	f = debugfs_create_file("flags", 0444, dir, &nbd, &nbd_dbg_flags_ops);
+	if (IS_ERR_OR_NULL(f)) {
+		dev_err(nbd_to_dev(nbd), "Failed to create debugfs file 'flags', %ld\n",
+			PTR_ERR(f));
+		return PTR_ERR(f);
+	}
+
+	return 0;
+}
+
+static void nbd_dev_dbg_close(struct nbd_device *nbd)
+{
+	debugfs_remove_recursive(nbd->dbg_dir);
+}
+
+static int nbd_dbg_init(void)
+{
+	struct dentry *dbg_dir;
+
+	dbg_dir = debugfs_create_dir("nbd", NULL);
+	if (IS_ERR(dbg_dir))
+		return PTR_ERR(dbg_dir);
+
+	nbd_dbg_dir = dbg_dir;
+
+	return 0;
+}
+
+static void nbd_dbg_close(void)
+{
+	debugfs_remove_recursive(nbd_dbg_dir);
+}
+
+#else  /* IS_ENABLED(CONFIG_DEBUG_FS) */
+
+static int nbd_dev_dbg_init(struct nbd_device *nbd)
+{
+	return 0;
+}
+
+static void nbd_dev_dbg_close(struct nbd_device *nbd)
+{
+}
+
+static int nbd_dbg_init(void)
+{
+	return 0;
+}
+
+static void nbd_dbg_close(void)
+{
+}
+
+#endif
 
 /*
  * And here should be modules and kernel interface 
@@ -874,6 +1045,8 @@ static int __init nbd_init(void)
 
 	printk(KERN_INFO "nbd: registered device at major %d\n", NBD_MAJOR);
 
+	nbd_dbg_init();
+
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
 		nbd_dev[i].magic = NBD_MAGIC;
@@ -910,6 +1083,9 @@ out:
 static void __exit nbd_cleanup(void)
 {
 	int i;
+
+	nbd_dbg_close();
+
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
 		nbd_dev[i].magic = 0;
