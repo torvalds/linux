@@ -101,7 +101,7 @@ static long serial2002_tty_ioctl(struct file *f, unsigned op,
 	if (f->f_op->unlocked_ioctl)
 		return f->f_op->unlocked_ioctl(f, op, param);
 
-	return -ENOSYS;
+	return -ENOTTY;
 }
 
 static int serial2002_tty_write(struct file *f, unsigned char *buf, int count)
