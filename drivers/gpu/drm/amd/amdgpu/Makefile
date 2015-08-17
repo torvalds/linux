@@ -3,7 +3,8 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include/asic_reg \
-	-Idrivers/gpu/drm/amd/include
+	-Idrivers/gpu/drm/amd/include \
+	-Idrivers/gpu/drm/amd/amdgpu
 
 amdgpu-y := amdgpu_drv.o
 
