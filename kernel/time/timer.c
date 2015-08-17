@@ -807,8 +807,8 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 			spin_unlock(&base->lock);
 			base = new_base;
 			spin_lock(&base->lock);
-			timer->flags &= ~TIMER_BASEMASK;
-			timer->flags |= base->cpu;
+			WRITE_ONCE(timer->flags,
+				   (timer->flags & ~TIMER_BASEMASK) | base->cpu);
 		}
 	}
 
