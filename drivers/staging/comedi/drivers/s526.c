@@ -434,15 +434,17 @@ static int s526_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int s526_ai_insn_read(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int ctrl;
-	int n;
-	unsigned int d;
+	unsigned int val;
 	int ret;
+	int i;
 
 	/*
 	 * Set configured delay, enable conversion and read for requested
@@ -452,8 +454,7 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	       S526_AI_CTRL_CONV(chan) | S526_AI_CTRL_READ(chan) |
 	       S526_AI_CTRL_START;
 
-	/* convert n samples */
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
 		outw(ctrl, dev->iobase + S526_AI_CTRL_REG);
 
@@ -462,14 +463,11 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (ret)
 			return ret;
 
-		d = inw(dev->iobase + S526_AI_REG);
-
-		/* munge data */
-		data[n] = d ^ 0x8000;
+		val = inw(dev->iobase + S526_AI_REG);
+		data[i] = comedi_offset_munge(s, val);
 	}
 
-	/* return the number of samples read/written */
-	return n;
+	return insn->n;
 }
 
 static int s526_ao_insn_write(struct comedi_device *dev,
@@ -591,7 +589,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_bipolar10;
 	s->len_chanlist	= 16;
-	s->insn_read	= s526_ai_rinsn;
+	s->insn_read	= s526_ai_insn_read;
 	s->insn_config	= s526_ai_insn_config;
 
 	/* Analog Output subdevice */
