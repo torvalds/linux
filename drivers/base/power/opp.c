@@ -918,6 +918,7 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp;
 	u64 rate;
+	u32 val;
 	int ret;
 
 	/* Hold our list modification lock here */
@@ -946,14 +947,16 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	new_opp->np = np;
 	new_opp->dynamic = false;
 	new_opp->available = true;
-	of_property_read_u32(np, "clock-latency-ns",
-			     (u32 *)&new_opp->clock_latency_ns);
+
+	if (!of_property_read_u32(np, "clock-latency-ns", &val))
+		new_opp->clock_latency_ns = val;
 
 	ret = opp_get_microvolt(new_opp, dev);
 	if (ret)
 		goto free_opp;
 
-	of_property_read_u32(np, "opp-microamp", (u32 *)&new_opp->u_amp);
+	if (!of_property_read_u32(new_opp->np, "opp-microamp", &val))
+		new_opp->u_amp = val;
 
 	ret = _opp_add(dev, new_opp, dev_opp);
 	if (ret)
