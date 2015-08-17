@@ -23,9 +23,6 @@
 /* Error reporting and handling support */
 #include "wilc_errorsupport.h"
 
-/* Timer support */
-#include "wilc_timer.h"
-
 /* Memory support */
 #include "wilc_memory.h"
 
