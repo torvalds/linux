@@ -1,30 +1,29 @@
 /*
-    comedi/drivers/serial2002.c
-    Skeleton code for a Comedi driver
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2002 Anders Blomdell <anders.blomdell@control.lth.se>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * serial2002.c
+ * Comedi driver for serial connected hardware
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2002 Anders Blomdell <anders.blomdell@control.lth.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-Driver: serial2002
-Description: Driver for serial connected hardware
-Devices:
-Author: Anders Blomdell
-Updated: Fri,  7 Jun 2002 12:56:45 -0700
-Status: in development
-
-*/
+ * Driver: serial2002
+ * Description: Driver for serial connected hardware
+ * Devices:
+ * Author: Anders Blomdell
+ * Updated: Fri,  7 Jun 2002 12:56:45 -0700
+ * Status: in development
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
