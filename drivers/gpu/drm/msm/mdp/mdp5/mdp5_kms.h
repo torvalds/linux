@@ -70,18 +70,12 @@ struct mdp5_kms {
 struct mdp5_plane_state {
 	struct drm_plane_state base;
 
-	/* "virtual" zpos.. we calculate actual mixer-stage at runtime
-	 * by sorting the attached planes by zpos and then assigning
-	 * mixer stage lowest to highest.  Private planes get default
-	 * zpos of zero, and public planes a unique value that is
-	 * greater than zero.  This way, things work out if a naive
-	 * userspace assigns planes to a crtc without setting zpos.
-	 */
-	int zpos;
+	/* aligned with property */
+	uint8_t premultiplied;
+	uint8_t zpos;
+	uint8_t alpha;
 
-	/* the actual mixer stage, calculated in crtc->atomic_check()
-	 * NOTE: this should move to mdp5_crtc_state, when that exists
-	 */
+	/* assigned by crtc blender */
 	enum mdp_mixer_stage_id stage;
 
 	/* some additional transactional status to help us know in the
@@ -192,7 +186,8 @@ static inline uint32_t lm2ppdone(int lm)
 int mdp5_disable(struct mdp5_kms *mdp5_kms);
 int mdp5_enable(struct mdp5_kms *mdp5_kms);
 
-void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask);
+void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
+		uint32_t old_irqmask);
 void mdp5_irq_preinstall(struct msm_kms *kms);
 int mdp5_irq_postinstall(struct msm_kms *kms);
 void mdp5_irq_uninstall(struct msm_kms *kms);
@@ -202,60 +197,38 @@ void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms);
 void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
-static inline bool pipe_supports_yuv(enum mdp5_pipe pipe)
-{
-	switch (pipe) {
-	case SSPP_VIG0:
-	case SSPP_VIG1:
-	case SSPP_VIG2:
-	case SSPP_VIG3:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline
-uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
-		uint32_t max_formats)
-{
-	return mdp_get_formats(pixel_formats, max_formats,
-				!pipe_supports_yuv(pipe));
-}
-
-void mdp5_plane_install_properties(struct drm_plane *plane,
-		struct drm_mode_object *obj);
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 void mdp5_plane_complete_flip(struct drm_plane *plane);
 void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct drm_plane_state *state);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane, uint32_t reg_offset);
+		enum mdp5_pipe pipe, bool private_plane,
+		uint32_t reg_offset, uint32_t caps);
 
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc);
-struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc);
 void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
-void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf);
+void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id);
 
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
-		struct mdp5_interface *intf);
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 					struct drm_encoder *slave_encoder);
 
 #ifdef CONFIG_DRM_MSM_DSI
 struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
-				struct mdp5_interface *intf);
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 					struct drm_encoder *slave_encoder);
 #else
-static inline struct drm_encoder *mdp5_cmd_encoder_init(
-			struct drm_device *dev, struct mdp5_interface *intf)
+static inline struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
+		struct mdp5_interface *intf, struct mdp5_ctl *ctl)
 {
 	return ERR_PTR(-EINVAL);
 }

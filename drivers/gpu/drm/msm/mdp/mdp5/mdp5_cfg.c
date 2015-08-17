@@ -22,7 +22,76 @@ struct mdp5_cfg_handler {
 /* mdp5_cfg must be exposed (used in mdp5.xml.h) */
 const struct mdp5_cfg_hw *mdp5_cfg = NULL;
 
-const struct mdp5_cfg_hw msm8x74_config = {
+const struct mdp5_cfg_hw msm8x74v1_config = {
+	.name = "msm8x74v1",
+	.mdp = {
+		.count = 1,
+		.base = { 0x00100 },
+	},
+	.smp = {
+		.mmb_count = 22,
+		.mmb_size = 4096,
+		.clients = {
+			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4, [SSPP_VIG2] =  7,
+			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
+			[SSPP_RGB0] = 16, [SSPP_RGB1] = 17, [SSPP_RGB2] = 18,
+		},
+	},
+	.ctl = {
+		.count = 5,
+		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
+		.flush_hw_mask = 0x0003ffff,
+	},
+	.pipe_vig = {
+		.count = 3,
+		.base = { 0x01200, 0x01600, 0x01a00 },
+		.caps = MDP_PIPE_CAP_HFLIP |
+			MDP_PIPE_CAP_VFLIP |
+			MDP_PIPE_CAP_SCALE |
+			MDP_PIPE_CAP_CSC   |
+			0,
+	},
+	.pipe_rgb = {
+		.count = 3,
+		.base = { 0x01e00, 0x02200, 0x02600 },
+		.caps = MDP_PIPE_CAP_HFLIP |
+			MDP_PIPE_CAP_VFLIP |
+			MDP_PIPE_CAP_SCALE |
+			0,
+	},
+	.pipe_dma = {
+		.count = 2,
+		.base = { 0x02a00, 0x02e00 },
+		.caps = MDP_PIPE_CAP_HFLIP |
+			MDP_PIPE_CAP_VFLIP |
+			0,
+	},
+	.lm = {
+		.count = 5,
+		.base = { 0x03200, 0x03600, 0x03a00, 0x03e00, 0x04200 },
+		.nb_stages = 5,
+	},
+	.dspp = {
+		.count = 3,
+		.base = { 0x04600, 0x04a00, 0x04e00 },
+	},
+	.pp = {
+		.count = 3,
+		.base = { 0x21b00, 0x21c00, 0x21d00 },
+	},
+	.intf = {
+		.base = { 0x21100, 0x21300, 0x21500, 0x21700 },
+		.connect = {
+			[0] = INTF_eDP,
+			[1] = INTF_DSI,
+			[2] = INTF_DSI,
+			[3] = INTF_HDMI,
+		},
+	},
+	.max_clk = 200000000,
+};
+
+const struct mdp5_cfg_hw msm8x74v2_config = {
 	.name = "msm8x74",
 	.mdp = {
 		.count = 1,
@@ -45,19 +114,27 @@ const struct mdp5_cfg_hw msm8x74_config = {
 	.pipe_vig = {
 		.count = 3,
 		.base = { 0x01200, 0x01600, 0x01a00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_rgb = {
 		.count = 3,
 		.base = { 0x01e00, 0x02200, 0x02600 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 2,
 		.base = { 0x02a00, 0x02e00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
 	},
 	.lm = {
 		.count = 5,
 		.base = { 0x03200, 0x03600, 0x03a00, 0x03e00, 0x04200 },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 3,
@@ -65,7 +142,7 @@ const struct mdp5_cfg_hw msm8x74_config = {
 	},
 	.ad = {
 		.count = 2,
-		.base = { 0x13100, 0x13300 }, /* NOTE: no ad in v1.0 */
+		.base = { 0x13100, 0x13300 },
 	},
 	.pp = {
 		.count = 3,
@@ -113,19 +190,27 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.pipe_vig = {
 		.count = 4,
 		.base = { 0x01200, 0x01600, 0x01a00, 0x01e00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_rgb = {
 		.count = 4,
 		.base = { 0x02200, 0x02600, 0x02a00, 0x02e00 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 2,
 		.base = { 0x03200, 0x03600 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
 	},
 	.lm = {
 		.count = 6,
 		.base = { 0x03a00, 0x03e00, 0x04200, 0x04600, 0x04a00, 0x04e00 },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 4,
@@ -174,19 +259,27 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.pipe_vig = {
 		.count = 1,
 		.base = { 0x05000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_rgb = {
 		.count = 2,
 		.base = { 0x15000, 0x17000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 1,
 		.base = { 0x25000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
 	},
 	.lm = {
 		.count = 2, /* LM0 and LM3 */
 		.base = { 0x45000, 0x48000 },
 		.nb_stages = 5,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 1,
@@ -203,13 +296,90 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.max_clk = 320000000,
 };
 
-static const struct mdp5_cfg_handler cfg_handlers[] = {
-	{ .revision = 0, .config = { .hw = &msm8x74_config } },
-	{ .revision = 2, .config = { .hw = &msm8x74_config } },
-	{ .revision = 3, .config = { .hw = &apq8084_config } },
-	{ .revision = 6, .config = { .hw = &msm8x16_config } },
+const struct mdp5_cfg_hw msm8x94_config = {
+	.name = "msm8x94",
+	.mdp = {
+		.count = 1,
+		.base = { 0x01000 },
+	},
+	.smp = {
+		.mmb_count = 44,
+		.mmb_size = 8192,
+		.clients = {
+			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4,
+			[SSPP_VIG2] =  7, [SSPP_VIG3] = 19,
+			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
+			[SSPP_RGB0] = 16, [SSPP_RGB1] = 17,
+			[SSPP_RGB2] = 18, [SSPP_RGB3] = 22,
+		},
+		.reserved_state[0] = GENMASK(23, 0),	/* first 24 MMBs */
+		.reserved = {
+			 [1] = 1,  [4] = 1,  [7] = 1, [19] = 1,
+			[16] = 5, [17] = 5, [18] = 5, [22] = 5,
+		},
+	},
+	.ctl = {
+		.count = 5,
+		.base = { 0x02000, 0x02200, 0x02400, 0x02600, 0x02800 },
+		.flush_hw_mask = 0xf0ffffff,
+	},
+	.pipe_vig = {
+		.count = 4,
+		.base = { 0x05000, 0x07000, 0x09000, 0x0b000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_CSC |
+				MDP_PIPE_CAP_DECIMATION,
+	},
+	.pipe_rgb = {
+		.count = 4,
+		.base = { 0x15000, 0x17000, 0x19000, 0x1b000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
+				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
+	},
+	.pipe_dma = {
+		.count = 2,
+		.base = { 0x25000, 0x27000 },
+		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP,
+	},
+	.lm = {
+		.count = 6,
+		.base = { 0x45000, 0x46000, 0x47000, 0x48000, 0x49000, 0x4a000 },
+		.nb_stages = 8,
+		.max_width = 2048,
+		.max_height = 0xFFFF,
+	},
+	.dspp = {
+		.count = 4,
+		.base = { 0x55000, 0x57000, 0x59000, 0x5b000 },
+
+	},
+	.ad = {
+		.count = 3,
+		.base = { 0x79000, 0x79800, 0x7a000 },
+	},
+	.pp = {
+		.count = 4,
+		.base = { 0x71000, 0x71800, 0x72000, 0x72800 },
+	},
+	.intf = {
+		.base = { 0x6b000, 0x6b800, 0x6c000, 0x6c800, 0x6d000 },
+		.connect = {
+			[0] = INTF_DISABLED,
+			[1] = INTF_DSI,
+			[2] = INTF_DSI,
+			[3] = INTF_HDMI,
+		},
+	},
+	.max_clk = 320000000,
 };
 
+static const struct mdp5_cfg_handler cfg_handlers[] = {
+	{ .revision = 0, .config = { .hw = &msm8x74v1_config } },
+	{ .revision = 2, .config = { .hw = &msm8x74v2_config } },
+	{ .revision = 3, .config = { .hw = &apq8084_config } },
+	{ .revision = 6, .config = { .hw = &msm8x16_config } },
+	{ .revision = 9, .config = { .hw = &msm8x94_config } },
+};
 
 static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev);
 

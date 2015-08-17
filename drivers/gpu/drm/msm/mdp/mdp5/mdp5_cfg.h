@@ -42,6 +42,13 @@ struct mdp5_sub_block {
 struct mdp5_lm_block {
 	MDP5_SUB_BLOCK_DEFINITION;
 	uint32_t nb_stages;		/* number of stages per blender */
+	uint32_t max_width;		/* Maximum output resolution */
+	uint32_t max_height;
+};
+
+struct mdp5_pipe_block {
+	MDP5_SUB_BLOCK_DEFINITION;
+	uint32_t caps;			/* pipe capabilities */
 };
 
 struct mdp5_ctl_block {
@@ -70,9 +77,9 @@ struct mdp5_cfg_hw {
 	struct mdp5_sub_block mdp;
 	struct mdp5_smp_block smp;
 	struct mdp5_ctl_block ctl;
-	struct mdp5_sub_block pipe_vig;
-	struct mdp5_sub_block pipe_rgb;
-	struct mdp5_sub_block pipe_dma;
+	struct mdp5_pipe_block pipe_vig;
+	struct mdp5_pipe_block pipe_rgb;
+	struct mdp5_pipe_block pipe_dma;
 	struct mdp5_lm_block  lm;
 	struct mdp5_sub_block dspp;
 	struct mdp5_sub_block ad;

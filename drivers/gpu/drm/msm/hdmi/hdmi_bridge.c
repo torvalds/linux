@@ -100,8 +100,13 @@ static void hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 		hdmi_audio_update(hdmi);
 	}
 
-	phy->funcs->powerup(phy, hdmi->pixclock);
+	if (phy)
+		phy->funcs->powerup(phy, hdmi->pixclock);
+
 	hdmi_set_mode(hdmi, true);
+
+	if (hdmi->hdcp_ctrl)
+		hdmi_hdcp_on(hdmi->hdcp_ctrl);
 }
 
 static void hdmi_bridge_enable(struct drm_bridge *bridge)
@@ -118,9 +123,14 @@ static void hdmi_bridge_post_disable(struct drm_bridge *bridge)
 	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	struct hdmi_phy *phy = hdmi->phy;
 
+	if (hdmi->hdcp_ctrl)
+		hdmi_hdcp_off(hdmi->hdcp_ctrl);
+
 	DBG("power down");
 	hdmi_set_mode(hdmi, false);
-	phy->funcs->powerdown(phy);
+
+	if (phy)
+		phy->funcs->powerdown(phy);
 
 	if (hdmi->power_on) {
 		power_off(bridge);
@@ -141,8 +151,6 @@ static void hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	mode = adjusted_mode;
 
 	hdmi->pixclock = mode->clock * 1000;
-
-	hdmi->hdmi_mode = drm_match_cea_mode(mode) > 1;
 
 	hstart = mode->htotal - mode->hsync_start;
 	hend   = mode->htotal - mode->hsync_start + mode->hdisplay;

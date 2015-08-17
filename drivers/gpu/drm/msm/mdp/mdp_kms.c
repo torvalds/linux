@@ -39,7 +39,8 @@ static void update_irq(struct mdp_kms *mdp_kms)
 	list_for_each_entry(irq, &mdp_kms->irq_list, node)
 		irqmask |= irq->irqmask;
 
-	mdp_kms->funcs->set_irqmask(mdp_kms, irqmask);
+	mdp_kms->funcs->set_irqmask(mdp_kms, irqmask, mdp_kms->cur_irq_mask);
+	mdp_kms->cur_irq_mask = irqmask;
 }
 
 /* if an mdp_irq's irqmask has changed, such as when mdp5 crtc<->encoder

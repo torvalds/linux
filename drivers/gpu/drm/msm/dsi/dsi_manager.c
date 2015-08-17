@@ -14,19 +14,31 @@
 #include "msm_kms.h"
 #include "dsi.h"
 
+#define DSI_CLOCK_MASTER	DSI_0
+#define DSI_CLOCK_SLAVE		DSI_1
+
+#define DSI_LEFT		DSI_0
+#define DSI_RIGHT		DSI_1
+
+/* According to the current drm framework sequence, take the encoder of
+ * DSI_1 as master encoder
+ */
+#define DSI_ENCODER_MASTER	DSI_1
+#define DSI_ENCODER_SLAVE	DSI_0
+
 struct msm_dsi_manager {
 	struct msm_dsi *dsi[DSI_MAX];
 
-	bool is_dual_panel;
+	bool is_dual_dsi;
 	bool is_sync_needed;
-	int master_panel_id;
+	int master_dsi_link_id;
 };
 
 static struct msm_dsi_manager msm_dsim_glb;
 
-#define IS_DUAL_PANEL()		(msm_dsim_glb.is_dual_panel)
+#define IS_DUAL_DSI()		(msm_dsim_glb.is_dual_dsi)
 #define IS_SYNC_NEEDED()	(msm_dsim_glb.is_sync_needed)
-#define IS_MASTER_PANEL(id)	(msm_dsim_glb.master_panel_id == id)
+#define IS_MASTER_DSI_LINK(id)	(msm_dsim_glb.master_dsi_link_id == id)
 
 static inline struct msm_dsi *dsi_mgr_get_dsi(int id)
 {
@@ -38,23 +50,23 @@ static inline struct msm_dsi *dsi_mgr_get_other_dsi(int id)
 	return msm_dsim_glb.dsi[(id + 1) % DSI_MAX];
 }
 
-static int dsi_mgr_parse_dual_panel(struct device_node *np, int id)
+static int dsi_mgr_parse_dual_dsi(struct device_node *np, int id)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
 
-	/* We assume 2 dsi nodes have the same information of dual-panel and
+	/* We assume 2 dsi nodes have the same information of dual-dsi and
 	 * sync-mode, and only one node specifies master in case of dual mode.
 	 */
-	if (!msm_dsim->is_dual_panel)
-		msm_dsim->is_dual_panel = of_property_read_bool(
-						np, "qcom,dual-panel-mode");
+	if (!msm_dsim->is_dual_dsi)
+		msm_dsim->is_dual_dsi = of_property_read_bool(
+						np, "qcom,dual-dsi-mode");
 
-	if (msm_dsim->is_dual_panel) {
-		if (of_property_read_bool(np, "qcom,master-panel"))
-			msm_dsim->master_panel_id = id;
+	if (msm_dsim->is_dual_dsi) {
+		if (of_property_read_bool(np, "qcom,master-dsi"))
+			msm_dsim->master_dsi_link_id = id;
 		if (!msm_dsim->is_sync_needed)
 			msm_dsim->is_sync_needed = of_property_read_bool(
-					np, "qcom,sync-dual-panel");
+					np, "qcom,sync-dual-dsi");
 	}
 
 	return 0;
@@ -68,7 +80,7 @@ static int dsi_mgr_host_register(int id)
 	struct msm_dsi_pll *src_pll;
 	int ret;
 
-	if (!IS_DUAL_PANEL()) {
+	if (!IS_DUAL_DSI()) {
 		ret = msm_dsi_host_register(msm_dsi->host, true);
 		if (ret)
 			return ret;
@@ -78,9 +90,9 @@ static int dsi_mgr_host_register(int id)
 	} else if (!other_dsi) {
 		ret = 0;
 	} else {
-		struct msm_dsi *mdsi = IS_MASTER_PANEL(id) ?
+		struct msm_dsi *mdsi = IS_MASTER_DSI_LINK(id) ?
 					msm_dsi : other_dsi;
-		struct msm_dsi *sdsi = IS_MASTER_PANEL(id) ?
+		struct msm_dsi *sdsi = IS_MASTER_DSI_LINK(id) ?
 					other_dsi : msm_dsi;
 		/* Register slave host first, so that slave DSI device
 		 * has a chance to probe, and do not block the master
@@ -144,28 +156,28 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 	DBG("id=%d", id);
 	if (!msm_dsi->panel) {
 		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host,
-						&msm_dsi->panel_flags);
+						&msm_dsi->device_flags);
 
 		/* There is only 1 panel in the global panel list
-		 * for dual panel mode. Therefore slave dsi should get
+		 * for dual DSI mode. Therefore slave dsi should get
 		 * the drm_panel instance from master dsi, and
 		 * keep using the panel flags got from the current DSI link.
 		 */
-		if (!msm_dsi->panel && IS_DUAL_PANEL() &&
-			!IS_MASTER_PANEL(id) && other_dsi)
+		if (!msm_dsi->panel && IS_DUAL_DSI() &&
+			!IS_MASTER_DSI_LINK(id) && other_dsi)
 			msm_dsi->panel = msm_dsi_host_get_panel(
 					other_dsi->host, NULL);
 
-		if (msm_dsi->panel && IS_DUAL_PANEL())
+		if (msm_dsi->panel && IS_DUAL_DSI())
 			drm_object_attach_property(&connector->base,
 				connector->dev->mode_config.tile_property, 0);
 
-		/* Set split display info to kms once dual panel is connected
-		 * to both hosts
+		/* Set split display info to kms once dual DSI panel is
+		 * connected to both hosts.
 		 */
-		if (msm_dsi->panel && IS_DUAL_PANEL() &&
+		if (msm_dsi->panel && IS_DUAL_DSI() &&
 			other_dsi && other_dsi->panel) {
-			bool cmd_mode = !(msm_dsi->panel_flags &
+			bool cmd_mode = !(msm_dsi->device_flags &
 						MIPI_DSI_MODE_VIDEO);
 			struct drm_encoder *encoder = msm_dsi_get_encoder(
 					dsi_mgr_get_dsi(DSI_ENCODER_MASTER));
@@ -176,7 +188,7 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 				kms->funcs->set_split_display(kms, encoder,
 							slave_enc, cmd_mode);
 			else
-				pr_err("mdp does not support dual panel\n");
+				pr_err("mdp does not support dual DSI\n");
 		}
 	}
 
@@ -273,7 +285,7 @@ static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 	if (!num)
 		return 0;
 
-	if (IS_DUAL_PANEL()) {
+	if (IS_DUAL_DSI()) {
 		/* report half resolution to user */
 		dsi_dual_connector_fix_modes(connector);
 		ret = dsi_dual_connector_tile_init(connector, id);
@@ -328,11 +340,12 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	struct msm_dsi *msm_dsi1 = dsi_mgr_get_dsi(DSI_1);
 	struct mipi_dsi_host *host = msm_dsi->host;
 	struct drm_panel *panel = msm_dsi->panel;
-	bool is_dual_panel = IS_DUAL_PANEL();
+	bool is_dual_dsi = IS_DUAL_DSI();
 	int ret;
 
 	DBG("id=%d", id);
-	if (!panel || (is_dual_panel && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi) ||
+			(is_dual_dsi && (DSI_1 == id)))
 		return;
 
 	ret = msm_dsi_host_power_on(host);
@@ -341,7 +354,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		goto host_on_fail;
 	}
 
-	if (is_dual_panel && msm_dsi1) {
+	if (is_dual_dsi && msm_dsi1) {
 		ret = msm_dsi_host_power_on(msm_dsi1->host);
 		if (ret) {
 			pr_err("%s: power on host1 failed, %d\n",
@@ -353,10 +366,13 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	/* Always call panel functions once, because even for dual panels,
 	 * there is only one drm_panel instance.
 	 */
-	ret = drm_panel_prepare(panel);
-	if (ret) {
-		pr_err("%s: prepare panel %d failed, %d\n", __func__, id, ret);
-		goto panel_prep_fail;
+	if (panel) {
+		ret = drm_panel_prepare(panel);
+		if (ret) {
+			pr_err("%s: prepare panel %d failed, %d\n", __func__,
+								id, ret);
+			goto panel_prep_fail;
+		}
 	}
 
 	ret = msm_dsi_host_enable(host);
@@ -365,7 +381,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		goto host_en_fail;
 	}
 
-	if (is_dual_panel && msm_dsi1) {
+	if (is_dual_dsi && msm_dsi1) {
 		ret = msm_dsi_host_enable(msm_dsi1->host);
 		if (ret) {
 			pr_err("%s: enable host1 failed, %d\n", __func__, ret);
@@ -373,23 +389,27 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 		}
 	}
 
-	ret = drm_panel_enable(panel);
-	if (ret) {
-		pr_err("%s: enable panel %d failed, %d\n", __func__, id, ret);
-		goto panel_en_fail;
+	if (panel) {
+		ret = drm_panel_enable(panel);
+		if (ret) {
+			pr_err("%s: enable panel %d failed, %d\n", __func__, id,
+									ret);
+			goto panel_en_fail;
+		}
 	}
 
 	return;
 
 panel_en_fail:
-	if (is_dual_panel && msm_dsi1)
+	if (is_dual_dsi && msm_dsi1)
 		msm_dsi_host_disable(msm_dsi1->host);
 host1_en_fail:
 	msm_dsi_host_disable(host);
 host_en_fail:
-	drm_panel_unprepare(panel);
+	if (panel)
+		drm_panel_unprepare(panel);
 panel_prep_fail:
-	if (is_dual_panel && msm_dsi1)
+	if (is_dual_dsi && msm_dsi1)
 		msm_dsi_host_power_off(msm_dsi1->host);
 host1_on_fail:
 	msm_dsi_host_power_off(host);
@@ -414,37 +434,44 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 	struct msm_dsi *msm_dsi1 = dsi_mgr_get_dsi(DSI_1);
 	struct mipi_dsi_host *host = msm_dsi->host;
 	struct drm_panel *panel = msm_dsi->panel;
-	bool is_dual_panel = IS_DUAL_PANEL();
+	bool is_dual_dsi = IS_DUAL_DSI();
 	int ret;
 
 	DBG("id=%d", id);
 
-	if (!panel || (is_dual_panel && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi) ||
+			(is_dual_dsi && (DSI_1 == id)))
 		return;
 
-	ret = drm_panel_disable(panel);
-	if (ret)
-		pr_err("%s: Panel %d OFF failed, %d\n", __func__, id, ret);
+	if (panel) {
+		ret = drm_panel_disable(panel);
+		if (ret)
+			pr_err("%s: Panel %d OFF failed, %d\n", __func__, id,
+									ret);
+	}
 
 	ret = msm_dsi_host_disable(host);
 	if (ret)
 		pr_err("%s: host %d disable failed, %d\n", __func__, id, ret);
 
-	if (is_dual_panel && msm_dsi1) {
+	if (is_dual_dsi && msm_dsi1) {
 		ret = msm_dsi_host_disable(msm_dsi1->host);
 		if (ret)
 			pr_err("%s: host1 disable failed, %d\n", __func__, ret);
 	}
 
-	ret = drm_panel_unprepare(panel);
-	if (ret)
-		pr_err("%s: Panel %d unprepare failed,%d\n", __func__, id, ret);
+	if (panel) {
+		ret = drm_panel_unprepare(panel);
+		if (ret)
+			pr_err("%s: Panel %d unprepare failed,%d\n", __func__,
+								id, ret);
+	}
 
 	ret = msm_dsi_host_power_off(host);
 	if (ret)
 		pr_err("%s: host %d power off failed,%d\n", __func__, id, ret);
 
-	if (is_dual_panel && msm_dsi1) {
+	if (is_dual_dsi && msm_dsi1) {
 		ret = msm_dsi_host_power_off(msm_dsi1->host);
 		if (ret)
 			pr_err("%s: host1 power off failed, %d\n",
@@ -460,7 +487,7 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	struct mipi_dsi_host *host = msm_dsi->host;
-	bool is_dual_panel = IS_DUAL_PANEL();
+	bool is_dual_dsi = IS_DUAL_DSI();
 
 	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 			mode->base.id, mode->name,
@@ -471,11 +498,11 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
-	if (is_dual_panel && (DSI_1 == id))
+	if (is_dual_dsi && (DSI_1 == id))
 		return;
 
 	msm_dsi_host_set_display_mode(host, adjusted_mode);
-	if (is_dual_panel && other_dsi)
+	if (is_dual_dsi && other_dsi)
 		msm_dsi_host_set_display_mode(other_dsi->host, adjusted_mode);
 }
 
@@ -503,7 +530,7 @@ static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
 	.mode_set = dsi_mgr_bridge_mode_set,
 };
 
-/* initialize connector */
+/* initialize connector when we're connected to a drm_panel */
 struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -588,6 +615,53 @@ fail:
 	return ERR_PTR(ret);
 }
 
+struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct drm_device *dev = msm_dsi->dev;
+	struct drm_encoder *encoder;
+	struct drm_bridge *int_bridge, *ext_bridge;
+	struct drm_connector *connector;
+	struct list_head *connector_list;
+
+	int_bridge = msm_dsi->bridge;
+	ext_bridge = msm_dsi->external_bridge =
+			msm_dsi_host_get_bridge(msm_dsi->host);
+
+	/*
+	 * HACK: we may not know the external DSI bridge device's mode
+	 * flags here. We'll get to know them only when the device
+	 * attaches to the dsi host. For now, assume the bridge supports
+	 * DSI video mode
+	 */
+	encoder = msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID];
+
+	/* link the internal dsi bridge to the external bridge */
+	int_bridge->next = ext_bridge;
+	/* set the external bridge's encoder as dsi's encoder */
+	ext_bridge->encoder = encoder;
+
+	drm_bridge_attach(dev, ext_bridge);
+
+	/*
+	 * we need the drm_connector created by the external bridge
+	 * driver (or someone else) to feed it to our driver's
+	 * priv->connector[] list, mainly for msm_fbdev_init()
+	 */
+	connector_list = &dev->mode_config.connector_list;
+
+	list_for_each_entry(connector, connector_list, head) {
+		int i;
+
+		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+			if (connector->encoder_ids[i] == encoder->base.id)
+				return connector;
+		}
+	}
+
+	return ERR_PTR(-ENODEV);
+}
+
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)
 {
 }
@@ -598,11 +672,28 @@ int msm_dsi_manager_phy_enable(int id,
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
+	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
+	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
 	int ret;
 
-	ret = msm_dsi_phy_enable(phy, IS_DUAL_PANEL(), bit_rate, esc_rate);
+	ret = msm_dsi_phy_enable(phy, src_pll_id, bit_rate, esc_rate);
 	if (ret)
 		return ret;
+
+	/*
+	 * Reset DSI PHY silently changes its PLL registers to reset status,
+	 * which will confuse clock driver and result in wrong output rate of
+	 * link clocks. Restore PLL status if its PLL is being used as clock
+	 * source.
+	 */
+	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER)) {
+		ret = msm_dsi_pll_restore_state(pll);
+		if (ret) {
+			pr_err("%s: failed to restore pll state\n", __func__);
+			msm_dsi_phy_disable(phy);
+			return ret;
+		}
+	}
 
 	msm_dsi->phy_enabled = true;
 	msm_dsi_phy_get_clk_pre_post(phy, clk_pre, clk_post);
@@ -616,13 +707,18 @@ void msm_dsi_manager_phy_disable(int id)
 	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
 	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	struct msm_dsi_phy *phy = msm_dsi->phy;
+	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
+
+	/* Save PLL status if it is a clock source */
+	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER))
+		msm_dsi_pll_save_state(pll);
 
 	/* disable DSI phy
 	 * In dual-dsi configuration, the phy should be disabled for the
 	 * first controller only when the second controller is disabled.
 	 */
 	msm_dsi->phy_enabled = false;
-	if (IS_DUAL_PANEL() && mdsi && sdsi) {
+	if (IS_DUAL_DSI() && mdsi && sdsi) {
 		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
 			msm_dsi_phy_disable(sdsi->phy);
 			msm_dsi_phy_disable(mdsi->phy);
@@ -713,9 +809,9 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 
 	msm_dsim->dsi[id] = msm_dsi;
 
-	ret = dsi_mgr_parse_dual_panel(msm_dsi->pdev->dev.of_node, id);
+	ret = dsi_mgr_parse_dual_dsi(msm_dsi->pdev->dev.of_node, id);
 	if (ret) {
-		pr_err("%s: failed to parse dual panel info\n", __func__);
+		pr_err("%s: failed to parse dual DSI info\n", __func__);
 		goto fail;
 	}
 
