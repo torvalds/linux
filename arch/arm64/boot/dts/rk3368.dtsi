@@ -597,7 +597,8 @@
 
 	mbox_scpi: mbox-scpi {
 		compatible = "rockchip,mbox-scpi";
-		mboxes = <&mbox 0 &mbox 1>;
+		mboxes = <&mbox 0 &mbox 1 &mbox 2>;
+		chan-nums = <3>;
 	};
 
 	ddr {
