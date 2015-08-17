@@ -6545,7 +6545,8 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 			s32Error = WILC_FAIL;
 			goto _fail_mq_;
 		}
-		setup_timer(&g_hPeriodicRSSI, GetPeriodicRSSI, pstrWFIDrv);
+		setup_timer(&g_hPeriodicRSSI, GetPeriodicRSSI,
+			    (unsigned long)pstrWFIDrv);
 		mod_timer(&g_hPeriodicRSSI, jiffies + msecs_to_jiffies(5000));
 	}
 
