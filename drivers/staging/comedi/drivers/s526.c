@@ -65,7 +65,8 @@
 #define S526_AI_CTRL_CONV(x)	(1 << (5 + ((x) & 0x9)))
 #define S526_AI_CTRL_READ(x)	(((x) & 0xf) << 1)
 #define S526_AI_CTRL_START	BIT(0)
-#define REG_ADD 0x08
+#define S526_AO_REG		0x08
+#define S526_AI_REG		0x08
 #define REG_DIO 0x0A
 #define REG_IER 0x0C
 #define REG_ISR 0x0E
@@ -445,8 +446,7 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		outw(ISR_ADC_DONE, dev->iobase + REG_ISR);
 
-		/* read data */
-		d = inw(dev->iobase + REG_ADD);
+		d = inw(dev->iobase + S526_AI_REG);
 
 		/* munge data */
 		data[n] = d ^ 0x8000;
@@ -471,7 +471,7 @@ static int s526_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		outw(val, dev->iobase + REG_ADD);
+		outw(val, dev->iobase + S526_AO_REG);
 		outw(ctrl, dev->iobase + S526_AO_CTRL_REG);
 	}
 	s->readback[chan] = val;
