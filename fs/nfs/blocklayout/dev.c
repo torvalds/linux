@@ -22,7 +22,7 @@ bl_free_device(struct pnfs_block_dev *dev)
 		kfree(dev->children);
 	} else {
 		if (dev->bdev)
-			blkdev_put(dev->bdev, FMODE_READ);
+			blkdev_put(dev->bdev, FMODE_READ | FMODE_WRITE);
 	}
 }
 
@@ -200,7 +200,7 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 	if (!dev)
 		return -EIO;
 
-	d->bdev = blkdev_get_by_dev(dev, FMODE_READ, NULL);
+	d->bdev = blkdev_get_by_dev(dev, FMODE_READ | FMODE_WRITE, NULL);
 	if (IS_ERR(d->bdev)) {
 		printk(KERN_WARNING "pNFS: failed to open device %d:%d (%ld)\n",
 			MAJOR(dev), MINOR(dev), PTR_ERR(d->bdev));
