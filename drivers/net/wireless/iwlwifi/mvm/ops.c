@@ -1114,9 +1114,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
 
-	/* make sure we have no running tx while configuring the qos */
 	set_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
-	synchronize_net();
 
 	/*
 	 * iwl_mvm_ref_sync takes a reference before checking the flag.
@@ -1143,6 +1141,9 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 		mvm->d0i3_offloading = false;
 	}
+
+	/* make sure we have no running tx while configuring the seqno */
+	synchronize_net();
 
 	iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd, &d0i3_iter_data);
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
