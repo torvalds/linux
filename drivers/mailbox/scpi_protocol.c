@@ -48,6 +48,10 @@
 #define DVFS_LATENCY(hdr)	((hdr) >> 16)
 #define DVFS_OPP_COUNT(hdr)	(((hdr) >> 8) & 0xff)
 
+int max_chan_num = 0;
+static DECLARE_BITMAP(bm_mbox_chans, 4);
+static DEFINE_MUTEX(scpi_mtx);
+
 struct scpi_data_buf {
 	int client_id;
 	struct rockchip_mbox_msg *data;
@@ -89,7 +93,7 @@ static inline int scpi_to_linux_errno(int errno)
 	return -EIO;
 }
 
-static bool high_priority_chan_supported(int cmd)
+static bool __maybe_unused high_priority_chan_supported(int cmd)
 {
 	int idx;
 
@@ -97,6 +101,37 @@ static bool high_priority_chan_supported(int cmd)
 		if (cmd == high_priority_cmds[idx])
 			return true;
 	return false;
+}
+
+static int scpi_alloc_mbox_chan(void)
+{
+	int index;
+
+	mutex_lock(&scpi_mtx);
+
+	index = find_first_zero_bit(bm_mbox_chans, max_chan_num);
+	if (index >= max_chan_num) {
+		pr_err("alloc mailbox channel failed\n");
+		mutex_unlock(&scpi_mtx);
+		return -EBUSY;
+	}
+
+	set_bit(index, bm_mbox_chans);
+
+	mutex_unlock(&scpi_mtx);
+	return index;
+}
+
+static void scpi_free_mbox_chan(int chan)
+{
+	int index = chan;
+
+	mutex_lock(&scpi_mtx);
+
+	if (index < max_chan_num && index >= 0)
+		clear_bit(index, bm_mbox_chans);
+
+	mutex_unlock(&scpi_mtx);
 }
 
 static void scpi_rx_callback(struct mbox_client *cl, void *msg)
@@ -107,7 +142,7 @@ static void scpi_rx_callback(struct mbox_client *cl, void *msg)
 	complete(&scpi_buf->complete);
 }
 
-static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool high_priority)
+static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, int index)
 {
 	struct mbox_chan *chan;
 	struct mbox_client cl;
@@ -127,9 +162,11 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool high_priority)
 	cl.tx_block = false;
 	cl.knows_txdone = false;
 
-	chan = mbox_request_channel(&cl, high_priority);
-	if (IS_ERR(chan))
+	chan = mbox_request_channel(&cl, index);
+	if (IS_ERR(chan)) {
+		scpi_free_mbox_chan(index);
 		return PTR_ERR(chan);
+	}
 
 	init_completion(&scpi_buf->complete);
 	if (mbox_send_message(chan, (void *)data) < 0) {
@@ -146,6 +183,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool high_priority)
 
 free_channel:
 	mbox_free_channel(chan);
+	scpi_free_mbox_chan(index);
 
 	return scpi_to_linux_errno(status);
 }
@@ -167,18 +205,21 @@ do {						\
 static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 {
 	struct rockchip_mbox_msg *data;
-	bool high_priority;
+	int index;
 
 	if (!scpi_buf || !scpi_buf->data)
 		return -EINVAL;
 
+	index = scpi_alloc_mbox_chan();
+	if (index < 0)
+		return -EBUSY;
+
 	data = scpi_buf->data;
-	high_priority = high_priority_chan_supported(data->cmd);
 	data->cmd = PACK_SCPI_CMD(data->cmd, scpi_buf->client_id,
 				  data->tx_size);
 	data->cl_data = scpi_buf;
 
-	return send_scpi_cmd(scpi_buf, high_priority);
+	return send_scpi_cmd(scpi_buf, index);
 }
 
 unsigned long scpi_clk_get_val(u16 clk_id)
@@ -577,6 +618,7 @@ EXPORT_SYMBOL_GPL(scpi_ddr_get_clk_rate);
 
 int scpi_thermal_get_temperature(void)
 {
+	int ret;
 	struct scpi_data_buf sdata;
 	struct rockchip_mbox_msg mdata;
 	struct __packed1 {
@@ -591,8 +633,12 @@ int scpi_thermal_get_temperature(void)
 	tx_buf.status = 0;
 	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_THERMAL,
 			SCPI_THERMAL_GET_TSADC_DATA, tx_buf, rx_buf);
-	if (scpi_execute_cmd(&sdata))
-		return 0;
+
+	ret = scpi_execute_cmd(&sdata);
+	if (ret) {
+		pr_err("get temperature from MCU failed, ret=%d\n", ret);
+		return ret;
+	}
 
 	return rx_buf.tsadc_data;
 }
@@ -630,6 +676,7 @@ static int mobx_scpi_probe(struct platform_device *pdev)
 	int retry = 3;
 	u32 ver = 0;
 	int check_version = 0; /*0: not check version, 1: check version*/
+	int val = 0;
 
 	the_scpi_device = &pdev->dev;
 
@@ -645,8 +692,17 @@ static int mobx_scpi_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
+	/* try to get mboxes chan nums from DT */
+	if (of_property_read_u32((&pdev->dev)->of_node, "chan-nums", &val)) {
+		dev_err(&pdev->dev, "parse mboxes chan-nums failed\n");
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	max_chan_num = val;
+
 	dev_info(&pdev->dev,
-		 "Scpi initialize, version: 0x%x\n", ver);
+		 "Scpi initialize, version: 0x%x, chan nums: %d\n", ver, val);
 	return 0;
 exit:
 	the_scpi_device = NULL;

@@ -65,6 +65,9 @@ struct rockchip_mbox {
 	struct rockchip_mbox_chan *chans;
 };
 
+#define MBOX_CHAN_NUMS	4
+int idx_map_irq[MBOX_CHAN_NUMS] = {0, 0, 0, 0};
+
 static inline int chan_to_idx(struct rockchip_mbox *mb,
 			      struct mbox_chan *chan)
 {
@@ -123,20 +126,38 @@ static struct mbox_chan_ops rockchip_mbox_chan_ops = {
 
 static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 {
+	int idx;
 	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
 	u32 status = readl_relaxed(mb->mbox_base + MAILBOX_B2A_STATUS);
-	int idx;
 
 	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
-		struct rockchip_mbox_msg *msg = mb->chans[idx].msg;
+		if ((status & (1 << idx)) && (irq == idx_map_irq[idx])) {
+			/* Clear mbox interrupt */
+			writel_relaxed(1 << idx,
+				       mb->mbox_base + MAILBOX_B2A_STATUS);
+			return IRQ_WAKE_THREAD;
+		}
+	}
 
-	  /* Clear mbox interrupt */
-		writel_relaxed(1 << idx, mb->mbox_base + MAILBOX_B2A_STATUS);
+	return IRQ_NONE;
+}
 
-		if (!(status & (1 << idx)))
+static irqreturn_t rockchip_mbox_isr(int irq, void *dev_id)
+{
+	int idx;
+	struct rockchip_mbox_msg *msg = NULL;
+	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
+
+	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
+		if (irq != idx_map_irq[idx])
 			continue;
-		if (!msg)
-			continue; /* spurious */
+
+		msg = mb->chans[idx].msg;
+		if (!msg) {
+			dev_err(mb->mbox.dev,
+				"Chan[%d]: B2A message is NULL\n", idx);
+			break; /* spurious */
+		}
 
 		if (msg->rx_buf)
 			memcpy(msg->rx_buf,
@@ -148,6 +169,8 @@ static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 
 		dev_dbg(mb->mbox.dev, "Chan[%d]: B2A message, cmd 0x%08x\n",
 			idx, msg->cmd);
+
+		break;
 	}
 
 	return IRQ_HANDLED;
@@ -262,8 +285,9 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		if (irq < 0)
 			return irq;
 
-		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-						rockchip_mbox_irq, IRQF_ONESHOT,
+		ret = devm_request_threaded_irq(&pdev->dev, irq,
+						rockchip_mbox_irq,
+						rockchip_mbox_isr, IRQF_ONESHOT,
 						dev_name(&pdev->dev), mb);
 		if (ret < 0)
 			return ret;
@@ -271,6 +295,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		mb->chans[i].idx = i;
 		mb->chans[i].mb = mb;
 		mb->chans[i].msg = NULL;
+		idx_map_irq[i] = irq;
 	}
 
 	/* Enable all B2A interrupts */
