@@ -510,17 +510,6 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 },
 {
-	.name = "DMIC23 Pin",
-	.ops = &skl_dmic_dai_ops,
-	.capture = {
-		.stream_name = "DMIC23 Rx",
-		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
-		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
-	},
-},
-{
 	.name = "HD-Codec Pin",
 	.ops = &skl_link_dai_ops,
 	.playback = {
@@ -532,28 +521,6 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 	.capture = {
 		.stream_name = "HD-Codec Rx",
-		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-},
-{
-	.name = "HD-Codec-SPK Pin",
-	.ops = &skl_link_dai_ops,
-	.playback = {
-		.stream_name = "HD-Codec-SPK Tx",
-		.channels_min = HDA_STEREO,
-		.channels_max = HDA_STEREO,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-},
-{
-	.name = "HD-Codec-AMIC Pin",
-	.ops = &skl_link_dai_ops,
-	.capture = {
-		.stream_name = "HD-Codec-AMIC Rx",
 		.channels_min = HDA_STEREO,
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000,
