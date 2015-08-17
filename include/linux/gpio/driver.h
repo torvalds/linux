@@ -6,6 +6,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/lockdep.h>
 #include <linux/pinctrl/pinctrl.h>
 
 struct device;
@@ -126,6 +127,7 @@ struct gpio_chip {
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
 	int			irq_parent;
+	struct lock_class_key	*lock_key;
 #endif
 
 #if defined(CONFIG_OF_GPIO)
@@ -171,11 +173,25 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 		int parent_irq,
 		irq_flow_handler_t parent_handler);
 
-int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
-		struct irq_chip *irqchip,
-		unsigned int first_irq,
-		irq_flow_handler_t handler,
-		unsigned int type);
+int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+			  struct irq_chip *irqchip,
+			  unsigned int first_irq,
+			  irq_flow_handler_t handler,
+			  unsigned int type,
+			  struct lock_class_key *lock_key);
+
+#ifdef CONFIG_LOCKDEP
+#define gpiochip_irqchip_add(...)				\
+(								\
+	({							\
+		static struct lock_class_key _key;		\
+		_gpiochip_irqchip_add(__VA_ARGS__, &_key);	\
+	})							\
+)
+#else
+#define gpiochip_irqchip_add(...)				\
+	_gpiochip_irqchip_add(__VA_ARGS__, NULL)
+#endif
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
