@@ -157,6 +157,7 @@ config CRYPTO_NULL
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
 config CRYPTO_NULL2
+	tristate
 	select CRYPTO_ALGAPI2
 	select CRYPTO_BLKCIPHER2
 	select CRYPTO_HASH2
