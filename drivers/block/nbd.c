@@ -117,18 +117,14 @@ static void nbd_end_request(struct nbd_device *nbd, struct request *req)
 /*
  * Forcibly shutdown the socket causing all listeners to error
  */
-static void sock_shutdown(struct nbd_device *nbd, int lock)
+static void sock_shutdown(struct nbd_device *nbd)
 {
-	if (lock)
-		mutex_lock(&nbd->tx_lock);
 	if (nbd->sock) {
 		dev_warn(disk_to_dev(nbd->disk), "shutting down socket\n");
 		kernel_sock_shutdown(nbd->sock, SHUT_RDWR);
 		nbd->sock = NULL;
 		del_timer_sync(&nbd->timeout_timer);
 	}
-	if (lock)
-		mutex_unlock(&nbd->tx_lock);
 }
 
 static void nbd_xmit_timeout(unsigned long arg)
@@ -427,7 +423,9 @@ static int nbd_do_it(struct nbd_device *nbd)
 		ret = dequeue_signal_lock(current, &current->blocked, &info);
 		dev_warn(nbd_to_dev(nbd), "pid %d, %s, got signal %d\n",
 			 task_pid_nr(current), current->comm, ret);
-		sock_shutdown(nbd, 1);
+		mutex_lock(&nbd->tx_lock);
+		sock_shutdown(nbd);
+		mutex_unlock(&nbd->tx_lock);
 		ret = -ETIMEDOUT;
 	}
 
@@ -541,7 +539,9 @@ static int nbd_thread(void *data)
 						  &info);
 			dev_warn(nbd_to_dev(nbd), "pid %d, %s, got signal %d\n",
 				 task_pid_nr(current), current->comm, ret);
-			sock_shutdown(nbd, 1);
+			mutex_lock(&nbd->tx_lock);
+			sock_shutdown(nbd);
+			mutex_unlock(&nbd->tx_lock);
 			break;
 		}
 
@@ -735,7 +735,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		mutex_lock(&nbd->tx_lock);
 		if (error)
 			return error;
-		sock_shutdown(nbd, 0);
+		sock_shutdown(nbd);
 		sock = nbd->sock;
 		nbd->sock = NULL;
 		nbd_clear_que(nbd);
