@@ -1438,8 +1438,6 @@ void ProcessAdrWid(char *pcPacket, s32 *ps32PktLen,
 void ProcessBinWid(char *pcPacket, s32 *ps32PktLen,
 		   tstrWID *pstrWID, u8 *pu8val, s32 s32ValueSize)
 {
-	/* WILC_ERROR("processing Binary WIDs is not supported\n"); */
-
 	u16 u16MsgLen = 0;
 	u16 idx    = 0;
 	s32 s32PktLen = *ps32PktLen;

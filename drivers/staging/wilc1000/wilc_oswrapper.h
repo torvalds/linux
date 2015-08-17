@@ -17,9 +17,6 @@
 #include "wilc_osconfig.h"
 #include "wilc_platform.h"
 
-/* Logging Functions */
-#include "wilc_log.h"
-
 /* Error reporting and handling support */
 #include "wilc_errorsupport.h"
 
