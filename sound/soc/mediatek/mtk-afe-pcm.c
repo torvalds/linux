@@ -820,10 +820,6 @@ static const struct snd_kcontrol_new mtk_afe_o10_mix[] = {
 };
 
 static const struct snd_soc_dapm_widget mtk_afe_pcm_widgets[] = {
-	/* Backend DAIs  */
-	SND_SOC_DAPM_AIF_IN("I2S Capture", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("I2S Playback", NULL, 0, SND_SOC_NOPM, 0, 0),
-
 	/* inter-connections */
 	SND_SOC_DAPM_MIXER("I05", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I06", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -855,11 +851,6 @@ static const struct snd_soc_dapm_route mtk_afe_pcm_routes[] = {
 	{ "O10", "I18 Switch", "I18" },
 };
 
-static const struct snd_soc_dapm_widget mtk_afe_hdmi_widgets[] = {
-	/* Backend DAIs  */
-	SND_SOC_DAPM_AIF_OUT("HDMIO Playback", NULL, 0, SND_SOC_NOPM, 0, 0),
-};
-
 static const struct snd_soc_dapm_route mtk_afe_hdmi_routes[] = {
 	{"HDMIO Playback", NULL, "HDMI"},
 };
@@ -874,8 +865,6 @@ static const struct snd_soc_component_driver mtk_afe_pcm_dai_component = {
 
 static const struct snd_soc_component_driver mtk_afe_hdmi_dai_component = {
 	.name = "mtk-afe-hdmi-dai",
-	.dapm_widgets = mtk_afe_hdmi_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(mtk_afe_hdmi_widgets),
 	.dapm_routes = mtk_afe_hdmi_routes,
 	.num_dapm_routes = ARRAY_SIZE(mtk_afe_hdmi_routes),
 };
