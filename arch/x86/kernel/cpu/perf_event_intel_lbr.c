@@ -151,10 +151,9 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	 * No need to reprogram LBR_SELECT in a PMI, as it
 	 * did not change.
 	 */
-	if (cpuc->lbr_sel && !pmi) {
-		lbr_select = cpuc->lbr_sel->config;
+	lbr_select = cpuc->lbr_sel->config;
+	if (cpuc->lbr_sel && !pmi)
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
-	}
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 	orig_debugctl = debugctl;
