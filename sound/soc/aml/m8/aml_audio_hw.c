@@ -87,52 +87,28 @@ unsigned int dac_mute_const = 0x800000;
             Fout   =  -----------------------------
                       		(N) * (OD+1) * (XD)
 */
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-int audio_clock_config_table[][14][2]=
+int audio_clock_config_table[][15][3]=
 {
 	/*{HIU Reg , XD - 1)
 	   //7.875k, 8K, 11.025k, 12k, 16k, 22.05k, 24k, 32k, 44.1k, 48k, 88.2k, 96k, 192k
 	*/
 	{
 	//256
-#if OVERCLOCK == 0
-		{0x0004f880, (50-1)},  // 32
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8	
-		{0x0005e965, (40-1)}, //44.1	
-		{0x0004c9a0,	(50-1)},	//48K
-#else		
-		{0x0004cdf3, (42-1)},  // 44.1
-		{0x0007c4e6, (23-1)},  // 48
-#endif	
-		//{0x0006d0a4, (13-1)},  // 96
-        {0x0005cc08,  (20-1)},// 96k ,24.576M
-		//{0x0004e15a, (9 -1)},   // 192
-        {0x0005cc08,    (10-1)},   // 192k, 49.152M
-		{0x0007f400, (125-1)}, // 8k
-		{0x0006c6f6, (116-1)}, // 11.025
-		{0x0007e47f, (86-1)},  // 12
-		{0x0004f880, (100-1)}, // 16
-		{0x0004c4a4, (87-1)},  // 22.05
-		{0x0007e47f, (43-1)},  // 24
-		{0x0007f3f0, (127-1)}, // 7875
-        {0x0005c88b, (22-1)}, // 88.2k ,22.579M
+        {0x0005cc08, (60-1)},  // 32
+        {0x0005e965, (40-1)}, //44.1
+        {0x0004c9a0, (50-1)},	//48K
+        {0x0005cc08, (20-1)},// 96k ,24.576M
+        {0x0005cc08, (10-1)},   // 192k, 49.152M
+        {0x0005cc08, (240-1)}, // 8k
+        {0x0005e965, (160-1)}, // 11.025
+        {0x0007e47f, (86-1)},  // 12
+        {0x0005cc08, (120-1)}, // 16
+        {0x0005e965, (80-1)},  // 22.05
+        {0x0004c9a0, (100-1)},  // 24
+        {0x0007f3f0, (127-1)}, // 7875
+        {0x0005e965, (20-1)}, // 88.2k ,22.579M
         {0x0005e965, (5-1)}, // 352.8k
-#else
-	//512FS
-		{0x0004f880, (25-1)},  // 32
-		{0x0004cdf3, (21-1)},  // 44.1
-		{0x0006d0a4, (13-1)},  // 48
-		{0x0004e15a, (9 -1)},  // 96
-		{0x0006f207, (3 -1)},   // 192
-		{0x0004f880, (100-1)}, // 8k
-		{0x0004c4a4, (87-1)}, // 11.025
-		{0x0007e47f, (43-1)},  // 12
-		{0x0004f880, (50-1)}, // 16
-		{0x0004cdf3, (42-1)},  // 22.05
-		{0x0007c4e6, (23-1)},  // 24
-		{0x0006e1b6, (76-1)}, // 7875
-		{0x0006f207, (3 -1)},   // 352.8
-#endif
+        {0x0005cc08, (5-1)}, // 384k
 	},
 	{
 	//384
@@ -148,56 +124,28 @@ int audio_clock_config_table[][14][2]=
 		{0x0004c4a4, (58-1)},  // 22.05
 		{0x0004c60e, (53-1)},  // 24
 		{0x0007fdfa, (83-1)},  // 7875
-		{0x0004e15a, (6 -1)},   // 352.8
-	}
-};
-#else
-int audio_clock_config_table[][11][2]=
-{
-  // 128*Fs
-  //
-	/*{M, N, OD, XD-1*/
-	{
-	//24M
-        {(64<<0) | (3<<9) | (0<<14) , (125-1)}, // 32K, 4.096M
-#if OVERCLOCK==0
-        {(147<<0) | (5<<9) | (0<<14) , (125-1)}, // 44.1K, 5.6448M
-        {(32<<0) | (1<<9) | (0<<14) , (125-1)}, // 48K, 6.144M
-#else
-        {(143<<0) | (8<<9) | (0<<14) , (19-1)}, // 44.1K, 5.6448M*4=22.5792M
-        {(128<<0) | (5<<9) | (0<<14) , (25-1)}, // 48K, 6.144M*4=24.576M
-#endif
-        {(128<<0) | (5<<9) | (1<<14) , (25-1)}, // 96K, 12.288M
-        {(128<<0) | (5<<9) | (0<<14) , (25-1)}, //192K, 24.576M
-        {(64<<0) | (3<<9) | (1<<14) , (250-1)}, // 8K, 1.024M
-        {(147<<0) | (5<<9) | (1<<14) , (250-1)}, //11.025K,1.4112M
-        {(32<<0) | (1<<9) | (1<<14) , (250-1)}, // 12K, 1.536M
-        {(64<<0) | (3<<9) | (1<<14) , (125-1)}, // 16K, 2.048M
-        {(147<<0) | (5<<9) | (1<<14) , (125-1)}, //22.050K, 2.8224M
-        {(32<<0) | (1<<9) | (1<<14) , (125-1)}, // 24K, 3.072M
+        {0x0005e965, (5-1)}, // 352.8k
+        {0x0005cc08, (5-1)}, // 384k
 	},
 	{
-	//25M
-        {(29<<0) | (1<<9) | (0<<14) , (177-1)}, // 32K, 4.096M
-#if OVERCLOCK==0
-        {(21<<0) | (1<<9) | (0<<14) , (93-1)}, // 44.1K, 5.6448M
-        {(29<<0) | (1<<9) | (1<<14) , (59-1)}, // 48K, 6.144M
-#else
-        {(28<<0) | (1<<9) | (0<<14) , (31-1)}, // 44.1K, 5.6448M*4=22.5792M
-        {(173<<0) | (8<<9) | (1<<14) , (11-1)}, // 48K, 6.144M*4=24.576M
-#endif
-        {(29<<0) | (1<<9) | (0<<14) , (59-1)}, // 96K, 12.288M
-        {(173<<0) | (8<<9) | (1<<14) , (11-1)}, //192K, 24.576M
-        {(58<<0) | (3<<9) | (1<<14) , (236-1)}, // 8K, 1.024M
-        {(162<<0) | (7<<9) | (1<<14) , (205-1)}, //11.025K,1.4112M
-        {(29<<0) | (1<<9) | (1<<14) , (236-1)}, // 12K, 1.536M
-        {(29<<0) | (1<<9) | (1<<14) , (177-1)}, // 16K, 2.048M
-        {(162<<0) | (7<<9) | (0<<14) , (205-1)}, //22.050K, 2.8224M
-        {(29<<0) | (1<<9) | (1<<14) , (118-1)}, // 24K, 3.072M
-	}
+	//128
+        {0x0004f880, (100-1)},  // 32
+        {0x0005e965, (80-1)}, //44.1
+        {0x0004c9a0, (100-1)},	//48K
+        {0x0005cc08, (40-1)},// 96k ,24.576M
+        {0x0005cc08, (20-1)},   // 192k, 49.152M
+        {0x0007f400, (250-1)}, // 8k
+        {0x0006c6f6, (232-1)}, // 11.025
+        {0x0007e47f, (172-1)},  // 12
+        {0x0004f880, (200-1)}, // 16
+        {0x0004c4a4, (174-1)},  // 22.05
+        {0x0007e47f, (86-1)},  // 24
+        {0x0007f3f0, (254-1)}, // 7875
+        {0x0005c88b, (44-1)}, // 88.2k ,22.579M
+        {0x0005e965, (10-1)}, // 352.8k
+        {0x0005cc08, (10-1)}, // 384k
+	},
 };
-#endif
-
 
 void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 {
@@ -581,7 +529,7 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 {
     int i, index = 0, xtal = 0;
 	int mpll_reg, clk_src;
-    int (*audio_clock_config)[2];
+    int (*audio_clock_config)[3];
 	switch (mpll){
 	case 0:
 		mpll_reg = HHI_MPLL_CNTL7;
@@ -601,6 +549,9 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 
 	switch(freq)
 	{
+		case AUDIO_CLK_FREQ_384:
+			index=14;
+			break;
 		case AUDIO_CLK_FREQ_3528:
 			index=13;
 			break;
@@ -653,6 +604,11 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 	    // divide 384
 		xtal = 1;
 	}
+	else if (fs_config == AUDIO_CLK_128FS) {
+	    // divide 128
+		xtal = 2;
+	}
+
 	audio_clock_config = audio_clock_config_table[xtal];
 
     // gate the clock off
@@ -673,7 +629,10 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 	// Set the XD value
 	WRITE_MPEG_REG_BITS(HHI_AUD_CLK_CNTL, audio_clock_config[index][1], 0, 8);
 
-	WRITE_MPEG_REG_BITS(AIU_CODEC_DAC_LRCLK_CTRL, 64-1, 0, 12);//set codec dac ratio---lrclk--64fs
+    if(fs_config == AUDIO_CLK_128FS)
+       	WRITE_MPEG_REG_BITS(AIU_CODEC_DAC_LRCLK_CTRL, 32-1, 0, 12);//set codec dac ratio---lrclk--32fs
+    else
+        WRITE_MPEG_REG_BITS(AIU_CODEC_DAC_LRCLK_CTRL, 64-1, 0, 12);//set codec dac ratio---lrclk--64fs
 	
 	// delay 5uS
 	//udelay(5);
@@ -717,12 +676,15 @@ void audio_set_958_clk(unsigned freq, unsigned fs_config)
     int i;
     int xtal = 0;
 
-    int (*audio_clock_config)[2];
+    int (*audio_clock_config)[3];
 
 	int index=0;
     printk("audio_set_958_clk, freq=%d,\n",freq);
 	switch(freq)
 	{
+		case AUDIO_CLK_FREQ_384:
+			index=14;
+			break;
 		case AUDIO_CLK_FREQ_3528:
 			index=13;
 			break;

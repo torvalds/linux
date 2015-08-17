@@ -70,6 +70,7 @@ enum {
 
 #define AUDIO_CLK_256FS             0
 #define AUDIO_CLK_384FS             1
+#define AUDIO_CLK_128FS             2
 
 #define AUDIO_CLK_FREQ_192  0
 #define AUDIO_CLK_FREQ_1764 1
@@ -86,7 +87,7 @@ enum {
 #define AUDIO_CLK_FREQ_22		11
 #define AUDIO_CLK_FREQ_24		12
 #define AUDIO_CLK_FREQ_3528     13
-
+#define AUDIO_CLK_FREQ_384      14
 
 #define AIU_958_MODE_RAW    0
 #define AIU_958_MODE_PCM16  1

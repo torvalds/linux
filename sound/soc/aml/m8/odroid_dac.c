@@ -181,8 +181,8 @@ static int aml_suspend_post(struct snd_soc_card *card)
 static int aml_resume_pre(struct snd_soc_card *card)
 {
     struct odroid_audio_private_data *p_odroid_audio;
-    p_odroid_audio = snd_soc_card_get_drvdata(card);  
-    
+    p_odroid_audio = snd_soc_card_get_drvdata(card);
+
     if(p_odroid_audio->gpio_i2s_m)
         amlogic_gpio_free(p_odroid_audio->gpio_i2s_m,"low_mclk");
     if(p_odroid_audio->gpio_i2s_s)
@@ -191,8 +191,7 @@ static int aml_resume_pre(struct snd_soc_card *card)
         amlogic_gpio_free(p_odroid_audio->gpio_i2s_r,"low_lrclk");
     if(p_odroid_audio->gpio_i2s_o)
         amlogic_gpio_free(p_odroid_audio->gpio_i2s_o,"low_odata");
-    
-    
+
     p_odroid_audio->pin_ctl = devm_pinctrl_get_select(card->dev, "odroid_i2s");
     return 0;
 }
@@ -237,9 +236,9 @@ static struct snd_soc_card aml_snd_soc_card = {
 static void i2s_pinmux_init(struct snd_soc_card *card)
 {
 	struct odroid_audio_private_data *p_odroid_audio;
-	p_odroid_audio = snd_soc_card_get_drvdata(card);   
+	p_odroid_audio = snd_soc_card_get_drvdata(card);
     p_odroid_audio->pin_ctl = devm_pinctrl_get_select(card->dev, "odroid_i2s");
-    
+
 #ifndef CONFIG_MESON_TRUSTZONE
     //aml_write_reg32(P_AO_SECURE_REG1,0x00000000);
     aml_clr_reg32_mask(P_AO_SECURE_REG1, ((1<<8) | (1<<1)));
@@ -259,6 +258,7 @@ static void i2s_pinmux_deinit(struct snd_soc_card *card)
     if(p_odroid_audio->pin_ctl)
         devm_pinctrl_put(p_odroid_audio->pin_ctl);
 }
+
 static int odroid_audio_probe(struct platform_device *pdev)
 {
     struct snd_soc_card *card = &aml_snd_soc_card;
@@ -284,7 +284,7 @@ static int odroid_audio_probe(struct platform_device *pdev)
         ret = -EINVAL;
         goto err;
     }
-    
+
     ret = snd_soc_of_parse_card_name(card, "aml,sound_card");
     if (ret)
         goto err;

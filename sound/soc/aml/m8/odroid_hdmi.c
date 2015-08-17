@@ -156,7 +156,7 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
         ret = -EINVAL;
         goto err;
     }
-    
+
     ret = snd_soc_of_parse_card_name(card, "aml,sound_card");
     if (ret)
         goto err;

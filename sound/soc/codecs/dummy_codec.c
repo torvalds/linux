@@ -17,7 +17,7 @@ struct dummy_codec_private {
 	struct snd_soc_codec codec;	
 };
 
-#define DUMMY_CODEC_RATES		(SNDRV_PCM_RATE_8000_352800)
+#define DUMMY_CODEC_RATES		(SNDRV_PCM_RATE_8000_384000)
 #define DUMMY_CODEC_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |SNDRV_PCM_FMTBIT_S32_LE)
 
 

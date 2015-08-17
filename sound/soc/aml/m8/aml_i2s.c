@@ -94,7 +94,7 @@ static const struct snd_pcm_hardware aml_i2s_hardware = {
 	.buffer_bytes_max	= 32 * 1024 * 2,
 
 	.rate_min = 8000,
-	.rate_max = 192000,
+	.rate_max = 384000,
 	.channels_min = 1,
 	.channels_max = 8,
 	.fifo_size = 32,

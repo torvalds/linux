@@ -56,7 +56,7 @@ void  aml_spdif_play(void)
     return;
 #if 0
    	 _aiu_958_raw_setting_t set;
-   	 _aiu_958_channel_status_t chstat;	 
+   	 _aiu_958_channel_status_t chstat;
 	struct snd_pcm_substream substream;
 	struct snd_pcm_runtime runtime;
 	substream.runtime = &	runtime;
@@ -90,7 +90,6 @@ void  aml_spdif_play(void)
 	audio_spdifout_pg_enable(1);
 	audio_hw_958_enable(1);
 
-	
 #endif
 }
 static void  aml_spdif_play_stop(void)
@@ -172,6 +171,9 @@ static void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	set.chan_stat = &chstat;
     printk("----aml_hw_iec958_init,runtime->rate=%d--\n",runtime->rate);
 	switch(runtime->rate){
+		case 384000:
+			sample_rate	=	AUDIO_CLK_FREQ_384;
+			break;
 		case 352800:
 			sample_rate	=	AUDIO_CLK_FREQ_3528;
 			break;
@@ -487,7 +489,7 @@ static struct snd_soc_dai_ops spdif_dai_ops = {
 	.prepare = aml_dai_spdif_prepare,
 	.hw_params	= aml_dai_spdif_hw_params,
 	.shutdown	= aml_dai_spdif_shutdown,
-	.startup	= aml_dai_spdif_startup,	
+	.startup	= aml_dai_spdif_startup,
 };
 
 static struct snd_soc_dai_driver aml_spdif_dai[] = {
@@ -497,7 +499,7 @@ static struct snd_soc_dai_driver aml_spdif_dai[] = {
 			.stream_name = "S/PDIF Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_8000_352800,
+			.rates = SNDRV_PCM_RATE_8000_384000,
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE), },
 		.capture = {
 			.stream_name = "S/PDIF Capture",
@@ -507,7 +509,7 @@ static struct snd_soc_dai_driver aml_spdif_dai[] = {
 					SNDRV_PCM_RATE_44100 |
 					SNDRV_PCM_RATE_48000 |
 					SNDRV_PCM_RATE_96000),
-			.formats = SNDRV_PCM_FMTBIT_S16_LE, },			
+			.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 		.ops = &spdif_dai_ops,
 		.suspend = aml_dai_spdif_suspend,
 		.resume = aml_dai_spdif_resume,

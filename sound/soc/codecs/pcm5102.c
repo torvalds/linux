@@ -13,10 +13,10 @@
 #include <linux/of.h>
 
 struct pcm5102_private {
-	struct snd_soc_codec codec;	
+	struct snd_soc_codec codec;
 };
 
-#define PCM5102_RATES		(SNDRV_PCM_RATE_8000_352800)
+#define PCM5102_RATES		(SNDRV_PCM_RATE_8000_384000)
 #define PCM5102_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |SNDRV_PCM_FMTBIT_S32_LE)
 
 static int pcm5102_pcm_hw_params(struct snd_pcm_substream *substream,
