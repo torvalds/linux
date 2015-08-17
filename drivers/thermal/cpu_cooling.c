@@ -272,7 +272,7 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 	struct power_table *power_table;
 	struct dev_pm_opp *opp;
 	struct device *dev = NULL;
-	int num_opps = 0, cpu, i;
+	int num_opps = 0, cpu, i, ret = 0;
 	unsigned long freq;
 
 	for_each_cpu(cpu, &cpufreq_device->allowed_cpus) {
@@ -307,7 +307,8 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 
 		if (i >= num_opps) {
 			rcu_read_unlock();
-			return -EAGAIN;
+			ret = -EAGAIN;
+			goto free_power_table;
 		}
 
 		freq_mhz = freq / 1000000;
@@ -329,14 +330,21 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 
 	rcu_read_unlock();
 
-	if (i != num_opps)
-		return PTR_ERR(opp);
+	if (i != num_opps) {
+		ret = PTR_ERR(opp);
+		goto free_power_table;
+	}
 
 	cpufreq_device->cpu_dev = dev;
 	cpufreq_device->dyn_power_table = power_table;
 	cpufreq_device->dyn_power_table_entries = i;
 
 	return 0;
+
+free_power_table:
+	kfree(power_table);
+
+	return ret;
 }
 
 static u32 cpu_freq_to_power(struct cpufreq_cooling_device *cpufreq_device,
@@ -846,7 +854,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	ret = get_idr(&cpufreq_idr, &cpufreq_dev->id);
 	if (ret) {
 		cool_dev = ERR_PTR(ret);
-		goto free_table;
+		goto free_power_table;
 	}
 
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
@@ -888,6 +896,8 @@ __cpufreq_cooling_register(struct device_node *np,
 
 remove_idr:
 	release_idr(&cpufreq_idr, cpufreq_dev->id);
+free_power_table:
+	kfree(cpufreq_dev->dyn_power_table);
 free_table:
 	kfree(cpufreq_dev->freq_table);
 free_time_in_idle_timestamp:
@@ -1038,6 +1048,7 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 
 	thermal_cooling_device_unregister(cpufreq_dev->cool_dev);
 	release_idr(&cpufreq_idr, cpufreq_dev->id);
+	kfree(cpufreq_dev->dyn_power_table);
 	kfree(cpufreq_dev->time_in_idle_timestamp);
 	kfree(cpufreq_dev->time_in_idle);
 	kfree(cpufreq_dev->freq_table);
