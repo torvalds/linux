@@ -39,13 +39,9 @@
 #include "../comedidev.h"
 #include <asm/byteorder.h>
 
-#define S526_START_AI_CONV	0
-#define S526_AI_READ		0
-
-/* Ports */
-#define S526_NUM_PORTS 27
-
-/* registers */
+/*
+ * Register I/O map
+ */
 #define S526_TIMER_REG		0x00
 #define S526_TIMER_LOAD(x)	(((x) & 0xff) << 8)
 #define S526_TIMER_MODE		((x) << 1)
