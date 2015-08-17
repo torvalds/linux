@@ -140,55 +140,46 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   struct btrfs_log_ctx *ctx)
 {
-	int index;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&root->log_mutex);
+
 	if (root->log_root) {
 		if (btrfs_need_log_full_commit(root->fs_info, trans)) {
 			ret = -EAGAIN;
 			goto out;
 		}
+
 		if (!root->log_start_pid) {
-			root->log_start_pid = current->pid;
 			clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
+			root->log_start_pid = current->pid;
 		} else if (root->log_start_pid != current->pid) {
 			set_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
 		}
+	} else {
+		mutex_lock(&root->fs_info->tree_log_mutex);
+		if (!root->fs_info->log_root_tree)
+			ret = btrfs_init_log_root_tree(trans, root->fs_info);
+		mutex_unlock(&root->fs_info->tree_log_mutex);
+		if (ret)
+			goto out;
 
-		atomic_inc(&root->log_batch);
-		atomic_inc(&root->log_writers);
-		if (ctx) {
-			index = root->log_transid % 2;
-			list_add_tail(&ctx->list, &root->log_ctxs[index]);
-			ctx->log_transid = root->log_transid;
-		}
-		mutex_unlock(&root->log_mutex);
-		return 0;
-	}
-
-	ret = 0;
-	mutex_lock(&root->fs_info->tree_log_mutex);
-	if (!root->fs_info->log_root_tree)
-		ret = btrfs_init_log_root_tree(trans, root->fs_info);
-	mutex_unlock(&root->fs_info->tree_log_mutex);
-	if (ret)
-		goto out;
-
-	if (!root->log_root) {
 		ret = btrfs_add_log_tree(trans, root);
 		if (ret)
 			goto out;
+
+		clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
+		root->log_start_pid = current->pid;
 	}
-	clear_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
-	root->log_start_pid = current->pid;
+
 	atomic_inc(&root->log_batch);
 	atomic_inc(&root->log_writers);
 	if (ctx) {
-		index = root->log_transid % 2;
+		int index = root->log_transid % 2;
 		list_add_tail(&ctx->list, &root->log_ctxs[index]);
 		ctx->log_transid = root->log_transid;
 	}
+
 out:
 	mutex_unlock(&root->log_mutex);
 	return ret;
