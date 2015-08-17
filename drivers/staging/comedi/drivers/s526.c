@@ -89,9 +89,12 @@
 #define S526_GPCT_MSB_REG(x)	(0x14 + ((x) * 8))
 #define S526_GPCT_MODE_REG(x)	(0x16 + ((x) * 8))
 #define S526_GPCT_CTRL_REG(x)	(0x18 + ((x) * 8))
-
-#define REG_EED 0x32
-#define REG_EEC 0x34
+#define S526_EEPROM_DATA_REG	0x32
+#define S526_EEPROM_CTRL_REG	0x34
+#define S526_EEPROM_CTRL_ADDR(x) (((x) & 0x3f) << 3)
+#define S526_EEPROM_CTRL(x)	(((x) & 0x3) << 1)
+#define S526_EEPROM_CTRL_READ	S526_EEPROM_CTRL(2)
+#define S526_EEPROM_CTRL_START	BIT(0)
 
 struct counter_mode_register_t {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
