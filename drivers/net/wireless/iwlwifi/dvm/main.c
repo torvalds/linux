@@ -2037,7 +2037,8 @@ static void iwl_napi_add(struct iwl_op_mode *op_mode,
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
-	ieee80211_napi_add(priv->hw, napi, napi_dev, poll, weight);
+	netif_napi_add(napi_dev, napi, poll, weight);
+	priv->napi = napi;
 }
 
 static const struct iwl_op_mode_ops iwl_dvm_ops = {

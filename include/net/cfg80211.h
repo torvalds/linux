@@ -2369,8 +2369,7 @@ struct cfg80211_qos_map {
  *	method returns 0.)
  *
  * @mgmt_frame_register: Notify driver that a management frame type was
- *	registered. Note that this callback may not sleep, and cannot run
- *	concurrently with itself.
+ *	registered. The callback is allowed to sleep.
  *
  * @set_antenna: Set antenna configuration (tx_ant, rx_ant) on the device.
  *	Parameters are bitmaps of allowed antennas to use for TX/RX. Drivers may

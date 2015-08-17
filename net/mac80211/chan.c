@@ -190,7 +190,7 @@ ieee80211_find_reservation_chanctx(struct ieee80211_local *local,
 	return NULL;
 }
 
-static enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta)
+enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta)
 {
 	switch (sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_20:
@@ -264,9 +264,17 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 		case NL80211_IFTYPE_AP_VLAN:
 			width = ieee80211_get_max_required_bw(sdata);
 			break;
+		case NL80211_IFTYPE_STATION:
+			/*
+			 * The ap's sta->bandwidth is not set yet at this
+			 * point, so take the width from the chandef, but
+			 * account also for TDLS peers
+			 */
+			width = max(vif->bss_conf.chandef.width,
+				    ieee80211_get_max_required_bw(sdata));
+			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
 			continue;
-		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_MESH_POINT:
@@ -554,12 +562,13 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 	kfree_rcu(ctx, rcu_head);
 }
 
-static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
-					      struct ieee80211_chanctx *ctx)
+void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
+				       struct ieee80211_chanctx *ctx)
 {
 	struct ieee80211_chanctx_conf *conf = &ctx->conf;
 	struct ieee80211_sub_if_data *sdata;
 	const struct cfg80211_chan_def *compat = NULL;
+	struct sta_info *sta;
 
 	lockdep_assert_held(&local->chanctx_mtx);
 
@@ -578,6 +587,20 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 		compat = cfg80211_chandef_compatible(
 				&sdata->vif.bss_conf.chandef, compat);
+		if (WARN_ON_ONCE(!compat))
+			break;
+	}
+
+	/* TDLS peers can sometimes affect the chandef width */
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (!sta->uploaded ||
+		    !test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW) ||
+		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
+		    !sta->tdls_chandef.chan)
+			continue;
+
+		compat = cfg80211_chandef_compatible(&sta->tdls_chandef,
+						     compat);
 		if (WARN_ON_ONCE(!compat))
 			break;
 	}

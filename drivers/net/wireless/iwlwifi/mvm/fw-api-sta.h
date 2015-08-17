@@ -366,8 +366,8 @@ struct iwl_mvm_rm_sta_cmd {
  * ( MGMT_MCAST_KEY = 0x1f )
  * @ctrl_flags: %iwl_sta_key_flag
  * @IGTK:
- * @K1: IGTK master key
- * @K2: IGTK sub key
+ * @K1: unused
+ * @K2: unused
  * @sta_id: station ID that support IGTK
  * @key_id:
  * @receive_seq_cnt: initial RSC/PN needed for replay check
