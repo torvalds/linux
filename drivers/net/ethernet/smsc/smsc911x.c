@@ -2367,12 +2367,17 @@ static const struct smsc911x_ops shifted_smsc911x_ops = {
 static int smsc911x_probe_config(struct smsc911x_platform_config *config,
 				 struct device *dev)
 {
+	int phy_interface;
 	u32 width = 0;
 
 	if (!dev)
 		return -ENODEV;
 
-	config->phy_interface = device_get_phy_mode(dev);
+	phy_interface = device_get_phy_mode(dev);
+	if (phy_interface < 0)
+		return phy_interface;
+
+	config->phy_interface = phy_interface;
 
 	device_get_mac_address(dev, config->mac, ETH_ALEN);
 
