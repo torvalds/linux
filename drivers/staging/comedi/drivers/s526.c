@@ -68,8 +68,14 @@
 #define S526_AO_REG		0x08
 #define S526_AI_REG		0x08
 #define REG_DIO 0x0A
-#define REG_IER 0x0C
-#define REG_ISR 0x0E
+#define S526_INT_ENA_REG	0x0c
+#define S526_INT_STATUS_REG	0x0e
+#define S526_INT_DIO(x)		BIT(8 + ((x) & 0x7))
+#define S526_INT_EEPROM		BIT(7)	/* status only */
+#define S526_INT_CNTR(x)	BIT(3 + (3 - ((x) & 0x3)))
+#define S526_INT_AI		BIT(2)
+#define S526_INT_AO		BIT(1)
+#define S526_INT_TIMER		BIT(0)
 #define REG_MSC 0x10
 
 #define S526_GPCT_LSB_REG(x)	(0x12 + ((x) * 8))
@@ -372,7 +378,6 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 	return insn->n;
 }
 
-#define ISR_ADC_DONE 0x4
 static int s526_ai_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
@@ -393,7 +398,7 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 	 * INSN_READ handler. */
 
 	/*  Enable ADC interrupt */
-	outw(ISR_ADC_DONE, dev->iobase + REG_IER);
+	outw(S526_INT_AI, dev->iobase + S526_INT_ENA_REG);
 	devpriv->ai_config = (data[0] & 0x3ff) << 5;
 	if (data[1] > 0)
 		devpriv->ai_config |= S526_AI_CTRL_DELAY;/* set the delay */
@@ -410,8 +415,8 @@ static int s526_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inw(dev->iobase + REG_ISR);
-	if (status & ISR_ADC_DONE)
+	status = inw(dev->iobase + S526_INT_STATUS_REG);
+	if (status & S526_INT_AI)
 		return 0;
 	return -EBUSY;
 }
@@ -444,7 +449,7 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (ret)
 			return ret;
 
-		outw(ISR_ADC_DONE, dev->iobase + REG_ISR);
+		outw(S526_INT_AI, dev->iobase + S526_INT_STATUS_REG);
 
 		d = inw(dev->iobase + S526_AI_REG);
 
