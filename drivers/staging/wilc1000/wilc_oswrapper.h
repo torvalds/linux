@@ -14,7 +14,6 @@
 #define WILC_OSW_INTERFACE_VER 2
 
 /* Os Configuration File */
-#include "wilc_osconfig.h"
 #include "wilc_platform.h"
 
 /* Error reporting and handling support */
