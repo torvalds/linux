@@ -713,7 +713,12 @@ static const struct display_timing hannstar_hsd070pww1_timing = {
 	.hactive = { 1280, 1280, 1280 },
 	.hfront_porch = { 1, 1, 10 },
 	.hback_porch = { 1, 1, 10 },
-	.hsync_len = { 52, 158, 661 },
+	/*
+	 * According to the data sheet, the minimum horizontal blanking interval
+	 * is 54 clocks (1 + 52 + 1), but tests with a Nitrogen6X have shown the
+	 * minimum working horizontal blanking interval to be 60 clocks.
+	 */
+	.hsync_len = { 58, 158, 661 },
 	.vactive = { 800, 800, 800 },
 	.vfront_porch = { 1, 1, 10 },
 	.vback_porch = { 1, 1, 10 },
@@ -729,6 +734,7 @@ static const struct panel_desc hannstar_hsd070pww1 = {
 		.width = 151,
 		.height = 94,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
 };
 
 static const struct display_timing hannstar_hsd100pxn1_timing = {
@@ -943,6 +949,60 @@ static const struct panel_desc lg_lp129qe = {
 	},
 };
 
+static const struct drm_display_mode nec_nl4827hc19_05b_mode = {
+	.clock = 10870,
+	.hdisplay = 480,
+	.hsync_start = 480 + 2,
+	.hsync_end = 480 + 2 + 41,
+	.htotal = 480 + 2 + 41 + 2,
+	.vdisplay = 272,
+	.vsync_start = 272 + 2,
+	.vsync_end = 272 + 2 + 4,
+	.vtotal = 272 + 2 + 4 + 2,
+	.vrefresh = 74,
+};
+
+static const struct panel_desc nec_nl4827hc19_05b = {
+	.modes = &nec_nl4827hc19_05b_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 95,
+		.height = 54,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24
+};
+
+static const struct display_timing okaya_rs800480t_7x0gp_timing = {
+	.pixelclock = { 30000000, 30000000, 40000000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 40, 40, 40 },
+	.hback_porch = { 40, 40, 40 },
+	.hsync_len = { 1, 48, 48 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 13, 13, 13 },
+	.vback_porch = { 29, 29, 29 },
+	.vsync_len = { 3, 3, 3 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc okaya_rs800480t_7x0gp = {
+	.timings = &okaya_rs800480t_7x0gp_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 154,
+		.height = 87,
+	},
+	.delay = {
+		.prepare = 41,
+		.enable = 50,
+		.unprepare = 41,
+		.disable = 50,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct drm_display_mode ortustech_com43h4m85ulc_mode  = {
 	.clock = 25000,
 	.hdisplay = 480,
@@ -1113,6 +1173,12 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
 	}, {
+		.compatible = "nec,nl4827hc19-05b",
+		.data = &nec_nl4827hc19_05b,
+	}, {
+		.compatible = "okaya,rs800480t-7x0gp",
+		.data = &okaya_rs800480t_7x0gp,
+	}, {
 		.compatible = "ortustech,com43h4m85ulc",
 		.data = &ortustech_com43h4m85ulc,
 	}, {
@@ -1167,6 +1233,34 @@ struct panel_desc_dsi {
 	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
+};
+
+static const struct drm_display_mode auo_b080uan01_mode = {
+	.clock = 154500,
+	.hdisplay = 1200,
+	.hsync_start = 1200 + 62,
+	.hsync_end = 1200 + 62 + 4,
+	.htotal = 1200 + 62 + 4 + 62,
+	.vdisplay = 1920,
+	.vsync_start = 1920 + 9,
+	.vsync_end = 1920 + 9 + 2,
+	.vtotal = 1920 + 9 + 2 + 8,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi auo_b080uan01 = {
+	.desc = {
+		.modes = &auo_b080uan01_mode,
+		.num_modes = 1,
+		.bpc = 8,
+		.size = {
+			.width = 108,
+			.height = 272,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
 };
 
 static const struct drm_display_mode lg_ld070wx3_sl01_mode = {
@@ -1256,6 +1350,9 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 
 static const struct of_device_id dsi_of_match[] = {
 	{
+		.compatible = "auo,b080uan01",
+		.data = &auo_b080uan01
+	}, {
 		.compatible = "lg,ld070wx3-sl01",
 		.data = &lg_ld070wx3_sl01
 	}, {
