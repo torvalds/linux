@@ -760,7 +760,7 @@ accept_err:
 	return result;
 }
 
-int sctp_accept_from_sock(struct connection *con)
+static int sctp_accept_from_sock(struct connection *con)
 {
 	/* Check that the new node is in the lockspace */
 	struct sctp_prim prim;
