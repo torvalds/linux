@@ -708,6 +708,8 @@ struct intel_dp {
 	uint32_t output_reg;
 	uint32_t aux_ch_ctl_reg;
 	uint32_t DP;
+	int link_rate;
+	uint8_t lane_count;
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	bool limited_color_range;
@@ -1161,6 +1163,8 @@ void assert_csr_loaded(struct drm_i915_private *dev_priv);
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			     struct intel_connector *intel_connector);
+void intel_dp_set_link_params(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *pipe_config);
 void intel_dp_start_link_train(struct intel_dp *intel_dp);
 void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);

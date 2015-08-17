@@ -165,6 +165,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	if (intel_dp->active_mst_links == 0) {
 		enum port port = intel_ddi_get_encoder_port(encoder);
 
+		intel_dp_set_link_params(intel_dp, intel_crtc->config);
+
 		/* FIXME: add support for SKL */
 		if (INTEL_INFO(dev)->gen < 9)
 			I915_WRITE(PORT_CLK_SEL(port),

@@ -728,11 +728,10 @@ void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *intel_dig_port =
 		enc_to_dig_port(&encoder->base);
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 
 	intel_dp->DP = intel_dig_port->saved_port_bits |
 		DDI_BUF_CTL_ENABLE | DDI_BUF_TRANS_SELECT(0);
-	intel_dp->DP |= DDI_PORT_WIDTH(crtc->config->lane_count);
+	intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
 }
 
 static struct intel_encoder *
@@ -2313,6 +2312,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		intel_dp_set_link_params(intel_dp, crtc->config);
 
 		intel_ddi_init_dp_buf_reg(intel_encoder);
 
