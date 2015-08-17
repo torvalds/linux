@@ -100,6 +100,7 @@ enum iwl_mvm_tx_fifo {
 enum {
 	MVM_ALIVE = 0x1,
 	REPLY_ERROR = 0x2,
+	ECHO_CMD = 0x3,
 
 	INIT_COMPLETE_NOTIF = 0x4,
 
