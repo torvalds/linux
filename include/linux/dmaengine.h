@@ -1237,6 +1237,9 @@ static inline struct dma_chan
 	if (chan)
 		return chan;
 
+	if (!fn || !fn_param)
+		return NULL;
+
 	return __dma_request_channel(mask, fn, fn_param);
 }
 #endif /* DMAENGINE_H */
