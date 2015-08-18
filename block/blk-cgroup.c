@@ -188,7 +188,7 @@ EXPORT_SYMBOL_GPL(blkg_lookup);
 
 /*
  * If @new_blkg is %NULL, this function tries to allocate a new one as
- * necessary using %GFP_ATOMIC.  @new_blkg is always consumed on return.
+ * necessary using %GFP_NOWAIT.  @new_blkg is always consumed on return.
  */
 static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 				    struct request_queue *q,
@@ -208,7 +208,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	}
 
 	wb_congested = wb_congested_get_create(&q->backing_dev_info,
-					       blkcg->css.id, GFP_ATOMIC);
+					       blkcg->css.id, GFP_NOWAIT);
 	if (!wb_congested) {
 		ret = -ENOMEM;
 		goto err_put_css;
@@ -216,7 +216,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	/* allocate */
 	if (!new_blkg) {
-		new_blkg = blkg_alloc(blkcg, q, GFP_ATOMIC);
+		new_blkg = blkg_alloc(blkcg, q, GFP_NOWAIT);
 		if (unlikely(!new_blkg)) {
 			ret = -ENOMEM;
 			goto err_put_congested;
@@ -882,7 +882,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 
 done:
 	spin_lock_init(&blkcg->lock);
-	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
+	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 #ifdef CONFIG_CGROUP_WRITEBACK
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
