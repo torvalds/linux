@@ -568,7 +568,6 @@ static void hdm_read_completion(struct urb *urb)
 	struct device *dev;
 	unsigned long flags;
 	unsigned int channel;
-	struct most_channel_config *conf;
 
 	mbo = urb->context;
 	anchor = mbo->priv;
@@ -581,8 +580,6 @@ static void hdm_read_completion(struct urb *urb)
 		complete(&anchor->urb_compl);
 		return;
 	}
-
-	conf = &mdev->conf[channel];
 
 	if (unlikely(urb->status && !(urb->status == -ENOENT ||
 				      urb->status == -ECONNRESET ||
