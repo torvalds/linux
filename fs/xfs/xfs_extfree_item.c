@@ -149,7 +149,7 @@ xfs_efi_item_unpin(
 		xfs_efi_item_free(efip);
 		return;
 	}
-	__xfs_efi_release(efip);
+	xfs_efi_release(efip);
 }
 
 /*
@@ -307,18 +307,15 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
  * by this efi item we can free the efi item.
  */
 void
-xfs_efi_release(xfs_efi_log_item_t	*efip,
-		uint			nextents)
+xfs_efi_release(
+	struct xfs_efi_log_item	*efip)
 {
-	ASSERT(atomic_read(&efip->efi_next_extent) >= nextents);
-	if (atomic_sub_and_test(nextents, &efip->efi_next_extent)) {
-		/* recovery needs us to drop the EFI reference, too */
-		if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
-			__xfs_efi_release(efip);
-
+	/* recovery needs us to drop the EFI reference, too */
+	if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
 		__xfs_efi_release(efip);
-		/* efip may now have been freed, do not reference it again. */
-	}
+
+	__xfs_efi_release(efip);
+	/* efip may now have been freed, do not reference it again. */
 }
 
 static inline struct xfs_efd_log_item *EFD_ITEM(struct xfs_log_item *lip)
@@ -442,7 +439,7 @@ xfs_efd_item_committed(
 	 * EFI got unpinned and freed before the EFD got aborted.
 	 */
 	if (!(lip->li_flags & XFS_LI_ABORTED))
-		xfs_efi_release(efdp->efd_efip, efdp->efd_format.efd_nextents);
+		xfs_efi_release(efdp->efd_efip);
 
 	xfs_efd_item_free(efdp);
 	return (xfs_lsn_t)-1;

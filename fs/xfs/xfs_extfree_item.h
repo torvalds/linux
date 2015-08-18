@@ -77,5 +77,6 @@ xfs_efd_log_item_t	*xfs_efd_init(struct xfs_mount *, xfs_efi_log_item_t *,
 int			xfs_efi_copy_format(xfs_log_iovec_t *buf,
 					    xfs_efi_log_format_t *dst_efi_fmt);
 void			xfs_efi_item_free(xfs_efi_log_item_t *);
+void			xfs_efi_release(struct xfs_efi_log_item *);
 
 #endif	/* __XFS_EXTFREE_ITEM_H__ */

@@ -3739,7 +3739,7 @@ xlog_recover_process_efi(
 			 * free the memory associated with it.
 			 */
 			set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
-			xfs_efi_release(efip, efip->efi_format.efi_nextents);
+			xfs_efi_release(efip);
 			return -EIO;
 		}
 	}
