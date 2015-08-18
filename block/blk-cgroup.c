@@ -1143,11 +1143,32 @@ static int blkcg_can_attach(struct cgroup_subsys_state *css,
 	return ret;
 }
 
+static void blkcg_bind(struct cgroup_subsys_state *root_css)
+{
+	int i;
+
+	mutex_lock(&blkcg_pol_mutex);
+
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+		struct blkcg *blkcg;
+
+		if (!pol || !pol->cpd_bind_fn)
+			continue;
+
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node)
+			if (blkcg->cpd[pol->plid])
+				pol->cpd_bind_fn(blkcg->cpd[pol->plid]);
+	}
+	mutex_unlock(&blkcg_pol_mutex);
+}
+
 struct cgroup_subsys io_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
+	.bind = blkcg_bind,
 	.dfl_cftypes = blkcg_files,
 	.legacy_cftypes = blkcg_legacy_files,
 	.legacy_name = "blkio",

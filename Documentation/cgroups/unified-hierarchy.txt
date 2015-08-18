@@ -464,7 +464,7 @@ may be specified in any order and not all pairs have to be specified.
 
 	The weight setting, currently only available and effective if
 	cfq-iosched is in use for the target device.  The weight is
-	between 10 and 1000 and defaults to 500.  The first line
+	between 1 and 10000 and defaults to 100.  The first line
 	always contains the default weight in the following format to
 	use when per-device setting is missing.
 
