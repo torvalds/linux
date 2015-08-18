@@ -18,8 +18,7 @@
 #include <asm/cpufeature.h>
 #include <asm/special_insns.h>
 
-#ifdef ARCH_HAS_NOCACHE_UACCESS
-
+#ifdef CONFIG_ARCH_HAS_PMEM_API
 /**
  * arch_memcpy_to_pmem - copy data to persistent memory
  * @dst: destination buffer for the copy
@@ -79,14 +78,6 @@ static inline bool arch_has_wmb_pmem(void)
 	return false;
 #endif
 }
-#else /* ARCH_HAS_NOCACHE_UACCESS i.e. ARCH=um */
-extern void arch_memcpy_to_pmem(void __pmem *dst, const void *src, size_t n);
-extern void arch_wmb_pmem(void);
-
-static inline bool __arch_has_wmb_pmem(void)
-{
-	return false;
-}
-#endif
+#endif /* CONFIG_ARCH_HAS_PMEM_API */
 
 #endif /* __ASM_X86_PMEM_H__ */
