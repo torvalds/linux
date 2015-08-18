@@ -57,6 +57,7 @@ static inline void imx6ul_enet_init(void)
 {
 	imx6ul_enet_clk_init();
 	imx6ul_enet_phy_init();
+	imx6_enet_mac_init("fsl,imx6ul-fec", "fsl,imx6ul-ocotp");
 }
 
 static void __init imx6ul_init_machine(void)
