@@ -1248,7 +1248,7 @@ static void afu_link_reset(struct afu *afu, int port, u64 *fc_regs)
 
 	/* first switch the AFU to the other links, if any */
 	port_sel = readq_be(&afu->afu_map->global.regs.afu_port_sel);
-	port_sel &= ~(1 << port);
+	port_sel &= ~(1ULL << port);
 	writeq_be(port_sel, &afu->afu_map->global.regs.afu_port_sel);
 	cxlflash_afu_sync(afu, 0, 0, AFU_GSYNC);
 
@@ -1265,7 +1265,7 @@ static void afu_link_reset(struct afu *afu, int port, u64 *fc_regs)
 		       __func__, port);
 
 	/* switch back to include this port */
-	port_sel |= (1 << port);
+	port_sel |= (1ULL << port);
 	writeq_be(port_sel, &afu->afu_map->global.regs.afu_port_sel);
 	cxlflash_afu_sync(afu, 0, 0, AFU_GSYNC);
 
