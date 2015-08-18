@@ -1724,10 +1724,9 @@ static void rtl8192_usb_deleteendpoints(struct net_device *dev)
 	}
 	kfree(priv->oldaddr);
 	priv->oldaddr = NULL;
-	if (priv->pp_rxskb) {
-		kfree(priv->pp_rxskb);
-		priv->pp_rxskb = NULL;
-	}
+
+	kfree(priv->pp_rxskb);
+	priv->pp_rxskb = NULL;
 }
 #else
 void rtl8192_usb_deleteendpoints(struct net_device *dev)
@@ -1752,11 +1751,9 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 	priv->rx_urb = NULL;
 	kfree(priv->oldaddr);
 	priv->oldaddr = NULL;
-	if (priv->pp_rxskb) {
-		kfree(priv->pp_rxskb);
-		priv->pp_rxskb = 0;
 
-	}
+	kfree(priv->pp_rxskb);
+	priv->pp_rxskb = 0;
 
 #endif
 }
