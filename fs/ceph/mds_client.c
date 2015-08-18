@@ -2524,8 +2524,7 @@ out_err:
 		if (err) {
 			req->r_err = err;
 		} else {
-			req->r_reply = msg;
-			ceph_msg_get(msg);
+			req->r_reply =  ceph_msg_get(msg);
 			req->r_got_result = true;
 		}
 	} else {
