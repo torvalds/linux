@@ -29,6 +29,7 @@
 #include <linux/platform_data/gpio-omap.h>
 
 #define OFF_MODE	1
+#define OMAP4_GPIO_DEBOUNCINGTIME_MASK 0xFF
 
 static LIST_HEAD(omap_gpio_list);
 
@@ -204,8 +205,9 @@ static inline void omap_gpio_dbck_disable(struct gpio_bank *bank)
  * @offset: the gpio number on this @bank
  * @debounce: debounce time to use
  *
- * OMAP's debounce time is in 31us steps so we need
- * to convert and round up to the closest unit.
+ * OMAP's debounce time is in 31us steps
+ *   <debounce time> = (GPIO_DEBOUNCINGTIME[7:0].DEBOUNCETIME + 1) x 31
+ * so we need to convert and round up to the closest unit.
  */
 static void omap2_set_gpio_debounce(struct gpio_bank *bank, unsigned offset,
 				    unsigned debounce)
@@ -213,16 +215,15 @@ static void omap2_set_gpio_debounce(struct gpio_bank *bank, unsigned offset,
 	void __iomem		*reg;
 	u32			val;
 	u32			l;
+	bool			enable = !!debounce;
 
 	if (!bank->dbck_flag)
 		return;
 
-	if (debounce < 32)
-		debounce = 0x01;
-	else if (debounce > 7936)
-		debounce = 0xff;
-	else
-		debounce = (debounce / 0x1f) - 1;
+	if (enable) {
+		debounce = DIV_ROUND_UP(debounce, 31) - 1;
+		debounce &= OMAP4_GPIO_DEBOUNCINGTIME_MASK;
+	}
 
 	l = BIT(offset);
 
@@ -233,7 +234,7 @@ static void omap2_set_gpio_debounce(struct gpio_bank *bank, unsigned offset,
 	reg = bank->base + bank->regs->debounce_en;
 	val = readl_relaxed(reg);
 
-	if (debounce)
+	if (enable)
 		val |= l;
 	else
 		val &= ~l;
