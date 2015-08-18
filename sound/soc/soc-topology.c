@@ -508,20 +508,22 @@ static void remove_pcm_dai(struct snd_soc_component *comp,
 /* bind a kcontrol to it's IO handlers */
 static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	struct snd_kcontrol_new *k,
-	const struct snd_soc_tplg_kcontrol_ops *ops, int num_ops,
-	const struct snd_soc_tplg_kcontrol_ops *bops, int num_bops)
+	const struct soc_tplg *tplg)
 {
-	int i;
+	const struct snd_soc_tplg_kcontrol_ops *ops;
+	int num_ops, i;
 
 	/* try and map vendor specific kcontrol handlers first */
-	for (i = 0; i < num_bops; i++) {
+	ops = tplg->io_ops;
+	num_ops = tplg->io_ops_count;
+	for (i = 0; i < num_ops; i++) {
 
-		if (k->put == NULL && bops[i].id == hdr->ops.put)
-			k->put = bops[i].put;
-		if (k->get == NULL && bops[i].id == hdr->ops.get)
-			k->get = bops[i].get;
-		if (k->info == NULL && bops[i].id == hdr->ops.info)
-			k->info = bops[i].info;
+		if (k->put == NULL && ops[i].id == hdr->ops.put)
+			k->put = ops[i].put;
+		if (k->get == NULL && ops[i].id == hdr->ops.get)
+			k->get = ops[i].get;
+		if (k->info == NULL && ops[i].id == hdr->ops.info)
+			k->info = ops[i].info;
 	}
 
 	/* vendor specific handlers found ? */
@@ -529,6 +531,8 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 		return 0;
 
 	/* none found so try standard kcontrol handlers */
+	ops = io_ops;
+	num_ops = ARRAY_SIZE(io_ops);
 	for (i = 0; i < num_ops; i++) {
 
 		if (k->put == NULL && ops[i].id == hdr->ops.put)
@@ -682,8 +686,7 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 		INIT_LIST_HEAD(&sbe->dobj.list);
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc, io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc, tplg);
 		if (err) {
 			soc_control_err(tplg, &be->hdr, be->hdr.name);
 			kfree(sbe);
@@ -777,8 +780,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 		INIT_LIST_HEAD(&sm->dobj.list);
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc, io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc, tplg);
 		if (err) {
 			soc_control_err(tplg, &mc->hdr, mc->hdr.name);
 			kfree(sm);
@@ -950,8 +952,7 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 		}
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&ec->hdr, &kc, io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&ec->hdr, &kc, tplg);
 		if (err) {
 			soc_control_err(tplg, &ec->hdr, ec->hdr.name);
 			kfree(se);
@@ -1137,8 +1138,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		INIT_LIST_HEAD(&sm->dobj.list);
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc[i], io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &mc->hdr, mc->hdr.name);
 			kfree(sm);
@@ -1235,8 +1235,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 	}
 
 	/* map io handlers */
-	err = soc_tplg_kcontrol_bind_io(&ec->hdr, kc, io_ops,
-		ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+	err = soc_tplg_kcontrol_bind_io(&ec->hdr, kc, tplg);
 	if (err) {
 		soc_control_err(tplg, &ec->hdr, ec->hdr.name);
 		goto err_se;
@@ -1306,9 +1305,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 		INIT_LIST_HEAD(&sbe->dobj.list);
 
 		/* map standard io handlers and check for external handlers */
-		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc[i], io_ops,
-				ARRAY_SIZE(io_ops), tplg->io_ops,
-				tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &be->hdr, be->hdr.name);
 			kfree(sbe);
