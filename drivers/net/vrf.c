@@ -265,8 +265,7 @@ static void vrf_rtable_destroy(struct net_vrf *vrf)
 {
 	struct dst_entry *dst = (struct dst_entry *)vrf->rth;
 
-	if (dst)
-		dst_destroy(dst);
+	dst_destroy(dst);
 	vrf->rth = NULL;
 }
 
@@ -455,8 +454,7 @@ static void vrf_dev_uninit(struct net_device *dev)
 	list_for_each_entry_safe(slave, next, head, list)
 		vrf_del_slave(dev, slave->dev);
 
-	if (dev->dstats)
-		free_percpu(dev->dstats);
+	free_percpu(dev->dstats);
 	dev->dstats = NULL;
 }
 
