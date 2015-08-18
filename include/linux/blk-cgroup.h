@@ -155,7 +155,8 @@ struct blkcg_policy {
 extern struct blkcg blkcg_root;
 extern struct cgroup_subsys_state * const blkcg_root_css;
 
-struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, struct request_queue *q);
+struct blkcg_gq *blkg_lookup_slowpath(struct blkcg *blkcg,
+				      struct request_queue *q, bool update_hint);
 struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 				    struct request_queue *q);
 int blkcg_init_queue(struct request_queue *q);
@@ -229,6 +230,49 @@ task_get_blkcg_css(struct task_struct *task)
 static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
 {
 	return css_to_blkcg(blkcg->css.parent);
+}
+
+/**
+ * __blkg_lookup - internal version of blkg_lookup()
+ * @blkcg: blkcg of interest
+ * @q: request_queue of interest
+ * @update_hint: whether to update lookup hint with the result or not
+ *
+ * This is internal version and shouldn't be used by policy
+ * implementations.  Looks up blkgs for the @blkcg - @q pair regardless of
+ * @q's bypass state.  If @update_hint is %true, the caller should be
+ * holding @q->queue_lock and lookup hint is updated on success.
+ */
+static inline struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
+					     struct request_queue *q,
+					     bool update_hint)
+{
+	struct blkcg_gq *blkg;
+
+	blkg = rcu_dereference(blkcg->blkg_hint);
+	if (blkg && blkg->q == q)
+		return blkg;
+
+	return blkg_lookup_slowpath(blkcg, q, update_hint);
+}
+
+/**
+ * blkg_lookup - lookup blkg for the specified blkcg - q pair
+ * @blkcg: blkcg of interest
+ * @q: request_queue of interest
+ *
+ * Lookup blkg for the @blkcg - @q pair.  This function should be called
+ * under RCU read lock and is guaranteed to return %NULL if @q is bypassing
+ * - see blk_queue_bypass_start() for details.
+ */
+static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
+					   struct request_queue *q)
+{
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	if (unlikely(blk_queue_bypass(q)))
+		return NULL;
+	return __blkg_lookup(blkcg, q, false);
 }
 
 /**
@@ -312,9 +356,6 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 	if (atomic_dec_and_test(&blkg->refcnt))
 		call_rcu(&blkg->rcu_head, __blkg_release_rcu);
 }
-
-struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg, struct request_queue *q,
-			       bool update_hint);
 
 /**
  * blkg_for_each_descendant_pre - pre-order walk of a blkg's descendants
