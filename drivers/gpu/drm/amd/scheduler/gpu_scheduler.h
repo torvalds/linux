@@ -63,7 +63,7 @@ struct amd_sched_entity {
  * the next entity to emit commands from.
 */
 struct amd_sched_rq {
-	struct mutex		lock;
+	spinlock_t		lock;
 	struct list_head	entities;
 	struct amd_sched_entity	*current_entity;
 };
