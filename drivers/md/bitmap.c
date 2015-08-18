@@ -1570,7 +1570,7 @@ void bitmap_close_sync(struct bitmap *bitmap)
 }
 EXPORT_SYMBOL(bitmap_close_sync);
 
-void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
+void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force)
 {
 	sector_t s = 0;
 	sector_t blocks;
@@ -1581,7 +1581,7 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 		bitmap->last_end_sync = jiffies;
 		return;
 	}
-	if (time_before(jiffies, (bitmap->last_end_sync
+	if (!force && time_before(jiffies, (bitmap->last_end_sync
 				  + bitmap->mddev->bitmap_info.daemon_sleep)))
 		return;
 	wait_event(bitmap->mddev->recovery_wait,
