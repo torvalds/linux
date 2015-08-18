@@ -594,7 +594,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	struct device_node *child;
 	struct imx_pmx_func *func;
 	struct imx_pin_group *grp;
-	static u32 grp_index;
+	u32 grp_index = 0;
 	u32 i = 0;
 
 	dev_dbg(info->dev, "parse function(%d): %s\n", index, np->name);
