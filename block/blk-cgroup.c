@@ -817,11 +817,15 @@ static void blkcg_css_free(struct cgroup_subsys_state *css)
 	int i;
 
 	mutex_lock(&blkcg_pol_mutex);
+
 	list_del(&blkcg->all_blkcgs_node);
-	mutex_unlock(&blkcg_pol_mutex);
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++)
-		kfree(blkcg->cpd[i]);
+		if (blkcg->cpd[i])
+			blkcg_policy[i]->cpd_free_fn(blkcg->cpd[i]);
+
+	mutex_unlock(&blkcg_pol_mutex);
+
 	kfree(blkcg);
 }
 
@@ -854,11 +858,10 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 		 * check if the policy requires any specific per-cgroup
 		 * data: if it does, allocate and initialize it.
 		 */
-		if (!pol || !pol->cpd_size)
+		if (!pol || !pol->cpd_alloc_fn)
 			continue;
 
-		BUG_ON(blkcg->cpd[i]);
-		cpd = kzalloc(pol->cpd_size, GFP_KERNEL);
+		cpd = pol->cpd_alloc_fn(GFP_KERNEL);
 		if (!cpd) {
 			ret = ERR_PTR(-ENOMEM);
 			goto free_pd_blkcg;
@@ -866,7 +869,8 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 		blkcg->cpd[i] = cpd;
 		cpd->blkcg = blkcg;
 		cpd->plid = i;
-		pol->cpd_init_fn(cpd);
+		if (pol->cpd_init_fn)
+			pol->cpd_init_fn(cpd);
 	}
 
 	spin_lock_init(&blkcg->lock);
@@ -882,7 +886,8 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 
 free_pd_blkcg:
 	for (i--; i >= 0; i--)
-		kfree(blkcg->cpd[i]);
+		if (blkcg->cpd[i])
+			blkcg_policy[i]->cpd_free_fn(blkcg->cpd[i]);
 free_blkcg:
 	kfree(blkcg);
 	mutex_unlock(&blkcg_pol_mutex);
@@ -1159,11 +1164,11 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	blkcg_policy[pol->plid] = pol;
 
 	/* allocate and install cpd's */
-	if (pol->cpd_size) {
+	if (pol->cpd_alloc_fn) {
 		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
 			struct blkcg_policy_data *cpd;
 
-			cpd = kzalloc(pol->cpd_size, GFP_KERNEL);
+			cpd = pol->cpd_alloc_fn(GFP_KERNEL);
 			if (!cpd) {
 				mutex_unlock(&blkcg_pol_mutex);
 				goto err_free_cpds;
@@ -1186,10 +1191,12 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	return 0;
 
 err_free_cpds:
-	if (pol->cpd_size) {
+	if (pol->cpd_alloc_fn) {
 		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
-			kfree(blkcg->cpd[pol->plid]);
-			blkcg->cpd[pol->plid] = NULL;
+			if (blkcg->cpd[pol->plid]) {
+				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
+				blkcg->cpd[pol->plid] = NULL;
+			}
 		}
 	}
 	blkcg_policy[pol->plid] = NULL;
@@ -1222,10 +1229,12 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 	/* remove cpds and unregister */
 	mutex_lock(&blkcg_pol_mutex);
 
-	if (pol->cpd_size) {
+	if (pol->cpd_alloc_fn) {
 		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
-			kfree(blkcg->cpd[pol->plid]);
-			blkcg->cpd[pol->plid] = NULL;
+			if (blkcg->cpd[pol->plid]) {
+				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
+				blkcg->cpd[pol->plid] = NULL;
+			}
 		}
 	}
 	blkcg_policy[pol->plid] = NULL;

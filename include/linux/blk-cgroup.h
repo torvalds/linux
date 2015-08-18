@@ -81,11 +81,11 @@ struct blkg_policy_data {
 };
 
 /*
- * Policies that need to keep per-blkcg data which is independent
- * from any request_queue associated to it must specify its size
- * with the cpd_size field of the blkcg_policy structure and
- * embed a blkcg_policy_data in it.  cpd_init() is invoked to let
- * each policy handle per-blkcg data.
+ * Policies that need to keep per-blkcg data which is independent from any
+ * request_queue associated to it should implement cpd_alloc/free_fn()
+ * methods.  A policy can allocate private data area by allocating larger
+ * data structure which embeds blkcg_policy_data at the beginning.
+ * cpd_init() is invoked to let each policy handle per-blkcg data.
  */
 struct blkcg_policy_data {
 	/* the blkcg and policy id this per-policy data belongs to */
@@ -124,7 +124,9 @@ struct blkcg_gq {
 	struct rcu_head			rcu_head;
 };
 
+typedef struct blkcg_policy_data *(blkcg_pol_alloc_cpd_fn)(gfp_t gfp);
 typedef void (blkcg_pol_init_cpd_fn)(struct blkcg_policy_data *cpd);
+typedef void (blkcg_pol_free_cpd_fn)(struct blkcg_policy_data *cpd);
 typedef struct blkg_policy_data *(blkcg_pol_alloc_pd_fn)(gfp_t gfp, int node);
 typedef void (blkcg_pol_init_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_online_pd_fn)(struct blkg_policy_data *pd);
@@ -134,13 +136,14 @@ typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkg_policy_data *pd);
 
 struct blkcg_policy {
 	int				plid;
-	/* policy specific per-blkcg data size */
-	size_t				cpd_size;
 	/* cgroup files for the policy */
 	struct cftype			*cftypes;
 
 	/* operations */
+	blkcg_pol_alloc_cpd_fn		*cpd_alloc_fn;
 	blkcg_pol_init_cpd_fn		*cpd_init_fn;
+	blkcg_pol_free_cpd_fn		*cpd_free_fn;
+
 	blkcg_pol_alloc_pd_fn		*pd_alloc_fn;
 	blkcg_pol_init_pd_fn		*pd_init_fn;
 	blkcg_pol_online_pd_fn		*pd_online_fn;

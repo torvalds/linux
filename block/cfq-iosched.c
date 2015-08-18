@@ -1568,6 +1568,16 @@ static void cfqg_stats_init(struct cfqg_stats *stats)
 #endif
 }
 
+static struct blkcg_policy_data *cfq_cpd_alloc(gfp_t gfp)
+{
+	struct cfq_group_data *cgd;
+
+	cgd = kzalloc(sizeof(*cgd), GFP_KERNEL);
+	if (!cgd)
+		return NULL;
+	return &cgd->cpd;
+}
+
 static void cfq_cpd_init(struct blkcg_policy_data *cpd)
 {
 	struct cfq_group_data *cgd = cpd_to_cfqgd(cpd);
@@ -1579,6 +1589,11 @@ static void cfq_cpd_init(struct blkcg_policy_data *cpd)
 		cgd->weight = CFQ_WEIGHT_DEFAULT;
 		cgd->leaf_weight = CFQ_WEIGHT_DEFAULT;
 	}
+}
+
+static void cfq_cpd_free(struct blkcg_policy_data *cpd)
+{
+	kfree(cpd_to_cfqgd(cpd));
 }
 
 static struct blkg_policy_data *cfq_pd_alloc(gfp_t gfp, int node)
@@ -4649,10 +4664,12 @@ static struct elevator_type iosched_cfq = {
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 static struct blkcg_policy blkcg_policy_cfq = {
-	.cpd_size		= sizeof(struct cfq_group_data),
 	.cftypes		= cfq_blkcg_files,
 
+	.cpd_alloc_fn		= cfq_cpd_alloc,
 	.cpd_init_fn		= cfq_cpd_init,
+	.cpd_free_fn		= cfq_cpd_free,
+
 	.pd_alloc_fn		= cfq_pd_alloc,
 	.pd_init_fn		= cfq_pd_init,
 	.pd_offline_fn		= cfq_pd_offline,
