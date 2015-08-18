@@ -525,7 +525,6 @@ struct intel_mmio_flip {
  */
 struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
-	bool wait_for_flips;
 	bool disable_fbc;
 	bool disable_ips;
 	bool disable_cxsr;
@@ -1190,7 +1189,6 @@ enum intel_display_power_domain
 intel_display_port_power_domain(struct intel_encoder *intel_encoder);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 				 struct intel_crtc_state *pipe_config);
-void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
 void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file);
 
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);

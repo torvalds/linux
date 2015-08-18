@@ -206,8 +206,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 				 * but since this plane is unchanged just do the
 				 * minimum required validation.
 				 */
-				if (plane->type == DRM_PLANE_TYPE_PRIMARY)
-					intel_crtc->atomic.wait_for_flips = true;
 				crtc_state->base.planes_changed = true;
 			}
 

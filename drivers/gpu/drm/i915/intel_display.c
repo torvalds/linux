@@ -3272,32 +3272,6 @@ void intel_finish_reset(struct drm_device *dev)
 	drm_modeset_unlock_all(dev);
 }
 
-static void
-intel_finish_fb(struct drm_framebuffer *old_fb)
-{
-	struct drm_i915_gem_object *obj = intel_fb_obj(old_fb);
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	bool was_interruptible = dev_priv->mm.interruptible;
-	int ret;
-
-	/* Big Hammer, we also need to ensure that any pending
-	 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
-	 * current scanout is retired before unpinning the old
-	 * framebuffer. Note that we rely on userspace rendering
-	 * into the buffer attached to the pipe they are waiting
-	 * on. If not, userspace generates a GPU hang with IPEHR
-	 * point to the MI_WAIT_FOR_EVENT.
-	 *
-	 * This should only fail upon a hung GPU, in which case we
-	 * can safely continue.
-	 */
-	dev_priv->mm.interruptible = false;
-	ret = i915_gem_object_wait_rendering(obj, true);
-	dev_priv->mm.interruptible = was_interruptible;
-
-	WARN_ON(ret);
-}
-
 static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3918,15 +3892,23 @@ static void page_flip_completed(struct intel_crtc *intel_crtc)
 				 work->pending_flip_obj);
 }
 
-void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
+static int intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	long ret;
 
 	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
-	if (WARN_ON(wait_event_timeout(dev_priv->pending_flip_queue,
-				       !intel_crtc_has_pending_flip(crtc),
-				       60*HZ) == 0)) {
+
+	ret = wait_event_interruptible_timeout(
+					dev_priv->pending_flip_queue,
+					!intel_crtc_has_pending_flip(crtc),
+					60*HZ);
+
+	if (ret < 0)
+		return ret;
+
+	if (ret == 0) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 		spin_lock_irq(&dev->event_lock);
@@ -3937,11 +3919,7 @@ void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 		spin_unlock_irq(&dev->event_lock);
 	}
 
-	if (crtc->primary->fb) {
-		mutex_lock(&dev->struct_mutex);
-		intel_finish_fb(crtc->primary->fb);
-		mutex_unlock(&dev->struct_mutex);
-	}
+	return 0;
 }
 
 /* Program iCLKIP clock to the desired frequency */
@@ -4796,9 +4774,6 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
-
-	if (atomic->wait_for_flips)
-		intel_crtc_wait_for_pending_flips(&crtc->base);
 
 	if (atomic->disable_fbc)
 		intel_fbc_disable_crtc(crtc);
@@ -11678,7 +11653,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		intel_crtc->atomic.wait_for_flips = true;
 		intel_crtc->atomic.pre_disable_primary = turn_off;
 		intel_crtc->atomic.post_enable_primary = turn_on;
 
@@ -13172,6 +13146,30 @@ static int intel_atomic_check(struct drm_device *dev,
 	return 0;
 }
 
+static int intel_atomic_prepare_commit(struct drm_device *dev,
+				       struct drm_atomic_state *state,
+				       bool async)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i, ret;
+
+	if (async) {
+		DRM_DEBUG_KMS("i915 does not yet support async commit\n");
+		return -EINVAL;
+	}
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		ret = intel_crtc_wait_for_pending_flips(crtc);
+		if (ret)
+			return ret;
+	}
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+
+	return ret;
+}
+
 /**
  * intel_atomic_commit - commit validated state object
  * @dev: DRM device
@@ -13199,12 +13197,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	int i;
 	bool any_ms = false;
 
-	if (async) {
-		DRM_DEBUG_KMS("i915 does not yet support async commit\n");
-		return -EINVAL;
-	}
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
+	ret = intel_atomic_prepare_commit(dev, state, async);
 	if (ret)
 		return ret;
 
@@ -13464,6 +13457,29 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
+	if (old_obj) {
+		struct drm_crtc_state *crtc_state =
+			drm_atomic_get_existing_crtc_state(new_state->state, plane->state->crtc);
+
+		/* Big Hammer, we also need to ensure that any pending
+		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
+		 * current scanout is retired before unpinning the old
+		 * framebuffer. Note that we rely on userspace rendering
+		 * into the buffer attached to the pipe they are waiting
+		 * on. If not, userspace generates a GPU hang with IPEHR
+		 * point to the MI_WAIT_FOR_EVENT.
+		 *
+		 * This should only fail upon a hung GPU, in which case we
+		 * can safely continue.
+		 */
+		if (needs_modeset(crtc_state))
+			ret = i915_gem_object_wait_rendering(old_obj, true);
+
+		/* Swallow -EIO errors to allow updates during hw lockup. */
+		if (ret && ret != -EIO)
+			goto out;
+	}
+
 	if (!obj) {
 		ret = 0;
 	} else if (plane->type == DRM_PLANE_TYPE_CURSOR &&
@@ -13479,6 +13495,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (ret == 0)
 		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
 
+out:
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
