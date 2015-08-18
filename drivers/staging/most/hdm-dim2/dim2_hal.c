@@ -912,8 +912,3 @@ bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number)
 
 	return channel_detach_buffers(ch, buffers_number);
 }
-
-u32 DIM_ReadRegister(u8 register_index)
-{
-	return DIMCB_IoRead((u32 *)g.dim2 + register_index);
-}

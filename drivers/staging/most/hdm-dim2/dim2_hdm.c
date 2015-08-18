@@ -166,16 +166,6 @@ void DIMCB_OnError(u8 error_id, const char *error_message)
 }
 
 /**
- * DIMCB_OnFail - callback from HAL to report unrecoverable errors
- * @filename: Source file where the error happened
- * @linenum: Line number of the file where the error happened
- */
-void DIMCB_OnFail(const char *filename, int linenum)
-{
-	pr_err("DIMCB_OnFail: file - %s, line no. - %d\n", filename, linenum);
-}
-
-/**
  * startup_dim - initialize the dim2 interface
  * @pdev: platform device
  *
