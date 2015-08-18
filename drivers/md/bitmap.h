@@ -9,8 +9,10 @@
 #define BITMAP_MAJOR_LO 3
 /* version 4 insists the bitmap is in little-endian order
  * with version 3, it is host-endian which is non-portable
+ * Version 5 is currently set only for clustered devices
  */
 #define BITMAP_MAJOR_HI 4
+#define BITMAP_MAJOR_CLUSTERED 5
 #define	BITMAP_MAJOR_HOSTENDIAN 3
 
 /*

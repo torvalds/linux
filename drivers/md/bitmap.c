@@ -613,12 +613,10 @@ re_read:
 	daemon_sleep = le32_to_cpu(sb->daemon_sleep) * HZ;
 	write_behind = le32_to_cpu(sb->write_behind);
 	sectors_reserved = le32_to_cpu(sb->sectors_reserved);
-	/* XXX: This is a hack to ensure that we don't use clustering
-	 *  in case:
-	 *	- dm-raid is in use and
-	 *	- the nodes written in bitmap_sb is erroneous.
+	/* Setup nodes/clustername only if bitmap version is
+	 * cluster-compatible
 	 */
-	if (!bitmap->mddev->sync_super) {
+	if (sb->version == cpu_to_le32(BITMAP_MAJOR_CLUSTERED)) {
 		nodes = le32_to_cpu(sb->nodes);
 		strlcpy(bitmap->mddev->bitmap_info.cluster_name,
 				sb->cluster_name, 64);
@@ -628,7 +626,7 @@ re_read:
 	if (sb->magic != cpu_to_le32(BITMAP_MAGIC))
 		reason = "bad magic";
 	else if (le32_to_cpu(sb->version) < BITMAP_MAJOR_LO ||
-		 le32_to_cpu(sb->version) > BITMAP_MAJOR_HI)
+		 le32_to_cpu(sb->version) > BITMAP_MAJOR_CLUSTERED)
 		reason = "unrecognized superblock version";
 	else if (chunksize < 512)
 		reason = "bitmap chunksize too small";

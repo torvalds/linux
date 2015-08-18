@@ -1735,6 +1735,9 @@ static void super_1_sync(struct mddev *mddev, struct md_rdev *rdev)
 		}
 	}
 
+	if (mddev_is_clustered(mddev))
+		sb->feature_map |= cpu_to_le32(MD_FEATURE_CLUSTERED);
+
 	if (rdev->badblocks.count == 0)
 		/* Nothing to do for bad blocks*/ ;
 	else if (sb->bblog_offset == 0)
