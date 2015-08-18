@@ -3100,9 +3100,12 @@ xlog_recover_do_icreate_pass2(
 	 * done easily.
 	 */
 	if (xlog_check_buffer_cancelled(log,
-			XFS_AGB_TO_DADDR(mp, agno, agbno), length, 0))
+			XFS_AGB_TO_DADDR(mp, agno, agbno), length, 0)) {
+		trace_xfs_log_recover_icreate_cancel(log, icl);
 		return 0;
+	}
 
+	trace_xfs_log_recover_icreate_recover(log, icl);
 	xfs_ialloc_inode_init(mp, NULL, buffer_list, count, agno, agbno, length,
 			      be32_to_cpu(icl->icl_gen));
 	return 0;
