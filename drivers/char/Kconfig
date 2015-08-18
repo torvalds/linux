@@ -91,6 +91,21 @@ config BFIN_OTP_WRITE_ENABLE
 
 	  If unsure, say N.
 
+config FSL_OTP
+	tristate "Freescale On-Chip OTP Memory Support"
+	depends on HAS_IOMEM && OF
+	help
+	  If you say Y here, you will get support for a character device
+	  interface into the One Time Programmable memory pages that are
+	  stored on the some Freescale i.MX processors.  This will not get
+	  you access to the secure memory pages however.  You will need to
+	  write your own secure code and reader for that.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called fsl_otp.
+
+	  If unsure, it is safe to say Y.
+
 config PRINTER
 	tristate "Parallel printer support"
 	depends on PARPORT

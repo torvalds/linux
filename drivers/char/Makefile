@@ -16,6 +16,7 @@ obj-$(CONFIG_UV_MMTIMER)	+= uv_mmtimer.o
 obj-$(CONFIG_IBM_BSR)		+= bsr.o
 obj-$(CONFIG_SGI_MBCS)		+= mbcs.o
 obj-$(CONFIG_BFIN_OTP)		+= bfin-otp.o
+obj-$(CONFIG_FSL_OTP)		+= fsl_otp.o
 
 obj-$(CONFIG_PRINTER)		+= lp.o
 
