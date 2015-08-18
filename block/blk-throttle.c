@@ -1144,35 +1144,11 @@ static int tg_print_conf_uint(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static ssize_t tg_set_conf(struct kernfs_open_file *of,
-			   char *buf, size_t nbytes, loff_t off, bool is_u64)
+static void tg_conf_updated(struct throtl_grp *tg)
 {
-	struct blkcg *blkcg = css_to_blkcg(of_css(of));
-	struct blkg_conf_ctx ctx;
-	struct throtl_grp *tg;
-	struct throtl_service_queue *sq;
-	struct blkcg_gq *blkg;
+	struct throtl_service_queue *sq = &tg->service_queue;
 	struct cgroup_subsys_state *pos_css;
-	int ret;
-	u64 v;
-
-	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
-	if (ret)
-		return ret;
-
-	ret = -EINVAL;
-	if (sscanf(ctx.body, "%llu", &v) != 1)
-		goto out_finish;
-	if (!v)
-		v = -1;
-
-	tg = blkg_to_tg(ctx.blkg);
-	sq = &tg->service_queue;
-
-	if (is_u64)
-		*(u64 *)((void *)tg + of_cft(of)->private) = v;
-	else
-		*(unsigned int *)((void *)tg + of_cft(of)->private) = v;
+	struct blkcg_gq *blkg;
 
 	throtl_log(&tg->service_queue,
 		   "limit change rbps=%llu wbps=%llu riops=%u wiops=%u",
@@ -1186,7 +1162,7 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 	 * restrictions in the whole hierarchy and allows them to bypass
 	 * blk-throttle.
 	 */
-	blkg_for_each_descendant_pre(blkg, pos_css, ctx.blkg)
+	blkg_for_each_descendant_pre(blkg, pos_css, tg_to_blkg(tg))
 		tg_update_has_rules(blkg_to_tg(blkg));
 
 	/*
@@ -1204,7 +1180,35 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 		tg_update_disptime(tg);
 		throtl_schedule_next_dispatch(sq->parent_sq, true);
 	}
+}
 
+static ssize_t tg_set_conf(struct kernfs_open_file *of,
+			   char *buf, size_t nbytes, loff_t off, bool is_u64)
+{
+	struct blkcg *blkcg = css_to_blkcg(of_css(of));
+	struct blkg_conf_ctx ctx;
+	struct throtl_grp *tg;
+	int ret;
+	u64 v;
+
+	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
+	if (ret)
+		return ret;
+
+	ret = -EINVAL;
+	if (sscanf(ctx.body, "%llu", &v) != 1)
+		goto out_finish;
+	if (!v)
+		v = -1;
+
+	tg = blkg_to_tg(ctx.blkg);
+
+	if (is_u64)
+		*(u64 *)((void *)tg + of_cft(of)->private) = v;
+	else
+		*(unsigned int *)((void *)tg + of_cft(of)->private) = v;
+
+	tg_conf_updated(tg);
 	ret = 0;
 out_finish:
 	blkg_conf_finish(&ctx);
