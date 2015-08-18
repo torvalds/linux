@@ -3280,13 +3280,13 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			scrub_blocked_if_needed(fs_info);
 		}
 
-		/* for raid56, we skip parity stripe */
 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
 			ret = get_raid56_logic_offset(physical, num, map,
 						      &logical,
 						      &stripe_logical);
 			logical += base;
 			if (ret) {
+				/* it is parity strip */
 				stripe_logical += base;
 				stripe_end = stripe_logical + increment;
 				ret = scrub_raid56_parity(sctx, map, scrub_dev,
