@@ -827,32 +827,6 @@ static int amdgpu_cs_parser_prepare_job(struct amdgpu_cs_parser *sched_job)
 	return r;
 }
 
-static struct amdgpu_ring *amdgpu_cs_parser_get_ring(
-	struct amdgpu_device *adev,
-	struct amdgpu_cs_parser *parser)
-{
-	int i, r;
-
-	struct amdgpu_cs_chunk *chunk;
-	struct drm_amdgpu_cs_chunk_ib *chunk_ib;
-	struct amdgpu_ring *ring;
-	for (i = 0; i < parser->nchunks; i++) {
-		chunk = &parser->chunks[i];
-		chunk_ib = (struct drm_amdgpu_cs_chunk_ib *)chunk->kdata;
-
-		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
-			continue;
-
-		r = amdgpu_cs_get_ring(adev, chunk_ib->ip_type,
-				       chunk_ib->ip_instance, chunk_ib->ring,
-				       &ring);
-		if (r)
-			return NULL;
-		break;
-	}
-	return ring;
-}
-
 static int amdgpu_cs_free_job(struct amdgpu_job *sched_job)
 {
 	int i;
@@ -897,8 +871,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	if (amdgpu_enable_scheduler && parser->num_ibs) {
 		struct amdgpu_job *job;
-		struct amdgpu_ring * ring =
-			amdgpu_cs_parser_get_ring(adev, parser);
+		struct amdgpu_ring * ring =  parser->ibs->ring;
 		job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
 		if (!job)
 			return -ENOMEM;

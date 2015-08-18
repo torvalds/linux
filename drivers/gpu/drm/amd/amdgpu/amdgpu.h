@@ -1257,14 +1257,6 @@ struct amdgpu_cs_parser {
 
 	/* user fence */
 	struct amdgpu_user_fence uf;
-
-	struct amdgpu_ring *ring;
-	struct mutex job_lock;
-	struct work_struct job_work;
-	int (*prepare_job)(struct amdgpu_cs_parser *sched_job);
-	int (*run_job)(struct amdgpu_cs_parser *sched_job);
-	int (*free_job)(struct amdgpu_cs_parser *sched_job);
-	struct amd_sched_fence *s_fence;
 };
 
 struct amdgpu_job {
