@@ -66,6 +66,81 @@ static inline void arch_wmb_pmem(void)
 	pcommit_sfence();
 }
 
+/**
+ * __arch_wb_cache_pmem - write back a cache range with CLWB
+ * @vaddr:	virtual start address
+ * @size:	number of bytes to write back
+ *
+ * Write back a cache range using the CLWB (cache line write back)
+ * instruction.  This function requires explicit ordering with an
+ * arch_wmb_pmem() call.  This API is internal to the x86 PMEM implementation.
+ */
+static inline void __arch_wb_cache_pmem(void *vaddr, size_t size)
+{
+	u16 x86_clflush_size = boot_cpu_data.x86_clflush_size;
+	unsigned long clflush_mask = x86_clflush_size - 1;
+	void *vend = vaddr + size;
+	void *p;
+
+	for (p = (void *)((unsigned long)vaddr & ~clflush_mask);
+	     p < vend; p += x86_clflush_size)
+		clwb(p);
+}
+
+/*
+ * copy_from_iter_nocache() on x86 only uses non-temporal stores for iovec
+ * iterators, so for other types (bvec & kvec) we must do a cache write-back.
+ */
+static inline bool __iter_needs_pmem_wb(struct iov_iter *i)
+{
+	return iter_is_iovec(i) == false;
+}
+
+/**
+ * arch_copy_from_iter_pmem - copy data from an iterator to PMEM
+ * @addr:	PMEM destination address
+ * @bytes:	number of bytes to copy
+ * @i:		iterator with source data
+ *
+ * Copy data from the iterator 'i' to the PMEM buffer starting at 'addr'.
+ * This function requires explicit ordering with an arch_wmb_pmem() call.
+ */
+static inline size_t arch_copy_from_iter_pmem(void __pmem *addr, size_t bytes,
+		struct iov_iter *i)
+{
+	void *vaddr = (void __force *)addr;
+	size_t len;
+
+	/* TODO: skip the write-back by always using non-temporal stores */
+	len = copy_from_iter_nocache(vaddr, bytes, i);
+
+	if (__iter_needs_pmem_wb(i))
+		__arch_wb_cache_pmem(vaddr, bytes);
+
+	return len;
+}
+
+/**
+ * arch_clear_pmem - zero a PMEM memory range
+ * @addr:	virtual start address
+ * @size:	number of bytes to zero
+ *
+ * Write zeros into the memory range starting at 'addr' for 'size' bytes.
+ * This function requires explicit ordering with an arch_wmb_pmem() call.
+ */
+static inline void arch_clear_pmem(void __pmem *addr, size_t size)
+{
+	void *vaddr = (void __force *)addr;
+
+	/* TODO: implement the zeroing via non-temporal writes */
+	if (size == PAGE_SIZE && ((unsigned long)vaddr & ~PAGE_MASK) == 0)
+		clear_page(vaddr);
+	else
+		memset(vaddr, 0, size);
+
+	__arch_wb_cache_pmem(vaddr, size);
+}
+
 static inline bool arch_has_wmb_pmem(void)
 {
 #ifdef CONFIG_X86_64
