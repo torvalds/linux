@@ -6997,6 +6997,9 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev->priv_flags = IFF_XMIT_DST_RELEASE | IFF_XMIT_DST_RELEASE_PERM;
 	setup(dev);
 
+	if (!dev->tx_queue_len)
+		printk(KERN_WARNING "%s uses DEPRECATED zero tx_queue_len - convert driver to use IFF_NO_QUEUE instead.\n", name);
+
 	dev->num_tx_queues = txqs;
 	dev->real_num_tx_queues = txqs;
 	if (netif_alloc_netdev_queues(dev))

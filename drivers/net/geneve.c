@@ -283,7 +283,6 @@ static void geneve_setup(struct net_device *dev)
 
 	SET_NETDEV_DEVTYPE(dev, &geneve_type);
 
-	dev->tx_queue_len = 0;
 	dev->features    |= NETIF_F_LLTX;
 	dev->features    |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	dev->features    |= NETIF_F_RXCSUM;
@@ -297,7 +296,7 @@ static void geneve_setup(struct net_device *dev)
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
 
 	netif_keep_dst(dev);
-	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
 }
 
 static const struct nla_policy geneve_policy[IFLA_GENEVE_MAX + 1] = {
