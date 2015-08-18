@@ -176,7 +176,7 @@ static inline void omap_gpio_rmw(void __iomem *base, u32 reg, u32 mask, bool set
 static inline void omap_gpio_dbck_enable(struct gpio_bank *bank)
 {
 	if (bank->dbck_enable_mask && !bank->dbck_enabled) {
-		clk_prepare_enable(bank->dbck);
+		clk_enable(bank->dbck);
 		bank->dbck_enabled = true;
 
 		writel_relaxed(bank->dbck_enable_mask,
@@ -194,7 +194,7 @@ static inline void omap_gpio_dbck_disable(struct gpio_bank *bank)
 		 */
 		writel_relaxed(0, bank->base + bank->regs->debounce_en);
 
-		clk_disable_unprepare(bank->dbck);
+		clk_disable(bank->dbck);
 		bank->dbck_enabled = false;
 	}
 }
@@ -227,7 +227,7 @@ static void omap2_set_gpio_debounce(struct gpio_bank *bank, unsigned offset,
 
 	l = BIT(offset);
 
-	clk_prepare_enable(bank->dbck);
+	clk_enable(bank->dbck);
 	reg = bank->base + bank->regs->debounce;
 	writel_relaxed(debounce, reg);
 
@@ -241,7 +241,7 @@ static void omap2_set_gpio_debounce(struct gpio_bank *bank, unsigned offset,
 	bank->dbck_enable_mask = val;
 
 	writel_relaxed(val, reg);
-	clk_disable_unprepare(bank->dbck);
+	clk_disable(bank->dbck);
 	/*
 	 * Enable debounce clock per module.
 	 * This call is mandatory because in omap_gpio_request() when
@@ -286,7 +286,7 @@ static void omap_clear_gpio_debounce(struct gpio_bank *bank, unsigned offset)
 		bank->context.debounce = 0;
 		writel_relaxed(bank->context.debounce, bank->base +
 			     bank->regs->debounce);
-		clk_disable_unprepare(bank->dbck);
+		clk_disable(bank->dbck);
 		bank->dbck_enabled = false;
 	}
 }
@@ -1070,10 +1070,6 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 	 /* Initialize interface clk ungated, module enabled */
 	if (bank->regs->ctrl)
 		writel_relaxed(0, base + bank->regs->ctrl);
-
-	bank->dbck = clk_get(bank->dev, "dbclk");
-	if (IS_ERR(bank->dbck))
-		dev_err(bank->dev, "Could not get gpio dbck\n");
 }
 
 static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
@@ -1234,6 +1230,17 @@ static int omap_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(bank->base);
 	}
 
+	if (bank->dbck_flag) {
+		bank->dbck = devm_clk_get(bank->dev, "dbclk");
+		if (IS_ERR(bank->dbck)) {
+			dev_err(bank->dev,
+				"Could not get gpio dbck. Disable debounce\n");
+			bank->dbck_flag = false;
+		} else {
+			clk_prepare(bank->dbck);
+		}
+	}
+
 	platform_set_drvdata(pdev, bank);
 
 	pm_runtime_enable(bank->dev);
@@ -1265,6 +1272,8 @@ static int omap_gpio_remove(struct platform_device *pdev)
 	list_del(&bank->node);
 	gpiochip_remove(&bank->chip);
 	pm_runtime_disable(bank->dev);
+	if (bank->dbck_flag)
+		clk_unprepare(bank->dbck);
 
 	return 0;
 }
