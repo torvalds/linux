@@ -260,7 +260,7 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	}
 
 
-	p->ibs = kmalloc_array(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
+	p->ibs = kcalloc(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
 	if (!p->ibs)
 		r = -ENOMEM;
 

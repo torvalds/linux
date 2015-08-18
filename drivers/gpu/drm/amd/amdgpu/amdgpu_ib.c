@@ -73,29 +73,12 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
 
 		if (!vm)
 			ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
-		else
-			ib->gpu_addr = 0;
-
-	} else {
-		ib->sa_bo = NULL;
-		ib->ptr = NULL;
-		ib->gpu_addr = 0;
 	}
 
 	amdgpu_sync_create(&ib->sync);
 
 	ib->ring = ring;
-	ib->fence = NULL;
-	ib->user = NULL;
 	ib->vm = vm;
-	ib->ctx = NULL;
-	ib->gds_base = 0;
-	ib->gds_size = 0;
-	ib->gws_base = 0;
-	ib->gws_size = 0;
-	ib->oa_base = 0;
-	ib->oa_size = 0;
-	ib->flags = 0;
 
 	return 0;
 }
