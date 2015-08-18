@@ -452,13 +452,6 @@ static void throtl_pd_reset_stats(struct blkg_policy_data *pd)
 static struct throtl_grp *throtl_lookup_tg(struct throtl_data *td,
 					   struct blkcg *blkcg)
 {
-	/*
-	 * This is the common case when there are no blkcgs.  Avoid lookup
-	 * in this case
-	 */
-	if (blkcg == &blkcg_root)
-		return td_root_tg(td);
-
 	return blkg_to_tg(blkg_lookup(blkcg, td->queue));
 }
 

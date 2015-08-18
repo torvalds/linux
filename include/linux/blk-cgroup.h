@@ -249,6 +249,9 @@ static inline struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
 {
 	struct blkcg_gq *blkg;
 
+	if (blkcg == &blkcg_root)
+		return q->root_blkg;
+
 	blkg = rcu_dereference(blkcg->blkg_hint);
 	if (blkg && blkg->q == q)
 		return blkg;
