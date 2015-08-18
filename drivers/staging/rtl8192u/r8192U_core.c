@@ -1481,7 +1481,6 @@ static u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
 
 static void tx_zero_isr(struct urb *tx_urb)
 {
-	return;
 }
 
 /*
