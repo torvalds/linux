@@ -2304,11 +2304,10 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	wEPROM_ID = eprom_read(dev, 0); /* first read EEPROM ID out; */
 	RT_TRACE(COMP_EPROM, "EEPROM ID is 0x%x\n", wEPROM_ID);
 
-	if (wEPROM_ID != RTL8190_EEPROM_ID) {
+	if (wEPROM_ID != RTL8190_EEPROM_ID)
 		RT_TRACE(COMP_ERR, "EEPROM ID is invalid(is 0x%x(should be 0x%x)\n", wEPROM_ID, RTL8190_EEPROM_ID);
-	} else {
+	else
 		bLoad_From_EEPOM = true;
-	}
 
 	if (bLoad_From_EEPOM) {
 		tmpValue = eprom_read(dev, EEPROM_VID >> 1);
@@ -2496,11 +2495,10 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	}
 
 
-	if (priv->rf_type == RF_1T2R) {
+	if (priv->rf_type == RF_1T2R)
 		RT_TRACE(COMP_EPROM, "\n1T2R config\n");
-	} else {
+	else
 		RT_TRACE(COMP_EPROM, "\n2T4R config\n");
-	}
 
 	/* We can only know RF type in the function. So we have to init
 	 * DIG RATR table again.
