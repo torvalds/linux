@@ -1788,8 +1788,8 @@ static ssize_t cfqg_set_leaf_weight_device(struct kernfs_open_file *of,
 	return __cfqg_set_weight_device(of, buf, nbytes, off, true);
 }
 
-static int __cfq_set_weight(struct cgroup_subsys_state *css, struct cftype *cft,
-			    u64 val, bool is_leaf_weight)
+static int __cfq_set_weight(struct cgroup_subsys_state *css, u64 val,
+			    bool is_leaf_weight)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkcg_gq *blkg;
@@ -1834,13 +1834,13 @@ out:
 static int cfq_set_weight(struct cgroup_subsys_state *css, struct cftype *cft,
 			  u64 val)
 {
-	return __cfq_set_weight(css, cft, val, false);
+	return __cfq_set_weight(css, val, false);
 }
 
 static int cfq_set_leaf_weight(struct cgroup_subsys_state *css,
 			       struct cftype *cft, u64 val)
 {
-	return __cfq_set_weight(css, cft, val, true);
+	return __cfq_set_weight(css, val, true);
 }
 
 static int cfqg_print_stat(struct seq_file *sf, void *v)
