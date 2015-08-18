@@ -1752,12 +1752,10 @@ static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
 	if (ret)
 		return ret;
 
-	ret = -EINVAL;
 	cfqg = blkg_to_cfqg(ctx.blkg);
 	cfqgd = blkcg_to_cfqgd(blkcg);
-	if (!cfqg || !cfqgd)
-		goto err;
 
+	ret = -EINVAL;
 	if (!ctx.v || (ctx.v >= CFQ_WEIGHT_MIN && ctx.v <= CFQ_WEIGHT_MAX)) {
 		if (!is_leaf_weight) {
 			cfqg->dev_weight = ctx.v;
@@ -1769,7 +1767,6 @@ static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
 		ret = 0;
 	}
 
-err:
 	blkg_conf_finish(&ctx);
 	return ret ?: nbytes;
 }
