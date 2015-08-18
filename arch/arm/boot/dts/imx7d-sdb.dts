@@ -381,12 +381,6 @@
 			>;
 		};
 
-		pinctrl_pwm1: pwm1grp {
-			fsl,pins = <
-				MX7D_PAD_GPIO1_IO01__PWM1_OUT	0x110b0
-			>;
-		};
-
 		pinctrl_spi1: spi1grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
@@ -503,7 +497,15 @@
 	imx7d-sdb {
 		pinctrl_hog_2: hoggrp-2 {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO05__GPIO5_IO5	0x14
+				MX7D_PAD_GPIO1_IO05__GPIO1_IO5	  0x14
+				MX7D_PAD_GPIO1_IO07__GPIO1_IO7    0x59
+				MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B 0x74
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO01__PWM1_OUT	  0x110b0
 			>;
 		};
 	};
