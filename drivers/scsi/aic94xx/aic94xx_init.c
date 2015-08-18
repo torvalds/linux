@@ -109,6 +109,7 @@ static int asd_map_memio(struct asd_ha_struct *asd_ha)
 		if (!io_handle->addr) {
 			asd_printk("couldn't map MBAR%d of %s\n", i==0?0:1,
 				   pci_name(asd_ha->pcidev));
+			err = -ENOMEM;
 			goto Err_unreq;
 		}
 	}
