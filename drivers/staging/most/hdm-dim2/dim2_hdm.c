@@ -238,7 +238,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 	unsigned long flags;
 	struct dim_ch_state_t st;
 
-	BUG_ON(hdm_ch == 0);
+	BUG_ON(!hdm_ch);
 	BUG_ON(!hdm_ch->is_initialized);
 
 	spin_lock_irqsave(&dim_lock, flags);
@@ -336,7 +336,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 	unsigned long flags;
 	u8 *data;
 
-	BUG_ON(hdm_ch == 0);
+	BUG_ON(!hdm_ch);
 	BUG_ON(!hdm_ch->is_initialized);
 
 	spin_lock_irqsave(&dim_lock, flags);
@@ -409,7 +409,7 @@ static struct dim_channel **get_active_channels(struct dim2_hdm *dev,
 		if (dev->hch[ch_idx].is_initialized)
 			buffer[idx++] = &dev->hch[ch_idx].ch;
 	}
-	buffer[idx++] = 0;
+	buffer[idx++] = NULL;
 
 	return buffer;
 }
@@ -905,7 +905,7 @@ static int dim2_remove(struct platform_device *pdev)
 	 * break link to local platform_device_id struct
 	 * to prevent crash by unload platform device module
 	 */
-	pdev->id_entry = 0;
+	pdev->id_entry = NULL;
 
 	return 0;
 }
