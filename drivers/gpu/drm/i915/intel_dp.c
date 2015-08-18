@@ -1176,11 +1176,12 @@ intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 
 	*source_rates = default_rates;
 
+	/* WaDisableHBR2:skl */
 	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
-		/* WaDisableHBR2:skl */
 		return (DP_LINK_BW_2_7 >> 3) + 1;
-	else if (INTEL_INFO(dev)->gen >= 8 ||
-	    (IS_HASWELL(dev) && !IS_HSW_ULX(dev)))
+
+	if ((IS_HASWELL(dev) && !IS_HSW_ULX(dev)) || IS_BROADWELL(dev) ||
+	    (INTEL_INFO(dev)->gen >= 9))
 		return (DP_LINK_BW_5_4 >> 3) + 1;
 	else
 		return (DP_LINK_BW_2_7 >> 3) + 1;
