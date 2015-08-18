@@ -403,6 +403,11 @@ static void throtl_service_queue_exit(struct throtl_service_queue *sq)
 	del_timer_sync(&sq->pending_timer);
 }
 
+static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
+{
+	return kzalloc_node(sizeof(struct throtl_grp), gfp, node);
+}
+
 static void throtl_pd_init(struct blkcg_gq *blkg)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
@@ -491,6 +496,11 @@ static void throtl_pd_exit(struct blkcg_gq *blkg)
 	free_percpu(tg->stats_cpu);
 
 	throtl_service_queue_exit(&tg->service_queue);
+}
+
+static void throtl_pd_free(struct blkg_policy_data *pd)
+{
+	kfree(pd);
 }
 
 static void throtl_pd_reset_stats(struct blkcg_gq *blkg)
@@ -1468,12 +1478,13 @@ static void throtl_shutdown_wq(struct request_queue *q)
 }
 
 static struct blkcg_policy blkcg_policy_throtl = {
-	.pd_size		= sizeof(struct throtl_grp),
 	.cftypes		= throtl_files,
 
+	.pd_alloc_fn		= throtl_pd_alloc,
 	.pd_init_fn		= throtl_pd_init,
 	.pd_online_fn		= throtl_pd_online,
 	.pd_exit_fn		= throtl_pd_exit,
+	.pd_free_fn		= throtl_pd_free,
 	.pd_reset_stats_fn	= throtl_pd_reset_stats,
 };
 

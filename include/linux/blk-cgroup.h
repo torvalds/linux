@@ -68,13 +68,11 @@ struct blkg_rwstat {
  * request_queue (q).  This is used by blkcg policies which need to track
  * information per blkcg - q pair.
  *
- * There can be multiple active blkcg policies and each has its private
- * data on each blkg, the size of which is determined by
- * blkcg_policy->pd_size.  blkcg core allocates and frees such areas
- * together with blkg and invokes pd_init/exit_fn() methods.
- *
- * Such private data must embed struct blkg_policy_data (pd) at the
- * beginning and pd_size can't be smaller than pd.
+ * There can be multiple active blkcg policies and each blkg:policy pair is
+ * represented by a blkg_policy_data which is allocated and freed by each
+ * policy's pd_alloc/free_fn() methods.  A policy can allocate private data
+ * area by allocating larger data structure which embeds blkg_policy_data
+ * at the beginning.
  */
 struct blkg_policy_data {
 	/* the blkg and policy id this per-policy data belongs to */
@@ -126,16 +124,16 @@ struct blkcg_gq {
 };
 
 typedef void (blkcg_pol_init_cpd_fn)(const struct blkcg *blkcg);
+typedef struct blkg_policy_data *(blkcg_pol_alloc_pd_fn)(gfp_t gfp, int node);
 typedef void (blkcg_pol_init_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_online_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_offline_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_exit_pd_fn)(struct blkcg_gq *blkg);
+typedef void (blkcg_pol_free_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkcg_gq *blkg);
 
 struct blkcg_policy {
 	int				plid;
-	/* policy specific private data size */
-	size_t				pd_size;
 	/* policy specific per-blkcg data size */
 	size_t				cpd_size;
 	/* cgroup files for the policy */
@@ -143,10 +141,12 @@ struct blkcg_policy {
 
 	/* operations */
 	blkcg_pol_init_cpd_fn		*cpd_init_fn;
+	blkcg_pol_alloc_pd_fn		*pd_alloc_fn;
 	blkcg_pol_init_pd_fn		*pd_init_fn;
 	blkcg_pol_online_pd_fn		*pd_online_fn;
 	blkcg_pol_offline_pd_fn		*pd_offline_fn;
 	blkcg_pol_exit_pd_fn		*pd_exit_fn;
+	blkcg_pol_free_pd_fn		*pd_free_fn;
 	blkcg_pol_reset_pd_stats_fn	*pd_reset_stats_fn;
 };
 
