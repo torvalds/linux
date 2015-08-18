@@ -2928,16 +2928,16 @@ xlog_recover_efi_pass2(
 	struct xlog_recover_item	*item,
 	xfs_lsn_t			lsn)
 {
-	int			error;
-	xfs_mount_t		*mp = log->l_mp;
-	xfs_efi_log_item_t	*efip;
-	xfs_efi_log_format_t	*efi_formatp;
+	int				error;
+	struct xfs_mount		*mp = log->l_mp;
+	struct xfs_efi_log_item		*efip;
+	struct xfs_efi_log_format	*efi_formatp;
 
 	efi_formatp = item->ri_buf[0].i_addr;
 
 	efip = xfs_efi_init(mp, efi_formatp->efi_nextents);
-	if ((error = xfs_efi_copy_format(&(item->ri_buf[0]),
-					 &(efip->efi_format)))) {
+	error = xfs_efi_copy_format(&item->ri_buf[0], &efip->efi_format);
+	if (error) {
 		xfs_efi_item_free(efip);
 		return error;
 	}
@@ -2945,20 +2945,23 @@ xlog_recover_efi_pass2(
 
 	spin_lock(&log->l_ailp->xa_lock);
 	/*
-	 * xfs_trans_ail_update() drops the AIL lock.
+	 * The EFI has two references. One for the EFD and one for EFI to ensure
+	 * it makes it into the AIL. Insert the EFI into the AIL directly and
+	 * drop the EFI reference. Note that xfs_trans_ail_update() drops the
+	 * AIL lock.
 	 */
 	xfs_trans_ail_update(log->l_ailp, &efip->efi_item, lsn);
+	xfs_efi_release(efip);
 	return 0;
 }
 
 
 /*
- * This routine is called when an efd format structure is found in
- * a committed transaction in the log.  It's purpose is to cancel
- * the corresponding efi if it was still in the log.  To do this
- * it searches the AIL for the efi with an id equal to that in the
- * efd format structure.  If we find it, we remove the efi from the
- * AIL and free it.
+ * This routine is called when an EFD format structure is found in a committed
+ * transaction in the log. Its purpose is to cancel the corresponding EFI if it
+ * was still in the log. To do this it searches the AIL for the EFI with an id
+ * equal to that in the EFD format structure. If we find it we drop the EFD
+ * reference, which removes the EFI from the AIL and frees it.
  */
 STATIC int
 xlog_recover_efd_pass2(
@@ -2980,8 +2983,8 @@ xlog_recover_efd_pass2(
 	efi_id = efd_formatp->efd_efi_id;
 
 	/*
-	 * Search for the efi with the id in the efd format structure
-	 * in the AIL.
+	 * Search for the EFI with the id in the EFD format structure in the
+	 * AIL.
 	 */
 	spin_lock(&ailp->xa_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
@@ -2990,18 +2993,18 @@ xlog_recover_efd_pass2(
 			efip = (xfs_efi_log_item_t *)lip;
 			if (efip->efi_format.efi_id == efi_id) {
 				/*
-				 * xfs_trans_ail_delete() drops the
-				 * AIL lock.
+				 * Drop the EFD reference to the EFI. This
+				 * removes the EFI from the AIL and frees it.
 				 */
-				xfs_trans_ail_delete(ailp, lip,
-						     SHUTDOWN_CORRUPT_INCORE);
-				xfs_efi_item_free(efip);
+				spin_unlock(&ailp->xa_lock);
+				xfs_efi_release(efip);
 				spin_lock(&ailp->xa_lock);
 				break;
 			}
 		}
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 	}
+
 	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 

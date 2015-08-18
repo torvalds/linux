@@ -47,34 +47,6 @@ xfs_efi_item_free(
 }
 
 /*
- * Freeing the efi requires that we remove it from the AIL if it has already
- * been placed there. However, the EFI may not yet have been placed in the AIL
- * when called by xfs_efi_release() from EFD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the reference
- * count to ensure only the last caller frees the EFI.
- */
-STATIC void
-__xfs_efi_release(
-	struct xfs_efi_log_item	*efip)
-{
-	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
-
-	if (atomic_dec_and_test(&efip->efi_refcount)) {
-		spin_lock(&ailp->xa_lock);
-		/*
-		 * We don't know whether the EFI made it to the AIL. Remove it
-		 * if so. Note that xfs_trans_ail_delete() drops the AIL lock.
-		 */
-		if (efip->efi_item.li_flags & XFS_LI_IN_AIL)
-			xfs_trans_ail_delete(ailp, &efip->efi_item,
-					     SHUTDOWN_LOG_IO_ERROR);
-		else
-			spin_unlock(&ailp->xa_lock);
-		xfs_efi_item_free(efip);
-	}
-}
-
-/*
  * This returns the number of iovecs needed to log the given efi item.
  * We only need 1 iovec for an efi item.  It just logs the efi_log_format
  * structure.
@@ -304,21 +276,32 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 }
 
 /*
- * This is called by the efd item code below to release references to the given
- * efi item.  Each efd calls this with the number of extents that it has
- * logged, and when the sum of these reaches the total number of extents logged
- * by this efi item we can free the efi item.
+ * Freeing the efi requires that we remove it from the AIL if it has already
+ * been placed there. However, the EFI may not yet have been placed in the AIL
+ * when called by xfs_efi_release() from EFD processing due to the ordering of
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the EFI.
  */
 void
 xfs_efi_release(
 	struct xfs_efi_log_item	*efip)
 {
-	/* recovery needs us to drop the EFI reference, too */
-	if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
-		__xfs_efi_release(efip);
+	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
 
-	__xfs_efi_release(efip);
-	/* efip may now have been freed, do not reference it again. */
+	if (atomic_dec_and_test(&efip->efi_refcount)) {
+		spin_lock(&ailp->xa_lock);
+		/*
+		 * We don't know whether the EFI made it to the AIL. Remove it
+		 * if so. Note that xfs_trans_ail_delete() drops the AIL lock.
+		 */
+		if (efip->efi_item.li_flags & XFS_LI_IN_AIL)
+			xfs_trans_ail_delete(ailp, &efip->efi_item,
+					     SHUTDOWN_LOG_IO_ERROR);
+		else
+			spin_unlock(&ailp->xa_lock);
+
+		xfs_efi_item_free(efip);
+	}
 }
 
 static inline struct xfs_efd_log_item *EFD_ITEM(struct xfs_log_item *lip)
