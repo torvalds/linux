@@ -108,6 +108,7 @@
 
 /* OMAP_RTC_OSC_REG bit fields: */
 #define OMAP_RTC_OSC_32KCLK_EN		BIT(6)
+#define OMAP_RTC_OSC_SEL_32KCLK_SRC	BIT(3)
 
 /* OMAP_RTC_IRQWAKEEN bit fields: */
 #define OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN	BIT(1)
@@ -138,6 +139,7 @@ struct omap_rtc {
 	int irq_timer;
 	u8 interrupts_reg;
 	bool is_pmic_controller;
+	bool has_ext_clk;
 	const struct omap_rtc_device_type *type;
 };
 
@@ -555,7 +557,11 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	if (rtc->irq_alarm <= 0)
 		return -ENOENT;
 
-	rtc->clk = devm_clk_get(&pdev->dev, "int-clk");
+	rtc->clk = devm_clk_get(&pdev->dev, "ext-clk");
+	if (!IS_ERR(rtc->clk))
+		rtc->has_ext_clk = true;
+	else
+		rtc->clk = devm_clk_get(&pdev->dev, "int-clk");
 
 	if (!IS_ERR(rtc->clk))
 		clk_prepare_enable(rtc->clk);
@@ -634,6 +640,16 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	if (reg != new_ctrl)
 		rtc_write(rtc, OMAP_RTC_CTRL_REG, new_ctrl);
 
+	/*
+	 * If we have the external clock then switch to it so we can keep
+	 * ticking across suspend.
+	 */
+	if (rtc->has_ext_clk) {
+		reg = rtc_read(rtc, OMAP_RTC_OSC_REG);
+		rtc_write(rtc, OMAP_RTC_OSC_REG,
+			  reg | OMAP_RTC_OSC_SEL_32KCLK_SRC);
+	}
+
 	rtc->type->lock(rtc);
 
 	device_init_wakeup(&pdev->dev, true);
@@ -679,6 +695,7 @@ err:
 static int __exit omap_rtc_remove(struct platform_device *pdev)
 {
 	struct omap_rtc *rtc = platform_get_drvdata(pdev);
+	u8 reg;
 
 	if (pm_power_off == omap_rtc_power_off &&
 			omap_rtc_power_off_rtc == rtc) {
@@ -694,6 +711,12 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	rtc->type->unlock(rtc);
 	/* leave rtc running, but disable irqs */
 	rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, 0);
+
+	if (rtc->has_ext_clk) {
+		reg = rtc_read(rtc, OMAP_RTC_OSC_REG);
+		reg &= ~OMAP_RTC_OSC_SEL_32KCLK_SRC;
+		rtc_write(rtc, OMAP_RTC_OSC_REG, reg);
+	}
 
 	rtc->type->lock(rtc);
 
