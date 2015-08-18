@@ -1089,12 +1089,13 @@ static int blkcg_can_attach(struct cgroup_subsys_state *css,
 	return ret;
 }
 
-struct cgroup_subsys blkio_cgrp_subsys = {
+struct cgroup_subsys io_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
 	.legacy_cftypes = blkcg_files,
+	.legacy_name = "blkio",
 #ifdef CONFIG_MEMCG
 	/*
 	 * This ensures that, if available, memcg is automatically enabled
@@ -1104,7 +1105,7 @@ struct cgroup_subsys blkio_cgrp_subsys = {
 	.depends_on = 1 << memory_cgrp_id,
 #endif
 };
-EXPORT_SYMBOL_GPL(blkio_cgrp_subsys);
+EXPORT_SYMBOL_GPL(io_cgrp_subsys);
 
 /**
  * blkcg_activate_policy - activate a blkcg policy on a request_queue
@@ -1266,7 +1267,7 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 
 	/* everything is in place, add intf files for the new policy */
 	if (pol->cftypes)
-		WARN_ON(cgroup_add_legacy_cftypes(&blkio_cgrp_subsys,
+		WARN_ON(cgroup_add_legacy_cftypes(&io_cgrp_subsys,
 						  pol->cftypes));
 	mutex_unlock(&blkcg_pol_register_mutex);
 	return 0;

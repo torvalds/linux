@@ -221,7 +221,7 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
 
 static inline struct blkcg *task_blkcg(struct task_struct *tsk)
 {
-	return css_to_blkcg(task_css(tsk, blkio_cgrp_id));
+	return css_to_blkcg(task_css(tsk, io_cgrp_id));
 }
 
 static inline struct blkcg *bio_blkcg(struct bio *bio)
@@ -234,7 +234,7 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
 static inline struct cgroup_subsys_state *
 task_get_blkcg_css(struct task_struct *task)
 {
-	return task_get_css(task, blkio_cgrp_id);
+	return task_get_css(task, io_cgrp_id);
 }
 
 /**

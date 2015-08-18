@@ -286,7 +286,7 @@ static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi
 	 * %current's blkcg equals the effective blkcg of its memcg.  No
 	 * need to use the relatively expensive cgroup_get_e_css().
 	 */
-	if (likely(wb && wb->blkcg_css == task_css(current, blkio_cgrp_id)))
+	if (likely(wb && wb->blkcg_css == task_css(current, io_cgrp_id)))
 		return wb;
 	return NULL;
 }
