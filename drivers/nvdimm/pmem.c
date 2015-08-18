@@ -92,7 +92,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 }
 
 static long pmem_direct_access(struct block_device *bdev, sector_t sector,
-			      void **kaddr, unsigned long *pfn, long size)
+		      void __pmem **kaddr, unsigned long *pfn, long size)
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	size_t offset = sector << 9;
@@ -101,7 +101,7 @@ static long pmem_direct_access(struct block_device *bdev, sector_t sector,
 		return -ENODEV;
 
 	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
-	*kaddr = (void __force *) pmem->virt_addr + offset;
+	*kaddr = pmem->virt_addr + offset;
 	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
 
 	return pmem->size - offset;

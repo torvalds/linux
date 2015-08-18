@@ -141,13 +141,14 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
  */
 static long
 axon_ram_direct_access(struct block_device *device, sector_t sector,
-		       void **kaddr, unsigned long *pfn, long size)
+		       void __pmem **kaddr, unsigned long *pfn, long size)
 {
 	struct axon_ram_bank *bank = device->bd_disk->private_data;
 	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
+	void *addr = (void *)(bank->ph_addr + offset);
 
-	*kaddr = (void *)(bank->ph_addr + offset);
-	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
+	*kaddr = (void __pmem *)addr;
+	*pfn = virt_to_phys(addr) >> PAGE_SHIFT;
 
 	return bank->size - offset;
 }
