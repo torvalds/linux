@@ -744,7 +744,7 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
 
 	rcu_read_lock();
 	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
-		struct blkg_rwstat *rwstat, tmp;
+		struct blkg_rwstat *rwstat;
 
 		if (!pos_blkg->online)
 			continue;
@@ -754,12 +754,10 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
 		else
 			rwstat = (void *)pos_blkg + off;
 
-		tmp = blkg_rwstat_read(rwstat);
-
 		for (i = 0; i < BLKG_RWSTAT_NR; i++)
-			atomic64_add(atomic64_read(&tmp.aux_cnt[i]) +
-				     atomic64_read(&rwstat->aux_cnt[i]),
-				     &sum.aux_cnt[i]);
+			atomic64_add(atomic64_read(&rwstat->aux_cnt[i]) +
+				percpu_counter_sum_positive(&rwstat->cpu_cnt[i]),
+				&sum.aux_cnt[i]);
 	}
 	rcu_read_unlock();
 
