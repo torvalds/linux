@@ -407,7 +407,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	noat
 	SAVE_ALL
 	FEXPORT(handle_\exception\ext)
-	__BUILD_clear_\clear
+	__build_clear_\clear
 	.set	at
 	__BUILD_\verbose \exception
 	move	a0, sp
