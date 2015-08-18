@@ -59,7 +59,7 @@
  *
  */
 
-#define I915_SKL_GUC_UCODE "i915/skl_guc_ver3.bin"
+#define I915_SKL_GUC_UCODE "i915/skl_guc_ver4.bin"
 MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 
 /* User-friendly representation of an enum */
@@ -226,10 +226,6 @@ static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
  * +-------------------------------+  ----
  * |         RSA signature         |  256B
  * +-------------------------------+  ----
- * |         RSA public Key        |  256B
- * +-------------------------------+  ----
- * |       Public key modulus      |    4B
- * +-------------------------------+  ----
  *
  * Architecturally, the DMA engine is bidirectional, and can potentially even
  * transfer between GTT locations. This functionality is left out of the API
@@ -244,7 +240,6 @@ static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
 #define UOS_VER_MAJOR_OFFSET		0x46
 #define UOS_CSS_HEADER_SIZE		0x80
 #define UOS_RSA_SIG_SIZE		0x100
-#define UOS_CSS_SIGNING_SIZE		0x204
 
 static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 {
@@ -256,7 +251,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	int i, ret = 0;
 
 	/* uCode size, also is where RSA signature starts */
-	offset = ucode_size = guc_fw->guc_fw_size - UOS_CSS_SIGNING_SIZE;
+	offset = ucode_size = guc_fw->guc_fw_size - UOS_RSA_SIG_SIZE;
 	I915_WRITE(DMA_COPY_SIZE, ucode_size);
 
 	/* Copy RSA signature from the fw image to HW for verification */
@@ -463,8 +458,8 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw;
 	const u8 *css_header;
-	const size_t minsize = UOS_CSS_HEADER_SIZE + UOS_CSS_SIGNING_SIZE;
-	const size_t maxsize = GUC_WOPCM_SIZE_VALUE + UOS_CSS_SIGNING_SIZE
+	const size_t minsize = UOS_CSS_HEADER_SIZE + UOS_RSA_SIG_SIZE;
+	const size_t maxsize = GUC_WOPCM_SIZE_VALUE + UOS_RSA_SIG_SIZE
 			- 0x8000; /* 32k reserved (8K stack + 24k context) */
 	int err;
 
@@ -564,8 +559,8 @@ void intel_guc_ucode_init(struct drm_device *dev)
 		fw_path = NULL;
 	} else if (IS_SKYLAKE(dev)) {
 		fw_path = I915_SKL_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 3;
-		guc_fw->guc_fw_minor_wanted = 0;
+		guc_fw->guc_fw_major_wanted = 4;
+		guc_fw->guc_fw_minor_wanted = 3;
 	} else {
 		i915.enable_guc_submission = false;
 		fw_path = "";	/* unknown device */
