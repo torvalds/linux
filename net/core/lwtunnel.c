@@ -241,3 +241,58 @@ int lwtunnel_output(struct sock *sk, struct sk_buff *skb)
 	return __lwtunnel_output(sk, skb, lwtstate);
 }
 EXPORT_SYMBOL(lwtunnel_output);
+
+int __lwtunnel_input(struct sk_buff *skb,
+		     struct lwtunnel_state *lwtstate)
+{
+	const struct lwtunnel_encap_ops *ops;
+	int ret = -EINVAL;
+
+	if (!lwtstate)
+		goto drop;
+
+	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
+		return 0;
+
+	ret = -EOPNOTSUPP;
+	rcu_read_lock();
+	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
+	if (likely(ops && ops->input))
+		ret = ops->input(skb);
+	rcu_read_unlock();
+
+	if (ret == -EOPNOTSUPP)
+		goto drop;
+
+	return ret;
+
+drop:
+	kfree_skb(skb);
+
+	return ret;
+}
+
+int lwtunnel_input6(struct sk_buff *skb)
+{
+	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
+	struct lwtunnel_state *lwtstate = NULL;
+
+	if (rt)
+		lwtstate = rt->rt6i_lwtstate;
+
+	return __lwtunnel_input(skb, lwtstate);
+}
+EXPORT_SYMBOL(lwtunnel_input6);
+
+int lwtunnel_input(struct sk_buff *skb)
+{
+	struct rtable *rt = (struct rtable *)skb_dst(skb);
+	struct lwtunnel_state *lwtstate = NULL;
+
+	if (rt)
+		lwtstate = rt->rt_lwtstate;
+
+	return __lwtunnel_input(skb, lwtstate);
+}
+EXPORT_SYMBOL(lwtunnel_input);

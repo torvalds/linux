@@ -120,7 +120,7 @@ static void nf_nat_ipv4_csum_update(struct sk_buff *skb,
 		oldip = iph->daddr;
 		newip = t->dst.u3.ip;
 	}
-	inet_proto_csum_replace4(check, skb, oldip, newip, 1);
+	inet_proto_csum_replace4(check, skb, oldip, newip, true);
 }
 
 static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
@@ -151,7 +151,7 @@ static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
 		}
 	} else
 		inet_proto_csum_replace2(check, skb,
-					 htons(oldlen), htons(datalen), 1);
+					 htons(oldlen), htons(datalen), true);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

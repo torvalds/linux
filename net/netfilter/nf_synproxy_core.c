@@ -225,7 +225,7 @@ unsigned int synproxy_tstamp_adjust(struct sk_buff *skb,
 						     synproxy->tsoff);
 				}
 				inet_proto_csum_replace4(&th->check, skb,
-							 old, *ptr, 0);
+							 old, *ptr, false);
 				return 1;
 			}
 			optoff += op[1];

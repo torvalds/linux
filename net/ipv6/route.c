@@ -1785,8 +1785,14 @@ int ip6_route_add(struct fib6_config *cfg)
 		if (err)
 			goto out;
 		rt->rt6i_lwtstate = lwtstate_get(lwtstate);
-		if (lwtunnel_output_redirect(rt->rt6i_lwtstate))
+		if (lwtunnel_output_redirect(rt->rt6i_lwtstate)) {
+			rt->rt6i_lwtstate->orig_output = rt->dst.output;
 			rt->dst.output = lwtunnel_output6;
+		}
+		if (lwtunnel_input_redirect(rt->rt6i_lwtstate)) {
+			rt->rt6i_lwtstate->orig_input = rt->dst.input;
+			rt->dst.input = lwtunnel_input6;
+		}
 	}
 
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
