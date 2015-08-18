@@ -835,9 +835,10 @@ int ib_find_gid(struct ib_device *device, union ib_gid *gid,
 	for (port = rdma_start_port(device); port <= rdma_end_port(device); ++port) {
 		if (rdma_cap_roce_gid_table(device, port)) {
 			if (!ib_cache_gid_find_by_port(device, gid, port,
-						       NULL, index))
+						       NULL, index)) {
 				*port_num = port;
 				return 0;
+			}
 		}
 
 		for (i = 0; i < device->port_immutable[port].gid_tbl_len; ++i) {
