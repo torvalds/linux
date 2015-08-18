@@ -394,8 +394,7 @@ root_rl:
  */
 static inline void blk_put_rl(struct request_list *rl)
 {
-	/* root_rl may not have blkg set */
-	if (rl->blkg && rl->blkg->blkcg != &blkcg_root)
+	if (rl->blkg->blkcg != &blkcg_root)
 		blkg_put(rl->blkg);
 }
 
