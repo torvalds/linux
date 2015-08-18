@@ -5240,6 +5240,21 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 			modeset_put_power_domains(dev_priv, put_domains[i]);
 }
 
+static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
+{
+	int max_cdclk_freq = dev_priv->max_cdclk_freq;
+
+	if (INTEL_INFO(dev_priv)->gen >= 9 ||
+	    IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		return max_cdclk_freq;
+	else if (IS_CHERRYVIEW(dev_priv))
+		return max_cdclk_freq*95/100;
+	else if (INTEL_INFO(dev_priv)->gen < 4)
+		return 2*max_cdclk_freq*90/100;
+	else
+		return max_cdclk_freq*90/100;
+}
+
 static void intel_update_max_cdclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5279,8 +5294,13 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 		dev_priv->max_cdclk_freq = dev_priv->cdclk_freq;
 	}
 
+	dev_priv->max_dotclk_freq = intel_compute_max_dotclk(dev_priv);
+
 	DRM_DEBUG_DRIVER("Max CD clock rate: %d kHz\n",
 			 dev_priv->max_cdclk_freq);
+
+	DRM_DEBUG_DRIVER("Max dotclock rate: %d kHz\n",
+			 dev_priv->max_dotclk_freq);
 }
 
 static void intel_update_cdclk(struct drm_device *dev)
