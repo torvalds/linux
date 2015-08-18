@@ -176,7 +176,7 @@ static void wb_wakeup(struct bdi_writeback *wb)
 static void wb_queue_work(struct bdi_writeback *wb,
 			  struct wb_writeback_work *work)
 {
-	trace_writeback_queue(wb->bdi, work);
+	trace_writeback_queue(wb, work);
 
 	spin_lock_bh(&wb->work_lock);
 	if (!test_bit(WB_registered, &wb->state))
@@ -883,7 +883,7 @@ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
 	 */
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
-		trace_writeback_nowork(wb->bdi);
+		trace_writeback_nowork(wb);
 		wb_wakeup(wb);
 		return;
 	}
@@ -913,7 +913,7 @@ void wb_start_background_writeback(struct bdi_writeback *wb)
 	 * We just wake up the flusher thread. It will perform background
 	 * writeback as soon as there is no other work to do.
 	 */
-	trace_writeback_wake_background(wb->bdi);
+	trace_writeback_wake_background(wb);
 	wb_wakeup(wb);
 }
 
@@ -1616,14 +1616,14 @@ static long wb_writeback(struct bdi_writeback *wb,
 		} else if (work->for_background)
 			oldest_jif = jiffies;
 
-		trace_writeback_start(wb->bdi, work);
+		trace_writeback_start(wb, work);
 		if (list_empty(&wb->b_io))
 			queue_io(wb, work);
 		if (work->sb)
 			progress = writeback_sb_inodes(work->sb, wb, work);
 		else
 			progress = __writeback_inodes_wb(wb, work);
-		trace_writeback_written(wb->bdi, work);
+		trace_writeback_written(wb, work);
 
 		wb_update_bandwidth(wb, wb_start);
 
@@ -1648,7 +1648,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 * we'll just busyloop.
 		 */
 		if (!list_empty(&wb->b_more_io))  {
-			trace_writeback_wait(wb->bdi, work);
+			trace_writeback_wait(wb, work);
 			inode = wb_inode(wb->b_more_io.prev);
 			spin_lock(&inode->i_lock);
 			spin_unlock(&wb->list_lock);
@@ -1754,7 +1754,7 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 	while ((work = get_next_work_item(wb)) != NULL) {
 		struct wb_completion *done = work->done;
 
-		trace_writeback_exec(wb->bdi, work);
+		trace_writeback_exec(wb, work);
 
 		wrote += wb_writeback(wb, work);
 
