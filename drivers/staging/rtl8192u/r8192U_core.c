@@ -2585,8 +2585,7 @@ static void rtl8192_hwconfig(struct net_device *dev)
 			regBwOpMode = BW_OPMODE_20MHZ;
 			regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 			regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		}
-		else
+		} else
 #endif
 		{
 			regBwOpMode = BW_OPMODE_20MHZ;
