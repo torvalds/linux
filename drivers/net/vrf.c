@@ -335,13 +335,11 @@ static struct slave *__vrf_find_slave_dev(struct slave_queue *queue,
 static void __vrf_remove_slave(struct slave_queue *queue, struct slave *slave)
 {
 	list_del(&slave->list);
-	queue->num_slaves--;
 }
 
 static void __vrf_insert_slave(struct slave_queue *queue, struct slave *slave)
 {
 	list_add(&slave->list, &queue->all_slaves);
-	queue->num_slaves++;
 }
 
 static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
