@@ -1782,14 +1782,16 @@ static int tc358743_probe_of(struct tc358743_state *state)
 	state->pdata.ths_trailcnt = 0x2;
 	state->pdata.hstxvregcnt = 0;
 
-	state->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	state->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						    GPIOD_OUT_LOW);
 	if (IS_ERR(state->reset_gpio)) {
 		dev_err(dev, "failed to get reset gpio\n");
 		ret = PTR_ERR(state->reset_gpio);
 		goto disable_clk;
 	}
 
-	tc358743_gpio_reset(state);
+	if (state->reset_gpio)
+		tc358743_gpio_reset(state);
 
 	ret = 0;
 	goto free_endpoint;
