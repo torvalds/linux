@@ -133,7 +133,7 @@ static int aim_close(struct inode *inode, struct file *filp)
 
 	while (0 != kfifo_out((struct kfifo *)&channel->fifo, &mbo, 1))
 		most_put_mbo(mbo);
-	if (channel->keep_mbo == true)
+	if (channel->keep_mbo)
 		most_put_mbo(channel->stacked_mbo);
 	ret = most_stop_channel(channel->iface, channel->channel_id);
 	atomic_dec(&channel->access_ref);
@@ -224,7 +224,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 	struct mbo *mbo;
 	struct aim_channel *channel = filp->private_data;
 
-	if (channel->keep_mbo == true) {
+	if (channel->keep_mbo) {
 		mbo = channel->stacked_mbo;
 		channel->keep_mbo = false;
 		goto start_copy;
@@ -259,7 +259,7 @@ start_copy:
 
 	retval = not_copied ? proc_len - not_copied : proc_len;
 
-	if (channel->keep_mbo == true) {
+	if (channel->keep_mbo) {
 		channel->mbo_offs = retval;
 		channel->stacked_mbo = mbo;
 	} else {
