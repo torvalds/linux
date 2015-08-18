@@ -16,7 +16,7 @@
 #include <linux/io.h>
 
 #ifdef CONFIG_ARCH_HAS_PMEM_API
-#include <asm/cacheflush.h>
+#include <asm/pmem.h>
 #else
 static inline void arch_wmb_pmem(void)
 {
