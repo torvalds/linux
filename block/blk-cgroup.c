@@ -24,6 +24,7 @@
 #include <linux/genhd.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
+#include <linux/ctype.h>
 #include <linux/blk-cgroup.h>
 #include "blk.h"
 
@@ -773,22 +774,27 @@ EXPORT_SYMBOL_GPL(blkg_rwstat_recursive_sum);
  * @ctx: blkg_conf_ctx to be filled
  *
  * Parse per-blkg config update from @input and initialize @ctx with the
- * result.  @ctx->blkg points to the blkg to be updated and @ctx->v the new
- * value.  This function returns with RCU read lock and queue lock held and
- * must be paired with blkg_conf_finish().
+ * result.  @ctx->blkg points to the blkg to be updated and @ctx->body the
+ * part of @input following MAJ:MIN.  This function returns with RCU read
+ * lock and queue lock held and must be paired with blkg_conf_finish().
  */
 int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
-		   const char *input, struct blkg_conf_ctx *ctx)
+		   char *input, struct blkg_conf_ctx *ctx)
 	__acquires(rcu) __acquires(disk->queue->queue_lock)
 {
 	struct gendisk *disk;
 	struct blkcg_gq *blkg;
 	unsigned int major, minor;
-	unsigned long long v;
-	int part, ret;
+	int key_len, part, ret;
+	char *body;
 
-	if (sscanf(input, "%u:%u %llu", &major, &minor, &v) != 3)
+	if (sscanf(input, "%u:%u%n", &major, &minor, &key_len) != 2)
 		return -EINVAL;
+
+	body = input + key_len;
+	if (!isspace(*body))
+		return -EINVAL;
+	body = skip_spaces(body);
 
 	disk = get_gendisk(MKDEV(major, minor), &part);
 	if (!disk)
@@ -826,7 +832,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 
 	ctx->disk = disk;
 	ctx->blkg = blkg;
-	ctx->v = v;
+	ctx->body = body;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(blkg_conf_prep);

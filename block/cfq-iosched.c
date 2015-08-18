@@ -1747,26 +1747,31 @@ static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
 	struct cfq_group *cfqg;
 	struct cfq_group_data *cfqgd;
 	int ret;
+	u64 v;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_cfq, buf, &ctx);
 	if (ret)
 		return ret;
 
+	ret = -EINVAL;
+	if (sscanf(ctx.body, "%llu", &v) != 1)
+		goto out_finish;
+
 	cfqg = blkg_to_cfqg(ctx.blkg);
 	cfqgd = blkcg_to_cfqgd(blkcg);
 
 	ret = -ERANGE;
-	if (!ctx.v || (ctx.v >= CFQ_WEIGHT_MIN && ctx.v <= CFQ_WEIGHT_MAX)) {
+	if (!v || (v >= CFQ_WEIGHT_MIN && v <= CFQ_WEIGHT_MAX)) {
 		if (!is_leaf_weight) {
-			cfqg->dev_weight = ctx.v;
-			cfqg->new_weight = ctx.v ?: cfqgd->weight;
+			cfqg->dev_weight = v;
+			cfqg->new_weight = v ?: cfqgd->weight;
 		} else {
-			cfqg->dev_leaf_weight = ctx.v;
-			cfqg->new_leaf_weight = ctx.v ?: cfqgd->leaf_weight;
+			cfqg->dev_leaf_weight = v;
+			cfqg->new_leaf_weight = v ?: cfqgd->leaf_weight;
 		}
 		ret = 0;
 	}
-
+out_finish:
 	blkg_conf_finish(&ctx);
 	return ret ?: nbytes;
 }

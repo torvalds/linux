@@ -206,11 +206,11 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
 struct blkg_conf_ctx {
 	struct gendisk			*disk;
 	struct blkcg_gq			*blkg;
-	u64				v;
+	char				*body;
 };
 
 int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
-		   const char *input, struct blkg_conf_ctx *ctx);
+		   char *input, struct blkg_conf_ctx *ctx);
 void blkg_conf_finish(struct blkg_conf_ctx *ctx);
 
 

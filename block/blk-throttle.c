@@ -1154,21 +1154,25 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 	struct blkcg_gq *blkg;
 	struct cgroup_subsys_state *pos_css;
 	int ret;
+	u64 v;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
 	if (ret)
 		return ret;
 
+	ret = -EINVAL;
+	if (sscanf(ctx.body, "%llu", &v) != 1)
+		goto out_finish;
+	if (!v)
+		v = -1;
+
 	tg = blkg_to_tg(ctx.blkg);
 	sq = &tg->service_queue;
 
-	if (!ctx.v)
-		ctx.v = -1;
-
 	if (is_u64)
-		*(u64 *)((void *)tg + of_cft(of)->private) = ctx.v;
+		*(u64 *)((void *)tg + of_cft(of)->private) = v;
 	else
-		*(unsigned int *)((void *)tg + of_cft(of)->private) = ctx.v;
+		*(unsigned int *)((void *)tg + of_cft(of)->private) = v;
 
 	throtl_log(&tg->service_queue,
 		   "limit change rbps=%llu wbps=%llu riops=%u wiops=%u",
@@ -1201,8 +1205,10 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 		throtl_schedule_next_dispatch(sq->parent_sq, true);
 	}
 
+	ret = 0;
+out_finish:
 	blkg_conf_finish(&ctx);
-	return nbytes;
+	return ret ?: nbytes;
 }
 
 static ssize_t tg_set_conf_u64(struct kernfs_open_file *of,
