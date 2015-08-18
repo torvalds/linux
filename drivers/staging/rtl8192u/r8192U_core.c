@@ -988,8 +988,6 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_push(skb, USB_HWDESC_HEADER_LEN);
 		rtl819xU_tx_cmd(dev, skb);
 		ret = 1;
-		spin_unlock_irqrestore(&priv->tx_lock, flags);
-		return ret;
 	} else {
 		skb_push(skb, priv->ieee80211->tx_headroom);
 		ret = rtl8192_tx(dev, skb);
@@ -1300,12 +1298,11 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
 
-	if (!status) {
+	if (!status)
 		return 0;
-	} else {
-		DMESGE("Error TX CMD URB, error %d", status);
-		return -1;
-	}
+
+	DMESGE("Error TX CMD URB, error %d", status);
+	return -1;
 }
 
 /*
@@ -1644,11 +1641,11 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 		dev->trans_start = jiffies;
 		atomic_inc(&priv->tx_pending[tcb_desc->queue_index]);
 		return 0;
-	} else {
-		RT_TRACE(COMP_ERR, "Error TX URB %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]),
-			 status);
-		return -1;
 	}
+
+	RT_TRACE(COMP_ERR, "Error TX URB %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]),
+		 status);
+	return -1;
 }
 
 static short rtl8192_usb_initendpoints(struct net_device *dev)
@@ -2924,20 +2921,20 @@ static bool HalRxCheckStuck819xUsb(struct net_device *dev)
 		    (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 && priv->undecorated_smoothed_pwdb >= RateAdaptiveTH_Low_20M))) {
 		if (rx_chk_cnt < 2)
 			return bStuck;
-		else
-			rx_chk_cnt = 0;
+
+		rx_chk_cnt = 0;
 	} else if (((priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20 && priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_40M) ||
 		    (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 && priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_20M)) &&
 		     priv->undecorated_smoothed_pwdb >= VeryLowRSSI) {
 		if (rx_chk_cnt < 4)
 			return bStuck;
-		else
-			rx_chk_cnt = 0;
+
+		rx_chk_cnt = 0;
 	} else {
 		if (rx_chk_cnt < 8)
 			return bStuck;
-		else
-			rx_chk_cnt = 0;
+
+		rx_chk_cnt = 0;
 	}
 
 	if (priv->RxCounter == RegRxCounter)
