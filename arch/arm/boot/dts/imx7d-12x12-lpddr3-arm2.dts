@@ -318,6 +318,7 @@
 				MX7D_PAD_ECSPI2_MOSI__GPIO4_IO21  0x80000000
 				MX7D_PAD_ECSPI2_MISO__GPIO4_IO22  0x80000000
 				MX7D_PAD_ECSPI2_SS0__GPIO4_IO23	  0x80000000
+				MX7D_PAD_ENET1_CRS__GPIO7_IO14    0x80000000  /* BT REG on */
 				MX7D_PAD_SD1_RESET_B__GPIO5_IO2   0x17059
 				MX7D_PAD_SD1_CD_B__GPIO5_IO0      0x17059
 				MX7D_PAD_SD1_WP__GPIO5_IO1        0x17059
@@ -404,6 +405,24 @@
 			fsl,pins = <
 				MX7D_PAD_UART1_TX_DATA__UART1_DCE_TX 0x79
 				MX7D_PAD_UART1_RX_DATA__UART1_DCE_RX 0x79
+			>;
+		};
+
+		pinctrl_uart3_1: uart3grp-1 {
+			fsl,pins = <
+				MX7D_PAD_UART3_TX_DATA__UART3_DCE_TX    0x79
+				MX7D_PAD_UART3_RX_DATA__UART3_DCE_RX    0x79
+				MX7D_PAD_UART3_CTS_B__UART3_DCE_CTS     0x79
+				MX7D_PAD_UART3_RTS_B__UART3_DCE_RTS     0x79
+			>;
+		};
+
+		pinctrl_uart3dte_1: uart3dtegrp-1 {
+			fsl,pins = <
+				MX7D_PAD_UART3_TX_DATA__UART3_DTE_RX    0x79
+				MX7D_PAD_UART3_RX_DATA__UART3_DTE_TX    0x79
+				MX7D_PAD_UART3_RTS_B__UART3_DTE_CTS     0x79
+				MX7D_PAD_UART3_CTS_B__UART3_DTE_RTS     0x79
 			>;
 		};
 
@@ -535,6 +554,18 @@
 	assigned-clocks = <&clks IMX7D_UART1_ROOT_SRC>;
 	assigned-clock-parents = <&clks IMX7D_OSC_24M_CLK>;
 	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3_1>;
+	fsl,uart-has-rtscts;
+	assigned-clocks = <&clks IMX7D_UART3_ROOT_SRC>;
+	assigned-clock-parents = <&clks IMX7D_PLL_SYS_MAIN_240M_CLK>;
+	status = "disabled";
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode;*/
+	/* pinctrl-0 = <&pinctrl_uart3dte_1>; */
 };
 
 &usbotg1 {
