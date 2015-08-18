@@ -1083,7 +1083,8 @@ pd_prealloc:
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
 		pd->plid = pol->plid;
-		pol->pd_init_fn(blkg);
+		if (pol->pd_init_fn)
+			pol->pd_init_fn(blkg);
 	}
 
 	__set_bit(pol->plid, q->blkcg_pols);
