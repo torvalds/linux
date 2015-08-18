@@ -1350,7 +1350,7 @@ static u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 		break;
 
 	default:
-		RT_TRACE(COMP_ERR, "TransmitTCB(): Impossible Queue Selection: %d \n", QueueID);
+		RT_TRACE(COMP_ERR, "TransmitTCB(): Impossible Queue Selection: %d\n", QueueID);
 		break;
 	}
 	return QueueSelect;
@@ -1880,7 +1880,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
 			queue_work(priv->priv_wq, &priv->qos_activate);
-			RT_TRACE(COMP_QOS, "QoS was disabled call qos_activate \n");
+			RT_TRACE(COMP_QOS, "QoS was disabled call qos_activate\n");
 		}
 		network->qos_data.active = 0;
 		network->qos_data.supported = 0;
@@ -2895,7 +2895,7 @@ static RESET_TYPE TxCheckStuck(struct net_device *dev)
 	}
 	if (bCheckFwTxCnt) {
 		if (HalTxCheckStuck819xUsb(dev)) {
-			RT_TRACE(COMP_RESET, "TxCheckStuck(): Fw indicates no Tx condition! \n");
+			RT_TRACE(COMP_RESET, "TxCheckStuck(): Fw indicates no Tx condition!\n");
 			return RESET_TYPE_SILENT;
 		}
 	}
@@ -3032,7 +3032,7 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	static u8	CAM_CONST_BROAD[] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	RT_TRACE(COMP_SEC, "CamRestoreAllEntry: \n");
+	RT_TRACE(COMP_SEC, "CamRestoreAllEntry:\n");
 
 
 	if ((priv->ieee80211->pairwise_key_type == KEY_TYPE_WEP40) ||
@@ -3107,7 +3107,7 @@ static void rtl819x_ifsilentreset(struct net_device *dev)
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 RESET_START:
 
-		RT_TRACE(COMP_RESET, "=========>Reset progress!! \n");
+		RT_TRACE(COMP_RESET, "=========>Reset progress!!\n");
 
 		/* Set the variable for reset. */
 		priv->ResetProgress = RESET_TYPE_SILENT;
@@ -3783,7 +3783,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 					((priv->stats.rx_rssi_percentage[rfpath] * (Rx_Smooth_Factor - 1)) +
 					 (pprevious_stats->RxMIMOSignalStrength[rfpath])) / (Rx_Smooth_Factor);
 			}
-			RT_TRACE(COMP_DBG, "priv->stats.rx_rssi_percentage[rfPath]  = %d \n", priv->stats.rx_rssi_percentage[rfpath]);
+			RT_TRACE(COMP_DBG, "priv->stats.rx_rssi_percentage[rfPath]  = %d\n", priv->stats.rx_rssi_percentage[rfpath]);
 		}
 	}
 
