@@ -2415,7 +2415,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		mutex_unlock(&mdsc->mutex);
 		goto out;
 	}
-	if (req->r_got_safe && !head->safe) {
+	if (req->r_got_safe) {
 		pr_warn("got unsafe after safe on %llu from mds%d\n",
 			   tid, mds);
 		mutex_unlock(&mdsc->mutex);
