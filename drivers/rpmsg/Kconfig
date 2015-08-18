@@ -7,11 +7,11 @@ config RPMSG
 	select VIRTUALIZATION
 
 config IMX_RPMSG_PINGPONG
-	tristate "IMX RPMSG pingpong driver"
+	tristate "IMX RPMSG pingpong driver -- loadable modules only"
 	depends on RPMSG && m
 
 config IMX_RPMSG_TTY
-	tristate "IMX RPMSG tty driver"
+	tristate "IMX RPMSG tty driver -- loadable modules only"
 	depends on RPMSG && m
 
 endmenu

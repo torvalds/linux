@@ -17,6 +17,7 @@
 #include <linux/virtio.h>
 #include <linux/rpmsg.h>
 
+#define MSG		"hello world!"
 #define MSG_LIMIT	100000
 static unsigned int rpmsg_pingpong;
 static int rx_count;
@@ -41,7 +42,7 @@ static void rpmsg_pingpong_cb(struct rpmsg_channel *rpdev, void *data, int len,
 	err = rpmsg_sendto(rpdev, (void *)(&rpmsg_pingpong), 4, src);
 
 	if (err)
-		pr_err("rpmsg_send failed: %d\n", err);
+		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", err);
 }
 
 static int rpmsg_pingpong_probe(struct rpmsg_channel *rpdev)
@@ -51,11 +52,21 @@ static int rpmsg_pingpong_probe(struct rpmsg_channel *rpdev)
 	dev_info(&rpdev->dev, "new channel: 0x%x -> 0x%x!\n",
 			rpdev->src, rpdev->dst);
 
+	/*
+	 * send a message to our remote processor, and tell remote
+	 * processor about this channel
+	 */
+	err = rpmsg_send(rpdev, MSG, strlen(MSG));
+	if (err) {
+		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", err);
+		return err;
+	}
+
 	rpmsg_pingpong = 0;
 	rx_count = 0;
 	err = rpmsg_sendto(rpdev, (void *)(&rpmsg_pingpong), 4, rpdev->dst);
 	if (err) {
-		pr_err("rpmsg_send failed: %d\n", err);
+		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", err);
 		return err;
 	}
 
