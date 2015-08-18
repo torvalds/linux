@@ -304,7 +304,6 @@ struct cfq_group {
 	int dispatched;
 	struct cfq_ttime ttime;
 	struct cfqg_stats stats;	/* stats for this cfqg */
-	struct cfqg_stats dead_stats;	/* stats pushed from dead children */
 
 	/* async queue for each priority case */
 	struct cfq_queue *async_cfqq[2][IOPRIO_BE_NR];
@@ -736,28 +735,28 @@ static void cfqg_stats_reset(struct cfqg_stats *stats)
 }
 
 /* @to += @from */
-static void cfqg_stats_merge(struct cfqg_stats *to, struct cfqg_stats *from)
+static void cfqg_stats_add_aux(struct cfqg_stats *to, struct cfqg_stats *from)
 {
 	/* queued stats shouldn't be cleared */
-	blkg_rwstat_merge(&to->service_bytes, &from->service_bytes);
-	blkg_rwstat_merge(&to->serviced, &from->serviced);
-	blkg_rwstat_merge(&to->merged, &from->merged);
-	blkg_rwstat_merge(&to->service_time, &from->service_time);
-	blkg_rwstat_merge(&to->wait_time, &from->wait_time);
-	blkg_stat_merge(&from->time, &from->time);
+	blkg_rwstat_add_aux(&to->service_bytes, &from->service_bytes);
+	blkg_rwstat_add_aux(&to->serviced, &from->serviced);
+	blkg_rwstat_add_aux(&to->merged, &from->merged);
+	blkg_rwstat_add_aux(&to->service_time, &from->service_time);
+	blkg_rwstat_add_aux(&to->wait_time, &from->wait_time);
+	blkg_stat_add_aux(&from->time, &from->time);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-	blkg_stat_merge(&to->unaccounted_time, &from->unaccounted_time);
-	blkg_stat_merge(&to->avg_queue_size_sum, &from->avg_queue_size_sum);
-	blkg_stat_merge(&to->avg_queue_size_samples, &from->avg_queue_size_samples);
-	blkg_stat_merge(&to->dequeue, &from->dequeue);
-	blkg_stat_merge(&to->group_wait_time, &from->group_wait_time);
-	blkg_stat_merge(&to->idle_time, &from->idle_time);
-	blkg_stat_merge(&to->empty_time, &from->empty_time);
+	blkg_stat_add_aux(&to->unaccounted_time, &from->unaccounted_time);
+	blkg_stat_add_aux(&to->avg_queue_size_sum, &from->avg_queue_size_sum);
+	blkg_stat_add_aux(&to->avg_queue_size_samples, &from->avg_queue_size_samples);
+	blkg_stat_add_aux(&to->dequeue, &from->dequeue);
+	blkg_stat_add_aux(&to->group_wait_time, &from->group_wait_time);
+	blkg_stat_add_aux(&to->idle_time, &from->idle_time);
+	blkg_stat_add_aux(&to->empty_time, &from->empty_time);
 #endif
 }
 
 /*
- * Transfer @cfqg's stats to its parent's dead_stats so that the ancestors'
+ * Transfer @cfqg's stats to its parent's aux counts so that the ancestors'
  * recursive stats can still account for the amount used by this cfqg after
  * it's gone.
  */
@@ -770,10 +769,8 @@ static void cfqg_stats_xfer_dead(struct cfq_group *cfqg)
 	if (unlikely(!parent))
 		return;
 
-	cfqg_stats_merge(&parent->dead_stats, &cfqg->stats);
-	cfqg_stats_merge(&parent->dead_stats, &cfqg->dead_stats);
+	cfqg_stats_add_aux(&parent->stats, &cfqg->stats);
 	cfqg_stats_reset(&cfqg->stats);
-	cfqg_stats_reset(&cfqg->dead_stats);
 }
 
 #else	/* CONFIG_CFQ_GROUP_IOSCHED */
@@ -1606,7 +1603,6 @@ static struct blkg_policy_data *cfq_pd_alloc(gfp_t gfp, int node)
 
 	cfq_init_cfqg_base(cfqg);
 	cfqg_stats_init(&cfqg->stats);
-	cfqg_stats_init(&cfqg->dead_stats);
 
 	return &cfqg->pd;
 }
@@ -1649,38 +1645,11 @@ static void cfq_pd_free(struct blkg_policy_data *pd)
 	return kfree(pd);
 }
 
-/* offset delta from cfqg->stats to cfqg->dead_stats */
-static const int dead_stats_off_delta = offsetof(struct cfq_group, dead_stats) -
-					offsetof(struct cfq_group, stats);
-
-/* to be used by recursive prfill, sums live and dead stats recursively */
-static u64 cfqg_stat_pd_recursive_sum(struct blkg_policy_data *pd, int off)
-{
-	u64 sum = 0;
-
-	sum += blkg_stat_recursive_sum(pd, off);
-	sum += blkg_stat_recursive_sum(pd, off + dead_stats_off_delta);
-	return sum;
-}
-
-/* to be used by recursive prfill, sums live and dead rwstats recursively */
-static struct blkg_rwstat cfqg_rwstat_pd_recursive_sum(struct blkg_policy_data *pd,
-						       int off)
-{
-	struct blkg_rwstat a, b;
-
-	a = blkg_rwstat_recursive_sum(pd, off);
-	b = blkg_rwstat_recursive_sum(pd, off + dead_stats_off_delta);
-	blkg_rwstat_merge(&a, &b);
-	return a;
-}
-
 static void cfq_pd_reset_stats(struct blkg_policy_data *pd)
 {
 	struct cfq_group *cfqg = pd_to_cfqg(pd);
 
 	cfqg_stats_reset(&cfqg->stats);
-	cfqg_stats_reset(&cfqg->dead_stats);
 }
 
 static struct cfq_group *cfq_lookup_cfqg(struct cfq_data *cfqd,
@@ -1883,7 +1852,7 @@ static int cfqg_print_rwstat(struct seq_file *sf, void *v)
 static u64 cfqg_prfill_stat_recursive(struct seq_file *sf,
 				      struct blkg_policy_data *pd, int off)
 {
-	u64 sum = cfqg_stat_pd_recursive_sum(pd, off);
+	u64 sum = blkg_stat_recursive_sum(pd, off);
 
 	return __blkg_prfill_u64(sf, pd, sum);
 }
@@ -1891,7 +1860,7 @@ static u64 cfqg_prfill_stat_recursive(struct seq_file *sf,
 static u64 cfqg_prfill_rwstat_recursive(struct seq_file *sf,
 					struct blkg_policy_data *pd, int off)
 {
-	struct blkg_rwstat sum = cfqg_rwstat_pd_recursive_sum(pd, off);
+	struct blkg_rwstat sum = blkg_rwstat_recursive_sum(pd, off);
 
 	return __blkg_prfill_rwstat(sf, pd, &sum);
 }

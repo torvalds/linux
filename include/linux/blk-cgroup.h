@@ -53,14 +53,20 @@ struct blkcg {
 #endif
 };
 
+/*
+ * blkg_[rw]stat->aux_cnt is excluded for local stats but included for
+ * recursive.  Used to carry stats of dead children.
+ */
 struct blkg_stat {
 	struct u64_stats_sync		syncp;
 	uint64_t			cnt;
+	atomic64_t			aux_cnt;
 };
 
 struct blkg_rwstat {
 	struct u64_stats_sync		syncp;
 	uint64_t			cnt[BLKG_RWSTAT_NR];
+	atomic64_t			aux_cnt[BLKG_RWSTAT_NR];
 };
 
 /*
@@ -483,6 +489,7 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 static inline void blkg_stat_init(struct blkg_stat *stat)
 {
 	u64_stats_init(&stat->syncp);
+	atomic64_set(&stat->aux_cnt, 0);
 }
 
 /**
@@ -504,8 +511,9 @@ static inline void blkg_stat_add(struct blkg_stat *stat, uint64_t val)
  * blkg_stat_read - read the current value of a blkg_stat
  * @stat: blkg_stat to read
  *
- * Read the current value of @stat.  This function can be called without
- * synchroniztion and takes care of u64 atomicity.
+ * Read the current value of @stat.  The returned value doesn't include the
+ * aux count.  This function can be called without synchroniztion and takes
+ * care of u64 atomicity.
  */
 static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
 {
@@ -527,23 +535,31 @@ static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
 static inline void blkg_stat_reset(struct blkg_stat *stat)
 {
 	stat->cnt = 0;
+	atomic64_set(&stat->aux_cnt, 0);
 }
 
 /**
- * blkg_stat_merge - merge a blkg_stat into another
+ * blkg_stat_add_aux - add a blkg_stat into another's aux count
  * @to: the destination blkg_stat
  * @from: the source
  *
- * Add @from's count to @to.
+ * Add @from's count including the aux one to @to's aux count.
  */
-static inline void blkg_stat_merge(struct blkg_stat *to, struct blkg_stat *from)
+static inline void blkg_stat_add_aux(struct blkg_stat *to,
+				     struct blkg_stat *from)
 {
-	blkg_stat_add(to, blkg_stat_read(from));
+	atomic64_add(blkg_stat_read(from) + atomic64_read(&from->aux_cnt),
+		     &to->aux_cnt);
 }
 
 static inline void blkg_rwstat_init(struct blkg_rwstat *rwstat)
 {
+	int i;
+
 	u64_stats_init(&rwstat->syncp);
+
+	for (i = 0; i < BLKG_RWSTAT_NR; i++)
+		atomic64_set(&rwstat->aux_cnt[i], 0);
 }
 
 /**
@@ -614,26 +630,30 @@ static inline uint64_t blkg_rwstat_total(struct blkg_rwstat *rwstat)
  */
 static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 {
+	int i;
+
 	memset(rwstat->cnt, 0, sizeof(rwstat->cnt));
+
+	for (i = 0; i < BLKG_RWSTAT_NR; i++)
+		atomic64_set(&rwstat->aux_cnt[i], 0);
 }
 
 /**
- * blkg_rwstat_merge - merge a blkg_rwstat into another
+ * blkg_rwstat_add_aux - add a blkg_rwstat into another's aux count
  * @to: the destination blkg_rwstat
  * @from: the source
  *
- * Add @from's counts to @to.
+ * Add @from's count including the aux one to @to's aux count.
  */
-static inline void blkg_rwstat_merge(struct blkg_rwstat *to,
-				     struct blkg_rwstat *from)
+static inline void blkg_rwstat_add_aux(struct blkg_rwstat *to,
+				       struct blkg_rwstat *from)
 {
 	struct blkg_rwstat v = blkg_rwstat_read(from);
 	int i;
 
-	u64_stats_update_begin(&to->syncp);
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		to->cnt[i] += v.cnt[i];
-	u64_stats_update_end(&to->syncp);
+		atomic64_add(v.cnt[i] + atomic64_read(&from->aux_cnt[i]),
+			     &to->aux_cnt[i]);
 }
 
 #ifdef CONFIG_BLK_DEV_THROTTLING
