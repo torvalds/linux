@@ -3221,7 +3221,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	//to get busy traffic condition
 	if (ieee->state == IEEE80211_LINKED) {
 		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 666 ||
-		    ieee->LinkDetectInfo.NumTxOkInPeriod > 666 ) {
+		    ieee->LinkDetectInfo.NumTxOkInPeriod > 666) {
 			bBusyTraffic = true;
 		}
 		ieee->LinkDetectInfo.NumRxOkInPeriod = 0;
