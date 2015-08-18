@@ -4191,7 +4191,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 					  rx_drvinfo_819x_usb  *pdrvinfo)
 {
 	// TODO: We must only check packet for current MAC address. Not finish
-	rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
+	struct rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
 	struct net_device *dev = info->dev;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	bool bpacket_match_bssid, bpacket_toself;
@@ -4379,7 +4379,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 				struct ieee80211_rx_stats *stats,
 				bool bIsRxAggrSubframe)
 {
-	rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
+	struct rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
 	struct net_device *dev = info->dev;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	rx_drvinfo_819x_usb  *driver_info = NULL;
@@ -4470,7 +4470,7 @@ static void query_rxdesc_status(struct sk_buff *skb,
 
 static void rtl8192_rx_nomal(struct sk_buff *skb)
 {
-	rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
+	struct rtl8192_rx_info *info = (struct rtl8192_rx_info *)skb->cb;
 	struct net_device *dev = info->dev;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct ieee80211_rx_stats stats = {

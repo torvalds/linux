@@ -335,11 +335,11 @@ typedef struct _tx_fwinfo_819x_usb {
 	u32	PacketID:13;
 } tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
 
-typedef struct rtl8192_rx_info {
+struct rtl8192_rx_info {
 	struct urb *urb;
 	struct net_device *dev;
 	u8 out_pipe;
-} rtl8192_rx_info ;
+};
 
 typedef struct rx_desc_819x_usb {
 	/* DOWRD 0 */
