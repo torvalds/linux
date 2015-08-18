@@ -3536,107 +3536,107 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 
 	if (!bIsHT) {
 		switch (rate) {
-			case DESC90_RATE1M:
-				ret_rate = MGN_1M;
-				break;
-			case DESC90_RATE2M:
-				ret_rate = MGN_2M;
-				break;
-			case DESC90_RATE5_5M:
-				ret_rate = MGN_5_5M;
-				break;
-			case DESC90_RATE11M:
-				ret_rate = MGN_11M;
-				break;
-			case DESC90_RATE6M:
-				ret_rate = MGN_6M;
-				break;
-			case DESC90_RATE9M:
-				ret_rate = MGN_9M;
-				break;
-			case DESC90_RATE12M:
-				ret_rate = MGN_12M;
-				break;
-			case DESC90_RATE18M:
-				ret_rate = MGN_18M;
-				break;
-			case DESC90_RATE24M:
-				ret_rate = MGN_24M;
-				break;
-			case DESC90_RATE36M:
-				ret_rate = MGN_36M;
-				break;
-			case DESC90_RATE48M:
-				ret_rate = MGN_48M;
-				break;
-			case DESC90_RATE54M:
-				ret_rate = MGN_54M;
-				break;
+		case DESC90_RATE1M:
+			ret_rate = MGN_1M;
+			break;
+		case DESC90_RATE2M:
+			ret_rate = MGN_2M;
+			break;
+		case DESC90_RATE5_5M:
+			ret_rate = MGN_5_5M;
+			break;
+		case DESC90_RATE11M:
+			ret_rate = MGN_11M;
+			break;
+		case DESC90_RATE6M:
+			ret_rate = MGN_6M;
+			break;
+		case DESC90_RATE9M:
+			ret_rate = MGN_9M;
+			break;
+		case DESC90_RATE12M:
+			ret_rate = MGN_12M;
+			break;
+		case DESC90_RATE18M:
+			ret_rate = MGN_18M;
+			break;
+		case DESC90_RATE24M:
+			ret_rate = MGN_24M;
+			break;
+		case DESC90_RATE36M:
+			ret_rate = MGN_36M;
+			break;
+		case DESC90_RATE48M:
+			ret_rate = MGN_48M;
+			break;
+		case DESC90_RATE54M:
+			ret_rate = MGN_54M;
+			break;
 
-			default:
-				ret_rate = 0xff;
-				RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
-				break;
+		default:
+			ret_rate = 0xff;
+			RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
+			break;
 		}
 
 	} else {
 		switch (rate) {
-			case DESC90_RATEMCS0:
-				ret_rate = MGN_MCS0;
-				break;
-			case DESC90_RATEMCS1:
-				ret_rate = MGN_MCS1;
-				break;
-			case DESC90_RATEMCS2:
-				ret_rate = MGN_MCS2;
-				break;
-			case DESC90_RATEMCS3:
-				ret_rate = MGN_MCS3;
-				break;
-			case DESC90_RATEMCS4:
-				ret_rate = MGN_MCS4;
-				break;
-			case DESC90_RATEMCS5:
-				ret_rate = MGN_MCS5;
-				break;
-			case DESC90_RATEMCS6:
-				ret_rate = MGN_MCS6;
-				break;
-			case DESC90_RATEMCS7:
-				ret_rate = MGN_MCS7;
-				break;
-			case DESC90_RATEMCS8:
-				ret_rate = MGN_MCS8;
-				break;
-			case DESC90_RATEMCS9:
-				ret_rate = MGN_MCS9;
-				break;
-			case DESC90_RATEMCS10:
-				ret_rate = MGN_MCS10;
-				break;
-			case DESC90_RATEMCS11:
-				ret_rate = MGN_MCS11;
-				break;
-			case DESC90_RATEMCS12:
-				ret_rate = MGN_MCS12;
-				break;
-			case DESC90_RATEMCS13:
-				ret_rate = MGN_MCS13;
-				break;
-			case DESC90_RATEMCS14:
-				ret_rate = MGN_MCS14;
-				break;
-			case DESC90_RATEMCS15:
-				ret_rate = MGN_MCS15;
-				break;
-			case DESC90_RATEMCS32:
-				ret_rate = 0x80|0x20;
-				break;
+		case DESC90_RATEMCS0:
+			ret_rate = MGN_MCS0;
+			break;
+		case DESC90_RATEMCS1:
+			ret_rate = MGN_MCS1;
+			break;
+		case DESC90_RATEMCS2:
+			ret_rate = MGN_MCS2;
+			break;
+		case DESC90_RATEMCS3:
+			ret_rate = MGN_MCS3;
+			break;
+		case DESC90_RATEMCS4:
+			ret_rate = MGN_MCS4;
+			break;
+		case DESC90_RATEMCS5:
+			ret_rate = MGN_MCS5;
+			break;
+		case DESC90_RATEMCS6:
+			ret_rate = MGN_MCS6;
+			break;
+		case DESC90_RATEMCS7:
+			ret_rate = MGN_MCS7;
+			break;
+		case DESC90_RATEMCS8:
+			ret_rate = MGN_MCS8;
+			break;
+		case DESC90_RATEMCS9:
+			ret_rate = MGN_MCS9;
+			break;
+		case DESC90_RATEMCS10:
+			ret_rate = MGN_MCS10;
+			break;
+		case DESC90_RATEMCS11:
+			ret_rate = MGN_MCS11;
+			break;
+		case DESC90_RATEMCS12:
+			ret_rate = MGN_MCS12;
+			break;
+		case DESC90_RATEMCS13:
+			ret_rate = MGN_MCS13;
+			break;
+		case DESC90_RATEMCS14:
+			ret_rate = MGN_MCS14;
+			break;
+		case DESC90_RATEMCS15:
+			ret_rate = MGN_MCS15;
+			break;
+		case DESC90_RATEMCS32:
+			ret_rate = 0x80|0x20;
+			break;
 
-			default:
-				ret_rate = 0xff;
-				RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
-				break;
+		default:
+			ret_rate = 0xff;
+			RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
+			break;
 		}
 	}
 
