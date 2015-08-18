@@ -807,7 +807,7 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 }
 
 static int amdgpu_uvd_free_job(
-	struct amdgpu_cs_parser *sched_job)
+	struct amdgpu_job *sched_job)
 {
 	amdgpu_ib_free(sched_job->adev, sched_job->ibs);
 	kfree(sched_job->ibs);

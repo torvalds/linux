@@ -307,7 +307,7 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
 }
 
 static int amdgpu_vm_free_job(
-	struct amdgpu_cs_parser *sched_job)
+	struct amdgpu_job *sched_job)
 {
 	int i;
 	for (i = 0; i < sched_job->num_ibs; i++)

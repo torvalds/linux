@@ -126,19 +126,6 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 	return 0;
 }
 
-static void amdgpu_job_work_func(struct work_struct *work)
-{
-	struct amdgpu_cs_parser *sched_job =
-		container_of(work, struct amdgpu_cs_parser,
-			     job_work);
-	mutex_lock(&sched_job->job_lock);
-	if (sched_job->free_job)
-		sched_job->free_job(sched_job);
-	mutex_unlock(&sched_job->job_lock);
-	/* after processing job, free memory */
-	fence_put(&sched_job->s_fence->base);
-	kfree(sched_job);
-}
 struct amdgpu_cs_parser *amdgpu_cs_parser_create(struct amdgpu_device *adev,
                                                struct drm_file *filp,
                                                struct amdgpu_ctx *ctx,
@@ -157,10 +144,6 @@ struct amdgpu_cs_parser *amdgpu_cs_parser_create(struct amdgpu_device *adev,
 	parser->ctx = ctx;
 	parser->ibs = ibs;
 	parser->num_ibs = num_ibs;
-	if (amdgpu_enable_scheduler) {
-		mutex_init(&parser->job_lock);
-		INIT_WORK(&parser->job_work, amdgpu_job_work_func);
-	}
 	for (i = 0; i < num_ibs; i++)
 		ibs[i].ctx = ctx;
 
@@ -508,15 +491,17 @@ static void amdgpu_cs_parser_fini_late(struct amdgpu_cs_parser *parser)
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);
-	if (parser->ibs)
-		for (i = 0; i < parser->num_ibs; i++)
-			amdgpu_ib_free(parser->adev, &parser->ibs[i]);
-	kfree(parser->ibs);
-	if (parser->uf.bo)
-		drm_gem_object_unreference_unlocked(&parser->uf.bo->gem_base);
-
 	if (!amdgpu_enable_scheduler)
-		kfree(parser);
+	{
+		if (parser->ibs)
+			for (i = 0; i < parser->num_ibs; i++)
+				amdgpu_ib_free(parser->adev, &parser->ibs[i]);
+		kfree(parser->ibs);
+		if (parser->uf.bo)
+			drm_gem_object_unreference_unlocked(&parser->uf.bo->gem_base);
+	}
+
+	kfree(parser);
 }
 
 /**
@@ -531,12 +516,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 {
        amdgpu_cs_parser_fini_early(parser, error, backoff);
        amdgpu_cs_parser_fini_late(parser);
-}
-
-static int amdgpu_cs_parser_free_job(struct amdgpu_cs_parser *sched_job)
-{
-       amdgpu_cs_parser_fini_late(sched_job);
-       return 0;
 }
 
 static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
@@ -874,6 +853,19 @@ static struct amdgpu_ring *amdgpu_cs_parser_get_ring(
 	return ring;
 }
 
+static int amdgpu_cs_free_job(struct amdgpu_job *sched_job)
+{
+	int i;
+	amdgpu_ctx_put(sched_job->ctx);
+	if (sched_job->ibs)
+		for (i = 0; i < sched_job->num_ibs; i++)
+			amdgpu_ib_free(sched_job->adev, &sched_job->ibs[i]);
+	kfree(sched_job->ibs);
+	if (sched_job->uf.bo)
+		drm_gem_object_unreference_unlocked(&sched_job->uf.bo->gem_base);
+	return 0;
+}
+
 int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct amdgpu_device *adev = dev->dev_private;
@@ -900,33 +892,50 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 
 	if (amdgpu_enable_scheduler && parser->num_ibs) {
+		struct amdgpu_job *job;
 		struct amdgpu_ring * ring =
 			amdgpu_cs_parser_get_ring(adev, parser);
 		r = amdgpu_cs_parser_prepare_job(parser);
 		if (r)
 			goto out;
-		parser->ring = ring;
-		parser->free_job = amdgpu_cs_parser_free_job;
-		mutex_lock(&parser->job_lock);
-		r = amd_sched_push_job(ring->scheduler,
-				       &parser->ctx->rings[ring->idx].entity,
-				       parser,
-				       &parser->s_fence);
+		job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
+		if (!job)
+			return -ENOMEM;
+		job->base.sched = ring->scheduler;
+		job->base.s_entity = &parser->ctx->rings[ring->idx].entity;
+		job->adev = parser->adev;
+		job->ibs = parser->ibs;
+		job->num_ibs = parser->num_ibs;
+		job->owner = parser->filp;
+		job->ctx = amdgpu_ctx_get_ref(parser->ctx);
+		mutex_init(&job->job_lock);
+		if (job->ibs[job->num_ibs - 1].user) {
+			memcpy(&job->uf,  &parser->uf,
+			       sizeof(struct amdgpu_user_fence));
+			job->ibs[job->num_ibs - 1].user = &job->uf;
+		}
+
+		job->free_job = amdgpu_cs_free_job;
+		mutex_lock(&job->job_lock);
+		r = amd_sched_push_job((struct amd_sched_job *)job);
 		if (r) {
-			mutex_unlock(&parser->job_lock);
+			mutex_unlock(&job->job_lock);
+			amdgpu_cs_free_job(job);
+			kfree(job);
 			goto out;
 		}
-		parser->ibs[parser->num_ibs - 1].sequence =
-			amdgpu_ctx_add_fence(parser->ctx, ring,
-					     &parser->s_fence->base,
-					     parser->s_fence->v_seq);
-		cs->out.handle = parser->s_fence->v_seq;
+		job->ibs[parser->num_ibs - 1].sequence =
+			amdgpu_ctx_add_fence(job->ctx, ring,
+					     &job->base.s_fence->base,
+					     job->base.s_fence->v_seq);
+		cs->out.handle = job->base.s_fence->v_seq;
 		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 				&parser->validated,
-				&parser->s_fence->base);
+				&job->base.s_fence->base);
 
-		mutex_unlock(&parser->job_lock);
+		mutex_unlock(&job->job_lock);
+		amdgpu_cs_parser_fini_late(parser);
 		up_read(&adev->exclusive_lock);
 		return 0;
 	}

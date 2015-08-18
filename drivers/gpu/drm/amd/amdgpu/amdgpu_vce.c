@@ -340,7 +340,7 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 }
 
 static int amdgpu_vce_free_job(
-	struct amdgpu_cs_parser *sched_job)
+	struct amdgpu_job *sched_job)
 {
 	amdgpu_ib_free(sched_job->adev, sched_job->ibs);
 	kfree(sched_job->ibs);

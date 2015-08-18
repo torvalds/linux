@@ -183,6 +183,7 @@ struct amdgpu_vm;
 struct amdgpu_ring;
 struct amdgpu_semaphore;
 struct amdgpu_cs_parser;
+struct amdgpu_job;
 struct amdgpu_irq_src;
 struct amdgpu_fpriv;
 
@@ -871,7 +872,7 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 					 struct amdgpu_ring *ring,
 					 struct amdgpu_ib *ibs,
 					 unsigned num_ibs,
-					 int (*free_job)(struct amdgpu_cs_parser *),
+					 int (*free_job)(struct amdgpu_job *),
 					 void *owner,
 					 struct fence **fence);
 
@@ -1040,6 +1041,7 @@ void amdgpu_ctx_fini(struct amdgpu_ctx *ctx);
 
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
+struct amdgpu_ctx *amdgpu_ctx_get_ref(struct amdgpu_ctx *ctx);
 
 uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 			      struct fence *fence, uint64_t queued_seq);
@@ -1263,6 +1265,18 @@ struct amdgpu_cs_parser {
 	int (*run_job)(struct amdgpu_cs_parser *sched_job);
 	int (*free_job)(struct amdgpu_cs_parser *sched_job);
 	struct amd_sched_fence *s_fence;
+};
+
+struct amdgpu_job {
+	struct amd_sched_job    base;
+	struct amdgpu_device	*adev;
+	struct amdgpu_ctx	*ctx;
+	struct drm_file		*owner;
+	struct amdgpu_ib	*ibs;
+	uint32_t		num_ibs;
+	struct mutex            job_lock;
+	struct amdgpu_user_fence uf;
+	int (*free_job)(struct amdgpu_job *sched_job);
 };
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)
