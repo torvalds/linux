@@ -383,11 +383,19 @@ enum aux_misc_master1_en {
 #define AUX_MISC_MASTER1_SMPHR_STATUS	0xA20800
 #define RSA_ENABLE			0xA24B08
 #define PREG_AUX_BUS_WPROT_0		0xA04CC0
+#define SB_CPU_1_STATUS			0xA01E30
+#define SB_CPU_2_STATUS			0xA01E34
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
 enum {
 	LMPM_CHICK_EXTENDED_ADDR_SPACE = BIT(0),
+};
+
+/* FW chicken bits */
+#define LMPM_PAGE_PASS_NOTIF			0xA03824
+enum {
+	LMPM_PAGE_PASS_NOTIF_POS = BIT(20),
 };
 
 #endif				/* __iwl_prph_h__ */

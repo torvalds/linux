@@ -153,18 +153,20 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (ieee80211_is_mgmt(fc)) {
 		if (ieee80211_is_assoc_req(fc) || ieee80211_is_reassoc_req(fc))
-			tx_cmd->pm_frame_timeout = cpu_to_le16(3);
+			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_ASSOC);
+		else if (ieee80211_is_action(fc))
+			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
 		else
-			tx_cmd->pm_frame_timeout = cpu_to_le16(2);
+			tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
 
 		/* The spec allows Action frames in A-MPDU, we don't support
 		 * it
 		 */
 		WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_AMPDU);
 	} else if (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO) {
-		tx_cmd->pm_frame_timeout = cpu_to_le16(2);
+		tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_MGMT);
 	} else {
-		tx_cmd->pm_frame_timeout = 0;
+		tx_cmd->pm_frame_timeout = cpu_to_le16(PM_FRAME_NONE);
 	}
 
 	if (ieee80211_is_data(fc) && len > mvm->rts_threshold &&

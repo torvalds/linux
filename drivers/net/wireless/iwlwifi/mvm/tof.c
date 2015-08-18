@@ -194,7 +194,7 @@ int iwl_mvm_tof_range_request_cmd(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif)
 {
 	struct iwl_host_cmd cmd = {
-		.id = TOF_CMD,
+		.id = iwl_cmd_id(TOF_CMD, IWL_ALWAYS_LONG_GROUP, 0),
 		.len = { sizeof(mvm->tof_data.range_req), },
 		/* no copy because of the command size */
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },

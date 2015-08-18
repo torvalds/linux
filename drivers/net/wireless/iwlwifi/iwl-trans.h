@@ -248,6 +248,8 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_MAKE_TRANS_IDLE: The command response should mark the trans as idle.
  * @CMD_WAKE_UP_TRANS: The command response should wake up the trans
  *	(i.e. mark it as non-idle).
+ * @CMD_TB_BITMAP_POS: Position of the first bit for the TB bitmap. We need to
+ *	check that we leave enough room for the TBs bitmap which needs 20 bits.
  */
 enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
@@ -257,6 +259,8 @@ enum CMD_MODE {
 	CMD_SEND_IN_IDLE	= BIT(4),
 	CMD_MAKE_TRANS_IDLE	= BIT(5),
 	CMD_WAKE_UP_TRANS	= BIT(6),
+
+	CMD_TB_BITMAP_POS	= 11,
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -604,7 +608,9 @@ struct iwl_trans_ops {
 	int  (*suspend)(struct iwl_trans *trans);
 	void (*resume)(struct iwl_trans *trans);
 
-	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans);
+	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
+						 struct iwl_fw_dbg_trigger_tlv
+						 *trigger);
 };
 
 /**
@@ -641,6 +647,8 @@ enum iwl_d0i3_mode {
  * @cfg - pointer to the configuration
  * @status: a bit-mask of transport status flags
  * @dev - pointer to struct device * that represents the device
+ * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
+ *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
@@ -660,6 +668,12 @@ enum iwl_d0i3_mode {
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
  * @dbg_trigger_tlv: array of pointers to triggers TLVs for debug
  * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
+ * @paging_req_addr: The location were the FW will upload / download the pages
+ *	from. The address is set by the opmode
+ * @paging_db: Pointer to the opmode paging data base, the pointer is set by
+ *	the opmode.
+ * @paging_download_buf: Buffer used for copying all of the pages before
+ *	downloading them to the FW. The buffer is allocated in the opmode
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -669,6 +683,7 @@ struct iwl_trans {
 	unsigned long status;
 
 	struct device *dev;
+	u32 max_skb_frags;
 	u32 hw_rev;
 	u32 hw_id;
 	char hw_id_str[52];
@@ -695,6 +710,14 @@ struct iwl_trans {
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
 	u8 dbg_dest_reg_num;
+
+	/*
+	 * Paging parameters - All of the parameters should be set by the
+	 * opmode when paging is enabled
+	 */
+	u32 paging_req_addr;
+	struct iwl_fw_paging *paging_db;
+	void *paging_download_buf;
 
 	enum iwl_d0i3_mode d0i3_mode;
 
@@ -787,7 +810,8 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	might_sleep();
-	trans->ops->d3_suspend(trans, test);
+	if (trans->ops->d3_suspend)
+		trans->ops->d3_suspend(trans, test);
 }
 
 static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
@@ -795,6 +819,9 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 				      bool test)
 {
 	might_sleep();
+	if (!trans->ops->d3_resume)
+		return 0;
+
 	return trans->ops->d3_resume(trans, status, test);
 }
 
@@ -825,11 +852,12 @@ static inline void iwl_trans_resume(struct iwl_trans *trans)
 }
 
 static inline struct iwl_trans_dump_data *
-iwl_trans_dump_data(struct iwl_trans *trans)
+iwl_trans_dump_data(struct iwl_trans *trans,
+		    struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	if (!trans->ops->dump_data)
 		return NULL;
-	return trans->ops->dump_data(trans);
+	return trans->ops->dump_data(trans, trigger);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,

@@ -288,8 +288,10 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(PHY_CONFIGURATION_CMD),
 	CMD(CALIB_RES_NOTIF_PHY_DB),
 	CMD(SET_CALIB_DEFAULT_CMD),
+	CMD(FW_PAGING_BLOCK_CMD),
 	CMD(ADD_STA_KEY),
 	CMD(ADD_STA),
+	CMD(FW_GET_ITEM_CMD),
 	CMD(REMOVE_STA),
 	CMD(LQ_CMD),
 	CMD(SCAN_OFFLOAD_CONFIG_CMD),
@@ -715,6 +717,7 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
+				struct napi_struct *napi,
 				struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
@@ -722,7 +725,7 @@ static void iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 	u8 i;
 
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD)) {
-		iwl_mvm_rx_rx_mpdu(mvm, rxb);
+		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
 		return;
 	}
 
@@ -913,7 +916,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * can't recover this since we're already half suspended.
 	 */
 	if (!mvm->restart_fw && fw_error) {
-		iwl_mvm_fw_dbg_collect_desc(mvm, &iwl_mvm_dump_desc_assert, 0);
+		iwl_mvm_fw_dbg_collect_desc(mvm, &iwl_mvm_dump_desc_assert,
+					    NULL);
 	} else if (test_and_set_bit(IWL_MVM_STATUS_IN_HW_RESTART,
 				    &mvm->status)) {
 		struct iwl_mvm_reprobe *reprobe;
@@ -1110,9 +1114,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
 
-	/* make sure we have no running tx while configuring the qos */
 	set_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
-	synchronize_net();
 
 	/*
 	 * iwl_mvm_ref_sync takes a reference before checking the flag.
@@ -1140,6 +1142,9 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		mvm->d0i3_offloading = false;
 	}
 
+	/* make sure we have no running tx while configuring the seqno */
+	synchronize_net();
+
 	iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd, &d0i3_iter_data);
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
 				   sizeof(wowlan_config_cmd),
@@ -1166,15 +1171,25 @@ static void iwl_mvm_exit_d0i3_iterator(void *_data, u8 *mac,
 	iwl_mvm_update_d0i3_power_mode(mvm, vif, false, flags);
 }
 
-static void iwl_mvm_d0i3_disconnect_iter(void *data, u8 *mac,
-					 struct ieee80211_vif *vif)
+struct iwl_mvm_wakeup_reason_iter_data {
+	struct iwl_mvm *mvm;
+	u32 wakeup_reasons;
+};
+
+static void iwl_mvm_d0i3_wakeup_reason_iter(void *_data, u8 *mac,
+					    struct ieee80211_vif *vif)
 {
-	struct iwl_mvm *mvm = data;
+	struct iwl_mvm_wakeup_reason_iter_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc &&
-	    mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
-		iwl_mvm_connection_loss(mvm, vif, "D0i3");
+	    data->mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id) {
+		if (data->wakeup_reasons &
+		    IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH)
+			iwl_mvm_connection_loss(data->mvm, vif, "D0i3");
+		else
+			ieee80211_beacon_loss(vif);
+	}
 }
 
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
@@ -1242,7 +1257,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	};
 	struct iwl_wowlan_status *status;
 	int ret;
-	u32 disconnection_reasons, wakeup_reasons;
+	u32 handled_reasons, wakeup_reasons;
 	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
@@ -1259,13 +1274,18 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 
 	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
 
-	disconnection_reasons =
-		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
-		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
-	if (wakeup_reasons & disconnection_reasons)
+	handled_reasons = IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
+				IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
+	if (wakeup_reasons & handled_reasons) {
+		struct iwl_mvm_wakeup_reason_iter_data data = {
+			.mvm = mvm,
+			.wakeup_reasons = wakeup_reasons,
+		};
+
 		ieee80211_iterate_active_interfaces(
 			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_d0i3_disconnect_iter, mvm);
+			iwl_mvm_d0i3_wakeup_reason_iter, &data);
+	}
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
 
@@ -1318,18 +1338,6 @@ int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 	return _iwl_mvm_exit_d0i3(mvm);
 }
 
-static void iwl_mvm_napi_add(struct iwl_op_mode *op_mode,
-			     struct napi_struct *napi,
-			     struct net_device *napi_dev,
-			     int (*poll)(struct napi_struct *, int),
-			     int weight)
-{
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-
-	netif_napi_add(napi_dev, napi, poll, weight);
-	mvm->napi = napi;
-}
-
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	.start = iwl_op_mode_mvm_start,
 	.stop = iwl_op_mode_mvm_stop,
@@ -1343,5 +1351,4 @@ static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	.nic_config = iwl_mvm_nic_config,
 	.enter_d0i3 = iwl_mvm_enter_d0i3,
 	.exit_d0i3 = iwl_mvm_exit_d0i3,
-	.napi_add = iwl_mvm_napi_add,
 };

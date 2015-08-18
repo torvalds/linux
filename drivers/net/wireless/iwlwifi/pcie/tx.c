@@ -388,11 +388,18 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
 
 	/* first TB is never freed - it's the scratchbuf data */
 
-	for (i = 1; i < num_tbs; i++)
-		dma_unmap_single(trans->dev, iwl_pcie_tfd_tb_get_addr(tfd, i),
-				 iwl_pcie_tfd_tb_get_len(tfd, i),
-				 DMA_TO_DEVICE);
-
+	for (i = 1; i < num_tbs; i++) {
+		if (meta->flags & BIT(i + CMD_TB_BITMAP_POS))
+			dma_unmap_page(trans->dev,
+				       iwl_pcie_tfd_tb_get_addr(tfd, i),
+				       iwl_pcie_tfd_tb_get_len(tfd, i),
+				       DMA_TO_DEVICE);
+		else
+			dma_unmap_single(trans->dev,
+					 iwl_pcie_tfd_tb_get_addr(tfd, i),
+					 iwl_pcie_tfd_tb_get_len(tfd, i),
+					 DMA_TO_DEVICE);
+	}
 	tfd->num_tbs = 0;
 }
 
@@ -468,7 +475,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 
 	iwl_pcie_tfd_set_tb(tfd, num_tbs, addr, len);
 
-	return 0;
+	return num_tbs;
 }
 
 static int iwl_pcie_txq_alloc(struct iwl_trans *trans,
@@ -1546,6 +1553,8 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		iwl_pcie_txq_build_tfd(trans, txq, phys_addr, cmdlen[i], false);
 	}
 
+	BUILD_BUG_ON(IWL_NUM_OF_TBS + CMD_TB_BITMAP_POS >
+		     sizeof(out_meta->flags) * BITS_PER_BYTE);
 	out_meta->flags = cmd->flags;
 	if (WARN_ON_ONCE(txq->entries[idx].free_buf))
 		kzfree(txq->entries[idx].free_buf);
@@ -1789,7 +1798,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr;
 	struct iwl_tx_cmd *tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_txq *txq;
@@ -1798,9 +1807,10 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	void *tb1_addr;
 	u16 len, tb1_len, tb2_len;
 	bool wait_write_ptr;
-	__le16 fc = hdr->frame_control;
-	u8 hdr_len = ieee80211_hdrlen(fc);
+	__le16 fc;
+	u8 hdr_len;
 	u16 wifi_seq;
+	int i;
 
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
@@ -1808,6 +1818,18 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
 		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
+
+	if (skb_is_nonlinear(skb) &&
+	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS &&
+	    __skb_linearize(skb))
+		return -ENOMEM;
+
+	/* mac80211 always puts the full header into the SKB's head,
+	 * so there's no need to check if it's readable there
+	 */
+	hdr = (struct ieee80211_hdr *)skb->data;
+	fc = hdr->frame_control;
+	hdr_len = ieee80211_hdrlen(fc);
 
 	spin_lock(&txq->lock);
 
@@ -1839,6 +1861,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->entries[q->write_ptr].meta;
+	out_meta->flags = 0;
 
 	/*
 	 * The second TB (tb1) points to the remainder of the TX command
@@ -1872,9 +1895,9 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/*
 	 * Set up TFD's third entry to point directly to remainder
-	 * of skb, if any (802.11 null frames have no payload).
+	 * of skb's head, if any
 	 */
-	tb2_len = skb->len - hdr_len;
+	tb2_len = skb_headlen(skb) - hdr_len;
 	if (tb2_len > 0) {
 		dma_addr_t tb2_phys = dma_map_single(trans->dev,
 						     skb->data + hdr_len,
@@ -1887,6 +1910,29 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, false);
 	}
 
+	/* set up the remaining entries to point to the data */
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		dma_addr_t tb_phys;
+		int tb_idx;
+
+		if (!skb_frag_size(frag))
+			continue;
+
+		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
+					   skb_frag_size(frag), DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys))) {
+			iwl_pcie_tfd_unmap(trans, out_meta,
+					   &txq->tfds[q->write_ptr]);
+			goto out_err;
+		}
+		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
+						skb_frag_size(frag), false);
+
+		out_meta->flags |= BIT(tb_idx + CMD_TB_BITMAP_POS);
+	}
+
 	/* Set up entry for this TFD in Tx byte-count array */
 	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
 
@@ -1896,14 +1942,25 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			     &dev_cmd->hdr, IWL_HCMD_SCRATCHBUF_SIZE + tb1_len,
 			     skb->data + hdr_len, tb2_len);
 	trace_iwlwifi_dev_tx_data(trans->dev, skb,
-				  skb->data + hdr_len, tb2_len);
+				  hdr_len, skb->len - hdr_len);
 
 	wait_write_ptr = ieee80211_has_morefrags(fc);
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr) {
-		if (txq->wd_timeout)
-			mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
+		if (txq->wd_timeout) {
+			/*
+			 * If the TXQ is active, then set the timer, if not,
+			 * set the timer in remainder so that the timer will
+			 * be armed with the right value when the station will
+			 * wake up.
+			 */
+			if (!txq->frozen)
+				mod_timer(&txq->stuck_timer,
+					  jiffies + txq->wd_timeout);
+			else
+				txq->frozen_expiry_remainder = txq->wd_timeout;
+		}
 		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", q->id);
 		iwl_trans_pcie_ref(trans);
 	}

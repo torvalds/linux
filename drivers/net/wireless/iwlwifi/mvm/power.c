@@ -288,27 +288,6 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	return true;
 }
 
-static int iwl_mvm_power_get_skip_over_dtim(int dtimper, int bi)
-{
-	int numerator;
-	int dtim_interval = dtimper * bi;
-
-	if (WARN_ON(!dtim_interval))
-		return 0;
-
-	if (dtimper == 1) {
-		if (bi > 100)
-			numerator = 408;
-		else
-			numerator = 510;
-	} else if (dtimper < 10) {
-		numerator = 612;
-	} else {
-		return 0;
-	}
-	return max(1, (numerator / dtim_interval));
-}
-
 static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -358,8 +337,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-	if (!vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif) ||
-	    !mvmvif->pm_enabled)
+	if (!vif->bss_conf.ps || !mvmvif->pm_enabled ||
+	    (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p))
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
@@ -378,11 +357,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	if (!radar_detect && (dtimper < 10) &&
 	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP ||
 	     mvm->cur_ucode == IWL_UCODE_WOWLAN)) {
-		cmd->skip_dtim_periods =
-			iwl_mvm_power_get_skip_over_dtim(dtimper, bi);
-		if (cmd->skip_dtim_periods)
-			cmd->flags |=
-				cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		cmd->skip_dtim_periods = 3;
 	}
 
 	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {

@@ -1073,7 +1073,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 		iwlagn_bt_rx_handler_setup(priv);
 }
 
-void iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb)
+void iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct napi_struct *napi,
+		     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
