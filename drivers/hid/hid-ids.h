@@ -923,3 +923,15 @@
 #define USB_DEVICE_ID_SIS_TS	0x1013
 
 #endif
+
+/* Silicon Integrated Systems Corp */
+#define USB_VENDOR_ID_SILICON		0x0457
+#define USB_DEVICE_ID_SILICON_TOUCH	0x1057
+
+/* Chalkboard Electronics 10" HDMI/USB Multitouch Screen */
+#define USB_VENDOR_ID_ELECTRONICS	0x04D8
+#define USB_DEVICE_ID_CHALKBOARD_TOUCH	0xF724
+
+/* Acer UT220HQL tbmjz HDMI/USB Multitouch Screen */
+#define USB_VENDOR_ID_ACER		0x25AA
+#define USB_DEVICE_ID_UT220HQL_TOUCH	0x8882
