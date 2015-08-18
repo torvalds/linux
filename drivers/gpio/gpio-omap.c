@@ -718,6 +718,7 @@ static void omap_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	int unmasked = 0;
 	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
+	unsigned long lock_flags;
 
 	chained_irq_enter(irqchip, desc);
 
@@ -732,6 +733,8 @@ static void omap_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		u32 isr_saved, level_mask = 0;
 		u32 enabled;
 
+		raw_spin_lock_irqsave(&bank->lock, lock_flags);
+
 		enabled = omap_get_gpio_irqbank_mask(bank);
 		isr_saved = isr = readl_relaxed(isr_reg) & enabled;
 
@@ -744,6 +747,8 @@ static void omap_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		omap_disable_gpio_irqbank(bank, isr_saved & ~level_mask);
 		omap_clear_gpio_irqbank(bank, isr_saved & ~level_mask);
 		omap_enable_gpio_irqbank(bank, isr_saved & ~level_mask);
+
+		raw_spin_unlock_irqrestore(&bank->lock, lock_flags);
 
 		/* if there is only edge sensitive GPIO pin interrupts
 		configured, we could unmask GPIO bank interrupt immediately */
@@ -759,6 +764,7 @@ static void omap_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			bit = __ffs(isr);
 			isr &= ~(BIT(bit));
 
+			raw_spin_lock_irqsave(&bank->lock, lock_flags);
 			/*
 			 * Some chips can't respond to both rising and falling
 			 * at the same time.  If this irq was requested with
@@ -768,6 +774,8 @@ static void omap_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			 */
 			if (bank->toggle_mask & (BIT(bit)))
 				omap_toggle_gpio_edge_triggering(bank, bit);
+
+			raw_spin_unlock_irqrestore(&bank->lock, lock_flags);
 
 			generic_handle_irq(irq_find_mapping(bank->chip.irqdomain,
 							    bit));
