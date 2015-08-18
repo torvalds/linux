@@ -402,3 +402,5 @@ IF SOMETHING GOES WRONG:
    gdb'ing a non-running kernel currently fails because gdb (wrongly)
    disregards the starting offset for which the kernel is compiled.
 
+## Books
+- [Learn Linux in a Month of Lunches](http://manning.com/ovadia/) by Steven Ovadia (Manning Publications). [Chapter 1](http://manning.com/ovadia/LearnLinux_MEAP_ch1.pdf)
