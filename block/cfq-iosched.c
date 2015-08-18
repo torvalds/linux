@@ -1755,7 +1755,7 @@ static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
 	cfqg = blkg_to_cfqg(ctx.blkg);
 	cfqgd = blkcg_to_cfqgd(blkcg);
 
-	ret = -EINVAL;
+	ret = -ERANGE;
 	if (!ctx.v || (ctx.v >= CFQ_WEIGHT_MIN && ctx.v <= CFQ_WEIGHT_MAX)) {
 		if (!is_leaf_weight) {
 			cfqg->dev_weight = ctx.v;

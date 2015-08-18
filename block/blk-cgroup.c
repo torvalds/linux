@@ -179,7 +179,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	/* blkg holds a reference to blkcg */
 	if (!css_tryget_online(&blkcg->css)) {
-		ret = -EINVAL;
+		ret = -ENODEV;
 		goto err_free_blkg;
 	}
 
@@ -205,7 +205,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	if (blkcg_parent(blkcg)) {
 		blkg->parent = __blkg_lookup(blkcg_parent(blkcg), q, false);
 		if (WARN_ON_ONCE(!blkg->parent)) {
-			ret = -EINVAL;
+			ret = -ENODEV;
 			goto err_put_congested;
 		}
 		blkg_get(blkg->parent);
@@ -279,7 +279,7 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	 * we shouldn't allow anything to go through for a bypassing queue.
 	 */
 	if (unlikely(blk_queue_bypass(q)))
-		return ERR_PTR(blk_queue_dying(q) ? -EINVAL : -EBUSY);
+		return ERR_PTR(blk_queue_dying(q) ? -ENODEV : -EBUSY);
 
 	blkg = __blkg_lookup(blkcg, q, true);
 	if (blkg)
@@ -792,10 +792,10 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 
 	disk = get_gendisk(MKDEV(major, minor), &part);
 	if (!disk)
-		return -EINVAL;
+		return -ENODEV;
 	if (part) {
 		put_disk(disk);
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	rcu_read_lock();
@@ -804,7 +804,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	if (blkcg_policy_enabled(disk->queue, pol))
 		blkg = blkg_lookup_create(blkcg, disk->queue);
 	else
-		blkg = ERR_PTR(-EINVAL);
+		blkg = ERR_PTR(-EOPNOTSUPP);
 
 	if (IS_ERR(blkg)) {
 		ret = PTR_ERR(blkg);
