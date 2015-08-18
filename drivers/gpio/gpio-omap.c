@@ -1178,13 +1178,16 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	irqc->irq_set_wake = omap_gpio_wake_enable,
 	irqc->name = dev_name(&pdev->dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (unlikely(!res)) {
-		dev_err(dev, "Invalid IRQ resource\n");
-		return -ENODEV;
+	bank->irq = platform_get_irq(pdev, 0);
+	if (bank->irq <= 0) {
+		if (!bank->irq)
+			bank->irq = -ENXIO;
+		if (bank->irq != -EPROBE_DEFER)
+			dev_err(dev,
+				"can't get irq resource ret=%d\n", bank->irq);
+		return bank->irq;
 	}
 
-	bank->irq = res->start;
 	bank->dev = dev;
 	bank->chip.dev = dev;
 	bank->chip.owner = THIS_MODULE;
