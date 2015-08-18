@@ -70,7 +70,8 @@ static void blkg_free(struct blkcg_gq *blkg)
 	for (i = 0; i < BLKCG_MAX_POLS; i++)
 		kfree(blkg->pd[i]);
 
-	blk_exit_rl(&blkg->rl);
+	if (blkg->blkcg != &blkcg_root)
+		blk_exit_rl(&blkg->rl);
 	kfree(blkg);
 }
 
@@ -938,7 +939,7 @@ int blkcg_init_queue(struct request_queue *q)
 		radix_tree_preload_end();
 
 	if (IS_ERR(blkg)) {
-		kfree(new_blkg);
+		blkg_free(new_blkg);
 		return PTR_ERR(blkg);
 	}
 
