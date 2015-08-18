@@ -1670,8 +1670,13 @@ xlog_cksum(
 	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
 		union xlog_in_core2 *xhdr = (union xlog_in_core2 *)rhead;
 		int		i;
+		int		xheads;
 
-		for (i = 1; i < log->l_iclog_heads; i++) {
+		xheads = size / XLOG_HEADER_CYCLE_SIZE;
+		if (size % XLOG_HEADER_CYCLE_SIZE)
+			xheads++;
+
+		for (i = 1; i < xheads; i++) {
 			crc = crc32c(crc, &xhdr[i].hic_xheader,
 				     sizeof(struct xlog_rec_ext_header));
 		}
