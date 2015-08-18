@@ -1000,9 +1000,6 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return ret;
 }
 
-
-void rtl8192_try_wake_queue(struct net_device *dev, int pri);
-
 static void rtl8192_tx_isr(struct urb *tx_urb)
 {
 	struct sk_buff *skb = (struct sk_buff *)tx_urb->context;
@@ -1222,9 +1219,6 @@ inline u8 rtl8192_IsWirelessBMode(u16 rate)
 	else
 		return 0;
 }
-
-u16 N_DBPSOfRate(u16 DataRate);
-
 
 u16 N_DBPSOfRate(u16 DataRate)
 {
