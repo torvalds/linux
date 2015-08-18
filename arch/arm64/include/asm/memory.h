@@ -114,6 +114,14 @@ extern phys_addr_t		memstart_addr;
 #define PHYS_OFFSET		({ memstart_addr; })
 
 /*
+ * The maximum physical address that the linear direct mapping
+ * of system RAM can cover. (PAGE_OFFSET can be interpreted as
+ * a 2's complement signed quantity and negated to derive the
+ * maximum size of the linear mapping.)
+ */
+#define MAX_MEMBLOCK_ADDR	({ memstart_addr - PAGE_OFFSET - 1; })
+
+/*
  * PFNs are used to describe any physical page; this means
  * PFN 0 == physical address 0.
  *
