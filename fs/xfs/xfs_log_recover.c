@@ -3791,10 +3791,10 @@ abort_error:
  */
 STATIC int
 xlog_recover_process_efis(
-	struct xlog	*log)
+	struct xlog		*log)
 {
-	xfs_log_item_t		*lip;
-	xfs_efi_log_item_t	*efip;
+	struct xfs_log_item	*lip;
+	struct xfs_efi_log_item	*efip;
 	int			error = 0;
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp;
@@ -3818,7 +3818,7 @@ xlog_recover_process_efis(
 		/*
 		 * Skip EFIs that we've already processed.
 		 */
-		efip = (xfs_efi_log_item_t *)lip;
+		efip = container_of(lip, struct xfs_efi_log_item, efi_item);
 		if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags)) {
 			lip = xfs_trans_ail_cursor_next(ailp, &cur);
 			continue;
@@ -3832,6 +3832,50 @@ xlog_recover_process_efis(
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 	}
 out:
+	xfs_trans_ail_cursor_done(&cur);
+	spin_unlock(&ailp->xa_lock);
+	return error;
+}
+
+/*
+ * A cancel occurs when the mount has failed and we're bailing out. Release all
+ * pending EFIs so they don't pin the AIL.
+ */
+STATIC int
+xlog_recover_cancel_efis(
+	struct xlog		*log)
+{
+	struct xfs_log_item	*lip;
+	struct xfs_efi_log_item	*efip;
+	int			error = 0;
+	struct xfs_ail_cursor	cur;
+	struct xfs_ail		*ailp;
+
+	ailp = log->l_ailp;
+	spin_lock(&ailp->xa_lock);
+	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
+	while (lip != NULL) {
+		/*
+		 * We're done when we see something other than an EFI.
+		 * There should be no EFIs left in the AIL now.
+		 */
+		if (lip->li_type != XFS_LI_EFI) {
+#ifdef DEBUG
+			for (; lip; lip = xfs_trans_ail_cursor_next(ailp, &cur))
+				ASSERT(lip->li_type != XFS_LI_EFI);
+#endif
+			break;
+		}
+
+		efip = container_of(lip, struct xfs_efi_log_item, efi_item);
+
+		spin_unlock(&ailp->xa_lock);
+		xfs_efi_release(efip);
+		spin_lock(&ailp->xa_lock);
+
+		lip = xfs_trans_ail_cursor_next(ailp, &cur);
+	}
+
 	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->xa_lock);
 	return error;
@@ -4610,6 +4654,17 @@ xlog_recover_finish(
 	return 0;
 }
 
+int
+xlog_recover_cancel(
+	struct xlog	*log)
+{
+	int		error = 0;
+
+	if (log->l_flags & XLOG_RECOVERY_NEEDED)
+		error = xlog_recover_cancel_efis(log);
+
+	return error;
+}
 
 #if defined(DEBUG)
 /*
