@@ -486,7 +486,7 @@ static struct snd_pcm_ops pcm_ops = {
 };
 
 
-int split_arg_list(char *buf, char **card_name, char **pcm_format)
+static int split_arg_list(char *buf, char **card_name, char **pcm_format)
 {
 	*card_name = strsep(&buf, ".");
 	if (!*card_name)
@@ -497,7 +497,8 @@ int split_arg_list(char *buf, char **card_name, char **pcm_format)
 	return 0;
 }
 
-int audio_set_pcm_format(char *pcm_format, struct most_channel_config *cfg)
+static int audio_set_pcm_format(char *pcm_format,
+				struct most_channel_config *cfg)
 {
 	if (!strcmp(pcm_format, "1x8")) {
 		if (cfg->subbuffer_size != 1)
