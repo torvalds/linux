@@ -412,7 +412,6 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel) {
-		pr_info("failed to alloc channel object\n");
 		retval = -ENOMEM;
 		goto error_alloc_channel;
 	}
