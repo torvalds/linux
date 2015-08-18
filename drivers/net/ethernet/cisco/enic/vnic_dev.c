@@ -1089,8 +1089,8 @@ EXPORT_SYMBOL(vnic_dev_get_pdev);
 
 int vnic_devcmd_init(struct vnic_dev *vdev)
 {
+	void __iomem *res;
 	int err;
-	void *res;
 
 	res = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD2, 0);
 	if (res) {
