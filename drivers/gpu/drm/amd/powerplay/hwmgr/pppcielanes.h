@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2015 Advanced Micro Devices, Inc.
  *
@@ -21,20 +20,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef PP_DEBUG_H
-#define PP_DEBUG_H
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
+#ifndef PP_PCIELANES_H
+#define PP_PCIELANES_H
 
-#define PP_ASSERT_WITH_CODE(cond, msg, code)	\
-	do {					\
-		if (!(cond)) {			\
-			printk("%s\n", msg);	\
-			code;			\
-		}				\
-	} while (0)
+extern uint8_t encode_pcie_lane_width(uint32_t num_lanes);
+extern uint8_t decode_pcie_lane_width(uint32_t num_lanes);
 
 #endif
 

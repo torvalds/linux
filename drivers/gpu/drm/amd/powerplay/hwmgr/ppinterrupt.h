@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2015 Advanced Micro Devices, Inc.
  *
@@ -21,20 +20,23 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef PP_DEBUG_H
-#define PP_DEBUG_H
+#ifndef PP_INTERRUPT_H
+#define PP_INTERRUPT_H
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
+/**
+ * The type of the interrupt callback functions in PowerPlay
+ */
+typedef void (*pp_interrupt_callback) (void *context, uint32_t ul_context_data);
 
-#define PP_ASSERT_WITH_CODE(cond, msg, code)	\
-	do {					\
-		if (!(cond)) {			\
-			printk("%s\n", msg);	\
-			code;			\
-		}				\
-	} while (0)
+/**
+ * Event Manager action chain list information
+ */
+struct pp_interrupt_registration_info {
+	pp_interrupt_callback callback;  /* Pointer to callback function */
+	void *context;                  /* Pointer to callback function context */
+	uint32_t *interrupt_enable_id;    /* Registered interrupt id */
+};
+
+typedef struct pp_interrupt_registration_info pp_interrupt_registration_info;
 
 #endif
-

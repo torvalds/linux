@@ -28,6 +28,7 @@
 #include "pp_instance.h"
 #include "hardwaremanager.h"
 #include "pp_power_source.h"
+#include "hwmgr_ppt.h"
 
 struct pp_instance;
 struct pp_hwmgr;
@@ -400,7 +401,24 @@ struct phm_clock_and_voltage_limits {
 	uint16_t vddgfx;
 };
 
+/* Structure to hold PPTable information */
 
+struct phm_ppt_v1_information {
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_sclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_mclk;
+	struct phm_clock_array *valid_sclk_values;
+	struct phm_clock_array *valid_mclk_values;
+	struct phm_clock_and_voltage_limits max_clock_voltage_on_dc;
+	struct phm_clock_and_voltage_limits max_clock_voltage_on_ac;
+	struct phm_clock_voltage_dependency_table *vddc_dep_on_dal_pwrl;
+	struct phm_ppm_table *ppm_parameter_table;
+	struct phm_cac_tdp_table *cac_dtp_table;
+	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_dep_table;
+	struct phm_ppt_v1_voltage_lookup_table *vddc_lookup_table;
+	struct phm_ppt_v1_voltage_lookup_table *vddgfx_lookup_table;
+	struct phm_ppt_v1_pcie_table *pcie_table;
+	uint16_t us_ulv_voltage_offset;
+};
 
 struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_sclk;
@@ -434,6 +452,70 @@ struct phm_dynamic_state_info {
 	struct phm_vq_budgeting_table		  		  *vq_budgeting_table;
 };
 
+struct pp_fan_info {
+	bool bNoFan;
+	uint8_t   ucTachometerPulsesPerRevolution;
+	uint32_t   ulMinRPM;
+	uint32_t   ulMaxRPM;
+};
+
+struct pp_advance_fan_control_parameters {
+	uint16_t  usTMin;                          /* The temperature, in 0.01 centigrades, below which we just run at a minimal PWM. */
+	uint16_t  usTMed;                          /* The middle temperature where we change slopes. */
+	uint16_t  usTHigh;                         /* The high temperature for setting the second slope. */
+	uint16_t  usPWMMin;                        /* The minimum PWM value in percent (0.01% increments). */
+	uint16_t  usPWMMed;                        /* The PWM value (in percent) at TMed. */
+	uint16_t  usPWMHigh;                       /* The PWM value at THigh. */
+	uint8_t   ucTHyst;                         /* Temperature hysteresis. Integer. */
+	uint32_t   ulCycleDelay;                   /* The time between two invocations of the fan control routine in microseconds. */
+	uint16_t  usTMax;                          /* The max temperature */
+	uint8_t   ucFanControlMode;
+	uint16_t  usFanPWMMinLimit;
+	uint16_t  usFanPWMMaxLimit;
+	uint16_t  usFanPWMStep;
+	uint16_t  usDefaultMaxFanPWM;
+	uint16_t  usFanOutputSensitivity;
+	uint16_t  usDefaultFanOutputSensitivity;
+	uint16_t  usMaxFanPWM;                     /* The max Fan PWM value for Fuzzy Fan Control feature */
+	uint16_t  usFanRPMMinLimit;                /* Minimum limit range in percentage, need to calculate based on minRPM/MaxRpm */
+	uint16_t  usFanRPMMaxLimit;                /* Maximum limit range in percentage, usually set to 100% by default */
+	uint16_t  usFanRPMStep;                    /* Step increments/decerements, in percent */
+	uint16_t  usDefaultMaxFanRPM;              /* The max Fan RPM value for Fuzzy Fan Control feature, default from PPTable */
+	uint16_t  usMaxFanRPM;                     /* The max Fan RPM value for Fuzzy Fan Control feature, user defined */
+	uint16_t  usFanCurrentLow;                 /* Low current */
+	uint16_t  usFanCurrentHigh;                /* High current */
+	uint16_t  usFanRPMLow;                     /* Low RPM */
+	uint16_t  usFanRPMHigh;                    /* High RPM */
+	uint32_t   ulMinFanSCLKAcousticLimit;      /* Minimum Fan Controller SCLK Frequency Acoustic Limit. */
+	uint8_t   ucTargetTemperature;             /* Advanced fan controller target temperature. */
+	uint8_t   ucMinimumPWMLimit;               /* The minimum PWM that the advanced fan controller can set.  This should be set to the highest PWM that will run the fan at its lowest RPM. */
+	uint16_t  usFanGainEdge;                   /* The following is added for Fiji */
+	uint16_t  usFanGainHotspot;
+	uint16_t  usFanGainLiquid;
+	uint16_t  usFanGainVrVddc;
+	uint16_t  usFanGainVrMvdd;
+	uint16_t  usFanGainPlx;
+	uint16_t  usFanGainHbm;
+};
+
+struct pp_thermal_controller_info {
+	uint8_t ucType;
+	uint8_t ucI2cLine;
+	uint8_t ucI2cAddress;
+	struct pp_fan_info fanInfo;
+	struct pp_advance_fan_control_parameters advanceFanControlParameters;
+};
+
+struct phm_microcode_version_info {
+	uint32_t SMC;
+	uint32_t DMCU;
+	uint32_t MC;
+	uint32_t NB;
+};
+
+/**
+ * The main hardware manager structure.
+ */
 struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
@@ -466,6 +548,8 @@ struct pp_hwmgr {
 	struct pp_power_state    *ps;
         enum pp_power_source  power_source;
 	uint32_t num_ps;
+	struct pp_thermal_controller_info thermal_controller;
+	struct phm_microcode_version_info microcode_version_info;
 	uint32_t ps_size;
 	struct pp_power_state    *current_ps;
 	struct pp_power_state    *request_ps;
@@ -487,7 +571,13 @@ extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 extern int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
 				uint32_t index, uint32_t value, uint32_t mask);
 
+extern uint32_t phm_read_indirect_register(struct pp_hwmgr *hwmgr,
+		uint32_t indirect_port, uint32_t index);
 
+extern void phm_write_indirect_register(struct pp_hwmgr *hwmgr,
+		uint32_t indirect_port,
+		uint32_t index,
+		uint32_t value);
 
 extern void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port,

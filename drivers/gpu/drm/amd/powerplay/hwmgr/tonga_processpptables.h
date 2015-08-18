@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2015 Advanced Micro Devices, Inc.
  *
@@ -21,20 +20,16 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef PP_DEBUG_H
-#define PP_DEBUG_H
+#ifndef TONGA_PROCESSPPTABLES_H
+#define TONGA_PROCESSPPTABLES_H
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
+#include "hwmgr.h"
 
-#define PP_ASSERT_WITH_CODE(cond, msg, code)	\
-	do {					\
-		if (!(cond)) {			\
-			printk("%s\n", msg);	\
-			code;			\
-		}				\
-	} while (0)
+extern const struct pp_table_func tonga_pptable_funcs;
+extern int tonga_get_number_of_powerplay_table_entries(struct pp_hwmgr *hwmgr);
+extern int tonga_get_powerplay_table_entry(struct pp_hwmgr *hwmgr, uint32_t entry_index,
+		struct pp_power_state *power_state, int (*call_back_func)(struct pp_hwmgr *, void *,
+				struct pp_power_state *, void *, uint32_t));
 
 #endif
 

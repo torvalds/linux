@@ -219,12 +219,12 @@ enum PHM_PerformanceLevelDesignation {
 typedef enum PHM_PerformanceLevelDesignation PHM_PerformanceLevelDesignation;
 
 struct PHM_PerformanceLevel {
-	uint32_t    coreClock;
-	uint32_t    memory_clock;
-	uint32_t  vddc;
-	uint32_t  vddci;
-	uint32_t    nonLocalMemoryFreq;
-	uint32_t nonLocalMemoryWidth;
+    uint32_t    coreClock;
+    uint32_t    memory_clock;
+    uint32_t  vddc;
+    uint32_t  vddci;
+    uint32_t    nonLocalMemoryFreq;
+    uint32_t nonLocalMemoryWidth;
 };
 
 typedef struct PHM_PerformanceLevel PHM_PerformanceLevel;
@@ -251,9 +251,9 @@ static inline bool phm_cap_enabled(const uint32_t *caps, enum phm_platform_caps 
 
 #define PP_PCIEGenInvalid  0xffff
 enum PP_PCIEGen {
-	PP_PCIEGen1 = 0,                /* PCIE 1.0 - Transfer rate of 2.5 GT/s */
-	PP_PCIEGen2,                    /*PCIE 2.0 - Transfer rate of 5.0 GT/s */
-	PP_PCIEGen3                     /*PCIE 3.0 - Transfer rate of 8.0 GT/s */
+    PP_PCIEGen1 = 0,                /* PCIE 1.0 - Transfer rate of 2.5 GT/s */
+    PP_PCIEGen2,                    /*PCIE 2.0 - Transfer rate of 5.0 GT/s */
+    PP_PCIEGen3                     /*PCIE 3.0 - Transfer rate of 8.0 GT/s */
 };
 
 typedef enum PP_PCIEGen PP_PCIEGen;

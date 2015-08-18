@@ -2,7 +2,10 @@
 subdir-ccflags-y += -Iinclude/drm  \
 		-Idrivers/gpu/drm/amd/powerplay/inc/  \
 		-Idrivers/gpu/drm/amd/include/asic_reg  \
-		-Idrivers/gpu/drm/amd/include
+		-Idrivers/gpu/drm/amd/include  \
+		-Idrivers/gpu/drm/amd/powerplay/smumgr\
+		-Idrivers/gpu/drm/amd/powerplay/hwmgr \
+		-Idrivers/gpu/drm/amd/powerplay/eventmgr
 
 AMD_PP_PATH = ../powerplay
 
