@@ -286,10 +286,17 @@ static int ip_tun_encap_nlsize(struct lwtunnel_state *lwtstate)
 		+ nla_total_size(2);	/* LWTUNNEL_IP_FLAGS */
 }
 
+static int ip_tun_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
+{
+	return memcmp(lwt_tun_info(a), lwt_tun_info(b),
+		      sizeof(struct ip_tunnel_info));
+}
+
 static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
 	.build_state = ip_tun_build_state,
 	.fill_encap = ip_tun_fill_encap_info,
 	.get_encap_size = ip_tun_encap_nlsize,
+	.cmp_encap = ip_tun_cmp_encap,
 };
 
 void __init ip_tunnel_core_init(void)
