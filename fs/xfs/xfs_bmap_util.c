@@ -112,24 +112,17 @@ xfs_bmap_finish(
 		return error;
 	}
 
+	/*
+	 * Get an EFD and free each extent in the list, logging to the EFD in
+	 * the process. The remaining bmap free list is cleaned up by the caller
+	 * on error.
+	 */
 	efd = xfs_trans_get_efd(*tp, efi, flist->xbf_count);
 	for (free = flist->xbf_first; free != NULL; free = next) {
 		next = free->xbfi_next;
 
-		/*
-		 * Free the extent and log the EFD to dirty the transaction
-		 * before handling errors. This ensures that the transaction is
-		 * aborted, which:
-		 *
-		 * 1.) releases the EFI and frees the EFD
-		 * 2.) shuts down the filesystem
-		 *
-		 * The bmap free list is cleaned up at a higher level.
-		 */
-		error = xfs_free_extent(*tp, free->xbfi_startblock,
-					free->xbfi_blockcount);
-		xfs_trans_log_efd_extent(*tp, efd, free->xbfi_startblock,
-					 free->xbfi_blockcount);
+		error = xfs_trans_free_extent(*tp, efd, free->xbfi_startblock,
+					      free->xbfi_blockcount);
 		if (error)
 			return error;
 

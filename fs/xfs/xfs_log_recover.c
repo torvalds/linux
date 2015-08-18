@@ -3752,11 +3752,11 @@ xlog_recover_process_efi(
 
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
 		extp = &(efip->efi_format.efi_extents[i]);
-		error = xfs_free_extent(tp, extp->ext_start, extp->ext_len);
+		error = xfs_trans_free_extent(tp, efdp, extp->ext_start,
+					      extp->ext_len);
 		if (error)
 			goto abort_error;
-		xfs_trans_log_efd_extent(tp, efdp, extp->ext_start,
-					 extp->ext_len);
+
 	}
 
 	set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
