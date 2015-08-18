@@ -90,7 +90,7 @@ static void lowpan_setup(struct net_device *dev)
 	dev->hard_header_len	= 2 + 1 + 20 + 14;
 	dev->needed_tailroom	= 2; /* FCS */
 	dev->mtu		= IPV6_MIN_MTU;
-	dev->tx_queue_len	= 0;
+	dev->priv_flags		|= IFF_NO_QUEUE;
 	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;
 
