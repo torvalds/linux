@@ -3032,6 +3032,11 @@ xlog_recover_do_icreate_pass2(
 	unsigned int		count;
 	unsigned int		isize;
 	xfs_agblock_t		length;
+	int			blks_per_cluster;
+	int			bb_per_cluster;
+	int			cancel_count;
+	int			nbufs;
+	int			i;
 
 	icl = (struct xfs_icreate_log *)item->ri_buf[0].i_addr;
 	if (icl->icl_type != XFS_LI_ICREATE) {
@@ -3090,25 +3095,45 @@ xlog_recover_do_icreate_pass2(
 	}
 
 	/*
-	 * Inode buffers can be freed. Do not replay the inode initialisation as
-	 * we could be overwriting something written after this inode buffer was
-	 * cancelled.
-	 *
-	 * XXX: we need to iterate all buffers and only init those that are not
-	 * cancelled. I think that a more fine grained factoring of
-	 * xfs_ialloc_inode_init may be appropriate here to enable this to be
-	 * done easily.
+	 * The icreate transaction can cover multiple cluster buffers and these
+	 * buffers could have been freed and reused. Check the individual
+	 * buffers for cancellation so we don't overwrite anything written after
+	 * a cancellation.
 	 */
-	if (xlog_check_buffer_cancelled(log,
-			XFS_AGB_TO_DADDR(mp, agno, agbno), length, 0)) {
+	blks_per_cluster = xfs_icluster_size_fsb(mp);
+	bb_per_cluster = XFS_FSB_TO_BB(mp, blks_per_cluster);
+	nbufs = length / blks_per_cluster;
+	for (i = 0, cancel_count = 0; i < nbufs; i++) {
+		xfs_daddr_t	daddr;
+
+		daddr = XFS_AGB_TO_DADDR(mp, agno,
+					 agbno + i * blks_per_cluster);
+		if (xlog_check_buffer_cancelled(log, daddr, bb_per_cluster, 0))
+			cancel_count++;
+	}
+
+	/*
+	 * We currently only use icreate for a single allocation at a time. This
+	 * means we should expect either all or none of the buffers to be
+	 * cancelled. Be conservative and skip replay if at least one buffer is
+	 * cancelled, but warn the user that something is awry if the buffers
+	 * are not consistent.
+	 *
+	 * XXX: This must be refined to only skip cancelled clusters once we use
+	 * icreate for multiple chunk allocations.
+	 */
+	ASSERT(!cancel_count || cancel_count == nbufs);
+	if (cancel_count) {
+		if (cancel_count != nbufs)
+			xfs_warn(mp,
+	"WARNING: partial inode chunk cancellation, skipped icreate.");
 		trace_xfs_log_recover_icreate_cancel(log, icl);
 		return 0;
 	}
 
 	trace_xfs_log_recover_icreate_recover(log, icl);
-	xfs_ialloc_inode_init(mp, NULL, buffer_list, count, agno, agbno, length,
-			      be32_to_cpu(icl->icl_gen));
-	return 0;
+	return xfs_ialloc_inode_init(mp, NULL, buffer_list, count, agno, agbno,
+				     length, be32_to_cpu(icl->icl_gen));
 }
 
 STATIC void
