@@ -539,9 +539,10 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
 		seq_printf(sf, "%s %s %llu\n", dname, rwstr[i],
-			   (unsigned long long)rwstat->cnt[i]);
+			   (unsigned long long)atomic64_read(&rwstat->aux_cnt[i]));
 
-	v = rwstat->cnt[BLKG_RWSTAT_READ] + rwstat->cnt[BLKG_RWSTAT_WRITE];
+	v = atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_READ]) +
+		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]);
 	seq_printf(sf, "%s Total %llu\n", dname, (unsigned long long)v);
 	return v;
 }
@@ -643,8 +644,9 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkg_policy_data *pd,
 		tmp = blkg_rwstat_read(rwstat);
 
 		for (i = 0; i < BLKG_RWSTAT_NR; i++)
-			sum.cnt[i] += tmp.cnt[i] +
-				atomic64_read(&rwstat->aux_cnt[i]);
+			atomic64_add(atomic64_read(&tmp.aux_cnt[i]) +
+				     atomic64_read(&rwstat->aux_cnt[i]),
+				     &sum.aux_cnt[i]);
 	}
 	rcu_read_unlock();
 

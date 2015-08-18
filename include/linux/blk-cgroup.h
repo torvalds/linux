@@ -14,11 +14,14 @@
  */
 
 #include <linux/cgroup.h>
-#include <linux/u64_stats_sync.h>
+#include <linux/percpu_counter.h>
 #include <linux/seq_file.h>
 #include <linux/radix-tree.h>
 #include <linux/blkdev.h>
 #include <linux/atomic.h>
+
+/* percpu_counter batch for blkg_[rw]stats, per-cpu drift doesn't matter */
+#define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
 
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
@@ -55,17 +58,16 @@ struct blkcg {
 
 /*
  * blkg_[rw]stat->aux_cnt is excluded for local stats but included for
- * recursive.  Used to carry stats of dead children.
+ * recursive.  Used to carry stats of dead children, and, for blkg_rwstat,
+ * to carry result values from read and sum operations.
  */
 struct blkg_stat {
-	struct u64_stats_sync		syncp;
-	uint64_t			cnt;
+	struct percpu_counter		cpu_cnt;
 	atomic64_t			aux_cnt;
 };
 
 struct blkg_rwstat {
-	struct u64_stats_sync		syncp;
-	uint64_t			cnt[BLKG_RWSTAT_NR];
+	struct percpu_counter		cpu_cnt[BLKG_RWSTAT_NR];
 	atomic64_t			aux_cnt[BLKG_RWSTAT_NR];
 };
 
@@ -486,10 +488,21 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 #define blk_queue_for_each_rl(rl, q)	\
 	for ((rl) = &(q)->root_rl; (rl); (rl) = __blk_queue_next_rl((rl), (q)))
 
-static inline void blkg_stat_init(struct blkg_stat *stat)
+static inline int blkg_stat_init(struct blkg_stat *stat, gfp_t gfp)
 {
-	u64_stats_init(&stat->syncp);
+	int ret;
+
+	ret = percpu_counter_init(&stat->cpu_cnt, 0, gfp);
+	if (ret)
+		return ret;
+
 	atomic64_set(&stat->aux_cnt, 0);
+	return 0;
+}
+
+static inline void blkg_stat_exit(struct blkg_stat *stat)
+{
+	percpu_counter_destroy(&stat->cpu_cnt);
 }
 
 /**
@@ -497,35 +510,21 @@ static inline void blkg_stat_init(struct blkg_stat *stat)
  * @stat: target blkg_stat
  * @val: value to add
  *
- * Add @val to @stat.  The caller is responsible for synchronizing calls to
- * this function.
+ * Add @val to @stat.  The caller must ensure that IRQ on the same CPU
+ * don't re-enter this function for the same counter.
  */
 static inline void blkg_stat_add(struct blkg_stat *stat, uint64_t val)
 {
-	u64_stats_update_begin(&stat->syncp);
-	stat->cnt += val;
-	u64_stats_update_end(&stat->syncp);
+	__percpu_counter_add(&stat->cpu_cnt, val, BLKG_STAT_CPU_BATCH);
 }
 
 /**
  * blkg_stat_read - read the current value of a blkg_stat
  * @stat: blkg_stat to read
- *
- * Read the current value of @stat.  The returned value doesn't include the
- * aux count.  This function can be called without synchroniztion and takes
- * care of u64 atomicity.
  */
 static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
 {
-	unsigned int start;
-	uint64_t v;
-
-	do {
-		start = u64_stats_fetch_begin_irq(&stat->syncp);
-		v = stat->cnt;
-	} while (u64_stats_fetch_retry_irq(&stat->syncp, start));
-
-	return v;
+	return percpu_counter_sum_positive(&stat->cpu_cnt);
 }
 
 /**
@@ -534,7 +533,7 @@ static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
  */
 static inline void blkg_stat_reset(struct blkg_stat *stat)
 {
-	stat->cnt = 0;
+	percpu_counter_set(&stat->cpu_cnt, 0);
 	atomic64_set(&stat->aux_cnt, 0);
 }
 
@@ -552,14 +551,28 @@ static inline void blkg_stat_add_aux(struct blkg_stat *to,
 		     &to->aux_cnt);
 }
 
-static inline void blkg_rwstat_init(struct blkg_rwstat *rwstat)
+static inline int blkg_rwstat_init(struct blkg_rwstat *rwstat, gfp_t gfp)
+{
+	int i, ret;
+
+	for (i = 0; i < BLKG_RWSTAT_NR; i++) {
+		ret = percpu_counter_init(&rwstat->cpu_cnt[i], 0, gfp);
+		if (ret) {
+			while (--i >= 0)
+				percpu_counter_destroy(&rwstat->cpu_cnt[i]);
+			return ret;
+		}
+		atomic64_set(&rwstat->aux_cnt[i], 0);
+	}
+	return 0;
+}
+
+static inline void blkg_rwstat_exit(struct blkg_rwstat *rwstat)
 {
 	int i;
 
-	u64_stats_init(&rwstat->syncp);
-
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		atomic64_set(&rwstat->aux_cnt[i], 0);
+		percpu_counter_destroy(&rwstat->cpu_cnt[i]);
 }
 
 /**
@@ -574,39 +587,38 @@ static inline void blkg_rwstat_init(struct blkg_rwstat *rwstat)
 static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
 				   int rw, uint64_t val)
 {
-	u64_stats_update_begin(&rwstat->syncp);
+	struct percpu_counter *cnt;
 
 	if (rw & REQ_WRITE)
-		rwstat->cnt[BLKG_RWSTAT_WRITE] += val;
+		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_WRITE];
 	else
-		rwstat->cnt[BLKG_RWSTAT_READ] += val;
-	if (rw & REQ_SYNC)
-		rwstat->cnt[BLKG_RWSTAT_SYNC] += val;
-	else
-		rwstat->cnt[BLKG_RWSTAT_ASYNC] += val;
+		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_READ];
 
-	u64_stats_update_end(&rwstat->syncp);
+	__percpu_counter_add(cnt, val, BLKG_STAT_CPU_BATCH);
+
+	if (rw & REQ_SYNC)
+		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_SYNC];
+	else
+		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_ASYNC];
+
+	__percpu_counter_add(cnt, val, BLKG_STAT_CPU_BATCH);
 }
 
 /**
  * blkg_rwstat_read - read the current values of a blkg_rwstat
  * @rwstat: blkg_rwstat to read
  *
- * Read the current snapshot of @rwstat and return it as the return value.
- * This function can be called without synchronization and takes care of
- * u64 atomicity.
+ * Read the current snapshot of @rwstat and return it in the aux counts.
  */
 static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
 {
-	unsigned int start;
-	struct blkg_rwstat tmp;
+	struct blkg_rwstat result;
+	int i;
 
-	do {
-		start = u64_stats_fetch_begin_irq(&rwstat->syncp);
-		tmp = *rwstat;
-	} while (u64_stats_fetch_retry_irq(&rwstat->syncp, start));
-
-	return tmp;
+	for (i = 0; i < BLKG_RWSTAT_NR; i++)
+		atomic64_set(&result.aux_cnt[i],
+			     percpu_counter_sum_positive(&rwstat->cpu_cnt[i]));
+	return result;
 }
 
 /**
@@ -621,7 +633,8 @@ static inline uint64_t blkg_rwstat_total(struct blkg_rwstat *rwstat)
 {
 	struct blkg_rwstat tmp = blkg_rwstat_read(rwstat);
 
-	return tmp.cnt[BLKG_RWSTAT_READ] + tmp.cnt[BLKG_RWSTAT_WRITE];
+	return atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_READ]) +
+		atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_WRITE]);
 }
 
 /**
@@ -632,10 +645,10 @@ static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 {
 	int i;
 
-	memset(rwstat->cnt, 0, sizeof(rwstat->cnt));
-
-	for (i = 0; i < BLKG_RWSTAT_NR; i++)
+	for (i = 0; i < BLKG_RWSTAT_NR; i++) {
+		percpu_counter_set(&rwstat->cpu_cnt[i], 0);
 		atomic64_set(&rwstat->aux_cnt[i], 0);
+	}
 }
 
 /**
@@ -652,7 +665,8 @@ static inline void blkg_rwstat_add_aux(struct blkg_rwstat *to,
 	int i;
 
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		atomic64_add(v.cnt[i] + atomic64_read(&from->aux_cnt[i]),
+		atomic64_add(atomic64_read(&v.aux_cnt[i]) +
+			     atomic64_read(&from->aux_cnt[i]),
 			     &to->aux_cnt[i]);
 }
 

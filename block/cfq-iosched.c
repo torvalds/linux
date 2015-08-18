@@ -1542,27 +1542,55 @@ static void cfq_init_cfqg_base(struct cfq_group *cfqg)
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static void cfqg_stats_init(struct cfqg_stats *stats)
+static void cfqg_stats_exit(struct cfqg_stats *stats)
 {
-	blkg_rwstat_init(&stats->service_bytes);
-	blkg_rwstat_init(&stats->serviced);
-	blkg_rwstat_init(&stats->merged);
-	blkg_rwstat_init(&stats->service_time);
-	blkg_rwstat_init(&stats->wait_time);
-	blkg_rwstat_init(&stats->queued);
+	blkg_rwstat_exit(&stats->service_bytes);
+	blkg_rwstat_exit(&stats->serviced);
+	blkg_rwstat_exit(&stats->merged);
+	blkg_rwstat_exit(&stats->service_time);
+	blkg_rwstat_exit(&stats->wait_time);
+	blkg_rwstat_exit(&stats->queued);
 
-	blkg_stat_init(&stats->sectors);
-	blkg_stat_init(&stats->time);
+	blkg_stat_exit(&stats->sectors);
+	blkg_stat_exit(&stats->time);
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	blkg_stat_exit(&stats->unaccounted_time);
+	blkg_stat_exit(&stats->avg_queue_size_sum);
+	blkg_stat_exit(&stats->avg_queue_size_samples);
+	blkg_stat_exit(&stats->dequeue);
+	blkg_stat_exit(&stats->group_wait_time);
+	blkg_stat_exit(&stats->idle_time);
+	blkg_stat_exit(&stats->empty_time);
+#endif
+}
+
+static int cfqg_stats_init(struct cfqg_stats *stats, gfp_t gfp)
+{
+	if (blkg_rwstat_init(&stats->service_bytes, gfp) ||
+	    blkg_rwstat_init(&stats->serviced, gfp) ||
+	    blkg_rwstat_init(&stats->merged, gfp) ||
+	    blkg_rwstat_init(&stats->service_time, gfp) ||
+	    blkg_rwstat_init(&stats->wait_time, gfp) ||
+	    blkg_rwstat_init(&stats->queued, gfp) ||
+
+	    blkg_stat_init(&stats->sectors, gfp) ||
+	    blkg_stat_init(&stats->time, gfp))
+		goto err;
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-	blkg_stat_init(&stats->unaccounted_time);
-	blkg_stat_init(&stats->avg_queue_size_sum);
-	blkg_stat_init(&stats->avg_queue_size_samples);
-	blkg_stat_init(&stats->dequeue);
-	blkg_stat_init(&stats->group_wait_time);
-	blkg_stat_init(&stats->idle_time);
-	blkg_stat_init(&stats->empty_time);
+	if (blkg_stat_init(&stats->unaccounted_time, gfp) ||
+	    blkg_stat_init(&stats->avg_queue_size_sum, gfp) ||
+	    blkg_stat_init(&stats->avg_queue_size_samples, gfp) ||
+	    blkg_stat_init(&stats->dequeue, gfp) ||
+	    blkg_stat_init(&stats->group_wait_time, gfp) ||
+	    blkg_stat_init(&stats->idle_time, gfp) ||
+	    blkg_stat_init(&stats->empty_time, gfp))
+		goto err;
 #endif
+	return 0;
+err:
+	cfqg_stats_exit(stats);
+	return -ENOMEM;
 }
 
 static struct blkcg_policy_data *cfq_cpd_alloc(gfp_t gfp)
@@ -1602,7 +1630,10 @@ static struct blkg_policy_data *cfq_pd_alloc(gfp_t gfp, int node)
 		return NULL;
 
 	cfq_init_cfqg_base(cfqg);
-	cfqg_stats_init(&cfqg->stats);
+	if (cfqg_stats_init(&cfqg->stats, gfp)) {
+		kfree(cfqg);
+		return NULL;
+	}
 
 	return &cfqg->pd;
 }
@@ -1642,7 +1673,10 @@ static void cfq_pd_offline(struct blkg_policy_data *pd)
 
 static void cfq_pd_free(struct blkg_policy_data *pd)
 {
-	return kfree(pd);
+	struct cfq_group *cfqg = pd_to_cfqg(pd);
+
+	cfqg_stats_exit(&cfqg->stats);
+	return kfree(cfqg);
 }
 
 static void cfq_pd_reset_stats(struct blkg_policy_data *pd)

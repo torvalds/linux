@@ -83,14 +83,6 @@ enum tg_state_flags {
 
 #define rb_entry_tg(node)	rb_entry((node), struct throtl_grp, rb_node)
 
-/* Per-cpu group stats */
-struct tg_stats_cpu {
-	/* total bytes transferred */
-	struct blkg_rwstat		service_bytes;
-	/* total IOs serviced, post merge */
-	struct blkg_rwstat		serviced;
-};
-
 struct throtl_grp {
 	/* must be the first member */
 	struct blkg_policy_data pd;
@@ -142,8 +134,10 @@ struct throtl_grp {
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
 
-	/* Per cpu stats pointer */
-	struct tg_stats_cpu __percpu *stats_cpu;
+	/* total bytes transferred */
+	struct blkg_rwstat		service_bytes;
+	/* total IOs serviced, post merge */
+	struct blkg_rwstat		serviced;
 };
 
 struct throtl_data
@@ -337,17 +331,15 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq)
 static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
 {
 	struct throtl_grp *tg;
-	int rw, cpu;
+	int rw;
 
 	tg = kzalloc_node(sizeof(*tg), gfp, node);
 	if (!tg)
-		return NULL;
+		goto err;
 
-	tg->stats_cpu = alloc_percpu_gfp(struct tg_stats_cpu, gfp);
-	if (!tg->stats_cpu) {
-		kfree(tg);
-		return NULL;
-	}
+	if (blkg_rwstat_init(&tg->service_bytes, gfp) ||
+	    blkg_rwstat_init(&tg->serviced, gfp))
+		goto err_free_tg;
 
 	throtl_service_queue_init(&tg->service_queue);
 
@@ -362,14 +354,14 @@ static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
 	tg->iops[READ] = -1;
 	tg->iops[WRITE] = -1;
 
-	for_each_possible_cpu(cpu) {
-		struct tg_stats_cpu *stats_cpu = per_cpu_ptr(tg->stats_cpu, cpu);
-
-		blkg_rwstat_init(&stats_cpu->service_bytes);
-		blkg_rwstat_init(&stats_cpu->serviced);
-	}
-
 	return &tg->pd;
+
+err_free_tg:
+	blkg_rwstat_exit(&tg->serviced);
+	blkg_rwstat_exit(&tg->service_bytes);
+	kfree(tg);
+err:
+	return NULL;
 }
 
 static void throtl_pd_init(struct blkg_policy_data *pd)
@@ -427,21 +419,17 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
 	struct throtl_grp *tg = pd_to_tg(pd);
 
 	del_timer_sync(&tg->service_queue.pending_timer);
-	free_percpu(tg->stats_cpu);
+	blkg_rwstat_exit(&tg->serviced);
+	blkg_rwstat_exit(&tg->service_bytes);
 	kfree(tg);
 }
 
 static void throtl_pd_reset_stats(struct blkg_policy_data *pd)
 {
 	struct throtl_grp *tg = pd_to_tg(pd);
-	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		struct tg_stats_cpu *sc = per_cpu_ptr(tg->stats_cpu, cpu);
-
-		blkg_rwstat_reset(&sc->service_bytes);
-		blkg_rwstat_reset(&sc->serviced);
-	}
+	blkg_rwstat_reset(&tg->service_bytes);
+	blkg_rwstat_reset(&tg->serviced);
 }
 
 static struct throtl_grp *
@@ -855,7 +843,6 @@ static void throtl_update_dispatch_stats(struct blkcg_gq *blkg, u64 bytes,
 					 int rw)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
-	struct tg_stats_cpu *stats_cpu;
 	unsigned long flags;
 
 	/*
@@ -865,10 +852,8 @@ static void throtl_update_dispatch_stats(struct blkcg_gq *blkg, u64 bytes,
 	 */
 	local_irq_save(flags);
 
-	stats_cpu = this_cpu_ptr(tg->stats_cpu);
-
-	blkg_rwstat_add(&stats_cpu->serviced, rw, 1);
-	blkg_rwstat_add(&stats_cpu->service_bytes, rw, bytes);
+	blkg_rwstat_add(&tg->serviced, rw, 1);
+	blkg_rwstat_add(&tg->service_bytes, rw, bytes);
 
 	local_irq_restore(flags);
 }
@@ -1176,27 +1161,9 @@ static void blk_throtl_dispatch_work_fn(struct work_struct *work)
 	}
 }
 
-static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
-				struct blkg_policy_data *pd, int off)
+static int tg_print_rwstat(struct seq_file *sf, void *v)
 {
-	struct throtl_grp *tg = pd_to_tg(pd);
-	struct blkg_rwstat rwstat = { }, tmp;
-	int i, cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct tg_stats_cpu *sc = per_cpu_ptr(tg->stats_cpu, cpu);
-
-		tmp = blkg_rwstat_read((void *)sc + off);
-		for (i = 0; i < BLKG_RWSTAT_NR; i++)
-			rwstat.cnt[i] += tmp.cnt[i];
-	}
-
-	return __blkg_prfill_rwstat(sf, pd, &rwstat);
-}
-
-static int tg_print_cpu_rwstat(struct seq_file *sf, void *v)
-{
-	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), tg_prfill_cpu_rwstat,
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), blkg_prfill_rwstat,
 			  &blkcg_policy_throtl, seq_cft(sf)->private, true);
 	return 0;
 }
@@ -1337,13 +1304,13 @@ static struct cftype throtl_files[] = {
 	},
 	{
 		.name = "throttle.io_service_bytes",
-		.private = offsetof(struct tg_stats_cpu, service_bytes),
-		.seq_show = tg_print_cpu_rwstat,
+		.private = offsetof(struct throtl_grp, service_bytes),
+		.seq_show = tg_print_rwstat,
 	},
 	{
 		.name = "throttle.io_serviced",
-		.private = offsetof(struct tg_stats_cpu, serviced),
-		.seq_show = tg_print_cpu_rwstat,
+		.private = offsetof(struct throtl_grp, serviced),
+		.seq_show = tg_print_rwstat,
 	},
 	{ }	/* terminate */
 };
