@@ -624,9 +624,8 @@ static int vrf_device_event(struct notifier_block *unused,
 		if (!vrf_ptr || netif_is_vrf(dev))
 			goto out;
 
-		vrf_dev = __dev_get_by_index(dev_net(dev), vrf_ptr->ifindex);
-		if (vrf_dev)
-			vrf_del_slave(vrf_dev, dev);
+		vrf_dev = netdev_master_upper_dev_get(dev);
+		vrf_del_slave(vrf_dev, dev);
 	}
 out:
 	return NOTIFY_DONE;
