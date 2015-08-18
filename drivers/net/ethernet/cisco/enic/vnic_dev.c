@@ -388,7 +388,7 @@ static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 
 	vdev->devcmd2->color = 1;
 	vdev->devcmd2->result_size = DEVCMD2_RING_SIZE;
-	err = vnic_wq_devcmd2_alloc(vdev, &vdev->devcmd2->wq, DEVCMD2_RING_SIZE,
+	err = enic_wq_devcmd2_alloc(vdev, &vdev->devcmd2->wq, DEVCMD2_RING_SIZE,
 				    DEVCMD2_DESC_SIZE);
 	if (err)
 		goto err_free_devcmd2;
@@ -400,7 +400,7 @@ static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 		return -ENODEV;
 	}
 
-	vnic_wq_init_start(&vdev->devcmd2->wq, 0, fetch_index, fetch_index, 0,
+	enic_wq_init_start(&vdev->devcmd2->wq, 0, fetch_index, fetch_index, 0,
 			   0);
 	vnic_wq_enable(&vdev->devcmd2->wq);
 

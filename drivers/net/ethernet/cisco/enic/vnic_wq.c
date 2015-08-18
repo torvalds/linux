@@ -114,7 +114,7 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 	return 0;
 }
 
-int vnic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+int enic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
 			  unsigned int desc_count, unsigned int desc_size)
 {
 	int err;
@@ -131,7 +131,7 @@ int vnic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
 	return err;
 }
 
-void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+void enic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
 			unsigned int fetch_index, unsigned int posted_index,
 			unsigned int error_interrupt_enable,
 			unsigned int error_interrupt_offset)
@@ -158,7 +158,7 @@ void vnic_wq_init(struct vnic_wq *wq, unsigned int cq_index,
 	unsigned int error_interrupt_enable,
 	unsigned int error_interrupt_offset)
 {
-	vnic_wq_init_start(wq, cq_index, 0, 0,
+	enic_wq_init_start(wq, cq_index, 0, 0,
 		error_interrupt_enable,
 		error_interrupt_offset);
 }
