@@ -839,7 +839,7 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 				  bool skip_if_busy)
 {
 	long nr_pages = base_work->nr_pages;
-	int next_blkcg_id = 0;
+	int next_memcg_id = 0;
 	struct bdi_writeback *wb;
 	struct wb_iter iter;
 
@@ -849,14 +849,14 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
 		return;
 restart:
 	rcu_read_lock();
-	bdi_for_each_wb(wb, bdi, &iter, next_blkcg_id) {
+	bdi_for_each_wb(wb, bdi, &iter, next_memcg_id) {
 		if (!wb_has_dirty_io(wb) ||
 		    (skip_if_busy && writeback_in_progress(wb)))
 			continue;
 
 		base_work->nr_pages = wb_split_bdi_pages(wb, nr_pages);
 		if (!wb_clone_and_queue_work(wb, base_work)) {
-			next_blkcg_id = wb->blkcg_css->id + 1;
+			next_memcg_id = wb->memcg_css->id + 1;
 			rcu_read_unlock();
 			wb_wait_for_single_work(bdi, base_work);
 			goto restart;
