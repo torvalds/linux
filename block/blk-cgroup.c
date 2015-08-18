@@ -1047,65 +1047,52 @@ EXPORT_SYMBOL_GPL(blkio_cgrp_subsys);
 int blkcg_activate_policy(struct request_queue *q,
 			  const struct blkcg_policy *pol)
 {
-	LIST_HEAD(pds);
+	struct blkg_policy_data *pd_prealloc = NULL;
 	struct blkcg_gq *blkg;
-	struct blkg_policy_data *pd, *nd;
-	int cnt = 0, ret;
+	int ret;
 
 	if (blkcg_policy_enabled(q, pol))
 		return 0;
 
-	/* count and allocate policy_data for all existing blkgs */
 	blk_queue_bypass_start(q);
-	spin_lock_irq(q->queue_lock);
-	list_for_each_entry(blkg, &q->blkg_list, q_node)
-		cnt++;
-	spin_unlock_irq(q->queue_lock);
-
-	/* allocate per-blkg policy data for all existing blkgs */
-	while (cnt--) {
-		pd = kzalloc_node(pol->pd_size, GFP_KERNEL, q->node);
-		if (!pd) {
+pd_prealloc:
+	if (!pd_prealloc) {
+		pd_prealloc = kzalloc_node(pol->pd_size, GFP_KERNEL, q->node);
+		if (!pd_prealloc) {
 			ret = -ENOMEM;
-			goto out_free;
+			goto out_bypass_end;
 		}
-		list_add_tail(&pd->alloc_node, &pds);
 	}
 
-	/*
-	 * Install the allocated pds and cpds. With @q bypassing, no new blkg
-	 * should have been created while the queue lock was dropped.
-	 */
 	spin_lock_irq(q->queue_lock);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
-		if (WARN_ON(list_empty(&pds))) {
-			/* umm... this shouldn't happen, just abort */
-			ret = -ENOMEM;
-			goto out_unlock;
-		}
-		pd = list_first_entry(&pds, struct blkg_policy_data, alloc_node);
-		list_del_init(&pd->alloc_node);
+		struct blkg_policy_data *pd;
 
-		/* grab blkcg lock too while installing @pd on @blkg */
-		spin_lock(&blkg->blkcg->lock);
+		if (blkg->pd[pol->plid])
+			continue;
+
+		pd = kzalloc_node(pol->pd_size, GFP_NOWAIT, q->node);
+		if (!pd)
+			swap(pd, pd_prealloc);
+		if (!pd) {
+			spin_unlock_irq(q->queue_lock);
+			goto pd_prealloc;
+		}
 
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
 		pd->plid = pol->plid;
 		pol->pd_init_fn(blkg);
-
-		spin_unlock(&blkg->blkcg->lock);
 	}
 
 	__set_bit(pol->plid, q->blkcg_pols);
 	ret = 0;
-out_unlock:
+
 	spin_unlock_irq(q->queue_lock);
-out_free:
+out_bypass_end:
 	blk_queue_bypass_end(q);
-	list_for_each_entry_safe(pd, nd, &pds, alloc_node)
-		kfree(pd);
+	kfree(pd_prealloc);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blkcg_activate_policy);
