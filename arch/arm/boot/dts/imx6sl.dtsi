@@ -914,6 +914,7 @@
 			ocotp: ocotp@021bc000 {
 				compatible = "fsl,imx6sl-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
+				clocks = <&clks IMX6SL_CLK_OCOTP>;
 			};
 
 			audmux: audmux@021d8000 {

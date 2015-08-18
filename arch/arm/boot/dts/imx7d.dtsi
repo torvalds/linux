@@ -579,13 +579,7 @@
 			};
 
 			ocotp: ocotp-ctrl@30350000 {
-				compatible = "syscon";
-				reg = <0x30350000 0x10000>;
-				clocks = <&clks IMX7D_OCOTP_CLK>;
-			};
-
-			ocotp-fuse@30350000 {
-				compatible = "fsl,imx7d-ocotp";
+				compatible = "fsl,imx7d-ocotp", "syscon";
 				reg = <0x30350000 0x10000>;
 				clocks = <&clks IMX7D_OCOTP_CLK>;
 			};

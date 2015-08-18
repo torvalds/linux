@@ -1033,7 +1033,7 @@
 			};
 
 			ocotp: ocotp@021bc000 {
-				compatible = "fsl,imx6sx-ocotp", "syscon";
+				compatible = "fsl,imx6sx-ocotp", "fsl,imx6q-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 				clocks = <&clks IMX6SX_CLK_OCOTP>;
 			};

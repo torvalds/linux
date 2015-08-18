@@ -1009,13 +1009,7 @@
 			};
 
 			ocotp: ocotp-ctrl@021bc000 {
-				compatible = "syscon";
-				reg = <0x021bc000 0x4000>;
-				clocks = <&clks IMX6UL_CLK_OCOTP>;
-			};
-
-			ocotp-fuse@021bc000 {
-				compatible = "fsl,imx6ul-ocotp", "fsl,imx6q-ocotp";
+				compatible = "fsl,imx6ul-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 				clocks = <&clks IMX6UL_CLK_OCOTP>;
 			};

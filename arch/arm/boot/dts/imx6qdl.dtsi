@@ -1110,6 +1110,7 @@
 			ocotp: ocotp@021bc000 {
 				compatible = "fsl,imx6q-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
+				clocks = <&clks IMX6QDL_CLK_IIM>;
 			};
 
 			tzasc@021d0000 { /* TZASC1 */
