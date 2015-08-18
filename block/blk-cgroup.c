@@ -73,6 +73,9 @@ static void blkg_free(struct blkcg_gq *blkg)
 
 	if (blkg->blkcg != &blkcg_root)
 		blk_exit_rl(&blkg->rl);
+
+	blkg_rwstat_exit(&blkg->stat_ios);
+	blkg_rwstat_exit(&blkg->stat_bytes);
 	kfree(blkg);
 }
 
@@ -94,6 +97,10 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	blkg = kzalloc_node(sizeof(*blkg), gfp_mask, q->node);
 	if (!blkg)
 		return NULL;
+
+	if (blkg_rwstat_init(&blkg->stat_bytes, gfp_mask) ||
+	    blkg_rwstat_init(&blkg->stat_ios, gfp_mask))
+		goto err_free;
 
 	blkg->q = q;
 	INIT_LIST_HEAD(&blkg->q_node);
@@ -300,6 +307,7 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 static void blkg_destroy(struct blkcg_gq *blkg)
 {
 	struct blkcg *blkcg = blkg->blkcg;
+	struct blkcg_gq *parent = blkg->parent;
 	int i;
 
 	lockdep_assert_held(blkg->q->queue_lock);
@@ -315,6 +323,12 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 		if (blkg->pd[i] && pol->pd_offline_fn)
 			pol->pd_offline_fn(blkg->pd[i]);
 	}
+
+	if (parent) {
+		blkg_rwstat_add_aux(&parent->stat_bytes, &blkg->stat_bytes);
+		blkg_rwstat_add_aux(&parent->stat_ios, &blkg->stat_ios);
+	}
+
 	blkg->online = false;
 
 	radix_tree_delete(&blkcg->blkg_tree, blkg->q->id);
@@ -431,6 +445,9 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 	 * anyway.  If you get hit by a race, retry.
 	 */
 	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
+		blkg_rwstat_reset(&blkg->stat_bytes);
+		blkg_rwstat_reset(&blkg->stat_ios);
+
 		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkcg_policy *pol = blkcg_policy[i];
 
@@ -578,6 +595,87 @@ u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
 }
 EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
+
+static u64 blkg_prfill_rwstat_field(struct seq_file *sf,
+				    struct blkg_policy_data *pd, int off)
+{
+	struct blkg_rwstat rwstat = blkg_rwstat_read((void *)pd->blkg + off);
+
+	return __blkg_prfill_rwstat(sf, pd, &rwstat);
+}
+
+/**
+ * blkg_print_stat_bytes - seq_show callback for blkg->stat_bytes
+ * @sf: seq_file to print to
+ * @v: unused
+ *
+ * To be used as cftype->seq_show to print blkg->stat_bytes.
+ * cftype->private must be set to the blkcg_policy.
+ */
+int blkg_print_stat_bytes(struct seq_file *sf, void *v)
+{
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
+			  blkg_prfill_rwstat_field, (void *)seq_cft(sf)->private,
+			  offsetof(struct blkcg_gq, stat_bytes), true);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blkg_print_stat_bytes);
+
+/**
+ * blkg_print_stat_bytes - seq_show callback for blkg->stat_ios
+ * @sf: seq_file to print to
+ * @v: unused
+ *
+ * To be used as cftype->seq_show to print blkg->stat_ios.  cftype->private
+ * must be set to the blkcg_policy.
+ */
+int blkg_print_stat_ios(struct seq_file *sf, void *v)
+{
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
+			  blkg_prfill_rwstat_field, (void *)seq_cft(sf)->private,
+			  offsetof(struct blkcg_gq, stat_ios), true);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blkg_print_stat_ios);
+
+static u64 blkg_prfill_rwstat_field_recursive(struct seq_file *sf,
+					      struct blkg_policy_data *pd,
+					      int off)
+{
+	struct blkg_rwstat rwstat = blkg_rwstat_recursive_sum(pd->blkg,
+							      NULL, off);
+	return __blkg_prfill_rwstat(sf, pd, &rwstat);
+}
+
+/**
+ * blkg_print_stat_bytes_recursive - recursive version of blkg_print_stat_bytes
+ * @sf: seq_file to print to
+ * @v: unused
+ */
+int blkg_print_stat_bytes_recursive(struct seq_file *sf, void *v)
+{
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
+			  blkg_prfill_rwstat_field_recursive,
+			  (void *)seq_cft(sf)->private,
+			  offsetof(struct blkcg_gq, stat_bytes), true);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blkg_print_stat_bytes_recursive);
+
+/**
+ * blkg_print_stat_ios_recursive - recursive version of blkg_print_stat_ios
+ * @sf: seq_file to print to
+ * @v: unused
+ */
+int blkg_print_stat_ios_recursive(struct seq_file *sf, void *v)
+{
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)),
+			  blkg_prfill_rwstat_field_recursive,
+			  (void *)seq_cft(sf)->private,
+			  offsetof(struct blkcg_gq, stat_ios), true);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blkg_print_stat_ios_recursive);
 
 /**
  * blkg_stat_recursive_sum - collect hierarchical blkg_stat

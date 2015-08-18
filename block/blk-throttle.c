@@ -133,11 +133,6 @@ struct throtl_grp {
 	/* When did we start a new slice */
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
-
-	/* total bytes transferred */
-	struct blkg_rwstat		service_bytes;
-	/* total IOs serviced, post merge */
-	struct blkg_rwstat		serviced;
 };
 
 struct throtl_data
@@ -335,11 +330,7 @@ static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
 
 	tg = kzalloc_node(sizeof(*tg), gfp, node);
 	if (!tg)
-		goto err;
-
-	if (blkg_rwstat_init(&tg->service_bytes, gfp) ||
-	    blkg_rwstat_init(&tg->serviced, gfp))
-		goto err_free_tg;
+		return NULL;
 
 	throtl_service_queue_init(&tg->service_queue);
 
@@ -355,13 +346,6 @@ static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
 	tg->iops[WRITE] = -1;
 
 	return &tg->pd;
-
-err_free_tg:
-	blkg_rwstat_exit(&tg->serviced);
-	blkg_rwstat_exit(&tg->service_bytes);
-	kfree(tg);
-err:
-	return NULL;
 }
 
 static void throtl_pd_init(struct blkg_policy_data *pd)
@@ -419,17 +403,7 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
 	struct throtl_grp *tg = pd_to_tg(pd);
 
 	del_timer_sync(&tg->service_queue.pending_timer);
-	blkg_rwstat_exit(&tg->serviced);
-	blkg_rwstat_exit(&tg->service_bytes);
 	kfree(tg);
-}
-
-static void throtl_pd_reset_stats(struct blkg_policy_data *pd)
-{
-	struct throtl_grp *tg = pd_to_tg(pd);
-
-	blkg_rwstat_reset(&tg->service_bytes);
-	blkg_rwstat_reset(&tg->serviced);
 }
 
 static struct throtl_grp *
@@ -839,25 +813,6 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 	return 0;
 }
 
-static void throtl_update_dispatch_stats(struct blkcg_gq *blkg, u64 bytes,
-					 int rw)
-{
-	struct throtl_grp *tg = blkg_to_tg(blkg);
-	unsigned long flags;
-
-	/*
-	 * Disabling interrupts to provide mutual exclusion between two
-	 * writes on same cpu. It probably is not needed for 64bit. Not
-	 * optimizing that case yet.
-	 */
-	local_irq_save(flags);
-
-	blkg_rwstat_add(&tg->serviced, rw, 1);
-	blkg_rwstat_add(&tg->service_bytes, rw, bytes);
-
-	local_irq_restore(flags);
-}
-
 static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 {
 	bool rw = bio_data_dir(bio);
@@ -871,17 +826,9 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	 * more than once as a throttled bio will go through blk-throtl the
 	 * second time when it eventually gets issued.  Set it when a bio
 	 * is being charged to a tg.
-	 *
-	 * Dispatch stats aren't recursive and each @bio should only be
-	 * accounted by the @tg it was originally associated with.  Let's
-	 * update the stats when setting REQ_THROTTLED for the first time
-	 * which is guaranteed to be for the @bio's original tg.
 	 */
-	if (!(bio->bi_rw & REQ_THROTTLED)) {
+	if (!(bio->bi_rw & REQ_THROTTLED))
 		bio->bi_rw |= REQ_THROTTLED;
-		throtl_update_dispatch_stats(tg_to_blkg(tg),
-					     bio->bi_iter.bi_size, bio->bi_rw);
-	}
 }
 
 /**
@@ -1161,13 +1108,6 @@ static void blk_throtl_dispatch_work_fn(struct work_struct *work)
 	}
 }
 
-static int tg_print_rwstat(struct seq_file *sf, void *v)
-{
-	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), blkg_prfill_rwstat,
-			  &blkcg_policy_throtl, seq_cft(sf)->private, true);
-	return 0;
-}
-
 static u64 tg_prfill_conf_u64(struct seq_file *sf, struct blkg_policy_data *pd,
 			      int off)
 {
@@ -1304,13 +1244,13 @@ static struct cftype throtl_files[] = {
 	},
 	{
 		.name = "throttle.io_service_bytes",
-		.private = offsetof(struct throtl_grp, service_bytes),
-		.seq_show = tg_print_rwstat,
+		.private = (unsigned long)&blkcg_policy_throtl,
+		.seq_show = blkg_print_stat_bytes,
 	},
 	{
 		.name = "throttle.io_serviced",
-		.private = offsetof(struct throtl_grp, serviced),
-		.seq_show = tg_print_rwstat,
+		.private = (unsigned long)&blkcg_policy_throtl,
+		.seq_show = blkg_print_stat_ios,
 	},
 	{ }	/* terminate */
 };
@@ -1329,7 +1269,6 @@ static struct blkcg_policy blkcg_policy_throtl = {
 	.pd_init_fn		= throtl_pd_init,
 	.pd_online_fn		= throtl_pd_online,
 	.pd_free_fn		= throtl_pd_free,
-	.pd_reset_stats_fn	= throtl_pd_reset_stats,
 };
 
 bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,

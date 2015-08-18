@@ -127,6 +127,9 @@ struct blkcg_gq {
 	/* is this blkg online? protected by both blkcg and q locks */
 	bool				online;
 
+	struct blkg_rwstat		stat_bytes;
+	struct blkg_rwstat		stat_ios;
+
 	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
 
 	struct rcu_head			rcu_head;
@@ -190,6 +193,10 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd, int off);
 u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		       int off);
+int blkg_print_stat_bytes(struct seq_file *sf, void *v);
+int blkg_print_stat_ios(struct seq_file *sf, void *v);
+int blkg_print_stat_bytes_recursive(struct seq_file *sf, void *v);
+int blkg_print_stat_ios_recursive(struct seq_file *sf, void *v);
 
 u64 blkg_stat_recursive_sum(struct blkcg_gq *blkg,
 			    struct blkcg_policy *pol, int off);
@@ -699,6 +706,13 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 	}
 
 	throtl = blk_throtl_bio(q, blkg, bio);
+
+	if (!throtl) {
+		blkg = blkg ?: q->root_blkg;
+		blkg_rwstat_add(&blkg->stat_bytes, bio->bi_flags,
+				bio->bi_iter.bi_size);
+		blkg_rwstat_add(&blkg->stat_ios, bio->bi_flags, 1);
+	}
 
 	rcu_read_unlock();
 	return !throtl;

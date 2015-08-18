@@ -177,10 +177,6 @@ enum wl_type_t {
 
 struct cfqg_stats {
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-	/* total bytes transferred */
-	struct blkg_rwstat		service_bytes;
-	/* total IOs serviced, post merge */
-	struct blkg_rwstat		serviced;
 	/* number of ios merged */
 	struct blkg_rwstat		merged;
 	/* total time spent on device in ns, may not be accurate w/ queueing */
@@ -696,8 +692,6 @@ static inline void cfqg_stats_update_dispatch(struct cfq_group *cfqg,
 					      uint64_t bytes, int rw)
 {
 	blkg_stat_add(&cfqg->stats.sectors, bytes >> 9);
-	blkg_rwstat_add(&cfqg->stats.serviced, rw, 1);
-	blkg_rwstat_add(&cfqg->stats.service_bytes, rw, bytes);
 }
 
 static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
@@ -717,8 +711,6 @@ static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
 static void cfqg_stats_reset(struct cfqg_stats *stats)
 {
 	/* queued stats shouldn't be cleared */
-	blkg_rwstat_reset(&stats->service_bytes);
-	blkg_rwstat_reset(&stats->serviced);
 	blkg_rwstat_reset(&stats->merged);
 	blkg_rwstat_reset(&stats->service_time);
 	blkg_rwstat_reset(&stats->wait_time);
@@ -738,8 +730,6 @@ static void cfqg_stats_reset(struct cfqg_stats *stats)
 static void cfqg_stats_add_aux(struct cfqg_stats *to, struct cfqg_stats *from)
 {
 	/* queued stats shouldn't be cleared */
-	blkg_rwstat_add_aux(&to->service_bytes, &from->service_bytes);
-	blkg_rwstat_add_aux(&to->serviced, &from->serviced);
 	blkg_rwstat_add_aux(&to->merged, &from->merged);
 	blkg_rwstat_add_aux(&to->service_time, &from->service_time);
 	blkg_rwstat_add_aux(&to->wait_time, &from->wait_time);
@@ -1544,8 +1534,6 @@ static void cfq_init_cfqg_base(struct cfq_group *cfqg)
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 static void cfqg_stats_exit(struct cfqg_stats *stats)
 {
-	blkg_rwstat_exit(&stats->service_bytes);
-	blkg_rwstat_exit(&stats->serviced);
 	blkg_rwstat_exit(&stats->merged);
 	blkg_rwstat_exit(&stats->service_time);
 	blkg_rwstat_exit(&stats->wait_time);
@@ -1566,9 +1554,7 @@ static void cfqg_stats_exit(struct cfqg_stats *stats)
 
 static int cfqg_stats_init(struct cfqg_stats *stats, gfp_t gfp)
 {
-	if (blkg_rwstat_init(&stats->service_bytes, gfp) ||
-	    blkg_rwstat_init(&stats->serviced, gfp) ||
-	    blkg_rwstat_init(&stats->merged, gfp) ||
+	if (blkg_rwstat_init(&stats->merged, gfp) ||
 	    blkg_rwstat_init(&stats->service_time, gfp) ||
 	    blkg_rwstat_init(&stats->wait_time, gfp) ||
 	    blkg_rwstat_init(&stats->queued, gfp) ||
@@ -1994,13 +1980,13 @@ static struct cftype cfq_blkcg_files[] = {
 	},
 	{
 		.name = "io_service_bytes",
-		.private = offsetof(struct cfq_group, stats.service_bytes),
-		.seq_show = cfqg_print_rwstat,
+		.private = (unsigned long)&blkcg_policy_cfq,
+		.seq_show = blkg_print_stat_bytes,
 	},
 	{
 		.name = "io_serviced",
-		.private = offsetof(struct cfq_group, stats.serviced),
-		.seq_show = cfqg_print_rwstat,
+		.private = (unsigned long)&blkcg_policy_cfq,
+		.seq_show = blkg_print_stat_ios,
 	},
 	{
 		.name = "io_service_time",
@@ -2036,13 +2022,13 @@ static struct cftype cfq_blkcg_files[] = {
 	},
 	{
 		.name = "io_service_bytes_recursive",
-		.private = offsetof(struct cfq_group, stats.service_bytes),
-		.seq_show = cfqg_print_rwstat_recursive,
+		.private = (unsigned long)&blkcg_policy_cfq,
+		.seq_show = blkg_print_stat_bytes_recursive,
 	},
 	{
 		.name = "io_serviced_recursive",
-		.private = offsetof(struct cfq_group, stats.serviced),
-		.seq_show = cfqg_print_rwstat_recursive,
+		.private = (unsigned long)&blkcg_policy_cfq,
+		.seq_show = blkg_print_stat_ios_recursive,
 	},
 	{
 		.name = "io_service_time_recursive",
