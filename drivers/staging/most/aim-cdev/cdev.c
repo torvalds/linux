@@ -48,7 +48,6 @@ struct aim_channel {
 static struct list_head channel_list;
 static spinlock_t ch_list_lock;
 
-
 static struct aim_channel *get_channel(struct most_interface *iface, int id)
 {
 	struct aim_channel *channel, *tmp;
