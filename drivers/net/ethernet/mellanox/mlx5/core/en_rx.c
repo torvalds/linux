@@ -170,7 +170,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else if (is_first_ethertype_ip(skb)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
-		skb->csum = csum_unfold(cqe->check_sum);
+		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		rq->stats.csum_sw++;
 	} else {
 		goto csum_none;
