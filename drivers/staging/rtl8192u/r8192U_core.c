@@ -1542,7 +1542,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	tx_fwinfo->RtsSubcarrier = (tx_fwinfo->RtsHT == 0) ? (tcb_desc->RTSSC) : 0;
 	tx_fwinfo->RtsBandwidth = (tx_fwinfo->RtsHT == 1) ? ((tcb_desc->bRTSBW) ? 1 : 0) : 0;
 	tx_fwinfo->RtsShort = (tx_fwinfo->RtsHT == 0) ? (tcb_desc->bRTSUseShortPreamble ? 1 : 0) :
-		              (tcb_desc->bRTSUseShortGI ? 1 : 0);
+			      (tcb_desc->bRTSUseShortGI ? 1 : 0);
 
 	/* Set Bandwidth and sub-channel settings. */
 	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20_40) {
