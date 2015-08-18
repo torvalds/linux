@@ -581,30 +581,39 @@ EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
 
 /**
  * blkg_stat_recursive_sum - collect hierarchical blkg_stat
- * @pd: policy private data of interest
- * @off: offset to the blkg_stat in @pd
+ * @blkg: blkg of interest
+ * @pol: blkcg_policy which contains the blkg_stat
+ * @off: offset to the blkg_stat in blkg_policy_data or @blkg
  *
- * Collect the blkg_stat specified by @off from @pd and all its online
- * descendants and their aux counts.  The caller must be holding the queue
- * lock for online tests.
+ * Collect the blkg_stat specified by @blkg, @pol and @off and all its
+ * online descendants and their aux counts.  The caller must be holding the
+ * queue lock for online tests.
+ *
+ * If @pol is NULL, blkg_stat is at @off bytes into @blkg; otherwise, it is
+ * at @off bytes into @blkg's blkg_policy_data of the policy.
  */
-u64 blkg_stat_recursive_sum(struct blkg_policy_data *pd, int off)
+u64 blkg_stat_recursive_sum(struct blkcg_gq *blkg,
+			    struct blkcg_policy *pol, int off)
 {
-	struct blkcg_policy *pol = blkcg_policy[pd->plid];
 	struct blkcg_gq *pos_blkg;
 	struct cgroup_subsys_state *pos_css;
 	u64 sum = 0;
 
-	lockdep_assert_held(pd->blkg->q->queue_lock);
+	lockdep_assert_held(blkg->q->queue_lock);
 
 	rcu_read_lock();
-	blkg_for_each_descendant_pre(pos_blkg, pos_css, pd_to_blkg(pd)) {
-		struct blkg_policy_data *pos_pd = blkg_to_pd(pos_blkg, pol);
-		struct blkg_stat *stat = (void *)pos_pd + off;
+	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
+		struct blkg_stat *stat;
 
-		if (pos_blkg->online)
-			sum += blkg_stat_read(stat) +
-				atomic64_read(&stat->aux_cnt);
+		if (!pos_blkg->online)
+			continue;
+
+		if (pol)
+			stat = (void *)blkg_to_pd(pos_blkg, pol) + off;
+		else
+			stat = (void *)blkg + off;
+
+		sum += blkg_stat_read(stat) + atomic64_read(&stat->aux_cnt);
 	}
 	rcu_read_unlock();
 
@@ -614,32 +623,38 @@ EXPORT_SYMBOL_GPL(blkg_stat_recursive_sum);
 
 /**
  * blkg_rwstat_recursive_sum - collect hierarchical blkg_rwstat
- * @pd: policy private data of interest
- * @off: offset to the blkg_stat in @pd
+ * @blkg: blkg of interest
+ * @pol: blkcg_policy which contains the blkg_rwstat
+ * @off: offset to the blkg_rwstat in blkg_policy_data or @blkg
  *
- * Collect the blkg_rwstat specified by @off from @pd and all its online
- * descendants and their aux counts.  The caller must be holding the queue
- * lock for online tests.
+ * Collect the blkg_rwstat specified by @blkg, @pol and @off and all its
+ * online descendants and their aux counts.  The caller must be holding the
+ * queue lock for online tests.
+ *
+ * If @pol is NULL, blkg_rwstat is at @off bytes into @blkg; otherwise, it
+ * is at @off bytes into @blkg's blkg_policy_data of the policy.
  */
-struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkg_policy_data *pd,
-					     int off)
+struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
+					     struct blkcg_policy *pol, int off)
 {
-	struct blkcg_policy *pol = blkcg_policy[pd->plid];
 	struct blkcg_gq *pos_blkg;
 	struct cgroup_subsys_state *pos_css;
 	struct blkg_rwstat sum = { };
 	int i;
 
-	lockdep_assert_held(pd->blkg->q->queue_lock);
+	lockdep_assert_held(blkg->q->queue_lock);
 
 	rcu_read_lock();
-	blkg_for_each_descendant_pre(pos_blkg, pos_css, pd_to_blkg(pd)) {
-		struct blkg_policy_data *pos_pd = blkg_to_pd(pos_blkg, pol);
-		struct blkg_rwstat *rwstat = (void *)pos_pd + off;
-		struct blkg_rwstat tmp;
+	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
+		struct blkg_rwstat *rwstat, tmp;
 
 		if (!pos_blkg->online)
 			continue;
+
+		if (pol)
+			rwstat = (void *)blkg_to_pd(pos_blkg, pol) + off;
+		else
+			rwstat = (void *)pos_blkg + off;
 
 		tmp = blkg_rwstat_read(rwstat);
 

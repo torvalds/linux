@@ -1886,16 +1886,16 @@ static int cfqg_print_rwstat(struct seq_file *sf, void *v)
 static u64 cfqg_prfill_stat_recursive(struct seq_file *sf,
 				      struct blkg_policy_data *pd, int off)
 {
-	u64 sum = blkg_stat_recursive_sum(pd, off);
-
+	u64 sum = blkg_stat_recursive_sum(pd_to_blkg(pd),
+					  &blkcg_policy_cfq, off);
 	return __blkg_prfill_u64(sf, pd, sum);
 }
 
 static u64 cfqg_prfill_rwstat_recursive(struct seq_file *sf,
 					struct blkg_policy_data *pd, int off)
 {
-	struct blkg_rwstat sum = blkg_rwstat_recursive_sum(pd, off);
-
+	struct blkg_rwstat sum = blkg_rwstat_recursive_sum(pd_to_blkg(pd),
+							&blkcg_policy_cfq, off);
 	return __blkg_prfill_rwstat(sf, pd, &sum);
 }
 
