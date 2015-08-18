@@ -43,13 +43,24 @@ static inline int vrf_master_ifindex_rcu(const struct net_device *dev)
 	if (!dev)
 		return 0;
 
-	if (netif_is_vrf(dev))
+	if (netif_is_vrf(dev)) {
 		ifindex = dev->ifindex;
-	else {
+	} else {
 		vrf_ptr = rcu_dereference(dev->vrf_ptr);
 		if (vrf_ptr)
 			ifindex = vrf_ptr->ifindex;
 	}
+
+	return ifindex;
+}
+
+static inline int vrf_master_ifindex(const struct net_device *dev)
+{
+	int ifindex;
+
+	rcu_read_lock();
+	ifindex = vrf_master_ifindex_rcu(dev);
+	rcu_read_unlock();
 
 	return ifindex;
 }
@@ -129,6 +140,11 @@ static inline struct rtable *vrf_dev_get_rth(const struct net_device *dev)
 
 #else
 static inline int vrf_master_ifindex_rcu(const struct net_device *dev)
+{
+	return 0;
+}
+
+static inline int vrf_master_ifindex(const struct net_device *dev)
 {
 	return 0;
 }
