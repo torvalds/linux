@@ -262,9 +262,21 @@ struct smi_info {
 	bool supports_event_msg_buff;
 
 	/*
-	 * Can we clear the global enables receive irq bit?
+	 * Can we disable interrupts the global enables receive irq
+	 * bit?  There are currently two forms of brokenness, some
+	 * systems cannot disable the bit (which is technically within
+	 * the spec but a bad idea) and some systems have the bit
+	 * forced to zero even though interrupts work (which is
+	 * clearly outside the spec).  The next bool tells which form
+	 * of brokenness is present.
 	 */
-	bool cannot_clear_recv_irq_bit;
+	bool cannot_disable_irq;
+
+	/*
+	 * Some systems are broken and cannot set the irq enable
+	 * bit, even if they support interrupts.
+	 */
+	bool irq_enable_broken;
 
 	/*
 	 * Did we get an attention that we did not handle?
@@ -554,13 +566,14 @@ static u8 current_global_enables(struct smi_info *smi_info, u8 base,
 	if (smi_info->supports_event_msg_buff)
 		enables |= IPMI_BMC_EVT_MSG_BUFF;
 
-	if ((smi_info->irq && !smi_info->interrupt_disabled) ||
-	    smi_info->cannot_clear_recv_irq_bit)
+	if (((smi_info->irq && !smi_info->interrupt_disabled) ||
+	     smi_info->cannot_disable_irq) &&
+	    !smi_info->irq_enable_broken)
 		enables |= IPMI_BMC_RCV_MSG_INTR;
 
 	if (smi_info->supports_event_msg_buff &&
-	    smi_info->irq && !smi_info->interrupt_disabled)
-
+	    smi_info->irq && !smi_info->interrupt_disabled &&
+	    !smi_info->irq_enable_broken)
 		enables |= IPMI_BMC_EVT_MSG_INTR;
 
 	*irq_on = enables & (IPMI_BMC_EVT_MSG_INTR | IPMI_BMC_RCV_MSG_INTR);
@@ -2908,12 +2921,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	return rv;
 }
 
-/*
- * Some BMCs do not support clearing the receive irq bit in the global
- * enables (even if they don't support interrupts on the BMC).  Check
- * for this and handle it properly.
- */
-static void check_clr_rcv_irq(struct smi_info *smi_info)
+static int get_global_enables(struct smi_info *smi_info, u8 *enables)
 {
 	unsigned char         msg[3];
 	unsigned char         *resp;
@@ -2921,12 +2929,8 @@ static void check_clr_rcv_irq(struct smi_info *smi_info)
 	int                   rv;
 
 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
-	if (!resp) {
-		printk(KERN_WARNING PFX "Out of memory allocating response for"
-		       " global enables command, cannot check recv irq bit"
-		       " handling.\n");
-		return;
-	}
+	if (!resp)
+		return -ENOMEM;
 
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
 	msg[1] = IPMI_GET_BMC_GLOBAL_ENABLES_CMD;
@@ -2934,9 +2938,9 @@ static void check_clr_rcv_irq(struct smi_info *smi_info)
 
 	rv = wait_for_msg_done(smi_info);
 	if (rv) {
-		printk(KERN_WARNING PFX "Error getting response from get"
-		       " global enables command, cannot check recv irq bit"
-		       " handling.\n");
+		dev_warn(smi_info->dev,
+			 "Error getting response from get global enables command: %d\n",
+			 rv);
 		goto out;
 	}
 
@@ -2947,27 +2951,44 @@ static void check_clr_rcv_irq(struct smi_info *smi_info)
 			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
 			resp[1] != IPMI_GET_BMC_GLOBAL_ENABLES_CMD   ||
 			resp[2] != 0) {
-		printk(KERN_WARNING PFX "Invalid return from get global"
-		       " enables command, cannot check recv irq bit"
-		       " handling.\n");
+		dev_warn(smi_info->dev,
+			 "Invalid return from get global enables command: %ld %x %x %x\n",
+			 resp_len, resp[0], resp[1], resp[2]);
 		rv = -EINVAL;
 		goto out;
+	} else {
+		*enables = resp[3];
 	}
 
-	if ((resp[3] & IPMI_BMC_RCV_MSG_INTR) == 0)
-		/* Already clear, should work ok. */
-		goto out;
+out:
+	kfree(resp);
+	return rv;
+}
+
+/*
+ * Returns 1 if it gets an error from the command.
+ */
+static int set_global_enables(struct smi_info *smi_info, u8 enables)
+{
+	unsigned char         msg[3];
+	unsigned char         *resp;
+	unsigned long         resp_len;
+	int                   rv;
+
+	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
 
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
 	msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
-	msg[2] = resp[3] & ~IPMI_BMC_RCV_MSG_INTR;
+	msg[2] = enables;
 	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 3);
 
 	rv = wait_for_msg_done(smi_info);
 	if (rv) {
-		printk(KERN_WARNING PFX "Error getting response from set"
-		       " global enables command, cannot check recv irq bit"
-		       " handling.\n");
+		dev_warn(smi_info->dev,
+			 "Error getting response from set global enables command: %d\n",
+			 rv);
 		goto out;
 	}
 
@@ -2977,25 +2998,93 @@ static void check_clr_rcv_irq(struct smi_info *smi_info)
 	if (resp_len < 3 ||
 			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
 			resp[1] != IPMI_SET_BMC_GLOBAL_ENABLES_CMD) {
-		printk(KERN_WARNING PFX "Invalid return from get global"
-		       " enables command, cannot check recv irq bit"
-		       " handling.\n");
+		dev_warn(smi_info->dev,
+			 "Invalid return from set global enables command: %ld %x %x\n",
+			 resp_len, resp[0], resp[1]);
 		rv = -EINVAL;
 		goto out;
 	}
 
-	if (resp[2] != 0) {
+	if (resp[2] != 0)
+		rv = 1;
+
+out:
+	kfree(resp);
+	return rv;
+}
+
+/*
+ * Some BMCs do not support clearing the receive irq bit in the global
+ * enables (even if they don't support interrupts on the BMC).  Check
+ * for this and handle it properly.
+ */
+static void check_clr_rcv_irq(struct smi_info *smi_info)
+{
+	u8 enables = 0;
+	int rv;
+
+	rv = get_global_enables(smi_info, &enables);
+	if (!rv) {
+		if ((enables & IPMI_BMC_RCV_MSG_INTR) == 0)
+			/* Already clear, should work ok. */
+			return;
+
+		enables &= ~IPMI_BMC_RCV_MSG_INTR;
+		rv = set_global_enables(smi_info, enables);
+	}
+
+	if (rv < 0) {
+		dev_err(smi_info->dev,
+			"Cannot check clearing the rcv irq: %d\n", rv);
+		return;
+	}
+
+	if (rv) {
 		/*
 		 * An error when setting the event buffer bit means
 		 * clearing the bit is not supported.
 		 */
-		printk(KERN_WARNING PFX "The BMC does not support clearing"
-		       " the recv irq bit, compensating, but the BMC needs to"
-		       " be fixed.\n");
-		smi_info->cannot_clear_recv_irq_bit = true;
+		dev_warn(smi_info->dev,
+			 "The BMC does not support clearing the recv irq bit, compensating, but the BMC needs to be fixed.\n");
+		smi_info->cannot_disable_irq = true;
 	}
- out:
-	kfree(resp);
+}
+
+/*
+ * Some BMCs do not support setting the interrupt bits in the global
+ * enables even if they support interrupts.  Clearly bad, but we can
+ * compensate.
+ */
+static void check_set_rcv_irq(struct smi_info *smi_info)
+{
+	u8 enables = 0;
+	int rv;
+
+	if (!smi_info->irq)
+		return;
+
+	rv = get_global_enables(smi_info, &enables);
+	if (!rv) {
+		enables |= IPMI_BMC_RCV_MSG_INTR;
+		rv = set_global_enables(smi_info, enables);
+	}
+
+	if (rv < 0) {
+		dev_err(smi_info->dev,
+			"Cannot check setting the rcv irq: %d\n", rv);
+		return;
+	}
+
+	if (rv) {
+		/*
+		 * An error when setting the event buffer bit means
+		 * setting the bit is not supported.
+		 */
+		dev_warn(smi_info->dev,
+			 "The BMC does not support setting the recv irq bit, compensating, but the BMC needs to be fixed.\n");
+		smi_info->cannot_disable_irq = true;
+		smi_info->irq_enable_broken = true;
+	}
 }
 
 static int try_enable_event_buffer(struct smi_info *smi_info)
@@ -3316,6 +3405,12 @@ static void setup_xaction_handlers(struct smi_info *smi_info)
 	setup_dell_poweredge_bt_xaction_handler(smi_info);
 }
 
+static void check_for_broken_irqs(struct smi_info *smi_info)
+{
+	check_clr_rcv_irq(smi_info);
+	check_set_rcv_irq(smi_info);
+}
+
 static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 {
 	if (smi_info->thread != NULL)
@@ -3493,10 +3588,9 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err;
 	}
 
-	check_clr_rcv_irq(new_smi);
-
 	setup_oem_data_handler(new_smi);
 	setup_xaction_handlers(new_smi);
+	check_for_broken_irqs(new_smi);
 
 	new_smi->waiting_msg = NULL;
 	new_smi->curr_msg = NULL;
