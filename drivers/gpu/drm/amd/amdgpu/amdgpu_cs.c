@@ -891,13 +891,14 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return r;
 	}
 
+	r = amdgpu_cs_parser_prepare_job(parser);
+	if (r)
+		goto out;
+
 	if (amdgpu_enable_scheduler && parser->num_ibs) {
 		struct amdgpu_job *job;
 		struct amdgpu_ring * ring =
 			amdgpu_cs_parser_get_ring(adev, parser);
-		r = amdgpu_cs_parser_prepare_job(parser);
-		if (r)
-			goto out;
 		job = kzalloc(sizeof(struct amdgpu_job), GFP_KERNEL);
 		if (!job)
 			return -ENOMEM;
@@ -939,9 +940,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		up_read(&adev->exclusive_lock);
 		return 0;
 	}
-	r = amdgpu_cs_parser_prepare_job(parser);
-	if (r)
-		goto out;
 
 	cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
 out:
