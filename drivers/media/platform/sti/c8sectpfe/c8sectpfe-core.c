@@ -585,9 +585,9 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	writel(tsin->pid_buffer_busaddr,
 		fei->io + PIDF_BASE(tsin->tsin_id));
 
-	dev_info(fei->dev, "chan=%d PIDF_BASE=0x%x pid_bus_addr=0x%x\n",
+	dev_info(fei->dev, "chan=%d PIDF_BASE=0x%x pid_bus_addr=%pad\n",
 		tsin->tsin_id, readl(fei->io + PIDF_BASE(tsin->tsin_id)),
-		tsin->pid_buffer_busaddr);
+		&tsin->pid_buffer_busaddr);
 
 	/* Configure and enable HW PID filtering */
 
