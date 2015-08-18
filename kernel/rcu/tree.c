@@ -3734,7 +3734,7 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 				   sync_rcu_preempt_exp_done(rnp_root));
 			return;
 		}
-		pr_err("INFO: %s detected expedited stalls on CPUs: {",
+		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",
 		       rsp->name);
 		rcu_for_each_leaf_node(rsp, rnp) {
 			(void)rcu_print_task_exp_stall(rnp);
