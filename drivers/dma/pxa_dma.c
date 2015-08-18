@@ -184,19 +184,18 @@ static unsigned int pxad_drcmr(unsigned int line)
 
 static int dbg_show_requester_chan(struct seq_file *s, void *p)
 {
-	int pos = 0;
 	struct pxad_phy *phy = s->private;
 	int i;
 	u32 drcmr;
 
-	pos += seq_printf(s, "DMA channel %d requester :\n", phy->idx);
+	seq_printf(s, "DMA channel %d requester :\n", phy->idx);
 	for (i = 0; i < 70; i++) {
 		drcmr = readl_relaxed(phy->base + pxad_drcmr(i));
 		if ((drcmr & DRCMR_CHLNUM) == phy->idx)
-			pos += seq_printf(s, "\tRequester %d (MAPVLD=%d)\n", i,
-					  !!(drcmr & DRCMR_MAPVLD));
+			seq_printf(s, "\tRequester %d (MAPVLD=%d)\n", i,
+				   !!(drcmr & DRCMR_MAPVLD));
 	}
-	return pos;
+	return 0;
 }
 
 static inline int dbg_burst_from_dcmd(u32 dcmd)
