@@ -221,8 +221,6 @@ static inline int pm_genpd_name_poweron(const char *domain_name)
 	return -ENOSYS;
 }
 static inline void pm_genpd_poweroff_unused(void) {}
-#define simple_qos_governor NULL
-#define pm_domain_always_on_gov NULL
 #endif
 
 static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
