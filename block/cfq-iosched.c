@@ -1584,7 +1584,17 @@ static void cfq_cpd_init(const struct blkcg *blkcg)
 
 static struct blkg_policy_data *cfq_pd_alloc(gfp_t gfp, int node)
 {
-	return kzalloc_node(sizeof(struct cfq_group), gfp, node);
+	struct cfq_group *cfqg;
+
+	cfqg = kzalloc_node(sizeof(*cfqg), gfp, node);
+	if (!cfqg)
+		return NULL;
+
+	cfq_init_cfqg_base(cfqg);
+	cfqg_stats_init(&cfqg->stats);
+	cfqg_stats_init(&cfqg->dead_stats);
+
+	return &cfqg->pd;
 }
 
 static void cfq_pd_init(struct blkcg_gq *blkg)
@@ -1592,11 +1602,8 @@ static void cfq_pd_init(struct blkcg_gq *blkg)
 	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 	struct cfq_group_data *cgd = blkcg_to_cfqgd(blkg->blkcg);
 
-	cfq_init_cfqg_base(cfqg);
 	cfqg->weight = cgd->weight;
 	cfqg->leaf_weight = cgd->leaf_weight;
-	cfqg_stats_init(&cfqg->stats);
-	cfqg_stats_init(&cfqg->dead_stats);
 }
 
 static void cfq_pd_offline(struct blkcg_gq *blkg)

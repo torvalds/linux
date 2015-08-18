@@ -402,15 +402,6 @@ static void blkg_destroy_all(struct request_queue *q)
 void __blkg_release_rcu(struct rcu_head *rcu_head)
 {
 	struct blkcg_gq *blkg = container_of(rcu_head, struct blkcg_gq, rcu_head);
-	int i;
-
-	/* tell policies that this one is being freed */
-	for (i = 0; i < BLKCG_MAX_POLS; i++) {
-		struct blkcg_policy *pol = blkcg_policy[i];
-
-		if (blkg->pd[i] && pol->pd_exit_fn)
-			pol->pd_exit_fn(blkg);
-	}
 
 	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
@@ -1127,8 +1118,6 @@ void blkcg_deactivate_policy(struct request_queue *q,
 
 		if (pol->pd_offline_fn)
 			pol->pd_offline_fn(blkg);
-		if (pol->pd_exit_fn)
-			pol->pd_exit_fn(blkg);
 
 		if (blkg->pd[pol->plid]) {
 			pol->pd_free_fn(blkg->pd[pol->plid]);
