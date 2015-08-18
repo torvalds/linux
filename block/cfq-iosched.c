@@ -68,9 +68,9 @@ static struct kmem_cache *cfq_pool;
 #define rb_entry_cfqg(node)	rb_entry((node), struct cfq_group, rb_node)
 
 /* blkio-related constants */
-#define CFQ_WEIGHT_MIN          10
-#define CFQ_WEIGHT_MAX          1000
-#define CFQ_WEIGHT_DEFAULT      500
+#define CFQ_WEIGHT_LEGACY_MIN	10
+#define CFQ_WEIGHT_LEGACY_DFL	500
+#define CFQ_WEIGHT_LEGACY_MAX	1000
 
 struct cfq_ttime {
 	unsigned long last_end_request;
@@ -1580,11 +1580,11 @@ static void cfq_cpd_init(struct blkcg_policy_data *cpd)
 	struct cfq_group_data *cgd = cpd_to_cfqgd(cpd);
 
 	if (cpd_to_blkcg(cpd) == &blkcg_root) {
-		cgd->weight = 2 * CFQ_WEIGHT_DEFAULT;
-		cgd->leaf_weight = 2 * CFQ_WEIGHT_DEFAULT;
+		cgd->weight = 2 * CFQ_WEIGHT_LEGACY_DFL;
+		cgd->leaf_weight = 2 * CFQ_WEIGHT_LEGACY_DFL;
 	} else {
-		cgd->weight = CFQ_WEIGHT_DEFAULT;
-		cgd->leaf_weight = CFQ_WEIGHT_DEFAULT;
+		cgd->weight = CFQ_WEIGHT_LEGACY_DFL;
+		cgd->leaf_weight = CFQ_WEIGHT_LEGACY_DFL;
 	}
 }
 
@@ -1769,7 +1769,7 @@ static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
 	cfqgd = blkcg_to_cfqgd(blkcg);
 
 	ret = -ERANGE;
-	if (!v || (v >= CFQ_WEIGHT_MIN && v <= CFQ_WEIGHT_MAX)) {
+	if (!v || (v >= CFQ_WEIGHT_LEGACY_MIN && v <= CFQ_WEIGHT_LEGACY_MAX)) {
 		if (!is_leaf_weight) {
 			cfqg->dev_weight = v;
 			cfqg->new_weight = v ?: cfqgd->weight;
@@ -1804,7 +1804,7 @@ static int __cfq_set_weight(struct cgroup_subsys_state *css, u64 val,
 	struct cfq_group_data *cfqgd;
 	int ret = 0;
 
-	if (val < CFQ_WEIGHT_MIN || val > CFQ_WEIGHT_MAX)
+	if (val < CFQ_WEIGHT_LEGACY_MIN || val > CFQ_WEIGHT_LEGACY_MAX)
 		return -EINVAL;
 
 	spin_lock_irq(&blkcg->lock);
@@ -4513,8 +4513,8 @@ static int cfq_init_queue(struct request_queue *q, struct elevator_type *e)
 
 	cfq_init_cfqg_base(cfqd->root_group);
 #endif
-	cfqd->root_group->weight = 2 * CFQ_WEIGHT_DEFAULT;
-	cfqd->root_group->leaf_weight = 2 * CFQ_WEIGHT_DEFAULT;
+	cfqd->root_group->weight = 2 * CFQ_WEIGHT_LEGACY_DFL;
+	cfqd->root_group->leaf_weight = 2 * CFQ_WEIGHT_LEGACY_DFL;
 
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we
