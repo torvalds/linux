@@ -58,7 +58,7 @@ double __extendsfdf2(float a)
 
 #define CONFIG_RTL8192_IO_MAP
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "r8192U_hw.h"
 #include "r8192U.h"
 #include "r8190_rtl8256.h" /* RTL8225 Radio frontend */
