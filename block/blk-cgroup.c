@@ -823,18 +823,15 @@ static void blkcg_css_offline(struct cgroup_subsys_state *css)
 static void blkcg_css_free(struct cgroup_subsys_state *css)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
+	int i;
 
 	mutex_lock(&blkcg_pol_mutex);
 	list_del(&blkcg->all_blkcgs_node);
 	mutex_unlock(&blkcg_pol_mutex);
 
-	if (blkcg != &blkcg_root) {
-		int i;
-
-		for (i = 0; i < BLKCG_MAX_POLS; i++)
-			kfree(blkcg->pd[i]);
-		kfree(blkcg);
-	}
+	for (i = 0; i < BLKCG_MAX_POLS; i++)
+		kfree(blkcg->pd[i]);
+	kfree(blkcg);
 }
 
 static struct cgroup_subsys_state *
@@ -848,13 +845,12 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 
 	if (!parent_css) {
 		blkcg = &blkcg_root;
-		goto done;
-	}
-
-	blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
-	if (!blkcg) {
-		ret = ERR_PTR(-ENOMEM);
-		goto free_blkcg;
+	} else {
+		blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
+		if (!blkcg) {
+			ret = ERR_PTR(-ENOMEM);
+			goto free_blkcg;
+		}
 	}
 
 	for (i = 0; i < BLKCG_MAX_POLS ; i++) {
@@ -881,7 +877,6 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 		pol->cpd_init_fn(blkcg);
 	}
 
-done:
 	spin_lock_init(&blkcg->lock);
 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
