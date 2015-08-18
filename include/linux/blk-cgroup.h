@@ -148,7 +148,7 @@ typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkg_policy_data *pd);
 struct blkcg_policy {
 	int				plid;
 	/* cgroup files for the policy */
-	struct cftype			*cftypes;
+	struct cftype			*legacy_cftypes;
 
 	/* operations */
 	blkcg_pol_alloc_cpd_fn		*cpd_alloc_fn;

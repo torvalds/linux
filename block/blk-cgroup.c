@@ -847,7 +847,7 @@ void blkg_conf_finish(struct blkg_conf_ctx *ctx)
 }
 EXPORT_SYMBOL_GPL(blkg_conf_finish);
 
-struct cftype blkcg_files[] = {
+struct cftype blkcg_legacy_files[] = {
 	{
 		.name = "reset_stats",
 		.write_u64 = blkcg_reset_stats,
@@ -1094,7 +1094,7 @@ struct cgroup_subsys io_cgrp_subsys = {
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
-	.legacy_cftypes = blkcg_files,
+	.legacy_cftypes = blkcg_legacy_files,
 	.legacy_name = "blkio",
 #ifdef CONFIG_MEMCG
 	/*
@@ -1266,9 +1266,9 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	mutex_unlock(&blkcg_pol_mutex);
 
 	/* everything is in place, add intf files for the new policy */
-	if (pol->cftypes)
+	if (pol->legacy_cftypes)
 		WARN_ON(cgroup_add_legacy_cftypes(&io_cgrp_subsys,
-						  pol->cftypes));
+						  pol->legacy_cftypes));
 	mutex_unlock(&blkcg_pol_register_mutex);
 	return 0;
 
@@ -1305,8 +1305,8 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 		goto out_unlock;
 
 	/* kill the intf files first */
-	if (pol->cftypes)
-		cgroup_rm_cftypes(pol->cftypes);
+	if (pol->legacy_cftypes)
+		cgroup_rm_cftypes(pol->legacy_cftypes);
 
 	/* remove cpds and unregister */
 	mutex_lock(&blkcg_pol_mutex);

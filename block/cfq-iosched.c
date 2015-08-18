@@ -1944,7 +1944,7 @@ static int cfqg_print_avg_queue_size(struct seq_file *sf, void *v)
 }
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
 
-static struct cftype cfq_blkcg_files[] = {
+static struct cftype cfq_blkcg_legacy_files[] = {
 	/* on root, weight is mapped to leaf_weight */
 	{
 		.name = "weight_device",
@@ -4654,7 +4654,7 @@ static struct elevator_type iosched_cfq = {
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 static struct blkcg_policy blkcg_policy_cfq = {
-	.cftypes		= cfq_blkcg_files,
+	.legacy_cftypes		= cfq_blkcg_legacy_files,
 
 	.cpd_alloc_fn		= cfq_cpd_alloc,
 	.cpd_init_fn		= cfq_cpd_init,
