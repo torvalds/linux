@@ -377,9 +377,10 @@ static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
 	return &tg->pd;
 }
 
-static void throtl_pd_init(struct blkcg_gq *blkg)
+static void throtl_pd_init(struct blkg_policy_data *pd)
 {
-	struct throtl_grp *tg = blkg_to_tg(blkg);
+	struct throtl_grp *tg = pd_to_tg(pd);
+	struct blkcg_gq *blkg = tg_to_blkg(tg);
 	struct throtl_data *td = blkg->q->td;
 	struct throtl_service_queue *sq = &tg->service_queue;
 
@@ -417,13 +418,13 @@ static void tg_update_has_rules(struct throtl_grp *tg)
 				    (tg->bps[rw] != -1 || tg->iops[rw] != -1);
 }
 
-static void throtl_pd_online(struct blkcg_gq *blkg)
+static void throtl_pd_online(struct blkg_policy_data *pd)
 {
 	/*
 	 * We don't want new groups to escape the limits of its ancestors.
 	 * Update has_rules[] after a new group is brought online.
 	 */
-	tg_update_has_rules(blkg_to_tg(blkg));
+	tg_update_has_rules(pd_to_tg(pd));
 }
 
 static void throtl_pd_free(struct blkg_policy_data *pd)
@@ -435,9 +436,9 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
 	kfree(tg);
 }
 
-static void throtl_pd_reset_stats(struct blkcg_gq *blkg)
+static void throtl_pd_reset_stats(struct blkg_policy_data *pd)
 {
-	struct throtl_grp *tg = blkg_to_tg(blkg);
+	struct throtl_grp *tg = pd_to_tg(pd);
 	int cpu;
 
 	for_each_possible_cpu(cpu) {

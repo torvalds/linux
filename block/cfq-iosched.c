@@ -1597,18 +1597,18 @@ static struct blkg_policy_data *cfq_pd_alloc(gfp_t gfp, int node)
 	return &cfqg->pd;
 }
 
-static void cfq_pd_init(struct blkcg_gq *blkg)
+static void cfq_pd_init(struct blkg_policy_data *pd)
 {
-	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
-	struct cfq_group_data *cgd = blkcg_to_cfqgd(blkg->blkcg);
+	struct cfq_group *cfqg = pd_to_cfqg(pd);
+	struct cfq_group_data *cgd = blkcg_to_cfqgd(pd->blkg->blkcg);
 
 	cfqg->weight = cgd->weight;
 	cfqg->leaf_weight = cgd->leaf_weight;
 }
 
-static void cfq_pd_offline(struct blkcg_gq *blkg)
+static void cfq_pd_offline(struct blkg_policy_data *pd)
 {
-	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
+	struct cfq_group *cfqg = pd_to_cfqg(pd);
 	int i;
 
 	for (i = 0; i < IOPRIO_BE_NR; i++) {
@@ -1661,9 +1661,9 @@ static struct blkg_rwstat cfqg_rwstat_pd_recursive_sum(struct blkg_policy_data *
 	return a;
 }
 
-static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
+static void cfq_pd_reset_stats(struct blkg_policy_data *pd)
 {
-	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
+	struct cfq_group *cfqg = pd_to_cfqg(pd);
 
 	cfqg_stats_reset(&cfqg->stats);
 	cfqg_stats_reset(&cfqg->dead_stats);
