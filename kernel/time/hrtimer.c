@@ -196,18 +196,27 @@ struct hrtimer_cpu_base *get_target_base(struct hrtimer_cpu_base *base,
 #endif
 
 /*
- * Switch the timer base to the current CPU when possible.
+ * We switch the timer base to a power-optimized selected CPU target,
+ * if:
+ *	- NO_HZ_COMMON is enabled
+ *	- timer migration is enabled
+ *	- the timer callback is not running
+ *	- the timer is not the first expiring timer on the new target
+ *
+ * If one of the above requirements is not fulfilled we move the timer
+ * to the current CPU or leave it on the previously assigned CPU if
+ * the timer callback is currently running.
  */
 static inline struct hrtimer_clock_base *
 switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
 		    int pinned)
 {
-	struct hrtimer_cpu_base *new_cpu_base, *this_base;
+	struct hrtimer_cpu_base *new_cpu_base, *this_cpu_base;
 	struct hrtimer_clock_base *new_base;
 	int basenum = base->index;
 
-	this_base = this_cpu_ptr(&hrtimer_bases);
-	new_cpu_base = get_target_base(this_base, pinned);
+	this_cpu_base = this_cpu_ptr(&hrtimer_bases);
+	new_cpu_base = get_target_base(this_cpu_base, pinned);
 again:
 	new_base = &new_cpu_base->clock_base[basenum];
 
@@ -229,19 +238,19 @@ again:
 		raw_spin_unlock(&base->cpu_base->lock);
 		raw_spin_lock(&new_base->cpu_base->lock);
 
-		if (new_cpu_base != this_base &&
+		if (new_cpu_base != this_cpu_base &&
 		    hrtimer_check_target(timer, new_base)) {
 			raw_spin_unlock(&new_base->cpu_base->lock);
 			raw_spin_lock(&base->cpu_base->lock);
-			new_cpu_base = this_base;
+			new_cpu_base = this_cpu_base;
 			timer->base = base;
 			goto again;
 		}
 		timer->base = new_base;
 	} else {
-		if (new_cpu_base != this_base &&
+		if (new_cpu_base != this_cpu_base &&
 		    hrtimer_check_target(timer, new_base)) {
-			new_cpu_base = this_base;
+			new_cpu_base = this_cpu_base;
 			goto again;
 		}
 	}
