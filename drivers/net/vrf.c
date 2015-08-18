@@ -334,14 +334,12 @@ static struct slave *__vrf_find_slave_dev(struct slave_queue *queue,
 /* inverse of __vrf_insert_slave */
 static void __vrf_remove_slave(struct slave_queue *queue, struct slave *slave)
 {
-	dev_put(slave->dev);
 	list_del(&slave->list);
 	queue->num_slaves--;
 }
 
 static void __vrf_insert_slave(struct slave_queue *queue, struct slave *slave)
 {
-	dev_hold(slave->dev);
 	list_add(&slave->list, &queue->all_slaves);
 	queue->num_slaves++;
 }
