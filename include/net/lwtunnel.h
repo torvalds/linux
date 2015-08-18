@@ -36,6 +36,11 @@ struct lwtunnel_encap_ops {
 };
 
 #ifdef CONFIG_LWTUNNEL
+static inline void lwtstate_free(struct lwtunnel_state *lws)
+{
+	kfree(lws);
+}
+
 static inline struct lwtunnel_state *
 lwtstate_get(struct lwtunnel_state *lws)
 {
@@ -51,7 +56,7 @@ static inline void lwtstate_put(struct lwtunnel_state *lws)
 		return;
 
 	if (atomic_dec_and_test(&lws->refcnt))
-		kfree(lws);
+		lwtstate_free(lws);
 }
 
 static inline bool lwtunnel_output_redirect(struct lwtunnel_state *lwtstate)
