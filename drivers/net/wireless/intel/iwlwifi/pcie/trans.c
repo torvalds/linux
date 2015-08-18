@@ -72,9 +72,7 @@
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
 #include <linux/pm_runtime.h>
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 
 #include "iwl-drv.h"
 #include "iwl-trans.h"
@@ -1197,9 +1195,6 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	if (hw_rfkill != was_hw_rfkill)
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
-	pm_runtime_put_sync(trans->dev);
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 	/* re-take ownership to prevent other users from stealing the deivce */
 	iwl_pcie_prepare_card_hw(trans);
 }
@@ -1359,9 +1354,10 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 	/* ... rfkill can call stop_device and set it false if needed */
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
-	pm_runtime_get_sync(trans->dev);
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
+	/* Make sure we sync here, because we'll need full access later */
+	if (low_power)
+		pm_runtime_resume(trans->dev);
+
 	return 0;
 }
 
@@ -1485,10 +1481,9 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
 	/* TODO: check if this is really needed */
 	pm_runtime_disable(trans->dev);
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
+
 	synchronize_irq(trans_pcie->pci_dev->irq);
 
 	iwl_pcie_tx_free(trans);
@@ -1844,9 +1839,7 @@ void iwl_trans_pcie_ref(struct iwl_trans *trans)
 	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
 	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
 	trans_pcie->ref_count++;
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
 	pm_runtime_get(&trans_pcie->pci_dev->dev);
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
 }
 
@@ -1865,10 +1858,9 @@ void iwl_trans_pcie_unref(struct iwl_trans *trans)
 		return;
 	}
 	trans_pcie->ref_count--;
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
+
 	pm_runtime_mark_last_busy(&trans_pcie->pci_dev->dev);
 	pm_runtime_put_autosuspend(&trans_pcie->pci_dev->dev);
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 
 	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
 }
@@ -2536,6 +2528,22 @@ static struct iwl_trans_dump_data
 	return dump_data;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
+{
+	if (trans->runtime_pm_mode == IWL_PLAT_PM_MODE_D0I3)
+		return iwl_pci_fw_enter_d0i3(trans);
+
+	return 0;
+}
+
+static void iwl_trans_pcie_resume(struct iwl_trans *trans)
+{
+	if (trans->runtime_pm_mode == IWL_PLAT_PM_MODE_D0I3)
+		iwl_pci_fw_exit_d0i3(trans);
+}
+#endif /* CONFIG_PM_SLEEP */
+
 static const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
 	.op_mode_leave = iwl_trans_pcie_op_mode_leave,
@@ -2545,6 +2553,11 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.d3_suspend = iwl_trans_pcie_d3_suspend,
 	.d3_resume = iwl_trans_pcie_d3_resume,
+
+#ifdef CONFIG_PM_SLEEP
+	.suspend = iwl_trans_pcie_suspend,
+	.resume = iwl_trans_pcie_resume,
+#endif /* CONFIG_PM_SLEEP */
 
 	.send_cmd = iwl_trans_pcie_send_hcmd,
 
@@ -2734,6 +2747,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
+
+	init_waitqueue_head(&trans_pcie->d0i3_waitq);
 
 	ret = iwl_pcie_alloc_ict(trans);
 	if (ret)

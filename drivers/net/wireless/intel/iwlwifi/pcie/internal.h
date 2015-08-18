@@ -2,6 +2,7 @@
  *
  * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -374,6 +375,7 @@ struct iwl_trans_pcie {
 	bool ucode_write_complete;
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t wait_command_queue;
+	wait_queue_head_t d0i3_waitq;
 
 	u8 cmd_queue;
 	u8 cmd_fifo;
@@ -593,5 +595,8 @@ static inline int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	return 0;
 }
 #endif
+
+int iwl_pci_fw_exit_d0i3(struct iwl_trans *trans);
+int iwl_pci_fw_enter_d0i3(struct iwl_trans *trans);
 
 #endif /* __iwl_trans_int_pcie_h__ */
