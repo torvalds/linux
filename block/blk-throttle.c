@@ -182,11 +182,6 @@ static inline struct blkcg_gq *tg_to_blkg(struct throtl_grp *tg)
 	return pd_to_blkg(&tg->pd);
 }
 
-static inline struct throtl_grp *td_root_tg(struct throtl_data *td)
-{
-	return blkg_to_tg(td->queue->root_blkg);
-}
-
 /**
  * sq_to_tg - return the throl_grp the specified service queue belongs to
  * @sq: the throtl_service_queue of interest
@@ -447,39 +442,6 @@ static void throtl_pd_reset_stats(struct blkg_policy_data *pd)
 		blkg_rwstat_reset(&sc->service_bytes);
 		blkg_rwstat_reset(&sc->serviced);
 	}
-}
-
-static struct throtl_grp *throtl_lookup_tg(struct throtl_data *td,
-					   struct blkcg *blkcg)
-{
-	return blkg_to_tg(blkg_lookup(blkcg, td->queue));
-}
-
-static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
-						  struct blkcg *blkcg)
-{
-	struct request_queue *q = td->queue;
-	struct throtl_grp *tg = NULL;
-
-	/*
-	 * This is the common case when there are no blkcgs.  Avoid lookup
-	 * in this case
-	 */
-	if (blkcg == &blkcg_root) {
-		tg = td_root_tg(td);
-	} else {
-		struct blkcg_gq *blkg;
-
-		blkg = blkg_lookup_create(blkcg, q);
-
-		/* if %NULL and @q is alive, fall back to root_tg */
-		if (!IS_ERR(blkg))
-			tg = blkg_to_tg(blkg);
-		else
-			tg = td_root_tg(td);
-	}
-
-	return tg;
 }
 
 static struct throtl_grp *
@@ -1403,46 +1365,26 @@ static struct blkcg_policy blkcg_policy_throtl = {
 	.pd_reset_stats_fn	= throtl_pd_reset_stats,
 };
 
-bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
+bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
+		    struct bio *bio)
 {
-	struct throtl_data *td = q->td;
 	struct throtl_qnode *qn = NULL;
-	struct throtl_grp *tg;
+	struct throtl_grp *tg = blkg_to_tg(blkg ?: q->root_blkg);
 	struct throtl_service_queue *sq;
 	bool rw = bio_data_dir(bio);
-	struct blkcg *blkcg;
 	bool throttled = false;
 
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
 	/* see throtl_charge_bio() */
-	if (bio->bi_rw & REQ_THROTTLED)
+	if ((bio->bi_rw & REQ_THROTTLED) || !tg->has_rules[rw])
 		goto out;
 
-	/*
-	 * A throtl_grp pointer retrieved under rcu can be used to access
-	 * basic fields like stats and io rates. If a group has no rules,
-	 * just update the dispatch stats in lockless manner and return.
-	 */
-	rcu_read_lock();
-	blkcg = bio_blkcg(bio);
-	tg = throtl_lookup_tg(td, blkcg);
-	if (tg) {
-		if (!tg->has_rules[rw]) {
-			throtl_update_dispatch_stats(tg_to_blkg(tg),
-					bio->bi_iter.bi_size, bio->bi_rw);
-			goto out_unlock_rcu;
-		}
-	}
-
-	/*
-	 * Either group has not been allocated yet or it is not an unlimited
-	 * IO group
-	 */
 	spin_lock_irq(q->queue_lock);
 
 	if (unlikely(blk_queue_bypass(q)))
 		goto out_unlock;
 
-	tg = throtl_lookup_create_tg(td, blkcg);
 	sq = &tg->service_queue;
 
 	while (true) {
@@ -1507,8 +1449,6 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 
 out_unlock:
 	spin_unlock_irq(q->queue_lock);
-out_unlock_rcu:
-	rcu_read_unlock();
 out:
 	/*
 	 * As multiple blk-throtls may stack in the same issue path, we

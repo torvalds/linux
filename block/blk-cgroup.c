@@ -153,6 +153,7 @@ struct blkcg_gq *blkg_lookup_slowpath(struct blkcg *blkcg,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(blkg_lookup_slowpath);
 
 /*
  * If @new_blkg is %NULL, this function tries to allocate a new one as
@@ -295,7 +296,6 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 			return blkg;
 	}
 }
-EXPORT_SYMBOL_GPL(blkg_lookup_create);
 
 static void blkg_destroy(struct blkcg_gq *blkg)
 {

@@ -421,8 +421,8 @@ static inline struct request_list *blk_get_rl(struct request_queue *q,
 	 * or if either the blkcg or queue is going away.  Fall back to
 	 * root_rl in such cases.
 	 */
-	blkg = blkg_lookup_create(blkcg, q);
-	if (unlikely(IS_ERR(blkg)))
+	blkg = blkg_lookup(blkcg, q);
+	if (unlikely(!blkg))
 		goto root_rl;
 
 	blkg_get(blkg);
@@ -636,6 +636,39 @@ static inline void blkg_rwstat_merge(struct blkg_rwstat *to,
 	u64_stats_update_end(&to->syncp);
 }
 
+#ifdef CONFIG_BLK_DEV_THROTTLING
+extern bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
+			   struct bio *bio);
+#else
+static inline bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
+				  struct bio *bio) { return false; }
+#endif
+
+static inline bool blkcg_bio_issue_check(struct request_queue *q,
+					 struct bio *bio)
+{
+	struct blkcg *blkcg;
+	struct blkcg_gq *blkg;
+	bool throtl = false;
+
+	rcu_read_lock();
+	blkcg = bio_blkcg(bio);
+
+	blkg = blkg_lookup(blkcg, q);
+	if (unlikely(!blkg)) {
+		spin_lock_irq(q->queue_lock);
+		blkg = blkg_lookup_create(blkcg, q);
+		if (IS_ERR(blkg))
+			blkg = NULL;
+		spin_unlock_irq(q->queue_lock);
+	}
+
+	throtl = blk_throtl_bio(q, blkg, bio);
+
+	rcu_read_unlock();
+	return !throtl;
+}
+
 #else	/* CONFIG_BLK_CGROUP */
 
 struct blkcg {
@@ -688,6 +721,9 @@ static inline struct request_list *blk_get_rl(struct request_queue *q,
 static inline void blk_put_rl(struct request_list *rl) { }
 static inline void blk_rq_set_rl(struct request *rq, struct request_list *rl) { }
 static inline struct request_list *blk_rq_rl(struct request *rq) { return &rq->q->root_rl; }
+
+static inline bool blkcg_bio_issue_check(struct request_queue *q,
+					 struct bio *bio) { return true; }
 
 #define blk_queue_for_each_rl(rl, q)	\
 	for ((rl) = &(q)->root_rl; (rl); (rl) = NULL)

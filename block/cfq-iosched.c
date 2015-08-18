@@ -1683,28 +1683,15 @@ static void cfq_pd_reset_stats(struct blkg_policy_data *pd)
 	cfqg_stats_reset(&cfqg->dead_stats);
 }
 
-/*
- * Search for the cfq group current task belongs to. request_queue lock must
- * be held.
- */
-static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
-						struct blkcg *blkcg)
+static struct cfq_group *cfq_lookup_cfqg(struct cfq_data *cfqd,
+					 struct blkcg *blkcg)
 {
-	struct request_queue *q = cfqd->queue;
-	struct cfq_group *cfqg = NULL;
+	struct blkcg_gq *blkg;
 
-	/* avoid lookup for the common case where there's no blkcg */
-	if (blkcg == &blkcg_root) {
-		cfqg = cfqd->root_group;
-	} else {
-		struct blkcg_gq *blkg;
-
-		blkg = blkg_lookup_create(blkcg, q);
-		if (!IS_ERR(blkg))
-			cfqg = blkg_to_cfqg(blkg);
-	}
-
-	return cfqg;
+	blkg = blkg_lookup(blkcg, cfqd->queue);
+	if (likely(blkg))
+		return blkg_to_cfqg(blkg);
+	return NULL;
 }
 
 static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
@@ -2108,8 +2095,8 @@ static struct cftype cfq_blkcg_files[] = {
 	{ }	/* terminate */
 };
 #else /* GROUP_IOSCHED */
-static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
-						struct blkcg *blkcg)
+static struct cfq_group *cfq_lookup_cfqg(struct cfq_data *cfqd,
+					 struct blkcg *blkcg)
 {
 	return cfqd->root_group;
 }
@@ -3716,7 +3703,7 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
 	struct cfq_group *cfqg;
 
 	rcu_read_lock();
-	cfqg = cfq_lookup_create_cfqg(cfqd, bio_blkcg(bio));
+	cfqg = cfq_lookup_cfqg(cfqd, bio_blkcg(bio));
 	if (!cfqg) {
 		cfqq = &cfqd->oom_cfqq;
 		goto out;
