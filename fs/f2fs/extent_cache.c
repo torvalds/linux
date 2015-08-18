@@ -85,13 +85,13 @@ static struct extent_node *__lookup_extent_tree(struct extent_tree *et,
 							unsigned int fofs)
 {
 	struct rb_node *node = et->root.rb_node;
-	struct extent_node *en;
+	struct extent_node *en = et->cached_en;
 
-	if (et->cached_en) {
-		struct extent_info *cei = &et->cached_en->ei;
+	if (en) {
+		struct extent_info *cei = &en->ei;
 
 		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs)
-			return et->cached_en;
+			return en;
 	}
 
 	while (node) {
