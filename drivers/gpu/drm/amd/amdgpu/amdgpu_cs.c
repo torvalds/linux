@@ -772,44 +772,6 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int amdgpu_cs_parser_prepare_job(struct amdgpu_cs_parser *sched_job)
-{
-	int r, i;
-	struct amdgpu_cs_parser *parser = sched_job;
-	struct amdgpu_device *adev = sched_job->adev;
-	bool reserved_buffers = false;
-
-	r = amdgpu_cs_parser_relocs(parser);
-	if (r) {
-		if (r != -ERESTARTSYS) {
-			if (r == -ENOMEM)
-				DRM_ERROR("Not enough memory for command submission!\n");
-			else
-				DRM_ERROR("Failed to process the buffer list %d!\n", r);
-		}
-	}
-
-	if (!r) {
-		reserved_buffers = true;
-		r = amdgpu_cs_ib_fill(adev, parser);
-	}
-	if (!r) {
-		r = amdgpu_cs_dependencies(adev, parser);
-		if (r)
-			DRM_ERROR("Failed in the dependencies handling %d!\n", r);
-	}
-	if (r) {
-		amdgpu_cs_parser_fini(parser, r, reserved_buffers);
-		return r;
-	}
-
-	for (i = 0; i < parser->num_ibs; i++)
-		trace_amdgpu_cs(parser, i);
-
-	r = amdgpu_cs_ib_vm_chunk(adev, parser);
-	return r;
-}
-
 static int amdgpu_cs_free_job(struct amdgpu_job *sched_job)
 {
 	int i;
@@ -828,7 +790,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct amdgpu_device *adev = dev->dev_private;
 	union drm_amdgpu_cs *cs = data;
 	struct amdgpu_cs_parser *parser;
-	int r;
+	bool reserved_buffers = false;
+	int i, r;
 
 	down_read(&adev->exclusive_lock);
 	if (!adev->accel_working) {
@@ -848,7 +811,29 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return r;
 	}
 
-	r = amdgpu_cs_parser_prepare_job(parser);
+	r = amdgpu_cs_parser_relocs(parser);
+	if (r == -ENOMEM)
+		DRM_ERROR("Not enough memory for command submission!\n");
+	else if (r && r != -ERESTARTSYS)
+		DRM_ERROR("Failed to process the buffer list %d!\n", r);
+	else if (!r) {
+		reserved_buffers = true;
+		r = amdgpu_cs_ib_fill(adev, parser);
+	}
+
+	if (!r) {
+		r = amdgpu_cs_dependencies(adev, parser);
+		if (r)
+			DRM_ERROR("Failed in the dependencies handling %d!\n", r);
+	}
+
+	if (r)
+		goto out;
+
+	for (i = 0; i < parser->num_ibs; i++)
+		trace_amdgpu_cs(parser, i);
+
+	r = amdgpu_cs_ib_vm_chunk(adev, parser);
 	if (r)
 		goto out;
 
@@ -899,7 +884,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	cs->out.handle = parser->ibs[parser->num_ibs - 1].sequence;
 out:
-	amdgpu_cs_parser_fini(parser, r, true);
+	amdgpu_cs_parser_fini(parser, r, reserved_buffers);
 	up_read(&adev->exclusive_lock);
 	r = amdgpu_cs_handle_lockup(adev, r);
 	return r;
