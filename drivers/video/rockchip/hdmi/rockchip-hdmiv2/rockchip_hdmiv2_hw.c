@@ -1132,6 +1132,9 @@ static void hdmi_dev_config_avi(struct hdmi_dev *hdmi_dev,
 	unsigned char colorimetry, ext_colorimetry, aspect_ratio, y1y0;
 	unsigned char rgb_quan_range = AVI_QUANTIZATION_RANGE_DEFAULT;
 
+	hdmi_msk_reg(hdmi_dev, FC_DATAUTO3, m_AVI_AUTO, v_AVI_AUTO(0));
+	hdmi_msk_reg(hdmi_dev, IH_FC_STAT1,
+		     m_AVI_INFOFRAME, v_AVI_INFOFRAME(1));
 	/* Set AVI infoFrame Data byte1 */
 	if (vpara->color_output == HDMI_COLOR_YCBCR444)
 		y1y0 = AVI_COLOR_MODE_YCBCR444;
@@ -1200,6 +1203,7 @@ static void hdmi_dev_config_avi(struct hdmi_dev *hdmi_dev,
 	/* Set AVI infoFrame Data byte5 */
 	hdmi_msk_reg(hdmi_dev, FC_AVICONF3, m_FC_YQ | m_FC_CN,
 		     v_FC_YQ(YQ_LIMITED_RANGE) | v_FC_CN(CN_GRAPHICS));
+	hdmi_msk_reg(hdmi_dev, FC_DATAUTO3, m_AVI_AUTO, v_AVI_AUTO(1));
 }
 
 static int hdmi_dev_config_vsi(struct hdmi *hdmi,
@@ -1577,6 +1581,10 @@ static int hdmi_dev_control_output(struct hdmi *hdmi, int enable)
 				vpara.vic = hdmi->vic;
 				vpara.color_output = HDMI_COLOR_RGB_0_255;
 				hdmi_dev_config_avi(hdmi_dev, &vpara);
+				while ((!hdmi_readl(hdmi_dev, IH_FC_STAT1)) &
+				       m_AVI_INFOFRAME) {
+					usleep_range(900, 1000);
+				}
 			}
 		}
 /*		if (enable & HDMI_AUDIO_MUTE) {
@@ -1585,7 +1593,6 @@ static int hdmi_dev_control_output(struct hdmi *hdmi, int enable)
 				     v_AUD_PACK_SAMPFIT(0x0F));
 		}
 */		if (enable == (HDMI_VIDEO_MUTE | HDMI_AUDIO_MUTE)) {
-			msleep(100);
 			if (hdmi->ops->hdcp_power_off_cb)
 				hdmi->ops->hdcp_power_off_cb(hdmi);
 			rockchip_hdmiv2_powerdown(hdmi_dev);
