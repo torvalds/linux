@@ -220,7 +220,7 @@ struct cfqg_stats {
 /* Per-cgroup data */
 struct cfq_group_data {
 	/* must be the first member */
-	struct blkcg_policy_data pd;
+	struct blkcg_policy_data cpd;
 
 	unsigned int weight;
 	unsigned int leaf_weight;
@@ -612,7 +612,7 @@ static inline struct cfq_group *pd_to_cfqg(struct blkg_policy_data *pd)
 static struct cfq_group_data
 *cpd_to_cfqgd(struct blkcg_policy_data *cpd)
 {
-	return cpd ? container_of(cpd, struct cfq_group_data, pd) : NULL;
+	return cpd ? container_of(cpd, struct cfq_group_data, cpd) : NULL;
 }
 
 static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg)
@@ -1568,12 +1568,11 @@ static void cfqg_stats_init(struct cfqg_stats *stats)
 #endif
 }
 
-static void cfq_cpd_init(const struct blkcg *blkcg)
+static void cfq_cpd_init(struct blkcg_policy_data *cpd)
 {
-	struct cfq_group_data *cgd =
-		cpd_to_cfqgd(blkcg->pd[blkcg_policy_cfq.plid]);
+	struct cfq_group_data *cgd = cpd_to_cfqgd(cpd);
 
-	if (blkcg == &blkcg_root) {
+	if (cpd_to_blkcg(cpd) == &blkcg_root) {
 		cgd->weight = 2 * CFQ_WEIGHT_DEFAULT;
 		cgd->leaf_weight = 2 * CFQ_WEIGHT_DEFAULT;
 	} else {

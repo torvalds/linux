@@ -45,7 +45,7 @@ struct blkcg {
 	struct blkcg_gq			*blkg_hint;
 	struct hlist_head		blkg_list;
 
-	struct blkcg_policy_data	*pd[BLKCG_MAX_POLS];
+	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
 
 	struct list_head		all_blkcgs_node;
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -88,7 +88,8 @@ struct blkg_policy_data {
  * each policy handle per-blkcg data.
  */
 struct blkcg_policy_data {
-	/* the policy id this per-policy data belongs to */
+	/* the blkcg and policy id this per-policy data belongs to */
+	struct blkcg			*blkcg;
 	int				plid;
 };
 
@@ -123,7 +124,7 @@ struct blkcg_gq {
 	struct rcu_head			rcu_head;
 };
 
-typedef void (blkcg_pol_init_cpd_fn)(const struct blkcg *blkcg);
+typedef void (blkcg_pol_init_cpd_fn)(struct blkcg_policy_data *cpd);
 typedef struct blkg_policy_data *(blkcg_pol_alloc_pd_fn)(gfp_t gfp, int node);
 typedef void (blkcg_pol_init_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_online_pd_fn)(struct blkg_policy_data *pd);
@@ -243,7 +244,7 @@ static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
 static inline struct blkcg_policy_data *blkcg_to_cpd(struct blkcg *blkcg,
 						     struct blkcg_policy *pol)
 {
-	return blkcg ? blkcg->pd[pol->plid] : NULL;
+	return blkcg ? blkcg->cpd[pol->plid] : NULL;
 }
 
 /**
@@ -255,6 +256,11 @@ static inline struct blkcg_policy_data *blkcg_to_cpd(struct blkcg *blkcg,
 static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd)
 {
 	return pd ? pd->blkg : NULL;
+}
+
+static inline struct blkcg *cpd_to_blkcg(struct blkcg_policy_data *cpd)
+{
+	return cpd ? cpd->blkcg : NULL;
 }
 
 /**
