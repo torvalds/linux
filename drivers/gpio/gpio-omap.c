@@ -1219,7 +1219,6 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bank->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(bank->base)) {
-		irq_domain_remove(bank->chip.irqdomain);
 		return PTR_ERR(bank->base);
 	}
 
