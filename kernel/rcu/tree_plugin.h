@@ -761,8 +761,7 @@ void synchronize_rcu_expedited(void)
 
 	/* Wait for snapshotted ->blkd_tasks lists to drain. */
 	rnp = rcu_get_root(rsp);
-	wait_event(rsp->expedited_wq,
-		   sync_rcu_preempt_exp_done(rnp));
+	synchronize_sched_expedited_wait(rsp);
 
 	/* Clean up and exit. */
 	rcu_exp_gp_seq_end(rsp);
