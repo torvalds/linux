@@ -342,6 +342,7 @@ static void wilc_wlan_parse_response_frame(uint8_t *info, int size)
 				if (g_cfg_str[i].id == wid) {
 					if (wid == WID_SITE_SURVEY_RESULTS) {
 						static int toggle;
+
 						PRINT_INFO(GENERIC_DBG, "Site survey results received[%d]\n",
 							   size);
 
@@ -483,9 +484,11 @@ static int wilc_wlan_cfg_get_wid_value(uint16_t wid, uint8_t *buffer, uint32_t b
 
 			if (g_cfg_str[i].id == wid) {
 				uint32_t size =  g_cfg_str[i].str[0];
+
 				if (buffer_size >= size) {
 					if (g_cfg_str[i].id == WID_SITE_SURVEY_RESULTS)	{
 						static int toggle;
+
 						PRINT_INFO(GENERIC_DBG, "Site survey results value[%d]\n",
 							   size);
 						i += toggle;

@@ -122,6 +122,7 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 
 	if (len > 0 && b != NULL) {
 		struct spi_message msg;
+
 		PRINT_D(BUS_DBG, "Request writing %d bytes\n", len);
 		struct spi_transfer tr = {
 			.tx_buf = b,
@@ -155,12 +156,14 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 int linux_spi_write(uint8_t *b, uint32_t len)
 {
 	int ret;
+
 	if (len > 0 && b != NULL) {
 		int i = 0;
 		int blk = len / TXRX_PHASE_SIZE;
 		int remainder = len % TXRX_PHASE_SIZE;
 
 		char *r_buffer = kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
+
 		if (!r_buffer) {
 			PRINT_ER("Failed to allocate memory for r_buffer\n");
 		}
@@ -243,6 +246,7 @@ int linux_spi_write(uint8_t *b, uint32_t len)
 			.delay_usecs = 0,
 		};
 		char *r_buffer = kzalloc(len, GFP_KERNEL);
+
 		if (!r_buffer) {
 			PRINT_ER("Failed to allocate memory for r_buffer\n");
 		}
@@ -324,6 +328,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 		int remainder = rlen % TXRX_PHASE_SIZE;
 
 		char *t_buffer = kzalloc(TXRX_PHASE_SIZE, GFP_KERNEL);
+
 		if (!t_buffer) {
 			PRINT_ER("Failed to allocate memory for t_buffer\n");
 		}
@@ -403,6 +408,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 
 		};
 		char *t_buffer = kzalloc(rlen, GFP_KERNEL);
+
 		if (!t_buffer) {
 			PRINT_ER("Failed to allocate memory for t_buffer\n");
 		}

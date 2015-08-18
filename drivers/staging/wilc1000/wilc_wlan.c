@@ -188,6 +188,7 @@ static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
 	struct txq_entry_t *tqe;
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
+
 	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
 	if (p->txq_head) {
 		tqe = p->txq_head;
@@ -368,6 +369,7 @@ static __inline int remove_TCP_related(void)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
+
 	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
 
 	p->os_func.os_spin_unlock(p->txq_spinlock, &flags);
@@ -383,6 +385,7 @@ static __inline int tcp_process(struct txq_entry_t *tqe)
 	int i;
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
+
 	p->os_func.os_spin_lock(p->txq_spinlock, &flags);
 
 	eth_hdr_ptr = &buffer[0];
@@ -398,12 +401,14 @@ static __inline int tcp_process(struct txq_entry_t *tqe)
 		if (protocol == 0x06) {
 			uint8_t *tcp_hdr_ptr;
 			uint32_t IHL, Total_Length, Data_offset;
+
 			tcp_hdr_ptr = &ip_hdr_ptr[IP_HDR_LEN];
 			IHL = (ip_hdr_ptr[0] & 0xf) << 2;
 			Total_Length = (((uint32_t)ip_hdr_ptr[2]) << 8) + ((uint32_t)ip_hdr_ptr[3]);
 			Data_offset = (((uint32_t)tcp_hdr_ptr[12] & 0xf0) >> 2);
 			if (Total_Length == (IHL + Data_offset)) { /*we want to recognize the clear Acks(packet only carry Ack infos not with data) so data size must be equal zero*/
 				uint32_t seq_no, Ack_no;
+
 				seq_no	= (((uint32_t)tcp_hdr_ptr[4]) << 24) + (((uint32_t)tcp_hdr_ptr[5]) << 16) + (((uint32_t)tcp_hdr_ptr[6]) << 8) + ((uint32_t)tcp_hdr_ptr[7]);
 
 				Ack_no	= (((uint32_t)tcp_hdr_ptr[8]) << 24) + (((uint32_t)tcp_hdr_ptr[9]) << 16) + (((uint32_t)tcp_hdr_ptr[10]) << 8) + ((uint32_t)tcp_hdr_ptr[11]);
@@ -445,6 +450,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
 		if (Pending_Acks_info[i].ack_num < Acks_keep_track_info[Pending_Acks_info[i].Session_index].Bigger_Ack_num) {
 			struct txq_entry_t *tqe;
+
 			PRINT_D(TCP_ENH, "DROP ACK: %u\n", Pending_Acks_info[i].ack_num);
 			tqe = Pending_Acks_info[i].txqe;
 			if (tqe) {
@@ -778,6 +784,7 @@ INLINE void chip_wakeup(void)
 		if (wilc_get_chipid(false) >= 0x1002b0) {
 			/* Enable PALDO back right after wakeup */
 			uint32_t val32;
+
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
 			val32 |= (1 << 6);
 			g_wlan.hif_func.hif_write_reg(0x1e1c, val32);
@@ -793,6 +800,7 @@ INLINE void chip_wakeup(void)
 INLINE void chip_wakeup(void)
 {
 	uint32_t reg, trials = 0;
+
 	do {
 		if ((g_wlan.io_func.io_type & 0x1) == HIF_SPI) {
 			g_wlan.hif_func.hif_read_reg(1, &reg);
@@ -833,6 +841,7 @@ INLINE void chip_wakeup(void)
 		if (wilc_get_chipid(false) >= 0x1002b0) {
 			/* Enable PALDO back right after wakeup */
 			uint32_t val32;
+
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
 			val32 |= (1 << 6);
 			g_wlan.hif_func.hif_write_reg(0x1e1c, val32);
@@ -885,6 +894,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 	int counter;
 	int timeout;
 	uint32_t vmm_table[WILC_VMM_TBL_SIZE];
+
 	p->txq_exit = 0;
 	do {
 		if (p->quit)
@@ -1125,6 +1135,7 @@ static int wilc_wlan_handle_txq(uint32_t *pu32TxqCount)
 				/* and WILC_DATA_PKT_MAC_HDR*/
 				else if (tqe->type == WILC_NET_PKT) {
 					char *pBSSID = ((struct tx_complete_data *)(tqe->priv))->pBssid;
+
 					buffer_offset = ETH_ETHERNET_HDR_OFFSET;
 					/* copy the bssid at the sart of the buffer */
 					memcpy(&txb[offset + 4], pBSSID, 6);
@@ -1225,6 +1236,7 @@ static void wilc_wlan_handle_rxq(void)
 			uint32_t header;
 			uint32_t pkt_len, pkt_offset, tp_len;
 			int is_cfg_packet;
+
 			PRINT_D(RX_DBG, "In the 2nd do-while\n");
 			memcpy(&header, &buffer[offset], 4);
 #ifdef BIG_ENDIAN
@@ -1705,6 +1717,7 @@ void wilc_wlan_global_reset(void)
 {
 
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+
 	acquire_bus(ACQUIRE_AND_WAKEUP);
 	p->hif_func.hif_write_reg(WILC_GLB_RESET_0, 0x0);
 	release_bus(RELEASE_ONLY);

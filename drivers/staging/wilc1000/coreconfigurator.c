@@ -668,6 +668,7 @@ INLINE u16 get_asoc_id(u8 *data)
 s32 CoreConfiguratorInit(void)
 {
 	s32 s32Error = WILC_SUCCESS;
+
 	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit()\n");
 
 	sema_init(&SemHandleSendPkt, 1);
@@ -1097,6 +1098,7 @@ void ProcessCharWid(char *pcPacket, s32 *ps32PktLen,
 	u8 *pu8val = (u8 *)ps8WidVal;
 	u8 u8val = 0;
 	s32 s32PktLen = *ps32PktLen;
+
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set CHAR val 0x%x ,NULL structure\n", u8val);
 		return;
@@ -1151,6 +1153,7 @@ void ProcessShortWid(char *pcPacket, s32 *ps32PktLen,
 	u16 *pu16val = (u16 *)ps8WidVal;
 	u16 u16val = 0;
 	s32 s32PktLen = *ps32PktLen;
+
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set SHORT val 0x%x ,NULL structure\n", u16val);
 		return;
@@ -1206,6 +1209,7 @@ void ProcessIntWid(char *pcPacket, s32 *ps32PktLen,
 	u32 *pu32val = (u32 *)ps8WidVal;
 	u32 u32val = 0;
 	s32 s32PktLen = *ps32PktLen;
+
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set INT val 0x%x , NULL structure\n", u32val);
 		return;
@@ -1322,6 +1326,7 @@ void ProcessStrWid(char *pcPacket, s32 *ps32PktLen,
 	u16 u16MsgLen = 0;
 	u16 idx    = 0;
 	s32 s32PktLen = *ps32PktLen;
+
 	if (pstrWID == NULL) {
 		PRINT_WRN(CORECONFIG_DBG, "Can't set STR val, NULL structure\n");
 		return;
@@ -1540,6 +1545,7 @@ s32 further_process_response(u8 *resp,
 	case WID_SHORT:
 	{
 		u16 *pu16val = (u16 *)(pstrWIDresult->ps8WidVal);
+
 		cfg_sht = MAKE_WORD16(resp[idx], resp[idx + 1]);
 		/*Set local copy of WID*/
 		/* pstrWIDresult->ps8WidVal = (s8*)(s32)cfg_sht; */
@@ -1550,6 +1556,7 @@ s32 further_process_response(u8 *resp,
 	case WID_INT:
 	{
 		u32 *pu32val = (u32 *)(pstrWIDresult->ps8WidVal);
+
 		cfg_int = MAKE_WORD32(
 				MAKE_WORD16(resp[idx], resp[idx + 1]),
 				MAKE_WORD16(resp[idx + 2], resp[idx + 3])
@@ -1980,6 +1987,7 @@ s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
 			  u32 u32WIDsCount, bool bRespRequired, u32 drvHandler)
 {
 	s32 counter = 0, ret = 0;
+
 	if (gpstrWlanOps == NULL) {
 		PRINT_D(CORECONFIG_DBG, "Net Dev is still not initialized\n");
 		return 1;

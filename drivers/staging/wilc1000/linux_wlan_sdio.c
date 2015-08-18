@@ -194,6 +194,7 @@ void disable_sdio_interrupt(void)
 static int linux_sdio_set_speed(int speed)
 {
 	struct mmc_ios ios;
+
 	sdio_claim_host(local_sdio_func);
 
 	memcpy((void *)&ios, (void *)&local_sdio_func->card->host->ios, sizeof(struct mmc_ios));

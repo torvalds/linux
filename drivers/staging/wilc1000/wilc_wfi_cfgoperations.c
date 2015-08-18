@@ -144,6 +144,7 @@ bool g_wep_keys_saved;
 void clear_shadow_scan(void *pUserVoid)
 {
 	int i;
+
 	if (op_ifcs == 0) {
 		del_timer_sync(&hAgingTimer);
 		PRINT_INFO(CORECONFIG_DBG, "destroy aging timer\n");
@@ -188,6 +189,7 @@ void refresh_scan(void *pUserVoid, uint8_t all, bool bDirectScan)
 
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		tstrNetworkInfo *pstrNetworkInfo;
+
 		pstrNetworkInfo = &(astrLastScannedNtwrksShadow[i]);
 
 
@@ -217,6 +219,7 @@ void refresh_scan(void *pUserVoid, uint8_t all, bool bDirectScan)
 void reset_shadow_found(void *pUserVoid)
 {
 	int i;
+
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		astrLastScannedNtwrksShadow[i].u8Found = 0;
 
@@ -226,6 +229,7 @@ void reset_shadow_found(void *pUserVoid)
 void update_scan_time(void *pUserVoid)
 {
 	int i;
+
 	for (i = 0; i < u32LastScannedNtwrksCountShadow; i++) {
 		astrLastScannedNtwrksShadow[i].u32TimeRcvdInScan = jiffies;
 	}
@@ -553,6 +557,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	#endif
 	u8 NullBssid[ETH_ALEN] = {0};
+
 	connecting = 0;
 
 	priv = (struct WILC_WFI_priv *)pUserVoid;
@@ -692,6 +697,7 @@ static int WILC_WFI_CfgSetChannel(struct wiphy *wiphy,
 	u32 channelnum = 0;
 	struct WILC_WFI_priv *priv;
 	s32 s32Error = WILC_SUCCESS;
+
 	priv = wiphy_priv(wiphy);
 
 	channelnum = ieee80211_frequency_to_channel(chandef->chan->center_freq);
@@ -1075,6 +1081,7 @@ static int WILC_WFI_disconnect(struct wiphy *wiphy, struct net_device *dev, u16 
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	#endif
 	uint8_t NullBssid[ETH_ALEN] = {0};
+
 	connecting = 0;
 	priv = wiphy_priv(wiphy);
 
@@ -1527,6 +1534,7 @@ static int WILC_WFI_get_key(struct wiphy *wiphy, struct net_device *netdev, u8 k
 	struct WILC_WFI_priv *priv;
 	struct  key_params key_params;
 	u32 i;
+
 	priv = wiphy_priv(wiphy);
 
 
@@ -1668,6 +1676,7 @@ static int WILC_WFI_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (nic->iftype == STATION_MODE) {
 		tstrStatistics strStatistics;
+
 		host_int_get_statistics(priv->hWILCWFIDrv, &strStatistics);
 
 		/*
@@ -2198,6 +2207,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, uint8_t *buff, uint32_t size)
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	u32 i = 0;
 	s32 s32Freq;
+
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
 
@@ -2333,6 +2343,7 @@ static void WILC_WFI_mgmt_tx_complete(void *priv, int status)
 static void WILC_WFI_RemainOnChannelReady(void *pUserVoid)
 {
 	struct WILC_WFI_priv *priv;
+
 	priv = (struct WILC_WFI_priv *)pUserVoid;
 
 	PRINT_D(HOSTINF_DBG, "Remain on channel ready\n");
@@ -2359,6 +2370,7 @@ static void WILC_WFI_RemainOnChannelReady(void *pUserVoid)
 static void WILC_WFI_RemainOnChannelExpired(void *pUserVoid, u32 u32SessionID)
 {
 	struct WILC_WFI_priv *priv;
+
 	priv = (struct WILC_WFI_priv *)pUserVoid;
 
 	/*BugID_5477*/
@@ -2399,6 +2411,7 @@ static int  WILC_WFI_remain_on_channel(struct wiphy *wiphy,
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
+
 	priv = wiphy_priv(wiphy);
 
 	PRINT_D(GENERIC_DBG, "Remaining on channel %d\n", chan->hw_value);
@@ -2450,6 +2463,7 @@ static int   WILC_WFI_cancel_remain_on_channel(struct wiphy *wiphy,
 {
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
+
 	priv = wiphy_priv(wiphy);
 
 	PRINT_D(CFG80211_DBG, "Cancel remain on channel\n");
@@ -2644,6 +2658,7 @@ int   WILC_WFI_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 {
 	struct WILC_WFI_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
+
 	priv = wiphy_priv(wiphy);
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
 
@@ -2761,6 +2776,7 @@ static int WILC_WFI_dump_station(struct wiphy *wiphy, struct net_device *dev,
 				 int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct WILC_WFI_priv *priv;
+
 	PRINT_D(CFG80211_DBG, "Dumping station information\n");
 
 	if (idx != 0)
@@ -2790,6 +2806,7 @@ int WILC_WFI_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 			    bool enabled, int timeout)
 {
 	struct WILC_WFI_priv *priv;
+
 	PRINT_D(CFG80211_DBG, " Power save Enabled= %d , TimeOut = %d\n", enabled, timeout);
 
 	if (wiphy == NULL)
@@ -3416,6 +3433,7 @@ static int WILC_WFI_del_station(struct wiphy *wiphy, struct net_device *dev,
 	s32 s32Error = WILC_SUCCESS;
 	struct WILC_WFI_priv *priv;
 	perInterface_wlan_t *nic;
+
 	WILC_NULLCHECK(s32Error, wiphy);
 
 	priv = wiphy_priv(wiphy);
@@ -3542,6 +3560,7 @@ struct wireless_dev *WILC_WFI_add_virt_intf(struct wiphy *wiphy, const char *nam
 	perInterface_wlan_t *nic;
 	struct WILC_WFI_priv *priv;
 	struct net_device *new_ifc = NULL;
+
 	priv = wiphy_priv(wiphy);
 
 
@@ -3864,6 +3883,7 @@ int WILC_WFI_DeInitHostInt(struct net_device *net)
 	s32 s32Error = WILC_SUCCESS;
 
 	struct WILC_WFI_priv *priv;
+
 	priv = wdev_priv(net->ieee80211_ptr);
 
 	priv->gbAutoRateAdjusted = false;

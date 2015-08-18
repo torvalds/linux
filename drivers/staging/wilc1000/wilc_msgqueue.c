@@ -37,6 +37,7 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
 
 	while (pHandle->pstrMessageList != NULL) {
 		Message *pstrMessge = pHandle->pstrMessageList->pstrNext;
+
 		kfree(pHandle->pstrMessageList);
 		pHandle->pstrMessageList = pstrMessge;
 	}
@@ -82,6 +83,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 		pHandle->pstrMessageList  = pstrMessage;
 	} else {
 		Message *pstrTailMsg = pHandle->pstrMessageList;
+
 		while (pstrTailMsg->pstrNext != NULL) {
 			pstrTailMsg = pstrTailMsg->pstrNext;
 		}
@@ -122,6 +124,7 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 	Message *pstrMessage;
 	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
 	unsigned long flags;
+
 	if ((pHandle == NULL) || (u32RecvBufferSize == 0)
 	    || (pvRecvBuffer == NULL) || (pu32ReceivedLength == NULL)) {
 		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);

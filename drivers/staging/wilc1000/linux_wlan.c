@@ -194,6 +194,7 @@ static char *ps8current = DebugBuffer;
 void printk_later(const char *format, ...)
 {
 	va_list args;
+
 	va_start(args, format);
 	ps8current += vsprintf(ps8current, format, args);
 	va_end(args);
@@ -402,11 +403,13 @@ static irqreturn_t isr_uh_routine(int irq, void *user_data)
 irqreturn_t isr_bh_routine(int irq, void *userdata)
 {
 	linux_wlan_t *nic;
+
 	nic = (linux_wlan_t *)userdata;
 #else
 static void isr_bh_routine(struct work_struct *work)
 {
 	perInterface_wlan_t *nic;
+
 	nic = (perInterface_wlan_t *)container_of(work, linux_wlan_t, rx_work_queue);
 #endif
 
@@ -531,6 +534,7 @@ static void linux_wlan_msleep(uint32_t msc)
 {
 	if (msc <= 4000000) {
 		u32 u32Temp = msc * 1000;
+
 		usleep_range(u32Temp, u32Temp);
 	} else {
 		msleep(msc);
@@ -549,6 +553,7 @@ static void linux_wlan_dbg(uint8_t *buff)
 static void *linux_wlan_malloc_atomic(uint32_t sz)
 {
 	char *pntr = NULL;
+
 	pntr = kmalloc(sz, GFP_ATOMIC);
 	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", sz, pntr);
 	return (void *)pntr;
@@ -557,6 +562,7 @@ static void *linux_wlan_malloc_atomic(uint32_t sz)
 static void *linux_wlan_malloc(uint32_t sz)
 {
 	char *pntr = NULL;
+
 	pntr = kmalloc(sz, GFP_KERNEL);
 	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", sz, pntr);
 	return (void *)pntr;
@@ -573,6 +579,7 @@ void linux_wlan_free(void *vp)
 static void *internal_alloc(uint32_t size, uint32_t flag)
 {
 	char *pntr = NULL;
+
 	pntr = kmalloc(size, flag);
 	PRINT_D(MEM_DBG, "Allocating %d bytes at address %p\n", size, pntr);
 	return (void *)pntr;
@@ -604,6 +611,7 @@ static void linux_wlan_lock(void *vp)
 static int linux_wlan_lock_timeout(void *vp, u32 timeout)
 {
 	int error = -1;
+
 	PRINT_D(LOCK_DBG, "Locking %p\n", vp);
 	if (vp != NULL)
 		error = down_timeout((struct semaphore *)vp, msecs_to_jiffies(timeout));
@@ -681,6 +689,7 @@ static void linux_wlan_deinit_spin_lock(void *plock)
 static void linux_wlan_spin_lock(void *vp, unsigned long *flags)
 {
 	unsigned long lflags;
+
 	PRINT_D(SPIN_DEBUG, "Lock spin %p\n", vp);
 	if (vp != NULL) {
 		spin_lock_irqsave((spinlock_t *)vp, lflags);
@@ -692,6 +701,7 @@ static void linux_wlan_spin_lock(void *vp, unsigned long *flags)
 static void linux_wlan_spin_unlock(void *vp, unsigned long *flags)
 {
 	unsigned long lflags = *flags;
+
 	PRINT_D(SPIN_DEBUG, "Unlock spin %p\n", vp);
 	if (vp != NULL) {
 		spin_unlock_irqrestore((spinlock_t *)vp, lflags);
@@ -1535,6 +1545,7 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 {
 
 	int ret = 0;
+
 	PRINT_D(INIT_DBG, "Initializing Threads ...\n");
 
 #if (RX_BH_TYPE == RX_BH_WORK_QUEUE)
@@ -1709,6 +1720,7 @@ extern void wilc_wlan_global_reset(void);
 uint8_t wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi,	wilc_wlan_oup_t *nwo, linux_wlan_t *nic)
 {
 	uint8_t trials = 0;
+
 	while ((core_11b_ready() && (READY_CHECK_THRESHOLD > (trials++)))) {
 		PRINT_D(INIT_DBG, "11b core not ready yet: %u\n", trials);
 		wilc_wlan_deinit(nic);
@@ -1743,6 +1755,7 @@ int repeat_power_cycle(perInterface_wlan_t *nic)
 	int ret = 0;
 	wilc_wlan_inp_t nwi;
 	wilc_wlan_oup_t nwo;
+
 	sdio_unregister_driver(&wilc_bus);
 
 	linux_wlan_device_detection(0);
@@ -1880,6 +1893,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		if (g_linux_wlan->oup.wlan_cfg_get(1, WID_FIRMWARE_VERSION, 1, 0)) {
 			int size;
 			char Firmware_ver[20];
+
 			size = g_linux_wlan->oup.wlan_cfg_get_value(
 					WID_FIRMWARE_VERSION,
 					Firmware_ver, sizeof(Firmware_ver));
@@ -2039,6 +2053,7 @@ int mac_open(struct net_device *ndev)
 {
 
 	linux_wlan_t *nic;
+
 	nic = netdev_priv(ndev);
 
 	/*initialize platform*/
@@ -2069,6 +2084,7 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	struct WILC_WFI_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	int i = 0;
+
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
 
@@ -2120,6 +2136,7 @@ static void linux_wlan_tx_complete(void *priv, int status)
 {
 
 	struct tx_complete_data *pv_data = (struct tx_complete_data *)priv;
+
 	if (status == 1)
 		PRINT_D(TX_DBG, "Packet sent successfully - Size = %d - Address = %p - SKB = %p\n", pv_data->size, pv_data->buff, pv_data->skb);
 	else
@@ -2137,6 +2154,7 @@ int mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	char *pu8UdpBuffer;
 	struct iphdr *ih;
 	struct ethhdr *eth_h;
+
 	nic = netdev_priv(ndev);
 
 	PRINT_D(INT_DBG, "\n========\n IntUH: %d - IntBH: %d - IntCld: %d\n========\n", int_rcvdU, int_rcvdB, int_clrd);

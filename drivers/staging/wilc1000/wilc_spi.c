@@ -1023,6 +1023,7 @@ static int spi_read(uint32_t addr, uint8_t *buf, uint32_t size)
 static int spi_clear_int(void)
 {
 	uint32_t reg;
+
 	if (!spi_read_reg(WILC_HOST_RX_CTRL_0, &reg)) {
 		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
 		return 0;
@@ -1170,6 +1171,7 @@ static void spi_default_bus_speed(void)
 static int spi_read_size(uint32_t *size)
 {
 	int ret;
+
 	if (g_spi.has_thrpt_enh) {
 		ret = spi_internal_read(0xe840 - WILC_SPI_REG_BASE, size);
 		*size = *size  & IRQ_DMA_WD_CNT_MASK;
@@ -1197,6 +1199,7 @@ _fail_:
 static int spi_read_int(uint32_t *int_status)
 {
 	int ret;
+
 	if (g_spi.has_thrpt_enh) {
 		ret = spi_internal_read(0xe840 - WILC_SPI_REG_BASE, int_status);
 	} else {
@@ -1257,6 +1260,7 @@ static int spi_clear_int_ext(uint32_t val)
 		ret = spi_internal_write(0xe844 - WILC_SPI_REG_BASE, val);
 	} else {
 		uint32_t flags;
+
 		flags = val & ((1 << MAX_NUM_INT) - 1);
 		if (flags) {
 			int i;
