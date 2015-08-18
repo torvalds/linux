@@ -1333,9 +1333,10 @@ static int cgroup_show_options(struct seq_file *seq,
 	struct cgroup_subsys *ss;
 	int ssid;
 
-	for_each_subsys(ss, ssid)
-		if (root->subsys_mask & (1 << ssid))
-			seq_printf(seq, ",%s", ss->name);
+	if (root != &cgrp_dfl_root)
+		for_each_subsys(ss, ssid)
+			if (root->subsys_mask & (1 << ssid))
+				seq_printf(seq, ",%s", ss->name);
 	if (root->flags & CGRP_ROOT_NOPREFIX)
 		seq_puts(seq, ",noprefix");
 	if (root->flags & CGRP_ROOT_XATTR)
@@ -5137,9 +5138,11 @@ int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 			continue;
 
 		seq_printf(m, "%d:", root->hierarchy_id);
-		for_each_subsys(ss, ssid)
-			if (root->subsys_mask & (1 << ssid))
-				seq_printf(m, "%s%s", count++ ? "," : "", ss->name);
+		if (root != &cgrp_dfl_root)
+			for_each_subsys(ss, ssid)
+				if (root->subsys_mask & (1 << ssid))
+					seq_printf(m, "%s%s", count++ ? "," : "",
+						   ss->name);
 		if (strlen(root->name))
 			seq_printf(m, "%sname=%s", count ? "," : "",
 				   root->name);
