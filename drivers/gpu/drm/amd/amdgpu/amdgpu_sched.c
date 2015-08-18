@@ -49,6 +49,9 @@ static struct fence *amdgpu_sched_run_job(struct amd_gpu_scheduler *sched,
 		goto err;
 	fence = amdgpu_fence_ref(sched_job->ibs[sched_job->num_ibs - 1].fence);
 
+	if (sched_job->free_job)
+		sched_job->free_job(sched_job);
+
 	mutex_unlock(&sched_job->job_lock);
 	return &fence->base;
 
@@ -69,10 +72,6 @@ static void amdgpu_sched_process_job(struct amd_gpu_scheduler *sched,
 		return;
 	}
 	sched_job = (struct amdgpu_job *)job;
-	mutex_lock(&sched_job->job_lock);
-	if (sched_job->free_job)
-		sched_job->free_job(sched_job);
-	mutex_unlock(&sched_job->job_lock);
 	/* after processing job, free memory */
 	fence_put(&sched_job->base.s_fence->base);
 	kfree(sched_job);
