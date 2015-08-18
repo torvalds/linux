@@ -1,0 +1,34 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ul-14x14-ddr3-arm2.dts"
+
+/*
+ * solve pin conflict with NAND
+ *
+ * USDHC2_CD, SD2_RST_B, USDHC2_WP conflict with RAWNAND CE pins , also
+ * overwritten the conflict of SD2_RST_B with RAWNAND ALE in hog
+ * QSPI CLK, CE and DATA pins conflict with RAWNAND data pins and CE, CLE, RB,
+ * WP, DQS pin
+ *
+ */
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog>;
+};
+
+&qspi{
+	status = "disabled";
+};
+
+&gpmi{
+	status = "okay";
+};
+
+&usdhc2 {
+	status = "disabled";
+};
