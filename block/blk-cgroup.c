@@ -854,6 +854,53 @@ void blkg_conf_finish(struct blkg_conf_ctx *ctx)
 }
 EXPORT_SYMBOL_GPL(blkg_conf_finish);
 
+static int blkcg_print_stat(struct seq_file *sf, void *v)
+{
+	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
+	struct blkcg_gq *blkg;
+
+	rcu_read_lock();
+
+	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
+		const char *dname;
+		struct blkg_rwstat rwstat;
+		u64 rbytes, wbytes, rios, wios;
+
+		dname = blkg_dev_name(blkg);
+		if (!dname)
+			continue;
+
+		spin_lock_irq(blkg->q->queue_lock);
+
+		rwstat = blkg_rwstat_recursive_sum(blkg, NULL,
+					offsetof(struct blkcg_gq, stat_bytes));
+		rbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
+		wbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+
+		rwstat = blkg_rwstat_recursive_sum(blkg, NULL,
+					offsetof(struct blkcg_gq, stat_ios));
+		rios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
+		wios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
+
+		spin_unlock_irq(blkg->q->queue_lock);
+
+		if (rbytes || wbytes || rios || wios)
+			seq_printf(sf, "%s rbytes=%llu wbytes=%llu rios=%llu wios=%llu\n",
+				   dname, rbytes, wbytes, rios, wios);
+	}
+
+	rcu_read_unlock();
+	return 0;
+}
+
+struct cftype blkcg_files[] = {
+	{
+		.name = "stat",
+		.seq_show = blkcg_print_stat,
+	},
+	{ }	/* terminate */
+};
+
 struct cftype blkcg_legacy_files[] = {
 	{
 		.name = "reset_stats",
@@ -1101,6 +1148,7 @@ struct cgroup_subsys io_cgrp_subsys = {
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,
+	.dfl_cftypes = blkcg_files,
 	.legacy_cftypes = blkcg_legacy_files,
 	.legacy_name = "blkio",
 #ifdef CONFIG_MEMCG
@@ -1273,6 +1321,9 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	mutex_unlock(&blkcg_pol_mutex);
 
 	/* everything is in place, add intf files for the new policy */
+	if (pol->dfl_cftypes)
+		WARN_ON(cgroup_add_dfl_cftypes(&io_cgrp_subsys,
+					       pol->dfl_cftypes));
 	if (pol->legacy_cftypes)
 		WARN_ON(cgroup_add_legacy_cftypes(&io_cgrp_subsys,
 						  pol->legacy_cftypes));
@@ -1312,6 +1363,8 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 		goto out_unlock;
 
 	/* kill the intf files first */
+	if (pol->dfl_cftypes)
+		cgroup_rm_cftypes(pol->dfl_cftypes);
 	if (pol->legacy_cftypes)
 		cgroup_rm_cftypes(pol->legacy_cftypes);
 

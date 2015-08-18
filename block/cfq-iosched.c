@@ -1740,7 +1740,7 @@ static int cfq_print_leaf_weight(struct seq_file *sf, void *v)
 
 static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
 					char *buf, size_t nbytes, loff_t off,
-					bool is_leaf_weight)
+					bool on_dfl, bool is_leaf_weight)
 {
 	struct blkcg *blkcg = css_to_blkcg(of_css(of));
 	struct blkg_conf_ctx ctx;
@@ -1753,9 +1753,17 @@ static ssize_t __cfqg_set_weight_device(struct kernfs_open_file *of,
 	if (ret)
 		return ret;
 
-	ret = -EINVAL;
-	if (sscanf(ctx.body, "%llu", &v) != 1)
+	if (sscanf(ctx.body, "%llu", &v) == 1) {
+		/* require "default" on dfl */
+		ret = -ERANGE;
+		if (!v && on_dfl)
+			goto out_finish;
+	} else if (!strcmp(strim(ctx.body), "default")) {
+		v = 0;
+	} else {
+		ret = -EINVAL;
 		goto out_finish;
+	}
 
 	cfqg = blkg_to_cfqg(ctx.blkg);
 	cfqgd = blkcg_to_cfqgd(blkcg);
@@ -1779,13 +1787,13 @@ out_finish:
 static ssize_t cfqg_set_weight_device(struct kernfs_open_file *of,
 				      char *buf, size_t nbytes, loff_t off)
 {
-	return __cfqg_set_weight_device(of, buf, nbytes, off, false);
+	return __cfqg_set_weight_device(of, buf, nbytes, off, false, false);
 }
 
 static ssize_t cfqg_set_leaf_weight_device(struct kernfs_open_file *of,
 					   char *buf, size_t nbytes, loff_t off)
 {
-	return __cfqg_set_weight_device(of, buf, nbytes, off, true);
+	return __cfqg_set_weight_device(of, buf, nbytes, off, false, true);
 }
 
 static int __cfq_set_weight(struct cgroup_subsys_state *css, u64 val,
@@ -2103,6 +2111,48 @@ static struct cftype cfq_blkcg_legacy_files[] = {
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
 	{ }	/* terminate */
 };
+
+static int cfq_print_weight_on_dfl(struct seq_file *sf, void *v)
+{
+	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
+	struct cfq_group_data *cgd = blkcg_to_cfqgd(blkcg);
+
+	seq_printf(sf, "default %u\n", cgd->weight);
+	blkcg_print_blkgs(sf, blkcg, cfqg_prfill_weight_device,
+			  &blkcg_policy_cfq, 0, false);
+	return 0;
+}
+
+static ssize_t cfq_set_weight_on_dfl(struct kernfs_open_file *of,
+				     char *buf, size_t nbytes, loff_t off)
+{
+	char *endp;
+	int ret;
+	u64 v;
+
+	buf = strim(buf);
+
+	/* "WEIGHT" or "default WEIGHT" sets the default weight */
+	v = simple_strtoull(buf, &endp, 0);
+	if (*endp == '\0' || sscanf(buf, "default %llu", &v) == 1) {
+		ret = __cfq_set_weight(of_css(of), v, false);
+		return ret ?: nbytes;
+	}
+
+	/* "MAJ:MIN WEIGHT" */
+	return __cfqg_set_weight_device(of, buf, nbytes, off, true, false);
+}
+
+static struct cftype cfq_blkcg_files[] = {
+	{
+		.name = "weight",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = cfq_print_weight_on_dfl,
+		.write = cfq_set_weight_on_dfl,
+	},
+	{ }	/* terminate */
+};
+
 #else /* GROUP_IOSCHED */
 static struct cfq_group *cfq_lookup_cfqg(struct cfq_data *cfqd,
 					 struct blkcg *blkcg)
@@ -4659,6 +4709,7 @@ static struct elevator_type iosched_cfq = {
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 static struct blkcg_policy blkcg_policy_cfq = {
+	.dfl_cftypes		= cfq_blkcg_files,
 	.legacy_cftypes		= cfq_blkcg_legacy_files,
 
 	.cpd_alloc_fn		= cfq_cpd_alloc,

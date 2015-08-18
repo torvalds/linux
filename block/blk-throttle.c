@@ -1265,6 +1265,117 @@ static struct cftype throtl_legacy_files[] = {
 	{ }	/* terminate */
 };
 
+static u64 tg_prfill_max(struct seq_file *sf, struct blkg_policy_data *pd,
+			 int off)
+{
+	struct throtl_grp *tg = pd_to_tg(pd);
+	const char *dname = blkg_dev_name(pd->blkg);
+	char bufs[4][21] = { "max", "max", "max", "max" };
+
+	if (!dname)
+		return 0;
+	if (tg->bps[READ] == -1 && tg->bps[WRITE] == -1 &&
+	    tg->iops[READ] == -1 && tg->iops[WRITE] == -1)
+		return 0;
+
+	if (tg->bps[READ] != -1)
+		snprintf(bufs[0], sizeof(bufs[0]), "%llu", tg->bps[READ]);
+	if (tg->bps[WRITE] != -1)
+		snprintf(bufs[1], sizeof(bufs[1]), "%llu", tg->bps[WRITE]);
+	if (tg->iops[READ] != -1)
+		snprintf(bufs[2], sizeof(bufs[2]), "%u", tg->iops[READ]);
+	if (tg->iops[WRITE] != -1)
+		snprintf(bufs[3], sizeof(bufs[3]), "%u", tg->iops[WRITE]);
+
+	seq_printf(sf, "%s rbps=%s wbps=%s riops=%s wiops=%s\n",
+		   dname, bufs[0], bufs[1], bufs[2], bufs[3]);
+	return 0;
+}
+
+static int tg_print_max(struct seq_file *sf, void *v)
+{
+	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), tg_prfill_max,
+			  &blkcg_policy_throtl, seq_cft(sf)->private, false);
+	return 0;
+}
+
+static ssize_t tg_set_max(struct kernfs_open_file *of,
+			  char *buf, size_t nbytes, loff_t off)
+{
+	struct blkcg *blkcg = css_to_blkcg(of_css(of));
+	struct blkg_conf_ctx ctx;
+	struct throtl_grp *tg;
+	u64 v[4];
+	int ret;
+
+	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
+	if (ret)
+		return ret;
+
+	tg = blkg_to_tg(ctx.blkg);
+
+	v[0] = tg->bps[READ];
+	v[1] = tg->bps[WRITE];
+	v[2] = tg->iops[READ];
+	v[3] = tg->iops[WRITE];
+
+	while (true) {
+		char tok[27];	/* wiops=18446744073709551616 */
+		char *p;
+		u64 val = -1;
+		int len;
+
+		if (sscanf(ctx.body, "%26s%n", tok, &len) != 1)
+			break;
+		if (tok[0] == '\0')
+			break;
+		ctx.body += len;
+
+		ret = -EINVAL;
+		p = tok;
+		strsep(&p, "=");
+		if (!p || (sscanf(p, "%llu", &val) != 1 && strcmp(p, "max")))
+			goto out_finish;
+
+		ret = -ERANGE;
+		if (!val)
+			goto out_finish;
+
+		ret = -EINVAL;
+		if (!strcmp(tok, "rbps"))
+			v[0] = val;
+		else if (!strcmp(tok, "wbps"))
+			v[1] = val;
+		else if (!strcmp(tok, "riops"))
+			v[2] = min_t(u64, val, UINT_MAX);
+		else if (!strcmp(tok, "wiops"))
+			v[3] = min_t(u64, val, UINT_MAX);
+		else
+			goto out_finish;
+	}
+
+	tg->bps[READ] = v[0];
+	tg->bps[WRITE] = v[1];
+	tg->iops[READ] = v[2];
+	tg->iops[WRITE] = v[3];
+
+	tg_conf_updated(tg);
+	ret = 0;
+out_finish:
+	blkg_conf_finish(&ctx);
+	return ret ?: nbytes;
+}
+
+static struct cftype throtl_files[] = {
+	{
+		.name = "max",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = tg_print_max,
+		.write = tg_set_max,
+	},
+	{ }	/* terminate */
+};
+
 static void throtl_shutdown_wq(struct request_queue *q)
 {
 	struct throtl_data *td = q->td;
@@ -1273,6 +1384,7 @@ static void throtl_shutdown_wq(struct request_queue *q)
 }
 
 static struct blkcg_policy blkcg_policy_throtl = {
+	.dfl_cftypes		= throtl_files,
 	.legacy_cftypes		= throtl_legacy_files,
 
 	.pd_alloc_fn		= throtl_pd_alloc,
