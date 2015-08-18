@@ -25,6 +25,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 
 /*
  * The OMAP RTC is a year/month/day/hours/minutes/seconds BCD clock
@@ -132,6 +133,7 @@ struct omap_rtc_device_type {
 struct omap_rtc {
 	struct rtc_device *rtc;
 	void __iomem *base;
+	struct clk *clk;
 	int irq_alarm;
 	int irq_timer;
 	u8 interrupts_reg;
@@ -553,6 +555,11 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	if (rtc->irq_alarm <= 0)
 		return -ENOENT;
 
+	rtc->clk = devm_clk_get(&pdev->dev, "int-clk");
+
+	if (!IS_ERR(rtc->clk))
+		clk_prepare_enable(rtc->clk);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rtc->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rtc->base))
@@ -680,6 +687,9 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, 0);
+
+	if (!IS_ERR(rtc->clk))
+		clk_disable_unprepare(rtc->clk);
 
 	rtc->type->unlock(rtc);
 	/* leave rtc running, but disable irqs */
