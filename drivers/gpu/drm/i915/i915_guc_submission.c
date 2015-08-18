@@ -151,6 +151,18 @@ static int host2guc_release_doorbell(struct intel_guc *guc,
 	return host2guc_action(guc, data, 2);
 }
 
+static int host2guc_sample_forcewake(struct intel_guc *guc,
+				     struct i915_guc_client *client)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	u32 data[2];
+
+	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
+	data[1] = (intel_enable_rc6(dev_priv->dev)) ? 1 : 0;
+
+	return host2guc_action(guc, data, 2);
+}
+
 /*
  * Initialise, update, or clear doorbell data shared with the GuC
  *
@@ -874,6 +886,9 @@ int i915_guc_submission_enable(struct drm_device *dev)
 	}
 
 	guc->execbuf_client = client;
+
+	host2guc_sample_forcewake(guc, client);
+
 	return 0;
 }
 
