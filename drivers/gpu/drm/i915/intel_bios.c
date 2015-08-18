@@ -401,7 +401,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 {
 	struct sdvo_device_mapping *p_mapping;
 	const struct bdb_general_definitions *p_defs;
-	const union child_device_config *p_child;
+	const struct old_child_dev_config *child; /* legacy */
 	int i, child_device_num, count;
 	u16	block_size;
 
@@ -410,14 +410,14 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
 		return;
 	}
-	/* judge whether the size of child device meets the requirements.
-	 * If the child device size obtained from general definition block
-	 * is different with sizeof(struct child_device_config), skip the
-	 * parsing of sdvo device info
+
+	/*
+	 * Only parse SDVO mappings when the general definitions block child
+	 * device size matches that of the *legacy* child device config
+	 * struct. Thus, SDVO mapping will be skipped for newer VBT.
 	 */
-	if (p_defs->child_dev_size != sizeof(*p_child)) {
-		/* different child dev size . Ignore it */
-		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
+	if (p_defs->child_dev_size != sizeof(*child)) {
+		DRM_DEBUG_KMS("Unsupported child device size for SDVO mapping.\n");
 		return;
 	}
 	/* get the block size of general definitions */
@@ -427,37 +427,37 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		p_defs->child_dev_size;
 	count = 0;
 	for (i = 0; i < child_device_num; i++) {
-		p_child = child_device_ptr(p_defs, i);
-		if (!p_child->old.device_type) {
+		child = &child_device_ptr(p_defs, i)->old;
+		if (!child->device_type) {
 			/* skip the device block if device type is invalid */
 			continue;
 		}
-		if (p_child->old.slave_addr != SLAVE_ADDR1 &&
-			p_child->old.slave_addr != SLAVE_ADDR2) {
+		if (child->slave_addr != SLAVE_ADDR1 &&
+		    child->slave_addr != SLAVE_ADDR2) {
 			/*
 			 * If the slave address is neither 0x70 nor 0x72,
 			 * it is not a SDVO device. Skip it.
 			 */
 			continue;
 		}
-		if (p_child->old.dvo_port != DEVICE_PORT_DVOB &&
-			p_child->old.dvo_port != DEVICE_PORT_DVOC) {
+		if (child->dvo_port != DEVICE_PORT_DVOB &&
+		    child->dvo_port != DEVICE_PORT_DVOC) {
 			/* skip the incorrect SDVO port */
 			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it\n");
 			continue;
 		}
 		DRM_DEBUG_KMS("the SDVO device with slave addr %2x is found on"
-				" %s port\n",
-				p_child->old.slave_addr,
-				(p_child->old.dvo_port == DEVICE_PORT_DVOB) ?
-					"SDVOB" : "SDVOC");
-		p_mapping = &(dev_priv->sdvo_mappings[p_child->old.dvo_port - 1]);
+			      " %s port\n",
+			      child->slave_addr,
+			      (child->dvo_port == DEVICE_PORT_DVOB) ?
+			      "SDVOB" : "SDVOC");
+		p_mapping = &(dev_priv->sdvo_mappings[child->dvo_port - 1]);
 		if (!p_mapping->initialized) {
-			p_mapping->dvo_port = p_child->old.dvo_port;
-			p_mapping->slave_addr = p_child->old.slave_addr;
-			p_mapping->dvo_wiring = p_child->old.dvo_wiring;
-			p_mapping->ddc_pin = p_child->old.ddc_pin;
-			p_mapping->i2c_pin = p_child->old.i2c_pin;
+			p_mapping->dvo_port = child->dvo_port;
+			p_mapping->slave_addr = child->slave_addr;
+			p_mapping->dvo_wiring = child->dvo_wiring;
+			p_mapping->ddc_pin = child->ddc_pin;
+			p_mapping->i2c_pin = child->i2c_pin;
 			p_mapping->initialized = 1;
 			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
 				      p_mapping->dvo_port,
@@ -469,7 +469,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
 		}
-		if (p_child->old.slave2_addr) {
+		if (child->slave2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
 			/* And the mapping info is not added */
 			DRM_DEBUG_KMS("there exists the slave2_addr. Maybe this"
