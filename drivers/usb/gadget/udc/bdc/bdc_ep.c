@@ -779,7 +779,7 @@ static int ep_dequeue(struct bdc_ep *ep, struct bdc_req *req)
 	/* The current hw dequeue pointer */
 	tmp_32 = bdc_readl(bdc->regs, BDC_EPSTS0(0));
 	deq_ptr_64 = tmp_32;
-	tmp_32 = bdc_readl(bdc->regs, BDC_EPSTS0(1));
+	tmp_32 = bdc_readl(bdc->regs, BDC_EPSTS1(0));
 	deq_ptr_64 |= ((u64)tmp_32 << 32);
 
 	/* we have the dma addr of next bd that will be fetched by hardware */

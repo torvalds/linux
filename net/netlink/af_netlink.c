@@ -1096,6 +1096,11 @@ static int netlink_insert(struct sock *sk, u32 portid)
 
 	err = __netlink_insert(table, sk);
 	if (err) {
+		/* In case the hashtable backend returns with -EBUSY
+		 * from here, it must not escape to the caller.
+		 */
+		if (unlikely(err == -EBUSY))
+			err = -EOVERFLOW;
 		if (err == -EEXIST)
 			err = -EADDRINUSE;
 		nlk_sk(sk)->portid = 0;

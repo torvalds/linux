@@ -77,7 +77,7 @@
 #define SND_SOC_TPLG_NUM_TEXTS		16
 
 /* ABI version */
-#define SND_SOC_TPLG_ABI_VERSION	0x2
+#define SND_SOC_TPLG_ABI_VERSION	0x3
 
 /* Max size of TLV data */
 #define SND_SOC_TPLG_TLV_SIZE		32
@@ -97,7 +97,8 @@
 #define SND_SOC_TPLG_TYPE_PCM		7
 #define SND_SOC_TPLG_TYPE_MANIFEST	8
 #define SND_SOC_TPLG_TYPE_CODEC_LINK	9
-#define SND_SOC_TPLG_TYPE_MAX	SND_SOC_TPLG_TYPE_CODEC_LINK
+#define SND_SOC_TPLG_TYPE_PDATA		10
+#define SND_SOC_TPLG_TYPE_MAX	SND_SOC_TPLG_TYPE_PDATA
 
 /* vendor block IDs - please add new vendor types to end */
 #define SND_SOC_TPLG_TYPE_VENDOR_FW	1000
@@ -110,7 +111,7 @@
 
 /*
  * Block Header.
- * This header preceeds all object and object arrays below.
+ * This header precedes all object and object arrays below.
  */
 struct snd_soc_tplg_hdr {
 	__le32 magic;		/* magic number */
@@ -137,11 +138,19 @@ struct snd_soc_tplg_private {
 /*
  * Kcontrol TLV data.
  */
+struct snd_soc_tplg_tlv_dbscale {
+	__le32 min;
+	__le32 step;
+	__le32 mute;
+} __attribute__((packed));
+
 struct snd_soc_tplg_ctl_tlv {
-	__le32 size;	/* in bytes aligned to 4 */
-	__le32 numid;	/* control element numeric identification */
-	__le32 count;	/* number of elem in data array */
-	__le32 data[SND_SOC_TPLG_TLV_SIZE];
+	__le32 size;	/* in bytes of this structure */
+	__le32 type;	/* SNDRV_CTL_TLVT_*, type of TLV */
+	union {
+		__le32 data[SND_SOC_TPLG_TLV_SIZE];
+		struct snd_soc_tplg_tlv_dbscale scale;
+	};
 } __attribute__((packed));
 
 /*
@@ -155,9 +164,11 @@ struct snd_soc_tplg_channel {
 } __attribute__((packed));
 
 /*
- * Kcontrol Operations IDs
+ * Genericl Operations IDs, for binding Kcontrol or Bytes ext ops
+ * Kcontrol ops need get/put/info.
+ * Bytes ext ops need get/put.
  */
-struct snd_soc_tplg_kcontrol_ops_id {
+struct snd_soc_tplg_io_ops {
 	__le32 get;
 	__le32 put;
 	__le32 info;
@@ -171,8 +182,8 @@ struct snd_soc_tplg_ctl_hdr {
 	__le32 type;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	__le32 access;
-	struct snd_soc_tplg_kcontrol_ops_id ops;
-	__le32 tlv_size;	/* non zero means control has TLV data */
+	struct snd_soc_tplg_io_ops ops;
+	struct snd_soc_tplg_ctl_tlv tlv;
 } __attribute__((packed));
 
 /*
@@ -222,7 +233,7 @@ struct snd_soc_tplg_stream_config {
 /*
  * Manifest. List totals for each payload type. Not used in parsing, but will
  * be passed to the component driver before any other objects in order for any
- * global componnent resource allocations.
+ * global component resource allocations.
  *
  * File block representation for manifest :-
  * +-----------------------------------+----+
@@ -238,6 +249,7 @@ struct snd_soc_tplg_manifest {
 	__le32 graph_elems;	/* number of graph elements */
 	__le32 dai_elems;	/* number of DAI elements */
 	__le32 dai_link_elems;	/* number of DAI link elements */
+	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
 /*
@@ -259,7 +271,6 @@ struct snd_soc_tplg_mixer_control {
 	__le32 invert;
 	__le32 num_channels;
 	struct snd_soc_tplg_channel channel[SND_SOC_TPLG_MAX_CHAN];
-	struct snd_soc_tplg_ctl_tlv tlv;
 	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
@@ -303,6 +314,7 @@ struct snd_soc_tplg_bytes_control {
 	__le32 mask;
 	__le32 base;
 	__le32 num_regs;
+	struct snd_soc_tplg_io_ops ext_ops;
 	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
@@ -347,6 +359,7 @@ struct snd_soc_tplg_dapm_widget {
 	__le32 reg;		/* negative reg = no direct dapm */
 	__le32 shift;		/* bits to shift */
 	__le32 mask;		/* non-shifted mask */
+	__le32 subseq;		/* sort within widget type */
 	__u32 invert;		/* invert the power bit */
 	__u32 ignore_suspend;	/* kept enabled over suspend */
 	__u16 event_flags;

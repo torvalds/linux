@@ -3728,7 +3728,7 @@ const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev)
 		switch (phy->rev) {
 		case 6:
 		case 5:
-			if (sprom->fem.ghz5.extpa_gain == 3)
+			if (sprom->fem.ghz2.extpa_gain == 3)
 				return b43_ntab_tx_gain_epa_rev3_hi_pwr_2g;
 			/* fall through */
 		case 4:

@@ -1686,7 +1686,7 @@ static struct dm_cache_policy *smq_create(dm_cblock_t cache_size,
 
 	if (from_cblock(cache_size)) {
 		mq->cache_hit_bits = alloc_bitset(from_cblock(cache_size));
-		if (!mq->cache_hit_bits && mq->cache_hit_bits) {
+		if (!mq->cache_hit_bits) {
 			DMERR("couldn't allocate cache hit bitset");
 			goto bad_cache_hit_bits;
 		}
@@ -1789,3 +1789,5 @@ module_exit(smq_exit);
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("smq cache policy");
+
+MODULE_ALIAS("dm-cache-default");

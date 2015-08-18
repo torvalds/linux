@@ -86,7 +86,7 @@ void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
 	clear_c0_eimr(irq);
 	ack_c0_eirr(irq);
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 	set_c0_eimr(irq);
 }
 

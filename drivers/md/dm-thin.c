@@ -666,14 +666,19 @@ static void requeue_io(struct thin_c *tc)
 	requeue_deferred_cells(tc);
 }
 
-static void error_retry_list(struct pool *pool)
+static void error_retry_list_with_code(struct pool *pool, int error)
 {
 	struct thin_c *tc;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(tc, &pool->active_thins, list)
-		error_thin_bio_list(tc, &tc->retry_on_resume_list, -EIO);
+		error_thin_bio_list(tc, &tc->retry_on_resume_list, error);
 	rcu_read_unlock();
+}
+
+static void error_retry_list(struct pool *pool)
+{
+	return error_retry_list_with_code(pool, -EIO);
 }
 
 /*
@@ -2297,7 +2302,7 @@ static void do_no_space_timeout(struct work_struct *ws)
 	if (get_pool_mode(pool) == PM_OUT_OF_DATA_SPACE && !pool->pf.error_if_no_space) {
 		pool->pf.error_if_no_space = true;
 		notify_of_pool_mode_change_to_oods(pool);
-		error_retry_list(pool);
+		error_retry_list_with_code(pool, -ENOSPC);
 	}
 }
 

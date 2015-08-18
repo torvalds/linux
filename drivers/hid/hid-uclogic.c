@@ -858,7 +858,7 @@ static int uclogic_tablet_enable(struct hid_device *hdev)
 	for (p = drvdata->rdesc;
 	     p <= drvdata->rdesc + drvdata->rsize - 4;) {
 		if (p[0] == 0xFE && p[1] == 0xED && p[2] == 0x1D &&
-		    p[3] < sizeof(params)) {
+		    p[3] < ARRAY_SIZE(params)) {
 			v = params[p[3]];
 			put_unaligned(cpu_to_le32(v), (s32 *)p);
 			p += 4;

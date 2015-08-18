@@ -140,6 +140,7 @@ sysexit_from_sys_call:
 	 */
 	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	movl	RIP(%rsp), %ecx		/* User %eip */
+	movq    RAX(%rsp), %rax
 	movl	RSI(%rsp), %esi
 	movl	RDI(%rsp), %edi
 	xorl	%edx, %edx		/* Do not leak kernel information */
@@ -220,7 +221,6 @@ sysexit_from_sys_call:
 1:	setbe	%al			/* 1 if error, 0 if not */
 	movzbl	%al, %edi		/* zero-extend that into %edi */
 	call	__audit_syscall_exit
-	movq	RAX(%rsp), %rax		/* reload syscall return value */
 	movl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %edi
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -371,6 +371,7 @@ sysretl_from_sys_call:
 	movl	RDI(%rsp), %edi
 	movl	RIP(%rsp), %ecx
 	movl	EFLAGS(%rsp), %r11d
+	movq    RAX(%rsp), %rax
 	xorq	%r10, %r10
 	xorq	%r9, %r9
 	xorq	%r8, %r8

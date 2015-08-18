@@ -2,7 +2,7 @@
  * This file contains error reporting code.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
- * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
+ * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some of code borrowed from https://github.com/xairy/linux by
  *        Andrey Konovalov <adech.fo@gmail.com>

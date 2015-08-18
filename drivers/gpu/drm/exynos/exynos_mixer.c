@@ -718,6 +718,10 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 
 	/* handling VSYNC */
 	if (val & MXR_INT_STATUS_VSYNC) {
+		/* vsync interrupt use different bit for read and clear */
+		val |= MXR_INT_CLEAR_VSYNC;
+		val &= ~MXR_INT_STATUS_VSYNC;
+
 		/* interlace scan need to check shadow register */
 		if (ctx->interlace) {
 			base = mixer_reg_read(res, MXR_GRAPHIC_BASE(0));
@@ -743,11 +747,6 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 
 out:
 	/* clear interrupts */
-	if (~val & MXR_INT_EN_VSYNC) {
-		/* vsync interrupt use different bit for read and clear */
-		val &= ~MXR_INT_EN_VSYNC;
-		val |= MXR_INT_CLEAR_VSYNC;
-	}
 	mixer_reg_write(res, MXR_INT_STATUS, val);
 
 	spin_unlock(&res->reg_slock);
@@ -907,8 +906,8 @@ static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)
 	}
 
 	/* enable vsync interrupt */
-	mixer_reg_writemask(res, MXR_INT_EN, MXR_INT_EN_VSYNC,
-			MXR_INT_EN_VSYNC);
+	mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
+	mixer_reg_writemask(res, MXR_INT_EN, ~0, MXR_INT_EN_VSYNC);
 
 	return 0;
 }
@@ -918,7 +917,13 @@ static void mixer_disable_vblank(struct exynos_drm_crtc *crtc)
 	struct mixer_context *mixer_ctx = crtc->ctx;
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
+	if (!mixer_ctx->powered) {
+		mixer_ctx->int_en &= MXR_INT_EN_VSYNC;
+		return;
+	}
+
 	/* disable vsync interrupt */
+	mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
 	mixer_reg_writemask(res, MXR_INT_EN, 0, MXR_INT_EN_VSYNC);
 }
 
@@ -1047,6 +1052,8 @@ static void mixer_enable(struct exynos_drm_crtc *crtc)
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
+	if (ctx->int_en & MXR_INT_EN_VSYNC)
+		mixer_reg_writemask(res, MXR_INT_STATUS, ~0, MXR_INT_CLEAR_VSYNC);
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
 }
