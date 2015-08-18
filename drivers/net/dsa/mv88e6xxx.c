@@ -1926,8 +1926,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		 * full duplex.
 		 */
 		reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_PCS_CTRL);
-		if (dsa_is_cpu_port(ds, port) ||
-		    ds->dsa_port_mask & (1 << port)) {
+		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
 			reg |= PORT_PCS_CTRL_FORCE_LINK |
 				PORT_PCS_CTRL_LINK_UP |
 				PORT_PCS_CTRL_DUPLEX_FULL |
@@ -1988,12 +1987,15 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 				reg |= PORT_CONTROL_EGRESS_ADD_TAG;
 		}
 	}
-	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
-	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
-	    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds) ||
-	    mv88e6xxx_6320_family(ds)) {
-		if (ds->dsa_port_mask & (1 << port))
+	if (dsa_is_dsa_port(ds, port)) {
+		if (mv88e6xxx_6095_family(ds) || mv88e6xxx_6185_family(ds))
+			reg |= PORT_CONTROL_DSA_TAG;
+		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+		    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+		    mv88e6xxx_6320_family(ds)) {
 			reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		}
+
 		if (port == dsa_upstream_port(ds))
 			reg |= PORT_CONTROL_FORWARD_UNKNOWN |
 				PORT_CONTROL_FORWARD_UNKNOWN_MC;
