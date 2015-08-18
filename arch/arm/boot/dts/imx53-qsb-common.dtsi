@@ -228,10 +228,11 @@
 			>;
 		};
 
+		/* open drain */
 		pinctrl_i2c1: i2c1grp {
 			fsl,pins = <
-				MX53_PAD_CSI0_DAT8__I2C1_SDA		0xc0000000
-				MX53_PAD_CSI0_DAT9__I2C1_SCL		0xc0000000
+				MX53_PAD_CSI0_DAT8__I2C1_SDA		0x400001ec
+				MX53_PAD_CSI0_DAT9__I2C1_SCL		0x400001ec
 			>;
 		};
 
