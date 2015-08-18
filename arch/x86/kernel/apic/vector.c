@@ -322,7 +322,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irq_data->chip = &lapic_controller;
 		irq_data->chip_data = data;
 		irq_data->hwirq = virq + i;
-		err = assign_irq_vector_policy(virq, irq_data->node, data,
+		err = assign_irq_vector_policy(virq + i, irq_data->node, data,
 					       info);
 		if (err)
 			goto error;
