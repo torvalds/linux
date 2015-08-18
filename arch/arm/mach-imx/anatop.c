@@ -158,7 +158,10 @@ void __init imx_init_revision_from_anatop(void)
 
 	switch (digprog & 0xff) {
 	case 0:
-		revision = IMX_CHIP_REVISION_1_0;
+		if (digprog >> 8 & 0x01)
+			revision = IMX_CHIP_REVISION_2_0;
+		else
+			revision = IMX_CHIP_REVISION_1_0;
 		break;
 	case 1:
 		revision = IMX_CHIP_REVISION_1_1;
