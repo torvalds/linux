@@ -122,6 +122,7 @@ static const char *hw_flag_names[NUM_IEEE80211_HW_FLAGS + 1] = {
 	FLAG(CHANCTX_STA_CSA),
 	FLAG(SUPPORTS_CLONED_SKBS),
 	FLAG(SINGLE_SCAN_ON_ALL_BANDS),
+	FLAG(TDLS_WIDER_BW),
 
 	/* keep last for the build bug below */
 	(void *)0x1
@@ -277,7 +278,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_STATS_ADD(rx_handlers_queued);
 	DEBUGFS_STATS_ADD(rx_handlers_drop_nullfunc);
 	DEBUGFS_STATS_ADD(rx_handlers_drop_defrag);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_short);
 	DEBUGFS_STATS_ADD(tx_expand_skb_head);
 	DEBUGFS_STATS_ADD(tx_expand_skb_head_cloned);
 	DEBUGFS_STATS_ADD(rx_expand_skb_head_defrag);
