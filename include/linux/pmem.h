@@ -23,7 +23,7 @@ static inline void arch_wmb_pmem(void)
 	BUG();
 }
 
-static inline bool __arch_has_wmb_pmem(void)
+static inline bool arch_has_wmb_pmem(void)
 {
 	return false;
 }
@@ -38,7 +38,7 @@ static inline void arch_memcpy_to_pmem(void __pmem *dst, const void *src,
 /*
  * Architectures that define ARCH_HAS_PMEM_API must provide
  * implementations for arch_memcpy_to_pmem(), arch_wmb_pmem(), and
- * __arch_has_wmb_pmem().
+ * arch_has_wmb_pmem().
  */
 
 static inline void memcpy_from_pmem(void *dst, void __pmem const *src, size_t size)
@@ -52,7 +52,7 @@ static inline void memunmap_pmem(struct device *dev, void __pmem *addr)
 }
 
 /**
- * arch_has_wmb_pmem - true if wmb_pmem() ensures durability
+ * arch_has_pmem_api - true if wmb_pmem() ensures durability
  *
  * For a given cpu implementation within an architecture it is possible
  * that wmb_pmem() resolves to a nop.  In the case this returns
@@ -60,13 +60,6 @@ static inline void memunmap_pmem(struct device *dev, void __pmem *addr)
  * fall back to a different data consistency model, or otherwise notify
  * the user.
  */
-static inline bool arch_has_wmb_pmem(void)
-{
-	if (IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API))
-		return __arch_has_wmb_pmem();
-	return false;
-}
-
 static inline bool arch_has_pmem_api(void)
 {
 	return IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API) && arch_has_wmb_pmem();

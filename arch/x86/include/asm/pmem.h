@@ -67,7 +67,7 @@ static inline void arch_wmb_pmem(void)
 	pcommit_sfence();
 }
 
-static inline bool __arch_has_wmb_pmem(void)
+static inline bool arch_has_wmb_pmem(void)
 {
 #ifdef CONFIG_X86_64
 	/*
