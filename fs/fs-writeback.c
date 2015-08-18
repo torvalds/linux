@@ -701,7 +701,7 @@ EXPORT_SYMBOL_GPL(wbc_account_io);
 
 /**
  * inode_congested - test whether an inode is congested
- * @inode: inode to test for congestion
+ * @inode: inode to test for congestion (may be NULL)
  * @cong_bits: mask of WB_[a]sync_congested bits to test
  *
  * Tests whether @inode is congested.  @cong_bits is the mask of congestion
@@ -711,6 +711,9 @@ EXPORT_SYMBOL_GPL(wbc_account_io);
  * determined by whether the cgwb (cgroup bdi_writeback) for the blkcg
  * associated with @inode is congested; otherwise, the root wb's congestion
  * state is used.
+ *
+ * @inode is allowed to be NULL as this function is often called on
+ * mapping->host which is NULL for the swapper space.
  */
 int inode_congested(struct inode *inode, int cong_bits)
 {
