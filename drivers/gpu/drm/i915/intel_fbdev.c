@@ -161,7 +161,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	}
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	ret = intel_pin_and_fence_fb_obj(NULL, fb, NULL, NULL, NULL);
+	ret = intel_pin_and_fence_fb_obj(NULL, fb, NULL);
 	if (ret) {
 		DRM_ERROR("failed to pin obj: %d\n", ret);
 		goto out_fb;

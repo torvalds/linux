@@ -3017,8 +3017,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 int __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_engine_cs *pipelined,
-				     struct drm_i915_gem_request **pipelined_request,
 				     const struct i915_ggtt_view *view);
 void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
 					      const struct i915_ggtt_view *view);

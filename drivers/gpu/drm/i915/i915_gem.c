@@ -3883,16 +3883,10 @@ unlock:
 int
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_engine_cs *pipelined,
-				     struct drm_i915_gem_request **pipelined_request,
 				     const struct i915_ggtt_view *view)
 {
 	u32 old_read_domains, old_write_domain;
 	int ret;
-
-	ret = i915_gem_object_sync(obj, pipelined, pipelined_request);
-	if (ret)
-		return ret;
 
 	/* Mark the pin_display early so that we account for the
 	 * display coherency whilst setting up the cache domains.

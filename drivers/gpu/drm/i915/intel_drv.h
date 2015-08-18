@@ -281,6 +281,9 @@ struct intel_plane_state {
 	int scaler_id;
 
 	struct drm_intel_sprite_colorkey ckey;
+
+	/* async flip related structures */
+	struct drm_i915_gem_request *wait_req;
 };
 
 struct intel_initial_plane_config {
@@ -1084,9 +1087,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct drm_modeset_acquire_ctx *ctx);
 int intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 			       struct drm_framebuffer *fb,
-			       const struct drm_plane_state *plane_state,
-			       struct intel_engine_cs *pipelined,
-			       struct drm_i915_gem_request **pipelined_request);
+			       const struct drm_plane_state *plane_state);
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,

@@ -2320,9 +2320,7 @@ static unsigned int intel_linear_alignment(struct drm_i915_private *dev_priv)
 int
 intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 			   struct drm_framebuffer *fb,
-			   const struct drm_plane_state *plane_state,
-			   struct intel_engine_cs *pipelined,
-			   struct drm_i915_gem_request **pipelined_request)
+			   const struct drm_plane_state *plane_state)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2378,8 +2376,8 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 	 */
 	intel_runtime_pm_get(dev_priv);
 
-	ret = i915_gem_object_pin_to_display_plane(obj, alignment, pipelined,
-						   pipelined_request, &view);
+	ret = i915_gem_object_pin_to_display_plane(obj, alignment,
+						   &view);
 	if (ret)
 		goto err_pm;
 
@@ -11426,9 +11424,14 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 * synchronisation, so all we want here is to pin the framebuffer
 	 * into the display plane and skip any waits.
 	 */
+	if (!mmio_flip) {
+		ret = i915_gem_object_sync(obj, ring, &request);
+		if (ret)
+			goto cleanup_pending;
+	}
+
 	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb,
-					 crtc->primary->state,
-					 mmio_flip ? i915_gem_request_get_ring(obj->last_write_req) : ring, &request);
+					 crtc->primary->state);
 	if (ret)
 		goto cleanup_pending;
 
@@ -13150,7 +13153,10 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 				       struct drm_atomic_state *state,
 				       bool async)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_plane_state *plane_state;
 	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	int i, ret;
 
@@ -13163,6 +13169,9 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		ret = intel_crtc_wait_for_pending_flips(crtc);
 		if (ret)
 			return ret;
+
+		if (atomic_read(&to_intel_crtc(crtc)->unpin_work_count) >= 2)
+			flush_workqueue(dev_priv->wq);
 	}
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -13170,6 +13179,37 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		return ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (!ret && !async && !i915_reset_in_progress(&dev_priv->gpu_error)) {
+		u32 reset_counter;
+
+		reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+		mutex_unlock(&dev->struct_mutex);
+
+		for_each_plane_in_state(state, plane, plane_state, i) {
+			struct intel_plane_state *intel_plane_state =
+				to_intel_plane_state(plane_state);
+
+			if (!intel_plane_state->wait_req)
+				continue;
+
+			ret = __i915_wait_request(intel_plane_state->wait_req,
+						  reset_counter, true,
+						  NULL, NULL);
+
+			/* Swallow -EIO errors to allow updates during hw lockup. */
+			if (ret == -EIO)
+				ret = 0;
+
+			if (ret)
+				break;
+		}
+
+		if (!ret)
+			return 0;
+
+		mutex_lock(&dev->struct_mutex);
+		drm_atomic_helper_cleanup_planes(dev, state);
+	}
 
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -13196,15 +13236,17 @@ static int intel_atomic_commit(struct drm_device *dev,
 			       bool async)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
 	int ret = 0;
 	int i;
 	bool any_ms = false;
 
 	ret = intel_atomic_prepare_commit(dev, state, async);
-	if (ret)
+	if (ret) {
+		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
 		return ret;
+	}
 
 	drm_atomic_helper_swap_state(dev, state);
 	dev_priv->wm.config = to_intel_atomic_state(state)->wm_config;
@@ -13495,11 +13537,20 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		if (ret)
 			DRM_DEBUG_KMS("failed to attach phys object\n");
 	} else {
-		ret = intel_pin_and_fence_fb_obj(plane, fb, new_state, NULL, NULL);
+		ret = intel_pin_and_fence_fb_obj(plane, fb, new_state);
 	}
 
-	if (ret == 0)
+	if (ret == 0) {
+		if (obj) {
+			struct intel_plane_state *plane_state =
+				to_intel_plane_state(new_state);
+
+			i915_gem_request_assign(&plane_state->wait_req,
+						obj->last_write_req);
+		}
+
 		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
+	}
 
 	return ret;
 }
@@ -13519,8 +13570,11 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct intel_plane_state *old_intel_state;
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_state->fb);
 	struct drm_i915_gem_object *obj = intel_fb_obj(plane->state->fb);
+
+	old_intel_state = to_intel_plane_state(old_state);
 
 	if (!obj && !old_obj)
 		return;
@@ -13533,6 +13587,9 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	if ((old_obj && (old_obj->frontbuffer_bits & intel_plane->frontbuffer_bit)) ||
 	    (obj && !(obj->frontbuffer_bits & intel_plane->frontbuffer_bit)))
 		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
+
+	i915_gem_request_assign(&old_intel_state->wait_req, NULL);
+
 }
 
 int
@@ -15498,8 +15555,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		ret = intel_pin_and_fence_fb_obj(c->primary,
 						 c->primary->fb,
-						 c->primary->state,
-						 NULL, NULL);
+						 c->primary->state);
 		mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",
