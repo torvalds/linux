@@ -89,6 +89,13 @@ struct snd_soc_tplg_kcontrol_ops {
 		struct snd_ctl_elem_info *uinfo);
 };
 
+/* Bytes ext operations, for TLV byte controls */
+struct snd_soc_tplg_bytes_ext_ops {
+	u32 id;
+	int (*get)(unsigned int __user *bytes, unsigned int size);
+	int (*put)(const unsigned int __user *bytes, unsigned int size);
+};
+
 /*
  * DAPM widget event handlers - used to map handlers onto widgets.
  */
@@ -139,6 +146,10 @@ struct snd_soc_tplg_ops {
 	/* vendor specific kcontrol handlers available for binding */
 	const struct snd_soc_tplg_kcontrol_ops *io_ops;
 	int io_ops_count;
+
+	/* vendor specific bytes ext handlers available for binding */
+	const struct snd_soc_tplg_bytes_ext_ops *bytes_ext_ops;
+	int bytes_ext_ops_count;
 };
 
 /* gets a pointer to data from the firmware block header */

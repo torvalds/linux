@@ -70,6 +70,10 @@ struct soc_tplg {
 	const struct snd_soc_tplg_kcontrol_ops *io_ops;
 	int io_ops_count;
 
+	/* vendor specific bytes ext handlers, for TLV bytes controls */
+	const struct snd_soc_tplg_bytes_ext_ops *bytes_ext_ops;
+	int bytes_ext_ops_count;
+
 	/* optional fw loading callbacks to component drivers */
 	struct snd_soc_tplg_ops *ops;
 };
@@ -511,7 +515,39 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	const struct soc_tplg *tplg)
 {
 	const struct snd_soc_tplg_kcontrol_ops *ops;
+	const struct snd_soc_tplg_bytes_ext_ops *ext_ops;
 	int num_ops, i;
+
+	if (hdr->ops.info == SND_SOC_TPLG_CTL_BYTES
+		&& k->iface & SNDRV_CTL_ELEM_IFACE_MIXER
+		&& k->access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE
+		&& k->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		struct soc_bytes_ext *sbe;
+		struct snd_soc_tplg_bytes_control *be;
+
+		sbe = (struct soc_bytes_ext *)k->private_value;
+		be = container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
+
+		/* TLV bytes controls need standard kcontrol info handler,
+		 * TLV callback and extended put/get handlers.
+		 */
+		k->info = snd_soc_bytes_info;
+		k->tlv.c = snd_soc_bytes_tlv_callback;
+
+		ext_ops = tplg->bytes_ext_ops;
+		num_ops = tplg->bytes_ext_ops_count;
+		for (i = 0; i < num_ops; i++) {
+			if (!sbe->put && ext_ops[i].id == be->ext_ops.put)
+				sbe->put = ext_ops[i].put;
+			if (!sbe->get && ext_ops[i].id == be->ext_ops.get)
+				sbe->get = ext_ops[i].get;
+		}
+
+		if (sbe->put && sbe->get)
+			return 0;
+		else
+			return -EINVAL;
+	}
 
 	/* try and map vendor specific kcontrol handlers first */
 	ops = tplg->io_ops;
@@ -613,9 +649,7 @@ static int soc_tplg_create_tlv(struct soc_tplg *tplg,
 	if (!(tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE))
 		return 0;
 
-	if (tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
-		kc->tlv.c = snd_soc_bytes_tlv_callback;
-	} else {
+	if (!(tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK)) {
 		tplg_tlv = &tc->tlv;
 		switch (tplg_tlv->type) {
 		case SNDRV_CTL_TLVT_DB_SCALE:
@@ -1733,6 +1767,8 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	tplg.req_index = id;
 	tplg.io_ops = ops->io_ops;
 	tplg.io_ops_count = ops->io_ops_count;
+	tplg.bytes_ext_ops = ops->bytes_ext_ops;
+	tplg.bytes_ext_ops_count = ops->bytes_ext_ops_count;
 
 	return soc_tplg_load(&tplg);
 }
