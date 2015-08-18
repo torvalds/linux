@@ -1,0 +1,67 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6q-sabreauto.dts"
+#include "imx6qp.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Quad Plus SABRE Automotive Board";
+};
+
+&fec {
+	pinctrl-assert-gpios = <&max7322 0 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c2 {
+	max7322: gpio@68 {
+		compatible = "maxim,max7322";
+		reg = <0x68>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&pcie {
+	reset-gpio = <&max7310_c 5 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pre1 {
+	status = "okay";
+};
+
+&pre2 {
+	status = "okay";
+};
+
+&pre3 {
+	status = "okay";
+};
+
+&pre4 {
+	status = "okay";
+};
+
+&prg1 {
+	memory-region = <&memory>;
+	status = "okay";
+};
+
+&prg2 {
+	memory-region = <&memory>;
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&vgen3_reg {
+	regulator-always-on;
+};
+

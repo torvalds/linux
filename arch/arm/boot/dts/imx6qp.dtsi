@@ -1,0 +1,157 @@
+/*
+ * Copyright 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+/ {
+	aliases {
+		pre0 = &pre1;
+		pre1 = &pre2;
+		pre2 = &pre3;
+		pre3 = &pre4;
+		prg0 = &prg1;
+		prg1 = &prg2;
+	};
+
+	soc {
+		ocram_2: sram@00940000 {
+			compatible = "mmio-sram";
+			reg = <0x00940000 0x20000>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
+		};
+
+		ocram_3: sram@00960000 {
+			compatible = "mmio-sram";
+			reg = <0x00960000 0x20000>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
+		};
+
+		pcie: pcie@0x01000000 {
+			compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
+			reg = <0x01ffc000 0x4000>, <0x01f00000 0x80000>;
+			reg-names = "dbi", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges = <0x81000000 0 0          0x01f80000 0 0x00010000 /* downstream I/O */
+				  0x82000000 0 0x01000000 0x01000000 0 0x00f00000>; /* non-prefetchable memory */
+			num-lanes = <1>;
+			interrupts = <0 120 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 123 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 2 &intc 0 122 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 3 &intc 0 121 IRQ_TYPE_LEVEL_HIGH>,
+			                <0 0 0 4 &intc 0 120 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_PCIE_REF_125M>,
+				 <&clks IMX6QDL_CLK_SATA_REF_100M>,
+				 <&clks IMX6QDL_CLK_LVDS1_GATE>, <&clks IMX6QDL_CLK_PCIE_AXI>;
+			clock-names = "pcie_phy", "ref_100m", "pcie_bus", "pcie";
+			status = "disabled";
+		};
+
+		aips-bus@02100000 { /* AIPS2 */
+			pre1: pre@021c8000 {
+				compatible = "fsl,imx6q-pre";
+				reg = <0x021c8000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRE0>;
+				interrupts = <0 90 IRQ_TYPE_EDGE_RISING>;
+				ocram = <&ocram_2>;
+				status = "disabled";
+			};
+
+			pre2: pre@021c9000 {
+				compatible = "fsl,imx6q-pre";
+				reg = <0x021c9000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRE1>;
+				interrupts = <0 97 IRQ_TYPE_EDGE_RISING>;
+				ocram = <&ocram_2>;
+				status = "disabled";
+			};
+
+			pre3: pre@021ca000 {
+				compatible = "fsl,imx6q-pre";
+				reg = <0x021ca000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRE2>;
+				interrupts = <0 98 IRQ_TYPE_EDGE_RISING>;
+				ocram = <&ocram_3>;
+				status = "disabled";
+			};
+
+			pre4: pre@021cb000 {
+				compatible = "fsl,imx6q-pre";
+				reg = <0x021cb000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRE3>;
+				interrupts = <0 99 IRQ_TYPE_EDGE_RISING>;
+				ocram = <&ocram_3>;
+				status = "disabled";
+			};
+
+			prg1: prg@021cc000 {
+				compatible = "fsl,imx6q-prg";
+				reg = <0x021cc000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG0_AXI>,
+					 <&clks IMX6QDL_CLK_PRG0_APB>;
+				clock-names = "axi", "apb";
+				gpr = <&gpr>;
+				status = "disabled";
+			};
+
+			prg2: prg@021cd000 {
+				compatible = "fsl,imx6q-prg";
+				reg = <0x021cd000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG1_AXI>,
+					 <&clks IMX6QDL_CLK_PRG1_APB>;
+				clock-names = "axi", "apb";
+				gpr = <&gpr>;
+				status = "disabled";
+			};
+		};
+
+		ipu1: ipu@02400000 {
+			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+			clocks = <&clks IMX6QDL_CLK_IPU1>,
+				 <&clks IMX6QDL_CLK_IPU1_DI0>, <&clks IMX6QDL_CLK_IPU1_DI1>,
+				 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
+				 <&clks IMX6QDL_CLK_LDB_DI0_DIV_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_SEL>,
+				 <&clks IMX6QDL_CLK_PRG0_APB>;
+			clock-names = "bus",
+				      "di0", "di1",
+				      "di0_sel", "di1_sel",
+				      "ldb_di0", "ldb_di1", "prg";
+		};
+
+		ipu2: ipu@02800000 {
+			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+			clocks = <&clks IMX6QDL_CLK_IPU2>,
+				 <&clks IMX6QDL_CLK_IPU2_DI0>, <&clks IMX6QDL_CLK_IPU2_DI1>,
+				 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
+				 <&clks IMX6QDL_CLK_LDB_DI0_DIV_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_DIV_SEL>,
+				 <&clks IMX6QDL_CLK_PRG1_APB>;
+			clock-names = "bus",
+				      "di0", "di1",
+				      "di0_sel", "di1_sel",
+				      "ldb_di0", "ldb_di1", "prg";
+		};
+
+		sata: sata@02200000 {
+			compatible = "fsl,imx6qp-ahci";
+			reg = <0x02200000 0x4000>;
+			interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6QDL_CLK_SATA>,
+				 <&clks IMX6QDL_CLK_SATA_REF_100M>,
+				 <&clks IMX6QDL_CLK_AHB>;
+			clock-names = "sata", "sata_ref", "ahb";
+			status = "disabled";
+		};
+	};
+};
+
+&ldb {
+	compatible = "fsl,imx6qp-ldb", "fsl,imx6q-ldb", "fsl,imx53-ldb";
+};
