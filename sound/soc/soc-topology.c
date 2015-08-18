@@ -66,7 +66,7 @@ struct soc_tplg {
 	u32 index;	/* current block index */
 	u32 req_index;	/* required index, only loaded/free matching blocks */
 
-	/* kcontrol operations */
+	/* vendor specific kcontrol operations */
 	const struct snd_soc_tplg_kcontrol_ops *io_ops;
 	int io_ops_count;
 
@@ -513,22 +513,7 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 {
 	int i;
 
-	/* try and map standard kcontrols handler first */
-	for (i = 0; i < num_ops; i++) {
-
-		if (ops[i].id == hdr->ops.put)
-			k->put = ops[i].put;
-		if (ops[i].id == hdr->ops.get)
-			k->get = ops[i].get;
-		if (ops[i].id == hdr->ops.info)
-			k->info = ops[i].info;
-	}
-
-	/* standard handlers found ? */
-	if (k->put && k->get && k->info)
-		return 0;
-
-	/* none found so try bespoke handlers */
+	/* try and map vendor specific kcontrol handlers first */
 	for (i = 0; i < num_bops; i++) {
 
 		if (k->put == NULL && bops[i].id == hdr->ops.put)
@@ -539,7 +524,22 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 			k->info = bops[i].info;
 	}
 
-	/* bespoke handlers found ? */
+	/* vendor specific handlers found ? */
+	if (k->put && k->get && k->info)
+		return 0;
+
+	/* none found so try standard kcontrol handlers */
+	for (i = 0; i < num_ops; i++) {
+
+		if (k->put == NULL && ops[i].id == hdr->ops.put)
+			k->put = ops[i].put;
+		if (k->get == NULL && ops[i].id == hdr->ops.get)
+			k->get = ops[i].get;
+		if (k->info == NULL && ops[i].id == hdr->ops.info)
+			k->info = ops[i].info;
+	}
+
+	/* standard handlers found ? */
 	if (k->put && k->get && k->info)
 		return 0;
 

@@ -136,7 +136,7 @@ struct snd_soc_tplg_ops {
 	int (*manifest)(struct snd_soc_component *,
 		struct snd_soc_tplg_manifest *);
 
-	/* bespoke kcontrol handlers available for binding */
+	/* vendor specific kcontrol handlers available for binding */
 	const struct snd_soc_tplg_kcontrol_ops *io_ops;
 	int io_ops_count;
 };
