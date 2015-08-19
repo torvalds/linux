@@ -111,7 +111,6 @@ int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
 			kfree(job);
 			return r;
 		}
-		ibs[num_ibs - 1].sequence = job->base.s_fence->v_seq;
 		*f = fence_get(&job->base.s_fence->base);
 		mutex_unlock(&job->job_lock);
 	} else {

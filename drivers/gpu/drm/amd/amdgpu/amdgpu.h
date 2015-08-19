@@ -1047,7 +1047,7 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 struct amdgpu_ctx *amdgpu_ctx_get_ref(struct amdgpu_ctx *ctx);
 
 uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
-			      struct fence *fence, uint64_t queued_seq);
+			      struct fence *fence);
 struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 				   struct amdgpu_ring *ring, uint64_t seq);
 

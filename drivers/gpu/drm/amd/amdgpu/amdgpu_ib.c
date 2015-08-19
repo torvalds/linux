@@ -126,7 +126,6 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	struct amdgpu_ring *ring;
 	struct amdgpu_ctx *ctx, *old_ctx;
 	struct amdgpu_vm *vm;
-	uint64_t sequence;
 	unsigned i;
 	int r = 0;
 
@@ -199,12 +198,9 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return r;
 	}
 
-	sequence = amdgpu_enable_scheduler ? ib->sequence : 0;
-
 	if (!amdgpu_enable_scheduler && ib->ctx)
 		ib->sequence = amdgpu_ctx_add_fence(ib->ctx, ring,
-						    &ib->fence->base,
-						    sequence);
+						    &ib->fence->base);
 
 	/* wrap the last IB with fence */
 	if (ib->user) {

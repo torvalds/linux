@@ -866,11 +866,9 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			kfree(job);
 			goto out;
 		}
-		job->ibs[parser->num_ibs - 1].sequence =
+		cs->out.handle =
 			amdgpu_ctx_add_fence(job->ctx, ring,
-					     &job->base.s_fence->base,
-					     job->base.s_fence->v_seq);
-		cs->out.handle = job->base.s_fence->v_seq;
+					     &job->base.s_fence->base);
 		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 				&parser->validated,

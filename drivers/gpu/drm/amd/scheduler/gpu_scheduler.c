@@ -156,14 +156,12 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_rq *rq,
 			  uint32_t jobs)
 {
-	uint64_t seq_ring = 0;
 	char name[20];
 
 	if (!(sched && entity && rq))
 		return -EINVAL;
 
 	memset(entity, 0, sizeof(struct amd_sched_entity));
-	seq_ring = ((uint64_t)sched->ring_id) << 60;
 	spin_lock_init(&entity->lock);
 	entity->belongto_rq = rq;
 	entity->scheduler = sched;
@@ -179,8 +177,7 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 		return -EINVAL;
 
 	spin_lock_init(&entity->queue_lock);
-	atomic64_set(&entity->last_queued_v_seq, seq_ring);
-	atomic64_set(&entity->last_signaled_v_seq, seq_ring);
+	atomic_set(&entity->fence_seq, 0);
 
 	/* Add the entity to the run queue */
 	amd_sched_rq_add_entity(rq, entity);
@@ -299,8 +296,6 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	unsigned long flags;
 
 	sched = sched_job->sched;
-	atomic64_set(&sched_job->s_entity->last_signaled_v_seq,
-		     sched_job->s_fence->v_seq);
 	amd_sched_fence_signal(sched_job->s_fence);
 	spin_lock_irqsave(&sched->queue_lock, flags);
 	list_del(&sched_job->list);
@@ -420,16 +415,4 @@ int amd_sched_destroy(struct amd_gpu_scheduler *sched)
 	kthread_stop(sched->thread);
 	kfree(sched);
 	return  0;
-}
-
-/**
- * Get next queued sequence number
- *
- * @entity The context entity
- *
- * return the next queued sequence number
-*/
-uint64_t amd_sched_next_queued_seq(struct amd_sched_entity *c_entity)
-{
-	return atomic64_read(&c_entity->last_queued_v_seq) + 1;
 }

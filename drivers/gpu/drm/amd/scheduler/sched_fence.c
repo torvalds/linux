@@ -30,16 +30,19 @@
 struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity)
 {
 	struct amd_sched_fence *fence = NULL;
+	unsigned seq;
+
 	fence = kzalloc(sizeof(struct amd_sched_fence), GFP_KERNEL);
 	if (fence == NULL)
 		return NULL;
-	fence->v_seq = atomic64_inc_return(&s_entity->last_queued_v_seq);
+
 	fence->entity = s_entity;
 	spin_lock_init(&fence->lock);
-	fence_init(&fence->base, &amd_sched_fence_ops,
-		&fence->lock,
-		s_entity->fence_context,
-		fence->v_seq);
+
+	seq = atomic_inc_return(&s_entity->fence_seq);
+	fence_init(&fence->base, &amd_sched_fence_ops, &fence->lock,
+		   s_entity->fence_context, seq);
+
 	return fence;
 }
 

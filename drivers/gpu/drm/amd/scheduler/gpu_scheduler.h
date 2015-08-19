@@ -42,9 +42,7 @@ struct amd_sched_entity {
 	struct list_head		list;
 	struct amd_sched_rq		*belongto_rq;
 	spinlock_t			lock;
-	/* the virtual_seq is unique per context per ring */
-	atomic64_t			last_queued_v_seq;
-	atomic64_t			last_signaled_v_seq;
+	atomic_t			fence_seq;
 	/* the job_queue maintains the jobs submitted by clients */
 	struct kfifo                    job_queue;
 	spinlock_t			queue_lock;
@@ -72,7 +70,6 @@ struct amd_sched_fence {
 	struct fence                    base;
 	struct fence_cb                 cb;
 	struct amd_sched_entity	        *entity;
-	uint64_t			v_seq;
 	spinlock_t			lock;
 };
 
@@ -147,8 +144,6 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  uint32_t jobs);
 int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity);
-
-uint64_t amd_sched_next_queued_seq(struct amd_sched_entity *c_entity);
 
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity);

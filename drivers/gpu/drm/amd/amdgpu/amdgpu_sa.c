@@ -435,8 +435,8 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 				seq_printf(m, " protected by 0x%016llx on ring %d",
 					   a_fence->seq, a_fence->ring->idx);
 			if (s_fence)
-				seq_printf(m, " protected by 0x%016llx on ring %d",
-					   s_fence->v_seq,
+				seq_printf(m, " protected by 0x%016x on ring %d",
+					   s_fence->base.seqno,
 					   s_fence->entity->scheduler->ring_id);
 
 		}
