@@ -537,7 +537,7 @@ bool device_dma_is_coherent(struct device *dev)
 EXPORT_SYMBOL_GPL(device_dma_is_coherent);
 
 /**
- * device_get_phy_mode - Get phy mode for given device_node
+ * device_get_phy_mode - Get phy mode for given device
  * @dev:	Pointer to the given device
  *
  * The function gets phy interface string from property 'phy-mode' or
@@ -570,13 +570,18 @@ static void *device_get_mac_addr(struct device *dev,
 {
 	int ret = device_property_read_u8_array(dev, name, addr, alen);
 
-	if (ret == 0 && is_valid_ether_addr(addr))
+	if (ret == 0 && alen == ETH_ALEN && is_valid_ether_addr(addr))
 		return addr;
 	return NULL;
 }
 
 /**
- * Search the device tree for the best MAC address to use.  'mac-address' is
+ * device_get_mac_address - Get the MAC for a given device
+ * @dev:	Pointer to the device
+ * @addr:	Address of buffer to store the MAC in
+ * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
+ *
+ * Search the firmware node for the best MAC address to use.  'mac-address' is
  * checked first, because that is supposed to contain to "most recent" MAC
  * address. If that isn't set, then 'local-mac-address' is checked next,
  * because that is the default address.  If that isn't set, then the obsolete
@@ -587,11 +592,11 @@ static void *device_get_mac_addr(struct device *dev,
  * MAC address.
  *
  * All-zero MAC addresses are rejected, because those could be properties that
- * exist in the device tree, but were not set by U-Boot.  For example, the
- * DTS could define 'mac-address' and 'local-mac-address', with zero MAC
- * addresses.  Some older U-Boots only initialized 'local-mac-address'.  In
- * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
- * but is all zeros.
+ * exist in the firmware tables, but were not updated by the firmware.  For
+ * example, the DTS could define 'mac-address' and 'local-mac-address', with
+ * zero MAC addresses.  Some older U-Boots only initialized 'local-mac-address'.
+ * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
+ * exists but is all zeros.
 */
 void *device_get_mac_address(struct device *dev, char *addr, int alen)
 {
