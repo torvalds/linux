@@ -186,13 +186,6 @@ static int mtk_spi_prepare_hardware(struct spi_master *master)
 	struct spi_transfer *trans;
 	struct mtk_spi *mdata = spi_master_get_devdata(master);
 	struct spi_message *msg = master->cur_msg;
-	int ret;
-
-	ret = clk_prepare_enable(mdata->spi_clk);
-	if (ret < 0) {
-		dev_err(&master->dev, "failed to enable clock (%d)\n", ret);
-		return ret;
-	}
 
 	trans = list_first_entry(&msg->transfers, struct spi_transfer,
 				 transfer_list);
@@ -200,15 +193,6 @@ static int mtk_spi_prepare_hardware(struct spi_master *master)
 		mdata->state = MTK_SPI_IDLE;
 		mtk_spi_reset(mdata);
 	}
-
-	return ret;
-}
-
-static int mtk_spi_unprepare_hardware(struct spi_master *master)
-{
-	struct mtk_spi *mdata = spi_master_get_devdata(master);
-
-	clk_disable_unprepare(mdata->spi_clk);
 
 	return 0;
 }
@@ -541,7 +525,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 	master->set_cs = mtk_spi_set_cs;
 	master->prepare_transfer_hardware = mtk_spi_prepare_hardware;
-	master->unprepare_transfer_hardware = mtk_spi_unprepare_hardware;
 	master->prepare_message = mtk_spi_prepare_message;
 	master->transfer_one = mtk_spi_transfer_one;
 	master->can_dma = mtk_spi_can_dma;
