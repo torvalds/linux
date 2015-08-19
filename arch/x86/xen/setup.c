@@ -789,11 +789,12 @@ char * __init xen_memory_setup(void)
 			  &xen_e820_map_entries);
 
 	max_pages = xen_get_max_pages();
-	if (max_pages > max_pfn)
-		extra_pages += max_pages - max_pfn;
 
 	/* How many extra pages do we need due to remapping? */
-	extra_pages += xen_count_remap_pages(max_pfn);
+	max_pages += xen_count_remap_pages(max_pfn);
+
+	if (max_pages > max_pfn)
+		extra_pages += max_pages - max_pfn;
 
 	/*
 	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
