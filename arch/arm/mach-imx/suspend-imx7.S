@@ -88,6 +88,8 @@
 #define DDRC_SWSTAT	0x324
 #define DDRPHY_LP_CON0	0x18
 
+#define CCM_SNVS_LPCG	0x250
+
 	.align 3
 
 	.macro	disable_l1_dcache
@@ -451,6 +453,12 @@
 
 ENTRY(imx7_suspend)
 	push	{r4-r12}
+
+	/* make sure SNVS clk is enabled */
+	ldr	r11, [r0, #PM_INFO_MX7_CCM_V_OFFSET]
+	add	r11, r11, #0x4000
+	ldr	r7, =0x3
+	str	r7, [r11, #CCM_SNVS_LPCG]
 
 	/* check whether it is a standby mode */
 	ldr	r11, [r0, #PM_INFO_MX7_GPC_V_OFFSET]
