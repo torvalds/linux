@@ -143,6 +143,8 @@ struct rockchip_spdif_info {
 	struct clk *clk;
 	struct device *dev;
 	struct snd_dmaengine_dai_dma_data dma_playback;
+	u32 cfgr;
+	u32 dmac;
 };
 
 static inline struct rockchip_spdif_info *to_info(struct snd_soc_dai *cpu_dai)
@@ -161,6 +163,8 @@ static void spdif_snd_txctrl(struct rockchip_spdif_info *spdif, int on)
 	if (on) {
 		xfer |= XFER_TRAN_START;
 		dmacr |= DMACR_TRAN_DMA_ENABLE;
+		dmacr |= spdif->dmac;
+		writel(spdif->cfgr, regs + CFGR);
 		writel(dmacr, regs + DMACR);
 		writel(xfer, regs + XFER);
 	} else {
@@ -227,7 +231,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	void __iomem *regs = spdif->regs;
 	unsigned long flags;
 	unsigned int val;
-	int cfgr, dmac, intcr, chnregval;
+	u32 cfgr, dmac, intcr, chnregval;
 	char chnsta[CHNSTA_BYTES];
 
 	dev_dbg(spdif->dev, "%s\n", __func__);
@@ -277,6 +281,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	cfgr &= ~CFGR_PRE_CHANGE_MASK;
 	cfgr |= CFGR_PRE_CHANGE_ENALBLE;
 
+	spdif->cfgr = cfgr;
 	writel(cfgr, regs + CFGR);
 
 	intcr = readl(regs + INTCR) & (~INTCR_SDBEIE_MASK);
@@ -285,6 +290,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 
 	dmac = readl(regs + DMACR) & (~DMACR_TRAN_DATA_LEVEL_MASK);
 	dmac |= DMA_DATA_LEVEL_16;
+	spdif->dmac = dmac;
 	writel(dmac, regs + DMACR);
 
 	/* channel status bit */
