@@ -1611,7 +1611,7 @@ static irqreturn_t usdhi6_cd(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/* Ack */
-	usdhi6_write(host, USDHI6_SD_INFO1, !status);
+	usdhi6_write(host, USDHI6_SD_INFO1, ~status);
 
 	if (!work_pending(&mmc->detect.work) &&
 	    (((status & USDHI6_SD_INFO1_CARD_INSERT) &&
