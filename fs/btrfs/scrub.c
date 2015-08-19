@@ -1318,6 +1318,9 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 	struct btrfs_fs_info *fs_info = sctx->dev_root->fs_info;
 	u64 length = original_sblock->page_count * PAGE_SIZE;
 	u64 logical = original_sblock->pagev[0]->logical;
+	u64 generation = original_sblock->pagev[0]->generation;
+	u64 flags = original_sblock->pagev[0]->flags;
+	u64 have_csum = original_sblock->pagev[0]->have_csum;
 	struct scrub_recover *recover;
 	struct btrfs_bio *bbio;
 	u64 sublen;
@@ -1372,6 +1375,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 
 			sblock = sblocks_for_recheck + mirror_index;
 			sblock->sctx = sctx;
+
 			page = kzalloc(sizeof(*page), GFP_NOFS);
 			if (!page) {
 leave_nomem:
@@ -1383,7 +1387,15 @@ leave_nomem:
 			}
 			scrub_page_get(page);
 			sblock->pagev[page_index] = page;
+			page->sblock = sblock;
+			page->flags = flags;
+			page->generation = generation;
 			page->logical = logical;
+			page->have_csum = have_csum;
+			if (have_csum)
+				memcpy(page->csum,
+				       original_sblock->pagev[0]->csum,
+				       sctx->csum_size);
 
 			scrub_stripe_index_and_offset(logical,
 						      bbio->map_type,
