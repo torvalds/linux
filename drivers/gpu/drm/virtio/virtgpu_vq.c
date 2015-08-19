@@ -347,6 +347,38 @@ static int virtio_gpu_queue_ctrl_buffer(struct virtio_gpu_device *vgdev,
 	return rc;
 }
 
+static int virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
+					       struct virtio_gpu_vbuffer *vbuf,
+					       struct virtio_gpu_ctrl_hdr *hdr,
+					       struct virtio_gpu_fence **fence)
+{
+	struct virtqueue *vq = vgdev->ctrlq.vq;
+	int rc;
+
+again:
+	spin_lock(&vgdev->ctrlq.qlock);
+
+	/*
+	 * Make sure we have enouth space in the virtqueue.  If not
+	 * wait here until we have.
+	 *
+	 * Without that virtio_gpu_queue_ctrl_buffer_nolock might have
+	 * to wait for free space, which can result in fence ids being
+	 * submitted out-of-order.
+	 */
+	if (vq->num_free < 3) {
+		spin_unlock(&vgdev->ctrlq.qlock);
+		wait_event(vgdev->ctrlq.ack_queue, vq->num_free >= 3);
+		goto again;
+	}
+
+	if (fence)
+		virtio_gpu_fence_emit(vgdev, hdr, fence);
+	rc = virtio_gpu_queue_ctrl_buffer_locked(vgdev, vbuf);
+	spin_unlock(&vgdev->ctrlq.qlock);
+	return rc;
+}
+
 static int virtio_gpu_queue_cursor(struct virtio_gpu_device *vgdev,
 				   struct virtio_gpu_vbuffer *vbuf)
 {
@@ -499,9 +531,7 @@ void virtio_gpu_cmd_transfer_to_host_2d(struct virtio_gpu_device *vgdev,
 	cmd_p->r.x = x;
 	cmd_p->r.y = y;
 
-	if (fence)
-		virtio_gpu_fence_emit(vgdev, &cmd_p->hdr, fence);
-	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
+	virtio_gpu_queue_fenced_ctrl_buffer(vgdev, vbuf, &cmd_p->hdr, fence);
 }
 
 static void
@@ -524,9 +554,7 @@ virtio_gpu_cmd_resource_attach_backing(struct virtio_gpu_device *vgdev,
 	vbuf->data_buf = ents;
 	vbuf->data_size = sizeof(*ents) * nents;
 
-	if (fence)
-		virtio_gpu_fence_emit(vgdev, &cmd_p->hdr, fence);
-	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
+	virtio_gpu_queue_fenced_ctrl_buffer(vgdev, vbuf, &cmd_p->hdr, fence);
 }
 
 static void virtio_gpu_cmd_get_display_info_cb(struct virtio_gpu_device *vgdev,
