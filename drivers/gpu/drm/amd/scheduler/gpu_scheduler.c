@@ -106,7 +106,7 @@ static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
  * Select next entity containing real IB submissions
 */
 static struct amd_sched_entity *
-select_context(struct amd_gpu_scheduler *sched)
+amd_sched_select_context(struct amd_gpu_scheduler *sched)
 {
 	struct amd_sched_entity *wake_entity = NULL;
 	struct amd_sched_entity *tmp;
@@ -286,20 +286,24 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 
 static int amd_sched_main(void *param)
 {
-	int r;
-	struct amd_sched_job *job;
 	struct sched_param sparam = {.sched_priority = 1};
-	struct amd_sched_entity *c_entity = NULL;
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
+	int r;
 
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
 	while (!kthread_should_stop()) {
+		struct amd_sched_entity *c_entity = NULL;
+		struct amd_sched_job *job;
 		struct fence *fence;
 
 		wait_event_interruptible(sched->wait_queue,
-					 amd_sched_ready(sched) &&
-					 (c_entity = select_context(sched)));
+			kthread_should_stop() ||
+			(c_entity = amd_sched_select_context(sched)));
+
+		if (!c_entity)
+			continue;
+
 		r = kfifo_out(&c_entity->job_queue, &job, sizeof(void *));
 		if (r != sizeof(void *))
 			continue;
