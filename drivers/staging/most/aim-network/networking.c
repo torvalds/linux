@@ -295,7 +295,7 @@ static void most_net_rm_netdev_safe(struct net_dev_context *nd)
 
 	unregister_netdev(nd->dev);
 	free_netdev(nd->dev);
-	nd->dev = 0;
+	nd->dev = NULL;
 }
 
 static struct net_dev_context *get_net_dev_context(
