@@ -110,7 +110,7 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
+int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 			     void *pvRecvBuffer, u32 u32RecvBufferSize,
 			     u32 *pu32ReceivedLength)
 {
