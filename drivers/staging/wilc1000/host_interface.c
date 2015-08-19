@@ -6616,7 +6616,7 @@ _fail_timer_2:
 	del_timer_sync(&pstrWFIDrv->hScanTimer);
 	kthread_stop(HostIFthreadHandler);
 _fail_mq_:
-	WILC_MsgQueueDestroy(&gMsgQHostIF);
+	wilc_mq_destroy(&gMsgQHostIF);
 _fail_:
 	return s32Error;
 
@@ -6717,7 +6717,7 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 
 		down(&hSemHostIFthrdEnd);
 
-		WILC_MsgQueueDestroy(&gMsgQHostIF);
+		wilc_mq_destroy(&gMsgQHostIF);
 		msgQ_created = 0;
 	}
 

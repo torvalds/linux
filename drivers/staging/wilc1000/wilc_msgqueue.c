@@ -24,7 +24,7 @@ int wilc_mq_create(WILC_MsgQueueHandle *pHandle)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
+int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle)
 {
 	pHandle->bExiting = true;
 

@@ -76,6 +76,6 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle);
+int wilc_mq_destroy(WILC_MsgQueueHandle *pHandle);
 
 #endif
