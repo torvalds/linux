@@ -1638,6 +1638,9 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	struct dasd_ccw_req *cqr, *next;
 	struct dasd_device *device;
 	unsigned long long now;
+	int nrf_suppressed = 0;
+	int fp_suppressed = 0;
+	u8 *sense = NULL;
 	int expires;
 
 	if (IS_ERR(irb)) {
@@ -1673,7 +1676,23 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 			dasd_put_device(device);
 			return;
 		}
-		device->discipline->dump_sense_dbf(device, irb, "int");
+
+		/*
+		 * In some cases 'File Protected' or 'No Record Found' errors
+		 * might be expected and debug log messages for the
+		 * corresponding interrupts shouldn't be written then.
+		 * Check if either of the according suppress bits is set.
+		 */
+		sense = dasd_get_sense(irb);
+		if (sense) {
+			fp_suppressed = (sense[1] & SNS1_FILE_PROTECTED) &&
+				test_bit(DASD_CQR_SUPPRESS_FP, &cqr->flags);
+			nrf_suppressed = (sense[1] & SNS1_NO_REC_FOUND) &&
+				test_bit(DASD_CQR_SUPPRESS_NRF, &cqr->flags);
+		}
+		if (!(fp_suppressed || nrf_suppressed))
+			device->discipline->dump_sense_dbf(device, irb, "int");
+
 		if (device->features & DASD_FEATURE_ERPLOG)
 			device->discipline->dump_sense(device, cqr, irb);
 		device->discipline->check_for_device_change(device, cqr, irb);
@@ -2312,6 +2331,7 @@ static int _dasd_sleep_on_queue(struct list_head *ccw_queue, int interruptible)
 {
 	struct dasd_device *device;
 	struct dasd_ccw_req *cqr, *n;
+	u8 *sense = NULL;
 	int rc;
 
 retry:
@@ -2357,6 +2377,20 @@ retry:
 
 	rc = 0;
 	list_for_each_entry_safe(cqr, n, ccw_queue, blocklist) {
+		/*
+		 * In some cases the 'File Protected' or 'Incorrect Length'
+		 * error might be expected and error recovery would be
+		 * unnecessary in these cases.	Check if the according suppress
+		 * bit is set.
+		 */
+		sense = dasd_get_sense(&cqr->irb);
+		if (sense && sense[1] & SNS1_FILE_PROTECTED &&
+		    test_bit(DASD_CQR_SUPPRESS_FP, &cqr->flags))
+			continue;
+		if (scsw_cstat(&cqr->irb.scsw) == 0x40 &&
+		    test_bit(DASD_CQR_SUPPRESS_IL, &cqr->flags))
+			continue;
+
 		/*
 		 * for alias devices simplify error recovery and
 		 * return to upper layer
