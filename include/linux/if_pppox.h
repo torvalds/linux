@@ -58,7 +58,7 @@ struct pppopns_opt {
 	__u16		remote;
 	__u32		recv_sequence;
 	__u32		xmit_sequence;
-	void		(*data_ready)(struct sock *sk_raw, int length);
+	void		(*data_ready)(struct sock *sk_raw);
 	int		(*backlog_rcv)(struct sock *sk_raw, struct sk_buff *skb);
 };
 
