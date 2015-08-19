@@ -81,8 +81,8 @@ static struct extent_tree *__grab_extent_tree(struct inode *inode)
 	return et;
 }
 
-static struct extent_node *__lookup_extent_tree(struct extent_tree *et,
-							unsigned int fofs)
+static struct extent_node *__lookup_extent_tree(struct f2fs_sb_info *sbi,
+				struct extent_tree *et, unsigned int fofs)
 {
 	struct rb_node *node = et->root.rb_node;
 	struct extent_node *en = et->cached_en;
@@ -90,8 +90,10 @@ static struct extent_node *__lookup_extent_tree(struct extent_tree *et,
 	if (en) {
 		struct extent_info *cei = &en->ei;
 
-		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs)
+		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs) {
+			stat_inc_cached_node_hit(sbi);
 			return en;
+		}
 	}
 
 	while (node) {
@@ -280,10 +282,11 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 		*ei = et->largest;
 		ret = true;
 		stat_inc_read_hit(sbi);
+		stat_inc_largest_node_hit(sbi);
 		goto out;
 	}
 
-	en = __lookup_extent_tree(et, pgofs);
+	en = __lookup_extent_tree(sbi, et, pgofs);
 	if (en) {
 		*ei = en->ei;
 		spin_lock(&sbi->extent_lock);
@@ -313,7 +316,8 @@ out:
  * tree must stay unchanged between lookup and insertion.
  */
 static struct extent_node *__lookup_extent_tree_ret(struct extent_tree *et,
-				unsigned int fofs, struct extent_node **prev_ex,
+				unsigned int fofs,
+				struct extent_node **prev_ex,
 				struct extent_node **next_ex,
 				struct rb_node ***insert_p,
 				struct rb_node **insert_parent)

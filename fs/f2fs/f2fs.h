@@ -789,6 +789,8 @@ struct f2fs_sb_info {
 	atomic_t inplace_count;		/* # of inplace update */
 	atomic_t total_hit_ext;			/* # of lookup extent cache */
 	atomic_t read_hit_ext;			/* # of hit extent cache */
+	atomic_t read_hit_largest;		/* # of hit largest extent node */
+	atomic_t read_hit_cached;		/* # of hit cached extent node */
 	atomic_t inline_xattr;			/* # of inline_xattr inodes */
 	atomic_t inline_inode;			/* # of inline_data inodes */
 	atomic_t inline_dir;			/* # of inline_dentry inodes */
@@ -1824,7 +1826,7 @@ struct f2fs_stat_info {
 	struct f2fs_sb_info *sbi;
 	int all_area_segs, sit_area_segs, nat_area_segs, ssa_area_segs;
 	int main_area_segs, main_area_sections, main_area_zones;
-	int hit_ext, total_ext, ext_tree, ext_node;
+	int hit_largest, hit_cached, hit_ext, total_ext, ext_tree, ext_node;
 	int ndirty_node, ndirty_dent, ndirty_dirs, ndirty_meta;
 	int nats, dirty_nats, sits, dirty_sits, fnids;
 	int total_count, utilization;
@@ -1862,6 +1864,8 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 #define stat_dec_dirty_dir(sbi)		((sbi)->n_dirty_dirs--)
 #define stat_inc_total_hit(sbi)		(atomic_inc(&(sbi)->total_hit_ext))
 #define stat_inc_read_hit(sbi)		(atomic_inc(&(sbi)->read_hit_ext))
+#define stat_inc_largest_node_hit(sbi)	(atomic_inc(&(sbi)->read_hit_largest))
+#define stat_inc_cached_node_hit(sbi)	(atomic_inc(&(sbi)->read_hit_cached))
 #define stat_inc_inline_xattr(inode)					\
 	do {								\
 		if (f2fs_has_inline_xattr(inode))			\
@@ -1942,6 +1946,8 @@ void f2fs_destroy_root_stats(void);
 #define stat_dec_dirty_dir(sbi)
 #define stat_inc_total_hit(sb)
 #define stat_inc_read_hit(sb)
+#define stat_inc_largest_node_hit(sbi)
+#define stat_inc_cached_node_hit(sbi)
 #define stat_inc_inline_xattr(inode)
 #define stat_dec_inline_xattr(inode)
 #define stat_inc_inline_inode(inode)
