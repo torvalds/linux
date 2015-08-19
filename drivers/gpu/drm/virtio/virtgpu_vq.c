@@ -293,8 +293,8 @@ void virtio_gpu_dequeue_cursor_func(struct work_struct *work)
 	wake_up(&vgdev->cursorq.ack_queue);
 }
 
-static int virtio_gpu_queue_ctrl_buffer(struct virtio_gpu_device *vgdev,
-					struct virtio_gpu_vbuffer *vbuf)
+static int virtio_gpu_queue_ctrl_buffer_locked(struct virtio_gpu_device *vgdev,
+					       struct virtio_gpu_vbuffer *vbuf)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
 	struct scatterlist *sgs[3], vcmd, vout, vresp;
@@ -320,7 +320,6 @@ static int virtio_gpu_queue_ctrl_buffer(struct virtio_gpu_device *vgdev,
 		incnt++;
 	}
 
-	spin_lock(&vgdev->ctrlq.qlock);
 retry:
 	ret = virtqueue_add_sgs(vq, sgs, outcnt, incnt, vbuf, GFP_ATOMIC);
 	if (ret == -ENOSPC) {
@@ -331,11 +330,21 @@ retry:
 	} else {
 		virtqueue_kick(vq);
 	}
-	spin_unlock(&vgdev->ctrlq.qlock);
 
 	if (!ret)
 		ret = vq->num_free;
 	return ret;
+}
+
+static int virtio_gpu_queue_ctrl_buffer(struct virtio_gpu_device *vgdev,
+					struct virtio_gpu_vbuffer *vbuf)
+{
+	int rc;
+
+	spin_lock(&vgdev->ctrlq.qlock);
+	rc = virtio_gpu_queue_ctrl_buffer_locked(vgdev, vbuf);
+	spin_unlock(&vgdev->ctrlq.qlock);
+	return rc;
 }
 
 static int virtio_gpu_queue_cursor(struct virtio_gpu_device *vgdev,
