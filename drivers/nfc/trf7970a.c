@@ -629,7 +629,9 @@ static void trf7970a_send_upstream(struct trf7970a *trf)
 	}
 
 	if (trf->adjust_resp_len) {
-		skb_trim(trf->rx_skb, trf->rx_skb->len - 1);
+		if (trf->rx_skb)
+			skb_trim(trf->rx_skb, trf->rx_skb->len - 1);
+
 		trf->adjust_resp_len = false;
 	}
 
