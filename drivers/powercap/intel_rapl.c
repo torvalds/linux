@@ -1147,9 +1147,11 @@ static int rapl_unregister_powercap(void)
 			pr_debug("remove package, undo power limit on %d: %s\n",
 				rp->id, rd->name);
 			rapl_write_data_raw(rd, PL1_ENABLE, 0);
-			rapl_write_data_raw(rd, PL2_ENABLE, 0);
 			rapl_write_data_raw(rd, PL1_CLAMP, 0);
-			rapl_write_data_raw(rd, PL2_CLAMP, 0);
+			if (find_nr_power_limit(rd) > 1) {
+				rapl_write_data_raw(rd, PL2_ENABLE, 0);
+				rapl_write_data_raw(rd, PL2_CLAMP, 0);
+			}
 			if (rd->id == RAPL_DOMAIN_PACKAGE) {
 				rd_package = rd;
 				continue;
