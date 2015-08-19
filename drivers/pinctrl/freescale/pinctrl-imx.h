@@ -81,6 +81,7 @@ struct imx_pinctrl_soc_info {
 	struct imx_pmx_func *functions;
 	unsigned int nfunctions;
 	unsigned int flags;
+	u32 grp_index;
 };
 
 #define SHARE_MUX_CONF_REG	0x1
