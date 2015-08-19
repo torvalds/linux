@@ -36,8 +36,6 @@
 #define WILC_FILE_EOF			-116
 
 
-/* Error type */
-typedef s32 WILC_ErrNo;
 
 #define WILC_IS_ERR(__status__) (__status__ < WILC_SUCCESS)
 

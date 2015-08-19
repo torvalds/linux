@@ -8,7 +8,7 @@
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle)
+int WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle)
 {
 	spin_lock_init(&pHandle->strCriticalSection);
 	sema_init(&pHandle->hSem, 0);
@@ -24,7 +24,7 @@ WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
+int WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
 {
 	pHandle->bExiting = true;
 
@@ -50,10 +50,10 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
+int WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 			     const void *pvSendBuffer, u32 u32SendBufferSize)
 {
-	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
+	int s32RetStatus = WILC_SUCCESS;
 	unsigned long flags;
 	Message *pstrMessage = NULL;
 
@@ -110,12 +110,12 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
+int WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 			     void *pvRecvBuffer, u32 u32RecvBufferSize,
 			     u32 *pu32ReceivedLength)
 {
 	Message *pstrMessage;
-	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
+	int s32RetStatus = WILC_SUCCESS;
 	unsigned long flags;
 
 	if ((!pHandle) || (u32RecvBufferSize == 0)
