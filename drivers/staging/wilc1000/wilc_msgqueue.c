@@ -96,9 +96,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	{
 		/* error occured, free any allocations */
 		if (pstrMessage) {
-			if (pstrMessage->pvBuffer)
-				kfree(pstrMessage->pvBuffer);
-
+			kfree(pstrMessage->pvBuffer);
 			kfree(pstrMessage);
 		}
 	}
