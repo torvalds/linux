@@ -41,15 +41,12 @@ struct amd_sched_rq;
 struct amd_sched_entity {
 	struct list_head		list;
 	struct amd_sched_rq		*belongto_rq;
-	spinlock_t			lock;
 	atomic_t			fence_seq;
 	/* the job_queue maintains the jobs submitted by clients */
 	struct kfifo                    job_queue;
 	spinlock_t			queue_lock;
 	struct amd_gpu_scheduler	*scheduler;
 	wait_queue_head_t		wait_queue;
-	wait_queue_head_t		wait_emit;
-	bool                            is_pending;
 	uint64_t                        fence_context;
 	char                            name[20];
 	bool                            need_wakeup;

@@ -149,11 +149,9 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 		return -EINVAL;
 
 	memset(entity, 0, sizeof(struct amd_sched_entity));
-	spin_lock_init(&entity->lock);
 	entity->belongto_rq = rq;
 	entity->scheduler = sched;
 	init_waitqueue_head(&entity->wait_queue);
-	init_waitqueue_head(&entity->wait_emit);
 	entity->fence_context = fence_context_alloc(1);
 	snprintf(name, sizeof(name), "c_entity[%llu]", entity->fence_context);
 	memcpy(entity->name, name, 20);
@@ -228,12 +226,9 @@ int amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 		msecs_to_jiffies(AMD_GPU_WAIT_IDLE_TIMEOUT_IN_MS)
 		) ?  0 : -1;
 
-	if (r) {
-		if (entity->is_pending)
-			DRM_INFO("Entity %p is in waiting state during fini,\
-				all pending ibs will be canceled.\n",
-				 entity);
-	}
+	if (r)
+		DRM_INFO("Entity %p is in waiting state during fini\n",
+			 entity);
 
 	amd_sched_rq_remove_entity(rq, entity);
 	kfifo_free(&entity->job_queue);
