@@ -1791,14 +1791,15 @@ xfs_inactive_ifree(
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_ICOUNT, -1);
 
 	/*
-	 * Just ignore errors at this point.  There is nothing we can
-	 * do except to try to keep going. Make sure it's not a silent
-	 * error.
+	 * Just ignore errors at this point.  There is nothing we can do except
+	 * to try to keep going. Make sure it's not a silent error.
 	 */
 	error = xfs_bmap_finish(&tp,  &free_list, &committed);
-	if (error)
+	if (error) {
 		xfs_notice(mp, "%s: xfs_bmap_finish returned error %d",
 			__func__, error);
+		xfs_bmap_cancel(&free_list);
+	}
 	error = xfs_trans_commit(tp);
 	if (error)
 		xfs_notice(mp, "%s: xfs_trans_commit returned error %d",

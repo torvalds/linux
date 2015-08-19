@@ -1474,7 +1474,7 @@ xfs_shift_file_space(
 				XFS_DIOSTRAT_SPACE_RES(mp, 0), 0,
 				XFS_QMOPT_RES_REGBLKS);
 		if (error)
-			goto out;
+			goto out_trans_cancel;
 
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
@@ -1488,18 +1488,20 @@ xfs_shift_file_space(
 				&done, stop_fsb, &first_block, &free_list,
 				direction, XFS_BMAP_MAX_SHIFT_EXTENTS);
 		if (error)
-			goto out;
+			goto out_bmap_cancel;
 
 		error = xfs_bmap_finish(&tp, &free_list, &committed);
 		if (error)
-			goto out;
+			goto out_bmap_cancel;
 
 		error = xfs_trans_commit(tp);
 	}
 
 	return error;
 
-out:
+out_bmap_cancel:
+	xfs_bmap_cancel(&free_list);
+out_trans_cancel:
 	xfs_trans_cancel(tp);
 	return error;
 }
