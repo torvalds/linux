@@ -1715,11 +1715,13 @@ static int usdhi6_probe(struct platform_device *pdev)
 	if (!mmc)
 		return -ENOMEM;
 
+	ret = mmc_regulator_get_supply(mmc);
+	if (ret == -EPROBE_DEFER)
+		goto e_free_mmc;
+
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
 		goto e_free_mmc;
-
-	mmc_regulator_get_supply(mmc);
 
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
