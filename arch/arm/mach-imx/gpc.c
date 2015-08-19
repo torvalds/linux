@@ -119,6 +119,9 @@ void imx_gpc_post_resume(void)
 
 	/* Keep ARM core powered on for other low-power modes */
 	imx_gpc_set_arm_power_in_lpm(false);
+	/* Keep M/F mix powered on for other low-power modes */
+	if (cpu_is_imx6ul())
+		writel_relaxed(0x0, gpc_base + GPC_PGC_MF_PDN);
 
 	for (i = 0; i < IMR_NUM; i++)
 		writel_relaxed(gpc_saved_imrs[i], reg_imr1 + i * 4);
