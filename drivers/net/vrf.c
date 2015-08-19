@@ -352,7 +352,6 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
 	struct net_vrf_dev *vrf_ptr = kmalloc(sizeof(*vrf_ptr), GFP_KERNEL);
 	struct slave *slave = kzalloc(sizeof(*slave), GFP_KERNEL);
-	struct slave *duplicate_slave;
 	struct net_vrf *vrf = netdev_priv(dev);
 	struct slave_queue *queue = &vrf->queue;
 	int ret = -ENOMEM;
@@ -361,15 +360,8 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 		goto out_fail;
 
 	slave->dev = port_dev;
-
 	vrf_ptr->ifindex = dev->ifindex;
 	vrf_ptr->tb_id = vrf->tb_id;
-
-	duplicate_slave = __vrf_find_slave_dev(queue, port_dev);
-	if (duplicate_slave) {
-		ret = -EBUSY;
-		goto out_fail;
-	}
 
 	__vrf_insert_slave(queue, slave);
 
