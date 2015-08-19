@@ -74,7 +74,6 @@ struct amd_sched_fence {
 };
 
 struct amd_sched_job {
-	struct list_head		list;
 	struct fence_cb                 cb;
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
@@ -115,8 +114,7 @@ struct amd_gpu_scheduler {
 	struct task_struct		*thread;
 	struct amd_sched_rq		sched_rq;
 	struct amd_sched_rq		kernel_rq;
-	struct list_head		active_hw_rq;
-	atomic64_t			hw_rq_count;
+	atomic_t			hw_rq_count;
 	struct amd_sched_backend_ops	*ops;
 	uint32_t			ring_id;
 	uint32_t			granularity; /* in ms unit */
@@ -124,7 +122,6 @@ struct amd_gpu_scheduler {
 	wait_queue_head_t		wait_queue;
 	struct amd_sched_entity	*current_entity;
 	struct mutex			sched_lock;
-	spinlock_t			queue_lock;
 	uint32_t                        hw_submission_limit;
 };
 

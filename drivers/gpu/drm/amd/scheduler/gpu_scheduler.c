@@ -94,25 +94,12 @@ amd_sched_rq_select_entity(struct amd_sched_rq *rq)
 }
 
 /**
- * Note: This function should only been called inside scheduler main
- * function for thread safety, there is no other protection here.
- * return ture if scheduler has something ready to run.
- *
- * For active_hw_rq, there is only one producer(scheduler thread) and
- * one consumer(ISR). It should be safe to use this function in scheduler
- * main thread to decide whether to continue emit more IBs.
-*/
-static bool is_scheduler_ready(struct amd_gpu_scheduler *sched)
+ * Return ture if we can push more jobs to the hw.
+ */
+static bool amd_sched_ready(struct amd_gpu_scheduler *sched)
 {
-	unsigned long flags;
-	bool full;
-
-	spin_lock_irqsave(&sched->queue_lock, flags);
-	full = atomic64_read(&sched->hw_rq_count) <
-		sched->hw_submission_limit ? true : false;
-	spin_unlock_irqrestore(&sched->queue_lock, flags);
-
-	return full;
+	return atomic_read(&sched->hw_rq_count) <
+		sched->hw_submission_limit;
 }
 
 /**
@@ -124,7 +111,7 @@ select_context(struct amd_gpu_scheduler *sched)
 	struct amd_sched_entity *wake_entity = NULL;
 	struct amd_sched_entity *tmp;
 
-	if (!is_scheduler_ready(sched))
+	if (!amd_sched_ready(sched))
 		return NULL;
 
 	/* Kernel run queue has higher priority than normal run queue*/
@@ -293,14 +280,10 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	struct amd_sched_job *sched_job =
 		container_of(cb, struct amd_sched_job, cb);
 	struct amd_gpu_scheduler *sched;
-	unsigned long flags;
 
 	sched = sched_job->sched;
 	amd_sched_fence_signal(sched_job->s_fence);
-	spin_lock_irqsave(&sched->queue_lock, flags);
-	list_del(&sched_job->list);
-	atomic64_dec(&sched->hw_rq_count);
-	spin_unlock_irqrestore(&sched->queue_lock, flags);
+	atomic_dec(&sched->hw_rq_count);
 	fence_put(&sched_job->s_fence->base);
 	sched->ops->process_job(sched, sched_job);
 	wake_up_interruptible(&sched->wait_queue);
@@ -320,7 +303,7 @@ static int amd_sched_main(void *param)
 		struct fence *fence;
 
 		wait_event_interruptible(sched->wait_queue,
-					 is_scheduler_ready(sched) &&
+					 amd_sched_ready(sched) &&
 					 (c_entity = select_context(sched)));
 		r = kfifo_out(&c_entity->job_queue, &job, sizeof(void *));
 		if (r != sizeof(void *))
@@ -329,11 +312,7 @@ static int amd_sched_main(void *param)
 		if (sched->ops->prepare_job)
 			r = sched->ops->prepare_job(sched, c_entity, job);
 		if (!r) {
-			unsigned long flags;
-			spin_lock_irqsave(&sched->queue_lock, flags);
-			list_add_tail(&job->list, &sched->active_hw_rq);
-			atomic64_inc(&sched->hw_rq_count);
-			spin_unlock_irqrestore(&sched->queue_lock, flags);
+			atomic_inc(&sched->hw_rq_count);
 		}
 		mutex_lock(&sched->sched_lock);
 		fence = sched->ops->run_job(sched, c_entity, job);
@@ -384,13 +363,11 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	sched->hw_submission_limit = hw_submission;
 	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
 	mutex_init(&sched->sched_lock);
-	spin_lock_init(&sched->queue_lock);
 	amd_sched_rq_init(&sched->sched_rq);
 	amd_sched_rq_init(&sched->kernel_rq);
 
 	init_waitqueue_head(&sched->wait_queue);
-	INIT_LIST_HEAD(&sched->active_hw_rq);
-	atomic64_set(&sched->hw_rq_count, 0);
+	atomic_set(&sched->hw_rq_count, 0);
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_create(amd_sched_main, sched, name);
 	if (sched->thread) {
