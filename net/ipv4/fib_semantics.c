@@ -712,9 +712,16 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 				err = fib_table_lookup(tbl, &fl4, &res,
 						       FIB_LOOKUP_IGNORE_LINKSTATE |
 						       FIB_LOOKUP_NOREF);
-			else
+
+			/* on error or if no table given do full lookup. This
+			 * is needed for example when nexthops are in the local
+			 * table rather than the given table
+			 */
+			if (!tbl || err) {
 				err = fib_lookup(net, &fl4, &res,
 						 FIB_LOOKUP_IGNORE_LINKSTATE);
+			}
+
 			if (err) {
 				rcu_read_unlock();
 				return err;
