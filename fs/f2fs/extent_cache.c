@@ -254,13 +254,21 @@ static struct extent_node *__lookup_extent_tree_ret(struct extent_tree *et,
 {
 	struct rb_node **pnode = &et->root.rb_node;
 	struct rb_node *parent = NULL, *tmp_node;
-	struct extent_node *en;
+	struct extent_node *en = et->cached_en;
 
-	if (et->cached_en) {
-		struct extent_info *cei = &et->cached_en->ei;
+	*insert_p = NULL;
+	*insert_parent = NULL;
+	*prev_ex = NULL;
+	*next_ex = NULL;
+
+	if (RB_EMPTY_ROOT(&et->root))
+		return NULL;
+
+	if (en) {
+		struct extent_info *cei = &en->ei;
 
 		if (cei->fofs <= fofs && cei->fofs + cei->len > fofs)
-			return et->cached_en;
+			goto lookup_neighbors;
 	}
 
 	while (*pnode) {
@@ -272,7 +280,7 @@ static struct extent_node *__lookup_extent_tree_ret(struct extent_tree *et,
 		else if (fofs >= en->ei.fofs + en->ei.len)
 			pnode = &(*pnode)->rb_right;
 		else
-			return en;
+			goto lookup_neighbors;
 	}
 
 	*insert_p = pnode;
@@ -290,8 +298,22 @@ static struct extent_node *__lookup_extent_tree_ret(struct extent_tree *et,
 		tmp_node = rb_prev(parent);
 	*prev_ex = tmp_node ?
 		rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
-
 	return NULL;
+
+lookup_neighbors:
+	if (fofs == en->ei.fofs) {
+		/* lookup prev node for merging backward later */
+		tmp_node = rb_prev(&en->rb_node);
+		*prev_ex = tmp_node ?
+			rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
+	}
+	if (fofs == en->ei.fofs + en->ei.len - 1) {
+		/* lookup next node for merging frontward later */
+		tmp_node = rb_next(&en->rb_node);
+		*next_ex = tmp_node ?
+			rb_entry(tmp_node, struct extent_node, rb_node) : NULL;
+	}
+	return en;
 }
 
 static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
