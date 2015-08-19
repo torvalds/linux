@@ -111,87 +111,17 @@ static struct extent_node *__lookup_extent_tree(struct f2fs_sb_info *sbi,
 	return NULL;
 }
 
-static struct extent_node *__try_back_merge(struct f2fs_sb_info *sbi,
-				struct extent_tree *et, struct extent_node *en)
-{
-	struct extent_node *prev;
-	struct rb_node *node;
-
-	node = rb_prev(&en->rb_node);
-	if (!node)
-		return NULL;
-
-	prev = rb_entry(node, struct extent_node, rb_node);
-	if (__is_back_mergeable(&en->ei, &prev->ei)) {
-		en->ei.fofs = prev->ei.fofs;
-		en->ei.blk = prev->ei.blk;
-		en->ei.len += prev->ei.len;
-		__detach_extent_node(sbi, et, prev);
-		return prev;
-	}
-	return NULL;
-}
-
-static struct extent_node *__try_front_merge(struct f2fs_sb_info *sbi,
-				struct extent_tree *et, struct extent_node *en)
-{
-	struct extent_node *next;
-	struct rb_node *node;
-
-	node = rb_next(&en->rb_node);
-	if (!node)
-		return NULL;
-
-	next = rb_entry(node, struct extent_node, rb_node);
-	if (__is_front_mergeable(&en->ei, &next->ei)) {
-		en->ei.len += next->ei.len;
-		__detach_extent_node(sbi, et, next);
-		return next;
-	}
-	return NULL;
-}
-
-static struct extent_node *__insert_extent_tree(struct f2fs_sb_info *sbi,
-				struct extent_tree *et, struct extent_info *ei,
-				struct extent_node **den)
+static struct extent_node *__init_extent_tree(struct f2fs_sb_info *sbi,
+				struct extent_tree *et, struct extent_info *ei)
 {
 	struct rb_node **p = &et->root.rb_node;
-	struct rb_node *parent = NULL;
 	struct extent_node *en;
 
-	while (*p) {
-		parent = *p;
-		en = rb_entry(parent, struct extent_node, rb_node);
-
-		if (ei->fofs < en->ei.fofs) {
-			if (__is_front_mergeable(ei, &en->ei)) {
-				f2fs_bug_on(sbi, !den);
-				en->ei.fofs = ei->fofs;
-				en->ei.blk = ei->blk;
-				en->ei.len += ei->len;
-				*den = __try_back_merge(sbi, et, en);
-				goto update_out;
-			}
-			p = &(*p)->rb_left;
-		} else if (ei->fofs >= en->ei.fofs + en->ei.len) {
-			if (__is_back_mergeable(ei, &en->ei)) {
-				f2fs_bug_on(sbi, !den);
-				en->ei.len += ei->len;
-				*den = __try_front_merge(sbi, et, en);
-				goto update_out;
-			}
-			p = &(*p)->rb_right;
-		} else {
-			f2fs_bug_on(sbi, 1);
-		}
-	}
-
-	en = __attach_extent_node(sbi, et, ei, parent, p);
+	en = __attach_extent_node(sbi, et, ei, NULL, p);
 	if (!en)
 		return NULL;
-update_out:
-	if (en->ei.len > et->largest.len)
-		et->largest = en->ei;
+
+	et->largest = en->ei;
 	et->cached_en = en;
 	return en;
 }
@@ -255,7 +185,7 @@ void f2fs_init_extent_tree(struct inode *inode, struct f2fs_extent *i_ext)
 	if (et->count)
 		goto out;
 
-	en = __insert_extent_tree(sbi, et, &ei, NULL);
+	en = __init_extent_tree(sbi, et, &ei);
 	if (en) {
 		spin_lock(&sbi->extent_lock);
 		list_add_tail(&en->list, &sbi->extent_list);
