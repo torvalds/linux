@@ -173,7 +173,6 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 		kfree(pstrMessage);
 
 		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
-
 	}
 
 	WILC_CATCH(s32RetStatus)
