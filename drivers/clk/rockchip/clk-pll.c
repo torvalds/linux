@@ -353,6 +353,35 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
+	/* create the mux on top of the real pll */
+	pll->pll_mux_ops = &clk_mux_ops;
+	pll_mux = &pll->pll_mux;
+	pll_mux->reg = base + mode_offset;
+	pll_mux->shift = mode_shift;
+	pll_mux->mask = PLL_MODE_MASK;
+	pll_mux->flags = 0;
+	pll_mux->lock = lock;
+	pll_mux->hw.init = &init;
+
+	if (pll_type == pll_rk3066)
+		pll_mux->flags |= CLK_MUX_HIWORD_MASK;
+
+	/* the actual muxing is xin24m, pll-output, xin32k */
+	pll_parents[0] = parent_names[0];
+	pll_parents[1] = pll_name;
+	pll_parents[2] = parent_names[1];
+
+	init.name = name;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.ops = pll->pll_mux_ops;
+	init.parent_names = pll_parents;
+	init.num_parents = ARRAY_SIZE(pll_parents);
+
+	mux_clk = clk_register(NULL, &pll_mux->hw);
+	if (IS_ERR(mux_clk))
+		goto err_mux;
+
+	/* now create the actual pll */
 	init.name = pll_name;
 
 	/* keep all plls untouched for now */
@@ -398,47 +427,19 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 	pll->flags = clk_pll_flags;
 	pll->lock = lock;
 
-	/* create the mux on top of the real pll */
-	pll->pll_mux_ops = &clk_mux_ops;
-	pll_mux = &pll->pll_mux;
-	pll_mux->reg = base + mode_offset;
-	pll_mux->shift = mode_shift;
-	pll_mux->mask = PLL_MODE_MASK;
-	pll_mux->flags = 0;
-	pll_mux->lock = lock;
-	pll_mux->hw.init = &init;
-
-	if (pll_type == pll_rk3066)
-		pll_mux->flags |= CLK_MUX_HIWORD_MASK;
-
 	pll_clk = clk_register(NULL, &pll->hw);
 	if (IS_ERR(pll_clk)) {
 		pr_err("%s: failed to register pll clock %s : %ld\n",
 			__func__, name, PTR_ERR(pll_clk));
-		mux_clk = pll_clk;
 		goto err_pll;
 	}
 
-	/* the actual muxing is xin24m, pll-output, xin32k */
-	pll_parents[0] = parent_names[0];
-	pll_parents[1] = pll_name;
-	pll_parents[2] = parent_names[1];
-
-	init.name = name;
-	init.flags = CLK_SET_RATE_PARENT;
-	init.ops = pll->pll_mux_ops;
-	init.parent_names = pll_parents;
-	init.num_parents = ARRAY_SIZE(pll_parents);
-
-	mux_clk = clk_register(NULL, &pll_mux->hw);
-	if (IS_ERR(mux_clk))
-		goto err_mux;
-
 	return mux_clk;
 
-err_mux:
-	clk_unregister(pll_clk);
 err_pll:
+	clk_unregister(mux_clk);
+	mux_clk = pll_clk;
+err_mux:
 	kfree(pll);
 	return mux_clk;
 }
