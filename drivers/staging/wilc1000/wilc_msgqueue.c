@@ -34,7 +34,7 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
 		pHandle->u32ReceiversCount--;
 	}
 
-	while (pHandle->pstrMessageList != NULL) {
+	while (pHandle->pstrMessageList) {
 		Message *pstrMessge = pHandle->pstrMessageList->pstrNext;
 
 		kfree(pHandle->pstrMessageList);
@@ -57,7 +57,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	unsigned long flags;
 	Message *pstrMessage = NULL;
 
-	if ((pHandle == NULL) || (u32SendBufferSize == 0) || (pvSendBuffer == NULL)) {
+	if ((!pHandle) || (u32SendBufferSize == 0) || (!pvSendBuffer)) {
 		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
 	}
 
@@ -77,12 +77,12 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
 
 	/* add it to the message queue */
-	if (pHandle->pstrMessageList == NULL) {
+	if (!pHandle->pstrMessageList) {
 		pHandle->pstrMessageList  = pstrMessage;
 	} else {
 		Message *pstrTailMsg = pHandle->pstrMessageList;
 
-		while (pstrTailMsg->pstrNext != NULL)
+		while (pstrTailMsg->pstrNext)
 			pstrTailMsg = pstrTailMsg->pstrNext;
 
 		pstrTailMsg->pstrNext = pstrMessage;
@@ -95,8 +95,8 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	WILC_CATCH(s32RetStatus)
 	{
 		/* error occured, free any allocations */
-		if (pstrMessage != NULL) {
-			if (pstrMessage->pvBuffer != NULL)
+		if (pstrMessage) {
+			if (pstrMessage->pvBuffer)
 				kfree(pstrMessage->pvBuffer);
 
 			kfree(pstrMessage);
@@ -120,8 +120,8 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
 	unsigned long flags;
 
-	if ((pHandle == NULL) || (u32RecvBufferSize == 0)
-	    || (pvRecvBuffer == NULL) || (pu32ReceivedLength == NULL)) {
+	if ((!pHandle) || (u32RecvBufferSize == 0)
+	    || (!pvRecvBuffer) || (!pu32ReceivedLength)) {
 		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
 	}
 
@@ -151,7 +151,7 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 		spin_lock_irqsave(&pHandle->strCriticalSection, flags);
 
 		pstrMessage = pHandle->pstrMessageList;
-		if (pstrMessage == NULL) {
+		if (!pstrMessage) {
 			spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 			WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
 		}
