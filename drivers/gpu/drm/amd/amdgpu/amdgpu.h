@@ -42,16 +42,18 @@
 #include <ttm/ttm_module.h>
 #include <ttm/ttm_execbuf_util.h>
 
+#include <drm/drmP.h>
 #include <drm/drm_gem.h>
 #include <drm/amdgpu_drm.h>
 
 #include "amd_shared.h"
-#include "amdgpu_family.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_irq.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_gds.h"
+
+#include "gpu_scheduler.h"
 
 /*
  * Modules parameters.
@@ -77,7 +79,11 @@ extern int amdgpu_bapm;
 extern int amdgpu_deep_color;
 extern int amdgpu_vm_size;
 extern int amdgpu_vm_block_size;
+extern int amdgpu_enable_scheduler;
+extern int amdgpu_sched_jobs;
+extern int amdgpu_sched_hw_submission;
 
+#define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
 #define AMDGPU_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
 /* AMDGPU_IB_POOL_SIZE must be a power of 2 */
@@ -178,6 +184,7 @@ struct amdgpu_ring;
 struct amdgpu_semaphore;
 struct amdgpu_cs_parser;
 struct amdgpu_irq_src;
+struct amdgpu_fpriv;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_EOP = 0,
@@ -381,10 +388,10 @@ struct amdgpu_fence_driver {
 	uint64_t			sync_seq[AMDGPU_MAX_RINGS];
 	atomic64_t			last_seq;
 	bool				initialized;
-	bool				delayed_irq;
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
 	struct delayed_work             lockup_work;
+	wait_queue_head_t		fence_queue;
 };
 
 /* some special values for the owner field */
@@ -423,20 +430,18 @@ void amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring);
 int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   struct amdgpu_irq_src *irq_src,
 				   unsigned irq_type);
+void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
+void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
 		      struct amdgpu_fence **fence);
-int amdgpu_fence_recreate(struct amdgpu_ring *ring, void *owner,
-			  uint64_t seq, struct amdgpu_fence **fence);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
-bool amdgpu_fence_signaled(struct amdgpu_fence *fence);
-int amdgpu_fence_wait(struct amdgpu_fence *fence, bool interruptible);
-int amdgpu_fence_wait_any(struct amdgpu_device *adev,
+signed long amdgpu_fence_wait_any(struct amdgpu_device *adev,
 			  struct amdgpu_fence **fences,
-			  bool intr);
+			  bool intr, long t);
 struct amdgpu_fence *amdgpu_fence_ref(struct amdgpu_fence *fence);
 void amdgpu_fence_unref(struct amdgpu_fence **fence);
 
@@ -481,7 +486,7 @@ static inline bool amdgpu_fence_is_earlier(struct amdgpu_fence *a,
 	return a->seq < b->seq;
 }
 
-int amdgpu_user_fence_emit(struct amdgpu_ring *ring, struct amdgpu_user_fence *user, 
+int amdgpu_user_fence_emit(struct amdgpu_ring *ring, struct amdgpu_user_fence *user,
 			   void *owner, struct amdgpu_fence **fence);
 
 /*
@@ -532,13 +537,15 @@ struct amdgpu_bo_va_mapping {
 struct amdgpu_bo_va {
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
-	uint64_t			addr;
-	struct amdgpu_fence		*last_pt_update;
+	struct fence		        *last_pt_update;
 	unsigned			ref_count;
 
-	/* protected by vm mutex */
-	struct list_head		mappings;
+	/* protected by vm mutex and spinlock */
 	struct list_head		vm_status;
+
+	/* mappings for this bo_va */
+	struct list_head		invalids;
+	struct list_head		valids;
 
 	/* constant after initialization */
 	struct amdgpu_vm		*vm;
@@ -697,8 +704,8 @@ struct amdgpu_sync {
 };
 
 void amdgpu_sync_create(struct amdgpu_sync *sync);
-void amdgpu_sync_fence(struct amdgpu_sync *sync,
-		       struct amdgpu_fence *fence);
+int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+		      struct fence *f);
 int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
 		     struct reservation_object *resv,
@@ -821,7 +828,9 @@ struct amdgpu_flip_work {
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct amdgpu_bo		*old_rbo;
-	struct fence			*fence;
+	struct fence			*excl;
+	unsigned			shared_count;
+	struct fence			**shared;
 };
 
 
@@ -844,6 +853,8 @@ struct amdgpu_ib {
 	uint32_t			gws_base, gws_size;
 	uint32_t			oa_base, oa_size;
 	uint32_t			flags;
+	/* resulting sequence number */
+	uint64_t			sequence;
 };
 
 enum amdgpu_ring_type {
@@ -854,11 +865,23 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_VCE
 };
 
+extern struct amd_sched_backend_ops amdgpu_sched_ops;
+
+int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
+					 struct amdgpu_ring *ring,
+					 struct amdgpu_ib *ibs,
+					 unsigned num_ibs,
+					 int (*free_job)(struct amdgpu_cs_parser *),
+					 void *owner,
+					 struct fence **fence);
+
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
+	struct amd_gpu_scheduler 	*scheduler;
 
+	spinlock_t              fence_lock;
 	struct mutex		*ring_lock;
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
@@ -892,6 +915,7 @@ struct amdgpu_ring {
 	struct amdgpu_ctx	*current_ctx;
 	enum amdgpu_ring_type	type;
 	char			name[16];
+	bool                    is_pte_ring;
 };
 
 /*
@@ -943,18 +967,22 @@ struct amdgpu_vm {
 
 	struct rb_root		va;
 
-	/* protecting invalidated and freed */
+	/* protecting invalidated */
 	spinlock_t		status_lock;
 
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	invalidated;
 
-	/* BOs freed, but not yet updated in the PT */
+	/* BOs cleared in the PT because of a move */
+	struct list_head	cleared;
+
+	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
 
 	/* contains the page directory */
 	struct amdgpu_bo	*page_directory;
 	unsigned		max_pde_used;
+	struct fence		*page_directory_fence;
 
 	/* array of page tables, one for each page directory entry */
 	struct amdgpu_vm_pt	*page_tables;
@@ -983,26 +1011,46 @@ struct amdgpu_vm_manager {
  * context related structures
  */
 
-struct amdgpu_ctx_state {
-	uint64_t flags;
-	uint32_t hangs;
+#define AMDGPU_CTX_MAX_CS_PENDING	16
+
+struct amdgpu_ctx_ring {
+	uint64_t		sequence;
+	struct fence		*fences[AMDGPU_CTX_MAX_CS_PENDING];
+	struct amd_sched_entity	entity;
 };
 
 struct amdgpu_ctx {
-	/* call kref_get()before CS start and kref_put() after CS fence signaled */
-	struct kref refcount;
-	struct amdgpu_fpriv *fpriv;
-	struct amdgpu_ctx_state state;
-	uint32_t id;
-	unsigned reset_counter;
+	struct kref		refcount;
+	struct amdgpu_device    *adev;
+	unsigned		reset_counter;
+	spinlock_t		ring_lock;
+	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];
 };
 
 struct amdgpu_ctx_mgr {
-	struct amdgpu_device *adev;
-	struct idr ctx_handles;
-	/* lock for IDR system */
-	struct mutex lock;
+	struct amdgpu_device	*adev;
+	struct mutex		lock;
+	/* protected by lock */
+	struct idr		ctx_handles;
 };
+
+int amdgpu_ctx_init(struct amdgpu_device *adev, bool kernel,
+		    struct amdgpu_ctx *ctx);
+void amdgpu_ctx_fini(struct amdgpu_ctx *ctx);
+
+struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
+int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
+
+uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
+			      struct fence *fence, uint64_t queued_seq);
+struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
+				   struct amdgpu_ring *ring, uint64_t seq);
+
+int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
+		     struct drm_file *filp);
+
+void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
+void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
 
 /*
  * file private structure
@@ -1012,7 +1060,7 @@ struct amdgpu_fpriv {
 	struct amdgpu_vm	vm;
 	struct mutex		bo_list_lock;
 	struct idr		bo_list_handles;
-	struct amdgpu_ctx_mgr ctx_mgr;
+	struct amdgpu_ctx_mgr	ctx_mgr;
 };
 
 /*
@@ -1029,6 +1077,8 @@ struct amdgpu_bo_list {
 	struct amdgpu_bo_list_entry *array;
 };
 
+struct amdgpu_bo_list *
+amdgpu_bo_list_clone(struct amdgpu_bo_list *list);
 struct amdgpu_bo_list *
 amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id);
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list);
@@ -1205,6 +1255,14 @@ struct amdgpu_cs_parser {
 
 	/* user fence */
 	struct amdgpu_user_fence uf;
+
+	struct amdgpu_ring *ring;
+	struct mutex job_lock;
+	struct work_struct job_work;
+	int (*prepare_job)(struct amdgpu_cs_parser *sched_job);
+	int (*run_job)(struct amdgpu_cs_parser *sched_job);
+	int (*free_job)(struct amdgpu_cs_parser *sched_job);
+	struct amd_sched_fence *s_fence;
 };
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)
@@ -1849,17 +1907,12 @@ struct amdgpu_atcs {
 	struct amdgpu_atcs_functions functions;
 };
 
-int amdgpu_ctx_alloc(struct amdgpu_device *adev,struct amdgpu_fpriv *fpriv,
-							uint32_t *id,uint32_t flags);
-int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
-						  uint32_t id);
+/*
+ * CGS
+ */
+void *amdgpu_cgs_create_device(struct amdgpu_device *adev);
+void amdgpu_cgs_destroy_device(void *cgs_device);
 
-void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv);
-struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
-int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
-
-extern int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
-						 struct drm_file *filp);
 
 /*
  * Core structure, functions and helpers.
@@ -1883,7 +1936,7 @@ struct amdgpu_device {
 	struct rw_semaphore		exclusive_lock;
 
 	/* ASIC */
-	enum amdgpu_asic_type           asic_type;
+	enum amd_asic_type		asic_type;
 	uint32_t			family;
 	uint32_t			rev_id;
 	uint32_t			external_rev_id;
@@ -1976,7 +2029,6 @@ struct amdgpu_device {
 	struct amdgpu_irq_src		hpd_irq;
 
 	/* rings */
-	wait_queue_head_t		fence_queue;
 	unsigned			fence_context;
 	struct mutex			ring_lock;
 	unsigned			num_rings;
@@ -2028,6 +2080,9 @@ struct amdgpu_device {
 
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;
+
+	/* kernel conext for IB submission */
+	struct amdgpu_ctx	kernel_ctx;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);
@@ -2215,6 +2270,12 @@ void amdgpu_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_card_posted(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
 bool amdgpu_boot_test_post_card(struct amdgpu_device *adev);
+struct amdgpu_cs_parser *amdgpu_cs_parser_create(struct amdgpu_device *adev,
+						 struct drm_file *filp,
+						 struct amdgpu_ctx *ctx,
+						 struct amdgpu_ib *ibs,
+						 uint32_t num_ibs);
+
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		       u32 ip_instance, u32 ring,
@@ -2278,8 +2339,8 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 					  struct amdgpu_vm *vm,
 					  struct list_head *head);
-struct amdgpu_fence *amdgpu_vm_grab_id(struct amdgpu_ring *ring,
-				       struct amdgpu_vm *vm);
+int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
+		      struct amdgpu_sync *sync);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     struct amdgpu_vm *vm,
 		     struct amdgpu_fence *updates);

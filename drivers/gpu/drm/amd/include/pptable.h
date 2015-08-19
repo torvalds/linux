@@ -146,6 +146,9 @@ typedef struct _ATOM_PPLIB_EXTENDEDHEADER
 #define ATOM_PP_PLATFORM_CAP_VRHOT_GPIO_CONFIGURABLE   0x00200000   // Does the driver supports VR HOT GPIO Configurable.
 #define ATOM_PP_PLATFORM_CAP_TEMP_INVERSION   0x00400000            // Does the driver supports Temp Inversion feature.
 #define ATOM_PP_PLATFORM_CAP_EVV    0x00800000
+#define ATOM_PP_PLATFORM_COMBINE_PCC_WITH_THERMAL_SIGNAL    0x01000000
+#define ATOM_PP_PLATFORM_LOAD_POST_PRODUCTION_FIRMWARE      0x02000000
+#define ATOM_PP_PLATFORM_CAP_DISABLE_USING_ACTUAL_TEMPERATURE_FOR_POWER_CALC 0x04000000
 
 typedef struct _ATOM_PPLIB_POWERPLAYTABLE
 {
@@ -673,7 +676,8 @@ typedef struct _ATOM_PPLIB_POWERTUNE_Table_V1
       UCHAR revid;
       ATOM_PowerTune_Table power_tune_table;
       USHORT usMaximumPowerDeliveryLimit;
-      USHORT usReserve[7];
+      USHORT usTjMax;
+      USHORT usReserve[6];
 } ATOM_PPLIB_POWERTUNE_Table_V1;
 
 #define ATOM_PPM_A_A    1
