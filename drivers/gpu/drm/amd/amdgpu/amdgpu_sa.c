@@ -352,7 +352,8 @@ int amdgpu_sa_bo_new(struct amdgpu_device *adev,
 		} while (amdgpu_sa_bo_next_hole(sa_manager, fences, tries));
 
 		spin_unlock(&sa_manager->wq.lock);
-		t = amdgpu_fence_wait_any(adev, fences, false, MAX_SCHEDULE_TIMEOUT);
+		t = amdgpu_fence_wait_multiple(adev, fences, AMDGPU_MAX_RINGS, false, false,
+						MAX_SCHEDULE_TIMEOUT);
 		r = (t > 0) ? 0 : t;
 		spin_lock(&sa_manager->wq.lock);
 		/* if we have nothing to wait for block */
