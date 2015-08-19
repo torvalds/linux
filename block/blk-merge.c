@@ -82,8 +82,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
 		 */
-		if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS) &&
-		    prev && bvec_gap_to_prev(&bvprv, bv.bv_offset))
+		if (prev && bvec_gap_to_prev(q, &bvprv, bv.bv_offset))
 			goto split;
 
 		if (prev && blk_queue_cluster(q)) {
@@ -484,12 +483,12 @@ static bool req_no_special_merge(struct request *req)
 	return !q->mq_ops && req->special;
 }
 
-static int req_gap_to_prev(struct request *req, struct request *next)
+static int req_gap_to_prev(struct request *req, struct bio *next)
 {
 	struct bio *prev = req->biotail;
 
-	return bvec_gap_to_prev(&prev->bi_io_vec[prev->bi_vcnt - 1],
-				next->bio->bi_io_vec[0].bv_offset);
+	return bvec_gap_to_prev(req->q, &prev->bi_io_vec[prev->bi_vcnt - 1],
+			next->bi_io_vec[1].bv_offset);
 }
 
 static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
@@ -506,8 +505,7 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	if (req_no_special_merge(req) || req_no_special_merge(next))
 		return 0;
 
-	if (test_bit(QUEUE_FLAG_SG_GAPS, &q->queue_flags) &&
-	    req_gap_to_prev(req, next))
+	if (req_gap_to_prev(req, next->bio))
 		return 0;
 
 	/*
@@ -692,8 +690,6 @@ int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 {
-	struct request_queue *q = rq->q;
-
 	if (!rq_mergeable(rq) || !bio_mergeable(bio))
 		return false;
 
@@ -718,13 +714,8 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	/* Only check gaps if the bio carries data */
-	if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS) && bio_has_data(bio)) {
-		struct bio_vec *bprev;
-
-		bprev = &rq->biotail->bi_io_vec[rq->biotail->bi_vcnt - 1];
-		if (bvec_gap_to_prev(bprev, bio->bi_io_vec[0].bv_offset))
-			return false;
-	}
+	if (bio_has_data(bio) && req_gap_to_prev(rq, bio))
+		return false;
 
 	return true;
 }
