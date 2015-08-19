@@ -363,15 +363,13 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 	vrf_ptr->ifindex = dev->ifindex;
 	vrf_ptr->tb_id = vrf->tb_id;
 
-	__vrf_insert_slave(queue, slave);
-
 	/* register the packet handler for slave ports */
 	ret = netdev_rx_handler_register(port_dev, vrf_handle_frame, dev);
 	if (ret) {
 		netdev_err(port_dev,
 			   "Device %s failed to register rx_handler\n",
 			   port_dev->name);
-		goto out_remove;
+		goto out_fail;
 	}
 
 	ret = netdev_master_upper_dev_link(port_dev, dev);
@@ -379,7 +377,7 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 		goto out_unregister;
 
 	port_dev->flags |= IFF_SLAVE;
-
+	__vrf_insert_slave(queue, slave);
 	rcu_assign_pointer(port_dev->vrf_ptr, vrf_ptr);
 	cycle_netdev(port_dev);
 
@@ -387,8 +385,6 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 
 out_unregister:
 	netdev_rx_handler_unregister(port_dev);
-out_remove:
-	__vrf_remove_slave(queue, slave);
 out_fail:
 	kfree(vrf_ptr);
 	kfree(slave);
