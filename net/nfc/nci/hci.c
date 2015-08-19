@@ -233,7 +233,7 @@ int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate, u8 cmd,
 	r = nci_request(ndev, nci_hci_send_data_req, (unsigned long)&data,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
 
-	if (r == NCI_STATUS_OK)
+	if (r == NCI_STATUS_OK && skb)
 		*skb = conn_info->rx_skb;
 
 	return r;
