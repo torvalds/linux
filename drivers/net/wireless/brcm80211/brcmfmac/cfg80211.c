@@ -5786,7 +5786,9 @@ static void brcmf_wiphy_wowl_params(struct wiphy *wiphy)
 static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
+	const struct ieee80211_iface_combination *combo;
 	struct ieee80211_supported_band *band;
+	u16 max_interfaces = 0;
 	__le32 bandlist[3];
 	u32 n_bands;
 	int err, i;
@@ -5799,8 +5801,13 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	if (err)
 		return err;
 
-	for (i = 0; i < wiphy->iface_combinations->max_interfaces &&
-	     i < ARRAY_SIZE(drvr->addresses); i++) {
+	for (i = 0, combo = wiphy->iface_combinations;
+	     i < wiphy->n_iface_combinations; i++, combo++) {
+		max_interfaces = max(max_interfaces, combo->max_interfaces);
+	}
+
+	for (i = 0; i < max_interfaces && i < ARRAY_SIZE(drvr->addresses);
+	     i++) {
 		u8 *addr = drvr->addresses[i].addr;
 
 		memcpy(addr, drvr->mac, ETH_ALEN);
