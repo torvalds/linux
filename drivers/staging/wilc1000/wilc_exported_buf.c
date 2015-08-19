@@ -15,9 +15,6 @@
 		return -ENOBUFS;	\
 	}
 
-#define FREE_WILC_BUFFER(name)	\
-	kfree(exported_ ## name);
-
 /*
  * Add necessary buffer pointers
  */
@@ -59,9 +56,9 @@ static int __init wilc_module_init(void)
 static void __exit wilc_module_deinit(void)
 {
 	printk("wilc_module_deinit\n");
-	FREE_WILC_BUFFER(g_tx_buf)
-	FREE_WILC_BUFFER(g_rx_buf)
-	FREE_WILC_BUFFER(g_fw_buf)
+	kfree(exported_g_tx_buf);
+	kfree(exported_g_rx_buf);
+	kfree(exported_g_fw_buf);
 }
 
 MODULE_LICENSE("Dual BSD/GPL");
