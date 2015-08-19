@@ -884,8 +884,10 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		 * nullfunc frames should go to the MGMT queue regardless of QOS
 		 */
 		tid = IWL_MAX_TID_COUNT;
-		txq_id = mvmsta->tid_data[tid].txq_id;
 	}
+
+	if (iwl_mvm_is_dqa_supported(mvm))
+		txq_id = mvmsta->tid_data[tid].txq_id;
 
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdrlen);
@@ -905,9 +907,12 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		txq_id = mvmsta->tid_data[tid].txq_id;
 	}
 
-	if (iwl_mvm_is_dqa_supported(mvm)) {
-		if (unlikely(mvmsta->tid_data[tid].txq_id ==
-			     IEEE80211_INVAL_HW_QUEUE)) {
+	/* Check if TXQ needs to be allocated or re-activated */
+	if (unlikely(txq_id == IEEE80211_INVAL_HW_QUEUE ||
+		     !mvmsta->tid_data[tid].is_tid_active) &&
+	    iwl_mvm_is_dqa_supported(mvm)) {
+		/* If TXQ needs to be allocated... */
+		if (txq_id == IEEE80211_INVAL_HW_QUEUE) {
 			iwl_mvm_tx_add_stream(mvm, mvmsta, tid, skb);
 
 			/*
@@ -917,10 +922,21 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 			spin_unlock(&mvmsta->lock);
 			return 0;
+
 		}
 
-		txq_id = mvmsta->tid_data[tid].txq_id;
+		/* If we are here - TXQ exists and needs to be re-activated */
+		spin_lock(&mvm->queue_info_lock);
+		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_READY;
+		mvmsta->tid_data[tid].is_tid_active = true;
+		spin_unlock(&mvm->queue_info_lock);
+
+		IWL_DEBUG_TX_QUEUES(mvm, "Re-activating queue %d for TX\n",
+				    txq_id);
 	}
+
+	/* Keep track of the time of the last frame for this RA/TID */
+	mvm->queue_info[txq_id].last_frame_time[tid] = jiffies;
 
 	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
 		     tid, txq_id, IEEE80211_SEQ_TO_SN(seq_number));

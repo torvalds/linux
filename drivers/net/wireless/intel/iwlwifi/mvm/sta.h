@@ -321,6 +321,9 @@ enum iwl_mvm_agg_state {
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
  * @tx_time: medium time consumed by this A-MPDU
+ * @is_tid_active: has this TID sent traffic in the last
+ *	%IWL_MVM_DQA_QUEUE_TIMEOUT time period. If %txq_id is invalid, this
+ *	field should be ignored.
  */
 struct iwl_mvm_tid_data {
 	struct sk_buff_head deferred_tx_frames;
@@ -333,6 +336,7 @@ struct iwl_mvm_tid_data {
 	u16 txq_id;
 	u16 ssn;
 	u16 tx_time;
+	bool is_tid_active;
 };
 
 static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
@@ -508,6 +512,9 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid);
 int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, u16 tid);
+
+int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+		       int tid, u8 queue, bool start);
 
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm);
 void iwl_mvm_del_aux_sta(struct iwl_mvm *mvm);
