@@ -954,12 +954,8 @@ xfs_qm_dqflush(
 		struct xfs_log_item	*lip = &dqp->q_logitem.qli_item;
 		dqp->dq_flags &= ~XFS_DQ_DIRTY;
 
-		spin_lock(&mp->m_ail->xa_lock);
-		if (lip->li_flags & XFS_LI_IN_AIL)
-			xfs_trans_ail_delete(mp->m_ail, lip,
-					     SHUTDOWN_CORRUPT_INCORE);
-		else
-			spin_unlock(&mp->m_ail->xa_lock);
+		xfs_trans_ail_remove(lip, SHUTDOWN_CORRUPT_INCORE);
+
 		error = -EIO;
 		goto out_unlock;
 	}

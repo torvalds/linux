@@ -286,20 +286,8 @@ void
 xfs_efi_release(
 	struct xfs_efi_log_item	*efip)
 {
-	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
-
 	if (atomic_dec_and_test(&efip->efi_refcount)) {
-		spin_lock(&ailp->xa_lock);
-		/*
-		 * We don't know whether the EFI made it to the AIL. Remove it
-		 * if so. Note that xfs_trans_ail_delete() drops the AIL lock.
-		 */
-		if (efip->efi_item.li_flags & XFS_LI_IN_AIL)
-			xfs_trans_ail_delete(ailp, &efip->efi_item,
-					     SHUTDOWN_LOG_IO_ERROR);
-		else
-			spin_unlock(&ailp->xa_lock);
-
+		xfs_trans_ail_remove(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_efi_item_free(efip);
 	}
 }
