@@ -203,6 +203,7 @@ static const struct regulator_desc pm8941_nldo = {
 
 static const struct regulator_desc pm8941_lnldo = {
 	.fixed_uV = 1740000,
+	.n_voltages = 1,
 	.ops = &rpm_smps_ldo_ops,
 };
 
