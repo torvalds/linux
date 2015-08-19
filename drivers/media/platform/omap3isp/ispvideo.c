@@ -226,7 +226,7 @@ static int isp_video_get_graph_data(struct isp_video *video,
 {
 	struct media_entity_graph graph;
 	struct media_entity *entity = &video->video.entity;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	struct isp_video *far_end = NULL;
 
 	mutex_lock(&mdev->graph_mutex);

@@ -787,7 +787,7 @@ int omap3isp_pipeline_pm_use(struct media_entity *entity, int use)
 	int change = use ? 1 : -1;
 	int ret;
 
-	mutex_lock(&entity->parent->graph_mutex);
+	mutex_lock(&entity->graph_obj.mdev->graph_mutex);
 
 	/* Apply use count to node. */
 	entity->use_count += change;
@@ -798,7 +798,7 @@ int omap3isp_pipeline_pm_use(struct media_entity *entity, int use)
 	if (ret < 0)
 		entity->use_count -= change;
 
-	mutex_unlock(&entity->parent->graph_mutex);
+	mutex_unlock(&entity->graph_obj.mdev->graph_mutex);
 
 	return ret;
 }

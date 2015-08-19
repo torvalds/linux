@@ -1046,7 +1046,7 @@ static int __fimc_md_modify_pipeline(struct media_entity *entity, bool enable)
 	return ret;
 }
 
-/* Locking: called with entity->parent->graph_mutex mutex held. */
+/* Locking: called with entity->graph_obj.mdev->graph_mutex mutex held. */
 static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable)
 {
 	struct media_entity *entity_err = entity;

@@ -332,7 +332,7 @@ EXPORT_SYMBOL_GPL(media_entity_graph_walk_next);
 __must_check int media_entity_pipeline_start(struct media_entity *entity,
 					     struct media_pipeline *pipe)
 {
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_entity_graph graph;
 	struct media_entity *entity_err = entity;
 	int ret;
@@ -387,7 +387,7 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 
 			ret = entity->ops->link_validate(link);
 			if (ret < 0 && ret != -ENOIOCTLCMD) {
-				dev_dbg(entity->parent->dev,
+				dev_dbg(entity->graph_obj.mdev->dev,
 					"link validation failed for \"%s\":%u -> \"%s\":%u, error %d\n",
 					link->source->entity->name,
 					link->source->index,
@@ -401,7 +401,7 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 
 		if (!bitmap_full(active, entity->num_pads)) {
 			ret = -EPIPE;
-			dev_dbg(entity->parent->dev,
+			dev_dbg(entity->graph_obj.mdev->dev,
 				"\"%s\":%u must be connected by an enabled link\n",
 				entity->name,
 				(unsigned)find_first_zero_bit(
@@ -454,7 +454,7 @@ EXPORT_SYMBOL_GPL(media_entity_pipeline_start);
  */
 void media_entity_pipeline_stop(struct media_entity *entity)
 {
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	struct media_entity_graph graph;
 
 	mutex_lock(&mdev->graph_mutex);
@@ -490,8 +490,8 @@ struct media_entity *media_entity_get(struct media_entity *entity)
 	if (entity == NULL)
 		return NULL;
 
-	if (entity->parent->dev &&
-	    !try_module_get(entity->parent->dev->driver->owner))
+	if (entity->graph_obj.mdev->dev &&
+	    !try_module_get(entity->graph_obj.mdev->dev->driver->owner))
 		return NULL;
 
 	return entity;
@@ -511,8 +511,8 @@ void media_entity_put(struct media_entity *entity)
 	if (entity == NULL)
 		return;
 
-	if (entity->parent->dev)
-		module_put(entity->parent->dev->driver->owner);
+	if (entity->graph_obj.mdev->dev)
+		module_put(entity->graph_obj.mdev->dev->driver->owner);
 }
 EXPORT_SYMBOL_GPL(media_entity_put);
 
@@ -561,7 +561,8 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	link->flags = flags;
 
 	/* Initialize graph object embedded at the new link */
-	media_gobj_init(source->parent, MEDIA_GRAPH_LINK, &link->graph_obj);
+	media_gobj_init(source->graph_obj.mdev, MEDIA_GRAPH_LINK,
+			&link->graph_obj);
 
 	/* Create the backlink. Backlinks are used to help graph traversal and
 	 * are not reported to userspace.
@@ -577,7 +578,8 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	backlink->flags = flags;
 
 	/* Initialize graph object embedded at the new link */
-	media_gobj_init(sink->parent, MEDIA_GRAPH_LINK, &backlink->graph_obj);
+	media_gobj_init(sink->graph_obj.mdev, MEDIA_GRAPH_LINK,
+			&backlink->graph_obj);
 
 	link->reverse = backlink;
 	backlink->reverse = link;
@@ -629,12 +631,12 @@ EXPORT_SYMBOL_GPL(__media_entity_remove_links);
 void media_entity_remove_links(struct media_entity *entity)
 {
 	/* Do nothing if the entity is not registered. */
-	if (entity->parent == NULL)
+	if (entity->graph_obj.mdev == NULL)
 		return;
 
-	mutex_lock(&entity->parent->graph_mutex);
+	mutex_lock(&entity->graph_obj.mdev->graph_mutex);
 	__media_entity_remove_links(entity);
-	mutex_unlock(&entity->parent->graph_mutex);
+	mutex_unlock(&entity->graph_obj.mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_entity_remove_links);
 
@@ -703,7 +705,7 @@ int __media_entity_setup_link(struct media_link *link, u32 flags)
 	    (source->stream_count || sink->stream_count))
 		return -EBUSY;
 
-	mdev = source->parent;
+	mdev = source->graph_obj.mdev;
 
 	if (mdev->link_notify) {
 		ret = mdev->link_notify(link, flags,
@@ -724,9 +726,9 @@ int media_entity_setup_link(struct media_link *link, u32 flags)
 {
 	int ret;
 
-	mutex_lock(&link->source->entity->parent->graph_mutex);
+	mutex_lock(&link->source->entity->graph_obj.mdev->graph_mutex);
 	ret = __media_entity_setup_link(link, flags);
-	mutex_unlock(&link->source->entity->parent->graph_mutex);
+	mutex_unlock(&link->source->entity->graph_obj.mdev->graph_mutex);
 
 	return ret;
 }

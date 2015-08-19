@@ -435,8 +435,8 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 	int i;
 
 	/* Warn if we apparently re-register an entity */
-	WARN_ON(entity->parent != NULL);
-	entity->parent = mdev;
+	WARN_ON(entity->graph_obj.mdev != NULL);
+	entity->graph_obj.mdev = mdev;
 
 	spin_lock(&mdev->lock);
 	/* Initialize media_gobj embedded at the entity */
@@ -471,7 +471,7 @@ EXPORT_SYMBOL_GPL(media_device_register_entity);
 void media_device_unregister_entity(struct media_entity *entity)
 {
 	int i;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 
 	if (mdev == NULL)
 		return;
@@ -484,7 +484,7 @@ void media_device_unregister_entity(struct media_entity *entity)
 	media_gobj_remove(&entity->graph_obj);
 	list_del(&entity->list);
 	spin_unlock(&mdev->lock);
-	entity->parent = NULL;
+	entity->graph_obj.mdev = NULL;
 }
 EXPORT_SYMBOL_GPL(media_device_unregister_entity);
 

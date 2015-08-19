@@ -181,7 +181,7 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 {
 	struct media_entity_graph graph;
 	struct media_entity *entity = &start->video.entity;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	unsigned int num_inputs = 0;
 	unsigned int num_outputs = 0;
 

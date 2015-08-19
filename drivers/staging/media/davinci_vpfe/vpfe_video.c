@@ -130,7 +130,7 @@ __vpfe_video_get_format(struct vpfe_video_device *video,
 static void vpfe_prepare_pipeline(struct vpfe_video_device *video)
 {
 	struct media_entity *entity = &video->video_dev.entity;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
 	struct vpfe_pipeline *pipe = &video->pipe;
 	struct vpfe_video_device *far_end = NULL;
 	struct media_entity_graph graph;
@@ -288,7 +288,7 @@ static int vpfe_pipeline_enable(struct vpfe_pipeline *pipe)
 	else
 		entity = &pipe->inputs[0]->video_dev.entity;
 
-	mdev = entity->parent;
+	mdev = entity->graph_obj.mdev;
 	mutex_lock(&mdev->graph_mutex);
 	media_entity_graph_walk_start(&graph, entity);
 	while ((entity = media_entity_graph_walk_next(&graph))) {
@@ -328,7 +328,7 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
 	else
 		entity = &pipe->inputs[0]->video_dev.entity;
 
-	mdev = entity->parent;
+	mdev = entity->graph_obj.mdev;
 	mutex_lock(&mdev->graph_mutex);
 	media_entity_graph_walk_start(&graph, entity);
 
