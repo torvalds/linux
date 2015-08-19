@@ -164,7 +164,7 @@ xfs_ilock(
 	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
+	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_SUBCLASS_MASK)) == 0);
 
 	if (lock_flags & XFS_IOLOCK_EXCL)
 		mrupdate_nested(&ip->i_iolock, XFS_IOLOCK_DEP(lock_flags));
@@ -212,7 +212,7 @@ xfs_ilock_nowait(
 	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
+	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_SUBCLASS_MASK)) == 0);
 
 	if (lock_flags & XFS_IOLOCK_EXCL) {
 		if (!mrtryupdate(&ip->i_iolock))
@@ -281,7 +281,7 @@ xfs_iunlock(
 	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
+	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_SUBCLASS_MASK)) == 0);
 	ASSERT(lock_flags != 0);
 
 	if (lock_flags & XFS_IOLOCK_EXCL)
@@ -364,30 +364,38 @@ int xfs_lock_delays;
 
 /*
  * Bump the subclass so xfs_lock_inodes() acquires each lock with a different
- * value. This shouldn't be called for page fault locking, but we also need to
- * ensure we don't overrun the number of lockdep subclasses for the iolock or
- * mmaplock as that is limited to 12 by the mmap lock lockdep annotations.
+ * value. This can be called for any type of inode lock combination, including
+ * parent locking. Care must be taken to ensure we don't overrun the subclass
+ * storage fields in the class mask we build.
  */
 static inline int
 xfs_lock_inumorder(int lock_mode, int subclass)
 {
+	int	class = 0;
+
+	ASSERT(!(lock_mode & (XFS_ILOCK_PARENT | XFS_ILOCK_RTBITMAP |
+			      XFS_ILOCK_RTSUM)));
+
 	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
-		ASSERT(subclass + XFS_LOCK_INUMORDER <
-			(1 << (XFS_MMAPLOCK_SHIFT - XFS_IOLOCK_SHIFT)));
-		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_IOLOCK_SHIFT;
+		ASSERT(subclass <= XFS_IOLOCK_MAX_SUBCLASS);
+		ASSERT(subclass + XFS_IOLOCK_PARENT_VAL <
+						MAX_LOCKDEP_SUBCLASSES);
+		class += subclass << XFS_IOLOCK_SHIFT;
+		if (lock_mode & XFS_IOLOCK_PARENT)
+			class += XFS_IOLOCK_PARENT_VAL << XFS_IOLOCK_SHIFT;
 	}
 
 	if (lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)) {
-		ASSERT(subclass + XFS_LOCK_INUMORDER <
-			(1 << (XFS_ILOCK_SHIFT - XFS_MMAPLOCK_SHIFT)));
-		lock_mode |= (subclass + XFS_LOCK_INUMORDER) <<
-							XFS_MMAPLOCK_SHIFT;
+		ASSERT(subclass <= XFS_MMAPLOCK_MAX_SUBCLASS);
+		class += subclass << XFS_MMAPLOCK_SHIFT;
 	}
 
-	if (lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL))
-		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_ILOCK_SHIFT;
+	if (lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)) {
+		ASSERT(subclass <= XFS_ILOCK_MAX_SUBCLASS);
+		class += subclass << XFS_ILOCK_SHIFT;
+	}
 
-	return lock_mode;
+	return (lock_mode & ~XFS_LOCK_SUBCLASS_MASK) | class;
 }
 
 /*
@@ -399,6 +407,11 @@ xfs_lock_inumorder(int lock_mode, int subclass)
  * transaction (such as truncate). This can result in deadlock since the long
  * running trans might need to wait for the inode we just locked in order to
  * push the tail and free space in the log.
+ *
+ * xfs_lock_inodes() can only be used to lock one type of lock at a time -
+ * the iolock, the mmaplock or the ilock, but not more than one at a time. If we
+ * lock more than one at a time, lockdep will report false positives saying we
+ * have violated locking orders.
  */
 void
 xfs_lock_inodes(
@@ -409,8 +422,29 @@ xfs_lock_inodes(
 	int		attempts = 0, i, j, try_lock;
 	xfs_log_item_t	*lp;
 
-	/* currently supports between 2 and 5 inodes */
+	/*
+	 * Currently supports between 2 and 5 inodes with exclusive locking.  We
+	 * support an arbitrary depth of locking here, but absolute limits on
+	 * inodes depend on the the type of locking and the limits placed by
+	 * lockdep annotations in xfs_lock_inumorder.  These are all checked by
+	 * the asserts.
+	 */
 	ASSERT(ips && inodes >= 2 && inodes <= 5);
+	ASSERT(lock_mode & (XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL |
+			    XFS_ILOCK_EXCL));
+	ASSERT(!(lock_mode & (XFS_IOLOCK_SHARED | XFS_MMAPLOCK_SHARED |
+			      XFS_ILOCK_SHARED)));
+	ASSERT(!(lock_mode & XFS_IOLOCK_EXCL) ||
+		inodes <= XFS_IOLOCK_MAX_SUBCLASS + 1);
+	ASSERT(!(lock_mode & XFS_MMAPLOCK_EXCL) ||
+		inodes <= XFS_MMAPLOCK_MAX_SUBCLASS + 1);
+	ASSERT(!(lock_mode & XFS_ILOCK_EXCL) ||
+		inodes <= XFS_ILOCK_MAX_SUBCLASS + 1);
+
+	if (lock_mode & XFS_IOLOCK_EXCL) {
+		ASSERT(!(lock_mode & (XFS_MMAPLOCK_EXCL | XFS_ILOCK_EXCL)));
+	} else if (lock_mode & XFS_MMAPLOCK_EXCL)
+		ASSERT(!(lock_mode & XFS_ILOCK_EXCL));
 
 	try_lock = 0;
 	i = 0;
