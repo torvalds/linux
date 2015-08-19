@@ -1809,6 +1809,7 @@ struct drm_i915_private {
 	struct drm_property *force_audio_property;
 
 	/* hda/i915 audio component */
+	struct i915_audio_component *audio_component;
 	bool audio_component_registered;
 
 	uint32_t hw_context_size;
