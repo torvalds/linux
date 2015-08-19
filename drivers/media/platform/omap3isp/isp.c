@@ -975,6 +975,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 	struct v4l2_subdev *subdev;
 	int failure = 0;
 	int ret;
+	u32 id;
 
 	/*
 	 * We need to stop all the modules after CCDC first or they'll
@@ -1027,8 +1028,10 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 		if (ret) {
 			dev_info(isp->dev, "Unable to stop %s\n", subdev->name);
 			isp->stop_failure = true;
-			if (subdev == &isp->isp_prev.subdev)
-				isp->crashed |= 1U << subdev->entity.id;
+			if (subdev == &isp->isp_prev.subdev) {
+				id = media_entity_id(&subdev->entity);
+				isp->crashed |= 1U << id;
+			}
 			failure = -ETIMEDOUT;
 		}
 	}
