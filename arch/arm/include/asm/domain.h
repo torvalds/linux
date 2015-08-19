@@ -57,11 +57,29 @@
 #define domain_mask(dom)	((3) << (2 * (dom)))
 #define domain_val(dom,type)	((type) << (2 * (dom)))
 
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+#define DACR_INIT \
+	(domain_val(DOMAIN_USER, DOMAIN_NOACCESS) | \
+	 domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
+	 domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
+	 domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT))
+#else
 #define DACR_INIT \
 	(domain_val(DOMAIN_USER, DOMAIN_CLIENT) | \
 	 domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
 	 domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
 	 domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT))
+#endif
+
+#define __DACR_DEFAULT \
+	domain_val(DOMAIN_KERNEL, DOMAIN_CLIENT) | \
+	domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
+	domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT)
+
+#define DACR_UACCESS_DISABLE	\
+	(__DACR_DEFAULT | domain_val(DOMAIN_USER, DOMAIN_NOACCESS))
+#define DACR_UACCESS_ENABLE	\
+	(__DACR_DEFAULT | domain_val(DOMAIN_USER, DOMAIN_CLIENT))
 
 #ifndef __ASSEMBLY__
 
@@ -76,7 +94,6 @@ static inline unsigned int get_domain(void)
 	return domain;
 }
 
-#ifdef CONFIG_CPU_USE_DOMAINS
 static inline void set_domain(unsigned val)
 {
 	asm volatile(
@@ -85,6 +102,7 @@ static inline void set_domain(unsigned val)
 	isb();
 }
 
+#ifdef CONFIG_CPU_USE_DOMAINS
 #define modify_domain(dom,type)					\
 	do {							\
 		unsigned int domain = get_domain();		\
@@ -94,7 +112,6 @@ static inline void set_domain(unsigned val)
 	} while (0)
 
 #else
-static inline void set_domain(unsigned val) { }
 static inline void modify_domain(unsigned dom, unsigned type)	{ }
 #endif
 
