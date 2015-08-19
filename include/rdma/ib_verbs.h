@@ -1100,7 +1100,6 @@ struct ib_send_wr {
 		__be32		imm_data;
 		u32		invalidate_rkey;
 	} ex;
-	u32			xrc_remote_srq_num;	/* XRC TGT QPs only */
 };
 
 struct ib_rdma_wr {

@@ -2627,7 +2627,6 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		switch (ibqp->qp_type) {
 		case IB_QPT_XRC_INI:
 			xrc = seg;
-			xrc->xrc_srqn = htonl(wr->xrc_remote_srq_num);
 			seg += sizeof(*xrc);
 			size += sizeof(*xrc) / 16;
 			/* fall through */
