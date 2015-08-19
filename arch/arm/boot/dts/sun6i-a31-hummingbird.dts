@@ -73,7 +73,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	pinctrl-0 = <&gmac_pins_rgmii_a>, <&gmac_phy_reset_pin_hummingbird>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	snps,reset-gpio = <&pio 0 21 GPIO_ACTIVE_HIGH>;
@@ -146,6 +146,13 @@
 };
 
 &pio {
+	gmac_phy_reset_pin_hummingbird: gmac_phy_reset_pin@0 {
+		allwinner,pins = "PA21";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
 	mmc0_cd_pin_hummingbird: mmc0_cd_pin@0 {
 		allwinner,pins = "PA8";
 		allwinner,function = "gpio_in";
