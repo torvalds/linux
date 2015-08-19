@@ -4144,7 +4144,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 
 	if (ar->num_peers >= ar->max_num_peers) {
 		ath10k_warn(ar, "refusing vdev creation due to insufficient peer entry resources in firmware\n");
-		return -ENOBUFS;
+		ret = -ENOBUFS;
+		goto err;
 	}
 
 	if (ar->free_vdev_map == 0) {
