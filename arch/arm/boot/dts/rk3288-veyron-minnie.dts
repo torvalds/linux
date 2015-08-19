@@ -128,12 +128,16 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			regulator-name = "vcc33_touch";
-			regulator-suspend-mem-disabled;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
 		};
 
 		vcc5v_touch: SWITCH_REG2 {
 			regulator-name = "vcc5v_touch";
-			regulator-suspend-mem-disabled;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
 		};
 	};
 };
