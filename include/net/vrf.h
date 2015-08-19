@@ -24,7 +24,6 @@ struct slave {
 
 struct slave_queue {
 	struct list_head	all_slaves;
-	int			num_slaves;
 };
 
 struct net_vrf {

@@ -265,8 +265,7 @@ static void vrf_rtable_destroy(struct net_vrf *vrf)
 {
 	struct dst_entry *dst = (struct dst_entry *)vrf->rth;
 
-	if (dst)
-		dst_destroy(dst);
+	dst_destroy(dst);
 	vrf->rth = NULL;
 }
 
@@ -334,16 +333,12 @@ static struct slave *__vrf_find_slave_dev(struct slave_queue *queue,
 /* inverse of __vrf_insert_slave */
 static void __vrf_remove_slave(struct slave_queue *queue, struct slave *slave)
 {
-	dev_put(slave->dev);
 	list_del(&slave->list);
-	queue->num_slaves--;
 }
 
 static void __vrf_insert_slave(struct slave_queue *queue, struct slave *slave)
 {
-	dev_hold(slave->dev);
 	list_add(&slave->list, &queue->all_slaves);
-	queue->num_slaves++;
 }
 
 static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
@@ -459,8 +454,7 @@ static void vrf_dev_uninit(struct net_device *dev)
 	list_for_each_entry_safe(slave, next, head, list)
 		vrf_del_slave(dev, slave->dev);
 
-	if (dev->dstats)
-		free_percpu(dev->dstats);
+	free_percpu(dev->dstats);
 	dev->dstats = NULL;
 }
 
@@ -630,9 +624,8 @@ static int vrf_device_event(struct notifier_block *unused,
 		if (!vrf_ptr || netif_is_vrf(dev))
 			goto out;
 
-		vrf_dev = __dev_get_by_index(dev_net(dev), vrf_ptr->ifindex);
-		if (vrf_dev)
-			vrf_del_slave(vrf_dev, dev);
+		vrf_dev = netdev_master_upper_dev_get(dev);
+		vrf_del_slave(vrf_dev, dev);
 	}
 out:
 	return NOTIFY_DONE;
