@@ -1634,6 +1634,7 @@ static void usdhi6_timeout_work(struct work_struct *work)
 	struct usdhi6_host *host = container_of(d, struct usdhi6_host, timeout_work);
 	struct mmc_request *mrq = host->mrq;
 	struct mmc_data *data = mrq ? mrq->data : NULL;
+	struct scatterlist *sg = host->sg ?: data->sg;
 
 	dev_warn(mmc_dev(host->mmc),
 		 "%s timeout wait %u CMD%d: IRQ 0x%08x:0x%08x, last IRQ 0x%08x\n",
@@ -1669,7 +1670,7 @@ static void usdhi6_timeout_work(struct work_struct *work)
 			"%c: page #%u @ +0x%zx %ux%u in SG%u. Current SG %u bytes @ %u\n",
 			data->flags & MMC_DATA_READ ? 'R' : 'W', host->page_idx,
 			host->offset, data->blocks, data->blksz, data->sg_len,
-			sg_dma_len(host->sg), host->sg->offset);
+			sg_dma_len(sg), sg->offset);
 		usdhi6_sg_unmap(host, true);
 		/*
 		 * If USDHI6_WAIT_FOR_DATA_END times out, we have already unmapped
