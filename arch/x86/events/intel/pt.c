@@ -127,9 +127,46 @@ static struct attribute_group pt_format_group = {
 	.attrs	= pt_formats_attr,
 };
 
+static ssize_t
+pt_timing_attr_show(struct device *dev, struct device_attribute *attr,
+		    char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr =
+		container_of(attr, struct perf_pmu_events_attr, attr);
+
+	switch (pmu_attr->id) {
+	case 0:
+		return sprintf(page, "%lu\n", pt_pmu.max_nonturbo_ratio);
+	case 1:
+		return sprintf(page, "%u:%u\n",
+			       pt_pmu.tsc_art_num,
+			       pt_pmu.tsc_art_den);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+PMU_EVENT_ATTR(max_nonturbo_ratio, timing_attr_max_nonturbo_ratio, 0,
+	       pt_timing_attr_show);
+PMU_EVENT_ATTR(tsc_art_ratio, timing_attr_tsc_art_ratio, 1,
+	       pt_timing_attr_show);
+
+static struct attribute *pt_timing_attr[] = {
+	&timing_attr_max_nonturbo_ratio.attr.attr,
+	&timing_attr_tsc_art_ratio.attr.attr,
+	NULL,
+};
+
+static struct attribute_group pt_timing_group = {
+	.attrs	= pt_timing_attr,
+};
+
 static const struct attribute_group *pt_attr_groups[] = {
 	&pt_cap_group,
 	&pt_format_group,
+	&pt_timing_group,
 	NULL,
 };
 
@@ -141,6 +178,23 @@ static int __init pt_pmu_hw_init(void)
 	u64 reg;
 	int ret;
 	long i;
+
+	rdmsrl(MSR_PLATFORM_INFO, reg);
+	pt_pmu.max_nonturbo_ratio = (reg & 0xff00) >> 8;
+
+	/*
+	 * if available, read in TSC to core crystal clock ratio,
+	 * otherwise, zero for numerator stands for "not enumerated"
+	 * as per SDM
+	 */
+	if (boot_cpu_data.cpuid_level >= CPUID_TSC_LEAF) {
+		u32 eax, ebx, ecx, edx;
+
+		cpuid(CPUID_TSC_LEAF, &eax, &ebx, &ecx, &edx);
+
+		pt_pmu.tsc_art_num = ebx;
+		pt_pmu.tsc_art_den = eax;
+	}
 
 	if (boot_cpu_has(X86_FEATURE_VMX)) {
 		/*

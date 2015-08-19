@@ -82,6 +82,9 @@ struct topa_entry {
 #define PT_CPUID_LEAVES		2
 #define PT_CPUID_REGS_NUM	4 /* number of regsters (eax, ebx, ecx, edx) */
 
+/* TSC to Core Crystal Clock Ratio */
+#define CPUID_TSC_LEAF		0x15
+
 enum pt_capabilities {
 	PT_CAP_max_subleaf = 0,
 	PT_CAP_cr3_filtering,
@@ -102,6 +105,9 @@ struct pt_pmu {
 	struct pmu		pmu;
 	u32			caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 	bool			vmx;
+	unsigned long		max_nonturbo_ratio;
+	unsigned int		tsc_art_num;
+	unsigned int		tsc_art_den;
 };
 
 /**
