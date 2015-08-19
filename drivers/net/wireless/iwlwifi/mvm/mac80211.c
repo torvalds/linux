@@ -572,6 +572,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	/* we create the 802.11 header and zero length SSID IE. */
 	hw->wiphy->max_sched_scan_ie_len =
 		SCAN_OFFLOAD_PROBE_REQ_SIZE - 24 - 2;
+	hw->wiphy->max_sched_scan_plans = IWL_MAX_SCHED_SCAN_PLANS;
+	hw->wiphy->max_sched_scan_plan_interval = U16_MAX;
+
+	/*
+	 * the firmware uses u8 for num of iterations, but 0xff is saved for
+	 * infinite loop, so the maximum number of iterations is actually 254.
+	 */
+	hw->wiphy->max_sched_scan_plan_iterations = 254;
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
 			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
