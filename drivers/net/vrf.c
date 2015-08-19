@@ -393,8 +393,7 @@ out_fail:
 
 static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	if (!netif_is_vrf(dev) || netif_is_vrf(port_dev) ||
-	    vrf_is_slave(port_dev))
+	if (netif_is_vrf(port_dev) || vrf_is_slave(port_dev))
 		return -EINVAL;
 
 	return do_vrf_add_slave(dev, port_dev);
@@ -431,9 +430,6 @@ static int do_vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 
 static int vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	if (!netif_is_vrf(dev))
-		return -EINVAL;
-
 	return do_vrf_del_slave(dev, port_dev);
 }
 
