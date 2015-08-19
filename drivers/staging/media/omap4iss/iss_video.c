@@ -782,7 +782,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	entity = &video->video.entity;
 	media_entity_graph_walk_start(&graph, entity);
 	while ((entity = media_entity_graph_walk_next(&graph)))
-		pipe->entities |= 1 << entity->id;
+		pipe->entities |= 1 << media_entity_id(entity);
 
 	/* Verify that the currently configured format matches the output of
 	 * the connected subdev.

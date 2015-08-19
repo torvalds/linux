@@ -607,7 +607,7 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
 			 * crashed. Mark it as such, the ISS will be reset when
 			 * applications will release it.
 			 */
-			iss->crashed |= 1U << subdev->entity.id;
+			iss->crashed |= 1U << media_entity_id(&subdev->entity);
 			failure = -ETIMEDOUT;
 		}
 	}
