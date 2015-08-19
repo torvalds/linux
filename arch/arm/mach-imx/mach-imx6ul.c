@@ -45,7 +45,9 @@ static int ksz8081_phy_fixup(struct phy_device *dev)
 
 static void __init imx6ul_enet_phy_init(void)
 {
-	phy_register_fixup_for_uid(PHY_ID_KSZ8081, 0xffffffff, ksz8081_phy_fixup);
+	if (IS_BUILTIN(CONFIG_PHYLIB))
+		phy_register_fixup_for_uid(PHY_ID_KSZ8081, 0xffffffff,
+					   ksz8081_phy_fixup);
 }
 
 static inline void imx6ul_enet_init(void)
