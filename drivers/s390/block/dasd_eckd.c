@@ -2386,22 +2386,26 @@ dasd_eckd_build_format(struct dasd_device *base,
 	return fcp;
 }
 
-static int
-dasd_eckd_format_device(struct dasd_device *base,
-			struct format_data_t *fdata,
-			int enable_pav)
+/*
+ * Wrapper function to build a CCW request depending on input data
+ */
+static struct dasd_ccw_req *
+dasd_eckd_format_build_ccw_req(struct dasd_device *base,
+			       struct format_data_t *fdata, int enable_pav)
 {
-	struct dasd_ccw_req *cqr, *n;
+	return dasd_eckd_build_format(base, fdata, enable_pav);
+}
+
+/*
+ * Sanity checks on format_data
+ */
+static int dasd_eckd_format_sanity_checks(struct dasd_device *base,
+					  struct format_data_t *fdata)
+{
 	struct dasd_eckd_private *private;
-	struct list_head format_queue;
-	struct dasd_device *device;
-	int old_start, old_stop, format_step;
-	int step, retry;
-	int rc = 0;
 
 	private = (struct dasd_eckd_private *) base->private;
 
-	/* Sanity checks. */
 	if (fdata->start_unit >=
 	    (private->real_cyl * private->rdc_data.trk_per_cyl)) {
 		dev_warn(&base->cdev->dev,
@@ -2428,6 +2432,29 @@ dasd_eckd_format_device(struct dasd_device *base,
 			 fdata->blksize);
 		return -EINVAL;
 	}
+	return 0;
+}
+
+/*
+ * This function will process format_data originally coming from an IOCTL
+ */
+static int dasd_eckd_format_process_data(struct dasd_device *base,
+					 struct format_data_t *fdata,
+					 int enable_pav)
+{
+	struct dasd_ccw_req *cqr, *n;
+	struct dasd_eckd_private *private;
+	struct list_head format_queue;
+	struct dasd_device *device;
+	int old_start, old_stop, format_step;
+	int step, retry;
+	int rc;
+
+	private = (struct dasd_eckd_private *) base->private;
+
+	rc = dasd_eckd_format_sanity_checks(base, fdata);
+	if (rc)
+		return rc;
 
 	INIT_LIST_HEAD(&format_queue);
 
@@ -2445,7 +2472,8 @@ dasd_eckd_format_device(struct dasd_device *base,
 					fdata->start_unit + format_step - 1;
 			}
 
-			cqr = dasd_eckd_build_format(base, fdata, enable_pav);
+			cqr = dasd_eckd_format_build_ccw_req(base, fdata,
+							     enable_pav);
 			if (IS_ERR(cqr)) {
 				rc = PTR_ERR(cqr);
 				if (rc == -ENOMEM) {
@@ -2490,6 +2518,12 @@ out:
 	fdata->stop_unit = old_stop;
 
 	return rc;
+}
+
+static int dasd_eckd_format_device(struct dasd_device *base,
+				   struct format_data_t *fdata, int enable_pav)
+{
+	return dasd_eckd_format_process_data(base, fdata, enable_pav);
 }
 
 static void dasd_eckd_handle_terminated_request(struct dasd_ccw_req *cqr)
