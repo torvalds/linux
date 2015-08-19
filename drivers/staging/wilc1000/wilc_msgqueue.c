@@ -50,7 +50,7 @@ int WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-int WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
+int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 			     const void *pvSendBuffer, u32 u32SendBufferSize)
 {
 	int s32RetStatus = WILC_SUCCESS;

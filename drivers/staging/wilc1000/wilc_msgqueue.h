@@ -44,7 +44,7 @@ int wilc_mq_create(WILC_MsgQueueHandle *pHandle);
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
+int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 			     const void *pvSendBuffer, u32 u32SendBufferSize);
 
 /*!
