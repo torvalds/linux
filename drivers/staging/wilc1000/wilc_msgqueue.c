@@ -26,7 +26,6 @@ WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle)
  */
 WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
 {
-
 	pHandle->bExiting = true;
 
 	/* Release any waiting receiver thread. */
@@ -120,7 +119,6 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 			     void *pvRecvBuffer, u32 u32RecvBufferSize,
 			     u32 *pu32ReceivedLength)
 {
-
 	Message *pstrMessage;
 	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
 	unsigned long flags;
