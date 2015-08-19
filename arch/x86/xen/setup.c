@@ -593,20 +593,27 @@ static void __init xen_ignore_unusable(void)
 static unsigned long __init xen_count_remap_pages(unsigned long max_pfn)
 {
 	unsigned long extra = 0;
+	unsigned long start_pfn, end_pfn;
 	const struct e820entry *entry = xen_e820_map;
 	int i;
 
+	end_pfn = 0;
 	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
-		unsigned long start_pfn = PFN_DOWN(entry->addr);
-		unsigned long end_pfn = PFN_UP(entry->addr + entry->size);
+		start_pfn = PFN_DOWN(entry->addr);
+		/* Adjacent regions on non-page boundaries handling! */
+		end_pfn = min(end_pfn, start_pfn);
 
 		if (start_pfn >= max_pfn)
-			break;
-		if (entry->type == E820_RAM)
-			continue;
-		if (end_pfn >= max_pfn)
-			end_pfn = max_pfn;
-		extra += end_pfn - start_pfn;
+			return extra + max_pfn - end_pfn;
+
+		/* Add any holes in map to result. */
+		extra += start_pfn - end_pfn;
+
+		end_pfn = PFN_UP(entry->addr + entry->size);
+		end_pfn = min(end_pfn, max_pfn);
+
+		if (entry->type != E820_RAM)
+			extra += end_pfn - start_pfn;
 	}
 
 	return extra;
