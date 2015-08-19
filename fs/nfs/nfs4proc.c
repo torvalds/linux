@@ -2737,11 +2737,8 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 
 	if (calldata->arg.fmode == 0) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE];
-		if (calldata->roc &&
-		    pnfs_roc_drain(inode, &calldata->roc_barrier, task)) {
-			nfs_release_seqid(calldata->arg.seqid);
-			goto out_wait;
-		    }
+		if (calldata->roc)
+			pnfs_roc_get_barrier(inode, &calldata->roc_barrier);
 	}
 	calldata->arg.share_access =
 		nfs4_map_atomic_open_share(NFS_SERVER(inode),
@@ -5289,9 +5286,8 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 
 	d_data = (struct nfs4_delegreturndata *)data;
 
-	if (d_data->roc &&
-	    pnfs_roc_drain(d_data->inode, &d_data->roc_barrier, task))
-		return;
+	if (d_data->roc)
+		pnfs_roc_get_barrier(d_data->inode, &d_data->roc_barrier);
 
 	nfs4_setup_sequence(d_data->res.server,
 			&d_data->args.seq_args,

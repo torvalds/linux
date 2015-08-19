@@ -1141,25 +1141,14 @@ void pnfs_roc_set_barrier(struct inode *ino, u32 barrier)
 	spin_unlock(&ino->i_lock);
 }
 
-bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task)
+void pnfs_roc_get_barrier(struct inode *ino, u32 *barrier)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
 	struct pnfs_layout_hdr *lo;
-	struct pnfs_layout_segment *lseg;
 	nfs4_stateid stateid;
 	u32 current_seqid;
-	bool layoutreturn = false;
 
 	spin_lock(&ino->i_lock);
-	list_for_each_entry(lseg, &nfsi->layout->plh_segs, pls_list) {
-		if (!test_bit(NFS_LSEG_ROC, &lseg->pls_flags))
-			continue;
-		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags))
-			continue;
-		rpc_sleep_on(&NFS_SERVER(ino)->roc_rpcwaitq, task, NULL);
-		spin_unlock(&ino->i_lock);
-		return true;
-	}
 	lo = nfsi->layout;
 	current_seqid = be32_to_cpu(lo->plh_stateid.seqid);
 
@@ -1168,18 +1157,7 @@ bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task)
 	 */
 	*barrier = current_seqid + atomic_read(&lo->plh_outstanding);
 	stateid = lo->plh_stateid;
-	if (test_and_clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
-					   &lo->plh_flags))
-		layoutreturn = pnfs_prepare_layoutreturn(lo);
-	if (test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
-		rpc_sleep_on(&NFS_SERVER(ino)->roc_rpcwaitq, task, NULL);
-
 	spin_unlock(&ino->i_lock);
-	if (layoutreturn) {
-		pnfs_send_layoutreturn(lo, stateid, IOMODE_ANY, false);
-		return true;
-	}
-	return false;
 }
 
 /*
