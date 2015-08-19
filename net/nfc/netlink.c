@@ -63,6 +63,8 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_FIRMWARE_NAME] = { .type = NLA_STRING,
 				     .len = NFC_FIRMWARE_NAME_MAXSIZE },
 	[NFC_ATTR_SE_APDU] = { .type = NLA_BINARY },
+	[NFC_ATTR_VENDOR_DATA] = { .type = NLA_BINARY },
+
 };
 
 static const struct nla_policy nfc_sdp_genl_policy[NFC_SDP_ATTR_MAX + 1] = {
@@ -1503,7 +1505,7 @@ static int nfc_genl_vendor_cmd(struct sk_buff *skb,
 	u32 dev_idx, vid, subcmd;
 	u8 *data;
 	size_t data_len;
-	int i;
+	int i, err;
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
 	    !info->attrs[NFC_ATTR_VENDOR_ID] ||
@@ -1534,11 +1536,91 @@ static int nfc_genl_vendor_cmd(struct sk_buff *skb,
 		if (cmd->vendor_id != vid || cmd->subcmd != subcmd)
 			continue;
 
-		return cmd->doit(dev, data, data_len);
+		dev->cur_cmd_info = info;
+		err = cmd->doit(dev, data, data_len);
+		dev->cur_cmd_info = NULL;
+		return err;
 	}
 
 	return -EOPNOTSUPP;
 }
+
+/* message building helper */
+static inline void *nfc_hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
+				int flags, u8 cmd)
+{
+	/* since there is no private header just add the generic one */
+	return genlmsg_put(skb, portid, seq, &nfc_genl_family, flags, cmd);
+}
+
+static struct sk_buff *
+__nfc_alloc_vendor_cmd_skb(struct nfc_dev *dev, int approxlen,
+			   u32 portid, u32 seq,
+			   enum nfc_attrs attr,
+			   u32 oui, u32 subcmd, gfp_t gfp)
+{
+	struct sk_buff *skb;
+	void *hdr;
+
+	skb = nlmsg_new(approxlen + 100, gfp);
+	if (!skb)
+		return NULL;
+
+	hdr = nfc_hdr_put(skb, portid, seq, 0, NFC_CMD_VENDOR);
+	if (!hdr) {
+		kfree_skb(skb);
+		return NULL;
+	}
+
+	if (nla_put_u32(skb, NFC_ATTR_DEVICE_INDEX, dev->idx))
+		goto nla_put_failure;
+	if (nla_put_u32(skb, NFC_ATTR_VENDOR_ID, oui))
+		goto nla_put_failure;
+	if (nla_put_u32(skb, NFC_ATTR_VENDOR_SUBCMD, subcmd))
+		goto nla_put_failure;
+
+	((void **)skb->cb)[0] = dev;
+	((void **)skb->cb)[1] = hdr;
+
+	return skb;
+
+nla_put_failure:
+	kfree_skb(skb);
+	return NULL;
+}
+
+struct sk_buff *__nfc_alloc_vendor_cmd_reply_skb(struct nfc_dev *dev,
+						 enum nfc_attrs attr,
+						 u32 oui, u32 subcmd,
+						 int approxlen)
+{
+	if (WARN_ON(!dev->cur_cmd_info))
+		return NULL;
+
+	return __nfc_alloc_vendor_cmd_skb(dev, approxlen,
+					  dev->cur_cmd_info->snd_portid,
+					  dev->cur_cmd_info->snd_seq, attr,
+					  oui, subcmd, GFP_KERNEL);
+}
+EXPORT_SYMBOL(__nfc_alloc_vendor_cmd_reply_skb);
+
+int nfc_vendor_cmd_reply(struct sk_buff *skb)
+{
+	struct nfc_dev *dev = ((void **)skb->cb)[0];
+	void *hdr = ((void **)skb->cb)[1];
+
+	/* clear CB data for netlink core to own from now on */
+	memset(skb->cb, 0, sizeof(skb->cb));
+
+	if (WARN_ON(!dev->cur_cmd_info)) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	genlmsg_end(skb, hdr);
+	return genlmsg_reply(skb, dev->cur_cmd_info);
+}
+EXPORT_SYMBOL(nfc_vendor_cmd_reply);
 
 static const struct genl_ops nfc_genl_ops[] = {
 	{
