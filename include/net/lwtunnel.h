@@ -93,6 +93,10 @@ int lwtunnel_input6(struct sk_buff *skb);
 
 #else
 
+static inline void lwtstate_free(struct lwtunnel_state *lws)
+{
+}
+
 static inline struct lwtunnel_state *
 lwtstate_get(struct lwtunnel_state *lws)
 {
