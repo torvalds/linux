@@ -3440,6 +3440,26 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	return 0;
 }
 
+int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
+{
+	if ((flags & (BTRFS_BLOCK_GROUP_DUP |
+		      BTRFS_BLOCK_GROUP_RAID0 |
+		      BTRFS_AVAIL_ALLOC_BIT_SINGLE)) ||
+	    ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0))
+		return 0;
+
+	if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
+		     BTRFS_BLOCK_GROUP_RAID5 |
+		     BTRFS_BLOCK_GROUP_RAID10))
+		return 1;
+
+	if (flags & BTRFS_BLOCK_GROUP_RAID6)
+		return 2;
+
+	pr_warn("BTRFS: unknown raid type: %llu\n", flags);
+	return 0;
+}
+
 int btrfs_calc_num_tolerated_disk_barrier_failures(
 	struct btrfs_fs_info *fs_info)
 {
@@ -3482,28 +3502,11 @@ int btrfs_calc_num_tolerated_disk_barrier_failures(
 			if (space.total_bytes == 0 || space.used_bytes == 0)
 				continue;
 			flags = space.flags;
-			/*
-			 * return
-			 * 0: if dup, single or RAID0 is configured for
-			 *    any of metadata, system or data, else
-			 * 1: if RAID5 is configured, or if RAID1 or
-			 *    RAID10 is configured and only two mirrors
-			 *    are used, else
-			 * 2: if RAID6 is configured
-			 */
-			if (num_tolerated_disk_barrier_failures > 0 &&
-			    ((flags & (BTRFS_BLOCK_GROUP_DUP |
-				       BTRFS_BLOCK_GROUP_RAID0)) ||
-			     ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0)))
-				num_tolerated_disk_barrier_failures = 0;
-			else if (num_tolerated_disk_barrier_failures > 1 &&
-				 (flags & (BTRFS_BLOCK_GROUP_RAID1 |
-					   BTRFS_BLOCK_GROUP_RAID5 |
-					   BTRFS_BLOCK_GROUP_RAID10)))
-				num_tolerated_disk_barrier_failures = 1;
-			else if (num_tolerated_disk_barrier_failures > 2 &&
-				 (flags & BTRFS_BLOCK_GROUP_RAID6))
-				num_tolerated_disk_barrier_failures = 2;
+
+			num_tolerated_disk_barrier_failures = min(
+				num_tolerated_disk_barrier_failures,
+				btrfs_get_num_tolerated_disk_barrier_failures(
+					flags));
 		}
 		up_read(&sinfo->groups_sem);
 	}
