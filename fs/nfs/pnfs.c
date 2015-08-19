@@ -1064,7 +1064,7 @@ bool pnfs_roc(struct inode *ino)
 	struct pnfs_layout_segment *lseg, *tmp;
 	nfs4_stateid stateid;
 	LIST_HEAD(tmp_list);
-	bool found = false, layoutreturn = false;
+	bool found = false, layoutreturn = false, roc = false;
 
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
@@ -1072,7 +1072,7 @@ bool pnfs_roc(struct inode *ino)
 	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags))
 		goto out_noroc;
 
-	/* Don't return layout if we hold a delegation */
+	/* no roc if we hold a delegation */
 	if (nfs4_check_delegation(ino, FMODE_READ))
 		goto out_noroc;
 
@@ -1083,36 +1083,41 @@ bool pnfs_roc(struct inode *ino)
 			goto out_noroc;
 	}
 
+	stateid = lo->plh_stateid;
+	/* always send layoutreturn if being marked so */
+	if (test_and_clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
+				   &lo->plh_flags))
+		layoutreturn = pnfs_prepare_layoutreturn(lo);
+
 	pnfs_clear_retry_layoutget(lo);
 	list_for_each_entry_safe(lseg, tmp, &lo->plh_segs, pls_list)
-		if (test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
+		/* If we are sending layoutreturn, invalidate all valid lsegs */
+		if (layoutreturn || test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
 			mark_lseg_invalid(lseg, &tmp_list);
 			found = true;
 		}
-	if (!found)
-		goto out_noroc;
-	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
-		goto out_noroc;
-	lo->plh_return_iomode = IOMODE_ANY;
-	pnfs_get_layout_hdr(lo); /* matched in pnfs_roc_release */
+	/* pnfs_prepare_layoutreturn() grabs lo ref and it will be put
+	 * in pnfs_roc_release(). We don't really send a layoutreturn but
+	 * still want others to view us like we are sending one!
+	 *
+	 * If pnfs_prepare_layoutreturn() fails, it means someone else is doing
+	 * LAYOUTRETURN, so we proceed like there are no layouts to return.
+	 *
+	 * ROC in three conditions:
+	 * 1. there are ROC lsegs
+	 * 2. we don't send layoutreturn
+	 * 3. no others are sending layoutreturn
+	 */
+	if (found && !layoutreturn && pnfs_prepare_layoutreturn(lo))
+		roc = true;
+
+out_noroc:
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 	pnfs_layoutcommit_inode(ino, true);
-	return true;
-
-out_noroc:
-	if (lo) {
-		stateid = lo->plh_stateid;
-		if (test_and_clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
-					   &lo->plh_flags))
-			layoutreturn = pnfs_prepare_layoutreturn(lo);
-	}
-	spin_unlock(&ino->i_lock);
-	if (layoutreturn) {
-		pnfs_layoutcommit_inode(ino, true);
+	if (layoutreturn)
 		pnfs_send_layoutreturn(lo, stateid, IOMODE_ANY, true);
-	}
-	return false;
+	return roc;
 }
 
 void pnfs_roc_release(struct inode *ino)
