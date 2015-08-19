@@ -4222,7 +4222,7 @@ static int hub_enable_device(struct usb_device *udev)
  * but it is still necessary to lock the port.
  */
 static int
-hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
+hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 		int retry_counter)
 {
 	struct usb_device	*hdev = hub->hdev;
@@ -4526,7 +4526,7 @@ fail:
 }
 
 static void
-check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
+check_highspeed(struct usb_hub *hub, struct usb_device *udev, int port1)
 {
 	struct usb_qualifier_descriptor	*qual;
 	int				status;
@@ -4534,11 +4534,11 @@ check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
 	if (udev->quirks & USB_QUIRK_DEVICE_QUALIFIER)
 		return;
 
-	qual = kmalloc (sizeof *qual, GFP_KERNEL);
+	qual = kmalloc(sizeof *qual, GFP_KERNEL);
 	if (qual == NULL)
 		return;
 
-	status = usb_get_descriptor (udev, USB_DT_DEVICE_QUALIFIER, 0,
+	status = usb_get_descriptor(udev, USB_DT_DEVICE_QUALIFIER, 0,
 			qual, sizeof *qual);
 	if (status == sizeof *qual) {
 		dev_info(&udev->dev, "not running at top speed; "
@@ -4554,7 +4554,7 @@ check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
 }
 
 static unsigned
-hub_power_remaining (struct usb_hub *hub)
+hub_power_remaining(struct usb_hub *hub)
 {
 	struct usb_device *hdev = hub->hdev;
 	int remaining;
@@ -4741,7 +4741,7 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 		if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0200
 				&& udev->speed == USB_SPEED_FULL
 				&& highspeed_hubs != 0)
-			check_highspeed (hub, udev, port1);
+			check_highspeed(hub, udev, port1);
 
 		/* Store the parent's children[] pointer.  At this point
 		 * udev becomes globally accessible, although presumably
@@ -5115,7 +5115,7 @@ static const struct usb_device_id hub_id_table[] = {
     { }						/* Terminating entry */
 };
 
-MODULE_DEVICE_TABLE (usb, hub_id_table);
+MODULE_DEVICE_TABLE(usb, hub_id_table);
 
 static struct usb_driver hub_driver = {
 	.name =		"hub",
@@ -5227,7 +5227,7 @@ static int descriptors_changed(struct usb_device *udev,
 			changed = 1;
 			break;
 		}
-		if (memcmp (buf, udev->rawdescriptors[index], old_length)
+		if (memcmp(buf, udev->rawdescriptors[index], old_length)
 				!= 0) {
 			dev_dbg(&udev->dev, "config index %d changed (#%d)\n",
 				index,
