@@ -61,8 +61,7 @@ static int m25p_cmdsz(struct spi_nor *nor)
 	return 1 + nor->addr_width;
 }
 
-static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
-			int wr_en)
+static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;

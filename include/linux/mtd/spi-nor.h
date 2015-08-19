@@ -186,8 +186,7 @@ struct spi_nor {
 	int (*write_xfer)(struct spi_nor *nor, struct spi_nor_xfer_cfg *cfg,
 			  u8 *buf, size_t len);
 	int (*read_reg)(struct spi_nor *nor, u8 opcode, u8 *buf, int len);
-	int (*write_reg)(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
-			int write_enable);
+	int (*write_reg)(struct spi_nor *nor, u8 opcode, u8 *buf, int len);
 
 	int (*read)(struct spi_nor *nor, loff_t from,
 			size_t len, size_t *retlen, u_char *read_buf);

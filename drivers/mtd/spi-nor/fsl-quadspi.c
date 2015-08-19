@@ -797,8 +797,7 @@ static int fsl_qspi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return 0;
 }
 
-static int fsl_qspi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len,
-			int write_enable)
+static int fsl_qspi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 {
 	struct fsl_qspi *q = nor->priv;
 	int ret;
