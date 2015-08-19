@@ -104,7 +104,6 @@ typedef struct {
 	int          *kib_map_on_demand;     /* map-on-demand if RD has more
 					      * fragments than this value, 0
 					      * disable map-on-demand */
-	int          *kib_pmr_pool_size;     /* # physical MR in pool */
 	int          *kib_fmr_pool_size;     /* # FMRs in pool */
 	int          *kib_fmr_flush_trigger; /* When to trigger FMR flush */
 	int          *kib_fmr_cache;         /* enable FMR pool cache? */
@@ -163,7 +162,6 @@ kiblnd_concurrent_sends_v1(void)
 /* Pools (shared by connections on each CPT) */
 /* These pools can grow at runtime, so don't need give a very large value */
 #define IBLND_TX_POOL			256
-#define IBLND_PMR_POOL			256
 #define IBLND_FMR_POOL			256
 #define IBLND_FMR_POOL_FLUSH		192
 
@@ -232,17 +230,6 @@ typedef struct {
 	struct page        *ibp_pages[0];       /* page array */
 } kib_pages_t;
 
-struct kib_pmr_pool;
-
-typedef struct {
-	struct list_head    pmr_list;           /* chain node */
-	struct ib_phys_buf  *pmr_ipb;           /* physical buffer */
-	struct ib_mr        *pmr_mr;            /* IB MR */
-	struct kib_pmr_pool *pmr_pool;          /* owner of this MR */
-	__u64               pmr_iova;           /* Virtual I/O address */
-	int                 pmr_refcount;       /* reference count */
-} kib_phys_mr_t;
-
 struct kib_pool;
 struct kib_poolset;
 
@@ -299,15 +286,6 @@ typedef struct {
 } kib_tx_pool_t;
 
 typedef struct {
-	kib_poolset_t         pps_poolset;        /* pool-set */
-} kib_pmr_poolset_t;
-
-typedef struct kib_pmr_pool {
-	struct kib_hca_dev    *ppo_hdev;          /* device for this pool */
-	kib_pool_t            ppo_pool;           /* pool */
-} kib_pmr_pool_t;
-
-typedef struct {
 	spinlock_t            fps_lock;            /* serialize */
 	struct kib_net        *fps_net;            /* IB network */
 	struct list_head      fps_pool_list;       /* FMR pool list */
@@ -347,7 +325,6 @@ typedef struct kib_net {
 
 	kib_tx_poolset_t      **ibn_tx_ps;    /* tx pool-set */
 	kib_fmr_poolset_t     **ibn_fmr_ps;   /* fmr pool-set */
-	kib_pmr_poolset_t     **ibn_pmr_ps;   /* pmr pool-set */
 
 	kib_dev_t             *ibn_dev;       /* underlying IB device */
 } kib_net_t;
@@ -554,10 +531,7 @@ typedef struct kib_tx                         /* transmit message */
 	int                    tx_nfrags;     /* # entries in... */
 	struct scatterlist     *tx_frags;     /* dma_map_sg descriptor */
 	__u64                  *tx_pages;     /* rdma phys page addrs */
-	union {
-		kib_phys_mr_t  *pmr;          /* MR for physical buffer */
-		kib_fmr_t      fmr;           /* FMR */
-	}                      tx_u;
+	kib_fmr_t		fmr;	      /* FMR */
 	int                    tx_dmadir;     /* dma direction */
 } kib_tx_t;
 
@@ -977,10 +951,6 @@ struct list_head *kiblnd_pool_alloc_node(kib_poolset_t *ps);
 int  kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages,
 			 int npages, __u64 iov, kib_fmr_t *fmr);
 void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status);
-
-int  kiblnd_pmr_pool_map(kib_pmr_poolset_t *pps, kib_hca_dev_t *hdev,
-			 kib_rdma_desc_t *rd, __u64 *iova, kib_phys_mr_t **pp_pmr);
-void kiblnd_pmr_pool_unmap(kib_phys_mr_t *pmr);
 
 int  kiblnd_startup (lnet_ni_t *ni);
 void kiblnd_shutdown (lnet_ni_t *ni);
