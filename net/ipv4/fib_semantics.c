@@ -533,9 +533,9 @@ errout:
 
 #endif
 
-int fib_encap_match(struct net *net, u16 encap_type,
-		    struct nlattr *encap,
-		    int oif, const struct fib_nh *nh)
+static int fib_encap_match(struct net *net, u16 encap_type,
+			   struct nlattr *encap,
+			   int oif, const struct fib_nh *nh)
 {
 	struct lwtunnel_state *lwtstate;
 	struct net_device *dev = NULL;
