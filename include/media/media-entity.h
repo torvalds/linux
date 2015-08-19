@@ -103,7 +103,6 @@ struct media_entity_operations {
 struct media_entity {
 	struct media_gobj graph_obj;
 	struct list_head list;
-	struct media_device *parent;	/* Media device this entity belongs to*/
 	const char *name;		/* Entity name */
 	u32 type;			/* Entity type (MEDIA_ENT_T_*) */
 	u32 revision;			/* Entity revision, driver specific */
