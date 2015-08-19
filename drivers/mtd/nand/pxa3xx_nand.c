@@ -678,8 +678,14 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 		is_ready = 1;
 	}
 
+	/*
+	 * Clear all status bit before issuing the next command, which
+	 * can and will alter the status bits and will deserve a new
+	 * interrupt on its own. This lets the controller exit the IRQ
+	 */
+	nand_writel(info, NDSR, status);
+
 	if (status & NDSR_WRCMDREQ) {
-		nand_writel(info, NDSR, NDSR_WRCMDREQ);
 		status &= ~NDSR_WRCMDREQ;
 		info->state = STATE_CMD_HANDLE;
 
@@ -700,8 +706,6 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 			nand_writel(info, NDCB0, info->ndcb3);
 	}
 
-	/* clear NDSR to let the controller exit the IRQ */
-	nand_writel(info, NDSR, status);
 	if (is_completed)
 		complete(&info->cmd_complete);
 	if (is_ready)
