@@ -99,12 +99,14 @@ static struct extent_node *__lookup_extent_tree(struct f2fs_sb_info *sbi,
 	while (node) {
 		en = rb_entry(node, struct extent_node, rb_node);
 
-		if (fofs < en->ei.fofs)
+		if (fofs < en->ei.fofs) {
 			node = node->rb_left;
-		else if (fofs >= en->ei.fofs + en->ei.len)
+		} else if (fofs >= en->ei.fofs + en->ei.len) {
 			node = node->rb_right;
-		else
+		} else {
+			stat_inc_rbtree_node_hit(sbi);
 			return en;
+		}
 	}
 	return NULL;
 }
@@ -281,7 +283,6 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 			et->largest.fofs + et->largest.len > pgofs) {
 		*ei = et->largest;
 		ret = true;
-		stat_inc_read_hit(sbi);
 		stat_inc_largest_node_hit(sbi);
 		goto out;
 	}
@@ -295,7 +296,6 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 		et->cached_en = en;
 		spin_unlock(&sbi->extent_lock);
 		ret = true;
-		stat_inc_read_hit(sbi);
 	}
 out:
 	stat_inc_total_hit(sbi);
