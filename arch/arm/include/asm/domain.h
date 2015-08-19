@@ -59,6 +59,17 @@
 
 #ifndef __ASSEMBLY__
 
+static inline unsigned int get_domain(void)
+{
+	unsigned int domain;
+
+	asm(
+	"mrc	p15, 0, %0, c3, c0	@ get domain"
+	 : "=r" (domain));
+
+	return domain;
+}
+
 #ifdef CONFIG_CPU_USE_DOMAINS
 static inline void set_domain(unsigned val)
 {
@@ -70,11 +81,10 @@ static inline void set_domain(unsigned val)
 
 #define modify_domain(dom,type)					\
 	do {							\
-	struct thread_info *thread = current_thread_info();	\
-	unsigned int domain = thread->cpu_domain;		\
-	domain &= ~domain_val(dom, DOMAIN_MANAGER);		\
-	thread->cpu_domain = domain | domain_val(dom, type);	\
-	set_domain(thread->cpu_domain);				\
+		unsigned int domain = get_domain();		\
+		domain &= ~domain_val(dom, DOMAIN_MANAGER);	\
+		domain = domain | domain_val(dom, type);	\
+		set_domain(domain);				\
 	} while (0)
 
 #else

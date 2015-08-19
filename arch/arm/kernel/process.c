@@ -146,10 +146,9 @@ void __show_regs(struct pt_regs *regs)
 		buf[0] = '\0';
 #ifdef CONFIG_CPU_CP15_MMU
 		{
-			unsigned int transbase, dac;
+			unsigned int transbase, dac = get_domain();
 			asm("mrc p15, 0, %0, c2, c0\n\t"
-			    "mrc p15, 0, %1, c3, c0\n"
-			    : "=r" (transbase), "=r" (dac));
+			    : "=r" (transbase));
 			snprintf(buf, sizeof(buf), "  Table: %08x  DAC: %08x",
 			  	transbase, dac);
 		}
@@ -209,6 +208,14 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	struct pt_regs *childregs = task_pt_regs(p);
 
 	memset(&thread->cpu_context, 0, sizeof(struct cpu_context_save));
+
+	/*
+	 * Copy the initial value of the domain access control register
+	 * from the current thread: thread->addr_limit will have been
+	 * copied from the current thread via setup_thread_stack() in
+	 * kernel/fork.c
+	 */
+	thread->cpu_domain = get_domain();
 
 	if (likely(!(p->flags & PF_KTHREAD))) {
 		*childregs = *current_pt_regs();
