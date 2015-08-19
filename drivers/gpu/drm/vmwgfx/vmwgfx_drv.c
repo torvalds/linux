@@ -965,7 +965,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 	ttm_object_device_release(&dev_priv->tdev);
 	iounmap(dev_priv->mmio_virt);
 	arch_phys_wc_del(dev_priv->mmio_mtrr);
-	(void)ttm_bo_device_release(&dev_priv->bdev);
 	if (dev_priv->ctx.staged_bindings)
 		vmw_binding_state_free(dev_priv->ctx.staged_bindings);
 	vmw_ttm_global_release(dev_priv);
