@@ -4554,7 +4554,7 @@ static ssize_t ipr_store_raw_mode(struct device *dev,
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
 	if (res) {
-		if (ioa_cfg->sis64 && ipr_is_af_dasd_device(res)) {
+		if (ipr_is_af_dasd_device(res)) {
 			res->raw_mode = simple_strtoul(buf, NULL, 10);
 			len = strlen(buf);
 			if (res->sdev)
