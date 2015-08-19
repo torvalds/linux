@@ -1822,6 +1822,7 @@ xfs_da3_path_shift(
 	struct xfs_da_args	*args;
 	struct xfs_da_node_entry *btree;
 	struct xfs_da3_icnode_hdr nodehdr;
+	struct xfs_buf		*bp;
 	xfs_dablk_t		blkno = 0;
 	int			level;
 	int			error;
@@ -1866,20 +1867,24 @@ xfs_da3_path_shift(
 	 */
 	for (blk++, level++; level < path->active; blk++, level++) {
 		/*
-		 * Release the old block.
-		 * (if it's dirty, trans won't actually let go)
+		 * Read the next child block into a local buffer.
+		 */
+		error = xfs_da3_node_read(args->trans, dp, blkno, -1, &bp,
+					  args->whichfork);
+		if (error)
+			return error;
+
+		/*
+		 * Release the old block (if it's dirty, the trans doesn't
+		 * actually let go) and swap the local buffer into the path
+		 * structure. This ensures failure of the above read doesn't set
+		 * a NULL buffer in an active slot in the path.
 		 */
 		if (release)
 			xfs_trans_brelse(args->trans, blk->bp);
-
-		/*
-		 * Read the next child block.
-		 */
 		blk->blkno = blkno;
-		error = xfs_da3_node_read(args->trans, dp, blkno, -1,
-					&blk->bp, args->whichfork);
-		if (error)
-			return error;
+		blk->bp = bp;
+
 		info = blk->bp->b_addr;
 		ASSERT(info->magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
 		       info->magic == cpu_to_be16(XFS_DA3_NODE_MAGIC) ||

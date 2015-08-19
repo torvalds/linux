@@ -252,7 +252,8 @@ xfs_dir3_data_reada_verify(
 		return;
 	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
 	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
-		xfs_dir3_data_verify(bp);
+		bp->b_ops = &xfs_dir3_data_buf_ops;
+		bp->b_ops->verify_read(bp);
 		return;
 	default:
 		xfs_buf_ioerror(bp, -EFSCORRUPTED);

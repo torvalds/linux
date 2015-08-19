@@ -1895,15 +1895,25 @@ xlog_recover_get_buf_lsn(
 		 */
 		goto recover_immediately;
 	case XFS_SB_MAGIC:
+		/*
+		 * superblock uuids are magic. We may or may not have a
+		 * sb_meta_uuid on disk, but it will be set in the in-core
+		 * superblock. We set the uuid pointer for verification
+		 * according to the superblock feature mask to ensure we check
+		 * the relevant UUID in the superblock.
+		 */
 		lsn = be64_to_cpu(((struct xfs_dsb *)blk)->sb_lsn);
-		uuid = &((struct xfs_dsb *)blk)->sb_uuid;
+		if (xfs_sb_version_hasmetauuid(&mp->m_sb))
+			uuid = &((struct xfs_dsb *)blk)->sb_meta_uuid;
+		else
+			uuid = &((struct xfs_dsb *)blk)->sb_uuid;
 		break;
 	default:
 		break;
 	}
 
 	if (lsn != (xfs_lsn_t)-1) {
-		if (!uuid_equal(&mp->m_sb.sb_uuid, uuid))
+		if (!uuid_equal(&mp->m_sb.sb_meta_uuid, uuid))
 			goto recover_immediately;
 		return lsn;
 	}

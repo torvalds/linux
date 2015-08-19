@@ -186,9 +186,6 @@ xfs_mount_validate_sb(
 	if (xfs_sb_version_hassparseinodes(sbp)) {
 		uint32_t	align;
 
-		xfs_alert(mp,
-	"EXPERIMENTAL sparse inode feature enabled. Use at your own risk!");
-
 		align = XFS_INODES_PER_CHUNK * sbp->sb_inodesize
 				>> sbp->sb_blocklog;
 		if (sbp->sb_inoalignmt != align) {

@@ -362,6 +362,7 @@ xfs_dir_lookup(
 	struct xfs_da_args *args;
 	int		rval;
 	int		v;		/* type-checking value */
+	int		lock_mode;
 
 	ASSERT(S_ISDIR(dp->i_d.di_mode));
 	XFS_STATS_INC(xs_dir_lookup);
@@ -387,6 +388,7 @@ xfs_dir_lookup(
 	if (ci_name)
 		args->op_flags |= XFS_DA_OP_CILOOKUP;
 
+	lock_mode = xfs_ilock_data_map_shared(dp);
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
 		rval = xfs_dir2_sf_lookup(args);
 		goto out_check_rval;
@@ -419,6 +421,7 @@ out_check_rval:
 		}
 	}
 out_free:
+	xfs_iunlock(dp, lock_mode);
 	kmem_free(args);
 	return rval;
 }
