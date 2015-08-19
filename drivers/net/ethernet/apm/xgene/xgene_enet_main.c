@@ -905,40 +905,6 @@ static int xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pda
 	return ret;
 }
 
-static int xgene_get_mac_address(struct device *dev,
-				 unsigned char *addr)
-{
-	int ret;
-
-	ret = device_property_read_u8_array(dev, "local-mac-address", addr, 6);
-	if (ret)
-		ret = device_property_read_u8_array(dev, "mac-address",
-						    addr, 6);
-	if (ret)
-		return -ENODEV;
-
-	return ETH_ALEN;
-}
-
-static int xgene_get_phy_mode(struct device *dev)
-{
-	int i, ret;
-	char *modestr;
-
-	ret = device_property_read_string(dev, "phy-connection-type",
-					  (const char **)&modestr);
-	if (ret)
-		ret = device_property_read_string(dev, "phy-mode",
-						  (const char **)&modestr);
-	if (ret)
-		return -ENODEV;
-
-	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++) {
-		if (!strcasecmp(modestr, phy_modes(i)))
-			return i;
-	}
-	return -ENODEV;
-}
 
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
@@ -998,12 +964,12 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	if (ret)
 		return ret;
 
-	if (xgene_get_mac_address(dev, ndev->dev_addr) != ETH_ALEN)
+	if (!device_get_mac_address(dev, ndev->dev_addr, ETH_ALEN))
 		eth_hw_addr_random(ndev);
 
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
-	pdata->phy_mode = xgene_get_phy_mode(dev);
+	pdata->phy_mode = device_get_phy_mode(dev);
 	if (pdata->phy_mode < 0) {
 		dev_err(dev, "Unable to get phy-connection-type\n");
 		return pdata->phy_mode;
