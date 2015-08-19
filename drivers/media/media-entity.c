@@ -149,6 +149,8 @@ void media_gobj_init(struct media_device *mdev,
 			   enum media_gobj_type type,
 			   struct media_gobj *gobj)
 {
+	BUG_ON(!mdev);
+
 	gobj->mdev = mdev;
 
 	/* Create a per-type unique object ID */
