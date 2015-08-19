@@ -649,7 +649,7 @@ static int __init vrf_init_module(void)
 	vrf_dst_ops.kmem_cachep =
 		kmem_cache_create("vrf_ip_dst_cache",
 				  sizeof(struct rtable), 0,
-				  SLAB_HWCACHE_ALIGN | SLAB_PANIC,
+				  SLAB_HWCACHE_ALIGN,
 				  NULL);
 
 	if (!vrf_dst_ops.kmem_cachep)
