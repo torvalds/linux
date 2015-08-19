@@ -61,7 +61,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
 	}
 
-	if (pHandle->bExiting == true) {
+	if (pHandle->bExiting) {
 		WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
 	}
 
@@ -123,7 +123,7 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 		WILC_ERRORREPORT(s32RetStatus, WILC_INVALID_ARGUMENT);
 	}
 
-	if (pHandle->bExiting == true) {
+	if (pHandle->bExiting) {
 		WILC_ERRORREPORT(s32RetStatus, WILC_FAIL);
 	}
 
