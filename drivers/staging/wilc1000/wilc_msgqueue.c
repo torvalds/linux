@@ -30,7 +30,7 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
 
 	/* Release any waiting receiver thread. */
 	while (pHandle->u32ReceiversCount > 0) {
-		up(&(pHandle->hSem));
+		up(&pHandle->hSem);
 		pHandle->u32ReceiversCount--;
 	}
 
@@ -133,7 +133,7 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 	pHandle->u32ReceiversCount++;
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
-	down(&(pHandle->hSem));
+	down(&pHandle->hSem);
 
 	if (s32RetStatus == WILC_TIMEOUT) {
 		/* timed out, just exit without consumeing the message */
