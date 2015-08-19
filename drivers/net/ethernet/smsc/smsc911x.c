@@ -2370,9 +2370,6 @@ static int smsc911x_probe_config(struct smsc911x_platform_config *config,
 	int phy_interface;
 	u32 width = 0;
 
-	if (!dev)
-		return -ENODEV;
-
 	phy_interface = device_get_phy_mode(dev);
 	if (phy_interface < 0)
 		return phy_interface;
