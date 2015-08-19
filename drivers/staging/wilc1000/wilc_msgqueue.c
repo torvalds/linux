@@ -76,7 +76,6 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	WILC_NULLCHECK(s32RetStatus, pstrMessage->pvBuffer);
 	memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
 
-
 	/* add it to the message queue */
 	if (pHandle->pstrMessageList == NULL) {
 		pHandle->pstrMessageList  = pstrMessage;
@@ -106,8 +105,6 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 
 	return s32RetStatus;
 }
-
-
 
 /*!
  *  @author		syounan
