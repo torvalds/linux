@@ -362,6 +362,17 @@ int xfs_lots_retries;
 int xfs_lock_delays;
 #endif
 
+#ifdef CONFIG_LOCKDEP
+static bool
+xfs_lockdep_subclass_ok(
+	int subclass)
+{
+	return subclass < MAX_LOCKDEP_SUBCLASSES;
+}
+#else
+#define xfs_lockdep_subclass_ok(subclass)	(true)
+#endif
+
 /*
  * Bump the subclass so xfs_lock_inodes() acquires each lock with a different
  * value. This can be called for any type of inode lock combination, including
@@ -375,11 +386,12 @@ xfs_lock_inumorder(int lock_mode, int subclass)
 
 	ASSERT(!(lock_mode & (XFS_ILOCK_PARENT | XFS_ILOCK_RTBITMAP |
 			      XFS_ILOCK_RTSUM)));
+	ASSERT(xfs_lockdep_subclass_ok(subclass));
 
 	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
 		ASSERT(subclass <= XFS_IOLOCK_MAX_SUBCLASS);
-		ASSERT(subclass + XFS_IOLOCK_PARENT_VAL <
-						MAX_LOCKDEP_SUBCLASSES);
+		ASSERT(xfs_lockdep_subclass_ok(subclass +
+						XFS_IOLOCK_PARENT_VAL));
 		class += subclass << XFS_IOLOCK_SHIFT;
 		if (lock_mode & XFS_IOLOCK_PARENT)
 			class += XFS_IOLOCK_PARENT_VAL << XFS_IOLOCK_SHIFT;
