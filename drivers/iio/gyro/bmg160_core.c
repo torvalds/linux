@@ -13,7 +13,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -29,8 +28,8 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/regmap.h>
+#include "bmg160.h"
 
-#define BMG160_DRV_NAME		"bmg160"
 #define BMG160_IRQ_NAME		"bmg160_event"
 #define BMG160_GPIO_NAME		"gpio_int"
 
@@ -136,12 +135,6 @@ static const struct {
 			   { 266, BMG160_RANGE_500DPS},
 			   { 133, BMG160_RANGE_250DPS},
 			   { 66, BMG160_RANGE_125DPS} };
-
-static struct regmap_config bmg160_regmap_i2c_conf = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = 0x3f
-};
 
 static int bmg160_set_mode(struct bmg160_data *data, u8 mode)
 {
@@ -996,40 +989,28 @@ static const char *bmg160_match_acpi_device(struct device *dev)
 	return dev_name(dev);
 }
 
-static int bmg160_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
+		      const char *name)
 {
 	struct bmg160_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
-	const char *name = NULL;
-	struct regmap *regmap;
-	struct device *dev = &client->dev;
 
-	regmap = devm_regmap_init_i2c(client, &bmg160_regmap_i2c_conf);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Failed to register i2c regmap %d\n",
-			(int)PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
-
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
 	data->dev = dev;
-	data->irq = client->irq;
+	data->irq = irq;
+	data->regmap = regmap;
 
 	ret = bmg160_chip_init(data);
 	if (ret < 0)
 		return ret;
 
 	mutex_init(&data->mutex);
-
-	if (id)
-		name = id->name;
 
 	if (ACPI_HANDLE(dev))
 		name = bmg160_match_acpi_device(dev);
@@ -1125,15 +1106,16 @@ err_trigger_unregister:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(bmg160_core_probe);
 
-static int bmg160_remove(struct i2c_client *client)
+void bmg160_core_remove(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmg160_data *data = iio_priv(indio_dev);
 
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_noidle(dev);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
@@ -1146,9 +1128,8 @@ static int bmg160_remove(struct i2c_client *client)
 	mutex_lock(&data->mutex);
 	bmg160_set_mode(data, BMG160_MODE_DEEP_SUSPEND);
 	mutex_unlock(&data->mutex);
-
-	return 0;
 }
+EXPORT_SYMBOL_GPL(bmg160_core_remove);
 
 #ifdef CONFIG_PM_SLEEP
 static int bmg160_suspend(struct device *dev)
@@ -1210,39 +1191,12 @@ static int bmg160_runtime_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops bmg160_pm_ops = {
+const struct dev_pm_ops bmg160_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(bmg160_suspend, bmg160_resume)
 	SET_RUNTIME_PM_OPS(bmg160_runtime_suspend,
 			   bmg160_runtime_resume, NULL)
 };
-
-static const struct acpi_device_id bmg160_acpi_match[] = {
-	{"BMG0160", 0},
-	{"BMI055B", 0},
-	{},
-};
-
-MODULE_DEVICE_TABLE(acpi, bmg160_acpi_match);
-
-static const struct i2c_device_id bmg160_id[] = {
-	{"bmg160", 0},
-	{"bmi055_gyro", 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, bmg160_id);
-
-static struct i2c_driver bmg160_driver = {
-	.driver = {
-		.name	= BMG160_DRV_NAME,
-		.acpi_match_table = ACPI_PTR(bmg160_acpi_match),
-		.pm	= &bmg160_pm_ops,
-	},
-	.probe		= bmg160_probe,
-	.remove		= bmg160_remove,
-	.id_table	= bmg160_id,
-};
-module_i2c_driver(bmg160_driver);
+EXPORT_SYMBOL_GPL(bmg160_pm_ops);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL v2");
