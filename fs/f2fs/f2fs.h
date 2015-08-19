@@ -375,6 +375,12 @@ struct f2fs_map_blocks {
 	unsigned int m_flags;
 };
 
+/* for flag in get_data_block */
+#define F2FS_GET_BLOCK_READ		0
+#define F2FS_GET_BLOCK_DIO		1
+#define F2FS_GET_BLOCK_FIEMAP		2
+#define F2FS_GET_BLOCK_BMAP		3
+
 /*
  * i_advise uses FADVISE_XXX_BIT. We can add additional hints later.
  */

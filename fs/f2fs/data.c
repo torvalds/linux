@@ -561,7 +561,7 @@ out:
  *     c. give the block addresses to blockdev
  */
 static int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
-			int create, bool fiemap)
+						int create, int flag)
 {
 	unsigned int maxblocks = map->m_len;
 	struct dnode_of_data dn;
@@ -595,8 +595,19 @@ static int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 			err = 0;
 		goto unlock_out;
 	}
-	if (dn.data_blkaddr == NEW_ADDR && !fiemap)
-		goto put_out;
+	if (dn.data_blkaddr == NEW_ADDR) {
+		if (flag == F2FS_GET_BLOCK_BMAP) {
+			err = -ENOENT;
+			goto put_out;
+		} else if (flag == F2FS_GET_BLOCK_READ ||
+				flag == F2FS_GET_BLOCK_DIO) {
+			goto put_out;
+		}
+		/*
+		 * if it is in fiemap call path (flag = F2FS_GET_BLOCK_FIEMAP),
+		 * mark it as mapped and unwritten block.
+		 */
+	}
 
 	if (dn.data_blkaddr != NULL_ADDR) {
 		map->m_flags = F2FS_MAP_MAPPED;
@@ -611,6 +622,8 @@ static int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 		map->m_flags = F2FS_MAP_NEW | F2FS_MAP_MAPPED;
 		map->m_pblk = dn.data_blkaddr;
 	} else {
+		if (flag == F2FS_GET_BLOCK_BMAP)
+			err = -ENOENT;
 		goto put_out;
 	}
 
@@ -633,7 +646,9 @@ get_next:
 				err = 0;
 			goto unlock_out;
 		}
-		if (dn.data_blkaddr == NEW_ADDR && !fiemap)
+
+		if (dn.data_blkaddr == NEW_ADDR &&
+				flag != F2FS_GET_BLOCK_FIEMAP)
 			goto put_out;
 
 		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
@@ -675,7 +690,7 @@ out:
 }
 
 static int __get_data_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh, int create, bool fiemap)
+			struct buffer_head *bh, int create, int flag)
 {
 	struct f2fs_map_blocks map;
 	int ret;
@@ -683,7 +698,7 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 	map.m_lblk = iblock;
 	map.m_len = bh->b_size >> inode->i_blkbits;
 
-	ret = f2fs_map_blocks(inode, &map, create, fiemap);
+	ret = f2fs_map_blocks(inode, &map, create, flag);
 	if (!ret) {
 		map_bh(bh, inode->i_sb, map.m_pblk);
 		bh->b_state = (bh->b_state & ~F2FS_MAP_FLAGS) | map.m_flags;
@@ -693,15 +708,23 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 }
 
 static int get_data_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create)
+			struct buffer_head *bh_result, int create, int flag)
 {
-	return __get_data_block(inode, iblock, bh_result, create, false);
+	return __get_data_block(inode, iblock, bh_result, create, flag);
 }
 
-static int get_data_block_fiemap(struct inode *inode, sector_t iblock,
+static int get_data_block_dio(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
-	return __get_data_block(inode, iblock, bh_result, create, true);
+	return __get_data_block(inode, iblock, bh_result, create,
+						F2FS_GET_BLOCK_DIO);
+}
+
+static int get_data_block_bmap(struct inode *inode, sector_t iblock,
+			struct buffer_head *bh_result, int create)
+{
+	return __get_data_block(inode, iblock, bh_result, create,
+						F2FS_GET_BLOCK_BMAP);
 }
 
 static inline sector_t logical_to_blk(struct inode *inode, loff_t offset)
@@ -745,7 +768,8 @@ next:
 	memset(&map_bh, 0, sizeof(struct buffer_head));
 	map_bh.b_size = len;
 
-	ret = get_data_block_fiemap(inode, start_blk, &map_bh, 0);
+	ret = get_data_block(inode, start_blk, &map_bh, 0,
+					F2FS_GET_BLOCK_FIEMAP);
 	if (ret)
 		goto out;
 
@@ -1530,7 +1554,7 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	if (iov_iter_rw(iter) == WRITE)
 		__allocate_data_blocks(inode, offset, count);
 
-	err = blockdev_direct_IO(iocb, inode, iter, offset, get_data_block);
+	err = blockdev_direct_IO(iocb, inode, iter, offset, get_data_block_dio);
 	if (err < 0 && iov_iter_rw(iter) == WRITE)
 		f2fs_write_failed(mapping, offset + count);
 
@@ -1618,7 +1642,7 @@ static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 		if (err)
 			return err;
 	}
-	return generic_block_bmap(mapping, block, get_data_block);
+	return generic_block_bmap(mapping, block, get_data_block_bmap);
 }
 
 const struct address_space_operations f2fs_dblock_aops = {
