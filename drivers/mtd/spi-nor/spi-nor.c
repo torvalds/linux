@@ -868,8 +868,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
 	val = read_sr(nor);
 	write_enable(nor);
 
-	nor->cmd_buf[0] = val | SR_QUAD_EN_MX;
-	nor->write_reg(nor, SPINOR_OP_WRSR, nor->cmd_buf, 1, 0);
+	write_sr(nor, val | SR_QUAD_EN_MX);
 
 	if (spi_nor_wait_till_ready(nor))
 		return 1;
