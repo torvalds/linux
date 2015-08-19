@@ -731,15 +731,21 @@ static int check_input_term(struct mixer_build *state, int id,
 				term->name = d->iTerminal;
 			} else { /* UAC_VERSION_2 */
 				struct uac2_input_terminal_descriptor *d = p1;
+
+				/* call recursively to verify that the
+				 * referenced clock entity is valid */
+				err = check_input_term(state, d->bCSourceID, term);
+				if (err < 0)
+					return err;
+
+				/* save input term properties after recursion,
+				 * to ensure they are not overriden by the
+				 * recursion calls */
+				term->id = id;
 				term->type = le16_to_cpu(d->wTerminalType);
 				term->channels = d->bNrChannels;
 				term->chconfig = le32_to_cpu(d->bmChannelConfig);
 				term->name = d->iTerminal;
-
-				/* call recursively to get the clock selectors */
-				err = check_input_term(state, d->bCSourceID, term);
-				if (err < 0)
-					return err;
 			}
 			return 0;
 		case UAC_FEATURE_UNIT: {
