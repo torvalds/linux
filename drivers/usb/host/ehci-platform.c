@@ -162,8 +162,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 
 	err = dma_coerce_mask_and_coherent(&dev->dev,
 		pdata->dma_mask_64 ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32));
-	if (err)
+	if (err) {
+		dev_err(&dev->dev, "Error: DMA mask configuration failed\n");
 		return err;
+	}
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
