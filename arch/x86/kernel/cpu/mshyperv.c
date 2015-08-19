@@ -141,6 +141,7 @@ static void __init ms_hyperv_init_platform(void)
 	no_timer_check = 1;
 #endif
 
+	mark_tsc_unstable("running on Hyper-V");
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
