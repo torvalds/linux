@@ -16,6 +16,7 @@
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -221,6 +222,21 @@ static u64 notrace gt_sched_clock_read(void)
 }
 #endif
 
+static unsigned long gt_read_long(void)
+{
+	return readl_relaxed(gt_base + GT_COUNTER0);
+}
+
+static struct delay_timer gt_delay_timer = {
+	.read_current_timer = gt_read_long,
+};
+
+static void __init gt_delay_timer_init(void)
+{
+	gt_delay_timer.freq = gt_clk_rate;
+	register_current_timer_delay(&gt_delay_timer);
+}
+
 static void __init gt_clocksource_init(void)
 {
 	writel(0, gt_base + GT_CONTROL);
@@ -317,6 +333,7 @@ static void __init global_timer_of_register(struct device_node *np)
 	/* Immediately configure the timer on the boot CPU */
 	gt_clocksource_init();
 	gt_clockevents_init(this_cpu_ptr(gt_evt));
+	gt_delay_timer_init();
 
 	return;
 
