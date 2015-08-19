@@ -1042,7 +1042,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	}
 
 	amdgpu_ring_unlock_commit(ring);
-	amdgpu_sync_free(adev, &sync, *fence);
+	amdgpu_sync_free(adev, &sync, &(*fence)->base);
 
 	return 0;
 }

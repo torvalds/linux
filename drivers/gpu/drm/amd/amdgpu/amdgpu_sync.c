@@ -234,7 +234,7 @@ int amdgpu_sync_rings(struct amdgpu_sync *sync,
  */
 void amdgpu_sync_free(struct amdgpu_device *adev,
 		      struct amdgpu_sync *sync,
-		      struct amdgpu_fence *fence)
+		      struct fence *fence)
 {
 	unsigned i;
 

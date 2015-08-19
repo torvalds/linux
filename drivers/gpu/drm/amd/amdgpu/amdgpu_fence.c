@@ -836,30 +836,30 @@ static inline bool amdgpu_test_signaled(struct amdgpu_fence *fence)
 	return test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->base.flags);
 }
 
-static bool amdgpu_test_signaled_any(struct amdgpu_fence **fences, uint32_t count)
+static bool amdgpu_test_signaled_any(struct fence **fences, uint32_t count)
 {
 	int idx;
-	struct amdgpu_fence *fence;
+	struct fence *fence;
 
 	for (idx = 0; idx < count; ++idx) {
 		fence = fences[idx];
 		if (fence) {
-			if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->base.flags))
+			if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 				return true;
 		}
 	}
 	return false;
 }
 
-static bool amdgpu_test_signaled_all(struct amdgpu_fence **fences, uint32_t count)
+static bool amdgpu_test_signaled_all(struct fence **fences, uint32_t count)
 {
 	int idx;
-	struct amdgpu_fence *fence;
+	struct fence *fence;
 
 	for (idx = 0; idx < count; ++idx) {
 		fence = fences[idx];
 		if (fence) {
-			if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->base.flags))
+			if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 				return false;
 		}
 	}
@@ -885,7 +885,7 @@ static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
 	struct amdgpu_fence *fence = to_amdgpu_fence(f);
 	struct amdgpu_device *adev = fence->ring->adev;
 
-	return amdgpu_fence_wait_multiple(adev, &fence, 1, false, intr, t);
+	return amdgpu_fence_wait_multiple(adev, &f, 1, false, intr, t);
 }
 
 /**
@@ -902,7 +902,7 @@ static signed long amdgpu_fence_default_wait(struct fence *f, bool intr,
  * If wait_all is false, it will return when any fence is signaled or timeout.
  */
 signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
-				       struct amdgpu_fence **array,
+				       struct fence **array,
 				       uint32_t count,
 				       bool wait_all,
 				       bool intr,
@@ -910,7 +910,7 @@ signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
 {
 	long idx = 0;
 	struct amdgpu_wait_cb *cb;
-	struct amdgpu_fence *fence;
+	struct fence *fence;
 
 	BUG_ON(!array);
 
@@ -924,7 +924,7 @@ signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
 		fence = array[idx];
 		if (fence) {
 			cb[idx].task = current;
-			if (fence_add_callback(&fence->base,
+			if (fence_add_callback(fence,
 					&cb[idx].base, amdgpu_fence_wait_cb)) {
 				/* The fence is already signaled */
 				if (wait_all)
@@ -967,7 +967,7 @@ fence_rm_cb:
 	for (idx = 0; idx < count; ++idx) {
 		fence = array[idx];
 		if (fence)
-			fence_remove_callback(&fence->base, &cb[idx].base);
+			fence_remove_callback(fence, &cb[idx].base);
 	}
 
 err_free_cb:

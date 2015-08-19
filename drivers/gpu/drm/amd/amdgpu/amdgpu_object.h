@@ -193,7 +193,7 @@ int amdgpu_sa_bo_new(struct amdgpu_device *adev,
 			    unsigned size, unsigned align);
 void amdgpu_sa_bo_free(struct amdgpu_device *adev,
 			      struct amdgpu_sa_bo **sa_bo,
-			      struct amdgpu_fence *fence);
+			      struct fence *fence);
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);

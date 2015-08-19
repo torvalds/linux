@@ -441,7 +441,7 @@ int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
 signed long amdgpu_fence_wait_multiple(struct amdgpu_device *adev,
-				       struct amdgpu_fence **array,
+				       struct fence **array,
 				       uint32_t count,
 				       bool wait_all,
 				       bool intr,
@@ -654,7 +654,7 @@ struct amdgpu_sa_bo {
 	struct amdgpu_sa_manager	*manager;
 	unsigned			soffset;
 	unsigned			eoffset;
-	struct amdgpu_fence		*fence;
+	struct fence		        *fence;
 };
 
 /*
@@ -696,7 +696,7 @@ bool amdgpu_semaphore_emit_wait(struct amdgpu_ring *ring,
 				struct amdgpu_semaphore *semaphore);
 void amdgpu_semaphore_free(struct amdgpu_device *adev,
 			   struct amdgpu_semaphore **semaphore,
-			   struct amdgpu_fence *fence);
+			   struct fence *fence);
 
 /*
  * Synchronization
@@ -717,7 +717,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		      struct amdgpu_ring *ring);
 void amdgpu_sync_free(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-		      struct amdgpu_fence *fence);
+		      struct fence *fence);
 
 /*
  * GART structures, functions & helpers
