@@ -84,9 +84,9 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	} else {
 		Message *pstrTailMsg = pHandle->pstrMessageList;
 
-		while (pstrTailMsg->pstrNext != NULL) {
+		while (pstrTailMsg->pstrNext != NULL)
 			pstrTailMsg = pstrTailMsg->pstrNext;
-		}
+
 		pstrTailMsg->pstrNext = pstrMessage;
 	}
 
@@ -98,9 +98,9 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	{
 		/* error occured, free any allocations */
 		if (pstrMessage != NULL) {
-			if (pstrMessage->pvBuffer != NULL) {
+			if (pstrMessage->pvBuffer != NULL)
 				kfree(pstrMessage->pvBuffer);
-			}
+
 			kfree(pstrMessage);
 		}
 	}
