@@ -27,7 +27,7 @@
  *  @date		30 Aug 2010
  *  @version		1.0
  */
-int WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle);
+int wilc_mq_create(WILC_MsgQueueHandle *pHandle);
 
 /*!
  *  @brief		Sends a message

@@ -6532,7 +6532,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	PRINT_D(HOSTINF_DBG, "INIT: CLIENT COUNT %d\n", clients_count);
 
 	if (clients_count == 0)	{
-		s32Error = WILC_MsgQueueCreate(&gMsgQHostIF);
+		s32Error = wilc_mq_create(&gMsgQHostIF);
 
 		if (s32Error < 0) {
 			PRINT_ER("Failed to creat MQ\n");
