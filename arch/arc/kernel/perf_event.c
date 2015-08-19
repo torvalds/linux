@@ -199,8 +199,8 @@ static void arc_pmu_start(struct perf_event *event, int flags)
 	event->hw.state = 0;
 
 	/* enable ARC pmu here */
-	write_aux_reg(ARC_REG_PCT_INDEX, idx);
-	write_aux_reg(ARC_REG_PCT_CONFIG, hwc->config);
+	write_aux_reg(ARC_REG_PCT_INDEX, idx);		/* counter # */
+	write_aux_reg(ARC_REG_PCT_CONFIG, hwc->config);	/* condition */
 }
 
 static void arc_pmu_stop(struct perf_event *event, int flags)
