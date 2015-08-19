@@ -371,8 +371,10 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
 				       DMA_TO_DEVICE);
 	res = dma_mapping_error(dev, skb_cb->paddr);
-	if (res)
+	if (res) {
+		res = -EIO;
 		goto err_free_txdesc;
+	}
 
 	skb_put(txdesc, len);
 	cmd = (struct htt_cmd *)txdesc->data;
@@ -463,8 +465,10 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
 				       DMA_TO_DEVICE);
 	res = dma_mapping_error(dev, skb_cb->paddr);
-	if (res)
+	if (res) {
+		res = -EIO;
 		goto err_free_txbuf;
+	}
 
 	if (likely(use_frags)) {
 		frags = skb_cb->htt.txbuf->frags;
