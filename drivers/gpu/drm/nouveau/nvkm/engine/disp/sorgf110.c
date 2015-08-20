@@ -39,8 +39,7 @@ gf110_sor_loff(struct nvkm_output_dp *outp)
 static int
 gf110_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	const u32 loff = gf110_sor_loff(outp);
 	nvkm_mask(device, 0x61c110 + loff, 0x0f0f0f0f, 0x01010101 * pattern);
 	return 0;
@@ -49,8 +48,7 @@ gf110_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 int
 gf110_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
-	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	const u32 soff = gf110_sor_soff(outp);
 	const u32 loff = gf110_sor_loff(outp);
 	u32 dpctrl = 0x00000000;
@@ -70,10 +68,9 @@ static int
 gf110_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 		     int ln, int vs, int pe, int pc)
 {
-	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	struct nvkm_bios *bios = device->bios;
-	const u32 shift = g94_sor_dp_lane_map(disp, ln);
+	const u32 shift = g94_sor_dp_lane_map(device, ln);
 	const u32 loff = gf110_sor_loff(outp);
 	u32 addr, data[4];
 	u8  ver, hdr, cnt, len;
@@ -104,17 +101,17 @@ gf110_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 	return 0;
 }
 
-struct nvkm_output_dp_impl
-gf110_sor_dp_impl = {
-	.base.base.handle = DCB_OUTPUT_DP,
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_output_dp_ctor,
-		.dtor = _nvkm_output_dp_dtor,
-		.init = _nvkm_output_dp_init,
-		.fini = _nvkm_output_dp_fini,
-	},
+static const struct nvkm_output_dp_func
+gf110_sor_dp_func = {
 	.pattern = gf110_sor_dp_pattern,
 	.lnk_pwr = g94_sor_dp_lnk_pwr,
 	.lnk_ctl = gf110_sor_dp_lnk_ctl,
 	.drv_ctl = gf110_sor_dp_drv_ctl,
 };
+
+int
+gf110_sor_dp_new(struct nvkm_disp *disp, int index,
+		 struct dcb_output *dcbE, struct nvkm_output **poutp)
+{
+	return nvkm_output_dp_new_(&gf110_sor_dp_func, disp, index, dcbE, poutp);
+}

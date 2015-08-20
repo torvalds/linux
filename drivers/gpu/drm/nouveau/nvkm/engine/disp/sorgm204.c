@@ -41,8 +41,7 @@ gm204_sor_loff(struct nvkm_output_dp *outp)
 void
 gm204_sor_magic(struct nvkm_output *outp)
 {
-	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = outp->disp->engine.subdev.device;
 	const u32 soff = outp->or * 0x100;
 	const u32 data = outp->or + 1;
 	if (outp->info.sorconf.link & 1)
@@ -52,7 +51,7 @@ gm204_sor_magic(struct nvkm_output *outp)
 }
 
 static inline u32
-gm204_sor_dp_lane_map(struct nv50_disp *disp, u8 lane)
+gm204_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
 {
 	return lane * 0x08;
 }
@@ -60,8 +59,7 @@ gm204_sor_dp_lane_map(struct nv50_disp *disp, u8 lane)
 static int
 gm204_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	const u32 soff = gm204_sor_soff(outp);
 	const u32 data = 0x01010101 * pattern;
 	if (outp->base.info.sorconf.link & 1)
@@ -74,14 +72,13 @@ gm204_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 static int
 gm204_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 {
-	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	const u32 soff = gm204_sor_soff(outp);
 	const u32 loff = gm204_sor_loff(outp);
 	u32 mask = 0, i;
 
 	for (i = 0; i < nr; i++)
-		mask |= 1 << (gm204_sor_dp_lane_map(disp, i) >> 3);
+		mask |= 1 << (gm204_sor_dp_lane_map(device, i) >> 3);
 
 	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
 	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
@@ -96,10 +93,9 @@ static int
 gm204_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 		     int ln, int vs, int pe, int pc)
 {
-	struct nv50_disp *disp = (void *)nvkm_disp(outp);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	struct nvkm_bios *bios = device->bios;
-	const u32 shift = gm204_sor_dp_lane_map(disp, ln);
+	const u32 shift = gm204_sor_dp_lane_map(device, ln);
 	const u32 loff = gm204_sor_loff(outp);
 	u32 addr, data[4];
 	u8  ver, hdr, cnt, len;
@@ -131,17 +127,17 @@ gm204_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 	return 0;
 }
 
-struct nvkm_output_dp_impl
-gm204_sor_dp_impl = {
-	.base.base.handle = DCB_OUTPUT_DP,
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_output_dp_ctor,
-		.dtor = _nvkm_output_dp_dtor,
-		.init = _nvkm_output_dp_init,
-		.fini = _nvkm_output_dp_fini,
-	},
+static const struct nvkm_output_dp_func
+gm204_sor_dp_func = {
 	.pattern = gm204_sor_dp_pattern,
 	.lnk_pwr = gm204_sor_dp_lnk_pwr,
 	.lnk_ctl = gf110_sor_dp_lnk_ctl,
 	.drv_ctl = gm204_sor_dp_drv_ctl,
 };
+
+int
+gm204_sor_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
+		 struct nvkm_output **poutp)
+{
+	return nvkm_output_dp_new_(&gm204_sor_dp_func, disp, index, dcbE, poutp);
+}

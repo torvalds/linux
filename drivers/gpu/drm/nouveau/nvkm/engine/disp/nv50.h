@@ -214,7 +214,7 @@ extern struct nvkm_output_dp_impl nv50_pior_dp_impl;
 extern struct nvkm_oclass *nv50_disp_outp_sclass[];
 
 extern struct nvkm_output_dp_impl g94_sor_dp_impl;
-u32 g94_sor_dp_lane_map(struct nv50_disp *, u8 lane);
+u32 g94_sor_dp_lane_map(struct nvkm_device *, u8 lane);
 int g94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
 extern struct nvkm_oclass *g94_disp_outp_sclass[];
 

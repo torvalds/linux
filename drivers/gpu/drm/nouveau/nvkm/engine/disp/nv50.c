@@ -1109,7 +1109,7 @@ nv50_disp_main_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 		break;
 	case NV50_DISP_MTHD_V1_SOR_DP_PWR: {
-		struct nvkm_output_dp *outpdp = (void *)outp;
+		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
 		union {
 			struct nv50_disp_sor_dp_pwr_v0 v0;
 		} *args = data;
@@ -1119,8 +1119,7 @@ nv50_disp_main_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 				   args->v0.version, args->v0.state);
 			if (args->v0.state == 0) {
 				nvkm_notify_put(&outpdp->irq);
-				((struct nvkm_output_dp_impl *)nv_oclass(outp))
-					->lnk_pwr(outpdp, 0);
+				outpdp->func->lnk_pwr(outpdp, 0);
 				atomic_set(&outpdp->lt.done, 0);
 				return 0;
 			} else
@@ -1655,7 +1654,7 @@ nv50_disp_intr_unk20_0(struct nv50_disp *disp, int head)
 	 * in a blank screen (SOR_PWR off/on can restore it)
 	 */
 	if (outp && outp->info.type == DCB_OUTPUT_DP) {
-		struct nvkm_output_dp *outpdp = (void *)outp;
+		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
 		struct nvbios_init init = {
 			.subdev = nv_subdev(disp),
 			.bios = nvkm_bios(disp),
@@ -1855,7 +1854,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp *disp, int head)
 		}
 
 		if (nvkm_output_dp_train(outp, datarate / soff, true))
-			ERR("link not trained before attach\n");
+			OUTP_ERR(outp, "link not trained before attach");
 	}
 
 	exec_clkcmp(disp, head, 0, pclk, &conf);
@@ -2048,12 +2047,6 @@ nv50_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 }
 
 struct nvkm_oclass *
-nv50_disp_outp_sclass[] = {
-	&nv50_pior_dp_impl.base.base,
-	NULL
-};
-
-struct nvkm_oclass *
 nv50_disp_oclass = &(struct nv50_disp_impl) {
 	.base.base.handle = NV_ENGINE(DISP, 0x50),
 	.base.base.ofuncs = &(struct nvkm_ofuncs) {
@@ -2062,8 +2055,12 @@ nv50_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nvkm_disp_init,
 		.fini = _nvkm_disp_fini,
 	},
+	.base.outp.internal.crt = nv50_dac_output_new,
+	.base.outp.internal.tmds = nv50_sor_output_new,
+	.base.outp.internal.lvds = nv50_sor_output_new,
+	.base.outp.external.tmds = nv50_pior_output_new,
+	.base.outp.external.dp = nv50_pior_dp_new,
 	.base.vblank = &nv50_disp_vblank_func,
-	.base.outp =  nv50_disp_outp_sclass,
 	.mthd.core = &nv50_disp_core_mthd_chan,
 	.mthd.base = &nv50_disp_base_mthd_chan,
 	.mthd.ovly = &nv50_disp_ovly_mthd_chan,

@@ -7,6 +7,7 @@ struct nvkm_disp {
 	struct nvkm_engine engine;
 
 	struct list_head outp;
+	struct list_head conn;
 
 	struct nvkm_event hpd;
 	struct nvkm_event vblank;

@@ -1,11 +1,28 @@
 #ifndef __NVKM_DISP_PRIV_H__
 #define __NVKM_DISP_PRIV_H__
 #include <engine/disp.h>
+#include "outp.h"
+#include "outpdp.h"
+
+struct nvkm_disp_func_outp {
+	int (* crt)(struct nvkm_disp *, int index, struct dcb_output *,
+		    struct nvkm_output **);
+	int (*  tv)(struct nvkm_disp *, int index, struct dcb_output *,
+		    struct nvkm_output **);
+	int (*tmds)(struct nvkm_disp *, int index, struct dcb_output *,
+		    struct nvkm_output **);
+	int (*lvds)(struct nvkm_disp *, int index, struct dcb_output *,
+		    struct nvkm_output **);
+	int (*  dp)(struct nvkm_disp *, int index, struct dcb_output *,
+		    struct nvkm_output **);
+};
 
 struct nvkm_disp_impl {
 	struct nvkm_oclass base;
-	struct nvkm_oclass **outp;
-	struct nvkm_oclass **conn;
+	struct {
+		const struct nvkm_disp_func_outp internal;
+		const struct nvkm_disp_func_outp external;
+	} outp;
 	const struct nvkm_event_func *vblank;
 };
 

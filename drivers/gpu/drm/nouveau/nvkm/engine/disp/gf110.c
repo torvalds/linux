@@ -988,7 +988,7 @@ gf110_disp_intr_unk2_0(struct nv50_disp *disp, int head)
 
 	/* see note in nv50_disp_intr_unk20_0() */
 	if (outp && outp->info.type == DCB_OUTPUT_DP) {
-		struct nvkm_output_dp *outpdp = (void *)outp;
+		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
 		struct nvbios_init init = {
 			.subdev = nv_subdev(disp),
 			.bios = nvkm_bios(disp),
@@ -1101,7 +1101,7 @@ gf110_disp_intr_unk2_2(struct nv50_disp *disp, int head)
 		}
 
 		if (nvkm_output_dp_train(outp, pclk, true))
-			ERR("link not trained before attach\n");
+			OUTP_ERR(outp, "link not trained before attach");
 	} else {
 		if (disp->sor.magic)
 			disp->sor.magic(outp);
@@ -1340,12 +1340,6 @@ gf110_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 }
 
 struct nvkm_oclass *
-gf110_disp_outp_sclass[] = {
-	&gf110_sor_dp_impl.base.base,
-	NULL
-};
-
-struct nvkm_oclass *
 gf110_disp_oclass = &(struct nv50_disp_impl) {
 	.base.base.handle = NV_ENGINE(DISP, 0x90),
 	.base.base.ofuncs = &(struct nvkm_ofuncs) {
@@ -1354,8 +1348,11 @@ gf110_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nvkm_disp_init,
 		.fini = _nvkm_disp_fini,
 	},
+	.base.outp.internal.crt = nv50_dac_output_new,
+	.base.outp.internal.tmds = nv50_sor_output_new,
+	.base.outp.internal.lvds = nv50_sor_output_new,
+	.base.outp.internal.dp = gf110_sor_dp_new,
 	.base.vblank = &gf110_disp_vblank_func,
-	.base.outp =  gf110_disp_outp_sclass,
 	.mthd.core = &gf110_disp_core_mthd_chan,
 	.mthd.base = &gf110_disp_base_mthd_chan,
 	.mthd.ovly = &gf110_disp_ovly_mthd_chan,

@@ -118,29 +118,25 @@ int
 _nvkm_disp_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_disp *disp = (void *)object;
+	struct nvkm_connector *conn;
 	struct nvkm_output *outp;
-	int ret;
 
 	list_for_each_entry(outp, &disp->outp, head) {
-		ret = nv_ofuncs(outp)->fini(nv_object(outp), suspend);
-		if (ret && suspend)
-			goto fail_outp;
+		nvkm_output_fini(outp);
+	}
+
+	list_for_each_entry(conn, &disp->conn, head) {
+		nvkm_connector_fini(conn);
 	}
 
 	return nvkm_engine_fini(&disp->engine, suspend);
-
-fail_outp:
-	list_for_each_entry_continue_reverse(outp, &disp->outp, head) {
-		nv_ofuncs(outp)->init(nv_object(outp));
-	}
-
-	return ret;
 }
 
 int
 _nvkm_disp_init(struct nvkm_object *object)
 {
 	struct nvkm_disp *disp = (void *)object;
+	struct nvkm_connector *conn;
 	struct nvkm_output *outp;
 	int ret;
 
@@ -148,17 +144,12 @@ _nvkm_disp_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(outp, &disp->outp, head) {
-		ret = nv_ofuncs(outp)->init(nv_object(outp));
-		if (ret)
-			goto fail_outp;
+	list_for_each_entry(conn, &disp->conn, head) {
+		nvkm_connector_init(conn);
 	}
 
-	return ret;
-
-fail_outp:
-	list_for_each_entry_continue_reverse(outp, &disp->outp, head) {
-		nv_ofuncs(outp)->fini(nv_object(outp), false);
+	list_for_each_entry(outp, &disp->outp, head) {
+		nvkm_output_init(outp);
 	}
 
 	return ret;
@@ -168,15 +159,22 @@ void
 _nvkm_disp_dtor(struct nvkm_object *object)
 {
 	struct nvkm_disp *disp = (void *)object;
-	struct nvkm_output *outp, *outt;
+	struct nvkm_connector *conn;
+	struct nvkm_output *outp;
 
 	nvkm_event_fini(&disp->vblank);
 	nvkm_event_fini(&disp->hpd);
 
-	if (disp->outp.next) {
-		list_for_each_entry_safe(outp, outt, &disp->outp, head) {
-			nvkm_object_ref(NULL, (struct nvkm_object **)&outp);
-		}
+	while (!list_empty(&disp->outp)) {
+		outp = list_first_entry(&disp->outp, typeof(*outp), head);
+		list_del(&outp->head);
+		nvkm_output_del(&outp);
+	}
+
+	while (!list_empty(&disp->conn)) {
+		conn = list_first_entry(&disp->conn, typeof(*conn), head);
+		list_del(&conn->head);
+		nvkm_connector_del(&conn);
 	}
 
 	nvkm_engine_destroy(&disp->engine);
@@ -188,10 +186,12 @@ nvkm_disp_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  const char *extname, int length, void **pobject)
 {
 	struct nvkm_disp_impl *impl = (void *)oclass;
-	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_device *device = (void *)parent;
+	struct nvkm_bios *bios = device->bios;
 	struct nvkm_disp *disp;
-	struct nvkm_oclass **sclass;
-	struct nvkm_object *object;
+	struct nvkm_connector *conn;
+	struct nvkm_output *outp, *outt, *pair;
+	struct nvbios_connE connE;
 	struct dcb_output dcbE;
 	u8  hpd = 0, ver, hdr;
 	u32 data;
@@ -204,28 +204,122 @@ nvkm_disp_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	INIT_LIST_HEAD(&disp->outp);
+	INIT_LIST_HEAD(&disp->conn);
 
 	/* create output objects for each display path in the vbios */
 	i = -1;
 	while ((data = dcb_outp_parse(bios, ++i, &ver, &hdr, &dcbE))) {
+		const struct nvkm_disp_func_outp *outps;
+		int (*ctor)(struct nvkm_disp *, int, struct dcb_output *,
+			    struct nvkm_output **);
+
 		if (dcbE.type == DCB_OUTPUT_UNUSED)
 			continue;
 		if (dcbE.type == DCB_OUTPUT_EOL)
 			break;
-		data = dcbE.location << 4 | dcbE.type;
+		outp = NULL;
 
-		oclass = nvkm_output_oclass;
-		sclass = impl->outp;
-		while (sclass && sclass[0]) {
-			if (sclass[0]->handle == data) {
-				oclass = sclass[0];
-				break;
-			}
-			sclass++;
+		switch (dcbE.location) {
+		case 0: outps = &impl->outp.internal; break;
+		case 1: outps = &impl->outp.external; break;
+		default:
+			nvkm_warn(&disp->engine.subdev,
+				  "dcb %d locn %d unknown\n", i, dcbE.location);
+			continue;
 		}
 
-		nvkm_object_ctor(*pobject, NULL, oclass, &dcbE, i, &object);
+		switch (dcbE.type) {
+		case DCB_OUTPUT_ANALOG: ctor = outps->crt ; break;
+		case DCB_OUTPUT_TV    : ctor = outps->tv  ; break;
+		case DCB_OUTPUT_TMDS  : ctor = outps->tmds; break;
+		case DCB_OUTPUT_LVDS  : ctor = outps->lvds; break;
+		case DCB_OUTPUT_DP    : ctor = outps->dp  ; break;
+		default:
+			nvkm_warn(&disp->engine.subdev,
+				  "dcb %d type %d unknown\n", i, dcbE.type);
+			continue;
+		}
+
+		if (ctor)
+			ret = ctor(disp, i, &dcbE, &outp);
+		else
+			ret = -ENODEV;
+
+		if (ret) {
+			if (ret == -ENODEV) {
+				nvkm_debug(&disp->engine.subdev,
+					   "dcb %d %d/%d not supported\n",
+					   i, dcbE.location, dcbE.type);
+				continue;
+			}
+			nvkm_error(&disp->engine.subdev,
+				   "failed to create output %d\n", i);
+			nvkm_output_del(&outp);
+			continue;
+		}
+
+		list_add_tail(&outp->head, &disp->outp);
 		hpd = max(hpd, (u8)(dcbE.connector + 1));
+	}
+
+	/* create connector objects based on the outputs we support */
+	list_for_each_entry_safe(outp, outt, &disp->outp, head) {
+		/* bios data *should* give us the most useful information */
+		data = nvbios_connEp(bios, outp->info.connector, &ver, &hdr,
+				     &connE);
+
+		/* no bios connector data... */
+		if (!data) {
+			/* heuristic: anything with the same ccb index is
+			 * considered to be on the same connector, any
+			 * output path without an associated ccb entry will
+			 * be put on its own connector
+			 */
+			int ccb_index = outp->info.i2c_index;
+			if (ccb_index != 0xf) {
+				list_for_each_entry(pair, &disp->outp, head) {
+					if (pair->info.i2c_index == ccb_index) {
+						outp->conn = pair->conn;
+						break;
+					}
+				}
+			}
+
+			/* connector shared with another output path */
+			if (outp->conn)
+				continue;
+
+			memset(&connE, 0x00, sizeof(connE));
+			connE.type = DCB_CONNECTOR_NONE;
+			i = -1;
+		} else {
+			i = outp->info.connector;
+		}
+
+		/* check that we haven't already created this connector */
+		list_for_each_entry(conn, &disp->conn, head) {
+			if (conn->index == outp->info.connector) {
+				outp->conn = conn;
+				break;
+			}
+		}
+
+		if (outp->conn)
+			continue;
+
+		/* apparently we need to create a new one! */
+		ret = nvkm_connector_new(disp, i, &connE, &outp->conn);
+		if (ret) {
+			nvkm_error(&disp->engine.subdev,
+				   "failed to create output %d conn: %d\n",
+				   outp->index, ret);
+			nvkm_connector_del(&outp->conn);
+			list_del(&outp->head);
+			nvkm_output_del(&outp);
+			continue;
+		}
+
+		list_add_tail(&outp->conn->head, &disp->conn);
 	}
 
 	ret = nvkm_event_init(&nvkm_disp_hpd_func, 3, hpd, &disp->hpd);
