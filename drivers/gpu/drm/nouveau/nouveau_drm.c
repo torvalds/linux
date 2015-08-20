@@ -327,7 +327,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	ret = nvkm_device_new(pdev, NVKM_BUS_PCI, nouveau_pci_name(pdev),
 			      pci_name(pdev), nouveau_config, nouveau_debug,
-			      &device);
+			      true, true, ~0ULL, &device);
 	if (ret)
 		return ret;
 
@@ -375,7 +375,6 @@ nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 static int
 nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 {
-	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_drm *drm;
 	int ret;
 
@@ -393,36 +392,10 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	nouveau_get_hdmi_dev(drm);
 
-	/* make sure AGP controller is in a consistent state before we
-	 * (possibly) execute vbios init tables (see nouveau_agp.h)
-	 */
-	if (pdev && drm_pci_device_is_agp(dev) && dev->agp) {
-		const u64 enables = NV_DEVICE_V0_DISABLE_IDENTIFY |
-				    NV_DEVICE_V0_DISABLE_MMIO;
-		/* dummy device object, doesn't init anything, but allows
-		 * agp code access to registers
-		 */
-		ret = nvif_device_init(&drm->client.base.base, NULL,
-				       NVDRM_DEVICE, NV_DEVICE,
-				       &(struct nv_device_v0) {
-						.device = ~0,
-						.disable = ~enables,
-						.debug0 = ~0,
-				       }, sizeof(struct nv_device_v0),
-				       &drm->device);
-		if (ret)
-			goto fail_device;
-
-		nouveau_agp_reset(drm);
-		nvif_device_fini(&drm->device);
-	}
-
 	ret = nvif_device_init(&drm->client.base.base, NULL, NVDRM_DEVICE,
 			       NV_DEVICE,
 			       &(struct nv_device_v0) {
 					.device = ~0,
-					.disable = 0,
-					.debug0 = 0,
 			       }, sizeof(struct nv_device_v0),
 			       &drm->device);
 	if (ret)
@@ -1065,7 +1038,8 @@ nouveau_platform_device_create(struct platform_device *pdev,
 	err = nvkm_device_new(pdev, NVKM_BUS_PLATFORM,
 			      nouveau_platform_name(pdev),
 			      dev_name(&pdev->dev), nouveau_config,
-			      nouveau_debug, pdevice);
+			      nouveau_debug, true, true, ~0ULL,
+			      pdevice);
 	if (err)
 		goto err_free;
 

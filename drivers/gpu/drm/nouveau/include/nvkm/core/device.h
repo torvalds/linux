@@ -212,6 +212,7 @@ enum nv_bus_type {
 
 int  nvkm_device_new(void *, enum nv_bus_type type, u64 name,
 		     const char *sname, const char *cfg, const char *dbg,
+		     bool detect, bool mmio, u64 subdev_mask,
 		     struct nvkm_device **);
 void nvkm_device_del(struct nvkm_device **);
 

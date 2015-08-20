@@ -73,7 +73,6 @@ nvkm_device_list(u64 *name, int size)
 
 struct nvkm_devobj {
 	struct nvkm_parent base;
-	struct nvkm_object *subdev[NVDEV_SUBDEV_NR];
 };
 
 static int
@@ -206,65 +205,11 @@ nvkm_devobj_map(struct nvkm_object *object, u64 *addr, u32 *size)
 	return 0;
 }
 
-static const u64 disable_map[] = {
-	[NVDEV_SUBDEV_VBIOS]	= NV_DEVICE_V0_DISABLE_VBIOS,
-	[NVDEV_SUBDEV_DEVINIT]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_GPIO]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_I2C]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_CLK  ]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_MXM]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_MC]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_BUS]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_TIMER]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_FB]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_LTC]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_IBUS]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_INSTMEM]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_MMU]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_BAR]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_VOLT]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_THERM]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_PMU]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_SUBDEV_FUSE]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_ENGINE_DMAOBJ]	= NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_ENGINE_PM     ]  = NV_DEVICE_V0_DISABLE_CORE,
-	[NVDEV_ENGINE_FIFO]	= NV_DEVICE_V0_DISABLE_FIFO,
-	[NVDEV_ENGINE_SW]	= NV_DEVICE_V0_DISABLE_FIFO,
-	[NVDEV_ENGINE_GR]	= NV_DEVICE_V0_DISABLE_GR,
-	[NVDEV_ENGINE_MPEG]	= NV_DEVICE_V0_DISABLE_MPEG,
-	[NVDEV_ENGINE_ME]	= NV_DEVICE_V0_DISABLE_ME,
-	[NVDEV_ENGINE_VP]	= NV_DEVICE_V0_DISABLE_VP,
-	[NVDEV_ENGINE_CIPHER]	= NV_DEVICE_V0_DISABLE_CIPHER,
-	[NVDEV_ENGINE_BSP]	= NV_DEVICE_V0_DISABLE_BSP,
-	[NVDEV_ENGINE_MSPPP]	= NV_DEVICE_V0_DISABLE_MSPPP,
-	[NVDEV_ENGINE_CE0]	= NV_DEVICE_V0_DISABLE_CE0,
-	[NVDEV_ENGINE_CE1]	= NV_DEVICE_V0_DISABLE_CE1,
-	[NVDEV_ENGINE_CE2]	= NV_DEVICE_V0_DISABLE_CE2,
-	[NVDEV_ENGINE_VIC]	= NV_DEVICE_V0_DISABLE_VIC,
-	[NVDEV_ENGINE_MSENC]	= NV_DEVICE_V0_DISABLE_MSENC,
-	[NVDEV_ENGINE_DISP]	= NV_DEVICE_V0_DISABLE_DISP,
-	[NVDEV_ENGINE_MSVLD]	= NV_DEVICE_V0_DISABLE_MSVLD,
-	[NVDEV_ENGINE_SEC]	= NV_DEVICE_V0_DISABLE_SEC,
-	[NVDEV_SUBDEV_NR]	= 0,
-};
-
-static void
-nvkm_devobj_dtor(struct nvkm_object *object)
-{
-	struct nvkm_devobj *devobj = (void *)object;
-	int i;
-
-	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--)
-		nvkm_object_ref(NULL, &devobj->subdev[i]);
-
-	nvkm_parent_destroy(&devobj->base);
-}
-
 static struct nvkm_oclass
 nvkm_devobj_oclass_super = {
 	.handle = NV_DEVICE,
 	.ofuncs = &(struct nvkm_ofuncs) {
-		.dtor = nvkm_devobj_dtor,
+		.dtor = _nvkm_parent_dtor,
 		.init = _nvkm_parent_init,
 		.fini = _nvkm_parent_fini,
 		.mthd = nvkm_devobj_mthd,
@@ -289,17 +234,12 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_client *client = nv_client(parent);
 	struct nvkm_device *device;
 	struct nvkm_devobj *devobj;
-	u32 boot0, strap;
-	u64 disable, mmio_base, mmio_size;
-	void __iomem *map;
-	int ret, i, c;
+	int ret;
 
 	nvif_ioctl(parent, "create device size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nvif_ioctl(parent, "create device v%d device %016llx "
-				   "disable %016llx debug0 %016llx\n",
-			   args->v0.version, args->v0.device,
-			   args->v0.disable, args->v0.debug0);
+		nvif_ioctl(parent, "create device v%d device %016llx\n",
+			   args->v0.version, args->v0.device);
 	} else
 		return ret;
 
@@ -325,226 +265,13 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	mmio_base = nv_device_resource_start(device, 0);
-	mmio_size = nv_device_resource_len(device, 0);
-
-	/* translate api disable mask into internal mapping */
-	disable = args->v0.debug0;
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
-		if (args->v0.disable & disable_map[i])
-			disable |= (1ULL << i);
-	}
-
-	/* identify the chipset, and determine classes of subdev/engines */
-	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_IDENTIFY) &&
-	    !device->card_type) {
-		map = ioremap(mmio_base, 0x102000);
-		if (map == NULL)
-			return -ENOMEM;
-
-		/* switch mmio to cpu's native endianness */
-#ifndef __BIG_ENDIAN
-		if (ioread32_native(map + 0x000004) != 0x00000000) {
-#else
-		if (ioread32_native(map + 0x000004) == 0x00000000) {
-#endif
-			iowrite32_native(0x01000001, map + 0x000004);
-			ioread32_native(map);
-		}
-
-		/* read boot0 and strapping information */
-		boot0 = ioread32_native(map + 0x000000);
-		strap = ioread32_native(map + 0x101000);
-		iounmap(map);
-
-		/* determine chipset and derive architecture from it */
-		if ((boot0 & 0x1f000000) > 0) {
-			device->chipset = (boot0 & 0x1ff00000) >> 20;
-			device->chiprev = (boot0 & 0x000000ff);
-			switch (device->chipset & 0x1f0) {
-			case 0x010: {
-				if (0x461 & (1 << (device->chipset & 0xf)))
-					device->card_type = NV_10;
-				else
-					device->card_type = NV_11;
-				device->chiprev = 0x00;
-				break;
-			}
-			case 0x020: device->card_type = NV_20; break;
-			case 0x030: device->card_type = NV_30; break;
-			case 0x040:
-			case 0x060: device->card_type = NV_40; break;
-			case 0x050:
-			case 0x080:
-			case 0x090:
-			case 0x0a0: device->card_type = NV_50; break;
-			case 0x0c0:
-			case 0x0d0: device->card_type = NV_C0; break;
-			case 0x0e0:
-			case 0x0f0:
-			case 0x100: device->card_type = NV_E0; break;
-			case 0x110:
-			case 0x120: device->card_type = GM100; break;
-			default:
-				break;
-			}
-		} else
-		if ((boot0 & 0xff00fff0) == 0x20004000) {
-			if (boot0 & 0x00f00000)
-				device->chipset = 0x05;
-			else
-				device->chipset = 0x04;
-			device->card_type = NV_04;
-		}
-
-		switch (device->card_type) {
-		case NV_04: ret = nv04_identify(device); break;
-		case NV_10:
-		case NV_11: ret = nv10_identify(device); break;
-		case NV_20: ret = nv20_identify(device); break;
-		case NV_30: ret = nv30_identify(device); break;
-		case NV_40: ret = nv40_identify(device); break;
-		case NV_50: ret = nv50_identify(device); break;
-		case NV_C0: ret = gf100_identify(device); break;
-		case NV_E0: ret = gk104_identify(device); break;
-		case GM100: ret = gm100_identify(device); break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-
-		if (ret) {
-			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
-			return ret;
-		}
-
-		nvdev_info(device, "NVIDIA %s (%08x)\n", device->cname, boot0);
-
-		/* determine frequency of timing crystal */
-		if ( device->card_type <= NV_10 || device->chipset < 0x17 ||
-		    (device->chipset >= 0x20 && device->chipset < 0x25))
-			strap &= 0x00000040;
-		else
-			strap &= 0x00400040;
-
-		switch (strap) {
-		case 0x00000000: device->crystal = 13500; break;
-		case 0x00000040: device->crystal = 14318; break;
-		case 0x00400000: device->crystal = 27000; break;
-		case 0x00400040: device->crystal = 25000; break;
-		}
-	} else
-	if ( (args->v0.disable & NV_DEVICE_V0_DISABLE_IDENTIFY)) {
-		device->cname = "NULL";
-		device->oclass[NVDEV_SUBDEV_VBIOS] = &nvkm_bios_oclass;
-	}
-
-	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) && !device->pri) {
-		device->pri = ioremap(mmio_base, mmio_size);
-		if (!device->pri) {
-			nvdev_error(device, "unable to map PRI\n");
-			return -ENOMEM;
-		}
-	}
-
-	/* ensure requested subsystems are available for use */
-	for (i = 1, c = 1; i < NVDEV_SUBDEV_NR; i++) {
-		if (!(oclass = device->oclass[i]) || (disable & (1ULL << i)))
-			continue;
-
-		if (device->subdev[i]) {
-			nvkm_object_ref(device->subdev[i], &devobj->subdev[i]);
-			continue;
-		}
-
-#define _(s,m) case s:                                                         \
-		ret = nvkm_object_ctor(nv_object(device), NULL, oclass, NULL,  \
-				       (s), (struct nvkm_object **)&device->m);\
-		if (ret == -ENODEV)                                            \
-			continue;                                              \
-		if (ret)                                                       \
-			return ret;                                            \
-		devobj->subdev[s] = (struct nvkm_object *)device->m;           \
-		device->subdev[s] = devobj->subdev[s];                         \
-		break
-
-		switch (i) {
-		_(NVDEV_SUBDEV_BAR    ,     bar);
-		_(NVDEV_SUBDEV_VBIOS  ,    bios);
-		_(NVDEV_SUBDEV_BUS    ,     bus);
-		_(NVDEV_SUBDEV_CLK    ,     clk);
-		_(NVDEV_SUBDEV_DEVINIT, devinit);
-		_(NVDEV_SUBDEV_FB     ,      fb);
-		_(NVDEV_SUBDEV_FUSE   ,    fuse);
-		_(NVDEV_SUBDEV_GPIO   ,    gpio);
-		_(NVDEV_SUBDEV_I2C    ,     i2c);
-		_(NVDEV_SUBDEV_IBUS   ,    ibus);
-		_(NVDEV_SUBDEV_INSTMEM,    imem);
-		_(NVDEV_SUBDEV_LTC    ,     ltc);
-		_(NVDEV_SUBDEV_MC     ,      mc);
-		_(NVDEV_SUBDEV_MMU    ,     mmu);
-		_(NVDEV_SUBDEV_MXM    ,     mxm);
-		_(NVDEV_SUBDEV_PMU    ,     pmu);
-		_(NVDEV_SUBDEV_THERM  ,   therm);
-		_(NVDEV_SUBDEV_TIMER  ,   timer);
-		_(NVDEV_SUBDEV_VOLT   ,    volt);
-		_(NVDEV_ENGINE_BSP    ,     bsp);
-		_(NVDEV_ENGINE_CE0    ,   ce[0]);
-		_(NVDEV_ENGINE_CE1    ,   ce[1]);
-		_(NVDEV_ENGINE_CE2    ,   ce[2]);
-		_(NVDEV_ENGINE_CIPHER ,  cipher);
-		_(NVDEV_ENGINE_DISP   ,    disp);
-		_(NVDEV_ENGINE_DMAOBJ ,     dma);
-		_(NVDEV_ENGINE_FIFO   ,    fifo);
-		_(NVDEV_ENGINE_GR     ,      gr);
-		_(NVDEV_ENGINE_IFB    ,     ifb);
-		_(NVDEV_ENGINE_ME     ,      me);
-		_(NVDEV_ENGINE_MPEG   ,    mpeg);
-		_(NVDEV_ENGINE_MSENC  ,   msenc);
-		_(NVDEV_ENGINE_MSPDEC ,  mspdec);
-		_(NVDEV_ENGINE_MSPPP  ,   msppp);
-		_(NVDEV_ENGINE_MSVLD  ,   msvld);
-		_(NVDEV_ENGINE_PM     ,      pm);
-		_(NVDEV_ENGINE_SEC    ,     sec);
-		_(NVDEV_ENGINE_SW     ,      sw);
-		_(NVDEV_ENGINE_VIC    ,     vic);
-		_(NVDEV_ENGINE_VP     ,      vp);
-		default:
-			WARN_ON(1);
-			continue;
-		}
-#undef _
-
-		/* note: can't init *any* subdevs until devinit has been run
-		 * due to not knowing exactly what the vbios init tables will
-		 * mess with.  devinit also can't be run until all of its
-		 * dependencies have been created.
-		 *
-		 * this code delays init of any subdev until all of devinit's
-		 * dependencies have been created, and then initialises each
-		 * subdev in turn as they're created.
-		 */
-		while (i >= NVDEV_SUBDEV_DEVINIT_LAST && c <= i) {
-			struct nvkm_object *subdev = devobj->subdev[c++];
-			if (subdev && !nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nvkm_object_inc(subdev);
-				if (ret)
-					return ret;
-				atomic_dec(&nv_object(device)->usecount);
-			} else
-			if (subdev) {
-				nvkm_subdev_reset(subdev);
-			}
-		}
-	}
-
 	return 0;
 }
 
 static struct nvkm_ofuncs
 nvkm_devobj_ofuncs = {
 	.ctor = nvkm_devobj_ctor,
-	.dtor = nvkm_devobj_dtor,
+	.dtor = _nvkm_parent_dtor,
 	.init = _nvkm_parent_init,
 	.fini = _nvkm_parent_fini,
 	.mthd = nvkm_devobj_mthd,
@@ -634,19 +361,89 @@ nvkm_device_init(struct nvkm_object *object)
 {
 	struct nvkm_device *device = (void *)object;
 	struct nvkm_object *subdev;
-	int ret, i = 0;
+	int ret, i = 0, c;
 
 	ret = nvkm_acpi_init(device);
 	if (ret)
 		goto fail;
 
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
-		if ((subdev = device->subdev[i])) {
-			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
+	for (i = 1, c = 1; i < NVDEV_SUBDEV_NR; i++) {
+#define _(s,m) case s: if (device->oclass[s] && !device->subdev[s]) {          \
+		ret = nvkm_object_ctor(nv_object(device), NULL,                \
+				       device->oclass[s], NULL,  (s),          \
+				       (struct nvkm_object **)&device->m);     \
+		if (ret == -ENODEV) {                                          \
+			device->oclass[s] = NULL;                              \
+			continue;                                              \
+		}                                                              \
+		if (ret)                                                       \
+			goto fail;                                             \
+		device->subdev[s] = (struct nvkm_object *)device->m;           \
+} break
+		switch (i) {
+		_(NVDEV_SUBDEV_BAR    ,     bar);
+		_(NVDEV_SUBDEV_VBIOS  ,    bios);
+		_(NVDEV_SUBDEV_BUS    ,     bus);
+		_(NVDEV_SUBDEV_CLK    ,     clk);
+		_(NVDEV_SUBDEV_DEVINIT, devinit);
+		_(NVDEV_SUBDEV_FB     ,      fb);
+		_(NVDEV_SUBDEV_FUSE   ,    fuse);
+		_(NVDEV_SUBDEV_GPIO   ,    gpio);
+		_(NVDEV_SUBDEV_I2C    ,     i2c);
+		_(NVDEV_SUBDEV_IBUS   ,    ibus);
+		_(NVDEV_SUBDEV_INSTMEM,    imem);
+		_(NVDEV_SUBDEV_LTC    ,     ltc);
+		_(NVDEV_SUBDEV_MC     ,      mc);
+		_(NVDEV_SUBDEV_MMU    ,     mmu);
+		_(NVDEV_SUBDEV_MXM    ,     mxm);
+		_(NVDEV_SUBDEV_PMU    ,     pmu);
+		_(NVDEV_SUBDEV_THERM  ,   therm);
+		_(NVDEV_SUBDEV_TIMER  ,   timer);
+		_(NVDEV_SUBDEV_VOLT   ,    volt);
+		_(NVDEV_ENGINE_BSP    ,     bsp);
+		_(NVDEV_ENGINE_CE0    ,   ce[0]);
+		_(NVDEV_ENGINE_CE1    ,   ce[1]);
+		_(NVDEV_ENGINE_CE2    ,   ce[2]);
+		_(NVDEV_ENGINE_CIPHER ,  cipher);
+		_(NVDEV_ENGINE_DISP   ,    disp);
+		_(NVDEV_ENGINE_DMAOBJ ,     dma);
+		_(NVDEV_ENGINE_FIFO   ,    fifo);
+		_(NVDEV_ENGINE_GR     ,      gr);
+		_(NVDEV_ENGINE_IFB    ,     ifb);
+		_(NVDEV_ENGINE_ME     ,      me);
+		_(NVDEV_ENGINE_MPEG   ,    mpeg);
+		_(NVDEV_ENGINE_MSENC  ,   msenc);
+		_(NVDEV_ENGINE_MSPDEC ,  mspdec);
+		_(NVDEV_ENGINE_MSPPP  ,   msppp);
+		_(NVDEV_ENGINE_MSVLD  ,   msvld);
+		_(NVDEV_ENGINE_PM     ,      pm);
+		_(NVDEV_ENGINE_SEC    ,     sec);
+		_(NVDEV_ENGINE_SW     ,      sw);
+		_(NVDEV_ENGINE_VIC    ,     vic);
+		_(NVDEV_ENGINE_VP     ,      vp);
+		default:
+			WARN_ON(1);
+			continue;
+		}
+#undef _
+
+		/* note: can't init *any* subdevs until devinit has been run
+		 * due to not knowing exactly what the vbios init tables will
+		 * mess with.  devinit also can't be run until all of its
+		 * dependencies have been created.
+		 *
+		 * this code delays init of any subdev until all of devinit's
+		 * dependencies have been created, and then initialises each
+		 * subdev in turn as they're created.
+		 */
+		while (i >= NVDEV_SUBDEV_DEVINIT_LAST && c <= i) {
+			struct nvkm_object *subdev = device->subdev[c++];
+			if (subdev && !nv_iclass(subdev, NV_ENGINE_CLASS)) {
 				ret = nvkm_object_inc(subdev);
 				if (ret)
 					goto fail;
-			} else {
+			} else
+			if (subdev) {
 				nvkm_subdev_reset(subdev);
 			}
 		}
@@ -720,15 +517,18 @@ void
 nvkm_device_del(struct nvkm_device **pdevice)
 {
 	struct nvkm_device *device = *pdevice;
+	int i;
 	if (device) {
-		nvkm_event_fini(&device->event);
-
 		mutex_lock(&nv_devices_mutex);
-		list_del(&device->head);
-		mutex_unlock(&nv_devices_mutex);
+		for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--)
+			nvkm_object_ref(NULL, &device->subdev[i]);
+
+		nvkm_event_fini(&device->event);
 
 		if (device->pri)
 			iounmap(device->pri);
+		list_del(&device->head);
+		mutex_unlock(&nv_devices_mutex);
 
 		nvkm_engine_destroy(&device->engine);
 		*pdevice = NULL;
@@ -738,10 +538,15 @@ nvkm_device_del(struct nvkm_device **pdevice)
 int
 nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
 		const char *sname, const char *cfg, const char *dbg,
+		bool detect, bool mmio, u64 subdev_mask,
 		struct nvkm_device **pdevice)
 {
 	struct nvkm_device *device;
+	u64 mmio_base, mmio_size;
+	u32 boot0, strap;
+	void __iomem *map;
 	int ret = -EEXIST;
+	int i;
 
 	mutex_lock(&nv_devices_mutex);
 	list_for_each_entry(device, &nv_devices, head) {
@@ -775,6 +580,128 @@ nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
 	list_add_tail(&device->head, &nv_devices);
 
 	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
+	if (ret)
+		goto done;
+
+	mmio_base = nv_device_resource_start(device, 0);
+	mmio_size = nv_device_resource_len(device, 0);
+
+	/* identify the chipset, and determine classes of subdev/engines */
+	if (detect) {
+		map = ioremap(mmio_base, 0x102000);
+		if (ret = -ENOMEM, map == NULL)
+			goto done;
+
+		/* switch mmio to cpu's native endianness */
+#ifndef __BIG_ENDIAN
+		if (ioread32_native(map + 0x000004) != 0x00000000) {
+#else
+		if (ioread32_native(map + 0x000004) == 0x00000000) {
+#endif
+			iowrite32_native(0x01000001, map + 0x000004);
+			ioread32_native(map);
+		}
+
+		/* read boot0 and strapping information */
+		boot0 = ioread32_native(map + 0x000000);
+		strap = ioread32_native(map + 0x101000);
+		iounmap(map);
+
+		/* determine chipset and derive architecture from it */
+		if ((boot0 & 0x1f000000) > 0) {
+			device->chipset = (boot0 & 0x1ff00000) >> 20;
+			device->chiprev = (boot0 & 0x000000ff);
+			switch (device->chipset & 0x1f0) {
+			case 0x010: {
+				if (0x461 & (1 << (device->chipset & 0xf)))
+					device->card_type = NV_10;
+				else
+					device->card_type = NV_11;
+				device->chiprev = 0x00;
+				break;
+			}
+			case 0x020: device->card_type = NV_20; break;
+			case 0x030: device->card_type = NV_30; break;
+			case 0x040:
+			case 0x060: device->card_type = NV_40; break;
+			case 0x050:
+			case 0x080:
+			case 0x090:
+			case 0x0a0: device->card_type = NV_50; break;
+			case 0x0c0:
+			case 0x0d0: device->card_type = NV_C0; break;
+			case 0x0e0:
+			case 0x0f0:
+			case 0x100: device->card_type = NV_E0; break;
+			case 0x110:
+			case 0x120: device->card_type = GM100; break;
+			default:
+				break;
+			}
+		} else
+		if ((boot0 & 0xff00fff0) == 0x20004000) {
+			if (boot0 & 0x00f00000)
+				device->chipset = 0x05;
+			else
+				device->chipset = 0x04;
+			device->card_type = NV_04;
+		}
+
+		switch (device->card_type) {
+		case NV_04: ret = nv04_identify(device); break;
+		case NV_10:
+		case NV_11: ret = nv10_identify(device); break;
+		case NV_20: ret = nv20_identify(device); break;
+		case NV_30: ret = nv30_identify(device); break;
+		case NV_40: ret = nv40_identify(device); break;
+		case NV_50: ret = nv50_identify(device); break;
+		case NV_C0: ret = gf100_identify(device); break;
+		case NV_E0: ret = gk104_identify(device); break;
+		case GM100: ret = gm100_identify(device); break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+
+		if (ret) {
+			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
+			goto done;
+		}
+
+		nvdev_info(device, "NVIDIA %s (%08x)\n", device->cname, boot0);
+
+		/* determine frequency of timing crystal */
+		if ( device->card_type <= NV_10 || device->chipset < 0x17 ||
+		    (device->chipset >= 0x20 && device->chipset < 0x25))
+			strap &= 0x00000040;
+		else
+			strap &= 0x00400040;
+
+		switch (strap) {
+		case 0x00000000: device->crystal = 13500; break;
+		case 0x00000040: device->crystal = 14318; break;
+		case 0x00400000: device->crystal = 27000; break;
+		case 0x00400040: device->crystal = 25000; break;
+		}
+	} else {
+		device->cname = "NULL";
+		device->oclass[NVDEV_SUBDEV_VBIOS] = &nvkm_bios_oclass;
+	}
+
+	if (mmio) {
+		device->pri = ioremap(mmio_base, mmio_size);
+		if (!device->pri) {
+			nvdev_error(device, "unable to map PRI\n");
+			return -ENOMEM;
+		}
+	}
+
+	/* disable subdevs that aren't required (used by tools) */
+	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+		if (!(subdev_mask & (1ULL << i)))
+			device->oclass[i] = NULL;
+	}
+
 done:
 	mutex_unlock(&nv_devices_mutex);
 	return ret;
