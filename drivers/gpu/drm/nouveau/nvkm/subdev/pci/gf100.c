@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,46 +19,26 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "priv.h"
 
-#include <subdev/pci.h>
-
-static u32
-prom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
-{
-	struct nvkm_device *device = data;
-	u32 i;
-	if (offset + length <= 0x00100000) {
-		for (i = offset; i < offset + length; i += 4)
-			*(u32 *)&bios->data[i] = nvkm_rd32(device, 0x300000 + i);
-		return length;
-	}
-	return 0;
-}
-
 static void
-prom_fini(void *data)
+gf100_pci_msi_rearm(struct nvkm_pci *pci)
 {
-	struct nvkm_device *device = data;
-	nvkm_pci_rom_shadow(device->pci, true);
+	nvkm_pci_wr08(pci, 0x0704, 0xff);
 }
 
-static void *
-prom_init(struct nvkm_bios *bios, const char *name)
-{
-	struct nvkm_device *device = bios->subdev.device;
-	if (device->card_type == NV_40 && device->chipset >= 0x4c)
-		return ERR_PTR(-ENODEV);
-	nvkm_pci_rom_shadow(device->pci, false);
-	return device;
-}
-
-const struct nvbios_source
-nvbios_rom = {
-	.name = "PROM",
-	.init = prom_init,
-	.fini = prom_fini,
-	.read = prom_read,
-	.rw = false,
+static const struct nvkm_pci_func
+gf100_pci_func = {
+	.rd32 = nv40_pci_rd32,
+	.wr08 = nv40_pci_wr08,
+	.wr32 = nv40_pci_wr32,
+	.msi_rearm = gf100_pci_msi_rearm,
 };
+
+int
+gf100_pci_new(struct nvkm_device *device, int index, struct nvkm_pci **ppci)
+{
+	return nvkm_pci_new_(&gf100_pci_func, device, index, ppci);
+}

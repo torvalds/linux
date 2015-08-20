@@ -4,6 +4,7 @@
 #include <core/object.h>
 
 enum nvkm_devidx {
+	NVKM_SUBDEV_PCI,
 	NVKM_SUBDEV_VBIOS,
 	NVKM_SUBDEV_DEVINIT,
 	NVKM_SUBDEV_IBUS,
@@ -108,6 +109,7 @@ struct nvkm_device {
 	struct nvkm_mc *mc;
 	struct nvkm_mmu *mmu;
 	struct nvkm_subdev *mxm;
+	struct nvkm_pci *pci;
 	struct nvkm_pmu *pmu;
 	struct nvkm_therm *therm;
 	struct nvkm_timer *timer;
@@ -168,6 +170,7 @@ struct nvkm_device_chip {
 	int (*mc     )(struct nvkm_device *, int idx, struct nvkm_mc **);
 	int (*mmu    )(struct nvkm_device *, int idx, struct nvkm_mmu **);
 	int (*mxm    )(struct nvkm_device *, int idx, struct nvkm_subdev **);
+	int (*pci    )(struct nvkm_device *, int idx, struct nvkm_pci **);
 	int (*pmu    )(struct nvkm_device *, int idx, struct nvkm_pmu **);
 	int (*therm  )(struct nvkm_device *, int idx, struct nvkm_therm **);
 	int (*timer  )(struct nvkm_device *, int idx, struct nvkm_timer **);

@@ -17,6 +17,7 @@
 #include <subdev/mc.h>
 #include <subdev/mmu.h>
 #include <subdev/mxm.h>
+#include <subdev/pci.h>
 #include <subdev/pmu.h>
 #include <subdev/therm.h>
 #include <subdev/timer.h>

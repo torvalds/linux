@@ -44,6 +44,7 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_SUBDEV_MC     ] = "mc",
 	[NVKM_SUBDEV_MMU    ] = "mmu",
 	[NVKM_SUBDEV_MXM    ] = "mxm",
+	[NVKM_SUBDEV_PCI    ] = "pci",
 	[NVKM_SUBDEV_PMU    ] = "pmu",
 	[NVKM_SUBDEV_THERM  ] = "therm",
 	[NVKM_SUBDEV_TIMER  ] = "tmr",
