@@ -1,12 +1,18 @@
 #ifndef __NVKM_ENGINE_H__
 #define __NVKM_ENGINE_H__
 #include <core/subdev.h>
+struct nvkm_device_oclass; /*XXX: DEV!ENG */
+struct nvkm_fifo_chan;
 
 #define NV_ENGINE_(eng,var) (((var) << 8) | (eng))
 #define NV_ENGINE(name,var)  NV_ENGINE_(NVDEV_ENGINE_##name, (var))
 
 struct nvkm_engine {
 	struct nvkm_subdev subdev;
+	const struct nvkm_engine_func *func;
+
+	int usecount;
+
 	struct nvkm_oclass *cclass;
 	struct nvkm_oclass *sclass;
 
@@ -16,6 +22,37 @@ struct nvkm_engine {
 	void (*tile_prog)(struct nvkm_engine *, int region);
 	int  (*tlb_flush)(struct nvkm_engine *);
 };
+
+struct nvkm_engine_func {
+	void *(*dtor)(struct nvkm_engine *);
+	int (*oneinit)(struct nvkm_engine *);
+	int (*init)(struct nvkm_engine *);
+	int (*fini)(struct nvkm_engine *, bool suspend);
+	void (*intr)(struct nvkm_engine *);
+
+	struct {
+		int (*sclass)(struct nvkm_oclass *, int index,
+			      const struct nvkm_device_oclass **);
+	} base;
+
+	struct {
+		int (*cclass)(struct nvkm_fifo_chan *,
+			      const struct nvkm_oclass *,
+			      struct nvkm_object **);
+		int (*sclass)(struct nvkm_oclass *, int index);
+	} fifo;
+
+	struct nvkm_sclass sclass[];
+};
+
+int nvkm_engine_ctor(const struct nvkm_engine_func *, struct nvkm_device *,
+		     int index, u32 pmc_enable, bool enable,
+		     struct nvkm_engine *);
+int nvkm_engine_new_(const struct nvkm_engine_func *, struct nvkm_device *,
+		     int index, u32 pmc_enable, bool enable,
+		     struct nvkm_engine **);
+struct nvkm_engine *nvkm_engine_ref(struct nvkm_engine *);
+void nvkm_engine_unref(struct nvkm_engine **);
 
 static inline struct nvkm_engine *
 nv_engine(void *obj)

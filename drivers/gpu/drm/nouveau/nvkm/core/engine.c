@@ -25,6 +25,133 @@
 #include <core/device.h>
 #include <core/option.h>
 
+void
+nvkm_engine_unref(struct nvkm_engine **pengine)
+{
+	struct nvkm_engine *engine = *pengine;
+	if (engine) {
+		mutex_lock(&engine->subdev.mutex);
+		if (--engine->usecount == 0)
+			nvkm_subdev_fini(&engine->subdev, false);
+		mutex_unlock(&engine->subdev.mutex);
+		*pengine = NULL;
+	}
+}
+
+struct nvkm_engine *
+nvkm_engine_ref(struct nvkm_engine *engine)
+{
+	if (engine) {
+		mutex_lock(&engine->subdev.mutex);
+		if (++engine->usecount == 1) {
+			int ret = nvkm_subdev_init(&engine->subdev);
+			if (ret) {
+				engine->usecount--;
+				mutex_unlock(&engine->subdev.mutex);
+				return ERR_PTR(ret);
+			}
+		}
+		mutex_unlock(&engine->subdev.mutex);
+	}
+	return engine;
+}
+
+static void
+nvkm_engine_intr(struct nvkm_subdev *obj)
+{
+	struct nvkm_engine *engine = container_of(obj, typeof(*engine), subdev);
+	if (engine->func->intr)
+		engine->func->intr(engine);
+}
+
+static int
+nvkm_engine_fini(struct nvkm_subdev *obj, bool suspend)
+{
+	struct nvkm_engine *engine = container_of(obj, typeof(*engine), subdev);
+	if (engine->func->fini)
+		return engine->func->fini(engine, suspend);
+	return 0;
+}
+
+static int
+nvkm_engine_init(struct nvkm_subdev *obj)
+{
+	struct nvkm_engine *engine = container_of(obj, typeof(*engine), subdev);
+	struct nvkm_subdev *subdev = &engine->subdev;
+	int ret = 0;
+	s64 time;
+
+	if (!engine->usecount) {
+		nvkm_trace(subdev, "init skipped, engine has no users\n");
+		return ret;
+	}
+
+	if (engine->func->oneinit && !engine->subdev.oneinit) {
+		nvkm_trace(subdev, "one-time init running...\n");
+		time = ktime_to_us(ktime_get());
+		ret = engine->func->oneinit(engine);
+		if (ret) {
+			nvkm_trace(subdev, "one-time init failed, %d\n", ret);
+			return ret;
+		}
+
+		engine->subdev.oneinit = true;
+		time = ktime_to_us(ktime_get()) - time;
+		nvkm_trace(subdev, "one-time init completed in %lldus\n", time);
+	}
+
+	if (engine->func->init)
+		ret = engine->func->init(engine);
+
+	return ret;
+}
+
+static void *
+nvkm_engine_dtor(struct nvkm_subdev *obj)
+{
+	struct nvkm_engine *engine = container_of(obj, typeof(*engine), subdev);
+	if (engine->func->dtor)
+		return engine->func->dtor(engine);
+	return engine;
+}
+
+static const struct nvkm_subdev_func
+nvkm_engine_func = {
+	.dtor = nvkm_engine_dtor,
+	.init = nvkm_engine_init,
+	.fini = nvkm_engine_fini,
+	.intr = nvkm_engine_intr,
+};
+
+int
+nvkm_engine_ctor(const struct nvkm_engine_func *func,
+		 struct nvkm_device *device, int index, u32 pmc_enable,
+		 bool enable, struct nvkm_engine *engine)
+{
+	nvkm_subdev_ctor(&nvkm_engine_func, device, index,
+			 pmc_enable, &engine->subdev);
+	engine->func = func;
+
+	if (!nvkm_boolopt(device->cfgopt, nvkm_subdev_name[index], enable)) {
+		nvkm_debug(&engine->subdev, "disabled\n");
+		return -ENODEV;
+	}
+
+	spin_lock_init(&engine->lock);
+	return 0;
+}
+
+int
+nvkm_engine_new_(const struct nvkm_engine_func *func,
+		 struct nvkm_device *device, int index, u32 pmc_enable,
+		 bool enable, struct nvkm_engine **pengine)
+{
+	if (!(*pengine = kzalloc(sizeof(**pengine), GFP_KERNEL)))
+		return -ENOMEM;
+	return nvkm_engine_ctor(func, device, index, pmc_enable,
+				enable, *pengine);
+}
+
 struct nvkm_engine *
 nvkm_engine(void *obj, int idx)
 {
