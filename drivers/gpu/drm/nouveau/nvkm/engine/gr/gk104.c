@@ -36,8 +36,8 @@ static struct nvkm_oclass
 gk104_gr_sclass[] = {
 	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
 	{ KEPLER_INLINE_TO_MEMORY_A, &nvkm_object_ofuncs },
-	{ KEPLER_A, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
-	{ KEPLER_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
+	{ KEPLER_A, &gf100_fermi_ofuncs },
+	{ KEPLER_COMPUTE_A, &nvkm_object_ofuncs },
 	{}
 };
 

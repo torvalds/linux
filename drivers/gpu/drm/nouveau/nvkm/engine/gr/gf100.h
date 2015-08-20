@@ -152,8 +152,6 @@ int  gm204_gr_init(struct nvkm_object *);
 extern struct nvkm_ofuncs gf100_fermi_ofuncs;
 
 extern struct nvkm_oclass gf100_gr_sclass[];
-extern struct nvkm_omthds gf100_gr_9097_omthds[];
-extern struct nvkm_omthds gf100_gr_90c0_omthds[];
 extern struct nvkm_oclass gf110_gr_sclass[];
 extern struct nvkm_oclass gk110_gr_sclass[];
 extern struct nvkm_oclass gm204_gr_sclass[];

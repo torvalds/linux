@@ -2,7 +2,6 @@
 #include "regs.h"
 
 #include <core/client.h>
-#include <core/handle.h>
 #include <engine/fifo.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
@@ -145,6 +144,7 @@ nv20_gr_context_fini(struct nvkm_object *object, bool suspend)
 	nvkm_kmap(gr->ctxtab);
 	nvkm_wo32(gr->ctxtab, chan->chid * 4, 0x00000000);
 	nvkm_done(gr->ctxtab);
+
 	return nvkm_gr_context_fini(&chan->base, suspend);
 }
 
@@ -200,11 +200,9 @@ nv20_gr_tile_prog(struct nvkm_engine *engine, int i)
 void
 nv20_gr_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_engine *engine = nv_engine(subdev);
-	struct nvkm_object *engctx;
-	struct nvkm_handle *handle;
 	struct nv20_gr *gr = (void *)subdev;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fifo_chan *chan;
 	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
 	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nvkm_rd32(device, NV03_PGRAPH_NSTATUS);
@@ -216,16 +214,9 @@ nv20_gr_intr(struct nvkm_subdev *subdev)
 	u32 class = nvkm_rd32(device, 0x400160 + subc * 4) & 0xfff;
 	u32 show = stat;
 	char msg[128], src[128], sta[128];
+	unsigned long flags;
 
-	engctx = nvkm_engctx_get(engine, chid);
-	if (stat & NV_PGRAPH_INTR_ERROR) {
-		if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
-			handle = nvkm_handle_get_class(engctx, class);
-			if (handle && !nv_call(handle->object, mthd, data))
-				show &= ~NV_PGRAPH_INTR_ERROR;
-			nvkm_handle_put(handle);
-		}
-	}
+	chan = nvkm_fifo_chan_chid(device->fifo, chid, &flags);
 
 	nvkm_wr32(device, NV03_PGRAPH_INTR, stat);
 	nvkm_wr32(device, NV04_PGRAPH_FIFO, 0x00000001);
@@ -238,10 +229,10 @@ nv20_gr_intr(struct nvkm_subdev *subdev)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   nvkm_client_name(engctx), subc, class, mthd, data);
+			   nvkm_client_name(chan), subc, class, mthd, data);
 	}
 
-	nvkm_engctx_put(engctx);
+	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
 static int

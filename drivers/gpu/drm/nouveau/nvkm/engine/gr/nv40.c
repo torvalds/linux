@@ -25,7 +25,6 @@
 #include "regs.h"
 
 #include <core/client.h>
-#include <core/handle.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <engine/fifo.h>
@@ -33,10 +32,14 @@
 struct nv40_gr {
 	struct nvkm_gr base;
 	u32 size;
+	struct list_head chan;
 };
 
 struct nv40_gr_chan {
 	struct nvkm_gr_chan base;
+	struct nvkm_fifo_chan *fifo;
+	u32 inst;
+	struct list_head head;
 };
 
 static u64
@@ -132,6 +135,16 @@ nv44_gr_sclass[] = {
  * PGRAPH context
  ******************************************************************************/
 
+static void
+nv40_gr_context_dtor(struct nvkm_object *object)
+{
+	struct nv40_gr_chan *chan = (void *)object;
+	unsigned long flags;
+	spin_lock_irqsave(&object->engine->lock, flags);
+	list_del(&chan->head);
+	spin_unlock_irqrestore(&object->engine->lock, flags);
+}
+
 static int
 nv40_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_oclass *oclass, void *data, u32 size,
@@ -139,6 +152,7 @@ nv40_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nv40_gr *gr = (void *)engine;
 	struct nv40_gr_chan *chan;
+	unsigned long flags;
 	int ret;
 
 	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, gr->size,
@@ -149,6 +163,12 @@ nv40_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv40_grctx_fill(nv_device(gr), nv_gpuobj(chan));
 	nvkm_wo32(&chan->base.base.gpuobj, 0x00000, nv_gpuobj(chan)->addr >> 4);
+
+	spin_lock_irqsave(&gr->base.engine.lock, flags);
+	chan->fifo = (void *)parent;
+	chan->inst = chan->base.base.gpuobj.addr;
+	list_add(&chan->head, &gr->chan);
+	spin_unlock_irqrestore(&gr->base.engine.lock, flags);
 	return 0;
 }
 
@@ -195,7 +215,7 @@ nv40_gr_cclass = {
 	.handle = NV_ENGCTX(GR, 0x40),
 	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_gr_context_ctor,
-		.dtor = _nvkm_gr_context_dtor,
+		.dtor = nv40_gr_context_dtor,
 		.init = _nvkm_gr_context_init,
 		.fini = nv40_gr_context_fini,
 		.rd32 = _nvkm_gr_context_rd32,
@@ -289,11 +309,8 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 static void
 nv40_gr_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
-	struct nvkm_engine *engine = nv_engine(subdev);
-	struct nvkm_object *engctx;
-	struct nvkm_handle *handle = NULL;
 	struct nv40_gr *gr = (void *)subdev;
+	struct nv40_gr_chan *temp, *chan = NULL;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
 	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
@@ -306,19 +323,19 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 	u32 class = nvkm_rd32(device, 0x400160 + subc * 4) & 0xffff;
 	u32 show = stat;
 	char msg[128], src[128], sta[128];
-	int chid;
+	unsigned long flags;
 
-	engctx = nvkm_engctx_get(engine, inst);
-	chid   = fifo->chid(fifo, engctx);
+	spin_lock_irqsave(&gr->base.engine.lock, flags);
+	list_for_each_entry(temp, &gr->chan, head) {
+		if (temp->inst >> 4 == inst) {
+			chan = temp;
+			list_del(&chan->head);
+			list_add(&chan->head, &gr->chan);
+			break;
+		}
+	}
 
 	if (stat & NV_PGRAPH_INTR_ERROR) {
-		if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
-			handle = nvkm_handle_get_class(engctx, class);
-			if (handle && !nv_call(handle->object, mthd, data))
-				show &= ~NV_PGRAPH_INTR_ERROR;
-			nvkm_handle_put(handle);
-		}
-
 		if (nsource & NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION) {
 			nvkm_mask(device, 0x402000, 0, 0);
 		}
@@ -334,12 +351,12 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 		nvkm_error(subdev, "intr %08x [%s] nsource %08x [%s] "
 				   "nstatus %08x [%s] ch %d [%08x %s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
-			   show, msg, nsource, src, nstatus, sta, chid,
-			   inst << 4, nvkm_client_name(engctx), subc,
-			   class, mthd, data);
+			   show, msg, nsource, src, nstatus, sta,
+			   chan ? chan->fifo->chid : -1, inst << 4,
+			   nvkm_client_name(chan), subc, class, mthd, data);
 	}
 
-	nvkm_engctx_put(engctx);
+	spin_unlock_irqrestore(&gr->base.engine.lock, flags);
 }
 
 static int
@@ -354,6 +371,8 @@ nv40_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	*pobject = nv_object(gr);
 	if (ret)
 		return ret;
+
+	INIT_LIST_HEAD(&gr->chan);
 
 	nv_subdev(gr)->unit = 0x00001000;
 	nv_subdev(gr)->intr = nv40_gr_intr;

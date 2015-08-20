@@ -25,7 +25,6 @@
 #include "regs.h"
 
 #include <core/client.h>
-#include <core/handle.h>
 #include <engine/fifo.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
@@ -443,42 +442,34 @@ nv04_gr(struct nv04_gr_chan *chan)
  */
 
 static void
-nv04_gr_set_ctx1(struct nvkm_object *obj, u32 mask, u32 value)
+nv04_gr_set_ctx1(struct nvkm_device *device, u32 inst, u32 mask, u32 value)
 {
-	struct nvkm_gpuobj *object = container_of(obj, typeof(*object), object);
-	struct nv04_gr *gr = (void *)object->object.engine;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int subc = (nvkm_rd32(device, NV04_PGRAPH_TRAPPED_ADDR) >> 13) & 0x7;
 	u32 tmp;
 
-	nvkm_kmap(object);
-	tmp  = nvkm_ro32(object, 0x00);
+	tmp  = nvkm_rd32(device, 0x700000 + inst);
 	tmp &= ~mask;
 	tmp |= value;
-	nvkm_wo32(object, 0x00, tmp);
-	nvkm_done(object);
+	nvkm_wr32(device, 0x700000 + inst, tmp);
 
 	nvkm_wr32(device, NV04_PGRAPH_CTX_SWITCH1, tmp);
-	nvkm_wr32(device, NV04_PGRAPH_CTX_CACHE1 + (subc<<2), tmp);
+	nvkm_wr32(device, NV04_PGRAPH_CTX_CACHE1 + (subc << 2), tmp);
 }
 
 static void
-nv04_gr_set_ctx_val(struct nvkm_object *obj, u32 mask, u32 value)
+nv04_gr_set_ctx_val(struct nvkm_device *device, u32 inst, u32 mask, u32 value)
 {
-	struct nvkm_gpuobj *object = container_of(obj, typeof(*object), object);
 	int class, op, valid = 1;
 	u32 tmp, ctx1;
 
-	nvkm_kmap(object);
-	ctx1 = nvkm_ro32(object, 0x00);
+	ctx1 = nvkm_rd32(device, 0x700000 + inst);
 	class = ctx1 & 0xff;
 	op = (ctx1 >> 15) & 7;
 
-	tmp = nvkm_ro32(object, 0x0c);
+	tmp = nvkm_rd32(device, 0x70000c + inst);
 	tmp &= ~mask;
 	tmp |= value;
-	nvkm_wo32(object, 0x0c, tmp);
-	nvkm_done(object);
+	nvkm_wr32(device, 0x70000c + inst, tmp);
 
 	/* check for valid surf2d/surf_dst/surf_color */
 	if (!(tmp & 0x02000000))
@@ -510,39 +501,32 @@ nv04_gr_set_ctx_val(struct nvkm_object *obj, u32 mask, u32 value)
 		break;
 	}
 
-	nv04_gr_set_ctx1(obj, 0x01000000, valid << 24);
+	nv04_gr_set_ctx1(device, inst, 0x01000000, valid << 24);
 }
 
-static int
-nv04_gr_mthd_set_operation(struct nvkm_object *obj, u32 mthd,
-			   void *args, u32 size)
+static bool
+nv04_gr_mthd_set_operation(struct nvkm_device *device, u32 inst, u32 data)
 {
-	struct nvkm_gpuobj *object = container_of(obj, typeof(*object), object);
-	u32 class = nvkm_ro32(object, 0) & 0xff;
-	u32 data = *(u32 *)args;
+	u8 class = nvkm_rd32(device, 0x700000) & 0x000000ff;
 	if (data > 5)
-		return 1;
+		return false;
 	/* Old versions of the objects only accept first three operations. */
 	if (data > 2 && class < 0x40)
-		return 1;
-	nv04_gr_set_ctx1(obj, 0x00038000, data << 15);
+		return false;
+	nv04_gr_set_ctx1(device, inst, 0x00038000, data << 15);
 	/* changing operation changes set of objects needed for validation */
-	nv04_gr_set_ctx_val(obj, 0, 0);
-	return 0;
+	nv04_gr_set_ctx_val(device, inst, 0, 0);
+	return true;
 }
 
-static int
-nv04_gr_mthd_surf3d_clip_h(struct nvkm_object *object, u32 mthd,
-			   void *args, u32 size)
+static bool
+nv04_gr_mthd_surf3d_clip_h(struct nvkm_device *device, u32 inst, u32 data)
 {
-	struct nv04_gr *gr = (void *)object->engine;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 data = *(u32 *)args;
 	u32 min = data & 0xffff, max;
 	u32 w = data >> 16;
 	if (min & 0x8000)
 		/* too large */
-		return 1;
+		return false;
 	if (w & 0x8000)
 		/* yes, it accepts negative for some reason. */
 		w |= 0xffff0000;
@@ -550,21 +534,17 @@ nv04_gr_mthd_surf3d_clip_h(struct nvkm_object *object, u32 mthd,
 	max &= 0x3ffff;
 	nvkm_wr32(device, 0x40053c, min);
 	nvkm_wr32(device, 0x400544, max);
-	return 0;
+	return true;
 }
 
-static int
-nv04_gr_mthd_surf3d_clip_v(struct nvkm_object *object, u32 mthd,
-			   void *args, u32 size)
+static bool
+nv04_gr_mthd_surf3d_clip_v(struct nvkm_device *device, u32 inst, u32 data)
 {
-	struct nv04_gr *gr = (void *)object->engine;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 data = *(u32 *)args;
 	u32 min = data & 0xffff, max;
 	u32 w = data >> 16;
 	if (min & 0x8000)
 		/* too large */
-		return 1;
+		return false;
 	if (w & 0x8000)
 		/* yes, it accepts negative for some reason. */
 		w |= 0xffff0000;
@@ -572,389 +552,492 @@ nv04_gr_mthd_surf3d_clip_v(struct nvkm_object *object, u32 mthd,
 	max &= 0x3ffff;
 	nvkm_wr32(device, 0x400540, min);
 	nvkm_wr32(device, 0x400548, max);
-	return 0;
+	return true;
 }
 
-static u16
-nv04_gr_mthd_bind_class(struct nvkm_object *object, u32 *args, u32 size)
+static u8
+nv04_gr_mthd_bind_class(struct nvkm_device *device, u32 inst)
 {
-	struct nvkm_instmem *imem = nvkm_instmem(object);
-	u32 inst = *(u32 *)args << 4;
-	return imem->func->rd32(imem, inst);
+	return nvkm_rd32(device, 0x700000 + (inst << 4));
 }
 
-static int
-nv04_gr_mthd_bind_surf2d(struct nvkm_object *object, u32 mthd,
-			    void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_surf2d(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx1(object, 0x00004000, 0);
-		nv04_gr_set_ctx_val(object, 0x02000000, 0);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x00004000, 0);
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0);
+		return true;
 	case 0x42:
-		nv04_gr_set_ctx1(object, 0x00004000, 0);
-		nv04_gr_set_ctx_val(object, 0x02000000, 0x02000000);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x00004000, 0);
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0x02000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_surf2d_swzsurf(struct nvkm_object *object, u32 mthd,
-				 void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_surf2d_swzsurf(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx1(object, 0x00004000, 0);
-		nv04_gr_set_ctx_val(object, 0x02000000, 0);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x00004000, 0);
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0);
+		return true;
 	case 0x42:
-		nv04_gr_set_ctx1(object, 0x00004000, 0);
-		nv04_gr_set_ctx_val(object, 0x02000000, 0x02000000);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x00004000, 0);
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0x02000000);
+		return true;
 	case 0x52:
-		nv04_gr_set_ctx1(object, 0x00004000, 0x00004000);
-		nv04_gr_set_ctx_val(object, 0x02000000, 0x02000000);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x00004000, 0x00004000);
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0x02000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv01_gr_mthd_bind_patt(struct nvkm_object *object, u32 mthd,
-		       void *args, u32 size)
+static bool
+nv01_gr_mthd_bind_patt(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x08000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x08000000, 0);
+		return true;
 	case 0x18:
-		nv04_gr_set_ctx_val(object, 0x08000000, 0x08000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x08000000, 0x08000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_patt(struct nvkm_object *object, u32 mthd,
-		       void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_patt(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x08000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x08000000, 0);
+		return true;
 	case 0x44:
-		nv04_gr_set_ctx_val(object, 0x08000000, 0x08000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x08000000, 0x08000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_rop(struct nvkm_object *object, u32 mthd,
-		      void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_rop(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x10000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x10000000, 0);
+		return true;
 	case 0x43:
-		nv04_gr_set_ctx_val(object, 0x10000000, 0x10000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x10000000, 0x10000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_beta1(struct nvkm_object *object, u32 mthd,
-			void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_beta1(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x20000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x20000000, 0);
+		return true;
 	case 0x12:
-		nv04_gr_set_ctx_val(object, 0x20000000, 0x20000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x20000000, 0x20000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_beta4(struct nvkm_object *object, u32 mthd,
-			void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_beta4(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x40000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x40000000, 0);
+		return true;
 	case 0x72:
-		nv04_gr_set_ctx_val(object, 0x40000000, 0x40000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x40000000, 0x40000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_surf_dst(struct nvkm_object *object, u32 mthd,
-			   void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_surf_dst(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x02000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0);
+		return true;
 	case 0x58:
-		nv04_gr_set_ctx_val(object, 0x02000000, 0x02000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0x02000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_surf_src(struct nvkm_object *object, u32 mthd,
-			   void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_surf_src(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x04000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x04000000, 0);
+		return true;
 	case 0x59:
-		nv04_gr_set_ctx_val(object, 0x04000000, 0x04000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x04000000, 0x04000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_surf_color(struct nvkm_object *object, u32 mthd,
-			     void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_surf_color(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x02000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0);
+		return true;
 	case 0x5a:
-		nv04_gr_set_ctx_val(object, 0x02000000, 0x02000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x02000000, 0x02000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv04_gr_mthd_bind_surf_zeta(struct nvkm_object *object, u32 mthd,
-			    void *args, u32 size)
+static bool
+nv04_gr_mthd_bind_surf_zeta(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx_val(object, 0x04000000, 0);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x04000000, 0);
+		return true;
 	case 0x5b:
-		nv04_gr_set_ctx_val(object, 0x04000000, 0x04000000);
-		return 0;
+		nv04_gr_set_ctx_val(device, inst, 0x04000000, 0x04000000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv01_gr_mthd_bind_clip(struct nvkm_object *object, u32 mthd,
-		       void *args, u32 size)
+static bool
+nv01_gr_mthd_bind_clip(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx1(object, 0x2000, 0);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x2000, 0);
+		return true;
 	case 0x19:
-		nv04_gr_set_ctx1(object, 0x2000, 0x2000);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x2000, 0x2000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static int
-nv01_gr_mthd_bind_chroma(struct nvkm_object *object, u32 mthd,
-			 void *args, u32 size)
+static bool
+nv01_gr_mthd_bind_chroma(struct nvkm_device *device, u32 inst, u32 data)
 {
-	switch (nv04_gr_mthd_bind_class(object, args, size)) {
+	switch (nv04_gr_mthd_bind_class(device, data)) {
 	case 0x30:
-		nv04_gr_set_ctx1(object, 0x1000, 0);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x1000, 0);
+		return true;
 	/* Yes, for some reason even the old versions of objects
 	 * accept 0x57 and not 0x17. Consistency be damned.
 	 */
 	case 0x57:
-		nv04_gr_set_ctx1(object, 0x1000, 0x1000);
-		return 0;
+		nv04_gr_set_ctx1(device, inst, 0x1000, 0x1000);
+		return true;
 	}
-	return 1;
+	return false;
 }
 
-static struct nvkm_omthds
-nv03_gr_gdi_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_patt },
-	{ 0x0188, 0x0188, nv04_gr_mthd_bind_rop },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_beta1 },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_surf_dst },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv03_gr_mthd_gdi(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_patt; break;
+	case 0x0188: func = nv04_gr_mthd_bind_rop; break;
+	case 0x018c: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0190: func = nv04_gr_mthd_bind_surf_dst; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_gdi_omthds[] = {
-	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_beta1 },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta4 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_surf2d },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv04_gr_mthd_gdi(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0188: func = nv04_gr_mthd_bind_patt; break;
+	case 0x018c: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0190: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta4; break;
+	case 0x0198: func = nv04_gr_mthd_bind_surf2d; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv01_gr_blit_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
-	{ 0x018c, 0x018c, nv01_gr_mthd_bind_patt },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_rop },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta1 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_surf_dst },
-	{ 0x019c, 0x019c, nv04_gr_mthd_bind_surf_src },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv01_gr_mthd_blit(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_chroma; break;
+	case 0x0188: func = nv01_gr_mthd_bind_clip; break;
+	case 0x018c: func = nv01_gr_mthd_bind_patt; break;
+	case 0x0190: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0198: func = nv04_gr_mthd_bind_surf_dst; break;
+	case 0x019c: func = nv04_gr_mthd_bind_surf_src; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_blit_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_patt },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_rop },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta1 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_beta4 },
-	{ 0x019c, 0x019c, nv04_gr_mthd_bind_surf2d },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv04_gr_mthd_blit(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_chroma; break;
+	case 0x0188: func = nv01_gr_mthd_bind_clip; break;
+	case 0x018c: func = nv04_gr_mthd_bind_patt; break;
+	case 0x0190: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0198: func = nv04_gr_mthd_bind_beta4; break;
+	case 0x019c: func = nv04_gr_mthd_bind_surf2d; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_iifc_omthds[] = {
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_chroma },
-	{ 0x018c, 0x018c, nv01_gr_mthd_bind_clip },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_patt },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_rop },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_beta1 },
-	{ 0x019c, 0x019c, nv04_gr_mthd_bind_beta4 },
-	{ 0x01a0, 0x01a0, nv04_gr_mthd_bind_surf2d_swzsurf },
-	{ 0x03e4, 0x03e4, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv04_gr_mthd_iifc(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0188: func = nv01_gr_mthd_bind_chroma; break;
+	case 0x018c: func = nv01_gr_mthd_bind_clip; break;
+	case 0x0190: func = nv04_gr_mthd_bind_patt; break;
+	case 0x0194: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0198: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x019c: func = nv04_gr_mthd_bind_beta4; break;
+	case 0x01a0: func = nv04_gr_mthd_bind_surf2d_swzsurf; break;
+	case 0x03e4: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv01_gr_ifc_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
-	{ 0x018c, 0x018c, nv01_gr_mthd_bind_patt },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_rop },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta1 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_surf_dst },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv01_gr_mthd_ifc(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_chroma; break;
+	case 0x0188: func = nv01_gr_mthd_bind_clip; break;
+	case 0x018c: func = nv01_gr_mthd_bind_patt; break;
+	case 0x0190: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0198: func = nv04_gr_mthd_bind_surf_dst; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_ifc_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_patt },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_rop },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta1 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_beta4 },
-	{ 0x019c, 0x019c, nv04_gr_mthd_bind_surf2d },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv04_gr_mthd_ifc(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_chroma; break;
+	case 0x0188: func = nv01_gr_mthd_bind_clip; break;
+	case 0x018c: func = nv04_gr_mthd_bind_patt; break;
+	case 0x0190: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0198: func = nv04_gr_mthd_bind_beta4; break;
+	case 0x019c: func = nv04_gr_mthd_bind_surf2d; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv03_gr_sifc_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_patt },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_beta1 },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_surf_dst },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv03_gr_mthd_sifc(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_chroma; break;
+	case 0x0188: func = nv01_gr_mthd_bind_patt; break;
+	case 0x018c: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0190: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0194: func = nv04_gr_mthd_bind_surf_dst; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_sifc_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
-	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_beta1 },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta4 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_surf2d },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv04_gr_mthd_sifc(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_chroma; break;
+	case 0x0188: func = nv04_gr_mthd_bind_patt; break;
+	case 0x018c: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0190: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta4; break;
+	case 0x0198: func = nv04_gr_mthd_bind_surf2d; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv03_gr_sifm_omthds[] = {
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_patt },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_beta1 },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_surf_dst },
-	{ 0x0304, 0x0304, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv03_gr_mthd_sifm(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0188: func = nv01_gr_mthd_bind_patt; break;
+	case 0x018c: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0190: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0194: func = nv04_gr_mthd_bind_surf_dst; break;
+	case 0x0304: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_sifm_omthds[] = {
-	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_beta1 },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta4 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_surf2d },
-	{ 0x0304, 0x0304, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv04_gr_mthd_sifm(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0188: func = nv04_gr_mthd_bind_patt; break;
+	case 0x018c: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0190: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta4; break;
+	case 0x0198: func = nv04_gr_mthd_bind_surf2d; break;
+	case 0x0304: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_surf3d_omthds[] = {
-	{ 0x02f8, 0x02f8, nv04_gr_mthd_surf3d_clip_h },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_surf3d_clip_v },
-	{}
-};
+static bool
+nv04_gr_mthd_surf3d(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x02f8: func = nv04_gr_mthd_surf3d_clip_h; break;
+	case 0x02fc: func = nv04_gr_mthd_surf3d_clip_v; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv03_gr_ttri_omthds[] = {
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_surf_color },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_surf_zeta },
-	{}
-};
+static bool
+nv03_gr_mthd_ttri(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0188: func = nv01_gr_mthd_bind_clip; break;
+	case 0x018c: func = nv04_gr_mthd_bind_surf_color; break;
+	case 0x0190: func = nv04_gr_mthd_bind_surf_zeta; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv01_gr_prim_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_clip },
-	{ 0x0188, 0x0188, nv01_gr_mthd_bind_patt },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_beta1 },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_surf_dst },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv01_gr_mthd_prim(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_clip; break;
+	case 0x0188: func = nv01_gr_mthd_bind_patt; break;
+	case 0x018c: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0190: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0194: func = nv04_gr_mthd_bind_surf_dst; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
 
-static struct nvkm_omthds
-nv04_gr_prim_omthds[] = {
-	{ 0x0184, 0x0184, nv01_gr_mthd_bind_clip },
-	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
-	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
-	{ 0x0190, 0x0190, nv04_gr_mthd_bind_beta1 },
-	{ 0x0194, 0x0194, nv04_gr_mthd_bind_beta4 },
-	{ 0x0198, 0x0198, nv04_gr_mthd_bind_surf2d },
-	{ 0x02fc, 0x02fc, nv04_gr_mthd_set_operation },
-	{}
-};
+static bool
+nv04_gr_mthd_prim(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32);
+	switch (mthd) {
+	case 0x0184: func = nv01_gr_mthd_bind_clip; break;
+	case 0x0188: func = nv04_gr_mthd_bind_patt; break;
+	case 0x018c: func = nv04_gr_mthd_bind_rop; break;
+	case 0x0190: func = nv04_gr_mthd_bind_beta1; break;
+	case 0x0194: func = nv04_gr_mthd_bind_beta4; break;
+	case 0x0198: func = nv04_gr_mthd_bind_surf2d; break;
+	case 0x02fc: func = nv04_gr_mthd_set_operation; break;
+	default:
+		return false;
+	}
+	return func(device, inst, data);
+}
+
+static bool
+nv04_gr_mthd(struct nvkm_device *device, u32 inst, u32 mthd, u32 data)
+{
+	bool (*func)(struct nvkm_device *, u32, u32, u32);
+	switch (nvkm_rd32(device, 0x700000 + inst) & 0x000000ff) {
+	case 0x1c ... 0x1e:
+		   func = nv01_gr_mthd_prim; break;
+	case 0x1f: func = nv01_gr_mthd_blit; break;
+	case 0x21: func = nv01_gr_mthd_ifc; break;
+	case 0x36: func = nv03_gr_mthd_sifc; break;
+	case 0x37: func = nv03_gr_mthd_sifm; break;
+	case 0x48: func = nv03_gr_mthd_ttri; break;
+	case 0x4a: func = nv04_gr_mthd_gdi; break;
+	case 0x4b: func = nv03_gr_mthd_gdi; break;
+	case 0x53: func = nv04_gr_mthd_surf3d; break;
+	case 0x5c ... 0x5e:
+		   func = nv04_gr_mthd_prim; break;
+	case 0x5f: func = nv04_gr_mthd_blit; break;
+	case 0x60: func = nv04_gr_mthd_iifc; break;
+	case 0x61: func = nv04_gr_mthd_ifc; break;
+	case 0x76: func = nv04_gr_mthd_sifc; break;
+	case 0x77: func = nv04_gr_mthd_sifm; break;
+	default:
+		return false;
+	}
+	return func(device, inst, mthd, data);
+}
 
 static int
 nv04_gr_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -998,24 +1081,24 @@ nv04_gr_sclass[] = {
 	{ 0x0017, &nv04_gr_ofuncs }, /* chroma */
 	{ 0x0018, &nv04_gr_ofuncs }, /* pattern (nv01) */
 	{ 0x0019, &nv04_gr_ofuncs }, /* clip */
-	{ 0x001c, &nv04_gr_ofuncs, nv01_gr_prim_omthds }, /* line */
-	{ 0x001d, &nv04_gr_ofuncs, nv01_gr_prim_omthds }, /* tri */
-	{ 0x001e, &nv04_gr_ofuncs, nv01_gr_prim_omthds }, /* rect */
-	{ 0x001f, &nv04_gr_ofuncs, nv01_gr_blit_omthds },
-	{ 0x0021, &nv04_gr_ofuncs, nv01_gr_ifc_omthds },
+	{ 0x001c, &nv04_gr_ofuncs }, /* line */
+	{ 0x001d, &nv04_gr_ofuncs }, /* tri */
+	{ 0x001e, &nv04_gr_ofuncs }, /* rect */
+	{ 0x001f, &nv04_gr_ofuncs },
+	{ 0x0021, &nv04_gr_ofuncs },
 	{ 0x0030, &nv04_gr_ofuncs }, /* null */
-	{ 0x0036, &nv04_gr_ofuncs, nv03_gr_sifc_omthds },
-	{ 0x0037, &nv04_gr_ofuncs, nv03_gr_sifm_omthds },
+	{ 0x0036, &nv04_gr_ofuncs },
+	{ 0x0037, &nv04_gr_ofuncs },
 	{ 0x0038, &nv04_gr_ofuncs }, /* dvd subpicture */
 	{ 0x0039, &nv04_gr_ofuncs }, /* m2mf */
 	{ 0x0042, &nv04_gr_ofuncs }, /* surf2d */
 	{ 0x0043, &nv04_gr_ofuncs }, /* rop */
 	{ 0x0044, &nv04_gr_ofuncs }, /* pattern */
-	{ 0x0048, &nv04_gr_ofuncs, nv03_gr_ttri_omthds },
-	{ 0x004a, &nv04_gr_ofuncs, nv04_gr_gdi_omthds },
-	{ 0x004b, &nv04_gr_ofuncs, nv03_gr_gdi_omthds },
+	{ 0x0048, &nv04_gr_ofuncs },
+	{ 0x004a, &nv04_gr_ofuncs },
+	{ 0x004b, &nv04_gr_ofuncs },
 	{ 0x0052, &nv04_gr_ofuncs }, /* swzsurf */
-	{ 0x0053, &nv04_gr_ofuncs, nv04_gr_surf3d_omthds },
+	{ 0x0053, &nv04_gr_ofuncs },
 	{ 0x0054, &nv04_gr_ofuncs }, /* ttri */
 	{ 0x0055, &nv04_gr_ofuncs }, /* mtri */
 	{ 0x0057, &nv04_gr_ofuncs }, /* chroma */
@@ -1023,18 +1106,18 @@ nv04_gr_sclass[] = {
 	{ 0x0059, &nv04_gr_ofuncs }, /* surf_src */
 	{ 0x005a, &nv04_gr_ofuncs }, /* surf_color */
 	{ 0x005b, &nv04_gr_ofuncs }, /* surf_zeta */
-	{ 0x005c, &nv04_gr_ofuncs, nv04_gr_prim_omthds }, /* line */
-	{ 0x005d, &nv04_gr_ofuncs, nv04_gr_prim_omthds }, /* tri */
-	{ 0x005e, &nv04_gr_ofuncs, nv04_gr_prim_omthds }, /* rect */
-	{ 0x005f, &nv04_gr_ofuncs, nv04_gr_blit_omthds },
-	{ 0x0060, &nv04_gr_ofuncs, nv04_gr_iifc_omthds },
-	{ 0x0061, &nv04_gr_ofuncs, nv04_gr_ifc_omthds },
+	{ 0x005c, &nv04_gr_ofuncs }, /* line */
+	{ 0x005d, &nv04_gr_ofuncs }, /* tri */
+	{ 0x005e, &nv04_gr_ofuncs }, /* rect */
+	{ 0x005f, &nv04_gr_ofuncs },
+	{ 0x0060, &nv04_gr_ofuncs },
+	{ 0x0061, &nv04_gr_ofuncs },
 	{ 0x0064, &nv04_gr_ofuncs }, /* iifc (nv05) */
 	{ 0x0065, &nv04_gr_ofuncs }, /* ifc (nv05) */
 	{ 0x0066, &nv04_gr_ofuncs }, /* sifc (nv05) */
 	{ 0x0072, &nv04_gr_ofuncs }, /* beta4 */
-	{ 0x0076, &nv04_gr_ofuncs, nv04_gr_sifc_omthds },
-	{ 0x0077, &nv04_gr_ofuncs, nv04_gr_sifm_omthds },
+	{ 0x0076, &nv04_gr_ofuncs },
+	{ 0x0077, &nv04_gr_ofuncs },
 	{},
 };
 
@@ -1092,10 +1175,8 @@ nv04_gr_context_switch(struct nv04_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	struct nv04_gr_chan *prev = NULL;
 	struct nv04_gr_chan *next = NULL;
-	unsigned long flags;
 	int chid;
 
-	spin_lock_irqsave(&gr->lock, flags);
 	nv04_gr_idle(gr);
 
 	/* If previous context is valid, we need to save it */
@@ -1108,8 +1189,6 @@ nv04_gr_context_switch(struct nv04_gr *gr)
 	next = gr->chan[chid];
 	if (next)
 		nv04_gr_load_context(next, chid);
-
-	spin_unlock_irqrestore(&gr->lock, flags);
 }
 
 static u32 *ctx_reg(struct nv04_gr_chan *chan, u32 reg)
@@ -1272,8 +1351,6 @@ nv04_gr_intr(struct nvkm_subdev *subdev)
 {
 	struct nv04_gr *gr = (void *)subdev;
 	struct nv04_gr_chan *chan = NULL;
-	struct nvkm_namedb *namedb = NULL;
-	struct nvkm_handle *handle = NULL;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	u32 stat = nvkm_rd32(device, NV03_PGRAPH_INTR);
 	u32 nsource = nvkm_rd32(device, NV03_PGRAPH_NSOURCE);
@@ -1291,14 +1368,10 @@ nv04_gr_intr(struct nvkm_subdev *subdev)
 
 	spin_lock_irqsave(&gr->lock, flags);
 	chan = gr->chan[chid];
-	if (chan)
-		namedb = (void *)nv_pclass(nv_object(chan), NV_NAMEDB_CLASS);
-	spin_unlock_irqrestore(&gr->lock, flags);
 
 	if (stat & NV_PGRAPH_INTR_NOTIFY) {
 		if (chan && (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD)) {
-			handle = nvkm_namedb_get_vinst(namedb, inst);
-			if (handle && !nv_call(handle->object, mthd, data))
+			if (!nv04_gr_mthd(device, inst, mthd, data))
 				show &= ~NV_PGRAPH_INTR_NOTIFY;
 		}
 	}
@@ -1324,7 +1397,7 @@ nv04_gr_intr(struct nvkm_subdev *subdev)
 			   nvkm_client_name(chan), subc, class, mthd, data);
 	}
 
-	nvkm_namedb_put(handle);
+	spin_unlock_irqrestore(&gr->lock, flags);
 }
 
 static int

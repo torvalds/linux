@@ -26,12 +26,11 @@
 #include "fuc/os.h"
 
 #include <core/client.h>
-#include <core/handle.h>
 #include <core/option.h>
-#include <engine/fifo.h>
 #include <subdev/fb.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
+#include <engine/fifo.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>
@@ -233,39 +232,39 @@ gf100_fermi_ofuncs = {
 	.mthd = gf100_fermi_mthd,
 };
 
-static int
-gf100_gr_set_shader_exceptions(struct nvkm_object *object, u32 mthd,
-			       void *pdata, u32 size)
+static void
+gf100_gr_mthd_set_shader_exceptions(struct nvkm_device *device, u32 data)
 {
-	struct gf100_gr *gr = (void *)object->engine;
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	if (size >= sizeof(u32)) {
-		u32 data = *(u32 *)pdata ? 0xffffffff : 0x00000000;
-		nvkm_wr32(device, 0x419e44, data);
-		nvkm_wr32(device, 0x419e4c, data);
-		return 0;
-	}
-	return -EINVAL;
+	nvkm_wr32(device, 0x419e44, data ? 0xffffffff : 0x00000000);
+	nvkm_wr32(device, 0x419e4c, data ? 0xffffffff : 0x00000000);
 }
 
-struct nvkm_omthds
-gf100_gr_9097_omthds[] = {
-	{ 0x1528, 0x1528, gf100_gr_set_shader_exceptions },
-	{}
-};
-
-struct nvkm_omthds
-gf100_gr_90c0_omthds[] = {
-	{ 0x1528, 0x1528, gf100_gr_set_shader_exceptions },
-	{}
-};
+static bool
+gf100_gr_mthd_sw(struct nvkm_device *device, u16 class, u32 mthd, u32 data)
+{
+	switch (class & 0x00ff) {
+	case 0x97:
+	case 0xc0:
+		switch (mthd) {
+		case 0x1528:
+			gf100_gr_mthd_set_shader_exceptions(device, data);
+			return true;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	return false;
+}
 
 struct nvkm_oclass
 gf100_gr_sclass[] = {
 	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
 	{ FERMI_MEMORY_TO_MEMORY_FORMAT_A, &nvkm_object_ofuncs },
-	{ FERMI_A, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
-	{ FERMI_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
+	{ FERMI_A, &gf100_fermi_ofuncs },
+	{ FERMI_COMPUTE_A, &nvkm_object_ofuncs },
 	{}
 };
 
@@ -365,7 +364,6 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		nvkm_wo32(image, 0x2c, 0);
 	}
 	nvkm_done(image);
-
 	return 0;
 }
 
@@ -1160,10 +1158,8 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 {
 	struct gf100_gr *gr = (void *)subdev;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct nvkm_fifo *fifo = device->fifo;
-	struct nvkm_engine *engine = nv_engine(subdev);
-	struct nvkm_object *engctx;
-	struct nvkm_handle *handle;
+	struct nvkm_fifo_chan *chan;
+	unsigned long flags;
 	u64 inst = nvkm_rd32(device, 0x409b00) & 0x0fffffff;
 	u32 stat = nvkm_rd32(device, 0x400100);
 	u32 addr = nvkm_rd32(device, 0x400704);
@@ -1174,13 +1170,13 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	u32 class;
 	int chid;
 
+	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+	chid = chan ? chan->chid : -1;
+
 	if (nv_device(gr)->card_type < NV_E0 || subc < 4)
 		class = nvkm_rd32(device, 0x404200 + (subc * 4));
 	else
 		class = 0x0000;
-
-	engctx = nvkm_engctx_get(engine, inst);
-	chid   = fifo->chid(fifo, engctx);
 
 	if (stat & 0x00000001) {
 		/*
@@ -1192,14 +1188,12 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat & 0x00000010) {
-		handle = nvkm_handle_get_class(engctx, class);
-		if (!handle || nv_call(handle->object, mthd, data)) {
+		if (!gf100_gr_mthd_sw(device, class, mthd, data)) {
 			nvkm_error(subdev, "ILLEGAL_MTHD ch %d [%010llx %s] "
 				   "subc %d class %04x mthd %04x data %08x\n",
-				   chid, inst << 12, nvkm_client_name(engctx),
+				   chid, inst << 12, nvkm_client_name(chan),
 				   subc, class, mthd, data);
 		}
-		nvkm_handle_put(handle);
 		nvkm_wr32(device, 0x400100, 0x00000010);
 		stat &= ~0x00000010;
 	}
@@ -1207,7 +1201,7 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	if (stat & 0x00000020) {
 		nvkm_error(subdev, "ILLEGAL_CLASS ch %d [%010llx %s] "
 			   "subc %d class %04x mthd %04x data %08x\n",
-			   chid, inst << 12, nvkm_client_name(engctx), subc,
+			   chid, inst << 12, nvkm_client_name(chan), subc,
 			   class, mthd, data);
 		nvkm_wr32(device, 0x400100, 0x00000020);
 		stat &= ~0x00000020;
@@ -1219,15 +1213,14 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 		nvkm_error(subdev, "DATA_ERROR %08x [%s] ch %d [%010llx %s] "
 				   "subc %d class %04x mthd %04x data %08x\n",
 			   code, en ? en->name : "", chid, inst << 12,
-			   nvkm_client_name(engctx), subc, class, mthd, data);
+			   nvkm_client_name(chan), subc, class, mthd, data);
 		nvkm_wr32(device, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
 		nvkm_error(subdev, "TRAP ch %d [%010llx %s]\n",
-			   chid, inst << 12,
-			   nvkm_client_name(engctx));
+			   chid, inst << 12, nvkm_client_name(chan));
 		gf100_gr_trap_intr(gr);
 		nvkm_wr32(device, 0x400100, 0x00200000);
 		stat &= ~0x00200000;
@@ -1245,7 +1238,7 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
-	nvkm_engctx_put(engctx);
+	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
 void

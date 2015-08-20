@@ -24,9 +24,8 @@
 #include "nv50.h"
 
 #include <core/client.h>
-#include <core/handle.h>
-#include <engine/fifo.h>
 #include <subdev/timer.h>
+#include <engine/fifo.h>
 
 struct nv50_gr {
 	struct nvkm_gr base;
@@ -609,7 +608,7 @@ nv50_gr_tp_trap(struct nv50_gr *gr, int type, u32 ustatus_old,
 
 static int
 nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
-		     int chid, u64 inst, struct nvkm_object *engctx)
+		     int chid, u64 inst, struct nvkm_fifo_chan *chan)
 {
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -649,8 +648,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 					   "ch %d [%010llx %s] subc %d "
 					   "class %04x mthd %04x data %08x%08x "
 					   "400808 %08x 400848 %08x\n",
-					   chid, inst,
-					   nvkm_client_name(engctx),
+					   chid, inst, nvkm_client_name(chan),
 					   subc, class, mthd,
 					   datah, datal, addr, r848);
 			} else
@@ -677,7 +675,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 					   "ch %d [%010llx %s] subc %d "
 					   "class %04x mthd %04x data %08x "
 					   "40084c %08x\n", chid, inst,
-					   nvkm_client_name(engctx), subc,
+					   nvkm_client_name(chan), subc,
 					   class, mthd, data, addr);
 			} else
 			if (display) {
@@ -840,10 +838,7 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 {
 	struct nv50_gr *gr = (void *)subdev;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	struct nvkm_fifo *fifo = device->fifo;
-	struct nvkm_engine *engine = nv_engine(subdev);
-	struct nvkm_object *engctx;
-	struct nvkm_handle *handle = NULL;
+	struct nvkm_fifo_chan *chan;
 	u32 stat = nvkm_rd32(device, 0x400100);
 	u32 inst = nvkm_rd32(device, 0x40032c) & 0x0fffffff;
 	u32 addr = nvkm_rd32(device, 0x400704);
@@ -853,18 +848,12 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 	u32 class = nvkm_rd32(device, 0x400814);
 	u32 show = stat, show_bitfield = stat;
 	const struct nvkm_enum *en;
+	unsigned long flags;
 	char msg[128];
 	int chid;
 
-	engctx = nvkm_engctx_get(engine, inst);
-	chid   = fifo->chid(fifo, engctx);
-
-	if (stat & 0x00000010) {
-		handle = nvkm_handle_get_class(engctx, class);
-		if (handle && !nv_call(handle->object, mthd, data))
-			show &= ~0x00000010;
-		nvkm_handle_put(handle);
-	}
+	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+	chid = chan ? chan->chid : -1;
 
 	if (show & 0x00100000) {
 		u32 ecode = nvkm_rd32(device, 0x400110);
@@ -875,8 +864,7 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat & 0x00200000) {
-		if (!nv50_gr_trap_handler(gr, show, chid, (u64)inst << 12,
-					  engctx))
+		if (!nv50_gr_trap_handler(gr, show, chid, (u64)inst << 12, chan))
 			show &= ~0x00200000;
 		show_bitfield &= ~0x00200000;
 	}
@@ -890,13 +878,13 @@ nv50_gr_intr(struct nvkm_subdev *subdev)
 		nvkm_error(subdev, "%08x [%s] ch %d [%010llx %s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   stat, msg, chid, (u64)inst << 12,
-			   nvkm_client_name(engctx), subc, class, mthd, data);
+			   nvkm_client_name(chan), subc, class, mthd, data);
 	}
 
 	if (nvkm_rd32(device, 0x400824) & (1 << 31))
 		nvkm_wr32(device, 0x400824, nvkm_rd32(device, 0x400824) & ~(1 << 31));
 
-	nvkm_engctx_put(engctx);
+	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
 static int

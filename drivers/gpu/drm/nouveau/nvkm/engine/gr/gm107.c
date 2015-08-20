@@ -37,8 +37,8 @@ static struct nvkm_oclass
 gm107_gr_sclass[] = {
 	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
 	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
-	{ MAXWELL_A, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
-	{ MAXWELL_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
+	{ MAXWELL_A, &gf100_fermi_ofuncs },
+	{ MAXWELL_COMPUTE_A, &nvkm_object_ofuncs },
 	{}
 };
 
