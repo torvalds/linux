@@ -107,6 +107,7 @@ void imx7_pm_map_io(void);
 void imx_src_init(void);
 void imx_gpc_pre_suspend(bool arm_power_off);
 void imx_gpc_post_resume(void);
+unsigned int imx_gpc_is_mf_mix_off(void);
 void imx_gpcv2_pre_suspend(bool arm_power_off);
 void imx_gpcv2_post_resume(void);
 void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
