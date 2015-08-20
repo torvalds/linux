@@ -160,7 +160,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			args.limit = device->info.ram_user - 1;
 		}
 	} else {
-		if (chan->drm->agp.stat == ENABLED) {
+		if (chan->drm->agp.bridge) {
 			args.target = NV_DMA_V0_TARGET_AGP;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = chan->drm->agp.base;
@@ -328,7 +328,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.start = 0;
 			args.limit = cli->vm->mmu->limit - 1;
 		} else
-		if (chan->drm->agp.stat == ENABLED) {
+		if (chan->drm->agp.bridge) {
 			args.target = NV_DMA_V0_TARGET_AGP;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = chan->drm->agp.base;

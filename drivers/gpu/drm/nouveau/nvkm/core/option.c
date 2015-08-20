@@ -73,6 +73,24 @@ nvkm_boolopt(const char *optstr, const char *opt, bool value)
 	return value;
 }
 
+long
+nvkm_longopt(const char *optstr, const char *opt, long value)
+{
+	long result = value;
+	int arglen;
+	char *s;
+
+	optstr = nvkm_stropt(optstr, opt, &arglen);
+	if (optstr && (s = kstrndup(optstr, arglen, GFP_KERNEL))) {
+		int ret = kstrtol(s, 0, &value);
+		if (ret == 0)
+			result = value;
+		kfree(s);
+	}
+
+	return result;
+}
+
 int
 nvkm_dbgopt(const char *optstr, const char *sub)
 {

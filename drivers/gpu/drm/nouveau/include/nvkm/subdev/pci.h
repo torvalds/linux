@@ -7,6 +7,17 @@ struct nvkm_pci {
 	struct nvkm_subdev subdev;
 	struct pci_dev *pdev;
 	int irq;
+
+	struct {
+		struct agp_bridge_data *bridge;
+		u32 mode;
+		u64 base;
+		u64 size;
+		int mtrr;
+		bool cma;
+		bool acquired;
+	} agp;
+
 	bool msi;
 };
 

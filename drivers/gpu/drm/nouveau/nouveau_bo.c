@@ -576,10 +576,9 @@ nouveau_ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
 {
 #if __OS_HAS_AGP
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
-	struct drm_device *dev = drm->dev;
 
-	if (drm->agp.stat == ENABLED) {
-		return ttm_agp_tt_create(bdev, dev->agp->bridge, size,
+	if (drm->agp.bridge) {
+		return ttm_agp_tt_create(bdev, drm->agp.bridge, size,
 					 page_flags, dummy_read);
 	}
 #endif
@@ -631,12 +630,12 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 			man->func = &nouveau_gart_manager;
 		else
-		if (drm->agp.stat != ENABLED)
+		if (!drm->agp.bridge)
 			man->func = &nv04_gart_manager;
 		else
 			man->func = &ttm_bo_manager_func;
 
-		if (drm->agp.stat == ENABLED) {
+		if (drm->agp.bridge) {
 			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
 			man->available_caching = TTM_PL_FLAG_UNCACHED |
 				TTM_PL_FLAG_WC;
@@ -1368,10 +1367,10 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		return 0;
 	case TTM_PL_TT:
 #if __OS_HAS_AGP
-		if (drm->agp.stat == ENABLED) {
+		if (drm->agp.bridge) {
 			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = drm->agp.base;
-			mem->bus.is_iomem = !drm->dev->agp->cant_use_aperture;
+			mem->bus.is_iomem = !drm->agp.cma;
 		}
 #endif
 		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA || !node->memtype)
@@ -1498,7 +1497,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 		return ttm_dma_populate(ttm_dma, dev->dev);
 
 #if __OS_HAS_AGP
-	if (drm->agp.stat == ENABLED) {
+	if (drm->agp.bridge) {
 		return ttm_agp_tt_populate(ttm);
 	}
 #endif
@@ -1565,7 +1564,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	}
 
 #if __OS_HAS_AGP
-	if (drm->agp.stat == ENABLED) {
+	if (drm->agp.bridge) {
 		ttm_agp_tt_unpopulate(ttm);
 		return;
 	}

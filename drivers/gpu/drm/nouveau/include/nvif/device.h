@@ -45,6 +45,7 @@ u64  nvif_device_time(struct nvif_device *);
 #include <subdev/i2c.h>
 #include <subdev/timer.h>
 #include <subdev/therm.h>
+#include <subdev/pci.h>
 
 #define nvxx_device(a) ({                                                      \
 	struct nvif_device *_device = (a);                                     \

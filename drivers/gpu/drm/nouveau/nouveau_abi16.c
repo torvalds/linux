@@ -498,7 +498,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		args.start += chan->ntfy_vma.offset;
 		args.limit += chan->ntfy_vma.offset;
 	} else
-	if (drm->agp.stat == ENABLED) {
+	if (drm->agp.bridge) {
 		args.target = NV_DMA_V0_TARGET_AGP;
 		args.access = NV_DMA_V0_ACCESS_RDWR;
 		args.start += drm->agp.base + chan->ntfy->bo.offset;

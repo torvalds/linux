@@ -41,7 +41,6 @@
 #include "nouveau_dma.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
-#include "nouveau_agp.h"
 #include "nouveau_vga.h"
 #include "nouveau_sysfs.h"
 #include "nouveau_hwmon.h"
@@ -423,7 +422,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 		nvif_mask(&drm->device.object, 0x00088080, 0x00000800, 0x00000000);
 
 	nouveau_vga_init(drm);
-	nouveau_agp_init(drm);
 
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nvkm_vm_new(nvxx_device(&drm->device), 0, (1ULL << 40),
@@ -474,7 +472,6 @@ fail_dispctor:
 fail_bios:
 	nouveau_ttm_fini(drm);
 fail_ttm:
-	nouveau_agp_fini(drm);
 	nouveau_vga_fini(drm);
 fail_device:
 	nvif_device_fini(&drm->device);
@@ -500,7 +497,6 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_bios_takedown(dev);
 
 	nouveau_ttm_fini(drm);
-	nouveau_agp_fini(drm);
 	nouveau_vga_fini(drm);
 
 	nvif_device_fini(&drm->device);
@@ -584,7 +580,6 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	if (ret)
 		goto fail_client;
 
-	nouveau_agp_fini(drm);
 	return 0;
 
 fail_client:
@@ -609,13 +604,8 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli;
 
-	NV_INFO(drm, "re-enabling device...\n");
-
-	nouveau_agp_reset(drm);
-
 	NV_INFO(drm, "resuming kernel object tree...\n");
 	nvif_client_resume(&drm->client.base);
-	nouveau_agp_init(drm);
 
 	NV_INFO(drm, "resuming client object trees...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
@@ -929,7 +919,6 @@ nouveau_driver_fops = {
 static struct drm_driver
 driver_stub = {
 	.driver_features =
-		DRIVER_USE_AGP |
 		DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER |
 		DRIVER_KMS_LEGACY_CONTEXT,
 

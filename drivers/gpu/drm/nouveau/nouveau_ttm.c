@@ -336,13 +336,21 @@ int
 nouveau_ttm_init(struct nouveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(&drm->device);
+	struct nvkm_pci *pci = device->pci;
 	struct drm_device *dev = drm->dev;
 	u32 bits;
 	int ret;
 
+	if (pci && pci->agp.bridge) {
+		drm->agp.bridge = pci->agp.bridge;
+		drm->agp.base = pci->agp.base;
+		drm->agp.size = pci->agp.size;
+		drm->agp.cma = pci->agp.cma;
+	}
+
 	bits = nvxx_mmu(&drm->device)->dma_bits;
 	if (nvxx_device(&drm->device)->func->pci) {
-		if (drm->agp.stat == ENABLED ||
+		if (drm->agp.bridge ||
 		     !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
 			bits = 32;
 
@@ -386,7 +394,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 					 device->func->resource_size(device, 1));
 
 	/* GART init */
-	if (drm->agp.stat != ENABLED) {
+	if (!drm->agp.bridge) {
 		drm->gem.gart_available = nvxx_mmu(&drm->device)->limit;
 	} else {
 		drm->gem.gart_available = drm->agp.size;

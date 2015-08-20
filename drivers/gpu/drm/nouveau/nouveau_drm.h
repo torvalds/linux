@@ -111,13 +111,10 @@ struct nouveau_drm {
 	struct list_head clients;
 
 	struct {
-		enum {
-			UNKNOWN = 0,
-			DISABLE = 1,
-			ENABLED = 2
-		} stat;
+		struct agp_bridge_data *bridge;
 		u32 base;
 		u32 size;
+		bool cma;
 	} agp;
 
 	/* TTM interface support */

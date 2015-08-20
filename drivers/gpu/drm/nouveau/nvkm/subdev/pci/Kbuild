@@ -1,3 +1,4 @@
+nvkm-y += nvkm/subdev/pci/agp.o
 nvkm-y += nvkm/subdev/pci/base.o
 nvkm-y += nvkm/subdev/pci/nv04.o
 nvkm-y += nvkm/subdev/pci/nv40.o

@@ -24,6 +24,7 @@
 #include <linux/power_supply.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/agp_backend.h>
 
 #include <asm/unaligned.h>
 
