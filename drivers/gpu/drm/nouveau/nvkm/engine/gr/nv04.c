@@ -1206,7 +1206,10 @@ nv04_gr_idle(void *obj)
 	if (nv_device(obj)->card_type == NV_40)
 		mask &= ~NV40_PGRAPH_STATUS_SYNC_STALL;
 
-	if (!nv_wait(gr, NV04_PGRAPH_STATUS, mask, 0)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, NV04_PGRAPH_STATUS) & mask))
+			break;
+	) < 0) {
 		nv_error(gr, "idle timed out with status 0x%08x\n",
 			 nvkm_rd32(device, NV04_PGRAPH_STATUS));
 		return false;

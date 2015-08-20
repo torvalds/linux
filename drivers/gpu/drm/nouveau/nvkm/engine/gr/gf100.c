@@ -741,7 +741,10 @@ gf100_gr_icmd(struct gf100_gr *gr, const struct gf100_gr_pack *p)
 			 */
 			if ((addr & 0xffff) == 0xe100)
 				gf100_gr_wait_idle(gr);
-			nv_wait(gr, 0x400700, 0x00000004, 0x00000000);
+			nvkm_msec(device, 2000,
+				if (!(nvkm_rd32(device, 0x400700) & 0x00000004))
+					break;
+			);
 			addr += init->pitch;
 		}
 	}
@@ -1312,8 +1315,11 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x40910c, 0x00000000);
 		nvkm_wr32(device, 0x41a100, 0x00000002);
 		nvkm_wr32(device, 0x409100, 0x00000002);
-		if (!nv_wait(gr, 0x409800, 0x00000001, 0x00000001))
-			nv_warn(gr, "0x409800 wait failed\n");
+		if (nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800) & 0x00000001)
+				break;
+		) < 0)
+			return -EBUSY;
 
 		nvkm_wr32(device, 0x409840, 0xffffffff);
 		nvkm_wr32(device, 0x409500, 0x7fffffff);
@@ -1322,54 +1328,59 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x409840, 0xffffffff);
 		nvkm_wr32(device, 0x409500, 0x00000000);
 		nvkm_wr32(device, 0x409504, 0x00000010);
-		if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
-			nv_error(gr, "fuc09 req 0x10 timeout\n");
+		if (nvkm_msec(device, 2000,
+			if ((gr->size = nvkm_rd32(device, 0x409800)))
+				break;
+		) < 0)
 			return -EBUSY;
-		}
-		gr->size = nvkm_rd32(device, 0x409800);
 
 		nvkm_wr32(device, 0x409840, 0xffffffff);
 		nvkm_wr32(device, 0x409500, 0x00000000);
 		nvkm_wr32(device, 0x409504, 0x00000016);
-		if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
-			nv_error(gr, "fuc09 req 0x16 timeout\n");
+		if (nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800))
+				break;
+		) < 0)
 			return -EBUSY;
-		}
 
 		nvkm_wr32(device, 0x409840, 0xffffffff);
 		nvkm_wr32(device, 0x409500, 0x00000000);
 		nvkm_wr32(device, 0x409504, 0x00000025);
-		if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
-			nv_error(gr, "fuc09 req 0x25 timeout\n");
+		if (nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800))
+				break;
+		) < 0)
 			return -EBUSY;
-		}
 
 		if (nv_device(gr)->chipset >= 0xe0) {
 			nvkm_wr32(device, 0x409800, 0x00000000);
 			nvkm_wr32(device, 0x409500, 0x00000001);
 			nvkm_wr32(device, 0x409504, 0x00000030);
-			if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
-				nv_error(gr, "fuc09 req 0x30 timeout\n");
+			if (nvkm_msec(device, 2000,
+				if (nvkm_rd32(device, 0x409800))
+					break;
+			) < 0)
 				return -EBUSY;
-			}
 
 			nvkm_wr32(device, 0x409810, 0xb00095c8);
 			nvkm_wr32(device, 0x409800, 0x00000000);
 			nvkm_wr32(device, 0x409500, 0x00000001);
 			nvkm_wr32(device, 0x409504, 0x00000031);
-			if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
-				nv_error(gr, "fuc09 req 0x31 timeout\n");
+			if (nvkm_msec(device, 2000,
+				if (nvkm_rd32(device, 0x409800))
+					break;
+			) < 0)
 				return -EBUSY;
-			}
 
 			nvkm_wr32(device, 0x409810, 0x00080420);
 			nvkm_wr32(device, 0x409800, 0x00000000);
 			nvkm_wr32(device, 0x409500, 0x00000001);
 			nvkm_wr32(device, 0x409504, 0x00000032);
-			if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
-				nv_error(gr, "fuc09 req 0x32 timeout\n");
+			if (nvkm_msec(device, 2000,
+				if (nvkm_rd32(device, 0x409800))
+					break;
+			) < 0)
 				return -EBUSY;
-			}
 
 			nvkm_wr32(device, 0x409614, 0x00000070);
 			nvkm_wr32(device, 0x409614, 0x00000770);
@@ -1425,8 +1436,10 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 	/* start HUB ucode running, it'll init the GPCs */
 	nvkm_wr32(device, 0x40910c, 0x00000000);
 	nvkm_wr32(device, 0x409100, 0x00000002);
-	if (!nv_wait(gr, 0x409800, 0x80000000, 0x80000000)) {
-		nv_error(gr, "HUB_INIT timed out\n");
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x409800) & 0x80000000)
+			break;
+	) < 0) {
 		gf100_gr_ctxctl_debug(gr);
 		return -EBUSY;
 	}

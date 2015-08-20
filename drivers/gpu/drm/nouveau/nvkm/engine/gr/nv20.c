@@ -127,7 +127,10 @@ nv20_gr_context_fini(struct nvkm_object *object, bool suspend)
 	if (chan->chid == chid) {
 		nvkm_wr32(device, 0x400784, nv_gpuobj(chan)->addr >> 4);
 		nvkm_wr32(device, 0x400788, 0x00000002);
-		nv_wait(gr, 0x400700, 0xffffffff, 0x00000000);
+		nvkm_msec(device, 2000,
+			if (!nvkm_rd32(device, 0x400700))
+				break;
+		);
 		nvkm_wr32(device, 0x400144, 0x10000000);
 		nvkm_mask(device, 0x400148, 0xff000000, 0x1f000000);
 	}
@@ -289,12 +292,18 @@ nv20_gr_init(struct nvkm_object *object)
 		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x003d0000);
 		for (i = 0; i < 15; i++)
 			nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, 0x00000000);
-		nv_wait(gr, 0x400700, 0xffffffff, 0x00000000);
+		nvkm_msec(device, 2000,
+			if (!nvkm_rd32(device, 0x400700))
+				break;
+		);
 	} else {
 		nvkm_wr32(device, NV10_PGRAPH_RDI_INDEX, 0x02c80000);
 		for (i = 0; i < 32; i++)
 			nvkm_wr32(device, NV10_PGRAPH_RDI_DATA, 0x00000000);
-		nv_wait(gr, 0x400700, 0xffffffff, 0x00000000);
+		nvkm_msec(device, 2000,
+			if (!nvkm_rd32(device, 0x400700))
+				break;
+		);
 	}
 
 	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);

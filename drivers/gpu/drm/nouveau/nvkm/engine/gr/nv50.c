@@ -285,8 +285,10 @@ g84_gr_tlb_flush(struct nvkm_engine *engine)
 
 
 	nvkm_wr32(device, 0x100c80, 0x00000001);
-	if (!nv_wait(gr, 0x100c80, 0x00000001, 0x00000000))
-		nv_error(gr, "vm flush timeout\n");
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x100c80) & 0x00000001))
+			break;
+	);
 	nvkm_mask(device, 0x400500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&gr->lock, flags);
 	return timeout ? -EBUSY : 0;

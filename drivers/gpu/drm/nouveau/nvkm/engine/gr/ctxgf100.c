@@ -1312,7 +1312,10 @@ gf100_grctx_generate(struct gf100_gr *gr)
 
 	nvkm_wr32(device, 0x100cb8, (chan->addr + 0x1000) >> 8);
 	nvkm_wr32(device, 0x100cbc, 0x80000001);
-	nv_wait(gr, 0x100c80, 0x00008000, 0x00008000);
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x100c80) & 0x00008000)
+			break;
+	);
 
 	/* setup default state for mmio list construction */
 	info.gr = gr;
@@ -1326,8 +1329,10 @@ gf100_grctx_generate(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x409840, 0x00000030);
 		nvkm_wr32(device, 0x409500, 0x80000000 | chan->addr >> 12);
 		nvkm_wr32(device, 0x409504, 0x00000003);
-		if (!nv_wait(gr, 0x409800, 0x00000010, 0x00000010))
-			nv_error(gr, "load_ctx timeout\n");
+		nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800) & 0x00000010)
+				break;
+		);
 
 		nv_wo32(chan, 0x8001c, 1);
 		nv_wo32(chan, 0x80020, 0);
@@ -1338,8 +1343,10 @@ gf100_grctx_generate(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x409840, 0x80000000);
 		nvkm_wr32(device, 0x409500, 0x80000000 | chan->addr >> 12);
 		nvkm_wr32(device, 0x409504, 0x00000001);
-		if (!nv_wait(gr, 0x409800, 0x80000000, 0x80000000))
-			nv_error(gr, "HUB_SET_CHAN timeout\n");
+		nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800) & 0x80000000)
+				break;
+		);
 	}
 
 	oclass->main(gr, &info);
@@ -1349,8 +1356,10 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	 */
 	nvkm_mask(device, 0x409b04, 0x80000000, 0x00000000);
 	nvkm_wr32(device, 0x409000, 0x00000100);
-	if (!nv_wait(gr, 0x409b00, 0x80000000, 0x00000000)) {
-		nv_error(gr, "grctx template channel unload timeout\n");
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x409b00) & 0x80000000))
+			break;
+	) < 0) {
 		ret = -EBUSY;
 		goto done;
 	}

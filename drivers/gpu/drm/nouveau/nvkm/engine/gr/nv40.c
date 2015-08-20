@@ -167,7 +167,10 @@ nv40_gr_context_fini(struct nvkm_object *object, bool suspend)
 			nvkm_wr32(device, 0x400784, inst);
 			nvkm_mask(device, 0x400310, 0x00000020, 0x00000020);
 			nvkm_mask(device, 0x400304, 0x00000001, 0x00000001);
-			if (!nv_wait(gr, 0x400300, 0x00000001, 0x00000000)) {
+			if (nvkm_msec(device, 2000,
+				if (!(nvkm_rd32(device, 0x400300) & 0x00000001))
+					break;
+			) < 0) {
 				u32 insn = nvkm_rd32(device, 0x400308);
 				nv_warn(gr, "ctxprog timeout 0x%08x\n", insn);
 				ret = -EBUSY;

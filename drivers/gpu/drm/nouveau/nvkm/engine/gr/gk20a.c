@@ -220,12 +220,20 @@ gk20a_gr_dtor(struct nvkm_object *object)
 static int
 gk20a_gr_wait_mem_scrubbing(struct gf100_gr *gr)
 {
-	if (!nv_wait(gr, 0x40910c, 0x6, 0x0)) {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x40910c) & 0x00000006))
+			break;
+	) < 0) {
 		nv_error(gr, "FECS mem scrubbing timeout\n");
 		return -ETIMEDOUT;
 	}
 
-	if (!nv_wait(gr, 0x41a10c, 0x6, 0x0)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x41a10c) & 0x00000006))
+			break;
+	) < 0) {
 		nv_error(gr, "GPCCS mem scrubbing timeout\n");
 		return -ETIMEDOUT;
 	}
