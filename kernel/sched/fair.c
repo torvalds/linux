@@ -8037,8 +8037,12 @@ static void task_move_group_fair(struct task_struct *p, int queued)
 	if (!queued && (!se->sum_exec_runtime || p->state == TASK_WAKING))
 		queued = 1;
 
+	cfs_rq = cfs_rq_of(se);
 	if (!queued)
-		se->vruntime -= cfs_rq_of(se)->min_vruntime;
+		se->vruntime -= cfs_rq->min_vruntime;
+
+	/* Synchronize task with its prev cfs_rq */
+	detach_entity_load_avg(cfs_rq, se);
 	set_task_rq(p, task_cpu(p));
 	se->depth = se->parent ? se->parent->depth + 1 : 0;
 	cfs_rq = cfs_rq_of(se);
