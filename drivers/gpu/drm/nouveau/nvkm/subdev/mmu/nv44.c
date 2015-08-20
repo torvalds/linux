@@ -187,7 +187,7 @@ nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	mmu->nullp = pci_alloc_consistent(device->pdev, 16 * 1024, &mmu->null);
 	if (!mmu->nullp) {
-		nv_warn(mmu, "unable to allocate dummy pages\n");
+		nvkm_warn(&mmu->base.subdev, "unable to allocate dummy pages\n");
 		mmu->null = 0;
 	}
 

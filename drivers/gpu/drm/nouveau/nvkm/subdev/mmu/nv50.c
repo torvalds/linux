@@ -146,14 +146,15 @@ static void
 nv50_vm_flush(struct nvkm_vm *vm)
 {
 	struct nvkm_mmu *mmu = (void *)vm->mmu;
-	struct nvkm_device *device = mmu->subdev.device;
+	struct nvkm_subdev *subdev = &mmu->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bar *bar = device->bar;
 	struct nvkm_engine *engine;
 	int i, vme;
 
 	bar->flush(bar);
 
-	mutex_lock(&nv_subdev(mmu)->mutex);
+	mutex_lock(&subdev->mutex);
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
 		if (!atomic_read(&vm->engref[i]))
 			continue;
@@ -186,9 +187,9 @@ nv50_vm_flush(struct nvkm_vm *vm)
 			if (!(nvkm_rd32(device, 0x100c80) & 0x00000001))
 				break;
 		) < 0)
-			nv_error(mmu, "vm flush timeout: engine %d\n", vme);
+			nvkm_error(subdev, "vm flush timeout: engine %d\n", vme);
 	}
-	mutex_unlock(&nv_subdev(mmu)->mutex);
+	mutex_unlock(&subdev->mutex);
 }
 
 static int
