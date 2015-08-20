@@ -606,7 +606,8 @@ void __init imx7d_pm_init(void)
 	struct device_node *np;
 	struct resource res;
 
-	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3)
+	if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR3
+		|| imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
 		imx7_pm_common_init(&imx7d_pm_data_lpddr3);
 	else if (imx_ddrc_get_ddr_type() == IMX_DDR_TYPE_DDR3)
 		imx7_pm_common_init(&imx7d_pm_data_ddr3);

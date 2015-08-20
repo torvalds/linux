@@ -477,7 +477,8 @@ int init_ddrc_ddr_settings(struct platform_device *busfreq_pdev)
 			(void *)ddr_freq_change_iram_base + SMP_WFE_CODE_SIZE,
 			&imx7d_ddr3_freq_change,
 			MX7_BUSFREQ_OCRAM_SIZE - SMP_WFE_CODE_SIZE);
-	else if (ddr_type == IMX_DDR_TYPE_LPDDR3)
+	else if (ddr_type == IMX_DDR_TYPE_LPDDR3
+		|| ddr_type == IMX_DDR_TYPE_LPDDR2)
 		imx7d_change_ddr_freq = (void *)fncpy(
 			(void *)ddr_freq_change_iram_base +
 			SMP_WFE_CODE_SIZE,
