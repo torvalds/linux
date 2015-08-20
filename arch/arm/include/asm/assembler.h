@@ -108,29 +108,37 @@
 	.endm
 #endif
 
-	.macro asm_trace_hardirqs_off
+	.macro asm_trace_hardirqs_off, save=1
 #if defined(CONFIG_TRACE_IRQFLAGS)
+	.if \save
 	stmdb   sp!, {r0-r3, ip, lr}
+	.endif
 	bl	trace_hardirqs_off
+	.if \save
 	ldmia	sp!, {r0-r3, ip, lr}
+	.endif
 #endif
 	.endm
 
-	.macro asm_trace_hardirqs_on, cond=al
+	.macro asm_trace_hardirqs_on, cond=al, save=1
 #if defined(CONFIG_TRACE_IRQFLAGS)
 	/*
 	 * actually the registers should be pushed and pop'd conditionally, but
 	 * after bl the flags are certainly clobbered
 	 */
+	.if \save
 	stmdb   sp!, {r0-r3, ip, lr}
+	.endif
 	bl\cond	trace_hardirqs_on
+	.if \save
 	ldmia	sp!, {r0-r3, ip, lr}
+	.endif
 #endif
 	.endm
 
-	.macro disable_irq
+	.macro disable_irq, save=1
 	disable_irq_notrace
-	asm_trace_hardirqs_off
+	asm_trace_hardirqs_off \save
 	.endm
 
 	.macro enable_irq
