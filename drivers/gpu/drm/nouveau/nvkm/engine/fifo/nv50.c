@@ -135,7 +135,10 @@ nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 
 	/* do the kickoff... */
 	nvkm_wr32(device, 0x0032fc, nv_gpuobj(base)->addr >> 12);
-	if (!nv_wait_ne(fifo, 0x0032fc, 0xffffffff, 0xffffffff)) {
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x0032fc) != 0xffffffff)
+			break;
+	) < 0) {
 		nv_error(fifo, "channel %d [%s] unload timeout\n",
 			 chan->base.chid, nvkm_client_name(chan));
 		if (suspend)

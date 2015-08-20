@@ -321,9 +321,11 @@ __acquires(fifo->base.lock)
 	 * to avoid this, we invalidate the most recently calculated
 	 * instance.
 	 */
-	if (!nv_wait(fifo, NV04_PFIFO_CACHE1_PULL0,
-			   NV04_PFIFO_CACHE1_PULL0_HASH_BUSY, 0x00000000))
-		nv_warn(fifo, "timeout idling puller\n");
+	nvkm_msec(device, 2000,
+		u32 tmp = nvkm_rd32(device, NV04_PFIFO_CACHE1_PULL0);
+		if (!(tmp & NV04_PFIFO_CACHE1_PULL0_HASH_BUSY))
+			break;
+	);
 
 	if (nvkm_rd32(device, NV04_PFIFO_CACHE1_PULL0) &
 			  NV04_PFIFO_CACHE1_PULL0_HASH_FAILED)

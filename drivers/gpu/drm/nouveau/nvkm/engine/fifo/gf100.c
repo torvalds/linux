@@ -166,7 +166,10 @@ gf100_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	}
 
 	nvkm_wr32(device, 0x002634, chan->base.chid);
-	if (!nv_wait(fifo, 0x002634, 0xffffffff, chan->base.chid)) {
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x002634) == chan->base.chid)
+			break;
+	) < 0) {
 		nv_error(fifo, "channel %d [%s] kick timeout\n",
 			 chan->base.chid, nvkm_client_name(chan));
 		if (suspend)

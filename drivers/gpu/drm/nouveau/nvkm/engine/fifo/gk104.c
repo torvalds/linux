@@ -174,7 +174,10 @@ gk104_fifo_chan_kick(struct gk104_fifo_chan *chan)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 
 	nvkm_wr32(device, 0x002634, chan->base.chid);
-	if (!nv_wait(fifo, 0x002634, 0x100000, 0x000000)) {
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x002634) & 0x00100000))
+			break;
+	) < 0) {
 		nv_error(fifo, "channel %d [%s] kick timeout\n",
 			 chan->base.chid, nvkm_client_name(chan));
 		return -EBUSY;

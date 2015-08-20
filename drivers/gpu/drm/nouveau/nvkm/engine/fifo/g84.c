@@ -106,7 +106,10 @@ g84_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 
 	save = nvkm_mask(device, 0x002520, 0x0000003f, 1 << engn);
 	nvkm_wr32(device, 0x0032fc, nv_gpuobj(base)->addr >> 12);
-	done = nv_wait_ne(fifo, 0x0032fc, 0xffffffff, 0xffffffff);
+	done = nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x0032fc) != 0xffffffff)
+			break;
+	) >= 0;
 	nvkm_wr32(device, 0x002520, save);
 	if (!done) {
 		nv_error(fifo, "channel %d [%s] unload timeout\n",
