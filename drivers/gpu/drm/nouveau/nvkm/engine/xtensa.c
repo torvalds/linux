@@ -62,11 +62,11 @@ _nvkm_xtensa_intr(struct nvkm_subdev *subdev)
 	u32 unk10c = nv_ro32(xtensa, 0xd0c);
 
 	if (intr & 0x10)
-		nv_warn(xtensa, "Watchdog interrupt, engine hung.\n");
+		nvkm_warn(subdev, "Watchdog interrupt, engine hung.\n");
 	nv_wo32(xtensa, 0xc20, intr);
 	intr = nv_ro32(xtensa, 0xc20);
 	if (unk104 == 0x10001 && unk10c == 0x200 && chan && !intr) {
-		nv_debug(xtensa, "Enabling FIFO_CTRL\n");
+		nvkm_debug(subdev, "Enabling FIFO_CTRL\n");
 		nvkm_mask(device, xtensa->addr + 0xd94, 0, xtensa->fifo_val);
 	}
 }
@@ -94,8 +94,9 @@ nvkm_xtensa_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 int
 _nvkm_xtensa_init(struct nvkm_object *object)
 {
-	struct nvkm_device *device = nv_device(object);
 	struct nvkm_xtensa *xtensa = (void *)object;
+	struct nvkm_subdev *subdev = &xtensa->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const struct firmware *fw;
 	char name[32];
 	int i, ret;
@@ -111,12 +112,12 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 
 		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
-			nv_warn(xtensa, "unable to load firmware %s\n", name);
+			nvkm_warn(subdev, "unable to load firmware %s\n", name);
 			return ret;
 		}
 
 		if (fw->size > 0x40000) {
-			nv_warn(xtensa, "firmware %s too large\n", name);
+			nvkm_warn(subdev, "firmware %s too large\n", name);
 			release_firmware(fw);
 			return -EINVAL;
 		}
@@ -128,8 +129,8 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 			return ret;
 		}
 
-		nv_debug(xtensa, "Loading firmware to address: 0x%llx\n",
-			 xtensa->gpu_fw->addr);
+		nvkm_debug(subdev, "Loading firmware to address: %010llx\n",
+			   xtensa->gpu_fw->addr);
 
 		for (i = 0; i < fw->size / 4; i++)
 			nv_wo32(xtensa->gpu_fw, i * 4, *((u32 *)fw->data + i));
