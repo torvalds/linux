@@ -727,7 +727,7 @@ nvkm_device_create_(void *dev, enum nv_bus_type type, u64 name,
 
 	nv_subdev(device)->debug = nvkm_dbgopt(device->dbgopt, "DEVICE");
 	nv_engine(device)->sclass = nvkm_device_sclass;
-	list_add(&device->head, &nv_devices);
+	list_add_tail(&device->head, &nv_devices);
 
 	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
 done:
