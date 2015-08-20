@@ -130,7 +130,9 @@ nv40_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *engctx)
 
 	if ((nvkm_rd32(device, 0x003204) & fifo->base.max) == chan->base.chid)
 		nvkm_wr32(device, reg, nv_engctx(engctx)->addr);
-	nv_wo32(fifo->ramfc, chan->ramfc + ctx, nv_engctx(engctx)->addr);
+	nvkm_kmap(fifo->ramfc);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + ctx, nv_engctx(engctx)->addr);
+	nvkm_done(fifo->ramfc);
 
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
@@ -167,7 +169,9 @@ nv40_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 
 	if ((nvkm_rd32(device, 0x003204) & fifo->base.max) == chan->base.chid)
 		nvkm_wr32(device, reg, 0x00000000);
-	nv_wo32(fifo->ramfc, chan->ramfc + ctx, 0x00000000);
+	nvkm_kmap(fifo->ramfc);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + ctx, 0x00000000);
+	nvkm_done(fifo->ramfc);
 
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
@@ -212,17 +216,19 @@ nv40_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	nv_parent(chan)->object_detach = nv04_fifo_object_detach;
 	chan->ramfc = chan->base.chid * 128;
 
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x18, 0x30000000 |
+	nvkm_kmap(fifo->ramfc);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x18, 0x30000000 |
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
 			     NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x3c, 0x0001ffff);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x3c, 0x0001ffff);
+	nvkm_done(fifo->ramfc);
 	return 0;
 }
 

@@ -86,15 +86,17 @@ gf100_fifo_runlist_update(struct gf100_fifo *fifo)
 	cur = fifo->runlist.mem[fifo->runlist.active];
 	fifo->runlist.active = !fifo->runlist.active;
 
+	nvkm_kmap(cur);
 	for (i = 0, p = 0; i < 128; i++) {
 		struct gf100_fifo_chan *chan = (void *)fifo->base.channel[i];
 		if (chan && chan->state == RUNNING) {
-			nv_wo32(cur, p + 0, i);
-			nv_wo32(cur, p + 4, 0x00000004);
+			nvkm_wo32(cur, p + 0, i);
+			nvkm_wo32(cur, p + 4, 0x00000004);
 			p += 8;
 		}
 	}
 	bar->flush(bar);
+	nvkm_done(cur);
 
 	nvkm_wr32(device, 0x002270, cur->addr >> 12);
 	nvkm_wr32(device, 0x002274, 0x01f00000 | (p >> 3));
@@ -112,6 +114,7 @@ gf100_fifo_context_attach(struct nvkm_object *parent,
 {
 	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct gf100_fifo_base *base = (void *)parent->parent;
+	struct nvkm_gpuobj *engn = &base->base.gpuobj;
 	struct nvkm_engctx *ectx = (void *)object;
 	u32 addr;
 	int ret;
@@ -137,9 +140,11 @@ gf100_fifo_context_attach(struct nvkm_object *parent,
 		nv_engctx(ectx)->addr = nv_gpuobj(base)->addr >> 12;
 	}
 
-	nv_wo32(base, addr + 0x00, lower_32_bits(ectx->vma.offset) | 4);
-	nv_wo32(base, addr + 0x04, upper_32_bits(ectx->vma.offset));
+	nvkm_kmap(engn);
+	nvkm_wo32(engn, addr + 0x00, lower_32_bits(ectx->vma.offset) | 4);
+	nvkm_wo32(engn, addr + 0x04, upper_32_bits(ectx->vma.offset));
 	bar->flush(bar);
+	nvkm_done(engn);
 	return 0;
 }
 
@@ -150,6 +155,7 @@ gf100_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	struct gf100_fifo *fifo = (void *)parent->engine;
 	struct gf100_fifo_base *base = (void *)parent->parent;
 	struct gf100_fifo_chan *chan = (void *)parent;
+	struct nvkm_gpuobj *engn = &base->base.gpuobj;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bar *bar = device->bar;
@@ -178,9 +184,11 @@ gf100_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 			return -EBUSY;
 	}
 
-	nv_wo32(base, addr + 0x00, 0x00000000);
-	nv_wo32(base, addr + 0x04, 0x00000000);
+	nvkm_kmap(engn);
+	nvkm_wo32(engn, addr + 0x00, 0x00000000);
+	nvkm_wo32(engn, addr + 0x04, 0x00000000);
 	bar->flush(bar);
+	nvkm_done(engn);
 	return 0;
 }
 
@@ -196,6 +204,7 @@ gf100_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct gf100_fifo *fifo = (void *)engine;
 	struct gf100_fifo_base *base = (void *)parent;
 	struct gf100_fifo_chan *chan;
+	struct nvkm_gpuobj *ramfc = &base->base.gpuobj;
 	u64 usermem, ioffset, ilength;
 	int ret, i;
 
@@ -231,26 +240,30 @@ gf100_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	ioffset = args->v0.ioffset;
 	ilength = order_base_2(args->v0.ilength / 8);
 
+	nvkm_kmap(fifo->user.mem);
 	for (i = 0; i < 0x1000; i += 4)
-		nv_wo32(fifo->user.mem, usermem + i, 0x00000000);
+		nvkm_wo32(fifo->user.mem, usermem + i, 0x00000000);
+	nvkm_done(fifo->user.mem);
 
-	nv_wo32(base, 0x08, lower_32_bits(fifo->user.mem->addr + usermem));
-	nv_wo32(base, 0x0c, upper_32_bits(fifo->user.mem->addr + usermem));
-	nv_wo32(base, 0x10, 0x0000face);
-	nv_wo32(base, 0x30, 0xfffff902);
-	nv_wo32(base, 0x48, lower_32_bits(ioffset));
-	nv_wo32(base, 0x4c, upper_32_bits(ioffset) | (ilength << 16));
-	nv_wo32(base, 0x54, 0x00000002);
-	nv_wo32(base, 0x84, 0x20400000);
-	nv_wo32(base, 0x94, 0x30000001);
-	nv_wo32(base, 0x9c, 0x00000100);
-	nv_wo32(base, 0xa4, 0x1f1f1f1f);
-	nv_wo32(base, 0xa8, 0x1f1f1f1f);
-	nv_wo32(base, 0xac, 0x0000001f);
-	nv_wo32(base, 0xb8, 0xf8000000);
-	nv_wo32(base, 0xf8, 0x10003080); /* 0x002310 */
-	nv_wo32(base, 0xfc, 0x10000010); /* 0x002350 */
+	nvkm_kmap(ramfc);
+	nvkm_wo32(ramfc, 0x08, lower_32_bits(fifo->user.mem->addr + usermem));
+	nvkm_wo32(ramfc, 0x0c, upper_32_bits(fifo->user.mem->addr + usermem));
+	nvkm_wo32(ramfc, 0x10, 0x0000face);
+	nvkm_wo32(ramfc, 0x30, 0xfffff902);
+	nvkm_wo32(ramfc, 0x48, lower_32_bits(ioffset));
+	nvkm_wo32(ramfc, 0x4c, upper_32_bits(ioffset) | (ilength << 16));
+	nvkm_wo32(ramfc, 0x54, 0x00000002);
+	nvkm_wo32(ramfc, 0x84, 0x20400000);
+	nvkm_wo32(ramfc, 0x94, 0x30000001);
+	nvkm_wo32(ramfc, 0x9c, 0x00000100);
+	nvkm_wo32(ramfc, 0xa4, 0x1f1f1f1f);
+	nvkm_wo32(ramfc, 0xa8, 0x1f1f1f1f);
+	nvkm_wo32(ramfc, 0xac, 0x0000001f);
+	nvkm_wo32(ramfc, 0xb8, 0xf8000000);
+	nvkm_wo32(ramfc, 0xf8, 0x10003080); /* 0x002310 */
+	nvkm_wo32(ramfc, 0xfc, 0x10000010); /* 0x002350 */
 	bar->flush(bar);
+	nvkm_done(ramfc);
 	return 0;
 }
 
@@ -341,10 +354,12 @@ gf100_fifo_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_wo32(base, 0x0200, lower_32_bits(base->pgd->addr));
-	nv_wo32(base, 0x0204, upper_32_bits(base->pgd->addr));
-	nv_wo32(base, 0x0208, 0xffffffff);
-	nv_wo32(base, 0x020c, 0x000000ff);
+	nvkm_kmap(&base->base.gpuobj);
+	nvkm_wo32(&base->base.gpuobj, 0x0200, lower_32_bits(base->pgd->addr));
+	nvkm_wo32(&base->base.gpuobj, 0x0204, upper_32_bits(base->pgd->addr));
+	nvkm_wo32(&base->base.gpuobj, 0x0208, 0xffffffff);
+	nvkm_wo32(&base->base.gpuobj, 0x020c, 0x000000ff);
+	nvkm_done(&base->base.gpuobj);
 
 	ret = nvkm_vm_ref(nvkm_client(parent)->vm, &base->vm, base->pgd);
 	if (ret)

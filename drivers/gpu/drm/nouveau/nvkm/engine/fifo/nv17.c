@@ -93,16 +93,18 @@ nv17_fifo_chan_ctor(struct nvkm_object *parent,
 	nv_parent(chan)->context_attach = nv04_fifo_context_attach;
 	chan->ramfc = chan->base.chid * 64;
 
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
-	nv_wo32(fifo->ramfc, chan->ramfc + 0x14,
+	nvkm_kmap(fifo->ramfc);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
+	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x14,
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
 			     NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
+	nvkm_done(fifo->ramfc);
 	return 0;
 }
 
