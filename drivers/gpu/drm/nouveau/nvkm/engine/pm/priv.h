@@ -12,16 +12,6 @@ struct nvkm_perfctr {
 	u32 ctr;
 };
 
-extern struct nvkm_oclass nvkm_pm_sclass[];
-
-#include <core/gpuobj.h>
-
-struct nvkm_perfctx {
-	struct nvkm_gpuobj base;
-};
-
-extern struct nvkm_oclass nvkm_pm_cclass;
-
 struct nvkm_specmux {
 	u32 mask;
 	u8 shift;
@@ -68,8 +58,11 @@ struct nvkm_specdom {
 	const struct nvkm_funcdom *func;
 };
 
+#define nvkm_perfdom(p) container_of((p), struct nvkm_perfdom, object)
+
 struct nvkm_perfdom {
-	struct nvkm_object base;
+	struct nvkm_object object;
+	struct nvkm_perfmon *perfmon;
 	struct list_head head;
 	struct list_head list;
 	const struct nvkm_funcdom *func;
@@ -92,6 +85,13 @@ struct nvkm_funcdom {
 
 int nvkm_perfdom_new(struct nvkm_pm *, const char *, u32, u32, u32, u32,
 		     const struct nvkm_specdom *);
+
+#define nvkm_perfmon(p) container_of((p), struct nvkm_perfmon, object)
+
+struct nvkm_perfmon {
+	struct nvkm_object object;
+	struct nvkm_pm *pm;
+};
 
 #define nvkm_pm_create(p,e,o,d)                                        \
 	nvkm_pm_create_((p), (e), (o), sizeof(**d), (void **)d)

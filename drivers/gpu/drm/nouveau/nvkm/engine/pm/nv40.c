@@ -112,8 +112,6 @@ nv40_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(pm)->cclass = &nvkm_pm_cclass;
-	nv_engine(pm)->sclass =  nvkm_pm_sclass;
 	return 0;
 }
 
