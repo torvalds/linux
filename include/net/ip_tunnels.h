@@ -23,20 +23,32 @@
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
 
 /* Used to memset ip_tunnel padding. */
-#define IP_TUNNEL_KEY_SIZE					\
-	(offsetof(struct ip_tunnel_key, tp_dst) +		\
-	 FIELD_SIZEOF(struct ip_tunnel_key, tp_dst))
+#define IP_TUNNEL_KEY_SIZE	offsetofend(struct ip_tunnel_key, tp_dst)
+
+/* Used to memset ipv4 address padding. */
+#define IP_TUNNEL_KEY_IPV4_PAD	offsetofend(struct ip_tunnel_key, u.ipv4.dst)
+#define IP_TUNNEL_KEY_IPV4_PAD_LEN				\
+	(FIELD_SIZEOF(struct ip_tunnel_key, u) -		\
+	 FIELD_SIZEOF(struct ip_tunnel_key, u.ipv4))
 
 struct ip_tunnel_key {
 	__be64			tun_id;
-	__be32			ipv4_src;
-	__be32			ipv4_dst;
+	union {
+		struct {
+			__be32	src;
+			__be32	dst;
+		} ipv4;
+		struct {
+			struct in6_addr src;
+			struct in6_addr dst;
+		} ipv6;
+	} u;
 	__be16			tun_flags;
-	__u8			ipv4_tos;
-	__u8			ipv4_ttl;
+	u8			tos;		/* TOS for IPv4, TC for IPv6 */
+	u8			ttl;		/* TTL for IPv4, HL for IPv6 */
 	__be16			tp_src;
 	__be16			tp_dst;
-} __packed __aligned(4); /* Minimize padding. */
+};
 
 /* Indicates whether the tunnel info structure represents receive
  * or transmit tunnel parameters.
@@ -64,8 +76,8 @@ struct ip_tunnel_6rd_parm {
 #endif
 
 struct ip_tunnel_encap {
-	__u16			type;
-	__u16			flags;
+	u16			type;
+	u16			flags;
 	__be16			sport;
 	__be16			dport;
 };
@@ -95,8 +107,8 @@ struct ip_tunnel {
 					 * arrived */
 
 	/* These four fields used only by GRE */
-	__u32		i_seqno;	/* The last seen seqno	*/
-	__u32		o_seqno;	/* The last output seqno */
+	u32		i_seqno;	/* The last seen seqno	*/
+	u32		o_seqno;	/* The last output seqno */
 	int		tun_hlen;	/* Precalculated header length */
 	int		mlink;
 
@@ -179,10 +191,12 @@ static inline void __ip_tunnel_info_init(struct ip_tunnel_info *tun_info,
 					 const void *opts, u8 opts_len)
 {
 	tun_info->key.tun_id = tun_id;
-	tun_info->key.ipv4_src = saddr;
-	tun_info->key.ipv4_dst = daddr;
-	tun_info->key.ipv4_tos = tos;
-	tun_info->key.ipv4_ttl = ttl;
+	tun_info->key.u.ipv4.src = saddr;
+	tun_info->key.u.ipv4.dst = daddr;
+	memset((unsigned char *)&tun_info->key + IP_TUNNEL_KEY_IPV4_PAD,
+	       0, IP_TUNNEL_KEY_IPV4_PAD_LEN);
+	tun_info->key.tos = tos;
+	tun_info->key.ttl = ttl;
 	tun_info->key.tun_flags = tun_flags;
 
 	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of
@@ -273,8 +287,8 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 
 int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
 int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
-		  __be32 src, __be32 dst, __u8 proto,
-		  __u8 tos, __u8 ttl, __be16 df, bool xnet);
+		  __be32 src, __be32 dst, u8 proto,
+		  u8 tos, u8 ttl, __be16 df, bool xnet);
 
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 					 int gso_type_mask);

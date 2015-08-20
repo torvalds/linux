@@ -603,9 +603,9 @@ int ovs_tunnel_get_egress_info(struct ip_tunnel_info *egress_tun_info,
 	 * saddr, tp_src and tp_dst
 	 */
 	__ip_tunnel_info_init(egress_tun_info,
-			      fl.saddr, tun_key->ipv4_dst,
-			      tun_key->ipv4_tos,
-			      tun_key->ipv4_ttl,
+			      fl.saddr, tun_key->u.ipv4.dst,
+			      tun_key->tos,
+			      tun_key->ttl,
 			      tp_src, tp_dst,
 			      tun_key->tun_id,
 			      tun_key->tun_flags,

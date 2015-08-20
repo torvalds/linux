@@ -254,9 +254,9 @@ static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
 	struct rtable *rt;
 
 	memset(fl, 0, sizeof(*fl));
-	fl->daddr = key->ipv4_dst;
-	fl->saddr = key->ipv4_src;
-	fl->flowi4_tos = RT_TOS(key->ipv4_tos);
+	fl->daddr = key->u.ipv4.dst;
+	fl->saddr = key->u.ipv4.src;
+	fl->flowi4_tos = RT_TOS(key->tos);
 	fl->flowi4_mark = mark;
 	fl->flowi4_proto = protocol;
 

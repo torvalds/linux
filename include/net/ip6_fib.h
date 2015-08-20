@@ -133,7 +133,6 @@ struct rt6_info {
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
-	struct lwtunnel_state		*rt6i_lwtstate;
 };
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)

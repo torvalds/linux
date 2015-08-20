@@ -48,7 +48,6 @@ int mpls_output(struct sock *sk, struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct rtable *rt = NULL;
 	struct rt6_info *rt6 = NULL;
-	struct lwtunnel_state *lwtstate = NULL;
 	int err = 0;
 	bool bos;
 	int i;
@@ -58,11 +57,9 @@ int mpls_output(struct sock *sk, struct sk_buff *skb)
 	if (skb->protocol == htons(ETH_P_IP)) {
 		ttl = ip_hdr(skb)->ttl;
 		rt = (struct rtable *)dst;
-		lwtstate = rt->rt_lwtstate;
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		ttl = ipv6_hdr(skb)->hop_limit;
 		rt6 = (struct rt6_info *)dst;
-		lwtstate = rt6->rt6i_lwtstate;
 	} else {
 		goto drop;
 	}
@@ -72,12 +69,12 @@ int mpls_output(struct sock *sk, struct sk_buff *skb)
 	/* Find the output device */
 	out_dev = dst->dev;
 	if (!mpls_output_possible(out_dev) ||
-	    !lwtstate || skb_warn_if_lro(skb))
+	    !dst->lwtstate || skb_warn_if_lro(skb))
 		goto drop;
 
 	skb_forward_csum(skb);
 
-	tun_encap_info = mpls_lwtunnel_encap(lwtstate);
+	tun_encap_info = mpls_lwtunnel_encap(dst->lwtstate);
 
 	/* Verify the destination can hold the packet */
 	new_header_size = mpls_encap_size(tun_encap_info);

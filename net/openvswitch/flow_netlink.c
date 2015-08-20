@@ -534,19 +534,19 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 			tun_flags |= TUNNEL_KEY;
 			break;
 		case OVS_TUNNEL_KEY_ATTR_IPV4_SRC:
-			SW_FLOW_KEY_PUT(match, tun_key.ipv4_src,
+			SW_FLOW_KEY_PUT(match, tun_key.u.ipv4.src,
 					nla_get_in_addr(a), is_mask);
 			break;
 		case OVS_TUNNEL_KEY_ATTR_IPV4_DST:
-			SW_FLOW_KEY_PUT(match, tun_key.ipv4_dst,
+			SW_FLOW_KEY_PUT(match, tun_key.u.ipv4.dst,
 					nla_get_in_addr(a), is_mask);
 			break;
 		case OVS_TUNNEL_KEY_ATTR_TOS:
-			SW_FLOW_KEY_PUT(match, tun_key.ipv4_tos,
+			SW_FLOW_KEY_PUT(match, tun_key.tos,
 					nla_get_u8(a), is_mask);
 			break;
 		case OVS_TUNNEL_KEY_ATTR_TTL:
-			SW_FLOW_KEY_PUT(match, tun_key.ipv4_ttl,
+			SW_FLOW_KEY_PUT(match, tun_key.ttl,
 					nla_get_u8(a), is_mask);
 			ttl = true;
 			break;
@@ -609,7 +609,7 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 	}
 
 	if (!is_mask) {
-		if (!match->key->tun_key.ipv4_dst) {
+		if (!match->key->tun_key.u.ipv4.dst) {
 			OVS_NLERR(log, "IPv4 tunnel dst address is zero");
 			return -EINVAL;
 		}
@@ -647,18 +647,18 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 	if (output->tun_flags & TUNNEL_KEY &&
 	    nla_put_be64(skb, OVS_TUNNEL_KEY_ATTR_ID, output->tun_id))
 		return -EMSGSIZE;
-	if (output->ipv4_src &&
+	if (output->u.ipv4.src &&
 	    nla_put_in_addr(skb, OVS_TUNNEL_KEY_ATTR_IPV4_SRC,
-			    output->ipv4_src))
+			    output->u.ipv4.src))
 		return -EMSGSIZE;
-	if (output->ipv4_dst &&
+	if (output->u.ipv4.dst &&
 	    nla_put_in_addr(skb, OVS_TUNNEL_KEY_ATTR_IPV4_DST,
-			    output->ipv4_dst))
+			    output->u.ipv4.dst))
 		return -EMSGSIZE;
-	if (output->ipv4_tos &&
-	    nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TOS, output->ipv4_tos))
+	if (output->tos &&
+	    nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TOS, output->tos))
 		return -EMSGSIZE;
-	if (nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TTL, output->ipv4_ttl))
+	if (nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TTL, output->ttl))
 		return -EMSGSIZE;
 	if ((output->tun_flags & TUNNEL_DONT_FRAGMENT) &&
 	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT))
@@ -1116,7 +1116,7 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 			/* The userspace does not send tunnel attributes that
 			 * are 0, but we should not wildcard them nonetheless.
 			 */
-			if (match->key->tun_key.ipv4_dst)
+			if (match->key->tun_key.u.ipv4.dst)
 				SW_FLOW_KEY_MEMSET_FIELD(match, tun_key,
 							 0xff, true);
 
@@ -1287,7 +1287,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	if (nla_put_u32(skb, OVS_KEY_ATTR_PRIORITY, output->phy.priority))
 		goto nla_put_failure;
 
-	if ((swkey->tun_key.ipv4_dst || is_mask)) {
+	if ((swkey->tun_key.u.ipv4.dst || is_mask)) {
 		const void *opts = NULL;
 
 		if (output->tun_key.tun_flags & TUNNEL_OPTIONS_PRESENT)

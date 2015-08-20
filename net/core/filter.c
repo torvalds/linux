@@ -1489,13 +1489,13 @@ static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
 	struct bpf_tunnel_key *to = (struct bpf_tunnel_key *) (long) r2;
-	struct ip_tunnel_info *info = skb_tunnel_info(skb, AF_INET);
+	struct ip_tunnel_info *info = skb_tunnel_info(skb);
 
 	if (unlikely(size != sizeof(struct bpf_tunnel_key) || flags || !info))
 		return -EINVAL;
 
 	to->tunnel_id = be64_to_cpu(info->key.tun_id);
-	to->remote_ipv4 = be32_to_cpu(info->key.ipv4_src);
+	to->remote_ipv4 = be32_to_cpu(info->key.u.ipv4.src);
 
 	return 0;
 }
@@ -1529,7 +1529,7 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	info = &md->u.tun_info;
 	info->mode = IP_TUNNEL_INFO_TX;
 	info->key.tun_id = cpu_to_be64(from->tunnel_id);
-	info->key.ipv4_dst = cpu_to_be32(from->remote_ipv4);
+	info->key.u.ipv4.dst = cpu_to_be32(from->remote_ipv4);
 
 	return 0;
 }
