@@ -51,7 +51,7 @@ struct nvkm_falcon {
 	} data;
 };
 
-#define nv_falcon(priv) (&(priv)->base)
+#define nv_falcon(priv) ((struct nvkm_falcon *)priv)
 
 #define nvkm_falcon_create(p,e,c,b,d,i,f,r)                                 \
 	nvkm_falcon_create_((p), (e), (c), (b), (d), (i), (f),              \

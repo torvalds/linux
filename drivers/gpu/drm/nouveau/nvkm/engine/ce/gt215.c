@@ -29,10 +29,6 @@
 #include <core/client.h>
 #include <core/enum.h>
 
-struct gt215_ce_priv {
-	struct nvkm_falcon base;
-};
-
 /*******************************************************************************
  * Copy object classes
  ******************************************************************************/
@@ -117,23 +113,23 @@ gt215_ce_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_object **pobject)
 {
 	bool enable = (nv_device(parent)->chipset != 0xaf);
-	struct gt215_ce_priv *priv;
+	struct nvkm_falcon *ce;
 	int ret;
 
 	ret = nvkm_falcon_create(parent, engine, oclass, 0x104000, enable,
-				 "PCE0", "ce0", &priv);
-	*pobject = nv_object(priv);
+				 "PCE0", "ce0", &ce);
+	*pobject = nv_object(ce);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00802000;
-	nv_subdev(priv)->intr = gt215_ce_intr;
-	nv_engine(priv)->cclass = &gt215_ce_cclass;
-	nv_engine(priv)->sclass = gt215_ce_sclass;
-	nv_falcon(priv)->code.data = gt215_pce_code;
-	nv_falcon(priv)->code.size = sizeof(gt215_pce_code);
-	nv_falcon(priv)->data.data = gt215_pce_data;
-	nv_falcon(priv)->data.size = sizeof(gt215_pce_data);
+	nv_subdev(ce)->unit = 0x00802000;
+	nv_subdev(ce)->intr = gt215_ce_intr;
+	nv_engine(ce)->cclass = &gt215_ce_cclass;
+	nv_engine(ce)->sclass = gt215_ce_sclass;
+	nv_falcon(ce)->code.data = gt215_ce_code;
+	nv_falcon(ce)->code.size = sizeof(gt215_ce_code);
+	nv_falcon(ce)->data.data = gt215_ce_data;
+	nv_falcon(ce)->data.size = sizeof(gt215_ce_data);
 	return 0;
 }
 

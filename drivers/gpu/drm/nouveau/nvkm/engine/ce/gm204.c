@@ -25,10 +25,6 @@
 
 #include <core/engctx.h>
 
-struct gm204_ce_priv {
-	struct nvkm_engine base;
-};
-
 /*******************************************************************************
  * Copy object classes
  ******************************************************************************/
@@ -66,13 +62,13 @@ gm204_ce_cclass = {
 static void
 gm204_ce_intr(struct nvkm_subdev *subdev)
 {
-	const int ce = nv_subidx(subdev) - NVDEV_ENGINE_CE0;
-	struct gm204_ce_priv *priv = (void *)subdev;
-	u32 stat = nv_rd32(priv, 0x104908 + (ce * 0x1000));
+	const int idx = nv_subidx(subdev) - NVDEV_ENGINE_CE0;
+	struct nvkm_engine *ce = (void *)subdev;
+	u32 stat = nv_rd32(ce, 0x104908 + (idx * 0x1000));
 
 	if (stat) {
-		nv_warn(priv, "unhandled intr 0x%08x\n", stat);
-		nv_wr32(priv, 0x104908 + (ce * 0x1000), stat);
+		nv_warn(ce, "unhandled intr 0x%08x\n", stat);
+		nv_wr32(ce, 0x104908 + (idx * 0x1000), stat);
 	}
 }
 
@@ -81,19 +77,19 @@ gm204_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct gm204_ce_priv *priv;
+	struct nvkm_engine *ce;
 	int ret;
 
 	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE0", "ce0", &priv);
-	*pobject = nv_object(priv);
+				 "PCE0", "ce0", &ce);
+	*pobject = nv_object(ce);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000040;
-	nv_subdev(priv)->intr = gm204_ce_intr;
-	nv_engine(priv)->cclass = &gm204_ce_cclass;
-	nv_engine(priv)->sclass = gm204_ce_sclass;
+	nv_subdev(ce)->unit = 0x00000040;
+	nv_subdev(ce)->intr = gm204_ce_intr;
+	nv_engine(ce)->cclass = &gm204_ce_cclass;
+	nv_engine(ce)->sclass = gm204_ce_sclass;
 	return 0;
 }
 
@@ -102,19 +98,19 @@ gm204_ce1_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct gm204_ce_priv *priv;
+	struct nvkm_engine *ce;
 	int ret;
 
 	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE1", "ce1", &priv);
-	*pobject = nv_object(priv);
+				 "PCE1", "ce1", &ce);
+	*pobject = nv_object(ce);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000080;
-	nv_subdev(priv)->intr = gm204_ce_intr;
-	nv_engine(priv)->cclass = &gm204_ce_cclass;
-	nv_engine(priv)->sclass = gm204_ce_sclass;
+	nv_subdev(ce)->unit = 0x00000080;
+	nv_subdev(ce)->intr = gm204_ce_intr;
+	nv_engine(ce)->cclass = &gm204_ce_cclass;
+	nv_engine(ce)->sclass = gm204_ce_sclass;
 	return 0;
 }
 
@@ -123,19 +119,19 @@ gm204_ce2_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct gm204_ce_priv *priv;
+	struct nvkm_engine *ce;
 	int ret;
 
 	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE2", "ce2", &priv);
-	*pobject = nv_object(priv);
+				 "PCE2", "ce2", &ce);
+	*pobject = nv_object(ce);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00200000;
-	nv_subdev(priv)->intr = gm204_ce_intr;
-	nv_engine(priv)->cclass = &gm204_ce_cclass;
-	nv_engine(priv)->sclass = gm204_ce_sclass;
+	nv_subdev(ce)->unit = 0x00200000;
+	nv_subdev(ce)->intr = gm204_ce_intr;
+	nv_engine(ce)->cclass = &gm204_ce_cclass;
+	nv_engine(ce)->sclass = gm204_ce_sclass;
 	return 0;
 }
 
