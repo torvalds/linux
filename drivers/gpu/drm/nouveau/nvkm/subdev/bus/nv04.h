@@ -2,10 +2,6 @@
 #define __NVKM_BUS_NV04_H__
 #include <subdev/bus.h>
 
-struct nv04_bus_priv {
-	struct nvkm_bus base;
-};
-
 int  nv04_bus_ctor(struct nvkm_object *, struct nvkm_object *,
 		   struct nvkm_oclass *, void *, u32,
 		   struct nvkm_object **);

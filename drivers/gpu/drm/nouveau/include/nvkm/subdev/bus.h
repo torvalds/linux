@@ -8,7 +8,7 @@ struct nvkm_bus_intr {
 };
 
 struct nvkm_bus {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	int (*hwsq_exec)(struct nvkm_bus *, u32 *, u32);
 	u32 hwsq_size;
 };
@@ -23,11 +23,11 @@ nvkm_bus(void *obj)
 	nvkm_subdev_create_((p), (e), (o), 0, "PBUS", "master",             \
 			       sizeof(**d), (void **)d)
 #define nvkm_bus_destroy(p)                                                 \
-	nvkm_subdev_destroy(&(p)->base)
+	nvkm_subdev_destroy(&(p)->subdev)
 #define nvkm_bus_init(p)                                                    \
-	nvkm_subdev_init(&(p)->base)
+	nvkm_subdev_init(&(p)->subdev)
 #define nvkm_bus_fini(p, s)                                                 \
-	nvkm_subdev_fini(&(p)->base, (s))
+	nvkm_subdev_fini(&(p)->subdev, (s))
 
 #define _nvkm_bus_dtor _nvkm_subdev_dtor
 #define _nvkm_bus_init _nvkm_subdev_init

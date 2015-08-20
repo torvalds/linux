@@ -59,10 +59,10 @@ hwsq_reg(u32 addr)
 static inline int
 hwsq_init(struct hwsq *ram, struct nvkm_subdev *subdev)
 {
-	struct nvkm_bus *pbus = nvkm_bus(subdev);
+	struct nvkm_bus *bus = nvkm_bus(subdev);
 	int ret;
 
-	ret = nvkm_hwsq_init(pbus, &ram->hwsq);
+	ret = nvkm_hwsq_init(bus, &ram->hwsq);
 	if (ret)
 		return ret;
 
