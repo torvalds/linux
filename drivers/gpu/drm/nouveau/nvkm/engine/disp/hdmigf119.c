@@ -29,7 +29,7 @@
 #include <nvif/unpack.h>
 
 int
-gf110_hdmi_ctrl(NV50_DISP_MTHD_V1)
+gf119_hdmi_ctrl(NV50_DISP_MTHD_V1)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	const u32 hoff = (head * 0x800);

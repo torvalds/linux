@@ -58,7 +58,7 @@ int  nv50_pior_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 int  g94_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		    struct nvkm_output **);
 
-int  gf110_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+int  gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		      struct nvkm_output **);
 
 int  gm204_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,

@@ -33,7 +33,7 @@
 #include <nvif/unpack.h>
 
 int
-gf110_hda_eld(NV50_DISP_MTHD_V1)
+gf119_hda_eld(NV50_DISP_MTHD_V1)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	union {

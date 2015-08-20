@@ -131,7 +131,7 @@ static const struct nvkm_output_dp_func
 gm204_sor_dp_func = {
 	.pattern = gm204_sor_dp_pattern,
 	.lnk_pwr = gm204_sor_dp_lnk_pwr,
-	.lnk_ctl = gf110_sor_dp_lnk_ctl,
+	.lnk_ctl = gf119_sor_dp_lnk_ctl,
 	.drv_ctl = gm204_sor_dp_drv_ctl,
 };
 

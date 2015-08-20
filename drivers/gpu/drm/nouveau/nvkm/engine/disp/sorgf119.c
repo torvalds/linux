@@ -25,32 +25,32 @@
 #include "outpdp.h"
 
 static inline u32
-gf110_sor_soff(struct nvkm_output_dp *outp)
+gf119_sor_soff(struct nvkm_output_dp *outp)
 {
 	return (ffs(outp->base.info.or) - 1) * 0x800;
 }
 
 static inline u32
-gf110_sor_loff(struct nvkm_output_dp *outp)
+gf119_sor_loff(struct nvkm_output_dp *outp)
 {
-	return gf110_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
+	return gf119_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
 }
 
 static int
-gf110_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
+gf119_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
 	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 loff = gf110_sor_loff(outp);
+	const u32 loff = gf119_sor_loff(outp);
 	nvkm_mask(device, 0x61c110 + loff, 0x0f0f0f0f, 0x01010101 * pattern);
 	return 0;
 }
 
 int
-gf110_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
+gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
 	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gf110_sor_soff(outp);
-	const u32 loff = gf110_sor_loff(outp);
+	const u32 soff = gf119_sor_soff(outp);
+	const u32 loff = gf119_sor_loff(outp);
 	u32 dpctrl = 0x00000000;
 	u32 clksor = 0x00000000;
 
@@ -65,13 +65,13 @@ gf110_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 }
 
 static int
-gf110_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
+gf119_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 		     int ln, int vs, int pe, int pc)
 {
 	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
 	struct nvkm_bios *bios = device->bios;
 	const u32 shift = g94_sor_dp_lane_map(device, ln);
-	const u32 loff = gf110_sor_loff(outp);
+	const u32 loff = gf119_sor_loff(outp);
 	u32 addr, data[4];
 	u8  ver, hdr, cnt, len;
 	struct nvbios_dpout info;
@@ -102,16 +102,16 @@ gf110_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 }
 
 static const struct nvkm_output_dp_func
-gf110_sor_dp_func = {
-	.pattern = gf110_sor_dp_pattern,
+gf119_sor_dp_func = {
+	.pattern = gf119_sor_dp_pattern,
 	.lnk_pwr = g94_sor_dp_lnk_pwr,
-	.lnk_ctl = gf110_sor_dp_lnk_ctl,
-	.drv_ctl = gf110_sor_dp_drv_ctl,
+	.lnk_ctl = gf119_sor_dp_lnk_ctl,
+	.drv_ctl = gf119_sor_dp_drv_ctl,
 };
 
 int
-gf110_sor_dp_new(struct nvkm_disp *disp, int index,
+gf119_sor_dp_new(struct nvkm_disp *disp, int index,
 		 struct dcb_output *dcbE, struct nvkm_output **poutp)
 {
-	return nvkm_output_dp_new_(&gf110_sor_dp_func, disp, index, dcbE, poutp);
+	return nvkm_output_dp_new_(&gf119_sor_dp_func, disp, index, dcbE, poutp);
 }

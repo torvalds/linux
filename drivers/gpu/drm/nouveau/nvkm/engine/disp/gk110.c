@@ -22,32 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
-
-#include <nvif/class.h>
-
-/*******************************************************************************
- * Base display object
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk110_disp_sclass[] = {
-	{ GK110_DISP_CORE_CHANNEL_DMA, &gf110_disp_core_ofuncs.base },
-	{ GK110_DISP_BASE_CHANNEL_DMA, &gf110_disp_base_ofuncs.base },
-	{ GK104_DISP_OVERLAY_CONTROL_DMA, &gf110_disp_ovly_ofuncs.base },
-	{ GK104_DISP_OVERLAY, &gf110_disp_oimm_ofuncs.base },
-	{ GK104_DISP_CURSOR, &gf110_disp_curs_ofuncs.base },
-	{}
-};
-
-static struct nvkm_oclass
-gk110_disp_main_oclass[] = {
-	{ GK110_DISP, &gf110_disp_main_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * Display engine implementation
- ******************************************************************************/
+#include "rootnv50.h"
 
 static int
 gk110_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -65,14 +40,14 @@ gk110_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nvkm_event_init(&gf110_disp_chan_uevent, 1, 17, &disp->uevent);
+	ret = nvkm_event_init(&gf119_disp_chan_uevent, 1, 17, &disp->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(disp)->sclass = gk110_disp_main_oclass;
+	nv_engine(disp)->sclass = gk110_disp_root_oclass;
 	nv_engine(disp)->cclass = &nv50_disp_cclass;
-	nv_subdev(disp)->intr = gf110_disp_intr;
-	INIT_WORK(&disp->supervisor, gf110_disp_intr_supervisor);
+	nv_subdev(disp)->intr = gf119_disp_intr;
+	INIT_WORK(&disp->supervisor, gf119_disp_intr_supervisor);
 	disp->sclass = gk110_disp_sclass;
 	disp->head.nr = heads;
 	disp->dac.nr = 3;
@@ -80,7 +55,7 @@ gk110_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	disp->dac.power = nv50_dac_power;
 	disp->dac.sense = nv50_dac_sense;
 	disp->sor.power = nv50_sor_power;
-	disp->sor.hda_eld = gf110_hda_eld;
+	disp->sor.hda_eld = gf119_hda_eld;
 	disp->sor.hdmi = gk104_hdmi_ctrl;
 	return 0;
 }
@@ -97,11 +72,11 @@ gk110_disp_oclass = &(struct nv50_disp_impl) {
 	.base.outp.internal.crt = nv50_dac_output_new,
 	.base.outp.internal.tmds = nv50_sor_output_new,
 	.base.outp.internal.lvds = nv50_sor_output_new,
-	.base.outp.internal.dp = gf110_sor_dp_new,
-	.base.vblank = &gf110_disp_vblank_func,
+	.base.outp.internal.dp = gf119_sor_dp_new,
+	.base.vblank = &gf119_disp_vblank_func,
 	.mthd.core = &gk104_disp_core_mthd_chan,
-	.mthd.base = &gf110_disp_base_mthd_chan,
+	.mthd.base = &gf119_disp_base_mthd_chan,
 	.mthd.ovly = &gk104_disp_ovly_mthd_chan,
 	.mthd.prev = -0x020000,
-	.head.scanoutpos = gf110_disp_main_scanoutpos,
+	.head.scanoutpos = gf119_disp_root_scanoutpos,
 }.base.base;

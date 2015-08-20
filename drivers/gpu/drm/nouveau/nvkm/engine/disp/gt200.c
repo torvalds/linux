@@ -22,77 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
-
-#include <nvif/class.h>
-
-/*******************************************************************************
- * EVO overlay channel objects
- ******************************************************************************/
-
-static const struct nv50_disp_mthd_list
-gt200_disp_ovly_mthd_base = {
-	.mthd = 0x0000,
-	.addr = 0x000000,
-	.data = {
-		{ 0x0080, 0x000000 },
-		{ 0x0084, 0x6109a0 },
-		{ 0x0088, 0x6109c0 },
-		{ 0x008c, 0x6109c8 },
-		{ 0x0090, 0x6109b4 },
-		{ 0x0094, 0x610970 },
-		{ 0x00a0, 0x610998 },
-		{ 0x00a4, 0x610964 },
-		{ 0x00b0, 0x610c98 },
-		{ 0x00b4, 0x610ca4 },
-		{ 0x00b8, 0x610cac },
-		{ 0x00c0, 0x610958 },
-		{ 0x00e0, 0x6109a8 },
-		{ 0x00e4, 0x6109d0 },
-		{ 0x00e8, 0x6109d8 },
-		{ 0x0100, 0x61094c },
-		{ 0x0104, 0x610984 },
-		{ 0x0108, 0x61098c },
-		{ 0x0800, 0x6109f8 },
-		{ 0x0808, 0x610a08 },
-		{ 0x080c, 0x610a10 },
-		{ 0x0810, 0x610a00 },
-		{}
-	}
-};
-
-static const struct nv50_disp_mthd_chan
-gt200_disp_ovly_mthd_chan = {
-	.name = "Overlay",
-	.addr = 0x000540,
-	.data = {
-		{ "Global", 1, &gt200_disp_ovly_mthd_base },
-		{}
-	}
-};
-
-/*******************************************************************************
- * Base display object
- ******************************************************************************/
-
-static struct nvkm_oclass
-gt200_disp_sclass[] = {
-	{ GT200_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
-	{ GT200_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
-	{ GT200_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
-	{ G82_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
-	{ G82_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
-	{}
-};
-
-static struct nvkm_oclass
-gt200_disp_main_oclass[] = {
-	{ GT200_DISP, &nv50_disp_main_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * Display engine implementation
- ******************************************************************************/
+#include "rootnv50.h"
 
 static int
 gt200_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -112,7 +42,7 @@ gt200_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(disp)->sclass = gt200_disp_main_oclass;
+	nv_engine(disp)->sclass = gt200_disp_root_oclass;
 	nv_engine(disp)->cclass = &nv50_disp_cclass;
 	nv_subdev(disp)->intr = nv50_disp_intr;
 	INIT_WORK(&disp->supervisor, nv50_disp_intr_supervisor);
@@ -148,5 +78,5 @@ gt200_disp_oclass = &(struct nv50_disp_impl) {
 	.mthd.base = &g84_disp_base_mthd_chan,
 	.mthd.ovly = &gt200_disp_ovly_mthd_chan,
 	.mthd.prev = 0x000004,
-	.head.scanoutpos = nv50_disp_main_scanoutpos,
+	.head.scanoutpos = nv50_disp_root_scanoutpos,
 }.base.base;

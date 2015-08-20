@@ -22,32 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
-
-#include <nvif/class.h>
-
-/*******************************************************************************
- * Base display object
- ******************************************************************************/
-
-static struct nvkm_oclass
-gt215_disp_sclass[] = {
-	{ GT214_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
-	{ GT214_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
-	{ GT214_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
-	{ GT214_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
-	{ GT214_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
-	{}
-};
-
-static struct nvkm_oclass
-gt215_disp_main_oclass[] = {
-	{ GT214_DISP, &nv50_disp_main_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * Display engine implementation
- ******************************************************************************/
+#include "rootnv50.h"
 
 static int
 gt215_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -67,7 +42,7 @@ gt215_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(disp)->sclass = gt215_disp_main_oclass;
+	nv_engine(disp)->sclass = gt215_disp_root_oclass;
 	nv_engine(disp)->cclass = &nv50_disp_cclass;
 	nv_subdev(disp)->intr = nv50_disp_intr;
 	INIT_WORK(&disp->supervisor, nv50_disp_intr_supervisor);
@@ -105,5 +80,5 @@ gt215_disp_oclass = &(struct nv50_disp_impl) {
 	.mthd.base = &g84_disp_base_mthd_chan,
 	.mthd.ovly = &g84_disp_ovly_mthd_chan,
 	.mthd.prev = 0x000004,
-	.head.scanoutpos = nv50_disp_main_scanoutpos,
+	.head.scanoutpos = nv50_disp_root_scanoutpos,
 }.base.base;

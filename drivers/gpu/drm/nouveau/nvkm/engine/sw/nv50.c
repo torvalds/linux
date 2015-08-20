@@ -73,12 +73,14 @@ static bool
 nv50_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
 {
 	struct nv50_sw_chan *chan = nv50_sw_chan(base);
+	struct nvkm_engine *engine = chan->base.base.gpuobj.object.engine;
+	struct nvkm_device *device = engine->subdev.device;
 	switch (mthd) {
 	case 0x018c: chan->vblank.ctxdma = data; return true;
 	case 0x0400: chan->vblank.offset = data; return true;
 	case 0x0404: chan->vblank.value  = data; return true;
 	case 0x0408:
-		if (data < nvkm_disp(chan)->vblank.index_nr) {
+		if (data < device->disp->vblank.index_nr) {
 			nvkm_notify_get(&chan->vblank.notify[data]);
 			return true;
 		}
@@ -111,7 +113,7 @@ nv50_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_oclass *oclass, void *data, u32 size,
 		     struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_disp(parent);
+	struct nvkm_disp *disp = parent->engine->subdev.device->disp;
 	struct nv50_sw_cclass *pclass = (void *)oclass;
 	struct nv50_sw_chan *chan;
 	int ret, i;
