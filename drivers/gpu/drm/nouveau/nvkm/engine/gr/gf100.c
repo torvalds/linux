@@ -58,7 +58,7 @@ static int
 gf100_gr_zbc_color_get(struct gf100_gr *gr, int format,
 		       const u32 ds[4], const u32 l2[4])
 {
-	struct nvkm_ltc *ltc = nvkm_ltc(gr);
+	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
 	int zbc = -ENOSPC, i;
 
 	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
@@ -85,7 +85,7 @@ gf100_gr_zbc_color_get(struct gf100_gr *gr, int format,
 	memcpy(gr->zbc_color[zbc].ds, ds, sizeof(gr->zbc_color[zbc].ds));
 	memcpy(gr->zbc_color[zbc].l2, l2, sizeof(gr->zbc_color[zbc].l2));
 	gr->zbc_color[zbc].format = format;
-	ltc->zbc_color_get(ltc, zbc, l2);
+	nvkm_ltc_zbc_color_get(ltc, zbc, l2);
 	gf100_gr_zbc_clear_color(gr, zbc);
 	return zbc;
 }
@@ -105,7 +105,7 @@ static int
 gf100_gr_zbc_depth_get(struct gf100_gr *gr, int format,
 		       const u32 ds, const u32 l2)
 {
-	struct nvkm_ltc *ltc = nvkm_ltc(gr);
+	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
 	int zbc = -ENOSPC, i;
 
 	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
@@ -130,7 +130,7 @@ gf100_gr_zbc_depth_get(struct gf100_gr *gr, int format,
 	gr->zbc_depth[zbc].format = format;
 	gr->zbc_depth[zbc].ds = ds;
 	gr->zbc_depth[zbc].l2 = l2;
-	ltc->zbc_depth_get(ltc, zbc, l2);
+	nvkm_ltc_zbc_depth_get(ltc, zbc, l2);
 	gf100_gr_zbc_clear_depth(gr, zbc);
 	return zbc;
 }
@@ -680,7 +680,7 @@ gf100_gr_zbc_init(struct gf100_gr *gr)
 			      0x00000000, 0x00000000, 0x00000000, 0x00000000 };
 	const u32 f32_1[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
 			      0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000 };
-	struct nvkm_ltc *ltc = nvkm_ltc(gr);
+	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
 	int index;
 
 	if (!gr->zbc_color[0].format) {

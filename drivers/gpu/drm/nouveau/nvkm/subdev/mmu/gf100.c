@@ -108,11 +108,11 @@ gf100_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	pte <<= 3;
 
 	if (mem->tag) {
-		struct nvkm_ltc *ltc = nvkm_ltc(vma->vm->mmu);
+		struct nvkm_ltc *ltc = vma->vm->mmu->subdev.device->ltc;
 		u32 tag = mem->tag->offset + (delta >> 17);
 		phys |= (u64)tag << (32 + 12);
 		next |= (u64)1   << (32 + 12);
-		ltc->tags_clear(ltc, tag, cnt);
+		nvkm_ltc_tags_clear(ltc, tag, cnt);
 	}
 
 	nvkm_kmap(pgt);

@@ -434,7 +434,7 @@ gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
 
 	mutex_lock(&ram->fb->subdev.mutex);
 	if (mem->tag)
-		ltc->tags_free(ltc, &mem->tag);
+		nvkm_ltc_tags_free(ltc, &mem->tag);
 	__nv50_ram_put(ram, mem);
 	mutex_unlock(&ram->fb->subdev.mutex);
 
@@ -472,7 +472,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 		/* compression only works with lpages */
 		if (align == (1 << (17 - NVKM_RAM_MM_SHIFT))) {
 			int n = size >> 5;
-			ltc->tags_alloc(ltc, n, &mem->tag);
+			nvkm_ltc_tags_alloc(ltc, n, &mem->tag);
 		}
 
 		if (unlikely(!mem->tag))

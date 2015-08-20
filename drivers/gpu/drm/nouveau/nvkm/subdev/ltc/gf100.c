@@ -28,18 +28,18 @@
 #include <subdev/timer.h>
 
 void
-gf100_ltc_cbc_clear(struct nvkm_ltc_priv *ltc, u32 start, u32 limit)
+gf100_ltc_cbc_clear(struct nvkm_ltc *ltc, u32 start, u32 limit)
 {
-	struct nvkm_device *device = ltc->base.subdev.device;
+	struct nvkm_device *device = ltc->subdev.device;
 	nvkm_wr32(device, 0x17e8cc, start);
 	nvkm_wr32(device, 0x17e8d0, limit);
 	nvkm_wr32(device, 0x17e8c8, 0x00000004);
 }
 
 void
-gf100_ltc_cbc_wait(struct nvkm_ltc_priv *ltc)
+gf100_ltc_cbc_wait(struct nvkm_ltc *ltc)
 {
-	struct nvkm_device *device = ltc->base.subdev.device;
+	struct nvkm_device *device = ltc->subdev.device;
 	int c, s;
 	for (c = 0; c < ltc->ltc_nr; c++) {
 		for (s = 0; s < ltc->lts_nr; s++) {
@@ -53,9 +53,9 @@ gf100_ltc_cbc_wait(struct nvkm_ltc_priv *ltc)
 }
 
 void
-gf100_ltc_zbc_clear_color(struct nvkm_ltc_priv *ltc, int i, const u32 color[4])
+gf100_ltc_zbc_clear_color(struct nvkm_ltc *ltc, int i, const u32 color[4])
 {
-	struct nvkm_device *device = ltc->base.subdev.device;
+	struct nvkm_device *device = ltc->subdev.device;
 	nvkm_mask(device, 0x17ea44, 0x0000000f, i);
 	nvkm_wr32(device, 0x17ea48, color[0]);
 	nvkm_wr32(device, 0x17ea4c, color[1]);
@@ -64,9 +64,9 @@ gf100_ltc_zbc_clear_color(struct nvkm_ltc_priv *ltc, int i, const u32 color[4])
 }
 
 void
-gf100_ltc_zbc_clear_depth(struct nvkm_ltc_priv *ltc, int i, const u32 depth)
+gf100_ltc_zbc_clear_depth(struct nvkm_ltc *ltc, int i, const u32 depth)
 {
-	struct nvkm_device *device = ltc->base.subdev.device;
+	struct nvkm_device *device = ltc->subdev.device;
 	nvkm_mask(device, 0x17ea44, 0x0000000f, i);
 	nvkm_wr32(device, 0x17ea58, depth);
 }
@@ -90,9 +90,9 @@ gf100_ltc_lts_intr_name[] = {
 };
 
 static void
-gf100_ltc_lts_intr(struct nvkm_ltc_priv *ltc, int c, int s)
+gf100_ltc_lts_intr(struct nvkm_ltc *ltc, int c, int s)
 {
-	struct nvkm_subdev *subdev = &ltc->base.subdev;
+	struct nvkm_subdev *subdev = &ltc->subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 base = 0x141000 + (c * 0x2000) + (s * 0x400);
 	u32 intr = nvkm_rd32(device, base + 0x020);
@@ -108,10 +108,9 @@ gf100_ltc_lts_intr(struct nvkm_ltc_priv *ltc, int c, int s)
 }
 
 void
-gf100_ltc_intr(struct nvkm_subdev *subdev)
+gf100_ltc_intr(struct nvkm_ltc *ltc)
 {
-	struct nvkm_ltc_priv *ltc = (void *)subdev;
-	struct nvkm_device *device = ltc->base.subdev.device;
+	struct nvkm_device *device = ltc->subdev.device;
 	u32 mask;
 
 	mask = nvkm_rd32(device, 0x00017c);
@@ -123,44 +122,12 @@ gf100_ltc_intr(struct nvkm_subdev *subdev)
 	}
 }
 
-static int
-gf100_ltc_init(struct nvkm_object *object)
-{
-	struct nvkm_ltc_priv *ltc = (void *)object;
-	struct nvkm_device *device = ltc->base.subdev.device;
-	u32 lpg128 = !(nvkm_rd32(device, 0x100c80) & 0x00000001);
-	int ret;
-
-	ret = nvkm_ltc_init(ltc);
-	if (ret)
-		return ret;
-
-	nvkm_mask(device, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
-	nvkm_wr32(device, 0x17e8d8, ltc->ltc_nr);
-	nvkm_wr32(device, 0x17e8d4, ltc->tag_base);
-	nvkm_mask(device, 0x17e8c0, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
-	return 0;
-}
-
-void
-gf100_ltc_dtor(struct nvkm_object *object)
-{
-	struct nvkm_ltc_priv *ltc = (void *)object;
-	struct nvkm_ram *ram = ltc->base.subdev.device->fb->ram;
-
-	nvkm_mm_fini(&ltc->tags);
-	if (ram)
-		nvkm_mm_free(&ram->vram, &ltc->tag_ram);
-
-	nvkm_ltc_destroy(ltc);
-}
-
 /* TODO: Figure out tag memory details and drop the over-cautious allocation.
  */
 int
-gf100_ltc_init_tag_ram(struct nvkm_ltc_priv *ltc)
+gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 {
-	struct nvkm_ram *ram = ltc->base.subdev.device->fb->ram;
+	struct nvkm_ram *ram = ltc->subdev.device->fb->ram;
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
@@ -205,54 +172,53 @@ gf100_ltc_init_tag_ram(struct nvkm_ltc_priv *ltc)
 	}
 
 mm_init:
-	ret = nvkm_mm_init(&ltc->tags, 0, ltc->num_tags, 1);
-	return ret;
+	return nvkm_mm_init(&ltc->tags, 0, ltc->num_tags, 1);
 }
 
 int
-gf100_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+gf100_ltc_oneinit(struct nvkm_ltc *ltc)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nvkm_ltc_priv *ltc;
-	u32 parts, mask;
-	int ret, i;
+	struct nvkm_device *device = ltc->subdev.device;
+	const u32 parts = nvkm_rd32(device, 0x022438);
+	const u32  mask = nvkm_rd32(device, 0x022554);
+	const u32 slice = nvkm_rd32(device, 0x17e8dc) >> 28;
+	int i;
 
-	ret = nvkm_ltc_create(parent, engine, oclass, &ltc);
-	*pobject = nv_object(ltc);
-	if (ret)
-		return ret;
-
-	parts = nvkm_rd32(device, 0x022438);
-	mask = nvkm_rd32(device, 0x022554);
 	for (i = 0; i < parts; i++) {
 		if (!(mask & (1 << i)))
 			ltc->ltc_nr++;
 	}
-	ltc->lts_nr = nvkm_rd32(device, 0x17e8dc) >> 28;
+	ltc->lts_nr = slice;
 
-	ret = gf100_ltc_init_tag_ram(ltc);
-	if (ret)
-		return ret;
-
-	nv_subdev(ltc)->intr = gf100_ltc_intr;
-	return 0;
+	return gf100_ltc_oneinit_tag_ram(ltc);
 }
 
-struct nvkm_oclass *
-gf100_ltc_oclass = &(struct nvkm_ltc_impl) {
-	.base.handle = NV_SUBDEV(LTC, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_ltc_ctor,
-		.dtor = gf100_ltc_dtor,
-		.init = gf100_ltc_init,
-		.fini = _nvkm_ltc_fini,
-	},
+static void
+gf100_ltc_init(struct nvkm_ltc *ltc)
+{
+	struct nvkm_device *device = ltc->subdev.device;
+	u32 lpg128 = !(nvkm_rd32(device, 0x100c80) & 0x00000001);
+
+	nvkm_mask(device, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
+	nvkm_wr32(device, 0x17e8d8, ltc->ltc_nr);
+	nvkm_wr32(device, 0x17e8d4, ltc->tag_base);
+	nvkm_mask(device, 0x17e8c0, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
+}
+
+static const struct nvkm_ltc_func
+gf100_ltc = {
+	.oneinit = gf100_ltc_oneinit,
+	.init = gf100_ltc_init,
 	.intr = gf100_ltc_intr,
 	.cbc_clear = gf100_ltc_cbc_clear,
 	.cbc_wait = gf100_ltc_cbc_wait,
 	.zbc = 16,
 	.zbc_clear_color = gf100_ltc_zbc_clear_color,
 	.zbc_clear_depth = gf100_ltc_zbc_clear_depth,
-}.base;
+};
+
+int
+gf100_ltc_new(struct nvkm_device *device, int index, struct nvkm_ltc **pltc)
+{
+	return nvkm_ltc_new_(&gf100_ltc, device, index, pltc);
+}
