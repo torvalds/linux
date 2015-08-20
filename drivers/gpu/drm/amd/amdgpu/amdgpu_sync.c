@@ -32,6 +32,11 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
+struct amdgpu_sync_entry {
+	struct hlist_node	node;
+	struct fence		*fence;
+};
+
 /**
  * amdgpu_sync_create - zero init sync object
  *
@@ -49,6 +54,7 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		sync->sync_to[i] = NULL;
 
+	hash_init(sync->fences);
 	sync->last_vm_update = NULL;
 }
 
@@ -62,6 +68,7 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
 int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		      struct fence *f)
 {
+	struct amdgpu_sync_entry *e;
 	struct amdgpu_fence *fence;
 	struct amdgpu_fence *other;
 
@@ -69,8 +76,27 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		return 0;
 
 	fence = to_amdgpu_fence(f);
-	if (!fence || fence->ring->adev != adev)
-		return fence_wait(f, true);
+	if (!fence || fence->ring->adev != adev) {
+		hash_for_each_possible(sync->fences, e, node, f->context) {
+			struct fence *new;
+			if (unlikely(e->fence->context != f->context))
+				continue;
+			new = fence_get(fence_later(e->fence, f));
+			if (new) {
+				fence_put(e->fence);
+				e->fence = new;
+			}
+			return 0;
+		}
+
+		e = kmalloc(sizeof(struct amdgpu_sync_entry), GFP_KERNEL);
+		if (!e)
+			return -ENOMEM;
+
+		hash_add(sync->fences, &e->node, f->context);
+		e->fence = fence_get(f);
+		return 0;
+	}
 
 	other = sync->sync_to[fence->ring->idx];
 	sync->sync_to[fence->ring->idx] = amdgpu_fence_ref(
@@ -145,6 +171,24 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 			break;
 	}
 	return r;
+}
+
+int amdgpu_sync_wait(struct amdgpu_sync *sync)
+{
+	struct amdgpu_sync_entry *e;
+	struct hlist_node *tmp;
+	int i, r;
+
+	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+		r = fence_wait(e->fence, false);
+		if (r)
+			return r;
+
+		hash_del(&e->node);
+		fence_put(e->fence);
+		kfree(e);
+	}
+	return 0;
 }
 
 /**
@@ -236,7 +280,15 @@ void amdgpu_sync_free(struct amdgpu_device *adev,
 		      struct amdgpu_sync *sync,
 		      struct fence *fence)
 {
+	struct amdgpu_sync_entry *e;
+	struct hlist_node *tmp;
 	unsigned i;
+
+	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+		hash_del(&e->node);
+		fence_put(e->fence);
+		kfree(e);
+	}
 
 	for (i = 0; i < AMDGPU_NUM_SYNCS; ++i)
 		amdgpu_semaphore_free(adev, &sync->semaphores[i], fence);

@@ -704,6 +704,7 @@ void amdgpu_semaphore_free(struct amdgpu_device *adev,
 struct amdgpu_sync {
 	struct amdgpu_semaphore *semaphores[AMDGPU_NUM_SYNCS];
 	struct amdgpu_fence	*sync_to[AMDGPU_MAX_RINGS];
+	DECLARE_HASHTABLE(fences, 4);
 	struct amdgpu_fence	*last_vm_update;
 };
 
@@ -716,6 +717,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     void *owner);
 int amdgpu_sync_rings(struct amdgpu_sync *sync,
 		      struct amdgpu_ring *ring);
+int amdgpu_sync_wait(struct amdgpu_sync *sync);
 void amdgpu_sync_free(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		      struct fence *fence);
 
