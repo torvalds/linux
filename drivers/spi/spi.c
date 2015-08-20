@@ -1860,6 +1860,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 
 		if (!xfer->speed_hz)
 			xfer->speed_hz = spi->max_speed_hz;
+		if (!xfer->speed_hz)
+			xfer->speed_hz = master->max_speed_hz;
 
 		if (master->max_speed_hz &&
 		    xfer->speed_hz > master->max_speed_hz)
