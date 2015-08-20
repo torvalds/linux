@@ -73,12 +73,13 @@ gm107_ltc_zbc_clear_depth(struct nvkm_ltc_priv *ltc, int i, const u32 depth)
 static void
 gm107_ltc_lts_isr(struct nvkm_ltc_priv *ltc, int c, int s)
 {
-	struct nvkm_device *device = ltc->base.subdev.device;
+	struct nvkm_subdev *subdev = &ltc->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 base = 0x140000 + (c * 0x2000) + (s * 0x400);
 	u32 stat = nvkm_rd32(device, base + 0x00c);
 
 	if (stat) {
-		nv_info(ltc, "LTC%d_LTS%d: 0x%08x\n", c, s, stat);
+		nvkm_error(subdev, "LTC%d_LTS%d: %08x\n", c, s, stat);
 		nvkm_wr32(device, base + 0x00c, stat);
 	}
 }

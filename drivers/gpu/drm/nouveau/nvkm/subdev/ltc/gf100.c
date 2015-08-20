@@ -92,15 +92,16 @@ gf100_ltc_lts_intr_name[] = {
 static void
 gf100_ltc_lts_intr(struct nvkm_ltc_priv *ltc, int c, int s)
 {
-	struct nvkm_device *device = ltc->base.subdev.device;
+	struct nvkm_subdev *subdev = &ltc->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 base = 0x141000 + (c * 0x2000) + (s * 0x400);
 	u32 intr = nvkm_rd32(device, base + 0x020);
 	u32 stat = intr & 0x0000ffff;
+	char msg[128];
 
 	if (stat) {
-		nv_info(ltc, "LTC%d_LTS%d:", c, s);
-		nvkm_bitfield_print(gf100_ltc_lts_intr_name, stat);
-		pr_cont("\n");
+		nvkm_snprintbf(msg, sizeof(msg), gf100_ltc_lts_intr_name, stat);
+		nvkm_error(subdev, "LTC%d_LTS%d: %08x [%s]\n", c, s, stat, msg);
 	}
 
 	nvkm_wr32(device, base + 0x020, intr);
