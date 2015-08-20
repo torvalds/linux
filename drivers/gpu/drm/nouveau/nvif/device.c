@@ -24,6 +24,12 @@
 
 #include <nvif/device.h>
 
+u64
+nvif_device_time(struct nvif_device *device)
+{
+	return nvxx_timer(device)->read(nvxx_timer(device));
+}
+
 void
 nvif_device_fini(struct nvif_device *device)
 {
