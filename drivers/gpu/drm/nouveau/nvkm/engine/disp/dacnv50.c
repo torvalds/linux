@@ -69,7 +69,8 @@ nv50_dac_power(NV50_DISP_MTHD_V1)
 int
 nv50_dac_sense(NV50_DISP_MTHD_V1)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	union {
 		struct nv50_disp_dac_load_v0 v0;
 	} *args = data;
@@ -104,7 +105,7 @@ nv50_dac_sense(NV50_DISP_MTHD_V1)
 			break;
 	);
 
-	nv_debug(disp, "DAC%d sense: 0x%08x\n", outp->or, loadval);
+	nvkm_debug(subdev, "DAC%d sense: %08x\n", outp->or, loadval);
 	if (!(loadval & 0x80000000))
 		return -ETIMEDOUT;
 

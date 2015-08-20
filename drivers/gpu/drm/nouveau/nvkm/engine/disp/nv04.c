@@ -167,7 +167,7 @@ nv04_disp_intr(struct nvkm_subdev *subdev)
 	    nv_device(disp)->chipset <= 0x40) {
 		pvideo = nvkm_rd32(device, 0x8100);
 		if (pvideo & ~0x11)
-			nv_info(disp, "PVIDEO intr: %08x\n", pvideo);
+			nvkm_info(subdev, "PVIDEO intr: %08x\n", pvideo);
 		nvkm_wr32(device, 0x8100, pvideo);
 	}
 }

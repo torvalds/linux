@@ -259,7 +259,8 @@ nv50_disp_dmac_init(struct nvkm_object *object)
 {
 	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *dmac = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int chid = dmac->base.chid;
 	int ret;
 
@@ -283,8 +284,8 @@ nv50_disp_dmac_init(struct nvkm_object *object)
 		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x80000000))
 			break;
 	) < 0) {
-		nv_error(dmac, "init timeout, 0x%08x\n",
-			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
+		nvkm_error(subdev, "ch %d init timeout, %08x\n", chid,
+			   nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		return -EBUSY;
 	}
 
@@ -296,7 +297,8 @@ nv50_disp_dmac_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *dmac = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int chid = dmac->base.chid;
 
 	/* deactivate channel */
@@ -306,8 +308,8 @@ nv50_disp_dmac_fini(struct nvkm_object *object, bool suspend)
 		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x001e0000))
 			break;
 	) < 0) {
-		nv_error(dmac, "fini timeout, 0x%08x\n",
-			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
+		nvkm_error(subdev, "ch %d fini timeout, %08x\n", chid,
+			   nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		if (suspend)
 			return -EBUSY;
 	}
@@ -326,8 +328,8 @@ static void
 nv50_disp_mthd_list(struct nv50_disp *disp, int debug, u32 base, int c,
 		    const struct nv50_disp_mthd_list *list, int inst)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_object *object = nv_object(disp);
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int i;
 
 	for (i = 0; list->data[i].mthd; i++) {
@@ -339,13 +341,14 @@ nv50_disp_mthd_list(struct nv50_disp *disp, int debug, u32 base, int c,
 			char mods[16];
 
 			if (prev != next)
-				snprintf(mods, sizeof(mods), "-> 0x%08x", next);
+				snprintf(mods, sizeof(mods), "-> %08x", next);
 			else
 				snprintf(mods, sizeof(mods), "%13c", ' ');
 
-			nv_printk_(object, debug, "\t0x%04x: 0x%08x %s%s%s\n",
-				   mthd, prev, mods, name ? " // " : "",
-				   name ? name : "");
+			nvkm_printk_(subdev, debug, info,
+				     "\t%04x: %08x %s%s%s\n",
+				     mthd, prev, mods, name ? " // " : "",
+				     name ? name : "");
 		}
 	}
 }
@@ -357,6 +360,7 @@ nv50_disp_mthd_chan(struct nv50_disp *disp, int debug, int head,
 	struct nvkm_object *object = nv_object(disp);
 	const struct nv50_disp_impl *impl = (void *)object->oclass;
 	const struct nv50_disp_mthd_list *list;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	int i, j;
 
 	if (debug > nv_subdev(disp)->debug)
@@ -381,7 +385,7 @@ nv50_disp_mthd_chan(struct nv50_disp *disp, int debug, int head,
 				sname = sname_;
 			}
 
-			nv_printk_(object, debug, "%s%s:\n", cname, sname);
+			nvkm_printk_(subdev, debug, info, "%s%s:\n", cname, sname);
 			nv50_disp_mthd_list(disp, debug, base, impl->mthd.prev,
 					    list, j);
 		}
@@ -528,7 +532,8 @@ nv50_disp_core_init(struct nvkm_object *object)
 {
 	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *mast = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int ret;
 
 	ret = nv50_disp_chan_init(&mast->base);
@@ -557,7 +562,8 @@ nv50_disp_core_init(struct nvkm_object *object)
 		if (!(nvkm_rd32(device, 0x610200) & 0x80000000))
 			break;
 	) < 0) {
-		nv_error(mast, "init: 0x%08x\n", nvkm_rd32(device, 0x610200));
+		nvkm_error(subdev, "core init: %08x\n",
+			   nvkm_rd32(device, 0x610200));
 		return -EBUSY;
 	}
 
@@ -569,7 +575,8 @@ nv50_disp_core_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *mast = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 
 	/* deactivate channel */
 	nvkm_mask(device, 0x610200, 0x00000010, 0x00000000);
@@ -578,7 +585,8 @@ nv50_disp_core_fini(struct nvkm_object *object, bool suspend)
 		if (!(nvkm_rd32(device, 0x610200) & 0x001e0000))
 			break;
 	) < 0) {
-		nv_error(mast, "fini: 0x%08x\n", nvkm_rd32(device, 0x610200));
+		nvkm_error(subdev, "core fini: %08x\n",
+			   nvkm_rd32(device, 0x610200));
 		if (suspend)
 			return -EBUSY;
 	}
@@ -822,7 +830,8 @@ nv50_disp_pioc_init(struct nvkm_object *object)
 {
 	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_pioc *pioc = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int chid = pioc->base.chid;
 	int ret;
 
@@ -835,8 +844,8 @@ nv50_disp_pioc_init(struct nvkm_object *object)
 		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x00030000))
 			break;
 	) < 0) {
-		nv_error(pioc, "timeout0: 0x%08x\n",
-			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
+		nvkm_error(subdev, "ch %d timeout0: %08x\n", chid,
+			   nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		return -EBUSY;
 	}
 
@@ -846,8 +855,8 @@ nv50_disp_pioc_init(struct nvkm_object *object)
 		if ((tmp & 0x00030000) == 0x00010000)
 			break;
 	) < 0) {
-		nv_error(pioc, "timeout1: 0x%08x\n",
-			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
+		nvkm_error(subdev, "ch %d timeout1: %08x\n", chid,
+			   nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		return -EBUSY;
 	}
 
@@ -859,7 +868,8 @@ nv50_disp_pioc_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_pioc *pioc = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int chid = pioc->base.chid;
 
 	nvkm_mask(device, 0x610200 + (chid * 0x10), 0x00000001, 0x00000000);
@@ -867,8 +877,8 @@ nv50_disp_pioc_fini(struct nvkm_object *object, bool suspend)
 		if (!(nvkm_rd32(device, 0x610200 + (chid * 0x10)) & 0x00030000))
 			break;
 	) < 0) {
-		nv_error(pioc, "timeout: 0x%08x\n",
-			 nvkm_rd32(device, 0x610200 + (chid * 0x10)));
+		nvkm_error(subdev, "ch %d timeout: %08x\n", chid,
+			   nvkm_rd32(device, 0x610200 + (chid * 0x10)));
 		if (suspend)
 			return -EBUSY;
 	}
@@ -1362,26 +1372,22 @@ static void
 nv50_disp_intr_error(struct nv50_disp *disp, int chid)
 {
 	struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 data = nvkm_rd32(device, 0x610084 + (chid * 0x08));
 	u32 addr = nvkm_rd32(device, 0x610080 + (chid * 0x08));
 	u32 code = (addr & 0x00ff0000) >> 16;
 	u32 type = (addr & 0x00007000) >> 12;
 	u32 mthd = (addr & 0x00000ffc);
 	const struct nvkm_enum *ec, *et;
-	char ecunk[6], etunk[6];
 
 	et = nvkm_enum_find(nv50_disp_intr_error_type, type);
-	if (!et)
-		snprintf(etunk, sizeof(etunk), "UNK%02X", type);
-
 	ec = nvkm_enum_find(nv50_disp_intr_error_code, code);
-	if (!ec)
-		snprintf(ecunk, sizeof(ecunk), "UNK%02X", code);
 
-	nv_error(disp, "%s [%s] chid %d mthd 0x%04x data 0x%08x\n",
-		 et ? et->name : etunk, ec ? ec->name : ecunk,
-		 chid, mthd, data);
+	nvkm_error(subdev,
+		   "ERROR %d [%s] %02x [%s] chid %d mthd %04x data %08x\n",
+		   type, et ? et->name : "", code, ec ? ec->name : "",
+		   chid, mthd, data);
 
 	if (chid == 0) {
 		switch (mthd) {
@@ -1423,7 +1429,8 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	    struct nvbios_outp *info)
 {
-	struct nvkm_bios *bios = nvkm_bios(disp);
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvkm_output *outp;
 	u16 mask, type;
 
@@ -1440,7 +1447,7 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 		case 0x00000800: type = DCB_OUTPUT_DP; mask = 1; break;
 		case 0x00000900: type = DCB_OUTPUT_DP; mask = 2; break;
 		default:
-			nv_error(disp, "unknown SOR mc 0x%08x\n", ctrl);
+			nvkm_error(subdev, "unknown SOR mc %08x\n", ctrl);
 			return NULL;
 		}
 		or  -= 4;
@@ -1451,7 +1458,7 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 		switch (ctrl & 0x00000f00) {
 		case 0x00000000: type |= disp->pior.type[or]; break;
 		default:
-			nv_error(disp, "unknown PIOR mc 0x%08x\n", ctrl);
+			nvkm_error(subdev, "unknown PIOR mc %08x\n", ctrl);
 			return NULL;
 		}
 	}
@@ -1676,7 +1683,8 @@ static void
 nv50_disp_intr_unk20_2_dp(struct nv50_disp *disp, int head,
 			  struct dcb_output *outp, u32 pclk)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const int link = !(outp->sorconf.link & 1);
 	const int   or = ffs(outp->or) - 1;
 	const u32 soff = (  or * 0x800);
@@ -1775,7 +1783,7 @@ nv50_disp_intr_unk20_2_dp(struct nv50_disp *disp, int head,
 	}
 
 	if (!bestTU) {
-		nv_error(disp, "unable to find suitable dp config\n");
+		nvkm_error(subdev, "unable to find suitable dp config\n");
 		return;
 	}
 
@@ -1922,11 +1930,12 @@ nv50_disp_intr_supervisor(struct work_struct *work)
 	struct nv50_disp *disp =
 		container_of(work, struct nv50_disp, supervisor);
 	struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 super = nvkm_rd32(device, 0x610030);
 	int head;
 
-	nv_debug(disp, "supervisor 0x%08x 0x%08x\n", disp->super, super);
+	nvkm_debug(subdev, "supervisor %08x %08x\n", disp->super, super);
 
 	if (disp->super & 0x00000010) {
 		nv50_disp_mthd_chan(disp, NV_DBG_DEBUG, 0, impl->mthd.core);

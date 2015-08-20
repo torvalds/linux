@@ -44,7 +44,6 @@ nv_rdport(void *obj, int head, u16 port)
 		return nvkm_rd08(device, 0x0c0000 + (head * 0x2000) + port);
 	}
 
-	nv_error(obj, "unknown vga port 0x%04x\n", port);
 	return 0x00;
 }
 
@@ -67,8 +66,7 @@ nv_wrport(void *obj, int head, u16 port, u8 data)
 		if (device->card_type < NV_40)
 			head = 0; /* CR44 selects head */
 		nvkm_wr08(device, 0x0c0000 + (head * 0x2000) + port, data);
-	} else
-		nv_error(obj, "unknown vga port 0x%04x\n", port);
+	}
 }
 
 u8
@@ -119,7 +117,6 @@ nv_rdvgai(void *obj, int head, u16 port, u8 index)
 	if (port == 0x03c4) return nv_rdvgas(obj, head, index);
 	if (port == 0x03ce) return nv_rdvgag(obj, head, index);
 	if (port == 0x03d4) return nv_rdvgac(obj, head, index);
-	nv_error(obj, "unknown indexed vga port 0x%04x\n", port);
 	return 0x00;
 }
 
@@ -129,7 +126,6 @@ nv_wrvgai(void *obj, int head, u16 port, u8 index, u8 value)
 	if      (port == 0x03c4) nv_wrvgas(obj, head, index, value);
 	else if (port == 0x03ce) nv_wrvgag(obj, head, index, value);
 	else if (port == 0x03d4) nv_wrvgac(obj, head, index, value);
-	else nv_error(obj, "unknown indexed vga port 0x%04x\n", port);
 }
 
 bool
@@ -192,7 +188,6 @@ nv_rdvgaowner(void *obj)
 		return nv_rdvgac(obj, 0, 0x44);
 	}
 
-	nv_error(obj, "rdvgaowner after nv4x\n");
 	return 0x00;
 }
 
@@ -213,6 +208,5 @@ nv_wrvgaowner(void *obj, u8 select)
 			nv_wrvgac(obj, 0, 0x2e, owner);
 			nv_wrvgac(obj, 0, 0x2e, owner);
 		}
-	} else
-		nv_error(obj, "wrvgaowner after nv4x\n");
+	}
 }
