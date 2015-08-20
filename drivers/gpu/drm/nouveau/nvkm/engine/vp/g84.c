@@ -62,20 +62,20 @@ g84_vp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	    struct nvkm_oclass *oclass, void *data, u32 size,
 	    struct nvkm_object **pobject)
 {
-	struct nvkm_xtensa *priv;
+	struct nvkm_xtensa *vp;
 	int ret;
 
 	ret = nvkm_xtensa_create(parent, engine, oclass, 0xf000, true,
-				 "PVP", "vp", &priv);
-	*pobject = nv_object(priv);
+				 "PVP", "vp", &vp);
+	*pobject = nv_object(vp);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x01020000;
-	nv_engine(priv)->cclass = &g84_vp_cclass;
-	nv_engine(priv)->sclass = g84_vp_sclass;
-	priv->fifo_val = 0x111;
-	priv->unkd28 = 0x9c544;
+	nv_subdev(vp)->unit = 0x01020000;
+	nv_engine(vp)->cclass = &g84_vp_cclass;
+	nv_engine(vp)->sclass = g84_vp_sclass;
+	vp->fifo_val = 0x111;
+	vp->unkd28 = 0x9c544;
 	return 0;
 }
 
