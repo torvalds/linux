@@ -499,7 +499,8 @@ static int wm831x_power_probe(struct platform_device *pdev)
 	struct wm831x_power *power;
 	int ret, irq, i;
 
-	power = kzalloc(sizeof(struct wm831x_power), GFP_KERNEL);
+	power = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_power),
+			     GFP_KERNEL);
 	if (power == NULL)
 		return -ENOMEM;
 
@@ -536,7 +537,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 					    NULL);
 	if (IS_ERR(power->wall)) {
 		ret = PTR_ERR(power->wall);
-		goto err_kmalloc;
+		goto err;
 	}
 
 	power->usb_desc.name = power->usb_name,
@@ -626,8 +627,7 @@ err_usb:
 	power_supply_unregister(power->usb);
 err_wall:
 	power_supply_unregister(power->wall);
-err_kmalloc:
-	kfree(power);
+err:
 	return ret;
 }
 
@@ -654,7 +654,6 @@ static int wm831x_power_remove(struct platform_device *pdev)
 		power_supply_unregister(wm831x_power->battery);
 	power_supply_unregister(wm831x_power->wall);
 	power_supply_unregister(wm831x_power->usb);
-	kfree(wm831x_power);
 	return 0;
 }
 
