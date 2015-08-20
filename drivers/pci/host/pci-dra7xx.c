@@ -397,7 +397,7 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		dev_err(dev, "pm_runtime_get_sync failed\n");
 		goto err_get_sync;
 	}
