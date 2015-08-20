@@ -71,18 +71,19 @@ static const struct nvkm_enum g98_sec_isr_error_name[] = {
 static void
 g98_sec_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
+	struct nvkm_falcon *sec = (void *)subdev;
+	struct nvkm_device *device = sec->engine.subdev.device;
+	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
-	struct nvkm_falcon *sec = (void *)subdev;
-	u32 disp = nv_rd32(sec, 0x08701c);
-	u32 stat = nv_rd32(sec, 0x087008) & disp & ~(disp >> 16);
-	u32 inst = nv_rd32(sec, 0x087050) & 0x3fffffff;
-	u32 ssta = nv_rd32(sec, 0x087040) & 0x0000ffff;
-	u32 addr = nv_rd32(sec, 0x087040) >> 16;
+	u32 disp = nvkm_rd32(device, 0x08701c);
+	u32 stat = nvkm_rd32(device, 0x087008) & disp & ~(disp >> 16);
+	u32 inst = nvkm_rd32(device, 0x087050) & 0x3fffffff;
+	u32 ssta = nvkm_rd32(device, 0x087040) & 0x0000ffff;
+	u32 addr = nvkm_rd32(device, 0x087040) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
-	u32 data = nv_rd32(sec, 0x087044);
+	u32 data = nvkm_rd32(device, 0x087044);
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
@@ -94,13 +95,13 @@ g98_sec_intr(struct nvkm_subdev *subdev)
 		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
 		       chid, (u64)inst << 12, nvkm_client_name(engctx),
 		       subc, mthd, data);
-		nv_wr32(sec, 0x087004, 0x00000040);
+		nvkm_wr32(device, 0x087004, 0x00000040);
 		stat &= ~0x00000040;
 	}
 
 	if (stat) {
 		nv_error(sec, "unhandled intr 0x%08x\n", stat);
-		nv_wr32(sec, 0x087004, stat);
+		nvkm_wr32(device, 0x087004, stat);
 	}
 
 	nvkm_engctx_put(engctx);
