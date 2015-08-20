@@ -28,7 +28,6 @@ nv50_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x50:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv50_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -40,7 +39,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  nv50_pm_oclass;
 		break;
 	case 0x84:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -55,7 +53,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x86:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -70,7 +67,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x92:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -85,7 +81,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x94:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -100,7 +95,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x96:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -115,7 +109,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0x98:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -130,7 +123,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0xa0:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -145,7 +137,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt200_pm_oclass;
 		break;
 	case 0xaa:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -160,7 +151,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0xac:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &g84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -175,7 +165,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  g84_pm_oclass;
 		break;
 	case 0xa3:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -191,7 +180,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	case 0xa5:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -206,7 +194,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	case 0xa8:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
@@ -221,7 +208,6 @@ nv50_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_PM     ] =  gt215_pm_oclass;
 		break;
 	case 0xaf:
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &gt215_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;

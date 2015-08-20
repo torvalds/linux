@@ -29,15 +29,12 @@ enum nv40_sensor_style { INVALID_STYLE = -1, OLD_STYLE = 0, NEW_STYLE = 1 };
 static enum nv40_sensor_style
 nv40_sensor_style(struct nvkm_therm *therm)
 {
-	struct nvkm_device *device = nv_device(therm);
-
-	switch (device->chipset) {
+	switch (therm->subdev.device->chipset) {
 	case 0x43:
 	case 0x44:
 	case 0x4a:
 	case 0x47:
 		return OLD_STYLE;
-
 	case 0x46:
 	case 0x49:
 	case 0x4b:
@@ -73,12 +70,11 @@ nv40_sensor_setup(struct nvkm_therm *therm)
 }
 
 static int
-nv40_temp_get(struct nvkm_therm *obj)
+nv40_temp_get(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_device *device = therm->subdev.device;
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
-	enum nv40_sensor_style style = nv40_sensor_style(&therm->base);
+	enum nv40_sensor_style style = nv40_sensor_style(therm);
 	int core_temp;
 
 	if (style == NEW_STYLE) {
@@ -169,10 +165,10 @@ nv40_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 }
 
 void
-nv40_therm_intr(struct nvkm_subdev *subdev)
+nv40_therm_intr(struct nvkm_therm *therm)
 {
-	struct nvkm_therm *therm = nvkm_therm(subdev);
-	struct nvkm_device *device = therm->subdev.device;
+	struct nvkm_subdev *subdev = &therm->subdev;
+	struct nvkm_device *device = subdev->device;
 	uint32_t stat = nvkm_rd32(device, 0x1100);
 
 	/* traitement */
@@ -183,46 +179,26 @@ nv40_therm_intr(struct nvkm_subdev *subdev)
 	nvkm_error(subdev, "THERM received an IRQ: stat = %x\n", stat);
 }
 
-static int
-nv40_therm_ctor(struct nvkm_object *parent,
-		struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+static void
+nv40_therm_init(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm;
-	int ret;
-
-	ret = nvkm_therm_create(parent, engine, oclass, &therm);
-	*pobject = nv_object(therm);
-	if (ret)
-		return ret;
-
-	therm->base.pwm_ctrl = nv40_fan_pwm_ctrl;
-	therm->base.pwm_get = nv40_fan_pwm_get;
-	therm->base.pwm_set = nv40_fan_pwm_set;
-	therm->base.temp_get = nv40_temp_get;
-	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	nv_subdev(therm)->intr = nv40_therm_intr;
-	return nvkm_therm_preinit(&therm->base);
-}
-
-static int
-nv40_therm_init(struct nvkm_object *object)
-{
-	struct nvkm_therm *therm = (void *)object;
-
 	nv40_sensor_setup(therm);
-
-	return _nvkm_therm_init(object);
 }
 
-struct nvkm_oclass
-nv40_therm_oclass = {
-	.handle = NV_SUBDEV(THERM, 0x40),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_therm_ctor,
-		.dtor = _nvkm_therm_dtor,
-		.init = nv40_therm_init,
-		.fini = _nvkm_therm_fini,
-	},
+static const struct nvkm_therm_func
+nv40_therm = {
+	.init = nv40_therm_init,
+	.intr = nv40_therm_intr,
+	.pwm_ctrl = nv40_fan_pwm_ctrl,
+	.pwm_get = nv40_fan_pwm_get,
+	.pwm_set = nv40_fan_pwm_set,
+	.temp_get = nv40_temp_get,
+	.program_alarms = nvkm_therm_program_alarms_polling,
 };
+
+int
+nv40_therm_new(struct nvkm_device *device, int index,
+	       struct nvkm_therm **ptherm)
+{
+	return nvkm_therm_new_(&nv40_therm, device, index, ptherm);
+}

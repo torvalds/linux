@@ -54,36 +54,22 @@ gm107_fan_pwm_clock(struct nvkm_therm *therm, int line)
 	return therm->subdev.device->crystal * 1000;
 }
 
-static int
-gm107_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, void *data, u32 size,
-		 struct nvkm_object **pobject)
-{
-	struct nvkm_therm_priv *therm;
-	int ret;
-
-	ret = nvkm_therm_create(parent, engine, oclass, &therm);
-	*pobject = nv_object(therm);
-	if (ret)
-		return ret;
-
-	therm->base.pwm_ctrl = gm107_fan_pwm_ctrl;
-	therm->base.pwm_get = gm107_fan_pwm_get;
-	therm->base.pwm_set = gm107_fan_pwm_set;
-	therm->base.pwm_clock = gm107_fan_pwm_clock;
-	therm->base.temp_get = g84_temp_get;
-	therm->base.fan_sense = gt215_therm_fan_sense;
-	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	return nvkm_therm_preinit(&therm->base);
-}
-
-struct nvkm_oclass
-gm107_therm_oclass = {
-	.handle = NV_SUBDEV(THERM, 0x117),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm107_therm_ctor,
-		.dtor = _nvkm_therm_dtor,
-		.init = gf110_therm_init,
-		.fini = g84_therm_fini,
-	},
+static const struct nvkm_therm_func
+gm107_therm = {
+	.init = gf119_therm_init,
+	.fini = g84_therm_fini,
+	.pwm_ctrl = gm107_fan_pwm_ctrl,
+	.pwm_get = gm107_fan_pwm_get,
+	.pwm_set = gm107_fan_pwm_set,
+	.pwm_clock = gm107_fan_pwm_clock,
+	.temp_get = g84_temp_get,
+	.fan_sense = gt215_therm_fan_sense,
+	.program_alarms = nvkm_therm_program_alarms_polling,
 };
+
+int
+gm107_therm_new(struct nvkm_device *device, int index,
+		struct nvkm_therm **ptherm)
+{
+	return nvkm_therm_new_(&gm107_therm, device, index, ptherm);
+}

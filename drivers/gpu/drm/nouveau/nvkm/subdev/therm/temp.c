@@ -24,10 +24,8 @@
 #include "priv.h"
 
 static void
-nvkm_therm_temp_set_defaults(struct nvkm_therm *obj)
+nvkm_therm_temp_set_defaults(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-
 	therm->bios_sensor.offset_constant = 0;
 
 	therm->bios_sensor.thrs_fan_boost.temp = 90;
@@ -43,11 +41,9 @@ nvkm_therm_temp_set_defaults(struct nvkm_therm *obj)
 	therm->bios_sensor.thrs_shutdown.hysteresis = 5; /*not that it matters */
 }
 
-
 static void
-nvkm_therm_temp_safety_checks(struct nvkm_therm *obj)
+nvkm_therm_temp_safety_checks(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvbios_therm_sensor *s = &therm->bios_sensor;
 
 	/* enforce a minimum hysteresis on thresholds */
@@ -59,20 +55,18 @@ nvkm_therm_temp_safety_checks(struct nvkm_therm *obj)
 
 /* must be called with alarm_program_lock taken ! */
 void
-nvkm_therm_sensor_set_threshold_state(struct nvkm_therm *obj,
+nvkm_therm_sensor_set_threshold_state(struct nvkm_therm *therm,
 				      enum nvkm_therm_thrs thrs,
 				      enum nvkm_therm_thrs_state st)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	therm->sensor.alarm_state[thrs] = st;
 }
 
 /* must be called with alarm_program_lock taken ! */
 enum nvkm_therm_thrs_state
-nvkm_therm_sensor_get_threshold_state(struct nvkm_therm *obj,
+nvkm_therm_sensor_get_threshold_state(struct nvkm_therm *therm,
 				      enum nvkm_therm_thrs thrs)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	return therm->sensor.alarm_state[thrs];
 }
 
@@ -84,16 +78,15 @@ nv_poweroff_work(struct work_struct *work)
 }
 
 void
-nvkm_therm_sensor_event(struct nvkm_therm *obj, enum nvkm_therm_thrs thrs,
+nvkm_therm_sensor_event(struct nvkm_therm *therm, enum nvkm_therm_thrs thrs,
 			enum nvkm_therm_thrs_direction dir)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_subdev *subdev = &therm->subdev;
 	bool active;
 	const char *thresolds[] = {
 		"fanboost", "downclock", "critical", "shutdown"
 	};
-	int temperature = therm->base.temp_get(&therm->base);
+	int temperature = therm->func->temp_get(therm);
 
 	if (thrs < 0 || thrs > 3)
 		return;
@@ -110,17 +103,17 @@ nvkm_therm_sensor_event(struct nvkm_therm *obj, enum nvkm_therm_thrs thrs,
 	switch (thrs) {
 	case NVKM_THERM_THRS_FANBOOST:
 		if (active) {
-			nvkm_therm_fan_set(&therm->base, true, 100);
-			nvkm_therm_fan_mode(&therm->base, NVKM_THERM_CTRL_AUTO);
+			nvkm_therm_fan_set(therm, true, 100);
+			nvkm_therm_fan_mode(therm, NVKM_THERM_CTRL_AUTO);
 		}
 		break;
 	case NVKM_THERM_THRS_DOWNCLOCK:
 		if (therm->emergency.downclock)
-			therm->emergency.downclock(&therm->base, active);
+			therm->emergency.downclock(therm, active);
 		break;
 	case NVKM_THERM_THRS_CRITICAL:
 		if (therm->emergency.pause)
-			therm->emergency.pause(&therm->base, active);
+			therm->emergency.pause(therm, active);
 		break;
 	case NVKM_THERM_THRS_SHUTDOWN:
 		if (active) {
@@ -147,7 +140,7 @@ nvkm_therm_threshold_hyst_polling(struct nvkm_therm *therm,
 {
 	enum nvkm_therm_thrs_direction direction;
 	enum nvkm_therm_thrs_state prev_state, new_state;
-	int temp = therm->temp_get(therm);
+	int temp = therm->func->temp_get(therm);
 
 	prev_state = nvkm_therm_sensor_get_threshold_state(therm, thrs_name);
 
@@ -168,41 +161,40 @@ nvkm_therm_threshold_hyst_polling(struct nvkm_therm *therm,
 static void
 alarm_timer_callback(struct nvkm_alarm *alarm)
 {
-	struct nvkm_therm_priv *therm =
-	container_of(alarm, struct nvkm_therm_priv, sensor.therm_poll_alarm);
+	struct nvkm_therm *therm =
+		container_of(alarm, struct nvkm_therm, sensor.therm_poll_alarm);
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
-	struct nvkm_timer *tmr = nvkm_timer(therm);
+	struct nvkm_timer *tmr = therm->subdev.device->timer;
 	unsigned long flags;
 
 	spin_lock_irqsave(&therm->sensor.alarm_program_lock, flags);
 
-	nvkm_therm_threshold_hyst_polling(&therm->base, &sensor->thrs_fan_boost,
+	nvkm_therm_threshold_hyst_polling(therm, &sensor->thrs_fan_boost,
 					  NVKM_THERM_THRS_FANBOOST);
 
-	nvkm_therm_threshold_hyst_polling(&therm->base,
+	nvkm_therm_threshold_hyst_polling(therm,
 					  &sensor->thrs_down_clock,
 					  NVKM_THERM_THRS_DOWNCLOCK);
 
-	nvkm_therm_threshold_hyst_polling(&therm->base, &sensor->thrs_critical,
+	nvkm_therm_threshold_hyst_polling(therm, &sensor->thrs_critical,
 					  NVKM_THERM_THRS_CRITICAL);
 
-	nvkm_therm_threshold_hyst_polling(&therm->base, &sensor->thrs_shutdown,
+	nvkm_therm_threshold_hyst_polling(therm, &sensor->thrs_shutdown,
 					  NVKM_THERM_THRS_SHUTDOWN);
 
 	spin_unlock_irqrestore(&therm->sensor.alarm_program_lock, flags);
 
 	/* schedule the next poll in one second */
-	if (therm->base.temp_get(&therm->base) >= 0 && list_empty(&alarm->head))
+	if (therm->func->temp_get(therm) >= 0 && list_empty(&alarm->head))
 		tmr->alarm(tmr, 1000000000ULL, alarm);
 }
 
 void
-nvkm_therm_program_alarms_polling(struct nvkm_therm *obj)
+nvkm_therm_program_alarms_polling(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 
-	nvkm_debug(&therm->base.subdev,
+	nvkm_debug(&therm->subdev,
 		   "programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
 		   sensor->thrs_fan_boost.temp,
 		   sensor->thrs_fan_boost.hysteresis,
@@ -217,19 +209,16 @@ nvkm_therm_program_alarms_polling(struct nvkm_therm *obj)
 }
 
 int
-nvkm_therm_sensor_init(struct nvkm_therm *obj)
+nvkm_therm_sensor_init(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	therm->sensor.program_alarms(&therm->base);
+	therm->func->program_alarms(therm);
 	return 0;
 }
 
 int
-nvkm_therm_sensor_fini(struct nvkm_therm *obj, bool suspend)
+nvkm_therm_sensor_fini(struct nvkm_therm *therm, bool suspend)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_timer *tmr = nvkm_timer(therm);
-
+	struct nvkm_timer *tmr = therm->subdev.device->timer;
 	if (suspend)
 		tmr->alarm_cancel(tmr, &therm->sensor.therm_poll_alarm);
 	return 0;
@@ -240,26 +229,25 @@ nvkm_therm_sensor_preinit(struct nvkm_therm *therm)
 {
 	const char *sensor_avail = "yes";
 
-	if (therm->temp_get(therm) < 0)
+	if (therm->func->temp_get(therm) < 0)
 		sensor_avail = "no";
 
 	nvkm_debug(&therm->subdev, "internal sensor: %s\n", sensor_avail);
 }
 
 int
-nvkm_therm_sensor_ctor(struct nvkm_therm *obj)
+nvkm_therm_sensor_ctor(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_subdev *subdev = &therm->subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
 
 	nvkm_alarm_init(&therm->sensor.therm_poll_alarm, alarm_timer_callback);
 
-	nvkm_therm_temp_set_defaults(&therm->base);
+	nvkm_therm_temp_set_defaults(therm);
 	if (nvbios_therm_sensor_parse(bios, NVBIOS_THERM_DOMAIN_CORE,
 				      &therm->bios_sensor))
 		nvkm_error(subdev, "nvbios_therm_sensor_parse failed\n");
-	nvkm_therm_temp_safety_checks(&therm->base);
+	nvkm_therm_temp_safety_checks(therm);
 
 	return 0;
 }

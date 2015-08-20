@@ -51,11 +51,10 @@ g84_sensor_setup(struct nvkm_therm *therm)
 }
 
 static void
-g84_therm_program_alarms(struct nvkm_therm *obj)
+g84_therm_program_alarms(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
-	struct nvkm_subdev *subdev = &therm->base.subdev;
+	struct nvkm_subdev *subdev = &therm->subdev;
 	struct nvkm_device *device = subdev->device;
 	unsigned long flags;
 
@@ -116,7 +115,7 @@ g84_therm_threshold_hyst_emulation(struct nvkm_therm *therm,
 	}
 
 	/* fix the state (in case someone reprogrammed the alarms) */
-	cur = therm->temp_get(therm);
+	cur = therm->func->temp_get(therm);
 	if (new_state == NVKM_THERM_THRS_LOWER && cur > thrs->temp)
 		new_state = NVKM_THERM_THRS_HIGHER;
 	else if (new_state == NVKM_THERM_THRS_HIGHER &&
@@ -137,10 +136,10 @@ g84_therm_threshold_hyst_emulation(struct nvkm_therm *therm,
 }
 
 static void
-g84_therm_intr(struct nvkm_subdev *subdev)
+g84_therm_intr(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = (void *)subdev;
-	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_subdev *subdev = &therm->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 	unsigned long flags;
 	uint32_t intr;
@@ -151,7 +150,7 @@ g84_therm_intr(struct nvkm_subdev *subdev)
 
 	/* THRS_4: downclock */
 	if (intr & 0x002) {
-		g84_therm_threshold_hyst_emulation(&therm->base, 0x20414, 24,
+		g84_therm_threshold_hyst_emulation(therm, 0x20414, 24,
 						   &sensor->thrs_down_clock,
 						   NVKM_THERM_THRS_DOWNCLOCK);
 		intr &= ~0x002;
@@ -159,7 +158,7 @@ g84_therm_intr(struct nvkm_subdev *subdev)
 
 	/* shutdown */
 	if (intr & 0x004) {
-		g84_therm_threshold_hyst_emulation(&therm->base, 0x20480, 20,
+		g84_therm_threshold_hyst_emulation(therm, 0x20480, 20,
 						   &sensor->thrs_shutdown,
 						   NVKM_THERM_THRS_SHUTDOWN);
 		intr &= ~0x004;
@@ -167,7 +166,7 @@ g84_therm_intr(struct nvkm_subdev *subdev)
 
 	/* THRS_1 : fan boost */
 	if (intr & 0x008) {
-		g84_therm_threshold_hyst_emulation(&therm->base, 0x204c4, 21,
+		g84_therm_threshold_hyst_emulation(therm, 0x204c4, 21,
 						   &sensor->thrs_fan_boost,
 						   NVKM_THERM_THRS_FANBOOST);
 		intr &= ~0x008;
@@ -175,7 +174,7 @@ g84_therm_intr(struct nvkm_subdev *subdev)
 
 	/* THRS_2 : critical */
 	if (intr & 0x010) {
-		g84_therm_threshold_hyst_emulation(&therm->base, 0x204c0, 22,
+		g84_therm_threshold_hyst_emulation(therm, 0x204c0, 22,
 						   &sensor->thrs_critical,
 						   NVKM_THERM_THRS_CRITICAL);
 		intr &= ~0x010;
@@ -191,62 +190,9 @@ g84_therm_intr(struct nvkm_subdev *subdev)
 	spin_unlock_irqrestore(&therm->sensor.alarm_program_lock, flags);
 }
 
-static int
-g84_therm_init(struct nvkm_object *object)
+void
+g84_therm_fini(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = (void *)object;
-	int ret;
-
-	ret = nvkm_therm_init(&therm->base);
-	if (ret)
-		return ret;
-
-	g84_sensor_setup(&therm->base);
-	return 0;
-}
-
-static int
-g84_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nvkm_therm_priv *therm;
-	int ret;
-
-	ret = nvkm_therm_create(parent, engine, oclass, &therm);
-	*pobject = nv_object(therm);
-	if (ret)
-		return ret;
-
-	therm->base.pwm_ctrl = nv50_fan_pwm_ctrl;
-	therm->base.pwm_get = nv50_fan_pwm_get;
-	therm->base.pwm_set = nv50_fan_pwm_set;
-	therm->base.pwm_clock = nv50_fan_pwm_clock;
-	therm->base.temp_get = g84_temp_get;
-	therm->sensor.program_alarms = g84_therm_program_alarms;
-	nv_subdev(therm)->intr = g84_therm_intr;
-
-	/* init the thresholds */
-	nvkm_therm_sensor_set_threshold_state(&therm->base,
-					      NVKM_THERM_THRS_SHUTDOWN,
-					      NVKM_THERM_THRS_LOWER);
-	nvkm_therm_sensor_set_threshold_state(&therm->base,
-					      NVKM_THERM_THRS_FANBOOST,
-					      NVKM_THERM_THRS_LOWER);
-	nvkm_therm_sensor_set_threshold_state(&therm->base,
-					      NVKM_THERM_THRS_CRITICAL,
-					      NVKM_THERM_THRS_LOWER);
-	nvkm_therm_sensor_set_threshold_state(&therm->base,
-					      NVKM_THERM_THRS_DOWNCLOCK,
-					      NVKM_THERM_THRS_LOWER);
-
-	return nvkm_therm_preinit(&therm->base);
-}
-
-int
-g84_therm_fini(struct nvkm_object *object, bool suspend)
-{
-	struct nvkm_therm *therm = (void *)object;
 	struct nvkm_device *device = therm->subdev.device;
 
 	/* Disable PTherm IRQs */
@@ -255,17 +201,46 @@ g84_therm_fini(struct nvkm_object *object, bool suspend)
 	/* ACK all PTherm IRQs */
 	nvkm_wr32(device, 0x20100, 0xffffffff);
 	nvkm_wr32(device, 0x1100, 0x10000); /* PBUS */
-
-	return _nvkm_therm_fini(object, suspend);
 }
 
-struct nvkm_oclass
-g84_therm_oclass = {
-	.handle = NV_SUBDEV(THERM, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_therm_ctor,
-		.dtor = _nvkm_therm_dtor,
-		.init = g84_therm_init,
-		.fini = g84_therm_fini,
-	},
+static void
+g84_therm_init(struct nvkm_therm *therm)
+{
+	g84_sensor_setup(therm);
+}
+
+static const struct nvkm_therm_func
+g84_therm = {
+	.init = g84_therm_init,
+	.fini = g84_therm_fini,
+	.intr = g84_therm_intr,
+	.pwm_ctrl = nv50_fan_pwm_ctrl,
+	.pwm_get = nv50_fan_pwm_get,
+	.pwm_set = nv50_fan_pwm_set,
+	.pwm_clock = nv50_fan_pwm_clock,
+	.temp_get = g84_temp_get,
+	.program_alarms = g84_therm_program_alarms,
 };
+
+int
+g84_therm_new(struct nvkm_device *device, int index, struct nvkm_therm **ptherm)
+{
+	struct nvkm_therm *therm;
+	int ret;
+
+	ret = nvkm_therm_new_(&g84_therm, device, index, &therm);
+	*ptherm = therm;
+	if (ret)
+		return ret;
+
+	/* init the thresholds */
+	nvkm_therm_sensor_set_threshold_state(therm, NVKM_THERM_THRS_SHUTDOWN,
+						     NVKM_THERM_THRS_LOWER);
+	nvkm_therm_sensor_set_threshold_state(therm, NVKM_THERM_THRS_FANBOOST,
+						     NVKM_THERM_THRS_LOWER);
+	nvkm_therm_sensor_set_threshold_state(therm, NVKM_THERM_THRS_CRITICAL,
+						     NVKM_THERM_THRS_LOWER);
+	nvkm_therm_sensor_set_threshold_state(therm, NVKM_THERM_THRS_DOWNCLOCK,
+						     NVKM_THERM_THRS_LOWER);
+	return 0;
+}

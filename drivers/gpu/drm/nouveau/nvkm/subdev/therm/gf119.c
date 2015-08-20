@@ -50,7 +50,7 @@ pwm_info(struct nvkm_therm *therm, int line)
 }
 
 static int
-gf110_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
+gf119_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 {
 	struct nvkm_device *device = therm->subdev.device;
 	u32 data = enable ? 0x00000040 : 0x00000000;
@@ -64,7 +64,7 @@ gf110_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 }
 
 static int
-gf110_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
+gf119_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	struct nvkm_device *device = therm->subdev.device;
 	int indx = pwm_info(therm, line);
@@ -86,7 +86,7 @@ gf110_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 }
 
 static int
-gf110_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
+gf119_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 {
 	struct nvkm_device *device = therm->subdev.device;
 	int indx = pwm_info(therm, line);
@@ -103,7 +103,7 @@ gf110_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 }
 
 static int
-gf110_fan_pwm_clock(struct nvkm_therm *therm, int line)
+gf119_fan_pwm_clock(struct nvkm_therm *therm, int line)
 {
 	struct nvkm_device *device = therm->subdev.device;
 	int indx = pwm_info(therm, line);
@@ -115,61 +115,39 @@ gf110_fan_pwm_clock(struct nvkm_therm *therm, int line)
 		return device->crystal * 1000 / 10;
 }
 
-int
-gf110_therm_init(struct nvkm_object *object)
+void
+gf119_therm_init(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = (void *)object;
-	struct nvkm_device *device = therm->base.subdev.device;
-	int ret;
+	struct nvkm_device *device = therm->subdev.device;
 
-	ret = nvkm_therm_init(&therm->base);
-	if (ret)
-		return ret;
+	g84_sensor_setup(therm);
 
 	/* enable fan tach, count revolutions per-second */
 	nvkm_mask(device, 0x00e720, 0x00000003, 0x00000002);
 	if (therm->fan->tach.func != DCB_GPIO_UNUSED) {
 		nvkm_mask(device, 0x00d79c, 0x000000ff, therm->fan->tach.line);
-		nvkm_wr32(device, 0x00e724, nv_device(therm)->crystal * 1000);
+		nvkm_wr32(device, 0x00e724, device->crystal * 1000);
 		nvkm_mask(device, 0x00e720, 0x00000001, 0x00000001);
 	}
 	nvkm_mask(device, 0x00e720, 0x00000002, 0x00000000);
-
-	return 0;
 }
 
-static int
-gf110_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, void *data, u32 size,
-		 struct nvkm_object **pobject)
-{
-	struct nvkm_therm_priv *therm;
-	int ret;
-
-	ret = nvkm_therm_create(parent, engine, oclass, &therm);
-	*pobject = nv_object(therm);
-	if (ret)
-		return ret;
-
-	g84_sensor_setup(&therm->base);
-
-	therm->base.pwm_ctrl = gf110_fan_pwm_ctrl;
-	therm->base.pwm_get = gf110_fan_pwm_get;
-	therm->base.pwm_set = gf110_fan_pwm_set;
-	therm->base.pwm_clock = gf110_fan_pwm_clock;
-	therm->base.temp_get = g84_temp_get;
-	therm->base.fan_sense = gt215_therm_fan_sense;
-	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	return nvkm_therm_preinit(&therm->base);
-}
-
-struct nvkm_oclass
-gf110_therm_oclass = {
-	.handle = NV_SUBDEV(THERM, 0xd0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf110_therm_ctor,
-		.dtor = _nvkm_therm_dtor,
-		.init = gf110_therm_init,
-		.fini = g84_therm_fini,
-	},
+static const struct nvkm_therm_func
+gf119_therm = {
+	.init = gf119_therm_init,
+	.fini = g84_therm_fini,
+	.pwm_ctrl = gf119_fan_pwm_ctrl,
+	.pwm_get = gf119_fan_pwm_get,
+	.pwm_set = gf119_fan_pwm_set,
+	.pwm_clock = gf119_fan_pwm_clock,
+	.temp_get = g84_temp_get,
+	.fan_sense = gt215_therm_fan_sense,
+	.program_alarms = nvkm_therm_program_alarms_polling,
 };
+
+int
+gf119_therm_new(struct nvkm_device *device, int index,
+	       struct nvkm_therm **ptherm)
+{
+	return nvkm_therm_new_(&gf119_therm, device, index, ptherm);
+}

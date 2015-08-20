@@ -126,10 +126,9 @@ nv50_sensor_setup(struct nvkm_therm *therm)
 }
 
 static int
-nv50_temp_get(struct nvkm_therm *obj)
+nv50_temp_get(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
-	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_device *device = therm->subdev.device;
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 	int core_temp;
 
@@ -151,48 +150,27 @@ nv50_temp_get(struct nvkm_therm *obj)
 	return core_temp;
 }
 
-static int
-nv50_therm_ctor(struct nvkm_object *parent,
-		struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+static void
+nv50_therm_init(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm;
-	int ret;
-
-	ret = nvkm_therm_create(parent, engine, oclass, &therm);
-	*pobject = nv_object(therm);
-	if (ret)
-		return ret;
-
-	therm->base.pwm_ctrl = nv50_fan_pwm_ctrl;
-	therm->base.pwm_get = nv50_fan_pwm_get;
-	therm->base.pwm_set = nv50_fan_pwm_set;
-	therm->base.pwm_clock = nv50_fan_pwm_clock;
-	therm->base.temp_get = nv50_temp_get;
-	therm->sensor.program_alarms = nvkm_therm_program_alarms_polling;
-	nv_subdev(therm)->intr = nv40_therm_intr;
-
-	return nvkm_therm_preinit(&therm->base);
-}
-
-static int
-nv50_therm_init(struct nvkm_object *object)
-{
-	struct nvkm_therm *therm = (void *)object;
-
 	nv50_sensor_setup(therm);
-
-	return _nvkm_therm_init(object);
 }
 
-struct nvkm_oclass
-nv50_therm_oclass = {
-	.handle = NV_SUBDEV(THERM, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_therm_ctor,
-		.dtor = _nvkm_therm_dtor,
-		.init = nv50_therm_init,
-		.fini = _nvkm_therm_fini,
-	},
+static const struct nvkm_therm_func
+nv50_therm = {
+	.init = nv50_therm_init,
+	.intr = nv40_therm_intr,
+	.pwm_ctrl = nv50_fan_pwm_ctrl,
+	.pwm_get = nv50_fan_pwm_get,
+	.pwm_set = nv50_fan_pwm_set,
+	.pwm_clock = nv50_fan_pwm_clock,
+	.temp_get = nv50_temp_get,
+	.program_alarms = nvkm_therm_program_alarms_polling,
 };
+
+int
+nv50_therm_new(struct nvkm_device *device, int index,
+	       struct nvkm_therm **ptherm)
+{
+	return nvkm_therm_new_(&nv50_therm, device, index, ptherm);
+}

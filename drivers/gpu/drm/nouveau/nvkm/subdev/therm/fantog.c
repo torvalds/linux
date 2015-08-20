@@ -38,8 +38,8 @@ struct nvkm_fantog {
 static void
 nvkm_fantog_update(struct nvkm_fantog *fan, int percent)
 {
-	struct nvkm_therm_priv *therm = (void *)fan->base.parent;
-	struct nvkm_device *device = therm->base.subdev.device;
+	struct nvkm_therm *therm = fan->base.parent;
+	struct nvkm_device *device = therm->subdev.device;
 	struct nvkm_timer *tmr = device->timer;
 	struct nvkm_gpio *gpio = device->gpio;
 	unsigned long flags;
@@ -71,33 +71,30 @@ nvkm_fantog_alarm(struct nvkm_alarm *alarm)
 }
 
 static int
-nvkm_fantog_get(struct nvkm_therm *obj)
+nvkm_fantog_get(struct nvkm_therm *therm)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_fantog *fan = (void *)therm->fan;
 	return fan->percent;
 }
 
 static int
-nvkm_fantog_set(struct nvkm_therm *obj, int percent)
+nvkm_fantog_set(struct nvkm_therm *therm, int percent)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_fantog *fan = (void *)therm->fan;
-	if (therm->base.pwm_ctrl)
-		therm->base.pwm_ctrl(&therm->base, fan->func.line, false);
+	if (therm->func->pwm_ctrl)
+		therm->func->pwm_ctrl(therm, fan->func.line, false);
 	nvkm_fantog_update(fan, percent);
 	return 0;
 }
 
 int
-nvkm_fantog_create(struct nvkm_therm *obj, struct dcb_gpio_func *func)
+nvkm_fantog_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
 {
-	struct nvkm_therm_priv *therm = container_of(obj, typeof(*therm), base);
 	struct nvkm_fantog *fan;
 	int ret;
 
-	if (therm->base.pwm_ctrl) {
-		ret = therm->base.pwm_ctrl(&therm->base, func->line, false);
+	if (therm->func->pwm_ctrl) {
+		ret = therm->func->pwm_ctrl(therm, func->line, false);
 		if (ret)
 			return ret;
 	}
