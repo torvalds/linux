@@ -24,29 +24,30 @@
  */
 #include "nv04.h"
 
+#include <subdev/gpio.h>
+
 static void
 nv04_bus_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_bus *bus = nvkm_bus(subdev);
-	struct nvkm_device *device = bus->subdev.device;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
 	if (stat & 0x00000001) {
-		nv_error(bus, "BUS ERROR\n");
+		nvkm_error(subdev, "BUS ERROR\n");
 		stat &= ~0x00000001;
 		nvkm_wr32(device, 0x001100, 0x00000001);
 	}
 
 	if (stat & 0x00000110) {
-		subdev = nvkm_subdev(subdev, NVDEV_SUBDEV_GPIO);
-		if (subdev && subdev->intr)
-			subdev->intr(subdev);
+		struct nvkm_gpio *gpio = device->gpio;
+		if (gpio && gpio->subdev.intr)
+			gpio->subdev.intr(&gpio->subdev);
 		stat &= ~0x00000110;
 		nvkm_wr32(device, 0x001100, 0x00000110);
 	}
 
 	if (stat) {
-		nv_error(bus, "unknown intr 0x%08x\n", stat);
+		nvkm_error(subdev, "intr %08x\n", stat);
 		nvkm_mask(device, 0x001140, stat, 0x00000000);
 	}
 }

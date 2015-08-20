@@ -24,6 +24,7 @@
  */
 #include "nv04.h"
 
+#include <subdev/therm.h>
 #include <subdev/timer.h>
 
 static int
@@ -51,32 +52,31 @@ nv50_bus_hwsq_exec(struct nvkm_bus *bus, u32 *data, u32 size)
 void
 nv50_bus_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_bus *bus = nvkm_bus(subdev);
-	struct nvkm_device *device = bus->subdev.device;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
 	if (stat & 0x00000008) {
 		u32 addr = nvkm_rd32(device, 0x009084);
 		u32 data = nvkm_rd32(device, 0x009088);
 
-		nv_error(bus, "MMIO %s of 0x%08x FAULT at 0x%06x\n",
-			 (addr & 0x00000002) ? "write" : "read", data,
-			 (addr & 0x00fffffc));
+		nvkm_error(subdev, "MMIO %s of %08x FAULT at %06x\n",
+			   (addr & 0x00000002) ? "write" : "read", data,
+			   (addr & 0x00fffffc));
 
 		stat &= ~0x00000008;
 		nvkm_wr32(device, 0x001100, 0x00000008);
 	}
 
 	if (stat & 0x00010000) {
-		subdev = nvkm_subdev(bus, NVDEV_SUBDEV_THERM);
-		if (subdev && subdev->intr)
-			subdev->intr(subdev);
+		struct nvkm_therm *therm = device->therm;
+		if (therm && therm->subdev.intr)
+			therm->subdev.intr(&therm->subdev);
 		stat &= ~0x00010000;
 		nvkm_wr32(device, 0x001100, 0x00010000);
 	}
 
 	if (stat) {
-		nv_error(bus, "unknown intr 0x%08x\n", stat);
+		nvkm_error(subdev, "intr %08x\n", stat);
 		nvkm_mask(device, 0x001140, stat, 0);
 	}
 }
