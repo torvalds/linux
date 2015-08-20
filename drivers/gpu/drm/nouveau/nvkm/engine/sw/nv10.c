@@ -23,14 +23,6 @@
  */
 #include <engine/sw.h>
 
-struct nv10_sw_priv {
-	struct nvkm_sw base;
-};
-
-struct nv10_sw_chan {
-	struct nvkm_sw_chan base;
-};
-
 /*******************************************************************************
  * software object classes
  ******************************************************************************/
@@ -38,9 +30,9 @@ struct nv10_sw_chan {
 static int
 nv10_sw_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
 {
-	struct nv10_sw_chan *chan = (void *)nv_engctx(object->parent);
-	if (chan->base.flip)
-		return chan->base.flip(chan->base.flip_data);
+	struct nvkm_sw_chan *chan = (void *)nv_engctx(object->parent);
+	if (chan->flip)
+		return chan->flip(chan->flip_data);
 	return -EINVAL;
 }
 
@@ -65,7 +57,7 @@ nv10_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_oclass *oclass, void *data, u32 size,
 		     struct nvkm_object **pobject)
 {
-	struct nv10_sw_chan *chan;
+	struct nvkm_sw_chan *chan;
 	int ret;
 
 	ret = nvkm_sw_context_create(parent, engine, oclass, &chan);
@@ -96,17 +88,17 @@ nv10_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
-	struct nv10_sw_priv *priv;
+	struct nvkm_sw *sw;
 	int ret;
 
-	ret = nvkm_sw_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_sw_create(parent, engine, oclass, &sw);
+	*pobject = nv_object(sw);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nv10_sw_cclass;
-	nv_engine(priv)->sclass = nv10_sw_sclass;
-	nv_subdev(priv)->intr = nv04_sw_intr;
+	nv_engine(sw)->cclass = &nv10_sw_cclass;
+	nv_engine(sw)->sclass = nv10_sw_sclass;
+	nv_subdev(sw)->intr = nv04_sw_intr;
 	return 0;
 }
 

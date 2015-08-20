@@ -9,10 +9,6 @@ struct nv50_sw_oclass {
 	struct nvkm_oclass *sclass;
 };
 
-struct nv50_sw_priv {
-	struct nvkm_sw base;
-};
-
 int  nv50_sw_ctor(struct nvkm_object *, struct nvkm_object *,
 			struct nvkm_oclass *, void *, u32,
 			struct nvkm_object **);

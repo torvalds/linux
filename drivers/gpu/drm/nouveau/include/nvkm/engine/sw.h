@@ -25,17 +25,17 @@ struct nvkm_sw_chan {
 #include <core/engine.h>
 
 struct nvkm_sw {
-	struct nvkm_engine base;
+	struct nvkm_engine engine;
 };
 
 #define nvkm_sw_create(p,e,c,d)                                       \
 	nvkm_engine_create((p), (e), (c), true, "SW", "software", (d))
 #define nvkm_sw_destroy(d)                                            \
-	nvkm_engine_destroy(&(d)->base)
+	nvkm_engine_destroy(&(d)->engine)
 #define nvkm_sw_init(d)                                               \
-	nvkm_engine_init(&(d)->base)
+	nvkm_engine_init(&(d)->engine)
 #define nvkm_sw_fini(d,s)                                             \
-	nvkm_engine_fini(&(d)->base, (s))
+	nvkm_engine_fini(&(d)->engine, (s))
 
 #define _nvkm_sw_dtor _nvkm_engine_dtor
 #define _nvkm_sw_init _nvkm_engine_init
