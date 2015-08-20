@@ -5,7 +5,7 @@ struct nvkm_mem;
 struct nvkm_vma;
 
 struct nvkm_bar {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	int  (*alloc)(struct nvkm_bar *, struct nvkm_object *,
 		      struct nvkm_mem *, struct nvkm_object **);

@@ -27,26 +27,26 @@
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 
-struct gf100_bar_priv_vm {
+struct gf100_bar_vm {
 	struct nvkm_gpuobj *mem;
 	struct nvkm_gpuobj *pgd;
 	struct nvkm_vm *vm;
 };
 
-struct gf100_bar_priv {
+struct gf100_bar {
 	struct nvkm_bar base;
 	spinlock_t lock;
-	struct gf100_bar_priv_vm bar[2];
+	struct gf100_bar_vm bar[2];
 };
 
 static int
-gf100_bar_kmap(struct nvkm_bar *bar, struct nvkm_mem *mem, u32 flags,
+gf100_bar_kmap(struct nvkm_bar *obj, struct nvkm_mem *mem, u32 flags,
 	       struct nvkm_vma *vma)
 {
-	struct gf100_bar_priv *priv = (void *)bar;
+	struct gf100_bar *bar = container_of(obj, typeof(*bar), base);
 	int ret;
 
-	ret = nvkm_vm_get(priv->bar[0].vm, mem->size << 12, 12, flags, vma);
+	ret = nvkm_vm_get(bar->bar[0].vm, mem->size << 12, 12, flags, vma);
 	if (ret)
 		return ret;
 
@@ -55,13 +55,13 @@ gf100_bar_kmap(struct nvkm_bar *bar, struct nvkm_mem *mem, u32 flags,
 }
 
 static int
-gf100_bar_umap(struct nvkm_bar *bar, struct nvkm_mem *mem, u32 flags,
+gf100_bar_umap(struct nvkm_bar *obj, struct nvkm_mem *mem, u32 flags,
 	       struct nvkm_vma *vma)
 {
-	struct gf100_bar_priv *priv = (void *)bar;
+	struct gf100_bar *bar = container_of(obj, typeof(*bar), base);
 	int ret;
 
-	ret = nvkm_vm_get(priv->bar[1].vm, mem->size << 12,
+	ret = nvkm_vm_get(bar->bar[1].vm, mem->size << 12,
 			  mem->page_shift, flags, vma);
 	if (ret)
 		return ret;
@@ -78,20 +78,20 @@ gf100_bar_unmap(struct nvkm_bar *bar, struct nvkm_vma *vma)
 }
 
 static int
-gf100_bar_ctor_vm(struct gf100_bar_priv *priv, struct gf100_bar_priv_vm *bar_vm,
+gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 		  int bar_nr)
 {
-	struct nvkm_device *device = nv_device(&priv->base);
+	struct nvkm_device *device = nv_device(&bar->base);
 	struct nvkm_vm *vm;
 	resource_size_t bar_len;
 	int ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x1000, 0, 0,
+	ret = nvkm_gpuobj_new(nv_object(bar), NULL, 0x1000, 0, 0,
 			      &bar_vm->mem);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x8000, 0, 0,
+	ret = nvkm_gpuobj_new(nv_object(bar), NULL, 0x8000, 0, 0,
 			      &bar_vm->pgd);
 	if (ret)
 		return ret;
@@ -108,7 +108,7 @@ gf100_bar_ctor_vm(struct gf100_bar_priv *priv, struct gf100_bar_priv_vm *bar_vm,
 	 * Bootstrap page table lookup.
 	 */
 	if (bar_nr == 3) {
-		ret = nvkm_gpuobj_new(nv_object(priv), NULL,
+		ret = nvkm_gpuobj_new(nv_object(bar), NULL,
 				      (bar_len >> 12) * 8, 0x1000,
 				      NVOBJ_FLAG_ZERO_ALLOC,
 				      &vm->pgt[0].obj[0]);
@@ -135,74 +135,74 @@ gf100_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nvkm_device *device = nv_device(parent);
-	struct gf100_bar_priv *priv;
+	struct gf100_bar *bar;
 	bool has_bar3 = nv_device_resource_len(device, 3) != 0;
 	int ret;
 
-	ret = nvkm_bar_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_bar_create(parent, engine, oclass, &bar);
+	*pobject = nv_object(bar);
 	if (ret)
 		return ret;
 
 	/* BAR3 */
 	if (has_bar3) {
-		ret = gf100_bar_ctor_vm(priv, &priv->bar[0], 3);
+		ret = gf100_bar_ctor_vm(bar, &bar->bar[0], 3);
 		if (ret)
 			return ret;
 	}
 
 	/* BAR1 */
-	ret = gf100_bar_ctor_vm(priv, &priv->bar[1], 1);
+	ret = gf100_bar_ctor_vm(bar, &bar->bar[1], 1);
 	if (ret)
 		return ret;
 
 	if (has_bar3) {
-		priv->base.alloc = nvkm_bar_alloc;
-		priv->base.kmap = gf100_bar_kmap;
+		bar->base.alloc = nvkm_bar_alloc;
+		bar->base.kmap = gf100_bar_kmap;
 	}
-	priv->base.umap = gf100_bar_umap;
-	priv->base.unmap = gf100_bar_unmap;
-	priv->base.flush = g84_bar_flush;
-	spin_lock_init(&priv->lock);
+	bar->base.umap = gf100_bar_umap;
+	bar->base.unmap = gf100_bar_unmap;
+	bar->base.flush = g84_bar_flush;
+	spin_lock_init(&bar->lock);
 	return 0;
 }
 
 void
 gf100_bar_dtor(struct nvkm_object *object)
 {
-	struct gf100_bar_priv *priv = (void *)object;
+	struct gf100_bar *bar = (void *)object;
 
-	nvkm_vm_ref(NULL, &priv->bar[1].vm, priv->bar[1].pgd);
-	nvkm_gpuobj_ref(NULL, &priv->bar[1].pgd);
-	nvkm_gpuobj_ref(NULL, &priv->bar[1].mem);
+	nvkm_vm_ref(NULL, &bar->bar[1].vm, bar->bar[1].pgd);
+	nvkm_gpuobj_ref(NULL, &bar->bar[1].pgd);
+	nvkm_gpuobj_ref(NULL, &bar->bar[1].mem);
 
-	if (priv->bar[0].vm) {
-		nvkm_gpuobj_ref(NULL, &priv->bar[0].vm->pgt[0].obj[0]);
-		nvkm_vm_ref(NULL, &priv->bar[0].vm, priv->bar[0].pgd);
+	if (bar->bar[0].vm) {
+		nvkm_gpuobj_ref(NULL, &bar->bar[0].vm->pgt[0].obj[0]);
+		nvkm_vm_ref(NULL, &bar->bar[0].vm, bar->bar[0].pgd);
 	}
-	nvkm_gpuobj_ref(NULL, &priv->bar[0].pgd);
-	nvkm_gpuobj_ref(NULL, &priv->bar[0].mem);
+	nvkm_gpuobj_ref(NULL, &bar->bar[0].pgd);
+	nvkm_gpuobj_ref(NULL, &bar->bar[0].mem);
 
-	nvkm_bar_destroy(&priv->base);
+	nvkm_bar_destroy(&bar->base);
 }
 
 int
 gf100_bar_init(struct nvkm_object *object)
 {
-	struct gf100_bar_priv *priv = (void *)object;
+	struct gf100_bar *bar = (void *)object;
 	int ret;
 
-	ret = nvkm_bar_init(&priv->base);
+	ret = nvkm_bar_init(&bar->base);
 	if (ret)
 		return ret;
 
-	nv_mask(priv, 0x000200, 0x00000100, 0x00000000);
-	nv_mask(priv, 0x000200, 0x00000100, 0x00000100);
+	nv_mask(bar, 0x000200, 0x00000100, 0x00000000);
+	nv_mask(bar, 0x000200, 0x00000100, 0x00000100);
 
-	nv_wr32(priv, 0x001704, 0x80000000 | priv->bar[1].mem->addr >> 12);
-	if (priv->bar[0].mem)
-		nv_wr32(priv, 0x001714,
-			0xc0000000 | priv->bar[0].mem->addr >> 12);
+	nv_wr32(bar, 0x001704, 0x80000000 | bar->bar[1].mem->addr >> 12);
+	if (bar->bar[0].mem)
+		nv_wr32(bar, 0x001714,
+			0xc0000000 | bar->bar[0].mem->addr >> 12);
 	return 0;
 }
 

@@ -117,22 +117,14 @@ int
 nvkm_bar_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nvkm_bar *bar;
-	int ret;
-
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "BARCTL",
-				  "bar", length, pobject);
-	bar = *pobject;
-	if (ret)
-		return ret;
-
-	return 0;
+	return nvkm_subdev_create_(parent, engine, oclass, 0, "BARCTL",
+				   "bar", length, pobject);
 }
 
 void
 nvkm_bar_destroy(struct nvkm_bar *bar)
 {
-	nvkm_subdev_destroy(&bar->base);
+	nvkm_subdev_destroy(&bar->subdev);
 }
 
 void

@@ -5,9 +5,9 @@
 #define nvkm_bar_create(p,e,o,d)                                            \
 	nvkm_bar_create_((p), (e), (o), sizeof(**d), (void **)d)
 #define nvkm_bar_init(p)                                                    \
-	nvkm_subdev_init(&(p)->base)
+	nvkm_subdev_init(&(p)->subdev)
 #define nvkm_bar_fini(p,s)                                                  \
-	nvkm_subdev_fini(&(p)->base, (s))
+	nvkm_subdev_fini(&(p)->subdev, (s))
 
 int nvkm_bar_create_(struct nvkm_object *, struct nvkm_object *,
 			struct nvkm_oclass *, int, void **);
