@@ -42,13 +42,8 @@
 
 #include <core/memory.h>
 #include <core/mm.h>
+#include <core/tegra.h>
 #include <subdev/fb.h>
-
-#ifdef __KERNEL__
-#include <linux/dma-attrs.h>
-#include <linux/iommu.h>
-#include <nouveau_platform.h>
-#endif
 
 #define gk20a_instobj(p) container_of((p), struct gk20a_instobj, memory)
 
@@ -423,8 +418,9 @@ gk20a_instmem = {
 
 int
 gk20a_instmem_new(struct nvkm_device *device, int index,
-		 struct nvkm_instmem **pimem)
+		  struct nvkm_instmem **pimem)
 {
+	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	struct gk20a_instmem *imem;
 
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
@@ -433,11 +429,11 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 	spin_lock_init(&imem->lock);
 	*pimem = &imem->base;
 
-	if (device->gpu->iommu.domain) {
-		imem->domain = device->gpu->iommu.domain;
-		imem->mm = device->gpu->iommu.mm;
-		imem->iommu_pgshift = device->gpu->iommu.pgshift;
-		imem->mm_mutex = &device->gpu->iommu.mutex;
+	if (tdev->iommu.domain) {
+		imem->domain = tdev->iommu.domain;
+		imem->mm = &tdev->iommu.mm;
+		imem->iommu_pgshift = tdev->iommu.pgshift;
+		imem->mm_mutex = &tdev->iommu.mutex;
 
 		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {

@@ -25,11 +25,8 @@
 #define gk20a_clk(p) container_of((p), struct gk20a_clk, base)
 #include "priv.h"
 
+#include <core/tegra.h>
 #include <subdev/timer.h>
-
-#ifdef __KERNEL__
-#include <nouveau_platform.h>
-#endif
 
 #define MHZ (1000 * 1000)
 
@@ -649,6 +646,7 @@ gk20a_clk = {
 int
 gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 {
+	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	struct gk20a_clk *clk;
 	int ret, i;
 
@@ -663,7 +661,7 @@ gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 	}
 
 	clk->params = &gk20a_pllg_params;
-	clk->parent_rate = clk_get_rate(device->gpu->clk);
+	clk->parent_rate = clk_get_rate(tdev->clk);
 
 	ret = nvkm_clk_ctor(&gk20a_clk, device, index, true, &clk->base);
 	nvkm_info(&clk->base.subdev, "parent clock rate: %d Mhz\n",

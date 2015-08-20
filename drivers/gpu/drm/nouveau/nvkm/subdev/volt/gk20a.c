@@ -22,9 +22,7 @@
 #define gk20a_volt(p) container_of((p), struct gk20a_volt, base)
 #include "priv.h"
 
-#ifdef __KERNEL__
-#include <nouveau_platform.h>
-#endif
+#include <core/tegra.h>
 
 struct cvb_coef {
 	int c0;
@@ -159,6 +157,7 @@ gk20a_volt = {
 int
 gk20a_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 {
+	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	struct gk20a_volt *volt;
 	int i, uv;
 
@@ -168,10 +167,10 @@ gk20a_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 	nvkm_volt_ctor(&gk20a_volt, device, index, &volt->base);
 	*pvolt = &volt->base;
 
-	uv = regulator_get_voltage(device->gpu->vdd);
+	uv = regulator_get_voltage(tdev->vdd);
 	nvkm_info(&volt->base.subdev, "The default voltage is %duV\n", uv);
 
-	volt->vdd = device->gpu->vdd;
+	volt->vdd = tdev->vdd;
 
 	volt->base.vid_nr = ARRAY_SIZE(gk20a_cvb_coef);
 	nvkm_debug(&volt->base.subdev, "%s - vid_nr = %d\n", __func__,
@@ -180,7 +179,7 @@ gk20a_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 		volt->base.vid[i].vid = i;
 		volt->base.vid[i].uv =
 			gk20a_volt_calc_voltage(&gk20a_cvb_coef[i],
-						device->gpu->gpu_speedo);
+						tdev->gpu_speedo);
 		nvkm_debug(&volt->base.subdev, "%2d: vid=%d, uv=%d\n", i,
 			   volt->base.vid[i].vid, volt->base.vid[i].uv);
 	}

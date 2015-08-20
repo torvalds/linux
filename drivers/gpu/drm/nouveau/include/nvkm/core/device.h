@@ -139,8 +139,6 @@ struct nvkm_device {
 	struct nvkm_sw *sw;
 	struct nvkm_engine *vic;
 	struct nvkm_engine *vp;
-
-	struct nouveau_platform_gpu *gpu;
 };
 
 struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int index);

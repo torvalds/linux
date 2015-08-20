@@ -25,10 +25,13 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/agp_backend.h>
+#include <linux/reset.h>
+#include <linux/iommu.h>
 
 #include <asm/unaligned.h>
 
 #include <soc/tegra/fuse.h>
+#include <soc/tegra/pmc.h>
 
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN

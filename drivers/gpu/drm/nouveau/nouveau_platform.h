@@ -19,44 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 #ifndef __NOUVEAU_PLATFORM_H__
 #define __NOUVEAU_PLATFORM_H__
-
-#include "core/device.h"
-#include "core/mm.h"
-
-struct reset_control;
-struct clk;
-struct regulator;
-struct iommu_domain;
-struct platform_driver;
-
-struct nouveau_platform_gpu {
-	struct reset_control *rst;
-	struct clk *clk;
-	struct clk *clk_pwr;
-
-	struct regulator *vdd;
-
-	struct {
-		/*
-		 * Protects accesses to mm from subsystems
-		 */
-		struct mutex mutex;
-
-		struct nvkm_mm _mm;
-		/*
-		 * Just points to _mm. We need this to avoid embedding
-		 * struct nvkm_mm in os.h
-		 */
-		struct nvkm_mm *mm;
-		struct iommu_domain *domain;
-		unsigned long pgshift;
-	} iommu;
-
-	int gpu_speedo;
-};
+#include "nouveau_drm.h"
 
 extern struct platform_driver nouveau_platform_driver;
 #endif
