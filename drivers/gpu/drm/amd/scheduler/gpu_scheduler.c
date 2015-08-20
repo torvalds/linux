@@ -300,12 +300,8 @@ static int amd_sched_main(void *param)
 		r = kfifo_out(&c_entity->job_queue, &job, sizeof(void *));
 		if (r != sizeof(void *))
 			continue;
-		r = 0;
-		if (sched->ops->prepare_job)
-			r = sched->ops->prepare_job(sched, c_entity, job);
-		if (!r) {
-			atomic_inc(&sched->hw_rq_count);
-		}
+		atomic_inc(&sched->hw_rq_count);
+
 		mutex_lock(&sched->sched_lock);
 		fence = sched->ops->run_job(sched, c_entity, job);
 		if (fence) {
