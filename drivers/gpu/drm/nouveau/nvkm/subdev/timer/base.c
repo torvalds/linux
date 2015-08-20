@@ -27,12 +27,13 @@ bool
 nvkm_timer_wait_eq(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
 {
 	struct nvkm_timer *ptimer = nvkm_timer(obj);
+	struct nvkm_device *device = ptimer->subdev.device;
 	u64 time0;
 
 	time0 = ptimer->read(ptimer);
 	do {
 		if (nv_iclass(obj, NV_SUBDEV_CLASS)) {
-			if ((nv_rd32(obj, addr) & mask) == data)
+			if ((nvkm_rd32(device, addr) & mask) == data)
 				return true;
 		} else {
 			if ((nv_ro32(obj, addr) & mask) == data)
@@ -47,12 +48,13 @@ bool
 nvkm_timer_wait_ne(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
 {
 	struct nvkm_timer *ptimer = nvkm_timer(obj);
+	struct nvkm_device *device = ptimer->subdev.device;
 	u64 time0;
 
 	time0 = ptimer->read(ptimer);
 	do {
 		if (nv_iclass(obj, NV_SUBDEV_CLASS)) {
-			if ((nv_rd32(obj, addr) & mask) != data)
+			if ((nvkm_rd32(device, addr) & mask) != data)
 				return true;
 		} else {
 			if ((nv_ro32(obj, addr) & mask) != data)
