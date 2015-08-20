@@ -24,75 +24,12 @@
 #include "priv.h"
 #include "regsnv04.h"
 
-void
-nv04_timer_time(struct nvkm_timer *tmr, u64 time)
-{
-	struct nvkm_subdev *subdev = &tmr->subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 hi = upper_32_bits(time);
-	u32 lo = lower_32_bits(time);
-
-	nvkm_debug(subdev, "time low        : %08x\n", lo);
-	nvkm_debug(subdev, "time high       : %08x\n", hi);
-
-	nvkm_wr32(device, NV04_PTIMER_TIME_1, hi);
-	nvkm_wr32(device, NV04_PTIMER_TIME_0, lo);
-}
-
-u64
-nv04_timer_read(struct nvkm_timer *tmr)
-{
-	struct nvkm_device *device = tmr->subdev.device;
-	u32 hi, lo;
-
-	do {
-		hi = nvkm_rd32(device, NV04_PTIMER_TIME_1);
-		lo = nvkm_rd32(device, NV04_PTIMER_TIME_0);
-	} while (hi != nvkm_rd32(device, NV04_PTIMER_TIME_1));
-
-	return ((u64)hi << 32 | lo);
-}
-
-void
-nv04_timer_alarm_fini(struct nvkm_timer *tmr)
-{
-	struct nvkm_device *device = tmr->subdev.device;
-	nvkm_wr32(device, NV04_PTIMER_INTR_EN_0, 0x00000000);
-}
-
-void
-nv04_timer_alarm_init(struct nvkm_timer *tmr, u32 time)
-{
-	struct nvkm_device *device = tmr->subdev.device;
-	nvkm_wr32(device, NV04_PTIMER_ALARM_0, time);
-	nvkm_wr32(device, NV04_PTIMER_INTR_EN_0, 0x00000001);
-}
-
-void
-nv04_timer_intr(struct nvkm_timer *tmr)
-{
-	struct nvkm_subdev *subdev = &tmr->subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 stat = nvkm_rd32(device, NV04_PTIMER_INTR_0);
-
-	if (stat & 0x00000001) {
-		nvkm_timer_alarm_trigger(tmr);
-		nvkm_wr32(device, NV04_PTIMER_INTR_0, 0x00000001);
-		stat &= ~0x00000001;
-	}
-
-	if (stat) {
-		nvkm_error(subdev, "intr %08x\n", stat);
-		nvkm_wr32(device, NV04_PTIMER_INTR_0, stat);
-	}
-}
-
 static void
-nv04_timer_init(struct nvkm_timer *tmr)
+nv40_timer_init(struct nvkm_timer *tmr)
 {
 	struct nvkm_subdev *subdev = &tmr->subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 f = 0; /*XXX: nvclk */
+	u32 f = 0; /*XXX: figure this out */
 	u32 n, d;
 
 	/* aim for 31.25MHz, which gives us nanosecond timestamps */
@@ -135,8 +72,8 @@ nv04_timer_init(struct nvkm_timer *tmr)
 }
 
 static const struct nvkm_timer_func
-nv04_timer = {
-	.init = nv04_timer_init,
+nv40_timer = {
+	.init = nv40_timer_init,
 	.intr = nv04_timer_intr,
 	.read = nv04_timer_read,
 	.time = nv04_timer_time,
@@ -145,7 +82,7 @@ nv04_timer = {
 };
 
 int
-nv04_timer_new(struct nvkm_device *device, int index, struct nvkm_timer **ptmr)
+nv40_timer_new(struct nvkm_device *device, int index, struct nvkm_timer **ptmr)
 {
-	return nvkm_timer_new_(&nv04_timer, device, index, ptmr);
+	return nvkm_timer_new_(&nv40_timer, device, index, ptmr);
 }

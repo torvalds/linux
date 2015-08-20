@@ -186,7 +186,7 @@ alarm_timer_callback(struct nvkm_alarm *alarm)
 
 	/* schedule the next poll in one second */
 	if (therm->func->temp_get(therm) >= 0 && list_empty(&alarm->head))
-		tmr->alarm(tmr, 1000000000ULL, alarm);
+		nvkm_timer_alarm(tmr, 1000000000ULL, alarm);
 }
 
 void
@@ -220,7 +220,7 @@ nvkm_therm_sensor_fini(struct nvkm_therm *therm, bool suspend)
 {
 	struct nvkm_timer *tmr = therm->subdev.device->timer;
 	if (suspend)
-		tmr->alarm_cancel(tmr, &therm->sensor.therm_poll_alarm);
+		nvkm_timer_alarm_cancel(tmr, &therm->sensor.therm_poll_alarm);
 	return 0;
 }
 

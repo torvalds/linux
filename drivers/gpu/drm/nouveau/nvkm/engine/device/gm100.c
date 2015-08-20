@@ -28,7 +28,6 @@ gm100_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x117:
-		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -54,7 +53,6 @@ gm100_identify(struct nvkm_device *device)
 		/* looks to be some non-trivial changes */
 		/* priv ring says no to 0x10eb14 writes */
 #endif
-		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
@@ -77,7 +75,6 @@ gm100_identify(struct nvkm_device *device)
 		/* looks to be some non-trivial changes */
 		/* priv ring says no to 0x10eb14 writes */
 #endif
-		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
@@ -97,7 +94,6 @@ gm100_identify(struct nvkm_device *device)
 		break;
 	case 0x12b:
 
-		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm20b_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;

@@ -95,7 +95,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 		else
 			delay = bump_period;
 
-		tmr->alarm(tmr, delay * 1000 * 1000, &fan->alarm);
+		nvkm_timer_alarm(tmr, delay * 1000 * 1000, &fan->alarm);
 	}
 
 	return ret;
@@ -139,7 +139,7 @@ nvkm_therm_fan_sense(struct nvkm_therm *therm)
 	 * When the fan spins, it changes the value of GPIO FAN_SENSE.
 	 * We get 4 changes (0 -> 1 -> 0 -> 1) per complete rotation.
 	 */
-	start = tmr->read(tmr);
+	start = nvkm_timer_read(tmr);
 	prev = nvkm_gpio_get(gpio, 0, therm->fan->tach.func,
 				      therm->fan->tach.line);
 	cycles = 0;
@@ -150,12 +150,12 @@ nvkm_therm_fan_sense(struct nvkm_therm *therm)
 					     therm->fan->tach.line);
 		if (prev != cur) {
 			if (!start)
-				start = tmr->read(tmr);
+				start = nvkm_timer_read(tmr);
 			cycles++;
 			prev = cur;
 		}
-	} while (cycles < 5 && tmr->read(tmr) - start < 250000000);
-	end = tmr->read(tmr);
+	} while (cycles < 5 && nvkm_timer_read(tmr) - start < 250000000);
+	end = nvkm_timer_read(tmr);
 
 	if (cycles == 5) {
 		tach = (u64)60000000000ULL;
@@ -215,7 +215,7 @@ nvkm_therm_fan_fini(struct nvkm_therm *therm, bool suspend)
 {
 	struct nvkm_timer *tmr = therm->subdev.device->timer;
 	if (suspend)
-		tmr->alarm_cancel(tmr, &therm->fan->alarm);
+		nvkm_timer_alarm_cancel(tmr, &therm->fan->alarm);
 	return 0;
 }
 

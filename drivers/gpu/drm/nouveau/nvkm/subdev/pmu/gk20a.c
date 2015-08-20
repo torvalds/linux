@@ -124,6 +124,7 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 	struct nvkm_subdev *subdev = &pmu->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_clk *clk = device->clk;
+	struct nvkm_timer *tmr = device->timer;
 	struct nvkm_volt *volt = device->volt;
 	u32 utilization = 0;
 	int state, ret;
@@ -162,14 +163,14 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 
 resched:
 	gk20a_pmu_dvfs_reset_dev_status(pmu);
-	nvkm_timer_alarm(pmu, 100000000, alarm);
+	nvkm_timer_alarm(tmr, 100000000, alarm);
 }
 
 static int
 gk20a_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct gk20a_pmu *pmu = gk20a_pmu(subdev);
-	nvkm_timer_alarm_cancel(pmu, &pmu->alarm);
+	nvkm_timer_alarm_cancel(subdev->device->timer, &pmu->alarm);
 	return 0;
 }
 
@@ -190,7 +191,7 @@ gk20a_pmu_init(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
 	nvkm_wr32(device, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
 
-	nvkm_timer_alarm(pmu, 2000000000, &pmu->alarm);
+	nvkm_timer_alarm(device->timer, 2000000000, &pmu->alarm);
 	return 0;
 }
 

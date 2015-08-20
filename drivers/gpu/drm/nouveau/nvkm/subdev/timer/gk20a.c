@@ -21,38 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
-static int
-gk20a_timer_init(struct nvkm_object *object)
-{
-	struct nv04_timer *tmr = (void *)object;
-	struct nvkm_subdev *subdev = &tmr->base.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 hi = upper_32_bits(tmr->suspend_time);
-	u32 lo = lower_32_bits(tmr->suspend_time);
-	int ret;
-
-	ret = nvkm_timer_init(&tmr->base);
-	if (ret)
-		return ret;
-
-	nvkm_debug(subdev, "time low        : %08x\n", lo);
-	nvkm_debug(subdev, "time high       : %08x\n", hi);
-
-	/* restore the time before suspend */
-	nvkm_wr32(device, NV04_PTIMER_TIME_1, hi);
-	nvkm_wr32(device, NV04_PTIMER_TIME_0, lo);
-	return 0;
-}
-
-struct nvkm_oclass
-gk20a_timer_oclass = {
-	.handle = NV_SUBDEV(TIMER, 0xff),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_timer_ctor,
-		.dtor = nv04_timer_dtor,
-		.init = gk20a_timer_init,
-		.fini = nv04_timer_fini,
-	}
+static const struct nvkm_timer_func
+gk20a_timer = {
+	.intr = nv04_timer_intr,
+	.read = nv04_timer_read,
+	.time = nv04_timer_time,
+	.alarm_init = nv04_timer_alarm_init,
+	.alarm_fini = nv04_timer_alarm_fini,
 };
+
+int
+gk20a_timer_new(struct nvkm_device *device, int index, struct nvkm_timer **ptmr)
+{
+	return nvkm_timer_new_(&gk20a_timer, device, index, ptmr);
+}

@@ -57,7 +57,7 @@ nvkm_fantog_update(struct nvkm_fantog *fan, int percent)
 		u64 next_change = (percent * fan->period_us) / 100;
 		if (!duty)
 			next_change = fan->period_us - next_change;
-		tmr->alarm(tmr, next_change * 1000, &fan->alarm);
+		nvkm_timer_alarm(tmr, next_change * 1000, &fan->alarm);
 	}
 	spin_unlock_irqrestore(&fan->lock, flags);
 }

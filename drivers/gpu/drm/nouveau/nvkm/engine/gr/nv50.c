@@ -218,7 +218,7 @@ g84_gr_tlb_flush(struct nvkm_engine *engine)
 	spin_lock_irqsave(&gr->lock, flags);
 	nvkm_mask(device, 0x400500, 0x00000001, 0x00000000);
 
-	start = tmr->read(tmr);
+	start = nvkm_timer_read(tmr);
 	do {
 		idle = true;
 
@@ -237,7 +237,7 @@ g84_gr_tlb_flush(struct nvkm_engine *engine)
 				idle = false;
 		}
 	} while (!idle &&
-		 !(timeout = tmr->read(tmr) - start > 2000000000));
+		 !(timeout = nvkm_timer_read(tmr) - start > 2000000000));
 
 	if (timeout) {
 		nvkm_error(subdev, "PGRAPH TLB flush idle timeout fail\n");
