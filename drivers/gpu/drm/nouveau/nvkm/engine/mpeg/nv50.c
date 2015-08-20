@@ -49,10 +49,12 @@ nv50_mpeg_object_ctor(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	nv_wo32(obj, 0x00, nv_mclass(obj));
-	nv_wo32(obj, 0x04, 0x00000000);
-	nv_wo32(obj, 0x08, 0x00000000);
-	nv_wo32(obj, 0x0c, 0x00000000);
+	nvkm_kmap(obj);
+	nvkm_wo32(obj, 0x00, nv_mclass(obj));
+	nvkm_wo32(obj, 0x04, 0x00000000);
+	nvkm_wo32(obj, 0x08, 0x00000000);
+	nvkm_wo32(obj, 0x0c, 0x00000000);
+	nvkm_done(obj);
 	return 0;
 }
 
@@ -84,6 +86,7 @@ nv50_mpeg_context_ctor(struct nvkm_object *parent,
 {
 	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_mpeg_chan *chan;
+	struct nvkm_gpuobj *image;
 	int ret;
 
 	ret = nvkm_mpeg_context_create(parent, engine, oclass, NULL, 128 * 4,
@@ -92,9 +95,13 @@ nv50_mpeg_context_ctor(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	nv_wo32(chan, 0x0070, 0x00801ec1);
-	nv_wo32(chan, 0x007c, 0x0000037c);
+	image = &chan->base.base.gpuobj;
+
+	nvkm_kmap(image);
+	nvkm_wo32(image, 0x0070, 0x00801ec1);
+	nvkm_wo32(image, 0x007c, 0x0000037c);
 	bar->flush(bar);
+	nvkm_done(image);
 	return 0;
 }
 

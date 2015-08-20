@@ -50,7 +50,9 @@ nv44_mpeg_context_ctor(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	nv_wo32(&chan->base.base, 0x78, 0x02001ec1);
+	nvkm_kmap(&chan->base.base.gpuobj);
+	nvkm_wo32(&chan->base.base.gpuobj, 0x78, 0x02001ec1);
+	nvkm_done(&chan->base.base.gpuobj);
 	return 0;
 }
 
