@@ -76,6 +76,4 @@ void nvkm_falcon_intr(struct nvkm_subdev *subdev);
 #define _nvkm_falcon_dtor _nvkm_engine_dtor
 int  _nvkm_falcon_init(struct nvkm_object *);
 int  _nvkm_falcon_fini(struct nvkm_object *, bool);
-u32  _nvkm_falcon_rd32(struct nvkm_object *, u64);
-void _nvkm_falcon_wr32(struct nvkm_object *, u64, u32);
 #endif

@@ -100,7 +100,5 @@ gk104_mspdec_oclass = {
 		.dtor = _nvkm_falcon_dtor,
 		.init = gk104_mspdec_init,
 		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
 	},
 };

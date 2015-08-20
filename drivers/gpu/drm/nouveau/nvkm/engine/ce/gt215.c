@@ -72,19 +72,21 @@ gt215_ce_isr_error_name[] = {
 void
 gt215_ce_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fifo *fifo = nvkm_fifo(subdev);
-	struct nvkm_engine *engine = nv_engine(subdev);
-	struct nvkm_falcon *falcon = (void *)subdev;
+	struct nvkm_falcon *ce = (void *)subdev;
+	struct nvkm_engine *engine = &ce->engine;
+	struct nvkm_device *device = engine->subdev.device;
+	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_object *engctx;
 	const struct nvkm_enum *en;
-	u32 dispatch = nv_ro32(falcon, 0x01c);
-	u32 stat = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
-	u64 inst = nv_ro32(falcon, 0x050) & 0x3fffffff;
-	u32 ssta = nv_ro32(falcon, 0x040) & 0x0000ffff;
-	u32 addr = nv_ro32(falcon, 0x040) >> 16;
+	const u32 base = (nv_subidx(subdev) - NVDEV_ENGINE_CE0) * 0x1000;
+	u32 dispatch = nvkm_rd32(device, 0x10401c + base);
+	u32 stat = nvkm_rd32(device, 0x104008 + base) & dispatch & ~(dispatch >> 16);
+	u64 inst = nvkm_rd32(device, 0x104050 + base) & 0x3fffffff;
+	u32 ssta = nvkm_rd32(device, 0x104040 + base) & 0x0000ffff;
+	u32 addr = nvkm_rd32(device, 0x104040 + base) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
-	u32 data = nv_ro32(falcon, 0x044);
+	u32 data = nvkm_rd32(device, 0x104044 + base);
 	int chid;
 
 	engctx = nvkm_engctx_get(engine, inst);
@@ -97,13 +99,13 @@ gt215_ce_intr(struct nvkm_subdev *subdev)
 				   "mthd %04x data %08x\n",
 			   ssta, en ? en->name : "", chid, inst << 12,
 			   nvkm_client_name(engctx), subc, mthd, data);
-		nv_wo32(falcon, 0x004, 0x00000040);
+		nvkm_wr32(device, 0x104004 + base, 0x00000040);
 		stat &= ~0x00000040;
 	}
 
 	if (stat) {
 		nvkm_error(subdev, "intr %08x\n", stat);
-		nv_wo32(falcon, 0x004, stat);
+		nvkm_wr32(device, 0x104004 + base, stat);
 	}
 
 	nvkm_engctx_put(engctx);
@@ -143,7 +145,5 @@ gt215_ce_oclass = {
 		.dtor = _nvkm_falcon_dtor,
 		.init = _nvkm_falcon_init,
 		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
 	},
 };

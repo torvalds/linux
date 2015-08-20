@@ -75,13 +75,16 @@ static int
 gf100_ce_init(struct nvkm_object *object)
 {
 	struct nvkm_falcon *ce = (void *)object;
+	struct nvkm_device *device = ce->engine.subdev.device;
+	const int idx = nv_engidx(&ce->engine) - NVDEV_ENGINE_CE0;
+	u32 base = idx * 0x1000;
 	int ret;
 
 	ret = nvkm_falcon_init(ce);
 	if (ret)
 		return ret;
 
-	nv_wo32(ce, 0x084, nv_engidx(&ce->engine) - NVDEV_ENGINE_CE0);
+	nvkm_wr32(device, 0x104084 + base, idx);
 	return 0;
 }
 
@@ -143,8 +146,6 @@ gf100_ce0_oclass = {
 		.dtor = _nvkm_falcon_dtor,
 		.init = gf100_ce_init,
 		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
 	},
 };
 
@@ -156,7 +157,5 @@ gf100_ce1_oclass = {
 		.dtor = _nvkm_falcon_dtor,
 		.init = gf100_ce_init,
 		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
 	},
 };
