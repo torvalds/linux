@@ -179,15 +179,16 @@ static int nps_enet_poll(struct napi_struct *napi, int budget)
 {
 	struct net_device *ndev = napi->dev;
 	struct nps_enet_priv *priv = netdev_priv(ndev);
-	struct nps_enet_buf_int_enable buf_int_enable;
 	u32 work_done;
 
-	buf_int_enable.rx_rdy = NPS_ENET_ENABLE;
-	buf_int_enable.tx_done = NPS_ENET_ENABLE;
 	nps_enet_tx_handler(ndev);
 	work_done = nps_enet_rx_handler(ndev);
 	if (work_done < budget) {
+		struct nps_enet_buf_int_enable buf_int_enable;
+
 		napi_complete(napi);
+		buf_int_enable.rx_rdy = NPS_ENET_ENABLE;
+		buf_int_enable.tx_done = NPS_ENET_ENABLE;
 		nps_enet_reg_set(priv, NPS_ENET_REG_BUF_INT_ENABLE,
 				 buf_int_enable.value);
 	}
