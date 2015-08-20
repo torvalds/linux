@@ -637,12 +637,13 @@ static s32 Handle_SetChannel(tstrWILC_WFIDrv *drvHandler, tstrHostIFSetChan *pst
  *  @date
  *  @version	1.0
  */
-static s32 Handle_SetWfiDrvHandler(tstrHostIfSetDrvHandler *pstrHostIfSetDrvHandler)
+static s32 Handle_SetWfiDrvHandler(tstrWILC_WFIDrv *drvHandler,
+				   tstrHostIfSetDrvHandler *pstrHostIfSetDrvHandler)
 {
 
 	s32 s32Error = WILC_SUCCESS;
 	tstrWID	strWID;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)((pstrHostIfSetDrvHandler->u32Address));
+	tstrWILC_WFIDrv *pstrWFIDrv = drvHandler;
 
 
 	/*prepare configuration packet*/
@@ -656,7 +657,7 @@ static s32 Handle_SetWfiDrvHandler(tstrHostIfSetDrvHandler *pstrHostIfSetDrvHand
 	s32Error = SendConfigPkt(SET_CFG, &strWID, 1, true, (u32)pstrWFIDrv);
 
 
-	if ((pstrHostIfSetDrvHandler->u32Address) == (u32)NULL)
+	if (pstrWFIDrv == NULL)
 		up(&hSemDeinitDrvHandle);
 
 
@@ -4474,7 +4475,8 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_SET_WFIDRV_HANDLER:
-			Handle_SetWfiDrvHandler(&strHostIFmsg.uniHostIFmsgBody.strHostIfSetDrvHandler);
+			Handle_SetWfiDrvHandler(strHostIFmsg.drvHandler,
+						&strHostIFmsg.uniHostIFmsgBody.strHostIfSetDrvHandler);
 			break;
 
 		case HOST_IF_MSG_SET_OPERATION_MODE:
@@ -5819,7 +5821,7 @@ s32 host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
 	memset(&strHostIFmsg, 0, sizeof(tstrHostIFmsg));
 	strHostIFmsg.u16MsgId = HOST_IF_MSG_SET_WFIDRV_HANDLER;
 	strHostIFmsg.uniHostIFmsgBody.strHostIfSetDrvHandler.u32Address = u32address;
-	/* strHostIFmsg.drvHandler=hWFIDrv; */
+	strHostIFmsg.drvHandler = u32address;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &strHostIFmsg, sizeof(tstrHostIFmsg));
 	if (s32Error)
