@@ -325,20 +325,14 @@ static int amd_sched_main(void *param)
 /**
  * Create a gpu scheduler
  *
- * @device	The device context for this scheduler
- * @ops		The backend operations for this scheduler.
- * @id	        The scheduler is per ring, here is ring id.
- * @granularity	The minumum ms unit the scheduler will scheduled.
- * @preemption  Indicate whether this ring support preemption, 0 is no.
+ * @ops			The backend operations for this scheduler.
+ * @ring		The the ring id for the scheduler.
+ * @hw_submissions	Number of hw submissions to do.
  *
- * return the pointer to scheduler for success, otherwise return NULL
+ * Return the pointer to scheduler for success, otherwise return NULL
 */
-struct amd_gpu_scheduler *amd_sched_create(void *device,
-					   struct amd_sched_backend_ops *ops,
-					   unsigned ring,
-					   unsigned granularity,
-					   unsigned preemption,
-					   unsigned hw_submission)
+struct amd_gpu_scheduler *amd_sched_create(struct amd_sched_backend_ops *ops,
+					   unsigned ring, unsigned hw_submission)
 {
 	struct amd_gpu_scheduler *sched;
 	char name[20];
@@ -347,11 +341,8 @@ struct amd_gpu_scheduler *amd_sched_create(void *device,
 	if (!sched)
 		return NULL;
 
-	sched->device = device;
 	sched->ops = ops;
-	sched->granularity = granularity;
 	sched->ring_id = ring;
-	sched->preemption = preemption;
 	sched->hw_submission_limit = hw_submission;
 	snprintf(name, sizeof(name), "gpu_sched[%d]", ring);
 	amd_sched_rq_init(&sched->sched_rq);
