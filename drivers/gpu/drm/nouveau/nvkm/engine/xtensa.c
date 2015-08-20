@@ -100,7 +100,7 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 	int i, ret;
 	u32 tmp;
 
-	ret = nvkm_engine_init(&xtensa->base);
+	ret = nvkm_engine_init(&xtensa->engine);
 	if (ret)
 		return ret;
 
@@ -167,5 +167,5 @@ _nvkm_xtensa_fini(struct nvkm_object *object, bool suspend)
 	if (!suspend)
 		nvkm_gpuobj_ref(NULL, &xtensa->gpu_fw);
 
-	return nvkm_engine_fini(&xtensa->base, suspend);
+	return nvkm_engine_fini(&xtensa->engine, suspend);
 }
