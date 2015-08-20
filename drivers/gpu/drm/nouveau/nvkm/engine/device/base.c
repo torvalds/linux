@@ -444,10 +444,9 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		device->oclass[NVDEV_SUBDEV_VBIOS] = &nvkm_bios_oclass;
 	}
 
-	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) &&
-	    !nv_subdev(device)->mmio) {
-		nv_subdev(device)->mmio  = ioremap(mmio_base, mmio_size);
-		if (!nv_subdev(device)->mmio) {
+	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) && !device->pri) {
+		device->pri = ioremap(mmio_base, mmio_size);
+		if (!device->pri) {
 			nv_error(device, "unable to map device registers\n");
 			return -ENOMEM;
 		}
@@ -684,8 +683,8 @@ nvkm_device_dtor(struct nvkm_object *object)
 	list_del(&device->head);
 	mutex_unlock(&nv_devices_mutex);
 
-	if (nv_subdev(device)->mmio)
-		iounmap(nv_subdev(device)->mmio);
+	if (device->pri)
+		iounmap(device->pri);
 
 	nvkm_engine_destroy(&device->engine);
 }
