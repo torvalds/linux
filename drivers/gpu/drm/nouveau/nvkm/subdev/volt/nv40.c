@@ -23,20 +23,16 @@
  */
 #include <subdev/volt.h>
 
-struct nv40_volt_priv {
-	struct nvkm_volt base;
-};
-
 static int
 nv40_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nv40_volt_priv *priv;
+	struct nvkm_volt *volt;
 	int ret;
 
-	ret = nvkm_volt_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_volt_create(parent, engine, oclass, &volt);
+	*pobject = nv_object(volt);
 	if (ret)
 		return ret;
 

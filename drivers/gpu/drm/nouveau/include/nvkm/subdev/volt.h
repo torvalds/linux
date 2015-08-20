@@ -8,7 +8,7 @@ struct nvkm_voltage {
 };
 
 struct nvkm_volt {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	int (*vid_get)(struct nvkm_volt *);
 	int (*get)(struct nvkm_volt *);

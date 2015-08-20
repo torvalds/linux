@@ -33,7 +33,7 @@ struct cvb_coef {
 	int c5;
 };
 
-struct gk20a_volt_priv {
+struct gk20a_volt {
 	struct nvkm_volt base;
 	struct regulator *vdd;
 };
@@ -101,35 +101,35 @@ gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 }
 
 static int
-gk20a_volt_vid_get(struct nvkm_volt *volt)
+gk20a_volt_vid_get(struct nvkm_volt *obj)
 {
-	struct gk20a_volt_priv *priv = (void *)volt;
+	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
 	int i, uv;
 
-	uv = regulator_get_voltage(priv->vdd);
+	uv = regulator_get_voltage(volt->vdd);
 
-	for (i = 0; i < volt->vid_nr; i++)
-		if (volt->vid[i].uv >= uv)
+	for (i = 0; i < volt->base.vid_nr; i++)
+		if (volt->base.vid[i].uv >= uv)
 			return i;
 
 	return -EINVAL;
 }
 
 static int
-gk20a_volt_vid_set(struct nvkm_volt *volt, u8 vid)
+gk20a_volt_vid_set(struct nvkm_volt *obj, u8 vid)
 {
-	struct gk20a_volt_priv *priv = (void *)volt;
+	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
 
-	nv_debug(volt, "set voltage as %duv\n", volt->vid[vid].uv);
-	return regulator_set_voltage(priv->vdd, volt->vid[vid].uv, 1200000);
+	nv_debug(volt, "set voltage as %duv\n", volt->base.vid[vid].uv);
+	return regulator_set_voltage(volt->vdd, volt->base.vid[vid].uv, 1200000);
 }
 
 static int
-gk20a_volt_set_id(struct nvkm_volt *volt, u8 id, int condition)
+gk20a_volt_set_id(struct nvkm_volt *obj, u8 id, int condition)
 {
-	struct gk20a_volt_priv *priv = (void *)volt;
-	int prev_uv = regulator_get_voltage(priv->vdd);
-	int target_uv = volt->vid[id].uv;
+	struct gk20a_volt *volt = container_of(obj, typeof(*volt), base);
+	int prev_uv = regulator_get_voltage(volt->vdd);
+	int target_uv = volt->base.vid[id].uv;
 	int ret;
 
 	nv_debug(volt, "prev=%d, target=%d, condition=%d\n",
@@ -137,7 +137,7 @@ gk20a_volt_set_id(struct nvkm_volt *volt, u8 id, int condition)
 	if (!condition ||
 		(condition < 0 && target_uv < prev_uv) ||
 		(condition > 0 && target_uv > prev_uv)) {
-		ret = gk20a_volt_vid_set(volt, volt->vid[id].vid);
+		ret = gk20a_volt_vid_set(&volt->base, volt->base.vid[id].vid);
 	} else {
 		ret = 0;
 	}
@@ -150,36 +150,34 @@ gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct gk20a_volt_priv *priv;
-	struct nvkm_volt *volt;
+	struct gk20a_volt *volt;
 	struct nouveau_platform_device *plat;
 	int i, ret, uv;
 
-	ret = nvkm_volt_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_volt_create(parent, engine, oclass, &volt);
+	*pobject = nv_object(volt);
 	if (ret)
 		return ret;
-
-	volt = &priv->base;
 
 	plat = nv_device_to_platform(nv_device(parent));
 
 	uv = regulator_get_voltage(plat->gpu->vdd);
-	nv_info(priv, "The default voltage is %duV\n", uv);
+	nv_info(volt, "The default voltage is %duV\n", uv);
 
-	priv->vdd = plat->gpu->vdd;
-	priv->base.vid_get = gk20a_volt_vid_get;
-	priv->base.vid_set = gk20a_volt_vid_set;
-	priv->base.set_id = gk20a_volt_set_id;
+	volt->vdd = plat->gpu->vdd;
+	volt->base.vid_get = gk20a_volt_vid_get;
+	volt->base.vid_set = gk20a_volt_vid_set;
+	volt->base.set_id = gk20a_volt_set_id;
 
-	volt->vid_nr = ARRAY_SIZE(gk20a_cvb_coef);
-	nv_debug(priv, "%s - vid_nr = %d\n", __func__, volt->vid_nr);
-	for (i = 0; i < volt->vid_nr; i++) {
-		volt->vid[i].vid = i;
-		volt->vid[i].uv = gk20a_volt_calc_voltage(&gk20a_cvb_coef[i],
-					plat->gpu_speedo);
-		nv_debug(priv, "%2d: vid=%d, uv=%d\n", i, volt->vid[i].vid,
-					volt->vid[i].uv);
+	volt->base.vid_nr = ARRAY_SIZE(gk20a_cvb_coef);
+	nv_debug(volt, "%s - vid_nr = %d\n", __func__, volt->base.vid_nr);
+	for (i = 0; i < volt->base.vid_nr; i++) {
+		volt->base.vid[i].vid = i;
+		volt->base.vid[i].uv =
+			gk20a_volt_calc_voltage(&gk20a_cvb_coef[i],
+						plat->gpu_speedo);
+		nv_debug(volt, "%2d: vid=%d, uv=%d\n", i,
+			 volt->base.vid[i].vid, volt->base.vid[i].uv);
 	}
 
 	return 0;

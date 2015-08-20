@@ -140,7 +140,7 @@ _nvkm_volt_init(struct nvkm_object *object)
 	struct nvkm_volt *volt = (void *)object;
 	int ret;
 
-	ret = nvkm_subdev_init(&volt->base);
+	ret = nvkm_subdev_init(&volt->subdev);
 	if (ret)
 		return ret;
 
@@ -159,7 +159,7 @@ void
 _nvkm_volt_dtor(struct nvkm_object *object)
 {
 	struct nvkm_volt *volt = (void *)object;
-	nvkm_subdev_destroy(&volt->base);
+	nvkm_subdev_destroy(&volt->subdev);
 }
 
 int
