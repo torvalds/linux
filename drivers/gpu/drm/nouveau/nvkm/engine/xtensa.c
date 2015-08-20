@@ -88,6 +88,7 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 	const struct firmware *fw;
 	char name[32];
 	int i, ret;
+	u64 addr, size;
 	u32 tmp;
 
 	ret = nvkm_engine_init_old(&xtensa->engine);
@@ -110,15 +111,13 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 			return -EINVAL;
 		}
 
-		ret = nvkm_gpuobj_new(object, NULL, 0x40000, 0x1000, 0,
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      0x40000, 0x1000, false,
 				      &xtensa->gpu_fw);
 		if (ret) {
 			release_firmware(fw);
 			return ret;
 		}
-
-		nvkm_debug(subdev, "Loading firmware to address: %010llx\n",
-			   xtensa->gpu_fw->addr);
 
 		nvkm_kmap(xtensa->gpu_fw);
 		for (i = 0; i < fw->size / 4; i++)
@@ -127,6 +126,9 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 		release_firmware(fw);
 	}
 
+	addr = nvkm_memory_addr(xtensa->gpu_fw);
+	size = nvkm_memory_size(xtensa->gpu_fw);
+
 	nvkm_wr32(device, base + 0xd10, 0x1fffffff); /* ?? */
 	nvkm_wr32(device, base + 0xd08, 0x0fffffff); /* ?? */
 
@@ -134,9 +136,9 @@ _nvkm_xtensa_init(struct nvkm_object *object)
 	nvkm_wr32(device, base + 0xc20, 0x3f); /* INTR */
 	nvkm_wr32(device, base + 0xd84, 0x3f); /* INTR_EN */
 
-	nvkm_wr32(device, base + 0xcc0, xtensa->gpu_fw->addr >> 8); /* XT_REGION_BASE */
+	nvkm_wr32(device, base + 0xcc0, addr >> 8); /* XT_REGION_BASE */
 	nvkm_wr32(device, base + 0xcc4, 0x1c); /* XT_REGION_SETUP */
-	nvkm_wr32(device, base + 0xcc8, xtensa->gpu_fw->size >> 8); /* XT_REGION_LIMIT */
+	nvkm_wr32(device, base + 0xcc8, size >> 8); /* XT_REGION_LIMIT */
 
 	tmp = nvkm_rd32(device, 0x0);
 	nvkm_wr32(device, base + 0xde0, tmp); /* SCRATCH_H2X */
@@ -159,7 +161,7 @@ _nvkm_xtensa_fini(struct nvkm_object *object, bool suspend)
 	nvkm_wr32(device, base + 0xd94, 0); /* FIFO_CTRL */
 
 	if (!suspend)
-		nvkm_gpuobj_ref(NULL, &xtensa->gpu_fw);
+		nvkm_memory_del(&xtensa->gpu_fw);
 
 	return nvkm_engine_fini_old(&xtensa->engine, suspend);
 }

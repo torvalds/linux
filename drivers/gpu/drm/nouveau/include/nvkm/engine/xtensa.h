@@ -1,13 +1,12 @@
 #ifndef __NVKM_XTENSA_H__
 #define __NVKM_XTENSA_H__
 #include <core/engine.h>
-struct nvkm_gpuobj;
 
 struct nvkm_xtensa {
 	struct nvkm_engine engine;
 
 	u32 addr;
-	struct nvkm_gpuobj *gpu_fw;
+	struct nvkm_memory *gpu_fw;
 	u32 fifo_val;
 	u32 unkd28;
 };
