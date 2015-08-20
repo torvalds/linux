@@ -4480,13 +4480,6 @@ edp_detect(struct intel_dp *intel_dp)
 	return status;
 }
 
-/*
- * ibx_digital_port_connected - is the specified port connected?
- * @dev_priv: i915 private structure
- * @port: the port to test
- *
- * Returns true if @port is connected, false otherwise.
- */
 static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *port)
 {
@@ -4531,13 +4524,12 @@ static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(SDEISR) & bit;
 }
 
-static bool g4x_digital_port_connected(struct drm_device *dev,
+static bool g4x_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *port)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t bit;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv)) {
 		switch (port->port) {
 		case PORT_B:
 			bit = PORTB_HOTPLUG_LIVE_STATUS_VLV;
@@ -4572,6 +4564,22 @@ static bool g4x_digital_port_connected(struct drm_device *dev,
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
+/*
+ * intel_digital_port_connected - is the specified port connected?
+ * @dev_priv: i915 private structure
+ * @port: the port to test
+ *
+ * Return %true if @port is connected, %false otherwise.
+ */
+static bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
+					 struct intel_digital_port *port)
+{
+	if (HAS_PCH_SPLIT(dev_priv))
+		return ibx_digital_port_connected(dev_priv, port);
+	else
+		return g4x_digital_port_connected(dev_priv, port);
+}
+
 static enum drm_connector_status
 ironlake_dp_detect(struct intel_dp *intel_dp)
 {
@@ -4579,7 +4587,7 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 
-	if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
+	if (!intel_digital_port_connected(dev_priv, intel_dig_port))
 		return connector_status_disconnected;
 
 	return intel_dp_detect_dpcd(intel_dp);
@@ -4601,7 +4609,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 		return status;
 	}
 
-	if (!g4x_digital_port_connected(dev, intel_dig_port))
+	if (!intel_digital_port_connected(dev->dev_private, intel_dig_port))
 		return connector_status_disconnected;
 
 	return intel_dp_detect_dpcd(intel_dp);
@@ -5064,13 +5072,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		/* indicate that we need to restart link training */
 		intel_dp->train_set_valid = false;
 
-		if (HAS_PCH_SPLIT(dev)) {
-			if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
-				goto mst_fail;
-		} else {
-			if (!g4x_digital_port_connected(dev, intel_dig_port))
-				goto mst_fail;
-		}
+		if (!intel_digital_port_connected(dev_priv, intel_dig_port))
+			goto mst_fail;
 
 		if (!intel_dp_get_dpcd(intel_dp)) {
 			goto mst_fail;
