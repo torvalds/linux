@@ -33,8 +33,8 @@ static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *pfb = nvxx_fb(&drm->device);
-	man->priv = pfb;
+	struct nvkm_fb *fb = nvxx_fb(&drm->device);
+	man->priv = fb;
 	return 0;
 }
 
@@ -64,9 +64,9 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *pfb = nvxx_fb(&drm->device);
+	struct nvkm_fb *fb = nvxx_fb(&drm->device);
 	nvkm_mem_node_cleanup(mem->mm_node);
-	pfb->ram->put(pfb, (struct nvkm_mem **)&mem->mm_node);
+	fb->ram->put(fb, (struct nvkm_mem **)&mem->mm_node);
 }
 
 static int
@@ -76,7 +76,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *pfb = nvxx_fb(&drm->device);
+	struct nvkm_fb *fb = nvxx_fb(&drm->device);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvkm_mem *node;
 	u32 size_nc = 0;
@@ -88,7 +88,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
 		size_nc = 1 << nvbo->page_shift;
 
-	ret = pfb->ram->get(pfb, mem->num_pages << PAGE_SHIFT,
+	ret = fb->ram->get(fb, mem->num_pages << PAGE_SHIFT,
 			   mem->page_alignment << PAGE_SHIFT, size_nc,
 			   (nvbo->tile_flags >> 8) & 0x3ff, &node);
 	if (ret) {
@@ -106,12 +106,12 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 static void
 nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 {
-	struct nvkm_fb *pfb = man->priv;
-	struct nvkm_mm *mm = &pfb->vram;
+	struct nvkm_fb *fb = man->priv;
+	struct nvkm_mm *mm = &fb->vram;
 	struct nvkm_mm_node *r;
 	u32 total = 0, free = 0;
 
-	mutex_lock(&nv_subdev(pfb)->mutex);
+	mutex_lock(&nv_subdev(fb)->mutex);
 	list_for_each_entry(r, &mm->nodes, nl_entry) {
 		printk(KERN_DEBUG "%s %d: 0x%010llx 0x%010llx\n",
 		       prefix, r->type, ((u64)r->offset << 12),
@@ -121,7 +121,7 @@ nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 		if (!r->type)
 			free += r->length;
 	}
-	mutex_unlock(&nv_subdev(pfb)->mutex);
+	mutex_unlock(&nv_subdev(fb)->mutex);
 
 	printk(KERN_DEBUG "%s  total: 0x%010llx free: 0x%010llx\n",
 	       prefix, (u64)total << 12, (u64)free << 12);

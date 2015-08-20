@@ -295,7 +295,7 @@ static int
 nv40_fifo_init(struct nvkm_object *object)
 {
 	struct nv04_fifo_priv *priv = (void *)object;
-	struct nvkm_fb *pfb = nvkm_fb(object);
+	struct nvkm_fb *fb = nvkm_fb(object);
 	int ret;
 
 	ret = nvkm_fifo_init(&priv->base);
@@ -326,7 +326,7 @@ nv40_fifo_init(struct nvkm_object *object)
 		break;
 	default:
 		nv_wr32(priv, 0x002230, 0x00000000);
-		nv_wr32(priv, 0x002220, ((pfb->ram->size - 512 * 1024 +
+		nv_wr32(priv, 0x002220, ((fb->ram->size - 512 * 1024 +
 					 priv->ramfc->addr) >> 16) |
 					0x00030000);
 		break;

@@ -2,7 +2,7 @@
 #define __NVKM_FB_NV50_H__
 #include "priv.h"
 
-struct nv50_fb_priv {
+struct nv50_fb {
 	struct nvkm_fb base;
 	struct page *r100c08_page;
 	dma_addr_t r100c08;

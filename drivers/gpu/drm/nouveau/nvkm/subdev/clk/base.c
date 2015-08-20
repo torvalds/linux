@@ -171,7 +171,7 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 static int
 nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 {
-	struct nvkm_fb *pfb = nvkm_fb(clk);
+	struct nvkm_fb *fb = nvkm_fb(clk);
 	struct nvkm_pstate *pstate;
 	int ret, idx = 0;
 
@@ -183,14 +183,14 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 	nv_debug(clk, "setting performance state %d\n", pstatei);
 	clk->pstate = pstatei;
 
-	if (pfb->ram && pfb->ram->calc) {
+	if (fb->ram && fb->ram->calc) {
 		int khz = pstate->base.domain[nv_clk_src_mem];
 		do {
-			ret = pfb->ram->calc(pfb, khz);
+			ret = fb->ram->calc(fb, khz);
 			if (ret == 0)
-				ret = pfb->ram->prog(pfb);
+				ret = fb->ram->prog(fb);
 		} while (ret > 0);
-		pfb->ram->tidy(pfb);
+		fb->ram->tidy(fb);
 	}
 
 	return nvkm_cstate_prog(clk, pstate, 0);

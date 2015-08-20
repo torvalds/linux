@@ -26,7 +26,7 @@
 #include "nv04.h"
 
 void
-nv46_fb_tile_init(struct nvkm_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+nv46_fb_tile_init(struct nvkm_fb *fb, int i, u32 addr, u32 size, u32 pitch,
 		  u32 flags, struct nvkm_fb_tile *tile)
 {
 	/* for performance, select alternate bank offset for zeta */

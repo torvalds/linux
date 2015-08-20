@@ -110,7 +110,7 @@ gm107_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_ltc_priv *priv;
 	u32 parts, mask;
 	int ret, i;
@@ -128,7 +128,7 @@ gm107_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 	priv->lts_nr = nv_rd32(priv, 0x17e280) >> 28;
 
-	ret = gf100_ltc_init_tag_ram(pfb, priv);
+	ret = gf100_ltc_init_tag_ram(fb, priv);
 	if (ret)
 		return ret;
 

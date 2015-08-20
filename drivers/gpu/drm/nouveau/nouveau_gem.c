@@ -254,12 +254,12 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nvkm_fb *pfb = nvxx_fb(&drm->device);
+	struct nvkm_fb *fb = nvxx_fb(&drm->device);
 	struct drm_nouveau_gem_new *req = data;
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
 
-	if (!pfb->memtype_valid(pfb, req->info.tile_flags)) {
+	if (!fb->memtype_valid(fb, req->info.tile_flags)) {
 		NV_PRINTK(error, cli, "bad page flags: 0x%08x\n", req->info.tile_flags);
 		return -EINVAL;
 	}

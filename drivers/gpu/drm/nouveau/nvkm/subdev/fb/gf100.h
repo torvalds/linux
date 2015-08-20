@@ -3,7 +3,7 @@
 #include "priv.h"
 #include "nv50.h"
 
-struct gf100_fb_priv {
+struct gf100_fb {
 	struct nvkm_fb base;
 	struct page *r100c10_page;
 	dma_addr_t r100c10;

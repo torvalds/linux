@@ -42,16 +42,16 @@ int nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts);
 #define nvkm_fb_create(p,e,c,d)                                             \
 	nvkm_fb_create_((p), (e), (c), sizeof(**d), (void **)d)
 #define nvkm_fb_destroy(p) ({                                               \
-	struct nvkm_fb *pfb = (p);                                          \
-	_nvkm_fb_dtor(nv_object(pfb));                                      \
+	struct nvkm_fb *_fb = (p);                                          \
+	_nvkm_fb_dtor(nv_object(_fb));                                      \
 })
 #define nvkm_fb_init(p) ({                                                  \
-	struct nvkm_fb *pfb = (p);                                          \
-	_nvkm_fb_init(nv_object(pfb));                                      \
+	struct nvkm_fb *_fb = (p);                                          \
+	_nvkm_fb_init(nv_object(_fb));                                      \
 })
 #define nvkm_fb_fini(p,s) ({                                                \
-	struct nvkm_fb *pfb = (p);                                          \
-	_nvkm_fb_fini(nv_object(pfb), (s));                                 \
+	struct nvkm_fb *_fb = (p);                                          \
+	_nvkm_fb_fini(nv_object(_fb), (s));                                 \
 })
 
 int nvkm_fb_create_(struct nvkm_object *, struct nvkm_object *,

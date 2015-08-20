@@ -80,7 +80,7 @@ static int
 nvkm_devobj_info(struct nvkm_object *object, void *data, u32 size)
 {
 	struct nvkm_device *device = nv_device(object);
-	struct nvkm_fb *pfb = nvkm_fb(device);
+	struct nvkm_fb *fb = nvkm_fb(device);
 	struct nvkm_instmem *imem = nvkm_instmem(device);
 	union {
 		struct nv_device_info_v0 v0;
@@ -139,8 +139,8 @@ nvkm_devobj_info(struct nvkm_object *object, void *data, u32 size)
 
 	args->v0.chipset  = device->chipset;
 	args->v0.revision = device->chiprev;
-	if (pfb && pfb->ram)
-		args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
+	if (fb && fb->ram)
+		args->v0.ram_size = args->v0.ram_user = fb->ram->size;
 	else
 		args->v0.ram_size = args->v0.ram_user = 0;
 	if (imem && args->v0.ram_size > 0)

@@ -366,7 +366,7 @@ static int
 nv40_gr_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
-	struct nvkm_fb *pfb = nvkm_fb(object);
+	struct nvkm_fb *fb = nvkm_fb(object);
 	struct nv40_gr_priv *priv = (void *)engine;
 	int ret, i, j;
 	u32 vramsz;
@@ -470,7 +470,7 @@ nv40_gr_init(struct nvkm_object *object)
 	}
 
 	/* Turn all the tiling regions off. */
-	for (i = 0; i < pfb->tile.regions; i++)
+	for (i = 0; i < fb->tile.regions; i++)
 		engine->tile_prog(engine, i);
 
 	/* begin RAM config */

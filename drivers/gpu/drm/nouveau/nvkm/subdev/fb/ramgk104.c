@@ -228,7 +228,7 @@ static void
 gk104_ram_nuts(struct gk104_ram *ram, struct ramfuc_reg *reg,
 	       u32 _mask, u32 _data, u32 _copy)
 {
-	struct gk104_fb_priv *priv = (void *)nvkm_fb(ram);
+	struct gk104_fb *fb = (void *)nvkm_fb(ram);
 	struct ramfuc *fuc = &ram->fuc.base;
 	u32 addr = 0x110000 + (reg->addr & 0xfff);
 	u32 mask = _mask | _copy;
@@ -237,7 +237,7 @@ gk104_ram_nuts(struct gk104_ram *ram, struct ramfuc_reg *reg,
 
 	for (i = 0; i < 16; i++, addr += 0x1000) {
 		if (ram->pnuts & (1 << i)) {
-			u32 prev = nv_rd32(priv, addr);
+			u32 prev = nv_rd32(fb, addr);
 			u32 next = (prev & ~mask) | data;
 			nvkm_memx_wr32(fuc->memx, addr, next);
 		}
@@ -247,9 +247,9 @@ gk104_ram_nuts(struct gk104_ram *ram, struct ramfuc_reg *reg,
 	gk104_ram_nuts((s), &(s)->fuc.r_##r, (m), (d), (c))
 
 static int
-gk104_ram_calc_gddr5(struct nvkm_fb *pfb, u32 freq)
+gk104_ram_calc_gddr5(struct nvkm_fb *fb, u32 freq)
 {
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct gk104_ramfuc *fuc = &ram->fuc;
 	struct nvkm_ram_data *next = ram->base.next;
 	int vc = !next->bios.ramcfg_11_02_08;
@@ -673,9 +673,9 @@ gk104_ram_calc_gddr5(struct nvkm_fb *pfb, u32 freq)
  ******************************************************************************/
 
 static int
-gk104_ram_calc_sddr3(struct nvkm_fb *pfb, u32 freq)
+gk104_ram_calc_sddr3(struct nvkm_fb *fb, u32 freq)
 {
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct gk104_ramfuc *fuc = &ram->fuc;
 	const u32 rcoef = ((  ram->P1 << 16) | (ram->N1 << 8) | ram->M1);
 	const u32 runk0 = ram->fN1 << 16;
@@ -925,9 +925,9 @@ gk104_ram_calc_sddr3(struct nvkm_fb *pfb, u32 freq)
  ******************************************************************************/
 
 static int
-gk104_ram_calc_data(struct nvkm_fb *pfb, u32 khz, struct nvkm_ram_data *data)
+gk104_ram_calc_data(struct nvkm_fb *fb, u32 khz, struct nvkm_ram_data *data)
 {
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct nvkm_ram_data *cfg;
 	u32 mhz = khz / 1000;
 
@@ -945,14 +945,14 @@ gk104_ram_calc_data(struct nvkm_fb *pfb, u32 khz, struct nvkm_ram_data *data)
 }
 
 static int
-gk104_ram_calc_xits(struct nvkm_fb *pfb, struct nvkm_ram_data *next)
+gk104_ram_calc_xits(struct nvkm_fb *fb, struct nvkm_ram_data *next)
 {
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct gk104_ramfuc *fuc = &ram->fuc;
 	int refclk, i;
 	int ret;
 
-	ret = ram_init(fuc, pfb);
+	ret = ram_init(fuc, fb);
 	if (ret)
 		return ret;
 
@@ -972,11 +972,11 @@ gk104_ram_calc_xits(struct nvkm_fb *pfb, struct nvkm_ram_data *next)
 		refclk = fuc->mempll.refclk;
 
 	/* calculate refpll coefficients */
-	ret = gt215_pll_calc(nv_subdev(pfb), &fuc->refpll, refclk, &ram->N1,
+	ret = gt215_pll_calc(nv_subdev(fb), &fuc->refpll, refclk, &ram->N1,
 			     &ram->fN1, &ram->M1, &ram->P1);
 	fuc->mempll.refclk = ret;
 	if (ret <= 0) {
-		nv_error(pfb, "unable to calc refpll\n");
+		nv_error(fb, "unable to calc refpll\n");
 		return -EINVAL;
 	}
 
@@ -989,10 +989,10 @@ gk104_ram_calc_xits(struct nvkm_fb *pfb, struct nvkm_ram_data *next)
 		fuc->mempll.min_p = 1;
 		fuc->mempll.max_p = 2;
 
-		ret = gt215_pll_calc(nv_subdev(pfb), &fuc->mempll, next->freq,
+		ret = gt215_pll_calc(nv_subdev(fb), &fuc->mempll, next->freq,
 				     &ram->N2, NULL, &ram->M2, &ram->P2);
 		if (ret <= 0) {
-			nv_error(pfb, "unable to calc mempll\n");
+			nv_error(fb, "unable to calc mempll\n");
 			return -EINVAL;
 		}
 	}
@@ -1007,12 +1007,12 @@ gk104_ram_calc_xits(struct nvkm_fb *pfb, struct nvkm_ram_data *next)
 	case NV_MEM_TYPE_DDR3:
 		ret = nvkm_sddr3_calc(&ram->base);
 		if (ret == 0)
-			ret = gk104_ram_calc_sddr3(pfb, next->freq);
+			ret = gk104_ram_calc_sddr3(fb, next->freq);
 		break;
 	case NV_MEM_TYPE_GDDR5:
 		ret = nvkm_gddr5_calc(&ram->base, ram->pnuts != 0);
 		if (ret == 0)
-			ret = gk104_ram_calc_gddr5(pfb, next->freq);
+			ret = gk104_ram_calc_gddr5(fb, next->freq);
 		break;
 	default:
 		ret = -ENOSYS;
@@ -1023,21 +1023,21 @@ gk104_ram_calc_xits(struct nvkm_fb *pfb, struct nvkm_ram_data *next)
 }
 
 static int
-gk104_ram_calc(struct nvkm_fb *pfb, u32 freq)
+gk104_ram_calc(struct nvkm_fb *fb, u32 freq)
 {
-	struct nvkm_clk *clk = nvkm_clk(pfb);
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct nvkm_clk *clk = nvkm_clk(fb);
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct nvkm_ram_data *xits = &ram->base.xition;
 	struct nvkm_ram_data *copy;
 	int ret;
 
 	if (ram->base.next == NULL) {
-		ret = gk104_ram_calc_data(pfb, clk->read(clk, nv_clk_src_mem),
+		ret = gk104_ram_calc_data(fb, clk->read(clk, nv_clk_src_mem),
 					  &ram->base.former);
 		if (ret)
 			return ret;
 
-		ret = gk104_ram_calc_data(pfb, freq, &ram->base.target);
+		ret = gk104_ram_calc_data(fb, freq, &ram->base.target);
 		if (ret)
 			return ret;
 
@@ -1061,13 +1061,13 @@ gk104_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		ram->base.next = &ram->base.target;
 	}
 
-	return gk104_ram_calc_xits(pfb, ram->base.next);
+	return gk104_ram_calc_xits(fb, ram->base.next);
 }
 
 static void
-gk104_ram_prog_0(struct nvkm_fb *pfb, u32 freq)
+gk104_ram_prog_0(struct nvkm_fb *fb, u32 freq)
 {
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct nvkm_ram_data *cfg;
 	u32 mhz = freq / 1000;
 	u32 mask, data;
@@ -1089,31 +1089,31 @@ gk104_ram_prog_0(struct nvkm_fb *pfb, u32 freq)
 		data |= cfg->bios.rammap_11_09_01ff;
 		mask |= 0x000001ff;
 	}
-	nv_mask(pfb, 0x10f468, mask, data);
+	nv_mask(fb, 0x10f468, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0400) {
 		data |= cfg->bios.rammap_11_0a_0400;
 		mask |= 0x00000001;
 	}
-	nv_mask(pfb, 0x10f420, mask, data);
+	nv_mask(fb, 0x10f420, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0a_0800) {
 		data |= cfg->bios.rammap_11_0a_0800;
 		mask |= 0x00000001;
 	}
-	nv_mask(pfb, 0x10f430, mask, data);
+	nv_mask(fb, 0x10f430, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0b_01f0) {
 		data |= cfg->bios.rammap_11_0b_01f0;
 		mask |= 0x0000001f;
 	}
-	nv_mask(pfb, 0x10f400, mask, data);
+	nv_mask(fb, 0x10f400, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0b_0200) {
 		data |= cfg->bios.rammap_11_0b_0200 << 9;
 		mask |= 0x00000200;
 	}
-	nv_mask(pfb, 0x10f410, mask, data);
+	nv_mask(fb, 0x10f410, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0d) {
 		data |= cfg->bios.rammap_11_0d << 16;
@@ -1123,7 +1123,7 @@ gk104_ram_prog_0(struct nvkm_fb *pfb, u32 freq)
 		data |= cfg->bios.rammap_11_0f << 8;
 		mask |= 0x0000ff00;
 	}
-	nv_mask(pfb, 0x10f440, mask, data);
+	nv_mask(fb, 0x10f440, mask, data);
 
 	if (mask = 0, data = 0, ram->diff.rammap_11_0e) {
 		data |= cfg->bios.rammap_11_0e << 8;
@@ -1137,14 +1137,14 @@ gk104_ram_prog_0(struct nvkm_fb *pfb, u32 freq)
 		data |= cfg->bios.rammap_11_0b_0400 << 5;
 		mask |= 0x00000020;
 	}
-	nv_mask(pfb, 0x10f444, mask, data);
+	nv_mask(fb, 0x10f444, mask, data);
 }
 
 static int
-gk104_ram_prog(struct nvkm_fb *pfb)
+gk104_ram_prog(struct nvkm_fb *fb)
 {
-	struct nvkm_device *device = nv_device(pfb);
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct nvkm_device *device = nv_device(fb);
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct gk104_ramfuc *fuc = &ram->fuc;
 	struct nvkm_ram_data *next = ram->base.next;
 
@@ -1153,17 +1153,17 @@ gk104_ram_prog(struct nvkm_fb *pfb)
 		return (ram->base.next == &ram->base.xition);
 	}
 
-	gk104_ram_prog_0(pfb, 1000);
+	gk104_ram_prog_0(fb, 1000);
 	ram_exec(fuc, true);
-	gk104_ram_prog_0(pfb, next->freq);
+	gk104_ram_prog_0(fb, next->freq);
 
 	return (ram->base.next == &ram->base.xition);
 }
 
 static void
-gk104_ram_tidy(struct nvkm_fb *pfb)
+gk104_ram_tidy(struct nvkm_fb *fb)
 {
-	struct gk104_ram *ram = (void *)pfb->ram;
+	struct gk104_ram *ram = (void *)fb->ram;
 	struct gk104_ramfuc *fuc = &ram->fuc;
 	ram->base.next = NULL;
 	ram_exec(fuc, false);
@@ -1182,10 +1182,10 @@ struct gk104_ram_train {
 };
 
 static int
-gk104_ram_train_type(struct nvkm_fb *pfb, int i, u8 ramcfg,
+gk104_ram_train_type(struct nvkm_fb *fb, int i, u8 ramcfg,
 		     struct gk104_ram_train *train)
 {
-	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct nvkm_bios *bios = nvkm_bios(fb);
 	struct nvbios_M0205E M0205E;
 	struct nvbios_M0205S M0205S;
 	struct nvbios_M0209E M0209E;
@@ -1243,33 +1243,33 @@ gk104_ram_train_type(struct nvkm_fb *pfb, int i, u8 ramcfg,
 }
 
 static int
-gk104_ram_train_init_0(struct nvkm_fb *pfb, struct gk104_ram_train *train)
+gk104_ram_train_init_0(struct nvkm_fb *fb, struct gk104_ram_train *train)
 {
 	int i, j;
 
 	if ((train->mask & 0x03d3) != 0x03d3) {
-		nv_warn(pfb, "missing link training data\n");
+		nv_warn(fb, "missing link training data\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < 0x30; i++) {
 		for (j = 0; j < 8; j += 4) {
-			nv_wr32(pfb, 0x10f968 + j, 0x00000000 | (i << 8));
-			nv_wr32(pfb, 0x10f920 + j, 0x00000000 |
+			nv_wr32(fb, 0x10f968 + j, 0x00000000 | (i << 8));
+			nv_wr32(fb, 0x10f920 + j, 0x00000000 |
 						   train->type08.data[i] << 4 |
 						   train->type06.data[i]);
-			nv_wr32(pfb, 0x10f918 + j, train->type00.data[i]);
-			nv_wr32(pfb, 0x10f920 + j, 0x00000100 |
+			nv_wr32(fb, 0x10f918 + j, train->type00.data[i]);
+			nv_wr32(fb, 0x10f920 + j, 0x00000100 |
 						   train->type09.data[i] << 4 |
 						   train->type07.data[i]);
-			nv_wr32(pfb, 0x10f918 + j, train->type01.data[i]);
+			nv_wr32(fb, 0x10f918 + j, train->type01.data[i]);
 		}
 	}
 
 	for (j = 0; j < 8; j += 4) {
 		for (i = 0; i < 0x100; i++) {
-			nv_wr32(pfb, 0x10f968 + j, i);
-			nv_wr32(pfb, 0x10f900 + j, train->type04.data[i]);
+			nv_wr32(fb, 0x10f968 + j, i);
+			nv_wr32(fb, 0x10f900 + j, train->type04.data[i]);
 		}
 	}
 
@@ -1277,23 +1277,24 @@ gk104_ram_train_init_0(struct nvkm_fb *pfb, struct gk104_ram_train *train)
 }
 
 static int
-gk104_ram_train_init(struct nvkm_fb *pfb)
+gk104_ram_train_init(struct nvkm_fb *fb)
 {
-	u8 ramcfg = nvbios_ramcfg_index(nv_subdev(pfb));
+	u8 ramcfg = nvbios_ramcfg_index(nv_subdev(fb));
 	struct gk104_ram_train *train;
-	int ret = -ENOMEM, i;
+	int ret, i;
 
-	if ((train = kzalloc(sizeof(*train), GFP_KERNEL))) {
-		for (i = 0; i < 0x100; i++) {
-			ret = gk104_ram_train_type(pfb, i, ramcfg, train);
-			if (ret && ret != -ENOENT)
-				break;
-		}
+	if (!(train = kzalloc(sizeof(*train), GFP_KERNEL)))
+		return -ENOMEM;
+
+	for (i = 0; i < 0x100; i++) {
+		ret = gk104_ram_train_type(fb, i, ramcfg, train);
+		if (ret && ret != -ENOENT)
+			break;
 	}
 
-	switch (pfb->ram->type) {
+	switch (fb->ram->type) {
 	case NV_MEM_TYPE_GDDR5:
-		ret = gk104_ram_train_init_0(pfb, train);
+		ret = gk104_ram_train_init_0(fb, train);
 		break;
 	default:
 		ret = 0;
@@ -1307,9 +1308,9 @@ gk104_ram_train_init(struct nvkm_fb *pfb)
 int
 gk104_ram_init(struct nvkm_object *object)
 {
-	struct nvkm_fb *pfb = (void *)object->parent;
+	struct nvkm_fb *fb = (void *)object->parent;
 	struct gk104_ram *ram   = (void *)object;
-	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct nvkm_bios *bios = nvkm_bios(fb);
 	u8  ver, hdr, cnt, len, snr, ssz;
 	u32 data, save;
 	int ret, i;
@@ -1335,31 +1336,31 @@ gk104_ram_init(struct nvkm_object *object)
 
 	cnt  = nv_ro08(bios, data + 0x14); /* guess at count */
 	data = nv_ro32(bios, data + 0x10); /* guess u32... */
-	save = nv_rd32(pfb, 0x10f65c) & 0x000000f0;
+	save = nv_rd32(fb, 0x10f65c) & 0x000000f0;
 	for (i = 0; i < cnt; i++, data += 4) {
 		if (i != save >> 4) {
-			nv_mask(pfb, 0x10f65c, 0x000000f0, i << 4);
+			nv_mask(fb, 0x10f65c, 0x000000f0, i << 4);
 			nvbios_exec(&(struct nvbios_init) {
-					.subdev = nv_subdev(pfb),
+					.subdev = nv_subdev(fb),
 					.bios = bios,
 					.offset = nv_ro32(bios, data),
 					.execute = 1,
 				    });
 		}
 	}
-	nv_mask(pfb, 0x10f65c, 0x000000f0, save);
-	nv_mask(pfb, 0x10f584, 0x11000000, 0x00000000);
-	nv_wr32(pfb, 0x10ecc0, 0xffffffff);
-	nv_mask(pfb, 0x10f160, 0x00000010, 0x00000010);
+	nv_mask(fb, 0x10f65c, 0x000000f0, save);
+	nv_mask(fb, 0x10f584, 0x11000000, 0x00000000);
+	nv_wr32(fb, 0x10ecc0, 0xffffffff);
+	nv_mask(fb, 0x10f160, 0x00000010, 0x00000010);
 
-	return gk104_ram_train_init(pfb);
+	return gk104_ram_train_init(fb);
 }
 
 static int
 gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 {
-	struct nvkm_fb *pfb = (void *)nv_object(ram)->parent;
-	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct nvkm_fb *fb = (void *)nv_object(ram)->parent;
+	struct nvkm_bios *bios = nvkm_bios(fb);
 	struct nvkm_ram_data *cfg;
 	struct nvbios_ramcfg *d = &ram->diff;
 	struct nvbios_ramcfg *p, *n;
@@ -1443,13 +1444,13 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nvkm_fb *pfb = nvkm_fb(parent);
-	struct nvkm_bios *bios = nvkm_bios(pfb);
-	struct nvkm_gpio *gpio = nvkm_gpio(pfb);
+	struct nvkm_fb *fb = nvkm_fb(parent);
+	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct nvkm_gpio *gpio = nvkm_gpio(fb);
 	struct dcb_gpio_func func;
 	struct gk104_ram *ram;
 	int ret, i;
-	u8  ramcfg = nvbios_ramcfg_index(nv_subdev(pfb));
+	u8  ramcfg = nvbios_ramcfg_index(nv_subdev(fb));
 	u32 tmp;
 
 	ret = gf100_ram_create(parent, engine, oclass, 0x022554, &ram);
@@ -1467,7 +1468,7 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		ram->base.tidy = gk104_ram_tidy;
 		break;
 	default:
-		nv_warn(pfb, "reclocking of this RAM type is unsupported\n");
+		nv_warn(fb, "reclocking of this RAM type is unsupported\n");
 		break;
 	}
 
@@ -1476,12 +1477,12 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	 * already without having to treat some of them differently to
 	 * the others....
 	 */
-	ram->parts = nv_rd32(pfb, 0x022438);
-	ram->pmask = nv_rd32(pfb, 0x022554);
+	ram->parts = nv_rd32(fb, 0x022438);
+	ram->pmask = nv_rd32(fb, 0x022554);
 	ram->pnuts = 0;
 	for (i = 0, tmp = 0; i < ram->parts; i++) {
 		if (!(ram->pmask & (1 << i))) {
-			u32 cfg1 = nv_rd32(pfb, 0x110204 + (i * 0x1000));
+			u32 cfg1 = nv_rd32(fb, 0x110204 + (i * 0x1000));
 			if (tmp && tmp != cfg1) {
 				ram->pnuts |= (1 << i);
 				continue;
@@ -1504,7 +1505,7 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	for (i = 0; !ret; i++) {
 		ret = gk104_ram_ctor_data(ram, ramcfg, i);
 		if (ret && ret != -ENOENT) {
-			nv_error(pfb, "failed to parse ramcfg data\n");
+			nv_error(fb, "failed to parse ramcfg data\n");
 			return ret;
 		}
 	}
@@ -1512,13 +1513,13 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	/* parse bios data for both pll's */
 	ret = nvbios_pll_parse(bios, 0x0c, &ram->fuc.refpll);
 	if (ret) {
-		nv_error(pfb, "mclk refpll data not found\n");
+		nv_error(fb, "mclk refpll data not found\n");
 		return ret;
 	}
 
 	ret = nvbios_pll_parse(bios, 0x04, &ram->fuc.mempll);
 	if (ret) {
-		nv_error(pfb, "mclk pll data not found\n");
+		nv_error(fb, "mclk pll data not found\n");
 		return ret;
 	}
 

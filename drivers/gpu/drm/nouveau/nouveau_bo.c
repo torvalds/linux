@@ -48,23 +48,23 @@ nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int i = reg - drm->tile.reg;
-	struct nvkm_fb *pfb = nvxx_fb(&drm->device);
-	struct nvkm_fb_tile *tile = &pfb->tile.region[i];
+	struct nvkm_fb *fb = nvxx_fb(&drm->device);
+	struct nvkm_fb_tile *tile = &fb->tile.region[i];
 	struct nvkm_engine *engine;
 
 	nouveau_fence_unref(&reg->fence);
 
 	if (tile->pitch)
-		pfb->tile.fini(pfb, i, tile);
+		fb->tile.fini(fb, i, tile);
 
 	if (pitch)
-		pfb->tile.init(pfb, i, addr, size, pitch, flags, tile);
+		fb->tile.init(fb, i, addr, size, pitch, flags, tile);
 
-	pfb->tile.prog(pfb, i, tile);
+	fb->tile.prog(fb, i, tile);
 
-	if ((engine = nvkm_engine(pfb, NVDEV_ENGINE_GR)))
+	if ((engine = nvkm_engine(fb, NVDEV_ENGINE_GR)))
 		engine->tile_prog(engine, i);
-	if ((engine = nvkm_engine(pfb, NVDEV_ENGINE_MPEG)))
+	if ((engine = nvkm_engine(fb, NVDEV_ENGINE_MPEG)))
 		engine->tile_prog(engine, i);
 }
 
@@ -105,18 +105,18 @@ nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
 		   u32 size, u32 pitch, u32 flags)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_fb *pfb = nvxx_fb(&drm->device);
+	struct nvkm_fb *fb = nvxx_fb(&drm->device);
 	struct nouveau_drm_tile *tile, *found = NULL;
 	int i;
 
-	for (i = 0; i < pfb->tile.regions; i++) {
+	for (i = 0; i < fb->tile.regions; i++) {
 		tile = nv10_bo_get_tile_region(dev, i);
 
 		if (pitch && !found) {
 			found = tile;
 			continue;
 
-		} else if (tile && pfb->tile.region[i].pitch) {
+		} else if (tile && fb->tile.region[i].pitch) {
 			/* Kill an unused tile region. */
 			nv10_bo_update_tile_region(dev, tile, 0, 0, 0, 0);
 		}

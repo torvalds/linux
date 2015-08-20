@@ -29,9 +29,9 @@ nv04_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_ram *ram;
-	u32 boot0 = nv_rd32(pfb, NV04_PFB_BOOT_0);
+	u32 boot0 = nv_rd32(fb, NV04_PFB_BOOT_0);
 	int ret;
 
 	ret = nvkm_ram_create(parent, engine, oclass, &ram);

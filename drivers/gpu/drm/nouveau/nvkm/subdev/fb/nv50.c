@@ -40,7 +40,7 @@ nv50_fb_memtype[0x80] = {
 };
 
 bool
-nv50_fb_memtype_valid(struct nvkm_fb *pfb, u32 memtype)
+nv50_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
 {
 	return nv50_fb_memtype[(memtype & 0xff00) >> 8] != 0;
 }
@@ -146,23 +146,23 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_device *device = nv_device(subdev);
 	struct nvkm_engine *engine;
-	struct nv50_fb_priv *priv = (void *)subdev;
+	struct nv50_fb *fb = (void *)subdev;
 	const struct nvkm_enum *en, *cl;
 	struct nvkm_object *engctx = NULL;
 	u32 trap[6], idx, chan;
 	u8 st0, st1, st2, st3;
 	int i;
 
-	idx = nv_rd32(priv, 0x100c90);
+	idx = nv_rd32(fb, 0x100c90);
 	if (!(idx & 0x80000000))
 		return;
 	idx &= 0x00ffffff;
 
 	for (i = 0; i < 6; i++) {
-		nv_wr32(priv, 0x100c90, idx | i << 24);
-		trap[i] = nv_rd32(priv, 0x100c94);
+		nv_wr32(fb, 0x100c90, idx | i << 24);
+		trap[i] = nv_rd32(fb, 0x100c94);
 	}
-	nv_wr32(priv, 0x100c90, idx | 0x80000000);
+	nv_wr32(fb, 0x100c90, idx | 0x80000000);
 
 	/* decode status bits into something more useful */
 	if (device->chipset  < 0xa3 ||
@@ -203,7 +203,7 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 			en = orig_en;
 	}
 
-	nv_error(priv, "trapped %s at 0x%02x%04x%04x on channel 0x%08x [%s] ",
+	nv_error(fb, "trapped %s at 0x%02x%04x%04x on channel 0x%08x [%s] ",
 		 (trap[5] & 0x00000100) ? "read" : "write",
 		 trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan,
 		 nvkm_client_name(engctx));
@@ -243,26 +243,26 @@ nv50_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_object **pobject)
 {
 	struct nvkm_device *device = nv_device(parent);
-	struct nv50_fb_priv *priv;
+	struct nv50_fb *fb;
 	int ret;
 
-	ret = nvkm_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fb_create(parent, engine, oclass, &fb);
+	*pobject = nv_object(fb);
 	if (ret)
 		return ret;
 
-	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (priv->r100c08_page) {
-		priv->r100c08 = dma_map_page(nv_device_base(device),
-					     priv->r100c08_page, 0, PAGE_SIZE,
+	fb->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (fb->r100c08_page) {
+		fb->r100c08 = dma_map_page(nv_device_base(device),
+					     fb->r100c08_page, 0, PAGE_SIZE,
 					     DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(nv_device_base(device), priv->r100c08))
+		if (dma_mapping_error(nv_device_base(device), fb->r100c08))
 			return -EFAULT;
 	} else {
-		nv_warn(priv, "failed 0x100c08 page alloc\n");
+		nv_warn(fb, "failed 0x100c08 page alloc\n");
 	}
 
-	nv_subdev(priv)->intr = nv50_fb_intr;
+	nv_subdev(fb)->intr = nv50_fb_intr;
 	return 0;
 }
 
@@ -270,25 +270,25 @@ void
 nv50_fb_dtor(struct nvkm_object *object)
 {
 	struct nvkm_device *device = nv_device(object);
-	struct nv50_fb_priv *priv = (void *)object;
+	struct nv50_fb *fb = (void *)object;
 
-	if (priv->r100c08_page) {
-		dma_unmap_page(nv_device_base(device), priv->r100c08, PAGE_SIZE,
+	if (fb->r100c08_page) {
+		dma_unmap_page(nv_device_base(device), fb->r100c08, PAGE_SIZE,
 			       DMA_BIDIRECTIONAL);
-		__free_page(priv->r100c08_page);
+		__free_page(fb->r100c08_page);
 	}
 
-	nvkm_fb_destroy(&priv->base);
+	nvkm_fb_destroy(&fb->base);
 }
 
 int
 nv50_fb_init(struct nvkm_object *object)
 {
 	struct nv50_fb_impl *impl = (void *)object->oclass;
-	struct nv50_fb_priv *priv = (void *)object;
+	struct nv50_fb *fb = (void *)object;
 	int ret;
 
-	ret = nvkm_fb_init(&priv->base);
+	ret = nvkm_fb_init(&fb->base);
 	if (ret)
 		return ret;
 
@@ -296,11 +296,11 @@ nv50_fb_init(struct nvkm_object *object)
 	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
 	 * cause IOMMU "read from address 0" errors (rh#561267)
 	 */
-	nv_wr32(priv, 0x100c08, priv->r100c08 >> 8);
+	nv_wr32(fb, 0x100c08, fb->r100c08 >> 8);
 
 	/* This is needed to get meaningful information from 100c90
 	 * on traps. No idea what these values mean exactly. */
-	nv_wr32(priv, 0x100c90, impl->trap);
+	nv_wr32(fb, 0x100c90, impl->trap);
 	return 0;
 }
 

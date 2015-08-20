@@ -25,7 +25,7 @@
 #include "regsnv04.h"
 
 bool
-nv04_fb_memtype_valid(struct nvkm_fb *pfb, u32 tile_flags)
+nv04_fb_memtype_valid(struct nvkm_fb *fb, u32 tile_flags)
 {
 	if (!(tile_flags & 0xff00))
 		return true;
@@ -36,10 +36,10 @@ nv04_fb_memtype_valid(struct nvkm_fb *pfb, u32 tile_flags)
 static int
 nv04_fb_init(struct nvkm_object *object)
 {
-	struct nv04_fb_priv *priv = (void *)object;
+	struct nvkm_fb *fb = (void *)object;
 	int ret;
 
-	ret = nvkm_fb_init(&priv->base);
+	ret = nvkm_fb_init(fb);
 	if (ret)
 		return ret;
 
@@ -47,7 +47,7 @@ nv04_fb_init(struct nvkm_object *object)
 	 * nvidia reading PFB_CFG_0, then writing back its original value.
 	 * (which was 0x701114 in this case)
 	 */
-	nv_wr32(priv, NV04_PFB_CFG0, 0x1114);
+	nv_wr32(fb, NV04_PFB_CFG0, 0x1114);
 	return 0;
 }
 
@@ -57,19 +57,19 @@ nv04_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_object **pobject)
 {
 	struct nv04_fb_impl *impl = (void *)oclass;
-	struct nv04_fb_priv *priv;
+	struct nvkm_fb *fb;
 	int ret;
 
-	ret = nvkm_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fb_create(parent, engine, oclass, &fb);
+	*pobject = nv_object(fb);
 	if (ret)
 		return ret;
 
-	priv->base.tile.regions = impl->tile.regions;
-	priv->base.tile.init = impl->tile.init;
-	priv->base.tile.comp = impl->tile.comp;
-	priv->base.tile.fini = impl->tile.fini;
-	priv->base.tile.prog = impl->tile.prog;
+	fb->tile.regions = impl->tile.regions;
+	fb->tile.init = impl->tile.init;
+	fb->tile.comp = impl->tile.comp;
+	fb->tile.fini = impl->tile.fini;
+	fb->tile.prog = impl->tile.prog;
 	return 0;
 }
 

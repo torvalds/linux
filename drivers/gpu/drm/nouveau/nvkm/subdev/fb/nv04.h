@@ -2,10 +2,6 @@
 #define __NVKM_FB_NV04_H__
 #include "priv.h"
 
-struct nv04_fb_priv {
-	struct nvkm_fb base;
-};
-
 int  nv04_fb_ctor(struct nvkm_object *, struct nvkm_object *,
 		  struct nvkm_oclass *, void *, u32,
 		  struct nvkm_object **);

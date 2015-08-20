@@ -26,13 +26,13 @@
 #include "nv04.h"
 
 void
-nv40_fb_tile_comp(struct nvkm_fb *pfb, int i, u32 size, u32 flags,
+nv40_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
 		  struct nvkm_fb_tile *tile)
 {
 	u32 tiles = DIV_ROUND_UP(size, 0x80);
-	u32 tags  = round_up(tiles / pfb->ram->parts, 0x100);
+	u32 tags  = round_up(tiles / fb->ram->parts, 0x100);
 	if ( (flags & 2) &&
-	    !nvkm_mm_head(&pfb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
+	    !nvkm_mm_head(&fb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
 		tile->zcomp  = 0x28000000; /* Z24S8_SPLIT_GRAD */
 		tile->zcomp |= ((tile->tag->offset           ) >> 8);
 		tile->zcomp |= ((tile->tag->offset + tags - 1) >> 8) << 13;
@@ -45,14 +45,14 @@ nv40_fb_tile_comp(struct nvkm_fb *pfb, int i, u32 size, u32 flags,
 static int
 nv40_fb_init(struct nvkm_object *object)
 {
-	struct nv04_fb_priv *priv = (void *)object;
+	struct nvkm_fb *fb = (void *)object;
 	int ret;
 
-	ret = nvkm_fb_init(&priv->base);
+	ret = nvkm_fb_init(fb);
 	if (ret)
 		return ret;
 
-	nv_mask(priv, 0x10033c, 0x00008000, 0x00000000);
+	nv_mask(fb, 0x10033c, 0x00008000, 0x00000000);
 	return 0;
 }
 

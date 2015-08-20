@@ -28,9 +28,9 @@ nv49_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nv40_ram *ram;
-	u32 pfb914 = nv_rd32(pfb, 0x100914);
+	u32 fb914 = nv_rd32(fb, 0x100914);
 	int ret;
 
 	ret = nvkm_ram_create(parent, engine, oclass, &ram);
@@ -38,16 +38,16 @@ nv49_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	switch (pfb914 & 0x00000003) {
+	switch (fb914 & 0x00000003) {
 	case 0x00000000: ram->base.type = NV_MEM_TYPE_DDR1; break;
 	case 0x00000001: ram->base.type = NV_MEM_TYPE_DDR2; break;
 	case 0x00000002: ram->base.type = NV_MEM_TYPE_GDDR3; break;
 	case 0x00000003: break;
 	}
 
-	ram->base.size  =  nv_rd32(pfb, 0x10020c) & 0xff000000;
-	ram->base.parts = (nv_rd32(pfb, 0x100200) & 0x00000003) + 1;
-	ram->base.tags  =  nv_rd32(pfb, 0x100320);
+	ram->base.size  =  nv_rd32(fb, 0x10020c) & 0xff000000;
+	ram->base.parts = (nv_rd32(fb, 0x100200) & 0x00000003) + 1;
+	ram->base.tags  =  nv_rd32(fb, 0x100320);
 	ram->base.calc = nv40_ram_calc;
 	ram->base.prog = nv40_ram_prog;
 	ram->base.tidy = nv40_ram_tidy;

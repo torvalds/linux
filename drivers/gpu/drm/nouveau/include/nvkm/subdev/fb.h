@@ -46,7 +46,7 @@ struct nvkm_fb_tile {
 };
 
 struct nvkm_fb {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	bool (*memtype_valid)(struct nvkm_fb *, u32 memtype);
 

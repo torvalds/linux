@@ -260,7 +260,7 @@ nv31_mpeg_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
 	struct nv31_mpeg_priv *priv = (void *)object;
-	struct nvkm_fb *pfb = nvkm_fb(object);
+	struct nvkm_fb *fb = nvkm_fb(object);
 	int ret, i;
 
 	ret = nvkm_mpeg_init(&priv->base);
@@ -271,7 +271,7 @@ nv31_mpeg_init(struct nvkm_object *object)
 	nv_wr32(priv, 0x00b0e0, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
 	nv_wr32(priv, 0x00b0e8, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
 
-	for (i = 0; i < pfb->tile.regions; i++)
+	for (i = 0; i < fb->tile.regions; i++)
 		engine->tile_prog(engine, i);
 
 	/* PMPEG init */

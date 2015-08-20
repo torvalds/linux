@@ -153,7 +153,7 @@ nv30_gr_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
 	struct nv20_gr_priv *priv = (void *)engine;
-	struct nvkm_fb *pfb = nvkm_fb(object);
+	struct nvkm_fb *fb = nvkm_fb(object);
 	int ret, i;
 
 	ret = nvkm_gr_init(&priv->base);
@@ -198,7 +198,7 @@ nv30_gr_init(struct nvkm_object *object)
 	nv_wr32(priv, 0x4000c0, 0x00000016);
 
 	/* Turn all the tiling regions off. */
-	for (i = 0; i < pfb->tile.regions; i++)
+	for (i = 0; i < fb->tile.regions; i++)
 		engine->tile_prog(engine, i);
 
 	nv_wr32(priv, NV10_PGRAPH_CTX_CONTROL, 0x10000100);

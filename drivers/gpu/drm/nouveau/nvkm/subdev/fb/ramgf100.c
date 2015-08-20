@@ -107,9 +107,9 @@ static void
 gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 {
 	struct gf100_ram *ram = container_of(fuc, typeof(*ram), fuc);
-	struct nvkm_fb *pfb = nvkm_fb(ram);
-	u32 part = nv_rd32(pfb, 0x022438), i;
-	u32 mask = nv_rd32(pfb, 0x022554);
+	struct nvkm_fb *fb = nvkm_fb(ram);
+	u32 part = nv_rd32(fb, 0x022438), i;
+	u32 mask = nv_rd32(fb, 0x022554);
 	u32 addr = 0x110974;
 
 	ram_wr32(fuc, 0x10f910, magic);
@@ -123,11 +123,11 @@ gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 }
 
 static int
-gf100_ram_calc(struct nvkm_fb *pfb, u32 freq)
+gf100_ram_calc(struct nvkm_fb *fb, u32 freq)
 {
-	struct nvkm_clk *clk = nvkm_clk(pfb);
-	struct nvkm_bios *bios = nvkm_bios(pfb);
-	struct gf100_ram *ram = (void *)pfb->ram;
+	struct nvkm_clk *clk = nvkm_clk(fb);
+	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct gf100_ram *ram = (void *)fb->ram;
 	struct gf100_ramfuc *fuc = &ram->fuc;
 	struct nvbios_ramcfg cfg;
 	u8  ver, cnt, len, strap;
@@ -144,20 +144,20 @@ gf100_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
 				      &cnt, &ramcfg.size, &cfg);
 	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
-		nv_error(pfb, "invalid/missing rammap entry\n");
+		nv_error(fb, "invalid/missing rammap entry\n");
 		return -EINVAL;
 	}
 
 	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(nv_subdev(pfb));
+	strap = nvbios_ramcfg_index(nv_subdev(fb));
 	if (strap >= cnt) {
-		nv_error(pfb, "invalid ramcfg strap\n");
+		nv_error(fb, "invalid ramcfg strap\n");
 		return -EINVAL;
 	}
 
 	ramcfg.data = rammap.data + rammap.size + (strap * ramcfg.size);
 	if (!ramcfg.data || ver != 0x10 || ramcfg.size < 0x0e) {
-		nv_error(pfb, "invalid/missing ramcfg entry\n");
+		nv_error(fb, "invalid/missing ramcfg entry\n");
 		return -EINVAL;
 	}
 
@@ -167,14 +167,14 @@ gf100_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
 					      &cnt, &len);
 		if (!timing.data || ver != 0x10 || timing.size < 0x19) {
-			nv_error(pfb, "invalid/missing timing entry\n");
+			nv_error(fb, "invalid/missing timing entry\n");
 			return -EINVAL;
 		}
 	} else {
 		timing.data = 0;
 	}
 
-	ret = ram_init(fuc, pfb);
+	ret = ram_init(fuc, fb);
 	if (ret)
 		return ret;
 
@@ -209,10 +209,10 @@ gf100_ram_calc(struct nvkm_fb *pfb, u32 freq)
 
 	if (mode == 1 && from == 0) {
 		/* calculate refpll */
-		ret = gt215_pll_calc(nv_subdev(pfb), &ram->refpll,
+		ret = gt215_pll_calc(nv_subdev(fb), &ram->refpll,
 				     ram->mempll.refclk, &N1, NULL, &M1, &P);
 		if (ret <= 0) {
-			nv_error(pfb, "unable to calc refpll\n");
+			nv_error(fb, "unable to calc refpll\n");
 			return ret ? ret : -ERANGE;
 		}
 
@@ -224,10 +224,10 @@ gf100_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		ram_wait(fuc, 0x137390, 0x00020000, 0x00020000, 64000);
 
 		/* calculate mempll */
-		ret = gt215_pll_calc(nv_subdev(pfb), &ram->mempll, freq,
+		ret = gt215_pll_calc(nv_subdev(fb), &ram->mempll, freq,
 				     &N1, NULL, &M1, &P);
 		if (ret <= 0) {
-			nv_error(pfb, "unable to calc refpll\n");
+			nv_error(fb, "unable to calc refpll\n");
 			return ret ? ret : -ERANGE;
 		}
 
@@ -401,19 +401,19 @@ gf100_ram_calc(struct nvkm_fb *pfb, u32 freq)
 }
 
 static int
-gf100_ram_prog(struct nvkm_fb *pfb)
+gf100_ram_prog(struct nvkm_fb *fb)
 {
-	struct nvkm_device *device = nv_device(pfb);
-	struct gf100_ram *ram = (void *)pfb->ram;
+	struct nvkm_device *device = nv_device(fb);
+	struct gf100_ram *ram = (void *)fb->ram;
 	struct gf100_ramfuc *fuc = &ram->fuc;
 	ram_exec(fuc, nvkm_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 
 static void
-gf100_ram_tidy(struct nvkm_fb *pfb)
+gf100_ram_tidy(struct nvkm_fb *fb)
 {
-	struct gf100_ram *ram = (void *)pfb->ram;
+	struct gf100_ram *ram = (void *)fb->ram;
 	struct gf100_ramfuc *fuc = &ram->fuc;
 	ram_exec(fuc, false);
 }
@@ -421,29 +421,29 @@ gf100_ram_tidy(struct nvkm_fb *pfb)
 extern const u8 gf100_pte_storage_type_map[256];
 
 void
-gf100_ram_put(struct nvkm_fb *pfb, struct nvkm_mem **pmem)
+gf100_ram_put(struct nvkm_fb *fb, struct nvkm_mem **pmem)
 {
-	struct nvkm_ltc *ltc = nvkm_ltc(pfb);
+	struct nvkm_ltc *ltc = nvkm_ltc(fb);
 	struct nvkm_mem *mem = *pmem;
 
 	*pmem = NULL;
 	if (unlikely(mem == NULL))
 		return;
 
-	mutex_lock(&pfb->base.mutex);
+	mutex_lock(&fb->subdev.mutex);
 	if (mem->tag)
 		ltc->tags_free(ltc, &mem->tag);
-	__nv50_ram_put(pfb, mem);
-	mutex_unlock(&pfb->base.mutex);
+	__nv50_ram_put(fb, mem);
+	mutex_unlock(&fb->subdev.mutex);
 
 	kfree(mem);
 }
 
 int
-gf100_ram_get(struct nvkm_fb *pfb, u64 size, u32 align, u32 ncmin,
+gf100_ram_get(struct nvkm_fb *fb, u64 size, u32 align, u32 ncmin,
 	      u32 memtype, struct nvkm_mem **pmem)
 {
-	struct nvkm_mm *mm = &pfb->vram;
+	struct nvkm_mm *mm = &fb->vram;
 	struct nvkm_mm_node *r;
 	struct nvkm_mem *mem;
 	int type = (memtype & 0x0ff);
@@ -464,9 +464,9 @@ gf100_ram_get(struct nvkm_fb *pfb, u64 size, u32 align, u32 ncmin,
 	INIT_LIST_HEAD(&mem->regions);
 	mem->size = size;
 
-	mutex_lock(&pfb->base.mutex);
+	mutex_lock(&fb->subdev.mutex);
 	if (comp) {
-		struct nvkm_ltc *ltc = nvkm_ltc(pfb);
+		struct nvkm_ltc *ltc = nvkm_ltc(fb);
 
 		/* compression only works with lpages */
 		if (align == (1 << (17 - 12))) {
@@ -485,15 +485,15 @@ gf100_ram_get(struct nvkm_fb *pfb, u64 size, u32 align, u32 ncmin,
 		else
 			ret = nvkm_mm_head(mm, 0, 1, size, ncmin, align, &r);
 		if (ret) {
-			mutex_unlock(&pfb->base.mutex);
-			pfb->ram->put(pfb, &mem);
+			mutex_unlock(&fb->subdev.mutex);
+			fb->ram->put(fb, &mem);
 			return ret;
 		}
 
 		list_add_tail(&r->rl_entry, &mem->regions);
 		size -= r->length;
 	} while (size);
-	mutex_unlock(&pfb->base.mutex);
+	mutex_unlock(&fb->subdev.mutex);
 
 	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
 	mem->offset = (u64)r->offset << 12;
@@ -506,14 +506,14 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, u32 maskaddr, int size,
 		  void **pobject)
 {
-	struct nvkm_fb *pfb = nvkm_fb(parent);
-	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct nvkm_fb *fb = nvkm_fb(parent);
+	struct nvkm_bios *bios = nvkm_bios(fb);
 	struct nvkm_ram *ram;
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
-	u32 parts = nv_rd32(pfb, 0x022438);
-	u32 pmask = nv_rd32(pfb, maskaddr);
-	u32 bsize = nv_rd32(pfb, 0x10f20c);
+	u32 parts = nv_rd32(fb, 0x022438);
+	u32 pmask = nv_rd32(fb, maskaddr);
+	u32 bsize = nv_rd32(fb, 0x10f20c);
 	u32 offset, length;
 	bool uniform = true;
 	int ret, part;
@@ -523,23 +523,23 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_debug(pfb, "0x100800: 0x%08x\n", nv_rd32(pfb, 0x100800));
-	nv_debug(pfb, "parts 0x%08x mask 0x%08x\n", parts, pmask);
+	nv_debug(fb, "0x100800: 0x%08x\n", nv_rd32(fb, 0x100800));
+	nv_debug(fb, "parts 0x%08x mask 0x%08x\n", parts, pmask);
 
 	ram->type = nvkm_fb_bios_memtype(bios);
-	ram->ranks = (nv_rd32(pfb, 0x10f200) & 0x00000004) ? 2 : 1;
+	ram->ranks = (nv_rd32(fb, 0x10f200) & 0x00000004) ? 2 : 1;
 
 	/* read amount of vram attached to each memory controller */
 	for (part = 0; part < parts; part++) {
 		if (!(pmask & (1 << part))) {
-			u32 psize = nv_rd32(pfb, 0x11020c + (part * 0x1000));
+			u32 psize = nv_rd32(fb, 0x11020c + (part * 0x1000));
 			if (psize != bsize) {
 				if (psize < bsize)
 					bsize = psize;
 				uniform = false;
 			}
 
-			nv_debug(pfb, "%d: mem_amount 0x%08x\n", part, psize);
+			nv_debug(fb, "%d: mem_amount 0x%08x\n", part, psize);
 			ram->size += (u64)psize << 20;
 		}
 	}
@@ -548,10 +548,10 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (uniform) {
 		offset = rsvd_head;
 		length = (ram->size >> 12) - rsvd_head - rsvd_tail;
-		ret = nvkm_mm_init(&pfb->vram, offset, length, 1);
+		ret = nvkm_mm_init(&fb->vram, offset, length, 1);
 	} else {
 		/* otherwise, address lowest common amount from 0GiB */
-		ret = nvkm_mm_init(&pfb->vram, rsvd_head,
+		ret = nvkm_mm_init(&fb->vram, rsvd_head,
 				   (bsize << 8) * parts - rsvd_head, 1);
 		if (ret)
 			return ret;
@@ -560,9 +560,9 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
 		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
-		ret = nvkm_mm_init(&pfb->vram, offset, length, 1);
+		ret = nvkm_mm_init(&fb->vram, offset, length, 1);
 		if (ret)
-			nvkm_mm_fini(&pfb->vram);
+			nvkm_mm_fini(&fb->vram);
 	}
 
 	if (ret)
@@ -576,7 +576,7 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 static int
 gf100_ram_init(struct nvkm_object *object)
 {
-	struct nvkm_fb *pfb = (void *)object->parent;
+	struct nvkm_fb *fb = (void *)object->parent;
 	struct gf100_ram *ram = (void *)object;
 	int ret, i;
 
@@ -601,16 +601,16 @@ gf100_ram_init(struct nvkm_object *object)
 		};
 
 		for (i = 0; i < 0x30; i++) {
-			nv_wr32(pfb, 0x10f968, 0x00000000 | (i << 8));
-			nv_wr32(pfb, 0x10f96c, 0x00000000 | (i << 8));
-			nv_wr32(pfb, 0x10f920, 0x00000100 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f924, 0x00000100 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f918,              train1[i % 12]);
-			nv_wr32(pfb, 0x10f91c,              train1[i % 12]);
-			nv_wr32(pfb, 0x10f920, 0x00000000 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f924, 0x00000000 | train0[i % 12]);
-			nv_wr32(pfb, 0x10f918,              train1[i % 12]);
-			nv_wr32(pfb, 0x10f91c,              train1[i % 12]);
+			nv_wr32(fb, 0x10f968, 0x00000000 | (i << 8));
+			nv_wr32(fb, 0x10f96c, 0x00000000 | (i << 8));
+			nv_wr32(fb, 0x10f920, 0x00000100 | train0[i % 12]);
+			nv_wr32(fb, 0x10f924, 0x00000100 | train0[i % 12]);
+			nv_wr32(fb, 0x10f918,              train1[i % 12]);
+			nv_wr32(fb, 0x10f91c,              train1[i % 12]);
+			nv_wr32(fb, 0x10f920, 0x00000000 | train0[i % 12]);
+			nv_wr32(fb, 0x10f924, 0x00000000 | train0[i % 12]);
+			nv_wr32(fb, 0x10f918,              train1[i % 12]);
+			nv_wr32(fb, 0x10f91c,              train1[i % 12]);
 		}
 	}	break;
 	default:

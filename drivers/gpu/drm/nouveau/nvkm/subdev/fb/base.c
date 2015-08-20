@@ -52,36 +52,36 @@ nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 int
 _nvkm_fb_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_fb *pfb = (void *)object;
+	struct nvkm_fb *fb = (void *)object;
 	int ret;
 
-	if (pfb->ram) {
-		ret = nv_ofuncs(pfb->ram)->fini(nv_object(pfb->ram), suspend);
+	if (fb->ram) {
+		ret = nv_ofuncs(fb->ram)->fini(nv_object(fb->ram), suspend);
 		if (ret && suspend)
 			return ret;
 	}
 
-	return nvkm_subdev_fini(&pfb->base, suspend);
+	return nvkm_subdev_fini(&fb->subdev, suspend);
 }
 
 int
 _nvkm_fb_init(struct nvkm_object *object)
 {
-	struct nvkm_fb *pfb = (void *)object;
+	struct nvkm_fb *fb = (void *)object;
 	int ret, i;
 
-	ret = nvkm_subdev_init(&pfb->base);
+	ret = nvkm_subdev_init(&fb->subdev);
 	if (ret)
 		return ret;
 
-	if (pfb->ram) {
-		ret = nv_ofuncs(pfb->ram)->init(nv_object(pfb->ram));
+	if (fb->ram) {
+		ret = nv_ofuncs(fb->ram)->init(nv_object(fb->ram));
 		if (ret)
 			return ret;
 	}
 
-	for (i = 0; i < pfb->tile.regions; i++)
-		pfb->tile.prog(pfb, i, &pfb->tile.region[i]);
+	for (i = 0; i < fb->tile.regions; i++)
+		fb->tile.prog(fb, i, &fb->tile.region[i]);
 
 	return 0;
 }
@@ -89,19 +89,19 @@ _nvkm_fb_init(struct nvkm_object *object)
 void
 _nvkm_fb_dtor(struct nvkm_object *object)
 {
-	struct nvkm_fb *pfb = (void *)object;
+	struct nvkm_fb *fb = (void *)object;
 	int i;
 
-	for (i = 0; i < pfb->tile.regions; i++)
-		pfb->tile.fini(pfb, i, &pfb->tile.region[i]);
-	nvkm_mm_fini(&pfb->tags);
+	for (i = 0; i < fb->tile.regions; i++)
+		fb->tile.fini(fb, i, &fb->tile.region[i]);
+	nvkm_mm_fini(&fb->tags);
 
-	if (pfb->ram) {
-		nvkm_mm_fini(&pfb->vram);
-		nvkm_object_ref(NULL, (struct nvkm_object **)&pfb->ram);
+	if (fb->ram) {
+		nvkm_mm_fini(&fb->vram);
+		nvkm_object_ref(NULL, (struct nvkm_object **)&fb->ram);
 	}
 
-	nvkm_subdev_destroy(&pfb->base);
+	nvkm_subdev_destroy(&fb->subdev);
 }
 
 int
@@ -123,43 +123,43 @@ nvkm_fb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		[NV_MEM_TYPE_GDDR5  ] = "GDDR5",
 	};
 	struct nvkm_object *ram;
-	struct nvkm_fb *pfb;
+	struct nvkm_fb *fb;
 	int ret;
 
 	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PFB", "fb",
 				  length, pobject);
-	pfb = *pobject;
+	fb = *pobject;
 	if (ret)
 		return ret;
 
-	pfb->memtype_valid = impl->memtype;
+	fb->memtype_valid = impl->memtype;
 
 	if (!impl->ram)
 		return 0;
 
-	ret = nvkm_object_ctor(nv_object(pfb), NULL, impl->ram, NULL, 0, &ram);
+	ret = nvkm_object_ctor(nv_object(fb), NULL, impl->ram, NULL, 0, &ram);
 	if (ret) {
-		nv_fatal(pfb, "error detecting memory configuration!!\n");
+		nv_fatal(fb, "error detecting memory configuration!!\n");
 		return ret;
 	}
 
-	pfb->ram = (void *)ram;
+	fb->ram = (void *)ram;
 
-	if (!nvkm_mm_initialised(&pfb->vram)) {
-		ret = nvkm_mm_init(&pfb->vram, 0, pfb->ram->size >> 12, 1);
+	if (!nvkm_mm_initialised(&fb->vram)) {
+		ret = nvkm_mm_init(&fb->vram, 0, fb->ram->size >> 12, 1);
 		if (ret)
 			return ret;
 	}
 
-	if (!nvkm_mm_initialised(&pfb->tags)) {
-		ret = nvkm_mm_init(&pfb->tags, 0, pfb->ram->tags ?
-				   ++pfb->ram->tags : 0, 1);
+	if (!nvkm_mm_initialised(&fb->tags)) {
+		ret = nvkm_mm_init(&fb->tags, 0, fb->ram->tags ?
+				   ++fb->ram->tags : 0, 1);
 		if (ret)
 			return ret;
 	}
 
-	nv_info(pfb, "RAM type: %s\n", name[pfb->ram->type]);
-	nv_info(pfb, "RAM size: %d MiB\n", (int)(pfb->ram->size >> 20));
-	nv_info(pfb, "   ZCOMP: %d tags\n", pfb->ram->tags);
+	nv_info(fb, "RAM type: %s\n", name[fb->ram->type]);
+	nv_info(fb, "RAM size: %d MiB\n", (int)(fb->ram->size >> 20));
+	nv_info(fb, "   ZCOMP: %d tags\n", fb->ram->tags);
 	return 0;
 }

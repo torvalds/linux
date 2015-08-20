@@ -64,7 +64,7 @@ nvkm_dmaobj_create_(struct nvkm_object *parent,
 	struct nvkm_instmem *instmem = nvkm_instmem(parent);
 	struct nvkm_client *client = nvkm_client(parent);
 	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_fb *fb = nvkm_fb(parent);
 	struct nvkm_dmaobj *dmaobj;
 	void *data = *pdata;
 	u32 size = *psize;
@@ -100,7 +100,7 @@ nvkm_dmaobj_create_(struct nvkm_object *parent,
 		break;
 	case NV_DMA_V0_TARGET_VRAM:
 		if (!client->super) {
-			if (dmaobj->limit >= pfb->ram->size - instmem->reserved)
+			if (dmaobj->limit >= fb->ram->size - instmem->reserved)
 				return -EACCES;
 			if (device->card_type >= NV_50)
 				return -EACCES;

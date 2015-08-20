@@ -21,21 +21,17 @@
  */
 #include "gf100.h"
 
-struct gk20a_fb_priv {
-	struct nvkm_fb base;
-};
-
 static int
 gk20a_fb_init(struct nvkm_object *object)
 {
-	struct gk20a_fb_priv *priv = (void *)object;
+	struct nvkm_fb *fb = (void *)object;
 	int ret;
 
-	ret = nvkm_fb_init(&priv->base);
+	ret = nvkm_fb_init(fb);
 	if (ret)
 		return ret;
 
-	nv_mask(priv, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
+	nv_mask(fb, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 	return 0;
 }
 
@@ -44,11 +40,11 @@ gk20a_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct gk20a_fb_priv *priv;
+	struct nvkm_fb *fb;
 	int ret;
 
-	ret = nvkm_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fb_create(parent, engine, oclass, &fb);
+	*pobject = nv_object(fb);
 	if (ret)
 		return ret;
 

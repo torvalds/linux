@@ -4,7 +4,7 @@
 
 struct ramfuc {
 	struct nvkm_memx *memx;
-	struct nvkm_fb *pfb;
+	struct nvkm_fb *fb;
 	int sequence;
 };
 
@@ -54,9 +54,9 @@ ramfuc_reg(u32 addr)
 }
 
 static inline int
-ramfuc_init(struct ramfuc *ram, struct nvkm_fb *pfb)
+ramfuc_init(struct ramfuc *ram, struct nvkm_fb *fb)
 {
-	struct nvkm_pmu *pmu = nvkm_pmu(pfb);
+	struct nvkm_pmu *pmu = nvkm_pmu(fb);
 	int ret;
 
 	ret = nvkm_memx_init(pmu, &ram->memx);
@@ -64,7 +64,7 @@ ramfuc_init(struct ramfuc *ram, struct nvkm_fb *pfb)
 		return ret;
 
 	ram->sequence++;
-	ram->pfb = pfb;
+	ram->fb = fb;
 	return 0;
 }
 
@@ -72,9 +72,9 @@ static inline int
 ramfuc_exec(struct ramfuc *ram, bool exec)
 {
 	int ret = 0;
-	if (ram->pfb) {
+	if (ram->fb) {
 		ret = nvkm_memx_fini(&ram->memx, exec);
-		ram->pfb = NULL;
+		ram->fb = NULL;
 	}
 	return ret;
 }
@@ -83,7 +83,7 @@ static inline u32
 ramfuc_rd32(struct ramfuc *ram, struct ramfuc_reg *reg)
 {
 	if (reg->sequence != ram->sequence)
-		reg->data = nv_rd32(ram->pfb, reg->addr);
+		reg->data = nv_rd32(ram->fb, reg->addr);
 	return reg->data;
 }
 
@@ -144,9 +144,9 @@ ramfuc_train(struct ramfuc *ram)
 }
 
 static inline int
-ramfuc_train_result(struct nvkm_fb *pfb, u32 *result, u32 rsize)
+ramfuc_train_result(struct nvkm_fb *fb, u32 *result, u32 rsize)
 {
-	struct nvkm_pmu *pmu = nvkm_pmu(pfb);
+	struct nvkm_pmu *pmu = nvkm_pmu(fb);
 
 	return nvkm_memx_train_result(pmu, result, rsize);
 }
