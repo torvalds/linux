@@ -5,7 +5,7 @@
 struct nvkm_client {
 	struct nvkm_namedb namedb;
 	struct nvkm_handle *root;
-	struct nvkm_device *device;
+	u64 device;
 	char name[32];
 	u32 debug;
 	struct nvkm_vm *vm;

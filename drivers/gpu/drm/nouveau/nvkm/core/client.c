@@ -219,7 +219,6 @@ nvkm_client_del(struct nvkm_client **pclient)
 		nvkm_client_fini(client, false);
 		for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 			nvkm_client_notify_del(client, i);
-		nvkm_object_ref(NULL, (struct nvkm_object **)&client->device);
 		nvkm_handle_destroy(client->root);
 		nvkm_namedb_destroy(&client->namedb);
 		*pclient = NULL;
@@ -233,16 +232,11 @@ nvkm_client_sclass[] = {
 };
 
 int
-nvkm_client_new(const char *name, u64 devname, const char *cfg,
+nvkm_client_new(const char *name, u64 device, const char *cfg,
 		const char *dbg, struct nvkm_client **pclient)
 {
-	struct nvkm_device *device;
 	struct nvkm_client *client;
 	int ret;
-
-	device = nvkm_device_find(devname);
-	if (!device)
-		return -ENODEV;
 
 	ret = nvkm_namedb_create(NULL, NULL, &nvkm_client_oclass,
 				 NV_CLIENT_CLASS, nvkm_client_sclass,
@@ -259,8 +253,7 @@ nvkm_client_new(const char *name, u64 devname, const char *cfg,
 	/* prevent init/fini being called, os in in charge of this */
 	atomic_set(&nv_object(client)->usecount, 2);
 
-	nvkm_object_ref(&device->engine.subdev.object,
-			(struct nvkm_object **)&client->device);
+	client->device = device;
 	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
 	return 0;

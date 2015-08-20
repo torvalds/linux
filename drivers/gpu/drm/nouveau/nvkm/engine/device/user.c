@@ -258,12 +258,12 @@ nvkm_udevice_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		oclass = &nvkm_udevice_oclass_super;
 
 	/* find the device subdev that matches what the client requested */
-	device = client->device;
-	if (args->v0.device != ~0) {
+	if (args->v0.device != ~0)
 		device = nvkm_device_find(args->v0.device);
-		if (!device)
-			return -ENODEV;
-	}
+	else
+		device = nvkm_device_find(client->device);
+	if (!device)
+		return -ENODEV;
 
 	ret = nvkm_parent_create(parent, NULL, oclass, 0, nvkm_control_oclass,
 				 (1ULL << NVDEV_ENGINE_DMAOBJ) |

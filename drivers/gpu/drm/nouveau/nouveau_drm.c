@@ -507,7 +507,7 @@ nouveau_drm_device_remove(struct drm_device *dev)
 
 	dev->irq_enabled = false;
 	client = nvxx_client(&drm->client.base);
-	device = client->device;
+	device = nvkm_device_find(client->device);
 	drm_put_dev(dev);
 
 	nvkm_device_del(&device);
