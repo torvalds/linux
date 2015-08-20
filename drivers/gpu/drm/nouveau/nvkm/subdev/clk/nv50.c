@@ -51,7 +51,8 @@ read_div(struct nv50_clk *clk)
 static u32
 read_pll_src(struct nv50_clk *clk, u32 base)
 {
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 coef, ref = clk->base.read(&clk->base, nv_clk_src_crystal);
 	u32 rsel = nvkm_rd32(device, 0x00e18c);
 	int P, N, M, id;
@@ -65,7 +66,7 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 		case 0x4008: id = !!(rsel & 0x00000008); break;
 		case 0x4030: id = 0; break;
 		default:
-			nv_error(clk, "ref: bad pll 0x%06x\n", base);
+			nvkm_error(subdev, "ref: bad pll %06x\n", base);
 			return 0;
 		}
 
@@ -93,7 +94,7 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 		case 0x4028: rsel = (rsel & 0x00001800) >> 11; break;
 		case 0x4030: rsel = 3; break;
 		default:
-			nv_error(clk, "ref: bad pll 0x%06x\n", base);
+			nvkm_error(subdev, "ref: bad pll %06x\n", base);
 			return 0;
 		}
 
@@ -123,7 +124,8 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 static u32
 read_pll_ref(struct nv50_clk *clk, u32 base)
 {
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 src, mast = nvkm_rd32(device, 0x00c040);
 
 	switch (base) {
@@ -142,7 +144,7 @@ read_pll_ref(struct nv50_clk *clk, u32 base)
 	case 0x00e810:
 		return clk->base.read(&clk->base, nv_clk_src_crystal);
 	default:
-		nv_error(clk, "bad pll 0x%06x\n", base);
+		nvkm_error(subdev, "bad pll %06x\n", base);
 		return 0;
 	}
 
@@ -190,7 +192,8 @@ static int
 nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct nv50_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 mast = nvkm_rd32(device, 0x00c040);
 	u32 P = 0;
 
@@ -314,7 +317,7 @@ nv50_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		break;
 	}
 
-	nv_debug(clk, "unknown clock source %d 0x%08x\n", src, mast);
+	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
 	return -EINVAL;
 }
 

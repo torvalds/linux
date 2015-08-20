@@ -80,7 +80,8 @@ static int
 mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct mcp77_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 mast = nvkm_rd32(device, 0x00c054);
 	u32 P = 0;
 
@@ -155,7 +156,7 @@ mcp77_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		break;
 	}
 
-	nv_debug(clk, "unknown clock source %d 0x%08x\n", src, mast);
+	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
 	return 0;
 }
 
@@ -204,6 +205,7 @@ mcp77_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 	const int shader = cstate->domain[nv_clk_src_shader];
 	const int core = cstate->domain[nv_clk_src_core];
 	const int vdec = cstate->domain[nv_clk_src_vdec];
+	struct nvkm_subdev *subdev = &clk->base.subdev;
 	u32 out = 0, clock = 0;
 	int N, M, P1, P2 = 0;
 	int divs = 0;
@@ -267,27 +269,27 @@ mcp77_clk_calc(struct nvkm_clk *obj, struct nvkm_cstate *cstate)
 	}
 
 	/* Print strategy! */
-	nv_debug(clk, "nvpll: %08x %08x %08x\n",
-			clk->ccoef, clk->cpost, clk->cctrl);
-	nv_debug(clk, " spll: %08x %08x %08x\n",
-			clk->scoef, clk->spost, clk->sctrl);
-	nv_debug(clk, " vdiv: %08x\n", clk->vdiv);
+	nvkm_debug(subdev, "nvpll: %08x %08x %08x\n",
+		   clk->ccoef, clk->cpost, clk->cctrl);
+	nvkm_debug(subdev, " spll: %08x %08x %08x\n",
+		   clk->scoef, clk->spost, clk->sctrl);
+	nvkm_debug(subdev, " vdiv: %08x\n", clk->vdiv);
 	if (clk->csrc == nv_clk_src_hclkm4)
-		nv_debug(clk, "core: hrefm4\n");
+		nvkm_debug(subdev, "core: hrefm4\n");
 	else
-		nv_debug(clk, "core: nvpll\n");
+		nvkm_debug(subdev, "core: nvpll\n");
 
 	if (clk->ssrc == nv_clk_src_hclkm4)
-		nv_debug(clk, "shader: hrefm4\n");
+		nvkm_debug(subdev, "shader: hrefm4\n");
 	else if (clk->ssrc == nv_clk_src_core)
-		nv_debug(clk, "shader: nvpll\n");
+		nvkm_debug(subdev, "shader: nvpll\n");
 	else
-		nv_debug(clk, "shader: spll\n");
+		nvkm_debug(subdev, "shader: spll\n");
 
 	if (clk->vsrc == nv_clk_src_hclkm4)
-		nv_debug(clk, "vdec: 500MHz\n");
+		nvkm_debug(subdev, "vdec: 500MHz\n");
 	else
-		nv_debug(clk, "vdec: core\n");
+		nvkm_debug(subdev, "vdec: core\n");
 
 	return 0;
 }
@@ -296,7 +298,8 @@ static int
 mcp77_clk_prog(struct nvkm_clk *obj)
 {
 	struct mcp77_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 pllmask = 0, mast;
 	unsigned long flags;
 	unsigned long *f = &flags;
@@ -324,7 +327,7 @@ mcp77_clk_prog(struct nvkm_clk *obj)
 		mast |= 0x00000003;
 		break;
 	default:
-		nv_warn(clk,"Reclocking failed: unknown core clock\n");
+		nvkm_warn(subdev, "Reclocking failed: unknown core clock\n");
 		goto resume;
 	}
 
@@ -345,7 +348,7 @@ mcp77_clk_prog(struct nvkm_clk *obj)
 		mast |= 0x00000030;
 		break;
 	default:
-		nv_warn(clk,"Reclocking failed: unknown sclk clock\n");
+		nvkm_warn(subdev, "Reclocking failed: unknown sclk clock\n");
 		goto resume;
 	}
 

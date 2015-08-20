@@ -149,7 +149,8 @@ static int
 gf100_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct gf100_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 
 	switch (src) {
 	case nv_clk_src_crystal:
@@ -191,7 +192,7 @@ gf100_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 	case nv_clk_src_vdec:
 		return read_clk(clk, 0x0e);
 	default:
-		nv_error(clk, "invalid clock source %d\n", src);
+		nvkm_error(subdev, "invalid clock source %d\n", src);
 		return -EINVAL;
 	}
 }

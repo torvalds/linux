@@ -139,7 +139,8 @@ static int
 gt215_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct gt215_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 hsrc;
 
 	switch (src) {
@@ -167,11 +168,11 @@ gt215_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		case 3:
 			return 277000;
 		default:
-			nv_error(clk, "unknown HOST clock source %d\n", hsrc);
+			nvkm_error(subdev, "unknown HOST clock source %d\n", hsrc);
 			return -EINVAL;
 		}
 	default:
-		nv_error(clk, "invalid clock source %d\n", src);
+		nvkm_error(subdev, "invalid clock source %d\n", src);
 		return -EINVAL;
 	}
 

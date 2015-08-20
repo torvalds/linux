@@ -76,8 +76,10 @@ nvkm_clk_adjust(struct nvkm_clk *clk, bool adjust,
 static int
 nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 {
-	struct nvkm_therm *therm = nvkm_therm(clk);
-	struct nvkm_volt *volt = nvkm_volt(clk);
+	struct nvkm_subdev *subdev = &clk->subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_therm *therm = device->therm;
+	struct nvkm_volt *volt = device->volt;
 	struct nvkm_cstate *cstate;
 	int ret;
 
@@ -90,7 +92,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	if (therm) {
 		ret = nvkm_therm_cstate(therm, pstate->fanspeed, +1);
 		if (ret && ret != -ENODEV) {
-			nv_error(clk, "failed to raise fan speed: %d\n", ret);
+			nvkm_error(subdev, "failed to raise fan speed: %d\n", ret);
 			return ret;
 		}
 	}
@@ -98,7 +100,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	if (volt) {
 		ret = volt->set_id(volt, cstate->voltage, +1);
 		if (ret && ret != -ENODEV) {
-			nv_error(clk, "failed to raise voltage: %d\n", ret);
+			nvkm_error(subdev, "failed to raise voltage: %d\n", ret);
 			return ret;
 		}
 	}
@@ -112,13 +114,13 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	if (volt) {
 		ret = volt->set_id(volt, cstate->voltage, -1);
 		if (ret && ret != -ENODEV)
-			nv_error(clk, "failed to lower voltage: %d\n", ret);
+			nvkm_error(subdev, "failed to lower voltage: %d\n", ret);
 	}
 
 	if (therm) {
 		ret = nvkm_therm_cstate(therm, pstate->fanspeed, -1);
 		if (ret && ret != -ENODEV)
-			nv_error(clk, "failed to lower fan speed: %d\n", ret);
+			nvkm_error(subdev, "failed to lower fan speed: %d\n", ret);
 	}
 
 	return ret;
@@ -171,7 +173,8 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 static int
 nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 {
-	struct nvkm_fb *fb = nvkm_fb(clk);
+	struct nvkm_subdev *subdev = &clk->subdev;
+	struct nvkm_fb *fb = subdev->device->fb;
 	struct nvkm_pstate *pstate;
 	int ret, idx = 0;
 
@@ -180,7 +183,7 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 			break;
 	}
 
-	nv_debug(clk, "setting performance state %d\n", pstatei);
+	nvkm_debug(subdev, "setting performance state %d\n", pstatei);
 	clk->pstate = pstatei;
 
 	if (fb->ram && fb->ram->calc) {
@@ -200,15 +203,16 @@ static void
 nvkm_pstate_work(struct work_struct *work)
 {
 	struct nvkm_clk *clk = container_of(work, typeof(*clk), work);
+	struct nvkm_subdev *subdev = &clk->subdev;
 	int pstate;
 
 	if (!atomic_xchg(&clk->waiting, 0))
 		return;
 	clk->pwrsrc = power_supply_is_system_supplied();
 
-	nv_trace(clk, "P %d PWR %d U(AC) %d U(DC) %d A %d T %d D %d\n",
-		 clk->pstate, clk->pwrsrc, clk->ustate_ac, clk->ustate_dc,
-		 clk->astate, clk->tstate, clk->dstate);
+	nvkm_trace(subdev, "P %d PWR %d U(AC) %d U(DC) %d A %d T %d D %d\n",
+		   clk->pstate, clk->pwrsrc, clk->ustate_ac, clk->ustate_dc,
+		   clk->astate, clk->tstate, clk->dstate);
 
 	pstate = clk->pwrsrc ? clk->ustate_ac : clk->ustate_dc;
 	if (clk->state_nr && pstate != -1) {
@@ -219,12 +223,12 @@ nvkm_pstate_work(struct work_struct *work)
 		pstate = clk->pstate = -1;
 	}
 
-	nv_trace(clk, "-> %d\n", pstate);
+	nvkm_trace(subdev, "-> %d\n", pstate);
 	if (pstate != clk->pstate) {
 		int ret = nvkm_pstate_prog(clk, pstate);
 		if (ret) {
-			nv_error(clk, "error setting pstate %d: %d\n",
-				 pstate, ret);
+			nvkm_error(subdev, "error setting pstate %d: %d\n",
+				   pstate, ret);
 		}
 	}
 
@@ -247,6 +251,7 @@ nvkm_pstate_info(struct nvkm_clk *clk, struct nvkm_pstate *pstate)
 {
 	struct nvkm_domain *clock = clk->domains - 1;
 	struct nvkm_cstate *cstate;
+	struct nvkm_subdev *subdev = &clk->subdev;
 	char info[3][32] = { "", "", "" };
 	char name[4] = "--";
 	int i = -1;
@@ -260,12 +265,12 @@ nvkm_pstate_info(struct nvkm_clk *clk, struct nvkm_pstate *pstate)
 		if (hi == 0)
 			continue;
 
-		nv_debug(clk, "%02x: %10d KHz\n", clock->name, lo);
+		nvkm_debug(subdev, "%02x: %10d KHz\n", clock->name, lo);
 		list_for_each_entry(cstate, &pstate->list, head) {
 			u32 freq = cstate->domain[clock->name];
 			lo = min(lo, freq);
 			hi = max(hi, freq);
-			nv_debug(clk, "%10d KHz\n", freq);
+			nvkm_debug(subdev, "%10d KHz\n", freq);
 		}
 
 		if (clock->mname && ++i < ARRAY_SIZE(info)) {
@@ -281,7 +286,7 @@ nvkm_pstate_info(struct nvkm_clk *clk, struct nvkm_pstate *pstate)
 		}
 	}
 
-	nv_info(clk, "%s: %s %s %s\n", name, info[0], info[1], info[2]);
+	nvkm_debug(subdev, "%s: %s %s %s\n", name, info[0], info[1], info[2]);
 }
 
 static void
@@ -481,6 +486,7 @@ int
 _nvkm_clk_init(struct nvkm_object *object)
 {
 	struct nvkm_clk *clk = (void *)object;
+	struct nvkm_subdev *subdev = &clk->subdev;
 	struct nvkm_domain *clock = clk->domains;
 	int ret;
 
@@ -495,7 +501,7 @@ _nvkm_clk_init(struct nvkm_object *object)
 	while (clock->name != nv_clk_src_max) {
 		ret = clk->read(clk, clock->name);
 		if (ret < 0) {
-			nv_error(clk, "%02x freq unknown\n", clock->name);
+			nvkm_error(subdev, "%02x freq unknown\n", clock->name);
 			return ret;
 		}
 		clk->bstate.base.domain[clock->name] = ret;

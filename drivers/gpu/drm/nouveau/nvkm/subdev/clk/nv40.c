@@ -106,7 +106,8 @@ static int
 nv40_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct nv40_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 mast = nvkm_rd32(device, 0x00c040);
 
 	switch (src) {
@@ -124,7 +125,7 @@ nv40_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		break;
 	}
 
-	nv_debug(clk, "unknown clock source %d 0x%08x\n", src, mast);
+	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
 	return -EINVAL;
 }
 

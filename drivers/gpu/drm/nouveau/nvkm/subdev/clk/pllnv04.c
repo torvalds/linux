@@ -240,6 +240,6 @@ nv04_pll_calc(struct nvkm_subdev *subdev, struct nvbios_pll *info, u32 freq,
 	}
 
 	if (!ret)
-		nv_error(subdev, "unable to compute acceptable pll values\n");
+		nvkm_error(subdev, "unable to compute acceptable pll values\n");
 	return ret;
 }

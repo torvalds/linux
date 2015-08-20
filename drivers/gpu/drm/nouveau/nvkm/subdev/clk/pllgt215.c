@@ -79,7 +79,7 @@ gt215_pll_calc(struct nvkm_subdev *subdev, struct nvbios_pll *info,
 	}
 
 	if (unlikely(best_err == ~0)) {
-		nv_error(subdev, "unable to find matching pll values\n");
+		nvkm_error(subdev, "unable to find matching pll values\n");
 		return -EINVAL;
 	}
 

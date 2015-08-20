@@ -151,6 +151,7 @@ gk20a_pllg_calc_rate(struct gk20a_clk *clk)
 static int
 gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 {
+	struct nvkm_subdev *subdev = &clk->base.subdev;
 	u32 target_clk_f, ref_clk_f, target_freq;
 	u32 min_vco_f, max_vco_f;
 	u32 low_pl, high_pl, best_pl;
@@ -198,8 +199,8 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 		}
 	}
 
-	nv_debug(clk, "low_PL %d(div%d), high_PL %d(div%d)", low_pl,
-		 pl_to_div[low_pl], high_pl, pl_to_div[high_pl]);
+	nvkm_debug(subdev, "low_PL %d(div%d), high_PL %d(div%d)", low_pl,
+		   pl_to_div[low_pl], high_pl, pl_to_div[high_pl]);
 
 	/* Select lowest possible VCO */
 	for (pl = low_pl; pl <= high_pl; pl++) {
@@ -249,8 +250,9 @@ found_match:
 	WARN_ON(best_delta == ~0);
 
 	if (best_delta != 0)
-		nv_debug(clk, "no best match for target @ %dMHz on gpc_pll",
-			 target_clk_f);
+		nvkm_debug(subdev,
+			   "no best match for target @ %dMHz on gpc_pll",
+			   target_clk_f);
 
 	clk->m = best_m;
 	clk->n = best_n;
@@ -258,15 +260,17 @@ found_match:
 
 	target_freq = gk20a_pllg_calc_rate(clk) / MHZ;
 
-	nv_debug(clk, "actual target freq %d MHz, M %d, N %d, PL %d(div%d)\n",
-		 target_freq, clk->m, clk->n, clk->pl, pl_to_div[clk->pl]);
+	nvkm_debug(subdev,
+		   "actual target freq %d MHz, M %d, N %d, PL %d(div%d)\n",
+		   target_freq, clk->m, clk->n, clk->pl, pl_to_div[clk->pl]);
 	return 0;
 }
 
 static int
 gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 {
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 val;
 	int ramp_timeout;
 
@@ -314,7 +318,7 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 	nvkm_rd32(device, GPCPLL_NDIV_SLOWDOWN);
 
 	if (ramp_timeout <= 0) {
-		nv_error(clk, "gpcpll dynamic ramp timeout\n");
+		nvkm_error(subdev, "gpcpll dynamic ramp timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -340,7 +344,8 @@ _gk20a_pllg_disable(struct gk20a_clk *clk)
 static int
 _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 {
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 val, cfg;
 	u32 m_old, pl_old, n_lo;
 
@@ -387,8 +392,8 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 
 	_gk20a_pllg_disable(clk);
 
-	nv_debug(clk, "%s: m=%d n=%d pl=%d\n", __func__, clk->m, clk->n,
-		 clk->pl);
+	nvkm_debug(subdev, "%s: m=%d n=%d pl=%d\n", __func__,
+		   clk->m, clk->n, clk->pl);
 
 	n_lo = DIV_ROUND_UP(clk->m * clk->params->min_vco,
 			    clk->parent_rate / MHZ);
@@ -567,7 +572,8 @@ static int
 gk20a_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 {
 	struct gk20a_clk *clk = container_of(obj, typeof(*clk), base);
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 
 	switch (src) {
 	case nv_clk_src_crystal:
@@ -576,7 +582,7 @@ gk20a_clk_read(struct nvkm_clk *obj, enum nv_clk_src src)
 		gk20a_pllg_read_mnp(clk);
 		return gk20a_pllg_calc_rate(clk) / GK20A_CLK_GPC_MDIV;
 	default:
-		nv_error(clk, "invalid clock source %d\n", src);
+		nvkm_error(subdev, "invalid clock source %d\n", src);
 		return -EINVAL;
 	}
 }
@@ -620,7 +626,8 @@ static int
 gk20a_clk_init(struct nvkm_object *object)
 {
 	struct gk20a_clk *clk = (void *)object;
-	struct nvkm_device *device = clk->base.subdev.device;
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	int ret;
 
 	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK, GPC2CLK_OUT_INIT_VAL);
@@ -631,7 +638,7 @@ gk20a_clk_init(struct nvkm_object *object)
 
 	ret = gk20a_clk_prog(&clk->base);
 	if (ret) {
-		nv_error(clk, "cannot initialize clock\n");
+		nvkm_error(subdev, "cannot initialize clock\n");
 		return ret;
 	}
 
@@ -665,7 +672,8 @@ gk20a_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	plat = nv_device_to_platform(nv_device(parent));
 	clk->parent_rate = clk_get_rate(plat->gpu->clk);
-	nv_info(clk, "parent clock rate: %d Mhz\n", clk->parent_rate / MHZ);
+	nvkm_info(&clk->base.subdev, "parent clock rate: %d Mhz\n",
+		  clk->parent_rate / MHZ);
 
 	clk->base.read = gk20a_clk_read;
 	clk->base.calc = gk20a_clk_calc;
