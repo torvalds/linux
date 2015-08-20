@@ -7,13 +7,8 @@ struct nvkm_vma;
 struct nvkm_bar {
 	struct nvkm_subdev subdev;
 
-	int  (*alloc)(struct nvkm_bar *, struct nvkm_object *,
-		      struct nvkm_mem *, struct nvkm_object **);
-
-	int  (*kmap)(struct nvkm_bar *, struct nvkm_mem *, u32 flags,
-		     struct nvkm_vma *);
-	int  (*umap)(struct nvkm_bar *, struct nvkm_mem *, u32 flags,
-		     struct nvkm_vma *);
+	struct nvkm_vm *(*kmap)(struct nvkm_bar *);
+	int  (*umap)(struct nvkm_bar *, u64 size, int type, struct nvkm_vma *);
 	void (*unmap)(struct nvkm_bar *, struct nvkm_vma *);
 	void (*flush)(struct nvkm_bar *);
 

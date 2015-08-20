@@ -2,35 +2,12 @@
 #define __NVKM_INSTMEM_PRIV_H__
 #include <subdev/instmem.h>
 
-struct nvkm_instobj_impl {
-	struct nvkm_oclass base;
-};
-
-struct nvkm_instobj_args {
-	u32 size;
-	u32 align;
-};
-
-#define nvkm_instobj_create(p,e,o,d)                                        \
-	nvkm_instobj_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nvkm_instobj_destroy(p) ({                                          \
-	struct nvkm_instobj *iobj = (p);                                    \
-	_nvkm_instobj_dtor(nv_object(iobj));                                \
-})
-#define nvkm_instobj_init(p)                                                \
-	_nvkm_object_init(&(p)->base)
-#define nvkm_instobj_fini(p,s)                                              \
-	_nvkm_object_fini(&(p)->base, (s))
-
-int  nvkm_instobj_create_(struct nvkm_object *, struct nvkm_object *,
-			     struct nvkm_oclass *, int, void **);
-void _nvkm_instobj_dtor(struct nvkm_object *);
-#define _nvkm_instobj_init _nvkm_object_init
-#define _nvkm_instobj_fini _nvkm_object_fini
-
 struct nvkm_instmem_impl {
 	struct nvkm_oclass base;
-	struct nvkm_oclass *instobj;
+	int (*memory_new)(struct nvkm_instmem *, u32 size, u32 align,
+			  bool zero, struct nvkm_memory **);
+	bool persistent;
+	bool zero;
 };
 
 #define nvkm_instmem_create(p,e,o,d)                                        \

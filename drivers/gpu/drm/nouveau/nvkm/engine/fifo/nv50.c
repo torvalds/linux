@@ -27,7 +27,6 @@
 #include <core/client.h>
 #include <core/engctx.h>
 #include <core/ramht.h>
-#include <subdev/bar.h>
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
 
@@ -42,7 +41,6 @@ static void
 nv50_fifo_playlist_update_locked(struct nv50_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nvkm_bar *bar = device->bar;
 	struct nvkm_gpuobj *cur;
 	int i, p;
 
@@ -54,7 +52,6 @@ nv50_fifo_playlist_update_locked(struct nv50_fifo *fifo)
 		if (nvkm_rd32(device, 0x002600 + (i * 4)) & 0x80000000)
 			nvkm_wo32(cur, p++ * 4, i);
 	}
-	bar->flush(bar);
 	nvkm_done(cur);
 
 	nvkm_wr32(device, 0x0032f4, cur->addr >> 12);
@@ -73,7 +70,6 @@ nv50_fifo_playlist_update(struct nv50_fifo *fifo)
 static int
 nv50_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *object)
 {
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nvkm_gpuobj *ectx = (void *)object;
 	u64 limit = ectx->addr + ectx->size - 1;
@@ -98,7 +94,6 @@ nv50_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *object)
 					  upper_32_bits(start));
 	nvkm_wo32(base->eng, addr + 0x10, 0x00000000);
 	nvkm_wo32(base->eng, addr + 0x14, 0x00000000);
-	bar->flush(bar);
 	nvkm_done(base->eng);
 	return 0;
 }
@@ -112,7 +107,6 @@ nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	struct nv50_fifo_chan *chan = (void *)parent;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_bar *bar = device->bar;
 	u32 addr, me;
 	int ret = 0;
 
@@ -159,7 +153,6 @@ nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 		nvkm_wo32(base->eng, addr + 0x0c, 0x00000000);
 		nvkm_wo32(base->eng, addr + 0x10, 0x00000000);
 		nvkm_wo32(base->eng, addr + 0x14, 0x00000000);
-		bar->flush(bar);
 		nvkm_done(base->eng);
 	}
 
@@ -205,7 +198,6 @@ nv50_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 	union {
 		struct nv50_channel_dma_v0 v0;
 	} *args = data;
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
 	int ret;
@@ -257,7 +249,6 @@ nv50_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 	nvkm_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
 				     (chan->ramht->gpuobj.node->offset >> 4));
-	bar->flush(bar);
 	nvkm_done(base->ramfc);
 	return 0;
 }
@@ -270,7 +261,6 @@ nv50_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 	union {
 		struct nv50_channel_gpfifo_v0 v0;
 	} *args = data;
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
 	u64 ioffset, ilength;
@@ -324,7 +314,6 @@ nv50_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 	nvkm_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
 				     (chan->ramht->gpuobj.node->offset >> 4));
-	bar->flush(bar);
 	nvkm_done(base->ramfc);
 	return 0;
 }

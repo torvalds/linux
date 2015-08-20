@@ -27,7 +27,7 @@
 #include <core/engctx.h>
 #include <core/ramht.h>
 #include <subdev/fb.h>
-#include <subdev/instmem/nv04.h>
+#include <subdev/instmem.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>
@@ -276,7 +276,8 @@ nv40_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nv04_instmem *imem = nv04_instmem(parent);
+	struct nvkm_device *device = (void *)parent;
+	struct nvkm_instmem *imem = device->imem;
 	struct nv04_fifo *fifo;
 	int ret;
 

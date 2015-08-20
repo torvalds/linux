@@ -28,6 +28,44 @@
 #include <subdev/bar.h>
 #include <subdev/mmu.h>
 
+static void
+nvkm_gpuobj_release(struct nvkm_gpuobj *gpuobj)
+{
+	if (gpuobj->node) {
+		nvkm_done(gpuobj->parent);
+		return;
+	}
+	nvkm_done(gpuobj->memory);
+}
+
+static void
+nvkm_gpuobj_acquire(struct nvkm_gpuobj *gpuobj)
+{
+	if (gpuobj->node) {
+		nvkm_kmap(gpuobj->parent);
+		return;
+	}
+	nvkm_kmap(gpuobj->memory);
+}
+
+static u32
+nvkm_gpuobj_rd32(struct nvkm_gpuobj *gpuobj, u32 offset)
+{
+	if (gpuobj->node)
+		return nvkm_ro32(gpuobj->parent, gpuobj->node->offset + offset);
+	return nvkm_ro32(gpuobj->memory, offset);
+}
+
+static void
+nvkm_gpuobj_wr32(struct nvkm_gpuobj *gpuobj, u32 offset, u32 data)
+{
+	if (gpuobj->node) {
+		nvkm_wo32(gpuobj->parent, gpuobj->node->offset + offset, data);
+		return;
+	}
+	nvkm_wo32(gpuobj->memory, offset, data);
+}
+
 void
 nvkm_gpuobj_destroy(struct nvkm_gpuobj *gpuobj)
 {
@@ -46,17 +84,27 @@ nvkm_gpuobj_destroy(struct nvkm_gpuobj *gpuobj)
 	if (gpuobj->heap.block_size)
 		nvkm_mm_fini(&gpuobj->heap);
 
+	nvkm_memory_del(&gpuobj->memory);
 	nvkm_object_destroy(&gpuobj->object);
 }
+
+static const struct nvkm_gpuobj_func
+nvkm_gpuobj_func = {
+	.acquire = nvkm_gpuobj_acquire,
+	.release = nvkm_gpuobj_release,
+	.rd32 = nvkm_gpuobj_rd32,
+	.wr32 = nvkm_gpuobj_wr32,
+};
 
 int
 nvkm_gpuobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		    struct nvkm_oclass *oclass, u32 pclass,
-		    struct nvkm_object *pargpu, u32 size, u32 align, u32 flags,
+		    struct nvkm_object *objgpu, u32 size, u32 align, u32 flags,
 		    int length, void **pobject)
 {
-	struct nvkm_instmem *imem = nvkm_instmem(parent);
-	struct nvkm_bar *bar = nvkm_bar(parent);
+	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_memory *memory = NULL;
+	struct nvkm_gpuobj *pargpu = NULL;
 	struct nvkm_gpuobj *gpuobj;
 	struct nvkm_mm *heap = NULL;
 	int ret, i;
@@ -64,46 +112,39 @@ nvkm_gpuobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	*pobject = NULL;
 
-	if (pargpu) {
-		while ((pargpu = nv_pclass(pargpu, NV_GPUOBJ_CLASS))) {
-			if (nv_gpuobj(pargpu)->heap.block_size)
+	if (objgpu) {
+		while ((objgpu = nv_pclass(objgpu, NV_GPUOBJ_CLASS))) {
+			if (nv_gpuobj(objgpu)->heap.block_size)
 				break;
-			pargpu = pargpu->parent;
+			objgpu = objgpu->parent;
 		}
 
-		if (WARN_ON(pargpu == NULL))
+		if (WARN_ON(objgpu == NULL))
 			return -EINVAL;
+		pargpu = nv_gpuobj(objgpu);
 
-		addr =  nv_gpuobj(pargpu)->addr;
-		heap = &nv_gpuobj(pargpu)->heap;
-		atomic_inc(&parent->refcount);
+		addr =  pargpu->addr;
+		heap = &pargpu->heap;
 	} else {
-		ret = imem->alloc(imem, parent, size, align, &parent);
-		pargpu = parent;
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      size, align, false, &memory);
 		if (ret)
 			return ret;
 
-		addr = nv_memobj(pargpu)->addr;
-		size = nv_memobj(pargpu)->size;
-
-		if (bar && bar->alloc) {
-			struct nvkm_instobj *iobj = (void *)parent;
-			struct nvkm_mem **mem = (void *)(iobj + 1);
-			struct nvkm_mem *node = *mem;
-			if (!bar->alloc(bar, parent, node, &pargpu)) {
-				nvkm_object_ref(NULL, &parent);
-				parent = pargpu;
-			}
-		}
+		addr = nvkm_memory_addr(memory);
+		size = nvkm_memory_size(memory);
 	}
 
 	ret = nvkm_object_create_(parent, engine, oclass, pclass |
 				  NV_GPUOBJ_CLASS, length, pobject);
-	nvkm_object_ref(NULL, &parent);
 	gpuobj = *pobject;
-	if (ret)
+	if (ret) {
+		nvkm_memory_del(&memory);
 		return ret;
+	}
 
+	gpuobj->func = &nvkm_gpuobj_func;
+	gpuobj->memory = memory;
 	gpuobj->parent = pargpu;
 	gpuobj->flags = flags;
 	gpuobj->addr = addr;
@@ -182,20 +223,14 @@ u32
 _nvkm_gpuobj_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct nvkm_gpuobj *gpuobj = nv_gpuobj(object);
-	u32 data;
-	if (gpuobj->node)
-		addr += gpuobj->node->offset;
-	nvkm_object_rd32(gpuobj->parent, addr, &data);
-	return data;
+	return nvkm_ro32(gpuobj, addr);
 }
 
 void
 _nvkm_gpuobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	struct nvkm_gpuobj *gpuobj = nv_gpuobj(object);
-	if (gpuobj->node)
-		addr += gpuobj->node->offset;
-	nvkm_object_wr32(gpuobj->parent, addr, data);
+	nvkm_wo32(gpuobj, addr, data);
 }
 
 static struct nvkm_oclass
@@ -231,14 +266,14 @@ nvkm_gpuobj_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
 int
 nvkm_gpuobj_map(struct nvkm_gpuobj *gpuobj, u32 access, struct nvkm_vma *vma)
 {
+	struct nvkm_memory *memory = gpuobj->memory;
 	struct nvkm_bar *bar = nvkm_bar(gpuobj);
 	int ret = -EINVAL;
 
 	if (bar && bar->umap) {
-		struct nvkm_instobj *iobj = (void *)
-			nv_pclass(nv_object(gpuobj), NV_MEMOBJ_CLASS);
-		struct nvkm_mem **mem = (void *)(iobj + 1);
-		ret = bar->umap(bar, *mem, access, vma);
+		ret = bar->umap(bar, gpuobj->size, 12, vma);
+		if (ret == 0)
+			nvkm_memory_map(memory, vma, 0);
 	}
 
 	return ret;
@@ -248,17 +283,11 @@ int
 nvkm_gpuobj_map_vm(struct nvkm_gpuobj *gpuobj, struct nvkm_vm *vm,
 		   u32 access, struct nvkm_vma *vma)
 {
-	struct nvkm_instobj *iobj = (void *)
-		nv_pclass(nv_object(gpuobj), NV_MEMOBJ_CLASS);
-	struct nvkm_mem **mem = (void *)(iobj + 1);
-	int ret;
-
-	ret = nvkm_vm_get(vm, gpuobj->size, 12, access, vma);
-	if (ret)
-		return ret;
-
-	nvkm_vm_map(vma, *mem);
-	return 0;
+	struct nvkm_memory *memory = gpuobj->memory;
+	int ret = nvkm_vm_get(vm, gpuobj->size, 12, access, vma);
+	if (ret == 0)
+		nvkm_memory_map(memory, vma, 0);
+	return ret;
 }
 
 void
@@ -279,7 +308,7 @@ static void
 nvkm_gpudup_dtor(struct nvkm_object *object)
 {
 	struct nvkm_gpuobj *gpuobj = (void *)object;
-	nvkm_object_ref(NULL, &gpuobj->parent);
+	nvkm_object_ref(NULL, (struct nvkm_object **)&gpuobj->parent);
 	nvkm_object_destroy(&gpuobj->object);
 }
 
@@ -306,7 +335,7 @@ nvkm_gpuobj_dup(struct nvkm_object *parent, struct nvkm_gpuobj *base,
 	if (ret)
 		return ret;
 
-	nvkm_object_ref(nv_object(base), &gpuobj->parent);
+	nvkm_object_ref(nv_object(base), (struct nvkm_object **)&gpuobj->parent);
 	gpuobj->addr = base->addr;
 	gpuobj->size = base->size;
 	return 0;

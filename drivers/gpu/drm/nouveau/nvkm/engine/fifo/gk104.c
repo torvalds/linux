@@ -27,7 +27,6 @@
 #include <core/engctx.h>
 #include <core/enum.h>
 #include <core/handle.h>
-#include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
@@ -99,7 +98,6 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
 	struct gk104_fifo_engn *engn = &fifo->engine[engine];
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_bar *bar = device->bar;
 	struct nvkm_gpuobj *cur;
 	int i, p;
 
@@ -116,7 +114,6 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
 			p += 8;
 		}
 	}
-	bar->flush(bar);
 	nvkm_done(cur);
 
 	nvkm_wr32(device, 0x002270, cur->addr >> 12);
@@ -133,7 +130,6 @@ static int
 gk104_fifo_context_attach(struct nvkm_object *parent,
 			  struct nvkm_object *object)
 {
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct gk104_fifo_base *base = (void *)parent->parent;
 	struct nvkm_gpuobj *engn = &base->base.gpuobj;
 	struct nvkm_engctx *ectx = (void *)object;
@@ -168,7 +164,6 @@ gk104_fifo_context_attach(struct nvkm_object *parent,
 	nvkm_kmap(engn);
 	nvkm_wo32(engn, addr + 0x00, lower_32_bits(ectx->vma.offset) | 4);
 	nvkm_wo32(engn, addr + 0x04, upper_32_bits(ectx->vma.offset));
-	bar->flush(bar);
 	nvkm_done(engn);
 	return 0;
 }
@@ -198,7 +193,6 @@ static int
 gk104_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 			  struct nvkm_object *object)
 {
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct gk104_fifo_base *base = (void *)parent->parent;
 	struct gk104_fifo_chan *chan = (void *)parent;
 	struct nvkm_gpuobj *engn = &base->base.gpuobj;
@@ -226,7 +220,6 @@ gk104_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 		nvkm_kmap(engn);
 		nvkm_wo32(engn, addr + 0x00, 0x00000000);
 		nvkm_wo32(engn, addr + 0x04, 0x00000000);
-		bar->flush(bar);
 		nvkm_done(engn);
 	}
 
@@ -241,7 +234,6 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	union {
 		struct kepler_channel_gpfifo_a_v0 v0;
 	} *args = data;
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct gk104_fifo *fifo = (void *)engine;
 	struct gk104_fifo_base *base = (void *)parent;
 	struct gk104_fifo_chan *chan;
@@ -320,7 +312,6 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	nvkm_wo32(ramfc, 0xb8, 0xf8000000);
 	nvkm_wo32(ramfc, 0xf8, 0x10003080); /* 0x002310 */
 	nvkm_wo32(ramfc, 0xfc, 0x10000010); /* 0x002350 */
-	bar->flush(bar);
 	nvkm_done(ramfc);
 	return 0;
 }

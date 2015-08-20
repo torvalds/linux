@@ -23,7 +23,6 @@
  */
 #include <engine/mpeg.h>
 
-#include <subdev/bar.h>
 #include <subdev/timer.h>
 
 struct nv50_mpeg_chan {
@@ -84,7 +83,6 @@ nv50_mpeg_context_ctor(struct nvkm_object *parent,
 		       struct nvkm_oclass *oclass, void *data, u32 size,
 		       struct nvkm_object **pobject)
 {
-	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_mpeg_chan *chan;
 	struct nvkm_gpuobj *image;
 	int ret;
@@ -100,7 +98,6 @@ nv50_mpeg_context_ctor(struct nvkm_object *parent,
 	nvkm_kmap(image);
 	nvkm_wo32(image, 0x0070, 0x00801ec1);
 	nvkm_wo32(image, 0x007c, 0x0000037c);
-	bar->flush(bar);
 	nvkm_done(image);
 	return 0;
 }

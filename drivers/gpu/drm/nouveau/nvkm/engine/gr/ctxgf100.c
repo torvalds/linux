@@ -23,7 +23,6 @@
  */
 #include "ctxgf100.h"
 
-#include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
@@ -1273,7 +1272,6 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_bar *bar = device->bar;
 	struct nvkm_gpuobj *chan;
 	struct gf100_grctx info;
 	int ret, i;
@@ -1309,7 +1307,6 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	/* context pointer (virt) */
 	nvkm_wo32(chan, 0x0210, 0x00080004);
 	nvkm_wo32(chan, 0x0214, 0x00000000);
-	bar->flush(bar);
 	nvkm_done(chan);
 
 	nvkm_wr32(device, 0x100cb8, (chan->addr + 0x1000) >> 8);
@@ -1341,7 +1338,6 @@ gf100_grctx_generate(struct gf100_gr *gr)
 		nvkm_wo32(chan, 0x80020, 0);
 		nvkm_wo32(chan, 0x80028, 0);
 		nvkm_wo32(chan, 0x8002c, 0);
-		bar->flush(bar);
 		nvkm_done(chan);
 	} else {
 		nvkm_wr32(device, 0x409840, 0x80000000);

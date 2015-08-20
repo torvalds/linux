@@ -39,35 +39,18 @@ struct gf100_bar {
 	struct gf100_bar_vm bar[2];
 };
 
-static int
-gf100_bar_kmap(struct nvkm_bar *obj, struct nvkm_mem *mem, u32 flags,
-	       struct nvkm_vma *vma)
+static struct nvkm_vm *
+gf100_bar_kmap(struct nvkm_bar *obj)
 {
 	struct gf100_bar *bar = container_of(obj, typeof(*bar), base);
-	int ret;
-
-	ret = nvkm_vm_get(bar->bar[0].vm, mem->size << 12, 12, flags, vma);
-	if (ret)
-		return ret;
-
-	nvkm_vm_map(vma, mem);
-	return 0;
+	return bar->bar[0].vm;
 }
 
 static int
-gf100_bar_umap(struct nvkm_bar *obj, struct nvkm_mem *mem, u32 flags,
-	       struct nvkm_vma *vma)
+gf100_bar_umap(struct nvkm_bar *obj, u64 size, int type, struct nvkm_vma *vma)
 {
 	struct gf100_bar *bar = container_of(obj, typeof(*bar), base);
-	int ret;
-
-	ret = nvkm_vm_get(bar->bar[1].vm, mem->size << 12,
-			  mem->page_shift, flags, vma);
-	if (ret)
-		return ret;
-
-	nvkm_vm_map(vma, mem);
-	return 0;
+	return nvkm_vm_get(bar->bar[1].vm, size, type, NV_MEM_ACCESS_RW, vma);
 }
 
 static void
@@ -109,11 +92,7 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 	 * Bootstrap page table lookup.
 	 */
 	if (bar_nr == 3) {
-		ret = nvkm_gpuobj_new(nv_object(bar), NULL,
-				      (bar_len >> 12) * 8, 0x1000,
-				      NVOBJ_FLAG_ZERO_ALLOC,
-				      &vm->pgt[0].obj[0]);
-		vm->pgt[0].refcount[0] = 1;
+		ret = nvkm_vm_boot(vm, bar_len);
 		if (ret)
 			return ret;
 	}
@@ -149,6 +128,10 @@ gf100_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	device->bar = &bar->base;
+	bar->base.flush = g84_bar_flush;
+	spin_lock_init(&bar->lock);
+
 	/* BAR3 */
 	if (has_bar3) {
 		ret = gf100_bar_ctor_vm(bar, &bar->bar[0], &bar3_lock, 3);
@@ -161,14 +144,10 @@ gf100_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	if (has_bar3) {
-		bar->base.alloc = nvkm_bar_alloc;
+	if (has_bar3)
 		bar->base.kmap = gf100_bar_kmap;
-	}
 	bar->base.umap = gf100_bar_umap;
 	bar->base.unmap = gf100_bar_unmap;
-	bar->base.flush = g84_bar_flush;
-	spin_lock_init(&bar->lock);
 	return 0;
 }
 

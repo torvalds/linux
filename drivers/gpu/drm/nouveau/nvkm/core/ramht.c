@@ -22,8 +22,6 @@
 #include <core/ramht.h>
 #include <core/engine.h>
 
-#include <subdev/bar.h>
-
 static u32
 nvkm_ramht_hash(struct nvkm_ramht *ramht, int chid, u32 handle)
 {
@@ -43,7 +41,6 @@ int
 nvkm_ramht_insert(struct nvkm_ramht *ramht, int chid, u32 handle, u32 context)
 {
 	struct nvkm_gpuobj *gpuobj = &ramht->gpuobj;
-	struct nvkm_bar *bar = nvkm_bar(ramht);
 	int ret = -ENOSPC;
 	u32 co, ho;
 
@@ -53,8 +50,6 @@ nvkm_ramht_insert(struct nvkm_ramht *ramht, int chid, u32 handle, u32 context)
 		if (!nvkm_ro32(gpuobj, co + 4)) {
 			nvkm_wo32(gpuobj, co + 0, handle);
 			nvkm_wo32(gpuobj, co + 4, context);
-			if (bar)
-				bar->flush(bar);
 			ret = co;
 			break;
 		}
@@ -72,12 +67,9 @@ void
 nvkm_ramht_remove(struct nvkm_ramht *ramht, int cookie)
 {
 	struct nvkm_gpuobj *gpuobj = &ramht->gpuobj;
-	struct nvkm_bar *bar = nvkm_bar(ramht);
 	nvkm_kmap(gpuobj);
 	nvkm_wo32(gpuobj, cookie + 0, 0x00000000);
 	nvkm_wo32(gpuobj, cookie + 4, 0x00000000);
-	if (bar)
-		bar->flush(bar);
 	nvkm_done(gpuobj);
 }
 

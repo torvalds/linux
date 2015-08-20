@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,27 +19,46 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "priv.h"
+#include <core/memory.h>
+#include <subdev/instmem.h>
+
+void
+nvkm_memory_ctor(const struct nvkm_memory_func *func,
+		 struct nvkm_memory *memory)
+{
+	memory->func = func;
+}
+
+void
+nvkm_memory_del(struct nvkm_memory **pmemory)
+{
+	struct nvkm_memory *memory = *pmemory;
+	if (memory && !WARN_ON(!memory->func)) {
+		if (memory->func->dtor)
+			*pmemory = memory->func->dtor(memory);
+		kfree(*pmemory);
+		*pmemory = NULL;
+	}
+}
 
 int
-nvkm_bar_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_memory_new(struct nvkm_device *device, enum nvkm_memory_target target,
+		u64 size, u32 align, bool zero,
+		struct nvkm_memory **pmemory)
 {
-	return nvkm_subdev_create_(parent, engine, oclass, 0, "BARCTL",
-				   "bar", length, pobject);
-}
+	struct nvkm_instmem *imem = device->imem;
+	struct nvkm_memory *memory;
+	int ret = -ENOSYS;
 
-void
-nvkm_bar_destroy(struct nvkm_bar *bar)
-{
-	nvkm_subdev_destroy(&bar->subdev);
-}
+	if (unlikely(target != NVKM_MEM_TARGET_INST || !imem))
+		return -ENOSYS;
 
-void
-_nvkm_bar_dtor(struct nvkm_object *object)
-{
-	struct nvkm_bar *bar = (void *)object;
-	nvkm_bar_destroy(bar);
+	ret = imem->alloc(imem, size, align, zero, &memory);
+	if (ret)
+		return ret;
+
+	*pmemory = memory;
+	return 0;
 }

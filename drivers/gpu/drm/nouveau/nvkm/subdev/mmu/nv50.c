@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include <subdev/mmu.h>
-#include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
@@ -156,11 +155,8 @@ nv50_vm_flush(struct nvkm_vm *vm)
 	struct nvkm_mmu *mmu = (void *)vm->mmu;
 	struct nvkm_subdev *subdev = &mmu->subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_bar *bar = device->bar;
 	struct nvkm_engine *engine;
 	int i, vme;
-
-	bar->flush(bar);
 
 	mutex_lock(&subdev->mutex);
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {

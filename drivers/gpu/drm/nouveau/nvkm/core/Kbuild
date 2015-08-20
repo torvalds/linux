@@ -6,6 +6,7 @@ nvkm-y += nvkm/core/event.o
 nvkm-y += nvkm/core/gpuobj.o
 nvkm-y += nvkm/core/handle.o
 nvkm-y += nvkm/core/ioctl.o
+nvkm-y += nvkm/core/memory.o
 nvkm-y += nvkm/core/mm.o
 nvkm-y += nvkm/core/namedb.o
 nvkm-y += nvkm/core/notify.o

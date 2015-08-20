@@ -1,33 +1,22 @@
 #ifndef __NVKM_INSTMEM_H__
 #define __NVKM_INSTMEM_H__
 #include <core/subdev.h>
-
-struct nvkm_instobj {
-	struct nvkm_object object;
-	struct list_head head;
-	u32 *suspend;
-	u64 addr;
-	u32 size;
-};
-
-static inline struct nvkm_instobj *
-nv_memobj(void *obj)
-{
-#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	BUG_ON(!nv_iclass(obj, NV_MEMOBJ_CLASS));
-#endif
-	return obj;
-}
+struct nvkm_memory;
 
 struct nvkm_instmem {
 	struct nvkm_subdev subdev;
 	struct list_head list;
 
 	u32 reserved;
-	int (*alloc)(struct nvkm_instmem *, struct nvkm_object *,
-		     u32 size, u32 align, struct nvkm_object **);
+	int (*alloc)(struct nvkm_instmem *, u32 size, u32 align, bool zero,
+		     struct nvkm_memory **);
 
 	const struct nvkm_instmem_func *func;
+
+	struct nvkm_gpuobj *vbios;
+	struct nvkm_ramht  *ramht;
+	struct nvkm_gpuobj *ramro;
+	struct nvkm_gpuobj *ramfc;
 };
 
 struct nvkm_instmem_func {

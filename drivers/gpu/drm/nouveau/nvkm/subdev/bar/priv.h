@@ -17,9 +17,6 @@ void _nvkm_bar_dtor(struct nvkm_object *);
 #define _nvkm_bar_init _nvkm_subdev_init
 #define _nvkm_bar_fini _nvkm_subdev_fini
 
-int  nvkm_bar_alloc(struct nvkm_bar *, struct nvkm_object *,
-		    struct nvkm_mem *, struct nvkm_object **);
-
 void g84_bar_flush(struct nvkm_bar *);
 
 int gf100_bar_ctor(struct nvkm_object *, struct nvkm_object *,

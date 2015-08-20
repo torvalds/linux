@@ -1388,12 +1388,16 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		mem->bus.is_iomem = true;
 		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			struct nvkm_bar *bar = nvxx_bar(&drm->device);
+			int page_shift = 12;
+			if (drm->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
+				page_shift = node->page_shift;
 
-			ret = bar->umap(bar, node, NV_MEM_ACCESS_RW,
+			ret = bar->umap(bar, node->size << 12, page_shift,
 					&node->bar_vma);
 			if (ret)
 				return ret;
 
+			nvkm_vm_map(&node->bar_vma, node);
 			mem->bus.offset = node->bar_vma.offset;
 		}
 		break;

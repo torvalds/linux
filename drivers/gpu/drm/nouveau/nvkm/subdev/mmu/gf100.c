@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include <subdev/mmu.h>
-#include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/ltc.h>
 #include <subdev/timer.h>
@@ -163,11 +162,8 @@ gf100_vm_flush(struct nvkm_vm *vm)
 {
 	struct nvkm_mmu *mmu = (void *)vm->mmu;
 	struct nvkm_device *device = mmu->subdev.device;
-	struct nvkm_bar *bar = device->bar;
 	struct nvkm_vm_pgd *vpgd;
 	u32 type;
-
-	bar->flush(bar);
 
 	type = 0x00000001; /* PAGE_ALL */
 	if (atomic_read(&vm->engref[NVDEV_SUBDEV_BAR]))

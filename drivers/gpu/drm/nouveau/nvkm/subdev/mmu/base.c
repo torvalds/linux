@@ -339,6 +339,25 @@ nvkm_vm_put(struct nvkm_vma *vma)
 }
 
 int
+nvkm_vm_boot(struct nvkm_vm *vm, u64 size)
+{
+	struct nvkm_mmu *mmu = vm->mmu;
+	struct nvkm_gpuobj *pgt;
+	int ret;
+
+	ret = nvkm_gpuobj_new(nv_object(mmu), NULL,
+			      (size >> mmu->spg_shift) * 8, 0x1000,
+			      NVOBJ_FLAG_ZERO_ALLOC, &pgt);
+	if (ret == 0) {
+		vm->pgt[0].refcount[0] = 1;
+		vm->pgt[0].obj[0] = pgt;
+		nvkm_memory_boot(pgt->memory, vm);
+	}
+
+	return ret;
+}
+
+int
 nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	       u32 block, struct lock_class_key *key, struct nvkm_vm **pvm)
 {
