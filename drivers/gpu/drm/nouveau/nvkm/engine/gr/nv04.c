@@ -443,36 +443,42 @@ nv04_gr(struct nv04_gr_chan *chan)
  */
 
 static void
-nv04_gr_set_ctx1(struct nvkm_object *object, u32 mask, u32 value)
+nv04_gr_set_ctx1(struct nvkm_object *obj, u32 mask, u32 value)
 {
-	struct nv04_gr *gr = (void *)object->engine;
+	struct nvkm_gpuobj *object = container_of(obj, typeof(*object), object);
+	struct nv04_gr *gr = (void *)object->object.engine;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int subc = (nvkm_rd32(device, NV04_PGRAPH_TRAPPED_ADDR) >> 13) & 0x7;
 	u32 tmp;
 
-	tmp  = nv_ro32(object, 0x00);
+	nvkm_kmap(object);
+	tmp  = nvkm_ro32(object, 0x00);
 	tmp &= ~mask;
 	tmp |= value;
-	nv_wo32(object, 0x00, tmp);
+	nvkm_wo32(object, 0x00, tmp);
+	nvkm_done(object);
 
 	nvkm_wr32(device, NV04_PGRAPH_CTX_SWITCH1, tmp);
 	nvkm_wr32(device, NV04_PGRAPH_CTX_CACHE1 + (subc<<2), tmp);
 }
 
 static void
-nv04_gr_set_ctx_val(struct nvkm_object *object, u32 mask, u32 value)
+nv04_gr_set_ctx_val(struct nvkm_object *obj, u32 mask, u32 value)
 {
+	struct nvkm_gpuobj *object = container_of(obj, typeof(*object), object);
 	int class, op, valid = 1;
 	u32 tmp, ctx1;
 
-	ctx1 = nv_ro32(object, 0x00);
+	nvkm_kmap(object);
+	ctx1 = nvkm_ro32(object, 0x00);
 	class = ctx1 & 0xff;
 	op = (ctx1 >> 15) & 7;
 
-	tmp = nv_ro32(object, 0x0c);
+	tmp = nvkm_ro32(object, 0x0c);
 	tmp &= ~mask;
 	tmp |= value;
-	nv_wo32(object, 0x0c, tmp);
+	nvkm_wo32(object, 0x0c, tmp);
+	nvkm_done(object);
 
 	/* check for valid surf2d/surf_dst/surf_color */
 	if (!(tmp & 0x02000000))
@@ -504,23 +510,24 @@ nv04_gr_set_ctx_val(struct nvkm_object *object, u32 mask, u32 value)
 		break;
 	}
 
-	nv04_gr_set_ctx1(object, 0x01000000, valid << 24);
+	nv04_gr_set_ctx1(obj, 0x01000000, valid << 24);
 }
 
 static int
-nv04_gr_mthd_set_operation(struct nvkm_object *object, u32 mthd,
+nv04_gr_mthd_set_operation(struct nvkm_object *obj, u32 mthd,
 			   void *args, u32 size)
 {
-	u32 class = nv_ro32(object, 0) & 0xff;
+	struct nvkm_gpuobj *object = container_of(obj, typeof(*object), object);
+	u32 class = nvkm_ro32(object, 0) & 0xff;
 	u32 data = *(u32 *)args;
 	if (data > 5)
 		return 1;
 	/* Old versions of the objects only accept first three operations. */
 	if (data > 2 && class < 0x40)
 		return 1;
-	nv04_gr_set_ctx1(object, 0x00038000, data << 15);
+	nv04_gr_set_ctx1(obj, 0x00038000, data << 15);
 	/* changing operation changes set of objects needed for validation */
-	nv04_gr_set_ctx_val(object, 0, 0);
+	nv04_gr_set_ctx_val(obj, 0, 0);
 	return 0;
 }
 
@@ -963,13 +970,15 @@ nv04_gr_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_wo32(obj, 0x00, nv_mclass(obj));
+	nvkm_kmap(obj);
+	nvkm_wo32(obj, 0x00, nv_mclass(obj));
 #ifdef __BIG_ENDIAN
-	nv_mo32(obj, 0x00, 0x00080000, 0x00080000);
+	nvkm_mo32(obj, 0x00, 0x00080000, 0x00080000);
 #endif
-	nv_wo32(obj, 0x04, 0x00000000);
-	nv_wo32(obj, 0x08, 0x00000000);
-	nv_wo32(obj, 0x0c, 0x00000000);
+	nvkm_wo32(obj, 0x04, 0x00000000);
+	nvkm_wo32(obj, 0x08, 0x00000000);
+	nvkm_wo32(obj, 0x0c, 0x00000000);
+	nvkm_done(obj);
 	return 0;
 }
 

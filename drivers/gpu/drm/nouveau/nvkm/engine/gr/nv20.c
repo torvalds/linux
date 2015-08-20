@@ -41,6 +41,7 @@ nv20_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_object **pobject)
 {
 	struct nv20_gr_chan *chan;
+	struct nvkm_gpuobj *image;
 	int ret, i;
 
 	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, 0x37f0,
@@ -50,51 +51,54 @@ nv20_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	chan->chid = nvkm_fifo_chan(parent)->chid;
+	image = &chan->base.base.gpuobj;
 
-	nv_wo32(chan, 0x0000, 0x00000001 | (chan->chid << 24));
-	nv_wo32(chan, 0x033c, 0xffff0000);
-	nv_wo32(chan, 0x03a0, 0x0fff0000);
-	nv_wo32(chan, 0x03a4, 0x0fff0000);
-	nv_wo32(chan, 0x047c, 0x00000101);
-	nv_wo32(chan, 0x0490, 0x00000111);
-	nv_wo32(chan, 0x04a8, 0x44400000);
+	nvkm_kmap(image);
+	nvkm_wo32(image, 0x0000, 0x00000001 | (chan->chid << 24));
+	nvkm_wo32(image, 0x033c, 0xffff0000);
+	nvkm_wo32(image, 0x03a0, 0x0fff0000);
+	nvkm_wo32(image, 0x03a4, 0x0fff0000);
+	nvkm_wo32(image, 0x047c, 0x00000101);
+	nvkm_wo32(image, 0x0490, 0x00000111);
+	nvkm_wo32(image, 0x04a8, 0x44400000);
 	for (i = 0x04d4; i <= 0x04e0; i += 4)
-		nv_wo32(chan, i, 0x00030303);
+		nvkm_wo32(image, i, 0x00030303);
 	for (i = 0x04f4; i <= 0x0500; i += 4)
-		nv_wo32(chan, i, 0x00080000);
+		nvkm_wo32(image, i, 0x00080000);
 	for (i = 0x050c; i <= 0x0518; i += 4)
-		nv_wo32(chan, i, 0x01012000);
+		nvkm_wo32(image, i, 0x01012000);
 	for (i = 0x051c; i <= 0x0528; i += 4)
-		nv_wo32(chan, i, 0x000105b8);
+		nvkm_wo32(image, i, 0x000105b8);
 	for (i = 0x052c; i <= 0x0538; i += 4)
-		nv_wo32(chan, i, 0x00080008);
+		nvkm_wo32(image, i, 0x00080008);
 	for (i = 0x055c; i <= 0x0598; i += 4)
-		nv_wo32(chan, i, 0x07ff0000);
-	nv_wo32(chan, 0x05a4, 0x4b7fffff);
-	nv_wo32(chan, 0x05fc, 0x00000001);
-	nv_wo32(chan, 0x0604, 0x00004000);
-	nv_wo32(chan, 0x0610, 0x00000001);
-	nv_wo32(chan, 0x0618, 0x00040000);
-	nv_wo32(chan, 0x061c, 0x00010000);
+		nvkm_wo32(image, i, 0x07ff0000);
+	nvkm_wo32(image, 0x05a4, 0x4b7fffff);
+	nvkm_wo32(image, 0x05fc, 0x00000001);
+	nvkm_wo32(image, 0x0604, 0x00004000);
+	nvkm_wo32(image, 0x0610, 0x00000001);
+	nvkm_wo32(image, 0x0618, 0x00040000);
+	nvkm_wo32(image, 0x061c, 0x00010000);
 	for (i = 0x1c1c; i <= 0x248c; i += 16) {
-		nv_wo32(chan, (i + 0), 0x10700ff9);
-		nv_wo32(chan, (i + 4), 0x0436086c);
-		nv_wo32(chan, (i + 8), 0x000c001b);
+		nvkm_wo32(image, (i + 0), 0x10700ff9);
+		nvkm_wo32(image, (i + 4), 0x0436086c);
+		nvkm_wo32(image, (i + 8), 0x000c001b);
 	}
-	nv_wo32(chan, 0x281c, 0x3f800000);
-	nv_wo32(chan, 0x2830, 0x3f800000);
-	nv_wo32(chan, 0x285c, 0x40000000);
-	nv_wo32(chan, 0x2860, 0x3f800000);
-	nv_wo32(chan, 0x2864, 0x3f000000);
-	nv_wo32(chan, 0x286c, 0x40000000);
-	nv_wo32(chan, 0x2870, 0x3f800000);
-	nv_wo32(chan, 0x2878, 0xbf800000);
-	nv_wo32(chan, 0x2880, 0xbf800000);
-	nv_wo32(chan, 0x34a4, 0x000fe000);
-	nv_wo32(chan, 0x3530, 0x000003f8);
-	nv_wo32(chan, 0x3540, 0x002fe000);
+	nvkm_wo32(image, 0x281c, 0x3f800000);
+	nvkm_wo32(image, 0x2830, 0x3f800000);
+	nvkm_wo32(image, 0x285c, 0x40000000);
+	nvkm_wo32(image, 0x2860, 0x3f800000);
+	nvkm_wo32(image, 0x2864, 0x3f000000);
+	nvkm_wo32(image, 0x286c, 0x40000000);
+	nvkm_wo32(image, 0x2870, 0x3f800000);
+	nvkm_wo32(image, 0x2878, 0xbf800000);
+	nvkm_wo32(image, 0x2880, 0xbf800000);
+	nvkm_wo32(image, 0x34a4, 0x000fe000);
+	nvkm_wo32(image, 0x3530, 0x000003f8);
+	nvkm_wo32(image, 0x3540, 0x002fe000);
 	for (i = 0x355c; i <= 0x3578; i += 4)
-		nv_wo32(chan, i, 0x001c527c);
+		nvkm_wo32(image, i, 0x001c527c);
+	nvkm_done(image);
 	return 0;
 }
 
@@ -109,7 +113,9 @@ nv20_gr_context_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wo32(gr->ctxtab, chan->chid * 4, nv_gpuobj(chan)->addr >> 4);
+	nvkm_kmap(gr->ctxtab);
+	nvkm_wo32(gr->ctxtab, chan->chid * 4, nv_gpuobj(chan)->addr >> 4);
+	nvkm_done(gr->ctxtab);
 	return 0;
 }
 
@@ -136,7 +142,9 @@ nv20_gr_context_fini(struct nvkm_object *object, bool suspend)
 	}
 	nvkm_mask(device, 0x400720, 0x00000001, 0x00000001);
 
-	nv_wo32(gr->ctxtab, chan->chid * 4, 0x00000000);
+	nvkm_kmap(gr->ctxtab);
+	nvkm_wo32(gr->ctxtab, chan->chid * 4, 0x00000000);
+	nvkm_done(gr->ctxtab);
 	return nvkm_gr_context_fini(&chan->base, suspend);
 }
 

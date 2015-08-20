@@ -1289,27 +1289,28 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	}
 
 	/* PGD pointer */
-	nv_wo32(chan, 0x0200, lower_32_bits(chan->addr + 0x1000));
-	nv_wo32(chan, 0x0204, upper_32_bits(chan->addr + 0x1000));
-	nv_wo32(chan, 0x0208, 0xffffffff);
-	nv_wo32(chan, 0x020c, 0x000000ff);
+	nvkm_kmap(chan);
+	nvkm_wo32(chan, 0x0200, lower_32_bits(chan->addr + 0x1000));
+	nvkm_wo32(chan, 0x0204, upper_32_bits(chan->addr + 0x1000));
+	nvkm_wo32(chan, 0x0208, 0xffffffff);
+	nvkm_wo32(chan, 0x020c, 0x000000ff);
 
 	/* PGT[0] pointer */
-	nv_wo32(chan, 0x1000, 0x00000000);
-	nv_wo32(chan, 0x1004, 0x00000001 | (chan->addr + 0x2000) >> 8);
+	nvkm_wo32(chan, 0x1000, 0x00000000);
+	nvkm_wo32(chan, 0x1004, 0x00000001 | (chan->addr + 0x2000) >> 8);
 
 	/* identity-map the whole "channel" into its own vm */
 	for (i = 0; i < chan->size / 4096; i++) {
 		u64 addr = ((chan->addr + (i * 4096)) >> 8) | 1;
-		nv_wo32(chan, 0x2000 + (i * 8), lower_32_bits(addr));
-		nv_wo32(chan, 0x2004 + (i * 8), upper_32_bits(addr));
+		nvkm_wo32(chan, 0x2000 + (i * 8), lower_32_bits(addr));
+		nvkm_wo32(chan, 0x2004 + (i * 8), upper_32_bits(addr));
 	}
 
 	/* context pointer (virt) */
-	nv_wo32(chan, 0x0210, 0x00080004);
-	nv_wo32(chan, 0x0214, 0x00000000);
-
+	nvkm_wo32(chan, 0x0210, 0x00080004);
+	nvkm_wo32(chan, 0x0214, 0x00000000);
 	bar->flush(bar);
+	nvkm_done(chan);
 
 	nvkm_wr32(device, 0x100cb8, (chan->addr + 0x1000) >> 8);
 	nvkm_wr32(device, 0x100cbc, 0x80000001);
@@ -1335,11 +1336,13 @@ gf100_grctx_generate(struct gf100_gr *gr)
 				break;
 		);
 
-		nv_wo32(chan, 0x8001c, 1);
-		nv_wo32(chan, 0x80020, 0);
-		nv_wo32(chan, 0x80028, 0);
-		nv_wo32(chan, 0x8002c, 0);
+		nvkm_kmap(chan);
+		nvkm_wo32(chan, 0x8001c, 1);
+		nvkm_wo32(chan, 0x80020, 0);
+		nvkm_wo32(chan, 0x80028, 0);
+		nvkm_wo32(chan, 0x8002c, 0);
 		bar->flush(bar);
+		nvkm_done(chan);
 	} else {
 		nvkm_wr32(device, 0x409840, 0x80000000);
 		nvkm_wr32(device, 0x409500, 0x80000000 | chan->addr >> 12);
@@ -1367,8 +1370,10 @@ gf100_grctx_generate(struct gf100_gr *gr)
 
 	gr->data = kmalloc(gr->size, GFP_KERNEL);
 	if (gr->data) {
+		nvkm_kmap(chan);
 		for (i = 0; i < gr->size; i += 4)
-			gr->data[i / 4] = nv_ro32(chan, 0x80000 + i);
+			gr->data[i / 4] = nvkm_ro32(chan, 0x80000 + i);
+		nvkm_done(chan);
 		ret = 0;
 	} else {
 		ret = -ENOMEM;

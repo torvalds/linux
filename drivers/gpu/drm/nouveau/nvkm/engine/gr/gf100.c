@@ -283,6 +283,7 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct gf100_gr_data *data = gr->mmio_data;
 	struct gf100_gr_mmio *mmio = gr->mmio_list;
 	struct gf100_gr_chan *chan;
+	struct nvkm_gpuobj *image;
 	int ret, i;
 
 	/* allocate memory for context, and fill with default values */
@@ -324,6 +325,7 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 
 	/* finally, fill in the mmio list and point the context at it */
+	nvkm_kmap(chan->mmio);
 	for (i = 0; mmio->addr && i < ARRAY_SIZE(gr->mmio_list); i++) {
 		u32 addr = mmio->addr;
 		u32 data = mmio->data;
@@ -333,28 +335,32 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			data |= info >> mmio->shift;
 		}
 
-		nv_wo32(chan->mmio, chan->mmio_nr++ * 4, addr);
-		nv_wo32(chan->mmio, chan->mmio_nr++ * 4, data);
+		nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, addr);
+		nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, data);
 		mmio++;
 	}
+	nvkm_done(chan->mmio);
 
+	image = &chan->base.base.gpuobj;
+	nvkm_kmap(image);
 	for (i = 0; i < gr->size; i += 4)
-		nv_wo32(chan, i, gr->data[i / 4]);
+		nvkm_wo32(image, i, gr->data[i / 4]);
 
 	if (!gr->firmware) {
-		nv_wo32(chan, 0x00, chan->mmio_nr / 2);
-		nv_wo32(chan, 0x04, chan->mmio_vma.offset >> 8);
+		nvkm_wo32(image, 0x00, chan->mmio_nr / 2);
+		nvkm_wo32(image, 0x04, chan->mmio_vma.offset >> 8);
 	} else {
-		nv_wo32(chan, 0xf4, 0);
-		nv_wo32(chan, 0xf8, 0);
-		nv_wo32(chan, 0x10, chan->mmio_nr / 2);
-		nv_wo32(chan, 0x14, lower_32_bits(chan->mmio_vma.offset));
-		nv_wo32(chan, 0x18, upper_32_bits(chan->mmio_vma.offset));
-		nv_wo32(chan, 0x1c, 1);
-		nv_wo32(chan, 0x20, 0);
-		nv_wo32(chan, 0x28, 0);
-		nv_wo32(chan, 0x2c, 0);
+		nvkm_wo32(image, 0xf4, 0);
+		nvkm_wo32(image, 0xf8, 0);
+		nvkm_wo32(image, 0x10, chan->mmio_nr / 2);
+		nvkm_wo32(image, 0x14, lower_32_bits(chan->mmio_vma.offset));
+		nvkm_wo32(image, 0x18, upper_32_bits(chan->mmio_vma.offset));
+		nvkm_wo32(image, 0x1c, 1);
+		nvkm_wo32(image, 0x20, 0);
+		nvkm_wo32(image, 0x28, 0);
+		nvkm_wo32(image, 0x2c, 0);
 	}
+	nvkm_done(image);
 
 	return 0;
 }
@@ -1679,10 +1685,15 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < 0x1000; i += 4) {
-		nv_wo32(gr->unk4188b4, i, 0x00000010);
-		nv_wo32(gr->unk4188b8, i, 0x00000010);
-	}
+	nvkm_kmap(gr->unk4188b4);
+	for (i = 0; i < 0x1000; i += 4)
+		nvkm_wo32(gr->unk4188b4, i, 0x00000010);
+	nvkm_done(gr->unk4188b4);
+
+	nvkm_kmap(gr->unk4188b8);
+	for (i = 0; i < 0x1000; i += 4)
+		nvkm_wo32(gr->unk4188b8, i, 0x00000010);
+	nvkm_done(gr->unk4188b8);
 
 	gr->rop_nr = (nvkm_rd32(device, 0x409604) & 0x001f0000) >> 16;
 	gr->gpc_nr =  nvkm_rd32(device, 0x409604) & 0x0000001f;

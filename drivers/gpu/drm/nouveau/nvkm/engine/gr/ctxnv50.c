@@ -268,7 +268,7 @@ nv50_grctx_init(struct nvkm_device *device, u32 *size)
 	struct nvkm_grctx ctx = {
 		.device = device,
 		.mode = NVKM_GRCTX_PROG,
-		.data = ctxprog,
+		.ucode = ctxprog,
 		.ctxprog_max = 512,
 	};
 
@@ -783,9 +783,12 @@ nv50_gr_construct_mmio(struct nvkm_grctx *ctx)
 static void
 dd_emit(struct nvkm_grctx *ctx, int num, u32 val) {
 	int i;
-	if (val && ctx->mode == NVKM_GRCTX_VALS)
+	if (val && ctx->mode == NVKM_GRCTX_VALS) {
+		nvkm_kmap(ctx->data);
 		for (i = 0; i < num; i++)
-			nv_wo32(ctx->data, 4 * (ctx->ctxvals_pos + i), val);
+			nvkm_wo32(ctx->data, 4 * (ctx->ctxvals_pos + i), val);
+		nvkm_done(ctx->data);
+	}
 	ctx->ctxvals_pos += num;
 }
 
@@ -1155,9 +1158,12 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
 static void
 xf_emit(struct nvkm_grctx *ctx, int num, u32 val) {
 	int i;
-	if (val && ctx->mode == NVKM_GRCTX_VALS)
+	if (val && ctx->mode == NVKM_GRCTX_VALS) {
+		nvkm_kmap(ctx->data);
 		for (i = 0; i < num; i++)
-			nv_wo32(ctx->data, 4 * (ctx->ctxvals_pos + (i << 3)), val);
+			nvkm_wo32(ctx->data, 4 * (ctx->ctxvals_pos + (i << 3)), val);
+		nvkm_done(ctx->data);
+	}
 	ctx->ctxvals_pos += num << 3;
 }
 

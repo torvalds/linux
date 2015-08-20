@@ -580,16 +580,18 @@ nv40_gr_construct_shader(struct nvkm_grctx *ctx)
 	if (ctx->mode != NVKM_GRCTX_VALS)
 		return;
 
+	nvkm_kmap(obj);
 	offset += 0x0280/4;
 	for (i = 0; i < 16; i++, offset += 2)
-		nv_wo32(obj, offset * 4, 0x3f800000);
+		nvkm_wo32(obj, offset * 4, 0x3f800000);
 
 	for (vs = 0; vs < vs_nr; vs++, offset += vs_len) {
 		for (i = 0; i < vs_nr_b0 * 6; i += 6)
-			nv_wo32(obj, (offset + b0_offset + i) * 4, 0x00000001);
+			nvkm_wo32(obj, (offset + b0_offset + i) * 4, 0x00000001);
 		for (i = 0; i < vs_nr_b1 * 4; i += 4)
-			nv_wo32(obj, (offset + b1_offset + i) * 4, 0x3f800000);
+			nvkm_wo32(obj, (offset + b1_offset + i) * 4, 0x3f800000);
 	}
+	nvkm_done(obj);
 }
 
 static void
@@ -674,7 +676,7 @@ nv40_grctx_init(struct nvkm_device *device, u32 *size)
 	struct nvkm_grctx ctx = {
 		.device = device,
 		.mode = NVKM_GRCTX_PROG,
-		.data = ctxprog,
+		.ucode = ctxprog,
 		.ctxprog_max = 256,
 	};
 

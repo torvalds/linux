@@ -39,6 +39,7 @@ nv34_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_object **pobject)
 {
 	struct nv20_gr_chan *chan;
+	struct nvkm_gpuobj *image;
 	int ret, i;
 
 	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, 0x46dc,
@@ -48,59 +49,62 @@ nv34_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	chan->chid = nvkm_fifo_chan(parent)->chid;
+	image = &chan->base.base.gpuobj;
 
-	nv_wo32(chan, 0x0028, 0x00000001 | (chan->chid << 24));
-	nv_wo32(chan, 0x040c, 0x01000101);
-	nv_wo32(chan, 0x0420, 0x00000111);
-	nv_wo32(chan, 0x0424, 0x00000060);
-	nv_wo32(chan, 0x0440, 0x00000080);
-	nv_wo32(chan, 0x0444, 0xffff0000);
-	nv_wo32(chan, 0x0448, 0x00000001);
-	nv_wo32(chan, 0x045c, 0x44400000);
-	nv_wo32(chan, 0x0480, 0xffff0000);
+	nvkm_kmap(image);
+	nvkm_wo32(image, 0x0028, 0x00000001 | (chan->chid << 24));
+	nvkm_wo32(image, 0x040c, 0x01000101);
+	nvkm_wo32(image, 0x0420, 0x00000111);
+	nvkm_wo32(image, 0x0424, 0x00000060);
+	nvkm_wo32(image, 0x0440, 0x00000080);
+	nvkm_wo32(image, 0x0444, 0xffff0000);
+	nvkm_wo32(image, 0x0448, 0x00000001);
+	nvkm_wo32(image, 0x045c, 0x44400000);
+	nvkm_wo32(image, 0x0480, 0xffff0000);
 	for (i = 0x04d4; i < 0x04dc; i += 4)
-		nv_wo32(chan, i, 0x0fff0000);
-	nv_wo32(chan, 0x04e0, 0x00011100);
+		nvkm_wo32(image, i, 0x0fff0000);
+	nvkm_wo32(image, 0x04e0, 0x00011100);
 	for (i = 0x04fc; i < 0x053c; i += 4)
-		nv_wo32(chan, i, 0x07ff0000);
-	nv_wo32(chan, 0x0544, 0x4b7fffff);
-	nv_wo32(chan, 0x057c, 0x00000080);
-	nv_wo32(chan, 0x0580, 0x30201000);
-	nv_wo32(chan, 0x0584, 0x70605040);
-	nv_wo32(chan, 0x0588, 0xb8a89888);
-	nv_wo32(chan, 0x058c, 0xf8e8d8c8);
-	nv_wo32(chan, 0x05a0, 0xb0000000);
+		nvkm_wo32(image, i, 0x07ff0000);
+	nvkm_wo32(image, 0x0544, 0x4b7fffff);
+	nvkm_wo32(image, 0x057c, 0x00000080);
+	nvkm_wo32(image, 0x0580, 0x30201000);
+	nvkm_wo32(image, 0x0584, 0x70605040);
+	nvkm_wo32(image, 0x0588, 0xb8a89888);
+	nvkm_wo32(image, 0x058c, 0xf8e8d8c8);
+	nvkm_wo32(image, 0x05a0, 0xb0000000);
 	for (i = 0x05f0; i < 0x0630; i += 4)
-		nv_wo32(chan, i, 0x00010588);
+		nvkm_wo32(image, i, 0x00010588);
 	for (i = 0x0630; i < 0x0670; i += 4)
-		nv_wo32(chan, i, 0x00030303);
+		nvkm_wo32(image, i, 0x00030303);
 	for (i = 0x06b0; i < 0x06f0; i += 4)
-		nv_wo32(chan, i, 0x0008aae4);
+		nvkm_wo32(image, i, 0x0008aae4);
 	for (i = 0x06f0; i < 0x0730; i += 4)
-		nv_wo32(chan, i, 0x01012000);
+		nvkm_wo32(image, i, 0x01012000);
 	for (i = 0x0730; i < 0x0770; i += 4)
-		nv_wo32(chan, i, 0x00080008);
-	nv_wo32(chan, 0x0850, 0x00040000);
-	nv_wo32(chan, 0x0854, 0x00010000);
+		nvkm_wo32(image, i, 0x00080008);
+	nvkm_wo32(image, 0x0850, 0x00040000);
+	nvkm_wo32(image, 0x0854, 0x00010000);
 	for (i = 0x0858; i < 0x0868; i += 4)
-		nv_wo32(chan, i, 0x00040004);
+		nvkm_wo32(image, i, 0x00040004);
 	for (i = 0x15ac; i <= 0x271c ; i += 16) {
-		nv_wo32(chan, i + 0, 0x10700ff9);
-		nv_wo32(chan, i + 1, 0x0436086c);
-		nv_wo32(chan, i + 2, 0x000c001b);
+		nvkm_wo32(image, i + 0, 0x10700ff9);
+		nvkm_wo32(image, i + 1, 0x0436086c);
+		nvkm_wo32(image, i + 2, 0x000c001b);
 	}
 	for (i = 0x274c; i < 0x275c; i += 4)
-		nv_wo32(chan, i, 0x0000ffff);
-	nv_wo32(chan, 0x2ae0, 0x3f800000);
-	nv_wo32(chan, 0x2e9c, 0x3f800000);
-	nv_wo32(chan, 0x2eb0, 0x3f800000);
-	nv_wo32(chan, 0x2edc, 0x40000000);
-	nv_wo32(chan, 0x2ee0, 0x3f800000);
-	nv_wo32(chan, 0x2ee4, 0x3f000000);
-	nv_wo32(chan, 0x2eec, 0x40000000);
-	nv_wo32(chan, 0x2ef0, 0x3f800000);
-	nv_wo32(chan, 0x2ef8, 0xbf800000);
-	nv_wo32(chan, 0x2f00, 0xbf800000);
+		nvkm_wo32(image, i, 0x0000ffff);
+	nvkm_wo32(image, 0x2ae0, 0x3f800000);
+	nvkm_wo32(image, 0x2e9c, 0x3f800000);
+	nvkm_wo32(image, 0x2eb0, 0x3f800000);
+	nvkm_wo32(image, 0x2edc, 0x40000000);
+	nvkm_wo32(image, 0x2ee0, 0x3f800000);
+	nvkm_wo32(image, 0x2ee4, 0x3f000000);
+	nvkm_wo32(image, 0x2eec, 0x40000000);
+	nvkm_wo32(image, 0x2ef0, 0x3f800000);
+	nvkm_wo32(image, 0x2ef8, 0xbf800000);
+	nvkm_wo32(image, 0x2f00, 0xbf800000);
+	nvkm_done(image);
 	return 0;
 }
 
