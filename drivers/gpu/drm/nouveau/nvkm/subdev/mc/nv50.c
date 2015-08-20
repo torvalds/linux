@@ -44,7 +44,7 @@ nv50_mc_intr[] = {
 static void
 nv50_mc_msi_rearm(struct nvkm_mc *mc)
 {
-	struct nvkm_device *device = nv_device(mc);
+	struct nvkm_device *device = mc->subdev.device;
 	pci_write_config_byte(device->pdev, 0x68, 0xff);
 }
 
@@ -52,7 +52,8 @@ int
 nv50_mc_init(struct nvkm_object *object)
 {
 	struct nvkm_mc *mc = (void *)object;
-	nv_wr32(mc, 0x000200, 0xffffffff); /* everything on */
+	struct nvkm_device *device = mc->subdev.device;
+	nvkm_wr32(device, 0x000200, 0xffffffff); /* everything on */
 	return nvkm_mc_init(mc);
 }
 

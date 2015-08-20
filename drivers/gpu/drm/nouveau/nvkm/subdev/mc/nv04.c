@@ -42,9 +42,10 @@ int
 nv04_mc_init(struct nvkm_object *object)
 {
 	struct nvkm_mc *mc = (void *)object;
+	struct nvkm_device *device = mc->subdev.device;
 
-	nv_wr32(mc, 0x000200, 0xffffffff); /* everything enabled */
-	nv_wr32(mc, 0x001850, 0x00000001); /* disable rom access */
+	nvkm_wr32(device, 0x000200, 0xffffffff); /* everything enabled */
+	nvkm_wr32(device, 0x001850, 0x00000001); /* disable rom access */
 
 	return nvkm_mc_init(mc);
 }

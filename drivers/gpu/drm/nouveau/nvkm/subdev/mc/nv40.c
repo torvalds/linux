@@ -26,7 +26,7 @@
 void
 nv40_mc_msi_rearm(struct nvkm_mc *mc)
 {
-	nv_wr08(mc, 0x088068, 0xff);
+	nvkm_wr08(mc->subdev.device, 0x088068, 0xff);
 }
 
 struct nvkm_oclass *

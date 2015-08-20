@@ -36,7 +36,8 @@ nvkm_mc_unk260(struct nvkm_mc *mc, u32 data)
 static inline u32
 nvkm_mc_intr_mask(struct nvkm_mc *mc)
 {
-	u32 intr = nv_rd32(mc, 0x000100);
+	struct nvkm_device *device = mc->subdev.device;
+	u32 intr = nvkm_rd32(device, 0x000100);
 	if (intr == 0xffffffff) /* likely fallen off the bus */
 		intr = 0x00000000;
 	return intr;
@@ -46,13 +47,14 @@ static irqreturn_t
 nvkm_mc_intr(int irq, void *arg)
 {
 	struct nvkm_mc *mc = arg;
+	struct nvkm_device *device = mc->subdev.device;
 	const struct nvkm_mc_oclass *oclass = (void *)nv_object(mc)->oclass;
 	const struct nvkm_mc_intr *map = oclass->intr;
 	struct nvkm_subdev *unit;
 	u32 intr;
 
-	nv_wr32(mc, 0x000140, 0x00000000);
-	nv_rd32(mc, 0x000140);
+	nvkm_wr32(device, 0x000140, 0x00000000);
+	nvkm_rd32(device, 0x000140);
 	intr = nvkm_mc_intr_mask(mc);
 	if (mc->use_msi)
 		oclass->msi_rearm(mc);
@@ -73,7 +75,7 @@ nvkm_mc_intr(int irq, void *arg)
 			nv_error(mc, "unknown intr 0x%08x\n", stat);
 	}
 
-	nv_wr32(mc, 0x000140, 0x00000001);
+	nvkm_wr32(device, 0x000140, 0x00000001);
 	return intr ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -81,7 +83,8 @@ int
 _nvkm_mc_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_mc *mc = (void *)object;
-	nv_wr32(mc, 0x000140, 0x00000000);
+	struct nvkm_device *device = mc->subdev.device;
+	nvkm_wr32(device, 0x000140, 0x00000000);
 	return nvkm_subdev_fini(&mc->subdev, suspend);
 }
 
@@ -89,18 +92,19 @@ int
 _nvkm_mc_init(struct nvkm_object *object)
 {
 	struct nvkm_mc *mc = (void *)object;
+	struct nvkm_device *device = mc->subdev.device;
 	int ret = nvkm_subdev_init(&mc->subdev);
 	if (ret)
 		return ret;
-	nv_wr32(mc, 0x000140, 0x00000001);
+	nvkm_wr32(device, 0x000140, 0x00000001);
 	return 0;
 }
 
 void
 _nvkm_mc_dtor(struct nvkm_object *object)
 {
-	struct nvkm_device *device = nv_device(object);
 	struct nvkm_mc *mc = (void *)object;
+	struct nvkm_device *device = mc->subdev.device;
 	free_irq(mc->irq, mc);
 	if (mc->use_msi)
 		pci_disable_msi(device->pdev);
@@ -112,7 +116,7 @@ nvkm_mc_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *bclass, int length, void **pobject)
 {
 	const struct nvkm_mc_oclass *oclass = (void *)bclass;
-	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_device *device = (void *)parent;
 	struct nvkm_mc *mc;
 	int ret;
 

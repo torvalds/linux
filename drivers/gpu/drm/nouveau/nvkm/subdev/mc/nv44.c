@@ -27,14 +27,15 @@ int
 nv44_mc_init(struct nvkm_object *object)
 {
 	struct nvkm_mc *mc = (void *)object;
-	u32 tmp = nv_rd32(mc, 0x10020c);
+	struct nvkm_device *device = mc->subdev.device;
+	u32 tmp = nvkm_rd32(device, 0x10020c);
 
-	nv_wr32(mc, 0x000200, 0xffffffff); /* everything enabled */
+	nvkm_wr32(device, 0x000200, 0xffffffff); /* everything enabled */
 
-	nv_wr32(mc, 0x001700, tmp);
-	nv_wr32(mc, 0x001704, 0);
-	nv_wr32(mc, 0x001708, 0);
-	nv_wr32(mc, 0x00170c, tmp);
+	nvkm_wr32(device, 0x001700, tmp);
+	nvkm_wr32(device, 0x001704, 0);
+	nvkm_wr32(device, 0x001708, 0);
+	nvkm_wr32(device, 0x00170c, tmp);
 
 	return nvkm_mc_init(mc);
 }
