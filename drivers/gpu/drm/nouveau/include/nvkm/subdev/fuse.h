@@ -4,7 +4,7 @@
 #include <core/device.h>
 
 struct nvkm_fuse {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 };
 
 static inline struct nvkm_fuse *

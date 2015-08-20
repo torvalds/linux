@@ -23,15 +23,11 @@
  */
 #include "priv.h"
 
-struct gm107_fuse_priv {
-	struct nvkm_fuse base;
-};
-
 static u32
 gm107_fuse_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct gf100_fuse_priv *priv = (void *)object;
-	return nv_rd32(priv, 0x21100 + addr);
+	struct nvkm_fuse *fuse = (void *)object;
+	return nv_rd32(fuse, 0x21100 + addr);
 }
 
 
@@ -40,11 +36,11 @@ gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct gm107_fuse_priv *priv;
+	struct nvkm_fuse *fuse;
 	int ret;
 
-	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_fuse_create(parent, engine, oclass, &fuse);
+	*pobject = nv_object(fuse);
 
 	return ret;
 }

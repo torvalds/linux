@@ -27,25 +27,20 @@ int
 _nvkm_fuse_init(struct nvkm_object *object)
 {
 	struct nvkm_fuse *fuse = (void *)object;
-	return nvkm_subdev_init(&fuse->base);
+	return nvkm_subdev_init(&fuse->subdev);
 }
 
 void
 _nvkm_fuse_dtor(struct nvkm_object *object)
 {
 	struct nvkm_fuse *fuse = (void *)object;
-	nvkm_subdev_destroy(&fuse->base);
+	nvkm_subdev_destroy(&fuse->subdev);
 }
 
 int
 nvkm_fuse_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nvkm_fuse *fuse;
-	int ret;
-
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "FUSE",
-				  "fuse", length, pobject);
-	fuse = *pobject;
-	return ret;
+	return nvkm_subdev_create_(parent, engine, oclass, 0, "FUSE",
+				   "fuse", length, pobject);
 }
