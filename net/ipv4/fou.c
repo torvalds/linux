@@ -347,7 +347,7 @@ static struct sk_buff **gue_gro_receive(struct sk_buff **head,
 	rcu_read_lock();
 	offloads = NAPI_GRO_CB(skb)->is_ipv6 ? inet6_offloads : inet_offloads;
 	ops = rcu_dereference(offloads[guehdr->proto_ctype]);
-	if (WARN_ON(!ops || !ops->callbacks.gro_receive))
+	if (WARN_ON_ONCE(!ops || !ops->callbacks.gro_receive))
 		goto out_unlock;
 
 	pp = ops->callbacks.gro_receive(head, skb);
