@@ -31,6 +31,7 @@
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
+#include <engine/sw.h>
 
 #include <nvif/class.h>
 #include <nvif/ioctl.h>
@@ -520,32 +521,6 @@ gk104_fifo_recover(struct gk104_fifo *fifo, struct nvkm_engine *engine,
 	schedule_work(&fifo->fault);
 }
 
-static int
-gk104_fifo_swmthd(struct gk104_fifo *fifo, u32 chid, u32 mthd, u32 data)
-{
-	struct gk104_fifo_chan *chan = NULL;
-	struct nvkm_handle *bind;
-	unsigned long flags;
-	int ret = -EINVAL;
-
-	spin_lock_irqsave(&fifo->base.lock, flags);
-	if (likely(chid >= fifo->base.min && chid <= fifo->base.max))
-		chan = (void *)fifo->base.channel[chid];
-	if (unlikely(!chan))
-		goto out;
-
-	bind = nvkm_namedb_get_class(nv_namedb(chan), NVIF_IOCTL_NEW_V0_SW_GF100);
-	if (likely(bind)) {
-		if (!mthd || !nv_call(bind->object, mthd, data))
-			ret = 0;
-		nvkm_namedb_put(bind);
-	}
-
-out:
-	spin_unlock_irqrestore(&fifo->base.lock, flags);
-	return ret;
-}
-
 static const struct nvkm_enum
 gk104_fifo_bind_reason[] = {
 	{ 0x01, "BIND_NOT_UNBOUND" },
@@ -864,8 +839,10 @@ gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit)
 	char msg[128];
 
 	if (stat & 0x00800000) {
-		if (!gk104_fifo_swmthd(fifo, chid, mthd, data))
-			show &= ~0x00800000;
+		if (device->sw) {
+			if (nvkm_sw_mthd(device->sw, chid, subc, mthd, data))
+				show &= ~0x00800000;
+		}
 		nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
 	}
 

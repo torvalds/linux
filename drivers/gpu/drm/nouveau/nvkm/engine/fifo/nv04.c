@@ -29,6 +29,7 @@
 #include <core/ramht.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
+#include <engine/sw.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>
@@ -369,55 +370,29 @@ nv_dma_state_err(u32 state)
 }
 
 static bool
-nv04_fifo_swmthd(struct nv04_fifo *fifo, u32 chid, u32 addr, u32 data)
+nv04_fifo_swmthd(struct nvkm_device *device, u32 chid, u32 addr, u32 data)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nv04_fifo_chan *chan = NULL;
-	struct nvkm_handle *bind;
-	const int subc = (addr >> 13) & 0x7;
-	const int mthd = addr & 0x1ffc;
+	struct nvkm_sw *sw = device->sw;
+	const int subc = (addr & 0x0000e000) >> 13;
+	const int mthd = (addr & 0x00001ffc);
+	const u32 mask = 0x0000000f << (subc * 4);
+	u32 engine = nvkm_rd32(device, 0x003280);
 	bool handled = false;
-	unsigned long flags;
-	u32 engine;
-
-	spin_lock_irqsave(&fifo->base.lock, flags);
-	if (likely(chid >= fifo->base.min && chid <= fifo->base.max))
-		chan = (void *)fifo->base.channel[chid];
-	if (unlikely(!chan))
-		goto out;
 
 	switch (mthd) {
-	case 0x0000:
-		bind = nvkm_namedb_get(nv_namedb(chan), data);
-		if (unlikely(!bind))
-			break;
-
-		if (nv_engidx(bind->object->engine) == NVDEV_ENGINE_SW) {
-			engine = 0x0000000f << (subc * 4);
-			chan->subc[subc] = data;
-			handled = true;
-
-			nvkm_mask(device, NV04_PFIFO_CACHE1_ENGINE, engine, 0);
-		}
-
-		nvkm_namedb_put(bind);
+	case 0x0000 ... 0x0000: /* subchannel's engine -> software */
+		nvkm_wr32(device, 0x003280, (engine &= ~mask));
+	case 0x0180 ... 0x01fc: /* handle -> instance */
+		data = nvkm_rd32(device, 0x003258) & 0x0000ffff;
+	case 0x0100 ... 0x017c:
+	case 0x0200 ... 0x1ffc: /* pass method down to sw */
+		if (!(engine & mask) && sw)
+			handled = nvkm_sw_mthd(sw, chid, subc, mthd, data);
 		break;
 	default:
-		engine = nvkm_rd32(device, NV04_PFIFO_CACHE1_ENGINE);
-		if (unlikely(((engine >> (subc * 4)) & 0xf) != 0))
-			break;
-
-		bind = nvkm_namedb_get(nv_namedb(chan), chan->subc[subc]);
-		if (likely(bind)) {
-			if (!nv_call(bind->object, mthd, data))
-				handled = true;
-			nvkm_namedb_put(bind);
-		}
 		break;
 	}
 
-out:
-	spin_unlock_irqrestore(&fifo->base.lock, flags);
 	return handled;
 }
 
@@ -426,6 +401,7 @@ nv04_fifo_cache_error(struct nv04_fifo *fifo, u32 chid, u32 get)
 {
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	u32 pull0 = nvkm_rd32(device, 0x003250);
 	u32 mthd, data;
 	int ptr;
 
@@ -444,7 +420,8 @@ nv04_fifo_cache_error(struct nv04_fifo *fifo, u32 chid, u32 get)
 		data = nvkm_rd32(device, NV40_PFIFO_CACHE1_DATA(ptr));
 	}
 
-	if (!nv04_fifo_swmthd(fifo, chid, mthd, data)) {
+	if (!(pull0 & 0x00000100) ||
+	    !nv04_fifo_swmthd(device, chid, mthd, data)) {
 		const char *client_name =
 			nvkm_client_name_for_fifo_chid(&fifo->base, chid);
 		nvkm_error(subdev, "CACHE_ERROR - "

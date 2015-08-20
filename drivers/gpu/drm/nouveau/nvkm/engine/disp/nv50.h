@@ -174,7 +174,6 @@ int  nv50_disp_main_ctor(struct nvkm_object *, struct nvkm_object *,
 			 struct nvkm_oclass *, void *, u32,
 			 struct nvkm_object **);
 void nv50_disp_main_dtor(struct nvkm_object *);
-extern struct nvkm_omthds nv50_disp_main_omthds[];
 extern struct nvkm_oclass nv50_disp_cclass;
 void nv50_disp_mthd_chan(struct nv50_disp *, int debug, int head,
 			 const struct nv50_disp_mthd_chan *);

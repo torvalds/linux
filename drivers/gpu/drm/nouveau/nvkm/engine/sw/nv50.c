@@ -35,80 +35,9 @@
  * software object classes
  ******************************************************************************/
 
-static int
-nv50_sw_mthd_dma_vblsem(struct nvkm_object *object, u32 mthd,
-			void *args, u32 size)
-{
-	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
-	struct nvkm_fifo_chan *fifo = (void *)nv_object(chan)->parent;
-	struct nvkm_handle *handle;
-	int ret = -EINVAL;
-
-	handle = nvkm_namedb_get(nv_namedb(fifo), *(u32 *)args);
-	if (!handle)
-		return -ENOENT;
-
-	if (nv_iclass(handle->object, NV_GPUOBJ_CLASS)) {
-		struct nvkm_gpuobj *gpuobj = nv_gpuobj(handle->object);
-		chan->vblank.ctxdma = gpuobj->node->offset >> 4;
-		ret = 0;
-	}
-	nvkm_namedb_put(handle);
-	return ret;
-}
-
-static int
-nv50_sw_mthd_vblsem_offset(struct nvkm_object *object, u32 mthd,
-			   void *args, u32 size)
-{
-	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
-	chan->vblank.offset = *(u32 *)args;
-	return 0;
-}
-
-int
-nv50_sw_mthd_vblsem_value(struct nvkm_object *object, u32 mthd,
-			  void *args, u32 size)
-{
-	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
-	chan->vblank.value = *(u32 *)args;
-	return 0;
-}
-
-int
-nv50_sw_mthd_vblsem_release(struct nvkm_object *object, u32 mthd,
-			    void *args, u32 size)
-{
-	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
-	u32 head = *(u32 *)args;
-	if (head >= nvkm_disp(chan)->vblank.index_nr)
-		return -EINVAL;
-
-	nvkm_notify_get(&chan->vblank.notify[head]);
-	return 0;
-}
-
-int
-nv50_sw_mthd_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
-{
-	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
-	nvkm_event_send(&chan->base.event, 1, 0, NULL, 0);
-	return 0;
-}
-
-static struct nvkm_omthds
-nv50_sw_omthds[] = {
-	{ 0x018c, 0x018c, nv50_sw_mthd_dma_vblsem },
-	{ 0x0400, 0x0400, nv50_sw_mthd_vblsem_offset },
-	{ 0x0404, 0x0404, nv50_sw_mthd_vblsem_value },
-	{ 0x0408, 0x0408, nv50_sw_mthd_vblsem_release },
-	{ 0x0500, 0x0500, nv50_sw_mthd_flip },
-	{}
-};
-
 static struct nvkm_oclass
 nv50_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV50, &nvkm_nvsw_ofuncs, nv50_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV50, &nvkm_nvsw_ofuncs },
 	{}
 };
 
@@ -140,6 +69,31 @@ nv50_sw_vblsem_release(struct nvkm_notify *notify)
 	return NVKM_NOTIFY_DROP;
 }
 
+static bool
+nv50_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
+{
+	struct nv50_sw_chan *chan = nv50_sw_chan(base);
+	switch (mthd) {
+	case 0x018c: chan->vblank.ctxdma = data; return true;
+	case 0x0400: chan->vblank.offset = data; return true;
+	case 0x0404: chan->vblank.value  = data; return true;
+	case 0x0408:
+		if (data < nvkm_disp(chan)->vblank.index_nr) {
+			nvkm_notify_get(&chan->vblank.notify[data]);
+			return true;
+		}
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
+static const struct nvkm_sw_chan_func
+nv50_sw_chan_func = {
+	.mthd = nv50_sw_chan_mthd,
+};
+
 void
 nv50_sw_context_dtor(struct nvkm_object *object)
 {
@@ -162,7 +116,7 @@ nv50_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nv50_sw_chan *chan;
 	int ret, i;
 
-	ret = nvkm_sw_context_create(parent, engine, oclass, &chan);
+	ret = nvkm_sw_context_create(pclass->chan, parent, engine, oclass, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -194,6 +148,7 @@ nv50_sw_cclass = {
 		.fini = _nvkm_sw_context_fini,
 	},
 	.vblank = nv50_sw_vblsem_release,
+	.chan = &nv50_sw_chan_func,
 };
 
 /*******************************************************************************

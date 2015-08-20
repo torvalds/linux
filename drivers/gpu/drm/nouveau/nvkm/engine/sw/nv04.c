@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#define nv04_sw_chan(p) container_of((p), struct nv04_sw_chan, base)
 #include "priv.h"
 #include "chan.h"
 #include "nvsw.h"
@@ -37,29 +38,6 @@ struct nv04_sw_chan {
 /*******************************************************************************
  * software object classes
  ******************************************************************************/
-
-static int
-nv04_sw_set_ref(struct nvkm_object *object, u32 mthd, void *data, u32 size)
-{
-	struct nv04_sw_chan *chan = (void *)nv_engctx(object->parent);
-	atomic_set(&chan->ref, *(u32*)data);
-	return 0;
-}
-
-static int
-nv04_sw_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
-{
-	struct nvkm_sw_chan *chan = (void *)nv_engctx(object->parent);
-	nvkm_event_send(&chan->event, 1, 0, NULL, 0);
-	return 0;
-}
-
-static struct nvkm_omthds
-nv04_sw_omthds[] = {
-	{ 0x0150, 0x0150, nv04_sw_set_ref },
-	{ 0x0500, 0x0500, nv04_sw_flip },
-	{}
-};
 
 static int
 nv04_sw_mthd_get_ref(struct nvkm_object *object, void *data, u32 size)
@@ -100,13 +78,34 @@ nv04_sw_ofuncs = {
 
 static struct nvkm_oclass
 nv04_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV04, &nv04_sw_ofuncs, nv04_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV04, &nv04_sw_ofuncs },
 	{}
 };
 
 /*******************************************************************************
  * software context
  ******************************************************************************/
+
+static bool
+nv04_sw_chan_mthd(struct nvkm_sw_chan *base, int subc, u32 mthd, u32 data)
+{
+	struct nv04_sw_chan *chan = nv04_sw_chan(base);
+
+	switch (mthd) {
+	case 0x0150:
+		atomic_set(&chan->ref, data);
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+static const struct nvkm_sw_chan_func
+nv04_sw_chan_func = {
+	.mthd = nv04_sw_chan_mthd,
+};
 
 static int
 nv04_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -116,7 +115,8 @@ nv04_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nv04_sw_chan *chan;
 	int ret;
 
-	ret = nvkm_sw_context_create(parent, engine, oclass, &chan);
+	ret = nvkm_sw_context_create(&nv04_sw_chan_func,
+				     parent, engine, oclass, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;

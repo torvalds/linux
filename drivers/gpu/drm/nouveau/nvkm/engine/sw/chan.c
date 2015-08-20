@@ -24,9 +24,27 @@
 #include "chan.h"
 
 #include <core/notify.h>
+#include <engine/fifo.h>
 
 #include <nvif/event.h>
 #include <nvif/unpack.h>
+
+bool
+nvkm_sw_chan_mthd(struct nvkm_sw_chan *chan, int subc, u32 mthd, u32 data)
+{
+	switch (mthd) {
+	case 0x0000:
+		return true;
+	case 0x0500:
+		nvkm_event_send(&chan->event, 1, 0, NULL, 0);
+		return true;
+	default:
+		if (chan->func->mthd)
+			return chan->func->mthd(chan, subc, mthd, data);
+		break;
+	}
+	return false;
+}
 
 static int
 nvkm_sw_chan_event_ctor(struct nvkm_object *object, void *data, u32 size,
@@ -55,14 +73,17 @@ void
 nvkm_sw_chan_dtor(struct nvkm_object *base)
 {
 	struct nvkm_sw_chan *chan = (void *)base;
+	list_del(&chan->head);
 	nvkm_event_fini(&chan->event);
 	nvkm_engctx_destroy(&chan->base);
 }
 
 int
-nvkm_sw_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+nvkm_sw_chan_ctor(const struct nvkm_sw_chan_func *func,
+		  struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, int length, void **pobject)
 {
+	struct nvkm_sw *sw = (void *)engine;
 	struct nvkm_sw_chan *chan;
 	int ret;
 
@@ -71,6 +92,10 @@ nvkm_sw_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	chan = *pobject;
 	if (ret)
 		return ret;
+
+	chan->func = func;
+	chan->fifo = nvkm_fifo_chan(parent);
+	list_add(&chan->head, &sw->chan);
 
 	return nvkm_event_init(&nvkm_sw_chan_event, 1, 1, &chan->event);
 }

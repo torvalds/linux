@@ -1,5 +1,6 @@
 #ifndef __NVKM_SW_NV50_H__
 #define __NVKM_SW_NV50_H__
+#define nv50_sw_chan(p) container_of((p), struct nv50_sw_chan, base)
 #include "priv.h"
 #include "chan.h"
 #include "nvsw.h"
@@ -18,6 +19,7 @@ int  nv50_sw_ctor(struct nvkm_object *, struct nvkm_object *,
 struct nv50_sw_cclass {
 	struct nvkm_oclass base;
 	int (*vblank)(struct nvkm_notify *);
+	const struct nvkm_sw_chan_func *chan;
 };
 
 struct nv50_sw_chan {

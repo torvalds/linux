@@ -31,29 +31,19 @@
  * software object classes
  ******************************************************************************/
 
-static int
-nv10_sw_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
-{
-	struct nvkm_sw_chan *chan = (void *)nv_engctx(object->parent);
-	nvkm_event_send(&chan->event, 1, 0, NULL, 0);
-	return 0;
-}
-
-static struct nvkm_omthds
-nv10_sw_omthds[] = {
-	{ 0x0500, 0x0500, nv10_sw_flip },
-	{}
-};
-
 static struct nvkm_oclass
 nv10_sw_sclass[] = {
-	{ NVIF_IOCTL_NEW_V0_SW_NV10, &nvkm_nvsw_ofuncs, nv10_sw_omthds },
+	{ NVIF_IOCTL_NEW_V0_SW_NV10, &nvkm_nvsw_ofuncs },
 	{}
 };
 
 /*******************************************************************************
  * software context
  ******************************************************************************/
+
+static const struct nvkm_sw_chan_func
+nv10_sw_chan_func = {
+};
 
 static int
 nv10_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -63,7 +53,8 @@ nv10_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_sw_chan *chan;
 	int ret;
 
-	ret = nvkm_sw_context_create(parent, engine, oclass, &chan);
+	ret = nvkm_sw_context_create(&nv10_sw_chan_func,
+				     parent, engine, oclass, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;

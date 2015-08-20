@@ -4,10 +4,16 @@
 
 struct nvkm_sw {
 	struct nvkm_engine engine;
+	struct list_head chan;
 };
 
+bool nvkm_sw_mthd(struct nvkm_sw *sw, int chid, int subc, u32 mthd, u32 data);
+
 #define nvkm_sw_create(p,e,c,d)                                       \
-	nvkm_engine_create((p), (e), (c), true, "SW", "software", (d))
+	nvkm_sw_ctor((p), (e), (c), sizeof(**d), (void **)d)
+int
+nvkm_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, int length, void **pobject);
 #define nvkm_sw_destroy(d)                                            \
 	nvkm_engine_destroy(&(d)->engine)
 #define nvkm_sw_init(d)                                               \

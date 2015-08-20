@@ -109,7 +109,6 @@ struct nvkm_sclass {
 struct nvkm_oclass {
 	s32 handle;
 	struct nvkm_ofuncs * const ofuncs;
-	struct nvkm_omthds * const omthds;
 
 	int (*ctor)(const struct nvkm_oclass *, void *data, u32 size,
 		    struct nvkm_object **);
@@ -134,12 +133,6 @@ nv_pclass(struct nvkm_object *parent, u32 oclass)
 		parent = parent->parent;
 	return parent;
 }
-
-struct nvkm_omthds {
-	u32 start;
-	u32 limit;
-	int (*call)(struct nvkm_object *, u32, void *, u32);
-};
 
 struct nvkm_ofuncs {
 	int  (*ctor)(struct nvkm_object *, struct nvkm_object *,
@@ -171,24 +164,4 @@ int  nvkm_object_old(struct nvkm_object *, struct nvkm_object *,
 void nvkm_object_ref(struct nvkm_object *, struct nvkm_object **);
 int  nvkm_object_inc(struct nvkm_object *);
 int  nvkm_object_dec(struct nvkm_object *, bool suspend);
-
-static inline int
-nv_exec(void *obj, u32 mthd, void *data, u32 size)
-{
-	struct nvkm_omthds *method = nv_oclass(obj)->omthds;
-
-	while (method && method->call) {
-		if (mthd >= method->start && mthd <= method->limit)
-			return method->call(obj, mthd, data, size);
-		method++;
-	}
-
-	return -EINVAL;
-}
-
-static inline int
-nv_call(void *obj, u32 mthd, u32 data)
-{
-	return nv_exec(obj, mthd, &data, sizeof(data));
-}
 #endif
