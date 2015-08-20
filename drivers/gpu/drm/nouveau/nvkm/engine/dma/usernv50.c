@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "user.h"
 
 #include <core/client.h>
 #include <core/gpuobj.h>
@@ -36,7 +36,7 @@ struct nv50_dmaobj {
 	u32 flags5;
 };
 
-static int
+int
 nv50_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 		 struct nvkm_gpuobj **pgpuobj)
 {
@@ -65,7 +65,7 @@ nv50_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, void *data, u32 size,
 		 struct nvkm_object **pobject)
 {
-	struct nvkm_dmaeng *dmaeng = (void *)engine;
+	struct nvkm_dma *dmaeng = (void *)engine;
 	union {
 		struct nv50_dma_v0 v0;
 	} *args;
@@ -152,23 +152,10 @@ nv50_dmaobj_ofuncs = {
 	.fini = _nvkm_dmaobj_fini,
 };
 
-static struct nvkm_oclass
+struct nvkm_oclass
 nv50_dmaeng_sclass[] = {
 	{ NV_DMA_FROM_MEMORY, &nv50_dmaobj_ofuncs },
 	{ NV_DMA_TO_MEMORY, &nv50_dmaobj_ofuncs },
 	{ NV_DMA_IN_MEMORY, &nv50_dmaobj_ofuncs },
 	{}
 };
-
-struct nvkm_oclass *
-nv50_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
-	.base.handle = NV_ENGINE(DMAOBJ, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_dmaeng_ctor,
-		.dtor = _nvkm_dmaeng_dtor,
-		.init = _nvkm_dmaeng_init,
-		.fini = _nvkm_dmaeng_fini,
-	},
-	.sclass = nv50_dmaeng_sclass,
-	.bind = nv50_dmaobj_bind,
-}.base;

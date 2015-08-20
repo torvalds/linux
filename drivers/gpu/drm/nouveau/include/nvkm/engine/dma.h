@@ -1,5 +1,5 @@
-#ifndef __NVKM_DMAOBJ_H__
-#define __NVKM_DMAOBJ_H__
+#ifndef __NVKM_DMA_H__
+#define __NVKM_DMA_H__
 #include <core/engine.h>
 struct nvkm_gpuobj;
 
@@ -11,7 +11,7 @@ struct nvkm_dmaobj {
 	u64 limit;
 };
 
-struct nvkm_dmaeng {
+struct nvkm_dma {
 	struct nvkm_engine engine;
 
 	/* creates a "physical" dma object from a struct nvkm_dmaobj */

@@ -30,10 +30,6 @@
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
-#include <engine/disp.h>
-#include <engine/dmaobj.h>
-#include <engine/fifo.h>
-#include <engine/pm.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>

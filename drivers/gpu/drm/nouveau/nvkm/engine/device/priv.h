@@ -26,7 +26,7 @@
 #include <engine/ce.h>
 #include <engine/cipher.h>
 #include <engine/disp.h>
-#include <engine/dmaobj.h>
+#include <engine/dma.h>
 #include <engine/fifo.h>
 #include <engine/gr.h>
 #include <engine/mpeg.h>

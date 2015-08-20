@@ -30,7 +30,7 @@
 #include <core/enum.h>
 #include <core/handle.h>
 #include <core/ramht.h>
-#include <engine/dmaobj.h>
+#include <engine/dma.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/disp.h>

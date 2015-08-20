@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "user.h"
 
 #include <core/client.h>
 #include <core/gpuobj.h>
@@ -30,30 +30,28 @@
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
-struct gf100_dmaobj {
+struct gf110_dmaobj {
 	struct nvkm_dmaobj base;
 	u32 flags0;
-	u32 flags5;
 };
 
-static int
-gf100_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
+int
+gf110_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 		  struct nvkm_gpuobj **pgpuobj)
 {
-	struct gf100_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
+	struct gf110_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
 	struct nvkm_device *device = dmaobj->base.base.engine->subdev.device;
 	int ret;
 
 	ret = nvkm_gpuobj_new(device, 24, 32, false, parent, pgpuobj);
 	if (ret == 0) {
 		nvkm_kmap(*pgpuobj);
-		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0 | nv_mclass(dmaobj));
-		nvkm_wo32(*pgpuobj, 0x04, lower_32_bits(dmaobj->base.limit));
-		nvkm_wo32(*pgpuobj, 0x08, lower_32_bits(dmaobj->base.start));
-		nvkm_wo32(*pgpuobj, 0x0c, upper_32_bits(dmaobj->base.limit) << 24 |
-					  upper_32_bits(dmaobj->base.start));
+		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0);
+		nvkm_wo32(*pgpuobj, 0x04, dmaobj->base.start >> 8);
+		nvkm_wo32(*pgpuobj, 0x08, dmaobj->base.limit >> 8);
+		nvkm_wo32(*pgpuobj, 0x0c, 0x00000000);
 		nvkm_wo32(*pgpuobj, 0x10, 0x00000000);
-		nvkm_wo32(*pgpuobj, 0x14, dmaobj->flags5);
+		nvkm_wo32(*pgpuobj, 0x14, 0x00000000);
 		nvkm_done(*pgpuobj);
 	}
 
@@ -61,16 +59,16 @@ gf100_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 }
 
 static int
-gf100_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	struct nvkm_dmaeng *dmaeng = (void *)engine;
+	struct nvkm_dma *dmaeng = (void *)engine;
 	union {
-		struct gf100_dma_v0 v0;
+		struct gf110_dma_v0 v0;
 	} *args;
-	struct gf100_dmaobj *dmaobj;
-	u32 kind, user, unkn;
+	struct gf110_dmaobj *dmaobj;
+	u32 kind, page;
 	int ret;
 
 	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &dmaobj);
@@ -79,90 +77,61 @@ gf100_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 	args = data;
 
-	nvif_ioctl(parent, "create gf100 dma size %d\n", size);
+	nvif_ioctl(parent, "create gf110 dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(parent,
-			   "create gf100 dma vers %d priv %d kind %02x\n",
-			   args->v0.version, args->v0.priv, args->v0.kind);
+			   "create gf100 dma vers %d page %d kind %02x\n",
+			   args->v0.version, args->v0.page, args->v0.kind);
 		kind = args->v0.kind;
-		user = args->v0.priv;
-		unkn = 0;
+		page = args->v0.page;
 	} else
 	if (size == 0) {
 		if (dmaobj->base.target != NV_MEM_TARGET_VM) {
-			kind = GF100_DMA_V0_KIND_PITCH;
-			user = GF100_DMA_V0_PRIV_US;
-			unkn = 2;
+			kind = GF110_DMA_V0_KIND_PITCH;
+			page = GF110_DMA_V0_PAGE_SP;
 		} else {
-			kind = GF100_DMA_V0_KIND_VM;
-			user = GF100_DMA_V0_PRIV_VM;
-			unkn = 0;
+			kind = GF110_DMA_V0_KIND_VM;
+			page = GF110_DMA_V0_PAGE_LP;
 		}
 	} else
 		return ret;
 
-	if (user > 2)
+	if (page > 1)
 		return -EINVAL;
-	dmaobj->flags0 |= (kind << 22) | (user << 20);
-	dmaobj->flags5 |= (unkn << 16);
+	dmaobj->flags0 = (kind << 20) | (page << 6);
 
 	switch (dmaobj->base.target) {
-	case NV_MEM_TARGET_VM:
-		dmaobj->flags0 |= 0x00000000;
-		break;
 	case NV_MEM_TARGET_VRAM:
-		dmaobj->flags0 |= 0x00010000;
+		dmaobj->flags0 |= 0x00000009;
 		break;
+	case NV_MEM_TARGET_VM:
 	case NV_MEM_TARGET_PCI:
-		dmaobj->flags0 |= 0x00020000;
-		break;
 	case NV_MEM_TARGET_PCI_NOSNOOP:
-		dmaobj->flags0 |= 0x00030000;
+		/* XXX: don't currently know how to construct a real one
+		 *      of these.  we only use them to represent pushbufs
+		 *      on these chipsets, and the classes that use them
+		 *      deal with the target themselves.
+		 */
 		break;
 	default:
 		return -EINVAL;
-	}
-
-	switch (dmaobj->base.access) {
-	case NV_MEM_ACCESS_VM:
-		break;
-	case NV_MEM_ACCESS_RO:
-		dmaobj->flags0 |= 0x00040000;
-		break;
-	case NV_MEM_ACCESS_WO:
-	case NV_MEM_ACCESS_RW:
-		dmaobj->flags0 |= 0x00080000;
-		break;
 	}
 
 	return dmaeng->bind(&dmaobj->base, (void *)dmaobj, (void *)pobject);
 }
 
 static struct nvkm_ofuncs
-gf100_dmaobj_ofuncs = {
-	.ctor =  gf100_dmaobj_ctor,
+gf110_dmaobj_ofuncs = {
+	.ctor =  gf110_dmaobj_ctor,
 	.dtor = _nvkm_dmaobj_dtor,
 	.init = _nvkm_dmaobj_init,
 	.fini = _nvkm_dmaobj_fini,
 };
 
-static struct nvkm_oclass
-gf100_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY, &gf100_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY, &gf100_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY, &gf100_dmaobj_ofuncs },
+struct nvkm_oclass
+gf110_dmaeng_sclass[] = {
+	{ NV_DMA_FROM_MEMORY, &gf110_dmaobj_ofuncs },
+	{ NV_DMA_TO_MEMORY, &gf110_dmaobj_ofuncs },
+	{ NV_DMA_IN_MEMORY, &gf110_dmaobj_ofuncs },
 	{}
 };
-
-struct nvkm_oclass *
-gf100_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
-	.base.handle = NV_ENGINE(DMAOBJ, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_dmaeng_ctor,
-		.dtor = _nvkm_dmaeng_dtor,
-		.init = _nvkm_dmaeng_init,
-		.fini = _nvkm_dmaeng_fini,
-	},
-	.sclass = gf100_dmaeng_sclass,
-	.bind = gf100_dmaobj_bind,
-}.base;

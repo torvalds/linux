@@ -26,7 +26,7 @@
 #include <core/client.h>
 #include <core/handle.h>
 #include <core/notify.h>
-#include <engine/dmaobj.h>
+#include <engine/dma.h>
 
 #include <nvif/class.h>
 #include <nvif/event.h>
@@ -104,7 +104,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 	struct nvkm_fifo *fifo = (void *)engine;
 	struct nvkm_fifo_base *base = (void *)parent;
 	struct nvkm_fifo_chan *chan;
-	struct nvkm_dmaeng *dmaeng;
+	struct nvkm_dma *dma;
 	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	unsigned long flags;
@@ -124,7 +124,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 			return -ENOENT;
 		dmaobj = (void *)handle->object;
 
-		dmaeng = (void *)dmaobj->base.engine;
+		dma = (void *)dmaobj->base.engine;
 		switch (dmaobj->base.oclass->handle) {
 		case NV_DMA_FROM_MEMORY:
 		case NV_DMA_IN_MEMORY:
@@ -133,7 +133,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 			return -EINVAL;
 		}
 
-		ret = dmaeng->bind(dmaobj, &base->gpuobj, &chan->pushgpu);
+		ret = dma->bind(dmaobj, &base->gpuobj, &chan->pushgpu);
 		if (ret)
 			return ret;
 	}

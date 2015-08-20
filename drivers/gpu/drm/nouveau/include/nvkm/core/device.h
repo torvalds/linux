@@ -133,7 +133,7 @@ struct nvkm_device {
 	struct nvkm_engine *ce[3];
 	struct nvkm_engine *cipher;
 	struct nvkm_disp *disp;
-	struct nvkm_dmaeng *dma;
+	struct nvkm_dma *dma;
 	struct nvkm_fifo *fifo;
 	struct nvkm_gr *gr;
 	struct nvkm_engine *ifb;
@@ -193,7 +193,7 @@ struct nvkm_device_chip {
 	int (*ce[3]  )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*cipher )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*disp   )(struct nvkm_device *, int idx, struct nvkm_disp **);
-	int (*dma    )(struct nvkm_device *, int idx, struct nvkm_dmaeng **);
+	int (*dma    )(struct nvkm_device *, int idx, struct nvkm_dma **);
 	int (*fifo   )(struct nvkm_device *, int idx, struct nvkm_fifo **);
 	int (*gr     )(struct nvkm_device *, int idx, struct nvkm_gr **);
 	int (*ifb    )(struct nvkm_device *, int idx, struct nvkm_engine **);

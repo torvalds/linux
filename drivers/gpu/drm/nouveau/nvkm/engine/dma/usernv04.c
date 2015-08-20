@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "user.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
@@ -36,7 +36,7 @@ struct nv04_dmaobj {
 	u32 flags2;
 };
 
-static int
+int
 nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 		 struct nvkm_gpuobj **pgpuobj)
 {
@@ -76,7 +76,7 @@ nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, void *data, u32 size,
 		 struct nvkm_object **pobject)
 {
-	struct nvkm_dmaeng *dmaeng = (void *)engine;
+	struct nvkm_dma *dmaeng = (void *)engine;
 	struct nv04_mmu *mmu = nv04_mmu(engine);
 	struct nv04_dmaobj *dmaobj;
 	int ret;
@@ -132,23 +132,10 @@ nv04_dmaobj_ofuncs = {
 	.fini = _nvkm_dmaobj_fini,
 };
 
-static struct nvkm_oclass
+struct nvkm_oclass
 nv04_dmaeng_sclass[] = {
 	{ NV_DMA_FROM_MEMORY, &nv04_dmaobj_ofuncs },
 	{ NV_DMA_TO_MEMORY, &nv04_dmaobj_ofuncs },
 	{ NV_DMA_IN_MEMORY, &nv04_dmaobj_ofuncs },
 	{}
 };
-
-struct nvkm_oclass *
-nv04_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
-	.base.handle = NV_ENGINE(DMAOBJ, 0x04),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_dmaeng_ctor,
-		.dtor = _nvkm_dmaeng_dtor,
-		.init = _nvkm_dmaeng_init,
-		.fini = _nvkm_dmaeng_fini,
-	},
-	.sclass = nv04_dmaeng_sclass,
-	.bind = nv04_dmaobj_bind,
-}.base;
