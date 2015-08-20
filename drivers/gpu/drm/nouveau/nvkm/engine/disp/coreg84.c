@@ -22,6 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
+#include "rootnv50.h"
+
+#include <nvif/class.h>
 
 const struct nv50_disp_mthd_list
 g84_disp_core_mthd_dac = {
@@ -87,10 +90,11 @@ g84_disp_core_mthd_head = {
 	}
 };
 
-const struct nv50_disp_mthd_chan
-g84_disp_core_mthd_chan = {
+const struct nv50_disp_chan_mthd
+g84_disp_core_chan_mthd = {
 	.name = "Core",
 	.addr = 0x000000,
+	.prev = 0x000004,
 	.data = {
 		{ "Global", 1, &nv50_disp_core_mthd_base },
 		{    "DAC", 3, &g84_disp_core_mthd_dac  },
@@ -99,4 +103,15 @@ g84_disp_core_mthd_chan = {
 		{   "HEAD", 2, &g84_disp_core_mthd_head },
 		{}
 	}
+};
+
+const struct nv50_disp_dmac_oclass
+g84_disp_core_oclass = {
+	.base.oclass = G82_DISP_CORE_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_core_new,
+	.func = &nv50_disp_core_func,
+	.mthd = &g84_disp_core_chan_mthd,
+	.chid = 0,
 };

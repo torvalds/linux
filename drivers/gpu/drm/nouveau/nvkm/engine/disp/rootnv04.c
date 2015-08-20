@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#define nv04_disp_root(p) container_of((p), struct nv04_disp_root, object);
 #include "priv.h"
 
 #include <core/client.h>
@@ -28,11 +29,17 @@
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
+struct nv04_disp_root {
+	struct nvkm_object object;
+	struct nvkm_disp *disp;
+};
+
 static int
-nv04_disp_scanoutpos(struct nvkm_object *object, struct nvkm_disp *disp,
+nv04_disp_scanoutpos(struct nv04_disp_root *root,
 		     void *data, u32 size, int head)
 {
-	struct nvkm_device *device = disp->engine.subdev.device;
+	struct nvkm_device *device = root->disp->engine.subdev.device;
+	struct nvkm_object *object = &root->object;
 	const u32 hoff = head * 0x2000;
 	union {
 		struct nv04_disp_scanoutpos_v0 v0;
@@ -74,10 +81,10 @@ nv04_disp_scanoutpos(struct nvkm_object *object, struct nvkm_disp *disp,
 static int
 nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
+	struct nv04_disp_root *root = nv04_disp_root(object);
 	union {
 		struct nv04_disp_mthd_v0 v0;
 	} *args = data;
-	struct nvkm_disp *disp = (void *)object->engine;
 	int head, ret;
 
 	nvif_ioctl(object, "disp mthd size %d\n", size);
@@ -94,7 +101,7 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 
 	switch (mthd) {
 	case NV04_DISP_SCANOUTPOS:
-		return nv04_disp_scanoutpos(object, disp, data, size, head);
+		return nv04_disp_scanoutpos(root, data, size, head);
 	default:
 		break;
 	}
@@ -102,18 +109,31 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-static struct nvkm_ofuncs
-nv04_disp_ofuncs = {
-	.ctor = _nvkm_object_ctor,
-	.dtor = nvkm_object_destroy,
-	.init = _nvkm_object_init,
-	.fini = _nvkm_object_fini,
+static struct nvkm_object_func
+nv04_disp_root = {
 	.mthd = nv04_disp_mthd,
 	.ntfy = nvkm_disp_ntfy,
 };
 
-struct nvkm_oclass
-nv04_disp_sclass[] = {
-	{ NV04_DISP, &nv04_disp_ofuncs },
-	{},
+static int
+nv04_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		   void *data, u32 size, struct nvkm_object **pobject)
+{
+	struct nv04_disp_root *root;
+
+	if (!(root = kzalloc(sizeof(*root), GFP_KERNEL)))
+		return -ENOMEM;
+	root->disp = disp;
+	*pobject = &root->object;
+
+	nvkm_object_ctor(&nv04_disp_root, oclass, &root->object);
+	return 0;
+}
+
+const struct nvkm_disp_oclass
+nv04_disp_root_oclass = {
+	.base.oclass = NV04_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = nv04_disp_root_new,
 };

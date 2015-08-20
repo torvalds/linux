@@ -1,16 +1,24 @@
 #ifndef __NVKM_DISP_H__
 #define __NVKM_DISP_H__
+#define nvkm_disp(p) container_of((p), struct nvkm_disp, engine)
 #include <core/engine.h>
 #include <core/event.h>
 
 struct nvkm_disp {
 	struct nvkm_engine engine;
+	const struct nvkm_disp_func *func;
+
+	struct nvkm_oproxy *client;
 
 	struct list_head outp;
 	struct list_head conn;
 
 	struct nvkm_event hpd;
 	struct nvkm_event vblank;
+};
+
+struct nvkm_disp_func {
+	const struct nvkm_disp_oclass *root;
 };
 
 extern struct nvkm_oclass *nv04_disp_oclass;

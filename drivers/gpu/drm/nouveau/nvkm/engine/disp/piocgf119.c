@@ -22,17 +22,17 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
+#include "rootnv50.h"
 
 #include <subdev/timer.h>
 
-int
-gf119_disp_pioc_fini(struct nvkm_object *object, bool suspend)
+static void
+gf119_disp_pioc_fini(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_pioc *pioc = (void *)object;
+	struct nv50_disp *disp = chan->root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int chid = pioc->base.chid;
+	int chid = chan->chid;
 
 	nvkm_mask(device, 0x610490 + (chid * 0x10), 0x00000001, 0x00000000);
 	if (nvkm_msec(device, 2000,
@@ -41,30 +41,20 @@ gf119_disp_pioc_fini(struct nvkm_object *object, bool suspend)
 	) < 0) {
 		nvkm_error(subdev, "ch %d fini: %08x\n", chid,
 			   nvkm_rd32(device, 0x610490 + (chid * 0x10)));
-		if (suspend)
-			return -EBUSY;
 	}
 
 	/* disable error reporting and completion notification */
 	nvkm_mask(device, 0x610090, 0x00000001 << chid, 0x00000000);
 	nvkm_mask(device, 0x6100a0, 0x00000001 << chid, 0x00000000);
-
-	return nv50_disp_chan_fini(&pioc->base, suspend);
 }
 
-int
-gf119_disp_pioc_init(struct nvkm_object *object)
+static int
+gf119_disp_pioc_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_pioc *pioc = (void *)object;
+	struct nv50_disp *disp = chan->root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int chid = pioc->base.chid;
-	int ret;
-
-	ret = nv50_disp_chan_init(&pioc->base);
-	if (ret)
-		return ret;
+	int chid = chan->chid;
 
 	/* enable error reporting */
 	nvkm_mask(device, 0x6100a0, 0x00000001 << chid, 0x00000001 << chid);
@@ -83,3 +73,9 @@ gf119_disp_pioc_init(struct nvkm_object *object)
 
 	return 0;
 }
+
+const struct nv50_disp_chan_func
+gf119_disp_pioc_func = {
+	.init = gf119_disp_pioc_init,
+	.fini = gf119_disp_pioc_fini,
+};

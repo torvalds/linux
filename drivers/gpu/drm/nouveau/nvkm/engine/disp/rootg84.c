@@ -26,18 +26,33 @@
 
 #include <nvif/class.h>
 
-struct nvkm_oclass
-g84_disp_sclass[] = {
-	{ G82_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
-	{ G82_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
-	{ G82_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
-	{ G82_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
-	{ G82_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
-	{}
+static const struct nv50_disp_root_func
+g84_disp_root = {
+	.init = nv50_disp_root_init,
+	.fini = nv50_disp_root_fini,
+	.dmac = {
+		&g84_disp_core_oclass,
+		&g84_disp_base_oclass,
+		&g84_disp_ovly_oclass,
+	},
+	.pioc = {
+		&g84_disp_oimm_oclass,
+		&g84_disp_curs_oclass,
+	},
 };
 
-struct nvkm_oclass
-g84_disp_root_oclass[] = {
-	{ G82_DISP, &nv50_disp_root_ofuncs },
-	{}
+static int
+g84_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		  void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nv50_disp_root_new_(&g84_disp_root, disp, oclass,
+				   data, size, pobject);
+}
+
+const struct nvkm_disp_oclass
+g84_disp_root_oclass = {
+	.base.oclass = G82_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = g84_disp_root_new,
 };

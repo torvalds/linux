@@ -22,16 +22,16 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
+#include "rootnv50.h"
 
-struct nv50_disp_chan_impl
-gf119_disp_curs_ofuncs = {
-	.base.ctor = nv50_disp_curs_ctor,
-	.base.dtor = nv50_disp_pioc_dtor,
-	.base.init = gf119_disp_pioc_init,
-	.base.fini = gf119_disp_pioc_fini,
-	.base.ntfy = nv50_disp_chan_ntfy,
-	.base.map  = nv50_disp_chan_map,
-	.base.rd32 = nv50_disp_chan_rd32,
-	.base.wr32 = nv50_disp_chan_wr32,
+#include <nvif/class.h>
+
+const struct nv50_disp_pioc_oclass
+gf119_disp_curs_oclass = {
+	.base.oclass = GF110_DISP_CURSOR,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_curs_new,
+	.func = &gf119_disp_pioc_func,
 	.chid = 13,
 };

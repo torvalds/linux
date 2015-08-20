@@ -66,14 +66,15 @@ nv50_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
 }
 
 int
-nv50_disp_root_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
+nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	const struct nv50_disp_impl *impl = (void *)nv_oclass(object->engine);
 	union {
 		struct nv50_disp_mthd_v0 v0;
 		struct nv50_disp_mthd_v1 v1;
 	} *args = data;
-	struct nv50_disp *disp = (void *)object->engine;
+	struct nv50_disp_root *root = nv50_disp_root(object);
+	struct nv50_disp *disp = root->disp;
+	const struct nv50_disp_impl *impl = (void *)nv_oclass(object->engine);
 	struct nvkm_output *outp = NULL;
 	struct nvkm_output *temp;
 	u16 type, mask = 0;
@@ -187,48 +188,127 @@ nv50_disp_root_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-int
-nv50_disp_root_ctor(struct nvkm_object *parent,
-		    struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
+static int
+nv50_disp_root_dmac_new_(const struct nvkm_oclass *oclass,
+			 void *data, u32 size, struct nvkm_object **pobject)
 {
-	struct nv50_disp *disp = (void *)engine;
-	struct nv50_disp_root *root;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	struct nvkm_gpuobj *instmem = (void *)parent;
-	int ret;
-
-	ret = nvkm_parent_create(parent, engine, oclass, 0,
-				 disp->sclass, 0, &root);
-	*pobject = nv_object(root);
-	if (ret)
-		return ret;
-
-
-	return nvkm_ramht_new(device, 0x1000, 0, instmem, &root->ramht);
-}
-
-void
-nv50_disp_root_dtor(struct nvkm_object *object)
-{
-	struct nv50_disp_root *root = (void *)object;
-	nvkm_ramht_del(&root->ramht);
-	nvkm_parent_destroy(&root->base);
+	const struct nv50_disp_dmac_oclass *sclass = oclass->priv;
+	struct nv50_disp_root *root = nv50_disp_root(oclass->parent);
+	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid,
+			    oclass, data, size, pobject);
 }
 
 static int
-nv50_disp_root_init(struct nvkm_object *object)
+nv50_disp_root_pioc_new_(const struct nvkm_oclass *oclass,
+			 void *data, u32 size, struct nvkm_object **pobject)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_root *root = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	int ret, i;
-	u32 tmp;
+	const struct nv50_disp_pioc_oclass *sclass = oclass->priv;
+	struct nv50_disp_root *root = nv50_disp_root(oclass->parent);
+	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid,
+			    oclass, data, size, pobject);
+}
 
-	ret = nvkm_parent_init(&root->base);
+static int
+nv50_disp_root_child_get_(struct nvkm_object *object, int index,
+			  struct nvkm_oclass *sclass)
+{
+	struct nv50_disp_root *root = nv50_disp_root(object);
+
+	if (index < ARRAY_SIZE(root->func->dmac)) {
+		sclass->base = root->func->dmac[index]->base;
+		sclass->priv = root->func->dmac[index];
+		sclass->ctor = nv50_disp_root_dmac_new_;
+		return 0;
+	}
+
+	index -= ARRAY_SIZE(root->func->dmac);
+
+	if (index < ARRAY_SIZE(root->func->pioc)) {
+		sclass->base = root->func->pioc[index]->base;
+		sclass->priv = root->func->pioc[index];
+		sclass->ctor = nv50_disp_root_pioc_new_;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int
+nv50_disp_root_fini_(struct nvkm_object *object, bool suspend)
+{
+	struct nv50_disp_root *root = nv50_disp_root(object);
+	root->func->fini(root);
+	return 0;
+}
+
+static int
+nv50_disp_root_init_(struct nvkm_object *object)
+{
+	struct nv50_disp_root *root = nv50_disp_root(object);
+	return root->func->init(root);
+}
+
+static void *
+nv50_disp_root_dtor_(struct nvkm_object *object)
+{
+	struct nv50_disp_root *root = nv50_disp_root(object);
+	nvkm_ramht_del(&root->ramht);
+	nvkm_gpuobj_del(&root->instmem);
+	return root;
+}
+
+static const struct nvkm_object_func
+nv50_disp_root_ = {
+	.dtor = nv50_disp_root_dtor_,
+	.init = nv50_disp_root_init_,
+	.fini = nv50_disp_root_fini_,
+	.mthd = nv50_disp_root_mthd_,
+	.ntfy = nvkm_disp_ntfy,
+	.sclass = nv50_disp_root_child_get_,
+};
+
+int
+nv50_disp_root_new_(const struct nv50_disp_root_func *func,
+		    struct nvkm_disp *base, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
+{
+	struct nv50_disp *disp = nv50_disp(base);
+	struct nv50_disp_root *root;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	int ret;
+
+	if (!(root = kzalloc(sizeof(*root), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &root->object;
+
+	nvkm_object_ctor(&nv50_disp_root_, oclass, &root->object);
+	root->func = func;
+	root->disp = disp;
+
+	ret = nvkm_gpuobj_new(disp->base.engine.subdev.device, 0x10000, 0x10000,
+			      false, NULL, &root->instmem);
 	if (ret)
 		return ret;
+
+	return nvkm_ramht_new(device, 0x1000, 0, root->instmem, &root->ramht);
+}
+
+void
+nv50_disp_root_fini(struct nv50_disp_root *root)
+{
+	struct nvkm_device *device = root->disp->base.engine.subdev.device;
+	/* disable all interrupts */
+	nvkm_wr32(device, 0x610024, 0x00000000);
+	nvkm_wr32(device, 0x610020, 0x00000000);
+}
+
+int
+nv50_disp_root_init(struct nv50_disp_root *root)
+{
+	struct nv50_disp *disp = root->disp;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	u32 tmp;
+	int i;
 
 	/* The below segments of code copying values from one register to
 	 * another appear to inform EVO of the display capabilities or
@@ -279,7 +359,7 @@ nv50_disp_root_init(struct nvkm_object *object)
 	}
 
 	/* point at display engine memory area (hash table, objects) */
-	nvkm_wr32(device, 0x610010, (root->ramht->gpuobj->addr >> 8) | 9);
+	nvkm_wr32(device, 0x610010, (root->instmem->addr >> 8) | 9);
 
 	/* enable supervisor interrupts, disable everything else */
 	nvkm_wr32(device, 0x61002c, 0x00000370);
@@ -287,42 +367,33 @@ nv50_disp_root_init(struct nvkm_object *object)
 	return 0;
 }
 
-static int
-nv50_disp_root_fini(struct nvkm_object *object, bool suspend)
-{
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_root *root = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-
-	/* disable all interrupts */
-	nvkm_wr32(device, 0x610024, 0x00000000);
-	nvkm_wr32(device, 0x610020, 0x00000000);
-
-	return nvkm_parent_fini(&root->base, suspend);
-}
-
-struct nvkm_ofuncs
-nv50_disp_root_ofuncs = {
-	.ctor = nv50_disp_root_ctor,
-	.dtor = nv50_disp_root_dtor,
+static const struct nv50_disp_root_func
+nv50_disp_root = {
 	.init = nv50_disp_root_init,
 	.fini = nv50_disp_root_fini,
-	.mthd = nv50_disp_root_mthd,
-	.ntfy = nvkm_disp_ntfy,
+	.dmac = {
+		&nv50_disp_core_oclass,
+		&nv50_disp_base_oclass,
+		&nv50_disp_ovly_oclass,
+	},
+	.pioc = {
+		&nv50_disp_oimm_oclass,
+		&nv50_disp_curs_oclass,
+	},
 };
 
-struct nvkm_oclass
-nv50_disp_root_oclass[] = {
-	{ NV50_DISP, &nv50_disp_root_ofuncs },
-	{}
-};
+static int
+nv50_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		   void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nv50_disp_root_new_(&nv50_disp_root, disp, oclass,
+				   data, size, pobject);
+}
 
-struct nvkm_oclass
-nv50_disp_sclass[] = {
-	{ NV50_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
-	{ NV50_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
-	{ NV50_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
-	{ NV50_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
-	{ NV50_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
-	{}
+const struct nvkm_disp_oclass
+nv50_disp_root_oclass = {
+	.base.oclass = NV50_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = nv50_disp_root_new,
 };

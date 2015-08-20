@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,45 +19,20 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "dmacnv50.h"
 #include "rootnv50.h"
 
 #include <nvif/class.h>
 
-const struct nv50_disp_mthd_list
-g94_disp_core_mthd_sor = {
-	.mthd = 0x0040,
-	.addr = 0x000008,
-	.data = {
-		{ 0x0600, 0x610794 },
-		{}
-	}
-};
-
-const struct nv50_disp_chan_mthd
-g94_disp_core_chan_mthd = {
-	.name = "Core",
-	.addr = 0x000000,
-	.prev = 0x000004,
-	.data = {
-		{ "Global", 1, &nv50_disp_core_mthd_base },
-		{    "DAC", 3, &g84_disp_core_mthd_dac  },
-		{    "SOR", 4, &g94_disp_core_mthd_sor  },
-		{   "PIOR", 3, &nv50_disp_core_mthd_pior },
-		{   "HEAD", 2, &g84_disp_core_mthd_head },
-		{}
-	}
-};
-
 const struct nv50_disp_dmac_oclass
-g94_disp_core_oclass = {
-	.base.oclass = GT206_DISP_CORE_CHANNEL_DMA,
+gk104_disp_base_oclass = {
+	.base.oclass = GK104_DISP_BASE_CHANNEL_DMA,
 	.base.minver = 0,
 	.base.maxver = 0,
-	.ctor = nv50_disp_core_new,
-	.func = &nv50_disp_core_func,
-	.mthd = &g94_disp_core_chan_mthd,
-	.chid = 0,
+	.ctor = nv50_disp_base_new,
+	.func = &gf119_disp_dmac_func,
+	.mthd = &gf119_disp_base_chan_mthd,
+	.chid = 1,
 };

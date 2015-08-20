@@ -26,18 +26,33 @@
 
 #include <nvif/class.h>
 
-struct nvkm_oclass
-gk110_disp_sclass[] = {
-	{ GK110_DISP_CORE_CHANNEL_DMA, &gf119_disp_core_ofuncs.base },
-	{ GK110_DISP_BASE_CHANNEL_DMA, &gf119_disp_base_ofuncs.base },
-	{ GK104_DISP_OVERLAY_CONTROL_DMA, &gf119_disp_ovly_ofuncs.base },
-	{ GK104_DISP_OVERLAY, &gf119_disp_oimm_ofuncs.base },
-	{ GK104_DISP_CURSOR, &gf119_disp_curs_ofuncs.base },
-	{}
+static const struct nv50_disp_root_func
+gk110_disp_root = {
+	.init = gf119_disp_root_init,
+	.fini = gf119_disp_root_fini,
+	.dmac = {
+		&gk110_disp_core_oclass,
+		&gk110_disp_base_oclass,
+		&gk104_disp_ovly_oclass,
+	},
+	.pioc = {
+		&gk104_disp_oimm_oclass,
+		&gk104_disp_curs_oclass,
+	},
 };
 
-struct nvkm_oclass
-gk110_disp_root_oclass[] = {
-	{ GK110_DISP, &gf119_disp_root_ofuncs },
-	{}
+static int
+gk110_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nv50_disp_root_new_(&gk110_disp_root, disp, oclass,
+				   data, size, pobject);
+}
+
+const struct nvkm_disp_oclass
+gk110_disp_root_oclass = {
+	.base.oclass = GK110_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = gk110_disp_root_new,
 };

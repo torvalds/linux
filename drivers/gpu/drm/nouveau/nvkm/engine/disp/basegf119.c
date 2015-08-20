@@ -22,6 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
+#include "rootnv50.h"
+
+#include <nvif/class.h>
 
 static const struct nv50_disp_mthd_list
 gf119_disp_base_mthd_base = {
@@ -87,10 +90,11 @@ gf119_disp_base_mthd_image = {
 	}
 };
 
-const struct nv50_disp_mthd_chan
-gf119_disp_base_mthd_chan = {
+const struct nv50_disp_chan_mthd
+gf119_disp_base_chan_mthd = {
 	.name = "Base",
 	.addr = 0x001000,
+	.prev = -0x020000,
 	.data = {
 		{ "Global", 1, &gf119_disp_base_mthd_base },
 		{  "Image", 2, &gf119_disp_base_mthd_image },
@@ -98,17 +102,13 @@ gf119_disp_base_mthd_chan = {
 	}
 };
 
-struct nv50_disp_chan_impl
-gf119_disp_base_ofuncs = {
-	.base.ctor = nv50_disp_base_ctor,
-	.base.dtor = nv50_disp_dmac_dtor,
-	.base.init = gf119_disp_dmac_init,
-	.base.fini = gf119_disp_dmac_fini,
-	.base.ntfy = nv50_disp_chan_ntfy,
-	.base.map  = nv50_disp_chan_map,
-	.base.rd32 = nv50_disp_chan_rd32,
-	.base.wr32 = nv50_disp_chan_wr32,
+const struct nv50_disp_dmac_oclass
+gf119_disp_base_oclass = {
+	.base.oclass = GF110_DISP_BASE_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_base_new,
+	.func = &gf119_disp_dmac_func,
+	.mthd = &gf119_disp_base_chan_mthd,
 	.chid = 1,
-	.attach = gf119_disp_dmac_object_attach,
-	.detach = gf119_disp_dmac_object_detach,
 };

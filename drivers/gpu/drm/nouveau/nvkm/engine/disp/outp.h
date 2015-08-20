@@ -27,18 +27,22 @@ struct nvkm_output_func {
 
 void nvkm_output_ctor(const struct nvkm_output_func *, struct nvkm_disp *,
 		      int index, struct dcb_output *, struct nvkm_output *);
-int  nvkm_output_new_(const struct nvkm_output_func *, struct nvkm_disp *,
-		      int index, struct dcb_output *, struct nvkm_output **);
+int nvkm_output_new_(const struct nvkm_output_func *, struct nvkm_disp *,
+		     int index, struct dcb_output *, struct nvkm_output **);
 void nvkm_output_del(struct nvkm_output **);
 void nvkm_output_init(struct nvkm_output *);
 void nvkm_output_fini(struct nvkm_output *);
 
-int  nv50_dac_output_new(struct nvkm_disp *, int, struct dcb_output *,
+int nv50_dac_output_new(struct nvkm_disp *, int, struct dcb_output *,
+			struct nvkm_output **);
+int nv50_sor_output_new(struct nvkm_disp *, int, struct dcb_output *,
+			struct nvkm_output **);
+int nv50_pior_output_new(struct nvkm_disp *, int, struct dcb_output *,
 			 struct nvkm_output **);
-int  nv50_sor_output_new(struct nvkm_disp *, int, struct dcb_output *,
-			 struct nvkm_output **);
-int  nv50_pior_output_new(struct nvkm_disp *, int, struct dcb_output *,
-			  struct nvkm_output **);
+
+u32 g94_sor_dp_lane_map(struct nvkm_device *, u8 lane);
+
+void gm204_sor_magic(struct nvkm_output *outp);
 
 #define OUTP_MSG(o,l,f,a...) do {                                              \
 	struct nvkm_output *_outp = (o);                                       \

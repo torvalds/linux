@@ -22,13 +22,45 @@
  * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
+#include "rootnv50.h"
 
 #include <core/client.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
-const struct nv50_disp_mthd_list
+int
+nv50_disp_ovly_new(const struct nv50_disp_dmac_func *func,
+		   const struct nv50_disp_chan_mthd *mthd,
+		   struct nv50_disp_root *root, int chid,
+		   const struct nvkm_oclass *oclass, void *data, u32 size,
+		   struct nvkm_object **pobject)
+{
+	union {
+		struct nv50_disp_overlay_channel_dma_v0 v0;
+	} *args = data;
+	struct nvkm_object *parent = oclass->parent;
+	struct nv50_disp *disp = root->disp;
+	int head, ret;
+	u64 push;
+
+	nvif_ioctl(parent, "create disp overlay channel dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nvif_ioctl(parent, "create disp overlay channel dma vers %d "
+				   "pushbuf %016llx head %d\n",
+			   args->v0.version, args->v0.pushbuf, args->v0.head);
+		if (args->v0.head > disp->head.nr)
+			return -EINVAL;
+		push = args->v0.pushbuf;
+		head = args->v0.head;
+	} else
+		return ret;
+
+	return nv50_disp_dmac_new_(func, mthd, root, chid + head,
+				   head, push, oclass, pobject);
+}
+
+static const struct nv50_disp_mthd_list
 nv50_disp_ovly_mthd_base = {
 	.mthd = 0x0000,
 	.addr = 0x000000,
@@ -56,60 +88,24 @@ nv50_disp_ovly_mthd_base = {
 	}
 };
 
-const struct nv50_disp_mthd_chan
-nv50_disp_ovly_mthd_chan = {
+static const struct nv50_disp_chan_mthd
+nv50_disp_ovly_chan_mthd = {
 	.name = "Overlay",
 	.addr = 0x000540,
+	.prev = 0x000004,
 	.data = {
 		{ "Global", 1, &nv50_disp_ovly_mthd_base },
 		{}
 	}
 };
 
-int
-nv50_disp_ovly_ctor(struct nvkm_object *parent,
-		    struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
-{
-	union {
-		struct nv50_disp_overlay_channel_dma_v0 v0;
-	} *args = data;
-	struct nv50_disp *disp = (void *)engine;
-	struct nv50_disp_dmac *dmac;
-	int ret;
-
-	nvif_ioctl(parent, "create disp overlay channel dma size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nvif_ioctl(parent, "create disp overlay channel dma vers %d "
-				   "pushbuf %016llx head %d\n",
-			   args->v0.version, args->v0.pushbuf, args->v0.head);
-		if (args->v0.head > disp->head.nr)
-			return -EINVAL;
-	} else
-		return ret;
-
-	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->v0.pushbuf,
-				     args->v0.head, sizeof(*dmac),
-				     (void **)&dmac);
-	*pobject = nv_object(dmac);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-struct nv50_disp_chan_impl
-nv50_disp_ovly_ofuncs = {
-	.base.ctor = nv50_disp_ovly_ctor,
-	.base.dtor = nv50_disp_dmac_dtor,
-	.base.init = nv50_disp_dmac_init,
-	.base.fini = nv50_disp_dmac_fini,
-	.base.ntfy = nv50_disp_chan_ntfy,
-	.base.map  = nv50_disp_chan_map,
-	.base.rd32 = nv50_disp_chan_rd32,
-	.base.wr32 = nv50_disp_chan_wr32,
+const struct nv50_disp_dmac_oclass
+nv50_disp_ovly_oclass = {
+	.base.oclass = NV50_DISP_OVERLAY_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_ovly_new,
+	.func = &nv50_disp_dmac_func,
+	.mthd = &nv50_disp_ovly_chan_mthd,
 	.chid = 3,
-	.attach = nv50_disp_dmac_object_attach,
-	.detach = nv50_disp_dmac_object_detach,
 };

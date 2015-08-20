@@ -22,8 +22,13 @@
  * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
+#include "rootnv50.h"
 
+#include <core/client.h>
 #include <subdev/timer.h>
+
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 const struct nv50_disp_mthd_list
 gf119_disp_core_mthd_base = {
@@ -151,10 +156,11 @@ gf119_disp_core_mthd_head = {
 	}
 };
 
-const struct nv50_disp_mthd_chan
-gf119_disp_core_mthd_chan = {
+static const struct nv50_disp_chan_mthd
+gf119_disp_core_chan_mthd = {
 	.name = "Core",
 	.addr = 0x000000,
+	.prev = -0x020000,
 	.data = {
 		{ "Global", 1, &gf119_disp_core_mthd_base },
 		{    "DAC", 3, &gf119_disp_core_mthd_dac  },
@@ -165,11 +171,10 @@ gf119_disp_core_mthd_chan = {
 	}
 };
 
-static int
-gf119_disp_core_fini(struct nvkm_object *object, bool suspend)
+static void
+gf119_disp_core_fini(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_dmac *mast = (void *)object;
+	struct nv50_disp *disp = chan->base.root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
@@ -182,35 +187,25 @@ gf119_disp_core_fini(struct nvkm_object *object, bool suspend)
 	) < 0) {
 		nvkm_error(subdev, "core fini: %08x\n",
 			   nvkm_rd32(device, 0x610490));
-		if (suspend)
-			return -EBUSY;
 	}
 
 	/* disable error reporting and completion notification */
 	nvkm_mask(device, 0x610090, 0x00000001, 0x00000000);
 	nvkm_mask(device, 0x6100a0, 0x00000001, 0x00000000);
-
-	return nv50_disp_chan_fini(&mast->base, suspend);
 }
 
 static int
-gf119_disp_core_init(struct nvkm_object *object)
+gf119_disp_core_init(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_dmac *mast = (void *)object;
+	struct nv50_disp *disp = chan->base.root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int ret;
-
-	ret = nv50_disp_chan_init(&mast->base);
-	if (ret)
-		return ret;
 
 	/* enable error reporting */
 	nvkm_mask(device, 0x6100a0, 0x00000001, 0x00000001);
 
 	/* initialise channel for dma command submission */
-	nvkm_wr32(device, 0x610494, mast->push);
+	nvkm_wr32(device, 0x610494, chan->push);
 	nvkm_wr32(device, 0x610498, 0x00010000);
 	nvkm_wr32(device, 0x61049c, 0x00000001);
 	nvkm_mask(device, 0x610490, 0x00000010, 0x00000010);
@@ -230,17 +225,20 @@ gf119_disp_core_init(struct nvkm_object *object)
 	return 0;
 }
 
-struct nv50_disp_chan_impl
-gf119_disp_core_ofuncs = {
-	.base.ctor = nv50_disp_core_ctor,
-	.base.dtor = nv50_disp_dmac_dtor,
-	.base.init = gf119_disp_core_init,
-	.base.fini = gf119_disp_core_fini,
-	.base.ntfy = nv50_disp_chan_ntfy,
-	.base.map  = nv50_disp_chan_map,
-	.base.rd32 = nv50_disp_chan_rd32,
-	.base.wr32 = nv50_disp_chan_wr32,
+const struct nv50_disp_dmac_func
+gf119_disp_core_func = {
+	.init = gf119_disp_core_init,
+	.fini = gf119_disp_core_fini,
+	.bind = gf119_disp_dmac_bind,
+};
+
+const struct nv50_disp_dmac_oclass
+gf119_disp_core_oclass = {
+	.base.oclass = GF110_DISP_CORE_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_core_new,
+	.func = &gf119_disp_core_func,
+	.mthd = &gf119_disp_core_chan_mthd,
 	.chid = 0,
-	.attach = gf119_disp_dmac_object_attach,
-	.detach = gf119_disp_dmac_object_detach,
 };

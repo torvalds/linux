@@ -22,6 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
+#include "rootnv50.h"
+
+#include <nvif/class.h>
 
 static const struct nv50_disp_mthd_list
 gf119_disp_ovly_mthd_base = {
@@ -75,27 +78,24 @@ gf119_disp_ovly_mthd_base = {
 	}
 };
 
-const struct nv50_disp_mthd_chan
-gf119_disp_ovly_mthd_chan = {
+static const struct nv50_disp_chan_mthd
+gf119_disp_ovly_chan_mthd = {
 	.name = "Overlay",
 	.addr = 0x001000,
+	.prev = -0x020000,
 	.data = {
 		{ "Global", 1, &gf119_disp_ovly_mthd_base },
 		{}
 	}
 };
 
-struct nv50_disp_chan_impl
-gf119_disp_ovly_ofuncs = {
-	.base.ctor = nv50_disp_ovly_ctor,
-	.base.dtor = nv50_disp_dmac_dtor,
-	.base.init = gf119_disp_dmac_init,
-	.base.fini = gf119_disp_dmac_fini,
-	.base.ntfy = nv50_disp_chan_ntfy,
-	.base.map  = nv50_disp_chan_map,
-	.base.rd32 = nv50_disp_chan_rd32,
-	.base.wr32 = nv50_disp_chan_wr32,
+const struct nv50_disp_dmac_oclass
+gf119_disp_ovly_oclass = {
+	.base.oclass = GF110_DISP_OVERLAY_CONTROL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_ovly_new,
+	.func = &gf119_disp_dmac_func,
+	.mthd = &gf119_disp_ovly_chan_mthd,
 	.chid = 5,
-	.attach = gf119_disp_dmac_object_attach,
-	.detach = gf119_disp_dmac_object_detach,
 };

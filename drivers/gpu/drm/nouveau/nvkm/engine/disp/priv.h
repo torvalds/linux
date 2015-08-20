@@ -57,5 +57,11 @@ int  nvkm_disp_vblank_ctor(struct nvkm_object *, void *data, u32 size,
 void nvkm_disp_vblank(struct nvkm_disp *, int head);
 int  nvkm_disp_ntfy(struct nvkm_object *, u32, struct nvkm_event **);
 
-extern struct nvkm_oclass nv04_disp_sclass[];
+extern const struct nvkm_disp_oclass nv04_disp_root_oclass;
+
+struct nvkm_disp_oclass {
+	int (*ctor)(struct nvkm_disp *, const struct nvkm_oclass *,
+		    void *data, u32 size, struct nvkm_object **);
+	struct nvkm_sclass base;
+};
 #endif

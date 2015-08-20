@@ -74,6 +74,11 @@ nv04_disp_intr(struct nvkm_subdev *subdev)
 	}
 }
 
+static const struct nvkm_disp_func
+nv04_disp = {
+	.root = &nv04_disp_root_oclass,
+};
+
 static int
 nv04_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -88,7 +93,8 @@ nv04_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(disp)->sclass = nv04_disp_sclass;
+	disp->func = &nv04_disp;
+
 	nv_subdev(disp)->intr = nv04_disp_intr;
 	return 0;
 }

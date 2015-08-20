@@ -52,14 +52,16 @@ int nvkm_output_dp_new_(const struct nvkm_output_dp_func *, struct nvkm_disp *,
 			int index, struct dcb_output *,
 			struct nvkm_output **);
 
-int  nv50_pior_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		      struct nvkm_output **);
+int nv50_pior_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		     struct nvkm_output **);
 
-int  g94_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		    struct nvkm_output **);
+int g94_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		   struct nvkm_output **);
+int g94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
 
-int  gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
-		      struct nvkm_output **);
+int gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+		     struct nvkm_output **);
+int gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
 
 int  gm204_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		      struct nvkm_output **);

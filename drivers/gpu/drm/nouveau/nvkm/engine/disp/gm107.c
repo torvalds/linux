@@ -24,6 +24,11 @@
 #include "nv50.h"
 #include "rootnv50.h"
 
+static const struct nvkm_disp_func
+gm107_disp = {
+	.root = &gm107_disp_root_oclass,
+};
+
 static int
 gm107_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
@@ -40,15 +45,14 @@ gm107_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	disp->base.func = &gm107_disp;
+
 	ret = nvkm_event_init(&gf119_disp_chan_uevent, 1, 17, &disp->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(disp)->sclass = gm107_disp_root_oclass;
-	nv_engine(disp)->cclass = &nv50_disp_cclass;
 	nv_subdev(disp)->intr = gf119_disp_intr;
 	INIT_WORK(&disp->supervisor, gf119_disp_intr_supervisor);
-	disp->sclass = gm107_disp_sclass;
 	disp->head.nr = heads;
 	disp->dac.nr = 3;
 	disp->sor.nr = 4;
@@ -74,9 +78,5 @@ gm107_disp_oclass = &(struct nv50_disp_impl) {
 	.base.outp.internal.lvds = nv50_sor_output_new,
 	.base.outp.internal.dp = gf119_sor_dp_new,
 	.base.vblank = &gf119_disp_vblank_func,
-	.mthd.core = &gk104_disp_core_mthd_chan,
-	.mthd.base = &gf119_disp_base_mthd_chan,
-	.mthd.ovly = &gk104_disp_ovly_mthd_chan,
-	.mthd.prev = -0x020000,
 	.head.scanoutpos = gf119_disp_root_scanoutpos,
 }.base.base;

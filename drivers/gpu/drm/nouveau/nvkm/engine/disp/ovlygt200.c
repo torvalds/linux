@@ -22,6 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
+#include "rootnv50.h"
+
+#include <nvif/class.h>
 
 static const struct nv50_disp_mthd_list
 gt200_disp_ovly_mthd_base = {
@@ -54,12 +57,24 @@ gt200_disp_ovly_mthd_base = {
 	}
 };
 
-const struct nv50_disp_mthd_chan
-gt200_disp_ovly_mthd_chan = {
+static const struct nv50_disp_chan_mthd
+gt200_disp_ovly_chan_mthd = {
 	.name = "Overlay",
 	.addr = 0x000540,
+	.prev = 0x000004,
 	.data = {
 		{ "Global", 1, &gt200_disp_ovly_mthd_base },
 		{}
 	}
+};
+
+const struct nv50_disp_dmac_oclass
+gt200_disp_ovly_oclass = {
+	.base.oclass = GT200_DISP_OVERLAY_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_ovly_new,
+	.func = &nv50_disp_dmac_func,
+	.mthd = &gt200_disp_ovly_chan_mthd,
+	.chid = 3,
 };

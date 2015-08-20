@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
+#include "rootnv50.h"
 
 #include <core/client.h>
 
@@ -29,17 +30,18 @@
 #include <nvif/unpack.h>
 
 int
-nv50_disp_oimm_ctor(struct nvkm_object *parent,
-		    struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
+nv50_disp_oimm_new(const struct nv50_disp_chan_func *func,
+		   const struct nv50_disp_chan_mthd *mthd,
+		   struct nv50_disp_root *root, int chid,
+		   const struct nvkm_oclass *oclass, void *data, u32 size,
+		   struct nvkm_object **pobject)
 {
 	union {
 		struct nv50_disp_overlay_v0 v0;
 	} *args = data;
-	struct nv50_disp *disp = (void *)engine;
-	struct nv50_disp_pioc *pioc;
-	int ret;
+	struct nvkm_object *parent = oclass->parent;
+	struct nv50_disp *disp = root->disp;
+	int head, ret;
 
 	nvif_ioctl(parent, "create disp overlay size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
@@ -47,27 +49,20 @@ nv50_disp_oimm_ctor(struct nvkm_object *parent,
 			   args->v0.version, args->v0.head);
 		if (args->v0.head > disp->head.nr)
 			return -EINVAL;
+		head = args->v0.head;
 	} else
 		return ret;
 
-	ret = nv50_disp_pioc_create_(parent, engine, oclass, args->v0.head,
-				     sizeof(*pioc), (void **)&pioc);
-	*pobject = nv_object(pioc);
-	if (ret)
-		return ret;
-
-	return 0;
+	return nv50_disp_chan_new_(func, mthd, root, chid + head,
+				   head, oclass, pobject);
 }
 
-struct nv50_disp_chan_impl
-nv50_disp_oimm_ofuncs = {
-	.base.ctor = nv50_disp_oimm_ctor,
-	.base.dtor = nv50_disp_pioc_dtor,
-	.base.init = nv50_disp_pioc_init,
-	.base.fini = nv50_disp_pioc_fini,
-	.base.ntfy = nv50_disp_chan_ntfy,
-	.base.map  = nv50_disp_chan_map,
-	.base.rd32 = nv50_disp_chan_rd32,
-	.base.wr32 = nv50_disp_chan_wr32,
+const struct nv50_disp_pioc_oclass
+nv50_disp_oimm_oclass = {
+	.base.oclass = NV50_DISP_OVERLAY,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_oimm_new,
+	.func = &nv50_disp_pioc_func,
 	.chid = 5,
 };

@@ -22,17 +22,17 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
+#include "rootnv50.h"
 
 #include <subdev/timer.h>
 
-int
-nv50_disp_pioc_fini(struct nvkm_object *object, bool suspend)
+static void
+nv50_disp_pioc_fini(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_pioc *pioc = (void *)object;
+	struct nv50_disp *disp = chan->root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int chid = pioc->base.chid;
+	int chid = chan->chid;
 
 	nvkm_mask(device, 0x610200 + (chid * 0x10), 0x00000001, 0x00000000);
 	if (nvkm_msec(device, 2000,
@@ -41,26 +41,16 @@ nv50_disp_pioc_fini(struct nvkm_object *object, bool suspend)
 	) < 0) {
 		nvkm_error(subdev, "ch %d timeout: %08x\n", chid,
 			   nvkm_rd32(device, 0x610200 + (chid * 0x10)));
-		if (suspend)
-			return -EBUSY;
 	}
-
-	return nv50_disp_chan_fini(&pioc->base, suspend);
 }
 
-int
-nv50_disp_pioc_init(struct nvkm_object *object)
+static int
+nv50_disp_pioc_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_pioc *pioc = (void *)object;
+	struct nv50_disp *disp = chan->root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int chid = pioc->base.chid;
-	int ret;
-
-	ret = nv50_disp_chan_init(&pioc->base);
-	if (ret)
-		return ret;
+	int chid = chan->chid;
 
 	nvkm_wr32(device, 0x610200 + (chid * 0x10), 0x00002000);
 	if (nvkm_msec(device, 2000,
@@ -86,19 +76,8 @@ nv50_disp_pioc_init(struct nvkm_object *object)
 	return 0;
 }
 
-void
-nv50_disp_pioc_dtor(struct nvkm_object *object)
-{
-	struct nv50_disp_pioc *pioc = (void *)object;
-	nv50_disp_chan_destroy(&pioc->base);
-}
-
-int
-nv50_disp_pioc_create_(struct nvkm_object *parent,
-		       struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass, int head,
-		       int length, void **pobject)
-{
-	return nv50_disp_chan_create_(parent, engine, oclass, head,
-				      length, pobject);
-}
+const struct nv50_disp_chan_func
+nv50_disp_pioc_func = {
+	.init = nv50_disp_pioc_init,
+	.fini = nv50_disp_pioc_fini,
+};

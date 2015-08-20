@@ -26,38 +26,172 @@
 
 #include <core/client.h>
 #include <core/handle.h>
+#include <core/oproxy.h>
 #include <core/ramht.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <engine/dma.h>
 
-void
-nv50_disp_dmac_object_detach(struct nvkm_object *parent, int cookie)
+struct nv50_disp_dmac_object {
+	struct nvkm_oproxy oproxy;
+	struct nv50_disp_root *root;
+	int hash;
+};
+
+static void
+nv50_disp_dmac_child_del_(struct nvkm_oproxy *base)
 {
-	struct nv50_disp_root *root = (void *)parent->parent;
-	nvkm_ramht_remove(root->ramht, cookie);
+	struct nv50_disp_dmac_object *object =
+		container_of(base, typeof(*object), oproxy);
+	nvkm_ramht_remove(object->root->ramht, object->hash);
+}
+
+static const struct nvkm_oproxy_func
+nv50_disp_dmac_child_func_ = {
+	.dtor[0] = nv50_disp_dmac_child_del_,
+};
+
+static int
+nv50_disp_dmac_child_new_(struct nv50_disp_chan *base,
+			  const struct nvkm_oclass *oclass,
+			  void *data, u32 size, struct nvkm_object **pobject)
+{
+	struct nv50_disp_dmac *chan = nv50_disp_dmac(base);
+	struct nv50_disp_root *root = chan->base.root;
+	struct nvkm_device *device = root->disp->base.engine.subdev.device;
+	const struct nvkm_device_oclass *sclass = oclass->priv;
+	struct nv50_disp_dmac_object *object;
+	int ret;
+
+	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_oproxy_ctor(&nv50_disp_dmac_child_func_, oclass, &object->oproxy);
+	object->root = root;
+	*pobject = &object->oproxy.base;
+
+	ret = sclass->ctor(device, oclass, data, size, &object->oproxy.object);
+	if (ret)
+		return ret;
+
+	object->hash = chan->func->bind(chan, object->oproxy.object,
+					      oclass->handle);
+	if (object->hash < 0)
+		return object->hash;
+
+	return 0;
+}
+
+static int
+nv50_disp_dmac_child_get_(struct nv50_disp_chan *base, int index,
+			  struct nvkm_oclass *sclass)
+{
+	struct nv50_disp_dmac *chan = nv50_disp_dmac(base);
+	struct nv50_disp *disp = chan->base.root->disp;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	const struct nvkm_device_oclass *oclass = NULL;
+
+	sclass->engine = nvkm_device_engine(device, NVDEV_ENGINE_DMAOBJ);
+	if (sclass->engine && sclass->engine->func->base.sclass) {
+		sclass->engine->func->base.sclass(sclass, index, &oclass);
+		if (oclass) {
+			sclass->priv = oclass;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static void
+nv50_disp_dmac_fini_(struct nv50_disp_chan *base)
+{
+	struct nv50_disp_dmac *chan = nv50_disp_dmac(base);
+	chan->func->fini(chan);
+}
+
+static int
+nv50_disp_dmac_init_(struct nv50_disp_chan *base)
+{
+	struct nv50_disp_dmac *chan = nv50_disp_dmac(base);
+	return chan->func->init(chan);
+}
+
+static void *
+nv50_disp_dmac_dtor_(struct nv50_disp_chan *base)
+{
+	return nv50_disp_dmac(base);
+}
+
+static const struct nv50_disp_chan_func
+nv50_disp_dmac_func_ = {
+	.dtor = nv50_disp_dmac_dtor_,
+	.init = nv50_disp_dmac_init_,
+	.fini = nv50_disp_dmac_fini_,
+	.child_get = nv50_disp_dmac_child_get_,
+	.child_new = nv50_disp_dmac_child_new_,
+};
+
+int
+nv50_disp_dmac_new_(const struct nv50_disp_dmac_func *func,
+		    const struct nv50_disp_chan_mthd *mthd,
+		    struct nv50_disp_root *root, int chid, int head, u64 push,
+		    const struct nvkm_oclass *oclass,
+		    struct nvkm_object **pobject)
+{
+	struct nvkm_device *device = root->disp->base.engine.subdev.device;
+	struct nvkm_client *client = oclass->client;
+	struct nvkm_dmaobj *dmaobj;
+	struct nv50_disp_dmac *chan;
+	int ret;
+
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &chan->base.object;
+	chan->func = func;
+
+	ret = nv50_disp_chan_ctor(&nv50_disp_dmac_func_, mthd, root,
+				  chid, head, oclass, &chan->base);
+	if (ret)
+		return ret;
+
+	dmaobj = nvkm_dma_search(device->dma, client, push);
+	if (!dmaobj)
+		return -ENOENT;
+
+	if (dmaobj->limit - dmaobj->start != 0xfff)
+		return -EINVAL;
+
+	switch (dmaobj->target) {
+	case NV_MEM_TARGET_VRAM:
+		chan->push = 0x00000001 | dmaobj->start >> 8;
+		break;
+	case NV_MEM_TARGET_PCI_NOSNOOP:
+		chan->push = 0x00000003 | dmaobj->start >> 8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int
-nv50_disp_dmac_object_attach(struct nvkm_object *parent,
-			     struct nvkm_object *object, u32 name)
+nv50_disp_dmac_bind(struct nv50_disp_dmac *chan,
+		    struct nvkm_object *object, u32 handle)
 {
-	struct nv50_disp_root *root = (void *)parent->parent;
-	struct nv50_disp_chan *chan = (void *)parent;
-	u32 addr = nv_gpuobj(object)->node->offset;
-	u32 chid = chan->chid;
-	u32 data = (chid << 28) | (addr << 10) | chid;
-	return nvkm_ramht_insert(root->ramht, NULL, chid, 0, name, data);
+	return nvkm_ramht_insert(chan->base.root->ramht, object,
+				 chan->base.chid, -10, handle,
+				 chan->base.chid << 28 |
+				 chan->base.chid);
 }
 
-int
-nv50_disp_dmac_fini(struct nvkm_object *object, bool suspend)
+static void
+nv50_disp_dmac_fini(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_dmac *dmac = (void *)object;
+	struct nv50_disp *disp = chan->base.root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int chid = dmac->base.chid;
+	int chid = chan->base.chid;
 
 	/* deactivate channel */
 	nvkm_mask(device, 0x610200 + (chid * 0x0010), 0x00001010, 0x00001000);
@@ -68,35 +202,25 @@ nv50_disp_dmac_fini(struct nvkm_object *object, bool suspend)
 	) < 0) {
 		nvkm_error(subdev, "ch %d fini timeout, %08x\n", chid,
 			   nvkm_rd32(device, 0x610200 + (chid * 0x10)));
-		if (suspend)
-			return -EBUSY;
 	}
 
 	/* disable error reporting and completion notifications */
 	nvkm_mask(device, 0x610028, 0x00010001 << chid, 0x00000000 << chid);
-
-	return nv50_disp_chan_fini(&dmac->base, suspend);
 }
 
-int
-nv50_disp_dmac_init(struct nvkm_object *object)
+static int
+nv50_disp_dmac_init(struct nv50_disp_dmac *chan)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_dmac *dmac = (void *)object;
+	struct nv50_disp *disp = chan->base.root->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int chid = dmac->base.chid;
-	int ret;
-
-	ret = nv50_disp_chan_init(&dmac->base);
-	if (ret)
-		return ret;
+	int chid = chan->base.chid;
 
 	/* enable error reporting */
 	nvkm_mask(device, 0x610028, 0x00010000 << chid, 0x00010000 << chid);
 
 	/* initialise channel for dma command submission */
-	nvkm_wr32(device, 0x610204 + (chid * 0x0010), dmac->push);
+	nvkm_wr32(device, 0x610204 + (chid * 0x0010), chan->push);
 	nvkm_wr32(device, 0x610208 + (chid * 0x0010), 0x00010000);
 	nvkm_wr32(device, 0x61020c + (chid * 0x0010), chid);
 	nvkm_mask(device, 0x610200 + (chid * 0x0010), 0x00000010, 0x00000010);
@@ -116,48 +240,9 @@ nv50_disp_dmac_init(struct nvkm_object *object)
 	return 0;
 }
 
-void
-nv50_disp_dmac_dtor(struct nvkm_object *object)
-{
-	struct nv50_disp_dmac *dmac = (void *)object;
-	nv50_disp_chan_destroy(&dmac->base);
-}
-
-int
-nv50_disp_dmac_create_(struct nvkm_object *parent,
-		       struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass, u64 pushbuf, int head,
-		       int length, void **pobject)
-{
-	struct nvkm_device *device = parent->engine->subdev.device;
-	struct nvkm_client *client = nvkm_client(parent);
-	struct nvkm_dmaobj *dmaobj;
-	struct nv50_disp_dmac *dmac;
-	int ret;
-
-	ret = nv50_disp_chan_create_(parent, engine, oclass, head,
-				     length, pobject);
-	dmac = *pobject;
-	if (ret)
-		return ret;
-
-	dmaobj = nvkm_dma_search(device->dma, client, pushbuf);
-	if (!dmaobj)
-		return -ENOENT;
-
-	if (dmaobj->limit - dmaobj->start != 0xfff)
-		return -EINVAL;
-
-	switch (dmaobj->target) {
-	case NV_MEM_TARGET_VRAM:
-		dmac->push = 0x00000001 | dmaobj->start >> 8;
-		break;
-	case NV_MEM_TARGET_PCI_NOSNOOP:
-		dmac->push = 0x00000003 | dmaobj->start >> 8;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
+const struct nv50_disp_dmac_func
+nv50_disp_dmac_func = {
+	.init = nv50_disp_dmac_init,
+	.fini = nv50_disp_dmac_fini,
+	.bind = nv50_disp_dmac_bind,
+};

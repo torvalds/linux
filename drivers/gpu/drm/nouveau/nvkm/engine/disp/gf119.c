@@ -370,7 +370,6 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 {
 	struct nv50_disp *disp =
 		container_of(work, struct nv50_disp, supervisor);
-	struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 mask[4];
@@ -383,7 +382,7 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 	}
 
 	if (disp->super & 0x00000001) {
-		nv50_disp_mthd_chan(disp, NV_DBG_DEBUG, 0, impl->mthd.core);
+		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
 		for (head = 0; head < disp->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
@@ -428,7 +427,6 @@ gf119_disp_intr_supervisor(struct work_struct *work)
 static void
 gf119_disp_intr_error(struct nv50_disp *disp, int chid)
 {
-	const struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 mthd = nvkm_rd32(device, 0x6101f0 + (chid * 12));
@@ -438,31 +436,10 @@ gf119_disp_intr_error(struct nv50_disp *disp, int chid)
 	nvkm_error(subdev, "chid %d mthd %04x data %08x %08x %08x\n",
 		   chid, (mthd & 0x0000ffc), data, mthd, unkn);
 
-	if (chid == 0) {
+	if (chid < ARRAY_SIZE(disp->chan)) {
 		switch (mthd & 0xffc) {
 		case 0x0080:
-			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 0,
-					    impl->mthd.core);
-			break;
-		default:
-			break;
-		}
-	} else
-	if (chid <= 4) {
-		switch (mthd & 0xffc) {
-		case 0x0080:
-			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 1,
-					    impl->mthd.base);
-			break;
-		default:
-			break;
-		}
-	} else
-	if (chid <= 8) {
-		switch (mthd & 0xffc) {
-		case 0x0080:
-			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 5,
-					    impl->mthd.ovly);
+			nv50_disp_chan_mthd(disp->chan[chid], NV_DBG_ERROR);
 			break;
 		default:
 			break;
@@ -528,6 +505,11 @@ gf119_disp_intr(struct nvkm_subdev *subdev)
 	}
 }
 
+static const struct nvkm_disp_func
+gf119_disp = {
+	.root = &gf119_disp_root_oclass,
+};
+
 static int
 gf119_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
@@ -544,15 +526,14 @@ gf119_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	disp->base.func = &gf119_disp;
+
 	ret = nvkm_event_init(&gf119_disp_chan_uevent, 1, 17, &disp->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(disp)->sclass = gf119_disp_root_oclass;
-	nv_engine(disp)->cclass = &nv50_disp_cclass;
 	nv_subdev(disp)->intr = gf119_disp_intr;
 	INIT_WORK(&disp->supervisor, gf119_disp_intr_supervisor);
-	disp->sclass = gf119_disp_sclass;
 	disp->head.nr = heads;
 	disp->dac.nr = 3;
 	disp->sor.nr = 4;
@@ -578,9 +559,5 @@ gf110_disp_oclass = &(struct nv50_disp_impl) {
 	.base.outp.internal.lvds = nv50_sor_output_new,
 	.base.outp.internal.dp = gf119_sor_dp_new,
 	.base.vblank = &gf119_disp_vblank_func,
-	.mthd.core = &gf119_disp_core_mthd_chan,
-	.mthd.base = &gf119_disp_base_mthd_chan,
-	.mthd.ovly = &gf119_disp_ovly_mthd_chan,
-	.mthd.prev = -0x020000,
 	.head.scanoutpos = gf119_disp_root_scanoutpos,
 }.base.base;

@@ -25,7 +25,9 @@
 #include "conn.h"
 #include "outp.h"
 
+#include <core/client.h>
 #include <core/notify.h>
+#include <core/oproxy.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 
@@ -114,6 +116,66 @@ nvkm_disp_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **event)
 	return -EINVAL;
 }
 
+static void
+nvkm_disp_class_del(struct nvkm_oproxy *oproxy)
+{
+	struct nvkm_disp *disp = nvkm_disp(oproxy->base.engine);
+	mutex_lock(&disp->engine.subdev.mutex);
+	if (disp->client == oproxy)
+		disp->client = NULL;
+	mutex_unlock(&disp->engine.subdev.mutex);
+}
+
+static const struct nvkm_oproxy_func
+nvkm_disp_class = {
+	.dtor[1] = nvkm_disp_class_del,
+};
+
+static int
+nvkm_disp_class_new(struct nvkm_device *device,
+		    const struct nvkm_oclass *oclass, void *data, u32 size,
+		    struct nvkm_object **pobject)
+{
+	const struct nvkm_disp_oclass *sclass = oclass->engn;
+	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
+	struct nvkm_oproxy *oproxy;
+	int ret;
+
+	ret = nvkm_oproxy_new_(&nvkm_disp_class, oclass, &oproxy);
+	if (ret)
+		return ret;
+	*pobject = &oproxy->base;
+
+	mutex_lock(&disp->engine.subdev.mutex);
+	if (disp->client) {
+		mutex_unlock(&disp->engine.subdev.mutex);
+		return -EBUSY;
+	}
+	disp->client = oproxy;
+	mutex_unlock(&disp->engine.subdev.mutex);
+
+	return sclass->ctor(disp, oclass, data, size, &oproxy->object);
+}
+
+static const struct nvkm_device_oclass
+nvkm_disp_sclass = {
+	.ctor = nvkm_disp_class_new,
+};
+
+static int
+nvkm_disp_class_get(struct nvkm_oclass *oclass, int index,
+		    const struct nvkm_device_oclass **class)
+{
+	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
+	if (index == 0) {
+		oclass->base = disp->func->root->base;
+		oclass->engn = disp->func->root;
+		*class = &nvkm_disp_sclass;
+		return 0;
+	}
+	return 1;
+}
+
 int
 _nvkm_disp_fini(struct nvkm_object *object, bool suspend)
 {
@@ -180,6 +242,11 @@ _nvkm_disp_dtor(struct nvkm_object *object)
 	nvkm_engine_destroy(&disp->engine);
 }
 
+static const struct nvkm_engine_func
+nvkm_disp = {
+	.base.sclass = nvkm_disp_class_get,
+};
+
 int
 nvkm_disp_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, int heads, const char *intname,
@@ -203,6 +270,7 @@ nvkm_disp_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	disp->engine.func = &nvkm_disp;
 	INIT_LIST_HEAD(&disp->outp);
 	INIT_LIST_HEAD(&disp->conn);
 

@@ -65,18 +65,21 @@ gf119_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
 	return 0;
 }
 
-static int
-gf119_disp_root_init(struct nvkm_object *object)
+void
+gf119_disp_root_fini(struct nv50_disp_root *root)
 {
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_root *root = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	int ret, i;
-	u32 tmp;
+	struct nvkm_device *device = root->disp->base.engine.subdev.device;
+	/* disable all interrupts */
+	nvkm_wr32(device, 0x6100b0, 0x00000000);
+}
 
-	ret = nvkm_parent_init(&root->base);
-	if (ret)
-		return ret;
+int
+gf119_disp_root_init(struct nv50_disp_root *root)
+{
+	struct nv50_disp *disp = root->disp;
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	u32 tmp;
+	int i;
 
 	/* The below segments of code copying values from one register to
 	 * another appear to inform EVO of the display capabilities or
@@ -117,7 +120,7 @@ gf119_disp_root_init(struct nvkm_object *object)
 	}
 
 	/* point at display engine memory area (hash table, objects) */
-	nvkm_wr32(device, 0x610010, (nv_gpuobj(object->parent)->addr >> 8) | 9);
+	nvkm_wr32(device, 0x610010, (root->instmem->addr >> 8) | 9);
 
 	/* enable supervisor interrupts, disable everything else */
 	nvkm_wr32(device, 0x610090, 0x00000000);
@@ -136,41 +139,33 @@ gf119_disp_root_init(struct nvkm_object *object)
 	return 0;
 }
 
-static int
-gf119_disp_root_fini(struct nvkm_object *object, bool suspend)
-{
-	struct nv50_disp *disp = (void *)object->engine;
-	struct nv50_disp_root *root = (void *)object;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-
-	/* disable all interrupts */
-	nvkm_wr32(device, 0x6100b0, 0x00000000);
-
-	return nvkm_parent_fini(&root->base, suspend);
-}
-
-struct nvkm_ofuncs
-gf119_disp_root_ofuncs = {
-	.ctor = nv50_disp_root_ctor,
-	.dtor = nv50_disp_root_dtor,
+static const struct nv50_disp_root_func
+gf119_disp_root = {
 	.init = gf119_disp_root_init,
 	.fini = gf119_disp_root_fini,
-	.mthd = nv50_disp_root_mthd,
-	.ntfy = nvkm_disp_ntfy,
+	.dmac = {
+		&gf119_disp_core_oclass,
+		&gf119_disp_base_oclass,
+		&gf119_disp_ovly_oclass,
+	},
+	.pioc = {
+		&gf119_disp_oimm_oclass,
+		&gf119_disp_curs_oclass,
+	},
 };
 
-struct nvkm_oclass
-gf119_disp_root_oclass[] = {
-	{ GF110_DISP, &gf119_disp_root_ofuncs },
-	{}
-};
+static int
+gf119_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nv50_disp_root_new_(&gf119_disp_root, disp, oclass,
+				   data, size, pobject);
+}
 
-struct nvkm_oclass
-gf119_disp_sclass[] = {
-	{ GF110_DISP_CORE_CHANNEL_DMA, &gf119_disp_core_ofuncs.base },
-	{ GF110_DISP_BASE_CHANNEL_DMA, &gf119_disp_base_ofuncs.base },
-	{ GF110_DISP_OVERLAY_CONTROL_DMA, &gf119_disp_ovly_ofuncs.base },
-	{ GF110_DISP_OVERLAY, &gf119_disp_oimm_ofuncs.base },
-	{ GF110_DISP_CURSOR, &gf119_disp_curs_ofuncs.base },
-	{}
+const struct nvkm_disp_oclass
+gf119_disp_root_oclass = {
+	.base.oclass = GF110_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = gf119_disp_root_new,
 };

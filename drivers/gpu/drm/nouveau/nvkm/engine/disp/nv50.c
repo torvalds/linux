@@ -33,47 +33,6 @@
 #include <subdev/bios/pll.h>
 #include <subdev/devinit.h>
 
-static int
-nv50_disp_data_ctor(struct nvkm_object *parent,
-		    struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
-{
-	struct nv50_disp *disp = (void *)engine;
-	struct nvkm_gpuobj *gpuobj;
-	int ret;
-
-	/* no context needed for channel objects... */
-	if (parent->parent != &nvkm_client(parent)->object) {
-		atomic_inc(&parent->refcount);
-		*pobject = parent;
-		return 1;
-	}
-
-	/* allocate display hardware to client */
-	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, NULL,
-				 0x10000, 0x10000, NVOBJ_FLAG_HEAP,
-				 &gpuobj);
-	*pobject = nv_object(gpuobj);
-	mutex_lock(&nv_subdev(disp)->mutex);
-	if (!list_empty(&nv_engine(disp)->contexts))
-		ret = -EBUSY;
-	mutex_unlock(&nv_subdev(disp)->mutex);
-	return ret;
-}
-
-struct nvkm_oclass
-nv50_disp_cclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_disp_data_ctor,
-		.dtor = _nvkm_gpuobj_dtor,
-		.init = _nvkm_gpuobj_init,
-		.fini = _nvkm_gpuobj_fini,
-		.rd32 = _nvkm_gpuobj_rd32,
-		.wr32 = _nvkm_gpuobj_wr32,
-	},
-};
-
 static void
 nv50_disp_vblank_fini(struct nvkm_event *event, int type, int head)
 {
@@ -115,7 +74,6 @@ nv50_disp_intr_error_code[] = {
 static void
 nv50_disp_intr_error(struct nv50_disp *disp, int chid)
 {
-	struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 data = nvkm_rd32(device, 0x610084 + (chid * 0x08));
@@ -133,31 +91,10 @@ nv50_disp_intr_error(struct nv50_disp *disp, int chid)
 		   type, et ? et->name : "", code, ec ? ec->name : "",
 		   chid, mthd, data);
 
-	if (chid == 0) {
+	if (chid < ARRAY_SIZE(disp->chan)) {
 		switch (mthd) {
 		case 0x0080:
-			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 0,
-					    impl->mthd.core);
-			break;
-		default:
-			break;
-		}
-	} else
-	if (chid <= 2) {
-		switch (mthd) {
-		case 0x0080:
-			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 1,
-					    impl->mthd.base);
-			break;
-		default:
-			break;
-		}
-	} else
-	if (chid <= 4) {
-		switch (mthd) {
-		case 0x0080:
-			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 3,
-					    impl->mthd.ovly);
+			nv50_disp_chan_mthd(disp->chan[chid], NV_DBG_ERROR);
 			break;
 		default:
 			break;
@@ -673,7 +610,6 @@ nv50_disp_intr_supervisor(struct work_struct *work)
 {
 	struct nv50_disp *disp =
 		container_of(work, struct nv50_disp, supervisor);
-	struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 super = nvkm_rd32(device, 0x610030);
@@ -682,7 +618,7 @@ nv50_disp_intr_supervisor(struct work_struct *work)
 	nvkm_debug(subdev, "supervisor %08x %08x\n", disp->super, super);
 
 	if (disp->super & 0x00000010) {
-		nv50_disp_mthd_chan(disp, NV_DBG_DEBUG, 0, impl->mthd.core);
+		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
 		for (head = 0; head < disp->head.nr; head++) {
 			if (!(super & (0x00000020 << head)))
 				continue;
@@ -756,6 +692,11 @@ nv50_disp_intr(struct nvkm_subdev *subdev)
 	}
 }
 
+static const struct nvkm_disp_func
+nv50_disp = {
+	.root = &nv50_disp_root_oclass,
+};
+
 static int
 nv50_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -770,15 +711,14 @@ nv50_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	disp->base.func = &nv50_disp;
+
 	ret = nvkm_event_init(&nv50_disp_chan_uevent, 1, 9, &disp->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(disp)->sclass = nv50_disp_root_oclass;
-	nv_engine(disp)->cclass = &nv50_disp_cclass;
 	nv_subdev(disp)->intr = nv50_disp_intr;
 	INIT_WORK(&disp->supervisor, nv50_disp_intr_supervisor);
-	disp->sclass = nv50_disp_sclass;
 	disp->head.nr = 2;
 	disp->dac.nr = 3;
 	disp->sor.nr = 2;
@@ -805,9 +745,5 @@ nv50_disp_oclass = &(struct nv50_disp_impl) {
 	.base.outp.external.tmds = nv50_pior_output_new,
 	.base.outp.external.dp = nv50_pior_dp_new,
 	.base.vblank = &nv50_disp_vblank_func,
-	.mthd.core = &nv50_disp_core_mthd_chan,
-	.mthd.base = &nv50_disp_base_mthd_chan,
-	.mthd.ovly = &nv50_disp_ovly_mthd_chan,
-	.mthd.prev = 0x000004,
 	.head.scanoutpos = nv50_disp_root_scanoutpos,
 }.base.base;
