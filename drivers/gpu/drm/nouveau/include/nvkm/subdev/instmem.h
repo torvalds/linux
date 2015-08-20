@@ -3,7 +3,7 @@
 #include <core/subdev.h>
 
 struct nvkm_instobj {
-	struct nvkm_object base;
+	struct nvkm_object object;
 	struct list_head head;
 	u32 *suspend;
 	u64 addr;

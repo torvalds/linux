@@ -39,7 +39,7 @@ _nvkm_instobj_dtor(struct nvkm_object *object)
 	list_del(&iobj->head);
 	mutex_unlock(&nv_subdev(imem)->mutex);
 
-	return nvkm_object_destroy(&iobj->base);
+	return nvkm_object_destroy(&iobj->object);
 }
 
 int
@@ -92,8 +92,10 @@ _nvkm_instmem_fini(struct nvkm_object *object, bool suspend)
 				break;
 			}
 
-			for (i = 0; i < iobj->size; i += 4)
-				iobj->suspend[i / 4] = nv_ro32(iobj, i);
+			for (i = 0; i < iobj->size; i += 4) {
+				nvkm_object_rd32(&iobj->object, i, (u32 *)
+						 &iobj->suspend[i/4]);
+			}
 		}
 		mutex_unlock(&imem->subdev.mutex);
 		if (ret)
@@ -117,8 +119,10 @@ _nvkm_instmem_init(struct nvkm_object *object)
 	mutex_lock(&imem->subdev.mutex);
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->suspend) {
-			for (i = 0; i < iobj->size; i += 4)
-				nv_wo32(iobj, i, iobj->suspend[i / 4]);
+			for (i = 0; i < iobj->size; i += 4) {
+				nvkm_object_wr32(&iobj->object, i, *(u32 *)
+						 &iobj->suspend[i/4]);
+			}
 			vfree(iobj->suspend);
 			iobj->suspend = NULL;
 		}
