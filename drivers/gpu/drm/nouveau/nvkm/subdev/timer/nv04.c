@@ -121,7 +121,7 @@ nv04_timer_intr(struct nvkm_subdev *subdev)
 	}
 
 	if (stat) {
-		nv_error(tmr, "unknown stat 0x%08x\n", stat);
+		nvkm_error(subdev, "intr %08x\n", stat);
 		nvkm_wr32(device, NV04_PTIMER_INTR_0, stat);
 	}
 }
@@ -141,7 +141,8 @@ static int
 nv04_timer_init(struct nvkm_object *object)
 {
 	struct nv04_timer *tmr = (void *)object;
-	struct nvkm_device *device = tmr->base.subdev.device;
+	struct nvkm_subdev *subdev = &tmr->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 m = 1, f, n, d, lo, hi;
 	int ret;
 
@@ -174,7 +175,7 @@ nv04_timer_init(struct nvkm_object *object)
 	}
 
 	if (!n) {
-		nv_warn(tmr, "unknown input clock freq\n");
+		nvkm_warn(subdev, "unknown input clock freq\n");
 		if (!nvkm_rd32(device, NV04_PTIMER_NUMERATOR) ||
 		    !nvkm_rd32(device, NV04_PTIMER_DENOMINATOR)) {
 			nvkm_wr32(device, NV04_PTIMER_NUMERATOR, 1);
@@ -203,13 +204,13 @@ nv04_timer_init(struct nvkm_object *object)
 	lo = tmr->suspend_time;
 	hi = (tmr->suspend_time >> 32);
 
-	nv_debug(tmr, "input frequency : %dHz\n", f);
-	nv_debug(tmr, "input multiplier: %d\n", m);
-	nv_debug(tmr, "numerator       : 0x%08x\n", n);
-	nv_debug(tmr, "denominator     : 0x%08x\n", d);
-	nv_debug(tmr, "timer frequency : %dHz\n", (f * m) * d / n);
-	nv_debug(tmr, "time low        : 0x%08x\n", lo);
-	nv_debug(tmr, "time high       : 0x%08x\n", hi);
+	nvkm_debug(subdev, "input frequency : %dHz\n", f);
+	nvkm_debug(subdev, "input multiplier: %d\n", m);
+	nvkm_debug(subdev, "numerator       : %08x\n", n);
+	nvkm_debug(subdev, "denominator     : %08x\n", d);
+	nvkm_debug(subdev, "timer frequency : %dHz\n", (f * m) * d / n);
+	nvkm_debug(subdev, "time low        : %08x\n", lo);
+	nvkm_debug(subdev, "time high       : %08x\n", hi);
 
 	nvkm_wr32(device, NV04_PTIMER_NUMERATOR, n);
 	nvkm_wr32(device, NV04_PTIMER_DENOMINATOR, d);

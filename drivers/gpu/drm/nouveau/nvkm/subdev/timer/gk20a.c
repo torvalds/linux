@@ -27,7 +27,8 @@ static int
 gk20a_timer_init(struct nvkm_object *object)
 {
 	struct nv04_timer *tmr = (void *)object;
-	struct nvkm_device *device = tmr->base.subdev.device;
+	struct nvkm_subdev *subdev = &tmr->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 hi = upper_32_bits(tmr->suspend_time);
 	u32 lo = lower_32_bits(tmr->suspend_time);
 	int ret;
@@ -36,8 +37,8 @@ gk20a_timer_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_debug(tmr, "time low        : 0x%08x\n", lo);
-	nv_debug(tmr, "time high       : 0x%08x\n", hi);
+	nvkm_debug(subdev, "time low        : %08x\n", lo);
+	nvkm_debug(subdev, "time high       : %08x\n", hi);
 
 	/* restore the time before suspend */
 	nvkm_wr32(device, NV04_PTIMER_TIME_1, hi);
