@@ -374,10 +374,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 		PAGE_ALIGN(current->mm->start_brk);
 
 #else
-	/* create a stack and brk area big enough for everyone
-	 * - the brk heap starts at the bottom and works up
-	 * - the stack starts at the top and works down
-	 */
+	/* create a stack area and zero-size brk area */
 	stack_size = (stack_size + PAGE_SIZE - 1) & PAGE_MASK;
 	if (stack_size < PAGE_SIZE * 2)
 		stack_size = PAGE_SIZE * 2;
@@ -400,8 +397,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 
 	current->mm->brk = current->mm->start_brk;
 	current->mm->context.end_brk = current->mm->start_brk;
-	current->mm->context.end_brk +=
-		(stack_size > PAGE_SIZE) ? (stack_size - PAGE_SIZE) : 0;
 	current->mm->start_stack = current->mm->start_brk + stack_size;
 #endif
 
