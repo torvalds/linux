@@ -764,9 +764,11 @@ nvkm_device_create_(void *dev, enum nv_bus_type type, u64 name,
 	switch (type) {
 	case NVKM_BUS_PCI:
 		device->pdev = dev;
+		device->dev = &device->pdev->dev;
 		break;
 	case NVKM_BUS_PLATFORM:
 		device->platformdev = dev;
+		device->dev = &device->platformdev->dev;
 		break;
 	}
 	device->handle = name;

@@ -9,6 +9,7 @@ struct nvkm_device {
 
 	struct pci_dev *pdev;
 	struct platform_device *platformdev;
+	struct device *dev;
 	u64 handle;
 
 	struct nvkm_event event;
