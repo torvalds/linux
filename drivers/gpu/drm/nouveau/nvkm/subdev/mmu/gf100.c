@@ -29,11 +29,6 @@
 
 #include <core/gpuobj.h>
 
-struct gf100_mmu_priv {
-	struct nvkm_mmu base;
-};
-
-
 /* Map from compressed to corresponding uncompressed storage type.
  * The value 0xff represents an invalid storage type.
  */
@@ -158,8 +153,8 @@ gf100_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 gf100_vm_flush(struct nvkm_vm *vm)
 {
-	struct gf100_mmu_priv *priv = (void *)vm->mmu;
-	struct nvkm_bar *bar = nvkm_bar(priv);
+	struct nvkm_mmu *mmu = (void *)vm->mmu;
+	struct nvkm_bar *bar = nvkm_bar(mmu);
 	struct nvkm_vm_pgd *vpgd;
 	u32 type;
 
@@ -169,26 +164,26 @@ gf100_vm_flush(struct nvkm_vm *vm)
 	if (atomic_read(&vm->engref[NVDEV_SUBDEV_BAR]))
 		type |= 0x00000004; /* HUB_ONLY */
 
-	mutex_lock(&nv_subdev(priv)->mutex);
+	mutex_lock(&nv_subdev(mmu)->mutex);
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
 		/* looks like maybe a "free flush slots" counter, the
 		 * faster you write to 0x100cbc to more it decreases
 		 */
-		if (!nv_wait_ne(priv, 0x100c80, 0x00ff0000, 0x00000000)) {
-			nv_error(priv, "vm timeout 0: 0x%08x %d\n",
-				 nv_rd32(priv, 0x100c80), type);
+		if (!nv_wait_ne(mmu, 0x100c80, 0x00ff0000, 0x00000000)) {
+			nv_error(mmu, "vm timeout 0: 0x%08x %d\n",
+				 nv_rd32(mmu, 0x100c80), type);
 		}
 
-		nv_wr32(priv, 0x100cb8, vpgd->obj->addr >> 8);
-		nv_wr32(priv, 0x100cbc, 0x80000000 | type);
+		nv_wr32(mmu, 0x100cb8, vpgd->obj->addr >> 8);
+		nv_wr32(mmu, 0x100cbc, 0x80000000 | type);
 
 		/* wait for flush to be queued? */
-		if (!nv_wait(priv, 0x100c80, 0x00008000, 0x00008000)) {
-			nv_error(priv, "vm timeout 1: 0x%08x %d\n",
-				 nv_rd32(priv, 0x100c80), type);
+		if (!nv_wait(mmu, 0x100c80, 0x00008000, 0x00008000)) {
+			nv_error(mmu, "vm timeout 1: 0x%08x %d\n",
+				 nv_rd32(mmu, 0x100c80), type);
 		}
 	}
-	mutex_unlock(&nv_subdev(priv)->mutex);
+	mutex_unlock(&nv_subdev(mmu)->mutex);
 }
 
 static int
@@ -203,25 +198,25 @@ gf100_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct gf100_mmu_priv *priv;
+	struct nvkm_mmu *mmu;
 	int ret;
 
-	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "mmu", &mmu);
+	*pobject = nv_object(mmu);
 	if (ret)
 		return ret;
 
-	priv->base.limit = 1ULL << 40;
-	priv->base.dma_bits = 40;
-	priv->base.pgt_bits  = 27 - 12;
-	priv->base.spg_shift = 12;
-	priv->base.lpg_shift = 17;
-	priv->base.create = gf100_vm_create;
-	priv->base.map_pgt = gf100_vm_map_pgt;
-	priv->base.map = gf100_vm_map;
-	priv->base.map_sg = gf100_vm_map_sg;
-	priv->base.unmap = gf100_vm_unmap;
-	priv->base.flush = gf100_vm_flush;
+	mmu->limit = 1ULL << 40;
+	mmu->dma_bits = 40;
+	mmu->pgt_bits  = 27 - 12;
+	mmu->spg_shift = 12;
+	mmu->lpg_shift = 17;
+	mmu->create = gf100_vm_create;
+	mmu->map_pgt = gf100_vm_map_pgt;
+	mmu->map = gf100_vm_map;
+	mmu->map_sg = gf100_vm_map_sg;
+	mmu->unmap = gf100_vm_unmap;
+	mmu->flush = gf100_vm_flush;
 	return 0;
 }
 

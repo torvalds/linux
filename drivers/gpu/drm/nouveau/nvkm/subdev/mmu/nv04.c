@@ -84,37 +84,37 @@ nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct nv04_mmu_priv *priv;
+	struct nv04_mmu *mmu;
 	struct nvkm_gpuobj *dma;
 	int ret;
 
 	ret = nvkm_mmu_create(parent, engine, oclass, "PCIGART",
-			      "pcigart", &priv);
-	*pobject = nv_object(priv);
+			      "mmu", &mmu);
+	*pobject = nv_object(mmu);
 	if (ret)
 		return ret;
 
-	priv->base.create = nv04_vm_create;
-	priv->base.limit = NV04_PDMA_SIZE;
-	priv->base.dma_bits = 32;
-	priv->base.pgt_bits = 32 - 12;
-	priv->base.spg_shift = 12;
-	priv->base.lpg_shift = 12;
-	priv->base.map_sg = nv04_vm_map_sg;
-	priv->base.unmap = nv04_vm_unmap;
-	priv->base.flush = nv04_vm_flush;
+	mmu->base.create = nv04_vm_create;
+	mmu->base.limit = NV04_PDMA_SIZE;
+	mmu->base.dma_bits = 32;
+	mmu->base.pgt_bits = 32 - 12;
+	mmu->base.spg_shift = 12;
+	mmu->base.lpg_shift = 12;
+	mmu->base.map_sg = nv04_vm_map_sg;
+	mmu->base.unmap = nv04_vm_unmap;
+	mmu->base.flush = nv04_vm_flush;
 
-	ret = nvkm_vm_create(&priv->base, 0, NV04_PDMA_SIZE, 0, 4096,
-			     &priv->vm);
+	ret = nvkm_vm_create(&mmu->base, 0, NV04_PDMA_SIZE, 0, 4096,
+			     &mmu->vm);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL,
+	ret = nvkm_gpuobj_new(nv_object(mmu), NULL,
 			      (NV04_PDMA_SIZE / NV04_PDMA_PAGE) * 4 + 8,
 			      16, NVOBJ_FLAG_ZERO_ALLOC,
-			      &priv->vm->pgt[0].obj[0]);
-	dma = priv->vm->pgt[0].obj[0];
-	priv->vm->pgt[0].refcount[0] = 1;
+			      &mmu->vm->pgt[0].obj[0]);
+	dma = mmu->vm->pgt[0].obj[0];
+	mmu->vm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
 
@@ -126,16 +126,16 @@ nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 void
 nv04_mmu_dtor(struct nvkm_object *object)
 {
-	struct nv04_mmu_priv *priv = (void *)object;
-	if (priv->vm) {
-		nvkm_gpuobj_ref(NULL, &priv->vm->pgt[0].obj[0]);
-		nvkm_vm_ref(NULL, &priv->vm, NULL);
+	struct nv04_mmu *mmu = (void *)object;
+	if (mmu->vm) {
+		nvkm_gpuobj_ref(NULL, &mmu->vm->pgt[0].obj[0]);
+		nvkm_vm_ref(NULL, &mmu->vm, NULL);
 	}
-	if (priv->nullp) {
-		pci_free_consistent(nv_device(priv)->pdev, 16 * 1024,
-				    priv->nullp, priv->null);
+	if (mmu->nullp) {
+		pci_free_consistent(nv_device(mmu)->pdev, 16 * 1024,
+				    mmu->nullp, mmu->null);
 	}
-	nvkm_mmu_destroy(&priv->base);
+	nvkm_mmu_destroy(&mmu->base);
 }
 
 struct nvkm_oclass

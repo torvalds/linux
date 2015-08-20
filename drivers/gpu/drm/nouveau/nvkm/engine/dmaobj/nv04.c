@@ -60,7 +60,7 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
 	}
 
 	if (priv->clone) {
-		struct nv04_mmu_priv *mmu = nv04_mmu(dmaobj);
+		struct nv04_mmu *mmu = nv04_mmu(dmaobj);
 		struct nvkm_gpuobj *pgt = mmu->vm->pgt[0].obj[0];
 		if (!dmaobj->start)
 			return nvkm_gpuobj_dup(parent, pgt, pgpuobj);
@@ -86,7 +86,7 @@ nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_object **pobject)
 {
 	struct nvkm_dmaeng *dmaeng = (void *)engine;
-	struct nv04_mmu_priv *mmu = nv04_mmu(engine);
+	struct nv04_mmu *mmu = nv04_mmu(engine);
 	struct nv04_dmaobj_priv *priv;
 	int ret;
 

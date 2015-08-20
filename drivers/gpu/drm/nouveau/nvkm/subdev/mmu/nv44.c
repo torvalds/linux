@@ -84,14 +84,14 @@ static void
 nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
-	struct nv04_mmu_priv *priv = (void *)vma->vm->mmu;
+	struct nv04_mmu *mmu = (void *)vma->vm->mmu;
 	u32 tmp[4];
 	int i;
 
 	if (pte & 3) {
 		u32  max = 4 - (pte & 3);
 		u32 part = (cnt > max) ? max : cnt;
-		nv44_vm_fill(pgt, priv->null, list, pte, part);
+		nv44_vm_fill(pgt, mmu->null, list, pte, part);
 		pte  += part;
 		list += part;
 		cnt  -= part;
@@ -108,18 +108,18 @@ nv44_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
 	}
 
 	if (cnt)
-		nv44_vm_fill(pgt, priv->null, list, pte, cnt);
+		nv44_vm_fill(pgt, mmu->null, list, pte, cnt);
 }
 
 static void
 nv44_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 {
-	struct nv04_mmu_priv *priv = (void *)nvkm_mmu(pgt);
+	struct nv04_mmu *mmu = (void *)nvkm_mmu(pgt);
 
 	if (pte & 3) {
 		u32  max = 4 - (pte & 3);
 		u32 part = (cnt > max) ? max : cnt;
-		nv44_vm_fill(pgt, priv->null, NULL, pte, part);
+		nv44_vm_fill(pgt, mmu->null, NULL, pte, part);
 		pte  += part;
 		cnt  -= part;
 	}
@@ -133,18 +133,18 @@ nv44_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 	}
 
 	if (cnt)
-		nv44_vm_fill(pgt, priv->null, NULL, pte, cnt);
+		nv44_vm_fill(pgt, mmu->null, NULL, pte, cnt);
 }
 
 static void
 nv44_vm_flush(struct nvkm_vm *vm)
 {
-	struct nv04_mmu_priv *priv = (void *)vm->mmu;
-	nv_wr32(priv, 0x100814, priv->base.limit - NV44_GART_PAGE);
-	nv_wr32(priv, 0x100808, 0x00000020);
-	if (!nv_wait(priv, 0x100808, 0x00000001, 0x00000001))
-		nv_error(priv, "timeout: 0x%08x\n", nv_rd32(priv, 0x100808));
-	nv_wr32(priv, 0x100808, 0x00000000);
+	struct nv04_mmu *mmu = (void *)vm->mmu;
+	nv_wr32(mmu, 0x100814, mmu->base.limit - NV44_GART_PAGE);
+	nv_wr32(mmu, 0x100808, 0x00000020);
+	if (!nv_wait(mmu, 0x100808, 0x00000001, 0x00000001))
+		nv_error(mmu, "timeout: 0x%08x\n", nv_rd32(mmu, 0x100808));
+	nv_wr32(mmu, 0x100808, 0x00000000);
 }
 
 /*******************************************************************************
@@ -157,7 +157,7 @@ nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_object **pobject)
 {
 	struct nvkm_device *device = nv_device(parent);
-	struct nv04_mmu_priv *priv;
+	struct nv04_mmu *mmu;
 	int ret;
 
 	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
@@ -167,37 +167,37 @@ nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 
 	ret = nvkm_mmu_create(parent, engine, oclass, "PCIEGART",
-			      "pciegart", &priv);
-	*pobject = nv_object(priv);
+			      "mmu", &mmu);
+	*pobject = nv_object(mmu);
 	if (ret)
 		return ret;
 
-	priv->base.create = nv04_vm_create;
-	priv->base.limit = NV44_GART_SIZE;
-	priv->base.dma_bits = 39;
-	priv->base.pgt_bits = 32 - 12;
-	priv->base.spg_shift = 12;
-	priv->base.lpg_shift = 12;
-	priv->base.map_sg = nv44_vm_map_sg;
-	priv->base.unmap = nv44_vm_unmap;
-	priv->base.flush = nv44_vm_flush;
+	mmu->base.create = nv04_vm_create;
+	mmu->base.limit = NV44_GART_SIZE;
+	mmu->base.dma_bits = 39;
+	mmu->base.pgt_bits = 32 - 12;
+	mmu->base.spg_shift = 12;
+	mmu->base.lpg_shift = 12;
+	mmu->base.map_sg = nv44_vm_map_sg;
+	mmu->base.unmap = nv44_vm_unmap;
+	mmu->base.flush = nv44_vm_flush;
 
-	priv->nullp = pci_alloc_consistent(device->pdev, 16 * 1024, &priv->null);
-	if (!priv->nullp) {
-		nv_error(priv, "unable to allocate dummy pages\n");
-		return -ENOMEM;
+	mmu->nullp = pci_alloc_consistent(device->pdev, 16 * 1024, &mmu->null);
+	if (!mmu->nullp) {
+		nv_warn(mmu, "unable to allocate dummy pages\n");
+		mmu->null = 0;
 	}
 
-	ret = nvkm_vm_create(&priv->base, 0, NV44_GART_SIZE, 0, 4096,
-			     &priv->vm);
+	ret = nvkm_vm_create(&mmu->base, 0, NV44_GART_SIZE, 0, 4096,
+			     &mmu->vm);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL,
+	ret = nvkm_gpuobj_new(nv_object(mmu), NULL,
 			      (NV44_GART_SIZE / NV44_GART_PAGE) * 4,
 			      512 * 1024, NVOBJ_FLAG_ZERO_ALLOC,
-			      &priv->vm->pgt[0].obj[0]);
-	priv->vm->pgt[0].refcount[0] = 1;
+			      &mmu->vm->pgt[0].obj[0]);
+	mmu->vm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
 
@@ -207,12 +207,12 @@ nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 static int
 nv44_mmu_init(struct nvkm_object *object)
 {
-	struct nv04_mmu_priv *priv = (void *)object;
-	struct nvkm_gpuobj *gart = priv->vm->pgt[0].obj[0];
+	struct nv04_mmu *mmu = (void *)object;
+	struct nvkm_gpuobj *gart = mmu->vm->pgt[0].obj[0];
 	u32 addr;
 	int ret;
 
-	ret = nvkm_mmu_init(&priv->base);
+	ret = nvkm_mmu_init(&mmu->base);
 	if (ret)
 		return ret;
 
@@ -220,17 +220,17 @@ nv44_mmu_init(struct nvkm_object *object)
 	 * allocated on 512KiB alignment, and not exceed a total size
 	 * of 512KiB for this to work correctly
 	 */
-	addr  = nv_rd32(priv, 0x10020c);
+	addr  = nv_rd32(mmu, 0x10020c);
 	addr -= ((gart->addr >> 19) + 1) << 19;
 
-	nv_wr32(priv, 0x100850, 0x80000000);
-	nv_wr32(priv, 0x100818, priv->null);
-	nv_wr32(priv, 0x100804, NV44_GART_SIZE);
-	nv_wr32(priv, 0x100850, 0x00008000);
-	nv_mask(priv, 0x10008c, 0x00000200, 0x00000200);
-	nv_wr32(priv, 0x100820, 0x00000000);
-	nv_wr32(priv, 0x10082c, 0x00000001);
-	nv_wr32(priv, 0x100800, addr | 0x00000010);
+	nv_wr32(mmu, 0x100850, 0x80000000);
+	nv_wr32(mmu, 0x100818, mmu->null);
+	nv_wr32(mmu, 0x100804, NV44_GART_SIZE);
+	nv_wr32(mmu, 0x100850, 0x00008000);
+	nv_mask(mmu, 0x10008c, 0x00000200, 0x00000200);
+	nv_wr32(mmu, 0x100820, 0x00000000);
+	nv_wr32(mmu, 0x10082c, 0x00000001);
+	nv_wr32(mmu, 0x100800, addr | 0x00000010);
 	return 0;
 }
 

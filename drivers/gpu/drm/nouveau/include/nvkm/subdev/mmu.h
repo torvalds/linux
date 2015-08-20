@@ -38,7 +38,7 @@ struct nvkm_vm {
 };
 
 struct nvkm_mmu {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 
 	u64 limit;
 	u8  dma_bits;
@@ -69,11 +69,11 @@ nvkm_mmu(void *obj)
 #define nvkm_mmu_create(p,e,o,i,f,d)                                      \
 	nvkm_subdev_create((p), (e), (o), 0, (i), (f), (d))
 #define nvkm_mmu_destroy(p)                                               \
-	nvkm_subdev_destroy(&(p)->base)
+	nvkm_subdev_destroy(&(p)->subdev)
 #define nvkm_mmu_init(p)                                                  \
-	nvkm_subdev_init(&(p)->base)
+	nvkm_subdev_init(&(p)->subdev)
 #define nvkm_mmu_fini(p,s)                                                \
-	nvkm_subdev_fini(&(p)->base, (s))
+	nvkm_subdev_fini(&(p)->subdev, (s))
 
 #define _nvkm_mmu_dtor _nvkm_subdev_dtor
 #define _nvkm_mmu_init _nvkm_subdev_init

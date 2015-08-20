@@ -29,10 +29,6 @@
 #include <core/engine.h>
 #include <core/gpuobj.h>
 
-struct nv50_mmu_priv {
-	struct nvkm_mmu base;
-};
-
 static void
 nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_gpuobj *pgt[2])
 {
@@ -149,20 +145,20 @@ nv50_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv50_vm_flush(struct nvkm_vm *vm)
 {
-	struct nv50_mmu_priv *priv = (void *)vm->mmu;
-	struct nvkm_bar *bar = nvkm_bar(priv);
+	struct nvkm_mmu *mmu = (void *)vm->mmu;
+	struct nvkm_bar *bar = nvkm_bar(mmu);
 	struct nvkm_engine *engine;
 	int i, vme;
 
 	bar->flush(bar);
 
-	mutex_lock(&nv_subdev(priv)->mutex);
+	mutex_lock(&nv_subdev(mmu)->mutex);
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
 		if (!atomic_read(&vm->engref[i]))
 			continue;
 
 		/* unfortunate hw bug workaround... */
-		engine = nvkm_engine(priv, i);
+		engine = nvkm_engine(mmu, i);
 		if (engine && engine->tlb_flush) {
 			engine->tlb_flush(engine);
 			continue;
@@ -184,11 +180,11 @@ nv50_vm_flush(struct nvkm_vm *vm)
 			continue;
 		}
 
-		nv_wr32(priv, 0x100c80, (vme << 16) | 1);
-		if (!nv_wait(priv, 0x100c80, 0x00000001, 0x00000000))
-			nv_error(priv, "vm flush timeout: engine %d\n", vme);
+		nv_wr32(mmu, 0x100c80, (vme << 16) | 1);
+		if (!nv_wait(mmu, 0x100c80, 0x00000001, 0x00000000))
+			nv_error(mmu, "vm flush timeout: engine %d\n", vme);
 	}
-	mutex_unlock(&nv_subdev(priv)->mutex);
+	mutex_unlock(&nv_subdev(mmu)->mutex);
 }
 
 static int
@@ -207,25 +203,25 @@ nv50_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct nv50_mmu_priv *priv;
+	struct nvkm_mmu *mmu;
 	int ret;
 
-	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "mmu", &mmu);
+	*pobject = nv_object(mmu);
 	if (ret)
 		return ret;
 
-	priv->base.limit = 1ULL << 40;
-	priv->base.dma_bits = 40;
-	priv->base.pgt_bits  = 29 - 12;
-	priv->base.spg_shift = 12;
-	priv->base.lpg_shift = 16;
-	priv->base.create = nv50_vm_create;
-	priv->base.map_pgt = nv50_vm_map_pgt;
-	priv->base.map = nv50_vm_map;
-	priv->base.map_sg = nv50_vm_map_sg;
-	priv->base.unmap = nv50_vm_unmap;
-	priv->base.flush = nv50_vm_flush;
+	mmu->limit = 1ULL << 40;
+	mmu->dma_bits = 40;
+	mmu->pgt_bits  = 29 - 12;
+	mmu->spg_shift = 12;
+	mmu->lpg_shift = 16;
+	mmu->create = nv50_vm_create;
+	mmu->map_pgt = nv50_vm_map_pgt;
+	mmu->map = nv50_vm_map;
+	mmu->map_sg = nv50_vm_map_sg;
+	mmu->unmap = nv50_vm_unmap;
+	mmu->flush = nv50_vm_flush;
 	return 0;
 }
 

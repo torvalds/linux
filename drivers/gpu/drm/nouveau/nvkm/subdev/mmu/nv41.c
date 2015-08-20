@@ -64,16 +64,16 @@ nv41_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv41_vm_flush(struct nvkm_vm *vm)
 {
-	struct nv04_mmu_priv *priv = (void *)vm->mmu;
+	struct nv04_mmu *mmu = (void *)vm->mmu;
 
-	mutex_lock(&nv_subdev(priv)->mutex);
-	nv_wr32(priv, 0x100810, 0x00000022);
-	if (!nv_wait(priv, 0x100810, 0x00000020, 0x00000020)) {
-		nv_warn(priv, "flush timeout, 0x%08x\n",
-			nv_rd32(priv, 0x100810));
+	mutex_lock(&nv_subdev(mmu)->mutex);
+	nv_wr32(mmu, 0x100810, 0x00000022);
+	if (!nv_wait(mmu, 0x100810, 0x00000020, 0x00000020)) {
+		nv_warn(mmu, "flush timeout, 0x%08x\n",
+			nv_rd32(mmu, 0x100810));
 	}
-	nv_wr32(priv, 0x100810, 0x00000000);
-	mutex_unlock(&nv_subdev(priv)->mutex);
+	nv_wr32(mmu, 0x100810, 0x00000000);
+	mutex_unlock(&nv_subdev(mmu)->mutex);
 }
 
 /*******************************************************************************
@@ -86,7 +86,7 @@ nv41_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_object **pobject)
 {
 	struct nvkm_device *device = nv_device(parent);
-	struct nv04_mmu_priv *priv;
+	struct nv04_mmu *mmu;
 	int ret;
 
 	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
@@ -96,31 +96,31 @@ nv41_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 
 	ret = nvkm_mmu_create(parent, engine, oclass, "PCIEGART",
-			      "pciegart", &priv);
-	*pobject = nv_object(priv);
+			      "mmu", &mmu);
+	*pobject = nv_object(mmu);
 	if (ret)
 		return ret;
 
-	priv->base.create = nv04_vm_create;
-	priv->base.limit = NV41_GART_SIZE;
-	priv->base.dma_bits = 39;
-	priv->base.pgt_bits = 32 - 12;
-	priv->base.spg_shift = 12;
-	priv->base.lpg_shift = 12;
-	priv->base.map_sg = nv41_vm_map_sg;
-	priv->base.unmap = nv41_vm_unmap;
-	priv->base.flush = nv41_vm_flush;
+	mmu->base.create = nv04_vm_create;
+	mmu->base.limit = NV41_GART_SIZE;
+	mmu->base.dma_bits = 39;
+	mmu->base.pgt_bits = 32 - 12;
+	mmu->base.spg_shift = 12;
+	mmu->base.lpg_shift = 12;
+	mmu->base.map_sg = nv41_vm_map_sg;
+	mmu->base.unmap = nv41_vm_unmap;
+	mmu->base.flush = nv41_vm_flush;
 
-	ret = nvkm_vm_create(&priv->base, 0, NV41_GART_SIZE, 0, 4096,
-			     &priv->vm);
+	ret = nvkm_vm_create(&mmu->base, 0, NV41_GART_SIZE, 0, 4096,
+			     &mmu->vm);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL,
+	ret = nvkm_gpuobj_new(nv_object(mmu), NULL,
 			      (NV41_GART_SIZE / NV41_GART_PAGE) * 4, 16,
 			      NVOBJ_FLAG_ZERO_ALLOC,
-			      &priv->vm->pgt[0].obj[0]);
-	priv->vm->pgt[0].refcount[0] = 1;
+			      &mmu->vm->pgt[0].obj[0]);
+	mmu->vm->pgt[0].refcount[0] = 1;
 	if (ret)
 		return ret;
 
@@ -130,17 +130,17 @@ nv41_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 static int
 nv41_mmu_init(struct nvkm_object *object)
 {
-	struct nv04_mmu_priv *priv = (void *)object;
-	struct nvkm_gpuobj *dma = priv->vm->pgt[0].obj[0];
+	struct nv04_mmu *mmu = (void *)object;
+	struct nvkm_gpuobj *dma = mmu->vm->pgt[0].obj[0];
 	int ret;
 
-	ret = nvkm_mmu_init(&priv->base);
+	ret = nvkm_mmu_init(&mmu->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x100800, dma->addr | 0x00000002);
-	nv_mask(priv, 0x10008c, 0x00000100, 0x00000100);
-	nv_wr32(priv, 0x100820, 0x00000000);
+	nv_wr32(mmu, 0x100800, dma->addr | 0x00000002);
+	nv_mask(mmu, 0x10008c, 0x00000100, 0x00000100);
+	nv_wr32(mmu, 0x100820, 0x00000000);
 	return 0;
 }
 
