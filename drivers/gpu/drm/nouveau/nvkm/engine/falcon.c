@@ -175,8 +175,10 @@ _nvkm_falcon_init(struct nvkm_object *object)
 			return ret;
 		}
 
+		nvkm_kmap(falcon->core);
 		for (i = 0; i < falcon->code.size; i += 4)
-			nv_wo32(falcon->core, i, falcon->code.data[i / 4]);
+			nvkm_wo32(falcon->core, i, falcon->code.data[i / 4]);
+		nvkm_done(falcon->core);
 	}
 
 	/* upload firmware bootloader (or the full code segments) */
