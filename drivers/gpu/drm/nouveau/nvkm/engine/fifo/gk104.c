@@ -245,9 +245,9 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct gk104_fifo *fifo = (void *)engine;
 	struct gk104_fifo_base *base = (void *)parent;
 	struct gk104_fifo_chan *chan;
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_gpuobj *ramfc = &base->base.gpuobj;
 	u64 usermem, ioffset, ilength;
+	u32 engines;
 	int ret, i;
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
@@ -259,20 +259,27 @@ gk104_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	} else
 		return ret;
 
-	for (i = 0; i < FIFO_ENGINE_NR; i++) {
-		if (args->v0.engine & (1 << i)) {
-			if (nvkm_engine(parent, fifo_engine[i].subdev)) {
-				args->v0.engine = (1 << i);
-				break;
-			}
-		}
+	for (i = 0, engines = 0; i < FIFO_ENGINE_NR; i++) {
+		if (!nvkm_engine(parent, fifo_engine[i].subdev))
+			continue;
+		engines |= (1 << i);
 	}
 
-	if (i == FIFO_ENGINE_NR) {
-		nvkm_error(subdev, "unsupported engines %08x\n",
+	if (!args->v0.engine) {
+		static struct nvkm_oclass oclass = {
+			.ofuncs = &nvkm_object_ofuncs,
+		};
+		args->v0.engine = engines;
+		return nvkm_object_ctor(parent, engine, &oclass, NULL, 0, pobject);
+	}
+
+	engines &= args->v0.engine;
+	if (!engines) {
+		nvif_ioctl(parent, "unsupported engines %08x\n",
 			   args->v0.engine);
 		return -ENODEV;
 	}
+	i = __ffs(engines);
 
 	ret = nvkm_fifo_channel_create(parent, engine, oclass, 1,
 				       fifo->user.bar.offset, 0x200,
