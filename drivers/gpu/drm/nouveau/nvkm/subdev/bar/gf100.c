@@ -28,7 +28,7 @@
 #include <subdev/mmu.h>
 
 struct gf100_bar_vm {
-	struct nvkm_gpuobj *mem;
+	struct nvkm_memory *mem;
 	struct nvkm_gpuobj *pgd;
 	struct nvkm_vm *vm;
 };
@@ -70,7 +70,7 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 	resource_size_t bar_len;
 	int ret;
 
-	ret = nvkm_gpuobj_new(nv_object(bar), NULL, 0x1000, 0, 0,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0, false,
 			      &bar_vm->mem);
 	if (ret)
 		return ret;
@@ -158,14 +158,14 @@ gf100_bar_dtor(struct nvkm_object *object)
 
 	nvkm_vm_ref(NULL, &bar->bar[1].vm, bar->bar[1].pgd);
 	nvkm_gpuobj_ref(NULL, &bar->bar[1].pgd);
-	nvkm_gpuobj_ref(NULL, &bar->bar[1].mem);
+	nvkm_memory_del(&bar->bar[1].mem);
 
 	if (bar->bar[0].vm) {
 		nvkm_memory_del(&bar->bar[0].vm->pgt[0].mem[0]);
 		nvkm_vm_ref(NULL, &bar->bar[0].vm, bar->bar[0].pgd);
 	}
 	nvkm_gpuobj_ref(NULL, &bar->bar[0].pgd);
-	nvkm_gpuobj_ref(NULL, &bar->bar[0].mem);
+	nvkm_memory_del(&bar->bar[0].mem);
 
 	nvkm_bar_destroy(&bar->base);
 }
@@ -175,6 +175,7 @@ gf100_bar_init(struct nvkm_object *object)
 {
 	struct gf100_bar *bar = (void *)object;
 	struct nvkm_device *device = bar->base.subdev.device;
+	u32 addr;
 	int ret;
 
 	ret = nvkm_bar_init(&bar->base);
@@ -184,10 +185,14 @@ gf100_bar_init(struct nvkm_object *object)
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
 
-	nvkm_wr32(device, 0x001704, 0x80000000 | bar->bar[1].mem->addr >> 12);
-	if (bar->bar[0].mem)
-		nvkm_wr32(device, 0x001714,
-			0xc0000000 | bar->bar[0].mem->addr >> 12);
+	addr = nvkm_memory_addr(bar->bar[1].mem) >> 12;
+	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
+
+	if (bar->bar[0].mem) {
+		addr = nvkm_memory_addr(bar->bar[0].mem) >> 12;
+		nvkm_wr32(device, 0x001714, 0xc0000000 | addr);
+	}
+
 	return 0;
 }
 
