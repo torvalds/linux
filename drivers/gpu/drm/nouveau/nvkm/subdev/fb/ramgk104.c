@@ -1457,7 +1457,7 @@ gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct dcb_gpio_func func;
 	struct gk104_ram *ram;
 	int ret, i;
-	u8  ramcfg = nvbios_ramcfg_index(nv_subdev(fb));
+	u8  ramcfg = nvbios_ramcfg_index(subdev);
 	u32 tmp;
 
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))

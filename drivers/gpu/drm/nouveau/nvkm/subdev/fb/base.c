@@ -26,6 +26,38 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/M0203.h>
+#include <engine/gr.h>
+#include <engine/mpeg.h>
+
+bool
+nvkm_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
+{
+	return fb->func->memtype_valid(fb, memtype);
+}
+
+void
+nvkm_fb_tile_fini(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
+{
+	fb->func->tile.fini(fb, region, tile);
+}
+
+void
+nvkm_fb_tile_init(struct nvkm_fb *fb, int region, u32 addr, u32 size,
+		  u32 pitch, u32 flags, struct nvkm_fb_tile *tile)
+{
+	fb->func->tile.init(fb, region, addr, size, pitch, flags, tile);
+}
+
+void
+nvkm_fb_tile_prog(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
+{
+	struct nvkm_device *device = fb->subdev.device;
+	fb->func->tile.prog(fb, region, tile);
+	if (likely(device->gr))
+		device->gr->engine.tile_prog(&device->gr->engine, region);
+	if (likely(device->mpeg))
+		device->mpeg->tile_prog(device->mpeg, region);
+}
 
 int
 nvkm_fb_bios_memtype(struct nvkm_bios *bios)
@@ -52,69 +84,87 @@ nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 	return NVKM_RAM_TYPE_UNKNOWN;
 }
 
-int
-_nvkm_fb_fini(struct nvkm_object *object, bool suspend)
+static void
+nvkm_fb_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fb *fb = (void *)object;
-	return nvkm_subdev_fini_old(&fb->subdev, suspend);
+	struct nvkm_fb *fb = nvkm_fb(subdev);
+	if (fb->func->intr)
+		fb->func->intr(fb);
 }
 
-int
-_nvkm_fb_init(struct nvkm_object *object)
+static int
+nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fb *fb = (void *)object;
-	int ret, i;
-
-	ret = nvkm_subdev_init_old(&fb->subdev);
-	if (ret)
-		return ret;
-
-	if (fb->ram)
-		nvkm_ram_init(fb->ram);
-
-	for (i = 0; i < fb->tile.regions; i++)
-		fb->tile.prog(fb, i, &fb->tile.region[i]);
-
+	struct nvkm_fb *fb = nvkm_fb(subdev);
+	if (fb->func->ram_new) {
+		int ret = fb->func->ram_new(fb, &fb->ram);
+		if (ret) {
+			nvkm_error(subdev, "vram setup failed, %d\n", ret);
+			return ret;
+		}
+	}
 	return 0;
 }
 
-void
-_nvkm_fb_dtor(struct nvkm_object *object)
+static int
+nvkm_fb_init(struct nvkm_subdev *subdev)
 {
-	struct nvkm_fb *fb = (void *)object;
+	struct nvkm_fb *fb = nvkm_fb(subdev);
+	int ret, i;
+
+	if (fb->ram) {
+		ret = nvkm_ram_init(fb->ram);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < fb->tile.regions; i++)
+		fb->func->tile.prog(fb, i, &fb->tile.region[i]);
+
+	if (fb->func->init)
+		fb->func->init(fb);
+	return 0;
+}
+
+static void *
+nvkm_fb_dtor(struct nvkm_subdev *subdev)
+{
+	struct nvkm_fb *fb = nvkm_fb(subdev);
 	int i;
 
 	for (i = 0; i < fb->tile.regions; i++)
-		fb->tile.fini(fb, i, &fb->tile.region[i]);
+		fb->func->tile.fini(fb, i, &fb->tile.region[i]);
 
 	nvkm_ram_del(&fb->ram);
-	nvkm_subdev_destroy(&fb->subdev);
+
+	if (fb->func->dtor)
+		return fb->func->dtor(fb);
+	return fb;
+}
+
+static const struct nvkm_subdev_func
+nvkm_fb = {
+	.dtor = nvkm_fb_dtor,
+	.oneinit = nvkm_fb_oneinit,
+	.init = nvkm_fb_init,
+	.intr = nvkm_fb_intr,
+};
+
+void
+nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_fb *fb)
+{
+	nvkm_subdev_ctor(&nvkm_fb, device, index, 0, &fb->subdev);
+	fb->func = func;
+	fb->tile.regions = fb->func->tile.regions;
 }
 
 int
-nvkm_fb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, int length, void **pobject)
+nvkm_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_fb **pfb)
 {
-	struct nvkm_fb_impl *impl = (void *)oclass;
-	struct nvkm_fb *fb;
-	int ret;
-
-	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PFB", "fb",
-				  length, pobject);
-	fb = *pobject;
-	if (ret)
-		return ret;
-
-	fb->memtype_valid = impl->memtype;
-
-	if (!impl->ram_new)
-		return 0;
-
-	ret = impl->ram_new(fb, &fb->ram);
-	if (ret) {
-		nvkm_error(&fb->subdev, "vram init failed, %d\n", ret);
-		return ret;
-	}
-
+	if (!(*pfb = kzalloc(sizeof(**pfb), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_fb_ctor(func, device, index, *pfb);
 	return 0;
 }

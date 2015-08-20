@@ -23,7 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
 #include "ram.h"
 
 static void
@@ -43,20 +43,20 @@ nv36_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
 	}
 }
 
-struct nvkm_oclass *
-nv36_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x36),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = nv30_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram_new = nv20_ram_new,
+static const struct nvkm_fb_func
+nv36_fb = {
+	.init = nv30_fb_init,
 	.tile.regions = 8,
 	.tile.init = nv30_fb_tile_init,
 	.tile.comp = nv36_fb_tile_comp,
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv20_fb_tile_prog,
-}.base.base;
+	.ram_new = nv20_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv36_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv36_fb, device, index, pfb);
+}

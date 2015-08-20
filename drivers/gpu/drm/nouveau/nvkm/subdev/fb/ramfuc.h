@@ -57,10 +57,7 @@ ramfuc_reg(u32 addr)
 static inline int
 ramfuc_init(struct ramfuc *ram, struct nvkm_fb *fb)
 {
-	struct nvkm_pmu *pmu = nvkm_pmu(fb);
-	int ret;
-
-	ret = nvkm_memx_init(pmu, &ram->memx);
+	int ret = nvkm_memx_init(fb->subdev.device->pmu, &ram->memx);
 	if (ret)
 		return ret;
 
@@ -148,9 +145,7 @@ ramfuc_train(struct ramfuc *ram)
 static inline int
 ramfuc_train_result(struct nvkm_fb *fb, u32 *result, u32 rsize)
 {
-	struct nvkm_pmu *pmu = nvkm_pmu(fb);
-
-	return nvkm_memx_train_result(pmu, result, rsize);
+	return nvkm_memx_train_result(fb->subdev.device->pmu, result, rsize);
 }
 
 static inline void

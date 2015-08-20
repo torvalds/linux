@@ -23,7 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
 #include "ram.h"
 
 static void
@@ -46,35 +46,27 @@ nv44_fb_tile_prog(struct nvkm_fb *fb, int i, struct nvkm_fb_tile *tile)
 	nvkm_rd32(device, 0x100600 + (i * 0x10));
 }
 
-int
-nv44_fb_init(struct nvkm_object *object)
+void
+nv44_fb_init(struct nvkm_fb *fb)
 {
-	struct nvkm_fb *fb = (void *)object;
 	struct nvkm_device *device = fb->subdev.device;
-	int ret;
-
-	ret = nvkm_fb_init(fb);
-	if (ret)
-		return ret;
-
 	nvkm_wr32(device, 0x100850, 0x80000000);
 	nvkm_wr32(device, 0x100800, 0x00000001);
-	return 0;
 }
 
-struct nvkm_oclass *
-nv44_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x44),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = nv44_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram_new = nv44_ram_new,
+static const struct nvkm_fb_func
+nv44_fb = {
+	.init = nv44_fb_init,
 	.tile.regions = 12,
 	.tile.init = nv44_fb_tile_init,
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv44_fb_tile_prog,
-}.base.base;
+	.ram_new = nv44_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv44_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv44_fb, device, index, pfb);
+}

@@ -33,9 +33,11 @@ gf100_fb_memtype_valid(struct nvkm_fb *fb, u32 tile_flags)
 	return likely((gf100_pte_storage_type_map[memtype] != 0xff));
 }
 
-static void
-gf100_fb_intr(struct nvkm_subdev *subdev)
+void
+gf100_fb_intr(struct nvkm_fb *base)
 {
+	struct gf100_fb *fb = gf100_fb(base);
+	struct nvkm_subdev *subdev = &fb->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 intr = nvkm_rd32(device, 0x000100);
 	if (intr & 0x08000000)
@@ -44,29 +46,23 @@ gf100_fb_intr(struct nvkm_subdev *subdev)
 		nvkm_debug(subdev, "PBFB intr\n");
 }
 
-int
-gf100_fb_init(struct nvkm_object *object)
+void
+gf100_fb_init(struct nvkm_fb *base)
 {
-	struct gf100_fb *fb = (void *)object;
+	struct gf100_fb *fb = gf100_fb(base);
 	struct nvkm_device *device = fb->base.subdev.device;
-	int ret;
-
-	ret = nvkm_fb_init(&fb->base);
-	if (ret)
-		return ret;
 
 	if (fb->r100c10_page)
 		nvkm_wr32(device, 0x100c10, fb->r100c10 >> 8);
 
 	nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
-	return 0;
 }
 
-void
-gf100_fb_dtor(struct nvkm_object *object)
+void *
+gf100_fb_dtor(struct nvkm_fb *base)
 {
-	struct nvkm_device *device = nv_device(object);
-	struct gf100_fb *fb = (void *)object;
+	struct gf100_fb *fb = gf100_fb(base);
+	struct nvkm_device *device = fb->base.subdev.device;
 
 	if (fb->r100c10_page) {
 		dma_unmap_page(nv_device_base(device), fb->r100c10, PAGE_SIZE,
@@ -74,22 +70,19 @@ gf100_fb_dtor(struct nvkm_object *object)
 		__free_page(fb->r100c10_page);
 	}
 
-	nvkm_fb_destroy(&fb->base);
+	return fb;
 }
 
 int
-gf100_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+gf100_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_fb **pfb)
 {
-	struct nvkm_device *device = nv_device(parent);
 	struct gf100_fb *fb;
-	int ret;
 
-	ret = nvkm_fb_create(parent, engine, oclass, &fb);
-	*pobject = nv_object(fb);
-	if (ret)
-		return ret;
+	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_fb_ctor(func, device, index, &fb->base);
+	*pfb = &fb->base;
 
 	fb->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (fb->r100c10_page) {
@@ -100,19 +93,20 @@ gf100_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 			return -EFAULT;
 	}
 
-	nv_subdev(fb)->intr = gf100_fb_intr;
 	return 0;
 }
 
-struct nvkm_oclass *
-gf100_fb_oclass = &(struct nvkm_fb_impl) {
-	.base.handle = NV_SUBDEV(FB, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_fb_ctor,
-		.dtor = gf100_fb_dtor,
-		.init = gf100_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.memtype = gf100_fb_memtype_valid,
+static const struct nvkm_fb_func
+gf100_fb = {
+	.dtor = gf100_fb_dtor,
+	.init = gf100_fb_init,
+	.intr = gf100_fb_intr,
 	.ram_new = gf100_ram_new,
-}.base;
+	.memtype_valid = gf100_fb_memtype_valid,
+};
+
+int
+gf100_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return gf100_fb_new_(&gf100_fb, device, index, pfb);
+}

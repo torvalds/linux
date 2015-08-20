@@ -50,22 +50,16 @@ nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 	int i = reg - drm->tile.reg;
 	struct nvkm_fb *fb = nvxx_fb(&drm->device);
 	struct nvkm_fb_tile *tile = &fb->tile.region[i];
-	struct nvkm_engine *engine;
 
 	nouveau_fence_unref(&reg->fence);
 
 	if (tile->pitch)
-		fb->tile.fini(fb, i, tile);
+		nvkm_fb_tile_fini(fb, i, tile);
 
 	if (pitch)
-		fb->tile.init(fb, i, addr, size, pitch, flags, tile);
+		nvkm_fb_tile_init(fb, i, addr, size, pitch, flags, tile);
 
-	fb->tile.prog(fb, i, tile);
-
-	if ((engine = nvkm_engine(fb, NVDEV_ENGINE_GR)))
-		engine->tile_prog(engine, i);
-	if ((engine = nvkm_engine(fb, NVDEV_ENGINE_MPEG)))
-		engine->tile_prog(engine, i);
+	nvkm_fb_tile_prog(fb, i, tile);
 }
 
 static struct nouveau_drm_tile *

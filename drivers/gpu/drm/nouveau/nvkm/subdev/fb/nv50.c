@@ -40,7 +40,14 @@ nv50_fb_memtype[0x80] = {
 	1, 0, 2, 0, 1, 0, 2, 0, 1, 1, 2, 2, 1, 1, 0, 0
 };
 
-bool
+static int
+nv50_fb_ram_new(struct nvkm_fb *base, struct nvkm_ram **pram)
+{
+	struct nv50_fb *fb = nv50_fb(base);
+	return fb->func->ram_new(&fb->base, pram);
+}
+
+static bool
 nv50_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
 {
 	return nv50_fb_memtype[(memtype & 0xff00) >> 8] != 0;
@@ -143,10 +150,11 @@ static const struct nvkm_enum vm_fault[] = {
 };
 
 static void
-nv50_fb_intr(struct nvkm_subdev *subdev)
+nv50_fb_intr(struct nvkm_fb *base)
 {
-	struct nv50_fb *fb = (void *)subdev;
-	struct nvkm_device *device = fb->base.subdev.device;
+	struct nv50_fb *fb = nv50_fb(base);
+	struct nvkm_subdev *subdev = &fb->base.subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_fifo_chan *chan;
 	const struct nvkm_enum *en, *re, *cl, *sc;
@@ -202,19 +210,58 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 	nvkm_fifo_chan_put(fifo, flags, &chan);
 }
 
-int
-nv50_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+static void
+nv50_fb_init(struct nvkm_fb *base)
 {
-	struct nvkm_device *device = nv_device(parent);
-	struct nv50_fb *fb;
-	int ret;
+	struct nv50_fb *fb = nv50_fb(base);
+	struct nvkm_device *device = fb->base.subdev.device;
 
-	ret = nvkm_fb_create(parent, engine, oclass, &fb);
-	*pobject = nv_object(fb);
-	if (ret)
-		return ret;
+	/* Not a clue what this is exactly.  Without pointing it at a
+	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
+	 * cause IOMMU "read from address 0" errors (rh#561267)
+	 */
+	nvkm_wr32(device, 0x100c08, fb->r100c08 >> 8);
+
+	/* This is needed to get meaningful information from 100c90
+	 * on traps. No idea what these values mean exactly. */
+	nvkm_wr32(device, 0x100c90, fb->func->trap);
+}
+
+static void *
+nv50_fb_dtor(struct nvkm_fb *base)
+{
+	struct nv50_fb *fb = nv50_fb(base);
+	struct nvkm_device *device = fb->base.subdev.device;
+
+	if (fb->r100c08_page) {
+		dma_unmap_page(nv_device_base(device), fb->r100c08, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
+		__free_page(fb->r100c08_page);
+	}
+
+	return fb;
+}
+
+static const struct nvkm_fb_func
+nv50_fb_ = {
+	.dtor = nv50_fb_dtor,
+	.init = nv50_fb_init,
+	.intr = nv50_fb_intr,
+	.ram_new = nv50_fb_ram_new,
+	.memtype_valid = nv50_fb_memtype_valid,
+};
+
+int
+nv50_fb_new_(const struct nv50_fb_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_fb **pfb)
+{
+	struct nv50_fb *fb;
+
+	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_fb_ctor(&nv50_fb_, device, index, &fb->base);
+	fb->func = func;
+	*pfb = &fb->base;
 
 	fb->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (fb->r100c08_page) {
@@ -227,59 +274,17 @@ nv50_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		nvkm_warn(&fb->base.subdev, "failed 100c08 page alloc\n");
 	}
 
-	nv_subdev(fb)->intr = nv50_fb_intr;
 	return 0;
 }
 
-void
-nv50_fb_dtor(struct nvkm_object *object)
-{
-	struct nvkm_device *device = nv_device(object);
-	struct nv50_fb *fb = (void *)object;
-
-	if (fb->r100c08_page) {
-		dma_unmap_page(nv_device_base(device), fb->r100c08, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		__free_page(fb->r100c08_page);
-	}
-
-	nvkm_fb_destroy(&fb->base);
-}
+static const struct nv50_fb_func
+nv50_fb = {
+	.ram_new = nv50_ram_new,
+	.trap = 0x000707ff,
+};
 
 int
-nv50_fb_init(struct nvkm_object *object)
+nv50_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 {
-	struct nv50_fb_impl *impl = (void *)object->oclass;
-	struct nv50_fb *fb = (void *)object;
-	struct nvkm_device *device = fb->base.subdev.device;
-	int ret;
-
-	ret = nvkm_fb_init(&fb->base);
-	if (ret)
-		return ret;
-
-	/* Not a clue what this is exactly.  Without pointing it at a
-	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
-	 * cause IOMMU "read from address 0" errors (rh#561267)
-	 */
-	nvkm_wr32(device, 0x100c08, fb->r100c08 >> 8);
-
-	/* This is needed to get meaningful information from 100c90
-	 * on traps. No idea what these values mean exactly. */
-	nvkm_wr32(device, 0x100c90, impl->trap);
-	return 0;
+	return nv50_fb_new_(&nv50_fb, device, index, pfb);
 }
-
-struct nvkm_oclass *
-nv50_fb_oclass = &(struct nv50_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x50),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_fb_ctor,
-		.dtor = nv50_fb_dtor,
-		.init = nv50_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram_new = nv50_ram_new,
-	.trap = 0x000707ff,
-}.base.base;

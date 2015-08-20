@@ -23,7 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
 #include "ram.h"
 
 void
@@ -54,19 +54,18 @@ nv10_fb_tile_prog(struct nvkm_fb *fb, int i, struct nvkm_fb_tile *tile)
 	nvkm_rd32(device, 0x100240 + (i * 0x10));
 }
 
-struct nvkm_oclass *
-nv10_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x10),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = _nvkm_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram_new = nv10_ram_new,
+static const struct nvkm_fb_func
+nv10_fb = {
 	.tile.regions = 8,
 	.tile.init = nv10_fb_tile_init,
 	.tile.fini = nv10_fb_tile_fini,
 	.tile.prog = nv10_fb_tile_prog,
-}.base.base;
+	.ram_new = nv10_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv10_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv10_fb, device, index, pfb);
+}

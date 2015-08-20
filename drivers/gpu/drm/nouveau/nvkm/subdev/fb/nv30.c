@@ -23,7 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
 #include "ram.h"
 
 void
@@ -34,8 +34,8 @@ nv30_fb_tile_init(struct nvkm_fb *fb, int i, u32 addr, u32 size, u32 pitch,
 	if (!(flags & 4)) {
 		tile->addr = (0 << 4);
 	} else {
-		if (fb->tile.comp) /* z compression */
-			fb->tile.comp(fb, i, size, flags, tile);
+		if (fb->func->tile.comp) /* z compression */
+			fb->func->tile.comp(fb, i, size, flags, tile);
 		tile->addr = (1 << 4);
 	}
 
@@ -65,7 +65,7 @@ nv30_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
 static int
 calc_bias(struct nvkm_fb *fb, int k, int i, int j)
 {
-	struct nvkm_device *device = nv_device(fb);
+	struct nvkm_device *device = fb->subdev.device;
 	int b = (device->chipset > 0x30 ?
 		 nvkm_rd32(device, 0x122c + 0x10 * k + 0x4 * j) >>
 			(4 * (i ^ 1)) :
@@ -88,16 +88,11 @@ calc_ref(struct nvkm_fb *fb, int l, int k, int i)
 	return x;
 }
 
-int
-nv30_fb_init(struct nvkm_object *object)
+void
+nv30_fb_init(struct nvkm_fb *fb)
 {
-	struct nvkm_device *device = nv_device(object);
-	struct nvkm_fb *fb = (void *)object;
-	int ret, i, j;
-
-	ret = nvkm_fb_init(fb);
-	if (ret)
-		return ret;
+	struct nvkm_device *device = fb->subdev.device;
+	int i, j;
 
 	/* Init the memory timing regs at 0x10037c/0x1003ac */
 	if (device->chipset == 0x30 ||
@@ -117,24 +112,22 @@ nv30_fb_init(struct nvkm_object *object)
 					  calc_ref(fb, l, 1, j));
 		}
 	}
-
-	return 0;
 }
 
-struct nvkm_oclass *
-nv30_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x30),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = nv30_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram_new = nv20_ram_new,
+static const struct nvkm_fb_func
+nv30_fb = {
+	.init = nv30_fb_init,
 	.tile.regions = 8,
 	.tile.init = nv30_fb_tile_init,
 	.tile.comp = nv30_fb_tile_comp,
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv20_fb_tile_prog,
-}.base.base;
+	.ram_new = nv20_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv30_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv30_fb, device, index, pfb);
+}

@@ -77,14 +77,15 @@ static void
 nv50_vm_map(struct nvkm_vma *vma, struct nvkm_memory *pgt,
 	    struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
+	struct nvkm_ram *ram = vma->vm->mmu->subdev.device->fb->ram;
 	u32 comp = (mem->memtype & 0x180) >> 7;
 	u32 block, target;
 	int i;
 
 	/* IGPs don't have real VRAM, re-target to stolen system memory */
 	target = 0;
-	if (nvkm_fb(vma->vm->mmu)->ram->stolen) {
-		phys += nvkm_fb(vma->vm->mmu)->ram->stolen;
+	if (ram->stolen) {
+		phys += ram->stolen;
 		target = 3;
 	}
 

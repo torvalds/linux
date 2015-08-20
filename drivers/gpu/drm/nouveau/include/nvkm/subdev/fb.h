@@ -46,59 +46,47 @@ struct nvkm_fb_tile {
 };
 
 struct nvkm_fb {
+	const struct nvkm_fb_func *func;
 	struct nvkm_subdev subdev;
-
-	bool (*memtype_valid)(struct nvkm_fb *, u32 memtype);
 
 	struct nvkm_ram *ram;
 
 	struct {
 		struct nvkm_fb_tile region[16];
 		int regions;
-		void (*init)(struct nvkm_fb *, int i, u32 addr, u32 size,
-			     u32 pitch, u32 flags, struct nvkm_fb_tile *);
-		void (*comp)(struct nvkm_fb *, int i, u32 size, u32 flags,
-			     struct nvkm_fb_tile *);
-		void (*fini)(struct nvkm_fb *, int i, struct nvkm_fb_tile *);
-		void (*prog)(struct nvkm_fb *, int i, struct nvkm_fb_tile *);
 	} tile;
 };
 
-static inline struct nvkm_fb *
-nvkm_fb(void *obj)
-{
-	/* fbram uses this before device subdev pointer is valid */
-	if (nv_iclass(obj, NV_SUBDEV_CLASS) &&
-	    nv_subidx(obj) == NVDEV_SUBDEV_FB)
-		return obj;
+bool nvkm_fb_memtype_valid(struct nvkm_fb *, u32 memtype);
+void nvkm_fb_tile_init(struct nvkm_fb *, int region, u32 addr, u32 size,
+		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
+void nvkm_fb_tile_fini(struct nvkm_fb *, int region, struct nvkm_fb_tile *);
+void nvkm_fb_tile_prog(struct nvkm_fb *, int region, struct nvkm_fb_tile *);
 
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_FB);
-}
-
-extern struct nvkm_oclass *nv04_fb_oclass;
-extern struct nvkm_oclass *nv10_fb_oclass;
-extern struct nvkm_oclass *nv1a_fb_oclass;
-extern struct nvkm_oclass *nv20_fb_oclass;
-extern struct nvkm_oclass *nv25_fb_oclass;
-extern struct nvkm_oclass *nv30_fb_oclass;
-extern struct nvkm_oclass *nv35_fb_oclass;
-extern struct nvkm_oclass *nv36_fb_oclass;
-extern struct nvkm_oclass *nv40_fb_oclass;
-extern struct nvkm_oclass *nv41_fb_oclass;
-extern struct nvkm_oclass *nv44_fb_oclass;
-extern struct nvkm_oclass *nv46_fb_oclass;
-extern struct nvkm_oclass *nv47_fb_oclass;
-extern struct nvkm_oclass *nv49_fb_oclass;
-extern struct nvkm_oclass *nv4e_fb_oclass;
-extern struct nvkm_oclass *nv50_fb_oclass;
-extern struct nvkm_oclass *g84_fb_oclass;
-extern struct nvkm_oclass *gt215_fb_oclass;
-extern struct nvkm_oclass *mcp77_fb_oclass;
-extern struct nvkm_oclass *mcp89_fb_oclass;
-extern struct nvkm_oclass *gf100_fb_oclass;
-extern struct nvkm_oclass *gk104_fb_oclass;
-extern struct nvkm_oclass *gk20a_fb_oclass;
-extern struct nvkm_oclass *gm107_fb_oclass;
+int nv04_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv10_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv1a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv20_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv25_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv30_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv35_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv36_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv40_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv41_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv44_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv46_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv47_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv49_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv4e_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int nv50_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int g84_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gt215_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int mcp77_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int mcp89_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gf100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gk104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gk20a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gm107_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 
 #include <subdev/bios.h>
 #include <subdev/bios/ramcfg.h>

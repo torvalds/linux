@@ -51,7 +51,7 @@ u64  nvif_device_time(struct nvif_device *);
 	nv_device(_device->object.priv);                                       \
 })
 #define nvxx_bios(a) nvxx_device(a)->bios
-#define nvxx_fb(a) nvkm_fb(nvxx_device(a))
+#define nvxx_fb(a) nvxx_device(a)->fb
 #define nvxx_mmu(a) nvkm_mmu(nvxx_device(a))
 #define nvxx_bar(a) nvxx_device(a)->bar
 #define nvxx_gpio(a) nvkm_gpio(nvxx_device(a))

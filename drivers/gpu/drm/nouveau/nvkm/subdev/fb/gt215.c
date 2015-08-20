@@ -24,16 +24,14 @@
 #include "nv50.h"
 #include "ram.h"
 
-struct nvkm_oclass *
-gt215_fb_oclass = &(struct nv50_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0xa3),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_fb_ctor,
-		.dtor = nv50_fb_dtor,
-		.init = nv50_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv50_fb_memtype_valid,
-	.base.ram_new = gt215_ram_new,
+static const struct nv50_fb_func
+gt215_fb = {
+	.ram_new = gt215_ram_new,
 	.trap = 0x000d0fff,
-}.base.base;
+};
+
+int
+gt215_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nv50_fb_new_(&gt215_fb, device, index, pfb);
+}

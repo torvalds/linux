@@ -23,7 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
 #include "ram.h"
 
 void
@@ -34,7 +34,7 @@ nv20_fb_tile_init(struct nvkm_fb *fb, int i, u32 addr, u32 size, u32 pitch,
 	tile->limit = max(1u, addr + size) - 1;
 	tile->pitch = pitch;
 	if (flags & 4) {
-		fb->tile.comp(fb, i, size, flags, tile);
+		fb->func->tile.comp(fb, i, size, flags, tile);
 		tile->addr |= 2;
 	}
 }
@@ -77,20 +77,19 @@ nv20_fb_tile_prog(struct nvkm_fb *fb, int i, struct nvkm_fb_tile *tile)
 	nvkm_wr32(device, 0x100300 + (i * 0x04), tile->zcomp);
 }
 
-struct nvkm_oclass *
-nv20_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x20),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = _nvkm_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram_new = nv20_ram_new,
+static const struct nvkm_fb_func
+nv20_fb = {
 	.tile.regions = 8,
 	.tile.init = nv20_fb_tile_init,
 	.tile.comp = nv20_fb_tile_comp,
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv20_fb_tile_prog,
-}.base.base;
+	.ram_new = nv20_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv20_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv20_fb, device, index, pfb);
+}

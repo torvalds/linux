@@ -259,7 +259,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
 
-	if (!fb->memtype_valid(fb, req->info.tile_flags)) {
+	if (!nvkm_fb_memtype_valid(fb, req->info.tile_flags)) {
 		NV_PRINTK(err, cli, "bad page flags: 0x%08x\n", req->info.tile_flags);
 		return -EINVAL;
 	}
