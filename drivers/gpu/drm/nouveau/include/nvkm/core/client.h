@@ -14,7 +14,13 @@ struct nvkm_client {
 
 	int (*ntfy)(const void *, u32, const void *, u32);
 	struct nvkm_client_notify *notify[16];
+
+	struct rb_root objroot;
 };
+
+bool nvkm_client_insert(struct nvkm_client *, struct nvkm_handle *);
+void nvkm_client_remove(struct nvkm_client *, struct nvkm_handle *);
+struct nvkm_handle *nvkm_client_search(struct nvkm_client *, u64 handle);
 
 static inline struct nvkm_client *
 nv_client(void *obj)

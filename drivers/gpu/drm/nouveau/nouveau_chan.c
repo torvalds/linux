@@ -209,13 +209,13 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
 			args.kepler.engine  = engine;
-			args.kepler.pushbuf = chan->push.ctxdma.handle;
+			args.kepler.pushbuf = nvif_handle(&chan->push.ctxdma);
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.vma.offset;
 			size = sizeof(args.kepler);
 		} else {
 			args.nv50.version = 0;
-			args.nv50.pushbuf = chan->push.ctxdma.handle;
+			args.nv50.pushbuf = nvif_handle(&chan->push.ctxdma);
 			args.nv50.ilength = 0x02000;
 			args.nv50.ioffset = 0x10000 + chan->push.vma.offset;
 			size = sizeof(args.nv50);
@@ -258,7 +258,7 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
 
 	/* create channel object */
 	args.version = 0;
-	args.pushbuf = chan->push.ctxdma.handle;
+	args.pushbuf = nvif_handle(&chan->push.ctxdma);
 	args.offset = chan->push.vma.offset;
 
 	do {

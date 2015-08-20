@@ -103,9 +103,9 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 		return ret;
 
 	nvif_ioctl(handle->object, "new vers %d handle %08x class %08x "
-				   "route %02x token %llx\n",
+				   "route %02x token %llx object %016llx\n",
 		   args->v0.version, _handle, _oclass,
-		   args->v0.route, args->v0.token);
+		   args->v0.route, args->v0.token, args->v0.object);
 
 	if (!nv_iclass(handle->object, NV_PARENT_CLASS)) {
 		nvif_debug(handle->object, "cannot have children (ctor)\n");
@@ -166,6 +166,8 @@ nvkm_ioctl_new(struct nvkm_handle *handle, void *data, u32 size)
 	if (ret)
 		nvkm_handle_destroy(handle);
 
+	handle->handle = args->v0.object;
+	nvkm_client_insert(client, handle);
 fail_handle:
 	nvkm_object_dec(object, false);
 fail_init:
@@ -438,40 +440,31 @@ nvkm_ioctl_v0[] = {
 };
 
 static int
-nvkm_ioctl_path(struct nvkm_handle *parent, u32 type, u32 nr, u32 *path,
+nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 		void *data, u32 size, u8 owner, u8 *route, u64 *token)
 {
-	struct nvkm_handle *handle = parent;
-	struct nvkm_namedb *namedb;
-	struct nvkm_object *object;
+	struct nvkm_handle *object;
 	int ret;
 
-	while ((object = parent->object), nr--) {
-		nvif_ioctl(object, "path 0x%08x\n", path[nr]);
-		if (!nv_iclass(object, NV_PARENT_CLASS)) {
-			nvif_debug(object, "cannot have children (path)\n");
-			return -EINVAL;
-		}
-
-		if (!(namedb = (void *)nv_pclass(object, NV_NAMEDB_CLASS)) ||
-		    !(handle = nvkm_namedb_get(namedb, path[nr]))) {
-			nvif_debug(object, "handle 0x%08x not found\n", path[nr]);
-			return -ENOENT;
-		}
-		nvkm_namedb_put(handle);
-		parent = handle;
+	if (handle)
+		object = nvkm_client_search(client, handle);
+	else
+		object = client->root;
+	if (unlikely(!object)) {
+		nvif_ioctl(&client->namedb.parent.object, "object not found\n");
+		return -ENOENT;
 	}
 
-	if (owner != NVIF_IOCTL_V0_OWNER_ANY && owner != handle->route) {
-		nvif_ioctl(object, "object route != owner\n");
+	if (owner != NVIF_IOCTL_V0_OWNER_ANY && owner != object->route) {
+		nvif_ioctl(&client->namedb.parent.object, "route != owner\n");
 		return -EACCES;
 	}
-	*route = handle->route;
-	*token = handle->token;
+	*route = object->route;
+	*token = object->token;
 
 	if (ret = -EINVAL, type < ARRAY_SIZE(nvkm_ioctl_v0)) {
 		if (nvkm_ioctl_v0[type].version == 0)
-			ret = nvkm_ioctl_v0[type].func(handle, data, size);
+			ret = nvkm_ioctl_v0[type].func(object, data, size);
 	}
 
 	return ret;
@@ -491,11 +484,11 @@ nvkm_ioctl(struct nvkm_client *client, bool supervisor,
 	nvif_ioctl(object, "size %d\n", size);
 
 	if (nvif_unpack(args->v0, 0, 0, true)) {
-		nvif_ioctl(object, "vers %d type %02x path %d owner %02x\n",
-			   args->v0.version, args->v0.type, args->v0.path_nr,
+		nvif_ioctl(object,
+			   "vers %d type %02x object %016llx owner %02x\n",
+			   args->v0.version, args->v0.type, args->v0.object,
 			   args->v0.owner);
-		ret = nvkm_ioctl_path(client->root, args->v0.type,
-				      args->v0.path_nr, args->v0.path,
+		ret = nvkm_ioctl_path(client, args->v0.object, args->v0.type,
 				      data, size, args->v0.owner,
 				      &args->v0.route, &args->v0.token);
 	}

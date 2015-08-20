@@ -183,6 +183,55 @@ nvkm_client_oclass = {
 	},
 };
 
+void
+nvkm_client_remove(struct nvkm_client *client, struct nvkm_handle *object)
+{
+	if (!RB_EMPTY_NODE(&object->rb))
+		rb_erase(&object->rb, &client->objroot);
+}
+
+bool
+nvkm_client_insert(struct nvkm_client *client, struct nvkm_handle *object)
+{
+	struct rb_node **ptr = &client->objroot.rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*ptr) {
+		struct nvkm_handle *this =
+			container_of(*ptr, typeof(*this), rb);
+		parent = *ptr;
+		if (object->handle < this->handle)
+			ptr = &parent->rb_left;
+		else
+		if (object->handle > this->handle)
+			ptr = &parent->rb_right;
+		else
+			return false;
+	}
+
+	rb_link_node(&object->rb, parent, ptr);
+	rb_insert_color(&object->rb, &client->objroot);
+	return true;
+}
+
+struct nvkm_handle *
+nvkm_client_search(struct nvkm_client *client, u64 handle)
+{
+	struct rb_node *node = client->objroot.rb_node;
+	while (node) {
+		struct nvkm_handle *object =
+			container_of(node, typeof(*object), rb);
+		if (handle < object->handle)
+			node = node->rb_left;
+		else
+		if (handle > object->handle)
+			node = node->rb_right;
+		else
+			return object;
+	}
+	return NULL;
+}
+
 int
 nvkm_client_fini(struct nvkm_client *client, bool suspend)
 {
@@ -256,6 +305,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	client->device = device;
 	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
+	client->objroot = RB_ROOT;
 	return 0;
 }
 

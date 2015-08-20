@@ -54,9 +54,12 @@ int
 nvkm_fifo_channel_create_(struct nvkm_object *parent,
 			  struct nvkm_object *engine,
 			  struct nvkm_oclass *oclass,
-			  int bar, u32 addr, u32 size, u32 pushbuf,
+			  int bar, u32 addr, u32 size, u64 pushbuf,
 			  u64 engmask, int len, void **ptr)
 {
+	struct nvkm_client *client = nvkm_client(parent);
+	struct nvkm_handle *handle;
+	struct nvkm_dmaobj *dmaobj;
 	struct nvkm_fifo *fifo = (void *)engine;
 	struct nvkm_fifo_chan *chan;
 	struct nvkm_dmaeng *dmaeng;
@@ -73,12 +76,13 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 		return ret;
 
 	/* validate dma object representing push buffer */
-	chan->pushdma = (void *)nvkm_handle_ref(parent, pushbuf);
-	if (!chan->pushdma)
+	handle = nvkm_client_search(client, pushbuf);
+	if (!handle)
 		return -ENOENT;
+	dmaobj = (void *)handle->object;
 
-	dmaeng = (void *)chan->pushdma->base.engine;
-	switch (chan->pushdma->base.oclass->handle) {
+	dmaeng = (void *)dmaobj->base.engine;
+	switch (dmaobj->base.oclass->handle) {
 	case NV_DMA_FROM_MEMORY:
 	case NV_DMA_IN_MEMORY:
 		break;
@@ -86,7 +90,7 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 		return -EINVAL;
 	}
 
-	ret = dmaeng->bind(chan->pushdma, parent, &chan->pushgpu);
+	ret = dmaeng->bind(dmaobj, parent, &chan->pushgpu);
 	if (ret)
 		return ret;
 
@@ -126,7 +130,6 @@ nvkm_fifo_channel_destroy(struct nvkm_fifo_chan *chan)
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
 	nvkm_gpuobj_ref(NULL, &chan->pushgpu);
-	nvkm_object_ref(NULL, (struct nvkm_object **)&chan->pushdma);
 	nvkm_namedb_destroy(&chan->namedb);
 }
 

@@ -17,6 +17,9 @@ struct nvkm_handle {
 
 	struct nvkm_handle *parent;
 	struct nvkm_object *object;
+
+	struct rb_node rb;
+	u64 handle;
 };
 
 int  nvkm_handle_create(struct nvkm_object *, u32 parent, u32 handle,
@@ -24,8 +27,6 @@ int  nvkm_handle_create(struct nvkm_object *, u32 parent, u32 handle,
 void nvkm_handle_destroy(struct nvkm_handle *);
 int  nvkm_handle_init(struct nvkm_handle *);
 int  nvkm_handle_fini(struct nvkm_handle *, bool suspend);
-
-struct nvkm_object *nvkm_handle_ref(struct nvkm_object *, u32 name);
 
 struct nvkm_handle *nvkm_handle_get_class(struct nvkm_object *, u16);
 struct nvkm_handle *nvkm_handle_get_vinst(struct nvkm_object *, u64);

@@ -113,7 +113,6 @@ extern const struct nvkm_event_func gf110_disp_chan_uevent;
 
 struct nv50_disp_dmac {
 	struct nv50_disp_chan base;
-	struct nvkm_dmaobj *pushdma;
 	u32 push;
 };
 

@@ -230,7 +230,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (!dmac->ptr)
 		return -ENOMEM;
 
-	ret = nvif_object_init(&device->object, args->pushbuf,
+	ret = nvif_object_init(&device->object, 0xd0000000,
 			       NV_DMA_FROM_MEMORY, &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_PCI_US,
 					.access = NV_DMA_V0_ACCESS_RD,
@@ -239,6 +239,8 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 			       }, sizeof(struct nv_dma_v0), &pushbuf);
 	if (ret)
 		return ret;
+
+	args->pushbuf = nvif_handle(&pushbuf);
 
 	ret = nv50_chan_create(device, disp, oclass, head, data, size,
 			       &dmac->base);

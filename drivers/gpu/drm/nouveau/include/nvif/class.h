@@ -354,8 +354,8 @@ struct nvif_control_pstate_user_v0 {
 struct nv03_channel_dma_v0 {
 	__u8  version;
 	__u8  chid;
-	__u8  pad02[2];
-	__u32 pushbuf;
+	__u8  pad02[6];
+	__u64 pushbuf;
 	__u64 offset;
 };
 
@@ -368,10 +368,10 @@ struct nv03_channel_dma_v0 {
 struct nv50_channel_gpfifo_v0 {
 	__u8  version;
 	__u8  chid;
-	__u8  pad01[6];
-	__u32 pushbuf;
+	__u8  pad02[2];
 	__u32 ilength;
 	__u64 ioffset;
+	__u64 pushbuf;
 };
 
 struct kepler_channel_gpfifo_a_v0 {
@@ -385,10 +385,9 @@ struct kepler_channel_gpfifo_a_v0 {
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_ENC                              0x40
 	__u8  engine;
 	__u16 chid;
-	__u8  pad04[4];
-	__u32 pushbuf;
 	__u32 ilength;
 	__u64 ioffset;
+	__u64 pushbuf;
 };
 
 /*******************************************************************************
@@ -509,8 +508,8 @@ struct nv50_disp_pior_pwr_v0 {
 /* core */
 struct nv50_disp_core_channel_dma_v0 {
 	__u8  version;
-	__u8  pad01[3];
-	__u32 pushbuf;
+	__u8  pad01[7];
+	__u64 pushbuf;
 };
 
 #define NV50_DISP_CORE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
@@ -527,9 +526,9 @@ struct nv50_disp_cursor_v0 {
 /* base */
 struct nv50_disp_base_channel_dma_v0 {
 	__u8  version;
-	__u8  pad01[2];
 	__u8  head;
-	__u32 pushbuf;
+	__u8  pad02[6];
+	__u64 pushbuf;
 };
 
 #define NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT                          0x00
@@ -537,9 +536,9 @@ struct nv50_disp_base_channel_dma_v0 {
 /* overlay */
 struct nv50_disp_overlay_channel_dma_v0 {
 	__u8  version;
-	__u8  pad01[2];
 	__u8  head;
-	__u32 pushbuf;
+	__u8  pad02[6];
+	__u64 pushbuf;
 };
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA_V0_NTFY_UEVENT                       0x00

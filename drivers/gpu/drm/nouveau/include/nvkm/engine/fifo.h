@@ -4,7 +4,6 @@
 
 struct nvkm_fifo_chan {
 	struct nvkm_namedb namedb;
-	struct nvkm_dmaobj *pushdma;
 	struct nvkm_gpuobj *pushgpu;
 	void __iomem *user;
 	u64 addr;
@@ -30,7 +29,7 @@ nvkm_fifo_chan(void *obj)
 int  nvkm_fifo_channel_create_(struct nvkm_object *,
 				  struct nvkm_object *,
 				  struct nvkm_oclass *,
-				  int bar, u32 addr, u32 size, u32 push,
+				  int bar, u32 addr, u32 size, u64 push,
 				  u64 engmask, int len, void **);
 void nvkm_fifo_channel_destroy(struct nvkm_fifo_chan *);
 

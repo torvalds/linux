@@ -206,9 +206,12 @@ nv50_disp_dmac_object_detach(struct nvkm_object *parent, int cookie)
 static int
 nv50_disp_dmac_create_(struct nvkm_object *parent,
 		       struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass, u32 pushbuf, int head,
+		       struct nvkm_oclass *oclass, u64 pushbuf, int head,
 		       int length, void **pobject)
 {
+	struct nvkm_client *client = nvkm_client(parent);
+	struct nvkm_handle *handle;
+	struct nvkm_dmaobj *dmaobj;
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
@@ -218,22 +221,23 @@ nv50_disp_dmac_create_(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	dmac->pushdma = (void *)nvkm_handle_ref(parent, pushbuf);
-	if (!dmac->pushdma)
+	handle = nvkm_client_search(client, pushbuf);
+	if (!handle)
 		return -ENOENT;
+	dmaobj = (void *)handle->object;
 
-	switch (nv_mclass(dmac->pushdma)) {
+	switch (nv_mclass(dmaobj)) {
 	case 0x0002:
 	case 0x003d:
-		if (dmac->pushdma->limit - dmac->pushdma->start != 0xfff)
+		if (dmaobj->limit - dmaobj->start != 0xfff)
 			return -EINVAL;
 
-		switch (dmac->pushdma->target) {
+		switch (dmaobj->target) {
 		case NV_MEM_TARGET_VRAM:
-			dmac->push = 0x00000001 | dmac->pushdma->start >> 8;
+			dmac->push = 0x00000001 | dmaobj->start >> 8;
 			break;
 		case NV_MEM_TARGET_PCI_NOSNOOP:
-			dmac->push = 0x00000003 | dmac->pushdma->start >> 8;
+			dmac->push = 0x00000003 | dmaobj->start >> 8;
 			break;
 		default:
 			return -EINVAL;
@@ -250,7 +254,6 @@ void
 nv50_disp_dmac_dtor(struct nvkm_object *object)
 {
 	struct nv50_disp_dmac *dmac = (void *)object;
-	nvkm_object_ref(NULL, (struct nvkm_object **)&dmac->pushdma);
 	nv50_disp_chan_destroy(&dmac->base);
 }
 
@@ -513,7 +516,7 @@ nv50_disp_core_ctor(struct nvkm_object *parent,
 	nvif_ioctl(parent, "create disp core channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(parent, "create disp core channel dma vers %d "
-				   "pushbuf %08x\n",
+				   "pushbuf %016llx\n",
 			   args->v0.version, args->v0.pushbuf);
 	} else
 		return ret;
@@ -682,7 +685,7 @@ nv50_disp_base_ctor(struct nvkm_object *parent,
 	nvif_ioctl(parent, "create disp base channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(parent, "create disp base channel dma vers %d "
-				   "pushbuf %08x head %d\n",
+				   "pushbuf %016llx head %d\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.head);
 		if (args->v0.head > disp->head.nr)
 			return -EINVAL;
@@ -772,7 +775,7 @@ nv50_disp_ovly_ctor(struct nvkm_object *parent,
 	nvif_ioctl(parent, "create disp overlay channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nvif_ioctl(parent, "create disp overlay channel dma vers %d "
-				   "pushbuf %08x head %d\n",
+				   "pushbuf %016llx head %d\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.head);
 		if (args->v0.head > disp->head.nr)
 			return -EINVAL;

@@ -36,14 +36,11 @@ nvif_object_ioctl(struct nvif_object *object, void *data, u32 size, void **hack)
 	} *args = data;
 
 	if (size >= sizeof(*args) && args->v0.version == 0) {
+		if (object != &client->object)
+			args->v0.object = nvif_handle(object);
+		else
+			args->v0.object = 0;
 		args->v0.owner = NVIF_IOCTL_V0_OWNER_ANY;
-		args->v0.path_nr = 0;
-		while (args->v0.path_nr < ARRAY_SIZE(args->v0.path)) {
-			args->v0.path[args->v0.path_nr++] = object->handle;
-			if (object->parent == object)
-				break;
-			object = object->parent;
-		}
 	} else
 		return -ENOSYS;
 
@@ -216,13 +213,12 @@ nvif_object_init(struct nvif_object *parent, u32 handle, u32 oclass,
 	int ret = 0;
 
 	object->client = NULL;
-	object->parent = parent;
 	object->handle = handle;
 	object->oclass = oclass;
 	object->map.ptr = NULL;
 	object->map.size = 0;
 
-	if (object->parent) {
+	if (parent) {
 		if (!(args = kmalloc(sizeof(*args) + size, GFP_KERNEL))) {
 			nvif_object_fini(object);
 			return -ENOMEM;
@@ -232,7 +228,8 @@ nvif_object_init(struct nvif_object *parent, u32 handle, u32 oclass,
 		args->ioctl.type = NVIF_IOCTL_V0_NEW;
 		args->new.version = 0;
 		args->new.route = parent->client->route;
-		args->new.token = (unsigned long)(void *)object;
+		args->new.token = nvif_handle(object);
+		args->new.object = nvif_handle(object);
 		args->new.handle = handle;
 		args->new.oclass = oclass;
 

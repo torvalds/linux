@@ -113,6 +113,7 @@ nvkm_handle_create(struct nvkm_object *parent, u32 _parent, u32 _handle,
 	INIT_LIST_HEAD(&handle->tree);
 	handle->name = _handle;
 	handle->priv = ~0;
+	RB_CLEAR_NODE(&handle->rb);
 
 	ret = nvkm_namedb_insert(nv_namedb(namedb), _handle, object, handle);
 	if (ret) {
@@ -149,12 +150,15 @@ nvkm_handle_create(struct nvkm_object *parent, u32 _parent, u32 _handle,
 void
 nvkm_handle_destroy(struct nvkm_handle *handle)
 {
+	struct nvkm_client *client = nvkm_client(handle->object);
 	struct nvkm_handle *item, *temp;
 
 	hprintk(handle, TRACE, "destroy running\n");
 	list_for_each_entry_safe(item, temp, &handle->tree, head) {
 		nvkm_handle_destroy(item);
 	}
+
+	nvkm_client_remove(client, handle);
 	list_del(&handle->head);
 
 	if (handle->priv != ~0) {
@@ -165,24 +169,6 @@ nvkm_handle_destroy(struct nvkm_handle *handle)
 	hprintk(handle, TRACE, "destroy completed\n");
 	nvkm_namedb_remove(handle);
 	kfree(handle);
-}
-
-struct nvkm_object *
-nvkm_handle_ref(struct nvkm_object *parent, u32 name)
-{
-	struct nvkm_object *object = NULL;
-	struct nvkm_handle *handle;
-
-	while (!nv_iclass(parent, NV_NAMEDB_CLASS))
-		parent = parent->parent;
-
-	handle = nvkm_namedb_get(nv_namedb(parent), name);
-	if (handle) {
-		nvkm_object_ref(handle->object, &object);
-		nvkm_namedb_put(handle);
-	}
-
-	return object;
 }
 
 struct nvkm_handle *

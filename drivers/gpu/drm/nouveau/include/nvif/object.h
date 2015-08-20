@@ -5,7 +5,6 @@
 
 struct nvif_object {
 	struct nvif_client *client;
-	struct nvif_object *parent;
 	u32 handle;
 	u32 oclass;
 	void *priv; /*XXX: hack */
@@ -26,6 +25,7 @@ int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);
 int  nvif_object_map(struct nvif_object *);
 void nvif_object_unmap(struct nvif_object *);
 
+#define nvif_handle(a) (unsigned long)(void *)(a)
 #define nvif_object(a) (a)->object
 
 #define nvif_rd(a,f,b,c) ({                                                    \

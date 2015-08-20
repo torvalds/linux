@@ -3,9 +3,6 @@
 
 struct nvif_ioctl_v0 {
 	__u8  version;
-#define NVIF_IOCTL_V0_OWNER_NVIF                                           0x00
-#define NVIF_IOCTL_V0_OWNER_ANY                                            0xff
-	__u8  owner;
 #define NVIF_IOCTL_V0_NOP                                                  0x00
 #define NVIF_IOCTL_V0_SCLASS                                               0x01
 #define NVIF_IOCTL_V0_NEW                                                  0x02
@@ -20,13 +17,15 @@ struct nvif_ioctl_v0 {
 #define NVIF_IOCTL_V0_NTFY_GET                                             0x0b
 #define NVIF_IOCTL_V0_NTFY_PUT                                             0x0c
 	__u8  type;
-	__u8  path_nr;
+	__u8  pad02[4];
+#define NVIF_IOCTL_V0_OWNER_NVIF                                           0x00
+#define NVIF_IOCTL_V0_OWNER_ANY                                            0xff
+	__u8  owner;
 #define NVIF_IOCTL_V0_ROUTE_NVIF                                           0x00
 #define NVIF_IOCTL_V0_ROUTE_HIDDEN                                         0xff
-	__u8  pad04[3];
 	__u8  route;
 	__u64 token;
-	__u32 path[8];		/* in reverse */
+	__u64 object;
 	__u8  data[];		/* ioctl data (below) */
 };
 
@@ -47,6 +46,7 @@ struct nvif_ioctl_new_v0 {
 	__u8  pad01[6];
 	__u8  route;
 	__u64 token;
+	__u64 object;
 	__u32 handle;
 /* these class numbers are made up by us, and not nvidia-assigned */
 #define NVIF_IOCTL_NEW_V0_PERFMON                                    0x0000ffff

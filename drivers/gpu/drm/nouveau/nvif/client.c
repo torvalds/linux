@@ -50,7 +50,6 @@ nvif_client_fini(struct nvif_client *client)
 	if (client->driver) {
 		client->driver->fini(client->object.priv);
 		client->driver = NULL;
-		client->object.parent = NULL;
 		client->object.client = NULL;
 		nvif_object_fini(&client->object);
 	}
@@ -79,7 +78,6 @@ nvif_client_init(const char *driver, const char *name, u64 device,
 		return ret;
 
 	client->object.client = client;
-	client->object.parent = &client->object;
 	client->object.handle = ~0;
 	client->route = NVIF_IOCTL_V0_ROUTE_NVIF;
 	client->super = true;

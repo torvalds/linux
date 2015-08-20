@@ -182,7 +182,7 @@ g84_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nvif_ioctl(parent, "create channel dma size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nvif_ioctl(parent, "create channel dma vers %d pushbuf %08x "
+		nvif_ioctl(parent, "create channel dma vers %d pushbuf %llx "
 				   "offset %016llx\n", args->v0.version,
 			   args->v0.pushbuf, args->v0.offset);
 	} else
@@ -258,7 +258,7 @@ g84_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
-		nvif_ioctl(parent, "create channel gpfifo vers %d pushbuf %08x "
+		nvif_ioctl(parent, "create channel gpfifo vers %d pushbuf %llx "
 				   "ioffset %016llx ilength %08x\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.ioffset,
 			   args->v0.ilength);
