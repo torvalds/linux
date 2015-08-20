@@ -44,16 +44,32 @@
 #include <linux/usb/phy.h>
 #include "hw.h"
 
-#ifdef DWC2_LOG_WRITES
-static inline void do_write(u32 value, void *addr)
+static inline u32 dwc2_readl(const void __iomem *addr)
 {
-	writel(value, addr);
-	pr_info("INFO:: wrote %08x to %p\n", value, addr);
+	u32 value = __raw_readl(addr);
+
+	/* In order to preserve endianness __raw_* operation is used. Therefore
+	 * a barrier is needed to ensure IO access is not re-ordered across
+	 * reads or writes
+	 */
+	mb();
+	return value;
 }
 
-#undef writel
-#define writel(v, a)	do_write(v, a)
+static inline void dwc2_writel(u32 value, void __iomem *addr)
+{
+	__raw_writel(value, addr);
+
+	/*
+	 * In order to preserve endianness __raw_* operation is used. Therefore
+	 * a barrier is needed to ensure IO access is not re-ordered across
+	 * reads or writes
+	 */
+	mb();
+#ifdef DWC2_LOG_WRITES
+	pr_info("INFO:: wrote %08x to %p\n", value, addr);
 #endif
+}
 
 /* Maximum number of Endpoints/HostChannels */
 #define MAX_EPS_CHANNELS	16

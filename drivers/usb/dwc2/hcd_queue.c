@@ -115,7 +115,7 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		if (qh->ep_type == USB_ENDPOINT_XFER_INT)
 			qh->interval = 8;
 #endif
-		hprt = readl(hsotg->regs + HPRT0);
+		hprt = dwc2_readl(hsotg->regs + HPRT0);
 		prtspd = (hprt & HPRT0_SPD_MASK) >> HPRT0_SPD_SHIFT;
 		if (prtspd == HPRT0_SPD_HIGH_SPEED &&
 		    (dev_speed == USB_SPEED_LOW ||
@@ -595,9 +595,9 @@ int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	if (status)
 		return status;
 	if (!hsotg->periodic_qh_count) {
-		intr_mask = readl(hsotg->regs + GINTMSK);
+		intr_mask = dwc2_readl(hsotg->regs + GINTMSK);
 		intr_mask |= GINTSTS_SOF;
-		writel(intr_mask, hsotg->regs + GINTMSK);
+		dwc2_writel(intr_mask, hsotg->regs + GINTMSK);
 	}
 	hsotg->periodic_qh_count++;
 
@@ -632,9 +632,9 @@ void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	dwc2_deschedule_periodic(hsotg, qh);
 	hsotg->periodic_qh_count--;
 	if (!hsotg->periodic_qh_count) {
-		intr_mask = readl(hsotg->regs + GINTMSK);
+		intr_mask = dwc2_readl(hsotg->regs + GINTMSK);
 		intr_mask &= ~GINTSTS_SOF;
-		writel(intr_mask, hsotg->regs + GINTMSK);
+		dwc2_writel(intr_mask, hsotg->regs + GINTMSK);
 	}
 }
 
