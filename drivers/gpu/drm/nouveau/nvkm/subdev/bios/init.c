@@ -180,27 +180,30 @@ init_nvreg(struct nvbios_init *init, u32 reg)
 static u32
 init_rd32(struct nvbios_init *init, u32 reg)
 {
+	struct nvkm_device *device = init->bios->subdev.device;
 	reg = init_nvreg(init, reg);
 	if (reg != ~0 && init_exec(init))
-		return nv_rd32(init->subdev, reg);
+		return nvkm_rd32(device, reg);
 	return 0x00000000;
 }
 
 static void
 init_wr32(struct nvbios_init *init, u32 reg, u32 val)
 {
+	struct nvkm_device *device = init->bios->subdev.device;
 	reg = init_nvreg(init, reg);
 	if (reg != ~0 && init_exec(init))
-		nv_wr32(init->subdev, reg, val);
+		nvkm_wr32(device, reg, val);
 }
 
 static u32
 init_mask(struct nvbios_init *init, u32 reg, u32 mask, u32 val)
 {
+	struct nvkm_device *device = init->bios->subdev.device;
 	reg = init_nvreg(init, reg);
 	if (reg != ~0 && init_exec(init)) {
-		u32 tmp = nv_rd32(init->subdev, reg);
-		nv_wr32(init->subdev, reg, (tmp & ~mask) | val);
+		u32 tmp = nvkm_rd32(device, reg);
+		nvkm_wr32(device, reg, (tmp & ~mask) | val);
 		return tmp;
 	}
 	return 0x00000000;

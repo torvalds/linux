@@ -221,6 +221,7 @@ pll_map_type(struct nvkm_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
 int
 nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 {
+	struct nvkm_device *device = bios->subdev.device;
 	u8  ver, len;
 	u32 reg = type;
 	u16 data;
@@ -360,9 +361,9 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 	}
 
 	if (!info->refclk) {
-		info->refclk = nv_device(bios)->crystal;
+		info->refclk = device->crystal;
 		if (bios->version.chip == 0x51) {
-			u32 sel_clk = nv_rd32(bios, 0x680524);
+			u32 sel_clk = nvkm_rd32(device, 0x680524);
 			if ((info->reg == 0x680508 && sel_clk & 0x20) ||
 			    (info->reg == 0x680520 && sel_clk & 0x80)) {
 				if (nv_rdvgac(bios, 0, 0x27) < 0xa3)
@@ -392,7 +393,7 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 		info->vco1.max_n = 0xff;
 		info->vco1.min_m = 0x1;
 
-		if (nv_device(bios)->crystal == 13500) {
+		if (device->crystal == 13500) {
 			/* nv05 does this, nv11 doesn't, nv10 unknown */
 			if (bios->version.chip < 0x11)
 				info->vco1.min_m = 0x7;

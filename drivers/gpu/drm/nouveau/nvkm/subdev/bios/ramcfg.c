@@ -29,7 +29,7 @@
 static u8
 nvbios_ramcfg_strap(struct nvkm_subdev *subdev)
 {
-	return (nv_rd32(subdev, 0x101000) & 0x0000003c) >> 2;
+	return (nvkm_rd32(subdev->device, 0x101000) & 0x0000003c) >> 2;
 }
 
 u8
