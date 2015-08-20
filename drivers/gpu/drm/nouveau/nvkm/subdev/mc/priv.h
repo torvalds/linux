@@ -38,5 +38,8 @@ void nv50_mc_init(struct nvkm_mc *);
 extern const struct nvkm_mc_intr nv50_mc_intr[];
 
 extern const struct nvkm_mc_intr gf100_mc_intr[];
+void gf100_mc_intr_unarm(struct nvkm_mc *);
+void gf100_mc_intr_rearm(struct nvkm_mc *);
+u32 gf100_mc_intr_mask(struct nvkm_mc *);
 void gf100_mc_unk260(struct nvkm_mc *, u32);
 #endif

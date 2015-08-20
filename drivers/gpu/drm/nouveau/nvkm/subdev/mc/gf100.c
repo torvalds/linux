@@ -48,6 +48,32 @@ gf100_mc_intr[] = {
 	{},
 };
 
+void
+gf100_mc_intr_unarm(struct nvkm_mc *mc)
+{
+	struct nvkm_device *device = mc->subdev.device;
+	nvkm_wr32(device, 0x000140, 0x00000000);
+	nvkm_wr32(device, 0x000144, 0x00000000);
+	nvkm_rd32(device, 0x000140);
+}
+
+void
+gf100_mc_intr_rearm(struct nvkm_mc *mc)
+{
+	struct nvkm_device *device = mc->subdev.device;
+	nvkm_wr32(device, 0x000140, 0x00000001);
+	nvkm_wr32(device, 0x000144, 0x00000001);
+}
+
+u32
+gf100_mc_intr_mask(struct nvkm_mc *mc)
+{
+	struct nvkm_device *device = mc->subdev.device;
+	u32 intr0 = nvkm_rd32(device, 0x000100);
+	u32 intr1 = nvkm_rd32(device, 0x000104);
+	return intr0 | intr1;
+}
+
 static void
 gf100_mc_msi_rearm(struct nvkm_mc *mc)
 {
@@ -64,9 +90,9 @@ static const struct nvkm_mc_func
 gf100_mc = {
 	.init = nv50_mc_init,
 	.intr = gf100_mc_intr,
-	.intr_unarm = nv04_mc_intr_unarm,
-	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_mask = nv04_mc_intr_mask,
+	.intr_unarm = gf100_mc_intr_unarm,
+	.intr_rearm = gf100_mc_intr_rearm,
+	.intr_mask = gf100_mc_intr_mask,
 	.msi_rearm = gf100_mc_msi_rearm,
 	.unk260 = gf100_mc_unk260,
 };
