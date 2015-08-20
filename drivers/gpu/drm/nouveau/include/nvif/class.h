@@ -45,6 +45,9 @@
 #define GM107_DISP                                                   0x00009470
 #define GM204_DISP                                                   0x00009570
 
+#define NV31_MPEG                                                    0x00003174
+#define G82_MPEG                                                     0x00008274
+
 #define NV74_VP2                                                     0x00007476
 
 #define NV50_DISP_CURSOR                                             0x0000507a

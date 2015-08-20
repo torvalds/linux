@@ -21,98 +21,35 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/mpeg.h>
+#include "priv.h"
 
+#include <core/gpuobj.h>
 #include <subdev/timer.h>
 
-struct nv50_mpeg_chan {
-	struct nvkm_mpeg_chan base;
-};
-
-/*******************************************************************************
- * MPEG object classes
- ******************************************************************************/
-
-static int
-nv50_mpeg_object_ctor(struct nvkm_object *parent,
-		      struct nvkm_object *engine,
-		      struct nvkm_oclass *oclass, void *data, u32 size,
-		      struct nvkm_object **pobject)
-{
-	struct nvkm_gpuobj *obj;
-	int ret;
-
-	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, parent,
-				 16, 16, 0, &obj);
-	*pobject = nv_object(obj);
-	if (ret)
-		return ret;
-
-	nvkm_kmap(obj);
-	nvkm_wo32(obj, 0x00, nv_mclass(obj));
-	nvkm_wo32(obj, 0x04, 0x00000000);
-	nvkm_wo32(obj, 0x08, 0x00000000);
-	nvkm_wo32(obj, 0x0c, 0x00000000);
-	nvkm_done(obj);
-	return 0;
-}
-
-struct nvkm_ofuncs
-nv50_mpeg_ofuncs = {
-	.ctor = nv50_mpeg_object_ctor,
-	.dtor = _nvkm_gpuobj_dtor,
-	.init = _nvkm_gpuobj_init,
-	.fini = _nvkm_gpuobj_fini,
-	.rd32 = _nvkm_gpuobj_rd32,
-	.wr32 = _nvkm_gpuobj_wr32,
-};
-
-static struct nvkm_oclass
-nv50_mpeg_sclass[] = {
-	{ 0x3174, &nv50_mpeg_ofuncs },
-	{}
-};
+#include <nvif/class.h>
 
 /*******************************************************************************
  * PMPEG context
  ******************************************************************************/
 
-int
-nv50_mpeg_context_ctor(struct nvkm_object *parent,
-		       struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass, void *data, u32 size,
-		       struct nvkm_object **pobject)
+static int
+nv50_mpeg_cclass_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+		      int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct nv50_mpeg_chan *chan;
-	struct nvkm_gpuobj *image;
-	int ret;
-
-	ret = nvkm_mpeg_context_create(parent, engine, oclass, NULL, 128 * 4,
-				       0, NVOBJ_FLAG_ZERO_ALLOC, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
-
-	image = &chan->base.base.gpuobj;
-
-	nvkm_kmap(image);
-	nvkm_wo32(image, 0x0070, 0x00801ec1);
-	nvkm_wo32(image, 0x007c, 0x0000037c);
-	nvkm_done(image);
-	return 0;
+	int ret = nvkm_gpuobj_new(object->engine->subdev.device, 128 * 4,
+				  align, true, parent, pgpuobj);
+	if (ret == 0) {
+		nvkm_kmap(*pgpuobj);
+		nvkm_wo32(*pgpuobj, 0x70, 0x00801ec1);
+		nvkm_wo32(*pgpuobj, 0x7c, 0x0000037c);
+		nvkm_done(*pgpuobj);
+	}
+	return ret;
 }
 
-static struct nvkm_oclass
+const struct nvkm_object_func
 nv50_mpeg_cclass = {
-	.handle = NV_ENGCTX(MPEG, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_mpeg_context_ctor,
-		.dtor = _nvkm_mpeg_context_dtor,
-		.init = _nvkm_mpeg_context_init,
-		.fini = _nvkm_mpeg_context_fini,
-		.rd32 = _nvkm_mpeg_context_rd32,
-		.wr32 = _nvkm_mpeg_context_wr32,
-	},
+	.bind = nv50_mpeg_cclass_bind,
 };
 
 /*******************************************************************************
@@ -162,6 +99,15 @@ nv50_vpe_intr(struct nvkm_subdev *subdev)
 	}
 }
 
+static const struct nvkm_engine_func
+nv50_mpeg = {
+	.cclass = &nv50_mpeg_cclass,
+	.sclass = {
+		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
+		{}
+	}
+};
+
 static int
 nv50_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -175,10 +121,10 @@ nv50_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	mpeg->engine.func = &nv50_mpeg;
+
 	nv_subdev(mpeg)->unit = 0x00400002;
 	nv_subdev(mpeg)->intr = nv50_vpe_intr;
-	nv_engine(mpeg)->cclass = &nv50_mpeg_cclass;
-	nv_engine(mpeg)->sclass = nv50_mpeg_sclass;
 	return 0;
 }
 

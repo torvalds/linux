@@ -21,42 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/mpeg.h>
+#include "priv.h"
 
-struct g84_mpeg_chan {
-	struct nvkm_mpeg_chan base;
+#include <nvif/class.h>
+
+static const struct nvkm_engine_func
+g84_mpeg = {
+	.cclass = &nv50_mpeg_cclass,
+	.sclass = {
+		{ -1, -1, G82_MPEG, &nv31_mpeg_object },
+		{}
+	}
 };
-
-/*******************************************************************************
- * MPEG object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_mpeg_sclass[] = {
-	{ 0x8274, &nv50_mpeg_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * PMPEG context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_mpeg_cclass = {
-	.handle = NV_ENGCTX(MPEG, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_mpeg_context_ctor,
-		.dtor = _nvkm_mpeg_context_dtor,
-		.init = _nvkm_mpeg_context_init,
-		.fini = _nvkm_mpeg_context_fini,
-		.rd32 = _nvkm_mpeg_context_rd32,
-		.wr32 = _nvkm_mpeg_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMPEG engine/subdev functions
- ******************************************************************************/
 
 static int
 g84_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -71,10 +47,10 @@ g84_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	mpeg->engine.func = &g84_mpeg;
+
 	nv_subdev(mpeg)->unit = 0x00000002;
 	nv_subdev(mpeg)->intr = nv50_mpeg_intr;
-	nv_engine(mpeg)->cclass = &g84_mpeg_cclass;
-	nv_engine(mpeg)->sclass = g84_mpeg_sclass;
 	return 0;
 }
 

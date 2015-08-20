@@ -21,21 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/mpeg.h>
+#define nv44_mpeg(p) container_of((p), struct nv44_mpeg, base.engine)
+#include "priv.h"
 
 #include <core/client.h>
 #include <engine/fifo.h>
 
+#include <nvif/class.h>
+
 struct nv44_mpeg {
 	struct nvkm_mpeg base;
 	struct list_head chan;
-};
-
-struct nv44_mpeg_chan {
-	struct nvkm_mpeg_chan base;
-	struct nvkm_fifo_chan *fifo;
-	u32 inst;
-	struct list_head head;
 };
 
 bool nv40_mpeg_mthd_dma(struct nvkm_device *, u32, u32);
@@ -43,56 +39,40 @@ bool nv40_mpeg_mthd_dma(struct nvkm_device *, u32, u32);
 /*******************************************************************************
  * PMPEG context
  ******************************************************************************/
+#define nv44_mpeg_chan(p) container_of((p), struct nv44_mpeg_chan, object)
 
-static void
-nv44_mpeg_context_dtor(struct nvkm_object *object)
+struct nv44_mpeg_chan {
+	struct nvkm_object object;
+	struct nv44_mpeg *mpeg;
+	struct nvkm_fifo_chan *fifo;
+	struct list_head head;
+	u32 inst;
+};
+
+static int
+nv44_mpeg_chan_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+		    int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct nv44_mpeg_chan *chan = (void *)object;
-	struct nv44_mpeg *mpeg = (void *)object->engine;
-	unsigned long flags;
-	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
-	list_del(&chan->head);
-	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
-	nvkm_mpeg_context_destroy(&chan->base);
+	struct nv44_mpeg_chan *chan = nv44_mpeg_chan(object);
+	int ret = nvkm_gpuobj_new(chan->object.engine->subdev.device, 264 * 4,
+				  align, true, parent, pgpuobj);
+	if (ret == 0) {
+		chan->inst = (*pgpuobj)->addr;
+		nvkm_kmap(*pgpuobj);
+		nvkm_wo32(*pgpuobj, 0x78, 0x02001ec1);
+		nvkm_done(*pgpuobj);
+	}
+	return ret;
 }
 
 static int
-nv44_mpeg_context_ctor(struct nvkm_object *parent,
-		       struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass, void *data, u32 size,
-		       struct nvkm_object **pobject)
-{
-	struct nv44_mpeg *mpeg = (void *)engine;
-	struct nv44_mpeg_chan *chan;
-	unsigned long flags;
-	int ret;
-
-	ret = nvkm_mpeg_context_create(parent, engine, oclass, NULL, 264 * 4,
-				       16, NVOBJ_FLAG_ZERO_ALLOC, &chan);
-	*pobject = nv_object(chan);
-	if (ret)
-		return ret;
-
-	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
-	chan->fifo = nvkm_fifo_chan(parent);
-	chan->inst = chan->base.base.gpuobj.addr;
-	list_add(&chan->head, &mpeg->chan);
-	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
-
-	nvkm_kmap(&chan->base.base.gpuobj);
-	nvkm_wo32(&chan->base.base.gpuobj, 0x78, 0x02001ec1);
-	nvkm_done(&chan->base.base.gpuobj);
-	return 0;
-}
-
-static int
-nv44_mpeg_context_fini(struct nvkm_object *object, bool suspend)
+nv44_mpeg_chan_fini(struct nvkm_object *object, bool suspend)
 {
 
-	struct nvkm_mpeg *mpeg = (void *)object->engine;
-	struct nv44_mpeg_chan *chan = (void *)object;
-	struct nvkm_device *device = mpeg->engine.subdev.device;
-	u32 inst = 0x80000000 | nv_gpuobj(chan)->addr >> 4;
+	struct nv44_mpeg_chan *chan = nv44_mpeg_chan(object);
+	struct nv44_mpeg *mpeg = chan->mpeg;
+	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	u32 inst = 0x80000000 | (chan->inst >> 4);
 
 	nvkm_mask(device, 0x00b32c, 0x00000001, 0x00000000);
 	if (nvkm_rd32(device, 0x00b318) == inst)
@@ -101,18 +81,46 @@ nv44_mpeg_context_fini(struct nvkm_object *object, bool suspend)
 	return 0;
 }
 
-static struct nvkm_oclass
-nv44_mpeg_cclass = {
-	.handle = NV_ENGCTX(MPEG, 0x44),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv44_mpeg_context_ctor,
-		.dtor = nv44_mpeg_context_dtor,
-		.init = _nvkm_mpeg_context_init,
-		.fini = nv44_mpeg_context_fini,
-		.rd32 = _nvkm_mpeg_context_rd32,
-		.wr32 = _nvkm_mpeg_context_wr32,
-	},
+static void *
+nv44_mpeg_chan_dtor(struct nvkm_object *object)
+{
+	struct nv44_mpeg_chan *chan = nv44_mpeg_chan(object);
+	struct nv44_mpeg *mpeg = chan->mpeg;
+	unsigned long flags;
+	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
+	list_del(&chan->head);
+	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
+	return chan;
+}
+
+static const struct nvkm_object_func
+nv44_mpeg_chan = {
+	.dtor = nv44_mpeg_chan_dtor,
+	.fini = nv44_mpeg_chan_fini,
+	.bind = nv44_mpeg_chan_bind,
 };
+
+static int
+nv44_mpeg_chan_new(struct nvkm_fifo_chan *fifoch,
+		   const struct nvkm_oclass *oclass,
+		   struct nvkm_object **pobject)
+{
+	struct nv44_mpeg *mpeg = nv44_mpeg(oclass->engine);
+	struct nv44_mpeg_chan *chan;
+	unsigned long flags;
+
+	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_object_ctor(&nv44_mpeg_chan, oclass, &chan->object);
+	chan->mpeg = mpeg;
+	chan->fifo = fifoch;
+	*pobject = &chan->object;
+
+	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
+	list_add(&chan->head, &mpeg->chan);
+	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
+	return 0;
+}
 
 /*******************************************************************************
  * PMPEG engine/subdev functions
@@ -175,7 +183,7 @@ nv44_mpeg_intr(struct nvkm_subdev *subdev)
 	if (show) {
 		nvkm_error(subdev, "ch %d [%08x %s] %08x %08x %08x %08x\n",
 			   chan ? chan->fifo->chid : -1, inst << 4,
-			   chan ? chan->fifo->object.client->name : "unknown",
+			   chan ? chan->object.client->name : "unknown",
 			   stat, type, mthd, data);
 	}
 
@@ -198,6 +206,15 @@ nv44_mpeg_me_intr(struct nvkm_subdev *subdev)
 	}
 }
 
+static const struct nvkm_engine_func
+nv44_mpeg = {
+	.fifo.cclass = nv44_mpeg_chan_new,
+	.sclass = {
+		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
+		{}
+	}
+};
+
 static int
 nv44_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -212,11 +229,10 @@ nv44_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	INIT_LIST_HEAD(&mpeg->chan);
+	mpeg->base.engine.func = &nv44_mpeg;
 
 	nv_subdev(mpeg)->unit = 0x00000002;
 	nv_subdev(mpeg)->intr = nv44_mpeg_me_intr;
-	nv_engine(mpeg)->cclass = &nv44_mpeg_cclass;
-	nv_engine(mpeg)->sclass = nv40_mpeg_sclass;
 	nv_engine(mpeg)->tile_prog = nv31_mpeg_tile_prog;
 	return 0;
 }

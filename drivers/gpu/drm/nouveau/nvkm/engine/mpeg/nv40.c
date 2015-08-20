@@ -25,9 +25,7 @@
 
 #include <subdev/instmem.h>
 
-/*******************************************************************************
- * MPEG object classes
- ******************************************************************************/
+#include <nvif/class.h>
 
 bool
 nv40_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
@@ -67,16 +65,6 @@ nv40_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 	return true;
 }
 
-struct nvkm_oclass
-nv40_mpeg_sclass[] = {
-	{ 0x3174, &nv31_mpeg_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * PMPEG engine/subdev functions
- ******************************************************************************/
-
 static void
 nv40_mpeg_intr(struct nvkm_subdev *subdev)
 {
@@ -93,6 +81,15 @@ nv40_mpeg_intr(struct nvkm_subdev *subdev)
 	}
 }
 
+static const struct nvkm_engine_func
+nv40_mpeg = {
+	.fifo.cclass = nv31_mpeg_chan_new,
+	.sclass = {
+		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
+		{}
+	}
+};
+
 static int
 nv40_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -106,11 +103,11 @@ nv40_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	mpeg->base.engine.func = &nv40_mpeg;
+
 	mpeg->mthd_dma = nv40_mpeg_mthd_dma;
 	nv_subdev(mpeg)->unit = 0x00000002;
 	nv_subdev(mpeg)->intr = nv40_mpeg_intr;
-	nv_engine(mpeg)->cclass = &nv31_mpeg_cclass;
-	nv_engine(mpeg)->sclass = nv40_mpeg_sclass;
 	nv_engine(mpeg)->tile_prog = nv31_mpeg_tile_prog;
 	return 0;
 }
