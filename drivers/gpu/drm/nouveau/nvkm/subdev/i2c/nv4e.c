@@ -25,10 +25,6 @@
 
 #include <subdev/vga.h>
 
-struct nv4e_i2c_priv {
-	struct nvkm_i2c base;
-};
-
 struct nv4e_i2c_port {
 	struct nvkm_i2c_port base;
 	u32 addr;
@@ -37,33 +33,33 @@ struct nv4e_i2c_port {
 static void
 nv4e_i2c_drive_scl(struct nvkm_i2c_port *base, int state)
 {
-	struct nv4e_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
-	nv_mask(priv, port->addr, 0x2f, state ? 0x21 : 0x01);
+	nv_mask(i2c, port->addr, 0x2f, state ? 0x21 : 0x01);
 }
 
 static void
 nv4e_i2c_drive_sda(struct nvkm_i2c_port *base, int state)
 {
-	struct nv4e_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
-	nv_mask(priv, port->addr, 0x1f, state ? 0x11 : 0x01);
+	nv_mask(i2c, port->addr, 0x1f, state ? 0x11 : 0x01);
 }
 
 static int
 nv4e_i2c_sense_scl(struct nvkm_i2c_port *base)
 {
-	struct nv4e_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
-	return !!(nv_rd32(priv, port->addr) & 0x00040000);
+	return !!(nv_rd32(i2c, port->addr) & 0x00040000);
 }
 
 static int
 nv4e_i2c_sense_sda(struct nvkm_i2c_port *base)
 {
-	struct nv4e_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
-	return !!(nv_rd32(priv, port->addr) & 0x00080000);
+	return !!(nv_rd32(i2c, port->addr) & 0x00080000);
 }
 
 static const struct nvkm_i2c_func

@@ -111,7 +111,7 @@ g94_aux(struct nvkm_i2c_port *base, bool retry,
 	AUX_DBG("%d: 0x%08x %d\n", type, addr, size);
 
 	ret = auxch_init(aux, ch);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	stat = nv_rd32(aux, 0x00e4e8 + (ch * 0x50));

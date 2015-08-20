@@ -2,10 +2,6 @@
 #define __NV50_I2C_H__
 #include "priv.h"
 
-struct nv50_i2c_priv {
-	struct nvkm_i2c base;
-};
-
 struct nv50_i2c_port {
 	struct nvkm_i2c_port base;
 	u32 addr;

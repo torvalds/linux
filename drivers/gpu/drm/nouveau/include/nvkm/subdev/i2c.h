@@ -59,7 +59,7 @@ struct nvkm_i2c_board_info {
 };
 
 struct nvkm_i2c {
-	struct nvkm_subdev base;
+	struct nvkm_subdev subdev;
 	struct nvkm_event event;
 
 	struct nvkm_i2c_port *(*find)(struct nvkm_i2c *, u8 index);

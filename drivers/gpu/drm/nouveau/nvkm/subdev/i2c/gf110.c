@@ -26,17 +26,17 @@
 static int
 gf110_i2c_sense_scl(struct nvkm_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
-	return !!(nv_rd32(priv, port->addr) & 0x00000010);
+	return !!(nv_rd32(i2c, port->addr) & 0x00000010);
 }
 
 static int
 gf110_i2c_sense_sda(struct nvkm_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
-	return !!(nv_rd32(priv, port->addr) & 0x00000020);
+	return !!(nv_rd32(i2c, port->addr) & 0x00000020);
 }
 
 static const struct nvkm_i2c_func

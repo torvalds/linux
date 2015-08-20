@@ -25,10 +25,6 @@
 
 #include <subdev/vga.h>
 
-struct nv04_i2c_priv {
-	struct nvkm_i2c base;
-};
-
 struct nv04_i2c_port {
 	struct nvkm_i2c_port base;
 	u8 drive;
@@ -38,39 +34,39 @@ struct nv04_i2c_port {
 static void
 nv04_i2c_drive_scl(struct nvkm_i2c_port *base, int state)
 {
-	struct nv04_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
-	u8 val = nv_rdvgac(priv, 0, port->drive);
+	u8 val = nv_rdvgac(i2c, 0, port->drive);
 	if (state) val |= 0x20;
 	else	   val &= 0xdf;
-	nv_wrvgac(priv, 0, port->drive, val | 0x01);
+	nv_wrvgac(i2c, 0, port->drive, val | 0x01);
 }
 
 static void
 nv04_i2c_drive_sda(struct nvkm_i2c_port *base, int state)
 {
-	struct nv04_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
-	u8 val = nv_rdvgac(priv, 0, port->drive);
+	u8 val = nv_rdvgac(i2c, 0, port->drive);
 	if (state) val |= 0x10;
 	else	   val &= 0xef;
-	nv_wrvgac(priv, 0, port->drive, val | 0x01);
+	nv_wrvgac(i2c, 0, port->drive, val | 0x01);
 }
 
 static int
 nv04_i2c_sense_scl(struct nvkm_i2c_port *base)
 {
-	struct nv04_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
-	return !!(nv_rdvgac(priv, 0, port->sense) & 0x04);
+	return !!(nv_rdvgac(i2c, 0, port->sense) & 0x04);
 }
 
 static int
 nv04_i2c_sense_sda(struct nvkm_i2c_port *base)
 {
-	struct nv04_i2c_priv *priv = (void *)nvkm_i2c(base);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
-	return !!(nv_rdvgac(priv, 0, port->sense) & 0x08);
+	return !!(nv_rdvgac(i2c, 0, port->sense) & 0x08);
 }
 
 static const struct nvkm_i2c_func

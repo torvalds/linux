@@ -413,7 +413,7 @@ _nvkm_i2c_fini(struct nvkm_object *object, bool suspend)
 		impl->aux_stat(i2c, &mask, &mask, &mask, &mask);
 	}
 
-	return nvkm_subdev_fini(&i2c->base, suspend);
+	return nvkm_subdev_fini(&i2c->subdev, suspend);
 fail:
 	list_for_each_entry_continue_reverse(port, &i2c->ports, head) {
 		nv_ofuncs(port)->init(nv_object(port));
@@ -429,7 +429,7 @@ _nvkm_i2c_init(struct nvkm_object *object)
 	struct nvkm_i2c_port *port;
 	int ret;
 
-	ret = nvkm_subdev_init(&i2c->base);
+	ret = nvkm_subdev_init(&i2c->subdev);
 	if (ret == 0) {
 		list_for_each_entry(port, &i2c->ports, head) {
 			ret = nv_ofuncs(port)->init(nv_object(port));
@@ -459,7 +459,7 @@ _nvkm_i2c_dtor(struct nvkm_object *object)
 		nvkm_object_ref(NULL, (struct nvkm_object **)&port);
 	}
 
-	nvkm_subdev_destroy(&i2c->base);
+	nvkm_subdev_destroy(&i2c->subdev);
 }
 
 static struct nvkm_oclass *
