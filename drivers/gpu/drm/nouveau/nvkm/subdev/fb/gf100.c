@@ -36,12 +36,11 @@ static void
 gf100_fb_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_device *device = subdev->device;
-	struct gf100_fb *fb = (void *)subdev;
 	u32 intr = nvkm_rd32(device, 0x000100);
 	if (intr & 0x08000000)
-		nv_debug(fb, "PFFB intr\n");
+		nvkm_debug(subdev, "PFFB intr\n");
 	if (intr & 0x00002000)
-		nv_debug(fb, "PBFB intr\n");
+		nvkm_debug(subdev, "PBFB intr\n");
 }
 
 int

@@ -33,7 +33,8 @@
 int
 nv40_ram_calc(struct nvkm_fb *fb, u32 freq)
 {
-	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nv40_ram *ram = (void *)fb->ram;
 	struct nvbios_pll pll;
 	int N1, M1, N2, M2;
@@ -41,7 +42,7 @@ nv40_ram_calc(struct nvkm_fb *fb, u32 freq)
 
 	ret = nvbios_pll_parse(bios, 0x04, &pll);
 	if (ret) {
-		nv_error(fb, "mclk pll data not found\n");
+		nvkm_error(subdev, "mclk pll data not found\n");
 		return ret;
 	}
 

@@ -126,8 +126,10 @@ gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 static int
 gf100_ram_calc(struct nvkm_fb *fb, u32 freq)
 {
-	struct nvkm_clk *clk = nvkm_clk(fb);
-	struct nvkm_bios *bios = nvkm_bios(fb);
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_clk *clk = device->clk;
+	struct nvkm_bios *bios = device->bios;
 	struct gf100_ram *ram = (void *)fb->ram;
 	struct gf100_ramfuc *fuc = &ram->fuc;
 	struct nvbios_ramcfg cfg;
@@ -145,20 +147,20 @@ gf100_ram_calc(struct nvkm_fb *fb, u32 freq)
 	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
 				      &cnt, &ramcfg.size, &cfg);
 	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
-		nv_error(fb, "invalid/missing rammap entry\n");
+		nvkm_error(subdev, "invalid/missing rammap entry\n");
 		return -EINVAL;
 	}
 
 	/* locate specific data set for the attached memory */
 	strap = nvbios_ramcfg_index(nv_subdev(fb));
 	if (strap >= cnt) {
-		nv_error(fb, "invalid ramcfg strap\n");
+		nvkm_error(subdev, "invalid ramcfg strap\n");
 		return -EINVAL;
 	}
 
 	ramcfg.data = rammap.data + rammap.size + (strap * ramcfg.size);
 	if (!ramcfg.data || ver != 0x10 || ramcfg.size < 0x0e) {
-		nv_error(fb, "invalid/missing ramcfg entry\n");
+		nvkm_error(subdev, "invalid/missing ramcfg entry\n");
 		return -EINVAL;
 	}
 
@@ -168,7 +170,7 @@ gf100_ram_calc(struct nvkm_fb *fb, u32 freq)
 		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
 					      &cnt, &len);
 		if (!timing.data || ver != 0x10 || timing.size < 0x19) {
-			nv_error(fb, "invalid/missing timing entry\n");
+			nvkm_error(subdev, "invalid/missing timing entry\n");
 			return -EINVAL;
 		}
 	} else {
@@ -213,7 +215,7 @@ gf100_ram_calc(struct nvkm_fb *fb, u32 freq)
 		ret = gt215_pll_calc(nv_subdev(fb), &ram->refpll,
 				     ram->mempll.refclk, &N1, NULL, &M1, &P);
 		if (ret <= 0) {
-			nv_error(fb, "unable to calc refpll\n");
+			nvkm_error(subdev, "unable to calc refpll\n");
 			return ret ? ret : -ERANGE;
 		}
 
@@ -228,7 +230,7 @@ gf100_ram_calc(struct nvkm_fb *fb, u32 freq)
 		ret = gt215_pll_calc(nv_subdev(fb), &ram->mempll, freq,
 				     &N1, NULL, &M1, &P);
 		if (ret <= 0) {
-			nv_error(fb, "unable to calc refpll\n");
+			nvkm_error(subdev, "unable to calc refpll\n");
 			return ret ? ret : -ERANGE;
 		}
 
@@ -508,7 +510,8 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		  void **pobject)
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_ram *ram;
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
@@ -525,8 +528,8 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_debug(fb, "0x100800: 0x%08x\n", nvkm_rd32(device, 0x100800));
-	nv_debug(fb, "parts 0x%08x mask 0x%08x\n", parts, pmask);
+	nvkm_debug(subdev, "100800: %08x\n", nvkm_rd32(device, 0x100800));
+	nvkm_debug(subdev, "parts %08x mask %08x\n", parts, pmask);
 
 	ram->type = nvkm_fb_bios_memtype(bios);
 	ram->ranks = (nvkm_rd32(device, 0x10f200) & 0x00000004) ? 2 : 1;
@@ -541,7 +544,7 @@ gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 				uniform = false;
 			}
 
-			nv_debug(fb, "%d: mem_amount 0x%08x\n", part, size);
+			nvkm_debug(subdev, "%d: size %08x\n", part, size);
 			ram->size += (u64)size << 20;
 		}
 	}
@@ -628,7 +631,9 @@ gf100_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_fb *fb = nvkm_fb(parent);
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct gf100_ram *ram;
 	int ret;
 
@@ -639,13 +644,13 @@ gf100_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	ret = nvbios_pll_parse(bios, 0x0c, &ram->refpll);
 	if (ret) {
-		nv_error(ram, "mclk refpll data not found\n");
+		nvkm_error(subdev, "mclk refpll data not found\n");
 		return ret;
 	}
 
 	ret = nvbios_pll_parse(bios, 0x04, &ram->mempll);
 	if (ret) {
-		nv_error(ram, "mclk pll data not found\n");
+		nvkm_error(subdev, "mclk pll data not found\n");
 		return ret;
 	}
 
@@ -656,7 +661,7 @@ gf100_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		ram->base.tidy = gf100_ram_tidy;
 		break;
 	default:
-		nv_warn(ram, "reclocking of this ram type unsupported\n");
+		nvkm_warn(subdev, "reclocking of this ram type unsupported\n");
 		return 0;
 	}
 

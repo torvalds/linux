@@ -144,10 +144,10 @@ static const struct nvkm_enum vm_fault[] = {
 static void
 nv50_fb_intr(struct nvkm_subdev *subdev)
 {
-	struct nvkm_device *device = nv_device(subdev);
-	struct nvkm_engine *engine;
 	struct nv50_fb *fb = (void *)subdev;
-	const struct nvkm_enum *en, *cl;
+	struct nvkm_device *device = fb->base.subdev.device;
+	struct nvkm_engine *engine;
+	const struct nvkm_enum *en, *re, *cl, *sc;
 	struct nvkm_object *engctx = NULL;
 	u32 trap[6], idx, chan;
 	u8 st0, st1, st2, st3;
@@ -203,38 +203,22 @@ nv50_fb_intr(struct nvkm_subdev *subdev)
 			en = orig_en;
 	}
 
-	nv_error(fb, "trapped %s at 0x%02x%04x%04x on channel 0x%08x [%s] ",
-		 (trap[5] & 0x00000100) ? "read" : "write",
-		 trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan,
-		 nvkm_client_name(engctx));
+	re = nvkm_enum_find(vm_fault , st1);
+	cl = nvkm_enum_find(vm_client, st2);
+	if      (cl && cl->data) sc = nvkm_enum_find(cl->data, st3);
+	else if (en && en->data) sc = nvkm_enum_find(en->data, st3);
+	else                     sc = NULL;
+
+	nvkm_error(subdev, "trapped %s at %02x%04x%04x on channel "
+			   "%08x [%s] engine %02x [%s] client %02x [%s] "
+			   "subclient %02x [%s] reason %08x [%s]\n",
+		   (trap[5] & 0x00000100) ? "read" : "write",
+		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan,
+		   nvkm_client_name(engctx), st0, en ? en->name : "",
+		   st2, cl ? cl->name : "", st3, sc ? sc->name : "",
+		   st1, re ? re->name : "");
 
 	nvkm_engctx_put(engctx);
-
-	if (en)
-		pr_cont("%s/", en->name);
-	else
-		pr_cont("%02x/", st0);
-
-	cl = nvkm_enum_find(vm_client, st2);
-	if (cl)
-		pr_cont("%s/", cl->name);
-	else
-		pr_cont("%02x/", st2);
-
-	if      (cl && cl->data) cl = nvkm_enum_find(cl->data, st3);
-	else if (en && en->data) cl = nvkm_enum_find(en->data, st3);
-	else                     cl = NULL;
-	if (cl)
-		pr_cont("%s", cl->name);
-	else
-		pr_cont("%02x", st3);
-
-	pr_cont(" reason: ");
-	en = nvkm_enum_find(vm_fault, st1);
-	if (en)
-		pr_cont("%s\n", en->name);
-	else
-		pr_cont("0x%08x\n", st1);
 }
 
 int
@@ -259,7 +243,7 @@ nv50_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		if (dma_mapping_error(nv_device_base(device), fb->r100c08))
 			return -EFAULT;
 	} else {
-		nv_warn(fb, "failed 0x100c08 page alloc\n");
+		nvkm_warn(&fb->base.subdev, "failed 100c08 page alloc\n");
 	}
 
 	nv_subdev(fb)->intr = nv50_fb_intr;

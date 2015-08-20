@@ -29,7 +29,8 @@
 int
 nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 {
-	struct nvkm_device *device = bios->subdev.device;
+	struct nvkm_subdev *subdev = &bios->subdev;
+	struct nvkm_device *device = subdev->device;
 	const u8 ramcfg = (nvkm_rd32(device, 0x101000) & 0x0000003c) >> 2;
 	struct nvbios_M0203E M0203E;
 	u8 ver, hdr;
@@ -41,12 +42,12 @@ nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 		case M0203E_TYPE_GDDR3: return NV_MEM_TYPE_GDDR3;
 		case M0203E_TYPE_GDDR5: return NV_MEM_TYPE_GDDR5;
 		default:
-			nv_warn(bios, "M0203E type %02x\n", M0203E.type);
+			nvkm_warn(subdev, "M0203E type %02x\n", M0203E.type);
 			return NV_MEM_TYPE_UNKNOWN;
 		}
 	}
 
-	nv_warn(bios, "M0203E not matched!\n");
+	nvkm_warn(subdev, "M0203E not matched!\n");
 	return NV_MEM_TYPE_UNKNOWN;
 }
 
@@ -111,7 +112,7 @@ nvkm_fb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_fb_impl *impl = (void *)oclass;
 	static const char *name[] = {
-		[NV_MEM_TYPE_UNKNOWN] = "unknown",
+		[NV_MEM_TYPE_UNKNOWN] = "of unknown memory type",
 		[NV_MEM_TYPE_STOLEN ] = "stolen system memory",
 		[NV_MEM_TYPE_SGRAM  ] = "SGRAM",
 		[NV_MEM_TYPE_SDRAM  ] = "SDRAM",
@@ -140,7 +141,7 @@ nvkm_fb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	ret = nvkm_object_ctor(nv_object(fb), NULL, impl->ram, NULL, 0, &ram);
 	if (ret) {
-		nv_fatal(fb, "error detecting memory configuration!!\n");
+		nvkm_error(&fb->subdev, "vram init failed, %d\n", ret);
 		return ret;
 	}
 
@@ -157,10 +158,11 @@ nvkm_fb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 				   ++fb->ram->tags : 0, 1);
 		if (ret)
 			return ret;
+
+		nvkm_debug(&fb->subdev, "%d compression tags\n", fb->ram->tags);
 	}
 
-	nv_info(fb, "RAM type: %s\n", name[fb->ram->type]);
-	nv_info(fb, "RAM size: %d MiB\n", (int)(fb->ram->size >> 20));
-	nv_info(fb, "   ZCOMP: %d tags\n", fb->ram->tags);
+	nvkm_info(&fb->subdev, "%d MiB %s\n", (int)(fb->ram->size >> 20),
+		  name[fb->ram->type]);
 	return 0;
 }

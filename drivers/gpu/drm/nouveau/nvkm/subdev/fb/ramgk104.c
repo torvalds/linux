@@ -941,7 +941,7 @@ gk104_ram_calc_data(struct nvkm_fb *fb, u32 khz, struct nvkm_ram_data *data)
 		}
 	}
 
-	nv_error(ram, "ramcfg data for %dMHz not found\n", mhz);
+	nvkm_error(&fb->subdev, "ramcfg data for %dMHz not found\n", mhz);
 	return -EINVAL;
 }
 
@@ -950,6 +950,7 @@ gk104_ram_calc_xits(struct nvkm_fb *fb, struct nvkm_ram_data *next)
 {
 	struct gk104_ram *ram = (void *)fb->ram;
 	struct gk104_ramfuc *fuc = &ram->fuc;
+	struct nvkm_subdev *subdev = &fb->subdev;
 	int refclk, i;
 	int ret;
 
@@ -977,7 +978,7 @@ gk104_ram_calc_xits(struct nvkm_fb *fb, struct nvkm_ram_data *next)
 			     &ram->fN1, &ram->M1, &ram->P1);
 	fuc->mempll.refclk = ret;
 	if (ret <= 0) {
-		nv_error(fb, "unable to calc refpll\n");
+		nvkm_error(subdev, "unable to calc refpll\n");
 		return -EINVAL;
 	}
 
@@ -993,7 +994,7 @@ gk104_ram_calc_xits(struct nvkm_fb *fb, struct nvkm_ram_data *next)
 		ret = gt215_pll_calc(nv_subdev(fb), &fuc->mempll, next->freq,
 				     &ram->N2, NULL, &ram->M2, &ram->P2);
 		if (ret <= 0) {
-			nv_error(fb, "unable to calc mempll\n");
+			nvkm_error(subdev, "unable to calc mempll\n");
 			return -EINVAL;
 		}
 	}
@@ -1247,11 +1248,12 @@ gk104_ram_train_type(struct nvkm_fb *fb, int i, u8 ramcfg,
 static int
 gk104_ram_train_init_0(struct nvkm_fb *fb, struct gk104_ram_train *train)
 {
-	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
 	int i, j;
 
 	if ((train->mask & 0x03d3) != 0x03d3) {
-		nv_warn(fb, "missing link training data\n");
+		nvkm_warn(subdev, "missing link training data\n");
 		return -EINVAL;
 	}
 
@@ -1449,7 +1451,8 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_gpio *gpio = device->gpio;
 	struct dcb_gpio_func func;
@@ -1473,7 +1476,7 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		ram->base.tidy = gk104_ram_tidy;
 		break;
 	default:
-		nv_warn(fb, "reclocking of this RAM type is unsupported\n");
+		nvkm_warn(subdev, "reclocking of this RAM type is unsupported\n");
 		break;
 	}
 
@@ -1510,7 +1513,7 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	for (i = 0; !ret; i++) {
 		ret = gk104_ram_ctor_data(ram, ramcfg, i);
 		if (ret && ret != -ENOENT) {
-			nv_error(fb, "failed to parse ramcfg data\n");
+			nvkm_error(subdev, "failed to parse ramcfg data\n");
 			return ret;
 		}
 	}
@@ -1518,13 +1521,13 @@ gk104_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	/* parse bios data for both pll's */
 	ret = nvbios_pll_parse(bios, 0x0c, &ram->fuc.refpll);
 	if (ret) {
-		nv_error(fb, "mclk refpll data not found\n");
+		nvkm_error(subdev, "mclk refpll data not found\n");
 		return ret;
 	}
 
 	ret = nvbios_pll_parse(bios, 0x04, &ram->fuc.mempll);
 	if (ret) {
-		nv_error(fb, "mclk pll data not found\n");
+		nvkm_error(subdev, "mclk pll data not found\n");
 		return ret;
 	}
 

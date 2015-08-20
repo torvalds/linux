@@ -155,12 +155,13 @@ gt215_link_train_calc(u32 *vals, struct gt215_ltrain *train)
 int
 gt215_link_train(struct nvkm_fb *fb)
 {
-	struct nvkm_bios *bios = nvkm_bios(fb);
 	struct gt215_ram *ram = (void *)fb->ram;
-	struct nvkm_clk *clk = nvkm_clk(fb);
 	struct gt215_ltrain *train = &ram->ltrain;
-	struct nvkm_device *device = nv_device(fb);
 	struct gt215_ramfuc *fuc = &ram->fuc;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
+	struct nvkm_clk *clk = device->clk;
 	u32 *result, r1700;
 	int ret, i;
 	struct nvbios_M0205T M0205T = { 0 };
@@ -247,11 +248,11 @@ gt215_link_train(struct nvkm_fb *fb)
 
 	ram_train_result(fb, result, 64);
 	for (i = 0; i < 64; i++)
-		nv_debug(fb, "Train: %08x", result[i]);
+		nvkm_debug(subdev, "Train: %08x", result[i]);
 	gt215_link_train_calc(result, train);
 
-	nv_debug(fb, "Train: %08x %08x %08x", train->r_100720,
-			train->r_1111e0, train->r_111400);
+	nvkm_debug(subdev, "Train: %08x %08x %08x", train->r_100720,
+		   train->r_1111e0, train->r_111400);
 
 	kfree(result);
 
@@ -352,9 +353,10 @@ gt215_link_train_fini(struct nvkm_fb *fb)
 static int
 gt215_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 {
-	struct nvkm_device *device = fb->subdev.device;
 	struct gt215_ram *ram = (void *)fb->ram;
 	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
 	int tUNK_base, tUNK_40_0, prevCL;
 	u32 cur2, cur3, cur7, cur8;
 
@@ -416,11 +418,11 @@ gt215_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 		break;
 	}
 
-	nv_debug(fb, "Entry: 220: %08x %08x %08x %08x\n",
-			timing[0], timing[1], timing[2], timing[3]);
-	nv_debug(fb, "  230: %08x %08x %08x %08x\n",
-			timing[4], timing[5], timing[6], timing[7]);
-	nv_debug(fb, "  240: %08x\n", timing[8]);
+	nvkm_debug(subdev, "Entry: 220: %08x %08x %08x %08x\n",
+		   timing[0], timing[1], timing[2], timing[3]);
+	nvkm_debug(subdev, "  230: %08x %08x %08x %08x\n",
+		   timing[4], timing[5], timing[6], timing[7]);
+	nvkm_debug(subdev, "  240: %08x\n", timing[8]);
 	return 0;
 }
 #undef T
@@ -493,10 +495,12 @@ gt215_ram_fbvref(struct gt215_ramfuc *fuc, u32 val)
 static int
 gt215_ram_calc(struct nvkm_fb *fb, u32 freq)
 {
-	struct nvkm_bios *bios = nvkm_bios(fb);
 	struct gt215_ram *ram = (void *)fb->ram;
 	struct gt215_ramfuc *fuc = &ram->fuc;
 	struct gt215_ltrain *train = &ram->ltrain;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_bios *bios = device->bios;
 	struct gt215_clk_info mclk;
 	struct nvkm_ram_data *next;
 	u8  ver, hdr, cnt, len, strap;
@@ -518,21 +522,21 @@ gt215_ram_calc(struct nvkm_fb *fb, u32 freq)
 	data = nvbios_rammapEm(bios, freq / 1000, &ver, &hdr, &cnt, &len,
 			       &next->bios);
 	if (!data || ver != 0x10 || hdr < 0x05) {
-		nv_error(fb, "invalid/missing rammap entry\n");
+		nvkm_error(subdev, "invalid/missing rammap entry\n");
 		return -EINVAL;
 	}
 
 	/* locate specific data set for the attached memory */
 	strap = nvbios_ramcfg_index(nv_subdev(fb));
 	if (strap >= cnt) {
-		nv_error(fb, "invalid ramcfg strap\n");
+		nvkm_error(subdev, "invalid ramcfg strap\n");
 		return -EINVAL;
 	}
 
 	data = nvbios_rammapSp(bios, data, ver, hdr, cnt, len, strap,
 			       &ver, &hdr, &next->bios);
 	if (!data || ver != 0x10 || hdr < 0x09) {
-		nv_error(fb, "invalid/missing ramcfg entry\n");
+		nvkm_error(subdev, "invalid/missing ramcfg entry\n");
 		return -EINVAL;
 	}
 
@@ -542,14 +546,14 @@ gt215_ram_calc(struct nvkm_fb *fb, u32 freq)
 				       &ver, &hdr, &cnt, &len,
 				       &next->bios);
 		if (!data || ver != 0x10 || hdr < 0x17) {
-			nv_error(fb, "invalid/missing timing entry\n");
+			nvkm_error(subdev, "invalid/missing timing entry\n");
 			return -EINVAL;
 		}
 	}
 
 	ret = gt215_pll_info(nvkm_clk(fb), 0x12, 0x4000, freq, &mclk);
 	if (ret < 0) {
-		nv_error(fb, "failed mclk calculation\n");
+		nvkm_error(subdev, "failed mclk calculation\n");
 		return ret;
 	}
 
@@ -922,7 +926,8 @@ gt215_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_object **pobject)
 {
 	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_gpio *gpio = nvkm_gpio(fb);
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_gpio *gpio = subdev->device->gpio;
 	struct dcb_gpio_func func;
 	struct gt215_ram *ram;
 	int ret, i;
@@ -942,7 +947,7 @@ gt215_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		ram->base.tidy = gt215_ram_tidy;
 		break;
 	default:
-		nv_warn(ram, "reclocking of this ram type unsupported\n");
+		nvkm_warn(subdev, "reclocking of this ram type unsupported\n");
 		return 0;
 	}
 

@@ -68,9 +68,10 @@ struct nv50_ram {
 static int
 nv50_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 {
-	struct nvkm_device *device = fb->subdev.device;
 	struct nv50_ram *ram = (void *)fb->ram;
 	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 cur2, cur4, cur7, cur8;
 	u8 unkt3b;
 
@@ -134,11 +135,11 @@ nv50_ram_timing_calc(struct nvkm_fb *fb, u32 *timing)
 		timing[8] |= (T(CL) - 2);
 	}
 
-	nv_debug(fb, " 220: %08x %08x %08x %08x\n",
-			timing[0], timing[1], timing[2], timing[3]);
-	nv_debug(fb, " 230: %08x %08x %08x %08x\n",
-			timing[4], timing[5], timing[6], timing[7]);
-	nv_debug(fb, " 240: %08x\n", timing[8]);
+	nvkm_debug(subdev, " 220: %08x %08x %08x %08x\n",
+		   timing[0], timing[1], timing[2], timing[3]);
+	nvkm_debug(subdev, " 230: %08x %08x %08x %08x\n",
+		   timing[4], timing[5], timing[6], timing[7]);
+	nvkm_debug(subdev, " 240: %08x\n", timing[8]);
 	return 0;
 }
 #undef T
@@ -154,9 +155,10 @@ nvkm_sddr2_dll_reset(struct nv50_ramseq *hwsq)
 static int
 nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 {
-	struct nvkm_bios *bios = nvkm_bios(fb);
 	struct nv50_ram *ram = (void *)fb->ram;
 	struct nv50_ramseq *hwsq = &ram->hwsq;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvbios_perfE perfE;
 	struct nvbios_pll mpll;
 	struct nvkm_ram_data *next;
@@ -178,7 +180,7 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 					    &size, &perfE);
 		if (!data || (ver < 0x25 || ver >= 0x40) ||
 		    (size < 2)) {
-			nv_error(fb, "invalid/missing perftab entry\n");
+			nvkm_error(subdev, "invalid/missing perftab entry\n");
 			return -EINVAL;
 		}
 	} while (perfE.memory < freq);
@@ -188,14 +190,14 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 	/* locate specific data set for the attached memory */
 	strap = nvbios_ramcfg_index(nv_subdev(fb));
 	if (strap >= cnt) {
-		nv_error(fb, "invalid ramcfg strap\n");
+		nvkm_error(subdev, "invalid ramcfg strap\n");
 		return -EINVAL;
 	}
 
 	data = nvbios_rammapSp_from_perf(bios, data + hdr, size, strap,
 			&next->bios);
 	if (!data) {
-		nv_error(fb, "invalid/missing rammap entry ");
+		nvkm_error(subdev, "invalid/missing rammap entry ");
 		return -EINVAL;
 	}
 
@@ -204,7 +206,7 @@ nv50_ram_calc(struct nvkm_fb *fb, u32 freq)
 		data = nvbios_timingEp(bios, next->bios.ramcfg_timing,
 					&ver, &hdr, &cnt, &len, &next->bios);
 		if (!data || ver != 0x10 || hdr < 0x12) {
-			nv_error(fb, "invalid/missing timing entry "
+			nvkm_error(subdev, "invalid/missing timing entry "
 				 "%02x %04x %02x %02x\n",
 				 strap, data, ver, hdr);
 			return -EINVAL;
@@ -494,7 +496,8 @@ nv50_ram_get(struct nvkm_fb *fb, u64 size, u32 align, u32 ncmin,
 static u32
 nv50_fb_vram_rblock(struct nvkm_fb *fb, struct nvkm_ram *ram)
 {
-	struct nvkm_device *device = fb->subdev.device;
+	struct nvkm_subdev *subdev = &fb->subdev;
+	struct nvkm_device *device = subdev->device;
 	int colbits, rowbitsa, rowbitsb, banks;
 	u64 rowsize, predicted;
 	u32 r0, r4, rt, rblock_size;
@@ -502,8 +505,8 @@ nv50_fb_vram_rblock(struct nvkm_fb *fb, struct nvkm_ram *ram)
 	r0 = nvkm_rd32(device, 0x100200);
 	r4 = nvkm_rd32(device, 0x100204);
 	rt = nvkm_rd32(device, 0x100250);
-	nv_debug(fb, "memcfg 0x%08x 0x%08x 0x%08x 0x%08x\n",
-		 r0, r4, rt, nvkm_rd32(device, 0x001540));
+	nvkm_debug(subdev, "memcfg %08x %08x %08x %08x\n",
+		   r0, r4, rt, nvkm_rd32(device, 0x001540));
 
 	colbits  =  (r4 & 0x0000f000) >> 12;
 	rowbitsa = ((r4 & 0x000f0000) >> 16) + 8;
@@ -516,15 +519,15 @@ nv50_fb_vram_rblock(struct nvkm_fb *fb, struct nvkm_ram *ram)
 		predicted += rowsize << rowbitsb;
 
 	if (predicted != ram->size) {
-		nv_warn(fb, "memory controller reports %d MiB VRAM\n",
-			(u32)(ram->size >> 20));
+		nvkm_warn(subdev, "memory controller reports %d MiB VRAM\n",
+			  (u32)(ram->size >> 20));
 	}
 
 	rblock_size = rowsize;
 	if (rt & 1)
 		rblock_size *= 3;
 
-	nv_debug(fb, "rblock %d bytes\n", rblock_size);
+	nvkm_debug(subdev, "rblock %d bytes\n", rblock_size);
 	return rblock_size;
 }
 
@@ -584,6 +587,8 @@ nv50_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 datasize,
 	      struct nvkm_object **pobject)
 {
+	struct nvkm_fb *fb = nvkm_fb(parent);
+	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nv50_ram *ram;
 	int ret, i;
 
@@ -600,7 +605,7 @@ nv50_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		break;
 	case NV_MEM_TYPE_DDR2:
 	default:
-		nv_warn(ram, "reclocking of this ram type unsupported\n");
+		nvkm_warn(subdev, "reclocking of this ram type unsupported\n");
 		return 0;
 	}
 

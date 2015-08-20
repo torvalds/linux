@@ -36,7 +36,7 @@ nv1a_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 1));
 	if (!bridge) {
-		nv_fatal(fb, "no bridge device\n");
+		nvkm_error(&fb->subdev, "no bridge device\n");
 		return -ENODEV;
 	}
 
