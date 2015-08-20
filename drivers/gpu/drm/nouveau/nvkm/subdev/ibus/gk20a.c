@@ -25,30 +25,32 @@
 static void
 gk20a_ibus_init_ibus_ring(struct nvkm_ibus *ibus)
 {
-	nv_mask(ibus, 0x137250, 0x3f, 0);
+	struct nvkm_device *device = ibus->subdev.device;
+	nvkm_mask(device, 0x137250, 0x3f, 0);
 
-	nv_mask(ibus, 0x000200, 0x20, 0);
+	nvkm_mask(device, 0x000200, 0x20, 0);
 	usleep_range(20, 30);
-	nv_mask(ibus, 0x000200, 0x20, 0x20);
+	nvkm_mask(device, 0x000200, 0x20, 0x20);
 
-	nv_wr32(ibus, 0x12004c, 0x4);
-	nv_wr32(ibus, 0x122204, 0x2);
-	nv_rd32(ibus, 0x122204);
+	nvkm_wr32(device, 0x12004c, 0x4);
+	nvkm_wr32(device, 0x122204, 0x2);
+	nvkm_rd32(device, 0x122204);
 
 	/*
 	 * Bug: increase clock timeout to avoid operation failure at high
 	 * gpcclk rate.
 	 */
-	nv_wr32(ibus, 0x122354, 0x800);
-	nv_wr32(ibus, 0x128328, 0x800);
-	nv_wr32(ibus, 0x124320, 0x800);
+	nvkm_wr32(device, 0x122354, 0x800);
+	nvkm_wr32(device, 0x128328, 0x800);
+	nvkm_wr32(device, 0x124320, 0x800);
 }
 
 static void
 gk20a_ibus_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_ibus *ibus = (void *)subdev;
-	u32 status0 = nv_rd32(ibus, 0x120058);
+	struct nvkm_device *device = ibus->subdev.device;
+	u32 status0 = nvkm_rd32(device, 0x120058);
 
 	if (status0 & 0x7) {
 		nv_debug(ibus, "resetting ibus ring\n");
@@ -56,7 +58,7 @@ gk20a_ibus_intr(struct nvkm_subdev *subdev)
 	}
 
 	/* Acknowledge interrupt */
-	nv_mask(ibus, 0x12004c, 0x2, 0x2);
+	nvkm_mask(device, 0x12004c, 0x2, 0x2);
 
 	if (!nv_wait(subdev, 0x12004c, 0x3f, 0x00))
 		nv_warn(ibus, "timeout waiting for ringmaster ack\n");

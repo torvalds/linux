@@ -26,42 +26,46 @@
 static void
 gf100_ibus_intr_hub(struct nvkm_ibus *ibus, int i)
 {
-	u32 addr = nv_rd32(ibus, 0x122120 + (i * 0x0400));
-	u32 data = nv_rd32(ibus, 0x122124 + (i * 0x0400));
-	u32 stat = nv_rd32(ibus, 0x122128 + (i * 0x0400));
+	struct nvkm_device *device = ibus->subdev.device;
+	u32 addr = nvkm_rd32(device, 0x122120 + (i * 0x0400));
+	u32 data = nvkm_rd32(device, 0x122124 + (i * 0x0400));
+	u32 stat = nvkm_rd32(device, 0x122128 + (i * 0x0400));
 	nv_error(ibus, "HUB%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
-	nv_mask(ibus, 0x122128 + (i * 0x0400), 0x00000200, 0x00000000);
+	nvkm_mask(device, 0x122128 + (i * 0x0400), 0x00000200, 0x00000000);
 }
 
 static void
 gf100_ibus_intr_rop(struct nvkm_ibus *ibus, int i)
 {
-	u32 addr = nv_rd32(ibus, 0x124120 + (i * 0x0400));
-	u32 data = nv_rd32(ibus, 0x124124 + (i * 0x0400));
-	u32 stat = nv_rd32(ibus, 0x124128 + (i * 0x0400));
+	struct nvkm_device *device = ibus->subdev.device;
+	u32 addr = nvkm_rd32(device, 0x124120 + (i * 0x0400));
+	u32 data = nvkm_rd32(device, 0x124124 + (i * 0x0400));
+	u32 stat = nvkm_rd32(device, 0x124128 + (i * 0x0400));
 	nv_error(ibus, "ROP%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
-	nv_mask(ibus, 0x124128 + (i * 0x0400), 0x00000200, 0x00000000);
+	nvkm_mask(device, 0x124128 + (i * 0x0400), 0x00000200, 0x00000000);
 }
 
 static void
 gf100_ibus_intr_gpc(struct nvkm_ibus *ibus, int i)
 {
-	u32 addr = nv_rd32(ibus, 0x128120 + (i * 0x0400));
-	u32 data = nv_rd32(ibus, 0x128124 + (i * 0x0400));
-	u32 stat = nv_rd32(ibus, 0x128128 + (i * 0x0400));
+	struct nvkm_device *device = ibus->subdev.device;
+	u32 addr = nvkm_rd32(device, 0x128120 + (i * 0x0400));
+	u32 data = nvkm_rd32(device, 0x128124 + (i * 0x0400));
+	u32 stat = nvkm_rd32(device, 0x128128 + (i * 0x0400));
 	nv_error(ibus, "GPC%d: 0x%06x 0x%08x (0x%08x)\n", i, addr, data, stat);
-	nv_mask(ibus, 0x128128 + (i * 0x0400), 0x00000200, 0x00000000);
+	nvkm_mask(device, 0x128128 + (i * 0x0400), 0x00000200, 0x00000000);
 }
 
 static void
 gf100_ibus_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_ibus *ibus = (void *)subdev;
-	u32 intr0 = nv_rd32(ibus, 0x121c58);
-	u32 intr1 = nv_rd32(ibus, 0x121c5c);
-	u32 hubnr = nv_rd32(ibus, 0x121c70);
-	u32 ropnr = nv_rd32(ibus, 0x121c74);
-	u32 gpcnr = nv_rd32(ibus, 0x121c78);
+	struct nvkm_device *device = ibus->subdev.device;
+	u32 intr0 = nvkm_rd32(device, 0x121c58);
+	u32 intr1 = nvkm_rd32(device, 0x121c5c);
+	u32 hubnr = nvkm_rd32(device, 0x121c70);
+	u32 ropnr = nvkm_rd32(device, 0x121c74);
+	u32 gpcnr = nvkm_rd32(device, 0x121c78);
 	u32 i;
 
 	for (i = 0; (intr0 & 0x0000ff00) && i < hubnr; i++) {
