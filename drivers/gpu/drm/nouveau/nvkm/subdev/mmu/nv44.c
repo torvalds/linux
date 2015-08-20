@@ -140,11 +140,12 @@ static void
 nv44_vm_flush(struct nvkm_vm *vm)
 {
 	struct nv04_mmu *mmu = (void *)vm->mmu;
-	nv_wr32(mmu, 0x100814, mmu->base.limit - NV44_GART_PAGE);
-	nv_wr32(mmu, 0x100808, 0x00000020);
+	struct nvkm_device *device = mmu->base.subdev.device;
+	nvkm_wr32(device, 0x100814, mmu->base.limit - NV44_GART_PAGE);
+	nvkm_wr32(device, 0x100808, 0x00000020);
 	if (!nv_wait(mmu, 0x100808, 0x00000001, 0x00000001))
-		nv_error(mmu, "timeout: 0x%08x\n", nv_rd32(mmu, 0x100808));
-	nv_wr32(mmu, 0x100808, 0x00000000);
+		nv_error(mmu, "timeout: 0x%08x\n", nvkm_rd32(device, 0x100808));
+	nvkm_wr32(device, 0x100808, 0x00000000);
 }
 
 /*******************************************************************************
@@ -208,6 +209,7 @@ static int
 nv44_mmu_init(struct nvkm_object *object)
 {
 	struct nv04_mmu *mmu = (void *)object;
+	struct nvkm_device *device = mmu->base.subdev.device;
 	struct nvkm_gpuobj *gart = mmu->vm->pgt[0].obj[0];
 	u32 addr;
 	int ret;
@@ -220,17 +222,17 @@ nv44_mmu_init(struct nvkm_object *object)
 	 * allocated on 512KiB alignment, and not exceed a total size
 	 * of 512KiB for this to work correctly
 	 */
-	addr  = nv_rd32(mmu, 0x10020c);
+	addr  = nvkm_rd32(device, 0x10020c);
 	addr -= ((gart->addr >> 19) + 1) << 19;
 
-	nv_wr32(mmu, 0x100850, 0x80000000);
-	nv_wr32(mmu, 0x100818, mmu->null);
-	nv_wr32(mmu, 0x100804, NV44_GART_SIZE);
-	nv_wr32(mmu, 0x100850, 0x00008000);
-	nv_mask(mmu, 0x10008c, 0x00000200, 0x00000200);
-	nv_wr32(mmu, 0x100820, 0x00000000);
-	nv_wr32(mmu, 0x10082c, 0x00000001);
-	nv_wr32(mmu, 0x100800, addr | 0x00000010);
+	nvkm_wr32(device, 0x100850, 0x80000000);
+	nvkm_wr32(device, 0x100818, mmu->null);
+	nvkm_wr32(device, 0x100804, NV44_GART_SIZE);
+	nvkm_wr32(device, 0x100850, 0x00008000);
+	nvkm_mask(device, 0x10008c, 0x00000200, 0x00000200);
+	nvkm_wr32(device, 0x100820, 0x00000000);
+	nvkm_wr32(device, 0x10082c, 0x00000001);
+	nvkm_wr32(device, 0x100800, addr | 0x00000010);
 	return 0;
 }
 

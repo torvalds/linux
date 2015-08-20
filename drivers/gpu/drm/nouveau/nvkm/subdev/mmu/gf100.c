@@ -154,7 +154,8 @@ static void
 gf100_vm_flush(struct nvkm_vm *vm)
 {
 	struct nvkm_mmu *mmu = (void *)vm->mmu;
-	struct nvkm_bar *bar = nvkm_bar(mmu);
+	struct nvkm_device *device = mmu->subdev.device;
+	struct nvkm_bar *bar = device->bar;
 	struct nvkm_vm_pgd *vpgd;
 	u32 type;
 
@@ -171,16 +172,16 @@ gf100_vm_flush(struct nvkm_vm *vm)
 		 */
 		if (!nv_wait_ne(mmu, 0x100c80, 0x00ff0000, 0x00000000)) {
 			nv_error(mmu, "vm timeout 0: 0x%08x %d\n",
-				 nv_rd32(mmu, 0x100c80), type);
+				 nvkm_rd32(device, 0x100c80), type);
 		}
 
-		nv_wr32(mmu, 0x100cb8, vpgd->obj->addr >> 8);
-		nv_wr32(mmu, 0x100cbc, 0x80000000 | type);
+		nvkm_wr32(device, 0x100cb8, vpgd->obj->addr >> 8);
+		nvkm_wr32(device, 0x100cbc, 0x80000000 | type);
 
 		/* wait for flush to be queued? */
 		if (!nv_wait(mmu, 0x100c80, 0x00008000, 0x00008000)) {
 			nv_error(mmu, "vm timeout 1: 0x%08x %d\n",
-				 nv_rd32(mmu, 0x100c80), type);
+				 nvkm_rd32(device, 0x100c80), type);
 		}
 	}
 	mutex_unlock(&nv_subdev(mmu)->mutex);

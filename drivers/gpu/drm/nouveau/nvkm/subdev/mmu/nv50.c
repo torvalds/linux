@@ -146,7 +146,8 @@ static void
 nv50_vm_flush(struct nvkm_vm *vm)
 {
 	struct nvkm_mmu *mmu = (void *)vm->mmu;
-	struct nvkm_bar *bar = nvkm_bar(mmu);
+	struct nvkm_device *device = mmu->subdev.device;
+	struct nvkm_bar *bar = device->bar;
 	struct nvkm_engine *engine;
 	int i, vme;
 
@@ -180,7 +181,7 @@ nv50_vm_flush(struct nvkm_vm *vm)
 			continue;
 		}
 
-		nv_wr32(mmu, 0x100c80, (vme << 16) | 1);
+		nvkm_wr32(device, 0x100c80, (vme << 16) | 1);
 		if (!nv_wait(mmu, 0x100c80, 0x00000001, 0x00000000))
 			nv_error(mmu, "vm flush timeout: engine %d\n", vme);
 	}

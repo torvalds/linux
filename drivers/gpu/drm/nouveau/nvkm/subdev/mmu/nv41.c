@@ -65,14 +65,15 @@ static void
 nv41_vm_flush(struct nvkm_vm *vm)
 {
 	struct nv04_mmu *mmu = (void *)vm->mmu;
+	struct nvkm_device *device = mmu->base.subdev.device;
 
 	mutex_lock(&nv_subdev(mmu)->mutex);
-	nv_wr32(mmu, 0x100810, 0x00000022);
+	nvkm_wr32(device, 0x100810, 0x00000022);
 	if (!nv_wait(mmu, 0x100810, 0x00000020, 0x00000020)) {
 		nv_warn(mmu, "flush timeout, 0x%08x\n",
-			nv_rd32(mmu, 0x100810));
+			nvkm_rd32(device, 0x100810));
 	}
-	nv_wr32(mmu, 0x100810, 0x00000000);
+	nvkm_wr32(device, 0x100810, 0x00000000);
 	mutex_unlock(&nv_subdev(mmu)->mutex);
 }
 
@@ -131,6 +132,7 @@ static int
 nv41_mmu_init(struct nvkm_object *object)
 {
 	struct nv04_mmu *mmu = (void *)object;
+	struct nvkm_device *device = mmu->base.subdev.device;
 	struct nvkm_gpuobj *dma = mmu->vm->pgt[0].obj[0];
 	int ret;
 
@@ -138,9 +140,9 @@ nv41_mmu_init(struct nvkm_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(mmu, 0x100800, dma->addr | 0x00000002);
-	nv_mask(mmu, 0x10008c, 0x00000100, 0x00000100);
-	nv_wr32(mmu, 0x100820, 0x00000000);
+	nvkm_wr32(device, 0x100800, dma->addr | 0x00000002);
+	nvkm_mask(device, 0x10008c, 0x00000100, 0x00000100);
+	nvkm_wr32(device, 0x100820, 0x00000000);
 	return 0;
 }
 
