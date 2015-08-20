@@ -351,11 +351,11 @@ int tipc_link_fsm_evt(struct tipc_link *l, int evt)
 			l->state = LINK_RESET;
 			break;
 		case LINK_ESTABLISH_EVT:
+		case LINK_SYNCH_END_EVT:
 			break;
 		case LINK_SYNCH_BEGIN_EVT:
 			l->state = LINK_SYNCHING;
 			break;
-		case LINK_SYNCH_END_EVT:
 		case LINK_FAILOVER_BEGIN_EVT:
 		case LINK_FAILOVER_END_EVT:
 		default:

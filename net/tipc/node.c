@@ -423,6 +423,8 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 
 	/* There is still a working link => initiate failover */
 	tnl = node_active_link(n, 0);
+	tipc_link_fsm_evt(tnl, LINK_SYNCH_END_EVT);
+	tipc_node_fsm_evt(n, NODE_SYNCH_END_EVT);
 	n->sync_point = tnl->rcv_nxt + (U16_MAX / 2 - 1);
 	tipc_link_tnl_prepare(l, tnl, FAILOVER_MSG, xmitq);
 	tipc_link_reset(l);
@@ -1140,6 +1142,10 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 		return true;
 	}
 
+	/* No synching needed if only one link */
+	if (!pl || !tipc_link_is_up(pl))
+		return true;
+
 	/* Initiate or update synch mode if applicable */
 	if ((usr == TUNNEL_PROTOCOL) && (mtyp == SYNCH_MSG)) {
 		syncpt = iseqno + exp_pkts - 1;
@@ -1158,9 +1164,8 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 
 	/* Open tunnel link when parallel link reaches synch point */
 	if ((n->state == NODE_SYNCHING) && tipc_link_is_synching(l)) {
-		if (pl)
-			dlv_nxt = mod(pl->rcv_nxt - skb_queue_len(pl->inputq));
-		if (!pl || more(dlv_nxt, n->sync_point)) {
+		dlv_nxt = pl->rcv_nxt - mod(skb_queue_len(pl->inputq));
+		if (more(dlv_nxt, n->sync_point)) {
 			tipc_link_fsm_evt(l, LINK_SYNCH_END_EVT);
 			tipc_node_fsm_evt(n, NODE_SYNCH_END_EVT);
 			return true;
