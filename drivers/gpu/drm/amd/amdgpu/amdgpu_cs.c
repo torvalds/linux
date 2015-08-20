@@ -869,6 +869,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		cs->out.handle =
 			amdgpu_ctx_add_fence(job->ctx, ring,
 					     &job->base.s_fence->base);
+		parser->ibs[parser->num_ibs - 1].sequence = cs->out.handle;
+
 		list_sort(NULL, &parser->validated, cmp_size_smaller_first);
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 				&parser->validated,
