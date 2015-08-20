@@ -53,7 +53,7 @@ gk20a_ibus_intr(struct nvkm_subdev *subdev)
 	u32 status0 = nvkm_rd32(device, 0x120058);
 
 	if (status0 & 0x7) {
-		nv_debug(ibus, "resetting ibus ring\n");
+		nvkm_debug(subdev, "resetting ibus ring\n");
 		gk20a_ibus_init_ibus_ring(ibus);
 	}
 
