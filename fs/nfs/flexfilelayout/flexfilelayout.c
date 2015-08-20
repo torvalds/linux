@@ -967,10 +967,35 @@ static int ff_layout_async_handle_error(struct rpc_task *task,
 
 static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 					int idx, u64 offset, u64 length,
-					u32 status, int opnum)
+					u32 status, int opnum, int error)
 {
 	struct nfs4_ff_layout_mirror *mirror;
 	int err;
+
+	if (status == 0) {
+		switch (error) {
+		case -ETIMEDOUT:
+		case -EPFNOSUPPORT:
+		case -EPROTONOSUPPORT:
+		case -EOPNOTSUPP:
+		case -ECONNREFUSED:
+		case -ECONNRESET:
+		case -EHOSTDOWN:
+		case -EHOSTUNREACH:
+		case -ENETUNREACH:
+		case -EADDRINUSE:
+		case -ENOBUFS:
+		case -EPIPE:
+		case -EPERM:
+			status = NFS4ERR_NXIO;
+			break;
+		case -EACCES:
+			status = NFS4ERR_ACCESS;
+			break;
+		default:
+			return;
+		}
+	}
 
 	mirror = FF_LAYOUT_COMP(lseg, idx);
 	err = ff_layout_track_ds_error(FF_LAYOUT_FROM_HDR(lseg->pls_layout),
@@ -988,12 +1013,11 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 	int err;
 
 	trace_nfs4_pnfs_read(hdr, task->tk_status);
-	if (task->tk_status == -ETIMEDOUT && !hdr->res.op_status)
-		hdr->res.op_status = NFS4ERR_NXIO;
-	if (task->tk_status < 0 && hdr->res.op_status)
+	if (task->tk_status < 0)
 		ff_layout_io_track_ds_error(hdr->lseg, hdr->pgio_mirror_idx,
 					    hdr->args.offset, hdr->args.count,
-					    hdr->res.op_status, OP_READ);
+					    hdr->res.op_status, OP_READ,
+					    task->tk_status);
 	err = ff_layout_async_handle_error(task, hdr->args.context->state,
 					   hdr->ds_clp, hdr->lseg,
 					   hdr->pgio_mirror_idx);
@@ -1163,12 +1187,11 @@ static int ff_layout_write_done_cb(struct rpc_task *task,
 	int err;
 
 	trace_nfs4_pnfs_write(hdr, task->tk_status);
-	if (task->tk_status == -ETIMEDOUT && !hdr->res.op_status)
-		hdr->res.op_status = NFS4ERR_NXIO;
-	if (task->tk_status < 0 && hdr->res.op_status)
+	if (task->tk_status < 0)
 		ff_layout_io_track_ds_error(hdr->lseg, hdr->pgio_mirror_idx,
 					    hdr->args.offset, hdr->args.count,
-					    hdr->res.op_status, OP_WRITE);
+					    hdr->res.op_status, OP_WRITE,
+					    task->tk_status);
 	err = ff_layout_async_handle_error(task, hdr->args.context->state,
 					   hdr->ds_clp, hdr->lseg,
 					   hdr->pgio_mirror_idx);
@@ -1208,12 +1231,11 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 	int err;
 
 	trace_nfs4_pnfs_commit_ds(data, task->tk_status);
-	if (task->tk_status == -ETIMEDOUT && !data->res.op_status)
-		data->res.op_status = NFS4ERR_NXIO;
-	if (task->tk_status < 0 && data->res.op_status)
+	if (task->tk_status < 0)
 		ff_layout_io_track_ds_error(data->lseg, data->ds_commit_index,
 					    data->args.offset, data->args.count,
-					    data->res.op_status, OP_COMMIT);
+					    data->res.op_status, OP_COMMIT,
+					    task->tk_status);
 	err = ff_layout_async_handle_error(task, NULL, data->ds_clp,
 					   data->lseg, data->ds_commit_index);
 
