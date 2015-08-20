@@ -25,6 +25,7 @@
 
 #include <core/client.h>
 #include <core/option.h>
+#include <core/parent.h>
 
 #include <nvif/class.h>
 #include <nvif/ioctl.h>

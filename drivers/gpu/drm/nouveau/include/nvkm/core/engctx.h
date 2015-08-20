@@ -1,6 +1,7 @@
 #ifndef __NVKM_ENGCTX_H__
 #define __NVKM_ENGCTX_H__
 #include <core/gpuobj.h>
+#include <core/parent.h>
 
 #include <subdev/mmu.h>
 

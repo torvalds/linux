@@ -535,12 +535,12 @@ nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 	else
 		object = client->root;
 	if (unlikely(!object)) {
-		nvif_ioctl(&client->namedb.parent.object, "object not found\n");
+		nvif_ioctl(&client->object, "object not found\n");
 		return -ENOENT;
 	}
 
 	if (owner != NVIF_IOCTL_V0_OWNER_ANY && owner != object->route) {
-		nvif_ioctl(&client->namedb.parent.object, "route != owner\n");
+		nvif_ioctl(&client->object, "route != owner\n");
 		return -EACCES;
 	}
 	*route = object->route;
@@ -558,7 +558,7 @@ int
 nvkm_ioctl(struct nvkm_client *client, bool supervisor,
 	   void *data, u32 size, void **hack)
 {
-	struct nvkm_object *object = &client->namedb.parent.object;
+	struct nvkm_object *object = &client->object;
 	union {
 		struct nvif_ioctl_v0 v0;
 	} *args = data;

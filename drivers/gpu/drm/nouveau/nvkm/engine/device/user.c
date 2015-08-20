@@ -24,6 +24,7 @@
 #include "priv.h"
 
 #include <core/client.h>
+#include <core/parent.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>

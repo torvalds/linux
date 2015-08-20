@@ -23,6 +23,7 @@
  */
 #include <core/handle.h>
 #include <core/client.h>
+#include <core/namedb.h>
 
 #define hprintk(h,l,f,a...) do {                                               \
 	struct nvkm_handle *p = (h)->parent; u32 n = p ? p->name : ~0;         \

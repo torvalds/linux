@@ -176,11 +176,35 @@ nvkm_client_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-static struct nvkm_oclass
-nvkm_client_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.mthd = nvkm_client_mthd,
-	},
+static int
+nvkm_client_child_new(const struct nvkm_oclass *oclass,
+		      void *data, u32 size, struct nvkm_object **pobject)
+{
+	static struct nvkm_oclass devobj = {
+		.handle = NV_DEVICE,
+		.ofuncs = &nvkm_udevice_ofuncs,
+	};
+	return nvkm_object_old(oclass->parent, NULL, &devobj, data, size, pobject);
+}
+
+static int
+nvkm_client_child_get(struct nvkm_object *object, int index,
+		      struct nvkm_oclass *oclass)
+{
+	if (index == 0) {
+		oclass->base.oclass = NV_DEVICE;
+		oclass->base.minver = 0;
+		oclass->base.maxver = 0;
+		oclass->ctor = nvkm_client_child_new;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static const struct nvkm_object_func
+nvkm_client_object_func = {
+	.mthd = nvkm_client_mthd,
+	.sclass = nvkm_client_child_get,
 };
 
 void
@@ -235,7 +259,7 @@ nvkm_client_search(struct nvkm_client *client, u64 handle)
 int
 nvkm_client_fini(struct nvkm_client *client, bool suspend)
 {
-	struct nvkm_object *object = &client->namedb.parent.object;
+	struct nvkm_object *object = &client->object;
 	const char *name[2] = { "fini", "suspend" };
 	int ret, i;
 	nvif_trace(object, "%s running\n", name[suspend]);
@@ -251,7 +275,7 @@ nvkm_client_fini(struct nvkm_client *client, bool suspend)
 int
 nvkm_client_init(struct nvkm_client *client)
 {
-	struct nvkm_object *object = &client->namedb.parent.object;
+	struct nvkm_object *object = &client->object;
 	int ret;
 	nvif_trace(object, "init running\n");
 	ret = nvkm_handle_init(client->root);
@@ -269,43 +293,33 @@ nvkm_client_del(struct nvkm_client **pclient)
 		for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 			nvkm_client_notify_del(client, i);
 		nvkm_handle_destroy(client->root);
-		nvkm_namedb_destroy(&client->namedb);
+		kfree(*pclient);
 		*pclient = NULL;
 	}
 }
-
-static struct nvkm_oclass
-nvkm_client_sclass[] = {
-	{ NV_DEVICE, &nvkm_udevice_ofuncs },
-	{}
-};
 
 int
 nvkm_client_new(const char *name, u64 device, const char *cfg,
 		const char *dbg, struct nvkm_client **pclient)
 {
+	struct nvkm_oclass oclass = {};
 	struct nvkm_client *client;
 	int ret;
 
-	ret = nvkm_namedb_create(NULL, NULL, &nvkm_client_oclass,
-				 NV_CLIENT_CLASS, nvkm_client_sclass,
-				 0, &client);
-	*pclient = client;
-	if (ret)
-		return ret;
+	if (!(client = *pclient = kzalloc(sizeof(*client), GFP_KERNEL)))
+		return -ENOMEM;
+	oclass.client = client;
 
-	ret = nvkm_handle_create(NULL, ~0, nv_object(client), &client->root);
-	if (ret)
-		return ret;
-
-	/* prevent init/fini being called, os in in charge of this */
-	atomic_set(&nv_object(client)->usecount, 2);
-
-	client->device = device;
+	nvkm_object_ctor(&nvkm_client_object_func, &oclass, &client->object);
 	snprintf(client->name, sizeof(client->name), "%s", name);
+	client->device = device;
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
 	client->objroot = RB_ROOT;
-	return 0;
+
+	ret = nvkm_handle_create(NULL, ~0, &client->object, &client->root);
+	if (ret)
+		nvkm_client_del(pclient);
+	return ret;
 }
 
 const char *
