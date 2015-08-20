@@ -32,13 +32,10 @@ nv30_identify(struct nvkm_device *device)
 	case 0x35:
 		break;
 	case 0x31:
-		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
 		break;
 	case 0x36:
-		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
 		break;
 	case 0x34:
-		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
 		break;
 	default:
 		return -EINVAL;

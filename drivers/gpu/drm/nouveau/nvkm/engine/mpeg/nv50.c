@@ -57,10 +57,10 @@ nv50_mpeg_cclass = {
  ******************************************************************************/
 
 void
-nv50_mpeg_intr(struct nvkm_subdev *subdev)
+nv50_mpeg_intr(struct nvkm_engine *mpeg)
 {
-	struct nvkm_mpeg *mpeg = (void *)subdev;
-	struct nvkm_device *device = mpeg->engine.subdev.device;
+	struct nvkm_subdev *subdev = &mpeg->subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x00b100);
 	u32 type = nvkm_rd32(device, 0x00b230);
 	u32 mthd = nvkm_rd32(device, 0x00b234);
@@ -84,61 +84,11 @@ nv50_mpeg_intr(struct nvkm_subdev *subdev)
 	nvkm_wr32(device, 0x00b230, 0x00000001);
 }
 
-static void
-nv50_vpe_intr(struct nvkm_subdev *subdev)
-{
-	struct nvkm_device *device = subdev->device;
-
-	if (nvkm_rd32(device, 0x00b100))
-		nv50_mpeg_intr(subdev);
-
-	if (nvkm_rd32(device, 0x00b800)) {
-		u32 stat = nvkm_rd32(device, 0x00b800);
-		nvkm_info(subdev, "PMSRCH: %08x\n", stat);
-		nvkm_wr32(device, 0xb800, stat);
-	}
-}
-
-static const struct nvkm_engine_func
-nv50_mpeg = {
-	.cclass = &nv50_mpeg_cclass,
-	.sclass = {
-		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
-		{}
-	}
-};
-
-static int
-nv50_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nvkm_mpeg *mpeg;
-	int ret;
-
-	ret = nvkm_mpeg_create(parent, engine, oclass, &mpeg);
-	*pobject = nv_object(mpeg);
-	if (ret)
-		return ret;
-
-	mpeg->engine.func = &nv50_mpeg;
-
-	nv_subdev(mpeg)->unit = 0x00400002;
-	nv_subdev(mpeg)->intr = nv50_vpe_intr;
-	return 0;
-}
-
 int
-nv50_mpeg_init(struct nvkm_object *object)
+nv50_mpeg_init(struct nvkm_engine *mpeg)
 {
-	struct nvkm_mpeg *mpeg = (void *)object;
-	struct nvkm_subdev *subdev = &mpeg->engine.subdev;
+	struct nvkm_subdev *subdev = &mpeg->subdev;
 	struct nvkm_device *device = subdev->device;
-	int ret;
-
-	ret = nvkm_mpeg_init(mpeg);
-	if (ret)
-		return ret;
 
 	nvkm_wr32(device, 0x00b32c, 0x00000000);
 	nvkm_wr32(device, 0x00b314, 0x00000100);
@@ -166,13 +116,20 @@ nv50_mpeg_init(struct nvkm_object *object)
 	return 0;
 }
 
-struct nvkm_oclass
-nv50_mpeg_oclass = {
-	.handle = NV_ENGINE(MPEG, 0x50),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_mpeg_ctor,
-		.dtor = _nvkm_mpeg_dtor,
-		.init = nv50_mpeg_init,
-		.fini = _nvkm_mpeg_fini,
-	},
+static const struct nvkm_engine_func
+nv50_mpeg = {
+	.init = nv50_mpeg_init,
+	.intr = nv50_mpeg_intr,
+	.cclass = &nv50_mpeg_cclass,
+	.sclass = {
+		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
+		{}
+	}
 };
+
+int
+nv50_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
+{
+	return nvkm_engine_new_(&nv50_mpeg, device, index, 0x00400002,
+				true, pmpeg);
+}

@@ -56,8 +56,8 @@ nvkm_fb_tile_prog(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
 		fb->func->tile.prog(fb, region, tile);
 		if (device->gr)
 			nvkm_engine_tile(&device->gr->engine, region);
-		if (likely(device->mpeg))
-			device->mpeg->tile_prog(device->mpeg, region);
+		if (device->mpeg)
+			nvkm_engine_tile(device->mpeg, region);
 	}
 }
 

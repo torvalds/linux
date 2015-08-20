@@ -65,60 +65,13 @@ nv40_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 	return true;
 }
 
-static void
-nv40_mpeg_intr(struct nvkm_subdev *subdev)
-{
-	struct nv31_mpeg *mpeg = (void *)subdev;
-	struct nvkm_device *device = mpeg->base.engine.subdev.device;
-	u32 stat;
-
-	if ((stat = nvkm_rd32(device, 0x00b100)))
-		nv31_mpeg_intr(subdev);
-
-	if ((stat = nvkm_rd32(device, 0x00b800))) {
-		nvkm_error(subdev, "PMSRCH %08x\n", stat);
-		nvkm_wr32(device, 0x00b800, stat);
-	}
-}
-
-static const struct nvkm_engine_func
+static const struct nv31_mpeg_func
 nv40_mpeg = {
-	.fifo.cclass = nv31_mpeg_chan_new,
-	.sclass = {
-		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
-		{}
-	}
+	.mthd_dma = nv40_mpeg_mthd_dma,
 };
 
-static int
-nv40_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+int
+nv40_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
 {
-	struct nv31_mpeg *mpeg;
-	int ret;
-
-	ret = nvkm_mpeg_create(parent, engine, oclass, &mpeg);
-	*pobject = nv_object(mpeg);
-	if (ret)
-		return ret;
-
-	mpeg->base.engine.func = &nv40_mpeg;
-
-	mpeg->mthd_dma = nv40_mpeg_mthd_dma;
-	nv_subdev(mpeg)->unit = 0x00000002;
-	nv_subdev(mpeg)->intr = nv40_mpeg_intr;
-	nv_engine(mpeg)->tile_prog = nv31_mpeg_tile_prog;
-	return 0;
+	return nv31_mpeg_new_(&nv40_mpeg, device, index, pmpeg);
 }
-
-struct nvkm_oclass
-nv40_mpeg_oclass = {
-	.handle = NV_ENGINE(MPEG, 0x40),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_mpeg_ctor,
-		.dtor = _nvkm_mpeg_dtor,
-		.init = nv31_mpeg_init,
-		.fini = _nvkm_mpeg_fini,
-	},
-};

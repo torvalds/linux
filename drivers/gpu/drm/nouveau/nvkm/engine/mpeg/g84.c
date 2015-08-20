@@ -27,6 +27,8 @@
 
 static const struct nvkm_engine_func
 g84_mpeg = {
+	.init = nv50_mpeg_init,
+	.intr = nv50_mpeg_intr,
 	.cclass = &nv50_mpeg_cclass,
 	.sclass = {
 		{ -1, -1, G82_MPEG, &nv31_mpeg_object },
@@ -34,33 +36,9 @@ g84_mpeg = {
 	}
 };
 
-static int
-g84_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+int
+g84_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
 {
-	struct nvkm_mpeg *mpeg;
-	int ret;
-
-	ret = nvkm_mpeg_create(parent, engine, oclass, &mpeg);
-	*pobject = nv_object(mpeg);
-	if (ret)
-		return ret;
-
-	mpeg->engine.func = &g84_mpeg;
-
-	nv_subdev(mpeg)->unit = 0x00000002;
-	nv_subdev(mpeg)->intr = nv50_mpeg_intr;
-	return 0;
+	return nvkm_engine_new_(&g84_mpeg, device, index, 0x00000002,
+				true, pmpeg);
 }
-
-struct nvkm_oclass
-g84_mpeg_oclass = {
-	.handle = NV_ENGINE(MPEG, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_mpeg_ctor,
-		.dtor = _nvkm_mpeg_dtor,
-		.init = nv50_mpeg_init,
-		.fini = _nvkm_mpeg_fini,
-	},
-};

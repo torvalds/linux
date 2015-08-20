@@ -19,8 +19,6 @@ struct nvkm_engine {
 
 	struct list_head contexts;
 	spinlock_t lock;
-
-	void (*tile_prog)(struct nvkm_engine *, int region);
 };
 
 struct nvkm_engine_func {

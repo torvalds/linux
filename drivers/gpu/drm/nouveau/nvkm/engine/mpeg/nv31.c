@@ -68,10 +68,10 @@ nv31_mpeg_chan_dtor(struct nvkm_object *object)
 	struct nv31_mpeg *mpeg = chan->mpeg;
 	unsigned long flags;
 
-	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
+	spin_lock_irqsave(&mpeg->engine.lock, flags);
 	if (mpeg->chan == chan)
 		mpeg->chan = NULL;
-	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
+	spin_unlock_irqrestore(&mpeg->engine.lock, flags);
 	return chan;
 }
 
@@ -97,12 +97,12 @@ nv31_mpeg_chan_new(struct nvkm_fifo_chan *fifoch,
 	chan->fifo = fifoch;
 	*pobject = &chan->object;
 
-	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
+	spin_lock_irqsave(&mpeg->engine.lock, flags);
 	if (!mpeg->chan) {
 		mpeg->chan = chan;
 		ret = 0;
 	}
-	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
+	spin_unlock_irqrestore(&mpeg->engine.lock, flags);
 	return ret;
 }
 
@@ -111,11 +111,10 @@ nv31_mpeg_chan_new(struct nvkm_fifo_chan *fifoch,
  ******************************************************************************/
 
 void
-nv31_mpeg_tile_prog(struct nvkm_engine *engine, int i)
+nv31_mpeg_tile(struct nvkm_engine *engine, int i, struct nvkm_fb_tile *tile)
 {
-	struct nv31_mpeg *mpeg = (void *)engine;
-	struct nvkm_device *device = mpeg->base.engine.subdev.device;
-	struct nvkm_fb_tile *tile = &device->fb->tile.region[i];
+	struct nv31_mpeg *mpeg = nv31_mpeg(engine);
+	struct nvkm_device *device = mpeg->engine.subdev.device;
 
 	nvkm_wr32(device, 0x00b008 + (i * 0x10), tile->pitch);
 	nvkm_wr32(device, 0x00b004 + (i * 0x10), tile->limit);
@@ -164,23 +163,24 @@ nv31_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 static bool
 nv31_mpeg_mthd(struct nv31_mpeg *mpeg, u32 mthd, u32 data)
 {
-	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nvkm_device *device = mpeg->engine.subdev.device;
 	switch (mthd) {
 	case 0x190:
 	case 0x1a0:
 	case 0x1b0:
-		return mpeg->mthd_dma(device, mthd, data);
+		return mpeg->func->mthd_dma(device, mthd, data);
 	default:
 		break;
 	}
 	return false;
 }
 
-void
-nv31_mpeg_intr(struct nvkm_subdev *subdev)
+static void
+nv31_mpeg_intr(struct nvkm_engine *engine)
 {
-	struct nv31_mpeg *mpeg = (void *)subdev;
-	struct nvkm_device *device = mpeg->base.engine.subdev.device;
+	struct nv31_mpeg *mpeg = nv31_mpeg(engine);
+	struct nvkm_subdev *subdev = &mpeg->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x00b100);
 	u32 type = nvkm_rd32(device, 0x00b230);
 	u32 mthd = nvkm_rd32(device, 0x00b234);
@@ -188,7 +188,7 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 	u32 show = stat;
 	unsigned long flags;
 
-	spin_lock_irqsave(&mpeg->base.engine.lock, flags);
+	spin_lock_irqsave(&mpeg->engine.lock, flags);
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
@@ -213,60 +213,18 @@ nv31_mpeg_intr(struct nvkm_subdev *subdev)
 			   "unknown", stat, type, mthd, data);
 	}
 
-	spin_unlock_irqrestore(&mpeg->base.engine.lock, flags);
-}
-
-static const struct nvkm_engine_func
-nv31_mpeg = {
-	.fifo.cclass = nv31_mpeg_chan_new,
-	.sclass = {
-		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
-		{}
-	}
-};
-
-static int
-nv31_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nv31_mpeg *mpeg;
-	int ret;
-
-	ret = nvkm_mpeg_create(parent, engine, oclass, &mpeg);
-	*pobject = nv_object(mpeg);
-	if (ret)
-		return ret;
-
-	mpeg->base.engine.func = &nv31_mpeg;
-
-	mpeg->mthd_dma = nv31_mpeg_mthd_dma;
-	nv_subdev(mpeg)->unit = 0x00000002;
-	nv_subdev(mpeg)->intr = nv31_mpeg_intr;
-	nv_engine(mpeg)->tile_prog = nv31_mpeg_tile_prog;
-	return 0;
+	spin_unlock_irqrestore(&mpeg->engine.lock, flags);
 }
 
 int
-nv31_mpeg_init(struct nvkm_object *object)
+nv31_mpeg_init(struct nvkm_engine *mpeg)
 {
-	struct nvkm_engine *engine = nv_engine(object);
-	struct nv31_mpeg *mpeg = (void *)object;
-	struct nvkm_subdev *subdev = &mpeg->base.engine.subdev;
+	struct nvkm_subdev *subdev = &mpeg->subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_fb *fb = device->fb;
-	int ret, i;
-
-	ret = nvkm_mpeg_init(&mpeg->base);
-	if (ret)
-		return ret;
 
 	/* VPE init */
 	nvkm_wr32(device, 0x00b0e0, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
 	nvkm_wr32(device, 0x00b0e8, 0x00000020); /* nvidia: rd 0x01, wr 0x20 */
-
-	for (i = 0; i < fb->tile.regions; i++)
-		engine->tile_prog(engine, i);
 
 	/* PMPEG init */
 	nvkm_wr32(device, 0x00b32c, 0x00000000);
@@ -290,13 +248,47 @@ nv31_mpeg_init(struct nvkm_object *object)
 	return 0;
 }
 
-struct nvkm_oclass
-nv31_mpeg_oclass = {
-	.handle = NV_ENGINE(MPEG, 0x31),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv31_mpeg_ctor,
-		.dtor = _nvkm_mpeg_dtor,
-		.init = nv31_mpeg_init,
-		.fini = _nvkm_mpeg_fini,
-	},
+static void *
+nv31_mpeg_dtor(struct nvkm_engine *engine)
+{
+	return nv31_mpeg(engine);
+}
+
+static const struct nvkm_engine_func
+nv31_mpeg_ = {
+	.dtor = nv31_mpeg_dtor,
+	.init = nv31_mpeg_init,
+	.intr = nv31_mpeg_intr,
+	.tile = nv31_mpeg_tile,
+	.fifo.cclass = nv31_mpeg_chan_new,
+	.sclass = {
+		{ -1, -1, NV31_MPEG, &nv31_mpeg_object },
+		{}
+	}
 };
+
+int
+nv31_mpeg_new_(const struct nv31_mpeg_func *func, struct nvkm_device *device,
+	       int index, struct nvkm_engine **pmpeg)
+{
+	struct nv31_mpeg *mpeg;
+
+	if (!(mpeg = kzalloc(sizeof(*mpeg), GFP_KERNEL)))
+		return -ENOMEM;
+	mpeg->func = func;
+	*pmpeg = &mpeg->engine;
+
+	return nvkm_engine_ctor(&nv31_mpeg_, device, index, 0x00000002,
+				true, &mpeg->engine);
+}
+
+static const struct nv31_mpeg_func
+nv31_mpeg = {
+	.mthd_dma = nv31_mpeg_mthd_dma,
+};
+
+int
+nv31_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
+{
+	return nv31_mpeg_new_(&nv31_mpeg, device, index, pmpeg);
+}
