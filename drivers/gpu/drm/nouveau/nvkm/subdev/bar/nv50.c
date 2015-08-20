@@ -81,9 +81,10 @@ static void
 nv50_bar_flush(struct nvkm_bar *obj)
 {
 	struct nv50_bar *bar = container_of(obj, typeof(*bar), base);
+	struct nvkm_device *device = bar->base.subdev.device;
 	unsigned long flags;
 	spin_lock_irqsave(&bar->lock, flags);
-	nv_wr32(bar, 0x00330c, 0x00000001);
+	nvkm_wr32(device, 0x00330c, 0x00000001);
 	if (!nv_wait(bar, 0x00330c, 0x00000002, 0x00000000))
 		nv_warn(bar, "flush timeout\n");
 	spin_unlock_irqrestore(&bar->lock, flags);
@@ -93,9 +94,10 @@ void
 g84_bar_flush(struct nvkm_bar *obj)
 {
 	struct nv50_bar *bar = container_of(obj, typeof(*bar), base);
+	struct nvkm_device *device = bar->base.subdev.device;
 	unsigned long flags;
 	spin_lock_irqsave(&bar->lock, flags);
-	nv_wr32(bar, 0x070000, 0x00000001);
+	nvkm_wr32(device, 0x070000, 0x00000001);
 	if (!nv_wait(bar, 0x070000, 0x00000002, 0x00000000))
 		nv_warn(bar, "flush timeout\n");
 	spin_unlock_irqrestore(&bar->lock, flags);
@@ -228,26 +230,27 @@ static int
 nv50_bar_init(struct nvkm_object *object)
 {
 	struct nv50_bar *bar = (void *)object;
+	struct nvkm_device *device = bar->base.subdev.device;
 	int ret, i;
 
 	ret = nvkm_bar_init(&bar->base);
 	if (ret)
 		return ret;
 
-	nv_mask(bar, 0x000200, 0x00000100, 0x00000000);
-	nv_mask(bar, 0x000200, 0x00000100, 0x00000100);
-	nv_wr32(bar, 0x100c80, 0x00060001);
+	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
+	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
+	nvkm_wr32(device, 0x100c80, 0x00060001);
 	if (!nv_wait(bar, 0x100c80, 0x00000001, 0x00000000)) {
 		nv_error(bar, "vm flush timeout\n");
 		return -EBUSY;
 	}
 
-	nv_wr32(bar, 0x001704, 0x00000000 | bar->mem->addr >> 12);
-	nv_wr32(bar, 0x001704, 0x40000000 | bar->mem->addr >> 12);
-	nv_wr32(bar, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
-	nv_wr32(bar, 0x00170c, 0x80000000 | bar->bar3->node->offset >> 4);
+	nvkm_wr32(device, 0x001704, 0x00000000 | bar->mem->addr >> 12);
+	nvkm_wr32(device, 0x001704, 0x40000000 | bar->mem->addr >> 12);
+	nvkm_wr32(device, 0x001708, 0x80000000 | bar->bar1->node->offset >> 4);
+	nvkm_wr32(device, 0x00170c, 0x80000000 | bar->bar3->node->offset >> 4);
 	for (i = 0; i < 8; i++)
-		nv_wr32(bar, 0x001900 + (i * 4), 0x00000000);
+		nvkm_wr32(device, 0x001900 + (i * 4), 0x00000000);
 	return 0;
 }
 

@@ -190,18 +190,19 @@ int
 gf100_bar_init(struct nvkm_object *object)
 {
 	struct gf100_bar *bar = (void *)object;
+	struct nvkm_device *device = bar->base.subdev.device;
 	int ret;
 
 	ret = nvkm_bar_init(&bar->base);
 	if (ret)
 		return ret;
 
-	nv_mask(bar, 0x000200, 0x00000100, 0x00000000);
-	nv_mask(bar, 0x000200, 0x00000100, 0x00000100);
+	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
+	nvkm_mask(device, 0x000200, 0x00000100, 0x00000100);
 
-	nv_wr32(bar, 0x001704, 0x80000000 | bar->bar[1].mem->addr >> 12);
+	nvkm_wr32(device, 0x001704, 0x80000000 | bar->bar[1].mem->addr >> 12);
 	if (bar->bar[0].mem)
-		nv_wr32(bar, 0x001714,
+		nvkm_wr32(device, 0x001714,
 			0xc0000000 | bar->bar[0].mem->addr >> 12);
 	return 0;
 }
