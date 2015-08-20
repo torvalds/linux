@@ -24,37 +24,7 @@
 #include <engine/mspdec.h>
 #include <engine/falcon.h>
 
-/*******************************************************************************
- * MSPDEC object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_mspdec_sclass[] = {
-	{ 0x88b2, &nvkm_object_ofuncs },
-	{ 0x85b2, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PMSPDEC context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_mspdec_cclass = {
-	.handle = NV_ENGCTX(MSPDEC, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMSPDEC engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static int
 g98_mspdec_init(struct nvkm_object *object)
@@ -74,6 +44,11 @@ g98_mspdec_init(struct nvkm_object *object)
 
 static const struct nvkm_falcon_func
 g98_mspdec_func = {
+	.sclass = {
+		{ -1, -1, G98_MSPDEC },
+		{ -1, -1, GT212_MSPDEC },
+		{}
+	},
 };
 
 static int
@@ -91,8 +66,6 @@ g98_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	nv_subdev(mspdec)->unit = 0x01020000;
-	nv_engine(mspdec)->cclass = &g98_mspdec_cclass;
-	nv_engine(mspdec)->sclass = g98_mspdec_sclass;
 	return 0;
 }
 

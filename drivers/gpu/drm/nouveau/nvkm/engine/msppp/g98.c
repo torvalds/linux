@@ -24,37 +24,7 @@
 #include <engine/msppp.h>
 #include <engine/falcon.h>
 
-/*******************************************************************************
- * MSPPP object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_msppp_sclass[] = {
-	{ 0x88b3, &nvkm_object_ofuncs },
-	{ 0x85b3, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PMSPPP context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_msppp_cclass = {
-	.handle = NV_ENGCTX(MSPPP, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMSPPP engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static int
 g98_msppp_init(struct nvkm_object *object)
@@ -74,6 +44,11 @@ g98_msppp_init(struct nvkm_object *object)
 
 static const struct nvkm_falcon_func
 g98_msppp_func = {
+	.sclass = {
+		{ -1, -1, G98_MSPPP },
+		{ -1, -1, GT212_MSPPP },
+		{}
+	}
 };
 
 static int
@@ -91,8 +66,6 @@ g98_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	nv_subdev(msppp)->unit = 0x00400002;
-	nv_engine(msppp)->cclass = &g98_msppp_cclass;
-	nv_engine(msppp)->sclass = g98_msppp_sclass;
 	return 0;
 }
 

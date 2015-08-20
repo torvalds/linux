@@ -29,36 +29,7 @@
 #include <core/client.h>
 #include <core/enum.h>
 
-/*******************************************************************************
- * Crypt object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_sec_sclass[] = {
-	{ 0x88b4, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PSEC context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_sec_cclass = {
-	.handle = NV_ENGCTX(SEC, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PSEC engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static const struct nvkm_enum g98_sec_isr_error_name[] = {
 	{ 0x0000, "ILLEGAL_MTHD" },
@@ -92,6 +63,10 @@ g98_sec_intr(struct nvkm_falcon *sec, struct nvkm_fifo_chan *chan)
 static const struct nvkm_falcon_func
 g98_sec_func = {
 	.intr = g98_sec_intr,
+	.sclass = {
+		{ -1, -1, G98_SEC },
+		{}
+	}
 };
 
 static int
@@ -109,8 +84,6 @@ g98_sec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	nv_subdev(sec)->unit = 0x00004000;
-	nv_engine(sec)->cclass = &g98_sec_cclass;
-	nv_engine(sec)->sclass = g98_sec_sclass;
 	nv_falcon(sec)->code.data = g98_sec_code;
 	nv_falcon(sec)->code.size = sizeof(g98_sec_code);
 	nv_falcon(sec)->data.data = g98_sec_data;

@@ -1,33 +1,12 @@
 #ifndef __NVKM_FALCON_H__
 #define __NVKM_FALCON_H__
-#include <core/engctx.h>
+#define nvkm_falcon(p) container_of((p), struct nvkm_falcon, engine)
+#include <core/engine.h>
 struct nvkm_fifo_chan;
-
-struct nvkm_falcon_chan {
-	struct nvkm_engctx base;
-};
-
-#define nvkm_falcon_context_create(p,e,c,g,s,a,f,d)                         \
-	nvkm_engctx_create((p), (e), (c), (g), (s), (a), (f), (d))
-#define nvkm_falcon_context_destroy(d)                                      \
-	nvkm_engctx_destroy(&(d)->base)
-#define nvkm_falcon_context_init(d)                                         \
-	nvkm_engctx_init(&(d)->base)
-#define nvkm_falcon_context_fini(d,s)                                       \
-	nvkm_engctx_fini(&(d)->base, (s))
-
-#define _nvkm_falcon_context_ctor _nvkm_engctx_ctor
-#define _nvkm_falcon_context_dtor _nvkm_engctx_dtor
-#define _nvkm_falcon_context_init _nvkm_engctx_init
-#define _nvkm_falcon_context_fini _nvkm_engctx_fini
-#define _nvkm_falcon_context_rd32 _nvkm_engctx_rd32
-#define _nvkm_falcon_context_wr32 _nvkm_engctx_wr32
 
 struct nvkm_falcon_data {
 	bool external;
 };
-
-#include <core/engine.h>
 
 struct nvkm_falcon {
 	struct nvkm_engine engine;
@@ -55,6 +34,7 @@ struct nvkm_falcon {
 
 struct nvkm_falcon_func {
 	void (*intr)(struct nvkm_falcon *, struct nvkm_fifo_chan *);
+	struct nvkm_sclass sclass[];
 };
 
 #define nv_falcon(priv) ((struct nvkm_falcon *)priv)

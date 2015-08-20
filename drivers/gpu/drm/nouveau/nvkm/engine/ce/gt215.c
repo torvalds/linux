@@ -28,37 +28,7 @@
 #include <core/client.h>
 #include <core/enum.h>
 
-/*******************************************************************************
- * Copy object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gt215_ce_sclass[] = {
-	{ 0x85b5, &nvkm_object_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * PCE context
- ******************************************************************************/
-
-static struct nvkm_oclass
-gt215_ce_cclass = {
-	.handle = NV_ENGCTX(CE0, 0xa3),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-
-	},
-};
-
-/*******************************************************************************
- * PCE engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static const struct nvkm_enum
 gt215_ce_isr_error_name[] = {
@@ -93,6 +63,10 @@ gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
 static const struct nvkm_falcon_func
 gt215_ce_func = {
 	.intr = gt215_ce_intr,
+	.sclass = {
+		{ -1, -1, GT212_DMA },
+		{}
+	}
 };
 
 static int
@@ -111,8 +85,6 @@ gt215_ce_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	nv_subdev(ce)->unit = 0x00802000;
-	nv_engine(ce)->cclass = &gt215_ce_cclass;
-	nv_engine(ce)->sclass = gt215_ce_sclass;
 	nv_falcon(ce)->code.data = gt215_ce_code;
 	nv_falcon(ce)->code.size = sizeof(gt215_ce_code);
 	nv_falcon(ce)->data.data = gt215_ce_data;

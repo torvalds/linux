@@ -24,6 +24,35 @@
 
 #include <subdev/timer.h>
 
+static int
+nvkm_falcon_oclass_get(struct nvkm_oclass *oclass, int index)
+{
+	struct nvkm_falcon *falcon = nvkm_falcon(oclass->engine);
+	int c = 0;
+
+	while (falcon->func->sclass[c].oclass) {
+		if (c++ == index) {
+			oclass->base = falcon->func->sclass[index];
+			return index;
+		}
+	}
+
+	return c;
+}
+
+static int
+nvkm_falcon_cclass_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+			int align, struct nvkm_gpuobj **pgpuobj)
+{
+	return nvkm_gpuobj_new(object->engine->subdev.device, 256,
+			       align, true, parent, pgpuobj);
+}
+
+static const struct nvkm_object_func
+nvkm_falcon_cclass = {
+	.bind = nvkm_falcon_cclass_bind,
+};
+
 static void
 nvkm_falcon_intr(struct nvkm_subdev *subdev)
 {
@@ -275,6 +304,12 @@ _nvkm_falcon_fini(struct nvkm_object *object, bool suspend)
 	return nvkm_engine_fini_old(&falcon->engine, suspend);
 }
 
+static const struct nvkm_engine_func
+nvkm_falcon = {
+	.fifo.sclass = nvkm_falcon_oclass_get,
+	.cclass = &nvkm_falcon_cclass,
+};
+
 int
 nvkm_falcon_create_(const struct nvkm_falcon_func *func,
 		    struct nvkm_object *parent, struct nvkm_object *engine,
@@ -292,6 +327,7 @@ nvkm_falcon_create_(const struct nvkm_falcon_func *func,
 		return ret;
 
 	falcon->engine.subdev.intr = nvkm_falcon_intr;
+	falcon->engine.func = &nvkm_falcon;
 	falcon->func = func;
 	falcon->addr = addr;
 	return 0;

@@ -24,36 +24,7 @@
 #include <engine/msvld.h>
 #include <engine/falcon.h>
 
-/*******************************************************************************
- * MSVLD object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk104_msvld_sclass[] = {
-	{ 0x95b1, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PMSVLD context
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk104_msvld_cclass = {
-	.handle = NV_ENGCTX(MSVLD, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMSVLD engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static int
 gk104_msvld_init(struct nvkm_object *object)
@@ -73,6 +44,10 @@ gk104_msvld_init(struct nvkm_object *object)
 
 static const struct nvkm_falcon_func
 gk104_msvld_func = {
+	.sclass = {
+		{ -1, -1, GK104_MSVLD },
+		{}
+	}
 };
 
 static int
@@ -90,8 +65,6 @@ gk104_msvld_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	nv_subdev(msvld)->unit = 0x00008000;
-	nv_engine(msvld)->cclass = &gk104_msvld_cclass;
-	nv_engine(msvld)->sclass = gk104_msvld_sclass;
 	return 0;
 }
 

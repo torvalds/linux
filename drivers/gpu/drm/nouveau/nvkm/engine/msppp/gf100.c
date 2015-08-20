@@ -24,36 +24,7 @@
 #include <engine/msppp.h>
 #include <engine/falcon.h>
 
-/*******************************************************************************
- * MSPPP object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gf100_msppp_sclass[] = {
-	{ 0x90b3, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PMSPPP context
- ******************************************************************************/
-
-static struct nvkm_oclass
-gf100_msppp_cclass = {
-	.handle = NV_ENGCTX(MSPPP, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PMSPPP engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static int
 gf100_msppp_init(struct nvkm_object *object)
@@ -73,6 +44,10 @@ gf100_msppp_init(struct nvkm_object *object)
 
 static const struct nvkm_falcon_func
 gf100_msppp_func = {
+	.sclass = {
+		{ -1, -1, GF100_MSPPP },
+		{}
+	}
 };
 
 static int
@@ -90,8 +65,6 @@ gf100_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	nv_subdev(msppp)->unit = 0x00000002;
-	nv_engine(msppp)->cclass = &gf100_msppp_cclass;
-	nv_engine(msppp)->sclass = gf100_msppp_sclass;
 	return 0;
 }
 

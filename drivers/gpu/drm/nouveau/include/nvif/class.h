@@ -94,6 +94,28 @@
 #define MAXWELL_A                                                    0x0000b097
 #define MAXWELL_B                                                    0x0000b197
 
+#define GT212_MSVLD                                                  0x000085b1
+#define IGT21A_MSVLD                                                 0x000086b1
+#define G98_MSVLD                                                    0x000088b1
+#define GF100_MSVLD                                                  0x000090b1
+#define GK104_MSVLD                                                  0x000095b1
+
+#define GT212_MSPDEC                                                 0x000085b2
+#define G98_MSPDEC                                                   0x000088b2
+#define GF100_MSPDEC                                                 0x000090b2
+#define GK104_MSPDEC                                                 0x000095b2
+
+#define GT212_MSPPP                                                  0x000085b3
+#define G98_MSPPP                                                    0x000088b3
+#define GF100_MSPPP                                                  0x000090b3
+
+#define G98_SEC                                                      0x000088b4
+
+#define GT212_DMA                                                    0x000085b5
+#define FERMI_DMA                                                    0x000090b5
+
+#define FERMI_DECOMPRESS                                             0x000090b8
+
 #define FERMI_COMPUTE_A                                              0x000090c0
 #define FERMI_COMPUTE_B                                              0x000091c0
 
