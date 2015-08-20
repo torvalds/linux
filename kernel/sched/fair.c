@@ -7924,21 +7924,39 @@ prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
 		check_preempt_curr(rq, p, 0);
 }
 
-static void switched_from_fair(struct rq *rq, struct task_struct *p)
+static inline bool vruntime_normalized(struct task_struct *p)
+{
+	struct sched_entity *se = &p->se;
+
+	/*
+	 * In both the TASK_ON_RQ_QUEUED and TASK_ON_RQ_MIGRATING cases,
+	 * the dequeue_entity(.flags=0) will already have normalized the
+	 * vruntime.
+	 */
+	if (p->on_rq)
+		return true;
+
+	/*
+	 * When !on_rq, vruntime of the task has usually NOT been normalized.
+	 * But there are some cases where it has already been normalized:
+	 *
+	 * - A forked child which is waiting for being woken up by
+	 *   wake_up_new_task().
+	 * - A task which has been woken up by try_to_wake_up() and
+	 *   waiting for actually being woken up by sched_ttwu_pending().
+	 */
+	if (!se->sum_exec_runtime || p->state == TASK_WAKING)
+		return true;
+
+	return false;
+}
+
+static void detach_task_cfs_rq(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
-	/*
-	 * Ensure the task's vruntime is normalized, so that when it's
-	 * switched back to the fair class the enqueue_entity(.flags=0) will
-	 * do the right thing.
-	 *
-	 * If it's queued, then the dequeue_entity(.flags=0) will already
-	 * have normalized the vruntime, if it's !queued, then only when
-	 * the task is sleeping will it still have non-normalized vruntime.
-	 */
-	if (!task_on_rq_queued(p) && p->state != TASK_RUNNING) {
+	if (!vruntime_normalized(p)) {
 		/*
 		 * Fix up our vruntime so that the current sleep doesn't
 		 * cause 'unlimited' sleep bonus.
@@ -7951,9 +7969,10 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
 	detach_entity_load_avg(cfs_rq, se);
 }
 
-static void switched_to_fair(struct rq *rq, struct task_struct *p)
+static void attach_task_cfs_rq(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/*
@@ -7964,33 +7983,32 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
 #endif
 
 	/* Synchronize task with its cfs_rq */
-	attach_entity_load_avg(cfs_rq_of(&p->se), &p->se);
+	attach_entity_load_avg(cfs_rq, se);
 
-	if (!task_on_rq_queued(p)) {
+	if (!vruntime_normalized(p))
+		se->vruntime += cfs_rq->min_vruntime;
+}
 
+static void switched_from_fair(struct rq *rq, struct task_struct *p)
+{
+	detach_task_cfs_rq(p);
+}
+
+static void switched_to_fair(struct rq *rq, struct task_struct *p)
+{
+	attach_task_cfs_rq(p);
+
+	if (task_on_rq_queued(p)) {
 		/*
-		 * Ensure the task has a non-normalized vruntime when it is switched
-		 * back to the fair class with !queued, so that enqueue_entity() at
-		 * wake-up time will do the right thing.
-		 *
-		 * If it's queued, then the enqueue_entity(.flags=0) makes the task
-		 * has non-normalized vruntime, if it's !queued, then it still has
-		 * normalized vruntime.
+		 * We were most likely switched from sched_rt, so
+		 * kick off the schedule if running, otherwise just see
+		 * if we can still preempt the current task.
 		 */
-		if (p->state != TASK_RUNNING)
-			se->vruntime += cfs_rq_of(se)->min_vruntime;
-		return;
+		if (rq->curr == p)
+			resched_curr(rq);
+		else
+			check_preempt_curr(rq, p, 0);
 	}
-
-	/*
-	 * We were most likely switched from sched_rt, so
-	 * kick off the schedule if running, otherwise just see
-	 * if we can still preempt the current task.
-	 */
-	if (rq->curr == p)
-		resched_curr(rq);
-	else
-		check_preempt_curr(rq, p, 0);
 }
 
 /* Account for a task changing its policy or group.
@@ -8027,57 +8045,14 @@ void init_cfs_rq(struct cfs_rq *cfs_rq)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static void task_move_group_fair(struct task_struct *p, int queued)
 {
-	struct sched_entity *se = &p->se;
-	struct cfs_rq *cfs_rq;
-
-	/*
-	 * If the task was not on the rq at the time of this cgroup movement
-	 * it must have been asleep, sleeping tasks keep their ->vruntime
-	 * absolute on their old rq until wakeup (needed for the fair sleeper
-	 * bonus in place_entity()).
-	 *
-	 * If it was on the rq, we've just 'preempted' it, which does convert
-	 * ->vruntime to a relative base.
-	 *
-	 * Make sure both cases convert their relative position when migrating
-	 * to another cgroup's rq. This does somewhat interfere with the
-	 * fair sleeper stuff for the first placement, but who cares.
-	 */
-	/*
-	 * When !queued, vruntime of the task has usually NOT been normalized.
-	 * But there are some cases where it has already been normalized:
-	 *
-	 * - Moving a forked child which is waiting for being woken up by
-	 *   wake_up_new_task().
-	 * - Moving a task which has been woken up by try_to_wake_up() and
-	 *   waiting for actually being woken up by sched_ttwu_pending().
-	 *
-	 * To prevent boost or penalty in the new cfs_rq caused by delta
-	 * min_vruntime between the two cfs_rqs, we skip vruntime adjustment.
-	 */
-	if (!queued && (!se->sum_exec_runtime || p->state == TASK_WAKING))
-		queued = 1;
-
-	cfs_rq = cfs_rq_of(se);
-	if (!queued)
-		se->vruntime -= cfs_rq->min_vruntime;
-
-	/* Synchronize task with its prev cfs_rq */
-	detach_entity_load_avg(cfs_rq, se);
+	detach_task_cfs_rq(p);
 	set_task_rq(p, task_cpu(p));
 
 #ifdef CONFIG_SMP
 	/* Tell se's cfs_rq has been changed -- migrated */
 	p->se.avg.last_update_time = 0;
 #endif
-
-	se->depth = se->parent ? se->parent->depth + 1 : 0;
-	cfs_rq = cfs_rq_of(se);
-	if (!queued)
-		se->vruntime += cfs_rq->min_vruntime;
-
-	/* Virtually synchronize task with its new cfs_rq */
-	attach_entity_load_avg(cfs_rq, se);
+	attach_task_cfs_rq(p);
 }
 
 void free_fair_sched_group(struct task_group *tg)
