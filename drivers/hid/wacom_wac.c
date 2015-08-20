@@ -631,6 +631,130 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	return 0;
 }
 
+static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
+{
+	unsigned char *data = wacom_wac->data;
+	struct input_dev *input = wacom_wac->pad_input;
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	struct wacom_features *features = &wacom_wac->features;
+	int bat_charging, bat_percent, touch_ring_mode;
+	__u32 serial;
+	int i;
+
+	if (data[0] != WACOM_REPORT_REMOTE) {
+		dev_dbg(input->dev.parent,
+			"%s: received unknown report #%d", __func__, data[0]);
+		return 0;
+	}
+
+	serial = data[3] + (data[4] << 8) + (data[5] << 16);
+	wacom_wac->id[0] = PAD_DEVICE_ID;
+
+	input_report_key(input, BTN_0, (data[9] & 0x01));
+	input_report_key(input, BTN_1, (data[9] & 0x02));
+	input_report_key(input, BTN_2, (data[9] & 0x04));
+	input_report_key(input, BTN_3, (data[9] & 0x08));
+	input_report_key(input, BTN_4, (data[9] & 0x10));
+	input_report_key(input, BTN_5, (data[9] & 0x20));
+	input_report_key(input, BTN_6, (data[9] & 0x40));
+	input_report_key(input, BTN_7, (data[9] & 0x80));
+
+	input_report_key(input, BTN_8, (data[10] & 0x01));
+	input_report_key(input, BTN_9, (data[10] & 0x02));
+	input_report_key(input, BTN_A, (data[10] & 0x04));
+	input_report_key(input, BTN_B, (data[10] & 0x08));
+	input_report_key(input, BTN_C, (data[10] & 0x10));
+	input_report_key(input, BTN_X, (data[10] & 0x20));
+	input_report_key(input, BTN_Y, (data[10] & 0x40));
+	input_report_key(input, BTN_Z, (data[10] & 0x80));
+
+	input_report_key(input, BTN_BASE, (data[11] & 0x01));
+	input_report_key(input, BTN_BASE2, (data[11] & 0x02));
+
+	if (data[12] & 0x80)
+		input_report_abs(input, ABS_WHEEL, (data[12] & 0x7f));
+	else
+		input_report_abs(input, ABS_WHEEL, 0);
+
+	bat_percent = data[7] & 0x7f;
+	bat_charging = !!(data[7] & 0x80);
+
+	if (data[9] | data[10] | (data[11] & 0x03) | data[12])
+		input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
+	else
+		input_report_abs(input, ABS_MISC, 0);
+
+	input_event(input, EV_MSC, MSC_SERIAL, serial);
+
+	/*Which mode select (LED light) is currently on?*/
+	touch_ring_mode = (data[11] & 0xC0) >> 6;
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (wacom_wac->serial[i] == serial)
+			wacom->led.select[i] = touch_ring_mode;
+	}
+
+	if (!wacom->battery &&
+	    !(features->quirks & WACOM_QUIRK_BATTERY)) {
+		features->quirks |= WACOM_QUIRK_BATTERY;
+		INIT_WORK(&wacom->work, wacom_battery_work);
+		wacom_schedule_work(wacom_wac);
+	}
+
+	wacom_notify_battery(wacom_wac, bat_percent, bat_charging, 1,
+			     bat_charging);
+
+	return 1;
+}
+
+static int wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
+{
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	unsigned char *data = wacom_wac->data;
+	int i;
+
+	if (data[0] != WACOM_REPORT_DEVICE_LIST)
+		return 0;
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		int j = i * 6;
+		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
+		bool connected = data[j+2];
+
+		if (connected) {
+			int k;
+
+			if (wacom_wac->serial[i] == serial)
+				continue;
+
+			if (wacom_wac->serial[i]) {
+				wacom_remote_destroy_attr_group(wacom,
+							wacom_wac->serial[i]);
+			}
+
+			/* A remote can pair more than once with an EKR,
+			 * check to make sure this serial isn't already paired.
+			 */
+			for (k = 0; k < WACOM_MAX_REMOTES; k++) {
+				if (wacom_wac->serial[k] == serial)
+					break;
+			}
+
+			if (k < WACOM_MAX_REMOTES) {
+				wacom_wac->serial[i] = serial;
+				continue;
+			}
+			wacom_remote_create_attr_group(wacom, serial, i);
+
+		} else if (wacom_wac->serial[i]) {
+			wacom_remote_destroy_attr_group(wacom,
+							wacom_wac->serial[i]);
+		}
+	}
+
+	return 0;
+}
+
 static void wacom_intuos_general(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
@@ -2191,6 +2315,13 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		sync = wacom_wireless_irq(wacom_wac, len);
 		break;
 
+	case REMOTE:
+		if (wacom_wac->data[0] == WACOM_REPORT_DEVICE_LIST)
+			sync = wacom_remote_status_irq(wacom_wac, len);
+		else
+			sync = wacom_remote_irq(wacom_wac, len);
+		break;
+
 	default:
 		sync = false;
 		break;
@@ -2297,6 +2428,9 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	 */
 	if (features->type == BAMBOO_PAD)
 		features->device_type = WACOM_DEVICETYPE_TOUCH;
+
+	if (features->type == REMOTE)
+		features->device_type = WACOM_DEVICETYPE_PAD;
 
 	if (wacom->hdev->bus == BUS_BLUETOOTH)
 		features->quirks |= WACOM_QUIRK_BATTERY;
@@ -2715,6 +2849,11 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		__set_bit(BTN_BACK, input_dev->keybit);
 		__set_bit(BTN_RIGHT, input_dev->keybit);
 
+		break;
+
+	case REMOTE:
+		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
 		break;
 
 	default:
@@ -3186,6 +3325,10 @@ static const struct wacom_features wacom_features_0x323 =
 	{ "Wacom Intuos P M", 21600, 13500, 1023, 31,
 	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
+static const struct wacom_features wacom_features_0x331 =
+	{ "Wacom Express Key Remote", 0, 0, 0, 0,
+	  REMOTE, 0, 0, 18, .check_for_hid_type = true,
+	  .hid_type = HID_TYPE_USBNONE };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC };
@@ -3341,6 +3484,7 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x32B) },
 	{ USB_DEVICE_WACOM(0x32C) },
 	{ USB_DEVICE_WACOM(0x32F) },
+	{ USB_DEVICE_WACOM(0x331) },
 	{ USB_DEVICE_WACOM(0x333) },
 	{ USB_DEVICE_WACOM(0x335) },
 	{ USB_DEVICE_WACOM(0x336) },
