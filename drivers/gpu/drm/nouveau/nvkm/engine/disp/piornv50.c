@@ -162,9 +162,9 @@ nv50_pior_power(NV50_DISP_MTHD_V1)
 	} else
 		return ret;
 
-	nv_wait(priv, 0x61e004 + soff, 0x80000000, 0x00000000);
-	nv_mask(priv, 0x61e004 + soff, 0x80000101, 0x80000000 | ctrl);
-	nv_wait(priv, 0x61e004 + soff, 0x80000000, 0x00000000);
-	priv->pior.type[outp->or] = type;
+	nv_wait(disp, 0x61e004 + soff, 0x80000000, 0x00000000);
+	nv_mask(disp, 0x61e004 + soff, 0x80000101, 0x80000000 | ctrl);
+	nv_wait(disp, 0x61e004 + soff, 0x80000000, 0x00000000);
+	disp->pior.type[outp->or] = type;
 	return 0;
 }

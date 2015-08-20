@@ -48,9 +48,9 @@ nv50_sor_power(NV50_DISP_MTHD_V1)
 	} else
 		return ret;
 
-	nv_wait(priv, 0x61c004 + soff, 0x80000000, 0x00000000);
-	nv_mask(priv, 0x61c004 + soff, 0x80000001, 0x80000000 | stat);
-	nv_wait(priv, 0x61c004 + soff, 0x80000000, 0x00000000);
-	nv_wait(priv, 0x61c030 + soff, 0x10000000, 0x00000000);
+	nv_wait(disp, 0x61c004 + soff, 0x80000000, 0x00000000);
+	nv_mask(disp, 0x61c004 + soff, 0x80000001, 0x80000000 | stat);
+	nv_wait(disp, 0x61c004 + soff, 0x80000000, 0x00000000);
+	nv_wait(disp, 0x61c030 + soff, 0x10000000, 0x00000000);
 	return 0;
 }

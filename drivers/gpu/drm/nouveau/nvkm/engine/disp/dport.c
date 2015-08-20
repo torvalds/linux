@@ -322,7 +322,7 @@ void
 nvkm_dp_train(struct work_struct *w)
 {
 	struct nvkm_output_dp *outp = container_of(w, typeof(*outp), lt.work);
-	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
+	struct nv50_disp *disp = (void *)nvkm_disp(outp);
 	const struct dp_rates *cfg = nvkm_dp_rates;
 	struct dp_state _dp = {
 		.outp = outp,
@@ -330,11 +330,11 @@ nvkm_dp_train(struct work_struct *w)
 	u32 datarate = 0;
 	int ret;
 
-	if (!outp->base.info.location && priv->sor.magic)
-		priv->sor.magic(&outp->base);
+	if (!outp->base.info.location && disp->sor.magic)
+		disp->sor.magic(&outp->base);
 
 	/* bring capabilities within encoder limits */
-	if (nv_mclass(priv) < GF110_DISP)
+	if (nv_mclass(disp) < GF110_DISP)
 		outp->dpcd[2] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	if ((outp->dpcd[2] & 0x1f) > outp->base.info.dpconf.link_nr) {
 		outp->dpcd[2] &= ~DPCD_RC02_MAX_LANE_COUNT;

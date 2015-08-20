@@ -53,9 +53,9 @@ nv50_dac_power(NV50_DISP_MTHD_V1)
 	} else
 		return ret;
 
-	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
-	nv_mask(priv, 0x61a004 + doff, 0xc000007f, 0x80000000 | stat);
-	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
+	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
+	nv_mask(disp, 0x61a004 + doff, 0xc000007f, 0x80000000 | stat);
+	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
 	return 0;
 }
 
@@ -79,18 +79,18 @@ nv50_dac_sense(NV50_DISP_MTHD_V1)
 	} else
 		return ret;
 
-	nv_mask(priv, 0x61a004 + doff, 0x807f0000, 0x80150000);
-	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
+	nv_mask(disp, 0x61a004 + doff, 0x807f0000, 0x80150000);
+	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
 
-	nv_wr32(priv, 0x61a00c + doff, 0x00100000 | loadval);
+	nv_wr32(disp, 0x61a00c + doff, 0x00100000 | loadval);
 	mdelay(9);
 	udelay(500);
-	loadval = nv_mask(priv, 0x61a00c + doff, 0xffffffff, 0x00000000);
+	loadval = nv_mask(disp, 0x61a00c + doff, 0xffffffff, 0x00000000);
 
-	nv_mask(priv, 0x61a004 + doff, 0x807f0000, 0x80550000);
-	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
+	nv_mask(disp, 0x61a004 + doff, 0x807f0000, 0x80550000);
+	nv_wait(disp, 0x61a004 + doff, 0x80000000, 0x00000000);
 
-	nv_debug(priv, "DAC%d sense: 0x%08x\n", outp->or, loadval);
+	nv_debug(disp, "DAC%d sense: 0x%08x\n", outp->or, loadval);
 	if (!(loadval & 0x80000000))
 		return -ETIMEDOUT;
 

@@ -54,38 +54,38 @@ g84_hdmi_ctrl(NV50_DISP_MTHD_V1)
 		return ret;
 
 	if (!(ctrl & 0x40000000)) {
-		nv_mask(priv, 0x6165a4 + hoff, 0x40000000, 0x00000000);
-		nv_mask(priv, 0x616520 + hoff, 0x00000001, 0x00000000);
-		nv_mask(priv, 0x616500 + hoff, 0x00000001, 0x00000000);
+		nv_mask(disp, 0x6165a4 + hoff, 0x40000000, 0x00000000);
+		nv_mask(disp, 0x616520 + hoff, 0x00000001, 0x00000000);
+		nv_mask(disp, 0x616500 + hoff, 0x00000001, 0x00000000);
 		return 0;
 	}
 
 	/* AVI InfoFrame */
-	nv_mask(priv, 0x616520 + hoff, 0x00000001, 0x00000000);
-	nv_wr32(priv, 0x616528 + hoff, 0x000d0282);
-	nv_wr32(priv, 0x61652c + hoff, 0x0000006f);
-	nv_wr32(priv, 0x616530 + hoff, 0x00000000);
-	nv_wr32(priv, 0x616534 + hoff, 0x00000000);
-	nv_wr32(priv, 0x616538 + hoff, 0x00000000);
-	nv_mask(priv, 0x616520 + hoff, 0x00000001, 0x00000001);
+	nv_mask(disp, 0x616520 + hoff, 0x00000001, 0x00000000);
+	nv_wr32(disp, 0x616528 + hoff, 0x000d0282);
+	nv_wr32(disp, 0x61652c + hoff, 0x0000006f);
+	nv_wr32(disp, 0x616530 + hoff, 0x00000000);
+	nv_wr32(disp, 0x616534 + hoff, 0x00000000);
+	nv_wr32(disp, 0x616538 + hoff, 0x00000000);
+	nv_mask(disp, 0x616520 + hoff, 0x00000001, 0x00000001);
 
 	/* Audio InfoFrame */
-	nv_mask(priv, 0x616500 + hoff, 0x00000001, 0x00000000);
-	nv_wr32(priv, 0x616508 + hoff, 0x000a0184);
-	nv_wr32(priv, 0x61650c + hoff, 0x00000071);
-	nv_wr32(priv, 0x616510 + hoff, 0x00000000);
-	nv_mask(priv, 0x616500 + hoff, 0x00000001, 0x00000001);
+	nv_mask(disp, 0x616500 + hoff, 0x00000001, 0x00000000);
+	nv_wr32(disp, 0x616508 + hoff, 0x000a0184);
+	nv_wr32(disp, 0x61650c + hoff, 0x00000071);
+	nv_wr32(disp, 0x616510 + hoff, 0x00000000);
+	nv_mask(disp, 0x616500 + hoff, 0x00000001, 0x00000001);
 
-	nv_mask(priv, 0x6165d0 + hoff, 0x00070001, 0x00010001); /* SPARE, HW_CTS */
-	nv_mask(priv, 0x616568 + hoff, 0x00010101, 0x00000000); /* ACR_CTRL, ?? */
-	nv_mask(priv, 0x616578 + hoff, 0x80000000, 0x80000000); /* ACR_0441_ENABLE */
+	nv_mask(disp, 0x6165d0 + hoff, 0x00070001, 0x00010001); /* SPARE, HW_CTS */
+	nv_mask(disp, 0x616568 + hoff, 0x00010101, 0x00000000); /* ACR_CTRL, ?? */
+	nv_mask(disp, 0x616578 + hoff, 0x80000000, 0x80000000); /* ACR_0441_ENABLE */
 
 	/* ??? */
-	nv_mask(priv, 0x61733c, 0x00100000, 0x00100000); /* RESETF */
-	nv_mask(priv, 0x61733c, 0x10000000, 0x10000000); /* LOOKUP_EN */
-	nv_mask(priv, 0x61733c, 0x00100000, 0x00000000); /* !RESETF */
+	nv_mask(disp, 0x61733c, 0x00100000, 0x00100000); /* RESETF */
+	nv_mask(disp, 0x61733c, 0x10000000, 0x10000000); /* LOOKUP_EN */
+	nv_mask(disp, 0x61733c, 0x00100000, 0x00000000); /* !RESETF */
 
 	/* HDMI_CTRL */
-	nv_mask(priv, 0x6165a4 + hoff, 0x5f1f007f, ctrl);
+	nv_mask(disp, 0x6165a4 + hoff, 0x5f1f007f, ctrl);
 	return 0;
 }

@@ -223,33 +223,33 @@ g84_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
-	struct nv50_disp_priv *priv;
+	struct nv50_disp *disp;
 	int ret;
 
 	ret = nvkm_disp_create(parent, engine, oclass, 2, "PDISP",
-			       "display", &priv);
-	*pobject = nv_object(priv);
+			       "display", &disp);
+	*pobject = nv_object(disp);
 	if (ret)
 		return ret;
 
-	ret = nvkm_event_init(&nv50_disp_chan_uevent, 1, 9, &priv->uevent);
+	ret = nvkm_event_init(&nv50_disp_chan_uevent, 1, 9, &disp->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = g84_disp_main_oclass;
-	nv_engine(priv)->cclass = &nv50_disp_cclass;
-	nv_subdev(priv)->intr = nv50_disp_intr;
-	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
-	priv->sclass = g84_disp_sclass;
-	priv->head.nr = 2;
-	priv->dac.nr = 3;
-	priv->sor.nr = 2;
-	priv->pior.nr = 3;
-	priv->dac.power = nv50_dac_power;
-	priv->dac.sense = nv50_dac_sense;
-	priv->sor.power = nv50_sor_power;
-	priv->sor.hdmi = g84_hdmi_ctrl;
-	priv->pior.power = nv50_pior_power;
+	nv_engine(disp)->sclass = g84_disp_main_oclass;
+	nv_engine(disp)->cclass = &nv50_disp_cclass;
+	nv_subdev(disp)->intr = nv50_disp_intr;
+	INIT_WORK(&disp->supervisor, nv50_disp_intr_supervisor);
+	disp->sclass = g84_disp_sclass;
+	disp->head.nr = 2;
+	disp->dac.nr = 3;
+	disp->sor.nr = 2;
+	disp->pior.nr = 3;
+	disp->dac.power = nv50_dac_power;
+	disp->dac.sense = nv50_dac_sense;
+	disp->sor.power = nv50_sor_power;
+	disp->sor.hdmi = g84_hdmi_ctrl;
+	disp->pior.power = nv50_pior_power;
 	return 0;
 }
 

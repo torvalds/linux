@@ -46,17 +46,17 @@
 static void
 gf110_disp_chan_uevent_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
-	nv_mask(priv, 0x610090, 0x00000001 << index, 0x00000000 << index);
-	nv_wr32(priv, 0x61008c, 0x00000001 << index);
+	struct nv50_disp *disp = container_of(event, typeof(*disp), uevent);
+	nv_mask(disp, 0x610090, 0x00000001 << index, 0x00000000 << index);
+	nv_wr32(disp, 0x61008c, 0x00000001 << index);
 }
 
 static void
 gf110_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
 {
-	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
-	nv_wr32(priv, 0x61008c, 0x00000001 << index);
-	nv_mask(priv, 0x610090, 0x00000001 << index, 0x00000001 << index);
+	struct nv50_disp *disp = container_of(event, typeof(*disp), uevent);
+	nv_wr32(disp, 0x61008c, 0x00000001 << index);
+	nv_mask(disp, 0x610090, 0x00000001 << index, 0x00000001 << index);
 }
 
 const struct nvkm_event_func
@@ -91,7 +91,7 @@ gf110_disp_dmac_object_detach(struct nvkm_object *parent, int cookie)
 static int
 gf110_disp_dmac_init(struct nvkm_object *object)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *dmac = (void *)object;
 	int chid = dmac->base.chid;
 	int ret;
@@ -101,20 +101,20 @@ gf110_disp_dmac_init(struct nvkm_object *object)
 		return ret;
 
 	/* enable error reporting */
-	nv_mask(priv, 0x6100a0, 0x00000001 << chid, 0x00000001 << chid);
+	nv_mask(disp, 0x6100a0, 0x00000001 << chid, 0x00000001 << chid);
 
 	/* initialise channel for dma command submission */
-	nv_wr32(priv, 0x610494 + (chid * 0x0010), dmac->push);
-	nv_wr32(priv, 0x610498 + (chid * 0x0010), 0x00010000);
-	nv_wr32(priv, 0x61049c + (chid * 0x0010), 0x00000001);
-	nv_mask(priv, 0x610490 + (chid * 0x0010), 0x00000010, 0x00000010);
-	nv_wr32(priv, 0x640000 + (chid * 0x1000), 0x00000000);
-	nv_wr32(priv, 0x610490 + (chid * 0x0010), 0x00000013);
+	nv_wr32(disp, 0x610494 + (chid * 0x0010), dmac->push);
+	nv_wr32(disp, 0x610498 + (chid * 0x0010), 0x00010000);
+	nv_wr32(disp, 0x61049c + (chid * 0x0010), 0x00000001);
+	nv_mask(disp, 0x610490 + (chid * 0x0010), 0x00000010, 0x00000010);
+	nv_wr32(disp, 0x640000 + (chid * 0x1000), 0x00000000);
+	nv_wr32(disp, 0x610490 + (chid * 0x0010), 0x00000013);
 
 	/* wait for it to go inactive */
-	if (!nv_wait(priv, 0x610490 + (chid * 0x10), 0x80000000, 0x00000000)) {
+	if (!nv_wait(disp, 0x610490 + (chid * 0x10), 0x80000000, 0x00000000)) {
 		nv_error(dmac, "init: 0x%08x\n",
-			 nv_rd32(priv, 0x610490 + (chid * 0x10)));
+			 nv_rd32(disp, 0x610490 + (chid * 0x10)));
 		return -EBUSY;
 	}
 
@@ -124,23 +124,23 @@ gf110_disp_dmac_init(struct nvkm_object *object)
 static int
 gf110_disp_dmac_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *dmac = (void *)object;
 	int chid = dmac->base.chid;
 
 	/* deactivate channel */
-	nv_mask(priv, 0x610490 + (chid * 0x0010), 0x00001010, 0x00001000);
-	nv_mask(priv, 0x610490 + (chid * 0x0010), 0x00000003, 0x00000000);
-	if (!nv_wait(priv, 0x610490 + (chid * 0x10), 0x001e0000, 0x00000000)) {
+	nv_mask(disp, 0x610490 + (chid * 0x0010), 0x00001010, 0x00001000);
+	nv_mask(disp, 0x610490 + (chid * 0x0010), 0x00000003, 0x00000000);
+	if (!nv_wait(disp, 0x610490 + (chid * 0x10), 0x001e0000, 0x00000000)) {
 		nv_error(dmac, "fini: 0x%08x\n",
-			 nv_rd32(priv, 0x610490 + (chid * 0x10)));
+			 nv_rd32(disp, 0x610490 + (chid * 0x10)));
 		if (suspend)
 			return -EBUSY;
 	}
 
 	/* disable error reporting and completion notification */
-	nv_mask(priv, 0x610090, 0x00000001 << chid, 0x00000000);
-	nv_mask(priv, 0x6100a0, 0x00000001 << chid, 0x00000000);
+	nv_mask(disp, 0x610090, 0x00000001 << chid, 0x00000000);
+	nv_mask(disp, 0x6100a0, 0x00000001 << chid, 0x00000000);
 
 	return nv50_disp_chan_fini(&dmac->base, suspend);
 }
@@ -292,7 +292,7 @@ gf110_disp_core_mthd_chan = {
 static int
 gf110_disp_core_init(struct nvkm_object *object)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *mast = (void *)object;
 	int ret;
 
@@ -301,19 +301,19 @@ gf110_disp_core_init(struct nvkm_object *object)
 		return ret;
 
 	/* enable error reporting */
-	nv_mask(priv, 0x6100a0, 0x00000001, 0x00000001);
+	nv_mask(disp, 0x6100a0, 0x00000001, 0x00000001);
 
 	/* initialise channel for dma command submission */
-	nv_wr32(priv, 0x610494, mast->push);
-	nv_wr32(priv, 0x610498, 0x00010000);
-	nv_wr32(priv, 0x61049c, 0x00000001);
-	nv_mask(priv, 0x610490, 0x00000010, 0x00000010);
-	nv_wr32(priv, 0x640000, 0x00000000);
-	nv_wr32(priv, 0x610490, 0x01000013);
+	nv_wr32(disp, 0x610494, mast->push);
+	nv_wr32(disp, 0x610498, 0x00010000);
+	nv_wr32(disp, 0x61049c, 0x00000001);
+	nv_mask(disp, 0x610490, 0x00000010, 0x00000010);
+	nv_wr32(disp, 0x640000, 0x00000000);
+	nv_wr32(disp, 0x610490, 0x01000013);
 
 	/* wait for it to go inactive */
-	if (!nv_wait(priv, 0x610490, 0x80000000, 0x00000000)) {
-		nv_error(mast, "init: 0x%08x\n", nv_rd32(priv, 0x610490));
+	if (!nv_wait(disp, 0x610490, 0x80000000, 0x00000000)) {
+		nv_error(mast, "init: 0x%08x\n", nv_rd32(disp, 0x610490));
 		return -EBUSY;
 	}
 
@@ -323,21 +323,21 @@ gf110_disp_core_init(struct nvkm_object *object)
 static int
 gf110_disp_core_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_dmac *mast = (void *)object;
 
 	/* deactivate channel */
-	nv_mask(priv, 0x610490, 0x00000010, 0x00000000);
-	nv_mask(priv, 0x610490, 0x00000003, 0x00000000);
-	if (!nv_wait(priv, 0x610490, 0x001e0000, 0x00000000)) {
-		nv_error(mast, "fini: 0x%08x\n", nv_rd32(priv, 0x610490));
+	nv_mask(disp, 0x610490, 0x00000010, 0x00000000);
+	nv_mask(disp, 0x610490, 0x00000003, 0x00000000);
+	if (!nv_wait(disp, 0x610490, 0x001e0000, 0x00000000)) {
+		nv_error(mast, "fini: 0x%08x\n", nv_rd32(disp, 0x610490));
 		if (suspend)
 			return -EBUSY;
 	}
 
 	/* disable error reporting and completion notification */
-	nv_mask(priv, 0x610090, 0x00000001, 0x00000000);
-	nv_mask(priv, 0x6100a0, 0x00000001, 0x00000000);
+	nv_mask(disp, 0x610090, 0x00000001, 0x00000000);
+	nv_mask(disp, 0x6100a0, 0x00000001, 0x00000000);
 
 	return nv50_disp_chan_fini(&mast->base, suspend);
 }
@@ -539,7 +539,7 @@ gf110_disp_ovly_ofuncs = {
 static int
 gf110_disp_pioc_init(struct nvkm_object *object)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_pioc *pioc = (void *)object;
 	int chid = pioc->base.chid;
 	int ret;
@@ -549,13 +549,13 @@ gf110_disp_pioc_init(struct nvkm_object *object)
 		return ret;
 
 	/* enable error reporting */
-	nv_mask(priv, 0x6100a0, 0x00000001 << chid, 0x00000001 << chid);
+	nv_mask(disp, 0x6100a0, 0x00000001 << chid, 0x00000001 << chid);
 
 	/* activate channel */
-	nv_wr32(priv, 0x610490 + (chid * 0x10), 0x00000001);
-	if (!nv_wait(priv, 0x610490 + (chid * 0x10), 0x00030000, 0x00010000)) {
+	nv_wr32(disp, 0x610490 + (chid * 0x10), 0x00000001);
+	if (!nv_wait(disp, 0x610490 + (chid * 0x10), 0x00030000, 0x00010000)) {
 		nv_error(pioc, "init: 0x%08x\n",
-			 nv_rd32(priv, 0x610490 + (chid * 0x10)));
+			 nv_rd32(disp, 0x610490 + (chid * 0x10)));
 		return -EBUSY;
 	}
 
@@ -565,21 +565,21 @@ gf110_disp_pioc_init(struct nvkm_object *object)
 static int
 gf110_disp_pioc_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_pioc *pioc = (void *)object;
 	int chid = pioc->base.chid;
 
-	nv_mask(priv, 0x610490 + (chid * 0x10), 0x00000001, 0x00000000);
-	if (!nv_wait(priv, 0x610490 + (chid * 0x10), 0x00030000, 0x00000000)) {
+	nv_mask(disp, 0x610490 + (chid * 0x10), 0x00000001, 0x00000000);
+	if (!nv_wait(disp, 0x610490 + (chid * 0x10), 0x00030000, 0x00000000)) {
 		nv_error(pioc, "timeout: 0x%08x\n",
-			 nv_rd32(priv, 0x610490 + (chid * 0x10)));
+			 nv_rd32(disp, 0x610490 + (chid * 0x10)));
 		if (suspend)
 			return -EBUSY;
 	}
 
 	/* disable error reporting and completion notification */
-	nv_mask(priv, 0x610090, 0x00000001 << chid, 0x00000000);
-	nv_mask(priv, 0x6100a0, 0x00000001 << chid, 0x00000000);
+	nv_mask(disp, 0x610090, 0x00000001 << chid, 0x00000000);
+	nv_mask(disp, 0x6100a0, 0x00000001 << chid, 0x00000000);
 
 	return nv50_disp_chan_fini(&pioc->base, suspend);
 }
@@ -625,9 +625,9 @@ gf110_disp_curs_ofuncs = {
 int
 gf110_disp_main_scanoutpos(NV50_DISP_MTHD_V0)
 {
-	const u32 total  = nv_rd32(priv, 0x640414 + (head * 0x300));
-	const u32 blanke = nv_rd32(priv, 0x64041c + (head * 0x300));
-	const u32 blanks = nv_rd32(priv, 0x640420 + (head * 0x300));
+	const u32 total  = nv_rd32(disp, 0x640414 + (head * 0x300));
+	const u32 blanke = nv_rd32(disp, 0x64041c + (head * 0x300));
+	const u32 blanks = nv_rd32(disp, 0x640420 + (head * 0x300));
 	union {
 		struct nv04_disp_scanoutpos_v0 v0;
 	} *args = data;
@@ -644,10 +644,10 @@ gf110_disp_main_scanoutpos(NV50_DISP_MTHD_V0)
 		args->v0.htotal  = ( total & 0x0000ffff);
 		args->v0.time[0] = ktime_to_ns(ktime_get());
 		args->v0.vline = /* vline read locks hline */
-			nv_rd32(priv, 0x616340 + (head * 0x800)) & 0xffff;
+			nv_rd32(disp, 0x616340 + (head * 0x800)) & 0xffff;
 		args->v0.time[1] = ktime_to_ns(ktime_get());
 		args->v0.hline =
-			nv_rd32(priv, 0x616344 + (head * 0x800)) & 0xffff;
+			nv_rd32(disp, 0x616344 + (head * 0x800)) & 0xffff;
 	} else
 		return ret;
 
@@ -657,7 +657,7 @@ gf110_disp_main_scanoutpos(NV50_DISP_MTHD_V0)
 static int
 gf110_disp_main_init(struct nvkm_object *object)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_base *base = (void *)object;
 	int ret, i;
 	u32 tmp;
@@ -672,44 +672,44 @@ gf110_disp_main_init(struct nvkm_object *object)
 	 */
 
 	/* ... CRTC caps */
-	for (i = 0; i < priv->head.nr; i++) {
-		tmp = nv_rd32(priv, 0x616104 + (i * 0x800));
-		nv_wr32(priv, 0x6101b4 + (i * 0x800), tmp);
-		tmp = nv_rd32(priv, 0x616108 + (i * 0x800));
-		nv_wr32(priv, 0x6101b8 + (i * 0x800), tmp);
-		tmp = nv_rd32(priv, 0x61610c + (i * 0x800));
-		nv_wr32(priv, 0x6101bc + (i * 0x800), tmp);
+	for (i = 0; i < disp->head.nr; i++) {
+		tmp = nv_rd32(disp, 0x616104 + (i * 0x800));
+		nv_wr32(disp, 0x6101b4 + (i * 0x800), tmp);
+		tmp = nv_rd32(disp, 0x616108 + (i * 0x800));
+		nv_wr32(disp, 0x6101b8 + (i * 0x800), tmp);
+		tmp = nv_rd32(disp, 0x61610c + (i * 0x800));
+		nv_wr32(disp, 0x6101bc + (i * 0x800), tmp);
 	}
 
 	/* ... DAC caps */
-	for (i = 0; i < priv->dac.nr; i++) {
-		tmp = nv_rd32(priv, 0x61a000 + (i * 0x800));
-		nv_wr32(priv, 0x6101c0 + (i * 0x800), tmp);
+	for (i = 0; i < disp->dac.nr; i++) {
+		tmp = nv_rd32(disp, 0x61a000 + (i * 0x800));
+		nv_wr32(disp, 0x6101c0 + (i * 0x800), tmp);
 	}
 
 	/* ... SOR caps */
-	for (i = 0; i < priv->sor.nr; i++) {
-		tmp = nv_rd32(priv, 0x61c000 + (i * 0x800));
-		nv_wr32(priv, 0x6301c4 + (i * 0x800), tmp);
+	for (i = 0; i < disp->sor.nr; i++) {
+		tmp = nv_rd32(disp, 0x61c000 + (i * 0x800));
+		nv_wr32(disp, 0x6301c4 + (i * 0x800), tmp);
 	}
 
 	/* steal display away from vbios, or something like that */
-	if (nv_rd32(priv, 0x6100ac) & 0x00000100) {
-		nv_wr32(priv, 0x6100ac, 0x00000100);
-		nv_mask(priv, 0x6194e8, 0x00000001, 0x00000000);
-		if (!nv_wait(priv, 0x6194e8, 0x00000002, 0x00000000)) {
-			nv_error(priv, "timeout acquiring display\n");
+	if (nv_rd32(disp, 0x6100ac) & 0x00000100) {
+		nv_wr32(disp, 0x6100ac, 0x00000100);
+		nv_mask(disp, 0x6194e8, 0x00000001, 0x00000000);
+		if (!nv_wait(disp, 0x6194e8, 0x00000002, 0x00000000)) {
+			nv_error(disp, "timeout acquiring display\n");
 			return -EBUSY;
 		}
 	}
 
 	/* point at display engine memory area (hash table, objects) */
-	nv_wr32(priv, 0x610010, (nv_gpuobj(object->parent)->addr >> 8) | 9);
+	nv_wr32(disp, 0x610010, (nv_gpuobj(object->parent)->addr >> 8) | 9);
 
 	/* enable supervisor interrupts, disable everything else */
-	nv_wr32(priv, 0x610090, 0x00000000);
-	nv_wr32(priv, 0x6100a0, 0x00000000);
-	nv_wr32(priv, 0x6100b0, 0x00000307);
+	nv_wr32(disp, 0x610090, 0x00000000);
+	nv_wr32(disp, 0x6100a0, 0x00000000);
+	nv_wr32(disp, 0x6100b0, 0x00000307);
 
 	/* disable underflow reporting, preventing an intermittent issue
 	 * on some gk104 boards where the production vbios left this
@@ -717,8 +717,8 @@ gf110_disp_main_init(struct nvkm_object *object)
 	 *
 	 * ftp://download.nvidia.com/open-gpu-doc/gk104-disable-underflow-reporting/1/gk104-disable-underflow-reporting.txt
 	 */
-	for (i = 0; i < priv->head.nr; i++)
-		nv_mask(priv, 0x616308 + (i * 0x800), 0x00000111, 0x00000010);
+	for (i = 0; i < disp->head.nr; i++)
+		nv_mask(disp, 0x616308 + (i * 0x800), 0x00000111, 0x00000010);
 
 	return 0;
 }
@@ -726,11 +726,11 @@ gf110_disp_main_init(struct nvkm_object *object)
 static int
 gf110_disp_main_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv50_disp_priv *priv = (void *)object->engine;
+	struct nv50_disp *disp = (void *)object->engine;
 	struct nv50_disp_base *base = (void *)object;
 
 	/* disable all interrupts */
-	nv_wr32(priv, 0x6100b0, 0x00000000);
+	nv_wr32(disp, 0x6100b0, 0x00000000);
 
 	return nvkm_parent_fini(&base->base, suspend);
 }
@@ -787,11 +787,11 @@ gf110_disp_vblank_func = {
 };
 
 static struct nvkm_output *
-exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
+exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	    u32 *data, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	    struct nvbios_outp *info)
 {
-	struct nvkm_bios *bios = nvkm_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(disp);
 	struct nvkm_output *outp;
 	u16 mask, type;
 
@@ -808,7 +808,7 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
 		case 0x00000800: type = DCB_OUTPUT_DP; mask = 1; break;
 		case 0x00000900: type = DCB_OUTPUT_DP; mask = 2; break;
 		default:
-			nv_error(priv, "unknown SOR mc 0x%08x\n", ctrl);
+			nv_error(disp, "unknown SOR mc 0x%08x\n", ctrl);
 			return NULL;
 		}
 	}
@@ -817,7 +817,7 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
 	mask |= 0x0001 << or;
 	mask |= 0x0100 << head;
 
-	list_for_each_entry(outp, &priv->base.outp, head) {
+	list_for_each_entry(outp, &disp->base.outp, head) {
 		if ((outp->info.hasht & 0xff) == type &&
 		    (outp->info.hashm & mask) == mask) {
 			*data = nvbios_outp_match(bios, outp->info.hasht,
@@ -833,9 +833,9 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
 }
 
 static struct nvkm_output *
-exec_script(struct nv50_disp_priv *priv, int head, int id)
+exec_script(struct nv50_disp *disp, int head, int id)
 {
-	struct nvkm_bios *bios = nvkm_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(disp);
 	struct nvkm_output *outp;
 	struct nvbios_outp info;
 	u8  ver, hdr, cnt, len;
@@ -843,7 +843,7 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 	int or;
 
 	for (or = 0; !(ctrl & (1 << head)) && or < 8; or++) {
-		ctrl = nv_rd32(priv, 0x640180 + (or * 0x20));
+		ctrl = nv_rd32(disp, 0x640180 + (or * 0x20));
 		if (ctrl & (1 << head))
 			break;
 	}
@@ -851,10 +851,10 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 	if (or == 8)
 		return NULL;
 
-	outp = exec_lookup(priv, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
+	outp = exec_lookup(disp, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
 	if (outp) {
 		struct nvbios_init init = {
-			.subdev = nv_subdev(priv),
+			.subdev = nv_subdev(disp),
 			.bios = bios,
 			.offset = info.script[id],
 			.outp = &outp->info,
@@ -869,9 +869,9 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 }
 
 static struct nvkm_output *
-exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
+exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 {
-	struct nvkm_bios *bios = nvkm_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(disp);
 	struct nvkm_output *outp;
 	struct nvbios_outp info1;
 	struct nvbios_ocfg info2;
@@ -880,7 +880,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
 	int or;
 
 	for (or = 0; !(ctrl & (1 << head)) && or < 8; or++) {
-		ctrl = nv_rd32(priv, 0x660180 + (or * 0x20));
+		ctrl = nv_rd32(disp, 0x660180 + (or * 0x20));
 		if (ctrl & (1 << head))
 			break;
 	}
@@ -888,7 +888,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
 	if (or == 8)
 		return NULL;
 
-	outp = exec_lookup(priv, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info1);
+	outp = exec_lookup(disp, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info1);
 	if (!outp)
 		return NULL;
 
@@ -899,7 +899,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
 			*conf |= 0x0100;
 		break;
 	case DCB_OUTPUT_LVDS:
-		*conf = priv->sor.lvdsconf;
+		*conf = disp->sor.lvdsconf;
 		break;
 	case DCB_OUTPUT_DP:
 		*conf = (ctrl & 0x00000f00) >> 8;
@@ -915,7 +915,7 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {
 			struct nvbios_init init = {
-				.subdev = nv_subdev(priv),
+				.subdev = nv_subdev(disp),
 				.bios = bios,
 				.offset = data,
 				.outp = &outp->info,
@@ -931,22 +931,22 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk, u32 *conf)
 }
 
 static void
-gf110_disp_intr_unk1_0(struct nv50_disp_priv *priv, int head)
+gf110_disp_intr_unk1_0(struct nv50_disp *disp, int head)
 {
-	exec_script(priv, head, 1);
+	exec_script(disp, head, 1);
 }
 
 static void
-gf110_disp_intr_unk2_0(struct nv50_disp_priv *priv, int head)
+gf110_disp_intr_unk2_0(struct nv50_disp *disp, int head)
 {
-	struct nvkm_output *outp = exec_script(priv, head, 2);
+	struct nvkm_output *outp = exec_script(disp, head, 2);
 
 	/* see note in nv50_disp_intr_unk20_0() */
 	if (outp && outp->info.type == DCB_OUTPUT_DP) {
 		struct nvkm_output_dp *outpdp = (void *)outp;
 		struct nvbios_init init = {
-			.subdev = nv_subdev(priv),
-			.bios = nvkm_bios(priv),
+			.subdev = nv_subdev(disp),
+			.bios = nvkm_bios(disp),
 			.outp = &outp->info,
 			.crtc = head,
 			.offset = outpdp->info.script[4],
@@ -959,34 +959,34 @@ gf110_disp_intr_unk2_0(struct nv50_disp_priv *priv, int head)
 }
 
 static void
-gf110_disp_intr_unk2_1(struct nv50_disp_priv *priv, int head)
+gf110_disp_intr_unk2_1(struct nv50_disp *disp, int head)
 {
-	struct nvkm_devinit *devinit = nvkm_devinit(priv);
-	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	struct nvkm_devinit *devinit = nvkm_devinit(disp);
+	u32 pclk = nv_rd32(disp, 0x660450 + (head * 0x300)) / 1000;
 	if (pclk)
 		devinit->pll_set(devinit, PLL_VPLL0 + head, pclk);
-	nv_wr32(priv, 0x612200 + (head * 0x800), 0x00000000);
+	nv_wr32(disp, 0x612200 + (head * 0x800), 0x00000000);
 }
 
 static void
-gf110_disp_intr_unk2_2_tu(struct nv50_disp_priv *priv, int head,
+gf110_disp_intr_unk2_2_tu(struct nv50_disp *disp, int head,
 			  struct dcb_output *outp)
 {
 	const int or = ffs(outp->or) - 1;
-	const u32 ctrl = nv_rd32(priv, 0x660200 + (or   * 0x020));
-	const u32 conf = nv_rd32(priv, 0x660404 + (head * 0x300));
-	const s32 vactive = nv_rd32(priv, 0x660414 + (head * 0x300)) & 0xffff;
-	const s32 vblanke = nv_rd32(priv, 0x66041c + (head * 0x300)) & 0xffff;
-	const s32 vblanks = nv_rd32(priv, 0x660420 + (head * 0x300)) & 0xffff;
-	const u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	const u32 ctrl = nv_rd32(disp, 0x660200 + (or   * 0x020));
+	const u32 conf = nv_rd32(disp, 0x660404 + (head * 0x300));
+	const s32 vactive = nv_rd32(disp, 0x660414 + (head * 0x300)) & 0xffff;
+	const s32 vblanke = nv_rd32(disp, 0x66041c + (head * 0x300)) & 0xffff;
+	const s32 vblanks = nv_rd32(disp, 0x660420 + (head * 0x300)) & 0xffff;
+	const u32 pclk = nv_rd32(disp, 0x660450 + (head * 0x300)) / 1000;
 	const u32 link = ((ctrl & 0xf00) == 0x800) ? 0 : 1;
 	const u32 hoff = (head * 0x800);
 	const u32 soff = (  or * 0x800);
 	const u32 loff = (link * 0x080) + soff;
 	const u32 symbol = 100000;
 	const u32 TU = 64;
-	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff);
-	u32 clksor = nv_rd32(priv, 0x612300 + soff);
+	u32 dpctrl = nv_rd32(disp, 0x61c10c + loff);
+	u32 clksor = nv_rd32(disp, 0x612300 + soff);
 	u32 datarate, link_nr, link_bw, bits;
 	u64 ratio, value;
 
@@ -999,14 +999,14 @@ gf110_disp_intr_unk2_2_tu(struct nv50_disp_priv *priv, int head,
 	value = value * link_bw;
 	do_div(value, pclk);
 	value = value - (3 * !!(dpctrl & 0x00004000)) - (12 / link_nr);
-	nv_mask(priv, 0x616620 + hoff, 0x0000ffff, value);
+	nv_mask(disp, 0x616620 + hoff, 0x0000ffff, value);
 
 	/* symbols/vblank - algorithm taken from comments in tegra driver */
 	value = vblanks - vblanke - 25;
 	value = value * link_bw;
 	do_div(value, pclk);
 	value = value - ((36 / link_nr) + 3) - 1;
-	nv_mask(priv, 0x616624 + hoff, 0x00ffffff, value);
+	nv_mask(disp, 0x616624 + hoff, 0x00ffffff, value);
 
 	/* watermark */
 	if      ((conf & 0x3c0) == 0x180) bits = 30;
@@ -1026,23 +1026,23 @@ gf110_disp_intr_unk2_2_tu(struct nv50_disp_priv *priv, int head,
 	value += 5;
 	value |= 0x08000000;
 
-	nv_wr32(priv, 0x616610 + hoff, value);
+	nv_wr32(disp, 0x616610 + hoff, value);
 }
 
 static void
-gf110_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
+gf110_disp_intr_unk2_2(struct nv50_disp *disp, int head)
 {
 	struct nvkm_output *outp;
-	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	u32 pclk = nv_rd32(disp, 0x660450 + (head * 0x300)) / 1000;
 	u32 conf, addr, data;
 
-	outp = exec_clkcmp(priv, head, 0xff, pclk, &conf);
+	outp = exec_clkcmp(disp, head, 0xff, pclk, &conf);
 	if (!outp)
 		return;
 
 	/* see note in nv50_disp_intr_unk20_2() */
 	if (outp->info.type == DCB_OUTPUT_DP) {
-		u32 sync = nv_rd32(priv, 0x660404 + (head * 0x300));
+		u32 sync = nv_rd32(disp, 0x660404 + (head * 0x300));
 		switch ((sync & 0x000003c0) >> 6) {
 		case 6: pclk = pclk * 30; break;
 		case 5: pclk = pclk * 24; break;
@@ -1055,11 +1055,11 @@ gf110_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 		if (nvkm_output_dp_train(outp, pclk, true))
 			ERR("link not trained before attach\n");
 	} else {
-		if (priv->sor.magic)
-			priv->sor.magic(outp);
+		if (disp->sor.magic)
+			disp->sor.magic(outp);
 	}
 
-	exec_clkcmp(priv, head, 0, pclk, &conf);
+	exec_clkcmp(disp, head, 0, pclk, &conf);
 
 	if (outp->info.type == DCB_OUTPUT_ANALOG) {
 		addr = 0x612280 + (ffs(outp->info.or) - 1) * 0x800;
@@ -1069,102 +1069,102 @@ gf110_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 		data = (conf & 0x0100) ? 0x00000101 : 0x00000000;
 		switch (outp->info.type) {
 		case DCB_OUTPUT_TMDS:
-			nv_mask(priv, addr, 0x007c0000, 0x00280000);
+			nv_mask(disp, addr, 0x007c0000, 0x00280000);
 			break;
 		case DCB_OUTPUT_DP:
-			gf110_disp_intr_unk2_2_tu(priv, head, &outp->info);
+			gf110_disp_intr_unk2_2_tu(disp, head, &outp->info);
 			break;
 		default:
 			break;
 		}
 	}
 
-	nv_mask(priv, addr, 0x00000707, data);
+	nv_mask(disp, addr, 0x00000707, data);
 }
 
 static void
-gf110_disp_intr_unk4_0(struct nv50_disp_priv *priv, int head)
+gf110_disp_intr_unk4_0(struct nv50_disp *disp, int head)
 {
-	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	u32 pclk = nv_rd32(disp, 0x660450 + (head * 0x300)) / 1000;
 	u32 conf;
 
-	exec_clkcmp(priv, head, 1, pclk, &conf);
+	exec_clkcmp(disp, head, 1, pclk, &conf);
 }
 
 void
 gf110_disp_intr_supervisor(struct work_struct *work)
 {
-	struct nv50_disp_priv *priv =
-		container_of(work, struct nv50_disp_priv, supervisor);
-	struct nv50_disp_impl *impl = (void *)nv_object(priv)->oclass;
+	struct nv50_disp *disp =
+		container_of(work, struct nv50_disp, supervisor);
+	struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
 	u32 mask[4];
 	int head;
 
-	nv_debug(priv, "supervisor %d\n", ffs(priv->super));
-	for (head = 0; head < priv->head.nr; head++) {
-		mask[head] = nv_rd32(priv, 0x6101d4 + (head * 0x800));
-		nv_debug(priv, "head %d: 0x%08x\n", head, mask[head]);
+	nv_debug(disp, "supervisor %d\n", ffs(disp->super));
+	for (head = 0; head < disp->head.nr; head++) {
+		mask[head] = nv_rd32(disp, 0x6101d4 + (head * 0x800));
+		nv_debug(disp, "head %d: 0x%08x\n", head, mask[head]);
 	}
 
-	if (priv->super & 0x00000001) {
-		nv50_disp_mthd_chan(priv, NV_DBG_DEBUG, 0, impl->mthd.core);
-		for (head = 0; head < priv->head.nr; head++) {
+	if (disp->super & 0x00000001) {
+		nv50_disp_mthd_chan(disp, NV_DBG_DEBUG, 0, impl->mthd.core);
+		for (head = 0; head < disp->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
-			nv_debug(priv, "supervisor 1.0 - head %d\n", head);
-			gf110_disp_intr_unk1_0(priv, head);
+			nv_debug(disp, "supervisor 1.0 - head %d\n", head);
+			gf110_disp_intr_unk1_0(disp, head);
 		}
 	} else
-	if (priv->super & 0x00000002) {
-		for (head = 0; head < priv->head.nr; head++) {
+	if (disp->super & 0x00000002) {
+		for (head = 0; head < disp->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
-			nv_debug(priv, "supervisor 2.0 - head %d\n", head);
-			gf110_disp_intr_unk2_0(priv, head);
+			nv_debug(disp, "supervisor 2.0 - head %d\n", head);
+			gf110_disp_intr_unk2_0(disp, head);
 		}
-		for (head = 0; head < priv->head.nr; head++) {
+		for (head = 0; head < disp->head.nr; head++) {
 			if (!(mask[head] & 0x00010000))
 				continue;
-			nv_debug(priv, "supervisor 2.1 - head %d\n", head);
-			gf110_disp_intr_unk2_1(priv, head);
+			nv_debug(disp, "supervisor 2.1 - head %d\n", head);
+			gf110_disp_intr_unk2_1(disp, head);
 		}
-		for (head = 0; head < priv->head.nr; head++) {
+		for (head = 0; head < disp->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
-			nv_debug(priv, "supervisor 2.2 - head %d\n", head);
-			gf110_disp_intr_unk2_2(priv, head);
+			nv_debug(disp, "supervisor 2.2 - head %d\n", head);
+			gf110_disp_intr_unk2_2(disp, head);
 		}
 	} else
-	if (priv->super & 0x00000004) {
-		for (head = 0; head < priv->head.nr; head++) {
+	if (disp->super & 0x00000004) {
+		for (head = 0; head < disp->head.nr; head++) {
 			if (!(mask[head] & 0x00001000))
 				continue;
-			nv_debug(priv, "supervisor 3.0 - head %d\n", head);
-			gf110_disp_intr_unk4_0(priv, head);
+			nv_debug(disp, "supervisor 3.0 - head %d\n", head);
+			gf110_disp_intr_unk4_0(disp, head);
 		}
 	}
 
-	for (head = 0; head < priv->head.nr; head++)
-		nv_wr32(priv, 0x6101d4 + (head * 0x800), 0x00000000);
-	nv_wr32(priv, 0x6101d0, 0x80000000);
+	for (head = 0; head < disp->head.nr; head++)
+		nv_wr32(disp, 0x6101d4 + (head * 0x800), 0x00000000);
+	nv_wr32(disp, 0x6101d0, 0x80000000);
 }
 
 static void
-gf110_disp_intr_error(struct nv50_disp_priv *priv, int chid)
+gf110_disp_intr_error(struct nv50_disp *disp, int chid)
 {
-	const struct nv50_disp_impl *impl = (void *)nv_object(priv)->oclass;
-	u32 mthd = nv_rd32(priv, 0x6101f0 + (chid * 12));
-	u32 data = nv_rd32(priv, 0x6101f4 + (chid * 12));
-	u32 unkn = nv_rd32(priv, 0x6101f8 + (chid * 12));
+	const struct nv50_disp_impl *impl = (void *)nv_object(disp)->oclass;
+	u32 mthd = nv_rd32(disp, 0x6101f0 + (chid * 12));
+	u32 data = nv_rd32(disp, 0x6101f4 + (chid * 12));
+	u32 unkn = nv_rd32(disp, 0x6101f8 + (chid * 12));
 
-	nv_error(priv, "chid %d mthd 0x%04x data 0x%08x "
+	nv_error(disp, "chid %d mthd 0x%04x data 0x%08x "
 		       "0x%08x 0x%08x\n",
 		 chid, (mthd & 0x0000ffc), data, mthd, unkn);
 
 	if (chid == 0) {
 		switch (mthd & 0xffc) {
 		case 0x0080:
-			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 0,
+			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 0,
 					    impl->mthd.core);
 			break;
 		default:
@@ -1174,7 +1174,7 @@ gf110_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 	if (chid <= 4) {
 		switch (mthd & 0xffc) {
 		case 0x0080:
-			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 1,
+			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 1,
 					    impl->mthd.base);
 			break;
 		default:
@@ -1184,7 +1184,7 @@ gf110_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 	if (chid <= 8) {
 		switch (mthd & 0xffc) {
 		case 0x0080:
-			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 5,
+			nv50_disp_mthd_chan(disp, NV_DBG_ERROR, chid - 5,
 					    impl->mthd.ovly);
 			break;
 		default:
@@ -1192,60 +1192,60 @@ gf110_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 		}
 	}
 
-	nv_wr32(priv, 0x61009c, (1 << chid));
-	nv_wr32(priv, 0x6101f0 + (chid * 12), 0x90000000);
+	nv_wr32(disp, 0x61009c, (1 << chid));
+	nv_wr32(disp, 0x6101f0 + (chid * 12), 0x90000000);
 }
 
 void
 gf110_disp_intr(struct nvkm_subdev *subdev)
 {
-	struct nv50_disp_priv *priv = (void *)subdev;
-	u32 intr = nv_rd32(priv, 0x610088);
+	struct nv50_disp *disp = (void *)subdev;
+	u32 intr = nv_rd32(disp, 0x610088);
 	int i;
 
 	if (intr & 0x00000001) {
-		u32 stat = nv_rd32(priv, 0x61008c);
+		u32 stat = nv_rd32(disp, 0x61008c);
 		while (stat) {
 			int chid = __ffs(stat); stat &= ~(1 << chid);
-			nv50_disp_chan_uevent_send(priv, chid);
-			nv_wr32(priv, 0x61008c, 1 << chid);
+			nv50_disp_chan_uevent_send(disp, chid);
+			nv_wr32(disp, 0x61008c, 1 << chid);
 		}
 		intr &= ~0x00000001;
 	}
 
 	if (intr & 0x00000002) {
-		u32 stat = nv_rd32(priv, 0x61009c);
+		u32 stat = nv_rd32(disp, 0x61009c);
 		int chid = ffs(stat) - 1;
 		if (chid >= 0)
-			gf110_disp_intr_error(priv, chid);
+			gf110_disp_intr_error(disp, chid);
 		intr &= ~0x00000002;
 	}
 
 	if (intr & 0x00100000) {
-		u32 stat = nv_rd32(priv, 0x6100ac);
+		u32 stat = nv_rd32(disp, 0x6100ac);
 		if (stat & 0x00000007) {
-			priv->super = (stat & 0x00000007);
-			schedule_work(&priv->supervisor);
-			nv_wr32(priv, 0x6100ac, priv->super);
+			disp->super = (stat & 0x00000007);
+			schedule_work(&disp->supervisor);
+			nv_wr32(disp, 0x6100ac, disp->super);
 			stat &= ~0x00000007;
 		}
 
 		if (stat) {
-			nv_info(priv, "unknown intr24 0x%08x\n", stat);
-			nv_wr32(priv, 0x6100ac, stat);
+			nv_info(disp, "unknown intr24 0x%08x\n", stat);
+			nv_wr32(disp, 0x6100ac, stat);
 		}
 
 		intr &= ~0x00100000;
 	}
 
-	for (i = 0; i < priv->head.nr; i++) {
+	for (i = 0; i < disp->head.nr; i++) {
 		u32 mask = 0x01000000 << i;
 		if (mask & intr) {
-			u32 stat = nv_rd32(priv, 0x6100bc + (i * 0x800));
+			u32 stat = nv_rd32(disp, 0x6100bc + (i * 0x800));
 			if (stat & 0x00000001)
-				nvkm_disp_vblank(&priv->base, i);
-			nv_mask(priv, 0x6100bc + (i * 0x800), 0, 0);
-			nv_rd32(priv, 0x6100c0 + (i * 0x800));
+				nvkm_disp_vblank(&disp->base, i);
+			nv_mask(disp, 0x6100bc + (i * 0x800), 0, 0);
+			nv_rd32(disp, 0x6100c0 + (i * 0x800));
 		}
 	}
 }
@@ -1255,33 +1255,33 @@ gf110_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct nv50_disp_priv *priv;
+	struct nv50_disp *disp;
 	int heads = nv_rd32(parent, 0x022448);
 	int ret;
 
 	ret = nvkm_disp_create(parent, engine, oclass, heads,
-			       "PDISP", "display", &priv);
-	*pobject = nv_object(priv);
+			       "PDISP", "display", &disp);
+	*pobject = nv_object(disp);
 	if (ret)
 		return ret;
 
-	ret = nvkm_event_init(&gf110_disp_chan_uevent, 1, 17, &priv->uevent);
+	ret = nvkm_event_init(&gf110_disp_chan_uevent, 1, 17, &disp->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = gf110_disp_main_oclass;
-	nv_engine(priv)->cclass = &nv50_disp_cclass;
-	nv_subdev(priv)->intr = gf110_disp_intr;
-	INIT_WORK(&priv->supervisor, gf110_disp_intr_supervisor);
-	priv->sclass = gf110_disp_sclass;
-	priv->head.nr = heads;
-	priv->dac.nr = 3;
-	priv->sor.nr = 4;
-	priv->dac.power = nv50_dac_power;
-	priv->dac.sense = nv50_dac_sense;
-	priv->sor.power = nv50_sor_power;
-	priv->sor.hda_eld = gf110_hda_eld;
-	priv->sor.hdmi = gf110_hdmi_ctrl;
+	nv_engine(disp)->sclass = gf110_disp_main_oclass;
+	nv_engine(disp)->cclass = &nv50_disp_cclass;
+	nv_subdev(disp)->intr = gf110_disp_intr;
+	INIT_WORK(&disp->supervisor, gf110_disp_intr_supervisor);
+	disp->sclass = gf110_disp_sclass;
+	disp->head.nr = heads;
+	disp->dac.nr = 3;
+	disp->sor.nr = 4;
+	disp->dac.power = nv50_dac_power;
+	disp->dac.sense = nv50_dac_sense;
+	disp->sor.power = nv50_sor_power;
+	disp->sor.hda_eld = gf110_hda_eld;
+	disp->sor.hdmi = gf110_hdmi_ctrl;
 	return 0;
 }
 

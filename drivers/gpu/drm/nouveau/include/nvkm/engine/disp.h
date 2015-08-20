@@ -4,7 +4,7 @@
 #include <core/event.h>
 
 struct nvkm_disp {
-	struct nvkm_engine base;
+	struct nvkm_engine engine;
 
 	struct list_head outp;
 

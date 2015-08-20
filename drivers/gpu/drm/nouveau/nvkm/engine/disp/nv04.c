@@ -28,12 +28,8 @@
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
-struct nv04_disp_priv {
-	struct nvkm_disp base;
-};
-
 static int
-nv04_disp_scanoutpos(struct nvkm_object *object, struct nv04_disp_priv *priv,
+nv04_disp_scanoutpos(struct nvkm_object *object, struct nvkm_disp *disp,
 		     void *data, u32 size, int head)
 {
 	const u32 hoff = head * 0x2000;
@@ -46,12 +42,12 @@ nv04_disp_scanoutpos(struct nvkm_object *object, struct nv04_disp_priv *priv,
 	nv_ioctl(object, "disp scanoutpos size %d\n", size);
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		nv_ioctl(object, "disp scanoutpos vers %d\n", args->v0.version);
-		args->v0.vblanks = nv_rd32(priv, 0x680800 + hoff) & 0xffff;
-		args->v0.vtotal  = nv_rd32(priv, 0x680804 + hoff) & 0xffff;
+		args->v0.vblanks = nv_rd32(disp, 0x680800 + hoff) & 0xffff;
+		args->v0.vtotal  = nv_rd32(disp, 0x680804 + hoff) & 0xffff;
 		args->v0.vblanke = args->v0.vtotal - 1;
 
-		args->v0.hblanks = nv_rd32(priv, 0x680820 + hoff) & 0xffff;
-		args->v0.htotal  = nv_rd32(priv, 0x680824 + hoff) & 0xffff;
+		args->v0.hblanks = nv_rd32(disp, 0x680820 + hoff) & 0xffff;
+		args->v0.htotal  = nv_rd32(disp, 0x680824 + hoff) & 0xffff;
 		args->v0.hblanke = args->v0.htotal - 1;
 
 		/*
@@ -63,7 +59,7 @@ nv04_disp_scanoutpos(struct nvkm_object *object, struct nv04_disp_priv *priv,
 			return -ENOTSUPP;
 
 		args->v0.time[0] = ktime_to_ns(ktime_get());
-		line = nv_rd32(priv, 0x600868 + hoff);
+		line = nv_rd32(disp, 0x600868 + hoff);
 		args->v0.time[1] = ktime_to_ns(ktime_get());
 		args->v0.hline = (line & 0xffff0000) >> 16;
 		args->v0.vline = (line & 0x0000ffff);
@@ -79,7 +75,7 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	union {
 		struct nv04_disp_mthd_v0 v0;
 	} *args = data;
-	struct nv04_disp_priv *priv = (void *)object->engine;
+	struct nvkm_disp *disp = (void *)object->engine;
 	int head, ret;
 
 	nv_ioctl(object, "disp mthd size %d\n", size);
@@ -96,7 +92,7 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 
 	switch (mthd) {
 	case NV04_DISP_SCANOUTPOS:
-		return nv04_disp_scanoutpos(object, priv, data, size, head);
+		return nv04_disp_scanoutpos(object, disp, data, size, head);
 	default:
 		break;
 	}
@@ -148,27 +144,27 @@ nv04_disp_vblank_func = {
 static void
 nv04_disp_intr(struct nvkm_subdev *subdev)
 {
-	struct nv04_disp_priv *priv = (void *)subdev;
-	u32 crtc0 = nv_rd32(priv, 0x600100);
-	u32 crtc1 = nv_rd32(priv, 0x602100);
+	struct nvkm_disp *disp = (void *)subdev;
+	u32 crtc0 = nv_rd32(disp, 0x600100);
+	u32 crtc1 = nv_rd32(disp, 0x602100);
 	u32 pvideo;
 
 	if (crtc0 & 0x00000001) {
-		nvkm_disp_vblank(&priv->base, 0);
-		nv_wr32(priv, 0x600100, 0x00000001);
+		nvkm_disp_vblank(disp, 0);
+		nv_wr32(disp, 0x600100, 0x00000001);
 	}
 
 	if (crtc1 & 0x00000001) {
-		nvkm_disp_vblank(&priv->base, 1);
-		nv_wr32(priv, 0x602100, 0x00000001);
+		nvkm_disp_vblank(disp, 1);
+		nv_wr32(disp, 0x602100, 0x00000001);
 	}
 
-	if (nv_device(priv)->chipset >= 0x10 &&
-	    nv_device(priv)->chipset <= 0x40) {
-		pvideo = nv_rd32(priv, 0x8100);
+	if (nv_device(disp)->chipset >= 0x10 &&
+	    nv_device(disp)->chipset <= 0x40) {
+		pvideo = nv_rd32(disp, 0x8100);
 		if (pvideo & ~0x11)
-			nv_info(priv, "PVIDEO intr: %08x\n", pvideo);
-		nv_wr32(priv, 0x8100, pvideo);
+			nv_info(disp, "PVIDEO intr: %08x\n", pvideo);
+		nv_wr32(disp, 0x8100, pvideo);
 	}
 }
 
@@ -177,17 +173,17 @@ nv04_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nv04_disp_priv *priv;
+	struct nvkm_disp *disp;
 	int ret;
 
 	ret = nvkm_disp_create(parent, engine, oclass, 2, "DISPLAY",
-			       "display", &priv);
-	*pobject = nv_object(priv);
+			       "display", &disp);
+	*pobject = nv_object(disp);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nv04_disp_sclass;
-	nv_subdev(priv)->intr = nv04_disp_intr;
+	nv_engine(disp)->sclass = nv04_disp_sclass;
+	nv_subdev(disp)->intr = nv04_disp_intr;
 	return 0;
 }
 

@@ -5,11 +5,11 @@ struct nvkm_output;
 struct nvkm_output_dp;
 
 #define NV50_DISP_MTHD_ struct nvkm_object *object,                            \
-	struct nv50_disp_priv *priv, void *data, u32 size
+	struct nv50_disp *disp, void *data, u32 size
 #define NV50_DISP_MTHD_V0 NV50_DISP_MTHD_, int head
 #define NV50_DISP_MTHD_V1 NV50_DISP_MTHD_, int head, struct nvkm_output *outp
 
-struct nv50_disp_priv {
+struct nv50_disp {
 	struct nvkm_disp base;
 	struct nvkm_oclass *sclass;
 
@@ -102,7 +102,7 @@ void nv50_disp_chan_wr32(struct nvkm_object *, u64, u32);
 extern const struct nvkm_event_func nv50_disp_chan_uevent;
 int  nv50_disp_chan_uevent_ctor(struct nvkm_object *, void *, u32,
 				struct nvkm_notify *);
-void nv50_disp_chan_uevent_send(struct nv50_disp_priv *, int);
+void nv50_disp_chan_uevent_send(struct nv50_disp *, int);
 
 extern const struct nvkm_event_func gf110_disp_chan_uevent;
 
@@ -177,7 +177,7 @@ int  nv50_disp_main_ctor(struct nvkm_object *, struct nvkm_object *,
 void nv50_disp_main_dtor(struct nvkm_object *);
 extern struct nvkm_omthds nv50_disp_main_omthds[];
 extern struct nvkm_oclass nv50_disp_cclass;
-void nv50_disp_mthd_chan(struct nv50_disp_priv *, int debug, int head,
+void nv50_disp_mthd_chan(struct nv50_disp *, int debug, int head,
 			 const struct nv50_disp_mthd_chan *);
 void nv50_disp_intr_supervisor(struct work_struct *);
 void nv50_disp_intr(struct nvkm_subdev *);
@@ -214,7 +214,7 @@ extern struct nvkm_output_dp_impl nv50_pior_dp_impl;
 extern struct nvkm_oclass *nv50_disp_outp_sclass[];
 
 extern struct nvkm_output_dp_impl g94_sor_dp_impl;
-u32 g94_sor_dp_lane_map(struct nv50_disp_priv *, u8 lane);
+u32 g94_sor_dp_lane_map(struct nv50_disp *, u8 lane);
 int g94_sor_dp_lnk_pwr(struct nvkm_output_dp *, int);
 extern struct nvkm_oclass *g94_disp_outp_sclass[];
 

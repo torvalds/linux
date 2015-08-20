@@ -55,34 +55,34 @@ gm204_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct nv50_disp_priv *priv;
+	struct nv50_disp *disp;
 	int heads = nv_rd32(parent, 0x022448);
 	int ret;
 
 	ret = nvkm_disp_create(parent, engine, oclass, heads,
-			       "PDISP", "display", &priv);
-	*pobject = nv_object(priv);
+			       "PDISP", "display", &disp);
+	*pobject = nv_object(disp);
 	if (ret)
 		return ret;
 
-	ret = nvkm_event_init(&gf110_disp_chan_uevent, 1, 17, &priv->uevent);
+	ret = nvkm_event_init(&gf110_disp_chan_uevent, 1, 17, &disp->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = gm204_disp_main_oclass;
-	nv_engine(priv)->cclass = &nv50_disp_cclass;
-	nv_subdev(priv)->intr = gf110_disp_intr;
-	INIT_WORK(&priv->supervisor, gf110_disp_intr_supervisor);
-	priv->sclass = gm204_disp_sclass;
-	priv->head.nr = heads;
-	priv->dac.nr = 3;
-	priv->sor.nr = 4;
-	priv->dac.power = nv50_dac_power;
-	priv->dac.sense = nv50_dac_sense;
-	priv->sor.power = nv50_sor_power;
-	priv->sor.hda_eld = gf110_hda_eld;
-	priv->sor.hdmi = gf110_hdmi_ctrl;
-	priv->sor.magic = gm204_sor_magic;
+	nv_engine(disp)->sclass = gm204_disp_main_oclass;
+	nv_engine(disp)->cclass = &nv50_disp_cclass;
+	nv_subdev(disp)->intr = gf110_disp_intr;
+	INIT_WORK(&disp->supervisor, gf110_disp_intr_supervisor);
+	disp->sclass = gm204_disp_sclass;
+	disp->head.nr = heads;
+	disp->dac.nr = 3;
+	disp->sor.nr = 4;
+	disp->dac.power = nv50_dac_power;
+	disp->dac.sense = nv50_dac_sense;
+	disp->sor.power = nv50_sor_power;
+	disp->sor.hda_eld = gf110_hda_eld;
+	disp->sor.hdmi = gf110_hdmi_ctrl;
+	disp->sor.magic = gm204_sor_magic;
 	return 0;
 }
 

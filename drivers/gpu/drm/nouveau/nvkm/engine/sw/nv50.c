@@ -156,7 +156,7 @@ nv50_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_oclass *oclass, void *data, u32 size,
 		     struct nvkm_object **pobject)
 {
-	struct nvkm_disp *pdisp = nvkm_disp(parent);
+	struct nvkm_disp *disp = nvkm_disp(parent);
 	struct nv50_sw_cclass *pclass = (void *)oclass;
 	struct nv50_sw_chan *chan;
 	int ret, i;
@@ -166,8 +166,8 @@ nv50_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	for (i = 0; pdisp && i < pdisp->vblank.index_nr; i++) {
-		ret = nvkm_notify_init(NULL, &pdisp->vblank, pclass->vblank,
+	for (i = 0; disp && i < disp->vblank.index_nr; i++) {
+		ret = nvkm_notify_init(NULL, &disp->vblank, pclass->vblank,
 				       false,
 				       &(struct nvif_notify_head_req_v0) {
 					.head = i,

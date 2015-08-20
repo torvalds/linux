@@ -54,30 +54,30 @@ gk104_hdmi_ctrl(NV50_DISP_MTHD_V1)
 		return ret;
 
 	if (!(ctrl & 0x40000000)) {
-		nv_mask(priv, 0x616798 + hoff, 0x40000000, 0x00000000);
-		nv_mask(priv, 0x6900c0 + hdmi, 0x00000001, 0x00000000);
-		nv_mask(priv, 0x690000 + hdmi, 0x00000001, 0x00000000);
+		nv_mask(disp, 0x616798 + hoff, 0x40000000, 0x00000000);
+		nv_mask(disp, 0x6900c0 + hdmi, 0x00000001, 0x00000000);
+		nv_mask(disp, 0x690000 + hdmi, 0x00000001, 0x00000000);
 		return 0;
 	}
 
 	/* AVI InfoFrame */
-	nv_mask(priv, 0x690000 + hdmi, 0x00000001, 0x00000000);
-	nv_wr32(priv, 0x690008 + hdmi, 0x000d0282);
-	nv_wr32(priv, 0x69000c + hdmi, 0x0000006f);
-	nv_wr32(priv, 0x690010 + hdmi, 0x00000000);
-	nv_wr32(priv, 0x690014 + hdmi, 0x00000000);
-	nv_wr32(priv, 0x690018 + hdmi, 0x00000000);
-	nv_mask(priv, 0x690000 + hdmi, 0x00000001, 0x00000001);
+	nv_mask(disp, 0x690000 + hdmi, 0x00000001, 0x00000000);
+	nv_wr32(disp, 0x690008 + hdmi, 0x000d0282);
+	nv_wr32(disp, 0x69000c + hdmi, 0x0000006f);
+	nv_wr32(disp, 0x690010 + hdmi, 0x00000000);
+	nv_wr32(disp, 0x690014 + hdmi, 0x00000000);
+	nv_wr32(disp, 0x690018 + hdmi, 0x00000000);
+	nv_mask(disp, 0x690000 + hdmi, 0x00000001, 0x00000001);
 
 	/* ??? InfoFrame? */
-	nv_mask(priv, 0x6900c0 + hdmi, 0x00000001, 0x00000000);
-	nv_wr32(priv, 0x6900cc + hdmi, 0x00000010);
-	nv_mask(priv, 0x6900c0 + hdmi, 0x00000001, 0x00000001);
+	nv_mask(disp, 0x6900c0 + hdmi, 0x00000001, 0x00000000);
+	nv_wr32(disp, 0x6900cc + hdmi, 0x00000010);
+	nv_mask(disp, 0x6900c0 + hdmi, 0x00000001, 0x00000001);
 
 	/* ??? */
-	nv_wr32(priv, 0x690080 + hdmi, 0x82000000);
+	nv_wr32(disp, 0x690080 + hdmi, 0x82000000);
 
 	/* HDMI_CTRL */
-	nv_mask(priv, 0x616798 + hoff, 0x401f007f, ctrl);
+	nv_mask(disp, 0x616798 + hoff, 0x401f007f, ctrl);
 	return 0;
 }

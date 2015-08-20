@@ -127,7 +127,7 @@ _nvkm_disp_fini(struct nvkm_object *object, bool suspend)
 			goto fail_outp;
 	}
 
-	return nvkm_engine_fini(&disp->base, suspend);
+	return nvkm_engine_fini(&disp->engine, suspend);
 
 fail_outp:
 	list_for_each_entry_continue_reverse(outp, &disp->outp, head) {
@@ -144,7 +144,7 @@ _nvkm_disp_init(struct nvkm_object *object)
 	struct nvkm_output *outp;
 	int ret;
 
-	ret = nvkm_engine_init(&disp->base);
+	ret = nvkm_engine_init(&disp->engine);
 	if (ret)
 		return ret;
 
@@ -179,7 +179,7 @@ _nvkm_disp_dtor(struct nvkm_object *object)
 		}
 	}
 
-	nvkm_engine_destroy(&disp->base);
+	nvkm_engine_destroy(&disp->engine);
 }
 
 int
