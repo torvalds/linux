@@ -69,10 +69,10 @@ nv41_vm_flush(struct nvkm_vm *vm)
 
 	mutex_lock(&nv_subdev(mmu)->mutex);
 	nvkm_wr32(device, 0x100810, 0x00000022);
-	if (!nv_wait(mmu, 0x100810, 0x00000020, 0x00000020)) {
-		nv_warn(mmu, "flush timeout, 0x%08x\n",
-			nvkm_rd32(device, 0x100810));
-	}
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x100810) & 0x00000020)
+			break;
+	);
 	nvkm_wr32(device, 0x100810, 0x00000000);
 	mutex_unlock(&nv_subdev(mmu)->mutex);
 }

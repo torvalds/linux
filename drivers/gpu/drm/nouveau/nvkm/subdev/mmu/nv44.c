@@ -143,8 +143,10 @@ nv44_vm_flush(struct nvkm_vm *vm)
 	struct nvkm_device *device = mmu->base.subdev.device;
 	nvkm_wr32(device, 0x100814, mmu->base.limit - NV44_GART_PAGE);
 	nvkm_wr32(device, 0x100808, 0x00000020);
-	if (!nv_wait(mmu, 0x100808, 0x00000001, 0x00000001))
-		nv_error(mmu, "timeout: 0x%08x\n", nvkm_rd32(device, 0x100808));
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x100808) & 0x00000001)
+			break;
+	);
 	nvkm_wr32(device, 0x100808, 0x00000000);
 }
 

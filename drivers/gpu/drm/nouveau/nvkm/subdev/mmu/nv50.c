@@ -182,7 +182,10 @@ nv50_vm_flush(struct nvkm_vm *vm)
 		}
 
 		nvkm_wr32(device, 0x100c80, (vme << 16) | 1);
-		if (!nv_wait(mmu, 0x100c80, 0x00000001, 0x00000000))
+		if (nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x100c80) & 0x00000001))
+				break;
+		) < 0)
 			nv_error(mmu, "vm flush timeout: engine %d\n", vme);
 	}
 	mutex_unlock(&nv_subdev(mmu)->mutex);

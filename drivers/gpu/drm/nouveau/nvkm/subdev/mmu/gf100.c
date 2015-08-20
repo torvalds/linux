@@ -170,19 +170,19 @@ gf100_vm_flush(struct nvkm_vm *vm)
 		/* looks like maybe a "free flush slots" counter, the
 		 * faster you write to 0x100cbc to more it decreases
 		 */
-		if (!nv_wait_ne(mmu, 0x100c80, 0x00ff0000, 0x00000000)) {
-			nv_error(mmu, "vm timeout 0: 0x%08x %d\n",
-				 nvkm_rd32(device, 0x100c80), type);
-		}
+		nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x100c80) & 0x00ff0000)
+				break;
+		);
 
 		nvkm_wr32(device, 0x100cb8, vpgd->obj->addr >> 8);
 		nvkm_wr32(device, 0x100cbc, 0x80000000 | type);
 
 		/* wait for flush to be queued? */
-		if (!nv_wait(mmu, 0x100c80, 0x00008000, 0x00008000)) {
-			nv_error(mmu, "vm timeout 1: 0x%08x %d\n",
-				 nvkm_rd32(device, 0x100c80), type);
-		}
+		nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x100c80) & 0x00008000)
+				break;
+		);
 	}
 	mutex_unlock(&nv_subdev(mmu)->mutex);
 }
