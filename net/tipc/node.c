@@ -565,6 +565,8 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 			goto exit;
 		}
 		tipc_link_reset(l);
+		if (n->state == NODE_FAILINGOVER)
+			tipc_link_fsm_evt(l, LINK_FAILOVER_BEGIN_EVT);
 		le->link = l;
 		n->link_cnt++;
 		tipc_node_calculate_timer(n, l);
@@ -1129,7 +1131,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	}
 
 	/* Open parallel link when tunnel link reaches synch point */
-	if ((n->state == NODE_FAILINGOVER) && !tipc_link_is_failingover(l)) {
+	if ((n->state == NODE_FAILINGOVER) && tipc_link_is_up(l)) {
 		if (!more(rcv_nxt, n->sync_point))
 			return true;
 		tipc_node_fsm_evt(n, NODE_FAILOVER_END_EVT);
