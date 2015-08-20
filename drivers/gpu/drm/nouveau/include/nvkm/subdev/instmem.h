@@ -13,10 +13,10 @@ struct nvkm_instmem {
 
 	const struct nvkm_instmem_func *func;
 
-	struct nvkm_gpuobj *vbios;
+	struct nvkm_memory *vbios;
 	struct nvkm_ramht  *ramht;
-	struct nvkm_gpuobj *ramro;
-	struct nvkm_gpuobj *ramfc;
+	struct nvkm_memory *ramro;
+	struct nvkm_memory *ramfc;
 };
 
 struct nvkm_instmem_func {

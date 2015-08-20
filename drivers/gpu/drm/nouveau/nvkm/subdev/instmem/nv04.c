@@ -154,10 +154,10 @@ static void
 nv04_instmem_dtor(struct nvkm_object *object)
 {
 	struct nv04_instmem *imem = (void *)object;
-	nvkm_gpuobj_ref(NULL, &imem->base.ramfc);
-	nvkm_gpuobj_ref(NULL, &imem->base.ramro);
+	nvkm_memory_del(&imem->base.ramfc);
+	nvkm_memory_del(&imem->base.ramro);
 	nvkm_ramht_ref(NULL, &imem->base.ramht);
-	nvkm_gpuobj_ref(NULL, &imem->base.vbios);
+	nvkm_memory_del(&imem->base.vbios);
 	nvkm_mm_fini(&imem->heap);
 	nvkm_instmem_destroy(&imem->base);
 }
@@ -173,6 +173,7 @@ nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv04_instmem *imem;
 	int ret;
 
@@ -191,7 +192,7 @@ nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	/* 0x00000-0x10000: reserve for probable vbios image */
-	ret = nvkm_gpuobj_new(nv_object(imem), NULL, 0x10000, 0, 0,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x10000, 0, false,
 			      &imem->base.vbios);
 	if (ret)
 		return ret;
@@ -203,14 +204,13 @@ nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	/* 0x18000-0x18800: reserve for RAMFC (enough for 32 nv30 channels) */
-	ret = nvkm_gpuobj_new(nv_object(imem), NULL, 0x00800, 0,
-			      NVOBJ_FLAG_ZERO_ALLOC,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x00800, 0, true,
 			      &imem->base.ramfc);
 	if (ret)
 		return ret;
 
 	/* 0x18800-0x18a00: reserve for RAMRO */
-	ret = nvkm_gpuobj_new(nv_object(imem), NULL, 0x00200, 0, 0,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x00200, 0, false,
 			      &imem->base.ramro);
 	if (ret)
 		return ret;

@@ -142,9 +142,6 @@ struct ramfc_desc {
 struct nv04_fifo {
 	struct nvkm_fifo base;
 	struct ramfc_desc *ramfc_desc;
-	struct nvkm_ramht  *ramht;
-	struct nvkm_gpuobj *ramro;
-	struct nvkm_gpuobj *ramfc;
 };
 
 struct nv04_fifo_base {

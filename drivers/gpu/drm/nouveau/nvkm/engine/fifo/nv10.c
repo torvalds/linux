@@ -25,7 +25,6 @@
 
 #include <core/client.h>
 #include <core/engctx.h>
-#include <core/ramht.h>
 #include <subdev/instmem.h>
 
 #include <nvif/class.h>
@@ -59,6 +58,7 @@ nv10_fifo_chan_ctor(struct nvkm_object *parent,
 		struct nv03_channel_dma_v0 v0;
 	} *args = data;
 	struct nv04_fifo *fifo = (void *)engine;
+	struct nvkm_instmem *imem = fifo->base.engine.subdev.device->imem;
 	struct nv04_fifo_chan *chan;
 	int ret;
 
@@ -86,18 +86,18 @@ nv10_fifo_chan_ctor(struct nvkm_object *parent,
 	nv_parent(chan)->context_attach = nv04_fifo_context_attach;
 	chan->ramfc = chan->base.chid * 32;
 
-	nvkm_kmap(fifo->ramfc);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x14,
+	nvkm_kmap(imem->ramfc);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x00, args->v0.offset);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x04, args->v0.offset);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x14,
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
 			     NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
-	nvkm_done(fifo->ramfc);
+	nvkm_done(imem->ramfc);
 	return 0;
 }
 
@@ -145,8 +145,6 @@ nv10_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nvkm_instmem *imem = device->imem;
 	struct nv04_fifo *fifo;
 	int ret;
 
@@ -154,10 +152,6 @@ nv10_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	*pobject = nv_object(fifo);
 	if (ret)
 		return ret;
-
-	nvkm_ramht_ref(imem->ramht, &fifo->ramht);
-	nvkm_gpuobj_ref(imem->ramro, &fifo->ramro);
-	nvkm_gpuobj_ref(imem->ramfc, &fifo->ramfc);
 
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = nv04_fifo_intr;

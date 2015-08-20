@@ -69,6 +69,7 @@ nv40_fifo_object_attach(struct nvkm_object *parent,
 {
 	struct nv04_fifo *fifo = (void *)parent->engine;
 	struct nv04_fifo_chan *chan = (void *)parent;
+	struct nvkm_instmem *imem = fifo->base.engine.subdev.device->imem;
 	u32 context, chid = chan->base.chid;
 	int ret;
 
@@ -95,7 +96,7 @@ nv40_fifo_object_attach(struct nvkm_object *parent,
 	context |= chid << 23;
 
 	mutex_lock(&nv_subdev(fifo)->mutex);
-	ret = nvkm_ramht_insert(fifo->ramht, chid, handle, context);
+	ret = nvkm_ramht_insert(imem->ramht, chid, handle, context);
 	mutex_unlock(&nv_subdev(fifo)->mutex);
 	return ret;
 }
@@ -106,6 +107,7 @@ nv40_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *engctx)
 	struct nv04_fifo *fifo = (void *)parent->engine;
 	struct nv04_fifo_chan *chan = (void *)parent;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_instmem *imem = device->imem;
 	unsigned long flags;
 	u32 reg, ctx;
 
@@ -130,9 +132,9 @@ nv40_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *engctx)
 
 	if ((nvkm_rd32(device, 0x003204) & fifo->base.max) == chan->base.chid)
 		nvkm_wr32(device, reg, nv_engctx(engctx)->addr);
-	nvkm_kmap(fifo->ramfc);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + ctx, nv_engctx(engctx)->addr);
-	nvkm_done(fifo->ramfc);
+	nvkm_kmap(imem->ramfc);
+	nvkm_wo32(imem->ramfc, chan->ramfc + ctx, nv_engctx(engctx)->addr);
+	nvkm_done(imem->ramfc);
 
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
@@ -146,6 +148,7 @@ nv40_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 	struct nv04_fifo *fifo = (void *)parent->engine;
 	struct nv04_fifo_chan *chan = (void *)parent;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_instmem *imem = device->imem;
 	unsigned long flags;
 	u32 reg, ctx;
 
@@ -169,9 +172,9 @@ nv40_fifo_context_detach(struct nvkm_object *parent, bool suspend,
 
 	if ((nvkm_rd32(device, 0x003204) & fifo->base.max) == chan->base.chid)
 		nvkm_wr32(device, reg, 0x00000000);
-	nvkm_kmap(fifo->ramfc);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + ctx, 0x00000000);
-	nvkm_done(fifo->ramfc);
+	nvkm_kmap(imem->ramfc);
+	nvkm_wo32(imem->ramfc, chan->ramfc + ctx, 0x00000000);
+	nvkm_done(imem->ramfc);
 
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
@@ -187,6 +190,7 @@ nv40_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nv03_channel_dma_v0 v0;
 	} *args = data;
 	struct nv04_fifo *fifo = (void *)engine;
+	struct nvkm_instmem *imem = fifo->base.engine.subdev.device->imem;
 	struct nv04_fifo_chan *chan;
 	int ret;
 
@@ -216,19 +220,19 @@ nv40_fifo_chan_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	nv_parent(chan)->object_detach = nv04_fifo_object_detach;
 	chan->ramfc = chan->base.chid * 128;
 
-	nvkm_kmap(fifo->ramfc);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x00, args->v0.offset);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x18, 0x30000000 |
+	nvkm_kmap(imem->ramfc);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x00, args->v0.offset);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x04, args->v0.offset);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x0c, chan->base.pushgpu->addr >> 4);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x18, 0x30000000 |
 			     NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 #ifdef __BIG_ENDIAN
 			     NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
-	nvkm_wo32(fifo->ramfc, chan->ramfc + 0x3c, 0x0001ffff);
-	nvkm_done(fifo->ramfc);
+	nvkm_wo32(imem->ramfc, chan->ramfc + 0x3c, 0x0001ffff);
+	nvkm_done(imem->ramfc);
 	return 0;
 }
 
@@ -276,8 +280,6 @@ nv40_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nvkm_instmem *imem = device->imem;
 	struct nv04_fifo *fifo;
 	int ret;
 
@@ -285,10 +287,6 @@ nv40_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	*pobject = nv_object(fifo);
 	if (ret)
 		return ret;
-
-	nvkm_ramht_ref(imem->ramht, &fifo->ramht);
-	nvkm_gpuobj_ref(imem->ramro, &fifo->ramro);
-	nvkm_gpuobj_ref(imem->ramfc, &fifo->ramfc);
 
 	nv_subdev(fifo)->unit = 0x00000100;
 	nv_subdev(fifo)->intr = nv04_fifo_intr;
@@ -306,6 +304,10 @@ nv40_fifo_init(struct nvkm_object *object)
 	struct nv04_fifo *fifo = (void *)object;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_fb *fb = device->fb;
+	struct nvkm_instmem *imem = device->imem;
+	struct nvkm_ramht *ramht = imem->ramht;
+	struct nvkm_memory *ramro = imem->ramro;
+	struct nvkm_memory *ramfc = imem->ramfc;
 	int ret;
 
 	ret = nvkm_fifo_init(&fifo->base);
@@ -317,9 +319,9 @@ nv40_fifo_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x002058, 0x00000001);
 
 	nvkm_wr32(device, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
-				       ((fifo->ramht->bits - 9) << 16) |
-				        (fifo->ramht->gpuobj.addr >> 8));
-	nvkm_wr32(device, NV03_PFIFO_RAMRO, fifo->ramro->addr >> 8);
+					    ((ramht->bits - 9) << 16) |
+					    (ramht->gpuobj.addr >> 8));
+	nvkm_wr32(device, NV03_PFIFO_RAMRO, nvkm_memory_addr(ramro) >> 8);
 
 	switch (nv_device(fifo)->chipset) {
 	case 0x47:
@@ -337,8 +339,8 @@ nv40_fifo_init(struct nvkm_object *object)
 	default:
 		nvkm_wr32(device, 0x002230, 0x00000000);
 		nvkm_wr32(device, 0x002220, ((fb->ram->size - 512 * 1024 +
-					 fifo->ramfc->addr) >> 16) |
-					0x00030000);
+					      nvkm_memory_addr(ramfc)) >> 16) |
+					    0x00030000);
 		break;
 	}
 
