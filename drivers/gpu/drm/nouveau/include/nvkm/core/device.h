@@ -210,12 +210,10 @@ enum nv_bus_type {
 	NVKM_BUS_PLATFORM,
 };
 
-#define nvkm_device_create(p,t,n,s,c,d,u)                                   \
-	nvkm_device_create_((void *)(p), (t), (n), (s), (c), (d),           \
-			       sizeof(**u), (void **)u)
-int  nvkm_device_create_(void *, enum nv_bus_type type, u64 name,
-			    const char *sname, const char *cfg, const char *dbg,
-			    int, void **);
+int  nvkm_device_new(void *, enum nv_bus_type type, u64 name,
+		     const char *sname, const char *cfg, const char *dbg,
+		     struct nvkm_device **);
+void nvkm_device_del(struct nvkm_device **);
 
 /* device logging */
 #define nvdev_printk_(d,l,p,f,a...) do {                                       \

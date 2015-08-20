@@ -325,9 +325,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		remove_conflicting_framebuffers(aper, "nouveaufb", boot);
 	kfree(aper);
 
-	ret = nvkm_device_create(pdev, NVKM_BUS_PCI,
-				 nouveau_pci_name(pdev), pci_name(pdev),
-				 nouveau_config, nouveau_debug, &device);
+	ret = nvkm_device_new(pdev, NVKM_BUS_PCI, nouveau_pci_name(pdev),
+			      pci_name(pdev), nouveau_config, nouveau_debug,
+			      &device);
 	if (ret)
 		return ret;
 
@@ -335,7 +335,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	ret = drm_get_pci_dev(pdev, pent, &driver_pci);
 	if (ret) {
-		nvkm_object_ref(NULL, (struct nvkm_object **)&device);
+		nvkm_device_del(&device);
 		return ret;
 	}
 
@@ -537,7 +537,7 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	device = client->device;
 	drm_put_dev(dev);
 
-	nvkm_object_ref(NULL, (struct nvkm_object **)&device);
+	nvkm_device_del(&device);
 }
 
 static void
@@ -1062,12 +1062,12 @@ nouveau_platform_device_create(struct platform_device *pdev,
 	struct drm_device *drm;
 	int err;
 
-	err = nvkm_device_create(pdev, NVKM_BUS_PLATFORM,
-				 nouveau_platform_name(pdev),
-				 dev_name(&pdev->dev), nouveau_config,
-				 nouveau_debug, pdevice);
+	err = nvkm_device_new(pdev, NVKM_BUS_PLATFORM,
+			      nouveau_platform_name(pdev),
+			      dev_name(&pdev->dev), nouveau_config,
+			      nouveau_debug, pdevice);
 	if (err)
-		return ERR_PTR(err);
+		goto err_free;
 
 	drm = drm_dev_alloc(&driver_platform, &pdev->dev);
 	if (!drm) {
@@ -1085,7 +1085,7 @@ nouveau_platform_device_create(struct platform_device *pdev,
 	return drm;
 
 err_free:
-	nvkm_object_ref(NULL, (struct nvkm_object **)pdevice);
+	nvkm_device_del(pdevice);
 
 	return ERR_PTR(err);
 }

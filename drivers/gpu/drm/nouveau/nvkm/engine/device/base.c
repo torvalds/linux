@@ -666,23 +666,6 @@ fail:
 	return ret;
 }
 
-static void
-nvkm_device_dtor(struct nvkm_object *object)
-{
-	struct nvkm_device *device = (void *)object;
-
-	nvkm_event_fini(&device->event);
-
-	mutex_lock(&nv_devices_mutex);
-	list_del(&device->head);
-	mutex_unlock(&nv_devices_mutex);
-
-	if (device->pri)
-		iounmap(device->pri);
-
-	nvkm_engine_destroy(&device->engine);
-}
-
 resource_size_t
 nv_device_resource_start(struct nvkm_device *device, unsigned int bar)
 {
@@ -728,16 +711,34 @@ static struct nvkm_oclass
 nvkm_device_oclass = {
 	.handle = NV_ENGINE(DEVICE, 0x00),
 	.ofuncs = &(struct nvkm_ofuncs) {
-		.dtor = nvkm_device_dtor,
 		.init = nvkm_device_init,
 		.fini = nvkm_device_fini,
 	},
 };
 
+void
+nvkm_device_del(struct nvkm_device **pdevice)
+{
+	struct nvkm_device *device = *pdevice;
+	if (device) {
+		nvkm_event_fini(&device->event);
+
+		mutex_lock(&nv_devices_mutex);
+		list_del(&device->head);
+		mutex_unlock(&nv_devices_mutex);
+
+		if (device->pri)
+			iounmap(device->pri);
+
+		nvkm_engine_destroy(&device->engine);
+		*pdevice = NULL;
+	}
+}
+
 int
-nvkm_device_create_(void *dev, enum nv_bus_type type, u64 name,
-		    const char *sname, const char *cfg, const char *dbg,
-		    int length, void **pobject)
+nvkm_device_new(void *dev, enum nv_bus_type type, u64 name,
+		const char *sname, const char *cfg, const char *dbg,
+		struct nvkm_device **pdevice)
 {
 	struct nvkm_device *device;
 	int ret = -EEXIST;
@@ -748,9 +749,9 @@ nvkm_device_create_(void *dev, enum nv_bus_type type, u64 name,
 			goto done;
 	}
 
-	ret = nvkm_engine_create_(NULL, NULL, &nvkm_device_oclass, true,
-				  "DEVICE", "device", length, pobject);
-	device = *pobject;
+	ret = nvkm_engine_create(NULL, NULL, &nvkm_device_oclass, true,
+				 "DEVICE", "device", &device);
+	*pdevice = device;
 	if (ret)
 		goto done;
 
