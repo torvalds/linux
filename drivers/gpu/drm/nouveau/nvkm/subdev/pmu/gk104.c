@@ -36,10 +36,13 @@ magic_(struct nvkm_device *device, u32 ctrl, int size)
 	nvkm_wr32(device, 0x00c800, 0x00000000);
 	nvkm_wr32(device, 0x00c808, 0x00000000);
 	nvkm_wr32(device, 0x00c800, ctrl);
-	if (nv_wait(device, 0x00c800, 0x40000000, 0x40000000)) {
-		while (size--)
-			nvkm_wr32(device, 0x00c804, 0x00000000);
-	}
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x00c800) & 0x40000000) {
+			while (size--)
+				nvkm_wr32(device, 0x00c804, 0x00000000);
+			break;
+		}
+	);
 	nvkm_wr32(device, 0x00c800, 0x00000000);
 }
 

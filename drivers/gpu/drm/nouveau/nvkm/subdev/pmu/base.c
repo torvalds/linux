@@ -43,7 +43,11 @@ nvkm_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 
 	/* wait for a free slot in the fifo */
 	addr  = nvkm_rd32(device, 0x10a4a0);
-	if (!nv_wait_ne(pmu, 0x10a4b0, 0xffffffff, addr ^ 8))
+	if (nvkm_msec(device, 2000,
+		u32 tmp = nvkm_rd32(device, 0x10a4b0);
+		if (tmp != (addr ^ 8))
+			break;
+	) < 0)
 		return -EBUSY;
 
 	/* we currently only support a single process at a time waiting
@@ -203,11 +207,17 @@ _nvkm_pmu_init(struct nvkm_object *object)
 
 	/* prevent previous ucode from running, wait for idle, reset */
 	nvkm_wr32(device, 0x10a014, 0x0000ffff); /* INTR_EN_CLR = ALL */
-	nv_wait(pmu, 0x10a04c, 0xffffffff, 0x00000000);
+	nvkm_msec(device, 2000,
+		if (!nvkm_rd32(device, 0x10a04c))
+			break;
+	);
 	nvkm_mask(device, 0x000200, 0x00002000, 0x00000000);
 	nvkm_mask(device, 0x000200, 0x00002000, 0x00002000);
 	nvkm_rd32(device, 0x000200);
-	nv_wait(pmu, 0x10a10c, 0x00000006, 0x00000000);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x10a10c) & 0x00000006))
+			break;
+	);
 
 	/* upload data segment */
 	nvkm_wr32(device, 0x10a1c0, 0x01000000);
@@ -228,13 +238,19 @@ _nvkm_pmu_init(struct nvkm_object *object)
 	nvkm_wr32(device, 0x10a100, 0x00000002);
 
 	/* wait for valid host->pmu ring configuration */
-	if (!nv_wait_ne(pmu, 0x10a4d0, 0xffffffff, 0x00000000))
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x10a4d0))
+			break;
+	) < 0)
 		return -EBUSY;
 	pmu->send.base = nvkm_rd32(device, 0x10a4d0) & 0x0000ffff;
 	pmu->send.size = nvkm_rd32(device, 0x10a4d0) >> 16;
 
 	/* wait for valid pmu->host ring configuration */
-	if (!nv_wait_ne(pmu, 0x10a4dc, 0xffffffff, 0x00000000))
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x10a4dc))
+			break;
+	) < 0)
 		return -EBUSY;
 	pmu->recv.base = nvkm_rd32(device, 0x10a4dc) & 0x0000ffff;
 	pmu->recv.size = nvkm_rd32(device, 0x10a4dc) >> 16;
