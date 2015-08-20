@@ -21,14 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/fifo.h>
+#include "priv.h"
+#include "chan.h"
 
 #include <core/client.h>
-#include <core/handle.h>
 #include <core/notify.h>
-#include <engine/dma.h>
 
-#include <nvif/class.h>
 #include <nvif/event.h>
 #include <nvif/unpack.h>
 
@@ -74,184 +72,6 @@ nvkm_fifo_chan_chid(struct nvkm_fifo *fifo, int chid, unsigned long *rflags)
 }
 
 static int
-nvkm_fifo_event_ctor(struct nvkm_object *object, void *data, u32 size,
-		     struct nvkm_notify *notify)
-{
-	if (size == 0) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = 0;
-		return 0;
-	}
-	return -ENOSYS;
-}
-
-static const struct nvkm_event_func
-nvkm_fifo_event_func = {
-	.ctor = nvkm_fifo_event_ctor,
-};
-
-int
-nvkm_fifo_channel_create_(struct nvkm_object *parent,
-			  struct nvkm_object *engine,
-			  struct nvkm_oclass *oclass,
-			  int bar, u32 addr, u32 size, u64 pushbuf,
-			  u64 engmask, int len, void **ptr)
-{
-	struct nvkm_client *client = nvkm_client(parent);
-	struct nvkm_dmaobj *dmaobj;
-	struct nvkm_fifo *fifo = (void *)engine;
-	struct nvkm_fifo_base *base = (void *)parent;
-	struct nvkm_fifo_chan *chan;
-	struct nvkm_subdev *subdev = &fifo->engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_dma *dma = device->dma;
-	unsigned long flags;
-	int ret;
-
-	/* create base object class */
-	ret = nvkm_namedb_create_(parent, engine, oclass, 0, NULL,
-				  engmask, len, ptr);
-	chan = *ptr;
-	if (ret)
-		return ret;
-
-	/* validate dma object representing push buffer */
-	if (pushbuf) {
-		dmaobj = nvkm_dma_search(dma, client, pushbuf);
-		if (!dmaobj)
-			return -ENOENT;
-
-		ret = dmaobj->func->bind(dmaobj, &base->gpuobj, 16,
-					 &chan->pushgpu);
-		if (ret)
-			return ret;
-	}
-
-	/* find a free fifo channel */
-	spin_lock_irqsave(&fifo->lock, flags);
-	for (chan->chid = fifo->min; chan->chid < fifo->max; chan->chid++) {
-		if (!fifo->channel[chan->chid]) {
-			fifo->channel[chan->chid] = nv_object(chan);
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&fifo->lock, flags);
-
-	if (chan->chid == fifo->max) {
-		nvkm_error(subdev, "no free channels\n");
-		return -ENOSPC;
-	}
-
-	chan->addr = nv_device_resource_start(device, bar) +
-		     addr + size * chan->chid;
-	chan->size = size;
-	nvkm_event_send(&fifo->cevent, 1, 0, NULL, 0);
-	return 0;
-}
-
-void
-nvkm_fifo_channel_destroy(struct nvkm_fifo_chan *chan)
-{
-	struct nvkm_fifo *fifo = (void *)nv_object(chan)->engine;
-	unsigned long flags;
-
-	if (chan->user)
-		iounmap(chan->user);
-
-	spin_lock_irqsave(&fifo->lock, flags);
-	fifo->channel[chan->chid] = NULL;
-	spin_unlock_irqrestore(&fifo->lock, flags);
-
-	nvkm_gpuobj_del(&chan->pushgpu);
-	nvkm_namedb_destroy(&chan->namedb);
-}
-
-void
-_nvkm_fifo_channel_dtor(struct nvkm_object *object)
-{
-	struct nvkm_fifo_chan *chan = (void *)object;
-	nvkm_fifo_channel_destroy(chan);
-}
-
-int
-_nvkm_fifo_channel_map(struct nvkm_object *object, u64 *addr, u32 *size)
-{
-	struct nvkm_fifo_chan *chan = (void *)object;
-	*addr = chan->addr;
-	*size = chan->size;
-	return 0;
-}
-
-u32
-_nvkm_fifo_channel_rd32(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_fifo_chan *chan = (void *)object;
-	if (unlikely(!chan->user)) {
-		chan->user = ioremap(chan->addr, chan->size);
-		if (WARN_ON_ONCE(chan->user == NULL))
-			return 0;
-	}
-	return ioread32_native(chan->user + addr);
-}
-
-void
-_nvkm_fifo_channel_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_fifo_chan *chan = (void *)object;
-	if (unlikely(!chan->user)) {
-		chan->user = ioremap(chan->addr, chan->size);
-		if (WARN_ON_ONCE(chan->user == NULL))
-			return;
-	}
-	iowrite32_native(data, chan->user + addr);
-}
-
-int
-nvkm_fifo_uevent_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
-{
-	union {
-		struct nvif_notify_uevent_req none;
-	} *req = data;
-	int ret;
-
-	if (nvif_unvers(req->none)) {
-		notify->size  = sizeof(struct nvif_notify_uevent_rep);
-		notify->types = 1;
-		notify->index = 0;
-	}
-
-	return ret;
-}
-
-void
-nvkm_fifo_uevent(struct nvkm_fifo *fifo)
-{
-	struct nvif_notify_uevent_rep rep = {
-	};
-	nvkm_event_send(&fifo->uevent, 1, 0, &rep, sizeof(rep));
-}
-
-int
-_nvkm_fifo_channel_ntfy(struct nvkm_object *object, u32 type,
-			struct nvkm_event **event)
-{
-	struct nvkm_fifo *fifo = (void *)object->engine;
-	switch (type) {
-	case G82_CHANNEL_DMA_V0_NTFY_UEVENT:
-		if (nv_mclass(object) >= G82_CHANNEL_DMA) {
-			*event = &fifo->uevent;
-			return 0;
-		}
-		break;
-	default:
-		break;
-	}
-	return -EINVAL;
-}
-
-static int
 nvkm_fifo_chid(struct nvkm_fifo *fifo, struct nvkm_object *object)
 {
 	int engidx = nv_hclass(fifo) & 0xff;
@@ -278,6 +98,50 @@ nvkm_client_name_for_fifo_chid(struct nvkm_fifo *fifo, u32 chid)
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
 	return nvkm_client_name(chan);
+}
+
+static int
+nvkm_fifo_event_ctor(struct nvkm_object *object, void *data, u32 size,
+		     struct nvkm_notify *notify)
+{
+	if (size == 0) {
+		notify->size  = 0;
+		notify->types = 1;
+		notify->index = 0;
+		return 0;
+	}
+	return -ENOSYS;
+}
+
+static const struct nvkm_event_func
+nvkm_fifo_event_func = {
+	.ctor = nvkm_fifo_event_ctor,
+};
+
+int
+nvkm_fifo_uevent_ctor(struct nvkm_object *object, void *data, u32 size,
+		      struct nvkm_notify *notify)
+{
+	union {
+		struct nvif_notify_uevent_req none;
+	} *req = data;
+	int ret;
+
+	if (nvif_unvers(req->none)) {
+		notify->size  = sizeof(struct nvif_notify_uevent_rep);
+		notify->types = 1;
+		notify->index = 0;
+	}
+
+	return ret;
+}
+
+void
+nvkm_fifo_uevent(struct nvkm_fifo *fifo)
+{
+	struct nvif_notify_uevent_rep rep = {
+	};
+	nvkm_event_send(&fifo->uevent, 1, 0, &rep, sizeof(rep));
 }
 
 void

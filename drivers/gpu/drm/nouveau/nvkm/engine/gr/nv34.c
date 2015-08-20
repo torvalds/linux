@@ -2,6 +2,7 @@
 #include "regs.h"
 
 #include <engine/fifo.h>
+#include <engine/fifo/chan.h>
 
 /*******************************************************************************
  * Graphics object classes

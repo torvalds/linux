@@ -3,6 +3,7 @@
 
 #include <core/client.h>
 #include <engine/fifo.h>
+#include <engine/fifo/chan.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 

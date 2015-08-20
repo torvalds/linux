@@ -21,30 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-#include "gk104.h"
 #include "changk104.h"
 
-int
-gm204_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
-{
-	int ret = gk104_fifo_ctor(parent, engine, oclass, data, size, pobject);
-	if (ret == 0) {
-		struct gk104_fifo *fifo = (void *)*pobject;
-		nv_engine(fifo)->sclass = gm204_fifo_sclass;
-	}
-	return ret;
-}
+#include <nvif/class.h>
 
-struct nvkm_oclass *
-gm204_fifo_oclass = &(struct gk104_fifo_impl) {
-	.base.handle = NV_ENGINE(FIFO, 0x24),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm204_fifo_ctor,
-		.dtor = gk104_fifo_dtor,
-		.init = gk104_fifo_init,
-		.fini = _nvkm_fifo_fini,
-	},
-	.channels = 4096,
-}.base;
+struct nvkm_oclass
+gm204_fifo_sclass[] = {
+	{ MAXWELL_CHANNEL_GPFIFO_A, &gk104_fifo_chan_ofuncs },
+	{}
+};

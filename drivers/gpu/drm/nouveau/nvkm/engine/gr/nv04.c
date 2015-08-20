@@ -26,6 +26,7 @@
 
 #include <core/client.h>
 #include <engine/fifo.h>
+#include <engine/fifo/chan.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
 
