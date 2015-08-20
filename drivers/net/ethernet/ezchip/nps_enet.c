@@ -158,11 +158,7 @@ static void nps_enet_tx_handler(struct net_device *ndev)
 		ndev->stats.tx_bytes += tx_ctrl.nt;
 	}
 
-	if (priv->tx_skb) {
-		dev_kfree_skb(priv->tx_skb);
-		priv->tx_skb = NULL;
-	}
-
+	dev_kfree_skb(priv->tx_skb);
 	priv->tx_packet_sent = false;
 
 	if (netif_queue_stopped(ndev))
@@ -528,9 +524,9 @@ static netdev_tx_t nps_enet_start_xmit(struct sk_buff *skb,
 	/* This driver handles one frame at a time  */
 	netif_stop_queue(ndev);
 
-	nps_enet_send_frame(ndev, skb);
-
 	priv->tx_skb = skb;
+
+	nps_enet_send_frame(ndev, skb);
 
 	return NETDEV_TX_OK;
 }
