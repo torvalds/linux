@@ -44,6 +44,7 @@ struct device;
  * @entity_id:	Unique ID used on the last entity registered
  * @pad_id:	Unique ID used on the last pad registered
  * @link_id:	Unique ID used on the last link registered
+ * @intf_devnode_id: Unique ID used on the last interface devnode registered
  * @entities:	List of registered entities
  * @lock:	Entities list lock
  * @graph_mutex: Entities graph operation lock
@@ -73,6 +74,7 @@ struct media_device {
 	u32 entity_id;
 	u32 pad_id;
 	u32 link_id;
+	u32 intf_devnode_id;
 
 	struct list_head entities;
 

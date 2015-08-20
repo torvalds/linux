@@ -44,10 +44,40 @@ static inline const char *gobj_type(enum media_gobj_type type)
 		return "pad";
 	case MEDIA_GRAPH_LINK:
 		return "link";
+	case MEDIA_GRAPH_INTF_DEVNODE:
+		return "intf-devnode";
 	default:
 		return "unknown";
 	}
 }
+
+static inline const char *intf_type(struct media_interface *intf)
+{
+	switch (intf->type) {
+	case MEDIA_INTF_T_DVB_FE:
+		return "frontend";
+	case MEDIA_INTF_T_DVB_DEMUX:
+		return "demux";
+	case MEDIA_INTF_T_DVB_DVR:
+		return "DVR";
+	case MEDIA_INTF_T_DVB_CA:
+		return  "CA";
+	case MEDIA_INTF_T_DVB_NET:
+		return "dvbnet";
+	case MEDIA_INTF_T_V4L_VIDEO:
+		return "video";
+	case MEDIA_INTF_T_V4L_VBI:
+		return "vbi";
+	case MEDIA_INTF_T_V4L_RADIO:
+		return "radio";
+	case MEDIA_INTF_T_V4L_SUBDEV:
+		return "v4l2-subdev";
+	case MEDIA_INTF_T_V4L_SWRADIO:
+		return "swradio";
+	default:
+		return "unknown-intf";
+	}
+};
 
 static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 {
@@ -84,6 +114,19 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 			"%s: id 0x%08x pad#%d: '%s':%d\n",
 			event_name, gobj->id, media_localid(gobj),
 			pad->entity->name, pad->index);
+		break;
+	}
+	case MEDIA_GRAPH_INTF_DEVNODE:
+	{
+		struct media_interface *intf = gobj_to_intf(gobj);
+		struct media_intf_devnode *devnode = intf_to_devnode(intf);
+
+		dev_dbg(gobj->mdev->dev,
+			"%s: id 0x%08x intf_devnode#%d: %s - major: %d, minor: %d\n",
+			event_name, gobj->id, media_localid(gobj),
+			intf_type(intf),
+			devnode->major, devnode->minor);
+		break;
 	}
 	}
 #endif
@@ -118,6 +161,9 @@ void media_gobj_init(struct media_device *mdev,
 		break;
 	case MEDIA_GRAPH_LINK:
 		gobj->id = media_gobj_gen_id(type, ++mdev->link_id);
+		break;
+	case MEDIA_GRAPH_INTF_DEVNODE:
+		gobj->id = media_gobj_gen_id(type, ++mdev->intf_devnode_id);
 		break;
 	}
 	dev_dbg_obj(__func__, gobj);
@@ -793,3 +839,40 @@ struct media_pad *media_entity_remote_pad(struct media_pad *pad)
 
 }
 EXPORT_SYMBOL_GPL(media_entity_remote_pad);
+
+
+/* Functions related to the media interface via device nodes */
+
+struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
+						u32 type, u32 flags,
+						u32 major, u32 minor,
+						gfp_t gfp_flags)
+{
+	struct media_intf_devnode *devnode;
+	struct media_interface *intf;
+
+	devnode = kzalloc(sizeof(*devnode), gfp_flags);
+	if (!devnode)
+		return NULL;
+
+	intf = &devnode->intf;
+
+	intf->type = type;
+	intf->flags = flags;
+
+	devnode->major = major;
+	devnode->minor = minor;
+
+	media_gobj_init(mdev, MEDIA_GRAPH_INTF_DEVNODE,
+		       &devnode->intf.graph_obj);
+
+	return devnode;
+}
+EXPORT_SYMBOL_GPL(media_devnode_create);
+
+void media_devnode_remove(struct media_intf_devnode *devnode)
+{
+	media_gobj_remove(&devnode->intf.graph_obj);
+	kfree(devnode);
+}
+EXPORT_SYMBOL_GPL(media_devnode_remove);

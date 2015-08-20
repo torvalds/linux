@@ -36,11 +36,14 @@
  * @MEDIA_GRAPH_ENTITY:		Identify a media entity
  * @MEDIA_GRAPH_PAD:		Identify a media pad
  * @MEDIA_GRAPH_LINK:		Identify a media link
+ * @MEDIA_GRAPH_INTF_DEVNODE:	Identify a media Kernel API interface via
+ *				a device node
  */
 enum media_gobj_type {
 	MEDIA_GRAPH_ENTITY,
 	MEDIA_GRAPH_PAD,
 	MEDIA_GRAPH_LINK,
+	MEDIA_GRAPH_INTF_DEVNODE,
 };
 
 #define MEDIA_BITS_PER_TYPE		8
@@ -141,6 +144,34 @@ struct media_entity {
 	} info;
 };
 
+/**
+ * struct media_intf_devnode - Define a Kernel API interface
+ *
+ * @graph_obj:		embedded graph object
+ * @type:		Type of the interface as defined at the
+ *			uapi/media/media.h header, e. g.
+ *			MEDIA_INTF_T_*
+ * @flags:		Interface flags as defined at uapi/media/media.h
+ */
+struct media_interface {
+	struct media_gobj		graph_obj;
+	u32				type;
+	u32				flags;
+};
+
+/**
+ * struct media_intf_devnode - Define a Kernel API interface via a device node
+ *
+ * @intf:	embedded interface object
+ * @major:	Major number of a device node
+ * @minor:	Minor number of a device node
+ */
+struct media_intf_devnode {
+	struct media_interface		intf;
+	u32				major;
+	u32				minor;
+};
+
 static inline u32 media_entity_type(struct media_entity *entity)
 {
 	return entity->type & MEDIA_ENT_TYPE_MASK;
@@ -205,6 +236,18 @@ struct media_entity_graph {
 #define gobj_to_link(gobj) \
 		container_of(gobj, struct media_link, graph_obj)
 
+#define gobj_to_link(gobj) \
+		container_of(gobj, struct media_link, graph_obj)
+
+#define gobj_to_pad(gobj) \
+		container_of(gobj, struct media_pad, graph_obj)
+
+#define gobj_to_intf(gobj) \
+		container_of(gobj, struct media_interface, graph_obj)
+
+#define intf_to_devnode(intf) \
+		container_of(intf, struct media_intf_devnode, intf)
+
 void media_gobj_init(struct media_device *mdev,
 		    enum media_gobj_type type,
 		    struct media_gobj *gobj);
@@ -236,6 +279,11 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 					     struct media_pipeline *pipe);
 void media_entity_pipeline_stop(struct media_entity *entity);
 
+struct media_intf_devnode *media_devnode_create(struct media_device *mdev,
+						u32 type, u32 flags,
+						u32 major, u32 minor,
+						gfp_t gfp_flags);
+void media_devnode_remove(struct media_intf_devnode *devnode);
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\
 	 (entity)->ops->operation((entity) , ##args) : -ENOIOCTLCMD)
