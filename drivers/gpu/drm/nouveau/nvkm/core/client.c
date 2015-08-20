@@ -294,8 +294,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	if (ret)
 		return ret;
 
-	ret = nvkm_handle_create(nv_object(client), ~0, ~0, nv_object(client),
-				 &client->root);
+	ret = nvkm_handle_create(NULL, ~0, nv_object(client), &client->root);
 	if (ret)
 		return ret;
 

@@ -23,13 +23,12 @@ void nvkm_client_remove(struct nvkm_client *, struct nvkm_handle *);
 struct nvkm_handle *nvkm_client_search(struct nvkm_client *, u64 handle);
 
 static inline struct nvkm_client *
-nvkm_client(void *obj)
+nvkm_client(struct nvkm_object *object)
 {
-	struct nvkm_object *client = nv_object(obj);
-	while (client && client->parent)
-		client = client->parent;
-	if (client && nv_iclass(client, NV_CLIENT_CLASS))
-		return (void *)client;
+	while (object && object->parent)
+		object = object->parent;
+	if (object && nv_iclass(object, NV_CLIENT_CLASS))
+		return container_of(object, struct nvkm_client, namedb.parent.object);
 	return NULL;
 }
 

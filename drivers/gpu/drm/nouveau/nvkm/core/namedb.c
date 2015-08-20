@@ -104,9 +104,11 @@ nvkm_namedb_remove(struct nvkm_handle *handle)
 {
 	struct nvkm_namedb *namedb = handle->namedb;
 	struct nvkm_object *object = handle->object;
-	write_lock_irq(&namedb->lock);
-	list_del(&handle->node);
-	write_unlock_irq(&namedb->lock);
+	if (handle->namedb) {
+		write_lock_irq(&namedb->lock);
+		list_del(&handle->node);
+		write_unlock_irq(&namedb->lock);
+	}
 	nvkm_object_ref(NULL, &object);
 }
 

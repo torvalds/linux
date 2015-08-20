@@ -104,7 +104,7 @@ void
 nvkm_engctx_destroy(struct nvkm_engctx *engctx)
 {
 	struct nvkm_engine *engine = engctx->gpuobj.object.engine;
-	struct nvkm_client *client = nvkm_client(engctx);
+	struct nvkm_client *client = nvkm_client(&engctx->gpuobj.object);
 	unsigned long save;
 
 	nvkm_gpuobj_unmap(&engctx->vma);

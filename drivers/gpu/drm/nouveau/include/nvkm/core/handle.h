@@ -22,7 +22,7 @@ struct nvkm_handle {
 	u64 handle;
 };
 
-int  nvkm_handle_create(struct nvkm_object *, u32 parent, u32 handle,
+int  nvkm_handle_create(struct nvkm_handle *, u32 handle,
 			struct nvkm_object *, struct nvkm_handle **);
 void nvkm_handle_destroy(struct nvkm_handle *);
 int  nvkm_handle_init(struct nvkm_handle *);

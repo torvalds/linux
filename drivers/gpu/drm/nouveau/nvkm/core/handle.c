@@ -94,15 +94,15 @@ fail:
 }
 
 int
-nvkm_handle_create(struct nvkm_object *parent, u32 _parent, u32 _handle,
+nvkm_handle_create(struct nvkm_handle *parent, u32 _handle,
 		   struct nvkm_object *object, struct nvkm_handle **phandle)
 {
 	struct nvkm_object *namedb;
 	struct nvkm_handle *handle;
 	int ret;
 
-	namedb = parent;
-	while (!nv_iclass(namedb, NV_NAMEDB_CLASS))
+	namedb = parent ? parent->object : NULL;
+	while (namedb && !nv_iclass(namedb, NV_NAMEDB_CLASS))
 		namedb = namedb->parent;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
@@ -114,32 +114,32 @@ nvkm_handle_create(struct nvkm_object *parent, u32 _parent, u32 _handle,
 	handle->name = _handle;
 	handle->priv = ~0;
 	RB_CLEAR_NODE(&handle->rb);
+	handle->parent = parent;
+	nvkm_object_ref(object, &handle->object);
 
-	ret = nvkm_namedb_insert(nv_namedb(namedb), _handle, object, handle);
-	if (ret) {
-		kfree(handle);
-		return ret;
-	}
-
-	if (nv_parent(parent)->object_attach) {
-		ret = nv_parent(parent)->object_attach(parent, object, _handle);
-		if (ret < 0) {
-			nvkm_handle_destroy(handle);
+	if (namedb) {
+		ret = nvkm_namedb_insert(nv_namedb(namedb), _handle,
+					 object, handle);
+		if (ret) {
+			kfree(handle);
 			return ret;
 		}
-
-		handle->priv = ret;
 	}
 
-	if (object != namedb) {
-		while (!nv_iclass(namedb, NV_CLIENT_CLASS))
-			namedb = namedb->parent;
+	if (parent) {
+		if (nv_iclass(parent->object, NV_PARENT_CLASS) &&
+		    nv_parent(parent->object)->object_attach) {
+			ret = nv_parent(parent->object)->
+				object_attach(parent->object, object, _handle);
+			if (ret < 0) {
+				nvkm_handle_destroy(handle);
+				return ret;
+			}
 
-		handle->parent = nvkm_namedb_get(nv_namedb(namedb), _parent);
-		if (handle->parent) {
-			list_add(&handle->head, &handle->parent->tree);
-			nvkm_namedb_put(handle->parent);
+			handle->priv = ret;
 		}
+
+		list_add(&handle->head, &handle->parent->tree);
 	}
 
 	hprintk(handle, TRACE, "created\n");
