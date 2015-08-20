@@ -10,6 +10,7 @@ struct nvkm_client {
 
 	struct nvkm_client_notify *notify[16];
 	struct rb_root objroot;
+	struct rb_root dmaroot;
 
 	struct nvkm_handle *root;
 

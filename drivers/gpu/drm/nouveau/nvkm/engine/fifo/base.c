@@ -99,14 +99,13 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 			  u64 engmask, int len, void **ptr)
 {
 	struct nvkm_client *client = nvkm_client(parent);
-	struct nvkm_handle *handle;
 	struct nvkm_dmaobj *dmaobj;
 	struct nvkm_fifo *fifo = (void *)engine;
 	struct nvkm_fifo_base *base = (void *)parent;
 	struct nvkm_fifo_chan *chan;
-	struct nvkm_dma *dma;
 	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_dma *dma = device->dma;
 	unsigned long flags;
 	int ret;
 
@@ -119,21 +118,12 @@ nvkm_fifo_channel_create_(struct nvkm_object *parent,
 
 	/* validate dma object representing push buffer */
 	if (pushbuf) {
-		handle = nvkm_client_search(client, pushbuf);
-		if (!handle)
+		dmaobj = nvkm_dma_search(dma, client, pushbuf);
+		if (!dmaobj)
 			return -ENOENT;
-		dmaobj = (void *)handle->object;
 
-		dma = (void *)dmaobj->base.engine;
-		switch (dmaobj->base.oclass->handle) {
-		case NV_DMA_FROM_MEMORY:
-		case NV_DMA_IN_MEMORY:
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		ret = dma->bind(dmaobj, &base->gpuobj, &chan->pushgpu);
+		ret = dmaobj->func->bind(dmaobj, &base->gpuobj, 16,
+					 &chan->pushgpu);
 		if (ret)
 			return ret;
 	}

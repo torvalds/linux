@@ -209,8 +209,9 @@ nv50_disp_dmac_create_(struct nvkm_object *parent,
 		       struct nvkm_oclass *oclass, u64 pushbuf, int head,
 		       int length, void **pobject)
 {
+	struct nvkm_device *device = parent->engine->subdev.device;
 	struct nvkm_client *client = nvkm_client(parent);
-	struct nvkm_handle *handle;
+	struct nvkm_dma *dma = device->dma;
 	struct nvkm_dmaobj *dmaobj;
 	struct nv50_disp_dmac *dmac;
 	int ret;
@@ -221,27 +222,19 @@ nv50_disp_dmac_create_(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	handle = nvkm_client_search(client, pushbuf);
-	if (!handle)
+	dmaobj = nvkm_dma_search(dma, client, pushbuf);
+	if (!dmaobj)
 		return -ENOENT;
-	dmaobj = (void *)handle->object;
 
-	switch (nv_mclass(dmaobj)) {
-	case 0x0002:
-	case 0x003d:
-		if (dmaobj->limit - dmaobj->start != 0xfff)
-			return -EINVAL;
+	if (dmaobj->limit - dmaobj->start != 0xfff)
+		return -EINVAL;
 
-		switch (dmaobj->target) {
-		case NV_MEM_TARGET_VRAM:
-			dmac->push = 0x00000001 | dmaobj->start >> 8;
-			break;
-		case NV_MEM_TARGET_PCI_NOSNOOP:
-			dmac->push = 0x00000003 | dmaobj->start >> 8;
-			break;
-		default:
-			return -EINVAL;
-		}
+	switch (dmaobj->target) {
+	case NV_MEM_TARGET_VRAM:
+		dmac->push = 0x00000001 | dmaobj->start >> 8;
+		break;
+	case NV_MEM_TARGET_PCI_NOSNOOP:
+		dmac->push = 0x00000003 | dmaobj->start >> 8;
 		break;
 	default:
 		return -EINVAL;

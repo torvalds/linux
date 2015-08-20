@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#define gf110_dmaobj(p) container_of((p), struct gf110_dmaobj, base)
 #include "user.h"
 
 #include <core/client.h>
@@ -35,15 +36,15 @@ struct gf110_dmaobj {
 	u32 flags0;
 };
 
-int
-gf110_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
-		  struct nvkm_gpuobj **pgpuobj)
+static int
+gf110_dmaobj_bind(struct nvkm_dmaobj *base, struct nvkm_gpuobj *parent,
+		  int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct gf110_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
-	struct nvkm_device *device = dmaobj->base.base.engine->subdev.device;
+	struct gf110_dmaobj *dmaobj = gf110_dmaobj(base);
+	struct nvkm_device *device = dmaobj->base.dma->engine.subdev.device;
 	int ret;
 
-	ret = nvkm_gpuobj_new(device, 24, 32, false, parent, pgpuobj);
+	ret = nvkm_gpuobj_new(device, 24, align, false, parent, pgpuobj);
 	if (ret == 0) {
 		nvkm_kmap(*pgpuobj);
 		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0);
@@ -58,23 +59,32 @@ gf110_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 	return ret;
 }
 
-static int
-gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+static const struct nvkm_dmaobj_func
+gf110_dmaobj_func = {
+	.bind = gf110_dmaobj_bind,
+};
+
+int
+gf110_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
+		 void *data, u32 size, struct nvkm_dmaobj **pdmaobj)
 {
-	struct nvkm_dma *dmaeng = (void *)engine;
 	union {
 		struct gf110_dma_v0 v0;
 	} *args;
+	struct nvkm_object *parent = oclass->parent;
 	struct gf110_dmaobj *dmaobj;
 	u32 kind, page;
 	int ret;
 
-	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &dmaobj);
-	*pobject = nv_object(dmaobj);
+	if (!(dmaobj = kzalloc(sizeof(*dmaobj), GFP_KERNEL)))
+		return -ENOMEM;
+	*pdmaobj = &dmaobj->base;
+
+	ret = nvkm_dmaobj_ctor(&gf110_dmaobj_func, dma, oclass,
+			       &data, &size, &dmaobj->base);
 	if (ret)
 		return ret;
+
 	args = data;
 
 	nvif_ioctl(parent, "create gf110 dma size %d\n", size);
@@ -117,21 +127,5 @@ gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return -EINVAL;
 	}
 
-	return dmaeng->bind(&dmaobj->base, (void *)dmaobj, (void *)pobject);
+	return 0;
 }
-
-static struct nvkm_ofuncs
-gf110_dmaobj_ofuncs = {
-	.ctor =  gf110_dmaobj_ctor,
-	.dtor = _nvkm_dmaobj_dtor,
-	.init = _nvkm_dmaobj_init,
-	.fini = _nvkm_dmaobj_fini,
-};
-
-struct nvkm_oclass
-gf110_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY, &gf110_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY, &gf110_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY, &gf110_dmaobj_ofuncs },
-	{}
-};

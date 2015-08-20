@@ -24,77 +24,182 @@
 #include "priv.h"
 
 #include <core/client.h>
-#include <core/gpuobj.h>
 
-struct hack {
-	struct nvkm_gpuobj object;
-	struct nvkm_gpuobj *parent;
-};
+#include <nvif/class.h>
 
-static void
-dtor(struct nvkm_object *object)
+struct nvkm_dmaobj *
+nvkm_dma_search(struct nvkm_dma *dma, struct nvkm_client *client, u64 object)
 {
-	struct hack *hack = (void *)object;
-	nvkm_gpuobj_del(&hack->parent);
-	nvkm_object_destroy(&hack->object.object);
+	struct rb_node *node = client->dmaroot.rb_node;
+	while (node) {
+		struct nvkm_dmaobj *dmaobj =
+			container_of(node, typeof(*dmaobj), rb);
+		if (object < dmaobj->handle)
+			node = node->rb_left;
+		else
+		if (object > dmaobj->handle)
+			node = node->rb_right;
+		else
+			return dmaobj;
+	}
+	return NULL;
 }
 
-static struct nvkm_oclass
-hack = {
-	.handle = NV_GPUOBJ_CLASS,
+static int
+nvkm_dma_oclass_new(struct nvkm_device *device,
+		    const struct nvkm_oclass *oclass, void *data, u32 size,
+		    struct nvkm_object **pobject)
+{
+	struct nvkm_dma *dma = nvkm_dma(oclass->engine);
+	struct nvkm_dma_impl *impl = (void *)dma->engine.subdev.object.oclass;
+	struct nvkm_dmaobj *dmaobj = NULL;
+	struct nvkm_client *client = oclass->client;
+	struct rb_node **ptr = &client->dmaroot.rb_node;
+	struct rb_node *parent = NULL;
+	int ret;
+
+	ret = impl->class_new(dma, oclass, data, size, &dmaobj);
+	if (dmaobj)
+		*pobject = &dmaobj->object;
+	if (ret)
+		return ret;
+
+	dmaobj->handle = oclass->object;
+
+	while (*ptr) {
+		struct nvkm_dmaobj *obj = container_of(*ptr, typeof(*obj), rb);
+		parent = *ptr;
+		if (dmaobj->handle < obj->handle)
+			ptr = &parent->rb_left;
+		else
+		if (dmaobj->handle > obj->handle)
+			ptr = &parent->rb_right;
+		else
+			return -EEXIST;
+	}
+
+	rb_link_node(&dmaobj->rb, parent, ptr);
+	rb_insert_color(&dmaobj->rb, &client->dmaroot);
+	return 0;
+}
+
+static const struct nvkm_device_oclass
+nvkm_dma_oclass_base = {
+	.ctor = nvkm_dma_oclass_new,
+};
+
+static const struct nvkm_sclass
+nvkm_dma_sclass[] = {
+	{ 0, 0, NV_DMA_FROM_MEMORY },
+	{ 0, 0, NV_DMA_TO_MEMORY },
+	{ 0, 0, NV_DMA_IN_MEMORY },
+};
+
+static int
+nvkm_dma_oclass_base_get(struct nvkm_oclass *sclass, int index,
+			 const struct nvkm_device_oclass **class)
+{
+	const int count = ARRAY_SIZE(nvkm_dma_sclass);
+	if (index < count) {
+		const struct nvkm_sclass *oclass = &nvkm_dma_sclass[index];
+		sclass->base = oclass[0];
+		sclass->engn = oclass;
+		*class = &nvkm_dma_oclass_base;
+		return index;
+	}
+	return count;
+}
+
+static const struct nvkm_engine_func
+nvkm_dma = {
+	.base.sclass = nvkm_dma_oclass_base_get,
+};
+
+#include <core/gpuobj.h>
+
+static struct nvkm_oclass empty = {
 	.ofuncs = &(struct nvkm_ofuncs) {
-		.dtor = dtor,
+		.dtor = nvkm_object_destroy,
 		.init = _nvkm_object_init,
 		.fini = _nvkm_object_fini,
 	},
 };
 
 static int
-nvkm_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_gpuobj *pargpu,
-		 struct nvkm_gpuobj **pgpuobj)
+nvkm_dmaobj_compat_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+			struct nvkm_oclass *oclass, void *data, u32 size,
+			struct nvkm_object **pobject)
 {
-	const struct nvkm_dma_impl *impl = (void *)
-		nv_oclass(nv_object(dmaobj)->engine);
-	int ret = 0;
+	struct nvkm_oclass hack = {
+		.base.oclass = oclass->handle,
+		.client = nvkm_client(parent),
+		.parent = parent,
+		.engine = nv_engine(engine),
+	};
+	struct nvkm_dma *dma = (void *)engine;
+	struct nvkm_dma_impl *impl = (void *)dma->engine.subdev.object.oclass;
+	struct nvkm_dmaobj *dmaobj = NULL;
+	struct nvkm_gpuobj *gpuobj;
+	int ret;
 
-	if (&dmaobj->base == &pargpu->object) { /* ctor bind */
-		struct nvkm_object *parent = (void *)pargpu;
-		struct hack *object;
-
-		if (parent->parent->parent == &nvkm_client(parent)->object) {
-			/* delayed, or no, binding */
-			return 0;
-		}
-
-		pargpu = (void *)nv_pclass((void *)pargpu, NV_GPUOBJ_CLASS);
-
-		ret = nvkm_object_create(parent, NULL, &hack, NV_GPUOBJ_CLASS, &object);
-		if (ret == 0) {
-			nvkm_object_ref(NULL, &parent);
-			*pgpuobj = &object->object;
-
-			ret = impl->bind(dmaobj, pargpu, &object->parent);
-			if (ret)
-				return ret;
-
-			object->object.node = object->parent->node;
-			object->object.addr = object->parent->addr;
-			object->object.size = object->parent->size;
-			return 0;
-		}
-
+	ret = impl->class_new(dma, &hack, data, size, &dmaobj);
+	if (dmaobj)
+		*pobject = &dmaobj->object;
+	if (ret)
 		return ret;
-	}
 
-	return impl->bind(dmaobj, pargpu, pgpuobj);
+	gpuobj = (void *)nv_pclass(parent, NV_GPUOBJ_CLASS);
+
+	ret = dmaobj->func->bind(dmaobj, gpuobj, 16, &gpuobj);
+	nvkm_object_ref(NULL, pobject);
+	if (ret)
+		return ret;
+
+	ret = nvkm_object_create(parent, engine, &empty, 0, pobject);
+	if (ret)
+		return ret;
+
+	gpuobj->object.parent = *pobject;
+	gpuobj->object.engine = &dma->engine;
+	gpuobj->object.oclass = oclass;
+	gpuobj->object.pclass = NV_GPUOBJ_CLASS;
+#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
+	gpuobj->object._magic = NVKM_OBJECT_MAGIC;
+#endif
+	*pobject = &gpuobj->object;
+	return 0;
 }
+
+static void
+nvkm_dmaobj_compat_dtor(struct nvkm_object *object)
+{
+	struct nvkm_object *parent = object->parent;
+	struct nvkm_gpuobj *gpuobj = (void *)object;
+	nvkm_gpuobj_del(&gpuobj);
+	nvkm_object_ref(NULL, &parent);
+}
+
+static struct nvkm_ofuncs
+nvkm_dmaobj_compat_ofuncs = {
+	.ctor = nvkm_dmaobj_compat_ctor,
+	.dtor = nvkm_dmaobj_compat_dtor,
+	.init = _nvkm_object_init,
+	.fini = _nvkm_object_fini,
+};
+
+static struct nvkm_oclass
+nvkm_dma_compat_sclass[] = {
+	{ NV_DMA_FROM_MEMORY, &nvkm_dmaobj_compat_ofuncs },
+	{ NV_DMA_TO_MEMORY, &nvkm_dmaobj_compat_ofuncs },
+	{ NV_DMA_IN_MEMORY, &nvkm_dmaobj_compat_ofuncs },
+	{}
+};
 
 int
 _nvkm_dma_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
 		  struct nvkm_object **pobject)
 {
-	const struct nvkm_dma_impl *impl = (void *)oclass;
 	struct nvkm_dma *dmaeng;
 	int ret;
 
@@ -104,7 +209,7 @@ _nvkm_dma_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(dmaeng)->sclass = impl->sclass;
-	dmaeng->bind = nvkm_dmaobj_bind;
+	dmaeng->engine.sclass = nvkm_dma_compat_sclass;
+	dmaeng->engine.func = &nvkm_dma;
 	return 0;
 }

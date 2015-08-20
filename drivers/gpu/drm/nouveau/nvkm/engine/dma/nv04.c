@@ -33,6 +33,5 @@ nv04_dmaeng_oclass = &(struct nvkm_dma_impl) {
 		.init = _nvkm_dma_init,
 		.fini = _nvkm_dma_fini,
 	},
-	.sclass = nv04_dmaeng_sclass,
-	.bind = nv04_dmaobj_bind,
+	.class_new = nv04_dmaobj_new,
 }.base;

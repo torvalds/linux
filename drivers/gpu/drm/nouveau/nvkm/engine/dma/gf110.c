@@ -33,6 +33,5 @@ gf110_dmaeng_oclass = &(struct nvkm_dma_impl) {
 		.init = _nvkm_dma_init,
 		.fini = _nvkm_dma_fini,
 	},
-	.sclass = gf110_dmaeng_sclass,
-	.bind = gf110_dmaobj_bind,
+	.class_new = gf110_dmaobj_new,
 }.base;

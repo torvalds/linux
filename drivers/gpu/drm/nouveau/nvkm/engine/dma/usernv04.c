@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#define nv04_dmaobj(p) container_of((p), struct nv04_dmaobj, base)
 #include "user.h"
 
 #include <core/gpuobj.h>
@@ -36,19 +37,19 @@ struct nv04_dmaobj {
 	u32 flags2;
 };
 
-int
-nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
-		 struct nvkm_gpuobj **pgpuobj)
+static int
+nv04_dmaobj_bind(struct nvkm_dmaobj *base, struct nvkm_gpuobj *parent,
+		 int align, struct nvkm_gpuobj **pgpuobj)
 {
-	struct nv04_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
-	struct nvkm_device *device = dmaobj->base.base.engine->subdev.device;
+	struct nv04_dmaobj *dmaobj = nv04_dmaobj(base);
+	struct nvkm_device *device = dmaobj->base.dma->engine.subdev.device;
 	u64 offset = dmaobj->base.start & 0xfffff000;
 	u64 adjust = dmaobj->base.start & 0x00000fff;
 	u32 length = dmaobj->base.limit - dmaobj->base.start;
 	int ret;
 
 	if (dmaobj->clone) {
-		struct nv04_mmu *mmu = nv04_mmu(dmaobj);
+		struct nv04_mmu *mmu = nv04_mmu(device->mmu);
 		struct nvkm_memory *pgt = mmu->vm->pgt[0].mem[0];
 		if (!dmaobj->base.start)
 			return nvkm_gpuobj_wrap(pgt, pgpuobj);
@@ -58,7 +59,7 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 		nvkm_done(pgt);
 	}
 
-	ret = nvkm_gpuobj_new(device, 16, 16, false, parent, pgpuobj);
+	ret = nvkm_gpuobj_new(device, 16, align, false, parent, pgpuobj);
 	if (ret == 0) {
 		nvkm_kmap(*pgpuobj);
 		nvkm_wo32(*pgpuobj, 0x00, dmaobj->flags0 | (adjust << 20));
@@ -71,19 +72,26 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_gpuobj *parent,
 	return ret;
 }
 
-static int
-nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		 struct nvkm_oclass *oclass, void *data, u32 size,
-		 struct nvkm_object **pobject)
+static const struct nvkm_dmaobj_func
+nv04_dmaobj_func = {
+	.bind = nv04_dmaobj_bind,
+};
+
+int
+nv04_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
+		void *data, u32 size, struct nvkm_dmaobj **pdmaobj)
 {
-	struct nvkm_dma *dmaeng = (void *)engine;
-	struct nv04_mmu *mmu = nv04_mmu(engine);
+	struct nv04_mmu *mmu = nv04_mmu(dma);
 	struct nv04_dmaobj *dmaobj;
 	int ret;
 
-	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &dmaobj);
-	*pobject = nv_object(dmaobj);
-	if (ret || (ret = -ENOSYS, size))
+	if (!(dmaobj = kzalloc(sizeof(*dmaobj), GFP_KERNEL)))
+		return -ENOMEM;
+	*pdmaobj = &dmaobj->base;
+
+	ret = nvkm_dmaobj_ctor(&nv04_dmaobj_func, dma, oclass,
+			       &data, &size, &dmaobj->base);
+	if (ret)
 		return ret;
 
 	if (dmaobj->base.target == NV_MEM_TARGET_VM) {
@@ -93,7 +101,7 @@ nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		dmaobj->base.access = NV_MEM_ACCESS_RW;
 	}
 
-	dmaobj->flags0 = nv_mclass(dmaobj);
+	dmaobj->flags0 = oclass->base.oclass;
 	switch (dmaobj->base.target) {
 	case NV_MEM_TARGET_VRAM:
 		dmaobj->flags0 |= 0x00003000;
@@ -121,21 +129,5 @@ nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return -EINVAL;
 	}
 
-	return dmaeng->bind(&dmaobj->base, (void *)dmaobj, (void *)pobject);
+	return 0;
 }
-
-static struct nvkm_ofuncs
-nv04_dmaobj_ofuncs = {
-	.ctor =  nv04_dmaobj_ctor,
-	.dtor = _nvkm_dmaobj_dtor,
-	.init = _nvkm_dmaobj_init,
-	.fini = _nvkm_dmaobj_fini,
-};
-
-struct nvkm_oclass
-nv04_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY, &nv04_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY, &nv04_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY, &nv04_dmaobj_ofuncs },
-	{}
-};

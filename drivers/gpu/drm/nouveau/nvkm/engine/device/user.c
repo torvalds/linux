@@ -292,11 +292,12 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 		   (1ULL << NVDEV_ENGINE_FIFO) |
 		   (1ULL << NVDEV_ENGINE_DISP) |
 		   (1ULL << NVDEV_ENGINE_PM);
-	const struct nvkm_device_oclass *sclass;
+	const struct nvkm_device_oclass *sclass = NULL;
 	int i;
 
-	for (; i = __ffs64(mask), mask; mask &= ~(1ULL << i)) {
-		if ((engine = nvkm_device_engine(device, i))) {
+	for (; i = __ffs64(mask), mask && !sclass; mask &= ~(1ULL << i)) {
+		if ((engine = nvkm_device_engine(device, i)) &&
+		    !engine->func) {
 			struct nvkm_oclass *sclass = engine->sclass;
 			int c = 0;
 			while (sclass && sclass->ofuncs) {
@@ -312,17 +313,27 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 				sclass++;
 			}
 			index -= c;
+			continue;
 		}
+
+		if (!(engine = nvkm_device_engine(device, i)) ||
+		    !(engine->func->base.sclass))
+			continue;
+		oclass->engine = engine;
+
+		index -= engine->func->base.sclass(oclass, index, &sclass);
 	}
 
-	switch (index) {
-	case 0: sclass = &nvkm_control_oclass; break;
-	default:
-		return -EINVAL;
+	if (!sclass) {
+		switch (index) {
+		case 0: sclass = &nvkm_control_oclass; break;
+		default:
+			return -EINVAL;
+		}
+		oclass->base = sclass->base;
 	}
 
 	oclass->ctor = nvkm_udevice_child_new;
-	oclass->base = sclass->base;
 	oclass->priv = sclass;
 	return 0;
 }

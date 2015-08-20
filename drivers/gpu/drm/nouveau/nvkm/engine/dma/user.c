@@ -24,34 +24,57 @@
 #include "user.h"
 
 #include <core/client.h>
+#include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
+static int
+nvkm_dmaobj_bind(struct nvkm_object *base, struct nvkm_gpuobj *gpuobj,
+		 int align, struct nvkm_gpuobj **pgpuobj)
+{
+	struct nvkm_dmaobj *dmaobj = nvkm_dmaobj(base);
+	return dmaobj->func->bind(dmaobj, gpuobj, align, pgpuobj);
+}
+
+static void *
+nvkm_dmaobj_dtor(struct nvkm_object *base)
+{
+	struct nvkm_dmaobj *dmaobj = nvkm_dmaobj(base);
+	if (!RB_EMPTY_NODE(&dmaobj->rb))
+		rb_erase(&dmaobj->rb, &dmaobj->object.client->dmaroot);
+	return dmaobj;
+}
+
+static const struct nvkm_object_func
+nvkm_dmaobj_func = {
+	.dtor = nvkm_dmaobj_dtor,
+	.bind = nvkm_dmaobj_bind,
+};
+
 int
-nvkm_dmaobj_create_(struct nvkm_object *parent,
-		    struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, void **pdata, u32 *psize,
-		    int length, void **pobject)
+nvkm_dmaobj_ctor(const struct nvkm_dmaobj_func *func, struct nvkm_dma *dma,
+		 const struct nvkm_oclass *oclass, void **pdata, u32 *psize,
+		 struct nvkm_dmaobj *dmaobj)
 {
 	union {
 		struct nv_dma_v0 v0;
 	} *args = *pdata;
-	struct nvkm_instmem *instmem = nvkm_instmem(parent);
-	struct nvkm_client *client = nvkm_client(parent);
-	struct nvkm_device *device = nv_device(parent);
-	struct nvkm_fb *fb = nvkm_fb(parent);
-	struct nvkm_dmaobj *dmaobj;
+	struct nvkm_device *device = dma->engine.subdev.device;
+	struct nvkm_client *client = oclass->client;
+	struct nvkm_object *parent = oclass->parent;
+	struct nvkm_instmem *instmem = device->imem;
+	struct nvkm_fb *fb = device->fb;
 	void *data = *pdata;
 	u32 size = *psize;
 	int ret;
 
-	ret = nvkm_object_create_(parent, engine, oclass, 0, length, pobject);
-	dmaobj = *pobject;
-	if (ret)
-		return ret;
+	nvkm_object_ctor(&nvkm_dmaobj_func, oclass, &dmaobj->object);
+	dmaobj->func = func;
+	dmaobj->dma = dma;
+	RB_CLEAR_NODE(&dmaobj->rb);
 
 	nvif_ioctl(parent, "create dma size %d\n", *psize);
 	if (nvif_unpack(args->v0, 0, 0, true)) {
