@@ -29,7 +29,7 @@
 
 #include <nvif/class.h>
 
-struct nv04_dmaobj_priv {
+struct nv04_dmaobj {
 	struct nvkm_dmaobj base;
 	bool clone;
 	u32 flags0;
@@ -37,14 +37,14 @@ struct nv04_dmaobj_priv {
 };
 
 static int
-nv04_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
+nv04_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_object *parent,
 		 struct nvkm_gpuobj **pgpuobj)
 {
-	struct nv04_dmaobj_priv *priv = (void *)dmaobj;
+	struct nv04_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
 	struct nvkm_gpuobj *gpuobj;
-	u64 offset = priv->base.start & 0xfffff000;
-	u64 adjust = priv->base.start & 0x00000fff;
-	u32 length = priv->base.limit - priv->base.start;
+	u64 offset = dmaobj->base.start & 0xfffff000;
+	u64 adjust = dmaobj->base.start & 0x00000fff;
+	u32 length = dmaobj->base.limit - dmaobj->base.start;
 	int ret;
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
@@ -59,10 +59,10 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
 		}
 	}
 
-	if (priv->clone) {
+	if (dmaobj->clone) {
 		struct nv04_mmu *mmu = nv04_mmu(dmaobj);
 		struct nvkm_gpuobj *pgt = mmu->vm->pgt[0].obj[0];
-		if (!dmaobj->start)
+		if (!dmaobj->base.start)
 			return nvkm_gpuobj_dup(parent, pgt, pgpuobj);
 		offset  = nv_ro32(pgt, 8 + (offset >> 10));
 		offset &= 0xfffff000;
@@ -71,10 +71,10 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
 	ret = nvkm_gpuobj_new(parent, parent, 16, 16, 0, &gpuobj);
 	*pgpuobj = gpuobj;
 	if (ret == 0) {
-		nv_wo32(*pgpuobj, 0x00, priv->flags0 | (adjust << 20));
+		nv_wo32(*pgpuobj, 0x00, dmaobj->flags0 | (adjust << 20));
 		nv_wo32(*pgpuobj, 0x04, length);
-		nv_wo32(*pgpuobj, 0x08, priv->flags2 | offset);
-		nv_wo32(*pgpuobj, 0x0c, priv->flags2 | offset);
+		nv_wo32(*pgpuobj, 0x08, dmaobj->flags2 | offset);
+		nv_wo32(*pgpuobj, 0x0c, dmaobj->flags2 | offset);
 	}
 
 	return ret;
@@ -87,50 +87,50 @@ nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct nvkm_dmaeng *dmaeng = (void *)engine;
 	struct nv04_mmu *mmu = nv04_mmu(engine);
-	struct nv04_dmaobj_priv *priv;
+	struct nv04_dmaobj *dmaobj;
 	int ret;
 
-	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &dmaobj);
+	*pobject = nv_object(dmaobj);
 	if (ret || (ret = -ENOSYS, size))
 		return ret;
 
-	if (priv->base.target == NV_MEM_TARGET_VM) {
+	if (dmaobj->base.target == NV_MEM_TARGET_VM) {
 		if (nv_object(mmu)->oclass == &nv04_mmu_oclass)
-			priv->clone = true;
-		priv->base.target = NV_MEM_TARGET_PCI;
-		priv->base.access = NV_MEM_ACCESS_RW;
+			dmaobj->clone = true;
+		dmaobj->base.target = NV_MEM_TARGET_PCI;
+		dmaobj->base.access = NV_MEM_ACCESS_RW;
 	}
 
-	priv->flags0 = nv_mclass(priv);
-	switch (priv->base.target) {
+	dmaobj->flags0 = nv_mclass(dmaobj);
+	switch (dmaobj->base.target) {
 	case NV_MEM_TARGET_VRAM:
-		priv->flags0 |= 0x00003000;
+		dmaobj->flags0 |= 0x00003000;
 		break;
 	case NV_MEM_TARGET_PCI:
-		priv->flags0 |= 0x00023000;
+		dmaobj->flags0 |= 0x00023000;
 		break;
 	case NV_MEM_TARGET_PCI_NOSNOOP:
-		priv->flags0 |= 0x00033000;
+		dmaobj->flags0 |= 0x00033000;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	switch (priv->base.access) {
+	switch (dmaobj->base.access) {
 	case NV_MEM_ACCESS_RO:
-		priv->flags0 |= 0x00004000;
+		dmaobj->flags0 |= 0x00004000;
 		break;
 	case NV_MEM_ACCESS_WO:
-		priv->flags0 |= 0x00008000;
+		dmaobj->flags0 |= 0x00008000;
 	case NV_MEM_ACCESS_RW:
-		priv->flags2 |= 0x00000002;
+		dmaobj->flags2 |= 0x00000002;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return dmaeng->bind(&priv->base, nv_object(priv), (void *)pobject);
+	return dmaeng->bind(&dmaobj->base, nv_object(dmaobj), (void *)pobject);
 }
 
 static struct nvkm_ofuncs

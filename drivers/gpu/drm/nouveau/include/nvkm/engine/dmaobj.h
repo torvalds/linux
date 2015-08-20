@@ -12,7 +12,7 @@ struct nvkm_dmaobj {
 };
 
 struct nvkm_dmaeng {
-	struct nvkm_engine base;
+	struct nvkm_engine engine;
 
 	/* creates a "physical" dma object from a struct nvkm_dmaobj */
 	int (*bind)(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,

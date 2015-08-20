@@ -30,16 +30,16 @@
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
-struct gf110_dmaobj_priv {
+struct gf110_dmaobj {
 	struct nvkm_dmaobj base;
 	u32 flags0;
 };
 
 static int
-gf110_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
+gf110_dmaobj_bind(struct nvkm_dmaobj *obj, struct nvkm_object *parent,
 		  struct nvkm_gpuobj **pgpuobj)
 {
-	struct gf110_dmaobj_priv *priv = (void *)dmaobj;
+	struct gf110_dmaobj *dmaobj = container_of(obj, typeof(*dmaobj), base);
 	int ret;
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
@@ -63,9 +63,9 @@ gf110_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
 
 	ret = nvkm_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
 	if (ret == 0) {
-		nv_wo32(*pgpuobj, 0x00, priv->flags0);
-		nv_wo32(*pgpuobj, 0x04, priv->base.start >> 8);
-		nv_wo32(*pgpuobj, 0x08, priv->base.limit >> 8);
+		nv_wo32(*pgpuobj, 0x00, dmaobj->flags0);
+		nv_wo32(*pgpuobj, 0x04, dmaobj->base.start >> 8);
+		nv_wo32(*pgpuobj, 0x08, dmaobj->base.limit >> 8);
 		nv_wo32(*pgpuobj, 0x0c, 0x00000000);
 		nv_wo32(*pgpuobj, 0x10, 0x00000000);
 		nv_wo32(*pgpuobj, 0x14, 0x00000000);
@@ -83,12 +83,12 @@ gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	union {
 		struct gf110_dma_v0 v0;
 	} *args;
-	struct gf110_dmaobj_priv *priv;
+	struct gf110_dmaobj *dmaobj;
 	u32 kind, page;
 	int ret;
 
-	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_dmaobj_create(parent, engine, oclass, &data, &size, &dmaobj);
+	*pobject = nv_object(dmaobj);
 	if (ret)
 		return ret;
 	args = data;
@@ -101,7 +101,7 @@ gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		page = args->v0.page;
 	} else
 	if (size == 0) {
-		if (priv->base.target != NV_MEM_TARGET_VM) {
+		if (dmaobj->base.target != NV_MEM_TARGET_VM) {
 			kind = GF110_DMA_V0_KIND_PITCH;
 			page = GF110_DMA_V0_PAGE_SP;
 		} else {
@@ -113,11 +113,11 @@ gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	if (page > 1)
 		return -EINVAL;
-	priv->flags0 = (kind << 20) | (page << 6);
+	dmaobj->flags0 = (kind << 20) | (page << 6);
 
-	switch (priv->base.target) {
+	switch (dmaobj->base.target) {
 	case NV_MEM_TARGET_VRAM:
-		priv->flags0 |= 0x00000009;
+		dmaobj->flags0 |= 0x00000009;
 		break;
 	case NV_MEM_TARGET_VM:
 	case NV_MEM_TARGET_PCI:
@@ -132,7 +132,7 @@ gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return -EINVAL;
 	}
 
-	return dmaeng->bind(&priv->base, nv_object(priv), (void *)pobject);
+	return dmaeng->bind(&dmaobj->base, nv_object(dmaobj), (void *)pobject);
 }
 
 static struct nvkm_ofuncs
