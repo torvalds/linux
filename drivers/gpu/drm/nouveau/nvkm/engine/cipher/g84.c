@@ -47,10 +47,12 @@ g84_cipher_object_ctor(struct nvkm_object *parent,
 	if (ret)
 		return ret;
 
-	nv_wo32(obj, 0x00, nv_mclass(obj));
-	nv_wo32(obj, 0x04, 0x00000000);
-	nv_wo32(obj, 0x08, 0x00000000);
-	nv_wo32(obj, 0x0c, 0x00000000);
+	nvkm_kmap(obj);
+	nvkm_wo32(obj, 0x00, nv_mclass(obj));
+	nvkm_wo32(obj, 0x04, 0x00000000);
+	nvkm_wo32(obj, 0x08, 0x00000000);
+	nvkm_wo32(obj, 0x0c, 0x00000000);
+	nvkm_done(obj);
 	return 0;
 }
 
