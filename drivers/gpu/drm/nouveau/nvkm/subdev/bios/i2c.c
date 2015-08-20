@@ -38,7 +38,7 @@ dcb_i2c_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	}
 
 	if (i2c && *ver >= 0x42) {
-		nv_warn(bios, "ccb %02x not supported\n", *ver);
+		nvkm_warn(&bios->subdev, "ccb %02x not supported\n", *ver);
 		return 0x0000;
 	}
 
@@ -70,6 +70,7 @@ dcb_i2c_entry(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len)
 int
 dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	u8  ver, len;
 	u16 ent = dcb_i2c_entry(bios, idx, &ver, &len);
 	if (ent) {
@@ -126,7 +127,7 @@ dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 		case DCB_I2C_UNUSED:
 			return 0;
 		default:
-			nv_warn(bios, "unknown i2c type %d\n", info->type);
+			nvkm_warn(subdev, "unknown i2c type %d\n", info->type);
 			info->type = DCB_I2C_UNUSED;
 			return 0;
 		}

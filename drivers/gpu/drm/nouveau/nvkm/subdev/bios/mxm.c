@@ -28,17 +28,18 @@
 u16
 mxm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	struct bit_entry x;
 
 	if (bit_entry(bios, 'x', &x)) {
-		nv_debug(bios, "BIT 'x' table not present\n");
+		nvkm_debug(subdev, "BIT 'x' table not present\n");
 		return 0x0000;
 	}
 
 	*ver = x.version;
 	*hdr = x.length;
 	if (*ver != 1 || *hdr < 3) {
-		nv_warn(bios, "BIT 'x' table %d/%d unknown\n", *ver, *hdr);
+		nvkm_warn(subdev, "BIT 'x' table %d/%d unknown\n", *ver, *hdr);
 		return 0x0000;
 	}
 
@@ -73,6 +74,7 @@ static u8 g98_sor_map[16] = {
 u8
 mxm_sor_map(struct nvkm_bios *bios, u8 conn)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	u8  ver, hdr;
 	u16 mxm = mxm_table(bios, &ver, &hdr);
 	if (mxm && hdr >= 6) {
@@ -89,7 +91,7 @@ mxm_sor_map(struct nvkm_bios *bios, u8 conn)
 				return 0x00;
 			}
 
-			nv_warn(bios, "unknown sor map v%02x\n", ver);
+			nvkm_warn(subdev, "unknown sor map v%02x\n", ver);
 		}
 	}
 
@@ -102,13 +104,14 @@ mxm_sor_map(struct nvkm_bios *bios, u8 conn)
 	if (bios->version.chip == 0x98)
 		return g98_sor_map[conn];
 
-	nv_warn(bios, "missing sor map\n");
+	nvkm_warn(subdev, "missing sor map\n");
 	return 0x00;
 }
 
 u8
 mxm_ddc_map(struct nvkm_bios *bios, u8 port)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	u8  ver, hdr;
 	u16 mxm = mxm_table(bios, &ver, &hdr);
 	if (mxm && hdr >= 8) {
@@ -125,7 +128,7 @@ mxm_ddc_map(struct nvkm_bios *bios, u8 port)
 				return 0x00;
 			}
 
-			nv_warn(bios, "unknown ddc map v%02x\n", ver);
+			nvkm_warn(subdev, "unknown ddc map v%02x\n", ver);
 		}
 	}
 

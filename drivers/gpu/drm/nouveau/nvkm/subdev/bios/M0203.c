@@ -103,12 +103,13 @@ u32
 nvbios_M0203Em(struct nvkm_bios *bios, u8 ramcfg, u8 *ver, u8 *hdr,
 	       struct nvbios_M0203E *info)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	struct nvbios_M0203T M0203T;
 	u8  cnt, len, idx = 0xff;
 	u32 data;
 
 	if (!nvbios_M0203Tp(bios, ver, hdr, &cnt, &len, &M0203T)) {
-		nv_warn(bios, "M0203T not found\n");
+		nvkm_warn(subdev, "M0203T not found\n");
 		return 0x00000000;
 	}
 
@@ -119,7 +120,7 @@ nvbios_M0203Em(struct nvkm_bios *bios, u8 ramcfg, u8 *ver, u8 *hdr,
 				continue;
 			return data;
 		default:
-			nv_warn(bios, "M0203T type %02x\n", M0203T.type);
+			nvkm_warn(subdev, "M0203T type %02x\n", M0203T.type);
 			return 0x00000000;
 		}
 	}

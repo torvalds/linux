@@ -36,8 +36,9 @@ nvbios_npdeTe(struct nvkm_bios *bios, u32 base)
 		case 0x4544504e: /* NPDE */
 			break;
 		default:
-			nv_debug(bios, "%08x: NPDE signature (%08x) unknown\n",
-				 data, nv_ro32(bios, data + 0x00));
+			nvkm_debug(&bios->subdev,
+				   "%08x: NPDE signature (%08x) unknown\n",
+				   data, nv_ro32(bios, data + 0x00));
 			data = 0;
 			break;
 		}

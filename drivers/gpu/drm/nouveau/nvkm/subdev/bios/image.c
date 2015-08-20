@@ -29,6 +29,7 @@
 static bool
 nvbios_imagen(struct nvkm_bios *bios, struct nvbios_image *image)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	struct nvbios_pcirT pcir;
 	struct nvbios_npdeT npde;
 	u8  ver;
@@ -41,8 +42,8 @@ nvbios_imagen(struct nvkm_bios *bios, struct nvbios_image *image)
 	case 0x4e56: /* NV */
 		break;
 	default:
-		nv_debug(bios, "%08x: ROM signature (%04x) unknown\n",
-			 image->base, data);
+		nvkm_debug(subdev, "%08x: ROM signature (%04x) unknown\n",
+			   image->base, data);
 		return false;
 	}
 

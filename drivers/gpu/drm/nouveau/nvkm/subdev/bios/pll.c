@@ -221,7 +221,8 @@ pll_map_type(struct nvkm_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
 int
 nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 {
-	struct nvkm_device *device = bios->subdev.device;
+	struct nvkm_subdev *subdev = &bios->subdev;
+	struct nvkm_device *device = subdev->device;
 	u8  ver, len;
 	u32 reg = type;
 	u16 data;
@@ -356,7 +357,7 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 		info->max_p = nv_ro08(bios, data + 13);
 		break;
 	default:
-		nv_error(bios, "unknown pll limits version 0x%02x\n", ver);
+		nvkm_error(subdev, "unknown pll limits version 0x%02x\n", ver);
 		return -EINVAL;
 	}
 

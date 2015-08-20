@@ -27,20 +27,21 @@
 u16
 dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
-	struct nvkm_device *device = nv_device(bios);
+	struct nvkm_subdev *subdev = &bios->subdev;
+	struct nvkm_device *device = subdev->device;
 	u16 dcb = 0x0000;
 
 	if (device->card_type > NV_04)
 		dcb = nv_ro16(bios, 0x36);
 	if (!dcb) {
-		nv_warn(bios, "DCB table not found\n");
+		nvkm_warn(subdev, "DCB table not found\n");
 		return dcb;
 	}
 
 	*ver = nv_ro08(bios, dcb);
 
 	if (*ver >= 0x42) {
-		nv_warn(bios, "DCB version 0x%02x unknown\n", *ver);
+		nvkm_warn(subdev, "DCB version 0x%02x unknown\n", *ver);
 		return 0x0000;
 	} else
 	if (*ver >= 0x30) {
@@ -86,11 +87,11 @@ dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 		 *
 		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
 		 */
-		nv_warn(bios, "DCB contains no useful data\n");
+		nvkm_debug(subdev, "DCB contains no useful data\n");
 		return 0x0000;
 	}
 
-	nv_warn(bios, "DCB header validation failed\n");
+	nvkm_warn(subdev, "DCB header validation failed\n");
 	return 0x0000;
 }
 

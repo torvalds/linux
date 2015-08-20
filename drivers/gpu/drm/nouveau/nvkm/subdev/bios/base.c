@@ -134,15 +134,15 @@ nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	bios->bmp_offset = nvbios_findstr(bios->data, bios->size,
 					  "\xff\x7f""NV\0", 5);
 	if (bios->bmp_offset) {
-		nv_info(bios, "BMP version %x.%x\n",
-			bmp_version(bios) >> 8,
-			bmp_version(bios) & 0xff);
+		nvkm_debug(&bios->subdev, "BMP version %x.%x\n",
+			   bmp_version(bios) >> 8,
+			   bmp_version(bios) & 0xff);
 	}
 
 	bios->bit_offset = nvbios_findstr(bios->data, bios->size,
 					  "\xff\xb8""BIT", 5);
 	if (bios->bit_offset)
-		nv_info(bios, "BIT signature found\n");
+		nvkm_debug(&bios->subdev, "BIT signature found\n");
 
 	/* determine the vbios version number */
 	if (!bit_entry(bios, 'i', &bit_i) && bit_i.length >= 4) {
@@ -159,10 +159,9 @@ nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		bios->version.micro = nv_ro08(bios, bios->bmp_offset + 10);
 	}
 
-	nv_info(bios, "version %02x.%02x.%02x.%02x.%02x\n",
-		bios->version.major, bios->version.chip,
-		bios->version.minor, bios->version.micro, bios->version.patch);
-
+	nvkm_info(&bios->subdev, "version %02x.%02x.%02x.%02x.%02x\n",
+		  bios->version.major, bios->version.chip,
+		  bios->version.minor, bios->version.micro, bios->version.patch);
 	return 0;
 }
 

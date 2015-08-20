@@ -38,8 +38,9 @@ nvbios_pcirTe(struct nvkm_bios *bios, u32 base, u8 *ver, u16 *hdr)
 			*ver = nv_ro08(bios, data + 0x0c);
 			break;
 		default:
-			nv_debug(bios, "%08x: PCIR signature (%08x) unknown\n",
-				 data, nv_ro32(bios, data + 0x00));
+			nvkm_debug(&bios->subdev,
+				   "%08x: PCIR signature (%08x) unknown\n",
+				   data, nv_ro32(bios, data + 0x00));
 			data = 0;
 			break;
 		}

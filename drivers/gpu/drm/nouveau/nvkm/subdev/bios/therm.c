@@ -37,9 +37,9 @@ therm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 		else if (bit_P.version == 2)
 			therm = nv_ro16(bios, bit_P.offset + 16);
 		else
-			nv_error(bios,
-				"unknown offset for thermal in BIT P %d\n",
-				bit_P.version);
+			nvkm_error(&bios->subdev,
+				   "unknown offset for thermal in BIT P %d\n",
+				   bit_P.version);
 	}
 
 	/* exit now if we haven't found the thermal table */

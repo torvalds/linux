@@ -37,11 +37,12 @@
 #include <subdev/vga.h>
 
 #define bioslog(lvl, fmt, args...) do {                                        \
-	nv_printk(init->bios, lvl, "0x%04x[%c]: "fmt, init->offset,            \
-		  init_exec(init) ? '0' + (init->nested - 1) : ' ', ##args);   \
+	nvkm_printk(init->subdev, lvl, info, "0x%04x[%c]: "fmt,                \
+		    init->offset, init_exec(init) ?                            \
+		    '0' + (init->nested - 1) : ' ', ##args);                   \
 } while(0)
 #define cont(fmt, args...) do {                                                \
-	if (nv_subdev(init->bios)->debug >= NV_DBG_TRACE)                      \
+	if (init->subdev->debug >= NV_DBG_TRACE)                               \
 		printk(fmt, ##args);                                           \
 } while(0)
 #define trace(fmt, args...) bioslog(TRACE, fmt, ##args)
@@ -2292,7 +2293,7 @@ nvbios_init(struct nvkm_subdev *subdev, bool execute)
 	u16 data;
 
 	if (execute)
-		nv_info(bios, "running init tables\n");
+		nvkm_debug(subdev, "running init tables\n");
 	while (!ret && (data = (init_script(bios, ++i)))) {
 		struct nvbios_init init = {
 			.subdev = subdev,

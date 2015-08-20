@@ -54,7 +54,8 @@ pramin_fini(void *data)
 static void *
 pramin_init(struct nvkm_bios *bios, const char *name)
 {
-	struct nvkm_device *device = bios->subdev.device;
+	struct nvkm_subdev *subdev = &bios->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct priv *priv = NULL;
 	u64 addr = 0;
 
@@ -69,7 +70,7 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	if (device->card_type >= NV_C0)
 		addr = nvkm_rd32(device, 0x022500);
 	if (addr & 0x00000001) {
-		nv_debug(bios, "... display disabled\n");
+		nvkm_debug(subdev, "... display disabled\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -79,11 +80,11 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 	 */
 	addr = nvkm_rd32(device, 0x619f04);
 	if (!(addr & 0x00000008)) {
-		nv_debug(bios, "... not enabled\n");
+		nvkm_debug(subdev, "... not enabled\n");
 		return ERR_PTR(-ENODEV);
 	}
 	if ( (addr & 0x00000003) != 1) {
-		nv_debug(bios, "... not in vram\n");
+		nvkm_debug(subdev, "... not in vram\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -96,7 +97,7 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 
 	/* modify bar0 PRAMIN window to cover the bios image */
 	if (!(priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
-		nv_error(bios, "... out of memory\n");
+		nvkm_error(subdev, "... out of memory\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
