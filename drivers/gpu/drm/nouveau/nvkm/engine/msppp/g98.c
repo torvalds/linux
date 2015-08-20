@@ -72,6 +72,10 @@ g98_msppp_init(struct nvkm_object *object)
 	return 0;
 }
 
+static const struct nvkm_falcon_func
+g98_msppp_func = {
+};
+
 static int
 g98_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -80,8 +84,8 @@ g98_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *msppp;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x086000, true,
-				 "PMSPPP", "msppp", &msppp);
+	ret = nvkm_falcon_create(&g98_msppp_func, parent, engine, oclass,
+				 0x086000, true, "PMSPPP", "msppp", &msppp);
 	*pobject = nv_object(msppp);
 	if (ret)
 		return ret;

@@ -73,6 +73,10 @@ g98_msvld_init(struct nvkm_object *object)
 	return 0;
 }
 
+static const struct nvkm_falcon_func
+g98_msvld_func = {
+};
+
 static int
 g98_msvld_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -81,8 +85,8 @@ g98_msvld_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *msvld;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x084000, true,
-				 "PMSVLD", "msvld", &msvld);
+	ret = nvkm_falcon_create(&g98_msvld_func, parent, engine, oclass,
+				 0x084000, true, "PMSVLD", "msvld", &msvld);
 	*pobject = nv_object(msvld);
 	if (ret)
 		return ret;

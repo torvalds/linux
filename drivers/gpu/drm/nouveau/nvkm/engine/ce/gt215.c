@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include <engine/ce.h>
-#include <engine/falcon.h>
 #include <engine/fifo.h>
 #include "fuc/gt215.fuc3.h"
 
@@ -70,46 +69,30 @@ gt215_ce_isr_error_name[] = {
 };
 
 void
-gt215_ce_intr(struct nvkm_subdev *subdev)
+gt215_ce_intr(struct nvkm_falcon *ce, struct nvkm_fifo_chan *chan)
 {
-	struct nvkm_falcon *ce = (void *)subdev;
-	struct nvkm_engine *engine = &ce->engine;
-	struct nvkm_device *device = engine->subdev.device;
-	struct nvkm_fifo *fifo = device->fifo;
-	struct nvkm_object *engctx;
-	const struct nvkm_enum *en;
+	struct nvkm_subdev *subdev = &ce->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const u32 base = (nv_subidx(subdev) - NVDEV_ENGINE_CE0) * 0x1000;
-	u32 dispatch = nvkm_rd32(device, 0x10401c + base);
-	u32 stat = nvkm_rd32(device, 0x104008 + base) & dispatch & ~(dispatch >> 16);
-	u64 inst = nvkm_rd32(device, 0x104050 + base) & 0x3fffffff;
 	u32 ssta = nvkm_rd32(device, 0x104040 + base) & 0x0000ffff;
 	u32 addr = nvkm_rd32(device, 0x104040 + base) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
 	u32 data = nvkm_rd32(device, 0x104044 + base);
-	int chid;
+	const struct nvkm_enum *en =
+		nvkm_enum_find(gt215_ce_isr_error_name, ssta);
 
-	engctx = nvkm_engctx_get(engine, inst);
-	chid   = fifo->chid(fifo, engctx);
-
-	if (stat & 0x00000040) {
-		en = nvkm_enum_find(gt215_ce_isr_error_name, ssta);
-		nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] "
-				   "ch %d [%010llx %s] subc %d "
-				   "mthd %04x data %08x\n",
-			   ssta, en ? en->name : "", chid, inst << 12,
-			   nvkm_client_name(engctx), subc, mthd, data);
-		nvkm_wr32(device, 0x104004 + base, 0x00000040);
-		stat &= ~0x00000040;
-	}
-
-	if (stat) {
-		nvkm_error(subdev, "intr %08x\n", stat);
-		nvkm_wr32(device, 0x104004 + base, stat);
-	}
-
-	nvkm_engctx_put(engctx);
+	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010llx %s] "
+			   "subc %d mthd %04x data %08x\n", ssta,
+		   en ? en->name : "", chan ? chan->chid : -1,
+		   chan ? chan->inst : 0, nvkm_client_name(chan),
+		   subc, mthd, data);
 }
+
+static const struct nvkm_falcon_func
+gt215_ce_func = {
+	.intr = gt215_ce_intr,
+};
 
 static int
 gt215_ce_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
@@ -120,14 +103,13 @@ gt215_ce_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *ce;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x104000, enable,
-				 "PCE0", "ce0", &ce);
+	ret = nvkm_falcon_create(&gt215_ce_func, parent, engine, oclass,
+				 0x104000, enable, "PCE0", "ce0", &ce);
 	*pobject = nv_object(ce);
 	if (ret)
 		return ret;
 
 	nv_subdev(ce)->unit = 0x00802000;
-	nv_subdev(ce)->intr = gt215_ce_intr;
 	nv_engine(ce)->cclass = &gt215_ce_cclass;
 	nv_engine(ce)->sclass = gt215_ce_sclass;
 	nv_falcon(ce)->code.data = gt215_ce_code;

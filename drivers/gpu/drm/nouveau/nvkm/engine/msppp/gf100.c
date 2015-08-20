@@ -71,6 +71,10 @@ gf100_msppp_init(struct nvkm_object *object)
 	return 0;
 }
 
+static const struct nvkm_falcon_func
+gf100_msppp_func = {
+};
+
 static int
 gf100_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		 struct nvkm_oclass *oclass, void *data, u32 size,
@@ -79,14 +83,13 @@ gf100_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *msppp;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x086000, true,
-				 "PMSPPP", "msppp", &msppp);
+	ret = nvkm_falcon_create(&gf100_msppp_func, parent, engine, oclass,
+				 0x086000, true, "PMSPPP", "msppp", &msppp);
 	*pobject = nv_object(msppp);
 	if (ret)
 		return ret;
 
 	nv_subdev(msppp)->unit = 0x00000002;
-	nv_subdev(msppp)->intr = nvkm_falcon_intr;
 	nv_engine(msppp)->cclass = &gf100_msppp_cclass;
 	nv_engine(msppp)->sclass = gf100_msppp_sclass;
 	return 0;

@@ -88,6 +88,11 @@ gf100_ce_init(struct nvkm_object *object)
 	return 0;
 }
 
+static const struct nvkm_falcon_func
+gf100_ce_func = {
+	.intr = gt215_ce_intr,
+};
+
 static int
 gf100_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
@@ -96,14 +101,13 @@ gf100_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *ce;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x104000, true,
-				 "PCE0", "ce0", &ce);
+	ret = nvkm_falcon_create(&gf100_ce_func, parent, engine, oclass,
+				 0x104000, true, "PCE0", "ce0", &ce);
 	*pobject = nv_object(ce);
 	if (ret)
 		return ret;
 
 	nv_subdev(ce)->unit = 0x00000040;
-	nv_subdev(ce)->intr = gt215_ce_intr;
 	nv_engine(ce)->cclass = &gf100_ce0_cclass;
 	nv_engine(ce)->sclass = gf100_ce0_sclass;
 	nv_falcon(ce)->code.data = gf100_ce_code;
@@ -121,14 +125,13 @@ gf100_ce1_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *ce;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x105000, true,
-				 "PCE1", "ce1", &ce);
+	ret = nvkm_falcon_create(&gf100_ce_func, parent, engine, oclass,
+				 0x105000, true, "PCE1", "ce1", &ce);
 	*pobject = nv_object(ce);
 	if (ret)
 		return ret;
 
 	nv_subdev(ce)->unit = 0x00000080;
-	nv_subdev(ce)->intr = gt215_ce_intr;
 	nv_engine(ce)->cclass = &gf100_ce1_cclass;
 	nv_engine(ce)->sclass = gf100_ce1_sclass;
 	nv_falcon(ce)->code.data = gf100_ce_code;

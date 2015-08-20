@@ -71,6 +71,10 @@ gf100_mspdec_init(struct nvkm_object *object)
 	return 0;
 }
 
+static const struct nvkm_falcon_func
+gf100_mspdec_func = {
+};
+
 static int
 gf100_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		  struct nvkm_oclass *oclass, void *data, u32 size,
@@ -79,14 +83,13 @@ gf100_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *mspdec;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x085000, true,
-				 "PMSPDEC", "mspdec", &mspdec);
+	ret = nvkm_falcon_create(&gf100_mspdec_func, parent, engine, oclass,
+				 0x085000, true, "PMSPDEC", "mspdec", &mspdec);
 	*pobject = nv_object(mspdec);
 	if (ret)
 		return ret;
 
 	nv_subdev(mspdec)->unit = 0x00020000;
-	nv_subdev(mspdec)->intr = nvkm_falcon_intr;
 	nv_engine(mspdec)->cclass = &gf100_mspdec_cclass;
 	nv_engine(mspdec)->sclass = gf100_mspdec_sclass;
 	return 0;

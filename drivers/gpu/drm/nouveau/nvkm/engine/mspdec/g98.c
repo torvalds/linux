@@ -72,6 +72,10 @@ g98_mspdec_init(struct nvkm_object *object)
 	return 0;
 }
 
+static const struct nvkm_falcon_func
+g98_mspdec_func = {
+};
+
 static int
 g98_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
@@ -80,8 +84,8 @@ g98_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	struct nvkm_falcon *mspdec;
 	int ret;
 
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x085000, true,
-				 "PMSPDEC", "mspdec", &mspdec);
+	ret = nvkm_falcon_create(&g98_mspdec_func, parent, engine, oclass,
+				  0x085000, true, "PMSPDEC", "mspdec", &mspdec);
 	*pobject = nv_object(mspdec);
 	if (ret)
 		return ret;

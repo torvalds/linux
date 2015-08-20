@@ -20,17 +20,31 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <engine/falcon.h>
+#include <engine/fifo.h>
 
 #include <subdev/timer.h>
 
-void
+static void
 nvkm_falcon_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_falcon *falcon = (void *)subdev;
 	struct nvkm_device *device = falcon->engine.subdev.device;
 	const u32 base = falcon->addr;
-	u32 dispatch = nvkm_rd32(device, base + 0x01c);
-	u32 intr = nvkm_rd32(device, base + 0x008) & dispatch & ~(dispatch >> 16);
+	u32 dest = nvkm_rd32(device, base + 0x01c);
+	u32 intr = nvkm_rd32(device, base + 0x008) & dest & ~(dest >> 16);
+	u32 inst = nvkm_rd32(device, base + 0x050) & 0x3fffffff;
+	struct nvkm_fifo_chan *chan;
+	unsigned long flags;
+
+	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+
+	if (intr & 0x00000040) {
+		if (falcon->func->intr) {
+			falcon->func->intr(falcon, chan);
+			nvkm_wr32(device, base + 0x004, 0x00000040);
+			intr &= ~0x00000040;
+		}
+	}
 
 	if (intr & 0x00000010) {
 		nvkm_debug(subdev, "ucode halted\n");
@@ -42,6 +56,8 @@ nvkm_falcon_intr(struct nvkm_subdev *subdev)
 		nvkm_error(subdev, "intr %08x\n", intr);
 		nvkm_wr32(device, base + 0x004, intr);
 	}
+
+	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
 static void *
@@ -260,7 +276,8 @@ _nvkm_falcon_fini(struct nvkm_object *object, bool suspend)
 }
 
 int
-nvkm_falcon_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+nvkm_falcon_create_(const struct nvkm_falcon_func *func,
+		    struct nvkm_object *parent, struct nvkm_object *engine,
 		    struct nvkm_oclass *oclass, u32 addr, bool enable,
 		    const char *iname, const char *fname,
 		    int length, void **pobject)
@@ -274,6 +291,8 @@ nvkm_falcon_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 	if (ret)
 		return ret;
 
+	falcon->engine.subdev.intr = nvkm_falcon_intr;
+	falcon->func = func;
 	falcon->addr = addr;
 	return 0;
 }
