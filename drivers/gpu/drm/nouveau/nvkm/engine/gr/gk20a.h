@@ -28,8 +28,8 @@
 struct gk20a_gr_oclass {
 	struct gf100_gr_oclass gf100;
 
-	void (*init_gpc_mmu)(struct gf100_gr_priv *);
-	void (*set_hww_esr_report_mask)(struct gf100_gr_priv *);
+	void (*init_gpc_mmu)(struct gf100_gr *);
+	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 };
 
 #endif

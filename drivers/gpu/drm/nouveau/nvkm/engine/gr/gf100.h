@@ -67,7 +67,7 @@ struct gf100_gr_zbc_depth {
 	u32 l2;
 };
 
-struct gf100_gr_priv {
+struct gf100_gr {
 	struct nvkm_gr base;
 
 	struct gf100_gr_fuc fuc409c;
@@ -123,10 +123,10 @@ int  gf100_gr_context_ctor(struct nvkm_object *, struct nvkm_object *,
 			     struct nvkm_object **);
 void gf100_gr_context_dtor(struct nvkm_object *);
 
-void gf100_gr_ctxctl_debug(struct gf100_gr_priv *);
+void gf100_gr_ctxctl_debug(struct gf100_gr *);
 
 void gf100_gr_dtor_fw(struct gf100_gr_fuc *);
-int  gf100_gr_ctor_fw(struct gf100_gr_priv *, const char *,
+int  gf100_gr_ctor_fw(struct gf100_gr *, const char *,
 		      struct gf100_gr_fuc *);
 u64  gf100_gr_units(struct nvkm_gr *);
 int  gf100_gr_ctor(struct nvkm_object *, struct nvkm_object *,
@@ -134,7 +134,7 @@ int  gf100_gr_ctor(struct nvkm_object *, struct nvkm_object *,
 		     struct nvkm_object **);
 void gf100_gr_dtor(struct nvkm_object *);
 int  gf100_gr_init(struct nvkm_object *);
-void gf100_gr_zbc_init(struct gf100_gr_priv *);
+void gf100_gr_zbc_init(struct gf100_gr *);
 
 int  gk104_gr_ctor(struct nvkm_object *, struct nvkm_object *,
 		     struct nvkm_oclass *, void *data, u32 size,
@@ -199,11 +199,11 @@ struct gf100_gr_oclass {
 	int ppc_nr;
 };
 
-int  gf100_gr_wait_idle(struct gf100_gr_priv *);
-void gf100_gr_mmio(struct gf100_gr_priv *, const struct gf100_gr_pack *);
-void gf100_gr_icmd(struct gf100_gr_priv *, const struct gf100_gr_pack *);
-void gf100_gr_mthd(struct gf100_gr_priv *, const struct gf100_gr_pack *);
-int  gf100_gr_init_ctxctl(struct gf100_gr_priv *);
+int  gf100_gr_wait_idle(struct gf100_gr *);
+void gf100_gr_mmio(struct gf100_gr *, const struct gf100_gr_pack *);
+void gf100_gr_icmd(struct gf100_gr *, const struct gf100_gr_pack *);
+void gf100_gr_mthd(struct gf100_gr *, const struct gf100_gr_pack *);
+int  gf100_gr_init_ctxctl(struct gf100_gr *);
 
 /* register init value lists */
 
@@ -279,7 +279,7 @@ extern const struct gf100_gr_init gm107_gr_init_tex_0[];
 extern const struct gf100_gr_init gm107_gr_init_l1c_0[];
 extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
 extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
-void gm107_gr_init_bios(struct gf100_gr_priv *);
+void gm107_gr_init_bios(struct gf100_gr *);
 
 extern const struct gf100_gr_pack gm204_gr_pack_mmio[];
 #endif

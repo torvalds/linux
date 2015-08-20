@@ -30,7 +30,7 @@
 #include <subdev/timer.h>
 #include <engine/fifo.h>
 
-struct nv40_gr_priv {
+struct nv40_gr {
 	struct nvkm_gr base;
 	u32 size;
 };
@@ -42,9 +42,7 @@ struct nv40_gr_chan {
 static u64
 nv40_gr_units(struct nvkm_gr *gr)
 {
-	struct nv40_gr_priv *priv = (void *)gr;
-
-	return nv_rd32(priv, 0x1540);
+	return nv_rd32(gr, 0x1540);
 }
 
 /*******************************************************************************
@@ -137,17 +135,17 @@ nv40_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		     struct nvkm_oclass *oclass, void *data, u32 size,
 		     struct nvkm_object **pobject)
 {
-	struct nv40_gr_priv *priv = (void *)engine;
+	struct nv40_gr *gr = (void *)engine;
 	struct nv40_gr_chan *chan;
 	int ret;
 
-	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, priv->size,
+	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, gr->size,
 				     16, NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
 
-	nv40_grctx_fill(nv_device(priv), nv_gpuobj(chan));
+	nv40_grctx_fill(nv_device(gr), nv_gpuobj(chan));
 	nv_wo32(chan, 0x00000, nv_gpuobj(chan)->addr >> 4);
 	return 0;
 }
@@ -155,33 +153,33 @@ nv40_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 static int
 nv40_gr_context_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nv40_gr_priv *priv = (void *)object->engine;
+	struct nv40_gr *gr = (void *)object->engine;
 	struct nv40_gr_chan *chan = (void *)object;
 	u32 inst = 0x01000000 | nv_gpuobj(chan)->addr >> 4;
 	int ret = 0;
 
-	nv_mask(priv, 0x400720, 0x00000001, 0x00000000);
+	nv_mask(gr, 0x400720, 0x00000001, 0x00000000);
 
-	if (nv_rd32(priv, 0x40032c) == inst) {
+	if (nv_rd32(gr, 0x40032c) == inst) {
 		if (suspend) {
-			nv_wr32(priv, 0x400720, 0x00000000);
-			nv_wr32(priv, 0x400784, inst);
-			nv_mask(priv, 0x400310, 0x00000020, 0x00000020);
-			nv_mask(priv, 0x400304, 0x00000001, 0x00000001);
-			if (!nv_wait(priv, 0x400300, 0x00000001, 0x00000000)) {
-				u32 insn = nv_rd32(priv, 0x400308);
-				nv_warn(priv, "ctxprog timeout 0x%08x\n", insn);
+			nv_wr32(gr, 0x400720, 0x00000000);
+			nv_wr32(gr, 0x400784, inst);
+			nv_mask(gr, 0x400310, 0x00000020, 0x00000020);
+			nv_mask(gr, 0x400304, 0x00000001, 0x00000001);
+			if (!nv_wait(gr, 0x400300, 0x00000001, 0x00000000)) {
+				u32 insn = nv_rd32(gr, 0x400308);
+				nv_warn(gr, "ctxprog timeout 0x%08x\n", insn);
 				ret = -EBUSY;
 			}
 		}
 
-		nv_mask(priv, 0x40032c, 0x01000000, 0x00000000);
+		nv_mask(gr, 0x40032c, 0x01000000, 0x00000000);
 	}
 
-	if (nv_rd32(priv, 0x400330) == inst)
-		nv_mask(priv, 0x400330, 0x01000000, 0x00000000);
+	if (nv_rd32(gr, 0x400330) == inst)
+		nv_mask(gr, 0x400330, 0x01000000, 0x00000000);
 
-	nv_mask(priv, 0x400720, 0x00000001, 0x00000001);
+	nv_mask(gr, 0x400720, 0x00000001, 0x00000001);
 	return ret;
 }
 
@@ -207,36 +205,36 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
 	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
-	struct nv40_gr_priv *priv = (void *)engine;
+	struct nv40_gr *gr = (void *)engine;
 	unsigned long flags;
 
 	fifo->pause(fifo, &flags);
-	nv04_gr_idle(priv);
+	nv04_gr_idle(gr);
 
-	switch (nv_device(priv)->chipset) {
+	switch (nv_device(gr)->chipset) {
 	case 0x40:
 	case 0x41:
 	case 0x42:
 	case 0x43:
 	case 0x45:
 	case 0x4e:
-		nv_wr32(priv, NV20_PGRAPH_TSIZE(i), tile->pitch);
-		nv_wr32(priv, NV20_PGRAPH_TLIMIT(i), tile->limit);
-		nv_wr32(priv, NV20_PGRAPH_TILE(i), tile->addr);
-		nv_wr32(priv, NV40_PGRAPH_TSIZE1(i), tile->pitch);
-		nv_wr32(priv, NV40_PGRAPH_TLIMIT1(i), tile->limit);
-		nv_wr32(priv, NV40_PGRAPH_TILE1(i), tile->addr);
-		switch (nv_device(priv)->chipset) {
+		nv_wr32(gr, NV20_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(gr, NV20_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(gr, NV20_PGRAPH_TILE(i), tile->addr);
+		nv_wr32(gr, NV40_PGRAPH_TSIZE1(i), tile->pitch);
+		nv_wr32(gr, NV40_PGRAPH_TLIMIT1(i), tile->limit);
+		nv_wr32(gr, NV40_PGRAPH_TILE1(i), tile->addr);
+		switch (nv_device(gr)->chipset) {
 		case 0x40:
 		case 0x45:
-			nv_wr32(priv, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
-			nv_wr32(priv, NV40_PGRAPH_ZCOMP1(i), tile->zcomp);
+			nv_wr32(gr, NV20_PGRAPH_ZCOMP(i), tile->zcomp);
+			nv_wr32(gr, NV40_PGRAPH_ZCOMP1(i), tile->zcomp);
 			break;
 		case 0x41:
 		case 0x42:
 		case 0x43:
-			nv_wr32(priv, NV41_PGRAPH_ZCOMP0(i), tile->zcomp);
-			nv_wr32(priv, NV41_PGRAPH_ZCOMP1(i), tile->zcomp);
+			nv_wr32(gr, NV41_PGRAPH_ZCOMP0(i), tile->zcomp);
+			nv_wr32(gr, NV41_PGRAPH_ZCOMP1(i), tile->zcomp);
 			break;
 		default:
 			break;
@@ -244,9 +242,9 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 		break;
 	case 0x44:
 	case 0x4a:
-		nv_wr32(priv, NV20_PGRAPH_TSIZE(i), tile->pitch);
-		nv_wr32(priv, NV20_PGRAPH_TLIMIT(i), tile->limit);
-		nv_wr32(priv, NV20_PGRAPH_TILE(i), tile->addr);
+		nv_wr32(gr, NV20_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(gr, NV20_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(gr, NV20_PGRAPH_TILE(i), tile->addr);
 		break;
 	case 0x46:
 	case 0x4c:
@@ -256,18 +254,18 @@ nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 	case 0x63:
 	case 0x67:
 	case 0x68:
-		nv_wr32(priv, NV47_PGRAPH_TSIZE(i), tile->pitch);
-		nv_wr32(priv, NV47_PGRAPH_TLIMIT(i), tile->limit);
-		nv_wr32(priv, NV47_PGRAPH_TILE(i), tile->addr);
-		nv_wr32(priv, NV40_PGRAPH_TSIZE1(i), tile->pitch);
-		nv_wr32(priv, NV40_PGRAPH_TLIMIT1(i), tile->limit);
-		nv_wr32(priv, NV40_PGRAPH_TILE1(i), tile->addr);
-		switch (nv_device(priv)->chipset) {
+		nv_wr32(gr, NV47_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(gr, NV47_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(gr, NV47_PGRAPH_TILE(i), tile->addr);
+		nv_wr32(gr, NV40_PGRAPH_TSIZE1(i), tile->pitch);
+		nv_wr32(gr, NV40_PGRAPH_TLIMIT1(i), tile->limit);
+		nv_wr32(gr, NV40_PGRAPH_TILE1(i), tile->addr);
+		switch (nv_device(gr)->chipset) {
 		case 0x47:
 		case 0x49:
 		case 0x4b:
-			nv_wr32(priv, NV47_PGRAPH_ZCOMP0(i), tile->zcomp);
-			nv_wr32(priv, NV47_PGRAPH_ZCOMP1(i), tile->zcomp);
+			nv_wr32(gr, NV47_PGRAPH_ZCOMP0(i), tile->zcomp);
+			nv_wr32(gr, NV47_PGRAPH_ZCOMP1(i), tile->zcomp);
 			break;
 		default:
 			break;
@@ -287,16 +285,16 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle = NULL;
-	struct nv40_gr_priv *priv = (void *)subdev;
-	u32 stat = nv_rd32(priv, NV03_PGRAPH_INTR);
-	u32 nsource = nv_rd32(priv, NV03_PGRAPH_NSOURCE);
-	u32 nstatus = nv_rd32(priv, NV03_PGRAPH_NSTATUS);
-	u32 inst = nv_rd32(priv, 0x40032c) & 0x000fffff;
-	u32 addr = nv_rd32(priv, NV04_PGRAPH_TRAPPED_ADDR);
+	struct nv40_gr *gr = (void *)subdev;
+	u32 stat = nv_rd32(gr, NV03_PGRAPH_INTR);
+	u32 nsource = nv_rd32(gr, NV03_PGRAPH_NSOURCE);
+	u32 nstatus = nv_rd32(gr, NV03_PGRAPH_NSTATUS);
+	u32 inst = nv_rd32(gr, 0x40032c) & 0x000fffff;
+	u32 addr = nv_rd32(gr, NV04_PGRAPH_TRAPPED_ADDR);
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00001ffc);
-	u32 data = nv_rd32(priv, NV04_PGRAPH_TRAPPED_DATA);
-	u32 class = nv_rd32(priv, 0x400160 + subc * 4) & 0xffff;
+	u32 data = nv_rd32(gr, NV04_PGRAPH_TRAPPED_DATA);
+	u32 class = nv_rd32(gr, 0x400160 + subc * 4) & 0xffff;
 	u32 show = stat;
 	int chid;
 
@@ -312,22 +310,22 @@ nv40_gr_intr(struct nvkm_subdev *subdev)
 		}
 
 		if (nsource & NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION) {
-			nv_mask(priv, 0x402000, 0, 0);
+			nv_mask(gr, 0x402000, 0, 0);
 		}
 	}
 
-	nv_wr32(priv, NV03_PGRAPH_INTR, stat);
-	nv_wr32(priv, NV04_PGRAPH_FIFO, 0x00000001);
+	nv_wr32(gr, NV03_PGRAPH_INTR, stat);
+	nv_wr32(gr, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_error(priv, "%s", "");
+		nv_error(gr, "%s", "");
 		nvkm_bitfield_print(nv10_gr_intr_name, show);
 		pr_cont(" nsource:");
 		nvkm_bitfield_print(nv04_gr_nsource, nsource);
 		pr_cont(" nstatus:");
 		nvkm_bitfield_print(nv10_gr_nstatus, nstatus);
 		pr_cont("\n");
-		nv_error(priv,
+		nv_error(gr,
 			 "ch %d [0x%08x %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
 			 chid, inst << 4, nvkm_client_name(engctx), subc,
 			 class, mthd, data);
@@ -341,24 +339,24 @@ nv40_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
-	struct nv40_gr_priv *priv;
+	struct nv40_gr *gr;
 	int ret;
 
-	ret = nvkm_gr_create(parent, engine, oclass, true, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_gr_create(parent, engine, oclass, true, &gr);
+	*pobject = nv_object(gr);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00001000;
-	nv_subdev(priv)->intr = nv40_gr_intr;
-	nv_engine(priv)->cclass = &nv40_gr_cclass;
-	if (nv44_gr_class(priv))
-		nv_engine(priv)->sclass = nv44_gr_sclass;
+	nv_subdev(gr)->unit = 0x00001000;
+	nv_subdev(gr)->intr = nv40_gr_intr;
+	nv_engine(gr)->cclass = &nv40_gr_cclass;
+	if (nv44_gr_class(gr))
+		nv_engine(gr)->sclass = nv44_gr_sclass;
 	else
-		nv_engine(priv)->sclass = nv40_gr_sclass;
-	nv_engine(priv)->tile_prog = nv40_gr_tile_prog;
+		nv_engine(gr)->sclass = nv40_gr_sclass;
+	nv_engine(gr)->tile_prog = nv40_gr_tile_prog;
 
-	priv->base.units = nv40_gr_units;
+	gr->base.units = nv40_gr_units;
 	return 0;
 }
 
@@ -367,103 +365,103 @@ nv40_gr_init(struct nvkm_object *object)
 {
 	struct nvkm_engine *engine = nv_engine(object);
 	struct nvkm_fb *fb = nvkm_fb(object);
-	struct nv40_gr_priv *priv = (void *)engine;
+	struct nv40_gr *gr = (void *)engine;
 	int ret, i, j;
 	u32 vramsz;
 
-	ret = nvkm_gr_init(&priv->base);
+	ret = nvkm_gr_init(&gr->base);
 	if (ret)
 		return ret;
 
 	/* generate and upload context program */
-	ret = nv40_grctx_init(nv_device(priv), &priv->size);
+	ret = nv40_grctx_init(nv_device(gr), &gr->size);
 	if (ret)
 		return ret;
 
 	/* No context present currently */
-	nv_wr32(priv, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
+	nv_wr32(gr, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
 
-	nv_wr32(priv, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
-	nv_wr32(priv, NV40_PGRAPH_INTR_EN, 0xFFFFFFFF);
+	nv_wr32(gr, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
+	nv_wr32(gr, NV40_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nv_wr32(priv, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nv_wr32(priv, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nv_wr32(priv, NV04_PGRAPH_DEBUG_1, 0x401287c0);
-	nv_wr32(priv, NV04_PGRAPH_DEBUG_3, 0xe0de8055);
-	nv_wr32(priv, NV10_PGRAPH_DEBUG_4, 0x00008000);
-	nv_wr32(priv, NV04_PGRAPH_LIMIT_VIOL_PIX, 0x00be3c5f);
+	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
+	nv_wr32(gr, NV04_PGRAPH_DEBUG_0, 0x00000000);
+	nv_wr32(gr, NV04_PGRAPH_DEBUG_1, 0x401287c0);
+	nv_wr32(gr, NV04_PGRAPH_DEBUG_3, 0xe0de8055);
+	nv_wr32(gr, NV10_PGRAPH_DEBUG_4, 0x00008000);
+	nv_wr32(gr, NV04_PGRAPH_LIMIT_VIOL_PIX, 0x00be3c5f);
 
-	nv_wr32(priv, NV10_PGRAPH_CTX_CONTROL, 0x10010100);
-	nv_wr32(priv, NV10_PGRAPH_STATE      , 0xFFFFFFFF);
+	nv_wr32(gr, NV10_PGRAPH_CTX_CONTROL, 0x10010100);
+	nv_wr32(gr, NV10_PGRAPH_STATE      , 0xFFFFFFFF);
 
-	j = nv_rd32(priv, 0x1540) & 0xff;
+	j = nv_rd32(gr, 0x1540) & 0xff;
 	if (j) {
 		for (i = 0; !(j & 1); j >>= 1, i++)
 			;
-		nv_wr32(priv, 0x405000, i);
+		nv_wr32(gr, 0x405000, i);
 	}
 
-	if (nv_device(priv)->chipset == 0x40) {
-		nv_wr32(priv, 0x4009b0, 0x83280fff);
-		nv_wr32(priv, 0x4009b4, 0x000000a0);
+	if (nv_device(gr)->chipset == 0x40) {
+		nv_wr32(gr, 0x4009b0, 0x83280fff);
+		nv_wr32(gr, 0x4009b4, 0x000000a0);
 	} else {
-		nv_wr32(priv, 0x400820, 0x83280eff);
-		nv_wr32(priv, 0x400824, 0x000000a0);
+		nv_wr32(gr, 0x400820, 0x83280eff);
+		nv_wr32(gr, 0x400824, 0x000000a0);
 	}
 
-	switch (nv_device(priv)->chipset) {
+	switch (nv_device(gr)->chipset) {
 	case 0x40:
 	case 0x45:
-		nv_wr32(priv, 0x4009b8, 0x0078e366);
-		nv_wr32(priv, 0x4009bc, 0x0000014c);
+		nv_wr32(gr, 0x4009b8, 0x0078e366);
+		nv_wr32(gr, 0x4009bc, 0x0000014c);
 		break;
 	case 0x41:
 	case 0x42: /* pciid also 0x00Cx */
 	/* case 0x0120: XXX (pciid) */
-		nv_wr32(priv, 0x400828, 0x007596ff);
-		nv_wr32(priv, 0x40082c, 0x00000108);
+		nv_wr32(gr, 0x400828, 0x007596ff);
+		nv_wr32(gr, 0x40082c, 0x00000108);
 		break;
 	case 0x43:
-		nv_wr32(priv, 0x400828, 0x0072cb77);
-		nv_wr32(priv, 0x40082c, 0x00000108);
+		nv_wr32(gr, 0x400828, 0x0072cb77);
+		nv_wr32(gr, 0x40082c, 0x00000108);
 		break;
 	case 0x44:
 	case 0x46: /* G72 */
 	case 0x4a:
 	case 0x4c: /* G7x-based C51 */
 	case 0x4e:
-		nv_wr32(priv, 0x400860, 0);
-		nv_wr32(priv, 0x400864, 0);
+		nv_wr32(gr, 0x400860, 0);
+		nv_wr32(gr, 0x400864, 0);
 		break;
 	case 0x47: /* G70 */
 	case 0x49: /* G71 */
 	case 0x4b: /* G73 */
-		nv_wr32(priv, 0x400828, 0x07830610);
-		nv_wr32(priv, 0x40082c, 0x0000016A);
+		nv_wr32(gr, 0x400828, 0x07830610);
+		nv_wr32(gr, 0x40082c, 0x0000016A);
 		break;
 	default:
 		break;
 	}
 
-	nv_wr32(priv, 0x400b38, 0x2ffff800);
-	nv_wr32(priv, 0x400b3c, 0x00006000);
+	nv_wr32(gr, 0x400b38, 0x2ffff800);
+	nv_wr32(gr, 0x400b3c, 0x00006000);
 
 	/* Tiling related stuff. */
-	switch (nv_device(priv)->chipset) {
+	switch (nv_device(gr)->chipset) {
 	case 0x44:
 	case 0x4a:
-		nv_wr32(priv, 0x400bc4, 0x1003d888);
-		nv_wr32(priv, 0x400bbc, 0xb7a7b500);
+		nv_wr32(gr, 0x400bc4, 0x1003d888);
+		nv_wr32(gr, 0x400bbc, 0xb7a7b500);
 		break;
 	case 0x46:
-		nv_wr32(priv, 0x400bc4, 0x0000e024);
-		nv_wr32(priv, 0x400bbc, 0xb7a7b520);
+		nv_wr32(gr, 0x400bc4, 0x0000e024);
+		nv_wr32(gr, 0x400bbc, 0xb7a7b520);
 		break;
 	case 0x4c:
 	case 0x4e:
 	case 0x67:
-		nv_wr32(priv, 0x400bc4, 0x1003d888);
-		nv_wr32(priv, 0x400bbc, 0xb7a7b540);
+		nv_wr32(gr, 0x400bc4, 0x1003d888);
+		nv_wr32(gr, 0x400bbc, 0xb7a7b540);
 		break;
 	default:
 		break;
@@ -474,20 +472,20 @@ nv40_gr_init(struct nvkm_object *object)
 		engine->tile_prog(engine, i);
 
 	/* begin RAM config */
-	vramsz = nv_device_resource_len(nv_device(priv), 0) - 1;
-	switch (nv_device(priv)->chipset) {
+	vramsz = nv_device_resource_len(nv_device(gr), 1) - 1;
+	switch (nv_device(gr)->chipset) {
 	case 0x40:
-		nv_wr32(priv, 0x4009A4, nv_rd32(priv, 0x100200));
-		nv_wr32(priv, 0x4009A8, nv_rd32(priv, 0x100204));
-		nv_wr32(priv, 0x4069A4, nv_rd32(priv, 0x100200));
-		nv_wr32(priv, 0x4069A8, nv_rd32(priv, 0x100204));
-		nv_wr32(priv, 0x400820, 0);
-		nv_wr32(priv, 0x400824, 0);
-		nv_wr32(priv, 0x400864, vramsz);
-		nv_wr32(priv, 0x400868, vramsz);
+		nv_wr32(gr, 0x4009A4, nv_rd32(gr, 0x100200));
+		nv_wr32(gr, 0x4009A8, nv_rd32(gr, 0x100204));
+		nv_wr32(gr, 0x4069A4, nv_rd32(gr, 0x100200));
+		nv_wr32(gr, 0x4069A8, nv_rd32(gr, 0x100204));
+		nv_wr32(gr, 0x400820, 0);
+		nv_wr32(gr, 0x400824, 0);
+		nv_wr32(gr, 0x400864, vramsz);
+		nv_wr32(gr, 0x400868, vramsz);
 		break;
 	default:
-		switch (nv_device(priv)->chipset) {
+		switch (nv_device(gr)->chipset) {
 		case 0x41:
 		case 0x42:
 		case 0x43:
@@ -495,20 +493,20 @@ nv40_gr_init(struct nvkm_object *object)
 		case 0x4e:
 		case 0x44:
 		case 0x4a:
-			nv_wr32(priv, 0x4009F0, nv_rd32(priv, 0x100200));
-			nv_wr32(priv, 0x4009F4, nv_rd32(priv, 0x100204));
+			nv_wr32(gr, 0x4009F0, nv_rd32(gr, 0x100200));
+			nv_wr32(gr, 0x4009F4, nv_rd32(gr, 0x100204));
 			break;
 		default:
-			nv_wr32(priv, 0x400DF0, nv_rd32(priv, 0x100200));
-			nv_wr32(priv, 0x400DF4, nv_rd32(priv, 0x100204));
+			nv_wr32(gr, 0x400DF0, nv_rd32(gr, 0x100200));
+			nv_wr32(gr, 0x400DF4, nv_rd32(gr, 0x100204));
 			break;
 		}
-		nv_wr32(priv, 0x4069F0, nv_rd32(priv, 0x100200));
-		nv_wr32(priv, 0x4069F4, nv_rd32(priv, 0x100204));
-		nv_wr32(priv, 0x400840, 0);
-		nv_wr32(priv, 0x400844, 0);
-		nv_wr32(priv, 0x4008A0, vramsz);
-		nv_wr32(priv, 0x4008A4, vramsz);
+		nv_wr32(gr, 0x4069F0, nv_rd32(gr, 0x100200));
+		nv_wr32(gr, 0x4069F4, nv_rd32(gr, 0x100204));
+		nv_wr32(gr, 0x400840, 0);
+		nv_wr32(gr, 0x400844, 0);
+		nv_wr32(gr, 0x4008A0, vramsz);
+		nv_wr32(gr, 0x4008A4, vramsz);
 		break;
 	}
 

@@ -2,7 +2,7 @@
 #define __NV20_GR_H__
 #include <engine/gr.h>
 
-struct nv20_gr_priv {
+struct nv20_gr {
 	struct nvkm_gr base;
 	struct nvkm_gpuobj *ctxtab;
 };

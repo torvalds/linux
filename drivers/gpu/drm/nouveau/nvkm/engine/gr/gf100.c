@@ -41,35 +41,35 @@
  ******************************************************************************/
 
 static void
-gf100_gr_zbc_clear_color(struct gf100_gr_priv *priv, int zbc)
+gf100_gr_zbc_clear_color(struct gf100_gr *gr, int zbc)
 {
-	if (priv->zbc_color[zbc].format) {
-		nv_wr32(priv, 0x405804, priv->zbc_color[zbc].ds[0]);
-		nv_wr32(priv, 0x405808, priv->zbc_color[zbc].ds[1]);
-		nv_wr32(priv, 0x40580c, priv->zbc_color[zbc].ds[2]);
-		nv_wr32(priv, 0x405810, priv->zbc_color[zbc].ds[3]);
+	if (gr->zbc_color[zbc].format) {
+		nv_wr32(gr, 0x405804, gr->zbc_color[zbc].ds[0]);
+		nv_wr32(gr, 0x405808, gr->zbc_color[zbc].ds[1]);
+		nv_wr32(gr, 0x40580c, gr->zbc_color[zbc].ds[2]);
+		nv_wr32(gr, 0x405810, gr->zbc_color[zbc].ds[3]);
 	}
-	nv_wr32(priv, 0x405814, priv->zbc_color[zbc].format);
-	nv_wr32(priv, 0x405820, zbc);
-	nv_wr32(priv, 0x405824, 0x00000004); /* TRIGGER | WRITE | COLOR */
+	nv_wr32(gr, 0x405814, gr->zbc_color[zbc].format);
+	nv_wr32(gr, 0x405820, zbc);
+	nv_wr32(gr, 0x405824, 0x00000004); /* TRIGGER | WRITE | COLOR */
 }
 
 static int
-gf100_gr_zbc_color_get(struct gf100_gr_priv *priv, int format,
+gf100_gr_zbc_color_get(struct gf100_gr *gr, int format,
 		       const u32 ds[4], const u32 l2[4])
 {
-	struct nvkm_ltc *ltc = nvkm_ltc(priv);
+	struct nvkm_ltc *ltc = nvkm_ltc(gr);
 	int zbc = -ENOSPC, i;
 
 	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
-		if (priv->zbc_color[i].format) {
-			if (priv->zbc_color[i].format != format)
+		if (gr->zbc_color[i].format) {
+			if (gr->zbc_color[i].format != format)
 				continue;
-			if (memcmp(priv->zbc_color[i].ds, ds, sizeof(
-				   priv->zbc_color[i].ds)))
+			if (memcmp(gr->zbc_color[i].ds, ds, sizeof(
+				   gr->zbc_color[i].ds)))
 				continue;
-			if (memcmp(priv->zbc_color[i].l2, l2, sizeof(
-				   priv->zbc_color[i].l2))) {
+			if (memcmp(gr->zbc_color[i].l2, l2, sizeof(
+				   gr->zbc_color[i].l2))) {
 				WARN_ON(1);
 				return -EINVAL;
 			}
@@ -82,38 +82,38 @@ gf100_gr_zbc_color_get(struct gf100_gr_priv *priv, int format,
 	if (zbc < 0)
 		return zbc;
 
-	memcpy(priv->zbc_color[zbc].ds, ds, sizeof(priv->zbc_color[zbc].ds));
-	memcpy(priv->zbc_color[zbc].l2, l2, sizeof(priv->zbc_color[zbc].l2));
-	priv->zbc_color[zbc].format = format;
+	memcpy(gr->zbc_color[zbc].ds, ds, sizeof(gr->zbc_color[zbc].ds));
+	memcpy(gr->zbc_color[zbc].l2, l2, sizeof(gr->zbc_color[zbc].l2));
+	gr->zbc_color[zbc].format = format;
 	ltc->zbc_color_get(ltc, zbc, l2);
-	gf100_gr_zbc_clear_color(priv, zbc);
+	gf100_gr_zbc_clear_color(gr, zbc);
 	return zbc;
 }
 
 static void
-gf100_gr_zbc_clear_depth(struct gf100_gr_priv *priv, int zbc)
+gf100_gr_zbc_clear_depth(struct gf100_gr *gr, int zbc)
 {
-	if (priv->zbc_depth[zbc].format)
-		nv_wr32(priv, 0x405818, priv->zbc_depth[zbc].ds);
-	nv_wr32(priv, 0x40581c, priv->zbc_depth[zbc].format);
-	nv_wr32(priv, 0x405820, zbc);
-	nv_wr32(priv, 0x405824, 0x00000005); /* TRIGGER | WRITE | DEPTH */
+	if (gr->zbc_depth[zbc].format)
+		nv_wr32(gr, 0x405818, gr->zbc_depth[zbc].ds);
+	nv_wr32(gr, 0x40581c, gr->zbc_depth[zbc].format);
+	nv_wr32(gr, 0x405820, zbc);
+	nv_wr32(gr, 0x405824, 0x00000005); /* TRIGGER | WRITE | DEPTH */
 }
 
 static int
-gf100_gr_zbc_depth_get(struct gf100_gr_priv *priv, int format,
+gf100_gr_zbc_depth_get(struct gf100_gr *gr, int format,
 		       const u32 ds, const u32 l2)
 {
-	struct nvkm_ltc *ltc = nvkm_ltc(priv);
+	struct nvkm_ltc *ltc = nvkm_ltc(gr);
 	int zbc = -ENOSPC, i;
 
 	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
-		if (priv->zbc_depth[i].format) {
-			if (priv->zbc_depth[i].format != format)
+		if (gr->zbc_depth[i].format) {
+			if (gr->zbc_depth[i].format != format)
 				continue;
-			if (priv->zbc_depth[i].ds != ds)
+			if (gr->zbc_depth[i].ds != ds)
 				continue;
-			if (priv->zbc_depth[i].l2 != l2) {
+			if (gr->zbc_depth[i].l2 != l2) {
 				WARN_ON(1);
 				return -EINVAL;
 			}
@@ -126,11 +126,11 @@ gf100_gr_zbc_depth_get(struct gf100_gr_priv *priv, int format,
 	if (zbc < 0)
 		return zbc;
 
-	priv->zbc_depth[zbc].format = format;
-	priv->zbc_depth[zbc].ds = ds;
-	priv->zbc_depth[zbc].l2 = l2;
+	gr->zbc_depth[zbc].format = format;
+	gr->zbc_depth[zbc].ds = ds;
+	gr->zbc_depth[zbc].l2 = l2;
 	ltc->zbc_depth_get(ltc, zbc, l2);
-	gf100_gr_zbc_clear_depth(priv, zbc);
+	gf100_gr_zbc_clear_depth(gr, zbc);
 	return zbc;
 }
 
@@ -141,7 +141,7 @@ gf100_gr_zbc_depth_get(struct gf100_gr_priv *priv, int format,
 static int
 gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
 {
-	struct gf100_gr_priv *priv = (void *)object->engine;
+	struct gf100_gr *gr = (void *)object->engine;
 	union {
 		struct fermi_a_zbc_color_v0 v0;
 	} *args = data;
@@ -168,7 +168,7 @@ gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
 		case FERMI_A_ZBC_COLOR_V0_FMT_AU8BU8GU8RU8:
 		case FERMI_A_ZBC_COLOR_V0_FMT_A2R10G10B10:
 		case FERMI_A_ZBC_COLOR_V0_FMT_BF10GF11RF11:
-			ret = gf100_gr_zbc_color_get(priv, args->v0.format,
+			ret = gf100_gr_zbc_color_get(gr, args->v0.format,
 							   args->v0.ds,
 							   args->v0.l2);
 			if (ret >= 0) {
@@ -187,7 +187,7 @@ gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
 static int
 gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 {
-	struct gf100_gr_priv *priv = (void *)object->engine;
+	struct gf100_gr *gr = (void *)object->engine;
 	union {
 		struct fermi_a_zbc_depth_v0 v0;
 	} *args = data;
@@ -196,7 +196,7 @@ gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 	if (nvif_unpack(args->v0, 0, 0, false)) {
 		switch (args->v0.format) {
 		case FERMI_A_ZBC_DEPTH_V0_FMT_FP32:
-			ret = gf100_gr_zbc_depth_get(priv, args->v0.format,
+			ret = gf100_gr_zbc_depth_get(gr, args->v0.format,
 							   args->v0.ds,
 							   args->v0.l2);
 			return (ret >= 0) ? 0 : -ENOSPC;
@@ -235,11 +235,11 @@ static int
 gf100_gr_set_shader_exceptions(struct nvkm_object *object, u32 mthd,
 			       void *pdata, u32 size)
 {
-	struct gf100_gr_priv *priv = (void *)object->engine;
+	struct gf100_gr *gr = (void *)object->engine;
 	if (size >= sizeof(u32)) {
 		u32 data = *(u32 *)pdata ? 0xffffffff : 0x00000000;
-		nv_wr32(priv, 0x419e44, data);
-		nv_wr32(priv, 0x419e4c, data);
+		nv_wr32(gr, 0x419e44, data);
+		nv_wr32(gr, 0x419e4c, data);
 		return 0;
 	}
 	return -EINVAL;
@@ -276,15 +276,15 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		      struct nvkm_object **pobject)
 {
 	struct nvkm_vm *vm = nvkm_client(parent)->vm;
-	struct gf100_gr_priv *priv = (void *)engine;
-	struct gf100_gr_data *data = priv->mmio_data;
-	struct gf100_gr_mmio *mmio = priv->mmio_list;
+	struct gf100_gr *gr = (void *)engine;
+	struct gf100_gr_data *data = gr->mmio_data;
+	struct gf100_gr_mmio *mmio = gr->mmio_list;
 	struct gf100_gr_chan *chan;
 	int ret, i;
 
 	/* allocate memory for context, and fill with default values */
 	ret = nvkm_gr_context_create(parent, engine, oclass, NULL,
-				     priv->size, 0x100,
+				     gr->size, 0x100,
 				     NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
@@ -306,7 +306,7 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	/* allocate buffers referenced by mmio list */
-	for (i = 0; data->size && i < ARRAY_SIZE(priv->mmio_data); i++) {
+	for (i = 0; data->size && i < ARRAY_SIZE(gr->mmio_data); i++) {
 		ret = nvkm_gpuobj_new(nv_object(chan), NULL, data->size,
 				      data->align, 0, &chan->data[i].mem);
 		if (ret)
@@ -321,7 +321,7 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	}
 
 	/* finally, fill in the mmio list and point the context at it */
-	for (i = 0; mmio->addr && i < ARRAY_SIZE(priv->mmio_list); i++) {
+	for (i = 0; mmio->addr && i < ARRAY_SIZE(gr->mmio_list); i++) {
 		u32 addr = mmio->addr;
 		u32 data = mmio->data;
 
@@ -335,10 +335,10 @@ gf100_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		mmio++;
 	}
 
-	for (i = 0; i < priv->size; i += 4)
-		nv_wo32(chan, i, priv->data[i / 4]);
+	for (i = 0; i < gr->size; i += 4)
+		nv_wo32(chan, i, gr->data[i / 4]);
 
-	if (!priv->firmware) {
+	if (!gr->firmware) {
 		nv_wo32(chan, 0x00, chan->mmio_nr / 2);
 		nv_wo32(chan, 0x04, chan->mmio_vma.offset >> 8);
 	} else {
@@ -634,7 +634,7 @@ gf100_gr_pack_mmio[] = {
  ******************************************************************************/
 
 void
-gf100_gr_zbc_init(struct gf100_gr_priv *priv)
+gf100_gr_zbc_init(struct gf100_gr *gr)
 {
 	const u32  zero[] = { 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 			      0x00000000, 0x00000000, 0x00000000, 0x00000000 };
@@ -644,22 +644,22 @@ gf100_gr_zbc_init(struct gf100_gr_priv *priv)
 			      0x00000000, 0x00000000, 0x00000000, 0x00000000 };
 	const u32 f32_1[] = { 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000,
 			      0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000 };
-	struct nvkm_ltc *ltc = nvkm_ltc(priv);
+	struct nvkm_ltc *ltc = nvkm_ltc(gr);
 	int index;
 
-	if (!priv->zbc_color[0].format) {
-		gf100_gr_zbc_color_get(priv, 1,  & zero[0],   &zero[4]);
-		gf100_gr_zbc_color_get(priv, 2,  &  one[0],    &one[4]);
-		gf100_gr_zbc_color_get(priv, 4,  &f32_0[0],  &f32_0[4]);
-		gf100_gr_zbc_color_get(priv, 4,  &f32_1[0],  &f32_1[4]);
-		gf100_gr_zbc_depth_get(priv, 1, 0x00000000, 0x00000000);
-		gf100_gr_zbc_depth_get(priv, 1, 0x3f800000, 0x3f800000);
+	if (!gr->zbc_color[0].format) {
+		gf100_gr_zbc_color_get(gr, 1,  & zero[0],   &zero[4]);
+		gf100_gr_zbc_color_get(gr, 2,  &  one[0],    &one[4]);
+		gf100_gr_zbc_color_get(gr, 4,  &f32_0[0],  &f32_0[4]);
+		gf100_gr_zbc_color_get(gr, 4,  &f32_1[0],  &f32_1[4]);
+		gf100_gr_zbc_depth_get(gr, 1, 0x00000000, 0x00000000);
+		gf100_gr_zbc_depth_get(gr, 1, 0x3f800000, 0x3f800000);
 	}
 
 	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
-		gf100_gr_zbc_clear_color(priv, index);
+		gf100_gr_zbc_clear_color(gr, index);
 	for (index = ltc->zbc_min; index <= ltc->zbc_max; index++)
-		gf100_gr_zbc_clear_depth(priv, index);
+		gf100_gr_zbc_clear_depth(gr, index);
 }
 
 /**
@@ -668,7 +668,7 @@ gf100_gr_zbc_init(struct gf100_gr_priv *priv)
  * progress.
  */
 int
-gf100_gr_wait_idle(struct gf100_gr_priv *priv)
+gf100_gr_wait_idle(struct gf100_gr *gr)
 {
 	unsigned long end_jiffies = jiffies + msecs_to_jiffies(2000);
 	bool gr_enabled, ctxsw_active, gr_busy;
@@ -678,23 +678,23 @@ gf100_gr_wait_idle(struct gf100_gr_priv *priv)
 		 * required to make sure FIFO_ENGINE_STATUS (0x2640) is
 		 * up-to-date
 		 */
-		nv_rd32(priv, 0x400700);
+		nv_rd32(gr, 0x400700);
 
-		gr_enabled = nv_rd32(priv, 0x200) & 0x1000;
-		ctxsw_active = nv_rd32(priv, 0x2640) & 0x8000;
-		gr_busy = nv_rd32(priv, 0x40060c) & 0x1;
+		gr_enabled = nv_rd32(gr, 0x200) & 0x1000;
+		ctxsw_active = nv_rd32(gr, 0x2640) & 0x8000;
+		gr_busy = nv_rd32(gr, 0x40060c) & 0x1;
 
 		if (!gr_enabled || (!gr_busy && !ctxsw_active))
 			return 0;
 	} while (time_before(jiffies, end_jiffies));
 
-	nv_error(priv, "wait for idle timeout (en: %d, ctxsw: %d, busy: %d)\n",
+	nv_error(gr, "wait for idle timeout (en: %d, ctxsw: %d, busy: %d)\n",
 		 gr_enabled, ctxsw_active, gr_busy);
 	return -EAGAIN;
 }
 
 void
-gf100_gr_mmio(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
+gf100_gr_mmio(struct gf100_gr *gr, const struct gf100_gr_pack *p)
 {
 	const struct gf100_gr_pack *pack;
 	const struct gf100_gr_init *init;
@@ -703,48 +703,48 @@ gf100_gr_mmio(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
 		u32 next = init->addr + init->count * init->pitch;
 		u32 addr = init->addr;
 		while (addr < next) {
-			nv_wr32(priv, addr, init->data);
+			nv_wr32(gr, addr, init->data);
 			addr += init->pitch;
 		}
 	}
 }
 
 void
-gf100_gr_icmd(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
+gf100_gr_icmd(struct gf100_gr *gr, const struct gf100_gr_pack *p)
 {
 	const struct gf100_gr_pack *pack;
 	const struct gf100_gr_init *init;
 	u32 data = 0;
 
-	nv_wr32(priv, 0x400208, 0x80000000);
+	nv_wr32(gr, 0x400208, 0x80000000);
 
 	pack_for_each_init(init, pack, p) {
 		u32 next = init->addr + init->count * init->pitch;
 		u32 addr = init->addr;
 
 		if ((pack == p && init == p->init) || data != init->data) {
-			nv_wr32(priv, 0x400204, init->data);
+			nv_wr32(gr, 0x400204, init->data);
 			data = init->data;
 		}
 
 		while (addr < next) {
-			nv_wr32(priv, 0x400200, addr);
+			nv_wr32(gr, 0x400200, addr);
 			/**
 			 * Wait for GR to go idle after submitting a
 			 * GO_IDLE bundle
 			 */
 			if ((addr & 0xffff) == 0xe100)
-				gf100_gr_wait_idle(priv);
-			nv_wait(priv, 0x400700, 0x00000004, 0x00000000);
+				gf100_gr_wait_idle(gr);
+			nv_wait(gr, 0x400700, 0x00000004, 0x00000000);
 			addr += init->pitch;
 		}
 	}
 
-	nv_wr32(priv, 0x400208, 0x00000000);
+	nv_wr32(gr, 0x400208, 0x00000000);
 }
 
 void
-gf100_gr_mthd(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
+gf100_gr_mthd(struct gf100_gr *gr, const struct gf100_gr_pack *p)
 {
 	const struct gf100_gr_pack *pack;
 	const struct gf100_gr_init *init;
@@ -756,26 +756,26 @@ gf100_gr_mthd(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
 		u32 addr = init->addr;
 
 		if ((pack == p && init == p->init) || data != init->data) {
-			nv_wr32(priv, 0x40448c, init->data);
+			nv_wr32(gr, 0x40448c, init->data);
 			data = init->data;
 		}
 
 		while (addr < next) {
-			nv_wr32(priv, 0x404488, ctrl | (addr << 14));
+			nv_wr32(gr, 0x404488, ctrl | (addr << 14));
 			addr += init->pitch;
 		}
 	}
 }
 
 u64
-gf100_gr_units(struct nvkm_gr *gr)
+gf100_gr_units(struct nvkm_gr *obj)
 {
-	struct gf100_gr_priv *priv = (void *)gr;
+	struct gf100_gr *gr = container_of(obj, typeof(*gr), base);
 	u64 cfg;
 
-	cfg  = (u32)priv->gpc_nr;
-	cfg |= (u32)priv->tpc_total << 8;
-	cfg |= (u64)priv->rop_nr << 32;
+	cfg  = (u32)gr->gpc_nr;
+	cfg |= (u32)gr->tpc_total << 8;
+	cfg |= (u64)gr->rop_nr << 32;
 
 	return cfg;
 }
@@ -806,17 +806,17 @@ static const struct nvkm_enum gf100_gpc_rop_error[] = {
 };
 
 static void
-gf100_gr_trap_gpc_rop(struct gf100_gr_priv *priv, int gpc)
+gf100_gr_trap_gpc_rop(struct gf100_gr *gr, int gpc)
 {
 	u32 trap[4];
 	int i;
 
-	trap[0] = nv_rd32(priv, GPC_UNIT(gpc, 0x0420));
-	trap[1] = nv_rd32(priv, GPC_UNIT(gpc, 0x0434));
-	trap[2] = nv_rd32(priv, GPC_UNIT(gpc, 0x0438));
-	trap[3] = nv_rd32(priv, GPC_UNIT(gpc, 0x043c));
+	trap[0] = nv_rd32(gr, GPC_UNIT(gpc, 0x0420));
+	trap[1] = nv_rd32(gr, GPC_UNIT(gpc, 0x0434));
+	trap[2] = nv_rd32(gr, GPC_UNIT(gpc, 0x0438));
+	trap[3] = nv_rd32(gr, GPC_UNIT(gpc, 0x043c));
 
-	nv_error(priv, "GPC%d/PROP trap:", gpc);
+	nv_error(gr, "GPC%d/PROP trap:", gpc);
 	for (i = 0; i <= 29; ++i) {
 		if (!(trap[0] & (1 << i)))
 			continue;
@@ -825,10 +825,10 @@ gf100_gr_trap_gpc_rop(struct gf100_gr_priv *priv, int gpc)
 	}
 	pr_cont("\n");
 
-	nv_error(priv, "x = %u, y = %u, format = %x, storage type = %x\n",
+	nv_error(gr, "x = %u, y = %u, format = %x, storage type = %x\n",
 		 trap[1] & 0xffff, trap[1] >> 16, (trap[2] >> 8) & 0x3f,
 		 trap[3] & 0xff);
-	nv_wr32(priv, GPC_UNIT(gpc, 0x0420), 0xc0000000);
+	nv_wr32(gr, GPC_UNIT(gpc, 0x0420), 0xc0000000);
 }
 
 static const struct nvkm_enum gf100_mp_warp_error[] = {
@@ -851,12 +851,12 @@ static const struct nvkm_bitfield gf100_mp_global_error[] = {
 };
 
 static void
-gf100_gr_trap_mp(struct gf100_gr_priv *priv, int gpc, int tpc)
+gf100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
 {
-	u32 werr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x648));
-	u32 gerr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x650));
+	u32 werr = nv_rd32(gr, TPC_UNIT(gpc, tpc, 0x648));
+	u32 gerr = nv_rd32(gr, TPC_UNIT(gpc, tpc, 0x650));
 
-	nv_error(priv, "GPC%i/TPC%i/MP trap:", gpc, tpc);
+	nv_error(gr, "GPC%i/TPC%i/MP trap:", gpc, tpc);
 	nvkm_bitfield_print(gf100_mp_global_error, gerr);
 	if (werr) {
 		pr_cont(" ");
@@ -864,150 +864,150 @@ gf100_gr_trap_mp(struct gf100_gr_priv *priv, int gpc, int tpc)
 	}
 	pr_cont("\n");
 
-	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x648), 0x00000000);
-	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x650), gerr);
+	nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x648), 0x00000000);
+	nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x650), gerr);
 }
 
 static void
-gf100_gr_trap_tpc(struct gf100_gr_priv *priv, int gpc, int tpc)
+gf100_gr_trap_tpc(struct gf100_gr *gr, int gpc, int tpc)
 {
-	u32 stat = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0508));
+	u32 stat = nv_rd32(gr, TPC_UNIT(gpc, tpc, 0x0508));
 
 	if (stat & 0x00000001) {
-		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0224));
-		nv_error(priv, "GPC%d/TPC%d/TEX: 0x%08x\n", gpc, tpc, trap);
-		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0224), 0xc0000000);
+		u32 trap = nv_rd32(gr, TPC_UNIT(gpc, tpc, 0x0224));
+		nv_error(gr, "GPC%d/TPC%d/TEX: 0x%08x\n", gpc, tpc, trap);
+		nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x0224), 0xc0000000);
 		stat &= ~0x00000001;
 	}
 
 	if (stat & 0x00000002) {
-		gf100_gr_trap_mp(priv, gpc, tpc);
+		gf100_gr_trap_mp(gr, gpc, tpc);
 		stat &= ~0x00000002;
 	}
 
 	if (stat & 0x00000004) {
-		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0084));
-		nv_error(priv, "GPC%d/TPC%d/POLY: 0x%08x\n", gpc, tpc, trap);
-		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0084), 0xc0000000);
+		u32 trap = nv_rd32(gr, TPC_UNIT(gpc, tpc, 0x0084));
+		nv_error(gr, "GPC%d/TPC%d/POLY: 0x%08x\n", gpc, tpc, trap);
+		nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x0084), 0xc0000000);
 		stat &= ~0x00000004;
 	}
 
 	if (stat & 0x00000008) {
-		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x048c));
-		nv_error(priv, "GPC%d/TPC%d/L1C: 0x%08x\n", gpc, tpc, trap);
-		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x048c), 0xc0000000);
+		u32 trap = nv_rd32(gr, TPC_UNIT(gpc, tpc, 0x048c));
+		nv_error(gr, "GPC%d/TPC%d/L1C: 0x%08x\n", gpc, tpc, trap);
+		nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x048c), 0xc0000000);
 		stat &= ~0x00000008;
 	}
 
 	if (stat) {
-		nv_error(priv, "GPC%d/TPC%d/0x%08x: unknown\n", gpc, tpc, stat);
+		nv_error(gr, "GPC%d/TPC%d/0x%08x: unknown\n", gpc, tpc, stat);
 	}
 }
 
 static void
-gf100_gr_trap_gpc(struct gf100_gr_priv *priv, int gpc)
+gf100_gr_trap_gpc(struct gf100_gr *gr, int gpc)
 {
-	u32 stat = nv_rd32(priv, GPC_UNIT(gpc, 0x2c90));
+	u32 stat = nv_rd32(gr, GPC_UNIT(gpc, 0x2c90));
 	int tpc;
 
 	if (stat & 0x00000001) {
-		gf100_gr_trap_gpc_rop(priv, gpc);
+		gf100_gr_trap_gpc_rop(gr, gpc);
 		stat &= ~0x00000001;
 	}
 
 	if (stat & 0x00000002) {
-		u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x0900));
-		nv_error(priv, "GPC%d/ZCULL: 0x%08x\n", gpc, trap);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0900), 0xc0000000);
+		u32 trap = nv_rd32(gr, GPC_UNIT(gpc, 0x0900));
+		nv_error(gr, "GPC%d/ZCULL: 0x%08x\n", gpc, trap);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0900), 0xc0000000);
 		stat &= ~0x00000002;
 	}
 
 	if (stat & 0x00000004) {
-		u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x1028));
-		nv_error(priv, "GPC%d/CCACHE: 0x%08x\n", gpc, trap);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x1028), 0xc0000000);
+		u32 trap = nv_rd32(gr, GPC_UNIT(gpc, 0x1028));
+		nv_error(gr, "GPC%d/CCACHE: 0x%08x\n", gpc, trap);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x1028), 0xc0000000);
 		stat &= ~0x00000004;
 	}
 
 	if (stat & 0x00000008) {
-		u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x0824));
-		nv_error(priv, "GPC%d/ESETUP: 0x%08x\n", gpc, trap);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0824), 0xc0000000);
+		u32 trap = nv_rd32(gr, GPC_UNIT(gpc, 0x0824));
+		nv_error(gr, "GPC%d/ESETUP: 0x%08x\n", gpc, trap);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0824), 0xc0000000);
 		stat &= ~0x00000009;
 	}
 
-	for (tpc = 0; tpc < priv->tpc_nr[gpc]; tpc++) {
+	for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
 		u32 mask = 0x00010000 << tpc;
 		if (stat & mask) {
-			gf100_gr_trap_tpc(priv, gpc, tpc);
-			nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), mask);
+			gf100_gr_trap_tpc(gr, gpc, tpc);
+			nv_wr32(gr, GPC_UNIT(gpc, 0x2c90), mask);
 			stat &= ~mask;
 		}
 	}
 
 	if (stat) {
-		nv_error(priv, "GPC%d/0x%08x: unknown\n", gpc, stat);
+		nv_error(gr, "GPC%d/0x%08x: unknown\n", gpc, stat);
 	}
 }
 
 static void
-gf100_gr_trap_intr(struct gf100_gr_priv *priv)
+gf100_gr_trap_intr(struct gf100_gr *gr)
 {
-	u32 trap = nv_rd32(priv, 0x400108);
+	u32 trap = nv_rd32(gr, 0x400108);
 	int rop, gpc, i;
 
 	if (trap & 0x00000001) {
-		u32 stat = nv_rd32(priv, 0x404000);
-		nv_error(priv, "DISPATCH 0x%08x\n", stat);
-		nv_wr32(priv, 0x404000, 0xc0000000);
-		nv_wr32(priv, 0x400108, 0x00000001);
+		u32 stat = nv_rd32(gr, 0x404000);
+		nv_error(gr, "DISPATCH 0x%08x\n", stat);
+		nv_wr32(gr, 0x404000, 0xc0000000);
+		nv_wr32(gr, 0x400108, 0x00000001);
 		trap &= ~0x00000001;
 	}
 
 	if (trap & 0x00000002) {
-		u32 stat = nv_rd32(priv, 0x404600);
-		nv_error(priv, "M2MF 0x%08x\n", stat);
-		nv_wr32(priv, 0x404600, 0xc0000000);
-		nv_wr32(priv, 0x400108, 0x00000002);
+		u32 stat = nv_rd32(gr, 0x404600);
+		nv_error(gr, "M2MF 0x%08x\n", stat);
+		nv_wr32(gr, 0x404600, 0xc0000000);
+		nv_wr32(gr, 0x400108, 0x00000002);
 		trap &= ~0x00000002;
 	}
 
 	if (trap & 0x00000008) {
-		u32 stat = nv_rd32(priv, 0x408030);
-		nv_error(priv, "CCACHE 0x%08x\n", stat);
-		nv_wr32(priv, 0x408030, 0xc0000000);
-		nv_wr32(priv, 0x400108, 0x00000008);
+		u32 stat = nv_rd32(gr, 0x408030);
+		nv_error(gr, "CCACHE 0x%08x\n", stat);
+		nv_wr32(gr, 0x408030, 0xc0000000);
+		nv_wr32(gr, 0x400108, 0x00000008);
 		trap &= ~0x00000008;
 	}
 
 	if (trap & 0x00000010) {
-		u32 stat = nv_rd32(priv, 0x405840);
-		nv_error(priv, "SHADER 0x%08x\n", stat);
-		nv_wr32(priv, 0x405840, 0xc0000000);
-		nv_wr32(priv, 0x400108, 0x00000010);
+		u32 stat = nv_rd32(gr, 0x405840);
+		nv_error(gr, "SHADER 0x%08x\n", stat);
+		nv_wr32(gr, 0x405840, 0xc0000000);
+		nv_wr32(gr, 0x400108, 0x00000010);
 		trap &= ~0x00000010;
 	}
 
 	if (trap & 0x00000040) {
-		u32 stat = nv_rd32(priv, 0x40601c);
-		nv_error(priv, "UNK6 0x%08x\n", stat);
-		nv_wr32(priv, 0x40601c, 0xc0000000);
-		nv_wr32(priv, 0x400108, 0x00000040);
+		u32 stat = nv_rd32(gr, 0x40601c);
+		nv_error(gr, "UNK6 0x%08x\n", stat);
+		nv_wr32(gr, 0x40601c, 0xc0000000);
+		nv_wr32(gr, 0x400108, 0x00000040);
 		trap &= ~0x00000040;
 	}
 
 	if (trap & 0x00000080) {
-		u32 stat = nv_rd32(priv, 0x404490);
-		nv_error(priv, "MACRO 0x%08x\n", stat);
-		nv_wr32(priv, 0x404490, 0xc0000000);
-		nv_wr32(priv, 0x400108, 0x00000080);
+		u32 stat = nv_rd32(gr, 0x404490);
+		nv_error(gr, "MACRO 0x%08x\n", stat);
+		nv_wr32(gr, 0x404490, 0xc0000000);
+		nv_wr32(gr, 0x400108, 0x00000080);
 		trap &= ~0x00000080;
 	}
 
 	if (trap & 0x00000100) {
-		u32 stat = nv_rd32(priv, 0x407020);
+		u32 stat = nv_rd32(gr, 0x407020);
 
-		nv_error(priv, "SKED:");
+		nv_error(gr, "SKED:");
 		for (i = 0; i <= 29; ++i) {
 			if (!(stat & (1 << i)))
 				continue;
@@ -1017,104 +1017,104 @@ gf100_gr_trap_intr(struct gf100_gr_priv *priv)
 		pr_cont("\n");
 
 		if (stat & 0x3fffffff)
-			nv_wr32(priv, 0x407020, 0x40000000);
-		nv_wr32(priv, 0x400108, 0x00000100);
+			nv_wr32(gr, 0x407020, 0x40000000);
+		nv_wr32(gr, 0x400108, 0x00000100);
 		trap &= ~0x00000100;
 	}
 
 	if (trap & 0x01000000) {
-		u32 stat = nv_rd32(priv, 0x400118);
-		for (gpc = 0; stat && gpc < priv->gpc_nr; gpc++) {
+		u32 stat = nv_rd32(gr, 0x400118);
+		for (gpc = 0; stat && gpc < gr->gpc_nr; gpc++) {
 			u32 mask = 0x00000001 << gpc;
 			if (stat & mask) {
-				gf100_gr_trap_gpc(priv, gpc);
-				nv_wr32(priv, 0x400118, mask);
+				gf100_gr_trap_gpc(gr, gpc);
+				nv_wr32(gr, 0x400118, mask);
 				stat &= ~mask;
 			}
 		}
-		nv_wr32(priv, 0x400108, 0x01000000);
+		nv_wr32(gr, 0x400108, 0x01000000);
 		trap &= ~0x01000000;
 	}
 
 	if (trap & 0x02000000) {
-		for (rop = 0; rop < priv->rop_nr; rop++) {
-			u32 statz = nv_rd32(priv, ROP_UNIT(rop, 0x070));
-			u32 statc = nv_rd32(priv, ROP_UNIT(rop, 0x144));
-			nv_error(priv, "ROP%d 0x%08x 0x%08x\n",
+		for (rop = 0; rop < gr->rop_nr; rop++) {
+			u32 statz = nv_rd32(gr, ROP_UNIT(rop, 0x070));
+			u32 statc = nv_rd32(gr, ROP_UNIT(rop, 0x144));
+			nv_error(gr, "ROP%d 0x%08x 0x%08x\n",
 				 rop, statz, statc);
-			nv_wr32(priv, ROP_UNIT(rop, 0x070), 0xc0000000);
-			nv_wr32(priv, ROP_UNIT(rop, 0x144), 0xc0000000);
+			nv_wr32(gr, ROP_UNIT(rop, 0x070), 0xc0000000);
+			nv_wr32(gr, ROP_UNIT(rop, 0x144), 0xc0000000);
 		}
-		nv_wr32(priv, 0x400108, 0x02000000);
+		nv_wr32(gr, 0x400108, 0x02000000);
 		trap &= ~0x02000000;
 	}
 
 	if (trap) {
-		nv_error(priv, "TRAP UNHANDLED 0x%08x\n", trap);
-		nv_wr32(priv, 0x400108, trap);
+		nv_error(gr, "TRAP UNHANDLED 0x%08x\n", trap);
+		nv_wr32(gr, 0x400108, trap);
 	}
 }
 
 static void
-gf100_gr_ctxctl_debug_unit(struct gf100_gr_priv *priv, u32 base)
+gf100_gr_ctxctl_debug_unit(struct gf100_gr *gr, u32 base)
 {
-	nv_error(priv, "%06x - done 0x%08x\n", base,
-		 nv_rd32(priv, base + 0x400));
-	nv_error(priv, "%06x - stat 0x%08x 0x%08x 0x%08x 0x%08x\n", base,
-		 nv_rd32(priv, base + 0x800), nv_rd32(priv, base + 0x804),
-		 nv_rd32(priv, base + 0x808), nv_rd32(priv, base + 0x80c));
-	nv_error(priv, "%06x - stat 0x%08x 0x%08x 0x%08x 0x%08x\n", base,
-		 nv_rd32(priv, base + 0x810), nv_rd32(priv, base + 0x814),
-		 nv_rd32(priv, base + 0x818), nv_rd32(priv, base + 0x81c));
+	nv_error(gr, "%06x - done 0x%08x\n", base,
+		 nv_rd32(gr, base + 0x400));
+	nv_error(gr, "%06x - stat 0x%08x 0x%08x 0x%08x 0x%08x\n", base,
+		 nv_rd32(gr, base + 0x800), nv_rd32(gr, base + 0x804),
+		 nv_rd32(gr, base + 0x808), nv_rd32(gr, base + 0x80c));
+	nv_error(gr, "%06x - stat 0x%08x 0x%08x 0x%08x 0x%08x\n", base,
+		 nv_rd32(gr, base + 0x810), nv_rd32(gr, base + 0x814),
+		 nv_rd32(gr, base + 0x818), nv_rd32(gr, base + 0x81c));
 }
 
 void
-gf100_gr_ctxctl_debug(struct gf100_gr_priv *priv)
+gf100_gr_ctxctl_debug(struct gf100_gr *gr)
 {
-	u32 gpcnr = nv_rd32(priv, 0x409604) & 0xffff;
+	u32 gpcnr = nv_rd32(gr, 0x409604) & 0xffff;
 	u32 gpc;
 
-	gf100_gr_ctxctl_debug_unit(priv, 0x409000);
+	gf100_gr_ctxctl_debug_unit(gr, 0x409000);
 	for (gpc = 0; gpc < gpcnr; gpc++)
-		gf100_gr_ctxctl_debug_unit(priv, 0x502000 + (gpc * 0x8000));
+		gf100_gr_ctxctl_debug_unit(gr, 0x502000 + (gpc * 0x8000));
 }
 
 static void
-gf100_gr_ctxctl_isr(struct gf100_gr_priv *priv)
+gf100_gr_ctxctl_isr(struct gf100_gr *gr)
 {
-	u32 stat = nv_rd32(priv, 0x409c18);
+	u32 stat = nv_rd32(gr, 0x409c18);
 
 	if (stat & 0x00000001) {
-		u32 code = nv_rd32(priv, 0x409814);
+		u32 code = nv_rd32(gr, 0x409814);
 		if (code == E_BAD_FWMTHD) {
-			u32 class = nv_rd32(priv, 0x409808);
-			u32  addr = nv_rd32(priv, 0x40980c);
+			u32 class = nv_rd32(gr, 0x409808);
+			u32  addr = nv_rd32(gr, 0x40980c);
 			u32  subc = (addr & 0x00070000) >> 16;
 			u32  mthd = (addr & 0x00003ffc);
-			u32  data = nv_rd32(priv, 0x409810);
+			u32  data = nv_rd32(gr, 0x409810);
 
-			nv_error(priv, "FECS MTHD subc %d class 0x%04x "
+			nv_error(gr, "FECS MTHD subc %d class 0x%04x "
 				       "mthd 0x%04x data 0x%08x\n",
 				 subc, class, mthd, data);
 
-			nv_wr32(priv, 0x409c20, 0x00000001);
+			nv_wr32(gr, 0x409c20, 0x00000001);
 			stat &= ~0x00000001;
 		} else {
-			nv_error(priv, "FECS ucode error %d\n", code);
+			nv_error(gr, "FECS ucode error %d\n", code);
 		}
 	}
 
 	if (stat & 0x00080000) {
-		nv_error(priv, "FECS watchdog timeout\n");
-		gf100_gr_ctxctl_debug(priv);
-		nv_wr32(priv, 0x409c20, 0x00080000);
+		nv_error(gr, "FECS watchdog timeout\n");
+		gf100_gr_ctxctl_debug(gr);
+		nv_wr32(gr, 0x409c20, 0x00080000);
 		stat &= ~0x00080000;
 	}
 
 	if (stat) {
-		nv_error(priv, "FECS 0x%08x\n", stat);
-		gf100_gr_ctxctl_debug(priv);
-		nv_wr32(priv, 0x409c20, stat);
+		nv_error(gr, "FECS 0x%08x\n", stat);
+		gf100_gr_ctxctl_debug(gr);
+		nv_wr32(gr, 0x409c20, stat);
 	}
 }
 
@@ -1125,19 +1125,19 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	struct nvkm_engine *engine = nv_engine(subdev);
 	struct nvkm_object *engctx;
 	struct nvkm_handle *handle;
-	struct gf100_gr_priv *priv = (void *)subdev;
-	u64 inst = nv_rd32(priv, 0x409b00) & 0x0fffffff;
-	u32 stat = nv_rd32(priv, 0x400100);
-	u32 addr = nv_rd32(priv, 0x400704);
+	struct gf100_gr *gr = (void *)subdev;
+	u64 inst = nv_rd32(gr, 0x409b00) & 0x0fffffff;
+	u32 stat = nv_rd32(gr, 0x400100);
+	u32 addr = nv_rd32(gr, 0x400704);
 	u32 mthd = (addr & 0x00003ffc);
 	u32 subc = (addr & 0x00070000) >> 16;
-	u32 data = nv_rd32(priv, 0x400708);
-	u32 code = nv_rd32(priv, 0x400110);
+	u32 data = nv_rd32(gr, 0x400708);
+	u32 code = nv_rd32(gr, 0x400110);
 	u32 class;
 	int chid;
 
-	if (nv_device(priv)->card_type < NV_E0 || subc < 4)
-		class = nv_rd32(priv, 0x404200 + (subc * 4));
+	if (nv_device(gr)->card_type < NV_E0 || subc < 4)
+		class = nv_rd32(gr, 0x404200 + (subc * 4));
 	else
 		class = 0x0000;
 
@@ -1149,89 +1149,89 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 		 * notifier interrupt, only needed for cyclestats
 		 * can be safely ignored
 		 */
-		nv_wr32(priv, 0x400100, 0x00000001);
+		nv_wr32(gr, 0x400100, 0x00000001);
 		stat &= ~0x00000001;
 	}
 
 	if (stat & 0x00000010) {
 		handle = nvkm_handle_get_class(engctx, class);
 		if (!handle || nv_call(handle->object, mthd, data)) {
-			nv_error(priv,
+			nv_error(gr,
 				 "ILLEGAL_MTHD ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
 				 chid, inst << 12, nvkm_client_name(engctx),
 				 subc, class, mthd, data);
 		}
 		nvkm_handle_put(handle);
-		nv_wr32(priv, 0x400100, 0x00000010);
+		nv_wr32(gr, 0x400100, 0x00000010);
 		stat &= ~0x00000010;
 	}
 
 	if (stat & 0x00000020) {
-		nv_error(priv,
+		nv_error(gr,
 			 "ILLEGAL_CLASS ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
 			 chid, inst << 12, nvkm_client_name(engctx), subc,
 			 class, mthd, data);
-		nv_wr32(priv, 0x400100, 0x00000020);
+		nv_wr32(gr, 0x400100, 0x00000020);
 		stat &= ~0x00000020;
 	}
 
 	if (stat & 0x00100000) {
-		nv_error(priv, "DATA_ERROR [");
+		nv_error(gr, "DATA_ERROR [");
 		nvkm_enum_print(nv50_data_error_names, code);
 		pr_cont("] ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
 			chid, inst << 12, nvkm_client_name(engctx), subc,
 			class, mthd, data);
-		nv_wr32(priv, 0x400100, 0x00100000);
+		nv_wr32(gr, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
-		nv_error(priv, "TRAP ch %d [0x%010llx %s]\n", chid, inst << 12,
+		nv_error(gr, "TRAP ch %d [0x%010llx %s]\n", chid, inst << 12,
 			 nvkm_client_name(engctx));
-		gf100_gr_trap_intr(priv);
-		nv_wr32(priv, 0x400100, 0x00200000);
+		gf100_gr_trap_intr(gr);
+		nv_wr32(gr, 0x400100, 0x00200000);
 		stat &= ~0x00200000;
 	}
 
 	if (stat & 0x00080000) {
-		gf100_gr_ctxctl_isr(priv);
-		nv_wr32(priv, 0x400100, 0x00080000);
+		gf100_gr_ctxctl_isr(gr);
+		nv_wr32(gr, 0x400100, 0x00080000);
 		stat &= ~0x00080000;
 	}
 
 	if (stat) {
-		nv_error(priv, "unknown stat 0x%08x\n", stat);
-		nv_wr32(priv, 0x400100, stat);
+		nv_error(gr, "unknown stat 0x%08x\n", stat);
+		nv_wr32(gr, 0x400100, stat);
 	}
 
-	nv_wr32(priv, 0x400500, 0x00010001);
+	nv_wr32(gr, 0x400500, 0x00010001);
 	nvkm_engctx_put(engctx);
 }
 
 void
-gf100_gr_init_fw(struct gf100_gr_priv *priv, u32 fuc_base,
+gf100_gr_init_fw(struct gf100_gr *gr, u32 fuc_base,
 		 struct gf100_gr_fuc *code, struct gf100_gr_fuc *data)
 {
 	int i;
 
-	nv_wr32(priv, fuc_base + 0x01c0, 0x01000000);
+	nv_wr32(gr, fuc_base + 0x01c0, 0x01000000);
 	for (i = 0; i < data->size / 4; i++)
-		nv_wr32(priv, fuc_base + 0x01c4, data->data[i]);
+		nv_wr32(gr, fuc_base + 0x01c4, data->data[i]);
 
-	nv_wr32(priv, fuc_base + 0x0180, 0x01000000);
+	nv_wr32(gr, fuc_base + 0x0180, 0x01000000);
 	for (i = 0; i < code->size / 4; i++) {
 		if ((i & 0x3f) == 0)
-			nv_wr32(priv, fuc_base + 0x0188, i >> 6);
-		nv_wr32(priv, fuc_base + 0x0184, code->data[i]);
+			nv_wr32(gr, fuc_base + 0x0188, i >> 6);
+		nv_wr32(gr, fuc_base + 0x0184, code->data[i]);
 	}
 
 	/* code must be padded to 0x40 words */
 	for (; i & 0x3f; i++)
-		nv_wr32(priv, fuc_base + 0x0184, 0);
+		nv_wr32(gr, fuc_base + 0x0184, 0);
 }
 
 static void
-gf100_gr_init_csdata(struct gf100_gr_priv *priv,
+gf100_gr_init_csdata(struct gf100_gr *gr,
 		     const struct gf100_gr_pack *pack,
 		     u32 falcon, u32 starstar, u32 base)
 {
@@ -1240,12 +1240,12 @@ gf100_gr_init_csdata(struct gf100_gr_priv *priv,
 	u32 addr = ~0, prev = ~0, xfer = 0;
 	u32 star, temp;
 
-	nv_wr32(priv, falcon + 0x01c0, 0x02000000 + starstar);
-	star = nv_rd32(priv, falcon + 0x01c4);
-	temp = nv_rd32(priv, falcon + 0x01c4);
+	nv_wr32(gr, falcon + 0x01c0, 0x02000000 + starstar);
+	star = nv_rd32(gr, falcon + 0x01c4);
+	temp = nv_rd32(gr, falcon + 0x01c4);
 	if (temp > star)
 		star = temp;
-	nv_wr32(priv, falcon + 0x01c0, 0x01000000 + star);
+	nv_wr32(gr, falcon + 0x01c0, 0x01000000 + star);
 
 	pack_for_each_init(init, iter, pack) {
 		u32 head = init->addr - base;
@@ -1254,7 +1254,7 @@ gf100_gr_init_csdata(struct gf100_gr_priv *priv,
 			if (head != prev + 4 || xfer >= 32) {
 				if (xfer) {
 					u32 data = ((--xfer << 26) | addr);
-					nv_wr32(priv, falcon + 0x01c4, data);
+					nv_wr32(gr, falcon + 0x01c4, data);
 					star += 4;
 				}
 				addr = head;
@@ -1266,101 +1266,101 @@ gf100_gr_init_csdata(struct gf100_gr_priv *priv,
 		}
 	}
 
-	nv_wr32(priv, falcon + 0x01c4, (--xfer << 26) | addr);
-	nv_wr32(priv, falcon + 0x01c0, 0x01000004 + starstar);
-	nv_wr32(priv, falcon + 0x01c4, star + 4);
+	nv_wr32(gr, falcon + 0x01c4, (--xfer << 26) | addr);
+	nv_wr32(gr, falcon + 0x01c0, 0x01000004 + starstar);
+	nv_wr32(gr, falcon + 0x01c4, star + 4);
 }
 
 int
-gf100_gr_init_ctxctl(struct gf100_gr_priv *priv)
+gf100_gr_init_ctxctl(struct gf100_gr *gr)
 {
-	struct gf100_gr_oclass *oclass = (void *)nv_object(priv)->oclass;
-	struct gf100_grctx_oclass *cclass = (void *)nv_engine(priv)->cclass;
+	struct gf100_gr_oclass *oclass = (void *)nv_object(gr)->oclass;
+	struct gf100_grctx_oclass *cclass = (void *)nv_engine(gr)->cclass;
 	int i;
 
-	if (priv->firmware) {
+	if (gr->firmware) {
 		/* load fuc microcode */
-		nvkm_mc(priv)->unk260(nvkm_mc(priv), 0);
-		gf100_gr_init_fw(priv, 0x409000, &priv->fuc409c,
-						 &priv->fuc409d);
-		gf100_gr_init_fw(priv, 0x41a000, &priv->fuc41ac,
-						 &priv->fuc41ad);
-		nvkm_mc(priv)->unk260(nvkm_mc(priv), 1);
+		nvkm_mc(gr)->unk260(nvkm_mc(gr), 0);
+		gf100_gr_init_fw(gr, 0x409000, &gr->fuc409c,
+						 &gr->fuc409d);
+		gf100_gr_init_fw(gr, 0x41a000, &gr->fuc41ac,
+						 &gr->fuc41ad);
+		nvkm_mc(gr)->unk260(nvkm_mc(gr), 1);
 
 		/* start both of them running */
-		nv_wr32(priv, 0x409840, 0xffffffff);
-		nv_wr32(priv, 0x41a10c, 0x00000000);
-		nv_wr32(priv, 0x40910c, 0x00000000);
-		nv_wr32(priv, 0x41a100, 0x00000002);
-		nv_wr32(priv, 0x409100, 0x00000002);
-		if (!nv_wait(priv, 0x409800, 0x00000001, 0x00000001))
-			nv_warn(priv, "0x409800 wait failed\n");
+		nv_wr32(gr, 0x409840, 0xffffffff);
+		nv_wr32(gr, 0x41a10c, 0x00000000);
+		nv_wr32(gr, 0x40910c, 0x00000000);
+		nv_wr32(gr, 0x41a100, 0x00000002);
+		nv_wr32(gr, 0x409100, 0x00000002);
+		if (!nv_wait(gr, 0x409800, 0x00000001, 0x00000001))
+			nv_warn(gr, "0x409800 wait failed\n");
 
-		nv_wr32(priv, 0x409840, 0xffffffff);
-		nv_wr32(priv, 0x409500, 0x7fffffff);
-		nv_wr32(priv, 0x409504, 0x00000021);
+		nv_wr32(gr, 0x409840, 0xffffffff);
+		nv_wr32(gr, 0x409500, 0x7fffffff);
+		nv_wr32(gr, 0x409504, 0x00000021);
 
-		nv_wr32(priv, 0x409840, 0xffffffff);
-		nv_wr32(priv, 0x409500, 0x00000000);
-		nv_wr32(priv, 0x409504, 0x00000010);
-		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-			nv_error(priv, "fuc09 req 0x10 timeout\n");
+		nv_wr32(gr, 0x409840, 0xffffffff);
+		nv_wr32(gr, 0x409500, 0x00000000);
+		nv_wr32(gr, 0x409504, 0x00000010);
+		if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(gr, "fuc09 req 0x10 timeout\n");
 			return -EBUSY;
 		}
-		priv->size = nv_rd32(priv, 0x409800);
+		gr->size = nv_rd32(gr, 0x409800);
 
-		nv_wr32(priv, 0x409840, 0xffffffff);
-		nv_wr32(priv, 0x409500, 0x00000000);
-		nv_wr32(priv, 0x409504, 0x00000016);
-		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-			nv_error(priv, "fuc09 req 0x16 timeout\n");
-			return -EBUSY;
-		}
-
-		nv_wr32(priv, 0x409840, 0xffffffff);
-		nv_wr32(priv, 0x409500, 0x00000000);
-		nv_wr32(priv, 0x409504, 0x00000025);
-		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-			nv_error(priv, "fuc09 req 0x25 timeout\n");
+		nv_wr32(gr, 0x409840, 0xffffffff);
+		nv_wr32(gr, 0x409500, 0x00000000);
+		nv_wr32(gr, 0x409504, 0x00000016);
+		if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(gr, "fuc09 req 0x16 timeout\n");
 			return -EBUSY;
 		}
 
-		if (nv_device(priv)->chipset >= 0xe0) {
-			nv_wr32(priv, 0x409800, 0x00000000);
-			nv_wr32(priv, 0x409500, 0x00000001);
-			nv_wr32(priv, 0x409504, 0x00000030);
-			if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-				nv_error(priv, "fuc09 req 0x30 timeout\n");
-				return -EBUSY;
-			}
-
-			nv_wr32(priv, 0x409810, 0xb00095c8);
-			nv_wr32(priv, 0x409800, 0x00000000);
-			nv_wr32(priv, 0x409500, 0x00000001);
-			nv_wr32(priv, 0x409504, 0x00000031);
-			if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-				nv_error(priv, "fuc09 req 0x31 timeout\n");
-				return -EBUSY;
-			}
-
-			nv_wr32(priv, 0x409810, 0x00080420);
-			nv_wr32(priv, 0x409800, 0x00000000);
-			nv_wr32(priv, 0x409500, 0x00000001);
-			nv_wr32(priv, 0x409504, 0x00000032);
-			if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-				nv_error(priv, "fuc09 req 0x32 timeout\n");
-				return -EBUSY;
-			}
-
-			nv_wr32(priv, 0x409614, 0x00000070);
-			nv_wr32(priv, 0x409614, 0x00000770);
-			nv_wr32(priv, 0x40802c, 0x00000001);
+		nv_wr32(gr, 0x409840, 0xffffffff);
+		nv_wr32(gr, 0x409500, 0x00000000);
+		nv_wr32(gr, 0x409504, 0x00000025);
+		if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(gr, "fuc09 req 0x25 timeout\n");
+			return -EBUSY;
 		}
 
-		if (priv->data == NULL) {
-			int ret = gf100_grctx_generate(priv);
+		if (nv_device(gr)->chipset >= 0xe0) {
+			nv_wr32(gr, 0x409800, 0x00000000);
+			nv_wr32(gr, 0x409500, 0x00000001);
+			nv_wr32(gr, 0x409504, 0x00000030);
+			if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
+				nv_error(gr, "fuc09 req 0x30 timeout\n");
+				return -EBUSY;
+			}
+
+			nv_wr32(gr, 0x409810, 0xb00095c8);
+			nv_wr32(gr, 0x409800, 0x00000000);
+			nv_wr32(gr, 0x409500, 0x00000001);
+			nv_wr32(gr, 0x409504, 0x00000031);
+			if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
+				nv_error(gr, "fuc09 req 0x31 timeout\n");
+				return -EBUSY;
+			}
+
+			nv_wr32(gr, 0x409810, 0x00080420);
+			nv_wr32(gr, 0x409800, 0x00000000);
+			nv_wr32(gr, 0x409500, 0x00000001);
+			nv_wr32(gr, 0x409504, 0x00000032);
+			if (!nv_wait_ne(gr, 0x409800, 0xffffffff, 0x00000000)) {
+				nv_error(gr, "fuc09 req 0x32 timeout\n");
+				return -EBUSY;
+			}
+
+			nv_wr32(gr, 0x409614, 0x00000070);
+			nv_wr32(gr, 0x409614, 0x00000770);
+			nv_wr32(gr, 0x40802c, 0x00000001);
+		}
+
+		if (gr->data == NULL) {
+			int ret = gf100_grctx_generate(gr);
 			if (ret) {
-				nv_error(priv, "failed to construct context\n");
+				nv_error(gr, "failed to construct context\n");
 				return ret;
 			}
 		}
@@ -1372,51 +1372,51 @@ gf100_gr_init_ctxctl(struct gf100_gr_priv *priv)
 	}
 
 	/* load HUB microcode */
-	nvkm_mc(priv)->unk260(nvkm_mc(priv), 0);
-	nv_wr32(priv, 0x4091c0, 0x01000000);
+	nvkm_mc(gr)->unk260(nvkm_mc(gr), 0);
+	nv_wr32(gr, 0x4091c0, 0x01000000);
 	for (i = 0; i < oclass->fecs.ucode->data.size / 4; i++)
-		nv_wr32(priv, 0x4091c4, oclass->fecs.ucode->data.data[i]);
+		nv_wr32(gr, 0x4091c4, oclass->fecs.ucode->data.data[i]);
 
-	nv_wr32(priv, 0x409180, 0x01000000);
+	nv_wr32(gr, 0x409180, 0x01000000);
 	for (i = 0; i < oclass->fecs.ucode->code.size / 4; i++) {
 		if ((i & 0x3f) == 0)
-			nv_wr32(priv, 0x409188, i >> 6);
-		nv_wr32(priv, 0x409184, oclass->fecs.ucode->code.data[i]);
+			nv_wr32(gr, 0x409188, i >> 6);
+		nv_wr32(gr, 0x409184, oclass->fecs.ucode->code.data[i]);
 	}
 
 	/* load GPC microcode */
-	nv_wr32(priv, 0x41a1c0, 0x01000000);
+	nv_wr32(gr, 0x41a1c0, 0x01000000);
 	for (i = 0; i < oclass->gpccs.ucode->data.size / 4; i++)
-		nv_wr32(priv, 0x41a1c4, oclass->gpccs.ucode->data.data[i]);
+		nv_wr32(gr, 0x41a1c4, oclass->gpccs.ucode->data.data[i]);
 
-	nv_wr32(priv, 0x41a180, 0x01000000);
+	nv_wr32(gr, 0x41a180, 0x01000000);
 	for (i = 0; i < oclass->gpccs.ucode->code.size / 4; i++) {
 		if ((i & 0x3f) == 0)
-			nv_wr32(priv, 0x41a188, i >> 6);
-		nv_wr32(priv, 0x41a184, oclass->gpccs.ucode->code.data[i]);
+			nv_wr32(gr, 0x41a188, i >> 6);
+		nv_wr32(gr, 0x41a184, oclass->gpccs.ucode->code.data[i]);
 	}
-	nvkm_mc(priv)->unk260(nvkm_mc(priv), 1);
+	nvkm_mc(gr)->unk260(nvkm_mc(gr), 1);
 
 	/* load register lists */
-	gf100_gr_init_csdata(priv, cclass->hub, 0x409000, 0x000, 0x000000);
-	gf100_gr_init_csdata(priv, cclass->gpc, 0x41a000, 0x000, 0x418000);
-	gf100_gr_init_csdata(priv, cclass->tpc, 0x41a000, 0x004, 0x419800);
-	gf100_gr_init_csdata(priv, cclass->ppc, 0x41a000, 0x008, 0x41be00);
+	gf100_gr_init_csdata(gr, cclass->hub, 0x409000, 0x000, 0x000000);
+	gf100_gr_init_csdata(gr, cclass->gpc, 0x41a000, 0x000, 0x418000);
+	gf100_gr_init_csdata(gr, cclass->tpc, 0x41a000, 0x004, 0x419800);
+	gf100_gr_init_csdata(gr, cclass->ppc, 0x41a000, 0x008, 0x41be00);
 
 	/* start HUB ucode running, it'll init the GPCs */
-	nv_wr32(priv, 0x40910c, 0x00000000);
-	nv_wr32(priv, 0x409100, 0x00000002);
-	if (!nv_wait(priv, 0x409800, 0x80000000, 0x80000000)) {
-		nv_error(priv, "HUB_INIT timed out\n");
-		gf100_gr_ctxctl_debug(priv);
+	nv_wr32(gr, 0x40910c, 0x00000000);
+	nv_wr32(gr, 0x409100, 0x00000002);
+	if (!nv_wait(gr, 0x409800, 0x80000000, 0x80000000)) {
+		nv_error(gr, "HUB_INIT timed out\n");
+		gf100_gr_ctxctl_debug(gr);
 		return -EBUSY;
 	}
 
-	priv->size = nv_rd32(priv, 0x409804);
-	if (priv->data == NULL) {
-		int ret = gf100_grctx_generate(priv);
+	gr->size = nv_rd32(gr, 0x409804);
+	if (gr->data == NULL) {
+		int ret = gf100_grctx_generate(gr);
 		if (ret) {
-			nv_error(priv, "failed to construct context\n");
+			nv_error(gr, "failed to construct context\n");
 			return ret;
 		}
 	}
@@ -1428,112 +1428,112 @@ int
 gf100_gr_init(struct nvkm_object *object)
 {
 	struct gf100_gr_oclass *oclass = (void *)object->oclass;
-	struct gf100_gr_priv *priv = (void *)object;
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
+	struct gf100_gr *gr = (void *)object;
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, rop;
 	int ret, i;
 
-	ret = nvkm_gr_init(&priv->base);
+	ret = nvkm_gr_init(&gr->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, GPC_BCAST(0x0880), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x08a4), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x0888), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x088c), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x0890), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x0894), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x08b4), priv->unk4188b4->addr >> 8);
-	nv_wr32(priv, GPC_BCAST(0x08b8), priv->unk4188b8->addr >> 8);
+	nv_wr32(gr, GPC_BCAST(0x0880), 0x00000000);
+	nv_wr32(gr, GPC_BCAST(0x08a4), 0x00000000);
+	nv_wr32(gr, GPC_BCAST(0x0888), 0x00000000);
+	nv_wr32(gr, GPC_BCAST(0x088c), 0x00000000);
+	nv_wr32(gr, GPC_BCAST(0x0890), 0x00000000);
+	nv_wr32(gr, GPC_BCAST(0x0894), 0x00000000);
+	nv_wr32(gr, GPC_BCAST(0x08b4), gr->unk4188b4->addr >> 8);
+	nv_wr32(gr, GPC_BCAST(0x08b8), gr->unk4188b8->addr >> 8);
 
-	gf100_gr_mmio(priv, oclass->mmio);
+	gf100_gr_mmio(gr, oclass->mmio);
 
-	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
-	for (i = 0, gpc = -1; i < priv->tpc_total; i++) {
+	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
+	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
 		do {
-			gpc = (gpc + 1) % priv->gpc_nr;
+			gpc = (gpc + 1) % gr->gpc_nr;
 		} while (!tpcnr[gpc]);
-		tpc = priv->tpc_nr[gpc] - tpcnr[gpc]--;
+		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
 
 		data[i / 8] |= tpc << ((i % 8) * 4);
 	}
 
-	nv_wr32(priv, GPC_BCAST(0x0980), data[0]);
-	nv_wr32(priv, GPC_BCAST(0x0984), data[1]);
-	nv_wr32(priv, GPC_BCAST(0x0988), data[2]);
-	nv_wr32(priv, GPC_BCAST(0x098c), data[3]);
+	nv_wr32(gr, GPC_BCAST(0x0980), data[0]);
+	nv_wr32(gr, GPC_BCAST(0x0984), data[1]);
+	nv_wr32(gr, GPC_BCAST(0x0988), data[2]);
+	nv_wr32(gr, GPC_BCAST(0x098c), data[3]);
 
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0914),
-			priv->magic_not_rop_nr << 8 | priv->tpc_nr[gpc]);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			priv->tpc_total);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0918), magicgpc918);
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0914),
+			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0910), 0x00040000 |
+			gr->tpc_total);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
-	if (nv_device(priv)->chipset != 0xd7)
-		nv_wr32(priv, GPC_BCAST(0x1bd4), magicgpc918);
+	if (nv_device(gr)->chipset != 0xd7)
+		nv_wr32(gr, GPC_BCAST(0x1bd4), magicgpc918);
 	else
-		nv_wr32(priv, GPC_BCAST(0x3fd4), magicgpc918);
+		nv_wr32(gr, GPC_BCAST(0x3fd4), magicgpc918);
 
-	nv_wr32(priv, GPC_BCAST(0x08ac), nv_rd32(priv, 0x100800));
+	nv_wr32(gr, GPC_BCAST(0x08ac), nv_rd32(gr, 0x100800));
 
-	nv_wr32(priv, 0x400500, 0x00010001);
+	nv_wr32(gr, 0x400500, 0x00010001);
 
-	nv_wr32(priv, 0x400100, 0xffffffff);
-	nv_wr32(priv, 0x40013c, 0xffffffff);
+	nv_wr32(gr, 0x400100, 0xffffffff);
+	nv_wr32(gr, 0x40013c, 0xffffffff);
 
-	nv_wr32(priv, 0x409c24, 0x000f0000);
-	nv_wr32(priv, 0x404000, 0xc0000000);
-	nv_wr32(priv, 0x404600, 0xc0000000);
-	nv_wr32(priv, 0x408030, 0xc0000000);
-	nv_wr32(priv, 0x40601c, 0xc0000000);
-	nv_wr32(priv, 0x404490, 0xc0000000);
-	nv_wr32(priv, 0x406018, 0xc0000000);
-	nv_wr32(priv, 0x405840, 0xc0000000);
-	nv_wr32(priv, 0x405844, 0x00ffffff);
-	nv_mask(priv, 0x419cc0, 0x00000008, 0x00000008);
-	nv_mask(priv, 0x419eb4, 0x00001000, 0x00001000);
+	nv_wr32(gr, 0x409c24, 0x000f0000);
+	nv_wr32(gr, 0x404000, 0xc0000000);
+	nv_wr32(gr, 0x404600, 0xc0000000);
+	nv_wr32(gr, 0x408030, 0xc0000000);
+	nv_wr32(gr, 0x40601c, 0xc0000000);
+	nv_wr32(gr, 0x404490, 0xc0000000);
+	nv_wr32(gr, 0x406018, 0xc0000000);
+	nv_wr32(gr, 0x405840, 0xc0000000);
+	nv_wr32(gr, 0x405844, 0x00ffffff);
+	nv_mask(gr, 0x419cc0, 0x00000008, 0x00000008);
+	nv_mask(gr, 0x419eb4, 0x00001000, 0x00001000);
 
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0420), 0xc0000000);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0900), 0xc0000000);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x1028), 0xc0000000);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0824), 0xc0000000);
-		for (tpc = 0; tpc < priv->tpc_nr[gpc]; tpc++) {
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0420), 0xc0000000);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0900), 0xc0000000);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x1028), 0xc0000000);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0824), 0xc0000000);
+		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
 		}
-		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
 	}
 
-	for (rop = 0; rop < priv->rop_nr; rop++) {
-		nv_wr32(priv, ROP_UNIT(rop, 0x144), 0xc0000000);
-		nv_wr32(priv, ROP_UNIT(rop, 0x070), 0xc0000000);
-		nv_wr32(priv, ROP_UNIT(rop, 0x204), 0xffffffff);
-		nv_wr32(priv, ROP_UNIT(rop, 0x208), 0xffffffff);
+	for (rop = 0; rop < gr->rop_nr; rop++) {
+		nv_wr32(gr, ROP_UNIT(rop, 0x144), 0xc0000000);
+		nv_wr32(gr, ROP_UNIT(rop, 0x070), 0xc0000000);
+		nv_wr32(gr, ROP_UNIT(rop, 0x204), 0xffffffff);
+		nv_wr32(gr, ROP_UNIT(rop, 0x208), 0xffffffff);
 	}
 
-	nv_wr32(priv, 0x400108, 0xffffffff);
-	nv_wr32(priv, 0x400138, 0xffffffff);
-	nv_wr32(priv, 0x400118, 0xffffffff);
-	nv_wr32(priv, 0x400130, 0xffffffff);
-	nv_wr32(priv, 0x40011c, 0xffffffff);
-	nv_wr32(priv, 0x400134, 0xffffffff);
+	nv_wr32(gr, 0x400108, 0xffffffff);
+	nv_wr32(gr, 0x400138, 0xffffffff);
+	nv_wr32(gr, 0x400118, 0xffffffff);
+	nv_wr32(gr, 0x400130, 0xffffffff);
+	nv_wr32(gr, 0x40011c, 0xffffffff);
+	nv_wr32(gr, 0x400134, 0xffffffff);
 
-	nv_wr32(priv, 0x400054, 0x34ce3464);
+	nv_wr32(gr, 0x400054, 0x34ce3464);
 
-	gf100_gr_zbc_init(priv);
+	gf100_gr_zbc_init(gr);
 
-	return gf100_gr_init_ctxctl(priv);
+	return gf100_gr_init_ctxctl(gr);
 }
 
 void
@@ -1544,10 +1544,10 @@ gf100_gr_dtor_fw(struct gf100_gr_fuc *fuc)
 }
 
 int
-gf100_gr_ctor_fw(struct gf100_gr_priv *priv, const char *fwname,
+gf100_gr_ctor_fw(struct gf100_gr *gr, const char *fwname,
 		 struct gf100_gr_fuc *fuc)
 {
-	struct nvkm_device *device = nv_device(priv);
+	struct nvkm_device *device = nv_device(gr);
 	const struct firmware *fw;
 	char f[64];
 	char cname[16];
@@ -1566,7 +1566,7 @@ gf100_gr_ctor_fw(struct gf100_gr_priv *priv, const char *fwname,
 	snprintf(f, sizeof(f), "nvidia/%s/%s.bin", cname, fwname);
 	ret = request_firmware(&fw, f, nv_device_base(device));
 	if (ret) {
-		nv_error(priv, "failed to load %s\n", fwname);
+		nv_error(gr, "failed to load %s\n", fwname);
 		return ret;
 	}
 
@@ -1579,19 +1579,19 @@ gf100_gr_ctor_fw(struct gf100_gr_priv *priv, const char *fwname,
 void
 gf100_gr_dtor(struct nvkm_object *object)
 {
-	struct gf100_gr_priv *priv = (void *)object;
+	struct gf100_gr *gr = (void *)object;
 
-	kfree(priv->data);
+	kfree(gr->data);
 
-	gf100_gr_dtor_fw(&priv->fuc409c);
-	gf100_gr_dtor_fw(&priv->fuc409d);
-	gf100_gr_dtor_fw(&priv->fuc41ac);
-	gf100_gr_dtor_fw(&priv->fuc41ad);
+	gf100_gr_dtor_fw(&gr->fuc409c);
+	gf100_gr_dtor_fw(&gr->fuc409d);
+	gf100_gr_dtor_fw(&gr->fuc41ac);
+	gf100_gr_dtor_fw(&gr->fuc41ad);
 
-	nvkm_gpuobj_ref(NULL, &priv->unk4188b8);
-	nvkm_gpuobj_ref(NULL, &priv->unk4188b4);
+	nvkm_gpuobj_ref(NULL, &gr->unk4188b8);
+	nvkm_gpuobj_ref(NULL, &gr->unk4188b4);
 
-	nvkm_gr_destroy(&priv->base);
+	nvkm_gr_destroy(&gr->base);
 }
 
 int
@@ -1601,7 +1601,7 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 {
 	struct gf100_gr_oclass *oclass = (void *)bclass;
 	struct nvkm_device *device = nv_device(parent);
-	struct gf100_gr_priv *priv;
+	struct gf100_gr *gr;
 	bool use_ext_fw, enable;
 	int ret, i, j;
 
@@ -1609,94 +1609,94 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 				  oclass->fecs.ucode == NULL);
 	enable = use_ext_fw || oclass->fecs.ucode != NULL;
 
-	ret = nvkm_gr_create(parent, engine, bclass, enable, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_gr_create(parent, engine, bclass, enable, &gr);
+	*pobject = nv_object(gr);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x08001000;
-	nv_subdev(priv)->intr = gf100_gr_intr;
+	nv_subdev(gr)->unit = 0x08001000;
+	nv_subdev(gr)->intr = gf100_gr_intr;
 
-	priv->base.units = gf100_gr_units;
+	gr->base.units = gf100_gr_units;
 
 	if (use_ext_fw) {
-		nv_info(priv, "using external firmware\n");
-		if (gf100_gr_ctor_fw(priv, "fecs_inst", &priv->fuc409c) ||
-		    gf100_gr_ctor_fw(priv, "fecs_data", &priv->fuc409d) ||
-		    gf100_gr_ctor_fw(priv, "gpccs_inst", &priv->fuc41ac) ||
-		    gf100_gr_ctor_fw(priv, "gpccs_data", &priv->fuc41ad))
+		nv_info(gr, "using external firmware\n");
+		if (gf100_gr_ctor_fw(gr, "fecs_inst", &gr->fuc409c) ||
+		    gf100_gr_ctor_fw(gr, "fecs_data", &gr->fuc409d) ||
+		    gf100_gr_ctor_fw(gr, "gpccs_inst", &gr->fuc41ac) ||
+		    gf100_gr_ctor_fw(gr, "gpccs_data", &gr->fuc41ad))
 			return -ENODEV;
-		priv->firmware = true;
+		gr->firmware = true;
 	}
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
-			      &priv->unk4188b4);
+	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 0x1000, 256, 0,
+			      &gr->unk4188b4);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
-			      &priv->unk4188b8);
+	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 0x1000, 256, 0,
+			      &gr->unk4188b8);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < 0x1000; i += 4) {
-		nv_wo32(priv->unk4188b4, i, 0x00000010);
-		nv_wo32(priv->unk4188b8, i, 0x00000010);
+		nv_wo32(gr->unk4188b4, i, 0x00000010);
+		nv_wo32(gr->unk4188b8, i, 0x00000010);
 	}
 
-	priv->rop_nr = (nv_rd32(priv, 0x409604) & 0x001f0000) >> 16;
-	priv->gpc_nr =  nv_rd32(priv, 0x409604) & 0x0000001f;
-	for (i = 0; i < priv->gpc_nr; i++) {
-		priv->tpc_nr[i]  = nv_rd32(priv, GPC_UNIT(i, 0x2608));
-		priv->tpc_total += priv->tpc_nr[i];
-		priv->ppc_nr[i]  = oclass->ppc_nr;
-		for (j = 0; j < priv->ppc_nr[i]; j++) {
-			u8 mask = nv_rd32(priv, GPC_UNIT(i, 0x0c30 + (j * 4)));
-			priv->ppc_tpc_nr[i][j] = hweight8(mask);
+	gr->rop_nr = (nv_rd32(gr, 0x409604) & 0x001f0000) >> 16;
+	gr->gpc_nr =  nv_rd32(gr, 0x409604) & 0x0000001f;
+	for (i = 0; i < gr->gpc_nr; i++) {
+		gr->tpc_nr[i]  = nv_rd32(gr, GPC_UNIT(i, 0x2608));
+		gr->tpc_total += gr->tpc_nr[i];
+		gr->ppc_nr[i]  = oclass->ppc_nr;
+		for (j = 0; j < gr->ppc_nr[i]; j++) {
+			u8 mask = nv_rd32(gr, GPC_UNIT(i, 0x0c30 + (j * 4)));
+			gr->ppc_tpc_nr[i][j] = hweight8(mask);
 		}
 	}
 
 	/*XXX: these need figuring out... though it might not even matter */
-	switch (nv_device(priv)->chipset) {
+	switch (nv_device(gr)->chipset) {
 	case 0xc0:
-		if (priv->tpc_total == 11) { /* 465, 3/4/4/0, 4 */
-			priv->magic_not_rop_nr = 0x07;
+		if (gr->tpc_total == 11) { /* 465, 3/4/4/0, 4 */
+			gr->magic_not_rop_nr = 0x07;
 		} else
-		if (priv->tpc_total == 14) { /* 470, 3/3/4/4, 5 */
-			priv->magic_not_rop_nr = 0x05;
+		if (gr->tpc_total == 14) { /* 470, 3/3/4/4, 5 */
+			gr->magic_not_rop_nr = 0x05;
 		} else
-		if (priv->tpc_total == 15) { /* 480, 3/4/4/4, 6 */
-			priv->magic_not_rop_nr = 0x06;
+		if (gr->tpc_total == 15) { /* 480, 3/4/4/4, 6 */
+			gr->magic_not_rop_nr = 0x06;
 		}
 		break;
 	case 0xc3: /* 450, 4/0/0/0, 2 */
-		priv->magic_not_rop_nr = 0x03;
+		gr->magic_not_rop_nr = 0x03;
 		break;
 	case 0xc4: /* 460, 3/4/0/0, 4 */
-		priv->magic_not_rop_nr = 0x01;
+		gr->magic_not_rop_nr = 0x01;
 		break;
 	case 0xc1: /* 2/0/0/0, 1 */
-		priv->magic_not_rop_nr = 0x01;
+		gr->magic_not_rop_nr = 0x01;
 		break;
 	case 0xc8: /* 4/4/3/4, 5 */
-		priv->magic_not_rop_nr = 0x06;
+		gr->magic_not_rop_nr = 0x06;
 		break;
 	case 0xce: /* 4/4/0/0, 4 */
-		priv->magic_not_rop_nr = 0x03;
+		gr->magic_not_rop_nr = 0x03;
 		break;
 	case 0xcf: /* 4/0/0/0, 3 */
-		priv->magic_not_rop_nr = 0x03;
+		gr->magic_not_rop_nr = 0x03;
 		break;
 	case 0xd7:
 	case 0xd9: /* 1/0/0/0, 1 */
 	case 0xea: /* gk20a */
 	case 0x12b: /* gm20b */
-		priv->magic_not_rop_nr = 0x01;
+		gr->magic_not_rop_nr = 0x01;
 		break;
 	}
 
-	nv_engine(priv)->cclass = *oclass->cclass;
-	nv_engine(priv)->sclass =  oclass->sclass;
+	nv_engine(gr)->cclass = *oclass->cclass;
+	nv_engine(gr)->sclass =  oclass->sclass;
 	return 0;
 }
 

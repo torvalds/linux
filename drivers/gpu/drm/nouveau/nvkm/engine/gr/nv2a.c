@@ -92,24 +92,24 @@ nv2a_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
-	struct nv20_gr_priv *priv;
+	struct nv20_gr *gr;
 	int ret;
 
-	ret = nvkm_gr_create(parent, engine, oclass, true, &priv);
-	*pobject = nv_object(priv);
+	ret = nvkm_gr_create(parent, engine, oclass, true, &gr);
+	*pobject = nv_object(gr);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 32 * 4, 16,
-			      NVOBJ_FLAG_ZERO_ALLOC, &priv->ctxtab);
+	ret = nvkm_gpuobj_new(nv_object(gr), NULL, 32 * 4, 16,
+			      NVOBJ_FLAG_ZERO_ALLOC, &gr->ctxtab);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00001000;
-	nv_subdev(priv)->intr = nv20_gr_intr;
-	nv_engine(priv)->cclass = &nv2a_gr_cclass;
-	nv_engine(priv)->sclass = nv25_gr_sclass;
-	nv_engine(priv)->tile_prog = nv20_gr_tile_prog;
+	nv_subdev(gr)->unit = 0x00001000;
+	nv_subdev(gr)->intr = nv20_gr_intr;
+	nv_engine(gr)->cclass = &nv2a_gr_cclass;
+	nv_engine(gr)->sclass = nv25_gr_sclass;
+	nv_engine(gr)->tile_prog = nv20_gr_tile_prog;
 	return 0;
 }
 

@@ -843,7 +843,7 @@ gk104_grctx_pack_ppc[] = {
 void
 gk104_grctx_generate_bundle(struct gf100_grctx *info)
 {
-	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->priv);
+	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->gr);
 	const u32 state_limit = min(impl->bundle_min_gpm_fifo_depth,
 				    impl->bundle_size / 0x20);
 	const u32 token_limit = impl->bundle_token_limit;
@@ -860,7 +860,7 @@ gk104_grctx_generate_bundle(struct gf100_grctx *info)
 void
 gk104_grctx_generate_pagepool(struct gf100_grctx *info)
 {
-	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->priv);
+	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->gr);
 	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
 	const int b = mmio_vram(info, impl->pagepool_size, (1 << s), access);
@@ -872,18 +872,18 @@ gk104_grctx_generate_pagepool(struct gf100_grctx *info)
 }
 
 void
-gk104_grctx_generate_unkn(struct gf100_gr_priv *priv)
+gk104_grctx_generate_unkn(struct gf100_gr *gr)
 {
-	nv_mask(priv, 0x418c6c, 0x00000001, 0x00000001);
-	nv_mask(priv, 0x41980c, 0x00000010, 0x00000010);
-	nv_mask(priv, 0x41be08, 0x00000004, 0x00000004);
-	nv_mask(priv, 0x4064c0, 0x80000000, 0x80000000);
-	nv_mask(priv, 0x405800, 0x08000000, 0x08000000);
-	nv_mask(priv, 0x419c00, 0x00000008, 0x00000008);
+	nv_mask(gr, 0x418c6c, 0x00000001, 0x00000001);
+	nv_mask(gr, 0x41980c, 0x00000010, 0x00000010);
+	nv_mask(gr, 0x41be08, 0x00000004, 0x00000004);
+	nv_mask(gr, 0x4064c0, 0x80000000, 0x80000000);
+	nv_mask(gr, 0x405800, 0x08000000, 0x08000000);
+	nv_mask(gr, 0x419c00, 0x00000008, 0x00000008);
 }
 
 void
-gk104_grctx_generate_r418bb8(struct gf100_gr_priv *priv)
+gk104_grctx_generate_r418bb8(struct gf100_gr *gr)
 {
 	u32 data[6] = {}, data2[2] = {};
 	u8  tpcnr[GPC_MAX];
@@ -891,12 +891,12 @@ gk104_grctx_generate_r418bb8(struct gf100_gr_priv *priv)
 	int gpc, tpc, i;
 
 	/* calculate first set of magics */
-	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
+	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
 
 	gpc = -1;
-	for (tpc = 0; tpc < priv->tpc_total; tpc++) {
+	for (tpc = 0; tpc < gr->tpc_total; tpc++) {
 		do {
-			gpc = (gpc + 1) % priv->gpc_nr;
+			gpc = (gpc + 1) % gr->gpc_nr;
 		} while (!tpcnr[gpc]);
 		tpcnr[gpc]--;
 
@@ -908,7 +908,7 @@ gk104_grctx_generate_r418bb8(struct gf100_gr_priv *priv)
 
 	/* and the second... */
 	shift = 0;
-	ntpcv = priv->tpc_total;
+	ntpcv = gr->tpc_total;
 	while (!(ntpcv & (1 << 4))) {
 		ntpcv <<= 1;
 		shift++;
@@ -921,73 +921,73 @@ gk104_grctx_generate_r418bb8(struct gf100_gr_priv *priv)
 		data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
 
 	/* GPC_BROADCAST */
-	nv_wr32(priv, 0x418bb8, (priv->tpc_total << 8) |
-				 priv->magic_not_rop_nr);
+	nv_wr32(gr, 0x418bb8, (gr->tpc_total << 8) |
+				 gr->magic_not_rop_nr);
 	for (i = 0; i < 6; i++)
-		nv_wr32(priv, 0x418b08 + (i * 4), data[i]);
+		nv_wr32(gr, 0x418b08 + (i * 4), data[i]);
 
 	/* GPC_BROADCAST.TP_BROADCAST */
-	nv_wr32(priv, 0x41bfd0, (priv->tpc_total << 8) |
-				 priv->magic_not_rop_nr | data2[0]);
-	nv_wr32(priv, 0x41bfe4, data2[1]);
+	nv_wr32(gr, 0x41bfd0, (gr->tpc_total << 8) |
+				 gr->magic_not_rop_nr | data2[0]);
+	nv_wr32(gr, 0x41bfe4, data2[1]);
 	for (i = 0; i < 6; i++)
-		nv_wr32(priv, 0x41bf00 + (i * 4), data[i]);
+		nv_wr32(gr, 0x41bf00 + (i * 4), data[i]);
 
 	/* UNK78xx */
-	nv_wr32(priv, 0x4078bc, (priv->tpc_total << 8) |
-				 priv->magic_not_rop_nr);
+	nv_wr32(gr, 0x4078bc, (gr->tpc_total << 8) |
+				 gr->magic_not_rop_nr);
 	for (i = 0; i < 6; i++)
-		nv_wr32(priv, 0x40780c + (i * 4), data[i]);
+		nv_wr32(gr, 0x40780c + (i * 4), data[i]);
 }
 
 void
-gk104_grctx_generate_rop_active_fbps(struct gf100_gr_priv *priv)
+gk104_grctx_generate_rop_active_fbps(struct gf100_gr *gr)
 {
-	const u32 fbp_count = nv_rd32(priv, 0x120074);
-	nv_mask(priv, 0x408850, 0x0000000f, fbp_count); /* zrop */
-	nv_mask(priv, 0x408958, 0x0000000f, fbp_count); /* crop */
+	const u32 fbp_count = nv_rd32(gr, 0x120074);
+	nv_mask(gr, 0x408850, 0x0000000f, fbp_count); /* zrop */
+	nv_mask(gr, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
 void
-gk104_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
+gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
-	struct gf100_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
+	struct gf100_grctx_oclass *oclass = (void *)nv_engine(gr)->cclass;
 	int i;
 
-	nvkm_mc(priv)->unk260(nvkm_mc(priv), 0);
+	nvkm_mc(gr)->unk260(nvkm_mc(gr), 0);
 
-	gf100_gr_mmio(priv, oclass->hub);
-	gf100_gr_mmio(priv, oclass->gpc);
-	gf100_gr_mmio(priv, oclass->zcull);
-	gf100_gr_mmio(priv, oclass->tpc);
-	gf100_gr_mmio(priv, oclass->ppc);
+	gf100_gr_mmio(gr, oclass->hub);
+	gf100_gr_mmio(gr, oclass->gpc);
+	gf100_gr_mmio(gr, oclass->zcull);
+	gf100_gr_mmio(gr, oclass->tpc);
+	gf100_gr_mmio(gr, oclass->ppc);
 
-	nv_wr32(priv, 0x404154, 0x00000000);
+	nv_wr32(gr, 0x404154, 0x00000000);
 
 	oclass->bundle(info);
 	oclass->pagepool(info);
 	oclass->attrib(info);
-	oclass->unkn(priv);
+	oclass->unkn(gr);
 
-	gf100_grctx_generate_tpcid(priv);
-	gf100_grctx_generate_r406028(priv);
-	gk104_grctx_generate_r418bb8(priv);
-	gf100_grctx_generate_r406800(priv);
+	gf100_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_r406028(gr);
+	gk104_grctx_generate_r418bb8(gr);
+	gf100_grctx_generate_r406800(gr);
 
 	for (i = 0; i < 8; i++)
-		nv_wr32(priv, 0x4064d0 + (i * 0x04), 0x00000000);
+		nv_wr32(gr, 0x4064d0 + (i * 0x04), 0x00000000);
 
-	nv_wr32(priv, 0x405b00, (priv->tpc_total << 8) | priv->gpc_nr);
-	gk104_grctx_generate_rop_active_fbps(priv);
-	nv_mask(priv, 0x419f78, 0x00000001, 0x00000000);
+	nv_wr32(gr, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
+	gk104_grctx_generate_rop_active_fbps(gr);
+	nv_mask(gr, 0x419f78, 0x00000001, 0x00000000);
 
-	gf100_gr_icmd(priv, oclass->icmd);
-	nv_wr32(priv, 0x404154, 0x00000400);
-	gf100_gr_mthd(priv, oclass->mthd);
-	nvkm_mc(priv)->unk260(nvkm_mc(priv), 1);
+	gf100_gr_icmd(gr, oclass->icmd);
+	nv_wr32(gr, 0x404154, 0x00000400);
+	gf100_gr_mthd(gr, oclass->mthd);
+	nvkm_mc(gr)->unk260(nvkm_mc(gr), 1);
 
-	nv_mask(priv, 0x418800, 0x00200000, 0x00200000);
-	nv_mask(priv, 0x41be10, 0x00800000, 0x00800000);
+	nv_mask(gr, 0x418800, 0x00200000, 0x00200000);
+	nv_mask(gr, 0x41be10, 0x00800000, 0x00800000);
 }
 
 struct nvkm_oclass *

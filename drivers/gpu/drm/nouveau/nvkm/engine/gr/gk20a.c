@@ -160,46 +160,46 @@ gk20a_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_object **pobject)
 {
 	int err;
-	struct gf100_gr_priv *priv;
+	struct gf100_gr *gr;
 	struct gf100_gr_fuc fuc;
 
 	err = gf100_gr_ctor(parent, engine, oclass, data, size, pobject);
 	if (err)
 		return err;
 
-	priv = (void *)*pobject;
+	gr = (void *)*pobject;
 
-	err = gf100_gr_ctor_fw(priv, "sw_nonctx", &fuc);
+	err = gf100_gr_ctor_fw(gr, "sw_nonctx", &fuc);
 	if (err)
 		return err;
-	priv->fuc_sw_nonctx = gk20a_gr_av_to_init(&fuc);
+	gr->fuc_sw_nonctx = gk20a_gr_av_to_init(&fuc);
 	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(priv->fuc_sw_nonctx))
-		return PTR_ERR(priv->fuc_sw_nonctx);
+	if (IS_ERR(gr->fuc_sw_nonctx))
+		return PTR_ERR(gr->fuc_sw_nonctx);
 
-	err = gf100_gr_ctor_fw(priv, "sw_ctx", &fuc);
+	err = gf100_gr_ctor_fw(gr, "sw_ctx", &fuc);
 	if (err)
 		return err;
-	priv->fuc_sw_ctx = gk20a_gr_aiv_to_init(&fuc);
+	gr->fuc_sw_ctx = gk20a_gr_aiv_to_init(&fuc);
 	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(priv->fuc_sw_ctx))
-		return PTR_ERR(priv->fuc_sw_ctx);
+	if (IS_ERR(gr->fuc_sw_ctx))
+		return PTR_ERR(gr->fuc_sw_ctx);
 
-	err = gf100_gr_ctor_fw(priv, "sw_bundle_init", &fuc);
+	err = gf100_gr_ctor_fw(gr, "sw_bundle_init", &fuc);
 	if (err)
 		return err;
-	priv->fuc_bundle = gk20a_gr_av_to_init(&fuc);
+	gr->fuc_bundle = gk20a_gr_av_to_init(&fuc);
 	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(priv->fuc_bundle))
-		return PTR_ERR(priv->fuc_bundle);
+	if (IS_ERR(gr->fuc_bundle))
+		return PTR_ERR(gr->fuc_bundle);
 
-	err = gf100_gr_ctor_fw(priv, "sw_method_init", &fuc);
+	err = gf100_gr_ctor_fw(gr, "sw_method_init", &fuc);
 	if (err)
 		return err;
-	priv->fuc_method = gk20a_gr_av_to_method(&fuc);
+	gr->fuc_method = gk20a_gr_av_to_method(&fuc);
 	gf100_gr_dtor_fw(&fuc);
-	if (IS_ERR(priv->fuc_method))
-		return PTR_ERR(priv->fuc_method);
+	if (IS_ERR(gr->fuc_method))
+		return PTR_ERR(gr->fuc_method);
 
 	return 0;
 }
@@ -207,26 +207,26 @@ gk20a_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 void
 gk20a_gr_dtor(struct nvkm_object *object)
 {
-	struct gf100_gr_priv *priv = (void *)object;
+	struct gf100_gr *gr = (void *)object;
 
-	gk20a_gr_init_dtor(priv->fuc_method);
-	gk20a_gr_init_dtor(priv->fuc_bundle);
-	gk20a_gr_init_dtor(priv->fuc_sw_ctx);
-	gk20a_gr_init_dtor(priv->fuc_sw_nonctx);
+	gk20a_gr_init_dtor(gr->fuc_method);
+	gk20a_gr_init_dtor(gr->fuc_bundle);
+	gk20a_gr_init_dtor(gr->fuc_sw_ctx);
+	gk20a_gr_init_dtor(gr->fuc_sw_nonctx);
 
 	gf100_gr_dtor(object);
 }
 
 static int
-gk20a_gr_wait_mem_scrubbing(struct gf100_gr_priv *priv)
+gk20a_gr_wait_mem_scrubbing(struct gf100_gr *gr)
 {
-	if (!nv_wait(priv, 0x40910c, 0x6, 0x0)) {
-		nv_error(priv, "FECS mem scrubbing timeout\n");
+	if (!nv_wait(gr, 0x40910c, 0x6, 0x0)) {
+		nv_error(gr, "FECS mem scrubbing timeout\n");
 		return -ETIMEDOUT;
 	}
 
-	if (!nv_wait(priv, 0x41a10c, 0x6, 0x0)) {
-		nv_error(priv, "GPCCS mem scrubbing timeout\n");
+	if (!nv_wait(gr, 0x41a10c, 0x6, 0x0)) {
+		nv_error(gr, "GPCCS mem scrubbing timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -234,109 +234,109 @@ gk20a_gr_wait_mem_scrubbing(struct gf100_gr_priv *priv)
 }
 
 static void
-gk20a_gr_set_hww_esr_report_mask(struct gf100_gr_priv *priv)
+gk20a_gr_set_hww_esr_report_mask(struct gf100_gr *gr)
 {
-	nv_wr32(priv, 0x419e44, 0x1ffffe);
-	nv_wr32(priv, 0x419e4c, 0x7f);
+	nv_wr32(gr, 0x419e44, 0x1ffffe);
+	nv_wr32(gr, 0x419e4c, 0x7f);
 }
 
 int
 gk20a_gr_init(struct nvkm_object *object)
 {
 	struct gk20a_gr_oclass *oclass = (void *)object->oclass;
-	struct gf100_gr_priv *priv = (void *)object;
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
+	struct gf100_gr *gr = (void *)object;
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc;
 	int ret, i;
 
-	ret = nvkm_gr_init(&priv->base);
+	ret = nvkm_gr_init(&gr->base);
 	if (ret)
 		return ret;
 
 	/* Clear SCC RAM */
-	nv_wr32(priv, 0x40802c, 0x1);
+	nv_wr32(gr, 0x40802c, 0x1);
 
-	gf100_gr_mmio(priv, priv->fuc_sw_nonctx);
+	gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
 
-	ret = gk20a_gr_wait_mem_scrubbing(priv);
+	ret = gk20a_gr_wait_mem_scrubbing(gr);
 	if (ret)
 		return ret;
 
-	ret = gf100_gr_wait_idle(priv);
+	ret = gf100_gr_wait_idle(gr);
 	if (ret)
 		return ret;
 
 	/* MMU debug buffer */
-	nv_wr32(priv, 0x100cc8, priv->unk4188b4->addr >> 8);
-	nv_wr32(priv, 0x100ccc, priv->unk4188b8->addr >> 8);
+	nv_wr32(gr, 0x100cc8, gr->unk4188b4->addr >> 8);
+	nv_wr32(gr, 0x100ccc, gr->unk4188b8->addr >> 8);
 
 	if (oclass->init_gpc_mmu)
-		oclass->init_gpc_mmu(priv);
+		oclass->init_gpc_mmu(gr);
 
 	/* Set the PE as stream master */
-	nv_mask(priv, 0x503018, 0x1, 0x1);
+	nv_mask(gr, 0x503018, 0x1, 0x1);
 
 	/* Zcull init */
 	memset(data, 0x00, sizeof(data));
-	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
-	for (i = 0, gpc = -1; i < priv->tpc_total; i++) {
+	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
+	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
 		do {
-			gpc = (gpc + 1) % priv->gpc_nr;
+			gpc = (gpc + 1) % gr->gpc_nr;
 		} while (!tpcnr[gpc]);
-		tpc = priv->tpc_nr[gpc] - tpcnr[gpc]--;
+		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
 
 		data[i / 8] |= tpc << ((i % 8) * 4);
 	}
 
-	nv_wr32(priv, GPC_BCAST(0x0980), data[0]);
-	nv_wr32(priv, GPC_BCAST(0x0984), data[1]);
-	nv_wr32(priv, GPC_BCAST(0x0988), data[2]);
-	nv_wr32(priv, GPC_BCAST(0x098c), data[3]);
+	nv_wr32(gr, GPC_BCAST(0x0980), data[0]);
+	nv_wr32(gr, GPC_BCAST(0x0984), data[1]);
+	nv_wr32(gr, GPC_BCAST(0x0988), data[2]);
+	nv_wr32(gr, GPC_BCAST(0x098c), data[3]);
 
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0914),
-			priv->magic_not_rop_nr << 8 | priv->tpc_nr[gpc]);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			priv->tpc_total);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0918), magicgpc918);
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0914),
+			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0910), 0x00040000 |
+			gr->tpc_total);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
-	nv_wr32(priv, GPC_BCAST(0x3fd4), magicgpc918);
+	nv_wr32(gr, GPC_BCAST(0x3fd4), magicgpc918);
 
 	/* Enable FIFO access */
-	nv_wr32(priv, 0x400500, 0x00010001);
+	nv_wr32(gr, 0x400500, 0x00010001);
 
 	/* Enable interrupts */
-	nv_wr32(priv, 0x400100, 0xffffffff);
-	nv_wr32(priv, 0x40013c, 0xffffffff);
+	nv_wr32(gr, 0x400100, 0xffffffff);
+	nv_wr32(gr, 0x40013c, 0xffffffff);
 
 	/* Enable FECS error interrupts */
-	nv_wr32(priv, 0x409c24, 0x000f0000);
+	nv_wr32(gr, 0x409c24, 0x000f0000);
 
 	/* Enable hardware warning exceptions */
-	nv_wr32(priv, 0x404000, 0xc0000000);
-	nv_wr32(priv, 0x404600, 0xc0000000);
+	nv_wr32(gr, 0x404000, 0xc0000000);
+	nv_wr32(gr, 0x404600, 0xc0000000);
 
 	if (oclass->set_hww_esr_report_mask)
-		oclass->set_hww_esr_report_mask(priv);
+		oclass->set_hww_esr_report_mask(gr);
 
 	/* Enable TPC exceptions per GPC */
-	nv_wr32(priv, 0x419d0c, 0x2);
-	nv_wr32(priv, 0x41ac94, (((1 << priv->tpc_total) - 1) & 0xff) << 16);
+	nv_wr32(gr, 0x419d0c, 0x2);
+	nv_wr32(gr, 0x41ac94, (((1 << gr->tpc_total) - 1) & 0xff) << 16);
 
 	/* Reset and enable all exceptions */
-	nv_wr32(priv, 0x400108, 0xffffffff);
-	nv_wr32(priv, 0x400138, 0xffffffff);
-	nv_wr32(priv, 0x400118, 0xffffffff);
-	nv_wr32(priv, 0x400130, 0xffffffff);
-	nv_wr32(priv, 0x40011c, 0xffffffff);
-	nv_wr32(priv, 0x400134, 0xffffffff);
+	nv_wr32(gr, 0x400108, 0xffffffff);
+	nv_wr32(gr, 0x400138, 0xffffffff);
+	nv_wr32(gr, 0x400118, 0xffffffff);
+	nv_wr32(gr, 0x400130, 0xffffffff);
+	nv_wr32(gr, 0x40011c, 0xffffffff);
+	nv_wr32(gr, 0x400134, 0xffffffff);
 
-	gf100_gr_zbc_init(priv);
+	gf100_gr_zbc_init(gr);
 
-	return gf100_gr_init_ctxctl(priv);
+	return gf100_gr_init_ctxctl(gr);
 }
 
 struct nvkm_oclass *

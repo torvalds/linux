@@ -35,34 +35,34 @@ gm20b_gr_sclass[] = {
 };
 
 static void
-gm20b_gr_init_gpc_mmu(struct gf100_gr_priv *priv)
+gm20b_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
 	u32 val;
 
 	/* TODO this needs to be removed once secure boot works */
 	if (1) {
-		nv_wr32(priv, 0x100ce4, 0xffffffff);
+		nv_wr32(gr, 0x100ce4, 0xffffffff);
 	}
 
 	/* TODO update once secure boot works */
-	val = nv_rd32(priv, 0x100c80);
+	val = nv_rd32(gr, 0x100c80);
 	val &= 0xf000087f;
-	nv_wr32(priv, 0x418880, val);
-	nv_wr32(priv, 0x418890, 0);
-	nv_wr32(priv, 0x418894, 0);
+	nv_wr32(gr, 0x418880, val);
+	nv_wr32(gr, 0x418890, 0);
+	nv_wr32(gr, 0x418894, 0);
 
-	nv_wr32(priv, 0x4188b0, nv_rd32(priv, 0x100cc4));
-	nv_wr32(priv, 0x4188b4, nv_rd32(priv, 0x100cc8));
-	nv_wr32(priv, 0x4188b8, nv_rd32(priv, 0x100ccc));
+	nv_wr32(gr, 0x4188b0, nv_rd32(gr, 0x100cc4));
+	nv_wr32(gr, 0x4188b4, nv_rd32(gr, 0x100cc8));
+	nv_wr32(gr, 0x4188b8, nv_rd32(gr, 0x100ccc));
 
-	nv_wr32(priv, 0x4188ac, nv_rd32(priv, 0x100800));
+	nv_wr32(gr, 0x4188ac, nv_rd32(gr, 0x100800));
 }
 
 static void
-gm20b_gr_set_hww_esr_report_mask(struct gf100_gr_priv *priv)
+gm20b_gr_set_hww_esr_report_mask(struct gf100_gr *gr)
 {
-	nv_wr32(priv, 0x419e44, 0xdffffe);
-	nv_wr32(priv, 0x419e4c, 0x5);
+	nv_wr32(gr, 0x419e44, 0xdffffe);
+	nv_wr32(gr, 0x419e4c, 0x5);
 }
 
 struct nvkm_oclass *

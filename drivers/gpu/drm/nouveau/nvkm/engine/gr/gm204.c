@@ -243,7 +243,7 @@ gm204_gr_data[] = {
  ******************************************************************************/
 
 static int
-gm204_gr_init_ctxctl(struct gf100_gr_priv *priv)
+gm204_gr_init_ctxctl(struct gf100_gr *gr)
 {
 	return 0;
 }
@@ -252,122 +252,122 @@ int
 gm204_gr_init(struct nvkm_object *object)
 {
 	struct gf100_gr_oclass *oclass = (void *)object->oclass;
-	struct gf100_gr_priv *priv = (void *)object;
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
+	struct gf100_gr *gr = (void *)object;
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, ppc, rop;
 	int ret, i;
 	u32 tmp;
 
-	ret = nvkm_gr_init(&priv->base);
+	ret = nvkm_gr_init(&gr->base);
 	if (ret)
 		return ret;
 
-	tmp = nv_rd32(priv, 0x100c80); /*XXX: mask? */
-	nv_wr32(priv, 0x418880, 0x00001000 | (tmp & 0x00000fff));
-	nv_wr32(priv, 0x418890, 0x00000000);
-	nv_wr32(priv, 0x418894, 0x00000000);
-	nv_wr32(priv, 0x4188b4, priv->unk4188b4->addr >> 8);
-	nv_wr32(priv, 0x4188b8, priv->unk4188b8->addr >> 8);
-	nv_mask(priv, 0x4188b0, 0x00040000, 0x00040000);
+	tmp = nv_rd32(gr, 0x100c80); /*XXX: mask? */
+	nv_wr32(gr, 0x418880, 0x00001000 | (tmp & 0x00000fff));
+	nv_wr32(gr, 0x418890, 0x00000000);
+	nv_wr32(gr, 0x418894, 0x00000000);
+	nv_wr32(gr, 0x4188b4, gr->unk4188b4->addr >> 8);
+	nv_wr32(gr, 0x4188b8, gr->unk4188b8->addr >> 8);
+	nv_mask(gr, 0x4188b0, 0x00040000, 0x00040000);
 
 	/*XXX: belongs in fb */
-	nv_wr32(priv, 0x100cc8, priv->unk4188b4->addr >> 8);
-	nv_wr32(priv, 0x100ccc, priv->unk4188b8->addr >> 8);
-	nv_mask(priv, 0x100cc4, 0x00040000, 0x00040000);
+	nv_wr32(gr, 0x100cc8, gr->unk4188b4->addr >> 8);
+	nv_wr32(gr, 0x100ccc, gr->unk4188b8->addr >> 8);
+	nv_mask(gr, 0x100cc4, 0x00040000, 0x00040000);
 
-	gf100_gr_mmio(priv, oclass->mmio);
+	gf100_gr_mmio(gr, oclass->mmio);
 
-	gm107_gr_init_bios(priv);
+	gm107_gr_init_bios(gr);
 
-	nv_wr32(priv, GPC_UNIT(0, 0x3018), 0x00000001);
+	nv_wr32(gr, GPC_UNIT(0, 0x3018), 0x00000001);
 
 	memset(data, 0x00, sizeof(data));
-	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
-	for (i = 0, gpc = -1; i < priv->tpc_total; i++) {
+	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
+	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
 		do {
-			gpc = (gpc + 1) % priv->gpc_nr;
+			gpc = (gpc + 1) % gr->gpc_nr;
 		} while (!tpcnr[gpc]);
-		tpc = priv->tpc_nr[gpc] - tpcnr[gpc]--;
+		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
 
 		data[i / 8] |= tpc << ((i % 8) * 4);
 	}
 
-	nv_wr32(priv, GPC_BCAST(0x0980), data[0]);
-	nv_wr32(priv, GPC_BCAST(0x0984), data[1]);
-	nv_wr32(priv, GPC_BCAST(0x0988), data[2]);
-	nv_wr32(priv, GPC_BCAST(0x098c), data[3]);
+	nv_wr32(gr, GPC_BCAST(0x0980), data[0]);
+	nv_wr32(gr, GPC_BCAST(0x0984), data[1]);
+	nv_wr32(gr, GPC_BCAST(0x0988), data[2]);
+	nv_wr32(gr, GPC_BCAST(0x098c), data[3]);
 
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0914),
-			priv->magic_not_rop_nr << 8 | priv->tpc_nr[gpc]);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			priv->tpc_total);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0918), magicgpc918);
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0914),
+			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0910), 0x00040000 |
+			gr->tpc_total);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
-	nv_wr32(priv, GPC_BCAST(0x3fd4), magicgpc918);
-	nv_wr32(priv, GPC_BCAST(0x08ac), nv_rd32(priv, 0x100800));
-	nv_wr32(priv, GPC_BCAST(0x033c), nv_rd32(priv, 0x100804));
+	nv_wr32(gr, GPC_BCAST(0x3fd4), magicgpc918);
+	nv_wr32(gr, GPC_BCAST(0x08ac), nv_rd32(gr, 0x100800));
+	nv_wr32(gr, GPC_BCAST(0x033c), nv_rd32(gr, 0x100804));
 
-	nv_wr32(priv, 0x400500, 0x00010001);
-	nv_wr32(priv, 0x400100, 0xffffffff);
-	nv_wr32(priv, 0x40013c, 0xffffffff);
-	nv_wr32(priv, 0x400124, 0x00000002);
-	nv_wr32(priv, 0x409c24, 0x000e0000);
-	nv_wr32(priv, 0x405848, 0xc0000000);
-	nv_wr32(priv, 0x40584c, 0x00000001);
-	nv_wr32(priv, 0x404000, 0xc0000000);
-	nv_wr32(priv, 0x404600, 0xc0000000);
-	nv_wr32(priv, 0x408030, 0xc0000000);
-	nv_wr32(priv, 0x404490, 0xc0000000);
-	nv_wr32(priv, 0x406018, 0xc0000000);
-	nv_wr32(priv, 0x407020, 0x40000000);
-	nv_wr32(priv, 0x405840, 0xc0000000);
-	nv_wr32(priv, 0x405844, 0x00ffffff);
-	nv_mask(priv, 0x419cc0, 0x00000008, 0x00000008);
+	nv_wr32(gr, 0x400500, 0x00010001);
+	nv_wr32(gr, 0x400100, 0xffffffff);
+	nv_wr32(gr, 0x40013c, 0xffffffff);
+	nv_wr32(gr, 0x400124, 0x00000002);
+	nv_wr32(gr, 0x409c24, 0x000e0000);
+	nv_wr32(gr, 0x405848, 0xc0000000);
+	nv_wr32(gr, 0x40584c, 0x00000001);
+	nv_wr32(gr, 0x404000, 0xc0000000);
+	nv_wr32(gr, 0x404600, 0xc0000000);
+	nv_wr32(gr, 0x408030, 0xc0000000);
+	nv_wr32(gr, 0x404490, 0xc0000000);
+	nv_wr32(gr, 0x406018, 0xc0000000);
+	nv_wr32(gr, 0x407020, 0x40000000);
+	nv_wr32(gr, 0x405840, 0xc0000000);
+	nv_wr32(gr, 0x405844, 0x00ffffff);
+	nv_mask(gr, 0x419cc0, 0x00000008, 0x00000008);
 
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < priv->ppc_nr[gpc]; ppc++)
-			nv_wr32(priv, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0420), 0xc0000000);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0900), 0xc0000000);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x1028), 0xc0000000);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x0824), 0xc0000000);
-		for (tpc = 0; tpc < priv->tpc_nr[gpc]; tpc++) {
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x64c), 0x00000005);
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++)
+			nv_wr32(gr, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0420), 0xc0000000);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0900), 0xc0000000);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x1028), 0xc0000000);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x0824), 0xc0000000);
+		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x508), 0xffffffff);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x50c), 0xffffffff);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
+			nv_wr32(gr, TPC_UNIT(gpc, tpc, 0x64c), 0x00000005);
 		}
-		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
-		nv_wr32(priv, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
+		nv_wr32(gr, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
 	}
 
-	for (rop = 0; rop < priv->rop_nr; rop++) {
-		nv_wr32(priv, ROP_UNIT(rop, 0x144), 0x40000000);
-		nv_wr32(priv, ROP_UNIT(rop, 0x070), 0x40000000);
-		nv_wr32(priv, ROP_UNIT(rop, 0x204), 0xffffffff);
-		nv_wr32(priv, ROP_UNIT(rop, 0x208), 0xffffffff);
+	for (rop = 0; rop < gr->rop_nr; rop++) {
+		nv_wr32(gr, ROP_UNIT(rop, 0x144), 0x40000000);
+		nv_wr32(gr, ROP_UNIT(rop, 0x070), 0x40000000);
+		nv_wr32(gr, ROP_UNIT(rop, 0x204), 0xffffffff);
+		nv_wr32(gr, ROP_UNIT(rop, 0x208), 0xffffffff);
 	}
 
-	nv_wr32(priv, 0x400108, 0xffffffff);
-	nv_wr32(priv, 0x400138, 0xffffffff);
-	nv_wr32(priv, 0x400118, 0xffffffff);
-	nv_wr32(priv, 0x400130, 0xffffffff);
-	nv_wr32(priv, 0x40011c, 0xffffffff);
-	nv_wr32(priv, 0x400134, 0xffffffff);
+	nv_wr32(gr, 0x400108, 0xffffffff);
+	nv_wr32(gr, 0x400138, 0xffffffff);
+	nv_wr32(gr, 0x400118, 0xffffffff);
+	nv_wr32(gr, 0x400130, 0xffffffff);
+	nv_wr32(gr, 0x40011c, 0xffffffff);
+	nv_wr32(gr, 0x400134, 0xffffffff);
 
-	nv_wr32(priv, 0x400054, 0x2c350f63);
+	nv_wr32(gr, 0x400054, 0x2c350f63);
 
-	gf100_gr_zbc_init(priv);
+	gf100_gr_zbc_init(gr);
 
-	return gm204_gr_init_ctxctl(priv);
+	return gm204_gr_init_ctxctl(gr);
 }
 
 struct nvkm_oclass *

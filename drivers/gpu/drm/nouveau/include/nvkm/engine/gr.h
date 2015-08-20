@@ -24,7 +24,7 @@ struct nvkm_gr_chan {
 #include <core/engine.h>
 
 struct nvkm_gr {
-	struct nvkm_engine base;
+	struct nvkm_engine engine;
 
 	/* Returns chipset-specific counts of units packed into an u64.
 	 */
@@ -40,11 +40,11 @@ nvkm_gr(void *obj)
 #define nvkm_gr_create(p,e,c,y,d)                                        \
 	nvkm_engine_create((p), (e), (c), (y), "PGRAPH", "graphics", (d))
 #define nvkm_gr_destroy(d)                                               \
-	nvkm_engine_destroy(&(d)->base)
+	nvkm_engine_destroy(&(d)->engine)
 #define nvkm_gr_init(d)                                                  \
-	nvkm_engine_init(&(d)->base)
+	nvkm_engine_init(&(d)->engine)
 #define nvkm_gr_fini(d,s)                                                \
-	nvkm_engine_fini(&(d)->base, (s))
+	nvkm_engine_fini(&(d)->engine, (s))
 
 #define _nvkm_gr_dtor _nvkm_engine_dtor
 #define _nvkm_gr_init _nvkm_engine_init
