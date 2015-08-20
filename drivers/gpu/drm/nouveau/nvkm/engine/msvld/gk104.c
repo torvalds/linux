@@ -59,14 +59,15 @@ static int
 gk104_msvld_init(struct nvkm_object *object)
 {
 	struct nvkm_falcon *msvld = (void *)object;
+	struct nvkm_device *device = msvld->engine.subdev.device;
 	int ret;
 
 	ret = nvkm_falcon_init(msvld);
 	if (ret)
 		return ret;
 
-	nv_wr32(msvld, 0x084010, 0x0000fff2);
-	nv_wr32(msvld, 0x08401c, 0x0000fff2);
+	nvkm_wr32(device, 0x084010, 0x0000fff2);
+	nvkm_wr32(device, 0x08401c, 0x0000fff2);
 	return 0;
 }
 
