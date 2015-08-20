@@ -26,7 +26,6 @@
 #include "priv.h"
 #include "fuc/gf119.fuc4.h"
 
-#include <core/device.h>
 #include <core/option.h>
 #include <subdev/timer.h>
 
@@ -78,9 +77,8 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	nvkm_mask(device, 0x000200, 0x00001000, 0x00001000);
 	nvkm_rd32(device, 0x000200);
 
-	if (nv_device_match(device, 0x11fc, 0x17aa, 0x2211) /* Lenovo W541 */
-	 || nv_device_match(device, 0x11fc, 0x17aa, 0x221e) /* Lenovo W541 */
-	 || nvkm_boolopt(device->cfgopt, "War00C800_0", false)) {
+	if ( nvkm_boolopt(device->cfgopt, "War00C800_0",
+	    device->quirk ? device->quirk->War00C800_0 : false)) {
 		nvkm_info(&pmu->subdev, "hw bug workaround enabled\n");
 		switch (device->chipset) {
 		case 0xe4:

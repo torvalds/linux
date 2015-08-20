@@ -153,6 +153,9 @@ struct nvkm_device_func {
 };
 
 struct nvkm_device_quirk {
+	u8 tv_pin_mask;
+	u8 tv_gpio;
+	bool War00C800_0;
 };
 
 struct nvkm_device_chip {
@@ -216,14 +219,6 @@ int nvkm_device_list(u64 *name, int size);
 	nvkm_wr32(_device, _addr, (_temp & ~(m)) | (v));                       \
 	_temp;                                                                 \
 })
-
-static inline bool
-nv_device_match(struct nvkm_device *device, u16 dev, u16 ven, u16 sub)
-{
-	return device->pdev->device == dev &&
-	       device->pdev->subsystem_vendor == ven &&
-	       device->pdev->subsystem_device == sub;
-}
 
 static inline bool
 nv_device_is_pci(struct nvkm_device *device)

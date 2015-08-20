@@ -61,11 +61,11 @@ nvkm_gpio_find(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line,
 		return 0;
 
 	/* Apple iMac G4 NV18 */
-	if (nv_device_match(device, 0x0189, 0x10de, 0x0010)) {
+	if (device->quirk && device->quirk->tv_gpio) {
 		if (tag == DCB_GPIO_TVDAC0) {
 			*func = (struct dcb_gpio_func) {
 				.func = DCB_GPIO_TVDAC0,
-				.line = 4,
+				.line = device->quirk->tv_gpio,
 				.log[0] = 0,
 				.log[1] = 1,
 			};
