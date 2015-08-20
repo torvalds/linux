@@ -78,7 +78,8 @@ mxm_shadow_rom(struct nvkm_mxm *mxm, u8 version)
 static bool
 mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 {
-	struct nvkm_device *device = nv_device(mxm);
+	struct nvkm_subdev *subdev = &mxm->subdev;
+	struct nvkm_device *device = subdev->device;
 	static char muid[] = {
 		0x00, 0xA4, 0x04, 0x40, 0x7D, 0x91, 0xF2, 0x4C,
 		0xB8, 0x9C, 0x79, 0xB6, 0x2F, 0xD5, 0x56, 0x65
@@ -105,7 +106,7 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 	rev = (version & 0xf0) << 4 | (version & 0x0f);
 	obj = acpi_evaluate_dsm(handle, muid, rev, 0x00000010, &argv4);
 	if (!obj) {
-		nv_debug(mxm, "DSM MXMS failed\n");
+		nvkm_debug(subdev, "DSM MXMS failed\n");
 		return false;
 	}
 
@@ -113,7 +114,8 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 		mxm->mxms = kmemdup(obj->buffer.pointer,
 					 obj->buffer.length, GFP_KERNEL);
 	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		nv_debug(mxm, "DSM MXMS returned 0x%llx\n", obj->integer.value);
+		nvkm_debug(subdev, "DSM MXMS returned 0x%llx\n",
+			   obj->integer.value);
 	}
 
 	ACPI_FREE(obj);
@@ -128,6 +130,7 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 static u8
 wmi_wmmx_mxmi(struct nvkm_mxm *mxm, u8 version)
 {
+	struct nvkm_subdev *subdev = &mxm->subdev;
 	u32 mxmi_args[] = { 0x494D584D /* MXMI */, version, 0 };
 	struct acpi_buffer args = { sizeof(mxmi_args), mxmi_args };
 	struct acpi_buffer retn = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -136,18 +139,18 @@ wmi_wmmx_mxmi(struct nvkm_mxm *mxm, u8 version)
 
 	status = wmi_evaluate_method(WMI_WMMX_GUID, 0, 0, &args, &retn);
 	if (ACPI_FAILURE(status)) {
-		nv_debug(mxm, "WMMX MXMI returned %d\n", status);
+		nvkm_debug(subdev, "WMMX MXMI returned %d\n", status);
 		return 0x00;
 	}
 
 	obj = retn.pointer;
 	if (obj->type == ACPI_TYPE_INTEGER) {
 		version = obj->integer.value;
-		nv_debug(mxm, "WMMX MXMI version %d.%d\n",
-			     (version >> 4), version & 0x0f);
+		nvkm_debug(subdev, "WMMX MXMI version %d.%d\n",
+			   (version >> 4), version & 0x0f);
 	} else {
 		version = 0;
-		nv_debug(mxm, "WMMX MXMI returned non-integer\n");
+		nvkm_debug(subdev, "WMMX MXMI returned non-integer\n");
 	}
 
 	kfree(obj);
@@ -157,6 +160,7 @@ wmi_wmmx_mxmi(struct nvkm_mxm *mxm, u8 version)
 static bool
 mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 {
+	struct nvkm_subdev *subdev = &mxm->subdev;
 	u32 mxms_args[] = { 0x534D584D /* MXMS */, version, 0 };
 	struct acpi_buffer args = { sizeof(mxms_args), mxms_args };
 	struct acpi_buffer retn = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -164,7 +168,7 @@ mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 	acpi_status status;
 
 	if (!wmi_has_guid(WMI_WMMX_GUID)) {
-		nv_debug(mxm, "WMMX GUID not found\n");
+		nvkm_debug(subdev, "WMMX GUID not found\n");
 		return false;
 	}
 
@@ -176,7 +180,7 @@ mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 
 	status = wmi_evaluate_method(WMI_WMMX_GUID, 0, 0, &args, &retn);
 	if (ACPI_FAILURE(status)) {
-		nv_debug(mxm, "WMMX MXMS returned %d\n", status);
+		nvkm_debug(subdev, "WMMX MXMS returned %d\n", status);
 		return false;
 	}
 
@@ -210,7 +214,7 @@ mxm_shadow(struct nvkm_mxm *mxm, u8 version)
 {
 	struct mxm_shadow_h *shadow = _mxm_shadow;
 	do {
-		nv_debug(mxm, "checking %s\n", shadow->name);
+		nvkm_debug(&mxm->subdev, "checking %s\n", shadow->name);
 		if (shadow->exec(mxm, version)) {
 			if (mxms_valid(mxm))
 				return 0;
@@ -240,14 +244,14 @@ nvkm_mxm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	data = mxm_table(bios, &ver, &len);
 	if (!data || !(ver = nv_ro08(bios, data))) {
-		nv_debug(mxm, "no VBIOS data, nothing to do\n");
+		nvkm_debug(&mxm->subdev, "no VBIOS data, nothing to do\n");
 		return 0;
 	}
 
-	nv_info(mxm, "BIOS version %d.%d\n", ver >> 4, ver & 0x0f);
+	nvkm_info(&mxm->subdev, "BIOS version %d.%d\n", ver >> 4, ver & 0x0f);
 
 	if (mxm_shadow(mxm, ver)) {
-		nv_info(mxm, "failed to locate valid SIS\n");
+		nvkm_warn(&mxm->subdev, "failed to locate valid SIS\n");
 #if 0
 		/* we should, perhaps, fall back to some kind of limited
 		 * mode here if the x86 vbios hasn't already done the
@@ -260,8 +264,8 @@ nvkm_mxm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 #endif
 	}
 
-	nv_info(mxm, "MXMS Version %d.%d\n",
-		mxms_version(mxm) >> 8, mxms_version(mxm) & 0xff);
+	nvkm_debug(&mxm->subdev, "MXMS Version %d.%d\n",
+		   mxms_version(mxm) >> 8, mxms_version(mxm) & 0xff);
 	mxms_foreach(mxm, 0, NULL, NULL);
 
 	if (nvkm_boolopt(device->cfgopt, "NvMXMDCB", true))

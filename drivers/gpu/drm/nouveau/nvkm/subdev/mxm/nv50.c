@@ -103,8 +103,8 @@ mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 	 * if one isn't found, disable it.
 	 */
 	if (mxms_foreach(mxm, 0x01, mxm_match_dcb, &ctx)) {
-		nv_debug(mxm, "disable %d: 0x%08x 0x%08x\n",
-			idx, ctx.outp[0], ctx.outp[1]);
+		nvkm_debug(&mxm->subdev, "disable %d: %08x %08x\n",
+			   idx, ctx.outp[0], ctx.outp[1]);
 		ctx.outp[0] |= 0x0000000f;
 		return 0;
 	}
@@ -176,20 +176,22 @@ mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 static bool
 mxm_show_unmatched(struct nvkm_mxm *mxm, u8 *data, void *info)
 {
+	struct nvkm_subdev *subdev = &mxm->subdev;
 	u64 desc = *(u64 *)data;
 	if ((desc & 0xf0) != 0xf0)
-		nv_info(mxm, "unmatched output device 0x%016llx\n", desc);
+		nvkm_info(subdev, "unmatched output device %016llx\n", desc);
 	return true;
 }
 
 static void
 mxm_dcb_sanitise(struct nvkm_mxm *mxm)
 {
-	struct nvkm_bios *bios = nvkm_bios(mxm);
+	struct nvkm_subdev *subdev = &mxm->subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
 	u8  ver, hdr, cnt, len;
 	u16 dcb = dcb_table(bios, &ver, &hdr, &cnt, &len);
 	if (dcb == 0x0000 || ver != 0x40) {
-		nv_debug(mxm, "unsupported DCB version\n");
+		nvkm_debug(subdev, "unsupported DCB version\n");
 		return;
 	}
 
