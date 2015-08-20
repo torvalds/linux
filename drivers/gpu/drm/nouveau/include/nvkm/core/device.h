@@ -49,9 +49,8 @@ int nvkm_device_list(u64 *name, int size);
 struct nvkm_device *nv_device(void *obj);
 
 static inline bool
-nv_device_match(struct nvkm_object *object, u16 dev, u16 ven, u16 sub)
+nv_device_match(struct nvkm_device *device, u16 dev, u16 ven, u16 sub)
 {
-	struct nvkm_device *device = nv_device(object);
 	return device->pdev->device == dev &&
 	       device->pdev->subsystem_vendor == ven &&
 	       device->pdev->subsystem_device == sub;

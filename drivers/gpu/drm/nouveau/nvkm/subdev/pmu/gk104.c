@@ -54,7 +54,6 @@ static void
 gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
 	struct nvkm_device *device = nv_device(pmu);
-	struct nvkm_object *dev = nv_object(device);
 
 	nv_mask(pmu, 0x000200, 0x00001000, 0x00000000);
 	nv_rd32(pmu, 0x000200);
@@ -76,8 +75,8 @@ gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 	nv_mask(pmu, 0x000200, 0x00001000, 0x00001000);
 	nv_rd32(pmu, 0x000200);
 
-	if (nv_device_match(dev, 0x11fc, 0x17aa, 0x2211) /* Lenovo W541 */
-	 || nv_device_match(dev, 0x11fc, 0x17aa, 0x221e) /* Lenovo W541 */
+	if (nv_device_match(device, 0x11fc, 0x17aa, 0x2211) /* Lenovo W541 */
+	 || nv_device_match(device, 0x11fc, 0x17aa, 0x221e) /* Lenovo W541 */
 	 || nvkm_boolopt(device->cfgopt, "War00C800_0", false)) {
 		nv_info(pmu, "hw bug workaround enabled\n");
 		switch (device->chipset) {

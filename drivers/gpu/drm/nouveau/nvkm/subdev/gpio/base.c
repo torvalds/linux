@@ -44,6 +44,7 @@ static int
 nvkm_gpio_find(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line,
 	       struct dcb_gpio_func *func)
 {
+	struct nvkm_device *device = gpio->base.device;
 	struct nvkm_bios *bios = nvkm_bios(gpio);
 	u8  ver, len;
 	u16 data;
@@ -56,7 +57,7 @@ nvkm_gpio_find(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line,
 		return 0;
 
 	/* Apple iMac G4 NV18 */
-	if (nv_device_match(nv_object(gpio), 0x0189, 0x10de, 0x0010)) {
+	if (nv_device_match(device, 0x0189, 0x10de, 0x0010)) {
 		if (tag == DCB_GPIO_TVDAC0) {
 			*func = (struct dcb_gpio_func) {
 				.func = DCB_GPIO_TVDAC0,

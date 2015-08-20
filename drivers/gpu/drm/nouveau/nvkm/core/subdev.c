@@ -114,6 +114,9 @@ nvkm_subdev_create_(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_device *device = nv_device(parent);
 		subdev->debug = nvkm_dbgopt(device->dbgopt, subname);
 		subdev->mmio  = nv_subdev(device)->mmio;
+		subdev->device = device;
+	} else {
+		subdev->device = nv_device(subdev);
 	}
 
 	return 0;

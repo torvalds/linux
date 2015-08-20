@@ -8,6 +8,9 @@
 
 struct nvkm_subdev {
 	struct nvkm_object object;
+
+	struct nvkm_device *device;
+
 	struct mutex mutex;
 	const char *name;
 	void __iomem *mmio;
