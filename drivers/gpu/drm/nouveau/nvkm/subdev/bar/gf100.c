@@ -77,9 +77,10 @@ gf100_bar_unmap(struct nvkm_bar *bar, struct nvkm_vma *vma)
 	nvkm_vm_put(vma);
 }
 
+
 static int
 gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
-		  int bar_nr)
+		  struct lock_class_key *key, int bar_nr)
 {
 	struct nvkm_device *device = nv_device(&bar->base);
 	struct nvkm_vm *vm;
@@ -98,7 +99,7 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 
 	bar_len = nv_device_resource_len(device, bar_nr);
 
-	ret = nvkm_vm_new(device, 0, bar_len, 0, &vm);
+	ret = nvkm_vm_new(device, 0, bar_len, 0, key, &vm);
 	if (ret)
 		return ret;
 
@@ -136,6 +137,8 @@ gf100_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	       struct nvkm_oclass *oclass, void *data, u32 size,
 	       struct nvkm_object **pobject)
 {
+	static struct lock_class_key bar1_lock;
+	static struct lock_class_key bar3_lock;
 	struct nvkm_device *device = nv_device(parent);
 	struct gf100_bar *bar;
 	bool has_bar3 = nv_device_resource_len(device, 3) != 0;
@@ -148,13 +151,13 @@ gf100_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	/* BAR3 */
 	if (has_bar3) {
-		ret = gf100_bar_ctor_vm(bar, &bar->bar[0], 3);
+		ret = gf100_bar_ctor_vm(bar, &bar->bar[0], &bar3_lock, 3);
 		if (ret)
 			return ret;
 	}
 
 	/* BAR1 */
-	ret = gf100_bar_ctor_vm(bar, &bar->bar[1], 1);
+	ret = gf100_bar_ctor_vm(bar, &bar->bar[1], &bar1_lock, 1);
 	if (ret)
 		return ret;
 

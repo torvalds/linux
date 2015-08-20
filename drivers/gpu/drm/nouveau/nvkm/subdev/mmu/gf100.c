@@ -197,9 +197,9 @@ gf100_vm_flush(struct nvkm_vm *vm)
 
 static int
 gf100_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
-		struct nvkm_vm **pvm)
+		struct lock_class_key *key, struct nvkm_vm **pvm)
 {
-	return nvkm_vm_create(mmu, offset, length, mm_offset, 4096, pvm);
+	return nvkm_vm_create(mmu, offset, length, mm_offset, 4096, key, pvm);
 }
 
 static int

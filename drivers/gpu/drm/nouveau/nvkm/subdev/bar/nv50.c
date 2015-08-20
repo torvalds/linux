@@ -112,6 +112,8 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	      struct nvkm_oclass *oclass, void *data, u32 size,
 	      struct nvkm_object **pobject)
 {
+	static struct lock_class_key bar1_lock;
+	static struct lock_class_key bar3_lock;
 	struct nvkm_device *device = nv_device(parent);
 	struct nvkm_object *heap;
 	struct nvkm_vm *vm;
@@ -144,7 +146,7 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	start = 0x0100000000ULL;
 	limit = start + nv_device_resource_len(device, 3);
 
-	ret = nvkm_vm_new(device, start, limit, start, &vm);
+	ret = nvkm_vm_new(device, start, limit, start, &bar3_lock, &vm);
 	if (ret)
 		return ret;
 
@@ -180,7 +182,7 @@ nv50_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	start = 0x0000000000ULL;
 	limit = start + nv_device_resource_len(device, 1);
 
-	ret = nvkm_vm_new(device, start, limit--, start, &vm);
+	ret = nvkm_vm_new(device, start, limit--, start, &bar1_lock, &vm);
 	if (ret)
 		return ret;
 

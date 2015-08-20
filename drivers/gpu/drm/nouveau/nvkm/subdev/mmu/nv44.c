@@ -195,7 +195,7 @@ nv44_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		mmu->null = 0;
 	}
 
-	ret = nvkm_vm_create(&mmu->base, 0, NV44_GART_SIZE, 0, 4096,
+	ret = nvkm_vm_create(&mmu->base, 0, NV44_GART_SIZE, 0, 4096, NULL,
 			     &mmu->vm);
 	if (ret)
 		return ret;

@@ -26,6 +26,8 @@ struct nvkm_vma {
 
 struct nvkm_vm {
 	struct nvkm_mmu *mmu;
+
+	struct mutex mutex;
 	struct nvkm_mm mm;
 	struct kref refcount;
 
@@ -47,7 +49,8 @@ struct nvkm_mmu {
 	u8  lpg_shift;
 
 	int  (*create)(struct nvkm_mmu *, u64 offset, u64 length,
-		       u64 mm_offset, struct nvkm_vm **);
+		       u64 mm_offset, struct lock_class_key *,
+		       struct nvkm_vm **);
 
 	void (*map_pgt)(struct nvkm_gpuobj *pgd, u32 pde,
 			struct nvkm_gpuobj *pgt[2]);
@@ -85,14 +88,14 @@ extern struct nvkm_oclass nv44_mmu_oclass;
 extern struct nvkm_oclass nv50_mmu_oclass;
 extern struct nvkm_oclass gf100_mmu_oclass;
 
-int  nv04_vm_create(struct nvkm_mmu *, u64, u64, u64,
+int  nv04_vm_create(struct nvkm_mmu *, u64, u64, u64, struct lock_class_key *,
 		    struct nvkm_vm **);
 void nv04_mmu_dtor(struct nvkm_object *);
 
 int  nvkm_vm_create(struct nvkm_mmu *, u64 offset, u64 length, u64 mm_offset,
-		    u32 block, struct nvkm_vm **);
+		    u32 block, struct lock_class_key *, struct nvkm_vm **);
 int  nvkm_vm_new(struct nvkm_device *, u64 offset, u64 length, u64 mm_offset,
-		 struct nvkm_vm **);
+		 struct lock_class_key *, struct nvkm_vm **);
 int  nvkm_vm_ref(struct nvkm_vm *, struct nvkm_vm **, struct nvkm_gpuobj *pgd);
 int  nvkm_vm_get(struct nvkm_vm *, u64 size, u32 page_shift, u32 access,
 		 struct nvkm_vma *);

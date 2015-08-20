@@ -116,7 +116,7 @@ nv41_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mmu->base.unmap = nv41_vm_unmap;
 	mmu->base.flush = nv41_vm_flush;
 
-	ret = nvkm_vm_create(&mmu->base, 0, NV41_GART_SIZE, 0, 4096,
+	ret = nvkm_vm_create(&mmu->base, 0, NV41_GART_SIZE, 0, 4096, NULL,
 			     &mmu->vm);
 	if (ret)
 		return ret;

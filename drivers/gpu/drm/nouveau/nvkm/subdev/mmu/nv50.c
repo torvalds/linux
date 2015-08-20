@@ -201,14 +201,14 @@ nv50_vm_flush(struct nvkm_vm *vm)
 }
 
 static int
-nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length,
-	       u64 mm_offset, struct nvkm_vm **pvm)
+nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
+	       struct lock_class_key *key, struct nvkm_vm **pvm)
 {
 	u32 block = (1 << (mmu->pgt_bits + 12));
 	if (block > length)
 		block = length;
 
-	return nvkm_vm_create(mmu, offset, length, mm_offset, block, pvm);
+	return nvkm_vm_create(mmu, offset, length, mm_offset, block, key, pvm);
 }
 
 static int

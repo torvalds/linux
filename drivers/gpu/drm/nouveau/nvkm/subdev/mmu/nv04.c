@@ -74,7 +74,7 @@ nv04_vm_flush(struct nvkm_vm *vm)
 
 int
 nv04_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mmstart,
-	       struct nvkm_vm **pvm)
+	       struct lock_class_key *key, struct nvkm_vm **pvm)
 {
 	return -EINVAL;
 }
@@ -108,7 +108,7 @@ nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	mmu->base.unmap = nv04_vm_unmap;
 	mmu->base.flush = nv04_vm_flush;
 
-	ret = nvkm_vm_create(&mmu->base, 0, NV04_PDMA_SIZE, 0, 4096,
+	ret = nvkm_vm_create(&mmu->base, 0, NV04_PDMA_SIZE, 0, 4096, NULL,
 			     &mmu->vm);
 	if (ret)
 		return ret;
