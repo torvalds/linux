@@ -58,15 +58,16 @@ gk104_mspdec_cclass = {
 static int
 gk104_mspdec_init(struct nvkm_object *object)
 {
-	struct nvkm_falcon *falcon = (void *)object;
+	struct nvkm_falcon *mspdec = (void *)object;
+	struct nvkm_device *device = mspdec->engine.subdev.device;
 	int ret;
 
-	ret = nvkm_falcon_init(falcon);
+	ret = nvkm_falcon_init(mspdec);
 	if (ret)
 		return ret;
 
-	nv_wr32(falcon, 0x085010, 0x0000fff2);
-	nv_wr32(falcon, 0x08501c, 0x0000fff2);
+	nvkm_wr32(device, 0x085010, 0x0000fff2);
+	nvkm_wr32(device, 0x08501c, 0x0000fff2);
 	return 0;
 }
 
