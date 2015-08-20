@@ -138,67 +138,23 @@ nv40_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
  *****************************************************************************/
 
 static u32
-nv40_instmem_rd32(struct nvkm_instmem *obj, u32 addr)
+nv40_instmem_rd32(struct nvkm_instmem *base, u32 addr)
 {
-	struct nv40_instmem *imem = container_of(obj, typeof(*imem), base);
-	return ioread32_native(imem->iomem + addr);
+	return ioread32_native(nv40_instmem(base)->iomem + addr);
 }
 
 static void
-nv40_instmem_wr32(struct nvkm_instmem *obj, u32 addr, u32 data)
+nv40_instmem_wr32(struct nvkm_instmem *base, u32 addr, u32 data)
 {
-	struct nv40_instmem *imem = container_of(obj, typeof(*imem), base);
-	iowrite32_native(data, imem->iomem + addr);
+	iowrite32_native(data, nv40_instmem(base)->iomem + addr);
 }
-
-static void
-nv40_instmem_dtor(struct nvkm_object *object)
-{
-	struct nv40_instmem *imem = (void *)object;
-	nvkm_memory_del(&imem->base.ramfc);
-	nvkm_memory_del(&imem->base.ramro);
-	nvkm_ramht_del(&imem->base.ramht);
-	nvkm_memory_del(&imem->base.vbios);
-	nvkm_mm_fini(&imem->heap);
-	if (imem->iomem)
-		iounmap(imem->iomem);
-	nvkm_instmem_destroy(&imem->base);
-}
-
-static const struct nvkm_instmem_func
-nv40_instmem_func = {
-	.rd32 = nv40_instmem_rd32,
-	.wr32 = nv40_instmem_wr32,
-};
 
 static int
-nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+nv40_instmem_oneinit(struct nvkm_instmem *base)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv40_instmem *imem;
-	int ret, bar, vs;
-
-	ret = nvkm_instmem_create(parent, engine, oclass, &imem);
-	*pobject = nv_object(imem);
-	if (ret)
-		return ret;
-
-	imem->base.func = &nv40_instmem_func;
-
-	/* map bar */
-	if (nv_device_resource_len(device, 2))
-		bar = 2;
-	else
-		bar = 3;
-
-	imem->iomem = ioremap(nv_device_resource_start(device, bar),
-			      nv_device_resource_len(device, bar));
-	if (!imem->iomem) {
-		nvkm_error(&imem->base.subdev, "unable to map PRAMIN BAR\n");
-		return -EFAULT;
-	}
+	struct nv40_instmem *imem = nv40_instmem(base);
+	struct nvkm_device *device = imem->base.subdev.device;
+	int ret, vs;
 
 	/* PRAMIN aperture maps over the end of vram, reserve enough space
 	 * to fit graphics contexts for every channel, the magics come
@@ -207,13 +163,12 @@ nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	vs = hweight8((nvkm_rd32(device, 0x001540) & 0x0000ff00) >> 8);
 	if      (device->chipset == 0x40) imem->base.reserved = 0x6aa0 * vs;
 	else if (device->chipset  < 0x43) imem->base.reserved = 0x4f00 * vs;
-	else if (nv44_gr_class(imem))     imem->base.reserved = 0x4980 * vs;
+	else if (nv44_gr_class(device))   imem->base.reserved = 0x4980 * vs;
 	else				  imem->base.reserved = 0x4a40 * vs;
 	imem->base.reserved += 16 * 1024;
 	imem->base.reserved *= 32;		/* per-channel */
 	imem->base.reserved += 512 * 1024;	/* pci(e)gart table */
 	imem->base.reserved += 512 * 1024;	/* object storage */
-
 	imem->base.reserved = round_up(imem->base.reserved, 4096);
 
 	ret = nvkm_mm_init(&imem->heap, 0, imem->base.reserved, 1);
@@ -250,16 +205,55 @@ nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	return 0;
 }
 
-struct nvkm_oclass *
-nv40_instmem_oclass = &(struct nvkm_instmem_impl) {
-	.base.handle = NV_SUBDEV(INSTMEM, 0x40),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_instmem_ctor,
-		.dtor = nv40_instmem_dtor,
-		.init = _nvkm_instmem_init,
-		.fini = _nvkm_instmem_fini,
-	},
+static void *
+nv40_instmem_dtor(struct nvkm_instmem *base)
+{
+	struct nv40_instmem *imem = nv40_instmem(base);
+	nvkm_memory_del(&imem->base.ramfc);
+	nvkm_memory_del(&imem->base.ramro);
+	nvkm_ramht_del(&imem->base.ramht);
+	nvkm_memory_del(&imem->base.vbios);
+	nvkm_mm_fini(&imem->heap);
+	if (imem->iomem)
+		iounmap(imem->iomem);
+	return imem;
+}
+
+static const struct nvkm_instmem_func
+nv40_instmem = {
+	.dtor = nv40_instmem_dtor,
+	.oneinit = nv40_instmem_oneinit,
+	.rd32 = nv40_instmem_rd32,
+	.wr32 = nv40_instmem_wr32,
 	.memory_new = nv40_instobj_new,
 	.persistent = false,
 	.zero = false,
-}.base;
+};
+
+int
+nv40_instmem_new(struct nvkm_device *device, int index,
+		 struct nvkm_instmem **pimem)
+{
+	struct nv40_instmem *imem;
+	int bar;
+
+	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_instmem_ctor(&nv40_instmem, device, index, &imem->base);
+	*pimem = &imem->base;
+
+	/* map bar */
+	if (nv_device_resource_len(device, 2))
+		bar = 2;
+	else
+		bar = 3;
+
+	imem->iomem = ioremap(nv_device_resource_start(device, bar),
+			      nv_device_resource_len(device, bar));
+	if (!imem->iomem) {
+		nvkm_error(&imem->base.subdev, "unable to map PRAMIN BAR\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}

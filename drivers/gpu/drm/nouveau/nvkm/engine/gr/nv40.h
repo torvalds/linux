@@ -23,10 +23,8 @@ struct nv40_gr_chan {
  * helpful to determine a number of other hardware features
  */
 static inline int
-nv44_gr_class(void *priv)
+nv44_gr_class(struct nvkm_device *device)
 {
-	struct nvkm_device *device = nv_device(priv);
-
 	if ((device->chipset & 0xf0) == 0x60)
 		return 1;
 

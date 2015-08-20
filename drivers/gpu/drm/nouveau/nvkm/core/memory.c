@@ -55,7 +55,7 @@ nvkm_memory_new(struct nvkm_device *device, enum nvkm_memory_target target,
 	if (unlikely(target != NVKM_MEM_TARGET_INST || !imem))
 		return -ENOSYS;
 
-	ret = imem->alloc(imem, size, align, zero, &memory);
+	ret = nvkm_instobj_new(imem, size, align, zero, &memory);
 	if (ret)
 		return ret;
 

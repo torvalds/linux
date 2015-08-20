@@ -150,39 +150,12 @@ nv04_instmem_wr32(struct nvkm_instmem *imem, u32 addr, u32 data)
 	nvkm_wr32(imem->subdev.device, 0x700000 + addr, data);
 }
 
-static void
-nv04_instmem_dtor(struct nvkm_object *object)
-{
-	struct nv04_instmem *imem = (void *)object;
-	nvkm_memory_del(&imem->base.ramfc);
-	nvkm_memory_del(&imem->base.ramro);
-	nvkm_ramht_del(&imem->base.ramht);
-	nvkm_memory_del(&imem->base.vbios);
-	nvkm_mm_fini(&imem->heap);
-	nvkm_instmem_destroy(&imem->base);
-}
-
-static const struct nvkm_instmem_func
-nv04_instmem_func = {
-	.rd32 = nv04_instmem_rd32,
-	.wr32 = nv04_instmem_wr32,
-};
-
 static int
-nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
+nv04_instmem_oneinit(struct nvkm_instmem *base)
 {
-	struct nvkm_device *device = (void *)parent;
-	struct nv04_instmem *imem;
+	struct nv04_instmem *imem = nv04_instmem(base);
+	struct nvkm_device *device = imem->base.subdev.device;
 	int ret;
-
-	ret = nvkm_instmem_create(parent, engine, oclass, &imem);
-	*pobject = nv_object(imem);
-	if (ret)
-		return ret;
-
-	imem->base.func = &nv04_instmem_func;
 
 	/* PRAMIN aperture maps over the end of VRAM, reserve it */
 	imem->base.reserved = 512 * 1024;
@@ -217,16 +190,38 @@ nv04_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	return 0;
 }
 
-struct nvkm_oclass *
-nv04_instmem_oclass = &(struct nvkm_instmem_impl) {
-	.base.handle = NV_SUBDEV(INSTMEM, 0x04),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_instmem_ctor,
-		.dtor = nv04_instmem_dtor,
-		.init = _nvkm_instmem_init,
-		.fini = _nvkm_instmem_fini,
-	},
+static void *
+nv04_instmem_dtor(struct nvkm_instmem *base)
+{
+	struct nv04_instmem *imem = nv04_instmem(base);
+	nvkm_memory_del(&imem->base.ramfc);
+	nvkm_memory_del(&imem->base.ramro);
+	nvkm_ramht_del(&imem->base.ramht);
+	nvkm_memory_del(&imem->base.vbios);
+	nvkm_mm_fini(&imem->heap);
+	return imem;
+}
+
+static const struct nvkm_instmem_func
+nv04_instmem = {
+	.dtor = nv04_instmem_dtor,
+	.oneinit = nv04_instmem_oneinit,
+	.rd32 = nv04_instmem_rd32,
+	.wr32 = nv04_instmem_wr32,
 	.memory_new = nv04_instobj_new,
 	.persistent = false,
 	.zero = false,
-}.base;
+};
+
+int
+nv04_instmem_new(struct nvkm_device *device, int index,
+		 struct nvkm_instmem **pimem)
+{
+	struct nv04_instmem *imem;
+
+	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_instmem_ctor(&nv04_instmem, device, index, &imem->base);
+	*pimem = &imem->base;
+	return 0;
+}

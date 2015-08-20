@@ -4,14 +4,11 @@
 struct nvkm_memory;
 
 struct nvkm_instmem {
-	struct nvkm_subdev subdev;
-	struct list_head list;
-
-	u32 reserved;
-	int (*alloc)(struct nvkm_instmem *, u32 size, u32 align, bool zero,
-		     struct nvkm_memory **);
-
 	const struct nvkm_instmem_func *func;
+	struct nvkm_subdev subdev;
+
+	struct list_head list;
+	u32 reserved;
 
 	struct nvkm_memory *vbios;
 	struct nvkm_ramht  *ramht;
@@ -19,26 +16,14 @@ struct nvkm_instmem {
 	struct nvkm_memory *ramfc;
 };
 
-struct nvkm_instmem_func {
-	u32  (*rd32)(struct nvkm_instmem *, u32 addr);
-	void (*wr32)(struct nvkm_instmem *, u32 addr, u32 data);
-};
+u32 nvkm_instmem_rd32(struct nvkm_instmem *, u32 addr);
+void nvkm_instmem_wr32(struct nvkm_instmem *, u32 addr, u32 data);
+int nvkm_instobj_new(struct nvkm_instmem *, u32 size, u32 align, bool zero,
+		     struct nvkm_memory **);
 
-static inline struct nvkm_instmem *
-nvkm_instmem(void *obj)
-{
-	/* nv04/nv40 impls need to create objects in their constructor,
-	 * which is before the subdev pointer is valid
-	 */
-	if (nv_iclass(obj, NV_SUBDEV_CLASS) &&
-	    nv_subidx(obj) == NVDEV_SUBDEV_INSTMEM)
-		return obj;
 
-	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_INSTMEM);
-}
-
-extern struct nvkm_oclass *nv04_instmem_oclass;
-extern struct nvkm_oclass *nv40_instmem_oclass;
-extern struct nvkm_oclass *nv50_instmem_oclass;
-extern struct nvkm_oclass *gk20a_instmem_oclass;
+int nv04_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
+int nv40_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
+int nv50_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
+int gk20a_instmem_new(struct nvkm_device *, int, struct nvkm_instmem **);
 #endif

@@ -220,41 +220,30 @@ nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
  * instmem subdev implementation
  *****************************************************************************/
 
-static int
-nv50_instmem_fini(struct nvkm_object *object, bool suspend)
+static void
+nv50_instmem_fini(struct nvkm_instmem *base)
 {
-	struct nv50_instmem *imem = (void *)object;
-	imem->addr = ~0ULL;
-	return nvkm_instmem_fini(&imem->base, suspend);
+	nv50_instmem(base)->addr = ~0ULL;
 }
 
-static int
-nv50_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		  struct nvkm_oclass *oclass, void *data, u32 size,
-		  struct nvkm_object **pobject)
-{
-	struct nv50_instmem *imem;
-	int ret;
-
-	ret = nvkm_instmem_create(parent, engine, oclass, &imem);
-	*pobject = nv_object(imem);
-	if (ret)
-		return ret;
-
-	spin_lock_init(&imem->lock);
-	return 0;
-}
-
-struct nvkm_oclass *
-nv50_instmem_oclass = &(struct nvkm_instmem_impl) {
-	.base.handle = NV_SUBDEV(INSTMEM, 0x50),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_instmem_ctor,
-		.dtor = _nvkm_instmem_dtor,
-		.init = _nvkm_instmem_init,
-		.fini = nv50_instmem_fini,
-	},
+static const struct nvkm_instmem_func
+nv50_instmem = {
+	.fini = nv50_instmem_fini,
 	.memory_new = nv50_instobj_new,
 	.persistent = false,
 	.zero = false,
-}.base;
+};
+
+int
+nv50_instmem_new(struct nvkm_device *device, int index,
+		 struct nvkm_instmem **pimem)
+{
+	struct nv50_instmem *imem;
+
+	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_instmem_ctor(&nv50_instmem, device, index, &imem->base);
+	spin_lock_init(&imem->lock);
+	*pimem = &imem->base;
+	return 0;
+}

@@ -32,9 +32,9 @@ nv40_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 {
 	struct nvkm_instmem *imem = device->imem;
 	u32 inst = data << 4;
-	u32 dma0 = imem->func->rd32(imem, inst + 0);
-	u32 dma1 = imem->func->rd32(imem, inst + 4);
-	u32 dma2 = imem->func->rd32(imem, inst + 8);
+	u32 dma0 = nvkm_instmem_rd32(imem, inst + 0);
+	u32 dma1 = nvkm_instmem_rd32(imem, inst + 4);
+	u32 dma2 = nvkm_instmem_rd32(imem, inst + 8);
 	u32 base = (dma2 & 0xfffff000) | (dma0 >> 20);
 	u32 size = dma1 + 1;
 

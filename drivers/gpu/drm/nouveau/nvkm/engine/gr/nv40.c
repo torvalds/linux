@@ -353,6 +353,7 @@ nv40_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	     struct nvkm_oclass *oclass, void *data, u32 size,
 	     struct nvkm_object **pobject)
 {
+	struct nvkm_device *device = (void *)parent;
 	struct nv40_gr *gr;
 	int ret;
 
@@ -365,7 +366,7 @@ nv40_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	nv_subdev(gr)->unit = 0x00001000;
 	nv_subdev(gr)->intr = nv40_gr_intr;
-	if (nv44_gr_class(gr))
+	if (nv44_gr_class(device))
 		gr->base.func = &nv44_gr;
 	else
 		gr->base.func = &nv40_gr;

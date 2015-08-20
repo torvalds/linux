@@ -33,7 +33,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gm107_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 
@@ -66,7 +65,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gm107_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 #if 0
@@ -96,7 +94,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gm107_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 #if 0
@@ -122,7 +119,6 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gm107_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_INSTMEM] = gk20a_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm20b_fifo_oclass;

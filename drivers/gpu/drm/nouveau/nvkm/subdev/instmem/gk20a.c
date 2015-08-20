@@ -186,7 +186,7 @@ gk20a_instobj_dtor_dma(struct gk20a_instobj *_node)
 {
 	struct gk20a_instobj_dma *node = (void *)_node;
 	struct gk20a_instmem *imem = _node->imem;
-	struct device *dev = nv_device_base(nv_device(imem));
+	struct device *dev = nv_device_base(imem->base.subdev.device);
 
 	if (unlikely(!node->cpuaddr))
 		return;
@@ -372,7 +372,7 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 		  struct nvkm_memory **pmemory)
 {
 	struct gk20a_instmem *imem = gk20a_instmem(base);
-	struct gk20a_instobj *node;
+	struct gk20a_instobj *node = NULL;
 	struct nvkm_subdev *subdev = &imem->base.subdev;
 	int ret;
 
@@ -389,9 +389,9 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	else
 		ret = gk20a_instobj_ctor_dma(imem, size >> PAGE_SHIFT,
 					     align, &node);
+	*pmemory = node ? &node->memory : NULL;
 	if (ret)
 		return ret;
-	*pmemory = &node->memory;
 
 	nvkm_memory_ctor(&gk20a_instobj_func, &node->memory);
 	node->imem = imem;
@@ -407,29 +407,31 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	return 0;
 }
 
-static int
-gk20a_instmem_fini(struct nvkm_object *object, bool suspend)
+static void
+gk20a_instmem_fini(struct nvkm_instmem *base)
 {
-	struct gk20a_instmem *imem = (void *)object;
-	imem->addr = ~0ULL;
-	return nvkm_instmem_fini(&imem->base, suspend);
+	gk20a_instmem(base)->addr = ~0ULL;
 }
 
-static int
-gk20a_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		   struct nvkm_oclass *oclass, void *data, u32 size,
-		   struct nvkm_object **pobject)
+static const struct nvkm_instmem_func
+gk20a_instmem = {
+	.fini = gk20a_instmem_fini,
+	.memory_new = gk20a_instobj_new,
+	.persistent = true,
+	.zero = false,
+};
+
+int
+gk20a_instmem_new(struct nvkm_device *device, int index,
+		 struct nvkm_instmem **pimem)
 {
-	struct nvkm_device *device = (void *)parent;
 	struct gk20a_instmem *imem;
-	int ret;
 
-	ret = nvkm_instmem_create(parent, engine, oclass, &imem);
-	*pobject = nv_object(imem);
-	if (ret)
-		return ret;
-
+	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_instmem_ctor(&gk20a_instmem, device, index, &imem->base);
 	spin_lock_init(&imem->lock);
+	*pimem = &imem->base;
 
 	if (device->gpu->iommu.domain) {
 		imem->domain = device->gpu->iommu.domain;
@@ -454,17 +456,3 @@ gk20a_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	return 0;
 }
-
-struct nvkm_oclass *
-gk20a_instmem_oclass = &(struct nvkm_instmem_impl) {
-	.base.handle = NV_SUBDEV(INSTMEM, 0xea),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_instmem_ctor,
-		.dtor = _nvkm_instmem_dtor,
-		.init = _nvkm_instmem_init,
-		.fini = gk20a_instmem_fini,
-	},
-	.memory_new = gk20a_instobj_new,
-	.persistent = true,
-	.zero = false,
-}.base;
