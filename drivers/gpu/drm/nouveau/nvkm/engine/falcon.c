@@ -31,13 +31,13 @@ nvkm_falcon_intr(struct nvkm_subdev *subdev)
 	u32 intr = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
 
 	if (intr & 0x00000010) {
-		nv_debug(falcon, "ucode halted\n");
+		nvkm_debug(subdev, "ucode halted\n");
 		nv_wo32(falcon, 0x004, 0x00000010);
 		intr &= ~0x00000010;
 	}
 
 	if (intr)  {
-		nv_error(falcon, "unhandled intr 0x%08x\n", intr);
+		nvkm_error(subdev, "intr %08x\n", intr);
 		nv_wo32(falcon, 0x004, intr);
 	}
 }
@@ -69,8 +69,9 @@ vmemdup(const void *src, size_t len)
 int
 _nvkm_falcon_init(struct nvkm_object *object)
 {
-	struct nvkm_device *device = nv_device(object);
 	struct nvkm_falcon *falcon = (void *)object;
+	struct nvkm_subdev *subdev = &falcon->engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const struct firmware *fw;
 	char name[32] = "internal";
 	int ret, i;
@@ -95,10 +96,10 @@ _nvkm_falcon_init(struct nvkm_object *object)
 	falcon->code.limit = (caps & 0x000001ff) << 8;
 	falcon->data.limit = (caps & 0x0003fe00) >> 1;
 
-	nv_debug(falcon, "falcon version: %d\n", falcon->version);
-	nv_debug(falcon, "secret level: %d\n", falcon->secret);
-	nv_debug(falcon, "code limit: %d\n", falcon->code.limit);
-	nv_debug(falcon, "data limit: %d\n", falcon->data.limit);
+	nvkm_debug(subdev, "falcon version: %d\n", falcon->version);
+	nvkm_debug(subdev, "secret level: %d\n", falcon->secret);
+	nvkm_debug(subdev, "code limit: %d\n", falcon->code.limit);
+	nvkm_debug(subdev, "data limit: %d\n", falcon->data.limit);
 
 	/* wait for 'uc halted' to be signalled before continuing */
 	if (falcon->secret && falcon->version < 4) {
@@ -147,7 +148,7 @@ _nvkm_falcon_init(struct nvkm_object *object)
 
 		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
-			nv_error(falcon, "unable to load firmware data\n");
+			nvkm_error(subdev, "unable to load firmware data\n");
 			return ret;
 		}
 
@@ -162,7 +163,7 @@ _nvkm_falcon_init(struct nvkm_object *object)
 
 		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
-			nv_error(falcon, "unable to load firmware code\n");
+			nvkm_error(subdev, "unable to load firmware code\n");
 			return ret;
 		}
 
@@ -173,15 +174,15 @@ _nvkm_falcon_init(struct nvkm_object *object)
 			return -ENOMEM;
 	}
 
-	nv_debug(falcon, "firmware: %s (%s)\n", name, falcon->data.data ?
-		 "static code/data segments" : "self-bootstrapping");
+	nvkm_debug(subdev, "firmware: %s (%s)\n", name, falcon->data.data ?
+		   "static code/data segments" : "self-bootstrapping");
 
 	/* ensure any "self-bootstrapping" firmware image is in vram */
 	if (!falcon->data.data && !falcon->core) {
 		ret = nvkm_gpuobj_new(object->parent, NULL, falcon->code.size,
 				      256, 0, &falcon->core);
 		if (ret) {
-			nv_error(falcon, "core allocation failed, %d\n", ret);
+			nvkm_error(subdev, "core allocation failed, %d\n", ret);
 			return ret;
 		}
 
@@ -202,7 +203,7 @@ _nvkm_falcon_init(struct nvkm_object *object)
 	} else {
 		if (falcon->code.size > falcon->code.limit ||
 		    falcon->data.size > falcon->data.limit) {
-			nv_error(falcon, "ucode exceeds falcon limit(s)\n");
+			nvkm_error(subdev, "ucode exceeds falcon limit(s)\n");
 			return -EINVAL;
 		}
 
