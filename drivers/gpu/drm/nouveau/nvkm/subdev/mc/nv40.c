@@ -33,6 +33,9 @@ static const struct nvkm_mc_func
 nv40_mc = {
 	.init = nv04_mc_init,
 	.intr = nv04_mc_intr,
+	.intr_unarm = nv04_mc_intr_unarm,
+	.intr_rearm = nv04_mc_intr_rearm,
+	.intr_mask = nv04_mc_intr_mask,
 	.msi_rearm = nv40_mc_msi_rearm,
 };
 

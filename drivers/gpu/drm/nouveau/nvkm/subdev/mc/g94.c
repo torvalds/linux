@@ -27,6 +27,9 @@ static const struct nvkm_mc_func
 g94_mc = {
 	.init = nv50_mc_init,
 	.intr = nv50_mc_intr,
+	.intr_unarm = nv04_mc_intr_unarm,
+	.intr_rearm = nv04_mc_intr_rearm,
+	.intr_mask = nv04_mc_intr_mask,
 	.msi_rearm = nv40_mc_msi_rearm,
 };
 

@@ -10,6 +10,9 @@ struct nvkm_mc {
 	bool use_msi;
 };
 
+void nvkm_mc_intr_unarm(struct nvkm_mc *);
+void nvkm_mc_intr_rearm(struct nvkm_mc *);
+u32 nvkm_mc_intr_mask(struct nvkm_mc *);
 void nvkm_mc_unk260(struct nvkm_mc *, u32 data);
 
 int nv04_mc_new(struct nvkm_device *, int, struct nvkm_mc **);

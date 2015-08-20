@@ -32,13 +32,24 @@ nvkm_mc_unk260(struct nvkm_mc *mc, u32 data)
 		mc->func->unk260(mc, data);
 }
 
-static inline u32
+void
+nvkm_mc_intr_unarm(struct nvkm_mc *mc)
+{
+	return mc->func->intr_unarm(mc);
+}
+
+void
+nvkm_mc_intr_rearm(struct nvkm_mc *mc)
+{
+	return mc->func->intr_rearm(mc);
+}
+
+u32
 nvkm_mc_intr_mask(struct nvkm_mc *mc)
 {
-	struct nvkm_device *device = mc->subdev.device;
-	u32 intr = nvkm_rd32(device, 0x000100);
-	if (intr == 0xffffffff) /* likely fallen off the bus */
-		intr = 0x00000000;
+	u32 intr = mc->func->intr_mask(mc);
+	if (WARN_ON_ONCE(intr == 0xffffffff))
+		intr = 0; /* likely fallen off the bus */
 	return intr;
 }
 
@@ -52,8 +63,7 @@ nvkm_mc_intr(int irq, void *arg)
 	struct nvkm_subdev *unit;
 	u32 intr;
 
-	nvkm_wr32(device, 0x000140, 0x00000000);
-	nvkm_rd32(device, 0x000140);
+	nvkm_mc_intr_unarm(mc);
 	intr = nvkm_mc_intr_mask(mc);
 	if (mc->use_msi)
 		mc->func->msi_rearm(mc);
@@ -74,14 +84,15 @@ nvkm_mc_intr(int irq, void *arg)
 			nvkm_error(subdev, "unknown intr %08x\n", stat);
 	}
 
-	nvkm_wr32(device, 0x000140, 0x00000001);
+	nvkm_mc_intr_rearm(mc);
 	return intr ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int
 nvkm_mc_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	nvkm_wr32(subdev->device, 0x000140, 0x00000000);
+	struct nvkm_mc *mc = nvkm_mc(subdev);
+	nvkm_mc_intr_unarm(mc);
 	return 0;
 }
 
@@ -96,10 +107,9 @@ static int
 nvkm_mc_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_mc *mc = nvkm_mc(subdev);
-	struct nvkm_device *device = mc->subdev.device;
 	if (mc->func->init)
 		mc->func->init(mc);
-	nvkm_wr32(device, 0x000140, 0x00000001);
+	nvkm_mc_intr_rearm(mc);
 	return 0;
 }
 

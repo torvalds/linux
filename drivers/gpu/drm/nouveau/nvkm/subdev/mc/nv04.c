@@ -39,6 +39,27 @@ nv04_mc_intr[] = {
 };
 
 void
+nv04_mc_intr_unarm(struct nvkm_mc *mc)
+{
+	struct nvkm_device *device = mc->subdev.device;
+	nvkm_wr32(device, 0x000140, 0x00000000);
+	nvkm_rd32(device, 0x000140);
+}
+
+void
+nv04_mc_intr_rearm(struct nvkm_mc *mc)
+{
+	struct nvkm_device *device = mc->subdev.device;
+	nvkm_wr32(device, 0x000140, 0x00000001);
+}
+
+u32
+nv04_mc_intr_mask(struct nvkm_mc *mc)
+{
+	return nvkm_rd32(mc->subdev.device, 0x000100);
+}
+
+void
 nv04_mc_init(struct nvkm_mc *mc)
 {
 	struct nvkm_device *device = mc->subdev.device;
@@ -50,6 +71,9 @@ static const struct nvkm_mc_func
 nv04_mc = {
 	.init = nv04_mc_init,
 	.intr = nv04_mc_intr,
+	.intr_unarm = nv04_mc_intr_unarm,
+	.intr_rearm = nv04_mc_intr_rearm,
+	.intr_mask = nv04_mc_intr_mask,
 };
 
 int
